@@ -28,12 +28,12 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PAS)
 
 #define DEFINE_TRANSLATIONS
-#include "pas.h"
+#include <i386/isa/sound/pas.h>
 
 static int config_pas_hw __P((struct address_info *hw_config));
 static int detect_pas_hw __P((struct address_info *hw_config));

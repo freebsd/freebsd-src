@@ -28,7 +28,7 @@
  */
 
 #define _DEV_TABLE_C_
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 

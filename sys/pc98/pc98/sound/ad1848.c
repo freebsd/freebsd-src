@@ -36,11 +36,11 @@
 
 #define DEB(x)
 #define DEB1(x)
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_AD1848)
 
-#include "ad1848_mixer.h"
+#include <i386/isa/sound/ad1848_mixer.h>
 
 #define IMODE_NONE		0
 #define IMODE_OUTPUT		1
@@ -1397,7 +1397,7 @@ mozart_init (int io_base)
 #endif /* MOZART_PORT */
 
 #ifdef OPTI_MAD16_PORT
-#include "mad16.h"
+#include <i386/isa/sound/mad16.h>
 #endif
 
 /*

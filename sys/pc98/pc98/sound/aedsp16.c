@@ -225,7 +225,7 @@
  * Include the main voxware header file. It include all the os/voxware/etc
  * headers needed by this source.
  */
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 /*
  * all but ioport.h :)
  */

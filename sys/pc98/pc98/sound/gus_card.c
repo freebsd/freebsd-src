@@ -27,11 +27,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
-#include "gus_hw.h"
+#include <i386/isa/sound/gus_hw.h>
 
 int             gus_base, gus_irq, gus_dma;
 extern int      gus_wave_volume;

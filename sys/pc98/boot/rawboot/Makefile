@@ -1,17 +1,23 @@
-#	$Id: Makefile,v 1.2 1996/07/23 07:45:33 asami Exp $
+#	$Id: Makefile,v 1.1 1996/09/11 19:25:11 phk Exp $
 #
 
 PROG=	boot
+
 # Order is very important on the SRCS line for this prog
 SRCS=	start.S table.c boot2.S boot.c asm.S bios.S serial.S
-SRCS+=	probe_keyboard.c io.c disk.c sys.c
+SRCS+=  probe_keyboard.c io.c disk.c sys.c
+
+.PATH:	${.CURDIR}/../biosboot
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=		-O2 \
-		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
-CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS=         -O2 \
+		-DPC98 \
+		-DRAWBOOT \
+		-I${.CURDIR}/../biosboot \
+		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DCOMCONSOLE=0x30 -DCOMCONSOLE_CLK=16 -DCOMCONSOLE_MODE=0x0c
+CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
 #CFLAGS+=	-DPROBE_KEYBOARD
@@ -38,14 +44,10 @@ CFLAGS+=	-DCOMCONSOLE=0x30 -DCOMCONSOLE_CLK=16 -DCOMCONSOLE_MODE=0x0c
 # SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
+CLEANFILES+=	boot.nohdr boot.strip rawboot sizetest
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
 LDADD=		-lc
-#LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
-#		${BINDIR}/sdboot ${BINDIR}/fdboot\
-#		${BINDIR}/bootsd ${BINDIR}/bootwd\
-#		${BINDIR}/bootsd ${BINDIR}/bootfd
 NOSHARED=	YES
 NOMAN=
 STRIP=
@@ -70,30 +72,13 @@ boot.nohdr:	boot.strip
 	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
 	ls -l boot.nohdr
 
-boot1:		boot.nohdr
-	dd if=boot.nohdr of=boot1 bs=512 count=1
+rawboot:	boot.nohdr
+	dd if=boot.nohdr of=rawboot bs=8k count=1 conv=sync
 
-boot2:		boot.nohdr
-	dd if=boot.nohdr of=boot2 bs=512 skip=1
-	@dd if=boot2 skip=14 of=sizetest 2> /dev/null
-	@if [ -s sizetest ] ; then \
-		echo "boot2 is too big" >&2 ; \
-		rm boot2 ; \
-		exit 2 ; \
-	fi
-
-all:		boot1 boot2
+all:		rawboot 
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot1 ${DESTDIR}${BINDIR}/boot1
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot2 ${DESTDIR}${BINDIR}/boot2
-	for i in sd fd wd od vn ; do \
-		( cd ${DESTDIR}${BINDIR} ; \
-		rm -f boot$${i} $${i}boot ; \
-		ln -s boot1 $${i}boot ; \
-		ln -s boot2 boot$${i} ; ) \
-	done
+		rawboot ${DESTDIR}${BINDIR}/rawboot
 
 .include <bsd.prog.mk>
