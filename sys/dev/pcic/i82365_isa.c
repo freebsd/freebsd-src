@@ -134,7 +134,7 @@ pcic_isa_bus_width_probe (device_t dev)
 	struct resource *r;
 
 	base = rman_get_start(sc->port_res);
-	length = rman_get_end(sc->port_res) - rman_get_end(sc->port_res) + 1;
+	length = rman_get_size(sc->port_res);
 	iot = sc->iot;
 	ioh = sc->ioh;
 
