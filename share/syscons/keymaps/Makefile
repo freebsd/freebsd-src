@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.29 1998/06/13 18:39:22 steve Exp $
+# $Id: Makefile,v 1.30 1998/08/07 17:04:42 ache Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd
@@ -19,7 +19,7 @@ KEYMAPS+= swedish.iso.kbd swedish.cp850.kbd
 KEYMAPS+= swissfrench.iso.kbd
 KEYMAPS+= swissgerman.iso.kbd
 KEYMAPS+= uk.iso.kbd uk.cp850.kbd
-KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.unix.kbd
+KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.unix.kbd
 
 MAPSDIR = ${SHAREDIR}/syscons/keymaps
 NOMAN = noman
