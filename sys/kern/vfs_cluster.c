@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.36 1996/06/03 04:40:35 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.37 1996/07/27 18:49:18 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -368,18 +368,24 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 			m = tbp->b_pages[j];
 			++m->busy;
 			++m->object->paging_in_progress;
-			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) {
-				m = bogus_page;
-			}
 			if ((bp->b_npages == 0) ||
 				(bp->b_pages[bp->b_npages-1] != m)) {
 				bp->b_pages[bp->b_npages] = m;
 				bp->b_npages++;
 			}
+			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+				tbp->b_pages[j] = bogus_page;
 		}
 		bp->b_bcount += tbp->b_bcount;
 		bp->b_bufsize += tbp->b_bufsize;
 	}
+
+	for(j=0;j<bp->b_npages;j++) {
+		if ((bp->b_pages[j]->valid & VM_PAGE_BITS_ALL) ==
+			VM_PAGE_BITS_ALL)
+			bp->b_pages[j] = bogus_page;
+	}
+
 	pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 		(vm_page_t *)bp->b_pages, bp->b_npages);
 	return (bp);
