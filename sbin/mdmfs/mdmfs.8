@@ -45,6 +45,7 @@ driver
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
+.Op Fl l
 .Op Fl m Ar percent-free
 .Op Fl n Ar rotational-positions
 .Op Fl O Ar optimization
@@ -162,6 +163,8 @@ memory disk backed by
 The fragment size of the file system in bytes.
 .It Fl i Ar bytes
 Number of bytes per inode.
+.It Fl l
+Enables multilabel MAC on the new file system.
 .It Fl L
 Show the output of the helper programs.
 By default,
