@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.17 1996/08/12 11:48:48 peter Exp $ -->
+<!-- $Id: scsi.sgml,v 1.18 1996/08/18 17:04:41 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -94,7 +94,7 @@
 	stuff when you get that shiny 2Gb disk: I own a system on which a
 	pre-SCSI-1 disk, a SCSI-2 QIC tape unit, a SCSI-1 helical scan
 	tape unit and 2 SCSI-1 disks work together quite happily. From
-	a performance standpoint you might want to seperate your older
+	a performance standpoint you might want to separate your older
 	and newer (=faster) devices however.
 
     <sect2><heading>Components of SCSI</heading>
@@ -637,7 +637,7 @@ device          cd0     #Only need one of these, the code dynamically grows
           Experience has shown that some devices are slow to respond to INQUIRY 
 	  commands after a SCSI bus reset (which happens at boot time).
 	  An INQUIRY command is sent by the kernel on boot to see what
-	  kind of device (disk, tape, cdrom etc) is connected to a
+	  kind of device (disk, tape, CDROM etc) is connected to a
 	  specific target ID. This process is called device probing by the way.
 
 	  To work around the 'slow response' problem, FreeBSD allows a 
@@ -689,7 +689,7 @@ Mar 29 21:16:37 yedi /kernel: st1: Archive  Viper 150 is a known rogue
 
 	  This scheme works fine, but keep in mind that it of course only
 	  works for devices that are KNOWN to be weird. If you are the first
-          to connect your bogus Mumbletech SCSI cdrom you might be the one
+          to connect your bogus Mumbletech SCSI CDROM you might be the one
 	  that has to define which workaround is needed.
 
 	  After you got your Mumbletech working, please send the required
@@ -707,7 +707,7 @@ Mar 29 21:16:37 yedi /kernel: st1: Archive  Viper 150 is a known rogue
 
 	  This means that any devices with LUNs != 0 are not normally
 	  found during device probe on system boot. To work around this
-	  problem you must add an apropriate entry in /sys/scsi/scsiconf.c
+	  problem you must add an appropriate entry in /sys/scsi/scsiconf.c
 	  and rebuild your kernel.
 
 	  Look for a struct that is initialised like below:

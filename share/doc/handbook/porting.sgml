@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.28 1996/08/28 06:40:49 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -157,7 +157,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # $Id: porting.sgml,v 1.28 1996/08/28 06:40:49 asami Exp $
+ # $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -174,7 +174,7 @@ The pattern is the year followed by the month.
       <p>See if you can figure it out.  Do not worry about the contents
 	of the <tt>&dollar;Id&dollar;</tt> line, it will be filled in
 	automatically by CVS when the port is imported to our main
-	ports tree.  You can find a more detalied example in the <ref
+	ports tree.  You can find a more detailed example in the <ref
 	id="porting:samplem" name="sample Makefile"> section.
 
       <sect3>
@@ -773,7 +773,7 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	<enum>
 	  <item>If the port refers to the Motif library as
 	    `<tt>-lXm</tt>' in its Makefile or Imakefile, simply
-	    substitite `<tt>&dollar;{MOTIFLIB}</tt>' for it.
+	    substitute `<tt>&dollar;{MOTIFLIB}</tt>' for it.
 
 	  <item>If the port uses `<tt>XmClientLibs</tt>' in its
 	    Imakefile, change it to `<tt>&dollar;{MOTIFLIB}
@@ -1098,7 +1098,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.28 1996/08/28 06:40:49 asami Exp $
+ # $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $
  [ ^^^^ do not worry about this, I know it says "porting.sgml"...it
   will be automatically filled in by CVS when it is committed to our
   repository]
