@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.6 1996/05/31 16:01:50 wpaul Exp $
+ *	$Id: yp_main.c,v 1.4 1996/12/22 15:54:03 wpaul Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.6 1996/05/31 16:01:50 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.4 1996/12/22 15:54:03 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -85,6 +85,7 @@ char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
 int debug = 0;
 int do_dns = 0;
+int resfd;
 
 static
 void _msgout(char* msg)
@@ -109,6 +110,7 @@ yp_svc_run()
 	extern int forked;
 	int pid;
 	int fd_setsize = _rpc_dtablesize();
+	struct timeval timeout = { RESOLVER_TIMEOUT, 0 };
 
 	/* Establish the identity of the parent ypserv process. */
 	pid = getpid();
@@ -119,8 +121,12 @@ yp_svc_run()
 #else
 		readfds = svc_fds;
 #endif /* def FD_SETSIZE */
+
+		if (yp_dnsq_pending())
+			FD_SET(resfd, &readfds);
+
 		switch (select(fd_setsize, &readfds, NULL, NULL,
-			       (struct timeval *)0)) {
+			       &timeout)) {
 		case -1:
 			if (errno == EINTR) {
 				continue;
@@ -128,8 +134,13 @@ yp_svc_run()
 			perror("svc_run: - select failed");
 			return;
 		case 0:
-			continue;
+			yp_prune_dnsq();
+			break;
 		default:
+			if (FD_ISSET(resfd, &readfds)) {
+				yp_run_dnsq();
+				FD_CLR(resfd, &readfds);
+			}
 			svc_getreqset(&readfds);
 			if (forked && pid != getpid())
 				exit(0);
@@ -230,6 +241,7 @@ main(argc, argv)
 	}
 
 	load_securenets();
+	yp_init_resolver();
 #ifdef DB_CACHE
 	yp_init_dbs();
 #endif
