@@ -101,7 +101,8 @@ for other users");
 		master_yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 		master_yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		master_yppasswd.newpw.pw_class = strdup(pw->pw_class);
+		master_yppasswd.newpw.pw_class = pw->pw_class != NULL ?
+					strdup(pw->pw_class) : "";
 		master_yppasswd.oldpass = "";
 		master_yppasswd.domain = yp_domain;
 	} else {

@@ -55,8 +55,10 @@ If the current password is correctly typed, a new password is
 requested.
 The new password must be entered twice to avoid typing errors.
 .Pp
-The new password should be at least six characters long and not
-purely alphabetic.
+The new password should be at least six characters long (which
+may be overridden using the
+.Xr login.cap 5
+"minpasswordlen" setting for a user's login class) and not purely alphabetic.
 Its total length must be less than
 .Dv _PASSWORD_LEN
 (currently 128 characters).
@@ -75,6 +77,10 @@ When changing only the local password,
 .Xr pwd_mkdb  8
 is used to update the password databases.
 .El
+.Pp
+When changing local or NIS password, the next password change date
+is set according to "passwordperiod" capability in the user's
+login class.
 .Pp
 To change another user's Kerberos password, one must first
 run
@@ -174,12 +180,15 @@ The user database
 A Version 7 format password file
 .It Pa /etc/passwd.XXXXXX
 Temporary copy of the password file
+.It Pa /etc/login.conf
+Login class capabilities database
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr kerberos 1 ,
 .Xr kinit 1 ,
 .Xr login 1 ,
+.Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr kpasswdd 8 ,
 .Xr pwd_mkdb 8 ,

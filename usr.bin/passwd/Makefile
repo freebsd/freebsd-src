@@ -1,19 +1,22 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.20 1996/11/03 03:11:54 jkh Exp $
+# $Id: Makefile,v 1.19.2.1 1996/11/05 20:13:30 phk Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
 	passwd.c pw_copy.c pw_util.c pw_yp.c
 
-DPADD=	${LIBCRYPT} ${LIBRPCSVC}
-LDADD=	-lcrypt -lrpcsvc
+DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
+LDADD=	-lcrypt -lrpcsvc -lutil
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../rlogin ${.CURDIR}/../../libexec/ypxfr \
 	${.CURDIR}/../../usr.sbin/rpc.yppasswdd
 
-CFLAGS+= -DCRYPT -DYP -I. -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
-	-I${.CURDIR}/../../usr.bin/chpass -I${.CURDIR}/../../libexec/ypxfr \
-	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx -DLOGGING
+CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
+	-I${.CURDIR}/../../usr.sbin/vipw \
+	-I${.CURDIR}/../../usr.bin/chpass \
+	-I${.CURDIR}/../../libexec/ypxfr \
+	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd \
+	-Dyp_error=warnx -DLOGGING
 
 SRCS+= ypxfr_misc.c yp_clnt.c yppasswd_clnt.c
 
@@ -59,14 +62,16 @@ CFLAGS+=	-DKERBEROS \
 		-I${.CURDIR}/../../eBones/include \
 		-I${.CURDIR}/../../eBones/lib/libkadm
 # XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
-DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR}
-LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err
+DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
+LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err -lutil
 DISTRIBUTION=	krb
 .endif
 
 beforeinstall:
-	[ ! -e ${DESTDIR}${BINDIR}/passwd ] || \
-		chflags noschg ${DESTDIR}${BINDIR}/passwd
+.for i in passwd yppasswd
+	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
+		chflags noschg ${DESTDIR}${BINDIR}/$i
+.endfor
 
 afterinstall:
 	chflags schg ${DESTDIR}${BINDIR}/passwd

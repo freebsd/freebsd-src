@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.10 1996/11/03 03:11:57 jkh Exp $
+ * $Id: local_passwd.c,v 1.9.2.1 1996/11/05 20:13:31 phk Exp $
  */
 
 #ifndef lint
@@ -60,6 +60,10 @@ static const char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #include <syslog.h>
 #endif
 
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#endif
+
 #include "extern.h"
 
 static uid_t uid;
@@ -86,8 +90,11 @@ getnewpasswd(pw, nis)
 	struct passwd *pw;
 	int nis;
 {
-	int tries;
+	int tries, min_length = 6;
 	char *p, *t;
+#ifdef LOGIN_CAP
+	login_cap_t * lc;
+#endif
 	char buf[_PASSWORD_LEN+1], salt[10];
 	struct timeval tv;
 
@@ -101,14 +108,34 @@ getnewpasswd(pw, nis)
 		pw_error(NULL, 1, 1);
 	}
 
+#ifdef LOGIN_CAP
+	/*
+	 * Determine minimum password length and next password change date.
+	 * Note that even for NIS passwords, login_cap is still used.
+	 */
+	if ((lc = login_getpwclass(pw)) != NULL) {
+		time_t	period;
+
+		/* minpasswordlen capablity */
+		min_length = (int)login_getcapnum(lc, "minpasswordlen",
+				min_length, min_length);
+		/* passwordperiod capability */
+		period = login_getcaptime(lc, "passwordperiod", 0, 0);
+		if (period > (time_t)0) {
+			pw->pw_change = time(NULL) + period;
+		}
+		login_close(lc);
+	}
+#endif
+
 	for (buf[0] = '\0', tries = 0;;) {
 		p = getpass("New password:");
 		if (!*p) {
 			(void)printf("Password unchanged.\n");
 			pw_error(NULL, 0, 0);
 		}
-		if (strlen(p) <= 5 && (uid != 0 || ++tries < 2)) {
-			(void)printf("Please enter a longer password.\n");
+		if (strlen(p) < min_length && (uid != 0 || ++tries < 2)) {
+			(void)printf("Please enter a password at least %d characters in length.\n", min_length);
 			continue;
 		}
 		for (t = p; *t && islower(*t); ++t);
@@ -172,12 +199,14 @@ local_passwd(uname)
 	tfd = pw_tmp();
 
 	/*
-	 * Get the new password.  Reset passwd change time to zero; when
-	 * classes are implemented, go and get the "offset" value for this
-	 * class and reset the timer.
+	 * Get the new password.  Reset passwd change time to zero by
+	 * default. If the user has a valid login class (or the default
+	 * fallback exists), then the next password change date is set
+	 * by getnewpasswd() according to the "passwordperiod" capability
+	 * if one has been specified.
 	 */
-	pw->pw_passwd = getnewpasswd(pw, 0);
 	pw->pw_change = 0;
+	pw->pw_passwd = getnewpasswd(pw, 0);
 	pw_copy(pfd, tfd, pw);
 
 	if (!pw_mkdb(uname))
