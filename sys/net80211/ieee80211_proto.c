@@ -102,6 +102,7 @@ ieee80211_proto_attach(struct ifnet *ifp)
 #endif
 	ic->ic_fragthreshold = 2346;		/* XXX not used yet */
 	ic->ic_fixed_rate = -1;			/* no fixed rate */
+	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 
 	mtx_init(&ic->ic_mgtq.ifq_mtx, ifp->if_xname, "mgmt send q", MTX_DEF);
 
