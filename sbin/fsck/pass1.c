@@ -32,23 +32,26 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass1.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <stdlib.h>
+
+#include <err.h>
 #include <string.h>
+
 #include "fsck.h"
 
-static daddr_t badblk;
-static daddr_t dupblk;
-int pass1check();
-struct dinode *getnextinode();
+static ufs_daddr_t badblk;
+static ufs_daddr_t dupblk;
+static void checkinode __P((ino_t inumber, struct inodesc *));
 
+void
 pass1()
 {
 	ino_t inumber;
@@ -71,7 +74,7 @@ pass1()
 	/*
 	 * Find all allocated blocks.
 	 */
-	bzero((char *)&idesc, sizeof(struct inodesc));
+	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass1check;
 	inumber = 0;
@@ -87,6 +90,7 @@ pass1()
 	freeinodebuf();
 }
 
+static void
 checkinode(inumber, idesc)
 	ino_t inumber;
 	register struct inodesc *idesc;
@@ -95,15 +99,15 @@ checkinode(inumber, idesc)
 	struct zlncnt *zlnp;
 	int ndb, j;
 	mode_t mode;
-	char symbuf[MAXSYMLINKLEN];
+	char *symbuf;
 
 	dp = getnextinode(inumber);
 	mode = dp->di_mode & IFMT;
 	if (mode == 0) {
-		if (bcmp((char *)dp->di_db, (char *)zino.di_db,
-			NDADDR * sizeof(daddr_t)) ||
-		    bcmp((char *)dp->di_ib, (char *)zino.di_ib,
-			NIADDR * sizeof(daddr_t)) ||
+		if (memcmp(dp->di_db, zino.di_db,
+			NDADDR * sizeof(ufs_daddr_t)) ||
+		    memcmp(dp->di_ib, zino.di_ib,
+			NIADDR * sizeof(ufs_daddr_t)) ||
 		    dp->di_mode || dp->di_size) {
 			pfatal("PARTIALLY ALLOCATED INODE I=%lu", inumber);
 			if (reply("CLEAR") == 1) {
@@ -117,7 +121,8 @@ checkinode(inumber, idesc)
 	}
 	lastino = inumber;
 	if (/* dp->di_size < 0 || */
-	    dp->di_size + sblock.fs_bsize - 1 < dp->di_size) {
+	    dp->di_size + sblock.fs_bsize - 1 < dp->di_size ||
+	    (mode == IFDIR && dp->di_size > MAXDIRSIZE)) {
 		if (debug)
 			printf("bad size %qu:", dp->di_size);
 		goto unknown;
@@ -141,18 +146,18 @@ checkinode(inumber, idesc)
 		if (doinglevel2 &&
 		    dp->di_size > 0 && dp->di_size < MAXSYMLINKLEN &&
 		    dp->di_blocks != 0) {
+			symbuf = alloca(secsize);
 			if (bread(fsreadfd, symbuf,
 			    fsbtodb(&sblock, dp->di_db[0]),
-			    (long)dp->di_size) != 0)
-				errexit("cannot read symlink");
+			    (long)secsize) != 0)
+				errx(EEXIT, "cannot read symlink");
 			if (debug) {
 				symbuf[dp->di_size] = 0;
 				printf("convert symlink %d(%s) of size %d\n",
 					inumber, symbuf, (long)dp->di_size);
 			}
 			dp = ginode(inumber);
-			bcopy(symbuf, (caddr_t)dp->di_shortlink,
-			    (long)dp->di_size);
+			memmove(dp->di_shortlink, symbuf, (long)dp->di_size);
 			dp->di_blocks = 0;
 			inodirty();
 		}
@@ -161,7 +166,7 @@ checkinode(inumber, idesc)
 		 * will detect any garbage after symlink string.
 		 */
 		if (dp->di_size < sblock.fs_maxsymlinklen) {
-			ndb = howmany(dp->di_size, sizeof(daddr_t));
+			ndb = howmany(dp->di_size, sizeof(ufs_daddr_t));
 			if (ndb > NDADDR) {
 				j = ndb - NDADDR;
 				for (ndb = 1; j > 1; j--)
@@ -194,7 +199,7 @@ checkinode(inumber, idesc)
 		if (zlnp == NULL) {
 			pfatal("LINK COUNT TABLE OVERFLOW");
 			if (reply("CONTINUE") == 0)
-				errexit("");
+				exit(EEXIT);
 		} else {
 			zlnp->zlncnt = inumber;
 			zlnp->next = zlnhead;
@@ -246,12 +251,13 @@ unknown:
 	}
 }
 
+int
 pass1check(idesc)
 	register struct inodesc *idesc;
 {
 	int res = KEEPON;
 	int anyout, nfrags;
-	daddr_t blkno = idesc->id_blkno;
+	ufs_daddr_t blkno = idesc->id_blkno;
 	register struct dups *dlp;
 	struct dups *new;
 
@@ -263,7 +269,7 @@ pass1check(idesc)
 			if (preen)
 				printf(" (SKIPPING)\n");
 			else if (reply("CONTINUE") == 0)
-				errexit("");
+				exit(EEXIT);
 			return (STOP);
 		}
 	}
@@ -281,14 +287,14 @@ pass1check(idesc)
 				if (preen)
 					printf(" (SKIPPING)\n");
 				else if (reply("CONTINUE") == 0)
-					errexit("");
+					exit(EEXIT);
 				return (STOP);
 			}
 			new = (struct dups *)malloc(sizeof(struct dups));
 			if (new == NULL) {
 				pfatal("DUP TABLE OVERFLOW.");
 				if (reply("CONTINUE") == 0)
-					errexit("");
+					exit(EEXIT);
 				return (STOP);
 			}
 			new->dup = blkno;

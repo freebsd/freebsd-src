@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lfs.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)lfs.c	8.5 (Berkeley) 5/24/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@ static struct lfs lfs_default =  {
 	/* lfs_ssize */		DFL_LFSSEG/DFL_LFSBLOCK,
 	/* lfs_dsize */		0,
 	/* lfs_bsize */		DFL_LFSBLOCK,
-	/* lfs_fsize */		DFL_LFSBLOCK,
+	/* lfs_fsize */		DFL_LFSFRAG,
 	/* lfs_frag */		1,
 	/* lfs_free */		LFS_FIRST_INUM,
 	/* lfs_bfree */		0,
@@ -121,10 +121,10 @@ static struct lfs lfs_default =  {
 	/* lfs_segshift */	DFL_LFSSEG_SHIFT,
 	/* lfs_bmask */		DFL_LFSBLOCK_MASK,
 	/* lfs_bshift */	DFL_LFSBLOCK_SHIFT,
-	/* lfs_ffmask */	0,
-	/* lfs_ffshift */	0,
-	/* lfs_fbmask */	0,
-	/* lfs_fbshift */	0,
+	/* lfs_ffmask */	DFL_LFS_FFMASK,
+	/* lfs_ffshift */	DFL_LFS_FFSHIFT,
+	/* lfs_fbmask */	DFL_LFS_FBMASK,
+	/* lfs_fbshift */	DFL_LFS_FBSHIFT,
 	/* lfs_fsbtodb */	0,
 	/* lfs_sushift */	0,
 	/* lfs_sboffs */	{ 0 },
@@ -143,7 +143,8 @@ static struct lfs lfs_default =  {
 	/* lfs_flags */		0,
 	/* lfs_fsmnt */		{ 0 },
 	/* lfs_pad */		{ 0 },
-	/* lfs_cksum */		0
+	/* lfs_cksum */		0,
+	/* lfs_maxsymlinklen */ MAXSYMLINKLEN
 };
 
 
@@ -165,12 +166,13 @@ static void make_dir __P(( void *, struct direct *, int));
 static void put __P((int, off_t, void *, size_t));
 
 int
-make_lfs(fd, lp, partp, minfree, block_size, seg_size)
+make_lfs(fd, lp, partp, minfree, block_size, frag_size, seg_size)
 	int fd;
 	struct disklabel *lp;
 	struct partition *partp;
 	int minfree;
 	int block_size;
+	int frag_size;
 	int seg_size;
 {
 	struct dinode *dip;	/* Pointer to a disk inode */
@@ -196,6 +198,7 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	u_long *datasump;	/* Used to computed checksum on data */
 	int block_array_size;	/* How many entries in block array */
 	int bsize;		/* Block size */
+	int fsize;		/* Fragment size */
 	int db_per_fb;		/* Disk blocks per file block */
 	int i, j;
 	int off;		/* Offset at which to write */
@@ -208,18 +211,27 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 
 	if (!(bsize = block_size))
 		bsize = DFL_LFSBLOCK;
+	if (!(fsize = frag_size))
+		fsize = DFL_LFSFRAG;
 	if (!(ssize = seg_size))
 		ssize = DFL_LFSSEG;
 
 	/* Modify parts of superblock overridden by command line arguments */
-	if (bsize != DFL_LFSBLOCK) {
+	if (bsize != DFL_LFSBLOCK || fsize != DFL_LFSFRAG) {
 		lfsp->lfs_bshift = log2(bsize);
 		if (1 << lfsp->lfs_bshift != bsize)
 			fatal("%d: block size not a power of 2", bsize);
 		lfsp->lfs_bsize = bsize;
-		lfsp->lfs_fsize = bsize;
+		lfsp->lfs_fsize = fsize;
 		lfsp->lfs_bmask = bsize - 1;
 		lfsp->lfs_inopb = bsize / sizeof(struct dinode);
+		lfsp->lfs_ffmask = fsize - 1;
+		lfsp->lfs_ffshift = log2(fsize);
+		if (1 << lfsp->lfs_ffshift != fsize)
+			fatal("%d: frag size not a power of 2", fsize);
+		lfsp->lfs_frag = numfrags(lfsp, bsize);
+		lfsp->lfs_fbmask = lfsp->lfs_frag - 1;
+		lfsp->lfs_fbshift = log2(lfsp->lfs_frag);
 /* MIS -- should I round to power of 2 */
 		lfsp->lfs_ifpb = bsize / sizeof(IFILE);
 		lfsp->lfs_sepb = bsize / sizeof(SEGUSE);
@@ -363,7 +375,7 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	if (!(dpagep = malloc(lfsp->lfs_bsize)))
 		fatal("%s", strerror(errno));
 	dip = (struct dinode *)dpagep;
-	bzero(dip, lfsp->lfs_bsize);
+	memset(dip, 0, lfsp->lfs_bsize);
 
 	/* Create a block of IFILE structures. */
 	if (!(ipagep = malloc(lfsp->lfs_bsize)))
@@ -455,14 +467,14 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	 */
 
 	/* Write out the root and lost and found directories */
-	bzero(ipagep, lfsp->lfs_bsize);
+	memset(ipagep, 0, lfsp->lfs_bsize);
 	make_dir(ipagep, lfs_root_dir, 
 	    sizeof(lfs_root_dir) / sizeof(struct direct));
 	*dp++ = ((u_long *)ipagep)[0];
 	put(fd, off, ipagep, lfsp->lfs_bsize);
 	off += lfsp->lfs_bsize;
 
-	bzero(ipagep, lfsp->lfs_bsize);
+	memset(ipagep, 0, lfsp->lfs_bsize);
 	make_dir(ipagep, lfs_lf_dir, 
 		sizeof(lfs_lf_dir) / sizeof(struct direct));
 	*dp++ = ((u_long *)ipagep)[0];
@@ -481,6 +493,7 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	summary.ss_create = lfsp->lfs_tstamp;
 	summary.ss_nfinfo = 3;
 	summary.ss_ninos = 3;
+	summary.ss_magic = SS_MAGIC;
 	summary.ss_datasum = cksum(datasump, sizeof(u_long) * blocks_used);
 
 	/*
@@ -511,30 +524,32 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 
 	/* copy into segment */
 	sump = ipagep;
-	bcopy(&summary, sump, sizeof(SEGSUM));
+	memmove(sump, &summary, sizeof(SEGSUM));
 	sump += sizeof(SEGSUM);
 
 	/* Now, add the ifile */
 	file_info.fi_nblocks = block_array_size;
 	file_info.fi_version = 1;
+	file_info.fi_lastlength = lfsp->lfs_bsize;
 	file_info.fi_ino = LFS_IFILE_INUM;
 
-	bcopy(&file_info, sump, sizeof(FINFO) - sizeof(u_long));
+	memmove(sump, &file_info, sizeof(FINFO) - sizeof(u_long));
 	sump += sizeof(FINFO) - sizeof(u_long);
-	bcopy(block_array, sump, sizeof(u_long) * file_info.fi_nblocks);
+	memmove(sump, block_array, sizeof(u_long) * file_info.fi_nblocks);
 	sump += sizeof(u_long) * file_info.fi_nblocks;
 
 	/* Now, add the root directory */
 	file_info.fi_nblocks = 1;
 	file_info.fi_version = 1;
+	file_info.fi_lastlength = lfsp->lfs_bsize;
 	file_info.fi_ino = ROOTINO;
 	file_info.fi_blocks[0] = 0;
-	bcopy(&file_info, sump, sizeof(FINFO));
+	memmove(sump, &file_info, sizeof(FINFO));
 	sump += sizeof(FINFO);
 
 	/* Now, add the lost and found */
 	file_info.fi_ino = LOSTFOUNDINO;
-	bcopy(&file_info, sump, sizeof(FINFO));
+	memmove(sump, &file_info, sizeof(FINFO));
 
 	((daddr_t *)ipagep)[LFS_SUMMARY_SIZE / sizeof(daddr_t) - 1] = 
 	    lfsp->lfs_idaddr;
@@ -547,6 +562,7 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	sp->ss_nfinfo = 0;
 	sp->ss_ninos = 0;
 	sp->ss_datasum = 0;
+	sp->ss_magic = SS_MAGIC;
 
 	/* Now write the summary block for the next partial so it's invalid */
 	lfsp->lfs_tstamp = 0;
@@ -605,10 +621,6 @@ put(fd, off, p, len)
  * directory.
  */
 
-	u_long	d_ino;			/* inode number of entry */
-	u_short	d_reclen;		/* length of this record */
-	u_short	d_namlen;		/* length of string in d_name */
-	char	d_name[MAXNAMLEN + 1];	/* name with length <= MAXNAMLEN */
 void
 lfsinit()
 {}
@@ -627,10 +639,8 @@ make_dinode(ino, dip, nblocks, saddr, lfsp)
 	dip->di_blocks = nblocks << lfsp->lfs_fsbtodb;
 
 	dip->di_size = (nblocks << lfsp->lfs_bshift);
-	dip->di_atime.ts_sec = dip->di_mtime.ts_sec =
-	    dip->di_ctime.ts_sec = lfsp->lfs_tstamp;
-	dip->di_atime.ts_nsec = dip->di_mtime.ts_nsec =
-	    dip->di_ctime.ts_nsec = 0;
+	dip->di_atime = dip->di_mtime = dip->di_ctime = lfsp->lfs_tstamp;
+	dip->di_atimensec = dip->di_mtimensec = dip->di_ctimensec = 0;
 	dip->di_inumber = ino;
 
 #define	SEGERR \
@@ -663,11 +673,11 @@ make_dir(bufp, protodir, entries)
 	spcleft = DIRBLKSIZ;
 	for (cp = bufp, i = 0; i < entries - 1; i++) {
 		protodir[i].d_reclen = DIRSIZ(NEWDIRFMT, &protodir[i]);
-		bcopy(&protodir[i], cp, protodir[i].d_reclen);
+		memmove(cp, &protodir[i], protodir[i].d_reclen);
 		cp += protodir[i].d_reclen;
 		if ((spcleft -= protodir[i].d_reclen) < 0)
 			fatal("%s: %s", special, "directory too big");
 	}
 	protodir[i].d_reclen = spcleft;
-	bcopy(&protodir[i], cp, DIRSIZ(NEWDIRFMT, &protodir[i]));
+	memmove(cp, &protodir[i], DIRSIZ(NEWDIRFMT, &protodir[i]));
 }

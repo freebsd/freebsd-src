@@ -1,4 +1,4 @@
-.\" Copyright (c) 1992, 1993, 1994
+.\" Copyright (c) 1992, 1993, 1994, 1995
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)mount_nfs.8	8.2 (Berkeley) 3/27/94
+.\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\"
-.Dd March 27, 1994
+.Dd March 29, 1995
 .Dt MOUNT_NFS 8
 .Os BSD 4.4
 .Sh NAME
@@ -39,8 +39,9 @@
 .Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm mount_nfs
-.Op Fl KMPTbcdiklqs
+.Op Fl 3KPTUbcdilqs
 .Op Fl D Ar deadthresh
+.Op Fl I Ar readdirsize
 .Op Fl L Ar leaseterm
 .Op Fl R Ar retrycnt
 .Op Fl a Ar maxreadahead
@@ -63,10 +64,14 @@ on to the file system tree at the point
 .Ar node.
 This command is normally executed by
 .Xr mount 8 .
-It implements the mount protocol as described in RFC 1094, Appendix A.
+It implements the mount protocol as described in RFC 1094, Appendix A and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I.
 .Pp
 The options are:
 .Bl -tag -width indent
+.It Fl 3
+Use the NFS Version 3 protocol (Version 2 is the default).
 .It Fl D
 Used with NQNFS to set the
 .Dq "dead server threshold"
@@ -80,23 +85,27 @@ Values may be set in the range of 1 - 9, with 9 referring to an
 (i.e. never assume cached data still valid).
 This option is not generally recommended and is really an experimental
 feature.
+.It Fl I
+Set the readdir read size to the specified value. The value should normally
+be a multiple of DIRBLKSIZ that is <= the read size for the mount.
 .It Fl K
 Pass Kerberos authenticators to the server for client-to-server
 user-credential mapping.
-This may only be used over TCP mounts between 4.4BSD clients and servers.
+This requires that the kernel be built with the NFSKERB option.
+(Refer to the INTERNET-DRAFT titled
+.%T "Authentication Mechanisms for ONC RPC" ,
+for more information.)
 .It Fl L
 Used with NQNFS to set the lease term to the specified number of seconds.
 Only use this argument for mounts with a large round trip delay.
 Values are normally in the 10-30 second range.
-.It Fl M
-Assume that other clients are not writing a file concurrently with this client.
-This implements a slightly less strict consistency criteria than 4.3BSD-Reno
-did, that is more in line with most commercial client implementations.
-This is recommended for servers that do not support leasing.
 .It Fl P
 Use a reserved socket port number.
 This is useful for mounting servers that require clients to use a
-reserved port number.
+reserved port number on the mistaken belief that this makes NFS
+more secure. (For the rare case where the client has a trusted root account
+but untrusworthy users and the network cables are in secure areas this does
+help, but for normal desktop clients this does not apply.)
 .It Fl R
 Set the retry count for doing the mount to the specified value.
 .It Fl T
@@ -104,11 +113,15 @@ Use TCP transport instead of UDP.
 This is recommended for servers that are not on the same LAN cable as
 the client.
 (NB: This is NOT supported by most non-BSD servers.)
+.It Fl U
+Force the mount protocol to use UDP transport, even for TCP NFS mounts.
+(Necessary for some old BSD servers.)
 .It Fl a
 Set the read-ahead count to the specified value.
 This may be in the range of 0 - 4, and determines how many blocks
 will be read ahead when a large file is being read sequentially.
-This is recommended for mounts with a large bandwidth * delay product.
+Trying a value greater than 1 for this is suggested for
+mounts with a large bandwidth * delay product.
 .It Fl b
 If an initial attempt to contact the server fails, fork off a child to keep
 trying the mount in the background.
@@ -119,10 +132,12 @@ where the filesystem mount is not critical to multiuser operation.
 For UDP mount points, do not do a
 .Xr connect 2 .
 This must be used for servers that do not reply to requests from the
-standard port number.
+standard NFS port number 2049.
 .It Fl d
-Do not estimate retransmit timeout dynamically.
-This may be useful for UDP mounts that exhibit high retry rates.
+Turn off the dynamic retransmit timeout estimator.
+This may be useful for UDP mounts that exhibit high retry rates,
+since it is possible that the dynamically estimated timeout interval is too
+short.
 .It Fl g
 Set the maximum size of the group list for the credentials to the
 specified value.
@@ -134,20 +149,15 @@ point.
 Make the mount interruptible, which implies that file system calls that
 are delayed due to an unresponsive server will fail with EINTR when a
 termination signal is posted for the process.
-.It Fl k
-Used with NQNFS to specify
-.Dq get a lease
-for the file name being looked up.
-This is recommended unless the server is complaining about excessive
-lease load.
 .It Fl l
-Used with NQNFS to specify that the \fBReaddir_and_Lookup\fR RPC should
+Used with NQNFS and NFSV3 to specify that the \fBReaddirPlus\fR RPC should
 be used.
 This option reduces RPC traffic for cases such as
 .Dq "ls -l" ,
-but increases the lease load on the server.
-This is recommended unless the server is complaining about excessive
-lease load.
+but tends to flood the attribute and name caches with prefetched entries.
+Try this option and see whether performance improves or degrades. Probably
+most useful for client to server network interconnects with a large bandwidth
+times delay product.
 .It Fl m
 Set the Kerberos realm to the string argument.
 Used with the
@@ -161,12 +171,18 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 .It Fl q
-Use the leasing extensions to the protocol to maintain cache consistency.
-This protocol, referred to as Not Quite Nfs (NQNFS),
-is only supported by 4.4BSD servers.
+Use the leasing extensions to the NFS Version 3 protocol
+to maintain cache consistency.
+This protocol version 2 revision to Not Quite Nfs (NQNFS)
+is only supported by this updated release of NFS code.
+It is not backwards compatible with the version 1 NQNFS protocol
+that was part of the first release of 4.4BSD-Lite.
+To interoperate with a first release 4.4BSD-Lite NFS system you will have to
+avoid this option until you have had an oppurtunity to upgrade the NFS code
+to release 2 of 4.4BSD-Lite on all your systems.
 .It Fl r
 Set the read data size to the specified value.
-It should be a power of 2 greater than or equal to 1024.
+It should normally be a power of 2 greater than or equal to 1024.
 This should be used for UDP mounts when the
 .Dq "fragments dropped due to timeout"
 value is getting large while actively using a mount point.
@@ -191,6 +207,9 @@ Try increasing the interval if
 .Xr nfsstat 1
 shows high retransmit rates while the file system is active or reducing the
 value if there is a low retransmit rate but long response delay observed.
+(Normally, the -d option should be specified when using this option to manually
+tune the timeout
+interval.)
 .It Fl w
 Set the write data size to the specified value.
 Ditto the comments w.r.t. the

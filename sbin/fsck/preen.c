@@ -32,19 +32,20 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)preen.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+
+#include <ufs/ufs/dinode.h>
+
+#include <ctype.h>
 #include <fstab.h>
 #include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
 
-char	*rawname(), *unrawname(), *blockcheck();
+#include "fsck.h"
 
 struct part {
 	struct	part *next;		/* forward link of partitions on disk */
@@ -63,9 +64,19 @@ struct disk {
 int	nrun, ndisks;
 char	hotroot;
 
+static void addpart __P((char *name, char *fsname, long auxdata));
+static struct disk *finddisk __P((char *name));
+static char *rawname __P((char *name));
+static int startdisk __P((struct disk *dk,
+		int (*checkit)(char *, char *, long, int)));
+static char *unrawname __P((char *name));
+
+int
 checkfstab(preen, maxrun, docheck, chkit)
-	int preen, maxrun;
-	int (*docheck)(), (*chkit)();
+	int preen;
+	int maxrun;
+	int (*docheck)(struct fstab *);
+	int (*chkit)(char *, char *, long, int);
 {
 	register struct fstab *fsp;
 	register struct disk *dk, *nextdisk;
@@ -84,10 +95,11 @@ checkfstab(preen, maxrun, docheck, chkit)
 		while ((fsp = getfsent()) != 0) {
 			if ((auxdata = (*docheck)(fsp)) == 0)
 				continue;
-			if (preen == 0 || passno == 1 && fsp->fs_passno == 1) {
-				if (name = blockcheck(fsp->fs_spec)) {
-					if (sumstatus = (*chkit)(name,
-					    fsp->fs_file, auxdata, 0))
+			if (preen == 0 ||
+			    (passno == 1 && fsp->fs_passno == 1)) {
+				if ((name = blockcheck(fsp->fs_spec)) != 0) {
+					if ((sumstatus = (*chkit)(name,
+					    fsp->fs_file, auxdata, 0)) != 0)
 						return (sumstatus);
 				} else if (preen)
 					return (8);
@@ -111,7 +123,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 			maxrun = ndisks;
 		nextdisk = disks;
 		for (passno = 0; passno < maxrun; ++passno) {
-			while (ret = startdisk(nextdisk, chkit) && nrun > 0)
+			while ((ret = startdisk(nextdisk, chkit)) && nrun > 0)
 				sleep(10);
 			if (ret)
 				return (ret);
@@ -150,7 +162,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 
 			if (nextdisk == NULL) {
 				if (dk->part) {
-					while (ret = startdisk(dk, chkit) &&
+					while ((ret = startdisk(dk, chkit)) &&
 					    nrun > 0)
 						sleep(10);
 					if (ret)
@@ -164,7 +176,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 					    nextdisk->pid == 0)
 						break;
 				}
-				while (ret = startdisk(nextdisk, chkit) &&
+				while ((ret = startdisk(nextdisk, chkit)) &&
 				    nrun > 0)
 					sleep(10);
 				if (ret)
@@ -186,7 +198,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 	return (0);
 }
 
-struct disk *
+static struct disk *
 finddisk(name)
 	char *name;
 {
@@ -194,13 +206,11 @@ finddisk(name)
 	register char *p;
 	size_t len;
 
-	for (p = name + strlen(name) - 1; p >= name; --p)
+	for (len = strlen(name), p = name + len - 1; p >= name; --p)
 		if (isdigit(*p)) {
 			len = p - name + 1;
 			break;
 		}
-	if (p < name)
-		len = strlen(name);
 
 	for (dk = disks, dkp = &disks; dk; dkp = &dk->next, dk = dk->next) {
 		if (strncmp(dk->name, name, len) == 0 &&
@@ -225,6 +235,7 @@ finddisk(name)
 	return (dk);
 }
 
+static void
 addpart(name, fsname, auxdata)
 	char *name, *fsname;
 	long auxdata;
@@ -256,9 +267,10 @@ addpart(name, fsname, auxdata)
 	pt->auxdata = auxdata;
 }
 
+static int
 startdisk(dk, checkit)
 	register struct disk *dk;
-	int (*checkit)();
+	int (*checkit)(char *, char *, long, int);
 {
 	register struct part *pt = dk->part;
 
@@ -274,57 +286,61 @@ startdisk(dk, checkit)
 }
 
 char *
-blockcheck(name)
-	char *name;
+blockcheck(origname)
+	char *origname;
 {
 	struct stat stslash, stblock, stchar;
-	char *raw;
+	char *newname, *raw;
 	int retried = 0;
 
 	hotroot = 0;
 	if (stat("/", &stslash) < 0) {
 		perror("/");
 		printf("Can't stat root\n");
-		return (0);
+		return (origname);
 	}
+	newname = origname;
 retry:
-	if (stat(name, &stblock) < 0) {
-		perror(name);
-		printf("Can't stat %s\n", name);
-		return (0);
+	if (stat(newname, &stblock) < 0) {
+		perror(newname);
+		printf("Can't stat %s\n", newname);
+		return (origname);
 	}
 	if ((stblock.st_mode & S_IFMT) == S_IFBLK) {
 		if (stslash.st_dev == stblock.st_rdev)
 			hotroot++;
-		raw = rawname(name);
+		raw = rawname(newname);
 		if (stat(raw, &stchar) < 0) {
 			perror(raw);
 			printf("Can't stat %s\n", raw);
-			return (name);
+			return (origname);
 		}
 		if ((stchar.st_mode & S_IFMT) == S_IFCHR) {
 			return (raw);
 		} else {
 			printf("%s is not a character device\n", raw);
-			return (name);
+			return (origname);
 		}
 	} else if ((stblock.st_mode & S_IFMT) == S_IFCHR && !retried) {
-		name = unrawname(name);
+		newname = unrawname(newname);
 		retried++;
 		goto retry;
 	}
-	printf("Can't make sense out of name %s\n", name);
-	return (0);
+	/*
+	 * Not a block or character device, just return name and
+	 * let the user decide whether to use it.
+	 */
+	return (origname);
 }
 
-char *
+static char *
 unrawname(name)
 	char *name;
 {
 	char *dp;
 	struct stat stb;
 
-	if ((dp = rindex(name, '/')) == 0)
+	if ((dp = strrchr(name, '/')) == 0)
 		return (name);
 	if (stat(name, &stb) < 0)
 		return (name);
@@ -336,14 +352,14 @@ unrawname(name)
 	return (name);
 }
 
-char *
+static char *
 rawname(name)
 	char *name;
 {
 	static char rawbuf[32];
 	char *dp;
 
-	if ((dp = rindex(name, '/')) == 0)
+	if ((dp = strrchr(name, '/')) == 0)
 		return (0);
 	*dp = 0;
 	(void)strcpy(rawbuf, name);

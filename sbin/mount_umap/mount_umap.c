@@ -41,7 +41,7 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -104,7 +104,7 @@ main(argc, argv)
 			gmapfile = optarg;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'u':
 			mapfile = optarg;
@@ -189,7 +189,7 @@ main(argc, argv)
 		errx(1, "%s does not belong to root%s", gmapfile, not);
 #endif /* MAPSECURITY */
 
-	if ((fscanf(fp, "%d\n", &gnentries)) != 1)
+	if ((fscanf(gfp, "%d\n", &gnentries)) != 1)
 		errx(1, "nentries not found%s", gmapfile, not);
 	if (gnentries > MAPFILEENTRIES)
 		errx(1,
@@ -199,11 +199,11 @@ main(argc, argv)
 #endif
 
 	for (count = 0; count < gnentries; ++count)
-		if ((fscanf(fp, "%lu %lu\n",
+		if ((fscanf(gfp, "%lu %lu\n",
 		    &(gmapdata[count][0]), &(gmapdata[count][1]))) != 2) {
-			if (ferror(fp))
+			if (ferror(gfp))
 				err(1, "%s%s", gmapfile, not);
-			if (feof(fp))
+			if (feof(gfp))
 				errx(1, "%s: unexpected end-of-file%s",
 				    gmapfile, not);
 			errx(1, "%s: illegal format (line %d)%s",
@@ -218,7 +218,7 @@ main(argc, argv)
 	args.gnentries = gnentries;
 	args.gmapdata = gmapdata;
 
-	if (mount(MOUNT_UMAP, argv[1], mntflags, &args))
+	if (mount("umap", argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)mount_union.8	8.6 (Berkeley) 3/27/94
+.\"	@(#)mount_union.8	8.7 (Berkeley) 5/1/95
 .\"
-.Dd March 27, 1994
+.Dd May 1, 1995
 .Dt MOUNT_UNION 8
 .Os BSD 4.4
 .Sh NAME
@@ -85,8 +85,6 @@ See the
 man page for possible options and their meanings.
 .It Fl r
 Hide the lower layer completely in the same way as mounting with
-.Xr mount_lofs 8
-or
 .Xr mount_null 8 .
 .El
 .Pp
@@ -182,7 +180,6 @@ accessible via
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
-.Xr mount_lofs 8 ,
 .Xr mount_null 8
 .Sh BUGS
 Without whiteout support from the filesystem backing the upper layer,

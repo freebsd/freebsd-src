@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * All rights reserved.
  *
@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
+ *	@(#)pt_tcp.c	8.5 (Berkeley) 4/28/95
  *
  * $Id: pt_tcp.c,v 1.1 1992/05/25 21:43:09 jsp Exp jsp $
  */
@@ -62,11 +62,11 @@
  * An unrecognised suffix is an error.
  */
 int portal_tcp(pcr, key, v, kso, fdp)
-struct portal_cred *pcr;
-char *key;
-char **v;
-int kso;
-int *fdp;
+	struct portal_cred *pcr;
+	char *key;
+	char **v;
+	int kso;
+	int *fdp;
 {
 	char host[MAXHOSTNAMELEN];
 	char port[MAXHOSTNAMELEN];
@@ -122,12 +122,13 @@ int *fdp;
 	if (sp != 0)
 		s_port = sp->s_port;
 	else {
-		s_port = atoi(port);
-		if (s_port == 0)
+		s_port = strtoul(port, &p, 0);
+		if (s_port == 0 || *p != '\0')
 			return (EINVAL);
+		s_port = htons(s_port);
 	}
 
-	bzero(&sain, sizeof(sain));
+	memset(&sain, 0, sizeof(sain));
 	sain.sin_len = sizeof(sain);
 	sain.sin_family = AF_INET;
 	sain.sin_port = s_port;
