@@ -1958,7 +1958,7 @@ static void
 v_incr_usecount(struct vnode *vp, int delta)
 {
 	vp->v_usecount += delta;
-	if (vp->v_type == VCHR) {
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		mtx_lock(&spechash_mtx);
 		vp->v_rdev->si_usecount += delta;
 		mtx_unlock(&spechash_mtx);
