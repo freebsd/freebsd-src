@@ -1,4 +1,4 @@
-<!-- $Id: nfs.sgml,v 1.2 1995/06/30 17:37:43 jfieber Exp $ -->
+<!-- $Id: nfs.sgml,v 1.3 1995/09/27 00:46:23 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>NFS<label id="nfs"></heading>
@@ -39,13 +39,13 @@ system.  In all cases, note that additional options, such as "hard" or
 "soft" and "bg" may be desirable in your application.
 
 Examples for the FreeBSD system ("freebox") as the client:
-    in /etc/fstab on freebox:
+    in <tt>/etc/fstab</tt> on freebox:
 fastws:/sharedfs /project nfs rw,rsize=1024 0 0
     as a manual mount command on freebox:
 mount -t nfs -o rsize=1024 fastws:/sharedfs /project
 
 Examples for the FreeBSD system as the server:
-    in /etc/fstab on fastws:
+    in <tt>/etc/fstab</tt> on fastws:
 freebox:/sharedfs /project nfs rw,wsize=1024 0 0
     as a manual mount command on fastws:
 mount -t nfs -o wsize=1024 freebox:/sharedfs /project
