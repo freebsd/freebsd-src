@@ -87,7 +87,7 @@ so that
 .Xr getty 8
 will recognize them to be active and run
 .Xr login 1
-to let the user to login to the system.
+to let the user log in to the system.
 By default, only the first eight virtual terminals are activated in
 .Pa /etc/ttys .
 .Pp
@@ -111,7 +111,7 @@ You can also use the ``nscr'' key (usually the
 key on the AT Enhanced keyboard) to cycle available virtual terminals.
 .Pp
 The default number of available virtual terminals is 16.
-This can be changed by the kernel configuration option
+This can be changed with the kernel configuration option
 .Dv MAXCONS
 (see below).
 .Pp
@@ -151,10 +151,10 @@ command can be used to load a font file from
 .Pa /usr/share/syscons/fonts .
 .Pp
 The font comes in various sizes: 8x8, 8x14 and 8x16.
-The 8x16 font is typically used for the VGA card in the 80-column-
-by-25-line mode.
-Other video modes may require different size of font.
-It is better to always load these three sizes of the same font.
+The 8x16 font is typically used for the VGA card in the
+80-column-by-25-line mode.
+Other video modes may require different font sizes.
+It is better to always load all three sizes of the same font.
 .Pp
 You may set
 .Ar font8x8 ,
@@ -162,43 +162,43 @@ You may set
 and
 .Ar font8x16
 variables in
-.Pa /etc/rc.conf.local
+.Pa /etc/rc.conf
 to the desired font files so that they will be automatically loaded
 when the system starts up.
 .Pp
-Optionally you can make a particular font file as the default font.
+Optionally you can specify a particular font file as the default.
 See the
 .Dv SC_DFLT_FONT
 option below.
 .Ss Screen Map
-If your video card does not support software font, you may still be able
-to have similar effect by re-mapping font hard-wired in the video card.
+If your video card does not support software fonts, you may still be able
+to achieve a similar effect by re-mapping the font built into your video card.
 Use
 .Xr vidcontrol 1
-to load a screen map file which defines mapping between character codes.
+to load a screen map file which defines the mapping between character codes.
 .Ss Mouse Support and Copy-and-Paste
 You can use your mouse to copy text on the screen and paste it as if
-it is typed by hand.
+it was typed by hand.
 You must be running the mouse daemon
 .Xr moused 8
 and enable the mouse cursor in the virtual terminal via
 .Xr vidcontrol 1 .
 .Pp
-Pressing the mouse button 1 (usually the left button) will start selection.
-Releasing the button 1 will end the selection process.
+Pressing mouse button 1 (usually the left button) will start selection.
+Releasing button 1 will end the selection process.
 The selected text will be marked by inverting foreground and
 background colors.
-You can press the button 3 (usually the right button) to extend
+You can press button 3 (usually the right button) to extend
 the selected region.
 The selected text is placed in the copy buffer and can be pasted
-at the cursor position by your pressing the button 2 (usually the
+at the cursor position by pressing button 2 (usually the
 middle button) as many times as you like.
 .Pp
 If your mouse has only two buttons, you may want to use the
 .Dv SC_TWOBUTTON_MOUSE
 option below to make the right button to paste the text.
 Alternatively you can make the mouse daemon
-to emulate the middle button.
+emulate the middle button.
 See the man page for
 .Xr moused 8
 for more details.
@@ -206,33 +206,35 @@ for more details.
 The
 .Nm
 driver allows the user to browse the output which has ``scrolled off''
-from the top of the screen.
+the top of the screen.
 .Pp
 Press the ``slock'' key (usually
 .Dv ScrllLock
-and/or
+/
+.Dv Scroll Lock
+or
 .Dv Pause
-keys on many AT Enhanced keyboards) and the terminal is
-in the ``back scrolling'' mode.
+on many keyboards) and the terminal is
+in the ``scrollback'' mode.
 It is indicated by the
 .Dv Scroll Lock
 LED.
-Use arrow keys,
+Use the arrow keys, the
 .Dv Page Up/Down
-keys and
+keys and the
 .Dv Home/End
 keys to scroll buffered terminal output.
 Press the ``slock'' key again to get back to the normal terminal mode.
 .Pp
-The size of the back-scroll buffer can be set by the
+The size of the scrollback buffer can be set by the
 .Dv SC_HISTORY_SIZE
-option below.
+option described below.
 .Ss Screen Saver
 The
 .Nm
 driver can be made to put up the screen saver if the current
 virtual terminal is idle, that is, the user is not typing
-on the keyboard nor moving mouse.
+on the keyboard nor moving the mouse.
 See
 .Xr splash 4
 and
@@ -251,8 +253,8 @@ The default value is 16.
 .It Dv SC_ALT_MOUSE_IMAGE
 This option selects the alternative way of displaying the mouse cursor
 in the virtual terminal.
-It may be vastly costly for some video cards to draw the arrow-shaped
-cursor and you may want to try this option.
+It may be expensive for some video cards to draw the arrow-shaped
+cursor, and you may want to try this option.
 However, the appearance of the alternative mouse cursor may not be
 very appealing.
 Note that if you use the
@@ -260,12 +262,12 @@ Note that if you use the
 option then you must also use this option if you wish to be able to use
 the mouse.
 .It Dv SC_DISABLE_DDBKEY
-This option disables the ``debug'' key (by default, it is
+This option disables the ``debug'' key combination (by default, it is
 .Dv Alt-Esc ,
 or
 .Dv Ctl-PrintScreen ) .
-It will prevent the user from
-entering the kernel debugger DDB by pressing the key combination.
+It will prevent users from
+entering the kernel debugger (DDB) by pressing the key combination.
 DDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
 .It Dv SC_DISABLE_REBOOT
@@ -281,7 +283,6 @@ The default value is 100.
 Unless the
 .Dv SC_ALT_MOUSE_IMAGE
 option above is specified, the
-The
 .Nm
 driver reserves four consecutive character codes in order to display the
 mouse cursor in the virtual terminals in some systems.
@@ -321,8 +322,8 @@ cp866 and cp866u.
 16-line, 14-line and 8-line font data will be compiled in.
 Without this option, the
 .Nm
-driver will use whatever font already loaded in the video card,
-unless you explicitly load software font at startup.
+driver will use whatever font is already loaded in the video card,
+unless you explicitly load a software font at startup.
 See
 .Sx EXAMPLES
 below.
@@ -338,7 +339,7 @@ terminals.
 .It Dv SC_NO_FONT_LOADING
 The
 .Nm
-driver can load software font on some video cards.
+driver can load software fonts on some video cards.
 This option removes this feature.
 Note that if you still wish to use
 the mouse with this option then you must also use the
@@ -390,7 +391,7 @@ time
 .\"This option suppresses the bell, whether audible or visual,
 .\"if it is rung in a background virtual terminal.
 .It 0x0080 (VESA800X600)
-This option puts the video card in the VESA 800x600 dots, 16 color
+This option puts the video card in the VESA 800x600 pixel, 16 color
 mode.
 It may be useful for laptop computers for which the 800x600 mode
 is otherwise unsupported by the X server.
@@ -473,7 +474,7 @@ to the kernel.
 .Pp
 .\".Sh DIAGNOSTICS
 .Sh CAVEATS
-Amount of data that is possible to insert from the cut buffer is limited
+The Amount of data that is possible to insert from the cut buffer is limited
 by the
 .Brq Dv MAX_INPUT ,
 a system limit on the number of bytes that may be stored in the terminal
