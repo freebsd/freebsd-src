@@ -633,12 +633,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	}
     }
 
-#ifndef SC_NO_CUTPASTE
-    if (sc->cur_scp->status & MOUSE_VISIBLE) {
-	sc_remove_mouse_image(sc->cur_scp);
-	sc->cur_scp->status &= ~MOUSE_VISIBLE;
-    }
-#endif /* SC_NO_CUTPASTE */
+    sc->cur_scp->status |= MOUSE_HIDDEN;
 
     return 0;
 }
@@ -1479,6 +1474,7 @@ sccncheckc(dev_t dev)
 static void
 sccndbctl(dev_t dev, int on)
 {
+    /* assert(sc_console_unit >= 0) */
     /* try to switch to the kernel console screen */
     if (on && debugger == 0) {
 	/*
@@ -1489,8 +1485,10 @@ sccndbctl(dev_t dev, int on)
 	scrn_timer(NULL);
 	if (!cold
 	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
-	    && sc_console->smode.mode == VT_AUTO)
+	    && sc_console->smode.mode == VT_AUTO) {
+	    sc_console->sc->cur_scp->status |= MOUSE_HIDDEN;
 	    sc_switch_scr(sc_console->sc, sc_console->index);
+	}
     }
     if (on)
 	++debugger;
@@ -1719,12 +1717,18 @@ scrn_update(scr_stat *scp, int show_cursor)
 
 #ifndef SC_NO_CUTPASTE
     /* remove the previous mouse pointer image if necessary */
-    if ((scp->status & (MOUSE_VISIBLE | MOUSE_MOVED))
-	== (MOUSE_VISIBLE | MOUSE_MOVED)) {
-	/* FIXME: I don't like this... XXX */
-	sc_remove_mouse_image(scp);
-        if (scp->end >= scp->xsize*scp->ysize)
-	    scp->end = scp->xsize*scp->ysize - 1;
+    if (scp->status & MOUSE_VISIBLE) {
+	s = scp->mouse_pos;
+	e = scp->mouse_pos + scp->xsize + 1;
+	if ((scp->status & (MOUSE_MOVED | MOUSE_HIDDEN))
+	    || and_region(&s, &e, scp->start, scp->end)
+	    || ((scp->status & CURSOR_ENABLED) && 
+		(and_region(&s, &e, scp->cursor_pos, scp->cursor_pos)
+		 || and_region(&s, &e, scp->cursor_oldpos, scp->cursor_oldpos)))) {
+	    sc_remove_mouse_image(scp);
+	    if (scp->end >= scp->xsize*scp->ysize)
+		scp->end = scp->xsize*scp->ysize - 1;
+	}
     }
 #endif /* !SC_NO_CUTPASTE */
 
@@ -1784,49 +1788,33 @@ scrn_update(scr_stat *scp, int show_cursor)
 
     /* update cursor image */
     if (scp->status & CURSOR_ENABLED) {
+	s = scp->start;
+	e = scp->end;
         /* did cursor move since last time ? */
         if (scp->cursor_pos != scp->cursor_oldpos) {
             /* do we need to remove old cursor image ? */
-            if (scp->cursor_oldpos < scp->start ||
-                scp->cursor_oldpos > scp->end) {
+            if (!and_region(&s, &e, scp->cursor_oldpos, scp->cursor_oldpos))
                 sc_remove_cursor_image(scp);
-            }
             sc_draw_cursor_image(scp);
-        }
-        else {
-            /* cursor didn't move, has it been overwritten ? */
-            if (scp->cursor_pos >= scp->start && scp->cursor_pos <= scp->end) {
-                sc_draw_cursor_image(scp);
-            } else {
-                /* if its a blinking cursor, we may have to update it */
-		if (scp->sc->flags & SC_BLINK_CURSOR)
-                    (*scp->rndr->blink_cursor)(scp, scp->cursor_pos,
-					       sc_inside_cutmark(scp,
-							scp->cursor_pos));
-            }
+        } else {
+            if (and_region(&s, &e, scp->cursor_pos, scp->cursor_pos))
+		/* cursor didn't move, but has been overwritten */
+		sc_draw_cursor_image(scp);
+	    else if (scp->sc->flags & SC_BLINK_CURSOR)
+		/* if it's a blinking cursor, update it */
+		(*scp->rndr->blink_cursor)(scp, scp->cursor_pos,
+					   sc_inside_cutmark(scp,
+					       scp->cursor_pos));
         }
     }
 
 #ifndef SC_NO_CUTPASTE
     /* update "pseudo" mouse pointer image */
-    if (scp->status & MOUSE_VISIBLE) {
-        /* did mouse move since last time ? */
-        if (scp->status & MOUSE_MOVED) {
-            /* the previous pointer image has been removed, see above */
-            scp->status &= ~MOUSE_MOVED;
-            sc_draw_mouse_image(scp);
-        } else {
-            /* mouse didn't move, has it been overwritten ? */
-            if (scp->mouse_pos + scp->xsize + 1 >= scp->start &&
-                scp->mouse_pos <= scp->end) {
-                sc_draw_mouse_image(scp);
-            } else if (scp->cursor_pos == scp->mouse_pos ||
-            	scp->cursor_pos == scp->mouse_pos + 1 ||
-            	scp->cursor_pos == scp->mouse_pos + scp->xsize ||
-            	scp->cursor_pos == scp->mouse_pos + scp->xsize + 1) {
-                sc_draw_mouse_image(scp);
-	    }
-        }
+    if (scp->sc->flags & SC_MOUSE_ENABLED) {
+	if (!(scp->status & (MOUSE_VISIBLE | MOUSE_HIDDEN))) {
+	    scp->status &= ~MOUSE_MOVED;
+	    sc_draw_mouse_image(scp);
+	}
     }
 #endif /* SC_NO_CUTPASTE */
 
@@ -2346,6 +2334,7 @@ exchange_scr(sc_softc_t *sc)
     else
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)sc->adp->va_window, FALSE);
+    scp->status |= MOUSE_HIDDEN;
     sc_move_cursor(scp, scp->xpos, scp->ypos);
     if (!ISGRAPHSC(scp))
 	sc_set_cursor_image(scp);
@@ -2408,7 +2397,7 @@ update_cursor_image(scr_stat *scp)
     int blink;
 
     if (scp->sc->flags & SC_CHAR_CURSOR) {
-	scp->cursor_base = scp->sc->cursor_base;
+	scp->cursor_base = imax(0, scp->sc->cursor_base);
 	scp->cursor_height = imin(scp->sc->cursor_height, scp->font_size);
     } else {
 	scp->cursor_base = 0;
@@ -2430,7 +2419,7 @@ void
 sc_set_cursor_image(scr_stat *scp)
 {
     if (scp->sc->flags & SC_CHAR_CURSOR) {
-	scp->cursor_base = scp->sc->cursor_base;
+	scp->cursor_base = imax(0, scp->sc->cursor_base);
 	scp->cursor_height = imin(scp->sc->cursor_height, scp->font_size);
     } else {
 	scp->cursor_base = 0;
@@ -2566,7 +2555,6 @@ scinit(int unit, int flags)
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
 
 	/* move cursors to the initial positions */
-	scp->mouse_pos = scp->mouse_oldpos = 0;
 	if (col >= scp->xsize)
 	    col = 0;
 	if (row >= scp->ysize)
@@ -2580,6 +2568,9 @@ scinit(int unit, int flags)
 	    sc->cursor_base = 0;
 	i = bios_value.cursor_end - bios_value.cursor_start + 1;
 	sc->cursor_height = imin(i, scp->font_size);
+#ifndef SC_NO_SYSMOUSE
+	sc_mouse_move(scp, scp->xpixel/2, scp->ypixel/2);
+#endif
 	if (!ISGRAPHSC(scp)) {
     	    sc_set_cursor_image(scp);
     	    sc_draw_cursor_image(scp);
@@ -2725,7 +2716,8 @@ sc_clean_up(scr_stat *scp)
     if ((error = wait_scrn_saver_stop(scp->sc)))
 	return error;
 #endif /* NSPLASH */
-    scp->status &= ~MOUSE_VISIBLE;
+    scp->status |= MOUSE_HIDDEN;
+    sc_remove_mouse_image(scp);
     sc_remove_cutmarking(scp);
     return 0;
 }
@@ -2772,7 +2764,7 @@ static scr_stat
     if (sc_init_emulator(scp, SC_DFLT_TERM))
 	sc_init_emulator(scp, "*");
 
-#ifndef SC_NO_SYSMOUSE
+#ifndef SC_NO_CUTPASTE
     if (ISMOUSEAVAIL(sc->adp->va_flags))
 	sc_alloc_cut_buffer(scp, TRUE);
 #endif
@@ -2844,8 +2836,6 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->border = BG_BLACK;
     scp->cursor_base = sc->cursor_base;
     scp->cursor_height = imin(sc->cursor_height, scp->font_size);
-    scp->mouse_xpos = scp->xoff*8 + scp->xsize*8/2;
-    scp->mouse_ypos = (scp->ysize + scp->yoff)*scp->font_size/2;
     scp->mouse_cut_start = scp->xsize*scp->ysize;
     scp->mouse_cut_end = -1;
     scp->mouse_signal = 0;
@@ -2855,7 +2845,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->bell_pitch = bios_value.bell_pitch;
     scp->bell_duration = BELL_DURATION;
     scp->status |= (bios_value.shift_state & NLKED);
-    scp->status |= CURSOR_ENABLED;
+    scp->status |= CURSOR_ENABLED | MOUSE_HIDDEN;
     scp->pid = 0;
     scp->proc = NULL;
     scp->smode.mode = VT_AUTO;

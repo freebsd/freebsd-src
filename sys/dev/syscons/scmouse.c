@@ -119,13 +119,14 @@ sc_mouse_move(scr_stat *scp, int x, int y)
     int s;
 
     s = spltty();
-    scp->mouse_xpos = x;
-    scp->mouse_ypos = y;
-    if (ISGRAPHSC(scp))
+    scp->mouse_xpos = scp->mouse_oldxpos = x;
+    scp->mouse_ypos = scp->mouse_oldypos = y;
+    if (scp->font_size <= 0)
 	scp->mouse_pos = scp->mouse_oldpos = 0;
     else
 	scp->mouse_pos = scp->mouse_oldpos = 
 	    (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
+    scp->status |= MOUSE_MOVED;
     splx(s);
 }
 
@@ -133,8 +134,6 @@ sc_mouse_move(scr_stat *scp, int x, int y)
 static void
 set_mouse_pos(scr_stat *scp)
 {
-    static int last_xpos = -1, last_ypos = -1;
-
     if (scp->mouse_xpos < scp->xoff*8)
 	scp->mouse_xpos = scp->xoff*8;
     if (scp->mouse_ypos < scp->yoff*scp->font_size)
@@ -152,7 +151,7 @@ set_mouse_pos(scr_stat *scp)
 	    scp->mouse_ypos = (scp->ysize + scp->yoff)*scp->font_size - 1;
     }
 
-    if (scp->mouse_xpos != last_xpos || scp->mouse_ypos != last_ypos) {
+    if (scp->mouse_xpos != scp->mouse_oldxpos || scp->mouse_ypos != scp->mouse_oldypos) {
 	scp->status |= MOUSE_MOVED;
     	scp->mouse_pos =
 	    (scp->mouse_ypos/scp->font_size - scp->yoff)*scp->xsize 
@@ -175,6 +174,9 @@ sc_draw_mouse_image(scr_stat *scp)
     ++scp->sc->videoio_in_progress;
     (*scp->rndr->draw_mouse)(scp, scp->mouse_xpos, scp->mouse_ypos, TRUE);
     scp->mouse_oldpos = scp->mouse_pos;
+    scp->mouse_oldxpos = scp->mouse_xpos;
+    scp->mouse_oldypos = scp->mouse_ypos;
+    scp->status |= MOUSE_VISIBLE;
     --scp->sc->videoio_in_progress;
 }
 
@@ -206,6 +208,7 @@ sc_remove_mouse_image(scr_stat *scp)
 	mark_for_update(scp, i + 1);
     }
 #endif /* PC98 */
+    scp->status &= ~MOUSE_VISIBLE;
     --scp->sc->videoio_in_progress;
 }
 
@@ -666,10 +669,9 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    s = spltty();
 	    if (!(scp->sc->flags & SC_MOUSE_ENABLED)) {
 		scp->sc->flags |= SC_MOUSE_ENABLED;
-		if (!ISGRAPHSC(cur_scp)) {
-		    cur_scp->status |= MOUSE_VISIBLE;
+		cur_scp->status &= ~MOUSE_HIDDEN;
+		if (!ISGRAPHSC(cur_scp))
 		    mark_all(cur_scp);
-		}
 		splx(s);
 		return 0;
 	    } else {
@@ -749,10 +751,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		sc_touch_scrn_saver();
 	    }
 
-#ifndef SC_NO_CUTPASTE
-	    if (!ISGRAPHSC(cur_scp) && (cur_scp->sc->flags & SC_MOUSE_ENABLED))
-		cur_scp->status |= MOUSE_VISIBLE;
-#endif /* SC_NO_CUTPASTE */
+	    cur_scp->status &= ~MOUSE_HIDDEN;
 
 	    if (cur_scp->mouse_signal) {
     		/* has controlling process died? */
@@ -806,10 +805,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    if (mouse->u.event.value > 0)
 		sc_touch_scrn_saver();
 
-#ifndef SC_NO_CUTPASTE
-	    if (!ISGRAPHSC(cur_scp) && (cur_scp->sc->flags & SC_MOUSE_ENABLED))
-		cur_scp->status |= MOUSE_VISIBLE;
-#endif /* SC_NO_CUTPASTE */
+	    cur_scp->status &= ~MOUSE_HIDDEN;
 
 	    if (cur_scp->mouse_signal) {
 		if (cur_scp->mouse_proc && 
