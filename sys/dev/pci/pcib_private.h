@@ -44,24 +44,24 @@
 struct pcib_softc 
 {
     device_t	dev;
-    u_int16_t	command;	/* command register */
-    u_int8_t	secbus;		/* secondary bus number */
-    u_int8_t	subbus;		/* subordinate bus number */
+    uint16_t	command;	/* command register */
+    uint8_t	secbus;		/* secondary bus number */
+    uint8_t	subbus;		/* subordinate bus number */
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
     pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
     pci_addr_t	membase;	/* base address of memory window */
     pci_addr_t	memlimit;	/* topmost address of memory window */
-    u_int32_t	iobase;		/* base address of port window */
-    u_int32_t	iolimit;	/* topmost address of port window */
-    u_int16_t	secstat;	/* secondary bus status register */
-    u_int16_t	bridgectl;	/* bridge control register */
-    u_int8_t	seclat;		/* secondary bus latency timer */
+    uint32_t	iobase;		/* base address of port window */
+    uint32_t	iolimit;	/* topmost address of port window */
+    uint16_t	secstat;	/* secondary bus status register */
+    uint16_t	bridgectl;	/* bridge control register */
+    uint8_t	seclat;		/* secondary bus latency timer */
 };
 
-typedef u_int32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
+typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
 
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
-    int slot, int func, u_int8_t *busnum);
+    int slot, int func, uint8_t *busnum);
 int		pcib_attach(device_t dev);
 void		pcib_attach_common(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
@@ -69,8 +69,8 @@ int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
 					    u_long start, u_long end, u_long count, u_int flags);
 int		pcib_maxslots(device_t dev);
-u_int32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width);
-void		pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width);
+uint32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width);
+void		pcib_write_config(device_t dev, int b, int s, int f, int reg, uint32_t val, int width);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
 extern devclass_t pcib_devclass;
