@@ -1445,10 +1445,8 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
-	if (*m) {
-		m_freem(*m);
-		*m = NULL;
-	}
+	if (*m)
+		return(IP_FW_PORT_DENY_FLAG);
 	return(0);
 #undef BRIDGED
 }
