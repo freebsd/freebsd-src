@@ -79,6 +79,7 @@
 static int 		tapmodevent	__P((module_t, int, void *));
 
 /* device */
+static void		tapclone	__P((void *, char *, int, dev_t *));
 static void		tapcreate	__P((dev_t));
 
 /* network interface */
@@ -131,27 +132,33 @@ tapmodevent(mod, type, data)
 	int		 type;
 	void		*data;
 {
-	static int		 attached = 0;
-	struct ifnet		*ifp = NULL;
-	int			 unit, s;
+	static int		attached = 0;
+	static eventhandler_tag	eh_tag = NULL;
 
 	switch (type) {
 	case MOD_LOAD:
 		if (attached)
 			return (EEXIST);
 
+		eh_tag = EVENTHANDLER_REGISTER(dev_clone, tapclone, 0, 1000);
 		cdevsw_add(&tap_cdevsw);
 		attached = 1;
 	break;
 
-	case MOD_UNLOAD:
+	case MOD_UNLOAD: {
+		int	unit;
+
 		if (taprefcnt > 0)
 			return (EBUSY);
 
+		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
 		cdevsw_remove(&tap_cdevsw);
 
 		unit = 0;
 		while (unit <= taplastunit) {
+			int		 s;
+			struct ifnet	*ifp = NULL;
+
 			s = splimp();
 			TAILQ_FOREACH(ifp, &ifnet, if_link)
 				if ((strcmp(ifp->if_name, TAP) == 0) ||
@@ -179,7 +186,7 @@ tapmodevent(mod, type, data)
 		}
 
 		attached = 0;
-	break;
+	} break;
 
 	default:
 		return (EOPNOTSUPP);
@@ -187,6 +194,41 @@ tapmodevent(mod, type, data)
 
 	return (0);
 } /* tapmodevent */
+
+
+/*
+ * DEVFS handler
+ *
+ * We need to support two kind of devices - tap and vmnet
+ */
+static void
+tapclone(arg, name, namelen, dev)
+	void	*arg;
+	char	*name;
+	int	 namelen;
+	dev_t	*dev;
+{
+	int	 unit, minor;
+	char	*device_name = NULL;
+
+	if (*dev != NODEV)
+		return;
+
+	device_name = TAP;
+	if (dev_stdclone(name, NULL, device_name, &unit) != 1) {
+		device_name = VMNET;
+
+		if (dev_stdclone(name, NULL, device_name, &unit) != 1)
+			return;
+
+		minor = (unit |  VMNET_DEV_MASK);
+	}
+	else
+		minor = unit;
+
+	*dev = make_dev(&tap_cdevsw, minor, UID_ROOT, GID_WHEEL, 0600, "%s%d",
+			device_name, unit);
+} /* tapclone */
 
 
 /*
