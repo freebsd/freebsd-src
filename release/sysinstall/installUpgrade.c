@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.9 1995/10/24 02:18:06 jkh Exp $
+ * $Id: installUpgrade.c,v 1.11 1995/10/26 08:55:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,9 +320,6 @@ installUpgrade(char *str)
 	}
     }
     
-    if (extractingBin)
-	configSysconfig();
-
     if (installNetworking("upgrade") == RET_FAIL) {
 	dialog_clear();
 	msgConfirm("Some of the networking configuration stuff evidently failed, but\n"
