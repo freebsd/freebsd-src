@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.5 1996/03/10 08:42:32 sos Exp $
+ *	$Id: linux.c,v 1.6 1996/03/10 22:43:37 peter Exp $
  */
 
 #include <sys/param.h>
@@ -39,7 +39,7 @@
 
 extern const struct execsw linux_execsw;
 
-MOD_EXEC(linux, -1, (struct execsw*)&linux_execsw);
+MOD_EXEC(linux, -1, &linux_execsw);
 
 extern Elf32_Interp_info linux_interp;
 
