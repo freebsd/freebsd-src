@@ -1,4 +1,4 @@
-/* $Id: asm.h,v 1.1 1998/01/10 22:09:52 jb Exp $ */
+/* $Id: asm.h,v 1.2 1998/06/10 10:54:23 dfr Exp $ */
 /* From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp */
 
 /* 
@@ -226,7 +226,7 @@
  * MCOUNT
  */
 
-#ifndef GPROF
+#if !defined(GPROF) && !defined(PROF)
 #define MCOUNT	/* nothing */
 #else
 #define MCOUNT							\

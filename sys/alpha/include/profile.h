@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: profile.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp */
 
 /*
@@ -29,6 +29,10 @@
  */
 
 #define	_MCOUNT_DECL	void mcount
+
+#define FUNCTION_ALIGNMENT 32
+
+typedef u_long	fptrdiff_t;
 
 #if 0
 /*
@@ -192,17 +196,18 @@ LX98:	ldgp	$29,0($27);	\
 	ldq	$23, 144($30);	\
 	ldq	$24, 152($30);	\
 	ldq	$25, 160($30);	\
-	ldq	$25, 160($30);	\
 	ldq	$26, 168($30);	\
 	ldq	$27, 176($30);	\
 	ldq	$29, 184($30);	\
+				\
+	ldq	$28, 0($30);	\
 				\
 	lda	$30, 192($30);	\
 	ret	$31, ($28), 1;	\
 				\
 	.end	_mcount");
 
-#ifdef _KERNEL
+#ifdef KERNEL
 /*
  * The following two macros do splhigh and splx respectively.
  * _alpha_pal_swpipl is a special version of alpha_pal_swpipl which
@@ -210,8 +215,23 @@ LX98:	ldgp	$29,0($27);	\
  *
  * XXX These macros should probably use inline assembly.
  */
-#define MCOUNT_ENTER \
+#define MCOUNT_ENTER(s) \
 	s = _alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH)
-#define MCOUNT_EXIT \
+#define MCOUNT_EXIT(s) \
 	(void)_alpha_pal_swpipl(s);
+#define	MCOUNT_DECL(s)	u_long s;
+#ifdef GUPROF
+struct gmonparam;
+
+void	nullfunc_loop_profiled __P((void));
+void	nullfunc_profiled __P((void));
+void	startguprof __P((struct gmonparam *p));
+void	stopguprof __P((struct gmonparam *p));
+#else
+#define startguprof(p)
+#define stopguprof(p)
+#endif /* GUPROF */
+
+#else /* !KERNEL */
+typedef u_long	uintfptr_t;
 #endif
