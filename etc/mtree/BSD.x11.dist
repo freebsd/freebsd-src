@@ -1,19 +1,21 @@
-#     $Id$
+#     $Id: BSD.x11.dist,v 1.1.2.1 1997/06/04 00:02:53 asami Exp $
 #
 
-/set type=dir uname=bin gname=bin mode=0755
-.               uname=root gname=wheel
+/set type=dir uname=root gname=wheel mode=0755
+.
     bin
     ..
     etc
         rc.d
-	..
+        ..
     ..
     include
         X11
             ICE
             ..
             PEX5
+            ..
+            PM
             ..
             SM
             ..
@@ -35,6 +37,14 @@
     ..
     lib
         X11
+            XF86Setup
+                pics
+                ..
+                scripts
+                ..
+                tcllib
+                ..
+            ..
             app-defaults
             ..
             config
@@ -60,6 +70,8 @@
                 ..
             ..
             fs
+            ..
+            lbxproxy
             ..
             locale
                 C
@@ -103,6 +115,8 @@
                 zh_TW
                 ..
             ..
+            proxymngr
+            ..
             rstart
                 commands
                     x11r6
@@ -142,7 +156,7 @@
                     sgi
                     ..
                     sun
-		    ..
+                    ..
                 ..
                 rules
                 ..
@@ -151,13 +165,17 @@
                 symbols
                     digital
                     ..
+                    fujitsu
+                    ..
                     nec
                     ..
                     sony
                     ..
                     sun
-		    ..
+                    ..
                 ..
+            ..
+            xserver
             ..
             xsm
             ..
