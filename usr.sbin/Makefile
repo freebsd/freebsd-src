@@ -46,7 +46,6 @@ SUBDIR=	IPXrouted \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
-	keyserv \
 	lastlogin \
 	manctl \
 	memcontrol \
@@ -183,6 +182,10 @@ SUBDIR+=boot0cfg
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=boot98cfg
+.endif
+
+.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+SUBDIR+=keyserv
 .endif
 
 .include <bsd.subdir.mk>
