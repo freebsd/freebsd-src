@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -23,6 +23,9 @@ the original English.
 .B @g@soelim
 [
 .B \-Cv
+]
+[
+.BI \-I dir
 ]
 [
 .IR files \|.\|.\|.\|
@@ -52,6 +55,16 @@ option of
 Recognize
 .B .so
 even when followed by a character other than space or newline.
+.TP
+.BI \-I dir
+This option may be used to specify a directory to search for
+files (both those on the command line and those named in
+.B \&.so
+lines).
+The current directory is always searched first.
+This option may be specified more than once,
+the directories will be searched in the order specified.
+No directory search is performed for files specified using an absolute path.
 .TP
 .B \-v
 Print the version number.

@@ -166,8 +166,13 @@ man7dir=$(manroot)/man$(man7ext)
 # -DUNISTD_H_DECLARES_GETOPT	if your C++ <unistd.h> declares getopt()
 # -DSTDLIB_H_DECLARES_PUTENV	if your C++ <stdlib.h> declares putenv()
 # -DSTDIO_H_DECLARES_POPEN	if your C++ <stdio.h> declares popen()
+# -DSTDIO_H_DECLARES_PCLOSE	if your C++ <stdio.h> declares pclose()
+# -DHAVE_SYS_NERR		if you have sysnerr in <errno.h> or <stdio.h>
+# -DHAVE_SYS_ERRLIST		if you have sys_errlist in <errno.h> or
+#				<stdio.h>
+# -DMATH_H_DECLARES_HYPOT	if you have hypot() in <math.h>
 # -DTRADITIONAL_CPP		if your C++ compiler uses a traditional
-#				(Reiser) preprocessor.
+#				(Reiser) preprocessor
 # -DLONG_FOR_TIME_T		if localtime() takes a long * not a time_t *
 # -DHAVE_STRUCT_EXCEPTION	if <math.h> defines struct exception
 # -DRETSIGTYPE=int		if signal handlers return int not void	
@@ -187,11 +192,12 @@ CDEFINES=$(DEFINES)
 
 CCFLAGS=@CXXFLAGS@
 CFLAGS=@CFLAGS@
-LDFLAGS=
+LDFLAGS=@LDFLAGS@
 YACC=@YACC@
 YACCFLAGS=-v
 
 LIBS=@LIBS@
+LIBM=@LIBM@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 INSTALL_PROGRAM=@INSTALL_PROGRAM@
@@ -234,7 +240,7 @@ MDEFINES="MAKEOVERRIDES=$(MAKEOVERRIDES)" \
   "tmac_s_prefix=$(tmac_s_prefix)" "tmac_m_prefix=$(tmac_m_prefix)" \
   "CCC=$(CCC)" "CC=$(CC)" "CCDEFINES=$(CCDEFINES)" "CDEFINES=$(CDEFINES)" \
   "CCFLAGS=$(CCFLAGS)" "CFLAGS=$(CFLAGS)" "LDFLAGS=$(LDFLAGS)" \
-  "YACC=$(YACC)" "YACCFLAGS=$(YACCFLAGS)" \
+  "YACC=$(YACC)" "YACCFLAGS=$(YACCFLAGS)" "LIBM=$(LIBM)" \
   "LIBS=$(LIBS)" "LIBOBJS=$(LIBOBJS)" "RANLIB=$(RANLIB)" "AR=$(AR)" \
   "INSTALL_PROGRAM=$(INSTALL_PROGRAM)" "INSTALL_DATA=$(INSTALL_DATA)" \
   "ETAGS=$(ETAGS)" "ETAGSFLAGS=$(ETAGSFLAGS)" "ETAGSCCFLAG=$(ETAGSCCFLAG)" \
@@ -245,11 +251,12 @@ SHELL=/bin/sh
 INCDIRS=include
 LIBDIRS=libgroff libdriver libbib
 CCPROGDIRS=groff troff tbl pic eqn grops grotty grodvi tfmtodit \
-  grolj4 hpftodit refer lookbib indxbib lkbib soelim addftinfo
+  grolj4 hpftodit refer lookbib indxbib lkbib soelim addftinfo \
+  grohtml
 CPROGDIRS=pfbtops psbb
 PROGDIRS=$(CCPROGDIRS) $(CPROGDIRS)
 DEVDIRS=devps devdvi devascii devlatin1 devX75 devX75-12 devX100 devX100-12 \
-  devlj4
+  devlj4 devhtml
 OTHERDIRS=man tmac afmtodit grog nroff mm
 ALLDIRS=$(INCDIRS) $(LIBDIRS) $(PROGDIRS) $(DEVDIRS) $(OTHERDIRS)
 EXTRADIRS=devps/generate devdvi/generate xditview doc
@@ -269,7 +276,7 @@ $(TARGETS):
 dot: FORCE
 	@$(MAKE) $(MDEFINES) srcdir=$(srcdir) VPATH=$(srcdir) \
 		-f $(srcdir)/Makefile.comm -f $(srcdir)/Makefile.sub $(do)
-	
+
 $(LIBDIRS): FORCE
 	@if test $(srcdir) = .; \
 	then srcdir=.; \
@@ -348,6 +355,7 @@ dist:
 	rm -f Makefile; \
 	$(LN_S) $$srcdir/Makefile.init Makefile
 	mv tmp groff-$(version)
+	rm -f groff-$(version).tar.gz
 	tar cfh - groff-$(version) | gzip -c >groff-$(version).tar.gz
 	rm -fr groff-$(version)
 

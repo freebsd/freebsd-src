@@ -1,10 +1,11 @@
+.\" $FreeBSD$
 .nr _C \n(.C
 .cp 0
 .nroff
 .\" Don't warn about non-existent fonts.
 .warn \n[.warn]-(\n[.warn]/131072%2*131072)
 .po 0
-.if c\[char173] .shc \[char173]
+.if !"\*[.T]"koi8-r" .if c\[char173] .shc \[char173]
 .de tty-char
 .if !c\\$1 .char \\$1 "\\$2
 ..

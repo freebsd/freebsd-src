@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-syms	5.6 (Berkeley) 8/5/91
+.\" $FreeBSD$
 .\"
 .\"     %beginstrip%
 .\" NS Ux macro - UNIX
@@ -397,11 +398,13 @@
 .       \}
 .       if "\\*(A\\n(aP"-iso8802-3" \{\
 .		ie \\n(sT==1 \{\
-.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
+.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989
+.\" .			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
 .\" .			as b1 (``\\*(tNANSI C\\*(aa'')
 .		\}
 .		el \{\
-.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
+.			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989
+.\" .			ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
 .\" .			as b1 (``\\*(tNANSI C\\*(aa'')
 .		\}
 .       \}

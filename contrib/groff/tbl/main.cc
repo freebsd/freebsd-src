@@ -229,12 +229,14 @@ void process_input_file(FILE *fp)
 	  c = getc(fp);
 	}
 	putchar('\n');
+	printf(".if '\\*(.T'html' \\X(graphic-start(\n");
 	current_lineno++;
 	{
 	  table_input input(fp);
 	  process_table(input);
 	  set_troff_location(current_filename, current_lineno);
 	  if (input.ended()) {
+	    printf(".if '\\*(.T'html' \\X(graphic-end(\n");
 	    fputs(".TE", stdout);
 	    while ((c = getc(fp)) != '\n') {
 	      if (c == EOF) {
@@ -383,12 +385,12 @@ options *process_options(table_input &in)
     return opt;
   char *p = &line[0];
   for (;;) {
-    while (csspace(*p) || *p == ',')
+    while (!csalpha(*p) && *p != '\0')
       p++;
     if (*p == '\0')
       break;
     char *q = p;
-    while (*q != ' ' && *q != '\0' && *q != '\t' && *q != ',' && *q != '(')
+    while (csalpha(*q))
       q++;
     char *arg = 0;
     if (*q != '(' && *q != '\0')

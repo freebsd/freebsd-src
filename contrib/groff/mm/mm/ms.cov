@@ -1,5 +1,5 @@
 .\"------------
-.\" $Id: ms.cov,v 1.27 1995/04/24 05:37:50 jh Exp $
+.\" $Id: ms.cov,v 1.32 1999/09/03 05:33:13 jh Exp $
 .\" Cover sheet. Mostly like ms cover.
 .\"------------
 .de cov@print-title
@@ -62,7 +62,7 @@
 .\"------------
 .de cov@print-date
 .SP 2
-\\*[cov*new-date]
+\f[\\*[@sdf_font]]\\*[cov*new-date]\fP
 ..
 .\"-----------------
 .de COVEND

@@ -49,6 +49,7 @@ class token_node;
 
 struct node {
   node *next;
+  node *last;
   node();
   node(node *n);
   node *add_char(charinfo *c, environment *, hunits *widthp);

@@ -1,3 +1,5 @@
+$FreeBSD$
+
 This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
 the files in this directory via patches and a cvs commit.
@@ -22,7 +24,7 @@ Do not, under any circumstances, deviate from this procedure.
 To make local changes to groff, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the FSF branch.
 
-All local changes should be submitted to "jjc@jclark.com" for
-inclusion in the next vendor release.
+All local changes should be submitted to "wl@gnu.org" or 
+"Ted.Harding@nessie.mcc.ac.uk" for inclusion in the next vendor release.
 
 pst@freebsd.org - 7 Sep 1996

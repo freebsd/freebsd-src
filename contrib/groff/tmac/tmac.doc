@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc	5.8 (Berkeley) 8/5/91
+.\" $FreeBSD$
 .\" Modified by jjc@jclark.com as follows: the doc-* files are assumed to be
 .\" installed as mdoc/doc-* rather than tmac.doc-* (the filename
 .\" `tmac.doc-common' would be too long); when using groff, the doc-* files
@@ -49,6 +50,9 @@
 .de sO
 .mso mdoc/\\$1
 ..
+.de sOl
+.sO locale/\\$1
+..
 .if t \{\
 .       sO doc-ditroff
 .\}
@@ -57,6 +61,7 @@
 .\}
 .sO doc-common
 .sO doc-syms
+.sOl locale-list
 .\" NS Db macro - start/stop DEBUG MODE
 .\" NS Db register DEBUG MODE
 .\" NS iN register DEBUG MODE (inline if 1, to stderr if 0 (default))

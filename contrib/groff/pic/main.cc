@@ -29,7 +29,7 @@ int zero_length_line_flag = 0;
 // Non-zero means we're using a groff driver.
 int driver_extension_flag = 1;
 int compatible_flag = 0;
-int safer_flag = 0;
+int safer_flag = 1;
 int command_char = '.';		// the character that introduces lines
 				// that should be passed through tranparently
 static int lf_flag = 1;		// non-zero if we should attempt to understand
@@ -518,7 +518,7 @@ int main(int argc, char **argv)
   int whole_file_flag = 0;
   int fig_flag = 0;
 #endif
-  while ((opt = getopt(argc, argv, "T:CDStcvnxzpf")) != EOF)
+  while ((opt = getopt(argc, argv, "T:CDSUtcvnxzpf")) != EOF)
     switch (opt) {
     case 'C':
       compatible_flag = 1;
@@ -528,6 +528,9 @@ int main(int argc, char **argv)
       break;
     case 'S':
       safer_flag = 1;
+      break;
+    case 'U':
+      safer_flag = 0;
       break;
     case 'f':
 #ifdef FIG_SUPPORT

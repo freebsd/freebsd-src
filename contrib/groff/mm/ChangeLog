@@ -1,3 +1,114 @@
+Mon Mar 15 22:22:42 1999 Jörgen Hägg (jh at axis.com)
+
+	* OK, let's release this as a beta, 1.33 will be better. :-)
+	* version 1.32
+	* fixed .el-error
+	* Added number variable Hss
+	* Changed Hps1 and Hps2 to units
+	* added hd*h1-text to be used in user defined macro TP.
+	* -U needed for SETR (I really need 'mv', 'echo', 'rm'
+	  and 'test' builtin!)
+	* Rewritten the reference system, SETR now prints to stderr
+	  if the number register Qrf > 0. Store in the filename
+	  that is the argument to .INITR
+	  The old behaviour is returned if number register Initr > 0.
+	* Fixed bug with List of XXXX, long lines messed up the result.
+	* added number register H1dot.
+	* added string variable H1txt
+	* added string variable Tcst
+	* added number register Dsp.
+	* added alias APPX for user-defined appendix title.
+	* added string variable Apptxt
+	* added H1h for use in TP in headers
+	* added macro EPIC
+	* added macro PIC (safe replacement for PSPIC)
+	* fixed Hps-bug, should be 1, not 1v.
+	* fixed bug with APPSK, variable not set.
+
+Wed Feb 4 15:46:04 1998 Jörgen Hägg (jh at axis.se)
+
+	* version 1.31
+	* .LI will now honor a space mark.
+	* Another fix for .AU to let it be used without arguments.
+	* uninitialized eq*label fixed
+
+Fri Sep 6 07:13:07 1996 Jörgen Hägg (jh at axis.se)
+
+	* version 1.30
+	* This is more like a beta-release, bugs might pop up. :-)
+	* last line in TOC was not correctly terminated (missing .br)
+	* changed the indentation for displays, it will now
+	  indent to the current indent, not the one at the definition
+	  of the display.
+	* Equation marks should now work better, indentation also.
+	* included these bug fixes from Larry Jones:
+	*   The documentation for the argument to .AS was incorrect for MT 4.
+	*   \*(EM should be a double-dash for nroff.
+	*   \nS is in points, not units.
+	*   If \nO isn't set, the default page offset should be .75i for nroff
+		and .963i for troff.
+	*   .S D should set the point size to \nS, not 10.
+	*   .S was setting the vertical spacing based on the old point size
+		instead of the new point size.
+	*   Got rid of a spurrious .br that prevented run-in headings from
+		working.
+	*   Reset the .SP counters in pg@header so that spacing on one page
+		won't affect spacing on subsequent pages.
+	*   Allow .AU and .AF with no arguments (real mm does, even though it
+		isn't documented).
+	*   Do .init@reset first thing to initialize the default environment.
+	*   For MT 4, the title should be 4 points larger than the default size,
+		not 12 point.
+	*   The cover environment needs to be initialized.
+	*   Printing the abstract on the first page needs to be controlled by
+		the .AS argument.
+	*   Heading eject should be suppressed if the heading immediately
+		follows the first page stuff (title, author, etc.).
+	*   support for table of contents numbering style (.nr Oc)
+	*   changes the troff empty line height from .25v to .5v
+	*   fixed section page numbering
+	*   fixed a really nasty bug in footnotes that could cause you
+		to lose the page footer completely if the very first
+		footnote on the page occurred at just the wrong place
+
+
+Wed May 15 07:39:32 1996 Jörgen Hägg (jh at axis.se)
+
+	* version 1.29
+	* Syntax and scaling errror fixed, (thanks to Frazer Williams)
+	* DF/DE will now do a line-break before printing the display.
+	* Updated the manual for TB,FG,EX and EC.
+	* Added support for the ms- (and mgs-)macro .IX
+	* Added indexmacro IX, INITI, IND and INDP, support for
+	  TXIND, TYIND and TZIND.
+	* PGFORM will now always really reset to the default
+	  values for unspecified arguments.
+	* Floating displays tested and repaired, it should
+	  now (finanlly) work exactly as the original (I hope :-).
+	* Should now set year correctly even after 2000.
+	* Stupid bug in PGNH fixed.
+	* Corrected line length for figure caption (FG and friends)
+
+
+Mon Apr 24 07:37:52 1995 Jörgen Hägg (jh at axis.se)
+
+	* version 1.28
+	* Added AVL (AV without date)
+	* Fixed nroff scaling for W and L.
+	* Added support for register E and roman/bold
+	  for all Subject/Date/From strings.
+	* Added support for register C (1-4), (for DRAFTs and other types)
+	* Will protest if not used with groff.
+	* Change of the internal number registers @ps and @vs, they
+	  are now in units, and is set in the new macros .@ps and .@vs.
+	  @ps and @vs is now corrected to the real point and vertical size.
+	* Macro EQ has now correct pointsize.
+	* Figures should now get the right page number in the index.
+	* User-defined macros can now be defined for list of
+	  figures, tables, equations and exhibits (T{X,Y}{FG,TB,EC,EX}.
+	* Space may be omitted between prefix and mark in automatic lists (.AL)
+	  See .LI
+
 Tue Jan 10 07:51:37 1995 Jörgen Hägg (jh at axis.se)
 
 	* version 1.27

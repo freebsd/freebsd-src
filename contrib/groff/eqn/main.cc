@@ -78,6 +78,7 @@ void do_file(FILE *fp, const char *filename)
 	     && linebuf[2] == 'Q'
 	     && (linebuf[3] == ' ' || linebuf[3] == '\n' || compatible_flag)) {
       put_string(linebuf, stdout);
+      put_string(".if '\\*(.T'html' \\X(graphic-start(\\c\n", stdout);
       int start_lineno = current_lineno + 1;
       str.clear();
       for (;;) {
@@ -107,6 +108,7 @@ void do_file(FILE *fp, const char *filename)
       }
       restore_compatibility();
       printf(".lf %d\n", current_lineno);
+      put_string(".if '\\*(.T'html' \\X(graphic-end(\\c\n", stdout);
       put_string(linebuf, stdout);
     }
     else if (start_delim != '\0' && linebuf.search(start_delim) >= 0
@@ -163,6 +165,7 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
       ptr = &linebuf[0];
     }
     str += '\0';
+    put_string(".if '\\*(.T'html' \\X(graphic-start(\\c\n", stdout);
     init_lex(str.contents(), current_filename, start_lineno);
     yyparse();
     start = delim_search(ptr, start_delim);
@@ -177,6 +180,7 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
   printf(".lf %d\n", current_lineno);
   output_string();
   restore_compatibility();
+  put_string(".if '\\*(.T'html' \\X(graphic-end(\\c\n", stdout);
   printf(".lf %d\n", current_lineno + 1);
   return 1;
 }

@@ -513,7 +513,8 @@ static void do_file(const char *filename)
 	  if ((flags & FORCE_LEFT_BRACKET) || !have_text)
 	    pending_line += PRE_LABEL_MARKER;
 	  pending_line += pre;
-	  pending_line += LABEL_MARKER + lt;
+	  char lm = LABEL_MARKER + lt;
+	  pending_line += lm;
 	  pending_line += post;
 	  if ((flags & FORCE_RIGHT_BRACKET) || !have_text)
 	    pending_line += POST_LABEL_MARKER;

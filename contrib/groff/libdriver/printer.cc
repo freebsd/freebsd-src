@@ -108,41 +108,63 @@ void printer::draw(int, int *, int, const environment *)
 void printer::set_ascii_char(unsigned char c, const environment *env, 
 			     int *widthp)
 {
-  char buf[2];
+  char  buf[2];
+  int   w;
+  font *f;
+
   buf[0] = c;
   buf[1] = '\0';
-  set_special_char(buf, env, widthp);
+
+  int i = set_char_and_width(buf, env, &w, &f);
+  set_char(i, f, env, w, 0);
+  if (widthp) {
+    *widthp = w;
+  }
 }
 
 void printer::set_special_char(const char *nm, const environment *env,
-				  int *widthp)
+			       int *widthp)
+{
+  font *f;
+  int   w;
+  int i = set_char_and_width(nm, env, &w, &f);
+  if (i != -1) {
+    set_char(i, f, env, w, nm);
+    if (widthp) {
+      *widthp = w;
+    }
+  }
+}
+
+int printer::set_char_and_width(const char *nm, const environment *env,
+				int *widthp, font **f)
 {
   int i = font::name_to_index(nm);
   int fn = env->fontno;
   if (fn < 0 || fn >= nfonts) {
     error("bad font position `%1'", fn);
-    return;
+    return(-1);
   }
-  font *f = font_table[fn];
-  if (f == 0) {
+  *f = font_table[fn];
+  if (*f == 0) {
     error("no font mounted at `%1'", fn);
-    return;
+    return(-1);
   }
-  if (!f->contains(i)) {
+  if (!(*f)->contains(i)) {
     if (nm[0] != '\0' && nm[1] == '\0')
       error("font `%1' does not contain ascii character `%2'",
-	    f->get_name(),
+	    (*f)->get_name(),
 	    nm[0]);
     else
       error("font `%1' does not contain special character `%2'",
-	    f->get_name(),
+	    (*f)->get_name(),
 	    nm);
-    return;
+    return(-1);
   }
-  int w = f->get_width(i, env->size);
+  int w = (*f)->get_width(i, env->size);
   if (widthp)
     *widthp = w;
-  set_char(i, f, env, w);
+  return( i );
 }
 
 void printer::set_numbered_char(int num, const environment *env, int *widthp)
@@ -167,7 +189,7 @@ void printer::set_numbered_char(int num, const environment *env, int *widthp)
   int w = f->get_width(i, env->size);
   if (widthp)
     *widthp = w;
-  set_char(i, f, env, w);
+  set_char(i, f, env, w, 0);
 }
 
 // This utility function adjusts the specified center of the

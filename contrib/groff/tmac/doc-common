@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .\"     %beginstrip%
 .nr %A 1
@@ -119,6 +119,7 @@
 .nr Xc 3
 .nr Xo 1
 .nr Xr 10n
+.nr Yr \n(yr+1900
 .ds sV \& \&
 .ds hV \&\ \&
 .ds iV \& \&
@@ -191,6 +192,7 @@
 .	if "\\$3"vax" .as vT \ (VAX Architecture)
 .	if "\\$3"hp300" .as vT \ (HP300 Architecture)
 .	if "\\$3"i386" .as vT \ (i386 Architecture)
+.	if "\\$3"Alpha" .as vT \ (Alpha Architecture)
 .	if "\\*(vT"LOCAL" .ds vT \\$3
 .\}
 ..
@@ -229,34 +231,34 @@
 .\}
 .if "\\$1"FreeBSD" \{\
 .	if "\\$2"2"      .ds oS FreeBSD 2.0
-.	    ie \\n(.$==1        \c
-.	el .ie "\\$2"1.0"       \c
-.	el .ie "\\$2"1.1"       \c
-.	el .ie "\\$2"1.1.5"     \c
-.	el .ie "\\$2"1.1.5.1"   \c
-.	el .ie "\\$2"2"         \c
-.	el .ie "\\$2"2.0"       \c
-.	el .ie "\\$2"2.0.5"     \c
-.	el .ie "\\$2"2.1"       \c
-.	el .ie "\\$2"2.1.5"     \c
-.	el .ie "\\$2"2.1.6"     \c
-.	el .ie "\\$2"2.1.7"     \c
-.	el .ie "\\$2"2.2"       \c
-.	el .ie "\\$2"2.2.1"     \c
-.	el .ie "\\$2"2.2.2"     \c
-.	el .ie "\\$2"2.2.5"     \c
-.	el .ie "\\$2"2.2.6"     \c
-.	el .ie "\\$2"2.2.7"     \c
-.	el .ie "\\$2"2.2.8"     \c
-.	el .ie "\\$2"3"         \c
-.	el .ie "\\$2"3.0"       \c
-.	el .ie "\\$2"3.1"       \c
-.	el .ie "\\$2"3.2"       \c
-.	el .ie "\\$2"3.3"       \c
-.	el .ie "\\$2"3.4"       \c
-.	el .ie "\\$2"3.5"       \c
-.	el .ie "\\$2"4"         \c
-.	el .ie "\\$2"4.0"       \c
+.	    ie \\n(.$==1        %comment%
+.	el .ie "\\$2"1.0"       %comment%
+.	el .ie "\\$2"1.1"       %comment%
+.	el .ie "\\$2"1.1.5"     %comment%
+.	el .ie "\\$2"1.1.5.1"   %comment%
+.	el .ie "\\$2"2"         %comment%
+.	el .ie "\\$2"2.0"       %comment%
+.	el .ie "\\$2"2.0.5"     %comment%
+.	el .ie "\\$2"2.1"       %comment%
+.	el .ie "\\$2"2.1.5"     %comment%
+.	el .ie "\\$2"2.1.6"     %comment%
+.	el .ie "\\$2"2.1.7"     %comment%
+.	el .ie "\\$2"2.2"       %comment%
+.	el .ie "\\$2"2.2.1"     %comment%
+.	el .ie "\\$2"2.2.2"     %comment%
+.	el .ie "\\$2"2.2.5"     %comment%
+.	el .ie "\\$2"2.2.6"     %comment%
+.	el .ie "\\$2"2.2.7"     %comment%
+.	el .ie "\\$2"2.2.8"     %comment%
+.	el .ie "\\$2"3"         %comment%
+.	el .ie "\\$2"3.0"       %comment%
+.	el .ie "\\$2"3.1"       %comment%
+.	el .ie "\\$2"3.2"       %comment%
+.	el .ie "\\$2"3.3"       %comment%
+.	el .ie "\\$2"3.4"       %comment%
+.	el .ie "\\$2"3.5"       %comment%
+.	el .ie "\\$2"4"         %comment%
+.	el .ie "\\$2"4.0"       %comment%
 .	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
 .\}
 .if "\\*(oS"Null" \{\
@@ -283,8 +285,7 @@
 .		if "\\n(mo"10" .ds dD October
 .		if "\\n(mo"11" .ds dD November
 .		if "\\n(mo"12" .ds dD December
-.		nr _y \\n(yr+1900
-.		as dD \&\ \\n(dy, \\n(_y
+.		as dD \&\ \\n(dy, \\n(Yr
 .	\}
 .\}
 .el \{\
