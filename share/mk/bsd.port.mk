@@ -192,7 +192,7 @@ PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
 
 EXTRACT_CMD?=	tar
 EXTRACT_SUFX?=	.tar.gz
-EXTRACT_ARGS?=	-C ${WRKDIR} -xzf
+EXTRACT_ARGS?=	-xzf
 
 PKG_CMD?=		pkg_create
 PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
@@ -607,6 +607,7 @@ checksum: fetch
 				OK="false"; \
 			elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
 				echo ">> Checksum mismatch for $$file"; \
+				exit 1; \
 			fi; \
 			done; \
 			if [ "$$OK" = "" ]; then \
@@ -636,13 +637,15 @@ ${EXTRACT_COOKIE}:
 	@mkdir -p ${WRKDIR}
 .if defined(EXTRACT_ONLY)
 	@for file in ${EXTRACT_ONLY}; do \
-		if ! ${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file; then \
+		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file);\
+		then \
 			exit 1; \
 		fi \
 	done
 .else
 	@for file in ${DISTFILES}; do \
-		if ! ${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file; then \
+		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file);\
+		then \
 			exit 1; \
 		fi \
 	done
