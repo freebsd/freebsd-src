@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfiIkLmopqrRsv
+.Op Fl cdDfgiIkLmopqrRsv
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -69,6 +69,8 @@ Show the long description field for each package.
 Show the install-message file for each package.
 .It Fl f
 Show the packing list instructions for each package.
+.It Fl g
+Show files that don't match the recorded checksum.
 .It Fl i
 Show the install script (if any) for each package.
 .It Fl I
