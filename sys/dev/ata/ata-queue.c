@@ -118,6 +118,7 @@ ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature,
 	request->u.ata.feature = feature;
 	request->flags = ATA_R_CONTROL;
 	request->timeout = 5;
+	request->retries = -1;
 	ata_queue_request(request);
 	error = request->result;
 	ata_free_request(request);
