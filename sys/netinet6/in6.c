@@ -1830,7 +1830,8 @@ in6_are_prefix_equal(p1, p2, len)
 
 	if (bcmp(&p1->s6_addr, &p2->s6_addr, bytelen))
 		return (0);
-	if (p1->s6_addr[bytelen] >> (8 - bitlen) !=
+	if (bitlen != 0 &&
+	    p1->s6_addr[bytelen] >> (8 - bitlen) !=
 	    p2->s6_addr[bytelen] >> (8 - bitlen))
 		return (0);
 
