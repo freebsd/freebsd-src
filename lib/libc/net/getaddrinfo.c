@@ -1970,16 +1970,15 @@ _dns_getaddrinfo(rv, cb_data, ap)
 
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
-		/* prefer IPv6 */
 		q.name = hostname;
 		q.qclass = C_IN;
-		q.qtype = T_AAAA;
+		q.qtype = T_A;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		q.next = &q2;
 		q2.name = hostname;
 		q2.qclass = C_IN;
-		q2.qtype = T_A;
+		q2.qtype = T_AAAA;
 		q2.answer = buf2->buf;
 		q2.anslen = sizeof(buf2->buf);
 		break;
@@ -2007,17 +2006,18 @@ _dns_getaddrinfo(rv, cb_data, ap)
 		free(buf2);
 		return NS_NOTFOUND;
 	}
-	ai = getanswer(buf, q.n, q.name, q.qtype, pai);
-	if (ai) {
-		cur->ai_next = ai;
-		while (cur && cur->ai_next)
-			cur = cur->ai_next;
-	}
+	/* prefer IPv6 */
 	if (q.next) {
 		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai);
-		if (ai)
+		if (ai) {
 			cur->ai_next = ai;
+			while (cur && cur->ai_next)
+				cur = cur->ai_next;
+		}
 	}
+	ai = getanswer(buf, q.n, q.name, q.qtype, pai);
+	if (ai)
+		cur->ai_next = ai;
 	free(buf);
 	free(buf2);
 	if (sentinel.ai_next == NULL)
