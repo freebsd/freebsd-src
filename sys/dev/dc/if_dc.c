@@ -2862,10 +2862,11 @@ dc_tick(xsc)
 		} else {
 			r = CSR_READ_4(sc, DC_ISR);
 			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
-			    sc->dc_cdata.dc_tx_cnt == 0)
+			    sc->dc_cdata.dc_tx_cnt == 0) {
 				mii_tick(mii);
 				if (!(mii->mii_media_status & IFM_ACTIVE))
 					sc->dc_link = 0;
+			}
 		}
 	} else
 		mii_tick(mii);
