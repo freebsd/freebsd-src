@@ -35,28 +35,9 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
-#include <sys/reboot.h>
-#include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/devicestat.h>
 #include <sys/cons.h>
-
-#include <machine/md_var.h>
-#include <machine/bootinfo.h>
-#include <machine/ipl.h>
-#include <machine/trap.h>
-
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_periph.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_debug.h>
+#include <sys/kernel.h>
 
 static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
@@ -84,16 +65,14 @@ cpu_rootconf()
 static void
 configure(void *dummy)
 {
-	unsigned int	msr;
-
-	cold = 0;
-
 	device_add_child(root_bus, "nexus", 0);
 
 	root_bus_configure();
 
-	msr = mfmsr();
-	msr = PSL_EE|PSL_FP|PSL_ME|PSL_IR|PSL_DR|PSL_RI;
-	mtmsr(msr);
-	msr = mfmsr();
+	/*
+	 * Enable device interrupts
+	 */
+	mtmsr(mfmsr() | PSL_EE | PSL_RI);
+
+	cold = 0;
 }
