@@ -98,7 +98,6 @@ extern			start() asm("start");
 extern			mcount() asm ("mcount");
 extern	int		main(int argc, char **argv, char **envp);
 int			__syscall(int syscall,...);
-void			_thread_init();
 #ifdef MCRT0
 void			monstartup(void *low, void *high);
 #endif /* MCRT0 */
@@ -181,13 +180,6 @@ asm("eprol:");
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
 #endif /* MCRT0 */
-
-	/*
-	 * Initialize the initial thread.
-	 * This function might be a stub if libc does not
-	 * contain thread support.
-	 */
-	_thread_init();
 
 asm ("__callmain:");		/* Defined for the benefit of debuggers */
 	exit(main(kfp->kargc, argv, environ));
