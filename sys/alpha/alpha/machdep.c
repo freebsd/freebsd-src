@@ -548,6 +548,9 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	alpha_pal_wrmces(alpha_pal_rdmces() &
 			 ~(ALPHA_MCES_DSC|ALPHA_MCES_DPC));
 
+	/* Clear userland thread pointer */
+	alpha_pal_wrunique(0);
+
 	/*
 	 * Find out what hardware we're on, and do basic initialization.
 	 */
@@ -2028,7 +2031,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 		mcp->mc_regs[FRAME_SP] = alpha_pal_rdusp();
 		mcp->mc_thrptr = alpha_pal_rdunique();
 	} else
-		mcp->mc_thrptr = td->td_pcb->pcb_hw.apcb_unique;
+		mcp->mc_thrptr = 0;
 
 	mcp->mc_format = _MC_REV0_TRAPFRAME;
 	PROC_LOCK(curthread->td_proc);
@@ -2069,8 +2072,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		if (td == curthread) {
 			alpha_pal_wrusp(mcp->mc_regs[FRAME_SP]);
 			alpha_pal_wrunique(mcp->mc_thrptr);
-		} else
-			td->td_pcb->pcb_hw.apcb_unique = mcp->mc_thrptr;
+		}
 
 		/*
 		 * The context is a trapframe, so just copy it over the
