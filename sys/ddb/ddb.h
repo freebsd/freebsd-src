@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.19 1998/07/08 09:11:40 bde Exp $
+ *	$Id: ddb.h,v 1.20 1998/07/13 06:45:23 bde Exp $
  */
 
 /*
@@ -100,7 +100,7 @@ void		db_skip_to_eol __P((void));
 boolean_t	db_stop_at_pc __P((boolean_t *is_breakpoint));
 #define		db_strcpy	strcpy
 void		db_trap __P((int type, int code));
-int		db_value_of_name __P((char *name, db_expr_t *valuep));
+int		db_value_of_name __P((const char *name, db_expr_t *valuep));
 void		db_write_bytes __P((vm_offset_t addr, size_t size, char *data));
 				/* machine-dependent */
 void		kdb_init __P((void));
