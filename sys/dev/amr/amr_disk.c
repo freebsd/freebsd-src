@@ -85,14 +85,13 @@ static int amrd_attach(device_t dev);
 static int amrd_detach(device_t dev);
 
 static	d_open_t	amrd_open;
-static	d_close_t	amrd_close;
 static	d_strategy_t	amrd_strategy;
 
 #define AMRD_CDEV_MAJOR	133
 
 static struct cdevsw amrd_cdevsw = {
 		/* open */	amrd_open,
-		/* close */	amrd_close,
+		/* close */	noclose,
 		/* read */	physread,
 		/* write */	physwrite,
 		/* ioctl */	noioctl,
@@ -164,20 +163,6 @@ amrd_open(dev_t dev, int flags, int fmt, d_thread_t *td)
     sc->amrd_disk.d_fwheads = sc->amrd_drive->al_heads;
 #endif
 
-    sc->amrd_flags |= AMRD_OPEN;
-    return (0);
-}
-
-static int
-amrd_close(dev_t dev, int flags, int fmt, d_thread_t *td)
-{
-    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
-
-    debug_called(1);
-
-    if (sc == NULL)
-	return (ENXIO);
-    sc->amrd_flags &= ~AMRD_OPEN;
     return (0);
 }
 
@@ -284,7 +269,7 @@ amrd_detach(device_t dev)
 
     debug_called(1);
 
-    if (sc->amrd_flags & AMRD_OPEN)
+    if (sc->amrd_disk.d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
     devstat_remove_entry(&sc->amrd_stats);
