@@ -5,7 +5,7 @@ MAINTAINER=	dwmalone
 
 PROG=	inetd
 SRCS=	inetd.c builtins.c
-WARNS?=	2
+#WARNS?=	2
 MAN=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
 
