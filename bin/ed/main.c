@@ -172,9 +172,7 @@ top:
 			if (read_file(*argv, 0) < 0 && !isatty(0))
 				quit(2);
 			else if (**argv != '!')
-				if (strlcpy(old_filename, *argv, sizeof(old_filename))
-				    >= sizeof(old_filename))
-					quit(2);
+				strcpy(old_filename, *argv);
 		} else if (argc) {
 			fputs("?\n", stderr);
 			if (**argv == '\0')
@@ -1344,8 +1342,8 @@ strip_escapes(s)
 	int i = 0;
 
 	REALLOC(file, filesz, MAXPATHLEN + 1, NULL);
-	while (i < filesz - 1	/* Worry about a possible trailing escape */
-	       && (file[i++] = (*s == '\\') ? *++s : *s))
+	/* assert: no trailing escape */
+	while ((file[i++] = (*s == '\\') ? *++s : *s))
 		s++;
 	return file;
 }
