@@ -684,7 +684,22 @@ for COMPFILE in `find . -type f -size +0`; do
   # diff_loop function knows how to handle it.
   #
   if [ ! -e "${DESTDIR}${COMPFILE#.}" ]; then
-    diff_loop
+    case "${AUTO_RUN}" in
+      '')
+        diff_loop
+        ;;
+      *)
+        case "${AUTO_INSTALL}" in
+        '')
+          # If this is an auto run, make it official
+          echo "   *** ${COMPFILE} will remain for your consideration"
+          ;;
+        *)
+          diff_loop
+          ;;
+        esac
+        ;;
+    esac # Auto run test
     continue
   fi
 
