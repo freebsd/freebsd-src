@@ -23,6 +23,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$Id$
+.\"
 .Dd January, 27 1995
 .Dt COLLDEF 1
 .Os
@@ -35,7 +37,7 @@
 .Op Fl o Ar out_file
 .Op Ar filename
 .Sh DESCRIPTION
-.Ar colldef
+.Nm Colldef
 converts a collation sequence source definition
 into a format usable by the
 .Fn strxfrm
@@ -56,7 +58,7 @@ or
 transforms its arguments and does a
 comparison.
 .Pp
-.Ar colldef
+.Nm Colldef
 reads the collation sequence source definition
 from the standard input and stores the converted definition in filename.
 The output file produced contains the
@@ -233,7 +235,7 @@ The backslash character
 is used for continuation. In this case, no characters are permitted
 after the backslash character.
 .Sh EXIT STATUS
-.Ar colldef
+.Nm Colldef
 exits with the following values:
 .Ar 0
 No  errors  were   found   and   the   output   was successfully created.
