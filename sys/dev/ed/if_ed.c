@@ -916,7 +916,7 @@ ed_get_Linksys(sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + 0x04 + i);
 	}
-	return (0);
+	return (1);
 }
 
 /*
