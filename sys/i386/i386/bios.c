@@ -523,6 +523,11 @@ pnpbios_identify(driver_t *driver, device_t parent)
     if (pt == NULL)
 	return;
 
+    /* ACPI already active */
+    if (devclass_get_softc(devclass_find("ACPI"), 0) != NULL)
+	return;
+
+    /* get count of PnP devices */
     bzero(&args, sizeof(args));
     args.seg.code16.base = BIOS_PADDRTOVADDR(pt->pmentrybase);
     args.seg.code16.limit = 0xffff;		/* XXX ? */
