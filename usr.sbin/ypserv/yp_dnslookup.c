@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.5 1996/12/22 15:45:33 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.4 1996/12/22 22:30:54 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.5 1996/12/22 15:45:33 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.4 1996/12/22 22:30:54 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -110,6 +110,7 @@ struct circleq_dnsentry {
 	unsigned long ttl;
 	unsigned long sent;
 	unsigned long type;
+	unsigned short prot_type;
 	char **domain;
 	char *name;
 	struct in_addr addr;
@@ -243,12 +244,17 @@ static void yp_send_dns_reply(q, buf)
 	 * way we found 'em. This is _INCREDIBLY_ non-portable; it's
 	 * not even supported by the RPC library.
 	 */
-	xid = svcudp_set_xid(q->xprt, q->xid);
+	/*
+	 * XXX Don't from the transaction ID for TCP handles.
+	 */
+	if (q->prot_type == SOCK_DGRAM)
+		xid = svcudp_set_xid(q->xprt, q->xid);
 	client_addr = q->xprt->xp_raddr;
 	q->xprt->xp_raddr = q->client_addr;
 	if (!svc_sendreply(q->xprt, xdr_ypresp_val, (char *)&result))
 		yp_error("svc_sendreply failed");
-	svcudp_set_xid(q->xprt, xid);
+	if (q->prot_type == SOCK_DGRAM)
+		svcudp_set_xid(q->xprt, xid);
 	q->xprt->xp_raddr = client_addr;
 	return;
 }
@@ -311,7 +317,7 @@ void yp_run_dnsq()
 	if (hent == NULL) {
 		char retrybuf[MAXHOSTNAMELEN];
 
-		if (q->domain && *q->domain) {
+		if (h_errno == TRY_AGAIN && q->domain && *q->domain) {
 			snprintf(retrybuf, sizeof(retrybuf), "%s.%s",
 						q->name, *q->domain);
 			if (debug)
@@ -321,12 +327,13 @@ void yp_run_dnsq()
 			q->domain++;
 			return;
 		}
+	} else {
+		if (q->type == T_PTR) {
+			hent->h_addr = (char *)&q->addr.s_addr;
+			hent->h_length = sizeof(struct in_addr);
+		}
 	}
 
-	if (q->type == T_PTR) {
-		hent->h_addr = (char *)&q->addr.s_addr;
-		hent->h_length = sizeof(struct in_addr);
-	}
 	yp_send_dns_reply(q, parse(hent));
 
 	pending--;
@@ -344,6 +351,7 @@ ypstat yp_async_lookup_name(xprt, name)
 	char *name;
 {
 	register struct circleq_dnsentry *q;
+	int type, len;
 
 	if ((q = yp_malloc_dnsent()) == NULL)
 		return(YP_YPERR);
@@ -352,7 +360,14 @@ ypstat yp_async_lookup_name(xprt, name)
 	q->ttl = DEF_TTL;
 	q->sent = 1;
 	q->xprt = xprt;
-	q->xid = svcudp_get_xid(xprt);
+	type = -1; len = sizeof(type);
+	if (getsockopt(xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
+		yp_error("getsockopt failed: %s", strerror(errno));
+		return(YP_YPERR);
+	}
+	q->prot_type = type;
+	if (q->prot_type == SOCK_DGRAM)
+		q->xid = svcudp_get_xid(xprt);
 	q->client_addr = xprt->xp_raddr;
 	if (!strchr(name, '.'))
 		q->domain = _res.dnsrch;
@@ -383,6 +398,7 @@ ypstat yp_async_lookup_addr(xprt, addr)
 	register struct circleq_dnsentry *q;
 	char buf[MAXHOSTNAMELEN];
 	int a, b, c, d;
+	int type, len;
 
 	if ((q = yp_malloc_dnsent()) == NULL)
 		return(YP_YPERR);
@@ -401,7 +417,14 @@ ypstat yp_async_lookup_addr(xprt, addr)
 	q->sent = 1;
 	q->xprt = xprt;
 	q->domain = NULL;
-	q->xid = svcudp_get_xid(xprt);
+	type = -1; len = sizeof(type);
+	if (getsockopt(xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
+		yp_error("getsockopt failed: %s", strerror(errno));
+		return(YP_YPERR);
+	}
+	q->prot_type = type;
+	if (q->prot_type == SOCK_DGRAM)
+		q->xid = svcudp_get_xid(xprt);
 	q->client_addr = xprt->xp_raddr;
 	q->id = yp_send_dns_query(buf, q->type);
 
