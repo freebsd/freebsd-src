@@ -28,12 +28,15 @@
  */
 
 static const char rcsid[] =
-	"$Id: tzmenu.c,v 1.1 1995/04/24 21:04:34 wollman Exp $";
+	"$Id: tzmenu.c,v 1.2 1995/05/30 03:52:50 rgrimes Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
 #include <dialog.h>
 #include <limits.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
 
 #include "tzsetup.h"
 
@@ -59,7 +62,10 @@ static struct region *regions[] = {
 	&Pacific
 };
 
+static unsigned short nrows;
+
 #define NREGIONS 8
+#define DEFAULT_NROWS 24	/* default height of tty */
 
 static const char *country_menu(const struct region *, const char *);
 
@@ -71,6 +77,16 @@ tzmenu(void)
 	int item = 0;
 	int sc = 0;
 	const char *res;
+	struct winsize win;
+	char *cp;
+
+	if (isatty(fileno(stdin)) &&
+	    ioctl(fileno(stdin), TIOCGWINSZ, &win) != -1)
+		nrows = win.ws_row;
+	else if ((cp = getenv("LINES")))
+		nrows = atoi(cp);
+	if (nrows == 0)
+		nrows = DEFAULT_NROWS;
 
 	while(1) {
 		dialog_clear();
@@ -115,9 +131,11 @@ country_menu(const struct region *reg, const char *name)
 	while(1) {
 		dialog_clear();
 		rv = dialog_menu(title, "Select a country",
-				 reg->r_count > 18 ? 24 : reg->r_count + 6,
+				 reg->r_count > nrows - 6 ?
+				 nrows : reg->r_count + 6,
 				 78,
-				 reg->r_count > 18 ? 18 : reg->r_count,
+				 reg->r_count > nrows - 6 ?
+				 nrows - 6 : reg->r_count,
 				 reg->r_count,
 				 (unsigned char **)reg->r_menu,
 				 rbuf,
@@ -154,9 +172,11 @@ location_menu(const struct country *ctry, const char *name)
 	while(1) {
 		dialog_clear();
 		rv = dialog_menu(title, "Select a location",
-				 ctry->c_count + 6,
+				 ctry->c_count > nrows - 6?
+				 nrows : ctry->c_count + 6,
 				 78,
-				 ctry->c_count,
+				 ctry->c_count > nrows - 6?
+				 nrows - 6 : ctry->c_count,
 				 ctry->c_count,
 				 (unsigned char **)ctry->c_menu,
 				 rbuf,

@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.4 1995/10/06 02:46:23 jkh Exp $";
+	"$Id: main.c,v 1.3.2.1 1995/10/06 02:48:59 jkh Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "tzsetup.h"
 
@@ -66,11 +67,11 @@ main(void)
 
 	fiddle_cmos();
 
-	dialog_notify("Reboot the machine for changes to take effect.\n");
+	dialog_notify("Daemons will only notice\n"
+		      "a timezone change.\n"
+		      "after rebooting.\n");
 	end_dialog();
 
-	fprintf(stderr,
-		"Now reboot your computer for the changes to take effect.\n");
 	return tz ? 0 : 1;
 }
 
@@ -133,10 +134,10 @@ set_time(void)
 			if (labs(diff) > 15*60) {
 				cmos_state = cmos(CMOS_LOCAL);
 				if (diff > 0) {
-					time_adjust = ((diff + 15*60)/30*60
+					time_adjust = ((diff + 15*60)/(30*60)
 						       * 30*60);
 				} else {
-					time_adjust = ((diff - 15*60)/30*60
+					time_adjust = ((diff - 15*60)/(30*60)
 						       * 30*60);
 				}
 			} else {
@@ -177,17 +178,23 @@ cmos(enum cmos state)
 static void
 fiddle_cmos(void)
 {
-	FILE *fp;
+	int fd;
 
 	switch(cmos_state) {
 	case CMOS_LEAVE:
+		break;
 	case CMOS_UTC:
+		if (unlink(PATH_WALL_CMOS_CLOCK) == -1 &&
+		    errno != ENOENT)
+			dialog_notify("Error removing " PATH_WALL_CMOS_CLOCK);
 		break;
 	case CMOS_LOCAL:
-		fp = fopen(PATH_WALL_CMOS_CLOCK, "w");
-		if(fp) {
-			fclose(fp);
-		} /* xxx should have error message */
+		if ((fd = open(PATH_WALL_CMOS_CLOCK, O_RDONLY|O_CREAT, 0644))
+		    == -1)
+			dialog_notify("Error creating " PATH_WALL_CMOS_CLOCK);
+		else
+			close(fd);
+		break;
 	}
 }
 
@@ -208,17 +215,15 @@ setzone(const char *zone)
 	systime += time_adjust;
 	tm = localtime(&systime);
 
-#if 0	/* This never prints the right value! :( */
 	snprintf(msg, sizeof msg,
 		 "Does %02d:%02d:%02d %d.%d.%04d %s look reasonable?",
-		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday, tm->tm_mon,
-		 tm->tm_year + 1900, tm->tm_zone);
+		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday,
+		 tm->tm_mon + 1, tm->tm_year + 1900, tm->tm_zone);
 
 	rv = dialog_yesno("Verifying timezone selection",
 			  msg, -1, -1);
 	if (rv)
 		return 1;
-#endif
 
 	snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
 	ifp = fopen(msg, "r");
