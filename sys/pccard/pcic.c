@@ -324,7 +324,7 @@ pcic_attach(device_t dev)
 	rid = 0;
 	r = NULL;
 	flags = RF_ACTIVE;
-	if (sc->flags & PCIC_SHARED_IRQ)
+	if (sc->csc_route == pci_parallel)
 		flags |= RF_SHAREABLE;
 	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, flags);
 	if (r == NULL) {
@@ -904,4 +904,20 @@ pcic_get_memory_offset(device_t bus, device_t child, int rid, u_int32_t *offset)
 	*offset = mp->card;
 
 	return (0);
+}
+
+struct resource *
+pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+
+	/*
+	 * If we're routing via pci, we can share.
+	 */
+	if (sc->func_route == pci_parallel && type == SYS_RES_IRQ)
+		flags |= RF_SHAREABLE;
+
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
 }
