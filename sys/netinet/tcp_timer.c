@@ -178,6 +178,11 @@ tcp_timer_delack(xtp)
 	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	if (!inp) {
+		INP_INFO_RUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
 	if (callout_pending(tp->tt_delack) || !callout_active(tp->tt_delack)) {
@@ -209,6 +214,11 @@ tcp_timer_2msl(xtp)
 	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	if (!inp) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
 		INP_UNLOCK(tp->t_inpcb);
@@ -257,6 +267,11 @@ tcp_timer_keep(xtp)
 	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	if (!inp) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_keep) || !callout_active(tp->tt_keep)) {
 		INP_UNLOCK(inp);
@@ -341,6 +356,11 @@ tcp_timer_persist(xtp)
 	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = tp->t_inpcb;
+	if (!inp) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_persist) || !callout_active(tp->tt_persist)){
 		INP_UNLOCK(inp);
@@ -403,6 +423,11 @@ tcp_timer_rexmt(xtp)
 	INP_INFO_WLOCK(&tcbinfo);
 	headlocked = 1;
 	inp = tp->t_inpcb;
+	if (!inp) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		splx(s);
+		return;
+	}
 	INP_LOCK(inp);
 	if (callout_pending(tp->tt_rexmt) || !callout_active(tp->tt_rexmt)) {
 		INP_UNLOCK(inp);
