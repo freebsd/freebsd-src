@@ -3040,7 +3040,19 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
                 isp_prt(isp, ISP_LOGERR,
                     "Internal Firmware Error on bus %d @ RISC Address 0x%x",
                     mbox6, mbox1);
+#ifdef	ISP_FW_CRASH_DUMP
+		/*
+		 * XXX: really need a thread to do this right.
+		 */
+		if (IS_FC(isp)) {
+			FCPARAM(isp)->isp_fwstate = FW_CONFIG_WAIT;
+			FCPARAM(isp)->isp_loopstate = LOOP_NIL;
+			isp_freeze_loopdown(isp, "f/w crash");
+			isp_fw_dump(isp);
+		}
 		isp_reinit(isp);
+		isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
+#endif
 		break;
 	}
 	case ISPASYNC_UNHANDLED_RESPONSE:
