@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.12 1997/06/19 03:22:17 halley Exp $
+# $Id: Makefile,v 8.15 1999/08/08 17:13:24 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -30,7 +30,7 @@ INCL= ${TOP}/include
 PORTINCL= ${TOP}/port/${SYSTYPE}/include
 LIBBIND= ${TOP}/lib/libbind.${A}
 RANLIB= ranlib
-AR= ar cruv
+AR= ar cru
 INSTALL= install
 CDEBUG= -g
 
@@ -39,7 +39,7 @@ SUBDIRS = bsdos decunix linux netbsd sunos ultrix
 MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"CC=${CC}" "LEX=${LEX}" "CDEBUG=${CDEBUG}" \
 	"SYSLIBS=${SYSLIBS}" "LDFLAGS=${LDFLAGS}" \
-	"DESTDIR=${DESTDIR}" "PIDDIR=${PIDDIR}" "DESTMAN=${DESTMAN}" \
+	"DESTDIR=${DESTDIR}" "DESTMAN=${DESTMAN}" \
 	"DESTBIN=${DESTBIN}" "DESTSBIN=${DESTSBIN}" "DESTEXEC=${DESTEXEC}" \
 	"DESTLIB=${DESTLIB}" "DESTINC=${DESTINC}" "DESTHELP=${DESTHELP}" \
 	"RANLIB=${RANLIB}" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \

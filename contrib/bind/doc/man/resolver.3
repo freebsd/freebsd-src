@@ -16,44 +16,134 @@
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.3	6.5 (Berkeley) 6/23/90
-.\"	$Id: resolver.3,v 8.5 1997/03/14 02:29:48 vixie Exp $
+.\"	$Id: resolver.3,v 8.11 1999/09/13 23:33:24 vixie Exp $
 .\"
-.Dd December 11, 1995
+.Dd October 19, 1998
 .Dt RESOLVER @LIB_NETWORK_EXT_U@ 
 .Os BSD 4
 .Sh NAME
+.Nm res_ninit ,
+.Nm res_nisourserver ,
+.Nm fp_resstat ,
+.Nm res_npquery ,
+.Nm res_hostalias ,
+.Nm res_nquery ,
+.Nm res_nsearch ,
+.Nm res_nquerydomain ,
+.Nm res_nmkquery ,
+.Nm res_nsend ,
+.Nm res_nupdate ,
+.Nm res_nmkupdate ,
+.Nm res_nclose ,
+.Nm res_nsendsigned ,
+.Nm res_nsendupdate ,
+.Nm res_findzonecut ,
+.Nm dn_comp ,
+.Nm dn_expand ,
+.Nm hstrerror ,
+.Nm res_init ,
+.Nm res_isourserver ,
+.Nm p_nquery ,
+.Mm p_query ,
+.Mm hostalias ,
 .Nm res_query ,
 .Nm res_search ,
+.Nm res_querydomain ,
 .Nm res_mkquery ,
 .Nm res_send ,
-.Nm res_init ,
-.Nm dn_comp ,
-.Nm dn_expand 
+.Nm res_update ,
+.Nm res_close ,
+.Nm herror
 .Nd resolver routines
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/nameser.h>
 .Fd #include <resolv.h>
-.Fn res_query "const char *dname" "int class, type" "u_char *answer" "int anslen"
-.Fn res_search "const char *dname" "int class, type" "u_char *answer" "int anslen"
-.Fn res_mkquery "int op" "const char *dname" "int class, type" "const char *data" "int datalen" "struct rrec *newrr" "u_char *buf" "int buflen"
-.Fn res_send "const u_char *msg" "int msglen" "u_char *answer" "int anslen"
-.Fn res_init
+.Fn res_ninit "res_state statp"
+.Fn res_nisourserver "const res_state statp" "const struct sockaddr_in *addr"
+.Fn fp_resstat "const res_state statp" "FILE *fp"
+.Fn res_npquery "const res_state statp" "const u_char *msg" "int msglen" "FILE *fp"
+.Fn res_hostalias "const res_state statp" "const char *name" "char *buf" "size_t buflen"
+.Fn res_nquery "res_state statp" "const char *dname" "int class" "int type" "u_char *answer" "int anslen"
+.Fn res_nsearch "res_state statp" "const char *dname" "int class" "int type" "u_char * answer" "int anslen"
+.Fn res_nquerydomain "res_state statp" "const char *name" "const char *domain" "int class" "int type" "u_char *answer" "int anslen"
+.Fn res_nmkquery "res_state statp, int op, const char *dname" "int class" "int type" "const u_char *data" "int datalen" "const u_char *newrr" "u_char *buf" "int buflen"
+.Fn res_nsend "res_state statp" "const u_char *msg" "int msglen" "u_char *answer" "int anslen"
+.Fn res_nupdate "res_state statp" "ns_updrec *rrecp_in"
+.Fn res_nmkupdate "res_state statp" "ns_updrec *rrecp_in" "u_char *buf" "int buflen"
+.Fn res_nclose "res_state statp"
+.Fn res_nsendsigned "res_state statp" "const u_char *msg" "int msglen" "ns_tsig_key *key" "u_char *answer" "int anslen"
+.Fn res_findzonecut "res_state statp" "const char *dname" "ns_class class" "int options" "char *zname" "size_t zsize" "struct in_addr *addrs" "int naddrs"
+.Fn res_nsendupdate "res_state statp" "ns_updrec *rrecp_in" "ns_tsig_key *key" "char *zname" "struct in_addr addr"
 .Fn dn_comp "const char *exp_dn" "u_char *comp_dn" "int length" "u_char **dnptrs, **lastdnptr"
 .Fn dn_expand "const u_char *msg, *eomorig, *comp_dn" "char *exp_dn" "int  length"
-.Fn herror "const char *s"
 .Fn hstrerror "int err"
+.Sh DEPRECATED
+.nr nS 1
+.Fd #include <sys/types.h>
+.Fd #include <netinet/in.h>
+.Fd #include <arpa/nameser.h>
+.Fd #include <resolv.h>
+.Fn res_init "void"
+.Fn res_isourserver "const struct sockaddr_in *addr"
+.Fn p_nquery "const u_char *msg" "int msglen" "FILE *fp"
+.Fn p_query "const u_char *msg" "FILE *fp"
+.Fn hostalias "const char *name"
+.Fn res_query "const char *dname" "int class, type" "u_char *answer" "int anslen"
+.Fn res_search "const char *dname" "int class, type" "u_char *answer" "int anslen"
+.Fn res_querydomain "const char *name" "const char *domain" "int class" "int type" "u_char *answer" "int anslen"
+.Fn res_mkquery "int op" "const char *dname, int class, type" "const char *data" "int datalen" "struct rrec *newrr" "u_char *buf" "int buflen"
+.Fn res_send "const u_char *msg" "int msglen" "u_char *answer" "int anslen"
+.Fn res_update "ns_updrec *rrecp_in"
+.Fn res_close "void"
+.Fn herror "const char *s"
 .Sh DESCRIPTION
 These routines are used for making, sending and interpreting
 query and reply messages with Internet domain name servers.
 .Pp
-Global configuration and state information that is used by the
-resolver routines is kept in the structure
-.Ft _res .
-Most of the values have reasonable defaults and can be ignored.
+State information is kept in
+.Fa statp
+and is used to control the behavior of these functions.
+.Fa statp
+should be set to all zeros prior to the first call to any of these functions.
+.Pp
+The functions
+.Fn res_init ,
+.Fn res_isourserver ,
+.Fn p_nquery ,
+.Fn p_query ,
+.Fn hostalias ,
+.Fn res_query ,
+.Fn res_search ,
+.Fn res_querydomain ,
+.Fn res_mkquery ,
+.Fn res_send ,
+.Fn res_update ,
+.Fn res_close
+and
+.Fn herror
+are deprecated and are supplied for compatability with old source
+code.
+They use global configuration and state information that is
+kept in the structure
+.Ft _res
+rather than that referenced through
+.Ft statp .
+.Pp
+Most of the values in 
+.Ft statp
+and
+.Ft _res
+are initialized on the first call to
+.Fn res_ninit
+/
+.Fn res_init
+to reasonable defaults and can be ignored.
 Options
 stored in
+.Ft statp->options
+/
 .Ft _res.options
 are defined in
 .Pa resolv.h
@@ -65,14 +155,14 @@ of the options enabled.
 .It Dv RES_INIT
 True if the initial name server address and default domain name are
 initialized (i.e.,
+.Fn res_ninit
+/
 .Fn res_init
 has been called).
 .It Dv RES_DEBUG
 Print debugging messages.
 .It Dv RES_AAONLY
 Accept authoritative answers only.
-With this option,
-.Fn res_send
 should continue until it finds an authoritative answer or finds an error.
 Currently this is not implemented.
 .It Dv RES_USEVC
@@ -84,22 +174,28 @@ to keep the TCP connection open between queries.
 This is useful only in programs that regularly do many queries.
 UDP should be the normal mode used.
 .It Dv RES_IGNTC
-Unused currently (ignore truncation errors, i.e., don't retry with TCP).
+Ignore truncation errors, i.e., don't retry with TCP.
 .It Dv RES_RECURSE
 Set the recursion-desired bit in queries.
 This is the default.
 (\c
+.Fn res_nsend
+/
 .Fn res_send
 does not do iterative queries and expects the name server
 to handle recursion.)
 .It Dv RES_DEFNAMES
 If set,
+.Fn res_nsearch
+/
 .Fn res_search
 will append the default domain name to single-component names
 (those that do not contain a dot).
 This option is enabled by default.
 .It Dv RES_DNSRCH
 If this option is set,
+.Fn res_nsearch
+/
 .Fn res_search
 will search for host names in the current domain and in parent domains; see
 .Xr hostname @DESC_EXT@ .
@@ -110,10 +206,31 @@ This option is enabled by default.
 This option turns off the user level aliasing feature controlled by
 the 
 .Ev HOSTALIASES 
-environment variable.  Network daemons should set this option.
+environment variable.
+Network daemons should set this option.
+.It Dv RES_USE_INET6
+This option causes 
+.Xr gethostbyname @LIB_NETWORK_EXT@
+to look for AAAA records before looking for A records if none are found.
+.It Dv RES_ROTATE
+This options causes the
+.Fn res_nsend
+/
+.Fn res_send
+to rotate the list of nameservers in
+.Fa statp->nsaddr_list
+/
+.Fa _res.nsaddr_list .
+.It Dv RES_KEEPTSIG
+This option causes
+.Fn res_nsendsigned
+to leave the message unchanged after TSIG verification; otherwise the TSIG
+record would be removed and the header updated.
 .El
 .Pp
 The
+.Fn res_ninit
+/
 .Fn res_init
 routine
 reads the configuration file (if any; see
@@ -135,6 +252,8 @@ Another environment variable
 .Pq Dq Ev RES_OPTIONS 
 can be set to override certain internal resolver options which are otherwise
 set by changing fields in the
+.Ft statp
+/
 .Ft _res
 structure or are inherited from the configuration file's
 .Ic options
@@ -146,9 +265,11 @@ Initialization normally occurs on the first call
 to one of the other resolver routines.
 .Pp
 The
+.Fn res_nquery
+/
 .Fn res_query
-function provides an interface to the server query mechanism.
-It constructs a query, sends it to the local server,
+functions provides interfaces to the server query mechanism.
+They constructs a query, sends it to the local server,
 awaits a response, and makes preliminary checks on the reply.
 The query requests information of the specified
 .Fa type
@@ -161,10 +282,18 @@ The reply message is left in the
 buffer with length
 .Fa anslen
 supplied by the caller.
+.Fn res_nquery
+/
+.Fn res_query
+return -1 on error or the length of the answer.
 .Pp
 The
+.Fn res_nsearch
+/
 .Fn res_search
-routine makes a query and awaits a response like
+routines make a query and awaits a response like
+.Fn res_nquery
+/
 .Fn res_query ,
 but in addition, it implements the default and search rules
 controlled by the 
@@ -172,13 +301,19 @@ controlled by the
 and 
 .Dv RES_DNSRCH 
 options.
-It returns the first successful reply.
+It returns the length of the first successful reply which is stored in
+.Ft answer
+or -1 on error.
 .Pp
 The remaining routines are lower-level routines used by
+.Fn res_nquery
+/
 .Fn res_query .
 The
+.Fn res_nmkquery
+/
 .Fn res_mkquery
-function
+functions
 constructs a standard query message and places it in
 .Fa buf .
 It returns the size of the query, or \-1 if the query is
@@ -196,16 +331,158 @@ The domain name for the query is given by
 is currently unused but is intended for making update messages.
 .Pp
 The
+.Fn res_nsend
+/
 .Fn res_send
-routine
+/
+.Fn res_nsendsigned
+routines
 sends a pre-formatted query and returns an answer.
 It will call
+.Fn res_ninit
+/
 .Fn res_init
 if 
 .Dv RES_INIT 
 is not set, send the query to the local name server, and
-handle timeouts and retries.
+handle timeouts and retries.  Additionally,
+.Fn res_nsendsigned
+will use TSIG signatures to add authentication to the query and verify the
+response.  In this case, only one nameserver will be contacted.
 The length of the reply message is returned, or \-1 if there were errors.
+.Pp
+.Fn res_nquery
+/
+.Fn res_query ,
+.Fn res_nsearch
+/
+.Fn res_search
+and
+.Fn res_nsend
+/
+.Fn res_send
+return a length that may be bigger than
+.Fa anslen .
+In that case the query should be retried with a bigger buffer.
+NOTE the answer to the second query may be larger still so supplying
+a buffer that bigger that the answer returned by the previous
+query is recommended.
+.Pp
+.Fa answer
+MUST be big enough to receive a maximum UDP response from the server or 
+parts of the answer will be silently discarded.
+The default maximum UDP response size is 512 bytes.
+.Pp
+The functions
+.Fn res_nisourserver
+/
+.Fn res_isourserver
+return true when 
+.Fa inp
+is one of the servers in
+.Fa statp->nsaddr_list
+/
+.Fa _res.nsaddr_list .
+.Pp
+The functions
+.Fn res_npquery
+/
+.Fn p_nquery
+/
+.Fn p_query
+print out the query and any answer in
+.Fa msg
+on
+.Fa fp .
+.Fn p_query
+is equivalent to
+.Fn p_nquery
+with
+.Fa msglen
+set to 512.
+.Pp
+The function
+.Fn fp_resstat
+prints out the active flag bits in
+.Fa statp->options
+preceeded by the text ";; res options:" on 
+.Fa file .
+.Pp
+The functions
+.Fn res_hostalias
+/
+.Fn hostalias
+lookup up name in the file referred to by the
+.Ev HOSTALIASES files return a fully qualified hostname if found or NULL if
+not found or an error occurred.
+.Fn res_hostalias
+uses
+.Fa buf
+to store the result in,
+.Fn hostalias
+uses a static buffer.
+.Pp
+The functions
+.Fn res_nupdate
+/
+.Fn res_update
+take a list of ns_updrec
+.Fa rrecp_in .
+Identifies the containing zone for each record and groups the records
+according to containing zone maintaining in zone order then sends and
+update request to the servers for these zones.
+The number of zones updated is returned or -1 on error.
+.Pp
+The function
+.Fn res_findzonecut
+discovers the closest enclosing zone cut for a specified domain name,
+and finds the IP addresses of the zone's master servers.
+.Pp
+The function
+.Fn res_nsendupdate
+is used to perform TSIG authenticated dynamic update operations.
+.Fn res_nsendupdate
+sends a dynamic update to the specified IP address, authenticating the update
+if the key is not NULL.
+.Pp
+The functions 
+.Fn res_nmkupdate
+/
+.Fn res_mkupdate
+take a linked list of ns_updrec
+.Fa rrecp_in
+and construct a UPDATE message in
+.Fa buf .
+.Fn res_nmkupdate
+/
+.Fn res_mkupdate
+return the length of the constructed message on no error or one of the
+following error values.
+.Bl -inset -width "-5"
+.It -1
+An error occurred parsing 
+.Fa rrecp_in .
+.It -2
+The buffer 
+.Fa buf
+was too small.
+.It -3
+The first record was not a zone section or there was a section order problem.
+The section order is S_ZONE, S_PREREQ and S_UPDATE. 
+.It -4
+A number overflow occurred.
+.It -5
+Unknown operation or no records.
+.El
+.Pp
+The functions
+.Fn res_nclose
+/
+.Fn res_close
+close any open files referenced through
+.Fa statp
+/
+.Fa _res .
 .Pp
 The
 .Fn dn_comp
@@ -256,7 +533,11 @@ which is of size
 .Fa length .
 The size of compressed name is returned or \-1 if there was an error.
 .Pp
-The external variable
+The variables
+.Ft statp->res_h_errno
+/
+.Ft _res.res_h_errno
+and external variable
 .Ft h_errno
 is set whenever an error occurs during resolver operation.  The following
 definitions are given in
@@ -265,8 +546,8 @@ definitions are given in
 #define NETDB_INTERNAL -1  /* see errno */
 #define NETDB_SUCCESS  0   /* no problem */
 #define HOST_NOT_FOUND 1   /* Authoritative Answer Host not found */
-#define TRY_AGAIN      2   /* Non-Authoritive not found, or SERVFAIL */
-#define NO_RECOVERY    3   /* Nonrecoverable: FORMERR, REFUSED, NOTIMP */
+#define TRY_AGAIN      2   /* Non-Authoritative not found, or SERVFAIL */
+#define NO_RECOVERY    3   /* Non-Recoverable: FORMERR, REFUSED, NOTIMP */
 #define NO_DATA        4   /* Valid name, no data for requested type */
 .Ed
 .Pp

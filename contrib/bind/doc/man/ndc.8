@@ -1,142 +1,133 @@
-.\" Copyright (c) 1994
-.\"    The Regents of the University of California.  All rights reserved.
-.\" 
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\" 	This product includes software developed by the University of
-.\" 	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
-.\" 
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
+.\" Copyright (c) 1998,1999 by Internet Software Consortium
 .\"
-.Dd November 27, 1994
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\" ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\" CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.Dd December 31, 1998
 .Dt @INDOT_U@NDC @SYS_OPS_EXT_U@ 
 .Os BSD 4
 .Sh NAME
-.Nm @INDOT@ndc 
-.Nd name daemon control interface
+.Nm ndc
+.Nd name daemon control program
 .Sh SYNOPSIS
-.Nm @INDOT@ndc
-.Ar directive
-.Op Ar ... 
+.Nm ndc
+.Op Fl c Ar channel
+.Op Fl l Ar localsock
+.Op Fl p Ar pidfile
+.Op Fl d
+.Op Fl q
+.Op Fl s
+.Op Fl t
+.Op Ar command
 .Sh DESCRIPTION
-This command allows the name server administrator to send various signals
-to the name server, or to restart it.  Zero or more directives may be given,
-from the following list:
-.Bl -tag -width "querylog"
-.It Ic status
-Displays the current status of
-.Xr @INDOT@named @SYS_OPS_EXT@
-as shown by
-.Xr ps @CMD_EXT@ .
-.It Ic dumpdb
-Causes
-.Ic @INDOT@named
-to dump its database and cache to
-.Pa /var/tmp/named_dump.db
-(uses the 
-.Dv INT 
-signal.)
-.It Ic reload
-Causes
-.Ic @INDOT@named
-to check the serial numbers of all primary and secondary zones
-and to reload those that have changed (uses the 
-.Dv HUP 
-signal.)
-.It Ic stats
-Causes
-.Ic @INDOT@named
-to dump its statistics to
-.Pa /var/tmp/named.stats
-(uses the 
-.Dv IOT 
-or 
-.Dv ABRT 
-signal.)
-.It Ic trace
-Causes
-.Ic @INDOT@named
-to increment its 
-.Dq tracing level 
-by one.  Whenever the tracing level
-is nonzero, trace information will be written to
-.Pa /var/tmp/named.run .
-Higher tracing levels result in more detailed information.
-(Uses the 
-.Dv USR1 
-signal.)
-.It Ic notrace
-Causes
-.Ic @INDOT@named
-to set its 
-.Dq tracing level 
-to zero, closing 
-.Pa /var/tmp/named.run , 
-if it is open (uses the 
-.Dv USR2 
-signal.)
-.It Ic querylog
-Causes
-.Ic @INDOT@named
-to toggle the 
-.Dq query logging 
-feature, which while on will result in a
-.Xr syslog @SYSCALL_EXT@
-of each incoming query (uses the 
-.Dv WINCH 
-signal.)  Note that query logging
-consumes quite a lot of log file space.  This directive may also be given as
-.Ic qrylog .
-.It Ic start
-Causes
-.Ic @INDOT@named
-to be started, as long as it isn't already running.
-.It Ic stop
-Causes
-.Ic @INDOT@named
-to be stopped, if it is running.
-.It Ic restart
-Causes
-.Ic @INDOT@named
-to be killed and restarted.
+This command allows the system administrator to control the operation
+of a name server.  If no
+.Ar command
+is given,
+.Ic ndc
+will prompt for commands until it reads EOF.
+.Pp
+Options are:
+.Bl -tag -width Fl
+.It Fl c Ar channel
+Specifies the rendezvous point for the control channel.  The default is
+.Pa /var/run/ndc
+(a UNIX domain socket which is also the server's default control channel).
+If the desired control channel is a TCP/IP socket, then the format of the
+.Ar channel
+argument is
+.Sy ipaddr/port
+(for example,
+.Sy 127.0.0.1/54
+would be TCP port 54 on the local host.)
+.It Fl l Ar localsock
+This option will
+.Xr bind 2
+the client side of the control channel to a specific address.  Servers can
+be configured to reject connections which do not come from specific addresses.
+The format is the same as for
+.Ar channel
+(see above).
+.It Fl p Ar pidfile
+For backward compatibility with older name servers,
+.Ic ndc
+is able to use UNIX signals for control communications.  This capability is
+optional in modern name servers and will disappear altogether at some future
+time.  Note that the available
+.Ar command
+set is narrower when the signal interface is used.  A likely
+.Ar pidfile
+argument would be something like
+.Pa /var/run/named.pid .
+.It Fl d
+Turns on debugging output, which is of interest mainly to developers.
+.It Fl q
+Suppresses prompts and result text.
+.It Fl s
+Suppresses nonfatal error announcements.
+.It Fl t
+Turns on protocol and system tracing, useful in installation debugging.
 .El
-.Sh BUGS
-Arguments to
+.Sh COMMANDS
+Several commands are built into
+.Ic ndc ,
+but the full set of commands supported by the name server is dynamic and
+should be discovered using the
+.Ar help
+command (see below).  Builtin commands are:
+.Bl -tag -width Fl
+.It Ar /help
+Provides help for builtin commands.
+.It Ar /exit
+Exit from
+.Ic ndc
+command interpreter.
+.It Ar /trace
+Toggle tracing (see
+.Fl -t
+description above).
+.It Ar /debug
+Toggle debugging (see
+.Fl d
+description above).
+.It Ar /quiet
+Toggle quietude (see
+.Fl q
+description above).
+.It Ar /silent
+Toggle silence (see
+.Fl s
+description above).
+.El
+.Sh NOTES
+If running in
+.Ar pidfile
+mode, any arguments to
+.Ar start
+and
+.Ar restart
+commands are passed to the new
 .Ic @INDOT@named
-are not preserved by
-.Ic restart ,
-or known by
-.Ic start .
-.Pp
-Some mechanism for controlling the parameters and environment should exist.
-.Pp
-Implemented as a
-.Xr sh @CMD_EXT@
-script.
+on its command line.  If running in
+.Ar channel
+mode, there is no
+.Ar start
+command and the
+.Ar restart
+command just tells the name server to
+.Xr execvp 2
+itself.
 .Sh AUTHOR
 Paul Vixie (Internet Software Consortium)
 .Sh SEE ALSO
 .Xr @INDOT@named @SYS_OPS_EXT@ ,
-.Xr @INDOT@named.reload @SYS_OPS_EXT@ ,
-.Xr @INDOT@named.restart @SYS_OPS_EXT@ .

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_pw.c,v 1.10 1997/12/04 04:58:01 halley Exp $";
+static const char rcsid[] = "$Id: nis_pw.c,v 1.16 1999/01/30 00:53:16 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -28,6 +28,11 @@ static int __bind_irs_pw_unneeded;
 #else
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+#include <isc/memcluster.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
@@ -40,6 +45,8 @@ static int __bind_irs_pw_unneeded;
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <isc/memcluster.h>
 
 #include <irs.h>
 
@@ -85,13 +92,13 @@ irs_nis_pw(struct irs_acc *this) {
 	struct irs_pw *pw;
 	struct pvt *pvt;
 		 
-        if (!(pw = malloc(sizeof *pw))) {
+        if (!(pw = memget(sizeof *pw))) {
                 errno = ENOMEM;
                 return (NULL);
         }
         memset(pw, 0x5e, sizeof *pw);
-        if (!(pvt = malloc(sizeof *pvt))) {
-                free(pw);
+        if (!(pvt = memget(sizeof *pvt))) {
+                memput(pw, sizeof *pw);
                 errno = ENOMEM;
                 return (NULL);
         }
@@ -99,13 +106,15 @@ irs_nis_pw(struct irs_acc *this) {
 	pvt->needrewind = 1;
 	pvt->nis_domain = ((struct nis_p *)this->private)->domain;
 	pw->private = pvt;
-        pw->close = pw_close;
-        pw->next = pw_next;
-        pw->byname = pw_byname;
-        pw->byuid = pw_byuid;
-        pw->rewind = pw_rewind;
+	pw->close = pw_close;
+	pw->next = pw_next;
+	pw->byname = pw_byname;
+	pw->byuid = pw_byuid;
+	pw->rewind = pw_rewind;
 	pw->minimize = pw_minimize;
-        return (pw);
+	pw->res_get = NULL;
+	pw->res_set = NULL;
+	return (pw);
 }
 
 /* Methods */
@@ -117,8 +126,8 @@ pw_close(struct irs_pw *this) {
 	if (pvt->pwbuf)
 		free(pvt->pwbuf);
 	nisfree(pvt, do_all);
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct passwd *
@@ -155,7 +164,7 @@ pw_next(struct irs_pw *this) {
 	} while (rval == NULL);
 	return (rval);
 }
- 
+
 static struct passwd *
 pw_byname(struct irs_pw *this, const char *name) {
 	struct pvt *pvt = (struct pvt *)this->private;
@@ -170,7 +179,7 @@ pw_byname(struct irs_pw *this, const char *name) {
 	}
 	return (makepasswdent(this));
 }
- 
+
 static struct passwd *
 pw_byuid(struct irs_pw *this, uid_t uid) {
 	struct pvt *pvt = (struct pvt *)this->private;
@@ -246,6 +255,10 @@ makepasswdent(struct irs_pw *this) {
 	*cp++ = '\0';
 
 	pvt->passwd.pw_shell = cp;
+
+	if ((cp = strchr(cp, '\n')) != NULL)
+		*cp = '\0';
+
 	return (&pvt->passwd);
 	
  cleanup:

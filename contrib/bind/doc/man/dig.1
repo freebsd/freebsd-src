@@ -1,4 +1,4 @@
-.\" $Id: dig.1,v 8.3 1998/03/21 01:01:23 halley Exp $
+.\" $Id: dig.1,v 8.4 1999/10/15 21:29:58 vixie Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -297,6 +297,9 @@ Specify class of query. May specify either an
 integer value to be included in the class field
 or use the abbreviated mnemonic as discussed
 above (i.e., in = C_IN).
+.It Fl k Ar keydir:keyname
+Sign the query with the TSIG key named keyname
+that is in the directory keydir.
 .It Fl envsav
 This flag specifies that the 
 .Ic dig

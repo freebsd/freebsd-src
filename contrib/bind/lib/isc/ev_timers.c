@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_timers.c,v 1.23 1998/03/20 23:26:23 halley Exp $";
+static const char rcsid[] = "$Id: ev_timers.c,v 1.25 1999/10/07 20:44:04 vixie Exp $";
 #endif
 
 /* Import. */
@@ -107,7 +107,6 @@ evCmpTime(struct timespec a, struct timespec b) {
 struct timespec
 evNowTime() {
 	struct timeval now;
-	struct timespec ret;
 
 	if (gettimeofday(&now, NULL) < 0)
 		return (evConsTime(0, 0));
@@ -288,7 +287,6 @@ evSetIdleTimer(evContext opaqueCtx,
 
 int
 evClearIdleTimer(evContext opaqueCtx, evTimerID id) {
-	evContext_p *ctx = opaqueCtx.opaque;
 	evTimer *del = id.opaque;
 	idle_timer *tt = del->uap;
 

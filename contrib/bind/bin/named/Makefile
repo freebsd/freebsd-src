@@ -1,4 +1,4 @@
-## Copyright (c) 1996, 1997 by Internet Software Consortium
+## Copyright (c) 1996-1999 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.31 1998/03/20 00:49:46 halley Exp $
+# $Id: Makefile,v 8.47 1999/08/26 18:42:31 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -29,18 +29,21 @@ PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.a
 A=a
 O=o
-LEX = lex -I
+EXE=
 YACC = yacc -d
 SYSLIBS = -ll -lutil
-PIDDIR = /var/run
 DESTBIN = /usr/local/bin
 DESTSBIN = /usr/local/sbin
 DESTEXEC = /usr/local/libexec
 DESTMAN = /usr/share/man
 DESTHELP= /usr/share/misc
-AR= ar cruv
+DESTETC= /etc
+DESTRUN= /var/run
+AR= ar cru
 INSTALL= install
 STRIP=-s
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
 
 PS=ps
 LDFLAGS=
@@ -52,23 +55,25 @@ HOSTNAMECMD= hostname || uname -n
 PROG=	named
 HDRS=	db_defs.h db_glob.h ns_defs.h ns_glob.h named.h pathnames.h
 SRCS=	db_dump.c db_load.c db_lookup.c db_save.c db_update.c \
-	db_glue.c \
-	ns_parser.c ns_lexer.c ns_parseutil.c \
+	db_glue.c db_ixfr.c db_sec.c db_tsig.c \
+	ns_parser.c ns_lexer.c ns_parseutil.c ns_ctl.c \
 	ns_forw.c ns_init.c ns_main.c ns_maint.c ns_req.c \
 	ns_resp.c ns_stats.c ns_ncache.c ns_xfr.c ns_glue.c \
-	ns_udp.c ns_config.c ns_update.c
+	ns_udp.c ns_config.c ns_update.c ns_ixfr.c ns_signal.c \
+	ns_sort.c ns_notify.c
 OBJS=	db_dump.${O} db_load.${O} db_lookup.${O} db_save.${O} db_update.${O} \
-	db_glue.${O} \
-	ns_parser.${O} ns_lexer.${O} ns_parseutil.${O} \
+	db_glue.${O} db_ixfr.${O} db_sec.${O} db_tsig.${O} \
+	ns_parser.${O} ns_lexer.${O} ns_parseutil.${O} ns_ctl.${O} \
 	ns_forw.${O} ns_init.${O} ns_main.${O} ns_maint.${O} ns_req.${O} \
 	ns_resp.${O} ns_stats.${O} ns_ncache.${O} ns_xfr.${O} ns_glue.${O} \
-	ns_udp.${O} ns_config.${O} ns_update.${O}
+	ns_udp.${O} ns_config.${O} ns_update.${O} ns_ixfr.${O} ns_signal.${O} \
+	ns_sort.${O} ns_notify.${O}
 
-all: ${PROG} pathnames
+all: ${PROG}${EXE}
 
-${PROG}: pathnames.h ${OBJS} ${LIBBIND} Makefile tmp_version.${O}
-	${CC} ${CDEBUG} ${LDFLAGS} -o ${PROG} ${OBJS} tmp_version.${O} \
-		${LIBBIND} ${SYSLIBS}
+${PROG}${EXE}: pathnames.h ${OBJS} ${LIBBIND} Makefile tmp_version.${O}
+	${CC} ${CDEBUG} ${LDFLAGS} ${BOUNDS} -o ${PROG}${EXE} ${OBJS} \
+		tmp_version.${O} ${LIBBIND} ${SYSLIBS}
 
 ns_parser.c ns_parser.h: ns_parser.y
 	${YACC} ns_parser.y
@@ -83,7 +88,7 @@ tmp_version.c: version.c Makefile ../Makefile ${SRCS} ${HDRS}
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	    < version.c > tmp_version.c)
 
-pathnames.h: ${TOP}/.settings Makefile
+pathnames.h: ${TOP}/.settings Makefile pathtemplate.h
 	rm -f pathnames.h
 	sed -e "s|%DESTSBIN%|${DESTSBIN}|" \
 	    -e "s|%DESTEXEC%|${DESTEXEC}|" \
@@ -91,19 +96,20 @@ pathnames.h: ${TOP}/.settings Makefile
 	    -e "s|%DESTRUN%|${DESTRUN}|" \
 	    < pathtemplate.h > pathnames.h
 
-pathnames: pathnames.${O} pathnames.h ${LIBBIND} Makefile
-	${CC} ${CDEBUG} ${LDFLAGS} -o $@ pathnames.${O} \
-		${LIBBIND} ${SYSLIBS}
+ns_signal.${O}: ns_signal.c
+	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
+
+.c.${O}:
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
 
 distclean: clean
 	rm -f ns_parser.c ns_parser.h
 
 clean: FRC
-	rm -f ${PROG} ${OBJS} core .depend
+	rm -f ${PROG}${EXE} ${OBJS} core .depend
 	rm -f *.BAK *.CKP *~ *.orig
 	rm -f tmp_version.c tmp_version.${O}
-	rm -f pathnames pathnames.${O} tmp_pathnames.h pathnames.h
-	rm -f y.tab.h y.tab.c
+	rm -f pathnames.h y.tab.h y.tab.c
 
 depend: ${SRCS} pathnames.h
 	mkdep ${CPPFLAGS} -I${INCL} -I${PORTINCL} ${DEFS} ${SRCS}
@@ -111,8 +117,8 @@ depend: ${SRCS} pathnames.h
 ${DESTDIR}${DESTSBIN}:
 	mkdir -p ${DESTDIR}${DESTSBIN}
 
-install: ${DESTDIR}${DESTSBIN} ${PROG}
-	${INSTALL} ${STRIP} -c -m 755 ${PROG} ${DESTDIR}${DESTSBIN}/${PROG}
+install: ${DESTDIR}${DESTSBIN} ${PROG}${EXE}
+	${INSTALL} ${STRIP} -c ${INSTALL_EXEC} -m 755 ${PROG}${EXE} ${DESTDIR}${DESTSBIN}/${PROG}${EXE}
 
 links: FRC
 	@ln -s SRC/*.[chy] SRC/test .; rm -f ns_parser.[ch]

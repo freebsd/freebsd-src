@@ -52,8 +52,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: list.c,v 8.13 1997/11/18 00:32:33 halley Exp $";
+static const char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
+static const char rcsid[] = "$Id: list.c,v 8.21 1999/10/15 19:49:08 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -91,7 +91,6 @@ static char rcsid[] = "$Id: list.c,v 8.13 1997/11/18 00:32:33 halley Exp $";
 
 #include "res.h"
 
-extern char *_res_resultcodes[];	/* res_debug.c */
 extern char *pager;
 
 typedef union {
@@ -151,14 +150,28 @@ int ListSubr();
 void
 ListHostsByType(char *string, int putToFile) {
 	char *namePtr, name[NAME_LEN], option[NAME_LEN];
-	int i, qtype, result;
+	int i, j, qtype, result;
 
 	/*
 	 * Parse the command line. It maybe of the form "ls -t domain"
 	 * or "ls -t type domain".
 	 */
 
-	i = sscanf(string, " ls -t %s %s", option, name);
+	/* simulate sscanf(string, " ls -t %s %s", option, name) */
+	i = matchString(" ls -t ", string);
+	if (i > 0) {
+		j = pickString(string + i, option, sizeof option);
+		if (j > 0) {
+			j = pickString(string + i + j, name, sizeof name);
+			if (j > 0)
+				i = 2;
+			else
+				i = 1;
+		} else {
+			i = 0;
+		}
+	}
+			
 	if (putToFile && i == 2 && name[0] == '>')
 		i--;
 	if (i == 2) {
@@ -182,13 +195,28 @@ ListHostsByType(char *string, int putToFile) {
 void
 ListHosts(char *string, int putToFile) {
 	char *namePtr, name[NAME_LEN], option[NAME_LEN];
-	int i, qtype, result;
+	int i, j, qtype, result;
 
 	/*
 	 *  Parse the command line. It maybe of the form "ls domain",
 	 *  "ls -X domain".
 	 */
-	i = sscanf(string, " ls %s %s", option, name);
+
+	/* simulate i = sscanf(string, " ls %s %s", option, name) */
+	i = matchString(" ls ", string);
+	if (i > 0) {
+		j = pickString(string + i, option, sizeof option);
+		if (j > 0) {
+			j = pickString(string + i + j, name, sizeof name);
+			if (j > 0)
+				i = 2;
+			else
+				i = 1;
+		} else {
+			i = 0;
+		}
+	}
+	
 	if (putToFile && i == 2 && name[0] == '>')
 		i--;
 	if (i == 2) {
@@ -236,18 +264,18 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	int numAnswers = 0;
 	int numRecords = 0;
 	u_char tmp[INT16SZ], *cp;
-	char soaname[2][NAME_LEN], file[NAME_LEN];
+	char soaname[2][NAME_LEN], file[PATH_MAX];
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
 		error = NO_ERRORS;
 
 	/*
 	 * Create a query packet for the requested domain name.
 	 */
-	msglen = res_mkquery(QUERY, domain, queryClass, T_AXFR,
-			     NULL, 0, 0, buf.qb2, sizeof buf);
+	msglen = res_nmkquery(&res, QUERY, domain, queryClass, T_AXFR,
+			      NULL, 0, 0, buf.qb2, sizeof buf);
 	if (msglen < 0) {
 		if (_res.options & RES_DEBUG)
-			fprintf(stderr, "*** ls: res_mkquery failed\n");
+			fprintf(stderr, "*** ls: res_nmkquery failed\n");
 		return (ERROR);
 	}
 
@@ -308,7 +336,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	if (cmd == NULL) {
 		filePtr = stdout;
 	} else {
-		filePtr = OpenFile(cmd, file);
+		filePtr = OpenFile(cmd, file, sizeof file);
 		if (filePtr == NULL) {
 			fprintf(stderr, "*** Can't open %s for writing\n",
 				file);
@@ -405,7 +433,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 					break;
 				}
 				strcpy(name_ctx, name);
-				numAnswers++;
+				numRecords++;
 				fputs(buf, filePtr);
 				fputc('\n', filePtr);
 			}
@@ -413,9 +441,13 @@ ListSubr(int qtype, char *domain, char *cmd) {
 				strcpy(soaname[soacnt], name);
 				if (soacnt == 0)
 					soacnt = 1;
-				else if (strcasecmp(soaname[0],
-						    soaname[1]) == 0) {
+				else if (ns_samename(soaname[0],
+						     soaname[1]) == 1) {
 					soacnt = 2;
+					/* This means we're finished.
+					 * But we've to reset origin and
+					 * name_ctx now !  */
+					origin[0] = name_ctx[0] ='\0';
 				}
 			}
 		}
@@ -456,7 +488,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 		fprintf(stderr,"*** ls: error receiving zone transfer:\n");
 		fprintf(stderr,
 	       "  result: %s, answers = %d, authority = %d, additional = %d\n",
-			_res_resultcodes[headerPtr->rcode],
+			p_rcode(headerPtr->rcode),
 			ntohs(headerPtr->ancount), ntohs(headerPtr->nscount),
 			ntohs(headerPtr->arcount));
 		return (ERROR);
@@ -476,14 +508,46 @@ ListSubr(int qtype, char *domain, char *cmd) {
  *******************************************************************************
  */
 
-ViewList(string)
-    char *string;
-{
+void
+ViewList(char *string) {
     char file[PATH_MAX];
     char command[PATH_MAX];
+    int i, j;
+    char soafile[PATH_MAX];
 
-    sscanf(string, " view %s", file);
-    (void)sprintf(command, "grep \"^ \" %s | sort | %s", file, pager);
+    /* sscanf(string, " view %s", file); */
+    i = matchString(" view ", string);
+    if (i > 0) {
+	    j = pickString(string + i, file, sizeof file);
+	    if (j == 0) {
+		fprintf(stderr, "*** invalid file name: %s\n", string + i);
+		return ;
+	    }
+    }
+
+    if ( !mktemp(strcpy(soafile,"/var/tmp/nslookup_tmpXXXXXX"))) {
+	fprintf(stderr, "*** cannot create temp file\n");
+	return ;
+	}
+    (void)sprintf(command, "sed '\
+/^$/,${\
+/@/,$d\
+}\
+/^[^	]/{\
+h\
+s/^\\([^	]*	*\\).*/\\1/\
+x\
+}\
+1,/^$/{\
+w %s\
+d\
+}\
+/^	/{\
+G\
+s/^	*//\
+s/^\\(.*\\)\\n\\(.*\\)$/\\2\\1/\
+}' %s | sort | (cat %s -; rm %s) | %s",
+		  soafile, file, soafile, soafile, pager);
     system(command);
 }
 
@@ -515,7 +579,8 @@ Finger(string, putToFile)
 	int		c;
 	int		lastc;
 	char			name[NAME_LEN];
-	char			file[NAME_LEN];
+	char			file[PATH_MAX];
+	int		i;
 
 	/*
 	 *  We need a valid current host info to get an inet address.
@@ -525,7 +590,20 @@ Finger(string, putToFile)
 	    return (ERROR);
 	}
 
-	if (sscanf(string, " finger %s", name) == 1) {
+	/* simulate: sscanf("finger %s") ; */
+
+	i = matchString(" finger ", string);
+	if (i > 0) {
+		i = pickString(string + i, name, sizeof name);
+		if (i > 0) {
+			i = 1 ;
+		}
+		/* note that if the argument to the finger command is
+		   bigger than sizeof name it will be treated as if there
+		   was no argument. */
+	}
+	
+	if (i == 1) {
 	    if (putToFile && (name[0] == '>')) {
 		name[0] = '\0';
 	    }
@@ -566,7 +644,7 @@ Finger(string, putToFile)
 	if (!putToFile) {
 	    filePtr = stdout;
 	} else {
-	    filePtr = OpenFile(string, file);
+	    filePtr = OpenFile(string, file, sizeof file);
 	    if (filePtr == NULL) {
 		fprintf(stderr, "*** Can't open %s for writing\n", file);
 		close(sockFD);
@@ -613,6 +691,7 @@ Finger(string, putToFile)
 	return (SUCCESS);
 }
 
+void
 ListHost_close()
 {
     if (sockFD != -1) {

@@ -1,4 +1,5 @@
-/* Copyright (c) 1985, 1990
+/*
+ * Copyright (c) 1985, 1990
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +31,8 @@
  * SUCH DAMAGE.
  */
 
-/* Portions Copyright (c) 1993 by Digital Equipment Corporation.
+/*
+ * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,7 +51,8 @@
  * SOFTWARE.
  */
 
-/* Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+/*
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -65,9 +68,29 @@
  * SOFTWARE.
  */
 
+/*
+ * Portions Copyright (c) 1999 by Check Point Software Technologies, Inc.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies, and that
+ * the name of Check Point Software Technologies Incorporated not be used 
+ * in advertising or publicity pertaining to distribution of the document 
+ * or software without specific, written prior permission.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND CHECK POINT SOFTWARE TECHNOLOGIES 
+ * INCORPORATED DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, 
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.   
+ * IN NO EVENT SHALL CHECK POINT SOFTWARE TECHNOLOGIES INCORPRATED
+ * BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR 
+ * ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+ * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT 
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.22 1997/12/04 06:47:00 halley Exp $
+ * $Id: db_func.h,v 8.40 1999/10/07 08:24:06 vixie Exp $
  */
 
 /* ++from db_update.c++ */
@@ -96,19 +119,30 @@ extern void		doadump(void);
 /* --from db_dump.c-- */
 
 /* ++from db_load.c++ */
+extern int		makename_ok(char *name, const char *origin, int class,
+				    struct zoneinfo *zp,
+				    enum transport transport,
+				    enum context context,
+				    const char *owner, const char *filename,
+				    int lineno, int size);
 extern void		endline(FILE *);
 extern int		getword(char *, size_t, FILE *, int),
+			getttl(FILE *, const char *, int, u_int32_t *, int *),
 			getnum(FILE *, const char *, int),
-			db_load(const char *, const char *,
-				struct zoneinfo *, const char *);
+			db_load(const char *, const char *, struct zoneinfo *,
+				const char *, int);
 extern int 		getnonblank(FILE *, const char *),
 			getservices(int, char *, FILE *, const char *);
 extern char		getprotocol(FILE *, const char *);
 extern int		makename(char *, const char *, int);
-#ifdef BIND_NOTIFY
-extern void		notify_after_load(evContext, void *, const void *),
-			db_cancel_pending_notifies(void);
-#endif
+extern void		db_err(int, char *, int, const char *, int);
+extern int		parse_sec_rdata(char *inp, int inp_len, int inp_full,
+					u_char *data, int data_len,
+					FILE *fp, struct zoneinfo *zp, 
+					char *domain,  u_int32_t ttl, 
+					int type, enum context context,
+					enum transport transport,
+					char **errmsg);
 /* --from db_load.c-- */
 
 /* ++from db_glue.c++ */
@@ -119,10 +153,8 @@ extern void		buildservicelist(void),
 			getname(struct namebuf *, char *, int);
 extern int		servicenumber(const char *),
 			protocolnumber(const char *),
-			get_class(const char *),
-			samedomain(const char *, const char *);
-extern u_int		dhash(const u_char *, int),
-			nhash(const char *);
+			get_class(const char *);
+extern u_int		nhash(const char *);
 extern const char	*protocolname(int),
 			*servicename(u_int16_t, const char *);
 #ifndef BSD
@@ -137,15 +169,45 @@ extern struct namebuf	*rm_name(struct namebuf *,
 				 struct namebuf *);
 extern void		rm_hash(struct hashbuf *);
 extern void		db_freedata(struct databuf *);
+extern void		db_lame_add(char *zone, char *server, time_t when);
+extern time_t		db_lame_find(char *zone, struct databuf *dp);
+extern void 		db_lame_clean(void);
+extern void 		db_lame_destroy(void);
 /* --from db_glue.c-- */
 
 /* ++from db_lookup.c++ */
 extern struct namebuf	*nlookup(const char *, struct hashbuf **,
 				 const char **, int);
 extern struct namebuf	*np_parent __P((struct namebuf *));
-extern int		match(struct databuf *, int, int);
+extern int		match(struct databuf *, int, int),
+			nxtmatch(const char *, struct databuf *,
+				 struct databuf *),
+			rrmatch(const char *, struct databuf *,
+				struct databuf *);
 /* --from db_lookup.c-- */
 
-/* ++from db_dict.c++ */
-int			dict_lookup(const char *, int, int);
-/* --from db_dict.c-- */
+/* ++from db_ixfr.c++ */
+struct ns_updrec *	ixfr_get_change_list(struct zoneinfo *, u_int32_t,
+					     u_int32_t);
+int			ixfr_have_log(struct zoneinfo *, u_int32_t,
+				      u_int32_t);
+/* --from db_ixfr.c++ */
+
+/* ++from db_sec.c++ */
+int			add_trusted_key(const char *name, const int flags,
+					const int proto, const int alg,
+					const char *str);
+int			db_set_update(char *name, struct databuf *dp,
+				      void **state, int flags,
+				      struct hashbuf **htp,
+				      struct sockaddr_in from,
+				      int *rrcount, int line,
+				      const char *file);
+/* --from db_sec.c-- */
+/* ++from db_tsig.c++ */
+char *			tsig_alg_name(int value);
+int			tsig_alg_value(char *name);
+struct dst_key *	tsig_key_from_addr(struct in_addr addr);
+struct tsig_record *	new_tsig(struct dst_key *key, u_char *sig, int siglen);
+void			free_tsig(struct tsig_record *tsig);
+/* --from db_tsig.c-- */

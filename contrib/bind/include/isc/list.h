@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 by Internet Software Consortium.
+ * Copyright (c) 1997,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -66,6 +66,7 @@
 			(elt)->link.prev->link.next = (elt)->link.next; \
 		else \
 			(list).head = (elt)->link.next; \
+		INIT_LINK(elt, link); \
 	} while (0)
 
 #define PREV(elt, link) ((elt)->link.prev)

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_update.c,v 8.23 1998/02/13 20:01:38 halley Exp $";
+static const char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
+static const char rcsid[] = "$Id: db_update.c,v 8.39 1999/10/15 19:48:59 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static char rcsid[] = "$Id: db_update.c,v 8.23 1998/02/13 20:01:38 halley Exp $"
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -78,6 +78,7 @@ static char rcsid[] = "$Id: db_update.c,v 8.23 1998/02/13 20:01:38 halley Exp $"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -116,7 +117,7 @@ isRefByNS(const char *name, struct hashbuf *htp) {
 			     dp->d_class == C_HS) &&
 			    dp->d_type == T_NS &&
 			    !dp->d_rcode &&
-			    !strcasecmp(name, (char *)dp->d_data)) {
+			    ns_samename(name, (char *)dp->d_data) == 1) {
 				return (1);
 			}
 		}
@@ -153,21 +154,18 @@ findMyZone(struct namebuf *np, int class) {
 		 * the cache or an authoritative zone, depending).
 		 */
 		for (dp = np->n_data; dp; dp = dp->d_next)
-			if (match(dp, class, T_SOA))
+			if (match(dp, class, T_SOA) && dp->d_type == T_SOA)
 				return (dp->d_zone);
 
 		/* if we find an NS at some node without having seen an SOA
 		 * (above), then we're out in the cache somewhere.
 		 */
 		for (dp = np->n_data; dp; dp = dp->d_next)
-			if (match(dp, class, T_NS))
+			if (match(dp, class, T_NS) && dp->d_type == T_NS)
 				return (DB_Z_CACHE);
 	}
 
-	/* getting all the way to the root without finding an NS or SOA
-	 * probably means that we are in deep dip, but we'll treat it as
-	 * being in the cache.  (XXX?)
-	 */
+	/* The cache has not yet been primed. */
 	return (DB_Z_CACHE);
 }
 
@@ -226,12 +224,11 @@ db_update(const char *name,
 	struct namebuf *np;
 	int zn, isHintNS;
 	int check_ttl = 0;
+	int deleted_something = 0;
 	const char *fname;
 #ifdef BIND_UPDATE
-	int i, found_other_ns = 0;
+	int found_other_ns = 0;
 	struct databuf *tmpdp;
-        u_char *cp1, *cp2;
-        u_int32_t dp_serial, newdp_serial;
 #endif
 
 	ns_debug(ns_log_db, 3, "db_update(%s, %#x, %#x, %#x, 0%o, %#x)%s",
@@ -320,6 +317,7 @@ db_update(const char *name,
 		dp->d_zone = DB_Z_CACHE;
 		dp->d_flags = DB_F_HINT;
 		dp->d_cred = DB_C_CACHE;
+		dp->d_secure = odp->d_secure; /* BEW - this should be ok */
 		dp->d_clev = 0;
 		if (db_update(name,
 			      dp, dp, NULL,
@@ -337,7 +335,7 @@ db_update(const char *name,
 
 		pdp = NULL;
 		for (dp = np->n_data; dp != NULL; ) {
-			if (!match(dp, odp->d_class, odp->d_type)) {
+			if (!rrmatch(name, dp, odp)) {
 				/* {class,type} doesn't match.  these are
 				 * the aggregation cases.
 				 */
@@ -368,6 +366,9 @@ db_update(const char *name,
 					ns_info(ns_log_db,
 				     "%s has CNAME and other data (invalid)",
 						name);
+					if (zones[odp->d_zone].z_type ==
+							Z_PRIMARY)
+						return (CNAMEANDOTHER);
 					goto skip;
 				}
 				if (!newdp || newdp->d_class != dp->d_class)
@@ -394,7 +395,7 @@ db_update(const char *name,
 					return (AUTH);
 #endif
 
-				/* if the new data is authoritative but
+				/* if the new data is authoritative
 				 * but isn't as credible, reject it.
 				 */
 				if (newdp->d_cred == DB_C_ZONE && 
@@ -405,6 +406,11 @@ db_update(const char *name,
 					 * record with lower clev is from the
 					 * upper zone's file and is therefore 
 					 * glue.
+					 */
+
+					/* BEW/OG: we see no reason to override
+					 * these rules with new security based
+					 * rules.
 					 */
 					if (newdp->d_clev < dp->d_clev) {
 					    if (!ISVALIDGLUE(newdp)) {
@@ -431,7 +437,8 @@ db_update(const char *name,
 				/* process NXDOMAIN */
 				/* policy */
 				if (newdp->d_rcode == NXDOMAIN) {
-					if (dp->d_cred < DB_C_AUTH)
+					if (dp->d_cred < DB_C_AUTH &&
+					    newdp->d_secure >= dp->d_secure)
 						goto delete;
 					else
 						return (DATAEXISTS);
@@ -455,24 +462,37 @@ db_update(const char *name,
 				 db_cmp(dp, odp));
 			if (newdp) {
 				ns_debug(ns_log_db, 4,
-	     "credibility for %s is %d(%d) from [%s].%d, is %d(%d) in cache",
+"credibility for %s is %d(%d)(sec %d) from [%s].%d, is %d(%d)(sec %d) in cache",
 					 *name ? name : ".",
 					 newdp->d_cred,
 					 newdp->d_clev,
+					 newdp->d_secure,
 					 inet_ntoa(from.sin_addr),
 					 ntohs(from.sin_port),
 					 dp->d_cred,
+					 dp->d_secure,
 					 dp->d_clev);
-				if (newdp->d_cred > dp->d_cred) {
-					/* better credibility.
+				if ((newdp->d_secure > dp->d_secure) ||
+				    (newdp->d_secure == dp->d_secure &&
+				    (newdp->d_cred > dp->d_cred)))
+				{
+					/* better credibility / security.
 					 * remove the old datum.
 					 */
 					goto delete;
 				}
-				if (newdp->d_cred < dp->d_cred) {
-					/* credibility is worse.  ignore it. */
+				if ((newdp->d_secure < dp->d_secure) ||
+				    (newdp->d_secure == dp->d_secure &&
+				    (newdp->d_cred < dp->d_cred)))
+				{
+					/* credibility / security is worse.
+					 * ignore it.
+					 */
 					return (AUTH);
 				}
+				/* BEW/OG: from above, we know the security
+				 * levels are the same.
+				 */
 				if (newdp->d_cred == DB_C_ZONE &&
 				    dp->d_cred == DB_C_ZONE ) {
 					/* Both records are from a zone file.
@@ -566,8 +586,19 @@ db_update(const char *name,
 					    INT32SZ + sizeof(u_char)))
 					goto delete;
 				if (dp->d_type == T_CNAME &&
-				    !NS_OPTION_P(OPTION_MULTIPLE_CNAMES))
-					goto delete;
+				    !NS_OPTION_P(OPTION_MULTIPLE_CNAMES) &&
+				    db_cmp(dp, odp) != 0)
+					if ((flags & DB_REPLACE) == 0 &&
+					     zones[dp->d_zone].z_type ==
+							Z_PRIMARY) {
+						ns_info(ns_log_db,
+						      "%s has multiple CNAMES",
+							name);
+						return (CNAMEANDOTHER);
+					} else
+						goto delete;
+#if 0
+/* BEW - this _seriously_ breaks DNSSEC.  Is it necessary for dynamic update? */
 #ifdef BIND_UPDATE
                                 if (dp->d_type == T_SIG)
                                         /* 
@@ -576,6 +607,20 @@ db_update(const char *name,
 					 */
                                         goto delete;
 #endif
+#endif
+				if (dp->d_type == T_NXT) {
+					goto delete;
+				}
+				if (dp->d_type == T_SIG &&
+				    SIG_COVERS(dp) == T_NXT) {
+					struct sig_record *sr1, *sr2;
+
+					sr1 = (struct sig_record *) dp->d_data;
+					sr2 = (struct sig_record *)
+								newdp->d_data;
+					if (sr1->sig_alg_n == sr2->sig_alg_n)
+						goto delete;
+				}
 				if (check_ttl) {
 					if (newdp->d_ttl != dp->d_ttl) 
 					ns_warning(ns_log_db,
@@ -621,11 +666,13 @@ db_update(const char *name,
 					goto skip;
 			if (odp->d_clev < dp->d_clev)
 				goto skip;
-			if (odp->d_cred < dp->d_cred)
+			if ((odp->d_secure < dp->d_secure) ||
+			    ((odp->d_secure == dp->d_secure) &&
+			     (odp->d_cred < dp->d_cred)))
 				goto skip;
 #ifdef BIND_UPDATE
-			if (!strcasecmp(name, zones[dp->d_zone].z_origin) &&
-			    !newdp) {
+			if (ns_samename(name, zones[dp->d_zone].z_origin) == 1
+			    && newdp == NULL) {
 				/* do not delete SOA or NS records as a set */
 				/* XXXRTH isn't testing d_size unnecessary? */
 				if ((odp->d_size == 0) &&
@@ -677,6 +724,7 @@ db_update(const char *name,
                                 if (savedpp != NULL)
 					foundRR = 1;
 #endif
+				deleted_something = 1;
 				dp = rm_datum(dp, np, pdp, savedpp);
 			} else {
  skip:				pdp = dp;
@@ -690,10 +738,16 @@ db_update(const char *name,
 				return (NODATA);
 		}
 	}
- 	/* XXX:	delete a terminal namebuf also if all databuf's
-	 *	underneath of it have been deleted) */
-	if (newdp == NULL)
+	if (newdp == NULL) {
+		if (deleted_something) {
+			while (np->n_data == NULL && np->n_hash == NULL) {
+				np = purge_node(htp, np);
+				if (np == NULL)
+					break;
+			}
+		}
 		return (OK);
+	}
 	/* XXX:	empty nodes bypass credibility checks above; should check
 	 *	response source address here if flags&NOTAUTH.
 	 */
@@ -790,7 +844,10 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 	case T_MG:
 	case T_MR:
 		/* Only a domain name */
-		return (strcasecmp((char *)dp1->d_data, (char *)dp2->d_data));
+		if (ns_samename((char *)dp1->d_data, (char *)dp2->d_data) == 1)
+			return (0);
+		else
+			return (1);
 
 	case T_SIG:
 		/* Binary data, a domain name, more binary data */
@@ -800,8 +857,8 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 			return (1);
 		len = NS_SIG_SIGNER +
 			strlen((char *)dp1->d_data + NS_SIG_SIGNER);
-		if (strcasecmp((char *)dp1->d_data + NS_SIG_SIGNER,
-			       (char *)dp2->d_data + NS_SIG_SIGNER))
+		if (ns_samename((char *)dp1->d_data + NS_SIG_SIGNER,
+				(char *)dp2->d_data + NS_SIG_SIGNER) != 1)
 			return (1);
 		return (memcmp(dp1->d_data + len,
 			       dp2->d_data + len,
@@ -809,7 +866,7 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 
 	case T_NXT:
 		/* First a domain name, then binary data */
-		if (strcasecmp((char *)dp1->d_data, (char *)dp2->d_data))
+		if (ns_samename((char *)dp1->d_data, (char *)dp2->d_data) != 1)
 			return (1);
 		len = strlen((char *)dp1->d_data)+1;
 		return (memcmp(dp1->d_data + len,
@@ -837,14 +894,14 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 	case T_SOA:
 	case T_MINFO:
 	case T_RP:
-		if (strcasecmp((char *)dp1->d_data, (char *)dp2->d_data))
+		if (ns_samename((char *)dp1->d_data, (char *)dp2->d_data) != 1)
 			return (1);
 		cp1 = dp1->d_data + strlen((char *)dp1->d_data) + 1;
 		cp2 = dp2->d_data + strlen((char *)dp2->d_data) + 1;
-		if (dp1->d_type != T_SOA)
-			return (strcasecmp((char *)cp1, (char *)cp2));
-		if (strcasecmp((char *)cp1, (char *)cp2))
+		if (ns_samename((char *)cp1, (char *)cp2) != 1)
 			return (1);
+		if (dp1->d_type != T_SOA)
+			return (0);
 		cp1 += strlen((char *)cp1) + 1;
 		cp2 += strlen((char *)cp2) + 1;
 		return (memcmp(cp1, cp2, INT32SZ * 5));
@@ -907,18 +964,22 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 			if (*cp1++ != *cp2++ || *cp1++ != *cp2++) /* port */
 				return (1);
 		}
-		return (strcasecmp((char *)cp1, (char *)cp2));
+		if (ns_samename((char *)cp1, (char *)cp2) != 1)
+			return (1);
+		return (0);
 
 	case T_PX:
 		cp1 = dp1->d_data;
 		cp2 = dp2->d_data;
 		if (*cp1++ != *cp2++ || *cp1++ != *cp2++)       /* cmp prio */
 			return (1);
-		if (strcasecmp((char *)cp1, (char *)cp2))
+		if (ns_samename((char *)cp1, (char *)cp2) != 1)
 			return (1);
 		cp1 += strlen((char *)cp1) + 1;
 		cp2 += strlen((char *)cp2) + 1;
-		return (strcasecmp((char *)cp1, (char *)cp2));
+		if (ns_samename((char *)cp1, (char *)cp2) != 1)
+			return (1);
+		return (0);
 	
 	case T_TXT:
 	case T_X25:

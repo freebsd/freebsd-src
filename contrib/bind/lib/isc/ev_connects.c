@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_connects.c,v 8.19 1998/03/20 23:26:22 halley Exp $";
+static const char rcsid[] = "$Id: ev_connects.c,v 8.25 1999/10/07 20:44:04 vixie Exp $";
 #endif
 
 /* Import. */
@@ -38,6 +38,18 @@ static const char rcsid[] = "$Id: ev_connects.c,v 8.19 1998/03/20 23:26:22 halle
 #include "eventlib_p.h"
 
 #include "port_after.h"
+
+/* Macros. */
+
+#define GETXXXNAME(f, s, sa, len) ( \
+	(f((s), (&sa), (&len)) >= 0) ? 0 : \
+		(errno != EAFNOSUPPORT && errno != EOPNOTSUPP) ? -1 : ( \
+			memset(&(sa), 0, sizeof (sa)), \
+			(len) = sizeof (sa), \
+			(sa).sa_family = AF_UNIX, \
+			0 \
+		) \
+	)
 
 /* Forward. */
 
@@ -64,8 +76,8 @@ evListen(evContext opaqueCtx, int fd, int maxconn,
 	 * are not met, then we might restore the old nonblocking status
 	 * incorrectly.
 	 */
-	if ((mode & O_NONBLOCK) == 0) {
-		OK(fcntl(fd, F_SETFL, mode | O_NONBLOCK));
+	if ((mode & PORT_NONBLOCK) == 0) {
+		OK(fcntl(fd, F_SETFL, mode | PORT_NONBLOCK));
 		new->flags |= EV_CONN_BLOCK;
 	}
 	OK(listen(fd, maxconn));
@@ -149,7 +161,7 @@ evCancelConn(evContext opaqueCtx, evConnID id) {
 			if (errno != EBADF)
 				return (-1);
 		} else
-			OK(fcntl(this->fd, F_SETFL, mode | O_NONBLOCK));
+			OK(fcntl(this->fd, F_SETFL, mode | PORT_NONBLOCK));
 	}
 	
 	/* Unlink from ctx->conns. */
@@ -224,9 +236,14 @@ evTryAccept(evContext opaqueCtx, evConnID id, int *sys_errno) {
 	new->conn = conn;
 	new->ralen = sizeof new->ra;
 	new->fd = accept(conn->fd, &new->ra, &new->ralen);
+	if (new->fd > ctx->highestFD) {
+		close(new->fd);
+		new->fd = -1;
+		new->ioErrno = ENOTSOCK;
+	}
 	if (new->fd >= 0) {
 		new->lalen = sizeof new->la;
-		if (getsockname(new->fd, &new->la, &new->lalen) < 0) {
+		if (GETXXXNAME(getsockname, new->fd, new->la, new->lalen) < 0) {
 			new->ioErrno = errno;
 			(void) close(new->fd);
 			new->fd = -1;
@@ -256,9 +273,14 @@ listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 	REQUIRE((evmask & EV_READ) != 0);
 	ralen = sizeof ra;
 	new = accept(fd, &ra, &ralen);
+	if (new > ctx->highestFD) {
+		close(new);
+		new = -1;
+		errno = ENOTSOCK;
+	}
 	if (new >= 0) {
 		lalen = sizeof la;
-		if (getsockname(new, &la, &lalen) < 0) {
+		if (GETXXXNAME(getsockname, new, la, lalen) < 0) {
 			int save = errno;
 
 			(void) close(new);
@@ -272,7 +294,6 @@ listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 
 static void
 connector(evContext opaqueCtx, void *uap, int fd, int evmask) {
-	evContext_p *ctx = opaqueCtx.opaque;
 	evConn *conn = uap;
 	struct sockaddr la, ra;
 	int lalen, ralen;
@@ -304,8 +325,8 @@ connector(evContext opaqueCtx, void *uap, int fd, int evmask) {
 #else
 	    read(fd, buf, 0) < 0 ||
 #endif
-	    getsockname(fd, &la, &lalen) < 0 ||
-	    getpeername(fd, &ra, &ralen) < 0) {
+	    GETXXXNAME(getsockname, fd, la, lalen) < 0 ||
+	    GETXXXNAME(getpeername, fd, ra, ralen) < 0) {
 		int save = errno;
 
 		(void) close(fd);	/* XXX closing caller's fd */

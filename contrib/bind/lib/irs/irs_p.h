@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,21 +16,34 @@
  */
 
 /*
- * $Id: irs_p.h,v 1.6 1997/12/04 04:57:55 halley Exp $
+ * $Id: irs_p.h,v 1.8 1999/01/08 19:24:42 vixie Exp $
  */
 
 #ifndef _IRS_P_H_INCLUDED
 #define _IRS_P_H_INCLUDED
 
+#include <stdio.h>
+
 #include "pathnames.h"
+
+#define IRS_SV_MAXALIASES	35
+
+struct lcl_sv {
+	FILE *		fp;
+	char		line[BUFSIZ+1];
+	struct servent	serv;
+	char *		serv_aliases[IRS_SV_MAXALIASES];
+};
 
 #define	irs_nul_ng	__irs_nul_ng
 #define	map_v4v6_address __map_v4v6_address
 #define	make_group_list	__make_group_list
+#define	irs_lclsv_fnxt	__irs_lclsv_fnxt
 
 extern void		map_v4v6_address(const char *src, char *dst);
 extern int		make_group_list(struct irs_gr *, const char *,
 					gid_t, gid_t *, int *);
 extern struct irs_ng *	irs_nul_ng(struct irs_acc *);
+extern struct servent * irs_lclsv_fnxt(struct lcl_sv *);
 
 #endif

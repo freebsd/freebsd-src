@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.8 1997/05/21 19:32:07 halley Exp $
+# $Id: Makefile,v 8.16 1999/03/03 08:07:16 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -31,36 +31,53 @@ TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
+LIBBINDR = ../${TOP}/lib/libbind_r.${A}
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
 LD_LIBFLAGS= -x -r
-AR= ar cruv
+AR= ar cru
 RANLIB= ranlib
 INSTALL= install
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
+THREADED= threaded
 
 SRCS=	nsap_addr.c inet_addr.c inet_ntop.c inet_pton.c \
 	inet_ntoa.c inet_neta.c inet_net_ntop.c inet_net_pton.c \
+	inet_cidr_ntop.c inet_cidr_pton.c \
 	inet_lnaof.c inet_makeaddr.c inet_netof.c inet_network.c
 
 OBJS=	nsap_addr.${O} inet_addr.${O} inet_ntop.${O} inet_pton.${O} \
 	inet_ntoa.${O} inet_neta.${O} inet_net_ntop.${O} inet_net_pton.${O} \
+	inet_cidr_ntop.${O} inet_cidr_pton.${O} \
 	inet_lnaof.${O} inet_makeaddr.${O} inet_netof.${O} inet_network.${O}
-
 
 all: ${LIBBIND}
 
 ${LIBBIND}: ${OBJS}
+	( cd ${THREADED} ; \
+	${AR} ${LIBBINDR} ${ARPREF} ${OBJS} ${ARSUFF} ; \
+	${RANLIB} ${LIBBINDR} )
 	${AR} ${LIBBIND} ${ARPREF} ${OBJS} ${ARSUFF}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} && ${LDS} mv a.out $*.${O}
+	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; fi
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
+	 -o ${THREADED}/$*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} -o a.out && \
+	 ${LDS} mv a.out ${THREADED}/$*.${O}
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
+	 ${LDS} mv a.out $*.${O}
 
 distclean: clean
 
 clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
+	rm -f ${THREADED}/*.${O}
+	-rmdir ${THREADED}
+
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}

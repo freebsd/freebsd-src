@@ -16,7 +16,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-## Portions Copyright (c) 1996 by Internet Software Consortium
+## Portions Copyright (c) 1996,1999 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -32,7 +32,7 @@
 ## SOFTWARE.
 
 #
-# Makefile to install the BIND 4.9 manual entries.
+# Makefile to install the BIND manual entries.
 #
 # Default Configuration:
 # 	There are a set of default assignments immediately following this 
@@ -228,18 +228,16 @@ SYS_OPS_OUT_EXT = ${OUT_EXT}${SYS_OPS_EXT}
 #
 # User command manual entries
 #
-CMD_BASE = 	dig host dnsquery
+CMD_BASE = 	dig host dnsquery dnskeygen
 CMD_SRC_EXT = 	1
 CMD_SRC = 	dig.${CMD_SRC_EXT} \
 		host.${CMD_SRC_EXT} \
 		dnsquery.${CMD_SRC_EXT} \
-		dnskeygen.${CMD_SRC_EXT} \
-		dnssigner.${CMD_SRC_EXT}
+		dnskeygen.${CMD_SRC_EXT}
 CMD_OUT =	dig.${CMD_OUT_EXT} \
 		host.${CMD_OUT_EXT} \
 		dnsquery.${CMD_OUT_EXT} \
-		dnskeygen.${CMD_OUT_EXT} \
-		dnssigner.${CMD_OUT_EXT}
+		dnskeygen.${CMD_OUT_EXT}
 
 #
 # named manual entries
@@ -257,6 +255,13 @@ NAMED_XFER_SRC = named-xfer.${SYS_OPS_SRC_EXT}
 NAMED_XFER_OUT = named-xfer.${SYS_OPS_OUT_EXT}
 
 #
+# named-bootconf manual entry
+#
+NAMED_BOOTCONF_BASE = named-bootconf
+NAMED_BOOTCONF_SRC = named-bootconf.${SYS_OPS_SRC_EXT}
+NAMED_BOOTCONF_OUT = named-bootconf.${SYS_OPS_OUT_EXT}
+
+#
 # nslookup manual entry
 #
 NSLOOKUP_BASE = nslookup
@@ -264,26 +269,48 @@ NSLOOKUP_SRC = 	nslookup.${SYS_OPS_SRC_EXT}
 NSLOOKUP_OUT = 	nslookup.${SYS_OPS_OUT_EXT}
 
 #
+# nsupdate manual entry
+#
+NSUPDATE_BASE = nsupdate
+NSUPDATE_SRC = 	nsupdate.${SYS_OPS_SRC_EXT}
+NSUPDATE_OUT = 	nsupdate.${SYS_OPS_OUT_EXT}
+
+#
 # Network library routines manual entries
 #
-LIB_NETWORK_BASE =	gethostbyname resolver getnetent
+LIB_NETWORK_BASE =	gethostbyname inet_cidr resolver hesiod getnetent \
+			tsig getaddrinfo inet_cidr getipnodebyname
 LIB_NETWORK_SRC_EXT =	3
 LIB_NETWORK_SRC = 	gethostbyname.${LIB_NETWORK_SRC_EXT} \
+			inet_cidr.${LIB_NETWORK_SRC_EXT} \
 			resolver.${LIB_NETWORK_SRC_EXT} \
-			getnetent.${LIB_NETWORK_SRC_EXT}
+			hesiod.${LIB_NETWORK_SRC_EXT} \
+			getnetent.${LIB_NETWORK_SRC_EXT} \
+			tsig.${LIB_NETWORK_SRC_EXT} \
+			getaddrinfo.${LIB_NETWORK_SRC_EXT} \
+			getnameinfo.${LIB_NETWORK_SRC_EXT} \
+			getipnodebyname.${LIB_NETWORK_SRC_EXT}
 LIB_NETWORK_OUT =	gethostbyname.${LIB_NETWORK_OUT_EXT} \
+			inet_cidr.${LIB_NETWORK_OUT_EXT} \
 			resolver.${LIB_NETWORK_OUT_EXT} \
-			getnetent.${LIB_NETWORK_OUT_EXT}
+			hesiod.${LIB_NETWORK_OUT_EXT} \
+			getnetent.${LIB_NETWORK_OUT_EXT} \
+			tsig.${LIB_NETWORK_OUT_EXT} \
+			getaddrinfo.${LIB_NETWORK_OUT_EXT} \
+			getnameinfo.${LIB_NETWORK_OUT_EXT} \
+			getipnodebyname.${LIB_NETWORK_OUT_EXT}
 
 #
 # File format manual entries
 #
-FORMAT_BASE =	resolver irs.conf
+FORMAT_BASE =	resolver irs.conf named.conf
 FORMAT_SRC_EXT = 5
 FORMAT_SRC = 	resolver.${FORMAT_SRC_EXT} \
-		irs.conf.${FORMAT_SRC_EXT}
+		irs.conf.${FORMAT_SRC_EXT} \
+		named.conf.${FORMAT_SRC_EXT}
 FORMAT_OUT = 	resolver.${FORMAT_OUT_EXT} \
-		irs.conf.${FORMAT_OUT_EXT}
+		irs.conf.${FORMAT_OUT_EXT} \
+		named.conf.${FORMAT_OUT_EXT}
 
 #
 # Feature Description manual entries
@@ -320,7 +347,8 @@ DESC_OUT = 	hostname.${DESC_OUT_EXT} mailaddr.${DESC_OUT_EXT}
 	@${MK_MANFILE} <$*.${DESC_SRC_EXT} >$*.${DESC_OUT_EXT}
 
 OUTFILES =	${CMD_OUT} ${NAMED_OUT} ${NAMED_XFER_OUT} ${NSLOOKUP_OUT} \
-		${LIB_NETWORK_OUT} ${FORMAT_OUT} ${DESC_OUT}
+		${NSUPDATE_OUT} ${LIB_NETWORK_OUT} ${FORMAT_OUT} ${DESC_OUT} \
+		${NAMED_BOOTCONF_OUT}
 
 all:	${OUTFILES}
 
@@ -345,7 +373,17 @@ install:	${OUTFILES} \
 		$${f}.${SYS_OPS_OUT_EXT} \
 		${DESTDIR}${DESTMAN}/${MANDIR}${SYS_OPS_EXT_DIR}/${XFER_INDOT}$${f}.${CATEXT}; \
 	done
+	@set -x; N=${SYS_OPS_EXT}; for f in ${NAMED_BOOTCONF_BASE}; do \
+		${INSTALL} -c -m 444 ${MAN_OWNER} ${MAN_GROUP} \
+		$${f}.${SYS_OPS_OUT_EXT} \
+		${DESTDIR}${DESTMAN}/${MANDIR}${SYS_OPS_EXT_DIR}/${XFER_INDOT}$${f}.${CATEXT}; \
+	done
 	@set -x; N=${SYS_OPS_EXT}; for f in ${NSLOOKUP_BASE}; do \
+		${INSTALL} -c -m 444 ${MAN_OWNER} ${MAN_GROUP} \
+		$${f}.${SYS_OPS_OUT_EXT} \
+		${DESTDIR}${DESTMAN}/${MANDIR}${SYS_OPS_EXT_DIR}/$${f}.${CATEXT}; \
+	done
+	@set -x; N=${SYS_OPS_EXT}; for f in ${NSUPDATE_BASE}; do \
 		${INSTALL} -c -m 444 ${MAN_OWNER} ${MAN_GROUP} \
 		$${f}.${SYS_OPS_OUT_EXT} \
 		${DESTDIR}${DESTMAN}/${MANDIR}${SYS_OPS_EXT_DIR}/$${f}.${CATEXT}; \

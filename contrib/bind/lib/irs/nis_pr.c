@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_pr.c,v 1.9 1997/12/04 04:58:00 halley Exp $";
+static const char rcsid[] = "$Id: nis_pr.c,v 1.13 1999/01/18 07:46:59 vixie Exp $";
 #endif
 
 /* Imports */
@@ -29,6 +29,8 @@ static int __bind_irs_nis_unneeded;
 
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
@@ -41,6 +43,7 @@ static int __bind_irs_nis_unneeded;
 #include <stdlib.h>
 #include <errno.h>
 
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -85,13 +88,13 @@ irs_nis_pr(struct irs_acc *this) {
 	struct irs_pr *pr;
 	struct pvt *pvt;
 
-	if (!(pr = malloc(sizeof *pr))) {
+	if (!(pr = memget(sizeof *pr))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pr, 0x5e, sizeof *pr);
-	if (!(pvt = malloc(sizeof *pvt))) {
-		free(pr);
+	if (!(pvt = memget(sizeof *pvt))) {
+		memput(pr, sizeof *pr);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -105,6 +108,8 @@ irs_nis_pr(struct irs_acc *this) {
 	pr->rewind = pr_rewind;
 	pr->close = pr_close;
 	pr->minimize = pr_minimize;
+	pr->res_get = NULL;
+	pr->res_set = NULL;
 	return (pr);
 }
 
@@ -119,8 +124,8 @@ pr_close(struct irs_pr *this) {
 		free(pvt->proto.p_aliases);
 	if (pvt->prbuf)
 		free(pvt->prbuf);
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct protoent *
@@ -182,7 +187,7 @@ pr_next(struct irs_pr *this) {
 			pvt->curkey_len = newkey_len;
 		}
 		if (r != 0) {
-			h_errno = HOST_NOT_FOUND;
+			errno = ENOENT;
 			return (NULL);
 		}
 		rval = makeprotoent(this);
