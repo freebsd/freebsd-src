@@ -71,127 +71,116 @@
 			: "cc" );		\
 	} while(0)
 
+static __inline uint32_t
+__swp(uint32_t val, volatile uint32_t *ptr)
+{
+	__asm __volatile("swp	%0, %1, [%2]"
+	    : "=r" (val) : "r" (val) , "r" (ptr) : "memory");
+	return (val);
+}
+
+
+#define atomic_op(v, op, p) ({			\
+    uint32_t e, r, s;				\
+    for (e = *(volatile uint32_t *)p;; e = r) {	\
+    	s = e op v;				\
+    	r = __swp(s, p);			\
+    	if (r == e)				\
+    		break;				\
+    }						\
+    e;						\
+})
 static __inline void
 atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 {
-	__with_interrupts_disabled( *address |= setmask);
+	atomic_op(setmask, |, address);
 }
 
-static __inline void
-atomic_set_ptr(volatile void *ptr, uint32_t src)
-{
-	atomic_set_32((volatile uint32_t *)ptr, (uint32_t)src);
-}
-
-#define atomic_set_rel_int atomic_set_32
-#define atomic_set_int atomic_set_32
-#define atomic_readandclear_int atomic_readandclear_32
 static __inline void
 atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 {
-	__with_interrupts_disabled( *address &= ~clearmask);
-}
-
-static __inline void
-atomic_clear_ptr(volatile void *ptr, uint32_t src)
-{
-	atomic_clear_32((volatile uint32_t *)ptr, (uint32_t)src);
+	atomic_op(clearmask, &~, address);
 }
 
 static __inline int
-atomic_load_acq_int(volatile uint32_t *v)
+atomic_load_32(volatile uint32_t *v)
 {
-	int bla;
 
-	__with_interrupts_disabled(bla = *v);
-	return (bla);
+	return (__swp(*v, v));
 }
 
-#define atomic_clear_int atomic_clear_32
 static __inline void
 atomic_store_32(volatile uint32_t *dst, uint32_t src)
 {
-	__with_interrupts_disabled(*dst = src);
+	__swp(src, dst);
 }
-
-static __inline void
-atomic_store_ptr(volatile void *dst, void *src)
-{
-	atomic_store_32((volatile uint32_t *)dst, (uint32_t) src);
-}
-
-#define atomic_store_rel_ptr atomic_store_ptr
-#define atomic_store_rel_int atomic_store_32
 
 static __inline uint32_t
 atomic_readandclear_32(volatile u_int32_t *p)
 {
-	uint32_t ret;
 
-	__with_interrupts_disabled((ret = *p) != 0 ? *p = 0 : 0);
-	return (ret);
+	return (__swp(0, p));
 }
 
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 {
-	int done = 0;
-	__with_interrupts_disabled(*p = (*p == cmpval ? newval + done++ : *p));
-	return (done);
+	uint32_t r, e;
+
+	for (e = *p;; e = r) {
+		if (*p == cmpval) {
+			r = __swp(newval, p);
+			if (r == e)
+				return (1);
+		} else
+			return (0);
+	}
 }
 
 static __inline void
 atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 {
-	__with_interrupts_disabled(*p += val);
+	atomic_op(val, +, p);
 }
 
 static __inline void
 atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 {
-	__with_interrupts_disabled(*p -= val);
+	atomic_op(val, -, p);
 }
-
-#define atomic_subtract_int atomic_subtract_32
-#define atomic_subtract_rel_int atomic_subtract_32
-#define atomic_subtract_acq_int atomic_subtract_32
-#define atomic_add_int atomic_add_32
-#define atomic_add_rel_int atomic_add_32
-#define atomic_add_acq_int atomic_add_32
-#define atomic_cmpset_int atomic_cmpset_32
-#define atomic_cmpset_rel_int atomic_cmpset_32
-#define atomic_cmpset_acq_int atomic_cmpset_32
-
-static __inline u_int32_t
-atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
-{
-	return (atomic_cmpset_32((volatile u_int32_t *)dst, (u_int32_t)exp,
-                (u_int32_t)src));
-}
-
-static __inline u_int32_t
-atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
-{
-	return (atomic_cmpset_32(p, cmpval, newval));
-}
-
-static __inline u_int32_t
-atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
-{
-	return (atomic_cmpset_32((volatile u_int32_t *)dst, 
-	    (u_int32_t)exp, (u_int32_t)src));
-}
-
-#define atomic_cmpset_acq_ptr atomic_cmpset_ptr
-
-#if !defined(ATOMIC_SET_BIT_NOINLINE)
-
-#define atomic_set_bit(a,m)   atomic_set_32(a,m)
-#define atomic_clear_bit(a,m) atomic_clear_32(a,m)
-
-#endif
 
 #undef __with_interrupts_disabled
 
 #endif /* _LOCORE */
+
+
+#define atomic_set_rel_int		atomic_set_32
+#define atomic_set_int			atomic_set_32
+#define atomic_readandclear_int		atomic_readandclear_32
+#define atomic_clear_int		atomic_clear_32
+#define atomic_subtract_int		atomic_subtract_32
+#define atomic_subtract_rel_int		atomic_subtract_32
+#define atomic_subtract_acq_int		atomic_subtract_32
+#define atomic_add_int			atomic_add_32
+#define atomic_add_rel_int		atomic_add_32
+#define atomic_add_acq_int		atomic_add_32
+#define atomic_cmpset_int		atomic_cmpset_32
+#define atomic_cmpset_rel_int		atomic_cmpset_32
+#define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
+#define atomic_cmpset_acq_int		atomic_cmpset_32
+#define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
+#define atomic_store_rel_ptr		atomic_store_ptr
+#define atomic_store_rel_int		atomic_store_32
+#define atomic_cmpset_rel_32		atomic_cmpset_32
+#define atomic_smpset_rel_ptr		atomic_cmpset_ptr
+#define atomic_load_acq_int		atomic_load_32
+#define atomic_clear_ptr(ptr, bit)	atomic_clear_32( \
+    (volatile uint32_t *)ptr, (uint32_t)bit)
+#define atomic_store_ptr(ptr, bit)	atomic_store_32( \
+    (volatile uint32_t *)ptr, (uint32_t)bit)
+#define atomic_cmpset_ptr(dst, exp, s)	atomic_cmpset_32( \
+    (volatile uint32_t *)dst, (uint32_t)exp, (uint32_t)s)
+#define atomic_set_ptr(ptr, src)	atomic_set_32( \
+    (volatile uint32_t *)ptr,  (uint32_t)src)
+
 #endif /* _MACHINE_ATOMIC_H_ */
