@@ -1,5 +1,5 @@
 /*
- * $Header: nfsfh.h,v 1.5 96/08/20 14:33:23 leres Exp $
+ * $Header: nfsfh.h,v 1.6 96/12/16 03:40:31 leres Exp $
  *
  * nfsfh.h - NFS file handle definitions (for portable use)
  *
@@ -29,6 +29,6 @@ typedef	struct {
 } my_fsid;
 
 #define	fsid_eq(a,b)	((a.fsid_code == b.fsid_code) &&\
-			 dev_eq(a.fsid_dev, b.fsid_dev))
+			 dev_eq(a.Fsid_dev, b.Fsid_dev))
 
 extern void Parse_fh(caddr_t *, int, my_fsid *, ino_t *, char **, char **, int);
