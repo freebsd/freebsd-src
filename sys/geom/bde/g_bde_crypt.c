@@ -275,7 +275,7 @@ g_bde_map_sector(struct g_bde_key *kp,
 	/* Find physical sector address */
 	os = zone * kp->zone_width + zoff;
 	os += kp->keyoffset;
-	os %= kp->media_width - (G_BDE_MAXKEYS * kp->sectorsize);
+	os %= kp->media_width;
 	os += kp->sector0;
 
 	/* Compensate for lock sectors */
@@ -288,7 +288,7 @@ g_bde_map_sector(struct g_bde_key *kp,
 	/* The key sector is the last in this zone. */
 	os = (1 + zone) * kp->zone_width - kp->sectorsize;
 	os += kp->keyoffset;
-	os %= kp->media_width - (G_BDE_MAXKEYS * kp->sectorsize);
+	os %= kp->media_width;
 	os += kp->sector0; 
 
 	for (u = 0; u < G_BDE_MAXKEYS; u++)
