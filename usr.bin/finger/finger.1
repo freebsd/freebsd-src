@@ -186,6 +186,17 @@ If the file
 exists in the user's home directory,
 .Nm finger
 behaves as if the user in question does not exist.
+.Pp
+The optional
+.Xr finger.conf 5
+configuration file can be used to specify aliases.
+This is particularly useful where a user's login name is not their
+preferred mail address.
+Since
+.Xr finger 1
+is invoked by
+.Xr fingerd 8
+these aliases will work for both local and network queries.
 .Sh ENVIRONMENT
 .Nm Finger
 utilizes the following environment variable, if it exists:
@@ -196,6 +207,8 @@ This variable may be set with favored options to
 .El
 .Sh FILES
 .Bl -tag -width /var/log/lastlog -compact
+.It Pa /etc/finger.conf
+alias definition data base
 .It Pa /var/log/lastlog
 last login data base
 .El
@@ -203,7 +216,9 @@ last login data base
 .Xr chpass 1 ,
 .Xr w 1 ,
 .Xr who 1 ,
-.Xr ttcp 4 .
+.Xr ttcp 4 ,
+.Xr finger.conf 5 ,
+.Xr fingerd 8 .
 .Rs
 .%A D. Zimmerman
 .%T The Finger User Information Protocol
