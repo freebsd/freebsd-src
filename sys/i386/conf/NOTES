@@ -602,12 +602,6 @@ options 	CD9660_ROOTDELAY=20
 #
 options 	SUIDDIR
 
-
-# Add some error checking code to the null_bypass routine
-# in the NULL filesystem
-#options 	SAFETY
-
-
 # NFS options:
 options 	NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
 options 	NFS_MAXATTRTIMO=60

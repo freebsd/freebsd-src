@@ -206,7 +206,6 @@ static int	null_unlock __P((struct vop_unlock_args *ap));
  *    This version has been optimized for speed, throwing away some
  * safety checks.  It should still always work, but it's not as
  * robust to programmer errors.
- *    Define SAFETY to include some error checking code.
  *
  * In general, we map all vnodes going down and unmap them on the way back.
  * As an exception to this, vnodes can be marked "unmapped" by setting
@@ -244,13 +243,13 @@ null_bypass(ap)
 	if (null_bug_bypass)
 		printf ("null_bypass: %s\n", descp->vdesc_name);
 
-#ifdef SAFETY
+#ifdef DIAGNOSTIC
 	/*
 	 * We require at least one vp.
 	 */
 	if (descp->vdesc_vp_offsets == NULL ||
 	    descp->vdesc_vp_offsets[0] == VDESC_NO_OFFSET)
-		panic ("null_bypass: no vp's in map.");
+		panic ("null_bypass: no vp's in map");
 #endif
 
 	/*
