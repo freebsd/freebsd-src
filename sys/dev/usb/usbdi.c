@@ -366,10 +366,14 @@ usbd_get_request_status(reqh, priv, buffer, count, status)
 	u_int32_t *count;
 	usbd_status *status;
 {
-	*priv = reqh->priv;
-	*buffer = reqh->buffer;
-	*count = reqh->actlen;
-	*status = reqh->status;
+	if (priv)
+		*priv = reqh->priv;
+	if (buffer)
+		*buffer = reqh->buffer;
+	if (count)
+		*count = reqh->actlen;
+	if (status)
+		*status = reqh->status;
 	return (USBD_NORMAL_COMPLETION);
 }
 
