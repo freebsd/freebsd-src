@@ -241,26 +241,36 @@
  *		stop sequence is done
  *		others are done
  * mcast code resurrection - done
+ * remove ray_reset - done
+ * detach needs to drain comq - done
+ *	in fact we don't drain the comq just get the hell out asap
+ * remember to ccs_free on error in _user routines - done
+ *	not relevant anymore
+ * macro for gone and check is at head of all externally called routines - done
+ *	not relevant anymore
+ * probably function/macro to test unload at top of commands - done
+ * detach checks in all routines that access the card - done
+ *	not relevant anymore as they won't be called by runq
+ * reset in ray_init_user? - done
+ *	no as I don't want to remove it (people can always cycle power
+ *	from the command line)
  *
- * ***detach needs to drain comq
- * ***detach checks in all routines that access the card
- * ***reset in ray_init_user?
  * ***PCATCH tsleeps and have something that will clean the runq
  * ***priorities for each tsleep 
  * ***watchdog to catch screwed up removals?
- * ***remember to ccs_free on error in _user routines
  * ***check and rationalise CM mappings
  * use /sys/net/if_ieee80211.h and update it
- * remove ray_reset
  * write up driver structure in comments above
- * macro for gone and check is at head of all externally called routines
- * probably function/macro to test unload at top of commands
  * UPDATE_PARAMS seems to return via an interrupt - maybe the timeout
  *	is needed for wrong values?
  *	remember it must be serialised as it uses the HCF-ECF area
  * check all RECERRs and make sure that some are RAY_PRINTF not RAY_DPRINTF
  * could do with selectively calling ray_mcast in ray_init but can't figure
  * 	out a way that doesn't violate the runq or introduce a state var.
+ *	otoh we do have a state var for promisc
+ *	also we are only doing this to reset the mcast list why not
+ *	have a mcast_reset runq?
+ *	or just leave it to the n/w layer to tell us via the ioctls
  * havenet needs checking again
  * error handling of ECF command completions
  * proper setting of mib_hop_seq_len with country code for v4 firmware
@@ -291,7 +301,6 @@
 #define XXX_ASSOC	0
 #define XXX_ACTING_AP	0
 #define XXX_INFRA	0
-#define XXX_RESET	0
 #define XXX_IFQ_PEEK	0
 #define XXX_8BIT	0
 #define RAY_DEBUG	(				\
@@ -304,11 +313,12 @@
                         /* RAY_DBG_MBUF		| */ 	\
                         /* RAY_DBG_RX		| */	\
                         /* RAY_DBG_CM		| */ 	\
-                           RAY_DBG_COM		|     	\
-                           RAY_DBG_STOP		|   	\
+                        /* RAY_DBG_COM		| */  	\
+                        /* RAY_DBG_STOP		| */	\
                         /* RAY_DBG_CTL		| */	\
                         /* RAY_DBG_MGT		| */ 	\
                         /* RAY_DBG_TX		| */  	\
+                        /* RAY_DBG_DCOM		| */  	\
 			0				\
 			)
 
@@ -420,13 +430,10 @@ static void	ray_mcast_done		(struct ray_softc *sc, size_t ccs);
 static int	ray_mcast_user		(struct ray_softc *sc); 
 static int	ray_probe		(device_t);
 static void	ray_promisc		(struct ray_softc *sc, struct ray_comq_entry *com); 
-static int	ray_promisc_user	(struct ray_softc *sc); 
 static void	ray_repparams		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_repparams_done	(struct ray_softc *sc, size_t ccs);
 static int	ray_repparams_user	(struct ray_softc *sc, struct ray_param_req *pr);
 static int	ray_repstats_user	(struct ray_softc *sc, struct ray_stats_req *sr);
-static void	ray_reset		(struct ray_softc *sc);
-static void	ray_reset_timo		(void *xsc);
 static int	ray_res_alloc_am	(struct ray_softc *sc);
 static int	ray_res_alloc_cm	(struct ray_softc *sc);
 static int	ray_res_alloc_irq	(struct ray_softc *sc);
@@ -653,7 +660,6 @@ ray_attach(device_t dev)
 	 * Initialise the timers and driver
 	 */
 	callout_handle_init(&sc->com_timerh);
-	callout_handle_init(&sc->reset_timerh);
 	callout_handle_init(&sc->tx_timerh);
 	TAILQ_INIT(&sc->sc_comq);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -710,6 +716,9 @@ ray_detach(device_t dev)
 	struct ray_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ray_comq_entry *com;
+	int s;
+
+	s = splnet();
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STOP, "");
 
@@ -717,44 +726,40 @@ ray_detach(device_t dev)
 		return (0);
 
 	/*
-	 * Clear out timers and sort out driver state
+	 * Mark as not running and detach the interface.
+	 *
+	 * N.B. if_detach can trigger ioctls!
 	 */
-	com = TAILQ_FIRST(&sc->sc_comq);
-	for (com = TAILQ_FIRST(&sc->sc_comq); com != NULL;
-	    com = TAILQ_NEXT(com, c_chain)) {
-		com->c_flags |= RAY_COM_FDETACH;
-	}
-	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
-	untimeout(ray_reset_timo, sc, sc->reset_timerh);
-	untimeout(ray_tx_timo, sc, sc->tx_timerh);
+	sc->gone = 1;
 	sc->sc_havenet = 0;
-
-/* XXX
-
- What to do with the queue:-
-
- mark all entries as invalid and then invoke runq to sort it out
-
- as the state is held in the queue then we should be okay
-
- */
-
-	/*
-	 * Mark as not running
-	 */
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
-	/*
-	 * Cleardown interface
-	 */
 	if_detach(ifp);
 
 	/*
-	 * Mark card as gone and release resources
+	 * Stop the runq and wake up anyone sleeping for us.
 	 */
-	sc->gone = 1;
+	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
+	untimeout(ray_tx_timo, sc, sc->tx_timerh);
+	com = TAILQ_FIRST(&sc->sc_comq);
+	for (com = TAILQ_FIRST(&sc->sc_comq); com != NULL;
+	    com = TAILQ_NEXT(com, c_chain)) {
+		com->c_flags |= RAY_COM_FDETACHED;
+		com->c_retval = 0; /* XXX ENXIO? */
+		RAY_DPRINTF(sc, RAY_DBG_STOP, "looking at com %p %b",
+		    com, com->c_flags, RAY_COM_FLAGS_PRINTFB);
+		if (com->c_flags & RAY_COM_FWOK) {
+			RAY_DPRINTF(sc, RAY_DBG_STOP, "waking com %p", com);
+			wakeup(com->c_wakeup);
+		}
+	}
+	
+	/*
+	 * Release resources
+	 */
 	ray_res_release(sc);
-	RAY_PRINTF(sc, "unloading complete");
+	RAY_DPRINTF(sc, RAY_DBG_STOP, "unloading complete");
+
+	splx(s);
 
 	return (0);
 }
@@ -802,7 +807,7 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
-		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS");
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS 0x%0x", ifp->if_flags);
 		/*
 		 * If the interface is marked up we call ray_init_user.
 		 * This will deal with mcast and promisc flags as well as
@@ -916,7 +921,7 @@ static int
 ray_init_user(struct ray_softc *sc)
 {
 	struct ray_comq_entry *com[5];
-	int i, ncom, error;
+	int error, ncom;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 
@@ -939,20 +944,16 @@ ray_init_user(struct ray_softc *sc)
 	com[ncom++] = RAY_COM_MALLOC(ray_mcast, 0);
 	com[ncom++] = RAY_COM_MALLOC(ray_promisc, 0);
 
-	error = ray_com_runq_add(sc, com, ncom, "rayinit");
+	RAY_COM_RUNQ(sc, com, ncom, "rayinit", error);
 
 	/* XXX no real error processing from anything yet! */
 
-	for (i = 0; i < ncom; i++) {
-		if (com[i]->c_flags & RAY_COM_FCOMPLETED) {
-		} else  {
-			ray_ccs_free(sc, com[i]->c_ccs);
-			TAILQ_REMOVE(&sc->sc_comq, com[i], c_chain);
-		}
-		FREE(com[i], M_RAYCOM);
-	}
+	RAY_COM_FREE(com, ncom);
 
+	return (error);
+}
 /*
+XXX
 runq_arr may fail:
 
     if sleeping in ccs_alloc with eintr/erestart/enxio/enodev
@@ -973,8 +974,6 @@ runq_arr may fail:
     longer term need to attach a desired nw params to the runq entry
 
 */
-	return (error);
-}
 
 /*
  * Runq entry for resetting driver and downloading start up structures to card
@@ -1375,22 +1374,21 @@ static int
 ray_stop_user(struct ray_softc *sc)
 {
 	struct ray_comq_entry *com[1];
-	int error;
+	int error, ncom;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STOP, "");
 
 	/*
 	 * Schedule the real stop routine
 	 */
-	com[0] = RAY_COM_MALLOC(ray_stop, 0);
+	ncom = 0;
+	com[ncom++] = RAY_COM_MALLOC(ray_stop, 0);
 
-	error = ray_com_runq_add(sc, com, 1, "raystop");
+	RAY_COM_RUNQ(sc, com, ncom, "raystop", error);
 
 	/* XXX no real error processing from anything yet! */
-	if (error)
-		RAY_PRINTF(sc, "got error from ray_stop 0x%x", error);
 
-	FREE(com[0], M_RAYCOM);
+	RAY_COM_FREE(com, ncom);
 
 	return (error);
 }
@@ -1416,60 +1414,6 @@ ray_stop(struct ray_softc *sc, struct ray_comq_entry *com)
 	ray_com_runq_done(sc);
 }
 
-/*
- * Reset the card
- *
- * I'm using the soft reset command in the COR register. I'm not sure
- * if the sequence is right but it does seem to do the right thing. A
- * nano second after reset is written the flashing light goes out, and
- * a few seconds after the default is written the main card light goes
- * out. We wait a while and then re-init the card.
- */
-static void
-ray_reset(struct ray_softc *sc)
-{
-#if XXX_RESET
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-#endif /* XXX_RESET */
-
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-	RAY_MAP_CM(sc);
-
-#if XXX_RESET
-	if (ifp->if_flags & IFF_RUNNING)
-		ray_stop(sc);
-
-	RAY_PRINTF(sc, "resetting ECF");
-	ATTR_WRITE_1(sc, RAY_COR, RAY_COR_RESET);
-	ATTR_WRITE_1(sc, RAY_COR, RAY_COR_DEFAULT);
-	sc->reset_timerh = timeout(ray_reset_timo, sc, RAY_RESET_TIMEOUT);
-#else
-	RAY_PRINTF(sc, "skip reset card");
-#endif /* XXX_RESET */
-}
-
-/*
- * Finishing resetting and restarting the card
- */
-static void
-ray_reset_timo(void *xsc)
-{
-	struct ray_softc *sc = (struct ray_softc *)xsc;
-
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-	RAY_MAP_CM(sc);
-
-	if (!RAY_ECF_READY(sc)) {
-	    RAY_DPRINTF(sc, RAY_DBG_RECERR, "ECF busy, re-scheduling self");
-	    sc->reset_timerh = timeout(ray_reset_timo, sc, RAY_RESET_TIMEOUT);
-	    return;
-	}
-
-	RAY_HCS_CLEAR_INTR(sc);
-	RAY_PRINTF(sc, "XXX need to restart ECF but not in sleepable context");
-	RAY_PRINTF(sc, "XXX the user routines must restart as required");
-}
-
 static void
 ray_watchdog(struct ifnet *ifp)
 {
@@ -1485,7 +1429,6 @@ ray_watchdog(struct ifnet *ifp)
 
 /* XXX may need to have remedial action here
    for example
-   	ray_reset
 	    ray_stop
 	    ...
 	    ray_init
@@ -1723,7 +1666,6 @@ ray_tx_timo(void *xsc)
 	int s;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-	RAY_MAP_CM(sc);
 
 	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
 		s = splimp();
@@ -2624,7 +2566,7 @@ static int
 ray_mcast_user(struct ray_softc *sc)
 {
 	struct ray_comq_entry *com[2];
-	int error, ncom, i;
+	int error, ncom;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
@@ -2638,12 +2580,11 @@ ray_mcast_user(struct ray_softc *sc)
 	com[ncom++] = RAY_COM_MALLOC(ray_mcast, 0);
 	com[ncom++] = RAY_COM_MALLOC(ray_promisc, 0);
 
-	error = ray_com_runq_add(sc, com, ncom, "raymcast");
+	RAY_COM_RUNQ(sc, com, ncom, "raymcast", error);
 
 	/* XXX no real error processing from anything yet! */
 
-	for (i = 0; i < ncom; i++)
-		FREE(com[i], M_RAYCOM);
+	RAY_COM_FREE(com, ncom);
 
 	return (error);
 }
@@ -2762,7 +2703,7 @@ static int
 ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 {
 	struct ray_comq_entry *com[1];
-	int error, ncom, i;
+	int error, ncom;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
@@ -2852,15 +2793,14 @@ ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	com[ncom++] = RAY_COM_MALLOC(ray_repparams, RAY_COM_FWOK);
 	com[ncom-1]->c_pr = pr;
 
-	error = ray_com_runq_add(sc, com, ncom, "rayrepparams");
+	RAY_COM_RUNQ(sc, com, ncom, "rayrparm", error);
 
 	/* XXX no real error processing from anything yet! */
-	error = com[0]->c_retval;
+	error = com[0]->c_retval; /*XXX wrong */
 	if (!error && pr->r_failcause)
 		error = EINVAL;
 
-	for (i = 0; i < ncom; i++)
-		FREE(com[i], M_RAYCOM);
+	RAY_COM_FREE(com, ncom);
 
 	return (error);
 }
@@ -2937,7 +2877,7 @@ static int
 ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 {
 	struct ray_comq_entry *com[3];
-	int i, todo, error, ncom;
+	int error, ncom, todo;
 #define RAY_UPP_SJ	0x1
 #define RAY_UPP_PARAMS	0x2
 
@@ -3011,15 +2951,14 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 #endif /* XXX_ASSOC */
 	}
 
-	error = ray_com_runq_add(sc, com, ncom, "rayupparams");
+	RAY_COM_RUNQ(sc, com, ncom, "rayuparam", error);
 
 	/* XXX no real error processing from anything yet! */
-	error = com[0]->c_retval;
+	error = com[0]->c_retval; /* XXX wrong */
 	if (!error && pr->r_failcause)
 		error = EINVAL;
 
-	for (i = 0; i < ncom; i++)
-		FREE(com[i], M_RAYCOM);
+	RAY_COM_FREE(com, ncom);
 
 	return (error);
 }
@@ -3123,10 +3062,10 @@ ray_com_malloc(ray_comqfn_t function, int flags, char *mesg)
  *
  * We add the commands to the queue first to preserve ioctl ordering.
  *
- * On any error, this routine simply returns. This ensures that commands
- * remain serialised, even though recovery is difficult - but as the
- * only failure mechanisms are a signal or detach/stop most callers
- * won't bother restarting.
+ * On recoverable errors, this routine removes the entries from the
+ * runq. A caller can requeue the commands (and still preserve its own
+ * processes ioctl ordering) but doesn't have to. When the card is
+ * detached we get out quickly to prevent panics.
  */
 static int
 ray_com_runq_add(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg)
@@ -3143,32 +3082,56 @@ ray_com_runq_add(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, c
 	com[0]->c_flags |= RAY_COM_FWAIT;
 	for (i = 0; i < ncom; i++) {
 		com[i]->c_wakeup = com[ncom-1];
-		RAY_DCOM(sc, RAY_DBG_COM, com[i], "adding");
+		RAY_DPRINTF(sc, RAY_DBG_COM, "adding %p", com[i]);
+		RAY_DCOM(sc, RAY_DBG_DCOM, com[i], "adding");
 		TAILQ_INSERT_TAIL(&sc->sc_comq, com[i], c_chain);
 	}
 	com[ncom-1]->c_flags |= RAY_COM_FWOK;
 
 	/*
-	 * Allocate ccs's for each command. If we fail, we bail
-	 * for the caller to sort everything out.
+	 * Allocate ccs's for each command. If we fail, return an error
 	 */
 	for (i = 0; i < ncom; i++) {
 		error = ray_ccs_alloc(sc, &com[i]->c_ccs, wmesg);
 		if (error)
-			return (error);
+			goto cleanup;
 	}
 
 	/*
-	 * Allow the queue to run and if needed sleep
+	 * Allow the queue to run and sleep if needed.
+	 *
+	 * Iff the FDETACHED flag is set in the com entry we waited on
+	 * the driver is in a zombie state! The softc structure has been
+	 * freed by the generic bus detach methods - eek. We tread very
+	 * carefully!
 	 */
 	com[0]->c_flags &= ~RAY_COM_FWAIT;
 	ray_com_runq(sc);
 	if (TAILQ_FIRST(&sc->sc_comq) != NULL) {
 		RAY_DPRINTF(sc, RAY_DBG_COM, "sleeping");
 		error = tsleep(com[ncom-1], PCATCH, wmesg, 0);
-		RAY_DPRINTF(sc, RAY_DBG_COM, "awakened, tsleep returned 0x%x", error);
+		if (com[ncom-1]->c_flags & RAY_COM_FDETACHED)
+			return (ENXIO);
+		RAY_DPRINTF(sc, RAY_DBG_COM,
+		    "awakened, tsleep returned 0x%x", error);
 	} else
 		error = 0;
+
+cleanup:
+	/*
+	 * Only clean the queue on real errors - we don't care about it
+	 * when we detach.
+	 */
+	if (error && (error != ENXIO))
+		for (i = 0; i < ncom; i++)
+		    	if (!(com[i]->c_flags & RAY_COM_FCOMPLETED)) {
+				RAY_DPRINTF(sc, RAY_DBG_COM, "removing %p",
+				    com[i]);
+				RAY_DCOM(sc, RAY_DBG_DCOM, com[i], "removing");
+				TAILQ_REMOVE(&sc->sc_comq, com[i], c_chain);
+				ray_ccs_free(sc, com[i]->c_ccs);
+				com[i]->c_ccs = NULL;
+			}
 
 	return (error);
 }
@@ -3184,71 +3147,16 @@ ray_com_runq(struct ray_softc *sc)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
 	com = TAILQ_FIRST(&sc->sc_comq);
-#if RAY_DEBUG & RAY_DBG_COM /* XXX this can go later */
-	if (com == NULL) {
-		RAY_DPRINTF(sc, RAY_DBG_COM, "empty command queue");
-		return;
-	}
-	if (com->c_flags & RAY_COM_FRUNNING) {
-		RAY_DPRINTF(sc, RAY_DBG_COM, "command already running");
-		return;
-	}
-	if (com->c_flags & RAY_COM_FWAIT) {
-		RAY_DPRINTF(sc, RAY_DBG_COM, "command not ready");
-		return;
-	}
-#else
 	if ((com == NULL) ||
 	    (com->c_flags & RAY_COM_FRUNNING) ||
-	    (com->c_flags & RAY_COM_FWAIT))
+	    (com->c_flags & RAY_COM_FWAIT) ||
+	    (com->c_flags & RAY_COM_FDETACHED))
 		return;
-#endif /* RAY_DEBUG & RAY_DBG_COM */
 
 	com->c_flags |= RAY_COM_FRUNNING;
-	RAY_DCOM(sc, RAY_DBG_COM, com, "running");
+	RAY_DPRINTF(sc, RAY_DBG_COM, "running %p", com);
+	RAY_DCOM(sc, RAY_DBG_DCOM, com, "running");
 	com->c_function(sc, com);
-}
-
-/*
- * Abort the execution of a run queue entry and wakeup the
- * user level caller.
- *
- * We do not remove the entry from the runq incase the caller want's to
- * retry and to prevent any other commands being run. The user level caller
- * must acknowledge the abort.
- */
-static void
-ray_com_runq_abort(struct ray_softc *sc, struct ray_comq_entry *com, int reason)
-{
-	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
-
-#if RAY_DEBUG & RAY_DBG_COM
-	if (com != TAILQ_FIRST(&sc->sc_comq))
-		RAY_PANIC(sc, "com and head of queue");
-#endif /* RAY_DEBUG & RAY_DBG_COM */
-	RAY_DCOM(sc, RAY_DBG_COM, com, "aborting");
-	com->c_retval = reason;
-
-	wakeup(com->c_wakeup);
-}
-
-/*
- * Remove an aborted command and re-run the queue
- */
-static void
-ray_com_runq_clrabort(struct ray_softc *sc, struct ray_comq_entry *com)
-{
-	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
-
-#if RAY_DEBUG & RAY_DBG_COM
-	if (com != TAILQ_FIRST(&sc->sc_comq))
-		RAY_PANIC(sc, "com and head of queue");
-#endif /* RAY_DEBUG & RAY_DBG_COM */
-
-	RAY_DCOM(sc, RAY_DBG_COM, com, "removing");
-	TAILQ_REMOVE(&sc->sc_comq, com, c_chain);
-
-	ray_com_runq(sc);
 }
 
 /*
@@ -3270,7 +3178,8 @@ ray_com_runq_done(struct ray_softc *sc)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
 	com = TAILQ_FIRST(&sc->sc_comq); /* XXX shall we check this as below */
-	RAY_DCOM(sc, RAY_DBG_COM, com, "removing");
+	RAY_DPRINTF(sc, RAY_DBG_COM, "removing %p", com);
+	RAY_DCOM(sc, RAY_DBG_DCOM, com, "removing");
 	TAILQ_REMOVE(&sc->sc_comq, com, c_chain);
 
 	com->c_flags &= ~RAY_COM_FRUNNING;
@@ -3323,7 +3232,8 @@ ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 		else if (i == 1)
 			RAY_PRINTF(sc, "spinning");
 
-	RAY_DCOM(sc, RAY_DBG_COM, com, "sending");
+	RAY_DPRINTF(sc, RAY_DBG_COM, "sending %p", com);
+	RAY_DCOM(sc, RAY_DBG_DCOM, com, "sending");
 	SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(com->c_ccs));
 	RAY_ECF_START_CMD(sc);
 
@@ -3436,8 +3346,8 @@ ray_com_ecf_check(struct ray_softc *sc, size_t ccs, char *mesg)
  * Obtain a ccs for a commmand
  *
  * Returns 0 and in `ccsp' the bus offset of the free ccs. Will block
- * awaiting free ccs if needed - if the sleep is interrupted EINTR/ERESTART
- * is returned.
+ * awaiting free ccs if needed - if the sleep is interrupted
+ * EINTR/ERESTART is returned, if the card is ejected we return ENXIO.
  */
 static int
 ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, char *wmesg)
@@ -3460,6 +3370,9 @@ ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, char *wmesg)
 		if (i > RAY_CCS_CMD_LAST) {
 			RAY_DPRINTF(sc, RAY_DBG_CCS, "sleeping");
 			error = tsleep(ray_ccs_alloc, PCATCH, wmesg, 0);
+			/* XXX broken: see runq_add */
+			if (sc->gone)
+				error = ENXIO;
 			RAY_DPRINTF(sc, RAY_DBG_CCS,
 			    "awakened, tsleep returned 0x%x", error);
 			if (error)
@@ -3508,7 +3421,8 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 	if (!sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)])
 		RAY_PRINTF(sc, "freeing free ccs 0x%02x", RAY_CCS_INDEX(ccs));
 #endif /* RAY_DEBUG & RAY_DBG_CCS */
-	RAY_CCS_FREE(sc, ccs);
+	if (!sc->gone)
+		RAY_CCS_FREE(sc, ccs);
 	sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
 	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02x", RAY_CCS_INDEX(ccs));
 	wakeup(ray_ccs_alloc);
