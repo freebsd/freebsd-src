@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.5 1997/03/15 06:06:06 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.21 1997/04/10 14:12:51 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -310,22 +310,6 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 
 	result.transid = argp->transid;
 	rqhost = svc_getcaller(rqstp->rq_xprt);
-
-	/*
-	 * The FreeBSD ypxfr(8) program will not talk to a ypserv(8)
-	 * or rpc.ypxfrd(8) unless it's using a reserved port, but we
- 	 * may as well check that the process calling this procedure
-	 * is also using one.
-	 *
-	 * yp_access() may also do a reserved port test, but only
-	 * if the YP_SECURE flag is set in the map. For this procedure,
-	 * the check should be unconditional.
-	 */
-	if (ntohs(rqhost->sin_port) >= IPPORT_RESERVED) {
-		yp_error("ypxfr request from non-reserved port (%s:%d) -- \
-rejecting", inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
-		YPXFR_RETURN(YPXFR_REFUSED)
-	}
 
 #ifdef DB_CACHE
 	if (yp_access(argp->map_parms.map,
