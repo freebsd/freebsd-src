@@ -103,7 +103,7 @@ _devd=		devd
 .if !defined(NO_IPFILTER)
 _ipf=		ipf
 _ipfs=		ipfs
-_ipfstat=		ipfstat
+_ipfstat=	ipfstat
 _ipmon=		ipmon
 _ipnat=		ipnat
 .endif
