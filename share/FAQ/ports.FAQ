@@ -1,6 +1,6 @@
 			The FreeBSD Ports FAQ file
 
-Revision: $Id: PORTS.FAQ,v 1.2 1995/01/04 07:38:40 jkh Exp $
+Revision: $Id: ports.FAQ,v 1.1 1995/01/05 07:27:00 gclarkii Exp $
 
 The ports system is kinda new, so there haven't been too many FAQ's to
 date, but hopefully this document will pre-empt (some|most) of them!!
@@ -209,3 +209,38 @@ The ``make describe'' will try to extract the one-line description from
 each port, and the ``sed'' will delete the extraneous output.  ``expand''
 just makes it a little more readable (sort of - you may want to season
 the output of this more to taste).
+
+
+12) I've heard of a new checksum system. What is this for?
+
+    For various reasons, when using FTP over the Internet to obtain the
+source code, you may not always end up with the same copy of the code
+that the origional porter worked from, and this can lead to problems.
+So a simple checksumming system has been employed to try and highlight
+problems in this area.
+
+    To check the entire system, go to the top of the ports tree
+(defaults to /usr/ports) and type
+
+	make checksum
+
+This will give a report on the validity of the files you have FTP'd. If some
+are missing, the system will attempt to retrieve them before running the
+checksum routine. The same technique can be applied to a single port.
+
+    The system will complain if there is no pre-computed checksum available
+for that port. Not all ports currently have checksums, but this should be
+cured soon.
+
+    Some older versions of the system don't recognise the ``checksum''
+target. In that case, try the command
+
+	make check-md5
+
+(``check-md5'' was the pre-cursor to the ``checksum'' target). If neither
+work, get the latest copies of bsd.port.mk and bsd.port.subdir.mk from
+
+   ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/mk/bsd.port*
+
+and install them in /usr/share/mk. This will get you the latest version
+of the ports system.
