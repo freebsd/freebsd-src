@@ -1622,10 +1622,10 @@ dgmioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		cs = splclock();
 		setwin(sc, 0);
 
-		/* now it sends 250 millisecond break because I don't know */
+		/* now it sends 400 millisecond break because I don't know */
 		/* how to send an infinite break */
 
-		fepcmd(port, SENDBREAK, 250, 0, 10, 0);
+		fepcmd(port, SENDBREAK, 400, 0, 10, 0);
 		hidewin(sc);
 		splx(cs);
 		break;
