@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.67 1998/11/09 07:00:14 peter Exp $
+ * $Id: nfs_subs.c,v 1.68 1998/12/07 21:58:44 archie Exp $
  */
 
 /*
@@ -208,7 +208,8 @@ static u_char nfsrv_v2errmap[ELAST] = {
   NFSERR_NOTEMPTY, NFSERR_IO,	NFSERR_IO,	NFSERR_DQUOT,	NFSERR_STALE,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO /* << Last is 83 */
+  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
+  NFSERR_IO /* << Last is 86 */
 };
 
 /*
