@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #
 # Copyright (c) March 1995 Wolfram Schneider. All rights reserved.
+# Alle Rechte vorbehalten. Es gilt das kontinentaleuropäische Urheberrecht.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,63 +31,120 @@
 #
 
 #
-# kbdmap/kbdfont - front end for syscons 
+# kbdmap/vidfont - front end for syscons
 #
-# E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
+#   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
+#
+# $Id: kbdmap.pl,v 1.10 1995/04/03 21:13:52 w Exp $
 #
 
-system("kbdcontrol -d >/dev/null");
-die "You are on a virtual console?\n" .
-    "This program does not work with X11\n" if $?;
+# simple test if syscons works
+$x11 = system("kbdcontrol -d >/dev/null");
+if ($x11) {
+    warn "You are not on a virtual console - " .
+	"expect certain strange side-effects\n"; 
+    sleep 2;
+}
+    
+#die "You are on a virtual console?\n" .
+#    "This program does not work with X11\n" if $?;
+
 
 sub variables_static {
-    $lang = $ENV{'LANG'};	# use standard enviroment variable $LANG
-    $lang = "en" unless $lang;
-    $lang_default = "en";
-    $program = $0; $program =~ s|.*/||;
+    $lang_default = "en";	# set default language
+    $lang = $ENV{'LC_CTYPE'} || $ENV{'LANG'} || $lang_default;
+    $lang = &lang($lang);
+    $program = $0; $program =~ s|.*/||; $program =~ s/\.(pl|perl)$//;
     $keymapdir = "/usr/share/syscons/keymaps";
     $fontdir = "/usr/share/syscons/fonts";
-    $index = "INDEX";			# Keyboard language database
-    $verbose = 0;
+    $sysconfig = "/etc/sysconfig";
 
-    # menu
-    $menu_map{en} = "Choise your keyboard language";
-    $menu_map{de} = "Wähle Deine Tastaturbelegung";
-    $menu_font{en} = "Choise your keyboard font";
-    $menu_font{de} = "Wähle Deine Schrift";
+    #$keymapdir = "./syscons/keymaps";
+    #$fontdir = "./syscons/fonts";
+    #$sysconfig = "./sysconfig";
 
-    %keymap = '';
-}
+    # read current font from sysconfig
+    $font_default = "cp437-8x16.fnt";
+    $font_current = &font_current($font_default);
 
-sub variables_dynamic {
-    if ($program eq "kbdmap") { 
-	$menu = $menu_map{$lang}; 
+    if ($program eq "kbdmap") {
 	$dir = $keymapdir;
     } else {
-	$menu = $menu_font{$lang}; 
 	$dir = $fontdir;
     }
 
-    $dialog = "/usr/bin/dialog \\
---clear \\
---title \"Keyboard Menu\" \\
---menu \"$menu\" \\
--1 -1 8";
+    @langsupport = ('MENU', 'FONT'); # lang depended variables
+    $show = 0;			# show which languages currently supported
+    $index = "INDEX";		# Keyboard language database
+    $verbose = 0;
+    %keymap = '';
+}
+
+sub lang {
+    local($lang) = @_;
+
+    #$lang =~ s/_.*//;		# strip country and font
+    $lang =~ s/^(C)$/en/;	# aliases
+    #$lang =~ s/^(..).*/$1/;	# use only first to characters
+
+    return $lang;
+}
+
+sub font_current {
+    local($font) = @_;
+    local($font_current);
+
+    open(F, "$sysconfig") || warn "$sysconfig: $!\n";
+
+    while(<F>) {
+	/^#/ && next;
+	if (/^\s*font[0-9]+x[0-9]+\s*=\s*(\S+)/) {
+	    $font_current = $1 if $1 ne "NO";
+	}
+    }
+    close F;
+
+    return $font_current if $font_current;
+    return $font;
+}
+
+sub vidcontrol {
+    local($font) = @_;
+
+    return $x11 if $x11;	# syscons test failed
+
+    if ($font =~ /.*([0-9]+x[0-9]+)(\.fnt)?$/) {
+	warn "vidcontrol -f $1 $font\n" if $verbose;
+	return system("vidcontrol -f $1 $font");
+    } else {
+	warn "Which font size? ``$font''\n";
+	return 1;
+    }
 }
 
 sub menu_read {
     local($e,@a,$mark,$ext);
-    local($keym, $lg, $desc);
+    local($keym, $lg, $dialect, $desc);
+    local(@langlist) = $lang_default;
 
-	$ext = $dir; $ext =~ s|.*/||;
+    $ext = $dir; $ext =~ s|.*/||;
+    # en_US.ISO8859-1 -> en_..\.ISO8859-1
+    ($dialect = $lang) =~ s/^(..)_..(.+)$/$1_..$2/;
+    # en_US.ISO8859-1 -> en
+    ($lang_abk = $lang) =~ s/^(..)_.*$/$1/; 
+
     # read index database
     open(I, "$dir/$index.$ext") || warn "$dir/$index.$ext: $!\n";
     while(<I>) {
-	chop;
+	# skip blank lines and comments
 	/^#/ && next;
+	s/^\s+//;
+	/^\w/ || next;
+	s/\s+$//;
 
 	($keym, $lg, $desc) = split(/:/);
-	if (! -r "$keym" && ! -r "$dir/$keym") {
+	if (! -r "$keym" && ! -r "$dir/$keym" &&
+	    !grep(/$keym/, @langsupport)) {
 	    warn "$keym not found!\n" if $verbose;
 	    next;
 	}
@@ -94,23 +152,63 @@ sub menu_read {
 	# set empty language to default language
 	$lg = $lang_default if $lg eq "";
 
-	# ----> 1) your choise if exist
-	#   --> 2) default language if exist and not 1)
-	#    -> 3) unknown language if 1) and 2) not exist
-	if ($lg eq $lang) {
-	    # found your favorite language :-)
+	# save language
+	if ($show) {
+	    foreach $e (split(/,/, $lg)) {
+		push(@langlist, $e) if !grep($_ eq $e, @langlist);
+	    }
+	}
+
+	# 4) your choise if exist
+	# 3) long match e.g. en_GB.ISO8859-1 is equal to en_..\.ISO8859-1
+	# 2) short match 'de'
+	# 1) default langlist 'en'
+	# 0) any language
+	#
+	# language may be a kommalist
+	# higher match overwrite lower
+	# last entry overwrite previous if exist twice in database
+
+	# found your favorite language :-)
+	if ($lg =~  /^(.+,)?$lang(,.+)?$/) {
+	    $keymap{$keym} = $desc; 
+	    $mark{$keym} = 4;
+	} elsif ($mark{$keym} <= 3 && $lg =~  /^(.+,)?$dialect(,.+)?$/) {
+	    # dialect
 	    $keymap{$keym} = $desc;
-	} elsif (!$keymap{$keym}) {
-	    # found a language, but not your
-	    # set mark if unknown language
-	    $mark{$keym} = 1 if ($lg ne $lang_default);
+	    $mark{$keym} = 3; 
+	} elsif ($mark{$keym} <= 2 && $lg =~  /^(.+,)?$lang_abk(,.+)?$/) {
+	    # abrevation
 	    $keymap{$keym} = $desc;
-	} elsif ($lg eq $lang_default && $mark{$keym}) {
-	    # overwrite unknown language with default language
+	    $mark{$keym} = 2; 
+	} elsif ($mark{$keym} <= 1 && $lg =~  /^(.+,)?$lang_default(,.+)?$/) {
+	    # default
 	    $keymap{$keym} = $desc;
+	    $mark{$keym} = 1; 
+	} elsif ($mark{$keym} <= 0) {
+	    # any
+	    $keymap{$keym} = $desc;
+	    $mark{$keym} = 0; 
 	}
     }
     close I;
+
+    if ($show) {
+	@langlist = sort(@langlist);
+	print "Currently supported languages: @langlist\n";
+	exit(0);
+    }
+
+    # remove variables from list
+    local($ee);
+    foreach $e (@langsupport) {
+	($ee = $e) =~ y/A-Z/a-z/;
+	eval "\$$ee = \"$keymap{$e}\"";
+	#warn "$e \$$ee = \"$keymap{$e}\"";
+	delete $keymap{$e};
+    }
+    #warn "$font $font_default $font_current\n";
+
 
     # look for keymaps which are not in database
     opendir(D, "$dir") || warn "$dir: $!\n";
@@ -123,17 +221,41 @@ sub menu_read {
     }
     closedir D;
 
-    # sort menu
+    # sort menu, font 8x8 is less than 8x14 and 8x16
     foreach $e (sort(keys %keymap)) {
 	push(@a, "\"$keymap{$e}\" \"\"");
     }
+    # side effects to @a
+    grep(s/8x8/8x08/, @a);
     @a = sort @a;
-    @a;
+    grep(s/8x08/8x8/, @a);
+    return @a;
 }
 
 sub dialog {
     local(@argv) = @_;
     local($tmp) = "/tmp/_kbd_lang$$";
+
+    $dialog = "/usr/bin/dialog \\
+--clear \\
+--title \"Keyboard Menu\" \\
+--menu \"$menu\" \\
+-1 -1 10";
+
+    ## *always* start right font, don't believe that your current font
+    ## is equal with default font in /etc/sysconfig
+    ## see also at end of this function
+    ## if ($font) {
+
+    # start right font, assume that current font is equal
+    # to default font in /etc/sysconfig
+    #
+    # $font is the font which require the language $lang; e.g.
+    # russian *need* a koi8 font
+    # $font_current is the current font from /etc/sysconfig
+    if ($font && $font ne $font_current) {
+	&vidcontrol($font);
+    }
 
     # start dialog
     system("$dialog @argv 2> $tmp");
@@ -143,11 +265,10 @@ sub dialog {
 	foreach $e (keys %keymap) {
 	    if ($keymap{$e} eq $choise) {
 		if ($program eq "kbdmap") {
-		    system("kbdcontrol -l $dir/$e\n");
+		    system("kbdcontrol -l $dir/$e\n") unless $x11;
 		    print "keymap=$e", "\n";
 		} else {
-		    $f = $e; $f =~ s/\.fnt$//; $f =~ s/.*-//;
-		    system("vidcontrol -f $f $dir/$e\n");
+		    &vidcontrol("$dir/$e");
 		    $_ = $e;
 		    if (/^.*\-(.*)\.fnt/) {
 			$font=$1
@@ -157,6 +278,10 @@ sub dialog {
 		last;
 	    }
 	}
+    # } else {
+    } elsif ($font && $font ne $font_current) {
+	# cancel, restore old font
+	&vidcontrol($font_current);
     }
     unlink $tmp;
     exit($?);
@@ -164,7 +289,8 @@ sub dialog {
 
 sub usage {
     warn <<EOF;
-usage: $program [-v|-verbose] [-h|-help] [-l|-lang language]
+usage: $program\t[-v|-verbose] [-h|-help] [-l|-lang language]
+\t\t[-d|-default] [-s|-show] [-r|-restore]
 EOF
     exit 1;
 }
@@ -174,11 +300,14 @@ sub parse {
     local(@argv) = @_;
 
     while($_ = $argv[0], /^-/) {
-        shift @argv;
-        last if /^--$/;
-	if (/^--?(h|help|\?)$/)    { &usage; }
+	shift @argv;
+	last if /^--$/;
+	if (/^--?(h|help|\?)$/)	   { &usage; }
 	elsif (/^--?(v|verbose)$/) { $verbose = 1; }
-	elsif (/^--?(l|lang)$/)    { $lang = $argv[0]; shift @argv; }
+	elsif (/^--?(l|lang)$/)	   { $lang = &lang($argv[0]); shift @argv; }
+	elsif (/^--?(d|default)$/) { $lang = $lang_default }
+	elsif (/^--?(s|show)$/)	   { $show = 1 }
+	elsif (/^--?(r|restore)$/) { &vidcontrol($font_current); exit(0) }
 	else { &usage }
     }
 }
@@ -186,6 +315,4 @@ sub parse {
 # main
 &variables_static;		# read variables
 &parse(@ARGV);			# parse arguments
-&variables_dynamic;		# read variable after parsing
 &dialog(&menu_read);		# start dialog and kbdcontrol/vidcontrol
-
