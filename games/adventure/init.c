@@ -68,7 +68,7 @@ init()                                  /* everything for 1st time run  */
 }
 
 char *decr(a,b,c,d,e)
-char a,b,c,d,e;
+const unsigned char a,b,c,d,e;
 {
 	static char buf[6];
 
@@ -206,7 +206,9 @@ linkdata()                              /*  secondary data manipulation */
 void
 trapdel(sig)                            /* come here if he hits a del   */
 int sig;
-{	delhit = 1;			/* main checks, treats as QUIT  */
+{	
+	sig = 0;
+	delhit = 1;			/* main checks, treats as QUIT  */
 	signal(2,trapdel);		/* catch subsequent DELs        */
 }
 
