@@ -638,6 +638,10 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct ste_softc *sc = ifp->if_softc;
 
 	STE_LOCK(sc);
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 		goto done;
@@ -692,7 +696,8 @@ ste_intr(xsc)
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
 		goto done;
-	if (ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, 0);
 		ste_poll(ifp, 0, 1);
 		goto done;
@@ -1139,6 +1144,10 @@ ste_attach(dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET,
@@ -1544,6 +1553,9 @@ ste_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->ste_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
