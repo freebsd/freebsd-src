@@ -105,7 +105,7 @@ SYSINIT(qcamdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,qcam_drvinit,NULL)
 #define	STATIC_CDEVSW
 #endif
 
-int	qcam_debug = 1;
+int	qcam_debug = 0;
 
 static struct qcam_softc qcam_softc[NQCAM];
 
