@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: denode.h,v 1.11 1997/02/22 09:40:44 peter Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -148,8 +148,7 @@ struct denode {
 	long de_refcnt;		/* reference count */
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
 	struct lockf *de_lockf;	/* byte level lock list */
-	pid_t de_lockholder;	/* current lock holder */
-	pid_t de_lockwaiter;	/* lock wanter */
+	struct lock de_lock;	/* denode lock */
 	/* the next two fields must be contiguous in memory... */
 	u_char de_Name[8];	/* name, from directory entry */
 	u_char de_Extension[3];	/* extension, from directory entry */
@@ -165,8 +164,6 @@ struct denode {
 /*
  * Values for the de_flag field of the denode.
  */
-#define	DE_LOCKED	0x0001	/* directory entry is locked */
-#define	DE_WANTED	0x0002	/* someone wants this de */
 #define	DE_UPDATE	0x0004	/* modification time update request */
 #define	DE_MODIFIED	0x0080	/* denode has been modified, but DE_UPDATE
 				 * isn't set */

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_vfsops.c,v 1.16 1997/02/22 09:40:48 peter Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -67,8 +67,6 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
-static int msdosfsdoforce = 1;		/* 1 = force unmount */
-
 static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
 				  struct proc *p));
 static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
@@ -130,17 +128,14 @@ msdosfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp, LK_NOWAIT, 0, p))
-				return EBUSY;
 			error = vflush(mp, NULLVP, flags);
-			vfs_unbusy(mp, p);
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
 			error = EINVAL;
 		if (error)
 			return error;
-		if (pmp->pm_ronly && (mp->mnt_flag & MNT_RDONLY) == 0)
+		if (pmp->pm_ronly && (mp->mnt_flag & MNT_WANTRDWR))
 			pmp->pm_ronly = 0;
 		if (args.fspec == 0) {
 			/*
@@ -531,9 +526,8 @@ mountmsdosfs(devvp, mp, p)
 	if (ronly == 0)
 		pmp->pm_fmod = 1;
 	mp->mnt_data = (qaddr_t) pmp;
-        mp->mnt_stat.f_fsid.val[0] = (long)dev;
-        mp->mnt_stat.f_fsid.val[1] = MOUNT_MSDOS;
-	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	devvp->v_specflags |= SI_MOUNTEDON;
 
 	return 0;
@@ -581,8 +575,6 @@ msdosfs_unmount(mp, mntflags, p)
 		return error;
 
 	if (mntflags & MNT_FORCE) {
-		if (!msdosfsdoforce)
-			return EINVAL;
 		flags |= FORCECLOSE;
 	}
 	error = vflush(mp, NULLVP, flags);
@@ -595,7 +587,6 @@ msdosfs_unmount(mp, mntflags, p)
 	free((caddr_t) pmp->pm_inusemap, M_MSDOSFSFAT);
 	free((caddr_t) pmp, M_MSDOSFSMNT);
 	mp->mnt_data = (qaddr_t) 0;
-	mp->mnt_flag &= ~MNT_LOCAL;
 	return error;
 }
 
@@ -640,7 +631,6 @@ msdosfs_statfs(mp, sbp, p)
 	/*
 	 * Fill in the stat block.
 	 */
-	sbp->f_type = MOUNT_MSDOS;
 	sbp->f_bsize = pmp->pm_bpcluster;
 	sbp->f_iosize = pmp->pm_bpcluster;
 	sbp->f_blocks = pmp->pm_nmbrofclusters;
@@ -654,6 +644,7 @@ msdosfs_statfs(mp, sbp, p)
 	 * stat block, if it is not the one in the mount structure.
 	 */
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy((caddr_t) mp->mnt_stat.f_mntonname,
 		    (caddr_t) & sbp->f_mntonname[0], MNAMELEN);
 		bcopy((caddr_t) mp->mnt_stat.f_mntfromname,
@@ -696,24 +687,35 @@ msdosfs_sync(mp, waitfor, cred, p)
 	 * Go thru in memory denodes and write them out along with
 	 * unwritten file blocks.
 	 */
+	simple_lock(&mntvnode_slock);
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp;
 	    vp = vp->v_mntvnodes.le_next) {
 		if (vp->v_mount != mp)	/* not ours anymore	 */
 			goto loop;
-		if (VOP_ISLOCKED(vp))	/* file is busy		 */
-			continue;
+		simple_lock(&vp->v_interlock);
 		dep = VTODE(vp);
 		if ((dep->de_flag & (DE_MODIFIED | DE_UPDATE)) == 0 &&
-		    vp->v_dirtyblkhd.lh_first == NULL)
+		    vp->v_dirtyblkhd.lh_first == NULL) {
+			simple_unlock(&vp->v_interlock);
 			continue;
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))	/* not there anymore?	 */
-			goto loop;
+		}
+		simple_unlock(&mntvnode_slock);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+		if (error) {
+			simple_lock(&mntvnode_slock);
+			if (error == ENOENT)
+				goto loop;
+			continue;
+		}
 		error = VOP_FSYNC(vp, cred, waitfor, p);
 		if (error)
 			allerror = error;
-		vput(vp);	/* done with this one	 */
+		VOP_UNLOCK(vp, 0, p);
+		vrele(vp);	/* done with this one	 */
+		simple_lock(&mntvnode_slock);
 	}
+	simple_unlock(&mntvnode_slock);
 
 	/*
 	 * Flush filesystem control info.
