@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.26 1994/06/05 16:03:57 ats Exp $
+#	$Id: rc,v 1.27 1994/06/06 17:45:37 phk Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -18,10 +18,7 @@ HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export PATH
 
-if [ -e /fastboot ]
-then
-	echo Fast boot ... skipping disk checks
-elif [ $1x = autobootx ]
+if [ $1x = autobootx ]
 then
 	echo Automatic reboot in progress...
 	fsck -p
@@ -53,6 +50,8 @@ then
 		exit 1
 		;;
 	esac
+else
+	echo Skipping disk checks ...
 fi
 
 trap "echo 'Reboot interrupted'; exit 1" 3
@@ -67,7 +66,6 @@ fi
 
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
-rm -f /fastboot		# XXX (root now writeable)
 
 # If the machine runs wall CMOS clock (compatible with MSDOS),
 # activate following line by creating empty file /etc/wall_cmos_clock
@@ -116,7 +114,7 @@ fi
 #quotaon -a
 
 # build ps databases
-kvm_mkdb /386bsd
+kvm_mkdb /kernel
 dev_mkdb
 
 chmod 666 /dev/tty[pqrs]*
@@ -204,8 +202,8 @@ echo -n ' printer';		lpd
 
 if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd';		mountd
-	echo -n ' nfsd';		nfsd -u 0,0,4 -t 0,0
-	echo -n ' nfsiod';		nfsiod 4
+	echo -n ' nfsd';		nfsd -u -t 4
+	echo -n ' nfsiod';		nfsiod -n 4
 fi
 
 # $sendmail_flags is imported from /etc/netstart;
