@@ -148,11 +148,13 @@ yield(struct proc *p, struct yield_args *uap) {
 
 	s = splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
+	DROP_GIANT_NOSWITCH();
 	p->p_priority = MAXPRI;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	mtx_exit(&sched_lock, MTX_SPIN);
+	PICKUP_GIANT();
 	splx(s);
 
 	return(0);
