@@ -41,6 +41,7 @@ set f=''
 set head=""
 set vf=/usr/libexec/vfontedpr
 set tm=/usr/share/tmac
+set postproc=psroff
 top:
 if ($#argv > 0) then
     switch ($1:q)
@@ -88,6 +89,17 @@ if ($#argv > 0) then
 	    goto top
 	endif
 			
+    case -p:
+	if ($#argv < 2) then
+	    echo "vgrind: $1:q option must have argument"
+	    goto done
+	else
+	    set postproc="$2"
+	    shift
+	    shift
+	    goto top
+	endif
+			
     case -*:
 	set options = "$options $1:q"
 	shift
@@ -116,10 +128,10 @@ if (-r index) then
     else
 	if ("$head" != "") then
 	    $vf $options -h "$head" $files | \
-		sh -c "psroff -rx1 $voptions -i -mvgrind 2>> xindex"
+		sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
 	else
 	    $vf $options $files | \
-		sh -c "psroff -rx1 $voptions -i -mvgrind 2>> xindex"
+		sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
 	endif
     endif
     sort -df +0 -2 xindex >index
@@ -133,9 +145,9 @@ else
 	endif
     else
 	if ("$head" != "") then
-	    $vf $options -h "$head" $files | psroff -i $voptions -mvgrind
+	    $vf $options -h "$head" $files | $postproc -i $voptions -mvgrind
 	else
-	    $vf $options $files | psroff -i $voptions -mvgrind
+	    $vf $options $files | $postproc -i $voptions -mvgrind
 	endif
     endif
 endif
