@@ -173,7 +173,7 @@ setlocale(category, locale)
 		}
 	}
 
-	if (category)
+	if (category != LC_ALL)
 		return (loadlocale(category));
 
 	for (i = 1; i < _LC_LAST; ++i) {
