@@ -192,10 +192,15 @@ ffs_rawread_readahead(struct vnode *vp,
 	int bsize;
 	struct vnode *dp;
 	int bforwards;
+	struct inode *ip;
+	ufs2_daddr_t blkno;
 	
 	GIANT_REQUIRED;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	
+	ip = VTOI(vp);
+	dp = ip->i_devvp;
+
 	iolen = ((vm_offset_t) udata) & PAGE_MASK;
 	bp->b_bcount = len;
 	if (bp->b_bcount + iolen > bp->b_kvasize) {
@@ -217,11 +222,10 @@ ffs_rawread_readahead(struct vnode *vp,
 	
 	bp->b_lblkno = bp->b_blkno = blockno;
 	
-	error = VOP_BMAP(vp, bp->b_lblkno, &dp, &bp->b_blkno, &bforwards,
-			 NULL);
-	if (error != 0) {
+	error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, NULL, &bforwards, NULL);
+	if (error != 0)
 		return error;
-	}
+	bp->b_blkno = blkno;
 	if (bp->b_blkno == -1) {
 
 		/* Fill holes with NULs to preserve semantics */
