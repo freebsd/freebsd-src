@@ -186,9 +186,8 @@ char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
     &domainname, sizeof(domainname), "Name of the current YP/NIS domain");
 
-long hostid;
-/* Some trouble here, if sizeof (int) != sizeof (long) */
-SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
+unsigned long hostid;
+SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
 
 /*
  * This is really cheating.  These actually live in the libc, something
