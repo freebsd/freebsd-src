@@ -98,7 +98,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	td1->td_pcb->pcb_fpstate.fp_fprs = rd(fprs);
 	if ((td1->td_frame->tf_tstate & TSTATE_PEF) != 0) {
 		mtx_lock_spin(&sched_lock);
-		savefpctx(&pcb->pcb_fpstate);
+		savefpctx(&td1->td_pcb->pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
 	}
 	/* Make sure the copied windows are spilled. */
@@ -160,6 +160,13 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 void
 cpu_wait(struct proc *p)
 {
+}
+
+int
+is_physical_memory(vm_offset_t addr)
+{
+
+	TODO;
 }
 
 void
