@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.600 1999/05/20 10:08:37 hm Exp $
+#	$Id: LINT,v 1.601 1999/05/20 20:02:35 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1532,6 +1532,9 @@ options	EISA_SLOTS=12
 # nd 1040B PCI SCSI host adapters, as well as the Qlogic ISP 2100
 # FC/AL Host Adapter.
 #
+# The `al' device provides support for PCI fast ethernet adapters
+# based on the ADMtek Inc. AL981 "Comet" chip.
+#
 # The `ax' device provides support for PCI fast ethernet adapters
 # based on the ASIX Electronics AX88140A chip, including the Alfa
 # Inc. GFC2204.
@@ -1668,6 +1671,7 @@ options SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
 #options	ISP_DISABLE_1080_SUPPORT
 #options	ISP_DISABLE_2100_SUPPORT
 
+device		al0
 device		ax0
 device		de0
 device		fxp0
