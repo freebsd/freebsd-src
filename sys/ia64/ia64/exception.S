@@ -948,20 +948,24 @@ ia64_vhpt:	.quad 0
  */
 ENTRY(exception_restore, 0)
 
+	alloc	r14=ar.pfs,0,0,1,0	// in case we call ast()
+	add	r3=TF_CR_IPSR+16,sp
+	;;
+	ld8	rIPSR=[r3]
+	;; 
+	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
+	;;
+	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
+	;;
+(p2)	add	out0=16,sp		// trapframe argument to ast()
+(p2)	br.call.dptk.many rp=ast	// note: p1, p2 preserved
+	
 	rsm	psr.ic|psr.dt|psr.i	// disable interrupt collection and vm
 	add	r3=16,sp;
 	;;
 	srlz.i
 	dep	r3=0,r3,61,3		// physical address
 	;; 
-	add	r16=TF_CR_IPSR,r3
-	;;
-	ld8	rIPSR=[r16]
-	;; 
-	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
-	;;
-	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
-	;;
 (p2)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
 	;; 
 (p2)	mov	ar.k6=r16
