@@ -297,6 +297,7 @@ void
 cpu_exit(struct thread *td)
 {
 
+	/* XXX: Should this be in cpu_thread_exit() instead? */
 	/* Throw away the high FP registers. */
 	ia64_highfp_drop(td);
 }

@@ -224,17 +224,15 @@ cpu_set_fork_handler(td, func, arg)
 	td->td_pcb->pcb_context[2] = (u_long) arg;
 }
 
-/*
- * cpu_exit is called as the last action during exit.
- * We release the address space of the process, block interrupts,
- * and call switch_exit.  switch_exit switches to proc0's PCB and stack,
- * then jumps into the middle of cpu_switch, as if it were switching
- * from proc0.
- */
 void
 cpu_exit(struct thread *td)
 {
 
+	/*
+	 * XXX: Should this be in thread_exit instead?  If so,
+	 * alpha_fpstate_save() should be in cpu_set_upcall()
+	 * as well.
+	 */
 	alpha_fpstate_drop(td);
 }
 
