@@ -70,23 +70,22 @@ static void	init_6x86MX(void);
 static void	init_ppro(void);
 static void	init_mendocino(void);
 #endif
-void	enable_sse(void);
 
-int	hw_instruction_sse = 0;
+static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
-	   &hw_instruction_sse, 0,
-	   "SIMD/MMX2 instructions available in CPU");
+    &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
 
 /* Must *NOT* be BSS or locore will bzero these after setting them */
 int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
-u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
+u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
-#ifdef CPU_ENABLE_SSE
-u_int	cpu_fxsr = 0;		/* SSE enabled */
-#endif
 char	cpu_vendor[20] = "";	/* CPU Origin code */
+
+#ifdef CPU_ENABLE_SSE
+u_int	cpu_fxsr;		/* SSE enabled */
+#endif
 
 #ifdef I486_CPU
 /*
