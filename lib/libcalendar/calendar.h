@@ -1,5 +1,3 @@
-...using script...
-CVS: up -A -p calendar.h
 /*-
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
@@ -25,7 +23,7 @@ CVS: up -A -p calendar.h
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.h,v 1.3 1997/12/13 11:51:14 helbig Exp $
+ *	$Id: calendar.h,v 1.3.2.1 1998/01/12 05:11:19 obrien Exp $
  */
 struct date {
 	int y;	/* year */

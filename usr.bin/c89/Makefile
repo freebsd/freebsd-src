@@ -1,5 +1,3 @@
-...using script...
-CVS: up -A -p Makefile
 MAN1 = c89.1
 
 beforeinstall:

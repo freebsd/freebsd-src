@@ -1,5 +1,3 @@
-...using script...
-CVS: up -A -p calendar.c
 /*-
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
@@ -25,7 +23,7 @@ CVS: up -A -p calendar.c
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.c,v 1.2 1997/12/13 11:51:12 helbig Exp $
+ *	$Id: calendar.c,v 1.2.2.1 1998/01/12 05:11:17 obrien Exp $
  */
 
 #include "calendar.h"

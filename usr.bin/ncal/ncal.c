@@ -1,5 +1,3 @@
-...using script...
-CVS: up -A -p ncal.c
 /*-
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
@@ -28,7 +26,7 @@ CVS: up -A -p ncal.c
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ncal.c,v 1.5 1998/01/07 07:46:33 charnier Exp $";
+	"$Id: ncal.c,v 1.5.2.1 1998/01/12 05:11:06 obrien Exp $";
 #endif /* not lint */
 
 #include <calendar.h>
