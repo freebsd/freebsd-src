@@ -34,13 +34,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -69,6 +70,8 @@ __FBSDID("$FreeBSD$");
  * Global variables
  */
 int	spanscls_print = 0;
+SYSCTL_INT(_net_harp_spans, OID_AUTO, spanscls_print, CTLFLAG_RW,
+    &spanscls_print, 0, "dump SPANS packets");
 
 struct spanscls	*spanscls_head = NULL;
 
@@ -94,9 +97,8 @@ static void	spanscls_cpcs_data(void *, KBuffer *);
 static void	spanscls_connected(void *);
 static void	spanscls_cleared(void *, struct t_atm_cause *);
 static caddr_t	spanscls_getname(void *);
-#ifdef DIAGNOSTIC
-static void	spanscls_pdu_print(struct spanscls *, KBuffer *, char *);
-#endif
+static void	spanscls_pdu_print(const struct spanscls *, const KBuffer *,
+		    const char *);
 
 /*
  * Local variables
@@ -610,10 +612,8 @@ spanscls_bcast_output(inp, m)
 	*(u_short *)&chp->ch_oui[1] = *(u_short *)&spanscls_hdr.ch_oui[1];
 	chp->ch_pid = htons(ETHERTYPE_IP);
 
-#ifdef DIAGNOSTIC
 	if (spanscls_print)
 		spanscls_pdu_print(clp, m, "output");
-#endif
 
 	/*
 	 * Finally, send the pdu via the CLS service
@@ -659,10 +659,8 @@ spanscls_cpcs_data(tok, m)
 		return;
 	}
 
-#ifdef DIAGNOSTIC
 	if (spanscls_print)
 		spanscls_pdu_print(clp, m, "input");
-#endif
 
 	/*
 	 * Get CLS header into buffer
@@ -688,9 +686,7 @@ spanscls_cpcs_data(tok, m)
 		if (bcmp((char *)&chp->ch_proto, (char *)spanscls_bridged, 
 				sizeof(spanscls_bridged))) {
 			log(LOG_ERR, "spanscls_input: bad format\n");
-#ifdef DIAGNOSTIC
 			spanscls_pdu_print(clp, m, "input error"); 
-#endif
 		}
 
 		KB_FREEALL(m);
@@ -839,7 +835,6 @@ spanscls_getname(tok)
 	return ("SPANSCLS");
 }
 
-#ifdef DIAGNOSTIC
 /*
  * Print a SPANS CLS PDU
  * 
@@ -853,14 +848,11 @@ spanscls_getname(tok)
  *
  */
 static void
-spanscls_pdu_print(clp, m, msg)
-	struct spanscls	*clp;
-	KBuffer		*m;
-	char		*msg;
+spanscls_pdu_print(const struct spanscls *clp, const KBuffer *m,
+    const char *msg)
 {
 	char		buf[128];
 
 	snprintf(buf, sizeof(buf), "spanscls %s:\n", msg);
 	atm_pdu_print(m, buf);
 }
-#endif
