@@ -337,18 +337,37 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC8.</para>
 
-      <para><application>sendmail</application> has been updated to
-	8.12.2.  &man.sendmail.8; is no longer installed as a
-	set-user-ID root binary (now set-group-ID smmsp).
-	See <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
-	and <filename>/etc/mail/README</filename> for more
-	information.</para>
-
       <para><application>texinfo</application> has been updated to
 	4.1.</para>
 
       <para>The timezone database has been updated to the
 	<filename>tzdata2002c</filename> release.</para>
+
+      <sect4>
+
+	<title>Sendmail</title>
+
+	<para><application>sendmail</application> has been updated to
+	  8.12.2.  &man.sendmail.8; is no longer installed as a
+	  set-user-ID root binary (now set-group-ID smmsp).
+	  See <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
+	  and <filename>/etc/mail/README</filename> for more
+	  information.</para>
+
+	<para>Beginning with the import of
+	  <application>sendmail</application> 8.12.2, multiple
+	  <application>sendmail</application> daemons (some required
+	  to handle outgoing mail) are started by &man.rc.8;, even if
+	  the <varname>sendmail_enable</varname> variable is set to
+	  <literal>NO</literal>.  To completely disable
+	  <application>sendmail</application>,
+	  <varname>sendmail_enable</varname> must be set to
+	  <literal>NONE</literal>.  Alternatively, for systems using a
+	  different MTA, the <varname>mta_start_script</varname> can
+	  be used to point to a different startup script (more details
+	  can be found in &man.rc.sendmail.8;).</para>
+
+      </sect4>
 
     </sect3>
 
