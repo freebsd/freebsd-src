@@ -58,5 +58,6 @@ const char	*gv_plexorg_short(int);
 const char	*gv_plexstate(int);
 const char	*gv_sdstate(int);
 const char	*gv_volstate(int);
+const char	*gv_roughlength(off_t, int);
 
 #endif /* _GEOM_VINUM_SHARE_H_ */
