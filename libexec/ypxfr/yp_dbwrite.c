@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dbwrite.c,v 1.7 1995/12/24 04:40:58 wpaul Exp $
+ *	$Id: yp_dbwrite.c,v 1.1.1.1 1995/12/25 03:07:13 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.7 1995/12/24 04:40:58 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.1.1.1 1995/12/25 03:07:13 wpaul Exp $";
 #endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -71,7 +71,7 @@ DB *yp_open_db_rw(domain, map)
 
 	snprintf(buf, sizeof(buf), "%s/%s/%s", yp_dir, domain, map);
 
-	dbp = dbopen(buf,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE, DB_HASH, &openinfo);
+	dbp = dbopen(buf,O_RDWR|O_EXLOCK|O_EXCL|O_CREAT, PERM_SECURE, DB_HASH, &openinfo);
 
 	if (dbp == NULL) {
 		switch(errno) {
