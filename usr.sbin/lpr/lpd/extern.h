@@ -38,6 +38,7 @@
 
 extern char scnkey[][HEIGHT];	/* in lpdchar.c */
 extern char fromb[];
+extern int lflag;		/* in lpd.c */
 
 struct	printer;
 struct termios;
