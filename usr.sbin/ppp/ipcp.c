@@ -82,6 +82,7 @@
 #include "prompt.h"
 #include "route.h"
 #include "iface.h"
+#include "ip.h"
 
 #undef REJECTED
 #define	REJECTED(p, x)	((p)->peer_reject & (1<<(x)))
@@ -276,6 +277,7 @@ ipcp_Show(struct cmdargs const *arg)
 	          inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
     prompt_Printf(arg->prompt, " My side:         %s, %s\n",
 	          inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
+    prompt_Printf(arg->prompt, " Queued packets:  %d\n", ip_QueueLen(ipcp));
   }
 
   if (ipcp->route) {
