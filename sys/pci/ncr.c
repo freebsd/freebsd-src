@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.21 1995/02/14 06:20:03 phk Exp $
+**  $Id: ncr.c,v 1.22 1995/02/14 22:48:01 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl12 95/02/09"
+#define	NCR_PATCHLEVEL	"pl13 95/02/09"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -244,6 +244,18 @@
 **==========================================================
 */
 
+#ifdef NCR_IOMAPPED
+
+#define	INB(r) inb (np->port + offsetof(struct ncr_reg, r))
+#define	INW(r) inw (np->port + offsetof(struct ncr_reg, r))
+#define	INL(r) inl (np->port + offsetof(struct ncr_reg, r))
+
+#define	OUTB(r, val) outb (np->port+offsetof(struct ncr_reg,r),(val))
+#define	OUTW(r, val) outw (np->port+offsetof(struct ncr_reg,r),(val))
+#define	OUTL(r, val) outl (np->port+offsetof(struct ncr_reg,r),(val))
+
+#else
+
 #define INB(r) (np->reg->r)
 #define INW(r) (np->reg->r)
 #define INL(r) (np->reg->r)
@@ -251,6 +263,8 @@
 #define OUTB(r, val) np->reg->r = val
 #define OUTW(r, val) np->reg->r = val
 #define OUTL(r, val) np->reg->r = val
+
+#endif
 
 /*==========================================================
 **
@@ -1079,6 +1093,7 @@ struct ncb {
 	**	lockout of execption handler call while starting command.
 	*/
 	u_char		lock;
+	u_short		port;
 };
 
 /*==========================================================
@@ -1228,7 +1243,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.21 1995/02/14 06:20:03 phk Exp $\n";
+	"\n$Id: ncr.c,v 1.22 1995/02/14 22:48:01 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1264,6 +1279,7 @@ static u_char rs_cmd  [6] =
 */
 
 #define	NCR_810_ID	(0x00011000ul)
+#define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
 
 #ifdef __NetBSD__
@@ -3133,6 +3149,7 @@ ncr_probe(parent, self, aux)
 	if (!pci_targmatch(cf, pa))
 		return 0;
 	if (pa->pa_id != NCR_810_ID &&
+	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID)
   		return 0;
 
@@ -3148,6 +3165,9 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 
 	case NCR_810_ID:
 		return ("ncr 53c810 scsi");
+
+	case NCR_815_ID:
+		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
 		return ("ncr 53c825 wide scsi");
@@ -3241,12 +3261,17 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**		devices bus master ability.
 	**
 	**	DISABLEs:
-	**		response to io addresses.
+	**		response to io addresses (unless IOMAPPED)
 	**		usage of "Write and invalidate" cycles.
 	*/
 
+#ifdef NCR_IOMAPPED
+	(void) pci_conf_write (config_id, PCI_COMMAND_STATUS_REG,
+	PCI_COMMAND_IO_ENABLE|PCI_COMMAND_MEM_ENABLE|PCI_COMMAND_MASTER_ENABLE);
+#else
 	(void) pci_conf_write (config_id, PCI_COMMAND_STATUS_REG,
 		PCI_COMMAND_MEM_ENABLE|PCI_COMMAND_MASTER_ENABLE);
+#endif
 
 	/*
 	**	Try to map the controller chip to
@@ -3255,6 +3280,15 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	if (!pci_map_mem (config_id, 0x14, &np->vaddr, &np->paddr))
 		return;
+
+#ifdef NCR_IOMAPPED
+	/*
+	**	Try to map the controller chip into iospace.
+	*/
+
+	if (!pci_map_port (config_id, 0x10, &np->port))
+		return;
+#endif
 
 #endif /* !__NetBSD__ */
 
@@ -3267,11 +3301,11 @@ static	void ncr_attach (pcici_t config_id, int unit)
 #else
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 #endif
-	case NCR_810_ID:
-		np->maxwide = 0;
-		break;
 	case NCR_825_ID:
 		np->maxwide = 1;
+		break;
+	default:
+		np->maxwide = 0;
 		break;
 	}
 
@@ -6396,10 +6430,10 @@ static	int	ncr_scatter
 **==========================================================
 */
 
+#ifndef NCR_IOMAPPED
 static int ncr_regtest (struct ncb* np)
 {
 	register volatile u_long data, *addr;
-#ifndef NCR_IOMAPPED
 	/*
 	**	ncr registers may NOT be cached.
 	**	write 0xffffffff to a read only register area,
@@ -6419,8 +6453,8 @@ static int ncr_regtest (struct ncb* np)
 		return (0x10);
 	};
 	return (0);
-#endif
 }
+#endif
 
 static int ncr_snooptest (struct ncb* np)
 {
