@@ -1274,7 +1274,7 @@ devfs_specstrategy(ap)
 		}
 	}
 
-	dev_strategy(bp);	
+	dev_strategy(bp->b_dev, bp);	
 		
 	return (0);
 }
