@@ -131,7 +131,7 @@ SGR	E[nm	Set character attributes:		--
 		   X=0 black 	X=1 red
 		   X=2 green	X=3 brown
 		   X=4 blue	X=5 magenta
-		   X=6 cyan 	X=7 white
+		   X=6 cyan	X=7 light grey
 		   X=9 reset to	initial	ANSI value
 
 --	E[s	Save cursor position			sc
@@ -141,20 +141,29 @@ SGR	E[nm	Set character attributes:		--
 --	E[x	Reset initial colors and attributes	--
 		to their default values
 
---	E[1;nx	Set initial ANSI background to n	--
-		(see table below)
+--	E[1;nx	Set initial ANSI background color	--
+		to n (see table)
 
---	E[2;nx	Set initial ANSI foreground to n	--
-		(see table below)
+--	E[2;nx	Set initial ANSI foreground color	--
+		to n (see table)
 
 --	E[3;nx	Set initial ANSI attribute directly	--
 		to n (n	from 0 to 255)
 
 --	E[5;nx	Set initial ANSI reverse background	--
-		to n (see table	below)
+		color to n (see	table)
 
 --	E[6;nx	Set initial ANSI reverse foreground	--
-		to n (see table	below)
+		color to n (see	table)
+
+		   n= 0	black	   n= 8	dark grey
+		   n= 1	red	   n= 9	light red
+		   n= 2	green	   n=10	light green
+		   n= 3	brown	   n=11	yellow
+		   n= 4	blue	   n=12	light blue
+		   n= 5	magenta	   n=13	light magenta
+		   n= 6	cyan	   n=14	light cyan
+		   n= 7	light grey n=15	white
 
 --	E[7;nx	Set initial ANSI reverse attribute	--
 		directly to n (n from 0	to 255)
@@ -169,26 +178,26 @@ SGR	E[nm	Set character attributes:		--
 --	E[=nA	Set the border color to color n
 		(see table) (if supported by HW)
 
---	E[=nF	set normal foreground color to n 	--
+--	E[=nF	Set initial foreground color to	n	--
 		(see table)
 
---	E[=nG	set normal background color to n 	--
+--	E[=nG	Set initial background color to	n	--
 		(see table)
 
---	E[=nH	set reverse foreground color to n 	--
-		(see table)
+--	E[=nH	Set initial reverse foreground color	--
+		to n (see table)
 
---	E[=nI	set reverse background color to n 	--
-		(see table)
+--	E[=nI	Set initial reverse background color	--
+		to n (see table)
 
-		   n= 0 black	n= 8 grey
-		   n= 1 blue	n= 9 light blue
-		   n= 2 green	n=10 light green
-		   n= 3 cyan	n=11 light cyan
-		   n= 4 red	n=12 light red
-		   n= 5 magenta n=13 light magenta
-		   n= 6 brown	n=14 yellow
-		   n= 7 white	n=15 light white
+		   n= 0	black	   n= 8	dark grey
+		   n= 1	blue	   n= 9	light blue
+		   n= 2	green	   n=10	light green
+		   n= 3	cyan	   n=11	light cyan
+		   n= 4	red	   n=12	light red
+		   n= 5	magenta	   n=13	light magenta
+		   n= 6	brown	   n=14	yellow
+		   n= 7	light grey n=15	white
 
 note: the first E in the sequences stands for ESC (0x1b)
 
