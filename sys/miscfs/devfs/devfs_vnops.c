@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.5 1995/05/30 08:06:53 rgrimes Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.6 1995/08/01 18:50:51 davidg Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -17,13 +17,12 @@
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-/*#include <miscfs/specfs/specdev.h>*/ /* plimit structure in the proc struct */
+#include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure		*/
 /*#include "vnode_if.h"*/ /* must be included elsewhere (vnode.h?)*/
 #include "devfsdefs.h"
 
-/*extern struct timeval time,boottime;*/
 /*
  * Insert description here
  */
@@ -549,7 +548,7 @@ DBPRINT(("getattr\n"));
 	vap->va_fileid = (long)file_node;
 	vap->va_size = file_node->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
-	if(file_node->ctime.tv_sec)
+	if(file_node->ctime.ts_sec)
 	{
 		vap->va_ctime = file_node->ctime;
 	}
@@ -557,7 +556,7 @@ DBPRINT(("getattr\n"));
 	{
 		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_ctime));
 	}
-	if(file_node->mtime.tv_sec)
+	if(file_node->mtime.ts_sec)
 	{
 		vap->va_mtime = file_node->mtime;
 	}
@@ -565,7 +564,7 @@ DBPRINT(("getattr\n"));
 	{
 		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_mtime));
 	}
-	if(file_node->atime.tv_sec)
+	if(file_node->atime.ts_sec)
 	{
 		vap->va_atime = file_node->atime;
 	}
@@ -1350,7 +1349,6 @@ VNODEOP_SET(devfs_vnodeop_opv_desc);
  * spec_vnops.c,v 1.9 1994/11/14 13:22:52 bde Exp
  */
 
-#include "../specfs/specdev.h"	/* for all the definitions and prototypes */
 
 int (**dev_spec_vnodeop_p)();
 struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
