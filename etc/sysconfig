@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.40 1996/03/06 03:59:15 jkh Exp $
+#	$Id: sysconfig,v 1.41 1996/03/12 15:39:26 nate Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -212,8 +212,8 @@ apm_enable=NO
 pccard_enable=NO
 
 # If you want to specify the address of memory used by PCIC, 
-# set this address (NO for default 0xd0000)
-pccard_mem=NO
+# set this address (DEFAULT=0xd0000)
+pccard_mem=DEFAULT
 
 # If you want to use Etnerent PCMCIA cards, specify the ifconfig portion
 # here.  (card-specific flags like connector selection should be written in

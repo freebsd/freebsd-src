@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.85 1996/02/23 10:44:49 adam Exp $
+#	$Id: rc,v 1.86 1996/03/12 15:39:24 nate Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,8 +95,8 @@ if [ -f /etc/rc.serial ]; then
 fi
 
 # start up PC-card configuration
-if [ -f /etc/pccardstart ]; then
-	. /etc/pccardstart
+if [ -f /etc/rc.pccard ]; then
+	. /etc/rc.pccard
 fi
 
 # start up the network
