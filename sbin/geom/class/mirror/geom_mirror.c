@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -48,7 +49,7 @@ static char label_balance[] = "split", configure_balance[] = "none";
 static intmax_t label_slice = 4096, configure_slice = -1;
 static intmax_t insert_priority = 0;
 
-static void mirror_main(struct gctl_req *req, unsigned f);
+static void mirror_main(struct gctl_req *req, unsigned flags);
 static void mirror_activate(struct gctl_req *req);
 static void mirror_clear(struct gctl_req *req);
 static void mirror_dump(struct gctl_req *req);
@@ -61,6 +62,8 @@ struct g_command class_commands[] = {
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_NONE },
 		{ 'b', "balance", configure_balance, G_TYPE_STRING },
+		{ 'd', "dynamic", NULL, G_TYPE_NONE },
+		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
@@ -72,6 +75,7 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
 		{ 'b', "balance", label_balance, G_TYPE_STRING },
+		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
@@ -79,6 +83,7 @@ struct g_command class_commands[] = {
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
+		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'i', "inactive", NULL, G_TYPE_NONE },
 		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
@@ -102,27 +107,27 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-nv] [-b balance] [-s slice] name dev1 [dev2 [...]]\n"
-	    "       %s clear [-v] dev1 [dev2 [...]]\n"
-	    "       %s dump dev1 [dev2 [...]]\n"
-	    "       %s configure [-anv] [-b balance] [-s slice] name\n"
-	    "       %s rebuild [-v] name dev1 [dev2 [...]]\n"
-	    "       %s insert [-iv] [-p priority] name dev1 [dev2 [...]]\n"
-	    "       %s remove [-v] name dev1 [dev2 [...]]\n"
-	    "       %s activate [-v] name dev1 [dev2 [...]]\n"
-	    "       %s deactivate [-v] name dev1 [dev2 [...]]\n"
-	    "       %s forget dev1 [dev2 [...]]\n"
+	    "usage: %s label [-hnv] [-b balance] [-s slice] name prov [prov [...]]\n"
+	    "       %s clear [-v] prov [prov [...]]\n"
+	    "       %s dump prov [prov [...]]\n"
+	    "       %s configure [-adhnv] [-b balance] [-s slice] name\n"
+	    "       %s rebuild [-v] name prov [prov [...]]\n"
+	    "       %s insert [-hiv] [-p priority] name prov [prov [...]]\n"
+	    "       %s remove [-v] name prov [prov [...]]\n"
+	    "       %s activate [-v] name prov [prov [...]]\n"
+	    "       %s deactivate [-v] name prov [prov [...]]\n"
+	    "       %s forget prov [prov [...]]\n"
 	    "       %s stop [-fv] name\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm, comm, comm, comm);
 	exit(EXIT_FAILURE);
 }
 
 static void
-mirror_main(struct gctl_req *req, unsigned f)
+mirror_main(struct gctl_req *req, unsigned flags)
 {
 	const char *name;
 
-	if ((f & G_FLAG_VERBOSE) != 0)
+	if ((flags & G_FLAG_VERBOSE) != 0)
 		verbose = 1;
 
 	name = gctl_get_asciiparam(req, "verb");
@@ -149,7 +154,7 @@ mirror_label(struct gctl_req *req)
 	u_char sector[512];
 	const char *str;
 	char param[16];
-	int *nargs, *noautosync, bal, error, i;
+	int *hardcode, *nargs, *noautosync, bal, error, i;
 	unsigned sectorsize;
 	off_t mediasize;
 	intmax_t *valp;
@@ -202,6 +207,11 @@ mirror_label(struct gctl_req *req)
 	}
 	if (*noautosync)
 		md.md_mflags |= G_MIRROR_DEVICE_FLAG_NOAUTOSYNC;
+	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
+	if (hardcode == NULL) {
+		gctl_error(req, "No '%s' argument.", "hardcode");
+		return;
+	}
 
 	/*
 	 * Calculate sectorsize by finding least common multiple from
@@ -258,6 +268,13 @@ mirror_label(struct gctl_req *req)
 
 		md.md_did = arc4random();
 		md.md_priority = i - 1;
+		if (!*hardcode)
+			bzero(md.md_provider, sizeof(md.md_provider));
+		else {
+			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+				str += strlen(_PATH_DEV);
+			strlcpy(md.md_provider, str, sizeof(md.md_provider));
+		}
 		mirror_metadata_encode(&md, sector);
 		error = g_metadata_store(str, sector, sizeof(sector));
 		if (error != 0) {

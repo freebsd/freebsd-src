@@ -92,7 +92,7 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	intmax_t *slicep;
 	uint32_t slice;
 	uint8_t balance;
-	int *nargs, *autosync, *noautosync, do_sync = 0;
+	int *nargs, *autosync, *noautosync, *hardcode, *dynamic, do_sync = 0;
 
 	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
@@ -139,14 +139,29 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "noautosync");
 		return;
 	}
+	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
+	if (hardcode == NULL) {
+		gctl_error(req, "No '%s' argument.", "hardcode");
+		return;
+	}
+	dynamic = gctl_get_paraml(req, "dynamic", sizeof(*dynamic));
+	if (dynamic == NULL) {
+		gctl_error(req, "No '%s' argument.", "dynamic");
+		return;
+	}
 	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
-	    !*noautosync) {
+	    !*noautosync && !*hardcode && !*dynamic) {
 		gctl_error(req, "Nothing has changed.");
 		return;
 	}
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
+		return;
+	}
+	if (*hardcode && *dynamic) {
+		gctl_error(req, "'%s' and '%s' specified.", "hardcode",
+		    "dynamic");
 		return;
 	}
 	sc->sc_balance = balance;
@@ -165,6 +180,10 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 				disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;
 		}
+		if (*hardcode)
+			disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
+		else if (*dynamic)
+			disk->d_flags &= ~G_MIRROR_DISK_FLAG_HARDCODED;
 		g_mirror_update_metadata(disk);
 		if (do_sync) {
 			if (disk->d_state == G_MIRROR_DISK_STATE_STALE) {
@@ -257,7 +276,7 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	char param[16];
 	u_char *sector;
 	u_int i, n;
-	int error, *nargs, *inactive;
+	int error, *nargs, *hardcode, *inactive;
 	struct {
 		struct g_provider	*provider;
 		struct g_consumer	*consumer;
@@ -281,6 +300,11 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	inactive = gctl_get_paraml(req, "inactive", sizeof(*inactive));
 	if (inactive == NULL) {
 		gctl_error(req, "No '%s' argument.", "inactive");
+		return;
+	}
+	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
+	if (hardcode == NULL) {
+		gctl_error(req, "No '%s' argument.", "hardcode");
 		return;
 	}
 	name = gctl_get_asciiparam(req, "arg0");
@@ -356,6 +380,12 @@ again:
 		if (*inactive)
 			md.md_dflags |= G_MIRROR_DISK_FLAG_INACTIVE;
 		pp = disks[i].provider;
+		if (*hardcode) {
+			strlcpy(md.md_provider, pp->name,
+			    sizeof(md.md_provider));
+		} else {
+			bzero(md.md_provider, sizeof(md.md_provider));
+		}
 		sector = g_malloc(pp->sectorsize, M_WAITOK);
 		mirror_metadata_encode(&md, sector);
 		error = g_write_data(disks[i].consumer,
