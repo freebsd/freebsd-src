@@ -36,18 +36,25 @@
  * SUCH DAMAGE.
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
+ *	@(#)bpf.h	1.34 (LBL)     6/16/96
  *
- * $Id: bpf.h,v 1.8 1996/01/30 22:57:38 mpp Exp $
+ * $Id: bpf.h,v 1.9 1996/02/06 18:51:06 wollman Exp $
  */
 
 #ifndef _NET_BPF_H_
 #define _NET_BPF_H_
 
+/* BSD style release date */
+#define	BPF_RELEASE 199606
+
+typedef	int32_t	  bpf_int32;
+typedef	u_int32_t bpf_u_int32;
+
 /*
  * Alignment macros.  BPF_WORDALIGN rounds up to the next
  * even multiple of BPF_ALIGNMENT.
  */
-#define BPF_ALIGNMENT sizeof(long)
+#define BPF_ALIGNMENT sizeof(bpf_int32)
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
 
 #define BPF_MAXINSNS 512
@@ -85,7 +92,7 @@ struct bpf_version {
 	u_short bv_major;
 	u_short bv_minor;
 };
-/* Current version number. */
+/* Current version number of filter architecture. */
 #define BPF_MAJOR_VERSION 1
 #define BPF_MINOR_VERSION 1
 
@@ -110,8 +117,8 @@ struct bpf_version {
  */
 struct bpf_hdr {
 	struct timeval	bh_tstamp;	/* time stamp */
-	u_long		bh_caplen;	/* length of captured portion */
-	u_long		bh_datalen;	/* original length of packet */
+	bpf_u_int32	bh_caplen;	/* length of captured portion */
+	bpf_u_int32	bh_datalen;	/* original length of packet */
 	u_short		bh_hdrlen;	/* length of bpf header (this struct
 					   plus alignment padding) */
 };
@@ -126,7 +133,6 @@ struct bpf_hdr {
 
 /*
  * Data-link level type codes.
- * Currently, only DLT_EN10MB and DLT_SLIP are supported.
  */
 #define DLT_NULL	0	/* no link-layer encapsulation */
 #define DLT_EN10MB	1	/* Ethernet (10Mb) */
@@ -139,6 +145,7 @@ struct bpf_hdr {
 #define DLT_SLIP	8	/* Serial Line IP */
 #define DLT_PPP		9	/* Point-to-point Protocol */
 #define DLT_FDDI	10	/* FDDI */
+#define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
 
 /*
  * The instruction encodings.
@@ -200,10 +207,10 @@ struct bpf_hdr {
  * The instruction data structure.
  */
 struct bpf_insn {
-	u_short	code;
-	u_char 	jt;
-	u_char 	jf;
-	long	k;
+	u_short		code;
+	u_char		jt;
+	u_char		jf;
+	bpf_u_int32	k;
 };
 
 /*
