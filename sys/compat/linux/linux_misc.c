@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.40 1998/07/29 16:43:00 bde Exp $
+ *  $Id: linux_misc.c,v 1.41 1998/08/05 16:44:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -327,8 +327,8 @@ printf("uselib: Non page aligned binary %lu\n", file_offset);
 	    goto cleanup;
 
 	/* copy from kernel VM space to user space */
-	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr,
-			a_out->a_text + a_out->a_data);
+	error = copyout((caddr_t)(void *)(uintptr_t)(buffer + file_offset),
+			(caddr_t)vmaddr, a_out->a_text + a_out->a_data);
 
 	/* release temporary kernel space */
 	vm_map_remove(kernel_map, buffer,

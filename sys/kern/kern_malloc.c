@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.45 1998/03/08 09:56:49 julian Exp $
+ * $Id: kern_malloc.c,v 1.46 1998/07/29 17:38:14 bde Exp $
  */
 
 #include "opt_vm.h"
@@ -205,7 +205,7 @@ malloc(size, type, flags)
 #if BYTE_ORDER == LITTLE_ENDIAN
 	freep->type = (struct malloc_type *)WEIRD_ADDR;
 #endif
-	if (((long)(&freep->next)) & 0x2)
+	if ((intptr_t)(void *)&freep->next & 0x2)
 		freep->next = (caddr_t)((WEIRD_ADDR >> 16)|(WEIRD_ADDR << 16));
 	else
 		freep->next = (caddr_t)WEIRD_ADDR;
@@ -279,7 +279,7 @@ free(addr, type)
 		alloc = addrmask[BUCKETINDX(PAGE_SIZE)];
 	else
 		alloc = addrmask[kup->ku_indx];
-	if (((u_long)addr & alloc) != 0)
+	if (((uintptr_t)(void *)addr & alloc) != 0)
 		panic("free: unaligned addr %p, size %ld, type %s, mask %ld",
 		    (void *)addr, size, type->ks_shortdesc, alloc);
 #endif /* DIAGNOSTIC */

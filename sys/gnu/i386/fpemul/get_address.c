@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: get_address.c,v 1.6 1997/02/22 09:29:09 peter Exp $
  *
  */
 
@@ -129,7 +129,7 @@ sib(int mod)
 			REENTRANT_CHECK(ON);
 			FPU_EIP += 4;
 		}
-	return (void *) offset;
+	return (void *) (intptr_t) offset;
 }
 
 
@@ -175,9 +175,8 @@ get_address(unsigned char FPU_modrm)
 			FPU_data_address = (void *) offset;
 			return;
 		} else {
-			FPU_data_address = (void *) *cpu_reg_ptr;	/* Just return the
-									 * contents of the cpu
-									 * register */
+			/* Just return the contents of the cpu register */
+			FPU_data_address = (void *) (intptr_t) *cpu_reg_ptr;
 			return;
 		}
 	case 1:
@@ -199,5 +198,5 @@ get_address(unsigned char FPU_modrm)
 		EXCEPTION(EX_Invalid);
 	}
 
-	FPU_data_address = offset + (char *) *cpu_reg_ptr;
+	FPU_data_address = (void *) (intptr_t) (offset + *cpu_reg_ptr);
 }

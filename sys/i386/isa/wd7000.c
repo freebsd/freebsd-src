@@ -441,7 +441,7 @@ wdsintr(int unit)
     in = &wds[unit].imbs[c];
 
     pc = (struct wds_cmd *)scsi_3btou(in->addr);
-    vc = (struct wds_cmd *)PHYSTOKV((long)pc);
+    vc = (struct wds_cmd *)PHYSTOKV((intptr_t)(void *)pc);
     stat = in->stat;
 
     wds_done(unit, vc, stat);

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.10 1997/07/01 00:08:33 bde Exp $
+ *    $Id: load_store.c,v 1.11 1997/08/31 22:22:19 bde Exp $
  *
  */
 
@@ -208,7 +208,8 @@ load_store_instr(char type)
 			control_word |= EX_Underflow;
 		}
 #endif
-		FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+		/* We want no net effect: */
+		FPU_data_address = (void *) (intptr_t) data_operand_offset;
 		FPU_entry_eip = ip_offset;	/* We want no net effect */
 		break;
 	case 025:		/* fld m80real */
@@ -223,12 +224,14 @@ load_store_instr(char type)
 		break;
 	case 030:		/* fstenv  m14/28byte */
 		fstenv();
-		FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+		/* We want no net effect: */
+		FPU_data_address = (void *) (intptr_t) data_operand_offset;
 		FPU_entry_eip = ip_offset;	/* We want no net effect */
 		break;
 	case 032:		/* fsave */
 		fsave();
-		FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+		/* We want no net effect: */
+		FPU_data_address = (void *) (intptr_t) data_operand_offset;
 		FPU_entry_eip = ip_offset;	/* We want no net effect */
 		break;
 	case 033:		/* fbstp m80dec */
@@ -241,7 +244,8 @@ load_store_instr(char type)
 /*		    verify_area(VERIFY_WRITE, FPU_data_address, 2);*/
 		susword( (short *) FPU_data_address,control_word);
 		REENTRANT_CHECK(ON);
-		FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+		/* We want no net effect: */
+		FPU_data_address = (void *) (intptr_t ) data_operand_offset;
 		FPU_entry_eip = ip_offset;	/* We want no net effect */
 		break;
 	case 035:		/* fstp m80real */
@@ -256,7 +260,8 @@ load_store_instr(char type)
 /*		    verify_area(VERIFY_WRITE, FPU_data_address, 2);*/
 		susword( (short *) FPU_data_address,status_word);
 		REENTRANT_CHECK(ON);
-		FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+		/* We want no net effect: */
+		FPU_data_address = (void *) (intptr_t) data_operand_offset;
 		FPU_entry_eip = ip_offset;	/* We want no net effect */
 		break;
 	case 037:		/* fistp m64int */
