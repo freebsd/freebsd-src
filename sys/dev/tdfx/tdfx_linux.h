@@ -42,11 +42,14 @@
  */
 #define LINUX_IOCTL_SET(n,low,high) \
 static linux_ioctl_function_t linux_ioctl_##n; \
-static struct linux_ioctl_handler n##_handler = {linux_ioctl_##n,low, high}; \
-SYSINIT(n##register, SI_SUB_KLD, SI_ORDER_MIDDLE, \
+static struct linux_ioctl_handler n##_handler = {linux_ioctl_##n, low, high}; \
+SYSINIT(n##register, SI_SUB_KLD, SI_ORDER_MIDDLE,\
 linux_ioctl_register_handler, &n##_handler); \
-SYSUNINIT(n##unregister, SI_SUB_KLD, SI_ORDER_MIDDLE, \
+SYSUNINIT(n##unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,\
 linux_ioctl_unregister_handler, &n##_handler);
+
+/* Prototype for ioctl wrapper */
+static int linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args* args);
 
 /* Values for /dev/3dfx */
 /* Query IOCTLs */
