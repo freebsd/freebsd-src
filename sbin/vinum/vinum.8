@@ -34,7 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.27 1999/08/24 02:36:23 grog Exp $
+.\" $Id: vinum.8,v 1.10 1999/07/02 07:46:13 grog Exp grog $
 .\"
 .Dd 28 March 1999
 .Dt vinum 8
@@ -263,6 +263,7 @@ Set state without influencing other objects, for diagnostic purposes only.
 Read configuration from all vinum drives.
 .in
 .Cd start
+.Op Fl w
 .Op volume | plex | subdisk
 .in +1i
 Allow the system to access the objects
@@ -356,14 +357,13 @@ The
 .Fl v
 .if t (``verbose'')
 .if n ("verbose")
-option can be used with any command to request more detailed information.
+option can be used to request more detailed information.
 .It Fl V
 The
 .Fl V
 .if t (``Very verbose'')
 .if n ("Very verbose")
-option can be used with any command to request more detailed information than
-the
+option can be used to request more detailed information than the
 .Fl v
 option provides.
 .It Fl w
@@ -630,6 +630,10 @@ Time             Event       Buf        Dev     Offset          Bytes   SD      
 14:40:00.668556 4DN Read  0xf2361f40    4.23   0xd2109         8192    17      0       0       0
 14:40:00.669777 6RP Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
 14:40:00.685547 4DN Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
+11:11:14.975184 Lock      0xc2374210    2      0x1f8001
+11:11:15.018400 7VS Write 0xc2374210           0x7c0           32768   10
+11:11:15.018456 8LR Write 0xc2374210    13.39  0xcc0c9         32768
+11:11:15.046229 Unlock    0xc2374210    2      0x1f8001
 .Ed
 .Pp
 The
@@ -639,8 +643,11 @@ to identify the requests associated with a user request, though this is not 100%
 reliable: theoretically two requests in sequence could use the same buffer
 header, though this is not common.  The beginning of a request can be identified
 by the event
-.Ar 1VS .
-The example above shows the requests involved in a single user request.
+.Ar 1VS 
+or
+.Ar 7VS .
+The first example above shows the requests involved in a user request.  The
+second is a subdisk I/O request with locking.
 .Pp
 The
 .Ar Event
@@ -654,7 +661,7 @@ a mnemonic for the location
 .Bl -hang
 .It 1VS
 (vinumstrategy) shows information about the user request on entry to
-.Fd vinumstrategy .
+.Fn vinumstrategy .
 The device number is the
 .Nm
 device, and offset and length are the user parameters.  This is always the
@@ -663,7 +670,7 @@ beginning of a request sequence.
 (launch_requests) shows the user request just prior to launching the low-level
 .Nm
 requests in the function
-.Fd launch_requests.
+.Fn launch_requests .
 The parameters should be the same as in the
 .Ar 1VS
 information.
@@ -687,31 +694,48 @@ is the offset of the associated group request, where applicable.
 .Nm
 requests which are launched to satisfy the high-level request.  This information
 is also logged in
-.Fd launch_requests.
+.Fn launch_requests .
 .It 4DN
 (done) is called from
-.Fd complete_rqe,
+.Fn complete_rqe ,
 showing the completion of a request.  This completion should match a request
 launched either at stage
 .Ar 4DN
 from
-.Fd launch_requests,
+.Fn launch_requests ,
 or from
-.Fd complete_raid5_write
+.Fn complete_raid5_write
 at stage
 .Ar 5RD
 or
 .Ar 6RP .
 .It 5RD
 (RAID-5 data) is called from
-.Fd complete_raid5_write
+.Fn complete_raid5_write
 and represents the data written to a RAID-5 data stripe after calculating
 parity.
 .It 6RP
 (RAID-5 parity) is called from
-.Fd complete_raid5_write
+.Fn complete_raid5_write
 and represents the data written to a RAID-5 parity stripe after calculating
 parity.
+.It 7VS
+shows a subdisk I/O request.  These requests are usually internal to
+.Nm
+for operations like initialization or rebuilding plexes.
+.It 8LR
+shows the low--level operation generated for a subdisk I/O request.
+.It Lockwait
+specifies that the process is waiting for a range lock.  The parameters are the
+buffer header associated with the request, the plex number and the block number.
+For internal reasons the block number is one higher than the address of the
+beginning of the stripe.
+.It Lock
+specifies that a range lock has been obtained.  The parameters are the same as
+for the range lock.
+.It Unlock
+specifies that a range lock has been released.  The parameters are the same as
+for the range lock.
 .El
 .\" XXX
 .It Nm init Op Fl w
@@ -993,7 +1017,7 @@ have an existing configuration which you never want to see again.
 .Pp
 .Nm
 maintains a number of statistical counters for each object.  See the header file
-.Fi vinumvar.h
+.Pa vinumvar.h
 for more information.
 .\" XXX put it in here when it's finalized
 Use the
@@ -1080,6 +1104,7 @@ the usual consistency mechanism of
 and should be used only for recovery purposes.  It is possible to crash the
 system by incorrect use of this command.
 .It Nm start
+.Op Fl w
 .Op volume | plex | subdisk
 .Pp
 .Nm start
@@ -1179,8 +1204,11 @@ plexes in the case of a volume) and sets the state of the object accordingly.
 In a later version, this operation will cause the subdisks
 .Pp
 To start a plex in a multi-plex volume, the data must be copied from another
-plex in the volume.  Since this frequently takes a long time, it is done in the
-background.
+plex in the volume.  Since this frequently takes a long time, it is normally
+done in the background.  If you want to wait for this operation to complete (for
+example, if you are performing this operation in a script), use the
+.Fl w
+flag.
 .It Nm stop
 .Op Fl f
 .Op volume | plex | subdisk
@@ -1414,19 +1442,30 @@ commands must be in a configuration file.  Entries in the configuration file
 define volumes, plexes and subdisks, and may be in free format, except that each
 entry must be on a single line.
 .Pp
+.Ss Scale factors
 Some configuration file parameters specify a size (lengths, stripe sizes).
-These lengths can be specified as bytes, as sectors of 512 bytes (by appending
-the letter \f(CWs\fR), as kilobytes (by appending the letter \f(CWk\fR), as
-megabytes (by appending the letter \f(CWm\fR) or as gigabytes (by appending the
-letter \f(CWg\fR).  These quantities represent the values 2**10, 2**20 and 2**30
-respectively.  For example, the value \f(CW16777216\fR bytes can also be written
-as \f(CW16m\fR, \f(CW16384k\fR or \f(CW32768b\fR.
+These values can be specified as bytes, or one of the following scale factors
+may be appended:
+.Bl -hang
+.It s
+specifies that the value is a number of sectors of 512 bytes.
+.It k
+specifies that the value is a number of kilobytes (1024 bytes).
+.It m
+specifies that the value is a number of megabytes (1048576 bytes).
+.It g
+specifies that the value is a number of gigabytes (1073741824 bytes).
+.It b
+is used for compatibility with VERITAS.  It stands for blocks of 512 bytes.
+This abbreviation is confusing, since the word ``block'' is used in different
+meanings, and its use is deprecated.
+.El
 .Pp
-For reasons of compatibility, 
-.Nm
-takes the letter \f(CWb\fP (block) to be equivalent to \f(CWs\fP (sector).  The
-use of this abbreviation is deprecated, since the size of a block is very
-dependent on the context.
+For example, the value 16777216 bytes can also be written as
+.Nm 16m ,
+.Nm 16384k
+or
+.Nm 32768s .
 .Pp
 The configuration file can contain the following entries:
 .Pp
@@ -2410,7 +2449,7 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
-.Sh ENVIRONMENT VARIABLES
+.Sh ENVIRONMENT
 .Bl -hang
 .It VINUM_HISTORY
 The name of the log file, by default /var/log/vinum_history.
@@ -2436,6 +2475,6 @@ command first appeared in
 .Fx 3.0.
 The RAID-5 component of
 .Nm
-was developed by Cybernet Inc. 
+was developed for Cybernet Inc. 
 .Pa www.cybernet.com
 for its NetMAX product.
