@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.80 1995/04/01 06:55:24 ache Exp $
+ *	$Id: sio.c,v 1.81 1995/04/01 12:01:13 ache Exp $
  */
 
 #include "sio.h"
@@ -885,6 +885,8 @@ open_top:
 		goto open_top;
 	}
 	error =	(*linesw[tp->t_line].l_open)(dev, tp);
+	if (linesw[tp->t_line].l_rint != ttyinput)
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 out:
