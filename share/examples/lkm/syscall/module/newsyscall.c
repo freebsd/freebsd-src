@@ -38,10 +38,12 @@
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/exec.h>
+#include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <a.out.h>
 #include <sys/file.h>
@@ -58,7 +60,7 @@ static struct sysent newent = {
 	0,	mycall			/* # of args, function pointer*/
 };
 
-MOD_SYSCALL( "newsyscall", -1, &newent)
+MOD_SYSCALL( "new_syscall", -1, &newent)
 
 
 /*
@@ -101,7 +103,7 @@ int			cmd;
  * The entry point should return 0 unless it is refusing load (in which
  * case it should return an errno from errno.h).
  */
-newsyscall( lkmtp, cmd, ver)
+new_syscall( lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
