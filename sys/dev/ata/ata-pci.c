@@ -509,10 +509,11 @@ ata_pcisub_probe(device_t dev)
     if ((error = ctlr->allocate(dev, ch)))
 	return error;
 
+    if (ctlr->chip)
+	ch->chiptype = ctlr->chip->chipid;
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
-    ch->chiptype = ctlr->chip->chipid;
     return ata_probe(dev);
 }
 
