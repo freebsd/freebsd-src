@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.11 1998/12/17 00:06:52 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.12 1999/01/14 06:14:15 gibbs Exp $
  */
 
 /*
@@ -882,7 +882,6 @@ scb {
 	}
 	SCB_CMDPTR {
 		alias	SCB_TARGET_PHASES
-		alias	SCB_TARGET_ID		/* Byte 2 */
 		bit	TARGET_DATA_IN	0x1	/* In the second byte */
 		size	4
 	}
@@ -1267,7 +1266,7 @@ scratch_ram {
 	/*
 	 * Kernel and sequencer offsets into the queue of
 	 * incoming target mode command descriptors.  The
-	 * queue is full when the ((KERNEL_TQINPOS - TQINPOS) == 1)
+	 * queue is full when the KERNEL_TQINPOS == TQINPOS.
 	 */
 	KERNEL_TQINPOS {
 		size		1
@@ -1408,6 +1407,12 @@ const CMD_GROUP3_BYTE_DELTA	-15
 const CMD_GROUP4_BYTE_DELTA	4
 const CMD_GROUP5_BYTE_DELTA	11
 
+const TCL_TARGET_SHIFT		4
+/* The update interval must be a power of 2 */
+const TQINFIFO_UPDATE_CNT	32
+
+const STATUS_BUSY		0x08
+const STATUS_QUEUE_FULL		0x28
 
 /*
  * Downloaded (kernel inserted) constants

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.4 1998/12/15 08:22:41 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.5 1999/01/14 06:14:15 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -156,7 +156,8 @@ typedef enum {
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT	= 0x4000,
-	AHC_RESOURCE_SHORTAGE	= 0x8000
+	AHC_RESOURCE_SHORTAGE	= 0x8000,
+	AHC_TQINFIFO_BLOCKED	= 0x10000,/* Blocked waiting for ATIOs */
 } ahc_flag;
 
 typedef enum {
@@ -277,12 +278,40 @@ struct tmode_lstate {
 	struct ccb_hdr_slist immed_notifies;
 };
 
+#define AHC_TRANS_CUR		0x01	/* Modify current neogtiation status */
+#define AHC_TRANS_ACTIVE	0x03	/* Assume this is the active target */
+#define AHC_TRANS_GOAL		0x04	/* Modify negotiation goal */
+#define AHC_TRANS_USER		0x08	/* Modify user negotiation settings */
+
+struct ahc_transinfo {
+	u_int8_t width;
+	u_int8_t period;
+	u_int8_t offset;
+};
+
+struct ahc_initiator_tinfo {
+	u_int8_t scsirate;
+	struct ahc_transinfo current;
+	struct ahc_transinfo goal;
+	struct ahc_transinfo user;
+};
+
 /*
  * Per target mode enabled target state.  Esentially just an array of
- * pointers to lun target state.
+ * pointers to lun target state as well as sync/wide negotiation information
+ * for each initiator<->target mapping (including the mapping for when we
+ * are the initiator).
  */
 struct tmode_tstate {
-	struct tmode_lstate*	enabled_luns[8];
+	struct tmode_lstate*		enabled_luns[8];
+	struct ahc_initiator_tinfo	transinfo[16];
+
+	/*
+	 * Per initiator state bitmasks.
+	 */
+	u_int16_t		 ultraenb;	/* Using ultra sync rate  */
+	u_int16_t	 	 discenable;	/* Disconnection allowed  */
+	u_int16_t		 tagenable;	/* Tagged Queuing allowed */
 };
 
 /*
@@ -356,24 +385,6 @@ struct seeprom_config {
 	u_int16_t checksum;		/* word 31 */
 };
 
-#define AHC_TRANS_CUR		0x01	/* Modify current neogtiation status */
-#define AHC_TRANS_ACTIVE	0x03	/* Assume this is the active target */
-#define AHC_TRANS_GOAL		0x04	/* Modify negotiation goal */
-#define AHC_TRANS_USER		0x08	/* Modify user negotiation settings */
-
-struct ahc_transinfo {
-	u_int8_t width;
-	u_int8_t period;
-	u_int8_t offset;
-};
-
-struct ahc_target_tinfo {
-	u_int8_t scsirate;
-	struct ahc_transinfo current;
-	struct ahc_transinfo goal;
-	struct ahc_transinfo user;
-};
-
 struct ahc_syncrate {
 	int sxfr_ultra2;
 	int sxfr;
@@ -405,6 +416,8 @@ struct ahc_softc {
 	/*
 	 * Target mode related state kept on a per enabled lun basis.
 	 * Targets that are not enabled will have null entries.
+	 * As an initiator, we keep one target entry for our initiator
+	 * ID to store our sync/wide transfer settings.
 	 */
 	struct tmode_tstate*	 enabled_targets[16];
 
@@ -444,19 +457,6 @@ struct ahc_softc {
 	u_int8_t		 untagged_scbs[256];
 
 	/*
-	 * User/Current/Active Negotiation settings
-	 */
-	struct ahc_target_tinfo  transinfo[16];
-
-	/*
-	 * Per target state bitmasks.
-	 */
-	u_int16_t		 ultraenb;	/* Using ultra sync rate  */
-	u_int16_t	 	 discenable;	/* Disconnection allowed  */
-	u_int16_t		 tagenable;	/* Tagged Queuing allowed */
-	u_int16_t		 targ_msg_req;	/* Need negotiation messages */
-
-	/*
 	 * Hooks into the XPT.
 	 */
 	struct	cam_sim		*sim;
@@ -473,6 +473,9 @@ struct ahc_softc {
 	/* Initiator Bus ID */
 	u_int8_t		 our_id;
 	u_int8_t		 our_id_b;
+
+	/* Targets that need negotiation messages */
+	u_int16_t		 targ_msg_req;
 
 	/*
 	 * PCI error detection and data for running the
@@ -498,6 +501,7 @@ struct ahc_softc {
 	u_int			 msgout_index;	/* Current index in msgout */
 	u_int			 msgin_index;	/* Current index in msgin */
 
+	/* Number of enabled target mode device on this card */
 	u_int			 enabled_luns;
 
 	/*
