@@ -698,7 +698,7 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
        const struct ncpaddr *gw, int bang, int quiet)
 {
   struct rtmsg rtmes;
-  int domask, s, nb, wb, width;
+  int s, nb, wb, width;
   char *cp;
   const char *cmdstr;
   struct sockaddr_storage sadst, samask, sagw;
@@ -757,13 +757,7 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
     }
   }
 
-  domask = 1;
-  if (ncprange_family(dst) == AF_INET) {
-    ncprange_getwidth(dst, &width);
-    if (width == 32)
-      domask = 0;
-  }
-  if (domask) {
+  if (!ncprange_ishost(dst)) {
     memcpy(cp, &samask, samask.ss_len);
     cp += samask.ss_len;
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
