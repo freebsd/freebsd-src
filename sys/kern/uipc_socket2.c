@@ -158,6 +158,7 @@ soisdisconnected(so)
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= (SS_CANTRCVMORE|SS_CANTSENDMORE|SS_ISDISCONNECTED);
 	wakeup(&so->so_timeo);
+	sbdrop(&so->so_snd, so->so_snd.sb_cc);
 	sowwakeup(so);
 	sorwakeup(so);
 }
