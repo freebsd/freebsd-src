@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/prom.h>
 #include <machine/rpb.h>
@@ -233,7 +233,7 @@ smp_start_secondary(int pal_id, int cpuid)
 	if (bootverbose)
 		printf("smp_start_secondary: starting cpu %d\n", pal_id);
 
-	sz = round_page((UAREA_PAGES + KSTACK_PAGES) * PAGE_SIZE);
+	sz = KSTACK_PAGES * PAGE_SIZE;
 	pcpu = malloc(sz, M_TEMP, M_NOWAIT);
 	if (!pcpu) {
 		printf("smp_start_secondary: can't allocate memory\n");

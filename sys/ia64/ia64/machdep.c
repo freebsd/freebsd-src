@@ -66,7 +66,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/user.h>
 #include <sys/ptrace.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -90,6 +89,7 @@
 #include <machine/efi.h>
 #include <machine/unwind.h>
 #include <i386/include/specialreg.h>
+#include <machine/pcb.h>
 
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
@@ -101,7 +101,6 @@ struct bootinfo bootinfo;
 
 struct pcpu early_pcpu;
 extern char kstack[]; 
-struct user *proc0uarea;
 vm_offset_t proc0kstack;
 
 extern u_int64_t kernel_text[], _end[];
@@ -726,11 +725,9 @@ ia64_init(void)
 
 	proc_linkup(&proc0, &ksegrp0, &thread0);
 	/*
-	 * Init mapping for u page(s) for proc 0
+	 * Init mapping for kernel stack for proc 0
 	 */
-	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
 	proc0kstack = (vm_offset_t)kstack;
-	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

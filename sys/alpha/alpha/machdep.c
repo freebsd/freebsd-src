@@ -132,7 +132,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/user.h>
 #include <sys/ptrace.h>
 #include <sys/ucontext.h>
 #include <machine/clock.h>
@@ -141,6 +140,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pal.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
+#include <machine/pcb.h>
 #include <machine/rpb.h>
 #include <machine/prom.h>
 #include <machine/chipset.h>
@@ -160,7 +160,6 @@ struct bootinfo_kernel bootinfo;
 
 struct mtx icu_lock;
 
-struct	user *proc0uarea;
 vm_offset_t proc0kstack;
 
 char machine[] = "alpha";
@@ -849,11 +848,9 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	proc_linkup(&proc0, &ksegrp0, &thread0);
 	/*
-	 * Init mapping for u page(s) for proc 0
+	 * Init mapping for kernel stack for proc 0
 	 */
-	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
 	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
-	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
@@ -862,7 +859,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Setup the per-CPU data for the bootstrap cpu.
 	 */
 	{
-		/* This is not a 'struct user' */
 		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
 		pcpup = (struct pcpu *) pmap_steal_memory(sz);
 		pcpu_init(pcpup, 0, sz);

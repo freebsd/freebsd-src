@@ -88,7 +88,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/cons.h>
 
@@ -111,7 +110,8 @@
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
-#include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
+#include <machine/pcb.h>
+#include <machine/pcb_ext.h>
 #include <machine/proc.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -1253,7 +1253,6 @@ extern int has_f00f_bug;
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
 
-extern  struct user	*proc0uarea;
 extern  vm_offset_t	proc0kstack;
 
 
@@ -2002,7 +2001,6 @@ init386(first)
 	int gsel_tss, metadata_missing, off, x;
 	struct pcpu *pc;
 
-	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

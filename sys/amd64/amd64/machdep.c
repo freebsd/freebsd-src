@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 
+#include <machine/pcb.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -91,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/cons.h>
 
@@ -1103,9 +1104,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #error "have you forgotten the isa device?";
 #endif
 
-	proc0.p_uarea = (struct user *)(physfree + KERNBASE);
-	bzero(proc0.p_uarea, UAREA_PAGES * PAGE_SIZE);
-	physfree += UAREA_PAGES * PAGE_SIZE;
 	thread0.td_kstack = physfree + KERNBASE;
 	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
 	physfree += KSTACK_PAGES * PAGE_SIZE;

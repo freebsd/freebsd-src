@@ -67,9 +67,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
-#include <sys/user.h>
 #include <sys/ucontext.h>
-#include <sys/user.h>
 #include <sys/ucontext.h>
 #include <sys/exec.h>
 
@@ -97,6 +95,7 @@
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
 #include <machine/ofw_mem.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
@@ -121,7 +120,6 @@ int cold = 1;
 long Maxmem;
 
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
-char uarea0[UAREA_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 
 vm_offset_t kstack0;
@@ -364,8 +362,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	proc_linkup(&proc0, &ksegrp0, &thread0);
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
-	proc0.p_uarea = (struct user *)uarea0;
-	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0.td_kstack = kstack0;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
