@@ -55,7 +55,7 @@ This driver provides access to parallel ports.
 The driver can be configured either to be either interrupt-driven, or 
 to poll the printer.  Ports that are configured to be 
 interrupt-driven can be switched to polled mode by using the
-.Xr lptcontrol 1
+.Xr lptcontrol 8
 command.
 .sp
 This driver replaces the functionality of the 
@@ -67,13 +67,13 @@ driver, which is now defunct.
 first parallel port driver
 .El
 .Sh SEE ALSO
-.Xr lptcontrol 1
+.Xr lptcontrol 8
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
 .sp
 It is only possible to open a lpt port when a printer is connected and
 on-line, making it impossible to run 
-.Xr lptcontrol 1 
+.Xr lptcontrol 8 
 when there is no printer connected.
 .Pp
 This driver could still stand a rewrite.

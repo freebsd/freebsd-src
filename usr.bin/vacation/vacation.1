@@ -114,8 +114,8 @@ case insensitive) nor is a notification sent if a
 or
 .Dq Precedence: junk
 line is included in the mail headers.
-The people who have sent you messages are maintained as an
-.Xr ndbm 3
+The people who have sent you messages are maintained as a
+.Xr hash 3
 database in the file
 .Pa .vacation.db
 in your home directory.
@@ -153,7 +153,7 @@ Fatal errors, such as calling
 with incorrect arguments, or with non-existent
 .Ar login Ns Ar s ,
 are logged in the system log file, using
-.Xr syslog 8 .
+.Xr syslog 3 .
 .Sh FILES
 .Bl -tag -width "vacation.dirxxx" -compact
 .It Pa ~/.vacation.db
@@ -162,8 +162,9 @@ database file
 message to send
 .El
 .Sh SEE ALSO
+.Xr syslog 3 ,
 .Xr sendmail 8 ,
-.Xr syslog 8
+.Xr syslogd 8
 .Sh HISTORY
 The
 .Nm vacation

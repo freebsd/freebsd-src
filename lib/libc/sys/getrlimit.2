@@ -60,7 +60,7 @@ parameter is one of the following:
 .Bl -tag -width RLIMIT_FSIZEAA
 .It Li RLIMIT_CORE
 The largest size (in bytes)
-.Xr core
+.Xr core 5
 file that may be created.
 .It Li RLIMIT_CPU
 The maximum amount of cpu time (in seconds) to be used by
@@ -171,7 +171,8 @@ raised the maximum limit value, and the caller is not the super-user.
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
-.Xr quota 2 ,
+.Xr quota 1 ,
+.Xr quotactl 2 ,
 .Xr sigaltstack 2 ,
 .Xr sigvec 2 ,
 .Xr sysctl 3

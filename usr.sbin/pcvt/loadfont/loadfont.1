@@ -67,18 +67,18 @@ do not have downloadable charactersets available.
 The following fontfiles are available in the pcvt distribution:
 
 .nf
-/usr/share/misc/vgafonts/vt220l.808:	8x8  IBM II font
-/usr/share/misc/vgafonts/vt220h.808:	8x8  Extension font
-/usr/share/misc/vgafonts/vt220l.810:	8x10 IBM II font
-/usr/share/misc/vgafonts/vt220h.810:	8x10 Extension font
-/usr/share/misc/vgafonts/vt220l.814:	8x14 IBM II font
-/usr/share/misc/vgafonts/vt220h.814:	8x14 Extension font
-/usr/share/misc/vgafonts/vt220l.816:	8x16 IBM II font
-/usr/share/misc/vgafonts/vt220h.816:	8x16 Extension font
+/usr/share/misc/pcvtfonts/vt220l.808:	8x8  IBM II font
+/usr/share/misc/pcvtfonts/vt220h.808:	8x8  Extension font
+/usr/share/misc/pcvtfonts/vt220l.810:	8x10 IBM II font
+/usr/share/misc/pcvtfonts/vt220h.810:	8x10 Extension font
+/usr/share/misc/pcvtfonts/vt220l.814:	8x14 IBM II font
+/usr/share/misc/pcvtfonts/vt220h.814:	8x14 Extension font
+/usr/share/misc/pcvtfonts/vt220l.816:	8x16 IBM II font
+/usr/share/misc/pcvtfonts/vt220h.816:	8x16 Extension font
 .fi
 .Sh EXAMPLES
 The command
-.Dq Li loadfont -c0 -f/usr/share/misc/vgafonts/vt220l.816
+.Dq Li loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.816
 loads a 8x16 font containing the standard IBM characterset II into font slot
 0 on a VGA or EGA board.
 .Sh BUGS
@@ -86,4 +86,5 @@ No known bugs
 .Sh SEE ALSO
 .Xr cursor 1 ,
 .Xr scon 1 ,
-.Xr pcvt 8
+.Xr pcvt 4 ,
+.Xr ispcvt 8
