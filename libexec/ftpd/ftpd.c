@@ -2441,7 +2441,7 @@ delete(char *name)
 		}
 		goto done;
 	}
-	if (unlink(name) < 0) {
+	if ((guest && noguestmod) || unlink(name) < 0) {
 		perror_reply(550, name);
 		return;
 	}
