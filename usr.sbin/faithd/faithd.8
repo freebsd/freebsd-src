@@ -250,24 +250,20 @@ The
 contains directives with the following format:
 .Bl -bullet
 .It
-.Xo
-.Ic Ar src/slen Li deny Ar dst/dlen
-.Xc
+.Ar src Ns / Ns Ar slen Cm deny Ar dst Ns / Ns Ar dlen
 .Pp
 If the source address of a query matches
-.Ar src/slen ,
+.Ar src Ns / Ns Ar slen ,
 and the translated destination address matches
-.Ar dst/dlen ,
+.Ar dst Ns / Ns Ar dlen ,
 deny the connection.
 .It
-.Xo
-.Ic Ar src/slen Li permit Ar dst/dlen
-.Xc
+.Ar src Ns / Ns Ar slen Cm permit Ar dst Ns / Ns Ar dlen
 .Pp
 If the source address of a query matches
-.Ar src/slen ,
+.Ar src Ns / Ns Ar slen ,
 and the translated destination address matches
-.Ar dst/dlen ,
+.Ar dst Ns / Ns Ar dlen ,
 permit the connection.
 .El
 .Pp
