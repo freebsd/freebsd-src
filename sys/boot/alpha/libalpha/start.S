@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: start.S,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ 
  * From: $NetBSD: start.S,v 1.4 1998/03/28 00:54:15 cgd Exp $ 
  */
 
@@ -51,16 +51,15 @@ NESTED(start, 1, ENTRY_FRAME, ra, 0, 0)
 Lstartgp:
 	LDGP(pv)
 
-#ifndef PRIMARY_BOOTBLOCK
-	lda	sp,start		/* start stack below text */
-	lda	sp,-ENTRY_FRAME(sp)
-#endif
-
 	lda	a0,_edata
 	lda	a1,_end
 	subq	a1,a0,a1
 	CALL(bzero)
 
+#if defined(NETBOOT) || defined(LOADER)
+	lda	sp,stack + 8192 - ENTRY_FRAME
+#endif
+	
 	CALL(main)			/* transfer to C */
 
 XLEAF(_rtt, 0)
@@ -83,3 +82,7 @@ LEAF(cpu_number, 0)
 	call_pal PAL_VMS_mfpr_whami
 	RET
 END(cpu_number)
+
+#if defined(NETBOOT) || defined(LOADER)
+BSS(stack, 8192)
+#endif
