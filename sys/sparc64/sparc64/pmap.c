@@ -1518,12 +1518,14 @@ pmap_zero_page(vm_page_t m)
 		cpu_block_zero((void *)va, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_oc);
+		PMAP_LOCK(kernel_pmap);
 		va = pmap_temp_map_1 + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
 		tp->tte_vpn = TV_VPN(va, TS_8K);
 		cpu_block_zero((void *)va, PAGE_SIZE);
 		tlb_page_demap(kernel_pmap, va);
+		PMAP_UNLOCK(kernel_pmap);
 	}
 }
 
@@ -1548,12 +1550,14 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		bzero((void *)(va + off), size);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_area_oc);
+		PMAP_LOCK(kernel_pmap);
 		va = pmap_temp_map_1 + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
 		tp->tte_vpn = TV_VPN(va, TS_8K);
 		bzero((void *)(va + off), size);
 		tlb_page_demap(kernel_pmap, va);
+		PMAP_UNLOCK(kernel_pmap);
 	}
 }
 
@@ -1619,6 +1623,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 			    PAGE_SIZE);
 		} else {
 			PMAP_STATS_INC(pmap_ncopy_page_doc);
+			PMAP_LOCK(kernel_pmap);
 			vdst = pmap_temp_map_1 + (mdst->md.color * PAGE_SIZE);
 			tp = tsb_kvtotte(vdst);
 			tp->tte_data =
@@ -1627,6 +1632,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 			ascopyfrom(ASI_PHYS_USE_EC, psrc, (void *)vdst,
 			    PAGE_SIZE);
 			tlb_page_demap(kernel_pmap, vdst);
+			PMAP_UNLOCK(kernel_pmap);
 		}
 	} else if (mdst->md.color == -1) {
 		if (msrc->md.color == DCACHE_COLOR(psrc)) {
@@ -1636,6 +1642,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 			    PAGE_SIZE);
 		} else {
 			PMAP_STATS_INC(pmap_ncopy_page_soc);
+			PMAP_LOCK(kernel_pmap);
 			vsrc = pmap_temp_map_1 + (msrc->md.color * PAGE_SIZE);
 			tp = tsb_kvtotte(vsrc);
 			tp->tte_data =
@@ -1644,9 +1651,11 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 			ascopyto((void *)vsrc, ASI_PHYS_USE_EC, pdst,
 			    PAGE_SIZE);
 			tlb_page_demap(kernel_pmap, vsrc);
+			PMAP_UNLOCK(kernel_pmap);
 		}
 	} else {
 		PMAP_STATS_INC(pmap_ncopy_page_oc);
+		PMAP_LOCK(kernel_pmap);
 		vdst = pmap_temp_map_1 + (mdst->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(vdst);
 		tp->tte_data =
@@ -1660,6 +1669,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 		cpu_block_copy((void *)vsrc, (void *)vdst, PAGE_SIZE);
 		tlb_page_demap(kernel_pmap, vdst);
 		tlb_page_demap(kernel_pmap, vsrc);
+		PMAP_UNLOCK(kernel_pmap);
 	}
 }
 
