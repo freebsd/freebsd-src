@@ -124,6 +124,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_S20 }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_5200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_5300C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_5400C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6300C }, 0 },
 
