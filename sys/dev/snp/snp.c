@@ -202,7 +202,7 @@ snpwrite(dev, uio, flag)
 	struct snoop *snp;
 	struct tty *tp;
 	int error, i, len;
-	char c[SNP_INPUT_BUF];
+	unsigned char c[SNP_INPUT_BUF];
 
 	snp = dev->si_drv1;
 	tp = snp->snp_tty;
