@@ -83,26 +83,22 @@ db_examine(addr, fmt, count)
 	while (--count >= 0) {
 	    fp = fmt;
 	    size = 4;
-	    width = 16;
 	    while ((c = *fp++) != 0) {
 		switch (c) {
 		    case 'b':
 			size = 1;
-			width = 4;
 			break;
 		    case 'h':
 			size = 2;
-			width = 8;
 			break;
 		    case 'l':
 			size = 4;
-			width = 16;
 			break;
 		    case 'g':
 			size = 8;
-			width = 32;
 			break;
 		    case 'a':	/* address */
+			size = sizeof(void *);
 			/* always forces a new line */
 			if (db_print_position() != 0)
 			    db_printf("\n");
@@ -118,6 +114,7 @@ db_examine(addr, fmt, count)
 			    db_prev = addr;
 			}
 
+			width = size * 4;
 			switch (c) {
 			    case 'r':	/* signed, current radix */
 				value = db_get_value(addr, size, TRUE);

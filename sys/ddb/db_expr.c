@@ -119,7 +119,7 @@ db_unary(valuep)
 		db_error("Syntax error\n");
 		/*NOTREACHED*/
 	    }
-	    *valuep = db_get_value((db_addr_t)*valuep, sizeof(int), FALSE);
+	    *valuep = db_get_value((db_addr_t)*valuep, sizeof(void *), FALSE);
 	    return (TRUE);
 	}
 	db_unread_token(t);
