@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_scan.l#18 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_scan.l#19 $
  *
  * $FreeBSD$
  */
@@ -87,6 +87,7 @@ MBODY		((\\[^\n])*[^\n\\]*)+
 
 %%
 \n			{ ++yylineno; }
+\r			;
 "/*"			{ BEGIN COMMENT;  /* Enter comment eating state */ }
 <COMMENT>"/*"		{ fprintf(stderr, "Warning! Comment within comment."); }
 <COMMENT>\n		{ ++yylineno; }
@@ -114,6 +115,7 @@ if[ \t]*\(		{
 				}
 			}
 <CEXPR>\n		{ ++yylineno; }
+<CEXPR>\r		;
 <CEXPR>[^()\n]+	{
 				char *yptr;
 
@@ -359,6 +361,7 @@ else			{ return T_ELSE; }
 				/* Eat escaped newlines. */
 				++yylineno;
 			}
+<MACROBODY>\r		;
 <MACROBODY>\n		{
 				/* Macros end on the first unescaped newline. */
 				BEGIN INITIAL;
@@ -369,10 +372,17 @@ else			{ return T_ELSE; }
 			}
 <MACROBODY>{MBODY}	{
 				char *yptr;
+				char c;
 
 				yptr = yytext;
-				while (*yptr)
-					*string_buf_ptr++ = *yptr++;
+				while (c = *yptr++) {
+					/*
+					 * Strip carriage returns.
+					 */
+					if (c == '\r')
+						continue;
+					*string_buf_ptr++ = c;
+				}
 			}
 {WORD}\(		{
 				char *yptr;
