@@ -1202,7 +1202,7 @@ acd_start(struct ata_device *atadev)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    devstat_start_transaction(cdp->stats);
+    devstat_start_transaction_bio(cdp->stats, bp);
     bp->bio_caller1 = cdp;
     atapi_queue_cmd(cdp->device, ccb, bp->bio_data, count * blocksize,
 		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 
