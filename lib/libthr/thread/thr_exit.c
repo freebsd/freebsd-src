@@ -96,18 +96,23 @@ _thread_exit_cleanup(void)
 void
 _pthread_exit(void *status)
 {
-	pthread_t pthread, joiner;
+	struct pthread *pthread;
 	int exitNow = 0;
 
+	/*
+	 * This thread will no longer handle any signals.
+	 */
+	_thread_sigblock();
+
 	/* Check if this thread is already in the process of exiting: */
-	if ((curthread->flags & PTHREAD_EXITING) != 0) {
+	if (curthread->exiting) {
 		char msg[128];
 		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",curthread);
 		PANIC(msg);
 	}
 
 	/* Flag this thread as exiting: */
-	curthread->flags |= PTHREAD_EXITING;
+	curthread->exiting = 1;
 
 	/* Save the return value: */
 	curthread->ret = status;
@@ -130,45 +135,24 @@ _pthread_exit(void *status)
 	 */
 	if (curthread->rwlockList != NULL)
 		free(curthread->rwlockList);
-retry:
-	/*
-	 * Proper lock order, to minimize deadlocks, between joining
-	 * and exiting threads is: DEAD_LIST, THREAD_LIST, exiting, joiner.
-	 * In order to do this *and* protect from races, we must resort
-	 * this test-and-retry loop.
-	 */
-	joiner = curthread->joiner;
 
 	/* Lock the dead list first to maintain correct lock order */
 	DEAD_LIST_LOCK;
 	THREAD_LIST_LOCK;
-	_thread_critical_enter(curthread);
-
-	if (joiner != curthread->joiner) {
-		_thread_critical_exit(curthread);
-		THREAD_LIST_UNLOCK;
-		DEAD_LIST_UNLOCK;
-		goto retry;
-	}
 
 	/* Check if there is a thread joining this one: */
 	if (curthread->joiner != NULL) {
 		pthread = curthread->joiner;
-		UMTX_LOCK(&pthread->lock);
 		curthread->joiner = NULL;
-
-		/* Make the joining thread runnable: */
-		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 
 		/* Set the return value for the joining thread: */
 		pthread->join_status.ret = curthread->ret;
 		pthread->join_status.error = 0;
 		pthread->join_status.thread = NULL;
-		UMTX_UNLOCK(&pthread->lock);
 
-		/* Make this thread collectable by the garbage collector. */
-		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
-		    0), "Cannot join a detached thread");
+		/* Make the joining thread runnable: */
+		PTHREAD_WAKE(pthread);
+
 		curthread->attr.flags |= PTHREAD_DETACHED;
 	}
 
@@ -180,8 +164,7 @@ retry:
 	deadlist_free_threads();
 	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 	TAILQ_REMOVE(&_thread_list, curthread, tle);
-	PTHREAD_SET_STATE(curthread, PS_DEAD);
-	_thread_critical_exit(curthread);
+	curthread->isdead = 1;
 	
 	/* If we're the last thread, call it quits */
 	if (TAILQ_EMPTY(&_thread_list))

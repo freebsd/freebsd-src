@@ -20,7 +20,6 @@ SRCS+= \
 	thr_exit.c \
 	thr_find_thread.c \
 	thr_getprio.c \
-	thr_info.c \
 	thr_init.c \
 	thr_join.c \
 	thr_kern.c \
