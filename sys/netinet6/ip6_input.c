@@ -343,39 +343,7 @@ ip6_input(m)
 		goto bad;
 	}
 
-#ifdef PFIL_HOOKS
-	/*
-	 * Run through list of hooks for input packets.
-	 *
-	 * NB: Beware of the destination address changing
-	 *     (e.g. by NAT rewriting).  When this happens,
-	 *     tell ip6_forward to do the right thing.
-	 */
-	odst = ip6->ip6_dst;
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
-		return;
-	if (m == NULL)			/* consumed by filter */
-		return;
-	ip6 = mtod(m, struct ip6_hdr *);
-	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
-#endif /* PFIL_HOOKS */
-
 	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
-
-	/*
-	 * Check with the firewall...
-	 */
-	if (ip6_fw_enable && ip6_fw_chk_ptr) {
-		u_short port = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		/* use port as a dummy argument */
-		if ((*ip6_fw_chk_ptr)(&ip6, NULL, &port, &m)) {
-			m_freem(m);
-			m = NULL;
-		}
-		if (!m)
-			return;
-	}
 
 	/*
 	 * Check against address spoofing/corruption.
@@ -454,6 +422,38 @@ ip6_input(m)
 			ip6stat.ip6s_badscope++;
 			goto bad;
 		}
+	}
+
+#ifdef PFIL_HOOKS
+	/*
+	 * Run through list of hooks for input packets.
+	 *
+	 * NB: Beware of the destination address changing
+	 *     (e.g. by NAT rewriting).  When this happens,
+	 *     tell ip6_forward to do the right thing.
+	 */
+	odst = ip6->ip6_dst;
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
+		return;
+	if (m == NULL)			/* consumed by filter */
+		return;
+	ip6 = mtod(m, struct ip6_hdr *);
+	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
+#endif /* PFIL_HOOKS */
+
+	/*
+	 * Check with the firewall...
+	 */
+	if (ip6_fw_enable && ip6_fw_chk_ptr) {
+		u_short port = 0;
+		/* If ipfw says divert, we have to just drop packet */
+		/* use port as a dummy argument */
+		if ((*ip6_fw_chk_ptr)(&ip6, NULL, &port, &m)) {
+			m_freem(m);
+			m = NULL;
+		}
+		if (!m)
+			return;
 	}
 
 	/*
