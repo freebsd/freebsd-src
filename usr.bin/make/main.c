@@ -61,13 +61,13 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/resource.h>
 #include <sys/signal.h>
 #include <sys/stat.h>
 #if defined(__i386__)
 #include <sys/sysctl.h>
 #endif
 #include <sys/time.h>
+#include <sys/resource.h>
 #ifndef MACHINE
 #include <sys/utsname.h>
 #endif
