@@ -588,7 +588,7 @@ options 	TCPDEBUG
 # machine by watching the counter.
 options		RANDOM_IP_ID
 
-# Statically Link in accept filters
+# Statically link in accept filters
 options                ACCEPT_FILTER_DATA
 options                ACCEPT_FILTER_HTTP
 
@@ -2350,7 +2350,7 @@ pseudo-device	"i4bisppp"	4
 #
 # Supported devices:
 # vpo	Iomega Zip Drive
-#	Requires SCSI disk support ('scbus' and 'da'), best
+#	Requires SCSI disk support ('scbus' and 'da'); the best
 #	performance is achieved with ports in EPP 1.9 mode.
 # lpt	Parallel Printer
 # plip	Parallel network interface
