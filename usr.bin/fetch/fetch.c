@@ -148,7 +148,7 @@ stat_eta(struct xferstat *xs)
  */
 static const char *prefixes = " kMGTP";
 static const char *
-stat_bytes(size_t bytes)
+stat_bytes(off_t bytes)
 {
 	static char str[16];
 	const char *prefix = prefixes;
@@ -157,7 +157,7 @@ stat_bytes(size_t bytes)
 		bytes /= 1024;
 		prefix++;
 	}
-	snprintf(str, sizeof str, "%4zu %cB", bytes, *prefix);
+	snprintf(str, sizeof str, "%4jd %cB", (intmax_t)bytes, *prefix);
 	return (str);
 }
 
@@ -176,7 +176,7 @@ stat_bps(struct xferstat *xs)
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
 		bps = (xs->rcvd - xs->offset) / delta;
-		snprintf(str, sizeof str, "%sps", stat_bytes((size_t)bps));
+		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
 }
