@@ -822,6 +822,7 @@ vxget(sc, totlen)
         sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
         m->m_data = m->m_pktdat;
         m->m_flags = M_PKTHDR;
+        m->m_pkthdr.csum_flags = 0;
     }
     m->m_pkthdr.rcvif = ifp;
     m->m_pkthdr.len = totlen;
