@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.2 1998/03/21 11:34:02 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.3 1998/03/27 18:03:13 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -342,7 +342,8 @@ struct proc *p;
 )
 #endif
 dev_t dev;
-#if defined(__NetBSD__) || defined(__OpenBSD__) || (_BSDI_VERSION >= 199701)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || \
+    (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300003)
 u_long cmd;
 #else
 int cmd;
