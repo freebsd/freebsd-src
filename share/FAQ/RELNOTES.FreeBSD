@@ -29,14 +29,14 @@ xview 3.2, elm, nntp, mh, InterViews and dozens of other miscellaneous
 utilities have been ported and are now available as add-ons.  See the
 ports collection (or the package collection) for a complete summary.
 
-For a list of contributors, please see the file "CONTRIB.FreeBSD",
-which should be bundled with your bindist distribution.
+For a list of contributors and a general project description, please see
+the file "CONTRIB.FreeBSD" which should be bundled with your binary
+distribution.
 
-Also see the new "REGISTER.FreeBSD" file for information on registering
-with the "Free BSD user counter".  We've also provided a list of who's
-responsible for what (so that you may query them directly) in the
-"ROSTER.FreeBSD" file; use of this file is encouraged to ensure faster
-resolution of any problems you may have!
+Also see the "REGISTER.FreeBSD" file for information on registering
+with the "Free BSD user counter".   This counter is for ALL freely
+available variants of BSD, not just FreeBSD, and we urge you to register
+yourself with it.
 
 The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
@@ -621,4 +621,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.20 1994/11/30 11:59:53 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.21 1994/12/02 20:27:11 jkh Exp $
