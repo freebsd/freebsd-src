@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.79 1998/10/18 09:35:17 obrien Exp $
+#	$Id: bsd.prog.mk,v 1.81 1999/01/22 12:41:27 jdp Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -156,7 +156,7 @@ all-man:
 regress:
 .endif
 
-.if ${OBJFORMAT} != aout || make(checkdpadd)
+.if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)
 .include <bsd.libnames.mk>
 .endif
 
