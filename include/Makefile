@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.32 1996/01/22 00:02:22 julian Exp $
+#	$Id: Makefile,v 1.33 1996/01/23 15:56:43 mpp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -26,7 +26,7 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
 DIRS=	arpa protocols rpc
-LDIRS=	net netccitt netinet netipx netiso netns nfs sys vm
+LDIRS=	net netinet netipx netns nfs sys vm #netccitt netiso
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
