@@ -1,9 +1,12 @@
 # $FreeBSD$
 
-SRCDIR=	${.CURDIR}/../../../contrib/libstdc++-v3
-.PATH: ${SRCDIR} ${SRCDIR}/../../gcc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
+SRCDIR=	${.CURDIR}/../../../contrib/libstdc++/libsupc++
 
-LIB=	stdc++
+.PATH: ${SRCDIR} ${GCCDIR}
+
+# Static only.
+LIB=	supc++
 SRCS=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
 	eh_alloc.cc eh_aux_runtime.cc eh_catch.cc eh_exception.cc \
 	eh_globals.cc eh_personality.cc eh_terminate.cc eh_throw.cc eh_type.cc \
@@ -14,12 +17,11 @@ SRCS=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
 SRCS+=	cp-demangle.c dyn-string.c
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-CFLAGS+=	-I${SRCDIR}/../../gcc
-CXXFLAGS+=	-nostdinc++ \
-		-fno-implicit-templates -ffunction-sections -fdata-sections
+CFLAGS+=	-I${SRCDIR} -I${GCCDIR} -I${.CURDIR}/../libstdc++
+CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}
-INCSDIR=${INCLUDEDIR}/g++-v3
+INCSDIR=${INCLUDEDIR}/g++
 
 .include <bsd.lib.mk>

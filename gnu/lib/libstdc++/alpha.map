@@ -1,0 +1,3 @@
+# $FreeBSD$
+cpu/alpha/bits/atomicity.h	bits/atomicity.h
+cpu/alpha/bits/cpu_limits.h	bits/cpu_limits.h
