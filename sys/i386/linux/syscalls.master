@@ -57,7 +57,7 @@
 18	STD	LINUX	{ int linux_stat(char *path, struct ostat *up); }
 19	STD	LINUX	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				l_int whence); }
-20	STD	LINUX	{ int linux_getpid(void); }
+20	MSTD	LINUX	{ int linux_getpid(void); }
 21	STD	LINUX	{ int linux_mount(char *specialfile, char *dir, \
 				char *filesystemtype, l_ulong rwflag, \
 				void *data); }
@@ -306,8 +306,8 @@
 				struct l_stat64 *statbuf, l_long flags); }
 198	STD	LINUX	{ int linux_lchown(char *path, l_uid_t uid, \
 				l_gid_t gid); }
-199	STD	POSIX	{ int linux_getuid(void); }
-200	STD	POSIX	{ int linux_getgid(void); }
+199	MSTD	POSIX	{ int linux_getuid(void); }
+200	MSTD	POSIX	{ int linux_getgid(void); }
 201	NOPROTO	POSIX	{ int geteuid(void); }
 202	NOPROTO	POSIX	{ int getegid(void); }
 203	NOPROTO	LINUX	{ int setreuid(uid_t ruid, uid_t euid); }
