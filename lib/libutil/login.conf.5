@@ -217,6 +217,11 @@ the class may access.
 in the class may not access.
 .It "login_prompt	string		The login prompt given by
 .Xr login 1
+.It "login-backoff	number	3	The number of login attempts
+allowed before the backoff delay is inserted after each subsequent
+attempt.
+.It "login-retries	number	10	The number of login attempts
+allowed before the login fails.
 .It "passwd_format	string	md5	The encryption format that new or
 changed passwords will use.
 Valid values include "des", "md5" and "blf".
