@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.16 1996/03/11 15:37:31 davidg Exp $
+ * $Id: uipc_socket.c,v 1.17 1996/04/16 03:50:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -893,6 +893,7 @@ sosetopt(so, level, optname, m0)
 		case SO_REUSEADDR:
 		case SO_REUSEPORT:
 		case SO_OOBINLINE:
+		case SO_TIMESTAMP:
 			if (m == NULL || m->m_len < sizeof (int)) {
 				error = EINVAL;
 				goto bad;
@@ -1017,6 +1018,7 @@ sogetopt(so, level, optname, mp)
 		case SO_REUSEPORT:
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
+		case SO_TIMESTAMP:
 			*mtod(m, int *) = so->so_options & optname;
 			break;
 
