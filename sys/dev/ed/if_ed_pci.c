@@ -58,8 +58,8 @@ static struct _pcsid
 	{ 0x00000000,	NULL					}
 };
 
-static int	ed_pci_probe	__P((device_t));
-static int	ed_pci_attach	__P((device_t));
+static int	ed_pci_probe	(device_t);
+static int	ed_pci_attach	(device_t);
 
 static int
 ed_pci_probe (device_t dev)

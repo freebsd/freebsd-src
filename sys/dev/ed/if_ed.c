@@ -75,37 +75,35 @@
 
 devclass_t ed_devclass;
 
-static void	ed_init		__P((void *));
-static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
-static void	ed_start	__P((struct ifnet *));
-static void	ed_reset	__P((struct ifnet *));
-static void	ed_watchdog	__P((struct ifnet *));
+static void	ed_init		(void *);
+static int	ed_ioctl	(struct ifnet *, u_long, caddr_t);
+static void	ed_start	(struct ifnet *);
+static void	ed_reset	(struct ifnet *);
+static void	ed_watchdog	(struct ifnet *);
 #ifndef ED_NO_MIIBUS
-static void	ed_tick		__P((void *));
+static void	ed_tick		(void *);
 #endif
 
-static void	ds_getmcaf	__P((struct ed_softc *, u_int32_t *));
+static void	ds_getmcaf	(struct ed_softc *, u_int32_t *);
 
-static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int));
+static void	ed_get_packet	(struct ed_softc *, char *, /* u_short */ int);
 
-static __inline void	ed_rint	__P((struct ed_softc *));
-static __inline void	ed_xmit	__P((struct ed_softc *));
-static __inline char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
-					  /* u_short */ int));
-static void	ed_hpp_set_physical_link __P((struct ed_softc *));
-static void	ed_hpp_readmem	__P((struct ed_softc *, int, unsigned char *,
-				    /* u_short */ int));
-static void	ed_hpp_writemem	__P((struct ed_softc *, unsigned char *,
-				    /* u_short */ int, /* u_short */ int));
-static u_short	ed_hpp_write_mbufs __P((struct ed_softc *, struct mbuf *,
-					int));
+static __inline void	ed_rint	(struct ed_softc *);
+static __inline void	ed_xmit	(struct ed_softc *);
+static __inline char *	ed_ring_copy(struct ed_softc *, char *, char *,
+					  /* u_short */ int);
+static void	ed_hpp_set_physical_link(struct ed_softc *);
+static void	ed_hpp_readmem	(struct ed_softc *, int, unsigned char *,
+				    /* u_short */ int);
+static void	ed_hpp_writemem	(struct ed_softc *, unsigned char *,
+				    /* u_short */ int, /* u_short */ int);
+static u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
-static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
-					int));
+static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
-static void	ed_setrcr	__P((struct ed_softc *));
+static void	ed_setrcr	(struct ed_softc *);
 
-static u_int32_t ds_crc		__P((u_char *ep));
+static u_int32_t ds_crc		(u_char *ep);
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584

@@ -56,9 +56,9 @@
 #include <dev/snc/if_sncreg.h>
 #include <dev/snc/if_sncvar.h>
 
-static void snc_isapnp_reconfig	__P((device_t));
-static int snc_isa_probe	__P((device_t));
-static int snc_isa_attach	__P((device_t));
+static void snc_isapnp_reconfig	(device_t);
+static int snc_isa_probe	(device_t);
+static int snc_isa_attach	(device_t);
 
 static struct isa_pnp_id snc_ids[] = {
 	{ 0x6180a3b8,	NULL },		/* NEC8061 NEC PC-9801-104 */

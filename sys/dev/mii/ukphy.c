@@ -92,9 +92,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int ukphy_probe		__P((device_t));
-static int ukphy_attach		__P((device_t));
-static int ukphy_detach		__P((device_t));
+static int ukphy_probe		(device_t);
+static int ukphy_attach		(device_t);
+static int ukphy_detach		(device_t);
 
 static device_method_t ukphy_methods[] = {
 	/* device interface */
@@ -115,7 +115,7 @@ static driver_t ukphy_driver = {
 
 DRIVER_MODULE(ukphy, miibus, ukphy_driver, ukphy_devclass, 0, 0);
 
-static int	ukphy_service __P((struct mii_softc *, struct mii_data *, int));
+static int	ukphy_service(struct mii_softc *, struct mii_data *, int);
 
 static int
 ukphy_probe(dev)

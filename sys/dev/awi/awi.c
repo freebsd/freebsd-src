@@ -160,51 +160,51 @@
 #include <dev/awi/awivar.h>
 #endif
 
-static int awi_ioctl __P((struct ifnet *ifp, u_long cmd, caddr_t data));
+static int awi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 #ifdef IFM_IEEE80211
-static int awi_media_rate2opt __P((struct awi_softc *sc, int rate));
-static int awi_media_opt2rate __P((struct awi_softc *sc, int opt));
-static int awi_media_change __P((struct ifnet *ifp));
-static void awi_media_status __P((struct ifnet *ifp, struct ifmediareq *imr));
+static int awi_media_rate2opt(struct awi_softc *sc, int rate);
+static int awi_media_opt2rate(struct awi_softc *sc, int opt);
+static int awi_media_change(struct ifnet *ifp);
+static void awi_media_status(struct ifnet *ifp, struct ifmediareq *imr);
 #endif
-static void awi_watchdog __P((struct ifnet *ifp));
-static void awi_start __P((struct ifnet *ifp));
-static void awi_txint __P((struct awi_softc *sc));
-static struct mbuf * awi_fix_txhdr __P((struct awi_softc *sc, struct mbuf *m0));
-static struct mbuf * awi_fix_rxhdr __P((struct awi_softc *sc, struct mbuf *m0));
-static void awi_input __P((struct awi_softc *sc, struct mbuf *m, u_int32_t rxts, u_int8_t rssi));
-static void awi_rxint __P((struct awi_softc *sc));
-static struct mbuf * awi_devget __P((struct awi_softc *sc, u_int32_t off, u_int16_t len));
-static int awi_init_hw __P((struct awi_softc *sc));
-static int awi_init_mibs __P((struct awi_softc *sc));
-static int awi_init_txrx __P((struct awi_softc *sc));
-static void awi_stop_txrx __P((struct awi_softc *sc));
-static int awi_start_scan __P((struct awi_softc *sc));
-static int awi_next_scan __P((struct awi_softc *sc));
-static void awi_stop_scan __P((struct awi_softc *sc));
-static void awi_recv_beacon __P((struct awi_softc *sc, struct mbuf *m0, u_int32_t rxts, u_int8_t rssi));
-static int awi_set_ss __P((struct awi_softc *sc));
-static void awi_try_sync __P((struct awi_softc *sc));
-static void awi_sync_done __P((struct awi_softc *sc));
-static void awi_send_deauth __P((struct awi_softc *sc));
-static void awi_send_auth __P((struct awi_softc *sc, int seq));
-static void awi_recv_auth __P((struct awi_softc *sc, struct mbuf *m0));
-static void awi_send_asreq __P((struct awi_softc *sc, int reassoc));
-static void awi_recv_asresp __P((struct awi_softc *sc, struct mbuf *m0));
-static int awi_mib __P((struct awi_softc *sc, u_int8_t cmd, u_int8_t mib));
-static int awi_cmd_scan __P((struct awi_softc *sc));
-static int awi_cmd __P((struct awi_softc *sc, u_int8_t cmd));
-static void awi_cmd_done __P((struct awi_softc *sc));
-static int awi_next_txd __P((struct awi_softc *sc, int len, u_int32_t *framep, u_int32_t*ntxdp));
-static int awi_lock __P((struct awi_softc *sc));
-static void awi_unlock __P((struct awi_softc *sc));
-static int awi_intr_lock __P((struct awi_softc *sc));
-static void awi_intr_unlock __P((struct awi_softc *sc));
-static int awi_cmd_wait __P((struct awi_softc *sc));
-static void awi_print_essid __P((u_int8_t *essid));
+static void awi_watchdog(struct ifnet *ifp);
+static void awi_start(struct ifnet *ifp);
+static void awi_txint(struct awi_softc *sc);
+static struct mbuf * awi_fix_txhdr(struct awi_softc *sc, struct mbuf *m0);
+static struct mbuf * awi_fix_rxhdr(struct awi_softc *sc, struct mbuf *m0);
+static void awi_input(struct awi_softc *sc, struct mbuf *m, u_int32_t rxts, u_int8_t rssi);
+static void awi_rxint(struct awi_softc *sc);
+static struct mbuf * awi_devget(struct awi_softc *sc, u_int32_t off, u_int16_t len);
+static int awi_init_hw(struct awi_softc *sc);
+static int awi_init_mibs(struct awi_softc *sc);
+static int awi_init_txrx(struct awi_softc *sc);
+static void awi_stop_txrx(struct awi_softc *sc);
+static int awi_start_scan(struct awi_softc *sc);
+static int awi_next_scan(struct awi_softc *sc);
+static void awi_stop_scan(struct awi_softc *sc);
+static void awi_recv_beacon(struct awi_softc *sc, struct mbuf *m0, u_int32_t rxts, u_int8_t rssi);
+static int awi_set_ss(struct awi_softc *sc);
+static void awi_try_sync(struct awi_softc *sc);
+static void awi_sync_done(struct awi_softc *sc);
+static void awi_send_deauth(struct awi_softc *sc);
+static void awi_send_auth(struct awi_softc *sc, int seq);
+static void awi_recv_auth(struct awi_softc *sc, struct mbuf *m0);
+static void awi_send_asreq(struct awi_softc *sc, int reassoc);
+static void awi_recv_asresp(struct awi_softc *sc, struct mbuf *m0);
+static int awi_mib(struct awi_softc *sc, u_int8_t cmd, u_int8_t mib);
+static int awi_cmd_scan(struct awi_softc *sc);
+static int awi_cmd(struct awi_softc *sc, u_int8_t cmd);
+static void awi_cmd_done(struct awi_softc *sc);
+static int awi_next_txd(struct awi_softc *sc, int len, u_int32_t *framep, u_int32_t*ntxdp);
+static int awi_lock(struct awi_softc *sc);
+static void awi_unlock(struct awi_softc *sc);
+static int awi_intr_lock(struct awi_softc *sc);
+static void awi_intr_unlock(struct awi_softc *sc);
+static int awi_cmd_wait(struct awi_softc *sc);
+static void awi_print_essid(u_int8_t *essid);
 
 #ifdef AWI_DEBUG
-static void awi_dump_pkt __P((struct awi_softc *sc, struct mbuf *m, int rssi));
+static void awi_dump_pkt(struct awi_softc *sc, struct mbuf *m, int rssi);
 int awi_verbose = 0;
 int awi_dump = 0;
 #define	AWI_DUMP_MASK(fc0)  (1 << (((fc0) & IEEE80211_FC0_SUBTYPE_MASK) >> 4))
@@ -241,7 +241,7 @@ devclass_t awi_devclass;
 #endif
 
 /* NetBSD compatible functions  */
-static char * ether_sprintf __P((u_int8_t *));
+static char * ether_sprintf(u_int8_t *);
 
 static char *
 ether_sprintf(enaddr)

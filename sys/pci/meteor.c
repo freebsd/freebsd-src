@@ -179,7 +179,7 @@
 #error "The meteor device requires the old pci compatibility shims"
 #endif
 
-static void meteor_intr __P((void *arg));
+static void meteor_intr(void *arg);
 
 /* 
  * Allocate enough memory for:

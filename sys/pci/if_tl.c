@@ -264,64 +264,62 @@ static struct tl_type tl_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int tl_probe		__P((device_t));
-static int tl_attach		__P((device_t));
-static int tl_detach		__P((device_t));
-static int tl_intvec_rxeoc	__P((void *, u_int32_t));
-static int tl_intvec_txeoc	__P((void *, u_int32_t));
-static int tl_intvec_txeof	__P((void *, u_int32_t));
-static int tl_intvec_rxeof	__P((void *, u_int32_t));
-static int tl_intvec_adchk	__P((void *, u_int32_t));
-static int tl_intvec_netsts	__P((void *, u_int32_t));
+static int tl_probe		(device_t);
+static int tl_attach		(device_t);
+static int tl_detach		(device_t);
+static int tl_intvec_rxeoc	(void *, u_int32_t);
+static int tl_intvec_txeoc	(void *, u_int32_t);
+static int tl_intvec_txeof	(void *, u_int32_t);
+static int tl_intvec_rxeof	(void *, u_int32_t);
+static int tl_intvec_adchk	(void *, u_int32_t);
+static int tl_intvec_netsts	(void *, u_int32_t);
 
-static int tl_newbuf		__P((struct tl_softc *,
-					struct tl_chain_onefrag *));
-static void tl_stats_update	__P((void *));
-static int tl_encap		__P((struct tl_softc *, struct tl_chain *,
-						struct mbuf *));
+static int tl_newbuf		(struct tl_softc *, struct tl_chain_onefrag *);
+static void tl_stats_update	(void *);
+static int tl_encap		(struct tl_softc *, struct tl_chain *,
+						struct mbuf *);
 
-static void tl_intr		__P((void *));
-static void tl_start		__P((struct ifnet *));
-static int tl_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void tl_init		__P((void *));
-static void tl_stop		__P((struct tl_softc *));
-static void tl_watchdog		__P((struct ifnet *));
-static void tl_shutdown		__P((device_t));
-static int tl_ifmedia_upd	__P((struct ifnet *));
-static void tl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static void tl_intr		(void *);
+static void tl_start		(struct ifnet *);
+static int tl_ioctl		(struct ifnet *, u_long, caddr_t);
+static void tl_init		(void *);
+static void tl_stop		(struct tl_softc *);
+static void tl_watchdog		(struct ifnet *);
+static void tl_shutdown		(device_t);
+static int tl_ifmedia_upd	(struct ifnet *);
+static void tl_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static u_int8_t tl_eeprom_putbyte	__P((struct tl_softc *, int));
-static u_int8_t	tl_eeprom_getbyte	__P((struct tl_softc *,
-						int, u_int8_t *));
-static int tl_read_eeprom	__P((struct tl_softc *, caddr_t, int, int));
+static u_int8_t tl_eeprom_putbyte	(struct tl_softc *, int);
+static u_int8_t	tl_eeprom_getbyte	(struct tl_softc *, int, u_int8_t *);
+static int tl_read_eeprom	(struct tl_softc *, caddr_t, int, int);
 
-static void tl_mii_sync		__P((struct tl_softc *));
-static void tl_mii_send		__P((struct tl_softc *, u_int32_t, int));
-static int tl_mii_readreg	__P((struct tl_softc *, struct tl_mii_frame *));
-static int tl_mii_writereg	__P((struct tl_softc *, struct tl_mii_frame *));
-static int tl_miibus_readreg	__P((device_t, int, int));
-static int tl_miibus_writereg	__P((device_t, int, int, int));
-static void tl_miibus_statchg	__P((device_t));
+static void tl_mii_sync		(struct tl_softc *);
+static void tl_mii_send		(struct tl_softc *, u_int32_t, int);
+static int tl_mii_readreg	(struct tl_softc *, struct tl_mii_frame *);
+static int tl_mii_writereg	(struct tl_softc *, struct tl_mii_frame *);
+static int tl_miibus_readreg	(device_t, int, int);
+static int tl_miibus_writereg	(device_t, int, int, int);
+static void tl_miibus_statchg	(device_t);
 
-static void tl_setmode		__P((struct tl_softc *, int));
-static int tl_calchash		__P((caddr_t));
-static void tl_setmulti		__P((struct tl_softc *));
-static void tl_setfilt		__P((struct tl_softc *, caddr_t, int));
-static void tl_softreset	__P((struct tl_softc *, int));
-static void tl_hardreset	__P((device_t));
-static int tl_list_rx_init	__P((struct tl_softc *));
-static int tl_list_tx_init	__P((struct tl_softc *));
+static void tl_setmode		(struct tl_softc *, int);
+static int tl_calchash		(caddr_t);
+static void tl_setmulti		(struct tl_softc *);
+static void tl_setfilt		(struct tl_softc *, caddr_t, int);
+static void tl_softreset	(struct tl_softc *, int);
+static void tl_hardreset	(device_t);
+static int tl_list_rx_init	(struct tl_softc *);
+static int tl_list_tx_init	(struct tl_softc *);
 
-static u_int8_t tl_dio_read8	__P((struct tl_softc *, int));
-static u_int16_t tl_dio_read16	__P((struct tl_softc *, int));
-static u_int32_t tl_dio_read32	__P((struct tl_softc *, int));
-static void tl_dio_write8	__P((struct tl_softc *, int, int));
-static void tl_dio_write16	__P((struct tl_softc *, int, int));
-static void tl_dio_write32	__P((struct tl_softc *, int, int));
-static void tl_dio_setbit	__P((struct tl_softc *, int, int));
-static void tl_dio_clrbit	__P((struct tl_softc *, int, int));
-static void tl_dio_setbit16	__P((struct tl_softc *, int, int));
-static void tl_dio_clrbit16	__P((struct tl_softc *, int, int));
+static u_int8_t tl_dio_read8	(struct tl_softc *, int);
+static u_int16_t tl_dio_read16	(struct tl_softc *, int);
+static u_int32_t tl_dio_read32	(struct tl_softc *, int);
+static void tl_dio_write8	(struct tl_softc *, int, int);
+static void tl_dio_write16	(struct tl_softc *, int, int);
+static void tl_dio_write32	(struct tl_softc *, int, int);
+static void tl_dio_setbit	(struct tl_softc *, int, int);
+static void tl_dio_clrbit	(struct tl_softc *, int, int);
+static void tl_dio_setbit16	(struct tl_softc *, int, int);
+static void tl_dio_clrbit16	(struct tl_softc *, int, int);
 
 #ifdef TL_USEIOSPACE
 #define TL_RES		SYS_RES_IOPORT

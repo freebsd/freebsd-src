@@ -468,9 +468,9 @@ struct vx_softc {
 
 extern struct vx_softc *vx_softc[];
 extern u_long vx_count;
-extern struct vx_softc *vxalloc __P((int));
-extern void vxfree __P((struct vx_softc *));
-extern int vxattach __P((struct vx_softc *));
-extern void vxstop __P((struct vx_softc *));
-extern void vxintr __P((void *));
-extern int vxbusyeeprom __P((struct vx_softc *));
+extern struct vx_softc *vxalloc(int);
+extern void vxfree(struct vx_softc *);
+extern int vxattach(struct vx_softc *);
+extern void vxstop(struct vx_softc *);
+extern void vxintr(void *);
+extern int vxbusyeeprom(struct vx_softc *);

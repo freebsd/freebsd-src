@@ -92,9 +92,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int acphy_probe		__P((device_t));
-static int acphy_attach		__P((device_t));
-static int acphy_detach		__P((device_t));
+static int acphy_probe		(device_t);
+static int acphy_attach		(device_t);
+static int acphy_detach		(device_t);
 
 static device_method_t acphy_methods[] = {
 	/* device interface */
@@ -115,9 +115,9 @@ static driver_t acphy_driver = {
 
 DRIVER_MODULE(acphy, miibus, acphy_driver, acphy_devclass, 0, 0);
 
-static int	acphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	acphy_reset __P((struct mii_softc *));
-static void	acphy_status __P((struct mii_softc *));
+static int	acphy_service(struct mii_softc *, struct mii_data *, int);
+static void	acphy_reset(struct mii_softc *);
+static void	acphy_status(struct mii_softc *);
 
 static int acphy_probe(dev)
 	device_t		dev;

@@ -145,61 +145,59 @@ static struct ti_type ti_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int ti_probe		__P((device_t));
-static int ti_attach		__P((device_t));
-static int ti_detach		__P((device_t));
-static void ti_txeof		__P((struct ti_softc *));
-static void ti_rxeof		__P((struct ti_softc *));
+static int ti_probe		(device_t);
+static int ti_attach		(device_t);
+static int ti_detach		(device_t);
+static void ti_txeof		(struct ti_softc *);
+static void ti_rxeof		(struct ti_softc *);
 
-static void ti_stats_update	__P((struct ti_softc *));
-static int ti_encap		__P((struct ti_softc *, struct mbuf *,
-					u_int32_t *));
+static void ti_stats_update	(struct ti_softc *);
+static int ti_encap		(struct ti_softc *, struct mbuf *, u_int32_t *);
 
-static void ti_intr		__P((void *));
-static void ti_start		__P((struct ifnet *));
-static int ti_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void ti_init		__P((void *));
-static void ti_init2		__P((struct ti_softc *));
-static void ti_stop		__P((struct ti_softc *));
-static void ti_watchdog		__P((struct ifnet *));
-static void ti_shutdown		__P((device_t));
-static int ti_ifmedia_upd	__P((struct ifnet *));
-static void ti_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static void ti_intr		(void *);
+static void ti_start		(struct ifnet *);
+static int ti_ioctl		(struct ifnet *, u_long, caddr_t);
+static void ti_init		(void *);
+static void ti_init2		(struct ti_softc *);
+static void ti_stop		(struct ti_softc *);
+static void ti_watchdog		(struct ifnet *);
+static void ti_shutdown		(device_t);
+static int ti_ifmedia_upd	(struct ifnet *);
+static void ti_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static u_int32_t ti_eeprom_putbyte	__P((struct ti_softc *, int));
-static u_int8_t	ti_eeprom_getbyte	__P((struct ti_softc *,
-						int, u_int8_t *));
-static int ti_read_eeprom	__P((struct ti_softc *, caddr_t, int, int));
+static u_int32_t ti_eeprom_putbyte	(struct ti_softc *, int);
+static u_int8_t	ti_eeprom_getbyte	(struct ti_softc *, int, u_int8_t *);
+static int ti_read_eeprom	(struct ti_softc *, caddr_t, int, int);
 
-static void ti_add_mcast	__P((struct ti_softc *, struct ether_addr *));
-static void ti_del_mcast	__P((struct ti_softc *, struct ether_addr *));
-static void ti_setmulti		__P((struct ti_softc *));
+static void ti_add_mcast	(struct ti_softc *, struct ether_addr *);
+static void ti_del_mcast	(struct ti_softc *, struct ether_addr *);
+static void ti_setmulti		(struct ti_softc *);
 
-static void ti_mem		__P((struct ti_softc *, u_int32_t,
-					u_int32_t, caddr_t));
-static void ti_loadfw		__P((struct ti_softc *));
-static void ti_cmd		__P((struct ti_softc *, struct ti_cmd_desc *));
-static void ti_cmd_ext		__P((struct ti_softc *, struct ti_cmd_desc *,
-					caddr_t, int));
-static void ti_handle_events	__P((struct ti_softc *));
-static int ti_alloc_jumbo_mem	__P((struct ti_softc *));
-static void *ti_jalloc		__P((struct ti_softc *));
-static void ti_jfree		__P((caddr_t, void *));
-static int ti_newbuf_std	__P((struct ti_softc *, int, struct mbuf *));
-static int ti_newbuf_mini	__P((struct ti_softc *, int, struct mbuf *));
-static int ti_newbuf_jumbo	__P((struct ti_softc *, int, struct mbuf *));
-static int ti_init_rx_ring_std	__P((struct ti_softc *));
-static void ti_free_rx_ring_std	__P((struct ti_softc *));
-static int ti_init_rx_ring_jumbo	__P((struct ti_softc *));
-static void ti_free_rx_ring_jumbo	__P((struct ti_softc *));
-static int ti_init_rx_ring_mini	__P((struct ti_softc *));
-static void ti_free_rx_ring_mini	__P((struct ti_softc *));
-static void ti_free_tx_ring	__P((struct ti_softc *));
-static int ti_init_tx_ring	__P((struct ti_softc *));
+static void ti_mem		(struct ti_softc *, u_int32_t,
+					u_int32_t, caddr_t);
+static void ti_loadfw		(struct ti_softc *);
+static void ti_cmd		(struct ti_softc *, struct ti_cmd_desc *);
+static void ti_cmd_ext		(struct ti_softc *, struct ti_cmd_desc *,
+					caddr_t, int);
+static void ti_handle_events	(struct ti_softc *);
+static int ti_alloc_jumbo_mem	(struct ti_softc *);
+static void *ti_jalloc		(struct ti_softc *);
+static void ti_jfree		(caddr_t, void *);
+static int ti_newbuf_std	(struct ti_softc *, int, struct mbuf *);
+static int ti_newbuf_mini	(struct ti_softc *, int, struct mbuf *);
+static int ti_newbuf_jumbo	(struct ti_softc *, int, struct mbuf *);
+static int ti_init_rx_ring_std	(struct ti_softc *);
+static void ti_free_rx_ring_std	(struct ti_softc *);
+static int ti_init_rx_ring_jumbo	(struct ti_softc *);
+static void ti_free_rx_ring_jumbo	(struct ti_softc *);
+static int ti_init_rx_ring_mini	(struct ti_softc *);
+static void ti_free_rx_ring_mini	(struct ti_softc *);
+static void ti_free_tx_ring	(struct ti_softc *);
+static int ti_init_tx_ring	(struct ti_softc *);
 
-static int ti_64bitslot_war	__P((struct ti_softc *));
-static int ti_chipinit		__P((struct ti_softc *));
-static int ti_gibinit		__P((struct ti_softc *));
+static int ti_64bitslot_war	(struct ti_softc *);
+static int ti_chipinit		(struct ti_softc *);
+static int ti_gibinit		(struct ti_softc *);
 
 static device_method_t ti_methods[] = {
 	/* Device interface */

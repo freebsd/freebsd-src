@@ -95,9 +95,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int nsphy_probe		__P((device_t));
-static int nsphy_attach		__P((device_t));
-static int nsphy_detach		__P((device_t));
+static int nsphy_probe		(device_t);
+static int nsphy_attach		(device_t);
+static int nsphy_detach		(device_t);
 
 static device_method_t nsphy_methods[] = {
 	/* device interface */
@@ -118,8 +118,8 @@ static driver_t nsphy_driver = {
 
 DRIVER_MODULE(nsphy, miibus, nsphy_driver, nsphy_devclass, 0, 0);
 
-static int	nsphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	nsphy_status __P((struct mii_softc *));
+static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
+static void	nsphy_status(struct mii_softc *);
 
 static int nsphy_probe(dev)
 	device_t		dev;

@@ -252,13 +252,13 @@ struct host_ring_entry {
 	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, (port), (val))
 
 /* Functional declarations */
-extern int lance_probe __P((struct lnc_softc *));
-extern void lnc_release_resources __P((device_t));
-extern int lnc_attach_common __P((device_t));
-extern void lnc_stop __P((struct lnc_softc *));
+extern int lance_probe(struct lnc_softc *);
+extern void lnc_release_resources(device_t);
+extern int lnc_attach_common(device_t);
+extern void lnc_stop(struct lnc_softc *);
 
-extern void write_csr __P((struct lnc_softc *, u_short, u_short));
-extern u_short read_csr __P((struct lnc_softc *, u_short));
+extern void write_csr(struct lnc_softc *, u_short, u_short);
+extern u_short read_csr(struct lnc_softc *, u_short);
 
 /* Variable declarations */
 extern driver_intr_t lncintr; 

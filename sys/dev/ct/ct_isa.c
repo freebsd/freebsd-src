@@ -101,9 +101,9 @@ static int ct_space_map(device_t, struct bshw *,
 static void ct_space_unmap(device_t, struct ct_softc *);
 static struct bshw *ct_find_hw(device_t);
 static void ct_dmamap(void *, bus_dma_segment_t *, int, int);
-static void ct_isa_bus_access_weight __P((struct ct_bus_access_handle *));
-static void ct_isa_dmasync_before __P((struct ct_softc *));
-static void ct_isa_dmasync_after __P((struct ct_softc *));
+static void ct_isa_bus_access_weight(struct ct_bus_access_handle *);
+static void ct_isa_dmasync_before(struct ct_softc *);
+static void ct_isa_dmasync_after(struct ct_softc *);
 
 struct ct_isa_softc {
 	struct ct_softc sc_ct;

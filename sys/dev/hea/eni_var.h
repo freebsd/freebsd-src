@@ -42,37 +42,37 @@
  * Global function declarations
  */
 	/* eni_buffer.c */
-int	eni_init_memory __P((Eni_unit *));
-caddr_t	eni_allocate_buffer __P((Eni_unit *, u_long *));
-void	eni_free_buffer __P((Eni_unit *, caddr_t));
+int	eni_init_memory(Eni_unit *);
+caddr_t	eni_allocate_buffer(Eni_unit *, u_long *);
+void	eni_free_buffer(Eni_unit *, caddr_t);
 
 	/* eni_if.c */
-int	eni_atm_ioctl __P((int, caddr_t, caddr_t));
-void	eni_zero_stats __P((Eni_unit *));
+int	eni_atm_ioctl(int, caddr_t, caddr_t);
+void	eni_zero_stats(Eni_unit *);
 
 	/* eni_init.c */
-int	eni_init __P((Eni_unit *));
+int	eni_init(Eni_unit *);
 
 	/* eni_intr.c */
 #if defined(BSD) && BSD < 199506
-int	eni_intr __P((void *));
+int	eni_intr(void *);
 #else
-void	eni_intr __P((void *));
+void	eni_intr(void *);
 #endif
 
 	/* eni_receive.c */
-void	eni_do_service __P((Eni_unit *));
-void	eni_recv_drain __P((Eni_unit *));
+void	eni_do_service(Eni_unit *);
+void	eni_recv_drain(Eni_unit *);
 
 	/* eni_transmit.c */
-int	eni_set_dma __P((Eni_unit *, int, u_long *, int, long *, int, u_long, int ));
-void	eni_output __P((Cmn_unit *, Cmn_vcc *, KBuffer *));
-void	eni_xmit_drain __P((Eni_unit *));
+int	eni_set_dma(Eni_unit *, int, u_long *, int, long *, int, u_long, int );
+void	eni_output(Cmn_unit *, Cmn_vcc *, KBuffer *);
+void	eni_xmit_drain(Eni_unit *);
 
 	/* eni_vcm.c */
-int	eni_instvcc __P((Cmn_unit *, Cmn_vcc *));
-int	eni_openvcc __P((Cmn_unit *, Cmn_vcc *));
-int	eni_closevcc __P((Cmn_unit *, Cmn_vcc *));
+int	eni_instvcc(Cmn_unit *, Cmn_vcc *);
+int	eni_openvcc(Cmn_unit *, Cmn_vcc *);
+int	eni_closevcc(Cmn_unit *, Cmn_vcc *);
 
 /*
  * Global variable declarations

@@ -74,12 +74,12 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	fore_start __P((void));
-static const char *	fore_pci_probe __P((pcici_t, pcidi_t));
-static void	fore_pci_attach __P((pcici_t, int));
-static void	fore_pci_shutdown __P((void *, int));
-static void	fore_unattach __P((Fore_unit *));
-static void	fore_reset __P((Fore_unit *));
+static int	fore_start(void);
+static const char *	fore_pci_probe(pcici_t, pcidi_t);
+static void	fore_pci_attach(pcici_t, int);
+static void	fore_pci_shutdown(void *, int);
+static void	fore_unattach(Fore_unit *);
+static void	fore_reset(Fore_unit *);
 
 #ifndef COMPAT_OLDPCI
 #error "The fore device requires the old pci compatibility shims"
@@ -461,7 +461,7 @@ fore_unattach(fup)
 	/*
 	 * Remove any pending timeout()'s
 	 */
-	(void)untimeout((KTimeout_ret(*) __P((void *)))fore_initialize,
+	(void)untimeout((KTimeout_ret(*)(void *))fore_initialize,
 		(void *)fup, fup->fu_thandle);
 
 

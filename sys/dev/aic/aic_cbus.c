@@ -48,10 +48,10 @@ struct aic_isa_softc {
 	void	*sc_ih;
 };
 
-static int aic_isa_alloc_resources __P((device_t));
-static void aic_isa_release_resources __P((device_t));
-static int aic_isa_probe __P((device_t));
-static int aic_isa_attach __P((device_t));
+static int aic_isa_alloc_resources(device_t);
+static void aic_isa_release_resources(device_t);
+static int aic_isa_probe(device_t);
+static int aic_isa_attach(device_t);
 
 #ifdef PC98
 static u_int aic_isa_ports[] = { 0x1840 };

@@ -610,12 +610,12 @@ struct gdt_softc {
     struct cam_sim *sims[GDT_MAXBUS];
     struct cam_path *paths[GDT_MAXBUS];
 
-    void (*sc_copy_cmd) __P((struct gdt_softc *, struct gdt_ccb *));
-    u_int8_t (*sc_get_status) __P((struct gdt_softc *));
-    void (*sc_intr) __P((struct gdt_softc *, struct gdt_intr_ctx *));
-    void (*sc_release_event) __P((struct gdt_softc *));
-    void (*sc_set_sema0) __P((struct gdt_softc *));
-    int (*sc_test_busy) __P((struct gdt_softc *));
+    void (*sc_copy_cmd)(struct gdt_softc *, struct gdt_ccb *);
+    u_int8_t (*sc_get_status)(struct gdt_softc *);
+    void (*sc_intr)(struct gdt_softc *, struct gdt_intr_ctx *);
+    void (*sc_release_event)(struct gdt_softc *);
+    void (*sc_set_sema0)(struct gdt_softc *);
+    int (*sc_test_busy)(struct gdt_softc *);
 
     TAILQ_ENTRY(gdt_softc) links;
 };
@@ -644,17 +644,17 @@ struct gdt_ccb {
 };
 
 
-int     iir_init __P((struct gdt_softc *));
-void    iir_free __P((struct gdt_softc *));
-void    iir_attach __P((struct gdt_softc *));
-void    iir_intr __P((void *arg));
+int     iir_init(struct gdt_softc *);
+void    iir_free(struct gdt_softc *);
+void    iir_attach(struct gdt_softc *);
+void    iir_intr(void *arg);
 
 #ifdef __GNUC__
 /* These all require correctly aligned buffers */
-static __inline__ void gdt_enc16 __P((u_int8_t *, u_int16_t));
-static __inline__ void gdt_enc32 __P((u_int8_t *, u_int32_t));
-static __inline__ u_int16_t gdt_dec16 __P((u_int8_t *));
-static __inline__ u_int32_t gdt_dec32 __P((u_int8_t *));
+static __inline__ void gdt_enc16(u_int8_t *, u_int16_t);
+static __inline__ void gdt_enc32(u_int8_t *, u_int32_t);
+static __inline__ u_int16_t gdt_dec16(u_int8_t *);
+static __inline__ u_int32_t gdt_dec32(u_int8_t *);
 
 static __inline__ void
 gdt_enc16(addr, value)

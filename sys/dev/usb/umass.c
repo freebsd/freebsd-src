@@ -541,9 +541,9 @@ Static int umass_atapi_transform	(struct umass_softc *sc,
 		     		unsigned char **rcmd, int *rcmdlen);
 
 /* RBC specific functions */
-Static int umass_rbc_transform	__P((struct umass_softc *sc,
+Static int umass_rbc_transform	(struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
-		     		unsigned char **rcmd, int *rcmdlen));
+		     		unsigned char **rcmd, int *rcmdlen);
 
 #ifdef UMASS_DEBUG
 /* General debugging functions */

@@ -146,59 +146,55 @@ static struct nge_type nge_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int nge_probe		__P((device_t));
-static int nge_attach		__P((device_t));
-static int nge_detach		__P((device_t));
+static int nge_probe		(device_t);
+static int nge_attach		(device_t);
+static int nge_detach		(device_t);
 
-static int nge_alloc_jumbo_mem	__P((struct nge_softc *));
-static void nge_free_jumbo_mem	__P((struct nge_softc *));
-static void *nge_jalloc		__P((struct nge_softc *));
-static void nge_jfree		__P((caddr_t, void *));
+static int nge_alloc_jumbo_mem	(struct nge_softc *);
+static void nge_free_jumbo_mem	(struct nge_softc *);
+static void *nge_jalloc		(struct nge_softc *);
+static void nge_jfree		(caddr_t, void *);
 
-static int nge_newbuf		__P((struct nge_softc *,
-					struct nge_desc *,
-					struct mbuf *));
-static int nge_encap		__P((struct nge_softc *,
-					struct mbuf *, u_int32_t *));
-static void nge_rxeof		__P((struct nge_softc *));
+static int nge_newbuf		(struct nge_softc *,
+					struct nge_desc *, struct mbuf *);
+static int nge_encap		(struct nge_softc *,
+					struct mbuf *, u_int32_t *);
+static void nge_rxeof		(struct nge_softc *);
 #ifdef notdef
-static void nge_rxeoc		__P((struct nge_softc *));
+static void nge_rxeoc		(struct nge_softc *);
 #endif
-static void nge_txeof		__P((struct nge_softc *));
-static void nge_intr		__P((void *));
-static void nge_tick		__P((void *));
-static void nge_start		__P((struct ifnet *));
-static int nge_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void nge_init		__P((void *));
-static void nge_stop		__P((struct nge_softc *));
-static void nge_watchdog		__P((struct ifnet *));
-static void nge_shutdown		__P((device_t));
-static int nge_ifmedia_upd	__P((struct ifnet *));
-static void nge_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static void nge_txeof		(struct nge_softc *);
+static void nge_intr		(void *);
+static void nge_tick		(void *);
+static void nge_start		(struct ifnet *);
+static int nge_ioctl		(struct ifnet *, u_long, caddr_t);
+static void nge_init		(void *);
+static void nge_stop		(struct nge_softc *);
+static void nge_watchdog		(struct ifnet *);
+static void nge_shutdown		(device_t);
+static int nge_ifmedia_upd	(struct ifnet *);
+static void nge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static void nge_delay		__P((struct nge_softc *));
-static void nge_eeprom_idle	__P((struct nge_softc *));
-static void nge_eeprom_putbyte	__P((struct nge_softc *, int));
-static void nge_eeprom_getword	__P((struct nge_softc *, int, u_int16_t *));
-static void nge_read_eeprom	__P((struct nge_softc *, caddr_t, int,
-							int, int));
+static void nge_delay		(struct nge_softc *);
+static void nge_eeprom_idle	(struct nge_softc *);
+static void nge_eeprom_putbyte	(struct nge_softc *, int);
+static void nge_eeprom_getword	(struct nge_softc *, int, u_int16_t *);
+static void nge_read_eeprom	(struct nge_softc *, caddr_t, int, int, int);
 
-static void nge_mii_sync	__P((struct nge_softc *));
-static void nge_mii_send	__P((struct nge_softc *, u_int32_t, int));
-static int nge_mii_readreg	__P((struct nge_softc *,
-					struct nge_mii_frame *));
-static int nge_mii_writereg	__P((struct nge_softc *,
-					struct nge_mii_frame *));
+static void nge_mii_sync	(struct nge_softc *);
+static void nge_mii_send	(struct nge_softc *, u_int32_t, int);
+static int nge_mii_readreg	(struct nge_softc *, struct nge_mii_frame *);
+static int nge_mii_writereg	(struct nge_softc *, struct nge_mii_frame *);
 
-static int nge_miibus_readreg	__P((device_t, int, int));
-static int nge_miibus_writereg	__P((device_t, int, int, int));
-static void nge_miibus_statchg	__P((device_t));
+static int nge_miibus_readreg	(device_t, int, int);
+static int nge_miibus_writereg	(device_t, int, int, int);
+static void nge_miibus_statchg	(device_t);
 
-static void nge_setmulti	__P((struct nge_softc *));
-static u_int32_t nge_crc	__P((struct nge_softc *, caddr_t));
-static void nge_reset		__P((struct nge_softc *));
-static int nge_list_rx_init	__P((struct nge_softc *));
-static int nge_list_tx_init	__P((struct nge_softc *));
+static void nge_setmulti	(struct nge_softc *);
+static u_int32_t nge_crc	(struct nge_softc *, caddr_t);
+static void nge_reset		(struct nge_softc *);
+static int nge_list_rx_init	(struct nge_softc *);
+static int nge_list_tx_init	(struct nge_softc *);
 
 #ifdef NGE_USEIOSPACE
 #define NGE_RES			SYS_RES_IOPORT

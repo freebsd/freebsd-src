@@ -80,9 +80,9 @@ static const char rcsid[] =
         CSR_WRITE_4(sc, reg,                            \
                 CSR_READ_4(sc, reg) & ~x)
 
-static int pnphy_probe		__P((device_t));
-static int pnphy_attach		__P((device_t));
-static int pnphy_detach		__P((device_t));
+static int pnphy_probe		(device_t);
+static int pnphy_attach		(device_t);
+static int pnphy_detach		(device_t);
 
 static device_method_t pnphy_methods[] = {
 	/* device interface */
@@ -103,8 +103,8 @@ static driver_t pnphy_driver = {
 
 DRIVER_MODULE(pnphy, miibus, pnphy_driver, pnphy_devclass, 0, 0);
 
-static int	pnphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	pnphy_status __P((struct mii_softc *));
+static int	pnphy_service(struct mii_softc *, struct mii_data *, int);
+static void	pnphy_status(struct mii_softc *);
 
 static int pnphy_probe(dev)
 	device_t		dev;

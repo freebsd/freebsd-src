@@ -42,56 +42,56 @@
  * Global function declarations
  */
 	/* fore_buffer.c */
-int		fore_buf_allocate __P((Fore_unit *));
-void		fore_buf_initialize __P((Fore_unit *));
-void		fore_buf_supply __P((Fore_unit *));
-void		fore_buf_free __P((Fore_unit *));
+int		fore_buf_allocate(Fore_unit *);
+void		fore_buf_initialize(Fore_unit *);
+void		fore_buf_supply(Fore_unit *);
+void		fore_buf_free(Fore_unit *);
 
 	/* fore_command.c */
-int		fore_cmd_allocate __P((Fore_unit *));
-void		fore_cmd_initialize __P((Fore_unit *));
-void		fore_cmd_drain __P((Fore_unit *));
-void		fore_cmd_free __P((Fore_unit *));
+int		fore_cmd_allocate(Fore_unit *);
+void		fore_cmd_initialize(Fore_unit *);
+void		fore_cmd_drain(Fore_unit *);
+void		fore_cmd_free(Fore_unit *);
 
 	/* fore_if.c */
-int		fore_atm_ioctl __P((int, caddr_t, caddr_t));
-void		fore_interface_free __P((Fore_unit *));
+int		fore_atm_ioctl(int, caddr_t, caddr_t);
+void		fore_interface_free(Fore_unit *);
 
 	/* fore_init.c */
-void		fore_initialize __P((Fore_unit *));
-void		fore_initialize_complete __P((Fore_unit *));
+void		fore_initialize(Fore_unit *);
+void		fore_initialize_complete(Fore_unit *);
 
 	/* fore_intr.c */
-void		fore_intr __P((void *));
-void		fore_watchdog __P((Fore_unit *));
+void		fore_intr(void *);
+void		fore_watchdog(Fore_unit *);
 
 	/* fore_load.c */
 
 	/* fore_output.c */
-void		fore_output __P((Cmn_unit *, Cmn_vcc *, KBuffer *));
+void		fore_output(Cmn_unit *, Cmn_vcc *, KBuffer *);
 
 	/* fore_receive.c */
-int		fore_recv_allocate __P((Fore_unit *));
-void		fore_recv_initialize __P((Fore_unit *));
-void		fore_recv_drain __P((Fore_unit *));
-void		fore_recv_free __P((Fore_unit *));
+int		fore_recv_allocate(Fore_unit *);
+void		fore_recv_initialize(Fore_unit *);
+void		fore_recv_drain(Fore_unit *);
+void		fore_recv_free(Fore_unit *);
 
 	/* fore_stats.c */
-int		fore_get_stats __P((Fore_unit *));
+int		fore_get_stats(Fore_unit *);
 
 	/* fore_timer.c */
-void		fore_timeout __P((struct atm_time *));
+void		fore_timeout(struct atm_time *);
 
 	/* fore_transmit.c */
-int		fore_xmit_allocate __P((Fore_unit *));
-void		fore_xmit_initialize __P((Fore_unit *));
-void		fore_xmit_drain __P((Fore_unit *));
-void		fore_xmit_free __P((Fore_unit *));
+int		fore_xmit_allocate(Fore_unit *);
+void		fore_xmit_initialize(Fore_unit *);
+void		fore_xmit_drain(Fore_unit *);
+void		fore_xmit_free(Fore_unit *);
 
 	/* fore_vcm.c */
-int		fore_instvcc __P((Cmn_unit *, Cmn_vcc *));
-int		fore_openvcc __P((Cmn_unit *, Cmn_vcc *));
-int		fore_closevcc __P((Cmn_unit *, Cmn_vcc *));
+int		fore_instvcc(Cmn_unit *, Cmn_vcc *);
+int		fore_openvcc(Cmn_unit *, Cmn_vcc *);
+int		fore_closevcc(Cmn_unit *, Cmn_vcc *);
 
 
 /*

@@ -86,47 +86,44 @@ static struct ste_type ste_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int ste_probe		__P((device_t));
-static int ste_attach		__P((device_t));
-static int ste_detach		__P((device_t));
-static void ste_init		__P((void *));
-static void ste_intr		__P((void *));
-static void ste_rxeof		__P((struct ste_softc *));
-static void ste_txeoc		__P((struct ste_softc *));
-static void ste_txeof		__P((struct ste_softc *));
-static void ste_stats_update	__P((void *));
-static void ste_stop		__P((struct ste_softc *));
-static void ste_reset		__P((struct ste_softc *));
-static int ste_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static int ste_encap		__P((struct ste_softc *, struct ste_chain *,
-					struct mbuf *));
-static void ste_start		__P((struct ifnet *));
-static void ste_watchdog	__P((struct ifnet *));
-static void ste_shutdown	__P((device_t));
-static int ste_newbuf		__P((struct ste_softc *,
+static int ste_probe		(device_t);
+static int ste_attach		(device_t);
+static int ste_detach		(device_t);
+static void ste_init		(void *);
+static void ste_intr		(void *);
+static void ste_rxeof		(struct ste_softc *);
+static void ste_txeoc		(struct ste_softc *);
+static void ste_txeof		(struct ste_softc *);
+static void ste_stats_update	(void *);
+static void ste_stop		(struct ste_softc *);
+static void ste_reset		(struct ste_softc *);
+static int ste_ioctl		(struct ifnet *, u_long, caddr_t);
+static int ste_encap		(struct ste_softc *, struct ste_chain *,
+					struct mbuf *);
+static void ste_start		(struct ifnet *);
+static void ste_watchdog	(struct ifnet *);
+static void ste_shutdown	(device_t);
+static int ste_newbuf		(struct ste_softc *,
 					struct ste_chain_onefrag *,
-					struct mbuf *));
-static int ste_ifmedia_upd	__P((struct ifnet *));
-static void ste_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+					struct mbuf *);
+static int ste_ifmedia_upd	(struct ifnet *);
+static void ste_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static void ste_mii_sync	__P((struct ste_softc *));
-static void ste_mii_send	__P((struct ste_softc *, u_int32_t, int));
-static int ste_mii_readreg	__P((struct ste_softc *,
-					struct ste_mii_frame *));
-static int ste_mii_writereg	__P((struct ste_softc *,
-					struct ste_mii_frame *));
-static int ste_miibus_readreg	__P((device_t, int, int));
-static int ste_miibus_writereg	__P((device_t, int, int, int));
-static void ste_miibus_statchg	__P((device_t));
+static void ste_mii_sync	(struct ste_softc *);
+static void ste_mii_send	(struct ste_softc *, u_int32_t, int);
+static int ste_mii_readreg	(struct ste_softc *, struct ste_mii_frame *);
+static int ste_mii_writereg	(struct ste_softc *, struct ste_mii_frame *);
+static int ste_miibus_readreg	(device_t, int, int);
+static int ste_miibus_writereg	(device_t, int, int, int);
+static void ste_miibus_statchg	(device_t);
 
-static int ste_eeprom_wait	__P((struct ste_softc *));
-static int ste_read_eeprom	__P((struct ste_softc *, caddr_t, int,
-							int, int));
-static void ste_wait		__P((struct ste_softc *));
-static u_int8_t ste_calchash	__P((caddr_t));
-static void ste_setmulti	__P((struct ste_softc *));
-static int ste_init_rx_list	__P((struct ste_softc *));
-static void ste_init_tx_list	__P((struct ste_softc *));
+static int ste_eeprom_wait	(struct ste_softc *);
+static int ste_read_eeprom	(struct ste_softc *, caddr_t, int, int, int);
+static void ste_wait		(struct ste_softc *);
+static u_int8_t ste_calchash	(caddr_t);
+static void ste_setmulti	(struct ste_softc *);
+static int ste_init_rx_list	(struct ste_softc *);
+static void ste_init_tx_list	(struct ste_softc *);
 
 #ifdef STE_USEIOSPACE
 #define STE_RES			SYS_RES_IOPORT

@@ -214,65 +214,63 @@ static struct xl_type xl_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int xl_probe		__P((device_t));
-static int xl_attach		__P((device_t));
-static int xl_detach		__P((device_t));
+static int xl_probe		(device_t);
+static int xl_attach		(device_t);
+static int xl_detach		(device_t);
 
-static int xl_newbuf		__P((struct xl_softc *,
-						struct xl_chain_onefrag *));
-static void xl_stats_update	__P((void *));
-static int xl_encap		__P((struct xl_softc *, struct xl_chain *,
-						struct mbuf * ));
-static int xl_encap_90xB	__P((struct xl_softc *, struct xl_chain *,
-						struct mbuf * ));
+static int xl_newbuf		(struct xl_softc *, struct xl_chain_onefrag *);
+static void xl_stats_update	(void *);
+static int xl_encap		(struct xl_softc *, struct xl_chain *,
+						struct mbuf *);
+static int xl_encap_90xB	(struct xl_softc *, struct xl_chain *,
+						struct mbuf *);
 
-static void xl_rxeof		__P((struct xl_softc *));
-static int xl_rx_resync		__P((struct xl_softc *));
-static void xl_txeof		__P((struct xl_softc *));
-static void xl_txeof_90xB	__P((struct xl_softc *));
-static void xl_txeoc		__P((struct xl_softc *));
-static void xl_intr		__P((void *));
-static void xl_start		__P((struct ifnet *));
-static void xl_start_90xB	__P((struct ifnet *));
-static int xl_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void xl_init		__P((void *));
-static void xl_stop		__P((struct xl_softc *));
-static void xl_watchdog		__P((struct ifnet *));
-static void xl_shutdown		__P((device_t));
-static int xl_suspend		__P((device_t)); 
-static int xl_resume		__P((device_t));
+static void xl_rxeof		(struct xl_softc *);
+static int xl_rx_resync		(struct xl_softc *);
+static void xl_txeof		(struct xl_softc *);
+static void xl_txeof_90xB	(struct xl_softc *);
+static void xl_txeoc		(struct xl_softc *);
+static void xl_intr		(void *);
+static void xl_start		(struct ifnet *);
+static void xl_start_90xB	(struct ifnet *);
+static int xl_ioctl		(struct ifnet *, u_long, caddr_t);
+static void xl_init		(void *);
+static void xl_stop		(struct xl_softc *);
+static void xl_watchdog		(struct ifnet *);
+static void xl_shutdown		(device_t);
+static int xl_suspend		(device_t); 
+static int xl_resume		(device_t);
 
-static int xl_ifmedia_upd	__P((struct ifnet *));
-static void xl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static int xl_ifmedia_upd	(struct ifnet *);
+static void xl_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static int xl_eeprom_wait	__P((struct xl_softc *));
-static int xl_read_eeprom	__P((struct xl_softc *, caddr_t, int,
-							int, int));
-static void xl_mii_sync		__P((struct xl_softc *));
-static void xl_mii_send		__P((struct xl_softc *, u_int32_t, int));
-static int xl_mii_readreg	__P((struct xl_softc *, struct xl_mii_frame *));
-static int xl_mii_writereg	__P((struct xl_softc *, struct xl_mii_frame *));
+static int xl_eeprom_wait	(struct xl_softc *);
+static int xl_read_eeprom	(struct xl_softc *, caddr_t, int, int, int);
+static void xl_mii_sync		(struct xl_softc *);
+static void xl_mii_send		(struct xl_softc *, u_int32_t, int);
+static int xl_mii_readreg	(struct xl_softc *, struct xl_mii_frame *);
+static int xl_mii_writereg	(struct xl_softc *, struct xl_mii_frame *);
 
-static void xl_setcfg		__P((struct xl_softc *));
-static void xl_setmode		__P((struct xl_softc *, int));
-static u_int8_t xl_calchash	__P((caddr_t));
-static void xl_setmulti		__P((struct xl_softc *));
-static void xl_setmulti_hash	__P((struct xl_softc *));
-static void xl_reset		__P((struct xl_softc *));
-static int xl_list_rx_init	__P((struct xl_softc *));
-static int xl_list_tx_init	__P((struct xl_softc *));
-static int xl_list_tx_init_90xB	__P((struct xl_softc *));
-static void xl_wait		__P((struct xl_softc *));
-static void xl_mediacheck	__P((struct xl_softc *));
-static void xl_choose_xcvr	__P((struct xl_softc *, int));
+static void xl_setcfg		(struct xl_softc *);
+static void xl_setmode		(struct xl_softc *, int);
+static u_int8_t xl_calchash	(caddr_t);
+static void xl_setmulti		(struct xl_softc *);
+static void xl_setmulti_hash	(struct xl_softc *);
+static void xl_reset		(struct xl_softc *);
+static int xl_list_rx_init	(struct xl_softc *);
+static int xl_list_tx_init	(struct xl_softc *);
+static int xl_list_tx_init_90xB	(struct xl_softc *);
+static void xl_wait		(struct xl_softc *);
+static void xl_mediacheck	(struct xl_softc *);
+static void xl_choose_xcvr	(struct xl_softc *, int);
 #ifdef notdef
-static void xl_testpacket	__P((struct xl_softc *));
+static void xl_testpacket	(struct xl_softc *);
 #endif
 
-static int xl_miibus_readreg	__P((device_t, int, int));
-static int xl_miibus_writereg	__P((device_t, int, int, int));
-static void xl_miibus_statchg	__P((device_t));
-static void xl_miibus_mediainit	__P((device_t));
+static int xl_miibus_readreg	(device_t, int, int);
+static int xl_miibus_writereg	(device_t, int, int, int);
+static void xl_miibus_statchg	(device_t);
+static void xl_miibus_mediainit	(device_t);
 
 #ifdef XL_USEIOSPACE
 #define XL_RES			SYS_RES_IOPORT

@@ -141,39 +141,39 @@ MODULE_DEPEND(tx, miibus, 1, 1, 1);
 #define EPIC_INTR_RET_TYPE int
 #endif
 
-static int epic_ifioctl __P((register struct ifnet *, u_long, caddr_t));
-static EPIC_INTR_RET_TYPE epic_intr __P((void *));
-static int epic_common_attach __P((epic_softc_t *));
-static void epic_ifstart __P((struct ifnet *));
-static void epic_ifwatchdog __P((struct ifnet *));
-static int epic_init __P((epic_softc_t *));
-static void epic_stop __P((epic_softc_t *));
-static void epic_rx_done __P((epic_softc_t *));
-static void epic_tx_done __P((epic_softc_t *));
-static int epic_init_rings __P((epic_softc_t *));
-static void epic_free_rings __P((epic_softc_t *));
-static void epic_stop_activity __P((epic_softc_t *));
-static void epic_start_activity __P((epic_softc_t *));
-static void epic_set_rx_mode __P((epic_softc_t *));
-static void epic_set_tx_mode __P((epic_softc_t *));
-static void epic_set_mc_table __P((epic_softc_t *));
-static int epic_read_eeprom __P((epic_softc_t *,u_int16_t));
-static void epic_output_eepromw __P((epic_softc_t *, u_int16_t));
-static u_int16_t epic_input_eepromw __P((epic_softc_t *));
-static u_int8_t epic_eeprom_clock __P((epic_softc_t *,u_int8_t));
-static void epic_write_eepromreg __P((epic_softc_t *,u_int8_t));
-static u_int8_t epic_read_eepromreg __P((epic_softc_t *));
+static int epic_ifioctl(register struct ifnet *, u_long, caddr_t);
+static EPIC_INTR_RET_TYPE epic_intr(void *);
+static int epic_common_attach(epic_softc_t *);
+static void epic_ifstart(struct ifnet *);
+static void epic_ifwatchdog(struct ifnet *);
+static int epic_init(epic_softc_t *);
+static void epic_stop(epic_softc_t *);
+static void epic_rx_done(epic_softc_t *);
+static void epic_tx_done(epic_softc_t *);
+static int epic_init_rings(epic_softc_t *);
+static void epic_free_rings(epic_softc_t *);
+static void epic_stop_activity(epic_softc_t *);
+static void epic_start_activity(epic_softc_t *);
+static void epic_set_rx_mode(epic_softc_t *);
+static void epic_set_tx_mode(epic_softc_t *);
+static void epic_set_mc_table(epic_softc_t *);
+static int epic_read_eeprom(epic_softc_t *,u_int16_t);
+static void epic_output_eepromw(epic_softc_t *, u_int16_t);
+static u_int16_t epic_input_eepromw(epic_softc_t *);
+static u_int8_t epic_eeprom_clock(epic_softc_t *,u_int8_t);
+static void epic_write_eepromreg(epic_softc_t *,u_int8_t);
+static u_int8_t epic_read_eepromreg(epic_softc_t *);
 
-static int epic_read_phy_reg __P((epic_softc_t *, int, int));
-static void epic_write_phy_reg __P((epic_softc_t *, int, int, int));
+static int epic_read_phy_reg(epic_softc_t *, int, int);
+static void epic_write_phy_reg(epic_softc_t *, int, int, int);
 
-static int epic_miibus_readreg __P((device_t, int, int));
-static int epic_miibus_writereg __P((device_t, int, int, int));
-static void epic_miibus_statchg __P((device_t));
-static void epic_miibus_mediainit __P((device_t));
+static int epic_miibus_readreg(device_t, int, int);
+static int epic_miibus_writereg(device_t, int, int, int);
+static void epic_miibus_statchg(device_t);
+static void epic_miibus_mediainit(device_t);
 
-static int epic_ifmedia_upd __P((struct ifnet *));
-static void epic_ifmedia_sts __P((struct ifnet *, struct ifmediareq *));
+static int epic_ifmedia_upd(struct ifnet *);
+static void epic_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 /* -------------------------------------------------------------------------
    OS-specific part
@@ -182,9 +182,9 @@ static void epic_ifmedia_sts __P((struct ifnet *, struct ifmediareq *));
 #if defined(__OpenBSD__)
 /* -----------------------------OpenBSD------------------------------------- */
 
-int epic_openbsd_probe __P((struct device *,void *,void *));
-void epic_openbsd_attach __P((struct device *, struct device *, void *));
-void epic_openbsd_shutdown __P((void *));
+int epic_openbsd_probe(struct device *,void *,void *);
+void epic_openbsd_attach(struct device *, struct device *, void *);
+void epic_openbsd_shutdown(void *);
 
 struct cfattach tx_ca = {
 	sizeof(epic_softc_t), epic_openbsd_probe, epic_openbsd_attach 
@@ -333,11 +333,11 @@ epic_openbsd_shutdown(
 #else /* __FreeBSD__ */
 /* -----------------------------FreeBSD------------------------------------- */
 
-static int epic_freebsd_probe __P((device_t));
-static int epic_freebsd_attach __P((device_t));
-static void epic_freebsd_shutdown __P((device_t));
-static int epic_freebsd_detach __P((device_t));
-static struct epic_type *epic_devtype __P((device_t));
+static int epic_freebsd_probe(device_t);
+static int epic_freebsd_attach(device_t);
+static void epic_freebsd_shutdown(device_t);
+static int epic_freebsd_detach(device_t);
+static struct epic_type *epic_devtype(device_t);
 
 static device_method_t epic_methods[] = {
 	/* Device interface */   

@@ -36,12 +36,12 @@
 
 extern devclass_t snc_devclass;
 
-void	snc_release_resources	__P((device_t));
-int	snc_alloc_port		__P((device_t, int));
-int	snc_alloc_memory	__P((device_t, int));
-int	snc_alloc_irq		__P((device_t, int, int));
+void	snc_release_resources	(device_t);
+int	snc_alloc_port		(device_t, int);
+int	snc_alloc_memory	(device_t, int);
+int	snc_alloc_irq		(device_t, int, int);
 
-int	snc_probe		__P((device_t, int));
-int	snc_attach		__P((device_t));
+int	snc_probe		(device_t, int);
+int	snc_attach		(device_t);
 
-void	snc_shutdown		__P((device_t));
+void	snc_shutdown		(device_t);

@@ -42,9 +42,9 @@
 
 #include <pci/pcivar.h>
 
-static	int	sio_pci_attach __P((device_t dev));
-static	void	sio_pci_kludge_unit __P((device_t dev));
-static	int	sio_pci_probe __P((device_t dev));
+static	int	sio_pci_attach(device_t dev);
+static	void	sio_pci_kludge_unit(device_t dev);
+static	int	sio_pci_probe(device_t dev);
 
 static device_method_t sio_pci_methods[] = {
 	/* Device interface */

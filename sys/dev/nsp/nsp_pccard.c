@@ -74,7 +74,7 @@
 static int nspprobe(DEVPORT_PDEVICE devi);
 static int nspattach(DEVPORT_PDEVICE devi);
 
-static	void	nsp_card_unload	__P((DEVPORT_PDEVICE));
+static	void	nsp_card_unload	(DEVPORT_PDEVICE);
 
 /*
  * Additional code for FreeBSD new-bus PCCard frontend

@@ -71,7 +71,7 @@
 
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 
-typedef void ispfwfunc __P((int, int, int, u_int16_t **));
+typedef void ispfwfunc(int, int, int, u_int16_t **);
 
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
