@@ -1588,6 +1588,14 @@ bpfattach(ifp, dlt, hdrlen)
 }
 
 void
+bpfattach2(ifp, dlt, hdrlen, driverp)
+	struct ifnet *ifp;
+	u_int dlt, hdrlen;
+	struct bpf_if **driverp;
+{
+}
+
+void
 bpfdetach(ifp)
 	struct ifnet *ifp;
 {
