@@ -112,6 +112,7 @@ typedef struct {
 
 static char    	    *fname;	/* name of current file (for errors) */
 static int          lineno;	/* line number in current file */
+static int          savedlineno;	/* saved line number */
 static FILE   	    *curFILE = NULL; 	/* current makefile */
 
 static PTR 	    *curPTR = NULL; 	/* current makefile */
@@ -1792,7 +1793,7 @@ Parse_FromString(char *str)
     curFILE = NULL;
     curPTR = (PTR *) emalloc (sizeof (PTR));
     curPTR->str = curPTR->ptr = str;
-    lineno = 0;
+    lineno = savedlineno;
     fname = estrdup(fname);
 }
 
@@ -2277,6 +2278,7 @@ test_char:
 		if (For_Eval(line)) {
 		    int ok;
 		    free(line);
+		    savedlineno = lineno;
 		    do {
 			/*
 			 * Skip after the matching end
