@@ -418,7 +418,7 @@ eth_transmit(d,t,s,p)
                 *(eth_bmem+13) = t;
                 bcopy(p, eth_bmem+14, s);
                 s += 14;
-                while (s < ETHER_MIN_LAN) *(eth_bmem+(s++)) = 0;
+                while (s < ETHER_MIN_LEN) *(eth_bmem+(s++)) = 0;
         }
 #endif
 #ifdef INCLUDE_WD
