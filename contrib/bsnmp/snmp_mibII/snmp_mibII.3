@@ -30,12 +30,13 @@
 .\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmp_mibII/snmp_mibII.3,v 1.2 2003/12/03 10:01:19 hbb Exp $
+.\" $Begemot: bsnmp/snmp_mibII/snmp_mibII.3,v 1.3 2004/04/13 17:01:31 novo Exp $
 .\"
 .Dd August 19, 2002
 .Dt snmp_mibII 3
 .Os
 .Sh NAME
+.Nm mibII ,
 .Nm mibif_notify_f ,
 .Nm mib_netsock ,
 .Nm mib_if_set_dyn ,
@@ -61,7 +62,7 @@
 .Nm mibif_unnotify
 .Nd "mib-2 module for snmpd.
 .Sh LIBRARY
-.Pq begemotSnmpdModulePath."mibII" = "/usr/local/lib/snmp_mibII.so"
+.Pq begemotSnmpdModulePath."mibII" = "@MODPATH@snmp_mibII.so"
 .Sh SYNOPSIS
 .In bsnmp/snmpmod.h
 .In bsnmp/snmp_mibII.h
@@ -116,7 +117,7 @@ The
 module implements parts of the internet standard MIB-2. Most of the relevant
 MIBs are implemented. Some of the tables are restricted to be read-only
 instead of read-write. The exact current implementation can be found in
-.Pa /usr/local/include/bsnmp/mibII_tree.def .
+.Pa @DEFPATH@mibII_tree.def .
 The module also exports a number of functions and global variables for use
 by other modules, that need to handle network interfaces. This man page describes
 these functions.
@@ -333,11 +334,12 @@ Both functions need the pointers to the interfaces. Entries are automatically
 deleted if any of the interfaces of the entry is destroyed. The functions handle
 both the stack table and the reverse stack table.
 .Sh FILES
-.Bl -tag -width ".It Pa /usr/local/include/bsnmp/mibII_tree.def" -compact
-.It Pa /usr/local/include/bsnmp/mibII_tree.def
+.Bl -tag -width ".It Pa @DEFPATH@mibII_tree.def" -compact
+.It Pa @DEFPATH@mibII_tree.def
 The description of the MIB tree implemented by
 .Nm .
 .It Pa /usr/local/share/snmp/mibs
+.It Pa @MIBSPATH@
 The various internet MIBs.
 .Sh SEE ALSO
 .Xr snmpmod 3 ,
@@ -345,4 +347,4 @@ The various internet MIBs.
 .Sh STANDARDS
 This implementation conforms to the applicable IETF RFCs.
 .Sh AUTHORS
-.An Hartmut Brandt Aq brandt@fokus.gmd.de
+.An Hartmut Brandt Aq harti@freebsd.org

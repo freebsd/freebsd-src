@@ -1,3 +1,36 @@
+1.6
+	New gensnmpdef tool. Needs libsmi.
+
+	Make build infrastructure more intelligent.
+
+	Fix a typo in the mibII counter retrival code.
+
+	Add a new field to struct snmp_node for snmp agents: tree_data.
+	This field can be used by the application.
+
+	Fix a syntax error in the example configuration file (thanks to
+	David J Duchscher).
+
+	Fix a long standing problem with the module loading code
+	and a memory leak. When a module could not be loaded usually
+	a core dump was generated. This was caused by wrong handling
+	of malloced memory in the module table dependency. While
+	fixing this problem it became obvious that dynamic allocated
+	data which was held in a dependency could be lost, because
+	there was no guarantee that the dependency handler ever was
+	call (in case of an error in a SET handler or an earlier
+	dependency in the same PDU) thus causing this memory to leak.
+	To fix this a third dependency operation is introduced
+	SNMP_DEPOP_FINISH which is invoked just before a dependency
+	is freed at the very end of the SET PDU handling. This
+	means also that finalizers (set_atfinish) can be converted
+	to DEPOP_FINISH handler in almost all cases. The only case
+	where this is not so easy is when a finializer was registered
+	for a simple SET operation. In this case an artifical dependency
+	would be needed. Because this seems to occure very seldom the
+	snmp_set_atfinish() call is removed. Thanks to Paul-Henning Kamp
+	for an initial fix for the core dump.
+
 09-Dec-2003
 	First step on factoring out the transport mapping stuff into
 	loadable modules.

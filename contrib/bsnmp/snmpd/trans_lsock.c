@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trans_lsock.c,v 1.3 2003/12/09 12:28:53 hbb Exp $
+ * $Begemot: bsnmp/snmpd/trans_lsock.c,v 1.4 2004/04/13 14:58:46 novo Exp $
  *
  * Local domain socket transport
  */
@@ -90,7 +90,7 @@ lsock_stop(int force)
 	if (my_trans != NULL) {
 		if (!force && trans_first_port(my_trans) != NULL)
 			return (SNMP_ERR_GENERR);
-		trans_iter_port(my_trans, lsock_remove, NULL);
+		trans_iter_port(my_trans, lsock_remove, 0);
 		return (trans_unregister(my_trans));
 	}
 	return (SNMP_ERR_NOERROR);
@@ -117,10 +117,9 @@ lsock_open_port(u_char *name, size_t namelen, struct lsock_port **pp,
 	int err;
 	struct sockaddr_un sa;
 
-	if (namelen == 0 || namelen + 1 > sizeof(sa.sun_path)) {
-		free(name);
+	if (namelen == 0 || namelen + 1 > sizeof(sa.sun_path))
 		return (SNMP_ERR_BADVALUE);
-	}
+
 	switch (type) {
 	  case LOCP_DGRAM_UNPRIV:
 		is_stream = 0;
@@ -143,25 +142,21 @@ lsock_open_port(u_char *name, size_t namelen, struct lsock_port **pp,
 		break;
 
 	  default:
-		free(name);
 		return (SNMP_ERR_BADVALUE);
 	}
 
-	if ((port = malloc(sizeof(*port))) == NULL) {
-		free(name);
+	if ((port = malloc(sizeof(*port))) == NULL)
 		return (SNMP_ERR_GENERR);
-	}
+
 	memset(port, 0, sizeof(*port));
 	if (!is_stream) {
 		if ((peer = malloc(sizeof(*peer))) == NULL) {
-			free(name);
 			free(port);
 			return (SNMP_ERR_GENERR);
 		}
 		memset(peer, 0, sizeof(*peer));
 	}
 	if ((port->name = malloc(namelen + 1)) == NULL) {
-		free(name);
 		free(port);
 		if (!is_stream)
 			free(peer);
@@ -444,18 +439,7 @@ struct lsock_dep {
 #define	LD_TYPE		0x01
 #define	LD_STATUS	0x02
 #define	LD_CREATE	0x04	/* rollback create */
-
-/*
- * Finish handler for deleting a port - this cannot fail :-)
- */
-static void
-lsock_del(struct snmp_context *ctx __unused, int fail, void *arg)
-{
-	struct lsock_dep *ld = (struct lsock_dep *)(void *)arg;
-
-	if (!fail)
-		lsock_close_port(&ld->port->tport);
-}
+#define	LD_DELETE	0x08	/* rollback delete */
 
 /*
  * dependency handler for lsock ports
@@ -484,16 +468,12 @@ lsock_func(struct snmp_context *ctx, struct snmp_dependency *dep,
 					ld->set |= LD_CREATE;
 			}
 		} else if (!ld->status) {
-			/* delete - hard to roll back so defer to
-			 * finish handler */
-			if (snmp_set_atfinish(ctx, lsock_del, ld->port))
-				err = SNMP_ERR_RES_UNAVAIL;
+			/* delete - hard to roll back so defer to finalizer */
+			ld->set |= LD_DELETE;
 		} else
 			/* modify - read-only */
 			err = SNMP_ERR_READONLY;
 
-		free(ld->path);
-		ld->path = NULL;
 		return (err);
 
 	  case SNMP_DEPOP_ROLLBACK:
@@ -501,6 +481,12 @@ lsock_func(struct snmp_context *ctx, struct snmp_dependency *dep,
 			/* was create */
 			lsock_close_port(&ld->port->tport);
 		}
+		return (SNMP_ERR_NOERROR);
+
+	  case SNMP_DEPOP_FINISH:
+		if ((ld->set & LD_DELETE) && ctx->code == SNMP_RET_OK)
+			lsock_close_port(&ld->port->tport);
+		free(ld->path);
 		return (SNMP_ERR_NOERROR);
 	}
 	abort();

@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_ipaddr.c,v 1.7 2003/12/03 10:01:19 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_ipaddr.c,v 1.8 2004/04/13 14:58:46 novo Exp $
  *
  * IP address table. This table is writeable!
  *
@@ -138,35 +138,16 @@ modify(struct update *upd, struct mibifa *ifa)
 }
 
 /*
- * Remove an IP address from an interface. This is called when
- * the SET finishes.
- */
-static void
-destroy_func(struct snmp_context *ctx __unused, int fail __unused, void *arg)
-{
-	struct mibifa *ifa = arg;
-
-	if (ifa->flags & MIBIFA_DESTROYED) {
-		TAILQ_REMOVE(&mibifa_list, ifa, link);
-		free(ifa);
-	}
-}
-
-/*
  * Destroy the given row in the table. We remove the address from the
  * system, but keep the structure around for the COMMIT. It's deleted
- * only in the finish function.
+ * only in the FINISH operation.
  */
 static int
-destroy(struct snmp_context *ctx, struct update *upd, struct mibifa *ifa)
+destroy(struct snmp_context *ctx __unused, struct update *upd,
+    struct mibifa *ifa)
 {
 	if (mib_destroy_ifa(ifa))
 		return (SNMP_ERR_GENERR);
-	if (snmp_set_atfinish(ctx, destroy_func, ifa)) {
-		syslog(LOG_ERR, "atfinish: %m");
-		mib_undestroy_ifa(ifa);
-		return (SNMP_ERR_GENERR);
-	}
 	upd->rb |= RB_DESTROY;
 	return (SNMP_ERR_NOERROR);
 }
@@ -217,6 +198,15 @@ update_func(struct snmp_context *ctx, struct snmp_dependency *dep,
 			ifa->inbcast = upd->rb_bcast;
 			mib_unmodify_ifa(ifa);
 			return (SNMP_ERR_NOERROR);
+		}
+		return (SNMP_ERR_NOERROR);
+
+	  case SNMP_DEPOP_FINISH:
+		if ((upd->rb & RB_DESTROY) &&
+		    (ifa = mib_find_ifa(upd->addr)) != NULL &&
+		    (ifa->flags & MIBIFA_DESTROYED)) {
+			TAILQ_REMOVE(&mibifa_list, ifa, link);
+			free(ifa);
 		}
 		return (SNMP_ERR_NOERROR);
 	}
