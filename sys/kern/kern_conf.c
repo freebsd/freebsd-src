@@ -315,6 +315,11 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	int i;
 
 	dev = makedev(devsw->d_maj, minor);
+	if (dev->si_flags & SI_NAMED) {
+		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
+		    dev->si_name);
+		return (dev);
+	}
 	va_start(ap, fmt);
 	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
 	dev->si_name[i] = '\0';
@@ -323,6 +328,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	dev->si_uid = uid;
 	dev->si_gid = gid;
 	dev->si_mode = perms;
+	dev->si_flags |= SI_NAMED;
 
 	if (devfs_create_hook)
 		devfs_create_hook(dev);
@@ -338,6 +344,7 @@ make_dev_alias(dev_t pdev, char *fmt, ...)
 
 	dev = allocdev();
 	dev->si_flags |= SI_ALIAS;
+	dev->si_flags |= SI_NAMED;
 	dev->si_drv1 = pdev;
 	LIST_INSERT_HEAD(&pdev->si_names, dev, si_hash);
 
@@ -354,11 +361,20 @@ make_dev_alias(dev_t pdev, char *fmt, ...)
 void
 destroy_dev(dev_t dev)
 {
+	
+	if (!(dev->si_flags & SI_NAMED)) {
+		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
+		    major(dev), minor(dev));
+		return;
+	}
+		
 	if (devfs_destroy_hook)
 		devfs_destroy_hook(dev);
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;
+	dev->si_flags &= ~SI_NAMED;
+	dev->si_flags &= ~SI_ALIAS;
 	freedev(dev);
 }
 
