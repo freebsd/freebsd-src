@@ -35,7 +35,7 @@
  */
 
 #define	TODO							\
-	panic("implement " __func__)
+	panic("implement %s", __func__)
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
@@ -86,19 +86,19 @@
 #define ALIGN(p)	_ALIGN(p)
 
 #define	PAGE_SHIFT_8K	13
-#define	PAGE_SIZE_8K	(1<<PAGE_SHIFT_8K)
+#define	PAGE_SIZE_8K	(1UL<<PAGE_SHIFT_8K)
 #define	PAGE_MASK_8K	(PAGE_SIZE_8K-1)
 
 #define	PAGE_SHIFT_64K	16
-#define	PAGE_SIZE_64K	(1<<PAGE_SHIFT_64K)
+#define	PAGE_SIZE_64K	(1UL<<PAGE_SHIFT_64K)
 #define	PAGE_MASK_64K	(PAGE_SIZE_64K-1)
 
 #define	PAGE_SHIFT_512K	19
-#define	PAGE_SIZE_512K	(1<<PAGE_SHIFT_512K)
+#define	PAGE_SIZE_512K	(1UL<<PAGE_SHIFT_512K)
 #define	PAGE_MASK_512K	(PAGE_SIZE_512K-1)
 
 #define	PAGE_SHIFT_4M	22
-#define	PAGE_SIZE_4M	(1<<PAGE_SHIFT_4M)
+#define	PAGE_SIZE_4M	(1UL<<PAGE_SHIFT_4M)
 #define	PAGE_MASK_4M	(PAGE_SIZE_4M-1)
 
 #define PAGE_SHIFT_MIN	PAGE_SHIFT_8K
@@ -171,6 +171,10 @@
 #define sparc64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
+
+#define	ASSERT_EQUAL(x, y)	_ASSERT_EQUAL(x, y, __LINE__)
+#define	_ASSERT_EQUAL(x, y, z)	__ASSERT_EQUAL(x, y, z)
+#define	__ASSERT_EQUAL(x, y, z)	typedef char __assert ## z[(x) == (y) ? 1 : -1]
 
 #endif /* !_MACHINE_PARAM_H_ */
 #endif /* !_NO_NAMESPACE_POLLUTION */
