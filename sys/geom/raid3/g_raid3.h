@@ -35,6 +35,11 @@
 #define	G_RAID3_CLASS_NAME	"RAID3"
 
 #define	G_RAID3_MAGIC		"GEOM::RAID3"
+/*
+ * Version history:
+ * 0 - Initial version number.
+ * 1 - Added 'round-robin reading' algorithm.
+ */
 #define	G_RAID3_VERSION		1
 
 #define	G_RAID3_DISK_FLAG_DIRTY		0x0000000000000001ULL
