@@ -180,7 +180,7 @@ mfs_mount(mp, path, data, ndp, p)
 		 ***
 		 */
 
-		/* you loose */
+		/* you lose */
 		panic("mfs_mount: mount MFS as root: not configured!");
 	}
 
