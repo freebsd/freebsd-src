@@ -358,7 +358,8 @@ iso_mountfs(devvp, mp, p, argp)
 					if (bcmp(sup->escape, "%/E", 3) == 0)
 						joliet_level = 3;
 
-					if (isonum_711 (sup->flags) & 1)
+					if ((isonum_711 (sup->flags) & 1) &&
+					    (argp->flags & ISOFSMNT_BROKENJOLIET) == 0)
 						joliet_level = 0;
 				}
 			}
