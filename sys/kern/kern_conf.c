@@ -398,6 +398,7 @@ destroy_dev(dev_t dev)
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;
+	bzero(&dev->__si_u, sizeof(dev->__si_u));
 	dev->si_flags &= ~SI_NAMED;
 	dev->si_flags &= ~SI_ALIAS;
 	freedev(dev);
