@@ -36,8 +36,7 @@
 #define	KSE_STACKSIZE		16384
 
 #define	THR_GETCONTEXT(ucp)	_alpha_save_context(&(ucp)->uc_mcontext)
-#define	THR_SETCONTEXT(ucp)	_alpha_restore_context(&(ucp)->uc_mcontext, \
-				    0, NULL)
+#define	THR_SETCONTEXT(ucp)	PANIC("THR_SETCONTEXT() now in use!\n")
 
 #define	PER_THREAD
 
@@ -50,11 +49,11 @@ struct tdv;	/* We don't know what this is yet? */
 /*
  * tp points to one of these. We define the static TLS as an array
  * of long double to enforce 16-byte alignment of the TLS memory,
- * struct ia64_tp, struct tcb and also struct kcb. Both static and
+ * struct alpha_tp, struct tcb and also struct kcb. Both static and
  * dynamic allocation of any of these structures will result in a
  * valid, well-aligned thread pointer.
  */
-struct ia64_tp {
+struct alpha_tp {
 	struct tdv		*tp_tdv;	/* dynamic TLS */
 	uint64_t		_reserved_;
 	long double		tp_tls[0];	/* static TLS */
@@ -65,7 +64,7 @@ struct tcb {
 	struct pthread		*tcb_thread;
 	struct kcb		*tcb_curkcb;
 	long			tcb_isfake;
-	struct ia64_tp		tcb_tp;
+	struct alpha_tp		tcb_tp;
 };
 
 struct kcb {
