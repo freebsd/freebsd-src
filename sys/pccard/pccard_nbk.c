@@ -94,6 +94,7 @@ SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
 SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_end, CTLFLAG_RW,
     &mem_end, 0, "");
 
+#if __FreeBSD_version >= 500000
 /*
  * glue for NEWCARD/OLDCARD compat layer
  */
@@ -108,6 +109,7 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 {
 	return (CARD_COMPAT_ATTACH(dev));
 }
+#endif
 
 static int
 pccard_probe(device_t dev)
@@ -325,10 +327,18 @@ pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
 
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
-    u_int32_t offset, u_int32_t *deltap)
+    u_int32_t offset
+#if __FreeBSD_version >= 500000
+    , u_int32_t *deltap
+#endif
+)
 {
 	return (CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset, deltap));
+	    offset
+#if __FreeBSD_version >= 500000
+	    , deltap
+#endif
+	));
 }
 
 static int
@@ -339,6 +349,7 @@ pccard_get_memory_offset(device_t bus, device_t child, int rid,
 	    offset));
 }
 
+#if __FreeBSD_version >= 500000
 static int
 pccard_get_function_num(device_t bus, device_t child, int *function)
 {
@@ -366,6 +377,7 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 {
 	return (NULL);
 }
+#endif
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
@@ -394,12 +406,13 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
+#if __FreeBSD_version >= 500000
 	DEVMETHOD(card_get_function,	pccard_get_function_num),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
-
+#endif
 	{ 0, 0 }
 };
 
