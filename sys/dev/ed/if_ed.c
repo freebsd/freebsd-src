@@ -2639,7 +2639,7 @@ ed_ioctl(ifp, command, data)
 		 */
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_flags & IFF_RUNNING) == 0)
-				ed_init(ifp->if_softc);
+				ed_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				ed_stop(sc);
