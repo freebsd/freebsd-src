@@ -42,7 +42,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
 
 #define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
+  "%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
    %{p:-Bstatic} %{pg:-Bstatic} %{Z}"
 
 /* This goes away when the math emulator is fixed.  */
