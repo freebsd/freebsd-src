@@ -21,25 +21,26 @@
 #include <netatalk/at_var.h>
 #include <netatalk/at_extern.h>
 
-struct at_ifaddr	*at_ifaddr_list;
+struct at_ifaddr *at_ifaddr_list;
 
-static int aa_dorangeroute(struct ifaddr *ifa,
-			u_int first, u_int last, int cmd);
-static int aa_addsingleroute(struct ifaddr *ifa,
-			struct at_addr *addr, struct at_addr *mask);
-static int aa_delsingleroute(struct ifaddr *ifa,
-			struct at_addr *addr, struct at_addr *mask);
+static int aa_dorangeroute(struct ifaddr *ifa, u_int first, u_int last,
+	    int cmd);
+static int aa_addsingleroute(struct ifaddr *ifa, struct at_addr *addr,
+	    struct at_addr *mask);
+static int aa_delsingleroute(struct ifaddr *ifa, struct at_addr *addr,
+	    struct at_addr *mask);
 static int aa_dosingleroute(struct ifaddr *ifa, struct at_addr *addr,
-			struct at_addr *mask, int cmd, int flags);
+	    struct at_addr *mask, int cmd, int flags);
 static int at_scrub(struct ifnet *ifp, struct at_ifaddr *aa);
 static int at_ifinit(struct ifnet *ifp, struct at_ifaddr *aa,
-					struct sockaddr_at *sat);
+	    struct sockaddr_at *sat);
 static int aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw);
 
-# define sateqaddr(a,b)	((a)->sat_len == (b)->sat_len && \
-		    (a)->sat_family == (b)->sat_family && \
-		    (a)->sat_addr.s_net == (b)->sat_addr.s_net && \
-		    (a)->sat_addr.s_node == (b)->sat_addr.s_node)
+#define	sateqaddr(a,b)							\
+	((a)->sat_len == (b)->sat_len &&				\
+	(a)->sat_family == (b)->sat_family &&				\
+	(a)->sat_addr.s_net == (b)->sat_addr.s_net &&			\
+	(a)->sat_addr.s_node == (b)->sat_addr.s_node)
 
 int
 at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
