@@ -49,7 +49,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/timex.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 
 /*

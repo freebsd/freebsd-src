@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.4 1994/10/22 11:40:28 phk Exp $
+ * $Id: inflate.c,v 1.5 1995/04/15 06:54:13 phk Exp $
  *
  *
  */
@@ -19,11 +19,6 @@
 #endif
 #include <sys/mman.h>
 #include <sys/malloc.h>
-
-#ifdef KERNEL
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
-#endif
 
 /* needed to make inflate() work */
 #define	uch u_char

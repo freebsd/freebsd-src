@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.27 1995/11/01 17:18:27 wollman Exp $
+ * $Id: ip_input.c,v 1.28 1995/11/14 20:34:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -45,8 +45,6 @@
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
