@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.89 1995/01/27 08:06:43 jkh Exp $
+#	$Id: Makefile,v 1.90 1995/01/27 08:30:35 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -169,7 +169,7 @@ release20:
 		${MAKE} floppies )
 
 EXTRADISTRIBUTIONS=	secure games manpages proflibs dict info
-DISTRIBUTIONS=	bin src ${EXTRADISTRIBUTIONS}
+DISTRIBUTIONS=	bin ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 
 jkhdist:
