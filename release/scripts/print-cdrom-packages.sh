@@ -173,12 +173,17 @@ fi
 ## End of set for CDROM #2
 
 ## Start of set for CDROM #3
-CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
+CDROM_SET_3="${CDROM_SET_3} editors/xemacs"
 CDROM_SET_3="${CDROM_SET_3} lang/gnat"
+CDROM_SET_3="${CDROM_SET_3} lang/php4"
+CDROM_SET_3="${CDROM_SET_3} lang/php5"
 CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} security/portaudit"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj-jadetex"
+CDROM_SET_3="${CDROM_SET_3} www/apache13"
+CDROM_SET_3="${CDROM_SET_3} www/apache13-modssl"
+CDROM_SET_3="${CDROM_SET_3} www/apache2"
 
 ## End of set for CDROM #3
 
