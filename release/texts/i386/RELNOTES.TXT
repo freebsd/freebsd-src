@@ -129,6 +129,10 @@ be found in /usr/src/sys/ufs/ffs/README.snapshot.
 Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
 been added, in the form of the aac(4) driver.
 
+The ng_mppc(4) and ng_bridge(4) node types have been added to the
+netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
+Miscellaneous bug fixes and enhancements have also been made. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
