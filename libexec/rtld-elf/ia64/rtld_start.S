@@ -67,7 +67,7 @@ ENTRY(_rtld_start, 0)
 	;;
 	alloc	r2=ar.pfs,0,0,3,0	// dump register frame
 	mov	out2=r15
-
+	;;
 	br.call.sptk.many rp=b7		// transfer to main program
 	br.call.sptk.many rp=exit	// die
 END(_rtld_start)
