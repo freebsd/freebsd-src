@@ -138,7 +138,7 @@ SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
 #endif
 static struct sleepqueue_chain sleepq_chains[SC_TABLESIZE];
 
-MALLOC_DEFINE(M_SLEEPQUEUE, "sleep queues", "sleep queues");
+static MALLOC_DEFINE(M_SLEEPQUEUE, "sleep queues", "sleep queues");
 
 /*
  * Prototypes for non-exported routines.

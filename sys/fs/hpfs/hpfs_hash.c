@@ -42,7 +42,7 @@
 
 #include <fs/hpfs/hpfs.h>
 
-MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
+static MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
 
 /*
  * Structures associated with hpfsnode cacheing.

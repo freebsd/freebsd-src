@@ -147,7 +147,7 @@ static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
 
-MALLOC_DEFINE(M_MPTABLE, "MP Table", "MP Table Items");
+static MALLOC_DEFINE(M_MPTABLE, "MP Table", "MP Table Items");
 
 static enum intr_polarity conforming_polarity(u_char src_bus,
 	    u_char src_bus_irq);
