@@ -33,6 +33,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-	"usage: comcontrol <filename|-> [dtrwait [<n>]] [drainwait [<n>]]\n");
+	"usage: comcontrol <filename>|- [dtrwait <n>] [drainwait <n>]\n");
 	exit(1);
 }
 
@@ -53,9 +54,8 @@ main(int argc, char *argv[])
 {
 	int	fd;
 	int     res = 0;
+	int     print_dtrwait = 1, print_drainwait = 1;
 	int     dtrwait = -1, drainwait = -1;
-	int     temp;
-	int     output = 0;
 
 	if (argc < 2)
 		usage();
@@ -69,49 +69,39 @@ main(int argc, char *argv[])
 			return 1;
 		}
 	}
-
 	if (argc == 2) {
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
-			res = 1;
-			warn("TIOCMGDTRWAIT");
+			print_dtrwait = 0;
+			if (errno != ENOTTY) {
+				res = 1;
+				warn("TIOCMGDTRWAIT");
+			}
 		}
 		if (ioctl(fd, TIOCGDRAINWAIT, &drainwait) < 0) {
-			res = 1;
-			warn("TIOCGDRAINWAIT");
+			print_drainwait = 0;
+			if (errno != ENOTTY) {
+				res = 1;
+				warn("TIOCGDRAINWAIT");
+			}
 		}
-		printf("dtrwait %d drainwait %d ", dtrwait, drainwait);
-		output = 1;
+		if (print_dtrwait)
+			printf("dtrwait %d ", dtrwait);
+		if (print_drainwait)
+			printf("drainwait %d ", drainwait);
+		printf("\n");
 	} else {
 		while (argv[2] != NULL) {
 			if (!strcmp(argv[2],"dtrwait")) {
-				if (argv[3] == NULL || !isdigit(argv[3][0])) {
-					if (ioctl(fd, TIOCMGDTRWAIT, &temp) < 0) {
-						res = 1;
-						temp = -1;
-						warn("TIOCMGDTRWAIT");
-					}
-					printf("dtrwait %d ", temp);
-					output = 1;
-					argv++;
-					continue;
-				}
 				if (dtrwait >= 0)
+					usage();
+				if (argv[3] == NULL || !isdigit(argv[3][0]))
 					usage();
 				dtrwait = atoi(argv[3]);
 				argv += 2;
 			} else if (!strcmp(argv[2],"drainwait")) {
-				if (argv[3] == NULL || !isdigit(argv[3][0])) {
-					if (ioctl(fd, TIOCGDRAINWAIT, &temp) < 0) {
-						res = 1;
-						temp = -1;
-						warn("TIOCGDRAINWAIT");
-					}
-					printf("drainwait %d ", temp);
-					argv++;
-					output = 1;
-					continue;
-				}
 				if (drainwait >= 0)
+					usage();
+				if (argv[3] == NULL || !isdigit(argv[3][0]))
 					usage();
 				drainwait = atoi(argv[3]);
 				argv += 2;
@@ -133,7 +123,5 @@ main(int argc, char *argv[])
 	}
 
 	close(fd);
-	if (output)
-		printf("\n");
 	return res;
 }
