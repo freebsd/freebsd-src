@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .\"     %beginstrip%
 .nr %A 1
@@ -191,6 +191,7 @@
 .	if "\\$3"vax" .as vT \ (VAX Architecture)
 .	if "\\$3"hp300" .as vT \ (HP300 Architecture)
 .	if "\\$3"i386" .as vT \ (i386 Architecture)
+.	if "\\$3"Alpha" .as vT \ (Alpha Architecture)
 .	if "\\*(vT"LOCAL" .ds vT \\$3
 .\}
 ..
