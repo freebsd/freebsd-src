@@ -32,6 +32,8 @@
 
 #if defined(CONFIG_MIDI)
 
+#include <sys/select.h>
+
 /*
  * Don't make MAX_QUEUE_SIZE larger than 4000
  */
