@@ -114,7 +114,7 @@ pnp_reload(char *fname)
 	for (pi = pnp_devices.stqh_first; pi != NULL; pi = pi->pi_link.stqe_next) {
 	    /* Already loaded? */
 	    if ((pi->pi_module != NULL) && (mod_findmodule(pi->pi_module, NULL) == NULL)) {
-		modfname = malloc(strlen(pi->pi_module + 3));
+		modfname = malloc(strlen(pi->pi_module) + 4);
 		sprintf(modfname, "%s.ko", pi->pi_module);	/* XXX implicit knowledge of KLD module filenames */
 		if (mod_load(pi->pi_module, pi->pi_argc, pi->pi_argv))
 		    printf("Could not load module '%s' for device '%s'\n", modfname, pi->pi_ident.stqh_first->id_ident);
