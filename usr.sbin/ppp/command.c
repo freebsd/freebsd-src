@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.145 1998/06/16 19:40:26 brian Exp $
+ * $Id: command.c,v 1.146 1998/06/16 19:40:35 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/16 19:40:26 $";
+const char VersionDate[] = "$Date: 1998/06/16 19:40:35 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1283,7 +1283,7 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, "mrru: Only changable at phase DEAD\n");
     else {
       ulong_val = atol(argp);
-      if (ulong_val < MIN_MRU)
+      if (ulong_val && ulong_val < MIN_MRU)
         err = "Given MRRU value (%lu) is too small.\n";
       else if (ulong_val > MAX_MRU)
         err = "Given MRRU value (%lu) is too big.\n";
