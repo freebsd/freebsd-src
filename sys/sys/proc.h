@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.58 1998/05/28 09:30:26 phk Exp $
+ * $Id: proc.h,v 1.59 1998/11/09 15:08:04 truckman Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -52,6 +52,7 @@
 #endif
 #include <sys/ucred.h>
 #include <sys/queue.h>
+#include <sys/filedesc.h>		/* For struct sigiolst */
 
 /*
  * One structure allocated per session.
@@ -72,6 +73,7 @@ struct	pgrp {
 	LIST_ENTRY(pgrp) pg_hash;	/* Hash chain. */
 	LIST_HEAD(, proc) pg_members;	/* Pointer to pgrp members. */
 	struct	session *pg_session;	/* Pointer to session. */
+	struct  sigiolst pg_sigiolst;	/* List of sigio sources */
 	pid_t	pg_id;			/* Pgrp id. */
 	int	pg_jobc;	/* # procs qualifying pgrp for job control */
 };
@@ -161,6 +163,7 @@ struct	proc {
 	unsigned char	p_pfsflags;	/* procfs flags */
 	char	p_pad3[2];		/* padding for alignment */
 	register_t p_retval[2];		/* syscall aux returns */
+	struct	sigiolst p_sigiolst;	/* List of sigio sources */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy

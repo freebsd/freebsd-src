@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.39 1998/09/05 13:24:39 bde Exp $
+ *	$Id: uipc_socket2.c,v 1.40 1998/11/04 20:22:11 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -213,7 +213,7 @@ sonewconn(head, connstatus)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	so->so_pgid = head->so_pgid;
+	fsetown(fgetown(head->so_sigio), &so->so_sigio);
 	so->so_uid = head->so_uid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
@@ -321,12 +321,8 @@ sowakeup(so, sb)
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup((caddr_t)&sb->sb_cc);
 	}
-	if (so->so_state & SS_ASYNC) {
-		if (so->so_pgid < 0)
-			gsignal(-so->so_pgid, SIGIO);
-		else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
-			psignal(p, SIGIO);
-	}
+	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
+		pgsigio(so->so_sigio, SIGIO, 0);
 	if (sb->sb_flags & SB_UPCALL)
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
 }
@@ -918,7 +914,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->so_qlimit = so->so_qlimit;
 	xso->so_timeo = so->so_timeo;
 	xso->so_error = so->so_error;
-	xso->so_pgid = so->so_pgid;
+	xso->so_pgid = so->so_sigio ? so->so_sigio->sio_pgid : 0;
 	xso->so_oobmark = so->so_oobmark;
 	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
 	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
