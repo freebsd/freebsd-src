@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pw_conf.c,v 1.5 1997/02/22 16:12:27 peter Exp $
  */
 
 #include <string.h>
@@ -306,6 +306,7 @@ read_userconfig(char const * file)
 						? (char *) bourne_shell : newstr(q);
 					break;
 				case _UC_DEFAULTGROUP:
+					q = unquote(q);
 					config.default_group = (q == NULL || !boolean_val(q, 1) || getgrnam(q) == NULL)
 						? NULL : newstr(q);
 					break;
