@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.3 1997/04/21 13:53:47 ache Exp $
+ * $Id: machine.c,v 1.4 1997/07/12 10:51:54 peter Exp $
  */
 
 
@@ -30,6 +30,7 @@
 #include <nlist.h>
 #include <math.h>
 #include <kvm.h>
+#include <pwd.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
 #include <sys/dkstat.h>
@@ -54,7 +55,8 @@ static int getkval __P((unsigned long, int *, int, char *));
 extern char* printable __P((char *));
 int swapmode __P((int *retavail, int *retfree));
 static int smpmode;
-
+static int namelength;
+static int cmdlength;
 
 
 /* get_process_info passes back a handle.  This is what it looks like: */
@@ -121,20 +123,16 @@ static struct nlist nlst[] = {
  */
 
 static char smp_header[] =
-  "  PID X                PRI NICE SIZE   RES STATE C   TIME   WCPU    CPU COMMAND";
-/* 0123456   -- field to fill in starts at header+6 */
-#define SMP_UNAME_START 6
+  "  PID %-*.*s PRI NICE  SIZE    RES STATE C   TIME   WCPU    CPU COMMAND";
 
 #define smp_Proc_format \
-	"%5d %-16.16s%3d%3d%7s %6s %-6.6s%1x%7s %5.2f%% %5.2f%% %.6s"
+	"%5d %-*.*s %3d %3d%7s %6s %-6.6s%1x%7s %5.2f%% %5.2f%% %.*s"
 
 static char up_header[] =
-  "  PID X                PRI NICE SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
-/* 0123456   -- field to fill in starts at header+6 */
-#define UP_UNAME_START 6
+  "  PID %-*.*s PRI NICE  SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 
 #define up_Proc_format \
-	"%5d %-16.16s%3d %3d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.6s"
+	"%5d %-*.*s %3d %3d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
 
 
 
@@ -235,11 +233,21 @@ struct statics *statics;
     register int i = 0;
     register int pagesize;
     int modelen;
+    struct passwd *pw;
 
     modelen = sizeof(smpmode);
     if (sysctlbyname("kern.smp_active", &smpmode, &modelen, NULL, 0) < 0 ||
 	modelen != sizeof(smpmode))
 	    smpmode = 0;
+
+    while ((pw = getpwent()) != NULL) {
+	if (strlen(pw->pw_name) > namelength)
+	    namelength = strlen(pw->pw_name);
+    }
+    if (namelength < 8)
+	namelength = 8;
+    if (namelength > 16)
+	namelength = 16;
 
     if ((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
 	return -1;
@@ -311,18 +319,14 @@ register char *uname_field;
 
 {
     register char *ptr;
+    static char Header[128];
 
-    if (smpmode)
-	ptr = smp_header + SMP_UNAME_START;
-    else
-	ptr = up_header + UP_UNAME_START;
+    snprintf(Header, sizeof(Header), smpmode ? smp_header : up_header,
+	     namelength, namelength, uname_field);
 
-    while (*uname_field != '\0')
-    {
-	*ptr++ = *uname_field++;
-    }
+    cmdlength = 80 - strlen(Header) + 6;
 
-    return(smpmode ? smp_header : up_header);
+    return Header;
 }
 
 static int swappgsin = -1;
@@ -586,6 +590,7 @@ char *(*get_userid)();
     sprintf(fmt,
 	    smpmode ? smp_Proc_format : up_Proc_format,
 	    PP(pp, p_pid),
+	    namelength, namelength,
 	    (*get_userid)(EP(pp, e_pcred.p_ruid)),
 	    PP(pp, p_priority) - PZERO,
 	    PP(pp, p_nice) - NZERO,
@@ -596,6 +601,7 @@ char *(*get_userid)();
 	    format_time(cputime),
 	    10000.0 * weighted_cpu(pct, pp) / hz,
 	    10000.0 * pct / hz,
+	    cmdlength,
 	    printable(PP(pp, p_comm)));
 
     /* return the result */
