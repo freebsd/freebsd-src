@@ -288,7 +288,7 @@ struct atm_connvc {
 	u_char		cvc_state;	/* CM - VCC state (see below) */
 	void		*cvc_tokl;	/* Stack lower layer token */
 	void		(*cvc_lower)	/* Stack lower layer handler */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	u_short		cvc_upcnt;	/* Up stack calls in progress */
 	u_short		cvc_downcnt;	/* Down stack calls in progress */
 	KBuffer		*cvc_rcvq;	/* Packet receive queue */

@@ -206,8 +206,8 @@ void
 sscop_upper(cmd, tok, arg1, arg2)
 	int	cmd;
 	void	*tok;
-	int	arg1;
-	int	arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	struct sscop	*sop = (struct sscop *)tok;
 	void		(**ptab)(struct sscop *, KBuffer *, caddr_t);
@@ -215,8 +215,8 @@ sscop_upper(cmd, tok, arg1, arg2)
 	caddr_t		trlr;
 	int		type;
 
-	ATM_DEBUG5("sscop_upper: cmd=0x%x, sop=%p, state=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, sop, sop->so_state, arg1, arg2);
+	ATM_DEBUG5("sscop_upper: cmd=0x%x, sop=%p, state=%d, arg1=%p, arg2=%p\n",
+		cmd, sop, sop->so_state, (void *)arg1, (void *)arg2);
 
 	switch (cmd) {
 
@@ -347,7 +347,7 @@ sscop_pdu_receive(m, sop, typep)
 		 */
 		KB_TAILADJ(ml, -tlen);
 		KB_DATAEND(ml, cp, caddr_t);
-		if ((int)cp & PDU_ADDR_MASK) {
+		if ((intptr_t)cp & PDU_ADDR_MASK) {
 			/*
 			 * Trailer not aligned in buffer, use local memory
 			 */

@@ -104,16 +104,16 @@ void
 sscf_uni_lower(cmd, tok, arg1, arg2)
 	int	cmd;
 	void	*tok;
-	int	arg1;
-	int	arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	struct univcc	*uvp = (struct univcc *)tok;
 	Atm_connvc	*cvp = uvp->uv_connvc;
 	enum sscop_vers	vers;
 	int		err;
 
-	ATM_DEBUG5("sscf_uni_lower: cmd=0x%x, uvp=%p, ustate=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, uvp, uvp->uv_ustate, arg1, arg2);
+	ATM_DEBUG5("sscf_uni_lower: cmd=0x%x, uvp=%p, ustate=%d, arg1=%p, arg2=%p\n",
+		cmd, uvp, uvp->uv_ustate, (void *)arg1, (void *)arg2);
 
 	switch (cmd) {
 

@@ -103,7 +103,7 @@ eni_test_memory ( eup )
 	 * Walk through to maximum looking for RAM
 	 */
 	for ( i = 0; i < MAX_ENI_MEM; i += TEST_STEP ) {
-		mp = (Eni_mem)((int)eup->eu_ram + i);
+		mp = (Eni_mem)((intptr_t)eup->eu_ram + i);
 		/* write pattern */
 		*mp = (u_long)TEST_PAT;
 		/* read pattern, match? */
@@ -254,7 +254,7 @@ eni_allocate_buffer ( eup, size )
 		 * Request will fit - now check if the
 		 * alignment needs fixing
 		 */
-		if ( ((u_int)eptr->base & (nsize-1)) != 0 )
+		if ( ((uintptr_t)eptr->base & (nsize-1)) != 0 )
 		{
 		    caddr_t	nbase;
 
@@ -262,7 +262,7 @@ eni_allocate_buffer ( eup, size )
 		     * Calculate where the buffer would have to
 		     * fall to be aligned.
 		     */
-		    nbase = (caddr_t)((u_int)( eptr->base + nsize ) &
+		    nbase = (caddr_t)((uintptr_t)( eptr->base + nsize ) &
 		        ~(nsize-1));
 		    /*
 		     * If we use this alignment, will it still fit?

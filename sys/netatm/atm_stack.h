@@ -55,9 +55,9 @@ struct stack_defn {
 	int		(*sd_inst)	/* Stack instantiation */
 				(struct stack_defn **, Atm_connvc *);
 	void		(*sd_lower)	/* Lower (from above) command handler */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	void		(*sd_upper)	/* Upper (from below) command handler */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 /* Variables used during stack instantiation */
 	void		*sd_toku;	/* Stack service instance token */
 };
@@ -266,10 +266,10 @@ struct stackq_entry {
 	struct stackq_entry *sq_next;	/* Next entry in queue */
 	int		sq_cmd;		/* Stack command */
 	void		(*sq_func)	/* Destination function */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	void		*sq_token;	/* Destination token */
-	int		sq_arg1;	/* Command-specific argument */
-	int		sq_arg2;	/* Command-specific argument */
+	intptr_t	sq_arg1;	/* Command-specific argument */
+	intptr_t	sq_arg2;	/* Command-specific argument */
 	Atm_connvc	*sq_connvc;	/* Connection VCC */
 };
 
