@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: devstat.3,v 1.1 1998/09/15 06:23:21 gibbs Exp $
+.\"	$Id: devstat.3,v 1.2 1998/09/20 00:11:09 ken Exp $
 .\"
 .Dd May 21, 1998
 .Dt DEVSTAT 3
@@ -221,7 +221,7 @@ this may be done for him in a
 library routine.
 If no devices have been selected by name or by pattern, the performance
 tracking code will select every device in the system, and sort them by
-perforcmance.  If devices have been selected by name or pattern, the
+performance.  If devices have been selected by name or pattern, the
 performance tracking code will honor those selections and will only sort
 among the selected devices.
 .It order in the devstat list
@@ -258,7 +258,7 @@ In remove mode,
 will remove devices specified by name or by matching pattern.  It will not
 select any additional devices.
 .It DS_SELECT_ADDONLY
-In addonly mode,
+In add only mode,
 .Fn selectdevs
 will select any unselected devices specified by name or matching pattern.
 In this respect it is identical to add mode.  It will not, however, select
@@ -433,7 +433,7 @@ This is average blocks per second.  If the device blocksize is
 .Sq 0 ,
 a default blocksize of 512 bytes will be used instead.
 .It ms_per_transaction
-The average number of miliseconds per transaction.
+The average number of milliseconds per transaction.
 .El
 .Pp
 .Fn compute_etime
