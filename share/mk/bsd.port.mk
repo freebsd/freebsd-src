@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.262 1997/07/10 02:29:51 asami Exp $
+#	$Id: bsd.port.mk,v 1.263 1997/07/17 17:47:36 markm Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -791,7 +791,11 @@ all: build
 .endif
 
 .if !defined(DEPENDS_TARGET)
+.if make(reinstall)
+DEPENDS_TARGET=	reinstall
+.else
 DEPENDS_TARGET=	install
+.endif
 .endif
 
 ################################################################
@@ -1113,7 +1117,13 @@ _PORT_USE: .USE
 .if make(real-install)
 .if !defined(NO_MTREE)
 	@if [ `id -u` = 0 ]; then \
-		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+		if [ ! -f ${MTREE_FILE} ]; then \
+			${ECHO_MSG} "Error: mtree file \"${MTREE_FILE}\" is missing."; \
+			${ECHO_MSG} "Copy it from a suitable location (e.g., /usr/src/etc/mtree) and try again."; \
+			exit 1; \
+		else \
+			${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+		fi; \
 	else \
 		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
 		${ECHO_MSG} "Become root and try again to ensure correct permissions."; \
@@ -1252,7 +1262,7 @@ checkpatch:
 .if !target(reinstall)
 reinstall:
 	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
-	@${MAKE} install
+	@DEPENDS_TARGET=${DEPENDS_TARGET} ${MAKE} install
 .endif
 
 ################################################################
