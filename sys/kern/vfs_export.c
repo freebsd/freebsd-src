@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.97 1997/09/02 20:06:02 bde Exp $
+ * $Id: vfs_subr.c,v 1.98 1997/09/03 09:18:48 phk Exp $
  */
 
 /*
@@ -1115,6 +1115,8 @@ vputrele(vp, put)
 	}
 
 	vp->v_usecount--;
+	if (VSHOULDFREE(vp))
+		vfree(vp);
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1123,14 +1125,8 @@ vputrele(vp, put)
 	if (put) {
 		simple_unlock(&vp->v_interlock);
 		VOP_INACTIVE(vp, p);
-		simple_lock(&vp->v_interlock);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		simple_unlock(&vp->v_interlock);
 	} else if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0) {
 		VOP_INACTIVE(vp, p);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
 	}
 }
 
