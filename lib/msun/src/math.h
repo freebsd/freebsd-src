@@ -225,8 +225,8 @@ double	cbrt(double);
 double	erf(double);
 double	erfc(double);
 double	expm1(double);
+double	fma(double, double, double);
 double	hypot(double, double);
-/* Our ilogb raises no exceptions; we side with IEEE-754R and C99, not POSIX */
 int	ilogb(double) __pure2;
 int	(isinf)(double) __pure2;
 int	(isnan)(double) __pure2;
@@ -347,6 +347,7 @@ float	scalbnf(float, int);
 float	truncf(float);
 
 float	fdimf(float, float);
+float	fmaf(float, float, float);
 float	fmaxf(float, float) __pure2;
 float	fminf(float, float) __pure2;
 #endif
