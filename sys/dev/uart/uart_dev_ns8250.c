@@ -666,7 +666,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 			count = 0;
 			goto describe;
 		}
-	} while ((lsr & LSR_OE) == 0 && count < 1030);
+	} while ((lsr & LSR_OE) == 0 && count < 130);
 	count--;
 
 	uart_setreg(bas, REG_MCR, mcr);
