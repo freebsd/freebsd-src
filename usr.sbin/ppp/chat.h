@@ -36,7 +36,7 @@
 struct physical;
 
 struct chat {
-  struct descriptor desc;
+  struct fdescriptor desc;
   struct physical *physical;
 
   int state;				/* Our CHAT_* status */

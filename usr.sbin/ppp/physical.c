@@ -97,7 +97,7 @@
 
 #define PPPOTCPLINE "ppp"
 
-static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
+static int physical_DescriptorWrite(struct fdescriptor *, struct bundle *,
                                     const fd_set *);
 
 static int
@@ -128,7 +128,7 @@ struct {
 #define NDEVICES (sizeof devices / sizeof devices[0])
 
 static int
-physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+physical_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   return physical_doUpdateSet(d, r, w, e, n, 0);
@@ -374,7 +374,7 @@ physical_Destroy(struct physical *p)
 }
 
 static int
-physical_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
+physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
                          const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
@@ -496,7 +496,7 @@ physical_ShowStatus(struct cmdargs const *arg)
 }
 
 void
-physical_DescriptorRead(struct descriptor *d, struct bundle *bundle,
+physical_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                      const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
@@ -788,7 +788,7 @@ physical_Write(struct physical *p, const void *buf, size_t nbytes)
 }
 
 int
-physical_doUpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+physical_doUpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
                      int *n, int force)
 {
   struct physical *p = descriptor2physical(d);
@@ -850,7 +850,7 @@ physical_RemoveFromSet(struct physical *p, fd_set *r, fd_set *w, fd_set *e)
 }
 
 int
-physical_IsSet(struct descriptor *d, const fd_set *fdset)
+physical_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
   return p->fd >= 0 && FD_ISSET(p->fd, fdset);

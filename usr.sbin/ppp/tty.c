@@ -202,7 +202,7 @@ tty_Raw(struct physical *p)
   log_Printf(LogDEBUG, "%s: Entering tty_Raw\n", p->link.name);
 
   if (p->type != PHYS_DIRECT && p->fd >= 0 && !Online(dev))
-    log_Printf(LogDEBUG, "%s: Raw: descriptor = %d, mbits = %x\n",
+    log_Printf(LogDEBUG, "%s: Raw: fdescriptor = %d, mbits = %x\n",
               p->link.name, p->fd, dev->mbits);
 
   if (!physical_IsSync(p)) {

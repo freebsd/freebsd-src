@@ -38,7 +38,7 @@ struct bundle;
 struct cmdargs;
 
 struct prompt {
-  struct descriptor desc;
+  struct fdescriptor desc;
   int fd_in, fd_out;
   struct datalink *TermMode;	/* The modem we're talking directly to */
   FILE *Term;			/* sits on top of fd_out */
