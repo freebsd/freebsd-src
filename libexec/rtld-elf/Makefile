@@ -4,6 +4,7 @@ PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c rtld_lock.c map_object.c malloc.c \
 		xmalloc.c debug.c reloc.c
 MAN=		rtld.1
+CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
