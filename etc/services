@@ -875,7 +875,7 @@ passgo		511/udp
 #
 exec		512/tcp	   #remote process execution;
 #			   authentication performed using
-#			   passwords and UNIX loppgin names
+#			   passwords and UNIX login names
 biff		512/udp	   comsat	#used by mail system to notify users
 #					of new mail received; currently
 #					receives messages only from
