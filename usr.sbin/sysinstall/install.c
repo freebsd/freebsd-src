@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.42 1995/05/20 19:22:20 jkh Exp $
+ * $Id: install.c,v 1.43 1995/05/20 20:30:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -140,6 +140,8 @@ installInitial(void)
     make_filesystems();
     copy_self();
     dialog_clear();
+    chroot("/mnt");
+    chdir("/");
     cpio_extract();
     alreadyDone = TRUE;
 }
@@ -272,7 +274,7 @@ copy_self(void)
     int i;
 
     msgNotify("Copying the boot floppy to /stand on root filesystem");
-    i = vsystem("find -x / | cpio -pdmv /mnt");
+    i = vsystem("find -x /stand | cpio -pdmv /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
 }
@@ -292,7 +294,7 @@ cpio_extract(void)
     }
     j = fork();
     if (!j) {
-	chroot("/mnt");	chdir("/");
+	chdir("/");
 	msgNotify("Extracting contents of CPIO floppy...");
 	pipe(pfd);
 	zpid = fork();
@@ -341,14 +343,14 @@ cpio_extract(void)
     }
     else
 	i = wait(&j);
-    if (i < 0 || _WSTATUS(j) || access("/mnt/OK", R_OK) == -1) {
+    if (i < 0 || _WSTATUS(j) || access("/OK", R_OK) == -1) {
 	dialog_clear();
 	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
 	close(CpioFD);
 	CpioFD = -1;
 	goto tryagain;
     }
-    unlink("/mnt/OK");
+    unlink("/OK");
 }
 
 static void

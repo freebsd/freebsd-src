@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.159 1995/05/20 13:49:47 jkh Exp $
+#	$Id: Makefile,v 1.160 1995/05/20 13:52:53 jkh Exp $
 #
 # How to roll a release:
 #
@@ -57,6 +57,10 @@ MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			${RELEASEDIR}/stage
 FD=			${RELEASEDIR}/ftp
 CD=			${RELEASEDIR}/cdrom
+
+.if !defined(WHICH_CRUNCH)
+WHICH_CRUNCH=	boot cpio fixit
+.endif
 
 release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME)
@@ -200,12 +204,13 @@ release.4:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
-	for j in boot cpio fixit; do \
+	for j in ${WHICH_CRUNCH} ; do \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
 		crunchgen ${.CURDIR}/$${j}_crunch.conf && \
-		${MAKE} -f $${j}_crunch.mk objs exe NOCRYPT=yes ) && \
+		${MAKE} -f $${j}_crunch.mk objs exe NOCRYPT=yes \
+		    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		rm -rf $${j}_crunch ; \
 	done
@@ -438,6 +443,10 @@ doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 floppies:
 	rm -f release.4 release.6 release.7 release.10
 	cd ${.CURDIR} && ${MAKE} doRELEASE
+
+boot.flp:
+	rm -f release.4 release.6
+	cd ${.CURDIR} && ${MAKE} release.4 release.6 WHICH_CRUNCH=boot
 
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
