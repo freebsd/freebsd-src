@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.15 1999/01/10 11:13:36 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -36,6 +36,10 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * HID spec: http://www.usb.org/developers/data/usbhid10.pdf
  */
 
 
