@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.45 1998/07/28 22:33:47 joerg Exp $
+ * $Id: kern_sig.c,v 1.46 1998/09/14 05:36:49 jdp Exp $
  */
 
 #include "opt_compat.h"
@@ -67,14 +67,6 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-
-/* All these for coredump() only. */
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/user.h>
 
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
