@@ -227,6 +227,7 @@ socreate(dom, aso, type, proto, cred, td)
 	SOCK_UNLOCK(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
+		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state |= SS_NOFDREF;
 		sorele(so);
@@ -333,9 +334,8 @@ sofree(so)
 {
 	struct socket *head;
 
-	SOCK_UNLOCK(so);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
+	ACCEPT_LOCK_ASSERT();
+	SOCK_LOCK_ASSERT(so);
 
 	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0 ||
 	    so->so_count != 0) {
@@ -467,6 +467,7 @@ drop:
 			error = error2;
 	}
 discard:
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;

@@ -140,6 +140,7 @@ uipc_abort(struct socket *so)
 	unp_drop(unp, ECONNABORTED);
 	unp_detach(unp);
 	UNP_UNLOCK_ASSERT();
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sotryfree(so);
 	return (0);

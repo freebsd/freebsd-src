@@ -147,6 +147,7 @@ raw_uabort(struct socket *so)
 		return EINVAL;
 	raw_disconnect(rp);
 	soisdisconnected(so);
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sotryfree(so);
 	return 0;

@@ -98,6 +98,7 @@ raw_detach(rp)
 {
 	struct socket *so = rp->rcb_socket;
 
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_pcb = 0;
 	sotryfree(so);

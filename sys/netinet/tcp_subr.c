@@ -1680,6 +1680,7 @@ tcp_twstart(tp)
 	}
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	tw->tw_cred = crhold(so->so_cred);
