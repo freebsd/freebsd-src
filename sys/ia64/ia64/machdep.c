@@ -353,7 +353,41 @@ again:
 static void
 identifycpu(void)
 {
-	/* print cpu type & version */
+	char vendor[17];
+	u_int64_t t;
+	int number, revision, model, family, archrev;
+	u_int64_t features;
+	char familyname[20];
+
+	/*
+	 * Assumes little-endian.
+	 */
+	*(u_int64_t *) &vendor[0] = ia64_get_cpuid(0);
+	*(u_int64_t *) &vendor[8] = ia64_get_cpuid(1);
+	vendor[16] = '\0';
+
+	t = ia64_get_cpuid(3);
+	number = (t >> 0) & 0xff;
+	revision = (t >> 8) & 0xff;
+	model = (t >> 16) & 0xff;
+	family = (t >> 24) & 0xff;
+	archrev = (t >> 32) & 0xff;
+
+	if (family == 0x7)
+		strcpy(familyname, "Itanium");
+	else if (family == 0x1f)
+		strcpy(familyname, "McKinley");
+	else
+		snprintf(familyname, sizeof(familyname), "Family=%d", family);
+
+	features = ia64_get_cpuid(4);
+
+	printf("CPU: %s\n", familyname);
+	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
+	       vendor, model, revision);
+	printf("  Features = 0x%b\n", (u_int32_t) features,
+	       "\020"
+	       "\001LB");
 }
 
 extern char kernel_text[], _end[];
