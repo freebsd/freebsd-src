@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id: pte.h,v 1.7 1994/09/04 23:10:25 davidg Exp $
+ *	$Id: pte.h,v 1.8 1995/05/30 08:00:49 rgrimes Exp $
  */
 
 #ifndef _MACHINE_PTE_H_
@@ -120,6 +120,7 @@ unsigned int
  * Pte related macros
  */
 #define	dirty(pte)	((pte) & PG_M)
+#define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PD_SHIFT)|((pti)<<PG_SHIFT)))
 
 #ifndef LOCORE
 #ifdef KERNEL
