@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: fastfind.c,v 1.9 1997/02/22 19:55:45 peter Exp $
  */
 
 
@@ -153,10 +153,8 @@ fastfind
 
 	/* init bigram table */
 #ifdef FF_MMAP
-	if (len < (2*NBG)) {
-		(void)fprintf(stderr, "database too small: %s\n", database);
-		exit(1);
-	}
+	if (len < (2*NBG))
+		errx(1, "database too small: %s", database);
 	
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++, len-= 2) {
 		p[c] = check_bigram_char(*paddr++);
@@ -317,10 +315,8 @@ fastfind
 							counter++;
 							if (f_limit >= counter)
 								(void)puts(path);
-							else  {
-								(void)fprintf(stderr, "[show only %d lines]\n", counter - 1);
-								exit(0);
-							}
+							else 
+								errx(0, "[show only %d lines]", counter - 1);
 						} else
 							(void)puts(path);
 					}
