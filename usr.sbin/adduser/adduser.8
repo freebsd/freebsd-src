@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12.2.6 1998/02/02 15:48:15 wosch Exp $
+.\" $Id: adduser.8,v 1.12.2.7 1998/02/14 22:56:25 steve Exp $
 .\"
 .Dd January 9, 1995
 .Dt ADDUSER 8
@@ -141,7 +141,7 @@ Parse command line options.
 Batch mode.
 The listed groups are secondary groups that the new user should be a
 member of in addition to the default login group. Null string arguments
-may be used as place holders, and result in the default value for the
+may be used as place holders and result in the default value for the
 nulled field being used.
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
@@ -223,26 +223,26 @@ $ adduser
 .Pp
 Start adduser in interactive mode.
 .Pp
-$ adduser -batch baerenklau guest,staff,baer '' 'Teddy II' qwerty7
+$ adduser -batch baerenkl guest,staff,baer '' 'Teddy II' qwerty7
 .Pp
-Create user 'baerenklau' and  login group 'baerenklau'. Invite user 
-baerenklau into groups guest, staff and baer. Use default login class.
+Create user 'baerenkl' and  login group 'baerenkl'. Invite user 
+baerenkl into groups guest, staff and baer. Use default login class.
 Realname (fullname)
 is 'Teddy II'. Password is 'qwerty7' (don't use such passwords!). Create
 .Ev HOME
 directory 
-.Pa /home/baerenklau
+.Pa /home/baerenkl
 and copy all files and directories 
 from 
 .Pa /usr/share/skel
 to 
-.Pa /home/baerenklau .
-Send user baerenklau 
+.Pa /home/baerenkl .
+Send user baerenkl
 a welcome message.
 .Pp
-$ adduser -uid 5000 -group guest -message no -batch vehlefanz
+$ adduser -uid 5000 -group guest -message no -batch vehlefan
 .Pp
-Create user 'vehlefanz'. Login group is guest. Uid next available uid
+Create user 'vehlefan'. Login group is guest. Uid next available uid
 after 5000, for instance 5007. No other groups, no realname, no password.
 Do not send a welcome message.
 .Sh FILES
