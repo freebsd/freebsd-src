@@ -70,7 +70,7 @@ int opienewseed FUNCTION((seed), char *seed)
 	    j = 1;
 	}
 
-	sprintf(seed, "%s%04d", buf, j);
+	sprintf(seed, "%s%04ld", buf, j);
 	return 0;
       }
     }
