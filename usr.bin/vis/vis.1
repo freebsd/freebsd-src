@@ -38,10 +38,10 @@
 .Nm vis
 .Nd display non-printable characters in a visual format
 .Sh SYNOPSIS
-.Nm vis
+.Nm
 .Op Fl cbflnostw
 .Op Fl F Ar foldwidth
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 .Nm Vis
 is a filter for converting non-printable characters
@@ -67,7 +67,7 @@ Request a format which displays a small subset of the
 non-printable characters using C-style backslash sequences.
 .It Fl F
 Causes
-.Nm vis
+.Nm
 to fold output lines to foldwidth columns (default 80), like
 .Xr fold 1 ,
 except
@@ -95,7 +95,7 @@ or
 is selected.  When combined with the
 .Fl f
 flag,
-.Nm vis
+.Nm
 becomes like
 an invertible version of the
 .Xr fold 1
