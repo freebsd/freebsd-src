@@ -248,7 +248,7 @@ ip_init()
 	TAILQ_INIT(&in_ifaddrhead);
 	in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &in_ifaddrhmask);
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
-	if (pr == 0)
+	if (pr == NULL)
 		panic("ip_init: PF_INET not found");
 
 	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
@@ -1024,10 +1024,10 @@ inserted:
 	 */
 	m = q;
 	t = m->m_next;
-	m->m_next = 0;
+	m->m_next = NULL;
 	m_cat(m, t);
 	nq = q->m_nextpkt;
-	q->m_nextpkt = 0;
+	q->m_nextpkt = NULL;
 	for (q = nq; q != NULL; q = nq) {
 		nq = q->m_nextpkt;
 		q->m_nextpkt = NULL;
@@ -1521,11 +1521,11 @@ ip_rtaddr(dst)
 	rtalloc_ign(&sro, RTF_CLONING);
 
 	if (sro.ro_rt == NULL)
-		return ((struct in_ifaddr *)0);
+		return (NULL);
 
 	ifa = ifatoia(sro.ro_rt->rt_ifa);
 	RTFREE(sro.ro_rt);
-	return ifa;
+	return (ifa);
 }
 
 /*
@@ -1574,13 +1574,13 @@ ip_srcroute(m0)
 
 	opts = (struct ipopt_tag *)m_tag_find(m0, PACKET_TAG_IPOPTIONS, NULL);
 	if (opts == NULL)
-		return ((struct mbuf *)0);
+		return (NULL);
 
 	if (opts->ip_nhops == 0)
-		return ((struct mbuf *)0);
+		return (NULL);
 	m = m_get(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
-		return ((struct mbuf *)0);
+		return (NULL);
 
 #define OPTSIZ	(sizeof(opts->ip_srcrt.nop) + sizeof(opts->ip_srcrt.srcopt))
 
@@ -1815,7 +1815,7 @@ ip_forward(struct mbuf *m, int srcrt)
 			RTFREE(rt);
 	}
 
-	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
+	error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
