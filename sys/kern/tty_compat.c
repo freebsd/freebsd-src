@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tty_compat.c,v 1.3 1994/08/02 07:42:48 davidg Exp $
  */
 
 /* 
@@ -50,12 +50,16 @@
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 
-void ttcompatsetflags	__P((struct tty *, struct termios *));
-void ttcompatsetlflags	__P((struct tty *, struct termios *));
+static int ttcompatgetflags	__P((struct tty *tp));
+static void ttcompatsetflags	__P((struct tty *tp, struct termios *t));
+static void ttcompatsetlflags	__P((struct tty *tp, struct termios *t));
 
 int ttydebug = 0;
 
 static struct speedtab compatspeeds[] = {
+#define MAX_SPEED	17
+	{ 115200, 17 },
+	{ 57600, 16 },
 	{ 38400, 15 },
 	{ 19200, 14 },
 	{ 9600,	13 },
@@ -74,9 +78,9 @@ static struct speedtab compatspeeds[] = {
 	{ 0,	0 },
 	{ -1,	-1 },
 };
-static int compatspcodes[16] = { 
+static int compatspcodes[] = { 
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
-	1800, 2400, 4800, 9600, 19200, 38400,
+	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
 };
 
 /*ARGSUSED*/
@@ -95,12 +99,12 @@ ttcompat(tp, com, data, flag)
 		register speed;
 
 		speed = ttspeedtab(tp->t_ospeed, compatspeeds);
-		sg->sg_ospeed = (speed == -1) ? 15 : speed;
+		sg->sg_ospeed = (speed == -1) ? MAX_SPEED : speed;
 		if (tp->t_ispeed == 0)
 			sg->sg_ispeed = sg->sg_ospeed;
 		else {
 			speed = ttspeedtab(tp->t_ispeed, compatspeeds);
-			sg->sg_ispeed = (speed == -1) ? 15 : speed;
+			sg->sg_ispeed = (speed == -1) ? MAX_SPEED : speed;
 		}
 		sg->sg_erase = cc[VERASE];
 		sg->sg_kill = cc[VKILL];
@@ -115,11 +119,11 @@ ttcompat(tp, com, data, flag)
 		int speed;
 
 		term = tp->t_termios;
-		if ((speed = sg->sg_ispeed) > 15 || speed < 0)
+		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
 			term.c_ispeed = speed;
 		else
 			term.c_ispeed = compatspcodes[speed];
-		if ((speed = sg->sg_ospeed) > 15 || speed < 0)
+		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
 			term.c_ospeed = speed;
 		else
 			term.c_ospeed = compatspcodes[speed];
@@ -227,7 +231,7 @@ ttcompat(tp, com, data, flag)
 	return (0);
 }
 
-int
+static int
 ttcompatgetflags(tp)
 	register struct tty *tp;
 {
@@ -285,7 +289,7 @@ if (ttydebug)
 	return (flags);
 }
 
-void
+static void
 ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
@@ -357,7 +361,7 @@ ttcompatsetflags(tp, t)
 	t->c_cflag = cflag;
 }
 
-void
+static void
 ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
