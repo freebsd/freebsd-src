@@ -1,4 +1,4 @@
-/*	$NetBSD: awi.c,v 1.60 2004/01/15 09:39:15 onoe Exp $	*/
+/*	$NetBSD: awi.c,v 1.61 2004/01/15 13:29:05 onoe Exp $	*/
 
 /*-
  * Copyright (c) 1999,2000,2001 The NetBSD Foundation, Inc.
@@ -86,7 +86,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __NetBSD__
-__KERNEL_RCSID(0, "$NetBSD: awi.c,v 1.60 2004/01/15 09:39:15 onoe Exp $");
+__KERNEL_RCSID(0, "$NetBSD: awi.c,v 1.61 2004/01/15 13:29:05 onoe Exp $");
 #endif
 #ifdef __FreeBSD__
 __FBSDID("$FreeBSD$");
@@ -383,6 +383,7 @@ awi_detach(struct awi_softc *sc)
 		wakeup(sc);
 		(void)tsleep(sc, PWAIT, "awidet", 1);
 	}
+	sc->sc_attached = 0;
 	ieee80211_ifdetach(ifp);
 #ifdef __NetBSD__
 	if_detach(ifp);
@@ -548,7 +549,8 @@ awi_init(struct ifnet *ifp)
 	struct awi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = ic->ic_bss;
-	int error;
+	struct ieee80211_rateset *rs;
+	int error, rate, i;
 
 	DPRINTF(("awi_init: enabled=%d\n", sc->sc_enabled));
 	if (sc->sc_enabled) {
@@ -594,6 +596,24 @@ awi_init(struct ifnet *ifp)
 	sc->sc_mib_mac.aDesired_ESS_ID[1] = ic->ic_des_esslen;
 	memcpy(&sc->sc_mib_mac.aDesired_ESS_ID[2], ic->ic_des_essid,
 	    ic->ic_des_esslen);
+
+	/* configure basic rate */
+	if (ic->ic_phytype == IEEE80211_T_FH)
+		rs = &ic->ic_sup_rates[IEEE80211_MODE_FH];
+	else
+		rs = &ic->ic_sup_rates[IEEE80211_MODE_11B];
+	if (ic->ic_fixed_rate != -1) {
+		rate = rs->rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
+	} else {
+		rate = 0;
+		for (i = 0; i < rs->rs_nrates; i++) {
+			if ((rs->rs_rates[i] & IEEE80211_RATE_BASIC) &&
+			    rate < (rs->rs_rates[i] & IEEE80211_RATE_VAL))
+				rate = rs->rs_rates[i] & IEEE80211_RATE_VAL;
+		}
+	}
+	rate *= 5;
+	LE_WRITE_2(&sc->sc_mib_mac.aStation_Basic_Rate, rate);
 
 	if ((error = awi_mode_init(sc)) != 0) {
 		DPRINTF(("awi_init: awi_mode_init failed %d\n", error));
@@ -1499,16 +1519,17 @@ awi_init_mibs(struct awi_softc *sc)
 		}
 	}
 	sc->sc_cur_chan = cs->cs_def;
+	ic->ic_ibss_chan = &ic->ic_channels[cs->cs_def];
 
 	sc->sc_mib_local.Fragmentation_Dis = 1;
 	sc->sc_mib_local.Add_PLCP_Dis = 0;
-	sc->sc_mib_local.MAC_Hdr_Prsv = 1;
+	sc->sc_mib_local.MAC_Hdr_Prsv = 0;
 	sc->sc_mib_local.Rx_Mgmt_Que_En = 0;
 	sc->sc_mib_local.Re_Assembly_Dis = 1;
 	sc->sc_mib_local.Strip_PLCP_Dis = 0;
 	sc->sc_mib_local.Power_Saving_Mode_Dis = 1;
 	sc->sc_mib_local.Accept_All_Multicast_Dis = 1;
-	sc->sc_mib_local.Check_Seq_Cntl_Dis = 1;
+	sc->sc_mib_local.Check_Seq_Cntl_Dis = 0;
 	sc->sc_mib_local.Flush_CFP_Queue_On_CF_End = 0;
 	sc->sc_mib_local.Network_Mode = 1;
 	sc->sc_mib_local.PWD_Lvl = 0;
@@ -2020,9 +2041,11 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 				awi_write_1(sc, AWI_CA_SYNC_IDX, 0);
 				awi_write_2(sc, AWI_CA_SYNC_DWELL, 0);
 			}
-			if (ic->ic_flags & IEEE80211_F_SIBSS)
+			if (ic->ic_flags & IEEE80211_F_SIBSS) {
+				memset(ni->ni_tstamp, 0, sizeof(ni->ni_tstamp));
+				ni->ni_rstamp = 0;
 				awi_write_1(sc, AWI_CA_SYNC_STARTBSS, 1);
-			else
+			} else
 				awi_write_1(sc, AWI_CA_SYNC_STARTBSS, 0);
 			awi_write_2(sc, AWI_CA_SYNC_MBZ, 0);
 			awi_write_bytes(sc, AWI_CA_SYNC_TIMESTAMP,
