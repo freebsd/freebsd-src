@@ -119,7 +119,7 @@ Static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(device_attach, uhub_attach),
 	/* detach is not allowed for a root hub */
 	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 	{0,0}
 };
