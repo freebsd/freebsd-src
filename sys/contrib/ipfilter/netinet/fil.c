@@ -2155,9 +2155,6 @@ void frsync()
 		ip_natsync(ifp);
 		ip_statesync(ifp);
 	}
-#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
-	IFNET_RUNLOCK();
-#  endif
 	ip_natsync((struct ifnet *)-1);
 #  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
 	IFNET_RUNLOCK();
