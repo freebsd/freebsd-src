@@ -36,16 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id: signal.h,v 1.2 1994/08/02 07:53:32 davidg Exp $
+ * $Id: signal.h,v 1.3 1995/01/29 01:19:25 ats Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
 #define	_SYS_SIGNAL_H_
 
-#define NSIG	32		/* counting 0; could be 33 (mask is 1-32) */
+#include <sys/cdefs.h>
+#include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
 
-#ifndef _ANSI_SOURCE
-#include <machine/signal.h>	/* sigcontext; codes for SIGILL, SIGFPE */
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#define NSIG	32		/* counting 0; could be 33 (mask is 1-32) */
 #endif
 
 #define	SIGHUP	1	/* hangup */
@@ -93,19 +94,27 @@
 #define SIGUSR1 30	/* user defined signal 1 */
 #define SIGUSR2 31	/* user defined signal 2 */
 
-#if defined(_ANSI_SOURCE) || defined(__cplusplus)
-/*
- * Language spec sez we must list exactly one parameter, even though we
+/*-
+ * Type of a signal handling function.
+ *
+ * Language spec sez signal handlers take exactly one arg, even though we
  * actually supply three.  Ugh!
+ *
+ * We don't try to hide the difference by leaving out the args because
+ * that would cause warnings about conformant programs.  Nonconformant
+ * programs can avoid the warnings by casting to (__sighandler_t *) or
+ * sig_t before calling signal() or assigning to sa_handler or sv_handler.
+ *
+ * The kernel should reverse the cast before calling the function.  It
+ * has no way to do this, but on most machines 1-arg and 3-arg functions
+ * have the same calling protocol so there is no problem in practice.
+ * A bit in sa_flags could be used to specify the number of args.
  */
-#define	SIG_DFL		(void (*)(int))0
-#define	SIG_IGN		(void (*)(int))1
-#define	SIG_ERR		(void (*)(int))-1
-#else
-#define	SIG_DFL		(void (*)())0
-#define	SIG_IGN		(void (*)())1
-#define	SIG_ERR		(void (*)())-1
-#endif
+typedef void __sighandler_t __P((int));
+
+#define	SIG_DFL		((__sighandler_t *)0)
+#define	SIG_IGN		((__sighandler_t *)1)
+#define	SIG_ERR		((__sighandler_t *)-1)
 
 #ifndef _ANSI_SOURCE
 typedef unsigned int sigset_t;
@@ -114,13 +123,13 @@ typedef unsigned int sigset_t;
  * Signal vector "template" used in sigaction call.
  */
 struct	sigaction {
-	void	(*sa_handler)();	/* signal handler */
+	__sighandler_t *sa_handler;	/* signal handler */
 	sigset_t sa_mask;		/* signal mask to apply */
 	int	sa_flags;		/* see signal options below */
 };
 #ifndef _POSIX_SOURCE
 #define SA_ONSTACK	0x0001	/* take signal on signal stack */
-#define SA_RESTART	0x0002	/* restart system on signal return */
+#define SA_RESTART	0x0002	/* restart system call on signal return */
 #define	SA_DISABLE	0x0004	/* disable taking signals on alternate stack */
 #ifdef COMPAT_SUNOS
 #define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
@@ -136,10 +145,7 @@ struct	sigaction {
 #define	SIG_SETMASK	3	/* set specified signal set */
 
 #ifndef _POSIX_SOURCE
-#ifndef KERNEL
-#include <sys/cdefs.h>
-#endif
-typedef	void (*sig_t) __P((int));	/* type of signal function */
+typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 
 /*
  * Structure used in sigaltstack call.
@@ -157,7 +163,7 @@ struct	sigaltstack {
  * Signal vector "template" used in sigvec call.
  */
 struct	sigvec {
-	void	(*sv_handler)();	/* signal handler */
+	__sighandler_t *sv_handler;	/* signal handler */
 	int	sv_mask;		/* signal mask to apply */
 	int	sv_flags;		/* see signal options below */
 };
@@ -190,6 +196,7 @@ struct	sigstack {
  * defined by <sys/signal.h>.
  */
 __BEGIN_DECLS
-void	(*signal __P((int, void (*) __P((int))))) __P((int));
+__sighandler_t *signal __P((int, __sighandler_t *));
 __END_DECLS
+
 #endif	/* !_SYS_SIGNAL_H_ */

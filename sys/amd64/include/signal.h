@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/11/93
- * $Id: signal.h,v 1.3 1994/08/02 07:39:01 davidg Exp $
+ * $Id: signal.h,v 1.4 1994/08/21 04:55:30 paul Exp $
  */
 
-#ifndef _I386_MACHINE_SIGNAL_H_
-#define _I386_MACHINE_SIGNAL_H_
+#ifndef _MACHINE_SIGNAL_H_
+#define	_MACHINE_SIGNAL_H_
 
 /*
  * Machine-dependent signal definitions
@@ -43,9 +43,9 @@
 
 typedef int sig_atomic_t;
 
-#ifndef _POSIX_SOURCE
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
-#endif
 
 /*
  * Information pushed on stack when a signal is delivered.
@@ -78,4 +78,6 @@ struct	sigcontext {
 #  define sc_ps sc_efl
 };
 
-#endif
+#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+
+#endif /* !_MACHINE_SIGNAL_H_ */
