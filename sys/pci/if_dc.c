@@ -1726,6 +1726,33 @@ static int dc_attach(dev)
 
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
+#ifdef __alpha__
+        sc->dc_srm_media = 0;
+
+	/* Remember the SRM console media setting */
+	if (DC_IS_INTEL(sc)) {
+		command = pci_read_config(dev, DC_PCI_CFDD, 4);
+		command &= ~(DC_CFDD_SNOOZE_MODE|DC_CFDD_SLEEP_MODE);
+		switch ((command >> 8) & 0xff) {
+		case 3: 
+			sc->dc_srm_media = IFM_10_T;
+			break;
+		case 4: 
+			sc->dc_srm_media = IFM_10_T | IFM_FDX;
+			break;
+		case 5: 
+			sc->dc_srm_media = IFM_100_TX;
+			break;
+		case 6: 
+			sc->dc_srm_media = IFM_100_TX | IFM_FDX;
+			break;
+		}
+		if (sc->dc_srm_media)
+			sc->dc_srm_media |= IFM_ACTIVE | IFM_ETHER;
+	}
+#endif
+
+
 fail:
 	splx(s);
 
@@ -2690,6 +2717,15 @@ static void dc_init(xsc)
 
 	sc->dc_stat_ch = timeout(dc_tick, sc, hz);
 
+#ifdef __alpha__
+        if(sc->dc_srm_media) {
+		struct ifreq ifr;
+
+		ifr.ifr_media = sc->dc_srm_media;
+		ifmedia_ioctl(ifp, &ifr, &mii->mii_media, SIOCSIFMEDIA);		
+		sc->dc_srm_media = 0;
+	}
+#endif
 	return;
 }
 
@@ -2793,6 +2829,10 @@ static int dc_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->dc_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+#ifdef __alpha__
+		if (sc->dc_srm_media)
+			sc->dc_srm_media = 0;
+#endif
 		break;
 	default:
 		error = EINVAL;
