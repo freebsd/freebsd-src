@@ -678,15 +678,15 @@ network_pass3() {
 
 				echo -n ' nfsd';	nfsd ${nfs_server_flags}
 
-				case ${rpc_lockd_enable} in
-				[Yy][Ee][Ss])
-					echo -n ' rpc.lockd';	rpc.lockd
-					;;
-				esac
-
 				case ${rpc_statd_enable} in
 				[Yy][Ee][Ss])
 					echo -n ' rpc.statd';	rpc.statd
+					;;
+				esac
+
+				case ${rpc_lockd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' rpc.lockd';	rpc.lockd
 					;;
 				esac
 			else
@@ -721,6 +721,17 @@ network_pass3() {
 			if [ -n "${nfs_bufpackets}" ]; then
 				sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
 			fi
+			case ${rpc_statd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.statd';	rpc.statd
+				;;
+			esac
+
+			case ${rpc_lockd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.lockd';	rpc.lockd
+				;;
+			esac
 			;;
 		esac
 
