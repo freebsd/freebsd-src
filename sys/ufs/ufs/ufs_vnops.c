@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.99 1998/08/12 21:42:54 msmith Exp $
+ * $Id: ufs_vnops.c,v 1.100 1998/09/30 00:53:40 mckusick Exp $
  */
 
 #include "opt_quota.h"
@@ -1612,9 +1612,9 @@ ufs_readdir(ap)
 	off = uio->uio_offset;
 	count = uio->uio_resid;
 	/* Make sure we don't return partial entries. */
-	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
-	if (count <= 0)
+	if (count <= ((uio->uio_offset + count) & (DIRBLKSIZ -1)))
 		return (EINVAL);
+	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
 	lost = uio->uio_resid - count;
 	uio->uio_resid = count;
 	uio->uio_iov->iov_len = count;
