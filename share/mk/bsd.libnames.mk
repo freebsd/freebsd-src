@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.2 1996/10/04 08:52:43 peter Exp $
+#	$Id: bsd.libnames.mk,v 1.3 1996/10/04 08:55:05 peter Exp $
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
@@ -35,6 +35,7 @@ LIBMD?=		${DESTDIR}/usr/lib/libmd.a
 LIBMP?=		${DESTDIR}/usr/lib/libmp.a
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
+LIBOPIE?=	${DESTDIR}/usr/lib/libopie.a
 LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
 LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a	# XXX doesn't exist
