@@ -97,7 +97,7 @@ void isic_attach_Cs0P(struct isic_softc *sc);
 #endif
 
 #ifdef __FreeBSD__
-/* #include <i386/isa/pnp.h> */
+#include <i386/isa/pnp.h>
 extern void isicintr ( int unit );
 #endif
 

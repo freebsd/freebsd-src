@@ -67,7 +67,7 @@
 #endif
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-/* #include <i386/isa/pnp.h> */
+#include <i386/isa/pnp.h>
 #else
 #include <machine/bus.h>
 #include <sys/device.h>
