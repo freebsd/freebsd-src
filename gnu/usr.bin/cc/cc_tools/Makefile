@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.21 1999/04/08 09:57:51 obrien Exp $
+# $Id: Makefile,v 1.22 1999/04/08 12:26:07 obrien Exp $
 #
 
 #
@@ -158,9 +158,8 @@ tm.h:
 .endif
 
 multilib.h: genmultilib
-	echo 'static char *multilib_raw[] = {"aout maout;elf !maout;", NULL};' > multilib.h
-	echo 'static char *orig_port_multilib_raw[] = {".;", NULL};' >> multilib.h
-	echo 'static char *multilib_matches_raw[] = {NULL};' >> multilib.h
+	echo 'static char *multilib_raw[] = {"aout maout;", "elf !maout;", NULL};' > multilib.h
+	echo 'static char *multilib_matches_raw[] = {"maout maout;", "melf melf;", NULL};' >> multilib.h
 	echo 'static char *multilib_extra = "";' >> multilib.h
 
 #-----------------------------------------------------------------------
