@@ -40,7 +40,6 @@
 
 /* Interface base name */
 #define NG_EIFACE_EIFACE_NAME		"ngeth"
-#define NG_EIFACE_EIFACE_NAME_MAX	15
 
 /* My hook names */
 #define NG_EIFACE_HOOK_ETHER		"ether"
@@ -52,13 +51,9 @@
 
 /* Netgraph commands */
 enum {
-	NGM_EIFACE_GET_IFNAME = 1,	/* returns struct ng_eiface_ifname */
+	NGM_EIFACE_GET_IFNAME = 1,	/* get the interface name */
 	NGM_EIFACE_GET_IFADDRS,		/* returns list of addresses */
 	NGM_EIFACE_SET,			/* set ethernet address */
-};
-
-struct ng_eiface_ifname {
-	char    ngif_name[NG_EIFACE_EIFACE_NAME_MAX + 1];
 };
 
 #endif /* _NETGRAPH_NG_EIFACE_H_ */
