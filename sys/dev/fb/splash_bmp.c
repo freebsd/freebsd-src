@@ -50,7 +50,7 @@ static int splash_on = FALSE;
 static int bmp_start(video_adapter_t *adp);
 static int bmp_end(video_adapter_t *adp);
 static int bmp_splash(video_adapter_t *adp, int on);
-static int bmp_Init(const char *data, int swidth, int sheight, int sdepth);
+static int bmp_Init(char *data, int swidth, int sheight, int sdepth);
 static int bmp_Draw(video_adapter_t *adp);
 
 static splash_decoder_t bmp_decoder = {
@@ -509,7 +509,7 @@ bmp_DecodeLine(BMP_INFO *info, int line)
 ** can work with these.
 */
 static int
-bmp_Init(const char *data, int swidth, int sheight, int sdepth)
+bmp_Init(char *data, int swidth, int sheight, int sdepth)
 {
     BITMAPF	*bmf = (BITMAPF *)data;
     int		pind;
