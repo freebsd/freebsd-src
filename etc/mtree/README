@@ -15,7 +15,7 @@ and keep them in good working order.
 
     b)  Only directories should be listed here.
 
-    c)  The listing should be keep in filename sorted order.
+    c)  The listing should be kept in filename sorted order.
 
     d)  Sanity checking changes to these files can be done by following
         this procedure (the sed -e is ugly, but fixing mtree -c to
