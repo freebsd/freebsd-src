@@ -448,6 +448,16 @@ is set to
 these are the flags to pass to the
 .Xr nfsd 8
 daemon.
+.It Ar single_mountd_enable
+(bool) If set to
+.Ar YES ,
+and no
+.Ar nfs_server_enable
+is set, start
+.Xr mountd 8 ,
+but not
+.Xr nfsd 8
+daemon. It is commonly needed to run CFS without real NFS used.
 .It Ar weak_mountd_authentication
 (bool) If set to
 .Ar YES ,
