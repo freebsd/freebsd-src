@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.25 1995/05/19 03:26:43 davidg Exp $
+ * $Id: init_main.c,v 1.27 1995/08/28 09:18:42 julian Exp $
  */
 
 #include <sys/param.h>
@@ -75,6 +75,10 @@
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
 
+extern struct linker_set	sysinit_set;	/* XXX */
+
+extern void __main __P((void));
+extern void main __P((void *framep));
 
 /* Components of the first process -- never freed. */
 struct	session session0;
@@ -138,8 +142,6 @@ main(framep)
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
 	int			rval[2];	/* SI_TYPE_KTHREAD support*/
-
-	extern struct linker_set	sysinit_set;
 
 	/*
 	 * Save the locore.s frame pointer for start_init().
@@ -270,7 +272,15 @@ char	copyright[] =
 char	copyright[] =
 "Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
 #endif
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, printf, (caddr_t)copyright)
+static void print_caddr_t __P((caddr_t data));
+static void
+print_caddr_t(data)
+	caddr_t data;
+{
+	printf("%s", (char *)data);
+}
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
+	(caddr_t)copyright)
 
 
 /*
@@ -287,6 +297,7 @@ SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, printf, (caddr_t)copyright)
  ***************************************************************************
  */
 /* ARGSUSED*/
+void proc0_init __P((caddr_t udata));
 void
 proc0_init( udata)
 caddr_t		udata;		/* not used*/
@@ -389,6 +400,7 @@ caddr_t		udata;		/* not used*/
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
 /* ARGSUSED*/
+void proc0_post __P((caddr_t udata));
 void
 proc0_post( udata)
 caddr_t		udata;		/* not used*/
@@ -418,6 +430,7 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 /* ARGSUSED*/
+void sched_setup __P((caddr_t udata));
 void
 sched_setup( udata)
 caddr_t		udata;		/* not used*/
@@ -429,6 +442,7 @@ caddr_t		udata;		/* not used*/
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
+void xxx_vfs_mountroot __P((caddr_t udata));
 void
 xxx_vfs_mountroot( udata)
 caddr_t		udata;		/* not used*/
@@ -440,6 +454,7 @@ caddr_t		udata;		/* not used*/
 SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
 
 /* ARGSUSED*/
+void xxx_vfs_root_fdtab __P((caddr_t udata));
 void
 xxx_vfs_root_fdtab( udata)
 caddr_t		udata;		/* not used*/
