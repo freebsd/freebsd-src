@@ -1,4 +1,11 @@
 #include <sys/types.h>
+
+/* XXX There should be a way for a type driver to have its own
+ *     private senses and add them when it is added.
+ */
+
+#if !defined(NO_SCSI_SENSE)
+
 #include "sd.h"
 #include "st.h"
 #define NSPRINT 0
@@ -16,7 +23,6 @@ static struct
 	u_char ascq;
 	char *desc;
 } tab[] = {
-#if !defined(NO_SCSI_SENSE)
 #if (NCH > 0)
 	{0x28, 0x01, "Import or export element accessed" },
 	{0x21, 0x01, "Invalid element address" },
@@ -272,8 +278,6 @@ static struct
 	{0x3f, 0x00, "Target operating conditions have changed" },
 	{0x26, 0x03, "Threshold parameters not supported" },
 	{0x46, 0x00, "Unsuccessful soft reset" },
-#endif /* NO_SCSI_SENSE */
-	{0xff, 0xff, 0 },
 };
 
 char *scsi_sense_desc(int asc, int ascq)
@@ -283,5 +287,12 @@ char *scsi_sense_desc(int asc, int ascq)
 		if (tab[i].asc == asc && tab[i].ascq == ascq)
 			return tab[i].desc;
 
-	return "no available sense description";
+	return "";
 }
+
+#else /* NO_SCSI_SENSE */
+char *scsi_sense_desc(int asc, int ascq)
+{
+	return "";
+}
+#endif
