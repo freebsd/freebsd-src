@@ -161,7 +161,6 @@ portal_unmount(mp, mntflags, td)
 	struct thread *td;
 {
 	int error, flags = 0;
-	struct socket *so;
 
 
 	if (mntflags & MNT_FORCE)
