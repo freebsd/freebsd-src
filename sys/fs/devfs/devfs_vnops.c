@@ -707,10 +707,6 @@ devfs_open(ap)
 	if (vp->v_type == VBLK)
 		return (ENXIO);
 
-	/* Don't allow open if fs is mounted -nodev. */
-	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
-		return (ENXIO);
-
 	if (dev == NULL)
 		return (ENXIO);
 
