@@ -117,14 +117,16 @@
 #define	__pure2
 #define	__unused
 #define	__packed
-#define	__aligned
+#define	__aligned(x)
+#define __section(x)
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused
-#define	__packed
-#define	__aligned
+#define	__packed	/* XXX find this out, if we care */
+#define	__aligned(x)	/* XXX find this out, if we care */
+#define __section(x)	/* XXX find this out, if we care */
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ == 3
 #define	__dead2		__attribute__((__noreturn__))
@@ -132,6 +134,7 @@
 #define	__unused	__attribute__((__unused__))
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
+#define	__section(x)	__attribute__((__section__(x)))
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
