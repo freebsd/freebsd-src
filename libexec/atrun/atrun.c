@@ -23,6 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /* System Headers */
 
 #include <sys/fcntl.h>
@@ -32,17 +37,17 @@
 #include <sys/param.h>
 #include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
-#include <pwd.h>
+#include <err.h>
 #include <grp.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-#include <syslog.h>
 #include <utmp.h>
 #ifdef __FreeBSD__
 #include <paths.h>
@@ -78,11 +83,10 @@
 
 /* File scope variables */
 
-static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.10 1997/04/12 01:04:50 davidn Exp $";
 static debug = 0;
 
 void perr(const char *a);
+static void usage __P((void));
 
 /* Local functions */
 static int
@@ -132,14 +136,14 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     if (chmod(filename, S_IRUSR) != 0)
     {
-	perr("Cannot change file permissions");
+	perr("cannot change file permissions");
     }
 
     PRIV_END
 
     pid = fork();
     if (pid == -1)
-	perr("Cannot fork");
+	perr("cannot fork");
     
     else if (pid != 0)
 	return;
@@ -172,16 +176,16 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 #endif
 
     if (stream == NULL)
-	perr("Cannot open input file");
+	perr("cannot open input file");
 
     if ((fd_in = dup(fileno(stream))) <0)
-	perr("Error duplicating input file descriptor");
+	perr("error duplicating input file descriptor");
 
     if (fstat(fd_in, &buf) == -1)
-	perr("Error in fstat of input file descriptor");
+	perr("error in fstat of input file descriptor");
 
     if (lstat(filename, &lbuf) == -1)
-	perr("Error in fstat of input file");
+	perr("error in fstat of input file");
 
     if (S_ISLNK(lbuf.st_mode)) {
 	syslog(LOG_ERR,"Symbolic link encountered in job %s - aborting",
@@ -201,7 +205,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	exit(EXIT_FAILURE);
     }
     if ((fflags = fcntl(fd_in, F_GETFD)) <0)
-	perr("Error in fcntl");
+	perr("error in fcntl");
 
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
@@ -228,14 +232,14 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     }
     fclose(stream);
     if (chdir(ATSPOOL_DIR) < 0)
-	perr("Cannot chdir to " ATSPOOL_DIR);
+	perr("cannot chdir to " ATSPOOL_DIR);
     
     /* Create a file to hold the output of the job we are about to run.
      * Write the mail header.
      */    
     if((fd_out=open(filename,
 		O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
-	perr("Cannot create output file");
+	perr("cannot create output file");
 
     write_string(fd_out, "Subject: Output from your job ");
     write_string(fd_out, filename);
@@ -249,7 +253,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
  
     pid = fork();
     if (pid < 0)
-	perr("Error in fork");
+	perr("error in fork");
 
     else if (pid == 0)
     {
@@ -261,21 +265,21 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	 */
 
 	if (lseek(fd_in, (off_t) 0, SEEK_SET) < 0)
-	    perr("Error in lseek");
+	    perr("error in lseek");
 
 	if (dup(fd_in) != STDIN_FILENO)
-	    perr("Error in I/O redirection");
+	    perr("error in I/O redirection");
 
 	if (dup(fd_out) != STDOUT_FILENO)
-	    perr("Error in I/O redirection");
+	    perr("error in I/O redirection");
 
 	if (dup(fd_out) != STDERR_FILENO)
-	    perr("Error in I/O redirection");
+	    perr("error in I/O redirection");
 
 	close(fd_in);
 	close(fd_out);
 	if (chdir(ATJOB_DIR) < 0)
-	    perr("Cannot chdir to " ATJOB_DIR);
+	    perr("cannot chdir to " ATJOB_DIR);
 
 	queue = *filename;
 
@@ -284,22 +288,22 @@ run_file(const char *filename, uid_t uid, gid_t gid)
         nice(tolower(queue) - 'a');
 	
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
-	    perr("Cannot delete saved userids");
+	    perr("cannot delete saved userids");
 
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
-	    perr("Cannot change group");
+	    perr("cannot change group");
 
 	if (setlogin(pentry->pw_name))
-	    perr("Cannot set login name");
+	    perr("cannot set login name");
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
-	    perr("Cannot set user id");
+	    perr("cannot set user id");
 
 	if (chdir(pentry->pw_dir))
 		chdir("/");
 
 	if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
-	    perr("Exec failed for /bin/sh");
+	    perr("exec failed for /bin/sh");
 
 	PRIV_END
     }
@@ -314,7 +318,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
      */
     stat(filename, &buf);
     if (open(filename, O_RDONLY) != STDIN_FILENO)
-        perr("Open of jobfile failed");
+        perr("open of jobfile failed");
 
     unlink(filename);
     if ((buf.st_size != size) || send_mail)
@@ -322,16 +326,16 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	PRIV_START
 
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
-	    perr("Cannot delete saved userids");
+	    perr("cannot delete saved userids");
 
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
-	    perr("Cannot change group");
+	    perr("cannot change group");
 
 	if (setlogin(pentry->pw_name))
-	    perr("Cannot set login name");
+	    perr("cannot set login name");
 
 	if (setuid(uid) < 0 || seteuid(uid) < 0)
-	    perr("Cannot set user id");
+	    perr("cannot set user id");
 
 	if (chdir(pentry->pw_dir))
 		chdir("/");
@@ -343,7 +347,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 #else
         execl(MAIL_CMD, MAIL_CMD, mailname, (char *) NULL);
 #endif
-	    perr("Exec failed for mail command");
+	    perr("exec failed for mail command");
 
 	PRIV_END
     }
@@ -358,7 +362,7 @@ perr(const char *a)
 {
     if (debug)
     {
-	perror(a);
+	warn("%s", a);
     }
     else
 	syslog(LOG_ERR, "%s: %m", a);
@@ -402,7 +406,6 @@ main(int argc, char *argv[])
     openlog("atrun", LOG_PID, LOG_CRON);
 
     opterr = 0;
-    errno = 0;
     while((c=getopt(argc, argv, "dl:"))!= -1)
     {
 	switch (c)
@@ -419,18 +422,13 @@ main(int argc, char *argv[])
 	    break;
 
 	case '?':
-	    perr("unknown option");
-	    break;
-
 	default:
-	    perr("idiotic option - aborted");
-	    break;
+	    usage();
 	}
     }
 
-    namep = argv[0];
     if (chdir(ATJOB_DIR) != 0)
-	perr("Cannot change to " ATJOB_DIR);
+	perr("cannot change to " ATJOB_DIR);
 
     /* Main loop. Open spool directory for reading and look over all the
      * files in there. If the filename indicates that the job should be run
@@ -443,7 +441,7 @@ main(int argc, char *argv[])
      * atrun.
      */
     if ((spool = opendir(".")) == NULL)
-	perr("Cannot read " ATJOB_DIR);
+	perr("cannot read " ATJOB_DIR);
 
     now = time(NULL);
     run_batch = 0;
@@ -452,7 +450,7 @@ main(int argc, char *argv[])
 
     while ((dirent = readdir(spool)) != NULL) {
 	if (stat(dirent->d_name,&buf) != 0)
-	    perr("Cannot stat in " ATJOB_DIR);
+	    perr("cannot stat in " ATJOB_DIR);
 
 	/* We don't want directories
 	 */
@@ -489,4 +487,15 @@ main(int argc, char *argv[])
 
     closelog();
     exit(EXIT_SUCCESS);
+}
+
+static void
+usage()
+{
+    if (debug)
+	fprintf(stderr, "usage: atrun [-l load_avg] [-d]\n");
+    else
+	syslog(LOG_ERR, "usage: atrun [-l load_avg] [-d]"); 
+
+    exit(EXIT_FAILURE);
 }
