@@ -81,19 +81,22 @@ data to the device so that the user program will see it.
 .Pp
 If the mouse daemon receives the signal 
 .Dv SIGHUP ,
-it will reopen the mouse port and reinitializes itself. Useful if
+it will reopen the mouse port and reinitializes itself.
+Useful if
 the mouse is attached/detached while the system is suspended.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl 3
-Emulate the third (middle) button for 2-button mice. It is emulated
+Emulate the third (middle) button for 2-button mice.
+It is emulated
 by pressing the left and right physical buttons simultaneously.
 .It Fl C Ar threshold
 Set double click speed as the maximum interval in msec between button clicks.
 Without this option, the default value of 500 msec will be assumed.
 This option will have effect only on the cut and paste operations 
-in the text mode console. The user program which is reading mouse data
+in the text mode console.
+The user program which is reading mouse data
 via 
 .Xr sysmouse 4
 won't be affected.
@@ -128,9 +131,11 @@ This option is valid only if
 .Ar mousesystems
 is selected as the protocol type by the
 .Fl t
-option below. It is often used with the 
+option below.
+It is often used with the 
 .Fl D
-option above. Both RTS and DTR lines may need to be dropped for 
+option above.
+Both RTS and DTR lines may need to be dropped for 
 a 3-button mouse to operate in the
 .Ar mousesystems
 mode.
@@ -139,7 +144,8 @@ Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
 .It Fl c
 Some mice report middle button down events
-as if the left and right buttons are pressed. This option handles this.
+as if the left and right buttons are pressed.
+This option handles this.
 .It Fl d
 Enable debugging messages.
 .It Fl f
@@ -159,7 +165,8 @@ and
 .It Ar if
 Interface type: serial, bus, inport or ps/2.
 .It Ar type
-Protocol type. It is one of the types listed under the 
+Protocol type.
+It is one of the types listed under the 
 .Fl t
 option below or 
 .Ar sysmouse
@@ -186,7 +193,8 @@ to the logical button
 .Ar N.
 You may specify as many instances of this option as you like.
 More than one physical button may be assigned to a logical button at the
-same time. In this case the logical button will be down, 
+same time.
+In this case the logical button will be down, 
 if either of the assigned physical buttons is held down.
 Do not put space around `='.
 .It Fl p Ar port
@@ -325,7 +333,8 @@ Report the virtual buttons
 and 
 .Ar N+1 
 down events respectively when negative and positive Z axis movement 
-is detected. There doesn't need to be physical buttons 
+is detected.
+There doesn't need to be physical buttons 
 .Ar N
 and 
 .Ar N+1 .
@@ -401,7 +410,8 @@ option yields nothing, you need to specify a protocol type to the
 .Nm
 command by the
 .Fl t
-option. You have to make a guess and try.
+option.
+You have to make a guess and try.
 There is rule of thumb:
 .Pp
 .Bl -tag -compact -width 1.X
@@ -425,7 +435,8 @@ protocol.
 .It 5.
 3-button serial mice may work with the
 .Ar mousesystems
-protocol. If it doesn't, it may work with the 
+protocol.
+If it doesn't, it may work with the 
 .Ar microsoft
 protocol although 
 the third (middle) button won't function.
@@ -457,8 +468,10 @@ start the mouse daemon in the foreground mode,
 .Dl moused -f -p Ar _selected_port_ -t Ar _selected_protocol_
 .Pp
 and see if the mouse pointer travels correctly
-according to the mouse movement. Then try cut & paste features by
-clicking the left, right and middle buttons. Type ^C to stop
+according to the mouse movement.
+Then try cut & paste features by
+clicking the left, right and middle buttons.
+Type ^C to stop
 the command.
 .Ss Multiple Mice
 As many instances of the mouse daemon as the number of mice attached to
@@ -475,7 +488,8 @@ then the application program will always see mouse data from either mice.
 When the serial mouse is not attached, the corresponding mouse daemon
 won't detect any movement or button state change and the application
 program will only see mouse data coming from the daemon for the
-PS/2 mouse. In contrast when both mice are attached and both of them
+PS/2 mouse.
+In contrast when both mice are attached and both of them
 are moved at the same time in this configuration,
 the mouse pointer will travel across the screen just as if movement of 
 the mice is combined all together.
@@ -553,7 +567,8 @@ Many pad devices behave as if the first (left) button were pressed if
 the user `taps' the surface of the pad.
 In contrast, some ALPS GlidePoint and Interlink VersaPad models 
 treat the tapping action 
-as fourth button events. Use the option ``-m 1=4'' for these models
+as fourth button events.
+Use the option ``-m 1=4'' for these models
 to obtain the same effect as the other pad devices.
 .Pp
 Cut and paste functions in the virtual console assume that there
@@ -589,7 +604,8 @@ command partially supports
 in order to support PnP serial mice.
 However, due to various degrees of conformance to the specification by 
 existing serial mice, it does not strictly follow the version 1.0 of the
-standard. Even with this less strict approach, 
+standard.
+Even with this less strict approach, 
 it may not always determine an appropriate protocol type 
 for the given serial mouse.
 .Sh AUTHORS

@@ -51,9 +51,11 @@
 distributes updated NIS databases (or
 .Pa maps )
 from an NIS master server to NIS slave servers within an NIS
-domain. It is normally only run on the NIS master by
+domain.
+It is normally only run on the NIS master by
 .Pa /var/yp/Makefile
-whenever any of the NIS maps are updated. Note that
+whenever any of the NIS maps are updated.
+Note that
 .Pa /var/yp/Makefile
 does not invoke
 .Nm
@@ -82,7 +84,8 @@ and some special information required by
 .Xr ypxfr 8
 to successfully 'callback' to
 .Nm
-and carry out the transfer. Any error messages
+and carry out the transfer.
+Any error messages
 .Nm
 receives from
 .Xr ypxfr 8
@@ -91,11 +94,14 @@ via callback will be printed to stderr.
 The following options are available:
 .Bl -tag -width indent
 .It Fl d Ar domain
-Specify a particular domain. The NIS domain of
-the local host system is used by default. If the local host's domain
+Specify a particular domain.
+The NIS domain of
+the local host system is used by default.
+If the local host's domain
 name is not set, the domain name must be specified with this flag.
 .It Fl t Ar timeout
-Specify a timeout value in seconds. This timeout
+Specify a timeout value in seconds.
+This timeout
 controls how long
 .Nm
 will wait for a response from a slave server before sending a
@@ -104,14 +110,17 @@ map transfer request to the next slave server in its list.
 .Nm Yppush
 normally performs transfers serially, meaning that it will
 send a map transfer request to one slave server and then wait for
-it to respond before moving on to the next slave server. In environments
+it to respond before moving on to the next slave server.
+In environments
 with many slaves, it is more efficient to initiate several map transfers
-at once so that the transfers can take place in parallel. The
+at once so that the transfers can take place in parallel.
+The
 .Fl j
 flag is used to specify the desired number of parallel jobs:
 .Nm
 will initiate the specified number of transfers immediately and
-listen for responses. If the number of specified parallel jobs is
+listen for responses.
+If the number of specified parallel jobs is
 less than the number of slave servers,
 .Nm
 will initiate only the number of specified jobs and then wait
@@ -145,7 +154,8 @@ the system administrator decides to store the NIS maps somewhere else.
 .It Fl v
 Verbose mode: causes
 .Nm
-to print debugging messages as it runs. Specifying this flag twice
+to print debugging messages as it runs.
+Specifying this flag twice
 makes
 .Nm
 even more verbose.

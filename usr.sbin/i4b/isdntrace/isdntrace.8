@@ -75,9 +75,11 @@ Run
 in analyzer mode by using two passive cards and a custom cable which can
 be build as described in the file
 .Em cable.txt
-in the isdn4bsd source distribution. One card acts as a receiver for the
+in the isdn4bsd source distribution.
+One card acts as a receiver for the
 transmitting direction on the S0 bus while the other card acts as a receiver
-for the receiving direction on the S0 bus. Complete traffic monitoring is
+for the receiving direction on the S0 bus.
+Complete traffic monitoring is
 possible using this setup.
 .It Fl b
 switch B channel tracing on (default off).
@@ -116,7 +118,8 @@ Write undecoded binary trace data to a file for later or remote
 analyzing (default off).
 .It Fl F
 This option can only be used when option -P (playback from binary data file)
-is used. The -F option causes playback not to stop at end of file but rather
+is used.
+The -F option causes playback not to stop at end of file but rather
 to wait for additional data to be available from the input file.
 .Pp
 This option is useful when trace data is accumulated in binary format (to
@@ -139,7 +142,8 @@ When the USR1 signal is sent to a
 process, the currently used logfiles are reopened, so that logfile
 rotation becomes possible.
 .Pp
-The trace output should be obvious. It is very handy to have the following
+The trace output should be obvious.
+It is very handy to have the following
 standard texts available when tracing ISDN protocols:
 .Pp
 .Bl -tag -width Ds -compact -offset indent

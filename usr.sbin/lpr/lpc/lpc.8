@@ -102,7 +102,8 @@ printer jobs from being entered into the queue by
 .It Ic down No {\ all\ |\ printer\ } message ...
 Turn the specified printer queue off, disable printing and put
 .Em message
-in the printer status file. The message doesn't need to be quoted, the
+in the printer status file.
+The message doesn't need to be quoted, the
 remaining arguments are treated like
 .Xr echo 1 .
 This is normally used to take a printer down and let others know why
@@ -143,7 +144,8 @@ printing.
 Place the jobs in the order listed at the top of the printer queue.
 .Pp
 .It Ic up  No {\ all\ |\ printer\ }
-Enable everything and start a new printer daemon. Undoes the effects of
+Enable everything and start a new printer daemon.
+Undoes the effects of
 .Ic down .
 .Sh FILES
 .Bl -tag -width /var/spool/*/lockx -compact

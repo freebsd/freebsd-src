@@ -14,16 +14,19 @@
 .Sh DESCRIPTION
 .Nm Bootparamd
 is a server process that provides information to diskless clients
-necessary for booting. It consults the
+necessary for booting.
+It consults the
 .Pa /etc/bootparams
 file. 
 .Pp
 This version will allow the use of aliases on the hostname in the
 .Pa /etc/bootparams
-file. The returned hostname to the whoami request done by the booting client
+file.
+The returned hostname to the whoami request done by the booting client
 will be the name that appears in 
 .Pa /etc/bootparams
-and not the canonical name. In this way you can keep the answer short enough
+and not the canonical name.
+In this way you can keep the answer short enough
 so that machines that can not handle long hostnames won't fail during boot.
 .Sh OPTIONS
 .Bl -tag -width Fl

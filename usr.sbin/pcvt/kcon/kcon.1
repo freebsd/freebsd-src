@@ -56,7 +56,8 @@ The available options are:
 .Bl -tag -width flag
 .It Fl d Ar delay
 Specifies the delay after which the last key entered will be repeated by the
-Keyboard. Valid values are 0..3 corresponding to delays of 250, 500, 750 and
+Keyboard.
+Valid values are 0..3 corresponding to delays of 250, 500, 750 and
 1000 milliseconds.
 .It Fl l
 Displays the current keyboard map in use by the driver.
@@ -76,7 +77,8 @@ octal or hexadecimal and not as 'ESC'. To be used in conjunction with the
 .Fl l
 option.
 .It Fl r Ar rate
-Specifies the character repetition rate. Valid argument values are 0...31
+Specifies the character repetition rate.
+Valid argument values are 0...31
 corresponding to rates of 30 characters/second ... 2 characters/second.
 .It Fl R
 Reset the Keyboard.
@@ -92,7 +94,8 @@ Specify this option to enable (
 Switches display of control codes to hexadecimal in the listing of the current map.
 To be used in conjunction with the
 .Fl l
-option. This is the default behaviour.
+option.
+This is the default behaviour.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/keycap.pcvt -compact
 .It Pa /usr/share/misc/keycap.pcvt
@@ -104,10 +107,13 @@ Keyboard raw device.
 .Xr keycap 5
 .Sh BUGS
 .Nm kcon
-detects several inconsistencies in the keycap database. In case of errors
+detects several inconsistencies in the keycap database.
+In case of errors
 .Nm kcon
-exits with an error message. If this happens, the keyboard may remain in
-an undefined state. To recover from such situation, execute
+exits with an error message.
+If this happens, the keyboard may remain in
+an undefined state.
+To recover from such situation, execute
 .Nm kcon -m default
 .Sh EXAMPLES
 The command

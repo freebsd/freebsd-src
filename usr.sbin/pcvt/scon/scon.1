@@ -89,12 +89,15 @@ Specify the device filename (i.e. /dev/ttyv2) further operations specified on
 the command line should be applied to.
 .It Fl f
 Some programs which silently assume 24 lines when they run on a VT220 show
-incorrect behaviour when the terminal has really 25 lines. To support full
+incorrect behaviour when the terminal has really 25 lines.
+To support full
 VT220 behaviour, it is possible to force pcvt to select only 24 lines when
-it is running in 25-lines pure VT mode and/or in 28-lines HP-mode. The
+it is running in 25-lines pure VT mode and/or in 28-lines HP-mode.
+The
 .Fl f
 option requires one additional parameter, the string 'on' or 'off' to switch
-this mode for a virtual screen on or off respectively. This mode has no effect
+this mode for a virtual screen on or off respectively.
+This mode has no effect
 if any other vertical resolutions are selected than the two above mentioned.
 .It Fl h
 Prints a usage/help text.
@@ -112,14 +115,17 @@ Specify verbose operation of the program.
 Switch the specified/current screen into a pure VT220 mode without recognizing
 any HP escape sequences and without displaying function key labels.
 .It Fl H
-Switch the specified/current screen into a mixed HP/VT220 mode. That is, that
+Switch the specified/current screen into a mixed HP/VT220 mode.
+That is, that
 in addition to the full VT220 emulation, the HP function key labels and the
 escape sequences for handling the labels are available to the user.
 .It Fl s
-Specify the number of character lines on the screen. Possible parameters are
+Specify the number of character lines on the screen.
+Possible parameters are
 25, 28, 35, 40, 43 or 50. To use all this screen sizes, the fonts required
 for proper operation of a desired size have to be downloaded to the EGA/VGA
-font ram. This option is available only for EGA and VGA boards.
+font ram.
+This option is available only for EGA and VGA boards.
 .It Fl p
 Modify VGA palette
 .Pq DAC .
@@ -132,7 +138,8 @@ and
 .Fl V .
 Naturally, option
 .Fl p
-is available only for VGA boards. Three flavors are available.
+is available only for VGA boards.
+Three flavors are available.
 
 If used with argument
 .Dq Ar default ,
@@ -143,13 +150,17 @@ as installed by VGA ROM BIOS after hardware reset
 
 If used with argument
 .Dq Ar list ,
-the current VGA DAC palette entries are listed. Each entry contains
+the current VGA DAC palette entries are listed.
+Each entry contains
 the table index, values for red, green, and blue, and if there's a
-known name for this entry, the color name. Trailing empty table
+known name for this entry, the color name.
+Trailing empty table
 slots (RGB values all zero) are omitted.
 
-Otherwise, four comma-separated arguments are expected. The first
-denotes the number of palette entry to be modified. This may be either
+Otherwise, four comma-separated arguments are expected.
+The first
+denotes the number of palette entry to be modified.
+This may be either
 a number between 0 and 255, or the usual name of an associated color
 .Pq case-insensitive .
 The following values for red, green and blue are restricted to 0 through 63
@@ -166,11 +177,13 @@ options may be specified if unambiguous.
 .It Fl t
 Specifying
 .Fl t
-will activate the screen saver. The behaviour depends on
+will activate the screen saver.
+The behaviour depends on
 .Ar timeout :
 if
 .Ar timeout
-is given as 0, the screen saver is turned off. Otherwise,
+is given as 0, the screen saver is turned off.
+Otherwise,
 .Ar timeout
 is taken as a number of seconds to wait until activating the
 screen saver.

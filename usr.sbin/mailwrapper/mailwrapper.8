@@ -38,7 +38,8 @@
 .Nm mailwrapper
 .Nd invoke appropriate MTA software based on configuration file
 .Sh SYNOPSIS
-Special. See below.
+Special.
+See below.
 .Sh DESCRIPTION
 At one time, the only Mail Transfer Agent (MTA) software easily available
 was
@@ -70,13 +71,15 @@ also typically has aliases named
 .Xr mailq 1
 and
 .Xr newaliases 1
-linked to it. The program knows to behave differently when its
+linked to it.
+The program knows to behave differently when its
 .Va argv[0]
 is
 .Dq mailq
 or
 .Dq newaliases
-and behaves appropriately. Typically, replacement MTAs provide similar 
+and behaves appropriately.
+Typically, replacement MTAs provide similar 
 functionality, either through a program that also switches behavior
 based on calling name, or through a set of programs that provide
 similar functionality.
@@ -140,7 +143,8 @@ and then
 .Sh AUTHORS
 Perry E. Metzger <perry@piermont.com>
 .Sh BUGS
-The entire reason this program exists is a crock. Instead, a command
+The entire reason this program exists is a crock.
+Instead, a command
 for how to submit mail should be standardized, and all the "behave
 differently if invoked with a different name" behavior of things like
 .Xr mailq 1

@@ -58,9 +58,11 @@ Each PC-CARD card contains configuration tuples that provide
 the manufacturer and card version; these are used
 to identify the card specification in the configuration
 file, and from this find a driver that can be used to
-interface to the particular card. There is a many-to-one mapping
+interface to the particular card.
+There is a many-to-one mapping
 between cards to drivers i.e a single driver may interface to
-multiple types of cards. To aid this, card parameters may be
+multiple types of cards.
+To aid this, card parameters may be
 specified separately from the driver to initialize the card or
 extract (in the case of a network card) an Ethernet address.
 .Pp
@@ -77,7 +79,8 @@ and
 .Em remove
 commands allow a shell command line to be executed.
 The command to be executed is the rest of the line after
-the keyword. The line can be continued using a backslash.
+the keyword.
+The line can be continued using a backslash.
 A simple
 macro substitution allows the current kernel device name
 .Em ( $device )
@@ -101,7 +104,8 @@ A hash character comments out the rest of the line.
 .Ss "Resource pool"
 The (optional) section specifies a pool of system resources
 such as ISA bus memory address space, Input/Output ports and
-interrupt request numbers. This resource pool is used
+interrupt request numbers.
+This resource pool is used
 to allocate address space and interrupt numbers dynamically
 according to the requirements specified in each driver
 description.
@@ -134,18 +138,21 @@ The syntax for card identifiers is:
 .Pp
 The first line is mandatory;
 the latter statements are optional and can appear in
-any order. There may be multiple
+any order.
+There may be multiple
 .Em config
 lines.
 The
 .Em card
 parameters are the Manufacturer name and card version that
-is used to match the values from the card's CIS memory. The
+is used to match the values from the card's CIS memory.
+The
 .Em config
 parameters select the particular card's configuration index
 from the range available in the card's CIS, the driver that
 is to be associated with this configuration, and the interrupt
-level (if any) to be assigned. An optional set of flags may
+level (if any) to be assigned.
+An optional set of flags may
 be assigned.
 In
 .Ar index ,
@@ -156,9 +163,11 @@ from the CIS and status of using I/O resources.
 The optional
 .Em ether
 keyword is used when network cards have their physical Ethernet address
-located within the attribute memory of the card. The parameter of this
+located within the attribute memory of the card.
+The parameter of this
 statement indicates the offset within the attribute memory of the
-Ethernet address. This value can be used within insert/remove
+Ethernet address.
+This value can be used within insert/remove
 commands using the
 .Em $ether
 macro.
@@ -168,7 +177,8 @@ The
 and
 .Em remove
 sections allow shell commands to be specified that are executed
-when the card is inserted or removed. Multiple
+when the card is inserted or removed.
+Multiple
 .Em insert
 and
 .Em remove

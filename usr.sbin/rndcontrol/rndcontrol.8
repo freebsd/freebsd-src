@@ -40,7 +40,8 @@
 The
 .Nm
 command is used to set which interrupts are used to help randomise
-the ``pool of entropy'' maintained by the kernel. The 
+the ``pool of entropy'' maintained by the kernel.
+The 
 .Pa /dev/random
 and
 .Pa /dev/urandom
@@ -54,12 +55,14 @@ Turn off all output except errors.
 .It Fl s  Ar n
 Allow IRQ
 .Ar n
-to be used as a source of randomness. This option may be repeated for
+to be used as a source of randomness.
+This option may be repeated for
 more than one IRQ.
 .It Fl c  Ar n
 Stop IRQ
 .Ar n
-from being used as a source of randomness. This option may be repeated for
+from being used as a source of randomness.
+This option may be repeated for
 more than one IRQ.
 .El
 .Pp
