@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.61 1994/10/01 02:56:19 davidg Exp $
+ *	$Id: syscons.c,v 1.62 1994/10/02 14:08:57 ache Exp $
  */
 
 #include "sc.h"
@@ -64,9 +64,6 @@
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
 #include <i386/i386/cons.h>
-#ifdef APM
-#include <machine/apm_bios.h>
-#endif
 
 #if !defined(NCONS)
 #define NCONS 12
@@ -291,16 +288,6 @@ struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
 };
 
-#ifdef APM
-static int
-pc_resume(void)
-{
-	/* when the system wakes up, modifier keys must be re-initialized */
-	shfts = ctls = alts = agrs = metas = 0;
-	return 0;
-}
-#endif /* APM */
-
 int
 pcprobe(struct isa_device *dev)
 {
@@ -399,9 +386,6 @@ pcattach(struct isa_device *dev)
 	/* get cursor going */
 	cursor_pos(1);
 	update_leds(console[0].status);
-#ifdef APM
-	apm_resume_hook_init(pc_resume, "Syscons console", APM_MID_ORDER);
-#endif
 	return 0;
 }
 
@@ -1470,8 +1454,6 @@ switch_scr(u_int next_scr)
 static void 
 exchange_scr(void) 
 {
-	struct tty *tp;
-
 	bcopy(Crtat, old_scp->scr_buf, old_scp->xsize * old_scp->ysize * 2);
 	old_scp->crt_base = old_scp->scr_buf;
 	move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
@@ -2446,9 +2428,6 @@ next_code:
 				shutdown_nice();
 				break;	
 			case SUSP:
-#ifdef APM
-				apm_suspend_resume();
-#endif /* APM */
 				break;
 
 			case DBG:

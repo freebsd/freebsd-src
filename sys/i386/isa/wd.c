@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.46 1994/09/10 03:19:49 davidg Exp $
+ *	$Id: wd.c,v 1.47 1994/10/01 02:56:21 davidg Exp $
  */
 
 /* TODO:
@@ -164,9 +164,6 @@ static struct buf wdutab[NWD];	/* head of queue per drive */
 static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 #endif
 static long wdxfer[NWD];	/* count of transfers */
-#ifdef APM
-static int wdsuspend_regist = 0;
-#endif /* APM */
 
 
 static void bad144intern(struct disk *);
@@ -187,9 +184,6 @@ static void wdsleep(int ctrlr, char *wmesg);
 static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
-#ifdef APM
-static int wdsuspend(void);
-#endif /* APM */
 
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
@@ -346,11 +340,6 @@ wdattach(struct isa_device *dvp)
 	 * doesn't work now because the ambient ipl is too high.
 	 */
 	wdtab[dvp->id_unit].b_active = 2;
-#ifdef APM
-	if (!wdsuspend_regist) {
-		apm_suspend_hook_init(wdsuspend, "IDE HDD", APM_MID_ORDER);
-	}
-#endif /* APM */
 
 	return (1);
 }
@@ -1846,14 +1835,5 @@ void bad144intern(struct disk *du) {
 		}
 	}
 }
-
-#ifdef APM
-static int wdsuspend(void)
-{
-	/* Currently, this routine has not be implemented. Sorry... */
-
-	return 0;
-}
-#endif /* APM */
 
 #endif /* NWDC > 0 */
