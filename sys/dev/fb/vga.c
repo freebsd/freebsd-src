@@ -29,12 +29,9 @@
  * $FreeBSD$
  */
 
-#include "vga.h"
 #include "opt_vga.h"
 #include "opt_fb.h"
 #include "opt_syscons.h"	/* should be removed in the future, XXX */
-
-#if NVGA > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3048,5 +3045,3 @@ vga_diag(video_adapter_t *adp, int level)
 
     return 0;
 }
-
-#endif /* NVGA > 0 */
