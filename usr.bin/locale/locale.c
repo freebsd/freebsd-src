@@ -40,12 +40,12 @@
 #include <err.h>
 #include <locale.h>
 #include <langinfo.h>
-#include <paths.h>		/* for _PATH_LOCALE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stringlist.h>
 #include <unistd.h>
+#include "setlocale.h"
 
 /* Local prototypes */
 void	init_locales_list(void);
@@ -320,7 +320,6 @@ init_locales_list(void)
 {
 	DIR *dirp;
 	struct dirent *dp;
-	const char *dirname;
 
 	/* why call this function twice ? */
 	if (locales != NULL)
@@ -332,14 +331,13 @@ init_locales_list(void)
 		err(1, "could not allocate memory");
 
 	/* get actual locales directory name */
-	dirname = getenv("PATH_LOCALE");
-	if (dirname == NULL)
-		dirname = _PATH_LOCALE;
+	if (__detect_path_locale() != 0)
+		err(1, "unable to find locales storage");
 
 	/* open locales directory */
-	dirp = opendir(dirname);
+	dirp = opendir(_PathLocale);
 	if (dirp == NULL)
-		err(1, "could not open directory '%s'", dirname);
+		err(1, "could not open directory '%s'", _PathLocale);
 
 	/* scan directory and store its contents except "." and ".." */
 	while ((dp = readdir(dirp)) != NULL) {
