@@ -1045,12 +1045,7 @@ msgrcv(p, uap)
 			    msgtyp);
 #endif
 			/* The SVID says to return ENOMSG. */
-#ifdef ENOMSG
 			return(ENOMSG);
-#else
-			/* Unfortunately, BSD doesn't define that code yet! */
-			return(EAGAIN);
-#endif
 		}
 
 		/*
