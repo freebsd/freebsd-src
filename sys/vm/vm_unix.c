@@ -95,11 +95,11 @@ obreak(p, uap)
 		return EINVAL;
 	}
 
-	mtx_lock(&vm_mtx);
 	if (new > old) {
 		vm_size_t diff;
 
 		diff = new - old;
+		mtx_lock(&vm_mtx);
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
@@ -107,15 +107,20 @@ obreak(p, uap)
 			return (ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
+		mtx_unlock(&vm_mtx);
 	} else if (new < old) {
+		mtx_lock(&Giant);
+		mtx_lock(&vm_mtx);
 		rv = vm_map_remove(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
 			mtx_unlock(&vm_mtx);
+			mtx_unlock(&Giant);
 			return (ENOMEM);
 		}
 		vm->vm_dsize -= btoc(old - new);
+		mtx_unlock(&vm_mtx);
+		mtx_unlock(&Giant);
 	}
-	mtx_unlock(&vm_mtx);
 	return (0);
 }
 
