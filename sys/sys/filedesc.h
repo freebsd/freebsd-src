@@ -118,9 +118,6 @@ struct filedesc_to_leader {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
-#if 0
-#define	UF_MAPPED 	0x02		/* mapped from device */
-#endif
 
 /*
  * Storage required per open file descriptor.
