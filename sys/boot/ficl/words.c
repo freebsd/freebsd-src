@@ -1147,7 +1147,7 @@ static void ifParen(FICL_VM *pVM)
 static void elseCoIm(FICL_VM *pVM)
 {
     CELL *patchAddr;
-    int offset;
+    FICL_INT offset;
     FICL_DICT *dp = ficlGetDict();
 
     assert(pBranchParen);
