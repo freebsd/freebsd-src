@@ -130,7 +130,7 @@ is one of the following:
 sets
 .Dv RES_DEBUG
 in _res.options.
-.It Sy ndots:n
+.It Sy ndots: Ns Ar n
 sets a threshold for the number of dots which must appear in a name given to
 .Fn res_query
 (see
@@ -146,6 +146,20 @@ meaning that if there are any dots in a name, the name
 will be tried first as an absolute name before any
 .Em search list
 elements are appended to it.
+.It Sy timeout: Ns Ar n
+sets the amount of time the resolver will wait for a response from a remote
+name server before retrying the query via a different name server.  Measured in
+seconds, the default is
+.Dv RES_TIMEOUT
+(see
+.Pa <resolv.h> ) .
+.It Sy attempts: Ns Ar n
+sets the number of times the resolver will send a query to its name servers
+before giving up and returning an error to the calling application.  The
+default is
+.Dv RES_DFLRETRY
+(see
+.Pa <resolv.h> ) .
 .It Sy no_tld_query
 tells the resolver not to attempt to resolve a top level domain name, that
 is, a name that contains no dots.  Use of this option doesn't prevent
