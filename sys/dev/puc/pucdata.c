@@ -763,5 +763,14 @@ const struct puc_device_description puc_devices[] = {
             },
         },
 
+	{   "PCCOM dual port RS232/422/485",
+	    {	0x6666,	0x0004,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x08, COM_FREQ },
+	    },
+	},
+
 	{ 0 }
 };
