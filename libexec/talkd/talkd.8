@@ -56,11 +56,13 @@ type
 This causes the server to search its invitation
 tables to check if an invitation currently exists for the caller
 (to speak to the callee specified in the message).
+.Pp
 If the lookup fails,
 the caller then sends an
 .Tn ANNOUNCE
 message causing the server to
 broadcast an announcement on the callee's login ports requesting contact.
+.Pp
 When the callee responds, the local server uses the
 recorded invitation to respond with the appropriate rendezvous
 address and the caller and callee client programs establish a
