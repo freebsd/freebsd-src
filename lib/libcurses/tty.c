@@ -54,7 +54,7 @@ int __tcaction = 1;			/* Ignore hardware settings. */
 int __tcaction = 0;
 #endif
 
-int __tty_fileno;
+int __tty_fileno, __noterm = 0;
 struct termios __orig_termios, __baset;
 static struct termios cbreakt, rawt, *curt;
 static int useraw;
@@ -66,9 +66,6 @@ static int useraw;
 #define	OXTABS	0
 #endif
 #endif
-#ifndef _PATH_TTY
-#define _PATH_TTY "/dev/tty"
-#endif
 
 /*
  * gettmode --
@@ -79,12 +76,9 @@ gettmode()
 {
 	useraw = 0;
 	
-	if (tcgetattr(__tty_fileno = STDIN_FILENO, &__orig_termios)) {
-		if ((__tty_fileno = open(_PATH_TTY, O_RDONLY, 0)) < 0)
-  	    		return (ERR);
-		else if (tcgetattr(__tty_fileno, &__orig_termios))
-			return (ERR);
-	}
+	if (tcgetattr(__tty_fileno = STDIN_FILENO, &__orig_termios))
+	    if (tcgetattr(__tty_fileno = STDOUT_FILENO, &__orig_termios))
+		__noterm = 1;
 
 	__baset = __orig_termios;
 	__baset.c_oflag &= ~OXTABS;
@@ -124,8 +118,9 @@ gettmode()
 	}
 
 	curt = &__baset;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
+	return OK;
 }
 
 int
@@ -133,7 +128,7 @@ raw()
 {
 	useraw = __pfast = __rawmode = 1;
 	curt = &rawt;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -142,7 +137,7 @@ noraw()
 {
 	useraw = __pfast = __rawmode = 0;
 	curt = &__baset;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -152,7 +147,7 @@ cbreak()
 
 	__rawmode = 1;
 	curt = useraw ? &rawt : &cbreakt;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -162,7 +157,7 @@ nocbreak()
 
 	__rawmode = 0;
 	curt = useraw ? &rawt : &__baset;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 	
@@ -174,7 +169,7 @@ echo()
 	__baset.c_lflag |= ECHO;
 	
 	__echoit = 1;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -186,7 +181,7 @@ noecho()
 	__baset.c_lflag &= ~ECHO;
 	
 	__echoit = 0;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -201,7 +196,7 @@ nl()
 	__baset.c_oflag |= ONLCR;
 
 	__pfast = __rawmode;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -216,7 +211,7 @@ nonl()
 	__baset.c_oflag &= ~ONLCR;
 
 	__pfast = 1;
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, curt) ? ERR : OK);
 }
 
@@ -267,7 +262,7 @@ endwin()
 	(void)fflush(stdout);
 	(void)setvbuf(stdout, NULL, _IOLBF, 0);
 
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, &__orig_termios) ? ERR : OK);
 }
 
@@ -280,12 +275,12 @@ static struct termios savedtty;
 int
 savetty()
 {
-	return (tcgetattr(__tty_fileno, &savedtty) ? ERR : OK);
+	return (!__noterm && tcgetattr(__tty_fileno, &savedtty) ? ERR : OK);
 }
 
 int
 resetty()
 {
-	return (tcsetattr(__tty_fileno, __tcaction ?
+	return (!__noterm && tcsetattr(__tty_fileno, __tcaction ?
 	    TCSASOFT | TCSADRAIN : TCSADRAIN, &savedtty) ? ERR : OK);
 }
