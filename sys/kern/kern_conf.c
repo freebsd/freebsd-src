@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.19 1997/09/14 02:52:12 peter Exp $
+ * $Id: kern_conf.c,v 1.20 1997/09/21 22:14:54 julian Exp $
  */
 
 #include <sys/param.h>
@@ -163,7 +163,7 @@ ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
 ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
 
 /*
- * Since the bdevsw struct for a disk contains all the informnation
+ * Since the bdevsw struct for a disk contains all the information
  * needed to create a cdevsw entry, these two routines do that, rather
  * than specifying it by hand.
  */
