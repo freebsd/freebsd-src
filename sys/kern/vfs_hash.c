@@ -34,41 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
-#if 0
-#include "opt_mac.h"
-
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/conf.h>
-#include <sys/event.h>
-#include <sys/eventhandler.h>
-#include <sys/extattr.h>
-#include <sys/fcntl.h>
-#include <sys/kdb.h>
-#include <sys/kthread.h>
-#include <sys/mac.h>
-#include <sys/mount.h>
-#include <sys/namei.h>
-#include <sys/reboot.h>
-#include <sys/sleepqueue.h>
-#include <sys/stat.h>
-#include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/vmmeter.h>
-
-#include <machine/stdarg.h>
-
-#include <vm/vm.h>
-#include <vm/vm_object.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
-#include <vm/vm_kern.h>
-#include <vm/uma.h>
-
-#endif
-
 static MALLOC_DEFINE(M_VFS_HASH, "VFS hash", "VFS hash table");
 
 static LIST_HEAD(vfs_hashhead, vnode)	*vfs_hash_tbl;
