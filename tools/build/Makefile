@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../include
 
-LIB=		build
+LIB=		egacy
 SRCS=
 INCSGROUPS=	INCS
 INCS=		
