@@ -55,35 +55,34 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
     if (drive->state == drive_unallocated)		    /* no drive to do anything with, */
 	return 0;
 
-    if (newstate != oldstate) {				    /* don't change it if it's not different */
-	if ((newstate == drive_down)			    /* the drive's going down */
-	&&(!(flags & setstate_force))
-	    && (drive->opencount != 0))			    /* we can't do it */
-	    return 0;					    /* don't do it */
-	drive->state = newstate;			    /* set the state */
-	if (drive->label.name[0] != '\0')		    /* we have a name, */
-	    log(LOG_INFO,
-		"vinum: drive %s is %s\n",
-		drive->label.name,
-		drive_state(drive->state));
-	if ((drive->state == drive_up)
-	    && (drive->vp == NULL))			    /* should be open, but we're not */
-	    init_drive(drive, 1);			    /* which changes the state again */
-	if (newstate < drive_up)			    /* drive going down, */
-	    queue_daemon_request(daemonrq_closedrive,	    /* get the daemon to close it */
-		(union daemoninfo) drive);
-	if (newstate != oldstate) {			    /* state has changed */
-	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* find this drive's subdisks */
-		if ((SD[sdno].state >= sd_referenced)
-		    && (SD[sdno].driveno == driveno))	    /* belongs to this drive */
-		    update_sd_state(sdno);		    /* update the state */
-	    }
+    if (newstate == oldstate)				    /* don't change it if it's not different */
+	return 1;					    /* all OK */
+    if ((newstate == drive_down)			    /* the drive's going down */
+    &&(!(flags & setstate_force))
+	&& (drive->opencount != 0))			    /* we can't do it */
+	return 0;					    /* don't do it */
+    drive->state = newstate;				    /* set the state */
+    if (drive->label.name[0] != '\0')			    /* we have a name, */
+	log(LOG_INFO,
+	    "vinum: drive %s is %s\n",
+	    drive->label.name,
+	    drive_state(drive->state));
+    if ((drive->state == drive_up)
+	&& (drive->vp == NULL))				    /* should be open, but we're not */
+	init_drive(drive, 1);				    /* which changes the state again */
+    if (newstate < drive_up)				    /* drive going down, */
+	queue_daemon_request(daemonrq_closedrive,	    /* get the daemon to close it */
+	    (union daemoninfo) drive);
+    if (newstate != oldstate) {				    /* state has changed */
+	for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* find this drive's subdisks */
+	    if ((SD[sdno].state >= sd_referenced)
+		&& (SD[sdno].driveno == driveno))	    /* belongs to this drive */
+		update_sd_state(sdno);			    /* update the state */
 	}
-	if ((flags & setstate_configuring) == 0)	    /* configuring? */
-	    save_config();				    /* no: save the updated configuration now */
-	return 1;
     }
-    return 0;
+    if ((flags & setstate_configuring) == 0)		    /* configuring? */
+	save_config();					    /* no: save the updated configuration now */
+    return 1;
 }
 
 /*
@@ -107,9 +106,10 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
     int oldstate = sd->state;
     int status = 1;					    /* status to return */
 
-    if ((newstate == oldstate)
-	|| (sd->state == sd_unallocated))		    /* no subdisk to do anything with, */
-	return 0;
+    if (newstate == oldstate)				    /* already there, */
+	return 1;
+    else if (sd->state == sd_unallocated)		    /* no subdisk to do anything with, */
+	return 0;					    /* can't do it */
 
     if (sd->driveoffset < 0) {				    /* not allocated space */
 	sd->state = sd_down;
@@ -118,7 +118,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		sdstatemap(&PLEX[sd->plexno]);		    /* count up subdisks */
 	    return -1;
 	}
-    } else {						    /*  space allocated */
+    } else {						    /* space allocated */
 	switch (newstate) {
 	case sd_down:					    /* take it down? */
 	    /*
@@ -174,6 +174,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/* otherwise it's like being empty */
 		/* FALLTHROUGH */
 
+	    case sd_initializing:
 	    case sd_empty:
 		/*
 		 * If we're associated with a plex which is down, or which is
@@ -233,19 +234,6 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		status = EAGAIN;			    /* need to repeat */
 		break;
 
-		/*
-		 * XXX This is silly.  We need to be able to
-		 * bring the subdisk up when it's finished
-		 * initializing, but not from the user.  We
-		 * use the same ioctl in each case, but Vinum(8)
-		 * doesn't supply the -f flag, so we use that
-		 * to decide whether to do it or not
-		 */
-	    case sd_initializing:
-		if (flags & setstate_force)
-		    break;				    /* do it if we have to */
-		return 0;				    /* no */
-
 	    case sd_reviving:
 		if (flags & setstate_force)		    /* insist, */
 		    break;
@@ -302,19 +290,19 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
     plex = &PLEX[plexno];				    /* point to our plex */
     oldstate = plex->state;
 
+    /* If the plex isn't allocated, we can't do it. */
+    if (plex->state == plex_unallocated)
+	return 0;
+
     /*
-     * If the plex isn't allocated,
-     * or it's already in the the state we want,
+     * If it's already in the the state we want,
      * and it's not up, just return.  If it's up,
      * we still need to do some housekeeping.
      */
-    if ((plex->state == plex_unallocated)
-	|| ((state == oldstate)
-	    && (state != plex_up)))
-	return 0;
-
+    if ((state == oldstate)
+	&& (state != plex_up))
+	return 1;
     vps = vpstate(plex);				    /* how do we compare with the other plexes? */
-
     switch (state) {
 	/*
 	 * We can't bring the plex up, even by force,
@@ -380,9 +368,10 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
 {
     struct volume *vol = &VOL[volno];			    /* point to our volume */
 
-    if ((vol->state == state)				    /* we're there already */
-    ||(vol->state == volume_unallocated))		    /* or no volume to do anything with, */
+    if (vol->state == volume_unallocated)		    /* no volume to do anything with, */
 	return 0;
+    if (vol->state == state)				    /* we're there already */
+	return 1;
 
     if (state == volume_up)				    /* want to come up */
 	update_volume_state(volno);
@@ -483,7 +472,7 @@ update_plex_state(int plexno)
     statemap = sdstatemap(plex);			    /* get a map of the subdisk states */
     vps = vpstate(plex);				    /* how do we compare with the other plexes? */
 
-    if (statemap & sd_initializing)			    /* something initializing? */
+    if (statemap & sd_initstate)			    /* something initializing? */
 	plex->state = plex_initializing;		    /* yup, that makes the plex the same */
     if ((statemap == sd_emptystate)			    /* all subdisks empty */
 &&((vps & volplex_otherup) == 0)			    /* and no other plex is up */ &&((plex->organization == plex_concat) /* and we're not RAID-5 */
