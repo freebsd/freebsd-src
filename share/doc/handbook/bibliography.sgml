@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.5 1995/12/11 15:09:05 jkh Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.6 1996/06/03 00:37:41 jraynard Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -102,6 +102,12 @@
 	    <item>Leffler, Samuel J. <em>The Design and
 		implementation of the 4.3BSD UNIX operating
 		system</em>.  Addison-Wesley, 1989.</item>
+
+	    <item>McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
+                and John Quarterman. <em>The Design and
+		implementation of the 4.4BSD UNIX operating
+		system</em>.  Addison-Wesley, 1996.
+		<newline>ISBN 0-201-54979-4</item>
 
 	    <item>Plauger, P. J. <em>The Standard C
 		Library</em>. Prentice Hall, 1992.  
