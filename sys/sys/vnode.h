@@ -114,7 +114,6 @@ struct vnode {
 		} vu_spec;
 		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
 	} v_un;
-	struct	nqlease *v_lease;		/* Soft reference to lease */
 	daddr_t	v_lastw;			/* last write (write cluster) */
 	daddr_t	v_cstart;			/* start block of cluster */
 	daddr_t	v_lasta;			/* last allocation */
