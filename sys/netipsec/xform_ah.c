@@ -563,9 +563,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptodesc *crda;
 	struct cryptop *crp;
 
-#if 0
 	SPLASSERT(net, "ah_input");
-#endif
 
 	KASSERT(sav != NULL, ("ah_input: null SA"));
 	KASSERT(sav->key_auth != NULL,
@@ -903,9 +901,7 @@ ah_output(
 	u_int8_t prot;
 	struct newah *ah;
 
-#if 0
 	SPLASSERT(net, "ah_output");
-#endif
 
 	sav = isr->sav;
 	KASSERT(sav != NULL, ("ah_output: null SA"));

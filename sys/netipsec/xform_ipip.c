@@ -86,6 +86,8 @@
 
 #include <machine/stdarg.h>
 
+typedef void	pr_in_input_t (struct mbuf *, int, int); /* XXX FIX THIS */
+
 /*
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
@@ -194,6 +196,8 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		break;
 #endif
         default:
+		DPRINTF(("_ipip_input: bad protocol version 0x%x (%u) "
+			"for outer header\n", v, v>>4));
 		ipipstat.ipips_family++;
 		m_freem(m);
 		return /* EAFNOSUPPORT */;
@@ -260,6 +264,8 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		break;
 #endif
 	default:
+		DPRINTF(("_ipip_input: bad protocol version 0x%x (%u) "
+			"for inner header\n", v, v>>4));
 		ipipstat.ipips_family++;
 		m_freem(m);
 		return; /* EAFNOSUPPORT */
@@ -309,7 +315,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	if ((m->m_pkthdr.rcvif == NULL ||
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    ipip_allow != 2) {
-	    	IFNET_RLOCK();
 		for (ifp = ifnet.tqh_first; ifp != 0;
 		     ifp = ifp->if_list.tqe_next) {
 			for (ifa = ifp->if_addrlist.tqh_first; ifa != 0;
@@ -326,7 +331,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					    ipo->ip_src.s_addr)	{
 						ipipstat.ipips_spoof++;
 						m_freem(m);
-						IFNET_RUNLOCK();
 						return;
 					}
 				}
@@ -343,7 +347,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_src)) {
 						ipipstat.ipips_spoof++;
 						m_freem(m);
-						IFNET_RUNLOCK();
 						return;
 					}
 
@@ -351,7 +354,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 #endif /* INET6 */
 			}
 		}
-		IFNET_RUNLOCK();
 	}
 
 	/* Statistics */
@@ -412,9 +414,7 @@ ipip_output(
 	struct ip6_hdr *ip6, *ip6o;
 #endif /* INET6 */
 
-#if 0
 	SPLASSERT(net, "ipip_output");
-#endif
 
 	sav = isr->sav;
 	KASSERT(sav != NULL, ("ipip_output: null SA"));
@@ -441,7 +441,7 @@ ipip_output(
 			goto bad;
 		}
 
-		M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
+		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 		if (m == 0) {
 			DPRINTF(("ipip_output: M_PREPEND failed\n"));
 			ipipstat.ipips_hdrops++;
@@ -529,7 +529,7 @@ ipip_output(
 		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
 			ip6->ip6_dst.s6_addr16[1] = 0;
 
-		M_PREPEND(m, sizeof(struct ip6_hdr), M_NOWAIT);
+		M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
 		if (m == 0) {
 			DPRINTF(("ipip_output: M_PREPEND failed\n"));
 			ipipstat.ipips_hdrops++;

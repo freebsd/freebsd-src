@@ -58,6 +58,13 @@ extern struct secpolicy *key_gettunnel(const struct sockaddr *,
 /* NB: prepend with _ for KAME IPv6 compatbility */
 extern void _key_freesp(struct secpolicy **, const char*, int);
 
+/*
+ * Access to the SADB are interlocked with splnet.  In particular,
+ * holders of SA's use this to block accesses by protocol processing
+ * that can happen either by network swi's or by continuations that
+ * occur on crypto callbacks.  Much of this could go away if
+ * key_checkrequest were redone.
+ */ 
 #define	KEY_ALLOCSP(spidx, dir)					\
 	key_allocsp(spidx, dir, __FILE__, __LINE__)
 #define	KEY_ALLOCSP2(spi, dst, proto, dir)			\

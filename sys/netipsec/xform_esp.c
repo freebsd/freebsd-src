@@ -190,7 +190,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	 *      compromise is to force it to zero here.
 	 */
 	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
-	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, 0);
+	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
 	if (sav->iv == NULL) {
 		DPRINTF(("esp_init: no memory for IV\n"));
 		return EINVAL;
@@ -270,9 +270,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptodesc *crde;
 	struct cryptop *crp;
 
-#if 0
 	SPLASSERT(net, "esp_input");
-#endif
 
 	KASSERT(sav != NULL, ("esp_input: null SA"));
 	KASSERT(sav->tdb_encalgxform != NULL,
@@ -651,9 +649,7 @@ esp_output(
 	struct cryptodesc *crde = NULL, *crda = NULL;
 	struct cryptop *crp;
 
-#if 0
 	SPLASSERT(net, "esp_output");
-#endif
 
 	sav = isr->sav;
 	KASSERT(sav != NULL, ("esp_output: null SA"));

@@ -961,6 +961,17 @@ netinet6/route6.c	optional inet6
 netinet6/scope6.c	optional inet6
 netinet6/udp6_output.c	optional inet6
 netinet6/udp6_usrreq.c	optional inet6
+netipsec/ipsec.c	optional fast_ipsec
+netipsec/ipsec_input.c	optional fast_ipsec
+netipsec/ipsec_mbuf.c	optional fast_ipsec
+netipsec/ipsec_output.c	optional fast_ipsec
+netipsec/key.c		optional fast_ipsec
+netipsec/key_debug.c	optional fast_ipsec
+netipsec/keysock.c	optional fast_ipsec
+netipsec/xform_ah.c	optional fast_ipsec
+netipsec/xform_esp.c	optional fast_ipsec
+netipsec/xform_ipcomp.c	optional fast_ipsec
+netipsec/xform_ipip.c	optional fast_ipsec
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_input.c	optional ipx

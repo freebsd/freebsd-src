@@ -64,9 +64,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	struct secasindex *saidx;
 	int error;
 
-#if 0
 	SPLASSERT(net, "ipsec_process_done");
-#endif
 
 	KASSERT(m != NULL, ("ipsec_process_done: null mbuf"));
 	KASSERT(isr != NULL, ("ipsec_process_done: null ISR"));
@@ -179,9 +177,7 @@ ipsec_nextisr(
 			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
 	struct secasvar *sav;
 
-#if 0
 	SPLASSERT(net, "ipsec_nextisr");
-#endif
 	KASSERT(af == AF_INET || af == AF_INET6,
 		("ipsec_nextisr: invalid address family %u", af));
 again:
@@ -469,7 +465,7 @@ ipsec6_splithdr(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	hlen = sizeof(struct ip6_hdr);
 	if (m->m_len > hlen) {
-		MGETHDR(mh, M_NOWAIT, MT_HEADER);
+		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
 		if (!mh) {
 			m_freem(m);
 			return NULL;
@@ -580,7 +576,7 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 	plen = m->m_pkthdr.len;
 	if (M_LEADINGSPACE(m->m_next) < sizeof(struct ip6_hdr)) {
 		struct mbuf *n;
-		MGET(n, M_NOWAIT, MT_DATA);
+		MGET(n, M_DONTWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
 			return ENOBUFS;
@@ -668,7 +664,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		/* XXX should be processed with other familiy */
 		if (isr->sav->sah->saidx.src.sa.sa_family != AF_INET6) {
 			ipseclog((LOG_ERR, "ipsec6_output_tunnel: "
-			    "family mismatched between inner and outer, spi=%u\n",
+			    "family mismatched between inner and outer, spi=%lu\n",
 			    ntohl(isr->sav->spi)));
 			newipsecstat.ips_out_inval++;
 			error = EAFNOSUPPORT;

@@ -106,6 +106,11 @@
 #include <netinet6/ipsec6.h>
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#endif /* FAST_IPSEC */
+
 /*
  * UDP protocol inplementation.
  * Per RFC 768, August, 1980.
@@ -258,6 +263,14 @@ udp6_input(mp, offp, proto)
 					/* do not inject data into pcb */
 				else
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+				/*
+				 * Check AH/ESP integrity.
+				 */
+				if (ipsec6_in_reject(m, last))
+					;
+				else
+#endif /* FAST_IPSEC */
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					/*
 					 * KAME NOTE: do not
@@ -317,6 +330,14 @@ udp6_input(mp, offp, proto)
 			goto bad;
 		}
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+		/*
+		 * Check AH/ESP integrity.
+		 */
+		if (ipsec6_in_reject(m, last)) {
+			goto bad;
+		}
+#endif /* FAST_IPSEC */
 		if (last->in6p_flags & IN6P_CONTROLOPTS
 		    || last->in6p_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, &opts, ip6, m);
@@ -365,6 +386,14 @@ udp6_input(mp, offp, proto)
 		goto bad;
 	}
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+	/*
+	 * Check AH/ESP integrity.
+	 */
+	if (ipsec6_in_reject(m, in6p)) {
+		goto bad;
+	}
+#endif /* FAST_IPSEC */
 
 	/*
 	 * Construct sockaddr format source address.
