@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $ */
+/* $Id: scd.c,v 1.2 1996/07/23 07:46:37 asami Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -204,17 +204,10 @@ static	d_strategy_t	scdstrategy;
 
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
-extern	struct cdevsw scd_cdevsw;
+static struct cdevsw scd_cdevsw;
 static struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
 	  nodump,	nopsize,	0, "scd",	&scd_cdevsw,	-1 };
-
-static struct cdevsw scd_cdevsw = 
-	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
-	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
-	  seltrue,	nommap,		scdstrategy,	"scd",
-	  &scd_bdevsw,	-1 };
-
 
 static struct kern_devconf kdc_scd[NSCD] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -1582,13 +1575,9 @@ static scd_devsw_installed = 0;
 
 static void 	scd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! scd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&scd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&scd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &scd_bdevsw);
 		scd_devsw_installed = 1;
     	}
 }

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
+ *	$Id: fd.c,v 1.2 1996/07/23 07:46:11 asami Exp $
  *
  */
 
@@ -64,7 +64,6 @@
 #include <machine/clock.h>
 #include <machine/ioctl_fd.h>
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -471,16 +470,11 @@ static	d_strategy_t	fdstrategy;
 
 #define CDEV_MAJOR 9
 #define BDEV_MAJOR 2
-extern	struct cdevsw fd_cdevsw;
+static struct cdevsw fd_cdevsw;
 static struct bdevsw fd_bdevsw = 
 	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
 	  nodump,	nopsize,	0,	"fd",	&fd_cdevsw,	-1 };
 
-static struct cdevsw fd_cdevsw = 
-	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
-	  fdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		fdstrategy,	"fd",
-	  &fd_bdevsw,	-1 };
 
 #ifdef PC98
 static struct pc98_device *fdcdevs[NFDC];
@@ -2460,13 +2454,9 @@ static fd_devsw_installed = 0;
 
 static void 	fd_drvinit(void *notused )
 {
-	dev_t dev;
 
 	if( ! fd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&fd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&fd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &fd_bdevsw);
 		fd_devsw_installed = 1;
 	}
 }
