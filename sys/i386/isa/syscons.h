@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.2 1995/02/25 20:09:21 pst Exp $
+ *	$Id: syscons.h,v 1.4 1995/03/03 08:37:08 sos Exp $
  */
 
 #ifndef SYSCONS_H
@@ -52,7 +52,6 @@
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
 #define UPDATE_MOUSE	0x01000
-#define UPDATE_SCREEN	0x02000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -118,6 +117,8 @@ typedef struct scr_stat {
 	int 		ypos;			/* current Y position */
 	int 		xsize;			/* X size */
 	int 		ysize;			/* Y size */
+	int		start;			/* modified area start */
+	int		end;			/* modified area end */
 	term_stat 	term;			/* terminal emulation stuff */
 	int	 	status;			/* status (bitfield) */
 	u_short 	*cursor_pos;		/* cursor buffer position */
@@ -197,6 +198,7 @@ static void set_vgaregs(char *modetable);
 static void set_font_mode();
 static void set_normal_mode();
 static void copy_font(int operation, int font_type, char* font_image);
+static void set_destructive_cursor_size(scr_stat *scp);
 static void draw_mouse_image(scr_stat *scp);
 static void save_palette(void);
        void load_palette(void);
