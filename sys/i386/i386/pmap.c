@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.242 1999/07/21 18:01:40 alc Exp $
+ *	$Id: pmap.c,v 1.243 1999/07/31 04:10:31 alc Exp $
  */
 
 /*
@@ -2320,7 +2320,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 	vm_page_t p, mpte;
 	int objpgs;
 
-	if (!pmap)
+	if (pmap == NULL || object == NULL)
 		return;
 
 	/*
