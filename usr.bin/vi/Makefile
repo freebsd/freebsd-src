@@ -66,9 +66,9 @@ CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/include
 .if !defined(TKNVI)
 DPADD+=		${LIBNCURSES}
 LDADD+=		-lncurses
-.endif
 
-.if defined(TKNVI)
+.else
+
 .PATH:		${SRCDIR}/tk
 LDADD+=		-L/usr/local/lib -L/usr/X11R6/lib -ltk41 -lX11
 CFLAGS+=	-I/usr/local/include -I/usr/X11R6/include
