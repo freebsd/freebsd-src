@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.36 1995/12/02 20:40:20 phk Exp $
+ * $Id: sysctl.h,v 1.37 1995/12/04 16:48:52 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -144,9 +144,9 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 		ptr, val, sysctl_handle_int, "I", descr);
 
 /* This is anything, specified by a pointer and a lenth */
-#define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, descr) \
+#define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
-		ptr, len, sysctl_handle_opaque, "O", descr);
+		ptr, len, sysctl_handle_opaque, fmt, descr);
 
 /* This is a struct, specified by a pointer and type */
 #define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
