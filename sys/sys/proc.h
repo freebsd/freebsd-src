@@ -128,8 +128,7 @@ struct pargs {
  *      h - callout_lock mtx
  *      i - by curproc or the master session mtx
  *      j - locked by sched_lock mtx
- *      k - either by curproc or a lock which prevents the lock from
- *          going away, such as (d,e)
+ *      k - only accessed by curthread
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
@@ -248,12 +247,12 @@ struct	thread {
 	TAILQ_ENTRY(thread) td_runq; 	/* (j) run queue(s). XXXKSE */ 
 
 #define	td_startzero td_flags
-	int		td_flags;	/* (c) P_* flags. */
-	int		td_dupfd;	/* (c) ret value from fdopen. XXX */
+	int		td_flags;	/* (j) TDF_* flags. */
+	int		td_dupfd;	/* (k) ret value from fdopen. XXX */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
-	short		td_locks;	/* (*) DEBUG: lockmgr count of locks */
+	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
 	struct ithd 	*td_ithd;	/* (b) For interrupt threads only. */
 	const char	*td_mtxname;	/* (j) Name of mutex blocked on. */
@@ -292,7 +291,7 @@ struct	kse {
 	TAILQ_HEAD(, thread) ke_runq;	/* (td_runq) RUNNABLE bound to KSE. */
 
 #define ke_startzero ke_flags
-	int		ke_flags; 	/* (c) P_* flags. */
+	int		ke_flags; 	/* (j) KEF_* flags. */
 	/*u_int		ke_estcpu; */	/* (j) Time averaged val of cpticks. */
 	int		ke_cpticks;	/* (j) Ticks of cpu time. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
@@ -354,7 +353,7 @@ struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (kg_ksegrp) All KSEGs. */
 	TAILQ_HEAD(, thread) p_threads;	/* (td_plist) threads. (shortcut) */
-	struct ucred	*p_ucred;	/* (c + k) Process owner's identity. */
+	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc *p_fd;		/* (b) Ptr to open files structure. */
 					/* accumulated stats for all KSEs? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
@@ -417,12 +416,12 @@ struct	proc {
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 	struct 	pgrp 	*p_pgrp;	/* (e?/c?) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
-	struct		pargs *p_args;	/* (c + k) Process arguments. */
+	struct		pargs *p_args;	/* (c) Process arguments. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
-	struct	mdproc	p_md;		/* (k) Any machine-dependent fields. */
+	struct	mdproc	p_md;		/* (c) Any machine-dependent fields. */
 	struct	callout	p_itcallout;	/* (h) Interval timer callout. */
 	struct user	*p_uarea;	/* was p_addr. changed to break stuff */
 	u_short		p_acflag;	/* (c) Accounting flags. */
@@ -481,7 +480,7 @@ struct	proc {
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 
 /* flags kept in td_flags */
-#define TDF_ONRUNQ	0x00001	/* This KE is on a run queue */
+#define	TDF_ONRUNQ	0x00001	/* This KE is on a run queue */
 #define	TDF_SINTR	0x00008	/* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00010	/* Timing out during sleep. */
 #define	TDF_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
@@ -490,7 +489,7 @@ struct	proc {
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 /* flags kept in ke_flags */
-#define KEF_ONRUNQ	0x00001	/* This KE is on a run queue */
+#define	KEF_ONRUNQ	0x00001	/* This KE is on a run queue */
 #define	KEF_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
