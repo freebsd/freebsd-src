@@ -412,8 +412,6 @@ pci_freecfg(struct pci_devinfo *dinfo)
 
 	devlist_head = &pci_devq;
 
-	if (dinfo->cfg.hdrspec != NULL)
-		free(dinfo->cfg.hdrspec, M_DEVBUF);
 	if (dinfo->cfg.map != NULL)
 		free(dinfo->cfg.map, M_DEVBUF);
 	/* XXX this hasn't been tested */
