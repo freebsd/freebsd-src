@@ -38,8 +38,6 @@
 #include <compat/linux/linux_util.h>
 
 
-DUMMY(mount);
-DUMMY(umount);
 DUMMY(ptrace);
 DUMMY(ksyslog);
 DUMMY(vhangup);
