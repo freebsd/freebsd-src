@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1996/08/20 05:44:01 pst Exp $
+#	$Id: Makefile,v 1.14 1996/08/21 16:50:15 pst Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \
@@ -14,7 +14,7 @@ SRCS=	version.c tcpdump.c addrtoname.c \
 	print-ntp.c print-null.c print-egp.c print-ospf.c \
 	print-fddi.c print-llc.c print-sunrpc.c print-wb.c \
 	print-decnet.c print-isoclns.c print-ipx.c \
-	print-atm.c print-dvmrp.c print-pim.c print-krb.c \
+	print-atm.c print-fr.c print-dvmrp.c print-pim.c print-krb.c \
 	util.c machdep.c bpf_dump.c parsenfsfh.c
 CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
