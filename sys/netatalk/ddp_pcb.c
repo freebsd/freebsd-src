@@ -23,7 +23,7 @@
 #include <netatalk/at_extern.h>
 
 static struct ddpcb	*ddp_ports[ ATPORT_LAST ];
-struct ddpcb	*ddpcb = NULL;
+struct ddpcb	*ddpcb_list = NULL;
 
 void
 at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr)
@@ -235,14 +235,14 @@ at_pcballoc(struct socket *so)
 	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_WAITOK | M_ZERO);
 	ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
 
-	ddp->ddp_next = ddpcb;
+	ddp->ddp_next = ddpcb_list;
 	ddp->ddp_prev = NULL;
 	ddp->ddp_pprev = NULL;
 	ddp->ddp_pnext = NULL;
-	if (ddpcb != NULL) {
-		ddpcb->ddp_prev = ddp;
+	if (ddpcb_list != NULL) {
+		ddpcb_list->ddp_prev = ddp;
 	}
-	ddpcb = ddp;
+	ddpcb_list = ddp;
 
 	ddp->ddp_socket = so;
 	so->so_pcb = (caddr_t)ddp;
@@ -276,7 +276,7 @@ at_pcbdetach(struct socket *so, struct ddpcb *ddp)
     if (ddp->ddp_prev) {
 	ddp->ddp_prev->ddp_next = ddp->ddp_next;
     } else {
-	ddpcb = ddp->ddp_next;
+	ddpcb_list = ddp->ddp_next;
     }
     if (ddp->ddp_next) {
 	ddp->ddp_next->ddp_prev = ddp->ddp_prev;
