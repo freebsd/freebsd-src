@@ -1504,6 +1504,8 @@ tl_intvec_rxeof(xsc, type)
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
+	TL_LOCK_ASSERT(sc);
+
 	while(sc->tl_cdata.tl_rx_head != NULL) {
 		cur_rx = sc->tl_cdata.tl_rx_head;
 		if (!(cur_rx->tl_ptr->tlist_cstat & TL_CSTAT_FRAMECMP))
@@ -1543,7 +1545,9 @@ tl_intvec_rxeof(xsc, type)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
+		TL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		TL_LOCK(sc);
 	}
 
 	return(r);

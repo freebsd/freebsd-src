@@ -475,6 +475,7 @@ struct vr_softc {
 
 #define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
 #define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
+#define	VR_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->vr_mtx, MA_OWNED)
 
 /*
  * register space access macros

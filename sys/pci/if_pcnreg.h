@@ -453,6 +453,7 @@ struct pcn_softc {
 
 #define	PCN_LOCK(_sc)		mtx_lock(&(_sc)->pcn_mtx)
 #define	PCN_UNLOCK(_sc)		mtx_unlock(&(_sc)->pcn_mtx)
+#define	PCN_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->pcn_mtx, MA_OWNED)
 
 /*
  * register space access macros

@@ -1517,6 +1517,8 @@ re_rxeof(sc)
 	struct rl_desc		*cur_rx;
 	u_int32_t		rxstat, rxvlan;
 
+	RL_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 	i = sc->rl_ldata.rl_rx_prodidx;
 
@@ -1659,7 +1661,9 @@ re_rxeof(sc)
 		if (rxvlan & RL_RDESC_VLANCTL_TAG)
 			VLAN_INPUT_TAG(ifp, m,
 			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA)), continue);
+		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		RL_LOCK(sc);
 	}
 
 	/* Flush the RX DMA ring */

@@ -692,6 +692,7 @@ struct rl_softc {
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
 #define	RL_UNLOCK(_sc)		mtx_unlock(&(_sc)->rl_mtx)
+#define	RL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->rl_mtx, MA_OWNED)
 
 /*
  * register space access macros
