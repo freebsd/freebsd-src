@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.10 1997/07/13 00:42:14 smp Exp smp $
+ *	$Id: mpapic.c,v 1.11 1997/07/15 00:09:53 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -84,7 +84,7 @@ apic_initialize(void)
 #if defined(TEST_LOPRIO)
 #if 1
 	/* The new order of startup since private pages makes this possible. */
-	temp |= 0x10;			/* allow INT arbitration */
+	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
 #else
 	if (cpuid == 0)
 		temp |= 0x10;		/* allow INT arbitration */
