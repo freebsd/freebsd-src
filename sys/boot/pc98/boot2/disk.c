@@ -163,7 +163,7 @@ devread(char *iodest, int sector, int cnt)
 	{
 		dosdev_copy = dosdev;
 		p = Bread(dosdev_copy, sector++);
-		bcopy(p, iodest+offset, BPS);
+		memcpy(p, iodest+offset, BPS);
 	}
 }
 
