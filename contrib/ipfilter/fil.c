@@ -274,32 +274,35 @@ fr_info_t *fin;
 		int minicmpsz = sizeof(struct icmp);
 		icmphdr_t *icmp;
 
-		if (fin->fin_dlen > 1)
+		if (!off && (fin->fin_dlen > 1)) {
 			fin->fin_data[0] = *(u_short *)tcp;
 
-		if ((!(plen >= hlen + minicmpsz) && !off) ||
-		    (off && off < sizeof(struct icmp))) {
-			fi->fi_fl |= FI_SHORT;
-			if (fin->fin_dlen < 2)
-				break;
+			icmp = (icmphdr_t *)tcp;
+
+			if (icmp->icmp_type == ICMP_ECHOREPLY ||
+			    icmp->icmp_type == ICMP_ECHO)
+				minicmpsz = ICMP_MINLEN;
+
+			/*
+			 * type(1) + code(1) + cksum(2) + id(2) seq(2) +
+			 * 3*timestamp(3*4)
+			 */
+			else if (icmp->icmp_type == ICMP_TSTAMP ||
+				 icmp->icmp_type == ICMP_TSTAMPREPLY)
+				minicmpsz = 20;
+
+			/*
+			 * type(1) + code(1) + cksum(2) + id(2) seq(2) +
+			 * mask(4)
+			 */
+			else if (icmp->icmp_type == ICMP_MASKREQ ||
+				 icmp->icmp_type == ICMP_MASKREPLY)
+				minicmpsz = 12;
 		}
 
-		icmp = (icmphdr_t *)tcp;
-
-		if (!off && (icmp->icmp_type == ICMP_ECHOREPLY ||
-		     icmp->icmp_type == ICMP_ECHO))
-			minicmpsz = ICMP_MINLEN;
-
-		/* type(1) + code(1) + cksum(2) + id(2) seq(2) +
-		 * 3*timestamp(3*4) */
-		else if (!off && (icmp->icmp_type == ICMP_TSTAMP ||
-		    icmp->icmp_type == ICMP_TSTAMPREPLY))
-			minicmpsz = 20;
-
-		/* type(1) + code(1) + cksum(2) + id(2) seq(2) + mask(4) */
-		else if (!off && (icmp->icmp_type == ICMP_MASKREQ ||
-		    icmp->icmp_type == ICMP_MASKREPLY))
-			minicmpsz = 12;
+		if ((!(plen >= hlen + minicmpsz) && !off) ||
+		    (off && off < sizeof(struct icmp)))
+			fi->fi_fl |= FI_SHORT;
 
 		break;
 	}
@@ -1398,7 +1401,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.26 2000/10/24 11:58:17 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.27 2000/10/26 21:20:54 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
