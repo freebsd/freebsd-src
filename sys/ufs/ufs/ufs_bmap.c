@@ -228,6 +228,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			bp->b_flags &= ~B_INVAL;
 			bp->b_ioflags &= ~BIO_ERROR;
 			vfs_busy_pages(bp, 0);
+			bp->b_offset = dbtob(bp->b_blkno);
 			VOP_STRATEGY(bp->b_vp, bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
 			error = bufwait(bp);
