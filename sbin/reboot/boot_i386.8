@@ -195,20 +195,13 @@ Boot flags:
 during kernel initialization,
 ask for the device to mount as the root file system.
 .It Fl C
-boot from CDROM.
+try to mount root file system from a CD-ROM.
 .It Fl c
-run UserConfig to modify hardware parameters for the loaded
-kernel.
-If the kernel was built with one of
-.Dv USERCONFIG , INTRO_USERCONFIG , VISUAL_USERCONFIG
-options,
-remain in UserConfig regardless of any
-.Ic quit
-commands present in the script.
+this flag is currently a no-op.
 .It Fl D
-toggle single and dual console configurations.
+boot with the dual console configuration.
 In the single
-configuration the console will be either the internal display
+configuration, the console will be either the internal display
 or the serial port, depending on the state of the
 .Fl h
 option below.
@@ -225,20 +218,15 @@ as early as possible in kernel initialization.
 .It Fl g
 use the GDB remote debugging protocol.
 .It Fl h
-toggle internal and serial consoles.
-You can use this to switch
-console devices.
+force the serial console.
 For instance, if you boot from the internal console,
 you can use the
 .Fl h
 option to force the kernel to use the serial port as its
 console device.
-Alternatively, if you boot from the serial port,
-you can use this option to force the kernel to use the internal display
-as the console instead.
 The serial port driver
 .Xr sio 4
-has a flag to override this option.
+has a flag (0x20) to override this option.
 If that flag is set, the serial port will always be used as the console,
 regardless of the
 .Fl h
