@@ -659,10 +659,6 @@ cross-tools:
 hierarchy:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
-.if ${CXX} == "c++"
-NO_CXX=	yes
-.endif
-
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
 #

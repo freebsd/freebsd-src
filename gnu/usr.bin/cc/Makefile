@@ -9,10 +9,12 @@ SUBDIR= cc_fbsd cc_tools cc_int cc cc1 cpp0 protoize tradcpp0
 SUBDIR+= cpp
 .endif
 
+.if notyet
 .if !defined(NO_CXX)
 SUBDIR+= cc1plus c++ c++filt doc
 .if !defined(NO_COLLECT2)
 #SUBDIR+= collect2
+.endif
 .endif
 .endif
 
