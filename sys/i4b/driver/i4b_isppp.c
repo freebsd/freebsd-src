@@ -542,7 +542,7 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 		sc->sc_state = ST_IDLE;
 
 		/*
-		 * Ahh, sppp does't like to get a down event when
+		 * Ahh, sppp doesn't like to get a down event when
 		 * dialing fails. So first tell it that we are up
 		 * (doesn't hurt us since sc_state != ST_CONNECTED)
 		 * and then go down.
