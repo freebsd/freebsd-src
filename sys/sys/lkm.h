@@ -49,8 +49,7 @@ typedef enum loadmod {
 	LM_DEV,
 	LM_STRMOD,
 	LM_EXEC,
-	LM_MISC,
-	LM_UNKNOWN
+	LM_MISC
 } MODTYPE;
 
 
