@@ -117,7 +117,8 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #endif
 {
 	struct ktr_entry *entry;
-	int newindex, saveindex, saveintr;
+	int newindex, saveindex;
+	critical_t savecrit;
 #ifdef KTR_EXTEND
 	va_list ap;
 #endif
@@ -130,14 +131,13 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	if (((1 << KTR_CPU) & ktr_cpumask) == 0)
 		return;
 #endif
-	saveintr = save_intr();
-	disable_intr();
+	savecrit = critical_enter();
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
-	restore_intr(saveintr);
+	critical_exit(savecrit);
 	if (ktr_mask & KTR_LOCK)
 		/*
 		 * We can't use nanotime with KTR_LOCK, it would cause

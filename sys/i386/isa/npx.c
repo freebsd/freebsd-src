@@ -220,7 +220,7 @@ npx_probe(dev)
 #else /* SMP */
 
 	int	result;
-	u_long	save_eflags;
+	critical_t	savecrit;
 	u_char	save_icu1_mask;
 	u_char	save_icu2_mask;
 	struct	gate_descriptor save_idt_npxintr;
@@ -235,8 +235,7 @@ npx_probe(dev)
 	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
 		npx_irq = 13;
 	npx_intrno = NRSVIDT + npx_irq;
-	save_eflags = read_eflags();
-	disable_intr();
+	savecrit = critical_enter();
 	save_icu1_mask = inb(IO_ICU1 + 1);
 	save_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
@@ -252,14 +251,14 @@ npx_probe(dev)
 	 * needs interrupts enabled.  Does this make any difference
 	 * here?
 	 */
-	enable_intr();
+	critical_exit(savecrit);
 	result = npx_probe1(dev);
-	disable_intr();
+	savecrit = critical_enter();
 	outb(IO_ICU1 + 1, save_icu1_mask);
 	outb(IO_ICU2 + 1, save_icu2_mask);
 	idt[npx_intrno] = save_idt_npxintr;
 	idt[16] = save_idt_npxtrap;
-	write_eflags(save_eflags);
+	critical_exit(savecrit);
 	return (result);
 
 #endif /* SMP */
@@ -798,7 +797,7 @@ npx_intr(dummy)
 int
 npxdna()
 {
-	int s;
+	critical_t s;
 
 	if (!npx_exists)
 		return (0);
@@ -807,8 +806,7 @@ npxdna()
 		       PCPU_GET(npxproc), curproc);
 		panic("npxdna");
 	}
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 	stop_emulating();
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
@@ -828,7 +826,7 @@ npxdna()
 	 * first FPU instruction after a context switch.
 	 */
 	frstor(&PCPU_GET(curpcb)->pcb_savefpu);
-	restore_intr(s);
+	critical_exit(s);
 
 	return (1);
 }
@@ -855,28 +853,27 @@ npxsave(addr)
 
 #else /* SMP */
 
-	int	intrstate;
+	critical_t savecrit;
 	u_char	icu1_mask;
 	u_char	icu2_mask;
 	u_char	old_icu1_mask;
 	u_char	old_icu2_mask;
 	struct gate_descriptor	save_idt_npxintr;
 
-	intrstate = save_intr();
-	disable_intr();
+	savecrit = critical_enter();
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
 	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
 	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
 	idt[npx_intrno] = npx_idt_probeintr;
-	write_eflags(intrstate);
+	critical_exit(savecrit);
 	stop_emulating();
 	fnsave(addr);
 	fnop();
 	start_emulating();
+	savecrit = critical_enter();
 	PCPU_SET(npxproc, NULL);
-	disable_intr();
 	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 1);
 	outb(IO_ICU1 + 1,
@@ -885,7 +882,7 @@ npxsave(addr)
 	     (icu2_mask & ~(npx0_imask >> 8))
 	     | (old_icu2_mask & (npx0_imask >> 8)));
 	idt[npx_intrno] = save_idt_npxintr;
-	restore_intr(intrstate);	/* back to previous state */
+	critical_exit(savecrit);		/* back to previous state */
 
 #endif /* SMP */
 }
