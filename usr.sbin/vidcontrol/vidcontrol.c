@@ -513,7 +513,7 @@ set_mouse(char *arg)
 	else if (!strcmp(arg, "off"))
 		mouse.operation = MOUSE_HIDE;
 	else {
-		warnx("argument to -m must either on or off");
+		warnx("argument to -m must be either on or off");
 		return;
 	}
 	ioctl(0, CONS_MOUSECTL, &mouse);
@@ -529,7 +529,7 @@ set_lockswitch(char *arg)
 	else if (!strcmp(arg, "on"))
 		data = 0x02;
 	else {
-		warnx("argument to -S must either on or off");
+		warnx("argument to -S must be either on or off");
 		return;
 	}
 	if (ioctl(0, VT_LOCKSWITCH, &data) == -1)
@@ -638,7 +638,7 @@ show_info(char *arg)
 	else if (!strcmp(arg, "mode"))
 		show_mode_info();
 	else {
-		warnx("argument to -i must either adapter or mode");
+		warnx("argument to -i must be either adapter or mode");
 		return;
 	}
 }
