@@ -468,7 +468,7 @@ fddi_input(ifp, m)
 			goto dropanyway;
 		}
 #ifdef NETATALK
-		if (Bcmp(&(l->llc_snap.org_code)[0], at_org_code,
+		if (bcmp(&(l->llc_snap.org_code)[0], at_org_code,
 		    sizeof(at_org_code)) == 0 &&
 		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
 			isr = NETISR_ATALK2;
@@ -476,7 +476,7 @@ fddi_input(ifp, m)
 			break;
 		}
 
-		if (Bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
+		if (bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
 		    sizeof(aarp_org_code)) == 0 &&
 		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
 			m_adj(m, LLC_SNAPFRAMELEN);
