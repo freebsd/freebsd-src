@@ -68,7 +68,7 @@ compilers on a variety of systems, but new systems or compilers
 may raise some new complaint; reports of difficulties are
 welcome.
 
-This also compiles with Visual C++ on Windows 95 and Windows NT,
+This also compiles with Visual C++ on all flavors of Windows,
 *if* you provide versions of popen and pclose.  The file
 missing95.c contains versions that can be used to get started
 with, though the underlying support has mysterious properties,
@@ -76,8 +76,7 @@ the symptom of which can be truncated pipe output.  Beware.
 
 This is also said to compile on Macintosh systems, using the
 file "buildmac" provided by Dan Allen (danallen@microsoft.com),
-to whom many thanks.  Dan also provided buildwin.bat, a simple
-script for compiling on NT if you prefer.
+to whom many thanks.
 
 The version of malloc that comes with some systems is sometimes
 astonishly slow.  If awk seems slow, you might try fixing that.
