@@ -36,6 +36,8 @@
 
 #include <sys/systm.h>
 #include <sys/libkern.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #else
 #include <errno.h>
 #include <stdio.h>
@@ -61,12 +63,40 @@
 #define EJUSTRETURN     -2              /* don't modify regs, just return */
 #endif /* !_KERNEL */
 
+/*
+ * This is the default number of seconds we wait for devices to settle
+ * after a SCSI bus reset.
+ */
+#ifndef SCSI_DELAY
+#define SCSI_DELAY 2000
+#endif
+/*
+ * All devices need _some_ sort of bus settle delay, so we'll set it to
+ * a minimum value of 100ms.
+ */
+#ifndef SCSI_MIN_DELAY
+#define SCSI_MIN_DELAY 100
+#endif
+/*
+ * Make sure the user isn't using seconds instead of milliseconds.
+ */
+#if (SCSI_DELAY < SCSI_MIN_DELAY)
+#error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
+#endif
+
+int scsi_delay;
+
 static int	ascentrycomp(const void *key, const void *member);
 static int	senseentrycomp(const void *key, const void *member);
 static void	fetchtableentries(int sense_key, int asc, int ascq,
 				  struct scsi_inquiry_data *,
 				  const struct sense_key_table_entry **,
 				  const struct asc_table_entry **);
+#ifdef _KERNEL
+static void	init_scsi_delay(void);
+static int	sysctl_scsi_delay(SYSCTL_HANDLER_ARGS);
+static int	set_scsi_delay(int delay);
+#endif
 
 #if !defined(SCSI_NO_OP_STRINGS)
 
@@ -2876,3 +2906,53 @@ scsi_static_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
 	}
         return (-1);
 }
+
+#ifdef _KERNEL
+static void
+init_scsi_delay(void)
+{
+	int delay;
+
+	delay = SCSI_DELAY;
+	TUNABLE_INT_FETCH("kern.cam.scsi_delay", &delay);
+
+	if (set_scsi_delay(delay) != 0) {
+		printf("cam: invalid value for tunable kern.cam.scsi_delay\n");
+		set_scsi_delay(SCSI_DELAY);
+	}
+}
+SYSINIT(scsi_delay, SI_SUB_TUNABLES, SI_ORDER_ANY, init_scsi_delay, NULL);
+
+static int
+sysctl_scsi_delay(SYSCTL_HANDLER_ARGS)
+{
+	int error, delay;
+
+	delay = scsi_delay;
+	error = sysctl_handle_int(oidp, &delay, sizeof(delay), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	return (set_scsi_delay(delay));
+}
+SYSCTL_PROC(_kern_cam, OID_AUTO, scsi_delay, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, sysctl_scsi_delay, "I",
+    "Delay to allow devices to settle after a SCSI bus reset (ms)");
+
+static int
+set_scsi_delay(int delay)
+{
+	/*
+         * If someone sets this to 0, we assume that they want the
+         * minimum allowable bus settle delay.
+	 */
+	if (delay == 0) {
+		printf("cam: using minimum scsi_delay (%dms)\n",
+		    SCSI_MIN_DELAY);
+		delay = SCSI_MIN_DELAY;
+	}
+	if (delay < SCSI_MIN_DELAY)
+		return (EINVAL);
+	scsi_delay = delay;
+	return (0);
+}
+#endif /* _KERNEL */
