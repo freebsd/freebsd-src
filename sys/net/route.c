@@ -544,8 +544,10 @@ rtrequest1(req, info, ret_nrt)
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
-	if ((rnh = rt_tables[dst->sa_family]) == 0)
-		senderr(EAFNOSUPPORT);
+	if ((rnh = rt_tables[dst->sa_family]) == 0) {
+		splx(s);
+		return (EAFNOSUPPORT);
+	}
 	RADIX_NODE_HEAD_LOCK(rnh);
 	/*
 	 * If we are adding a host route then we don't want to put
