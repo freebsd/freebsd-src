@@ -1797,7 +1797,7 @@ again:
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 			goto again;
 		if (clean_only && p->valid) {
-			vm_page_test_dirty(p);
+			pmap_page_protect(p, VM_PROT_READ | VM_PROT_EXECUTE);
 			if (p->valid & p->dirty)
 				continue;
 		}
