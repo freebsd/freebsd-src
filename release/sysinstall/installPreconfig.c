@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.10 1995/10/22 17:39:15 jkh Exp $
+ * $Id: installPreconfig.c,v 1.12 1995/10/22 21:38:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,7 +84,7 @@ static struct _word {
     { "installUpgrade",		installUpgrade		},
     { "installPreconfig",	installPreconfig	},
     { "installFixup",		installFixup		},
-    { "installFinal",		installFinal		},
+    { "installNetworking",	installNetworking	},
     { "installFilesystems",	installFilesystems	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
@@ -209,7 +209,7 @@ installPreconfig(char *str)
 	    }
 	    close(fd);
 	    safe_free(cattr);
-	    unmount("/mnt2", 0);
+	    unmount("/mnt2", MNT_FORCE);
 	    break;
 	}
     }
