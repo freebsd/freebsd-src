@@ -37,11 +37,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)common.c	8.2 (Berkeley) 1/21/94";
+static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -108,18 +109,20 @@ char	*printer;	/* printer name */
 			/* host machine name */
 char	host[MAXHOSTNAMELEN];
 char	*from = host;	/* client's machine name */
-int	sendtorem;	/* are we sending to a remote? */
+int	remote;		/* true if sending files to a remote host */
 char	*printcapdb[2] = { _PATH_PRINTCAP, 0 };
 
 static int compar __P((const void *, const void *));
 
 /*
- * Create a connection to the remote printer server.
+ * Create a TCP connection to host "rhost" at port "rport".
+ * If rport == 0, then use the printer service port.
  * Most of this code comes from rcmd.c.
  */
 int
-getport(rhost)
+getport(rhost, rport)
 	char *rhost;
+	int rport;
 {
 	struct hostent *hp;
 	struct servent *sp;
@@ -132,16 +135,24 @@ getport(rhost)
 	 */
 	if (rhost == NULL)
 		fatal("no remote host to connect to");
-	hp = gethostbyname(rhost);
-	if (hp == NULL)
-		fatal("unknown host %s", rhost);
-	sp = getservbyname("printer", "tcp");
-	if (sp == NULL)
-		fatal("printer/tcp: unknown service");
 	bzero((char *)&sin, sizeof(sin));
-	bcopy(hp->h_addr, (caddr_t)&sin.sin_addr, hp->h_length);
-	sin.sin_family = hp->h_addrtype;
-	sin.sin_port = sp->s_port;
+	sin.sin_addr.s_addr = inet_addr(rhost);
+	if (sin.sin_addr.s_addr != INADDR_NONE)
+		sin.sin_family = AF_INET;
+	else {
+		hp = gethostbyname(rhost);
+		if (hp == NULL)
+			fatal("unknown host %s", rhost);
+		bcopy(hp->h_addr, (caddr_t)&sin.sin_addr, hp->h_length);
+		sin.sin_family = hp->h_addrtype;
+	}
+	if (rport == 0) {
+		sp = getservbyname("printer", "tcp");
+		if (sp == NULL)
+			fatal("printer/tcp: unknown service");
+		sin.sin_port = sp->s_port;
+	} else
+		sin.sin_port = htons(rport);
 
 	/*
 	 * Try connecting to the server.
@@ -244,8 +255,9 @@ getq(namelist)
 		 * realloc the maximum size.
 		 */
 		if (++nitems > arraysz) {
+			arraysz *= 2;
 			queue = (struct queue **)realloc((char *)queue,
-				(stbuf.st_size/12) * sizeof(struct queue *));
+				arraysz * sizeof(struct queue *));
 			if (queue == NULL)
 				goto errdone;
 		}
@@ -287,8 +299,8 @@ checkremote()
 	register struct hostent *hp;
 	static char errbuf[128];
 
-	sendtorem = 0;	/* assume printer is local */
-	if (RM != (char *)NULL) {
+	remote = 0;	/* assume printer is local */
+	if (RM != NULL) {
 		/* get the official name of the local host */
 		gethostname(name, sizeof(name));
 		name[sizeof(name)-1] = '\0';
@@ -313,10 +325,23 @@ checkremote()
 		 * if the two hosts are not the same,
 		 * then the printer must be remote.
 		 */
-		if (strcmp(name, hp->h_name) != 0)
-			sendtorem = 1;
+		if (strcasecmp(name, hp->h_name) != 0)
+			remote = 1;
 	}
-	return (char *)0;
+	return NULL;
+}
+
+/* sleep n milliseconds */
+void
+delay(n)
+{
+	struct timeval tdelay;
+
+	if (n <= 0 || n > 10000)
+		fatal("unreasonable delay period (%d)", n);
+	tdelay.tv_sec = n / 1000;
+	tdelay.tv_usec = n * 1000 % 1000000;
+	(void) select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tdelay);
 }
 
 #if __STDC__
