@@ -57,6 +57,37 @@ all of these support routines are implemented in
 .Pp
 Available functions, sorted by behavior, include:
 .Pp
+.Fn acl_add_perm
+.Pp
+This function is described in
+.Xr acl_add_perm 3 ,
+and may be used to add permissions to a permission set.
+.Pp
+.Fn acl_calc_mask
+.Pp
+This function is described in
+.Xr acl_calc_mask 3 ,
+and may be used to calculate and set the permissions associated with
+the ACL_MASK entry.
+.Pp
+.Fn acl_clear_perms
+.Pp
+This function is described in
+.Xr acl_clear_perms 3 ,
+and may be used to clear all permissions from a permission set.
+.Pp
+.Fn acl_copy_entry
+.Pp
+This function is described in
+.Xr acl_copy_entry 3 ,
+and may be used to copy the contents of an ACL entry.
+.Pp
+.Fn acl_create_entry
+.Pp
+This function is described in
+.Xr acl_create_entry 3 ,
+and may be used to create an empty entry in an ACL.
+.Pp
 .Fn acl_delete_def_file ,
 .Fn acl_delete_file_np ,
 .Fn acl_delete_fd_np
@@ -64,6 +95,24 @@ Available functions, sorted by behavior, include:
 These functions are described in
 .Xr acl_delete 3 ,
 and may be used to delete ACLs from file system objects.
+.Pp
+.Fn acl_delete_entry
+.Pp
+This function is described in
+.Xr acl_delete_entry 3 ,
+and may be used to delete an entry from an ACL.
+.Pp
+.Fn acl_delete_perm
+.Pp
+This function is described in
+.Xr acl_delete_perm 3 ,
+and may be used to delete permissions from a permset.
+.Pp
+.Fn acl_dup
+.Pp
+This function is described in
+.Xr acl_dup 3 ,
+and may be used to duplicate an ACL structure.
 .Pp
 .Fn acl_free
 .Pp
@@ -86,17 +135,29 @@ These functions are described in
 .Xr acl_get 3 ,
 and may be used to retrieve ACLs from file system objects.
 .Pp
+.Fn acl_get_permset
+.Pp
+This function is described in
+.Xr acl_get_permset 3 ,
+and may be used to retrieve a permset from an ACL entry.
+.Pp
+.Fn acl_get_qualifier
+.Pp
+This function is described in
+.Xr acl_get_qualifier 3 ,
+and may be used to retrieve the qualifier from an ACL entry.
+.Pp
+.Fn acl_get_tag_type
+.Pp
+This function is described in
+.Xr acl_get_tag_type 3 ,
+and may be used to retrieve the tag type from an ACL entry.
+.Pp
 .Fn acl_init
 .Pp
 This function is described in
 .Xr acl_init 3 ,
 and may be used to allocate a fresh (empty) ACL structure.
-.Pp
-.Fn acl_dup
-.Pp
-This function is described in
-.Xr acl_dup 3 ,
-and may be used to duplicate an ACL structure.
 .Pp
 .Fn acl_set_file ,
 .Fn acl_set_fd ,
@@ -105,6 +166,24 @@ and may be used to duplicate an ACL structure.
 These functions are described in
 .Xr acl_set 3 ,
 and may be used to assign an ACL to a file system object.
+.Pp
+.Fn acl_set_permset
+.Pp
+This function is described in
+.Xr acl_set_permset 3 ,
+and may be used to set the permissions of an ACL entry from a permset.
+.Pp
+.Fn acl_set_qualifier
+.Pp
+This function is described in
+.Xr acl_set_qualifier 3 ,
+and may be used to set the qualifier of an ACL.
+.Pp
+.Fn acl_set_tag_type
+.Pp
+This function is described in
+.Xr acl_set_tag_type 3 ,
+and may be used to set the tag type of an ACL.
 .Pp
 .Fn acl_to_text
 .Pp
@@ -132,7 +211,31 @@ library.
 .Fx Ns 's
 support for POSIX.1e interfaces and features is still under
 development at this time.
-.Sh ENVIRONMENT
+.Sh SEE ALSO
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_copy_entry 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_init 3 ,
+.Xr acl_set 3 ,
+.Xr acl_set_permset 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_valid 3 ,
+.Xr acl 9 ,
+.Xr posix1e 3
+.Sh STANDARDS
 POSIX.1e assigns security labels to all objects, extending the security
 functionality described in POSIX.1.
 These additional labels provide fine-grained discretionary access control,
@@ -140,18 +243,7 @@ fine-grained capabilities, and labels necessary for mandatory access
 control.
 POSIX.2c describes a set of userland utilities for manipulating these
 labels.
-.\" .Sh FILES
-.Sh SEE ALSO
-.Xr acl_dup 3 ,
-.Xr acl_free 3 ,
-.Xr acl_from_text 3 ,
-.Xr acl_get 3 ,
-.Xr acl_set 3 ,
-.Xr acl_to_text 3 ,
-.Xr acl_valid 3 ,
-.Xr acl 9 ,
-.Xr posix1e 3
-.Sh STANDARDS
+.Pp
 POSIX.1e is described in IEEE POSIX.1e draft 17.
 Discussion of the draft continues on the cross-platform POSIX.1e
 implementation mailing list.
