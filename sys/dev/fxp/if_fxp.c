@@ -595,9 +595,6 @@ fxp_attach(device_t dev)
 
 		/* turn on the extended TxCB feature */
 		sc->flags |= FXP_FLAG_EXT_TXCB;
-
-		/* enable reception of long frames for VLAN */
-		sc->flags |= FXP_FLAG_LONG_PKT_EN;
 	}
 
 	/*
@@ -823,7 +820,7 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	/* this driver lets vlan(4) control the bit in if_capenable via ioctl */
 
 	/*
 	 * Let the system queue as many packets as we have available
@@ -2086,7 +2083,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->ext_txcb_dis = 	sc->flags & FXP_FLAG_EXT_TXCB ? 0 : 1;
 	cbp->ext_stats_dis = 	1;	/* disable extended counters */
 	cbp->keep_overrun_rx = 	0;	/* don't pass overrun frames to host */
-	cbp->save_bf =		sc->revision == FXP_REV_82557 ? 1 : prm;
+	cbp->save_bf =		sc->flags & FXP_FLAG_SAVE_BAD ? 1 : prm;
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (once) on DMA underrun */
 	cbp->two_frames =	0;	/* do not limit FIFO to 2 frames */
@@ -2430,7 +2427,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
-	int s, error = 0;
+	int flag, mask, s, error = 0;
 
 	/*
 	 * Detaching causes us to call ioctl with the mutex owned.  Preclude
@@ -2496,8 +2493,19 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		ifp->if_capenable &= ~IFCAP_POLLING;
-		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		if (mask & IFCAP_POLLING)
+			ifp->if_capenable ^= IFCAP_POLLING;
+		if (mask & IFCAP_VLAN_MTU) {
+			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			if (sc->revision != FXP_REV_82557)
+				flag = FXP_FLAG_LONG_PKT_EN;
+			else /* a hack to get long frames on the old chip */
+				flag = FXP_FLAG_SAVE_BAD;
+			sc->flags ^= flag;
+			if (ifp->if_flags & IFF_UP)
+				fxp_init_body(sc);
+		}
 		break;
 
 	default:
