@@ -352,7 +352,10 @@ base64_decode(const char *stream)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: uudecode [-cips] [file ...]\n");
-	(void)fprintf(stderr, "usage: uudecode [-i] -o output_file [file]\n");
+	(void)fprintf(stderr,
+"usage: uudecode [-cips] [file ...]\n"
+"       uudecode [-i] -o output_file [file]\n"
+"       b64decode [-cips] [file ...]\n"
+"       b64decode [-i] -o output_file [file]\n");
 	exit(1);
 }
