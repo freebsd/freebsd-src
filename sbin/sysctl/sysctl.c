@@ -58,12 +58,13 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, dflag, eflag, Nflag, nflag, oflag, xflag;
+static int	aflag, bflag, dflag, eflag, hflag, Nflag, nflag, oflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -78,8 +79,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdeNnox] variable[=value] ...",
-	    "       sysctl [-bdeNnox] -a");
+	    "usage: sysctl [-bdehNnox] variable[=value] ...",
+	    "       sysctl [-bdehNnox] -a");
 	exit(1);
 }
 
@@ -87,10 +88,12 @@ int
 main(int argc, char **argv)
 {
 	int ch;
+
+	setlocale(LC_NUMERIC, "");
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdeNnowxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdehNnowxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -107,6 +110,9 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			eflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		case 'N':
 			Nflag = 1;
@@ -305,7 +311,8 @@ S_clockinfo(int l2, void *p)
 		warnx("S_clockinfo %d != %d", l2, sizeof(*ci));
 		return (0);
 	}
-	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
+	printf(hflag ? "{ hz = %'d, tick = %'d, profhz = %'d, stathz = %'d }" :
+		"{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
 		ci->hz, ci->tick, ci->profhz, ci->stathz);
 	return (0);
 }
@@ -319,7 +326,7 @@ S_loadavg(int l2, void *p)
 		warnx("S_loadavg %d != %d", l2, sizeof(*tv));
 		return (0);
 	}
-	printf("{ %.2f %.2f %.2f }",
+	printf(hflag ? "{ %'.2f %'.2f %'.2f }" : "{ %.2f %.2f %.2f }",
 		(double)tv->ldavg[0]/(double)tv->fscale,
 		(double)tv->ldavg[1]/(double)tv->fscale,
 		(double)tv->ldavg[2]/(double)tv->fscale);
@@ -337,7 +344,8 @@ S_timeval(int l2, void *p)
 		warnx("S_timeval %d != %d", l2, sizeof(*tv));
 		return (0);
 	}
-	printf("{ sec = %ld, usec = %ld } ",
+	printf(hflag ? "{ sec = %'ld, usec = %'ld } " :
+		"{ sec = %ld, usec = %ld } ",
 		tv->tv_sec, tv->tv_usec);
 	tv_sec = tv->tv_sec;
 	p1 = strdup(ctime(&tv_sec));
@@ -555,10 +563,11 @@ show_var(int *oid, int nlen)
 		fmt++;
 		val = "";
 		while (len >= sizeof(int)) {
+			fputs(val, stdout);
 			if(*fmt == 'U')
-				printf("%s%u", val, *(unsigned int *)p);
+				printf(hflag ? "%'u" : "%u", *(unsigned int *)p);
 			else
-				printf("%s%d", val, *(int *)p);
+				printf(hflag ? "%'d" : "%d", *(int *)p);
 			val = " ";
 			len -= sizeof(int);
 			p += sizeof(int);
@@ -571,10 +580,11 @@ show_var(int *oid, int nlen)
 		fmt++;
 		val = "";
 		while (len >= sizeof(long)) {
+			fputs(val, stdout);
 			if(*fmt == 'U')
-				printf("%s%lu", val, *(unsigned long *)p);
+				printf(hflag ? "%'lu" : "%lu", *(unsigned long *)p);
 			else
-				printf("%s%ld", val, *(long *)p);
+				printf(hflag ? "%'ld" : "%ld", *(long *)p);
 			val = " ";
 			len -= sizeof(long);
 			p += sizeof(long);

@@ -40,11 +40,11 @@
 .Nd get or set kernel state
 .Sh SYNOPSIS
 .Nm
-.Op Fl beNnox
+.Op Fl bedhNnox
 .Ar name Ns Op = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl bdeNnox
+.Op Fl bdehNnox
 .Fl a
 .Sh DESCRIPTION
 The
@@ -84,6 +84,8 @@ This option is ignored if either
 or
 .Fl n
 is specified, or a variable is being set.
+.It Fl h
+Format output for human, rather than machine, readability.
 .It Fl N
 Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
