@@ -694,8 +694,7 @@ vm_pageout_scan(int pass)
 	 */
 	vm_pageout_pmap_collect();
 
-	addl_page_shortage_init = vm_pageout_deficit;
-	vm_pageout_deficit = 0;
+	addl_page_shortage_init = atomic_readandclear_int(&vm_pageout_deficit);
 
 	/*
 	 * Calculate the number of pages we want to either free or move
@@ -1479,7 +1478,6 @@ vm_pageout()
 			cnt.v_pdwakeups++;
 		splx(s);
 		vm_pageout_scan(pass);
-		vm_pageout_deficit = 0;
 	}
 }
 
