@@ -254,8 +254,8 @@ hatm_mbuf1_free(void *buf, void *args)
  * Allocate an external mbuf storage
  */
 static int
-hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
-    uint32_t *phys, uint32_t *handle)
+hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, uint32_t *phys,
+    uint32_t *handle)
 {
 	struct mbufx_free *cf;
 	struct mbuf_page *pg;
@@ -269,12 +269,9 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 		pg = sc->mbuf_pages[buf0->hdr.pageno];
 		MBUF_SET_BIT(pg->hdr.card, buf0->hdr.chunkno);
 
-		m_extadd(m, (caddr_t)buf0, MBUF0_SIZE, hatm_mbuf0_free, sc,
-		    M_PKTHDR, EXT_NET_DRV);
-		m->m_data += MBUF0_OFFSET;
-		buf0->hdr.mbuf = m;
-
 		*handle = MBUF_MAKE_HANDLE(buf0->hdr.pageno, buf0->hdr.chunkno);
+		*phys = pg->hdr.phys + buf0->hdr.chunkno * MBUF0_CHUNK +
+		    MBUF0_OFFSET;
 
 	} else if (group == 1) {
 		struct mbuf1_chunk *buf1;
@@ -285,17 +282,13 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 		pg = sc->mbuf_pages[buf1->hdr.pageno];
 		MBUF_SET_BIT(pg->hdr.card, buf1->hdr.chunkno);
 
-		m_extadd(m, (caddr_t)buf1, MBUF1_SIZE, hatm_mbuf1_free, sc,
-		    M_PKTHDR, EXT_NET_DRV);
-		m->m_data += MBUF1_OFFSET;
-		buf1->hdr.mbuf = m;
-
 		*handle = MBUF_MAKE_HANDLE(buf1->hdr.pageno, buf1->hdr.chunkno);
+		*phys = pg->hdr.phys + buf1->hdr.chunkno * MBUF1_CHUNK +
+		    MBUF1_OFFSET;
 
 	} else
 		return (-1);
 
-	*phys = pg->hdr.phys + (mtod(m, char *) - (char *)pg);
 	bus_dmamap_sync(sc->mbuf_tag, pg->hdr.map, BUS_DMASYNC_PREREAD);
 
 	return (0);
@@ -341,8 +334,8 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 		if (ntail == rbp->head)
 			break;
 
-		/* allocate the MBUF */
 		if (large) {
+			/* allocate the MBUF */
 			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR)) == NULL) {
 				if_printf(&sc->ifatm.ifnet,
@@ -372,12 +365,8 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 				sc->lbufs_next = 0;
 
 		} else {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			if (m == NULL) {
-				if_printf(&sc->ifatm.ifnet, "no mbufs\n");
-				break;
-			}
-			if (hatm_mbuf_alloc(sc, group, m,
+			m = NULL;
+			if (hatm_mbuf_alloc(sc, group,
 			    &rbp->rbp[rbp->tail].phys,
 			    &rbp->rbp[rbp->tail].handle)) {
 				m_freem(m);
@@ -420,9 +409,12 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 	}
 
 	MBUF_PARSE_HANDLE(handle, pageno, chunkno);
+	MBUF_CLR_BIT(sc->mbuf_pages[pageno]->hdr.card, chunkno);
 
 	DBG(sc, RX, ("RX group=%u handle=%x page=%u chunk=%u", group, handle,
 	    pageno, chunkno));
+
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 
 	if (group == 0) {
 		struct mbuf0_chunk *c0;
@@ -433,7 +425,12 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		KASSERT(c0->hdr.chunkno == chunkno, ("chunkno = %u/%u",
 		    c0->hdr.chunkno, chunkno));
 
-		m = c0->hdr.mbuf;
+		if (m != NULL) {
+			m_extadd(m, (void *)c0, MBUF0_SIZE,
+			    hatm_mbuf0_free, sc, M_PKTHDR, EXT_NET_DRV);
+			m->m_data += MBUF0_OFFSET;
+		} else
+			hatm_mbuf0_free(c0, sc);
 
 	} else {
 		struct mbuf1_chunk *c1;
@@ -444,12 +441,13 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		KASSERT(c1->hdr.chunkno == chunkno, ("chunkno = %u/%u",
 		    c1->hdr.chunkno, chunkno));
 
-		m = c1->hdr.mbuf;
+		if (m != NULL) {
+			m_extadd(m, (void *)c1, MBUF1_SIZE,
+			    hatm_mbuf1_free, sc, M_PKTHDR, EXT_NET_DRV);
+			m->m_data += MBUF1_OFFSET;
+		} else
+			hatm_mbuf1_free(c1, sc);
 	}
-	MBUF_CLR_BIT(sc->mbuf_pages[pageno]->hdr.card, chunkno);
-
-	bus_dmamap_sync(sc->mbuf_tag, sc->mbuf_pages[pageno]->hdr.map,
-	    BUS_DMASYNC_POSTREAD);
 
 	return (m);
 }

@@ -116,6 +116,10 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 		}
 		goto drop;
 	}
+	if (m0 == NULL) {
+		sc->istats.no_rcv_mbuf++;
+		return;
+	}
 
 	if ((m0->m_len = len) == 0) {
 		sc->istats.empty_hbuf++;
