@@ -820,7 +820,7 @@ msgbufcopy(struct msgbuf *oldp)
 }
 
 void
-msgbufinit(void *ptr, size_t size)
+msgbufinit(void *ptr, int size)
 {
 	char *cp;
 	static struct msgbuf *oldp = NULL;
@@ -829,7 +829,8 @@ msgbufinit(void *ptr, size_t size)
 	cp = (char *)ptr;
 	msgbufp = (struct msgbuf *) (cp + size);
 	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_size != size ||
-	    msgbufp->msg_bufx >= size || msgbufp->msg_bufr >= size) {
+	    msgbufp->msg_bufx >= size || msgbufp->msg_bufx < 0 ||
+	    msgbufp->msg_bufr >= size || msgbufp->msg_bufr < 0) {
 		bzero(cp, size);
 		bzero(msgbufp, sizeof(*msgbufp));
 		msgbufp->msg_magic = MSG_MAGIC;
