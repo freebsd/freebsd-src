@@ -156,38 +156,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
-gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate \
-	warning "kernel contains GPL contaminated math emulator"
-gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
-gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
-gnu/i386/fpemul/fpu_aux.c	optional	gpl_math_emulate
-gnu/i386/fpemul/fpu_entry.c	optional	gpl_math_emulate
-gnu/i386/fpemul/fpu_etc.c	optional	gpl_math_emulate
-gnu/i386/fpemul/fpu_trig.c	optional	gpl_math_emulate
-gnu/i386/fpemul/get_address.c	optional	gpl_math_emulate
-gnu/i386/fpemul/load_store.c	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_2xm1.c	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_atan.c	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_div.s	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_l2.c	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_mul64.s	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_sin.c	optional	gpl_math_emulate
-gnu/i386/fpemul/poly_tan.c	optional	gpl_math_emulate
-gnu/i386/fpemul/polynomial.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_add_sub.c	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_compare.c	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_constant.c	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_div.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_ld_str.c	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_mul.c	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_norm.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_round.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_u_add.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_u_div.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
-gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
-gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
-gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 i386/acpica/OsdEnvironment.c	optional	acpi
 i386/acpica/acpi_machdep.c	optional	acpi
 i386/acpica/acpi_wakeup.c	optional	acpi
@@ -226,7 +194,6 @@ i386/i386/k6_mem.c		standard
 i386/i386/legacy.c		standard
 i386/i386/locore.s		standard	no-obj
 i386/i386/machdep.c		standard
-i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp

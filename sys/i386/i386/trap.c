@@ -102,8 +102,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 
-int (*pmath_emulate)(struct trapframe *);
-
 extern void trap(struct trapframe frame);
 #ifdef I386_CPU
 extern int trapwrite(unsigned addr);
@@ -398,21 +396,8 @@ trap(frame)
 			if (npxdna())
 				goto userout;
 #endif
-			if (!pmath_emulate) {
-				i = SIGFPE;
-				ucode = FPE_FPU_NP_TRAP;
-				break;
-			}
-			mtx_lock(&Giant);
-			i = (*pmath_emulate)(&frame);
-			mtx_unlock(&Giant);
-			if (i == 0) {
-				if (!(frame.tf_eflags & PSL_T))
-					goto userout;
-				frame.tf_eflags &= ~PSL_T;
-				i = SIGTRAP;
-			}
-			/* else ucode = emulator_only_knows() XXX */
+			i = SIGFPE;
+			ucode = FPE_FPU_NP_TRAP;
 			break;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
