@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.45 1998/04/03 19:23:54 brian Exp $
+ * $Id: command.c,v 1.131.2.46 1998/04/03 19:24:15 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -110,9 +110,10 @@ HelpCommand(struct cmdargs const *arg)
   int n, cmax, dmax, cols;
 
   if (arg->argc > 0) {
-    for (cmd = arg->cmdtab; cmd->name; cmd++)
-      if (strcasecmp(cmd->name, *arg->argv) == 0 &&
-          (cmd->lauth & VarLocalAuth)) {
+    for (cmd = arg->cmdtab; cmd->name || cmd->alias; cmd++)
+      if ((cmd->lauth & VarLocalAuth) &&
+          ((cmd->name && !strcasecmp(cmd->name, *arg->argv)) ||
+           (cmd->alias && !strcasecmp(cmd->alias, *arg->argv)))) {
 	prompt_Printf(&prompt, "%s\n", cmd->syntax);
 	return 0;
       }
@@ -320,8 +321,12 @@ static struct cmdtab const Commands[] = {
   "accept option request", "accept option .."},
   {"add", NULL, AddCommand, LOCAL_AUTH,
   "add route", "add dest mask gateway", NULL},
-  {"add!", NULL, AddCommand, LOCAL_AUTH,
+  {NULL, "add!", AddCommand, LOCAL_AUTH,
   "add or change route", "add! dest mask gateway", (void *)1},
+#ifndef NOALIAS
+  {"alias", NULL, AliasCommand, LOCAL_AUTH,
+  "alias control", "alias option [yes|no]"},
+#endif
   {"allow", "auth", AllowCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
@@ -330,7 +335,7 @@ static struct cmdtab const Commands[] = {
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
   "delete route", "delete dest", NULL},
-  {"delete!", NULL, DeleteCommand, LOCAL_AUTH,
+  {NULL, "delete!", DeleteCommand, LOCAL_AUTH,
   "delete a route if it exists", "delete! dest", (void *)1},
   {"deny", NULL, DenyCommand, LOCAL_AUTH,
   "Deny option request", "deny option .."},
@@ -340,14 +345,18 @@ static struct cmdtab const Commands[] = {
   "Disable option", "disable option .."},
   {"display", NULL, DisplayCommand, LOCAL_AUTH,
   "Display option configs", "display"},
+  {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX,
+  "Generate a down event", "down"},
   {"enable", NULL, EnableCommand, LOCAL_AUTH,
   "Enable option", "enable option .."},
-  {"passwd", NULL, LocalAuthCommand, LOCAL_NO_AUTH,
-  "Password for manipulation", "passwd LocalPassword"},
   {"link", NULL, LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
+  {"passwd", NULL, LocalAuthCommand, LOCAL_NO_AUTH,
+  "Password for manipulation", "passwd LocalPassword"},
+  {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+  "Quit PPP program", "quit|bye [all]"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -358,16 +367,8 @@ static struct cmdtab const Commands[] = {
   "Show status and stats", "show var"},
   {"term", NULL, TerminalCommand, LOCAL_AUTH | LOCAL_CX,
   "Enter terminal mode", "term"},
-#ifndef NOALIAS
-  {"alias", NULL, AliasCommand, LOCAL_AUTH,
-  "alias control", "alias option [yes|no]"},
-#endif
-  {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Quit PPP program", "quit|bye [all]"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "help|? [command]", Commands},
-  {NULL, "down", DownCommand, LOCAL_AUTH | LOCAL_CX,
-  "Generate down event", "down"},
   {NULL, NULL, NULL},
 };
 
@@ -543,10 +544,10 @@ static struct cmdtab const ShowCommands[] = {
   "Show compression stats", "show compress"},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
   "Show escape characters", "show escape"},
-  {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
-  "Show HDLC errors", "show hdlc"},
   {"filter", NULL, ShowFilter, LOCAL_AUTH,
   "Show packet filters", "show filter [in|out|dial|alive]"},
+  {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
+  "Show HDLC errors", "show hdlc"},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -571,12 +572,12 @@ static struct cmdtab const ShowCommands[] = {
   "Show Redial timeout", "show redial"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
   "Show routing table", "show route"},
+  {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
+  "Show STOPPED timeout", "show stopped"},
   {"timeout", NULL, ShowTimeout, LOCAL_AUTH,
   "Show Idle timeout", "show timeout"},
   {"timers", NULL, ShowTimerList, LOCAL_AUTH,
   "Show alarm timers", "show timers"},
-  {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
-  "Show STOPPED timeout", "show stopped"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -1408,7 +1409,11 @@ static struct cmdtab const SetCommands[] = {
   "Set authentication key", "set authkey|key key", (const void *)VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
   "Set authentication name", "set authname name", (const void *)VAR_AUTHNAME},
-  {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH | LOCAL_CX,
+  {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
+  {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use hardware flow control", "set ctsrts [on|off]"},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set deflate window sizes", "set deflate out-winsize in-winsize",
@@ -1422,32 +1427,26 @@ static struct cmdtab const SetCommands[] = {
   "set encrypt MSChap|MD5", (const void *) VAR_ENC},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
+  {"filter", NULL, SetFilter, LOCAL_AUTH,
+  "Set packet filters", "set filter in|out|dial|alive ..."},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
-  {"filter", NULL, SetFilter, LOCAL_AUTH,
-  "Set packet filters", "set filter in|out|dial|alive ..."},
+  {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
+  "Set FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
+  {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
   "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
+  {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set MRU value", "set mru value", (const void *)VAR_MRU},
   {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set MTU value", "set mtu value", (const void *)VAR_MTU},
-  {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
-  {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
-  {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
-  {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
-  {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
-  {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
-  "Set FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
 #ifndef NOMSEXT
   {"nbns", NULL, SetNBNS, LOCAL_AUTH,
   "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
@@ -1456,6 +1455,8 @@ static struct cmdtab const SetCommands[] = {
 #endif
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set open mode",
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
+  {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "Set modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set telephone number(s)",
@@ -1464,12 +1465,12 @@ static struct cmdtab const SetCommands[] = {
   "Set Reconnect timeout", "set reconnect value ntries"},
   {"redial", NULL, SetRedialTimeout, LOCAL_AUTH | LOCAL_CX,
   "Set Redial timeout", "set redial value|random[.value|random] [attempts]"},
-  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
-  "Set STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
   "Set modem speed", "set speed value"},
+  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
+  "Set STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Set Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, SetInitVJ, LOCAL_AUTH,
@@ -1561,30 +1562,30 @@ DeleteCommand(struct cmdargs const *arg)
 #ifndef NOALIAS
 static struct cmdtab const AliasCommands[] =
 {
-  {"enable", NULL, AliasEnable, LOCAL_AUTH,
-  "enable IP aliasing", "alias enable [yes|no]"},
-  {"port", NULL, AliasRedirectPort, LOCAL_AUTH,
-  "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
   {"addr", NULL, AliasRedirectAddr, LOCAL_AUTH,
-  "static address translation", "alias addr [addr_local addr_alias]"},
+   "static address translation", "alias addr [addr_local addr_alias]"},
   {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
-    "stop incoming connections", "alias deny_incoming [yes|no]",
-  (const void *) PKT_ALIAS_DENY_INCOMING},
+   "stop incoming connections", "alias deny_incoming [yes|no]",
+   (const void *) PKT_ALIAS_DENY_INCOMING},
+  {"enable", NULL, AliasEnable, LOCAL_AUTH,
+   "enable IP aliasing", "alias enable [yes|no]"},
   {"log", NULL, AliasOption, LOCAL_AUTH,
-    "log aliasing link creation", "alias log [yes|no]",
-  (const void *) PKT_ALIAS_LOG},
+   "log aliasing link creation", "alias log [yes|no]",
+   (const void *) PKT_ALIAS_LOG},
+  {"port", NULL, AliasRedirectPort, LOCAL_AUTH,
+   "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
-    "try to leave port numbers unchanged", "alias same_ports [yes|no]",
-  (const void *) PKT_ALIAS_SAME_PORTS},
-  {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
-    "allocate host sockets", "alias use_sockets [yes|no]",
-  (const void *) PKT_ALIAS_USE_SOCKETS},
+   "try to leave port numbers unchanged", "alias same_ports [yes|no]",
+   (const void *) PKT_ALIAS_SAME_PORTS},
   {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
-    "alias unregistered (private) IP address space only",
-    "alias unregistered_only [yes|no]",
-  (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
+   "alias unregistered (private) IP address space only",
+   "alias unregistered_only [yes|no]",
+   (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
+  {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
+   "allocate host sockets", "alias use_sockets [yes|no]",
+   (const void *) PKT_ALIAS_USE_SOCKETS},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-    "Display this message", "alias help|? [command]", AliasCommands},
+   "Display this message", "alias help|? [command]", AliasCommands},
   {NULL, NULL, NULL},
 };
 
@@ -1651,10 +1652,10 @@ AliasOption(struct cmdargs const *arg)
 #endif /* #ifndef NOALIAS */
 
 static struct cmdtab const AllowCommands[] = {
-  {"users", "user", AllowUsers, LOCAL_AUTH,
-  "Allow users access to ppp", "allow users logname..."},
   {"modes", "mode", AllowModes, LOCAL_AUTH,
   "Only allow certain ppp modes", "allow modes mode..."},
+  {"users", "user", AllowUsers, LOCAL_AUTH,
+  "Allow users access to ppp", "allow users logname..."},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "allow help|? [command]", AllowCommands},
   {NULL, NULL, NULL},

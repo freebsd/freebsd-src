@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.8 1998/04/03 19:24:04 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.9 1998/04/03 19:24:21 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2057,8 +2057,10 @@ is logged as
 for security reasons.
 .It set authname id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
-.It set ctsrts
-This sets hardware flow control and is the default.
+.It set ctsrts|crtscts on|off
+This sets hardware flow control.  Hardware flow control is
+.Ar on
+by default.
 .It set deflate out-winsize [in-winsize]
 This sets the DEFLATE algorithms default outgoing and incoming window
 sizes.  Both
