@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.30 1997/09/02 20:05:53 bde Exp $
+ *	$Id: sys_process.c,v 1.31 1997/11/06 19:29:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -303,7 +303,7 @@ ptrace(curp, uap)
 	 */
 
 	write = 0;
-	p->p_retval[0] = 0;
+	curp->p_retval[0] = 0;
 
 	switch (uap->req) {
 	case PT_TRACE_ME:
@@ -380,7 +380,7 @@ ptrace(curp, uap)
 	case PT_READ_I:
 	case PT_READ_D:
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)p->p_retval;
+		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)curp->p_retval;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
@@ -414,9 +414,9 @@ ptrace(curp, uap)
 		if (p->p_flag & P_INMEM) {
 			p->p_addr->u_kproc.kp_proc = *p;
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			p->p_retval[0] = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
+			curp->p_retval[0] = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
 		} else {
-			p->p_retval[0] = 0;
+			curp->p_retval[0] = 0;
 			error = EFAULT;
 		}
 		PRELE(p);
