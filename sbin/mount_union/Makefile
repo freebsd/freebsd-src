@@ -5,7 +5,7 @@ SRCS=	mount_union.c getmntopts.c
 MAN8=	mount_union.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I/sys -I${MOUNT}
+CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
 .PATH:	${MOUNT}
 
 BINOWN= root
