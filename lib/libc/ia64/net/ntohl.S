@@ -30,4 +30,4 @@
 
 #define	NAME	ntohl
 
-#include <ia64/net/byte_swap_4.S>
+#include "byte_swap_4.S"
