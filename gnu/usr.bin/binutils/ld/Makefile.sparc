@@ -6,7 +6,7 @@
 HOST=		sparc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf32_sparc\"
 CFLAGS+=	-DTARGET=\"sparc-unknown-freebsd\"
-_sparc_path=	\"/usr/lib\"
+_sparc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 .endif

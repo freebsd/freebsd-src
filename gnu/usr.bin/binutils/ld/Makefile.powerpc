@@ -6,7 +6,7 @@
 HOST=		powerpc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_powerpc\"
 CFLAGS+=	-DTARGET=\"powerpc-unknown-freebsd\"
-_powerpc_path=	\"/usr/lib\"
+_powerpc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
 .endif
