@@ -39,7 +39,7 @@ static char rcsid[] = "$NetBSD: func.c,v 1.7 1995/10/02 17:31:40 jpo Exp $";
 #include <string.h>
 
 #include "lint1.h"
-#include "cgram.tab.h"
+#include "y.tab.h"
 
 /*
  * Contains a pointer to the symbol table entry of the current function

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.1.1.1 1995/02/17 17:29:50 ache Exp $
+ * $Id: scan.l,v 1.1 1995/02/17 17:29:49 ache Exp $
  */
 
 #include <err.h>
@@ -34,7 +34,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include "collate.h"
-#include "parse.tab.h"
+#include "y.tab.h"
 
 int line_no = 1;
 u_char buf[STR_LEN], *ptr;
