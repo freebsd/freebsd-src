@@ -48,8 +48,10 @@ static const char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
 /*
  * unexpand - put tabs into a file replacing blanks
  */
+#include <ctype.h>
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +72,8 @@ main(argc, argv)
 {
 	int ch, failed;
 	char *filename;
+
+	setlocale(LC_CTYPE, "");
 
 	nstops = 1;
 	tabstops[0] = 8;
@@ -176,7 +180,8 @@ tabify()
 			doneline = ocol = dcol = 0;
 		} else if (ch != ' ' || dcol > limit) {
 			putchar(ch);
-			ocol++, dcol++;
+			if (isprint(ch))
+				ocol++, dcol++;
 		}
 
 		/*
@@ -213,7 +218,7 @@ getstops(cp)
 		tabstops[nstops++] = i;
 		if (*cp == 0)
 			break;
-		if (*cp != ',' && *cp != ' ')
+		if (*cp != ',' && !isblank((unsigned char)*cp))
 			errx(1, "bad tab stop spec");
 		cp++;
 	}
