@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.9 1997/08/19 17:52:38 peter Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.10 1997/08/22 12:03:54 peter Exp $";
 #endif
 
 /*
@@ -1157,6 +1157,8 @@ ipcp_up(f)
 	ipcp_close(f->unit, "Could not determine local IP address");
 	return;
     }
+    script_setenv("IPLOCAL", ip_ntoa(go->ouraddr));
+    script_setenv("IPREMOTE", ip_ntoa(ho->hisaddr));
 
     /*
      * Check that the peer is allowed to use the IP address it wants.
@@ -1409,9 +1411,9 @@ ipcp_printpkt(p, plen, printer, arg)
 		if (olen == CILEN_ADDRS) {
 		    p += 2;
 		    GETLONG(cilong, p);
-		    printer(arg, "addrs %s", ip_ntoa(htonl(cilong)));
+		    printer(arg, "addrs %I", htonl(cilong));
 		    GETLONG(cilong, p);
-		    printer(arg, " %s", ip_ntoa(htonl(cilong)));
+		    printer(arg, " %I", htonl(cilong));
 		}
 		break;
 	    case CI_COMPRESSTYPE:
@@ -1435,20 +1437,20 @@ ipcp_printpkt(p, plen, printer, arg)
 		if (olen == CILEN_ADDR) {
 		    p += 2;
 		    GETLONG(cilong, p);
-		    printer(arg, "addr %s", ip_ntoa(htonl(cilong)));
+		    printer(arg, "addr %I", htonl(cilong));
 		}
 		break;
 	    case CI_MS_DNS1:
 	    case CI_MS_DNS2:
 	        p += 2;
 		GETLONG(cilong, p);
-		printer(arg, "dns-addr %s", ip_ntoa(htonl(cilong)));
+		printer(arg, "ms-dns %I", htonl(cilong));
 		break;
 	    case CI_MS_WINS1:
 	    case CI_MS_WINS2:
 	        p += 2;
 		GETLONG(cilong, p);
-		printer(arg, "wins-addr %s", ip_ntoa(htonl(cilong)));
+		printer(arg, "ms-wins %I", htonl(cilong));
 		break;
 	    }
 	    while (p < optend) {
