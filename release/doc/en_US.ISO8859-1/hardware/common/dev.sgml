@@ -2357,6 +2357,7 @@
   </sect2>
   <sect2>
     <title>Audio Devices</title>
+
     <para arch="i386">Advance (&man.sbc.4; driver)
       <itemizedlist>
         <listitem>
@@ -2367,6 +2368,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">CMedia sound chips
       <itemizedlist>
         <listitem>
@@ -2374,6 +2376,7 @@
         </listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">Crystal Semiconductor (&man.csa.4; driver)
       <itemizedlist>
         <listitem>
@@ -2384,6 +2387,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">ENSONIQ (&man.pcm.4; driver)
       <itemizedlist>
         <listitem>
@@ -2391,6 +2395,7 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386,alpha">ESS
       <itemizedlist>
         <listitem>
@@ -2412,7 +2417,9 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">ForteMedia fm801</para>
+
     <para arch="i386">Gravis (&man.gusc.4; driver)
       <itemizedlist>
         <listitem>
@@ -2423,12 +2430,18 @@
 	</listitem>
       </itemizedlist>
     </para>
+
     <para arch="i386">Intel 443MX, 810, 815, and 815E integrated sound
     devices (&man.pcm.4; driver)</para>
+
     <para arch="i386,alpha">MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
+
     <para arch="i386">NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
+
     <para arch="i386">OPTi 931/82C931 (&man.pcm.4; driver)</para>
+
     <para arch="i386">S3 Sonicvibes</para>
+
     <para arch="i386,alpha">Creative Technologies SoundBlaster series (&man.sbc.4; driver)
       <itemizedlist>
         <listitem>
@@ -2456,7 +2469,9 @@
     (emu10k1 driver)</para>
 
     <para arch="i386">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
+
     <para arch="i386">VIA Technologies VT82C686A</para>
+
     <para arch="i386">Yamaha
       <itemizedlist>
         <listitem>
