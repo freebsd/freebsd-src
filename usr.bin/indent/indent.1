@@ -62,6 +62,7 @@
 .Op Fl d Ns Ar n
 .Op Fl \&di Ns Ar n
 .Bk -words
+.Op Fl fbs | Fl nfbs
 .Op Fl fc1 | Fl nfc1
 .Op Fl fcb | Fl nfcb
 .Ek
@@ -80,6 +81,7 @@
 .Ek
 .Op Fl \&st
 .Op Fl troff
+.Op Fl ut | Fl nut
 .Op Fl v | Fl \&nv
 .Sh DESCRIPTION
 The
@@ -243,6 +245,11 @@ will have the same indentation as the preceding
 .Ic \&if
 statement.  The default is
 .Fl ei  .
+.It Fl fbs , nfbs
+Enables (disables) splitting the function declaration and opening brace
+across two lines.
+The default is
+.Fl fbs  .
 .It Fl fc1 , nfc1
 Enables (disables) the formatting of comments that start in column 1.
 Often, comments whose leading `/' is in column 1 have been carefully
@@ -366,6 +373,11 @@ listing in much the same spirit as
 .Xr vgrind 1 .
 If the output file is not specified, the default is standard output,
 rather than formatting in place.
+.It Fl ut , nut
+Enables (disables) the use of tab characters in the output.
+Tabs are assumed to be aligned on columns divisble by 8.
+The default is
+.Fl ut  .
 .It Fl v , \&nv
 .Fl v
 turns on `verbose' mode;
