@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.8 1994/08/28 14:15:30 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.9 1994/09/29 13:19:43 jkh Exp $";
 #endif
 
 /*
@@ -198,8 +198,18 @@ plist_cmd(char *s, char **arg)
 	return PLIST_COMMENT;
     else if (!strcmp(cmd, "ignore"))
 	return PLIST_IGNORE;
+    else if (!strcmp(cmd, "ignore_inst"))
+	return PLIST_IGNORE_INST;
     else if (!strcmp(cmd, "name"))
 	return PLIST_NAME;
+    else if (!strcmp(cmd, "display"))
+	return PLIST_DISPLAY;
+    else if (!strcmp(cmd, "pkgdep"))
+	return PLIST_PKGDEP;
+    else if (!strcmp(cmd, "mtree"))
+	return PLIST_MTREE;
+    else if (!strcmp(cmd, "dirrm"))
+	return PLIST_DIR_RM;
     else
 	return FAIL;
 }
@@ -280,11 +290,28 @@ write_plist(Package *pkg, FILE *fp)
 	    break;
 
 	case PLIST_IGNORE:
+	case PLIST_IGNORE_INST:		/* a one-time non-ignored file */
 	    fprintf(fp, "%cignore\n", CMD_CHAR);
 	    break;
 
 	case PLIST_NAME:
 	    fprintf(fp, "%cname %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_DISPLAY:
+	    fprintf(fp, "%cdisplay %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_PKGDEP:
+	    fprintf(fp, "%cpkgdep %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_MTREE:
+	    fprintf(fp, "%cmtree %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_DIR_RM:
+	    fprintf(fp, "%cdirrm %s\n", CMD_CHAR, plist->name);
 	    break;
 
 	default:
@@ -297,7 +324,7 @@ write_plist(Package *pkg, FILE *fp)
 
 /* Delete the results of a package installation, not the packaging itself */
 int
-delete_package(Boolean ign_err, Package *pkg)
+delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 {
     PackingList p = pkg->head;
     char *Where = ".", *last_file = "";
@@ -322,14 +349,16 @@ delete_package(Boolean ign_err, Package *pkg)
 	}
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
-	else if (p->type == PLIST_FILE) {
+	else if (p->type == PLIST_FILE || p->type == PLIST_DIR_RM) {
 	    char full_name[FILENAME_MAX];
 
 	    sprintf(full_name, "%s/%s", Where, p->name);
 	    if (Verbose)
-		printf("Delete: %s\n", full_name);
+		printf("Delete%s: %s\n",
+		       p->type == PLIST_FILE ? "" : " directory", full_name);
 	    
-	    if (!Fake && delete_hierarchy(full_name, ign_err)) {
+	    if (!Fake && delete_hierarchy(full_name, ign_err,
+					  p->type == PLIST_DIR_RM ? FALSE : nukedirs)) {
 		whinge("Unable to completely remove file '%s'", full_name);
 		fail = FAIL;
 	    }
@@ -340,26 +369,44 @@ delete_package(Boolean ign_err, Package *pkg)
     return fail;
 }
 
+#ifdef DEBUG
+#define RMDIR(dir) vsystem("%s %s", RMDIR_CMD, dir)
+#define REMOVE(dir,ie) vsystem("%s %s%s", REMOVE_CMD, (ie ? "-f " : ""), dir)
+#else
+#define RMDIR rmdir
+#define	REMOVE(file,ie) remove(file)
+#endif
+
 /* Selectively delete a hierarchy */
 int
-delete_hierarchy(char *dir, Boolean ign_err)
+delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 {
     char *cp1, *cp2;
     
     cp1 = cp2 = dir;
-    if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
-	return 1;
+    if (nukedirs) {
+	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
+	    return 1;
+    } else if (isdir(dir)) {
+	if (RMDIR(dir))
+	    return 1;
+    } else {
+	if (REMOVE(dir, ign_err))
+	    return 1;
+    }
+
+    if (!nukedirs)
+	return 0;
     while (cp2) {
 	if ((cp2 = rindex(cp1, '/')) != NULL)
 	    *cp2 = '\0';
-	if (!isempty(dir))
+	if (!isemptydir(dir))
 	    return 0;
-	if (vsystem("%s %s", RMDIR_CMD, dir) && ign_err)
+	if (RMDIR(dir) && ign_err)
 	    return 1;
-	/* Put it back */
+	/* back up the pathname one component */
 	if (cp2) {
-	    *cp2 = '/';
-	    cp1 = cp2 - 1;
+	    cp1 = dir;
 	}
     }
     return 0;

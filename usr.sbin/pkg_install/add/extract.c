@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.4 1993/09/06 23:26:21 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.5 1993/09/18 03:38:47 jkh Exp $";
 #endif
 
 /*
@@ -25,11 +25,49 @@ static const char *rcsid = "$Id: extract.c,v 1.4 1993/09/06 23:26:21 jkh Exp $";
 #include "lib.h"
 #include "add.h"
 
+
+#define STARTSTRING "tar cf -"
+#define TOOBIG(str) ((strlen(str) + 6 + strlen(home) + where_count > maxargs) \
+		|| (strlen(str) + 6 + strlen(home) + perm_count > maxargs))
+
+#define PUSHOUT(todir) /* push out string */ \
+	if (strlen(where_args) > sizeof(STARTSTRING)-1) { \
+		    strcat(where_args, "|tar xpf - -C "); \
+		    strcat(where_args, todir); \
+		    if (system(where_args)) \
+			barf("can't invoke tar pipeline"); \
+		    strcpy(where_args, STARTSTRING); \
+		    where_count = sizeof(STARTSTRING)-1; \
+	} \
+	if (perm_count) { \
+		    apply_perms(todir, perm_args); \
+		    perm_args[0] = 0;\
+		    perm_count = 0; \
+	}
+
 void
 extract_plist(char *home, Package *pkg)
 {
     PackingList p = pkg->head;
     char *last_file;
+    char *where_args, *perm_args, *last_chdir;
+    int maxargs, where_count = 0, perm_count = 0, add_count;
+
+    maxargs = sysconf(_SC_ARG_MAX);
+    maxargs -= 64;			/* some slop for the tar cmd text,
+					   and sh -c */
+    where_args = malloc(maxargs);
+    if (!where_args)
+	barf("can't get argument list space");
+    perm_args = malloc(maxargs);
+    if (!perm_args)
+	barf("can't get argument list space");
+
+    strcpy(where_args, STARTSTRING);
+    where_count = sizeof(STARTSTRING)-1;
+    perm_args[0] = 0;
+
+    last_chdir = 0;
 
     /* Reset the world */
     Owner = NULL;
@@ -58,15 +96,49 @@ extract_plist(char *home, Package *pkg)
 
 		/* first try to rename it into place */
 		sprintf(try, "%s/%s", Directory, p->name);
-		if (rename(p->name, try) == FAIL)
-		    copy_hierarchy(Directory, p->name, TRUE);
-		apply_perms(Directory, p->name);
+		if (rename(p->name, try) == 0) {
+		    /* try to add to list of perms to be changed,
+		       and run in bulk. */
+		    add_count = snprintf(&perm_args[perm_count],
+					 maxargs - perm_count,
+					 "%s ", p->name);
+		    if (add_count > maxargs - perm_count)
+			barf("oops, miscounted strings!");
+		    perm_count += add_count;
+		    if (p->name[0] == '/') {
+			PUSHOUT(Directory);
+		    }
+		} else {
+		    /* rename failed, try copying with a big tar command */
+		    if (p->name[0] == '/' ||
+			TOOBIG(p->name) ||
+			last_chdir != Directory) {
+			PUSHOUT(last_chdir);
+			last_chdir = Directory;
+		    }
+		    add_count = snprintf(&where_args[where_count],
+					 maxargs - where_count,
+					 " %s", p->name);
+		    if (add_count > maxargs - where_count)
+			barf("oops, miscounted strings!");
+		    where_count += add_count;
+		    add_count = snprintf(&perm_args[perm_count],
+					 maxargs - perm_count,
+					 "%s ", p->name);
+		    if (add_count > maxargs - perm_count)
+			barf("oops, miscounted strings!");
+		    perm_count += add_count;
+		    if (p->name[0] == '/') {
+			PUSHOUT(Directory);
+		    }
+		}
 	    }
 	    break;
 
 	case PLIST_CWD:
 	    if (Verbose)
 		printf("extract: CWD to %s\n", p->name);
+	    PUSHOUT(Directory);
 	    if (strcmp(p->name, ".")) {
 		if (!Fake && make_hierarchy(p->name) == FAIL)
 		    barf("Unable make directory '%s'.", p->name);
@@ -78,6 +150,7 @@ extract_plist(char *home, Package *pkg)
 
 	case PLIST_CMD:
 	    format_cmd(cmd, p->name, Directory, last_file);
+	    PUSHOUT(Directory);
 	    if (Verbose)
 		printf("extract: execute '%s'\n", cmd);
 	    if (!Fake && system(cmd))
@@ -85,14 +158,17 @@ extract_plist(char *home, Package *pkg)
 	    break;
 
 	case PLIST_CHMOD:
+	    PUSHOUT(Directory);
 	    Mode = p->name;
 	    break;
 
 	case PLIST_CHOWN:
+	    PUSHOUT(Directory);
 	    Owner = p->name;
 	    break;
 
 	case PLIST_CHGRP:
+	    PUSHOUT(Directory);
 	    Group = p->name;
 	    break;
 
@@ -105,4 +181,5 @@ extract_plist(char *home, Package *pkg)
 	}
 	p = p->next;
     }
+    PUSHOUT(Directory);
 }

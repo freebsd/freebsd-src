@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.5 1993/09/04 05:06:38 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.2 1993/09/03 23:01:00 jkh Exp $";
 #endif
 
 /*
@@ -26,15 +26,17 @@ static char *rcsid = "$Id: main.c,v 1.5 1993/09/04 05:06:38 jkh Exp $";
 #include "lib.h"
 #include "delete.h"
 
-static char Options[] = "hvDnp:";
+static char Options[] = "hvDdnfp:";
 
 char	*Prefix		= NULL;
 Boolean	NoDeInstall	= FALSE;
+Boolean	CleanDirs	= FALSE;
+Boolean	Force		= FALSE;
 
 int
 main(int argc, char **argv)
 {
-    int ch, err;
+    int ch, error;
     char **pkgs, **start;
     char *prog_name = argv[0];
 
@@ -45,12 +47,20 @@ main(int argc, char **argv)
 	    Verbose = TRUE;
 	    break;
 
+	case 'f':
+	    Force = TRUE;
+	    break;
+
 	case 'p':
 	    Prefix = optarg;
 	    break;
 
 	case 'D':
 	    NoDeInstall = TRUE;
+	    break;
+
+	case 'd':
+	    CleanDirs = TRUE;
 	    break;
 
 	case 'n':
@@ -77,10 +87,12 @@ main(int argc, char **argv)
     if (pkgs == start)
 	usage(prog_name, "Missing package name(s)");
     *pkgs = NULL;
-    if ((err = pkg_perform(start)) != NULL) {
+    if (!Fake && getuid() != 0)
+	errx(1, "You must be root to delete packages.");
+    if ((error = pkg_perform(start)) != NULL) {
 	if (Verbose)
-	    fprintf(stderr, "%d package deletion(s) failed.\n", err);
-	return err;
+	    fprintf(stderr, "%d package deletion(s) failed.\n", error);
+	return error;
     }
     else
 	return 0;
@@ -102,6 +114,9 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "Where args are one or more of:\n\n");
     fprintf(stderr, "-v         verbose\n");
     fprintf(stderr, "-p arg     override prefix with arg\n");
+    fprintf(stderr, "-d         delete empty directories when deinstalling\n");
+    fprintf(stderr, "-f         force delete even if dependencies exist\n");
+    fprintf(stderr, "           or deinstall/requirement checks fail\n");
     fprintf(stderr, "-D         don't execute pkg de-install script, if any\n");
     fprintf(stderr, "-n         don't actually de-install, just show steps\n");
     exit(1);
