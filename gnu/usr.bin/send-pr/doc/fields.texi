@@ -1,3 +1,5 @@
+@c $FreeBSD$
+
 @node Fields
 @section Problem Report format
 @cindex Problem Report format
@@ -8,6 +10,12 @@
 The format of a PR is designed to reflect the nature of @sc{gnats} as a
 database.  Information is arranged into @dfn{fields}, and kept in
 individual records (Problem Reports).
+
+A Problem Report contains two different types of fields: @dfn{Mail
+Header} fields, which are used by the mail handler for delivery, and
+@dfn{Problem Report} fields, which contain information relevant to the
+Problem Report and its submitter.  A Problem Report is essentially a
+specially formatted electronic mail message.
 
 Problem Report fields are denoted by a keyword which begins with
 @samp{>} and ends with @samp{:}, as in @samp{>Confidential:}.  Fields
@@ -68,12 +76,6 @@ The following fields are @sc{MultiText} format:
 @end smallexample
 
 @end table
-
-A Problem Report contains two different types of fields: @dfn{Mail
-Header} fields, which are used by the mail handler for delivery, and
-@dfn{Problem Report} fields, which contain information relevant to the
-Problem Report and its submitter.  A Problem Report is essentially a
-specially formatted electronic mail message.
 
 @ifclear SENDPR
 @subheading Example Problem Report
@@ -198,14 +200,14 @@ local configuration}.
 
 The following fields are present whenever a PR is submitted via the
 program @code{send-pr}.  @sc{gnats} adds additional fields when the PR
-arrives at the Support Site; explanations of these follow this list.
+arrives at the Support Site; explanations of them follow this list.
 
 @cindex fields - list
 @cindex GNATS fields - list
 @table @code
-@item >Submitter-Id:
 @cindex @code{Submitter-Id} field
 @cindex @code{>Submitter-Id:}
+@item >Submitter-Id:
 (@sc{Text}) A unique identification code assigned by the Support Site.
 It is used to identify all Problem Reports coming from a particular
 site.  (Submitters without a value for this field can invoke
@@ -214,29 +216,29 @@ the support organization.  Problem Reports from those not affiliated
 with the support organization should use the default value of @samp{net}
 for this field.)
 
-@item >Originator:
 @cindex @code{Originator} field
 @cindex @code{>Originator:}
+@item >Originator:
 (@sc{Text}) Originator's real name.  The default is the value of the
 originator's environment variable @code{NAME}.
 
-@item >Organization:
 @cindex @code{>Organization:}
 @cindex @code{Organization} field
+@item >Organization:
 (@sc{MultiText}) The originator's organization.  The default value is 
 set with the variable @w{@code{DEFAULT_ORGANIZATION}} in the
 @ifclear SENDPR
-@file{config} file (@pxref{config,,The @code{config} file}).
+@file{config} file (@pxref{config file,,The @code{config} file}).
 @end ifclear
 @ifset SENDPR
 @code{send-pr} shell script.
 @end ifset
 
-@item >Confidential:
 @cindex @code{Confidential} field
 @cindex @code{>Confidential:}
 @cindex confidentiality in PRs
 @cindex PR confidentiality
+@item >Confidential:
 (@sc{Enumerated}) Use of this field depends on the originator's
 relationship with the support organization; contractual agreements often
 have provisions for preserving confidentiality.  Conversely, a lack of a
@@ -250,16 +252,16 @@ support organization treats the PR as confidential; any code samples
 provided are not made publicly available (e.g., in regression test
 suites).  The default value is @samp{yes}.
 
-@item >Synopsis:
 @cindex @code{Synopsis} field
 @cindex @code{>Synopsis:}
+@item >Synopsis:
 (@sc{Text}) One-line summary of the problem.  @w{@code{send-pr}} copies
 this information to the @samp{Subject:} line when you submit a Problem
 Report.
 
-@item >Severity:
 @cindex @code{Severity} field
 @cindex @code{>Severity:}
+@item >Severity:
 (@sc{Enumerated}) The severity of the problem.  Accepted values include:
 
 @table @code
@@ -280,12 +282,13 @@ The product, component or concept is working in general, but lacks
 features, has irritating behavior, does something wrong, or doesn't
 match its documentation.
 @end table
+@noindent
 The default value is @samp{serious}.
 @sp 1
 
-@item >Priority:
 @cindex @code{Priority} field
 @cindex @code{>Priority:}
+@item >Priority:
 (@sc{Enumerated}) How soon the originator requires a solution.  Accepted
 values include:
 
@@ -306,19 +309,19 @@ The problem should be solved in a future release.
 The default value is @samp{medium}.
 @sp 1
 
-@item >Category:
 @cindex @code{Category} field
 @cindex @code{>Category:}
+@item >Category:
 (@sc{Text}) The name of the product, component or concept where
 the problem lies.  The values for this field are defined by the Support
 Site. 
 @ifclear SENDPR
-@xref{categories,,The @code{categories} file}, for details.
+@xref{categories file,,The @code{categories} file}, for details.
 @end ifclear
 
-@item >Class:
 @cindex @code{Class} field
 @cindex @code{>Class:}
+@item >Class:
 (@sc{Enumerated}) The class of a problem can be one of the following:
 
 @table @code
@@ -354,27 +357,27 @@ the Support Site.
 The default is @samp{sw-bug}.
 @sp 1
 
-@item >Release:
 @cindex @code{Release} field
 @cindex @code{>Release:}
+@item >Release:
 (@sc{Text}) Release or version number of the product, component or
 concept.
 
-@item >Environment:
 @cindex @code{Environment} field
 @cindex @code{>Environment:}
+@item >Environment:
 (@sc{MultiText}) Description of the environment where the problem occured:
 machine architecture, operating system, host and target types,
 libraries, pathnames, etc.
 
-@item >Description:
 @cindex @code{Description} field
 @cindex @code{>Description:}
+@item >Description:
 (@sc{MultiText}) Precise description of the problem.
 
-@item >How-To-Repeat:
 @cindex @code{How-To-Repeat} field
 @cindex @code{>How-To-Repeat:}
+@item >How-To-Repeat:
 (@sc{MultiText}) Example code, input, or activities to reproduce the
 problem.  The support organization uses example code both to reproduce
 the problem and to test whether the problem is fixed.  Include all
@@ -385,9 +388,9 @@ recreate the problem reported, however obvious.  Sometimes seemingly
 arbitrary or obvious information can point the way toward a solution.
 See also @ref{Helpful hints,,Helpful hints}.
 
-@item >Fix:
 @cindex @code{Fix} field
 @cindex @code{>Fix:}
+@item >Fix:
 (@sc{MultiText}) A description of a solution to the problem, or a patch
 which solves the problem.  (This field is most often filled in at the
 Support Site; we provide it to the submitter in case she has solved the
@@ -457,18 +460,18 @@ Problem Reports}.
 (@sc{Text}) The person responsible for this category.
 @ifclear SENDPR
 @sc{gnats} retrieves this information from the @file{categories} file
-(@pxref{categories,,The @code{categories} file}).
+(@pxref{categories file,,The @code{categories} file}).
 @end ifclear
 
-@item >Arrival-Date:
 @cindex @code{>Arrival-Date:}
 @cindex @code{Arrival-Date} field
+@item >Arrival-Date:
 (@sc{Text}) The time that this PR was received by @sc{gnats}.  The date
 is provided automatically by @sc{gnats}.
 
-@item >Audit-Trail:
 @cindex @code{>Audit-Trail:}
 @cindex @code{Audit-Trail} field
+@item >Audit-Trail:
 (@sc{MultiText}) Tracks related electronic mail as well as changes in
 the @samp{>State:} and @samp{>Responsible:} fields with the sub-fields:
 
@@ -500,18 +503,19 @@ The time the change was made.
 The reason for the change.
 @end table
 
-@noindent
 @cindex subsequent mail
 @cindex other mail
 @cindex appending PRs
 @cindex saving related mail
 @cindex related mail
+@noindent
 The @samp{>Audit-Trail:} field also contains any mail messages received
 by @sc{gnats} related to this PR, in the order received.
 
-@item >Unformatted:
 @cindex @code{>Unformatted:}
 @cindex @code{Unformatted} field
+@item
+ >Unformatted:
 (@sc{MultiText}) Any random text found outside the fields in the
 original Problem Report.
 @end table

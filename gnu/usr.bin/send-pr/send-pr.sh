@@ -2,7 +2,7 @@
 # Submit a problem report to a GNATS site.
 # Copyright (C) 1993 Free Software Foundation, Inc.
 # Contributed by Brendan Kehoe (brendan@cygnus.com), based on a
-# version written by Heinz G. Seidl (hgs@ide.com).
+# version written by Heinz G. Seidl (hgs@cygnus.com).
 #
 # This file is part of GNU GNATS.
 #
@@ -23,7 +23,7 @@
 # $FreeBSD$
 
 # The version of this send-pr.
-VERSION=3.2
+VERSION=3.113
 
 # The submitter-id for your site.
 # "current-users" is the only allowable value for FreeBSD.
@@ -58,6 +58,9 @@ GNATS_SITE=freefall
 # host-dependent.
 MAIL_AGENT="${MAIL_AGENT:-/usr/sbin/sendmail -oi -t}"
 
+# How to read the passwd database.
+PASSWD="cat /etc/passwd"
+
 ECHON=bsd
 
 if [ $ECHON = bsd ] ; then
@@ -73,8 +76,13 @@ fi
 
 #
 
-if [ -z "$LOGNAME" -a -n "$USER" ]; then
-  LOGNAME=$USER
+# find a user name
+if [ "$LOGNAME" = "" ]; then
+	if [ "$USER" != "" ]; then
+		LOGNAME="$USER"
+	else
+		LOGNAME="UNKNOWN"
+	fi
 fi
 
 FROM="$LOGNAME"
@@ -85,21 +93,11 @@ if [ -n "$NAME" ]; then
   ORIGINATOR="$NAME"
 elif [ -f $HOME/.fullname ]; then
   ORIGINATOR="`sed -e '1q' $HOME/.fullname`"
-elif [ -f /bin/domainname ]; then
-  if [ "`/bin/domainname`" != "" -a -f /usr/bin/ypcat ]; then
-    PTEMP=`mktemp -t p` || exit 1
-    # Must use temp file due to incompatibilities in quoting behavior
-    # and to protect shell metacharacters in the expansion of $LOGNAME
-    /usr/bin/ypcat passwd 2>/dev/null | cat - /etc/passwd | grep "^$LOGNAME:" |
-      cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
-    ORIGINATOR="`cat $PTEMP`"
-    rm -f $PTEMP
-  fi
-fi
-
-if [ "$ORIGINATOR" = "" ]; then
+else
   PTEMP=`mktemp -t p` || exit 1
-  grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
+  # Must use temp file due to incompatibilities in quoting behavior
+  # and to protect shell metacharacters in the expansion of $LOGNAME
+  $PASSWD | grep "^$LOGNAME:" | awk -F: '{print $5}' | sed -e 's/,.*//' > $PTEMP
   ORIGINATOR="`cat $PTEMP`"
   rm -f $PTEMP
 fi
@@ -134,9 +132,12 @@ ARCH=`[ -f /bin/arch ] && /bin/arch`
 MACHINE=`[ -f /bin/machine ] && /bin/machine`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
-USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [--version]"
+USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [-s severity]
+       [-c address] [--version]"
 REMOVE=
 BATCH=
+CC=
+SEVERITY_C=
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -153,6 +154,12 @@ while [ $# -gt 0 ]; do
 	fi
 	;;
     -b | --batch) BATCH=true ;;
+    -c | --cc) if [ $# -eq 1 ]; then echo "$USAGE"; exit 1; fi
+	shift ; CC="$1"
+	;;
+    -s | --severity) if [ $# -eq 1 ]; then echo "$USAGE"; exit 1; fi
+	shift ; SEVERITY_C="$1"
+	;;
     -p | -P | --print) PRINT=true ;;
     -L | --list) FORMAT=norm ;;
     -l | -CL | --lisp) FORMAT=lisp ;;
@@ -175,7 +182,7 @@ while [ $# -gt 0 ]; do
  shift
 done
 
-if [ -n "$USER_GNATS_SITE" ]; then
+if [ -n "$USER_GNATS_SITE" ] && [ "$USER_GNATS_SITE" != "$GNATS_SITE" ]; then
   GNATS_SITE=$USER_GNATS_SITE
   GNATS_ADDR=$USER_GNATS_SITE-gnats
 fi
@@ -214,24 +221,21 @@ case "$FORMAT" in
         ;;
 esac
 
-CATEGORY_C=`echo "$CATEGORIES" | \
-	awk 'BEGIN	{ ORS=""; print "<[ " }
-	     FNR > 1	{ print " | " }
-	     		{ print }
-	     END	{ print " ]>" }`
-
-ORIGINATOR_C='<Name of the PR author (one line)>'
-ORGANIZATION_C='<Organization of PR author (multiple lines)>'
+ORIGINATOR_C='<name of the PR author (one line)>'
+ORGANIZATION_C='<organization of PR author (multiple lines)>'
 CONFIDENTIAL_C='no <FreeBSD PRs are public data>'
-SYNOPSIS_C='<Synopsis of the problem (one line)>'
-SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
+SYNOPSIS_C='<synopsis of the problem (one line)>'
+if [ -z "$SEVERITY_C" ]; then
+  SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
+fi
 PRIORITY_C='<[ low | medium | high ] (one line)>'
+CATEGORY_C='<choose from the list of categories above (one line)>'
 CLASS_C='<[ sw-bug | doc-bug | change-request ] (one line)>'
-RELEASE_C='<Release number or tag (one line)>'
-ENVIRONMENT_C='<Relevant environment information (multiple lines)>'
-DESCRIPTION_C='<Precise description of the problem (multiple lines)>'
-HOW_TO_REPEAT_C='<Code/input/activities to reproduce the problem (multiple lines)>'
-FIX_C='<How to correct or work around the problem, if known (multiple lines)>'
+RELEASE_C='<release number or tag (one line)>'
+ENVIRONMENT_C='<machine, os, target, libraries (multiple lines)>'
+DESCRIPTION_C='<precise description of the problem (multiple lines)>'
+HOW_TO_REPEAT_C='<code/input/activities to reproduce the problem (multiple lines)>'
+FIX_C='<how to correct or work around the problem, if known (multiple lines)>'
 
 # Create temporary files, safely
 REF=`mktemp -t pf` || exit 1
@@ -281,7 +285,6 @@ SEND-PR: will all comments (text enclosed in `<' and `>').
 SEND-PR: 
 SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
 SEND-PR: manual if you are not sure how to fill out a problem report.
-SEND-PR:
 SEND-PR: Note that the Synopsis field is mandatory.  The Subject (for
 SEND-PR: the mail) will be made the same as Synopsis unless explicitly
 SEND-PR: changed.
@@ -302,42 +305,38 @@ __EOF__
 	    if ((++i % '$c') == 0) { printf "\nSEND-PR: " } }
             END { printf "\nSEND-PR:\n"; }' >> $file
 
-
-
       cat >> $file << __EOF__
 To: $GNATS_ADDR
 Subject: 
 From: $FROM
 Reply-To: $REPLY_TO
+Cc: $CC
 X-send-pr-version: $VERSION
+X-GNATS-Notify: 
 
 
->Submitter-Id:   $SUBMITTER
->Originator:     $ORIGINATOR
->Organization:   ${ORGANIZATION-$ORGANIZATION_C}
->Confidential:   $CONFIDENTIAL_C
->Synopsis:       $SYNOPSIS_C
->Severity:       $SEVERITY_C
->Priority:       $PRIORITY_C
->Category:       $CATEGORY_C
->Release:        ${DEFAULT_RELEASE-$RELEASE_C}
->Class:          $CLASS_C
->Environment: 
-
+>Submitter-Id:	$SUBMITTER
+>Originator:	$ORIGINATOR
+>Organization:	${ORGANIZATION-$ORGANIZATION_C}
+>Confidential:	$CONFIDENTIAL_C
+>Synopsis:	$SYNOPSIS_C
+>Severity:	$SEVERITY_C
+>Priority:	$PRIORITY_C
+>Category:	$CATEGORY_C
+>Class:		$CLASS_C
+>Release:	${DEFAULT_RELEASE-$RELEASE_C}
+>Environment:
+`[ -n "$SYSTEM" ] && echo System: $SYSTEM`
+`[ -n "$ARCH" ] && echo Architecture: $ARCH`
+`[ -n "$MACHINE" ] && echo Machine: $MACHINE`
 	$ENVIRONMENT_C
-
->Description: 
-
+>Description:
 	$DESCRIPTION_C
-
->How-To-Repeat: 
-
+>How-To-Repeat:
 	$HOW_TO_REPEAT_C
-
->Fix: 
+>Fix:
 
 	$FIX_C
-
 __EOF__
 
     done
@@ -430,9 +429,8 @@ while true; do
     ""|sw-bug|doc-bug|change-request) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
   esac
-
   #
-  # 6) Check that Synopsis is not empty
+  # 6) Check that synopsis is not empty
   #
   if grep "^>Synopsis:[ 	]*${SYNOPSIS_C}\$" $TEMP > /dev/null
   then
