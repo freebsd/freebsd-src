@@ -51,7 +51,6 @@ SUBDIR=	apply \
 	fstat \
 	fsync \
 	ftp \
-	genassym \
 	gencat \
 	gensetdefs \
 	getconf \
