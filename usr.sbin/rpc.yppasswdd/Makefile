@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1996/06/05 06:13:02 wpaul Exp $
+# $Id: Makefile,v 1.4 1996/06/06 20:47:53 wpaul Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
@@ -16,7 +16,8 @@ CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \
 	 -I${.CURDIR} -I.
 
-LDADD+=-lrpcsvc -lcrypt
+DPADD=	${LIBRPCSVC} ${LIBCRYPT}
+LDADD=	-lrpcsvc -lcrypt
 
 CLEANFILES= yppasswd_svc.c yppasswd.h \
 	    yppasswd_private_xdr.c yppasswd_private.h \

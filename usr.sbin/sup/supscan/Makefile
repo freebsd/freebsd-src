@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1995/12/26 05:15:20 peter Exp $
+# $Id: Makefile,v 1.2 1996/06/24 04:26:03 jkh Exp $
 
 PROG=	supscan
 SRCS=	supscan.c
@@ -14,7 +14,7 @@ LIBOBJ=	${.OBJDIR}/../lib
 LIBOBJ=	${LIBSRC}
 .endif
 
-DPADD+=	$(LIBCRYPT) $(LIBOBJ)/libsup.a
-LDADD+= -L${LIBOBJ} -lsup -lcrypt
+DPADD=	$(LIBCRYPT) $(LIBOBJ)/libsup.a ${LIBCRYPT}
+LDADD=	-L${LIBOBJ} -lsup -lcrypt
 
 .include <bsd.prog.mk>

@@ -5,7 +5,7 @@ CFLAGS+=-I${.CURDIR}/../../sys
 MAN8=	vmstat.8
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	names.c ${LIBKVM}
+DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
 .include <bsd.prog.mk>
