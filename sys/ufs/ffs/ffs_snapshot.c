@@ -83,7 +83,7 @@ ffs_snapshot(mp, snapfile)
 	int error, cg, snaploc, indiroff, numblks;
 	int i, size, base, len, loc, inoblkcnt;
 	int blksperindir, flag = mp->mnt_flag;
-	struct fs *fs = VFSTOUFS(mp)->um_fs;
+	struct fs *copy_fs, *fs = VFSTOUFS(mp)->um_fs;
 	struct proc *p = CURPROC;
 	struct inode *devip, *ip, *xp;
 	struct buf *bp, *nbp, *ibp;
@@ -223,9 +223,7 @@ restart:
 	/*
 	 * Allocate copies for the superblock and its summary information.
 	 */
-	error = VOP_BALLOC(vp, (off_t)(SBOFF), fs->fs_bsize, KERNCRED,
-	    0, &nbp);
-	if (error)
+	if ((error = VOP_BALLOC(vp, (off_t)(SBOFF), SBSIZE, KERNCRED, 0, &nbp)))
 		goto out;
 	bawrite(nbp);
 	blkno = fragstoblks(fs, fs->fs_csaddr);
@@ -292,8 +290,8 @@ restart:
 		nbp->b_flags |= B_VALIDSUSPWRT;
 		bawrite(nbp);
 		base = cg * fs->fs_fpg / fs->fs_frag;
-		if (base + len > numblks)
-			len = numblks - base;
+		if (base + len >= numblks)
+			len = numblks - base - 1;
 		loc = 0;
 		if (base < NDADDR) {
 			for ( ; loc < NDADDR; loc++) {
@@ -324,6 +322,8 @@ restart:
 			}
 			if (!ffs_isblock(fs, cg_blksfree(cgp), loc))
 				continue;
+			if (((ufs_daddr_t *)(ibp->b_data))[indiroff] != 0)
+				panic("ffs_snapshot: lost block");
 			((ufs_daddr_t *)(ibp->b_data))[indiroff] = BLK_NOCOPY;
 		}
 		bqrelse(bp);
@@ -333,15 +333,14 @@ restart:
 	/*
 	 * Snapshot the superblock and its summary information.
 	 */
-	error = VOP_BALLOC(vp, (off_t)(SBOFF), fs->fs_bsize, KERNCRED,
-	    0, &nbp);
-	if (error)
+	if ((error = VOP_BALLOC(vp, SBOFF, SBSIZE, KERNCRED, 0, &nbp)) != 0)
 		goto out1;
-	bcopy(fs, nbp->b_data, fs->fs_sbsize);
-	((struct fs *)(nbp->b_data))->fs_clean = 1;
-	if (fs->fs_sbsize < fs->fs_bsize)
-		bzero(&nbp->b_data[fs->fs_sbsize],
-		    fs->fs_bsize - fs->fs_sbsize);
+	copy_fs = (struct fs *)(nbp->b_data + blkoff(fs, SBOFF));
+	bcopy(fs, copy_fs, fs->fs_sbsize);
+	copy_fs->fs_clean = 1;
+	if (fs->fs_sbsize < SBSIZE)
+		bzero(&nbp->b_data[blkoff(fs, SBOFF) + fs->fs_sbsize],
+		    SBSIZE - fs->fs_sbsize);
 	nbp->b_flags |= B_VALIDSUSPWRT;
 	bawrite(nbp);
 	blkno = fragstoblks(fs, fs->fs_csaddr);
@@ -591,6 +590,29 @@ snapacct(vp, oldblkp, lastblkp)
 		}
 	}
 	return (0);
+}
+
+/*
+ * Decrement extra reference on snapshot when last name is removed.
+ * It will not be freed until the last open reference goes away.
+ */
+void
+ffs_snapgone(ip)
+	struct inode *ip;
+{
+	struct inode *xp;
+
+	/*
+	 * Find snapshot in incore list.
+	 */
+	for (xp = VTOI(ip->i_devvp); xp; xp = xp->i_copyonwrite)
+		if (xp->i_copyonwrite == ip)
+			break;
+	if (xp == 0)
+		printf("ffs_snapgone: lost snapshot vnode %d\n",
+		    ip->i_number);
+	else
+		vrele(ITOV(ip));
 }
 
 /*

@@ -950,7 +950,7 @@ out:
 	 * when last open reference goes away.
 	 */
 	if (ip != 0 && (ip->i_flags & SF_SNAPSHOT) != 0 && ip->i_effnlink == 0)
-		vrele(ITOV(ip));
+		ffs_snapgone(ip);
 	return (error);
 }
 
@@ -999,7 +999,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * when last open reference goes away.
 	 */
 	if ((oip->i_flags & SF_SNAPSHOT) != 0 && oip->i_effnlink == 0)
-		vrele(ITOV(oip));
+		ffs_snapgone(oip);
 	return (error);
 }
 
