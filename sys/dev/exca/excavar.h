@@ -61,6 +61,8 @@
  * Structure to manage the ExCA part of the chip.
  */
 struct exca_softc;
+typedef uint8_t (exca_getb_fn)(struct exca_softc *, int);
+typedef void (exca_putb_fn)(struct exca_softc *, int, uint8_t);
 
 struct exca_softc 
 {
@@ -75,6 +77,24 @@ struct exca_softc
 #define EXCA_SOCKET_PRESENT	0x00000001
 #define EXCA_HAS_MEMREG_WIN	0x00000002
 	uint32_t	offset;
+	int		chipset;
+#define EXCA_CARDBUS	0
+#define	EXCA_I82365	1		/* Intel i82365SL-A/B or clone */
+#define EXCA_I82365SL_DF 2		/* Intel i82365sl-DF step */
+#define	EXCA_VLSI	3		/* VLSI chip */
+#define	EXCA_PD6710	4		/* Cirrus logic PD6710 */
+#define	EXCA_PD6722	5		/* Cirrus logic PD6722 */
+#define EXCA_PD6729	6		/* Cirrus Logic PD6729 */
+#define	EXCA_VG365	7		/* Vadem 365 */
+#define	EXCA_VG465      8		/* Vadem 465 */
+#define	EXCA_VG468	9		/* Vadem 468 */
+#define	EXCA_VG469	10		/* Vadem 469 */
+#define	EXCA_RF5C296	11		/* Ricoh RF5C296 */
+#define	EXCA_RF5C396	12		/* Ricoh RF5C396 */
+#define	EXCA_IBM	13		/* IBM clone */
+#define	EXCA_IBM_KING	14		/* IBM KING PCMCIA Controller */
+	exca_getb_fn	*getb;
+	exca_putb_fn	*putb;
 };
 
 void exca_init(struct exca_softc *sc, device_t dev, 
@@ -88,31 +108,32 @@ int exca_mem_set_flags(struct exca_softc *sc, struct resource *res,
 int exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
     uint32_t cardaddr, uint32_t *deltap);
 int exca_mem_unmap_res(struct exca_softc *sc, struct resource *res);
-int exca_probe_slots(device_t dev, struct exca_softc *);
+int exca_probe_slots(device_t dev, struct exca_softc *exca,
+    bus_space_tag_t iot, bus_space_handle_t ioh);
 void exca_reset(struct exca_softc *, device_t child);
 
 static __inline uint8_t
-exca_read(struct exca_softc *sc, int reg)
+exca_getb(struct exca_softc *sc, int reg)
 {
-	return (bus_space_read_1(sc->bst, sc->bsh, sc->offset + reg));
+	return (sc->getb(sc, reg));
 }
 
 static __inline void
-exca_write(struct exca_softc *sc, int reg, uint8_t val)
+exca_putb(struct exca_softc *sc, int reg, uint8_t val)
 {
-	bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val);
+	sc->putb(sc, reg, val);
 }
 
 static __inline void
 exca_setb(struct exca_softc *sc, int reg, uint8_t mask)
 {
-	exca_write(sc, reg, exca_read(sc, reg) | mask);
+	exca_putb(sc, reg, exca_getb(sc, reg) | mask);
 }
 
 static __inline void
 exca_clrb(struct exca_softc *sc, int reg, uint8_t mask)
 {
-	exca_write(sc, reg, exca_read(sc, reg) & ~mask);
+	exca_putb(sc, reg, exca_getb(sc, reg) & ~mask);
 }
 
 #endif /* !_SYS_DEV_EXCA_EXCAVAR_H */
