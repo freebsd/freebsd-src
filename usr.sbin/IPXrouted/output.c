@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.2 1995/12/05 04:59:54 julian Exp $
+ *	$Id: output.c,v 1.3 1996/04/13 15:13:20 jhay Exp $
  */
 
 #ifndef lint
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
 /*
  * Routing Table Management Daemon
  */
+#include <unistd.h>
 #include "defs.h"
 
 /*
@@ -134,6 +135,7 @@ supply(dst, flags, ifp)
 	af_output_t *output = afswitch[dst->sa_family].af_output;
 	int doinghost = 1, size, metric, ticks;
 	union ipx_net net;
+	int delay = 0;
 
 	if (sipx->sipx_port == 0)
 		sipx->sipx_port = htons(IPXPORT_RIP);
@@ -148,6 +150,11 @@ again:
 			(*output)(ripsock, flags, dst, size);
 			TRACE_OUTPUT(ifp, dst, size);
 			n = msg->rip_nets;
+			delay++; 
+			if(delay == 2) {
+				usleep(20000);
+				delay = 0;
+			}
 		}
 
 		/*
