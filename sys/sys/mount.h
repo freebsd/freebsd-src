@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.44 1997/07/22 08:03:19 bde Exp $
+ *	$Id: mount.h,v 1.45 1997/08/16 19:16:12 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -447,11 +447,7 @@ int	fstatfs __P((int, struct statfs *));
 int	getfh __P((const char *, fhandle_t *));
 int	getfsstat __P((struct statfs *, long, int));
 int	getmntinfo __P((struct statfs **, int));
-#ifdef _NEW_VFSCONF
 int	mount __P((const char *, const char *, int, void *));
-#else
-int	mount __P((int, const char *, int, void *));
-#endif
 int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
 
