@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
-/* Cast a struct sockaddr to a structaddr_in */
+/* Cast a struct sockaddr to a struct sockaddr_in */
 #define SATOSIN(sa) ((struct sockaddr_in *)(sa))
 
 #ifndef TFTP_DIR
