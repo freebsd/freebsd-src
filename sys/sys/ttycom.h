@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.8 1995/03/30 05:17:50 ache Exp $
+ * $Id: ttycom.h,v 1.9 1995/05/30 08:14:42 rgrimes Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_
@@ -115,26 +115,27 @@ struct winsize {
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
-#define	TIOCSTAT	 _IO('t', 101)		/* simulate a control-T status msg */
+#define	TIOCSTAT	 _IO('t', 101)		/* simulate ^T status message */
 #define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
 #define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
 #define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
-#define TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
-#define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
-#define TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* get timestamp of
-						last interrupt for xntp. */
-#define TIOCDSIMICROCODE _IO('t', 85)		/* Download microcode to
-						DSI Softmodem */
+#define	TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
+#define	TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
+#define	TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* enable/get timestamp
+						 * of last input event */
+#define	TIOCDCDTIMESTAMP _IOR('t', 88, struct timeval)	/* enable/get timestamp
+						 * of last DCd rise */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
+#define	TIOCDSIMICROCODE _IO('t', 85)		/* download microcode to
+						 * DSI Softmodem */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	TABLDISC	3		/* tablet discipline */
 #define	SLIPDISC	4		/* serial IP discipline */
-#define PPPDISC		5		/* PPP discipline */
-
+#define	PPPDISC		5		/* PPP discipline */
 
 #endif /* !_SYS_TTYCOM_H_ */
