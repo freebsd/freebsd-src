@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.9.2.5 1997/06/13 04:01:42 brian Exp $
+ * $Id: route.c,v 1.9.2.6 1997/06/20 23:45:01 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -67,8 +67,10 @@ struct in_addr mask;
   struct sockaddr_in rtdata;
 
   s = socket(PF_ROUTE, SOCK_RAW, 0);
-  if (s < 0)
-    LogPrintf(LogERROR, "socket: %s", strerror(errno));
+  if (s < 0) {
+    LogPrintf(LogERROR, "OsSetRoute: socket: %s", strerror(errno));
+    return;
+  }
 
   bzero(&rtmes, sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
@@ -357,7 +359,7 @@ char *name;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "socket: %s", strerror(errno));
+    LogPrintf(LogERROR, "GetIfIndex: socket: %s", strerror(errno));
     return(-1);
   }
 
@@ -376,6 +378,7 @@ char *name;
       ifconfs.ifc_buf = buffer;
       if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
           LogPrintf(LogERROR, "ioctl(SIOCGIFCONF): %s", strerror(errno));
+	  close(s);
           free(buffer);
           return(-1);
       }
@@ -392,6 +395,7 @@ char *name;
 		ifrp->ifr_addr.sa_family, elen);
       if (strcmp(ifrp->ifr_name, name) == 0) {
         IfIndex = index;
+	close(s);
 	free(buffer);
         return(index);
       }
