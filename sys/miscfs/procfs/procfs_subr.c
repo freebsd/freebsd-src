@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.5 1995/05/30 08:07:11 rgrimes Exp $
+ *	$Id: procfs_subr.c,v 1.5.4.1 1996/06/12 03:42:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -130,6 +130,7 @@ loop:
 	pfs->pfs_type = pfs_type;
 	pfs->pfs_vnode = *vpp;
 	pfs->pfs_flags = 0;
+	pfs->pfs_lockowner = 0;
 	pfs->pfs_fileno = PROCFS_FILENO(pid, pfs_type);
 
 	switch (pfs_type) {
@@ -228,34 +229,50 @@ procfs_rw(ap)
 	struct proc *curp = uio->uio_procp;
 	struct pfsnode *pfs = VTOPFS(vp);
 	struct proc *p;
+	int rtval;
 
 	p = PFIND(pfs->pfs_pid);
 	if (p == 0)
 		return (EINVAL);
 
+	while (pfs->pfs_lockowner) {
+		tsleep(&pfs->pfs_lockowner, PRIBIO, "pfslck", 0);
+	}
+	pfs->pfs_lockowner = curproc->p_pid;
+
 	switch (pfs->pfs_type) {
 	case Pnote:
 	case Pnotepg:
-		return (procfs_donote(curp, p, pfs, uio));
+		rtval = procfs_donote(curp, p, pfs, uio);
+		break;
 
 	case Pregs:
-		return (procfs_doregs(curp, p, pfs, uio));
+		rtval = procfs_doregs(curp, p, pfs, uio);
+		break;
 
 	case Pfpregs:
-		return (procfs_dofpregs(curp, p, pfs, uio));
+		rtval = procfs_dofpregs(curp, p, pfs, uio);
+		break;
 
 	case Pctl:
-		return (procfs_doctl(curp, p, pfs, uio));
+		rtval = procfs_doctl(curp, p, pfs, uio);
+		break;
 
 	case Pstatus:
-		return (procfs_dostatus(curp, p, pfs, uio));
+		rtval = procfs_dostatus(curp, p, pfs, uio);
+		break;
 
 	case Pmem:
-		return (procfs_domem(curp, p, pfs, uio));
+		rtval = procfs_domem(curp, p, pfs, uio);
+		break;
 
 	default:
-		return (EOPNOTSUPP);
+		rtval = EOPNOTSUPP;
+		break;
 	}
+	pfs->pfs_lockowner = 0;
+	wakeup(&pfs->pfs_lockowner);
+	return rtval;
 }
 
 /*

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.4 1995/04/15 02:30:08 davidg Exp $
+ *	$Id: procfs.h,v 1.5 1995/05/25 01:35:22 davidg Exp $
  */
 
 /*
@@ -66,6 +66,7 @@ struct pfsnode {
 	u_short		pfs_mode;	/* mode bits for stat() */
 	u_long		pfs_flags;	/* open flags */
 	u_long		pfs_fileno;	/* unique file id */
+	pid_t		pfs_lockowner;	/* pfs lock owner */
 };
 
 #define PROCFS_NOTELEN	64	/* max length of a note (/proc/$pid/note) */
