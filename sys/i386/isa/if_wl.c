@@ -1260,6 +1260,8 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 	    error = 0;
 	}
+#else
+	wlinit(sc);
 #endif
 	break;
 #endif	/* MULTICAST */
