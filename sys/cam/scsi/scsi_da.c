@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.6 1998/10/07 02:57:57 ken Exp $
+ *      $Id: scsi_da.c,v 1.7 1998/10/07 03:09:19 imp Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -74,6 +74,11 @@ typedef enum {
 } da_flags;
 
 typedef enum {
+	DA_Q_NONE		= 0x00,
+	DA_Q_NO_SYNC_CACHE	= 0x01
+} da_quirks;
+
+typedef enum {
 	DA_CCB_PROBE		= 0x01,
 	DA_CCB_BUFFER_IO	= 0x02,
 	DA_CCB_WAITING		= 0x03,
@@ -101,10 +106,29 @@ struct da_softc {
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	da_state state;
 	da_flags flags;	
+	da_quirks quirks;
 	int	 ordered_tag_count;
 	struct	 disk_params params;
 	struct	 diskslices *dk_slices;	/* virtual drives */
 	union	 ccb saved_ccb;
+};
+
+struct da_quirk_entry {
+	struct scsi_inquiry_pattern inq_pat;
+	da_quirks quirks;
+};
+
+static struct da_quirk_entry da_quirk_table[] =
+{
+	{
+		/* 
+		 * XXX This is just a placeholder quirk entry.  It should
+		 * be removed once we get the inquiry info for a drive that
+		 * doesn't support synchronize cache properly.
+		 */
+		{T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED, "*", "*", "*"},
+		/*quirks*/ DA_Q_NONE
+	}
 };
 
 static	d_open_t	daopen;
@@ -129,6 +153,7 @@ static void		daprevent(struct cam_periph *periph, int action);
 static void		dasetgeom(struct cam_periph *periph,
 				  struct scsi_read_capacity_data * rdcap);
 static timeout_t	dasendorderedtag;
+static void		dashutdown(int howto, void *arg);
 
 #ifndef DA_DEFAULT_TIMEOUT
 #define DA_DEFAULT_TIMEOUT 60	/* Timeout in seconds */
@@ -335,7 +360,6 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
-	union	ccb *ccb;
 	int	unit;
 	int	error;
 
@@ -356,29 +380,34 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 		return (0);
 	}
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+		union	ccb *ccb;
 
-	scsi_synchronize_cache(&ccb->csio,
-			       /*retries*/1,
-			       /*cbfcnp*/dadone,
-			       MSG_SIMPLE_Q_TAG,
-			       /*begin_lba*/0, /* Cover the whole disk */
-			       /*lb_count*/0,
-			       SSD_FULL_SIZE,
-			       5 * 60 * 1000);
+		ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	/* Ignore any errors */
-	cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
-			  /*sense_flags*/0, &softc->device_stats);
+		scsi_synchronize_cache(&ccb->csio,
+				       /*retries*/1,
+				       /*cbfcnp*/dadone,
+				       MSG_SIMPLE_Q_TAG,
+				       /*begin_lba*/0,/* Cover the whole disk */
+				       /*lb_count*/0,
+				       SSD_FULL_SIZE,
+				       5 * 60 * 1000);
 
-	xpt_release_ccb(ccb);
+		/* Ignore any errors */
+		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
+				  /*sense_flags*/0, &softc->device_stats);
 
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb->ccb_h.path,
+					 /*relsim_flags*/0,
+					 /*reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0);
+
+		xpt_release_ccb(ccb);
+
+	}
 
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
 		daprevent(periph, PR_ALLOW);
@@ -606,10 +635,14 @@ dadump(dev_t dev)
 		xpt_polled_action((union ccb *)&csio);
 
 		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			printf("Aborting dump due to I/O error. "
-			       "status == 0x%x, scsi status == 0x%x\n",
-			       csio.ccb_h.status, csio.scsi_status);
-			return (EIO);
+			printf("Aborting dump due to I/O error.\n");
+			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
+			     CAM_SCSI_STATUS_ERROR)
+				scsi_sense_print(&csio);
+			else
+				printf("status == 0x%x, scsi status == 0x%x\n",
+				       csio.ccb_h.status, csio.scsi_status);
+			return(EIO);
 		}
 		
 		if ((intptr_t)addr % (1024 * 1024) == 0) {
@@ -630,6 +663,36 @@ dadump(dev_t dev)
 		/* operator aborting dump? */
 		if (cncheckc() != -1)
 			return (EINTR);
+	}
+
+	/*
+	 * Sync the disk cache contents to the physical media.
+	 */
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+
+		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
+		csio.ccb_h.ccb_state = DA_CCB_DUMP;
+		scsi_synchronize_cache(&csio,
+				       /*retries*/1,
+				       /*cbfcnp*/dadone,
+				       MSG_SIMPLE_Q_TAG,
+				       /*begin_lba*/0,/* Cover the whole disk */
+				       /*lb_count*/0,
+				       SSD_FULL_SIZE,
+				       5 * 60 * 1000);
+		xpt_polled_action((union ccb *)&csio);
+
+		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
+			     CAM_SCSI_STATUS_ERROR)
+				scsi_sense_print(&csio);
+			else {
+				xpt_print_path(periph->path);
+				printf("Synchronize cache failed, status "
+				       "== 0x%x, scsi status == 0x%x\n",
+				       csio.ccb_h.status, csio.scsi_status);
+			}
+		}
 	}
 	return (0);
 }
@@ -689,6 +752,8 @@ dainit(void)
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else {
+		int err;
+
 		/* If we were successfull, register our devsw */
 		cdevsw_add_generic(DA_BDEV_MAJOR, DA_CDEV_MAJOR, &da_cdevsw);
 
@@ -698,6 +763,10 @@ dainit(void)
 		 */
 		timeout(dasendorderedtag, NULL,
 			(DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL);
+
+		if ((err = at_shutdown(dashutdown, NULL,
+				       SHUTDOWN_POST_SYNC)) != 0)
+			printf("dainit: at_shutdown returned %d!\n", err);
 	}
 }
 
@@ -830,6 +899,7 @@ daregister(struct cam_periph *periph, void *arg)
 	struct da_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
+	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -862,6 +932,20 @@ daregister(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	
 	cam_extend_set(daperiphs, periph->unit_number, periph);
+
+	/*
+	 * See if this device has any quirks.
+	 */
+	match = cam_quirkmatch((caddr_t)&cgd->inq_data,
+			       (caddr_t)da_quirk_table,
+			       sizeof(da_quirk_table)/sizeof(*da_quirk_table),
+			       sizeof(*da_quirk_table), scsi_inquiry_match);
+
+	if (match != NULL)
+		softc->quirks = ((struct da_quirk_entry *)match)->quirks;
+	else
+		softc->quirks = DA_Q_NONE;
+
 	/*
 	 * Block our timeout handler while we
 	 * add this softc to the dev list.
@@ -1373,4 +1457,63 @@ dasendorderedtag(void *arg)
 	/* Queue us up again */
 	timeout(dasendorderedtag, NULL,
 		(DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL);
+}
+
+/*
+ * Step through all DA peripheral drivers, and if the device is still open,
+ * sync the disk cache to physical media.
+ */
+static void
+dashutdown(int howto, void *arg)
+{
+	struct cam_periph *periph;
+	struct da_softc *softc;
+
+	for (periph = TAILQ_FIRST(&dadriver.units); periph != NULL;
+	     periph = TAILQ_NEXT(periph, unit_links)) {
+		union ccb ccb;
+		softc = (struct da_softc *)periph->softc;
+
+		/*
+		 * We only sync the cache if the drive is still open, and
+		 * if the drive is capable of it..
+		 */
+		if (((softc->flags & DA_FLAG_OPEN) == 0)
+		 || (softc->quirks & DA_Q_NO_SYNC_CACHE))
+			continue;
+
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+
+		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
+		scsi_synchronize_cache(&ccb.csio,
+				       /*retries*/1,
+				       /*cbfcnp*/dadone,
+				       MSG_SIMPLE_Q_TAG,
+				       /*begin_lba*/0, /* whole disk */
+				       /*lb_count*/0,
+				       SSD_FULL_SIZE,
+				       5 * 60 * 1000);
+
+		xpt_polled_action(&ccb);
+
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			if ((ccb.ccb_h.status & CAM_STATUS_MASK) ==
+			     CAM_SCSI_STATUS_ERROR)
+				scsi_sense_print(&ccb.csio);
+			else {
+				xpt_print_path(periph->path);
+				printf("Synchronize cache failed, status "
+				       "== 0x%x, scsi status == 0x%x\n",
+				       ccb.ccb_h.status, ccb.csio.scsi_status);
+			}
+		}
+
+		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb.ccb_h.path,
+					 /*relsim_flags*/0,
+					 /*reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0);
+
+	}
 }
