@@ -1417,9 +1417,6 @@ hostnamebyanyaddr(sap)
 	int saveretry;
 
 #if NAMED_BIND
-	/* need to make sure _res.retry is initialized before using it */
-	if ((_res.options & RES_INIT) == 0)
-		res_init();
 	/* shorten name server timeout to avoid higher level timeouts */
 	saveretry = _res.retry;
 	_res.retry = 3;
