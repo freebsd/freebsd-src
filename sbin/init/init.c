@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.20 1997/07/03 11:37:43 ache Exp $
+ *		$Id: init.c,v 1.21 1997/07/04 22:09:07 ache Exp $
  */
 
 #ifndef lint
@@ -936,8 +936,7 @@ new_session(sprev, session_index, typ)
 	    typ->ty_getty == 0)
 		return 0;
 
-	sp = (session_t *) malloc(sizeof (session_t));
-	bzero(sp, sizeof *sp);
+	sp = (session_t *) calloc(1, sizeof (session_t));
 
 	sp->se_index = session_index;
 
@@ -1393,37 +1392,15 @@ death()
 	register session_t *sp;
 	register int i;
 	pid_t pid;
-	char *devname;
-	int tlen_cur, tlen_max;
-	struct ttyent *typ;
 	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 
-	for (sp = sessions; sp; sp = sp->se_next)
+	for (sp = sessions; sp; sp = sp->se_next) {
 		sp->se_flags |= SE_SHUTDOWN;
+		(void) revoke(sp->se_device);
+	}
 
 	/* NB: should send a message to the session logger to avoid blocking. */
 	logwtmp("~", "shutdown", "");
-
-	tlen_max = 0;
-	devname = NULL;
-	while (typ = getttyent()) {
-		if (typ->ty_name != 0) {
-			tlen_cur = strlen(typ->ty_name);
-			if (tlen_cur > 0) {
-				if (tlen_cur > tlen_max) {
-					tlen_max = tlen_cur;
-					devname = realloc(devname, sizeof(_PATH_DEV) + tlen_max);
-				}
-				if (devname != NULL) {
-					(void) sprintf(devname, "%s%s", _PATH_DEV, typ->ty_name);
-					(void) revoke(devname);
-				}
-			}
-		}
-	}
-	endttyent();
-	if (devname != NULL)
-		free(devname);
 
 	for (i = 0; i < 2; ++i) {
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)
