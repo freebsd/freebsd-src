@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.5 1995/09/27 00:46:16 jmz Exp $ -->
+<!-- $Id: current.sgml,v 1.6 1995/10/16 09:01:52 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,41 +10,43 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1995/09/27 00:46:16 $
+Last updated: $Date: 1995/10/16 09:01:52 $
 
-This document attempts to explain the rationale behind FreeBSD-current,
-what you should expect should you decide to run it, and states some
-prerequisites for making sure the process goes as smoothly as possible.
+This document attempts to explain the rationale behind
+FreeBSD-current, what you should expect should you decide to run it,
+and states some prerequisites for making sure the process goes as
+smoothly as possible.
 -->
 
 <sect><heading>What is FreeBSD-current?</heading>
 
-<p>FreeBSD-current is, quite literally, nothing more than a daily snapshot of
-the working sources for FreeBSD.  These include work in progress, experimental
-changes, and transitional mechanisms that may or may not be present in
-the next official release of the software.  While many of us compile
-almost daily from FreeBSD-current sources, there are periods of time when
-the sources are literally uncompilable.  These problems are generally resolved
-as expeditiously as possible, but whether or not FreeBSD-current sources bring
-disaster or greatly desired functionality can literally be a matter of which
-part of any given 24 hour period you grabbed them in!
+<p>FreeBSD-current is, quite literally, nothing more than a daily
+snapshot of the working sources for FreeBSD.  These include work in
+progress, experimental changes and transitional mechanisms that may or
+may not be present in the next official release of the software.
+While many of us compile almost daily from FreeBSD-current sources,
+there are periods of time when the sources are literally uncompilable.
+These problems are generally resolved as expeditiously as possible,
+but whether or not FreeBSD-current sources bring disaster or greatly
+desired functionality can literally be a matter of which part of any
+given 24 hour period you grabbed them in!
 
-Under certain circumstances we will sometimes make binaries for parts of
-FreeBSD-current available, but only because we're interested in getting
-something tested, not because we're in the business of providing binary
-releases of current.  If we don't offer, please don't ask!  It takes far
-too much time to do this as a general task.
+Under certain circumstances we will sometimes make binaries for parts
+of FreeBSD-current available, but only because we're interested in
+getting something tested, not because we're in the business of
+providing binary releases of current.  If we don't offer, please don't
+ask!  It takes far too much time to do this as a general task.
 
 <sect><heading>Who needs FreeBSD-current?</heading>
 
 <p>FreeBSD-current is made generally available for 3 primary interest groups:
 <enum>
-    <item>  Members of the FreeBSD group who are actively working on one
-        part or another of the source tree and for whom keeping `current'
-        is an absolute requirement.
+    <item>  Members of the FreeBSD group who are actively working on some
+        part of the source tree and for whom keeping `current' is an
+        absolute requirement.
 
-    <item>  Members of the FreeBSD group who are active ALPHA or BETA testers
-        and willing to spend time working through problems in order to
+    <item>  Members of the FreeBSD group who are active testers,
+        willing to spend time working through problems in order to
         ensure that FreeBSD-current remains as sane as possible.  These
         are also people who wish to make topical suggestions on changes
         and the general direction of FreeBSD.
@@ -58,8 +60,8 @@ too much time to do this as a general task.
 <sect><heading>What is FreeBSD-current <em>NOT</em>?</heading>
 
 <p><enum>
-    <item>  A fast-track to getting pre-release bits because there's something
-        you heard was pretty cool in there and you want to be the first on
+    <item>  A fast-track to getting pre-release bits because you heard there's
+        some cool new feature in there and you want to be the first on
         your block to have it.
 
     <item>  A quick way of getting bug fixes.
@@ -73,9 +75,9 @@ too much time to do this as a general task.
         experimental system software.  This is not because we're mean and
         nasty people who don't like helping people out (we wouldn't even be
         doing FreeBSD if we were), it's literally because we can't answer
-        400 messages a day <em>and</em> actually work on FreeBSD!  I'm sure if
-        given the choice between having us answer lots of questions or
-        continue to improve FreeBSD, most of you would vote for us
+        400 messages a day <em>and</em> actually work on FreeBSD!  I'm sure
+        that, if given the choice between having us answer lots of questions or
+        continuing to improve FreeBSD, most of you would vote for us
         improving it.
 </enum>
 
@@ -84,8 +86,8 @@ too much time to do this as a general task.
 <p><enum> <item> Join the freebsd-current and cvs-all
     mailing lists.  This is not just a good idea, it's
     <em>essential</em>.  If you aren't on freebsd-current, you
-    won't read the comments that people are making about the
-    current state of the system and thus will end up stumbling
+    won't see the comments that people are making about the
+    current state of the system and thus will probably end up stumbling
     over a lot of problems that others have already found and
     solved.  Even more importantly, you will miss out on
     potentially critical information (e.g. ``Yo, Everybody!
@@ -93,9 +95,8 @@ too much time to do this as a general task.
     rebuild the kernel or your system will crash horribly!").
 
     The cvs-all mailing list will allow you to see the commit log
-    entry for each change as it's made.  This can also contain
-    important information, and will let you know what parts of
-    the system are being actively changed.
+    entry for each change as it's made along with any pertinent
+    information on possible side-effects.
 
         To join these lists, send mail to `majordomo@FreeBSD.ORG'
         and say:
@@ -148,28 +149,18 @@ too much time to do this as a general task.
     <item>  If you're grabbing the sources to run, and not just look at,
     then grab <em>all</em> of current, not just selected portions.  The
     reason for this is that various parts of the source depend on
-    updates elsewhere and trying to compile just a subset is almost
+    updates elsewhere, and trying to compile just a subset is almost
     guaranteed to get you into trouble.
 
     <item>  Before compiling current, read the Makefile in /usr/src
-	carefully.  You'll see one-time targets like `bootstrapld'
-	which <em><bf>must</bf></em> be run as part of the upgrading process.  Reading
-	freebsd-hackers will keep you up-to-date on other bootstrapping
-	procedures that sometimes become necessary as we move towards
-	the next release.
+	carefully.  You should at least run a `make world' the first time
+        through as part of the upgrading process.
+        Reading freebsd-hackers will keep you up-to-date on other
+        bootstrapping procedures that sometimes become necessary as we move
+        towards	the next release.
 
     <item>  Be active!  If you're running FreeBSD-current, we want to know
 	what you have to say about it, especially if you have suggestions
 	for enhancements or bug fixes.  Suggestions with accompanying code
 	are received most enthusiastically! 
 </enum>
-
-<!--
-Thank you for taking the time to read this all the way through.  We're
-always very keen to remain "open" and share the fruits of our labor
-with the widest possible audience, but sharing development sources has
-always had certain pitfalls associated with it (which is why most
-commercial organizations won't even consider it) and I want to make
-sure that people at least come into this with their eyes open, and
-don't make the leap unless they're good at working without a net!
--->

@@ -1,4 +1,4 @@
-<!-- $Id: basics.sgml,v 1.3 1995/06/30 17:37:29 jfieber Exp $ -->
+<!-- $Id: basics.sgml,v 1.4 1995/10/22 00:41:53 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Unix Basics<label id="basics"></heading>
@@ -9,7 +9,7 @@
 	<p>The most comprehensive documentation on FreeBSD is in
 	  the form of <em>man pages</em>.  Nearly every program
 	  on the system comes with a short reference manual
-	  explaining the basic operation and various argument.
+	  explaining the basic operation and various arguments.
 	  These manuals can be view with the
 	  <tt><bf>man</bf></tt> command.  Use of the
 	  <tt><bf>man</bf></tt> command is simple:
@@ -40,20 +40,20 @@
 	  is a <tt><bf>chmod</bf></tt> user command and a
 	  <tt><bf>chmod()</bf></tt> system call.  In this case,
 	  you can tell the <tt><bf>man</bf></tt> command which
-	  you want by specifying the section:
+	  one you want by specifying the section:
 	  <tscreen>
 	    % <bf>man 1 chmod</bf>
 	  </tscreen>
 	  which will display the manual page for the user command
 	  <tt><bf>chmod</bf></tt>.  References to a particular
 	  section of the on-line manual are traditionally placed
-	  in paranthesis in written documentation; so
+	  in parenthesis in written documentation, so
 	  <tt><bf>chmod(1)</bf></tt> refers to the <tt><bf>chmod
-	  </bf></tt> user command, while <tt><bf>chmod(2)</bf></tt>
-	  means the system call.
+	  </bf></tt> user command and <tt><bf>chmod(2)</bf></tt>
+	  refers to the system call.
 
 	<p>This is fine if you know the name of the command and
-	  forgot how to use it, but what if you cannot recall the
+	  simply wish to know how to use it, but what if you cannot recall the
 	  command name?  You can use <tt><bf>man</bf></tt> to
 	  search for keywords in the command <em>descriptions</em> by
 	  using the <tt><bf>-k</bf></tt> switch:
@@ -62,13 +62,12 @@
 	  </tscreen>
 	  With this command you will be presented with a list of
 	  commands that have the keyword `mail' in their
-	  descriptions.  This is the same as the separate command
-	  <tt><bf>apropos</bf></tt>.
+	  descriptions.  This is actually functionally equivalent to
+	  using the <tt><bf>apropos</bf></tt> command.
 
-	<p>You are seeing all those fancy commands in <tt>
-	  /usr/bin</tt>, but don't even have the silliest idea
-	  what most of the names do actually stand for?  Simply
-	  do a
+	<p>So, you are looking at all those fancy commands in <tt>
+	  /usr/bin</tt> but don't even have the faintest idea
+	  what most of them actually do?  Simply do a
 	  <tscreen>
 	    % <bf>cd /usr/bin; man -f *</bf>
 	  </tscreen>
@@ -76,7 +75,7 @@
 	  <tscreen>
 	    % <bf>cd /usr/bin; whatis *</bf>
 	  </tscreen>
-	  which is the same.
+	  which does the same thing.
 
       <sect>
 	<heading>GNU Info files<label id="basics:info"></heading>
@@ -90,8 +89,8 @@
 	  mode of <tt>emacs</tt>.
 	      
           To use the <tt>info(1)</tt> command, simply type:
-          <tscreen>% <bf>info</bf></tscreen> For a brief
-          introduction, type <tt><bf>h</bf></tt>, and for a quick
+          <tscreen>% <bf>info</bf></tscreen>.  For a brief
+          introduction, type <tt><bf>h</bf></tt>.  For a quick
           command reference, type <tt><bf>?</bf></tt>.
 
 

@@ -1,80 +1,80 @@
-<!-- $Id: eresources.sgml,v 1.15 1995/11/20 01:10:16 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.16 1995/11/24 07:55:25 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
   <heading>Resources on the Internet<label id="eresources"></heading>
 
+  <p><em>Contributed by &a.jkh;.</em>
+
   <p>The rapid pace of FreeBSD progress makes print media
     impractical as a means for following the latest
-    developments.  Electronic resources are the best, if not the
-    only way stay informed of the latest advances.  Also, since
-    FreeBSD is a volunteer effort, the user community also serves
-    as the technical support department and invariably,
-    electronic mail and Usenet news are the most effective way of
-    getting technical problems resolved.
+    developments.  Electronic resources are the best, if not often the
+    only way stay informed of the latest advances.  Since
+    FreeBSD is a volunteer effort, the user community itself also generally
+    serves as a `technical support department' of sorts, with electronic mail
+    and  Usenet news being the most effective way of reaching that community.
 
-    Below, the most important points of contact with the FreeBSD
-    user community are outlined.  If you are aware of other
-    resources not included, please send them to
-    <tt>doc@freebsd.org</tt> so they may be included.
+    The most important points of contact with the FreeBSD
+    user community are outlined below.  If you are aware of other
+    resources not mentioned here, please send them to
+    <tt>doc@freebsd.org</tt> so that they may also be included.
 
       <sect>
         <heading>Mailing lists<label id="eresources:mail"></heading>
 
 <p>Though many of the FreeBSD development members read USENET, we cannot
 always guarantee that we'll get to your questions in a timely fashion
-(or at all) if you post them only to one of the comp.unix.bsd.*
+(or at all) if you post them only to one of the comp.unix.bsd.freebsd.*
 groups.  By addressing your questions to the appropriate mailing list
 you will reach both us and a concentrated FreeBSD audience, invariably
 assuring a better (or at least faster) response.
 
-There are list charters at the bottom of this document.  Please read
-the list charter before joining a list.  We must strive to
-keep the signal to noise ratio of the lists high, especially in
-the technical lists.
+<p>The charters for the various lists are given at the bottom of this
+document.  Please read the charter before joining a list since we must
+strive to keep the signal to noise ratio of the lists high, especially
+in the technical ones.
 
 Archives are kept for all of the mailing lists and can be searched
 using the the <url url="http://www.freebsd.org/search.html"
 name="FreeBSD World Wide Web server">.  The keyword searchable archive
-offers an excellent way to find answers to frequently asked questions
-and should be consulted before posting a question.
+offers an excellent way of finding answers to frequently asked
+questions and should be consulted before posting a question.
 
 <sect1><heading>List summary</heading>
 
-<p><bf>General lists:</bf> The following are general lists that
+<p><bf>General lists:</bf> The following are general lists which
 anyone is free to join:
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
-freebsd-announce         Important events / milestones
+freebsd-announce         Important events and project milestones
 freebsd-bugs             Bug reports
-freebsd-chat             Non technical items related to the community
-freebsd-current          Discussions about the use of FreeBSD-current
+freebsd-chat             Non-technical items related to the FreeBSD community
+freebsd-current          Discussion concerning the use of FreeBSD-current
 freebsd-isp              Issues for Internet Service Providers using FreeBSD
-freebsd-policy           Policy issues and suggestions
+freebsd-policy           General policy issues and suggestions
 freebsd-questions        User questions
 </verb>
 
-<bf>Technical lists:</bf> The following are the technical lists. You should
-read the charter carefully before joining them, and you should keep
-your e-mail within the scope of the guidelines.
+<bf>Technical lists:</bf> The following lists are for technical discussion.
+You should read the charter carefully before joining one, keeping any
+messages sent to a list within the scope of the guidelines.
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
 freebsd-doc              The FreeBSD Documentation project
 freebsd-fs               Filesystems
-freebsd-hackers          General Technical discussions
-freebsd-hardware         General discussion of FreeBSD hardware
-freebsd-multimedia       Multimedia discussions
-freebsd-platforms        Porting to Non-Intel platforms
-freebsd-ports            Discussion of "ports"
+freebsd-hackers          General technical discussion
+freebsd-hardware         General discussion of hardware for running FreeBSD
+freebsd-multimedia       Multimedia discussion
+freebsd-platforms        Concerning ports to non-Intel architecture platforms
+freebsd-ports            Discussion of the ports collection
 freebsd-security         Security issues
-freebsd-scsi             SCSI subsystem
+freebsd-scsi             The SCSI subsystem
 </verb>
 
-<bf>Limited lists:</bf> The following are limited lists that you will need
-approval to join.  Even though access to these lists is controled,
-anyone is free to send suggestions and comments to them.  It is a
+<bf>Limited lists:</bf> The following lists require approval to join,
+though anyone is free to send suggestions and comments to them.  It is a
 good idea establish a presence in the technical lists before asking
 to join one of these limited lists.
 <verb>
@@ -87,8 +87,8 @@ freebsd-install          Installation development
 freebsd-user-groups      User group coordination
 </verb>
 
-<bf>CVS lists:</bf> The following lists are for people seeing the log messages
-for source changes in specific areas:
+<bf>CVS lists:</bf> The following lists are for people interested in
+seeing the log messages for changes to various areas of the source tree.
 <verb>
 List name       Source area          Area Description (source for)
 ----------------------------------------------------------------------
@@ -113,9 +113,8 @@ cvs-usrsbin     /usr/src/usr.sbin    System binaries
 <sect1><heading>How to subscribe</heading>
 
 <p>All mailing lists live on <tt>FreeBSD.ORG</tt>, so to post to a
-list you simply mail to <em>listname</em><tt>@FreeBSD.ORG</tt>.  It
-will then be redistributed to mailing list members throughout the
-world.
+given list you simply mail to <em>listname</em><tt>@FreeBSD.ORG</tt>.  It
+will then be redistributed to mailing list members world-wide.
 
 To subscribe to a list, send mail to:
 <tscreen><verb>
@@ -150,10 +149,10 @@ list of available commands, do this:
 help
 ^D
 </verb></tscreen>
-Finally, we again request that you keep the technical mailing lists on
-a technical track.  If you're only interested in the "high points",
-then it's suggested that you join freebsd-announce, which will contain
-only infrequent traffic.
+Again, we'd like to request that you keep discussion in the technical mailing
+lists on a technical track.  If you're only interested in the "high points"
+then it's suggested that you join freebsd-announce, which is intended only
+for infrequent traffic.
 
 <sect1><heading>List charters</heading>
 
