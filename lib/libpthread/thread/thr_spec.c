@@ -39,7 +39,6 @@
 #include "thr_private.h"
 
 struct pthread_key {
-	spinlock_t	lock;
 	volatile int	allocated;
 	volatile int	count;
 	int		seqno;
@@ -47,7 +46,7 @@ struct pthread_key {
 };
 
 /* Static variables: */
-static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
+static struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
 __weak_reference(_pthread_key_create, pthread_key_create);
 __weak_reference(_pthread_key_delete, pthread_key_delete);
@@ -56,44 +55,47 @@ __weak_reference(_pthread_setspecific, pthread_setspecific);
 
 
 int
-_pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
+_pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 {
+	struct pthread *curthread = _get_curthread();
+
+	/* Lock the key table: */
+	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
-		/* Lock the key table entry: */
-		_SPINLOCK(&key_table[*key].lock);
 
 		if (key_table[(*key)].allocated == 0) {
 			key_table[(*key)].allocated = 1;
 			key_table[(*key)].destructor = destructor;
 			key_table[(*key)].seqno++;
 
-			/* Unlock the key table entry: */
-			_SPINUNLOCK(&key_table[*key].lock);
+			/* Unlock the key table: */
+			THR_LOCK_RELEASE(curthread, &_keytable_lock);
 			return (0);
 		}
 
-		/* Unlock the key table entry: */
-		_SPINUNLOCK(&key_table[*key].lock);
 	}
+	/* Unlock the key table: */
+	THR_LOCK_RELEASE(curthread, &_keytable_lock);
 	return (EAGAIN);
 }
 
 int
 _pthread_key_delete(pthread_key_t key)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret = 0;
 
 	if (key < PTHREAD_KEYS_MAX) {
-		/* Lock the key table entry: */
-		_SPINLOCK(&key_table[key].lock);
+		/* Lock the key table: */
+		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 
 		if (key_table[key].allocated)
 			key_table[key].allocated = 0;
 		else
 			ret = EINVAL;
 
-		/* Unlock the key table entry: */
-		_SPINUNLOCK(&key_table[key].lock);
+		/* Unlock the key table: */
+		THR_LOCK_RELEASE(curthread, &_keytable_lock);
 	} else
 		ret = EINVAL;
 	return (ret);
@@ -105,44 +107,41 @@ _thread_cleanupspecific(void)
 	struct pthread	*curthread = _get_curthread();
 	void		*data = NULL;
 	int		key;
-	int		itr;
 	void		(*destructor)( void *);
 
-	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
-		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
-			if (curthread->specific_data_count > 0) {
-				/* Lock the key table entry: */
-				_SPINLOCK(&key_table[key].lock);
-				destructor = NULL;
+	if (curthread->specific != NULL) {
+		/* Lock the key table: */
+		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
+		for (key = 0; (key < PTHREAD_KEYS_MAX) &&
+		    (curthread->specific_data_count > 0); key++) {
+			destructor = NULL;
 
-				if (key_table[key].allocated &&
-				    (curthread->specific[key].data != NULL)) {
-					if (curthread->specific[key].seqno ==
-					    key_table[key].seqno) {
-						data = (void *) curthread->specific[key].data;
-						destructor = key_table[key].destructor;
-					}
-					curthread->specific[key].data = NULL;
-					curthread->specific_data_count--;
+			if (key_table[key].allocated &&
+			    (curthread->specific[key].data != NULL)) {
+				if (curthread->specific[key].seqno ==
+				    key_table[key].seqno) {
+					data = (void *)curthread->specific[key].data;
+					destructor = key_table[key].destructor;
 				}
+				curthread->specific[key].data = NULL;
+				curthread->specific_data_count--;
+			}
 
-				/* Unlock the key table entry: */
-				_SPINUNLOCK(&key_table[key].lock);
-
+			/*
+			 * If there is a destructore, call it
+			 * with the key table entry unlocked:
+			 */
+			if (destructor != NULL) {
 				/*
-				 * If there is a destructore, call it
-				 * with the key table entry unlocked:
+				 * Don't hold the lock while calling the
+				 * destructor:
 				 */
-				if (destructor)
-					destructor(data);
-			} else {
-				free(curthread->specific);
-				curthread->specific = NULL;
-				return;
+				THR_LOCK_RELEASE(curthread, &_keytable_lock);
+				destructor(data);
+				THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 			}
 		}
-	}
-	if (curthread->specific != NULL) {
+		THR_LOCK_RELEASE(curthread, &_keytable_lock);
 		free(curthread->specific);
 		curthread->specific = NULL;
 	}

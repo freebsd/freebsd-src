@@ -46,7 +46,8 @@ _pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *new;
 
-	if ((new = (struct pthread_cleanup *) malloc(sizeof(struct pthread_cleanup))) != NULL) {
+	if ((new = (struct pthread_cleanup *)
+	    malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		new->routine = routine;
 		new->routine_arg = routine_arg;
 		new->next = curthread->cleanup;
@@ -69,4 +70,3 @@ _pthread_cleanup_pop(int execute)
 		free(old);
 	}
 }
-

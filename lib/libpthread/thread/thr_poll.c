@@ -46,11 +46,12 @@ __weak_reference(__poll, poll);
 int
 __poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_poll(fds, nfds, timeout);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

@@ -37,11 +37,12 @@ __weak_reference(_wait, wait);
 pid_t
 _wait(int *istat)
 {
+	struct pthread *curthread = _get_curthread();
 	pid_t	ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __wait(istat);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

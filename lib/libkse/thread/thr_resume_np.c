@@ -35,33 +35,32 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-static void	resume_common(struct pthread *);
+static void resume_common(struct pthread *);
 
 __weak_reference(_pthread_resume_np, pthread_resume_np);
 __weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
+
 
 /* Resume a thread: */
 int
 _pthread_resume_np(pthread_t thread)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	/* Find the thread in the list of active threads: */
-	if ((ret = _find_thread(thread)) == 0) {
-		/*
-		 * Defer signals to protect the scheduling queues
-		 * from access by the signal handler:
-		 */
-		_thread_kern_sig_defer();
+	/* Add a reference to the thread: */
+	if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0)) == 0) {
+		/* Is it currently suspended? */
+		if ((thread->flags & THR_FLAGS_SUSPENDED) != 0) {
+			/* Lock the threads scheduling queue: */
+			THR_SCHED_LOCK(curthread, thread);
 
-		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 			resume_common(thread);
 
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		_thread_kern_sig_undefer();
+			/* Unlock the threads scheduling queue: */
+			THR_SCHED_UNLOCK(curthread, thread);
+		}
+		_thr_ref_delete(curthread, thread);
 	}
 	return (ret);
 }
@@ -69,43 +68,42 @@ _pthread_resume_np(pthread_t thread)
 void
 _pthread_resume_all_np(void)
 {
-	struct pthread	*curthread = _get_curthread();
-	struct pthread	*thread;
+	struct pthread *curthread = _get_curthread();
+	struct pthread *thread;
+	kse_critical_t crit;
 
-	/*
-	 * Defer signals to protect the scheduling queues from access
-	 * by the signal handler:
-	 */
-	_thread_kern_sig_defer();
+	/* Take the thread list lock: */
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if ((thread != curthread) &&
-		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0))
+		    ((thread->flags & THR_FLAGS_SUSPENDED) != 0) &&
+		    (thread->state != PS_DEAD) &&
+		    (thread->state != PS_DEADLOCK) &&
+		    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
+			THR_SCHED_LOCK(curthread, thread);
 			resume_common(thread);
+			THR_SCHED_UNLOCK(curthread, thread);
+		}
 	}
 
-	/*
-	 * Undefer and handle pending signals, yielding if necessary:
-	 */
-	_thread_kern_sig_undefer();
+	/* Release the thread list lock: */
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+	_kse_critical_leave(crit);
 }
 
 static void
 resume_common(struct pthread *thread)
 {
 	/* Clear the suspend flag: */
-	thread->flags &= ~PTHREAD_FLAGS_SUSPENDED;
+	thread->flags &= ~THR_FLAGS_SUSPENDED;
 
 	/*
 	 * If the thread's state is suspended, that means it is
 	 * now runnable but not in any scheduling queue.  Set the
 	 * state to running and insert it into the run queue.
 	 */
-	if (thread->state == PS_SUSPENDED) {
-		PTHREAD_SET_STATE(thread, PS_RUNNING);
-		if (thread->priority_mutex_count > 0)
-			PTHREAD_PRIOQ_INSERT_HEAD(thread);
-		else
-			PTHREAD_PRIOQ_INSERT_TAIL(thread);
-	}
+	if (thread->state == PS_SUSPENDED)
+		_thr_setrunnable_unlocked(thread);
 }

@@ -46,13 +46,13 @@ _pthread_condattr_init(pthread_condattr_t *attr)
 	pthread_condattr_t pattr;
 
 	if ((pattr = (pthread_condattr_t)
-			malloc(sizeof(struct pthread_cond_attr))) == NULL) {
+	    malloc(sizeof(struct pthread_cond_attr))) == NULL) {
 		ret = ENOMEM;
 	} else {
-		memcpy(pattr, &pthread_condattr_default,
-				sizeof(struct pthread_cond_attr));
+		memcpy(pattr, &_pthread_condattr_default,
+		    sizeof(struct pthread_cond_attr));
 		*attr = pattr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
