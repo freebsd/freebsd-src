@@ -796,6 +796,7 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
     
     /* stat file */
     if (us && _ftp_stat(cd, url->doc, us) == -1
+	&& fetchLastErrCode != FETCH_PROTO
 	&& fetchLastErrCode != FETCH_UNAVAIL)
 	return NULL;
     
