@@ -40,8 +40,6 @@
  * $FreeBSD$
  */
 
-#include "opt_quota.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -50,11 +48,8 @@
 #include <sys/mount.h>
 #include <sys/syslog.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
-
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
@@ -108,9 +103,6 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 {
 	register struct ext2_sb_info *fs;
 	daddr_t bno;
-#if QUOTA
-	int error;
-#endif
 	
 	*bnp = 0;
 	fs = ip->i_e2fs;
@@ -128,10 +120,6 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	if (cred->cr_uid != 0 && 
 		fs->s_es->s_free_blocks_count < fs->s_es->s_r_blocks_count)
 		goto nospace;
-#if QUOTA
-	if ((error = chkdq(ip, (long)btodb(size), cred, 0)) != 0)
-		return (error);
-#endif
 	if (bpref >= fs->s_es->s_blocks_count)
 		bpref = 0;
 	/* call the Linux code */
@@ -179,12 +167,6 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 		*bnp = bno;
 		return (0);
 	}
-#if QUOTA
-	/*
-	 * Restore user's disk quota because allocation failed.
-	 */
-	(void) chkdq(ip, (long)-btodb(size), cred, FORCE);
-#endif
 nospace:
 	ext2_fserr(fs, cred->cr_uid, "file system full");
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
@@ -342,7 +324,7 @@ return ENOSPC;
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree)
-			UFS_UPDATE(vp, 1);
+			ext2_update(vp, 1);
 	}
 	if (ssize < len)
 		if (doasyncfree)
@@ -401,7 +383,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 		goto noinodes;
 	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
-		UFS_VFREE(pvp, ino, mode);
+		ext2_vfree(pvp, ino, mode);
 		return (error);
 	}
 	ip = VTOI(*vpp);
