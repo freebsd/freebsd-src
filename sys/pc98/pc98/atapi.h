@@ -116,6 +116,8 @@
 #define ATAPI_MODE_SELECT_BIG   0x55    /* set device parameters */
 #define ATAPI_MODE_SENSE        0x5a    /* get device parameters */
 #define ATAPI_PLAY_CD           0xb4    /* universal play command */
+#define ATAPI_MECH_STATUS       0xbd    /* get changer mechanism status */
+#define ATAPI_LOAD_UNLOAD       0xa6    /* changer control command */
 
 /*
  * Optional packet commands
