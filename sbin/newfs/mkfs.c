@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)mkfs.c	8.3 (Berkeley) 2/3/94";
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 
 #ifndef STANDALONE
 #include <a.out.h>
@@ -121,6 +122,7 @@ struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
 int	fsi, fso;
 daddr_t	alloc();
+static int numbersperline();
 
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -620,11 +622,12 @@ next:
 	 */
 	if (!mfs)
 		printf("super-block backups (for fsck -b #) at:");
+	i = numbersperline(sblock.fs_size * NSPF(&sblock));
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		if (cylno % 9 == 0)
+		if (cylno % i == 0)
 			printf("\n");
 		printf(" %d,", fsbtodb(&sblock, cgsblock(&sblock, cylno)));
 		fflush(stdout);
@@ -1262,4 +1265,35 @@ setblock(fs, cp, h)
 #endif
 		return;
 	}
+}
+
+/*
+ * Determine the number of block numbers that will nicely fit into a
+ * single line.
+ */
+
+static int
+numbersperline(seccount)
+	long	seccount;
+{
+	int i, columns;
+	char *cp;
+	struct winsize ws;
+	extern char *getenv();
+
+	for (i = 0; seccount; i++, seccount /= 10)
+		;
+	i += 2;			/* account for comma+space */
+
+	columns = 0;
+	if (ioctl(0, TIOCGWINSZ, &ws) != -1)
+		columns = ws.ws_col;
+	if (columns == 0 && (cp = getenv("COLUMNS")))
+		columns = atoi(cp);
+	if (columns == 0)
+		columns = 80;	/* last resort */
+	i = columns / i;
+	if (i < 3)
+		i = 3;		/* don't care */
+	return i;
 }
