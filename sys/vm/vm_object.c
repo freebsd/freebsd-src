@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.9 1994/10/15 10:28:46 davidg Exp $
+ * $Id: vm_object.c,v 1.10 1994/11/06 05:07:50 davidg Exp $
  */
 
 /*
@@ -127,9 +127,7 @@ _vm_object_allocate(size, object)
 {
 	bzero(object, sizeof *object);
 	TAILQ_INIT(&object->memq);
-#ifdef REL2_1a
 	TAILQ_INIT(&object->reverse_shadow_head);
-#endif
 	vm_object_lock_init(object);
 	object->ref_count = 1;
 	object->resident_page_count = 0;
@@ -253,10 +251,8 @@ vm_object_deallocate(object)
 		 */
 		vm_object_lock(object);
 		if (--(object->ref_count) != 0) {
-#ifdef REL2_1a
 			if( object->ref_count == 1)
 				vm_object_rcollapse(object->reverse_shadow_head.tqh_first, object);
-#endif
 
 			vm_object_unlock(object);
 			/*
@@ -299,10 +295,8 @@ vm_object_deallocate(object)
 		vm_object_cache_unlock();
 	
 		temp = object->shadow;
-#ifdef REL2_1a
 		if( temp)
 			TAILQ_REMOVE(&temp->reverse_shadow_head, object, reverse_shadow_list);
-#endif
 		vm_object_terminate(object);
 			/* unlocks and deallocates object */
 		object = temp;
@@ -917,14 +911,10 @@ void vm_object_copy(src_object, src_offset, size,
 		 */
 
 		src_object->ref_count--;	/* remove ref. from old_copy */
-#ifdef REL2_1a
 		if( old_copy->shadow)
 			TAILQ_REMOVE(&old_copy->shadow->reverse_shadow_head, old_copy, reverse_shadow_list);
-#endif
 		old_copy->shadow = new_copy;
-#ifdef REL2_1a
 		TAILQ_INSERT_TAIL(&old_copy->shadow->reverse_shadow_head, old_copy, reverse_shadow_list);
-#endif
 		new_copy->ref_count++;		/* locking not needed - we
 						   have the only pointer */
 		vm_object_unlock(old_copy);	/* done with old_copy */
@@ -938,9 +928,7 @@ void vm_object_copy(src_object, src_offset, size,
 	 */
 
 	new_copy->shadow = src_object;
-#ifdef REL2_1a
 	TAILQ_INSERT_TAIL(&new_copy->shadow->reverse_shadow_head, new_copy, reverse_shadow_list);
-#endif
 	new_copy->shadow_offset = new_start;
 	src_object->ref_count++;
 	src_object->copy = new_copy;
@@ -997,9 +985,7 @@ vm_object_shadow(object, offset, length)
 	 *	count.
 	 */
 	result->shadow = source;
-#ifdef REL2_1a
 	TAILQ_INSERT_TAIL(&result->shadow->reverse_shadow_head, result, reverse_shadow_list);
-#endif
 	
 	/*
 	 *	Store the offset into the source object,
@@ -1148,7 +1134,6 @@ vm_object_remove(pager)
 	}
 }
 
-#ifdef REL2_1a
 static void
 vm_object_rcollapse(object, sobject)
 	register vm_object_t object, sobject;
@@ -1212,7 +1197,6 @@ vm_object_rcollapse(object, sobject)
 		}
 	}
 }
-#endif
 
 /*
  * this version of collapse allows the operation to occur earlier and
@@ -1483,17 +1467,13 @@ vm_object_collapse(object)
 			 *	moves from within backing_object to within object.
 			 */
 
-#ifdef REL2_1a
 			TAILQ_REMOVE(&object->shadow->reverse_shadow_head, object, reverse_shadow_list);
 			if( backing_object->shadow)
 				TAILQ_REMOVE(&backing_object->shadow->reverse_shadow_head, backing_object, reverse_shadow_list);
-#endif
 			object->shadow = backing_object->shadow;
-#ifdef REL2_1a
 			if( object->shadow)
 				TAILQ_INSERT_TAIL(&object->shadow->reverse_shadow_head, object, reverse_shadow_list);
-#endif
-				
+
 			object->shadow_offset += backing_object->shadow_offset;
 			if (object->shadow != NULL &&
 			    object->shadow->copy != NULL) {
@@ -1574,14 +1554,10 @@ vm_object_collapse(object)
 			 *	count is at least 2.
 			 */
 
-#ifdef REL2_1a
 			TAILQ_REMOVE(&object->shadow->reverse_shadow_head, object, reverse_shadow_list);
-#endif
 			vm_object_reference(object->shadow = backing_object->shadow);
-#ifdef REL2_1a
 			if( object->shadow)
 				TAILQ_INSERT_TAIL(&object->shadow->reverse_shadow_head, object, reverse_shadow_list);
-#endif
 			object->shadow_offset += backing_object->shadow_offset;
 
 			/*
