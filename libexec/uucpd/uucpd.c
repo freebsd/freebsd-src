@@ -95,7 +95,7 @@ char **argv;
 	close(1); close(2);
 	dup(0); dup(0);
 	hisaddrlen = sizeof (hisctladdr);
-	if (getpeername(0, &hisctladdr, &hisaddrlen) < 0) {
+	if (getpeername(0, (struct sockaddr *)&hisctladdr, &hisaddrlen) < 0) {
 		fprintf(stderr, "%s: ", argv[0]);
 		perror("getpeername");
 		_exit(1);
@@ -201,7 +201,7 @@ struct sockaddr_in *sinp;
 	chdir(pw->pw_dir);
 	setuid(pw->pw_uid);
 #ifdef BSD4_2
-	execl(UUCICO, "uucico", (char *)0);
+	execl(_PATH_UUCICO, "uucico", (char *)0);
 #endif BSD4_2
 	perror("uucico server: execl");
 }
