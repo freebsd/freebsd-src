@@ -339,6 +339,9 @@ Write_Disk(struct disk *d1)
 #endif
 
 #ifdef PC98
+	if (d1->bootipl)
+		write_block(fd,WHERE(0,d1),d1->bootipl);
+
 	mbr = read_block(fd,WHERE(1,d1));
 	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
@@ -348,6 +351,10 @@ Write_Disk(struct disk *d1)
 			PC98_EntireDisk = 1;
 	if (PC98_EntireDisk == 0)
 		write_block(fd,WHERE(1,d1),mbr);
+
+	if (d1->bootmenu)
+		for (i = 0; i * 512 < d1->bootmenu_size; i++)
+			write_block(fd,WHERE(2+i,d1),&d1->bootmenu[i * 512]);
 #else
 	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
