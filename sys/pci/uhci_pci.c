@@ -102,6 +102,9 @@ static const char *uhci_device_ich3_a = "Intel 82801CA/CAM (ICH3) USB controller
 #define PCI_UHCI_DEVICEID_ICH3_B	0x24848086
 static const char *uhci_device_ich3_b = "Intel 82801CA/CAM (ICH3) USB controller USB-B";
 
+#define PCI_UHCI_DEVICEID_ICH3_C	0x24878086
+static const char *uhci_device_ich3_c = "Intel 82801CA/CAM (ICH3) USB controller USB-C";
+
 #define PCI_UHCI_DEVICEID_ICH4_A	0x24c28086
 static const char *uhci_device_ich4_a = "Intel 82801DB (ICH4) USB controller USB-A";
 
@@ -177,6 +180,8 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich3_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_B) {
 		return (uhci_device_ich3_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_C) {
+		return (uhci_device_ich3_c);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_A) {
 		return (uhci_device_ich4_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_B) {
