@@ -1,4 +1,4 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/02/14 15:00:10 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/01/25 14:06:18 jkr E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.1  1995/02/14  15:00:10  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -30,9 +39,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.1 1995/01/25 14:06:18 jkr E
 #include "systm.h"
 
 #include "i386/isa/isa_device.h"
-#include "i386/isa/nic3008.h"
-#include "i386/isa/niccyreg.h"
-#include "isdn/isdn_ioctl.h"
+#include "gnu/i386/isa/nic3008.h"
+#include "gnu/i386/isa/niccyreg.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
 #define OPEN		1
 #define LOAD_HEAD	3
@@ -57,14 +66,13 @@ extern u_short isdn_state;
 extern isdn_ctrl_t isdn_ctrl[];
 extern int     ispy_applnr;
 extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
-extern int hz;
 
 static old_spy= 0;
 
 int             nicprobe(), nicattach();
 int             nic_connect(), nic_listen(), nic_disconnect(), nic_accept();
 int             nic_output();
-extern isdn_start_out();
+extern void isdn_start_out();
 
 static void     s_intr(), reset_req(), reset_card(); 
 static int      cstrcmp(), discon_req(), reset_plci(), sel_b2_prot_req();
@@ -806,7 +814,8 @@ b_intr(int mb, int c, struct nic_softc * sc)
 			{
 				chan->state = IDLE;
 				ctrl->o_len = 0;
-				timeout(isdn_start_out,chan->ctrl,hz/5);
+				timeout(isdn_start_out, (void *)chan->ctrl,
+					hz/5);
 				break;
 			}
 			break;
