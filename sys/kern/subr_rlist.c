@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.16 1996/03/02 22:57:45 dyson Exp $
+ *	$Id: subr_rlist.c,v 1.17 1996/03/03 21:10:52 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ rlist_malloc()
 	struct rlist *rl;
 	int i;
 	while( rlist_count < RLIST_MIN) {
-		int s = splhigh();
+		int s = splvm();
 		rl = (struct rlist *)kmem_alloc(kernel_map, PAGE_SIZE);
 		splx(s);
 		if( !rl)
@@ -122,7 +122,7 @@ rlist_free(rlh, start, end)
 	struct rlist *prev_rlp = NULL, *cur_rlp = *rlp, *next_rlp = NULL;
 	int s;
 
-	s = splhigh();
+	s = splvm();
 	while (rlh->rlh_lock & RLH_LOCKED) {
 		rlh->rlh_lock |= RLH_DESIRED;
 		tsleep(rlh, PSWP, "rlistf", 0);
@@ -241,7 +241,7 @@ rlist_alloc (rlh, size, loc)
 	int s;
 	register struct rlist *olp = 0;
 
-	s = splhigh();
+	s = splvm();
 	while (rlh->rlh_lock & RLH_LOCKED) {
 		rlh->rlh_lock |= RLH_DESIRED;
 		tsleep(rlh, PSWP, "rlistf", 0);
