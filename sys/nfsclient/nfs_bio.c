@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.24 1996/07/16 10:19:43 dfr Exp $
+ * $Id: nfs_bio.c,v 1.25 1996/09/19 18:20:54 nate Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -64,6 +65,9 @@ static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
+
+int nfs_dwrite = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, dwrite, CTLFLAG_RW, &nfs_dwrite, 0, "");
 
 /*
  * Ifdefs for FreeBSD-current's merged VM/buffer cache. It is unfortunate
@@ -750,6 +754,14 @@ nfs_asyncio(bp, cred)
 	 * synchronously.
 	 */
 	if (bp->b_flags & (B_READ | B_WRITEINPROG | B_NOCACHE))
+		return (EIO);
+
+	/*
+	 * Allow the administrator to override the choice of using a delayed
+	 * write since it is a pessimization for some servers, notably some
+	 * Solaris servers.
+	 */
+	if (!nfs_dwrite)
 		return (EIO);
 
 	/*
