@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.6 1994/09/19 15:41:57 dfr Exp $
+ * $Id: vnode.h,v 1.7 1994/09/21 03:47:34 wollman Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -230,15 +230,18 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	LEASE_READ	0x1		/* Check lease for readers */
 #define	LEASE_WRITE	0x2		/* Check lease for modifiers */
 
+extern void	(*lease_check) __P((struct vnode *vp, struct proc *p,
+				    struct ucred *ucred, int flag));
+extern void	(*lease_updatetime) __P((int deltat));
+
 #ifdef NFS
-void	lease_check __P((struct vnode *vp, struct proc *p,
-	    struct ucred *ucred, int flag));
-void	lease_updatetime __P((int deltat));
 #define	LEASE_CHECK(vp, p, cred, flag)	lease_check((vp), (p), (cred), (flag))
 #define	LEASE_UPDATETIME(dt)		lease_updatetime(dt)
 #else
-#define	LEASE_CHECK(vp, p, cred, flag)
-#define	LEASE_UPDATETIME(dt)
+#define LEASE_CHECK(vp, p, cred, flag) \
+	do { if(lease_check) lease_check((vp), (p), (cred), (flag)); } while(0)
+#define LEASE_UPDATETIME(dt) \
+	do { if(lease_updatetime) lease_updatetime(dt); } while(0)
 #endif /* NFS */
 #endif /* KERNEL */
 
