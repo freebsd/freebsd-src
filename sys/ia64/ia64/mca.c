@@ -204,7 +204,7 @@ ia64_mca_init(void)
 	mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
 
 	if (bootverbose)
-		printf("MCA: allocated %d bytes for state information\n",
+		printf("MCA: allocated %ld bytes for state information\n",
 		    max_size);
 
 	/*
