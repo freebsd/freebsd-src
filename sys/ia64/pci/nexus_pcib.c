@@ -51,7 +51,7 @@ nexus_pcib_maxslots(device_t dev)
 /* read configuration space register */
 
 #define SAL_PCI_ADDRESS(bus, slot, func, reg) \
-	(((bus) << 23) | ((slot) << 11) | ((func) << 8) | (reg))
+	(((bus) << 16) | ((slot) << 11) | ((func) << 8) | (reg))
 
 static u_int32_t
 nexus_pcib_read_config(device_t dev, int bus, int slot, int func,
