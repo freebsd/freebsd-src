@@ -96,6 +96,7 @@ geom_gate	pjd	Pre-commit review preferred.
 geom_label	pjd	Pre-commit review preferred.
 geom_mirror	pjd	Pre-commit review preferred.
 geom_nop	pjd	Pre-commit review preferred.
+geom_raid3	pjd	Pre-commit review preferred.
 geom_stripe	pjd	Pre-commit review preferred.
 sbin/geom	pjd	Pre-commit review preferred.
 nfs		alfred	Will be happy to review code, but not mandatory.
