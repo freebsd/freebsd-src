@@ -34,8 +34,29 @@
  * $FreeBSD$
  */
 
-#ifndef	_ANSI_H_
-#define	_ANSI_H_
+#ifndef	_MACHINE_ANSI_H_
+#define	_MACHINE_ANSI_H_
+
+/*
+ * Internal names for basic integral types.  Omit the typedef if
+ * not possible for a machine/compiler combination.
+ */
+typedef	__signed char		   __int8_t;
+typedef	unsigned char		  __uint8_t;
+typedef	short			  __int16_t;
+typedef	unsigned short		 __uint16_t;
+typedef	int			  __int32_t;
+typedef	unsigned int		 __uint32_t;
+typedef	long long		  __int64_t;
+typedef	unsigned long long	 __uint64_t;
+
+typedef	int			__intptr_t;
+typedef	unsigned int		__uintptr_t;
+
+/*
+ * We define this here since both <stddef.h> and <sys/types.h> needs it.
+ */
+#define __offsetof(type, field) ((size_t)(&((type *)0)->field))
 
 /*
  * Types which are fundamental to the implementation and may appear in
@@ -109,20 +130,4 @@ typedef struct {
 #define	_BSD_CLK_TCK_		100
 #define	_BSD_CLOCKS_PER_SEC_	100
 
-/*
- * Internal names for basic integral types.  Omit the typedef if
- * not possible for a machine/compiler combination.
- */
-typedef	__signed char		   __int8_t;
-typedef	unsigned char		  __uint8_t;
-typedef	short			  __int16_t;
-typedef	unsigned short		 __uint16_t;
-typedef	int			  __int32_t;
-typedef	unsigned int		 __uint32_t;
-typedef	long long		  __int64_t;
-typedef	unsigned long long	 __uint64_t;
-
-typedef	int			__intptr_t;
-typedef	unsigned int		__uintptr_t;
-
-#endif	/* _ANSI_H_ */
+#endif	/* _MACHINE_ANSI_H_ */
