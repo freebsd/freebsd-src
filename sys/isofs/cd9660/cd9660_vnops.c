@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.13 1995/03/28 07:46:38 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.14 1995/05/30 08:05:05 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -117,6 +117,43 @@ cd9660_mknod(ndp, vap, cred, p)
 #endif
 
 /*
+ * Setattr call. Only allowed for block and character special devices.
+ */
+int
+cd9660_setattr(ap)
+	struct vop_setattr_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vattr *vap = ap->a_vap;
+
+  	if (vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
+	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
+		return (EROFS);
+	if (vap->va_size != VNOVAL) {
+ 		switch (vp->v_type) {
+ 		case VDIR:
+ 			return (EISDIR);
+		case VLNK:
+		case VREG:
+			return (EROFS);
+ 		case VCHR:
+ 		case VBLK:
+ 		case VSOCK:
+ 		case VFIFO:
+			return (0);
+		}
+	}
+	return (EOPNOTSUPP);
+}
+
+/*
  * Open called.
  *
  * Nothing to do.
@@ -167,6 +204,22 @@ cd9660_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	/*
+	 * Disallow write attempts on read-only file systems;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the file system.
+	 */
+	if (ap->a_mode & VWRITE) {
+		switch (ap->a_vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
+	}
+
 	return (0);
 }
 
@@ -877,8 +930,6 @@ cd9660_enotsupp()
 #define cd9660_create \
 	((int (*) __P((struct  vop_create_args *)))cd9660_enotsupp)
 #define cd9660_mknod ((int (*) __P((struct  vop_mknod_args *)))cd9660_enotsupp)
-#define cd9660_setattr \
-	((int (*) __P((struct  vop_setattr_args *)))cd9660_enotsupp)
 #define cd9660_write ((int (*) __P((struct  vop_write_args *)))cd9660_enotsupp)
 #define cd9660_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define cd9660_remove \
