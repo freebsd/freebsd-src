@@ -75,6 +75,7 @@ ata_generic_transaction(struct ata_request *request)
 
     /* safetybelt for HW that went away */
     if (!request->device->param || request->device->channel->flags&ATA_HWGONE) {
+	request->retries = 0;
 	request->result = ENXIO;
 	return ATA_OP_FINISHED;
     }
@@ -531,7 +532,7 @@ ata_generic_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
+    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5 && ostat0 != 0x7f) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
@@ -542,7 +543,7 @@ ata_generic_reset(struct ata_channel *ch)
 
     /* in some setups we dont want to test for a slave */
     if (!(ch->flags & ATA_NO_SLAVE)) {
-	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
+	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5 && ostat1 != 0x7f) {
 	    stat1 = ATA_S_BUSY;
 	    mask |= 0x02;
 	}
