@@ -62,6 +62,8 @@
 #include <netinet/in_var.h>
 #ifdef INET6
 #include <machine/clock.h> /* XXX: temporal workaround for fxp issue */
+#include <netinet6/in6_var.h>
+#include <netinet6/in6_ifattach.h>
 #endif
 #endif
 
@@ -259,19 +261,10 @@ if_detach(ifp)
 		}
 #endif /* INET */
 #ifdef INET6
-		/* XXX: Ugly!! ad hoc just for INET6 */
 		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
-			struct in6_aliasreq ifr;
-
-			bzero(&ifr, sizeof(ifr));
-			ifr.ifra_addr =
-				*((struct sockaddr_in6 *)ifa->ifa_addr);
-			if (ifa->ifa_dstaddr)
-				ifr.ifra_dstaddr =
-				    *((struct sockaddr_in6 *)ifa->ifa_dstaddr);
-			if (in6_control(NULL, SIOCDIFADDR_IN6, (caddr_t)&ifr,
-					ifp, NULL) == 0)
-				continue;
+			in6_purgeaddr(ifa, ifp);
+			/* ifp_addrhead is already updated */
+			continue;
 		}
 #endif /* INET6 */
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
@@ -289,6 +282,11 @@ if_detach(ifp)
 			continue;
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 	}
+
+#ifdef INET6
+	/* nuke all IPv6 kernel structs related to ifp */
+	in6_ifdetach(ifp);
+#endif
 
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	splx(s);
