@@ -1,4 +1,4 @@
-<!--  $Id: dialup.sgml,v 1.13 1996/08/15 20:52:18 mpp Exp $
+<!--  $Id: mail.sgml,v 1.1 1996/11/28 18:09:28 jfieber Exp $
       The FreeBSD Documentation Project
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -33,7 +33,7 @@
 You should be aware that <tt>sendmail</tt> is a potential weak link in a secure site.  Some versions of <tt>sendmail</tt> have known security problems.
  
 	<p> <tt> sendmail </tt> will look up in the DNS to determine the actual host that will receive mail for the destination.
-	<p> Sendmail will take the message from the local queue and deliver it across the internet to another sendmail on the receivers computer. 
+	<p> Sendmail will take the message from the local queue and deliver it across the Internet to another sendmail on the receivers computer. 
 	<p> Sendmail will also be able to do the reverse.  It will accept messages and save them on your local machine. 
 	<sect2><heading>POP Servers</heading>
 	<p> This program gets the mail from your mailbox and gives it to your browser.  If you want to run a POP server on your computer, you will need to do 2 things.
@@ -50,7 +50,7 @@ As your FreeBSD system comes "out of the box" you should be able to send e-mail 
 <p>
 It is relatively simple to get another host to receive your e-mail under the same username.  You can then pick it up over POP or telnet.  
 
-A user account with the SAME USERNAME should exist on both machines.  Please use <tt/adduser/ to do this if needed.  If you set the <tt/shell/ to <tt>/nonexistant</tt> the user will not be allowed to login.
+A user account with the SAME USERNAME should exist on both machines.  Please use <tt/adduser/ to do this if needed.  If you set the <tt/shell/ to <tt>/nonexistent</tt> the user will not be allowed to login.
 
 The mailhost that you will be using must be designated the Mail exchange for your host.  This must be arranged in DNS (ie BIND, named).  Please refer to a Networking book for more information.
 
@@ -81,7 +81,7 @@ On the mailhost that actually accepts mail for final delivery to a mailbox, send
 <p>To actually receive mail on your host, you need to have the MX entry above changed to point to your host.  You also move the Cw line above in your <tt>sendmail.cf</tt>.
 
 <p>
-This is a Bad Idea if your connection to the internet is not permanent.  Mail will bounce.
+This is a Bad Idea if your connection to the Internet is not permanent.  Mail will bounce.
 
 <p>
 If you plan on doing anything serious with <tt/sendmail/ you should install the sendmail source.  The source has plenty of documentation with it.  You will find information on getting <tt/sendmail/ source from <ref name="UUCP and sendmail" id="sendmailuucp">.
@@ -297,13 +297,13 @@ domain foo.bar.edu
  
 <sect1><heading>How can I do e-mail with a dialup PPP host</heading>
 <p>
-You want to connect a FreeBSD box on a lan, to the internet.  The FreeBSD box will be a mail gateway for the lan.  The PPP connection is non-dedicated.
+You want to connect a FreeBSD box on a lan, to the Internet.  The FreeBSD box will be a mail gateway for the lan.  The PPP connection is non-dedicated.
 
 There are at least two way to do this.
 
 The other is to use UUCP.
 
-The key is to get a internet site to provide secondary MX services for your domain.  
+The key is to get a Internet site to provide secondary MX services for your domain.  
 For example:
 <verb>
 bigco.com.			MX	10	bigco.com.
@@ -312,7 +312,7 @@ bigco.com.			MX	10	bigco.com.
 
 Only one host should be specified as the final recipient ( add ``Cw bigco.com'' in <tt>/etc/sendmail.cf</tt> on bigco.com).
 
-When the senders sendmail is trying to deliver the mail it will try to connect to you over the modem link.  It will most likely time out because you are not online.  Sendmail will automatically deliver it to the secondary MX site, ie your internet provider.  The secondary MX site will try every (<tt>sendmail_flags = "-bd -q15m"</tt> in <tt>/etc/sysconfig</tt> ) 15 minutes to connect to your host to deliver the mail to the primary MX site.  
+When the senders sendmail is trying to deliver the mail it will try to connect to you over the modem link.  It will most likely time out because you are not online.  Sendmail will automatically deliver it to the secondary MX site, ie your Internet provider.  The secondary MX site will try every (<tt>sendmail_flags = "-bd -q15m"</tt> in <tt>/etc/sysconfig</tt> ) 15 minutes to connect to your host to deliver the mail to the primary MX site.  
 
 You might wat to use something like this as a login script.
 <verb>
@@ -321,7 +321,7 @@ You might wat to use something like this as a login script.
 ( sleep 60 ; /usr/sbin/sendmail -q ) &  
 /usr/sbin/ppp -direct pppbigco
 </verb>
-If you are going to create a seperate login script for a user you could use <tt>sendmail -qRbigco.com</tt> instead in the script above.  This will force all mail in your queue for bigco.com to be processed immediately.
+If you are going to create a separate login script for a user you could use <tt>sendmail -qRbigco.com</tt> instead in the script above.  This will force all mail in your queue for bigco.com to be processed immediately.
 
 
 A further refinement of the situation is as follows.
