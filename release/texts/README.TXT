@@ -1,12 +1,12 @@
    -----------------------------------------
-       FreeBSD 3.0  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 3.1  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a binary snapshot of 3.0-current, the         /- _  `-/  '
-(HEAD) branch which is currently moving towards      (/\/ \ \   /\
-the follow-on release to 3.0.                        / /   | `    \
-                                                     O O   ) /    |
-                                                     `-^--'`<     '
+This is a full release of FreeBSD, 3.1-RELEASE,       /- _  `-/  '
+from the 3.0-STABLE branch of the FreeBSD CVS        (/\/ \ \   /\
+repository.  This is the follow-on release to        / /   | `    \
+FreeBSD 3.0-RELEASE, more information being          O O   ) /    |
+available in RELNOTES.TXT                            `-^--'`<     '
                                                     (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
@@ -19,25 +19,9 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                  ,'  ,-----'   |
                                                  `--{__________)
 
-TARGET AUDIENCE:
-----------------
-This release is aimed primarily at early-adopters and the various
-other folks who want to get involved with the ongoing development
-of FreeBSD and are willing to deal with a few bumps in the road.
-We do our best to ensure that each snapshot works as advertised,
-but tracking -current is a process which frequently has its off
-days.
-
-If you're both technically proficient and know exactly what you're
-getting into here (e.g. you've been following -current) then this
-snapshot is probably for you.  If you're more interested in doing
-business with FreeBSD than in playing with the cutting edge of
-technology, however, then 2.2.x is almost certainly your best bet.
-
-
 ROAD MAP:
-            Most files here are also in the Documentation
-                    Menu of the boot floppy
+
+  Most files here are also in the Documentation menu of the boot floppy:
 
   README.TXT    This file
 
@@ -82,15 +66,15 @@ o It is also important to check the ERRATA.TXT file for any
 
 o Information regarding problems which arise after the CD
   is printed can be found at:
-  ftp://ftp.freebsd.org/pub/FreeBSD/3.0-RELEASE/ERRATA.TXT
+  ftp://ftp.freebsd.org/pub/FreeBSD/3.1-RELEASE/ERRATA.TXT
 
-For the most up-to-date software along the RELENG_2_2 branch
-(also known as -Stable) which is now proceeding onwards toward
-the release of FreeBSD 2.2.8, please install from:
+For the most up-to-date software along the RELENG_3 branch
+(also known as 3.0-STABLE) which is now proceeding onwards
+toward the release of FreeBSD 3.2, please install from:
 
-        ftp://releng22.freebsd.org/pub/FreeBSD/
+        ftp://releng3.freebsd.org/pub/FreeBSD/
 
-Or for the latest 3.0-Current (HEAD branch) snapshot releases,
+Or for the latest 4.0-Current (HEAD branch) snapshot releases,
 please install from:
 
         ftp://current.freebsd.org/pub/FreeBSD

@@ -84,7 +84,6 @@ sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 
 lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
@@ -366,7 +365,6 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Tekram DC390W, 390U and 390F
         Tyan S1365
 
-
 QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
@@ -567,6 +565,5 @@ GPIB and Transputer drivers.
 Genius and Mustek hand scanners.
 
 Floppy tape drives (some rather old models only, driver rather stale)
-
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.

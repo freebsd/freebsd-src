@@ -1,24 +1,20 @@
                                  RELEASE NOTES
-                            FreeBSD Release 3.0-SNAP
+                           FreeBSD Release 3.1-RELEASE
 
-This is a 3.0-CURRENT release SNAPshot of FreeBSD, currently
-on its way to the next release after 3.0-RELEASE, which was
-released on October 16th, 1998.
+Welcome to 3.1-RELEASE, a full follow-on to the 3.0-RELEASE
+released November 1998 and which marked the beginning of the
+3.0-STABLE branch.  In the 4 months since 3.0 was released, many
+hundreds of bug fixes and general enhancements were made to the
+system.  Please see relevant details below.
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.0-RELEASE
+For information about FreeBSD and the layout of the 3.1-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
-
-For the latest of these 3.0-current snapshots, you should always see:
-
-        ftp://current.freebsd.org/pub/FreeBSD
-
-If you wish to get the latest post-3.0-RELEASE technology.
 
 Table of contents:
 ------------------
@@ -45,8 +41,6 @@ Table of contents:
 
 1. What's new since 3.0-RELEASE
 ---------------------------------
-All changes described here are unique to the 3.0 branch unless
-specifically marked as [MERGED] features.
 
 1.1. KERNEL CHANGES
 -------------------
@@ -83,6 +77,11 @@ modules, partly in preparation for USB keyboards, mice, etc.
 Phillips I2C/SMBUS support.
 
 Initial support for USB devices (some keyboards, mice).
+
+The lpt driver is now deprecated. Please use ppbus with the ppc driver
+instead (see the ppc(4) and ppbus(4) man pages for details). At some
+point before the next release, the old lpt driver will be removed and
+the nlpt driver will be renamed to lpt.
 
 
 1.2. SECURITY FIXES
@@ -170,7 +169,6 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
         Tyan S1365
-
 
 QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
@@ -432,10 +430,10 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.1-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
-        4041 Pike Lane, Suite D
+        4041 Pike Lane, Suite F
         Concord CA  94520
         1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
 
@@ -474,29 +472,22 @@ FreeBSD distributions:
         o Using sysinstall's (binary) upgrade option.
 
 In the case of using sources, there are simply two targets you need to
-be aware of: The standard ``world'' target, which will upgrade a 2.x
-system to 3.0, or the ``aout-to-elf'' target, which will both upgrade
-and convert the system to ELF binary format.
+be aware of: The standard ``upgrade'' target, which will upgrade a 2.x
+or 3.0 system to 3.1 and the ``world'' target, which will take an
+already upgraded system and keep it in sync with whatever changes have
+happened since the initial upgrade.
+
 In the case of using the binary upgrade option, the system will go
-straight to 3.0/ELF but also populate the /<basepath>/lib/aout
+straight to 3.1/ELF but also populate the /<basepath>/lib/aout
 directories for backwards compatibility with older binaries.
 
 In either case, going to ELF will mean that you'll have somewhat
 smaller binaries and access to a lot more compiler goodies which have
 been already been ported to other ELF environments (our older and
 somewhat crufty a.out format being largely unsupported by most other
-software projects), but on the downside you'll also have access to far
-fewer ports and packages since many of those have not been adapted to
-ELF yet.  This will occur in time, but those who wish to retain access
-to the greatest number of packages and 3rd-party binaries should
-probably stick with a.out.
-
-The kernel is also still in a.out format at this time so that older
-LKMs and library interfaces can continue to work, but a full
-transition to ELF will occur at some point after 3.0-RELEASE.  Those
-wishing to generate dynamic kernel components should therefore use the
-newer KLD mechanism rather than the older LKM format - the LKM format
-is not long for this world and will soon be unsupported!
+software projects).  Those who wish to retain access to the older
+a.out dynamic executables should be sure and install the compat22
+distribution.
 
 [ other important upgrading notes should go here]
 
