@@ -59,9 +59,14 @@ __numeric_load_locale(const char *name)
 		(const char **)&_numeric_locale);
 	if (ret != _LDP_ERROR)
 		__nlocale_changed = 1;
-	if (ret == _LDP_LOADED)
+	if (ret == _LDP_LOADED) {
+		/* Can't be empty according to C99 */
+		if (*_numeric_locale.decimal_point == '\0')
+			_numeric_locale.decimal_point =
+			    _C_numeric_locale.decimal_point;
 		_numeric_locale.grouping =
 		    __fix_locale_grouping_str(_numeric_locale.grouping);
+	}
 	return (ret);
 }
 
