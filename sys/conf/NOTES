@@ -300,6 +300,14 @@ options 	DDB_NUMSYM
 options 	GDB
 
 #
+# SYSCTL_DEBUG enables a 'sysctl' debug tree that can be used to dump the
+# contents of the registered sysctl nodes on the console.  It is disabled by
+# default because it generates excessively verbose consol output that can
+# interfere with serial console operation.
+#
+options 	SYSCTL_DEBUG
+
+#
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
 # SMP-friendly, KTRACE uses a worker thread to process most trace events
 # asynchronously to the thread generating the event.  This requires a

@@ -54,6 +54,7 @@ GDBSPEED	opt_gdb.h
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
+SYSCTL_DEBUG	opt_sysctl.h
 
 # Miscellaneous options.
 ADAPTIVE_GIANT	opt_adaptive_mutexes.h

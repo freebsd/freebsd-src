@@ -466,6 +466,7 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_all, 0);
  * {0,5,...}	return the description the "..." OID.
  */
 
+#ifdef SYSCTL_DEBUG
 static void
 sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 {
@@ -518,6 +519,7 @@ sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
 	0, 0, sysctl_sysctl_debug, "-", "");
+#endif
 
 static int
 sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
