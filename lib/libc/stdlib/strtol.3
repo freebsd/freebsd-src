@@ -45,13 +45,13 @@
 .Fd #include <stdlib.h>
 .Fd #include <limits.h>
 .Ft long
-.Fn strtol "char *nptr" "char **endptr" "int base"
+.Fn strtol "const char *nptr" "char **endptr" "int base"
 
 .Fd #include <sys/types.h>
 .Fd #include <stdlib.h>
 .Fd #include <limits.h>
 .Ft quad_t
-.Fn strtoq "char *nptr" "char **endptr" "int base"
+.Fn strtoq "const char *nptr" "char **endptr" "int base"
 .Sh DESCRIPTION
 The
 .Fn strtol
