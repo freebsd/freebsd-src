@@ -524,7 +524,6 @@ hint.stg.0.port="11"
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
-# tw: TW-523 power line interface for use with X-10 home control products
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
@@ -629,11 +628,6 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-# the port and irq for tw0 are fictitious
-device		tw	1
-hint.tw.0.at="isa"
-hint.tw.0.port="0x380"
-hint.tw.0.irq="11"
 device		stl
 hint.stl.0.at="isa"
 hint.stl.0.port="0x2a0"
