@@ -54,7 +54,7 @@ identifier information and a list of driver-specific registry keys.
 The
 .Nm
 utility can convert these files into a header file that is compiled
-intoe
+into
 .Pa if_ndis.c
 to create an object code module that can be linked into
 the
@@ -107,13 +107,6 @@ so it is recommended that this name be used.
 .Sh SEE ALSO
 .Xr ndis 4 ,
 .Xr ndisapi 9
-.Sh BUGS
-Some Windows(r) drivers support multiple devices which each may
-require sets of registry keys. The .INF file format allows all of
-these devices to be supported in a single file. The
-.Nm
-utility will emit keys for all of the devices that it are specified
-in a given file, even if this results in some duplicated entries.
 .Sh HISTORY
 The
 .Nm
@@ -129,4 +122,4 @@ The
 and
 .Xr yacc 1
 INF file parser was written by
-.An Mathew Dodd Aq mdodd@freebsd.org .
+.An Matthew Dodd Aq mdodd@freebsd.org .
