@@ -131,6 +131,7 @@ MAN=	aac.4 \
 	psm.4 \
 	pt.4 \
 	pty.4 \
+	puc.4 \
 	random.4 \
 	rl.4 \
 	route.4 \
