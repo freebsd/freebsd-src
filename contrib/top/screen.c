@@ -204,7 +204,8 @@ int interactive;
     PC = (PCptr = tgetstr("pc", &bufptr)) ? *PCptr : 0;
 
     /* set convenience strings */
-    (void) strcpy(home, tgoto(cursor_motion, 0, 0));
+    (void) strncpy(home, tgoto(cursor_motion, 0, 0), sizeof(home) - 1);
+    home[sizeof(home) - 1] = '\0';
     /* (lower_left is set in get_screensize) */
 
     /* get the actual screen size with an ioctl, if needed */
@@ -420,7 +421,9 @@ get_screensize()
 #endif /* TIOCGSIZE */
 #endif /* TIOCGWINSZ */
 
-    (void) strcpy(lower_left, tgoto(cursor_motion, 0, screen_length - 1));
+    (void) strncpy(lower_left, tgoto(cursor_motion, 0, screen_length - 1),
+	sizeof(lower_left) - 1);
+    lower_left[sizeof(lower_left) - 1] = '\0';
 }
 
 standout(msg)
