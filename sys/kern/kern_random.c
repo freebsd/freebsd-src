@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.22 1998/03/28 13:24:35 bde Exp $
+ * $Id: random_machdep.c,v 1.23 1998/03/29 11:55:06 phk Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -321,18 +321,18 @@ get_random_bytes(void *buf, u_int nbytes)
 #endif /* notused */
 
 u_int
-read_random(char *buf, u_int nbytes)
+read_random(void *buf, u_int nbytes)
 {
 	if ((nbytes * 8) > random_state.entropy_count)
 		nbytes = random_state.entropy_count / 8;
 	
-	return extract_entropy(&random_state, buf, nbytes);
+	return extract_entropy(&random_state, (char *)buf, nbytes);
 }
 
 u_int
-read_random_unlimited(char *buf, u_int nbytes)
+read_random_unlimited(void *buf, u_int nbytes)
 {
-	return extract_entropy(&random_state, buf, nbytes);
+	return extract_entropy(&random_state, (char *)buf, nbytes);
 }
 
 #ifdef notused
