@@ -197,7 +197,7 @@ lp_probe(device_t dev)
 	device_t ppbus = device_get_parent(dev);
 	struct lp_data *lp;
 	int zero = 0;
-	u_long irq;
+	uintptr_t irq;
 
 	lp = DEVTOSOFTC(dev);
 	bzero(lp, sizeof(struct lp_data));
