@@ -616,7 +616,7 @@ int	nfs_request __P((struct vnode *, struct mbuf *, int, struct proc *,
 			 struct ucred *, struct mbuf **, struct mbuf **,
 			 caddr_t *));
 int	nfs_loadattrcache __P((struct vnode **, struct mbuf **, caddr_t *,
-			       struct vattr *));
+			       struct vattr *, int));
 int	nfs_namei __P((struct nameidata *, fhandle_t *, int,
 		       struct nfssvc_sock *, struct sockaddr *, struct mbuf **,
 		       caddr_t *, struct vnode **, struct proc *, int, int));
