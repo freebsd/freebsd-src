@@ -71,14 +71,6 @@ __FBSDID("$FreeBSD$");
  * Used in /dev/mem drivers and elsewhere
  */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
-struct mem_range_softc mem_range_softc;
-
-void
-mem_range_AP_init(void)
-{
-	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		mem_range_softc.mr_op->initAP(&mem_range_softc);
-}
 
 /* ARGSUSED */
 int
@@ -221,35 +213,6 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 		break;
 	}
 	return (error);
-}
-
-/*
- * Implementation-neutral, kernel-callable functions for manipulating
- * memory range attributes.
- */
-int
-mem_range_attr_get(struct mem_range_desc *mrd, int *arg)
-{
-	/* can we handle this? */
-	if (mem_range_softc.mr_op == NULL)
-		return (EOPNOTSUPP);
-
-	if (*arg == 0)
-		*arg = mem_range_softc.mr_ndesc;
-	else
-		bcopy(mem_range_softc.mr_desc, mrd,
-			(*arg) * sizeof(struct mem_range_desc));
-	return (0);
-}
-
-int
-mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
-{
-	/* can we handle this? */
-	if (mem_range_softc.mr_op == NULL)
-		return (EOPNOTSUPP);
-
-	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
 
 void
