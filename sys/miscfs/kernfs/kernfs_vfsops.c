@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.19 1997/08/02 14:32:02 bde Exp $
+ * $Id: kernfs_vfsops.c,v 1.20 1997/10/12 20:24:48 phk Exp $
  */
 
 /*
@@ -278,6 +278,7 @@ static struct vfsops kernfs_vfsops = {
 	kernfs_statfs,
 	kernfs_sync,
 	kernfs_vget,
+	kernfs_vrele,
 	kernfs_fhtovp,
 	kernfs_vptofh,
 	kernfs_init,
