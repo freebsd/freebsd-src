@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: sleep.9,v 1.7 1997/02/22 13:26:26 peter Exp $
 .\" "
 .Dd April 3, 1996
 .Os
@@ -42,6 +42,8 @@
 .Fn tsleep "void *ident" "int priority" "char *wmesg" "int timo"
 .Ft void
 .Fn wakeup "void *ident"
+.Ft void
+.Fn wakeup_one "void *ident"
 .Ft int
 .Fn sleep "void *ident" "int priority"
 .Sh DESCRIPTION
@@ -68,6 +70,16 @@ is a string describing the sleep condition for tools like
 .Xr ps 1 .
 Due to the limited space of those programs to display arbitrary strings,
 this message should not be longer than 6 characters.
+.Pp
+The
+.Fn wakeup_one
+function is used to make the first process in the queue that is
+sleeping on the parameter
+.Fa ident
+runnable.  This can prevent the system from becoming saturated 
+when a large number of processes are sleeping on the same address,
+but only one of them can actually do any useful work when made
+runnable.
 .Pp
 .Nm Tsleep
 is the general sleep call.  Suspends the current process until a wakeup is
