@@ -3186,11 +3186,11 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
 		    handler, arg, cookiep);
 		if (error == 0) {
-			if (!(flags & (INTR_MPSAFE | INTR_FAST)))
+			if (bootverbose && !(flags & (INTR_MPSAFE | INTR_FAST)))
 				device_printf(dev, "[GIANT-LOCKED]\n");
 			if (bootverbose && (flags & INTR_MPSAFE))
 				device_printf(dev, "[MPSAFE]\n");
-			if (flags & INTR_FAST)
+			if (bootverbose && (flags & INTR_FAST))
 				device_printf(dev, "[FAST]\n");
 		}
 	} else
