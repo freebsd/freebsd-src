@@ -57,7 +57,6 @@ static int	filt_procattach(struct knote *kn);
 static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 
-static int 	kqueue_create(struct kqueue **kqp);
 static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct kevent *ulistp, struct timespec *timeout,
 		    struct proc *p);
@@ -292,46 +291,28 @@ filt_proc(struct knote *kn, long hint)
 	return (kn->kn_fflags != 0);
 }
 
-static int
-kqueue_create(struct kqueue **kqp)
-{
-	struct kqueue *kq;
-
-	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK);
-	if (kq == NULL)
-		return (EAGAIN);
-	bzero(kq, sizeof(*kq));
-	TAILQ_INIT(&kq->kq_head);
-
-	*kqp = kq;
-	return (0);
-}
-
 int
 kqueue(struct proc *p, struct kqueue_args *uap)
 {
-        struct filedesc *fdp = p->p_fd;
-        struct kqueue *kq;
-        struct file *fp;
-        int fd, error;
+	struct filedesc *fdp = p->p_fd;
+	struct kqueue *kq;
+	struct file *fp;
+	int fd, error;
 
-        error = falloc(p, &fp, &fd);
-        if (error)
-                return (error);
-        fp->f_flag = FREAD | FWRITE;
-        fp->f_type = DTYPE_KQUEUE;
-        fp->f_ops = &kqueueops;
-        error = kqueue_create(&kq);
-        if (error) {
-                fdp->fd_ofiles[fd] = 0;
-                ffree(fp);
-        } else {
-                fp->f_data = (caddr_t)kq;
-                p->p_retval[0] = fd;
-        }
+	error = falloc(p, &fp, &fd);
+	if (error)
+		return (error);
+	fp->f_flag = FREAD | FWRITE;
+	fp->f_type = DTYPE_KQUEUE;
+	fp->f_ops = &kqueueops;
+	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK);
+	bzero(kq, sizeof(*kq));
+	TAILQ_INIT(&kq->kq_head);
+	fp->f_data = (caddr_t)kq;
+	p->p_retval[0] = fd;
 	fdp->fd_knlistsize = 0;		/* mark this fdesc as having a kq */
 	kq->kq_fdp = fdp;
-        return (error);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
