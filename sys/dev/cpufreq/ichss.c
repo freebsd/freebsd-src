@@ -97,9 +97,10 @@ static int	ichss_probe(device_t dev);
 static int	ichss_attach(device_t dev);
 static int	ichss_detach(device_t dev);
 static int	ichss_settings(device_t dev, struct cf_setting *sets,
-		    int *count, int *type);
+		    int *count);
 static int	ichss_set(device_t dev, const struct cf_setting *set);
 static int	ichss_get(device_t dev, struct cf_setting *set);
+static int	ichss_type(device_t dev, int *type);
 
 static device_method_t ichss_methods[] = {
 	/* Device interface */
@@ -110,6 +111,7 @@ static device_method_t ichss_methods[] = {
 	/* cpufreq interface */
 	DEVMETHOD(cpufreq_drv_set,	ichss_set),
 	DEVMETHOD(cpufreq_drv_get,	ichss_get),
+	DEVMETHOD(cpufreq_drv_type,	ichss_type),
 	DEVMETHOD(cpufreq_drv_settings,	ichss_settings),
 	{0, 0}
 };
@@ -209,9 +211,8 @@ ichss_pci_probe(device_t dev)
 static int
 ichss_probe(device_t dev)
 {
-	struct cf_setting set;
 	device_t perf_dev;
-	int count, type;
+	int error, type;
 
 	/*
 	 * If the ACPI perf driver has attached and is not just offering
@@ -219,10 +220,8 @@ ichss_probe(device_t dev)
 	 */
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
 	if (perf_dev && device_is_attached(perf_dev)) {
-		type = 0;
-		count = 1;
-		CPUFREQ_DRV_SETTINGS(perf_dev, &set, &count, &type);
-		if ((type & CPUFREQ_FLAG_INFO_ONLY) == 0)
+		error = CPUFREQ_DRV_TYPE(perf_dev, &type);
+		if (error == 0 && (type & CPUFREQ_FLAG_INFO_ONLY) == 0)
 			return (ENXIO);
 	}
 
@@ -275,7 +274,7 @@ ichss_detach(device_t dev)
 }
 
 static int
-ichss_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
+ichss_settings(device_t dev, struct cf_setting *sets, int *count)
 {
 	struct ichss_softc *sc;
 	struct cf_setting set;
@@ -304,7 +303,6 @@ ichss_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 
 	bcopy(sc->sets, sets, sizeof(sc->sets));
 	*count = 2;
-	*type = CPUFREQ_TYPE_ABSOLUTE;
 
 	return (0);
 }
@@ -380,5 +378,16 @@ ichss_get(device_t dev, struct cf_setting *set)
 	}
 	*set = sc->sets[state];
 
+	return (0);
+}
+
+static int
+ichss_type(device_t dev, int *type)
+{
+
+	if (type == NULL)
+		return (EINVAL);
+
+	*type = CPUFREQ_TYPE_ABSOLUTE;
 	return (0);
 }

@@ -97,9 +97,10 @@ static int	acpi_throttle_attach(device_t dev);
 static int	acpi_throttle_evaluate(struct acpi_throttle_softc *sc);
 static int	acpi_throttle_quirks(struct acpi_throttle_softc *sc);
 static int	acpi_thr_settings(device_t dev, struct cf_setting *sets,
-		    int *count, int *type);
+		    int *count);
 static int	acpi_thr_set(device_t dev, const struct cf_setting *set);
 static int	acpi_thr_get(device_t dev, struct cf_setting *set);
+static int	acpi_thr_type(device_t dev, int *type);
 
 static device_method_t acpi_throttle_methods[] = {
 	/* Device interface */
@@ -110,6 +111,7 @@ static device_method_t acpi_throttle_methods[] = {
 	/* cpufreq interface */
 	DEVMETHOD(cpufreq_drv_set,	acpi_thr_set),
 	DEVMETHOD(cpufreq_drv_get,	acpi_thr_get),
+	DEVMETHOD(cpufreq_drv_type,	acpi_thr_type),
 	DEVMETHOD(cpufreq_drv_settings,	acpi_thr_settings),
 	{0, 0}
 };
@@ -320,7 +322,7 @@ acpi_throttle_quirks(struct acpi_throttle_softc *sc)
 }
 
 static int
-acpi_thr_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
+acpi_thr_settings(device_t dev, struct cf_setting *sets, int *count)
 {
 	struct acpi_throttle_softc *sc;
 	int i, speed;
@@ -338,7 +340,6 @@ acpi_thr_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 		sets[i].dev = dev;
 	}
 	*count = CPU_MAX_SPEED;
-	*type = CPUFREQ_TYPE_RELATIVE;
 
 	return (0);
 }
@@ -407,5 +408,16 @@ acpi_thr_get(device_t dev, struct cf_setting *set)
 	set->freq = CPU_SPEED_PERCENT(clk_val);
 	set->dev = dev;
 
+	return (0);
+}
+
+static int
+acpi_thr_type(device_t dev, int *type)
+{
+
+	if (type == NULL)
+		return (EINVAL);
+
+	*type = CPUFREQ_TYPE_RELATIVE;
 	return (0);
 }
