@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id: weekly,v 1.17 1996/10/19 21:52:12 alex Exp $
+#	$Id: weekly,v 1.17.2.1 1997/02/25 17:52:00 adam Exp $
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
@@ -50,16 +50,20 @@ echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody 2>&1 |\
 	fgrep -v 'Permission denied'
 chmod 444 ${locdb}
 
-echo ""
-echo "Rebuilding whatis database:"
-if [ -d /usr/X11R6/man ]
-then
-MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
-else
-MANPATH=${MANPATH:-/usr/share/man:/usr/local/man}
-fi
+if [ -x /usr/libexec/makewhatis.local -a -x /usr/bin/manpath ] ; then
 
-makewhatis.local "${MANPATH}"
+    echo ""
+    echo "Rebuilding whatis database:"
+
+    MANPATH=`/usr/bin/manpath -q`
+    if [ $? = 0 ]; then
+	if [ "x${MANPATH}" = "x" ]; then
+	    echo "manpath failed to find any manpage directories"
+	else
+	    /usr/libexec/makewhatis.local "${MANPATH}"
+	fi
+    fi
+fi
 
 #echo ""
 #echo "Reformatting manual pages:"
