@@ -61,7 +61,7 @@ ftell(fp)
 	}
 
 #ifdef _THREAD_SAFE
-	_thread_flockfile((FILE *) fp,__FILE__,__LINE__);
+	_thread_flockfile(fp, __FILE__, __LINE__);
 #endif
 	/*
 	 * Find offset of underlying I/O object, then
@@ -71,9 +71,9 @@ ftell(fp)
 		pos = fp->_offset;
 	else {
 		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
-		if (pos == -1L) {
+		if (pos == -1) {
 #ifdef _THREAD_SAFE
-			_thread_funlockfile((FILE *) fp);
+			_thread_funlockfile(fp);
 #endif
 			return (pos);
 		}
@@ -96,7 +96,7 @@ ftell(fp)
 		pos += fp->_p - fp->_bf._base;
 	}
 #ifdef _THREAD_SAFE
-	_thread_funlockfile((FILE *) fp);
+	_thread_funlockfile(fp);
 #endif
 	return (pos);
 }
