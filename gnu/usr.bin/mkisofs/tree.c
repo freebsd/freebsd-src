@@ -20,15 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* ADD_FILES changes made by Ross Biro biro@yggdrasil.com 2/23/95 */
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <errno.h>
 
 #ifndef VMS
-#include <unistd.h>
-#ifdef HASSYSMACROS
+#if defined(HASSYSMACROS) && !defined(HASMKDEV)
 #include <sys/sysmacros.h>
+#endif
+#include <unistd.h>
+#ifdef HASMKDEV
+#include <sys/types.h>
+#include <sys/mkdev.h>
 #endif
 #else
 #include <sys/file.h>
@@ -475,6 +481,89 @@ void finish_cl_pl_entries(){
     d_entry = d_entry->next;
   };
 }
+
+#ifdef ADD_FILES
+/* This function looks up additions. */
+char *
+FDECL3(look_up_addition,char **, newpath, char *,path, struct dirent **,de) {
+  char *dup_path;
+  char *cp;
+  struct file_adds *f;
+  struct file_adds *tmp;
+
+  f=root_file_adds;
+  if (!f) return NULL;
+
+  /* I don't trust strtok */
+  dup_path = strdup (path);
+
+  cp = strtok (dup_path, SPATH_SEPARATOR);
+  while (cp != NULL) {
+    for (tmp = f->child; tmp != NULL; tmp=tmp->next) {
+      if (strcmp (tmp->name, cp) == 0) break;
+    }
+    if (tmp == NULL) {
+      /* no match */
+      free (dup_path);
+      return (NULL);
+    }
+    f = tmp;
+    cp = strtok(NULL, SPATH_SEPARATOR);
+  }
+  free (dup_path);
+
+  /* looks like we found something. */
+  if (tmp->used >= tmp->add_count) return (NULL);
+
+  *newpath = tmp->adds[tmp->used].path;
+  tmp->used++;
+  *de = &(tmp->de);
+  return (tmp->adds[tmp->used-1].name);
+  
+}
+
+/* This function lets us add files from outside the standard file tree.
+   It is useful if we want to duplicate a cd, but add/replace things.
+   We should note that the real path will be used for exclusions. */
+
+struct dirent *
+FDECL3(readdir_add_files, char **, pathp, char *,path, DIR *, dir){
+  struct dirent *de;
+
+  char *addpath;
+  char *name;
+
+  de = readdir (dir);
+  if (de) {
+    return (de);
+  }
+
+  name=look_up_addition (&addpath, path, &de);
+
+  if (!name) {
+    return;
+  }
+
+  *pathp=addpath;
+  
+  /* Now we must create the directory entry. */
+  /* fortuneately only the name seems to matter. */
+  /*
+  de->d_ino = -1;
+  de->d_off = 0;
+  de->d_reclen = strlen (name);
+  */
+  strncpy (de->d_name, name, NAME_MAX);
+  de->d_name[NAME_MAX]=0;
+  return (de);
+
+}
+#else
+struct dirent *
+FDECL3(readdir_add_files, char **, pathp, char *,path, DIR *, dir){
+  return (readdir (dir));
+}
+#endif
 /*
  * This function scans the directory tree, looking for files, and it makes
  * note of everything that is found.  We also begin to construct the ISO9660
@@ -493,6 +582,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
   char * cpnt;
   int new_reclen;
   int deep_flag;
+  char *old_path;
 
   current_dir = opendir(path);
   d_entry = NULL;
@@ -500,7 +590,9 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
   /* Apparently NFS sometimes allows you to open the directory, but
      then refuses to allow you to read the contents.  Allow for this */
 
-  if(current_dir) d_entry = readdir(current_dir);
+  old_path = path;
+
+  if(current_dir) d_entry = readdir_add_files(&path, old_path, current_dir);
 
   if(!current_dir || !d_entry) {
 	  fprintf(stderr,"Unable to open directory %s\n", path);
@@ -578,7 +670,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 
     /* The first time through, skip this, since we already asked for
        the first entry when we opened the directory. */
-    if(dflag) d_entry = readdir(current_dir);
+    if(dflag) d_entry = readdir_add_files(&path, old_path, current_dir);
     dflag++;
 
     if(!d_entry) break;
@@ -629,10 +721,11 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 
     if(S_ISLNK(lstatbuf.st_mode)){
 
-	    /* Here we decide how to handle the symbolic links.  Here we
-	       handle the general case - if we are not following links or there is an
-	       error, then we must change something.  If RR is in use, it is easy, we
-	       let RR describe the file.  If not, then we punt the file. */
+	    /* Here we decide how to handle the symbolic links.  Here
+	       we handle the general case - if we are not following
+	       links or there is an error, then we must change
+	       something.  If RR is in use, it is easy, we let RR
+	       describe the file.  If not, then we punt the file. */
 
 	    if((status || !follow_links)){
 		    if(use_RockRidge){
@@ -652,35 +745,50 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 		    };
 	    }
 
-	    /* Here we handle a different kind of case.  Here we have a symlink,
-	       but we want to follow symlinks.  If we run across a directory loop,
-	       then we need to pretend that we are not following symlinks for this file.
-	       If this is the first time we have seen this, then make this seem
-	       as if there was no symlink there in the first place */
-
-	    else if(strcmp(d_entry->d_name, ".") &&
-	       strcmp(d_entry->d_name, "..")) {
-		    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf))){
-			    fprintf(stderr, "Infinite loop detected (%s)\n", whole_path);
-			    if(!use_RockRidge) continue;
-			    statbuf.st_size = 0;
-			    STAT_INODE(statbuf) = UNCACHED_INODE;
-			    statbuf.st_dev = (dev_t) UNCACHED_DEVICE;
-			    statbuf.st_mode = (statbuf.st_mode & ~S_IFMT) | S_IFREG;
+	    if( follow_links
+	       && S_ISDIR(statbuf.st_mode) ) 
+	      {
+		if(   strcmp(d_entry->d_name, ".")
+		   && strcmp(d_entry->d_name, "..") )
+		  {
+		    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf)))
+		      {
+			if(!use_RockRidge) 
+			  {
+			    fprintf(stderr, "Already cached directory seen (%s)\n", 
+				    whole_path);
+			    continue;
+			  }
+			statbuf.st_size = 0;
+			STAT_INODE(statbuf) = UNCACHED_INODE;
+			statbuf.st_dev = (dev_t) UNCACHED_DEVICE;
+			statbuf.st_mode = (statbuf.st_mode & ~S_IFMT) | S_IFREG;
 		    } else {
-			    lstatbuf = statbuf;
-			    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
-		    };
-	    };
-    };
+		      lstatbuf = statbuf;
+		      add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
+		    }
+		  }
+	      }
+    }
 
+    /*
+     * Add directories to the cache so that we don't waste space even
+     * if we are supposed to be following symlinks.
+     */
+    if( follow_links
+       && strcmp(d_entry->d_name, ".")
+       && strcmp(d_entry->d_name, "..")
+       && S_ISDIR(statbuf.st_mode) ) 
+	  {
+	    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
+	  }
 #ifdef VMS
     if(!S_ISDIR(lstatbuf.st_mode) && (statbuf.st_fab_rfm != FAB$C_FIX &&
 				      statbuf.st_fab_rfm != FAB$C_STMLF)) {
       fprintf(stderr,"Warning - file %s has an unsupported VMS record"
 	      " format (%d)\n",
 	      whole_path, statbuf.st_fab_rfm);
-    };
+    }
 #endif
 
     if(S_ISREG(lstatbuf.st_mode) && (status = access(whole_path, R_OK))){
@@ -691,11 +799,15 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 
     /* Add this so that we can detect directory loops with hard links.
      If we are set up to follow symlinks, then we skip this checking. */
-    if(!follow_links && S_ISDIR(lstatbuf.st_mode) && strcmp(d_entry->d_name, ".") &&
-       strcmp(d_entry->d_name, "..")) {
+    if(   !follow_links 
+       && S_ISDIR(lstatbuf.st_mode) 
+       && strcmp(d_entry->d_name, ".") 
+       && strcmp(d_entry->d_name, "..") ) 
+      {
 	    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf))) {
-		    fprintf(stderr,"Directory loop - fatal goof (%s %x %d).\n",
-			    whole_path, statbuf.st_dev, STAT_INODE(statbuf));
+		    fprintf(stderr,"Directory loop - fatal goof (%s %lx %lu).\n",
+			    whole_path, (unsigned long) statbuf.st_dev,
+			    (unsigned long) STAT_INODE(statbuf));
 		    exit(1);
 	    };
 	    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
@@ -727,6 +839,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
     s_entry->table = NULL;
 
     s_entry->name = strdup(d_entry->d_name);
+    s_entry->whole_name = strdup (whole_path);
 
     s_entry->filedir = this_dir;
     s_entry->isorec.flags[0] = 0;
@@ -810,18 +923,20 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 		    break;
 #ifndef NON_UNIXFS
 	    case S_IFBLK:
-		    sprintf(buffer,"B\t%s\t%d %d\n",
+		    sprintf(buffer,"B\t%s\t%lu %lu\n",
 			    s_entry->name,
-			    major(statbuf.st_rdev), minor(statbuf.st_rdev));
+			    (unsigned long) major(statbuf.st_rdev),
+			    (unsigned long) minor(statbuf.st_rdev));
 		    break;
 	    case S_IFIFO:
 		    sprintf(buffer,"P\t%s\n",
 			    s_entry->name);
 		    break;
 	    case S_IFCHR:
-		    sprintf(buffer,"C\t%s\t%d %d\n",
+		    sprintf(buffer,"C\t%s\t%lu %lu\n",
 			    s_entry->name,
-			    major(statbuf.st_rdev), minor(statbuf.st_rdev));
+			    (unsigned long) major(statbuf.st_rdev),
+			    (unsigned long) minor(statbuf.st_rdev));
 		    break;
 	    case S_IFLNK:
 		    readlink(whole_path, symlink_buff, sizeof(symlink_buff));

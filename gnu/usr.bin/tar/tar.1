@@ -3,7 +3,7 @@
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"
-.\"	$Id: tar.1,v 1.2 1995/01/31 04:36:48 jkh Exp $
+.\"	$Id: tar.1,v 1.3 1995/04/10 11:47:34 jkh Exp $
 .\"
 .Dd 6 August 1994
 .Os FreeBSD
@@ -39,7 +39,7 @@ regular disk file.
 The first argument word of the
 .Nm
 command line is usually a command word of bundled function and modifier
-letters, optionally preceeded by a dash;
+letters, optionally preceded by a dash;
 it must contain exactly one function letter from the set
 .Cm A ,
 .Cm c ,
@@ -53,7 +53,7 @@ extract (further described below).  The command word can also contain other
 function modifiers described below, some of which will take arguments from
 the command line in the order they are specified in the command word (review
 the EXAMPLES section).  Functions and function modifiers can also be specified
-with the GNU argument convention (preceeded by two dashes, one function or
+with the GNU argument convention (preceded by two dashes, one function or
 modifier per word.  Command-line arguments that specify files to
 add to, extract from, or list from an archive may be given as shell
 pattern matching strings.
@@ -132,7 +132,7 @@ this will change the inode-change time!).
 Sets the block size for reading or writing to N 512-byte blocks.
 .It Fl B
 .It Fl -read-full-blocks
-Re-assemble short readsinto full blocks (for reading 4.2BSD pipes).
+Re-assemble short reads into full blocks (for reading 4.2BSD pipes).
 .It Fl C Ar directory
 .It Fl -directory Ar directory
 Change to
@@ -176,7 +176,7 @@ Ignore blocks of zeroes in archive (usually means End-Of-File).
 .It Fl -ignore-failed-read
 Don't exit with non-zero status on unreadable files.
 .It Fl k
--It Fl -keep-old-files
+.It Fl -keep-old-files
 Keep files which already exist on disk; don't overwrite them from the archive.
 .It Fl K Ar file
 .It Fl -starting-file Ar file
@@ -215,6 +215,9 @@ Extract all protection information.
 .It Fl -preserve
 Has the effect of
 .Fl p s.
+.It Fl P
+.It Fl -absolute-paths
+Don't strip leading `/' from file names.
 .It Fl R
 .It Fl -record-number
 Show record number within archive with each message.
@@ -372,7 +375,7 @@ domain version), Jay Fenlason (first GNU author), Joy Kendall, Jim
 Kingdon, David J. MacKenzie, Michael I Bushnell, Noah Friedman, and
 innumerable others who have contributed fixes and additions.
 
-Obtained by the FreeBSD group from the NetBSD 1.0 release.
+Man page obtained by the FreeBSD group from the NetBSD 1.0 release.
 .Sh BUGS
 The
 .Fl C

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.3 1995/01/17 22:55:59 ache Exp $
+ *	$Id: dd.c,v 1.4 1995/01/17 23:04:29 ache Exp $
  */
 
 #ifndef lint
@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 
 #include "dd.h"
 #include "extern.h"
@@ -84,6 +85,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	(void) setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
 

@@ -30,37 +30,54 @@ cd /tmp
 #	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
 #		-a -atime +3 -exec rm -f -- {} \;
 #
+
+# remove system	messages older than 21 days
 msgs -c
+
 if [ -f /etc/news.expire ]; then
 	/etc/news.expire
 fi
 
-if [ -d /var/account ] ; then
+if [ -f /var/account/acct ] ; then
 	echo ""
-	echo "Purging accounting records:"
+	echo "Gathering accounting statistics:"
 	cd /var/account
 	if [ -f acct.2 ] ; then mv -f acct.2 acct.3 ; fi
 	if [ -f acct.1 ] ; then mv -f acct.1 acct.2 ; fi
 	if [ -f acct.0 ] ; then mv -f acct.0 acct.1 ; fi
-	if [ -f acct ] ; then
-		cp -pf acct acct.0
-		sa -s > /dev/null
-	fi
+	cp -pf acct acct.0
+	sa -s > /dev/null
 fi
 
 echo ""
 echo "Backup passwd and group files:"
+if [ ! -f $bak/master.passwd.bak ] ; then
+	echo "no $bak/master.passwd.bak"
+	cp -p /etc/master.passwd $bak/master.passwd.bak
+fi
 if cmp -s $bak/master.passwd.bak /etc/master.passwd; then :; else
 	echo "$host passwd diffs:"
 	diff $bak/master.passwd.bak /etc/master.passwd
 	mv $bak/master.passwd.bak $bak/master.passwd.bak2
 	cp -p /etc/master.passwd $bak/master.passwd.bak
 fi
+if [ ! -f $bak/group.bak ] ; then
+	echo "no $bak/group.bak"
+	cp -p /etc/group $bak/group.bak
+fi
 if cmp -s $bak/group.bak /etc/group; then :; else
+	echo "$host group diffs:"
+	diff $bak/group.bak /etc/group
 	mv $bak/group.bak $bak/group.bak2
 	cp -p /etc/group $bak/group.bak
 fi
+if [ ! -f $bak/aliases.bak ] ; then
+	echo "no $bak/aliases.bak"
+	cp -p /etc/aliases $bak/aliases.bak
+fi
 if cmp -s $bak/aliases.bak /etc/aliases; then :; else
+	echo "$host aliases diffs:"
+	diff $bak/aliases.bak /etc/aliases
 	mv $bak/aliases.bak $bak/aliases.bak2
 	cp -p /etc/aliases $bak/aliases.bak
 fi
@@ -74,23 +91,6 @@ fi
 echo ""
 echo "Running calendar:"
 calendar -a
-
-echo ""
-echo "Rotating mail log:"
-cd /var/log
-rm -f maillog.7
-if [ -f maillog.6 ]; then mv -f maillog.6  maillog.7; fi
-if [ -f maillog.5 ]; then mv -f maillog.5  maillog.6; fi
-if [ -f maillog.4 ]; then mv -f maillog.4  maillog.5; fi
-if [ -f maillog.3 ]; then mv -f maillog.3  maillog.4; fi
-if [ -f maillog.2 ]; then mv -f maillog.2  maillog.3; fi
-if [ -f maillog.1 ]; then mv -f maillog.1  maillog.2; fi
-if [ -f maillog.0 ]; then mv -f maillog.0  maillog.1; fi
-mv -f maillog maillog.0
-cp /dev/null maillog
-chmod 644    maillog
-kill -1 `cat /var/run/syslog.pid`
-cd /
 
 if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
 	echo ""
@@ -123,7 +123,9 @@ echo ""
 echo "network:"
 netstat -i
 echo ""
-ruptime
+if [ -d /var/rwho ] ; then
+	ruptime
+fi
 
 echo ""
 if [ -f /etc/Distfile ]; then

@@ -13,18 +13,15 @@ FONTMODE?=	444
 
 all:	$(FONTFILES)
 
-.if !target(maninstall)
-maninstall:
-	@echo -n
+.for f in $(FONTFILES)
+.if exists($f)
+beforeinstall: $f
+.else
+beforeinstall: $(.CURDIR)/$f
 .endif
-
-.if !target(install)
-install:
-	for f in $(FONTFILES); do \
-		ff=$$f; test -f $$f || ff=${.CURDIR}/$$f || true; \
-		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$ff \
-			$(DESTDIR)$(DEVICEDIR)/$$f; \
-	done
-.endif
+.endfor
+beforeinstall:
+	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
+		${.ALLSRC} $(DESTDIR)$(DEVICEDIR)
 
 .include <bsd.prog.mk>

@@ -22,7 +22,8 @@ should invoked by using the
 .B groff
 command
 with a
-.B \-Tascii
+.BR \-Tascii ,
+.B \-Tkoi8-r
 or
 .B \-Tlatin1
 option.
@@ -101,7 +102,8 @@ Search the directory
 for font and device description files;
 .I name
 is the name of the device, usually
-.B ascii
+.BR ascii ,
+.B koi8-r
 or
 .BR latin1 .
 .TP
@@ -150,27 +152,17 @@ characters.
 Print the version number.
 .SH FILES
 .TP
-.B @FONTDIR@/devascii/DESC
+.B @FONTDIR@/dev\fIname\fB/DESC
 Device description file for
-.B ascii
+.I name
 device.
 .TP
-.B @FONTDIR@/devascii/ F
+.BI @FONTDIR@/dev\fIname\fB/ F
 Font description file for font
 .I F
 of
-.B ascii device.
-.TP
-.B @FONTDIR@/devlatin1/DESC
-Device description file for
-.B latin1
+.I name
 device.
-.TP
-.B @FONTDIR@/devlatin1/ F
-Font description file for font
-.I F
-of
-.B latin1 device.
 .TP
 .B @MACRODIR@/tmac.tty
 Macros for use with
@@ -200,5 +192,4 @@ cannot be printed.
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@),
 .BR ul (1),
-.BR more (1),
-.BR less (1)
+.BR more (1)

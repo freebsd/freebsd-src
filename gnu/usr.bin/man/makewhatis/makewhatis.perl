@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.perl,v 1.5 1995/03/31 04:00:53 joerg Exp $
+# $Id: makewhatis.perl,v 1.6 1995/04/01 11:43:09 joerg Exp $
 #
 
 sub usage {
@@ -61,14 +61,38 @@ sub open_output {
     }
     $tmp = $whatisdb;		# for signals
 
-    if (!open(A, "> $whatisdb")) {
-	die "$whatisdb: $!\n" if $outfile;
 
-	warn "$whatisdb: $!\n"; $err++; return 0;
-    }
+    # Array of all entries
     @a = ();
 
+
+    # Append mode
+    if ($append) {
+	local($file) = $whatisdb;
+	$file =~ s/\.tmp$// if !$outfile;
+	
+	if (open(A, "$file")) {
+	    warn "Open $file for append mode\n" if $verbose;	    
+	    while(<A>) {
+		push(@a, $_);
+	    }
+	    close A;
+	} 
+
+	else {
+	    warn "$whatisdb: $!\n" if lstat($file) && $verbose;	# 
+	}
+	undef $file;
+    }
+
+
     warn "Open $whatisdb\n" if $verbose;
+    if (!open(A, "> $whatisdb")) {
+        die "$whatisdb: $!\n" if $outfile;
+
+        warn "$whatisdb: $!\n"; $err++; return 0;
+    }
+ 
     select A;
     return 1;
 }
@@ -83,21 +107,21 @@ sub close_output {
     if ($success) {		# success
 
 	# uniq
-	@b = ();
 	warn "\n" if $verbose && $pointflag;
 	warn "sort -u > $whatisdb\n" if $verbose;
 	foreach $i (sort @a) {
 	    if ($i ne $last) {
 		push(@b, $i);
-		$counter++;
 	    }
 	    $last =$i;
 	}
+
+	$counter = $#b + 1;
 	print @b; close A; select STDOUT;
 
 	if (!$outfile) {
-	    rename($whatisdb, $w);
 	    warn "Rename $whatisdb to $w\n" if $verbose;
+	    rename($whatisdb, $w) || warn "rename $whatisdb $w\n";
 	    $counter_all += $counter;
 	    warn "$counter entries in $w\n" if $verbose;
 	} else {
@@ -220,8 +244,9 @@ sub ext {
 sub name {
     local($name) = @_;
 
-    $name =~ s/.*\///g;
-    $name =~ s/\.[^.]*$//;
+    $name =~ s=.*/==;
+    $name =~ s=$ext$==o;
+    $name =~ s=\.[^\.]+$==;
 
     return "$name";
 }
@@ -250,6 +275,9 @@ sub out {
     $man =~ s/[,. ]+$//;
     $man =~ s/,/($extension),/g;
     $man .= "($extension)";
+
+    &manpagename;
+
     $desc =~ s/^[ \t]+//;
 
     for($i = length($man); $i < $indent && $desc; $i++) {
@@ -260,6 +288,33 @@ sub out {
     } else {
 	push(@a, "$man\n");
     }
+}
+
+# The filename of manual page is not a keyword. 
+# This is bad, because you don't find the manpage
+# whith: $ man <section> <keyword>
+#
+# Add filename if a) filename is not a keyword and b) no keyword(s)
+# exist as file in same mansection
+#
+sub manpagename {
+    foreach (split(/,\s+/, $man)) {
+	s/\(.+//;
+	# filename is keyword
+	return if $name eq $_;
+    }
+
+    local($f) = $file;  $f =~ s%/*[^/]+$%%;		# dirname
+    local($e) = $file;  $e =~ s/$ext$//;  $e =~ s%.*(\.[^.]+)$%$1%; # .1
+
+    foreach (split(/,\s+/, $man)) {
+	s/\(.+//;
+
+	# a keyword exist as file
+	return if -e "$f/$_$e" || -e "$f/$_$e$ext";    
+    }
+
+    $man = "$name($extension), $man";
 }
 
 # looking for NAME
@@ -380,11 +435,12 @@ sub variables {
     $indent = 24;		# indent for description
     $outfile = 0;		# Don't write to ./whatis
     $whatis_name = "whatis";	# Default name for DB
+    $append = 0;		# Don't delete old entries
 
     # if no argument for directories given
     @defaultmanpath = ( '/usr/share/man' );
 
-    $ext = ".gz";		# extension
+    $ext = '.gz';		# extension
     umask(022);
 
     $err = 0;			# exit code
@@ -422,6 +478,7 @@ sub parse {
 	elsif (/^--?(o|outfile)$/)      { $outfile = $argv[0]; shift @argv }
 	elsif (/^--?(f|format|i|indent)$/) { $i = $argv[0]; shift @argv }
 	elsif (/^--?(n|name)$/)         { $whatis_name = $argv[0];shift @argv }
+	elsif (/^--?(a|append)$/)       { $append = 1 }
 	else                            { &usage }
     }
 

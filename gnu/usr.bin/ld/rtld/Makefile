@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14.4.1 1995/08/30 07:05:48 davidg Exp $
+#	$Id: Makefile,v 1.14.4.2 1996/05/02 16:14:02 jdp Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -26,8 +26,8 @@ realinstall:
 		:
 	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
 	-ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
-	mv ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
+	mv -f ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
 	chflags schg ${DESTDIR}${BINDIR}/${PROG}
-	-rm ${DESTDIR}${BINDIR}/${PROG}.old
+	-rm -f ${DESTDIR}${BINDIR}/${PROG}.old
 
 .include <bsd.prog.mk>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.4 1995/05/30 00:06:50 rgrimes Exp $
+ *	$Id: print.c,v 1.4.4.1 1995/08/28 10:30:27 davidg Exp $
  */
 
 #ifndef lint
@@ -53,7 +53,6 @@ static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -108,8 +107,12 @@ printlong(dp)
 		if (f_flags)
 			(void)printf("%-*s ", dp->s_flags, np->flags);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
-			(void)printf("%3d, %3d ",
-			    major(sp->st_rdev), minor(sp->st_rdev));
+			if (minor(sp->st_rdev) > 255)
+				(void)printf("%3d, 0x%08x ",
+				    major(sp->st_rdev), minor(sp->st_rdev));
+			else
+				(void)printf("%3d, %3d ",
+				    major(sp->st_rdev), minor(sp->st_rdev));
 		else if (dp->bcfile)
 			(void)printf("%*s%*qd ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);

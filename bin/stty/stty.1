@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: stty.1,v 1.2 1994/09/24 02:59:01 davidg Exp $
 .\"
 .Dd April 18, 1994
 .Dt STTY 1
@@ -160,10 +160,10 @@ Signal (do not signal)
 on
 break.
 .It Cm ignpar Pq Fl ignpar
-Ignore (do not ignore) parity
+Ignore (do not ignore) characters with parity
 errors.
 .It Cm parmrk Pq Fl parmrk
-Mark (do not mark) parity errors.
+Mark (do not mark) characters with parity errors.
 .It Cm inpck Pq Fl inpck
 Enable (disable) input parity
 checking.
@@ -235,7 +235,7 @@ output modes).
 Map (do not map)
 .Dv NL
 to
-.DV CR-NL
+.Dv CR-NL
 on output.
 .It Cm oxtabs Pq Fl oxtabs
 Expand (do not expand) tabs to spaces on output.

@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.9 1996/03/22 17:26:47 nate Exp $
+#	$Id: rc,v 1.66.4.10 1996/05/03 06:02:34 asami Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -84,10 +84,6 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
-# If the machine runs wall CMOS clock (compatible with MSDOS),
-# activate following line by creating empty file /etc/wall_cmos_clock
-# If this file not exist, following line does nothing (assumed
-# the machine runs UTC CMOS clock). See adjkerntz(8) for details.
 adjkerntz -i
 
 # If there is a global system configuration file, suck it in.
@@ -120,7 +116,7 @@ rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
 rm -f /dev/log
-(cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
+(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 echo clearing /tmp
 
@@ -201,7 +197,7 @@ if [ "X${nis_serverflags}" != X"NO" ]; then
 	echo -n ' ypserv'; ypserv ${nis_serverflags}
 
 	if [ "X${yppasswddflags}" != X"NO" ]; then
-		echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
+		echo -n ' yppasswdd'; rpc.yppasswdd ${yppasswddflags}
 	fi
 fi
 
@@ -221,7 +217,7 @@ fi
 
 if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd'
-	if [ "X${pcnfsd}" = X"YES" ]; then
+	if [ "X${weak_mountd_authentication}" = X"YES" ]; then
 		mountd -n
 	else
 		mountd
@@ -234,26 +230,18 @@ if [ "X${nfs_client}" = X"YES" ]; then
 fi
 
 if [ "X${amdflags}" != X"NO" ]; then
-	echo -n ' amd';			amd ${amdflags}
-fi
-
-# These should go elsewhere but netstart is too early and I don't
-# want to touch rc.local, so...
-if [ "X${pcnfsd}" = X"YES" -a -x /usr/local/libexec/rpc.pcnfsd ]; then
-	echo -n ' rpc.pcnfsd'; /usr/local/libexec/rpc.pcnfsd &
-fi
-
-if [ "X${apache_httpd}" = X"YES" -a -x /usr/local/sbin/httpd ]; then
-	echo -n ' apache httpd'; /usr/local/sbin/httpd &
+	echo -n ' amd'
+	amd ${amdflags} > /var/run/amd.pid
 fi
 
 # Kerberos runs ONLY on the Kerberos server machine
 if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
 	echo -n ' kadmind'; \
-		(sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
+		(sleep 20; kadmind -n >/dev/null 2>&1 &) &
 fi
 
+# IP multicast routing daemon
 if [ "X${mrouted}" != X"NO" -a -x /usr/sbin/mrouted ]; then
 	echo -n ' mrouted'; mrouted ${mrouted}
 fi
@@ -282,13 +270,18 @@ if [ "$virecovery" != '/var/tmp/vi.recover/recover.*' ]; then
 fi
 
 if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
-	echo 'turning on accounting';	accton /var/account/acct
+	echo 'turning on accounting'
+	if [ ! -e /var/account/acct ]; then
+		touch /var/account/acct
+	fi
+	accton /var/account/acct
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
 echo -n standard daemons:
 echo -n ' cron';		cron
+
 if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
 	echo -n ' printer';		lpd
 fi
@@ -296,7 +289,7 @@ fi
 # $sendmail_flags is imported from /etc/sysconfig;
 # if $sendmail_flags is something other than NO, sendmail is run.
 if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';		sendmail ${sendmail_flags} 
+	echo -n ' sendmail';            /usr/sbin/sendmail ${sendmail_flags}
 fi
 
 echo '.'
@@ -308,7 +301,6 @@ if [ -x /sbin/ldconfig ]; then
 	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
 	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
 	echo 'setting ldconfig path:' ${_LDC}
 	ldconfig ${_LDC}
 fi
@@ -317,6 +309,15 @@ fi
 arch=`uname -m`
 if [ -f /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
+fi
+
+# for each valid dir in $local_startup, search for init scripts matching *.sh
+if [ "X${local_startup}" != X"NO" ]; then
+	for dir in ${local_startup}; do
+		[ -d ${dir} ] && for script in ${dir}/*.sh; do
+			[ -x ${script} ] && ${script} start
+		done
+	done
 fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.

@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.11.4.3 1996/03/16 13:50:14 markm Exp $
+#	$Id: services,v 1.11.4.4 1996/04/07 01:17:26 joerg Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -900,6 +900,7 @@ nfsd-keepalive	1110/udp   #Client status info
 supfiledbg	1127/tcp		# for SUP
 nfa		1155/tcp   #Network File Access		       
 nfa		1155/udp   #Network File Access		       
+phone		1167/udp   #conference calling
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network		     

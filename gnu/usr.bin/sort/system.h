@@ -13,48 +13,25 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Include sys/types.h before this file.  */
 
 #include <sys/stat.h>
 
-#ifdef	STAT_MACROS_BROKEN
-#ifdef S_ISBLK
+#ifdef STAT_MACROS_BROKEN
 #undef S_ISBLK
-#endif
-#ifdef S_ISCHR
 #undef S_ISCHR
-#endif
-#ifdef S_ISDIR
 #undef S_ISDIR
-#endif
-#ifdef S_ISFIFO
 #undef S_ISFIFO
-#endif
-#ifdef S_ISLNK
 #undef S_ISLNK
-#endif
-#ifdef S_ISMPB
 #undef S_ISMPB
-#endif
-#ifdef S_ISMPC
 #undef S_ISMPC
-#endif
-#ifdef S_ISNWK
 #undef S_ISNWK
-#endif
-#ifdef S_ISREG
 #undef S_ISREG
-#endif
-#ifdef S_ISSOCK
 #undef S_ISSOCK
-#endif
-#endif	/* STAT_MACROS_BROKEN.  */
+#endif /* STAT_MACROS_BROKEN.  */
 
-#ifndef S_ISREG			/* Doesn't have POSIX.1 stat stuff. */
-#define mode_t unsigned short
-#endif
 #if !defined(S_ISBLK) && defined(S_IFBLK)
 #define	S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #endif
@@ -90,42 +67,56 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
 #ifndef _POSIX_VERSION
 off_t lseek ();
 #endif
 
-#if defined(HAVE_STRING_H) || defined(STDC_HEADERS)
-#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
-#include <memory.h>
+#ifndef STDIN_FILENO
+#define STDIN_FILENO 0
 #endif
-#include <string.h>
-#ifndef index
-#define index strchr
+
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
 #endif
-#ifndef rindex
-#define rindex strrchr
+
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
 #endif
-/* Don't define bcopy; we need one that can handle overlaps.  */
-#ifndef bzero
-#define bzero(s, n) memset ((s), 0, (n))
-#endif
-#ifndef bcmp
-#define bcmp(s1, s2, n) memcmp ((s1), (s2), (n))
-#endif
+
+/* Don't use bcopy!  Use memmove if source and destination may overlap,
+   memcpy otherwise.  */
+
+#ifdef HAVE_STRING_H
+# if !STDC_HEADERS && HAVE_MEMORY_H
+#  include <memory.h>
+# endif
+# include <string.h>
 #else
-#include <strings.h>
+# include <strings.h>
 char *memchr ();
 #endif
 
 #include <errno.h>
+#ifndef errno
+extern int errno;
+#endif
+
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
 char *getenv ();
-extern int errno;
 #endif
 
-#if defined(HAVE_FCNTL_H) || defined(_POSIX_VERSION)
+#ifndef EXIT_FAILURE
+# define EXIT_FAILURE 1
+#endif
+
+#ifndef EXIT_SUCCESS
+# define EXIT_SUCCESS 0
+#endif
+
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #else
 #include <sys/file.h>
@@ -173,28 +164,42 @@ extern int errno;
 
 #include <ctype.h>
 
-#ifndef isascii
-#define isascii(c) 1
+#if defined (STDC_HEADERS) || (!defined (isascii) && !defined (HAVE_ISASCII))
+#define ISASCII(c) 1
+#else
+#define ISASCII(c) isascii(c)
 #endif
 
 #ifdef isblank
-#define ISBLANK(c) (isascii (c) && isblank (c))
+#define ISBLANK(c) (ISASCII (c) && isblank (c))
 #else
 #define ISBLANK(c) ((c) == ' ' || (c) == '\t')
 #endif
 #ifdef isgraph
-#define ISGRAPH(c) (isascii (c) && isgraph (c))
+#define ISGRAPH(c) (ISASCII (c) && isgraph (c))
 #else
-#define ISGRAPH(c) (isascii (c) && isprint (c) && !isspace (c))
+#define ISGRAPH(c) (ISASCII (c) && isprint (c) && !isspace (c))
 #endif
 
-#define ISPRINT(c) (isascii (c) && isprint (c))
-#define ISDIGIT(c) (isascii (c) && isdigit (c))
-#define ISALNUM(c) (isascii (c) && isalnum (c))
-#define ISALPHA(c) (isascii (c) && isalpha (c))
-#define ISCNTRL(c) (isascii (c) && iscntrl (c))
-#define ISLOWER(c) (isascii (c) && islower (c))
-#define ISPUNCT(c) (isascii (c) && ispunct (c))
-#define ISSPACE(c) (isascii (c) && isspace (c))
-#define ISUPPER(c) (isascii (c) && isupper (c))
-#define ISXDIGIT(c) (isascii (c) && isxdigit (c))
+#define ISPRINT(c) (ISASCII (c) && isprint (c))
+#define ISDIGIT(c) (ISASCII (c) && isdigit (c))
+#define ISALNUM(c) (ISASCII (c) && isalnum (c))
+#define ISALPHA(c) (ISASCII (c) && isalpha (c))
+#define ISCNTRL(c) (ISASCII (c) && iscntrl (c))
+#define ISLOWER(c) (ISASCII (c) && islower (c))
+#define ISPUNCT(c) (ISASCII (c) && ispunct (c))
+#define ISSPACE(c) (ISASCII (c) && isspace (c))
+#define ISUPPER(c) (ISASCII (c) && isupper (c))
+#define ISXDIGIT(c) (ISASCII (c) && isxdigit (c))
+
+/* Disable string localization for the time being.  */
+#undef _
+#define _(String) String
+
+#ifndef __P
+# if PROTOTYPES
+#  define __P(Args) Args
+# else
+#  define __P(Args) ()
+# endif
+#endif

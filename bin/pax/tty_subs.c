@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tty_subs.c,v 1.2 1994/09/24 02:56:38 davidg Exp $
  */
 
 #ifndef lint
@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)tty_subs.c	8.2 (Berkeley) 4/18/94";
 #include <sys/param.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>

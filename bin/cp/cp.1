@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: cp.1,v 1.2 1994/09/24 02:53:40 davidg Exp $
 .\"
 .Dd April 18, 1994
 .Dt CP 1
@@ -47,14 +47,16 @@
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl fip
+.Op Fl f | i
+.Op Fl p
 .Ar source_file target_file
 .Nm cp
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl fip
+.Op Fl f | i
+.Op Fl p
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -105,18 +107,25 @@ For each existing destination pathname, remove it and
 create a new file, without prompting for confirmation
 regardless of its permissions.
 (The
-.Fl i
-option is ignored if the
 .Fl f
-option is specified.)
+option overrides any previous
+.Fl i
+options.)
 .It Fl i
 Causes
 .Nm cp
 to write a prompt to the standard error output before copying a file
 that would overwrite an existing file.
 If the response from the standard input begins with the character
-.Sq Li y ,
+.Sq Li y 
+or
+.Sq Li Y ,
 the file copy is attempted.
+(The
+.Fl i
+option overrides any previous
+.Fl f
+options.)
 .It Fl p
 Causes
 .Nm cp

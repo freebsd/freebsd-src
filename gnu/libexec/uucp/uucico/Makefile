@@ -1,9 +1,10 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.8 1995/08/19 21:29:34 ache Exp $
+# $Id: Makefile,v 1.7.4.1 1995/09/01 06:05:10 davidg Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)
-BINMODE=        4555
+BINGRP=         dialer
+BINMODE=        6555
 
 PROG=		uucico
 SRCS=		uucico.c trans.c send.c rec.c xcmd.c prot.c protg.c protf.c \

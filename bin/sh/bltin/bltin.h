@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bltin.h	8.1 (Berkeley) 5/31/93
- *	$Id: bltin.h,v 1.3 1995/12/10 15:37:44 joerg Exp $
+ *	$Id: bltin.h,v 1.2.6.1 1995/12/11 23:05:26 joerg Exp $
  */
 
 /*
@@ -60,10 +60,10 @@
 #define fputs outstr
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx(a, b, c) {                                               \
-       char buf[64];                                                   \
-       (void)snprintf(buf, sizeof(buf), a, b, c);                       \
-       error(buf);                                                     \
+#define warnx(a, b, c) {						\
+	char buf[64];							\
+	(void)snprintf(buf, sizeof(buf), a, b, c);			\
+	error(buf);							\
 }
 #else
 #undef NULL

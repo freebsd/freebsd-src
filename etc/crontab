@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.9 1994/11/02 09:50:11 ache Exp $
+# $Id: crontab,v 1.10 1995/05/27 01:55:21 ache Exp $
 # From: Id: crontab,v 1.6 1993/05/31 02:03:57 cgd Exp
 #
 SHELL=/bin/sh
@@ -12,7 +12,7 @@ HOME=/var/log
 */5     *       *       *       *       root	/usr/libexec/atrun
 #
 # rotate log files every hour, if necessary
-#0	*	*	*	*	root	/usr/bin/newsyslog
+0	*	*	*	*	root	/usr/sbin/newsyslog
 #
 # do daily/weekly/monthly maintenance
 0       2       *       *       *       root    /etc/daily 2>&1 | sendmail root

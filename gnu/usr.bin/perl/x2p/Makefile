@@ -11,9 +11,9 @@ DPADD= ${LIBM}
 MAN1+= a2p.1 s2p.1 h2ph.1
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/s2p \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/s2p \
 		${DESTDIR}${BINDIR}
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/h2ph \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/h2ph \
 		${DESTDIR}${BINDIR}
 
 afterinstall:

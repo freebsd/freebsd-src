@@ -1,5 +1,84 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.11 1995/03/20 19:18:51 wollman Exp $
+#	$Id: bsd.kmod.mk,v 1.11.4.1 1996/04/03 12:10:28 phk Exp $
+#
+# The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
+# <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
+# as well as the include file <bsd.obj.mk>, <bsd.dep.mk>, and
+# may be <bsd.man.mk>
+#
+#
+# +++ variables +++
+#
+# CLEANFILES	Additional files to remove for the clean and cleandir targets.
+#
+# DISTRIBUTION  Name of distribution. [bin]
+#
+# EXPORT_SYMS	???
+#
+# KERN		Main Kernel source directory. [${.CURDIR}/../../sys/kern]
+#
+# KMOD          The name of the loadable kernel module to build.
+#
+# KMODDIR	Base path for loadable kernel modules
+#		(see lkm(4)). [/lkm]
+#
+# KMODOWN	LKM owner. [${BINOWN}]
+#
+# KMODGRP	LKM group. [${BINGRP}]
+#
+# KMODMODE	LKM mode. [${BINMODE}]
+#
+# LINKS		The list of LKM links; should be full pathnames, the
+#               linked-to file coming first, followed by the linked
+#               file.  The files are hard-linked.  For example, to link
+#               /lkm/master and /lkm/meister, use:
+#
+#			LINKS=  /lkm/master /lkm/meister
+#
+# LN_FLAGS	Flags for ln(1) (see variable LINKS)
+#
+# NOMAN		LKM does not have a manual page if set.
+#
+# PROG          The name of the loadable kernel module to build. 
+#		If not supplied, ${KMOD} is used.
+#
+# PSEUDO_LKM	???
+#
+# SRCS          List of source files 
+#
+# SUBDIR        A list of subdirectories that should be built as well.
+#               Each of the targets will execute the same target in the
+#               subdirectories.
+#
+# DESTDIR, DISTDIR are set by other Makefiles (e.g. bsd.own.mk)
+#
+#
+# +++ targets +++
+#
+#       distribute:
+#               This is a variant of install, which will
+#               put the stuff into the right "distribution".
+#
+# 	install:
+#               install the program and its manual pages; if the Makefile
+#               does not itself define the target install, the targets
+#               beforeinstall and afterinstall may also be used to cause
+#               actions immediately before and after the install target
+#		is executed.
+#
+# 	load:	
+#		Load LKM.
+#
+# 	tags:
+#		Create a tags file for the source files.
+#
+# 	unload:
+#		Unload LKM.
+#
+# bsd.obj.mk: clean, cleandir and obj
+# bsd.dep.mk: depend
+# bsd.man.mk: maninstall
+#
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -12,12 +91,14 @@
 # ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
 # actually lives in /sys directly.
 #
-CWARNFLAGS?= -W -Wcomment -Wredundant-decls
-CFLAGS+=${COPTS} -DKERNEL -I${.CURDIR}/../../sys ${CWARNFLAGS}
+CWARNFLAGS?= -W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
+	-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
+	-Winline
 
-KMODGRP?=	bin
-KMODOWN?=	bin
-KMODMODE?=	555
+CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
+	${CWARNFLAGS}
+
+EXPORT_SYMS?= _${KMOD}
 
 .if defined(VFS_LKM)
 CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops -I.
@@ -37,12 +118,24 @@ PROG=	${KMOD}.o
 .endif
 
 ${PROG}: ${DPSRCS} ${OBJS} ${DPADD} 
-	${LD} -r ${LDFLAGS} -o ${.TARGET} ${OBJS}
+	${LD} -r ${LDFLAGS} -o tmp.o ${OBJS}
+.if defined(EXPORT_SYMS)
+	@rm -f symb.tmp
+	@for i in ${EXPORT_SYMS} ; do echo $$i >> symb.tmp ; done
+	symorder -c symb.tmp tmp.o
+	@rm -f symb.tmp
+.endif
+	mv tmp.o ${.TARGET}
 
-.if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
-	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
-	!defined(MAN7) && !defined(MAN8) && !defined(NOMAN)
+.if !defined(NOMAN)
+.include <bsd.man.mk>
+.if !defined(_MANPAGES) || empty(_MANPAGES)
 MAN1=	${KMOD}.4
+.endif
+
+.elif !target(maninstall)
+maninstall:
+all-man:
 .endif
 
 _PROGSUBDIR: .USE
@@ -59,19 +152,9 @@ _PROGSUBDIR: .USE
 .endif
 
 .MAIN: all
-all: ${PROG} _PROGSUBDIR
+all: ${PROG} all-man _PROGSUBDIR
 
-.if !target(clean)
-clean: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES} 
-.endif
-
-.if !target(cleandir)
-cleandir: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES}
-	rm -f ${.CURDIR}/tags .depend
-	cd ${.CURDIR}; rm -rf obj;
-.endif
+CLEANFILES+=${PROG} ${OBJS} 
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -82,8 +165,8 @@ afterinstall:
 .endif
 
 realinstall: _PROGSUBDIR
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
+	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -112,22 +195,6 @@ distribute:
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj: _PROGSUBDIR
-.else
-obj: _PROGSUBDIR
-	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
 .if !target(tags)
 tags: ${SRCS} _PROGSUBDIR
 .if defined(PROG)
@@ -136,11 +203,6 @@ tags: ${SRCS} _PROGSUBDIR
 .endif
 .endif
 
-.if !defined(NOMAN)
-.include <bsd.man.mk>
-.elif !target(maninstall)
-maninstall:
-.endif
 
 .if !target(load)
 load:	${PROG}
@@ -160,4 +222,7 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 ./vnode_if.h:	vnode_if.h
 
 _DEPSUBDIR=	_PROGSUBDIR
+_SUBDIRUSE:	_PROGSUBDIR
+.include <bsd.obj.mk>
 .include <bsd.dep.mk>
+

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_subs.c,v 1.2 1994/09/24 02:56:12 davidg Exp $
+ *	$Id: ar_subs.c,v 1.3 1995/05/30 00:06:52 rgrimes Exp $
  */
 
 #ifndef lint
@@ -48,7 +48,6 @@ static char sccsid[] = "@(#)ar_subs.c	8.2 (Berkeley) 4/18/94";
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>

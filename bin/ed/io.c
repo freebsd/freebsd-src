@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: io.c,v 1.3 1994/09/24 02:55:27 davidg Exp $
+ *	$Id: io.c,v 1.4 1995/03/19 13:28:32 joerg Exp $
  */
 
 #ifndef lint
@@ -58,7 +58,7 @@ read_file(fn, n)
 		sprintf(errmsg, "cannot close input file");
 		return ERR;
 	}
-	fprintf(stderr, !scripted ? "%lu\n" : "", size);
+	fprintf(stdout, !scripted ? "%lu\n" : "", size);
 	return current_addr - n;
 }
 
@@ -173,7 +173,7 @@ write_file(fn, mode, n, m)
 		sprintf(errmsg, "cannot close output file");
 		return ERR;
 	}
-	fprintf(stderr, !scripted ? "%lu\n" : "", size);
+	fprintf(stdout, !scripted ? "%lu\n" : "", size);
 	return n ? m - n + 1 : 0;
 }
 

@@ -15,22 +15,37 @@ TYPE=	real
 # THE FOURTH LINE
 #TYPE=	fake
 
+.if exists(${.CURDIR}/../../caesar/obj/caesar)
+CAESAR=${.CURDIR}/../../caesar/obj/caesar
+.elif exists(${.CURDIR}/../../caesar/caesar)
+CAESAR=${.CURDIR}/../../caesar/caesar
+.else
+CAESAR=/usr/games/caesar
+.endif
+
+.if exists(${.CURDIR}/../strfile/obj/strfile)
+STRFILE=${.CURDIR}/../strfile/obj/strfile
+.else
+STRFILE=${.CURDIR}/../strfile/strfile
+.endif
+
 CLEANFILES+=${BLDS}
 
-install: ${SRCS} ${BLDS}
-	(cd ${.CURDIR} && install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+all: ${SRCS} ${BLDS}
+
+install:
+	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SRCS} ${DESTDIR}/usr/share/games/fortune)
-	install -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
 	    ${DESTDIR}/usr/share/games/fortune
 
 fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
-	${.CURDIR}/../strfile/obj/strfile -rs \
-	    ${.CURDIR}/${.TARGET:R} ${.TARGET}
+	${STRFILE} -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
 
 fortunes-o.dat: fortunes-o
-	${.CURDIR}/../strfile/obj/strfile -rsx fortunes-o ${.TARGET}
+	${STRFILE} -rsx fortunes-o ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	PATH=../../caesar:$$PATH ; caesar 13 < ${.ALLSRC} > ${.TARGET}
+	${CAESAR} 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>

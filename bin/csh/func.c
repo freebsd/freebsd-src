@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.2 1994/09/24 02:54:04 davidg Exp $
+ *	$Id: func.c,v 1.3 1995/05/30 00:06:34 rgrimes Exp $
  */
 
 #ifndef lint
@@ -967,7 +967,8 @@ dosetenv(v, t)
 	importpath(lp);
 	dohash(NULL, NULL);
     }
-    else if (eq(vp, STRLANG) || eq(vp, STRLC_CTYPE)) {
+    else if (eq(vp, STRLANG) || eq(vp, STRLC_CTYPE) ||
+	     eq(vp, STRLC_ALL) || eq(vp, STRLC_COLLATE)) {
 #ifdef NLS
 	int     k;
 
@@ -1015,7 +1016,8 @@ dounsetenv(v, t)
 		if (!Gmatch(name, *v))
 		    continue;
 		maxi = 1;
-		if (eq(name, STRLANG) || eq(name, STRLC_CTYPE)) {
+		if (eq(name, STRLANG) || eq(name, STRLC_CTYPE) ||
+		    eq(name, STRLC_ALL) || eq(name, STRLC_COLLATE)) {
 #ifdef NLS
 		    int     k;
 
@@ -1025,6 +1027,7 @@ dounsetenv(v, t)
 		    AsciiOnly = k > 0377;
 #else
 		    AsciiOnly = getenv("LANG") == NULL &&
+			getenv("LC_ALL") == NULL &&
 			getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
 		}

@@ -1,9 +1,9 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.9 1994/12/28 03:51:03 ache Exp $
+#	$Id: sys.mk,v 1.9.4.1 1995/08/18 23:50:42 davidg Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
-.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .S .s .cl .p .h 
+.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .S .s .cl .p .h .sh
 
 .LIBS:		.a
 
@@ -17,12 +17,7 @@ AS		?=	as
 AFLAGS		?=
 
 CC		?=	cc
-
-.if ${MACHINE} == "sparc"
-CFLAGS		?=	-O4
-.else
 CFLAGS		?=	-O
-.endif
 
 CXX		?=	c++
 CXXFLAGS	?=	${CXXINCLUDES} ${CFLAGS}
@@ -69,10 +64,12 @@ SHELL		?=	sh
 YACC		?=	yacc
 YFLAGS		?=	-d
 
-# This rule currently causes both make from 1.x and 2.x to have problems,
-# and is not being used so disable it for now.
-#.c:
-#	${CC} ${CFLAGS} ${.IMPSRC} -o ${.TARGET}
+.c:
+	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
+
+.sh:
+	cp -p ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
@@ -92,40 +89,46 @@ YFLAGS		?=	-d
 .s.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
+# XXX not -j safe
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
 	rm -f y.tab.c
 
+# XXX not -j safe
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c -o ${.TARGET}
 	rm -f lex.yy.c
 
+# XXX not -j safe
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	mv y.tab.c ${.TARGET}
 
+# XXX not -j safe
 .l.c:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	mv lex.yy.c ${.TARGET}
 
 .s.out .c.out .o.out:
-	${CC} ${CFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
 .f.out .F.out .r.out .e.out:
-	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${.IMPSRC} \
+	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
 	    ${LDLIBS} -o ${.TARGET}
 	rm -f ${.PREFIX}.o
 
+# XXX not -j safe
 .y.out:
 	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
 	rm -f y.tab.c
 
+# XXX not -j safe
 .l.out:
 	${LEX} ${LFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} lex.yy.c ${LDLIBS} -ll -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} lex.yy.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f lex.yy.c
 
 .include <bsd.own.mk>

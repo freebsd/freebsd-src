@@ -20,7 +20,7 @@
 .if n .sp
 .if t .sp 0.4
 ..
-.Id $Id: gcc.1,v 1.4 1993/10/13 23:19:12 pesch Exp $
+.Id $Id: cc.1,v 1.2 1994/11/15 04:51:29 phk Exp $
 .TH GCC 1 "\*(Dt" "GNU Tools" "GNU Tools"
 .SH NAME
 gcc, g++ \- GNU project C and C++ Compiler (v2.6)
@@ -438,7 +438,17 @@ in the following sections.
 \-m486
 \-mno\-486
 \-msoft\-float
+\-mrtd
+\-mregparm
+\-msvr3\-shlib
+\-mno\-ieee\-fp
 \-mno\-fp\-ret\-in\-387
+\-mfancy\-math\-387
+\-mno\-wide\-multiply
+\-mdebug\-addr
+\-mno\-move
+\-mprofiler\-epilogue
+\-reg\-alloc=LIST
 .Sp
 .I HPPA Options
 .br
@@ -3490,6 +3500,7 @@ assembler files (with a `\|\c
 These `\|\c
 .B \-m\c
 \&\|' options are defined for the Intel 80386 family of computers:
+.TP
 .B \-m486
 .TP
 .B \-mno\-486
@@ -3526,6 +3537,11 @@ The option `\|\c
 .B \-mno-fp-ret-in-387\c
 \&\|' causes such values to be returned
 in ordinary CPU registers instead.
+.TP
+.B \-mprofiler-epilogue
+.TP
+.B \-mno-profiler-epilogue
+Generate extra code to write profile information for function exits.
 .PP
 These `\|\c
 .B \-m\c
@@ -4061,7 +4077,7 @@ if available, else
 .B /tmp\c
 \&).
 .SH "SEE ALSO"
-cpp(1), as(1), ld(1), gdb(1), adb(1), dbx(1), sdb(1).
+cpp(1), as(1), ld(1), gdb(1).
 .br
 .RB "`\|" gcc "\|', `\|" cpp \|',
 .RB "`\|" as "\|', `\|" ld \|',

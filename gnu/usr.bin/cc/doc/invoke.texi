@@ -274,9 +274,10 @@ in addition to the above:
 -mstats  -G  @var{num}  -nocpp
 
 @emph{i386 Options}
--m486  -mieee-fp  -mno-486  -mno-fancy-math-387
--mno-fp-ret-in-387  -msoft-float  -msvr3-shlib  
--mno-wide-multiply -mreg-alloc=@var{list}
+-m486  -mno-486  -mno-fancy-math-387
+-mno-fp-ret-in-387  -mno-ieee-fp  -mno-wide-multiply
+-mprofiler-epilogue  -msoft-float  -msvr3-shlib
+-mreg-alloc=@var{list}
 
 @emph{HPPA Options}
 -mdisable-fpregs  -mdisable-indexing  -mjump-in-delay 
@@ -3481,8 +3482,8 @@ These @samp{-m} options are defined for the i386 family of computers:
 Control whether or not code is optimized for a 486 instead of an
 386.  Code generated for an 486 will run on a 386 and vice versa.
 
-@item -mieee-fp
-@itemx -m-no-ieee-fp
+@item -mno-ieee-fp
+@itemx -mieee-fp
 Control whether or not the compiler uses IEEE floating point
 comparisons.  These handle correctly the case where the result of a
 comparison is unordered.
@@ -3528,6 +3529,12 @@ These options are meaningful only on System V Release 3.
 Control whether GNU CC uses the @code{mul} and @code{imul} that produce
 64 bit results in @code{eax:edx} from 32 bit operands to do @code{long
 long} multiplies and 32-bit division by constants.
+
+@item -mprofiler-epilogue
+@itemx -mno-profiler-epilogue
+Generate extra code to write profile information for function exits.
+This option has no effect except in combination with @samp{-g} or
+@samp{-pg}.
 
 @item -mreg-alloc=@var{regs}
 Control the default allocation order of integer registers.  The

@@ -1,3 +1,5 @@
+#	$Id$
+
 # Copyright (C) 1989, 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 #
@@ -338,7 +340,7 @@ dist:
 	done; \
 	rm -f Makefile; \
 	$(LN_S) $$srcdir/Makefile.init Makefile
-	mv tmp groff-$(version)
+	mv -f tmp groff-$(version)
 	tar cfh - groff-$(version) | gzip -c >groff-$(version).tar.gz
 	rm -fr groff-$(version)
 

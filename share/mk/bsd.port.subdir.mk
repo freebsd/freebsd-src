@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.10 1995/03/03 23:30:32 gpalmer Exp $
+#	$Id: bsd.port.subdir.mk,v 1.11 1995/03/21 03:59:13 jkh Exp $
 
 .MAIN: all
 
@@ -7,9 +7,6 @@
 STRIP?=	-s
 .endif
 
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 ECHO_MSG?=	echo
 
@@ -45,49 +42,12 @@ ${SUBDIR}::
 	fi; \
 	${MAKE} all
 
-.if !target(all)
-all: _SUBDIRUSE
+.for __target in all fetch fetch-list package extract configure \
+		 build clean depend describe reinstall tags checksum
+.if !target(__target)
+${__target}: _SUBDIRUSE
 .endif
-
-.if !target(fetch)
-fetch: _SUBDIRUSE
-.endif
-
-.if !target(fetch-list)
-fetch-list: _SUBDIRUSE
-.endif
-
-.if !target(package)
-package: _SUBDIRUSE
-.endif
-
-.if !target(extract)
-extract: _SUBDIRUSE
-.endif
-
-.if !target(configure)
-configure: _SUBDIRUSE
-.endif
-
-.if !target(build)
-build: _SUBDIRUSE
-.endif
-
-.if !target(clean)
-clean: _SUBDIRUSE
-.endif
-
-.if !target(depend)
-depend: _SUBDIRUSE
-.endif
-
-.if !target(describe)
-describe: _SUBDIRUSE
-.endif
-
-.if !target(reinstall)
-reinstall: _SUBDIRUSE
-.endif
+.endfor
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -101,10 +61,45 @@ afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
 .endif
 
-.if !target(tags)
-tags: _SUBDIRUSE
+.if !target(readmes)
+readmes: readme _SUBDIRUSE
 .endif
 
-.if !target(checksum)
-checksum: _SUBDIRUSE
+.if !target(readme)
+readme:
+	@rm -f README.html
+	@make README.html
 .endif
+
+PORTSDIR ?= /usr/ports
+TEMPLATES ?= ${PORTSDIR}/templates
+.if defined(PORTSTOP)
+README=	${TEMPLATES}/README.top
+.else
+README=	${TEMPLATES}/README.category
+.endif
+
+README.html:
+	@echo "===>  Creating README.html"
+	@> $@.tmp
+.for entry in ${SUBDIR}
+.if defined(PORTSTOP)
+	@echo -n '<a href="'${entry}/README.html'">${entry}</a>: ' >> $@.tmp
+.else
+	@echo -n '<a href="'${entry}/README.html'">'"`cd ${entry}; make package-name`</a>: " >> $@.tmp
+.endif
+.if exists(${entry}/pkg/COMMENT)
+	@cat ${entry}/pkg/COMMENT >> $@.tmp
+.else
+	@echo "(no description)" >> $@.tmp
+.endif
+.endfor
+	@sort -t '>' +1 -2 $@.tmp > $@.tmp2
+	@cat ${README} | \
+		sed -e 's%%CATEGORY%%'`echo ${.CURDIR} | sed -e 's.*/\([^/]*\)$$\1'`'g' \
+			-e '/%%DESCR%%/r${.CURDIR}/pkg/DESCR' \
+			-e '/%%DESCR%%/d' \
+			-e '/%%SUBDIR%%/r$@.tmp2' \
+			-e '/%%SUBDIR%%/d' \
+		> $@
+	@rm -f $@.tmp $@.tmp2

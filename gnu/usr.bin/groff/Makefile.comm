@@ -1,3 +1,5 @@
+#	$Id$
+
 # Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 #
@@ -93,14 +95,14 @@ extraclean:
 	else \
 	  $(YACC) $(YACCFLAGS) $<; \
 	fi
-	mv y.tab.c $@
+	mv -f y.tab.c $@
 # Avoid ending up with two versions of $(YTABH).
 	if test -n "$(YTABH)"; then \
 	  if test -f $(srcdir)/$(YTABH); then \
 	    rm -f $(YTABH); \
-	    mv y.tab.h $(srcdir)/$(YTABH); \
+	    mv -f y.tab.h $(srcdir)/$(YTABH); \
 	  else \
-	    mv y.tab.h $(YTABH); \
+	    mv -f y.tab.h $(YTABH); \
 	  fi; \
 	fi
 
@@ -217,7 +219,7 @@ uninstall_dev:
 
 .PHONY: depend_src
 depend_src: depend.temp
-	mv depend.temp Makefile.dep
+	mv -f depend.temp Makefile.dep
 
 depend.temp: FORCE
 	> depend.temp;
@@ -227,7 +229,7 @@ depend.temp: FORCE
 	  || $(CC) $(ALL_CFLAGS) -MM $(CSRCS) >>depend.temp
 	if test -n "$(YTABH)"; then \
 	  sed -e 's|$(YTABH)|$(YTABC)|g' depend.temp >depend.temp1; \
-	  mv depend.temp1 depend.temp; \
+	  mv -f depend.temp1 depend.temp; \
 	fi
 
 .PHONY: TAGS_src

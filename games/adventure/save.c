@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "hdr.h"
 
 struct savestruct
