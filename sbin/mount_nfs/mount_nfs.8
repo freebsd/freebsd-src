@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\"
-.\" $Id: mount_nfs.8,v 1.7 1997/02/22 14:32:47 peter Exp $
+.\" $Id: mount_nfs.8,v 1.8 1997/03/11 12:31:54 peter Exp $
 .\""
 .Dd March 29, 1995
 .Dt MOUNT_NFS 8
@@ -41,7 +41,7 @@
 .Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm mount_nfs
-.Op Fl 3KPTUbcdilqs
+.Op Fl 23KPTUbcdilqs
 .Op Fl D Ar deadthresh
 .Op Fl I Ar readdirsize
 .Op Fl L Ar leaseterm
@@ -72,8 +72,11 @@ Appendix I.
 .Pp
 The options are:
 .Bl -tag -width indent
+.It Fl 2
+Use the NFS Version 2 protocol (the default is to try version 3 first
+then version 2).
 .It Fl 3
-Use the NFS Version 3 protocol (Version 2 is the default).
+Use the NFS Version 3 protocol.
 .It Fl D
 Used with NQNFS to set the
 .Dq "dead server threshold"
@@ -200,6 +203,9 @@ Same as
 .It kerb
 Same as
 .Fl K .
+.It nfsv2
+Same as
+.Fl 2 .
 .It nfsv3
 Same as
 .Fl 3 .
