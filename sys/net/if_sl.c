@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.8 1994/10/05 21:22:45 wollman Exp $
+ * $Id: if_sl.c,v 1.9 1994/10/08 01:40:22 phk Exp $
  */
 
 /*
@@ -127,7 +127,8 @@ Huh? Slip without inet?
  * role in interactive performance than the MTU. The MTU can be changed
  * at any time to suit the specific environment with ifconfig(8), and
  * its maximum value is defined as SLTMAX. SLTMAX must not be so large
- * that it would overflow the stack if BPF is configured.
+ * that it would overflow the stack if BPF is configured (XXX; if_ppp.c
+ * handles this better).
  *
  * SLIP_HIWAT is the amount of data that will be queued 'downstream'
  * of us (i.e., in clists waiting to be picked up by the tty output
@@ -155,12 +156,9 @@ Huh? Slip without inet?
 #ifndef SLMTU
 #define	SLMTU		552		/* default MTU */
 #endif
-#define SLTMAX		1500		/* maximum MTU */
+#define	SLTMAX		1500		/* maximum MTU */
 #define	SLIP_HIWAT	roundup(50,CBSIZE)
 #define	CLISTRESERVE	1024		/* Can't let clists get too low */
-
-/* add this many cblocks to the pool */
-#define CLISTEXTRA	((SLRMAX+SLTMAX) / CBSIZE)
 
 /*
  * SLIP ABORT ESCAPE MECHANISM:
@@ -276,7 +274,21 @@ slopen(dev, tp)
 			sc->sc_if.if_baudrate = tp->t_ospeed;
 			ttyflush(tp, FREAD | FWRITE);
 
-			cblock_alloc_cblocks(CLISTEXTRA);
+			/*
+			 * We don't use t_canq or t_rawq, so reduce their
+			 * cblock resources to 0.  Reserve enough cblocks
+			 * for t_outq to guarantee that we can fit a full
+			 * packet if the SLIP_HIWAT check allows slstart()
+			 * to loop.  Use the same value for the cblock
+			 * limit since the reserved blocks should always
+			 * be enough.  Reserving cblocks probably makes
+			 * the CLISTRESERVE check unnecessary and wasteful.
+			 */
+			clist_alloc_cblocks(&tp->t_canq, 0, 0);
+			clist_alloc_cblocks(&tp->t_outq,
+					    sc->sc_if.if_mtu + SLIP_HIWAT,
+					    sc->sc_if.if_mtu + SLIP_HIWAT);
+			clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
 			return (0);
 		}
@@ -296,7 +308,13 @@ slclose(tp,flag)
 	int s;
 
 	ttywflush(tp);
+	/*
+	 * XXX the placement of the following spl is misleading.  tty
+	 * interrupts must be blocked across line discipline switches
+	 * and throughout closes to avoid races.
+	 */
 	s = splimp();		/* actually, max(spltty, splnet) */
+	clist_free_cblocks(&tp->t_outq);
 	tp->t_line = 0;
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc != NULL) {
@@ -307,7 +325,6 @@ slclose(tp,flag)
 		sc->sc_ep = 0;
 		sc->sc_mp = 0;
 		sc->sc_buf = 0;
-		cblock_free_cblocks(CLISTEXTRA);
 	}
 	splx(s);
 	return 0;
@@ -863,10 +880,14 @@ slioctl(ifp, cmd, data)
 		/*
 		 * Set the interface MTU.
 		 */
-		if (ifr->ifr_mtu > SLTMAX) {
+		if (ifr->ifr_mtu > SLTMAX)
 			error = EINVAL;
-		} else {
+		else {
 			ifp->if_mtu = ifr->ifr_mtu;
+			clist_alloc_cblocks(
+				&sl_softc[ifp->if_unit].sc_ttyp->t_outq,
+					    ifp->if_mtu + SLIP_HIWAT,
+					    ifp->if_mtu + SLIP_HIWAT);
 		}
 		break;
 
