@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: gmon.h,v 1.2 1994/08/02 07:53:02 davidg Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -97,7 +97,12 @@ struct gmonhdr {
  */
 #define ARCDENSITY	2
 #define MINARCS		50
-#define MAXARCS		((1 << (8 * sizeof(HISTCOUNTER))) - 2)
+
+/*
+ * Limit on the number of arcs to so that arc numbers can be stored in
+ * `*froms' and stored and incremented without overflow in links.
+ */
+#define MAXARCS		(((u_long)1 << (8 * sizeof(u_short))) - 2)
 
 struct tostruct {
 	u_long	selfpc;
