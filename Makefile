@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.63 1995/10/24 08:37:28 phk Exp $
+#	$Id: Makefile,v 1.64 1995/10/24 18:51:08 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -92,7 +92,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	hierarchy mk cleandist includes lib-tools libraries tools
+world:	hierarchy mk cleandist includes lib-tools libraries build-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -306,7 +306,7 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
-tools:
+build-tools:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} C compiler, make, symorder and zic(8)"
 	@echo "--------------------------------------------------------------"
