@@ -46,6 +46,7 @@
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
+#include <sys/event.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -255,6 +256,9 @@ accept1(p, uap, compat)
 		return (error);
 	} else
 		p->p_retval[0] = fd;
+
+	/* connection has been removed from the listen queue */
+	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
 
 	so->so_state &= ~SS_COMP;
 	so->so_head = NULL;
