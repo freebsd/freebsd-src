@@ -56,79 +56,8 @@
 
   <sect2>
     <title>Disk Controllers</title>
-      <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)
-        <itemizedlist>
-	   <listitem>
-	     <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
-	   </listitem>
-	   <listitem>
-	     <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
-	   </listitem>
-	   <listitem>
-	     <para>Cenatek Rocket Drive</para>
-	   </listitem>
-	   <listitem>
-	     <para>CMD 646, 648 ATA66, and 649 ATA100</para>
-	   </listitem>
-	   <listitem>
-	     <para>Cypress 82C693</para>
-	   </listitem>
-	   <listitem>
-	     <para>Cyrix 5530 ATA33</para>
-	   </listitem>
-	   <listitem>
-	     <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133, HPT374 ATA133</para>
-	   </listitem>
-	   <listitem>
-		<para>Intel PIIX, PIIX3, PIIX4</para>
-	   </listitem>
-	   <listitem>
-		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
-	   </listitem>
-	   <listitem>
-		<para>nVidia nForce ATA100, nForce2 ATA133</para>
-	   </listitem>
-	   <listitem>
-		<para>Promise ATA100 OEM chip (pdc20265)</para>
-	   </listitem>
-	   <listitem>
-		<para>Promise ATA133 OEM chip (pdc20269)</para>
-	   </listitem>
-	   <listitem>
-		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
-	   </listitem>
-	   <listitem>
-		<para>Promise SATA150 TX2/TX4 Serial ATA/150</para>
-	   </listitem>
-	   <listitem>
-		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000/TX4000</para>
-	   </listitem>
-	   <listitem>
-		<para>ServerWorks ROSB4 ATA33</para>
-	   </listitem>
-	   <listitem>
-		<para>ServerWorks CSB5 and CSB6 ATA66/ATA100</para>
-	   </listitem>
-	   <listitem>
-	        <para>Sil 0680 UDMA6</para>
-	   </listitem>
-	   <listitem>
-	        <para>SiS 530, 540, 550, 620</para>
-	   </listitem>
-	   <listitem>
-	        <para>SiS 630, 630S, 633, 635, 640, 645, 645DX, 648, 650, 651, 652, 655, 658, 730, 733, 735, 740, 745, 746, 748, 750, 751, 752, 755</para>
-	   </listitem>
-	   <listitem>
-		<para>SiS 5591 ATA100</para>
-	   </listitem>
-	   <listitem>
-		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
-	   </listitem>
-	   <listitem>
-		<para>VIA 8233, 8235 ATA133</para>
-	   </listitem>
-      </itemizedlist>
-    </para>
+
+    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)</para>
     <para arch="pc98">IDE/ATA controllers (wdc driver)
       <itemizedlist>
         <listitem>
