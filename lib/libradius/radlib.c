@@ -1047,7 +1047,7 @@ rad_put_vendor_attr(struct rad_handle *h, int vendor, int type,
 	}
 
 	if ((attr = malloc(len + 6)) == NULL) {
-		generr(h, "malloc failure (%d bytes)", len + 6);
+		generr(h, "malloc failure (%zu bytes)", len + 6);
 		return -1;
 	}
 
@@ -1207,13 +1207,13 @@ rad_demangle_mppe_key(struct rad_handle *h, const void *mangled,
 	*/
 	*len = *P;
 	if (*len > mlen - 1) {
-		generr(h, "Mangled data seems to be garbage %d %d",
+		generr(h, "Mangled data seems to be garbage %zu %zu",
 		    *len, mlen-1);
 		return NULL;
 	}
 
 	if (*len > MPPE_KEY_LEN * 2) {
-		generr(h, "Key to long (%d) for me max. %d",
+		generr(h, "Key to long (%zu) for me max. %d",
 		    *len, MPPE_KEY_LEN * 2);
 		return NULL;
 	}
