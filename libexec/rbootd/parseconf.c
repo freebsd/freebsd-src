@@ -83,7 +83,7 @@ static const char rcsid[] =
 **		  to create a linked list of default boot files.
 */
 int
-ParseConfig()
+ParseConfig(void)
 {
 	FILE *fp;
 	CLIENT *client;
@@ -248,8 +248,7 @@ ParseConfig()
 **		  be copied if it's to be saved.
 */
 u_int8_t *
-ParseAddr(str)
-	char *str;
+ParseAddr(char *str)
 {
 	static u_int8_t addr[RMP_ADDRLEN];
 	char *cp;
@@ -312,7 +311,7 @@ ParseAddr(str)
 **		  called to re-order it's list of boot file pointers.
 */
 int
-GetBootFiles()
+GetBootFiles(void)
 {
 	DIR *dfd;
 	struct stat statb;

@@ -116,22 +116,20 @@ union sockunion {
 #define su_family	su_si.si_family
 #define su_port		su_si.si_port
 
-void	doit __P((int, union sockunion *));
-int	control __P((int, char *, int));
-void	protocol __P((int, int));
-void	cleanup __P((int));
-void	fatal __P((int, char *, int));
-int	do_rlogin __P((union sockunion *));
-void	getstr __P((char *, int, char *));
-void	setup_term __P((int));
-int	do_krb_login __P((struct sockaddr_in *));
-void	usage __P((void));
+void	doit(int, union sockunion *);
+int	control(int, char *, int);
+void	protocol(int, int);
+void	cleanup(int);
+void	fatal(int, char *, int);
+int	do_rlogin(union sockunion *);
+void	getstr(char *, int, char *);
+void	setup_term(int);
+int	do_krb_login(struct sockaddr_in *);
+void	usage(void);
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	extern int __check_rhosts_file;
 	union sockunion from;
@@ -199,9 +197,7 @@ struct winsize win = { 0, 0, 0, 0 };
 
 
 void
-doit(f, fromp)
-	int f;
-	union sockunion *fromp;
+doit(int f, union sockunion *fromp)
 {
 	int master, pid, on = 1;
 	int authenticated = 0;
@@ -336,10 +332,7 @@ char	oobdata[] = {TIOCPKT_WINDOW};
  * window size changes.
  */
 int
-control(pty, cp, n)
-	int pty;
-	char *cp;
-	int n;
+control(int pty, char *cp, int n)
 {
 	struct winsize w;
 
@@ -359,8 +352,7 @@ control(pty, cp, n)
  * rlogin "protocol" machine.
  */
 void
-protocol(f, p)
-	register int f, p;
+protocol(int f, int p)
 {
 	char pibuf[1024+1], fibuf[1024], *pbp = NULL, *fbp = NULL;
 	int pcc = 0, fcc = 0;
@@ -435,7 +427,7 @@ protocol(f, p)
 			if (fcc < 0 && errno == EWOULDBLOCK)
 				fcc = 0;
 			else {
-				register char *cp;
+				char *cp;
 				int left, n;
 
 				if (fcc <= 0)
@@ -516,8 +508,7 @@ protocol(f, p)
 }
 
 void
-cleanup(signo)
-	int signo;
+cleanup(int signo)
 {
 	char *p;
 
@@ -536,10 +527,7 @@ cleanup(signo)
 }
 
 void
-fatal(f, msg, syserr)
-	int f;
-	char *msg;
-	int syserr;
+fatal(int f, char *msg, int syserr)
 {
 	int len;
 	char buf[BUFSIZ], *bp = buf;
@@ -562,8 +550,7 @@ fatal(f, msg, syserr)
 }
 
 int
-do_rlogin(dest)
-	union sockunion *dest;
+do_rlogin(union sockunion *dest)
 {
 
 	getstr(rusername, sizeof(rusername), "remuser too long");
@@ -580,10 +567,7 @@ do_rlogin(dest)
 }
 
 void
-getstr(buf, cnt, errmsg)
-	char *buf;
-	int cnt;
-	char *errmsg;
+getstr(char *buf, int cnt, char *errmsg)
 {
 	char c;
 
@@ -599,10 +583,9 @@ getstr(buf, cnt, errmsg)
 extern	char **environ;
 
 void
-setup_term(fd)
-	int fd;
+setup_term(int fd)
 {
-	register char *cp = index(term+ENVSIZE, '/');
+	char *cp = index(term+ENVSIZE, '/');
 	char *speed;
 	struct termios tt;
 
@@ -640,7 +623,7 @@ setup_term(fd)
 }
 
 void
-usage()
+usage(void)
 {
 	syslog(LOG_ERR, "usage: rlogind [-" ARGSTR "]");
 }
