@@ -72,10 +72,11 @@ main(int ac, char *av[])
 	int     csock, dsock;
 	int     asciiFlag = 0;
 	int     loopFlag = 0;
+	int	noInput = 0;
 	int	ch;
 
 	/* Parse flags */
-	while ((ch = getopt(ac, av, "adl")) != EOF) {
+	while ((ch = getopt(ac, av, "adln")) != EOF) {
 		switch (ch) {
 		case 'a':
 			asciiFlag = 1;
@@ -85,6 +86,9 @@ main(int ac, char *av[])
 			break;
 		case 'l':
 			loopFlag = 1;
+			break;
+		case 'n':
+			noInput = 1;
 			break;
 		case '?':
 		default:
@@ -119,13 +123,18 @@ main(int ac, char *av[])
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &ngc, sizeof(ngc)) < 0)
 		errx(EX_OSERR, "can't connect to node");
 
+	/* Close standard input if not reading from it */
+	if (noInput)
+		fclose(stdin);
+
 	/* Relay data */
 	while (1) {
 		fd_set  rfds;
 
 		/* Setup bits */
 		FD_ZERO(&rfds);
-		FD_SET(0, &rfds);
+		if (!noInput)
+			FD_SET(0, &rfds);
 		FD_SET(dsock, &rfds);
 
 		/* Wait for something to happen */
@@ -224,6 +233,6 @@ WriteAscii(u_char *buf, int len)
 static void
 Usage(void)
 {
-	errx(EX_USAGE, "usage: nghook [-da] path [hookname]");
+	errx(EX_USAGE, "usage: nghook [-adln] path [hookname]");
 }
 
