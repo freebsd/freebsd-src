@@ -3,7 +3,7 @@
 /*
  * Standard LOCALE_CTYPE for the C Locale
  */
-ENCODING	"UTF2"
+ENCODING        "NONE"
 VARIABLE	A comment line or data line.  Only 1 allowed.  Copied verbatim.
 
 #
