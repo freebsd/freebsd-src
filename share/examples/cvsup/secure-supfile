@@ -1,0 +1,37 @@
+# $Id$
+#
+# This file contains all of the "CVSUP collections" that comprise the FreeBSD
+# International secure distribution from the current (new and experimental)
+# branch.  CVSup (CVS Update Protocol) allows you to syncronize your system
+# sources with the latest secure source distribution easily and efficiently
+# (far more so than with sup, which CVSup is aimed at replacing).  If you're
+# running CVSup interactively, and are currently using an X display server,
+# you should run CVSup as follows to keep your secure source tree up-to-date:
+#
+#	cvsup secure-supfile
+#
+# If not running X, or invoking cvsup from a non-interactive script, then
+# run it as follows:
+#
+#	cvsup -g -L 2 secure-supfile
+#
+# You may want to change some of the settings in this file to better
+# suit your system:
+#
+# base=/usr	
+#		base specifies the root where SUP will store information
+#		about the collections you have transferred to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are SUPing a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.
+#
+# prefix=/usr/src
+#		prefix specifies where to place the requested files.  A
+#		setting of "/usr/src" will place the all of the files
+#		requested in /usr/src (ie /usr/src/eBones, /usr/src/secure).
+#		The directory that is the prefix must exist in order for
+#		SUP to transfer files successfully.
+
+src-eBones release=cvs host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
+src-secure release=cvs host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=.
