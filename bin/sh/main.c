@@ -44,9 +44,9 @@ static char const copyright[] =
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <signal.h>
