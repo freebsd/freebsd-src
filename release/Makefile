@@ -89,6 +89,8 @@ MNT=			/mnt
 
 # Various floppy image parameters.
 #
+
+.if ${MACHINE_ARCH} == "i386"
 .if ${MACHINE} == "pc98"
 SMALLBOOTSIZE=		1200
 BOOTSIZE=		1440
@@ -104,21 +106,28 @@ MFSLABEL=		minimum2
 .else
 BOOTSIZE=		1440
 FIXITSIZE=		1440
-MFSSIZE=		2880
+MFSSIZE=		4320
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 FIXITINODE=		4000
 MFSINODE=		8000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
-MFSLABEL=		minimum2
+MFSLABEL=		minimum3
 BIGBOOTLABEL=		minimum2
 .endif
-
-# overrides.
-.if ${MACHINE_ARCH} == "alpha"
+.elif ${MACHINE_ARCH} == "alpha"
+BOOTSIZE=		1440
 FIXITSIZE=		2880
+MFSSIZE=		2880
+BIGBOOTSIZE=		2880
+BOOTINODE=		80000
+FIXITINODE=		4000
+MFSINODE=		8000
+BOOTLABEL=		fd1440
 FIXITLABEL=		minimum2
+MFSLABEL=		minimum2
+BIGBOOTLABEL=		minimum2
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -547,11 +556,21 @@ release.8: write_mfs_in_kernel
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
 	@cp /boot/loader.help ${RD}/mfsfd/boot
+	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
+.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+	@cd ${.CURDIR} && ${MAKE} doMODULES KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
+.endif
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
+.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+	@mkdir -p ${RD}/mfsfd/stand/modules
+	@perl ${.CURDIR}/scripts/driver-copy2.pl \
+		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
+		${RD}/kernels ${RD}/mfsfd/stand/modules
+.endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
@@ -768,6 +787,28 @@ installCRUNCH:
 	fi
 
 #
+# --==## BOOTMFS config file ##==--
+#
+
+createBOOTMFS:
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
+	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS && \
+	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
+.if ${MACHINE_ARCH} == "i386"
+	@echo "options  INTRO_USERCONFIG" >> \
+	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+.endif
+.if defined(FDSIZE) && ${FDSIZE} == "BIG"
+	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
+	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+.endif
+.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+	@perl ${.CURDIR}/scripts/driver-remove.pl \
+		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
+		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+.endif
+
+#
 # --==## Compile a kernel by name ${KERNEL} ##==--
 #
 # We don't erase the sys/compile/${KERNEL} directory, since somebody
@@ -782,6 +823,14 @@ doKERNEL:
 			make kernel-reinstall DESTDIR=${RD}/kernels && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
+
+doMODULES:
+	@rm -f ${RD}/kernels/*.ko
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
+	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+			make kernel-depend && \
+			make ${KERNEL_FLAGS} modules && \
+			make modules-reinstall DESTDIR=${RD}/kernels && \
 
 doSTDKERNEL:
 	@rm -f ${RD}/kernels/${KERNEL}
@@ -799,17 +848,7 @@ doSTDKERNEL:
 doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS && \
-	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
-.if ${MACHINE_ARCH} == "i386"
-	@echo "options  INTRO_USERCONFIG" >> \
-	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
-.if defined(FDSIZE) && ${FDSIZE} == "BIG"
-	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
-	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
+	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
