@@ -45,7 +45,7 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.56 2001/04/21 18:53:53 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.59 2001/09/22 18:35:23 tom Exp $")
 
 NCURSES_EXPORT_VAR(char)
 PC = 0;				/* used by termcap library */
@@ -103,72 +103,6 @@ _nc_outch(int ch)
     }
     return OK;
 }
-
-#if USE_WIDEC_SUPPORT
-/*
- * Reference: The Unicode Standard 2.0
- *
- * No surrogates supported (we're storing only one 16-bit Unicode value per
- * cell).
- */
-NCURSES_EXPORT(int)
-_nc_utf8_outch(int ch)
-{
-    static const unsigned byteMask = 0xBF;
-    static const unsigned otherMark = 0x80;
-    static const unsigned firstMark[] =
-    {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
-
-    int result[7], *ptr;
-    int count = 0;
-
-    if ((unsigned int) ch < 0x80)
-	count = 1;
-    else if ((unsigned int) ch < 0x800)
-	count = 2;
-    else if ((unsigned int) ch < 0x10000)
-	count = 3;
-    else if ((unsigned int) ch < 0x200000)
-	count = 4;
-    else if ((unsigned int) ch < 0x4000000)
-	count = 5;
-    else if ((unsigned int) ch <= 0x7FFFFFFF)
-	count = 6;
-    else {
-	count = 3;
-	ch = 0xFFFD;
-    }
-    ptr = result + count;
-    switch (count) {
-    case 6:
-	*--ptr = (ch | otherMark) & byteMask;
-	ch >>= 6;
-	/* FALLTHRU */
-    case 5:
-	*--ptr = (ch | otherMark) & byteMask;
-	ch >>= 6;
-	/* FALLTHRU */
-    case 4:
-	*--ptr = (ch | otherMark) & byteMask;
-	ch >>= 6;
-	/* FALLTHRU */
-    case 3:
-	*--ptr = (ch | otherMark) & byteMask;
-	ch >>= 6;
-	/* FALLTHRU */
-    case 2:
-	*--ptr = (ch | otherMark) & byteMask;
-	ch >>= 6;
-	/* FALLTHRU */
-    case 1:
-	*--ptr = (ch | firstMark[count]);
-	break;
-    }
-    while (count--)
-	_nc_outch(*ptr++);
-    return OK;
-}
-#endif
 
 NCURSES_EXPORT(int)
 putp(const char *string)
@@ -228,19 +162,19 @@ tputs
      * (like nethack) actually do the likes of tputs("50") to get delays.
      */
     trailpad = 0;
-    if (isdigit(*string)) {
-	while (isdigit(*string)) {
+    if (isdigit(UChar(*string))) {
+	while (isdigit(UChar(*string))) {
 	    trailpad = trailpad * 10 + (*string - '0');
 	    string++;
 	}
 	trailpad *= 10;
 	if (*string == '.') {
 	    string++;
-	    if (isdigit(*string)) {
+	    if (isdigit(UChar(*string))) {
 		trailpad += (*string - '0');
 		string++;
 	    }
-	    while (isdigit(*string))
+	    while (isdigit(UChar(*string)))
 		string++;
 	}
 
@@ -265,7 +199,7 @@ tputs
 		bool mandatory;
 
 		string++;
-		if ((!isdigit(CharOf(*string)) && *string != '.')
+		if ((!isdigit(UChar(*string)) && *string != '.')
 		    || !strchr(string, '>')) {
 		    (*outc) ('$');
 		    (*outc) ('<');
@@ -273,18 +207,18 @@ tputs
 		}
 
 		number = 0;
-		while (isdigit(CharOf(*string))) {
+		while (isdigit(UChar(*string))) {
 		    number = number * 10 + (*string - '0');
 		    string++;
 		}
 		number *= 10;
 		if (*string == '.') {
 		    string++;
-		    if (isdigit(CharOf(*string))) {
+		    if (isdigit(UChar(*string))) {
 			number += (*string - '0');
 			string++;
 		    }
-		    while (isdigit(CharOf(*string)))
+		    while (isdigit(UChar(*string)))
 			string++;
 		}
 

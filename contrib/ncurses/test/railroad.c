@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2000 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2000-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,15 +29,13 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 2000
  *
- * $Id: railroad.c,v 1.5 2001/03/24 22:01:42 tom Exp $
+ * $Id: railroad.c,v 1.10 2002/04/06 20:45:22 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
 #include <test.priv.h>
 
-#include <termcap.h>
 #include <ctype.h>
-#include <signal.h>
 
 static char *wipeit;
 static char *moveit;
@@ -119,36 +117,38 @@ ShowSign(char *string)
 
     while (*string != 0) {
 	ch = *string;
-	if (moveit != 0) {
-	    for (first = length - 2; first >= (string - base); first--) {
-		if (first < length - 1) {
-		    tputs(tgoto(moveit, first + 1, height - 1), 1, outc);
-		    PutChar(' ');
+	if (ch != ' ') {
+	    if (moveit != 0) {
+		for (first = length - 2; first >= (string - base); first--) {
+		    if (first < length - 1) {
+			tputs(tgoto(moveit, first + 1, height - 1), 1, outc);
+			PutChar(' ');
+		    }
+		    tputs(tgoto(moveit, first, height - 1), 1, outc);
+		    PutChar(ch);
 		}
-		tputs(tgoto(moveit, first, height - 1), 1, outc);
-		PutChar(ch);
-	    }
-	} else {
-	    last = ch;
-	    if (isalpha(ch)) {
-		first = isupper(ch) ? 'A' : 'a';
-	    } else if (isdigit(ch)) {
-		first = '0';
 	    } else {
-		first = ch;
-	    }
-	    if (first < last) {
-		Underline(1);
-		while (first < last) {
-		    PutChar(first);
-		    Backup();
-		    first++;
+		last = ch;
+		if (isalpha(ch)) {
+		    first = isupper(ch) ? 'A' : 'a';
+		} else if (isdigit(ch)) {
+		    first = '0';
+		} else {
+		    first = ch;
 		}
-		Underline(0);
+		if (first < last) {
+		    Underline(1);
+		    while (first < last) {
+			PutChar(first);
+			Backup();
+			first++;
+		    }
+		    Underline(0);
+		}
 	    }
+	    if (moveit != 0)
+		Backup();
 	}
-	if (moveit != 0)
-	    Backup();
 	StandOut(1);
 	PutChar(ch);
 	StandOut(0);
@@ -173,7 +173,7 @@ onsig(int n GCC_UNUSED)
 {
     interrupted = TRUE;
     cleanup();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static void
@@ -238,5 +238,5 @@ main(int argc, char *argv[])
 	{world, 0};
 	railroad(hello);
     }
-    return EXIT_SUCCESS;
+    ExitProgram(EXIT_SUCCESS);
 }

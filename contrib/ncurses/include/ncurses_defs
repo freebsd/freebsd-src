@@ -1,6 +1,6 @@
-# $Id: ncurses_defs,v 1.7 2001/04/07 22:53:10 tom Exp $
+# $Id: ncurses_defs,v 1.14 2002/05/11 19:18:32 tom Exp $
 ##############################################################################
-# Copyright (c) 2000 Free Software Foundation, Inc.                          #
+# Copyright (c) 2000-2001,2002 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -37,6 +37,8 @@ CC_HAS_INLINE_FUNCS
 CC_HAS_PROTOS
 CPP_HAS_PARAM_INIT
 CPP_HAS_VSCAN_FUNC
+CURSES_ACS_ARRAY	acs_map
+CURSES_WACS_ARRAY	_nc_wacs
 DECL_ERRNO
 ETIP_NEEDS_MATH_H
 GCC_NORETURN	/* nothing */
@@ -51,6 +53,7 @@ HAVE_FORM_H
 HAVE_GETCWD
 HAVE_GETEGID
 HAVE_GETEUID
+HAVE_GETNSTR
 HAVE_GETOPT_H
 HAVE_GETTIMEOFDAY
 HAVE_GETTTYNAM
@@ -109,6 +112,7 @@ HAVE_TERMIO_H
 HAVE_TIMES
 HAVE_TTYENT_H
 HAVE_TYPEINFO
+HAVE_TYPE_ATTR_T
 HAVE_TYPE_SIGACTION
 HAVE_UNISTD_H
 HAVE_UNLINK
@@ -118,11 +122,13 @@ HAVE_VSNPRINTF
 HAVE_VSSCANF
 HAVE_WORKING_POLL
 HAVE_WRESIZE
+HAVE__DOSCAN
 MIXEDCASE_FILENAMES
 NCURSES_EXPANDED
 NCURSES_EXT_FUNCS
 NCURSES_NOMACROS
 NCURSES_NO_PADDING
+NCURSES_PATHSEP	':'
 NDEBUG
 NEED_PTEM_H
 NO_LEAKS
@@ -133,6 +139,8 @@ SVR4_ACTION
 SVR4_TERMIO
 SYSTEM_NAME	"unknown"
 TERMINFO	"none"
+TERMPATH	"none"
+TIME_WITH_SYS_TIME
 TYPEOF_CHTYPE
 USE_COLORFGBG
 USE_DATABASE
@@ -149,6 +157,8 @@ USE_SCROLL_HINTS
 USE_SIGWINCH
 USE_STDIO_VSCAN
 USE_STRSTREAM_VSCAN
+USE_STRSTREAM_VSCAN_CAST
 USE_SYMLINKS
+USE_TERMCAP
 USE_WIDEC_SUPPORT
 USE_XMC_SUPPORT

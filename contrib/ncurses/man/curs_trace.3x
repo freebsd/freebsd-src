@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2000 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2000,2002 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_trace.3x,v 1.3 2000/07/29 16:34:24 tom Exp $
+.\" $Id: curs_trace.3x,v 1.5 2002/02/16 22:39:52 tom Exp $
 .TH curs_trace 3X ""
 .SH NAME
 \fB_tracef\fR,
@@ -131,7 +131,6 @@ maximum trace level, enables all of the separate trace features.
 Some tracing features are enabled whenever the \fBtrace\fR parameter
 is nonzero.  Some features overlap.
 The specific names are used as a guideline.
-..
 .SH RETURN VALUE
 Routines which return a value are designed to be used as parameters
 to the \fB_tracef\fR routine.

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_bkgd.3x,v 1.14 2000/07/01 17:39:31 tom Exp $
+.\" $Id: curs_bkgd.3x,v 1.16 2002/02/16 22:38:32 tom Exp $
 .TH curs_bkgd 3X ""
 .SH NAME
 \fBbkgdset\fR, \fBwbkgdset\fR,
 \fBbkgd\fR, \fBwbkgd\fR,
 \fBgetbkgd\fR - \fBcurses\fR window background manipulation routines
-..
+
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
@@ -46,7 +46,6 @@
 .br
 \fBchtype getbkgd(WINDOW *win);\fR
 .br
-..
 .SH DESCRIPTION
 The \fBbkgdset\fR and \fBwbkgdset\fR routines manipulate the
 background of the named window.
@@ -77,21 +76,17 @@ appears, it is changed to the new background character.
 
 The \fBgetbkgd\fR function returns the given window's current background
 character/attribute pair.
-..
 .SH RETURN VALUE
 The routines \fBbkgd\fR and \fBwbkgd\fR return the integer \fBOK\fR.
 The SVr4.0 manual says "or a non-negative integer if \fBimmedok\fR is set",
 but this appears to be an error.
-..
 .SH NOTES
 Note that \fBbkgdset\fR and \fBbkgd\fR may be macros.
-..
 .SH PORTABILITY
 These functions are described in the XSI Curses standard, Issue 4.  The draft
 does not include \fBconst\fR qualifiers on the arguments.  The standard
 specifies that \fBbkgd\fR and \fBwbkgd\fR return \fBERR\fR, on failure. but
 gives no failure conditions.
-..
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_addch\fR(3X), \fBcurs_outopts\fR(3X)
 .\"#

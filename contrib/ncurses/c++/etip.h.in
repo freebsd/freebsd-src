@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: etip.h.in,v 1.18 2001/04/07 22:45:04 tom Exp $
+// $Id: etip.h.in,v 1.22 2001/12/08 21:26:49 tom Exp $
 
 #ifndef NCURSES_ETIP_H_incl
 #define NCURSES_ETIP_H_incl 1
@@ -73,12 +73,12 @@
 #define CPP_HAS_PARAM_INIT 0
 #endif
 
-#ifndef USE_STDIO_VSCAN
-#define USE_STDIO_VSCAN 0
-#endif
-
 #ifndef USE_STRSTREAM_VSCAN
 #define USE_STRSTREAM_VSCAN 0
+#endif
+
+#ifndef USE_STRSTREAM_VSCAN_CAST
+#define USE_STRSTREAM_VSCAN_CAST 0
 #endif
 
 #ifdef __GNUG__
@@ -274,7 +274,11 @@ inline void THROW(const NCursesException *e) {
       throw *e;
 #endif
 #elif defined(__SUNPRO_CC)
+#  if !defined(__SUNPRO_CC_COMPAT) || (__SUNPRO_CC_COMPAT < 5)
   genericerror(1, ((e != 0) ? (char *)(e->message) : ""));
+#else
+  throw *e;
+#endif
 #else
   if (e)
     cerr << e->message << endl;

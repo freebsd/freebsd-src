@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1999-2000,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,57 +26,65 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.14 2000/12/03 00:07:23 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.15 2002/05/11 21:19:29 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .SH NAME
-\fBsetupterm\fR,
-\fBsetterm\fR,
-\fBset_curterm\fR,
 \fBdel_curterm\fR,
-\fBrestartterm\fR,
-\fBtparm\fR,
-\fBtputs\fR,
-\fBputp\fR,
-\fBvidputs\fR,
-\fBvidattr\fR,
 \fBmvcur\fR,
+\fBputp\fR,
+\fBrestartterm\fR,
+\fBset_curterm\fR,
+\fBsetterm\fR,
+\fBsetupterm\fR,
 \fBtigetflag\fR,
 \fBtigetnum\fR,
-\fBtigetstr\fR - \fBcurses\fR interfaces to terminfo database
+\fBtigetstr\fR,
+\fBtparm\fR,
+\fBtputs\fR,
+\fBvid_attr\fR,
+\fBvid_puts\fR,
+\fBvidattr\fR,
+\fBvidputs\fR - \fBcurses\fR interfaces to terminfo database
 .SH SYNOPSIS
+.nf
 \fB#include <curses.h>\fR
 .br
 \fB#include <term.h>\fR
 
-\fBint setupterm(const char *term, int fildes, int *errret);\fR
+\fBint setupterm(const char *\fR\fIterm\fR\fB, int \fR\fIfildes\fR\fB, int *\fR\fIerrret\fR\fB);\fR
 .br
-\fBint setterm(const char *term);\fR
+\fBint setterm(const char *\fR\fIterm\fR\fB);\fR
 .br
-\fBTERMINAL *set_curterm(TERMINAL *nterm);\fR
+\fBTERMINAL *set_curterm(TERMINAL *\fR\fInterm\fR\fB);\fR
 .br
-\fBint del_curterm(TERMINAL *oterm);\fR
+\fBint del_curterm(TERMINAL *\fR\fIoterm\fR\fB);\fR
 .br
-\fBint restartterm(const char *term, int fildes, int *errret);\fR
+\fBint restartterm(const char *\fR\fIterm\fR\fB, int \fR\fIfildes\fR\fB, int *\fR\fIerrret\fR\fB);\fR
 .br
-\fBchar *tparm(const char *str, ...);\fR
+\fBchar *tparm(const char *\fR\fIstr\fR\fB, ...);\fR
 .br
-\fBint tputs(const char *str, int affcnt, int (*putc)(int));\fR
+\fBint tputs(const char *\fR\fIstr\fR\fB, int \fR\fIaffcnt\fR\fB, int (*\fR\fIputc\fR\fB)(int));\fR
 .br
-\fBint putp(const char *str);\fR
+\fBint putp(const char *\fR\fIstr\fR\fB);\fR
 .br
-\fBint vidputs(chtype attrs, int (*putc)(char));\fR
+\fBint vidputs(chtype \fR\fIattrs\fR\fB, int (*\fR\fIputc\fR\fB)(char));\fR
 .br
-\fBint vidattr(chtype attrs);\fR
+\fBint vidattr(chtype \fR\fIattrs\fR\fB);\fR
 .br
-\fBint mvcur(int oldrow, int oldcol, int newrow, int newcol);\fR
+\fBint vid_puts(attr_t \fR\fIattrs\fR\fB, short \fR\fIpair\fR\fB, void *\fR\fIopts\fR\fB, int (*\fR\fIputc\fR\fB)(char));\fR
 .br
-\fBint tigetflag(const char *capname);\fR
+\fBint vid_attr(attr_t \fR\fIattrs\fR\fB, short \fR\fIpair\fR\fB, void *\fR\fIopts\fR\fB);\fR
 .br
-\fBint tigetnum(const char *capname);\fR
+\fBint mvcur(int \fR\fIoldrow\fR\fB, int \fR\fIoldcol\fR\fB, int \fR\fInewrow\fR, int \fR\fInewcol\fR\fB);\fR
 .br
-\fBchar *tigetstr(const char *capname);\fR
+\fBint tigetflag(const char *\fR\fIcapname\fR\fB);\fR
 .br
+\fBint tigetnum(const char *\fR\fIcapname\fR\fB);\fR
+.br
+\fBchar *tigetstr(const char *\fR\fIcapname\fR\fB);\fR
+.br
+.fi
 .SH DESCRIPTION
 These low-level routines must be called by programs that have to deal
 directly with the \fBterminfo\fR database to handle certain terminal
@@ -195,6 +203,17 @@ the \fBputchar\fR-like routine \fIputc\fR.
 
 The \fBvidattr\fR routine is like the \fBvidputs\fR routine, except
 that it outputs through \fBputchar\fR.
+
+The \fBvid_attr\fR and \fBvid_puts\fR routines correspond to vidattr and vidputs,
+respectively.
+They use a set of arguments for representing the video attributes plus color,
+i.e.,
+one of type attr_t for the attributes and one of short for
+the color_pair number.
+The \fBvid_attr\fR and \fBvid_puts\fR routines
+are designed to use the attribute constants with the \fIWA_\fR prefix.
+The opts argument is reserved for future use.
+Currently, applications must provide a null pointer for that argument.
 
 The \fBmvcur\fR routine provides low-level cursor motion.  It takes
 effect immediately (rather than at the next refresh).

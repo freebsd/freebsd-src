@@ -1,10 +1,9 @@
 /*
- * $Id: firework.c,v 1.17 2000/09/02 18:41:12 tom Exp $
+ * $Id: firework.c,v 1.20 2002/03/23 21:41:42 tom Exp $
  */
-#include <test.priv.h>
-
-#include <signal.h>
 #include <time.h>
+
+#include <test.priv.h>
 
 static int my_bg = COLOR_BLACK;
 
@@ -19,7 +18,7 @@ static RETSIGTYPE
 onsig(int n GCC_UNUSED)
 {
     cleanup();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static void
@@ -35,7 +34,7 @@ showit(void)
 #endif
 	if (ch == 'q') {
 	    cleanup();
-	    exit(EXIT_SUCCESS);
+	    ExitProgram(EXIT_SUCCESS);
 	} else if (ch == 's') {
 	    nodelay(stdscr, FALSE);
 	} else if (ch == ' ') {
@@ -114,8 +113,8 @@ explode(int row, int col)
 
 int
 main(
-    int argc GCC_UNUSED,
-    char *argv[]GCC_UNUSED)
+	int argc GCC_UNUSED,
+	char *argv[]GCC_UNUSED)
 {
     int j;
     int start, end, row, diff, flag = 0, direction;
@@ -154,7 +153,7 @@ main(
 	attrset(A_NORMAL);
 	for (row = 0; row < diff; row++) {
 	    mvprintw(LINES - row, start + (row * direction),
-		(direction < 0) ? "\\" : "/");
+		     (direction < 0) ? "\\" : "/");
 	    if (flag++) {
 		showit();
 		erase();

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.64 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.68 2001/12/08 22:14:18 tom Exp $")
 
 /****************************************************************************
  *
@@ -97,18 +97,17 @@ static void do_prototype(void);
 NCURSES_EXPORT(void)
 use_env(bool f)
 {
+    T((T_CALLED("use_env()")));
     _use_env = f;
+    returnVoid;
 }
 
-NCURSES_EXPORT_VAR(int)
-LINES = 0;
-NCURSES_EXPORT_VAR(int)
-COLS = 0;
-NCURSES_EXPORT_VAR(int)
-TABSIZE = 0;
+NCURSES_EXPORT_VAR(int) LINES = 0;
+NCURSES_EXPORT_VAR(int) COLS = 0;
+NCURSES_EXPORT_VAR(int) TABSIZE = 0;
 
-     static void
-       _nc_get_screensize(int *linep, int *colp)
+static void
+_nc_get_screensize(int *linep, int *colp)
 /* Obtain lines/columns values from the environment and/or terminfo entry */
 {
     /* figure out the size of the screen */
@@ -178,8 +177,10 @@ TABSIZE = 0;
 	}
 
 	/* the ultimate fallback, assume fixed 24x80 size */
-	if (*linep <= 0 || *colp <= 0) {
+	if (*linep <= 0) {
 	    *linep = 24;
+	}
+	if (*colp <= 0) {
 	    *colp = 80;
 	}
 
@@ -235,7 +236,7 @@ _nc_update_screensize(void)
 					    exit(EXIT_FAILURE);\
 					}
 
-#if USE_DATABASE
+#if USE_DATABASE || USE_TERMCAP
 static int
 grab_entry(const char *const tn, TERMTYPE * const tp)
 /* return 1 if entry found, 0 if not found, -1 if database not accessible */
@@ -249,6 +250,7 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
     if (strchr(tn, '/'))
 	return 0;
 
+#if USE_DATABASE
     if ((status = _nc_read_entry(tn, filename, tp)) != 1) {
 
 #if !PURE_TERMINFO
@@ -262,6 +264,9 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
 #endif /* PURE_TERMINFO */
 
     }
+#else
+    status = _nc_read_termcap_entry(tn, tp);
+#endif
 
     /*
      * If we have an entry, force all of the cancelled strings to null
@@ -295,8 +300,7 @@ NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
  */
 
 NCURSES_EXPORT(int)
-setupterm
-(NCURSES_CONST char *tname, int Filedes, int *errret)
+setupterm(NCURSES_CONST char *tname, int Filedes, int *errret)
 {
     struct term *term_ptr;
     int status;
@@ -321,7 +325,7 @@ setupterm
     if (term_ptr == 0) {
 	ret_error0(-1, "Not enough memory to create terminal structure.\n");
     }
-#if USE_DATABASE
+#if USE_DATABASE || USE_TERMCAP
     status = grab_entry(tname, &term_ptr->type);
 #else
     status = 0;

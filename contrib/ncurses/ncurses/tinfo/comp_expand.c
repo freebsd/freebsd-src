@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.15 2000/12/10 01:30:10 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.17 2001/09/22 19:16:52 tom Exp $")
 
 static int
 trailing_spaces(const char *src)
@@ -46,9 +46,8 @@ trailing_spaces(const char *src)
 }
 
 /* this deals with differences over whether 0x7f and 0x80..0x9f are controls */
-#define CHAR_OF(s) (*(unsigned const char *)(s))
-#define REALCTL(s) (CHAR_OF(s) < 127 && iscntrl(CHAR_OF(s)))
-#define REALPRINT(s) (CHAR_OF(s) < 127 && isprint(CHAR_OF(s)))
+#define REALCTL(s) (UChar(*(s)) < 127 && iscntrl(UChar(*(s))))
+#define REALPRINT(s) (UChar(*(s)) < 127 && isprint(UChar(*(s))))
 
 NCURSES_EXPORT(char *)
 _nc_tic_expand
@@ -69,7 +68,7 @@ _nc_tic_expand
     }
 
     bufp = 0;
-    while ((ch = CharOf(*str)) != 0) {
+    while ((ch = UChar(*str)) != 0) {
 	if (ch == '%' && REALPRINT(str + 1)) {
 	    buffer[bufp++] = *str++;
 	    /*
@@ -99,7 +98,7 @@ _nc_tic_expand
 		 */
 	    case 1:
 		if (str[0] == L_BRACE
-		    && isdigit(CharOf(str[1]))) {
+		    && isdigit(UChar(str[1]))) {
 		    char *dst = 0;
 		    long value = strtol(str + 1, &dst, 0);
 		    if (dst != 0
@@ -169,7 +168,7 @@ _nc_tic_expand
 	}
 #define UnCtl(c) ((c) + '@')
 	else if (REALCTL(str) && ch != '\\'
-		 && (!islong || isdigit(CharOf(str[1])))) {
+		 && (!islong || isdigit(UChar(str[1])))) {
 	    (void) sprintf(&buffer[bufp], "^%c", UnCtl(ch));
 	    bufp += 2;
 	} else {

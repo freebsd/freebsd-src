@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #ifndef NCURSES_CURSESP_H_incl
 #define NCURSES_CURSESP_H_incl 1
 
-// $Id: cursesp.h,v 1.14 2001/03/24 21:41:35 tom Exp $
+// $Id: cursesp.h,v 1.15 2001/07/14 20:56:18 juergen Exp $
 
 #include <cursesw.h>
 
@@ -78,6 +78,9 @@ protected:
   }
   // If err is equal to the curses error indicator ERR, an error handler
   // is called.
+
+  // Get a keystroke. Default implementation calls getch()
+  virtual int getKey(void);
 
 public:
   NCursesPanel(int lines,

@@ -47,14 +47,14 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.35 2001/01/13 22:40:17 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.36 2001/09/22 21:10:26 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
 
 #define MAX_STRTAB	4096	/* documented maximum entry size */
 
-static char stringbuf[MAX_STRTAB];	/* buffer for string capabilities */
+static char *stringbuf;		/* buffer for string capabilities */
 static size_t next_free;	/* next free character in stringbuf */
 
 NCURSES_EXPORT(void)
@@ -62,6 +62,9 @@ _nc_init_entry(TERMTYPE * const tp)
 /* initialize a terminal type data block */
 {
     int i;
+
+    if (stringbuf == 0)
+	stringbuf = malloc(MAX_STRTAB);
 
 #if NCURSES_XNAMES
     tp->num_Booleans = BOOLCOUNT;

@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border.3x,v 1.14 2000/07/01 19:54:58 tom Exp $
+.\" $Id: curs_border.3x,v 1.15 2002/02/16 22:21:47 tom Exp $
 .TH curs_border 3X ""
 .SH NAME
 \fBborder\fR, \fBwborder\fR, \fBbox\fR,
@@ -63,15 +63,45 @@
 \fBint mvwvline(WINDOW *, int y, int x, chtype ch, int n);\fR
 .br
 .SH DESCRIPTION
-The \fBborder\fR, \fBwborder\fR and \fBbox\fR routines draw a box around the
-edges of a window.  The argument \fIls\fR is a character and attributes used
-for the left side of the border, \fIrs\fR - right side, \fIts\fR - top side,
-\fIbs\fR - bottom side, \fItl\fR - top left-hand corner, \fItr\fR - top
-right-hand corner, \fIbl\fR - bottom left-hand corner, and \fIbr\fR - bottom
-right-hand corner.  If any of these arguments is zero, then the following
-default values (defined in \fBcurses.h\fR) are used instead: \fBACS_VLINE\fR,
-\fBACS_VLINE\fR, \fBACS_HLINE\fR, \fBACS_HLINE\fR, \fB\fBACS_ULCORNER\fR,
-\fBACS_URCORNER\fR, \fBACS_LLCORNER\fR, \fBACS_LRCORNER\fR.
+The \fBborder\fR, \fBwborder\fR and \fBbox\fR routines
+draw a box around the edges of a window.
+Other than the window, each argument is a character with attributes:
+.RS
+\fIls\fR - left side,
+.br
+\fIrs\fR - right side,
+.br
+\fIts\fR - top side,
+.br
+\fIbs\fR - bottom side,
+.br
+\fItl\fR - top left-hand corner,
+.br
+\fItr\fR - top right-hand corner,
+.br
+\fIbl\fR - bottom left-hand corner, and
+.br
+\fIbr\fR - bottom right-hand corner.
+.RE
+If any of these arguments is zero, then the corresponding
+default values (defined in \fBcurses.h\fR) are used instead:
+.RS
+\fBACS_VLINE\fR,
+.br
+\fBACS_VLINE\fR,
+.br
+\fBACS_HLINE\fR,
+.br
+\fBACS_HLINE\fR,
+.br
+\fBACS_ULCORNER\fR,
+.br
+\fBACS_URCORNER\fR,
+.br
+\fBACS_LLCORNER\fR,
+.br
+\fBACS_LRCORNER\fR.
+.RE
 
 \fBbox(\fR\fIwin\fR\fB, \fR\fIverch\fR\fB, \fR\fIhorch\fR\fB)\fR is a shorthand
 for the following call: \fBwborder(\fR\fIwin\fR\fB,\fR \fIverch\fR\fB,\fR
@@ -95,11 +125,9 @@ is also true of SVr4 curses, though the fact is not documented).
 
 Note that \fBborder\fR and \fBbox\fR may be macros.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  Additional
-functions \fBmvhline\fR, \fBmvvline\fR, \fBmvwhline\fR, and \fBmvwvline\fR are
-described there which this implementation does not yet support.  The standard
-specifies that they return \fBERR\fR on failure, but specifies no error
-conditions.
+These functions are described in the XSI Curses standard, Issue 4.
+The standard specifies that they return \fBERR\fR on failure,
+but specifies no error conditions.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_outopts\fR(3X).
 .\"#

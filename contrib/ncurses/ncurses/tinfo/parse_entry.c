@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.53 2001/03/03 21:13:09 Todd.C.Miller Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.55 2002/04/22 00:01:30 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -243,7 +243,7 @@ _nc_parse_entry
 			(base == entryp->tterm.term_names)
 			? "primary name"
 			: "alias",
-			ptr - base, base);
+			(int) (ptr - base), base);
 	}
     }
 
@@ -482,7 +482,7 @@ _nc_capcmp(const char *s, const char *t)
     for (;;) {
 	if (s[0] == '$' && s[1] == '<') {
 	    for (s += 2;; s++)
-		if (!(isdigit(CharOf(*s))
+		if (!(isdigit(UChar(*s))
 		      || *s == '.'
 		      || *s == '*'
 		      || *s == '/'
@@ -492,7 +492,7 @@ _nc_capcmp(const char *s, const char *t)
 
 	if (t[0] == '$' && t[1] == '<') {
 	    for (t += 2;; t++)
-		if (!(isdigit(CharOf(*t))
+		if (!(isdigit(UChar(*t))
 		      || *t == '.'
 		      || *t == '*'
 		      || *t == '/'

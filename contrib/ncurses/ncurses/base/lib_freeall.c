@@ -39,7 +39,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.18 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.19 2001/09/15 21:32:48 tom Exp $")
 
 static void
 free_slk(SLK * p)
@@ -85,15 +85,15 @@ _nc_freeall(void)
 
 		for (q = _nc_windows; q != 0; q = q->next) {
 		    if ((p != q)
-			&& (q->win->_flags & _SUBWIN)
-			&& (p->win == q->win->_parent)) {
+			&& (q->win._flags & _SUBWIN)
+			&& (&(p->win) == q->win._parent)) {
 			found = TRUE;
 			break;
 		    }
 		}
 
 		if (!found) {
-		    delwin(p->win);
+		    delwin(&(p->win));
 		    break;
 		}
 	    }
@@ -104,6 +104,9 @@ _nc_freeall(void)
 	free_slk(SP->_slk);
 	FreeIfNeeded(SP->_color_pairs);
 	FreeIfNeeded(SP->_color_table);
+	FreeIfNeeded(SP->oldhash);
+	FreeIfNeeded(SP->newhash);
+	FreeIfNeeded(SP->hashtab);
 #if !BROKEN_LINKER
 	FreeAndNull(SP);
 #endif

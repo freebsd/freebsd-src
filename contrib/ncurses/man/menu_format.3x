@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_format.3x,v 1.7 1998/11/29 01:09:39 Rick.Ohnemus Exp $
+.\" $Id: menu_format.3x,v 1.8 2001/08/04 20:36:19 William.Setzer Exp $
 .TH menu_format 3X ""
 .SH NAME
 \fBmenu_format\fR - set and get menu sizes
@@ -36,7 +36,7 @@
 .br
 int set_menu_format(MENU *menu, int rows, int cols);
 .br
-int menu_format(const MENU *menu, int *rows, int *cols);
+void menu_format(const MENU *menu, int *rows, int *cols);
 .br
 .SH DESCRIPTION
 The function \fBset_menu_format\fR sets the maximum display size of the given

@@ -2,14 +2,12 @@
  *  newdemo.c	-	A demo program using PDCurses. The program illustrate
  *  	 		the use of colours for text output.
  *
- * $Id: newdemo.c,v 1.18 2001/03/10 22:27:17 tom Exp $
+ * $Id: newdemo.c,v 1.23 2002/03/23 22:17:24 tom Exp $
  */
 
-#include <test.priv.h>
-
-#include <signal.h>
 #include <time.h>
-#include <string.h>
+
+#include <test.priv.h>
 
 #define delay_output(x) napms(x)
 
@@ -55,7 +53,7 @@ static RETSIGTYPE
 trap(int sig GCC_UNUSED)
 {
     endwin();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 /*
@@ -236,7 +234,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
     win = newwin(height, width, (LINES - height) / 2, (COLS - width) / 2);
     if (win == NULL) {
 	endwin();
-	return 1;
+	ExitProgram(EXIT_FAILURE);
     }
 
     while (1) {
@@ -354,5 +352,5 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    break;
     }
     endwin();
-    return 0;
+    ExitProgram(EXIT_SUCCESS);
 }

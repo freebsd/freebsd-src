@@ -34,12 +34,10 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.32 2000/12/31 01:54:07 tom Exp $
+  $Id: worm.c,v 1.36 2002/03/23 21:46:54 tom Exp $
 */
 
 #include <test.priv.h>
-
-#include <signal.h>
 
 static chtype flavor[] =
 {
@@ -165,7 +163,7 @@ static RETSIGTYPE
 onsig(int sig GCC_UNUSED)
 {
     cleanup();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static float
@@ -201,7 +199,7 @@ main(int argc, char *argv[])
 		goto usage;
 	    if ((length = atoi(argv[x])) < 2 || length > 1024) {
 		fprintf(stderr, "%s: Invalid length\n", *argv);
-		return EXIT_FAILURE;
+		ExitProgram(EXIT_FAILURE);
 	    }
 	    break;
 	case 'n':
@@ -209,7 +207,7 @@ main(int argc, char *argv[])
 		goto usage;
 	    if ((number = atoi(argv[x])) < 1 || number > 40) {
 		fprintf(stderr, "%s: Invalid number of worms\n", *argv);
-		return EXIT_FAILURE;
+		ExitProgram(EXIT_FAILURE);
 	    }
 	    break;
 	case 't':
@@ -230,8 +228,8 @@ main(int argc, char *argv[])
 	default:
 	  usage:
 	    fprintf(stderr,
-		"usage: %s [-field] [-length #] [-number #] [-trail]\n", *argv);
-	    return EXIT_FAILURE;
+		    "usage: %s [-field] [-length #] [-number #] [-trail]\n", *argv);
+	    ExitProgram(EXIT_FAILURE);
 	}
     }
 
@@ -286,14 +284,14 @@ main(int argc, char *argv[])
 	w->orientation = w->head = 0;
 	if (!(ip = typeMalloc(short, (length + 1)))) {
 	    fprintf(stderr, "%s: out of memory\n", *argv);
-	    return EXIT_FAILURE;
+	    ExitProgram(EXIT_FAILURE);
 	}
 	w->xpos = ip;
 	for (x = length; --x >= 0;)
 	    *ip++ = -1;
 	if (!(ip = typeMalloc(short, (length + 1)))) {
 	    fprintf(stderr, "%s: out of memory\n", *argv);
-	    return EXIT_FAILURE;
+	    ExitProgram(EXIT_FAILURE);
 	}
 	w->ypos = ip;
 	for (y = length; --y >= 0;)
@@ -365,7 +363,7 @@ main(int argc, char *argv[])
 	     */
 	    if (ch == 'q') {
 		cleanup();
-		return (EXIT_SUCCESS);
+		ExitProgram(EXIT_SUCCESS);
 	    } else if (ch == 's') {
 		nodelay(stdscr, FALSE);
 	    } else if (ch == ' ') {
@@ -400,14 +398,14 @@ main(int argc, char *argv[])
 		}
 	    }
 	    op = &(x == 0 ? (y == 0 ? upleft : (y == bottom ? lowleft :
-			left)) :
-		(x == last ? (y == 0 ? upright : (y == bottom ? lowright :
-			    right)) :
+						left)) :
+		   (x == last ? (y == 0 ? upright : (y == bottom ? lowright :
+						     right)) :
 		    (y == 0 ? upper : (y == bottom ? lower : normal))))[w->orientation];
 	    switch (op->nopts) {
 	    case 0:
 		cleanup();
-		return EXIT_SUCCESS;
+		ExitProgram(EXIT_SUCCESS);
 	    case 1:
 		w->orientation = op->opts[0];
 		break;
