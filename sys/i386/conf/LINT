@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.52 1994/02/07 05:55:48 alm Exp $
+#	$Id: LINT,v 1.53 1994/02/09 05:35:57 nate Exp $
 #
 
 machine		"i386"
@@ -120,7 +120,6 @@ controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
 # driver for the Seagate ST01/ST02 card, not yet finished.
 #controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
-#dcfclk	device-driver
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
