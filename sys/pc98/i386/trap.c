@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.8 1996/10/23 07:25:03 asami Exp $
+ *	$Id: trap.c,v 1.8.2.1 1996/12/21 18:27:28 bde Exp $
  */
 
 /*
@@ -831,7 +831,7 @@ int trapwrite(addr)
 	unsigned addr;
 {
 	struct proc *p;
-	vm_offset_t va, v;
+	vm_offset_t va;
 	struct vmspace *vm;
 	int rv;
 
@@ -854,8 +854,6 @@ int trapwrite(addr)
 			return (1);
 		}
 	}
-
-	v = trunc_page(vtopte(va));
 
 	/*
 	 * fault the data page
