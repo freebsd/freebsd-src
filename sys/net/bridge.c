@@ -612,7 +612,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 {
     struct ifnet *src = m0->m_pkthdr.rcvif; /* could be NULL in output */
     struct ifnet *ifp, *last = NULL ;
-    int s ;
     int shared = bdg_copy ; /* someone else is using the mbuf */
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
