@@ -843,8 +843,8 @@ poll(p, uap)
 	struct proc *p;
 	struct poll_args *uap;
 {
-	caddr_t bits;
-	char smallbits[32 * sizeof(struct pollfd)];
+	struct pollfd *bits;
+	struct pollfd smallbits[32];
 	struct timeval atv, rtv, ttv;
 	int s, ncoll, error = 0, timo;
 	u_int nfds;
@@ -885,7 +885,7 @@ poll(p, uap)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	error = pollscan(p, (struct pollfd *)bits, nfds);
+	error = pollscan(p, bits, nfds);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
