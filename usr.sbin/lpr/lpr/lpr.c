@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.25 1998/09/11 18:49:33 wollman Exp $";
+	"$Id: lpr.c,v 1.26 1999/01/06 08:25:56 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -154,7 +154,7 @@ main(argc, argv)
 			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != -1)
 		switch (c) {
 		case '#':		/* n copies */
-			i = strtol(optarg, &p, 0);
+			i = strtol(optarg, &p, 10);
 			if (*p)
 				errx(1, "Bad argument to -#, number expected");
 			if (i > 0)
@@ -212,7 +212,7 @@ main(argc, argv)
 
 		case 'i':		/* indent output */
 			iflag++;
-			indent = strtol(optarg, &p, 0);
+			indent = strtol(optarg, &p, 10);
 			if (*p)
 				errx(1, "Bad argument to -i, number expected");
 			break;
