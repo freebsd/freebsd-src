@@ -432,14 +432,22 @@ struct ip_mreq {
 .Ed
 .Pp
 .Dv imr_interface
-should
-be
+should be set to
 .Dv INADDR_ANY
 to choose the default multicast interface,
 or the
 .Tn IP
 address of a particular multicast-capable interface if
 the host is multihomed.
+Since
+.Fx 4.4 ,
+if the
+.Dv imr_interface
+member is within the network range
+.Li 0.0.0.0/8 ,
+it is treated as an interface index in the system interface MIB,
+as per the RIP Version 2 MIB Extension (RFC-1724).
+.Pp
 Membership is associated with a single interface;
 programs running on multihomed hosts may need to
 join the same group on more than one interface.
