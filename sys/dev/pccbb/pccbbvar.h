@@ -38,8 +38,8 @@ struct intrhand {
 	STAILQ_ENTRY(intrhand) entries;
 };
 
-struct pccbb_reslist {
-	SLIST_ENTRY(pccbb_reslist) link;
+struct cbb_reslist {
+	SLIST_ENTRY(cbb_reslist) link;
 	struct	resource *res;
 	int	type;
 	int	rid;
@@ -50,9 +50,9 @@ struct pccbb_reslist {
 	bus_addr_t cardaddr; /* for 16-bit pccard memory */
 };
 
-#define	PCCBB_AUTO_OPEN_SMALLHOLE 0x100
+#define	CBB_AUTO_OPEN_SMALLHOLE 0x100
 
-struct pccbb_softc {
+struct cbb_softc {
 	device_t	dev;
 	struct exca_softc exca;
 	struct		resource *base_res;
@@ -65,10 +65,10 @@ struct pccbb_softc {
 	struct mtx	mtx;
 	struct cv	cv;
 	u_int32_t	flags;
-#define	PCCBB_KLUDGE_ALLOC	0x10000000
-#define	PCCBB_16BIT_CARD	0x20000000
-#define	PCCBB_KTHREAD_RUNNING	0x40000000
-#define	PCCBB_KTHREAD_DONE	0x80000000
+#define	CBB_KLUDGE_ALLOC	0x10000000
+#define	CBB_16BIT_CARD		0x20000000
+#define	CBB_KTHREAD_RUNNING	0x40000000
+#define	CBB_KTHREAD_DONE	0x80000000
 	int		chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
@@ -79,7 +79,7 @@ struct pccbb_softc {
 #define	CB_CIRRUS	6		/* Cirrus Logic CLPD683x */
 #define	CB_TOPIC95	7		/* Toshiba ToPIC95 */
 #define	CB_TOPIC97	8		/* Toshiba ToPIC97/100 */
-	SLIST_HEAD(, pccbb_reslist) rl;
+	SLIST_HEAD(, cbb_reslist) rl;
 
 	device_t	cbdev;
 	device_t	pccarddev;
