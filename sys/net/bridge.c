@@ -718,7 +718,6 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 */
 	ip = mtod(m, struct ip *);
 	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_id);
 	NTOHS(ip->ip_off);
 
 	/*
@@ -744,7 +743,6 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 * Then, if canfree==1, also restore *m0.
 	 */
 	HTONS(ip->ip_len);
-	HTONS(ip->ip_id);
 	HTONS(ip->ip_off);
 	if (canfree) /* m was a reference to *m0, so update *m0 */
 	    *m0 = m ;

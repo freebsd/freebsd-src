@@ -196,7 +196,6 @@ icmp_error(n, type, code, dest, destifp)
 	 * Convert fields to network representation.
 	 */
 	HTONS(nip->ip_len);
-	HTONS(nip->ip_id);
 	HTONS(nip->ip_off);
 
 	/*
