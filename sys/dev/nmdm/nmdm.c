@@ -34,8 +34,10 @@
  */
 
 /*
- * Pseudo-nulmodem Driver
+ * Pseudo-nulmodem driver
+ * Mighty handy for use with serial console in Vmware
  */
+
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,16 +56,17 @@
 
 MALLOC_DEFINE(M_NLMDM, "nullmodem", "nullmodem data structures");
 
-static void nmdmstart __P((struct tty *tp));
-static void nmdmstop __P((struct tty *tp, int rw));
-static void wakeup_other __P((struct tty *tp, int flag));
-static void nmdminit __P((int n));
+static void 	nmdmstart(struct tty *tp);
+static void 	nmdmstop(struct tty *tp, int rw);
+static void 	wakeup_other(struct tty *tp, int flag);
+static void 	nmdminit(int);
+static int 	nmdmshutdown(void);
 
-static	d_open_t	nmdmopen;
-static	d_close_t	nmdmclose;
-static	d_read_t	nmdmread;
-static	d_write_t	nmdmwrite;
-static	d_ioctl_t	nmdmioctl;
+static d_open_t		nmdmopen;
+static d_close_t	nmdmclose;
+static d_read_t		nmdmread;
+static d_write_t	nmdmwrite;
+static d_ioctl_t	nmdmioctl;
 
 #define	CDEV_MAJOR	18
 static struct cdevsw nmdm_cdevsw = {
@@ -82,10 +85,12 @@ static struct cdevsw nmdm_cdevsw = {
 	/* flags */	D_TTY,
 };
 
-#define BUFSIZ 100		/* Chunk size iomoved to/from user */
+#define BUFSIZ 		100		/* Chunk size iomoved to/from user */
+#define NMDM_MAX_NUM	128		/* Artificially limit # devices. */
+#define	PF_STOPPED	0x10		/* user told stopped */
 
 struct softpart {
-	struct tty nm_tty;
+	struct tty	nm_tty;
 	dev_t	dev;
 	int	modemsignals;	/* bits defined in sys/ttycom.h */
 	int	gotbreak;
@@ -96,8 +101,6 @@ struct	nm_softc {
 	struct softpart part1, part2;
 	struct	prison *pt_prison;
 };
-
-#define	PF_STOPPED	0x10		/* user told stopped */
 
 static void
 nmdm_crossover(struct nm_softc *pti,
@@ -150,12 +153,11 @@ nmdminit(n)
 	pt->part2.nm_tty.t_stop = nmdmstop;
 }
 
-/*ARGSUSED*/
+/*
+ * Device opened from userland
+ */
 static	int
-nmdmopen(dev, flag, devtype, td)
-	dev_t dev;
-	int flag, devtype;
-	struct thread *td;
+nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
 {
 	register struct tty *tp, *tp2;
 	int error;
@@ -175,11 +177,14 @@ nmdmopen(dev, flag, devtype, td)
 	pair = minr >> 1;
 	is_b = minr & 1;
 	
-	if (pair < 127) {
-		nextdev = makedev(major(dev), (pair+pair) + 1);
+	if (pair < (NMDM_MAX_NUM - 1)) {
+		nextdev = makedev(major(dev), minr + 2);
 		if (!nextdev->si_drv1) {
 			nmdminit(pair + 1);
 		}
+	} else { /* Limit ourselves to 128 of them for now */
+		if (pair > (NMDM_MAX_NUM - 1))
+			return (ENXIO);
 	}
 	if (!dev->si_drv1)
 		nmdminit(pair);
@@ -193,6 +198,7 @@ nmdmopen(dev, flag, devtype, td)
 	else 
 		tp = &pti->part1.nm_tty;
 	GETPARTS(tp, ourpart, otherpart);
+
 	tp2 = &otherpart->nm_tty;
 	ourpart->modemsignals |= TIOCM_LE;
 
@@ -254,11 +260,11 @@ nmdmopen(dev, flag, devtype, td)
 	return (error);
 }
 
+/*
+ * Device closed again
+ */
 static	int
-nmdmclose(dev, flag, mode, td)
-	dev_t dev;
-	int flag, mode;
-	struct thread *td;
+nmdmclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	register struct tty *tp, *tp2;
 	int err;
@@ -294,11 +300,11 @@ nmdmclose(dev, flag, mode, td)
 	return (err);
 }
 
+/*
+ * handle read(2) request from userland
+ */
 static	int
-nmdmread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+nmdmread(dev_t dev, struct uio *uio, int flag)
 {
 	int error = 0;
 	struct tty *tp, *tp2;
@@ -333,10 +339,7 @@ nmdmread(dev, uio, flag)
  * indirectly, when tty driver calls nmdmstart.
  */
 static	int
-nmdmwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+nmdmwrite(dev_t dev, struct uio *uio, int flag)
 {
 	register u_char *cp = 0;
 	register int cc = 0;
@@ -430,8 +433,7 @@ again:
  * Wake up process selecting or sleeping for input from controlling tty.
  */
 static void
-nmdmstart(tp)
-	struct tty *tp;
+nmdmstart(struct tty *tp)
 {
 	register struct nm_softc *pti = tp->t_dev->si_drv1;
 
@@ -443,9 +445,7 @@ nmdmstart(tp)
 
 /* Wakes up the OTHER tty;*/
 static void
-wakeup_other(tp, flag)
-	struct tty *tp;
-	int flag;
+wakeup_other(struct tty *tp, int flag)
 {
 	struct softpart *ourpart, *otherpart;
 
@@ -460,10 +460,11 @@ wakeup_other(tp, flag)
 	}
 }
 
+/*
+ * stopped output on tty, called when device is closed
+ */
 static	void
-nmdmstop(tp, flush)
-	register struct tty *tp;
-	int flush;
+nmdmstop(register struct tty *tp, int flush)
 {
 	struct nm_softc *pti = tp->t_dev->si_drv1;
 	int flag;
@@ -483,14 +484,11 @@ nmdmstop(tp, flush)
 	wakeup_other(tp, flag);
 }
 
-/*ARGSUSED*/
+/*
+ * handle ioctl(2) request from userland
+ */
 static	int
-nmdmioctl(dev, cmd, data, flag, td)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct thread *td;
+nmdmioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	register struct tty *tp = dev->si_tty;
 	struct nm_softc *pti = dev->si_drv1;
@@ -538,6 +536,7 @@ nmdmioctl(dev, cmd, data, flag, td)
 			*(int *)data = 0;
 			break;
 		case TIOCTIMESTAMP:
+			/* FALLTHROUGH */
 		case TIOCDCDTIMESTAMP:
 		default:
 			splx(s);
@@ -552,9 +551,8 @@ nmdmioctl(dev, cmd, data, flag, td)
 }
 
 static void
-nmdm_crossover(struct nm_softc *pti,
-		struct softpart *ourpart,
-		struct softpart *otherpart)
+nmdm_crossover(struct nm_softc *pti, struct softpart *ourpart,
+    struct softpart *otherpart)
 {
 	otherpart->modemsignals &= ~(TIOCM_CTS|TIOCM_CAR);
 	if (ourpart->modemsignals & TIOCM_RTS)
@@ -563,17 +561,58 @@ nmdm_crossover(struct nm_softc *pti,
 		otherpart->modemsignals |= TIOCM_CAR;
 }
 
-
-
-static void nmdm_drvinit __P((void *unused));
-
-static void
-nmdm_drvinit(unused)
-	void *unused;
+/*
+ * Module handling
+ */
+static int
+nmdm_modevent(module_t mod, int type, void *data)
 {
-	/* XXX: Gross hack for DEVFS */
-	/* XXX: Yes, very gross.  Should be a _clone methind instead */
-	nmdminit(0);
+        int error = 0;
+
+        switch(type) {
+        case MOD_LOAD: /* start with 4 of them */
+		nmdminit(0);
+		nmdminit(1);
+		nmdminit(2);
+		nmdminit(3);
+		break;
+
+	case MOD_SHUTDOWN:
+		/* FALLTHROUGH */
+	case MOD_UNLOAD:
+		nmdmshutdown();
+		break;
+	default:
+		error = EOPNOTSUPP;
+	}
+	return (error);
 }
 
-SYSINIT(nmdmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,nmdm_drvinit,NULL)
+/*
+ * Handle teardown of device
+ */
+static int
+nmdmshutdown(void)
+{
+	int i;
+	dev_t	nextdev1;
+	dev_t	nextdev2;
+	void * ptr1;
+
+	for(i = 0;( i < NMDM_MAX_NUM) ;i++) {
+		nextdev1 = makedev(CDEV_MAJOR, (i+i) );
+		nextdev2 = makedev(CDEV_MAJOR, (i+i) + 1);
+		ptr1 = nextdev1->si_drv1;
+		if (ptr1) {
+			revoke_and_destroy_dev(nextdev1);
+			revoke_and_destroy_dev(nextdev2);
+			free(ptr1, M_NLMDM);
+		} else {
+			freedev(nextdev1);
+			freedev(nextdev2);
+		}
+	}
+	return(0);
+}
+
+DEV_MODULE(nmdm, nmdm_modevent, NULL);
