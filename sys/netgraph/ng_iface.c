@@ -143,15 +143,6 @@ static iffam_p	get_iffam_from_hook(priv_p priv, hook_p hook);
 static iffam_p	get_iffam_from_name(const char *name);
 static hook_p  *get_hook_from_iffam(priv_p priv, iffam_p iffam);
 
-/* Parse type for struct ng_iface_ifname */
-static const struct ng_parse_fixedstring_info ng_iface_ifname_info = {
-	NG_IFACE_IFACE_NAME_MAX + 1
-};
-static const struct ng_parse_type ng_iface_ifname_type = {
-	&ng_parse_fixedstring_type,
-	&ng_iface_ifname_info
-};
-
 /* Parse type for struct ng_cisco_ipaddr */
 static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
 	= NG_CISCO_IPADDR_TYPE_INFO;
@@ -167,7 +158,7 @@ static const struct ng_cmdlist ng_iface_cmds[] = {
 	  NGM_IFACE_GET_IFNAME,
 	  "getifname",
 	  NULL,
-	  &ng_iface_ifname_type
+	  &ng_parse_string_type
 	},
 	{
 	  NGM_IFACE_COOKIE,
@@ -553,7 +544,6 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_iface_constructor(node_p node)
 {
-	char ifname[NG_IFACE_IFACE_NAME_MAX + 1];
 	struct ifnet *ifp;
 	priv_p priv;
 	int error = 0;
@@ -599,10 +589,9 @@ ng_iface_constructor(node_p node)
 	TAILQ_INIT(&ifp->if_addrhead);
 
 	/* Give this node the same name as the interface (if possible) */
-	bzero(ifname, sizeof(ifname));
-	strlcpy(ifname, ifp->if_xname, sizeof(ifname));
-	if (ng_name_node(node, ifname) != 0)
-		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
+	if (ng_name_node(node, ifp->if_xname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    ifp->if_xname);
 
 	/* Attach the interface */
 	if_attach(ifp);
@@ -647,19 +636,13 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_IFACE_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_IFACE_GET_IFNAME:
-		    {
-			struct ng_iface_ifname *arg;
-
-			NG_MKRESPONSE(resp, msg, sizeof(*arg), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			arg = (struct ng_iface_ifname *)resp->data;
-			strlcpy(arg->ngif_name, ifp->if_xname,
-			    sizeof(arg->ngif_name));
+			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ);
 			break;
-		    }
 
 		case NGM_IFACE_POINT2POINT:
 		case NGM_IFACE_BROADCAST:
