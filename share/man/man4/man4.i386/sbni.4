@@ -30,7 +30,8 @@
 .Nm sbni
 .Nd Granch SBNI12 leased line modem driver
 .Sh SYNOPSIS
-.Cd "device sbni"
+.Cd "device sbni0 at isa? port 0x210 irq 5"
+.Cd "device sbni1 at isa? port 0x2c0 irq 11 flags 0xe9123456"
 .Sh DESCRIPTION
 The
 .Nm sbni
@@ -71,6 +72,15 @@ is a bit field, it's used to specify SBNI adapter receive level/baud rate:
 	Bit 7   : use fixed baud rate
 		  if bit 7 is set then baud rate will be set according to
 		  bits 4-5 value, otherwise baud rate is set to 2Mb
+
+E.g.:
+device sbni0 at isa? port 0x210 irq 5 flags 0xefdead
+	- baud rate 2 Mb (default), receive level autodetected,
+	  MAC address will be 00:ff:01:ef:de:ad
+
+device sbni1 at isa? port 0x214 irq 7 flags 0xd6abcdef
+	- baud rate 1 Mb, receive level 0x06 (fixed),
+	  MAC address 00:ff:01:ab:cd:ef
 .Sh FILES
 The sources for the driver reside in:
 .Pp
