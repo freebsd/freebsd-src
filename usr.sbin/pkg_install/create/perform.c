@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.32 1996/07/30 10:48:12 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.32.2.1 1997/06/06 12:18:49 jkh Exp $";
 #endif
 
 /*
@@ -111,6 +111,7 @@ pkg_perform(char **pkgs)
      * hack.  It's not a real create in progress.
      */
     if (PlistOnly) {
+	check_list(home, &plist);
 	write_plist(&plist, stdout);
 	exit(0);
     }
