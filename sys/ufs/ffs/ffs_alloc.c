@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.3 1994/08/02 07:54:17 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.4 1994/09/20 05:53:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -101,8 +101,8 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	fs = ip->i_fs;
 #ifdef DIAGNOSTIC
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
-		printf("dev = 0x%x, bsize = %d, size = %d, fs = %s\n",
-		    ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
+		printf("dev = 0x%lx, bsize = %ld, size = %d, fs = %s\n",
+		    (u_long)ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
 		panic("ffs_alloc: bad size");
 	}
 	if (cred == NOCRED)
@@ -113,7 +113,8 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	if (cred->cr_uid != 0 && freespace(fs, fs->fs_minfree) <= 0)
 		goto nospace;
 #ifdef QUOTA
-	if (error = chkdq(ip, (long)btodb(size), cred, 0))
+	error = chkdq(ip, (long)btodb(size), cred, 0);
+	if (error)
 		return (error);
 #endif
 	if (bpref >= fs->fs_size)
@@ -170,8 +171,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
 		printf(
-		    "dev = 0x%x, bsize = %d, osize = %d, nsize = %d, fs = %s\n",
-		    ip->i_dev, fs->fs_bsize, osize, nsize, fs->fs_fsmnt);
+		    "dev = 0x%lx, bsize = %d, osize = %d, nsize = %d, fs = %s\n",
+		    (u_long)ip->i_dev, fs->fs_bsize, osize, nsize, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad size");
 	}
 	if (cred == NOCRED)
@@ -187,12 +188,14 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	/*
 	 * Allocate the extra space in the buffer.
 	 */
-	if (error = bread(ITOV(ip), lbprev, osize, NOCRED, &bp)) {
+	error = bread(ITOV(ip), lbprev, osize, NOCRED, &bp);
+	if (error) {
 		brelse(bp);
 		return (error);
 	}
 #ifdef QUOTA
-	if (error = chkdq(ip, (long)btodb(nsize - osize), cred, 0)) {
+	error = chkdq(ip, (long)btodb(nsize - osize), cred, 0);
+	if (error) {
 		brelse(bp);
 		return (error);
 	}
@@ -201,7 +204,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	 * Check for extension in the existing location.
 	 */
 	cg = dtog(fs, bprev);
-	if (bno = ffs_fragextend(ip, cg, (long)bprev, osize, nsize)) {
+	bno = ffs_fragextend(ip, cg, (long)bprev, osize, nsize);
+	if (bno) {
 		if (bp->b_blkno != fsbtodb(fs, bno))
 			panic("bad blockno");
 		ip->i_blocks += btodb(nsize - osize);
@@ -255,8 +259,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		fs->fs_optim = FS_OPTSPACE;
 		break;
 	default:
-		printf("dev = 0x%x, optim = %d, fs = %s\n",
-		    ip->i_dev, fs->fs_optim, fs->fs_fsmnt);
+		printf("dev = 0x%lx, optim = %ld, fs = %s\n",
+		    (u_long)ip->i_dev, fs->fs_optim, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad optim");
 		/* NOTREACHED */
 	}
@@ -325,7 +329,7 @@ ffs_reallocblks(ap)
 	struct buf *sbp, *ebp;
 	daddr_t *bap, *sbap, *ebap = 0;
 	struct cluster_save *buflist;
-	daddr_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
+	daddr_t start_lbn, end_lbn, soff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
@@ -513,12 +517,12 @@ ffs_valloc(ap)
 	}
 	ip = VTOI(*ap->a_vpp);
 	if (ip->i_mode) {
-		printf("mode = 0%o, inum = %d, fs = %s\n",
+		printf("mode = 0%o, inum = %ld, fs = %s\n",
 		    ip->i_mode, ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
 	}
 	if (ip->i_blocks) {				/* XXX */
-		printf("free inode %s/%d had %d blocks\n",
+		printf("free inode %s/%ld had %ld blocks\n",
 		    fs->fs_fsmnt, ino, ip->i_blocks);
 		ip->i_blocks = 0;
 	}
@@ -1172,8 +1176,8 @@ ffs_blkfree(ip, bno, size)
 
 	fs = ip->i_fs;
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
-		printf("dev = 0x%x, bsize = %d, size = %d, fs = %s\n",
-		    ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
+		printf("dev = 0x%lx, bsize = %ld, size = %ld, fs = %s\n",
+		    (u_long)ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
 		panic("blkfree: bad size");
 	}
 	cg = dtog(fs, bno);
@@ -1298,8 +1302,8 @@ ffs_vfree(ap)
 	cgp->cg_time = time.tv_sec;
 	ino %= fs->fs_ipg;
 	if (isclr(cg_inosused(cgp), ino)) {
-		printf("dev = 0x%x, ino = %d, fs = %s\n",
-		    pip->i_dev, ino, fs->fs_fsmnt);
+		printf("dev = 0x%lx, ino = %d, fs = %s\n",
+		    (u_long)pip->i_dev, ino, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ifree: freeing free inode");
 	}
@@ -1379,7 +1383,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
 			subfield <<= 1;
 		}
 	}
-	printf("bno = %d, fs = %s\n", bno, fs->fs_fsmnt);
+	printf("bno = %lu, fs = %s\n", (u_long)bno, fs->fs_fsmnt);
 	panic("ffs_alloccg: block not in map");
 	return (-1);
 }

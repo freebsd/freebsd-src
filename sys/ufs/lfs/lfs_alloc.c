@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.3 1994/08/20 03:49:00 davidg Exp $
+ * $Id: lfs_alloc.c,v 1.4 1994/08/29 06:09:14 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
