@@ -56,7 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <string>
 #include <vector>
 
-#include "devd.h"
+#include "devd.h"		/* C compatible definitions */
+#include "devd.hh"		/* C++ class definitions */
 
 #define CF "/etc/devd.conf"
 #define SYSCTL "hw.bus.devctl_disable"
@@ -87,106 +88,6 @@ delete_and_clear(vector<T *> &v)
 		delete *i;
 	v.clear();
 }
-
-class config;
-
-class var_list
-{
-public:
-	var_list() {}
-	virtual ~var_list() {}
-	void set_variable(const string &var, const string &val);
-	const string &get_variable(const string &var) const;
-	bool is_set(const string &var) const;
-	static const string bogus;
-	static const string nothing;
-private:
-	map<string, string> _vars;
-};
-
-class eps
-{
-public:
-	eps() {}
-	virtual ~eps() {}
-	virtual bool do_match(config &) = 0;
-	virtual bool do_action(config &) = 0;
-};
-
-class match : public eps
-{
-public:
-	match(config &, const char *var, const char *re);
-	virtual ~match();
-	virtual bool do_match(config &);
-	virtual bool do_action(config &) { return true; }
-private:
-	string _var;
-	string _re;
-	regex_t _regex;
-};
-
-class action : public eps
-{
-public:
-	action(const char *cmd);
-	virtual ~action();
-	virtual bool do_match(config &) { return true; }
-	virtual bool do_action(config &);
-private:
-	string _cmd;
-};
-
-class event_proc
-{
-public:
-	event_proc();
-	virtual ~event_proc();
-	int get_priority() const { return (_prio); }
-	void set_priority(int prio) { _prio = prio; }
-	void add(eps *);
-	bool matches(config &);
-	bool run(config &);
-private:
-	int _prio;
-	vector<eps *> _epsvec;
-};
-
-class config
-{
-public:
-	config() : _pidfile("") { push_var_table(); }
-	virtual ~config() { reset(); }
-	void add_attach(int, event_proc *);
-	void add_detach(int, event_proc *);
-	void add_directory(const char *);
-	void add_nomatch(int, event_proc *);
-	void set_pidfile(const char *);
-	void reset();
-	void parse();
-	void drop_pidfile();
-	void push_var_table();
-	void pop_var_table();
-	void set_variable(const char *var, const char *val);
-	const string &get_variable(const string &var);
-	const string expand_string(const string &var);
-	char *set_vars(char *);
-	void find_and_execute(char);
-protected:
-	void sort_vector(vector<event_proc *> &);
-	void parse_one_file(const char *fn);
-	void parse_files_in_dir(const char *dirname);
-	void expand_one(const char *&src, string &dst);
-	bool is_id_char(char);
-	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
-private:
-	vector<string> _dir_list;
-	string _pidfile;
-	vector<var_list *> _var_list_table;
-	vector<event_proc *> _attach_list;
-	vector<event_proc *> _detach_list;
-	vector<event_proc *> _nomatch_list;
-};
 
 config cfg;
 
