@@ -1358,14 +1358,14 @@ ar_lsi_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 
     if (ar_rw(adp, LSI_LBA(adp), sizeof(struct lsi_raid_conf),
 	      (caddr_t)info, AR_READ | AR_WAIT)) {
-	if (1 || bootverbose)
+	if (bootverbose)
 	    printf("ar: LSI read conf failed\n");
 	goto lsi_out;
     }
 
     /* check if this is a LSI RAID struct */
     if (strncmp(info->lsi_id, LSI_MAGIC, strlen(LSI_MAGIC))) {
-	if (1 || bootverbose)
+	if (bootverbose)
 	    printf("ar: LSI check1 failed\n");
 	goto lsi_out;
     }
