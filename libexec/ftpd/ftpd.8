@@ -184,12 +184,15 @@ The inactivity timeout period is set to
 .Ar timeout
 seconds (the default is 15 minutes).
 .It Fl U
-In previous versions of
-.Nm ,
-when a passive mode client requested a data connection to the server,
-the server would use data ports in the range 1024..4999.  Now, by default,
-the server will use data ports in the range 49152..65535.  Specifying this
-option will revert to the old behavior.
+This option instructs ftpd to use data ports in the range of
+IP_PORTRANGE_DEFAULT instead of in the range of IP_PORTRANGE_HIGH.
+Such a change may be useful for some specific firewall configurations;
+see
+.Xr ip 4
+for more information.
+.Pp
+Note that option is a virtual no-op in FreeBSD 5.0 and above; both port
+ranges are indentical by default.
 .It Fl u
 The default file creation mode mask is set to
 .Ar umask ,
