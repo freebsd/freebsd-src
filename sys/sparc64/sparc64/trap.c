@@ -67,7 +67,6 @@
 #include <vm/vm_zone.h>
 
 #include <machine/clock.h>
-#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -216,7 +215,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 	case T_FP_EXCEPTION_IEEE_754:
 	case T_FP_EXCEPTION_OTHER:
 		mtx_lock(&Giant);
-		if ((sig = fp_exception(td, tf, &ucode)) == 0) {
+		if ((sig = fp_exception_other(td, tf, &ucode)) == 0) {
 			mtx_unlock(&Giant);
 			TF_DONE(tf);
 			goto user;
