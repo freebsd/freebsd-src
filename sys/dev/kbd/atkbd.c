@@ -49,6 +49,7 @@
 #include <vm/pmap.h>
 #endif /* __i386__ */
 
+#include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/atkbdreg.h>
 #include <dev/kbd/atkbdcreg.h>
@@ -167,7 +168,6 @@ atkbd_timeout(void *arg)
 /* LOW-LEVEL */
 
 #include <machine/limits.h>
-#include <sys/kbio.h>
 
 #define ATKBD_DEFAULT	0
 
