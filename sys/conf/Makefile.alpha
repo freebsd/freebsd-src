@@ -32,7 +32,8 @@ S=	../..
 .endif
 M=	${MACHINE_ARCH}
 
-SIZE?=	size
+SIZE?=		size
+OBJCOPY?=	objcopy
 
 COPTFLAGS?=-O
 INCLUDES= -nostdinc -I- -I. -I$S
@@ -89,7 +90,8 @@ SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-e locorestart \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
+	${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/conf/ldscript.$M
 
 %BEFORE_DEPEND
@@ -119,7 +121,7 @@ FULLKERNEL=	${KERNEL}
 .else
 FULLKERNEL=	${KERNEL}.debug
 ${KERNEL}: ${FULLKERNEL}
-	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
+	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL}
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
