@@ -1467,7 +1467,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 
 			KASSERT(
 			    p->object == backing_object,
-			    ("vm_object_qcollapse(): object mismatch")
+			    ("vm_object_backing_scan: object mismatch")
 			);
 
 			/*
@@ -1551,11 +1551,7 @@ vm_object_qcollapse(vm_object_t object)
 	if (backing_object->ref_count != 1)
 		return;
 
-	backing_object->ref_count += 2;
-
 	vm_object_backing_scan(object, OBSC_COLLAPSE_NOWAIT);
-
-	backing_object->ref_count -= 2;
 }
 
 /*
