@@ -1106,6 +1106,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *)(uintptr_t)cb->aio_buf;
+	bp->b_offset = cb->aio_offset;
+	bp->b_iooffset = cb->aio_offset;
 	bp->b_blkno = btodb(cb->aio_offset);
 	bp->b_iocmd = cb->aio_lio_opcode == LIO_WRITE ? BIO_WRITE : BIO_READ;
 
