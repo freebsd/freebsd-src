@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.35 1995/05/26 08:41:49 jkh Exp $
+ * $Id: system.c,v 1.36 1995/05/26 19:28:05 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -63,7 +63,7 @@ systemInitialize(int argc, char **argv)
 	    OnCDROM = TRUE;
 	    chroot("/bootcd");
 	} else {
-	    close(0); open("/dev/console", O_RDWR);
+	    close(0); open("/dev/ttyv0", O_RDWR);
 	    close(1); dup(0);
 	    close(2); dup(0);
 	}
