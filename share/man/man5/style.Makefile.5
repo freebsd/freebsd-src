@@ -64,7 +64,7 @@ Special variables (i.e.,
 etc.) are listed in order of
 .Dq product ,
 then building and installing a binary.
-It is also allowable to list special variables in
+Special variables may also be listed in
 .Dq build
 order: i.e., ones for the primary program (or library) first.
 The general
@@ -94,7 +94,7 @@ order is:
 .Va FILES
 .Va LINKS
 .Oo Va NO Oc Ns Va MAN
-.Va MLINKS.
+.Va MLINKS .
 .It
 Omit
 .Va SRCS
@@ -144,14 +144,14 @@ The usage of
 .Va WARNS
 is spelled
 .Dq Li "WARNS?=	" .
-so that it may be overriden on the command-line or in
+so that it may be overriden on the command line or in
 .Pa /etc/make.conf .
 .It
 .Dq Li "NO_WERROR= yes"
 should not be used,
 it defeats the purpose of
 .Va WARNS .
-It should only be used on the command-line and in special circomstances.
+It should only be used on the command line and in special circumstances.
 .It
 .Va CFLAGS
 is spelled
@@ -204,11 +204,11 @@ Do not use anachronisms like
 and
 .Va $@ .
 Instead use
-.Cm ${.IMPSRC}
+.Va ${.IMPSRC}
 or
-.Cm ${.ALLSRC}
+.Va ${.ALLSRC}
 and
-.Cm ${.TARGET}
+.Va ${.TARGET} .
 .El
 .Pp
 The desire to express a logical grouping often means not obeying some of the
