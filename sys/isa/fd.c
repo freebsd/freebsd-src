@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id:$
+ *	$Id: fd.c,v 1.21 1994/02/14 22:24:23 nate Exp $
  *
  */
 
@@ -290,15 +290,16 @@ fdattach(dev)
 		|| (fdsu >= DRVS_PER_CTLR)) {
 #else
 		) {
+			fd->type = NO_TYPE;
 #endif
 #if NFT > 0
 				/* If BIOS says no floppy, or > 2nd device */
 				/* Probe for and attach a floppy tape.     */
 			if (ftattach(dev, fdup))
 				continue;
-			
+			if (fdsu < DRVS_PER_CTLR) 
+				fd->type = NO_TYPE;
 #endif
-			fd->type = NO_TYPE;
 			continue;
 		}
 
