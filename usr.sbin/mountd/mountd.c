@@ -2040,6 +2040,10 @@ get_line()
 			cp--;
 			len--;
 		}
+		if (cont_line) {
+			*++cp = ' ';
+			len++;
+		}
 		*++cp = '\0';
 		if (len > 0) {
 			totlen += len;
