@@ -53,16 +53,6 @@
 .Nm Pstat
 displays open file entry, swap space utilization,
 terminal state, and vnode data structures.
-If
-.Ar corefile
-is given, the information is sought there, otherwise
-in
-.Pa /dev/mem .
-The required namelist is taken from
-.Pa /kernel
-unless 
-.Ar system
-is specified.
 .Pp
 If invoked as 
 .Nm swapinfo
@@ -363,6 +353,13 @@ major and minor device of special file.
 Same as
 .Fl v ,
 present for backwards-compatibility.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default
+.Pa /kernel .
 .El
 .Sh FILES
 .Bl -tag -width /dev/memxxx -compact
