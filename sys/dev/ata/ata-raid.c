@@ -404,7 +404,50 @@ ata_raid_delete(int array)
     ar_table[array] = NULL;
     return 0;
 }
-   
+
+int
+ata_raid_status(int array, struct raid_status *status)
+{
+    struct ar_softc *rdp;
+    int i;
+
+    if (!ar_table || !(rdp = ar_table[array]))
+	return ENXIO;
+
+    switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+    case AR_F_RAID0:
+	status->type = AR_RAID0;
+	break;
+    case AR_F_RAID1:
+	status->type = AR_RAID1;
+	break;
+    case AR_F_RAID0 | AR_F_RAID1:
+	status->type = AR_RAID0 | AR_RAID1;
+	break;
+    case AR_F_SPAN:
+	status->type = AR_SPAN;
+	break;
+    }
+    status->total_disks = rdp->total_disks;
+    for (i = 0; i < rdp->total_disks; i++ ) {
+	if ((rdp->disks[i].flags & AR_DF_PRESENT) && rdp->disks[i].device)
+	    status->disks[i] = AD_SOFTC(rdp->disks[i])->lun;
+	else
+	    status->disks[i] = -1;
+    }
+    status->interleave = rdp->interleave;
+    status->status = 0;
+    if (rdp->flags & AR_F_READY)
+	status->status |= AR_READY;
+    if (rdp->flags & AR_F_DEGRADED)
+	status->status |= AR_DEGRADED;
+    if (rdp->flags & AR_F_REBUILDING) {
+	status->status |= AR_REBUILDING;
+	status->progress = 100*rdp->lock_start/(rdp->total_sectors/rdp->width);
+    }
+    return 0;
+}
+
 int
 ata_raid_rebuild(int array)
 {
