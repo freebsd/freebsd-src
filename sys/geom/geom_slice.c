@@ -152,7 +152,8 @@ g_slice_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_slicer *gsp;
-	struct g_slice *gsl, *gmp;
+	struct g_slice *gsl;
+	struct g_slice_hot *gmp;
 	int idx, error;
 	u_int m_index;
 	off_t t;
@@ -181,8 +182,8 @@ g_slice_start(struct bio *bp)
 			g_io_deliver(bp, EINVAL);
 			return;
 		}
-		for (m_index = 0; m_index < gsp->nhot; m_index++) {
-			gmp = &gsp->hot[m_index];
+		for (m_index = 0; m_index < gsp->nhotspot; m_index++) {
+			gmp = &gsp->hotspot[m_index];
 			if (t >= gmp->offset + gmp->length)
 				continue;
 			if (t + bp->bio_length <= gmp->offset)
@@ -341,21 +342,21 @@ int
 g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
 {
 	struct g_slicer *gsp;
-	struct g_slice *gsl, *gsl2;
+	struct g_slice_hot *gsl, *gsl2;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot()");
 	g_topology_assert();
 	gsp = gp->softc;
-	gsl = gsp->hot;
-	if(idx >= gsp->nhot) {
+	gsl = gsp->hotspot;
+	if(idx >= gsp->nhotspot) {
 		gsl2 = g_malloc((idx + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
-		if (gsp->hot != NULL)
-			bcopy(gsp->hot, gsl2, gsp->nhot * sizeof *gsl2);
-		gsp->hot = gsl2;
-		if (gsp->hot != NULL)
+		if (gsp->hotspot != NULL)
+			bcopy(gsp->hotspot, gsl2, gsp->nhotspot * sizeof *gsl2);
+		gsp->hotspot = gsl2;
+		if (gsp->hotspot != NULL)
 			g_free(gsl);
 		gsl = gsl2;
-		gsp->nhot = idx + 1;
+		gsp->nhotspot = idx + 1;
 	}
 	if (bootverbose)
 		printf("GEOM: Add %s hot[%d] start %jd length %jd end %jd\n",
