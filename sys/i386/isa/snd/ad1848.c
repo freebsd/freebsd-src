@@ -197,7 +197,7 @@ mss_attach(struct isa_device *dev)
 
     printf("mss_attach <%s>%d at 0x%x irq %d dma %d:%d flags 0x%x\n",
 	d->name, dev->id_unit,
-	d->io_base, d->irq, d->dma1, d->dma2, dev->id_flags);
+	d->io_base, d->irq, d->dbuf_out.chan, d->dbuf_in.chan, dev->id_flags);
 
     dev->id_alive = 8 ; /* number of io ports */
     /* should be already set but just in case... */
@@ -220,18 +220,18 @@ mss_attach(struct isa_device *dev)
 	    printf("[IRQ Conflict?]");
 
 	/* Write IRQ+DMA setup */
-	if (d->dma1 == d->dma2) /* single chan dma */
-	    outb(dev->id_iobase, bits | dma_bits[d->dma1]);
+	if ( ! FULL_DUPLEX(d) ) /* single chan dma */
+	    outb(dev->id_iobase, bits | dma_bits[d->dbuf_out.chan]);
 	else {
-	    if (d->dma1 == 0 && d->dma2 == 1)
+	    if (d->dbuf_out.chan == 0 && d->dbuf_in.chan == 1)
 		bits |= 5 ;
-	    else if (d->dma1 == 1 && d->dma2 == 0)
+	    else if (d->dbuf_out.chan == 1 && d->dbuf_in.chan == 0)
 		bits |= 6 ;
-	    else if (d->dma1 == 3 && d->dma2 == 0)
+	    else if (d->dbuf_out.chan == 3 && d->dbuf_in.chan == 0)
 		bits |= 7 ;
 	    else {
 		printf("invalid dual dma config %d:%d\n",
-			d->dma1, d->dma2);
+			d->dbuf_out.chan, d->dbuf_in.chan);
 		dev->id_irq = 0 ;
 		dev->id_alive = 0 ; /* this makes attach fail. */
 		return 0 ;
@@ -239,7 +239,7 @@ mss_attach(struct isa_device *dev)
 	    outb(dev->id_iobase, bits );
 	}
     }
-    if (d->dma1 != d->dma2)
+    if ( FULL_DUPLEX(d) )
 	d->audio_fmt |= AFMT_FULLDUPLEX ;
     mss_reinit(d);
     ad1848_mixer_reset(d);
@@ -292,6 +292,9 @@ mss_open(dev_t dev, int flags, int mode, struct proc * p)
 
 	d->rsel.si_pid = 0;
 	d->rsel.si_flags = 0;
+
+	d->dbuf_out.total = d->dbuf_out.prev_total = 0 ;
+	d->dbuf_in.total = d->dbuf_in.prev_total = 0 ;
 
 	if (flags & O_NONBLOCK)
 	    d->flags |= SND_F_NBIO ;
@@ -426,7 +429,7 @@ mss_callback(snddev_info *d, int reason)
 	if (retry == 0)
 	    printf("start dma, failed to set bit 0x%02x 0x%02x\n",
 		m, ad_read(d, 9) ) ;
-	if (wr || (d->dma1 == d->dma2) )
+	if (wr || ! FULL_DUPLEX(d) )
 	    ad_write_cnt(d, 14, cnt);
 	else
 	    ad_write_cnt(d, 30, cnt);
@@ -452,7 +455,7 @@ mss_callback(snddev_info *d, int reason)
 	 * is needed, and it might cause false interrupts when the
 	 * DMA is re-enabled later.
 	 */
-	if (wr || (d->dma1 == d->dma2) )
+	if (wr || ! FULL_DUPLEX(d) )
 	    ad_write_cnt(d, 14, 0);
 	else
 	    ad_write_cnt(d, 30, 0);
@@ -492,7 +495,7 @@ mss_intr(int unit)
      */
     for (i=10 ; i && inb(io_Status(d)) & 1 ; i-- ) {
 	/* get exact reason for full-duplex boards */
-	c = (d->dma1 == d->dma2) ? 0x30 : ad_read(d, 24);
+	c = FULL_DUPLEX(d) ? ad_read(d, 24) : 0x30 ;
 	c &= ~served ;
 	if ( d->dbuf_out.dl && (c & 0x10) ) {
 	    served |= 0x10 ;
@@ -505,10 +508,18 @@ mss_intr(int unit)
 	/* 
 	 * now ack the interrupt
 	 */
-	if (d->dma1 == d->dma2)
-	    outb(io_Status(d), 0);	/* Clear interrupt status */
-	else
+	if ( FULL_DUPLEX(d) )
 	    ad_write(d, 24, ~c); /* ack selectively */
+	else
+	    outb(io_Status(d), 0);	/* Clear interrupt status */
+    }
+    if (served == 0) {
+	printf("How strange... mss_intr with no reason!\n");
+	/*
+	 * this should not happen... I have no idea what to do now.
+	 * maybe should do a sanity check and restart dmas ?
+	 */
+	outb(io_Status(d), 0);	/* Clear interrupt status */
     }
 }
 
@@ -534,7 +545,7 @@ opti931_intr(int unit)
     i11 = ad_read(d, 11); /* XXX what's for ? */
 again:
 
-    c=mc11 = (d->dma1 == d->dma2) ? 0xc : opti_read(d->conf_base, 11);
+    c=mc11 = FULL_DUPLEX(d) ? opti_read(d->conf_base, 11) : 0xc ;
     mc11 &= 0x0c ;
     if (c & 0x10) {
 	printf("Warning: CD interrupt\n");
@@ -791,7 +802,7 @@ mss_set_recsrc(snddev_info *d, int mask)
  */
 
 static char mix_cvt[101] = { 
-     0, 0, 3, 7,10,13,16,19,21,23,26,28,30,32,34,35,37,39,40,42,
+     0, 1, 3, 7,10,13,16,19,21,23,26,28,30,32,34,35,37,39,40,42,
     43,45,46,47,49,50,51,52,53,55,56,57,58,59,60,61,62,63,64,65,
     65,66,67,68,69,70,70,71,72,73,73,74,75,75,76,77,77,78,79,79,
     80,81,81,82,82,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,
@@ -849,8 +860,12 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 
     regoffs = (*mix_d)[dev][LEFT_CHN].regno;
     old = val = ad_read(d, regoffs);
-    if (regoffs != 0)
-	val = old & 0x7f ; /* clear mute bit. */
+    /*
+     * if volume is 0, mute chan. Otherwise, unmute.
+     */
+    if (regoffs != 0)  /* main input is different */
+	val = (left == 0 ) ? old | 0x80 : old & 0x7f ;
+
     change_bits(mix_d, &val, dev, LEFT_CHN, left);
     ad_write(d, regoffs, val);
     DEB(printf("LEFT: dev %d reg %d old 0x%02x new 0x%02x\n",
@@ -863,7 +878,7 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 	regoffs = (*mix_d)[dev][RIGHT_CHN].regno;
 	old = val = ad_read(d, regoffs);
 	if (regoffs != 1)
-	    val = old & 0x7f ; /* clear mute bit. */
+	    val = (right == 0 ) ? old | 0x80 : old & 0x7f ;
 	change_bits(mix_d, &val, dev, RIGHT_CHN, right);
 	ad_write(d, regoffs, val);
 	DEB(printf("RIGHT: dev %d reg %d old 0x%02x new 0x%02x\n",
@@ -1261,7 +1276,7 @@ mss_reinit(snddev_info *d)
      * perhaps this is not the place to set mode2, should be done
      * only once at attach time...
      */
-    if ( d->dma1 != d->dma2 && d->bd_id != MD_OPTI931)
+    if ( FULL_DUPLEX(d) && d->bd_id != MD_OPTI931)
 	/*
 	 * set mode2 bit for dual dma op. This bit is not implemented
 	 * on the OPTi931
@@ -1282,7 +1297,7 @@ mss_reinit(snddev_info *d)
     }
 
     ad_write(d, 8, r) ;
-    if (d->dma1 != d->dma2) {
+    if ( FULL_DUPLEX(d) ) {
 #if 0
 	if (d->bd_id == MD_GUSPNP && d->play_fmt == AFMT_MU_LAW) {
 	    printf("warning, cannot do ulaw rec + play on the GUS\n");
@@ -1298,7 +1313,7 @@ mss_reinit(snddev_info *d)
      * not sure if this is really needed...
      */
     ad_write_cnt(d, 14, 0 ); /* playback count */
-    if (d->dma1 != d->dma2)
+    if ( FULL_DUPLEX(d) )
 	ad_write_cnt(d, 30, 0 ); /* rec. count on dual dma */
 
     ad_write(d, 10, 2 /* int enable */) ;
@@ -1322,7 +1337,7 @@ static void cs423x_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev);
 
 static struct pnp_device cs423x = {
-	"cs423x/ymh0020",
+	"CS423x/Yamaha",
 	cs423x_probe,
 	cs423x_attach,
 	&nsnd,	/* use this for all sound cards */
@@ -1343,6 +1358,8 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "CS4232" ;
     else if ( id == 0x2000a865)
 	s = "Yamaha SA2";
+    else if ( id == 0x3000a865)
+	s = "Yamaha SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
     if (s) {
@@ -1376,8 +1393,8 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
 	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
-	if (vend_id == 0x2000a865 || vend_id == 0x8140d315) {
-	    /* Yamaha SA2 or ENSONIQ SoundscapeVIVO ENS4081 */
+	if (vend_id==0x2000a865 || vend_id==0x3000a865 || vend_id==0x8140d315) {
+	    /* Yamaha SA2/SA3 or ENSONIQ SoundscapeVIVO ENS4081 */
 	    dev->id_iobase = d.port[0] ;
 	    tmp_d.alt_base = d.port[1] ;
 	    d.irq[1] = 0 ; /* only needed for the VIVO */
@@ -1393,9 +1410,11 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	tmp_d.alt_base = d.port[2];
 	switch (vend_id & 0xff00ffff) {
 
-	case 0x2000a865:	/* yamaha SA-2 */
+	case 0x2000a865:	/* Yamaha SA2 */
+	case 0x3000a865:	/* Yamaha SA3 */
 	    dev->id_iobase = d.port[1];
 	    tmp_d.alt_base = d.port[0];
+	    tmp_d.conf_base = d.port[4];
 	    tmp_d.bd_id = MD_YM0020 ;
 	    break;
 
@@ -1424,6 +1443,13 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
 
+    if ( (vend_id & 0x2000ffff) == 0x2000a865 ) {
+	/* special volume setting for the Yamaha... */
+	outb(tmp_d.conf_base, 7 /* volume, left */);
+	outb(tmp_d.conf_base+1, 0 );
+	outb(tmp_d.conf_base, 8 /* volume, right */);
+	outb(tmp_d.conf_base+1, 0 );
+    }
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
     dev->id_intr = pcmintr ;

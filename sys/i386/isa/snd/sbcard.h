@@ -137,6 +137,7 @@ extern int sbc_major, sbc_minor ;
 #define	BD_F_SB16	0x0100	/* this is a SB16 */
 #define	BD_F_NOREC	0x0200	/* recording not supported on this board */
 #define	BD_F_MIDIBUSY	0x0400	/* midi busy */
+#define	BD_F_ESS	0x0800	/* this is an ESS chip */
 
 
 /*
