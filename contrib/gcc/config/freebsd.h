@@ -140,12 +140,16 @@ Boston, MA 02111-1307, USA.  */
 #undef  HANDLE_SYSV_PRAGMA
 #define HANDLE_SYSV_PRAGMA
 
-/* FreeBSD ELF uses across the board will now use DWARF2 unwinding as the IA-64
-   psABI requires it.  */
 /* While FreeBSD ELF no longer uses our home-grown crtbegin.o/crtend.o and thus
    could switch to the DWARF2 unwinding mechanisms.  I don't want to make the
    switch mid-branch.  So continue to use sjlj-exceptions.  */
+#ifdef WANT_DWARF2_UNWIND
+/* FreeBSD ELF will use DWARF2 unwinding in 5.0+, as some psABI requires it.  */
+#define DWARF2_UNWIND_INFO 1
+#else
+/* Maintain compatibility with the FreeBSD {3,4}.x C++ ABI.  */
 #define DWARF2_UNWIND_INFO 0
+#endif
 
 /* Do not use ``thunks'' to implement C++ vtables.  This method still has
    fatal bugs.  Also, GCC 3.0 will have a new C++ ABI that may not even
