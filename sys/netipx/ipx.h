@@ -95,6 +95,7 @@
 #define	SO_ALL_PACKETS		7
 #define SO_MTU			8
 #define SO_IPXTUN_ROUTE		9
+#define SO_IPX_CHECKSUM		10
 
 /*
  * IPX addressing

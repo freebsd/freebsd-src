@@ -130,9 +130,7 @@ ipxintr()
 	register struct mbuf *m;
 	register struct ipxpcb *ipxp;
 	struct ipx_ifaddr *ia;
-	register int i;
 	int len, s;
-	char oddshortpacket = 0;
 
 next:
 	/*
@@ -171,15 +169,6 @@ next:
 
 	ipx = mtod(m, struct ipx *);
 	len = ntohs(ipx->ipx_len);
-	if ((len < m->m_pkthdr.len) && (oddshortpacket = len & 1)) {
-		/*
-		 * If this packet is of odd length, and the length
-		 * inside the header is less than the received packet
-		 * length, preserve garbage byte for possible checksum.
-		 */
-		len++;
-	}
-
 	/*
 	 * Check that the amount of data in the buffers
 	 * is as at least much as the IPX header would have us expect.
@@ -197,9 +186,8 @@ next:
 		} else
 			m_adj(m, len - m->m_pkthdr.len);
 	}
-	if (ipxcksum && ((i = ipx->ipx_sum) != 0xffff)) {
-		ipx->ipx_sum = 0;
-		if (i != (ipx->ipx_sum = ipx_cksum(m, len))) {
+	if (ipxcksum && ipx->ipx_sum != 0xffff) {
+		if (ipx->ipx_sum != ipx_cksum(m, len)) {
 			ipxstat.ipxs_badsum++;
 			goto bad;
 		}
@@ -274,9 +262,6 @@ ours:
 	 * Switch out to protocol's input routine.
 	 */
 	if (ipxp != NULL) {
-		if (oddshortpacket) {
-			m_adj(m, -1);
-		}
 		ipxstat.ipxs_delivered++;
 		if ((ipxp->ipxp_flags & IPXP_ALL_PACKETS) == 0)
 			switch (ipx->ipx_pt) {
@@ -396,32 +381,15 @@ struct mbuf *m;
 			goto cleanup;
 		}
 	}
-	/* XXX
-	 * I think the checksum generation is bogus. According to the NLSP
-	 * spec the ipx_tc (hop count) field and the ipx_sum should be
-	 * zero'ed before generating the checksum, ie. it should not be
-	 * necesary to recompute it in the forwarding function.
+	/*
+	 * We don't need to recompute checksum because ipx_tc field
+	 * is ignored by checksum calculation routine, however
+	 * it may be desirable to reset checksum if ipxcksum == 0
 	 */
-	/* need to adjust checksum */
-	if (ipxcksum && ipx->ipx_sum != 0xffff) {
-		union bytes {
-			u_char c[4];
-			u_short s[2];
-			long l;
-		} x;
-		register int shift;
-		x.l = 0;
-		x.c[0] = agedelta;
-		shift = (((((int)ntohs(ipx->ipx_len)) + 1) >> 1) - 2) & 0xf;
-		x.l = ipx->ipx_sum + (x.s[0] << shift);
-		x.l = x.s[0] + x.s[1];
-		x.l = x.s[0] + x.s[1];
-		if (x.l == 0xffff)
-			ipx->ipx_sum = 0;
-		else
-			ipx->ipx_sum = x.l;
-	} else 
+#if 0
+	if (!ipxcksum)
 		ipx->ipx_sum = 0xffff;
+#endif
 
 	error = ipx_outputfl(m, &ipx_droute, flags);
 	if (error == 0) {
