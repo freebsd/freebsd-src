@@ -555,8 +555,7 @@ ed_probe_WD80x3(dev)
 		memsize = 8192;
 	}
 
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_MEMORY, 0,
+	error = bus_get_resource(dev, SYS_RES_MEMORY, 0,
 				 &conf_maddr, &conf_msize);
 	if (error)
 		return (error);
@@ -606,12 +605,10 @@ ed_probe_WD80x3(dev)
 		/*
 		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IRQ, 0,
+		error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 					 &irq, &junk);
 		if (error) {
-			ISA_SET_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IRQ, 0,
+			bus_set_resource(dev, SYS_RES_IRQ, 0,
 					 ed_intr_val[iptr], 1);
 		}
 
@@ -633,12 +630,10 @@ ed_probe_WD80x3(dev)
 		/*
 		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IRQ, 0,
+		error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 					 &irq, &junk);
 		if (error) {
-			ISA_SET_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IRQ, 0,
+			bus_set_resource(dev, SYS_RES_IRQ, 0,
 					 ed_790_intr_val[iptr], 1);
 		}
 
@@ -648,8 +643,7 @@ ed_probe_WD80x3(dev)
 		outb(sc->asic_addr + ED_WD790_ICR,
 		  inb(sc->asic_addr + ED_WD790_ICR) | ED_WD790_ICR_EIL);
 	}
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_IRQ, 0,
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 				 &irq, &junk);
 	if (error) {
 		device_printf(dev, "%s cards don't support auto-detected/assigned interrupts.\n",
@@ -850,8 +844,7 @@ ed_probe_3Com(dev)
 		return (ENXIO);
 	}
 
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_MEMORY, 0,
+	error = bus_get_resource(dev, SYS_RES_MEMORY, 0,
 				 &conf_maddr, &conf_msize);
 	if (error)
 		return (error);
@@ -1019,8 +1012,7 @@ ed_probe_3Com(dev)
 	/*
 	 * Set IRQ. 3c503 only allows a choice of irq 2-5.
 	 */
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_IRQ, 0,
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 				 &irq, &junk);
 	if (error)
 		return (error);
@@ -1464,12 +1456,10 @@ ed_probe_HP_pclanp(dev)
 	 * of the IRQ.  If the kernel IRQ was explicitly specified, it
  	 * should match that of the hardware.
 	 */
-	error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_IRQ, 0,
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 				 &conf_irq, &junk);
 	if (error) {
-		ISA_SET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_IRQ, 0,
+		bus_set_resource(dev, SYS_RES_IRQ, 0,
 				 ed_hpp_intr_val[irq], 1);
 	} else {
 		if (conf_irq != ed_hpp_intr_val[irq])
@@ -1515,8 +1505,7 @@ ed_probe_HP_pclanp(dev)
 		 * Check that the kernel specified start of memory and
 		 * hardware's idea of it match.
 		 */
-		error = ISA_GET_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_MEMORY, 0,
+		error = bus_get_resource(dev, SYS_RES_MEMORY, 0,
 					 &conf_maddr, &conf_msize);
 		if (error)
 			return (error);

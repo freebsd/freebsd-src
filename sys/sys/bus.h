@@ -141,7 +141,8 @@ void	resource_list_delete(struct resource_list *rl,
  * the parent of bus.
  */
 struct resource *
-	resource_list_alloc(device_t bus, device_t child,
+	resource_list_alloc(struct resource_list *rl,
+			    device_t bus, device_t child,
 			    int type, int *rid,
 			    u_long start, u_long end,
 			    u_long count, u_int flags);
@@ -149,7 +150,8 @@ struct resource *
 /*
  * Implement BUS_RELEASE_RESOURCE.
  */
-int	resource_list_release(device_t bus, device_t child,
+int	resource_list_release(struct resource_list *rl,
+			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
 
 /*
@@ -209,6 +211,13 @@ int	bus_release_resource(device_t dev, int type, int rid,
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_intr_t handler, void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
+int	bus_set_resource(device_t dev, int type, int rid,
+			 u_long start, u_long count);
+int	bus_get_resource(device_t dev, int type, int rid,
+			 u_long *startp, u_long *countp);
+u_long	bus_get_resource_start(device_t dev, int type, int rid);
+u_long	bus_get_resource_count(device_t dev, int type, int rid);
+void	bus_delete_resource(device_t dev, int type, int rid);
 
 /*
  * Access functions for device.

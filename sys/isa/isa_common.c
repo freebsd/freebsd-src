@@ -115,7 +115,6 @@ isa_find_memory(device_t child,
 		struct isa_config *config,
 		struct isa_config *result)
 {
-	device_t dev = device_get_parent(child);
 	int success, i;
 	struct resource *res[ISA_NMEM];
 
@@ -123,7 +122,7 @@ isa_find_memory(device_t child,
 	 * First clear out any existing resource definitions.
 	 */
 	for (i = 0; i < ISA_NMEM; i++) {
-		ISA_DELETE_RESOURCE(dev, child, SYS_RES_MEMORY, i);
+		bus_delete_resource(child, SYS_RES_MEMORY, i);
 		res[i] = NULL;
 	}
 
@@ -137,7 +136,7 @@ isa_find_memory(device_t child,
 			     align = config->ic_mem[i].ir_align;
 		     start + size - 1 <= end;
 		     start += align) {
-			ISA_SET_RESOURCE(dev, child, SYS_RES_MEMORY, i,
+			bus_set_resource(child, SYS_RES_MEMORY, i,
 					 start, size);
 			res[i] = bus_alloc_resource(child,
 						    SYS_RES_MEMORY, &i,
@@ -180,7 +179,6 @@ isa_find_port(device_t child,
 	      struct isa_config *config,
 	      struct isa_config *result)
 {
-	device_t dev = device_get_parent(child);
 	int success, i;
 	struct resource *res[ISA_NPORT];
 
@@ -188,7 +186,7 @@ isa_find_port(device_t child,
 	 * First clear out any existing resource definitions.
 	 */
 	for (i = 0; i < ISA_NPORT; i++) {
-		ISA_DELETE_RESOURCE(dev, child, SYS_RES_IOPORT, i);
+		bus_delete_resource(child, SYS_RES_IOPORT, i);
 		res[i] = NULL;
 	}
 
@@ -202,7 +200,7 @@ isa_find_port(device_t child,
 			     align = config->ic_port[i].ir_align;
 		     start + size - 1 <= end;
 		     start += align) {
-			ISA_SET_RESOURCE(dev, child, SYS_RES_IOPORT, i,
+			bus_set_resource(child, SYS_RES_IOPORT, i,
 					 start, size);
 			res[i] = bus_alloc_resource(child,
 						    SYS_RES_IOPORT, &i,
@@ -268,7 +266,6 @@ isa_find_irq(device_t child,
 	     struct isa_config *config,
 	     struct isa_config *result)
 {
-	device_t dev = device_get_parent(child);
 	int success, i;
 	struct resource *res[ISA_NIRQ];
 
@@ -276,7 +273,7 @@ isa_find_irq(device_t child,
 	 * First clear out any existing resource definitions.
 	 */
 	for (i = 0; i < ISA_NIRQ; i++) {
-		ISA_DELETE_RESOURCE(dev, child, SYS_RES_IRQ, i);
+		bus_delete_resource(child, SYS_RES_IRQ, i);
 		res[i] = NULL;
 	}
 
@@ -288,7 +285,7 @@ isa_find_irq(device_t child,
 		for (irq = find_first_bit(mask);
 		     irq != -1;
 		     irq = find_next_bit(mask, irq)) {
-			ISA_SET_RESOURCE(dev, child, SYS_RES_IRQ, i,
+			bus_set_resource(child, SYS_RES_IRQ, i,
 					 irq, 1);
 			res[i] = bus_alloc_resource(child,
 						    SYS_RES_IRQ, &i,
@@ -328,7 +325,6 @@ isa_find_drq(device_t child,
 	     struct isa_config *config,
 	     struct isa_config *result)
 {
-	device_t dev = device_get_parent(child);
 	int success, i;
 	struct resource *res[ISA_NDRQ];
 
@@ -336,7 +332,7 @@ isa_find_drq(device_t child,
 	 * First clear out any existing resource definitions.
 	 */
 	for (i = 0; i < ISA_NDRQ; i++) {
-		ISA_DELETE_RESOURCE(dev, child, SYS_RES_DRQ, i);
+		bus_delete_resource(child, SYS_RES_DRQ, i);
 		res[i] = NULL;
 	}
 
@@ -348,7 +344,7 @@ isa_find_drq(device_t child,
 		for (drq = find_first_bit(mask);
 		     drq != -1;
 		     drq = find_next_bit(mask, drq)) {
-			ISA_SET_RESOURCE(dev, child, SYS_RES_DRQ, i,
+			bus_set_resource(child, SYS_RES_DRQ, i,
 					 drq, 1);
 			res[i] = bus_alloc_resource(child,
 						    SYS_RES_DRQ, &i,
@@ -414,6 +410,11 @@ isa_assign_resources(device_t child)
 	/*
 	 * Disable the device.
 	 */
+	if (device_get_desc(child))
+	    device_printf(child, "<%s> can't assign resources\n",
+			  device_get_desc(child));
+	else
+	    device_printf(child, "can't assign resources\n");
 	bzero(&config, sizeof config);
 	if (idev->id_config_cb)
 		idev->id_config_cb(idev->id_config_arg, &config, 0);
@@ -473,6 +474,7 @@ isa_probe_children(device_t dev)
 			continue;
 
 		if (isa_assign_resources(child)) {
+			struct resource_list *rl = &idev->id_resources;
 			struct resource_list_entry *rle;
 
 			device_probe_and_attach(child);
@@ -481,10 +483,10 @@ isa_probe_children(device_t dev)
 			 * Claim any unallocated resources to keep other
 			 * devices from using them.
 			 */
-			SLIST_FOREACH(rle, &idev->id_resources, link) {
+			SLIST_FOREACH(rle, rl, link) {
 				if (!rle->res) {
 					int rid = rle->rid;
-					resource_list_alloc(dev, child,
+					resource_list_alloc(rl, dev, child,
 							    rle->type,
 							    &rid,
 							    0, ~0, 1,
@@ -518,14 +520,14 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 
 static void
 isa_print_resources(struct resource_list *rl, const char *name, int type,
-		    const char *format)
+		    int count, const char *format)
 {
 	struct resource_list_entry *rle;
 	int printed;
 	int i;
 
 	printed = 0;
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < count; i++) {
 		rle = resource_list_find(rl, type, i);
 		if (rle) {
 			if (printed == 0)
@@ -557,10 +559,10 @@ isa_print_child(device_t bus, device_t dev)
 	if (SLIST_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
-	isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
-	isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
+	isa_print_resources(rl, "port", SYS_RES_IOPORT, ISA_NPORT, "%#lx");
+	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, ISA_NMEM, "%#lx");
+	isa_print_resources(rl, "irq", SYS_RES_IRQ, ISA_NIRQ, "%ld");
+	isa_print_resources(rl, "drq", SYS_RES_DRQ, ISA_NDRQ, "%ld");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
@@ -748,11 +750,12 @@ static void
 isa_child_detached(device_t dev, device_t child)
 {
 	struct isa_device* idev = DEVTOISA(child);
+	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
 
 	SLIST_FOREACH(rle, &idev->id_resources, link) {
 		if (rle->res)
-			resource_list_release(dev, child,
+			resource_list_release(rl, dev, child,
 					      rle->type,
 					      rle->rid,
 					      rle->res);
@@ -892,11 +895,11 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
+	DEVMETHOD(bus_set_resource,	isa_set_resource),
+	DEVMETHOD(bus_get_resource,	isa_get_resource),
+	DEVMETHOD(bus_delete_resource,	isa_delete_resource),
 
 	/* ISA interface */
-	DEVMETHOD(isa_set_resource,	isa_set_resource),
-	DEVMETHOD(isa_get_resource,	isa_get_resource),
-	DEVMETHOD(isa_delete_resource,	isa_delete_resource),
 	DEVMETHOD(isa_add_config,	isa_add_config),
 	DEVMETHOD(isa_set_config_callback, isa_set_config_callback),
 	DEVMETHOD(isa_pnp_probe,	isa_pnp_probe),

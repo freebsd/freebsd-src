@@ -260,7 +260,6 @@ flaprobe (device_t dev)
 {
 	int unit;
 	struct fla_s *sc;
-	device_t bus;
 	int i;
 
 	unit = device_get_unit(dev);
@@ -275,8 +274,7 @@ flaprobe (device_t dev)
 	if (i)
 		return (ENXIO);
 
-	bus = device_get_parent(dev);
-	ISA_SET_RESOURCE(bus, dev, SYS_RES_MEMORY, 0, 
+	bus_set_resource(dev, SYS_RES_MEMORY, 0, 
 		sc->ds.window - KERNBASE, 8192);
 
 	return (0);

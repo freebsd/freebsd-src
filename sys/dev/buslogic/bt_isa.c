@@ -172,10 +172,8 @@ bt_isa_probe(device_t dev)
 
 		bt_isa_release_resources(dev);
 
-		ISA_SET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_DRQ, 0, info.drq, 1);
-		ISA_SET_RESOURCE(device_get_parent(dev), dev,
-				 SYS_RES_IRQ, 0, info.irq, 1);
+		bus_set_resource(dev, SYS_RES_DRQ, 0, info.drq, 1);
+		bus_set_resource(dev, SYS_RES_IRQ, 0, info.irq, 1);
 
 		return (0);
 	}
