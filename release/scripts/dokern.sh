@@ -51,6 +51,7 @@ sed	-e '/	pci/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/MSDOSFS/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
 	-e '/maxusers/d' \
