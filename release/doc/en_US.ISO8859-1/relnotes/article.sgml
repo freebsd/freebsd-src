@@ -3366,7 +3366,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.rarpd.8; now accepts a <option>-t</option> flag to
       specify an alternative directory to
-      <filename>/tftpboot</filename>. &merged</para>
+      <filename>/tftpboot</filename>. &merged;</para>
 
     <para role="historic">&man.rc.8; now has a framework for handling dependencies
       between &man.rc.conf.5; variables. &merged;</para>
