@@ -425,6 +425,7 @@ dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
 dev/mly/mly.c		optional mly
+dev/my/if_my.c		optional my
 dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
 dev/null/null.c		standard
