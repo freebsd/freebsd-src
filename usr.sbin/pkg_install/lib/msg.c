@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: msg.c,v 1.6 1995/08/26 10:15:15 jkh Exp $";
+	"$Id: msg.c,v 1.6.2.1 1997/10/09 07:10:08 charnier Exp $";
 #endif
 
 /*
@@ -33,7 +33,31 @@ upchuck(const char *err)
 {
     warn("fatal error during execution: %s", err);
     cleanup(0);
-    exit(1);
+}
+
+/* Die a more complex death */
+void
+barf(const char *err, ...)
+{
+    va_list args;
+
+    va_start(args, err);
+    vfprintf(stderr, err, args);
+    fputc('\n', stderr);
+    va_end(args);
+    cleanup(0);
+}
+
+/* Get annoyed about something but don't go to pieces over it */
+void
+whinge(const char *err, ...)
+{
+    va_list args;
+
+    va_start(args, err);
+    vfprintf(stderr, err, args);
+    fputc('\n', stderr);
+    va_end(args);
 }
 
 /*
