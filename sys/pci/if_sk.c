@@ -164,6 +164,11 @@ static struct sk_type sk_devs[] = {
 		DEVICEID_LINKSYS_EG1032,
 		"Linksys EG1032 Gigabit Ethernet"
 	},
+	{
+		VENDORID_DLINK,
+		DEVICEID_DLINK_DGE530T,
+		"D-Link DGE-530T Gigabit Ethernet"
+	},
 	{ 0, 0, NULL }
 };
 
@@ -464,6 +469,12 @@ sk_vpd_read(sc)
 	sc->sk_vpd_readonly = NULL;
 
 	sk_vpd_read_res(sc, &res, pos);
+
+	/*
+	 * Bail out quietly if the eeprom appears to be missing or empty.
+	 */
+	if (res.vr_id == 0xff && res.vr_len == 0xff && res.vr_pad == 0xff)
+		return;
 
 	if (res.vr_id != VPD_RES_ID) {
 		printf("skc%d: bad VPD resource id: expected %x got %x\n",
@@ -1580,8 +1591,13 @@ skc_attach(dev)
 	case DEVICEID_SK_V2:
 	case DEVICEID_3COM_3C940:
 	case DEVICEID_LINKSYS_EG1032:
+	case DEVICEID_DLINK_DGE530T:
 		sc->sk_type = SK_YUKON;
 		break;
+	default:
+		printf("skc%d: unknown device!\n", unit);
+		error = ENXIO;
+		goto fail;
 	}
 
 	/* Reset the adapter. */
@@ -1644,7 +1660,8 @@ skc_attach(dev)
 	}
 
 	/* Announce the product name. */
-	printf("skc%d: %s\n", sc->sk_unit, sc->sk_vpd_prodname);
+	if (sc->sk_vpd_prodname != NULL)
+	    printf("skc%d: %s\n", sc->sk_unit, sc->sk_vpd_prodname);
 	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", -1);
 	port = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 	*port = SK_PORT_A;
