@@ -61,13 +61,13 @@ The following options may be passed to the authentication module:
 debugging information at
 .Dv LOG_DEBUG
 level.
-.It Cm use_uid
+.It Cm auth_as_self
 check for
 .Dq Li wheel
 membership against
-the current UID
+the current login name
 (given by
-.Xr getuid 2 ) .
+.Xr getlogin 2 ) .
 .It Cm trust
 return
 .Dv PAM_SUCCESS
@@ -92,7 +92,7 @@ instead of the default group
 .Dq Li wheel .
 .El
 .Sh SEE ALSO
-.Xr getuid 2 ,
+.Xr getlogin 2 ,
 .Xr syslog 3 ,
 .Xr group 5 ,
 .Xr pam.conf 5 ,
