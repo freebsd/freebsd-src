@@ -4,12 +4,12 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.27 1995/10/28 12:41:40 peter Exp $
+#	$Id: sysconfig,v 1.28 1995/11/13 21:18:24 markm Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
-# Location of local startup files.
-local_startup=/usr/local/etc/rc.d
+# Location of local startup directories.
+local_startup=/usr/local/etc/rc.d /usr/X11R6/etc/rc.d
 
 ######################### End Of Local Configuration Section #############
 
@@ -76,6 +76,10 @@ defaultdomainname=NO
 # and bug the vendor of the losing equipment.
 #
 tcp_extensions=YES
+
+# If you're running PCNFSD or anything else which requires mountd to allow
+# non-root requests for NFS mounts, set this to YES.
+weak_mountd_authentication=NO
 
 #
 # Set to the list of network devices on this host.  You must have an
@@ -150,15 +154,6 @@ yppasswddflags="NO"
 # For most hosts, flags should be "-b /etc/namedb/named.boot"
 namedflags="NO"
 
-# Set to YES if you run PC-NFSD (see /usr/ports/net/pcnfsd) for
-# sharing filesystems with DOS/Windows PCs.
-pcnfsd=NO
-
-# Set to YES if you have the Apache WEB server (see /usr/ports/net/apache)
-# installed and want to run it at system startup time (this is better than
-# running it from inetd if you're running a dedicated WWW server).
-apache_httpd=NO
-
 # Set to YES if you want to run the X-10 power controller daemon
 xtend=NO
 
@@ -177,9 +172,6 @@ kerberos_server=NO
 # If you want this host to be a gateway, set to YES.
 gateway=NO
 
-# Set to YES if you want to run gated
-gated=NO
-
 # Set to YES if you wish to check quotas.  NOTE:  For now this probably
 # doesn't work and should be left disabled.
 check_quotas=NO
@@ -195,7 +187,7 @@ accounting=NO
 # Set to YES if you want ibcs2 (SCO) emulation loaded at startup
 ibcs2=NO
 
-# Set to YES if you want Linux (a.out) emulation loaded at startup
+# Set to YES if you want Linux a.out emulation loaded at startup
 linux=NO
 
 # Set to a string representing the interrupts you are going to use
