@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.9 1995/10/11 18:57:17 jhay Exp $
+ *	$Id: input.c,v 1.1 1995/10/26 21:28:16 julian Exp $
  */
 
 #ifndef lint
@@ -52,13 +52,11 @@ ipx_nettosa(net)
 union ipx_net net;
 {
 	static struct sockaddr_ipx sxn;
-	extern char ether_broadcast_addr[6];
 	
 	bzero(&sxn, sizeof (struct sockaddr_ipx));
 	sxn.sipx_family = AF_IPX;
 	sxn.sipx_len = sizeof (sxn);
 	sxn.sipx_addr.x_net = net;
-	sxn.sipx_addr.x_host = *(union ipx_host *)ether_broadcast_addr;
 	return( (struct sockaddr *)&sxn);
 	
 }
