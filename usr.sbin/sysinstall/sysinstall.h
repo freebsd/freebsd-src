@@ -396,10 +396,12 @@ extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
+#ifdef __i386__
 #ifdef PC98
 extern DMenu		MenuIPLType;		/* Type of IPL to write on the disk		*/
 #else
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
+#endif
 #endif
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
@@ -409,7 +411,9 @@ extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuKLD;		/* Prototype KLD menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
+#ifdef WITH_MICE
 extern DMenu		MenuMouse;		/* Mouse type menu				*/
+#endif
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
@@ -420,6 +424,7 @@ extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSecurity;		/* System security options menu			*/
 extern DMenu		MenuSecurityProfile;	/* Security profile menu			*/
 extern DMenu		MenuStartup;		/* Startup services menu			*/
+#ifdef WITH_SYSCONS
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
 extern DMenu		MenuSysconsFont;	/* System console font configuration menu	*/
 extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
@@ -427,6 +432,7 @@ extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*
 extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
 extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu	*/
 extern DMenu            MenuSysconsTtys;        /* System console terminal type menu            */
+#endif
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuSendmail;		/* Sendmail configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
@@ -528,10 +534,12 @@ extern int	dhcpParseLeases(char *file, char *hostname, char *domain, char *names
 				char *ipaddr, char *gateway, char *netmask);
 
 /* disks.c */
+#ifdef WITH_SLICES
+extern void	diskPartition(Device *dev);
 extern int	diskPartitionEditor(dialogMenuItem *self);
+#endif
 extern int	diskPartitionWrite(dialogMenuItem *self);
 extern int	diskGetSelectCount(Device ***devs);
-extern void	diskPartition(Device *dev);
 
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
