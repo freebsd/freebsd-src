@@ -1931,12 +1931,25 @@ trimthenstep6:
 				} else if (tp->t_dupacks == tcprexmtthresh) {
 					tcp_seq onxt = tp->snd_nxt;
 					u_int win;
-					if ((tcp_do_newreno || 
-					    tp->sack_enable) &&
-					    SEQ_LEQ(th->th_ack,
-					            tp->snd_recover)) {
-						tp->t_dupacks = 0;
-						break;
+
+					/*
+					 * If we're doing sack, check to 
+					 * see if we're already in sack 
+					 * recovery. If we're not doing sack,
+					 * check to see if we're in newreno
+					 * recovery.
+					 */
+					if (tp->sack_enable) {
+						if (IN_FASTRECOVERY(tp)) {
+							tp->t_dupacks = 0;
+							break;
+						}
+					} else if (tcp_do_newreno) {
+						if (SEQ_LEQ(th->th_ack,
+						    tp->snd_recover)) {
+							tp->t_dupacks = 0;
+							break;
+						}
 					}
 					win = min(tp->snd_wnd, tp->snd_cwnd) /
 					    2 / tp->t_maxseg;
@@ -1953,7 +1966,7 @@ trimthenstep6:
 						    tp->t_maxseg * 
 						    tp->t_dupacks;
 						(void) tcp_output(tp);
-						tp->snd_cwnd = 
+						tp->snd_cwnd += 
 						    tp->snd_ssthresh;
 						goto drop;
 					}
