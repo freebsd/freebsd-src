@@ -70,6 +70,7 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_MTUNKNOWN	0x00002000
 #define	F_IGNCASE	0x00010000	/* iname ipath iregex */
 #define	F_EXACTTIME	F_IGNCASE	/* -[acm]time units syntax */
+#define F_EXECPLUS	0x00020000	/* -exec ... {} + */
 
 /* node definition */
 typedef struct _plandata {
@@ -94,6 +95,12 @@ typedef struct _plandata {
 			char **_e_argv;		/* argv array */
 			char **_e_orig;		/* original strings */
 			int *_e_len;		/* allocated length */
+			int _e_pbnum;		/* base num. of args. used */
+			int _e_ppos;		/* number of arguments used */
+			int _e_pnummax;		/* max. number of arguments */
+			int _e_psize;		/* number of bytes of args. */
+			int _e_pbsize;		/* base num. of bytes of args */
+			int _e_psizemax;	/* max num. of bytes of args */
 		} ex;
 		char *_a_data[2];		/* array of char pointers */
 		char *_c_data;			/* char pointer */
@@ -117,6 +124,12 @@ typedef struct _plandata {
 #define	e_argv	p_un.ex._e_argv
 #define	e_orig	p_un.ex._e_orig
 #define	e_len	p_un.ex._e_len
+#define e_pbnum	p_un.ex._e_pbnum
+#define e_ppos	p_un.ex._e_ppos
+#define e_pnummax p_un.ex._e_pnummax
+#define e_psize p_un.ex._e_psize
+#define e_pbsize p_un.ex._e_pbsize
+#define e_psizemax p_un.ex._e_psizemax
 
 typedef struct _option {
 	const char *name;		/* option name */
