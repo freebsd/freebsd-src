@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1998/09/26 10:51:37 dfr Exp $
+# $Id: Makefile,v 1.5 1998/10/14 09:53:25 peter Exp $
 
 LIB=		alpha
 NOPIC=		true
@@ -14,7 +14,7 @@ CFLAGS+=	-DDEBUG
 CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
 		-I${.CURDIR}/../../.. -I.
 
-CFLAGS+= -DDISK_DEBUG
+#CFLAGS+= -DDISK_DEBUG
 #CPPFLAGS+= -DNO_DISKLABEL
 #CPPFLAGS+= -DSAVE_MEMORY
 
