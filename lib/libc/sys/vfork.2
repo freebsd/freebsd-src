@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)vfork.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: vfork.2,v 1.8 1997/02/22 15:04:34 peter Exp $
+.\"	$Id: vfork.2,v 1.9 1997/11/18 03:59:30 jdp Exp $
 .\"
 .Dd June 4, 1993
 .Dt VFORK 2
@@ -90,11 +90,13 @@ it is wrong to call
 .Xr exit 3
 since buffered data would then be flushed twice.)
 .Sh SEE ALSO
+.Xr _exit 2 ,
 .Xr execve 2 ,
 .Xr fork 2 ,
 .Xr rfork 2 ,
 .Xr sigvec 2 ,
-.Xr wait 2
+.Xr wait 2 ,
+.Xr exit 3
 .Sh RETURN VALUES
 Same as for
 .Xr fork 2 .
