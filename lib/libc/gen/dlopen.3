@@ -36,7 +36,10 @@
 .Os
 .Dt DLOPEN 3
 .Sh NAME
-.Nm dlopen , dlsym , dlerror , dlclose
+.Nm dlopen ,
+.Nm dlsym ,
+.Nm dlerror ,
+.Nm dlclose
 .Nd programmatic interface to the dynamic linker
 .Sh LIBRARY
 .Lb libc
@@ -58,8 +61,9 @@ program's address space, to obtain the address bindings of symbols
 defined by such
 objects, and to remove such objects when their use is no longer required.
 .Pp
+The
 .Fn dlopen
-provides access to the shared object in
+function provides access to the shared object in
 .Fa path ,
 returning a descriptor that can be used for later
 references to the object in calls to
@@ -88,7 +92,9 @@ A null pointer supplied for
 .Fa path
 is interpreted as a reference to the main
 executable of the process.
+The
 .Fa mode
+argument
 controls the way in which external function references from the
 loaded object are bound to their referents.
 It must contain one of the following values, possibly ORed with
@@ -138,7 +144,9 @@ fails, it returns a null pointer, and sets an error condition which may
 be interrogated with
 .Fn dlerror .
 .Pp
+The
 .Fn dlsym
+function
 returns the address binding of the symbol described in the null-terminated
 character string
 .Fa symbol ,
@@ -159,7 +167,8 @@ is called with the special
 .Dv NULL ,
 it is interpreted as a reference to the executable or shared object
 from which the call
-is being made.  Thus a shared object can reference its own symbols.
+is being made.
+Thus a shared object can reference its own symbols.
 .Pp
 If
 .Fn dlsym
@@ -167,7 +176,8 @@ is called with the special
 .Fa handle
 .Dv RTLD_DEFAULT ,
 the search for the symbol follows the algorithm used for resolving
-undefined symbols when objects are loaded.  The objects searched are
+undefined symbols when objects are loaded.
+The objects searched are
 as follows, in the given order:
 .Bl -enum
 .It
@@ -215,15 +225,31 @@ could access the
 with
 .Li dlsym(RTLD_NEXT, \&"getpid\&") .
 .Pp
+If
 .Fn dlsym
+is called with the special
+.Fa handle
+.Dv RTLD_SELF ,
+then the search for the symbol is limited to the shared object
+issuing the call to
+.Fn dlsym
+and those shared objects which were loaded after it.
+.Pp
+The
+.Fn dlsym
+function
 returns a null pointer if the symbol cannot be found, and sets an error
 condition which may be queried with
 .Fn dlerror .
 .Pp
+The
 .Fn dlerror
+function
 returns a null-terminated character string describing the last error that
 occurred during a call to
 .Fn dlopen ,
+.Fn dladdr ,
+.Fn dlinfo ,
 .Fn dlsym ,
 or
 .Fn dlclose .
@@ -232,13 +258,16 @@ If no such error has occurred,
 returns a null pointer.
 At each call to
 .Fn dlerror ,
-the error indication is reset.  Thus in the case of two calls
+the error indication is reset.
+Thus in the case of two calls
 to
 .Fn dlerror ,
 where the second call follows the first immediately, the second call
 will always return a null pointer.
 .Pp
+The
 .Fn dlclose
+function
 deletes a reference to the shared object referenced by
 .Fa handle .
 If the reference count drops to 0, the object is removed from the
@@ -272,16 +301,21 @@ for symbols defined in the executable to become visible to
 .Pp
 In previous implementations, it was necessary to prepend an underscore
 to all external symbols in order to gain symbol
-compatibility with object code compiled from the C language.  This is
+compatibility with object code compiled from the C language.
+This is
 still the case when using the (obsolete)
 .Fl aout
 option to the C language compiler.
 .Sh ERRORS
+The
 .Fn dlopen
 and
 .Fn dlsym
-return the null pointer in the event of errors.
+functions
+return a null pointer in the event of errors.
+The
 .Fn dlclose
+function
 returns 0 on success, or -1 if an error occurred.
 Whenever an error has been detected, a message detailing it can be
 retrieved via a call to
@@ -290,4 +324,5 @@ retrieved via a call to
 .Xr ld 1 ,
 .Xr rtld 1 ,
 .Xr dladdr 3 ,
+.Xr dlinfo 3 ,
 .Xr link 5
