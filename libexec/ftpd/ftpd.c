@@ -2920,7 +2920,7 @@ guniquefd(char *local, char **name)
 			return (fd);
 		}
 		if (errno != EEXIST) {
-			perror_reply(550, count ? new : local);
+			perror_reply(553, count ? new : local);
 			return (-1);
 		}
 	}
