@@ -285,7 +285,7 @@ void    record_logout(pid_t pid, const char *ttyname);
  * packet_set_connection for the connection.
  */
 int
-ssh_connect(char **host, struct sockaddr_storage * hostaddr,
+ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
     u_short port, int connection_attempts,
     int anonymous, uid_t original_real_uid,
     const char *proxy_command);
