@@ -95,7 +95,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">Execution of &man.a.out.5; format executables now
+    <para arch="i386,pc98">Execution of &man.a.out.5; format executables now
       requires the <literal>COMPAT_AOUT</literal> option in the kernel
       configuration or the loading of the <filename>aout.ko</filename>
       kernel module.</para>
@@ -108,7 +108,7 @@
       provide access to the system monitoring functions of the AMD 756
       chipset. &merged;</para>
 
-    <para role="historic">The &man.agp.4; driver for AGP devices has been
+    <para arch="i386" role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
     <para>A new in-kernel cryptographic framework (see &man.crypto.4;
@@ -327,7 +327,7 @@
       cache size in kilobytes.  The old options are still supported
       for backwards compatibility. &merged;</para>
 
-    <para arch="i386" role="historic">The &man.puc.4; (PCI <quote>Universal</quote>
+    <para arch="i386,pc98" role="historic">The &man.puc.4; (PCI <quote>Universal</quote>
       Communications) driver has been added, to help connect PCI-based
       serial ports to the &man.sio.4; driver. &merged;</para>
 
@@ -386,7 +386,7 @@
     <para>The uaudio driver, for USB audio devices, has been
       added. &merged;</para>
 
-    <para arch="i386">The ubsa driver has been added to support
+    <para arch="i386,pc98">The ubsa driver has been added to support
       the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
 
     <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
@@ -628,7 +628,7 @@
 	added; this requires the <literal>CPU_ELAN</literal> option in
 	the kernel configuration file. &merged;</para>
 
-      <para arch="i386">The <literal>CPU_DISABLE_CMPXCHG</literal>
+      <para arch="i386,pc98">The <literal>CPU_DISABLE_CMPXCHG</literal>
         kernel configuration option has been added.  Enabling this
         option has been shown to dramatically improve performance on
         VMWare client OS installs.
@@ -2471,7 +2471,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.fbtab.5; now accepts glob matching patterns for target
       devices, not just individual devices and directories.</para>
 
-    <para arch="i386">&man.fdisk.8; no longer attempts to search for a
+    <para arch="i386,pc98">&man.fdisk.8; no longer attempts to search for a
       device if none has been specified on the command line, but
       instead tries to figure out the default device name from the
       root device.</para>
