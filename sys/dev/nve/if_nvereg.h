@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2005 by David E. O'Brien <obrien@FreeBSD.org>.
  * Copyright (c) 2003 by Quinton Dolan <q@onthenet.com.au>.
  * All rights reserved.
  *
@@ -37,6 +38,14 @@
 #define	NFORCE_MCPNET1_DEVICEID 0x01C3
 #define	NFORCE_MCPNET2_DEVICEID 0x0066
 #define	NFORCE_MCPNET3_DEVICEID 0x00D6
+#define	NFORCE_MCPNET4_DEVICEID 0x0086
+#define	NFORCE_MCPNET5_DEVICEID 0x008C
+#define	NFORCE_MCPNET6_DEVICEID 0x00E6
+#define	NFORCE_MCPNET7_DEVICEID 0x00DF
+#define	NFORCE_MCPNET8_DEVICEID 0x0056
+#define	NFORCE_MCPNET9_DEVICEID 0x0057
+#define	NFORCE_MCPNET10_DEVICEID 0x0037
+#define	NFORCE_MCPNET11_DEVICEID 0x0038 
 
 #define	NV_RID		0x10
 
