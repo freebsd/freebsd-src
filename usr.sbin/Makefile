@@ -76,6 +76,7 @@ SUBDIR=	IPXrouted \
 	quot \
 	quotaon \
 	rarpd \
+	raycontrol \
 	repquota \
 	rip6query \
 	rmt \
