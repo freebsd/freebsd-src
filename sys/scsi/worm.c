@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.53 1998/03/31 01:56:21 jmz Exp $
+ *      $Id: worm.c,v 1.54 1998/04/15 17:47:24 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -611,7 +611,13 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	} else {
 	    worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
 	    if (worm->write_session) {
+#ifdef BOUNCE_BUFFERS
+		vm_bounce_kva_alloc_free((vm_offset_t)worm->write_session,
+		    btoc(sizeof(struct wormio_write_session) +
+		    worm->write_session->length));
+#else
 		free(worm->write_session, M_DEVBUF);
+#endif
 		worm->write_session = 0;
 	    }
 	}
@@ -677,7 +683,13 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		worm->worm_flags |= WORMFL_TRACK_PREP;
 		worm->preptrack = *w;
 		if (worm->write_session) {
+#ifdef BOUNCE_BUFFERS
+		    vm_bounce_kva_alloc_free((vm_offset_t)worm->write_session,
+			btoc(sizeof(struct wormio_write_session) +
+			worm->write_session->length));
+#else
 		    free(worm->write_session, M_DEVBUF);
+#endif
 		    worm->write_session = 0;
 		}
 	    }
@@ -732,9 +744,20 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		    error = EINVAL;
 		    worm->error = WORM_SEQUENCE_ERROR;
 		} else {
+#ifdef BOUNCE_BUFFERS
+		    worm->write_session = (struct wormio_write_session *)
+		        vm_bounce_kva_alloc(
+			btoc(sizeof(struct wormio_write_session) +
+		    	((struct wormio_write_session *) addr)->length));
+		    if (!worm->write_session) {
+			error = ENOMEM;
+			break;
+		    }
+#else
 		    worm->write_session = malloc(sizeof(struct wormio_write_session) +
 			       ((struct wormio_write_session *) addr)->length,
 			       M_DEVBUF, M_WAITOK);
+#endif
 		    bcopy(addr, worm->write_session, sizeof(struct wormio_write_session));
 		    worm->write_session->track_desc = sizeof(struct wormio_write_session) + 
 			(u_char *) worm->write_session;
