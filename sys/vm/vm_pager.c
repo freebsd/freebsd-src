@@ -267,26 +267,6 @@ vm_pager_deallocate(object)
  * vm_pager_has_page() - inline, see vm/vm_pager.h
  */
 
-vm_offset_t
-vm_pager_map_page(m)
-	vm_page_t m;
-{
-	vm_offset_t kva;
-
-	kva = kmem_alloc_wait(pager_map, PAGE_SIZE);
-	pmap_qenter(kva, &m, 1);
-	return (kva);
-}
-
-void
-vm_pager_unmap_page(kva)
-	vm_offset_t kva;
-{
-
-	pmap_qremove(kva, 1);
-	kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
-}
-
 vm_object_t
 vm_pager_object_lookup(pg_list, handle)
 	struct pagerlst *pg_list;
