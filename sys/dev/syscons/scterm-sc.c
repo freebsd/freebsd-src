@@ -395,31 +395,32 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->attr_mask |= BLINK_ATTR;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
-				case 7:	/* reverse video */
+				case 7: /* reverse */
 					tcp->attr_mask |= REVERSE_ATTR;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
-				case 30: case 31: /* set fg color */
+				case 30: case 31: /* set ansi fg color */
 				case 32: case 33: case 34:
 				case 35: case 36: case 37:
 					tcp->attr_mask |= FG_CHANGED;
 					tcp->cur_color.fg = ansi_col[n - 30];
 					tcp->cur_attr = mask2attr(tcp);
 					break;
-				case 39:
-					tcp->attr_mask &= ~FG_CHANGED;
+				case 39: /* restore fg color back to normal */
+					tcp->attr_mask &= BG_CHANGED;
 					tcp->cur_color.fg = tcp->std_color.fg;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
-				case 40: case 41: /* set bg color */
+				case 40: case 41: /* set ansi bg color */
 				case 42: case 43: case 44:
 				case 45: case 46: case 47:
 					tcp->attr_mask |= BG_CHANGED;
 					tcp->cur_color.bg = ansi_col[n - 40];
 					tcp->cur_attr = mask2attr(tcp);
 		    			break;
-				case 49:
-					tcp->attr_mask &= ~BG_CHANGED;
+				case 49: /* restore bg color back to normal */
+					tcp->attr_mask &=
+						FG_CHANGED|BOLD_ATTR|UNDERLINE_ATTR|BLINK_ATTR;
 					tcp->cur_color.bg = tcp->std_color.bg;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
@@ -444,7 +445,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			else
 				n = tcp->param[0];
 			switch (n) {
-			case 0: /* reset colors and attributes */
+			case 0: /* reset colors and attributes back to normal */
 				tcp->attr_mask = NORMAL_ATTR;
 				tcp->cur_color = tcp->std_color
 					       = tcp->dflt_std_color;
@@ -463,7 +464,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 						  = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 3: /* set video attribute directly */
+			case 3: /* set adapter attribute directly */
 				tcp->attr_mask &= ~(FG_CHANGED | BG_CHANGED);
 				tcp->cur_color.fg = tcp->std_color.fg
 						  = tcp->param[1] & 0x0f;
@@ -471,15 +472,15 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 						  = (tcp->param[1] >> 4) & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 5:	/* set ansi reverse video background */
+			case 5: /* set ansi reverse background */
 				tcp->rev_color.bg = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 6:	/* set ansi reverse video foreground */
+			case 6: /* set ansi reverse foreground */
 				tcp->rev_color.fg = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 7: /* set reverse video attribute directly */
+			case 7: /* set adapter reverse attribute directly */
 				tcp->rev_color.fg = tcp->param[1] & 0x0f;
 				tcp->rev_color.bg = (tcp->param[1] >> 4) & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
@@ -559,7 +560,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			splx(i);
 			break;
 
-		case 'F':   /* set foreground */
+		case 'F':   /* set adapter foreground */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~FG_CHANGED;
 				tcp->cur_color.fg = tcp->std_color.fg
@@ -568,7 +569,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			}
 			break;
 
-		case 'G':   /* set background */
+		case 'G':   /* set adapter background */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~BG_CHANGED;
 				tcp->cur_color.bg = tcp->std_color.bg
@@ -577,14 +578,14 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			}
 			break;
 
-		case 'H':   /* set reverse video foreground */
+		case 'H':   /* set adapter reverse foreground */
 			if (tcp->num_param == 1) {
 				tcp->rev_color.fg = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 			}
 			break;
 
-		case 'I':   /* set reverse video background */
+		case 'I':   /* set adapter reverse background */
 			if (tcp->num_param == 1) {
 				tcp->rev_color.bg = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
