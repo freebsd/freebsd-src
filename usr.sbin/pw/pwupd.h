@@ -35,6 +35,12 @@
 
 #include <sys/cdefs.h>
 
+#if defined(__FreeBSD__)
+#define	RET_SETGRENT	int
+#else
+#define	RET_SETGRENT	void
+#endif
+
 enum updtype
 {
         UPD_DELETE = -1,
@@ -63,7 +69,7 @@ struct pwf
 	struct passwd	* (*_getpwuid)(uid_t uid);
 	struct passwd	* (*_getpwnam)(const char * nam);
 	int             (*_pwdb)(char *arg, ...);
-	int		  (*_setgrent)(void);
+	RET_SETGRENT	  (*_setgrent)(void);
 	void		  (*_endgrent)(void);
 	struct group  * (*_getgrent)(void);
 	struct group  * (*_getgrgid)(gid_t gid);
@@ -135,15 +141,13 @@ struct passwd * vgetpwnam __P((const char * nam));
 struct passwd * vgetpwent __P((void));
 int             vpwdb __P((char *arg, ...));
 
-int vsetgrent __P((void));
-void vendgrent __P((void));
 struct group * vgetgrent __P((void));
 struct group * vgetgrgid __P((gid_t gid));
 struct group * vgetgrnam __P((const char * nam));
 struct group * vgetgrent __P((void));
 int	       vgrdb __P((char *arg, ...));
-int	        vsetgrent __P((void));
-void            vendgrent __P((void));
+RET_SETGRENT   vsetgrent __P((void));
+void           vendgrent __P((void));
 
 void copymkdir __P((char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid));
 void rm_r __P((char const * dir, uid_t uid));
