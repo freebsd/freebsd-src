@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.32 1997/09/12 05:44:11 asami Exp $
+#     $Id: BSD.local.dist,v 1.33 1997/09/25 23:57:53 ache Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -40,6 +40,51 @@
         ..
         catn            uname=man
         ..
+        de_DE.ISO_8859-1
+            cat1            uname=man
+            ..
+            cat2            uname=man
+            ..
+            cat3            uname=man
+            ..
+            cat4            uname=man
+            ..
+            cat5            uname=man
+            ..
+            cat6            uname=man
+            ..
+            cat7            uname=man
+            ..
+            cat8            uname=man
+            ..
+            cat9            uname=man
+            ..
+            catl            uname=man
+            ..
+            catn            uname=man
+            ..
+            man1
+            ..
+            man2
+            ..
+            man3
+            ..
+            man4
+            ..
+            man5
+            ..
+            man6
+            ..
+            man7
+            ..
+            man8
+            ..
+            man9
+            ..
+            manl
+            ..
+            mann
+            ..
         ja_JP.EUC
             cat1            uname=man
             ..
