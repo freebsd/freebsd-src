@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.19 1995/08/01 18:50:57 davidg Exp $
+ * $Id: nfs_serv.c,v 1.20 1995/08/02 10:12:47 dfr Exp $
  */
 
 /*
@@ -2553,7 +2553,6 @@ again:
 #else
 	error = VOP_READDIR(vp, &io, cred, &eofflag, cookies, ncookies);
 #endif
-	VOP_UNLOCK(vp);
 	off = (off_t)io.uio_offset;
 	if (!cookies && !error)
 		error = NFSERR_PERM;
@@ -2562,6 +2561,7 @@ again:
 		if (!error)
 			error = getret;
 	}
+	VOP_UNLOCK(vp);
 	if (error) {
 		nfsrv_vrele(vp);
 		free((caddr_t)rbuf, M_TEMP);
@@ -2810,6 +2810,7 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_procp = (struct proc *)0;
 	eofflag = 0;
+	VOP_LOCK(vp);
 #ifndef __NetBSD__
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
@@ -2821,6 +2822,7 @@ again:
 #endif
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred, procp);
+	VOP_UNLOCK(vp);
 	if (!cookies && !error)
 		error = NFSERR_PERM;
 	if (!error)
@@ -2889,6 +2891,20 @@ again:
 		goto again;
 	}
 
+	/*
+	 * Probe one of the directory entries to see if the filesystem
+	 * supports VGET.
+	 */
+	if (VFS_VGET(vp->v_mount, dp->d_fileno, &nvp) == EOPNOTSUPP) {
+		error = NFSERR_NOTSUPP;
+		nfsrv_vrele(vp);
+		free((caddr_t)cookies, M_TEMP);
+		free((caddr_t)rbuf, M_TEMP);
+		nfsm_reply(NFSX_V3POSTOPATTR);
+		nfsm_srvpostop_attr(getret, &at);
+		return (0);
+	}
+	    
 	dirlen = len = NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF + 2 * NFSX_UNSIGNED;
 	nfsm_reply(cnt);
 	nfsm_srvpostop_attr(getret, &at);
