@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.24 1998/12/16 18:42:38 phk Exp $
+ * $Id: if_ar.c,v 1.25 1999/03/30 13:28:22 phk Exp $
  */
 
 /*
@@ -135,8 +135,8 @@ struct ar_softc {
 
 	char  xmit_busy;     /* Transmitter is busy */
 	char  txb_inuse;     /* Number of tx blocks currently in use */
-	char  txb_new;       /* Index to where new buffer will be added */
-	char  txb_next_tx;    /* Index to next block ready to tx */
+	u_char txb_new;      /* Index to where new buffer will be added */
+	u_char txb_next_tx;  /* Index to next block ready to tx */
 
 	u_int rxdesc;        /* On card address */
 	u_int rxstart;       /* On card address */
@@ -595,7 +595,6 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int s, error;
 	int was_up, should_be_up;
-	struct sppp *sp = (struct sppp *)ifp;
 	struct ar_softc *sc = ifp->if_softc;
 
 	TRC(printf("ar%d: arioctl.\n", ifp->if_unit);)
