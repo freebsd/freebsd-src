@@ -158,7 +158,6 @@
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
-#define PPTP_EXPIRE_TIME             60
 #define PROTO_EXPIRE_TIME            60
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
@@ -422,7 +421,8 @@ StartPointIn(struct in_addr alias_addr,
     u_int n;
 
     n  = alias_addr.s_addr;
-    n += alias_port;
+    if (link_type != LINK_PPTP)
+	n += alias_port;
     n += link_type;
     return(n % LINK_TABLE_IN_SIZE);
 }
@@ -436,8 +436,10 @@ StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
 
     n  = src_addr.s_addr;
     n += dst_addr.s_addr;
-    n += src_port; 
-    n += dst_port;
+    if (link_type != LINK_PPTP) {
+	n += src_port; 
+	n += dst_port;
+    }
     n += link_type;
 
     return(n % LINK_TABLE_OUT_SIZE);
@@ -931,8 +933,7 @@ DeleteLink(struct alias_link *link)
             break;
         case LINK_TCP:
             tcpLinkCount--;
-            if (link->data.tcp != NULL)
-                free(link->data.tcp);
+            free(link->data.tcp);
             break;
         case LINK_PPTP:
             pptpLinkCount--;
@@ -1005,7 +1006,7 @@ AddLink(struct in_addr  src_addr,
             link->expire_time = TCP_EXPIRE_INITIAL;
             break;
         case LINK_PPTP:
-            link->expire_time = PPTP_EXPIRE_TIME;
+            link->flags |= LINK_PERMANENT;	/* no timeout. */
             break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
@@ -1033,15 +1034,6 @@ AddLink(struct in_addr  src_addr,
             return(NULL);
         }
 
-    /* Set up pointers for output lookup table */
-        start_point = StartPointOut(src_addr, dst_addr, 
-                                    src_port, dst_port, link_type);
-        LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
-
-    /* Set up pointers for input lookup table */
-        start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
-        LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
-
     /* Link-type dependent initialization */
         switch(link_type)
         {
@@ -1055,7 +1047,6 @@ AddLink(struct in_addr  src_addr,
                 break;
             case LINK_TCP:
                 aux_tcp = malloc(sizeof(struct tcp_dat));
-                link->data.tcp = aux_tcp;
                 if (aux_tcp != NULL)
                 {
                     int i;
@@ -1068,6 +1059,7 @@ AddLink(struct in_addr  src_addr,
                     for (i=0; i<N_LINK_TCP_DATA; i++)
                         aux_tcp->ack[i].active = 0;
                     aux_tcp->fwhole = -1;
+                    link->data.tcp = aux_tcp;
                 }
                 else
                 {
@@ -1075,6 +1067,8 @@ AddLink(struct in_addr  src_addr,
                     fprintf(stderr, "PacketAlias/AddLink: ");
                     fprintf(stderr, " cannot allocate auxiliary TCP data\n");
 #endif
+		    free(link);
+		    return (NULL);
                 }
                 break;
             case LINK_PPTP:
@@ -1092,6 +1086,15 @@ AddLink(struct in_addr  src_addr,
                 protoLinkCount++;
                 break;
         }
+
+    /* Set up pointers for output lookup table */
+        start_point = StartPointOut(src_addr, dst_addr, 
+                                    src_port, dst_port, link_type);
+        LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
+
+    /* Set up pointers for input lookup table */
+        start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
+        LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
     }
     else
     {
@@ -1127,7 +1130,6 @@ ReLink(struct alias_link *old_link,
 #ifndef NO_FW_PUNCH
     if (new_link != NULL &&
         old_link->link_type == LINK_TCP &&
-        old_link->data.tcp &&
         old_link->data.tcp->fwhole > 0) {
       PunchFWHole(new_link);
     }
@@ -1389,7 +1391,8 @@ FindLinkIn(struct in_addr dst_addr,
     AddFragmentPtrLink(), FindFragmentPtr()
     FindProtoIn(), FindProtoOut()
     FindUdpTcpIn(), FindUdpTcpOut()
-    FindPptpIn(), FindPptpOut()
+    AddPptp(), FindPptpOutByCallId(), FindPptpInByCallId(),
+    FindPptpOutByPeerCallId(), FindPptpInByPeerCallId()
     FindOriginalAddress(), FindAliasAddress()
 
 (prototypes in alias_local.h)
@@ -1399,14 +1402,15 @@ FindLinkIn(struct in_addr dst_addr,
 struct alias_link *
 FindIcmpIn(struct in_addr dst_addr,
            struct in_addr alias_addr,
-           u_short id_alias)
+           u_short id_alias,
+           int create)
 {
     struct alias_link *link;
 
     link = FindLinkIn(dst_addr, alias_addr,
                       NO_DEST_PORT, id_alias,
                       LINK_ICMP, 0);
-    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
+    if (link == NULL && create && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
     {
         struct in_addr target_addr;
 
@@ -1423,14 +1427,15 @@ FindIcmpIn(struct in_addr dst_addr,
 struct alias_link *
 FindIcmpOut(struct in_addr src_addr,
             struct in_addr dst_addr,
-            u_short id)
+            u_short id,
+            int create)
 {
     struct alias_link * link;
 
     link = FindLinkOut(src_addr, dst_addr,
                        id, NO_DEST_PORT,
                        LINK_ICMP, 0);
-    if (link == NULL)
+    if (link == NULL && create)
     {
         struct in_addr alias_addr;
 
@@ -1552,7 +1557,8 @@ FindUdpTcpIn(struct in_addr dst_addr,
              struct in_addr alias_addr,
              u_short        dst_port,
              u_short        alias_port,
-             u_char         proto)
+             u_char         proto,
+             int            create)
 {
     int link_type;
     struct alias_link *link;
@@ -1572,11 +1578,9 @@ FindUdpTcpIn(struct in_addr dst_addr,
 
     link = FindLinkIn(dst_addr, alias_addr,
                       dst_port, alias_port,
-                      link_type, 1);
+                      link_type, create);
 
-    if (!(packetAliasMode & PKT_ALIAS_DENY_INCOMING)
-     && !(packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-     && link == NULL)
+    if (link == NULL && create && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
     {
         struct in_addr target_addr;
 
@@ -1595,7 +1599,8 @@ FindUdpTcpOut(struct in_addr  src_addr,
               struct in_addr  dst_addr,
               u_short         src_port,
               u_short         dst_port,
-              u_char          proto)
+              u_char          proto,
+              int             create)
 {
     int link_type;
     struct alias_link *link;
@@ -1613,9 +1618,9 @@ FindUdpTcpOut(struct in_addr  src_addr,
         break;
     }
 
-    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type, 1);
+    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type, create);
 
-    if (link == NULL)
+    if (link == NULL && create)
     {
         struct in_addr alias_addr;
 
@@ -1630,114 +1635,94 @@ FindUdpTcpOut(struct in_addr  src_addr,
 
 
 struct alias_link *
-FindPptpIn(struct in_addr dst_addr,
-          struct in_addr alias_addr,
-          u_short call_id)
+AddPptp(struct in_addr  src_addr,
+	struct in_addr  dst_addr,
+	struct in_addr  alias_addr,
+	u_int16_t       src_call_id)
 {
     struct alias_link *link;
 
-    link = FindLinkIn(dst_addr, alias_addr,
-                      NO_DEST_PORT, call_id,
-                      LINK_PPTP, 1);
+    link = AddLink(src_addr, dst_addr, alias_addr,
+		   src_call_id, 0, GET_ALIAS_PORT,
+		   LINK_PPTP);
 
-    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
-    {
-        struct in_addr target_addr;
-
-        target_addr = FindOriginalAddress(alias_addr);
-        link = AddLink(target_addr, dst_addr, alias_addr,
-                       call_id, NO_DEST_PORT, call_id,
-                       LINK_PPTP);
-    }
-
-    return(link);
-}
-
-
-struct alias_link * 
-FindPptpOut(struct in_addr  src_addr,
-            struct in_addr  dst_addr,
-            u_short         call_id)
-{
-    struct alias_link *link;
-
-    link = FindLinkOut(src_addr, dst_addr,
-                       call_id, NO_DEST_PORT,
-                       LINK_PPTP, 1);
-
-    if (link == NULL)
-    {
-        struct in_addr alias_addr;
-
-        alias_addr = FindAliasAddress(src_addr);
-        link = AddLink(src_addr, dst_addr, alias_addr,
-                       call_id, NO_DEST_PORT, GET_ALIAS_PORT,
-                       LINK_PPTP);
-    }
-
-    return(link);
+    return (link);
 }
 
 
 struct alias_link *
-QueryUdpTcpIn(struct in_addr dst_addr,
-              struct in_addr alias_addr,
-              u_short        dst_port,
-              u_short        alias_port,
-              u_char         proto)
+FindPptpOutByCallId(struct in_addr src_addr,
+		    struct in_addr dst_addr,
+		    u_int16_t      src_call_id)
 {
-    int link_type;
+    u_int i;
     struct alias_link *link;
 
-    switch (proto)
-    {
-    case IPPROTO_UDP:
-        link_type = LINK_UDP;
-        break;
-    case IPPROTO_TCP:
-        link_type = LINK_TCP;
-        break;
-    default:
-        return NULL;
-        break;
-    }
+    i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableOut[i], list_out)
+	if (link->link_type == LINK_PPTP &&
+	    link->src_addr.s_addr == src_addr.s_addr &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->src_port == src_call_id)
+		break;
 
-    link = FindLinkIn(dst_addr, alias_addr,
-                      dst_port, alias_port,
-                      link_type, 0);
-
-    return(link);
+    return (link);
 }
 
 
-struct alias_link * 
-QueryUdpTcpOut(struct in_addr  src_addr,
-               struct in_addr  dst_addr,
-               u_short         src_port,
-               u_short         dst_port,
-               u_char          proto)
+struct alias_link *
+FindPptpOutByPeerCallId(struct in_addr src_addr,
+			struct in_addr dst_addr,
+			u_int16_t      dst_call_id)
 {
-    int link_type;
+    u_int i;
     struct alias_link *link;
 
-    switch (proto)
-    {
-    case IPPROTO_UDP:
-        link_type = LINK_UDP;
-        break;
-    case IPPROTO_TCP:
-        link_type = LINK_TCP;
-        break;
-    default:
-        return NULL;
-        break;
-    }
+    i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableOut[i], list_out)
+	if (link->link_type == LINK_PPTP &&
+	    link->src_addr.s_addr == src_addr.s_addr &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->dst_port == dst_call_id)
+		break;
 
-    link = FindLinkOut(src_addr, dst_addr,
-                       src_port, dst_port,
-		       link_type, 0);
+    return (link);
+}
 
-    return(link);
+
+struct alias_link *
+FindPptpInByCallId(struct in_addr dst_addr,
+		   struct in_addr alias_addr,
+		   u_int16_t      dst_call_id)
+{
+    u_int i;
+    struct alias_link *link;
+
+    i = StartPointIn(alias_addr, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableIn[i], list_in)
+	if (link->link_type == LINK_PPTP &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->alias_addr.s_addr == alias_addr.s_addr &&
+	    link->dst_port == dst_call_id)
+		break;
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpInByPeerCallId(struct in_addr dst_addr,
+		       struct in_addr alias_addr,
+		       u_int16_t      alias_call_id)
+{
+    struct alias_link *link;
+
+    link = FindLinkIn(dst_addr, alias_addr,
+		      0/* any */, alias_call_id,
+		      LINK_PPTP, 0);
+
+
+    return (link);
 }
 
 
@@ -1845,6 +1830,7 @@ FindAliasAddress(struct in_addr original_addr)
     SetAckModified(), GetAckModified()
     GetDeltaAckIn(), GetDeltaSeqOut(), AddSeq()
     SetLastLineCrlfTermed(), GetLastLineCrlfTermed()
+    SetDestCallId()
 */
 
 
@@ -2225,6 +2211,16 @@ GetLastLineCrlfTermed(struct alias_link *link)
 {
 
     return (link->flags & LINK_LAST_LINE_CRLF_TERMED);
+}
+
+void
+SetDestCallId(struct alias_link *link, u_int16_t cid)
+{
+
+    deleteAllLinks = 1;
+    link = ReLink(link, link->src_addr, link->dst_addr, link->alias_addr,
+		  link->src_port, cid, link->alias_port, link->link_type);
+    deleteAllLinks = 0;
 }
 
 
@@ -2679,8 +2675,7 @@ PunchFWHole(struct alias_link *link) {
 /* Don't do anything unless we are asked to */
     if ( !(packetAliasMode & PKT_ALIAS_PUNCH_FW) ||
          fireWallFD < 0 ||
-         link->link_type != LINK_TCP ||
-         !link->data.tcp)
+         link->link_type != LINK_TCP)
         return;
 
     memset(&rule, 0, sizeof rule);
@@ -2755,7 +2750,7 @@ PunchFWHole(struct alias_link *link) {
    link.  Calling this too often is harmless. */
 static void
 ClearFWHole(struct alias_link *link) {
-    if (link->link_type == LINK_TCP && link->data.tcp) {
+    if (link->link_type == LINK_TCP) {
         int fwhole =  link->data.tcp->fwhole; /* Where is the firewall hole? */
         struct ip_fw rule;
 
