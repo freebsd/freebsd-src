@@ -20,7 +20,7 @@ SRCS=	bus_if.h device_if.h usb_if.h usb_if.c \
 	usbdevs.h usbdevs_data.h \
 	usbdi.c usbdi.h usbdivar.h \
 	usbdi_util.c usbdi_util.h \
-	usb_ethersubr.c
+	usb_ethersubr.c usbdevs.h
 	
 SRCS+=	uhci_pci.c uhci.c uhcireg.h uhcivar.h
 SRCS+=	ohci_pci.c ohci.c ohcireg.h ohcivar.h
