@@ -559,8 +559,10 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = execve(p, &args)) == 0)
+		if ((error = execve(p, &args)) == 0) {
+			mtx_exit(&Giant, MTX_DEF);
 			return;
+		}
 		if (error != ENOENT)
 			printf("exec %.*s: error %d\n", (int)(next - path), 
 			    path, error);
