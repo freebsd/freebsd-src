@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.5 1995/09/14 07:09:32 davidg Exp $
+ *  $Id: syscons.c,v 1.117.4.6 1995/12/31 09:29:52 joerg Exp $
  */
 
 #include "sc.h"
@@ -303,6 +303,8 @@ struct tty
 {
     int unit = minor(dev);
 
+    if (!init_done)
+	return(NULL);
     if (unit > MAXCONS || unit < 0)
 	return(NULL);
     if (unit == MAXCONS)
