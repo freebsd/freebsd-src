@@ -532,7 +532,7 @@ struct an_ltv_status {
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
 	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
 	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
-	u_int16_t		an_spare[3];
+	u_int16_t		an_spare[5];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
