@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.15 1999/05/18 20:43:49 dfr Exp $
+ *	$Id: isa.c,v 1.16 1999/05/22 15:18:15 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <machine/resource.h>
 
 static struct rman isa_irq_rman;
+static struct rman isa_drq_rman;
 
 static void
 isa_intr_enable(int irq)
@@ -112,6 +113,14 @@ isa_init_intr(void)
 	    || rman_manage_region(&isa_irq_rman, 3, 15))
 		panic("isa_probe isa_irq_rman");
 
+	isa_drq_rman.rm_start = 0;
+	isa_drq_rman.rm_end = 7;
+	isa_drq_rman.rm_type = RMAN_ARRAY;
+	isa_drq_rman.rm_descr = "ISA DMA request lines";
+	if (rman_init(&isa_drq_rman)
+	    || rman_manage_region(&isa_drq_rman, 0, 7))
+		panic("isa_probe isa_drq_rman");
+
 	/* mask all isa interrupts */
 	outb(IO_ICU1+1, 0xff);
 	outb(IO_ICU2+1, 0xff);
@@ -150,8 +159,8 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	/*
 	 * Consider adding a resource definition. We allow rid 0-1 for
-	 * irq, drq and memory and rid 0-7 for ports which is sufficient for
-	 * isapnp.
+	 * irq and drq, 0-3 for memory and 0-7 for ports which is
+	 * sufficient for isapnp.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
@@ -165,7 +174,11 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (!rle) {
 			if (*rid < 0)
 				return 0;
-			if (type != SYS_RES_IOPORT && *rid > 1)
+			if (type == SYS_RES_IRQ && *rid > 1)
+				return 0;
+			if (type == SYS_RES_DRQ && *rid > 1)
+				return 0;
+			if (type != SYS_RES_MEMORY && *rid > 3)
 				return 0;
 			if (type == SYS_RES_IOPORT && *rid > 7)
 				return 0;
@@ -173,13 +186,13 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 
-	if (type != SYS_RES_IRQ)
+	if (type != SYS_RES_IRQ && type != SYS_RES_DRQ)
 		return resource_list_alloc(bus, child, type, rid,
 					   start, end, count, flags);
 
 	if (!passthrough) {
 		rl = device_get_ivars(child);
-		rle = resource_list_find(rl, SYS_RES_IRQ, *rid);
+		rle = resource_list_find(rl, type, *rid);
 		if (!rle)
 			return 0;
 		if (rle->res)
@@ -190,11 +203,16 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 
-	res = isa_alloc_intr(bus, child, start);
-
+	if (type == SYS_RES_IRQ)
+	    res = rman_reserve_resource(&isa_irq_rman, start, start, 1,
+					0, child);
+	else
+	    res = rman_reserve_resource(&isa_drq_rman, start, start, 1,
+					0, child);
+	    
 	if (res && !passthrough) {
 		rl = device_get_ivars(child);
-		rle = resource_list_find(rl, SYS_RES_IRQ, *rid);
+		rle = resource_list_find(rl, type, *rid);
 		rle->start = rman_get_start(res);
 		rle->end = rman_get_end(res);
 		rle->count = 1;
