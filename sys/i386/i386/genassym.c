@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.63 1999/02/22 15:13:34 bde Exp $
+ *	$Id: genassym.c,v 1.64 1999/02/28 10:53:28 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -84,6 +84,7 @@ main()
 	printf("#define\tP_BACK %#x\n", OS(proc, p_procq.tqe_prev));
 	printf("#define\tP_VMSPACE %#x\n", OS(proc, p_vmspace));
 	printf("#define\tVM_PMAP %#x\n", OS(vmspace, vm_pmap));
+	printf("#define\tPM_ACTIVE %#x\n", OS(pmap, pm_active));
 	printf("#define\tP_ADDR %#x\n", OS(proc, p_addr));
 	printf("#define\tP_PRI %#x\n", OS(proc, p_priority));
 	printf("#define\tP_RTPRIO_TYPE %#x\n", OS(proc, p_rtprio.type));
