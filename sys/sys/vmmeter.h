@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.3 1994/08/02 07:54:12 davidg Exp $
+ * $Id: vmmeter.h,v 1.4 1994/08/21 04:42:14 paul Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -49,7 +49,6 @@ struct vmmeter {
 	unsigned v_syscall;	/* calls to syscall() */
 	unsigned v_intr;	/* device interrupts */
 	unsigned v_soft;	/* software interrupts */
-	unsigned v_faults;	/* total faults taken */
 	/*
 	 * Virtual memory activity.
 	 */
@@ -57,14 +56,14 @@ struct vmmeter {
 	unsigned v_hits;	/* object cache hits */
 	unsigned v_vm_faults;	/* number of address memory faults */
 	unsigned v_cow_faults;	/* number of copy-on-writes */
-	unsigned v_swpin;	/* swapins */
-	unsigned v_swpout;	/* swapouts */
-	unsigned v_pswpin;	/* pages swapped in */
-	unsigned v_pswpout;	/* pages swapped out */
-	unsigned v_pageins;	/* number of pageins */
-	unsigned v_pageouts;	/* number of pageouts */
-	unsigned v_pgpgin;	/* pages paged in */
-	unsigned v_pgpgout;	/* pages paged out */
+	unsigned v_swapin;	/* swap pager pageins */
+	unsigned v_swapout;	/* swap pager pageouts */
+	unsigned v_swappgsin;	/* swap pager pages paged in */
+	unsigned v_swappgsout;	/* swap pager pages paged out */
+	unsigned v_vnodein;	/* vnode pager pageins */
+	unsigned v_vnodeout;	/* vnode pager pageouts */
+	unsigned v_vnodepgsin;	/* vnode_pager pages paged in */
+	unsigned v_vnodepgsout;	/* vnode pager pages paged out */
 	unsigned v_intrans;	/* intransit blocking page faults */
 	unsigned v_reactivated;	/* number of pages reactivated from free list */
 	unsigned v_rev;		/* revolutions of the hand */
