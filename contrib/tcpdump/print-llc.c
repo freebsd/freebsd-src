@@ -188,7 +188,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		caplen -= 4;
 	}
 	(void)printf(" len=%d", length);
-	if (caplen > 0 !qflag) {
+	if (caplen > 0 && !qflag) {
 		default_print_unaligned(p, caplen);
 	}
 	return(1);
