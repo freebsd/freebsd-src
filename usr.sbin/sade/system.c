@@ -326,10 +326,10 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT.gz", file);
     if (file_readable(buf)) 
 	return expand(buf);
-    snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.hlp", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sysinstall/help/%s.hlp", file);
     if (file_readable(buf))
 	return buf;
-    snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.TXT", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sysinstall/help/%s.TXT", file);
     if (file_readable(buf))
 	return buf;
     return NULL;
