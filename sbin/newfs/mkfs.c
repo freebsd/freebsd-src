@@ -140,10 +140,7 @@ void wtfs (daddr_t, int, char *);
 void wtfsflush (void);
 
 void
-mkfs(pp, fsys, fi, fo)
-	struct partition *pp;
-	char *fsys;
-	int fi, fo;
+mkfs(struct partition *pp, char *fsys, int fi, int fo)
 {
 	long i, mincpc, mincpg, inospercg;
 	long cylno, rpos, blk, j, warn = 0;
@@ -666,9 +663,7 @@ next:
  * Initialize a cylinder group.
  */
 void
-initcg(cylno, utime)
-	int cylno;
-	time_t utime;
+initcg(int cylno, time_t utime)
 {
 	daddr_t cbase, d, dlower, dupper, dmax, blkno;
 	struct csum *cs;
@@ -863,8 +858,7 @@ struct odirect olost_found_dir[] = {
 char buf[MAXBSIZE];
 
 void
-fsinit(utime)
-	time_t utime;
+fsinit(time_t utime)
 {
 #ifdef LOSTDIR
 	int i;
@@ -919,9 +913,7 @@ fsinit(utime)
  * return size of directory.
  */
 int
-makedir(protodir, entries)
-	struct direct *protodir;
-	int entries;
+makedir(struct direct *protodir, int entries)
 {
 	char *cp;
 	int i, spcleft;
@@ -942,9 +934,7 @@ makedir(protodir, entries)
  * allocate a block or frag
  */
 daddr_t
-alloc(size, mode)
-	int size;
-	int mode;
+alloc(int size, int mode)
 {
 	int i, frag;
 	daddr_t d, blkno;
@@ -997,10 +987,7 @@ goth:
  * Calculate number of inodes per group.
  */
 long
-calcipg(cpg, bpcg, usedbp)
-	long cpg;
-	long bpcg;
-	off_t *usedbp;
+calcipg(long cpg, long bpcg, off_t *usedbp)
 {
 	int i;
 	long ipg, new_ipg, ncg, ncyl;
@@ -1034,9 +1021,7 @@ calcipg(cpg, bpcg, usedbp)
  * Allocate an inode on the disk
  */
 void
-iput(ip, ino)
-	struct dinode *ip;
-	ino_t ino;
+iput(struct dinode *ip, ino_t ino)
 {
 	struct dinode buf[MAXINOPB];
 	daddr_t d;
@@ -1070,10 +1055,7 @@ iput(ip, ino)
  * read a block from the file system
  */
 void
-rdfs(bno, size, bf)
-	daddr_t bno;
-	int size;
-	char *bf;
+rdfs(daddr_t bno, int size, char *bf)
 {
 	int n;
 
@@ -1119,13 +1101,9 @@ wtfsflush()
  * write a block to the file system
  */
 void
-wtfs(bno, size, bf)
-	daddr_t bno;
-	int size;
-	char *bf;
+wtfs(daddr_t bno, int size, char *bf)
 {
-	int n;
-	int done;
+	int done, n;
 
 	if (Nflag)
 		return;
@@ -1164,10 +1142,7 @@ wtfs(bno, size, bf)
  * check if a block is available
  */
 int
-isblock(fs, cp, h)
-	struct fs *fs;
-	unsigned char *cp;
-	int h;
+isblock(struct fs *fs, unsigned char *cp, int h)
 {
 	unsigned char mask;
 
@@ -1193,10 +1168,7 @@ isblock(fs, cp, h)
  * take a block out of the map
  */
 void
-clrblock(fs, cp, h)
-	struct fs *fs;
-	unsigned char *cp;
-	int h;
+clrblock(struct fs *fs, unsigned char *cp, int h)
 {
 	switch ((fs)->fs_frag) {
 	case 8:
@@ -1221,10 +1193,7 @@ clrblock(fs, cp, h)
  * put a block into the map
  */
 void
-setblock(fs, cp, h)
-	struct fs *fs;
-	unsigned char *cp;
-	int h;
+setblock(struct fs *fs, unsigned char *cp, int h)
 {
 	switch (fs->fs_frag) {
 	case 8:
