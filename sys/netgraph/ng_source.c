@@ -116,7 +116,7 @@ static ng_disconnect_t	ng_source_disconnect;
 
 /* Other functions */
 static timeout_t	ng_source_intr;
-static void		ng_source_request_output_ifp (sc_p);
+static int		ng_source_request_output_ifp (sc_p);
 static void		ng_source_clr_data (sc_p);
 static void		ng_source_start (sc_p);
 static void		ng_source_stop (sc_p);
@@ -194,7 +194,7 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type ng_source_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_SOURCE_NODE_TYPE,
 	NULL,					/* module event handler */
 	ng_source_constructor,
@@ -445,7 +445,7 @@ ng_source_disconnect(hook_p hook)
  * Ask out neighbour on the output hook side to send us it's interface
  * information.
  */
-static void
+static int
 ng_source_request_output_ifp(sc_p sc)
 {
 	struct ng_mesg *msg;
