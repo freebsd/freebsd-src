@@ -2052,6 +2052,9 @@ sunos_scan_dynamic_symbol (h, data)
 {
   struct bfd_link_info *info = (struct bfd_link_info *) data;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct sunos_link_hash_entry *) h->root.root.u.i.link;
+
   /* Set the written flag for symbols we do not want to write out as
      part of the regular symbol table.  This is all symbols which are
      not defined in a regular object file.  For some reason symbols

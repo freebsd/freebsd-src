@@ -595,6 +595,27 @@ static struct special_section const special_sections[] =
   { ".rodata",	SHT_PROGBITS,	SHF_ALLOC			},
   { ".rodata1",	SHT_PROGBITS,	SHF_ALLOC			},
   { ".text",	SHT_PROGBITS,	SHF_ALLOC + SHF_EXECINSTR	},
+#if 0
+  /* FIXME: The current gcc, as of 2002-03-03, will emit
+
+	.section .init_array,"aw",@progbits
+
+     for __attribute__ ((section (".init_array"))). "@progbits" marks
+     the incorrect section type. For now, we make them with
+     SHT_PROGBITS. BFD will fix the section type. Gcc should be changed
+     to emit
+
+	.section .init_array
+
+   */
+  { ".init_array",SHT_INIT_ARRAY, SHF_ALLOC + SHF_WRITE         }, 
+  { ".fini_array",SHT_FINI_ARRAY, SHF_ALLOC + SHF_WRITE         },
+  { ".preinit_array",SHT_PREINIT_ARRAY, SHF_ALLOC + SHF_WRITE   }, 
+#else
+  { ".init_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE         }, 
+  { ".fini_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE         },
+  { ".preinit_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE   }, 
+#endif
 
 #ifdef ELF_TC_SPECIAL_SECTIONS
   ELF_TC_SPECIAL_SECTIONS
@@ -1408,7 +1429,9 @@ elf_copy_symbol_attributes (dest, src)
       destelf->size = NULL;
     }
   S_SET_SIZE (dest, S_GET_SIZE (src));
-  S_SET_OTHER (dest, S_GET_OTHER (src));
+  /* Don't copy visibility.  */
+  S_SET_OTHER (dest, (ELF_ST_VISIBILITY (S_GET_OTHER (dest))
+		      | (S_GET_OTHER (src) & ~ELF_ST_VISIBILITY (-1))));
 }
 
 void
@@ -1838,6 +1861,8 @@ elf_frob_symbol (symp, puntp)
 
 	      /* This will copy over the size information.  */
 	      copy_symbol_attributes (symp2, symp);
+
+	      S_SET_OTHER (symp2, S_GET_OTHER (symp));
 
 	      if (S_IS_WEAK (symp))
 		S_SET_WEAK (symp2);

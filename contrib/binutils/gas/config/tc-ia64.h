@@ -124,8 +124,6 @@ extern void ia64_after_parse_args PARAMS ((void));
 #define WORKING_DOT_WORD	/* don't do broken word processing for now */
 
 #define ELF_TC_SPECIAL_SECTIONS						   \
-{ ".init_array",SHT_INIT_ARRAY,	SHF_ALLOC + SHF_WRITE                   }, \
-{ ".fini_array",SHT_FINI_ARRAY,	SHF_ALLOC + SHF_WRITE                   }, \
 { ".sbss",	SHT_NOBITS,	SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT }, \
 { ".sdata",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
 

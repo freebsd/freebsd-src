@@ -1175,7 +1175,9 @@ DEP1: $(CFILES) $(GENERATED_CFILES)
 dep.sed: dep-in.sed config.status
 	sed <$(srcdir)/dep-in.sed >dep.sed	\
 		-e 's!@INCDIR@!$(INCDIR)!'	\
-		-e 's!@SRCDIR@!$(srcdir)!'
+		-e 's!@BFDDIR@!$(BFDDIR)!'	\
+		-e 's!@SRCDIR@!$(srcdir)!'	\
+		-e 's!@TOPDIR@!'`echo $(srcdir) | sed -e s,/ld$$,,`'!'
 
 dep: DEP
 	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < Makefile > tmp-Makefile
@@ -1258,16 +1260,17 @@ pe-dll.o: pe-dll.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/bfdlink.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
   ld.h $(INCDIR)/bin-bugs.h ldexp.h ldlang.h ldwrite.h \
   ldmisc.h ldgram.h ldmain.h ldfile.h ldemul.h $(INCDIR)/coff/internal.h \
-  ../bfd/libcoff.h deffile.h pe-dll.h
+  $(BFDDIR)/libcoff.h deffile.h pe-dll.h
 ldgram.o: ldgram.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/symcat.h sysdep.h config.h $(INCDIR)/fopen-same.h \
   $(INCDIR)/bfdlink.h ld.h $(INCDIR)/bin-bugs.h ldexp.h \
   ldver.h ldlang.h ldfile.h ldemul.h ldmisc.h ldmain.h \
   mri.h ldctor.h ldlex.h
-ldlex.o: ldlex.c ../bfd/bfd.h $(INCDIR)/symcat.h sysdep.h \
-  config.h $(INCDIR)/fopen-same.h $(INCDIR)/safe-ctype.h \
-  ld.h $(INCDIR)/bin-bugs.h ldgram.h ldmisc.h ldexp.h \
-  ldlang.h ldfile.h ldlex.h ldmain.h $(INCDIR)/libiberty.h
+ldlex.o: ldlex.c $(INCDIR)/ansidecl.h ../bfd/bfd.h \
+  $(INCDIR)/symcat.h sysdep.h config.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/safe-ctype.h ld.h $(INCDIR)/bin-bugs.h ldgram.h \
+  ldmisc.h ldexp.h ldlang.h ldfile.h ldlex.h ldmain.h \
+  $(INCDIR)/libiberty.h
 deffilep.o: deffilep.c $(INCDIR)/libiberty.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/safe-ctype.h ../bfd/bfd.h $(INCDIR)/symcat.h \
   sysdep.h config.h $(INCDIR)/fopen-same.h ld.h $(INCDIR)/bin-bugs.h \

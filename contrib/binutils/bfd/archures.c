@@ -259,8 +259,8 @@ DESCRIPTION
 .#define bfd_mach_avr5		5
 .  bfd_arch_cris,      {* Axis CRIS *}
 .  bfd_arch_s390,      {* IBM s390 *}
-.#define bfd_mach_s390_esa      0
-.#define bfd_mach_s390_esame    1
+.#define bfd_mach_s390_31       0
+.#define bfd_mach_s390_64       1
 .  bfd_arch_openrisc,  {* OpenRISC *}
 .  bfd_arch_mmix,      {* Donald Knuth's educational processor.  *}
 .  bfd_arch_xstormy16,
@@ -720,6 +720,9 @@ bfd_default_compatible (a, b)
      const bfd_arch_info_type *b;
 {
   if (a->arch != b->arch)
+    return NULL;
+
+  if (a->bits_per_word != b->bits_per_word)
     return NULL;
 
   if (a->mach > b->mach)

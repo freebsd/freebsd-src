@@ -1,5 +1,5 @@
 /* BFD support for the Intel 386 architecture.
-   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001
+   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
