@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.45.2.6 1998/01/28 13:35:09 jkh Exp $
+#	$Id: Makefile,v 1.45.2.7 1998/02/01 07:18:38 steve Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -77,7 +77,7 @@ installhdrs:
 		>> osreldate.h
 .endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}\osreldate.h \
+		${.OBJDIR}/osreldate.h \
 		${DESTDIR}/usr/include
 .for i in ${LFILES}
 	ln -sf sys/$i ${DESTDIR}/usr/include/$i
