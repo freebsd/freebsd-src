@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.31 1997/03/24 12:29:14 bde Exp $
+ *	$Id: machdep.c,v 1.32 1997/03/26 07:03:30 kato Exp $
  */
 
 #include "npx.h"
@@ -1565,3 +1565,49 @@ bad:
         bp->b_flags |= B_ERROR;
         return(-1);
 }
+
+#ifdef DDB
+
+/*
+ * Provide inb() and outb() as functions.  They are normally only
+ * available as macros calling inlined functions, thus cannot be
+ * called inside DDB.
+ *
+ * The actual code is stolen from <machine/cpufunc.h>, and de-inlined.
+ */
+
+#undef inb
+#undef outb
+
+/* silence compiler warnings */
+u_char inb(u_int);
+void outb(u_int, u_char);
+
+u_char
+inb(u_int port)
+{
+	u_char	data;
+	/*
+	 * We use %%dx and not %1 here because i/o is done at %dx and not at
+	 * %edx, while gcc generates inferior code (movw instead of movl)
+	 * if we tell it to load (u_short) port.
+	 */
+	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
+	return (data);
+}
+
+void
+outb(u_int port, u_char data)
+{
+	u_char	al;
+	/*
+	 * Use an unnecessary assignment to help gcc's register allocator.
+	 * This make a large difference for gcc-1.40 and a tiny difference
+	 * for gcc-2.6.0.  For gcc-1.40, al had to be ``asm("ax")'' for
+	 * best results.  gcc-2.6.0 can't handle this.
+	 */
+	al = data;
+	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+}
+
+#endif /* DDB */
