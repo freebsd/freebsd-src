@@ -37,13 +37,9 @@
 #ifndef _SYS_SOCKET_H_
 #define	_SYS_SOCKET_H_
 
-#ifdef _NO_NAMESPACE_POLLUTION
-#include <machine/param.h>
-#else
 #define _NO_NAMESPACE_POLLUTION
 #include <machine/param.h>
 #undef _NO_NAMESPACE_POLLUTION
-#endif
 
 /*
  * Definitions related to sockets: types, address families, options.
