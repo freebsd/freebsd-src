@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.10 1996/05/12 12:38:56 joerg Exp $
+ *  $Id: syscons.c,v 1.117.4.11 1996/06/25 20:19:48 markm Exp $
  */
 
 #include "sc.h"
@@ -180,10 +180,10 @@ gotres:
     else {
 	i = 10;			/* At most 10 retries. */
 gotack:
-	DELAY(10);
-	j = 1000;		/* Wait at most 10 ms (supposedly). */
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(10);
-	DELAY(10);
+	DELAY(100);
+	j = 1000;		/* Wait at most 1 s. */
+	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(1000);
+	DELAY(1000);
 	val = inb(KB_DATA);
 	if (val == KB_ACK && --i > 0)
 	    goto gotack;
