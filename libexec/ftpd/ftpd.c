@@ -642,7 +642,8 @@ inithosts()
 	hrp->anonuser = "ftp";
 	hrp->next = NULL;
 	thishost = firsthost = lhrp = hrp;
-	freeaddrinfo(res);
+	if (res)
+		freeaddrinfo(res);
 	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
 		int addrsize, error;
 		void *addr;
