@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.151 1999/05/09 18:57:02 peter Exp $
+#	$Id: Makefile.i386,v 1.152 1999/05/09 22:42:17 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -132,7 +132,7 @@ ${KERNEL}:	${FULLKERNEL}
 .endif
 .endif
 
-${FULLKERNEL}:	${SYSTEM_DEP} vers.o
+${FULLKERNEL}:	bus_if.h device_if.h ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
