@@ -197,14 +197,12 @@ static void
 showuid(u_long uid)
 {
 	struct passwd *pwd = getpwuid(uid);
-	u_long myuid;
 	const char *name;
 
 	if (pwd == NULL)
 		name = "(no account)";
 	else
 		name = pwd->pw_name;
-	myuid = getuid();
 	showquotas(USRQUOTA, uid, name);
 }
 
@@ -215,13 +213,11 @@ static void
 showusrname(char *name)
 {
 	struct passwd *pwd = getpwnam(name);
-	u_long myuid;
 
 	if (pwd == NULL) {
 		warnx("%s: unknown user", name);
 		return;
 	}
-	myuid = getuid();
 	showquotas(USRQUOTA, pwd->pw_uid, name);
 }
 
@@ -232,26 +228,12 @@ static void
 showgid(u_long gid)
 {
 	struct group *grp = getgrgid(gid);
-	int ngroups;
-	gid_t mygid, gidset[NGROUPS];
-	int i;
 	const char *name;
 
 	if (grp == NULL)
 		name = "(no entry)";
 	else
 		name = grp->gr_name;
-	mygid = getgid();
-	ngroups = getgroups(NGROUPS, gidset);
-	if (ngroups < 0) {
-		warn("getgroups");
-		return;
-	}
-	if (gid != mygid) {
-		for (i = 0; i < ngroups; i++)
-			if (gid == gidset[i])
-				break;
-	}
 	showquotas(GRPQUOTA, gid, name);
 }
 
@@ -262,24 +244,10 @@ static void
 showgrpname(char *name)
 {
 	struct group *grp = getgrnam(name);
-	int ngroups;
-	gid_t mygid, gidset[NGROUPS];
-	int i;
 
 	if (grp == NULL) {
 		warnx("%s: unknown group", name);
 		return;
-	}
-	mygid = getgid();
-	ngroups = getgroups(NGROUPS, gidset);
-	if (ngroups < 0) {
-		warn("getgroups");
-		return;
-	}
-	if (grp->gr_gid != mygid) {
-		for (i = 0; i < ngroups; i++)
-			if (grp->gr_gid == gidset[i])
-				break;
 	}
 	showquotas(GRPQUOTA, grp->gr_gid, name);
 }
