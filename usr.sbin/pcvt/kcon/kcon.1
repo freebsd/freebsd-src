@@ -28,6 +28,7 @@
 .\"
 .Dd March 27, 2000
 .Dt KCON 1
+.Os FreeBSD
 .Sh NAME
 .Nm kcon
 .Nd pcvt keyboard control and remapping
@@ -116,10 +117,8 @@ The command
 .Dq Li kcon -m gb
 loads the entry 'gb' from the keycap file into the keyboard to switch to
 a british keyboard behaviour.
-
+.Pp
 The command
 .Dq Li kcon -r 0 -d 0
 switches the keyboard to emit characters at a rate of 30 characters per second
 after a key has been held down for 250 milliseconds.
-
-
