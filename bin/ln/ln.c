@@ -190,7 +190,7 @@ linkit(const char *target, const char *source, int isdir)
 		else
 			++p;
 		if (snprintf(path, sizeof(path), "%s/%s", source, p) >=
-		    sizeof(path)) {
+		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
 			warn("%s", target);
 			return (1);
