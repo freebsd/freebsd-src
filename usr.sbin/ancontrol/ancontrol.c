@@ -140,7 +140,7 @@ an_getval(const char *iface, struct an_req *areq)
 	struct ifreq		ifr;
 	int			s, okay = 1;
 
-	bzero((char *)&ifr, sizeof(ifr));
+	bzero(&ifr, sizeof(ifr));
 
 	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)areq;
@@ -166,7 +166,7 @@ an_setval(const char *iface, struct an_req *areq)
 	struct ifreq		ifr;
 	int			s;
 
-	bzero((char *)&ifr, sizeof(ifr));
+	bzero(&ifr, sizeof(ifr));
 
 	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)areq;
@@ -440,16 +440,13 @@ an_dumpstats(const char *iface)
 {
 	struct an_ltv_stats	*stats;
 	struct an_req		areq;
-	caddr_t			ptr;
 
 	areq.an_len = sizeof(areq);
 	areq.an_type = AN_RID_32BITS_CUM;
 
 	an_getval(iface, &areq);
 
-	ptr = (caddr_t)&areq;
-	ptr -= 2;
-	stats = (struct an_ltv_stats *)ptr;
+	stats = (struct an_ltv_stats *)((uint16_t *)&areq - 1);
 
 	printf("RX overruns:\t\t\t\t\t[ %u ]\n", stats->an_rx_overruns);
 	printf("RX PLCP CSUM errors:\t\t\t\t[ %u ]\n",
@@ -1024,7 +1021,7 @@ an_setconfig(const char *iface, int act, void *arg)
 		if (addr == NULL)
 			errx(1, "badly formatted address");
 		bzero(cfg->an_macaddr, ETHER_ADDR_LEN);
-		bcopy((char *)addr, (char *)&cfg->an_macaddr, ETHER_ADDR_LEN);
+		bcopy(addr, &cfg->an_macaddr, ETHER_ADDR_LEN);
 		break;
 	case ACT_ENABLE_WEP:
 		switch (atoi (arg)) {
@@ -1131,19 +1128,19 @@ an_setap(const char *iface, int act, void *arg)
 	switch(act) {
 	case ACT_SET_AP1:
 		bzero(ap->an_ap1, ETHER_ADDR_LEN);
-		bcopy((char *)addr, (char *)&ap->an_ap1, ETHER_ADDR_LEN);
+		bcopy(addr, &ap->an_ap1, ETHER_ADDR_LEN);
 		break;
 	case ACT_SET_AP2:
 		bzero(ap->an_ap2, ETHER_ADDR_LEN);
-		bcopy((char *)addr, (char *)&ap->an_ap2, ETHER_ADDR_LEN);
+		bcopy(addr, &ap->an_ap2, ETHER_ADDR_LEN);
 		break;
 	case ACT_SET_AP3:
 		bzero(ap->an_ap3, ETHER_ADDR_LEN);
-		bcopy((char *)addr, (char *)&ap->an_ap3, ETHER_ADDR_LEN);
+		bcopy(addr, &ap->an_ap3, ETHER_ADDR_LEN);
 		break;
 	case ACT_SET_AP4:
 		bzero(ap->an_ap4, ETHER_ADDR_LEN);
-		bcopy((char *)addr, (char *)&ap->an_ap4, ETHER_ADDR_LEN);
+		bcopy(addr, &ap->an_ap4, ETHER_ADDR_LEN);
 		break;
 	default:
 		errx(1, "unknown action");
@@ -1198,7 +1195,7 @@ an_zerocache(const char *iface)
 {
 	struct an_req		areq;
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 	areq.an_len = 0;
 	areq.an_type = AN_RID_ZERO_CACHE;
 
@@ -1209,24 +1206,21 @@ static void
 an_readcache(const char *iface)
 {
 	struct an_req		areq;
-	int 			*an_sigitems;
+	uint16_t 		*an_sigitems;
 	struct an_sigcache 	*sc;
-	char *			pt;
 	int 			i;
 
 	if (iface == NULL)
 		errx(1, "must specify interface name");
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 	areq.an_len = AN_MAX_DATALEN;
 	areq.an_type = AN_RID_READ_CACHE;
 
 	an_getval(iface, &areq);
 
-	an_sigitems = (int *) &areq.an_val; 
-	pt = ((char *) &areq.an_val);
-	pt += sizeof(int);
-	sc = (struct an_sigcache *) pt;
+	an_sigitems = areq.an_val; 
+	sc = (struct an_sigcache *)((int32_t *)areq.an_val + 1);
 
 	for (i = 0; i < *an_sigitems; i++) {
 		printf("[%d/%d]:", i+1, *an_sigitems);
@@ -1296,7 +1290,7 @@ an_setkeys(const char *iface, const char *key, int keytype)
 	struct an_req		areq;
 	struct an_ltv_key	*k;
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 	k = (struct an_ltv_key *)&areq;
 
 	if (strlen(key) > 28) {
@@ -1352,7 +1346,7 @@ static void an_readkeyinfo(iface)
 	else
 		home = 0;
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 	k = (struct an_ltv_key *)&areq;
 
 	printf("WEP Key status:\n");
@@ -1394,7 +1388,7 @@ an_enable_tx_key(const char *iface, const char *arg)
 	struct an_ltv_key	*k;
 	struct an_ltv_genconfig *config;
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 
 	/* set home or not home mode */
 	areq.an_len  = sizeof(struct an_ltv_genconfig);
@@ -1408,7 +1402,7 @@ an_enable_tx_key(const char *iface, const char *arg)
 	}
 	an_setval(iface, &areq);
 
-	bzero((char *)&areq, sizeof(areq));
+	bzero(&areq, sizeof(areq));
 
 	k = (struct an_ltv_key *)&areq;
 
