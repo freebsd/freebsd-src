@@ -105,7 +105,7 @@ copies:
 .for i in ${LNOHEADERDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
 .endfor
-	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
+	mtree -deLU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .for i in ${LDIRS} ${LSUBDIRS}
 	cd ${.CURDIR}/../sys; \
