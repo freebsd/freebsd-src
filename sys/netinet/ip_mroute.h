@@ -48,8 +48,12 @@
  * Modified by Steve Deering, Stanford, February 1989.
  * Modified by Ajit Thyagarajan, PARC, August 1993.
  * Modified by Ajit Thyagarajan, PARC, August 1994.
+ * Modified by Ahmed Helmy, SGI, June 1996.
+ * Modified by Pavlin Radoslavov, ICSI, October 2002.
  *
  * MROUTING Revision: 3.3.1.3
+ * and PIM-SMv2 and PIM-DM support, advanced API support,
+ * bandwidth metering and signaling.
  */
 
 
@@ -63,7 +67,12 @@
 #define MRT_ADD_MFC	104	/* insert forwarding cache entry */
 #define MRT_DEL_MFC	105	/* delete forwarding cache entry */
 #define MRT_VERSION	106	/* get kernel version number */
-#define MRT_ASSERT      107     /* enable PIM assert processing */
+#define MRT_ASSERT      107     /* enable assert processing */
+#define MRT_PIM		MRT_ASSERT /* enable PIM processing */
+#define MRT_API_SUPPORT	109	/* supported MRT API */
+#define MRT_API_CONFIG	110	/* config MRT API */
+#define MRT_ADD_BW_UPCALL 111	/* create bandwidth monitor */
+#define MRT_DEL_BW_UPCALL 112	/* delete bandwidth monitor */
 
 
 #define GET_TIME(t)	microtime(&t)
@@ -99,10 +108,11 @@ struct vifctl {
 
 #define	VIFF_TUNNEL	0x1		/* vif represents a tunnel end-point */
 #define VIFF_SRCRT	0x2		/* tunnel uses IP source routing */
+#define VIFF_REGISTER	0x4		/* used for PIM Register encap/decap */
 
 /*
  * Argument structure for MRT_ADD_MFC and MRT_DEL_MFC
- * (mfcc_tos to be added at a future point)
+ * XXX if you change this, make sure to change struct mfcctl2 as well.
  */
 struct mfcctl {
     struct in_addr  mfcc_origin;		/* ip origin of mcasts       */
@@ -110,6 +120,94 @@ struct mfcctl {
     vifi_t	    mfcc_parent;   		/* incoming vif              */
     u_char	    mfcc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
 };
+
+/*
+ * The new argument structure for MRT_ADD_MFC and MRT_DEL_MFC overlays
+ * and extends the old struct mfcctl.
+ */
+struct mfcctl2 {
+	/* the mfcctl fields */
+	struct in_addr	mfcc_origin;		/* ip origin of mcasts	     */
+	struct in_addr	mfcc_mcastgrp;		/* multicast group associated*/
+	vifi_t		mfcc_parent;		/* incoming vif		     */
+	u_char		mfcc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
+
+	/* extension fields */
+	uint8_t		mfcc_flags[MAXVIFS];	/* the MRT_MFC_FLAGS_* flags */
+	struct in_addr	mfcc_rp;		/* the RP address            */
+};
+/*
+ * The advanced-API flags.
+ *
+ * The MRT_MFC_FLAGS_XXX API flags are also used as flags
+ * for the mfcc_flags field.
+ */
+#define	MRT_MFC_FLAGS_DISABLE_WRONGVIF	(1 << 0) /* disable WRONGVIF signals */
+#define	MRT_MFC_FLAGS_BORDER_VIF	(1 << 1) /* border vif		     */
+#define MRT_MFC_RP			(1 << 8) /* enable RP address	     */
+#define MRT_MFC_BW_UPCALL		(1 << 9) /* enable bw upcalls	     */
+#define MRT_MFC_FLAGS_ALL		(MRT_MFC_FLAGS_DISABLE_WRONGVIF |    \
+					 MRT_MFC_FLAGS_BORDER_VIF)
+#define MRT_API_FLAGS_ALL		(MRT_MFC_FLAGS_ALL |		     \
+					 MRT_MFC_RP |			     \
+					 MRT_MFC_BW_UPCALL)
+
+/*
+ * Structure for installing or delivering an upcall if the
+ * measured bandwidth is above or below a threshold.
+ *
+ * User programs (e.g. daemons) may have a need to know when the
+ * bandwidth used by some data flow is above or below some threshold.
+ * This interface allows the userland to specify the threshold (in
+ * bytes and/or packets) and the measurement interval. Flows are
+ * all packet with the same source and destination IP address.
+ * At the moment the code is only used for multicast destinations
+ * but there is nothing that prevents its use for unicast.
+ *
+ * The measurement interval cannot be shorter than some Tmin (currently, 3s).
+ * The threshold is set in packets and/or bytes per_interval.
+ *
+ * Measurement works as follows:
+ *
+ * For >= measurements: 
+ * The first packet marks the start of a measurement interval.
+ * During an interval we count packets and bytes, and when we
+ * pass the threshold we deliver an upcall and we are done.
+ * The first packet after the end of the interval resets the
+ * count and restarts the measurement.
+ *
+ * For <= measurement:
+ * We start a timer to fire at the end of the interval, and
+ * then for each incoming packet we count packets and bytes.
+ * When the timer fires, we compare the value with the threshold,
+ * schedule an upcall if we are below, and restart the measurement
+ * (reschedule timer and zero counters).
+ */
+
+struct bw_data {
+	struct timeval	b_time;
+	uint64_t	b_packets;
+	uint64_t	b_bytes;
+};
+
+struct bw_upcall {
+	struct in_addr	bu_src;			/* source address            */
+	struct in_addr	bu_dst;			/* destination address       */
+	uint32_t	bu_flags;		/* misc flags (see below)    */
+#define BW_UPCALL_UNIT_PACKETS   (1 << 0)	/* threshold (in packets)    */
+#define BW_UPCALL_UNIT_BYTES     (1 << 1)	/* threshold (in bytes)      */
+#define BW_UPCALL_GEQ            (1 << 2)	/* upcall if bw >= threshold */
+#define BW_UPCALL_LEQ            (1 << 3)	/* upcall if bw <= threshold */
+#define BW_UPCALL_DELETE_ALL     (1 << 4)	/* delete all upcalls for s,d*/
+	struct bw_data	bu_threshold;		/* the bw threshold	     */
+	struct bw_data	bu_measured;		/* the measured bw	     */
+};
+
+/* max. number of upcalls to deliver together */
+#define BW_UPCALLS_MAX				128
+/* min. threshold time interval for bandwidth measurement */
+#define BW_UPCALL_THRESHOLD_INTERVAL_MIN_SEC	3
+#define BW_UPCALL_THRESHOLD_INTERVAL_MIN_USEC	0
 
 /*
  * The kernel's multicast routing statistics.
@@ -179,17 +277,20 @@ struct vif {
  * at a future point)
  */
 struct mfc {
-    struct in_addr  mfc_origin;	 		/* IP origin of mcasts   */
-    struct in_addr  mfc_mcastgrp;  		/* multicast group associated*/
-    vifi_t	    mfc_parent; 		/* incoming vif              */
-    u_char	    mfc_ttls[MAXVIFS]; 		/* forwarding ttls on vifs   */
-    u_long	    mfc_pkt_cnt;		/* pkt count for src-grp     */
-    u_long	    mfc_byte_cnt;		/* byte count for src-grp    */
-    u_long	    mfc_wrong_if;		/* wrong if for src-grp	     */
-    int		    mfc_expire;			/* time to clean entry up    */
-    struct timeval  mfc_last_assert;		/* last time I sent an assert*/
-    struct rtdetq  *mfc_stall;			/* q of packets awaiting mfc */
-    struct mfc     *mfc_next;			/* next mfc entry            */
+	struct in_addr	mfc_origin;		/* IP origin of mcasts	     */
+	struct in_addr  mfc_mcastgrp;  		/* multicast group associated*/
+	vifi_t		mfc_parent; 		/* incoming vif              */
+	u_char		mfc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
+	u_long		mfc_pkt_cnt;		/* pkt count for src-grp     */
+	u_long		mfc_byte_cnt;		/* byte count for src-grp    */
+	u_long		mfc_wrong_if;		/* wrong if for src-grp	     */
+	int		mfc_expire;		/* time to clean entry up    */
+	struct timeval	mfc_last_assert;	/* last time I sent an assert*/
+	struct rtdetq	*mfc_stall;		/* q of packets awaiting mfc */
+	struct mfc	*mfc_next;		/* next mfc entry            */
+	uint8_t		mfc_flags[MAXVIFS];	/* the MRT_MFC_FLAGS_* flags */
+	struct in_addr	mfc_rp;			/* the RP address	     */
+	struct bw_meter	*mfc_bw_meter;		/* list of bandwidth meters  */
 };
 
 /*
@@ -200,8 +301,10 @@ struct igmpmsg {
     u_long	    unused1;
     u_long	    unused2;
     u_char	    im_msgtype;			/* what type of message	    */
-#define IGMPMSG_NOCACHE		1
-#define IGMPMSG_WRONGVIF	2
+#define IGMPMSG_NOCACHE		1	/* no MFC in the kernel		    */
+#define IGMPMSG_WRONGVIF	2	/* packet came from wrong interface */
+#define	IGMPMSG_WHOLEPKT	3	/* PIM pkt for user level encap.    */
+#define	IGMPMSG_BW_UPCALL	4	/* BW monitoring upcall		    */
     u_char	    im_mbz;			/* must be zero		    */
     u_char	    im_vif;			/* vif rec'd on		    */
     u_char	    unused3;
@@ -244,6 +347,32 @@ struct tbf
     u_long tbf_max_q_len;	/* max. queue length		*/
     struct mbuf *tbf_q;		/* Packet queue			*/
     struct mbuf *tbf_t;		/* tail-insertion pointer	*/
+};
+
+/*
+ * Structure for measuring the bandwidth and sending an upcall if the
+ * measured bandwidth is above or below a threshold.
+ */
+struct bw_meter {
+	struct bw_meter	*bm_mfc_next;		/* next bw meter (same mfc)  */
+	struct bw_meter	*bm_time_next;		/* next bw meter (same time) */
+	uint32_t	bm_time_hash;		/* the time hash value       */
+	struct mfc	*bm_mfc;		/* the corresponding mfc     */
+	uint32_t	bm_flags;		/* misc flags (see below)    */
+#define BW_METER_UNIT_PACKETS	(1 << 0)	/* threshold (in packets)    */
+#define BW_METER_UNIT_BYTES	(1 << 1)	/* threshold (in bytes)      */
+#define BW_METER_GEQ		(1 << 2)	/* upcall if bw >= threshold */
+#define BW_METER_LEQ		(1 << 3)	/* upcall if bw <= threshold */
+#define BW_METER_USER_FLAGS 	(BW_METER_UNIT_PACKETS |		\
+				 BW_METER_UNIT_BYTES |			\
+				 BW_METER_GEQ |				\
+				 BW_METER_LEQ)
+
+#define BW_METER_UPCALL_DELIVERED (1 << 24)	/* upcall was delivered      */
+
+	struct bw_data	bm_threshold;		/* the upcall threshold	     */
+	struct bw_data	bm_measured;		/* the measured bw	     */
+	struct timeval	bm_start_time;		/* abs. time		     */
 };
 
 #ifdef _KERNEL
