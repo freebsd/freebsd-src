@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* This file handles the generation of rtl code from tree structure
    at the level of the function as a whole.
    It creates the rtl expressions for parameters and auto variables
@@ -6993,6 +6995,19 @@ expand_function_end (filename, line, end_bindings)
 						     0,
 						     hard_frame_pointer_rtx),
 			 Pmode);
+    }
+
+  if (current_function_profile && TARGET_PROFILER_EPILOGUE)
+    {
+      static rtx mexitcount_libfunc;
+      static int initialized;
+
+      if (!initialized)
+	{
+	  mexitcount_libfunc = init_one_libfunc (".mexitcount");
+	  initialized = 1;
+	}
+      emit_library_call (mexitcount_libfunc, LCT_NORMAL, VOIDmode, 0);
     }
 
   /* Let except.c know where it should emit the call to unregister
