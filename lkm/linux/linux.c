@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.8.2.1 1997/05/01 06:07:32 jkh Exp $
+ *	$Id: linux.c,v 1.8.2.2 1998/03/06 05:27:04 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -41,12 +41,21 @@ extern const struct execsw linux_execsw;
 
 MOD_EXEC(linux, -1, &linux_execsw);
 
-extern Elf32_Brandinfo linux_brand;
+extern Elf32_Brandinfo *linux_brandlist[];
 
 static int
 linux_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (elf_insert_brand_entry(&linux_brand))
+	Elf32_Brandinfo **brandinfo;
+	int error;
+
+	error = 0;
+
+	for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL; ++brandinfo)
+		if (elf_insert_brand_entry(*brandinfo) < 0)
+			error = 1;
+
+	if (error)
 		uprintf("Could not install ELF interpreter entry\n");
 	/* uprintf("Linux emulator installed\n"); XXX - shut up, you! */
 	return 0;
@@ -55,7 +64,16 @@ linux_load(struct lkm_table *lkmtp, int cmd)
 static int
 linux_unload(struct lkm_table *lkmtp, int cmd)
 {
-	if (elf_remove_brand_entry(&linux_brand))
+	Elf32_Brandinfo **brandinfo;
+	int error;
+
+	error = 0;
+
+	for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL; ++brandinfo)
+		if (elf_remove_brand_entry(*brandinfo) < 0)
+			error = 1;
+
+	if (error)
 		uprintf("Could not deinstall ELF interpreter entry\n");
 	uprintf("Linux emulator removed\n");
 	return 0;
