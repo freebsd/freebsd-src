@@ -47,6 +47,7 @@
 #include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/mutex.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #ifdef NPX_DEBUG
@@ -389,7 +390,8 @@ npx_probe1(dev)
 				if (r == 0)
 					panic("npx: can't get IRQ");
 				BUS_SETUP_INTR(device_get_parent(dev),
-					       dev, r, INTR_TYPE_MISC,
+					       dev, r,
+					       INTR_TYPE_MISC | INTR_MPSAFE,
 					       npx_intr, 0, &intr);
 				if (intr == 0)
 					panic("npx: can't create intr");
@@ -722,6 +724,7 @@ npx_intr(dummy)
 	u_short control;
 	struct intrframe *frame;
 
+	mtx_enter(&Giant, MTX_DEF);
 	if (PCPU_GET(npxproc) == NULL || !npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
 		       PCPU_GET(npxproc), curproc, npx_exists);
@@ -780,6 +783,7 @@ npx_intr(dummy)
 		 */
 		psignal(curproc, SIGFPE);
 	}
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 /*
