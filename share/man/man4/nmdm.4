@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2001
+.Dd January 27, 2005
 .Dt NMDM 4
 .Os
 .Sh NAME
@@ -32,23 +32,30 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides two 
+driver provides two
 .Xr tty 4
 devices connected
-by a virtual "null modem" cable.
+by a virtual
+.Dq "null modem"
+cable.
 .Pp
-If either of the two tty devices have the CDSR_OFLOW bit
-("stty dsrflow")
-set in their line discipline, the 
+If either of the two tty devices have the
+.Dv CDSR_OFLOW
+bit
+.Pq Dq Li "stty dsrflow"
+set in their line discipline, the
 .Nm
 device will emulate the speed configured in the
 .Xr termios 4
 settings.
 The speed emulation works independently in the two directions,
-controlled by the slower ends termios settings (c_ispeed, c_ospeed,
-CS5...CS8, CSTOPB and PARENB).
+controlled by the slower end's termios settings
+.Va ( c_ispeed , c_ospeed ,
+.Dv CS5 ... CS8 , CSTOPB
+and
+.Dv PARENB ) .
 .Sh FILES
-.Bl -tag -width /dev/nmdm[N][AB] -compact
+.Bl -tag -width ".Pa /dev/nmdm Ns Ar N Ns Op Pa AB" -compact
 .It Pa /dev/nmdm Ns Ar N Ns Op Pa AB
 nullmodem device nodes.
 Where the
@@ -60,8 +67,11 @@ node.
 .Pp
 The
 .Nm
-driver implements "on-demand device creation" so simply accessing a
-given instance in /dev will create it.
+driver implements
+.Dq "on-demand device creation"
+so simply accessing a given instance in
+.Pa /dev
+will create it.
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
