@@ -69,7 +69,7 @@ void vinum_rm(int argc, char *argv[], char *arg0[]);
 void vinum_init(int argc, char *argv[], char *arg0[]);
 void initvol(int volno);
 void initplex(int plexno, char *name);
-void initsd(int sdno);
+void initsd(int sdno, int dowait);
 void vinum_resetconfig(int argc, char *argv[], char *arg0[]);
 void vinum_start(int argc, char *argv[], char *arg0[]);
 void continue_revive(int plexno);
@@ -103,6 +103,9 @@ void vinum_ld(int argc, char *argv[], char *arg0[]);
 void vinum_ls(int argc, char *argv[], char *arg0[]);
 void vinum_lp(int argc, char *argv[], char *arg0[]);
 void vinum_lv(int argc, char *argv[], char *arg0[]);
+void vinum_setstate(int argc, char *argv[], char *argv0[]);
+void vinum_checkparity(int argc, char *argv[], char *argv0[]);
+void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
 void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
