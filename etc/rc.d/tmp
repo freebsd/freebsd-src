@@ -75,7 +75,7 @@ fi
 echo "+++ create lastlog"
 /usr/bin/touch /var/log/lastlog
 
-if
+mount -a       # chown and chgrp are in /usr
 
 # Since we are starting with a very fresh /etc on an MFS:
 if [ -d /conf/default/etc ]; then
