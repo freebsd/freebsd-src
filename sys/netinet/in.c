@@ -732,7 +732,7 @@ in_ifinit(ifp, ia, sin, scrub)
 		ia->ia_netbroadcast.s_addr =
 			htonl(ia->ia_net | ~ ia->ia_netmask);
 	} else if (ifp->if_flags & IFF_LOOPBACK) {
-		ia->ia_ifa.ifa_dstaddr = ia->ia_ifa.ifa_addr;
+		ia->ia_dstaddr = ia->ia_addr;
 		flags |= RTF_HOST;
 	} else if (ifp->if_flags & IFF_POINTOPOINT) {
 		if (ia->ia_dstaddr.sin_family != AF_INET)
