@@ -33,10 +33,10 @@ main (int argc, char **argv)
     }
     cdname = argv[1];
     standalone = isatty (0);
-    open_cd ();
     while (input ()) {
 	rc = 0;
-	open_cd ();
+	if (!command ("quit") && !command ("help"))
+	    open_cd ();
 	if (command ("play")) {
 	    int start, end;
 	    sscanf (cmd+4, "%d%d", &start, &end);
@@ -56,8 +56,6 @@ main (int argc, char **argv)
 	    rc = clrdebug ();
 	else if (command ("eject")) {
 	    rc = eject ();
-	    close (cd_fd);
-	    cd_fd = -1;
 	} else if (command ("setvol")) {
 	    int l, r;
 	    sscanf (cmd+6, "%d %d", &l, &r);
@@ -95,10 +93,7 @@ main (int argc, char **argv)
 	     }
 	} else if (command ("status")) {
 	    int trk, m, s, f;
-	    if (cd_fd < 0) 
-		rc = -1; /* assume ejected */
-	    else
-		rc = status (&trk, &m, &s, &f);
+	    rc = status (&trk, &m, &s, &f);
 	    if (standalone)
 		printf("status track minute second frame\n");
 	    printf ("%d %02d %d %d %d\n", rc, trk, m, s, f);
@@ -112,8 +107,12 @@ tocentry, status, quit, help\n");
 	else
 	    printf("No such command, enter 'help' for commands list\n");
 	fflush (stdout);
-	if (rc < 0 && standalone)
-	    perror("cdplay");
+	if (rc < 0) {
+	    if (standalone)
+		perror("cdplay");
+	    close (cd_fd);
+	    cd_fd = -1;
+	}
     }
     exit (0);
 }
