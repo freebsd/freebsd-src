@@ -30,8 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: asmacros.h,v 1.3 1994/08/02 07:38:40 davidg Exp $
  */
+
+#ifndef _ASMACROS_H_
+#define _ASMACROS_H_	1
 
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
@@ -82,3 +85,8 @@
 #define NOP		pushl %eax ; inb $0x84,%al ; inb $0x84,%al ; popl %eax
 #endif
 
+#ifndef RCSID
+#define RCSID(a)
+#endif
+
+#endif	/* _ASMACROS_H_ */
