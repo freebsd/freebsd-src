@@ -18,6 +18,7 @@
  * AUTHOR:  Christos Zoulas <christos@ee.cornell.edu>
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
+ *          Thomas Moestl <tmoestl@gmx.net>
  *
  * $FreeBSD$
  */
@@ -49,20 +50,26 @@
 #include <stdlib.h>
 #include <sys/conf.h>
 
+#include <unistd.h>
 #include <osreldate.h> /* for changes in kernel structures */
 
 #include "top.h"
 #include "machine.h"
 #include "screen.h"
+#include "utils.h"
 
-static int check_nlist __P((struct nlist *));
-static int getkval __P((unsigned long, int *, int, char *));
+static void getsysctl __P((char *, void *, int));
+
+#define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
+
 extern char* printable __P((char *));
 int swapmode __P((int *retavail, int *retfree));
 static int smpmode;
 static int namelength;
 static int cmdlengthdelta;
 
+/* Prototypes for top internals */
+void quit __P((int));
 
 /* get_process_info passes back a handle.  This is what it looks like: */
 
@@ -83,25 +90,6 @@ struct handle
 #define PROCSIZE(pp) ((pp)->ki_size / 1024)
 
 /* definitions for indices in the nlist array */
-
-static struct nlist nlst[] = {
-#define X_CCPU		0
-    { "_ccpu" },
-#define X_CP_TIME	1
-    { "_cp_time" },
-#define X_AVENRUN	2
-    { "_averunnable" },
-
-#define X_BUFSPACE	3
-	{ "_bufspace" },	/* K in buffer cache */
-#define X_CNT           4
-    { "_cnt" },		        /* struct vmmeter cnt */
-
-/* Last pid */
-#define X_LASTPID	5
-    { "_nextpid" },		
-    { 0 }
-};
 
 /*
  *  These definitions control the format of the per-process area
@@ -141,15 +129,9 @@ static double logcpu;
 
 static load_avg  ccpu;
 
-/* these are offsets obtained via nlist and used in the get_ functions */
+/* these are used in the get_ functions */
 
-static unsigned long cp_time_offset;
-static unsigned long avenrun_offset;
-static unsigned long lastpid_offset;
-static long lastpid;
-static unsigned long cnt_offset;
-static unsigned long bufspace_offset;
-static long cnt;
+static int lastpid;
 
 /* these are for calculating cpu state percentages */
 
@@ -221,7 +203,6 @@ machine_init(statics)
 struct statics *statics;
 
 {
-    register int i = 0;
     register int pagesize;
     int modelen;
     struct passwd *pw;
@@ -241,33 +222,10 @@ struct statics *statics;
     if (namelength > 15)
 	namelength = 15;
 
-    if ((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
+    if ((kd = kvm_open("/dev/null", "/dev/null", "/dev/null", O_RDONLY, "kvm_open")) == NULL)
 	return -1;
 
-
-    /* get the list of symbols we want to access in the kernel */
-    (void) kvm_nlist(kd, nlst);
-    if (nlst[0].n_type == 0)
-    {
-	fprintf(stderr, "top: nlist failed\n");
-	return(-1);
-    }
-
-    /* make sure they were all found */
-    if (i > 0 && check_nlist(nlst) > 0)
-    {
-	return(-1);
-    }
-
-    (void) getkval(nlst[X_CCPU].n_value,   (int *)(&ccpu),	sizeof(ccpu),
-	    nlst[X_CCPU].n_name);
-
-    /* stash away certain offsets for later use */
-    cp_time_offset = nlst[X_CP_TIME].n_value;
-    avenrun_offset = nlst[X_AVENRUN].n_value;
-    lastpid_offset =  nlst[X_LASTPID].n_value;
-    cnt_offset = nlst[X_CNT].n_value;
-    bufspace_offset = nlst[X_BUFSPACE].n_value;
+    GETSYSCTL("kern.ccpu", ccpu);
 
     /* this is used in calculating WCPU -- calculate it ahead of time */
     logcpu = log(loaddouble(ccpu));
@@ -306,7 +264,6 @@ char *format_header(uname_field)
 register char *uname_field;
 
 {
-    register char *ptr;
     static char Header[128];
 
     snprintf(Header, sizeof(Header), smpmode ? smp_header : up_header,
@@ -328,19 +285,15 @@ struct system_info *si;
 
 {
     long total;
-    load_avg avenrun[3];
+    load_avg avenrun[4]; /* 3 values and FSCALE. */
     int mib[2];
     struct timeval boottime;
     size_t bt_size;
 
     /* get the cp_time array */
-    (void) getkval(cp_time_offset, (int *)cp_time, sizeof(cp_time),
-		   nlst[X_CP_TIME].n_name);
-    (void) getkval(avenrun_offset, (int *)avenrun, sizeof(avenrun),
-		   nlst[X_AVENRUN].n_name);
-
-    (void) getkval(lastpid_offset, (int *)(&lastpid), sizeof(lastpid),
-		   "!");
+    GETSYSCTL("kern.cp_time", cp_time);
+    GETSYSCTL("vm.loadavg", avenrun);
+    GETSYSCTL("kern.lastpid", lastpid);
 
     /* convert load averages to doubles */
     {
@@ -370,24 +323,22 @@ struct system_info *si;
 
     /* sum memory & swap statistics */
     {
-	struct vmmeter sum;
 	static unsigned int swap_delay = 0;
 	static int swapavail = 0;
 	static int swapfree = 0;
 	static int bufspace = 0;
+	static int nspgsin, nspgsout;
 
-        (void) getkval(cnt_offset, (int *)(&sum), sizeof(sum),
-		   "_cnt");
-        (void) getkval(bufspace_offset, (int *)(&bufspace), sizeof(bufspace),
-		   "_bufspace");
-
+	GETSYSCTL("vfs.bufspace", bufspace);
+	GETSYSCTL("vm.stats.vm.v_active_count", memory_stats[0]);
+	GETSYSCTL("vm.stats.vm.v_inactive_count", memory_stats[1]);
+	GETSYSCTL("vm.stats.vm.v_wire_count", memory_stats[2]);
+	GETSYSCTL("vm.stats.vm.v_cache_count", memory_stats[3]);
+	GETSYSCTL("vm.stats.vm.v_free_count", memory_stats[5]);
+	GETSYSCTL("vm.stats.vm.v_swappgsin", nspgsin);
+	GETSYSCTL("vm.stats.vm.v_swappgsout", nspgsout);
 	/* convert memory stats to Kbytes */
-	memory_stats[0] = pagetok(sum.v_active_count);
-	memory_stats[1] = pagetok(sum.v_inactive_count);
-	memory_stats[2] = pagetok(sum.v_wire_count);
-	memory_stats[3] = pagetok(sum.v_cache_count);
 	memory_stats[4] = bufspace / 1024;
-	memory_stats[5] = pagetok(sum.v_free_count);
 	memory_stats[6] = -1;
 
 	/* first interval */
@@ -398,12 +349,12 @@ struct system_info *si;
 
 	/* compute differences between old and new swap statistic */
 	else {
-	    swap_stats[4] = pagetok(((sum.v_swappgsin - swappgsin)));
-	    swap_stats[5] = pagetok(((sum.v_swappgsout - swappgsout)));
+	    swap_stats[4] = pagetok(((nspgsin - swappgsin)));
+	    swap_stats[5] = pagetok(((nspgsout - swappgsout)));
 	}
 
-        swappgsin = sum.v_swappgsin;
-	swappgsout = sum.v_swappgsout;
+        swappgsin = nspgsin;
+	swappgsout = nspgsout;
 
 	/* call CPU heavy swapmode() only for changes */
         if (swap_stats[4] > 0 || swap_stats[5] > 0 || swap_delay == 0) {
@@ -640,77 +591,26 @@ char *(*get_userid)();
     return(fmt);
 }
 
+static void getsysctl (name, ptr, len)
 
-/*
- * check_nlist(nlst) - checks the nlist to see if any symbols were not
- *		found.  For every symbol that was not found, a one-line
- *		message is printed to stderr.  The routine returns the
- *		number of symbols NOT found.
- */
-
-static int check_nlist(nlst)
-
-register struct nlist *nlst;
+char *name;
+void *ptr;
+int len;
 
 {
-    register int i;
-
-    /* check to see if we got ALL the symbols we requested */
-    /* this will write one line to stderr for every symbol not found */
-
-    i = 0;
-    while (nlst->n_name != NULL)
-    {
-	if (nlst->n_type == 0)
-	{
-	    /* this one wasn't found */
-	    (void) fprintf(stderr, "kernel: no symbol named `%s'\n",
-			   nlst->n_name);
-	    i = 1;
-	}
-	nlst++;
-    }
-
-    return(i);
-}
-
-
-/*
- *  getkval(offset, ptr, size, refstr) - get a value out of the kernel.
- *	"offset" is the byte offset into the kernel for the desired value,
- *  	"ptr" points to a buffer into which the value is retrieved,
- *  	"size" is the size of the buffer (and the object to retrieve),
- *  	"refstr" is a reference string used when printing error meessages,
- *	    if "refstr" starts with a '!', then a failure on read will not
- *  	    be fatal (this may seem like a silly way to do things, but I
- *  	    really didn't want the overhead of another argument).
- *  	
- */
-
-static int getkval(offset, ptr, size, refstr)
-
-unsigned long offset;
-int *ptr;
-int size;
-char *refstr;
-
-{
-    if (kvm_read(kd, offset, (char *) ptr, size) != size)
-    {
-	if (*refstr == '!')
-	{
-	    return(0);
-	}
-	else
-	{
-	    fprintf(stderr, "top: kvm_read for %s: %s\n",
-		refstr, strerror(errno));
+    int nlen = len;
+    if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
+	    fprintf(stderr, "top: sysctl(%s...) failed: %s\n", name,
+		strerror(errno));
 	    quit(23);
-	}
     }
-    return(1);
+    if (nlen != len) {
+	    fprintf(stderr, "top: sysctl(%s...) expected %d, got %d\n", name, 
+		len, nlen);
+	    quit(23);
+    }
 }
-    
+
 /* comparison routines for qsort */
 
 /*
@@ -951,29 +851,6 @@ int pid;
     }
     return(-1);
 }
-
-
-/*
- * swapmode is based on a program called swapinfo written
- * by Kevin Lahey <kml@rokkaku.atl.ga.us>.
- */
-
-#define	SVAR(var) __STRING(var)	/* to force expansion */
-#define	KGET(idx, var)							\
-	KGET1(idx, &var, sizeof(var), SVAR(var))
-#define	KGET1(idx, p, s, msg)						\
-	KGET2(nlst[idx].n_value, p, s, msg)
-#define	KGET2(addr, p, s, msg)						\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s) {		        \
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd));       \
-		return (0);                                             \
-       }
-#define	KGETRET(addr, p, s, msg)					\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s) {			\
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd));	\
-		return (0);						\
-	}
-
 
 int
 swapmode(retavail, retfree)
