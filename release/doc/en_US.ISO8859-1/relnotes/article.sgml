@@ -514,6 +514,10 @@
       tagged frames (on the <quote>Cyclone</quote> or newer
       chipsets). &merged;</para>
 
+      <para>The &man.xl.4; driver now supports receive-side TCP/IP
+      checksum offloading for NICs implementing this feature, such as
+      the 3C905B, 3C905C, and 3C980C. &merged;</para>
+
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
       network interface, and which ones are enabled.  &man.ifconfig.8;
