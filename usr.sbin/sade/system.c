@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.64 1996/09/26 21:07:08 pst Exp $
+ * $Id: system.c,v 1.65 1996/10/01 04:56:34 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -37,8 +37,12 @@
 static void
 handle_intr(int sig)
 {
+    WINDOW *save = savescr();
+
     if (!msgYesNo("Are you sure you want to abort the installation?"))
 	systemShutdown(1);
+    else
+	restorescr(save);
 }
 
 /* Expand a file into a convenient location, nuking it each time */

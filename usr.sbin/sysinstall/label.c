@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.57 1996/08/03 05:25:56 jkh Exp $
+ * $Id: label.c,v 1.58 1996/08/03 10:11:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -263,7 +263,12 @@ get_mountpoint(struct chunk *old)
 	tmp = old->private_data;
     else
 	tmp = NULL;
+    if (!old) {
+	DialogX = 13;
+	DialogY = 17;
+    }
     val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
+    DialogX = DialogY = 0;
     if (!val || !*val) {
 	if (!old)
 	    return NULL;
@@ -313,7 +318,6 @@ get_partition_type(void)
 {
     char selection[20];
     int i;
-    WINDOW *save = savescr();
 
     static unsigned char *fs_types[] = {
 	"FS",
@@ -321,12 +325,13 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
-    dialog_clear_norefresh();
+    DialogX = 7;
+    DialogY = 9;
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
-    restorescr(save);
+    DialogX = DialogY = 0;
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -448,7 +453,7 @@ print_label_chunks(void)
 }
 
 static void
-print_command_summary()
+print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
     mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
@@ -460,10 +465,17 @@ print_command_summary()
     move(0, 0);
 }
 
+static void
+clear_wins(void)
+{
+    clear();
+    wclear(ChunkWin);
+}
+
 static int
 diskLabel(char *str)
 {
-    int sz, key = 0, first_time = 1;
+    int sz, key = 0;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p, *oldp;
@@ -480,13 +492,10 @@ diskLabel(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
-    dialog_clear_norefresh(); clear();
+    clear();
     while (labeling) {
 	print_label_chunks();
-	if (first_time) {
-	    print_command_summary();
-	    first_time = 0;
-	}
+	print_command_summary();
 	if (msg) {
 	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
 	    clrtoeol();
@@ -497,13 +506,15 @@ diskLabel(char *str)
 	    move(23, 0);
 	    clrtoeol();
 	}
+	refresh();
 	key = getch();
 	switch (toupper(key)) {
 	    int i;
 	    static char _msg[40];
 
 	case '\014':	/* ^L */
-	    continue;
+	    clear_wins();
+	    break;
 
 	case KEY_UP:
 	case '-':
@@ -536,6 +547,7 @@ diskLabel(char *str)
 	case KEY_F(1):
 	case '?':
 	    systemDisplayHelp("partition");
+	    clear_wins();
 	    break;
 
 	case 'A':
@@ -561,6 +573,7 @@ diskLabel(char *str)
 					    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS,  CHUNK_IS_ROOT);
 		    if (!tmp) {
 			msgConfirm("Unable to create the root partition. Too big?");
+			clear_wins();
 			break;
 		    }
 		    tmp->private_data = new_part("/", TRUE, tmp->size);
@@ -583,6 +596,7 @@ diskLabel(char *str)
 					    swsize, part, FS_SWAP, 0);
 		    if (!tmp) {
 			msgConfirm("Unable to create the swap partition. Too big?");
+			clear_wins();
 			break;
 		    }
 		    tmp->private_data = 0;
@@ -598,6 +612,7 @@ diskLabel(char *str)
 			msgConfirm("Less than %dMB free for /var - you will need to\n"
 				   "partition your disk manually with a custom install!",
 				   (cp ? atoi(cp) : VAR_MIN_SIZE));
+			clear_wins();
 			break;
 		    }
 		    tmp->private_data = new_part("/var", TRUE, tmp->size);
@@ -614,6 +629,7 @@ diskLabel(char *str)
 		    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
 			msgConfirm("Less than %dMB free for /usr - you will need to\n"
 				   "partition your disk manually with a custom install!", USR_MIN_SIZE);
+			clear_wins();
 			break;
 		    }
 
@@ -623,6 +639,7 @@ diskLabel(char *str)
 		    if (!tmp) {
 			msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
 				   "You will need to partition your disk manually with a custom install!");
+			clear_wins();
 			break;
 		    }
 		    tmp->private_data = new_part("/usr", TRUE, tmp->size);
@@ -652,11 +669,17 @@ diskLabel(char *str)
 		u_long flags = 0;
 
 		sprintf(osize, "%d", sz);
-		val = msgGetInput(osize, "Please specify the size for new FreeBSD partition in blocks, or\n"
-				  "append a trailing `M' for megabytes (e.g. 20M) or `C' for cylinders.\n\n"
-				  "Space free is %d blocks (%dMB)", sz, sz / ONE_MEG);
-		if (!val || (size = strtol(val, &cp, 0)) <= 0)
+		DialogX = 3;
+		DialogY = 1;
+		val = msgGetInput(osize,
+				  "Please specify the partition size in blocks or append a trailing M for\n"
+				  "megabytes or C for cylinders.  %d blocks (%dMB) are free.",
+				  sz, sz / ONE_MEG);
+		DialogX = DialogY = 0;
+		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
+		    clear_wins();
 		    break;
+		}
 
 		if (*cp) {
 		    if (toupper(*cp) == 'M')
@@ -666,20 +689,28 @@ diskLabel(char *str)
 		}
 		if (size <= FS_MIN_SIZE) {
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
+		    clear_wins();
 		    break;
 		}
 		type = get_partition_type();
-		if (type == PART_NONE)
+		if (type == PART_NONE) {
+		    clear_wins();
+		    beep();
 		    break;
+		}
 
 		if (type == PART_FILESYSTEM) {
-		    if ((p = get_mountpoint(NULL)) == NULL)
+		    if ((p = get_mountpoint(NULL)) == NULL) {
+			clear_wins();
+			beep();
 			break;
+		    }
 		    else if (!strcmp(p->mountpoint, "/"))
 			flags |= CHUNK_IS_ROOT;
 		    else
 			flags &= ~CHUNK_IS_ROOT;
-		} else
+		}
+		else
 		    p = NULL;
 
 		if ((flags & CHUNK_IS_ROOT)) {
@@ -688,6 +719,7 @@ diskLabel(char *str)
 				   "FreeBSD boot code cannot deal with a root partition created\n"
 				   "in that location.  Please choose another location or smaller\n"
 				   "size for your root partition and try again!");
+			clear_wins();
 			break;
 		    }
 		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) {
@@ -703,6 +735,7 @@ diskLabel(char *str)
 					flags);
 		if (!tmp) {
 		    msgConfirm("Unable to create the partition. Too big?");
+		    clear_wins();
 		    break;
 		}
 		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
@@ -711,6 +744,7 @@ diskLabel(char *str)
 			       "poor location to boot from.  Please choose another\n"
 			       "location (or smaller size) for your root partition and try again!");
 		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
+		    clear_wins();
 		    break;
 		}
 		if (type != PART_SWAP) {
@@ -723,6 +757,7 @@ diskLabel(char *str)
 		tmp->private_free = safe_free;
 		variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
+		clear_wins();
 	    }
 	    break;
 
@@ -767,6 +802,7 @@ diskLabel(char *str)
 		}
 		variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
+		clear();
 		break;
 
 	    default:
@@ -791,7 +827,7 @@ diskLabel(char *str)
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		    variable_set2(DISK_LABELLED, "yes");
-		}
+	    }
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
@@ -814,6 +850,7 @@ diskLabel(char *str)
 		}
 	    }
 	    record_label_chunks(devs);
+	    clear();
 	    break;
 
 	case 'W':
@@ -821,12 +858,10 @@ diskLabel(char *str)
 			  "operation, and it should also be noted that this option is NOT for\n"
 			  "use during new installations but rather for modifying existing ones.\n\n"
 			  "Are you absolutely SURE you want to do this now?")) {
-		WINDOW *save = savescr();
-
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
-		restorescr(save);
 	    }
+	    clear();
 	    break;
 
 	case '|':
@@ -835,7 +870,6 @@ diskLabel(char *str)
 			  "expected to understand!")) {
 		int i;
 		Device **devs;
-		WINDOW *save = savescr();
 
 		dialog_clear();
 		end_dialog();
@@ -851,9 +885,8 @@ diskLabel(char *str)
 		}
 		variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
-		dialog_clear_norefresh();
-		restorescr(save);
 		record_label_chunks(devs);
+		clear();
 	    }
 	    else
 		msg = "A most prudent choice!";

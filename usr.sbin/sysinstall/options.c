@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.41 1996/07/09 14:28:18 jkh Exp $
+ * $Id: options.c,v 1.42 1996/08/03 10:11:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,7 +111,7 @@ static Option Options[] = {
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
-      OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
+      OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",
       OPT_IS_VAR,	EDITOR_PROMPT,		VAR_EDITOR,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
@@ -164,17 +164,22 @@ value_of(Option opt)
     return "<unknown>";
 }
 
-static void
+static int
 fire(Option opt)
 {
-    if (opt.type == OPT_IS_FUNC) {
-	int (*cp)(char *) = opt.data;
+    int status = 0;
 
-	cp(NULL);
+    if (opt.type == OPT_IS_FUNC) {
+	int (*cp)(char *) = opt.data, rcode;
+
+	rcode = cp(NULL);
+	if (rcode & (DITEM_RECREATE | DITEM_RESTORE))
+	    status = 1;
     }
     else if (opt.type == OPT_IS_VAR) {
 	if (opt.data) {
 	    (void)variable_get_value(opt.aux, opt.data);
+	    status = 1;
 	}
 	else if (variable_get(opt.aux))
 	    variable_unset(opt.aux);
@@ -183,8 +188,8 @@ fire(Option opt)
     }
     if (opt.check)
 	opt.check(opt);
-    clear();
     refresh();
+    return status;
 }
 
 int
@@ -239,6 +244,7 @@ optionsEditor(dialogMenuItem *self)
 	case KEY_F(1):
 	case '?':
 	    systemDisplayHelp("options");
+	    clear();
 	    break;
 
 	case KEY_UP:
@@ -265,9 +271,8 @@ optionsEditor(dialogMenuItem *self)
 	    continue;
 
 	case ' ':
-	    clear();
-	    fire(Options[currOpt]);
-	    clear();
+	    if (fire(Options[currOpt]))
+	    	clear();
 	    continue;
 
 	case 'Q':
