@@ -127,7 +127,7 @@ static const struct protosw in_mobile_protosw =
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_OTHER, gre, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
     "Generic Routing Encapsulation");
 #ifndef MAX_GRE_NEST
 /*
@@ -166,7 +166,7 @@ gre_clone_create(ifc, unit)
 	if_initname(&sc->sc_if, ifc->ifc_name, unit);
 	sc->sc_if.if_softc = sc;
 	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_if.if_type = IFT_OTHER;
+	sc->sc_if.if_type = IFT_TUNNEL;
 	sc->sc_if.if_addrlen = 0;
 	sc->sc_if.if_hdrlen = 24; /* IP + GRE */
 	sc->sc_if.if_mtu = GREMTU;
