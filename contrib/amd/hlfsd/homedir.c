@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.4 1999/01/13 23:31:19 ezk Exp $
+ * $Id: homedir.c,v 1.5.2.1 2001/01/10 03:23:36 ezk Exp $
  * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
