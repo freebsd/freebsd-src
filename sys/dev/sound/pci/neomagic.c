@@ -79,7 +79,6 @@ struct sc_info {
 /* channel interface */
 static void *nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
 static int nmchan_free(void *data);
-static int nmchan_setdir(void *data, int dir);
 static int nmchan_setformat(void *data, u_int32_t format);
 static int nmchan_setspeed(void *data, u_int32_t speed);
 static int nmchan_setblocksize(void *data, u_int32_t blocksize);
@@ -705,6 +704,7 @@ static device_method_t nm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nm_pci_probe),
 	DEVMETHOD(device_attach,	nm_pci_attach),
+	DEVMETHOD(device_detach,	nm_pci_detach),
 	DEVMETHOD(device_resume,	nm_pci_resume),
 	{ 0, 0 }
 };
