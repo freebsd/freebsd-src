@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclEnv.c 1.34 96/04/15 18:18:36
+ * SCCS: @(#) tclEnv.c 1.37 96/07/23 16:28:26
  */
 
 /*
@@ -211,12 +211,17 @@ TclGetEnv(name)
     char *name;			/* Name of desired environment variable. */
 {
     int i;
-    size_t len;
+    size_t len, nameLen;
+    char *equal;
 
+    nameLen = strlen(name);
     for (i = 0; environ[i] != NULL; i++) {
-	len = (size_t) ((char *) strchr(environ[i], '=') - environ[i]);
-	if ((len > 0 && !strncmp(name, environ[i], len))
-		|| (*name == '\0')) {
+	equal = strchr(environ[i], '=');
+	if (equal == NULL) {
+	    continue;
+	}
+	len = (size_t) (equal - environ[i]);
+	if ((len == nameLen) && (strncmp(name, environ[i], len) == 0)) {
 	    /*
 	     * The caller of this function should regard this
 	     * as static memory.
@@ -601,4 +606,11 @@ EnvExitProc(clientData)
 	ckfree(*p);
     }
     ckfree((char *) environ);
+
+    /*
+     * Note that we need to reset the environ global so the Borland C run-time
+     * doesn't choke on exit.
+     */
+
+    environ = NULL;
 }

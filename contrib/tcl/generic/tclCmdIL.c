@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdIL.c 1.119 96/03/22 12:10:14
+ * SCCS: @(#) tclCmdIL.c 1.120 96/07/10 17:16:03
  */
 
 #include "tclInt.h"
@@ -1041,7 +1041,8 @@ Tcl_LrangeCmd(notUsed, interp, argc, argv)
      * Chop off trailing spaces.
      */
 
-    while (isspace(UCHAR(end[-1]))) {
+    while ((end != begin) && (isspace(UCHAR(end[-1])))
+	    && (((end-1) == begin) || (end[-2] != '\\'))) {
 	end--;
     }
     c = *end;
@@ -1146,11 +1147,14 @@ Tcl_LreplaceCmd(notUsed, interp, argc, argv)
     }
 
     /*
-     * Add the elements before "first" to the result.  Drop any terminating
-     * white space, since a separator will be added below, if needed.
+     * Add the elements before "first" to the result. Remove any
+     * trailing white space, to make the result look as clean as
+     * possible (this matters primarily if the replacement string is
+     * empty).
      */
 
-    while ((p1 != argv[1]) && (isspace(UCHAR(p1[-1])))) {
+    while ((p1 != argv[1]) && (isspace(UCHAR(p1[-1])))
+	    && (((p1-1) == argv[1]) || (p1[-2] != '\\'))) {
 	p1--;
     }
     savedChar = *p1;

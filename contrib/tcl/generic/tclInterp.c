@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclInterp.c 1.66 96/04/15 17:26:10
+ * SCCS: @(#) tclInterp.c 1.73 96/06/11 18:14:22
  */
 
 #include <stdio.h>
@@ -169,18 +169,18 @@ static char *TclCommandsToKeep[] = {
     "break",
     "case", "catch", "clock", "close", "concat", "continue",
     "eof", "error", "eval", "expr",
-    "fblocked", "fconfigure", "flush", "for", "foreach", "format",
+    "fblocked", "fileevent", "flush", "for", "foreach", "format",
     "gets", "global",
     "history",
     "if", "incr", "info", "interp",
     "join",
-    "lappend", "lindex", "linsert", "list", "llength", "lower", "lrange",
-    "lreplace", "lsearch", "lsort",
+    "lappend", "lindex", "linsert", "list", "llength",
+    "lower", "lrange", "lreplace", "lsearch", "lsort",
     "package", "pid", "proc", "puts",
     "read", "regexp", "regsub", "rename", "return",
-    "scan", "seek", "set", "split", "string", "switch",
-    "tell", "trace",
-    "unset", "update", "uplevel", "upvar",
+    "scan", "seek", "set", "split", "string", "subst", "switch",
+    "tell", "time", "trace",
+    "unset", "unsupported0", "update", "uplevel", "upvar",
     "vwait",
     "while",
     NULL};

@@ -59,7 +59,7 @@
 # listening at port 2048. If all fails, a message is printed and the tests
 # using the remote server are not performed.
 #
-# "@(#) socket.test 1.56 96/04/20 13:29:26"
+# SCCS: @(#) socket.test 1.62 96/08/01 15:57:49
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -108,6 +108,7 @@ if {$doTestsWithRemoteServer == 1} {
     if {[catch {set commandSocket [socket $remoteServerIP \
 						$remoteServerPort]}] != 0} {
 	if {[info commands exec] == ""} {
+	    set noRemoteTestReason "can't exec"
 	    set doTestsWithRemoteServer 0
 	} else {
 	    set remoteServerIP localhost
@@ -118,23 +119,28 @@ if {$doTestsWithRemoteServer == 1} {
 		   msg] == 0} {
 		after 1000
 		if {[catch {set commandSocket [socket $remoteServerIP \
-				$remoteServerPort]}] == 0} {
+				$remoteServerPort]} msg] == 0} {
 		    fconfigure $commandSocket -translation crlf -buffering line
 		} else {
+		    set noRemoteTestReason $msg
 		    set doTestsWithRemoteServer 0
 		}
 	    } else {
+		set noRemoteTestReason "$msg $tcltest"
 		set doTestsWithRemoteServer 0
 	    }
 	}
     } else {
 	fconfigure $commandSocket -translation crlf -buffering line
-   }
+    }
 }
 
 if {$doTestsWithRemoteServer == 0} {
-   puts "Skipping tests with remote server. See tests/socket.test for"
-   puts "information on how to run remote server."
+    puts "Skipping tests with remote server. See tests/socket.test for"
+    puts "information on how to run remote server."
+    if {[info exists VERBOSE] && ($VERBOSE != 0)} {
+	puts "Reason for not doing remote tests: $noRemoteTestReason"
+    }
 }
 
 #
@@ -481,6 +487,27 @@ test socket-2.9 {socket conflict} {unixOrPc} {
     invoked from within
 "set f [socket -server accept 2828]..."
     (file "script" line 1)}}
+test socket-2.10 {close on accept, accepted socket lives} {
+    set done 0
+    set ss [socket -server accept 2828]
+    proc accept {s a p} {
+	global ss
+	close $ss
+	fileevent $s readable "readit $s"
+	fconfigure $s -trans lf
+    }
+    proc readit {s} {
+	global done
+	gets $s
+	close $s
+	set done 1
+    }
+    set cs [socket [info hostname] 2828]
+    puts $cs hello
+    close $cs
+    vwait done
+    set done
+} 1
 
 test socket-3.1 {socket conflict} {unixOrPc} {
     removeFile script
@@ -733,6 +760,20 @@ test socket-7.4 {testing socket specific options} {
 	set x [fconfigure $s -sockname]
 	close $s
     }
+    set s1 [socket [info hostname] 2828]
+    vwait x
+    close $s
+    close $s1
+    set l ""
+    lappend l [lindex $x 2] [llength $x]
+} {2828 3}
+test socket-7.5 {testing socket specific options} {unixOrPc} {
+    set s [socket -server accept 2828]
+    proc accept {s a p} {
+	global x
+	set x [fconfigure $s -sockname]
+	close $s
+    }
     set s1 [socket localhost 2828]
     vwait x
     close $s
@@ -763,13 +804,90 @@ test socket-8.1 {testing -async flag on sockets} {
 	close $s
 	set x done
     }
-    set s1 [socket -async localhost 2828]
+    set s1 [socket -async [info hostname] 2828]
     vwait x
     set z [gets $s1]
     close $s
     close $s1
     set z
 } bye
+
+test socket-9.1 {testing spurious events} {
+    set len 0
+    set spurious 0
+    set done 0
+    proc readlittle {s} {
+	global spurious done len
+	set l [read $s 1]
+	if {[string length $l] == 0} {
+	    if {![eof $s]} {
+		incr spurious
+	    } else {
+		close $s
+		set done 1
+	    }
+	} else {
+	    incr len [string length $l]
+	}
+    }
+    proc accept {s a p} {
+	fconfigure $s -buffering none -blocking off
+	fileevent $s readable [list readlittle $s]
+    }
+    set s [socket -server accept 2828]
+    set c [socket [info hostname] 2828]
+    puts -nonewline $c 01234567890123456789012345678901234567890123456789
+    close $c
+    vwait done
+    close $s
+    list $spurious $len
+} {0 50}
+test socket-9.2 {testing async write, fileevents, flush on close} {
+    set firstblock ""
+    for {set i 0} {$i < 5} {incr i} {set firstblock "a$firstblock$firstblock"}
+    set secondblock ""
+    for {set i 0} {$i < 16} {incr i} {
+	set secondblock "b$secondblock$secondblock"
+    }
+    set l [socket -server accept 8080]
+    proc accept {s a p} {
+	fconfigure $s -blocking 0 -translation lf -buffersize 16384 \
+		-buffering line
+	fileevent $s readable "readable $s"
+    }
+    proc readable {s} {
+	set l [gets $s]
+	fileevent $s readable {}
+	after 1000 respond $s
+    }
+    proc respond {s} {
+	global firstblock
+	puts -nonewline $s $firstblock
+	after 1000 writedata $s
+    }
+    proc writedata {s} {
+	global secondblock
+	puts -nonewline $s $secondblock
+	close $s
+    }
+    set s [socket [info hostname] 8080]
+    fconfigure $s -blocking 0 -trans lf -buffering line
+    set count 0
+    puts $s hello
+    proc readit {s} {
+	global count done
+	set l [read $s]
+	incr count [string length $l]
+	if {[eof $s]} {
+	    close $s
+	    set done 1
+	}
+    }
+    fileevent $s readable "readit $s"
+    vwait done
+    close $l
+    set count
+} 65566
 
 removeFile script
 
@@ -782,7 +900,7 @@ if {$doTestsWithRemoteServer == 0} {
     return
 }
 
-test socket-9.1 {tcp connection} {
+test socket-10.1 {tcp connection} {
     sendCommand {
 	set socket9_1_test_server [socket -server accept 2828]
 	proc accept {s a p} {
@@ -796,7 +914,7 @@ test socket-9.1 {tcp connection} {
     sendCommand {close $socket9_1_test_server}
     set r
 } done
-test socket-9.2 {client specifies its port} {
+test socket-10.2 {client specifies its port} {
     if {[info exists port]} {
 	incr port
     } else {
@@ -821,9 +939,9 @@ test socket-9.2 {client specifies its port} {
     set result
 } ok
 #
-# Tests io-9.3, io-9.4 have been removed.
+# Tests io-10.3, io-10.4 have been removed.
 #
-test socket-9.5 {trying to connect, no server} {
+test socket-10.5 {trying to connect, no server} {
     set status ok
     if {![catch {set s [socket $remoteServerIp 2828]}]} {
 	if {![catch {gets $s}]} {
@@ -833,9 +951,9 @@ test socket-9.5 {trying to connect, no server} {
     }
     set status
 } ok
-test socket-9.6 {remote echo, one line} {
+test socket-10.6 {remote echo, one line} {
     sendCommand {
-	set socket9_6_test_server [socket -server accept 2828]
+	set socket10_6_test_server [socket -server accept 2828]
 	proc accept {s a p} {
 	    fileevent $s readable [list echo $s]
 	    fconfigure $s -buffering line -translation crlf
@@ -854,12 +972,12 @@ test socket-9.6 {remote echo, one line} {
     puts $f hello
     set r [gets $f]
     close $f
-    sendCommand {close $socket9_6_test_server}
+    sendCommand {close $socket10_6_test_server}
     set r
 } hello
-test socket-9.7 {remote echo, 50 lines} {
+test socket-10.7 {remote echo, 50 lines} {
     sendCommand {
-	set socket9_7_test_server [socket -server accept 2828]
+	set socket10_7_test_server [socket -server accept 2828]
 	proc accept {s a p} {
 	    fileevent $s readable [list echo $s]
 	    fconfigure $s -buffering line -translation crlf
@@ -882,7 +1000,7 @@ test socket-9.7 {remote echo, 50 lines} {
 	}
     }
     close $f
-    sendCommand {close $socket9_7_test_server}
+    sendCommand {close $socket10_7_test_server}
     set cnt
 } 50
 # Macintosh sockets can have more than one server per port
@@ -891,7 +1009,7 @@ if {$tcl_platform(platform) == "macintosh"} {
 } else {
     set conflictResult {1 {couldn't open socket: address already in use}}
 }
-test socket-9.8 {socket conflict} {
+test socket-10.8 {socket conflict} {
     set s1 [socket -server accept 2828]
     if {[catch {set s2 [socket -server accept 2828]} msg]} {
 	set result [list 1 $msg]
@@ -902,9 +1020,9 @@ test socket-9.8 {socket conflict} {
     close $s1
     set result
 } $conflictResult
-test socket-9.9 {server with several clients} {
+test socket-10.9 {server with several clients} {
     sendCommand {
-	set socket9_9_test_server [socket -server accept 2828]
+	set socket10_9_test_server [socket -server accept 2828]
 	proc accept {s a p} {
 	    fconfigure $s -buffering line
 	    fileevent $s readable [list echo $s]
@@ -935,10 +1053,10 @@ test socket-9.9 {server with several clients} {
     close $s1
     close $s2
     close $s3
-    sendCommand {close $socket9_9_test_server}
+    sendCommand {close $socket10_9_test_server}
     set i
 } 100    
-test socket-9.10 {client with several servers} {
+test socket-10.10 {client with several servers} {
     sendCommand {
 	set s1 [socket -server "accept 3000" 3000]
 	set s2 [socket -server "accept 3001" 3001]
@@ -964,7 +1082,7 @@ test socket-9.10 {client with several servers} {
     }
     set l
 } {3000 {} 1 3001 {} 1 3002 {} 1}
-test socket-9.11 {accept callback error} {
+test socket-10.11 {accept callback error} {
     set s [socket -server accept 2828]
     proc accept {s a p} {expr 10 / 0}
     proc bgerror args {
@@ -984,9 +1102,9 @@ test socket-9.11 {accept callback error} {
     rename bgerror {}
     set x
 } {{divide by zero}}
-test socket-9.12 {testing socket specific options} {
+test socket-10.12 {testing socket specific options} {
     sendCommand {
-	set socket9_12_test_server [socket -server accept 2828]
+	set socket10_12_test_server [socket -server accept 2828]
 	proc accept {s a p} {close $s}
     }
     set s [socket $remoteServerIP 2828]
@@ -995,7 +1113,7 @@ test socket-9.12 {testing socket specific options} {
     set l ""
     lappend l [lindex $p 2] [llength $p] [llength $p]
     close $s
-    sendCommand {close $socket9_12_test_server}
+    sendCommand {close $socket10_12_test_server}
     set l
 } {2828 3 3}
 

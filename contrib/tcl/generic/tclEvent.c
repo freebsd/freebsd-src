@@ -14,7 +14,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclEvent.c 1.127 96/03/22 12:12:33
+ * SCCS: @(#) tclEvent.c 1.128 96/07/23 16:12:34
  */
 
 #include "tclInt.h"
@@ -633,7 +633,7 @@ Tcl_CreateTimerHandler(milliseconds, proc, clientData)
      * Compute when the event should fire.
      */
 
-    TclGetTime(&timerHandlerPtr->time);
+    TclpGetTime(&timerHandlerPtr->time);
     timerHandlerPtr->time.sec += milliseconds/1000;
     timerHandlerPtr->time.usec += (milliseconds%1000)*1000;
     if (timerHandlerPtr->time.usec >= 1000000) {
@@ -755,7 +755,7 @@ Tcl_CreateModalTimeout(milliseconds, proc, clientData)
      * of the handler.
      */
 
-    TclGetTime(&timerHandlerPtr->time);
+    TclpGetTime(&timerHandlerPtr->time);
     timerHandlerPtr->time.sec += milliseconds/1000;
     timerHandlerPtr->time.usec += (milliseconds%1000)*1000;
     if (timerHandlerPtr->time.usec >= 1000000) {
@@ -860,7 +860,7 @@ TimerHandlerSetupProc(clientData, flags)
 	return;
     }
 
-    TclGetTime(&blockTime);
+    TclpGetTime(&blockTime);
     blockTime.sec = timerHandlerPtr->time.sec - blockTime.sec;
     blockTime.usec = timerHandlerPtr->time.usec - blockTime.usec;
     if (blockTime.usec < 0) {
@@ -910,7 +910,7 @@ TimerHandlerCheckProc(clientData, flags)
     gotTime = 0;
     timerHandlerPtr = firstTimerHandlerPtr;
     if ((flags & TCL_TIMER_EVENTS) && (timerHandlerPtr != NULL)) {
-	TclGetTime(&curTime);
+	TclpGetTime(&curTime);
 	gotTime = 1;
 	if ((timerHandlerPtr->time.sec < curTime.sec)
 		|| ((timerHandlerPtr->time.sec == curTime.sec)
@@ -921,7 +921,7 @@ TimerHandlerCheckProc(clientData, flags)
     timerHandlerPtr = firstModalHandlerPtr;
     if (timerHandlerPtr != NULL) {
 	if (!gotTime) {
-	    TclGetTime(&curTime);
+	    TclpGetTime(&curTime);
 	}
 	if ((timerHandlerPtr->time.sec < curTime.sec)
 		|| ((timerHandlerPtr->time.sec == curTime.sec)
@@ -2134,7 +2134,7 @@ TclWaitForFile(file, mask, timeout)
      */
 
     if (timeout > 0) {
-	TclGetTime(&now);
+	TclpGetTime(&now);
 	abortTime.sec = now.sec + timeout/1000;
 	abortTime.usec = now.usec + (timeout%1000)*1000;
 	if (abortTime.usec >= 1000000) {
@@ -2176,7 +2176,7 @@ TclWaitForFile(file, mask, timeout)
 	if (timeout == 0) {
 	    break;
 	}
-	TclGetTime(&now);
+	TclpGetTime(&now);
 	if ((abortTime.sec < now.sec)
 		|| ((abortTime.sec == now.sec)
 		&& (abortTime.usec <= now.usec))) {

@@ -11,12 +11,23 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) io.test 1.75 96/04/18 09:58:51"
+# "@(#) io.test 1.87 96/07/30 11:59:00"
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
 removeFile test1
 removeFile pipe
+
+# set up a long data file for some of the following tests
+
+set f [open longfile w]
+fconfigure $f -eofchar {} -translation lf
+for { set i 0 } { $i < 100 } { incr i} {
+    puts $f "#123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+\#123456789abcdef01
+\#"
+    }
+close $f
 
 # These tests are disabled until we decide what to do with "unsupported0".
 #
@@ -339,14 +350,18 @@ test io-4.2 {Tcl_GetChannelType} {
     string compare $t file
 } 0
 test io-4.3 {Tcl_GetChannelFile, input} {
-    set f [open io.test r]
+    set f [open test1 w]
+    fconfigure $f -translation lf -eofchar {}
+    puts $f "1234567890\n098765432"
+    close $f
+    set f [open test1 r]
     gets $f
     set l ""
     lappend l [testchannel inputbuffered $f]
     lappend l [tell $f]
     close $f
     set l
-} {4022 74}
+} {10 11}
 test io-4.4 {Tcl_GetChannelFile, output} {
     removeFile test1
     set f [open test1 w]
@@ -678,39 +693,39 @@ test io-7.10 {Tcl_Write, looping and buffering} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
-    set f2 [open io.test r]
+    set f2 [open longfile r]
     for {set x 0} {$x < 10} {incr x} {
         puts $f1 [gets $f2]
     }
     close $f2
     close $f1
     file size test1
-} 439
+} 387
 test io-7.11 {Tcl_Write, no newline, implicit flush} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -eofchar {}
-    set f2 [open io.test r]
+    set f2 [open longfile r]
     for {set x 0} {$x < 10} {incr x} {
         puts -nonewline $f1 [gets $f2]
     }
     close $f1
     close $f2
     file size test1
-} 429
+} 377
 test io-7.12 {Tcl_Write on a pipe} {unixOrPc} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {
-	set f1 [open io.test r]
+	set f1 [open longfile r]
 	for {set x 0} {$x < 10} {incr x} {
 	    puts [gets $f1]
 	}
     }
     close $f1
     set f1 [open "|$tcltest pipe" r]
-    set f2 [open io.test r]
+    set f2 [open longfile r]
     set y ok
     for {set x 0} {$x < 10} {incr x} {
         set l1 [gets $f1]
@@ -735,7 +750,7 @@ test io-7.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
     set y ok
     set f1 [open "|$tcltest pipe" r+]
     fconfigure $f1 -buffering line
-    set f2 [open io.test r]
+    set f2 [open longfile r]
     set line [gets $f2]
     puts $f1 $line
     set backline [gets $f1]
@@ -775,7 +790,7 @@ test io-7.15 {Tcl_Flush, channel not open for writing} {
 	[list 1 "channel \"$fd\" wasn't opened for writing"]
 } 0
 test io-7.16 {Tcl_Flush on pipe opened only for reading} {unixOrPc unixExecs} {
-    set fd [open "|cat io.test" r]
+    set fd [open "|cat longfile" r]
     set x [list [catch {flush $fd} msg] $msg]
     catch {close $fd}
     string compare $x \
@@ -1070,6 +1085,99 @@ test io-7.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClo
         set result ok
     }
 } ok
+test io-7.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
+    set f [open script w]
+    puts $f {
+	set f [open test1 w]
+	fconfigure $f -translation lf
+	puts $f hello
+	puts $f bye
+	puts $f strange
+    }
+    close $f
+    eval exec $tcltest script
+    set f [open test1 r]
+    set r [read $f]
+    close $f
+    set r
+} {hello
+bye
+strange
+}
+test io-7.34 {Tcl_Close, async flush on close, using sockets} {
+    set c 0
+    set x running
+    set l abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+    proc writelots {s l} {
+	for {set i 0} {$i < 2000} {incr i} {
+	    puts $s $l
+	}
+    }
+    proc accept {s a p} {
+	global x
+	fileevent $s readable [list readit $s]
+	fconfigure $s -blocking off
+	set x accepted
+    }
+    proc readit {s} {
+	global c x
+	set l [gets $s]
+	
+	if {[eof $s]} {
+	    close $s
+	    set x done
+	} elseif {([string length $l] > 0) || ![fblocked $s]} {
+	    incr c
+	}
+    }
+    set ss [socket -server accept 2828]
+    set cs [socket [info hostname] 2828]
+    vwait x
+    fconfigure $cs -blocking off
+    writelots $cs $l
+    close $cs
+    close $ss
+    vwait x
+    set c
+} 2000
+test io-7.35 {Tcl_Close vs fileevent vs multiple interpreters} {
+    catch {interp delete x}
+    catch {interp delete y}
+    interp create x
+    interp create y
+    set s [socket -server accept 2828]
+    proc accept {s a p} {
+	puts $s hello
+	close $s
+    }
+    set c [socket [info hostname] 2828]
+    interp share {} $c x
+    interp share {} $c y
+    close $c
+    x eval {
+	proc readit {s} {
+	    gets $s
+	    if {[eof $s]} {
+		close $s
+	    }
+	}
+    }
+    y eval {
+	proc readit {s} {
+	    gets $s
+	    if {[eof $s]} {
+		close $s
+	    }
+	}
+    }
+    x eval "fileevent $c readable \{readit $c\}"
+    y eval "fileevent $c readable \{readit $c\}"
+    y eval [list close $c]
+    update
+    close $s
+    interp delete x
+    interp delete y
+} ""
 
 # Test end of line translations. Procedures tested are Tcl_Write, Tcl_Read.
 
@@ -2112,13 +2220,13 @@ test io-10.2 {Tcl_Read, zero byte count} {
     read stdin 0
 } ""
 test io-10.3 {Tcl_Read, negative byte count} {
-    set f [open io.test r]
+    set f [open longfile r]
     set l [list [catch {read $f -1} msg] $msg]
     close $f
     set l
 } {1 {bad argument "-1": should be "nonewline"}}
 test io-10.4 {Tcl_Read, positive byte count} {
-    set f [open io.test r]
+    set f [open longfile r]
     set x [read $f 1024]
     set s [string length $x]
     unset x
@@ -2126,7 +2234,7 @@ test io-10.4 {Tcl_Read, positive byte count} {
     set s
 } 1024
 test io-10.5 {Tcl_Read, multiple buffers} {
-    set f [open io.test r]
+    set f [open longfile r]
     fconfigure $f -buffersize 100
     set x [read $f 1024]
     set s [string length $x]
@@ -2135,19 +2243,19 @@ test io-10.5 {Tcl_Read, multiple buffers} {
     set s
 } 1024
 test io-10.6 {Tcl_Read, very large read} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     set z [read $f1 1000000]
     close $f1
     set l [string length $z]
     set x ok
-    set z [file size io.test]
+    set z [file size longfile]
     if {$z != $l} {
         set x broken
     }
     set x
 } ok
 test io-10.7 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     fconfigure $f1 -blocking off
     set z [read $f1 20]
     close $f1
@@ -2159,25 +2267,25 @@ test io-10.7 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
     set x
 } ok
 test io-10.8 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     fconfigure $f1 -blocking off
     set z [read $f1 1000000]
     close $f1
     set x ok
     set l [string length $z]]
-    set z [file size io.test]]
+    set z [file size longfile]]
     if {$z != $l} {
         set x broken
     }
   set x
 } ok
 test io-10.9 {Tcl_Read, read to end of file} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     set z [read $f1]
     close $f1
     set l [string length $z]
     set x ok
-    set z [file size io.test]
+    set z [file size longfile]
     if {$z != $l} {
         set x broken
     }
@@ -2295,7 +2403,7 @@ test io-11.1 {Tcl_Gets, reading what was written} {
     set z
 } ok
 test io-11.2 {Tcl_Gets into variable} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     set c [gets $f1 x]
     set l [string length x]
     set z ok
@@ -2412,7 +2520,7 @@ test io-11.10 {Tcl_Gets, exercising double buffering} {
 # Test Tcl_Seek and Tcl_Tell.
 
 test io-12.1 {Tcl_Seek to current position at start of file} {
-    set f1 [open io.test r]
+    set f1 [open longfile r]
     seek $f1 0 current
     set c [tell $f1]
     close $f1
@@ -3040,7 +3148,7 @@ test io-14.6 {Tcl_InputBlocked vs files, event driven read} {nonBlockFiles} {
 # Test Tcl_InputBuffered
 
 test io-15.1 {Tcl_InputBuffered} {
-    set f [open io.test r]
+    set f [open longfile r]
     fconfigure $f -buffersize 4096
     read $f 3
     set l ""
@@ -3050,7 +3158,7 @@ test io-15.1 {Tcl_InputBuffered} {
     set l
 } {4093 3}
 test io-15.2 {Tcl_InputBuffered, test input flushing on seek} {
-    set f [open io.test r]
+    set f [open longfile r]
     fconfigure $f -buffersize 4096
     read $f 3
     set l ""
@@ -3066,13 +3174,13 @@ test io-15.2 {Tcl_InputBuffered, test input flushing on seek} {
 # Test Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize
 
 test io-16.1 {Tcl_GetChannelBufferSize, default buffer size} {
-    set f [open io.test r]
+    set f [open longfile r]
     set s [fconfigure $f -buffersize]
     close $f
     set s
 } 4096
 test io-16.2 {Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize} {
-    set f [open io.test r]
+    set f [open longfile r]
     set l ""
     lappend l [fconfigure $f -buffersize]
     fconfigure $f -buffersize 10000
@@ -3360,7 +3468,7 @@ test io-18.8 {POSIX open access modes: TRUNC} {
     close $f
     set x
 } abc
-test io-18.9 {POSIX open access modes: NONBLOCK} {nonPortable} {
+test io-18.9 {POSIX open access modes: NONBLOCK} {nonPortable macOrUnix} {
     removeFile test3
     set f [open test3 {WRONLY NONBLOCK CREAT}]
     puts $f "NONBLOCK test"
@@ -3511,9 +3619,8 @@ test io-22.1 {FileEventProc procedure: normal read event} {
 	set x [gets $f2]; fileevent $f2 readable {}
     }
     puts $f2 text; flush $f2
-    after 200
     set x initial
-    update
+    vwait x
     set x
 } {text}
 test io-22.2 {FileEventProc procedure: error in read event} {
@@ -3523,9 +3630,8 @@ test io-22.2 {FileEventProc procedure: error in read event} {
     }
     fileevent $f2 readable {error bogus}
     puts $f2 text; flush $f2
-    after 200
     set x initial
-    update
+    vwait x
     rename bgerror {}
     list $x [fileevent $f2 readable]
 } {bogus {}}
@@ -3539,7 +3645,9 @@ test io-22.3 {FileEventProc procedure: normal write event} {
     }
     set x initial
     set count 3
-    update
+    vwait x
+    vwait x
+    vwait x
     set x
 } {initial triggered triggered triggered}
 test io-22.4 {FileEventProc procedure: eror in write event} {
@@ -3549,7 +3657,7 @@ test io-22.4 {FileEventProc procedure: eror in write event} {
     }
     fileevent $f2 writable {error bad-write}
     set x initial
-    update
+    vwait x
     rename bgerror {}
     list $x [fileevent $f2 writable]
 } {bad-write {}}
@@ -3563,9 +3671,9 @@ test io-22.5 {FileEventProc procedure: end of file} {unixOrPc unixExecs} {
 	    lappend x $line
 	}
     }
-    after 200
     set x initial
-    update
+    vwait x
+    vwait x
     close $f4
     set x
 } {initial foo eof}
@@ -3573,7 +3681,8 @@ test io-22.5 {FileEventProc procedure: end of file} {unixOrPc unixExecs} {
 catch {close $f2}
 catch {close $f3}
 
-}	# Closes if {($platform(platform) != "macintosh") && \
+}
+	# Closes if {($platform(platform) != "macintosh") && \
 	#		($testConfig(unixExecs) == 1)} clause
 
 close $f
@@ -3602,11 +3711,10 @@ test io-23.2 {DeleteFileEvent, cleanup on close} {
     }
     close $f
     set x initial
-    update
+    vwait x
     close $f2
     set x
 } {initial {f2 triggered: "foo bar"}}
-
 test io-23.3 {DeleteFileEvent, cleanup on close} {
     set f [open foo r]
     set f2 [open foo r]
@@ -3629,9 +3737,9 @@ test io-23.3 {DeleteFileEvent, cleanup on close} {
 	    [catch {fileevent $f3 readable}]
 } {0 {f script} 1 0 {f3 script} 0 {f script} 1 1 1 1 1}
 
-if {[info commands testfevent] == ""} {
-	break
-}
+# Execute these tests only if the "testfevent" command is present.
+
+if {[info commands testfevent] == "testfevent"} {
 
 test io-24.1 {Tcl event loop vs multiple interpreters} {
     testfevent create
@@ -3773,6 +3881,10 @@ test io-25.6 {file events on shared files, deleting file events} {
     close $f
     set x
 } {{script 1} {}}
+
+}
+
+# The above curly closes the test for presence of the "testfevent" command.
 
 test io-26.1 {testing readability conditions} {
     set f [open bar w]
@@ -4329,6 +4441,7 @@ test io-27.6 {testing handler deletion vs reentrant calls} {
 	      {first after update}]
 } 0
 
+removeFile longfile
 removeFile script
 removeFile output
 removeFile test1
