@@ -276,7 +276,6 @@ kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
 kern/kern_ktrace.c	standard
-kern/kern_lkm.c		optional lkm
 kern/kern_lock.c	standard
 kern/kern_lockf.c	standard
 kern/kern_malloc.c	standard

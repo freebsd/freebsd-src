@@ -61,7 +61,9 @@
 #if (__FreeBSD__ > 1)
 # include <sys/sysent.h>
 #endif
+#ifdef IPFILTER_LKM
 #include <sys/lkm.h>
+#endif
 #include "netinet/ipl.h"
 #include "netinet/ip_compat.h"
 #include "netinet/ip_fil.h"
