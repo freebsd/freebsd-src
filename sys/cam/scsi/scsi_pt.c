@@ -458,8 +458,8 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= PT_CCB_RETRY_UA;
 		splx(s);
-		/* FALLTHROUGH */
 	}
+	/* FALLTHROUGH */
 	default:
 		cam_periph_async(periph, code, path, arg);
 		break;
