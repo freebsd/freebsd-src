@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
 #include "opt_kstack_pages.h"
-#include "opt_swtch.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -187,7 +186,7 @@ struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
-#if defined(SMP) && defined(LAZY_SWITCH)
+#ifdef SMP
 static struct mtx lazypmap_lock;
 #endif
 
@@ -340,7 +339,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
-#if defined(SMP) && defined(LAZY_SWITCH)
+#ifdef SMP
 	mtx_init(&lazypmap_lock, "lazypmap", NULL, MTX_SPIN);
 #endif
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
@@ -1285,7 +1284,6 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 * Pmap allocation/deallocation routines.
  ***************************************************/
 
-#ifdef LAZY_SWITCH
 #ifdef SMP
 /*
  * Deal with a SMP shootdown of other users of the pmap that we are
@@ -1374,7 +1372,6 @@ pmap_lazyfix(pmap_t pmap)
 	}
 }
 #endif	/* SMP */
-#endif	/* LAZY_SWITCH */
 
 /*
  * Release any resources held by the given physical map.
@@ -1397,9 +1394,7 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-#ifdef LAZY_SWITCH
 	pmap_lazyfix(pmap);
-#endif
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);

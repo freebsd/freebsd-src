@@ -6,7 +6,6 @@ GPL_MATH_EMULATE	opt_math_emulate.h
 DISABLE_PSE		opt_pmap.h
 PMAP_SHPGPERPROC	opt_pmap.h
 DISABLE_PG_G		opt_pmap.h
-LAZY_SWITCH		opt_swtch.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPC_DEBUG		opt_ppc.h
 MAXMEM

@@ -37,7 +37,6 @@
  */
 
 #include "opt_npx.h"
-#include "opt_swtch.h"
 
 #include <machine/asmacros.h>
 
@@ -162,14 +161,12 @@ ENTRY(cpu_switch)
 
 	/* switch address space */
 	movl	PCB_CR3(%edx),%eax
-#ifdef LAZY_SWITCH
 #ifdef PAE
 	cmpl	%eax,IdlePDPT			/* Kernel address space? */
 #else
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #endif
 	je	sw1
-#endif
 	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	%ebx,%eax
 	je	sw1

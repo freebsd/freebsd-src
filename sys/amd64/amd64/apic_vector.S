@@ -3,8 +3,6 @@
  * $FreeBSD$
  */
 
-#include "opt_swtch.h"
-
 #include <machine/apic.h>
 #include <machine/smp.h>
 
@@ -643,7 +641,6 @@ IDTVEC(rendezvous)
 	POP_FRAME
 	iret
 	
-#ifdef LAZY_SWITCH
 /*
  * Clean up when we lose out on the lazy context switch optimization.
  * ie: when we are about to release a PTD but a cpu is still borrowing it.
@@ -662,7 +659,6 @@ IDTVEC(lazypmap)
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 	POP_FRAME
 	iret
-#endif
 #endif /* SMP */
 
 	.data
