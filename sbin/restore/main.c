@@ -53,6 +53,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,6 +94,8 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 		usage();
+
+	(void)setlocale(LC_ALL, "");
 
 	if ((inputdev = getenv("TAPE")) == NULL)
 		inputdev = _PATH_DEFTAPE;
