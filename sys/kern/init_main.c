@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.111 1999/02/28 10:53:29 bde Exp $
+ * $Id: init_main.c,v 1.112 1999/04/20 21:15:13 des Exp $
  */
 
 #include "opt_devfs.h"
@@ -634,7 +634,8 @@ start_init(p)
 		for (next = path; *next != '\0' && *next != ';'; next++)
 			/* nothing */ ;
 		if (bootverbose)
-			printf("start_init: trying %.*s\n", next-path, path);
+			printf("start_init: trying %.*s\n", (int)(next - path),
+			    path);
 			
 		/*
 		 * Move out the boot flag argument.
@@ -695,7 +696,8 @@ start_init(p)
 		if ((error = execve(p, &args)) == 0)
 			return;
 		if (error != ENOENT)
-			printf("exec %.*s: error %d\n", next-path, path, error);
+			printf("exec %.*s: error %d\n", (int)(next - path), 
+			    path, error);
 	}
 	printf("init: not found\n");
 	panic("no init");
