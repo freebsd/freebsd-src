@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.13 1998/11/25 19:12:56 imp Exp $
+ *      $Id: aha.c,v 1.14 1998/12/04 22:54:44 archie Exp $
  */
 
 #include <sys/param.h>
@@ -1181,7 +1181,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(aha->buffer_dmat, accb->dmamap, op);
 
 	} else {
-		accb->hccb.opcode = INITIATOR_CCB_WRESID;
+		accb->hccb.opcode = INITIATOR_CCB;
 		ahautoa24(0, accb->hccb.data_len);
 		ahautoa24(0, accb->hccb.data_addr);
 	}
@@ -1547,11 +1547,13 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	u_int	intstat;
 	u_int	reply_buf_size;
 	int	s;
+	int	cmd_complete;
 
 	/* No data returned to start */
 	reply_buf_size = reply_len;
 	reply_len = 0;
 	intstat = 0;
+	cmd_complete = 0;
 
 	aha->command_cmp = 0;
 	/*
@@ -1587,10 +1589,13 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
-		 == (INTR_PENDING|CMD_COMPLETE))
+		 == (INTR_PENDING|CMD_COMPLETE)) {
+			cmd_complete = 1;
 			break;
+		}
 		if (aha->command_cmp != 0) {
 			status = aha->latched_status;
+			cmd_complete = 1;
 			break;
 		}
 		if ((status & DATAIN_REG_READY) != 0)
@@ -1610,7 +1615,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	 * For all other commands, we wait for any output data
 	 * and the final comand completion interrupt.
 	 */
-	while (--cmd_timeout) {
+	while (cmd_complete == 0 && --cmd_timeout) {
 
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
