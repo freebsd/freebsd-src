@@ -154,7 +154,7 @@ roundrobin(arg)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that statclock() updates p_estcpu and p_cpticks asynchronously.
+ * Note that schedclock() updates p_estcpu and p_cpticks asynchronously.
  *
  * We wish to decay away 90% of p_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
@@ -902,12 +902,12 @@ sched_setup(dummy)
 /*
  * We adjust the priority of the current process.  The priority of
  * a process gets worse as it accumulates CPU time.  The cpu usage
- * estimator (p_estcpu) is increased here.  The formula for computing
- * priorities (in kern_synch.c) will compute a different value each
- * time p_estcpu increases by 4.  The cpu usage estimator ramps up
+ * estimator (p_estcpu) is increased here.  resetpriority() will
+ * compute a different priority each time p_estcpu increases by 4
+ * (until MAXPRI is reached).  The cpu usage estimator ramps up
  * quite quickly when the process is running (linearly), and decays
  * away exponentially, at a rate which is proportionally slower when
- * the system is busy.  The basic principal is that the system will
+ * the system is busy.  The basic principle is that the system will
  * 90% forget that the process used a lot of CPU time in 5 * loadav
  * seconds.  This causes the system to favor processes which haven't
  * run much recently, and to round-robin among other processes.
