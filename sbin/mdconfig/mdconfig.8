@@ -98,18 +98,17 @@ A file specified with
 .Fl f Ar file
 becomes the backingstore for this memory disk.
 .It Cm swap
-swapspace is used to back this memory disk.
+Swap pace is used to back this memory disk.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
 .It Fl l
-List information about configured
+Enumerate configured
 .Xr md 4
 devices.
-If the
-.Fl u
-option is used in conjuction with this, the output is limited to
-information on the specified device.
+If given with
+.Fl u ,
+display details about that particular device.
 .It Fl n
 When printing md device names, print only the unit number without the
 md prefix.
