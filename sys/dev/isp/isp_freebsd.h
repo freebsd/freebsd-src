@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/malloc.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
