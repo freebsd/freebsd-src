@@ -121,20 +121,6 @@ arrayize(char *str, const char *chars, int *size)
   return res;
 }
 
-static void
-freearraystr(char ** array)
-{
-  /*
-   * the array[0] should be free'd, and then array.
-   */
-  if (array) {
-    free(array[0]);
-    array[0] = NULL;
-    free(array);
-  }
-}
-
-
 /*
  * login_close()
  * Frees up all resources relating to a login class
@@ -150,7 +136,7 @@ login_close(login_cap_t * lc)
     free(lc);
     if (--lc_object_count == 0) {
       free(internal_string);
-      freearraystr(internal_array);
+      free(internal_array);
       internal_array = NULL;
       internal_arraysz = 0;
       internal_string = NULL;
