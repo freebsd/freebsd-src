@@ -4,7 +4,7 @@ DISTRIBUTION=	compat3x
 
 LIBCOMPATDIR=	${LIBDIR}/compat
 
-LIBS=	libc.so.3 libc_r.so.3 libcurses.so.2 libdialog.so.3 libedit.so.2 \
+LIBS=	libc.so.3 libc_r.so.3 libc_r.so.4 libcurses.so.2 libdialog.so.3 libedit.so.2 \
 	libf2c.so.2 libftpio.so.4 libg++.so.4 libhistory.so.3 libmytinfo.so.2 \
 	libncurses.so.3 libreadline.so.3 libstdc++.so.2 libtermcap.so.2 \
 	libutil.so.2 libwrap.so.2 libxpg4.so.2
