@@ -491,7 +491,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825,
+    <para arch="i386,alpha,sparc64">LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825,
     53C825a, 53C860, 53C875, 53C875a, 53C876, 53C885, 53C895, 53C895a,
     53C896, 53C1010-33, 53C1010-66, 53C1000, 53C1000R PCI
     SCSI controllers, either embedded on motherboard or on add-on
@@ -2330,7 +2330,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Hubs
+    <para arch="i386,alpha">Hubs
       <itemizedlist>
         <listitem>
 	  <para>Andromeda hub</para>
@@ -2537,7 +2537,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha,ia64,sparc64">8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
 
