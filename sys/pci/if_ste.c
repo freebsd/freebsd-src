@@ -1057,7 +1057,7 @@ static int ste_attach(dev)
 
 	/* Allocate the descriptor queues. */
 	sc->ste_ldata = contigmalloc(sizeof(struct ste_list_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ste_ldata == NULL) {
 		free(sc, M_DEVBUF);
