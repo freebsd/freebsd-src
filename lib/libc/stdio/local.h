@@ -146,10 +146,3 @@ struct __sFILEX {
 	if ((fp)->_extra->orientation == 0)		\
 		(fp)->_extra->orientation = (o);	\
 } while (0)
-#ifdef FLOCKFILE
-#define	ORIENTLOCK(fp, o)	do {			\
-	FLOCKFILE(fp);					\
-	ORIENT(fp, o);					\
-	FUNLOCKFILE(fp);				\
-} while (0)
-#endif
