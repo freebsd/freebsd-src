@@ -86,10 +86,10 @@ sndtable_init (long mem_start)
 int
 sndtable_probe (int unit, struct address_info *hw_config)
 {
-  int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
+  int   r, i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
 
   if (!unit)
-    return TRUE;
+    return 0;
 
   for (i = 0; i < (n - 1); i++)
     if (snd_installed_cards[i].enabled)
@@ -105,15 +105,15 @@ sndtable_probe (int unit, struct address_info *hw_config)
 							 * Mark as not
 							 * detected
 							 */
-	  else if (sound_drivers[drv].probe (hw_config))
-	    return 1;
+	  else if ((r = sound_drivers[drv].probe (hw_config)))
+	    return r;
 	  snd_installed_cards[i].enabled = 0;	/*
 						 * Mark as not detected
 						 */
 	  return 0;
 	}
 
-  return FALSE;
+  return 0;
 }
 
 int
