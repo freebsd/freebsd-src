@@ -1,6 +1,7 @@
+# Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.82 1996/05/07 23:19:46 wosch Exp $
+#	$Id: Makefile.i386,v 1.83 1996/05/31 01:01:24 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -57,9 +58,9 @@ DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
-SYSTEM_CFILES= ioconf.c param.c vnode_if.c
+SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
 SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
