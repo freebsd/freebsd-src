@@ -44,6 +44,7 @@
 #define RC_RESUME_PATH	"/etc/rc.resume"
 
 static int	acpifd;
+
 static int
 acpi_init()
 {
