@@ -105,8 +105,10 @@ soisconnecting(so)
 	register struct socket *so;
 {
 
+	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISCONNECTING;
+	SOCK_UNLOCK(so);
 }
 
 void
@@ -115,8 +117,10 @@ soisconnected(so)
 {
 	struct socket *head;
 
+	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
+	SOCK_UNLOCK(so);
 	ACCEPT_LOCK();
 	head = so->so_head;
 	if (head != NULL && (so->so_qstate & SQ_INCOMP)) {
@@ -132,11 +136,13 @@ soisconnected(so)
 			wakeup_one(&head->so_timeo);
 		} else {
 			ACCEPT_UNLOCK();
+			SOCK_LOCK(so);
 			so->so_upcall =
 			    head->so_accf->so_accept_filter->accf_callback;
 			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
 			so->so_rcv.sb_flags |= SB_UPCALL;
 			so->so_options &= ~SO_ACCEPTFILTER;
+			SOCK_UNLOCK(so);
 			so->so_upcall(so, so->so_upcallarg, M_TRYWAIT);
 		}
 		return;
@@ -152,8 +158,15 @@ soisdisconnecting(so)
 	register struct socket *so;
 {
 
+	/*
+	 * XXXRW: This code separately acquires SOCK_LOCK(so) and
+	 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same mutex to
+	 * avoid introducing the assumption  that they are the same.
+	 */
+	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= SS_ISDISCONNECTING;
+	SOCK_UNLOCK(so);
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	SOCKBUF_UNLOCK(&so->so_rcv);
@@ -170,8 +183,15 @@ soisdisconnected(so)
 	register struct socket *so;
 {
 
+	/*
+	 * XXXRW: This code separately acquires SOCK_LOCK(so) and
+	 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same mutex to
+	 * avoid introducing the assumption  that they are the same.
+	 */
+	SOCK_LOCK(so);
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISDISCONNECTED;
+	SOCK_UNLOCK(so);
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	SOCKBUF_UNLOCK(&so->so_rcv);
@@ -400,12 +420,16 @@ soreserve(so, sndcc, rcvcc)
 		goto bad;
 	if (sbreserve(&so->so_rcv, rcvcc, so, td) == 0)
 		goto bad2;
+	SOCKBUF_LOCK(&so->so_rcv);
 	if (so->so_rcv.sb_lowat == 0)
 		so->so_rcv.sb_lowat = 1;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	if (so->so_snd.sb_lowat == 0)
 		so->so_snd.sb_lowat = MCLBYTES;
 	if (so->so_snd.sb_lowat > so->so_snd.sb_hiwat)
 		so->so_snd.sb_lowat = so->so_snd.sb_hiwat;
+	SOCKBUF_UNLOCK(&so->so_snd);
 	return (0);
 bad2:
 	sbrelease(&so->so_snd, so);

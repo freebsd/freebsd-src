@@ -304,8 +304,12 @@ portal_open(ap)
 	 */
 	so->so_rcv.sb_timeo = 0;
 	so->so_snd.sb_timeo = 0;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_NOINTR;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 
 	pcred.pcr_flag = ap->a_mode;
