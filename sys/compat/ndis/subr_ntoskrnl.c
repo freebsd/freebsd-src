@@ -106,6 +106,13 @@ __stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_entry *,
 	slist_entry *,*/ kspin_lock *);
 __stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_entry *,
 	kspin_lock * */void);
+__stdcall static void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
+__stdcall static void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
+__stdcall static void ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
+__stdcall static void ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
+__stdcall static void ntoskrnl_freemdl(ndis_buffer *);
+__stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
+__stdcall static void ntoskrnl_create_lock(kspin_lock *);
 __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_interlock;
@@ -551,6 +558,101 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 }
 
 __stdcall static void
+ntoskrnl_lock_dpc(/*lock*/ void)
+{
+	kspin_lock		*lock;
+
+	__asm__ __volatile__ ("" : "=c" (lock));
+
+	mtx_lock((struct mtx *)*lock);
+	return;
+}
+
+__stdcall static void
+ntoskrnl_unlock_dpc(/*lock*/ void)
+{
+	kspin_lock		*lock;
+
+	__asm__ __volatile__ ("" : "=c" (lock));
+
+	mtx_unlock((struct mtx *)*lock);
+	return;
+}
+
+__stdcall static void
+ntoskrnl_interlock_inc(/*addend*/ void)
+{
+	volatile uint32_t	*addend;
+
+	__asm__ __volatile__ ("" : "=c" (addend));
+
+	mtx_lock(&ntoskrnl_interlock);
+	(*addend)++;
+	mtx_unlock(&ntoskrnl_interlock);
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_interlock_dec(/*addend*/ void)
+{
+	volatile uint32_t	*addend;
+
+	__asm__ __volatile__ ("" : "=c" (addend));
+
+	mtx_lock(&ntoskrnl_interlock);
+	(*addend)--;
+	mtx_unlock(&ntoskrnl_interlock);
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_freemdl(mdl)
+	ndis_buffer		*mdl;
+{
+	ndis_buffer		*head;
+
+	if (mdl == NULL || mdl->nb_process == NULL)
+		return;
+
+        head = mdl->nb_process;
+
+        if (head->nb_flags != 0x1)
+                return;
+
+        mdl->nb_next = head->nb_next;
+        head->nb_next = mdl;
+
+        return;
+}
+
+__stdcall static void *
+ntoskrnl_mmaplockedpages(buf, accessmode)
+	ndis_buffer		*buf;
+	uint8_t			accessmode;
+{
+	return(MDL_VA(buf));
+}
+
+__stdcall static void
+ntoskrnl_create_lock(lock)
+	kspin_lock		*lock;
+{
+	struct mtx		*mtx;
+
+	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (mtx == NULL)
+                return;
+	mtx_init(mtx, "ntoslock", "ntoskrnl spinlock",
+	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+
+	*lock = (kspin_lock)mtx;
+
+	return;
+}
+
+__stdcall static void
 dummy()
 {
 	printf ("ntoskrnl dummy called...\n");
@@ -583,7 +685,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "_aullmul",			(FUNC)_aullmul },
 	{ "_aulldiv",			(FUNC)_aulldiv },
 	{ "_aullrem",			(FUNC)_aullrem },
-	{ "_aullushr",			(FUNC)_aullshr },
+	{ "_aullshr",			(FUNC)_aullshr },
 	{ "_aullshl",			(FUNC)_aullshl },
 	{ "WRITE_REGISTER_USHORT",	(FUNC)ntoskrnl_writereg_ushort },
 	{ "READ_REGISTER_USHORT",	(FUNC)ntoskrnl_readreg_ushort },
@@ -599,6 +701,13 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "InterlockedPushEntrySList",	(FUNC)ntoskrnl_push_slist },
 	{ "ExInterlockedPopEntrySList",	(FUNC)ntoskrnl_pop_slist_ex },
 	{ "ExInterlockedPushEntrySList",(FUNC)ntoskrnl_push_slist_ex },
+	{ "KefAcquireSpinLockAtDpcLevel", (FUNC)ntoskrnl_lock_dpc },
+	{ "KefReleaseSpinLockFromDpcLevel", (FUNC)ntoskrnl_unlock_dpc },
+	{ "InterlockedIncrement",	(FUNC)ntoskrnl_interlock_inc },
+	{ "InterlockedDecrement",	(FUNC)ntoskrnl_interlock_dec },
+	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
+	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
+	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_create_lock },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
