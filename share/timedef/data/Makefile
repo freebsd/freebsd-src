@@ -10,6 +10,7 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 DE_LINKS =      de_AT de_CH
 FR_LINKS =      fr_BE fr_CA fr_CH
+IT_LINKS =      it_CH
 
 .SUFFIXES: .src .out
 
@@ -29,6 +30,10 @@ afterinstall:
 	done
 	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${IT_LINKS}; do \
+		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
 
