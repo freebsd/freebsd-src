@@ -1565,6 +1565,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
+	anyvalid = 0;
+
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 
@@ -1580,8 +1582,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			goto out;
 		}
 	}
-
-	anyvalid = 0;
 
 	for (; sva < eva; sva = va_next) {
 
@@ -1644,11 +1644,10 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				break;
 		}
 	}
-
-	if (anyvalid)
-		pmap_invalidate_all(pmap);
 out:
 	vm_page_unlock_queues();
+	if (anyvalid)
+		pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1818,9 +1817,9 @@ retry:
 			}
 		}
 	}
+	vm_page_unlock_queues();
 	if (anychanged)
 		pmap_invalidate_all(pmap);
-	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
