@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.1.1.1 1994/09/30 14:49:58 csgr Exp $
+#	$Id: Makefile,v 1.2 1995/01/14 20:51:05 wollman Exp $
 
 LIB=	krb
 SHLIB_MAJOR= 2
@@ -21,7 +21,7 @@ SRCS=	create_auth_reply.c create_ciph.c \
 
 TDIR=	${.CURDIR}/..
 krb_err.et.c: krb_err.et
-	${COMPILE_ET} ${.CURDIR}/krb_err.et -n
+	${COMPILE_ET} ${.CURDIR}/krb_err.et
 
 beforedepend:	krb_err.et.c
 
