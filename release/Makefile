@@ -1068,7 +1068,7 @@ doMFSKERN:
 	@mkdir ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
 	  (chflags noschg BOOTMFS || true) && \
-	  ${WMAKEENV} strip BOOTMFS && \
+	  ${WMAKEENV} strip -R .comment BOOTMFS && \
 	  cp BOOTMFS BOOTMFS.${FSIMAGE} && \
 	  [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
