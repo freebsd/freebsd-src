@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: look.c,v 1.3.2.2 1997/08/29 05:29:32 imp Exp $";
+	"$Id: look.c,v 1.3.2.3 1997/09/15 08:32:20 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -105,8 +105,7 @@ main(argc, argv)
 {
 	struct stat sb;
 	int ch, fd, termchar;
-	unsigned char *back, *file, *string, *p;
-	caddr_t front;
+	unsigned char *back, *file, *front, *string, *p;
 
 	(void) setlocale(LC_CTYPE, "");
 
