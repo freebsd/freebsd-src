@@ -180,7 +180,6 @@ i386/isa/ctx.c			optional	ctx
 i386/isa/cx.c			optional	cx
 i386/isa/cy.c			optional	cy
 pc98/pc98/diskslice_machdep.c	standard
-pc98/pc98/atcompat_diskslice.c	optional	compat_atdisk
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 pc98/pc98/fd.c			optional	fd
@@ -369,6 +368,7 @@ i4b/layer1/i4b_tel_s08.c	optional	isic
 i4b/layer1/i4b_tel_s0P.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/psm.c			optional	psm
+kern/subr_diskmbr.c		optional	compat_atdisk
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/index.c			standard
