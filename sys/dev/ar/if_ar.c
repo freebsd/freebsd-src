@@ -73,6 +73,7 @@
 #include <net/bpf.h>
 #endif /* NETGRAPH */
 
+#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <dev/ic/hd64570.h>
@@ -217,7 +218,7 @@ static	void	ngar_init(void* ignored);
 
 static ng_constructor_t	ngar_constructor;
 static ng_rcvmsg_t	ngar_rcvmsg;
-static ng_shutdown_t	ngar_shutdown;
+static ng_shutdown_t	ngar_rmnode;
 static ng_newhook_t	ngar_newhook;
 /*static ng_findhook_t	ngar_findhook; */
 static ng_connect_t	ngar_connect;
@@ -225,15 +226,16 @@ static ng_rcvdata_t	ngar_rcvdata;
 static ng_disconnect_t	ngar_disconnect;
 	
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
+	NG_VERSION,
 	NG_AR_NODE_TYPE,
 	NULL,
 	ngar_constructor,
 	ngar_rcvmsg,
-	ngar_shutdown,
+	ngar_rmnode,
 	ngar_newhook,
 	NULL,
 	ngar_connect,
+	ngar_rcvdata,
 	ngar_rcvdata,
 	ngar_disconnect,
 	NULL
@@ -327,18 +329,16 @@ ar_attach(device_t device)
 		if (ngar_done_init == 0) ngar_init(NULL);
 		if (ng_make_node_common(&typestruct, &sc->node) != 0)
 			return (1);
-		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
-		if (ng_name_node(sc->node, sc->nodename)) {
-			NG_NODE_UNREF(sc->node); /* drop it again */
-			return (1);
-		}
-		NG_NODE_SET_PRIVATE(sc->node, sc);
+		sc->node->private = sc;
 		callout_handle_init(&sc->handle);
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-		mtx_init(&sc->xmitq.ifq_mtx, "ar_xmitq", NULL, MTX_DEF);
-		mtx_init(&sc->xmitq_hipri.ifq_mtx, "ar_xmitq_hipri", NULL,
-		    MTX_DEF);
+		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
+		if (ng_name_node(sc->node, sc->nodename)) {
+			ng_rmnode(sc->node);
+			ng_unref(sc->node);
+			return (1);
+		}
 		sc->running = 0;
 #endif	/* NETGRAPH */
 	}
@@ -1672,9 +1672,6 @@ ar_get_packets(struct ar_softc *sc)
 	int i;
 	int len;
 	u_char rxstat;
-#ifdef NETGRAPH
-	int error;
-#endif
 
 	while(ar_packet_avail(sc, &len, &rxstat)) {
 		TRC(printf("apa: len %d, rxstat %x\n", len, rxstat));
@@ -1708,7 +1705,7 @@ ar_get_packets(struct ar_softc *sc)
 			sppp_input(&sc->ifsppp.pp_if, m);
 			sc->ifsppp.pp_if.if_ipackets++;
 #else	/* NETGRAPH */
-			NG_SEND_DATA_ONLY(error, sc->hook, m);
+			ng_queue_data(sc->hook, m, NULL);
 			sc->ipackets++;
 #endif	/* NETGRAPH */
 
@@ -1890,12 +1887,12 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				TRC(int ind = sc->rxhind;)
 
 				ar_get_packets(sc);
+				TRC(
 #ifndef	NETGRAPH
-#define	IPACKETS sc->ifsppp.pp_if.if_ipackets
+				if(tt == sc->ifsppp.pp_if.if_ipackets) {
 #else	/* NETGRAPH */
-#define	IPACKETS sc->ipackets
+				if(tt == sc->ipackets) {
 #endif	/* NETGRAPH */
-				TRC(if(tt == IPACKETS) {
 					sca_descriptor *rxdesc;
 					int i;
 
@@ -2114,7 +2111,7 @@ ngar_watchdog_frame(void * arg)
  * If the hardware exists, it will already have created it.
  */
 static	int
-ngar_constructor(node_p node)
+ngar_constructor(node_p *nodep)
 {
 	return (EINVAL);
 }
@@ -2128,13 +2125,13 @@ ngar_constructor(node_p node)
 static int
 ngar_newhook(node_p node, hook_p hook, const char *name)
 {
-	struct ar_softc *	sc = NG_NODE_PRIVATE(node);
+	struct ar_softc *	sc = node->private;
 
 	/*
 	 * check if it's our friend the debug hook
 	 */
 	if (strcmp(name, NG_AR_HOOK_DEBUG) == 0) {
-		NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
+		hook->private = NULL; /* paranoid */
 		sc->debug_hook = hook;
 		return (0);
 	}
@@ -2145,7 +2142,7 @@ ngar_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_AR_HOOK_RAW) != 0) {
 		return (EINVAL);
 	}
-	NG_HOOK_SET_PRIVATE(hook, sc);
+	hook->private = sc;
 	sc->hook = hook;
 	sc->datahooks++;
 	ar_up(sc);
@@ -2157,61 +2154,67 @@ ngar_newhook(node_p node, hook_p hook, const char *name)
  * Just respond to the generic TEXT_STATUS message
  */
 static	int
-ngar_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ngar_rcvmsg(node_p node,
+	struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
 {
 	struct ar_softc *	sc;
-	struct ng_mesg *resp = NULL;
 	int error = 0;
-	struct ng_mesg *msg;
 
-	NGI_GET_MSG(item, msg);
-	sc = NG_NODE_PRIVATE(node);
+	sc = node->private;
 	switch (msg->header.typecookie) {
-	case	NG_AR_COOKIE: 
+	    case	NG_AR_COOKIE: 
 		error = EINVAL;
 		break;
-	case	NGM_GENERIC_COOKIE: 
+	    case	NGM_GENERIC_COOKIE: 
 		switch(msg->header.cmd) {
-		case NGM_TEXT_STATUS: {
-			char        *arg;
-			int pos = 0;
-
-			int resplen = sizeof(struct ng_mesg) + 512;
-			NG_MKRESPONSE(resp, msg, resplen, M_NOWAIT);
-			if (resp == NULL) {
+		    case NGM_TEXT_STATUS: {
+			    char	*arg;
+			    int pos = 0;
+			    int resplen = sizeof(struct ng_mesg) + 512;
+			    MALLOC(*resp, struct ng_mesg *, resplen,
+					M_NETGRAPH, M_NOWAIT | M_ZERO);
+			    if (*resp == NULL) { 
 				error = ENOMEM;
 				break;
-			}
-			arg = (resp)->data;
-			pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
+			    }       
+			    arg = (*resp)->data;
+
+			    /*
+			     * Put in the throughput information.
+			     */
+			    pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
 			    "highest rate seen: %ld B/S in, %ld B/S out\n",
-			sc->inbytes, sc->outbytes,
-			sc->inrate, sc->outrate);
-			pos += sprintf(arg + pos,
+			    sc->inbytes, sc->outbytes,
+			    sc->inrate, sc->outrate);
+			    pos += sprintf(arg + pos,
 				"%ld output errors\n",
 			    	sc->oerrors);
-			pos += sprintf(arg + pos,
+			    pos += sprintf(arg + pos,
 				"ierrors = %ld, %ld, %ld, %ld\n",
 			    	sc->ierrors[0],
 			    	sc->ierrors[1],
 			    	sc->ierrors[2],
 			    	sc->ierrors[3]);
 
-			resp->header.arglen = pos + 1;
+			    (*resp)->header.version = NG_VERSION;
+			    (*resp)->header.arglen = strlen(arg) + 1;
+			    (*resp)->header.token = msg->header.token;
+			    (*resp)->header.typecookie = NG_AR_COOKIE;
+			    (*resp)->header.cmd = msg->header.cmd;
+			    strncpy((*resp)->header.cmdstr, "status",
+					NG_CMDSTRLEN);
+			}
 			break;
-		      }
-		default:
+	    	    default:
 		 	error = EINVAL;
 		 	break;
 		    }
 		break;
-	default:
+	    default:
 		error = EINVAL;
 		break;
 	}
-	/* Take care of synchronous response, if any */
-	NG_RESPOND_MSG(error, node, item, resp);
-	NG_FREE_MSG(msg);
+	free(msg, M_NETGRAPH);
 	return (error);
 }
 
@@ -2219,22 +2222,17 @@ ngar_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * get data from another node and transmit it to the correct channel
  */
 static int
-ngar_rcvdata(hook_p hook, item_p item)
+ngar_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	int s;
 	int error = 0;
-	struct ar_softc * sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ar_softc * sc = hook->node->private;
 	struct ifqueue	*xmitq_p;
-	struct mbuf *m;
-	meta_p meta;
 	
-	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
-	NG_FREE_ITEM(item);
 	/*
 	 * data doesn't come in from just anywhere (e.g control hook)
 	 */
-	if ( NG_HOOK_PRIVATE(hook) == NULL) {
+	if ( hook->private == NULL) {
 		error = ENETDOWN;
 		goto bad;
 	}
@@ -2248,16 +2246,13 @@ ngar_rcvdata(hook_p hook, item_p item)
 		xmitq_p = (&sc->xmitq);
 	}
 	s = splimp();
-	IF_LOCK(xmitq_p);
-	if (_IF_QFULL(xmitq_p)) {
-		_IF_DROP(xmitq_p);
-		IF_UNLOCK(xmitq_p);
+	if (IF_QFULL(xmitq_p)) {
+		IF_DROP(xmitq_p);
 		splx(s);
 		error = ENOBUFS;
 		goto bad;
 	}
-	_IF_ENQUEUE(xmitq_p, m);
-	IF_UNLOCK(xmitq_p);
+	IF_ENQUEUE(xmitq_p, m);
 	arstart(sc);
 	splx(s);
 	return (0);
@@ -2267,8 +2262,7 @@ bad:
 	 * It was an error case.
 	 * check if we need to free the mbuf, and then return the error
 	 */
-	NG_FREE_M(m);
-	NG_FREE_META(meta);
+	NG_FREE_DATA(m, meta);
 	return (error);
 }
 
@@ -2278,27 +2272,13 @@ bad:
  * don't unref the node, or remove our name. just clear our links up.
  */
 static	int
-ngar_shutdown(node_p node)
+ngar_rmnode(node_p node)
 {
-	struct ar_softc * sc = NG_NODE_PRIVATE(node);
+	struct ar_softc * sc = node->private;
 
 	ar_down(sc);
-	NG_NODE_UNREF(node);
-	/* XXX need to drain the output queues! */
-
-	/* The node is dead, long live the node! */
-	/* stolen from the attach routine */
-	if (ng_make_node_common(&typestruct, &sc->node) != 0)
-		return (0);
-	sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
-	if (ng_name_node(sc->node, sc->nodename)) {
-		sc->node = NULL;
-		printf("node naming failed\n");
-		NG_NODE_UNREF(sc->node); /* node dissappears */
-		return (0);
-	}
-	NG_NODE_SET_PRIVATE(sc->node, sc);
-	sc->running = 0;
+	ng_cutlinks(node);
+	node->flags &= ~NG_INVALID; /* bounce back to life */
 	return (0);
 }
 
@@ -2306,8 +2286,6 @@ ngar_shutdown(node_p node)
 static	int
 ngar_connect(hook_p hook)
 {
-	/* probably not at splnet, force outward queueing */
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
@@ -2326,12 +2304,12 @@ ngar_connect(hook_p hook)
 static	int
 ngar_disconnect(hook_p hook)
 {
-	struct ar_softc * sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ar_softc * sc = hook->node->private;
 	int	s;
 	/*
 	 * If it's the data hook, then free resources etc.
 	 */
-	if (NG_HOOK_PRIVATE(hook)) {
+	if (hook->private) {
 		s = splimp();
 		sc->datahooks--;
 		if (sc->datahooks == 0)
