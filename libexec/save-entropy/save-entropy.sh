@@ -29,6 +29,8 @@
 # This script is called by cron to store bits of randomness which are
 # then used to seed /dev/random on boot.
 
+# Originally developed by Doug Barton, DougB@FreeBSD.org
+
 PATH=/bin:/usr/bin
 
 # If there is a global system configuration file, suck it in.
@@ -45,33 +47,41 @@ case ${entropy_dir} in
 	exit 0
 	;;
 *)
-	entropy_dir=${entropy_dir:-/.entropy}
+	entropy_dir=${entropy_dir:-/var/db/entropy}
 	;;
 esac
 
 entropy_save_sz=${entropy_save_sz:-2048}
 entropy_save_num=${entropy_save_num:-8}
-entropy_save_jot=$(($entropy_save_num - 1))
 
 if [ ! -d "${entropy_dir}" ]; then
 	umask 077
 	mkdir "${entropy_dir}" || {
-	    logger -is The entropy directory "${entropy_dir}" does not \
+	    logger -is -t "$0" The entropy directory "${entropy_dir}" does not \
 exist, and cannot be created.  Therefore no entropy can be saved. ;
 	    exit 1;}
 	/usr/sbin/chown operator:operator "${entropy_dir}"
 	chmod 0700 "${entropy_dir}"
 fi
 
-rm -f "${entropy_dir}/saved-entropy.${entropy_save_num}"
-
 umask 377
 
-for file_num in `jot ${entropy_save_jot} ${entropy_save_jot} 1`; do
-	if [ -f "${entropy_dir}/saved-entropy.${file_num}" ]; then
-		new_num=$(($file_num + 1))
-		mv "${entropy_dir}/saved-entropy.${file_num}" \
-		    "${entropy_dir}/saved-entropy.${new_num}"
+for file_num in `jot ${entropy_save_num} ${entropy_save_num} 1`; do
+	if [ -e "${entropy_dir}/saved-entropy.${file_num}" ]; then
+		if [ -f "${entropy_dir}/saved-entropy.${file_num}" ]; then
+			new_num=$(($file_num + 1))
+			if [ "${new_num}" -gt "${entropy_save_num}" ]; then
+				rm -f "${entropy_dir}/saved-entropy.${file_num}"
+			else
+				mv "${entropy_dir}/saved-entropy.${file_num}" \
+				    "${entropy_dir}/saved-entropy.${new_num}"
+			fi
+		else
+			logger -is -t "$0" \
+"${entropy_dir}/saved-entropy.${file_num} is not a regular file, and therefore \
+it will not be rotated. Entropy file harvesting is aborted."
+			exit 1
+		fi
 	fi
 done
 
