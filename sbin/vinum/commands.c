@@ -650,8 +650,6 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		    else
 			doit = 1;
 		    break;
-
-		default:
 		}
 
 		if (doit) {
@@ -1036,8 +1034,6 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	    sprintf(oldname, "%s", plex.name);
 	    vinum_rename_2(oldname, newname);		    /* this may recurse */
 	    break;
-
-	default:					    /* can't get here */
 	}
     }
     checkupdates();					    /* make sure we're updating */
