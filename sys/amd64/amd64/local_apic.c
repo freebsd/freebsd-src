@@ -422,50 +422,52 @@ lapic_set_lvt_mode(u_int apic_id, u_int pin, u_int32_t mode)
 }
 
 int
-lapic_set_lvt_polarity(u_int apic_id, u_int pin, u_char activehi)
+lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
 {
 
-	if (pin > LVT_MAX)
+	if (pin > LVT_MAX || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
-		lvts[pin].lvt_activehi = activehi;
+		lvts[pin].lvt_activehi = (pol == INTR_POLARITY_HIGH);
 		if (bootverbose)
 			printf("lapic:");
 	} else {
 		KASSERT(lapics[apic_id].la_present,
 		    ("%s: missing APIC %u", __func__, apic_id));
 		lapics[apic_id].la_lvts[pin].lvt_active = 1;
-		lapics[apic_id].la_lvts[pin].lvt_activehi = activehi;
+		lapics[apic_id].la_lvts[pin].lvt_activehi =
+		    (pol == INTR_POLARITY_HIGH);
 		if (bootverbose)
 			printf("lapic%u:", apic_id);
 	}
 	if (bootverbose)
 		printf(" LINT%u polarity: active-%s\n", pin,
-		    activehi ? "hi" : "lo");
+		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 	return (0);
 }
 
 int
-lapic_set_lvt_triggermode(u_int apic_id, u_int pin, u_char edgetrigger)
+lapic_set_lvt_triggermode(u_int apic_id, u_int pin, enum intr_trigger trigger)
 {
 
-	if (pin > LVT_MAX)
+	if (pin > LVT_MAX || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
-		lvts[pin].lvt_edgetrigger = edgetrigger;
+		lvts[pin].lvt_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 		if (bootverbose)
 			printf("lapic:");
 	} else {
 		KASSERT(lapics[apic_id].la_present,
 		    ("%s: missing APIC %u", __func__, apic_id));
-		lapics[apic_id].la_lvts[pin].lvt_edgetrigger = edgetrigger;
+		lapics[apic_id].la_lvts[pin].lvt_edgetrigger =
+		    (trigger == INTR_TRIGGER_EDGE);
 		lapics[apic_id].la_lvts[pin].lvt_active = 1;
 		if (bootverbose)
 			printf("lapic%u:", apic_id);
 	}
 	if (bootverbose)
 		printf(" LINT%u trigger: %s\n", pin,
-		    edgetrigger ? "edge" : "level");
+		    trigger == INTR_TRIGGER_EDGE ? "edge" : "level");
 	return (0);
 }
 
