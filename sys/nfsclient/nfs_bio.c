@@ -421,8 +421,10 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 		/*
 		 * Start the read ahead(s), as required.
+		 * The readahead is kicked off only if sequential access
+		 * is detected, based on the readahead hint (ra_expect_lbn).
 		 */
-		if (nmp->nm_readahead > 0) {
+		if (nmp->nm_readahead > 0 && np->ra_expect_lbn == lbn) {
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < np->n_size; nra++) {
 			rabn = lbn + 1 + nra;
@@ -448,6 +450,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			    }
 			}
 		    }
+		    np->ra_expect_lbn = lbn + 1;
 		}
 
 		/*
