@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.15 1997/03/24 11:24:34 bde Exp $
+ *	$Id: kern_acct.c,v 1.16 1997/09/02 20:05:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -74,6 +74,13 @@
  */
 static comp_t	encode_comp_t __P((u_long, u_long));
 static void	acctwatch __P((void *));
+
+/*
+ * Accounting callout handle used for periodic scheduling of
+ * acctwatch.
+ */
+static struct	callout_handle acctwatch_handle
+    = CALLOUT_HANDLE_INITIALIZER(&acctwatch_handle);
 
 /*
  * Accounting vnode pointer, and saved vnode pointer.
@@ -139,7 +146,7 @@ acct(a1, uap, a3)
 	 * close the file, and (if no new file was specified, leave).
 	 */
 	if (acctp != NULLVP || savacctp != NULLVP) {
-		untimeout(acctwatch, NULL);
+		untimeout(acctwatch, NULL, acctwatch_handle);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
 		    p->p_ucred, p);
 		acctp = savacctp = NULLVP;
@@ -310,5 +317,5 @@ acctwatch(a)
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
-	timeout(acctwatch, NULL, acctchkfreq * hz);
+	acctwatch_handle = timeout(acctwatch, NULL, acctchkfreq * hz);
 }

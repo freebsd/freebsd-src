@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.70 1997/08/26 18:10:37 peter Exp $
+ * $Id: init_main.c,v 1.71 1997/09/02 20:05:35 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -459,7 +459,7 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ****
  ***************************************************************************
  */
-/* ARGSUSED*/
+/* ARGSUSED */
 static void sched_setup __P((void *dummy));
 static void
 sched_setup(dummy)
@@ -470,6 +470,26 @@ sched_setup(dummy)
 	schedcpu(NULL);
 }
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
+
+/* ARGSUSED */
+static void root_conf __P((void *dummy));
+static void
+root_conf(dummy)
+	void *dummy;
+{
+	cpu_rootconf();
+}
+SYSINIT(root_conf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, root_conf, NULL)
+
+/* ARGSUSED */
+static void dump_conf __P((void *dummy));
+static void
+dump_conf(dummy)
+	void *dummy;
+{
+	cpu_dumpconf();
+}
+SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
 
 /* ARGSUSED*/
 static void xxx_vfs_mountroot __P((void *fsnamep));
@@ -488,7 +508,8 @@ xxx_vfs_mountroot(fsnamep)
 	if (vfs_mountrootfs(*((char **) fsnamep)))
 		panic("cannot mount root");
 }
-SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, &mountrootfsname)
+SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot,
+	&mountrootfsname)
 
 /* ARGSUSED*/
 static void xxx_vfs_root_fdtab __P((void *dummy));
