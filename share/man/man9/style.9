@@ -159,10 +159,14 @@ enum enumtype { ONE, TWO } et;
 When declaring variables in structures, declare them sorted by use, then
 by size, and then by alphabetical order.  The first category normally
 doesn't apply, but there are exceptions.  Each one gets its own line.
-Put a tab after the first word, i.e. use
-.Ql int^Ix;
+Try to make the structure
+readable by aligning the variable names using either one or two tabs
+depending upon your judgement. Names following extremely long types
+should be separated by a simple space, i.e. use
+.Ql int^I^Ix;
+.Ql struct foo^I*x; .
 and
-.Ql struct^Ifoo *x; .
+.Ql struct verylongtypename *bar;
 .Pp
 Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
@@ -170,11 +174,12 @@ source files.  Use of the structures should be by separate declarations
 and should be "extern" if they are declared in a header file.
 .Bd -literal
 struct foo {
-	struct	foo *next;	/* List of active foo */
-	struct	mumble amumble;	/* Comment for mumble */
-	int	bar;
+	struct foo	*next;		/* List of active foo */
+	struct mumble	amumble;	/* Comment for mumble */
+	int		bar;		/* Try align the comments */
+	struct verylongtypename *bar;	/* won't fit in 2 tabs */
 };
-struct foo *foohead;		/* Head of global foo list */
+struct foo *foohead;			/* Head of global foo list */
 .Ed
 .Pp
 Use
@@ -184,11 +189,12 @@ the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
 struct foo {
-	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
-	struct	mumble amumble;	/* Comment for mumble */
-	int	bar;
+	LIST_ENTRY(foo)	link;		/* Queue macro for foo lists */
+	struct mumble	amumble;	/* Comment for mumble */
+	int		bar;		/* Try align the comments */
+	struct verylongtypename *bar;	/* won't fit in 2 tabs */
 };
-LIST_HEAD(, foo) foohead;	/* Head of global foo list */
+LIST_HEAD(, foo) foohead;		/* Head of global foo list */
 .Ed
 .Pp
 Avoid using typedefs for structure types.  This makes it impossible
@@ -593,7 +599,7 @@ or
 This man page is largely based on the src/admin/style/style file from
 the
 .Bx 4.4 Lite2
-release, with updates to reflect the current practice and
+release, with occasional updates to reflect the current practice and
 desire of the
 .Fx
 project.
