@@ -51,7 +51,7 @@ struct	osigframe {
 	/* Points to sf_siginfo.si_sc. */
 	register_t	sf_scp;
 
-	register_t	*sf_addr;
+	register_t	sf_addr;
 
 	/*
 	 * The following arguments are not constrained by the
@@ -81,7 +81,7 @@ struct sigframe {
 	register_t	sf_signum;
 	register_t	sf_siginfo;	/* code or pointer to sf_si */
 	register_t	sf_ucontext;	/* points to sf_uc */
-	register_t	*sf_addr;	/* undocumented 4th arg */
+	register_t	sf_addr;	/* undocumented 4th arg */
 
 	union {
 		__siginfohandler_t	*sf_action;
