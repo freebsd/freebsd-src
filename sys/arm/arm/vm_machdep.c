@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
-#include <sys/user.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <vm/vm.h>

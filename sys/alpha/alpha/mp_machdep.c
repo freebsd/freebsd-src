@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/prom.h>
 #include <machine/rpb.h>

@@ -32,13 +32,13 @@
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
 #include <machine/db_machdep.h>
+#include <machine/pcb.h>
 #include <machine/spr.h>
 #include <machine/trap.h>
 
