@@ -343,7 +343,7 @@ alias_pna_out(struct ip *pip,
 	if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 	    memcpy((char*)&port, (char*)work, 2);
 	    pna_links = FindUdpTcpOut(pip->ip_src, GetDestAddress(link),
-				      port, 0, IPPROTO_UDP);
+				      port, 0, IPPROTO_UDP, 1);
 	    if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
 		/* Punch hole in firewall */
