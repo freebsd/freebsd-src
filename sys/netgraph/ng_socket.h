@@ -48,10 +48,6 @@
 #define	NGM_SOCKET_COOKIE	851601233
 
 /* Netgraph socket(2) constants */
-#ifndef	PF_NETGRAPH
-#define	PF_NETGRAPH		31
-#define	AF_NETGRAPH		31
-#endif
 #define	NG_DATA			1
 #define	NG_CONTROL		2
 
