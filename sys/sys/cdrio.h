@@ -85,6 +85,37 @@ struct cdr_cuesheet {
 	int test_write;
 };
 
+struct cdr_format_capacity {
+	u_int32_t blocks;
+	u_int32_t reserved:2;
+	u_int32_t type:6;
+	u_int32_t param:24;
+};
+
+struct cdr_format_capacities {
+	u_int8_t reserved1[3];
+	u_int8_t length;
+	u_int32_t blocks;
+	u_int32_t type:2;
+	u_int32_t reserved2:6;
+	u_int32_t block_size:24;
+	struct cdr_format_capacity format[32];
+};
+
+struct cdr_format_params {
+	u_int8_t reserved;
+	u_int8_t vs:1;
+	u_int8_t immed:1;
+	u_int8_t try_out:1;
+	u_int8_t ip:1;
+	u_int8_t stpf:1;
+	u_int8_t dcrt:1;
+	u_int8_t dpry:1;
+	u_int8_t fov:1;
+	u_int16_t length;
+	struct cdr_format_capacity format;
+};
+
 #define CDRIOCBLANK		_IOW('c', 100, int)
 #define CDR_B_ALL		0x0
 #define CDR_B_MIN		0x1
@@ -101,5 +132,7 @@ struct cdr_cuesheet {
 #define CDRIOCGETBLOCKSIZE	_IOR('c', 109, int)
 #define CDRIOCSETBLOCKSIZE	_IOW('c', 110, int)
 #define CDRIOCGETPROGRESS	_IOR('c', 111, int)
+#define CDRIOCREADFORMATCAPS	_IOR('c', 112, struct cdr_format_capacities)
+#define CDRIOCFORMAT		_IOW('c', 113, struct cdr_format_params)
 
 #endif /* !_SYS_CDRIO_H_ */

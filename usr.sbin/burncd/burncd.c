@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
+#include <sys/dvdio.h>
 #include <sys/param.h>
 #include <arpa/inet.h>
 
@@ -48,7 +49,7 @@
 struct track_info {
 	int	file;
 	char	*file_name;
-	u_int	file_size;
+	off_t	file_size;
 	int	block_size;
 	int	block_type;
 	int	pregap;
@@ -59,7 +60,8 @@ static int fd, quiet, verbose, saved_block_size, notracks;
 
 void add_track(char *, int, int, int);
 void do_DAO(int, int);
-void do_TAO(int, int);
+void do_TAO(int, int, int);
+void do_format(int, int, char *);
 int write_file(struct track_info *);
 int roundup_blocks(struct track_info *);
 void cue_ent(struct cdr_cue_entry *, int, int, int, int, int, int, int);
@@ -71,11 +73,11 @@ main(int argc, char **argv)
 {
 	int ch, arg, addr;
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
-	int nogap = 0, speed = 4, test_write = 0;
-	int block_size = 0, block_type = 0, cdopen = 0;
+	int nogap = 0, speed = 4, test_write = 0, force = 0;
+	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
 	const char *dev = "/dev/acd0c";
 
-	while ((ch = getopt(argc, argv, "def:lmnpqs:tv")) != -1) {
+	while ((ch = getopt(argc, argv, "def:Flmnpqs:tv")) != -1) {
 		switch (ch) {
 		case 'd':
 			dao = 1;
@@ -87,6 +89,10 @@ main(int argc, char **argv)
 
 		case 'f':
 			dev = optarg;
+			break;
+	
+		case 'F':
+			force = 1;
 			break;
 
 		case 'l':
@@ -167,8 +173,9 @@ main(int argc, char **argv)
 
 			break;
 		}
-		if (!strcasecmp(argv[arg], "erase") || !strcasecmp(argv[arg], "blank")){
-		    	int error, blank, percent;
+		if ((!strcasecmp(argv[arg], "erase") ||
+		     !strcasecmp(argv[arg], "blank")) && !test_write) {
+		    	int error, blank, percent, last = 0;
 
 			if (!strcasecmp(argv[arg], "erase"))
 				blank = CDR_B_ALL;
@@ -188,11 +195,23 @@ main(int argc, char **argv)
 						"%sing CD - %d %% done     \r",
 						blank == CDR_B_ALL ? 
 						"eras" : "blank", percent);
-				if (error || percent == 100)
+				if (error || percent == 100 ||
+					(percent == 0 && last == 99))
 					break;
+				last = percent;
 			}
 			if (!quiet)
 				printf("\n");
+			continue;
+		}
+		if (!strcasecmp(argv[arg], "format") && !test_write) {
+			if (arg + 1 < argc &&
+				(!strcasecmp(argv[arg + 1], "dvd+rw") ||
+				!strcasecmp(argv[arg + 1], "dvd-rw")))
+				do_format(fd, force, argv[arg + 1]);
+			else
+				err(EX_NOINPUT, "format media type invalid");
+			arg++;
 			continue;
 		}
 		if (!strcasecmp(argv[arg], "audio") || !strcasecmp(argv[arg], "raw")) {
@@ -227,6 +246,13 @@ main(int argc, char **argv)
 			nogap = 1;
 			continue;
 		}
+		if (!strcasecmp(argv[arg], "dvdrw")) {
+			block_type = CDR_DB_ROM_MODE1;
+			block_size = 2048;
+			dvdrw = 1;
+			continue;
+		}
+
 		if (!block_size)
 			err(EX_NOINPUT, "no data format selected");
 		if (list) {
@@ -252,6 +278,8 @@ main(int argc, char **argv)
 			add_track(argv[arg], block_size, block_type, nogap);
 	}
 	if (notracks) {
+		if (dvdrw && notracks > 1)
+			err(EX_USAGE, "DVD's only have 1 track");
 		if (ioctl(fd, CDIOCSTART, 0) < 0)
 			err(EX_IOERR, "ioctl(CDIOCSTART)");
 		if (!cdopen) {
@@ -262,7 +290,7 @@ main(int argc, char **argv)
 		if (dao) 
 			do_DAO(test_write, multi);
 		else
-			do_TAO(test_write, preemp);
+			do_TAO(test_write, preemp, dvdrw);
 	}
 	if (fixate && !dao) {
 		if (!quiet)
@@ -436,7 +464,7 @@ do_DAO(int test_write, int multi)
 }
 
 void
-do_TAO(int test_write, int preemp)
+do_TAO(int test_write, int preemp, int dvdrw)
 {
 	struct cdr_track track;
 	int i;
@@ -448,8 +476,13 @@ do_TAO(int test_write, int preemp)
 		if (ioctl(fd, CDRIOCINITTRACK, &track) < 0)
 			err(EX_IOERR, "ioctl(CDRIOCINITTRACK)");
 
-		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &tracks[i].addr) < 0)
-			err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+		if (dvdrw)
+			tracks[i].addr = 0;
+		else
+			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, 
+				  &tracks[i].addr) < 0)
+				err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+
 		if (!quiet)
 			fprintf(stderr, "next writeable LBA %d\n",
 				tracks[i].addr);
@@ -460,12 +493,91 @@ do_TAO(int test_write, int preemp)
 	}
 }
 
+#define NTOH3B(x)	((x&0x0000ff)<<16) | (x&0x00ff00) | ((x&0xff0000)>>16)
+
+void
+do_format(int fd, int force, char *type)
+{
+	struct cdr_format_capacities capacities;
+	struct cdr_format_params format_params;
+	int count, i, percent, last = 0;
+
+	if (ioctl(fd, CDRIOCREADFORMATCAPS, &capacities) == -1)
+		err(EX_IOERR, "ioctl(CDRIOCREADFORMATCAPS)");
+
+	if (verbose) {
+		fprintf(stderr, "format list entries=%d\n", 
+			capacities.length / sizeof(struct cdr_format_capacity));
+		fprintf(stderr, "current format: blocks=%u type=0x%x block_size=%u\n",
+			ntohl(capacities.blocks), capacities.type, 
+			NTOH3B(capacities.block_size));
+	}
+
+	count = capacities.length / sizeof(struct cdr_format_capacity);
+	if (verbose) {
+		for (i = 0; i < count; ++i)
+			fprintf(stderr,
+				"format %d: blocks=%u type=0x%x param=%u\n",
+				i, ntohl(capacities.format[i].blocks),
+				capacities.format[i].type,
+				NTOH3B(capacities.format[i].param));
+	}
+
+	for (i = 0; i < count; ++i) {
+		if (!strcasecmp(type, "dvd+rw")) {
+			if (capacities.format[i].type == 0x26) {
+				break;
+			}
+		}
+		if (!strcasecmp(type, "dvd-rw")) {
+			if (capacities.format[i].type == 0x0) {
+				break;
+			}
+		}
+	}
+	if (i == count)
+		err(EX_IOERR, "could not find a valid format capacity");
+	
+	if (!quiet)
+		fprintf(stderr,"formatting with blocks=%u type=0x%x param=%u\n",
+			ntohl(capacities.format[i].blocks),
+			capacities.format[i].type,
+			NTOH3B(capacities.format[i].param));
+
+	if (!force && capacities.type == 2)
+		err(EX_IOERR, "media already formatted (use -F to override)");
+
+	memset(&format_params, 0, sizeof(struct cdr_format_params));
+	format_params.fov = 1;
+	format_params.immed = 1;
+	format_params.length = ntohs(sizeof(struct cdr_format_capacity));
+	memcpy(&format_params.format, &capacities.format[i],
+		sizeof(struct cdr_format_capacity));
+
+	if(ioctl(fd, CDRIOCFORMAT, &format_params) == -1)
+		err(EX_IOERR, "ioctl(CDRIOCFORMAT)");
+
+	while (1) {
+		sleep(1);
+		if (ioctl(fd, CDRIOCGETPROGRESS, &percent) == -1)
+			err(EX_IOERR, "ioctl(CDRIOGETPROGRESS)");
+		if (percent > 0 && !quiet)
+			fprintf(stderr, "formatting DVD - %d %% done     \r", 
+				percent);
+		if (percent == 100 || (percent == 0 && last == 99))
+			break;
+		last = percent;
+	}
+	if (!quiet)
+		fprintf(stderr, "\n");
+}
+
 int
 write_file(struct track_info *track_info)
 {
-	int size, count, filesize;
+	off_t size, count, filesize;
 	char buf[2352*BLOCKS];
-	static int tot_size = 0;
+	static off_t tot_size = 0;
 
 	filesize = track_info->file_size / 1024;
 
@@ -476,7 +588,7 @@ write_file(struct track_info *track_info)
 		lseek(fd, track_info->addr * track_info->block_size, SEEK_SET);
 
 	if (verbose)
-		fprintf(stderr, "addr = %d size = %d blocks = %d\n",
+		fprintf(stderr, "addr = %d size = %qd blocks = %d\n",
 			track_info->addr, track_info->file_size,
 			roundup_blocks(track_info));
 
@@ -485,7 +597,7 @@ write_file(struct track_info *track_info)
 			fprintf(stderr, "writing from stdin\n");
 		else
 			fprintf(stderr, 
-				"writing from file %s size %d KB\n",
+				"writing from file %s size %qd KB\n",
 				track_info->file_name, filesize);
 	}
 	size = 0;
@@ -503,7 +615,7 @@ write_file(struct track_info *track_info)
 				track_info->block_size;
 		}
 		if ((res = write(fd, buf, count)) != count) {
-			fprintf(stderr, "\nonly wrote %d of %d bytes err=%d\n",
+			fprintf(stderr, "\nonly wrote %d of %qd bytes err=%d\n",
 				res, count, errno);
 			break;
 		}
@@ -512,12 +624,12 @@ write_file(struct track_info *track_info)
 		if (!quiet) {
 			int pct;
 
-			fprintf(stderr, "written this track %d KB", size/1024);
+			fprintf(stderr, "written this track %qd KB", size/1024);
 			if (track_info->file != STDIN_FILENO && filesize) {
 				pct = (size / 1024) * 100 / filesize;
 				fprintf(stderr, " (%d%%)", pct);
 			}
-			fprintf(stderr, " total %d KB\r", tot_size/1024);
+			fprintf(stderr, " total %qd KB\r", tot_size/1024);
 		}
 		if (size >= track_info->file_size)
 			break;
