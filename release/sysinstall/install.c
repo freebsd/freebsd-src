@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.29 1995/10/14 09:30:50 jkh Exp $
+ * $Id: install.c,v 1.71.2.30 1995/10/14 19:13:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -368,12 +368,13 @@ installExpress(char *str)
 		  "post-configuration questions will be asked at this point.\n\n"
 		  "Our packages collection contains many useful utilities, from\n"
 		  "text editors to WEB servers, and is definitely worth browsing\n"
-		  "through even if you don't install any of it for now.\n\n"
+		  "through even if you don't install any of it at this time.\n\n"
 		  "Would you like to browse the selection of packaged\n"
-		  "software at this time?"))
+		  "software now?"))
 	configPackages(NULL);
 
-    if (!msgYesNo("Would you like to configure any additional network services?"))
+    if (!msgYesNo("Would you like to configure any additional network\n"
+		  "devices or services?"))
 	dmenuOpenSimple(&MenuNetworking);
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
