@@ -23,10 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: easter.c,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
+ *	$Id: easter.c,v 1.2 1997/12/07 19:04:14 helbig Exp $
  */
 
 #include "calendar.h"
+
+typedef struct date date;
 
 static int	 easterodn(int y);
 
