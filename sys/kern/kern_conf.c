@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.42 1999/06/01 18:56:24 phk Exp $
+ * $Id: kern_conf.c,v 1.43 1999/06/01 20:41:26 dt Exp $
  */
 
 #include <sys/param.h>
@@ -116,6 +116,27 @@ cdevsw_add(struct cdevsw *newentry)
 
 	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) 
 		bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
+
+	return 0;
+} 
+
+/*
+ *  Remove a cdevsw entry
+ */
+
+int
+cdevsw_remove(struct cdevsw *oldentry)
+{
+	if (oldentry->d_maj < 0 || oldentry->d_maj >= NUMCDEVSW) {
+		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
+		    oldentry->d_name, oldentry->d_maj);
+		return EINVAL;
+	}
+
+	cdevsw[oldentry->d_maj] = NULL;
+
+	if (oldentry->d_bmaj >= 0 && oldentry->d_bmaj < NUMCDEVSW) 
+		bmaj2cmaj[oldentry->d_bmaj] = NULL;
 
 	return 0;
 } 
