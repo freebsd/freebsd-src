@@ -123,6 +123,6 @@ SBUS_ACCESSOR(node,		NODE,		phandle_t)
 SBUS_ACCESSOR(slot,		SLOT,		int)
 SBUS_ACCESSOR(device_type,	DEVICE_TYPE,	char *)
 
-#undef EBUS_ACCESSOR
+#undef SBUS_ACCESSOR
 
 #endif /* _SPARC64_SBUS_SBUSVAR_H_ */
