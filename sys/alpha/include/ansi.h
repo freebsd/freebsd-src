@@ -73,7 +73,7 @@
 #define	_BSD_PID_T_	int			/* process [group] */
 
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
-#define	_BSD_VA_LIST_	__builtin_va_list		/* internally known to gcc */
+#define	_BSD_VA_LIST_	__builtin_va_list	/* internally known to gcc */
 #else
 typedef struct {
 	char *__base;
