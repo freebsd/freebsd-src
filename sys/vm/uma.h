@@ -159,7 +159,7 @@ typedef void (*uma_fini)(void *mem, int size);
  *	the interface.  The value may be null if the wait flag is not set.
  */
 
-uma_zone_t uma_zcreate(char *name, int size, uma_ctor ctor, uma_dtor dtor,
+uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 			uma_init uminit, uma_fini fini, int align,
 			u_int16_t flags);
 
