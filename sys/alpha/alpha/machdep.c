@@ -92,6 +92,7 @@
 #include "opt_ddb.h"
 #include "opt_simos.h"
 #include "opt_msgbuf.h"
+#include "opt_maxmem.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -949,6 +950,60 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	}
 
 	Maxmem = physmem;
+
+#ifdef MAXMEM
+	/*
+	 * MAXMEM define is in kilobytes.
+	 */
+	Maxmem = alpha_btop(MAXMEM * 1024);
+#endif
+
+	/*
+	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
+	 * for the appropriate modifiers.  This overrides MAXMEM.
+	 */
+	if ((p = getenv("hw.physmem")) != NULL) {
+		u_int64_t AllowMem, sanity;
+		char *ep;
+
+		sanity = AllowMem = strtouq(p, &ep, 0);
+		if ((ep != p) && (*ep != 0)) {
+			switch(*ep) {
+			case 'g':
+			case 'G':
+				AllowMem <<= 10;
+			case 'm':
+			case 'M':
+				AllowMem <<= 10;
+			case 'k':
+			case 'K':
+				AllowMem <<= 10;
+				break;
+			default:
+				AllowMem = sanity = 0;
+			}
+			if (AllowMem < sanity)
+				AllowMem = 0;
+		}
+		if (AllowMem == 0)
+			printf("Ignoring invalid memory size of '%s'\n", p);
+		else
+			Maxmem = alpha_btop(AllowMem);
+	}
+
+	while (physmem > Maxmem) {
+		int i = phys_avail_cnt - 2;
+		size_t sz = alpha_btop(phys_avail[i+1] - phys_avail[i]);
+		size_t nsz;
+		if (physmem - sz > Maxmem) {
+			phys_avail[i] = 0;
+			phys_avail_cnt -= 2;
+		} else {
+			nsz = sz - (physmem - Maxmem);
+			phys_avail[i+1] = phys_avail[i] + alpha_ptob(nsz);
+			physmem -= (sz - nsz);
+		}
+	}
 
 	/*
 	 * Initialize error message buffer (at end of core).
