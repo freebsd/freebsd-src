@@ -778,7 +778,7 @@ main(argc, argv)
 	 * <directory>:<directory>:<directory>...
 	 */
 	if (Var_Exists("VPATH", VAR_CMD)) {
-		char *vpath, *path, *cp, savec;
+		char *vpath, *path1, *cp1, savec;
 		/*
 		 * GCC stores string constants in read-only memory, but
 		 * Var_Subst will want to write this thing, so store it
@@ -787,18 +787,18 @@ main(argc, argv)
 		static char VPATH[] = "${VPATH}";
 
 		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
-		path = vpath;
+		path1 = vpath;
 		do {
 			/* skip to end of directory */
-			for (cp = path; *cp != ':' && *cp != '\0'; cp++)
+			for (cp1 = path1; *cp != ':' && *cp != '\0'; cp++)
 				continue;
 			/* Save terminator character so know when to stop */
-			savec = *cp;
-			*cp = '\0';
+			savec = *cp1;
+			*cp1 = '\0';
 			/* Add directory to search path */
-			Dir_AddDir(dirSearchPath, path);
-			*cp = savec;
-			path = cp + 1;
+			Dir_AddDir(dirSearchPath, path1);
+			*cp1 = savec;
+			path1 = cp1 + 1;
 		} while (savec == ':');
 		(void)free(vpath);
 	}
@@ -992,15 +992,15 @@ found:
  *
  * Results:
  *	A string containing the output of the command, or the empty string
- *	If err is not NULL, it contains the reason for the command failure
+ *	If error is not NULL, it contains the reason for the command failure
  *
  * Side Effects:
  *	The string must be freed by the caller.
  */
 char *
-Cmd_Exec(cmd, err)
+Cmd_Exec(cmd, error)
     char *cmd;
-    char **err;
+    char **error;
 {
     char	*args[4];   	/* Args for invoking the shell */
     int 	fds[2];	    	/* Pipe streams */
@@ -1013,7 +1013,7 @@ Cmd_Exec(cmd, err)
     int		cc;
 
 
-    *err = NULL;
+    *error = NULL;
 
     /*
      * Set up arguments for shell
@@ -1027,7 +1027,7 @@ Cmd_Exec(cmd, err)
      * Open a pipe for fetching its output
      */
     if (pipe(fds) == -1) {
-	*err = "Couldn't create pipe for \"%s\"";
+	*error = "Couldn't create pipe for \"%s\"";
 	goto bad;
     }
 
@@ -1060,7 +1060,7 @@ Cmd_Exec(cmd, err)
 	/*NOTREACHED*/
 
     case -1:
-	*err = "Couldn't exec \"%s\"";
+	*error = "Couldn't exec \"%s\"";
 	goto bad;
 
     default:
@@ -1091,13 +1091,13 @@ Cmd_Exec(cmd, err)
 	    continue;
 
 	if (cc == -1)
-	    *err = "Error reading shell's output for \"%s\"";
+	    *error = "Error reading shell's output for \"%s\"";
 
 	res = (char *)Buf_GetAll (buf, &cc);
 	Buf_Destroy (buf, FALSE);
 
 	if (status)
-	    *err = "\"%s\" returned non-zero status";
+	    *error = "\"%s\" returned non-zero status";
 
 	/*
 	 * Null-terminate the result, convert newlines to spaces and
