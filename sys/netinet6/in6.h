@@ -219,9 +219,17 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 
 /*
  * Equality
+ * NOTE: Some of kernel programming environment (for example, openbsd/sparc)
+ * does not supply memcmp().  For userland memcmp() is preferred as it is
+ * in ANSI standard.
  */
+#ifdef _KERNEL
+#define	IN6_ARE_ADDR_EQUAL(a, b)			\
+	(bcmp((a), (b), sizeof(struct in6_addr)) == 0)
+#else
 #define	IN6_ARE_ADDR_EQUAL(a, b)			\
 	(memcmp((a), (b), sizeof(struct in6_addr)) == 0)
+#endif
 
 /*
  * Unspecified
