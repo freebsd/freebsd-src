@@ -1362,7 +1362,8 @@ ohci_softintr(void *v)
 	usbd_xfer_handle xfer;
 	struct ohci_pipe *opipe;
 	int len, cc, s;
-
+	int i, j, iframes;
+	
 	DPRINTFN(10,("ohci_softintr: enter\n"));
 
 	sc->sc_bus.intr_context++;
@@ -1504,21 +1505,31 @@ ohci_softintr(void *v)
 		if (opipe->aborting)
 			continue;
  
-		cc = OHCI_ITD_GET_CC(le32toh(sitd->itd.itd_flags));
-		if (cc == OHCI_CC_NO_ERROR) {
-			/* XXX compute length for input */
-			if (sitd->flags & OHCI_CALL_DONE) {
-				opipe->u.iso.inuse -= xfer->nframes;
-				/* XXX update frlengths with actual length */
-				/* XXX xfer->actlen = actlen; */
-				xfer->status = USBD_NORMAL_COMPLETION;
-				s = splusb();
-				usb_transfer_complete(xfer);
-				splx(s);
+		if (sitd->flags & OHCI_CALL_DONE) {
+			ohci_soft_itd_t *next;
+
+			opipe->u.iso.inuse -= xfer->nframes;
+			xfer->status = USBD_NORMAL_COMPLETION;
+		 	for (i = 0, sitd = xfer->hcpriv;;sitd = next) {
+				next = sitd->nextitd;
+				if (OHCI_ITD_GET_CC(sitd->itd.itd_flags) != OHCI_CC_NO_ERROR)
+					xfer->status = USBD_IOERROR;
+
+				if (xfer->status == USBD_NORMAL_COMPLETION) {
+					iframes = OHCI_ITD_GET_FC(sitd->itd.itd_flags);
+					for (j = 0; j < iframes; i++, j++) {
+						len = le16toh(sitd->itd.itd_offset[j]);
+						len =
+						   (OHCI_ITD_PSW_GET_CC(len) ==
+						    OHCI_CC_NOT_ACCESSED) ? 0 :
+						    OHCI_ITD_PSW_LENGTH(len);
+						xfer->frlengths[i] = len;
+					}
+				}
+				if (sitd->flags & OHCI_CALL_DONE)
+					break;
 			}
-		} else {
-			/* XXX Do more */
-			xfer->status = USBD_IOERROR;
+
 			s = splusb();
 			usb_transfer_complete(xfer);
 			splx(s);
