@@ -603,21 +603,10 @@ configXDesktop(dialogMenuItem *self)
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
 	    write_root_xprofile("exec startkde\n");
     }
-    else if (!strcmp(desk, "gnome")) {
-	ret = package_add("gnomecore");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
-	    ret = package_add("sawfish-gnome");
-	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("sawfish"))
-		write_root_xprofile("exec gnome-session\n");
-	}
-    }
-    else if (!strcmp(desk, "enlightenment")) {
-	ret = package_add("gnomecore");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
-	    ret = package_add("enlightenment");
-	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
-		write_root_xprofile("exec gnome-session\n");
-	}
+    else if (!strcmp(desk, "gnome2")) {
+	ret = package_add("gnome2");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session"))
+	    write_root_xprofile("exec gnome-session\n");
     }
     else if (!strcmp(desk, "afterstep")) {
 	ret = package_add("afterstep");
