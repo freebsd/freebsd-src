@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm vr
-.Nd "VIA Technologies VT3043 and VT86C100A ethernet device driver"
+.Nd "VIA Technologies Rhine I/II/III ethernet device driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device vr"
@@ -43,8 +43,9 @@
 The
 .Nm
 driver provides support for PCI ethernet adapters and embedded
-controllers based on the VIA Technologies VT3043 Rhine I and
-VT86C100A Rhine II fast ethernet controller chips.
+controllers based on the VIA Technologies VT3043 Rhine I,
+VT86C100A Rhine II, and VT6105/VT6105M Rhine III fast ethernet
+controller chips.
 This includes
 the D-Link DFE530-TX, the Hawking Technologies PN102TX, the
 AOpen/Acer ALN-320, and various other commodity fast ethernet
@@ -177,4 +178,4 @@ supplied buffer address and begin DMAing from the wrong location.
 This buffer copying impairs transmit performance on slower systems but can't
 be avoided.
 On faster machines (e.g. a Pentium II), the performance
-impact is much less noticable.
+impact is much less noticeable.
