@@ -390,7 +390,8 @@ For testing purposes only.  Do not re-distribute or subject to novice users."
 		(void) Signal(SIGPIPE, lostpeer);
 	}
 	for (;;) {
-		(void) cmdscanner(top);
+		if (cmdscanner(top))
+			exit(1);
 		top = 1;
 	}
 }	/* main */
@@ -569,9 +570,10 @@ void lostpeer SIG_PARAMS
 /*
  * Command parser.
  */
-void cmdscanner(int top)
+int cmdscanner(int top)
 {
 	register struct cmd *c;
+	int cmd_status, rcode = 0;
 
 	if (!top)
 		(void) putchar('\n');
@@ -601,13 +603,17 @@ void cmdscanner(int top)
 			(void) printf ("Not connected.\n");
 			continue;
 		}
-		if ((*c->c_handler)(margc, margv) == USAGE)
+		cmd_status = (*c->c_handler)(margc, margv);
+	    if (cmd_status == USAGE)
 			cmd_usage(c);
+	    else if (cmd_status == CMDERR)
+			rcode = 1;
 		if (c->c_handler != help)
 			break;
 	}
 	(void) Signal(SIGINT, intr);
 	(void) Signal(SIGPIPE, lostpeer);
+	return rcode;
 }	/* cmdscanner */
 
 
