@@ -105,6 +105,8 @@
 
 #include <net/net_osdep.h>
 
+extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+
 static MALLOC_DEFINE(M_IPMOPTS, "ip6_moptions", "internet multicast options");
 
 struct ip6_exthdrs {
@@ -814,7 +816,7 @@ skip_ipsec2:;
 	/*
 	 * Check with the firewall...
 	 */
-        if (ip6_fw_enable && ip6_fw_chk_ptr) {
+	if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
 		m->m_pkthdr.rcvif = NULL;	/*XXX*/
 		/* If ipfw says divert, we have to just drop packet */
@@ -861,6 +863,21 @@ skip_ipsec2:;
 		}
 		m->m_flags &= ~M_LOOP; /* XXX */
 		m->m_pkthdr.rcvif = NULL;
+	}
+
+	/*
+	 * Check if we want to allow this packet to be processed.
+	 * Consider it to be bad if not.
+	 */
+	if (fr_checkp) {
+		struct	mbuf	*m1 = m;
+
+		if ((*fr_checkp)((struct ip *)ip6, sizeof(*ip6), ifp, 1, &m1))
+			goto done;
+		m = m1;
+		if (m == NULL)
+			goto done;
+		ip6 = mtod(m, struct ip6_hdr *);
 	}
 
 	/*
@@ -1467,7 +1484,7 @@ do { \
 					len = m->m_len;
 				}
 				error = ipsec6_set_policy(in6p, optname, req,
-				                          len, privileged);
+							  len, privileged);
 				m_freem(m);
 			    }
 				break;
@@ -1640,7 +1657,7 @@ do { \
 				struct mbuf **mp = &m;
 
 				if (ip6_fw_ctl_ptr == NULL)
-			        {
+				{
 					return EINVAL;
 				}
 				error = (*ip6_fw_ctl_ptr)(optname, mp);

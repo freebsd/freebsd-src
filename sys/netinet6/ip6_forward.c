@@ -75,6 +75,8 @@
 
 #include <net/net_osdep.h>
 
+extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+
 struct	route_in6 ip6_forward_rt;
 
 /*
@@ -482,11 +484,11 @@ ip6_forward(m, srcrt)
 #endif
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
-			       "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-			       ip6_sprintf(&ip6->ip6_src),
-			       ip6_sprintf(&ip6->ip6_dst),
-			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-			       if_name(rt->rt_ifp));
+				"src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
+				ip6_sprintf(&ip6->ip6_src),
+				ip6_sprintf(&ip6->ip6_dst),
+				ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
+				if_name(rt->rt_ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
@@ -502,6 +504,22 @@ ip6_forward(m, srcrt)
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
 #endif
+
+	/*
+	 * Check if we want to allow this packet to be processed.
+	 * Consider it to be bad if not.
+	 */
+	if (fr_checkp) {
+		struct	mbuf	*m1 = m;
+
+		if ((*fr_checkp)((struct ip *)ip6, sizeof(*ip6),
+				 rt->rt_ifp, 1, &m1) != 0)
+			goto freecopy;
+		m = m1;
+		if (m == NULL)
+			goto freecopy;
+		ip6 = mtod(m, struct ip6_hdr *);
+	}
 
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);
 	if (error) {

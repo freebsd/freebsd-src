@@ -123,6 +123,8 @@
 
 #include <net/net_osdep.h>
 
+extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+
 extern struct domain inet6domain;
 extern struct ip6protosw inet6sw[];
 
@@ -346,6 +348,22 @@ ip6_input(m)
 		ip6stat.ip6s_badvers++;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
 		goto bad;
+	}
+
+	/*
+	 * Check if we want to allow this packet to be processed.
+	 * Consider it to be bad if not.
+	 */
+	if (fr_checkp) {
+		struct	mbuf	*m1 = m;
+
+		if ((*fr_checkp)((struct ip *)ip6, sizeof(*ip6),
+				 m->m_pkthdr.rcvif, 0, &m1) != 0)
+			return;
+		m = m1;
+		if (m == NULL)
+			return;
+		ip6 = mtod(m, struct ip6_hdr *);
 	}
 
 	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
