@@ -85,13 +85,16 @@ sub tinderbox($$$$) {
 	    while (<LOGFILE>) {
 		if (m/^TB \*\*\*/) {
 		    if (@accumulate && $error) {
+			if (@accumulate > 20) {
+			    $messages .= "[...]\n";
+			    while (@accumulate > 20) {
+				shift(@accumulate);
+			    }
+			}
 			$messages .= join('', @accumulate);
 		    }
 		    $messages .= $_;
 		    @accumulate = ();
-		    $error = 0;
-		} elsif (m/^=+>/) {
-		    @accumulate = ( $_ );
 		    $error = 0;
 		} elsif (m/^\*\*\* Error code/ && !m/ignored/) {
 		    push(@accumulate, $_);
@@ -101,8 +104,6 @@ sub tinderbox($$$$) {
 		}
 	    }
 	    if (@accumulate && $error) {
-		$messages .= shift(@accumulate)
-		    if ($accumulate[0] =~ m/^=+>/);
 		if (@accumulate > 20) {
 		    $messages .= "[...]\n";
 		    while (@accumulate > 20) {
