@@ -354,7 +354,7 @@ pcvt_close(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	ttyld_close(tp, flag);
 
-	ttyclose(tp);
+	tty_close(tp);
 
 	vsx->openf = 0;
 

@@ -951,7 +951,7 @@ rcclose(struct cdev *dev, int flag, int mode, d_thread_t *td)
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
 	rc_hardclose(rc);
-	ttyclose(tp);
+	tty_close(tp);
 	splx(s);
 	KASSERT(sc->sc_opencount > 0, ("rcclose: non-positive open count"));
 	sc->sc_opencount--;

@@ -1640,7 +1640,7 @@ static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 		cx_set_rts (d->chan, 0);
 		ttydtrwaitstart(d->tty);
 	}
-	ttyclose (d->tty);
+	tty_close (d->tty);
 	splx (s);
 	d->callout = 0;
 

@@ -234,7 +234,7 @@ pppopen(dev, tp)
  * Line specific close routine, called from device close routine
  * and from ttioctl at >= splsofttty().
  * Detach the tty from the ppp unit.
- * Mimics part of ttyclose().
+ * Mimics part of tty_close().
  */
 static int
 pppclose(tp, flag)

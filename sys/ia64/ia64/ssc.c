@@ -186,7 +186,7 @@ sscclose(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	untimeout(ssctimeout, tp, ssctimeouthandle);
 	ttyld_close(tp, flag);
-	ttyclose(tp);
+	tty_close(tp);
 	return 0;
 }
  
