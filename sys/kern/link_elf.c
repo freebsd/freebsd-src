@@ -56,9 +56,9 @@
 #include <vm/vm_map.h>
 
 #ifdef __AOUT__
-#include <nlist.h>
+#include <sus/nlist_aout.h>
 #endif
-#include <link.h>
+#include <sys/link_elf.h>
 
 #include "linker_if.h"
 
