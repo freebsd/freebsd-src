@@ -201,8 +201,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	if (slotno == MAXSLOT)
 		return(0);
 
-	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK);
-	bzero(slt, sizeof(*slt));
+	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK | M_ZERO);
 	make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
 	slt->ctrl = ctrl;
 	slt->slotnum = slotno;
@@ -226,8 +225,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 
 	pccarddev = devclass_get_device(pccard_devclass, slt->slotnum);
 	irq = ffs(desc->irqmask) - 1;
-	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
-	bzero(devi, sizeof(*devi));
+	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 	strcpy(devi->name, desc->name);
 	/*
 	 *	Create an entry for the device under this slot.
