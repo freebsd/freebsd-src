@@ -110,7 +110,6 @@ g_destroy_geom(struct g_geom *gp)
 
 	g_trace(G_T_TOPOLOGY, "g_destroy_geom(%p(%s))", gp, gp->name);
 	g_topology_assert();
-	KASSERT(gp->event == NULL, ("g_destroy_geom() with event"));
 	KASSERT(LIST_EMPTY(&gp->consumer),
 	    ("g_destroy_geom(%s) with consumer(s) [%p]",
 	    gp->name, LIST_FIRST(&gp->consumer)));
@@ -149,7 +148,6 @@ g_destroy_consumer(struct g_consumer *cp)
 
 	g_trace(G_T_TOPOLOGY, "g_destroy_consumer(%p)", cp);
 	g_topology_assert();
-	KASSERT(cp->event == NULL, ("g_destroy_consumer() with event"));
 	KASSERT (cp->provider == NULL, ("g_destroy_consumer but attached"));
 	KASSERT (cp->acr == 0, ("g_destroy_consumer with acr"));
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
@@ -203,7 +201,6 @@ g_destroy_provider(struct g_provider *pp)
 	struct g_consumer *cp;
 
 	g_topology_assert();
-	KASSERT(pp->event == NULL, ("g_destroy_provider() with event"));
 	KASSERT(LIST_EMPTY(&pp->consumers),
 	    ("g_destroy_provider but attached"));
 	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
