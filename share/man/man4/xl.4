@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 1998
+.Dd July 28, 2004
 .Dt XL 4
 .Os
 .Sh NAME
@@ -45,18 +45,6 @@ The
 driver provides support for PCI ethernet adapters and embedded
 controllers based on the 3Com "boomerang," "cyclone," "hurricane"
 and "tornado" bus-master Etherlink XL chips.
-This includes the 3c900-TPO, 3c900-COMBO, 3c905-TX and
-3c905-T4; the 3c900B-TPO, 3c900B-TPC, 3c900B-FL, 3c900B-COMBO, 3c905B-T4,
-3c905B-TX, 3c905B-FX, 3c905B-COMBO and 3c905C-TX; the 3c980, 3c980B
-and 3c980C server adapters; the 3cSOHO100-TX
-OfficeConnect and 3c450 HomeConnect adapters; the 3c555, 3c556 and
-3c556B mini-PCI adapters; the 3C3SH573BT, 3C575TX, 3CCFE575BT, 3CXFE575BT,
-3CCFE575CT, 3CXFE575CT, 3CCFEM656, 3CCFEM656B, and 3CCFEM656C,
-3CXFEM656, 3CXFEM656B, and 3CXFEM656C CardBus
-adapters; and the embedded 3c905-TX, 3c905B-TX
-3c905C-TX, and 3c920B-EMB ethernet hardware in certain Dell Optiplex and Dell
-Precision desktop machines, certain Dell Latitude laptop docking
-stations, and various Nvidia NForce based motherboards.
 .Pp
 The Etherlink XL chips support built-in 10baseT, 10base2 and 10base5
 transceivers as well as an MII bus for externally attached PHY
@@ -70,6 +58,54 @@ adapters such as the 3c905-TX and 3c905B-TX are capable of 10 or
 100Mbps data rates in either full or half duplex and can be manually
 configured for any supported mode or automatically negotiate the highest
 possible mode with a link partner.
+.Pp
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+3c900-TPO
+.It
+3c900-COMBO
+.It
+3c905-TX
+.It
+3c905-T4
+.It
+3c900B-TPO
+.It
+3c900B-TPC,
+.It
+3c900B-FL,
+.It
+3c900B-COMBO,
+.It
+3c905B-T4,
+.It
+3c905B-TX,
+.It
+3c905B-FX,
+.It
+3c905B-COMBO
+.It
+3c905C-TX;
+.It
+3c980, 3c980B, and 3c980C server adapters
+.It
+3cSOHO100-TX OfficeConnect adapters
+.It
+3c450 HomeConnect adapters
+.It
+3c555, 3c556 and 3c556B mini-PCI adapters
+.It
+3C3SH573BT, 3C575TX, 3CCFE575BT, 3CXFE575BT,  3CCFE575CT, 3CXFE575CT,
+3CCFEM656, 3CCFEM656B, and 3CCFEM656C, 3CXFEM656, 3CXFEM656B, and
+3CXFEM656C CardBus adapters
+.It
+3c905-TX, 3c905B-TX 3c905C-TX, and 3c920B-EMB embedded adapters
+.El
 .Pp
 The
 .Nm
@@ -200,9 +236,11 @@ the author considers it a manufacturing defect.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr cardbus 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
+.Xr pccard 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
