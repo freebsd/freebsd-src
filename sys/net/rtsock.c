@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.35 1997/10/12 20:25:15 phk Exp $
+ *	$Id: rtsock.c,v 1.36 1997/10/28 15:58:37 bde Exp $
  */
 
 
@@ -333,6 +333,9 @@ route_output(m, so)
 		if (error == 0 && saved_nrt) {
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
+			saved_nrt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
+			saved_nrt->rt_rmx.rmx_locks |=
+				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
 			saved_nrt->rt_refcnt--;
 			saved_nrt->rt_genmask = genmask;
 		}
