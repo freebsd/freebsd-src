@@ -277,8 +277,9 @@ ours:
 		if ((ipxp->ipxp_flags & IPXP_ALL_PACKETS) == 0)
 			switch (ipx->ipx_pt) {
 			case IPXPROTO_SPX:
+				IPX_LOCK(ipxp);
+				/* Will release both locks. */
 				spx_input(m, ipxp);
-				IPX_LIST_UNLOCK();
 				return;
 			}
 		IPX_LOCK(ipxp);
