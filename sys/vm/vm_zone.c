@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.11 1997/12/05 19:55:52 bde Exp $
+ * $Id: vm_zone.c,v 1.12 1997/12/14 05:17:41 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -32,6 +32,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
@@ -304,26 +305,29 @@ _zget(vm_zone_t z)
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
 		nbytes = z->zalloc * PAGE_SIZE;
+
 		/*
-		 * We can wait, so just do normal kernel map allocation
+		 * Check to see if the kernel map is already locked.  We could allow
+		 * for recursive locks, but that eliminates a valuable debugging
+		 * mechanism, and opens up the kernel map for potential corruption
+		 * by inconsistent data structure manipulation.  We could also use
+		 * the interrupt allocation mechanism, but that has size limitations.
+		 * Luckily, we have kmem_map that is a submap of kernel map available
+		 * for memory allocation, and manipulation of that map doesn't affect
+		 * the kernel map structures themselves.
+		 *
+		 * We can wait, so just do normal map allocation in the appropriate
+		 * map.
 		 */
-		item = (void *) kmem_alloc(kernel_map, nbytes);
+		if (lockstatus(&kernel_map->lock)) {
+			int s;
+			s = splhigh();
+			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
+			splx(s);
+		} else {
+			item = (void *) kmem_alloc(kernel_map, nbytes);
+		}
 
-#if 0
-		if (z->zname)
-			printf("zalloc: %s, %d (0x%x --> 0x%x)\n",
-				z->zname, z->zalloc, item,
-				(char *)item + nbytes);
-		else
-			printf("zalloc: XXX(%d), %d (0x%x --> 0x%x)\n",
-				z->zsize, z->zalloc, item,
-				(char *)item + nbytes);
-
-		for (i = 0; i < nbytes; i += PAGE_SIZE)
-			printf("(%x, %x)", (char *) item + i,
-			       pmap_kextract((char *) item + i));
-		printf("\n");
-#endif
 		nitems = nbytes / z->zsize;
 	}
 	z->ztotal += nitems;
