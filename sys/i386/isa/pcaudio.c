@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.27 1996/03/28 14:28:47 scrappy Exp $
+ *	$Id: pcaudio.c,v 1.28 1996/06/09 14:23:13 joerg Exp $
  */
 
 #include "pca.h"
@@ -444,9 +444,11 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case AUDIO_DRAIN:
+	case AUDIO_COMPAT_DRAIN:
 		return pca_wait();
 
 	case AUDIO_FLUSH:
+	case AUDIO_COMPAT_FLUSH:
 		pca_stop();
 		return 0;
 
