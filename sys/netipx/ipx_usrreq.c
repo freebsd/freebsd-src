@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.12 1997/04/05 20:05:09 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.13 1997/05/01 06:21:30 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -66,8 +66,6 @@
  * IPX protocol implementation.
  */
 
-int noipxRoute;
-
 int ipxsendspace = IPXSNDQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
             &ipxsendspace, 0, "");
@@ -85,21 +83,22 @@ static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
 		     struct mbuf *addr, struct mbuf *control, struct proc *p);
 static	int ipx_shutdown(struct socket *so);
 static	int ripx_attach(struct socket *so, int proto, struct proc *p);
+static	int ipx_output(struct ipxpcb *ipxp, struct mbuf *m0);
 
-struct pr_usrreqs ipx_usrreqs = {
+struct	pr_usrreqs ipx_usrreqs = {
 	ipx_usr_abort, pru_accept_notsupp, ipx_attach, ipx_bind,
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr
+	ipx_sockaddr, sosend, soreceive, soselect
 };
 
-struct pr_usrreqs ripx_usrreqs = {
+struct	pr_usrreqs ripx_usrreqs = {
 	ipx_usr_abort, pru_accept_notsupp, ripx_attach, ipx_bind,
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr
+	ipx_sockaddr, sosend, soreceive, soselect
 };
 
 /*
@@ -114,7 +113,7 @@ ipx_input(m, ipxp)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct sockaddr_ipx ipx_ipx;
 
-	if (ipxp==0)
+	if (ipxp == NULL)
 		panic("No ipxpcb");
 	/*
 	 * Construct sockaddr format source address.
@@ -125,10 +124,10 @@ ipx_input(m, ipxp)
 	ipx_ipx.sipx_addr = ipx->ipx_sna;
 	ipx_ipx.sipx_zero[0] = '\0';
 	ipx_ipx.sipx_zero[1] = '\0';
-	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp) {
+	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp != NULL) {
 		register struct ifaddr *ifa;
 
-		for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+		for (ifa = ifp->if_addrhead.tqh_first; ifa != NULL; 
 		     ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr->sa_family == AF_IPX) {
 				ipx_ipx.sipx_addr.x_net =
@@ -138,13 +137,13 @@ ipx_input(m, ipxp)
 		}
 	}
 	ipxp->ipxp_rpt = ipx->ipx_pt;
-	if ( ! (ipxp->ipxp_flags & IPXP_RAWIN) ) {
-		m->m_len -= sizeof (struct ipx);
-		m->m_pkthdr.len -= sizeof (struct ipx);
-		m->m_data += sizeof (struct ipx);
+	if (!(ipxp->ipxp_flags & IPXP_RAWIN) ) {
+		m->m_len -= sizeof(struct ipx);
+		m->m_pkthdr.len -= sizeof(struct ipx);
+		m->m_data += sizeof(struct ipx);
 	}
 	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv, (struct sockaddr *)&ipx_ipx,
-	    m, (struct mbuf *)0) == 0)
+	    m, (struct mbuf *)NULL) == 0)
 		goto bad;
 	sorwakeup(ipxp->ipxp_socket);
 	return;
@@ -161,11 +160,11 @@ ipx_abort(ipxp)
 	ipx_pcbdisconnect(ipxp);
 	soisdisconnected(so);
 }
+
 /*
  * Drop connection, reporting
  * the specified error.
  */
-/* struct ipxpcb * DELETE THIS */
 void
 ipx_drop(ipxp, errno)
 	register struct ipxpcb *ipxp;
@@ -174,20 +173,22 @@ ipx_drop(ipxp, errno)
 	struct socket *so = ipxp->ipxp_socket;
 
 	/*
-	 * someday, in the xerox world
+	 * someday, in the IPX world
 	 * we will generate error protocol packets
 	 * announcing that the socket has gone away.
+	 *
+	 * XXX Probably never. IPX does not have error packets.
 	 */
 	/*if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
-		(void) tcp_output(tp);
+		tcp_output(tp);
 	}*/
 	so->so_error = errno;
 	ipx_pcbdisconnect(ipxp);
 	soisdisconnected(so);
 }
 
-int
+static int
 ipx_output(ipxp, m0)
 	struct ipxpcb *ipxp;
 	struct mbuf *m0;
@@ -202,7 +203,7 @@ ipx_output(ipxp, m0)
 	/*
 	 * Calculate data length.
 	 */
-	for (m = m0; m; m = m->m_next) {
+	for (m = m0; m != NULL; m = m->m_next) {
 		mprev = m;
 		len += m->m_len;
 	}
@@ -218,7 +219,7 @@ ipx_output(ipxp, m0)
 		} else {
 			struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
 
-			if (m1 == 0) {
+			if (m1 == NULL) {
 				m_freem(m0);
 				return (ENOBUFS);
 			}
@@ -237,15 +238,15 @@ ipx_output(ipxp, m0)
 	if (ipxp->ipxp_flags & IPXP_RAWOUT) {
 		ipx = mtod(m, struct ipx *);
 	} else {
-		M_PREPEND(m, sizeof (struct ipx), M_DONTWAIT);
-		if (m == 0)
+		M_PREPEND(m, sizeof(struct ipx), M_DONTWAIT);
+		if (m == NULL)
 			return (ENOBUFS);
 		ipx = mtod(m, struct ipx *);
 		ipx->ipx_tc = 0;
 		ipx->ipx_pt = ipxp->ipxp_dpt;
 		ipx->ipx_sna = ipxp->ipxp_laddr;
 		ipx->ipx_dna = ipxp->ipxp_faddr;
-		len += sizeof (struct ipx);
+		len += sizeof(struct ipx);
 	}
 
 	ipx->ipx_len = htons((u_short)len);
@@ -262,7 +263,7 @@ ipx_output(ipxp, m0)
 	 */
 	so = ipxp->ipxp_socket;
 	if (so->so_options & SO_DONTROUTE)
-		return (ipx_outputfl(m, (struct route *)0,
+		return (ipx_outputfl(m, (struct route *)NULL,
 		    (so->so_options & SO_BROADCAST) | IPX_ROUTETOIF));
 	/*
 	 * Use cached route for previous datagram if
@@ -279,7 +280,7 @@ ipx_output(ipxp, m0)
 	/*
 	 * I think that this will all be handled in ipx_pcbconnect!
 	 */
-	if (ro->ro_rt) {
+	if (ro->ro_rt != NULL) {
 		if(ipx_neteq(ipxp->ipxp_lastdst, ipx->ipx_dna)) {
 			/*
 			 * This assumes we have no GH type routes
@@ -301,17 +302,14 @@ ipx_output(ipxp, m0)
 		} else {
 		re_route:
 			RTFREE(ro->ro_rt);
-			ro->ro_rt = (struct rtentry *)0;
+			ro->ro_rt = NULL;
 		}
 	}
 	ipxp->ipxp_lastdst = ipx->ipx_dna;
 #endif /* ancient_history */
-	if (noipxRoute)
-		ro = 0;
 	return (ipx_outputfl(m, ro, so->so_options & SO_BROADCAST));
 }
 
-/* ARGSUSED */
 int
 ipx_ctloutput(req, so, level, name, value, p)
 	int req, level;
@@ -323,7 +321,6 @@ ipx_ctloutput(req, so, level, name, value, p)
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int mask, error = 0;
-	/*extern long ipx_pexseq;*/ /*XXX*//*JRE*/
 
 	if (ipxp == NULL)
 		return (EINVAL);
@@ -331,10 +328,10 @@ ipx_ctloutput(req, so, level, name, value, p)
 	switch (req) {
 
 	case PRCO_GETOPT:
-		if (value==NULL)
+		if (value == NULL)
 			return (EINVAL);
 		m = m_get(M_DONTWAIT, MT_DATA);
-		if (m==NULL)
+		if (m == NULL)
 			return (ENOBUFS);
 		switch (name) {
 
@@ -550,7 +547,7 @@ ipx_send(so, flags, m, nam, control, p)
 	struct ipx_addr laddr;
 	int s = 0;
 
-	if (nam) {
+	if (nam != NULL) {
 		laddr = ipxp->ipxp_laddr;
 		if (!ipx_nullhost(ipxp->ipxp_faddr)) {
 			error = EISCONN;
@@ -573,7 +570,7 @@ ipx_send(so, flags, m, nam, control, p)
 	}
 	error = ipx_output(ipxp, m);
 	m = NULL;
-	if (nam) {
+	if (nam != NULL) {
 		ipx_pcbdisconnect(ipxp);
 		splx(s);
 		ipxp->ipxp_laddr.x_host = laddr.x_host;
@@ -615,7 +612,7 @@ ripx_attach(so, proto, p)
 	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p != NULL && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
 		return (error);
 	s = splnet();
 	error = ipx_pcballoc(so, &ipxrawpcb, p);

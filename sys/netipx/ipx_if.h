@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_if.h
  *
- * $Id$
+ * $Id: ipx_if.h,v 1.7 1997/02/22 09:41:53 peter Exp $
  */
 
 #ifndef _NETIPX_IPX_IF_H_
@@ -91,11 +91,7 @@ struct ipxip_req {
 extern struct	ifqueue	ipxintrq;	/* IPX input packet queue */
 extern struct	ipx_ifaddr *ipx_ifaddr;
 
-struct ipx_ifaddr *
-	ipx_iaonnetof __P((struct ipx_addr *dst));
-int	ipx_ifinit __P((struct ifnet *ifp, struct ipx_ifaddr *ia,
-			struct sockaddr_ipx *sipx, int scrub));
-void	ipx_ifscrub __P((struct ifnet *ifp, struct ipx_ifaddr *ia));
-#endif
+struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
+#endif /* KERNEL */
 
-#endif /* !_NETIPX_IPX_IF_H_ */
+#endif /* _NETIPX_IPX_IF_H_ */
