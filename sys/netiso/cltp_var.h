@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: cltp_var.h,v 1.2 1994/08/02 07:49:58 davidg Exp $
  */
+
+#ifndef _NETISO_CLTP_VAR_H_
+#define _NETISO_CLTP_VAR_H_
 
 #define UD_TPDU_type	0x40	/* packet type */
 
@@ -52,4 +55,6 @@ struct	cltpstat {
 #ifdef KERNEL
 struct	isopcb cltb;
 struct	cltpstat cltpstat;
+#endif
+
 #endif

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)eonvar.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: eonvar.h,v 1.2 1994/08/02 07:50:06 davidg Exp $
  */
+
+#ifndef _NETISO_EONVAR_H_
+#define _NETISO_EOBVAR_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -169,3 +172,5 @@ struct eon_llinfo {
 };
 #define el_iphdr el_ei.ei_ip
 #define el_eonhdr el_ei.ei_eh
+
+#endif

@@ -1,6 +1,10 @@
 /*
- * $Id$
+ * $Id: tp_events.h,v 1.2 1994/08/02 07:51:05 davidg Exp $
  */
+
+#ifndef _NETISO_TP_EVENTS_H_
+#define _NETISO_TP_EVENTS_H_
+
 struct tp_event {
 	int ev_number;
 	 struct timeval e_time; 
@@ -83,3 +87,5 @@ struct { u_char		e_reason; 	} EV_T_DISC_req;
 #define tp_NEVENTS 0x19
 
 #define ATTR(X)ev_union.EV_/**/X/**/
+
+#endif

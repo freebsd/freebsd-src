@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_clnp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_clnp.h,v 1.2 1994/08/02 07:50:54 davidg Exp $
  */
+
+#ifndef _NETISO_TP_CLNP_H_
+#define _NETISO_TP_CLNP_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,16 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_clnp.h,v 1.1.1.1 1994/05/24 10:07:00 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_clnp.h,v 1.2 1994/08/02 07:50:54 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_clnp.h,v $
  *
  * AF_ISO net-dependent structures and include files
  *
  */
-
-
-#ifndef __TP_CLNP__
-#define __TP_CLNP__
 
 #ifndef SOCK_STREAM
 #include <sys/socket.h>
@@ -92,4 +91,4 @@ SOFTWARE.
 struct isopcb tp_isopcb;	
 	/* queue of active inpcbs for tp ; for tp with dod ip */
 
-#endif /* __TP_CLNP__ */
+#endif 

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_seq.h,v 1.2 1994/08/02 07:51:22 davidg Exp $
  */
+
+#ifndef _NETISO_TP_SEQ_H_
+#define _NETISO_TP_SEQ_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,7 +66,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_seq.h,v 1.1.1.1 1994/05/24 10:06:48 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_seq.h,v 1.2 1994/08/02 07:51:22 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_seq.h,v $
  *
  * These macros perform sequence number arithmetic modulo (2**7 or 2**31).
@@ -73,9 +76,6 @@ SOFTWARE.
  *  	tp_seqhalf : tp_seqbit / 2 or half the sequence space (rounded up)
  * Not exactly fast, but at least it's maintainable.
  */
-
-#ifndef __TP_SEQ__
-#define __TP_SEQ__
 
 #define SEQ(tpcb,x) \
 	((x) & (tpcb)->tp_seqmask)
@@ -122,4 +122,4 @@ SOFTWARE.
 #define IN_SWINDOW(tpcb, seq, lwe, uwe)\
 	( SEQ_GT(tpcb, seq, lwe) && SEQ_LEQ(tpcb, seq, uwe) )
 
-#endif /* __TP_SEQ__ */
+#endif 

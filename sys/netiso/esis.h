@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)esis.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: esis.h,v 1.2 1994/08/02 07:50:11 davidg Exp $
  */
+
+#ifndef _NETISO_ESIS_H_
+#define _NETISO_ESIS_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -61,7 +64,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- *	$Header: /home/ncvs/src/sys/netiso/esis.h,v 1.1.1.1 1994/05/24 10:07:15 rgrimes Exp $
+ *	$Header: /home/ncvs/src/sys/netiso/esis.h,v 1.2 1994/08/02 07:50:11 davidg Exp $
  *	$Source: /home/ncvs/src/sys/netiso/esis.h,v $
  */
 
@@ -134,3 +137,5 @@ struct esis_stat {
 #ifdef	KERNEL
 struct esis_stat esis_stat;
 #endif	/* KERNEL */
+
+#endif
