@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.41 1997/10/28 15:58:54 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.42 1997/12/19 23:46:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -246,7 +246,7 @@ udp_input(m, iphlen)
 			 * port.  It * assumes that an application will never
 			 * clear these options after setting them.
 			 */
-			if ((last->inp_socket->so_options&(SO_REUSEPORT|SO_REUSEADDR) == 0))
+			if ((last->inp_socket->so_options&(SO_REUSEPORT|SO_REUSEADDR)) == 0)
 				break;
 		}
 

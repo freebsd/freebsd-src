@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.24 1997/12/06 13:23:58 bde Exp $
+ * $Id: tty_compat.c,v 1.25 1997/12/16 17:40:26 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -302,12 +302,12 @@ ttcompatgetflags(tp)
 	if ((lflag&ICANON) == 0) {
 		/* fudge */
 		if (iflag&(INPCK|ISTRIP|IXON) || lflag&(IEXTEN|ISIG)
-		    || cflag&(CSIZE|PARENB) != CS8)
+		    || (cflag&(CSIZE|PARENB)) != CS8)
 			flags |= CBREAK;
 		else
 			flags |= RAW;
 	}
-	if (!(flags&RAW) && !(oflag&OPOST) && cflag&(CSIZE|PARENB) == CS8)
+	if (!(flags&RAW) && !(oflag&OPOST) && (cflag&(CSIZE|PARENB)) == CS8)
 		flags |= LITOUT;
 	if (cflag&MDMBUF)
 		flags |= MDMBUF;
