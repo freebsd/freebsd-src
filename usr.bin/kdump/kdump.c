@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kdump.c,v 1.11 1997/07/16 06:49:49 charnier Exp $";
 #endif /* not lint */
 
 #define KERNEL
@@ -211,7 +211,7 @@ dumpheader(kth)
 		type = unknown;
 	}
 
-	(void)printf("%6d %-8s ", kth->ktr_pid, kth->ktr_comm);
+	(void)printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN, kth->ktr_comm);
 	if (timestamp) {
 		if (timestamp == 2) {
 			temp = kth->ktr_time;
