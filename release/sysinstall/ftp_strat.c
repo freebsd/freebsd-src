@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.23 1996/10/02 00:41:39 jkh Exp $
+ * $Id: ftp_strat.c,v 1.24 1996/10/02 01:30:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ mediaInitFTP(Device *dev)
 try:
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	msgConfirm("You haven't specified an FTP server!");
+	msgConfirm("You haven't specified an FTP server!  Please visit\nthe Options editor and select a Media type.");
 	return FALSE;
     }
 
@@ -119,17 +119,17 @@ try:
 		      "FTP server.  You may need to visit a different server for\n"
 		      "the release you're trying to fetch or go to the Options\n"
 		      "menu and to set the release name to explicitly match what's\n"
-		      "available on %s.\n\n"
+		      "available on %s (or set to \"none\").\n\n"
 		      "Would you like to select another FTP server?", rel, hostname)) {
 	    dialog_clear_norefresh();
 	    variable_unset(VAR_FTP_PATH);
 	    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
 		goto punt;
-	    else {
-		cp = variable_get(VAR_FTP_PATH);
+	    else
 		goto try;
-	    }
 	}
+	else
+	    goto punt;
     }
     else if (i == IO_ERROR)
 	goto punt;
