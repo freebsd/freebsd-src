@@ -182,6 +182,12 @@ pipe(p, uap)
 	pipeinit(wpipe);
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
+	/*
+	 * Warning: once we've gotten past allocation of the fd for the
+	 * read-side, we can only drop the read side via fdrop() in order
+	 * to avoid races against processes which manage to dup() the read
+	 * side while we are blocked trying to allocate the write side.
+	 */
 	error = falloc(p, &rf, &fd);
 	if (error)
 		goto free2;
@@ -211,6 +217,8 @@ free3:
 		fdrop(rf, p);
 	}
 	fdrop(rf, p);
+	/* rpipe has been closed by fdrop() */
+	rpipe = NULL;
 free2:
 	(void)pipeclose(wpipe);
 	(void)pipeclose(rpipe);
