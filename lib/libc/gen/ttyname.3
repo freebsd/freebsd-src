@@ -46,6 +46,8 @@
 .In unistd.h
 .Ft char *
 .Fn ttyname "int fd"
+.Ft char *
+.Fn ttyname_r "int fd" "char *buf" "size_t len"
 .Ft int
 .Fn isatty "int fd"
 .Ft int
