@@ -788,7 +788,6 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 * not zfree it again when we break.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
-			nfsrv_object_create(ndp->ni_vp);
 			if (cnp->cn_flags & (SAVENAME | SAVESTART))
 				cnp->cn_flags |= HASBUF;
 			else
@@ -1119,8 +1118,6 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	else
 		*rdonlyp = 0;
 
-	nfsrv_object_create(*vpp);
-
 	if (!lockflag)
 		VOP_UNLOCK(*vpp, 0, td);
 out:
@@ -1222,18 +1219,6 @@ nfsrv_errmap(struct nfsrv_descript *nd, int err)
 	if (e != 0)
 		return (e);
 	return (NFSERR_IO);
-}
-
-int
-nfsrv_object_create(struct vnode *vp)
-{
-
-	GIANT_REQUIRED;
-	NFSD_UNLOCK_ASSERT();
-
-	if (vp == NULL || vp->v_type != VREG)
-		return (1);
-	return (VOP_CREATEVOBJECT(vp, curthread->td_ucred, curthread));
 }
 
 /*
