@@ -1,5 +1,5 @@
 /*-
- * Copyright (c)1999 Citrus Project,
+ * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,63 +22,63 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	citrus Id: wctype.h,v 1.4 2000/12/21 01:50:21 itojun Exp
- *	$NetBSD: wctype.h,v 1.3 2000/12/22 14:16:16 itojun Exp $
- * $FreeBSD$
  */
 
-#ifndef _WCTYPE_H_
-#define	_WCTYPE_H_
-
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
+#include <errno.h>
+#include <string.h>
+#include <wctype.h>
 
-#ifdef	_BSD_WINT_T_
-typedef	_BSD_WINT_T_    wint_t;
-#undef	_BSD_WINT_T_
-#endif
+enum {
+	_WCT_ERROR	= 0,
+	_WCT_TOLOWER	= 1,
+	_WCT_TOUPPER	= 2
+};
 
-#ifndef _WCTRANS_T
-typedef int	wctrans_t;
-#define _WCTRANS_T
-#endif
+/*
+ * TODO: Supply a macro version of this.
+ */
+wint_t
+towctrans(wint_t wc, wctrans_t desc)
+{
 
-#ifndef _WCTYPE_T
-typedef long	wctype_t;
-#define _WCTYPE_T
-#endif
+	switch (desc) {
+	case _WCT_TOLOWER:
+		wc = tolower(wc);
+		break;
+	case _WCT_TOUPPER:
+		wc = toupper(wc);
+		break;
+	case _WCT_ERROR:
+	default:
+		errno = EINVAL;
+		break;
+	}
 
-#ifndef WEOF
-#define	WEOF	((wint_t)-1)
-#endif
+	return (wc);
+}
 
-__BEGIN_DECLS
-int	iswctype(wint_t, wctype_t);
-wint_t	towctrans(wint_t, wctrans_t);
-wctrans_t wctrans(const char *);
-wctype_t wctype(const char *);
-#if 0
-/* XXX: not implemented */
-int	iswalnum(wint_t);
-int	iswalpha(wint_t);
-int	iswblank(wint_t);
-int	iswcntrl(wint_t);
-int	iswdigit(wint_t);
-int	iswgraph(wint_t);
-int	iswlower(wint_t);
-int	iswprint(wint_t);
-int	iswpunct(wint_t);
-int	iswspace(wint_t);
-int	iswupper(wint_t);
-int	iswxdigit(wint_t);
-wint_t	towlower(wint_t);
-wint_t	towupper(wint_t);
-#endif
-__END_DECLS
+wctrans_t
+wctrans(const char *charclass)
+{
+	struct {
+		const char	*name;
+		wctrans_t	 trans;
+	} ccls[] = {
+		{ "tolower",	_WCT_TOLOWER },
+		{ "toupper",	_WCT_TOUPPER },
+		{ NULL,		_WCT_ERROR },		/* Default */
+	};
+	int i;
 
-#define iswctype(wc, charclass) __istype((wc), (charclass))
+	i = 0;
+	while (ccls[i].name != NULL && strcmp(ccls[i].name, charclass) != 0)
+		i++;
 
-#endif		/* _WCTYPE_H_ */
+	if (ccls[i].trans == _WCT_ERROR)
+		errno = EINVAL;
+	return (ccls[i].trans);
+}
