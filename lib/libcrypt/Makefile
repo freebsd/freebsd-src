@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.17 1999/01/24 07:48:30 markm Exp $
 #
 
 LCRYPTBASE= 	libcrypt
@@ -23,35 +23,24 @@ CFLAGS+=	-I${.CURDIR}/../libmd -DLIBC_SCCS
 SONAME=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
 .endif
 
+# Include this early to pick up the definitions of SHLIB_MAJOR and
+# SHLIB_MINOR which are used in the existence tests.
+.include "${.CURDIR}/../Makefile.inc"
+
 # We only install the links if they do not already exist.
 # This may have to be revised
-
-afterinstall:
-.if !defined(NOPIC)
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	if [ ! -e ${LCRYPTSO} ]; then \
-	rm -f ${LCRYPTSO}; \
-	ln -sf ${LSCRYPTSO} ${LCRYPTSO}; \
-	fi
+.if !exists(${DESTDIR}${LIBDIR}/${LCRYPTBASE}.a)
+SYMLINKS+=	${LSCRYPTBASE}.a ${LIBDIR}/${LCRYPTBASE}.a
 .endif
-.if !defined(NOPIC) && ${OBJFORMAT} == elf
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	if [ ! -e ${LCRYPTBASE}.so ]; then \
-	rm -f ${LCRYPTBASE}.so; \
-	ln -sf ${LSCRYPTBASE}.so libcrypt.so; \
-	fi
+.if !defined(NOPROFILE) && !exists(${DESTDIR}${LIBDIR}/${LCRYPTBASE}_p.a)
+SYMLINKS+=	${LSCRYPTBASE}_p.a ${LIBDIR}/${LCRYPTBASE}_p.a
 .endif
-	@cd  ${DESTDIR}${LIBDIR}; \
-	if [ ! -e ${LCRYPTBASE}.a ]; then \
-	rm -f ${LCRYPTBASE}.a; \
-	ln -sf ${LSCRYPTBASE}.a libcrypt.a; \
-	fi
-.if !defined(NOPROFILE)
-	@cd  ${DESTDIR}${LIBDIR}; \
-	if [ ! -e ${LCRYPTBASE}_p.a ]; then \
-	rm -f ${LCRYPTBASE}_p.a; \
-	ln -sf ${LSCRYPTBASE}_p.a libcrypt_p.a; \
-	fi
+.if !defined(NOPIC) && !exists(${DESTDIR}${SHLIBDIR}/${LCRYPTSO})
+SYMLINKS+=	${LSCRYPTSO} ${SHLIBDIR}/${LCRYPTSO}
+.endif
+.if !defined(NOPIC) && ${OBJFORMAT} == elf && \
+    !exists(${DESTDIR}${SHLIBDIR}/${LCRYPTBASE}.so)
+SYMLINKS+=	${LSCRYPTBASE}.so ${SHLIBDIR}/${LCRYPTBASE}.so
 .endif
 
 .include <bsd.lib.mk>
