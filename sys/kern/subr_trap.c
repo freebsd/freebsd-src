@@ -476,18 +476,18 @@ restart:
 			if (intr_nesting_level != 0)
 				break;
 
-				/*
-				 * Invalid %fs's and %gs's can be created using
-				 * procfs or PT_SETREGS or by invalidating the
-				 * underlying LDT entry.  This causes a fault
-				 * in kernel mode when the kernel attempts to
-				 * switch contexts.  Lose the bad context
-				 * (XXX) so that we can continue, and generate
-				 * a signal.
-				 */
-				if (frame.tf_eip == (int)cpu_switch_load_gs) {
-					curpcb->pcb_gs = 0;
-					psignal(p, SIGBUS);
+			/*
+			 * Invalid %fs's and %gs's can be created using
+			 * procfs or PT_SETREGS or by invalidating the
+			 * underlying LDT entry.  This causes a fault
+			 * in kernel mode when the kernel attempts to
+			 * switch contexts.  Lose the bad context
+			 * (XXX) so that we can continue, and generate
+			 * a signal.
+			 */
+			if (frame.tf_eip == (int)cpu_switch_load_gs) {
+				curpcb->pcb_gs = 0;
+				psignal(p, SIGBUS);
 				goto out;
 			}
 
@@ -517,8 +517,8 @@ restart:
 				frame.tf_eip = (int)doreti_popl_fs_fault;
 				goto out;
 			}
-				if (curpcb && curpcb->pcb_onfault) {
-					frame.tf_eip = (int)curpcb->pcb_onfault;
+			if (curpcb && curpcb->pcb_onfault) {
+				frame.tf_eip = (int)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -593,10 +593,10 @@ restart:
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 			if (time_second - lastalert > 10) {
-		      log(LOG_WARNING, "NMI: power fail\n");
-		      sysbeep(TIMER_FREQ/880, hz);
-		      lastalert = time_second;
-		}
+				log(LOG_WARNING, "NMI: power fail\n");
+				sysbeep(TIMER_FREQ/880, hz);
+				lastalert = time_second;
+			}
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
@@ -1243,7 +1243,7 @@ ast(frame)
 		p->p_flag &= ~P_OWEUPC;
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
-}
+	}
 	if (userret(p, &frame, sticks, mtx_owned(&Giant)) != 0)
 		mtx_exit(&Giant, MTX_DEF);
 }
