@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.208 1999/06/23 03:52:10 jkh Exp $
+ * $Id: menus.c,v 1.209 1999/07/06 08:45:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1238,8 +1238,10 @@ DMenu MenuStartup = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "accounting_enable=YES" },
       { "lpd",		"This host has a printer and wants to run lpd.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "lpd_enable=YES" },
+#ifdef __i386__
       { "linux",	"This host wants to be able to run linux binaries.",
 	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
+#endif
       { "quotas",	"This host wishes to check quotas on startup.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
       { "SCO",		"This host wants to be able to run IBCS2 binaries.",
