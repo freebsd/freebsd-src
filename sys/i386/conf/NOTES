@@ -681,6 +681,8 @@ options 	FFS_ROOT		#FFS usable as root device
 options 	NFS_ROOT		#NFS usable as root device
 # This code is still experimental (e.g. doesn't handle disk slices well).
 # Also, 'options MFS' is currently incompatible with DEVFS.
+# You can configure the DEVFS (e.g. setting device permissions) in the
+# /etc/rc.devfs file.
 options 	DEVFS			#devices filesystem
 # This code enables IFS, an FFS which exports inodes as the namespace.
 # You can find details in src/sys/ufs/ifs/README .
@@ -1630,8 +1632,8 @@ device		miibus
 #       This includes dual and quad port cards, as well as one 100baseFX card.
 #       Most of these are 64-bit PCI devices, except for one single port
 #       card which is 32-bit.
-# sis:  Support for NICs based on the Silicon Integrated Systems SiS 900 and
-#       SiS 7016 PCI fast ethernet controller chips.
+# sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
+#       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
 # sk:   Support for the SysKonnect SK-984x series PCI gigabit ethernet NICs.
 #       This includes the SK-9841 and SK-9842 single port cards (single mode
 #       and multimode fiber) and the SK-9843 and SK-9844 dual port cards
