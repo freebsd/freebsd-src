@@ -2451,55 +2451,76 @@
 .\" NS Vt macro - Variable type (for forcing old style variable declarations)
 .\" this is not done in the same manner as .Ot for fortrash - clean up later
 .de Vt
-.\" if a function declaration was the last thing given, want vertical space
-.if \\n(fD>0 \{\
-.	Pp
-.	nr fD 0
-.\}
-.\"	if a subroutine was the last thing given, want vertical space
-.if \\n(fZ>0 \{\
-.	ie \\n(fX==0 \{\
-.		Pp
-.		rs
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 .tm Usage: .Vt Variable Type ... \\*(Pu (#\\n(.c)
+.       el \{\
+.		ds mN Vt
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
-.	el .br
 .\}
-.nr fX \\n(fX+1
-.nr cF \\n(.f
-.nr cZ \\n(.s
-\\*(fT\&\\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.ie \\n(oT==0 .br
-.el \&\ \&
-.ft \\n(cF
-.fs \\n(cZ
+.if \\n(aC>\\n(aP \{\
+.	if \\n(nS>0 \{\
+.		\" if a function declaration was the last thing given, want vertical space
+.		if \\n(fD>0 \{\
+.			Pp
+.			nr fD 0
+.		\}
+.		\" if a subroutine was the last thing given, want vertical space
+.		if \\n(fZ>0 \{\
+.			ie \\n(fX==0 \{\
+.				Pp
+.				rs
+.			\}
+.			el .br
+.		\}
+.	\}
+.	nr fX \\n(fX+1
+.	as b1 \\*(fT
+.	nr aP \\n(aP+1
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	nR
+.	if \\n(nS>0 \{\
+.		ie \\n(oT==0 .br
+.		el .as b1 \&\ \&
+.	\}
+.\}
 ..
 .\"
 .\" NS Ft macro - Function type
 .nr fZ 0
 .de Ft
-.if \\n(nS>0 \{\
-.	if \\n(fZ>0 \{\
-.		Pp
-.		nr fD 0
-.		nr fX 0
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 .tm Usage: .Ft Function Type ... \\*(Pu (#\\n(.c)
+.       el \{\
+.		ds mN Ft
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
-.	if \\n(fD>0 \{\
-.		Pp
-.		nr fD 0
-.		nr fX 0
-.	\}
-.	if \\n(fX>0 \{\
-.		Pp
-.		nr fX 0
-.	\}
-.	nr fY 1
 .\}
-.nr cF \\n(.f
-.nr cZ \\n(.s
-\&\\*(fT\\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.ft \\n(cF
-.fs \\n(cZ
-.\" .br
+.if \\n(aC>\\n(aP \{\
+.	if \\n(nS>0 \{\
+.		if \\n(fZ>0 \{\
+.			Pp
+.			nr fD 0
+.			nr fX 0
+.		\}
+.		if \\n(fD>0 \{\
+.			Pp
+.			nr fD 0
+.			nr fX 0
+.		\}
+.		if \\n(fX>0 \{\
+.			Pp
+.			nr fX 0
+.		\}
+.		nr fY 1
+.	\}
+.	as b1 \\*(fT
+.	nr aP \\n(aP+1
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	nR
+.\}
 ..
 .\"
 .\" NS Ot macro - Old Function type (fortran - no newline)
