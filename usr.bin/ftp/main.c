@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 4/3/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "ftp_var.h"
 
@@ -76,8 +77,14 @@ main(argc, argv)
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
+	passivemode = 0;
 
-	while ((ch = getopt(argc, argv, "dgintv")) != EOF) {
+	cp = strrchr(argv[0], '/');
+	cp = (cp == NULL) ? argv[0] : cp+1;
+	if (strcmp(cp, "pftp") == 0)
+	    passivemode = 1;
+
+	while ((ch = getopt(argc, argv, "dginptv")) != EOF) {
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
@@ -96,6 +103,10 @@ main(argc, argv)
 			autologin = 0;
 			break;
 
+		case 'p':
+			passivemode = 1;
+			break;
+
 		case 't':
 			trace++;
 			break;
@@ -106,7 +117,7 @@ main(argc, argv)
 
 		default:
 			(void)fprintf(stderr,
-				"usage: ftp [-dgintv] [host [port]]\n");
+				"usage: ftp [-dginptv] [host [port]]\n");
 			exit(1);
 		}
 	}
@@ -118,7 +129,6 @@ main(argc, argv)
 		verbose++;
 	cpend = 0;	/* no pending replies */
 	proxy = 0;	/* proxy not active */
-	passivemode = 0;/* passive mode not active */
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
 	/*
