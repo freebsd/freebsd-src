@@ -391,7 +391,7 @@ network_pass2() {
 
 	case ${xntpd_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' xntpd';	${xntpd_program:-xntpd} ${xntpd_flags}
+		echo -n ' ntpd';	${xntpd_program:-ntpd} ${xntpd_flags}
 		;;
 	esac
 
