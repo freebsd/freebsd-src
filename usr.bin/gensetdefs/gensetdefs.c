@@ -127,7 +127,7 @@ __asm__(\".p2align %d\");				\\\n\
 __asm__(#set \":\");				\\\n\
 __asm__(\".%s \" #count);			\\\n\
 __asm__(\".previous\")\n\
-
+\n\
 #include \"setdefs.h\"		/* Contains a `DEFINE_SET' for each set */\n\
 ", align, ptrop);
 
@@ -143,7 +143,7 @@ __asm__(\".previous\")\n\
 __asm__(\".section .set.\" #set \",\\\"aw\\\"\");	\\\n\
 __asm__(\".%s 0\");			\\\n\
 __asm__(\".previous\")\n\
-
+\n\
 #include \"setdefs.h\"		/* Contains a `DEFINE_SET' for each set */\n\
 ", ptrop);
 
