@@ -227,6 +227,11 @@ setup(char *dev)
 	 */
 	asked = 0;
 	sblock.fs_csp = calloc(1, sblock.fs_cssize);
+	if (sblock.fs_csp == NULL) {
+		printf("cannot alloc %u bytes for cg summary info\n",
+		    (unsigned)sblock.fs_cssize);
+		goto badsb;
+	}
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		size = sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize;

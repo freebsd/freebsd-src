@@ -141,7 +141,7 @@ pass1(void)
 		}
 		info = calloc((unsigned)inosused, sizeof(struct inostat));
 		if (info == NULL)
-			pfatal("cannot alloc %u bytes for inoinfo\n",
+			errx(EEXIT, "cannot alloc %u bytes for inoinfo",
 			    (unsigned)(sizeof(struct inostat) * inosused));
 		inostathead[c].il_stat = info;
 		/*
@@ -175,7 +175,7 @@ pass1(void)
 		}
 		info = calloc((unsigned)inosused, sizeof(struct inostat));
 		if (info == NULL)
-			pfatal("cannot alloc %u bytes for inoinfo\n",
+			errx(EEXIT, "cannot alloc %u bytes for inoinfo",
 			    (unsigned)(sizeof(struct inostat) * inosused));
 		memmove(info, inostathead[c].il_stat, inosused * sizeof(*info));
 		free(inostathead[c].il_stat);
