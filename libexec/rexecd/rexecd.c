@@ -188,7 +188,8 @@ doit(f, fromp)
 		}
 	}
 
-	if (pwd->pw_uid == 0 || *pwd->pw_passwd == '\0') {
+	if (pwd->pw_uid == 0 || *pwd->pw_passwd == '\0' ||
+	    (pwd->pw_expire && time(NULL) >= pwd->pw_expire)) {
 		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
 		error("Login incorrect.\n");
 		exit(1);
