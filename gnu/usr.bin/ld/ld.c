@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.13 1993/12/02 00:56:35 jkh Exp $
+ *	$Id: ld.c,v 1.14 1993/12/02 05:09:52 nate Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -180,9 +180,6 @@ main(argc, argv)
 	make_executable = 1;
 	force_executable = 0;
 	link_mode = DYNAMIC;
-#ifdef SUNOS4
-	link_mode |= SILLYARCHIVE;
-#endif
 	soversion = LD_VERSION_BSD;
 
 	/* Initialize the cumulative counts of symbols.  */
@@ -393,12 +390,6 @@ decode_command(argc, argv)
 				link_mode |= FORCEARCHIVE;
 			else if (strcmp(string, "shareable") == 0)
 				link_mode |= SHAREABLE;
-#ifdef SUN_COMPAT
-			else if (strcmp(string, "silly") == 0)
-				link_mode |= SILLYARCHIVE;
-			else if (strcmp(string, "~silly") == 0)
-				link_mode &= ~SILLYARCHIVE;
-#endif
 		}
 		if (argv[i][1] == 'A') {
 			if (p != file_table)
@@ -493,10 +484,6 @@ decode_option(swt, arg)
 		return;
 	if (!strcmp(swt + 1, "assert"))
 		return;
-#ifdef SUN_COMPAT
-	if (!strcmp(swt + 1, "Bsilly"))
-		return;
-#endif
 	if (!strcmp(swt + 1, "Ttext")) {
 		text_start = parse(arg, "%x", "invalid argument to -Ttext");
 		T_flag_specified = 1;
@@ -657,38 +644,17 @@ each_file(function, arg)
 
 	for (i = 0; i < number_of_files; i++) {
 		register struct file_entry *entry = &file_table[i];
-		register struct file_entry *subentry;
-
 		if (entry->scrapped)
 			continue;
-
-		if (!entry->library_flag)
-			(*function) (entry, arg);
-
-		subentry = entry->subfiles;
-		for (; subentry; subentry = subentry->chain) {
-			if (subentry->scrapped)
-				continue;
-			(*function) (subentry, arg);
-		}
-
-#ifdef SUN_COMPAT
-		if (entry->silly_archive) {
-
-			if (!entry->is_dynamic)
-				error("Silly");
-
-			if (!entry->silly_archive->library_flag)
-				error("Sillier");
-
-			subentry = entry->silly_archive->subfiles;
+		if (entry->library_flag) {
+			register struct file_entry *subentry = entry->subfiles;
 			for (; subentry; subentry = subentry->chain) {
 				if (subentry->scrapped)
 					continue;
 				(*function) (subentry, arg);
 			}
-		}
-#endif
+		} else
+			(*function) (entry, arg);
 	}
 }
 
@@ -738,41 +704,15 @@ each_full_file(function, arg)
 
 	for (i = 0; i < number_of_files; i++) {
 		register struct file_entry *entry = &file_table[i];
-		register struct file_entry *subentry;
-
-		if (entry->scrapped || entry->just_syms_flag)
+		if (entry->scrapped ||
+				entry->just_syms_flag || entry->is_dynamic)
 			continue;
-
-#ifdef SUN_COMPAT
-		if (entry->silly_archive) {
-
-			if (!entry->is_dynamic)
-				error("Silly");
-
-			if (!entry->silly_archive->library_flag)
-				error("Sillier");
-
-			subentry = entry->silly_archive->subfiles;
-			for (; subentry; subentry = subentry->chain) {
-				if (subentry->scrapped)
-					continue;
+		if (entry->library_flag) {
+			register struct file_entry *subentry = entry->subfiles;
+			for (; subentry; subentry = subentry->chain)
 				(*function) (subentry, arg);
-			}
-		}
-#endif
-		if (entry->is_dynamic)
-			continue;
-
-		if (!entry->library_flag)
+		} else
 			(*function) (entry, arg);
-
-		subentry = entry->subfiles;
-		for (; subentry; subentry = subentry->chain) {
-			if (subentry->scrapped)
-				continue;
-			(*function) (subentry, arg);
-		}
-
 	}
 }
 
@@ -797,7 +737,7 @@ file_open (entry)
 {
 	register int desc;
 
-	if (entry->superfile && entry->superfile->library_flag)
+	if (entry->superfile)
 		return file_open (entry->superfile);
 
 	if (entry == input_file)
@@ -1050,7 +990,7 @@ read_file_symbols (entry)
 				return;
 			}
 			entry->is_dynamic = 1;
-			if (entry->superfile || rrs_add_shobj(entry))
+			if (rrs_add_shobj(entry))
 				read_shared_object(desc, entry);
 			else
 				entry->scrapped = 1;
@@ -1355,7 +1295,7 @@ void consider_relocation();
  *    symbols originating from shared objects is searched for a definition.
  *
  * 2) Then the relocation information of each relocatable file is examined
- *    for possible contributions to the RRS section.
+ *    for for possible contributions to the RRS section.
  *
  * 3) When this is done, the sizes and start addresses are set of all segments
  *    that will appear in the output file (including the RRS segment).
