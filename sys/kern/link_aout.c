@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.5 1997/11/20 20:07:50 bde Exp $
+ *	$Id: link_aout.c,v 1.6 1998/06/07 17:11:36 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,8 @@ link_aout_load_file(const char* filename, linker_file_t* result)
 	free(af, M_LINKER);
 	goto out;
     }
-    (long) af->dynamic->d_un.d_sdt += af->address;
+    af->dynamic->d_un.d_sdt = (struct section_dispatch_table *)
+	((char *)af->dynamic->d_un.d_sdt + (vm_offset_t)af->address);
 
     lf = linker_make_file(filename, af, &link_aout_file_ops);
     if (lf == NULL) {
