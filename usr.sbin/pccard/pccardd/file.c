@@ -1053,6 +1053,7 @@ file_include(char *incl)
 
 	/* save line number of the current config file */
 	configfiles[includes].lineno = lineno;
+	lineno = 1;
 
 	/* now we start parsing new config file */
 	includes++;
