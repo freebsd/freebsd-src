@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: promcons.c,v 1.2 1998/07/05 11:59:44 dfr Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -245,9 +245,9 @@ promtimeout(v)
 	void *v;
 {
 	struct tty *tp = v;
-	u_char c;
+	int c;
 
-	while (promcnlookc(tp->t_dev, &c)) {
+	while ((c = promcncheckc(tp->t_dev)) != -1) {
 		if (tp->t_state & TS_ISOPEN)
 			(*linesw[tp->t_line].l_rint)(c, tp);
 	}
