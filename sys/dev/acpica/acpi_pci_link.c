@@ -924,7 +924,7 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 		}
 
 		/* try with lower penalty IRQ. */
-		for (i = 0; i < link->number_of_interrupts - 1; i++) {
+		for (i = 0; i < link->number_of_interrupts; i++) {
 			irq1 = link->sorted_irq[i];
 			error = acpi_pci_link_set_irq(link, irq1);
 			if (error == AE_OK) {
