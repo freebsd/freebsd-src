@@ -78,12 +78,10 @@ static vfs_vptofh_t	cd9660_vptofh;
 
 static struct vfsops cd9660_vfsops = {
 	.vfs_fhtovp =		cd9660_fhtovp,
-	.vfs_init =		cd9660_init,
 	.vfs_mount =		cd9660_mount,
 	.vfs_cmount =		cd9660_cmount,
 	.vfs_root =		cd9660_root,
 	.vfs_statfs =		cd9660_statfs,
-	.vfs_uninit =		cd9660_uninit,
 	.vfs_unmount =		cd9660_unmount,
 	.vfs_vget =		cd9660_vget,
 	.vfs_vptofh =		cd9660_vptofh,
@@ -663,12 +661,14 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct cdev *dev;
 	int error;
 
-	imp = VFSTOISOFS(mp);
-	dev = imp->im_dev;
-	if ((error = cd9660_ihashget(dev, ino, flags, vpp)) != 0)
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	if (error)
 		return (error);
 	if (*vpp != NULL)
 		return (0);
+
+	imp = VFSTOISOFS(mp);
+	dev = imp->im_dev;
 
 	/* Allocate a new vnode/iso_node. */
 	if ((error = getnewvnode("isofs", mp, &cd9660_vnodeops, &vp)) != 0) {
@@ -683,24 +683,28 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->i_number = ino;
 
 	/*
-	 * Check to be sure that it did not show up. We have to put it
-	 * on the hash chain as the cleanup from vput expects to find
-	 * it there.
+	 * Exclusively lock the vnode before adding to hash. Note, that we
+	 * must not release nor downgrade the lock (despite flags argument
+	 * says) till it is fully initialized.
 	 */
-	if ((error = cd9660_ihashget(dev, ino, flags, vpp)) != 0 ||
-	    *vpp != NULL) {
-		cd9660_ihashins(ip);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, curthread);
+
+	/*
+	 * Atomicaly (in terms of vfs_hash operations) check the hash for
+	 * duplicate of vnode being created and add it to the hash. If a
+	 * duplicate vnode was found, it will be vget()ed from hash for us.
+	 */
+	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
 		vput(vp);
+		*vpp = NULL;
 		return (error);
 	}
 
-	/*
-	 * Put it onto its hash chain and lock it so that other requests for
-	 * this inode will block if they arrive while we are sleeping waiting
-	 * for old data structures to be purged or for the contents of the
-	 * disk portion of this inode to be read.
-	 */
-	cd9660_ihashins(ip);
+	/* We lost the race, then throw away our vnode and return existing */
+	if (*vpp != NULL) {
+		vput(vp);
+		return (0);
+	}
 
 	if (isodir == 0) {
 		int lbn, off;

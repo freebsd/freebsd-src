@@ -51,118 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/cd9660_mount.h>
 
-/*
- * Structures associated with iso_node caching.
- */
-static struct iso_node **isohashtbl;
-static u_long isohash;
-#define	INOHASH(device, inum)	((minor(device) + ((inum)>>12)) & isohash)
-static struct mtx cd9660_ihash_mtx;
-
-static void cd9660_ihashrem(struct iso_node *);
 static unsigned	cd9660_chars2ui(unsigned char *begin, int len);
-
-/*
- * Initialize hash links for inodes and dnodes.
- */
-int
-cd9660_init(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	isohashtbl = hashinit(desiredvnodes, M_ISOFSMNT, &isohash);
-	mtx_init(&cd9660_ihash_mtx, "cd9660_ihash", NULL, MTX_DEF);
-	return (0);
-}
-
-int
-cd9660_uninit(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	if (isohashtbl != NULL)
-		free(isohashtbl, M_ISOFSMNT);
-	return (0);
-}
-
-
-/*
- * Use the device/inum pair to find the incore inode, and return a pointer
- * to it. If it is in core, but locked, wait for it.
- */
-int
-cd9660_ihashget(dev, inum, flags, vpp)
-	struct cdev *dev;
-	ino_t inum;
-	int flags;
-	struct vnode **vpp;
-{
-	struct thread *td = curthread;		/* XXX */
-	struct iso_node *ip;
-	struct vnode *vp;
-	int error;
-
-	*vpp = NULL;
-loop:
-	mtx_lock(&cd9660_ihash_mtx);
-	for (ip = isohashtbl[INOHASH(dev, inum)]; ip; ip = ip->i_next) {
-		if (inum == ip->i_number && dev == ip->i_dev) {
-			vp = ITOV(ip);
-			mtx_lock(&vp->v_interlock);
-			mtx_unlock(&cd9660_ihash_mtx);
-			error = vget(vp, flags | LK_INTERLOCK, td);
-			if (error == ENOENT)
-				goto loop;
-			if (error)
-				return (error);
-			*vpp = vp;
-			return (0);
-		}
-	}
-	mtx_unlock(&cd9660_ihash_mtx);
-	return (0);
-}
-
-/*
- * Insert the inode into the hash table, and return it locked.
- */
-void
-cd9660_ihashins(ip)
-	struct iso_node *ip;
-{
-	struct iso_node **ipp, *iq;
-
-	mtx_lock(&cd9660_ihash_mtx);
-	ipp = &isohashtbl[INOHASH(ip->i_dev, ip->i_number)];
-	if ((iq = *ipp) != NULL)
-		iq->i_prev = &ip->i_next;
-	ip->i_next = iq;
-	ip->i_prev = ipp;
-	*ipp = ip;
-	mtx_unlock(&cd9660_ihash_mtx);
-
-	vn_lock(ITOV(ip), LK_EXCLUSIVE | LK_RETRY, curthread);
-}
-
-/*
- * Remove the inode from the hash table.
- */
-static void
-cd9660_ihashrem(ip)
-	struct iso_node *ip;
-{
-	struct iso_node *iq;
-
-	mtx_lock(&cd9660_ihash_mtx);
-	if ((iq = ip->i_next) != NULL)
-		iq->i_prev = ip->i_prev;
-	*ip->i_prev = iq;
-#ifdef DIAGNOSTIC
-	ip->i_next = NULL;
-	ip->i_prev = NULL;
-#endif
-	mtx_unlock(&cd9660_ihash_mtx);
-}
 
 /*
  * Last reference to an inode, write the inode out and if necessary,
@@ -211,7 +100,8 @@ cd9660_reclaim(ap)
 	/*
 	 * Remove the inode from its hash chain.
 	 */
-	cd9660_ihashrem(ip);
+	vfs_hash_remove(vp);
+
 	/*
 	 * Purge old data structures associated with the inode.
 	 */
