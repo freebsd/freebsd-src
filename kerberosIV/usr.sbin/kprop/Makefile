@@ -10,8 +10,9 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/slave \
 		-I${INCLOBJDIR} \
 		-I${.CURDIR}/../include
-LDADD=		-L${ROKENOBJDIR} -lroken -L${KRBOBJDIR} -lkrb -ldes -lcrypt
-DPADD=		${LIBROKEN} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
+LDADD=		-L${ROKENOBJDIR} -lroken -L${KRBOBJDIR} -lkrb -ldes -lcrypt \
+		-lcom_err
+DPADD=		${LIBROKEN} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
 
 .include <bsd.prog.mk>
 
