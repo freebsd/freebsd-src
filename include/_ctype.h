@@ -41,9 +41,13 @@
  *	@(#)ctype.h	8.4 (Berkeley) 1/21/94
  */
 
-#ifndef	_CTYPE_H_
-#define _CTYPE_H_
+#ifndef _CTYPE_H_
+#define	_CTYPE_H_
 
+/*
+ * XXX <runetype.h> brings massive namespace pollution (rune_t and struct
+ * member names).
+ */
 #include <runetype.h>
 
 #define	_A	0x00000100L		/* Alpha */
@@ -61,29 +65,55 @@
 #define	_T	0x00100000L		/* Special */
 #define	_Q	0x00200000L		/* Phonogram */
 
-#define isalnum(c)      __istype((c), (_A|_D))
-#define isalpha(c)      __istype((c),     _A)
-#define iscntrl(c)      __istype((c),     _C)
-#define isdigit(c)      __isctype((c),    _D)	/* ANSI -- locale independent */
-#define isgraph(c)      __istype((c),     _G)
-#define islower(c)      __istype((c),     _L)
-#define isprint(c)      __istype((c),     _R)
-#define ispunct(c)      __istype((c),     _P)
-#define isspace(c)      __istype((c),     _S)
-#define isupper(c)      __istype((c),     _U)
-#define isxdigit(c)     __isctype((c),    _X)	/* ANSI -- locale independent */
+__BEGIN_DECLS
+int	isalnum __P((int));
+int	isalpha __P((int));
+int	iscntrl __P((int));
+int	isdigit __P((int));
+int	isgraph __P((int));
+int	islower __P((int));
+int	isprint __P((int));
+int	ispunct __P((int));
+int	isspace __P((int));
+int	isupper __P((int));
+int	isxdigit __P((int));
+int	tolower __P((int));
+int	toupper __P((int));
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-#define	isascii(c)	((c & ~0x7F) == 0)
-#define toascii(c)	((c) & 0x7F)
+int	isascii __P((int));
+int	isblank __P((int));
+int	toascii __P((int));
+#endif
+__END_DECLS
+
+#define	isalnum(c)      __istype((c), (_A|_D))
+#define	isalpha(c)      __istype((c),     _A)
+#define	iscntrl(c)      __istype((c),     _C)
+#define	isdigit(c)      __isctype((c),    _D)	/* ANSI -- locale independent */
+#define	isgraph(c)      __istype((c),     _G)
+#define	islower(c)      __istype((c),     _L)
+#define	isprint(c)      __istype((c),     _R)
+#define	ispunct(c)      __istype((c),     _P)
+#define	isspace(c)      __istype((c),     _S)
+#define	isupper(c)      __istype((c),     _U)
+#define	isxdigit(c)     __isctype((c),    _X)	/* ANSI -- locale independent */
+#define	tolower(c)	__tolower(c)
+#define	toupper(c)	__toupper(c)
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#define	isascii(c)	(((c) & ~0x7F) == 0)
+#define	isblank(c)	__istype((c), _B)
+#define	toascii(c)	((c) & 0x7F)
+
+/* XXX the following macros are not backed up by functions. */
 #define	digittoint(c)	__istype((c), 0xFF)
-#define	isideogram(c)	__istype((c), _I)
-#define	isphonogram(c)	__istype((c), _T)
-#define	isspecial(c)	__istype((c), _Q)
-#define isblank(c)	__istype((c), _B)
-#define	isrune(c)	__istype((c),  0xFFFFFF00L)
-#define	isnumber(c)	__istype((c), _D)
 #define	ishexnumber(c)	__istype((c), _X)
+#define	isideogram(c)	__istype((c), _I)
+#define	isnumber(c)	__istype((c), _D)
+#define	isphonogram(c)	__istype((c), _T)
+#define	isrune(c)	__istype((c), 0xFFFFFF00L)
+#define	isspecial(c)	__istype((c), _Q)
 #endif
 
 /* See comments in <machine/ansi.h> about _BSD_RUNE_T_. */
@@ -94,62 +124,64 @@ _BSD_RUNE_T_	___toupper __P((_BSD_RUNE_T_));
 __END_DECLS
 
 /*
- * If your compiler supports prototypes and inline functions,
- * #define _USE_CTYPE_INLINE_.  Otherwise, use the C library
- * functions.
+ * _EXTERNALIZE_CTYPE_INLINES_ is defined in locale/nomacros.c to tell us
+ * to generate code for extern versions of all our inline functions.
  */
-#if !defined(_USE_CTYPE_CLIBRARY_) && defined(__GNUC__) || defined(__cplusplus)
-#define	_USE_CTYPE_INLINE_	1
+#ifdef _EXTERNALIZE_CTYPE_INLINES_
+#define	_USE_CTYPE_INLINE_
+#define	static
+#define	__inline
 #endif
 
-#if defined(_USE_CTYPE_INLINE_)
+/*
+ * Use inline functions if we are allowed to and the compiler supports them.
+ */
+#if !defined(_DONT_USE_CTYPE_INLINE_) && \
+    (defined(_USE_CTYPE_INLINE_) || defined(__GNUC__) || defined(__cplusplus))
 static __inline int
-__istype(_BSD_RUNE_T_ __c, unsigned long __f)
+__istype(_BSD_RUNE_T_ _c, unsigned long _f)
 {
-	if (__c < 0)
-		__c = (unsigned char) __c;
-	return((((__c & _CRMASK) ? ___runetype(__c) :
-	    _CurrentRuneLocale->runetype[__c]) & __f) ? 1 : 0);
+	if (_c < 0)
+		_c = (unsigned char) _c;
+	return((((_c & _CRMASK) ? ___runetype(_c) :
+	    _CurrentRuneLocale->runetype[_c]) & _f) ? 1 : 0);
 }
 
 static __inline int
-__isctype(_BSD_RUNE_T_ __c, unsigned long __f)
+__isctype(_BSD_RUNE_T_ _c, unsigned long _f)
 {
-	if (__c < 0)
-		__c = (unsigned char) __c;
-	return((((__c & _CRMASK) ? 0 :
-	    _DefaultRuneLocale.runetype[__c]) & __f) ? 1 : 0);
-}
-
-/* _ANSI_LIBRARY is defined by lib/libc/gen/isctype.c. */
-#if !defined(_ANSI_LIBRARY)
-static __inline _BSD_RUNE_T_
-toupper(_BSD_RUNE_T_ __c)
-{
-	if (__c < 0)
-		__c = (unsigned char) __c;
-	return((__c & _CRMASK) ?
-	    ___toupper(__c) : _CurrentRuneLocale->mapupper[__c]);
+	if (_c < 0)
+		_c = (unsigned char) _c;
+	return((((_c & _CRMASK) ? 0 :
+	    _DefaultRuneLocale.runetype[_c]) & _f) ? 1 : 0);
 }
 
 static __inline _BSD_RUNE_T_
-tolower(_BSD_RUNE_T_ __c)
+__toupper(_BSD_RUNE_T_ _c)
 {
-	if (__c < 0)
-		__c = (unsigned char) __c;
-	return((__c & _CRMASK) ?
-	    ___tolower(__c) : _CurrentRuneLocale->maplower[__c]);
+	if (_c < 0)
+		_c = (unsigned char) _c;
+	return((_c & _CRMASK) ?
+	    ___toupper(_c) : _CurrentRuneLocale->mapupper[_c]);
 }
-#endif /* !_ANSI_LIBRARY */
 
-#else /* !_USE_CTYPE_INLINE_ */
+static __inline _BSD_RUNE_T_
+__tolower(_BSD_RUNE_T_ _c)
+{
+	if (_c < 0)
+		_c = (unsigned char) _c;
+	return((_c & _CRMASK) ?
+	    ___tolower(_c) : _CurrentRuneLocale->maplower[_c]);
+}
+
+#else /* not using inlines */
 
 __BEGIN_DECLS
 int		__istype __P((_BSD_RUNE_T_, unsigned long));
 int		__isctype __P((_BSD_RUNE_T_, unsigned long));
-_BSD_RUNE_T_	toupper __P((_BSD_RUNE_T_));
-_BSD_RUNE_T_	tolower __P((_BSD_RUNE_T_));
+_BSD_RUNE_T_	__toupper __P((_BSD_RUNE_T_));
+_BSD_RUNE_T_	__tolower __P((_BSD_RUNE_T_));
 __END_DECLS
-#endif /* _USE_CTYPE_INLINE_ */
+#endif /* using inlines */
 
 #endif /* !_CTYPE_H_ */
