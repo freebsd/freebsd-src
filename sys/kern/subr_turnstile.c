@@ -1094,6 +1094,8 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		}
 		PCPU_SET(witness_spin_check, i | w->w_level);
 		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+		p->p_spinlocks++;
+		MPASS(p->p_spinlocks > 0);
 		w->w_file = file;
 		w->w_line = line;
 		m->mtx_line = line;
@@ -1116,7 +1118,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	if (cold)
 		goto out;
 
-	if (!mtx_legal2block())
+	if (p->p_spinlocks != 0)
 		panic("blockable mtx_lock() of %s when not legal @ %s:%d",
 			    m->mtx_description, file, line);
 	/*
@@ -1263,10 +1265,12 @@ void
 witness_exit(struct mtx *m, int flags, const char *file, int line)
 {
 	struct witness *w;
+	struct proc *p;
 
 	if (witness_cold || m->mtx_witness == NULL || panicstr)
 		return;
 	w = m->mtx_witness;
+	p = curproc;
 
 	if (flags & MTX_SPIN) {
 		if ((m->mtx_flags & MTX_SPIN) == 0)
@@ -1283,6 +1287,8 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 		PCPU_SET(witness_spin_check,
 		    PCPU_GET(witness_spin_check) & ~w->w_level);
 		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+		MPASS(p->p_spinlocks > 0);
+		p->p_spinlocks--;
 		return;
 	}
 	if ((m->mtx_flags & MTX_SPIN) != 0)
@@ -1297,7 +1303,7 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 		return;
 	}
 
-	if ((flags & MTX_NOSWITCH) == 0 && !mtx_legal2block() && !cold)
+	if ((flags & MTX_NOSWITCH) == 0 && p->p_spinlocks != 0 && !cold)
 		panic("switchable mtx_unlock() of %s when not legal @ %s:%d",
 			    m->mtx_description, file, line);
 	LIST_REMOVE(m, mtx_held);

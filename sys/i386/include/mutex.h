@@ -40,7 +40,6 @@
 /* Global locks */
 extern struct mtx	clock_lock;
 
-#define	mtx_legal2block()	(read_eflags() & PSL_I)
 #define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= PSL_I
 
 /*
