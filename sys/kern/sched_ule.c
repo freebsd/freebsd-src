@@ -262,6 +262,7 @@ static struct kseq	kseq_cpu;
 #define	KSEQ_CPU(x)	(&kseq_cpu)
 #endif
 
+static void sched_add_internal(struct thread *td, int preemptive);
 static void sched_slice(struct kse *ke);
 static void sched_priority(struct ksegrp *kg);
 static int sched_interact_score(struct ksegrp *kg);
@@ -616,7 +617,7 @@ kseq_idled(struct kseq *kseq)
 			kseq_runq_rem(steal, ke);
 			kseq_load_rem(steal, ke);
 			ke->ke_cpu = PCPU_GET(cpuid);
-			sched_add(ke->ke_thread);
+			sched_add_internal(ke->ke_thread, 0);
 			return (0);
 		}
 	}
@@ -644,7 +645,7 @@ kseq_assign(struct kseq *kseq)
 	for (; ke != NULL; ke = nke) {
 		nke = ke->ke_assign;
 		ke->ke_flags &= ~KEF_ASSIGNED;
-		sched_add(ke->ke_thread);
+		sched_add_internal(ke->ke_thread, 0);
 	}
 }
 
@@ -1542,6 +1543,13 @@ restart:
 void
 sched_add(struct thread *td)
 {
+
+	sched_add_internal(td, 1);
+}
+
+static void
+sched_add_internal(struct thread *td, int preemptive)
+{
 	struct kseq *kseq;
 	struct ksegrp *kg;
 	struct kse *ke;
@@ -1623,7 +1631,6 @@ sched_add(struct thread *td)
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
 
-#if 0
 #ifdef SMP
 	/*
 	 * Only try to preempt if the thread is unpinned or pinned to the
@@ -1631,9 +1638,8 @@ sched_add(struct thread *td)
 	 */
 	if (KSE_CAN_MIGRATE(ke, class) || ke->ke_cpu == PCPU_GET(cpuid))
 #endif
-	if (maybe_preempt(td))
+	if (preemptive && maybe_preempt(td))
 		return;
-#endif
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
