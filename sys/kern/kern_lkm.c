@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.25 1995/12/08 23:21:32 phk Exp $
+ * $Id: kern_lkm.c,v 1.26 1995/12/13 15:12:52 julian Exp $
  */
 
 #include <sys/param.h>
@@ -495,24 +495,6 @@ lkmnosys(p, args, retval)
 {
 
 	return(nosys(p, args, retval));
-}
-
-/*
- * Acts like "enodev", but can be identified in cdevsw and bdevsw for
- * dynamic driver major number assignment for a limited number of
- * drivers.
- *
- * Place holder for device switch slots reserved for loadable modules.
- */
-int
-lkmenodev(dev, flags, fmt, p)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct proc *p;
-{
-
-	return(ENODEV);
 }
 
 int
