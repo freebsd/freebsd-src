@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rmail.8	6.10 (Berkeley) 4/29/93
-.\"	$Id$
+.\"	$Id: rmail.8,v 1.2 1994/09/24 02:57:04 davidg Exp $
 .\"
 .Dd April 29, 1993
 .Dt RMAIL 8
@@ -42,7 +42,7 @@
 .Nm rmail
 .Ar user ...
 .Sh DESCRIPTION
-.Nm Rmail
+.Nm
 interprets incoming mail received via
 .Xr uucp 1 ,
 collapsing ``From'' lines in the form generated
@@ -52,7 +52,7 @@ into a single line of the form ``return-path!sender'',
 and passing the processed mail on to
 .Xr sendmail  8  .
 .Pp
-.Nm Rmail
+.Nm
 is explicitly designed for use with
 .Xr uucp
 and
@@ -67,6 +67,6 @@ The
 program appeared in
 .Bx 4.2 .
 .Sh BUGS
-.Nm Rmail
+.Nm
 should not reside in
 .Pa /bin .
