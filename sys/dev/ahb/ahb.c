@@ -292,7 +292,7 @@ ahbattach(device_t dev)
 
 	/*
 	 * Create our DMA tags.  These tags define the kinds of device
-	 * accessable memory allocations and memory mappings we will 
+	 * accessible memory allocations and memory mappings we will 
 	 * need to perform during normal operation.
 	 */
 	/* DMA tag for mapping buffers into device visible space. */

@@ -333,7 +333,7 @@ static char	*stli_brdnames[] = {
 
 /*
  *	Hardware configuration info for ECP boards. These defines apply
- *	to the directly accessable io ports of the ECP. There is a set of
+ *	to the directly accessible io ports of the ECP. There is a set of
  *	defines for each ECP board type, ISA, EISA and MCA.
  */
 #define	ECP_IOSIZE	4
@@ -390,7 +390,7 @@ static char	*stli_brdnames[] = {
 
 /*
  *	Hardware configuration info for ONboard and Brumby boards. These
- *	defines apply to the directly accessable io ports of these boards.
+ *	defines apply to the directly accessible io ports of these boards.
  */
 #define	ONB_IOSIZE	16
 #define	ONB_MEMSIZE	(64 * 1024)

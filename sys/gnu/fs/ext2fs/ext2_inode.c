@@ -207,7 +207,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	 * Shorten the size of the file. If the file is not being
 	 * truncated to a block boundry, the contents of the
 	 * partial block following the end of the file must be
-	 * zero'ed in case it ever become accessable again because
+	 * zero'ed in case it ever become accessible again because
 	 * of subsequent file growth.
 	 */
 	/* I don't understand the comment above */
