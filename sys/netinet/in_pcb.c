@@ -619,11 +619,9 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 		}
 		/*
 		 * If we found a route, use the address
-		 * corresponding to the outgoing interface
-		 * unless it is the loopback (in case a route
-		 * to our address on another net goes to loopback).
+		 * corresponding to the outgoing interface.
 		 */
-		if (sro.ro_rt && !(sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK))
+		if (sro.ro_rt)
 			ia = ifatoia(sro.ro_rt->rt_ifa);
 		if (sro.ro_rt)
 			RTFREE(sro.ro_rt);
