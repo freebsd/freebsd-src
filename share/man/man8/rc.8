@@ -148,10 +148,10 @@ runs architecture specific programs.
 is executed after the scripts above, but before the rest of the
 .Nm rc
 file is completed.
-Presently, all
+In a default installation
 .Nm rc.local
-does is to put version information in
-.Pa /etc/motd .
+does not exist, but its contents will be executed if the file is created
+by the administrator.
 .Pp
 Following tradition, the startup files reside in
 .Pa /etc .
