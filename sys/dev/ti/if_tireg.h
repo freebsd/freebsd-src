@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.44 1999/05/03 16:56:07 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.2 1999/05/03 17:44:52 wpaul Exp $
  */
 
 /*
@@ -1184,7 +1184,6 @@ struct ti_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)     (pmap_kextract(((vm_offset_t) (va))) \
-                         + 1*1024*1024*1024)
+#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)va)
 #endif
 

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.146 1999/05/09 22:44:42 se Exp $
+**  $Id: ncr.c,v 1.147 1999/05/21 22:02:02 ken Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -275,8 +275,7 @@
 #ifdef __alpha__
 /* XXX */
 #undef vtophys
-#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
-			 + 1*1024*1024*1024)
+#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
 #endif
 
 #ifdef NCR_IOMAPPED
@@ -1361,7 +1360,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.146 1999/05/09 22:44:42 se Exp $\n";
+	"\n$Id: ncr.c,v 1.147 1999/05/21 22:02:02 ken Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
