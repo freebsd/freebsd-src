@@ -210,13 +210,10 @@ wi_pccard_probe(dev)
 static int
 wi_pccard_attach(device_t dev)
 {
-	struct wi_softc		*sc;
 	int			error;
 	uint32_t		vendor;
 	uint32_t		product;
 	int			retval;
-
-	sc = device_get_softc(dev);
 
 	error = wi_alloc(dev, 0);
 	if (error) {
