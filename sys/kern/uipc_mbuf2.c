@@ -381,6 +381,23 @@ m_tag_delete_chain(struct mbuf *m, struct m_tag *t)
 	m_tag_delete(m, p);
 }
 
+/*
+ * Strip off all tags that would normally vanish when
+ * passing through a network interface.  Only persistent
+ * tags will exist after this; these are expected to remain
+ * so long as the mbuf chain exists, regardless of the
+ * path the mbufs take.
+ */
+void
+m_tag_delete_nonpersistent(struct mbuf *m)
+{
+	struct m_tag *p, *q;
+
+	SLIST_FOREACH_SAFE(p, &m->m_pkthdr.tags, m_tag_link, q)
+		if ((p->m_tag_id & MTAG_PERSISTENT) == 0)
+			m_tag_delete(m, p);
+}
+
 /* Find a tag, starting from a given position. */
 struct m_tag *
 m_tag_locate(struct mbuf *m, u_int32_t cookie, int type, struct m_tag *t)
