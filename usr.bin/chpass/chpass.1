@@ -89,7 +89,8 @@ in the format used by
 .Xr crypt 3 ,
 as an argument.
 .It Fl e Ar expiretime
-Change the account expire time. This option is used to set the expire time
+Change the account expire time.
+This option is used to set the expire time
 from a script as if it was done in the interactive editor.
 .It Fl s Ar newshell
 Attempt to change the user's shell to
@@ -259,7 +260,8 @@ Currently,
 can only make changes to the NIS passwd maps through
 .Xr rpc.yppasswdd 8 ,
 which normally only permits changes to a user's password, shell and GECOS
-fields. Except when invoked by the super-user on the NIS master server,
+fields.
+Except when invoked by the super-user on the NIS master server,
 .Nm
 (and, similarly,
 .Xr passwd 1 )
@@ -270,7 +272,8 @@ add new records to the NIS passwd maps.
 Furthermore,
 .Xr rpc.yppasswdd 8
 requires password authentication before it will make any
-changes. The only user allowed to submit changes without supplying
+changes.
+The only user allowed to submit changes without supplying
 a password is the super-user on the NIS master server; all other users,
 including those with root privileges on NIS clients (and NIS slave
 servers) must enter a password.
@@ -308,7 +311,8 @@ change any field.
 .Em "Password authentication is required" .
 .Nm Chpass
 will prompt for the user's NIS password before effecting
-any changes. If the password is invalid, all changes will be
+any changes.
+If the password is invalid, all changes will be
 discarded.
 .Pp
 Exception: the super-user on the NIS master server is allowed to
@@ -345,7 +349,8 @@ Users should use
 .Xr passwd 1
 or
 .Xr yppasswd 1
-to change their NIS passwords. The super-user is allowed to specify
+to change their NIS passwords.
+The super-user is allowed to specify
 a new password (even though the
 .Dq Password:
 field does not show
@@ -381,20 +386,24 @@ Specify a particular NIS domain.
 .Nm Chpass
 uses the system domain name by default, as set by the
 .Xr domainname 1
-command. The
+command.
+The
 .Fl d
 option can be used to override a default, or to specify a domain
 when the system domain name is not set.
 .It Fl h Ar host
-Specify the name or address of an NIS server to query. Normally,
+Specify the name or address of an NIS server to query.
+Normally,
 .Nm
 will communicate with the NIS master host specified in the
 .Pa master.passwd
 or
 .Pa passwd
-maps. On hosts that have not been configured as NIS clients, there is
+maps.
+On hosts that have not been configured as NIS clients, there is
 no way for the program to determine this information unless the user
-provides the hostname of a server. Note that the specified hostname need
+provides the hostname of a server.
+Note that the specified hostname need
 not be that of the NIS master server; the name of any server, master or
 slave, in a given NIS domain will do.
 .Pp
@@ -422,7 +431,8 @@ domain socket). The
 .Fl o
 flag can be used to force
 .Nm
-to use the standard update mechanism instead. This option is provided
+to use the standard update mechanism instead.
+This option is provided
 mainly for testing purposes.
 .El
 .Pp

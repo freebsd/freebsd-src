@@ -96,7 +96,8 @@ that are set in the specified value,
 to specify that the value from the file must have clear any of the bits 
 that are set in the specified value, or
 .Em x ,
-to specify that any value will match. If the character is omitted,
+to specify that any value will match.
+If the character is omitted,
 it is assumed to be
 .Em = .
 .It ""
@@ -158,21 +159,27 @@ is a
 .Em (
 then the string after the parenthesis is interpreted as an indirect offset.
 That means that the number after the parenthesis is used as an offset in
-the file. The value at that offset is read, and is used again as an offset
-in the file. Indirect offsets are of the form:
+the file.
+The value at that offset is read, and is used again as an offset
+in the file.
+Indirect offsets are of the form:
 .Em (x[.[bsl]][+-][y]) .
 The value of 
 .Em x
-is used as an offset in the file. A byte, short or long is read at that offset
+is used as an offset in the file.
+A byte, short or long is read at that offset
 depending on the 
 .Em [bsl]
-type specifier. To that number the value of
+type specifier.
+To that number the value of
 .Em y
-is added and the result is used as an offset in the file. The default type
+is added and the result is used as an offset in the file.
+The default type
 if one is not specified is long.
 .Pp
 Sometimes you do not know the exact offset as this depends on the length of
-preceding fields. You can specify an offset relative to the end of the
+preceding fields.
+You can specify an offset relative to the end of the
 last uplevel field (of course this may only be done for sublevel tests, i.e.
 test beginning with 
 .Em > Ns ).

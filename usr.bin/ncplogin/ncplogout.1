@@ -18,20 +18,25 @@ The
 .Nm
 will shedule connection created by
 .Xr ncplogin 1
-command to close. If connection is busy (i.e. used by other processes) it will
-be closed when last process terminated. This command is similar to DOS 
+command to close.
+If connection is busy (i.e. used by other processes) it will
+be closed when last process terminated.
+This command is similar to DOS 
 logout.exe command.
 .Pp
 The options are:
 .Bl -tag -width indent
 .It Fl S Ar server
-name of Netware server to identify connection. Can be omitted if there is only
+name of Netware server to identify connection.
+Can be omitted if there is only
 one connection active.
 .It Fl U Ar user
-name of user used to identify connection. Can be omitted if there is only
+name of user used to identify connection.
+Can be omitted if there is only
 one connection active.
 .It Fl c Ar handle
-close connection by handle. List of available handles can be obtained via
+close connection by handle.
+List of available handles can be obtained via
 .Bd -literal -offset indent
 	ncplist c
 .Ed

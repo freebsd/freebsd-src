@@ -26,7 +26,8 @@ Each line of the login access control table has three fields separated by a
 ":" character:	  permission : users : origins
 .Pp
 The first field should be a "+" (access granted) or "-" (access denied)
-character. The second field should be a list of one or more login names,
+character.
+The second field should be a list of one or more login names,
 group names, or ALL (always matches).  The third field should be a list
 of one or more tty names (for non-networked logins), host names, domain
 names (begin with "."), host addresses, internet network numbers (end
@@ -37,7 +38,8 @@ in host or user patterns.
 The EXCEPT operator makes it possible to write very compact rules.
 .Pp
 The group file is searched only when a name does not match that of the
-logged-in user. Only groups are matched in which users are explicitly
+logged-in user.
+Only groups are matched in which users are explicitly
 listed: the program does not look at a user's primary group id value.
 .Sh FILES
 .Bl -tag -width /etc/login.access -compact
