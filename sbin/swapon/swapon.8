@@ -79,8 +79,12 @@ available to the system for swap allocation.
 .Bl -tag -width "/dev/{wd,da}?s?b" -compact
 .It Pa /dev/{wd,da}?s?b
 standard paging devices
+.It Pa /dev/vn0b
+vnode disk paging device
 .It Pa /etc/fstab
 ASCII filesystem description table
+.It Pa /etc/vntab
+ASCII vnode file table
 .El
 .Sh BUGS
 There is no way to stop paging and swapping on a device.
