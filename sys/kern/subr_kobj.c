@@ -77,10 +77,9 @@ kobj_unregister_method(struct kobjop_desc *desc)
 {
 }
 
-void
-kobj_class_compile(kobj_class_t cls)
+static void
+kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 {
-	kobj_ops_t ops;
 	kobj_method_t *m;
 	int i;
 
@@ -97,14 +96,35 @@ kobj_class_compile(kobj_class_t cls)
 		kobj_register_method(m->desc);
 
 	/*
-	 * Then allocate the compiled op table.
+	 * Then initialise the ops table.
+	 */
+	bzero(ops, sizeof(struct kobj_ops));
+	ops->cls = cls;
+	cls->ops = ops;
+}
+
+void
+kobj_class_compile(kobj_class_t cls)
+{
+	kobj_ops_t ops;
+
+	/*
+	 * Allocate space for the compiled ops table.
 	 */
 	ops = malloc(sizeof(struct kobj_ops), M_KOBJ, M_NOWAIT);
 	if (!ops)
 		panic("kobj_compile_methods: out of memory");
-	bzero(ops, sizeof(struct kobj_ops));
-	ops->cls = cls;
-	cls->ops = ops;
+	kobj_class_compile_common(cls, ops);
+}
+
+void
+kobj_class_compile_static(kobj_class_t cls, kobj_ops_t ops)
+{
+	/*
+	 * Increment refs to make sure that the ops table is not freed.
+	 */
+	cls->refs++;
+	kobj_class_compile_common(cls, ops);
 }
 
 void
