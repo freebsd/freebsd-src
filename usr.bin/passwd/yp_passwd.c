@@ -50,7 +50,7 @@ uid_t	uid;
 static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-extern char *getnewpasswd __P(( struct passwd * ));
+extern char *getnewpasswd __P(( struct passwd * , int ));
 
 char *
 getfield(char *gecos, char *field, int size)
@@ -263,7 +263,7 @@ yp_passwd(char *user)
   }
 
   if (use_yp_passwd) {
-      if ((s = getnewpasswd(pw)) == NULL)
+      if ((s = getnewpasswd(pw, 1)) == NULL)
       	  exit (1);
       yppasswd.newpw.pw_passwd = s;
   }

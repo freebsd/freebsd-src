@@ -73,15 +73,17 @@ to64(s, v, n)
 }
 
 char *
-getnewpasswd(pw)
+getnewpasswd(pw, nis)
 	struct passwd *pw;
+	int nis;
 {
 	int tries;
 	char *p, *t;
 	char buf[_PASSWORD_LEN+1], salt[9];
 	struct timeval tv;
 
-	(void)printf("Changing local password for %s.\n", pw->pw_name);
+	(void)printf("Changing %s password for %s.\n", pw->pw_name,
+						nis ? "YP" : "local");
 
 	if (uid && pw->pw_passwd[0] &&
 	    strcmp(crypt(getpass("Old password:"), pw->pw_passwd),
@@ -150,7 +152,7 @@ local_passwd(uname)
 	 * classes are implemented, go and get the "offset" value for this
 	 * class and reset the timer.
 	 */
-	pw->pw_passwd = getnewpasswd(pw);
+	pw->pw_passwd = getnewpasswd(pw, 0);
 	pw->pw_change = 0;
 	pw_copy(pfd, tfd, pw);
 
