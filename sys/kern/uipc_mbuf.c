@@ -217,7 +217,7 @@ m_mballoc_wait(int caller, int type)
 		mbstat.m_wait++;
 		/* Wake up another if we have more free. */
 		if (mmbfree != NULL)
-			m_mballoc_wakeup();
+			MMBWAKEUP();
 	}
 	splx(s);
 	return (p);
@@ -346,7 +346,7 @@ m_clalloc_wait(void)
 		mbstat.m_wait++;
 		/* Wake up another if we have more free. */
 		if (mclfree != NULL)
-			m_clalloc_wakeup();
+			MCLWAKEUP();
 	}
 
 	splx(s);
