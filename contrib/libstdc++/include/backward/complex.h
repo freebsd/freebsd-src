@@ -25,16 +25,16 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#ifndef _CPP_BACKWARD_COMPLEX_H
-#define _CPP_BACKWARD_COMPLEX_H 1
+#ifndef _BACKWARD_COMPLEX_H
+#define _BACKWARD_COMPLEX_H 1
 
 #include "backward_warning.h"
 #include <complex>
 
 using std::complex;
-typedef complex<float> 		float_complex;
-typedef complex<double> 	double_complex;
-typedef complex<long double> 	long_double_complex;
+typedef complex<float>		float_complex;
+typedef complex<double>		double_complex;
+typedef complex<long double>	long_double_complex;
 
 #endif
 

@@ -1,6 +1,6 @@
 // Explicit instantiation file.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <vector>
 #include <bits/atomicity.h>
+#include <ext/stdio_sync_filebuf.h>
 
 namespace std
 {
@@ -54,7 +55,7 @@ namespace std
   template 
     basic_istream<char>& 
     getline(basic_istream<char>&, string&);
-#ifdef _GLIBCPP_USE_WCHAR_T
+#ifdef _GLIBCXX_USE_WCHAR_T
   template 
     basic_istream<wchar_t>& 
     operator>>(basic_istream<wchar_t>&, wstring&);
@@ -68,40 +69,14 @@ namespace std
     basic_istream<wchar_t>& 
     getline(basic_istream<wchar_t>&, wstring&);
 #endif
-#ifdef _GLIBCPP_INST_ATOMICITY_LOCK
-  template volatile int __Atomicity_lock<0>::_S_atomicity_lock;
-#endif
-
-#if 1
-  // XXX
-  // 2002-05-24 These are no longer needed and should eventually be deleted.
-  template 
-    string* 
-    __uninitialized_fill_n_aux<string*, size_t, string>
-    (string*, size_t, string const &, __false_type);
-
-  template 
-    string* 
-    __uninitialized_copy_aux<vector<string>::const_iterator, string *>
-    (vector<string>::const_iterator, vector<string>::const_iterator, 
-     string*, __false_type);
-#endif
 } // namespace std
 
-#ifdef _GLIBCPP_NEED_GENERIC_MUTEX
 namespace __gnu_cxx
 {
-#ifdef __GTHREAD_MUTEX_INIT
-  __gthread_mutex_t _Atomic_add_mutex = __GTHREAD_MUTEX_INIT;
-#else
-  // generic atomicity.h without static initialization
-  __gthread_mutex_t _Atomic_add_mutex;
-  __gthread_once_t _Atomic_add_mutex_once = __GTHREAD_ONCE_INIT;
-  void __gthread_atomic_add_mutex_once()
-  {
-    __GTHREAD_MUTEX_INIT_FUNCTION (&_Atomic_add_mutex);
-  }
+  template class stdio_sync_filebuf<char>;
+#ifdef _GLIBCXX_USE_WCHAR_T
+  template class stdio_sync_filebuf<wchar_t>;
 #endif
 } // namespace __gnu_cxx
-#endif // _GLIBCPP_NEED_GLOBAL_MUTEX
+
 

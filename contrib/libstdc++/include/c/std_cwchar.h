@@ -1,6 +1,6 @@
 // -*- C++ -*- forwarding header.
 
-// Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,8 +31,8 @@
 // ISO C++ 14882: 21.4
 //
 
-#ifndef _CPP_CWCHAR
-#define _CPP_CWCHAR 1
+#ifndef _GLIBCXX_CWCHAR
+#define _GLIBCXX_CWCHAR 1
 
 #pragma GCC system_header
 
@@ -40,18 +40,18 @@
 #include <cstddef>
 #include <ctime>
 
-#if _GLIBCPP_HAVE_WCHAR_H
+#if _GLIBCXX_HAVE_WCHAR_H
 #include_next <wchar.h>
 #endif
 
 // Need to do a bit of trickery here with mbstate_t as char_traits
 // assumes it is in wchar.h, regardless of wchar_t specializations.
-#ifndef _GLIBCPP_HAVE_MBSTATE_T
+#ifndef _GLIBCXX_HAVE_MBSTATE_T
 namespace std
 {
-  extern "C" 
+  extern "C"
   {
-    typedef struct 
+    typedef struct
     {
       int __fill[6];
     } mbstate_t;
@@ -59,4 +59,4 @@ namespace std
 }
 #endif
 
-#endif 
+#endif

@@ -40,8 +40,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CCTYPE
-#define _CPP_CCTYPE 1
+#ifndef _GLIBCXX_CCTYPE
+#define _GLIBCXX_CCTYPE 1
 
 #pragma GCC system_header
 
@@ -80,4 +80,4 @@ namespace std
   using ::toupper;
 }
 
-#endif 
+#endif

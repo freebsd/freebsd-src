@@ -25,13 +25,13 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#ifndef _CPP_BACKWARD_OSTREAM_H
-#define _CPP_BACKWARD_OSTREAM_H 1
+#ifndef _BACKWARD_OSTREAM_H
+#define _BACKWARD_OSTREAM_H 1
 
 #include "backward_warning.h"
 #include "iostream.h"
 
-#endif 
+#endif
 
 // Local Variables:
 // mode:C++

@@ -1,6 +1,6 @@
 // Wrapper for underlying C-language localization -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,9 +33,12 @@
 
 // Written by Benjamin Kosnik <bkoz@redhat.com>
 
+#include <cerrno>  // For errno
+#include <cmath>  // For isinf, finite, finitef, fabs
+#include <cstdlib>  // For strof, strtold
 #include <locale>
 
-#ifdef _GLIBCPP_HAVE_IEEEFP_H
+#ifdef _GLIBCXX_HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
 
@@ -44,78 +47,8 @@ namespace std
   // Specializations for all types used in num_get.
   template<>
     void
-    __convert_to_v(const char* __s, long& __v, ios_base::iostate& __err, 
-		   const __c_locale&, int __base)
-    {
-      if (!(__err & ios_base::failbit))
-      {
-	char* __sanity;
-	errno = 0;
-	long __l = strtol(__s, &__sanity, __base);
-	if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
-	  __v = __l;
-	else
-	  __err |= ios_base::failbit;
-      }
-    }
-
-  template<>
-    void
-    __convert_to_v(const char* __s, unsigned long& __v, 
-		   ios_base::iostate& __err, const __c_locale&, int __base)
-    {
-      if (!(__err & ios_base::failbit))
-	{
-	  char* __sanity;
-	  errno = 0;
-	  unsigned long __ul = strtoul(__s, &__sanity, __base);
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
-	    __v = __ul;
-	  else
-	    __err |= ios_base::failbit;
-	}
-    }
-
-#ifdef _GLIBCPP_USE_LONG_LONG
-  template<>
-    void
-    __convert_to_v(const char* __s, long long& __v, ios_base::iostate& __err, 
-		   const __c_locale&, int __base)
-    {
-      if (!(__err & ios_base::failbit))
-	{
-	  char* __sanity;
-	  errno = 0;
-	  long long __ll = strtoll(__s, &__sanity, __base);
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
-	    __v = __ll;
-	  else
-	    __err |= ios_base::failbit;
-	}
-    }
-
-  template<>
-    void
-    __convert_to_v(const char* __s, unsigned long long& __v, 
-		   ios_base::iostate& __err, const __c_locale&, int __base)
-    {
-      if (!(__err & ios_base::failbit))
-	{      
-	  char* __sanity;
-	  errno = 0;
-	  unsigned long long __ull = strtoull(__s, &__sanity, __base);
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
-	    __v = __ull;
-	  else
-	    __err |= ios_base::failbit;
-	}  
-    }
-#endif
-
-  template<>
-    void
     __convert_to_v(const char* __s, float& __v, ios_base::iostate& __err, 
-		   const __c_locale&, int) 	      
+		   const __c_locale&) 	      
     {
       if (!(__err & ios_base::failbit))
 	{
@@ -124,18 +57,18 @@ namespace std
 	  setlocale(LC_ALL, "C");
 	  char* __sanity;
 	  errno = 0;
-#if defined(_GLIBCPP_USE_C99)
+#if defined(_GLIBCXX_USE_C99)
 	  float __f = strtof(__s, &__sanity);
 #else
 	  double __d = strtod(__s, &__sanity);
 	  float __f = static_cast<float>(__d);
-#ifdef _GLIBCPP_HAVE_FINITEF
+#ifdef _GLIBCXX_HAVE_FINITEF
 	  if (!finitef (__f))
 	    errno = ERANGE;
-#elif defined (_GLIBCPP_HAVE_FINITE)
+#elif defined (_GLIBCXX_HAVE_FINITE)
 	  if (!finite (static_cast<double> (__f)))
 	    errno = ERANGE;
-#elif defined (_GLIBCPP_HAVE_ISINF)
+#elif defined (_GLIBCXX_HAVE_ISINF)
 	  if (isinf (static_cast<double> (__f)))
 	    errno = ERANGE;
 #else
@@ -143,7 +76,7 @@ namespace std
 	    errno = ERANGE;
 #endif
 #endif
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
+          if (__sanity != __s && errno != ERANGE)
 	    __v = __f;
 	  else
 	    __err |= ios_base::failbit;
@@ -155,7 +88,7 @@ namespace std
   template<>
     void
     __convert_to_v(const char* __s, double& __v, ios_base::iostate& __err, 
-		   const __c_locale&, int) 
+		   const __c_locale&) 
     {
       if (!(__err & ios_base::failbit))
 	{
@@ -165,7 +98,7 @@ namespace std
 	  char* __sanity;
 	  errno = 0;
 	  double __d = strtod(__s, &__sanity);
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
+          if (__sanity != __s && errno != ERANGE)
 	    __v = __d;
 	  else
 	    __err |= ios_base::failbit;
@@ -177,18 +110,18 @@ namespace std
   template<>
     void
     __convert_to_v(const char* __s, long double& __v, 
-		   ios_base::iostate& __err, const __c_locale&, int) 
+		   ios_base::iostate& __err, const __c_locale&) 
     {
       if (!(__err & ios_base::failbit))
 	{
 	  // Assumes __s formatted for "C" locale.
 	  char* __old = strdup(setlocale(LC_ALL, NULL));
 	  setlocale(LC_ALL, "C");
-#if defined(_GLIBCPP_USE_C99)
+#if defined(_GLIBCXX_USE_C99)
 	  char* __sanity;
 	  errno = 0;
 	  long double __ld = strtold(__s, &__sanity);
-          if (__sanity != __s && *__sanity == '\0' && errno != ERANGE)
+          if (__sanity != __s && errno != ERANGE)
 	    __v = __ld;
 #else
 	  typedef char_traits<char>::int_type int_type;
@@ -197,7 +130,7 @@ namespace std
 	  int __p = sscanf(__s, "%Lf", &__ld);
 	  if (errno == ERANGE)
 	    __p = 0;
-#ifdef _GLIBCPP_HAVE_FINITEL
+#ifdef _GLIBCXX_HAVE_FINITEL
 	  if ((__p == 1) && !finitel (__ld))
 	    __p = 0;
 #endif
@@ -212,9 +145,16 @@ namespace std
     }
 
   void
-  locale::facet::_S_create_c_locale(__c_locale& __cloc, const char*, 
+  locale::facet::_S_create_c_locale(__c_locale& __cloc, const char* __s, 
 				    __c_locale)
-  { __cloc = NULL; }
+  {
+    // Currently, the generic model only supports the "C" locale.
+    // See http://gcc.gnu.org/ml/libstdc++/2003-02/msg00345.html
+    __cloc = NULL;
+    if (strcmp(__s, "C"))
+      __throw_runtime_error(__N("locale::facet::_S_create_c_locale "
+			    "name not valid"));
+  }
 
   void
   locale::facet::_S_destroy_c_locale(__c_locale& __cloc)
@@ -223,9 +163,11 @@ namespace std
   __c_locale
   locale::facet::_S_clone_c_locale(__c_locale&)
   { return __c_locale(); }
+} // namespace std
 
-  const char* locale::_S_categories[_S_categories_size 
-				    + _S_extra_categories_size] =
+namespace __gnu_cxx
+{
+  const char* const category_names[6 + _GLIBCXX_NUM_CATEGORIES] =
     {
       "LC_CTYPE", 
       "LC_NUMERIC",
@@ -234,4 +176,9 @@ namespace std
       "LC_MONETARY",
       "LC_MESSAGES"
     };
+}  
+
+namespace std
+{
+  const char* const* const locale::_S_categories = __gnu_cxx::category_names;
 }  // namespace std

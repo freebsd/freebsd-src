@@ -1,6 +1,6 @@
 // <bitset> -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -45,29 +45,26 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _GLIBCPP_BITSET_H
-#define _GLIBCPP_BITSET_H
+#ifndef _GLIBCXX_BITSET
+#define _GLIBCXX_BITSET 1
 
 #pragma GCC system_header
 
-#include <cstddef>     // for size_t
-#include <cstring>     // for memset
+#include <cstddef>     // For size_t
+#include <cstring>     // For memset
+#include <limits>      // For numeric_limits
 #include <string>
-#include <bits/functexcept.h>   // for invalid_argument, out_of_range,
+#include <bits/functexcept.h>   // For invalid_argument, out_of_range,
                                 // overflow_error
-#include <ostream>     // for ostream (operator<<)
-#include <istream>     // for istream (operator>>)
+#include <ostream>     // For ostream (operator<<)
+#include <istream>     // For istream (operator>>)
 
+#define _GLIBCXX_BITSET_BITS_PER_WORD  numeric_limits<unsigned long>::digits
+#define _GLIBCXX_BITSET_WORDS(__n) \
+ ((__n) < 1 ? 0 : ((__n) + _GLIBCXX_BITSET_BITS_PER_WORD - 1)/_GLIBCXX_BITSET_BITS_PER_WORD)
 
-#define _GLIBCPP_BITSET_BITS_PER_WORD (CHAR_BIT*sizeof(unsigned long))
-#define _GLIBCPP_BITSET_WORDS(__n) \
- ((__n) < 1 ? 0 : ((__n) + _GLIBCPP_BITSET_BITS_PER_WORD - 1)/_GLIBCPP_BITSET_BITS_PER_WORD)
-
-namespace std
+namespace _GLIBCXX_STD
 {
-  extern unsigned char 	_S_bit_count[256];
-  extern unsigned char 	_S_first_one[256];
-
   /**
    *  @if maint
    *  Base class, general case.  It is a class inveriant that _Nw will be
@@ -93,15 +90,15 @@ namespace std
 
       static size_t
       _S_whichword(size_t __pos )
-      { return __pos / _GLIBCPP_BITSET_BITS_PER_WORD; }
+      { return __pos / _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static size_t
       _S_whichbyte(size_t __pos )
-      { return (__pos % _GLIBCPP_BITSET_BITS_PER_WORD) / CHAR_BIT; }
+      { return (__pos % _GLIBCXX_BITSET_BITS_PER_WORD) / __CHAR_BIT__; }
 
       static size_t
       _S_whichbit(size_t __pos )
-      { return __pos % _GLIBCPP_BITSET_BITS_PER_WORD; }
+      { return __pos % _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static _WordT
       _S_maskbit(size_t __pos )
@@ -191,14 +188,8 @@ namespace std
       _M_do_count() const
       {
 	size_t __result = 0;
-	const unsigned char* __byte_ptr = (const unsigned char*)_M_w;
-	const unsigned char* __end_ptr = (const unsigned char*)(_M_w + _Nw);
-
-	while ( __byte_ptr < __end_ptr )
-	  {
-	    __result += _S_bit_count[*__byte_ptr];
-	    __byte_ptr++;
-	  }
+	for (size_t __i = 0; __i < _Nw; __i++)
+	  __result += __builtin_popcountl(_M_w[__i]);
 	return __result;
       }
 
@@ -221,22 +212,22 @@ namespace std
     {
       if (__builtin_expect(__shift != 0, 1))
 	{
-	  const size_t __wshift = __shift / _GLIBCPP_BITSET_BITS_PER_WORD;
-	  const size_t __offset = __shift % _GLIBCPP_BITSET_BITS_PER_WORD;
+	  const size_t __wshift = __shift / _GLIBCXX_BITSET_BITS_PER_WORD;
+	  const size_t __offset = __shift % _GLIBCXX_BITSET_BITS_PER_WORD;
 
 	  if (__offset == 0)
 	    for (size_t __n = _Nw - 1; __n >= __wshift; --__n)
 	      _M_w[__n] = _M_w[__n - __wshift];
 	  else
 	    {
-	      const size_t __sub_offset = _GLIBCPP_BITSET_BITS_PER_WORD - __offset;
+	      const size_t __sub_offset = _GLIBCXX_BITSET_BITS_PER_WORD - __offset;
 	      for (size_t __n = _Nw - 1; __n > __wshift; --__n)
 		_M_w[__n] = (_M_w[__n - __wshift] << __offset) |
 		  (_M_w[__n - __wshift - 1] >> __sub_offset);
 	      _M_w[__wshift] = _M_w[0] << __offset;
 	    }
 
-	  fill(_M_w + 0, _M_w + __wshift, static_cast<_WordT>(0));
+	  std::fill(_M_w + 0, _M_w + __wshift, static_cast<_WordT>(0));
 	}
     }
 
@@ -246,8 +237,8 @@ namespace std
     {
       if (__builtin_expect(__shift != 0, 1))
 	{
-	  const size_t __wshift = __shift / _GLIBCPP_BITSET_BITS_PER_WORD;
-	  const size_t __offset = __shift % _GLIBCPP_BITSET_BITS_PER_WORD;
+	  const size_t __wshift = __shift / _GLIBCXX_BITSET_BITS_PER_WORD;
+	  const size_t __offset = __shift % _GLIBCXX_BITSET_BITS_PER_WORD;
 	  const size_t __limit = _Nw - __wshift - 1;
 
 	  if (__offset == 0)
@@ -255,14 +246,14 @@ namespace std
 	      _M_w[__n] = _M_w[__n + __wshift];
 	  else
 	    {
-	      const size_t __sub_offset = _GLIBCPP_BITSET_BITS_PER_WORD - __offset;
+	      const size_t __sub_offset = _GLIBCXX_BITSET_BITS_PER_WORD - __offset;
 	      for (size_t __n = 0; __n < __limit; ++__n)
 		_M_w[__n] = (_M_w[__n + __wshift] >> __offset) |
 		  (_M_w[__n + __wshift + 1] << __sub_offset);
 	      _M_w[__limit] = _M_w[_Nw-1] >> __offset;
 	    }
-
-	  fill(_M_w + __limit + 1, _M_w + _Nw, static_cast<_WordT>(0));
+	  
+	  std::fill(_M_w + __limit + 1, _M_w + _Nw, static_cast<_WordT>(0));
 	}
     }
 
@@ -272,7 +263,7 @@ namespace std
     {
       for (size_t __i = 1; __i < _Nw; ++__i)
 	if (_M_w[__i])
-	  __throw_overflow_error("bitset -- too large to fit in unsigned long");
+	  __throw_overflow_error(__N("_Base_bitset::_M_do_to_ulong"));
       return _M_w[0];
     }
 
@@ -280,23 +271,12 @@ namespace std
     size_t
     _Base_bitset<_Nw>::_M_do_find_first(size_t __not_found) const
     {
-      for (size_t __i = 0; __i < _Nw; __i++ )
+      for (size_t __i = 0; __i < _Nw; __i++)
 	{
 	  _WordT __thisword = _M_w[__i];
-	  if ( __thisword != static_cast<_WordT>(0) )
-	    {
-	      // find byte within word
-	      for (size_t __j = 0; __j < sizeof(_WordT); __j++ )
-		{
-		  unsigned char __this_byte
-		    = static_cast<unsigned char>(__thisword & (~(unsigned char)0));
-		  if (__this_byte)
-		    return __i*_GLIBCPP_BITSET_BITS_PER_WORD + __j*CHAR_BIT +
-		      _S_first_one[__this_byte];
-
-		  __thisword >>= CHAR_BIT;
-		}
-	    }
+	  if (__thisword != static_cast<_WordT>(0))
+	    return __i * _GLIBCXX_BITSET_BITS_PER_WORD
+	      + __builtin_ctzl(__thisword);
 	}
       // not found, so return an indication of failure.
       return __not_found;
@@ -310,7 +290,7 @@ namespace std
       ++__prev;
 
       // check out of bounds
-      if ( __prev >= _Nw * _GLIBCPP_BITSET_BITS_PER_WORD )
+      if (__prev >= _Nw * _GLIBCXX_BITSET_BITS_PER_WORD)
 	return __not_found;
 
       // search first word
@@ -320,42 +300,18 @@ namespace std
       // mask off bits below bound
       __thisword &= (~static_cast<_WordT>(0)) << _S_whichbit(__prev);
 
-      if ( __thisword != static_cast<_WordT>(0) )
-	{
-	  // find byte within word
-	  // get first byte into place
-	  __thisword >>= _S_whichbyte(__prev) * CHAR_BIT;
-	  for (size_t __j = _S_whichbyte(__prev); __j < sizeof(_WordT); __j++)
-	    {
-	      unsigned char __this_byte
-		= static_cast<unsigned char>(__thisword & (~(unsigned char)0));
-	      if ( __this_byte )
-		return __i*_GLIBCPP_BITSET_BITS_PER_WORD + __j*CHAR_BIT +
-		  _S_first_one[__this_byte];
-
-	      __thisword >>= CHAR_BIT;
-	    }
-	}
+      if (__thisword != static_cast<_WordT>(0))
+	return __i * _GLIBCXX_BITSET_BITS_PER_WORD
+	  + __builtin_ctzl(__thisword);
 
       // check subsequent words
       __i++;
       for ( ; __i < _Nw; __i++ )
 	{
 	  __thisword = _M_w[__i];
-	  if ( __thisword != static_cast<_WordT>(0) )
-	    {
-	      // find byte within word
-	      for (size_t __j = 0; __j < sizeof(_WordT); __j++ )
-		{
-		  unsigned char __this_byte
-		    = static_cast<unsigned char>(__thisword & (~(unsigned char)0));
-		  if ( __this_byte )
-		    return __i*_GLIBCPP_BITSET_BITS_PER_WORD + __j*CHAR_BIT +
-		      _S_first_one[__this_byte];
-
-		  __thisword >>= CHAR_BIT;
-		}
-	    }
+	  if (__thisword != static_cast<_WordT>(0))
+	    return __i * _GLIBCXX_BITSET_BITS_PER_WORD
+	      + __builtin_ctzl(__thisword);
 	}
       // not found, so return an indication of failure.
       return __not_found;
@@ -380,15 +336,15 @@ namespace std
 
       static size_t
       _S_whichword(size_t __pos )
-      { return __pos / _GLIBCPP_BITSET_BITS_PER_WORD; }
+      { return __pos / _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static size_t
       _S_whichbyte(size_t __pos )
-      { return (__pos % _GLIBCPP_BITSET_BITS_PER_WORD) / CHAR_BIT; }
+      { return (__pos % _GLIBCXX_BITSET_BITS_PER_WORD) / __CHAR_BIT__; }
 
       static size_t
       _S_whichbit(size_t __pos )
-      {  return __pos % _GLIBCPP_BITSET_BITS_PER_WORD; }
+      {  return __pos % _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static _WordT
       _S_maskbit(size_t __pos )
@@ -438,29 +394,34 @@ namespace std
       _M_is_any() const { return _M_w != 0; }
 
       size_t
-      _M_do_count() const
-      {
-	size_t __result = 0;
-	const unsigned char* __byte_ptr = (const unsigned char*)&_M_w;
-	const unsigned char* __end_ptr
-	  = ((const unsigned char*)&_M_w)+sizeof(_M_w);
-	while ( __byte_ptr < __end_ptr )
-	  {
-	    __result += _S_bit_count[*__byte_ptr];
-	    __byte_ptr++;
-	  }
-	return __result;
-      }
+      _M_do_count() const { return __builtin_popcountl(_M_w); }
 
       unsigned long
       _M_do_to_ulong() const { return _M_w; }
 
       size_t
-      _M_do_find_first(size_t __not_found) const;
+      _M_do_find_first(size_t __not_found) const
+      {
+        if (_M_w != 0)
+          return __builtin_ctzl(_M_w);
+        else
+          return __not_found;
+      }
 
       // find the next "on" bit that follows "prev"
       size_t
-      _M_do_find_next(size_t __prev, size_t __not_found) const;
+      _M_do_find_next(size_t __prev, size_t __not_found) const
+      {
+	++__prev;
+	if (__prev >= ((size_t) _GLIBCXX_BITSET_BITS_PER_WORD))
+	  return __not_found;
+
+	_WordT __x = _M_w >> __prev;
+	if (__x != 0)
+	  return __builtin_ctzl(__x) + __prev;
+	else
+	  return __not_found;
+      }
     };
 
 
@@ -481,15 +442,15 @@ namespace std
 
       static size_t
       _S_whichword(size_t __pos )
-      { return __pos / _GLIBCPP_BITSET_BITS_PER_WORD; }
+      { return __pos / _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static size_t
       _S_whichbyte(size_t __pos )
-      { return (__pos % _GLIBCPP_BITSET_BITS_PER_WORD) / CHAR_BIT; }
+      { return (__pos % _GLIBCXX_BITSET_BITS_PER_WORD) / __CHAR_BIT__; }
 
       static size_t
       _S_whichbit(size_t __pos )
-      {  return __pos % _GLIBCPP_BITSET_BITS_PER_WORD; }
+      {  return __pos % _GLIBCXX_BITSET_BITS_PER_WORD; }
 
       static _WordT
       _S_maskbit(size_t __pos )
@@ -504,7 +465,10 @@ namespace std
       // localized to this single should-never-get-this-far function.
       _WordT&
       _M_getword(size_t) const
-      { __throw_out_of_range("bitset -- zero-length"); return *new _WordT; }
+      { 
+	__throw_out_of_range(__N("_Base_bitset::_M_getword")); 
+	return *new _WordT; 
+      }
 
       _WordT
       _M_hiword() const { return 0; }
@@ -636,16 +600,16 @@ namespace std
    *  @endif
   */
   template<size_t _Nb>
-    class bitset : private _Base_bitset<_GLIBCPP_BITSET_WORDS(_Nb)>
+    class bitset : private _Base_bitset<_GLIBCXX_BITSET_WORDS(_Nb)>
   {
   private:
-    typedef _Base_bitset<_GLIBCPP_BITSET_WORDS(_Nb)> _Base;
+    typedef _Base_bitset<_GLIBCXX_BITSET_WORDS(_Nb)> _Base;
     typedef unsigned long _WordT;
 
     void
     _M_do_sanitize()
     {
-      _Sanitize<_Nb%_GLIBCPP_BITSET_BITS_PER_WORD>::
+      _Sanitize<_Nb%_GLIBCXX_BITSET_BITS_PER_WORD>::
           _S_do_sanitize(this->_M_hiword());
     }
 
@@ -681,7 +645,7 @@ namespace std
 
       ~reference() { }
 
-      // for b[i] = __x;
+      // For b[i] = __x;
       reference&
       operator=(bool __x)
       {
@@ -692,7 +656,7 @@ namespace std
 	return *this;
       }
 
-      // for b[i] = b[__j];
+      // For b[i] = b[__j];
       reference&
       operator=(const reference& __j)
       {
@@ -703,16 +667,16 @@ namespace std
 	return *this;
       }
 
-      // flips the bit
+      // Flips the bit
       bool
       operator~() const
       { return (*(_M_wp) & _Base::_S_maskbit(_M_bpos)) == 0; }
 
-      // for __x = b[i];
+      // For __x = b[i];
       operator bool() const
       { return (*(_M_wp) & _Base::_S_maskbit(_M_bpos)) != 0; }
 
-      // for b[i].flip();
+      // For b[i].flip();
       reference&
       flip()
       {
@@ -733,7 +697,7 @@ namespace std
     /**
      *  @brief  Use a subset of a string.
      *  @param  s  A string of '0' and '1' characters.
-     *  @param  pos  Index of the first character in @a s to use; defaults
+     *  @param  position  Index of the first character in @a s to use; defaults
      *               to zero.
      *  @throw  std::out_of_range  If @a pos is bigger the size of @a s.
      *  @throw  std::invalid_argument  If a character appears in the string
@@ -741,19 +705,19 @@ namespace std
     */
     template<class _CharT, class _Traits, class _Alloc>
       explicit bitset(const basic_string<_CharT, _Traits, _Alloc>& __s,
-		      size_t __pos = 0) : _Base()
+		      size_t __position = 0) : _Base()
       {
-	if (__pos > __s.size())
-	  __throw_out_of_range("bitset -- initial position is larger than "
-	                       "the string itself");
-	_M_copy_from_string(__s, __pos,
+	if (__position > __s.size())
+	  __throw_out_of_range(__N("bitset::bitset initial position "
+				   "not valid"));
+	_M_copy_from_string(__s, __position,
 			    basic_string<_CharT, _Traits, _Alloc>::npos);
       }
 
     /**
      *  @brief  Use a subset of a string.
      *  @param  s  A string of '0' and '1' characters.
-     *  @param  pos  Index of the first character in @a s to use.
+     *  @param  position  Index of the first character in @a s to use.
      *  @param  n    The number of characters to copy.
      *  @throw  std::out_of_range  If @a pos is bigger the size of @a s.
      *  @throw  std::invalid_argument  If a character appears in the string
@@ -761,12 +725,12 @@ namespace std
     */
     template<class _CharT, class _Traits, class _Alloc>
       bitset(const basic_string<_CharT, _Traits, _Alloc>& __s,
-	     size_t __pos, size_t __n) : _Base()
+	     size_t __position, size_t __n) : _Base()
       {
-	if (__pos > __s.size())
-	  __throw_out_of_range("bitset -- initial position is larger than "
-	                       "the string itself");
-	_M_copy_from_string(__s, __pos, __n);
+	if (__position > __s.size())
+	 __throw_out_of_range(__N("bitset::bitset initial position "
+				  "not valid"));
+	_M_copy_from_string(__s, __position, __n);
       }
 
     // 23.3.5.2 bitset operations:
@@ -802,16 +766,16 @@ namespace std
     //@{
     /**
      *  @brief  Operations on bitsets.
-     *  @param  pos  The number of places to shift.
+     *  @param  position  The number of places to shift.
      *
      *  These should be self-explanatory.
     */
     bitset<_Nb>&
-    operator<<=(size_t __pos)
+    operator<<=(size_t __position)
     {
-      if (__builtin_expect(__pos < _Nb, 1))
+      if (__builtin_expect(__position < _Nb, 1))
         {
-          this->_M_do_left_shift(__pos);
+          this->_M_do_left_shift(__position);
           this->_M_do_sanitize();
         }
       else
@@ -820,11 +784,11 @@ namespace std
     }
 
     bitset<_Nb>&
-    operator>>=(size_t __pos)
+    operator>>=(size_t __position)
     {
-      if (__builtin_expect(__pos < _Nb, 1))
+      if (__builtin_expect(__position < _Nb, 1))
         {
-          this->_M_do_right_shift(__pos);
+          this->_M_do_right_shift(__position);
           this->_M_do_sanitize();
         }
       else
@@ -892,16 +856,16 @@ namespace std
 
     /**
      *  @brief Sets a given bit to a particular value.
-     *  @param  pos  The index of the bit.
+     *  @param  position  The index of the bit.
      *  @param  val  Either true or false, defaults to true.
      *  @throw  std::out_of_range  If @a pos is bigger the size of the %set.
     */
     bitset<_Nb>&
-    set(size_t __pos, bool __val = true)
+    set(size_t __position, bool __val = true)
     {
-      if (__pos >= _Nb)
-	__throw_out_of_range("bitset -- set() argument too large");
-      return _Unchecked_set(__pos, __val);
+      if (__position >= _Nb)
+	__throw_out_of_range(__N("bitset::set"));
+      return _Unchecked_set(__position, __val);
     }
 
     /**
@@ -916,17 +880,17 @@ namespace std
 
     /**
      *  @brief Sets a given bit to false.
-     *  @param  pos  The index of the bit.
+     *  @param  position  The index of the bit.
      *  @throw  std::out_of_range  If @a pos is bigger the size of the %set.
      *
      *  Same as writing @c set(pos,false).
     */
     bitset<_Nb>&
-    reset(size_t __pos)
+    reset(size_t __position)
     {
-      if (__pos >= _Nb)
-	__throw_out_of_range("bitset -- reset() argument too large");
-      return _Unchecked_reset(__pos);
+      if (__position >= _Nb)
+	__throw_out_of_range(__N("bitset::reset"));
+      return _Unchecked_reset(__position);
     }
 
     /**
@@ -942,15 +906,15 @@ namespace std
 
     /**
      *  @brief Toggles a given bit to its opposite value.
-     *  @param  pos  The index of the bit.
+     *  @param  position  The index of the bit.
      *  @throw  std::out_of_range  If @a pos is bigger the size of the %set.
     */
     bitset<_Nb>&
-    flip(size_t __pos)
+    flip(size_t __position)
     {
-      if (__pos >= _Nb)
-	__throw_out_of_range("bitset -- flip() argument too large");
-      return _Unchecked_flip(__pos);
+      if (__position >= _Nb)
+	__throw_out_of_range(__N("bitset::flip"));
+      return _Unchecked_flip(__position);
     }
 
     /// See the no-argument flip().
@@ -960,14 +924,14 @@ namespace std
     //@{
     /**
      *  @brief  Array-indexing support.
-     *  @param  pos  Index into the %bitset.
+     *  @param  position  Index into the %bitset.
      *  @return  A bool for a 'const %bitset'.  For non-const bitsets, an
      *           instance of the reference proxy class.
      *  @note  These operators do no range checking and throw no exceptions,
      *         as required by DR 11 to the standard.
      *
      *  @if maint
-     *  _GLIBCPP_RESOLVE_LIB_DEFECTS Note that this implementation already
+     *  _GLIBCXX_RESOLVE_LIB_DEFECTS Note that this implementation already
      *  resolves DR 11 (items 1 and 2), but does not do the range-checking
      *  required by that DR's resolution.  -pme
      *  The DR has since been changed:  range-checking is a precondition
@@ -975,10 +939,10 @@ namespace std
      *  @endif
     */
     reference
-    operator[](size_t __pos) { return reference(*this,__pos); }
+    operator[](size_t __position) { return reference(*this,__position); }
 
     bool
-    operator[](size_t __pos) const { return _Unchecked_test(__pos); }
+    operator[](size_t __position) const { return _Unchecked_test(__position); }
     //@}
 
     /**
@@ -1044,16 +1008,16 @@ namespace std
 
     /**
      *  @brief Tests the value of a bit.
-     *  @param  pos  The index of a bit.
+     *  @param  position  The index of a bit.
      *  @return  The value at @a pos.
      *  @throw  std::out_of_range  If @a pos is bigger the size of the %set.
     */
     bool
-    test(size_t __pos) const
+    test(size_t __position) const
     {
-      if (__pos >= _Nb)
-	__throw_out_of_range("bitset -- test() argument too large");
-      return _Unchecked_test(__pos);
+      if (__position >= _Nb)
+	__throw_out_of_range(__N("bitset::test"));
+      return _Unchecked_test(__position);
     }
 
     /**
@@ -1073,12 +1037,12 @@ namespace std
     //@{
     /// Self-explanatory.
     bitset<_Nb>
-    operator<<(size_t __pos) const
-    { return bitset<_Nb>(*this) <<= __pos; }
+    operator<<(size_t __position) const
+    { return bitset<_Nb>(*this) <<= __position; }
 
     bitset<_Nb>
-    operator>>(size_t __pos) const
-    { return bitset<_Nb>(*this) >>= __pos; }
+    operator>>(size_t __position) const
+    { return bitset<_Nb>(*this) >>= __position; }
     //@}
 
     /**
@@ -1107,10 +1071,11 @@ namespace std
   template<size_t _Nb>
     template<class _CharT, class _Traits, class _Alloc>
     void
-    bitset<_Nb>::_M_copy_from_string(const basic_string<_CharT,_Traits,_Alloc>& __s, size_t __pos, size_t __n)
+    bitset<_Nb>::_M_copy_from_string(const basic_string<_CharT, _Traits,
+				     _Alloc>& __s, size_t __pos, size_t __n)
     {
       reset();
-      const size_t __nbits = min(_Nb, min(__n, __s.size() - __pos));
+      const size_t __nbits = std::min(_Nb, std::min(__n, __s.size() - __pos));
       for (size_t __i = 0; __i < __nbits; ++__i)
 	{
 	  switch(__s[__pos + __nbits - __i - 1])
@@ -1121,8 +1086,7 @@ namespace std
 	      set(__i);
 	      break;
 	    default:
-	      __throw_invalid_argument("bitset -- string contains characters "
-	                               "which are neither 0 nor 1");
+	      __throw_invalid_argument(__N("bitset::_M_copy_from_string"));
 	    }
 	}
     }
@@ -1130,7 +1094,8 @@ namespace std
   template<size_t _Nb>
     template<class _CharT, class _Traits, class _Alloc>
     void
-    bitset<_Nb>::_M_copy_to_string(basic_string<_CharT, _Traits, _Alloc>& __s) const
+    bitset<_Nb>::_M_copy_to_string(basic_string<_CharT, _Traits,
+				   _Alloc>& __s) const
     {
       __s.assign(_Nb, '0');
       for (size_t __i = 0; __i < _Nb; ++__i)
@@ -1193,46 +1158,53 @@ namespace std
       basic_string<_CharT, _Traits> __tmp;
       __tmp.reserve(_Nb);
 
-      // Skip whitespace
+      ios_base::iostate __state = ios_base::goodbit;
       typename basic_istream<_CharT, _Traits>::sentry __sentry(__is);
       if (__sentry)
 	{
-	  ios_base::iostate  __state = ios_base::goodbit;
-	  basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
-	  for (size_t __i = 0; __i < _Nb; ++__i)
+	  try
 	    {
-	      static typename _Traits::int_type __eof = _Traits::eof();
-
-	      typename _Traits::int_type __c1 = __buf->sbumpc();
-	      if (_Traits::eq_int_type(__c1, __eof))
+	      basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
+	      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	      // 303. Bitset input operator underspecified
+	      const char_type __zero = __is.widen('0');
+	      const char_type __one = __is.widen('1');
+	      for (size_t __i = 0; __i < _Nb; ++__i)
 		{
-		  __state |= ios_base::eofbit;
-		  break;
-		}
-	      else
-		{
-		  char_type __c2 = _Traits::to_char_type(__c1);
-		  char_type __c  = __is.narrow(__c2, '*');
-
-		  if (__c == '0' || __c == '1')
-		    __tmp.push_back(__c);
-		  else if (_Traits::eq_int_type(__buf->sputbackc(__c2), __eof))
+		  static typename _Traits::int_type __eof = _Traits::eof();
+		  
+		  typename _Traits::int_type __c1 = __buf->sbumpc();
+		  if (_Traits::eq_int_type(__c1, __eof))
 		    {
-		      __state |= ios_base::failbit;
+		      __state |= ios_base::eofbit;
 		      break;
+		    }
+		  else
+		    {
+		      char_type __c2 = _Traits::to_char_type(__c1);
+		      if (__c2 == __zero)
+			__tmp.push_back('0');
+		      else if (__c2 == __one)
+			__tmp.push_back('1');
+		      else if (_Traits::eq_int_type(__buf->sputbackc(__c2),
+						    __eof))
+			{
+			  __state |= ios_base::failbit;
+			  break;
+			}
 		    }
 		}
 	    }
-
-	  if (__tmp.empty() && !_Nb)
-	    __state |= ios_base::failbit;
-	  else
-	    __x._M_copy_from_string(__tmp, static_cast<size_t>(0), _Nb);
-
-	  if (__state != ios_base::goodbit)
-	    __is.setstate(__state);    // may throw an exception
+	  catch(...)
+	    { __is._M_setstate(ios_base::badbit); }
 	}
 
+      if (__tmp.empty() && _Nb)
+	__state |= ios_base::failbit;
+      else
+	__x._M_copy_from_string(__tmp, static_cast<size_t>(0), _Nb);
+      if (__state)
+	__is.setstate(__state);
       return __is;
     }
 
@@ -1247,6 +1219,11 @@ namespace std
   //@}
 } // namespace std
 
-#undef _GLIBCPP_BITSET_WORDS
+#undef _GLIBCXX_BITSET_WORDS
+#undef _GLIBCXX_BITSET_BITS_PER_WORD
 
-#endif /* _GLIBCPP_BITSET_H */
+#ifdef _GLIBCXX_DEBUG
+# include <debug/bitset>
+#endif
+
+#endif /* _GLIBCXX_BITSET */
