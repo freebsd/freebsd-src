@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -58,27 +57,18 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux_util.h>
 
-static int
-newstat_copyout(struct stat *buf, void *ubuf)
+/*
+ * XXX: This was removed from newstat_copyout(), and almost identical
+ * XXX: code was in stat64_copyout().  findcdev() needs to be replaced
+ * XXX: with something that does lookup and locking properly.
+ * XXX: When somebody fixes this: please try to avoid duplicating it.
+ */
+#if 0
+static void
+disk_foo(struct somestat *tbuf)
 {
-	struct l_newstat tbuf;
 	struct cdevsw *cdevsw;
 	struct cdev *dev;
-
-	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
-	tbuf.st_ino = buf->st_ino;
-	tbuf.st_mode = buf->st_mode;
-	tbuf.st_nlink = buf->st_nlink;
-	tbuf.st_uid = buf->st_uid;
-	tbuf.st_gid = buf->st_gid;
-	tbuf.st_rdev = buf->st_rdev;
-	tbuf.st_size = buf->st_size;
-	tbuf.st_atime = buf->st_atime;
-	tbuf.st_mtime = buf->st_mtime;
-	tbuf.st_ctime = buf->st_ctime;
-	tbuf.st_blksize = buf->st_blksize;
-	tbuf.st_blocks = buf->st_blocks;
 
 	/* Lie about disk drives which are character devices
 	 * in FreeBSD but block devices under Linux.
@@ -99,6 +89,29 @@ newstat_copyout(struct stat *buf, void *ubuf)
 			dev_relthread(dev);
 		}
 	}
+
+}
+#endif
+
+static int
+newstat_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_newstat tbuf;
+
+	bzero(&tbuf, sizeof(tbuf));
+	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
+	tbuf.st_ino = buf->st_ino;
+	tbuf.st_mode = buf->st_mode;
+	tbuf.st_nlink = buf->st_nlink;
+	tbuf.st_uid = buf->st_uid;
+	tbuf.st_gid = buf->st_gid;
+	tbuf.st_rdev = buf->st_rdev;
+	tbuf.st_size = buf->st_size;
+	tbuf.st_atime = buf->st_atime;
+	tbuf.st_mtime = buf->st_mtime;
+	tbuf.st_ctime = buf->st_ctime;
+	tbuf.st_blksize = buf->st_blksize;
+	tbuf.st_blocks = buf->st_blocks;
 
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
 }
@@ -347,8 +360,6 @@ static int
 stat64_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_stat64 lbuf;
-	struct cdevsw *cdevsw;
-	struct cdev *dev;
 
 	bzero(&lbuf, sizeof(lbuf));
 	lbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
@@ -364,26 +375,6 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	lbuf.st_ctime = buf->st_ctime;
 	lbuf.st_blksize = buf->st_blksize;
 	lbuf.st_blocks = buf->st_blocks;
-
-	/* Lie about disk drives which are character devices
-	 * in FreeBSD but block devices under Linux.
-	 */
-	if (S_ISCHR(lbuf.st_mode) &&
-	    (dev = findcdev(buf->st_rdev)) != NULL) {
-		cdevsw = dev_refthread(dev);
-		if (cdevsw != NULL) {
-			if (cdevsw->d_flags & D_DISK) {
-				lbuf.st_mode &= ~S_IFMT;
-				lbuf.st_mode |= S_IFBLK;
-
-				/* XXX this may not be quite right */
-				/* Map major number to 0 */
-				lbuf.st_dev = uminor(buf->st_dev) & 0xf;
-				lbuf.st_rdev = buf->st_rdev & 0xff;
-			}
-			dev_relthread(dev);
-		}
-	}
 
 	/*
 	 * The __st_ino field makes all the difference. In the Linux kernel
