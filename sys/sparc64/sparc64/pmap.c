@@ -1022,11 +1022,10 @@ pmap_pinit(pmap_t pm)
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
-		m = vm_page_grab(pm->pm_tsb_obj, i,
+		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
 		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 
 		vm_page_lock_queues();
-		vm_page_flag_clear(m, PG_BUSY);
 		m->valid = VM_PAGE_BITS_ALL;
 		m->md.pmap = pm;
 		vm_page_unlock_queues();
@@ -1087,7 +1086,6 @@ pmap_release(pmap_t pm)
 		vm_page_lock_queues();
 		if (vm_page_sleep_if_busy(m, FALSE, "pmaprl"))
 			continue;
-		vm_page_busy(m);
 		KASSERT(m->hold_count == 0,
 		    ("pmap_release: freeing held tsb page"));
 		m->md.pmap = NULL;
@@ -1471,7 +1469,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	if (dst_addr != src_addr)
 		return;
 	vm_page_lock_queues();
-	PMAP_LOCK(dst_pmap);
+	if (dst_pmap < src_pmap) {
+		PMAP_LOCK(dst_pmap);
+		PMAP_LOCK(src_pmap);
+	} else {
+		PMAP_LOCK(src_pmap);
+		PMAP_LOCK(dst_pmap);
+	}
 	if (len > PMAP_TSB_THRESH) {
 		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len,
 		    pmap_copy_tte);
@@ -1484,6 +1488,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }
 
