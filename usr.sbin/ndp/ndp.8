@@ -135,6 +135,17 @@ which means the flag should be cleared.
 turn on or off NUD (Neighbor Unreachability Detection) on the
 interface.
 NUD is usually turned on by default.
+.It Xo
+.Ic accept_rtadv
+.Xc
+Specify whether or not to accept Router Advertisement messages
+received on the
+.Ar interface .
+Note that the kernel does not accept Router Advertisement messages
+unless the
+.Li net.inet6.ip6.accept_rtadv
+variable is non-0, even if the flag is on.
+This flag is set to 1 by default.
 .El
 .It Fl n
 Do not try to resolve numeric address to hostname.
