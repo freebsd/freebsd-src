@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.35 1997/04/15 08:05:08 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.36 1997/08/25 10:26:18 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1031,7 +1031,8 @@ vop_t **cd9660_vnodeop_p;
 struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 
 	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)cd9660_lookup },	/* lookup */
+	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
+	{ &vop_cachedlookup_desc, (vop_t *)cd9660_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)cd9660_create },	/* create */
 	{ &vop_mknod_desc, (vop_t *)cd9660_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)cd9660_open },	/* open */

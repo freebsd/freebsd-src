@@ -84,7 +84,8 @@ static int ext2_write __P((struct vop_write_args *));
 vop_t **ext2_vnodeop_p;
 static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)ext2_lookup },	/* lookup */
+	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
+	{ &vop_cachedlookup_desc, (vop_t *)ext2_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
 	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)ufs_open },		/* open */

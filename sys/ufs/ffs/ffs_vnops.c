@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.25 1997/03/22 06:53:30 bde Exp $
+ * $Id: ffs_vnops.c,v 1.26 1997/08/25 08:18:23 kato Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,8 @@ static int	ffs_write __P((struct vop_write_args *));
 vop_t **ffs_vnodeop_p;
 static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)ufs_lookup },	/* lookup */
+	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },/* lookup */
+	{ &vop_cachedlookup_desc, (vop_t *)ufs_lookup },/* cachedlookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
 	{ &vop_whiteout_desc, (vop_t *)ufs_whiteout },	/* whiteout */
 	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
