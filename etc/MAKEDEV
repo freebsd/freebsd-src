@@ -457,15 +457,13 @@ fd*)
 
 		mknod ${name}${unit}.1720  c $chr `expr $unit '*' 64 + 1` \
 		    root:operator
-		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1` \
-		    root:operator
+		ln -f ${name}${unit}.1720 r${name}${unit}.1720
 		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
 		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
 
 		mknod ${name}${unit}.1480  c $chr `expr $unit '*' 64 + 2` \
 		    root:operator
-		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2` \
-		    root:operator
+		ln -f ${name}${unit}.1480 r${name}${unit}.1480
 		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
 		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
@@ -473,8 +471,7 @@ fd*)
 
 		mknod ${name}${unit}.1440  c $chr `expr $unit '*' 64 + 3` \
 		    root:operator
-		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3` \
-		    root:operator
+		ln -f ${name}${unit}.1440 r${name}${unit}.1440
 		# ln -f ${name}${unit}.1440 ${name}${unit}135
 		# ln -f r${name}${unit}.1440 r${name}${unit}135
 		# ln -f ${name}${unit}.1440 ${name}${unit}135ds18
@@ -484,8 +481,7 @@ fd*)
 
 		mknod ${name}${unit}.1200  c $chr `expr $unit '*' 64 + 4` \
 		    root:operator
-		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4` \
-		    root:operator
+		ln -f ${name}${unit}.1200 r${name}${unit}.1200
 		# ln -f ${name}${unit}.1200 ${name}${unit}96
 		# ln -f r${name}${unit}.1200 r${name}${unit}96
 		# ln -f ${name}${unit}.1200 ${name}${unit}96ds15
@@ -495,8 +491,7 @@ fd*)
 
 		mknod ${name}${unit}.820  c $chr `expr $unit '*' 64 + 5` \
 		    root:operator
-		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5` \
-		    root:operator
+		ln -f ${name}${unit}.820 r${name}${unit}.820
 		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
 		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
@@ -504,8 +499,7 @@ fd*)
 
 		mknod ${name}${unit}.800  c $chr `expr $unit '*' 64 + 6` \
 		    root:operator
-		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6` \
-		    root:operator
+		ln -f ${name}${unit}.800 r${name}${unit}.800
 		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
 		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
@@ -513,8 +507,7 @@ fd*)
 
 		mknod ${name}${unit}.720  c $chr `expr $unit '*' 64 + 7` \
 		    root:operator
-		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7` \
-		    root:operator
+		ln -f ${name}${unit}.720 r${name}${unit}.720
 		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
 		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
@@ -522,8 +515,7 @@ fd*)
 
 		mknod ${name}${unit}.360  c $chr `expr $unit '*' 64 + 8` \
 		    root:operator
-		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8` \
-		    root:operator
+		ln -f ${name}${unit}.360 r${name}${unit}.360
 		# ln -f ${name}${unit}.360 ${name}${unit}48
 		# ln -f r${name}${unit}.360 r${name}${unit}48
 		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
@@ -531,8 +523,7 @@ fd*)
 
 		mknod ${name}${unit}.640  c $chr `expr $unit '*' 64 + 9` \
 		    root:operator
-		mknod r${name}${unit}.640 c $chr `expr $unit '*' 64 + 9` \
-		    root:operator
+		ln -f ${name}${unit}.640 r${name}${unit}.640
 		# ln -f ${name}${unit}.640 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.640 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
@@ -540,8 +531,7 @@ fd*)
 
 		mknod ${name}${unit}.1232  c $chr `expr $unit '*' 64 + 10` \
 		    root:operator
-		mknod r${name}${unit}.1232 c $chr `expr $unit '*' 64 + 10` \
-		    root:operator
+		ln -f ${name}${unit}.1232 r${name}${unit}.1232
 		# ln -f ${name}${unit}.1232 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.1232 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.1232 ${name}${unit}135ds8
@@ -606,7 +596,7 @@ ccd*)
 			minor=`dkminor 0 $unit 0 $part`
 			partname=`dkitop $part`
 			mknod  $name$unit$partname c $chr $minor root:operator
-			mknod r$name$unit$partname c $chr $minor root:operator
+			ln -f $name$unit$partname r$name$unit$partname
 		done
 		;;
 	*)
@@ -810,8 +800,8 @@ acd*|cd*|mcd*|scd*)
 			rm -rf ${dname}* r${dname}*
 			mknod ${dname}a c $chr $(($i * 8)) root:operator
 			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
-			mknod r${dname}a c $chr $(($i * 8)) root:operator
-			mknod r${dname}c c $chr $(($i * 8 + 2)) root:operator
+			ln -f ${dname}a r${dname}a
+			ln -f ${dname}c r${dname}c
 			i=$(($i + 1))
 		done
 	else
@@ -831,20 +821,16 @@ matcd*)
 		    root:operator
 		mknod ${name}${unit}c   c $chr `expr $unit '*' 8 + 2` \
 		    root:operator
-		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0` \
-		    root:operator
-		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2` \
-		    root:operator
+		ln -f ${name}${unit}a r${name}${unit}a
+		ln -f ${name}${unit}c r${name}${unit}c
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 
 		mknod ${name}${unit}la  c $chr `expr $unit '*' 8 + 128` \
 		    root:operator
 		mknod ${name}${unit}lc  c $chr `expr $unit '*' 8 + 130` \
 		    root:operator
-		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128` \
-		    root:operator
-		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130` \
-		    root:operator
+		ln -f ${name}${unit}la r${name}${unit}la
+		ln -f ${name}${unit}lc r${name}${unit}lc
 		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		;;
 	*)
@@ -861,9 +847,9 @@ wcd*)
 	case $unit in
 	0|1|2|3|4|5|6|7)
 		mknod wcd${unit}a  c $chr `expr $unit '*' 8 + 0` root:operator
-		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0` root:operator
 		mknod wcd${unit}c  c $chr `expr $unit '*' 8 + 2` root:operator
-		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2` root:operator
+		ln -f wcd${unit}a rwcd${unit}a
+		ln -f wcd${unit}c rwcd${unit}c
 		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
