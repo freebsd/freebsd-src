@@ -1,5 +1,5 @@
 %{
-/* $Revision: 1.5 $
+/* $FreeBSD$
 **
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
