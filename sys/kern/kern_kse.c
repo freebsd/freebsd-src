@@ -1185,7 +1185,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * but for now do it every time.
 	 */
 	ke = td->td_kse;
-	if ((ke->ke_mailbox) != NULL) {
+	if (ke->ke_mailbox != NULL) {
 #if 0
 		td->td_mailbox = (void *)fuword((caddr_t)ke->ke_mailbox
 		    + offsetof(struct kse_mailbox, km_curthread));
