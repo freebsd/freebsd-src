@@ -848,7 +848,7 @@ linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
 	   return (error);
    /* We simply copy the data and send it right to ioctl */
    copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));
-   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, td);
+   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, td->td_ucred, td);
    fdrop(fp, td);
    return error;
 }

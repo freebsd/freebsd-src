@@ -203,7 +203,8 @@ ibcs2_open(td, uap)
 
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)
-			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td->td_ucred,
+			    td);
 		fdrop(fp, td);
 	} else
 		PROC_UNLOCK(p);

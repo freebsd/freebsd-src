@@ -2535,7 +2535,7 @@ aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	/*
 	 * Pass the ioctl off to our standard handler.
 	 */
-	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td));
+	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td->td_ucred, td));
 	fdrop(fp, td);
 	return (error);
 }

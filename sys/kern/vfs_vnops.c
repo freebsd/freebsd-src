@@ -65,7 +65,7 @@
 
 static int vn_closefile(struct file *fp, struct thread *td);
 static int vn_ioctl(struct file *fp, u_long com, void *data, 
-		struct thread *td);
+		struct ucred *active_cred, struct thread *td);
 static int vn_read(struct file *fp, struct uio *uio, 
 		struct ucred *active_cred, int flags, struct thread *td);
 static int vn_poll(struct file *fp, int events, struct ucred *active_cred,
@@ -721,10 +721,11 @@ vn_stat(vp, sb, active_cred, file_cred, td)
  * File table vnode ioctl routine.
  */
 static int
-vn_ioctl(fp, com, data, td)
+vn_ioctl(fp, com, data, active_cred, td)
 	struct file *fp;
 	u_long com;
 	void *data;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	register struct vnode *vp = ((struct vnode *)fp->f_data);
@@ -738,7 +739,7 @@ vn_ioctl(fp, com, data, td)
 	case VDIR:
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-			error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+			error = VOP_GETATTR(vp, &vattr, active_cred, td);
 			VOP_UNLOCK(vp, 0, td);
 			if (error)
 				return (error);
@@ -762,7 +763,7 @@ vn_ioctl(fp, com, data, td)
 			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
 			return (0);
 		}
-		error = VOP_IOCTL(vp, com, data, fp->f_flag, td->td_ucred, td);
+		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
 		if (error == 0 && com == TIOCSCTTY) {
 
 			/* Do nothing if reassigning same control tty */
