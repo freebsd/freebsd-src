@@ -860,9 +860,6 @@ static void pcn_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
@@ -899,13 +896,14 @@ static void pcn_txeof(sc)
 
 		sc->pcn_cdata.pcn_tx_cnt--;
 		PCN_INC(idx, PCN_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
-	sc->pcn_cdata.pcn_tx_cons = idx;
-
-	if (cur_tx != NULL)
+	if (idx != sc->pcn_cdata.pcn_tx_cons) {
+		/* Some buffers have been freed. */
+		sc->pcn_cdata.pcn_tx_cons = idx;
 		ifp->if_flags &= ~IFF_OACTIVE;
+	}
+	ifp->if_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
