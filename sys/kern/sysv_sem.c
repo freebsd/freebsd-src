@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.20 1997/11/06 19:29:24 phk Exp $ */
+/*	$Id: sysv_sem.c,v 1.21 1998/03/30 09:50:41 phk Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -276,7 +276,7 @@ semundo_adjust(p, supptr, semid, semnum, adjval)
 	/* Didn't find the right entry - create it */
 	if (adjval == 0)
 		return(0);
-	if (suptr->un_cnt != SEMUME) {
+	if (suptr->un_cnt != seminfo.semume) {
 		sunptr = &suptr->un_ent[suptr->un_cnt];
 		suptr->un_cnt++;
 		sunptr->un_adjval = adjval;

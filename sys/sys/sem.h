@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.14 1998/05/31 04:09:09 steve Exp $ */
+/* $Id: sem.h,v 1.15 1998/07/15 02:32:32 bde Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -141,7 +141,7 @@ extern struct seminfo	seminfo;
 #endif
 
 /* actual size of an undo structure */
-#define SEMUSZ	(sizeof(struct sem_undo)+sizeof(struct undo)*SEMUME)
+#define SEMUSZ	(offsetof(struct sem_undo, un_ent[SEMUME]))
 
 extern struct semid_ds *sema;	/* semaphore id pool */
 extern struct sem *sem;		/* semaphore pool */
@@ -150,7 +150,7 @@ extern int	*semu;		/* undo structure pool */
 /*
  * Macro to find a particular sem_undo vector
  */
-#define SEMU(ix)	((struct sem_undo *)(((intptr_t)semu)+ix * SEMUSZ))
+#define SEMU(ix)	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
 
 /*
  * Process sem_undo vectors at proc exit.
