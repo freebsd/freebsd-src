@@ -1,0 +1,207 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: ypxfr.8,v 1.2 1995/12/25 02:54:39 wpaul Exp $
+.\"
+.Dd February 5, 1995
+.Dt YPXFR 8
+.Os
+.Sh NAME
+.Nm ypxfr
+.Nd "transfer NIS database from remote server to local host"
+.Sh SYNOPSIS
+.Nm ypxfr
+.Op Fl f
+.Op Fl c
+.Op Fl d Ar target domain
+.Op Fl h Ar source host
+.Op Fl s Ar source domain
+.Op Fl p Ar path
+.Op Fl C Ar taskid program-number ipaddr port
+.Ar mapname
+.Sh DESCRIPTION
+.Nm ypxfr
+copies an NIS database (or
+.Pa map )
+from one NIS server to another using NIS services. In FreeBSD,
+.Nm ypxfr
+is generally invoked by
+.Xr ypserv 8
+when it receives a map transfer request from
+.Xr yppush 8 .
+.Nm ypxfr
+is used primarily in environments where several NIS servers
+are in use in a single domain. One server, the NIS master, maintains
+the canonical copies of all NIS maps, and all the other servers,
+the NIS slaves, copy new versions of the maps from the master whenever
+any updates are made (i.e. when a user updates their password via
+.Xr yppasswd 1
+).
+.Pp
+When run,
+.Nm ypxfr
+creates a temporary database file in
+.Pa /var/yp/[domainmame] ,
+and fills it with the contents of
+.Ar mapname
+as supplied by the specified
+.Ar source host .
+When the entire map has been transfered,
+.Nm ypxfr
+deletes the original copy of
+.Ar mapname
+and moves the temporary copy into its place. When the transfer is
+complete,
+.Nm ypxfr
+will attempt to send a 'clear current map' request to the local
+.Xr ypserv 8
+process to clear any possible references it may still have to the
+stale map.
+.Pp
+Note that all files created by
+.Nm ypxfr
+are owner readable and writable only for security reasons. Since the
+NIS maps and the directory in which they reside are normally owned by
+root, this prevents non-privleged users from making unauthorized
+modifications.
+.Pp
+In order to maintain consistency across all NIS servers,
+.Nm ypxfr
+can be run periodically in a
+.Xr cron 8
+job. Maps which change infrequently
+need only be updated once a day (preferably late at night when system
+usage is lowest), whereas those that are subject to frequent changes
+(such a
+.Pa passwd.byname
+and
+.Pa passwd.byuid )
+should be updated perhaps once every hour. Using
+.Xr cron 8
+to automatically
+update the NIS maps is not strictly mandatory since all updates should
+be propagated by
+.Xr yppush 8
+when
+.Pa /var/yp/Makefile
+is run on the NIS master server, however it is good practice
+on large networks where possible outages could cause NIS servers to
+fall out of sync with each other.
+.Pp
+When
+.Nm ypxfr
+is invoked without a controlling terminal, e.g. from inside
+.Xr ypserv 8 ,
+it logs all its output using the
+.Xr syslog 3
+facility.
+.Sh OPTIONS
+The following options and flags are supported by
+.Nm ypxfr :
+.Bl -tag -width flag
+.It Fl f
+Force a map transfer. Normally,
+.Nm ypxfr
+will not transfer a map if it determines that the NIS master's copy
+is not newer than the existing copy already on the local host: the
+.Fl f
+flag forces a transfer regardless of which server's version is more recent.
+.It Fl c
+Do not send a 'clear current map' request to the
+.Xr ypserv 8
+process running on the local host. This flag is normally used when
+invoking
+.Nm ypxfr
+manually on a machine that is not yet running
+.Xr ypserv 8 .
+Without this flag, failure to contact the local NIS server will cause
+.Nm ypxfr
+to abort the transfer.
+.It Fl d Ar target domain
+Specify a target domain other than the current NIS domain.
+.It Fl h Ar source host
+Specify the name of the host from which to copy the NIS maps. This option
+is used to insure that
+.Nm ypxfr
+only copies maps from the NIS master server.
+.It Fl s Ar source domain
+Specify the domain from which to transfer a map, in the event that
+the transfer is being done across two different NIS domains.
+.It Fl p Ar path
+Specify the top level directory containing the NIS maps. By
+default, this path is
+.Pa /var/yp .
+The
+.Fl p
+flag allows you to specify an alternate path should you wish to
+store your NIS maps in a different part of the filesystem. The
+NIS server,
+.Xr ypserv 8 ,
+passes this flag to
+.Nm ypxfr
+if it too has been told to use an alternate path.
+.It Fl C Ar taskid program-number ipaddr port
+These options are used only when
+.Nm ypxfr
+is invoked by
+.Xr ypserv 8
+in response to a map transfer request initiated by
+.Xr yppush 8 .
+In this instance,
+.Nm ypxfr
+needs to 'callback' to the
+.Xr yppush 8
+process and interact with it, so
+.Xr yppush 8
+passes to it an IP address
+.Ar ipaddr ,
+port number
+.Ar port ,
+registered program number
+.Ar program-number
+and a transaction ID
+.Ar taskid
+that it can use to contact the waiting
+.Xr yppush 8
+process on the master server.
+.It Ar mapname
+The name of the map to transfer.
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/[domainname]/[maps]
+The NIS maps for a particular NIS domain.
+.El
+.Sh SEE ALSO
+.Xr ypserv 8 ,
+.Xr yppush 8 ,
+.Xr yp 4
+.Sh AUTHOR
+Bill Paul <wpaul@ctr.columbia.edu>
