@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.14 1996/08/19 18:52:49 julian Exp $";
+	"$Id: route.c,v 1.15 1996/09/14 02:59:46 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -186,6 +186,7 @@ main(argc, argv)
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (s < 0)
 		err(EX_OSERR, "socket");
+	setuid(uid);
 	if (*argv)
 		switch (keyword(*argv)) {
 		case K_GET:
@@ -322,7 +323,7 @@ routename(sa)
 	struct sockaddr *sa;
 {
 	register char *cp;
-	static char line[50];
+	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
@@ -333,9 +334,10 @@ routename(sa)
 	if (first) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
+		    (cp = index(domain, '.'))) {
+			domain[MAXHOSTNAMELEN] = '\0';
 			(void) strcpy(domain, cp + 1);
-		else
+		} else
 			domain[0] = 0;
 	}
 
@@ -361,7 +363,7 @@ routename(sa)
 			}
 		}
 		if (cp)
-			strcpy(line, cp);
+			strncpy(line, cp, sizeof line);
 		else {
 			/* XXX - why not inet_ntoa()? */
 #define C(x)	(unsigned)((x) & 0xff)
@@ -387,7 +389,7 @@ routename(sa)
 
 #ifdef ISO
 	case AF_ISO:
-		(void) sprintf(line, "iso %s",
+		(void) snprintf(line, sizeof line, "iso %s",
 		    iso_ntoa(&((struct sockaddr_iso *)sa)->siso_addr));
 		break;
 #endif
@@ -395,9 +397,10 @@ routename(sa)
 	    {	u_short *s = (u_short *)sa;
 		u_short *slim = s + ((sa->sa_len + 1) >> 1);
 		char *cp = line + sprintf(line, "(%d)", sa->sa_family);
+		char *cpe = line + sizeof(line);
 
-		while (++s < slim) /* start with sa->sa_data */
-			cp += sprintf(cp, " %x", *s);
+		while (++s < slim && cp < cpe) /* start with sa->sa_data */
+			cp += snprintf(cp, cpe - cp, " %x", *s);
 		break;
 	    }
 	}
@@ -413,7 +416,7 @@ netname(sa)
 	struct sockaddr *sa;
 {
 	char *cp = 0;
-	static char line[50];
+	static char line[MAXHOSTNAMELEN + 1];
 	struct netent *np = 0;
 	u_long net, mask;
 	register u_long i;
@@ -458,7 +461,7 @@ netname(sa)
 				cp = np->n_name;
 		}
 		if (cp)
-			strcpy(line, cp);
+			strncpy(line, cp, sizeof(line));
 		else if ((in.s_addr & 0xffffff) == 0)
 			(void) sprintf(line, "%u", C(in.s_addr >> 24));
 		else if ((in.s_addr & 0xffff) == 0)
@@ -490,7 +493,7 @@ netname(sa)
 
 #ifdef ISO
 	case AF_ISO:
-		(void) sprintf(line, "iso %s",
+		(void) snprintf(line, sizeof(line), "iso %s",
 		    iso_ntoa(&((struct sockaddr_iso *)sa)->siso_addr));
 		break;
 #endif
@@ -499,9 +502,10 @@ netname(sa)
 	    {	u_short *s = (u_short *)sa->sa_data;
 		u_short *slim = s + ((sa->sa_len + 1)>>1);
 		char *cp = line + sprintf(line, "af %d:", sa->sa_family);
+		char *cpe = line + sizeof(line);
 
-		while (s < slim)
-			cp += sprintf(cp, " %x", *s++);
+		while (s < slim && cp < cpe)
+			cp += snprintf(cp, cpe - cp, " %x", *s++);
 		break;
 	    }
 	}
@@ -973,7 +977,8 @@ getaddr(which, s, hpp)
 		}
 	}
 	if ((val = inet_network(s)) != INADDR_NONE ||
-	    ((np = getnetbyname(s)) != NULL && (val = np->n_net) != 0)) {
+	    (forcehost == 0 && (np = getnetbyname(s)) != NULL &&
+		    (val = np->n_net) != 0)) {
 netdone:
 		if (which == RTA_DST)
 			inet_makenetandmask(val, &su->sin);
