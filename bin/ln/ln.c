@@ -133,7 +133,7 @@ linkit(target, source, isdir)
 	}
 
 	/* If the source is a directory, append the target's name. */
-	if (isdir || (exists = !stat(source, &sb)) && S_ISDIR(sb.st_mode)) {
+	if (isdir || ((exists = !stat(source, &sb)) && S_ISDIR(sb.st_mode))) {
 		if ((p = strrchr(target, '/')) == NULL)
 			p = target;
 		else
@@ -148,7 +148,7 @@ linkit(target, source, isdir)
 	 * If the file exists, and -f was specified, unlink it.
 	 * Attempt the link.
 	 */
-	if (fflag && exists && unlink(source) || (*linkf)(target, source)) {
+	if (fflag && exists && (unlink(source) || (*linkf)(target, source))) {
 		warn("%s", source);
 		return (1);
 	}
