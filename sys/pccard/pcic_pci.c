@@ -667,6 +667,27 @@ pcic_pci_probe(device_t dev)
 	return (0);
 }
 
+static void
+pcic_pci_shutdown(device_t dev)
+{
+	struct pcic_softc *sc;
+	struct pcic_slot *sp;
+		
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	sp = &sc->slots[0];
+
+	/*
+	 * Turn off the power to the slot before we do anything
+	 * with it.
+	 */
+	sp->putb(sp, PCIC_INT_GEN, 0);
+	sp->putb(sp, PCIC_POWER, 0);
+
+	/* Ack any pending interrupts */
+	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+	sp->getb(sp, PCIC_STAT_CHG);
+}
+
 /*
  * General PCI based card dispatch routine.  Right now
  * it only understands the Ricoh, CL-PD6832 and TI parts.  It does
@@ -744,17 +765,8 @@ pcic_pci_attach(device_t dev)
 	sc->csc_route = pcic_intr_path;
 	sc->func_route = pcic_intr_path;
 
-	/*
-	 * Turn off the power to the slot before we do anything
-	 * with it.
-	 */
-	sp->putb(sp, PCIC_INT_GEN, 0);
-	sp->putb(sp, PCIC_POWER, 0);
-
-	/* Ack any pending interrupts */
-	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
-	sp->getb(sp, PCIC_STAT_CHG);
-
+	pcic_pci_shutdown(dev);
+	
 	if (itm && itm->init)
 		itm->init(dev);
 	else
@@ -791,7 +803,7 @@ pcic_pci_attach(device_t dev)
 static int
 pcic_pci_detach(device_t dev)
 {
-	return (0);
+	return (EBUSY);			/* Can't detach this device */
 }
 
 /*
@@ -837,7 +849,7 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(device_detach,	pcic_pci_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_shutdown,	pcic_pci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
