@@ -1,4 +1,3 @@
-#define DEVFS_DEBUG 1
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
 #else
@@ -8,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.4 1995/05/30 08:06:55 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.5 1995/09/06 09:29:19 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -69,8 +68,8 @@
 #define DEV_SLNK 6
 
 
-extern int (**devfs_vnodeop_p)();	/* our own vector array for dirs */
-extern int (**dev_spec_vnodeop_p)();	/* our own vector array for devs */
+extern int (**devfs_vnodeop_p)(void *);	/* our own vector array for dirs */
+extern int (**dev_spec_vnodeop_p)(void *);	/* our own vector array for devs */
 
 typedef struct dev_name *devnm_p;
 typedef	struct devnode	*dn_p;
@@ -89,7 +88,7 @@ struct	devnode	/* the equivalent of an INODE */
 	struct	devfsmount *dvm; /* the mount structure for this 'plane' */
 	struct	vnode *vn;	/* address of last vnode that represented us */
 	u_long	vn_id;		/* make sure we have the right vnode */
-	int (***ops)();		/* yuk... pointer to pointer(s) to funcs */
+	int (***ops)(void *);	/* yuk... pointer to pointer(s) to funcs */
 	int	len;		/* of any associated info (e.g. dir data) */
 	union  typeinfo {
 		struct {
@@ -101,7 +100,7 @@ struct	devnode	/* the equivalent of an INODE */
 			dev_t	dev;
 		}Bdev;
 		struct {
-			int (***ops)();	 /* duplicate, used in dev_add_node */
+			int (***ops)(void *); /* duplicate, used in dev_add_node */
 			int	arg;
 		}Ddev;
 		struct {
