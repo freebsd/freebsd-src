@@ -1162,6 +1162,7 @@ struct sk_if_softc {
 	SLIST_HEAD(__sk_jinusehead, sk_jpool_entry)	sk_jinuse_listhead;
 };
 
+#define SK_MAXUNIT	256
 #define SK_TIMEOUT	1000
 #define ETHER_ALIGN	2
 
