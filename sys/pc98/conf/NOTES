@@ -467,7 +467,7 @@ device		apm
 hint.apm.0.flags="0x20"
 device		canbus
 device		canbepm
-device		cy	1
+device		cy
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		digi
 # BIOS & FEP/OS components of device digi.
