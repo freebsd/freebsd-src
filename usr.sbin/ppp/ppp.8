@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.159 1999/03/17 00:25:43 brian Exp $
+.\" $Id: ppp.8,v 1.160 1999/03/18 21:50:52 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -430,7 +430,7 @@ In the following examples, we assume that your machine name is
 when you invoke
 .Nm
 (see
-.Em PERMISSIONS
+.Sx PERMISSIONS
 above) with no arguments, you are presented with a prompt:
 .Bd -literal -offset indent
 ppp ON awfulhak>
@@ -637,7 +637,7 @@ into the background using your standard shell suspend and background
 commands (usually ^Z followed by ``bg'').
 .Pp
 Refer to the
-.Em PPP COMMAND LIST
+.Sx PPP COMMAND LIST
 section for details on all available commands.
 .Sh AUTOMATIC DIALING
 To use automatic dialing, you must prepare some Dial and Login chat scripts.
@@ -3719,7 +3719,9 @@ the case of
 .Em dial
 filters it means that the packet will not trigger a dial.  A packet failing
 to trigger a dial will be dropped rather than queued.  Refer to the
-section on PACKET FILTERING above for further details.
+section on
+.Sx PACKET FILTERING
+above for further details.
 .It set hangup Ar chat-script
 This specifies the chat script that will be used to reset the modem
 before it is closed.  It should not normally be necessary, but can
@@ -3809,7 +3811,7 @@ argument may be overridden by the third field in the
 file once the client has authenticated itself
 .Pq if PAP or CHAP are Dq enabled .
 Refer to the
-.Em AUTHENTICATING INCOMING CONNECTIONS
+.Sx AUTHENTICATING INCOMING CONNECTIONS
 section for details.
 .Pp
 In all cases, if the interface is already configured,
@@ -4246,7 +4248,7 @@ above).
 .It set timeout Ar idleseconds
 This command allows the setting of the idle timer.  Refer to the
 section titled
-.Dq SETTING THE IDLE TIMER
+.Sx SETTING THE IDLE TIMER
 for further details.
 .It set vj slotcomp on|off
 This command tells
