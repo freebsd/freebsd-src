@@ -98,7 +98,7 @@ static struct mbtypenames {
 void
 mbpr()
 {
-	register int totmem, totfree, totmbufs;
+	u_long totmem, totpossible, totmbufs;
 	register int i;
 	struct mbtypenames *mp;
 	int name[3], nmbclusters, nmbufs, nmbtypes;
@@ -159,7 +159,7 @@ mbpr()
 	totmbufs = 0;
 	for (mp = mbtypenames; mp->mt_name; mp++)
 		totmbufs += mbtypes[mp->mt_type];
-	printf("%u/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
+	printf("%lu/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
 	    mbstat.m_mbufs, nmbufs);
 	for (mp = mbtypenames; mp->mt_name; mp++)
 		if (mbtypes[mp->mt_type]) {
@@ -177,10 +177,9 @@ mbpr()
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
 		nmbclusters);
 	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
-	totfree = mbstat.m_clfree * MCLBYTES + 
-		MSIZE * (mbstat.m_mbufs - totmbufs);
-	printf("%u Kbytes allocated to network (%d%% in use)\n",
-		totmem / 1024, (unsigned) (totmem - totfree) * 100 / totmem);
+	totpossible = nmbclusters * MCLBYTES + MSIZE * nmbufs; 
+	printf("%lu Kbytes allocated to network (%lu%% of mb_map in use)\n",
+		totmem / 1024, (totmem * 100) / totpossible);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
 	printf("%lu requests for memory delayed\n", mbstat.m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
