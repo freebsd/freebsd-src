@@ -107,7 +107,7 @@
 .Ft void
 .Fn (*if_poll_slowinput) "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
-.Fn (*if_init) "void *wtf_is_this"
+.Fn (*if_init) "void *if_softc"
 .Ft int
 .Fn (*if_resolvemulti) "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
 .Ss "struct ifaddr member function"
@@ -336,6 +336,7 @@ does not literally mean that output is active, but rather that the
 device's internal output queue is full.)
 .It Fn if_done
 Not used.  We're not even sure what it was ever for.
+The prototype is faked.
 .It Fn if_ioctl
 Process interface-related
 .Xr ioctl 2
@@ -361,7 +362,11 @@ expires.  Usually this will reset the interface.
 .\" .Sx Polling
 .\" section, below.
 .It Fn if_init
-XXX fill me in
+Initialize and bring up the hardware,
+e.g. reset the chip and the watchdog timer and enable the receiver unit.
+Should mark the interface running,
+but not active
+.Dv ( IFF_RUNNING , ~IIF_OACTIVE ) .
 .It Fn if_resolvemulti
 Check the requested multicast group membership,
 .Ar addr ,
