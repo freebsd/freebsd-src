@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.30 2002/10/13 09:34:05 ue Exp $
-	basiert auf: 1.1.2.86
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.31 2002/10/19 09:45:52 ue Exp $
+	basiert auf: 1.1.2.87
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -174,6 +174,13 @@
       die Ports Collection installieren; nach M&ouml;glichkeit vor der
       Installation von <filename
       role="package">net/gnomeicu</filename>.</para>
+
+    <para>In den Release Notes f&uuml;r &os; &release.prev; stand
+      ein Hinweis, da&szlig; die von &man.xargs.1; verstandene
+      Option <option>-J</option> nicht mehr verwendet werden sollte,
+      weil sie in einer sp&auml;teren Version entfernt werden soll.
+      Diese Angabe ist falsch, es gibt keine Pl&auml;ne, diese
+      Option zu entfernen.</para>
 
 ]]>
   </sect1>
