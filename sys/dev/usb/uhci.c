@@ -646,6 +646,7 @@ uhci_allocx(struct usbd_bus *bus)
 		UXFER(xfer)->iinfo.sc = sc;
 		usb_init_task(&UXFER(xfer)->abort_task, uhci_timeout_task,
 		    xfer);
+		UXFER(xfer)->uhci_xfer_flags = 0;
 #ifdef DIAGNOSTIC
 		UXFER(xfer)->iinfo.isdone = 1;
 		xfer->busy_free = XFER_BUSY;
@@ -1933,7 +1934,8 @@ uhci_device_bulk_abort(usbd_xfer_handle xfer)
 void
 uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 {
-	uhci_intr_info_t *ii = &UXFER(xfer)->iinfo;
+	struct uhci_xfer *uxfer = UXFER(xfer);
+	uhci_intr_info_t *ii = &uxfer->iinfo;
 	struct uhci_pipe *upipe = (struct uhci_pipe *)xfer->pipe;
 	uhci_softc_t *sc = (uhci_softc_t *)upipe->pipe.device->bus;
 	uhci_soft_td_t *std;
@@ -1956,9 +1958,28 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		panic("uhci_abort_xfer: not in process context");
 
 	/*
+	 * If an abort is already in progress then just wait for it to
+	 * complete and return.
+	 */
+	if (uxfer->uhci_xfer_flags & UHCI_XFER_ABORTING) {
+		DPRINTFN(2, ("uhci_abort_xfer: already aborting\n"));
+		/* No need to wait if we're aborting from a timeout. */
+		if (status == USBD_TIMEOUT)
+			return;
+		/* Override the status which might be USBD_TIMEOUT. */
+		xfer->status = status;
+		DPRINTFN(2, ("uhci_abort_xfer: waiting for abort to finish\n"));
+		uxfer->uhci_xfer_flags |= UHCI_XFER_ABORTWAIT;
+		while (uxfer->uhci_xfer_flags & UHCI_XFER_ABORTING)
+			tsleep(&uxfer->uhci_xfer_flags, PZERO, "uhciaw", 0);
+		return;
+	}
+
+	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
 	 */
 	s = splusb();
+	uxfer->uhci_xfer_flags |= UHCI_XFER_ABORTING;
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, uhci_timeout, ii);
 	usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
@@ -1992,6 +2013,12 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 #ifdef DIAGNOSTIC
 	ii->isdone = 1;
 #endif
+	/* Do the wakeup first to avoid touching the xfer after the callback. */
+	uxfer->uhci_xfer_flags &= ~UHCI_XFER_ABORTING;
+	if (uxfer->uhci_xfer_flags & UHCI_XFER_ABORTWAIT) {
+		uxfer->uhci_xfer_flags &= ~UHCI_XFER_ABORTWAIT;
+		wakeup(&uxfer->uhci_xfer_flags);
+	}
 	usb_transfer_complete(xfer);
 	splx(s);
 }

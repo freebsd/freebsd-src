@@ -1179,6 +1179,7 @@ ehci_allocx(struct usbd_bus *bus)
 		memset(xfer, 0, sizeof(struct ehci_xfer));
 		usb_init_task(&EXFER(xfer)->abort_task, ehci_timeout_task,
 		    xfer);
+		EXFER(xfer)->ehci_xfer_flags = 0;
 #ifdef DIAGNOSTIC
 		EXFER(xfer)->isdone = 1;
 		xfer->busy_free = XFER_BUSY;
@@ -2519,9 +2520,28 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		panic("ehci_abort_xfer: not in process context");
 
 	/*
+	 * If an abort is already in progress then just wait for it to
+	 * complete and return.
+	 */
+	if (exfer->ehci_xfer_flags & EHCI_XFER_ABORTING) {
+		DPRINTFN(2, ("ehci_abort_xfer: already aborting\n"));
+		/* No need to wait if we're aborting from a timeout. */
+		if (status == USBD_TIMEOUT)
+			return;
+		/* Override the status which might be USBD_TIMEOUT. */
+		xfer->status = status;
+		DPRINTFN(2, ("ehci_abort_xfer: waiting for abort to finish\n"));
+		exfer->ehci_xfer_flags |= EHCI_XFER_ABORTWAIT;
+		while (exfer->ehci_xfer_flags & EHCI_XFER_ABORTING)
+			tsleep(&exfer->ehci_xfer_flags, PZERO, "ehciaw", 0);
+		return;
+	}
+
+	/*
 	 * Step 1: Make interrupt routine and timeouts ignore xfer.
 	 */
 	s = splusb();
+	exfer->ehci_xfer_flags |= EHCI_XFER_ABORTING;
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, ehci_timeout, xfer);
 	usb_rem_task(epipe->pipe.device, &exfer->abort_task);
@@ -2639,6 +2659,12 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 #ifdef DIAGNOSTIC
 	exfer->isdone = 1;
 #endif
+	/* Do the wakeup first to avoid touching the xfer after the callback. */
+	exfer->ehci_xfer_flags &= ~EHCI_XFER_ABORTING;
+	if (exfer->ehci_xfer_flags & EHCI_XFER_ABORTWAIT) {
+		exfer->ehci_xfer_flags &= ~EHCI_XFER_ABORTWAIT;
+		wakeup(&exfer->ehci_xfer_flags);
+	}
 	usb_transfer_complete(xfer);
 
 	/* printf("%s: %d TDs aborted\n", __func__, count); */
