@@ -814,10 +814,13 @@ runcom()
 	/*
 	 * Copied from single_user().  This is a bit paranoid.
 	 */
+	requested_transition = 0;
 	do {
 		if ((wpid = waitpid(-1, &status, WUNTRACED)) != -1)
 			collect_child(wpid);
 		if (wpid == -1) {
+			if (requested_transition == death)
+				return (state_func_t) death;
 			if (errno == EINTR)
 				continue;
 			warning("wait for %s on %s failed: %m; going to single user mode",
