@@ -32,18 +32,18 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.2.6.1 $"
-#endif /* sgi */
 
 #define TSPTYPES
 #include "globals.h"
@@ -92,7 +92,7 @@ static struct nets {
 struct hosttbl hosttbl[NHOSTS+1];	/* known hosts */
 
 static struct goodhost {		/* hosts that we trust */
-	char	name[MAXHOSTNAMELEN+1];
+	char	name[MAXHOSTNAMELEN];
 	struct goodhost *next;
 	char	perm;
 } *goodhosts;
@@ -113,6 +113,7 @@ double tot_ticks, hr_ticks;
 int bufspace = 60*1024;
 #endif
 
+static void usage __P((void));
 
 /*
  * The timedaemons synchronize the clocks of hosts in a local area network.
@@ -150,22 +151,12 @@ main(argc, argv)
 	struct sockaddr_in server;
 	u_short port;
 	char c;
-	extern char *optarg;
-	extern int optind, opterr;
 #ifdef sgi
 	FILE *timetrim_st;
 #endif
 
-#define	IN_MSG "timed: -i and -n make no sense together\n"
 #ifdef sgi
 	struct tms tms;
-#define USAGE "timed: [-dtM] [-i net|-n net] [-F host1 host2 ...] [-G netgp] [-P trimfile]\n"
-#else
-#ifdef HAVENIS
-#define USAGE "timed: [-dtM] [-i net|-n net] [-F host1 host2 ...] [-G netgp]\n"
-#else
-#define USAGE "timed: [-dtM] [-i net|-n net] [-F host1 host2 ...]\n"
-#endif /* HAVENIS */
 #endif /* sgi */
 
 #ifdef lint
@@ -178,7 +169,7 @@ main(argc, argv)
 
 #ifdef sgi
 	if (0 > syssgi(SGI_GETTIMETRIM, &timetrim)) {
-		perror("timed: syssgi(GETTIMETRIM)");
+		warn("syssgi(GETTIMETRIM)");
 		timetrim = 0;
 	}
 	tot_ticks = hr_ticks = times(&tms);
@@ -197,8 +188,7 @@ main(argc, argv)
 
 		case 'n':
 			if (iflag) {
-				fprintf(stderr, IN_MSG);
-				exit(1);
+				errx(1, "-i and -n make no sense together");
 			} else {
 				nflag = ON;
 				addnetname(optarg);
@@ -207,8 +197,7 @@ main(argc, argv)
 
 		case 'i':
 			if (nflag) {
-				fprintf(stderr, IN_MSG);
-				exit(1);
+				errx(1, "-i and -n make no sense together");
 			} else {
 				iflag = ON;
 				addnetname(optarg);
@@ -225,10 +214,8 @@ main(argc, argv)
 			debug = 1;
 			break;
 		case 'G':
-			if (goodgroup != 0) {
-				fprintf(stderr,"timed: only one net group\n");
-				exit(1);
-			}
+			if (goodgroup != 0)
+				errx(1, "only one net group");
 			goodgroup = optarg;
 			break;
 #ifdef sgi
@@ -237,8 +224,7 @@ main(argc, argv)
 			timetrim_st = fopen(timetrim_fn, "r+");
 			if (0 == timetrim_st) {
 				if (errno != ENOENT) {
-					(void)fprintf(stderr,"timed: ");
-					perror(timetrim_fn);
+					warn("%s", timetrim_fn);
 					timetrim_fn = 0;
 				}
 			} else {
@@ -255,13 +241,13 @@ main(argc, argv)
 				    || (i == 3
 					&& trim != rint(adj*CLK_TCK/ticks))) {
 					if (trace && i != EOF)
-						(void)fprintf(stderr,
-				    "timed: unrecognized contents in %s\n",
+						warn(
+						"unrecognized contents in %s",
 							      timetrim_fn);
 				} else {
 					if (0 > syssgi(SGI_SETTIMETRIM,
 						       trim)) {
-					 perror("timed: syssgi(SETTIMETRIM)");
+					 warn("syssgi(SETTIMETRIM)");
 					} else {
 						timetrim = trim;
 					}
@@ -276,15 +262,12 @@ main(argc, argv)
 #endif /* sgi */
 
 		default:
-			fprintf(stderr, USAGE);
-			exit(1);
+			usage();
 			break;
 		}
 	}
-	if (optind < argc) {
-		fprintf(stderr, USAGE);
-		exit(1);
-	}
+	if (optind < argc)
+		usage();
 
 	/* If we care about which machine is the master, then we must
 	 *	be willing to be a master
@@ -292,10 +275,8 @@ main(argc, argv)
 	if (0 != goodgroup || 0 != goodhosts)
 		Mflag = 1;
 
-	if (gethostname(hostname, sizeof(hostname) - 1) < 0) {
-		perror("gethostname");
-		exit(1);
-	}
+	if (gethostname(hostname, sizeof(hostname) - 1) < 0)
+		err(1, "gethostname");
 	self.l_bak = &self;
 	self.l_fwd = &self;
 	self.h_bak = &self;
@@ -307,29 +288,23 @@ main(argc, argv)
 		add_good_host(hostname,1);
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
-		fprintf(stderr, "unknown service 'timed/udp'\n");
-		exit(1);
-	}
+	if (srvp == 0)
+		errx(1, "unknown service 'timed/udp'");
 	port = srvp->s_port;
 	bzero(&server, sizeof(struct sockaddr_in));
 	server.sin_port = srvp->s_port;
 	server.sin_family = AF_INET;
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock < 0) {
-		perror("socket");
-		exit(1);
-	}
+	if (sock < 0)
+		err(1, "socket");
 	if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (char *)&on,
-							sizeof(on)) < 0) {
-		perror("setsockopt");
-		exit(1);
-	}
+							sizeof(on)) < 0)
+		err(1, "setsockopt");
 	if (bind(sock, (struct sockaddr*)&server, sizeof(server))) {
 		if (errno == EADDRINUSE)
-			fprintf(stderr,"timed: time daemon already running\n");
+			warnx("time daemon already running");
 		else
-			perror("bind");
+			warn("bind");
 		exit(1);
 	}
 #ifdef sgi
@@ -337,10 +312,8 @@ main(argc, argv)
 	 * handle many slaves with our buffer
 	 */
 	if (0 > setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*)&bufspace,
-			 sizeof(bufspace))) {
-		perror("setsockopt");
-		exit(1);
-	}
+			 sizeof(bufspace)))
+		err(1, "setsockopt");
 #endif /* sgi */
 
 	/* choose a unique seed for random number generation */
@@ -366,14 +339,11 @@ main(argc, argv)
 		if (nentp != 0) {
 			nt->net = nentp->n_net;
 		} else if (nt->net == INADDR_NONE) {
-			fprintf(stderr, "timed: unknown net %s\n", nt->name);
-			exit(1);
+			errx(1, "unknown net %s", nt->name);
 		} else if (nt->net == INADDR_ANY) {
-			fprintf(stderr, "timed: bad net %s\n", nt->name);
-			exit(1);
+			errx(1, "bad net %s", nt->name);
 		} else {
-			fprintf(stderr,
-				"timed: warning: %s unknown in /etc/networks\n",
+			warnx("warning: %s unknown in /etc/networks",
 				nt->name);
 		}
 
@@ -386,10 +356,8 @@ main(argc, argv)
 	}
 	ifc.ifc_len = sizeof(buf);
 	ifc.ifc_buf = buf;
-	if (ioctl(sock, SIOCGIFCONF, (char *)&ifc) < 0) {
-		perror("timed: get interface configuration");
-		exit(1);
-	}
+	if (ioctl(sock, SIOCGIFCONF, (char *)&ifc) < 0)
+		err(1, "get interface configuration");
 	ntp = NULL;
 #ifdef sgi
 #define size(p)	(sizeof(*ifr) - sizeof(ifr->ifr_name))  /* XXX hack. kludge */
@@ -411,7 +379,7 @@ main(argc, argv)
 		ifreqf = *ifr;
 
 		if (ioctl(sock, SIOCGIFFLAGS, (char *)&ifreqf) < 0) {
-			perror("get interface flags");
+			warn("get interface flags");
 			continue;
 		}
 		if ((ifreqf.ifr_flags & IFF_UP) == 0)
@@ -423,7 +391,7 @@ main(argc, argv)
 
 
 		if (ioctl(sock, SIOCGIFNETMASK, (char *)&ifreq) < 0) {
-			perror("get netmask");
+			warn("get netmask");
 			continue;
 		}
 		ntp->mask = ((struct sockaddr_in *)
@@ -431,7 +399,7 @@ main(argc, argv)
 
 		if (ifreqf.ifr_flags & IFF_BROADCAST) {
 			if (ioctl(sock, SIOCGIFBRDADDR, (char *)&ifreq) < 0) {
-				perror("get broadaddr");
+				warn("get broadaddr");
 				continue;
 			}
 			ntp->dest_addr = *(struct sockaddr_in *)&ifreq.ifr_broadaddr;
@@ -442,7 +410,7 @@ main(argc, argv)
 		} else {
 			if (ioctl(sock, SIOCGIFDSTADDR,
 						(char *)&ifreq) < 0) {
-				perror("get destaddr");
+				warn("get destaddr");
 				continue;
 			}
 			ntp->dest_addr = *(struct sockaddr_in *)&ifreq.ifr_dstaddr;
@@ -455,7 +423,7 @@ main(argc, argv)
 			if (ntp->net.s_addr == htonl(nt->net))
 				break;
 		}
-		if (nflag && !nt || iflag && nt)
+		if ((nflag && !nt) || (iflag && nt))
 			continue;
 
 		ntp->next = NULL;
@@ -469,10 +437,8 @@ main(argc, argv)
 	}
 	if (ntp)
 		(void) free((char *)ntp);
-	if (nettab == NULL) {
-		fprintf(stderr, "timed: no network usable\n");
-		exit(1);
-	}
+	if (nettab == NULL)
+		errx(1, "no network usable");
 
 
 #ifdef sgi
@@ -568,9 +534,26 @@ main(argc, argv)
 		slave();
 	}
 	/* NOTREACHED */
-#ifdef lint
 	return(0);
-#endif
+}
+
+static void
+usage()
+{
+#ifdef sgi
+	fprintf(stderr, "%s\n%s\n",
+"usage: timed [-dtM] [-i net|-n net] [-F host1 host2 ...]",
+"             [-G netgp] [-P trimfile]");
+#else
+#ifdef HAVENIS
+	fprintf(stderr, 
+"usage: timed [-dtM] [-i net|-n net] [-F host1 host2 ...] [-G netgp]\n");
+#else
+	fprintf(stderr,
+"usage: timed [-dtM] [-i net|-n net] [-F host1 host2 ...]\n");
+#endif /* HAVENIS */
+#endif /* sgi */
+	exit(1);
 }
 
 /*
@@ -853,10 +836,8 @@ addnetname(name)
 	while (*netlist)
 		netlist = &((*netlist)->next);
 	*netlist = (struct nets *)malloc(sizeof **netlist);
-	if (*netlist == 0) {
-		fprintf(stderr,"malloc failed\n");
-		exit(1);
-	}
+	if (*netlist == 0)
+		errx(1, "malloc failed");
 	bzero((char *)*netlist, sizeof(**netlist));
 	(*netlist)->name = name;
 }
@@ -884,7 +865,7 @@ add_good_host(name, perm)
 
 	hentp = gethostbyname(name);
 	if (0 == hentp && perm)
-		(void)fprintf(stderr, "unknown host %s\n", name);
+		warnx("unknown host %s", name);
 }
 
 
@@ -897,9 +878,11 @@ get_goodgroup(force)
 # define NG_DELAY (30*60*CLK_TCK)	/* 30 minutes */
 	static unsigned long last_update = -NG_DELAY;
 	unsigned long new_update;
-	struct hosttbl *htp;
 	struct goodhost *ghp, **ghpp;
+#ifdef HAVENIS
+	struct hosttbl *htp;
 	char *mach, *usr, *dom;
+#endif /* HAVENIS */
 	struct tms tm;
 
 

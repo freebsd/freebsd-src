@@ -33,10 +33,6 @@
  *	@(#)globals.h	8.1 (Berkeley) 6/6/93
  */
 
-#ifdef sgi
-#ident "$Revision: 1.15 $"
-#endif
-
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -44,6 +40,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
@@ -66,7 +63,6 @@
 #define	SECDAY	(24*SECHR)
 #endif /* sgi */
 
-extern int errno;
 extern int sock;
 
 /* Best expected round trip for a measurement.
@@ -123,7 +119,7 @@ struct hosttbl {
 	struct  hosttbl *l_fwd;
 	struct	netinfo *ntp;
 	struct	sockaddr_in addr;
-	char	name[MAXHOSTNAMELEN+1];
+	char	name[MAXHOSTNAMELEN];
 	u_char	head;			/* 1=head of hash chain */
 	u_char	good;			/* 0=trusted host, for averaging */
 	u_char	noanswer;		/* count of failures to answer */

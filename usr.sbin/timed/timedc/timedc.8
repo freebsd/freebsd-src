@@ -56,21 +56,21 @@ Measure the differences between machines' clocks,
 Find the location where the master time server is running,
 .It
 Enable or disable tracing of messages received by
-.Xr timed ,
+.Xr timed 8 ,
 and
 .It
 Perform various debugging actions.
 .El
 .Pp
 Without any arguments,
-.Nm timedc
+.Nm
 will prompt for commands from the standard input.
 If arguments are supplied,
-.Nm timedc
+.Nm
 interprets the first argument as a command and the remaining
 arguments as parameters to the command.  The standard input
 may be redirected causing
-.Nm timedc
+.Nm
 to read commands from a file.
 Commands may be abbreviated;
 recognized commands are:
@@ -97,9 +97,9 @@ Show the master time server for specified host(s).
 Enable or disable the tracing of incoming messages to
 .Xr timed
 in the file
-.Pa /var/log/timed.log.
+.Pa /var/log/timed.log .
 .Pp
-.It Ic election Ar host
+.It Ic election Ar host1 Op Ar host2 ...
 Asks the daemon
 on the target host to reset its "election" timers and to ensure that
 a time master has been elected.
