@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.56 1996/03/10 07:11:43 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.57 1996/03/11 02:48:41 gibbs Exp $
  */
 /*
  * TODO:
@@ -1371,7 +1371,7 @@ ahc_init(ahc)
 		 * so set those values first
 		 */
 		outb(SCSIID + iobase, ahc->our_id_b);
-		scsi_conf = inb(SCSICONF + 1 + iobase) & (ENSPCHK|STIMESEL);
+		scsi_conf = inb(SCSICONF + 1 + iobase) & (/*ENSPCHK|*/STIMESEL);
 		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIRST);
 		if(ahc->type & AHC_ULTRA)
@@ -1388,7 +1388,7 @@ ahc_init(ahc)
 		outb(SBLKCTL + iobase, 0);
 	}
 	outb(SCSIID + iobase, ahc->our_id);
-	scsi_conf = inb(SCSICONF + iobase) & (ENSPCHK|STIMESEL);
+	scsi_conf = inb(SCSICONF + iobase) & (/*ENSPCHK|*/STIMESEL);
 	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIRST);
 	if(ahc->type & AHC_ULTRA)
