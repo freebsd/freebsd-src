@@ -592,6 +592,13 @@ child_xfer_partial (struct target_ops *ops, enum target_object object,
       return NATIVE_XFER_WCOOKIE (ops, object, annex, readbuf, writebuf,
 				  offset, len);
 
+    case TARGET_OBJECT_DIRTY:
+#ifndef TARGET_XFER_DIRTY
+#define TARGET_XFER_DIRTY(OPS,OBJECT,ANNEX,WRITEBUF,READBUF,OFFSET,LEN) (-1)
+#endif
+      return TARGET_XFER_DIRTY (ops, object, annex, readbuf, writebuf,
+				offset, len);
+
     default:
       return -1;
     }
