@@ -38,8 +38,6 @@
  * rate drifts slightly between recordings (usually 0-3%).  No
  * differences visible in register dumps between times that work and
  * those that don't.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -52,6 +50,8 @@
 #include <sys/sysctl.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6
@@ -948,7 +948,7 @@ static device_method_t cmi_methods[] = {
 static driver_t cmi_driver = {
 	"pcm",
 	cmi_methods,
-	sizeof(struct snddev_info)
+	PCM_SOFTC_SIZE
 };
 
 DRIVER_MODULE(snd_cmipci, pci, cmi_driver, pcm_devclass, 0, 0);

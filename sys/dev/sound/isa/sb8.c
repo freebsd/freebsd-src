@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -37,6 +35,8 @@
 #include  <dev/sound/chip.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define SB_BUFFSIZE	4096
 
@@ -771,7 +771,7 @@ static device_method_t sb_methods[] = {
 static driver_t sb_driver = {
 	"pcm",
 	sb_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_sb8, sbc, sb_driver, pcm_devclass, 0, 0);

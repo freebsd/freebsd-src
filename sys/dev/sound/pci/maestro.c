@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  *	$Id: maestro.c,v 1.12 2000/09/06 03:32:34 taku Exp $
- * $FreeBSD$
  */
 
 /*
@@ -51,6 +50,8 @@
 #include <pci/pcivar.h>
 
 #include <dev/sound/pci/maestro_reg.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define inline __inline
 
@@ -1181,7 +1182,7 @@ static device_method_t agg_methods[] = {
 static driver_t agg_driver = {
     "pcm",
     agg_methods,
-    sizeof(struct snddev_info),
+    PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_maestro, pci, agg_driver, pcm_devclass, 0, 0);

@@ -23,13 +23,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
 #define	DMA_ALIGN_THRESHOLD	4
@@ -276,7 +276,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		device_printf(c->parentsnddev->dev, "play interrupt timeout, channel dead\n");
+		printf("play interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;
@@ -396,7 +396,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 
 	if (count <= 0) {
 		c->flags |= CHN_F_DEAD;
-		device_printf(c->parentsnddev->dev, "record interrupt timeout, channel dead\n");
+		printf("%s record interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;
