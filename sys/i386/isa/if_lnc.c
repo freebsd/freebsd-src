@@ -102,7 +102,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_lnc.h>
 
-static struct lnc_softc {
+struct lnc_softc {
 	struct arpcom arpcom;	            /* see ../../netinet/if_ether.h */
 	struct nic_info nic;	            /* NIC specific info */
 	int nrdre;
@@ -119,12 +119,30 @@ static struct lnc_softc {
 	int initialised;
 	int rap;
 	int rdp;
-	char *descr;
 #ifdef DEBUG
 	int lnc_debug;
 #endif
 	LNCSTATS_STRUCT
-} lnc_softc[NLNC];
+};
+
+static struct lnc_softc lnc_softc[NLNC];
+
+static char const * const nic_ident[] = {
+	"Unknown",
+	"BICC",
+	"NE2100",
+	"DEPCA",
+};
+
+static char const * const ic_ident[] = {
+	"Unknown",
+	"LANCE",
+	"C-LANCE",
+	"PCnet-ISA",
+	"PCnet-ISA+",
+	"PCnet-32 VL-Bus",
+	"PCnet-PCI",		/* "can't happen" */
+};
 
 #ifdef LNC_MULTICAST
 static void lnc_setladrf __P((struct lnc_softc *sc));
@@ -177,50 +195,6 @@ read_csr(struct lnc_softc *sc, u_short port)
 	outw(sc->rap, port);
 	return (inw(sc->rdp));
 }
-
-static inline void
-lnc_registerdev(struct isa_device *isa_dev)
-{
-	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
-
-	switch(sc->nic.ic) {
-		case LANCE:
-			if (sc->nic.ident == BICC)
-				sc->descr = "BICC (LANCE) Ethernet controller";
-			else if (sc->nic.ident == NE2100)
-				sc->descr = "NE2100 (LANCE) Ethernet controller";
-			else if (sc->nic.ident == DEPCA)
-				sc->descr = "DEPCA (LANCE) Ethernet controller";
-			break;
-		case C_LANCE:
-			if (sc->nic.ident == BICC)
-				sc->descr = "BICC (C-LANCE) Ethernet controller";
-			else if (sc->nic.ident == NE2100)
-				sc->descr = "NE2100 (C-LANCE) Ethernet controller";
-			else if (sc->nic.ident == DEPCA)
-				sc->descr = "DEPCA (C-LANCE) Ethernet controller";
-			break;
-		case PCnet_ISA:
-			sc->descr = "PCnet-ISA Ethernet controller";
-			break;
-		case PCnet_ISAplus:
-			sc->descr = "PCnet-ISA+ Ethernet controller";
-			break;
-		case PCnet_32:
-			sc->descr = "PCnet-32 VL-Bus Ethernet controller";
-			break;
-		case PCnet_PCI:
-			/*
-			 * XXX - This should never be the case ...
-			 */
-			sc->descr = "PCnet-PCI Ethernet controller";
-			break;
-		default:
-			break;
-	}
-
-}
-
 
 #ifdef LNC_MULTICAST
 static inline u_long
@@ -925,13 +899,6 @@ lnc_probe(struct isa_device * isa_dev)
 		nports = ne2100_probe(sc, iobase);
 	if (nports == 0)
 		nports = depca_probe(sc, iobase);
-
-	/*
-	 * Register device even though probe has
-	 * failed so it can be reconfigured later.
-	 */
-
-	lnc_registerdev(isa_dev);
 	return (nports);
 }
 
@@ -1182,13 +1149,13 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	if_attach(&sc->arpcom.ac_if);
 	ether_ifattach(&sc->arpcom.ac_if);
 
-	if (sc->descr == NULL)
-		sc->descr = "Lance Ethernet controller";
-
-	printf("lnc%d: %s, address %6D\n",
-	       unit,
-	       sc->descr,
-	       sc->arpcom.ac_enaddr, ":");
+	printf("lnc%d: ", unit);
+	if (sc->nic.ic == LANCE || sc->nic.ic == C_LANCE)
+		printf("%s (%s)",
+		       nic_ident[sc->nic.ident], ic_ident[sc->nic.ic]);
+	else
+		printf("%s", ic_ident[sc->nic.ic]);
+	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
 #if NBPFILTER > 0
 	bpfattach(&sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
