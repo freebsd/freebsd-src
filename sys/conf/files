@@ -695,6 +695,7 @@ geom/geom_event.c	optional geom
 geom/geom_io.c	optional geom
 geom/geom_kern.c	optional geom
 geom/geom_mbr.c	optional geom
+geom/geom_pc98.c	optional geom
 geom/geom_slice.c	optional geom
 geom/geom_subr.c	optional geom
 geom/geom_sunlabel.c	optional geom
