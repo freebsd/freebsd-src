@@ -1286,6 +1286,25 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	/*
+	 * Perform lazy resource allocation
+	 *
+	 * XXX add support here for SYS_RES_IOPORT and SYS_RES_MEMORY
+	 */
+	if (device_get_parent(child) == dev) {
+		if ((type == SYS_RES_IRQ) && (cfg->intline == 255)) {
+			cfg->intline = PCIB_ROUTE_INTERRUPT(
+				device_get_parent(dev), pci_get_slot(child),
+				cfg->intpin);
+			if (cfg->intline != 255) {
+				/* XXX write back to PCI space? */
+				resource_list_add(rl, SYS_RES_IRQ, 0,
+				    cfg->intline, cfg->intline, 1);
+			}
+		}
+	}
 
 	return resource_list_alloc(rl, dev, child, type, rid,
 				   start, end, count, flags);
