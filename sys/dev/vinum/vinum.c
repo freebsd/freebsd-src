@@ -35,6 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinum.c,v 1.28 1999/10/12 09:41:20 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -42,6 +43,7 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
+#include <sys/devicestat.h>
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;
@@ -55,8 +57,8 @@ STATIC struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, seltrue, nommap, vinumstrategy,
-    "vinum", CDEV_MAJOR, vinumdump, vinumsize,
-    D_DISK, BDEV_MAJOR
+    "vinum", VINUM_CDEV_MAJOR, vinumdump, vinumsize,
+    D_DISK, VINUM_BDEV_MAJOR
 };
 
 /* Called by main() during pseudo-device attachment. */
@@ -76,8 +78,9 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 void
 vinumattach(void *dummy)
 {
+
     /* modload should prevent multiple loads, so this is worth a panic */
-    if ((vinum_conf.flags & VF_LOADED) != NULL)
+    if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
 
     log(LOG_INFO, "vinum: loaded\n");
@@ -115,6 +118,7 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
+
 }
 
 /*
@@ -169,7 +173,7 @@ free_vinum(int cleardrive)
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	queue_daemon_request(daemonrq_return, (union daemoninfo) NULL);	/* stop the daemon */
+	queue_daemon_request(daemonrq_return, (union daemoninfo) 0); /* stop the daemon */
 	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
     }
     if (SD != NULL)
@@ -249,7 +253,7 @@ moduledata_t vinum_mod =
     (modeventhand_t) vinum_modevent,
     0
 };
-DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+DECLARE_MODULE(vinum, vinum_mod, SI_SUB_VINUM, SI_ORDER_MIDDLE);
 
 /* ARGSUSED */
 /* Open a vinum object */
@@ -465,6 +469,7 @@ vinumdump(dev_t dev)
     /* Not implemented. */
     return ENXIO;
 }
+
 /* Local Variables: */
 /* fill-column: 50 */
 /* End: */
