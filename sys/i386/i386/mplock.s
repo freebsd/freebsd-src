@@ -170,10 +170,11 @@ NON_GPROF_ENTRY(MPtrylock)
  *
  *  We must force instruction serialization prior to releasing the MP lock for
  *  the last time.  'cpuid' or a locked bus cycle will accomplish this.  A
- *  locked bus cycle is the fastest solution.  We use our per-cpu private
- *  memory area rather then the shared lock memory because we are more likely
- *  to already have exclusive access to the cache line (which is 3x faster 
- *  then if we have to invalid another cpu's cache).
+ *  locked bus cycle is the fastest solution.  We use a memory location that
+ *  we know we 'own' in our cache to provide for the fastest execution of the
+ *  instruction, one that has no contention with other cpu's.  0(%esp) is
+ *  perfect.  It may also be possible to use invlpg for even more speed,
+ *  but this will be less deterministic across processor families.
  */
 
 NON_GPROF_ENTRY(MPrellock_edx)
@@ -184,7 +185,7 @@ NON_GPROF_ENTRY(MPrellock_edx)
 	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
 	lock
-	addl	$0,%fs:0		/* see note above */
+	addl	$0,0(%esp)		/* see note above */
 2:
 	movl	%ecx, (%edx)
 	ret
