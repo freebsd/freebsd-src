@@ -26,7 +26,7 @@
 .\"
 .Dd December 30, 2000
 .Dt DISKCHECKD 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm diskcheckd
 .Nd daemon to check for disk read errors
@@ -92,7 +92,7 @@ To run
 .Nm
 automatically at boot time,
 the
-.Ar diskcheckd_enable
+.Va diskcheckd_enable
 variable in
 .Xr rc.conf 5
 should be set to
@@ -120,7 +120,6 @@ signal.
 .Pp
 .Nm
 accepts the following command line options:
-.Pp
 .Bl -tag -width Fl
 .It Fl d
 If this flag is specified,
@@ -150,20 +149,17 @@ To check all of
 for errors once every two weeks,
 use this entry in
 .Pa diskcheckd.conf :
-.Pp
 .Bd -literal -offset indent
 /dev/ad0	*	14	*
 .Ed
 .Pp
 To check the first SCSI disk for errors at approximately 64KB/s,
 use the following entry:
-.Pp
 .Bd -literal -offset indent
 /dev/da0	*	*	64
 .Ed
 .Pp
 To check all disks once every four weeks:
-.Pp
 .Bd -literal -offset indent
 *	*	28	*
 .Ed
@@ -176,6 +172,7 @@ they will be written to
 first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
+.An -nosplit
 .Nm
 and this manual page were written by
 .An Ben Smithurst Aq ben@FreeBSD.org ,
