@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.9 1998/05/01 19:26:04 brian Exp $
+ *	$Id: throughput.c,v 1.5 1998/05/21 21:48:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -48,6 +48,7 @@ throughput_init(struct pppThroughput *t)
   for (f = 0; f < SAMPLE_PERIOD; f++)
     t->SampleOctets[f] = 0;
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
+  t->BestOctetsPerSecondTime = time(NULL);
   memset(&t->Timer, '\0', sizeof t->Timer);
   t->Timer.name = "throughput";
   t->uptime = 0;
@@ -70,8 +71,8 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
     prompt_Printf(prompt, "  overall   %5ld bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
     prompt_Printf(prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
-    prompt_Printf(prompt, "  peak      %5d bytes/sec\n",
-                  t->BestOctetsPerSecond);
+    prompt_Printf(prompt, "  peak      %5d bytes/sec on %s\n",
+                  t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
     prompt_Printf(prompt, "Overall %ld bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
@@ -94,8 +95,9 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
-      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
-                (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond);
+      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec on %s\n",
+                (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond,
+                ctime(&t->BestOctetsPerSecondTime));
     else
       log_Printf(level, " total %ld bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up);
@@ -113,8 +115,10 @@ throughput_sampler(void *v)
   old = t->SampleOctets[t->nSample];
   t->SampleOctets[t->nSample] = t->OctetsIn + t->OctetsOut;
   t->OctetsPerSecond = (t->SampleOctets[t->nSample] - old) / SAMPLE_PERIOD;
-  if (t->BestOctetsPerSecond < t->OctetsPerSecond)
+  if (t->BestOctetsPerSecond < t->OctetsPerSecond) {
     t->BestOctetsPerSecond = t->OctetsPerSecond;
+    t->BestOctetsPerSecondTime = time(NULL);
+  }
   if (++t->nSample == SAMPLE_PERIOD)
     t->nSample = 0;
 
