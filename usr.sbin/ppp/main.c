@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.21 1996/10/07 04:21:00 jkh Exp $
+ * $Id: main.c,v 1.22 1996/10/12 16:20:32 jkh Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -213,7 +213,8 @@ int signo;
 void
 Usage()
 {
-  fprintf(stderr, "Usage: ppp [-auto | -direct | -dedicated] [system]\n");
+  fprintf(stderr,
+          "Usage: ppp [-auto | -direct | -dedicated | -ddial ] [system]\n");
   exit(EX_START);
 }
 
@@ -232,6 +233,8 @@ ProcessArgs(int argc, char **argv)
       mode |= MODE_DIRECT;
     else if (strcmp(cp, "dedicated") == 0)
       mode |= MODE_DEDICATED;
+    else if (strcmp(cp, "ddial") == 0)
+      mode |= MODE_DDIAL|MODE_AUTO;
     else
       Usage();
     optc++;
@@ -303,9 +306,10 @@ char **argv;
     printf("Interactive mode\n");
     netfd = 0;
   } else if (mode & MODE_AUTO) {
-    printf("Automatic mode\n");
+    printf("Automatic Dialer mode\n");
     if (dstsystem == NULL) {
-      fprintf(stderr, "Destination system must be specified in auto mode.\n");
+      fprintf(stderr,
+              "Destination system must be specified in auto or ddial mode.\n");
       exit(EX_START);
     }
   }
@@ -344,7 +348,7 @@ char **argv;
       Cleanup(EX_START);
     }
     if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      fprintf(stderr, "Must specify dstaddr with auto mode.\n");
+      fprintf(stderr, "Must specify dstaddr with auto or ddial mode.\n");
       Cleanup(EX_START);
     }
   }
@@ -389,7 +393,7 @@ char **argv;
       snprintf(pid_filename, sizeof (pid_filename), "%s/PPP.%s",
 		  _PATH_VARRUN, dstsystem);
       unlink(pid_filename);
-      sprintf(pid, "%d\n", getpid());
+      sprintf(pid, "%d\n", (int)getpid());
 
       if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
       {
@@ -663,6 +667,13 @@ DoLoop()
   tries = 0;
   for (;;) {
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
+
+    /* 
+     * If the link is down and we're in DDIAL mode, bring it back
+     * up.
+     */
+    if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
+        dial_up = TRUE;
 
    /*
     * If Ip packet for output is enqueued and require dial up,
