@@ -3368,11 +3368,12 @@ outloop:
 	case 0x09:  /* non-destructive tab */
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    scp->cursor_pos += (8 - scp->xpos % 8u);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    if ((scp->xpos += (8 - scp->xpos % 8u)) >= scp->xsize) {
 	        scp->xpos = 0;
 	        scp->ypos++;
+		scp->cursor_pos = scp->scr_buf + scp->ypos * scp->xsize;
 	    }
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    break;
 
 	case 0x0a:  /* newline, same pos */
