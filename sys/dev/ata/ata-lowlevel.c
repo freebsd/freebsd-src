@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
-#include <sys/mutex.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -69,8 +69,16 @@ ata_generic_hw(struct ata_channel *ch)
 static int
 ata_transaction(struct ata_request *request)
 {
+    /* safety check, device might have been detached FIXME SOS */
+    if (!request->device->param) {
+	request->result = ENXIO;
+	return ATA_OP_FINISHED;
+    }
+
     /* record the request as running */
     request->device->channel->running = request;
+
+    ATA_DEBUG_RQ(request, "transaction");
 
     /* disable ATAPI DMA writes if HW doesn't support it */
     if ((request->device->channel->flags & ATA_ATAPI_DMA_RO) &&
@@ -83,7 +91,7 @@ ata_transaction(struct ata_request *request)
     /* ATA PIO data transfer and control commands */
     default:
 	{
-	/* record command direction here as our request might be done later */
+	/* record command direction here as our request might be gone later */
 	int write = (request->flags & ATA_R_WRITE);
 
 	    /* issue command */
@@ -106,6 +114,7 @@ ata_transaction(struct ata_request *request)
 		ata_pio_write(request, request->transfersize);
 	    }
 	}
+	
 	/* return and wait for interrupt */
 	return ATA_OP_CONTINUES;
 
@@ -136,6 +145,7 @@ ata_transaction(struct ata_request *request)
 	    request->result = EIO;
 	    break;
 	}
+
 	/* return and wait for interrupt */
 	return ATA_OP_CONTINUES;
 
@@ -294,15 +304,22 @@ ata_interrupt(void *data)
 	return;
     }
 
+    ATA_DEBUG_RQ(request, "interrupt");
+
     /* ignore interrupt if device is busy */
-    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
+    if (!(request->flags & ATA_R_TIMEOUT) &&
+	ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
 	DELAY(100);
 	if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DRQ))
 	    return;
     }
 
+    ATA_DEBUG_RQ(request, "interrupt accepted");
+
     /* clear interrupt and get status */
     request->status = ATA_IDX_INB(ch, ATA_STATUS);
+
+    request->flags |= ATA_R_INTR_SEEN;
 
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_CONTROL)) {
 
@@ -492,6 +509,13 @@ ata_interrupt(void *data)
 	break;
     }
 
+    /* if we timed out, we hold on to the channel, ata_reinit() will unlock */
+    if (request->flags & ATA_R_TIMEOUT) {
+	ata_finish(request);
+	return;
+    }
+
+    /* schedule completition for this request */
     ata_finish(request);
 
     /* unlock the ATA channel for new work */
@@ -529,7 +553,7 @@ ata_reset(struct ata_channel *ch)
 	}
     }
 
-    /* if nothing showed up no need to get any further */
+    /* if nothing showed up there is no need to get any further */
     /* SOS is that too strong?, we just might loose devices here XXX */
     ch->devices = 0;
     if (!mask)
@@ -539,7 +563,11 @@ ata_reset(struct ata_channel *ch)
 	ata_printf(ch, -1, "reset tp1 mask=%02x ostat0=%02x ostat1=%02x\n",
 		   mask, ostat0, ostat1);
 
-    /* reset channel */
+    /* reset host end of channel (if supported) */
+    if (ch->reset)
+	ch->reset(ch);
+
+    /* reset (both) devices on this channel */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
@@ -617,6 +645,10 @@ ata_reset(struct ata_channel *ch)
 	DELAY(100000);
     }	
 
+    /* enable interrupt */
+    DELAY(10);
+    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
+
     if (stat0 & ATA_S_BUSY)
 	mask &= ~0x01;
     if (stat1 & ATA_S_BUSY)
@@ -627,41 +659,6 @@ ata_reset(struct ata_channel *ch)
 		   "reset tp2 mask=%02x stat0=%02x stat1=%02x devices=0x%b\n",
 		   mask, stat0, stat1, ch->devices,
 		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
-#if 0
-    if (!mask)
-	return;
-
-    if (mask & 0x01 && ostat0 != 0x00 &&
-        !(ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))) {
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-	DELAY(10);
-	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	err = ATA_IDX_INB(ch, ATA_ERROR);
-	lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	if (bootverbose)
-	    ata_printf(ch, ATA_MASTER, "ATA err=0x%02x lsb=0x%02x\n", err, lsb);
-	if (err != 0x58 && lsb == 0xa5)
-	    ch->devices |= ATA_ATA_MASTER;
-    }
-    if (mask & 0x02 && ostat1 != 0x00 &&
-	!(ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))) {
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-	DELAY(10);
-	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	err = ATA_IDX_INB(ch, ATA_ERROR);
-	lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	if (bootverbose)
-	    ata_printf(ch, ATA_SLAVE, "ATA err=0x%02x lsb=0x%02x\n", err, lsb);
-	if (err != 0x58 && lsb == 0xa5)
-	    ch->devices |= ATA_ATA_SLAVE;
-    }
-
-    if (bootverbose)
-	ata_printf(ch, -1, "reset tp3 devices=0x%b\n", ch->devices,
-		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
-#endif
 }
 
 static int
@@ -735,9 +732,6 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	ata_prtdev(atadev, "timeout sending command=%02x\n", command);
 	return -1;
     }
-
-    /* enable interrupt */
-    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
     if ((lba > 268435455 || count > 256) && atadev->param && 

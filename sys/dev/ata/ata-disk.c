@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/cons.h>
 #include <sys/sysctl.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 /* prototypes */
 static void ad_detach(struct ata_device *);
+static void ad_config(struct ata_device *);
 static void ad_start(struct ata_device *);
 static void ad_done(struct ata_request *);
 static disk_open_t adopen;
@@ -79,7 +81,9 @@ ad_attach(struct ata_device *atadev)
 	atadev->attach = NULL;
 	return;
     }
+    atadev->softc = adp;
     adp->device = atadev;
+
 #ifdef ATA_STATIC_ID
     adp->lun = (device_get_unit(atadev->channel->dev)<<1)+ATA_DEV(atadev->unit);
 #else
@@ -119,30 +123,16 @@ ad_attach(struct ata_device *atadev)
 	lbasize48 > 268435455)
 	adp->total_secs = lbasize48;
 
-    /* enable read caching */
-    ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
-
-    /* enable write caching if enabled */
-    if (ata_wc)
-	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
-    else
-	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
-
-    /* use multiple sectors/interrupt if device supports it */
-    adp->max_iosize = DEV_BSIZE;
-    if (ad_version(atadev->param->version_major)) {
-	int secsperint = max(1, min(atadev->param->sectors_intr, 16));
-
-	if (!ata_controlcmd(atadev, ATA_SET_MULTI, 0, 0, secsperint))
-	    adp->max_iosize = secsperint * DEV_BSIZE;
-    }
-
     /* setup the function ptrs */
     atadev->detach = ad_detach;
+    atadev->config = ad_config;
     atadev->start = ad_start;
-    atadev->softc = adp;
+
+    /* config device features */
+    ad_config(atadev);
 
     /* lets create the disk device */
+    adp->max_iosize = DEV_BSIZE;
     adp->disk.d_open = adopen;
     adp->disk.d_strategy = adstrategy;
     adp->disk.d_dump = addump;
@@ -189,6 +179,30 @@ ad_detach(struct ata_device *atadev)
     atadev->softc = NULL;
     atadev->flags = 0;
     free(adp, M_AD);
+}
+
+static void
+ad_config(struct ata_device *atadev)
+{
+    struct ad_softc *adp = atadev->softc;
+
+    /* enable read caching */
+    ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
+
+    /* enable write caching if enabled */
+    if (ata_wc)
+	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
+    else
+	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
+
+    /* use multiple sectors/interrupt if device supports it */
+    adp->max_iosize = DEV_BSIZE;
+    if (ad_version(atadev->param->version_major)) {
+	int secsperint = max(1, min(atadev->param->sectors_intr, 16));
+
+	if (!ata_controlcmd(atadev, ATA_SET_MULTI, 0, 0, secsperint))
+	    adp->max_iosize = secsperint * DEV_BSIZE;
+    }
 }
 
 static int
@@ -243,7 +257,7 @@ ad_start(struct ata_device *atadev)
     request->device = atadev;
     request->driver = bp;
     request->callback = ad_done;
-    request->timeout = 10;
+    request->timeout = 5;
     request->retries = 2;
     request->data = bp->bio_data;
     request->bytecount = bp->bio_bcount;

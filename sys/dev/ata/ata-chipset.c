@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
@@ -99,6 +100,7 @@ static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
 static int ata_sii_mio_allocate(device_t, struct ata_channel *);
+static void ata_sii_reset(struct ata_channel *);
 static void ata_sii_intr(void *);
 static void ata_cmd_intr(void *);
 static void ata_cmd_old_intr(void *);
@@ -1622,6 +1624,7 @@ ata_sii_chipinit(device_t dev)
 	    device_printf(dev, "unable to setup interrupt\n");
 	    return ENXIO;
 	}
+
 	rid = 0x24;
 	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 					       0, ~0, 1, RF_ACTIVE)))
@@ -1650,10 +1653,8 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0xec, 0x40094009, 4);
 
 	ctlr->allocate = ata_sii_mio_allocate;
-	if (ctlr->chip->max_dma >= ATA_SA150) {
+	if (ctlr->chip->max_dma >= ATA_SA150)
 	    ctlr->setmode = ata_sata_setmode;
-	    ctlr->locking = ata_serialize;
-	}
 	else
 	    ctlr->setmode = ata_sii_setmode;
     }
@@ -1699,14 +1700,28 @@ ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
     ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (ch->unit << 3);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
     ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (ch->unit << 6);
+    ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (ch->unit << 7);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
 
     if (ctlr->chip->max_dma >= ATA_SA150)
 	ch->flags |= ATA_NO_SLAVE;
+
     ctlr->dmainit(ch);
     if (ctlr->chip->cfg2 & SIIBUG)
 	ch->dma->boundary = 8 * 1024;
+
+    ch->reset = ata_sii_reset;
+
     return 0;
+}
+
+static void
+ata_sii_reset(struct ata_channel *ch)
+{
+    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000001);
+    DELAY(25000);
+    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000000);
 }
 
 static void
@@ -1724,8 +1739,7 @@ ata_sii_intr(void *data)
 	    if (ch->dma) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
-		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
-		    ATA_BMSTAT_INTERRUPT)
+		if (!(bmstat & ATA_BMSTAT_INTERRUPT))
 		    continue;
 		ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 		DELAY(1);
