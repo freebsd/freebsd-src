@@ -156,7 +156,6 @@ struct scsi_read_toc
 	u_int8_t data_len[2];
 	u_int8_t control;
 };
-;
 
 struct scsi_read_cd_capacity
 {
