@@ -105,7 +105,7 @@ static ng_rcvdata_t	ng_source_rcvdata;
 static ng_disconnect_t	ng_source_disconnect;
 
 /* Other functions */
-static timeout_t	ng_source_intr;
+static void		ng_source_intr(node_p, hook_p, void *, int);
 static int		ng_source_request_output_ifp (sc_p);
 static void		ng_source_clr_data (sc_p);
 static void		ng_source_start (sc_p);
@@ -334,7 +334,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			timevalclear(&sc->stats.elapsedTime);
 			timevalclear(&sc->stats.endTime);
 			getmicrotime(&sc->stats.startTime);
-			sc->intr_ch = timeout(ng_source_intr, sc, 0);
+			sc->intr_ch = ng_timeout(node, NULL, 0,
+			    ng_source_intr, sc, 0);
 		    }
 		    break;
 		case NGM_SOURCE_STOP:
@@ -361,7 +362,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				timevalclear(&sc->stats.elapsedTime);
 				timevalclear(&sc->stats.endTime);
 				getmicrotime(&sc->stats.startTime);
-				sc->intr_ch = timeout(ng_source_intr, sc, 0);
+				sc->intr_ch = ng_timeout(node, NULL, 0,
+				    ng_source_intr, sc, 0);
 			}
 			break;
 		default:
@@ -588,7 +590,7 @@ static void
 ng_source_stop (sc_p sc)
 {
 	if (sc->node->nd_flags & NG_SOURCE_ACTIVE) {
-		untimeout(ng_source_intr, sc, sc->intr_ch);
+		ng_untimeout(sc->intr_ch, sc->node);
 		sc->node->nd_flags &= ~NG_SOURCE_ACTIVE;
 		getmicrotime(&sc->stats.endTime);
 		sc->stats.elapsedTime = sc->stats.endTime;
@@ -604,9 +606,9 @@ ng_source_stop (sc_p sc)
  * output hook is able to enqueue.
  */
 static void
-ng_source_intr (void *arg)
+ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	sc_p sc = (sc_p) arg;
+	sc_p sc = (sc_p)arg1;
 	struct ifqueue *ifq;
 	int packets;
 
@@ -626,12 +628,11 @@ ng_source_intr (void *arg)
 		packets = sc->snd_queue.ifq_len;
 
 	ng_source_send(sc, packets, NULL);
-	if (sc->packets == 0) {
-		int s = splnet();
+	if (sc->packets == 0)
 		ng_source_stop(sc);
-		splx(s);
-	} else
-		sc->intr_ch = timeout(ng_source_intr, sc, NG_SOURCE_INTR_TICKS);
+	else
+		sc->intr_ch = ng_timeout(node, NULL, 0,
+		    ng_source_intr, sc, NG_SOURCE_INTR_TICKS);
 }
 
 /*
@@ -644,7 +645,6 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 	struct mbuf *m, *m2;
 	int sent = 0;
 	int error = 0;
-	int s, s2;
 
 	KASSERT(sc != NULL, ("%s: null node private", __func__));
 	KASSERT(tosend >= 0, ("%s: negative tosend param", __func__));
@@ -657,33 +657,26 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 	/* Copy the required number of packets to a temporary queue */
 	bzero (&tmp_queue, sizeof (tmp_queue));
 	for (sent = 0; error == 0 && sent < tosend; ++sent) {
-		s = splnet();
 		_IF_DEQUEUE(&sc->snd_queue, m);
-		splx(s);
 		if (m == NULL)
 			break;
 
 		/* duplicate the packet */
 		m2 = m_copypacket(m, M_DONTWAIT);
 		if (m2 == NULL) {
-			s = splnet();
 			_IF_PREPEND(&sc->snd_queue, m);
-			splx(s);
 			error = ENOBUFS;
 			break;
 		}
 
 		/* re-enqueue the original packet for us */
-		s = splnet();
 		_IF_ENQUEUE(&sc->snd_queue, m);
-		splx(s);
 
 		/* queue the copy for sending at smplimp */
 		_IF_ENQUEUE(&tmp_queue, m2);
 	}
 
 	sent = 0;
-	s = splimp();
 	for (;;) {
 		_IF_DEQUEUE(&tmp_queue, m2);
 		if (m2 == NULL)
@@ -692,14 +685,13 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 			++sent;
 			sc->stats.outFrames++;
 			sc->stats.outOctets += m2->m_pkthdr.len;
-			s2 = splnet();
 			NG_SEND_DATA_ONLY(error, sc->output.hook, m2);
-			splx(s2);
+			if (error)
+				printf("%s: error=%d\n", __func__, error);
 		} else {
 			NG_FREE_M(m2);
 		}
 	}
-	splx(s);
 
 	sc->packets -= sent;
 	if (sent_p != NULL)
