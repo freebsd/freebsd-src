@@ -170,17 +170,19 @@ wi_write_val(struct wi_softc *sc, int rid, u_int16_t val)
 	return wi_write_rid(sc, rid, &val, sizeof(val));
 }
 
+SYSCTL_NODE(_hw, OID_AUTO, wi, CTLFLAG_RD, 0, "Wireless driver parameters");
+
 static	struct timeval lasttxerror;	/* time of last tx error msg */
 static	int curtxeps;			/* current tx error msgs/sec */
 static	int wi_txerate = 0;		/* tx error rate: max msgs/sec */
-SYSCTL_INT(_kern, OID_AUTO, wi, CTLFLAG_RW, &wi_txerate,
-	    0, "Wireless driver max tx error msgs/sec; 0 disables msgs");
+SYSCTL_INT(_hw_wi, OID_AUTO, txerate, CTLFLAG_RW, &wi_txerate,
+	    0, "max tx error msgs/sec; 0 disables msgs");
 
 #define	WI_DEBUG
 #ifdef WI_DEBUG
 static	int wi_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, wi, CTLFLAG_RW, &wi_debug,
-	    0, "Wireless driver debugging printfs");
+SYSCTL_INT(_hw_wi, OID_AUTO, debug, CTLFLAG_RW, &wi_debug,
+	    0, "control debugging printfs");
 
 #define	DPRINTF(X)	if (wi_debug) printf X
 #define	DPRINTF2(X)	if (wi_debug > 1) printf X
