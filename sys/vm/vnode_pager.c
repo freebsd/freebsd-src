@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.31 1995/03/19 12:36:10 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.32 1995/03/19 23:46:25 davidg Exp $
  */
 
 /*
@@ -368,16 +368,6 @@ vnode_pager_setsize(vp, nsize)
 		return;
 
 	/*
-	 * No object. This can happen during object termination since
-	 * vm_object_page_clean is called after the object has been removed
-	 * from the hash table, and clean may cause vnode write operations
-	 * which can wind up back here.
-	 */
-	object = vm_object_lookup(pager);
-	if (object == NULL)
-		return;
-
-	/*
 	 * File has shrunk. Toss any cached pages beyond the new EOF.
 	 */
 	if (nsize < vnp->vnp_size) {
@@ -406,8 +396,6 @@ vnode_pager_setsize(vp, nsize)
 	}
 	vnp->vnp_size = (vm_offset_t) nsize;
 	object->size = round_page(nsize);
-
-	vm_object_deallocate(object);
 }
 
 void
