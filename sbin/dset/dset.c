@@ -207,7 +207,7 @@ main(ac, av)
 			fatal("kvmread", NULL);
 		dev_found = 0;
 
-		while(pos_t!=NULL) {
+		while(pos_t!=0) {
 			if (kvm_read(kd, pos_t, &buf1, sizeof(struct isa_device)) < 0)
 				fatal("kvmread", NULL);
 

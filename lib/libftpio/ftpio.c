@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id$
+ * $Id: ftpio.c,v 1.25 1997/02/22 15:06:50 peter Exp $
  *
  */
 
@@ -417,7 +417,7 @@ get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret)
 
     name = host = NULL;
     /* XXX add http:// here or somewhere reasonable at some point XXX */
-    if (strncmp("ftp://", url_in, 6) != NULL)
+    if (strncmp("ftp://", url_in, 6) != 0)
 	return FAILURE;
     /* We like to stomp a lot on the URL string in dissecting it, so copy it first */
     strncpy(url, url_in, BUFSIZ);

@@ -735,7 +735,7 @@ cgetnext(bp, db_array)
 			}
 		}
 		rp = buf;
-		for(cp = nbuf; *cp != NULL; cp++)
+		for(cp = nbuf; *cp != '\0'; cp++)
 			if (*cp == '|' || *cp == ':')
 				break;
 			else
