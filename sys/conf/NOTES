@@ -75,6 +75,8 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
 # Only build Linux API modules and plus those parts of the sound system I need.
 #makeoptions	MODULES_OVERRIDE="linux sound/snd sound/pcm sound/driver/maestro3"
+makeoptions	DESTDIR=/tmp
+
 
 #
 # Certain applications can grow to be larger than the 512M limit
