@@ -19,26 +19,6 @@
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
 
-void
-cpu_critical_enter(void)
-{
-	u_int           msr;
-	struct thread	*td = curthread;
-
-	msr = mfmsr();
-	td->td_md.md_savecrit = msr;
-	msr &= ~(PSL_EE | PSL_RI);
-	mtmsr(msr);
-}
-
-void
-cpu_critical_exit(void)
-{
-	struct thread *td = curthread;
-
-	mtmsr(td->td_md.md_savecrit);
-}
-
 /*
  * cpu_critical_fork_exit() - cleanup after fork
  */

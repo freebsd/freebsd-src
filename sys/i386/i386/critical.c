@@ -15,6 +15,7 @@
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
+#include <machine/critical.h>
 
 #ifdef SMP
 #include <machine/privatespace.h>
@@ -30,7 +31,7 @@
 #include <i386/isa/intr_machdep.h>
 #endif
 
-void unpend(void);	/* note: not static (called from assembly) */
+void i386_unpend(void);		/* NOTE: not static, called from assembly */
 
 /*
  * Instrument our ability to run critical sections with interrupts
@@ -43,81 +44,23 @@ SYSCTL_INT(_debug, OID_AUTO, critical_mode,
 	CTLFLAG_RW, &critical_mode, 0, "");
 
 /*
- *	cpu_critical_enter:
- *
- *	This routine is called from critical_enter() on the 0->1 transition
- *	of td_critnest, prior to it being incremented to 1.
- *
- *	If old-style critical section handling (critical_mode == 0), we
- *	disable interrupts. 
- *
- *	If new-style critical section handling (criticla_mode != 0), we
- *	do not have to do anything.  However, as a side effect any
- *	interrupts occuring while td_critnest is non-zero will be
- *	deferred.
+ * cpu_unpend() -	called from critical_exit() inline after quick
+ *			interrupt-pending check.
  */
 void
-cpu_critical_enter(void)
-{
-	struct thread *td;
-
-	if (critical_mode == 0) {
-		td = curthread;
-		td->td_md.md_savecrit = intr_disable();
-	}
-}
-
-/*
- *	cpu_critical_exit:
- *
- *	This routine is called from critical_exit() on a 1->0 transition
- *	of td_critnest, after it has been decremented to 0.  We are
- *	exiting the last critical section.
- *
- *	If td_critnest is -1 this is the 'new' critical_enter()/exit()
- *	code (the default critical_mode=1) and we do not have to do 
- *	anything unless PCPU_GET(int_pending) is non-zero. 
- *
- *	Note that the td->critnest (1->0) transition interrupt race against
- *	our int_pending/unpend() check below is handled by the interrupt
- *	code for us, so we do not have to do anything fancy.
- *
- *	Otherwise td_critnest contains the saved hardware interrupt state
- *	and will be restored.  Since interrupts were hard-disabled there
- *	will be no pending interrupts to dispatch (the 'original' code).
- */
-void
-cpu_critical_exit(void)
+cpu_unpend(void)
 {
 	register_t eflags;
 	struct thread *td;
 
 	td = curthread;
-	if (td->td_md.md_savecrit != (register_t)-1) {
-		intr_restore(td->td_md.md_savecrit);
-		td->td_md.md_savecrit = (register_t)-1;
-	} else {
-		/*
-		 * We may have to schedule pending interrupts.  Create
-		 * conditions similar to an interrupt context and call
-		 * unpend().
-		 *
-		 * note: we do this even if we are in an interrupt
-		 * nesting level.  Deep nesting is protected by
-		 * critical_*() and if we conditionalized it then we
-		 * would have to check int_pending again whenever
-		 * we decrement td_intr_nesting_level to 0.
-		 */
-		if (PCPU_GET(int_pending)) {
-			eflags = intr_disable();
-			if (PCPU_GET(int_pending)) {
-				++td->td_intr_nesting_level;
-				unpend();
-				--td->td_intr_nesting_level;
-			}
-			intr_restore(eflags);
-		}
+	eflags = intr_disable();
+	if (PCPU_GET(int_pending)) {
+		++td->td_intr_nesting_level;
+		i386_unpend();
+		--td->td_intr_nesting_level;
 	}
+	intr_restore(eflags);
 }
 
 /*
@@ -147,24 +90,26 @@ cpu_thread_link(struct thread *td)
 }
 
 /*
- * Called from cpu_critical_exit() or called from the assembly vector code
+ * Called from cpu_unpend or called from the assembly vector code
  * to process any interrupts which may have occured while we were in
  * a critical section.
  *
  * 	- interrupts must be disabled
  *	- td_critnest must be 0
  *	- td_intr_nesting_level must be incremented by the caller
+ *
+ * NOT STATIC (called from assembly)
  */
 void
-unpend(void)
+i386_unpend(void)
 {
-	int irq;
-	u_int32_t mask;
-
 	KASSERT(curthread->td_critnest == 0, ("unpend critnest != 0"));
 	KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled1"));
 	curthread->td_critnest = 1;
 	for (;;) {
+		u_int32_t mask;
+		int irq;
+
 		/*
 		 * Fast interrupts have priority
 		 */
@@ -207,7 +152,7 @@ unpend(void)
 			case 1:		/* bit 1 - statclock */
 				mtx_lock_spin(&sched_lock);
 				statclock_process(curthread->td_kse,
-				    (register_t)unpend, 0);
+				    (register_t)i386_unpend, 0);
 				mtx_unlock_spin(&sched_lock);
 				break;
 			}
