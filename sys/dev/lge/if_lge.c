@@ -29,19 +29,12 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
  * Level 1 LXT1001 gigabit ethernet driver for FreeBSD. Public
  * documentation not available, but ask me nicely.
  *
- * Written by Bill Paul <william.paul@windriver.com>
- * Wind River Systems
- */
-
-/*
  * The Level 1 chip is used on some D-Link, SMC and Addtron NICs.
  * It's a 64-bit PCI part that supports TCP/IP checksum offload,
  * VLAN tagging/insertion, GMII and TBI (1000baseX) ports. There
@@ -72,6 +65,9 @@
  * - Paul Saab at Y!, for not killing me (though it remains to be seen
  *   if in fact he did me much of a favor)
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -111,11 +107,6 @@
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /*
  * Various supported device vendors/types and their names.

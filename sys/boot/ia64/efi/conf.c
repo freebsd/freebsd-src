@@ -31,10 +31,8 @@
  *	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $	 
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <efi.h>

@@ -71,6 +71,9 @@
  * Data Sheet available from www.national.com
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -89,11 +92,6 @@
 #include <dev/mii/nsphyreg.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int nsphy_probe(device_t);
 static int nsphy_attach(device_t);

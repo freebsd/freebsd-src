@@ -27,10 +27,8 @@
  *   From i386/busdma_machdep.c,v 1.26 2002/04/19 22:58:09 alfred
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * MacPPC bus dma support routines

@@ -43,6 +43,9 @@
  * plus some NetBSD extensions.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -59,11 +62,6 @@
 MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int miibus_readreg(device_t, int, int);
 static int miibus_writereg(device_t, int, int, int);

@@ -70,6 +70,9 @@
  * Driver for Texas Instruments's ThunderLAN PHYs
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -91,11 +94,6 @@
 #include <dev/mii/tlphyreg.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 struct tlphy_softc {
 	struct mii_softc sc_mii;		/* generic PHY */

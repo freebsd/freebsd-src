@@ -61,6 +61,9 @@
  * Prism 2 chipsets with firmware from Intersil and Symbol.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #define WI_HERMES_AUTOINC_WAR	/* Work around data write autoinc bug. */
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
@@ -110,11 +113,6 @@
 #define IF_POLL(ifq, m)		((m) = (ifq)->ifq_head)
 #define	IFQ_POLL(ifq, m)	IF_POLL((ifq), (m))
 #define IFQ_DEQUEUE(ifq, m)	IF_DEQUEUE((ifq), (m))
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static void wi_start(struct ifnet *);
 static int  wi_reset(struct wi_softc *);

@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -51,6 +49,9 @@
  * more, you need a datasheet for the 9050 from PLX, but you have
  * to go through their sales office to get it. Bleh.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 
@@ -81,11 +82,6 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-
-#ifndef lint
-static const char rcsid[] =
- "$FreeBSD$";
-#endif
 
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>

@@ -41,6 +41,9 @@
  * Subroutines shared by the ukphy driver and other PHY drivers.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -54,11 +57,6 @@
 #include <dev/mii/miivar.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /*
  * Media status subroutine.  If a PHY driver does media detection simply
