@@ -282,6 +282,9 @@ are
 recognized, but not implemented.
 MDTM and SIZE are not specified in RFC 959, but will appear in the
 next updated FTP RFC.
+To avoid possible denial-of-service attacks, SIZE requests against
+files larger than 10240 bytes will be denied if the current transfer
+type is ASCII.
 .Pp
 The ftp server will abort an active file transfer only when the
 ABOR
