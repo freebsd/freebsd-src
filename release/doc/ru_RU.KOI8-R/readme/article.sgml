@@ -2,9 +2,9 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.6 2004/08/12 08:31:36 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.7 2004/08/31 12:31:55 den Exp $
 
-   Original revision: 1.31
+   Original revision: 1.32
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -100,13 +100,13 @@
 	в основном для предварительного ознакомления и различных
 	пользователей, желающих быть на переднем краю продолжающейся
 	разработки &os;.  Хотя команда разработки &os; прилагает все
-	усилия, чтобы убедиться, что каждый снэпшот работает как и
+	усилия, чтобы убедиться, что этот релиз работает как и
 	предполагается, &release.branch; находится в промежуточном
 	состоянии.</para>
 
-      <para>Основное требование к использованию снэпшотов это опыт
+      <para>Основное требование к использованию таких релизов это опыт
 	работы с &os; и понимание процесса разработки &os; &release.branch;
-	(обсуждается в &a.current;).</para>
+	(обсуждается в списке рассылки &a.current.name;).</para>
 
       <para>Тем, кому &os; нужна для решения конкретных задач,
 	а не для экспериментирования с новыми технологиями, зачастую

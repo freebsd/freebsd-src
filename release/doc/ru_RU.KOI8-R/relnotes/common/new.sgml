@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.9 2004/08/11 10:04:30 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.10 2004/09/01 12:23:40 den Exp $
 
-     Original revision: 1.758
+     Original revision: 1.762
 -->
 
 <articleinfo>
@@ -48,6 +48,16 @@
     &os;.  Он также представляет некоторые заметки по обновлению
     с предыдущей версии &os;.</para>
 
+<![ %release.type.current [
+
+  <para>Дистрибутив (&release.type;), для которого предоставлена эта
+    информация, представляет собой последнюю точку на ветви разработки
+    с момента создания &release.branch;.  Собранные бинарные дистрибутивы
+    (&release.type;) из этой ветви можно найти на <ulink
+    url="&release.url;"></ulink>.</para>
+
+]]>
+
 <![ %release.type.snapshot [
 
   <para>Дистрибутив (&release.type;), для которого предоставлена эта
@@ -73,14 +83,6 @@
     FreeBSD</ulink>.</para>
 
 ]]>
-
-  <para>Пользователи, впервые знакомящиеся с серией &release.branch;
-    &os; &release.type;, должны также прочесть <quote>Руководство для новых
-    пользователей &os; &release.current;</quote>.  Этот документ обычно можно
-    найти там же, где и информацию о релизе (как часть дистрибутива &os; или
-    на веб-сайте &os;).  Он содержит важную информацию о преимуществах
-    и недостатках использования &os; &release.current; по сравнению с
-    релизами, основанными на ветви разработки &os; 4-STABLE.</para>
 
   <para>Всем пользователям рекомендуется ознакомиться с сообщениями о
     проблемах перед установкой &os;.  В этот документ вносятся
@@ -515,8 +517,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	этих устройств &ndash; соответствующие ioctl и утилиты, включая
 	sasc и sgsc также были удалены.</para>
 
-      <para>Новая переменная sysctl,
-	<varname>kern.always_console_output</varname>, которая направляет
+      <para>Была добавлена новая переменная sysctl,
+	<varname>kern.always_console_output</varname>. Она направляет
 	вывод ядра на консоль независимо от
 	<varname>TIOCCONS</varname>.</para>
     </sect3>
@@ -564,7 +566,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
       <para>&man.fxp.4; теперь предоставляет реальный контроль над
 	возможностью получения расширенных фреймов Ethernet,
-	<literal>VLAN_MTU</literal>.  Она может переключаться из пространства
+	отображаемый как <literal>VLAN_MTU</literal>.
+	Она может переключаться из пространства
 	пользователя параметрами &man.ifconfig.8; <option>vlanmtu</option>
 	и <option>-vlanmtu</option>.</para>
 
@@ -606,9 +609,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	интерфейсом &man.netgraph.4; к оригинальному сетевому модулю
 	&man.sppp.4; для синхронных линий.</para>
 
-      <para>Новый метод Netgraph, позволяющий восстановление поведения,
-	потерянного при изменении стиля узлов Netgraph &man.ng.tee.4; с
-	4.x.</para>
+      <para>Был добавлен новый метод Netgraph, позволяющий восстановление
+	поведения, потерянного при изменении стиля узлов Netgraph
+	&man.ng.tee.4; с 4.<replaceable>X</replaceable>.</para>
 
       <para>Был добавлен тип узла Netgraph &man.ng.vlan.4;,
 	который поддерживает IEEE 802.1Q VLAN tagging.  &merged;</para>
@@ -621,7 +624,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
 	<note>
 	  <para>Хотя управление состоянием энергопотребления в шине
-	    &man.pci.4; было включено, это может привести к проблемам
+	    &man.pci.4; было включено по умолчанию, это может привести к проблемам
 	    на некоторых системах.  Оно может быть отключено путем
 	    установки переменной <varname>hw.pci.do_powerstate</varname>
 	    в 0.</para>
@@ -647,10 +650,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	была отключена, поскольку она не работала корректно и уменьшала
 	скорость передачи данных.  &merged;</para>
 
-      <para>Была реализована поинтерфейсная поддержка &man.polling.4;.
-	Все драйвера, поддерживающие &man.polling.4;
+      <para>Поддержка интерфейсами &man.polling.4; теперь может быть включена
+	поинтерфейсно.  Все драйвера, поддерживающие &man.polling.4;
 	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
-	&man.rl.4;, &man.sis.4;, &man.ste.4;, и &man.vr.4;)
+	&man.rl.4;, &man.sis.4;, &man.ste.4;, и &man.vr.4;),
 	теперь также поддерживают эту возможность, которая может управляться
 	через &man.ifconfig.8;.  &merged;</para>
     </sect3>
@@ -712,9 +715,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>В сокет маршрутизации была добавлена поддержка уведомления об
 	изменении состояния носителя Ethernet.</para>
 
-      <para>Поддержка LQM, Link Quality Monitoring в &man.ppp.8;
+      <para>Поддержка Link Quality Monitoring (LQM) в &man.ppp.8;
 	была переписана заново.  LQM, описанный в RFC 1989, позволяет PPP
-	сохранять информацию о качестве работающего соединения.</para>
+	сохранять информацию о качестве работающего соединения. &merged;</para>
 
       <para>Следующие возможности TCP теперь включены по умолчанию:
 	RFC 3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -759,8 +762,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	RFC 2018.  Это увеличивает производительность TCP через соединения с
 	большими потерями пакетов.  SACK может быть включен переменной
 	sysctl <varname>net.inet.tcp.sack.enable</varname>.</para>
-
-      <para>Драйвер &man.udav.4; теперь поддерживает promiscuous mode.</para>
 
     </sect3>
 
@@ -835,19 +836,19 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
       <para>Был добавлен новый класс <literal>GEOM_STRIPE</literal>,
 	который реализует преобразование RAID0.
-	В этом классе есть два режима: <quote>FAST</quote> и
-	<quote>ECONOMIC</quote>.  В режиме <quote>FAST</quote>,
+	В этом классе есть два режима: <quote>fast</quote> и
+	<quote>economic</quote>.  В режиме fast,
 	когда используются очень небольшой размер страйпа,
 	только один запрос ввода вывода отправляется к каждому диску
-	в страйпе, и это приблизительно в 10 раз быстрее для
-	страйпов малого размера, чем режим <quote>ECONOMIC</quote>.
-	Хотя режим <quote>FAST</quote> используется по умолчанию,
-	он потребляет несколько больше памяти, и путем установки
+	в страйпе; это приблизительно в 10 раз быстрее для
+	страйпов малого размера, чем режим economic и другие реализации RAID0.
+	Хотя режим fast используется по умолчанию,
+	он потребляет несколько больше памяти.  Путем установки
 	переменной загрузчика <varname>kern.geom.stripe.fast</varname>
-	в 0 может быть включен режим <quote>ECONOMIC</quote>, в
+	в 0 может быть включен режим economic, в
 	котором запросы отправляются каждый раз.
-	Возможна также установка максимального количества памяти,
-	потребляемого в режиме <quote>FAST</quote>, через переменную
+	Возможно также указание максимального количества памяти,
+	потребляемого в режиме fast, через переменную
 	загрузчика <varname>kern.geom.stripe.maxmem</varname>.</para>
 
       <para>Был добавлен GEOM Gate, который состоит из нового класса
@@ -862,6 +863,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	ISO9660.</para>
 
       <para>Новый параметр ядра, <literal>GEOM_GPT</literal> поддерживающий
+	разделы GPT и
 	возможность создания большого количества разделов на одном диске,
 	был добавлен в <filename>GENERIC</filename> по умолчанию.</para>
 
@@ -881,9 +883,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
       <para>Был добавлен параметр ядра <literal>options
 	MSDOSFS_LARGE</literal> для поддержки файловых систем больших,
-	чем 128GB.  Он не включен по умолчанию, и имейте ввиду,
+	чем 128GB.  Этот параметр выключен по умолчанию. Имейте ввиду,
 	что он использует как минимум 32 байта памяти ядра для
-	каждого файла на диске, а его использование безопасно только
+	каждого файла на диске; его использование безопасно только
 	в четко контролируемых ситуациях, таких как монтирование
 	файловой системы с менее чем 1 миллионом файлов только для
 	чтения, и так далее.  Экспорт этих больших файловых систем
@@ -908,7 +910,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para><application>ALTQ framework</application>
 	была импортирована из снэпшота KAME от 20040607.
 	Этот импорт нарушает совместимость ABI в
-	<varname>struct ifnet</varname>.
+	<varname>struct ifnet</varname> и требует перекомпиляции
+	всех сетевых драйверов.
 	Кроме того, некоторые сетевые драйверы были изменены
 	для поддержки инфраструктуры ALTQ.  Обновлены
 	драйверы &man.bfe.4;, &man.em.4;, &man.fxp.4;,
@@ -933,8 +936,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para>&man.bsdtar.1; теперь используется в качестве утилиты &man.tar.1;
       в базовой системе &os; по умолчанию.  <filename>/usr/bin/tar</filename>
       был сделан символической ссылкой, указывающей по умолчанию на
-      <filename>/usr/bin/bsdtar</filename>.  Для использования
-      <filename>/usr/bin/gtar</filename> может быть использована
+      <filename>/usr/bin/bsdtar</filename>.  Для возврата к
+      <filename>/usr/bin/gtar</filename> по умолчанию, может быть использована
       переменная сборки <varname>WITH_GTAR</varname>.</para>
 
     <para>Были добавлены команды <command>bthidcontrol</command> и
@@ -976,7 +979,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       для отображения полной статистики файловых систем.</para>
 
     <para>Утилита <command>doscmd</command> была удалена из базовой
-      системы &os; и доступна из коллекции портов &os;.</para>
+      системы &os; и доступна через порт <filename
+      role="package">emulators/doscmd</filename> из коллекции портов
+      &os;.</para>
 
     <para>&man.dump.8; и &man.restore.8; теперь поддерживают параметр
       <option>-P</option> для указания других методов резервного копирования
@@ -1024,13 +1029,13 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para>&man.ifconfig.8; теперь предоставляет параметры
       <option>vlanmtu</option> и <option>-vlanmtu</option>,
-      позволяющие контролировать возможность получения
+      контролирующие возможность получения
       расширенных фреймов некоторыми Ethernet интерфейсами (т.е.
       фреймов, содержащих более чем 1500 байт данных).</para>
 
     <para>&man.ifconfig.8; теперь предоставляет параметры
       <option>vlanhwtag</option> и <option>-vlanhwtag</option>,
-      позволяющие контролировать возможность обработки
+      контролирующие возможность обработки
       тегов VLAN некоторыми Ethernet интерфейсами на аппаратном
       уровне.</para>
 
@@ -1159,7 +1164,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para>Программа &man.nologin.8; была перемещена из
       <filename>/sbin/nologin</filename> в
-      <filename>/usr/sbin/nologin</filename>, а
+      <filename>/usr/sbin/nologin</filename>.
       <filename>/sbin/nologin</filename> стал символической ссылкой для
       обратной совместимости.</para>
 
@@ -1178,7 +1183,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       параметр <option>-N</option> для извлечения списка имен из указанной
       системы вместо ядра (kernel) по умолчанию.</para>
 
-    <para>&man.ppp.8; теперь поддерживает команду <quote>set rad_alive
+    <para>Пользовательская реализация &man.ppp.8; теперь поддерживает
+      команду <quote>set rad_alive
       <replaceable>N</replaceable></quote> для периодического отправления
       учетной информации RADIUS на сервер RADIUS.</para>
 
@@ -1242,6 +1248,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       теперь поддерживает многобайтные символы.</para>
 
     <para>Были добавлены утилиты &man.sha1.1; и &man.rmd160.1;.
+      Подобно &man.md5.1;, они вычисляют хэш вводимых данных.
       &merged;</para>
 
     <para>Была добавлена небольшая утилита &man.smbmsg.8;, для
@@ -1392,14 +1399,19 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para><application>pf</application>, пакетный фильтр OpenBSD
       из OpenBSD&nbsp;3.5, был импортирован в дерево исходных текстов &os;,
-      и теперь установлен по умолчанию.  Добавлены также новый пользователь
-      <username>proxy</username> и две новых группы
-      <username>authpf</username> и <username>proxy</username>,
+      и теперь установлен по умолчанию.  Добавлены также два новых
+      пользователя (<username>proxy</username> и
+      <username>_pflogd</username>) и три новых группы
+      (<username>authpf</username>, <username>proxy</username> и
+      <username>_pflogd</username>),
       которые необходимы <application>pf</application>.</para>
 
       <note>
 	<para>При обновлении из исходных текстов, должны быть добавлены
-	  эти учетные записи.  Для выключения сборки
+	  эти учетные записи.  Для добавления этих записей в &man.passwd.5;
+	  и &man.group.5; может быть использован
+	  <literal>mergemaster -p</literal>.
+	  Для выключения сборки
 	  <application>pf</application> может быть использована
 	  переменная <varname>NO_PF</varname> в
 	  <filename>make.conf</filename>.</para>
@@ -1524,7 +1536,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       обновлен с 3.1.4 до 3.2.3.</para>
 
     <para>Утилита <filename role="package">security/portaudit</filename>
-      теперь находится в коллекции портов.  Эта утилита читает базу данных,
+      теперь находится в коллекции портов &os;.  Эта утилита читает базу данных,
       содержащую известные уязвимости портов, и сообщает о них
       администратору.</para>
 
