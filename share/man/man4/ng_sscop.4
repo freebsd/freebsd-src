@@ -153,7 +153,7 @@ state and the lower hook is still connected, an
 .Dv SSCOP_RELEASE_request
 is executed to release the SSCOP connection.
 .It Dv manage
-This is the management interface defined in the standard. 
+This is the management interface defined in the standard.
 The data structure used here is:
 .Bd -literal
 struct sscop_marg {
@@ -190,7 +190,7 @@ The
 .Nm
 node understands the generic messages plus the following:
 .Bl -tag -width xxx
-.It Dv NGM_SSCOP_SETPARAM 
+.It Dv NGM_SSCOP_SETPARAM
 Set operational parameters of the SSCOP instance and takes the
 following structure:
 .Bd -literal
@@ -268,16 +268,16 @@ but that could not be set and
 is an
 .Xr errno 3
 code describing why the parameter could not be set.
-.It Dv NGM_SSCOP_GETPARAM 
+.It Dv NGM_SSCOP_GETPARAM
 This message returns the current operational parameters of the SSCOP
 instance in a
 .Fa sscop_param
 structure.
-.It Dv NGM_SSCOP_ENABLE 
+.It Dv NGM_SSCOP_ENABLE
 This message creates the actual SSCOP instance and initializes it.
 Until this is done, parameters may neither be retrieved not set and all
 message received on any hook are discarded.
-.It Dv NGM_SSCOP_DISABLE 
+.It Dv NGM_SSCOP_DISABLE
 Destroy the SSCOP instance. After this all messages on any hooks are
 discarded.
 .It Dv NGM_SSCOP_SETDEBUG
@@ -323,7 +323,7 @@ The space is computed as the difference of the
 .Fa max_queuelen_packets
 and
 .Fa current
-members of the 
+members of the
 .Fa ngm_queue_state
 structure.
 .It Dv NGM_SYNC_QUEUE_STATE

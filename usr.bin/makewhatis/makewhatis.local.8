@@ -36,20 +36,20 @@
 .Nm /usr/libexec/catman.local
 .Op options
 .Ar directories ...
-.Sh DESCRIPTION 
+.Sh DESCRIPTION
 The
 .Nm
 utility starts
 .Xr makewhatis 1
 only for file systems physically mounted on the system
-where the 
+where the
 .Nm
 is being executed. Running makewhatis
-by 
+by
 .Pa periodic weekly
 for rw nfs-mounted /usr may kill
 your NFS server -- all NFS clients start makewhatis at the same time!
-So use this wrapper for 
+So use this wrapper for
 .Xr cron 8
 instead of calling makewhatis directly.
 The
