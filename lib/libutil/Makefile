@@ -6,8 +6,9 @@ SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 CFLAGS+=-Wall -DLIBC_SCCS -I${.CURDIR}
 CFLAGS+=-DINET6
-SRCS=	_secure_path.c auth.c extattr.c fparseln.c login.c login_auth.c \
-	login_cap.c login_class.c login_crypt.c login_ok.c login_times.c \
+SRCS=	_secure_path.c auth.c ecalloc.c emalloc.c erealloc.c estrdup.c	      \
+	extattr.c fparseln.c login.c login_auth.c			      \
+	login_cap.c login_class.c login_crypt.c login_ok.c login_times.c      \
 	login_tty.c logout.c logwtmp.c property.c pty.c realhostname.c stub.c \
 	trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
@@ -18,6 +19,8 @@ MAN+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
 	realhostname_sa.3 trimdomain.3 fparseln.3
 MAN+=	login.conf.5 auth.conf.5
+MAN+=	emalloc.3
+
 MLINKS+= extattr.3 extattr_namespace_to_string.3 \
 	extattr.3 extattr_string_to_namespace.3 
 MLINKS+= property.3 properties_read.3  property.3 properties_free.3
@@ -41,5 +44,6 @@ MLINKS+=login_ok.3 auth_ttyok.3 login_ok.3 auth_hostok.3 \
 MLINKS+=login_auth.3 auth_checknologin.3 login_auth.3 auth_cat.3
 MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_lock_txfr.3 \
 	uucplock.3 uu_unlock.3 uucplock.3 uu_lockerr.3
+MLINKS+=emalloc.3 ecalloc.3 emalloc.3 erealloc.3 emalloc.3 estrdup.3
 
 .include <bsd.lib.mk>
