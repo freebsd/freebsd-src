@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: local_passwd.c,v 1.8 1995/12/16 09:45:12 markm Exp $
  */
 
 #ifndef lint
@@ -176,7 +176,7 @@ local_passwd(uname)
 	pw->pw_change = 0;
 	pw_copy(pfd, tfd, pw);
 
-	if (!pw_mkdb())
+	if (!pw_mkdb(uname))
 		pw_error((char *)NULL, 0, 1);
 	return (0);
 }

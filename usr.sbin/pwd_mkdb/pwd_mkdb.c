@@ -79,6 +79,7 @@ static char prefix[MAXPATHLEN];
 
 void	cleanup __P((void));
 void	error __P((char *));
+void	cp __P((char *, char *, mode_t mode));
 void	mv __P((char *, char *));
 int	scan __P((FILE *, struct passwd *));
 void	usage __P((void));
@@ -88,24 +89,32 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	DB *dp, *edp;
-	DBT data, key;
+	DB *dp, *sdp, *pw_db;
+	DBT data, sdata, key;
 	FILE *fp, *oldfp;
 	sigset_t set;
 	int ch, cnt, ypcnt, len, makeold, tfd, yp_enabled = 0;
 	char *p, *t;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
+	char sbuf[MAX(MAXPATHLEN, LINE_MAX * 2)];
 	char buf2[MAXPATHLEN];
+	char sbuf2[MAXPATHLEN];
+	char *username;
+	u_int method, methoduid;
 
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
-	while ((ch = getopt(argc, argv, "d:pv")) != EOF)
+	username = NULL;
+	while ((ch = getopt(argc, argv, "d:pu:v")) != EOF)
 		switch(ch) {
 		case 'd':
 			strcpy(prefix, optarg);
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
+			break;
+		case 'u':			/* only update this record */
+			username = optarg;
 			break;
 		case 'v':                       /* backward compatible */
 			break;
@@ -116,7 +125,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1)
+	if (argc != 1 || *username == '+' || *username == '-')
 		usage();
 
 	/*
@@ -141,11 +150,82 @@ main(argc, argv)
 
 	/* Open the temporary insecure password database. */
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
-	dp = dbopen(buf,
-	    O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
-	if (dp == NULL)
-		error(buf);
-	clean = FILE_INSECURE;
+	(void)snprintf(sbuf, sizeof(sbuf), "%s/%s.tmp", prefix, _SMP_DB);
+	if(username) {
+		(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _MP_DB);
+		(void)snprintf(sbuf2, sizeof(sbuf2), "%s/%s", prefix, _SMP_DB);
+
+		clean = FILE_INSECURE;
+		cp(buf2, buf, PERM_INSECURE);
+		dp = dbopen(buf,
+		    O_RDWR|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
+		if (dp == NULL)
+			error(buf);
+
+		clean = FILE_SECURE;
+		cp(sbuf2, sbuf, PERM_SECURE);
+		sdp = dbopen(sbuf,
+		    O_RDWR|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
+		if (sdp == NULL)
+			error(sbuf);
+
+		/*
+		 * Do some trouble to check if we should store this users 
+		 * uid. Don't use getpwnam/getpwuid as that interferes 
+		 * with NIS.
+		 */
+		pw_db = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
+		if (!pw_db)
+			error(_MP_DB);
+		buf[0] = _PW_KEYBYNAME;
+		len = strlen(username);
+
+		/* Only check that username fits in buffer */
+		memmove(buf + 1, username, MIN(len, sizeof(buf) - 1));
+		key.data = (u_char *)buf;
+		key.size = len + 1;
+		if ((pw_db->get)(pw_db, &key, &data, 0) == 0) {
+			p = (char *)data.data;
+
+			/* jump over pw_name and pw_passwd, to get to pw_uid */
+			while(*p++);
+			while(*p++);
+
+			buf[0] = _PW_KEYBYUID;
+			memmove(buf + 1, p, sizeof(int));
+			key.data = (u_char *)buf;
+			key.size = sizeof(int) + 1;
+
+			if ((pw_db->get)(pw_db, &key, &data, 0) == 0) {
+				/* First field of data.data holds pw_pwname */
+				if(!strcmp(data.data, username))
+					methoduid = 0;
+				else
+					methoduid = R_NOOVERWRITE;
+			} else {
+				methoduid = R_NOOVERWRITE;
+			}
+		} else {
+			methoduid = R_NOOVERWRITE;
+		}
+		(void)(pw_db->close)(pw_db);
+		method = 0;
+	} else {
+		dp = dbopen(buf,
+		    O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
+		if (dp == NULL)
+			error(buf);
+		clean = FILE_INSECURE;
+
+		sdp = dbopen(sbuf,
+		    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
+		if (sdp == NULL)
+			error(sbuf);
+		clean = FILE_SECURE;
+
+		method = R_NOOVERWRITE;
+		methoduid = R_NOOVERWRITE;
+	}
 
 	/*
 	 * Open file for old password file.  Minor trickiness -- don't want to
@@ -177,63 +257,109 @@ main(argc, argv)
 	 */
 	ypcnt = 1;
 	data.data = (u_char *)buf;
+	sdata.data = (u_char *)sbuf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
 		if(pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
-		/* Create insecure data. */
-		p = buf;
-		COMPACT(pwd.pw_name);
-		COMPACT("*");
-		memmove(p, &pwd.pw_uid, sizeof(int));
-		p += sizeof(int);
-		memmove(p, &pwd.pw_gid, sizeof(int));
-		p += sizeof(int);
-		memmove(p, &pwd.pw_change, sizeof(time_t));
-		p += sizeof(time_t);
-		COMPACT(pwd.pw_class);
-		COMPACT(pwd.pw_gecos);
-		COMPACT(pwd.pw_dir);
-		COMPACT(pwd.pw_shell);
-		memmove(p, &pwd.pw_expire, sizeof(time_t));
-		p += sizeof(time_t);
-		memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
-		p += sizeof pwd.pw_fields;
-		data.size = p - buf;
+		if (!username  || (strcmp(username, pwd.pw_name) == 0)) {
+			/* Create insecure data. */
+			p = buf;
+			COMPACT(pwd.pw_name);
+			COMPACT("*");
+			memmove(p, &pwd.pw_uid, sizeof(int));
+			p += sizeof(int);
+			memmove(p, &pwd.pw_gid, sizeof(int));
+			p += sizeof(int);
+			memmove(p, &pwd.pw_change, sizeof(time_t));
+			p += sizeof(time_t);
+			COMPACT(pwd.pw_class);
+			COMPACT(pwd.pw_gecos);
+			COMPACT(pwd.pw_dir);
+			COMPACT(pwd.pw_shell);
+			memmove(p, &pwd.pw_expire, sizeof(time_t));
+			p += sizeof(time_t);
+			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
+			p += sizeof pwd.pw_fields;
+			data.size = p - buf;
 
-		/* Store insecure by name. */
-		tbuf[0] = _PW_KEYBYNAME;
-		len = strlen(pwd.pw_name);
-		memmove(tbuf + 1, pwd.pw_name, len);
-		key.size = len + 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
+			/* Create secure data. */
+			p = sbuf;
+			COMPACT(pwd.pw_name);
+			COMPACT(pwd.pw_passwd);
+			memmove(p, &pwd.pw_uid, sizeof(int));
+			p += sizeof(int);
+			memmove(p, &pwd.pw_gid, sizeof(int));
+			p += sizeof(int);
+			memmove(p, &pwd.pw_change, sizeof(time_t));
+			p += sizeof(time_t);
+			COMPACT(pwd.pw_class);
+			COMPACT(pwd.pw_gecos);
+			COMPACT(pwd.pw_dir);
+			COMPACT(pwd.pw_shell);
+			memmove(p, &pwd.pw_expire, sizeof(time_t));
+			p += sizeof(time_t);
+			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
+			p += sizeof pwd.pw_fields;
+			sdata.size = p - sbuf;
 
-		/* Store insecure by number. */
-		tbuf[0] = _PW_KEYBYNUM;
-		memmove(tbuf + 1, &cnt, sizeof(cnt));
-		key.size = sizeof(cnt) + 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-
-		/* Store insecure by uid. */
-		tbuf[0] = _PW_KEYBYUID;
-		memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
-		key.size = sizeof(pwd.pw_uid) + 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-
-		/* Store insecure special plus and special minus */
-		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-			tbuf[0] = _PW_KEYYPBYNUM;
-			memmove(tbuf + 1, &ypcnt, sizeof(cnt));
-			ypcnt++;
-			key.size = sizeof(cnt) + 1;
-			if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+			/* Store insecure by name. */
+			tbuf[0] = _PW_KEYBYNAME;
+			len = strlen(pwd.pw_name);
+			memmove(tbuf + 1, pwd.pw_name, len);
+			key.size = len + 1;
+			if ((dp->put)(dp, &key, &data, method) == -1)
 				error("put");
-		}
 
+			/* Store insecure by number. */
+			tbuf[0] = _PW_KEYBYNUM;
+			memmove(tbuf + 1, &cnt, sizeof(cnt));
+			key.size = sizeof(cnt) + 1;
+			if ((dp->put)(dp, &key, &data, method) == -1)
+				error("put");
+
+			/* Store insecure by uid. */
+			tbuf[0] = _PW_KEYBYUID;
+			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
+			key.size = sizeof(pwd.pw_uid) + 1;
+			if ((dp->put)(dp, &key, &data, methoduid) == -1)
+				error("put");
+
+			/* Store secure by name. */
+			tbuf[0] = _PW_KEYBYNAME;
+			len = strlen(pwd.pw_name);
+			memmove(tbuf + 1, pwd.pw_name, len);
+			key.size = len + 1;
+			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+				error("put");
+
+			/* Store secure by number. */
+			tbuf[0] = _PW_KEYBYNUM;
+			memmove(tbuf + 1, &cnt, sizeof(cnt));
+			key.size = sizeof(cnt) + 1;
+			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+				error("put");
+
+			/* Store secure by uid. */
+			tbuf[0] = _PW_KEYBYUID;
+			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
+			key.size = sizeof(pwd.pw_uid) + 1;
+			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
+				error("put");
+
+			/* Store insecure and secure special plus and special minus */
+			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
+				tbuf[0] = _PW_KEYYPBYNUM;
+				memmove(tbuf + 1, &ypcnt, sizeof(cnt));
+				ypcnt++;
+				key.size = sizeof(cnt) + 1;
+				if ((dp->put)(dp, &key, &data, method) == -1)
+					error("put");
+				if ((sdp->put)(sdp, &key, &sdata, method) == -1)
+					error("put");
+			}
+		}
 		/* Create original format password file entry */
 		if (makeold)
 			(void)fprintf(oldfp, "%s:*:%d:%d:%s:%s:%s\n",
@@ -246,91 +372,18 @@ main(argc, argv)
 		data.size = 1;
 		tbuf[0] = _PW_KEYYPENABLED;
 		key.size = 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+		if ((dp->put)(dp, &key, &data, method) == -1)
+			error("put");
+		if ((sdp->put)(sdp, &key, &data, method) == -1)
 			error("put");
 	}
 
 	(void)(dp->close)(dp);
+	(void)(sdp->close)(sdp);
 	if (makeold) {
 		(void)fflush(oldfp);
 		(void)fclose(oldfp);
 	}
-
-	/* Open the temporary encrypted password database. */
-	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _SMP_DB);
-	edp = dbopen(buf,
-	    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
-	if (!edp)
-		error(buf);
-	clean = FILE_SECURE;
-
-	rewind(fp);
-	ypcnt = 1;
-	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-
-		/* Create secure data. */
-		p = buf;
-		COMPACT(pwd.pw_name);
-		COMPACT(pwd.pw_passwd);
-		memmove(p, &pwd.pw_uid, sizeof(int));
-		p += sizeof(int);
-		memmove(p, &pwd.pw_gid, sizeof(int));
-		p += sizeof(int);
-		memmove(p, &pwd.pw_change, sizeof(time_t));
-		p += sizeof(time_t);
-		COMPACT(pwd.pw_class);
-		COMPACT(pwd.pw_gecos);
-		COMPACT(pwd.pw_dir);
-		COMPACT(pwd.pw_shell);
-		memmove(p, &pwd.pw_expire, sizeof(time_t));
-		p += sizeof(time_t);
-		memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
-		p += sizeof pwd.pw_fields;
-		data.size = p - buf;
-
-		/* Store secure by name. */
-		tbuf[0] = _PW_KEYBYNAME;
-		len = strlen(pwd.pw_name);
-		memmove(tbuf + 1, pwd.pw_name, len);
-		key.size = len + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-
-		/* Store secure by number. */
-		tbuf[0] = _PW_KEYBYNUM;
-		memmove(tbuf + 1, &cnt, sizeof(cnt));
-		key.size = sizeof(cnt) + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-
-		/* Store secure by uid. */
-		tbuf[0] = _PW_KEYBYUID;
-		memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
-		key.size = sizeof(pwd.pw_uid) + 1;
-		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-
-		/* Store secure special plus and special minus */
-		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-			tbuf[0] = _PW_KEYYPBYNUM;
-			memmove(tbuf + 1, &ypcnt, sizeof(ypcnt));
-			ypcnt++;
-			key.size = sizeof(ypcnt) + 1;
-			if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-				error("put");
-		}
-	}
-	/* If YP enabled, set flag. */
-	if(yp_enabled) {
-		buf[0] = yp_enabled + 2;
-		data.size = 1;
-		tbuf[0] = _PW_KEYYPENABLED;
-		key.size = 1;
-		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-	}
-
-	(void)(edp->close)(edp);
 
 	/* Set master.passwd permissions, in case caller forgot. */
 	(void)fchmod(fileno(fp), S_IRUSR|S_IWUSR);
@@ -391,6 +444,38 @@ fmt:		errno = EFTYPE;	/* XXX */
 	return (1);
 }
 
+void                    
+cp(from, to, mode)              
+	char *from, *to;
+	mode_t mode;    
+{               
+	static char buf[MAXBSIZE];
+	int from_fd, rcount, to_fd, wcount;
+
+	if ((from_fd = open(from, O_RDONLY, 0)) < 0)
+		error(from);
+	if ((to_fd = open(to, O_WRONLY|O_CREAT|O_EXCL, mode)) < 0)
+		error(to);
+	while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
+		wcount = write(to_fd, buf, rcount);
+		if (rcount != wcount || wcount == -1) {
+			int sverrno = errno;
+
+			(void)snprintf(buf, sizeof(buf), "%s to %s", from, to);
+			errno = sverrno;
+			error(buf);
+		}
+	}
+	if (rcount < 0) {
+		int sverrno = errno;
+
+		(void)snprintf(buf, sizeof(buf), "%s to %s", from, to);
+		errno = sverrno;
+		error(buf);
+	}
+}
+
+
 void
 mv(from, to)
 	char *from, *to;
@@ -439,6 +524,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] file\n");
+	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] [-u <local username> file\n");
 	exit(1);
 }

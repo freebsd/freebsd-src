@@ -138,7 +138,8 @@ pw_tmp()
 }
 
 int
-pw_mkdb()
+pw_mkdb(username)
+char *username;
 {
 
 	yp_error("rebuilding the database...");
@@ -146,7 +147,12 @@ pw_mkdb()
 	/* Temporarily turn off SIGCHLD catching */
 	install_reaper(0);
 	if (!(pid = vfork())) {
-		execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
+		if(!username) {
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
+		} else {
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-u", username,
+						tempname, NULL);
+		}
 		pw_error(_PATH_PWD_MKDB, 1, 1);
 		return(-1);
 	}
