@@ -34,12 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.14 1994/10/02 07:19:43 rgrimes Exp $
+ *	$Id: genassym.c,v 1.15 1994/10/06 09:22:44 rgrimes Exp $
  */
 
 #include <sys/param.h>
 #include <sys/buf.h>
-#include <sys/map.h>
 #include <sys/proc.h>
 /* XXX This is just real ugly to have to do, but it is what you have to do! */
 #ifndef	NFS

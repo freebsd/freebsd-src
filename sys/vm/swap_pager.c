@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.9 1994/09/25 04:02:10 davidg Exp $
+ * $Id: swap_pager.c,v 1.10 1994/10/09 01:52:04 phk Exp $
  */
 
 /*
@@ -79,6 +79,8 @@ extern int hz;
 int swap_pager_full;
 extern vm_map_t pager_map;
 extern int vm_swap_size;
+struct rlist *swaplist;
+int nswaplist;
 
 #define MAX_PAGEOUT_CLUSTER 8
 
@@ -364,14 +366,14 @@ swap_pager_getswapspace( unsigned amount, unsigned *rtval) {
 	if( amount < nblocksfrag) {
 		if( rlist_alloc(&swapfrag, amount, rtval))
 			return 1;
-		if( !rlist_alloc(&swapmap, nblocksfrag, &tmpalloc))
+		if( !rlist_alloc(&swaplist, nblocksfrag, &tmpalloc))
 			return 0;
 		rlist_free( &swapfrag, tmpalloc+amount, tmpalloc + nblocksfrag - 1);
 		*rtval = tmpalloc;
 		return 1;
 	}
 #endif
-	if( !rlist_alloc(&swapmap, amount, rtval))
+	if( !rlist_alloc(&swaplist, amount, rtval))
 		return 0;
 	else
 		return 1;
@@ -388,13 +390,13 @@ swap_pager_freeswapspace( unsigned from, unsigned to) {
 	unsigned tmpalloc;
 	if( ((to + 1) - from) >= nblocksfrag) {
 #endif
-		rlist_free(&swapmap, from, to);
+		rlist_free(&swaplist, from, to);
 #ifdef EXP
 		return;
 	}
 	rlist_free(&swapfrag, from, to);
 	while( rlist_alloc(&swapfrag, nblocksfrag, &tmpalloc)) {
-		rlist_free(&swapmap, tmpalloc, tmpalloc + nblocksfrag-1);
+		rlist_free(&swaplist, tmpalloc, tmpalloc + nblocksfrag-1);
 	}
 #endif
 }
