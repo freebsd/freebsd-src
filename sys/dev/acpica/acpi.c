@@ -625,7 +625,7 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
-	
+
     if (dinfo->ad_handle)
 	snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
     else
@@ -1581,7 +1581,7 @@ acpi_ForeachPackageObject(ACPI_OBJECT *pkg,
 {
     ACPI_OBJECT	*comp;
     int		i;
-    
+
     if (pkg == NULL || pkg->Type != ACPI_TYPE_PACKAGE)
 	return (AE_BAD_PARAMETER);
 
@@ -1636,7 +1636,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 {
     ACPI_RESOURCE	*rp;
     void		*newp;
-    
+
     /* Initialise the buffer if necessary. */
     if (buf->Pointer == NULL) {
 	buf->Length = ACPI_INITIAL_RESOURCE_BUFFER_SIZE;
@@ -1648,7 +1648,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     }
     if (res == NULL)
 	return (AE_OK);
-    
+
     /*
      * Scan the current buffer looking for the terminator.
      * This will either find the terminator or hit the end
@@ -1687,10 +1687,10 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	buf->Pointer = newp;
 	buf->Length += buf->Length;
     }
-    
+
     /* Insert the new resource. */
     bcopy(res, rp, res->Length + ACPI_RESOURCE_LENGTH_NO_DATA);
-    
+
     /* And add the terminator. */
     rp = ACPI_NEXT_RESOURCE(rp);
     rp->Id = ACPI_RSTYPE_END_TAG;
@@ -2146,49 +2146,6 @@ out:
 }
 
 /*
- * Enable/Disable ACPI
- */
-ACPI_STATUS
-acpi_Enable(struct acpi_softc *sc)
-{
-    ACPI_STATUS	status;
-    u_int32_t	flags;
-
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    status = AE_ERROR;
-    flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
-	    ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
-
-    ACPI_SERIAL_BEGIN(acpi);
-    if (!sc->acpi_enabled)
-	status = AcpiEnableSubsystem(flags);
-    if (ACPI_SUCCESS(status))
-	sc->acpi_enabled = 1;
-    ACPI_SERIAL_END(acpi);
-
-    return_ACPI_STATUS (status);
-}
-
-ACPI_STATUS
-acpi_Disable(struct acpi_softc *sc)
-{
-    ACPI_STATUS	status;
-
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    status = AE_ERROR;
-    ACPI_SERIAL_BEGIN(acpi);
-    if (sc->acpi_enabled)
-	status = AcpiDisable();
-    if (ACPI_SUCCESS(status))
-	sc->acpi_enabled = 0;
-    ACPI_SERIAL_END(acpi);
-
-    return_ACPI_STATUS (status);
-}
-
-/*
  * ACPI Event Handlers
  */
 
@@ -2463,14 +2420,6 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 
     /* Core system ioctls. */
     switch (cmd) {
-    case ACPIIO_ENABLE:
-	if (ACPI_FAILURE(acpi_Enable(sc)))
-	    error = ENXIO;
-	break;
-    case ACPIIO_DISABLE:
-	if (ACPI_FAILURE(acpi_Disable(sc)))
-	    error = ENXIO;
-	break;
     case ACPIIO_SETSLPSTATE:
 	error = EINVAL;
 	state = *(int *)addr;

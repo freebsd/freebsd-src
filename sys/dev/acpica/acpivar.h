@@ -274,8 +274,6 @@ int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
-ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
-ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
 struct resource *acpi_bus_alloc_gas(device_t dev, int *rid,
