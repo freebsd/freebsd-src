@@ -136,7 +136,7 @@
  * Ceiling on amount of swblock kva space.
  */
 #ifndef VM_SWZONE_SIZE_MAX
-#define VM_SWZONE_SIZE_MAX     (70 * 1024 * 1024)
+#define VM_SWZONE_SIZE_MAX     (32 * 1024 * 1024)
 #endif
 
 /*
