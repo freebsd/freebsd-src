@@ -155,6 +155,7 @@ isp_attach(struct ispsoftc *isp)
 			isp_prt(isp, ISP_LOGERR, "could not create kthread");
 			return;
 		}
+		CAMLOCK_2_ISPLOCK(isp);
 	}
 
 
