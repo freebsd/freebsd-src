@@ -177,6 +177,9 @@ NSFBUFS		opt_param.h
 VM_BCACHE_SIZE_MAX	opt_param.h
 VM_SWZONE_SIZE_MAX	opt_param.h
 MAXUSERS
+DFLDSIZ		opt_param.h
+MAXDSIZ		opt_param.h
+MAXSSIZ		opt_param.h
 
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
@@ -242,11 +245,6 @@ DEV_ATADISK		opt_ata.h
 DEV_ATAPICD		opt_ata.h
 DEV_ATAPIST		opt_ata.h
 DEV_ATAPIFD		opt_ata.h
-
-# Resource limits.
-DFLDSIZ			opt_rlimit.h
-MAXDSIZ			opt_rlimit.h
-MAXSSIZ			opt_rlimit.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA

@@ -282,6 +282,29 @@ do {							\
 	getenv_int((path), (var));			\
 } while (0)
 
+extern void tunable_quad_init(void *);
+struct tunable_quad {
+	const char *path;
+	quad_t *var;
+};
+#define	TUNABLE_QUAD(path, var)					\
+	_TUNABLE_QUAD((path), (var), __LINE__)
+#define	_TUNABLE_QUAD(path, var, line)				\
+	__TUNABLE_QUAD((path), (var), line)
+
+#define	__TUNABLE_QUAD(path, var, line)			\
+	static struct tunable_quad __tunable_quad_ ## line = {	\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	    tunable_quad_init, &__tunable_quad_ ## line)
+
+#define	TUNABLE_QUAD_FETCH(path, var)			\
+do {							\
+	getenv_quad((path), (var));			\
+} while (0)
+
 extern void tunable_str_init(void *);
 struct tunable_str {
 	const char *path;

@@ -32,7 +32,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_rlimit.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -355,7 +354,7 @@ shmat(td, uap)
 		 * put it.
 		 */
 		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr
-		    + MAXTSIZ + MAXDSIZ);
+		    + maxtsiz + maxdsiz);
 	}
 
 	shm_handle = shmseg->shm_internal;
