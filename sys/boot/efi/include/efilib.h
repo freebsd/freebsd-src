@@ -31,6 +31,7 @@ extern EFI_SYSTEM_TABLE		*ST;
 extern EFI_BOOT_SERVICES	*BS;
 extern EFI_RUNTIME_SERVICES	*RS;
 
+void *efi_get_table(EFI_GUID *tbl);
 void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
 
 EFI_STATUS main(int argc, CHAR16 *argv[]);

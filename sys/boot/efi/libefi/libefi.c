@@ -59,6 +59,20 @@ arg_skipword(CHAR16 *argp)
 	return (argp);
 }
 
+void *
+efi_get_table(EFI_GUID *tbl)
+{
+	EFI_GUID *id;
+	int i;
+
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		id = &ST->ConfigurationTable[i].VendorGuid;
+		if (!memcmp(id, tbl, sizeof(EFI_GUID)))
+			return (ST->ConfigurationTable[i].VendorTable);
+	}
+	return (NULL);
+}
+
 void exit(EFI_STATUS exit_code)
 {
 

@@ -39,6 +39,8 @@
 
 #include "bootstrap.h"
 
+static EFI_GUID hcdp = HCDP_TABLE_GUID;
+
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
  * (kargs) and any relevant environment variables.
@@ -300,6 +302,7 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey,
     bi->bi_symtab = ssym;
     bi->bi_esymtab = esym;
 
+    bi->bi_hcdp = (uint64_t)efi_get_table(&hcdp); /* DIG64 HCDP table addr. */
     fpswa_init(&bi->bi_fpswa);		/* find FPSWA interface */
 
     /* find the last module in the chain */
