@@ -66,7 +66,7 @@ struct mss_info {
     int		     drq2_rid;
     void 	    *ih;
     bus_dma_tag_t    parent_dmat;
-    void	    *lock;
+    struct mtx	    *lock;
 
     char mss_indexed_regs[MSS_INDEXED_REGS];
     char opl_indexed_regs[OPL_INDEXED_REGS];

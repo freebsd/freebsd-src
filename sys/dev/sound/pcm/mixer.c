@@ -47,7 +47,7 @@ struct snd_mixer {
 	u_int32_t recsrc;
 	u_int16_t level[32];
 	char name[MIXER_NAMELEN];
-	void *lock;
+	struct mtx *lock;
 };
 
 static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {

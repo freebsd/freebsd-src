@@ -107,7 +107,7 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void 			*ih;
-	void			*lock;
+	struct mtx		*lock;
 
 	int			spdif_enabled;
 	unsigned int		bufsz;

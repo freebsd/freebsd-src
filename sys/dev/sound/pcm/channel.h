@@ -62,7 +62,7 @@ struct pcm_channel {
 	void *devinfo;
 	device_t dev;
 	char name[CHN_NAMELEN];
-	void *lock;
+	struct mtx *lock;
 	SLIST_HEAD(, pcmchan_children) children;
 };
 
