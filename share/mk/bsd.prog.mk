@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.75 1998/06/05 18:38:54 dt Exp $
+#	$Id: bsd.prog.mk,v 1.76 1998/08/08 07:02:08 peter Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -9,7 +9,7 @@ __initialized__:
 .endif
 
 # Default executable format
-BINFORMAT?=	aout
+OBJFORMAT?=	aout
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 
@@ -73,7 +73,7 @@ CLEANFILES+= ${PROG} ${OBJS}
 
 .if defined(PROG) && !defined(NOEXTRADEPEND)
 _EXTRADEPEND:
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
@@ -158,7 +158,7 @@ all-man:
 regress:
 .endif
 
-.if ${BINFORMAT} != aout || make(checkdpadd)
+.if ${OBJFORMAT} != aout || make(checkdpadd)
 .include <bsd.libnames.mk>
 .endif
 
