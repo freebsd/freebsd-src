@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
- *              $Revision: 34 $
+ *              $Revision: 37 $
  *
  ******************************************************************************/
 
@@ -210,30 +210,29 @@ AcpiRsIrqResource (
         Temp8 = *Buffer;
 
         /*
-         * Check for HE, LL or HL
+         * Check for HE, LL interrupts
          */
-        if (Temp8 & 0x01)
+        switch (Temp8 & 0x09)
         {
+        case 0x01: /* HE */
             OutputStruct->Data.Irq.EdgeLevel = ACPI_EDGE_SENSITIVE;
             OutputStruct->Data.Irq.ActiveHighLow = ACPI_ACTIVE_HIGH;
-        }
-        else
-        {
-            if (Temp8 & 0x8)
-            {
-                OutputStruct->Data.Irq.EdgeLevel = ACPI_LEVEL_SENSITIVE;
-                OutputStruct->Data.Irq.ActiveHighLow = ACPI_ACTIVE_LOW;
-            }
-            else
-            {
-                /*
-                 * Only _LL and _HE polarity/trigger interrupts
-                 * are allowed (ACPI spec v1.0b ection 6.4.2.1),
-                 * so an error will occur if we reach this point
-                 */
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid interrupt polarity/trigger in resource list\n"));
-                return_ACPI_STATUS (AE_BAD_DATA);
-            }
+            break;
+
+        case 0x08: /* LL */
+            OutputStruct->Data.Irq.EdgeLevel = ACPI_LEVEL_SENSITIVE;
+            OutputStruct->Data.Irq.ActiveHighLow = ACPI_ACTIVE_LOW;
+            break;
+
+        default:
+            /*
+             * Only _LL and _HE polarity/trigger interrupts
+             * are allowed (ACPI spec, section "IRQ Format")
+             * so 0x00 and 0x09 are illegal.
+             */
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Invalid interrupt polarity/trigger in resource list, %X\n", Temp8));
+            return_ACPI_STATUS (AE_BAD_DATA);
         }
 
         /*
@@ -408,11 +407,14 @@ AcpiRsExtendedIrqResource (
     Buffer += 1;
     ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
-    /* Check for the minimum length. */
-    if (Temp16 < 6)
-        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
-    *BytesConsumed = Temp16 + 3;
+    /* Validate minimum descriptor length */
 
+    if (Temp16 < 6)
+    {
+        return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
+    }
+
+    *BytesConsumed = Temp16 + 3;
     OutputStruct->Id = ACPI_RSTYPE_EXT_IRQ;
 
     /*
@@ -450,10 +452,11 @@ AcpiRsExtendedIrqResource (
     Buffer += 1;
     Temp8 = *Buffer;
 
-    /* Minimum number of IRQs is one. */
-    if (Temp8 < 1) {
-        *BytesConsumed = 0;
-        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
+    /* Must have at least one IRQ */
+
+    if (Temp8 < 1)
+    {
+        return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
     }
 
     OutputStruct->Data.ExtendedIrq.NumberOfInterrupts = Temp8;
@@ -488,10 +491,12 @@ AcpiRsExtendedIrqResource (
      * pointer to where the null terminated string goes:
      * Each Interrupt takes 32-bits + the 5 bytes of the
      * stream that are default.
+     *
+     * Note: Some resource descriptors will have an additional null, so
+     * we add 1 to the length.
      */
     if (*BytesConsumed >
-        ((ACPI_SIZE) OutputStruct->Data.ExtendedIrq.NumberOfInterrupts * 4)
-        + 5 + 1)
+        ((ACPI_SIZE) OutputStruct->Data.ExtendedIrq.NumberOfInterrupts * 4) + (5 + 1))
     {
         /* Dereference the Index */
 
@@ -506,7 +511,7 @@ AcpiRsExtendedIrqResource (
          * Point the String pointer to the end of this structure.
          */
         OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr =
-                (char *)(OutputStruct + StructSize);
+                (char *)((char *) OutputStruct + StructSize);
 
         TempPtr = (UINT8 *) OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr;
 

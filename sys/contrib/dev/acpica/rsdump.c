@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 36 $
+ *              $Revision: 37 $
  *
  ******************************************************************************/
 
@@ -992,24 +992,19 @@ AcpiRsDumpAddress64 (
                 "" : "not ");
 
     AcpiOsPrintf ("    Granularity: %8.8X%8.8X\n",
-                ACPI_HIDWORD (Address64Data->Granularity),
-                ACPI_LODWORD (Address64Data->Granularity));
+                ACPI_FORMAT_UINT64 (Address64Data->Granularity));
 
     AcpiOsPrintf ("    Address range min: %8.8X%8.8X\n",
-                ACPI_HIDWORD (Address64Data->MinAddressRange),
-                ACPI_HIDWORD (Address64Data->MinAddressRange));
+                ACPI_FORMAT_UINT64 (Address64Data->MinAddressRange));
 
     AcpiOsPrintf ("    Address range max: %8.8X%8.8X\n",
-                ACPI_HIDWORD (Address64Data->MaxAddressRange),
-                ACPI_HIDWORD (Address64Data->MaxAddressRange));
+                ACPI_FORMAT_UINT64 (Address64Data->MaxAddressRange));
 
     AcpiOsPrintf ("    Address translation offset: %8.8X%8.8X\n",
-                ACPI_HIDWORD (Address64Data->AddressTranslationOffset),
-                ACPI_HIDWORD (Address64Data->AddressTranslationOffset));
+                ACPI_FORMAT_UINT64 (Address64Data->AddressTranslationOffset));
 
     AcpiOsPrintf ("    Address Length: %8.8X%8.8X\n",
-                ACPI_HIDWORD (Address64Data->AddressLength),
-                ACPI_HIDWORD (Address64Data->AddressLength));
+                ACPI_FORMAT_UINT64 (Address64Data->AddressLength));
 
     if(0xFF != Address64Data->ResourceSource.Index)
     {
@@ -1227,8 +1222,7 @@ AcpiRsDumpIrqList (
             AcpiOsPrintf ("PCI IRQ Routing Table structure %X.\n", Count++);
 
             AcpiOsPrintf ("    Address: %8.8X%8.8X\n",
-                        ACPI_HIDWORD (PrtElement->Address),
-                        ACPI_LODWORD (PrtElement->Address));
+                        ACPI_FORMAT_UINT64 (PrtElement->Address));
 
             AcpiOsPrintf ("    Pin: %X\n", PrtElement->Pin);
 

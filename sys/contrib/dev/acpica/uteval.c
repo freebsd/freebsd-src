@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 48 $
+ *              $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -167,7 +167,7 @@ AcpiUtEvaluateObject (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s.%s] was not found\n",
-                PrefixNode->Name.Ascii, Path));
+                AcpiUtGetNodeName (PrefixNode), Path));
         }
         else
         {
@@ -646,7 +646,7 @@ AcpiUtExecute_STA (
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "_STA on %4.4s was not found, assuming device is present\n",
-                DeviceNode->Name.Ascii));
+                AcpiUtGetNodeName (DeviceNode)));
 
             *Flags = 0x0F;
             Status = AE_OK;

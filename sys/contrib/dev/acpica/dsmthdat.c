@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 71 $
+ *              $Revision: 74 $
  *
  ******************************************************************************/
 
@@ -410,7 +410,7 @@ AcpiDsMethodDataSetValue (
         return_ACPI_STATUS (Status);
     }
 
-    /* 
+    /*
      * Increment ref count so object can't be deleted while installed.
      * NOTE: We do not copy the object in order to preserve the call by
      * reference semantics of ACPI Control Method invocation.
@@ -662,12 +662,12 @@ AcpiDsStoreObjectToLocal (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *CurrentObjDesc;
+    ACPI_OPERAND_OBJECT     *NewObjDesc;
 
 
     ACPI_FUNCTION_TRACE ("DsStoreObjectToLocal");
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%d Idx=%d Obj=%p\n",
         Opcode, Index, ObjDesc));
-
 
     /* Parameter validation */
 
@@ -690,6 +690,21 @@ AcpiDsStoreObjectToLocal (
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p already installed!\n",
             ObjDesc));
         return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * If the reference count on the object is more than one, we must
+     * take a copy of the object before we store.
+     */
+    NewObjDesc = ObjDesc;
+    if (ObjDesc->Common.ReferenceCount > 1)
+    {
+        Status = AcpiUtCopyIobjectToIobject (ObjDesc, &NewObjDesc, WalkState);
+        NewObjDesc;
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /*
@@ -725,8 +740,8 @@ AcpiDsStoreObjectToLocal (
              */
             if (ACPI_GET_DESCRIPTOR_TYPE (CurrentObjDesc) != ACPI_DESC_TYPE_OPERAND)
             {
-                ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: %X\n",
-                    CurrentObjDesc->Common.Type));
+                ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: [%s]\n",
+                        AcpiUtGetDescriptorName (CurrentObjDesc)));
                 return_ACPI_STATUS (AE_AML_INTERNAL);
             }
 
@@ -738,15 +753,22 @@ AcpiDsStoreObjectToLocal (
                 (CurrentObjDesc->Reference.Opcode == AML_REF_OF_OP))
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                    "Arg (%p) is an ObjRef(Node), storing in node %p\n",
-                    ObjDesc, CurrentObjDesc));
+                        "Arg (%p) is an ObjRef(Node), storing in node %p\n",
+                        NewObjDesc, CurrentObjDesc));
 
                 /*
                  * Store this object to the Node
                  * (perform the indirect store)
                  */
-                Status = AcpiExStoreObjectToNode (ObjDesc,
+                Status = AcpiExStoreObjectToNode (NewObjDesc,
                             CurrentObjDesc->Reference.Object, WalkState);
+
+                /* Remove local reference if we copied the object above */
+
+                if (NewObjDesc != ObjDesc)
+                {
+                    AcpiUtRemoveReference (NewObjDesc);
+                }
                 return_ACPI_STATUS (Status);
             }
         }
@@ -759,12 +781,19 @@ AcpiDsStoreObjectToLocal (
     }
 
     /*
-     * Install the ObjStack descriptor (*ObjDesc) into
+     * Install the Obj descriptor (*NewObjDesc) into
      * the descriptor for the Arg or Local.
-     * Install the new object in the stack entry
      * (increments the object reference count by one)
      */
-    Status = AcpiDsMethodDataSetValue (Opcode, Index, ObjDesc, WalkState);
+    Status = AcpiDsMethodDataSetValue (Opcode, Index, NewObjDesc, WalkState);
+
+    /* Remove local reference if we copied the object above */
+
+    if (NewObjDesc != ObjDesc)
+    {
+        AcpiUtRemoveReference (NewObjDesc);
+    }
+
     return_ACPI_STATUS (Status);
 }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 75 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -131,11 +131,12 @@
  * FUNCTION:    AcpiDsResultInsert
  *
  * PARAMETERS:  Object              - Object to push
+ *              Index               - Where to insert the object
  *              WalkState           - Current Walk state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Push an object onto this walk's result stack
+ * DESCRIPTION: Insert an object onto this walk's result stack
  *
  ******************************************************************************/
 
@@ -192,6 +193,7 @@ AcpiDsResultInsert (
  * FUNCTION:    AcpiDsResultRemove
  *
  * PARAMETERS:  Object              - Where to return the popped object
+ *              Index               - Where to extract the object
  *              WalkState           - Current Walk state
  *
  * RETURN:      Status
@@ -318,6 +320,7 @@ AcpiDsResultPop (
     return (AE_AML_NO_RETURN_VALUE);
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsResultPopFromBottom
@@ -384,7 +387,6 @@ AcpiDsResultPopFromBottom (
         *Object, (*Object) ? AcpiUtGetObjectTypeName (*Object) : "NULL",
         State, WalkState));
 
-
     return (AE_OK);
 }
 
@@ -450,8 +452,7 @@ AcpiDsResultPush (
  *
  * FUNCTION:    AcpiDsResultStackPush
  *
- * PARAMETERS:  Object              - Object to push
- *              WalkState           - Current Walk state
+ * PARAMETERS:  WalkState           - Current Walk state
  *
  * RETURN:      Status
  *
@@ -513,7 +514,6 @@ AcpiDsResultStackPop (
             WalkState));
         return (AE_AML_NO_OPERAND);
     }
-
 
     State = AcpiUtPopGenericState (&WalkState->Results);
 
@@ -671,6 +671,7 @@ AcpiDsObjStackPopObject (
 }
 #endif
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsObjStackPop
@@ -741,6 +742,7 @@ AcpiDsObjStackPopAndDelete (
 {
     UINT32                  i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
+
 
     ACPI_FUNCTION_NAME ("DsObjStackPopAndDelete");
 
@@ -994,8 +996,15 @@ AcpiDsCreateWalkState (
  * FUNCTION:    AcpiDsInitAmlWalk
  *
  * PARAMETERS:  WalkState       - New state to be initialized
+ *              Op              - Current parse op
+ *              MethodNode      - Control method NS node, if any
+ *              AmlStart        - Start of AML
+ *              AmlLength       - Length of AML
+ *              Params          - Method args, if any
+ *              ReturnObjDesc   - Where to store a return object, if any
+ *              PassNumber      - 1, 2, or 3
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Initialize a walk state for a pass 1 or 2 parse tree walk
  *
@@ -1039,10 +1048,10 @@ AcpiDsInitAmlWalk (
 
     if (MethodNode)
     {
-        WalkState->ParserState.StartNode    = MethodNode;
-        WalkState->WalkType                 = ACPI_WALK_METHOD;
-        WalkState->MethodNode               = MethodNode;
-        WalkState->MethodDesc               = AcpiNsGetAttachedObject (MethodNode);
+        WalkState->ParserState.StartNode = MethodNode;
+        WalkState->WalkType              = ACPI_WALK_METHOD;
+        WalkState->MethodNode            = MethodNode;
+        WalkState->MethodDesc            = AcpiNsGetAttachedObject (MethodNode);
 
         /* Push start scope on scope stack and make it current  */
 
@@ -1073,6 +1082,7 @@ AcpiDsInitAmlWalk (
         {
             ExtraOp = ExtraOp->Common.Parent;
         }
+
         if (!ExtraOp)
         {
             ParserState->StartNode = NULL;
@@ -1138,7 +1148,7 @@ AcpiDsDeleteWalkState (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p walk still has a scope list\n", WalkState));
     }
 
-   /* Always must free any linked control states */
+    /* Always must free any linked control states */
 
     while (WalkState->ControlState)
     {

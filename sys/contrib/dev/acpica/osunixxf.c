@@ -243,8 +243,9 @@ AcpiOsTableOverride (
         return (AE_BAD_PARAMETER);
     }
 
+    /* TODO: Add table-getting code here */
     *NewTable = NULL;
-    return (AE_OK);
+    return (AE_NO_ACPI_TABLES);
 }
 
 
@@ -455,7 +456,7 @@ AcpiOsMapMemory (
     ACPI_SIZE               length,
     void                    **there)
 {
-    *there = (void *) (uintptr_t) where;
+    *there = ACPI_TO_POINTER (where);
 
     return AE_OK;
 }
@@ -792,6 +793,10 @@ AcpiOsStall (
     UINT32                  microseconds)
 {
 
+    if (microseconds)
+    {
+        usleep (microseconds);
+    }
     return;
 }
 
@@ -815,7 +820,13 @@ AcpiOsSleep (
     UINT32                  milliseconds)
 {
 
-    usleep (((seconds * 1000) + milliseconds) * 1000);
+    sleep (seconds + (milliseconds / 1000));    /* Sleep for whole seconds */
+
+    /* 
+     * Arg to usleep() must be less than 1,000,000 (1 second)
+     */
+    usleep ((milliseconds % 1000) * 1000);      /* Sleep for remaining usecs */
+
     return;
 }
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  ******************************************************************************/
 
@@ -268,8 +268,7 @@ AcpiDbDumpObject (
     case ACPI_TYPE_INTEGER:
 
         AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n",
-                    ACPI_HIDWORD (ObjDesc->Integer.Value),
-                    ACPI_LODWORD (ObjDesc->Integer.Value));
+                    ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
 
 
