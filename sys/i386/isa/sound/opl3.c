@@ -25,6 +25,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
+ *
  */
 
 /*
@@ -697,8 +699,11 @@ opl3_command(int io_addr, u_int addr, u_int val)
 	for (i = 0; i < 2; i++)
 	    inb(io_addr);
 
+#ifdef PC98
+    outb(io_addr + 0x100, (u_char) (val & 0xff));
+#else
     outb(io_addr + 1, (u_char) (val & 0xff));
-
+#endif
     if (devc->model != 2)
 	DELAY(30);
     else
