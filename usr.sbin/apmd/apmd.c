@@ -58,7 +58,7 @@ int		debug_level = 0;
 int		verbose = 0;
 const char	*apmd_configfile = APMD_CONFIGFILE;
 const char	*apmd_pidfile = APMD_PIDFILE;
-int             apmctl_fd = -1;
+int             apmctl_fd = -1, apmnorm_fd = -1;
 
 /*
  * table of event handlers
@@ -79,6 +79,13 @@ struct event_config events[EVENT_MAX] = {
 	EVENT_CONFIG_INITIALIZER(STANDBYRESUME, 0)
 	EVENT_CONFIG_INITIALIZER(CAPABILITIESCHANGE, 0)
 };
+
+/*
+ * List of battery events
+ */
+struct battery_watch_event *battery_watch_list = NULL;
+
+#define BATT_CHK_INTV 10 /* how many seconds between battery state checks? */
 
 /*
  * default procedure
@@ -139,7 +146,8 @@ event_cmd_exec_clone(void *this)
 	newone->evcmd.len = oldone->evcmd.len;
 	newone->evcmd.name = oldone->evcmd.name;
 	newone->evcmd.op = oldone->evcmd.op;
-	newone->line = strdup(oldone->line);
+	if ((newone->line = strdup(oldone->line)) == NULL)
+		err(1, "out of memory");
 	return (struct event_cmd *) newone;
 }
 void
@@ -206,6 +214,40 @@ free_event_cmd_list(struct event_cmd *p)
 	}
 }
 int
+register_battery_handlers(
+	int level, int direction,
+	struct event_cmd *cmdlist)
+{
+	/*
+	 * level is negative if it's in "minutes", non-negative if
+	 * percentage.
+	 *
+	 * direction =1 means we care about this level when charging,
+	 * direction =-1 means we care about it when discharging.
+	 */
+	if (level>100) /* percentage > 100 */
+		return -1;
+	if (abs(direction) != 1) /* nonsense direction value */
+		return -1;
+
+	if (cmdlist) {
+		struct battery_watch_event *we;
+		
+		if ((we = malloc(sizeof(struct battery_watch_event))) == NULL)
+			(void) err(1, "out of memory");
+
+		we->next = battery_watch_list; /* starts at NULL */
+		battery_watch_list = we;
+		we->level = abs(level);
+		we->type = (level<0)?BATTERY_MINUTES:BATTERY_PERCENT;
+		we->direction = (direction<0)?BATTERY_DISCHARGING:
+			BATTERY_CHARGING;
+		we->done = 0;
+		we->cmdlist = clone_event_cmd_list(cmdlist);
+	}
+	return 0;
+}
+int
 register_apm_event_handlers(
 	bitstr_t bit_decl(evlist, EVENT_MAX),
 	struct event_cmd *cmdlist)
@@ -241,11 +283,10 @@ register_apm_event_handlers(
  * execute command
  */
 int
-exec_event_cmd(struct event_config *ev)
+exec_run_cmd(struct event_cmd *p)
 {
 	int status = 0;
 
-	struct event_cmd *p = ev->cmdlist;
 	for (; p; p = p->next) {
 		assert(p->op->act);
 		if (verbose)
@@ -253,12 +294,24 @@ exec_event_cmd(struct event_config *ev)
 		status = p->op->act(p);
 		if (status) {
 			syslog(LOG_NOTICE, "command finished with %d\n", status);
-			if (ev->rejectable) {
-				syslog(LOG_ERR, "canceled");
-				(void) event_cmd_reject_act(NULL);
-			}
 			break;
 		}
+	}
+	return status;
+}
+
+/*
+ * execute command -- the event version
+ */
+int
+exec_event_cmd(struct event_config *ev)
+{
+	int status = 0;
+
+	status = exec_run_cmd(ev->cmdlist);
+	if (status && ev->rejectable) {
+		syslog(LOG_ERR, "canceled");
+		(void) event_cmd_reject_act(NULL);
 	}
 	return status;
 }
@@ -302,6 +355,7 @@ void
 dump_config()
 {
 	int i;
+	struct battery_watch_event *q;
 
 	for (i = 0; i < EVENT_MAX; i++) {
 		struct event_cmd * p;
@@ -316,12 +370,28 @@ dump_config()
 			fprintf(stderr, "}\n");
 		}
 	}
+	for (q = battery_watch_list ; q != NULL ; q = q -> next) {
+		struct event_cmd * p;
+		fprintf(stderr, "apm_battery %d%s %s {\n",
+			q -> level,
+			(q -> type == BATTERY_PERCENT)?"%":"m",
+			(q -> direction == BATTERY_CHARGING)?"charging":
+				"discharging");
+		for ( p = q -> cmdlist; p ; p = p->next) {
+			fprintf(stderr, "\t%s", p->name);
+			if (p->op->dump)
+				p->op->dump(p, stderr);
+			fprintf(stderr, ";\n");
+		}
+		fprintf(stderr, "}\n");
+	}
 }
 
 void
 destroy_config()
 {
 	int i;
+	struct battery_watch_event *q;
 
 	/* disable events */
 	for (i = 0; i < EVENT_MAX; i++) {
@@ -338,6 +408,13 @@ destroy_config()
 		if ((p = events[i].cmdlist))
 			free_event_cmd_list(p);
 		events[i].cmdlist = NULL;
+	}
+
+	for( ; battery_watch_list; battery_watch_list = battery_watch_list -> next) {
+		free_event_cmd_list(battery_watch_list->cmdlist);
+		q = battery_watch_list->next;
+		free(battery_watch_list);
+		battery_watch_list = q;
 	}
 }
 
@@ -429,6 +506,72 @@ proc_apmevent(int fd)
 		}
 	}
 }
+
+#define AC_POWER_STATE ((pw_info.ai_acline == 1) ? BATTERY_CHARGING :\
+	BATTERY_DISCHARGING)
+
+void
+check_battery()
+{
+
+	static int first_time=1, last_state;
+
+	struct apm_info pw_info;
+	struct battery_watch_event *p;
+
+	/* If we don't care, don't bother */
+	if (battery_watch_list == NULL)
+		return;
+
+	if (first_time) {
+		if ( ioctl(apmnorm_fd, APMIO_GETINFO, &pw_info) < 0)
+			(void) err(1, "cannot check battery state.");
+/*
+ * This next statement isn't entirely true. The spec does not tie AC
+ * line state to battery charging or not, but this is a bit lazier to do.
+ */
+		last_state = AC_POWER_STATE;
+		first_time = 0;
+		return; /* We can't process events, we have no baseline */
+	}
+
+	/*
+	 * XXX - should we do this a bunch of times and perform some sort
+	 * of smoothing or correction?
+	 */
+	if ( ioctl(apmnorm_fd, APMIO_GETINFO, &pw_info) < 0)
+		(void) err(1, "cannot check battery state.");
+
+	/*
+	 * If we're not in the state now that we were in last time,
+	 * then it's a transition, which means we must clean out
+	 * the event-caught state.
+	 */
+	if (last_state != AC_POWER_STATE) {
+		last_state = AC_POWER_STATE;
+		for (p = battery_watch_list ; p!=NULL ; p = p -> next)
+			p->done = 0;
+	}
+	for (p = battery_watch_list ; p != NULL ; p = p -> next)
+		if (p -> direction == AC_POWER_STATE &&
+			!(p -> done) &&
+			((p -> type == BATTERY_PERCENT && 
+				p -> level == pw_info.ai_batt_life) ||
+			(p -> type == BATTERY_MINUTES &&
+				p -> level == (pw_info.ai_batt_time / 60)))) {
+			p -> done++;
+			if (verbose)
+				syslog(LOG_NOTICE, "Caught battery event: %s, %d%s",
+					(p -> direction == BATTERY_CHARGING)?"charging":"discharging",
+					p -> level,
+					(p -> type == BATTERY_PERCENT)?"%":" minutes");
+			if (fork() == 0) {
+				int status;
+				status = exec_run_cmd(p -> cmdlist);
+				exit(status);
+			}
+		}
+}
 void
 event_loop(void)
 {
@@ -460,19 +603,30 @@ event_loop(void)
 
 	while (1) {
 		fd_set rfds;
+		int res;
+		struct timeval to;
+
+		to.tv_sec = BATT_CHK_INTV;
+		to.tv_usec = 0;
 
 		memcpy(&rfds, &master_rfds, sizeof rfds);
 		sigprocmask(SIG_SETMASK, &osigmask, NULL);
-		if (select(fdmax + 1, &rfds, 0, 0, 0) < 0) {
+		if ((res=select(fdmax + 1, &rfds, 0, 0, &to)) < 0) {
 			if (errno != EINTR)
 				(void) err(1, "select");
 		}
 		sigprocmask(SIG_SETMASK, &sigmask, NULL);
 
+		if (res == 0) { /* time to check the battery */
+			check_battery();
+			continue;
+		}
+
 		if (FD_ISSET(signal_fd[0], &rfds)) {
 			if (proc_signal(signal_fd[0]) < 0)
 				goto out;
 		}
+
 		if (FD_ISSET(apmctl_fd, &rfds))
 			proc_apmevent(apmctl_fd);
 	}
@@ -524,6 +678,10 @@ main(int ac, char* av[])
 		(void) err(1, "pipe");
 	if (fcntl(signal_fd[0], F_SETFL, O_NONBLOCK) < 0)
 		(void) err(1, "fcntl");
+
+	if ((apmnorm_fd = open(APM_NORM_DEVICEFILE, O_RDWR)) == -1) {
+		(void) err(1, "cannot open device file `%s'", APM_NORM_DEVICEFILE);
+	}
 
 	if ((apmctl_fd = open(APM_CTL_DEVICEFILE, O_RDWR)) == -1) {
 		(void) err(1, "cannot open device file `%s'", APM_CTL_DEVICEFILE);

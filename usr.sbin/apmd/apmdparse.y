@@ -32,6 +32,7 @@
 
 #include <stdio.h>
 #include <bitstring.h>
+#include <stdlib.h>
 #include "apmd.h"
 
 #ifdef DEBUG
@@ -47,15 +48,21 @@ extern int first_time;
 	bitstr_t bit_decl(evlist, EVENT_MAX);
 	int ev;
 	struct event_cmd * evcmd;
+	int i;
 }
 
 %token BEGINBLOCK ENDBLOCK
 %token COMMA SEMICOLON
 %token APMEVENT
+%token APMBATT
+%token BATTCHARGE BATTDISCHARGE
+%token <str> BATTTIME BATTPERCENT
 %token EXECCMD REJECTCMD
 %token <ev> EVENT
 %token <str> STRING UNKNOWN
 
+%type <i> apm_battery_level
+%type <i> apm_battery_direction
 %type <str> string
 %type <str> unknown
 %type <evlist> event_list
@@ -76,6 +83,7 @@ config_list
 
 config
 	: apm_event_statement
+	| apm_battery_statement
 	;
 
 apm_event_statement
@@ -84,6 +92,37 @@ apm_event_statement
 			if (register_apm_event_handlers($2, $4) < 0)
 				abort(); /* XXX */
 			free_event_cmd_list($4);
+		}
+	;
+
+apm_battery_level
+	: BATTPERCENT
+		{
+			$$ = $1;
+		}
+	| BATTTIME
+		{
+			$$ = $1;
+		}
+	;
+
+apm_battery_direction
+	: BATTCHARGE
+		{
+			$$ = 1;
+		}
+	| BATTDISCHARGE
+		{
+			$$ = -1;
+		}
+	;
+apm_battery_statement
+	: APMBATT apm_battery_level apm_battery_direction
+		BEGINBLOCK cmd_list ENDBLOCK
+		{
+			if (register_battery_handlers($2, $3, $5) < 0)
+				abort(); /* XXX */
+			free_event_cmd_list($5);
 		}
 	;
 
