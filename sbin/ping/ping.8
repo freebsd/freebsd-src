@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl QRadfnqrv
+.Op Fl AQRadfnqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -79,6 +79,12 @@ and then an arbitrary number of
 .Dq pad
 bytes used to fill out the packet.  The options are as follows:
 .Bl -tag -width indent
+.It Fl A
+Audible.
+Include a bell
+.Pq ASCII 0x07
+character in the output when no packet is received before the next packet
+is transmitted.
 .It Fl a
 Audible.
 Include a bell
