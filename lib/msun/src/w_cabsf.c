@@ -5,17 +5,19 @@
  * Placed into the Public Domain, 1994.
  */
 
-#include "math.h"
-#include "math_private.h"
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
-struct complex {
-	float x;
-	float y;
-};
+#include <complex.h>
+#include <math.h>
+#include "math_private.h"
 
 float
 cabsf(z)
-	struct complex z;
+	float complex z;
 {
-	return hypotf(z.x, z.y);
+
+	return hypotf(crealf(z), cimagf(z));
 }
