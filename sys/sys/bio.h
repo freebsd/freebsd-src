@@ -106,27 +106,7 @@ struct bio {
 #ifdef _KERNEL
 
 struct uio;
-
-void biodone(struct bio *bp);
-int biowait(struct bio *bp, const char *wchan);
-
-#ifndef _DEVICESTAT_H
 struct devstat;
-void devstat_end_transaction_bio(struct devstat *, struct bio *);
-#endif
-
-static __inline__ void
-biofinish(struct bio *bp, struct devstat *stat, int error)
-{
-	
-	if (error) {
-		bp->bio_error = error;
-		bp->bio_flags |= BIO_ERROR;
-	}
-	if (stat != NULL)
-		devstat_end_transaction_bio(stat, bp);
-	biodone(bp);
-}
 
 struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
@@ -136,21 +116,9 @@ struct bio_queue_head {
 	int busy;
 };
 
-static __inline void bioq_init(struct bio_queue_head *head);
 static __inline void bioq_insert_tail(struct bio_queue_head *head,
 				      struct bio *bp);
-static __inline void bioq_remove(struct bio_queue_head *head,
-				 struct bio *bp);
 static __inline struct bio *bioq_first(struct bio_queue_head *head);
-
-static __inline void
-bioq_init(struct bio_queue_head *head)
-{
-	TAILQ_INIT(&head->queue);
-	head->last_pblkno = 0;
-	head->insert_point = NULL;
-	head->switch_point = NULL;
-}
 
 static __inline void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
@@ -159,35 +127,18 @@ bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 }
 
-static __inline void
-bioq_remove(struct bio_queue_head *head, struct bio *bp)
-{
-	if (bp == head->switch_point)
-		head->switch_point = TAILQ_NEXT(bp, bio_queue);
-	if (bp == head->insert_point) {
-		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
-		if (head->insert_point == NULL)
-			head->last_pblkno = 0;
-	} else if (bp == TAILQ_FIRST(&head->queue))
-		head->last_pblkno = bp->bio_pblkno;
-	TAILQ_REMOVE(&head->queue, bp, bio_queue);
-	if (TAILQ_FIRST(&head->queue) == head->switch_point)
-		head->switch_point = NULL;
-}
-
 static __inline struct bio *
 bioq_first(struct bio_queue_head *head)
 {
+
 	return (TAILQ_FIRST(&head->queue));
 }
 
-/*
- * Zero out the bio's data area.
- */
-#define	clrbio(bp) {							\
-	bzero((bp)->bio_data, (u_int)(bp)->bio_bcount);			\
-	(bp)->bio_resid = 0;						\
-}
+void biodone(struct bio *bp);
+void biofinish(struct bio *bp, struct devstat *stat, int error);
+int biowait(struct bio *bp, const char *wchan);
+void bioq_init(struct bio_queue_head *head);
+void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
 int	physio(dev_t dev, struct uio *uio, int ioflag);
 #define physread physio
