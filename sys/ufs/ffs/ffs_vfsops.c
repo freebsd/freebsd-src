@@ -430,6 +430,7 @@ ffs_reload(mp, cred, td)
 	newfs->fs_csp = fs->fs_csp;
 	newfs->fs_maxcluster = fs->fs_maxcluster;
 	newfs->fs_contigdirs = fs->fs_contigdirs;
+	newfs->fs_active = fs->fs_active;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -636,7 +637,6 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
-	fs->fs_active = 0;
 	/* XXX updating 4.2 FFS superblocks trashes rotational layout tables */
 	if (fs->fs_postblformat == FS_42POSTBLFMT && !ronly) {
 		error = EROFS;          /* needs translation */
@@ -690,6 +690,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
 	bzero(fs->fs_contigdirs, size);
+	fs->fs_active = NULL;
 	/* Compatibility for old filesystems 	   XXX */
 	if (fs->fs_avgfilesize <= 0)		/* XXX */
 		fs->fs_avgfilesize = AVFILESIZ;	/* XXX */
