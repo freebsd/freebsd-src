@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.56 1994/03/11 22:17:24 swallace Exp $
+#	$Id: LINT,v 1.57 1994/03/15 01:58:16 wollman Exp $
 #
 
 machine		"i386"
@@ -26,7 +26,7 @@ options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options         "FIFO_TRIGGER=FIFO_TRIGGER_1"   #Use this fifo value in sio.c
 
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=112433"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=112466"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 
