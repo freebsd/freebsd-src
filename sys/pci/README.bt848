@@ -1,12 +1,13 @@
 -------------------------------------------------------------------------------
 Recent versions of 3.0-current have the bktr driver built in.  Older versions
 of 3.0 and all versions of 2.2 previous to 2.2.5 need to have the driver
-files installed by hand:
+files installed by hand.  If you find you have no /sys/pci/brooktree848.c
+file in your source tree, you will need to do the following:
 
 cp ioctl_bt848.h /sys/i386/include/
 cp brktree_reg.h brooktree848.c /sys/pci/
 
-In /sys/conf/files add:
+And in /sys/conf/files add:
 pci/brooktree848.c        optional bktr device-driver
 
 -------------------------------------------------------------------------------
@@ -23,10 +24,13 @@ driver.
 Finally you need to create nodes for the driver:
 
 Create a video device:
-mknod /dev/bktr0 c 79 0
+mknod /dev/bktr0 c 92  0
 
 Create a tuner device:
-mknod /dev/tuner0 c 79 16
+mknod /dev/tuner0 c 92 16
+
+Or, if your /dev/MAKEDEV script is up to date (and you can copy the latest
+from /usr/src/etc/etc.i386/MAKEDEV) simply type: cd /dev && ./MAKEDEV bktr0
 
 -------------------------------------------------------------------------------
 The code attempts to auto-probe code to detect card/tuner types.
