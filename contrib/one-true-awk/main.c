@@ -22,11 +22,12 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20021213";
+const char	*version = "version 20030314";
 
 #define DEBUG
 #include <stdio.h>
 #include <ctype.h>
+#include <locale.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -54,6 +55,10 @@ int main(int argc, char *argv[])
 {
 	const char *fs = NULL;
 
+	setlocale(LC_ALL, "");
+	setlocale(LC_COLLATE, "");
+	setlocale(LC_CTYPE, "");
+	setlocale(LC_MESSAGES, "");
 	cmdname = argv[0];
 	if (argc == 1) {
 		fprintf(stderr, "Usage: %s [-f programfile | 'program'] [-Ffieldsep] [-v var=value] [files]\n", cmdname);

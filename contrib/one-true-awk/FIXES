@@ -25,6 +25,21 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Mar 14, 2003:
+	the internationalization changes, somewhat modified, are now
+	reinstated.  in theory awk will now do character comparisons
+	and case conversions in national language, but "." will always
+	be the decimal point separator on input and output regardless
+	of national language.  isblank(){} has an #ifndef.
+
+	this no longer compiles on windows: LC_MESSAGES isn't defined
+	in vc6++.
+
+	fixed subtle behavior in field and record splitting: if FS is
+	a single character and RS is not empty, \n is NOT a separator.
+	this tortuous reading is found in the awk book; behavior now
+	matches gawk and mawk.
+
 Dec 13, 2002:
 	for the moment, the internationalization changes of nov 29 are
 	rolled back -- programs like x = 1.2 don't work in some locales,

@@ -1509,11 +1509,11 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		if (t == FTOUPPER) {
 			for (p = buf; *p; p++)
 				if (islower((uschar) *p))
-					*p = toupper(*p);
+					*p = toupper((uschar)*p);
 		} else {
 			for (p = buf; *p; p++)
 				if (isupper((uschar) *p))
-					*p = tolower(*p);
+					*p = tolower((uschar)*p);
 		}
 		tempfree(x);
 		x = gettemp();
