@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.5 1997/01/04 17:03:55 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.6 1997/01/20 12:39:07 kato Exp $
  */
 
 #include "sc.h"
@@ -1372,7 +1372,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return 0;
 
 	case K_XLATE:   	/* switch to XLT ascii mode */
-	    if (scp == cur_console && scp->status == KBD_RAW_MODE)
+	    if (scp == cur_console && scp->status & KBD_RAW_MODE)
 		shfts = ctls = alts = agrs = metas = 0;
 	    scp->status &= ~KBD_RAW_MODE;
 	    return 0;
