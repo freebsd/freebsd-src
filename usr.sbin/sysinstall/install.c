@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.103 1996/06/25 18:41:09 jkh Exp $
+ * $Id: install.c,v 1.104 1996/06/29 03:49:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -298,13 +298,13 @@ installExpress(dialogMenuItem *self)
 
     if (!Dists) {
 	dialog_clear();
-	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
 	dialog_clear();
-	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
@@ -356,7 +356,7 @@ installNovice(dialogMenuItem *self)
 	       "X11 developer oriented configurations.  You can also select a custom set\n"
 	       "of distributions if none of the provided ones are suitable.");
     while (1) {
-	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 	
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
@@ -366,7 +366,7 @@ installNovice(dialogMenuItem *self)
     if (!mediaDevice) {
 	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
-	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
@@ -423,7 +423,7 @@ installNovice(dialogMenuItem *self)
     if (!msgYesNo("Would you like to customize your system console settings?")) {
 	WINDOW *w = savescr();
 
-	dmenuOpenSimple(&MenuSyscons);
+	dmenuOpenSimple(&MenuSyscons, FALSE);
 	restorescr(w);
     }
 
@@ -438,7 +438,7 @@ installNovice(dialogMenuItem *self)
     if (!msgYesNo("Does this system have a mouse attached to it?")) {
 	WINDOW *w = savescr();
 
-	dmenuOpenSimple(&MenuMouse);
+	dmenuOpenSimple(&MenuMouse, FALSE);
 	restorescr(w);
     }
 
@@ -554,7 +554,7 @@ installConfigure(void)
 		  "any last options?")) {
 	WINDOW *w = savescr();
 
-	dmenuOpenSimple(&MenuConfigure);
+	dmenuOpenSimple(&MenuConfigure, FALSE);
 	restorescr(w);
     }
 }

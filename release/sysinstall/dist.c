@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.58 1996/06/12 14:02:03 jkh Exp $
+ * $Id: dist.c,v 1.59 1996/06/13 13:45:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -246,7 +246,7 @@ distSetDES(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
  
-    if (dmenuOpenSimple(&MenuDESDistributions)) {
+    if (dmenuOpenSimple(&MenuDESDistributions, FALSE)) {
 	if (DESDists) {
 	    if (DESDists & DIST_DES_KERBEROS)
 		DESDists |= DIST_DES_DES;
@@ -276,7 +276,7 @@ distMaybeSetDES(dialogMenuItem *self)
 		  "DES distribution from the U.S. server then switch your media type to\n"
 		  "point to an international FTP server, using the Custom installation\n"
 		  "option to select and extract the DES distribution in a second pass.")) {
-	if (dmenuOpenSimple(&MenuDESDistributions)) {
+	if (dmenuOpenSimple(&MenuDESDistributions, FALSE)) {
 	    if (DESDists) {
 		if (DESDists & DIST_DES_KERBEROS)
 		    DESDists |= DIST_DES_DES;
@@ -295,7 +295,7 @@ distSetSrc(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
-    if (dmenuOpenSimple(&MenuSrcDistributions)) {
+    if (dmenuOpenSimple(&MenuSrcDistributions, FALSE)) {
 	if (SrcDists) {
 	    Dists |= DIST_SRC;
 	    msgDebug("SetSrc Masks: Srcs: %0x, Dists: %0x\n", SrcDists, Dists);
@@ -311,7 +311,7 @@ distSetXF86(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
-    if (dmenuOpenSimple(&MenuXF86Select)) {
+    if (dmenuOpenSimple(&MenuXF86Select, FALSE)) {
 	if (XF86ServerDists)
 	    XF86Dists |= DIST_XF86_SERVER;
 	if (XF86FontDists)

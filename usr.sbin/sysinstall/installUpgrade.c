@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.25 1996/05/16 11:47:32 jkh Exp $
+ * $Id: installUpgrade.c,v 1.26 1996/05/29 01:35:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,7 +197,7 @@ installUpgrade(dialogMenuItem *self)
 		   "been selected.  In the next screen, we'll go to the Distributions menu\n"
 		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
 		   "system.");
-	if (!dmenuOpenSimple(&MenuDistributions))
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
@@ -207,7 +207,7 @@ installUpgrade(dialogMenuItem *self)
 		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
 		     "menu.")) {
-	    (void)dmenuOpenSimple(&MenuDistributions);
+	    (void)dmenuOpenSimple(&MenuDistributions, FALSE);
 	}
     }
 
@@ -217,7 +217,7 @@ installUpgrade(dialogMenuItem *self)
 
     if (!mediaDevice) {
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
-	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 

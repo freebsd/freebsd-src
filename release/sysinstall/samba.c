@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.3 1996/04/29 18:06:08 jkh Exp $
+ * $Id: samba.c,v 1.4 1996/06/15 16:09:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -60,7 +60,7 @@ configSamba(dialogMenuItem *self)
     int i = DITEM_SUCCESS;
     WINDOW *w = savescr();
 
-    if (!dmenuOpenSimple(&MenuSamba))
+    if (!dmenuOpenSimple(&MenuSamba, FALSE))
 	i = DITEM_FAILURE;
     else if (DITEM_STATUS(package_add("samba-1.9.15p8")) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.15 1996/04/28 03:26:52 jkh Exp $
+ * $Id: doc.c,v 1.16 1996/05/16 11:47:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,7 @@ docBrowser(dialogMenuItem *self)
     }
 
     /* Run browser on the appropriate doc */
-    if (dmenuOpenSimple(&MenuHTMLDoc))
+    if (dmenuOpenSimple(&MenuHTMLDoc, FALSE))
 	return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
     else
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;

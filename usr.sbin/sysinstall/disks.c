@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.51 1996/06/11 13:07:57 jkh Exp $
+ * $Id: disks.c,v 1.52 1996/06/25 18:41:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -139,7 +139,7 @@ getBootMgr(char *dname)
 	/* Figure out what kind of MBR the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuMBRType.title = str;
-	i = dmenuOpenSimple(&MenuMBRType);
+	i = dmenuOpenSimple(&MenuMBRType, FALSE);
     }
     else {
 	if (!strncmp(cp, "boot", 4))
@@ -494,7 +494,7 @@ diskPartitionEditor(dialogMenuItem *self)
 	    i = DITEM_FAILURE;
 	}
 	else {
-	    i = dmenuOpenSimple(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
+	    i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	}
 	i = i | DITEM_RESTORE | DITEM_RECREATE;

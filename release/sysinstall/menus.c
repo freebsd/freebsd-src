@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.74 1996/06/29 02:22:44 jkh Exp $
+ * $Id: menus.c,v 1.76 1996/06/29 03:43:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,14 +279,15 @@ DMenu MenuIndex = {
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
     "Welcome to FreeBSD!",				/* title */
-    "This is the main menu of the FreeBSD installation system.  Please\n"
+    "This is the main menu of the FreeBSD installation system.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
-    "option by pressing [ENTER].  Exit the installation by selecting\n"
-    "Cancel [TAB-ENTER].",				/* prompt */
+    "option by pressing [ENTER] or [TAB-ENTER] to exit the installation.", 
     "Press F1 for Installation Guide",			/* help line */
     "install",						/* help file */
-    { { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
+    { { "Select" },
+      { "Exit Install",	NULL, NULL, dmenuExit },
+      { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
       { "2 Doc",	"Installation instructions, README, etc.",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "3 Options",	"Go to the options editor",				NULL, optionsEditor },
       { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
