@@ -1,10 +1,11 @@
-$FreeBSD$
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Tue Dec 14 21:31:48 1999]
+                last edit-date: [Mon Oct  9 17:46:13 2000]
+
+ $FreeBSD$
 
 --------------------------------------------------------------------------------
 
@@ -37,6 +38,8 @@ Contents:
 	24. Why do i get "ifconfig: ioctl (SIOCAIFADDR): file exists" ?
 	25. How to properly operate isdnd's fullscreen output in a 132x60 vty
 	26. NetBSD: i see isic0 while booting but I cannot access my Fritz!Card
+	27. i4b_pci_attach: pci_map_port 1 failed! What does this mean ?
+	28. What is: i4b-L2 i4b_rxd_ack: ((N(R)-1)=35) != (UA=36) !!!
 
 
 1. How do I get started with synchronous PPP (sPPP) ?
@@ -59,9 +62,9 @@ Contents:
   Then just modify /etc/isdn/isdnd.rc (see the example in etc-isdn/isdnd.rc)
   to suit your needs (telephone numbers, etc).
   
-  The next step is to read the spppcontrol man page and then to look at
-  etc/rc.isdn-PPP. spppcontrol is a very important component in getting
-  sPPP working correctly and the spppcontrol lines in your /etc/rc.isdn
+  The next step is to read the ispppcontrol man page and then to look at
+  etc/rc.isdn-PPP. ispppcontrol is a very important component in getting
+  sPPP working correctly and the ispppcontrol lines in your /etc/rc.isdn
   must be correct.
   
   In my experience there are two things which can cause problems:
@@ -69,7 +72,7 @@ Contents:
   1) the authproto line has to agree with what your ISP desires. In
      general I've found that it's best to have something like this -
   
-  	spppcontrol <interface> myauthproto={pap,chap} myauthname=<AuthName>
+  	ispppcontrol <interface> myauthproto={pap,chap} myauthname=<AuthName>
   		myauthsecret=<AuthSecret> hisauthproto=none callin
   
      The "hisauthproto=none" is usually needed because the ISP does not want
@@ -1005,4 +1008,42 @@ But I could not use the card, because I forgot
 [Jan Sparud helped me to find that]
 
 (From: David Wetzel <dave@turbocat.de>)
+
+
+27. i4b_pci_attach: pci_map_port 1 failed! What does this mean ?
+================================================================================
+
+Q: Hi,
+
+   I am trying to set up a ELSA QuickStep 1000pro PCI ISDN adaptor in a FreeBSD
+   3.3 box. I configured the kernel according to the i4b.ps documentation. At
+   boottime, these messages are displayed:
+
+   isic0: <ELSA QuickStep 1000pro PCI ISDN adaptor> rev 0x01 int a irq 11 on
+   pci0.1 7.0
+   i4b_pci_attach: pci_map_port 1 failed!
+
+   What does this mean ?, should I be worried ?, will the device function
+   properly ?
+
+A: Problem is solved.
+
+   In the BIOS, the PCI slot containing the ISDN card was set to IRQ 14 (having
+   no IDE devices). The isic driver finds the card using irq 11 and then says
+   "pci_port_map_port failed". The slot is set to IRQ 11 (which was free also)
+   and everything works fine here ..
+
+From: Joost Mulders <dhcp@j-mulders.demon.nl>
+
+
+28. What is: i4b-L2 i4b_rxd_ack: ((N(R)-1)=35) != (UA=36) !!!
+================================================================================
+
+> Some time I get follow message at console:
+> 
+> i4b-L2 i4b_rxd_ack: ((N(R)-1)=35) != (UA=36) !!!
+
+A layer 2 error occured. These types of errors are automatically
+corrected by the layer 2 protocol.
+
 
