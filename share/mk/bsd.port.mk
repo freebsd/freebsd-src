@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.243 1996/12/26 01:02:29 asami Exp $
+# $Id: bsd.port.mk,v 1.244 1997/01/10 21:02:27 wosch Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -121,8 +121,12 @@
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_SCRIPT - Name of configure script, defaults to 'configure'.
 # CONFIGURE_ARGS - Pass these args to configure if ${HAS_CONFIGURE} is set.
-# CONFIGURE_ENV  - Pass these env (shell-like) to configure if
+# CONFIGURE_ENV - Pass these env (shell-like) to configure if
 #				  ${HAS_CONFIGURE} is set.
+# SCRIPTS_ENV	- Additional environment vars passed to scripts in
+#                 ${SCRIPTDIR} executed by bsd.port.mk.
+# MAKE_ENV		- Additional environment vars passed to sub-make in build
+#				  stage.
 # IS_INTERACTIVE - Set this if your port needs to interact with the user
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
@@ -183,6 +187,8 @@
 # MOTIFLIB		- Set automatically to appropriate value depending on
 #				  ${MOTIF_STATIC}.  Substitute references to -lXm with 
 #				  patches to make your port conform to our standards.
+# MOTIF_ONLY	- If set, build Motif ports only.  (Not much use except for
+#				  building packages.)
 #
 # Variables to change if you want a special behavior:
 #
@@ -384,6 +390,13 @@ INSTALL_DATA= \
 INSTALL_MAN= \
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
+INSTALL_MACROS=	BSD_INSTALL_PROGRAM="${INSTALL_PROGRAM}" \
+			BSD_INSTALL_SCRIPT="${INSTALL_SCRIPT}" \
+			BSD_INSTALL_DATA="${INSTALL_DATA}" \
+			BSD_INSTALL_MAN="${INSTALL_MAN}"
+MAKE_ENV+=	${INSTALL_MACROS}
+SCRIPTS_ENV+=	${INSTALL_MACROS}
+
 # The user can override the NO_PACKAGE by specifying this from
 # the make command line
 .if defined(FORCE_PACKAGE)
@@ -438,6 +451,7 @@ GZIP?=		-9
 GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
 GUNZIP_CMD?=	/usr/bin/gunzip -f
 SED?=		/usr/bin/sed
+TR?=		/usr/bin/tr
 
 # Used to print all the '===>' style prompts - override this to turn them off.
 ECHO_MSG?=		${ECHO}
@@ -563,6 +577,17 @@ CONFIGURE_ARGS+=	--prefix=${PREFIX}
 HAS_CONFIGURE=		yes
 .endif
 
+# Passed to most of script invocations
+SCRIPTS_ENV+=	CURDIR=${.CURDIR} DISTDIR=${DISTDIR} \
+		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
+		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
+		  PORTSDIR=${PORTSDIR} DEPENDS="${DEPENDS}" \
+		  PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE}
+
+.if defined(BATCH)
+SCRIPTS_ENV+=	BATCH=yes
+.endif
+
 MANPREFIX?=	${PREFIX}
 
 .for sect in 1 2 3 4 5 6 7 8 9
@@ -624,6 +649,8 @@ IGNORE=	"is an interactive port"
 IGNORE=	"is not an interactive port"
 .elif (defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF))
 IGNORE=	"requires Motif"
+.elif (defined(MOTIF_ONLY) && !defined(REQUIRES_MOTIF))
+IGNORE=	"does not require Motif"
 .elif (defined(NO_CDROM) && defined(FOR_CDROM))
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
@@ -852,7 +879,7 @@ do-patch:
 			${ECHO_MSG} "===>  Applying ${OPSYS} patches for ${PKGNAME}" ; \
 			for i in ${PATCHDIR}/patch-*; do \
 				case $$i in \
-					*.orig|*~) \
+					*.orig|*.rej|*~) \
 						${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
 						;; \
 					*) \
@@ -872,11 +899,8 @@ do-patch:
 .if !target(do-configure)
 do-configure:
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR}\
-		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
-		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
-		  PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} DEPENDS="${DEPENDS}" \
-		  X11BASE=${X11BASE} /bin/sh ${SCRIPTDIR}/configure; \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+		  ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
@@ -1001,21 +1025,14 @@ _PORT_USE: .USE
 .endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
-		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+			${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
 	fi
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/post-/} ]; then \
-		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR}\
-		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
-		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
-		  PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} DEPENDS="${DEPENDS}" \
-		  X11BASE=${X11BASE} \
-			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
+		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} /bin/sh \
+			${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES)
 .if defined(MANCOMPRESSED) && defined(NOMANCOMPRESS)
@@ -1444,14 +1461,17 @@ misc-depends:
 clean-depends:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
 	|| defined(RUN_DEPENDS)
-	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS}; do \
-		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
+	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/.*://' | sort | uniq`; do \
+		if [ -d $$dir ] ; then \
+			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
+		fi \
 	done
 .endif
 .if defined(DEPENDS)
 	@for dir in ${DEPENDS}; do \
-		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
+		if [ -d $$dir ] ; then \
+			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
+		fi \
 	done
 .endif
 .endif
