@@ -127,3 +127,8 @@ Version 2.5: December, 1997 (ee)
 
 Version 2.6: May, 1998 (amurai)
     - Added supporting routine for NetBios over TCP/IP.
+
+Version 3.0: January 1, 1999
+    - Transparent proxying support added.
+    - PPTP redirecting support added based on patches
+      contributed by Dru Nelson <dnelson@redwoodsoft.com>.
