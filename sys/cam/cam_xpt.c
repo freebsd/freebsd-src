@@ -461,6 +461,15 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
+		 * The Hitachi DK32 has problems with tagged queuing under
+		 * load; submitter has <HITACHI DK32CJ-36MC J8A8>.
+		 * Reported by: Y.Amagai <amagai@nue.org>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "HITACHI", "DK32*", "*" },
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
 		 * This old revision of the TDC3600 is also SCSI-1, and
 		 * hangs upon serial number probing.
 		 */
