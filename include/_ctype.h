@@ -38,12 +38,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ctype.h	8.4 (Berkeley) 1/21/94
- *      $FreeBSD$
+ * From @(#)ctype.h	8.4 (Berkeley) 1/21/94
+ * From FreeBSD: src/include/ctype.h,v 1.27 2004/06/23 07:11:39 tjr Exp
+ * $FreeBSD$
  */
 
-#ifndef _CTYPE_H_
-#define	_CTYPE_H_
+#ifndef __CTYPE_H_
+#define	__CTYPE_H_
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -66,89 +67,6 @@
 #define	_CTYPE_SW1	0x40000000L		/* 1 width character */
 #define	_CTYPE_SW2	0x80000000L		/* 2 width character */
 #define	_CTYPE_SW3	0xc0000000L		/* 3 width character */
-
-__BEGIN_DECLS
-int	isalnum(int);
-int	isalpha(int);
-int	iscntrl(int);
-int	isdigit(int);
-int	isgraph(int);
-int	islower(int);
-int	isprint(int);
-int	ispunct(int);
-int	isspace(int);
-int	isupper(int);
-int	isxdigit(int);
-int	tolower(int);
-int	toupper(int);
-
-#if __XSI_VISIBLE
-int	_tolower(int);
-int	_toupper(int);
-int	isascii(int);
-int	toascii(int);
-#endif
-
-#if __ISO_C_VISIBLE >= 1999
-int	isblank(int);
-#endif
-
-#if __BSD_VISIBLE
-int	digittoint(int);
-int	ishexnumber(int);
-int	isideogram(int);
-int	isnumber(int);
-int	isphonogram(int);
-int	isrune(int);
-int	isspecial(int);
-#endif
-__END_DECLS
-
-#define	isalnum(c)	__istype((c), _CTYPE_A|_CTYPE_D)
-#define	isalpha(c)	__istype((c), _CTYPE_A)
-#define	iscntrl(c)	__istype((c), _CTYPE_C)
-#define	isdigit(c)	__isctype((c), _CTYPE_D) /* ANSI -- locale independent */
-#define	isgraph(c)	__istype((c), _CTYPE_G)
-#define	islower(c)	__istype((c), _CTYPE_L)
-#define	isprint(c)	__istype((c), _CTYPE_R)
-#define	ispunct(c)	__istype((c), _CTYPE_P)
-#define	isspace(c)	__istype((c), _CTYPE_S)
-#define	isupper(c)	__istype((c), _CTYPE_U)
-#define	isxdigit(c)	__isctype((c), _CTYPE_X) /* ANSI -- locale independent */
-#define	tolower(c)	__tolower(c)
-#define	toupper(c)	__toupper(c)
-
-#if __XSI_VISIBLE
-/*
- * POSIX.1-2001 specifies _tolower() and _toupper() to be macros equivalent to
- * tolower() and toupper() respectively, minus extra checking to ensure that
- * the argument is a lower or uppercase letter respectively.  We've chosen to
- * implement these macros with the same error checking as tolower() and
- * toupper() since this doesn't violate the specification itself, only its
- * intent.  We purposely leave _tolower() and _toupper() undocumented to
- * discourage their use.
- *
- * XXX isascii() and toascii() should similarly be undocumented.
- */
-#define	_tolower(c)	__tolower(c)
-#define	_toupper(c)	__toupper(c)
-#define	isascii(c)	(((c) & ~0x7F) == 0)
-#define	toascii(c)	((c) & 0x7F)
-#endif
-
-#if __ISO_C_VISIBLE >= 1999
-#define	isblank(c)	__istype((c), _CTYPE_B)
-#endif
-
-#if __BSD_VISIBLE
-#define	digittoint(c)	__maskrune((c), 0xFF)
-#define	ishexnumber(c)	__istype((c), _CTYPE_X)
-#define	isideogram(c)	__istype((c), _CTYPE_I)
-#define	isnumber(c)	__istype((c), _CTYPE_D)
-#define	isphonogram(c)	__istype((c), _CTYPE_Q)
-#define	isrune(c)	__istype((c), 0xFFFFFF00L)
-#define	isspecial(c)	__istype((c), _CTYPE_T)
-#endif
 
 /* See comments in <sys/_types.h> about __ct_rune_t. */
 __BEGIN_DECLS
@@ -220,4 +138,4 @@ __ct_rune_t	__tolower(__ct_rune_t);
 __END_DECLS
 #endif /* using inlines */
 
-#endif /* !_CTYPE_H_ */
+#endif /* !__CTYPE_H_ */
