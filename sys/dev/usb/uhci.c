@@ -306,11 +306,6 @@ uhci_init(sc)
 		LIST_INIT(&uhci_ii_free);
 	}
 
-#if defined(USB_DEBUG)
-	if (uhcidebug > 2)
-		uhci_dumpregs(sc);
-#endif
-
 	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
@@ -392,8 +387,7 @@ uhci_dumpregs(sc)
 	uhci_softc_t *sc;
 {
 	printf("%s: regs: cmd=%04x, sts=%04x, intr=%04x, frnum=%04x, "
-	       "flbase=%08x, sof=%02x, portsc1=%04x, portsc2=%04x, "
-	       "legsup=%04x\n",
+	       "flbase=%08x, sof=%02x, portsc1=%04x, portsc2=%04x, ",
 	       USBDEVNAME(sc->sc_bus.bdev),
 	       UREAD2(sc, UHCI_CMD),
 	       UREAD2(sc, UHCI_STS),
@@ -402,8 +396,7 @@ uhci_dumpregs(sc)
 	       UREAD4(sc, UHCI_FLBASEADDR),
 	       UREAD1(sc, UHCI_SOF),
 	       UREAD2(sc, UHCI_PORTSC1),
-	       UREAD2(sc, UHCI_PORTSC2),
-	       UREAD2(sc, UHCI_LEGSUP));
+	       UREAD2(sc, UHCI_PORTSC2));
 }
 
 int uhci_longtd = 1;
@@ -412,7 +405,7 @@ void
 uhci_dump_td(p)
 	uhci_soft_td_t *p;
 {
-	printf("TD(%p) at %08lx = 0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",
+	printf("TD(%p) at %08lx link=0x%08lx st=0x%08lx tok=0x%08lx buf=0x%08lx\n",
 	       p, (long)p->physaddr,
 	       (long)p->td->td_link,
 	       (long)p->td->td_status,
