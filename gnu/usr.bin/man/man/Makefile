@@ -7,7 +7,7 @@ PROG=	man
 SRCS=	man.c manpath.c glob.c
 BINOWN= man
 BINMODE=4555
-INSTALLFLAGS+= -fschg
+INSTALLFLAGS=	-fschg
 
 CFLAGS+= -I${LIBDESTDIR}
 DPADD=	${LIBMAN}
