@@ -134,6 +134,59 @@ g_get_sectorsize(const char *name)
 }
 
 int
+g_metadata_read(const char *name, u_char *md, size_t size, const char *magic)
+{
+	struct std_metadata stdmd;
+	char path[MAXPATHLEN];
+	unsigned sectorsize;
+	off_t mediasize;
+	u_char *sector;
+	int error, fd;
+
+	pathgen(name, path, sizeof(path));
+	sector = NULL;
+	error = 0;
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return (errno);
+	mediasize = g_get_mediasize(name);
+	if (mediasize == 0) {
+		error = errno;
+		goto out;
+	}
+	sectorsize = g_get_sectorsize(name);
+	if (sectorsize == 0) {
+		error = errno;
+		goto out;
+	}
+	assert(sectorsize >= size);
+	sector = malloc(sectorsize);
+	if (sector == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	if (pread(fd, sector, sectorsize, mediasize - sectorsize) !=
+	    (ssize_t)sectorsize) {
+		error = errno;
+		goto out;
+	}
+	if (magic != NULL) {
+		std_metadata_decode(sector, &stdmd);
+		if (strcmp(stdmd.md_magic, magic) != 0) {
+			error = EINVAL;
+			goto out;
+		}
+	}
+	bcopy(sector, md, size);
+out:
+	if (sector != NULL)
+		free(sector);
+	close(fd);
+	return (error);
+}
+
+int
 g_metadata_store(const char *name, u_char *md, size_t size)
 {
 	char path[MAXPATHLEN];
