@@ -1585,7 +1585,8 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+    {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,	 ATA_SA150, "SiI 3114" },
+     { ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
@@ -1640,10 +1641,14 @@ ata_sii_chipinit(device_t dev)
 			      ctlr->chip->text);
 	}
 
+	if (ctlr->chip->cfg2 & SII4CH)
+	    ctlr->channels = 4;
+
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
 	/* setup chipset defaults as BIOS might not */
+#if 0
 	pci_write_config(dev, 0xa2, 0x328a, 2);
 	pci_write_config(dev, 0xa4, 0x328a328a, 4);
 	pci_write_config(dev, 0xa8, 0x22082208, 4);
@@ -1652,7 +1657,7 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0xe4, 0x328a328a, 4);
 	pci_write_config(dev, 0xe8, 0x22082208, 4);
 	pci_write_config(dev, 0xec, 0x40094009, 4);
-
+#endif
 	ctlr->allocate = ata_sii_mio_allocate;
 	if (ctlr->chip->max_dma >= ATA_SA150)
 	    ctlr->setmode = ata_sata_setmode;
@@ -1685,24 +1690,25 @@ static int
 ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
 	ch->r_io[i].res = ctlr->r_io2;
-	ch->r_io[i].offset = 0x80 + i + (ch->unit << 6);
+	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 9);
     }
     ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
-    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (ch->unit << 6);
+    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (unit01 << 6) + (unit10 << 9);
     ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (ch->unit << 3);
+    ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (ch->unit << 3);
+    ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (ch->unit << 3);
+    ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
-    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (ch->unit << 6);
+    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 9);
     ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_io2;
-    ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (ch->unit << 7);
+    ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 9);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
 
     if (ctlr->chip->max_dma >= ATA_SA150)
