@@ -387,7 +387,13 @@ tar_rd(ARCHD *arcn, char *buf)
 	 * copy out the name and values in the stat buffer
 	 */
 	hd = (HD_TAR *)buf;
-	arcn->nlen = l_strncpy(arcn->name, hd->name, sizeof(arcn->name) - 1);
+	/*
+	 * old tar format specifies the name always be null-terminated,
+	 * but let's be robust to broken archives.
+	 * the same applies to handling links below.
+	 */
+	arcn->nlen = l_strncpy(arcn->name, hd->name,
+	    MIN(sizeof(hd->name), sizeof(arcn->name)) - 1);
 	arcn->name[arcn->nlen] = '\0';
 	arcn->sb.st_mode = (mode_t)(asc_ul(hd->mode,sizeof(hd->mode),OCT) &
 	    0xfff);
@@ -417,7 +423,7 @@ tar_rd(ARCHD *arcn, char *buf)
 		 */
 		arcn->type = PAX_SLK;
 		arcn->ln_nlen = l_strncpy(arcn->ln_name, hd->linkname,
-			sizeof(arcn->ln_name) - 1);
+		    MIN(sizeof(hd->linkname), sizeof(arcn->ln_name)) - 1);
 		arcn->ln_name[arcn->ln_nlen] = '\0';
 		arcn->sb.st_mode |= S_IFLNK;
 		break;
@@ -429,7 +435,7 @@ tar_rd(ARCHD *arcn, char *buf)
 		arcn->type = PAX_HLK;
 		arcn->sb.st_nlink = 2;
 		arcn->ln_nlen = l_strncpy(arcn->ln_name, hd->linkname,
-			sizeof(arcn->ln_name) - 1);
+		    MIN(sizeof(hd->linkname), sizeof(arcn->ln_name)) - 1);
 		arcn->ln_name[arcn->ln_nlen] = '\0';
 
 		/*
@@ -533,7 +539,7 @@ tar_wr(ARCHD *arcn)
 	case PAX_SLK:
 	case PAX_HLK:
 	case PAX_HRG:
-		if (arcn->ln_nlen > (int)sizeof(hd->linkname)) {
+		if (arcn->ln_nlen >= (int)sizeof(hd->linkname)) {
 			paxwarn(1,"Link name too long for tar %s", arcn->ln_name);
 			return(1);
 		}
@@ -749,12 +755,19 @@ ustar_rd(ARCHD *arcn, char *buf)
 	 */
 	dest = arcn->name;
 	if (*(hd->prefix) != '\0') {
-		cnt = l_strncpy(dest, hd->prefix, sizeof(arcn->name) - 2);
+		cnt = l_strncpy(dest, hd->prefix,
+		    MIN(sizeof(hd->prefix), sizeof(arcn->name) - 2));
 		dest += cnt;
 		*dest++ = '/';
 		cnt++;
 	}
-	arcn->nlen = cnt + l_strncpy(dest, hd->name, sizeof(arcn->name) - cnt);
+	/*
+	 * ustar format specifies the name may be unterminated
+	 * if it fills the entire field.  this also applies to
+	 * the prefix and the linkname.
+	 */
+	arcn->nlen = cnt + l_strncpy(dest, hd->name,
+	    MIN(sizeof(hd->name), sizeof(arcn->name) - cnt - 1));
 	arcn->name[arcn->nlen] = '\0';
 
 	/*
@@ -848,7 +861,7 @@ ustar_rd(ARCHD *arcn, char *buf)
 		 * copy the link name
 		 */
 		arcn->ln_nlen = l_strncpy(arcn->ln_name, hd->linkname,
-			sizeof(arcn->ln_name) - 1);
+		    MIN(sizeof(hd->linkname), sizeof(arcn->ln_name) - 1));
 		arcn->ln_name[arcn->ln_nlen] = '\0';
 		break;
 	case CONTTYPE:
@@ -900,7 +913,7 @@ ustar_wr(ARCHD *arcn)
 	 */
 	if (((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
 	    (arcn->type == PAX_HRG)) &&
-	    (arcn->ln_nlen >= (int)sizeof(hd->linkname))) {
+	    (arcn->ln_nlen > (int)sizeof(hd->linkname))) {
 		paxwarn(1, "Link name too long for ustar %s", arcn->ln_name);
 		return(1);
 	}
@@ -925,17 +938,16 @@ ustar_wr(ARCHD *arcn)
 		 * occur, we remove the / and copy the first part to the prefix
 		 */
 		*pt = '\0';
-		l_strncpy(hd->prefix, arcn->name, sizeof(hd->prefix) - 1);
+		l_strncpy(hd->prefix, arcn->name, sizeof(hd->prefix));
 		*pt++ = '/';
 	} else
 		memset(hd->prefix, 0, sizeof(hd->prefix));
 
 	/*
 	 * copy the name part. this may be the whole path or the part after
-	 * the prefix
+	 * the prefix.  both the name and prefix may fill the entire field.
 	 */
-	l_strncpy(hd->name, pt, sizeof(hd->name) - 1);
-	hd->name[sizeof(hd->name) - 1] = '\0';
+	l_strncpy(hd->name, pt, sizeof(hd->name));
 
 	/*
 	 * set the fields in the header that are type dependent
@@ -978,8 +990,8 @@ ustar_wr(ARCHD *arcn)
 			hd->typeflag = SYMTYPE;
 		else
 			hd->typeflag = LNKTYPE;
-		l_strncpy(hd->linkname,arcn->ln_name, sizeof(hd->linkname) - 1);
-		hd->linkname[sizeof(hd->linkname) - 1] = '\0';
+		/* the link name may occupy the entire field in ustar */
+		l_strncpy(hd->linkname,arcn->ln_name, sizeof(hd->linkname));
 		memset(hd->devmajor, 0, sizeof(hd->devmajor));
 		memset(hd->devminor, 0, sizeof(hd->devminor));
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 3))
@@ -1072,9 +1084,9 @@ name_split(char *name, int len)
 	 * check to see if the file name is small enough to fit in the name
 	 * field. if so just return a pointer to the name.
 	 */
-	if (len < TNMSZ)
+	if (len <= TNMSZ)
 		return(name);
-	if (len > (TPFSZ + TNMSZ))
+	if (len > (TPFSZ + TNMSZ + 1))
 		return(NULL);
 
 	/*
@@ -1083,7 +1095,7 @@ name_split(char *name, int len)
 	 * to find the biggest piece to fit in the name field (or the smallest
 	 * prefix we can find)
 	 */
-	start = name + len - TNMSZ;
+	start = name + len - TNMSZ - 1;
 	while ((*start != '\0') && (*start != '/'))
 		++start;
 
@@ -1101,7 +1113,7 @@ name_split(char *name, int len)
 	 * the file would then expand on extract to //str. The len == 0 below
 	 * makes this special case follow the spec to the letter.
 	 */
-	if ((len >= TPFSZ) || (len == 0))
+	if ((len > TPFSZ) || (len == 0))
 		return(NULL);
 
 	/*
