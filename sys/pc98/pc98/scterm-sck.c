@@ -188,56 +188,57 @@ iskanji1(u_char mode, u_char c)
 __inline static u_char
 iskanji2(u_char mode, u_char c)
 {
-    switch (mode) {
-    case KTYPE_7JIS:
-	if ((c >= 0x21) && (c <= 0x7e)) {
-	    /* JIS */
-	    return KTYPE_7JIS;
+	switch (mode) {
+	case KTYPE_7JIS:
+		if ((c >= 0x21) && (c <= 0x7e)) {
+			/* JIS */
+			return KTYPE_7JIS;
+		}
+		break;
+	case KTYPE_SJIS:
+		if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
+			/* SJIS */
+			return KTYPE_SJIS;
+		}
+		break;
+	case KTYPE_UJIS:
+		if ((c >= 0xa1) && (c <= 0xfe)) {
+			/* UJIS */
+			return KTYPE_UJIS;
+		}
+		break;
+	case KTYPE_SUKANA:
+		if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
+			/* UJIS HANKAKU */
+			return KTYPE_KANA;
+		}
+		if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
+			/* SJIS */
+			default_kanji = SJIS;
+			return KTYPE_SJIS;
+		}
+		break;
+	case KTYPE_SUJIS:
+		if ((c >= 0x40) && (c <= 0xa0) && (c != 0x7f)) {
+			/* SJIS */
+			default_kanji = SJIS;
+			return KTYPE_SJIS;
+		}
+		if ((c == 0xfd) || (c == 0xfe)) {
+			/* UJIS */
+			default_kanji = UJIS;
+			return KTYPE_UJIS;
+		}
+		if ((c >= 0xa1) && (c <= 0xfc)) {
+			if (default_kanji == SJIS)
+				return KTYPE_SJIS;
+			if (default_kanji == UJIS)
+				return KTYPE_UJIS;
+		}
+		break;
 	}
-	break;
-    case KTYPE_SJIS:
-	if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
-	    /* SJIS */
-	    return KTYPE_SJIS;
-	}
-	break;
-    case KTYPE_UJIS:
-	if ((c >= 0xa1) && (c <= 0xfe)) {
-	    /* UJIS */
-	    return KTYPE_UJIS;
-	}
-	break;
-    case KTYPE_SUKANA:
-	if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	    /* UJIS HANKAKU */
-	    return KTYPE_KANA;
-	}
-	if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
-	    /* SJIS */
-	    default_kanji = SJIS;
-	    return KTYPE_SJIS;
-	}
-	break;
-    case KTYPE_SUJIS:
-	if ((c >= 0x40) && (c <= 0xa0) && (c != 0x7f)) {
-	    /* SJIS */
-	    default_kanji = SJIS;
-	    return KTYPE_SJIS;
-	}
-	if ((c == 0xfd) || (c == 0xfe)) {
-	    /* UJIS */
-	    default_kanji = UJIS;
-	    return KTYPE_UJIS;
-	}
-	if ((c >= 0xa1) && (c <= 0xfc)) {
-	    if (default_kanji == SJIS)
-		return KTYPE_SJIS;
-	    if (default_kanji == UJIS)
-		return KTYPE_UJIS;
-	}
-	break;
-    }
-    return KTYPE_ASCII;
+
+	return KTYPE_ASCII;
 }
 
 /*
@@ -253,47 +254,48 @@ static u_short keiConv[32] = {
 static u_short
 kanji_convert(u_char mode, u_char h, u_char l)
 {
-    u_short tmp, high, low, c;
-    high = (u_short) h;
-    low  = (u_short) l;
+	u_short tmp, high, low, c;
 
-    switch (mode) {
-    case KTYPE_SJIS: /* SHIFT JIS */
-	if (low >= 0xe0) {
-	    low -= 0x40;
-	}
-	low = (low - 0x81) * 2 + 0x21;
-	if (high > 0x7f) {
-	    high--;
-	}
-	if (high > 0x9d) {
-	    low++;
-	    high -= 0x9e - 0x21;
-	} else {
-	    high -= 0x40 - 0x21;
-	}
-	high &= 0x7F;
-	low  &= 0x7F;
-	tmp = ((high << 8) | low) - 0x20;
-	break;
-    case KTYPE_7JIS: /* JIS */
-    case KTYPE_UJIS: /* UJIS */
-	high &= 0x7F;
-	low &= 0x7F;
-	tmp = ((high << 8) | low) - 0x20;
-	break;
-    default:
-	tmp = 0;
-	break;
-    }
+	high = (u_short) h;
+	low  = (u_short) l;
 
-    /* keisen */
-    c = ((tmp & 0xff) << 8) | (tmp >> 8);
-    /* 0x2821 .. 0x2840 */
-    if (0x0821 <= c && c <= 0x0840)
-    tmp = keiConv[c - 0x0821];
+	switch (mode) {
+	case KTYPE_SJIS: /* SHIFT JIS */
+		if (low >= 0xe0) {
+			low -= 0x40;
+		}
+		low = (low - 0x81) * 2 + 0x21;
+		if (high > 0x7f) {
+			high--;
+		}
+		if (high > 0x9d) {
+			low++;
+			high -= 0x9e - 0x21;
+		} else {
+			high -= 0x40 - 0x21;
+		}
+		high &= 0x7F;
+		low  &= 0x7F;
+		tmp = ((high << 8) | low) - 0x20;
+		break;
+	case KTYPE_7JIS: /* JIS */
+	case KTYPE_UJIS: /* UJIS */
+		high &= 0x7F;
+		low &= 0x7F;
+		tmp = ((high << 8) | low) - 0x20;
+		break;
+	default:
+		tmp = 0;
+		break;
+	}
 
-    return (tmp);
+	/* keisen */
+	c = ((tmp & 0xff) << 8) | (tmp >> 8);
+	/* 0x2821 .. 0x2840 */
+	if (0x0821 <= c && c <= 0x0840)
+		tmp = keiConv[c - 0x0821];
+
+	return (tmp);
 }
 #endif /* KANJI */
 
@@ -1079,10 +1081,10 @@ ascii_end:
 
 #ifdef PC98
 		case 0x0e:	/* ^N */
-		tcp->kanji_type = KTYPE_JKANA;
-		tcp->esc = 0;
-		tcp->kanji_1st_char = 0;
-		break;
+			tcp->kanji_type = KTYPE_JKANA;
+			tcp->esc = 0;
+			tcp->kanji_1st_char = 0;
+			break;
 
 		case 0x0f:	/* ^O */
 			tcp->kanji_type = KTYPE_ASCII;
