@@ -106,7 +106,7 @@ at_ifawithnet(struct sockaddr_at  *sat)
     struct at_ifaddr	*aa;
     struct sockaddr_at	*sat2;
 
-	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		sat2 = &(aa->aa_addr);
 		if (sat2->sat_addr.s_net == sat->sat_addr.s_net) {
 	    		break;
