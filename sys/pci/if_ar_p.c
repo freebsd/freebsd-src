@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 John Hay.
+ * Copyright (c) 1999 - 2001 John Hay.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,58 +29,67 @@
  * $FreeBSD$
  */
 
-#ifdef COMPILING_LINT
-#warning "The ar pci driver is broken and is not compiled with LINT"
-#else
-
-#include "ar.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/bus_pio.h>
+#include <machine/bus_memio.h>
+#include <sys/rman.h>
 
+#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#ifndef COMPAT_OLDPCI
-#error "The ar device requires the old pci compatibility shims"
+#include <i386/isa/ic/hd64570.h>
+#include <i386/isa/if_arregs.h>
+
+#ifdef TRACE
+#define TRC(x)               x
+#else
+#define TRC(x)
 #endif
 
-/*
- * The must match with the real functions in if_ar.c
- */
-extern void *arattach_pci(int unit, vm_offset_t mem_vaddr);
-extern void arintr_hc(void *hc);
+#define TRCL(x)              x
 
-static const char *ar_pci_probe(pcici_t tag, pcidi_t type);
-static void ar_pci_attach(pcici_t config_id, int unit);
+static int	ar_pci_probe(device_t);
+static int	ar_pci_attach(device_t);
 
-static u_long arc_count = NAR;
-
-static struct pci_device ar_pci_driver =
-{
-	"ar",
-	ar_pci_probe,
-	ar_pci_attach,
-	&arc_count,
-	NULL
+static device_method_t ar_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ar_pci_probe),
+	DEVMETHOD(device_attach,	ar_pci_attach),
+	DEVMETHOD(device_detach,	ar_detach),
+	{ 0, 0 }
 };
 
-COMPAT_PCI_DRIVER (ar_pci, ar_pci_driver);
+static driver_t ar_pci_driver = {
+	"ar",
+	ar_pci_methods,
+	sizeof(struct ar_hardc),
+};
 
-static const char *
-ar_pci_probe(pcici_t tag, pcidi_t type)
+DRIVER_MODULE(if_ar, pci, ar_pci_driver, ar_devclass, 0, 0);
+
+static int
+ar_pci_probe(device_t device)
 {
+	u_int32_t	type = pci_get_devid(device);
+
 	switch(type) {
 	case 0x5012114f:
-		return ("Digi SYNC/570i-PCI 2 port");
+		device_set_desc(device, "Digi SYNC/570i-PCI 2 port");
+		return (0);
 		break;
 	case 0x5010114f:
 		printf("Digi SYNC/570i-PCI 2 port (mapped below 1M)\n");
 		printf("Please change the jumper to select linear mode.\n");
 		break;
 	case 0x5013114f:
-		return ("Digi SYNC/570i-PCI 4 port");
+		device_set_desc(device, "Digi SYNC/570i-PCI 4 port");
+		return (0);
 		break;
 	case 0x5011114f:
 		printf("Digi SYNC/570i-PCI 4 port (mapped below 1M)\n");
@@ -89,38 +98,73 @@ ar_pci_probe(pcici_t tag, pcidi_t type)
 	default:
 		break;
 	}
-	return (0);
+	return (ENXIO);
 }
 
-static void
-ar_pci_attach(pcici_t config_id, int unit)
+static int
+ar_pci_attach(device_t device)
 {
+	int error;
+	u_int i, tmp;
 	u_char *inten;
-	void *hc;
-	vm_offset_t mem_vaddr, mem_paddr;
-	vm_offset_t plx_vaddr, plx_paddr;
+	struct ar_hardc *hc;
 
-	if(!pci_map_mem(config_id, 0x10, &plx_vaddr, &plx_paddr)) {
-		printf("arp: map failed.\n");
-		return;
-	}
+	hc = (struct ar_hardc *)device_get_softc(device);
+	bzero(hc, sizeof(struct ar_hardc));
 
-	if(!pci_map_mem(config_id, 0x18, &mem_vaddr, &mem_paddr)) {
-		printf("arp: map failed.\n");
-		return;
-	}
+	error = ar_allocate_plx_memory(device, 0x10, 1);
+	if(error)
+		goto errexit;
 
-	hc = arattach_pci(unit, mem_vaddr);
-	if(!hc)
-		return;
+	error = ar_allocate_memory(device, 0x18, 1);
+	if(error)
+		goto errexit;
+
+	error = ar_allocate_irq(device, 0, 1);
+	if(error)
+		goto errexit;
+
+	hc->plx_mem = rman_get_virtual(hc->res_plx_memory);
+	hc->mem_start = rman_get_virtual(hc->res_memory);
+
+	hc->cunit = device_get_unit(device);
+	hc->sca[0] = (sca_regs *)(hc->mem_start + AR_PCI_SCA_1_OFFSET);
+	hc->sca[1] = (sca_regs *)(hc->mem_start + AR_PCI_SCA_2_OFFSET);
+	hc->iobase = 0;
+	hc->orbase = (u_char *)(hc->mem_start + AR_PCI_ORBASE_OFFSET);
+
+	tmp = hc->orbase[AR_BMI * 4];
+	hc->bustype = tmp & AR_BUS_MSK;
+	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
+	hc->memsize = 1 << hc->memsize;
+	hc->memsize <<= 16;
+	hc->interface[0] = (tmp & AR_IFACE_MSK);
+	tmp = hc->orbase[AR_REV * 4];
+	hc->revision = tmp & AR_REV_MSK;
+	hc->winsize = (1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT)) * 16 * 1024;
+	hc->mem_end = (caddr_t)(hc->mem_start + hc->winsize);
+	hc->winmsk = hc->winsize - 1;
+	hc->numports = hc->orbase[AR_PNUM * 4];
+	hc->handshake = hc->orbase[AR_HNDSH * 4];
+
+	for(i = 1; i < hc->numports; i++)
+		hc->interface[i] = hc->interface[0];
+
+	TRC(printf("arp%d: bus %x, rev %d, memstart %p, winsize %d, "
+	    "winmsk %x, interface %x\n",
+	    unit, hc->bustype, hc->revision, hc->mem_start, hc->winsize,
+	    hc->winmsk, hc->interface[0]));
+
+	ar_attach(device);
 
 	/* Magic to enable the card to generate interrupts. */
-	inten = (u_char *)plx_vaddr;
+	inten = (u_char *)hc->plx_mem;
 	inten[0x69] = 0x09;
 
-	if(!pci_map_int(config_id, arintr_hc, (void *)hc, &net_imask)) {
-		free(hc, M_DEVBUF);
-		return;
-	}
+	return (0);
+
+errexit:
+	ar_deallocate_resources(device);
+	return (ENXIO);
 }
-#endif
+
