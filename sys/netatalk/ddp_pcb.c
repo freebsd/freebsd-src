@@ -50,7 +50,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 
 	if (sat->sat_addr.s_node != ATADDR_ANYNODE ||
 		sat->sat_addr.s_net != ATADDR_ANYNET) {
-	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	    for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		if ((sat->sat_addr.s_net == AA_SAT(aa)->sat_addr.s_net) &&
 		 (sat->sat_addr.s_node == AA_SAT(aa)->sat_addr.s_node)) {
 		    break;
@@ -82,10 +82,10 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 
     if (sat->sat_addr.s_node == ATADDR_ANYNODE &&
 	    sat->sat_addr.s_net == ATADDR_ANYNET) {
-	if (at_ifaddr == NULL) {
+	if (at_ifaddr_list == NULL) {
 	    return (EADDRNOTAVAIL);
 	}
-	sat->sat_addr = AA_SAT(at_ifaddr)->sat_addr;
+	sat->sat_addr = AA_SAT(at_ifaddr_list)->sat_addr;
     }
     ddp->ddp_lsat = *sat;
 
@@ -165,7 +165,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	}
 	aa = NULL;
 	if ((ifp = ro->ro_rt->rt_ifp) != NULL) {
-	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	    for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		if (aa->aa_ifp == ifp &&
 			ntohs(net) >= ntohs(aa->aa_firstnet) &&
 			ntohs(net) <= ntohs(aa->aa_lastnet)) {
@@ -202,7 +202,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
      */
     aa = NULL;
     if (ro->ro_rt && (ifp = ro->ro_rt->rt_ifp)) {
-	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 	    if (aa->aa_ifp == ifp) {
 		break;
 	    }

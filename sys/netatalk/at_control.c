@@ -21,7 +21,7 @@
 #include <netatalk/at_var.h>
 #include <netatalk/at_extern.h>
 
-struct at_ifaddr	*at_ifaddr;
+struct at_ifaddr	*at_ifaddr_list;
 
 static int aa_dorangeroute(struct ifaddr *ifa,
 			u_int first, u_int last, int cmd);
@@ -57,7 +57,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
      * If we have an ifp, then find the matching at_ifaddr if it exists
      */
     if (ifp != NULL) {
-	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 	    if (aa->aa_ifp == ifp) break;
 	}
     }
@@ -139,7 +139,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	 */
 	if (aa == NULL) {
 	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK | M_ZERO);
-	    if ((aa = at_ifaddr) != NULL) {
+	    if ((aa = at_ifaddr_list) != NULL) {
 		/*
 		 * Don't let the loopback be first, since the first
 		 * address is the machine's default address for
@@ -147,17 +147,17 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 		 * If it is, stick ourself in front, otherwise
 		 * go to the back of the list.
 		 */
-		if (at_ifaddr->aa_ifp->if_flags & IFF_LOOPBACK) {
+		if (at_ifaddr_list->aa_ifp->if_flags & IFF_LOOPBACK) {
 		    aa = aa0;
-		    aa->aa_next = at_ifaddr;
-		    at_ifaddr = aa;
+		    aa->aa_next = at_ifaddr_list;
+		    at_ifaddr_list = aa;
 		} else {
 		    for (; aa->aa_next; aa = aa->aa_next)
 			;
 		    aa->aa_next = aa0;
 		}
 	    } else {
-		at_ifaddr = aa0;
+		at_ifaddr_list = aa0;
 	    }
 	    aa = aa0;
 
@@ -277,8 +277,8 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	 * as well, or we'd be in deep trouble
 	 */
 	aa0 = aa;
-	if (aa0 == (aa = at_ifaddr)) {
-	    at_ifaddr = aa->aa_next;
+	if (aa0 == (aa = at_ifaddr_list)) {
+	    at_ifaddr_list = aa->aa_next;
 	} else {
 	    while (aa->aa_next && (aa->aa_next != aa0)) {
 		aa = aa->aa_next;
@@ -670,7 +670,7 @@ at_broadcast(sat)
     /*
      * failing that, if the net is one we have, it's a broadcast as well.
      */
-    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+    for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 	if ((aa->aa_ifp->if_flags & IFF_BROADCAST)
 	 && (ntohs(sat->sat_addr.s_net) >= ntohs(aa->aa_firstnet)
 	 && ntohs(sat->sat_addr.s_net) <= ntohs(aa->aa_lastnet))) {
@@ -801,10 +801,10 @@ aa_clean(void)
     struct ifaddr	*ifa;
     struct ifnet	*ifp;
 
-    while (aa = at_ifaddr) {
+    while ((aa = at_ifaddr_list) != NULL) {
 	ifp = aa->aa_ifp;
 	at_scrub(ifp, aa);
-	at_ifaddr = aa->aa_next;
+	at_ifaddr_list = aa->aa_next;
 	if ((ifa = ifp->if_addrlist) == (struct ifaddr *)aa) {
 	    ifp->if_addrlist = ifa->ifa_next;
 	} else {

@@ -60,7 +60,7 @@ struct at_aliasreq {
 #define AFA_PHASE2	0x0004
 
 #ifdef _KERNEL
-extern struct at_ifaddr	*at_ifaddr;
+extern struct at_ifaddr	*at_ifaddr_list;
 #endif
 
 #endif /* _NETATALK_AT_VAR_H_ */
