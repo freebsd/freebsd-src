@@ -44,7 +44,7 @@
 #include <dev/hptmv/global.h>
 #include <dev/hptmv/hptintf.h>
 #include <dev/hptmv/osbsd.h>
-#include <contrib/dev/hptmv/access601.h>
+#include <dev/hptmv/access601.h>
 
 #ifdef DEBUG
 #ifdef DEBUG_LEVEL
