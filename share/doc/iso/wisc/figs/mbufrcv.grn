@@ -1,0 +1,13 @@
+.(z
+.GS C
+width 5.0
+high 6.0
+narrow 1
+medium 3
+thick 7
+pointscale on
+file mbufrcv.gsrc
+.GE
+.ce
+\fB Figure \n+(FG\fR: \fImbuf\fR chains on socket receive buffer
+.)z

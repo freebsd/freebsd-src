@@ -1,0 +1,87 @@
+.TH ISO 4F "9 December 1988"
+.ds ]W Wisconsin ARGO 1.0
+.UC  4
+.SH NAME
+iso \- ISO protocol family
+.SH SYNOPSIS
+.B #include <sys/types.h>
+.br
+.B #include <netargo/iso.h>
+.SH DESCRIPTION
+The ISO protocol family is a collection of protocols
+that uses the ISO address format.
+The ISO family provides protocol support for the
+SOCK_SEQPACKET abstraction through the TP protocol (ISO 8073), 
+and for the SOCK_RAW abstraction
+by providing direct access (for debugging) to the
+CLNP (ISO 8473) network layer protocol.
+.SH ADDRESSING
+ISO addresses are based upon ISO 8348/AD2, 
+"Addendum to the Network Service Definition Covering Network Layer Addressing."
+.PP
+Sockets bound to the OSI protocol family use
+the following address structure:
+.sp 1
+.nf
+._f
+struct sockaddr_iso {
+	short	siso_family;
+	u_short	siso_tsuffix;
+	struct	iso_addr siso_addr;
+};
+.sp 1
+.fi
+.PP
+This fields of this structure are:
+.TP 10
+\fIsiso_family:\fR
+Identifies the domain: AF_ISO or AF_INET.
+.TP 10
+\fIsiso_tsuffix:\fR
+The transport part of the address, described below.
+.TP 10
+\fIsiso_addr:\fR
+The network part of the address, described below.
+.SS TRANSPORT ADDRESSING
+.PP
+The above structure describes a simple form of 
+ISO \fItransport\fR addresses.
+An ISO transport address is similar to an Internet address in that
+it contains a network-address portion and a portion that the
+transport layer uses to multiplex its services among clients.
+In the Internet domain, this portion of the address is called a \fIport\fR.
+In the ISO domain, this is called a \fItransport selector\fR
+(also known at one time as a \fItransport suffix\fR).
+While ports are always 16 bits, 
+transport selectors may be
+of (almost) arbitrary size.
+ARGO supports two forms of transport selectors:
+"normal" or 16-bit selectors, and
+"extended" selectors, or selectors that may be from 1-64 bytes
+in length.
+The default mode of operation is to use 16-bit transport selectors.
+These addresses can be represented with the above structure.
+When transport selectors of any other size are used, the transport
+selector is kept in a separate structure.
+See the manual page \fItp(4p)\fR.
+.SS NETWORK ADDRESSING
+.PP
+ISO network addresses are limited to 20 bytes in length.
+ISO network addresses can take any format.
+ARGO 1.0 supports three formats.
+See \fIisodir(3)\fR and \fIisodir(5)\fR.
+.SH PROTOCOLS
+The ARGO 1.0 implementation of the 
+ISO protocol family comprises
+the Connectionless-Mode Network Protocol (CLNP), 
+and the Transport Protocol (TP), classes 4 and 0,
+and X.25.
+TP is used to support the SOCK_SEQPACKET
+abstraction.
+A raw interface to CLNP is available
+by creating an ISO socket of type SOCK_RAW.
+This is used for CLNP debugging only.
+.SH SEE ALSO
+tp(4P), cons(4p), clnp(4P), isodir(3), iso(4f), isodir(5),
+"The ARGO 1.0 Kernel Programmer's Guide",
+"Installing ARGO 1.0 on Academic Operating Systems 4.3 Release 2"

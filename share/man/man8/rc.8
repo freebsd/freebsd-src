@@ -1,0 +1,106 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd December 11, 1993
+.Dt RC 8
+.Os BSD 4
+.Sh NAME
+.Nm rc
+.Nd command script for auto\-reboot and daemons
+.Sh SYNOPSIS
+.Nm rc
+.Nm rc.local
+.Sh DESCRIPTION
+.Nm Rc
+is the command script which controls the automatic reboot and
+.Nm rc.local
+is the script holding commands which are pertinent only
+to a specific site.
+.Pp
+When an automatic reboot is in progress,
+.Nm rc
+is invoked with the argument
+.Em autoboot .
+The first portion of
+.Nm rc
+runs an
+.Xr fsck 8
+with option
+.Fl p
+to ``preen'' all the disks of minor inconsistencies resulting
+from the last system shutdown and to check for serious inconsistencies
+caused by hardware or software failure.
+If this auto-check and repair succeeds, then the second part of
+.Nm rc
+is run.
+.Pp
+The second part of
+.Nm rc ,
+which is run after an auto-reboot succeeds and also if
+.Nm rc
+is invoked when a single user shell terminates (see
+.Xr init 8 ) ,
+starts all the daemons on the system, preserves editor files
+and clears the scratch directory
+.Pa /tmp .
+.Pp
+.Nm Rc.local
+is executed immediately before any other commands after a successful
+.Xr fsck .
+Normally, the first commands placed in the
+.Nm rc.local
+file define the machine's name, using
+.Xr hostname 1 ,
+and save any possible core image that might have been
+generated as a result of a system crash, with
+.Xr savecore 8 .
+The latter command is included in the
+.Nm rc.local
+file because the directory in which core dumps are saved
+is usually site specific.
+.Pp
+Following tradition, the startup files
+.Nm rc
+and
+.Nm rc.local
+reside in
+.Pa /etc .
+.Sh SEE ALSO
+.Xr init 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.0 .

@@ -1,0 +1,19 @@
+.(z
+.hl
+.GS C
+width 6.0
+high 3.0
+1 5
+2 7 
+3 9 
+4 12
+sc 0.5
+narrow 1
+medium 3
+thick 7
+pointscale off
+file ecn_queue.gsrc
+.GE
+.ce
+\fBFigure \n+(FG:\fR Queue Placement Strategy
+.)z

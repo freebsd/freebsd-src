@@ -1,0 +1,7 @@
+#! /bin/csh -f
+echo $argv
+set dev=fa
+foreach m ($argv)
+	grn -P$dev $m.grn > $m.nr
+	ditroff -P$dev $m.nr
+end
