@@ -183,53 +183,24 @@ static int
 idad_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 
-	/* This needs modified to the new dump API */
-	return (ENXIO);
-#if 0
 	struct idad_softc *drv;
-	u_int count, blkno, secsize;
-	long blkcnt;
-	int i, error, dumppages;
-        caddr_t va;
-	vm_offset_t addr, a;
-
-	if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
-		return (error);
+	int error = 0;
 
 	drv = idad_getsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
 
-	addr = 0;
-	blkcnt = howmany(PAGE_SIZE, secsize);
+	drv->controller->flags &= ~IDA_INTERRUPTS;
 
-	while (count > 0) {
-		va = NULL;
-
-		dumppages = imin(count / blkcnt, MAXDUMPPGS); 
-
-		for (i = 0; i < dumppages; i++) {
-			a = addr + (i * PAGE_SIZE);
-			if (is_physical_memory(a))
-				va = pmap_kenter_temporary(trunc_page(a), i);
-			else
-				va = pmap_kenter_temporary(trunc_page(0), i);
-		}
-
-		error = ida_command(drv->controller, CMD_WRITE, va,
-		    PAGE_SIZE * dumppages, drv->drive, blkno, DMA_DATA_OUT);
+	if (length > 0) {
+		error = ida_command(drv->controller, CMD_WRITE, virtual,
+		    length, drv->drive, offset / DEV_BSIZE, DMA_DATA_OUT);
 		if (error)
-			return (error);
-
-		if (dumpstatus(addr, (off_t)count * DEV_BSIZE) < 0)
-			return (EINTR);
-
-		blkno += blkcnt * dumppages;
-		count -= blkcnt * dumppages;
-		addr += PAGE_SIZE * dumppages;
+			goto out;
 	}
-	return (0);
-#endif
+out:
+	drv->controller->flags |= IDA_INTERRUPTS;
+	return (error);
 }
 
 void
