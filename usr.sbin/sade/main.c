@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.23 1996/07/02 01:03:44 jkh Exp $
+ * $Id: main.c,v 1.24 1996/07/12 11:14:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,6 @@ main(int argc, char **argv)
 	variable_set2(VAR_DEBUG, "YES");
 	Fake = TRUE;
 	msgConfirm("I'll be just faking it from here on out, OK?");
-	--argc, ++argv;
     }
 
     /* Try to preserve our scroll-back buffer */
@@ -99,6 +98,8 @@ main(int argc, char **argv)
 
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
+	else if (Fake)
+	    start_arg = 2;
 	else
 	    start_arg = 1;
 	for (i = start_arg; i < argc; i++) {
