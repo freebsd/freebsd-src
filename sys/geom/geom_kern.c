@@ -68,9 +68,7 @@ g_up_procbody(void)
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_up(tp);
-		mtx_lock(&Giant);
 		tsleep(&g_wait_up, PRIBIO, "g_up", hz/10);
-		mtx_unlock(&Giant);
 	}
 }
 
@@ -91,9 +89,7 @@ g_down_procbody(void)
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_down(tp);
-		mtx_lock(&Giant);
 		tsleep(&g_wait_down, PRIBIO, "g_down", hz/10);
-		mtx_unlock(&Giant);
 	}
 }
 
@@ -112,9 +108,7 @@ g_event_procbody(void)
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
 		g_run_events();
-		mtx_lock(&Giant);
 		tsleep(&g_wait_event, PRIBIO, "g_events", hz/10);
-		mtx_unlock(&Giant);
 	}
 }
 
