@@ -154,19 +154,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
     NULL, 0, sysctl_sema, "", "");
 
-/*-
- * RW seminfo.semmap: SEMMAP unused
- * RO seminfo.semmni
- * RO seminfo.semmns
- * RO seminfo.semmnu: undo entries per system
- * RW seminfo.semmsl
- * RO seminfo.semopm: SEMOPM unused
- * RO seminfo.semume
- * RO seminfo.semusz: param - derived from SEMUME for per-proc sizeof
- * RW seminfo.semvmx: SEMVMX unused - user param
- * RW seminfo.semaem: SEMAEM unused - user param
- */
-
 static void
 seminit(void)
 {
