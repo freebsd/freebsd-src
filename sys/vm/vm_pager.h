@@ -91,6 +91,7 @@ MALLOC_DECLARE(M_VMPGDATA);
 extern vm_map_t pager_map;
 extern int pager_map_size;
 extern struct pagerops *pagertab[];
+extern struct mtx pbuf_mtx;
 
 vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));
 void vm_pager_bufferinit __P((void));
