@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: rmail.c,v 8.39.4.8 2000/09/16 22:20:25 gshapiro Exp $";
+static char id[] = "@(#)$Id: rmail.c,v 8.39.4.9 2000/11/17 08:42:56 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -313,12 +313,11 @@ main(argc, argv)
 	}
 
 
-	/* Allocate args (with room for sendmail args as well as recipients */
+	/* Allocate args (with room for sendmail args as well as recipients) */
 	args = (char **)xalloc(sizeof(*args) * (10 + argc));
 
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;	/* Build sendmail's argument list. */
-	args[i++] = "-G";		/* relay submission */
 	args[i++] = "-oee";		/* No errors, just status. */
 #ifdef QUEUE_ONLY
 	args[i++] = "-odq";		/* Queue it, don't try to deliver. */
