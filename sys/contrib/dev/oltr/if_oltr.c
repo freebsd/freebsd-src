@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_oltr.c,v 1.17 1999/02/12 19:05:35 lile Exp lile $
+ * $Id: if_oltr.c,v 1.1 1999/03/10 10:11:38 julian Exp $
  */
 
 
@@ -107,7 +107,7 @@ char *AdapterName[] = {
 #include <pci/pcireg.h>
 #endif
 
-#include "dev/oltr/trlld.h"
+#include "contrib/dev/oltr/trlld.h"
 
 #ifndef TRLLD_SPEED_AUTO
 #define TRLLD_SPEED_AUTO 0
