@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.1 1996/02/25 19:29:34 wpaul Exp $
+ *	$Id: yp_main.c,v 1.2 1996/04/21 21:33:40 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static char rcsid[] = "$Id: yp_main.c,v 1.1 1996/02/25 19:29:34 wpaul Exp $";
+static char rcsid[] = "$Id: yp_main.c,v 1.2 1996/04/21 21:33:40 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -148,6 +148,9 @@ static void reaper(sig)
 
 	if (sig == SIGHUP) {
 		load_securenets();
+#ifdef DB_CACHE
+		yp_flush_all();
+#endif
 		return;
 	}
 
@@ -225,7 +228,9 @@ main(argc, argv)
 	}
 
 	load_securenets();
-
+#ifdef DB_CACHE
+	yp_init_dbs();
+#endif
 	if (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {
 		int ssize = sizeof (int);
 
