@@ -3376,7 +3376,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	1.1.4.</para>
 
       <para><application>lint</application> has been updated to
-	snapshot of NetBSD &man.lint.1; as of 3 March 2002.</para>
+	snapshot of NetBSD &man.lint.1; as of 19 July 2002.</para>
 
       <para><application>lukemftp</application> 1.6 beta 2 (the FTP client from
 	NetBSD) has replaced the &os; &man.ftp.1; program.  Among its
@@ -3452,7 +3452,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.routed.8; has been updated to version
 	2.22. &merged;</para>
 
-      <para arch="i386,pc98">Version 1.4.4 of the
+      <para arch="i386,pc98">Version 1.4.5 of the
 	<application>smbfs</application> userland utilities have been
 	imported.</para>
 
@@ -3482,8 +3482,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.inetd.8; replacements such as
 	<application>xinetd</application>.</para>
 
-      <para role="historic"><application>texinfo</application> has been updated to
-	4.1. &merged;</para>
+      <para><application>texinfo</application> has been updated to
+	4.2.</para>
 
       <para><application>top</application> has been updated to version
 	3.5b12.</para>
