@@ -249,6 +249,9 @@ extract_plist(char *home, Package *pkg)
 	case PLIST_IGNORE:
 	    p = p->next;
 	    break;
+
+	default:
+	    break;
 	}
 	p = p->next;
     }
