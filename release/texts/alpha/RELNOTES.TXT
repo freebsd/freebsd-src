@@ -71,7 +71,9 @@ not work. You will need to use a serial console or install a VGA card.
 
 If you are seeing "going nowhere without my init" crashes on install
 please make sure you have no other bootable disks (Tru64, VMS, whatever)
-connected to your system during install. This is an unfound bug.
+connected to your system during install. There are conflicting reports on
+this. According to some this is a reproducible problem whereas others 
+using multi-disk/multi-OS installations have never seen it.
 
 1.2. SECURITY FIXES
 -------------------
@@ -127,7 +129,7 @@ terminal support).
 
 For an extensive overview of supported Alpha machines/mainboards please refer
 to the HARDWARE.TXT file. Information in that file reflects the latest
-state of affairs for Alpha (more that this one).
+state of affairs for Alpha machines/mainboards.
 
 2.1. Disk Controllers
 ---------------------
