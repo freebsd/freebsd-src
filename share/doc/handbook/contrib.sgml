@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.90 1996/06/03 02:29:38 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.91 1996/06/08 23:10:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -340,7 +340,7 @@
 	<item>Marc Frajola &lt;marc@dev.com&gt;
 	<item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	  &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
-	<item>Martin Renters &lt;martin@innovus.com&gt;
+	<item>Martin Renters &lt;martin@tdc.on.ca&gt;
 	<item>Michael Galassi &lt;nerd@percival.rain.com&gt;
 	<item>Mike Durkin &lt;mdurkin@tsoft.sf-bay.org&gt;
 	<item>Nate Williams &lt;nate@bsd.coe.montana.edu&gt;
