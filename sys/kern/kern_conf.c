@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.29 1998/11/14 21:58:51 wollman Exp $
+ * $Id: kern_conf.c,v 1.30 1999/01/27 21:49:55 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -173,14 +173,18 @@ cdevsw_module_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		if ((error = cdevsw_add(&data->dev, data->cdevsw, NULL)) != 0)
-			return error;
-		break;
+		error = cdevsw_add(&data->dev, data->cdevsw, NULL);
+		if (!error && data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return error;
 
 	case MOD_UNLOAD:
-		if ((error = cdevsw_add(&data->dev, NULL, NULL)) != 0)
-			return error;
-		break;
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return error;
+		}
+		return cdevsw_add(&data->dev, NULL, NULL);
 	}
 
 	if (data->chainevh)
@@ -197,20 +201,23 @@ bdevsw_module_handler(module_t mod, int what, void* arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		if ((error = cdevsw_add(&data->cdev, data->cdevsw, NULL)) != 0)
-			return error;
-		if ((error = bdevsw_add(&data->bdev, data->cdevsw, NULL)) != 0) {
-			cdevsw_add(&data->bdev, NULL, NULL);
-			return error;
-		}
-		break;
+		error = cdevsw_add(&data->cdev, data->cdevsw, NULL);
+		if (!error)
+			error = bdevsw_add(&data->bdev, data->cdevsw, NULL);
+		if (!error && data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return error;
 
 	case MOD_UNLOAD:
-		if ((error = bdevsw_add(&data->bdev, NULL, NULL)) != 0)
-			return error;
-		if ((error = cdevsw_add(&data->cdev, NULL, NULL)) != 0)
-			return error;
-		break;
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return error;
+		}
+		error = bdevsw_add(&data->bdev, NULL, NULL);
+		if (!error)
+			error = cdevsw_add(&data->cdev, NULL, NULL);
+		return error;
 	}
 
 	if (data->chainevh)
