@@ -8,3 +8,5 @@ SUBDIR+=	T010 T011 T012 T013 T014
 .include <bsd.subdir.mk>
 
 test:	_SUBDIR
+
+mkref:	_SUBDIR
