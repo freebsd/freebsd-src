@@ -1677,7 +1677,7 @@
       updated from the 29 July 2003 release to the 7 February 2004
       release.</para>
 
-    <para><application>BIND</application> has been updated to
+    <para><application>BIND</application> has been updated
      from version 8.3.1-REL to version 9.3.0.  &merged;</para>
 
     <para><application>Binutils</application> have been updated to
