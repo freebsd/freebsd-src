@@ -18,17 +18,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.27.2.1 1999/02/01 13:48:24 brian Exp $
+ * $Id: pap.c,v 1.32 1999/02/20 01:12:45 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
 
-#include <string.h>
+#include <stdlib.h>
 #include <termios.h>
 
 #include "mbuf.h"
@@ -53,6 +53,9 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
@@ -60,41 +63,41 @@
 #include "datalink.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "SUCCESS", "FAILURE" };
+#define MAXPAPCODE (sizeof papcodes / sizeof papcodes[0] - 1)
 
-void
-pap_SendChallenge(struct authinfo *auth, int papid, struct physical *physical)
+static void
+pap_Req(struct authinfo *authp)
 {
+  struct bundle *bundle = authp->physical->dl->bundle;
   struct fsmheader lh;
   struct mbuf *bp;
   u_char *cp;
   int namelen, keylen, plen;
 
-  namelen = strlen(physical->dl->bundle->cfg.auth.name);
-  keylen = strlen(physical->dl->bundle->cfg.auth.key);
+  namelen = strlen(bundle->cfg.auth.name);
+  keylen = strlen(bundle->cfg.auth.key);
   plen = namelen + keylen + 2;
-  log_Printf(LogDEBUG, "pap_SendChallenge: namelen = %d, keylen = %d\n",
-	    namelen, keylen);
-  log_Printf(LogPHASE, "Pap Output: %s ********\n",
-             physical->dl->bundle->cfg.auth.name);
-  if (*physical->dl->bundle->cfg.auth.name == '\0')
+  log_Printf(LogDEBUG, "pap_Req: namelen = %d, keylen = %d\n", namelen, keylen);
+  log_Printf(LogPHASE, "Pap Output: %s ********\n", bundle->cfg.auth.name);
+  if (*bundle->cfg.auth.name == '\0')
     log_Printf(LogWARN, "Sending empty PAP authname!\n");
   lh.code = PAP_REQUEST;
-  lh.id = papid;
+  lh.id = authp->id;
   lh.length = htons(plen + sizeof(struct fsmheader));
   bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_FSM);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
-  memcpy(cp, physical->dl->bundle->cfg.auth.name, namelen);
+  memcpy(cp, bundle->cfg.auth.name, namelen);
   cp += namelen;
   *cp++ = keylen;
-  memcpy(cp, physical->dl->bundle->cfg.auth.key, keylen);
+  memcpy(cp, bundle->cfg.auth.key, keylen);
 
-  hdlc_Output(&physical->link, PRI_LINK, PROTO_PAP, bp);
+  hdlc_Output(&authp->physical->link, PRI_LINK, PROTO_PAP, bp);
 }
 
 static void
-SendPapCode(int id, int code, const char *message, struct physical *physical)
+SendPapCode(struct authinfo *authp, int code, const char *message)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -102,7 +105,7 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
   int plen, mlen;
 
   lh.code = code;
-  lh.id = id;
+  lh.id = authp->id;
   mlen = strlen(message);
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
@@ -112,90 +115,127 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
   *cp++ = mlen;
   memcpy(cp, message, mlen);
   log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
-  hdlc_Output(&physical->link, PRI_LINK, PROTO_PAP, bp);
+
+  hdlc_Output(&authp->physical->link, PRI_LINK, PROTO_PAP, bp);
 }
 
-/*
- * Validate given username and passwrd against with secret table
- */
-static int
-PapValidate(struct bundle *bundle, u_char *name, u_char *key,
-            struct physical *physical)
+static void
+pap_Success(struct authinfo *authp)
 {
-  int nlen, klen;
+  datalink_GotAuthname(authp->physical->dl, authp->in.name);
+  SendPapCode(authp, PAP_ACK, "Greetings!!");
+  authp->physical->link.lcp.auth_ineed = 0;
+  if (Enabled(authp->physical->dl->bundle, OPT_UTMP))
+    physical_Login(authp->physical, authp->in.name);
 
-  nlen = *name++;
-  klen = *key;
-  *key++ = 0;
-  key[klen] = 0;
-  log_Printf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
-	    name, nlen, key, klen);
+  if (authp->physical->link.lcp.auth_iwait == 0)
+    /*
+     * Either I didn't need to authenticate, or I've already been
+     * told that I got the answer right.
+     */
+    datalink_AuthOk(authp->physical->dl);
+}
 
-  return auth_Validate(bundle, name, key, physical);
+static void
+pap_Failure(struct authinfo *authp)
+{
+  SendPapCode(authp, PAP_NAK, "Login incorrect");
+  datalink_AuthNotOk(authp->physical->dl);
 }
 
 void
-pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
+pap_Init(struct authinfo *pap, struct physical *p)
 {
-  int len = mbuf_Length(bp);
-  struct fsmheader *php;
-  u_char *cp;
+  auth_Init(pap, p, pap_Req, pap_Success, pap_Failure);
+}
 
-  if (len >= sizeof(struct fsmheader)) {
-    php = (struct fsmheader *) MBUF_CTOP(bp);
-    if (len >= ntohs(php->length)) {
-      if (php->code < PAP_REQUEST || php->code > PAP_NAK)
-	php->code = 0;
-      switch (php->code) {
-      case PAP_REQUEST:
-	cp = (u_char *) (php + 1);
-        log_Printf(LogPHASE, "Pap Input: %s (%.*s)\n",
-                   papcodes[php->code], *cp, cp + 1);
-	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
-          datalink_GotAuthname(physical->dl, cp+1, *cp);
-	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
-	  physical->link.lcp.auth_ineed = 0;
-          if (Enabled(bundle, OPT_UTMP))
-            physical_Login(physical, cp + 1);
+void
+pap_Input(struct physical *p, struct mbuf *bp)
+{
+  struct authinfo *authp = &p->dl->pap;
+  u_char nlen, klen, *key;
 
-          if (physical->link.lcp.auth_iwait == 0)
-            /*
-             * Either I didn't need to authenticate, or I've already been
-             * told that I got the answer right.
-             */
-            datalink_AuthOk(physical->dl);
-	} else {
-	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
-          datalink_AuthNotOk(physical->dl);
-	}
-	break;
-      case PAP_ACK:
-	auth_StopTimer(&physical->dl->pap);
-	cp = (u_char *) (php + 1);
-	len = *cp++;
-	cp[len] = 0;
-	log_Printf(LogPHASE, "Pap Input: %s (%s)\n", papcodes[php->code], cp);
-	if (physical->link.lcp.auth_iwait == PROTO_PAP) {
-	  physical->link.lcp.auth_iwait = 0;
-	  if (physical->link.lcp.auth_ineed == 0)
-            /*
-             * We've succeeded in our ``login''
-             * If we're not expecting  the peer to authenticate (or he already
-             * has), proceed to network phase.
-             */
-            datalink_AuthOk(physical->dl);
-	}
-	break;
-      case PAP_NAK:
-	auth_StopTimer(&physical->dl->pap);
-	cp = (u_char *) (php + 1);
-	len = *cp++;
-	cp[len] = 0;
-	log_Printf(LogPHASE, "Pap Input: %s (%s)\n", papcodes[php->code], cp);
-        datalink_AuthNotOk(physical->dl);
-	break;
-      }
-    }
+  if ((bp = auth_ReadHeader(authp, bp)) == NULL &&
+      ntohs(authp->in.hdr.length) == 0) {
+    log_Printf(LogWARN, "Pap Input: Truncated header !\n");
+    return;
   }
+
+  if (authp->in.hdr.code == 0 || authp->in.hdr.code > MAXPAPCODE) {
+    log_Printf(LogPHASE, "Pap Input: %d: Bad PAP code !\n", authp->in.hdr.code);
+    mbuf_Free(bp);
+    return;
+  }
+
+  if (authp->in.hdr.code != PAP_REQUEST && authp->id != authp->in.hdr.id &&
+      Enabled(p->dl->bundle, OPT_IDCHECK)) {
+    /* Wrong conversation dude ! */
+    log_Printf(LogPHASE, "Pap Input: %s dropped (got id %d, not %d)\n",
+               papcodes[authp->in.hdr.code], authp->in.hdr.id, authp->id);
+    mbuf_Free(bp);
+    return;
+  }
+  authp->id = authp->in.hdr.id;		/* We respond with this id */
+
+  if (bp) {
+    bp = mbuf_Read(bp, &nlen, 1);
+    bp = auth_ReadName(authp, bp, nlen);
+  }
+
+  log_Printf(LogPHASE, "Pap Input: %s (%s)\n",
+             papcodes[authp->in.hdr.code], authp->in.name);
+
+  switch (authp->in.hdr.code) {
+    case PAP_REQUEST:
+      if (bp == NULL) {
+        log_Printf(LogPHASE, "Pap Input: No key given !\n");
+        break;
+      }
+      bp = mbuf_Read(bp, &klen, 1);
+      if (mbuf_Length(bp) < klen) {
+        log_Printf(LogERROR, "Pap Input: Truncated key !\n");
+        break;
+      }
+      if ((key = malloc(klen+1)) == NULL) {
+        log_Printf(LogERROR, "Pap Input: Out of memory !\n");
+        break;
+      }
+      bp = mbuf_Read(bp, key, klen);
+      key[klen] = '\0';
+
+#ifndef NORADIUS
+      if (*p->dl->bundle->radius.cfg.file)
+        radius_Authenticate(&p->dl->bundle->radius, authp, authp->in.name,
+                            key, NULL);
+      else
+#endif
+      if (auth_Validate(p->dl->bundle, authp->in.name, key, p))
+        pap_Success(authp);
+      else
+        pap_Failure(authp);
+
+      free(key);
+      break;
+
+    case PAP_ACK:
+      auth_StopTimer(authp);
+      if (p->link.lcp.auth_iwait == PROTO_PAP) {
+        p->link.lcp.auth_iwait = 0;
+        if (p->link.lcp.auth_ineed == 0)
+          /*
+           * We've succeeded in our ``login''
+           * If we're not expecting  the peer to authenticate (or he already
+           * has), proceed to network phase.
+           */
+          datalink_AuthOk(p->dl);
+      }
+      break;
+
+    case PAP_NAK:
+      auth_StopTimer(authp);
+      datalink_AuthNotOk(p->dl);
+      break;
+  }
+
   mbuf_Free(bp);
 }

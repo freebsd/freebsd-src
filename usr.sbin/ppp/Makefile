@@ -1,4 +1,6 @@
-#	$Id: Makefile,v 1.49 1998/10/20 00:19:38 brian Exp $
+#	$Id: Makefile,v 1.52 1999/01/28 15:16:38 brian Exp $
+
+MAINTAINER=brian@FreeBSD.org
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c command.c \
@@ -7,14 +9,12 @@ SRCS=	arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c command.c \
 	mp.c pap.c physical.c pred.c probe.c prompt.c route.c server.c \
 	sig.c slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
 CFLAGS+=-Wall
-LDADD+= -lutil -lz
-DPADD+=	${LIBUTIL} ${LIBZ}
+LDADD+= -lcrypt -lmd -lutil -lz
+DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
 BINMODE=4554
 BINOWN=	root
 BINGRP=	network
 MAN8=	ppp.8
-LDADD+=	-lmd -lcrypt
-DPADD+= ${LIBMD} ${LIBCRYPT}
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
@@ -38,12 +38,22 @@ LDADD+= -ldes
 DPADD+= ${LIBDES}
 .endif
 
+.if defined(NORADIUS)
+CFLAGS+=-DNORADIUS
+.else
+.if !defined(RELEASE_CRUNCH)
+SRCS+=	radius.c
+LDADD+=	-lradius
+DPADD+= ${LIBRADIUS}
+.endif
+.endif
+
 .if defined(RELEASE_CRUNCH)
-# We must create these objects because the crunchgen will link them,
+# We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNOALIAS
-SRCS+=	alias_cmd.c chap_ms.c
-chap_ms.o alias_cmd.o:
+CFLAGS+=-DNOALIAS -DNORADIUS
+SRCS+=	alias_cmd.c chap_ms.c radius.c
+chap_ms.o alias_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif

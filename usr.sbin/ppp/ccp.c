@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.39 1998/08/26 17:39:36 brian Exp $
+ * $Id: ccp.c,v 1.44 1999/03/11 01:49:15 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -30,7 +30,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <termios.h>
 
 #include "defs.h"
@@ -57,6 +56,9 @@
 #include "mp.h"
 #include "async.h"
 #include "physical.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
@@ -68,7 +70,7 @@ static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static int CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
-static void CcpInitRestartCounter(struct fsm *);
+static void CcpInitRestartCounter(struct fsm *, int);
 static void CcpRecvResetReq(struct fsm *);
 static void CcpRecvResetAck(struct fsm *, u_char);
 
@@ -148,7 +150,10 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 ccp->compin, ccp->uncompin);
 
   prompt_Printf(arg->prompt, "\n Defaults: ");
-  prompt_Printf(arg->prompt, "FSM retry = %us\n", ccp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "FSM retry = %us, max %u Config"
+                " REQ%s, %u Term REQ%s\n", ccp->cfg.fsm.timeout,
+                ccp->cfg.fsm.maxreq, ccp->cfg.fsm.maxreq == 1 ? "" : "s",
+                ccp->cfg.fsm.maxtrm, ccp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, "           deflate windows: ");
   prompt_Printf(arg->prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
   prompt_Printf(arg->prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
@@ -176,12 +181,14 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
 {
   /* Initialise ourselves */
 
-  fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, 1, CCP_MAXCODE, 10, LogCCP,
+  fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, 1, CCP_MAXCODE, LogCCP,
            bundle, l, parent, &ccp_Callbacks, ccp_TimerNames);
 
   ccp->cfg.deflate.in.winsize = 0;
   ccp->cfg.deflate.out.winsize = 15;
-  ccp->cfg.fsmretry = DEF_FSMRETRY;
+  ccp->cfg.fsm.timeout = DEF_FSMRETRY;
+  ccp->cfg.fsm.maxreq = DEF_FSMTRIES;
+  ccp->cfg.fsm.maxtrm = DEF_FSMTRIES;
   ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
@@ -194,7 +201,6 @@ ccp_Setup(struct ccp *ccp)
 {
   /* Set ourselves up for a startup */
   ccp->fsm.open_mode = 0;
-  ccp->fsm.maxconfig = 10;
   ccp->his_proto = ccp->my_proto = -1;
   ccp->reset_sent = ccp->last_reset = -1;
   ccp->in.algorithm = ccp->out.algorithm = -1;
@@ -207,13 +213,23 @@ ccp_Setup(struct ccp *ccp)
 }
 
 static void
-CcpInitRestartCounter(struct fsm *fp)
+CcpInitRestartCounter(struct fsm *fp, int what)
 {
   /* Set fsm timer load */
   struct ccp *ccp = fsm2ccp(fp);
 
-  fp->FsmTimer.load = ccp->cfg.fsmretry * SECTICKS;
-  fp->restart = DEF_REQs;
+  fp->FsmTimer.load = ccp->cfg.fsm.timeout * SECTICKS;
+  switch (what) {
+    case FSM_REQ_TIMER:
+      fp->restart = ccp->cfg.fsm.maxreq;
+      break;
+    case FSM_TRM_TIMER:
+      fp->restart = ccp->cfg.fsm.maxtrm;
+      break;
+    default:
+      fp->restart = 1;
+      break;
+  }
 }
 
 static void
@@ -302,7 +318,10 @@ static void
 CcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
+  struct ccp *ccp = fsm2ccp(fp);
+
   log_Printf(LogCCP, "%s: LayerStart.\n", fp->link->name);
+  fp->more.reqs = fp->more.naks = fp->more.rejs = ccp->cfg.fsm.maxreq * 3;
 }
 
 static void
@@ -348,7 +367,9 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
+
   log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
+
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
       ccp->in.algorithm < NALGORITHMS) {
     ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);
@@ -357,6 +378,7 @@ CcpLayerUp(struct fsm *fp)
                 fp->link->name, protoname(ccp->his_proto));
       ccp->his_proto = ccp->my_proto = -1;
       fsm_Close(fp);
+      return 0;
     }
   }
 
@@ -369,12 +391,16 @@ CcpLayerUp(struct fsm *fp)
                 fp->link->name, protoname(ccp->my_proto));
       ccp->his_proto = ccp->my_proto = -1;
       fsm_Close(fp);
+      return 0;
     }
   }
+
+  fp->more.reqs = fp->more.naks = fp->more.rejs = ccp->cfg.fsm.maxreq * 3;
 
   log_Printf(LogCCP, "%s: Out = %s[%d], In = %s[%d]\n",
             fp->link->name, protoname(ccp->my_proto), ccp->my_proto,
             protoname(ccp->his_proto), ccp->his_proto);
+
   return 1;
 }
 
@@ -522,17 +548,17 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
 
   if (ccp->reset_sent != -1) {
     if (id != ccp->reset_sent) {
-      log_Printf(LogWARN, "CCP: %s: Incorrect ResetAck (id %d, not %d)"
+      log_Printf(LogCCP, "%s: Incorrect ResetAck (id %d, not %d)"
                 " ignored\n", fp->link->name, id, ccp->reset_sent);
       return;
     }
     /* Whaddaya know - a correct reset ack */
   } else if (id == ccp->last_reset)
     log_Printf(LogCCP, "%s: Duplicate ResetAck (resetting again)\n",
-              fp->link->name);
+               fp->link->name);
   else {
-    log_Printf(LogWARN, "CCP: %s: Unexpected ResetAck (id %d) ignored\n",
-              fp->link->name, id);
+    log_Printf(LogCCP, "%s: Unexpected ResetAck (id %d) ignored\n",
+               fp->link->name, id);
     return;
   }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.19 1998/10/29 02:12:54 brian Exp $
+ *	$Id: bundle.h,v 1.21 1999/01/28 01:56:30 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -87,8 +87,8 @@ struct bundle {
   struct {
     int idle_timeout;         /* NCP Idle timeout value */
     struct {
-      char name[50];          /* PAP/CHAP system name */
-      char key[50];           /* PAP/CHAP key */
+      char name[AUTHLEN];     /* PAP/CHAP system name */
+      char key[AUTHLEN];      /* PAP/CHAP key */
     } auth;
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
@@ -102,7 +102,7 @@ struct bundle {
     } autoload;
 
     struct {
-      int timeout;		/* How long to leave the output queue choked */
+      int timeout;            /* How long to leave the output queue choked */
     } choked;
   } cfg;
 
@@ -112,19 +112,19 @@ struct bundle {
   } ncp;
 
   struct {
-    struct filter in;		/* incoming packet filter */
-    struct filter out;		/* outgoing packet filter */
-    struct filter dial;		/* dial-out packet filter */
-    struct filter alive;	/* keep-alive packet filter */
+    struct filter in;         /* incoming packet filter */
+    struct filter out;        /* outgoing packet filter */
+    struct filter dial;       /* dial-out packet filter */
+    struct filter alive;      /* keep-alive packet filter */
   } filter;
 
   struct {
-    struct pppTimer timer;      /* timeout after cfg.idle_timeout */
+    struct pppTimer timer;    /* timeout after cfg.idle_timeout */
     time_t done;
   } idle;
 
   struct {
-    int fd;                     /* write status here */
+    int fd;                   /* write status here */
   } notify;
 
   struct {
@@ -135,8 +135,12 @@ struct bundle {
   } autoload;
 
   struct {
-    struct pppTimer timer;      /* choked output queue timer */
+    struct pppTimer timer;    /* choked output queue timer */
   } choked;
+
+#ifndef NORADIUS
+  struct radius radius;       /* Info retrieved from radius server */
+#endif
 };
 
 #define descriptor2bundle(d) \

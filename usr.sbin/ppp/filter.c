@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.25 1998/06/27 12:03:48 brian Exp $
+ * $Id: filter.c,v 1.27 1999/01/28 01:56:31 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -54,6 +54,9 @@
 #include "descriptor.h"
 #include "prompt.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 
 static int filter_Nam2Proto(int, char const *const *);
@@ -71,34 +74,38 @@ static const u_int32_t netmasks[33] = {
   0xFFFFFFF8, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF,
 };
 
+struct in_addr
+bits2mask(int bits)
+{
+  struct in_addr result;
+
+  result.s_addr = htonl(netmasks[bits]);
+  return result;
+}
+
 int
-ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
+ParseAddr(struct ipcp *ipcp, const char *data,
 	  struct in_addr *paddr, struct in_addr *pmask, int *pwidth)
 {
   int bits, len;
   char *wp;
   const char *cp;
 
-  if (argc < 1) {
-    log_Printf(LogWARN, "ParseAddr: address/mask is expected.\n");
-    return (0);
-  }
-
   if (pmask)
     pmask->s_addr = INADDR_BROADCAST;	/* Assume 255.255.255.255 as default */
 
-  cp = pmask || pwidth ? strchr(*argv, '/') : NULL;
-  len = cp ? cp - *argv : strlen(*argv);
+  cp = pmask || pwidth ? strchr(data, '/') : NULL;
+  len = cp ? cp - data : strlen(data);
 
-  if (ipcp && strncasecmp(*argv, "HISADDR", len) == 0)
+  if (ipcp && strncasecmp(data, "HISADDR", len) == 0)
     *paddr = ipcp->peer_ip;
-  else if (ipcp && strncasecmp(*argv, "MYADDR", len) == 0)
+  else if (ipcp && strncasecmp(data, "MYADDR", len) == 0)
     *paddr = ipcp->my_ip;
   else if (len > 15)
-    log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
+    log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", data);
   else {
     char s[16];
-    strncpy(s, *argv, len);
+    strncpy(s, data, len);
     s[len] = '\0';
     if (inet_aton(s, paddr) == 0) {
       log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
@@ -125,7 +132,7 @@ ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
     if (paddr->s_addr == INADDR_ANY)
       pmask->s_addr = INADDR_ANY;
     else
-      pmask->s_addr = htonl(netmasks[bits]);
+      *pmask = bits2mask(bits);
   }
 
   return (1);
@@ -302,7 +309,7 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   argc--;
   argv++;
 
-  if (filterdata.action == A_DENY) {
+  if (argc && filterdata.action == A_DENY) {
     if (!strcmp(*argv, "host")) {
       filterdata.action |= A_UHOST;
       argc--;
@@ -313,21 +320,26 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
       argv++;
     }
   }
+
   proto = filter_Nam2Proto(argc, argv);
   if (proto == P_NONE) {
-    if (ParseAddr(ipcp, argc, argv, &filterdata.saddr, &filterdata.smask,
-                  &filterdata.swidth)) {
+    if (!argc)
+      log_Printf(LogWARN, "Parse: address/mask is expected.\n");
+    else if (ParseAddr(ipcp, *argv, &filterdata.saddr, &filterdata.smask,
+                       &filterdata.swidth)) {
       argc--;
       argv++;
       proto = filter_Nam2Proto(argc, argv);
-      if (proto == P_NONE) {
-	if (ParseAddr(ipcp, argc, argv, &filterdata.daddr, &filterdata.dmask,
+      if (!argc)
+        log_Printf(LogWARN, "Parse: address/mask is expected.\n");
+      else if (proto == P_NONE) {
+	if (ParseAddr(ipcp, *argv, &filterdata.daddr, &filterdata.dmask,
                       &filterdata.dwidth)) {
 	  argc--;
 	  argv++;
 	}
 	proto = filter_Nam2Proto(argc, argv);
-	if (proto != P_NONE) {
+	if (argc && proto != P_NONE) {
 	  argc--;
 	  argv++;
 	}

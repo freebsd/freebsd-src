@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.34.2.1 1999/02/01 13:48:24 brian Exp $
+ * $Id: auth.c,v 1.42 1999/02/26 21:28:06 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -55,6 +55,9 @@
 #include "lcpproto.h"
 #include "filter.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "cbcp.h"
 #include "chap.h"
 #include "async.h"
@@ -63,13 +66,16 @@
 #include "bundle.h"
 
 const char *
-Auth2Nam(u_short auth)
+Auth2Nam(u_short auth, u_char type)
 {
+  static char chap[10];
+
   switch (auth) {
   case PROTO_PAP:
     return "PAP";
   case PROTO_CHAP:
-    return "CHAP";
+    snprintf(chap, sizeof chap, "CHAP 0x%02x", type);
+    return chap;
   case 0:
     return "none";
   }
@@ -112,12 +118,12 @@ auth_SetPhoneList(const char *name, char *phone, int phonelen)
       if (n < 5)
         continue;
       if (strcmp(vector[0], name) == 0) {
-	CloseSecret(fp);
-	if (*vector[4] == '\0')
+        CloseSecret(fp);
+        if (*vector[4] == '\0')
           return 0;
         strncpy(phone, vector[4], phonelen - 1);
         phone[phonelen - 1] = '\0';
-	return 1;		/* Valid */
+        return 1;		/* Valid */
       }
     }
     CloseSecret(fp);
@@ -135,9 +141,19 @@ auth_Select(struct bundle *bundle, const char *name)
   char buff[LINE_LEN];
 
   if (*name == '\0') {
-    ipcp_Setup(&bundle->ncp.ipcp);
+    ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
     return 1;
   }
+
+#ifndef NORADIUS
+  if (bundle->radius.valid && bundle->radius.ip.s_addr != INADDR_NONE) {
+    /* We've got a radius IP - it overrides everything */
+    if (!ipcp_UseHisIPaddr(bundle, bundle->radius.ip))
+      return 0;
+    ipcp_Setup(&bundle->ncp.ipcp, bundle->radius.mask.s_addr);
+    /* Continue with ppp.secret in case we've got a new label */
+  }
+#endif
 
   fp = OpenSecret(SECRETFILE);
   if (fp != NULL) {
@@ -150,14 +166,20 @@ auth_Select(struct bundle *bundle, const char *name)
       if (n < 2)
         continue;
       if (strcmp(vector[0], name) == 0) {
-	CloseSecret(fp);
-	if (n > 2 && *vector[2] && strcmp(vector[2], "*") &&
-            !ipcp_UseHisaddr(bundle, vector[2], 1))
-	  return 0;
-	ipcp_Setup(&bundle->ncp.ipcp);
-	if (n > 3 && *vector[3] && strcmp(vector[3], "*"))
-	  bundle_SetLabel(bundle, vector[3]);
-	return 1;		/* Valid */
+        CloseSecret(fp);
+#ifndef NORADIUS
+        if (!bundle->radius.valid || bundle->radius.ip.s_addr == INADDR_NONE) {
+#endif
+          if (n > 2 && *vector[2] && strcmp(vector[2], "*") &&
+              !ipcp_UseHisaddr(bundle, vector[2], 1))
+            return 0;
+          ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
+#ifndef NORADIUS
+        }
+#endif
+        if (n > 3 && *vector[3] && strcmp(vector[3], "*"))
+          bundle_SetLabel(bundle, vector[3]);
+        return 1;		/* Valid */
       }
     }
     CloseSecret(fp);
@@ -165,16 +187,21 @@ auth_Select(struct bundle *bundle, const char *name)
 
 #ifndef NOPASSWDAUTH
   /* Let 'em in anyway - they must have been in the passwd file */
-  ipcp_Setup(&bundle->ncp.ipcp);
+  ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
   return 1;
 #else
-  /* Disappeared from ppp.secret ? */
+#ifndef NORADIUS
+  if (bundle->radius.valid)
+    return 1;
+#endif
+
+  /* Disappeared from ppp.secret ??? */
   return 0;
 #endif
 }
 
 int
-auth_Validate(struct bundle *bundle, const char *system,
+auth_Validate(struct bundle *bundle, const char *name,
              const char *key, struct physical *physical)
 {
   /* Used by PAP routines */
@@ -194,9 +221,9 @@ auth_Validate(struct bundle *bundle, const char *system,
       n = MakeArgs(buff, vector, VECSIZE(vector));
       if (n < 2)
         continue;
-      if (strcmp(vector[0], system) == 0) {
-	CloseSecret(fp);
-        return auth_CheckPasswd(vector[0], vector[1], key);
+      if (strcmp(vector[0], name) == 0) {
+        CloseSecret(fp);
+        return auth_CheckPasswd(name, vector[1], key);
       }
     }
     CloseSecret(fp);
@@ -204,14 +231,14 @@ auth_Validate(struct bundle *bundle, const char *system,
 
 #ifndef NOPASSWDAUTH
   if (Enabled(bundle, OPT_PASSWDAUTH))
-    return auth_CheckPasswd(system, "*", key);
+    return auth_CheckPasswd(name, "*", key);
 #endif
 
   return 0;			/* Invalid */
 }
 
 char *
-auth_GetSecret(struct bundle *bundle, const char *system, int len,
+auth_GetSecret(struct bundle *bundle, const char *name, int len,
               struct physical *physical)
 {
   /* Used by CHAP routines */
@@ -233,7 +260,7 @@ auth_GetSecret(struct bundle *bundle, const char *system, int len,
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
-    if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
+    if (strlen(vector[0]) == len && strncmp(vector[0], name, len) == 0) {
       CloseSecret(fp);
       return vector[1];
     }
@@ -249,8 +276,9 @@ AuthTimeout(void *vauthp)
 
   timer_Stop(&authp->authtimer);
   if (--authp->retry > 0) {
+    authp->id++;
+    (*authp->fn.req)(authp);
     timer_Start(&authp->authtimer);
-    (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
   } else {
     log_Printf(LogPHASE, "Auth: No response from server\n");
     datalink_AuthNotOk(authp->physical->dl);
@@ -258,26 +286,30 @@ AuthTimeout(void *vauthp)
 }
 
 void
-auth_Init(struct authinfo *authinfo)
+auth_Init(struct authinfo *authp, struct physical *p, auth_func req,
+          auth_func success, auth_func failure)
 {
-  memset(authinfo, '\0', sizeof(struct authinfo));
-  authinfo->cfg.fsmretry = DEF_FSMRETRY;
+  memset(authp, '\0', sizeof(struct authinfo));
+  authp->cfg.fsm.timeout = DEF_FSMRETRY;
+  authp->cfg.fsm.maxreq = DEF_FSMAUTHTRIES;
+  authp->cfg.fsm.maxtrm = 0;	/* not used */
+  authp->fn.req = req;
+  authp->fn.success = success;
+  authp->fn.failure = failure;
+  authp->physical = p;
 }
 
 void
-auth_StartChallenge(struct authinfo *authp, struct physical *physical,
-                   void (*chal)(struct authinfo *, int, struct physical *))
+auth_StartReq(struct authinfo *authp)
 {
-  authp->ChallengeFunc = chal;
-  authp->physical = physical;
   timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
   authp->authtimer.name = "auth";
-  authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
-  authp->authtimer.arg = (void *) authp;
-  authp->retry = 3;
+  authp->authtimer.load = authp->cfg.fsm.timeout * SECTICKS;
+  authp->authtimer.arg = (void *)authp;
+  authp->retry = authp->cfg.fsm.maxreq;
   authp->id = 1;
-  (*authp->ChallengeFunc)(authp, authp->id, physical);
+  (*authp->fn.req)(authp);
   timer_Start(&authp->authtimer);
 }
 
@@ -285,5 +317,50 @@ void
 auth_StopTimer(struct authinfo *authp)
 {
   timer_Stop(&authp->authtimer);
-  authp->physical = NULL;
+}
+
+struct mbuf *
+auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
+{
+  int len;
+
+  len = mbuf_Length(bp);
+  if (len >= sizeof authp->in.hdr) {
+    bp = mbuf_Read(bp, (u_char *)&authp->in.hdr, sizeof authp->in.hdr);
+    if (len >= ntohs(authp->in.hdr.length))
+      return bp;
+    authp->in.hdr.length = htons(0);
+    log_Printf(LogWARN, "auth_ReadHeader: Short packet (%d > %d) !\n",
+               ntohs(authp->in.hdr.length), len);
+  } else {
+    authp->in.hdr.length = htons(0);
+    log_Printf(LogWARN, "auth_ReadHeader: Short packet header (%d > %d) !\n",
+               sizeof authp->in.hdr, len);
+  }
+
+  mbuf_Free(bp);
+  return NULL;
+}
+
+struct mbuf *
+auth_ReadName(struct authinfo *authp, struct mbuf *bp, int len)
+{
+  if (len > sizeof authp->in.name - 1)
+    log_Printf(LogWARN, "auth_ReadName: Name too long (%d) !\n", len);
+  else {
+    int mlen = mbuf_Length(bp);
+
+    if (len > mlen)
+      log_Printf(LogWARN, "auth_ReadName: Short packet (%d > %d) !\n",
+                 len, mlen);
+    else {
+      bp = mbuf_Read(bp, (u_char *)authp->in.name, len);
+      authp->in.name[len] = '\0';
+      return bp;
+    }
+  }
+
+  *authp->in.name = '\0';
+  mbuf_Free(bp);
+  return NULL;
 }

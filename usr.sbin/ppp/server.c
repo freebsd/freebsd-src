@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.23 1998/08/02 13:01:16 brian Exp $
+ *	$Id: server.c,v 1.25 1999/03/08 22:35:19 brian Exp $
  */
 
 #include <sys/types.h>
@@ -191,7 +191,6 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
     return 0;
   }
 
-  server_Close(bundle);
   memset(&server.ifsun, '\0', sizeof server.ifsun);
   server.ifsun.sun_len = strlen(name);
   if (server.ifsun.sun_len > sizeof server.ifsun.sun_path - 1) {
@@ -224,6 +223,7 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
     ID0unlink(name);
     return 5;
   }
+  server_Close(bundle);
   server.fd = s;
   server.rm = server.ifsun.sun_path;
   log_Printf(LogPHASE, "Listening at local socket %s.\n", name);
@@ -255,7 +255,8 @@ server_TcpOpen(struct bundle *bundle, int port)
     return 8;
   }
   if (listen(s, 5) != 0) {
-    log_Printf(LogERROR, "Tcp: Unable to listen to socket - BUNDLE overload?\n");
+    log_Printf(LogERROR, "Tcp: Unable to listen to socket: %s\n",
+               strerror(errno));
     close(s);
     return 9;
   }
@@ -270,11 +271,16 @@ int
 server_Close(struct bundle *bundle)
 {
   if (server.fd >= 0) {
-    close(server.fd);
     if (server.rm) {
-      ID0unlink(server.rm);
+      struct sockaddr_un un;
+      int sz = sizeof un;
+
+      if (getsockname(server.fd, (struct sockaddr *)&un, &sz) == 0 &&
+          un.sun_family == AF_LOCAL && sz == sizeof un)
+        ID0unlink(un.sun_path);
       server.rm = NULL;
     }
+    close(server.fd);
     server.fd = -1;
     server.port = 0;
     /* Drop associated prompts */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.10 1998/06/16 19:40:36 brian Exp $
+ *	$Id: deflate.c,v 1.12 1999/03/11 01:49:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -222,7 +222,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
        */
       state->seqno = seq;
     else {
-      log_Printf(LogWARN, "DeflateInput: Seq error: Got %d, expected %d\n",
+      log_Printf(LogCCP, "DeflateInput: Seq error: Got %d, expected %d\n",
                 seq, state->seqno);
       mbuf_Free(mi_head);
       ccp_SendResetReq(&ccp->fsm);
@@ -258,7 +258,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
     if ((res = inflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
-      log_Printf(LogWARN, "DeflateInput: inflate returned %d (%s)\n",
+      log_Printf(LogCCP, "DeflateInput: inflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
       mbuf_Free(mo_head);
       mbuf_Free(mi);
@@ -302,7 +302,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
     mbuf_Free(mi);
 
   if (first) {
-    log_Printf(LogWARN, "DeflateInput: Length error\n");
+    log_Printf(LogCCP, "DeflateInput: Length error\n");
     mbuf_Free(mo_head);
     ccp_SendResetReq(&ccp->fsm);
     return NULL;
@@ -383,9 +383,9 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
         break;			/* Done */
       if (expect_error && res == Z_BUF_ERROR)
         break;
-      log_Printf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
+      log_Printf(LogCCP, "DeflateDictSetup: inflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
-      log_Printf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
+      log_Printf(LogCCP, "DeflateDictSetup: avail_in %d, avail_out %d\n",
                 state->cx.avail_in, state->cx.avail_out);
       ccp_SendResetReq(&ccp->fsm);
       mbuf_FreeSeg(mi_head);		/* lose our allocated ``head'' buf */

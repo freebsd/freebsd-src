@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.146.2.1 1999/01/25 10:20:59 brian Exp $
+ * $Id: main.c,v 1.151 1999/03/07 01:02:38 brian Exp $
  *
  *	TODO:
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -64,6 +64,9 @@
 #include "descriptor.h"
 #include "link.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "auth.h"
 #include "systems.h"
@@ -273,11 +276,10 @@ main(int argc, char **argv)
 #endif
   label = ProcessArgs(argc, argv, &mode, &alias);
 
-#ifdef __FreeBSD__
   /*
-   * A FreeBSD hack to dodge a bug in the tty driver that drops output
-   * occasionally.... I must find the real reason some time.  To display
-   * the dodgy behaviour, comment out this bit, make yourself a large
+   * A FreeBSD & OpenBSD hack to dodge a bug in the tty driver that drops
+   * output occasionally.... I must find the real reason some time.  To
+   * display the dodgy behaviour, comment out this bit, make yourself a large
    * routing table and then run ppp in interactive mode.  The `show route'
    * command will drop chunks of data !!!
    */
@@ -288,7 +290,6 @@ main(int argc, char **argv)
       return 2;
     }
   }
-#endif
 
   /* Allow output for the moment (except in direct mode) */
   if (mode == PHYS_DIRECT)
@@ -512,6 +513,8 @@ DoLoop(struct bundle *bundle)
       }
       break;
     }
+
+    log_Printf(LogTIMER, "Select returns %d\n", i);
 
     sig_Handle();
 

@@ -1,5 +1,5 @@
 /*
- * chap_ms.c - Microsoft MS-CHAP compatible implementation.
+ * chap_ms.c - Microsoft MS-CHAP (NT only) compatible implementation.
  *
  * Copyright (c) 1995 Eric Rosenquist, Strata Software Limited.
  * http://www.strataware.com/
@@ -19,12 +19,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.5.4.3 1998/05/01 19:24:07 brian Exp $
+ * $Id: chap_ms.c,v 1.7 1999/02/18 00:52:12 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <des.h>
 #include <string.h>
 
@@ -37,33 +38,6 @@ struct MS_ChapResponse {
     u_char NTResp[24];
     u_char UseNT;	/* If 1, ignore the LANMan response field */
 };
-
-static void DesEncrypt(u_char *, u_char *, u_char *);
-static void MakeKey(u_char *, u_char *);
-
-static void      /* IN 8 octets      IN 16 octets     OUT 24 octets */
-ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
-{
-    char    ZPasswordHash[21];
-
-    memset(ZPasswordHash, '\0', sizeof ZPasswordHash);
-    memcpy(ZPasswordHash, pwHash, 16);
-
-    DesEncrypt(challenge, ZPasswordHash +  0, response + 0);
-    DesEncrypt(challenge, ZPasswordHash +  7, response + 8);
-    DesEncrypt(challenge, ZPasswordHash + 14, response + 16);
-}
-
-static void /* IN 8 octets IN 7 octest OUT 8 octets */
-DesEncrypt(u_char *clear, u_char *key, u_char *cipher)
-{
-    des_cblock		des_key;
-    des_key_schedule	key_schedule;
-
-    MakeKey(key, des_key);
-    des_set_key(&des_key, key_schedule);
-    des_ecb_encrypt((des_cblock *)clear, (des_cblock *)cipher, key_schedule, 1);
-}
 
 static u_char Get7Bits(u_char *input, int startBit)
 {
@@ -93,16 +67,58 @@ static void MakeKey(u_char *key, u_char *des_key)
     des_set_odd_parity((des_cblock *)des_key);
 }
 
+static void /* IN 8 octets IN 7 octest OUT 8 octets */
+DesEncrypt(u_char *clear, u_char *key, u_char *cipher)
+{
+    des_cblock		des_key;
+    des_key_schedule	key_schedule;
+
+    MakeKey(key, des_key);
+    des_set_key(&des_key, key_schedule);
+    des_ecb_encrypt((des_cblock *)clear, (des_cblock *)cipher, key_schedule, 1);
+}
+
+static void      /* IN 8 octets      IN 16 octets     OUT 24 octets */
+ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
+{
+    char    ZPasswordHash[21];
+
+    memset(ZPasswordHash, '\0', sizeof ZPasswordHash);
+    memcpy(ZPasswordHash, pwHash, 16);
+
+    DesEncrypt(challenge, ZPasswordHash +  0, response + 0);
+    DesEncrypt(challenge, ZPasswordHash +  7, response + 8);
+    DesEncrypt(challenge, ZPasswordHash + 14, response + 16);
+}
+
 /* passwordHash 16-bytes MD4 hashed password
    challenge    8-bytes peer CHAP challenge
    since passwordHash is in a 24-byte buffer, response is written in there */
 void
-chap_MS(char *passwordHash, char *challenge, int challenge_len)
+mschap_NT(char *passwordHash, char *challenge)
 {
     u_char response[24];
 
     ChallengeResponse(challenge, passwordHash, response);
     memcpy(passwordHash, response, 24);
-    passwordHash += 24;
-    *passwordHash = 1;
+    passwordHash[24] = 1;		/* NT-style response */
+}
+
+void
+mschap_LANMan(char *digest, char *challenge, char *secret)
+{
+  static u_char salt[] = "KGS!@#$%";	/* RASAPI32.dll */
+  char SECRET[14], *ptr, *end;
+  u_char hash[16];
+
+  end = SECRET + sizeof SECRET;
+  for (ptr = SECRET; *secret && ptr < end; ptr++, secret++)
+    *ptr = toupper(*secret);
+  if (ptr < end)
+    memset(ptr, '\0', end - ptr);
+
+  DesEncrypt(salt, SECRET, hash);
+  DesEncrypt(salt, SECRET + 7, hash + 8);
+
+  ChallengeResponse(challenge, hash, digest);
 }
