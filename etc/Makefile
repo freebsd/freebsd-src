@@ -11,7 +11,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	mac.conf motd netconfig network.subr networks newsyslog.conf \
-	phones printcap profile protocols \
+	phones profile protocols \
 	rc rc.firewall rc.firewall6 rc.sendmail rc.shutdown \
 	rc.subr remote rpc services \
 	shells sysctl.conf syslog.conf usbd.conf \
@@ -78,6 +78,11 @@ distribution:
 	cd ${.CURDIR}/pam.d; ${MAKE} install
 .if !defined(NO_I4B)
 	cd ${.CURDIR}/isdn; ${MAKE} install
+.endif
+.if !defined(NO_LPR)
+	cd ${.CURDIR}; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		printcap ${DESTDIR}/etc
 .endif
 .if !defined(NO_SENDMAIL)
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
