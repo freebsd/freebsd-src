@@ -100,7 +100,7 @@ protected int  term_settc		__P((EditLine *, int, char **));
 protected int  term_telltc		__P((EditLine *, int, char **));
 protected int  term_echotc		__P((EditLine *, int, char **));
 
-protected void term__putc		__P((int));
+protected int  term__putc		__P((int));
 protected void term__flush		__P((void));
 
 /*
