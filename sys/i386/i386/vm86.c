@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.19 1998/12/07 21:58:19 archie Exp $
+ *	$Id: vm86.c,v 1.23 1999/03/18 18:43:03 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -450,17 +450,56 @@ vm86_initialize(void)
 	vm86pcb = pcb;
 }
 
+vm_offset_t
+vm86_getpage(struct vm86context *vmc, int pagenum)
+{
+	int i;
+
+	for (i = 0; i < vmc->npages; i++)
+		if (vmc->pmap[i].pte_num == pagenum)
+			return (vmc->pmap[i].kva);
+	return (0);
+}
+
+vm_offset_t
+vm86_addpage(struct vm86context *vmc, int pagenum, vm_offset_t kva)
+{
+	int i, flags = 0;
+
+	for (i = 0; i < vmc->npages; i++)
+		if (vmc->pmap[i].pte_num == pagenum)
+			goto bad;
+
+	if (vmc->npages == VM86_PMAPSIZE)
+		goto bad;			/* XXX grow map? */
+
+	if (kva == 0) {
+		kva = (vm_offset_t)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+		flags = VMAP_MALLOC;
+	}
+
+	i = vmc->npages++;
+	vmc->pmap[i].flags = flags;
+	vmc->pmap[i].kva = kva;
+	vmc->pmap[i].pte_num = pagenum;
+	return (kva);
+bad:
+	panic("vm86_addpage: not enough room, or overlap");
+}
+
 void
 initial_bioscalls(u_int *basemem, u_int *extmem)
 {
 	int i, method;
 	struct vm86frame vmf;
+	struct vm86context vmc;
 	u_int64_t highwat = 0;
+	pt_entry_t pte;
 	struct {
 		u_int64_t base;
 		u_int64_t length;
 		u_int32_t type;
-	} smap;
+	} *smap;
 
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
 	vm86_initialize();
@@ -474,9 +513,48 @@ initial_bioscalls(u_int *basemem, u_int *extmem)
 	 * if basemem != 640, map pages r/w into vm86 page table so 
 	 * that the bios can scribble on it.
 	 */
-	for (i = *basemem / 4; i < 160; i++) {
-		u_int *pte = (u_int *)vm86paddr;
+	pte = (pt_entry_t)vm86paddr;
+	for (i = *basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+
+	/*
+	 * map page 1 R/W into the kernel page table so we can use it
+	 * as a buffer.  The kernel will unmap this page later.
+	 */
+	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
+	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
+
+	/*
+	 * get memory map with INT 15:E820
+	 */
+#define SMAPSIZ 	sizeof(*smap)
+#define SMAP_SIG	0x534D4150			/* 'SMAP' */
+
+	vmc.npages = 0;
+	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
+	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+
+	vmf.vmf_ebx = 0;
+	do {
+		vmf.vmf_eax = 0xE820;
+		vmf.vmf_edx = SMAP_SIG;
+		vmf.vmf_ecx = SMAPSIZ;
+		i = vm86_datacall(0x15, &vmf, &vmc);
+		if (i || vmf.vmf_eax != SMAP_SIG)
+			break;
+		if (smap->type == 0x01 && smap->base >= highwat) {
+			*extmem += (smap->length / 1024);
+			highwat = smap->base + smap->length;
+		}
+	} while (vmf.vmf_ebx != 0);
+
+	if (*extmem != 0) {
+		if (*extmem > *basemem) {
+			*extmem -= *basemem;
+			method = 0xE820;
+			goto done;
+		}
+		printf("E820: extmem (%d) < basemem (%d)\n", *extmem, *basemem);
 	}
 
 	/*
@@ -498,11 +576,6 @@ done:
 	printf("BIOS basemem: %dK, extmem: %dK (from %#x call)\n",
 	    *basemem, *extmem, method);
 #endif /* !PC98 */
-#if 0
-	/* VESA setup -- ? */
-	vmf.vmf_ax = 0x4f02;
-	error = vm86_intcall(0x10, &vmf);
-#endif
 }
 
 static void
@@ -580,63 +653,76 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 }
 
 /*
- * buffer must be entirely contained in a wired down page in kernel memory,
- * and is mapped into page 1 in vm86 space.  segment/offset will be filled
- * in to create a vm86 pointer to the buffer. If intnum is a valid
- * interrupt number (0-255), then the "interrupt trampoline" will be
- * used, otherwise we use the caller's cs:ip routine.  
- *
- * a future revision may allow multiple pages to be mapped, or allow  
- * the caller to pass in a custom page table to use.
+ * struct vm86context contains the page table to use when making
+ * vm86 calls.  If intnum is a valid interrupt number (0-255), then
+ * the "interrupt trampoline" will be used, otherwise we use the
+ * caller's cs:ip routine.  
  */
 int
-vm86_datacall(intnum, vmf, buffer, buflen, segment, offset)
+vm86_datacall(intnum, vmf, vmc)
 	int intnum;
 	struct vm86frame *vmf;
-	char *buffer;
-	int buflen;
-	u_short *segment, *offset;
+	struct vm86context *vmc;
 {
-	int ret;
+	pt_entry_t pte = (pt_entry_t)vm86paddr;
 	u_int page;
-	static u_char *buf;
+	int i, entry, retval;
 
-	if (buflen < 0 || buflen > PAGE_SIZE)
-		return(-1);
-
-	if (buf == NULL) {
-		buf = (u_char *)contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK,
-					     0ul, ~0ul, PAGE_SIZE, 0);
-		if (buf == NULL)
-			return(-1);
+	for (i = 0; i < vmc->npages; i++) {
+		page = vtophys(vmc->pmap[i].kva & PG_FRAME);
+		entry = vmc->pmap[i].pte_num; 
+		vmc->pmap[i].old_pte = pte[entry];
+		pte[entry] = page | PG_V | PG_RW | PG_U;
 	}
 
-	*offset = 0;
-	*segment = 0x100;
+	vmf->vmf_trapno = intnum;
+	retval = vm86_bioscall(vmf);
 
-	bcopy((void *)buffer, (void *)buf, (size_t)buflen);
-	page = (u_int)buf & PG_FRAME;
-	page = vtophys(page);
-	vmf->vmf_trapno = page | (intnum & PAGE_MASK);
-	ret = vm86_bioscall(vmf);
-	bcopy((void *)buf, (void *)buffer, (size_t)buflen);
+	for (i = 0; i < vmc->npages; i++) {
+		entry = vmc->pmap[i].pte_num;
+		pte[entry] = vmc->pmap[i].old_pte;
+	}
 
-	return ret;
+	return (retval);
 }
 
-#if 0
-int
-vm86_datacall(int intnum, u_int kpage, struct vm86frame *vmf)
+vm_offset_t
+vm86_getaddr(vmc, sel, off)
+	struct vm86context *vmc;
+	u_short sel;
+	u_short off;
 {
-	if (kpage & PAGE_MASK)
-		return (EINVAL);
-	kpage = vtophys(kpage);
+	int i, page;
+	vm_offset_t addr;
 
-	vmf->vmf_trapno = kpage | (intnum & PAGE_MASK);
-	return (vm86_bioscall(vmf));
+	addr = (vm_offset_t)MAKE_ADDR(sel, off);
+	page = addr >> PAGE_SHIFT;
+	for (i = 0; i < vmc->npages; i++)
+		if (page == vmc->pmap[i].pte_num)
+			return (vmc->pmap[i].kva + (addr & PAGE_MASK));
+	return (0);
 }
-#endif
 
+int
+vm86_getptr(vmc, kva, sel, off)
+	struct vm86context *vmc;
+	vm_offset_t kva;
+	u_short *sel;
+	u_short *off;
+{
+	int i;
+
+	for (i = 0; i < vmc->npages; i++)
+		if (kva >= vmc->pmap[i].kva &&
+		    kva < vmc->pmap[i].kva + PAGE_SIZE) {
+			*off = kva - vmc->pmap[i].kva;
+			*sel = vmc->pmap[i].pte_num << 8;
+			return (1);
+		}
+	return (0);
+	panic("vm86_getptr: address not found");
+}
+	
 int
 vm86_sysarch(p, args)
 	struct proc *p;
@@ -646,11 +732,11 @@ vm86_sysarch(p, args)
 	struct i386_vm86_args ua;
 	struct vm86_kernel *vm86;
 
-	if (error = copyin(args, &ua, sizeof(struct i386_vm86_args)))
+	if ((error = copyin(args, &ua, sizeof(struct i386_vm86_args))) != 0)
 		return (error);
 
 	if (p->p_addr->u_pcb.pcb_ext == 0)
-		if (error = i386_extend_pcb(p))
+		if ((error = i386_extend_pcb(p)) != 0)
 			return (error);
 	vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
 
@@ -658,7 +744,7 @@ vm86_sysarch(p, args)
 	case VM86_INIT: {
 		struct vm86_init_args sa;
 
-		if (error = copyin(ua.sub_args, &sa, sizeof(sa)))
+		if ((error = copyin(ua.sub_args, &sa, sizeof(sa))) != 0)
 			return (error);
 		if (cpu_feature & CPUID_VME)
 			vm86->vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
