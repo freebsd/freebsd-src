@@ -265,6 +265,10 @@ Optional
 may be passed to the utility.
 The expression must be terminated by a semicolon
 .Pq Dq Li \&; .
+If you invoke
+.Nm
+from a shell you may need to quote the semicolon if the shell would
+otherwise treat it as a control operator.
 If the string
 .Dq Li {}
 appears anywhere in the utility name or the
