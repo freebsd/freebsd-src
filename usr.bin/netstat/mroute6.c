@@ -98,11 +98,11 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	struct mif6 mif6table[MAXMIFS];
 	struct mf6c mfc;
 	struct rtdetq rte, *rtep;
-	register struct mif6 *mifp;
-	register mifi_t mifi;
-	register int i;
-	register int banner_printed;
-	register int saved_numeric_addr;
+	struct mif6 *mifp;
+	mifi_t mifi;
+	int i;
+	int banner_printed;
+	int saved_numeric_addr;
 	mifi_t maxmif = 0;
 	long int waitings;
 

@@ -106,7 +106,7 @@ struct bits {
 	{ RTF_PROTO3,	'3' },
 	{ RTF_BLACKHOLE,'B' },
 	{ RTF_BROADCAST,'b' },
-	{ 0 }
+	{ 0 , 0 }
 };
 
 typedef union {
@@ -136,7 +136,7 @@ static void np_rtentry (struct rt_msghdr *);
 static void p_sockaddr (struct sockaddr *, struct sockaddr *, int, int);
 static const char *fmt_sockaddr (struct sockaddr *sa, struct sockaddr *mask,
 				 int flags);
-static void p_flags (int, char *);
+static void p_flags (int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry (struct rtentry *);
 static u_long forgemask (u_long);
@@ -186,11 +186,11 @@ routepr(u_long rtree)
  * Print address family header before a section of the routing table.
  */
 void
-pr_family(int af)
+pr_family(int af1)
 {
-	char *afname;
+	const char *afname;
 
-	switch (af) {
+	switch (af1) {
 	case AF_INET:
 		afname = "Internet";
 		break;
@@ -226,7 +226,7 @@ pr_family(int af)
 	if (afname)
 		printf("\n%s:\n", afname);
 	else
-		printf("\nProtocol Family %d:\n", af);
+		printf("\nProtocol Family %d:\n", af1);
 }
 
 /* column widths; each followed by one space */
@@ -363,12 +363,12 @@ size_cols_rtentry(struct rtentry *rt)
  * Print header for routing table columns.
  */
 void
-pr_rthdr(int af)
+pr_rthdr(int af1)
 {
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (af == AF_INET || Wflag) {
+	if (af1 == AF_INET || Wflag) {
 		if (Wflag) {
 			printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*.*s %*s\n",
 				wid_dst,	wid_dst,	"Destination",
@@ -490,7 +490,7 @@ ntreestuff(void)
 	size_t needed;
 	int mib[6];
 	char *buf, *next, *lim;
-	register struct rt_msghdr *rtm;
+	struct rt_msghdr *rtm;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -518,12 +518,12 @@ ntreestuff(void)
 static void
 np_rtentry(struct rt_msghdr *rtm)
 {
-	register struct sockaddr *sa = (struct sockaddr *)(rtm + 1);
+	struct sockaddr *sa = (struct sockaddr *)(rtm + 1);
 #ifdef notdef
 	static int masks_done, banner_printed;
 #endif
 	static int old_af;
-	int af = 0, interesting = RTF_UP | RTF_GATEWAY | RTF_HOST;
+	int af1 = 0, interesting = RTF_UP | RTF_GATEWAY | RTF_HOST;
 
 #ifdef notdef
 	/* for the moment, netmasks are skipped over */
@@ -534,14 +534,14 @@ np_rtentry(struct rt_msghdr *rtm)
 	if (masks_done == 0) {
 		if (rtm->rtm_addrs != RTA_DST ) {
 			masks_done = 1;
-			af = sa->sa_family;
+			af1 = sa->sa_family;
 		}
 	} else
 #endif
-		af = sa->sa_family;
-	if (af != old_af) {
-		pr_family(af);
-		old_af = af;
+		af1 = sa->sa_family;
+	if (af1 != old_af) {
+		pr_family(af1);
+		old_af = af1;
 	}
 	if (rtm->rtm_addrs == RTA_DST)
 		p_sockaddr(sa, NULL, 0, 36);
@@ -575,13 +575,12 @@ static const char *
 fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 {
 	static char workbuf[128];
-	char *cplim;
-	char *cp = workbuf;
+	const char *cp;
 
 	switch(sa->sa_family) {
 	case AF_INET:
 	    {
-		register struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
 		if ((sin->sin_addr.s_addr == INADDR_ANY) &&
 			mask &&
@@ -658,12 +657,13 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 
 	case AF_LINK:
 	    {
-		register struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
+		struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
 
 		if (sdl->sdl_nlen == 0 && sdl->sdl_alen == 0 &&
-		    sdl->sdl_slen == 0)
+		    sdl->sdl_slen == 0) {
 			(void) sprintf(workbuf, "link#%d", sdl->sdl_index);
-		else
+			cp = workbuf;
+		} else
 			switch (sdl->sdl_type) {
 
 			case IFT_ETHER:
@@ -682,15 +682,17 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 
 	default:
 	    {
-		register u_char *s = (u_char *)sa->sa_data, *slim;
+		u_char *s = (u_char *)sa->sa_data, *slim;
+		char *cq, *cqlim;
 
+		cq = workbuf;
 		slim =  sa->sa_len + (u_char *) sa;
-		cplim = cp + sizeof(workbuf) - 6;
-		cp += sprintf(cp, "(%d)", sa->sa_family);
-		while (s < slim && cp < cplim) {
-			cp += sprintf(cp, " %02x", *s++);
+		cqlim = cq + sizeof(workbuf) - 6;
+		cq += sprintf(cq, "(%d)", sa->sa_family);
+		while (s < slim && cq < cqlim) {
+			cq += sprintf(cq, " %02x", *s++);
 			if (s < slim)
-			    cp += sprintf(cp, "%02x", *s++);
+			    cq += sprintf(cq, "%02x", *s++);
 		}
 		cp = workbuf;
 	    }
@@ -700,7 +702,7 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 }
 
 static void
-p_flags(int f, char *format)
+p_flags(int f, const char *format)
 {
 	printf(format, fmt_flags(f));
 }
@@ -783,7 +785,7 @@ p_rtentry(struct rtentry *rt)
 char *
 routename(u_long in)
 {
-	register char *cp;
+	char *cp;
 	static char line[MAXHOSTNAMELEN];
 	struct hostent *hp;
 
@@ -825,7 +827,7 @@ forgemask(u_long a)
 static void
 domask(char *dst, u_long addr, u_long mask)
 {
-	register int b, i;
+	int b, i;
 
 	if (!mask || (forgemask(addr) == mask)) {
 		*dst = '\0';
@@ -834,7 +836,7 @@ domask(char *dst, u_long addr, u_long mask)
 	i = 0;
 	for (b = 0; b < 32; b++)
 		if (mask & (1 << b)) {
-			register int bb;
+			int bb;
 
 			i = b;
 			for (bb = b+1; bb < 32; bb++)
@@ -861,7 +863,7 @@ netname(u_long in, u_long mask)
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
 	u_long dmask;
-	register u_long i;
+	u_long i;
 
 #define	NSHIFT(m) (							\
 	(m) == IN_CLASSA_NET ? IN_CLASSA_NSHIFT :			\
@@ -917,7 +919,7 @@ netname(u_long in, u_long mask)
 }
 
 #ifdef INET6
-char *
+const char *
 netname6(struct sockaddr_in6 *sa6, struct in6_addr *mask)
 {
 	static char line[MAXHOSTNAMELEN];
@@ -1041,9 +1043,9 @@ ipx_print(struct sockaddr *sa)
 {
 	u_short port;
 	struct servent *sp = 0;
-	char *net = "", *host = "";
-	register char *p;
-	register u_char *q;
+	const char *net = "", *host = "";
+	char *p;
+	u_char *q;
 	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
 	static char mybuf[50];
 	char cport[10], chost[15], cnet[15];
@@ -1108,7 +1110,7 @@ ipx_print(struct sockaddr *sa)
 char *
 ipx_phost(struct sockaddr *sa)
 {
-	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
+	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
 	struct sockaddr_ipx work;
 	static union ipx_net ipx_zeronet;
 	char *p;
@@ -1132,13 +1134,13 @@ short ns_bh[] = {-1,-1,-1};
 char *
 ns_print(struct sockaddr *sa)
 {
-	register struct sockaddr_ns *sns = (struct sockaddr_ns*)sa;
+	struct sockaddr_ns *sns = (struct sockaddr_ns*)sa;
 	struct ns_addr work;
 	union { union ns_net net_e; u_long long_e; } net;
 	u_short port;
 	static char mybuf[50], cport[10], chost[25];
 	char *host = "";
-	register char *p; register u_char *q;
+	char *p; u_char *q;
 
 	work = sns->sns_addr;
 	port = ntohs(work.x_port);
@@ -1178,7 +1180,7 @@ ns_print(struct sockaddr *sa)
 char *
 ns_phost(struct sockaddr *sa)
 {
-	register struct sockaddr_ns *sns = (struct sockaddr_ns *)sa;
+	struct sockaddr_ns *sns = (struct sockaddr_ns *)sa;
 	struct sockaddr_ns work;
 	static union ns_net ns_zeronet;
 	char *p;
@@ -1197,7 +1199,7 @@ ns_phost(struct sockaddr *sa)
 void
 upHex(char *p0)
 {
-	register char *p = p0;
+	char *p = p0;
 
 	for (; *p; p++)
 		switch (*p) {

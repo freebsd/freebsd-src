@@ -74,11 +74,11 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	struct mfc *mfctable[MFCTBLSIZ];
 	struct vif viftable[MAXVIFS];
 	struct mfc mfc, *m;
-	register struct vif *v;
-	register vifi_t vifi;
-	register int i;
-	register int banner_printed;
-	register int saved_numeric_addr;
+	struct vif *v;
+	vifi_t vifi;
+	int i;
+	int banner_printed;
+	int saved_numeric_addr;
 	vifi_t maxvif = 0;
 
 	if (mfcaddr == 0 || vifaddr == 0) {

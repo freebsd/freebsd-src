@@ -73,11 +73,10 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 struct	socket sockb;
 
 char	*inet6name (struct in6_addr *);
-void	inet6print (struct in6_addr *, int, char *, int);
 
 static char ntop_buf[INET6_ADDRSTRLEN];
 
-static	char *ip6nh[] = {
+static	const char *ip6nh[] = {
 	"hop by hop",
 	"ICMP",
 	"IGMP",
@@ -340,7 +339,7 @@ static	char *ip6nh[] = {
  * Dump IP6 statistics structure.
  */
 void
-ip6_stats(u_long off __unused, char *name, int af __unused)
+ip6_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct ip6stat ip6stat;
 	int first, i;
@@ -550,7 +549,7 @@ ip6_ifstats(char *ifname)
 #undef p_5
 }
 
-static	char *icmp6names[] = {
+static	const char *icmp6names[] = {
 	"#0",
 	"unreach",
 	"packet too big",
@@ -813,7 +812,7 @@ static	char *icmp6names[] = {
  * Dump ICMP6 statistics.
  */
 void
-icmp6_stats(u_long off __unused, char *name, int af __unused)
+icmp6_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct icmp6stat icmp6stat;
 	int i, first;
@@ -963,7 +962,7 @@ icmp6_ifstats(char *ifname)
  * Dump PIM statistics structure.
  */
 void
-pim6_stats(u_long off __unused, char *name, int af __unused)
+pim6_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct pim6stat pim6stat;
 
@@ -988,7 +987,7 @@ pim6_stats(u_long off __unused, char *name, int af __unused)
  * Dump raw ip6 statistics structure.
  */
 void
-rip6_stats(u_long off __unused, char *name, int af __unused)
+rip6_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct rip6stat rip6stat;
 	u_quad_t delivered;
@@ -1043,7 +1042,7 @@ rip6_stats(u_long off __unused, char *name, int af __unused)
 };
 
 void
-inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
+inet6print(struct in6_addr *in6, int port, const char *proto, int numeric)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -1071,7 +1070,7 @@ inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
 char *
 inet6name(struct in6_addr *in6p)
 {
-	register char *cp;
+	char *cp;
 	static char line[50];
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN];

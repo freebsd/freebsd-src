@@ -172,13 +172,13 @@ struct protox {
 	u_char	pr_index;		/* index into nlist of cb head */
 	u_char	pr_sindex;		/* index into nlist of stat block */
 	u_char	pr_wanted;		/* 1 if wanted, 0 otherwise */
-	void	(*pr_cblocks)(u_long, char *, int);
+	void	(*pr_cblocks)(u_long, const char *, int);
 					/* control blocks printing routine */
-	void	(*pr_stats)(u_long, char *, int);
+	void	(*pr_stats)(u_long, const char *, int);
 					/* statistics printing routine */
 	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	const char	*pr_name;		/* well-known name */
-	int	pr_usesysctl;		/* true if we use sysctl, not kvm */
+	u_long	pr_usesysctl;		/* true if we use sysctl, not kvm */
 } protox[] = {
 	{ -1,		-1,		1,	protopr,
 	  tcp_stats,	NULL,		"tcp",	IPPROTO_TCP },
@@ -199,7 +199,7 @@ struct protox {
 	{ -1,		-1,		1,	0,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
 	{ -1,		-1,		0,	0,
-	  0,		NULL,		0 }
+	  0,		NULL,		0,	0 }
 };
 
 #ifdef INET6
@@ -240,18 +240,18 @@ struct protox pfkeyprotox[] = {
 
 struct protox atalkprotox[] = {
 	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
-	  ddp_stats,	NULL,		"ddp" },
+	  ddp_stats,	NULL,		"ddp",	0 },
 	{ -1,		-1,		0,	0,
-	  0,		NULL,		0 }
+	  0,		NULL,		0,	0 }
 };
 
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"ctrl" },
+	  NULL,		NULL,		"ctrl",	0 },
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"data" },
+	  NULL,		NULL,		"data",	0 },
 	{ -1,		NULL,		0,	0,
-	  0,		NULL,		0 }
+	  0,		NULL,		0,	0 }
 };
 
 struct protox ipxprotox[] = {
@@ -341,11 +341,9 @@ int	unit;		/* unit number for above */
 int	af;		/* address family */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register struct protox *tp = NULL;  /* for printing cblocks & stats */
+	struct protox *tp = NULL;  /* for printing cblocks & stats */
 	int ch;
 
 	af = AF_UNSPEC;
@@ -611,10 +609,10 @@ main(argc, argv)
  */
 static void
 printproto(tp, name)
-	register struct protox *tp;
+	struct protox *tp;
 	const char *name;
 {
-	void (*pr)(u_long, char *, int);
+	void (*pr)(u_long, const char *, int);
 	u_long off;
 
 	if (sflag) {
@@ -693,13 +691,13 @@ kread(u_long addr, char *buf, int size)
 	return (0);
 }
 
-char *
+const char *
 plural(int n)
 {
 	return (n != 1 ? "s" : "");
 }
 
-char *
+const char *
 plurales(int n)
 {
 	return (n != 1 ? "es" : "");
