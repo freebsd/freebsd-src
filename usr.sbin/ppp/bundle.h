@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.12 1998/08/07 18:42:47 brian Exp $
+ *	$Id: bundle.h,v 1.13 1998/08/25 17:48:42 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -40,6 +40,7 @@
 #define OPT_SROUTES	0x10
 #define OPT_THROUGHPUT	0x20
 #define OPT_UTMP	0x40
+#define OPT_IFACEALIAS	0x80
 
 #define MAX_ENDDISC_CLASS 5
 
@@ -51,6 +52,7 @@ struct physical;
 struct link;
 struct server;
 struct prompt;
+struct iface;
 
 struct bundle {
   struct descriptor desc;     /* really all our datalinks */
@@ -62,11 +64,15 @@ struct bundle {
     int fd;                   /* The /dev/XXXX descriptor */
   } dev;
 
+#if 0
   struct {
-    u_long Speed;             /* struct tuninfo speed */
     int Index;                /* The interface index */
     char *Name;               /* The interface name */
   } ifp;
+#endif
+
+  u_long ifSpeed;             /* struct tuninfo speed */
+  struct iface *iface;        /* Interface information */
 
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */

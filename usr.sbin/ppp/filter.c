@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.24 1998/06/15 19:06:07 brian Exp $
+ * $Id: filter.c,v 1.25 1998/06/27 12:03:48 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -90,9 +90,9 @@ ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
   cp = pmask || pwidth ? strchr(*argv, '/') : NULL;
   len = cp ? cp - *argv : strlen(*argv);
 
-  if (strncasecmp(*argv, "HISADDR", len) == 0)
+  if (ipcp && strncasecmp(*argv, "HISADDR", len) == 0)
     *paddr = ipcp->peer_ip;
-  else if (strncasecmp(*argv, "MYADDR", len) == 0)
+  else if (ipcp && strncasecmp(*argv, "MYADDR", len) == 0)
     *paddr = ipcp->my_ip;
   else if (len > 15)
     log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
@@ -121,8 +121,12 @@ ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
   if (pwidth)
     *pwidth = bits;
 
-  if (pmask)
-    pmask->s_addr = htonl(netmasks[bits]);
+  if (pmask) {
+    if (paddr->s_addr == INADDR_ANY)
+      pmask->s_addr = INADDR_ANY;
+    else
+      pmask->s_addr = htonl(netmasks[bits]);
+  }
 
   return (1);
 }

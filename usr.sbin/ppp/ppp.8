@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.125 1998/09/17 00:45:12 brian Exp $
+.\" $Id: ppp.8,v 1.126 1998/09/18 23:28:10 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -408,13 +408,10 @@ PPP ON awfulhak> add default HISADDR
 .Pp
 The string
 .Sq HISADDR
-represents the IP address of the connected peer.  It is possible to
-use the keyword
-.Sq INTERFACE
-in place of
-.Sq HISADDR .
-This will create a direct route on the tun interface.
-If it fails due to an existing route, you can overwrite the existing
+represents the IP address of the connected peer.
+If the
+.Dq add
+command fails due to an existing route, you can overwrite the existing
 route using
 .Bd -literal -offset indent
 PPP ON awfulhak> add! default HISADDR
@@ -514,18 +511,15 @@ connection is established.  See the provided
 .Dq pmdemand
 example in
 .Pa /etc/ppp/ppp.conf.sample
-which runs a script in the background after the connection is established.
-The literal strings
-.Dv HISADDR ,
-.Dv MYADDR
+which runs a script in the background after the connection is established
+(refer to the
+.Dq shell
 and
-.Dv INTERFACE
-may be used, and will be replaced with the relevant IP addresses and interface
-name.  Similarly, when a connection is closed, the
-contents of the
+.Dq bg
+commands below for a description of possible substition strings).  Similarly,
+when a connection is closed, the contents of the
 .Pa /etc/ppp/ppp.linkdown
-file are executed.
-Both of these files have the same format as
+file are executed.  Both of these files have the same format as
 .Pa /etc/ppp/ppp.conf .
 .Pp
 In previous versions of
@@ -2134,6 +2128,28 @@ this option will tell
 .Nm
 not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
+.It iface-alias
+Default: Enabled if
+.Fl alias
+is specified.  This option simply tells
+.Nm
+to add new interface addresses to the interface rather than replacing them.
+The option can only be enabled if IP aliasing is enabled
+.Pq Dq alias enable yes .
+.Pp
+With this option enabled,
+.Nm
+will pass traffic for old interface addresses through the IP alias engine
+.Pq see Xr libalias 5 ,
+resulting in the ability (in
+.Fl auto
+mode) to properly connect the process that caused the PPP link to
+come up in the first place.
+.Pp
+Disabling IP aliasing with
+.Dq alias enable off
+will also disable
+.Sq iface-alias .
 .El
 .Pp
 .It add[!] Ar dest[/nn] [mask] gateway
@@ -2162,24 +2178,14 @@ It is possible to use the symbolic names
 .Sq MYADDR
 or
 .Sq HISADDR
-as the destination, and either
+as the destination, and
 .Sq HISADDR
-or
-.Sq INTERFACE
 as the
 .Ar gateway .
 .Sq MYADDR
-is replaced with the interface address,
+is replaced with the interface address and
 .Sq HISADDR
-is replaced with the interface destination address and
-.Sq INTERFACE
-is replaced with the current interface name.  If the interfaces destination
-address has not yet been assigned
-.Pq via Dq set ifaddr ,
-the current
-.Sq INTERFACE
-is used instead of
-.Sq HISADDR .
+is replaced with the interface destination (peer) address.
 .Pp
 If the
 .Ar add!
@@ -2476,6 +2482,52 @@ is specified, only the relevant compression layer(s) are terminated.
 Show a list of available commands.  If
 .Ar command
 is specified, show the usage string for that command.
+.It iface Ar command Op args
+This command is used to control the interface used by
+.Nm ppp .
+.Ar Command
+may be one of the following:
+.Bl -tag -width XX
+.It iface add[!] Ar addr[/bits| mask] peer
+Add the given
+.Ar addr mask peer
+combination to the interface.  Instead of specifying
+.Ar mask ,
+.Ar /bits
+can be used
+.Pq with no space between \&it and Ar addr .
+If the given address already exists, the command fails unless the
+.Dq \&!
+is used - in which case the previous interface address entry is overwritten
+with the new one, allowing a change of netmask or peer address.
+.It iface clear
+If this command is used while
+.Nm
+is in the OPENED state, all addresses except for the IPCP negotiated
+address are deleted from the interface.  If
+.Nm
+is not in the OPENED state, all interface addresses are deleted.
+.Pp
+.It iface delete[!]|rm[!] Ar addr
+This command deletes the given
+.Ar addr
+from the interface.  If the
+.Dq \&!
+is used, no error is given if the address isn't currently assigned to
+the interface (and no deletion takes place).
+.It iface show
+Shows the current state and current addresses for the interface.  It is
+much the same as running
+.Dq ifconfig INTERFACE .
+.It iface help Op Ar sub-command
+This command, when invoked without
+.Ar sub-command ,
+will show a list of possbile
+.Dq iface
+sub-commands and a brief synopsis for each.  When invoked with
+.Ar sub-command ,
+only the synopsis for the given sub-command is shown.
+.El
 .It [data]link Ar name[,name...] command Op Ar args
 This command may prefix any other command if the user wishes to
 specify which link the command should affect.  This is only
@@ -3160,6 +3212,16 @@ It is not possible to change a link that is
 .Sq direct
 or
 .Sq dedicated .
+.Pp
+Note: If you issue the command
+.Dq set mode auto ,
+and have IP aliasing enabled, it may be useful to
+.Dq enable iface-alias
+afterwards.  This will allow
+.Nm
+to do the necessary address translations to enable the process that
+triggers the connection to connect once the link is up despite the
+peer assigning us a new (dynamic) IP address.
 .It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.  There is no default MRRU (Maximum
@@ -3409,6 +3471,9 @@ is not specified, all filters are shown.
 Show the current HDLC statistics.
 .It show help|?
 Give a summary of available show commands.
+.It show iface
+Show the current interface information
+.Pq the same \&as Dq iface show .
 .It show ipcp
 Show the current IPCP statistics.
 .It show lcp
