@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.20 1996/01/19 03:58:04 dyson Exp $
+ *	$Id: sys_process.c,v 1.21 1996/01/24 18:29:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -396,7 +396,21 @@ ptrace(curp, uap, retval)
 		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_procp = p;
-		return(procfs_domem(curp, p, NULL, &uio));
+		error = procfs_domem(curp, p, NULL, &uio);
+		if (uio.uio_resid != 0) {
+			/*
+			 * XXX procfs_domem() doesn't currently return ENOSPC,
+			 * so I think write() can bogusly return 0.
+			 * XXX what happens for short writes?  We don't want
+			 * to write partial data.
+			 * XXX procfs_domem() returns EPERM for other invalid
+			 * addresses.  Convert this to EINVAL.  Does this
+			 * clobber returns of EPERM for other reasons?
+			 */
+			if (error == 0 || error == ENOSPC || error == EPERM)
+				error = EINVAL;	/* EOF */
+		}
+		return (error);
 
 	case PT_READ_U:
 		if ((u_int)uap->addr > (UPAGES * NBPG - sizeof(int))) {
