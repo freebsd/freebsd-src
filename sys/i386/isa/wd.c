@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.32 1994/02/22 22:13:37 rgrimes Exp $
+ *	$Id: wd.c,v 1.33 1994/02/23 11:14:26 rgrimes Exp $
  */
 
 /* TODO:
@@ -761,6 +761,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct partition *pp;
 	char	*msg;
 	struct disklabel save_label;
+	unsigned long save_heads;
 
 	lunit = wdunit(dev);
 	if (lunit >= NWD)
@@ -816,6 +817,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 * to the driver by resetting the state machine.
 		 */
 		save_label = du->dk_dd;
+		save_heads = du->dk_dd.d_ntracks;
 #define WDSTRATEGY	((int (*)(struct buf *)) wdstrategy)	/* XXX */
 		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
 				    (d_strategy_t *) WDSTRATEGY, &du->dk_dd,
@@ -832,6 +834,11 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			int	dospart;
 			unsigned long newsize, offset, size;
 
+			if (du->dk_dd.d_ntracks > 16) {
+				printf("wd%d: can't handle %lu heads from partition table (controller value (%lu) restored)\n",
+				       du->dk_lunit, du->dk_dd.d_ntracks, save_heads);
+				du->dk_dd.d_ntracks = save_heads;
+			}
 			du->dk_flags |= DKFL_BSDLABEL;
 			du->dk_flags &= ~DKFL_WRITEPROT;
 			if (du->dk_dd.d_flags & D_BADSECT)
