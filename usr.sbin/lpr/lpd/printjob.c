@@ -676,14 +676,6 @@ print(struct printer *pp, int format, char *file)
 			return(ERROR);
 		}
 		fi = p[0];			/* use pipe for input */
-	case 'o':	/* print postscript file */
-		/*
-		 * For now, treat this as a plain-text file, and assume
-		 * the standard LPF_INPUT filter will recognize that it
-		 * is postscript and know what to do with it.  These
-		 * 'o'-file requests could come from MacOS 10.1 systems.
-		 */
-		/* FALLTHROUGH */
 	case 'f':	/* print plain text file */
 		prog = pp->filters[LPF_INPUT];
 		av[1] = width;
@@ -691,6 +683,17 @@ print(struct printer *pp, int format, char *file)
 		av[3] = indent;
 		n = 4;
 		break;
+	case 'o':	/* print postscript file */
+		/*
+		 * Treat this as a "plain file with control characters", and
+		 * assume the standard LPF_INPUT filter will recognize that
+		 * the data is postscript and know what to do with it.  These
+		 * 'o'-file requests could come from MacOS 10.1 systems.
+		 * (later versions of MacOS 10 will explicitly use 'l')
+		 * A postscript file can contain binary data, which is why 'l'
+		 * is somewhat more appropriate than 'f'.
+		 */
+		/* FALLTHROUGH */
 	case 'l':	/* like 'f' but pass control characters */
 		prog = pp->filters[LPF_INPUT];
 		av[1] = "-c";
