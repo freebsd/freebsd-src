@@ -6,7 +6,7 @@ This file contains sparc64-specific installation instructions.
 
 -->
 
-<sect1>
+<sect1 id="install">
   <title>Installing &os;</title>
 
   <para>This text describes how to install and boot the &arch; port.

@@ -36,7 +36,7 @@
     </copyright>
   </articleinfo>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Introduction</title>
 
     <para>&os; 5.0 marks the first new major version of &os; in
@@ -81,7 +81,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="release-overview">
     <title>An Overview of the &os; Release Process</title>
 
     <para>&os; employs a model of development that relies on multiple
@@ -133,7 +133,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="new">
     <title>New Features</title>
 
     <para>A large attraction of &os; 5.0 is a number of new
@@ -204,7 +204,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="drawbacks">
     <title>Drawbacks to Early Adoption</title>
 
     <para>Along with the new features of &os; 5.0 come some areas
@@ -285,7 +285,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="plans-stable">
     <title>Plans for the 4-STABLE Branch</title>
 
     <para>The release of &os; 5.0 does not mean the end of the
@@ -323,7 +323,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="upgrade">
     <title>Notes on Upgrading</title>
 
     <para>For those users with existing &os; systems, this section
@@ -427,7 +427,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="summary">
 
     <title>Summary</title>
 
