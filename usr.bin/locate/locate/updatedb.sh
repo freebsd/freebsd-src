@@ -36,7 +36,7 @@ fi
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
 : ${TMPDIR:=/tmp}; export TMPDIR
-if ! TMPDIR=`mktemp -d $TMPDIR/locateXXXXXX`; then
+if ! TMPDIR=`mktemp -d $TMPDIR/locateXXXXXXXXXX`; then
 	exit 1
 fi
 
