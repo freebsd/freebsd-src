@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.28 1999/03/24 10:28:16 brian Exp $
+.\"     $Id: rc.conf.5,v 1.29 1999/03/24 14:07:33 ghelmer Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -350,6 +350,11 @@ at boot time.
 and also an NFS server, run
 .Xr rpc.statd 8
 at boot time.
+.It Ar portmap_program
+(str) path to
+.Xr portmap 8
+(default
+.Pa /usr/sbin/portmap ) .
 .It Ar portmap_enable
 (bool) If set to
 .Ar YES ,
@@ -841,6 +846,11 @@ daemon.
 then run the
 .Xr cron 8
 daemon at system boot time.
+.It Ar lpd_program
+(str) path to
+.Xr lpd 8
+(default
+.Pa /usr/sbin/lpd ) .
 .It Ar lpd_enable
 (bool) If set to
 .Ar YES
