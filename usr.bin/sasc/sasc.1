@@ -28,67 +28,72 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sasc.1,v 1.2 1995/09/08 18:42:44 julian Exp $
+.\" $Id: sasc.1,v 1.3 1996/01/30 13:50:40 mpp Exp $
 .\"
-.TH SASC 1 "January 6, 1995" FreeBSD "FreeBSD Reference Manual"
-.SH NAME
-\fBsasc\fP - set the options of the asc scanner device
-.SH SYNOPSIS
-.TP 5
-\fBsasc\fP
-[\fB-sq\fP]
-[\fB-b\fP\ \fIlen\fP]
-[\fB-f\fP\ \fIfile\fP]
-[\fB-h\fP\ \fIheight\fP]
-[\fB-r\fP\ \fIresolution\fP]
-[\fB-t\fP\ \fItimeout\fP]
-[\fB-w\fP\ \fIwidth\fP]
-.SH DESCRIPTION
-The \fBsasc\fP utility provides shell level access to the ioctl
+.Dd January 6, 1995
+.Dt SASC 1
+.Os
+.Sh NAME
+.Nm sasc
+.Nd set the options of the asc scanner device
+.Sh SYNOPSIS
+.Nm
+.Op Fl sq
+.Op Fl b Ar len
+.Op Fl f Ar file
+.Op Fl h Ar height
+.Op Fl r Ar resolution
+.Op Fl t Ar timeout
+.Op Fl w Ar width
+.Sh DESCRIPTION
+The
+.Nm
+utility provides shell level access to the ioctl
 requests served by the handy scanner device driver asc. Please see
-asc(4) for the exact meaning of the requests.  Generally they modify
-the output and behavior of the asc scanner device. When \fBsasc\fP is
-called with no option only the current settings are reported.
-.SH OPTIONS
-.TP 3
-\fB-s\fP [ASC_SRESSW]
+.Xr asc 4
+for the exact meaning of the requests.  Generally they modify
+the output and behavior of the asc scanner device. When
+.Nm
+is called with no option only the current settings are reported.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl s Bq ASC_SRESSW
 Set the scanner with the values of the resolution selector switch.
-.TP
-\fB-q\fP
+.It Fl q
 Operate in quiet mode, i.e. do not report any of the current settings.
 Normally the parameters are shown after the modifications have been
 performed.
-.TP
-\fB-f\fP \fIfile\fP
+.It Fl f Ar file
 Operate on a different scanner device node given by filename. Note
 that even though there may exist more than one node of scanner device
 several of them will refer the same device unit. The modifications are
 performed od the unit regardless of the device node by which it is
 accessed.
-.TP
-\fB-r\fP \fIresolution\fP [ASC_SRES]
+.It Fl r Ar resolution Bq ASC_SRES
 Set the resolution in dpi.
-.TP
-\fB-w\fP \fIwidth\fP [ASC_SWIDHT]
+.It Fl w Ar width Bq ASC_SWIDHT
 Set the width of the bitmap in pixels.
-.TP
-\fB-h\fP \fIheight\fP [ASC_SHEIGHT]
+.It Fl h Ar height Bq ASC_SHEIGHT
 Set the height of the bitmap in lines of pixels.
-.TP
-\fB-b\fP \fIlen\fP [ASC_SBLEN]
-Set the internal dma buffer to be \fIlen\fP lines in size.
-.TP
-\fB-t\fP \fItimeout\fP [ASC_SBTIME]
+.It Fl b Ar len Bq ASC_SBLEN
+Set the internal dma buffer to be
+.Ar len
+lines in size.
+.It Fl t Ar timeout Bq ASC_SBTIME
 Set the timeout time for reading one dma buffer.
-.SH FILES
-.TP 15
-.BI /dev/asc0
-device node for \fIraw\fP output.
-.TP
-.BI /dev/asc0p
-device node for output in \fIpbm\fP file format.
-.PB
-.SH SEE ALSO
-asc(4)
-.SH AUTHOR
+.Sh FILES
+.Bl -tag -width /var/rwho/whod.* -compact
+.It Pa /dev/asc0
+device node for
+.Em raw
+output.
+.It Pa /dev/asc0p
+device node for output in
+.Em pbm
+file format.
+.El
+.Sh SEE ALSO
+.Xr asc 4
+.Sh AUTHOR
 Gunther Schadow <gusw@fub46.zedat.fu-berlin.de>
