@@ -468,6 +468,7 @@ static const template i386_optab[] = {
 /* load */
 {"fld", 1, 0xd9c0, _, ShortForm, FloatReg, 0, 0}, /* register */
 {"flds", 1, 0xd9, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem float */
+{"fild", 1, 0xdf, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem word (16) */
 {"fildl", 1, 0xdb, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem word */
 {"fldl", 1, 0xdd, 0, Modrm, Mem, 0, 0},           /* %st0 <-- mem double */
 {"fldl", 1, 0xd9c0, _, ShortForm, FloatReg, 0, 0}, /* register */
