@@ -2108,7 +2108,7 @@ bktr_mmap( dev_t dev, int offset, int nprot )
 #endif /* XXXXXX_TUNER */
 
 /* scaling factor for frequencies expressed as ints */
-#define TEST_A
+#define TEST_A_NOT
 
 #if defined( TEST_A )
 #define FREQFACTOR		16
