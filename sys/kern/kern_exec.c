@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.33 1996/01/19 03:58:01 dyson Exp $
+ *	$Id: kern_exec.c,v 1.34 1996/01/20 21:36:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/shm.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -62,6 +63,16 @@
 static int *exec_copyout_strings __P((struct image_params *));
 
 static int exec_check_permissions(struct image_params *);
+
+/*
+ * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
+ * of the sysctl code also assumes this, and sizeof(int) == sizeof(long).
+ */
+static caddr_t ps_strings = (caddr_t)PS_STRINGS;
+SYSCTL_INT(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
+
+static caddr_t usrstack = (caddr_t)USRSTACK;
+SYSCTL_INT(_kern, KERN_USRSTACK, usrstack, 0, &usrstack, 0, "");
 
 /*
  * execsw_set is constructed for us by the linker.  Each of the items
