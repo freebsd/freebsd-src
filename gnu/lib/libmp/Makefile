@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1996/10/20 09:29:39 markm Exp $
+# $Id: Makefile,v 1.7 1996/10/24 18:03:53 markm Exp $
 #
 
 LIB=	mp
@@ -9,7 +9,7 @@ GMPDIR=	${.CURDIR}/../../../contrib/libgmp
 	${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86 \
-		-I${GMPDIR}/mpz -DBROKEN_ALIGN
+		-I${GMPDIR}/mpz -DBROKEN_ALIGN -DBERKELEY_MP
 
 MPN_SRC_C=	inlines.c cmp.c divmod_1.c divrem.c divrem_1.c dump.c \
 		mod_1.c mul.c mul_n.c random2.c sqrtrem.c get_str.c set_str.c \
@@ -21,7 +21,7 @@ MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 MPN_SRCS=	${MPN_SRC_C} ${MPN_SRC_ASM}
 
 MPBSD_LINKS=	mpz/add.c mpz/cmp.c mpz/gcd.c mpz/mul.c mpz/pow_ui.c \
-		mpz/powm.c mpz/sqrtrem.c mpz/sub.c
+		mpz/powm.c mpz/sqrtrem.c mpz/sub.c mpz/realloc.c
 MPBSD_SRCS=	itom.c mdiv.c mfree.c min.c mout.c move.c mtox.c sdiv.c xtom.c \
 		realloc.c $(MPBSD_LINKS)
 
