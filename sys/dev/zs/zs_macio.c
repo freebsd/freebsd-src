@@ -35,7 +35,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 #include <powerpc/powermac/maciovar.h>
 
 #include <dev/zs/z8530reg.h>

@@ -67,7 +67,7 @@
 
 #include <sys/rman.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/eeprom.h>
 

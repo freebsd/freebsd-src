@@ -63,7 +63,7 @@
 
 #include <ddb/ddb.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 #include <sparc64/ebus/ebusvar.h>
 
 #include <dev/sab/sab82532reg.h>

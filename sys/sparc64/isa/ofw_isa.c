@@ -41,8 +41,8 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <ofw/openfirm.h>
-#include <ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
