@@ -103,6 +103,98 @@ param_print(struct ata_params *parm)
 		parm->model, parm->revision, version(parm->version_major)); 
 }
 
+void
+aparam_print(struct ata_params *parm)
+{
+	printf("                                 disk model name %.40s\n", parm->model);
+	printf("                               firmware revision %.8s\n", parm->revision);
+	printf("                            ata / atapi revision %d\n", version(parm->version_major));
+
+	printf("                             number of cylinders %d\n", parm->cylinders);
+	printf("                                 number of heads %d\n", parm->heads);
+	printf("                               sectors per track %d\n", parm->sectors);	
+	
+	printf("                                     lba support %s\n", parm->support_lba ? "yes" : "no");
+	printf("                                     lba sectors %d\n", parm->lba_size);	
+	printf("                                     dma support %s\n", parm->support_dma ? "yes" : "no");
+	printf("                                queueing support %s\n", parm->support_queueing ? "yes" : "no");
+	if(parm->support_queueing)
+	printf("                                          length %d\n", parm->queuelen);	
+
+	printf("                                   SMART support %s\n", parm->support.smart ? "yes" : "no");
+	if(parm->support.smart)
+	printf("                                         enabled %s\n", parm->enabled.smart ? "yes" : "no");
+
+	printf("                                security support %s\n", parm->support.smart ? "yes" : "no");
+	if(parm->support.smart)
+	printf("                                         enabled %s\n", parm->enabled.smart ? "yes" : "no");	
+
+	printf("                        power management support %s\n", parm->support.power_mngt ? "yes" : "no");
+	if(parm->support.power_mngt)
+	printf("                                         enabled %s\n", parm->enabled.power_mngt ? "yes" : "no");	
+
+	printf("                             write cache support %s\n", parm->support.write_cache ? "yes" : "no");
+	if(parm->support.write_cache)
+	printf("                                         enabled %s\n", parm->enabled.write_cache ? "yes" : "no");	
+
+	printf("                              look ahead support %s\n", parm->support.look_ahead ? "yes" : "no");
+	if(parm->support.look_ahead)
+	printf("                                         enabled %s\n", parm->enabled.look_ahead ? "yes" : "no");	
+
+	printf("                      microcode download support %s\n", parm->support.microcode ? "yes" : "no");
+	if(parm->support.microcode)
+	printf("                                         enabled %s\n", parm->enabled.microcode ? "yes" : "no");	
+
+	printf("                        rd/wr dma queued support %s\n", parm->support.queued ? "yes" : "no");
+	if(parm->support.queued)
+	printf("                                         enabled %s\n", parm->enabled.queued ? "yes" : "no");	
+
+	printf("               advanced power management support %s\n", parm->support.apm ? "yes" : "no");
+	if(parm->support.apm)
+	{
+	printf("                                         enabled %s\n", parm->enabled.apm ? "yes" : "no");	
+	printf("                                           value %d / 0x%02x\n", parm->apm_value, parm->apm_value);
+	}	
+	printf("           automatic acoustic management support %s\n", parm->support.auto_acoustic ? "yes" : "no");
+	if(parm->support.auto_acoustic)
+	{
+	printf("                                         enabled %s\n", parm->enabled.auto_acoustic ? "yes" : "no");
+	printf("     automatic acoustic management current value %d / 0x%02x\n", parm->current_acoustic, parm->current_acoustic);
+	printf("                               recommended value %d / 0x%02x\n", parm->vendor_acoustic, parm->vendor_acoustic);	
+	}
+}
+
+int
+ata_params_print(int fd, int channel, int master)
+{
+	struct ata_cmd iocmd;
+
+	bzero(&iocmd, sizeof(struct ata_cmd));
+
+	iocmd.channel = channel;
+	iocmd.device = -1;
+	iocmd.cmd = ATAGPARM;
+
+	if (ioctl(fd, IOCATA, &iocmd) < 0)
+		return errno;
+
+	if(master)
+		master = 1;
+	master = !master;
+	
+	printf("ATA channel %d, %s", channel, master==0 ? "Master" : "Slave");
+
+	if (iocmd.u.param.type[master]) {
+		printf(", device %s:\n", iocmd.u.param.name[master]);
+		aparam_print(&iocmd.u.param.params[master]);
+	}
+	else
+	{
+		printf(": no device present\n");
+	}
+	return 0;
+}
+
 int
 info_print(int fd, int channel, int prchan)
 {
@@ -110,6 +202,7 @@ info_print(int fd, int channel, int prchan)
 
 	bzero(&iocmd, sizeof(struct ata_cmd));
 	iocmd.channel = channel;
+	iocmd.device = -1;
 	iocmd.cmd = ATAGPARM;
 	if (ioctl(fd, IOCATA, &iocmd) < 0)
 		return errno;
@@ -136,6 +229,7 @@ int
 main(int argc, char **argv)
 {
 	struct ata_cmd iocmd;
+	int master;
 	int fd;
 
 	if ((fd = open("/dev/ata", O_RDWR)) < 0)
@@ -145,8 +239,12 @@ main(int argc, char **argv)
 		usage();
 
 	bzero(&iocmd, sizeof(struct ata_cmd));
+
 	if (argc > 2)
 		iocmd.channel = atoi(argv[2]);
+
+	if (argc > 3)
+		master = atoi(argv[3]);
 
 	if (!strcmp(argv[1], "list") && argc == 2) {
 		int unit = 0;
@@ -155,6 +253,9 @@ main(int argc, char **argv)
 	}
 	else if (!strcmp(argv[1], "info") && argc == 3) {
 		info_print(fd, iocmd.channel, 0);
+	}
+	else if (!strcmp(argv[1], "parm") && argc == 4) {
+		ata_params_print(fd, iocmd.channel, master);
 	}
 	else if (!strcmp(argv[1], "detach") && argc == 3) {
 		iocmd.cmd = ATADETACH;
@@ -176,6 +277,7 @@ main(int argc, char **argv)
 	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
 		if (argc == 5) {
 			iocmd.cmd = ATASMODE;
+			iocmd.device = -1;
 			iocmd.u.mode.mode[0] = str2mode(argv[3]);
 			iocmd.u.mode.mode[1] = str2mode(argv[4]);
 			if (ioctl(fd, IOCATA, &iocmd) < 0)
@@ -183,6 +285,7 @@ main(int argc, char **argv)
 		}
 		if (argc == 3 || argc == 5) {
 			iocmd.cmd = ATAGMODE;
+			iocmd.device = -1;
 			if (ioctl(fd, IOCATA, &iocmd) < 0)
 				err(1, "ioctl(ATAGMODE)");
 			printf("Master = %s \nSlave  = %s\n",
