@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.6 1995/10/29 15:31:46 phk Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.7 1995/11/07 14:06:41 phk Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -77,8 +77,9 @@ unix2dostime(tsp, ddp, dtp)
 	 * If the time from the last conversion is the same as now, then
 	 * skip the computations and use the saved result.
 	 */
-	t = tsp->ts_sec - (tz.tz_minuteswest * 60) - adjkerntz;
-	     /* +- daylight savings time correction */ ;
+	t = tsp->ts_sec - (tz.tz_minuteswest * 60)
+	    - wall_cmos_clock ? adjkerntz : 0;
+	    /* - daylight savings time correction */
 	if (lasttime != t) {
 		lasttime = t;
 		lastdtime = (((t % 60) >> 1) << DT_2SECONDS_SHIFT)
@@ -175,7 +176,8 @@ dos2unixtime(dd, dt, tsp)
 		lastseconds = (days * 24 * 60 * 60) + SECONDSTO1980;
 	}
 	tsp->ts_sec = seconds + lastseconds + (tz.tz_minuteswest * 60)
-	     + adjkerntz 	/* -+ daylight savings time correction */ ;
+	     + wall_cmos_clock ? adjkerntz : 0;
+	     /* + daylight savings time correction */
 	tsp->ts_nsec = 0;
 }
 
