@@ -29,6 +29,9 @@
  * Pro
  * 
  * JRA Gibson      April 1995 Code added for MV ProSonic/Jazz 16 in 16 bit mode
+ *
+ * $FreeBSD$
+ *
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -951,6 +954,27 @@ sb_dsp_detect(struct address_info * hw_config)
     if (!sb_reset_dsp())
 	return 0;
 #endif
+#ifdef PC98
+    switch (sbc_irq) {
+    case 3:
+	sb_setmixer (IRQ_NR, 1);
+	break;
+    case 5:
+	sb_setmixer (IRQ_NR, 8);
+	break;
+    case 10:
+	sb_setmixer (IRQ_NR, 2);
+	break;
+    }
+    switch (hw_config->dma) {
+    case 0:
+	sb_setmixer (DMA_NR, 1);
+	break;
+    case 3:
+	sb_setmixer (DMA_NR, 2);
+	break;
+    }
+#endif 
 
     return 1;		/* Detected */
 }
