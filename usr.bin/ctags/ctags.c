@@ -229,7 +229,7 @@ find_entries(file)
 	char	*cp;
 
 	lineno = 0;				/* should be 1 ?? KB */
-	if (cp = strrchr(file, '.')) {
+	if ((cp = strrchr(file, '.'))) {
 		if (cp[1] == 'l' && !cp[2]) {
 			int	c;
 
