@@ -738,6 +738,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	}
 
 	vp->v_data = NULL;
+	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	FREE(xp, M_NULLFSNODE);
 

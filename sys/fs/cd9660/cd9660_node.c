@@ -220,6 +220,7 @@ cd9660_reclaim(ap)
 		vrele(ip->i_mnt->im_devvp);
 	FREE(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 	return (0);
 }
 

@@ -612,6 +612,7 @@ hpfs_reclaim(ap)
 	mtx_destroy(&hp->h_interlock);
 
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 
 	FREE(hp, M_HPFSNO);
 
