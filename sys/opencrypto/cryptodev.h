@@ -172,7 +172,6 @@ struct crypt_kop {
 #define	CIOCFSESSION	_IOW('c', 102, u_int32_t)
 #define CIOCCRYPT	_IOWR('c', 103, struct crypt_op)
 #define CIOCKEY		_IOWR('c', 104, struct crypt_kop)
-#define	CIOCGSSESSION	_IOWR('c', 105, struct session_op)
 
 #define CIOCASYMFEAT	_IOR('c', 105, u_int32_t)
 

@@ -146,7 +146,6 @@ cryptof_ioctl(
 
 	switch (cmd) {
 	case CIOCGSESSION:
-	case CIOCGSSESSION:
 		sop = (struct session_op *)data;
 		switch (sop->cipher) {
 		case 0:
@@ -254,8 +253,7 @@ cryptof_ioctl(
 			}
 		}
 
-		error = crypto_newsession(&sid, (txform ? &crie : &cria),
-					  (cmd == CIOCGSESSION ? 1 : -1));
+		error = crypto_newsession(&sid, (txform ? &crie : &cria), 1);
 		if (error)
 			goto bail;
 
