@@ -56,7 +56,7 @@ chtype	ch = c;
         	T(("win attr = %x", win->_attrs));
 		ch |= win->_attrs;
 
-		if ((win->_line[y][x]&A_CHARTEXT) == ' ')
+		if (win->_line[y][x]&A_CHARTEXT == ' ')
 			ch |= win->_bkgd;
 		else
 			ch |= (win->_bkgd&A_ATTRIBUTES);
