@@ -19,6 +19,7 @@ SHIFT-TAB       Move to previous item or group.
 LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
 PAGE UP         In text display boxes, scrolls up one page.
 PAGE DOWN       In text display boxes, scrolls down one page.
+F1              Display associated help text.
 
 If you see small "^(-)" or "v(+)" symbols at the edges of a menu, it
 means that there are more items above or below the current one that
@@ -31,6 +32,10 @@ PageUp and PageDown keys will scroll by entire screens.
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
 the previous menu.
+
+Most screens have Help - READ IT!  It generally offers
+context-specific hints on what to do next, and if you're confused at
+any point, hit the F1 key for tips on what to do next.
 
 
 SPECIAL FEATURES:
