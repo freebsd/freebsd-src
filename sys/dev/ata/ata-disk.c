@@ -301,6 +301,13 @@ adstrategy(struct buf *bp)
     struct ad_softc *adp = bp->b_dev->si_drv1;
     int32_t s;
 
+    /* if it's a null transfer, return immediatly. */
+    if (bp->b_bcount == 0) {
+	bp->b_resid = 0;
+	biodone(bp);
+	return;
+    }
+
     s = splbio();
     bufqdisksort(&adp->queue, bp);
     ad_start(adp);
