@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.7 1996/04/01 08:17:49 joerg Exp $";
+	"$Id: main.c,v 1.8 1996/07/03 01:17:34 jkh Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,12 +40,10 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "tzsetup.h"
-
-#define PATH_LOCALTIME		"/etc/localtime"
-#define PATH_WALL_CMOS_CLOCK	"/etc/wall_cmos_clock"
-#define PATH_ZONEINFO		"/usr/share/zoneinfo"
+#include "pathnames.h"
 
 static int set_time();
 
