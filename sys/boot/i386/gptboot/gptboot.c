@@ -100,8 +100,8 @@ static struct dsk {
     int init;
     int meta;
 } dsk;
-static char cmd[80];
-static char kname[128];
+static char cmd[512];
+static char kname[1024];
 static uint32_t opts;
 static struct bootinfo bootinfo;
 static int ls;
@@ -170,9 +170,9 @@ main(void)
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
     }
     for (;;) {
-	printf( /* " \n>> FreeBSD/i386 BOOT\n" */
-	       /* "Default: */ "%u:%s(%u,%c)%s:",
-	       /* "boot: ", */
+	printf(" \n>> FreeBSD/i386 BOOT\n"
+	       "Default: %u:%s(%u,%c)%s\n"
+	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
 	       'a' + dsk.part, kname);
 	if (ioctrl & 0x2)
@@ -209,8 +209,8 @@ load(const char *fname)
     int fmt, i, j;
 
     if (!(ino = lookup(fname))) {
-	/* if (!ls)
-	    printf("No %s\n", fname); */
+	if (!ls)
+	    printf("No %s\n", fname);
 	return;
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
@@ -310,7 +310,7 @@ parse(char *arg)
 	    }
 	    if (opts & 1 << RBX_PROBEKBD) {
 		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		/* printf("Keyboard: %s\n", i ? "yes" : "no"); */
+		printf("Keyboard: %s\n", i ? "yes" : "no");
 		if (!i)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
 		opts &= ~(1 << RBX_PROBEKBD);
