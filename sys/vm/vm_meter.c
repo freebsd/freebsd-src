@@ -152,14 +152,19 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		 * Note active objects.
 		 */
 		paging = 0;
-		for (map = &p->p_vmspace->vm_map, entry = map->header.next;
+		map = &p->p_vmspace->vm_map;
+		vm_map_lock_read(map);
+		for (entry = map->header.next;
 		    entry != &map->header; entry = entry->next) {
 			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
-			    entry->object.vm_object == NULL)
+			    (object = entry->object.vm_object) == NULL)
 				continue;
-			vm_object_set_flag(entry->object.vm_object, OBJ_ACTIVE);
-			paging |= entry->object.vm_object->paging_in_progress;
+			vm_object_lock(object);
+			vm_object_set_flag(object, OBJ_ACTIVE);
+			paging |= object->paging_in_progress;
+			vm_object_unlock(object);
 		}
+		vm_map_unlock_read(map);
 		if (paging)
 			totalp->t_pw++;
 	}
@@ -169,11 +174,14 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
+		vm_object_lock(object);
 		/*
 		 * devices, like /dev/mem, will badly skew our totals
 		 */
-		if (object->type == OBJT_DEVICE)
+		if (object->type == OBJT_DEVICE) {
+			vm_object_unlock(object);
 			continue;
+		}
 		totalp->t_vm += object->size;
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {
@@ -189,6 +197,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				totalp->t_armshr += object->resident_page_count;
 			}
 		}
+		vm_object_unlock(object);
 	}
 	mtx_unlock(&vm_object_list_mtx);
 	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
