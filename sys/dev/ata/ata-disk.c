@@ -610,7 +610,7 @@ ad_interrupt(struct ad_request *request)
 
     /* do we have a corrected soft error ? */
     if (adp->controller->status & ATA_S_CORR)
-	diskerr(request->bp, "soft (ECC corrected)",
+	diskerr(request->bp, "soft error (ECC corrected)",
 		request->blockaddr + (request->donecount / DEV_BSIZE),
 		&adp->disk.d_label);
 
@@ -619,7 +619,8 @@ ad_interrupt(struct ad_request *request)
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
 	adp->controller->error = ATA_INB(adp->controller->r_io, ATA_ERROR);
 	diskerr(request->bp,
-		(adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "hard",
+		(adp->controller->error & ATA_E_ICRC) ?
+			"UDMA ICRC error" : "hard error",
 		request->blockaddr + (request->donecount / DEV_BSIZE),
 		&adp->disk.d_label);
 
