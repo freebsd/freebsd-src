@@ -156,7 +156,6 @@
 #ifdef WANT_KANJI
 #define KANJI
 #define DSPMBYTE
-#define MBYTEDEBUG
 #endif
 
 #endif /* _h_config */
