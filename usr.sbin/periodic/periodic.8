@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: periodic.8,v 1.1.1.1 1997/08/12 17:48:49 pst Exp $
 .\"
 .Dt periodic 8
 .Os FreeBSD 3.0
@@ -31,52 +31,69 @@
 .Nd run periodic system functions
 .Sh SYNOPSIS
 .Nm periodic
-.Ar path-to-directory
+.Ao
+.Cm daily | weekly | monthly |
+.Ar path Op path ...
+.Ac
 .Sh DESCRIPTION
 The
 .Nm
 program is intended to be called by cron(8) to execute shell scripts
 located in the specified directory.
 .Pp
-The arguments are as follows:
+One, and only one, of the following arguments should be specified:
 .Bl -tag -width Fl
+.It Cm daily
+Perform the standard daily periodic executable run.
+This usually occurs early in the morning (local time).
+.It Cm weekly
+Perform the standard weekly periodic executable run.
+This usually occurs on Sunday mornings.
+.It Cm monthly
+Perform the standard monthly periodic executable run.
+This usually occurs on the first day of the month.
 .It Ar path
-The
-.Ar path
-is a required argument.  This is a path to a directory containing
-executable programs or shell scripts which are executed one by one
-in alphanumeric order.
+An absolute path to a directory containing a set of executables to be run.
 .El
+.Pp
+The
+.Nm
+program will run each executable file in the directory or directories
+specified.  If a file does not have the executable bit set,  it will be
+ignored silently.
 .Sh ENVIRONMENT
 The 
 .Nm
 command sets the
 .Ev PATH
-environment to include all standard system
-directories.  If entries are added,  each entry
-must be responsible for configuring the appropriate environment.
+environment to include all standard system directories, but no additional
+directories, such as
+.Pa /usr/local/bin .
+If executables are added which depend upon other path components, each
+executable must be responsible for configuring its own appropriate environment.
 .Sh FILES
-.Bl -tag -width /etc/cron.d/monthly
+.Bl -tag -width /etc/crontab
 .It Pa /etc/crontab
 The
 .Nm
 program is typically called via entries in the system default cron table.
 .It Pa /etc/cron.d
-The default top-level directory where periodic script directories reside.
-If a simple name, rather than a complete path, is specified on the command
-line,  this directory is checked for the corresponding argument.
-.It Pa /etc/cron.d/daily
-The default directory where script fragments that should be executed once
-a day (usually in the middle of the night) are placed.
-.It Pa /etc/cron.d/weekly
-The default directory where script fragments that should be executed once
-a eek (usually on a weekend night) are placed.
-.It Pa /etc/cron.d/monthly
-The default directory where script fragments that should be executed once
-a month (usually on the first day of the month) are placed.
-.It Pa <entry>
-Each file in the specified directory is checked for executability.  If
-the execute bit is set, the entry is run.
+The top level directory containing
+.Pa daily ,
+.Pa weekly ,
+and
+.Pa monthly
+subdirectories which contain standard system periodic executables.
+.It Pa /etc/rc.conf
+The
+.Pa rc.conf
+system registry contains a variable
+.Va local_cron
+which may be configured to specify additional top level standard
+periodic directories, such as
+.Pa /usr/local/etc/cron.d
+and
+.Pa /usr/X11R6/etc/cron.d .
 .El
 .Sh EXAMPLES
 The system crontab should have entries for
@@ -87,9 +104,15 @@ similar to the following example:
 .Dl 0      2       *       *       *       root    periodic daily   2>&1
 .Dl 0      3       *       *       6       root    periodic weekly  2>&1
 .Dl 0      5       1       *       *       root    periodic monthly 2>&1
+.Pp
+Additionally, the system registry will typically have a
+.Va local_cron
+variable reading:
+.Dl local_cron="/usr/local/etc/cron.d /usr/X11R6/etc/cron.d" # cron script dirs.
 .Sh SEE ALSO
 .Xr cron 8
 .Xr crontab 5 ,
+.Xr rc.conf 5 ,
 .Xr sh 1 ,
 .Rs
 .Sh DIAGNOSTICS
