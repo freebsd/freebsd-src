@@ -138,7 +138,7 @@ kvm_getfiles(kd, op, arg, cnt)
 		mib[1] = KERN_FILE;
 		st = sysctl(mib, 2, NULL, &size, NULL, 0);
 		if (st == -1) {
-			_kvm_syserr(kd, kd->program, "kvm_getprocs");
+			_kvm_syserr(kd, kd->program, "kvm_getfiles");
 			return (0);
 		}
 		if (kd->argspc == 0)
