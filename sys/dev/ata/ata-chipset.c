@@ -95,8 +95,8 @@ static int ata_sis_chipinit(device_t);
 static void ata_sis_setmode(struct ata_device *, int);
 static int ata_mode2idx(int);
 static int ata_check_80pin(struct ata_device *, int);
-static int ata_find_dev(device_t, u_int32_t, u_int32_t);
-static struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
+static int ata_find_dev(device_t, u_int32_t, u_int32_t, int);
+static struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *, int);
 static int ata_default_interrupt(device_t);
 static void ata_pci_serialize(struct ata_channel *, int);
 
@@ -171,7 +171,7 @@ ata_acard_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -321,7 +321,7 @@ ata_ali_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -428,7 +428,7 @@ ata_amd_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -601,7 +601,7 @@ ata_highpoint_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -768,7 +768,7 @@ ata_intel_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -887,7 +887,7 @@ ata_nvidia_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -944,7 +944,7 @@ ata_promise_ident(device_t dev)
     char *desc, buffer[64];
     uintptr_t devid = 0;
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     /* if we are on a SuperTrak SX6000 dont attach */
@@ -1188,7 +1188,7 @@ ata_serverworks_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1276,7 +1276,7 @@ ata_sii_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1489,9 +1489,9 @@ ata_sis_ident(device_t dev)
      { ATA_SIS646, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX" },/* ext south */
      { ATA_SIS645, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645" },	/* ext south */
      { ATA_SIS640, 0x00, SIS_SOUTH, 0, ATA_UDMA4, "SiS 640" },	/* ext south */
-     { ATA_SIS635, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" },	/* unknown */
+     { ATA_SIS635, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" },	/* 1chip */
      { ATA_SIS633, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" },	/* unknown */
-     { ATA_SIS630, 0x30, SIS100NEW, 0, ATA_UDMA5, "SiS 630S" }, /* 1chip */
+     { ATA_SIS630, 0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S" }, /* 1chip */
      { ATA_SIS630, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 630" },	/* 1chip */
      { ATA_SIS620, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 620" },	/* 1chip */
 
@@ -1501,7 +1501,7 @@ ata_sis_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, -1))) 
 	return ENXIO;
 
     if (idx->cfg1 == SIS_SOUTH) {
@@ -1511,7 +1511,7 @@ ata_sis_ident(device_t dev)
 	    sprintf(buffer, "SiS 96X %s controller",ata_mode2str(idx->max_dma));
 	}
 	else {
-	    if (ata_find_dev(dev, ATA_SISSOUTH, 0x10))
+	    if (ata_find_dev(dev, ATA_SISSOUTH, 0x10, pci_get_slot(dev)))
 		idx->cfg1 = SIS133OLD;
 	    else {
 		idx->max_dma = ATA_UDMA5;
@@ -1577,7 +1577,7 @@ ata_sis_setmode(struct ata_device *atadev, int mode)
     }
     else {
 	if (mode > ATA_UDMA2 &&
-	    pci_read_config(parent, 0x48, 1) & atadev->channel->unit?0x20:0x10){
+	    pci_read_config(parent, 0x48, 1)&(atadev->channel->unit?0x20:0x10)){
 		ata_prtdev(atadev,
 		    "DMA limited to UDMA33, non-ATA66 cable or device\n");
 	    mode = ATA_UDMA2;
@@ -1659,7 +1659,7 @@ ata_via_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids))) 
+    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1808,16 +1808,16 @@ ata_check_80pin(struct ata_device *atadev, int mode)
 }
 
 static int
-ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
+ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid, int slot)
 {
     device_t *children;
-    int nchildren, i, slot = pci_get_slot(dev);
+    int nchildren, i;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	if (pci_get_slot(children[i]) == slot &&
+	if (((slot >= 0 && pci_get_slot(children[i]) == slot) || slot < 0) &&
 	    pci_get_devid(children[i]) == devid &&
 	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
@@ -1829,10 +1829,10 @@ ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 }
 
 static struct ata_chip_id *
-ata_match_chip(device_t dev, struct ata_chip_id *index)
+ata_match_chip(device_t dev, struct ata_chip_id *index, int slot)
 {
     while (index->chiptype != 0) {
-	if (ata_find_dev(dev, index->chiptype, index->chiprev))
+	if (ata_find_dev(dev, index->chiptype, index->chiprev, slot))
 	    return index;
 	index++;
     }
