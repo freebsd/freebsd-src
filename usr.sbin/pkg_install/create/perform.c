@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.17 1995/04/22 00:03:09 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.18 1995/04/22 00:59:33 jkh Exp $";
 #endif
 
 /*
@@ -70,7 +70,7 @@ pkg_perform(char **pkgs)
 	    cp = strsep(&Pkgdeps, " \t\n");
 	    if (*cp) {
 		add_plist(&plist, PLIST_PKGDEP, cp);
-		if (Verbose)
+		if (Verbose && !PlistOnly)
 		    printf(" %s", cp);
 	    }
 	}
