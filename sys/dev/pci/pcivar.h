@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.28 1999/04/24 19:59:20 peter Exp $
+ * $Id: pcivar.h,v 1.29 1999/05/06 22:05:39 peter Exp $
  *
  */
 
@@ -164,7 +164,6 @@ typedef struct pciattach {
 
 struct pci_devinfo {
     	STAILQ_ENTRY(pci_devinfo) pci_links;
-	struct pci_device	*device;  /* should this be ifdefed? */
 	pcicfgregs		cfg;
 	struct pci_conf		conf;
 };
