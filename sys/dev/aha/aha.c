@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.7 1998/10/02 04:37:48 imp Exp $
+ *      $Id: aha.c,v 1.8 1998/10/09 21:38:36 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -401,11 +401,11 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 		printf("%s: Likely aha 1542A, which might not work properly\n",
 			aha_name(aha));
 
-	aha->max_sg = 17;
+	aha->max_sg = 17;		/* Need 17 to do 64k I/O */
 	aha->diff_bus = 0;
 	aha->extended_lun = 0;
 	aha->extended_trans = 0;
-	aha->max_ccbs = 17;		/* Need 17 to do 64k I/O */
+	aha->max_ccbs = 16;
 	/* Determine Sync/Wide/Disc settings */
 	length_param = sizeof(setup_info);
 	error = aha_cmd(aha, BOP_INQUIRE_SETUP_INFO, &length_param,
