@@ -97,7 +97,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
 	int ch, errors;
 
 	while ((ch = getopt(argc, argv, "agnoprtuwW")) != -1) {

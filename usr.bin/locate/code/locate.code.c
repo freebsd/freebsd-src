@@ -97,6 +97,7 @@ static char sccsid[] = "@(#)locate.code.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "locate.h"
 
 #define	BGBUFSIZE	(NBG * 2)	/* size of bigram buffer */
@@ -119,8 +120,6 @@ int	bgindex __P((char *));
 
 
 void	usage __P((void));
-extern int optind;
-extern int optopt;
 
 int
 main(argc, argv)

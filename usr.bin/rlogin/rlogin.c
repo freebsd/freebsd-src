@@ -144,8 +144,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	struct passwd *pw;
 	struct servent *sp;
 	struct sgttyb ttyb;

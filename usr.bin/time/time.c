@@ -68,9 +68,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
-
 	register int pid;
 	int aflag, ch, lflag, status, pflag;
 	struct timeval before, after;
