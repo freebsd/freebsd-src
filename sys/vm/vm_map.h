@@ -142,6 +142,20 @@ vm_map_entry_behavior(vm_map_entry_t entry)
 {
 	return (entry->eflags & MAP_ENTRY_BEHAV_MASK);
 }
+
+static __inline int
+vm_map_entry_user_wired_count(vm_map_entry_t entry)
+{
+	if (entry->eflags & MAP_ENTRY_USER_WIRED)
+		return (1);
+	return (0);
+}
+
+static __inline int
+vm_map_entry_system_wired_count(vm_map_entry_t entry)
+{
+	return (entry->wired_count - vm_map_entry_user_wired_count(entry));
+}
 #endif	/* _KERNEL */
 
 /*
