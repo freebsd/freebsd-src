@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.11.2.3 1997/12/15 06:11:34 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.11.2.4 1997/12/15 21:36:41 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -664,6 +664,22 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	}
 	return copyout(&linux_line, (caddr_t)args->arg, 
 		       sizeof(int));
+
+    case LINUX_SNDCTL_DSP_GETOPTR :
+	args->cmd = SNDCTL_DSP_GETOPTR;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETIPTR :
+	args->cmd = SNDCTL_DSP_GETIPTR;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SETTRIGGER:
+	args->cmd = SNDCTL_DSP_SETTRIGGER;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETCAPS:
+	args->cmd = SNDCTL_DSP_GETCAPS;
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_SNDCTL_DSP_RESET:
 	args->cmd = SNDCTL_DSP_RESET;

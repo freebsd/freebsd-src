@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.20 1996/06/12 05:06:28 gpalmer Exp $
+ *  $Id: linux_misc.c,v 1.20.2.1 1997/04/28 02:55:10 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -939,3 +939,15 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
 	bsa.itv = args->itv;
 	return getitimer(p, &bsa, retval);
 }
+
+int
+linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
+{
+	struct setpriority_args	bsd_args;
+
+	bsd_args.which = PRIO_PROCESS;
+	bsd_args.who = 0;	/* current process */
+	bsd_args.prio = args->inc;
+	return setpriority(p, &bsd_args, retval);
+}
+
