@@ -63,7 +63,8 @@ spooling queues and printer daemons,
 .It
 change the status message for printer queues (the status message
 may be seen by users as part of the output of the
-.Xr lpq 1 utility).
+.Xr lpq 1
+utility).
 .El
 .Pp
 Without any arguments,
@@ -92,9 +93,7 @@ then disable printing (preventing new daemons from being started by
 .Xr lpr 1 )
 for the specified printers.
 .Pp
-.It Ic bottomq Ar printer Xo
-.Op Ar jobspec ...
-.Xc
+.It Ic bottomq Ar printer Op Ar jobspec ...
 Take the specified jobs in the order specified and move them to the
 bottom of the printer queue.
 Each
@@ -199,9 +198,7 @@ command is a privileged command, while the
 .Ic tclean
 command is not restricted.
 .Pp
-.It Ic topq Ar printer Xo
-.Op Ar jobspec ...
-.Xc
+.It Ic topq Ar printer Op Ar jobspec ...
 Take the specified jobs in the order specified and move them to the
 top of the printer queue.
 Each
@@ -230,29 +227,35 @@ can be:
 .Bl -bullet
 .It
 a single job number, which will match all jobs in the printer's queue
-which have the same job number.  Eg:
+which have the same job number.
+Eg:
 .Ar 17 ,
 .It
 a range of job numbers, which will match all jobs with a number between
-the starting and ending job numbers, inclusive.  Eg:
+the starting and ending job numbers, inclusive.
+Eg:
 .Ar 21-32 ,
 .It
 a specific userid, which will match all jobs which were sent by that
-user.  Eg:
+user.
+Eg:
 .Ar jones ,
 .It
 a host name, when prefixed by an `@', which will match all jobs in
-the queue which were sent from the given host.  Eg:
+the queue which were sent from the given host.
+Eg:
 .Ar @freebsd.org ,
 .It
 a job range and a userid, separated by a `:', which will match all jobs
-which both match the job range and were sent by the specified user.  Eg:
+which both match the job range and were sent by the specified user.
+Eg:
 .Ar jones:17
 or
 .Ar 21-32:jones ,
 .It
 a job range and/or a userid, followed by a host name, which will match
-all jobs which match all the specified criteria.  Eg:
+all jobs which match all the specified criteria.
+Eg:
 .Ar jones@freebsd.org
 or
 .Ar 21-32@freebsd.org

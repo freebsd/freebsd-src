@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2001
+.Dd October 18, 2002
 .Os
 .Dt BURNCD 8
 .Sh NAME
@@ -54,7 +54,7 @@ burn the CD-R/RW in DAO (disk at once) mode.
 eject the media when done.
 .It Fl f Ar device
 set the device to use for the burning process.
-.It Fl F 
+.It Fl F
 force operation regardless of warnings.
 .It Fl l
 read a list of image files from filename.
@@ -69,7 +69,9 @@ quiet, do not print progress messages.
 .It Fl s Ar speed
 set the speed of the burner device.
 Defaults to 1.
-Specify "max" to use the drive's fastest speed.
+Specify
+.Dq Li max
+to use the drive's fastest speed.
 .It Fl t
 test write, do not actually write on the media.
 .It Fl v
@@ -95,9 +97,9 @@ Erase a CD-RW medium.
 This erases the entire media.
 Can take up to 1 hour to finish.
 .It Cm format dwd+rw
-Formats a DVD+RW media to the default max size and 2048byte blocks. This
-operation can take a long time to finish. Progress reporting is done
-during the process.
+Formats a DVD+RW media to the default max size and 2048 byte blocks.
+This operation can take a long time to finish.
+Progress reporting is done during the process.
 .It Cm fixate
 Fixate the medium so that the TOC is generated and the media can be used
 in an ordinary CD drive.
@@ -137,8 +139,8 @@ and
 .Pq Fl n
 modes.
 .It Cm dvdrw
-Set the write mode to write a DVD+RW from the follwing image. DVD's only
-have one track.
+Set the write mode to write a DVD+RW from the following image.
+DVDs only have one track.
 .It Ar file
 All other arguments are treated as filenames of images to write to the media,
 or in case the
