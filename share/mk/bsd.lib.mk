@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.53 1997/04/13 06:44:23 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.54 1997/04/23 10:26:18 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -145,20 +145,15 @@ lib${LIB}_p.a:: ${POBJS}
 .endif
 
 .if defined(DESTDIR)
-LDDESTDIR?=	-L${DESTDIR}${SHLIBDIR} -L${DESTDIR}/usr/lib
-# LDDESTDIR+=	-nostdlib
+LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}/usr/lib
 .endif
 
 .if !defined(NOPIC)
-.if defined(CPLUSPLUSLIB) && !make(clean) && !make(cleandir)
-SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
-.endif
-
 SOBJS+= ${OBJS:.o=.so}
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-	@${LD} -Bshareable -x \
+	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
 
@@ -191,11 +186,10 @@ _EXTRADEPEND::
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
 .endif
-.if defined(LDADD)
 _EXTRADEPEND::
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
-	    `ld -Bshareable -x -f ${LDDESTDIR} ${LDADD}` >> ${DEPENDFILE}
-.endif
+	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
+	    >> ${DEPENDFILE}
 
 .if !target(install)
 .if !target(beforeinstall)
