@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.8 1994/11/17 19:44:53 ache Exp $
+ * $Id: stage4.c,v 1.9 1994/11/17 23:36:48 ache Exp $
  *
  */
 
@@ -35,7 +35,7 @@ stage4()
 
     if (access("/stand/need_cpio_floppy",R_OK))
 	return;
-
+retry:
     while (1) {
 	dialog_msgbox(TITLE, 
 		      "Insert CPIO floppy in floppy drive 0", -1, -1, 1);
@@ -77,8 +77,10 @@ stage4()
 	      i, j, cpid, zpid, strerror(errno));
     
     /* bininst MUST be the last file on the floppy */
-    if (access("/stand/bininst", R_OK) == -1)
-	Fatal("CPIO floppy was bad!  Please check media for defects.");
+    if (access("/stand/bininst", R_OK) == -1) {
+	AskAbort("CPIO floppy was bad!  Please check media for defects and retry.");
+	goto retry;
+    }
     else {
 	TellEm("unlink /stand/need_cpio_floppy");
 	unlink("/stand/need_cpio_floppy");
