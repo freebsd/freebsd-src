@@ -45,12 +45,18 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <fts.h>
+#include <grp.h>
 #include <langinfo.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
+
+#include "find.h"
+#include "extern.h"
 
 /* Derived from the print routines in the ls(1) source code. */
 
@@ -63,7 +69,7 @@ printlong(name, accpath, sb)
 	char *accpath;			/* current valid path to filename */
 	struct stat *sb;		/* stat buffer */
 {
-	char modep[15], *user_from_uid(), *group_from_gid();
+	char modep[15];
 
 	(void)printf("%6lu %4qd ", (u_long) sb->st_ino, sb->st_blocks);
 	(void)strmode(sb->st_mode, modep);
