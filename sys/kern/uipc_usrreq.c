@@ -1011,7 +1011,7 @@ unp_externalize(control, controlp)
 			newfds = datalen / sizeof(struct file *);
 			rp = data;
 
-			/* If we're not outputting the discriptors free them. */
+			/* If we're not outputting the descriptors free them. */
 			if (error || controlp == NULL) {
 				unp_freerights(rp, newfds);
 				goto next;
