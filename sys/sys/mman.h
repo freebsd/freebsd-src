@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.10 1996/03/02 16:55:26 peter Exp $
+ *	@(#)mman.h	8.2 (Berkeley) 1/9/95
+ * $Id: mman.h,v 1.11 1996/03/02 17:42:34 peter Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -40,7 +40,7 @@
 /*
  * Protections are chosen from these bits, or-ed together
  */
-#define	PROT_NONE	0x00	/* no access to pages */
+#define	PROT_NONE	0x00	/* no permissions */
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
@@ -70,9 +70,9 @@
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
 /*
- * Mapping type; default is map from file.
+ * Mapping type
  */
-#define MAP_FILE	0x0000	/* for backward source compatibility */
+#define	MAP_FILE	0x0000	/* map from file (default) */
 #define	MAP_ANON	0x1000	/* allocated from memory, swap space */
 
 /*
@@ -90,12 +90,12 @@
 
 __BEGIN_DECLS
 caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
-int	madvise __P((caddr_t, size_t, int));
 int	mprotect __P((caddr_t, size_t, int));
 int	munmap __P((caddr_t, size_t));
 int	msync __P((caddr_t, size_t, int));
 int	mlock __P((caddr_t, size_t));
 int	munlock __P((caddr_t, size_t));
+int	madvise __P((caddr_t, size_t, int));
 int	mincore __P((caddr_t, size_t, char *));
 int	minherit __P((caddr_t, size_t, int));
 __END_DECLS
