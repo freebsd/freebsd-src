@@ -1078,13 +1078,17 @@ ps_lsetfpregs (struct ps_prochandle *ph, lwpid_t lwpid,
 ps_err_e
 ps_lstop(struct ps_prochandle *ph, lwpid_t lwpid)
 {
-  return (ptrace (lwpid, PT_SUSPEND, 0, 0) == 0);
+  if (ptrace (PT_SUSPEND, lwpid, 0, 0) == -1)
+    return PS_ERR;
+  return PS_OK;  
 }
 
 ps_err_e
 ps_lcontinue(struct ps_prochandle *ph, lwpid_t lwpid)
 {
-  return (ptrace (lwpid, PT_RESUME, 0, 0) == 0);
+  if (ptrace (PT_RESUME, lwpid, 0, 0) == -1)
+    return PS_ERR;
+  return PS_OK;   
 }
 
 pid_t
