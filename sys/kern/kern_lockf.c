@@ -163,7 +163,13 @@ lf_advlock(ap, head, size)
 	lock->lf_start = start;
 	lock->lf_end = end;
 	lock->lf_id = ap->a_id;
-/*	lock->lf_inode = ip; */	/* XXX JH */
+	/*
+	 * XXX The problem is that VTOI is ufs specific, so it will
+	 * break LOCKF_DEBUG for all other FS's other than UFS because
+	 * it casts the vnode->data ptr to struct inode *.
+	 */
+/*	lock->lf_inode = VTOI(ap->a_vp); */
+	lock->lf_inode = (struct inode *)0;
 	lock->lf_type = fl->l_type;
 	lock->lf_head = head;
 	lock->lf_next = (struct lockf *)0;
@@ -768,15 +774,22 @@ lf_print(tag, lock)
 		printf("proc %ld", (long)((struct proc *)lock->lf_id)->p_pid);
 	else
 		printf("id %p", (void *)lock->lf_id);
-	/* XXX no %qd in kernel.  Truncate. */
-	printf(" in ino %lu on dev <%d, %d>, %s, start %ld, end %ld",
-	    (u_long)lock->lf_inode->i_number,
-	    major(lock->lf_inode->i_dev),
-	    minor(lock->lf_inode->i_dev),
-	    lock->lf_type == F_RDLCK ? "shared" :
-	    lock->lf_type == F_WRLCK ? "exclusive" :
-	    lock->lf_type == F_UNLCK ? "unlock" :
-	    "unknown", (long)lock->lf_start, (long)lock->lf_end);
+	if (lock->lf_inode != (struct inode *)0)
+		/* XXX no %qd in kernel.  Truncate. */
+		printf(" in ino %lu on dev <%d, %d>, %s, start %ld, end %ld",
+		    (u_long)lock->lf_inode->i_number,
+		    major(lock->lf_inode->i_dev),
+		    minor(lock->lf_inode->i_dev),
+		    lock->lf_type == F_RDLCK ? "shared" :
+		    lock->lf_type == F_WRLCK ? "exclusive" :
+		    lock->lf_type == F_UNLCK ? "unlock" :
+		    "unknown", (long)lock->lf_start, (long)lock->lf_end);
+	else
+		printf(" %s, start %ld, end %ld",
+		    lock->lf_type == F_RDLCK ? "shared" :
+		    lock->lf_type == F_WRLCK ? "exclusive" :
+		    lock->lf_type == F_UNLCK ? "unlock" :
+		    "unknown", (long)lock->lf_start, (long)lock->lf_end);
 	if (!TAILQ_EMPTY(&lock->lf_blkhd))
 		printf(" block %p\n", (void *)TAILQ_FIRST(&lock->lf_blkhd));
 	else
@@ -789,6 +802,9 @@ lf_printlist(tag, lock)
 	struct lockf *lock;
 {
 	register struct lockf *lf, *blk;
+
+	if (lock->lf_inode == (struct inode *)0)
+		return;
 
 	printf("%s: Lock list for ino %lu on dev <%d, %d>:\n",
 	    tag, (u_long)lock->lf_inode->i_number,
