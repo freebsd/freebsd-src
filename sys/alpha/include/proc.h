@@ -50,6 +50,7 @@ struct mdproc {
 	struct mdbpt	md_sstep[2];	/* two single step breakpoints */
 	u_int64_t	md_hae;		/* user HAE register value */
 	void            *osf_sigtramp;  /* user-level signal trampoline */
+	u_int		md_kernnest;	/* nesting level in the kernel */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */
