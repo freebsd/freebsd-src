@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_svc.c,v 1.1.1.1 1998/11/05 02:04:55 ezk Exp $
+ * $Id: nfs_prot_svc.c,v 1.3 1999/01/13 23:31:19 ezk Exp $
  *
  */
 
@@ -228,7 +228,7 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
 		   (SVC_IN_ARG_TYPE) &argument)) {
     plog(XLOG_ERROR,
 	 "NFS xdr decode failed for %d %d %d",
-	 rqstp->rq_prog, rqstp->rq_vers, rqstp->rq_proc);
+	 (int) rqstp->rq_prog, (int) rqstp->rq_vers, (int) rqstp->rq_proc);
     svcerr_decode(transp);
     return;
   }

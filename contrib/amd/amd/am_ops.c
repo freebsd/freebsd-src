@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_ops.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
+ * $Id: am_ops.c,v 1.4 1999/03/13 17:03:26 ezk Exp $
  *
  */
 
@@ -164,7 +164,7 @@ ops_showamfstypes(char *buf)
     if (ap[1])
       strcat(buf, ", ");
     l += strlen((*ap)->fs_type) + 2;
-    if (l > 60) {
+    if (l > 62) {
       l = 0;
       strcat(buf, "\n      ");
     }
@@ -413,15 +413,32 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
 
   /*
    * If addopts option was used, then append it to the
-   * current options.
+   * current options and remote mount options.
    */
   if (fo->opt_addopts) {
-    char *mergedstr;
-    mergedstr = merge_opts(fo->opt_opts, fo->opt_addopts);
-    plog(XLOG_USER, "merge opts \"%s\" add \"%s\" => \"%s\"",
-	 fo->opt_opts, fo->opt_addopts, mergedstr);
-    XFREE(fo->opt_opts);
-    fo->opt_opts = mergedstr;
+    if (STREQ(fo->opt_opts, fo->opt_remopts)) {
+      /* optimize things for the common case where opts==remopts */
+      char *mergedstr;
+      mergedstr = merge_opts(fo->opt_opts, fo->opt_addopts);
+      plog(XLOG_USER, "merge rem/opts \"%s\" add \"%s\" => \"%s\"",
+	   fo->opt_opts, fo->opt_addopts, mergedstr);
+      XFREE(fo->opt_opts);
+      XFREE(fo->opt_remopts);
+      fo->opt_opts = mergedstr;
+      fo->opt_remopts = strdup(mergedstr);
+    } else {
+      char *mergedstr, *remmergedstr;
+      mergedstr = merge_opts(fo->opt_opts, fo->opt_addopts);
+      plog(XLOG_USER, "merge opts \"%s\" add \"%s\" => \"%s\"",
+	   fo->opt_opts, fo->opt_addopts, mergedstr);
+      XFREE(fo->opt_opts);
+      fo->opt_opts = mergedstr;
+      remmergedstr = merge_opts(fo->opt_remopts, fo->opt_addopts);
+      plog(XLOG_USER, "merge remopts \"%s\" add \"%s\" => \"%s\"",
+	   fo->opt_remopts, fo->opt_addopts, remmergedstr);
+      XFREE(fo->opt_remopts);
+      fo->opt_remopts = remmergedstr;
+    }
   }
 
   /*
