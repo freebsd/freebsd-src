@@ -217,7 +217,7 @@
       </note>
     </para>
 
-    <para arch="i386">The &man.cp.4; driver has been added for Cronyx Tau-PCI
+    <para arch="i386,pc98">The &man.cp.4; driver has been added for Cronyx Tau-PCI
       synchronous serial adapters.
     </para>
 
