@@ -248,7 +248,7 @@ static __inline void uma_zfree(uma_zone_t zone, void *item);
 static __inline void
 uma_zfree(uma_zone_t zone, void *item)
 {
-	return uma_zfree_arg(zone, item, NULL);
+	uma_zfree_arg(zone, item, NULL);
 }
 
 /*
