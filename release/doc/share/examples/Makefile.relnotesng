@@ -52,7 +52,8 @@ push:	image
 	@echo "#"
 	@echo "# Pushing to ${RHOST}"
 	@echo "#"
-	(cd ${IMAGEDIR}; tar -cf - .) | gzip -c -9 | (ssh ${RHOST} "( cd ${RDIR}; gunzip -c | tar -xf -)" )
+#	(cd ${IMAGEDIR}; tar -cf - .) | gzip -c -9 | (ssh ${RHOST} "( cd ${RDIR}; gunzip -c | tar -xf -)" )
+	(cd ${IMAGEDIR}; rsync -azuv * ${RHOST}:${RDIR})
 	rm -rf ${IMAGEDIR}
 
 clean:

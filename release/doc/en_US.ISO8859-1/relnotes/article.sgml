@@ -434,6 +434,14 @@
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
+
+      <para arch="i386">The &man.bge.4; driver has been added to
+      support the Broadcom BCM570x family of Gigabit Ethernet
+      controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
+      and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
+      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
+      and VLAN tag insertion/stripping are supported, as well as
+      interrupt moderation.</para>
     </sect3>
 
     <sect3>
@@ -453,6 +461,14 @@
       <para>A new netgraph node type &man.ng.one2many.4; for multiplexing
       and demultiplexing packets over multiple links has been added.
       &merged;</para>
+
+      <para>The &man.ng.gif.4; and &man.ng.gif.demux.4; netgraph
+      nodes, for operating on &man.gif.4; devices, have been
+      added.</para>
+
+      <para>The &man.ng.ip.input.4; netgraph node, for queueing IP
+      packets into the main IP input processing code, has been
+      added.</para>
 
       <para arch="alpha">SLIP has been removed from the
       <filename>mfsroot</filename> floppy image.</para>
@@ -1525,6 +1541,12 @@
     &man.chroot.2; based on the IP address of the connecting client.
     &man.tftp.1; and &man.tftpd.8; can now transfer files larger than
     65535 blocks. &merged;</para>
+
+    <para>&man.tftpd.8; now supports RFC 2349 (TFTP Timeout Interval
+    and Transfer Size Options); this feature is required by some
+    firmware like EFI boot managers (at least on HP i2000 Itanium
+    servers) in order to boot an image using
+    <application>TFTP</application>.</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
     parameter to select custom text geometry in the
