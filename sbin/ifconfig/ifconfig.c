@@ -1074,7 +1074,7 @@ in6_status(s, info)
 		printf("deprecated ");
 
         if (scopeid)
-		printf(" scopeid 0x%x", scopeid);
+		printf("scopeid 0x%x ", scopeid);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
 		printf("pltime ");
