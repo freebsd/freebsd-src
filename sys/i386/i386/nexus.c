@@ -139,6 +139,7 @@ DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 static int
 nexus_probe(device_t dev)
 {
+	int irq, last;
 
 	device_quiet(dev);	/* suppress attach message for neatness */
 
@@ -164,10 +165,25 @@ nexus_probe(device_t dev)
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
 	irq_rman.rm_end = NUM_IO_INTS - 1;
-	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman,
-				  irq_rman.rm_start, irq_rman.rm_end))
+	if (rman_init(&irq_rman))
 		panic("nexus_probe irq_rman");
+
+	/*
+	 * We search for regions of existing IRQs and add those to the IRQ
+	 * resource manager.
+	 */
+	last = -1;
+	for (irq = 0; irq < NUM_IO_INTS; irq++)
+		if (intr_lookup_source(irq) != NULL) {
+			if (last == -1)
+				last = irq;
+		} else if (last != -1) {
+			if (rman_manage_region(&irq_rman, last, irq - 1) != 0)
+				panic("nexus_probe irq_rman add");
+			last = -1;
+		}
+	if (last != -1 && rman_manage_region(&irq_rman, last, irq - 1) != 0)
+		panic("nexus_probe irq_rman add");
 
 	/*
 	 * ISA DMA on PCI systems is implemented in the ISA part of each
