@@ -87,6 +87,11 @@ struct bufobj {
 	struct vm_object *bo_object;	/* v Place to store VM object */
 	LIST_ENTRY(bufobj) bo_synclist;	/* S dirty vnode list */
 	void		*bo_private;	/* private pointer */
+	struct vnode	*__bo_vnode;	/*
+					 * XXX: This vnode pointer is here
+					 * XXX: only to keep the syncer working
+					 * XXX: for now.
+					 */
 };
 
 /*
