@@ -224,7 +224,7 @@ obsolete(argv)
 	char *argv[];
 {
 	register char *ap, *p, *t;
-	int len;
+	size_t len;
 	char *start;
 
 	while (ap = *++argv) {
