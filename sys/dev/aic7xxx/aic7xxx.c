@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.4 1998/09/20 05:06:10 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.5 1998/09/20 23:30:14 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -2263,6 +2263,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, int target, char channel,
 		printf("%s: %s on %c:%d. %d SCBs aborted\n", ahc_name(ahc),
 		       message, channel, target, found);
 }
+
 /*
  * We have an scb which has been processed by the
  * adaptor, now we look to see how the operation
