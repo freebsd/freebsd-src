@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.3 1995/10/07 10:42:48 bde Exp $
+ *	$Id: mv.c,v 1.5 1996/02/19 00:44:19 wosch Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "-if")) != EOF)
+	while ((ch = getopt(argc, argv, "if")) != EOF)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
@@ -87,9 +87,6 @@ main(argc, argv)
 		case 'f':
 			fflg = 1;
 			break;
-		case '-':		/* Undocumented; for compatibility. */
-			goto endarg;
-		case '?':
 		default:
 			usage();
 		}
