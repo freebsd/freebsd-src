@@ -82,10 +82,14 @@ on which the file system is being mounted.
 Specify the maximum file permissions for files
 in the file system.
 .It Fl W Ar u2wtable
-Specify unix to unicode translation table. This option is
-completly stolen from
-.Xr mount_msdos 8
-so refer its manpage.
+Specify
+.Ux
+to
+.Tn Unicode
+translation table.
+See
+.Xr mount_msdosfs 8
+for the description of this option.
 .El
 .Sh FEATURES
 NTFS file attributes are accessed in following way:
@@ -125,7 +129,8 @@ files are not supported either.
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
-.Xr mount 8
+.Xr mount 8 ,
+.Xr mount_msdosfs 8
 .Sh CAVEATS
 This utility gives almost only read-only access to NTFS volume.
 See
