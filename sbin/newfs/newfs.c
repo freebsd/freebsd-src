@@ -249,7 +249,7 @@ main(argc, argv)
 	}
 
 	opstring = mfs ?
-	    "NF:T:Ua:b:c:d:e:f:g:h:i:m:o:s:" :
+	    "NF:T:Ua:b:c:d:e:f:g:h:i:m:o:s:v" :
 	    "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
