@@ -50,7 +50,7 @@ SPECHDR=compat.h excmd.h options.h
 CLEANFILES+=${SPECHDR}
 LINKS=	${BINDIR}/nvi ${BINDIR}/nex ${BINDIR}/vi ${BINDIR}/ex ${BINDIR}/view
 
-all: nvi nex vi.0
+all: nvi nex vi.1
 nex: nvi
 	rm -f nex
 	ln nvi nex
@@ -70,9 +70,9 @@ excmd.h: excmd.h.stub excmd.c excmd.awk
 	cat ${.CURDIR}/../ex/excmd.h.stub > excmd.h
 	awk -f ${.CURDIR}/../ex/excmd.awk ${.CURDIR}/../ex/excmd.c >> excmd.h
 
-vi.0:
-	rm -f vi.0
-	ln -s ${.CURDIR}/../USD.doc/vi.man/vi.0 vi.0
+vi.1:
+	rm -f vi.1
+	ln -s ${.CURDIR}/../USD.doc/vi.man/vi.1 vi.1
 
 tags::
 	-(cd ${.CURDIR} && rm -f tags && \
