@@ -166,7 +166,7 @@ mount -t msdos /dev/sd0s5 /dos_d
 Not yet!  We'd like to add support for this someday, but are still
 lacking anyone to actually do the work.  Ongoing work with BSDI's
 RUNDOS utility may bring this much closer to being a reality sometime
-soon.  Send mail to hackers@freebsd.org if you're interested in
+soon.  Send mail to freebsd-hackers@FreeBSD.org if you're interested in
 joining this effort!
 
 There is, however, a neat utility called "pcemu" in the ports
