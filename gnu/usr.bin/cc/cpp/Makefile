@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1999/03/05 04:55:03 obrien Exp $
+#	$Id: Makefile,v 1.12 1999/04/04 16:36:35 obrien Exp $
 
 .include "../Makefile.inc"
 
@@ -7,7 +7,6 @@
 PROG=	cpp
 SRCS=	cccp.c cexp.y obstack.c prefix.c version.c
 CFLAGS+= -DPREFIX=\"/usr\"
-YACC=	${BISON}
 YFLAGS=
 BINDIR=	/usr/libexec
 MAN1=	cccp.1
