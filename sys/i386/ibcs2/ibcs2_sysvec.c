@@ -82,7 +82,7 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 	case MOD_UNLOAD:
 		/* if this was an ELF module we'd use elf_brand_inuse()... */
 		ALLPROC_LOCK(AP_SHARED);
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_sysent == &ibcs2_svr3_sysvec) {
 				rval = EBUSY;
 				break;
