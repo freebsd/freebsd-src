@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 14, 2004
+.Dd August 14, 2004
 .Os
 .Dt TGMATH 3
 .Sh NAME
 .Nm tgmath
-.Nd type-generic macros
+.Nd "type-generic macros"
 .Sh SYNOPSIS
 .In tgmath.h
 .Sh DESCRIPTION
@@ -43,37 +43,35 @@ and
 functions that have
 .Vt float
 (suffixed with
-.Sm off
-.Sy f )
-,
-.Sm on
+.Sy f ) ,
 .Vt double
 and
-.Vt long double
+.Vt "long double"
 (suffixed with
 .Sy l )
 versions.
 The arguments that vary across the three functions and have type
-.Vt float ,
-.Vt double
+.Vt float , double
 and
 .Vt "long double" ,
 respectively, are called
-.Em generic arguments .
+.Em "generic arguments" .
 .Pp
 The following rules describe which function is actually called if a
-type-generic macro is invoked.  If any generic argument has type
+type-generic macro is invoked.
+If any generic argument has type
 .Vt "long double"
 or
 .Vt "long double complex" ,
 the
 .Vt "long double"
-function is called.  Else if any generic argument has type
-.Vt double ,
-.Vt "double complex"
+function is called.
+Else, if any generic argument has type
+.Vt double , "double complex"
 or an integer type, the
 .Vt double
-version is invoked.  Otherwise the macro expands to the
+version is invoked.
+Otherwise, the macro expands to the
 .Vt float
 implementation.
 .Pp
@@ -85,45 +83,45 @@ and the complex equivalents in
 .In complex.h .
 The complex function is called if any of the generic arguments is a
 complex value.
-Otherwise the real equivalent is called.
-.Bl -column -offset indent ".Sy Macro" "Sy real function" ".Sy complex function"
+Otherwise, the real equivalent is called.
+.Bl -column -offset indent ".Fn acosh" "Sy real function" ".Sy complex function"
 .It Sy Macro Ta Sy real function Ta Sy complex function
-.It Li acos Ta acos Ta cacos
-.It Li asin Ta asin Ta casin
-.It Li atan Ta atan Ta catan
-.It Li acosh Ta acosh Ta cacosh
-.It Li asinh Ta asinh Ta casinh
-.It Li atanh Ta atanh Ta catanh
-.It Li cos Ta cos Ta ccos
-.It Li sin Ta sin Ta csin
-.It Li tan  Ta tan Ta ctan
-.It Li cosh Ta cosh Ta ccosh
-.It Li sinh Ta sinh Ta csinh
-.It Li tanh Ta tanh Ta ctanh
-.It Li exp Ta exp Ta cexp
-.It Li log Ta log Ta clog
-.It Li pow Ta pow Ta cpow
-.It Li fabs Ta fabs Ta cabs
+.It Fn acos Ta Fn acos Ta Fn cacos
+.It Fn asin Ta Fn asin Ta Fn casin
+.It Fn atan Ta Fn atan Ta Fn catan
+.It Fn acosh Ta Fn acosh Ta Fn cacosh
+.It Fn asinh Ta Fn asinh Ta Fn casinh
+.It Fn atanh Ta Fn atanh Ta Fn catanh
+.It Fn cos Ta Fn cos Ta Fn ccos
+.It Fn sin Ta Fn sin Ta Fn csin
+.It Fn tan  Ta Fn tan Ta Fn ctan
+.It Fn cosh Ta Fn cosh Ta Fn ccosh
+.It Fn sinh Ta Fn sinh Ta Fn csinh
+.It Fn tanh Ta Fn tanh Ta Fn ctanh
+.It Fn exp Ta Fn exp Ta Fn cexp
+.It Fn log Ta Fn log Ta Fn clog
+.It Fn pow Ta Fn pow Ta Fn cpow
+.It Fn fabs Ta Fn fabs Ta Fn cabs
 .El
 .Pp
 No complex functions exist for the following macros, so passing a
 complex value to a generic argument invokes undefined behaviour:
-.Bl -column -offset indent nexttoward nexttoward nexttoward nexttoward
-.It Li atan2 Ta fma Ta llround Ta remainder
-.It Li cbrt Ta fmax Ta log10 Ta remquo
-.It Li ceil Ta fmin Ta log1p Ta rint
-.It Li copysign Ta fmod Ta log2 Ta round
-.It Li erf Ta frexp Ta logb Ta scalbn
-.It Li erfc Ta hypot Ta lrint Ta scalbln
-.It Li exp2 Ta ilogb Ta lround Ta tgamma
-.It Li expm1 Ta ldexp Ta nextbyint Ta trunc
-.It Li fdim Ta lgamma Ta nextafter
-.It Li floor Ta llrint Ta nexttoward
+.Bl -column -offset indent ".Fn nexttoward" ".Fn nexttoward" ".Fn nexttoward" ".Fn nexttoward"
+.It Fn atan2 Ta Fn fma Ta Fn llround Ta Fn remainder
+.It Fn cbrt Ta Fn fmax Ta Fn log10 Ta Fn remquo
+.It Fn ceil Ta Fn fmin Ta Fn log1p Ta Fn rint
+.It Fn copysign Ta Fn fmod Ta Fn log2 Ta Fn round
+.It Fn erf Ta Fn frexp Ta Fn logb Ta Fn scalbn
+.It Fn erfc Ta Fn hypot Ta Fn lrint Ta Fn scalbln
+.It Fn exp2 Ta Fn ilogb Ta Fn lround Ta Fn tgamma
+.It Fn expm1 Ta Fn ldexp Ta Fn nextbyint Ta Fn trunc
+.It Fn fdim Ta Fn lgamma Ta Fn nextafter
+.It Fn floor Ta Fn llrint Ta Fn nexttoward
 .El
 .Pp
 The following macros always expand to a complex function:
-.Bl -column -offset indent cimag cimag cimag cimag cimag
-.It Li carg Ta cimag Ta conj Ta cproj Ta creal
+.Bl -column -offset indent ".Fn cimag" ".Fn cimag" ".Fn cimag" ".Fn cimag" ".Fn cimag"
+.It Fn carg Ta Fn cimag Ta Fn conj Ta Fn cproj Ta Fn creal
 .El
 .Pp
 This header includes
@@ -131,6 +129,7 @@ This header includes
 and
 .In math.h .
 .Sh STANDARDS
+The header
 .In tgmath.h
 conforms to
 .St -isoC-99 .
@@ -140,9 +139,11 @@ The header
 first appeared in
 .Fx 5.3 .
 .Sh BUGS
+The header
 .In tgmath.h
 cannot be implemented with strictly conforming C code and needs
-special compiler support.  The current implementation only works for GCC.
+special compiler support.
+The current implementation only works for GCC.
 .Pp
 Many of the functions mentioned here are not prototyped in
 .In math.h
