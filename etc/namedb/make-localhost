@@ -25,7 +25,7 @@ else
 	fullhost="$host.$domain"
 fi
 
-date=`date +"%y%m%d"`
+date=`date +"%Y%m%d"`
 
 mv -f localhost.rev localhost.rev.BAK 2>/dev/null
 
