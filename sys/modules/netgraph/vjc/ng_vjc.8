@@ -176,18 +176,6 @@ This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
 .Sh BUGS
-When used as a loadable kernel module, this node type requires the file
-.Dv "net/slcompress.c"
-to have been compiled into the kernel. Currently the only way to insure this
-is to include the
-.Dv slip ,
-.Dv ppp ,
-or
-.Dv i4bipr
-pseudo-devices in your kernel compilation. In the future there should
-be a kernel option that causes inclusion of this file without requiring
-one of these drivers.
-.Pp
 Because the initialization routine in the kernel implementation of
 Van Jacobsen compression initializes both compression and decompression
 at once, this node does not allow compression and decompression to
@@ -195,6 +183,14 @@ be enabled in separate operations.  In order to enable one when
 the other is already enabled, first both must be disabled, then
 both enabled.  This of course resets the node state.  This restriction
 may be lifted in a later version.
+.Pp
+When built as a loadable kernel module, this module includes the file
+.Dv "net/slcompress.c" .
+Although loading the module should fail if
+.Dv "net/slcompress.c"
+already exists in the kernel, currently it does not, and the duplicate
+copies of the file do not interfere.
+However, this may change in the future.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ppp 8 ,
