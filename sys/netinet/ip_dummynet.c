@@ -431,14 +431,17 @@ transmit_event(struct dn_pipe *pipe)
 #ifdef BRIDGE
 	case DN_TO_BDG_FWD : {
 	    struct mbuf *m = (struct mbuf *)pkt ;
-	    struct ether_header hdr;
+	    struct ether_header *eh;
 
 	    if (pkt->dn_m->m_len < ETHER_HDR_LEN
 	      && (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
 		printf("dummynet/bridge: pullup fail, dropping pkt\n");
 		break;
 	    }
-	    bcopy(mtod(pkt->dn_m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+	    /*
+	     * same as ether_input, make eh be a pointer into the mbuf
+	     */
+	    eh = mtod(pkt->dn_m, struct ether_header *);
 	    m_adj(pkt->dn_m, ETHER_HDR_LEN);
 	    /*
 	     * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
@@ -446,7 +449,7 @@ transmit_event(struct dn_pipe *pipe)
 	     * (originally pkt->dn_m, but could be something else now) if
 	     * it has not consumed it.
 	     */
-	    bdg_forward(&m, &hdr, pkt->ifp);
+	    bdg_forward(&m, eh, pkt->ifp);
 	    if (m)
 		m_freem(m);
 	    }
@@ -1746,7 +1749,7 @@ dummynet_get(struct sockopt *sopt)
     struct dn_pipe *p ;
     int s, error=0 ;
 
-    s = splimp() ;
+    s = splimp();
     /*
      * compute size of data structures: list of pipes and flow_sets.
      */

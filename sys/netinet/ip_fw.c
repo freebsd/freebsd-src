@@ -16,7 +16,6 @@
  * $FreeBSD$
  */
 
-#define STATEFUL       1
 #define        DEB(x)
 #define        DDB(x) x
 
@@ -79,6 +78,13 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 static int fw_verbose_limit = 0;
 #endif
 
+/*
+ * Right now, two fields in the IP header are changed to host format
+ * by the IP layer before calling the firewall. Ideally, we would like
+ * to have them in network format so that the packet can be
+ * used as it comes from the device driver (and is thus readonly).
+ */
+
 static u_int64_t counter;	/* counter for ipfw_report(NULL...) */
 struct ipfw_flow_id last_pkt ;
 
@@ -103,7 +109,6 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, 
     &fw_verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 
-#if STATEFUL
 /*
  * Extension for stateful ipfw.
  *
@@ -174,7 +179,6 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime, CTLFLAG_RW,
     &dyn_rst_lifetime, 0, "Lifetime of dyn. rules for rst");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
     &dyn_short_lifetime, 0, "Lifetime of dyn. rules for other situations");
-#endif /* STATEFUL */
 
 #endif
 
@@ -198,7 +202,7 @@ static __inline int
 				int range_flag, int mask));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
-static void	ipfw_report __P((struct ip_fw *f, struct ip *ip,
+static void	ipfw_report __P((struct ip_fw *f, struct ip *ip, int offset,
 				struct ifnet *rif, struct ifnet *oif));
 
 static void flush_rule_ptrs(void);
@@ -459,7 +463,7 @@ iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 }
 
 static void
-ipfw_report(struct ip_fw *f, struct ip *ip,
+ipfw_report(struct ip_fw *f, struct ip *ip, int offset,
 	struct ifnet *rif, struct ifnet *oif)
 {
     struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
@@ -544,33 +548,33 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
     case IPPROTO_TCP:
 	    len = snprintf(SNPARGS(proto, 0), "TCP %s",
 		inet_ntoa(ip->ip_src));
-	    if ((ip->ip_off & IP_OFFMASK) == 0)
+	    if (offset == 0)
 		    len += snprintf(SNPARGS(proto, len), ":%d ",
 			ntohs(tcp->th_sport));
 	    else
 		    len += snprintf(SNPARGS(proto, len), " ");
 	    len += snprintf(SNPARGS(proto, len), "%s",
 		inet_ntoa(ip->ip_dst));
-	    if ((ip->ip_off & IP_OFFMASK) == 0)
+	    if (offset == 0)
 		    snprintf(SNPARGS(proto, len), ":%d",
 			ntohs(tcp->th_dport));
 	    break;
     case IPPROTO_UDP:
 	    len = snprintf(SNPARGS(proto, 0), "UDP %s",
 		inet_ntoa(ip->ip_src));
-	    if ((ip->ip_off & IP_OFFMASK) == 0)
+	    if (offset == 0)
 		    len += snprintf(SNPARGS(proto, len), ":%d ",
 			ntohs(udp->uh_sport));
 	    else
 		    len += snprintf(SNPARGS(proto, len), " ");
 	    len += snprintf(SNPARGS(proto, len), "%s",
 		inet_ntoa(ip->ip_dst));
-	    if ((ip->ip_off & IP_OFFMASK) == 0)
+	    if (offset == 0)
 		    snprintf(SNPARGS(proto, len), ":%d",
 			ntohs(udp->uh_dport));
 	    break;
     case IPPROTO_ICMP:
-	    if ((ip->ip_off & IP_OFFMASK) == 0)
+	    if (offset == 0)
 		    len = snprintf(SNPARGS(proto, 0), "ICMP:%u.%u ",
 			icmp->icmp_type, icmp->icmp_code);
 	    else
@@ -586,9 +590,9 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	    break;
     }
 
-    if ((ip->ip_off & IP_OFFMASK))
+    if (offset != 0)
 	    snprintf(SNPARGS(fragment, 0), " Fragment = %d",
-		ip->ip_off & IP_OFFMASK);
+		offset);
     else
 	    fragment[0] = '\0';
     if (oif)
@@ -608,7 +612,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		f ? f->fw_number : -1);
 }
 
-#if STATEFUL
 static __inline int
 hash_packet(struct ipfw_flow_id *id)
 {
@@ -858,7 +861,6 @@ install_state(struct ip_fw_chain *chain)
     }
     q = lookup_dyn_rule(&last_pkt, NULL) ; /* XXX this just sets the lifetime ... */
 }
-#endif /* STATEFUL */
 
 /*
  * given an ip_fw_chain *, lookup_next_rule will return a pointer
@@ -925,17 +927,18 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct in_addr src_ip, dst_ip; /* XXX */
 	u_int8_t proto= 0, flags = 0 ; /* XXX */
 	u_int16_t skipto, bridgeCookie;
+	u_int16_t ip_len;
 
-#if STATEFUL
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
 	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
-#endif
 
 	/* Special hack for bridging (as usual) */
 	if (cookie == NULL) {
 		bridgeCookie = 0;
 		cookie = &bridgeCookie;
+#define BRIDGED	(cookie == &bridgeCookie)
+		hlen = ip->ip_hl << 2;
 	}
 
 	/* Grab and reset cookie */
@@ -957,7 +960,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 	proto = ip->ip_p;
 	src_ip = ip->ip_src;
 	dst_ip = ip->ip_dst;
-	offset = (ip->ip_off & IP_OFFMASK);
+	if (0 && BRIDGED) { /* not yet... */
+	    offset = (ntohs(ip->ip_off) & IP_OFFMASK);
+	    ip_len = ntohs(ip->ip_len);
+	} else {
+	    offset = (ip->ip_off & IP_OFFMASK);
+	    ip_len = ip->ip_len;
+	}
 	if (offset == 0) {
 	    struct tcphdr *tcp;
 	    struct udphdr *udp;
@@ -1034,7 +1043,6 @@ again:
 		if (f->fw_number == IPFW_DEFAULT_RULE)
 		    goto got_match ;
 
-#if STATEFUL
 		/*
 		 * dynamic rules are checked at the first keep-state or
 		 * check-state occurrence.
@@ -1051,17 +1059,16 @@ again:
 			chain = q->chain ;
 			f = chain->rule ;
 			q->pcnt++ ;
-			q->bcnt += ip->ip_len;
+			q->bcnt += ip_len;
 			goto got_match ; /* random not allowed here */
 		    }
 		    /* if this was a check-only rule, continue with next */
 		    if (f->fw_flg & IP_FW_F_CHECK_S)
 			continue ;
 		}
-#endif /* stateful ipfw */
 
 		/* Check if rule only valid for bridged packets */
-		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && cookie != &bridgeCookie)
+		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && !(BRIDGED))
 			continue;
 
 		if (oif) {
@@ -1263,7 +1270,7 @@ check_ports:
 
 bogusfrag:
 		if (fw_verbose)
-			ipfw_report(NULL, ip, rif, oif);
+			ipfw_report(NULL, ip, offset, rif, oif);
 		goto dropit;
 
 		}
@@ -1273,23 +1280,21 @@ rnd_then_got_match:
 		    random() < ((struct ip_fw_ext *)f)->dont_match_prob )
 			continue ;
 got_match:
-#if STATEFUL   /* stateful ipfw */
 		/*
 		 * If not a dynamic match (q == NULL) and keep-state, install
 		 * a new dynamic entry.
 		 */
 		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S)
 		    install_state(chain);
-#endif
 		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		f->fw_bcnt += ip->ip_len;
+		f->fw_bcnt += ip_len;
 		f->timestamp = time_second;
 
 		/* Log to console if desired */
 		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
-			ipfw_report(f, ip, rif, oif);
+			ipfw_report(f, ip, offset, rif, oif);
 
 		/* Take appropriate action */
 		switch (f->fw_flg & IP_FW_F_COMMAND) {
@@ -1360,6 +1365,7 @@ got_match:
 		switch (rule->fw_reject_code) {
 		case IP_FW_REJECT_RST:
 		  {
+			/* XXX warning, this code writes into the mbuf */
 			struct tcphdr *const tcp =
 				(struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
 			struct tcpiphdr ti, *const tip = (struct tcpiphdr *) ip;
@@ -1371,7 +1377,7 @@ got_match:
 			bcopy(&ti, ip, sizeof(ti));
 			NTOHL(tip->ti_seq);
 			NTOHL(tip->ti_ack);
-			tip->ti_len = ip->ip_len - hlen - (tip->ti_off << 2);
+			tip->ti_len = ip_len - hlen - (tip->ti_off << 2);
 			if (tcp->th_flags & TH_ACK) {
 				tcp_respond(NULL, (void *)ip, tcp, *m,
 				    (tcp_seq)0, ntohl(tcp->th_ack), TH_RST);
@@ -1402,6 +1408,7 @@ dropit:
 		*m = NULL;
 	}
 	return(0);
+#undef BRIDGED
 }
 
 /*
@@ -1509,9 +1516,7 @@ del_entry(struct ip_fw_head *chainptr, u_short number)
 				while (fcp && fcp->rule->fw_number == number) {
 					struct ip_fw_chain *next;
 
-#if STATEFUL
-					remove_dyn_rule(fcp, 1 /* force_delete */);
-#endif
+					remove_dyn_rule(fcp, 1 /* delete */);
 					next = LIST_NEXT(fcp, chain);
 					LIST_REMOVE(fcp, chain);
 #ifdef DUMMYNET
@@ -1788,7 +1793,6 @@ ip_fw_ctl(struct sockopt *sopt)
 		for (fcp = LIST_FIRST(&ip_fw_chain), size = 0; fcp;
 		     fcp = LIST_NEXT(fcp, chain))
 			size += sizeof *fcp->rule;
-#if STATEFUL
 		if (ipfw_dyn_v) {
 		    int i ;
 		    struct ipfw_dyn_rule *p ;
@@ -1797,7 +1801,6 @@ ip_fw_ctl(struct sockopt *sopt)
 			for ( p = ipfw_dyn_v[i] ; p != NULL ; p = p->next )
 			    size += sizeof(*p) ;
 		}
-#endif
 		buf = malloc(size, M_TEMP, M_WAITOK);
 		if (buf == 0) {
 			error = ENOBUFS;
@@ -1813,7 +1816,6 @@ ip_fw_ctl(struct sockopt *sopt)
 			    ((struct ip_fw_ext *)fcp->rule)->dyn_type;
 			bp++;
 		}
-#if STATEFUL
 		if (ipfw_dyn_v) {
 		    int i ;
 		    struct ipfw_dyn_rule *p, *dst, *last = NULL ;
@@ -1833,17 +1835,14 @@ ip_fw_ctl(struct sockopt *sopt)
 		    if (last != NULL)
 			last->next = NULL ;
 		}
-#endif
 		error = sooptcopyout(sopt, buf, size);
 		FREE(buf, M_TEMP);
 		break;
 
 	case IP_FW_FLUSH:
-#if STATEFUL
-               s = splnet();
-               remove_dyn_rule(NULL, 1 /* force delete */);
-               splx(s);
-#endif
+		s = splnet();
+		remove_dyn_rule(NULL, 1 /* force delete */);
+		splx(s);
 		for (fcp = ip_fw_chain.lh_first; 
 		     fcp != 0 && fcp->rule->fw_number != IPFW_DEFAULT_RULE;
 		     fcp = ip_fw_chain.lh_first) {
@@ -1992,9 +1991,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		s = splnet();
 		ip_fw_chk_ptr =  old_chk_ptr;
 		ip_fw_ctl_ptr =  old_ctl_ptr;
-#if STATEFUL
 		remove_dyn_rule(NULL, 1 /* force delete */);
-#endif
 		while (LIST_FIRST(&ip_fw_chain) != NULL) {
 			struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
 			LIST_REMOVE(LIST_FIRST(&ip_fw_chain), chain);
