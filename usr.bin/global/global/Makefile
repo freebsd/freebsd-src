@@ -1,9 +1,12 @@
-#	@(#)Makefile	1.0 (Berkeley) 4/21/96
+# $Id: Makefile,v 1.4 1997/12/17 15:18:53 cwt Exp $
 
-MAN1=	global.1
+GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
+.PATH:		${GLOBAL_DIR}/global
 
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/global.pl ${DESTDIR}/usr/bin/global
+CFLAGS+=	-I${GLOBAL_DIR}/lib
+DPADD=		${.OBJDIR}/../lib/libglobalutil.a
+LDADD=		${.OBJDIR}/../lib/libglobalutil.a
+
+PROG=	global
 
 .include <bsd.prog.mk>
