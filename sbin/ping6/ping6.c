@@ -991,7 +991,8 @@ main(argc, argv)
 		itimer.it_interval = interval;
 		itimer.it_value = interval;
 		(void)setitimer(ITIMER_REAL, &itimer, NULL);
-		retransmit();
+		if (ntransmitted == 0)
+			retransmit();
 	}
 
 	fdmasks = howmany(s + 1, NFDBITS) * sizeof(fd_mask);
