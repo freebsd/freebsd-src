@@ -290,6 +290,9 @@ SUBDIR=	smbfs
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipfilter
 .endif
+.if !defined(NO_PF)
+SUBDIR+=pf
+.endif
 .endif
 
 .include <bsd.subdir.mk>
