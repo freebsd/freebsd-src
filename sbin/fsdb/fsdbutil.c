@@ -67,6 +67,30 @@ crack(line, argc)
     return argv;
 }
 
+char **
+recrack(line, argc, argc_max)
+	char *line;
+	int *argc;
+	int argc_max;
+{
+    static char *argv[8];
+    int i;
+    char *p, *val;
+    for (p = line, i = 0; p != NULL && i < 8 && i < argc_max - 1; i++) {
+	while ((val = strsep(&p, " \t\n")) != NULL && *val == '\0')
+	    /**/;
+	if (val)
+	    argv[i] = val;
+	else
+	    break;
+    }
+    argv[i] = argv[i - 1] + strlen(argv[i - 1]) + 1;
+    argv[i][strcspn(argv[i], "\n")] = '\0';
+    *argc = i + 1;
+    printf("returning with argc %u\n", *argc);
+    return argv;
+}
+
 int
 argcount(cmdp, argc, argv)
 	struct cmdtable *cmdp;
@@ -74,7 +98,8 @@ argcount(cmdp, argc, argv)
 	char *argv[];
 {
     if (cmdp->minargc == cmdp->maxargc)
-	warnx("command `%s' takes %u arguments", cmdp->cmd, cmdp->minargc-1);
+	warnx("command `%s' takes %u arguments, got %u", cmdp->cmd,
+	    cmdp->minargc-1, argc);
     else
 	warnx("command `%s' takes from %u to %u arguments",
 	      cmdp->cmd, cmdp->minargc-1, cmdp->maxargc-1);

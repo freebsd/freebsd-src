@@ -259,7 +259,11 @@ cmdloop()
 		    else if (cmd_argc >= cmdp->minargc &&
 			cmd_argc <= cmdp->maxargc)
 			rval = (*cmdp->handler)(cmd_argc, cmd_argv);
-		    else
+		    else if (cmd_argc >= cmdp->minargc) {
+			strcpy(line, elline);
+			cmd_argv = recrack(line, &cmd_argc, cmdp->maxargc);
+			rval = (*cmdp->handler)(cmd_argc, cmd_argv);
+		    } else
 			rval = argcount(cmdp, cmd_argc, cmd_argv);
 		    known = 1;
 		    break;
@@ -494,7 +498,7 @@ CMDFUNCSTART(rm)
 	printf("Name `%s' removed\n", argv[1]);
 	return 0;
     } else {
-	printf("could not remove name? weird.\n");
+	printf("could not remove name ('%s')? weird.\n", argv[1]);
 	return 1;
     }
 }
