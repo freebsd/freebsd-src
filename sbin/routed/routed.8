@@ -46,7 +46,7 @@
 .Fl F
 .Ar net Ns Op /mask Ns Op ,metric
 .Oc
-.OP Fl P Ar parms
+.Op Fl P Ar parms
 .Sh DESCRIPTION
 .Nm Routed
 is a dameon invoked at boot time to manage the network
@@ -237,7 +237,6 @@ The netmask associated with point-to-point links (such as SLIP
 or PPP, with the IFF_POINTOPOINT flag) is used by
 .Nm routed
 to infer the netmask used by the remote system when RIPv1 is used.
-
 .Pp
 Options supported by
 .Nm routed :
@@ -267,7 +266,8 @@ and is present mostly for historical reasons.
 A better choice is
 .Fl P Cm pm_rdisc
 on the command line or
-.CM pm_rdisc in the
+.Cm pm_rdisc
+in the
 .Pa /etc/gateways
 file.
 since a larger metric
@@ -323,7 +323,7 @@ with the
 or
 .Em SIGUSR2
 signals or with the
-.Cm rtquery
+.Xr rtquery 8
 command.
 .It Fl F Ar net[/mask][,metric]
 minimize routes in transmissions via interfaces with addresses that match
@@ -502,9 +502,9 @@ name
 .Ar ifname .
 .It Cm subnet Ns \&= Ns Ar nname[/mask][,metric]
 advertises a route to network
-.AR nname
+.Ar nname
 with mask
-.AR mask
+.Ar mask
 and the supplied metric (default 1).
 This is useful for filling "holes" in CIDR allocations.
 This parameter must appear by itself on a line.
@@ -558,7 +558,7 @@ disables all RIP processing on the specified interface.
 If no interfaces are allowed to process RIP packets,
 .Nm
 acts purely as a router discovery daemon.
-
+.Pp
 Note that turning off RIP without explicitly turning on router
 discovery advertisements with
 .Cm rdisc_adv
