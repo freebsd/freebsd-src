@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.44 1997/05/05 06:41:35 jkh Exp $
+ * $Id: config.c,v 1.51.2.45 1997/05/22 21:26:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -497,9 +497,35 @@ configXFree86(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
 	return DITEM_FAILURE | DITEM_RESTORE;
-#endif
     systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-#ifdef USE_XIG_ENVIRONMENT
+    config = variable_get(VAR_XF86_CONFIG);
+    if (!config)
+	return DITEM_FAILURE | DITEM_RESTORE;
+    execfile = string_concat("/usr/X11R6/bin/", config);
+    if (file_executable(execfile)) {
+	dialog_clear_norefresh();
+	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
+	    dmenuOpenSimple(&MenuMouse, FALSE); 
+	dialog_clear();
+	systemExecute(execfile);
+	return DITEM_SUCCESS | DITEM_RESTORE;
+    }
+    else {
+	dialog_clear_norefresh();
+	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
+		   "The XFree86 distribution before attempting to configure it.");
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+#else	/* USE_XIG_ENVIRONMENT */
+
+    /* Pre-extract base sets in kludge to work around chicken-and-egg problem with CDE and Xaccel */
+    if (directory_exists("/dist/CDE") && !file_readable("/usr/X11R6/bin/xterm")) {
+	msgNotify("Installing bootstrap X11 tools from CDE distribution.");
+	systemExecute("tar xpf /dist/CDE/FreeBSD/packages/X11-RUN/archive -C /");
+	systemExecute("tar xpf /dist/CDE/FreeBSD/packages/X11-PRG/archive -C /");
+    }
+    systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     if (!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall") ||
 	!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup")) {
 	dialog_clear_norefresh();
@@ -523,6 +549,10 @@ configXFree86(dialogMenuItem *self)
 		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
+	else {
+	    dialog_clear();
+	    systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
+	}
 	if (directory_exists("/dist/CDE")) {
 	    dialog_clear_norefresh();
 	    msgNotify("Running CDE installation - please wait (this may take awhile!).");
@@ -538,37 +568,7 @@ configXFree86(dialogMenuItem *self)
 			   "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
 	    }
 	}
-	if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
-	    dialog_clear_norefresh();
-	    msgConfirm("Installation procedure failed, error code %d!  Please report\n"
-		       "error to Walnut Creek CDROM tech support (either send email\n"
-		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	dialog_clear();
-	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
 	return DITEM_SUCCESS | DITEM_RESTORE;
-    }
-
-#else	/* !USE_XIG_ENVIRONMENT */
-
-    config = variable_get(VAR_XF86_CONFIG);
-    if (!config)
-	return DITEM_FAILURE | DITEM_RESTORE;
-    execfile = string_concat("/usr/X11R6/bin/", config);
-    if (file_executable(execfile)) {
-	dialog_clear_norefresh();
-	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
-	    dmenuOpenSimple(&MenuMouse, FALSE); 
-	dialog_clear();
-	systemExecute(execfile);
-	return DITEM_SUCCESS | DITEM_RESTORE;
-    }
-    else {
-	dialog_clear_norefresh();
-	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
-		   "The XFree86 distribution before attempting to configure it.");
-	return DITEM_FAILURE | DITEM_RESTORE;
     }
 #endif	/* USE_XIG_ENVIRONMENT */
 }
