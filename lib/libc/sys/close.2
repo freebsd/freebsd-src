@@ -78,7 +78,7 @@ of the descriptors can be rearranged with
 or deleted with
 .Fn close
 before the
-.Xr execve
+.Xr execve 2
 is attempted, but if some of these descriptors will still
 be needed if the execve fails, it is necessary to arrange for them
 to be closed if the execve succeeds.

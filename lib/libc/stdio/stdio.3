@@ -151,7 +151,7 @@ function.
 The
 .Nm stdio
 library is a part of the library
-.Xr libc
+.Nm libc
 and routines are automatically loaded as needed by the compilers
 .Xr cc 1
 and
@@ -192,15 +192,15 @@ without first removing their current definitions with
 .Dv stdin ,
 .Dv stdout .
 Function versions of the macro functions
-.Xr feof ,
-.Xr ferror ,
-.Xr clearerr ,
-.Xr fileno ,
-.Xr getc ,
-.Xr getchar ,
-.Xr putc ,
+.Fn feof ,
+.Fn ferror ,
+.Fn clearerr ,
+.Fn fileno ,
+.Fn getc ,
+.Fn getchar ,
+.Fn putc ,
 and
-.Xr putchar
+.Fn putchar
 exist and will be used if the macros
 definitions are explicitly removed.
 .Sh SEE ALSO
@@ -211,9 +211,9 @@ definitions are explicitly removed.
 .Sh BUGS
 The standard buffered functions do not interact well with certain other
 library and system functions, especially
-.Xr vfork
+.Xr vfork 2
 and
-.Xr abort .
+.Xr abort 3 .
 .Sh STANDARDS
 The
 .Nm stdio

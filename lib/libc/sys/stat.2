@@ -256,7 +256,7 @@ depend on the time stamps being contiguous (in calls to
 .Xr symlink 7
 .Sh BUGS
 Applying
-.Xr fstat
+.Fn fstat
 to a socket (and thus to a pipe)
 returns a zeroed buffer,
 except for the blocksize field,
