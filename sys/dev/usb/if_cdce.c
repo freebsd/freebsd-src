@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/endian.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -385,7 +386,7 @@ cdce_encap(struct cdce_softc *sc, struct mbuf *m, int idx)
 		/* Zaurus wants a 32-bit CRC appended to every frame */
 		u_int32_t crc;
 
-		crc = crc32(c->cdce_buf, m->m_pkthdr.len);
+		crc = htole32(crc32(c->cdce_buf, m->m_pkthdr.len));
 		bcopy(&crc, c->cdce_buf + m->m_pkthdr.len, 4);
 		extra = 4;
 	}
