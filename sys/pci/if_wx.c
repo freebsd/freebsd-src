@@ -47,6 +47,10 @@
  * This isn't debugged yet.
  */
 /* #define	PADDED_CELL	1 */
+/*
+ * Enable JumboGrams. This seems to work.
+ */
+/* #define	WX_JUMBO	1 */
 
 /*
  * Since the includes are a mess, they'll all be in if_wxvar.h
@@ -102,6 +106,13 @@ static void wx_dring_teardown	__P((wx_softc_t *));
 
 #define	WX_DISABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMCLR, WXDISABLE)
 #define	WX_ENABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMASK, sc->wx_ienable)
+
+#define	JUMBOMTU	(WX_MAX_PKT_SIZE_JUMBO - sizeof (struct ether_header))
+#ifdef	WX_JUMBO
+#define	WX_MAXMTU	JUMBOMTU
+#else
+#define	WX_MAXMTU	ETHERMTU
+#endif
 
 #if	defined(__NetBSD__)
 #ifdef	__BROKEN_INDIRECT_CONFIG
@@ -220,16 +231,16 @@ wx_attach(parent, self, aux)
 	data |= (WX_CACHELINE_SIZE << PCI_CACHELINE_SHIFT);
 	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG, data);
 
-
-
 	if (wx_attach_common(sc)) {
 		return;
 	}
+
 	printf("%s: Ethernet address %s\n",
 	    sc->wx_name, ether_sprintf(sc->wx_enaddr));
 
 	ifp = &sc->w.ethercom.ec_if;
 	bcopy(sc->wx_name, ifp->if_xname, IFNAMSIZ);
+	ifp->if_mtu = WX_MAXMTU;
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wx_ioctl;
@@ -607,6 +618,7 @@ wx_attach(device_t dev)
 	ifp = &sc->w.arpcom.ac_if;
 	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "wx";
+	ifp->if_mtu = WX_MAXMTU;
 	ifp->if_output = ether_output;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = (void (*)(void *))wx_init;
@@ -1675,7 +1687,7 @@ wx_init(xsc)
 	rxpkt_t *rxpkt;
 	wxrd_t *rd;
 	size_t len;
-	int s, i;
+	int s, i, bflags;
 
 	s = splimp();
 
@@ -1752,17 +1764,15 @@ wx_init(xsc)
 	WRITE_CSR(sc, WXREG_RDLEN1, 0);
 	WRITE_CSR(sc, WXREG_RDH1, 0);
 	WRITE_CSR(sc, WXREG_RDT1, 0);
-#if	0
-	WRITE_CSR(sc, WXREG_RCTL, WXRCTL_EN | WXRCTL_LPE | WXRCTL_512BRBUF |
-	    ((ifp->if_flags & IFF_BROADCAST) ? WXRCTL_BAM : 0) |
-	    ((ifp->if_flags & IFF_PROMISC) ? WXRCTL_UPE : 0) |
-	    ((sc->all_mcasts) ? WXRCTL_MPE : 0));
-	WRITE_CSR(sc, WXREG_RCTL, WXRCTL_EN | WXRCTL_LPE | WXRCTL_2KRBUF |
-	    ((ifp->if_flags & IFF_BROADCAST) ? WXRCTL_BAM : 0) |
-	    ((ifp->if_flags & IFF_PROMISC) ? WXRCTL_UPE : 0) |
-	    ((sc->all_mcasts) ? WXRCTL_MPE : 0));
-#endif
-	WRITE_CSR(sc, WXREG_RCTL, WXRCTL_EN | WXRCTL_2KRBUF |
+
+	if (ifp->if_mtu > ETHERMTU) {
+		printf("%s: enabling for jumbo packets\n", sc->wx_name);
+		bflags = WXRCTL_EN | WXRCTL_LPE | WXRCTL_2KRBUF;
+	} else {
+		bflags = WXRCTL_EN | WXRCTL_2KRBUF;
+	}
+
+	WRITE_CSR(sc, WXREG_RCTL, bflags |
 	    ((ifp->if_flags & IFF_BROADCAST) ? WXRCTL_BAM : 0) |
 	    ((ifp->if_flags & IFF_PROMISC) ? WXRCTL_UPE : 0) |
 	    ((sc->all_mcasts) ? WXRCTL_MPE : 0));
@@ -1853,12 +1863,20 @@ wx_ioctl(ifp, command, data)
 	case SIOCSIFADDR:
 #if !defined(__NetBSD__)
 	case SIOCGIFADDR:
-#ifdef	SIOCSIFMTU
-	case SIOCSIFMTU:
-#endif
 #endif
 		error = ether_ioctl(ifp, command, data);
 		break;
+
+#ifdef	SIOCGIFMTU
+	case SIOCSIFMTU:
+		if (ifr->ifr_mtu > WX_MAXMTU || ifr->ifr_mtu < ETHERMIN) {
+			error = EINVAL;
+                } else if (ifp->if_mtu != ifr->ifr_mtu) {
+			ifp->if_mtu = ifr->ifr_mtu;
+			error = wx_init(sc);
+                }
+                break;
+#endif
 
 	case SIOCSIFFLAGS:
 		sc->all_mcasts = (ifp->if_flags & IFF_ALLMULTI) ? 1 : 0;
