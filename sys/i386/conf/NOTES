@@ -726,10 +726,10 @@ options 	_KPOSIX_VERSION=199309L
 
 # The syntax for wiring down devices is:
 
-# controller	scbus0 at ahc0		# Single bus device
-# controller	scbus1 at ahc1 bus 0	# Single bus device
-# controller	scbus3 at ahc2 bus 0	# Twin bus device
-# controller	scbus2 at ahc2 bus 1	# Twin bus device
+# device	scbus0 at ahc0		# Single bus device
+# device	scbus1 at ahc1 bus 0	# Single bus device
+# device	scbus3 at ahc2 bus 0	# Twin bus device
+# device	scbus2 at ahc2 bus 1	# Twin bus device
 # device 	da0 at scbus0 target 0 unit 0
 # device	da1 at scbus3 target 1
 # device	da2 at scbus2 target 3
@@ -744,7 +744,7 @@ options 	_KPOSIX_VERSION=199309L
 # The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
 # configuration and doesn't have to be explicitly configured.
 
-controller	scbus0			#base SCSI code
+device		scbus0			#base SCSI code
 device		ch0			#SCSI media changers
 device		da0			#SCSI direct access devices (aka disks)
 device		sa0			#SCSI tapes
@@ -861,7 +861,7 @@ options 	MSGBUF_SIZE=40960
 #
 # Mandatory ISA devices: isa, npx
 #
-controller	isa0
+device		isa0
 
 #
 # Options for `isa':
@@ -913,7 +913,7 @@ options 	PPS_SYNC
 options 	NTIMECOUNTER=20
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
-controller	atkbdc0	at isa? port IO_KBD
+device		atkbdc0	at isa? port IO_KBD
 
 # The AT keyboard
 device		atkbd0	at atkbdc? irq 1
@@ -1057,11 +1057,11 @@ device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 # probed correctly.
 #
 
-controller	bt0	at isa? port IO_BT0 irq ?
-controller	adv0	at isa? port ? irq ?
-controller	adw0
-controller	aha0	at isa? port ? irq ?
-controller	aic0	at isa? port ? irq ?
+device		bt0	at isa? port IO_BT0 irq ?
+device		adv0	at isa? port ? irq ?
+device		adw0
+device		aha0	at isa? port ? irq ?
+device		aic0	at isa? port ? irq ?
 
 #
 # Compaq Smart RAID controller.  This driver also uses the major number
@@ -1069,22 +1069,22 @@ controller	aic0	at isa? port ? irq ?
 # Only one line of each is needed, the code finds all available controllers
 # and devices.
 #
-controller	ida0
+device		ida0
 device		id0
 
 #
 # Mylex DAC960, AMI MegaRAID controllers.  Only one entry is needed; the code
 # will find and configure all supported controllers.
 #
-controller	mlx0		# Mylex DAC960
-controller	amr0		# AMI MegaRAID
+device		mlx0		# Mylex DAC960
+device		amr0		# AMI MegaRAID
 
 #
 # The 'ATA' driver supports all ATA and ATAPI devices.
 # It can reuse the majors of wd.c for booting purposes.
 # You only need one "controller ata0" for it to find all
 # PCI ATA/ATAPI devices on modern machines.
-controller	ata0
+device		ata0
 device		atadisk0	# ATA disk drives
 device		atapicd0	# ATAPI CDROM drives
 device		atapifd0	# ATAPI floppy drives
@@ -1106,8 +1106,8 @@ options 	ATA_ENABLE_ATAPI_DMA
 
 #
 # For older non-PCI systems, this is the lines to use:
-#controller	ata0	at isa? port IO_WD1 irq 14
-#controller	ata1	at isa? port IO_WD2 irq 15
+#device		ata0	at isa? port IO_WD1 irq 14
+#device		ata1	at isa? port IO_WD2 irq 15
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
@@ -1131,7 +1131,7 @@ options 	ATA_ENABLE_ATAPI_DMA
 # specification with the low 16 bits for drive 0, and the high 16 bits
 # for drive 1.
 # e.g.:
-#controller	wdc0	at isa? port IO_WD1 irq 14 flags 0x00ff8004
+#device		wdc0	at isa? port IO_WD1 irq 14 flags 0x00ff8004
 #
 # specifies that drive 0 will be allowed to probe for 32 bit transfers and
 # a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
@@ -1142,11 +1142,11 @@ options 	ATA_ENABLE_ATAPI_DMA
 # mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
 # such as:
 #
-#controller	wdc2	at isa? port 0 irq ? flags 0xa0ffa0ff
+#device		wdc2	at isa? port 0 irq ? flags 0xa0ffa0ff
 #device		wd4	at wdc2 drive 0
 #device		wd5	at wdc2 drive 1
 #
-#controller	wdc3	at isa? port 0 irq ? flags 0xa0ffa0ff
+#device		wdc3	at isa? port 0 irq ? flags 0xa0ffa0ff
 #device		wd6	at wdc3 drive 0
 #device		wd7	at wdc3 drive 1
 #
@@ -1157,10 +1157,10 @@ options 	ATA_ENABLE_ATAPI_DMA
 # This driver must be commented out because it is mutually exclusive with
 # the ata(4) driver.
 #
-#controller	wdc0	at isa? port IO_WD1 irq 14
+#device		wdc0	at isa? port IO_WD1 irq 14
 #device		wd0	at wdc0 drive 0
 #device		wd1	at wdc0 drive 1
-#controller	wdc1	at isa? port IO_WD2 irq 15
+#device		wdc1	at isa? port IO_WD2 irq 15
 #device		wd2	at wdc1 drive 0
 #device		wd3	at wdc1 drive 1
 
@@ -1185,7 +1185,7 @@ options 	ATA_ENABLE_ATAPI_DMA
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
@@ -1195,7 +1195,7 @@ options 	FDC_DEBUG
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
 # for people with floppy disks only, so it's "hidden" behind a flag:
-#controller fdc0 at isa? port IO_FD1 flags 1 irq 6 drq 2
+#device fdc0 at isa? port IO_FD1 flags 1 irq 6 drq 2
 
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
@@ -1384,7 +1384,7 @@ options 	NATM			#native ATM
 # Controls all "VOXWARE" driver sound devices.  See Luigi's driver
 # below for an alternate which may work better for some cards.
 #
-controller	snd0
+device		snd0
 device pas0	at isa? port 0x388 irq 10 drq 6
 device sb0	at isa? port 0x220 irq 5 drq 1
 device sbxvi0	at isa? drq 5
@@ -1535,7 +1535,7 @@ device		mcd0	at isa? port 0x300 irq 10
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230
 # for the SoundBlaster 16 multicd - up to 4 devices
-controller	matcd0  at isa? port 0x230
+device		matcd0  at isa? port 0x230
 device		wt0	at isa? port 0x300 irq 5 drq 1
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
@@ -1575,7 +1575,7 @@ device		xrpu0
 #
 # The 'ep' device provides support for the 3Com 3C529 ethernet card.
 #
-controller mca0
+device		mca0
 
 #
 # EISA devices:
@@ -1590,9 +1590,9 @@ controller mca0
 #
 # fea: DEC DEFEA EISA FDDI adapter
 #
-controller	eisa0
-controller	ahb0
-controller	ahc0
+device		eisa0
+device		ahb0
+device		ahc0
 device		fea0
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
@@ -1621,7 +1621,7 @@ options 	EISA_SLOTS=12
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
 # individual driver.
-controller	miibus0
+device		miibus0
 
 #
 # PCI devices & PCI options:
@@ -1785,12 +1785,12 @@ controller	miibus0
 # The oltr driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
-controller	pci0
-controller	ahc1
-controller	amd0
-controller	ncr0
-controller	sym0
-controller	isp0
+device		pci0
+device		ahc1
+device		amd0
+device		ncr0
+device		sym0
+device		isp0
 #
 # Options for ISP
 #
@@ -1891,9 +1891,9 @@ device		bktr0
 #
 # card: pccard slots
 # pcic: isa/pccard bridge
-controller	pcic0 at isa?
-controller	pcic1 at isa?
-controller	card0
+device		pcic0 at isa?
+device		pcic1 at isa?
+device		card0
 
 # You may need to reset all pccards after resuming
 options 	PCIC_RESUME_RESET	# reset after resume
@@ -1924,9 +1924,9 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # intpm	Intel PIIX4 Power Management Unit
 # alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
 #
-controller	smbus0
-controller	intpm0
-controller	alpm0
+device		smbus0
+device		intpm0
+device		alpm0
 
 device		smb0	at smbus?
 
@@ -1947,14 +1947,14 @@ device		smb0	at smbus?
 # Other:
 # iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
-controller	iicbus0
-controller	iicbb0
+device		iicbus0
+device		iicbb0
 
 device		ic0	at iicbus?
 device		iic0	at iicbus?
 device		iicsmb0	at iicbus?
 
-controller	pcf0	at isa? port 0x320 irq 5
+device		pcf0	at isa? port 0x320 irq 5
 
 # ISDN4BSD section
 #
@@ -2129,8 +2129,8 @@ options 	LPT_DEBUG	# Printer driver debug
 options 	PPC_DEBUG	# Parallel chipset level debug
 options 	PLIP_DEBUG	# Parallel network IP interface debug
 
-controller	ppbus0
-controller	vpo0	at ppbus?
+device		ppbus0
+device		vpo0	at ppbus?
 device		lpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
@@ -2321,7 +2321,7 @@ options 	VM_KMEM_SIZE_SCALE
 #                           instead of fudging it.  Only enable this if you
 #			    are 100% certain you need it.
 
-controller	dpt0
+device		dpt0
 
 # DPT options
 #!CAM# options 	DPT_MEASURE_PERFORMANCE
@@ -2333,11 +2333,11 @@ options 	DPT_ALLOW_MEMIO
 
 # USB support
 # UHCI controller
-controller	uhci0
+device		uhci0
 # OHCI controller
-controller	ohci0
+device		ohci0
 # General USB code (mandatory for USB)
-controller	usb0
+device		usb0
 #
 # Generic USB device driver
 device		ugen0
@@ -2348,7 +2348,7 @@ device		ukbd0
 # USB printer
 device		ulpt0
 # USB Iomega Zip 100 Drive
-controller	umass0
+device		umass0
 # USB mouse
 device		ums0
 #
