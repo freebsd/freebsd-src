@@ -46,9 +46,11 @@ int
 pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
+	int		f_gc = 0;
 	int             i;
 	int             ret = 0;
 	int             status;
+	pthread_t       gc_thread;
 	pthread_t       new_thread;
 	pthread_attr_t	pattr;
 	void           *stack;
@@ -185,6 +187,12 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Lock the thread list: */
 			_lock_thread_list();
 
+			/*
+			 * Check if the garbage collector thread
+			 * needs to be started.
+			 */
+			f_gc = (_thread_link_list == _thread_initial);
+
 			/* Add the thread to the linked list of all threads: */
 			new_thread->nxt = _thread_link_list;
 			_thread_link_list = new_thread;
@@ -197,6 +205,14 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* Schedule the new user thread: */
 			_thread_kern_sched(NULL);
+
+			/*
+			 * Start a garbage collector thread
+			 * if necessary.
+			 */
+			if (f_gc && pthread_create(&gc_thread,NULL,
+				    _thread_gc,NULL) != 0)
+				PANIC("Can't create gc thread");
 		}
 	}
 

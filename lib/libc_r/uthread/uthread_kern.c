@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.11 1998/04/30 21:50:29 jb Exp $
+ * $Id: uthread_kern.c,v 1.12 1998/09/07 21:55:01 alex Exp $
  *
  */
 #include <errno.h>
@@ -62,8 +62,6 @@ _thread_kern_sched(struct sigcontext * scp)
 	int             prio = -1;
 	pthread_t       pthread;
 	pthread_t       pthread_h = NULL;
-	pthread_t       pthread_nxt = NULL;
-	pthread_t       pthread_prv = NULL;
 	pthread_t       pthread_s = NULL;
 	struct itimerval itimer;
 	struct timespec ts;
@@ -113,85 +111,9 @@ __asm__("fnsave %0": :"m"(*fdata));
 		 */
 		_dispatch_signals();
 		return;
-	} else {
+	} else
 		/* Flag the jump buffer was the last state saved: */
 		_thread_run->sig_saved = 0;
-	}
-
-	/* Point to the first dead thread (if there are any): */
-	pthread = _thread_dead;
-
-	/* There is no previous dead thread: */
-	pthread_prv = NULL;
-
-	/* Enter a loop to cleanup after dead threads: */
-	while (pthread != NULL) {
-		/* Save a pointer to the next thread: */
-		pthread_nxt = pthread->nxt;
-
-		/* Check if this thread is one which is running: */
-		if (pthread == _thread_run || pthread == _thread_initial) {
-			/*
-			 * Don't destroy the running thread or the initial
-			 * thread. 
-			 */
-			pthread_prv = pthread;
-		}
-		/*
-		 * Check if this thread has detached:
-		 */
-		else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
-			/* Check if there is no previous dead thread: */
-			if (pthread_prv == NULL) {
-				/*
-				 * The dead thread is at the head of the
-				 * list: 
-				 */
-				_thread_dead = pthread_nxt;
-			} else {
-				/*
-				 * The dead thread is not at the head of the
-				 * list: 
-				 */
-				pthread_prv->nxt = pthread->nxt;
-			}
-
-			/*
-			 * Check if the stack was not specified by the caller
-			 * to pthread_create and has not been destroyed yet: 
-			 */
-			if (pthread->attr.stackaddr_attr == NULL && pthread->stack != NULL) {
-				/* Free the stack of the dead thread: */
-				free(pthread->stack);
-			}
-			/* Free the memory allocated to the thread structure: */
-			free(pthread);
-		} else {
-			/*
-			 * This thread has not detached, so do not destroy
-			 * it: 
-			 */
-			pthread_prv = pthread;
-
-			/*
-			 * Check if the stack was not specified by the caller
-			 * to pthread_create and has not been destroyed yet: 
-			 */
-			if (pthread->attr.stackaddr_attr == NULL && pthread->stack != NULL) {
-				/* Free the stack of the dead thread: */
-				free(pthread->stack);
-
-				/*
-				 * NULL the stack pointer now that the memory
-				 * has been freed: 
-				 */
-				pthread->stack = NULL;
-			}
-		}
-
-		/* Point to the next thread: */
-		pthread = pthread_nxt;
-	}
 
 	/*
 	 * Enter a the scheduling loop that finds the next thread that is
