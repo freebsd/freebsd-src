@@ -1,16 +1,12 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.9 1998/09/22 15:40:00 abial Exp $
+#	$Id: build,v 1.10 1998/09/23 14:54:46 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
-
-
-# Set this if your crunchgen and kzip don't support ELF.
-#OBJFORMAT=aout; export OBJFORMAT
 
 # Default MFS sizes for different types of the floppy. Again, most people
 # shouldn't change them unless they know what they are doing.
