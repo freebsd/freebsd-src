@@ -1,20 +1,18 @@
 /*
- *
- * servconf.h
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Mon Aug 21 15:35:03 1995 ylo
- *
  * Definitions for server configuration data and for the functions reading it.
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$Id: servconf.h,v 1.22 2000/05/06 17:45:37 markus Exp $"); */
+/* RCSID("$OpenBSD: servconf.h,v 1.28 2000/09/07 20:27:53 deraadt Exp $"); */
+/* $FreeBSD$ */
 
 #ifndef SERVCONF_H
 #define SERVCONF_H
@@ -25,6 +23,7 @@
 #define MAX_DENY_USERS		256	/* Max # users on deny list. */
 #define MAX_ALLOW_GROUPS	256	/* Max # groups on allow list. */
 #define MAX_DENY_GROUPS		256	/* Max # groups on deny list. */
+#define MAX_SUBSYSTEMS		256	/* Max # subsystems. */
 
 typedef struct {
 	unsigned int num_ports;
@@ -48,6 +47,7 @@ typedef struct {
 	int     x11_forwarding;	/* If true, permit inet (spoofing) X11 fwd. */
 	int     x11_display_offset;	/* What DISPLAY number to start
 					 * searching at */
+	char   *xauth_location;	/* Location of xauth program */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     keepalives;	/* If true, set SO_KEEPALIVE. */
 	char   *ciphers;	/* Ciphers in order of preference. */
@@ -105,6 +105,15 @@ typedef struct {
 						 * connections_period.
 						 */
 	unsigned int connections_period;
+
+	unsigned int num_subsystems;
+	char   *subsystem_name[MAX_SUBSYSTEMS];
+	char   *subsystem_command[MAX_SUBSYSTEMS];
+
+	int	max_startups_begin;
+	int	max_startups_rate;
+	int	max_startups;
+
 }       ServerOptions;
 /*
  * Initializes the server options to special values that indicate that they

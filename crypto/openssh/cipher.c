@@ -1,19 +1,42 @@
 /*
- *
- * cipher.c
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  *
- * Created: Wed Apr 19 17:41:39 1995 ylo
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  *
- * $FreeBSD$
+ *
+ * Copyright (c) 1999 Niels Provos.  All rights reserved.
+ * Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "includes.h"
-RCSID("$Id: cipher.c,v 1.27 2000/05/22 18:42:00 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.30 2000/09/07 20:27:50 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "cipher.h"
@@ -175,14 +198,15 @@ cipher_name(int cipher)
 int
 ciphers_valid(const char *names)
 {
-	char *ciphers;
+	char *ciphers, *cp;
 	char *p;
 	int i;
 
 	if (names == NULL || strcmp(names, "") == 0)
 		return 0;
-	ciphers = xstrdup(names);
-	for ((p = strtok(ciphers, CIPHER_SEP)); p; (p = strtok(NULL, CIPHER_SEP))) {
+	ciphers = cp = xstrdup(names);
+	for ((p = strsep(&cp, CIPHER_SEP)); p && *p != '\0'; 
+	     (p = strsep(&cp, CIPHER_SEP))) {
 		i = cipher_number(p);
 		if (i == -1 || !(cipher_mask2() & (1 << i))) {
 			xfree(ciphers);

@@ -1,7 +1,30 @@
-/* $FreeBSD$ */
+/*
+ * Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "includes.h"
-RCSID("$Id: auth-skey.c,v 1.6 2000/04/14 10:30:29 markus Exp $");
+RCSID("$OpenBSD: auth-skey.c,v 1.8 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 #include "ssh.h"
@@ -112,7 +135,7 @@ skey_fake_keyinfo(char *username)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_BOOTTIME;
 		size = sizeof(boottime);
-		bzero(&boottime, sizeof(boottime));
+		bzero(&boottime, size);
 		if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 			boottime.tv_sec != 0) {
 			secret = (char *)&boottime;
