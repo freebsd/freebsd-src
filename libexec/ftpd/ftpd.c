@@ -1678,8 +1678,8 @@ retrieve(cmd, name)
 	time(&start);
 	send_data(fin, dout, st.st_blksize, st.st_size,
 		  restart_point == 0 && cmd == 0 && S_ISREG(st.st_mode));
-	if (cmd == 0 && guest && stats)
-		logxfer(name, st.st_size, start);
+	if (cmd == 0 && guest && stats && byte_count > 0)
+		logxfer(name, byte_count, start);
 	(void) fclose(dout);
 	data = -1;
 	pdata = -1;
@@ -3184,15 +3184,19 @@ logxfer(name, size, start)
 	off_t size;
 	time_t start;
 {
-	char buf[1024];
+	char buf[MAXPATHLEN + 1024];
 	char path[MAXPATHLEN + 1];
 	time_t now;
 
-	if (statfd >= 0 && getwd(path) != NULL) {
+	if (statfd >= 0) {
 		time(&now);
-		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%qd!%ld\n",
+		if (realpath(name, path) == NULL) {
+			syslog(LOG_NOTICE, "realpath failed on %s: %m", path);
+			return;
+		}
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s!%qd!%ld\n",
 			ctime(&now)+4, ident, remotehost,
-			path, name, (long long)size,
+			path, (long long)size,
 			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
