@@ -34,4 +34,4 @@ SYSCALL(fork)
 	;;
 (p7)	mov	ret0=r0
 	br.ret.sptk.few rp
-END(fork)
+END(__sys_fork)
