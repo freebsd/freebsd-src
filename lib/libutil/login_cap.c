@@ -94,7 +94,7 @@ allocarray(size_t sz)
 
 /*
  * arrayize()
- * Turn a simple string <str> seperated by any of
+ * Turn a simple string <str> separated by any of
  * the set of <chars> into an array.  The last element
  * of the array will be NULL, as is proper.
  * Free using freearraystr()
@@ -779,7 +779,7 @@ login_getstyle(login_cap_t *lc, char *style, const char *auth)
 	authtypes = defauthtypes;
 
     /*
-     * We have at least one authtype now; auths is a comma-seperated
+     * We have at least one authtype now; auths is a comma-separated
      * (or space-separated) list of authentication types.  We have to
      * convert from this to an array of char*'s; authtypes then gets this.
      */
