@@ -180,7 +180,7 @@ struct	inp_tp {
 void
 tcp_init()
 {
-	int hashsize;
+	int hashsize = TCBHASHSIZE;
 	
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
@@ -194,7 +194,7 @@ tcp_init()
 
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
-	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", TCBHASHSIZE, hashsize);
+	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */

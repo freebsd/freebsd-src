@@ -424,7 +424,6 @@ kmeminit(dummy)
 	register long indx;
 	u_long npg;
 	u_long mem_size;
-	u_long xvm_kmem_size;
 
 #if	((MAXALLOCSAVE & (MAXALLOCSAVE - 1)) != 0)
 #error "kmeminit: MAXALLOCSAVE not power of 2"
@@ -450,21 +449,21 @@ kmeminit(dummy)
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
 	 */
-	xvm_kmem_size = VM_KMEM_SIZE;
+	vm_kmem_size = VM_KMEM_SIZE;
 	mem_size = cnt.v_page_count * PAGE_SIZE;
 
 #if defined(VM_KMEM_SIZE_SCALE)
-	if ((mem_size / VM_KMEM_SIZE_SCALE) > xvm_kmem_size)
-		xvm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
+	if ((mem_size / VM_KMEM_SIZE_SCALE) > vm_kmem_size)
+		vm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
 #endif
 
 #if defined(VM_KMEM_SIZE_MAX)
-	if (xvm_kmem_size >= VM_KMEM_SIZE_MAX)
-		xvm_kmem_size = VM_KMEM_SIZE_MAX;
+	if (vm_kmem_size >= VM_KMEM_SIZE_MAX)
+		vm_kmem_size = VM_KMEM_SIZE_MAX;
 #endif
 
 	/* Allow final override from the kernel environment */
-	TUNABLE_INT_FETCH("kern.vm.kmem.size", xvm_kmem_size, vm_kmem_size);
+	TUNABLE_INT_FETCH("kern.vm.kmem.size", &vm_kmem_size);
 
 	/*
 	 * Limit kmem virtual size to twice the physical memory.

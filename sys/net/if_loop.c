@@ -101,7 +101,7 @@ int looutput __P((struct ifnet *ifp,
 #define LOMTU	16384
 #endif
 
-static int nloop;
+static int nloop = 1;
 
 struct ifnet *loif;			/* Used externally */
 
@@ -179,7 +179,7 @@ loop_modevent(module_t mod, int type, void *data)
 
 	switch (type) { 
 	case MOD_LOAD: 
-		TUNABLE_INT_FETCH("net.nloop", 1, nloop);
+		TUNABLE_INT_FETCH("net.nloop", &nloop);
 		if (nloop < 1)			/* sanity check */
 			nloop = 1;
 		for (i = 0; i < nloop; i++)
