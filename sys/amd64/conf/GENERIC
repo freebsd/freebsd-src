@@ -44,7 +44,7 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_GPT		# GUID Partition Tables.
-options 	IA32			# Compatible with i386 binaries
+options 	COMPAT_IA32		# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	SCSI_DELAY=15000	# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support

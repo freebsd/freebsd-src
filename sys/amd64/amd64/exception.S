@@ -31,7 +31,7 @@
  */
 
 #include "opt_atpic.h"
-#include "opt_ia32.h"
+#include "opt_compat.h"
 
 #include <machine/asmacros.h>
 #include <machine/psl.h>
@@ -307,7 +307,7 @@ ENTRY(fork_trampoline)
  * included.
  */
 
-#ifdef IA32
+#ifdef COMPAT_IA32
 	.data
 	.p2align 4
 	.text
