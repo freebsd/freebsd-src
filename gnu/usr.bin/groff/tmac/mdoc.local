@@ -26,6 +26,9 @@
 .\"
 .\"     %beginstrip%
 .
+.eo
+.
+.
 .\" FreeBSD section names
 .ds doc-volume-ds-1 FreeBSD General Commands Manual
 .ds doc-volume-ds-2 FreeBSD System Calls Manual
@@ -62,6 +65,13 @@
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-4.4    4.4
 .ds doc-operating-system-FreeBSD-4.5    4.5
+.
+.\" Standards not found in doc-syms
+.ds doc-str-St--p1003.1-2001   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2001
+.as doc-str-St--p1003.1-2001   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.
+.
+.ec
 .
 .\" Locale support
 .if d doc-lang \{\
