@@ -12,6 +12,8 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
+.\" $FreeBSD$
+.\"
 .Dd Jan 5, 1991
 .Dt MAN 1
 .Os
@@ -92,6 +94,25 @@ name is determined by the
 or
 .Ev LC_CTYPE
 environment variables.
+Localized directory name builded
+using following rule: directory name
+merged with
+.Ev LC_CTYPE
+or
+.Ev LANG
+environment variable value.
+If
+.Ev LC_CTYPE
+has no value, then
+.Ev LANG
+variable value will be used. If both
+these variables have no value, then no actions will be performed.
+.Nm
+can handle long and short notations of localized directory names. Long notation
+means that directory has name "path/<lang>_<country>.<charset>", for
+example ".../man/ru_RU.KOI8-R". Short notation "path/<lang>.<charset>", for
+example ".../man/ru.KOI8-R". Short notation have priority over
+long one.
 .It Fl p Ar string
 Specify the sequence of preprocessors to run before nroff or troff.
 Not all installations will have a full set of preprocessors.
