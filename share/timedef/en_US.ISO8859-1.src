@@ -59,7 +59,7 @@ Saturday
 #
 # x_fmt
 #
-%m/%d/%y
+%m/%d/%Y
 #
 # c_fmt
 #
@@ -92,10 +92,11 @@ October
 November
 December
 #
-# Ef_fmt
+# md_order
 #
-%b %e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B %e
+%I:%M:%S %p
+# EOF

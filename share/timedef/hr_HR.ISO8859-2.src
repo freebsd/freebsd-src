@@ -34,14 +34,14 @@ Studeni
 Prosinac
 #
 # Short weekdays names
-# (padded with a space to conform with other languages)
-Ne 
-Po 
-Ut 
-Sr 
-Èe 
-Pe 
-Su 
+#
+Ne
+Po
+Ut
+Sr
+Èe
+Pe
+Su
 #
 # Long weekdays names
 #
@@ -59,7 +59,7 @@ Subota
 #
 # x_fmt
 #
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
 #
@@ -92,10 +92,11 @@ Listopad
 Studeni
 Prosinac
 #
-# Ef_fmt
+# md_order
 #
-%e %b
+dm
 #
-# EF_fmt
+# ampm_fmt
 #
-%e %B
+%I:%M:%S %p
+# EOF

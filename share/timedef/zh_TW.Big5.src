@@ -4,19 +4,18 @@
 # WARNING: empty lines are essential too
 #
 # Short month names
-# It should be 3 characters. Add a space char at the beginning of every line.
-  1
-  2
-  3
-  4
-  5
-  6
-  7
-  8
-  9
- 10
- 11
- 12
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
 #
 # Long month names
 #
@@ -34,14 +33,14 @@
 12月
 #
 # Short weekday names
-# 3 char too, add a space char at the ending of every line.
-日 
-一 
-二 
-三 
-四 
-五 
-六 
+#
+日
+一
+二
+三
+四
+五
+六
 #
 # Long weekday names
 #
@@ -59,7 +58,7 @@
 #
 # x_fmt
 #
-%y/%m/%d
+%Y/%m/%d
 #
 # c_fmt
 #
@@ -92,10 +91,11 @@
 11月
 12月
 #
-# Ef_fmt
+# md_order
 #
-%b/%e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B%e日
+%I:%M:%S %p
+# EOF
