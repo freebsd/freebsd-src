@@ -60,12 +60,12 @@
 #include <machine/sysarch.h>
 #include <machine/segments.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
-#include <i386/linux/linux_mib.h>
-
 #include <posix4/sched.h>
+
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_util.h>
 
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
@@ -419,38 +419,6 @@ cleanup:
     return error;
 }
 
-/* XXX move */
-struct linux_select_argv {
-	int nfds;
-	fd_set *readfds;
-	fd_set *writefds;
-	fd_set *exceptfds;
-	struct timeval *timeout;
-};
-
-int
-linux_select(struct proc *p, struct linux_select_args *args)
-{
-    struct linux_select_argv linux_args;
-    struct linux_newselect_args newsel;
-    int error;
-
-#ifdef SELECT_DEBUG
-    printf("Linux-emul(%ld): select(%x)\n", (long)p->p_pid, args->ptr);
-#endif
-    if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
-			sizeof(linux_args))))
-	return error;
-
-    newsel.nfds = linux_args.nfds;
-    newsel.readfds = linux_args.readfds;
-    newsel.writefds = linux_args.writefds;
-    newsel.exceptfds = linux_args.exceptfds;
-    newsel.timeout = linux_args.timeout;
-
-    return linux_newselect(p, &newsel);
-}
-
 int
 linux_newselect(struct proc *p, struct linux_newselect_args *args)
 {
@@ -568,208 +536,6 @@ linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
     return 0;
 }
 
-int
-linux_fork(struct proc *p, struct linux_fork_args *args)
-{
-    int error;
-
-#ifdef DEBUG
-    printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
-#endif
-    if ((error = fork(p, (struct fork_args *)args)) != 0)
-	return error;
-    if (p->p_retval[1] == 1)
-	p->p_retval[0] = 0;
-    return 0;
-}
-
-int
-linux_vfork(struct proc *p, struct linux_vfork_args *args)
-{
-	int error;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
-#endif
-
-	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
-		return error;
-	/* Are we the child? */
-	if (p->p_retval[1] == 1)
-		p->p_retval[0] = 0;
-	return 0;
-}
-
-#define CLONE_VM	0x100
-#define CLONE_FS	0x200
-#define CLONE_FILES	0x400
-#define CLONE_SIGHAND	0x800
-#define CLONE_PID	0x1000
-
-int
-linux_clone(struct proc *p, struct linux_clone_args *args)
-{
-    int error, ff = RFPROC;
-    struct proc *p2;
-    int            exit_signal;
-    vm_offset_t    start;
-    struct rfork_args rf_args;
-
-#ifdef DEBUG
-    if (args->flags & CLONE_PID)
-	printf("linux_clone(%ld): CLONE_PID not yet supported\n",
-	       (long)p->p_pid);
-    printf("linux_clone(%ld): invoked with flags %x and stack %x\n",
-	   (long)p->p_pid, (unsigned int)args->flags,
-	   (unsigned int)args->stack);
-#endif
-
-    if (!args->stack)
-        return (EINVAL);
-
-    exit_signal = args->flags & 0x000000ff;
-    if (exit_signal >= LINUX_NSIG)
-	return EINVAL;
-
-    if (exit_signal <= LINUX_SIGTBLSZ)
-	exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
-
-    /* RFTHREAD probably not necessary here, but it shouldn't hurt either */
-    ff |= RFTHREAD;
-
-    if (args->flags & CLONE_VM)
-	ff |= RFMEM;
-    if (args->flags & CLONE_SIGHAND)
-	ff |= RFSIGSHARE;
-    if (!(args->flags & CLONE_FILES))
-	ff |= RFFDG;
-
-    error = 0;
-    start = 0;
-
-    rf_args.flags = ff;
-    if ((error = rfork(p, &rf_args)) != 0)
-	return error;
-
-    p2 = pfind(p->p_retval[0]);
-    if (p2 == 0)
- 	return ESRCH;
-
-    p2->p_sigparent = exit_signal;
-    p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
-
-#ifdef DEBUG
-    printf ("linux_clone(%ld): successful rfork to %ld\n",
-	    (long)p->p_pid, (long)p2->p_pid);
-#endif
-    return 0;
-}
-
-/* XXX move */
-struct linux_mmap_argv {
-	linux_caddr_t addr;
-	int len;
-	int prot;
-	int flags;
-	int fd;
-	int pos;
-};
-
-#define STACK_SIZE  (2 * 1024 * 1024)
-#define GUARD_SIZE  (4 * PAGE_SIZE)
-int
-linux_mmap(struct proc *p, struct linux_mmap_args *args)
-{
-    struct mmap_args /* {
-	caddr_t addr;
-	size_t len;
-	int prot;
-	int flags;
-	int fd;
-	long pad;
-	off_t pos;
-    } */ bsd_args;
-    int error;
-    struct linux_mmap_argv linux_args;
-
-    if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
-			sizeof(linux_args))))
-	return error;
-#ifdef DEBUG
-    printf("Linux-emul(%ld): mmap(%p, %d, %d, 0x%08x, %d, %d)",
-	(long)p->p_pid, (void *)linux_args.addr, linux_args.len,
-	linux_args.prot, linux_args.flags, linux_args.fd, linux_args.pos);
-#endif
-    bsd_args.flags = 0;
-    if (linux_args.flags & LINUX_MAP_SHARED)
-	bsd_args.flags |= MAP_SHARED;
-    if (linux_args.flags & LINUX_MAP_PRIVATE)
-	bsd_args.flags |= MAP_PRIVATE;
-    if (linux_args.flags & LINUX_MAP_FIXED)
-	bsd_args.flags |= MAP_FIXED;
-    if (linux_args.flags & LINUX_MAP_ANON)
-	bsd_args.flags |= MAP_ANON;
-    if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
-	bsd_args.flags |= MAP_STACK;      
-
-	/* The linux MAP_GROWSDOWN option does not limit auto
-	 * growth of the region.  Linux mmap with this option
-	 * takes as addr the inital BOS, and as len, the initial
-	 * region size.  It can then grow down from addr without
-	 * limit.  However, linux threads has an implicit internal
-	 * limit to stack size of STACK_SIZE.  Its just not
-	 * enforced explicitly in linux.  But, here we impose
-	 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
-	 * region, since we can do this with our mmap.
-	 *
-	 * Our mmap with MAP_STACK takes addr as the maximum
-	 * downsize limit on BOS, and as len the max size of
-	 * the region.  It them maps the top SGROWSIZ bytes,
-	 * and autgrows the region down, up to the limit
-	 * in addr.
-	 *
-	 * If we don't use the MAP_STACK option, the effect
-	 * of this code is to allocate a stack region of a
-	 * fixed size of (STACK_SIZE - GUARD_SIZE).
-	 */
-
-	/* This gives us TOS */
-	bsd_args.addr = linux_args.addr + linux_args.len;
-
-	/* This gives us our maximum stack size */
-	if (linux_args.len > STACK_SIZE - GUARD_SIZE)
-	    bsd_args.len = linux_args.len;
-	else
-	    bsd_args.len  = STACK_SIZE - GUARD_SIZE;
-
-	/* This gives us a new BOS.  If we're using VM_STACK, then
-	 * mmap will just map the top SGROWSIZ bytes, and let
-	 * the stack grow down to the limit at BOS.  If we're
-	 * not using VM_STACK we map the full stack, since we
-	 * don't have a way to autogrow it.
-	 */
-	bsd_args.addr -= bsd_args.len;
-
-    } else {
-	bsd_args.addr = linux_args.addr;
-	bsd_args.len  = linux_args.len;
-    }
-
-    bsd_args.prot = linux_args.prot | PROT_READ;	/* always required */
-    if (linux_args.flags & LINUX_MAP_ANON)
-	bsd_args.fd = -1;
-    else
-	bsd_args.fd = linux_args.fd;
-    bsd_args.pos = linux_args.pos;
-    bsd_args.pad = 0;
-#ifdef DEBUG
-    printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n",
-	(void *)bsd_args.addr, bsd_args.len,
-	bsd_args.prot, bsd_args.flags, bsd_args.fd, (int)bsd_args.pos);
-#endif
-    return mmap(p, &bsd_args);
-}
-
 int     
 linux_mremap(struct proc *p, struct linux_mremap_args *args)
 {
@@ -812,33 +578,6 @@ linux_msync(struct proc *p, struct linux_msync_args *args)
 	bsd_args.flags = 0;	/* XXX ignore */
 
 	return msync(p, &bsd_args);
-}
-
-int
-linux_pipe(struct proc *p, struct linux_pipe_args *args)
-{
-    int error;
-    int reg_edx;
-
-#ifdef DEBUG
-    printf("Linux-emul(%ld): pipe(*)\n", (long)p->p_pid);
-#endif
-    reg_edx = p->p_retval[1];
-    error = pipe(p, 0);
-    if (error) {
-	p->p_retval[1] = reg_edx;
-	return error;
-    }
-
-    error = copyout(p->p_retval, args->pipefds, 2*sizeof(int));
-    if (error) {
-	p->p_retval[1] = reg_edx;
-	return error;
-    }
-     
-    p->p_retval[1] = reg_edx;
-    p->p_retval[0] = 0;
-    return 0;
 }
 
 int
@@ -1144,39 +883,6 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 }
 
 int
-linux_ioperm(struct proc *p, struct linux_ioperm_args *args)
-{
-	struct sysarch_args sa;
-	struct i386_ioperm_args *iia;
-	caddr_t sg;
-
-	sg = stackgap_init();
-	iia = stackgap_alloc(&sg, sizeof(struct i386_ioperm_args));
-	iia->start = args->start;
-	iia->length = args->length;
-	iia->enable = args->enable;
-	sa.op = I386_SET_IOPERM;
-	sa.parms = (char *)iia;
-	return sysarch(p, &sa);
-}
-
-int
-linux_iopl(struct proc *p, struct linux_iopl_args *args)
-{
-	int error;
-
-	if (args->level < 0 || args->level > 3)
-		return (EINVAL);
-	if ((error = suser(p)) != 0)
-		return (error);
-	if (securelevel > 0)
-		return (EPERM);
-	p->p_md.md_regs->tf_eflags = (p->p_md.md_regs->tf_eflags & ~PSL_IOPL) |
-		(args->level * (PSL_IOPL / 3));
-	return (0);
-}
-
-int
 linux_nice(struct proc *p, struct linux_nice_args *args)
 {
 	struct setpriority_args	bsd_args;
@@ -1385,86 +1091,4 @@ linux_sched_getscheduler(p, uap)
 	}
 
 	return error;
-}
-
-struct linux_descriptor {
-	unsigned int  entry_number;
-	unsigned long base_addr;
-	unsigned int  limit;
-	unsigned int  seg_32bit:1;
-	unsigned int  contents:2;
-	unsigned int  read_exec_only:1;
-	unsigned int  limit_in_pages:1;
-	unsigned int  seg_not_present:1;
-	unsigned int  useable:1;
-};
-
-int
-linux_modify_ldt(p, uap)
-	struct proc *p;
-	struct linux_modify_ldt_args *uap;
-{
-	int error;
-	caddr_t sg;
-	struct sysarch_args args;
-	struct i386_ldt_args *ldt;
-	struct linux_descriptor ld;
-	union descriptor *desc;
-
-	sg = stackgap_init();
-
-	if (uap->ptr == NULL)
-		return (EINVAL);
-
-	switch (uap->func) {
-	case 0x00: /* read_ldt */
-		ldt = stackgap_alloc(&sg, sizeof(*ldt));
-		ldt->start = 0;
-		ldt->descs = uap->ptr;
-		ldt->num = uap->bytecount / sizeof(union descriptor);
-		args.op = I386_GET_LDT;
-		args.parms = (char*)ldt;
-		error = sysarch(p, &args);
-		p->p_retval[0] *= sizeof(union descriptor);
-		break;
-	case 0x01: /* write_ldt */
-	case 0x11: /* write_ldt */
-		if (uap->bytecount != sizeof(ld))
-			return (EINVAL);
-
-		error = copyin(uap->ptr, &ld, sizeof(ld));
-		if (error)
-			return (error);
-
-		ldt = stackgap_alloc(&sg, sizeof(*ldt));
-		desc = stackgap_alloc(&sg, sizeof(*desc));
-		ldt->start = ld.entry_number;
-		ldt->descs = desc;
-		ldt->num = 1;
-		desc->sd.sd_lolimit = (ld.limit & 0x0000ffff);
-		desc->sd.sd_hilimit = (ld.limit & 0x000f0000) >> 16;
-		desc->sd.sd_lobase = (ld.base_addr & 0x00ffffff);
-		desc->sd.sd_hibase = (ld.base_addr & 0xff000000) >> 24;
-		desc->sd.sd_type = SDT_MEMRO | ((ld.read_exec_only ^ 1) << 1) |
-			(ld.contents << 2);
-		desc->sd.sd_dpl = 3;
-		desc->sd.sd_p = (ld.seg_not_present ^ 1);
-		desc->sd.sd_xx = 0;
-		desc->sd.sd_def32 = ld.seg_32bit;
-		desc->sd.sd_gran = ld.limit_in_pages;
-		args.op = I386_SET_LDT;
-		args.parms = (char*)ldt;
-		error = sysarch(p, &args);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-
-	if (error == EOPNOTSUPP) {
-		printf("linux: modify_ldt needs kernel option USER_LDT\n");
-		error = ENOSYS;
-	}
-
-	return (error);
 }
