@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl/crypto
-CFLAGS+= -DTERMIOS -DANSI_SOURCE -DNO_IDEA -I${LCRYPTO_SRC} -I${.OBJDIR}
+CFLAGS+= -DTERMIOS -DANSI_SOURCE -I${LCRYPTO_SRC} -I${.OBJDIR}
+.if !defined(WITH_IDEA) || ${WITH_IDEA} != YES
+CFLAGS+= -DNO_IDEA
+.endif
 
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+= -DL_ENDIAN
