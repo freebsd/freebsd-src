@@ -59,26 +59,26 @@ struct	gettystrs gettystrs[] = {
 	{ "cl" },			/* screen clear characters */
 	{ "im" },			/* initial message */
 	{ "lm", loginmsg },		/* login message */
-	{ "er", &tmode.c_cc[VERASE] },	/* erase character */
-	{ "kl", &tmode.c_cc[VKILL] },	/* kill character */
-	{ "et", &tmode.c_cc[VEOF] },	/* eof chatacter (eot) */
+	{ "er", &omode.c_cc[VERASE] },	/* erase character */
+	{ "kl", &omode.c_cc[VKILL] },	/* kill character */
+	{ "et", &omode.c_cc[VEOF] },	/* eof chatacter (eot) */
 	{ "pc", nullstr },		/* pad character */
 	{ "tt" },			/* terminal type */
 	{ "ev" },			/* enviroment */
 	{ "lo", loginprg },		/* login program */
 	{ "hn", hostname },		/* host name */
 	{ "he" },			/* host name edit */
-	{ "in", &tmode.c_cc[VINTR] },	/* interrupt char */
-	{ "qu", &tmode.c_cc[VQUIT] },	/* quit char */
-	{ "xn", &tmode.c_cc[VSTART] },	/* XON (start) char */
-	{ "xf", &tmode.c_cc[VSTOP] },	/* XOFF (stop) char */
-	{ "bk", &tmode.c_cc[VEOL] },	/* brk char (alt \n) */
-	{ "su", &tmode.c_cc[VSUSP] },	/* suspend char */
-	{ "ds", &tmode.c_cc[VDSUSP] },	/* delayed suspend */
-	{ "rp", &tmode.c_cc[VREPRINT] },/* reprint char */
-	{ "fl", &tmode.c_cc[VDISCARD] },/* flush output */
-	{ "we", &tmode.c_cc[VWERASE] },	/* word erase */
-	{ "ln", &tmode.c_cc[VLNEXT] },	/* literal next */
+	{ "in", &omode.c_cc[VINTR] },	/* interrupt char */
+	{ "qu", &omode.c_cc[VQUIT] },	/* quit char */
+	{ "xn", &omode.c_cc[VSTART] },	/* XON (start) char */
+	{ "xf", &omode.c_cc[VSTOP] },	/* XOFF (stop) char */
+	{ "bk", &omode.c_cc[VEOL] },	/* brk char (alt \n) */
+	{ "su", &omode.c_cc[VSUSP] },	/* suspend char */
+	{ "ds", &omode.c_cc[VDSUSP] },	/* delayed suspend */
+	{ "rp", &omode.c_cc[VREPRINT] },/* reprint char */
+	{ "fl", &omode.c_cc[VDISCARD] },/* flush output */
+	{ "we", &omode.c_cc[VWERASE] },	/* word erase */
+	{ "ln", &omode.c_cc[VLNEXT] },	/* literal next */
 	{ "Lo" },			/* locale for strftime() */
 	{ "pp" },			/* ppp login program */
 	{ "if" },			/* sysv-like 'issue' filename */
