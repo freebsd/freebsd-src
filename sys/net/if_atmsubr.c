@@ -95,7 +95,7 @@ atm_output(ifp, m0, dst, rt0)
 	struct rtentry *rt0;
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
-	int s, error = 0, sz;
+	int error = 0, sz;
 	struct atm_pseudohdr atmdst, *ad;
 	struct mbuf *m = m0;
 	struct rtentry *rt;
