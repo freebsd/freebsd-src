@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.7 1997/06/26 19:35:59 jhay Exp $
+ * $Id: ipx_var.h,v 1.8 1997/08/16 19:15:46 wollman Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -75,6 +75,7 @@ extern union ipx_host ipx_broadhost;
 struct ifnet;
 struct ipx_addr;
 struct mbuf;
+struct proc;
 struct route;
 struct sockaddr;
 struct socket;
