@@ -159,6 +159,7 @@ sscstrategy(struct bio *bp)
 	unsigned sscop = 0;
 	struct disk_req req;
 	struct disk_stat stat;
+	u_long len, va, off;
 
 	if (ssc_debug > 1)
 		printf("sscstrategy(%p) %s %x, %d, %ld, %p)\n",
@@ -197,12 +198,27 @@ sscstrategy(struct bio *bp)
 			dop = DEVSTAT_WRITE;
 			sscop = SSC_WRITE;
 		}
-		req.len = bp->bio_bcount;
-		req.addr = (long) vtophys(bp->bio_data);
-		ssc(sc->fd, 1, ia64_tpa((long) &req),
-		    (bp->bio_pblkno << DEV_BSHIFT), sscop);
-		stat.fd = sc->fd;
-		ssc(ia64_tpa((long)&stat), 0, 0, 0, SSC_WAIT_COMPLETION);
+		va = (u_long) bp->bio_data;
+		len = bp->bio_bcount;
+		off = bp->bio_pblkno << DEV_BSHIFT;
+		while (len > 0) {
+			u_int t;
+			if ((va & PAGE_MASK) + len > PAGE_SIZE)
+				t = PAGE_SIZE - (va & PAGE_MASK);
+			else
+				t = len;
+			req.len = t;
+			req.addr = ia64_tpa(va);
+			printf("sscstrategy: reading %ld bytes from 0x%ld into 0x%lx\n",
+			       req.len, off, req.addr);
+			ssc(sc->fd, 1, ia64_tpa((long) &req), off, sscop);
+			stat.fd = sc->fd;
+			ssc(ia64_tpa((long)&stat), 0, 0, 0,
+			    SSC_WAIT_COMPLETION);
+			va += t;
+			len -= t;
+			off += t;
+		}
 		bp->bio_resid = 0;
 		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
