@@ -392,6 +392,8 @@ pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci
 pci/tek390.c		optional amd device-driver
 pci/wdc_p.c		optional wdc device-driver
+posix4/posix4_mib.c	optional posix4
+posix4/ksched.c	optional posix4
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/od.c		optional od
