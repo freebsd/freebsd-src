@@ -308,7 +308,7 @@ apecs_attach(device_t dev)
 }
 
 static void
-apecs_disable_intr(int vector)
+apecs_disable_intr(uintptr_t vector)
 {
 	int irq;
 
@@ -319,7 +319,7 @@ apecs_disable_intr(int vector)
 }
 
 static void
-apecs_enable_intr(int vector)
+apecs_enable_intr(uintptr_t vector)
 {
 	int irq;
 

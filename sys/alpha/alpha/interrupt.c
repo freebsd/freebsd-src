@@ -327,7 +327,7 @@ LIST_HEAD(alpha_intr_list, alpha_intr);
 
 struct alpha_intr {
     LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
-    int			vector;	/* vector to match */
+    uintptr_t		vector;	/* vector to match */
     struct ithd		*ithd;  /* interrupt thread */
     volatile long	*cntp;  /* interrupt counter */
 };
@@ -346,9 +346,9 @@ ithds_init(void *dummy)
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
 int
-alpha_setup_intr(const char *name, int vector, driver_intr_t handler, void *arg,
+alpha_setup_intr(const char *name, uintptr_t vector, driver_intr_t handler, void *arg,
 		 enum intr_type flags, void **cookiep, volatile long *cntp,
-    		 void (*disable)(int), void (*enable)(int))
+    		 void (*disable)(uintptr_t), void (*enable)(uintptr_t))
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;

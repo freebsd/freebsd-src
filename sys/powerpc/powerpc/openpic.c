@@ -85,8 +85,8 @@ static void		openpic_enable_irq(struct openpic_softc *, int, int);
 static void		openpic_disable_irq(struct openpic_softc *, int);
 static void		openpic_set_priority(struct openpic_softc *, int, int);
 static void		openpic_intr(void);
-static void		irq_enable(int);
-static void		irq_disable(int);
+static void		irq_enable(uintptr_t);
+static void		irq_disable(uintptr_t);
 
 /*
  * Driver methods.
@@ -476,14 +476,14 @@ start:
 }
 
 static void
-irq_enable(int irq)
+irq_enable(uintptr_t irq)
 {
 
 	openpic_enable_irq(softc, irq, IST_LEVEL);
 }
 
 static void
-irq_disable(int irq)
+irq_disable(uintptr_t irq)
 {
 
 	openpic_disable_irq(softc, irq);
