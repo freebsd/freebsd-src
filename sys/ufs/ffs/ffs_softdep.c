@@ -495,6 +495,7 @@ workitem_free(item, type)
  * Workitem queue management
  */
 static struct workhead softdep_workitem_pending;
+static struct worklist *worklist_tail;
 static int num_on_worklist;	/* number of worklist items to be processed */
 static int softdep_worklist_busy; /* 1 => trying to do unmount */
 static int softdep_worklist_req; /* serialized waiters */
@@ -552,7 +553,6 @@ static void
 add_to_worklist(wk)
 	struct worklist *wk;
 {
-	static struct worklist *worklist_tail;
 
 	if (wk->wk_state & ONWORKLIST) {
 		if (lk.lkt_held != NOHOLDER)
@@ -679,7 +679,7 @@ process_worklist_item(matchmnt, flags)
 	struct mount *matchmnt;
 	int flags;
 {
-	struct worklist *wk;
+	struct worklist *wk, *wkend;
 	struct mount *mp;
 	struct vnode *vp;
 	int matchcnt = 0;
@@ -717,7 +717,20 @@ process_worklist_item(matchmnt, flags)
 		FREE_LOCK(&lk);
 		return (-1);
 	}
+	/*
+	 * Remove the item to be processed. If we are removing the last
+	 * item on the list, we need to recalculate the tail pointer.
+	 * As this happens rarely and usually when the list is short,
+	 * we just run down the list to find it rather than tracking it
+	 * in the above loop.
+	 */
 	WORKLIST_REMOVE(wk);
+	if (wk == worklist_tail) {
+		LIST_FOREACH(wkend, &softdep_workitem_pending, wk_list)
+			if (LIST_NEXT(wkend, wk_list) == NULL)
+				break;
+		worklist_tail = wkend;
+	}
 	num_on_worklist -= 1;
 	FREE_LOCK(&lk);
 	switch (wk->wk_type) {
