@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.113 1995/03/07 19:58:02 davidg Exp $
+ *	$Id: machdep.c,v 1.114 1995/03/16 18:11:27 bde Exp $
  */
 
 #include "npx.h"
@@ -60,6 +60,7 @@
 #include <sys/sysent.h>
 #include <sys/tty.h>
 #include <sys/sysctl.h>
+#include <sys/devconf.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -791,6 +792,7 @@ boot(arghowto)
 				vfs_unmountall();
 		}
 		DELAY(100000);			/* wait for console output to finish */
+		dev_shutdownall(FALSE);
 	}
 	splhigh();
 	devtype = major(rootdev);
