@@ -236,12 +236,12 @@ static int	 guniquefd(char *, char **);
 static void	 lostconn(int);
 static void	 sigquit(int);
 static int	 receive_data(FILE *, FILE *);
-static int	 send_data(FILE *, FILE *, off_t, off_t, int);
+static int	 send_data(FILE *, FILE *, size_t, off_t, int);
 static struct passwd *
 		 sgetpwnam(char *);
 static char	*sgetsave(char *);
 static void	 reapchild(int);
-static void	 appendf(char **, char *, ...);
+static void	 appendf(char **, char *, ...) __printflike(2, 3);
 static void	 logcmd(char *, char *, char *, off_t);
 static void      logxfer(char *, off_t, time_t);
 static char	*doublequote(char *);
@@ -902,10 +902,10 @@ selecthost(union sockunion *su)
 static char *
 sgetsave(char *s)
 {
-	char *new = malloc((unsigned) strlen(s) + 1);
+	char *new = malloc(strlen(s) + 1);
 
 	if (new == NULL) {
-		perror_reply(421, "Local resource failure: malloc");
+		reply(421, "Ran out of memory.");
 		dologout(1);
 		/* NOTREACHED */
 	}
@@ -1015,7 +1015,7 @@ user(char *name)
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN REFUSED FROM %s, %s",
 				    remotehost, name);
-			pw = (struct passwd *) NULL;
+			pw = NULL;
 			return;
 		}
 	}
@@ -1042,7 +1042,7 @@ user(char *name)
 	 * attempt to slow down passwd-guessing programs.
 	 */
 	if (login_attempts)
-		sleep((unsigned) login_attempts);
+		sleep(login_attempts);
 }
 
 /*
@@ -1530,7 +1530,7 @@ skip:
 				reply(550, "Root is inaccessible.");
 				goto bad;
 			}
-			lreply(230, "No directory! Logging in with home=/");
+			lreply(230, "No directory! Logging in with home=/.");
 		}
 	}
 
@@ -1712,7 +1712,7 @@ store(char *name, char *mode, int unique)
 			unique = 0;
 		}
 		if (guest && noguestmod) {
-			reply(550, "Appending to existing file denied");
+			reply(550, "Appending to existing file denied.");
 			goto err;
 		}
 		restart_point = 0;	/* not affected by preceding REST */
@@ -1721,7 +1721,7 @@ store(char *name, char *mode, int unique)
 		restart_point = 0;
 	if (guest && noguestmod) {
 		if (restart_point) {	/* guest STOR w/REST */
-			reply(550, "Modifying existing file denied");
+			reply(550, "Modifying existing file denied.");
 			goto err;
 		} else			/* treat guest STOR as STOU */
 			unique = 1;
@@ -1957,7 +1957,7 @@ pdata_err:
 		(void) fclose(file);
 		data = -1;
 		if (conerrno == EADDRINUSE) {
-			sleep((unsigned) swaitint);
+			sleep(swaitint);
 			retry += swaitint;
 		} else {
 			break;
@@ -1980,7 +1980,7 @@ pdata_err:
  * NB: Form isn't handled.
  */
 static int
-send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
+send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 {
 	int c, cp, filefd, netfd;
 	char *buf;
@@ -2024,7 +2024,6 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 		filefd = fileno(instr);
 
 		if (isreg) {
-
 			char *msg = "Transfer complete.";
 			off_t offset;
 			int err;
@@ -2033,7 +2032,7 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 
 			while (filesize > 0) {
 				err = sendfile(filefd, netfd, offset, 0,
-					(struct sf_hdtr *) NULL, &cnt, 0);
+					       NULL, &cnt, 0);
 				/*
 				 * Calculate byte_count before OOB processing.
 				 * It can be used in myoob() later.
@@ -2068,17 +2067,17 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 		}
 
 oldway:
-		if ((buf = malloc((u_int)blksize)) == NULL) {
+		if ((buf = malloc(blksize)) == NULL) {
 			transflag = 0;
-			perror_reply(451, "Local resource failure: malloc");
+			reply(451, "Ran out of memory.");
 			return (-1);
 		}
 
-		while ((cnt = read(filefd, buf, (u_int)blksize)) > 0 &&
+		while ((cnt = read(filefd, buf, blksize)) > 0 &&
 		    write(netfd, buf, cnt) == cnt)
 			byte_count += cnt;
 		transflag = 0;
-		(void)free(buf);
+		free(buf);
 		if (cnt != 0) {
 			if (cnt < 0)
 				goto file_err;
@@ -2088,7 +2087,7 @@ oldway:
 		return (0);
 	default:
 		transflag = 0;
-		reply(550, "Unimplemented TYPE %d in send_data", type);
+		reply(550, "Unimplemented TYPE %d in send_data.", type);
 		return (-1);
 	}
 
@@ -2177,25 +2176,25 @@ receive_data(FILE *instr, FILE *outstr)
 		transflag = 0;
 		if (bare_lfs) {
 			lreply(226,
-		"WARNING! %d bare linefeeds received in ASCII mode",
+		"WARNING! %d bare linefeeds received in ASCII mode.",
 			    bare_lfs);
 		(void)printf("   File may not have transferred correctly.\r\n");
 		}
 		return (0);
 	default:
-		reply(550, "Unimplemented TYPE %d in receive_data", type);
+		reply(550, "Unimplemented TYPE %d in receive_data.", type);
 		transflag = 0;
 		return (-1);
 	}
 
 data_err:
 	transflag = 0;
-	perror_reply(426, "Data Connection");
+	perror_reply(426, "Data connection");
 	return (-1);
 
 file_err:
 	transflag = 0;
-	perror_reply(452, "Error writing file");
+	perror_reply(452, "Error writing to file");
 	return (-1);
 
 got_oob:
@@ -2217,12 +2216,12 @@ statfilecmd(char *filename)
 	code = lstat(filename, &st) == 0 && S_ISDIR(st.st_mode) ? 212 : 213;
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
-	lreply(code, "status of %s:", filename);
+	lreply(code, "Status of %s:", filename);
 	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
 		if (c == '\n') {
 			if (ferror(stdout)){
-				perror_reply(421, "control connection");
+				perror_reply(421, "Control connection");
 				(void) ftpd_pclose(fin);
 				dologout(1);
 				/* NOTREACHED */
@@ -2246,7 +2245,7 @@ statfilecmd(char *filename)
 		atstart = (c == '\n');
 	}
 	(void) ftpd_pclose(fin);
-	reply(code, "End of Status");
+	reply(code, "End of status.");
 }
 
 void
@@ -2379,7 +2378,7 @@ epsvonly:;
 #undef UC
 	} else
 		printf("     No data connection\r\n");
-	reply(211, "End of status");
+	reply(211, "End of status.");
 }
 
 void
@@ -2452,7 +2451,7 @@ yyerror(char *s)
 
 	if ((cp = strchr(cbuf,'\n')))
 		*cp = '\0';
-	reply(500, "'%s': command not understood.", cbuf);
+	reply(500, "%s: command not understood.", cbuf);
 }
 
 void
@@ -2465,7 +2464,7 @@ delete(char *name)
 		perror_reply(550, name);
 		return;
 	}
-	if ((st.st_mode&S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(st.st_mode)) {
 		if (rmdir(name) < 0) {
 			perror_reply(550, name);
 			return;
@@ -2473,7 +2472,7 @@ delete(char *name)
 		goto done;
 	}
 	if (guest && noguestmod) {
-		reply(550, "Operation not permitted");
+		reply(550, "Operation not permitted.");
 		return;
 	}
 	if (unlink(name) < 0) {
@@ -2501,7 +2500,7 @@ makedir(char *name)
 
 	LOGCMD("mkdir", name);
 	if (guest && noguestmkd)
-		reply(550, "%s: permission denied", name);
+		reply(550, "Operation not permitted.");
 	else if (mkdir(name, 0777) < 0)
 		perror_reply(550, name);
 	else {
@@ -2528,8 +2527,8 @@ pwd(void)
 {
 	char *s, path[MAXPATHLEN + 1];
 
-	if (getwd(path) == (char *)NULL)
-		reply(550, "%s.", path);
+	if (getcwd(path, sizeof(path)) == NULL)
+		perror_reply(550, "Get current directory");
 	else {
 		if ((s = doublequote(path)) == NULL)
 			fatalerror("Ran out of memory.");
@@ -2544,14 +2543,14 @@ renamefrom(char *name)
 	struct stat st;
 
 	if (guest && noguestmod) {
-		reply(550, "Operation not permitted");
+		reply(550, "Operation not permitted.");
 		return (NULL);
 	}
 	if (lstat(name, &st) < 0) {
 		perror_reply(550, name);
 		return (NULL);
 	}
-	reply(350, "File exists, ready for destination name");
+	reply(350, "File exists, ready for destination name.");
 	return (name);
 }
 
@@ -2563,7 +2562,7 @@ renamecmd(char *from, char *to)
 	LOGCMD2("rename", from, to);
 
 	if (guest && (stat(to, &st) == 0)) {
-		reply(550, "%s: permission denied", to);
+		reply(550, "%s: permission denied.", to);
 		return;
 	}
 
@@ -2656,15 +2655,15 @@ myoob(void)
 	if (strcmp(cp, "ABOR\r\n") == 0) {
 		tmpline[0] = '\0';
 		reply(426, "Transfer aborted. Data connection closed.");
-		reply(226, "Abort successful");
+		reply(226, "Abort successful.");
 	}
 	if (strcmp(cp, "STAT\r\n") == 0) {
 		tmpline[0] = '\0';
 		if (file_size != -1)
-			reply(213, "Status: %jd of %jd bytes transferred",
+			reply(213, "Status: %jd of %jd bytes transferred.",
 				   (intmax_t)byte_count, (intmax_t)file_size);
 		else
-			reply(213, "Status: %jd bytes transferred",
+			reply(213, "Status: %jd bytes transferred.",
 				   (intmax_t)byte_count);
 	}
 }
@@ -2788,7 +2787,7 @@ long_passive(char *cmd, int pf)
 				reply(522, "Network protocol mismatch, "
 					"use (%d)", pf);
 			} else
-				reply(501, "Network protocol mismatch"); /*XXX*/
+				reply(501, "Network protocol mismatch."); /*XXX*/
 
 			return;
 		}
@@ -2920,7 +2919,7 @@ guniquefd(char *local, char **name)
 		 * In this extreme case dot won't be put in front of suffix.
 		 */
 		if (strlen(local) > sizeof(new) - 4) {
-			reply(553, "Pathname too long");
+			reply(553, "Pathname too long.");
 			return (-1);
 		}
 		*cp = '/';
@@ -2988,7 +2987,7 @@ send_file_list(char *whichf)
 		flags |= GLOB_LIMIT;
 		freeglob = 1;
 		if (glob(whichf, flags, 0, &gl)) {
-			reply(550, "not found");
+			reply(550, "No matching files found.");
 			goto out;
 		} else if (gl.gl_pathc == 0) {
 			errno = ENOENT;
@@ -3105,7 +3104,7 @@ out:
 void
 reapchild(int signo)
 {
-	while (wait3(NULL, WNOHANG, NULL) > 0);
+	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 #ifdef OLD_SETPROCTITLE

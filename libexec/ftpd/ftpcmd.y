@@ -183,7 +183,7 @@ cmd
 	| PORT check_login SP host_port CRLF
 		{
 			if (epsvall) {
-				reply(501, "no PORT allowed after EPSV ALL");
+				reply(501, "No PORT allowed after EPSV ALL.");
 				goto port_done;
 			}
 			if (!$2)
@@ -206,7 +206,7 @@ cmd
 	| LPRT check_login SP host_long_port CRLF
 		{
 			if (epsvall) {
-				reply(501, "no LPRT allowed after EPSV ALL");
+				reply(501, "No LPRT allowed after EPSV ALL.");
 				goto lprt_done;
 			}
 			if (!$2)
@@ -236,7 +236,7 @@ cmd
 			int i;
 
 			if (epsvall) {
-				reply(501, "no EPRT allowed after EPSV ALL");
+				reply(501, "No EPRT allowed after EPSV ALL.");
 				goto eprt_done;
 			}
 			if (!$2)
@@ -329,14 +329,14 @@ cmd
 	| PASV check_login CRLF
 		{
 			if (epsvall)
-				reply(501, "no PASV allowed after EPSV ALL");
+				reply(501, "No PASV allowed after EPSV ALL.");
 			else if ($2)
 				passive();
 		}
 	| LPSV check_login CRLF
 		{
 			if (epsvall)
-				reply(501, "no LPSV allowed after EPSV ALL");
+				reply(501, "No LPSV allowed after EPSV ALL.");
 			else if ($2)
 				long_passive("LPSV", PF_UNSPEC);
 		}
@@ -363,8 +363,7 @@ cmd
 	| EPSV check_login_epsv SP ALL CRLF
 		{
 			if ($2) {
-				reply(200,
-				      "EPSV ALL command successful.");
+				reply(200, "EPSV ALL command successful.");
 				epsvall++;
 			}
 		}
@@ -416,7 +415,7 @@ cmd
 				switch ($4) {
 
 				case STRU_F:
-					reply(200, "STRU F ok.");
+					reply(200, "STRU F accepted.");
 					break;
 
 				default:
@@ -430,7 +429,7 @@ cmd
 				switch ($4) {
 
 				case MODE_S:
-					reply(200, "MODE S ok.");
+					reply(200, "MODE S accepted.");
 					break;
 	
 				default:
@@ -453,7 +452,7 @@ cmd
 	| RETR check_login SP pathname CRLF
 		{
 			if (noretr || (guest && noguestretr))
-				reply(500, "RETR command is disabled");
+				reply(500, "RETR command disabled.");
 			else if ($2 && $4 != NULL)
 				retrieve(NULL, $4);
 
@@ -626,7 +625,7 @@ cmd
 			if ($4) {
 				oldmask = umask(0);
 				(void) umask(oldmask);
-				reply(200, "Current UMASK is %03o", oldmask);
+				reply(200, "Current UMASK is %03o.", oldmask);
 			}
 		}
 	| SITE SP UMASK check_login SP octal_number CRLF
@@ -635,11 +634,11 @@ cmd
 
 			if ($4) {
 				if (($6 == -1) || ($6 > 0777)) {
-					reply(501, "Bad UMASK value");
+					reply(501, "Bad UMASK value.");
 				} else {
 					oldmask = umask($6);
 					reply(200,
-					    "UMASK set to %03o (was %03o)",
+					    "UMASK set to %03o (was %03o).",
 					    $6, oldmask);
 				}
 			}
@@ -648,7 +647,7 @@ cmd
 		{
 			if ($4 && ($8 != NULL)) {
 				if (($6 == -1 ) || ($6 > 0777))
-					reply(501, "Bad mode value");
+					reply(501, "Bad mode value.");
 				else if (chmod($8, $6) < 0)
 					perror_reply(550, $8);
 				else
@@ -661,7 +660,7 @@ cmd
 		{
 			if ($3)
 				reply(200,
-			    	    "Current IDLE time limit is %d seconds; max %d",
+			    	    "Current IDLE time limit is %d seconds; max %d.",
 				    timeout, maxtimeout);
 		}
 	| SITE SP check_login IDLE SP NUMBER CRLF
@@ -669,13 +668,13 @@ cmd
 			if ($3) {
 				if ($6.i < 30 || $6.i > maxtimeout) {
 					reply(501,
-					    "Maximum IDLE time must be between 30 and %d seconds",
+					    "Maximum IDLE time must be between 30 and %d seconds.",
 					    maxtimeout);
 				} else {
 					timeout = $6.i;
-					(void) alarm((unsigned) timeout);
+					(void) alarm(timeout);
 					reply(200,
-					    "Maximum IDLE time set to %d seconds",
+					    "Maximum IDLE time set to %d seconds.",
 					    timeout);
 				}
 			}
@@ -1030,7 +1029,7 @@ check_login_epsv
 	: /* empty */
 		{
 		if (noepsv) {
-			reply(500, "EPSV command disabled");
+			reply(500, "EPSV command disabled.");
 			$$ = 0;
 		}
 		else
@@ -1274,7 +1273,7 @@ yylex(void)
 
 		case CMD:
 			(void) signal(SIGALRM, toolong);
-			(void) alarm((unsigned) timeout);
+			(void) alarm(timeout);
 			if (getline(cbuf, sizeof(cbuf)-1, stdin) == NULL) {
 				reply(221, "You could at least say goodbye.");
 				dologout(0);
@@ -1398,7 +1397,7 @@ yylex(void)
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
 				yylval.u.i = atoi(cp);
-				yylval.u.o = strtoull(cp, (char **)NULL, 10);
+				yylval.u.o = strtoull(cp, NULL, 10);
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}
@@ -1493,7 +1492,7 @@ copy(char *s)
 {
 	char *p;
 
-	p = malloc((unsigned) strlen(s) + 1);
+	p = malloc(strlen(s) + 1);
 	if (p == NULL)
 		fatalerror("Ran out of memory.");
 	(void) strcpy(p, s);
@@ -1732,11 +1731,11 @@ expglob(char *s)
 		else if (n == 1)
 			rval = strdup(p);
 		else {
-			reply(550, "ambiguous");
+			reply(550, "Wildcard is ambiguous.");
 			rval = NULL;
 		}
 	} else {
-		reply(550, "wildcard expansion error");
+		reply(550, "Wildcard expansion error.");
 		rval = NULL;
 	}
 	globfree(&gl);
