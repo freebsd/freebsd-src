@@ -29,9 +29,7 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 
-#if 0
-#include <machine/bootinfo.h>
-#endif
+#include <machine/metadata.h>
 #include <machine/elf.h>
 
 #include <stand.h>
@@ -65,51 +63,25 @@ ofw_elf_loadfile(char *filename, vm_offset_t dest,
 int
 ofw_elf_exec(struct preloaded_file *fp)
 {
-	struct file_metadata	*md;
-	Elf_Ehdr		*ehdr;
-	vm_offset_t		entry, bootinfop;
-	int			boothowto, err, bootdev;
-#if 0
-	struct bootinfo		*bi;
-#endif
-	vm_offset_t		ssym, esym;
+	struct file_metadata	*fmp;
+	vm_offset_t		mdp;
+	Elf_Ehdr		*e;
+	int			error;
 
-	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
-		return(EFTYPE);			/* XXX actually EFUCKUP */
+	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
+		return(EFTYPE);
 	}
-	ehdr = (Elf_Ehdr *)&(md->md_data);
+	e = (Elf_Ehdr *)&fmp->md_data;
 
-#if 0
-	if ((err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop)) != 0)
-		return(err);
-#endif
-	entry = ehdr->e_entry & 0xffffff;
+	if ((error = md_load(fp->f_args, &mdp)) != 0)
+		return (error);
 
-	ssym = esym = 0;
-	if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
-		ssym = *((vm_offset_t *)&(md->md_data));
-	if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
-		esym = *((vm_offset_t *)&(md->md_data));
-	if (ssym == 0 || esym == 0)
-		ssym = esym = 0;		/* sanity */
-#if 0
-	bi = (struct bootinfo *)PTOV(bootinfop);
-	bi->bi_symtab = ssym;
-	bi->bi_esymtab = esym;
-#endif
-
-/*
-#ifdef DEBUG
-*/
-	printf("Start @ 0x%lx ...\n", entry);
-/*
-#endif
-*/
+	printf("Kernel entry at 0x%lx ...\n", e->e_entry);
 
 	dev_cleanup();
 	ofw_release_heap();
-/*	OF_chain(0, 0, entry, bootinfop, sizeof(struct bootinfo));*/
-	OF_chain((void *)reloc, end - (char *)reloc, (void *)entry, NULL, 0);
+	OF_chain((void *)reloc, end - (char *)reloc, (void *)e->e_entry,
+	    (void *)mdp, sizeof(mdp));
 
 	panic("exec returned");
 }
