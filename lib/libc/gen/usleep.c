@@ -64,13 +64,18 @@ void
 usleep(useconds)
 	unsigned int useconds;
 {
-#ifdef _THREAD_SAFE
+#if defined(_THREAD_SAFE) || defined(USE_NANOSLEEP)
 	struct timespec time_to_sleep;
+	struct timespec time_remaining;
 
 	if (useconds) {
 		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 		time_to_sleep.tv_sec = useconds / 1000000;
-		nanosleep(&time_to_sleep, NULL);
+		do {
+			nanosleep(&time_to_sleep, &time_remaining);
+			time_to_sleep = time_remaining;
+		} while (time_to_sleep.tv_sec != 0 &&
+			 time_to_sleep.tv_nsec != 0);
 	}
 #else
 	register struct itimerval *itp;
