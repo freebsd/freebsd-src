@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/09/12 11:08:41 asami Exp $
+#	$Id: Makefile,v 1.4 1996/10/23 07:24:27 asami Exp $
 #
 
 PROG=	boot
@@ -36,6 +36,10 @@ BOOT_COMCONSOLE_MODE=0x0c
 CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 		-DCOMCONSOLE_CLK=${BOOT_COMCONSOLE_CLK} \
 		-DCOMCONSOLE_MODE=${BOOT_COMCONSOLE_MODE}
+
+# feature not implemented
+# BOOT_COMCONSOLE_SPEED?=9600
+# CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.

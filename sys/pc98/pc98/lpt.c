@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.4 1996/09/03 10:23:44 asami Exp $
+ *	$Id: lpt.c,v 1.5 1996/09/10 09:38:13 asami Exp $
  */
 
 /*
@@ -125,13 +125,11 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <i386/isa/isa_device.h>
-#include <pc98/pc98/lptreg.h>
-#else /* !PC98 */
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/lptreg.h>
-#endif /* PC98 */
 
 #ifdef INET
 #include <sys/mbuf.h>
@@ -384,16 +382,12 @@ lpt_port_test (short port, u_char data, u_char mask)
  *	Quick exit on fail added.
  */
 
+int
+lptprobe(struct isa_device *dvp)
+{
 #ifdef PC98
-int
-lptprobe(struct isa_device *dvp)
-{
 	return 8;
-}
 #else
-int
-lptprobe(struct isa_device *dvp)
-{
 	short		port;
 	static short	next_bios_lpt = 0;
 	int		status;
@@ -450,8 +444,8 @@ end_probe:
 	outb(dvp->id_iobase+lpt_control, 0);
 
 	return (status);
-}
 #endif
+}
 
 /* XXX Todo - try and detect if interrupt is working */
 int

@@ -47,7 +47,11 @@
 
 static int      opl3_enabled = 0;
 static int      opl4_enabled = 0;
+#ifdef PC98
+static int      left_address = 0x28d2, right_address = 0x28d2, both_address = 0;
+#else
 static int      left_address = 0x388, right_address = 0x388, both_address = 0;
+#endif
 
 static int      nr_voices = 9;
 static int      logical_voices[MAX_VOICE] =
@@ -812,10 +816,14 @@ opl3_command (int io_addr, unsigned int addr, unsigned int val)
     for (i = 0; i < 2; i++)
       INB (io_addr);
 
+#ifdef PC98
+  OUTB ((unsigned char) (val & 0xff), io_addr + 0x100);
+#else
   OUTB ((unsigned char) (val & 0xff), io_addr + 1);	/*
 							 * Write to register
 							 *
 							 */
+#endif
 
   if (!opl3_enabled)
     {
