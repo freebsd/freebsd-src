@@ -55,6 +55,7 @@
 #include <sys/random.h>
 #include <sys/cons.h>
 #include <sys/uuid.h>
+#include <sys/syscall.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -1114,7 +1115,15 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	/* We don't have any dirty registers of the new context. */
 	s.ndirty = 0;
 	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
-		KASSERT((tf->tf_flags & FRAME_SYSCALL) == 0, ("foo"));
+		/*
+		 * We can get an async context passed to us while we
+		 * entered the kernel through a syscall: sigreturn(2).
+		 * Hence, we cannot assert that the trapframe is not
+		 * a syscall frame, but we can assert that if it is
+		 * the syscall is sigreturn(2).
+		 */
+		if (tf->tf_flags & FRAME_SYSCALL)
+			KASSERT(tf->tf_scratch.gr15 == SYS_sigreturn, ("foo"));
 		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
 		/* XXX High FP */
