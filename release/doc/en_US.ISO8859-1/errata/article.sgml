@@ -49,62 +49,61 @@
 <!-- XXX a release on this branch. -->
 
     <para>This document lists errata items for &os; 
-    &release.current;, containing significant information
-    discovered after the release.  This information includes 
-    security advisories, as well as
-    news relating to the software or documentation
-    that could affect its operation or usability.  An up-to-date
-    version of this document should always be consulted before
-    installing this version of &os;.</para>
+      &release.current;,
+      containing significant information discovered after the release.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
 
 <![ %release.type.snapshot [
     <para>This errata document for &os; &release.prev; will be
-    maintained until the release of &os; &release.next;.</para>
+      maintained until the release of &os; &release.next;.</para>
 ]]>
 
 <![ %release.type.release [
-    <para>This is the final version of the errata document for &os; &release.prev;.  Future errata documents along the 
-    &release.branch; branch will address &os; &release.current; and
-    later releases.</para>
+    <para>This is the final version of the errata document for &os;
+      &release.prev;.  Future errata documents along the
+      &release.branch; branch will address &os; &release.current; and
+      later releases.</para>
 ]]>
 
       <para>At this time, &release.current; has no errata, because
-      there have not been any releases on the &release.branch;
-      branch since the last branchpoint.  (The first such release will
-      be &release.next;.)
-      This file exists to provide a clean template for
-      newly-created branches.  (Clearly this notice should not exist
-      on any branched version of this file.)</para>
+        there have not been any releases on the &release.branch;
+        branch since the last branchpoint.  (The first such release
+        will be &release.next;.)  This file exists to provide a clean
+        template for newly-created branches.  (Clearly this notice
+        should not exist on any branched version of this file.)</para>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-    about &os; &release.current;.  Before installing this version,
-    it is important to consult this document to learn about
-    any post-release discoveries or 
-    problems that may already have been found and
-    fixed.</para>
+      about &os;
+      &release.current;.  
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
 
-    <para>Any
-    version of this
-    errata document actually distributed with the
-    release (for example, on a CDROM distribution) will be out of
-    date by definition, but other copies are kept updated on the Internet and
-    should be consulted as the <quote>current errata</quote> for this
-    release.  These other copies of the errata are located at <ulink
-    url="http://www.FreeBSD.org/releases/"></ulink>,
-    plus any sites which keep up-to-date mirrors of this
-    location.</para>
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
-    contain up-to-date copies of this document (as of the time of the
-    snapshot).</para>
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.FreeBSD.org/security/"></ulink> or <ulink
-    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
   </sect1>
 
   <sect1>
