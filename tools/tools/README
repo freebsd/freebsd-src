@@ -31,7 +31,7 @@ ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
-kerncruft	Shellscript to find orphaned *.c files in /sys
+kernelcruft	Shellscript to find orphaned *.c files in /sys
 kerninclude	Shellscript to find unused #includes in the kernel.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 kttcp		An in-kernel version of the ttcp network performance tool
