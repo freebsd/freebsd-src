@@ -382,7 +382,21 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
-
+	case ISP_FC_GETHINFO:
+	{
+		struct isp_hba_device *hba = (struct isp_hba_device *) addr;
+		MEMZERO(hba, sizeof (*hba));
+		ISP_LOCK(isp);
+		hba->fc_speed = FCPARAM(isp)->isp_gbspeed;
+		hba->fc_scsi_supported = 1;
+		hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
+		hba->fc_loopid = FCPARAM(isp)->isp_loopid;
+		hba->active_node_wwn = FCPARAM(isp)->isp_nodewwn;
+		hba->active_port_wwn = FCPARAM(isp)->isp_portwwn;
+		ISP_UNLOCK(isp);
+		retval = 0;
+		break;
+	}
 	default:
 		break;
 	}
@@ -428,6 +442,8 @@ static cam_status isp_target_start_ctio(struct ispsoftc *, union ccb *);
 static int isp_handle_platform_atio(struct ispsoftc *, at_entry_t *);
 static int isp_handle_platform_atio2(struct ispsoftc *, at2_entry_t *);
 static int isp_handle_platform_ctio(struct ispsoftc *, void *);
+static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
+static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
 static __inline int
 is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
@@ -1032,8 +1048,10 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 		atp = isp_get_atpd(isp, cso->tag_id);
 		if (atp == NULL) {
-			panic("cannot find private data adjunct for tag %x",
+			isp_prt(isp, ISP_LOGERR,
+			    "cannot find private data adjunct for tag %x",
 			    cso->tag_id);
+			return (-1);
 		}
 
 		cto->ct_rxid = cso->tag_id;
@@ -1044,6 +1062,13 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 				cto->rsp.m1.ct_scsi_status = cso->scsi_status;
 				cto->ct_resid =
 				    atp->orig_datalen - atp->bytes_xfered;
+				if (cto->ct_resid < 0) {
+					cto->rsp.m1.ct_scsi_status |=
+					    CT2_DATA_OVER;
+				} else if (cto->ct_resid > 0) {
+					cto->rsp.m1.ct_scsi_status |=
+					    CT2_DATA_UNDER;
+				}
 			}
 			if ((ccb->ccb_h.flags & CAM_SEND_SENSE) != 0) {
 				int m = min(cso->sense_len, MAXRESPLEN);
@@ -1058,12 +1083,20 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			} else {
 				cto->ct_flags |= CT2_DATA_OUT;
 			}
+			cto->ct_reloff = atp->bytes_xfered;
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 				cto->ct_flags |= CT2_SENDSTATUS;
 				cto->rsp.m0.ct_scsi_status = cso->scsi_status;
 				cto->ct_resid =
 				    atp->orig_datalen -
 				    (atp->bytes_xfered + cso->dxfer_len);
+				if (cto->ct_resid < 0) {
+					cto->rsp.m0.ct_scsi_status |=
+					    CT2_DATA_OVER;
+				} else if (cto->ct_resid > 0) {
+					cto->rsp.m0.ct_scsi_status |=
+					    CT2_DATA_UNDER;
+				}
 			} else {
 				atp->last_xframt = cso->dxfer_len;
 			}
@@ -1080,7 +1113,9 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			    cto->ct_rxid, cso->scsi_status, atp->orig_datalen,
 			    cso->dxfer_len, cto->ct_resid);
 			cto->ct_flags |= CT2_CCINCR;
-		}
+			atp->state = ATPD_STATE_LAST_CTIO;
+		} else
+			atp->state = ATPD_STATE_CTIO;
 		cto->ct_timeout = 10;
 		hp = &cto->ct_syshandle;
 	} else {
@@ -1193,6 +1228,7 @@ isp_target_putback_atio(union ccb *ccb)
 		}
 		at->at_status = CT_OK;
 		at->at_rxid = cso->tag_id;
+		at->at_iid = cso->ccb_h.target_id;
 		isp_put_atio2(isp, at, qe);
 	} else {
 		at_entry_t local, *at = &local;
@@ -1392,6 +1428,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	}
 	tptr = get_lun_statep(isp, 0, lun);
 	if (tptr == NULL) {
+		isp_prt(isp, ISP_LOGWARN, "no state pointer for lun %d", lun);
 		tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
 	}
 
@@ -1420,18 +1457,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 * at this time.
 		 *
 		 */
-		u_int32_t ccode = SCSI_STATUS_BUSY;
-
-		/*
-		 * Because we can't autofeed sense data back with
-		 * a command for parallel SCSI, we can't give back
-		 * a CHECK CONDITION. We'll give back a BUSY status
-		 * instead. This works out okay because the only
-		 * time we should, in fact, get this, is in the
-		 * case that somebody configured us without the
-		 * blackhole driver, so they get what they deserve.
-		 */
-		isp_endcmd(isp, aep, ccode, 0);
+		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		return (0);
 	}
 
@@ -1448,19 +1474,22 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 */
 		xpt_print_path(tptr->owner);
 		isp_prt(isp, ISP_LOGWARN,
-		    "no ATIOS for lun %d from initiator %d", lun, aep->at_iid);
+		    "no %s for lun %d from initiator %d",
+		    (atp == NULL && atiop == NULL)? "ATIO2s *or* ATPS" :
+		    ((atp == NULL)? "ATPs" : "ATIO2s"), lun, aep->at_iid);
 		rls_lun_statep(isp, tptr);
-		if (aep->at_flags & AT_TQAE)
-			isp_endcmd(isp, aep, SCSI_STATUS_QUEUE_FULL, 0);
-		else
-			isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
+		isp_endcmd(isp, aep, SCSI_STATUS_QUEUE_FULL, 0);
 		return (0);
 	}
+	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
+	tptr->atio_count--;
+	isp_prt(isp, ISP_LOGTDEBUG0, "Take FREE ATIO2 lun %d, count now %d",
+	    lun, tptr->atio_count);
 
 	if (tptr == &isp->isp_osinfo.tsdflt[0]) {
 		atiop->ccb_h.target_id =
-			((fcparam *)isp->isp_param)->isp_loopid;
+		    ((fcparam *)isp->isp_param)->isp_loopid;
 		atiop->ccb_h.target_lun = lun;
 	}
 	/*
@@ -1489,16 +1518,16 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		atiop->tag_action = 0;
 		break;
 	}
-	if (atiop->tag_action != 0) {
-		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
-	}
+	atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
 
 	atp->tag = atiop->tag_id;
+	atp->lun = lun;
 	atp->orig_datalen = aep->at_datalen;
 	atp->last_xframt = 0;
 	atp->bytes_xfered = 0;
-
+	atp->state = ATPD_STATE_CAM;
 	xpt_done((union ccb*)atiop);
+
 	isp_prt(isp, ISP_LOGTDEBUG0,
 	    "ATIO2[%x] CDB=0x%x iid%d->lun%d tattr 0x%x datalen %u",
 	    aep->at_rxid, aep->at_cdb[0] & 0xff, aep->at_iid,
@@ -1524,6 +1553,13 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 
 	if (IS_FC(isp)) {
 		ct2_entry_t *ct = arg;
+		atio_private_data_t *atp = isp_get_atpd(isp, ct->ct_rxid);
+		if (atp == NULL) {
+			isp_prt(isp, ISP_LOGERR,
+			    "cannot find adjunct for %x after I/O",
+			    ct->ct_rxid);
+			return (0);
+		}
 		sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 		ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
 		if (ok && sentstatus && (ccb->ccb_h.flags & CAM_SEND_SENSE)) {
@@ -1531,24 +1567,22 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 		}
 		notify_cam = ct->ct_header.rqs_seqno & 0x1;
 		if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
-			atio_private_data_t *atp =
-			    isp_get_atpd(isp, ct->ct_rxid);
-			if (atp == NULL) {
-				panic("cannot find adjunct after I/O");
-			}
 			resid = ct->ct_resid;
 			atp->bytes_xfered += (atp->last_xframt - resid);
 			atp->last_xframt = 0;
-			if (sentstatus) {
-				atp->tag = 0;
-			}
 		}
-		isp_prt(isp, ISP_LOGTDEBUG0,
+		if (sentstatus || !ok) {
+			atp->tag = 0;
+		}
+		isp_prt(isp, ok? ISP_LOGTDEBUG0 : ISP_LOGWARN,
 		    "CTIO2[%x] sts 0x%x flg 0x%x sns %d resid %d %s",
 		    ct->ct_rxid, ct->ct_status, ct->ct_flags,
 		    (ccb->ccb_h.status & CAM_SENT_SENSE) != 0,
 		    resid, sentstatus? "FIN" : "MID");
 		tval = ct->ct_rxid;
+
+		/* XXX: should really come after isp_complete_ctio */
+		atp->state = ATPD_STATE_PDON;
 	} else {
 		ct_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT_SENDSTATUS;
@@ -1606,6 +1640,68 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 	} else {
 		isp_complete_ctio(ccb);
 
+	}
+	return (0);
+}
+
+static int
+isp_handle_platform_notify_scsi(struct ispsoftc *isp, in_entry_t *inp)
+{
+	return (0);	/* XXXX */
+}
+
+static int
+isp_handle_platform_notify_fc(struct ispsoftc *isp, in_fcentry_t *inp)
+{
+
+	switch (inp->in_status) {
+	case IN_PORT_LOGOUT:
+		isp_prt(isp, ISP_LOGWARN, "port logout of iid %d",
+		   inp->in_iid);
+		break;
+	case IN_PORT_CHANGED:
+		isp_prt(isp, ISP_LOGWARN, "port changed for iid %d",
+		   inp->in_iid);
+		break;
+	case IN_GLOBAL_LOGO:
+		isp_prt(isp, ISP_LOGINFO, "all ports logged out");
+		break;
+	case IN_ABORT_TASK:
+	{
+		atio_private_data_t *atp = isp_get_atpd(isp, inp->in_seqid);
+		struct ccb_immed_notify *inot = NULL;
+
+		if (atp) {
+			tstate_t *tptr = get_lun_statep(isp, 0, atp->lun);
+			if (tptr) {
+				inot = (struct ccb_immed_notify *)
+				    SLIST_FIRST(&tptr->inots);
+				if (inot) {
+					SLIST_REMOVE_HEAD(&tptr->inots,
+					    sim_links.sle);
+				}
+			}
+			isp_prt(isp, ISP_LOGWARN,
+			   "abort task RX_ID %x IID %d state %d",
+			   inp->in_seqid, inp->in_iid, atp->state);
+		} else {
+			isp_prt(isp, ISP_LOGWARN,
+			   "abort task RX_ID %x from iid %d, state unknown",
+			   inp->in_seqid, inp->in_iid);
+		}
+		if (inot) {
+			inot->initiator_id = inp->in_iid;
+			inot->sense_len = 0;
+			inot->message_args[0] = MSG_ABORT_TAG;
+			inot->message_args[1] = inp->in_seqid & 0xff;
+			inot->message_args[2] = (inp->in_seqid >> 8) & 0xff;
+			inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+			xpt_done((union ccb *)inot);
+		}
+		break;
+	}
+	default:
+		break;
 	}
 	return (0);
 }
@@ -1966,13 +2062,25 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		ccb->ccb_h.sim_priv.entries[0].field = 0;
 		ccb->ccb_h.sim_priv.entries[1].ptr = isp;
+		ccb->ccb_h.flags = 0;
+
 		CAMLOCK_2_ISPLOCK(isp);
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
-			SLIST_INSERT_HEAD(&tptr->atios,
-			    &ccb->ccb_h, sim_links.sle);
-		} else {
+			/*
+			 * Note that the command itself may not be done-
+			 * it may not even have had the first CTIO sent.
+			 */
+			tptr->atio_count++;
+			isp_prt(isp, ISP_LOGTDEBUG0,
+			    "Put FREE ATIO2, lun %d, count now %d",
+			    ccb->ccb_h.target_lun, tptr->atio_count);
+			SLIST_INSERT_HEAD(&tptr->atios, &ccb->ccb_h,
+			    sim_links.sle);
+		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
 			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h,
 			    sim_links.sle);
+		} else {
+			;
 		}
 		rls_lun_statep(isp, tptr);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
@@ -1984,6 +2092,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		CAMLOCK_2_ISPLOCK(isp);
 		ccb->ccb_h.status = isp_target_start_ctio(isp, ccb);
 		if (ccb->ccb_h.status != CAM_REQ_INPROG) {
+			isp_prt(isp, ISP_LOGWARN,
+			    "XPT_CONT_TARGET_IO: status 0x%x",
+			    ccb->ccb_h.status);
 			if (isp->isp_osinfo.simqfrozen == 0) {
 				xpt_freeze_simq(sim, 1);
 				xpt_print_path(ccb->ccb_h.path);
@@ -2869,6 +2980,15 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			   "event 0x%x for unhandled target action",
 			    ((isphdr_t *)arg)->rqs_entry_type);
 			break;
+		case RQSTYPE_NOTIFY:
+			if (IS_SCSI(isp)) {
+				rv = isp_handle_platform_notify_scsi(isp,
+				    (in_entry_t *) arg);
+			} else {
+				rv = isp_handle_platform_notify_fc(isp,
+				    (in_fcentry_t *) arg);
+			}
+			break;
 		case RQSTYPE_ATIO:
 			rv = isp_handle_platform_atio(isp, (at_entry_t *) arg);
 			break;
@@ -2903,7 +3023,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			mbox6 = 0;
 		}
                 isp_prt(isp, ISP_LOGERR,
-                    "Internal Firmware on bus %d Error @ RISC Address 0x%x",
+                    "Internal Firmware Error on bus %d @ RISC Address 0x%x",
                     mbox6, mbox1);
 		isp_reinit(isp);
 		break;
