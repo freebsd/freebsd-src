@@ -145,7 +145,7 @@ aha_isa_probe(device_t dev)
 		 * export them to the configuration system.
 		 */
 		error = aha_cmd(aha, AOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
-		    (u_int8_t*)&config_data, sizeof(config_data), 
+		    (uint8_t*)&config_data, sizeof(config_data), 
 		    DEFAULT_CMD_TIMEOUT);
 
 		if (error != 0) {

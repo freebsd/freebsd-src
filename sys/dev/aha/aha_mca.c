@@ -58,9 +58,9 @@ static struct mca_ident aha_mca_devs[] = {
 # define AHA_MCA_IOPORT_MASK2		0xc0
 # define AHA_MCA_IOPORT_SIZE		0x03
 # define AHA_MCA_IOPORT(pos)		(0x30 + \
-					(((u_int32_t)pos & \
+					(((uint32_t)pos & \
 						AHA_MCA_IOPORT_MASK1) << 8) + \
-					(((u_int32_t)pos & \
+					(((uint32_t)pos & \
 						AHA_MCA_IOPORT_MASK2) >> 4))
 
 #define AHA_MCA_DRQ_POS			MCA_ADP_POS(MCA_POS3)
@@ -85,11 +85,11 @@ aha_mca_probe (device_t dev)
 {
 	const char *	desc;
 	mca_id_t	id = mca_get_id(dev);
-	u_int32_t	iobase = 0;
-	u_int32_t	iosize = 0;
-	u_int8_t	drq = 0;
-	u_int8_t	irq = 0;
-	u_int8_t	pos;
+	uint32_t	iobase = 0;
+	uint32_t	iosize = 0;
+	uint8_t	drq = 0;
+	uint8_t	irq = 0;
+	uint8_t	pos;
 
 	desc = mca_match_id(id, aha_mca_devs);
 	if (!desc)
