@@ -33,27 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)isa.c	7.2 (Berkeley) 5/13/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         4       00163
- * --------------------         -----   ----------------------
- *
- * 18 Aug 92	Frank Maclachlan	*See comments below
- * 25 Mar 93	Rodney W. Grimes	Added counter for stray interrupt,
- *					turned on logging of stray interrupts,
- *					Now prints maddr, msize, and flags
- *					after finding a device.
- * 26 Apr 93	Bruce Evans		New intr-0.1 code
- *		Rodney W. Grimes	Only print io address if id_alive != -1
- * 17 May 93	Rodney W. Grimes	renamed stray interrupt counters to
- *					work with new intr-0.1 code.
- *					Enabled printf for interrupt masks to
- *					aid in bug reports.
- * 27 May 93	Guido van Rooij		New routine add find_isa_dev
+ *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/isa.c,v 1.2 1993/06/18 22:18:57 rgrimes Exp $";
 
 /*
  * code to manage AT bus
@@ -100,112 +82,154 @@ static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/isa.c,v 1.2 1993/
 
 int config_isadev __P((struct isa_device *, u_int *));
 
-#ifdef notyet
-struct rlist *isa_iomem;
-
 /*
- * Configure all ISA devices
+ * print a conflict message
  */
-isa_configure() {
-	struct isa_device *dvp;
-	struct isa_driver *dp;
-
-	splhigh();
-	INTREN(IRQ_SLAVE);
-	/*rlist_free(&isa_iomem, 0xa0000, 0xfffff);*/
-	for (dvp = isa_devtab_tty; dvp; dvp++)
-			(void) config_isadev(dvp, &ttymask);
-	for (dvp = isa_devtab_bio; dvp; dvp++)
-			(void) config_isadev(dvp, &biomask);
-	for (dvp = isa_devtab_net; dvp; dvp++)
-			(void) config_isadev(dvp, &netmask);
-	for (dvp = isa_devtab_null; dvp; dvp++)
-			(void) config_isadev(dvp, (u_int *) NULL);
-#include "sl.h"
-#if NSL > 0
-	netmask |= ttymask;
-	ttymask |= netmask;
-#endif
-/* printf("biomask %x ttymask %x netmask %x\n", biomask, ttymask, netmask); */
-	splnone();
-}
-
-/*
- * Configure an ISA device.
- */
-config_isadev(isdp, mp)
-	struct isa_device *isdp;
-	u_int *mp;
+void
+conflict(dvp, tmpdvp, item, reason, format)
+	struct isa_device	*dvp, *tmpdvp;
+	int			item;
+	char			*reason;
+	char			*format;
 {
-	struct isa_driver *dp;
-	static short drqseen, irqseen;
- 
-	if (dp = isdp->id_driver) {
-		/* if a device with i/o memory, convert to virtual address */
-		if (isdp->id_maddr) {
-			extern unsigned int atdevbase;
-
-			isdp->id_maddr -= IOM_BEGIN;
-			isdp->id_maddr += atdevbase;
-		}
-		isdp->id_alive = (*dp->probe)(isdp);
-		if (isdp->id_alive) {
-
-			printf("%s%d at port 0x%x ", dp->name,
-				isdp->id_unit, isdp->id_iobase);
-
-			/* check for conflicts */
-			if (irqseen & isdp->id_irq) {
-				printf("INTERRUPT CONFLICT - irq%d\n",
-					ffs(isdp->id_irq) - 1);
-				return (0);
-			}
-			if (isdp->id_drq != -1
-				&& (drqseen & (1<<isdp->id_drq))) {
-				printf("DMA CONFLICT - drq%d\n", isdp->id_drq);
-				return (0);
-			}
-			/* NEED TO CHECK IOMEM CONFLICT HERE */
-
-			/* allocate and wire in device */
-			if(isdp->id_irq) {
-				int intrno;
-
-				intrno = ffs(isdp->id_irq)-1;
-				printf("irq %d ", intrno);
-				INTREN(isdp->id_irq);
-				if(mp)INTRMASK(*mp,isdp->id_irq);
-				setidt(NRSVIDT + intrno, isdp->id_intr,
-					 SDT_SYS386IGT, SEL_KPL);
-				irqseen |= isdp->id_irq;
-			}
-			if (isdp->id_drq != -1) {
-				printf("drq %d ", isdp->id_drq);
-				drqseen |=  1 << isdp->id_drq;
-			}
-
-			(*dp->attach)(isdp);
-
-			printf("on isa\n");
-		}
-		return (1);
-	} else	return(0);
+	printf("%s%d not probed due to %s conflict with %s%d at ",
+		dvp->id_driver->name, dvp->id_unit, reason,
+		tmpdvp->id_driver->name, tmpdvp->id_unit);
+	printf(format, item);
+	printf("\n");
 }
-#else /* notyet */
+
+/*
+ * Check to see if things are alread in use, like IRQ's, I/O addresses
+ * and Memory addresses.
+ */
+int
+haveseen(dvp, tmpdvp)
+	struct	isa_device *dvp, *tmpdvp;
+{
+	int	status = 0;
+
+	/*
+	 * Only check against devices that have already been found
+	 */
+	if (tmpdvp->id_alive) {
+		/*
+		 * Check for I/O address conflict.  We can only check the
+		 * starting address of the device against the range of the
+		 * device that has already been probed since we do not
+		 * know how many I/O addresses this device uses.
+		 */
+		if (tmpdvp->id_alive != -1) {
+			if ((dvp->id_iobase >= tmpdvp->id_iobase) &&
+			    (dvp->id_iobase <=
+				  (tmpdvp->id_iobase + tmpdvp->id_alive - 1))) {
+				conflict(dvp, tmpdvp, dvp->id_iobase,
+					 "I/O address", "0x%x");
+				status = 1;
+			}
+		}
+		/*
+		 * Check for Memory address conflict.  We can check for
+		 * range overlap, but it will not catch all cases since the
+		 * driver may adjust the msize paramater during probe, for
+		 * now we just check that the starting address does not
+		 * fall within any allocated region.
+		 * XXX could add a second check after the probe for overlap,
+		 * since at that time we would know the full range.
+		 * XXX KERNBASE is a hack, we should have vaddr in the table!
+		 */
+		if(tmpdvp->id_maddr) {
+			if((KERNBASE + dvp->id_maddr >= tmpdvp->id_maddr) &&
+			   (KERNBASE + dvp->id_maddr <=
+			   (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
+				conflict(dvp, tmpdvp, dvp->id_maddr, "maddr",
+					"0x%x");
+				status = 1;
+			}
+		}
+		/*
+		 * Check for IRQ conflicts.
+		 */
+		if(tmpdvp->id_irq) {
+			if (tmpdvp->id_irq == dvp->id_irq) {
+				conflict(dvp, tmpdvp, ffs(dvp->id_irq) - 1,
+					"irq", "%d");
+				status = 1;
+			}
+		}
+		/*
+		 * Check for DRQ conflicts.
+		 */
+		if(tmpdvp->id_drq != -1) {
+			if (tmpdvp->id_drq == dvp->id_drq) {
+				conflict(dvp, tmpdvp, dvp->id_drq,
+					"drq", "%d");
+				status = 1;
+			}
+		}
+	}
+	return (status);
+}
+
+/*
+ * Search through all the isa_devtab_* tables looking for anything that
+ * conflicts with the current device.
+ */
+int
+haveseen_isadev(dvp)
+	struct isa_device *dvp;
+{
+	struct isa_device *tmpdvp;
+	int	status = 0;
+
+	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp);
+	}
+	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp);
+	}
+	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp);
+	}
+	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp);
+	}
+	return(status);
+}
+
 /*
  * Configure all ISA devices
  */
+void
 isa_configure() {
 	struct isa_device *dvp;
-	struct isa_driver *dp;
 
 	enable_intr();
 	splhigh();
 	INTREN(IRQ_SLAVE);
-	for (dvp = isa_devtab_tty; config_isadev(dvp,&ttymask); dvp++);
-	for (dvp = isa_devtab_bio; config_isadev(dvp,&biomask); dvp++);
-	for (dvp = isa_devtab_net; config_isadev(dvp,&netmask); dvp++);
-	for (dvp = isa_devtab_null; config_isadev(dvp,(u_int *) NULL); dvp++);
+	printf("Probing for devices on the ISA bus:\n");
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++) {
+		if (!haveseen_isadev(dvp))
+			config_isadev(dvp,&ttymask);
+	}
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++) {
+		if (!haveseen_isadev(dvp))
+			config_isadev(dvp,&biomask);
+	}
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++) {
+		if (!haveseen_isadev(dvp))
+			config_isadev(dvp,&netmask);
+	}
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++) {
+		if (!haveseen_isadev(dvp))
+			config_isadev(dvp,(u_int *) NULL);
+	}
+/*
+ * XXX We should really add the tty device to netmask when the line is
+ * switched to SLIPDISC, and then remove it when it is switched away from
+ * SLIPDISC.  No need to block out ALL ttys during a splnet when only one
+ * of them is running slip.
+ */
 #include "sl.h"
 #if NSL > 0
 	netmask |= ttymask;
@@ -223,62 +247,69 @@ config_isadev(isdp, mp)
 	struct isa_device *isdp;
 	u_int *mp;
 {
-	struct isa_driver *dp;
+	struct isa_driver *dp = isdp->id_driver;
  
-	if (dp = isdp->id_driver) {
-		if (isdp->id_maddr) {
-			extern u_int atdevbase;
+	if (isdp->id_maddr) {
+		extern u_int atdevbase;
 
-			isdp->id_maddr -= 0xa0000; /* XXX should be a define */
-			isdp->id_maddr += atdevbase;
-		}
-		isdp->id_alive = (*dp->probe)(isdp);
-		if (isdp->id_alive) {
-			printf("%s%d", dp->name, isdp->id_unit);
-			/*
-			 * Only print the I/O address range if id_alive != -1
-			 * Right now this is a temporary fix just for the new
-			 * NPX code so that if it finds a 486 that can use trap
-			 * 16 it will not report I/O addresses.
-			 * Rod Grimes 04/26/94
-			 */
-			if (isdp->id_alive != -1) {
-	 			printf(" at 0x%x", isdp->id_iobase);
- 				if ((isdp->id_iobase + isdp->id_alive - 1) !=
- 				     isdp->id_iobase)
- 					printf("-0x%x",
- 					       isdp->id_iobase +
-					       isdp->id_alive - 1);
+		isdp->id_maddr -= 0xa0000; /* XXX should be a define */
+		isdp->id_maddr += atdevbase;
+	}
+	isdp->id_alive = (*dp->probe)(isdp);
+	if (isdp->id_alive) {
+		/*
+		 * Only print the I/O address range if id_alive != -1
+		 * Right now this is a temporary fix just for the new
+		 * NPX code so that if it finds a 486 that can use trap
+		 * 16 it will not report I/O addresses.
+		 * Rod Grimes 04/26/94
+		 */
+		printf("%s%d", dp->name, isdp->id_unit);
+		if (isdp->id_alive != -1) {
+ 			printf(" at 0x%x", isdp->id_iobase);
+ 			if ((isdp->id_iobase + isdp->id_alive - 1) !=
+ 			     isdp->id_iobase) {
+ 				printf("-0x%x",
+				       isdp->id_iobase +
+				       isdp->id_alive - 1);
 			}
-			if(isdp->id_irq)
-				printf(" irq %d", ffs(isdp->id_irq)-1);
-			if (isdp->id_drq != -1)
-				printf(" drq %d", isdp->id_drq);
-			if (isdp->id_maddr != 0)
-				printf(" maddr 0x%x", kvtop(isdp->id_maddr));
-			if (isdp->id_msize != 0)
-				printf(" msize %d", isdp->id_msize);
-			if (isdp->id_flags != 0)
-				printf(" flags 0x%x", isdp->id_flags);
+		}
+		if(isdp->id_irq)
+			printf(" irq %d", ffs(isdp->id_irq) - 1);
+		if (isdp->id_drq != -1)
+			printf(" drq %d", isdp->id_drq);
+		if (isdp->id_maddr)
+			printf(" maddr 0x%x", kvtop(isdp->id_maddr));
+		if (isdp->id_msize)
+			printf(" msize %d", isdp->id_msize);
+		if (isdp->id_flags)
+			printf(" flags 0x%x", isdp->id_flags);
+		if (isdp->id_iobase < 0x100)
+			printf(" on motherboard\n");
+		else
 			printf(" on isa\n");
 
-			(*dp->attach)(isdp);
+		(*dp->attach)(isdp);
 
-			if(isdp->id_irq) {
-				int intrno;
+		if(isdp->id_irq) {
+			int intrno;
 
-				intrno = ffs(isdp->id_irq)-1;
-				setidt(ICU_OFFSET+intrno, isdp->id_intr,
-					 SDT_SYS386IGT, SEL_KPL);
-				if(mp)
-					INTRMASK(*mp,isdp->id_irq);
-				INTREN(isdp->id_irq);
+			intrno = ffs(isdp->id_irq)-1;
+			setidt(ICU_OFFSET+intrno, isdp->id_intr,
+				 SDT_SYS386IGT, SEL_KPL);
+			if(mp) {
+				INTRMASK(*mp,isdp->id_irq);
 			}
+			INTREN(isdp->id_irq);
 		}
-		return (1);
-	} else	return(0);
+	} else {
+		printf("%s%d not found", dp->name, isdp->id_unit);
+		if (isdp->id_iobase) {
+			printf(" at 0x%x", isdp->id_iobase);
+		}
+		printf("\n");
+	}
 }
-#endif /* (!) notyet */
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 /* default interrupt vector table entries */
