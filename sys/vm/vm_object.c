@@ -676,7 +676,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	 * the size might be in the gigabytes or terrabytes.
 	 */
 	if (msync_flush_flags & MSYNC_FLUSH_HARDSEQ) {
-		vm_offset_t tscan;
+		vm_pindex_t tscan;
 		int scanlimit;
 		int scanreset;
 
