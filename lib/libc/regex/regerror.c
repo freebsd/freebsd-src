@@ -116,8 +116,8 @@ static struct rerr {
 size_t
 regerror(errcode, preg, errbuf, errbuf_size)
 int errcode;
-const regex_t *preg;
-char *errbuf;
+const regex_t * __restrict preg;
+char * __restrict errbuf;
 size_t errbuf_size;
 {
 	struct rerr *r;

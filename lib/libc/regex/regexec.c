@@ -156,10 +156,10 @@ static int nope = 0;		/* for use in asserts; shuts lint up */
  */
 int				/* 0 success, REG_NOMATCH failure */
 regexec(preg, string, nmatch, pmatch, eflags)
-const regex_t *preg;
-const char *string;
+const regex_t * __restrict preg;
+const char * __restrict string;
 size_t nmatch;
-regmatch_t pmatch[];
+regmatch_t pmatch[__restrict];
 int eflags;
 {
 	struct re_guts *g = preg->re_g;
