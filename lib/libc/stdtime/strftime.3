@@ -36,7 +36,7 @@
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2003
+.Dd November 4, 2004
 .Dt STRFTIME 3
 .Os
 .Sh NAME
@@ -216,6 +216,15 @@ RFC 822 date headers).
 is replaced by national representation of the date and time
 (the format is similar to that produced by
 .Xr date 1 ) .
+.It Cm \&%-*
+GNU libc extension.
+Do not do any padding when performing numerical outputs.
+.It Cm \&%_*
+GNU libc extension.
+Explicitly specify space for padding.
+.It Cm \&%0*
+GNU libc extension.
+Explicitly specify zero for padding.
 .It Cm %%
 is replaced by
 .Ql % .

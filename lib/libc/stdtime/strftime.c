@@ -59,6 +59,30 @@ extern char *	tzname[];
 #define IN_THIS	2
 #define IN_ALL	3
 
+#define PAD_DEFAULT 0
+#define PAD_LESS	1
+#define PAD_SPACE	2
+#define PAD_ZERO	3
+
+static const char* fmt_padding[][4] = {
+	/* DEFAULT,	LESS,	SPACE,	ZERO */
+#define PAD_FMT_MONTHDAY	0
+#define PAD_FMT_HMS			0
+#define PAD_FMT_CENTURY		0
+#define PAD_FMT_SHORTYEAR	0
+#define PAD_FMT_MONTH		0
+#define PAD_FMT_WEEKOFYEAR	0
+#define PAD_FMT_DAYOFMONTH	0
+	{ "%02d",	"%d",	"%2d",	"%02d" },
+#define PAD_FMT_SDAYOFMONTH	1
+#define PAD_FMT_SHMS		1
+	{ "%2d",	"%d",	"%2d",	"%02d" },
+#define	PAD_FMT_DAYOFYEAR	2
+	{ "%03d",	"%d",	"%3d",	"%03d" },
+#define PAD_FMT_YEAR		3
+	{ "%04d",	"%d",	"%4d",	"%04d" }
+};
+
 size_t
 strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
     const struct tm * __restrict t)
@@ -99,13 +123,14 @@ char *			pt;
 const char * const	ptlim;
 int *			warnp;
 {
-	int Ealternative, Oalternative;
+	int Ealternative, Oalternative, PadIndex;
 	struct lc_time_T *tptr = __get_current_time_locale();
 
 	for ( ; *format; ++format) {
 		if (*format == '%') {
 			Ealternative = 0;
 			Oalternative = 0;
+			PadIndex	 = PAD_DEFAULT;
 label:
 			switch (*++format) {
 			case '\0':
@@ -146,7 +171,7 @@ label:
 				** (ado, 1993-05-24)
 				*/
 				pt = _conv((t->tm_year + TM_YEAR_BASE) / 100,
-					"%02d", pt, ptlim);
+					fmt_padding[PAD_FMT_CENTURY][PadIndex], pt, ptlim);
 				continue;
 			case 'c':
 				{
@@ -163,7 +188,8 @@ label:
 				pt = _fmt("%m/%d/%y", t, pt, ptlim, warnp);
 				continue;
 			case 'd':
-				pt = _conv(t->tm_mday, "%02d", pt, ptlim);
+				pt = _conv(t->tm_mday, fmt_padding[PAD_FMT_DAYOFMONTH][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'E':
 				if (Ealternative || Oalternative)
@@ -188,21 +214,24 @@ label:
 				Oalternative++;
 				goto label;
 			case 'e':
-				pt = _conv(t->tm_mday, "%2d", pt, ptlim);
+				pt = _conv(t->tm_mday,
+					fmt_padding[PAD_FMT_SDAYOFMONTH][PadIndex], pt, ptlim);
 				continue;
 			case 'F':
 				pt = _fmt("%Y-%m-%d", t, pt, ptlim, warnp);
 				continue;
 			case 'H':
-				pt = _conv(t->tm_hour, "%02d", pt, ptlim);
+				pt = _conv(t->tm_hour, fmt_padding[PAD_FMT_HMS][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'I':
 				pt = _conv((t->tm_hour % 12) ?
 					(t->tm_hour % 12) : 12,
-					"%02d", pt, ptlim);
+					fmt_padding[PAD_FMT_HMS][PadIndex], pt, ptlim);
 				continue;
 			case 'j':
-				pt = _conv(t->tm_yday + 1, "%03d", pt, ptlim);
+				pt = _conv(t->tm_yday + 1,
+					fmt_padding[PAD_FMT_DAYOFYEAR][PadIndex], pt, ptlim);
 				continue;
 			case 'k':
 				/*
@@ -215,7 +244,8 @@ label:
 				** "%l" have been swapped.
 				** (ado, 1993-05-24)
 				*/
-				pt = _conv(t->tm_hour, "%2d", pt, ptlim);
+				pt = _conv(t->tm_hour, fmt_padding[PAD_FMT_SHMS][PadIndex],
+					pt, ptlim);
 				continue;
 #ifdef KITCHEN_SINK
 			case 'K':
@@ -237,13 +267,15 @@ label:
 				*/
 				pt = _conv((t->tm_hour % 12) ?
 					(t->tm_hour % 12) : 12,
-					"%2d", pt, ptlim);
+					fmt_padding[PAD_FMT_SHMS][PadIndex], pt, ptlim);
 				continue;
 			case 'M':
-				pt = _conv(t->tm_min, "%02d", pt, ptlim);
+				pt = _conv(t->tm_min, fmt_padding[PAD_FMT_HMS][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'm':
-				pt = _conv(t->tm_mon + 1, "%02d", pt, ptlim);
+				pt = _conv(t->tm_mon + 1,
+					fmt_padding[PAD_FMT_MONTH][PadIndex], pt, ptlim);
 				continue;
 			case 'n':
 				pt = _add("\n", pt, ptlim);
@@ -262,7 +294,8 @@ label:
 					warnp);
 				continue;
 			case 'S':
-				pt = _conv(t->tm_sec, "%02d", pt, ptlim);
+				pt = _conv(t->tm_sec, fmt_padding[PAD_FMT_HMS][PadIndex],
+					pt, ptlim);
 				continue;
 			case 's':
 				{
@@ -290,7 +323,7 @@ label:
 			case 'U':
 				pt = _conv((t->tm_yday + DAYSPERWEEK -
 					t->tm_wday) / DAYSPERWEEK,
-					"%02d", pt, ptlim);
+					fmt_padding[PAD_FMT_WEEKOFYEAR][PadIndex], pt, ptlim);
 				continue;
 			case 'u':
 				/*
@@ -379,13 +412,13 @@ label:
 						w = 53;
 #endif /* defined XPG4_1994_04_09 */
 					if (*format == 'V')
-						pt = _conv(w, "%02d",
+						pt = _conv(w, fmt_padding[PAD_FMT_WEEKOFYEAR][PadIndex],
 							pt, ptlim);
 					else if (*format == 'g') {
 						*warnp = IN_ALL;
-						pt = _conv(year % 100, "%02d",
+						pt = _conv(year % 100, fmt_padding[PAD_FMT_SHORTYEAR][PadIndex],
 							pt, ptlim);
-					} else	pt = _conv(year, "%04d",
+					} else	pt = _conv(year, fmt_padding[PAD_FMT_YEAR][PadIndex],
 							pt, ptlim);
 				}
 				continue;
@@ -402,7 +435,7 @@ label:
 					(t->tm_wday ?
 					(t->tm_wday - 1) :
 					(DAYSPERWEEK - 1))) / DAYSPERWEEK,
-					"%02d", pt, ptlim);
+					fmt_padding[PAD_FMT_WEEKOFYEAR][PadIndex], pt, ptlim);
 				continue;
 			case 'w':
 				pt = _conv(t->tm_wday, "%d", pt, ptlim);
@@ -424,10 +457,11 @@ label:
 			case 'y':
 				*warnp = IN_ALL;
 				pt = _conv((t->tm_year + TM_YEAR_BASE) % 100,
-					"%02d", pt, ptlim);
+					fmt_padding[PAD_FMT_SHORTYEAR][PadIndex], pt, ptlim);
 				continue;
 			case 'Y':
-				pt = _conv(t->tm_year + TM_YEAR_BASE, "%04d",
+				pt = _conv(t->tm_year + TM_YEAR_BASE,
+					fmt_padding[PAD_FMT_YEAR][PadIndex],
 					pt, ptlim);
 				continue;
 			case 'Z':
@@ -494,13 +528,28 @@ label:
 				pt = _add(sign, pt, ptlim);
 				diff /= 60;
 				pt = _conv((diff/60)*100 + diff%60,
-					"%04d", pt, ptlim);
+					fmt_padding[PAD_FMT_YEAR][PadIndex], pt, ptlim);
 				}
 				continue;
 			case '+':
 				pt = _fmt(tptr->date_fmt, t, pt, ptlim,
 					warnp);
 				continue;
+			case '-':
+				if (PadIndex != PAD_DEFAULT)
+					break;
+				PadIndex = PAD_LESS;
+				goto label;
+			case '_':
+				if (PadIndex != PAD_DEFAULT)
+					break;
+				PadIndex = PAD_SPACE;
+				goto label;
+			case '0':
+				if (PadIndex != PAD_DEFAULT)
+					break;
+				PadIndex = PAD_ZERO;
+				goto label;
 			case '%':
 			/*
 			** X311J/88-090 (4.12.3.5): if conversion char is
