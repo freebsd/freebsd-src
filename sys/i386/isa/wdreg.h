@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.20 1997/09/20 07:41:45 dyson Exp $
+ *	$Id: wdreg.h,v 1.21 1998/01/14 08:08:42 kato Exp $
  */
 
 /*
@@ -137,6 +137,7 @@
 #define	WD_STEP		0		/* winchester- default 35us step */
 
 #define	WDSD_IBM	0xa0		/* forced to 512 byte sector, ecc */
+#define	WDSD_LBA	0x40		/* use Logical Block Adressing */
 
 #ifdef KERNEL
 /*
