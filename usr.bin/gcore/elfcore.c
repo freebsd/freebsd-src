@@ -287,9 +287,9 @@ elf_puthdr(vm_map_entry_t map, void *dst, size_t *off, const prstatus_t *status,
 		ehdr->e_ident[EI_CLASS] = ELF_CLASS;
 		ehdr->e_ident[EI_DATA] = ELF_DATA;
 		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+		ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+		ehdr->e_ident[EI_ABIVERSION] = 0;
 		ehdr->e_ident[EI_PAD] = 0;
-		strncpy(ehdr->e_ident + EI_BRAND, "FreeBSD",
-		    EI_NIDENT - EI_BRAND);
 		ehdr->e_type = ET_CORE;
 		ehdr->e_machine = ELF_ARCH;
 		ehdr->e_version = EV_CURRENT;
