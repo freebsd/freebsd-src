@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.4 1996/05/16 23:17:53 mpp Exp $ -->
+<!-- $Id: diskless.sgml,v 1.5 1996/07/06 14:20:11 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
@@ -143,7 +143,7 @@ hostname myclient.mydomain
 	doing this, although I have been using a shared <tt>/usr</tt>
 	filesystem and individual <tt>/</tt> filesystems for each client.
 	If anyone has any suggestions on how to do this cleanly,
-	please let me and/or the core group know.
+	please let me and/or the &a.core; know.
 
     <sect1>
       <heading>Compiling netboot for specific setups</heading>
