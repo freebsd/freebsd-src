@@ -1065,6 +1065,7 @@ vt_coldinit(void)
 		}
 
 #ifdef FAT_CURSOR
+		svsp->cursor_start = 0;
 		svsp->cursor_end = 15;		/* cursor lower scanline */
 #endif
 
