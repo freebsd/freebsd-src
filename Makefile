@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.13 1997/09/01 07:26:42 peter Exp $
+#	$Id: Makefile,v 1.109.2.14 1997/09/05 09:12:51 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -440,7 +440,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} all install
+	cd ${.CURDIR}/include &&		${MAKE} all installhdrs symlinks
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
