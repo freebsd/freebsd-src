@@ -119,3 +119,43 @@ METHOD int deactivate_function {
 	device_t  dev;
 	device_t  child;
 }
+
+#
+# Compatibility methods for OLDCARD drivers.  We use these routines to make
+# it possible to call the OLDCARD driver's probe routine in the context that
+# it expects.  For OLDCARD these are implemented as pass throughs to the
+# device_{probe,attach} routines.  For NEWCARD they are implemented such
+# such that probe becomes strictly a matching routine and attach does both
+# the old probe and old attach.
+#
+# compat devices should use the following:
+#
+#	/* Device interface */
+#	DEVMETHOD(device_probe),	pccard_compat_probe),
+#	DEVMETHOD(device_attach),	pccard_compat_attach),
+#	/* Card interface */
+#	DEVMETHOD(card_compat_match,	foo_match),	/* newly written */
+#	DEVMETHOD(card_compat_probe,	foo_probe),	/* old probe */
+#	DEVMETHOD(card_compat_attach,	foo_attach),	/* old attach */
+#
+# This will allow a single driver binary image to be used for both
+# OLDCARD and NEWCARD.
+#
+# Drivers wishing to not retain OLDCARD compatibility needn't do this.
+#
+METHOD int compat_probe {
+	device_t dev;
+}
+
+METHOD int compat_attach {
+	device_t dev;
+}
+
+#
+# Helper method for the above.  When a compatibility driver is converted,
+# one must write a match routine.  This routine is unused on OLDCARD but
+# is used as a discriminator for NEWCARD.
+#
+METHOD int compat_match {
+	device_t dev;
+}
