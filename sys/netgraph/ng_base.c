@@ -872,7 +872,7 @@ ng_newtype(struct ng_type *tp)
 
 	/* Link in new type */
 	LIST_INSERT_HEAD(&typelist, tp, types);
-	tp->refs = 0;
+	tp->refs = 1;	/* first ref is linked list */
 	return (0);
 }
 
@@ -1456,7 +1456,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 				break;
 			}
 			strncpy(tp->type_name, type->name, NG_TYPELEN);
-			tp->numnodes = type->refs;
+			tp->numnodes = type->refs - 1; /* don't count list */
 			tl->numtypes++;
 		}
 		*resp = rp;
@@ -1729,16 +1729,23 @@ ng_mod_event(module_t mod, int event, void *data)
 
 		/* Call type specific code */
 		if (type->mod_event != NULL)
-			if ((error = (*type->mod_event)(mod, event, data)) != 0)
+			if ((error = (*type->mod_event)(mod, event, data))) {
+				type->refs--;	/* undo it */
 				LIST_REMOVE(type, types);
+			}
 		splx(s);
 		break;
 
 	case MOD_UNLOAD:
 		s = splnet();
-		if (type->refs != 0)		/* make sure no nodes exist! */
+		if (type->refs > 1) {		/* make sure no nodes exist! */
 			error = EBUSY;
-		else {
+		} else {
+			if (type->refs == 0) {
+				/* failed load, nothing to undo */
+				splx(s);
+				break;
+			}
 			if (type->mod_event != NULL) {	/* check with type */
 				error = (*type->mod_event)(mod, event, data);
 				if (error != 0) {	/* type refuses.. */
