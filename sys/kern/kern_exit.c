@@ -344,10 +344,6 @@ exit1(p, rv)
 	}
 
 	wakeup((caddr_t)p->p_pptr);
-#if defined(tahoe)
-	/* move this to cpu_exit */
-	p->p_addr->u_pcb.pcb_savacc.faddr = (float *)NULL;
-#endif
 	/*
 	 * Clear curproc after we've done all operations
 	 * that could block, and before tearing down the rest
