@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+BSDPANDIR=	${LIBDATADIR}/perl/BSDPAN

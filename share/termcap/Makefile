@@ -7,10 +7,9 @@
 #
 MAN=	termcap.5
 
+FILES=		map3270 termcap termcap.db
+FILESDIR=	${BINDIR}/misc
 CLEANFILES+=	termcap termcap.db
-FILES=		termcap termcap.db
-
-all: termcap termcap.db
 
 termcap: reorder termcap.src
 	TERM=dumb ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder
@@ -18,14 +17,7 @@ termcap: reorder termcap.src
 termcap.db: termcap
 	cap_mkdb termcap
 
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	     ${FILES} ${DESTDIR}${BINDIR}/misc
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	     ${.CURDIR}/map3270 ${DESTDIR}${BINDIR}/misc
-
 etc-termcap:
-	rm -f ${DESTDIR}/etc/termcap
-	ln -s ${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
+	ln -fs ${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
 
 .include <bsd.prog.mk>

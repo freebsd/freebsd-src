@@ -6,16 +6,11 @@
 	uudecode ${.IMPSRC}
 
 FILES=	2681.sys cdk.sys
+FILESDIR=	${BOOTDIR}
 CLEANFILES= 	${FILES}
 
 MAN=	stl.4
 MLINKS=	stl.4 stli.4
 MANSUBDIR=/i386
-
-all: $(FILES)
-
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${FILES} ${DESTDIR}${BOOTDIR}
 
 .include <bsd.prog.mk>

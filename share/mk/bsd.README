@@ -196,6 +196,11 @@ CLEANDIRS	additional directories to remove during clean and cleandir
 
 COPTS		Additional flags to the compiler when creating C objects.
 
+FILES		A list of non-executable files.
+		The installation is controlled by the FILESNAME, FILESOWN,
+		FILESGRP, FILESMODE, FILESDIR variables that can be
+		further specialized by FILES<VAR>_<file>.
+
 HIDEGAME	If HIDEGAME is defined, the binary is installed in
 		/usr/games/hide, and a symbolic link is created to
 		/usr/games/dm.
