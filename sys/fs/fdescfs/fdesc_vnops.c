@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.36 1998/06/10 19:56:06 alex Exp $
+ * $Id: fdesc_vnops.c,v 1.37 1998/06/10 21:21:28 dfr Exp $
  */
 
 /*
@@ -564,7 +564,6 @@ static struct dirtmp {
 	{ FD_STDOUT, UIO_MX, 6, "stdout" },
 	{ FD_STDERR, UIO_MX, 6, "stderr" },
 	{ FD_CTTY, UIO_MX, 3, "tty" },
-	{ 0 }
 };
 
 static int
@@ -580,8 +579,7 @@ fdesc_readdir(ap)
 {
 	struct uio *uio = ap->a_uio;
 	struct filedesc *fdp;
-	int i;
-	int error;
+	int error, i, off;
 
 	/*
 	 * We don't allow exporting fdesc mounts, and currently local
@@ -590,17 +588,15 @@ fdesc_readdir(ap)
 	if (ap->a_ncookies)
 		panic("fdesc_readdir: not hungry");
 
-	switch (VTOFDESC(ap->a_vp)->fd_type) {
-	case Fctty:
-		return (0);
+	if (VTOFDESC(ap->a_vp)->fd_type != Froot &&
+	    VTOFDESC(ap->a_vp)->fd_type != Fdevfd)
+		panic("fdesc_readdir: not dir");
 
-	case Fdesc:
-		return (ENOTDIR);
-
-	default:
-		break;
-	}
-
+	off = (int)uio->uio_offset;
+	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
+	    uio->uio_resid < UIO_MX)
+		return (EINVAL);
+	i = (u_int)off / UIO_MX;
 	fdp = uio->uio_procp->p_fd;
 
 	if (VTOFDESC(ap->a_vp)->fd_type == Froot) {
@@ -608,17 +604,11 @@ fdesc_readdir(ap)
 		struct dirent *dp = &d;
 		struct dirtmp *dt;
 
-		i = uio->uio_offset / UIO_MX;
 		error = 0;
 
-		while (uio->uio_resid > 0) {
+		while (i < sizeof(rootent) / sizeof(rootent[0]) &&
+		    uio->uio_resid >= UIO_MX) {
 			dt = &rootent[i];
-			if (dt->d_fileno == 0) {
-				/**eofflagp = 1;*/
-				break;
-			}
-			i++;
-
 			switch (dt->d_fileno) {
 			case FD_CTTY:
 				if (cttyvp(uio->uio_procp) == NULL)
@@ -643,17 +633,14 @@ fdesc_readdir(ap)
 			error = uiomove((caddr_t) dp, UIO_MX, uio);
 			if (error)
 				break;
+			i++;
 		}
 		uio->uio_offset = i * UIO_MX;
 		return (error);
 	}
 
-	i = uio->uio_offset / UIO_MX;
 	error = 0;
-	while (uio->uio_resid > 0) {
-		if (i >= fdp->fd_nfiles)
-			break;
-
+	while (i < fdp->fd_nfiles && uio->uio_resid >= UIO_MX) {
 		if (fdp->fd_ofiles[i] != NULL) {
 			struct dirent d;
 			struct dirent *dp = &d;
