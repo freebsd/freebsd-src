@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.22 1998/09/06 22:41:41 tegge Exp $
+ *	$Id: apic_ipl.s,v 1.23 1999/04/10 19:22:17 tegge Exp $
  */
 
 
@@ -116,6 +116,7 @@ splz_next:
 	ALIGN_TEXT
 splz_unpend:
 	bsfl	%ecx,%ecx
+	lock
 	btrl	%ecx,_ipending
 	jnc	splz_next
 	cmpl	$NHWI,%ecx
