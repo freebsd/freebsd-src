@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.22 1998/09/30 01:08:12 jdp Exp $
+#	$Id: rc.network,v 1.1.2.23 1998/11/25 21:51:34 msmith Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -225,8 +225,9 @@ network_pass3() {
     
     if [ "X${nfs_client_enable}" = X"YES" ]; then
 	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
-	    if [ ! "X${nfs_access_cache}" = X ]; then
-		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache}
+	    if [ "X${nfs_access_cache}" != X ]; then
+		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
+			>/dev/null 2>&1
 	    fi
     fi
 
