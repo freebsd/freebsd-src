@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.28 1996/01/19 03:58:52 dyson Exp $
+ * $Id: nfs_subs.c,v 1.29 1996/06/14 11:13:21 phk Exp $
  */
 
 /*
@@ -1218,8 +1218,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
 		vmode = fxdr_unsigned(u_short, fp->fa_mode);
-		rdev = makedev(fxdr_unsigned(u_char, fp->fa3_rdev.specdata1),
-			fxdr_unsigned(u_char, fp->fa3_rdev.specdata2));
+		rdev = makedev(fxdr_unsigned(int, fp->fa3_rdev.specdata1),
+			fxdr_unsigned(int, fp->fa3_rdev.specdata2));
 		fxdr_nfsv3time(&fp->fa3_mtime, &mtime);
 	} else {
 		vtyp = nfsv2tov_type(fp->fa_type);
