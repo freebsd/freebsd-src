@@ -96,7 +96,7 @@ struct mboot {
 #endif /* PC98 */
 
 static struct mboot mboot;
-static int fd;
+static int fd, fdw;
 
 #define ACTIVE 0x80
 #define BOOT_MAGIC 0xAA55
@@ -810,7 +810,10 @@ static int
 open_disk(int flag)
 {
 	struct stat 	st;
+	int		rwmode, i;
+	char		buf[MAXPATHLEN];
 
+	fdw = -1;
 	if (stat(disk, &st) == -1) {
 		if (errno == ENOENT)
 			return -2;
@@ -820,22 +823,49 @@ open_disk(int flag)
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
 #ifdef PC98
-	if ((fd = open(disk,
-	    a_flag || B_flag || flag ? O_RDWR : O_RDONLY)) == -1) {
-		if(errno == ENXIO)
-			return -2;
-		warnx("can't open device %s", disk);
-		return -1;
+	rwmode = a_flag || B_flag || flag ? O_RDWR : O_RDONLY;
+	fd = open(disk, rwmode);
+	if (fd == -1 && errno == ENXIO)
+		return -2;
+	if (fd == -1 && errno == EPERM && rwmode == O_RDWR) {
+		fd = open(disk, O_RDONLY);
+		if (fd == -1)
+			return -3;
+		for (i = 0; i < NDOSPART; i++) {
+			snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
+			fdw = open(buf, O_RDONLY);
+			if (fdw == -1)
+				continue;
+			break;
+		}
+		if (fdw == -1)
+			return -4;
 	}
 #else
-	if ((fd = open(disk,
-	    a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY)) == -1) {
-		if(errno == ENXIO)
-			return -2;
+	rwmode = a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY;
+	fd = open(disk, rwmode);
+	if (fd == -1 && errno == ENXIO)
+		return -2;
+	if (fd == -1 && errno == EPERM && rwmode == O_RDWR) {
+		fd = open(disk, O_RDONLY);
+		if (fd == -1)
+			return -3;
+		for (p = 1; p < 5; p++) {
+			asprintf(&s, "%ss%d", disk, p);
+			fdw = open(s, O_RDONLY);
+			free(s);
+			if (fdw == -1)
+				continue;
+			break;
+		}
+		if (fdw == -1)
+			return -4;
+	}
+#endif
+	if (fd == -1) {
 		warnx("can't open device %s", disk);
 		return -1;
 	}
-#endif
 	if (get_params() == -1) {
 		warnx("can't get disk parameters on %s", disk);
 		return -1;
@@ -871,13 +901,24 @@ read_disk(off_t sector, void *buf)
 static ssize_t
 write_disk(off_t sector, void *buf)
 {
-	lseek(fd,(sector * 512), 0);
-	/* write out in the size that the read_disk found worked */
+
 #ifdef PC98
-	return write(fd, buf,
+	if (fdw != -1) {
+		return ioctl(fdw, DIOCGPC98, buf);
+	} else {
+		lseek(fd,(sector * 512), 0);
+		/* write out in the size that the read_disk found worked */
+		return write(fd, buf,
 		     secsize > MIN_SEC_SIZE ? secsize : MIN_SEC_SIZE * 2);
+	}
 #else
-	return write(fd, buf, secsize);
+	if (fdw != -1) {
+		return ioctl(fdw, DIOCSMBR, buf);
+	} else {
+		lseek(fd,(sector * 512), 0);
+		/* write out in the size that the read_disk found worked */
+		return write(fd, buf, secsize);
+	}
 #endif
 }
 
