@@ -1,6 +1,6 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.14 1996/07/05 01:24:11 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.15 1996/07/10 09:43:47 jkh Exp $
 
-Contents last changed:  July 4th, 1996
+Contents last changed:  July 12th, 1996
 
 Table of Contents
 -----------------
@@ -82,6 +82,8 @@ scd0    230     n/a     n/a     n/a     Sony CD-ROM
 
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
+sio2    xxx     5       n/a     n/a     Serial port 2 (COM3) (disabled)
+sio3    xxx     9       n/a     n/a     Serial port 3 (COM4) (disabled)
 
 lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
