@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.11 1997/08/05 20:18:38 ache Exp $
+ *	$Id: http.c,v 1.12 1997/09/28 11:25:59 cracauer Exp $
  */
 
 #include <sys/types.h>
@@ -125,22 +125,31 @@ static time_t parse_http_date(char *datestring);
 static void setup_http_auth(void);
 
 static int 
-http_parse(struct fetch_state *fs, const char *uri)
+http_parse(struct fetch_state *fs, const char *u)
 {
-	const char *p, *colon, *slash, *ques, *q;
-	char *hostname, *hosthdr, *trimmed_name;
+	const char *p, *colon, *slash, *q;
+	char *hostname, *hosthdr, *trimmed_name, *uri, *ques, saveq = 0;
 	unsigned port;
 	struct http_state *https;
+
+	uri = alloca(strlen(u) + 1);
+	strcpy(uri, u);
 
 	p = uri + 5;
 	port = 0;
 
 	if (p[0] != '/' || p[1] != '/') {
-		warnx("`%s': malformed `http' URL", uri);
+		warnx("`%s': malformed `http' URL", u);
 		return EX_USAGE;
 	}
 
 	p += 2;
+
+	if ((ques = strpbrk(p, "?#")) != NULL) {
+		saveq = *ques;
+		*ques = '\0';
+	}
+
 	colon = strchr(p, ':');
 	slash = strchr(p, '/');
 	if (colon && slash && colon < slash)
@@ -148,7 +157,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 	else
 		q = slash;
 	if (q == 0) {
-		warnx("`%s': malformed `http' URL", uri);
+		warnx("`%s': malformed `http' URL", u);
 		return EX_USAGE;
 	}
 	hostname = alloca(q - p + 1);
@@ -164,7 +173,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 		ul = strtoul(colon + 1, &ep, 10);
 		if (ep != slash || ep == colon + 1 || errno != 0
 		    || ul < 1 || ul > 65534) {
-			warn("`%s': invalid port in URL", uri);
+			warn("`%s': invalid port in URL", u);
 			return EX_USAGE;
 		}
 
@@ -174,6 +183,10 @@ http_parse(struct fetch_state *fs, const char *uri)
 	}
 
 	p = slash;
+
+	/* parsing finished, restore parm part */
+	if (ques != NULL)
+		*ques = saveq;
 
 	https = safe_malloc(sizeof *https);
 
@@ -194,7 +207,6 @@ http_parse(struct fetch_state *fs, const char *uri)
 	 */
 	https->http_remote_request = safe_strdup(p);
 	p++;
-	ques = strpbrk(p, "?#");
 	if (ques) {
 		trimmed_name = safe_strndup(p, ques - p);
 	} else {
