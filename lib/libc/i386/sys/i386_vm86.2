@@ -75,13 +75,14 @@ The
 .Fa int_map
 argument
 is a bitmap which determines whether vm86 interrupts should be handled
-in vm86 mode, or reflected back to the process.  If the
+in vm86 mode, or reflected back to the process.
+If the
 .Em Nth
 bit is set, the interrupt will be reflected to the process, otherwise
 it will be dispatched by the vm86 interrupt table.
 .It Dv VM86_INTCALL
-This allows calls to be made to vm86 interrupt handlers by the process. It
-effectively simulates an INT instruction.
+This allows calls to be made to vm86 interrupt handlers by the process.
+It effectively simulates an INT instruction.
 .Fa data
 should point to the following structure:
 .Bd -literal
@@ -92,8 +93,8 @@ struct vm86_intcall_args {
 .Ed
 .Pp
 .Fa intnum
-specifies the operand of INT for the simulated call. A value of 0x10, for
-example, would often be used to call into the VGA BIOS.
+specifies the operand of INT for the simulated call.
+A value of 0x10, for example, would often be used to call into the VGA BIOS.
 .Fa vmf
 is used to initialize CPU registers according to the calling convention for
 the interrupt handler.
@@ -117,7 +118,8 @@ vm86 mode is entered by calling
 .Xr sigreturn 2
 with the correct machine context for vm86, and with the
 .Dv PSL_VM
-bit set.  Control returns to the process upon delivery of a signal.
+bit set.
+Control returns to the process upon delivery of a signal.
 .Sh RETURN VALUES
 .Rv -std i386_vm86
 .Sh ERRORS
@@ -132,6 +134,7 @@ The kernel does not have vm86 support, or an invalid function was specified.
 There is not enough memory to initialize the kernel data structures.
 .El
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
 .An Jonathan Lemon ,
 and updated by

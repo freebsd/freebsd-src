@@ -52,7 +52,7 @@ string to floating point
 .Fn strtod "const char * restrict nptr" "char ** restrict endptr"
 .Ft float
 .Fn strtof "const char * restrict nptr" "char ** restrict endptr"
-.Ft long double
+.Ft "long double"
 .Fn strtold "const char * restrict nptr" "char ** restrict endptr"
 .Sh DESCRIPTION
 These conversion
@@ -63,7 +63,7 @@ to
 .Vt double ,
 .Vt float ,
 and
-.Vt long double
+.Vt "long double"
 representation, respectively.
 .Pp
 The expected form of the string is an optional plus (``+'') or minus
@@ -160,10 +160,10 @@ These routines do not recognize the C99 ``NaN(...)'' syntax.
 The author of this software is
 .An David M. Gay .
 .Pp
+.Bd -literal
 Copyright (c) 1998 by Lucent Technologies
-.br
 All Rights Reserved
-.Pp
+
 Permission to use, copy, modify, and distribute this software and
 its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
@@ -173,7 +173,7 @@ documentation, and that the name of Lucent or any of its entities
 not be used in advertising or publicity pertaining to
 distribution of the software without specific, written prior
 permission.
-.Pp
+
 LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
 INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
 IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
@@ -182,3 +182,4 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
 IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
+.Ed
