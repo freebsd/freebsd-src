@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.22 1996/10/10 11:27:35 sos Exp $
+ * $Id: command.c,v 1.23 1996/10/12 16:20:28 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -170,16 +170,22 @@ char **argv;
 #ifndef HAVE_SHELL_CMD_WITH_ANY_MODE
   if( mode != MODE_INTER) {
      fprintf(stdout,
-             "Can start an shell only in interactive mode\n");
+             "Can only start a shell in interactive mode\n");
      return(1);
   }
 #else
   if(argc == 0 && !(mode & MODE_INTER)) {
       fprintf(stderr,
-             "Can start an interactive shell only in interactive mode\n");
+             "Can only start an interactive shell in interactive mode\n");
       return(1);
   }
 #endif /* HAVE_SHELL_CMD_WITH_ANY_MODE */
+#else
+  if ((mode & (MODE_AUTO|MODE_INTER)) == (MODE_AUTO|MODE_INTER)) {
+     fprintf(stdout,
+             "Shell is not allowed interactively in auto mode\n");
+     return(1);
+  }
 #endif /* SHELL_ONLY_INTERACTIVELY */
   if((shpid = fork()) == 0) {
      int dtablesize, i ;
@@ -580,6 +586,7 @@ char **argv;
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_AUTO)) {
     if (argc > 0 && (VarLocalAuth & LOCAL_AUTH)) {
       Cleanup(EX_NORMAL);
+      mode &= ~MODE_INTER;
     } else {
       VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
