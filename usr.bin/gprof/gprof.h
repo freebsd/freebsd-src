@@ -50,6 +50,9 @@
 #if __sparc64__
 #   include "sparc64.h"
 #endif
+#if __powerpc__
+#   include "powerpc.h"
+#endif
 #if vax
 #   include "vax.h"
 #endif
