@@ -93,7 +93,8 @@ getgrnam(name)
 		return(NULL);
 	rval = grscan(1, 0, name);
 #ifdef YP
-	if(!rval && _gr_yp_enabled < 0) {
+	if(!rval && (_gr_yp_enabled < 0 || (_gr_yp_enabled &&
+					_gr_group.gr_name[0] == '+'))) {
 		rval = _getypgroup(&_gr_group, name, "group.byname");
 	}
 #endif
@@ -229,6 +230,15 @@ grscan(search, gid, name)
 				continue;
 			}
 		}
+#ifdef YP
+		/*
+		 * XXX   We need to be careful to avoid proceeding
+		 * past this point under certain circumstances or
+		 * we risk dereferencing null pointers down below.
+		 */
+		if (!search && _gr_group.gr_name[0] == '+')
+			return(1);
+#endif /* YP */
 		_gr_group.gr_passwd = strsep(&bp, ":\n");
 		if (!(cp = strsep(&bp, ":\n")))
 			continue;
