@@ -162,7 +162,7 @@ void
 wtmp()
 {
 	struct utmp	*bp;			/* current structure */
-	struct ttytab	*tt;				/* ttylist entry */
+	struct ttytab	*tt, *ttx;		/* ttylist entry */
 	struct stat	stb;			/* stat of file for size */
 	long	bl, delta;			/* time difference */
 	int	bytes, wfd;
@@ -191,9 +191,11 @@ wtmp()
 			 */
 			if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
 				/* everybody just logged out */
-				for (tt = ttylist.lh_first; tt; tt = tt->list.le_next) {
+				for (tt = ttylist.lh_first; tt;) {
 					LIST_REMOVE(tt, list);
-					free(tt);
+					ttx = tt;
+					tt = tt->list.le_next;
+					free(ttx);
 				}
 				currentout = -bp->ut_time;
 				crmsg = strncmp(bp->ut_name, "shutdown",
