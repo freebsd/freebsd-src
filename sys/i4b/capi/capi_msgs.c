@@ -27,9 +27,6 @@
  * $FreeBSD$
  */
 
-#include "i4bcapi.h"
-#if NI4BCAPI > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -949,5 +946,3 @@ void capi_disconnect_ind(capi_softc_t *sc, struct mbuf *m_in)
 
     sc->send(sc, m);
 }
-
-#endif /* NI4BCAPI > 0 */

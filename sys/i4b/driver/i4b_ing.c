@@ -35,8 +35,6 @@
 
 #include "i4bing.h"
 
-#if NI4BING > 0
-
 #include "opt_i4b.h"
 
 #include <sys/param.h>
@@ -864,5 +862,3 @@ ng_ing_disconnect(hook_p hook)
 }
 
 /*===========================================================================*/
-
-#endif /* NI4BING > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-
-#if NISIC > 0
-
 #include "opt_i4b.h"
 
 #include <sys/param.h>
@@ -656,5 +652,3 @@ isic_isac_init(struct l1_softc *sc)
 
 	return(0);
 }
-
-#endif /* NISIC > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4b.h"
-
-#if NI4B > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -433,5 +429,3 @@ i4b_print_cdaa(void)
 }
 
 #endif /* I4B_CD_DEBUG_PRINT */
-
-#endif /* NI4BQ931 > 0 */

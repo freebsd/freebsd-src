@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -278,5 +274,3 @@ i4b_tx_frmr(l2_softc_t *l2sc, fbit_t fbit)
 	m = i4b_build_u_frame(l2sc, CR_RSP_TO_NT, fbit, FRMR);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }
-
-#endif /* NI4BQ921 > 0 */

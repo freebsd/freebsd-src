@@ -37,8 +37,6 @@
 
 #include "i4btrc.h"
 
-#if NI4BTRC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -451,5 +449,3 @@ i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	}
 	return(error);
 }
-
-#endif /* NI4BTRC > 0 */

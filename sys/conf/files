@@ -817,23 +817,23 @@ i4b/driver/i4b_rbch.c		count i4brbch
 i4b/driver/i4b_tel.c		count i4btel
 i4b/driver/i4b_ipr.c		count i4bipr
 net/slcompress.c		optional i4bipr
-i4b/driver/i4b_ctl.c		count i4bctl
+i4b/driver/i4b_ctl.c		optional i4bctl
 i4b/driver/i4b_ing.c		count i4bing
 i4b/driver/i4b_isppp.c		count i4bisppp
 net/slcompress.c		optional i4bisppp
 #
 # isdn4bsd CAPI driver
 #
-i4b/capi/capi_l4if.c		count i4bcapi
+i4b/capi/capi_l4if.c		optional i4bcapi
 i4b/capi/capi_llif.c		optional i4bcapi
 i4b/capi/capi_msgs.c		optional i4bcapi
 #
 # isdn4bsd AVM B1/T1 CAPI driver
 #
-i4b/capi/iavc/iavc_pci.c	count iavc pci
-i4b/capi/iavc/iavc_isa.c	optional iavc
-i4b/capi/iavc/iavc_lli.c	optional iavc
-i4b/capi/iavc/iavc_card.c	optional iavc
+i4b/capi/iavc/iavc_pci.c	optional iavc i4bcapi pci
+i4b/capi/iavc/iavc_isa.c	optional iavc i4bcapi isa
+i4b/capi/iavc/iavc_lli.c	optional iavc i4bcapi
+i4b/capi/iavc/iavc_card.c	optional iavc i4bcapi
 #
 # isdn4bsd support
 #
@@ -841,7 +841,7 @@ i4b/layer2/i4b_mbuf.c		optional i4btrc
 #
 # isdn4bsd Q.921 handler
 #
-i4b/layer2/i4b_l2.c		count i4bq921
+i4b/layer2/i4b_l2.c		optional i4bq921
 i4b/layer2/i4b_l2fsm.c		optional i4bq921
 i4b/layer2/i4b_uframe.c		optional i4bq921
 i4b/layer2/i4b_tei.c		optional i4bq921
@@ -853,7 +853,7 @@ i4b/layer2/i4b_lme.c		optional i4bq921
 #
 # isdn4bsd Q.931 handler
 #
-i4b/layer3/i4b_q931.c		count i4bq931
+i4b/layer3/i4b_q931.c		optional i4bq931
 i4b/layer3/i4b_l3fsm.c		optional i4bq931
 i4b/layer3/i4b_l3timer.c	optional i4bq931
 i4b/layer3/i4b_l2if.c		optional i4bq931
@@ -862,7 +862,7 @@ i4b/layer3/i4b_q932fac.c	optional i4bq931
 #
 # isdn4bsd control device driver, interface to isdnd
 #
-i4b/layer4/i4b_i4bdrv.c		count i4b
+i4b/layer4/i4b_i4bdrv.c		optional i4b
 i4b/layer4/i4b_l4.c		optional i4b
 i4b/layer4/i4b_l4mgmt.c		optional i4b
 i4b/layer4/i4b_l4timer.c	optional i4b

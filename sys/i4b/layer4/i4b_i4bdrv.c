@@ -33,15 +33,8 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4b.h"
 #include "i4bipr.h"
 #include "i4btel.h"
-
-#if NI4B > 1
-#error "only 1 (one) i4b device possible!"
-#endif
-
-#if NI4B > 0
 
 #include <sys/param.h>
 #include <sys/ioccom.h>
@@ -891,5 +884,3 @@ i4bputqueue_hipri(struct mbuf *m)
 		selwakeup(&select_rd_info);
 	}
 }
-
-#endif /* NI4B > 0 */

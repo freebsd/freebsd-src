@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -136,5 +132,3 @@ i4b_mdl_error_ind(l2_softc_t *l2sc, char *where, int errorcode)
 			break;
 	}
 }
- 
-#endif /* NI4BQ921 > 0 */

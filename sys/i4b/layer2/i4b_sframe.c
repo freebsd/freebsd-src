@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -208,5 +204,3 @@ i4b_build_s_frame(l2_softc_t *l2sc, crbit_to_nt_t crbit, pbit_t pbit, u_char typ
 
 	return(m);
 }
-
-#endif /* NI4BQ921 > 0 */

@@ -33,14 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bctl.h"
-
-#if NI4BCTL > 1
-#error "only 1 (one) i4bctl device allowed!"
-#endif
-
-#if NI4BCTL > 0
-
 #include <sys/param.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
@@ -240,5 +232,3 @@ i4bctlpoll (dev_t dev, int events, struct thread *td)
 {
 	return (ENODEV);
 }
-
-#endif /* NI4BCTL > 0 */

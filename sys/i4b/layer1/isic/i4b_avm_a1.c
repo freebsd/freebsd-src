@@ -41,10 +41,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if NISIC > 0 && defined(AVM_A1)
+#if defined(AVM_A1)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -407,4 +406,4 @@ isic_attach_avma1(device_t dev)
 	return(0);
 }
 
-#endif /* NISIC > 0 && defined(AVM_A1) */
+#endif /* defined(AVM_A1) */

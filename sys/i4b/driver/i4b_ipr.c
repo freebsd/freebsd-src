@@ -58,8 +58,6 @@
 
 #include "i4bipr.h"
 
-#if NI4BIPR > 0
-
 #include "opt_i4b.h"
 
 #include <sys/param.h>
@@ -1033,5 +1031,3 @@ ipr_init_linktab(int unit)
 }
 
 /*===========================================================================*/
-
-#endif /* NI4BIPR > 0 */

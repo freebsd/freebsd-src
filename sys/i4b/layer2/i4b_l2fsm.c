@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -1579,5 +1575,3 @@ F_TR20(l2_softc_t *l2sc)
 
 	l2sc->l3initiated = 0;
 }
-	
-#endif /* NI4BQ921 > 0 */

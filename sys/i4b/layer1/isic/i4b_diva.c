@@ -33,10 +33,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if NISIC > 0 && defined EICON_DIVA
+#if defined EICON_DIVA
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -395,4 +394,4 @@ isic_attach_diva(device_t dev)
 	return(0);
 }
 
-#endif /* NISIC > 0 && defined EICON_DIVA */
+#endif /* defined EICON_DIVA */

@@ -39,10 +39,6 @@
  *     
  *---------------------------------------------------------------------------*/
 
-#include "ihfc.h"
-
-#if (NIHFC > 0)
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -437,5 +433,3 @@ ihfc_pnp_detach (device_t dev, u_int flag)
 
 	return 0;
 }
-
-#endif /* NIHFC > 0 */

@@ -43,10 +43,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if NISIC > 0 && defined(TEL_S0_8)
+#if defined(TEL_S0_8)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -300,4 +299,5 @@ isic_attach_s08(device_t dev)
 
 	return 0;
 }
-#endif /* ISIC > 0 */
+
+#endif /* defined(TEL_S0_8) */
