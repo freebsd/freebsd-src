@@ -93,31 +93,47 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 {
 	int result, error;
 	char buf[NI_MAXHOST];
+	struct sockaddr_in sin;
 
 	result = HOSTNAME_INVALIDADDR;
 
-	error = getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0, 0);
+#ifdef INET6
+	/* IPv4 mapped IPv6 addr consideraton, specified in rfc2373. */
+	if (addr->sa_family == AF_INET6 &&
+	    addrlen == sizeof(struct sockaddr_in6) &&
+	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)addr)->sin6_addr)) {
+		struct sockaddr_in6 *sin6;
+
+		sin6 = (struct sockaddr_in6 *)addr;
+
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
+		sin.sin_port = sin6->sin6_port;
+		memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
+		       sizeof(struct in_addr));
+		addr = (struct sockaddr *)&sin;
+		addrlen = sin.sin_len;
+	}
+#endif
+
+	error = getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
+			    NI_WITHSCOPEID);
 	if (error == 0) {
 		struct addrinfo hints, *res, *ores;
 		struct sockaddr *sa;
 
 		memset(&hints, 0, sizeof(struct addrinfo));
-		switch (addr->sa_family) {
-		case AF_INET:
-		case AF_INET6:
-			hints.ai_family = addr->sa_family;
-			break;
-		default:
-			hints.ai_family = AF_UNSPEC;
-			break;
-		}
-		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = addr->sa_family;
+		hints.ai_flags = AI_CANONNAME | AI_PASSIVE;
+		hints.ai_socktype = SOCK_STREAM;
 
 		error = getaddrinfo(buf, NULL, &hints, &res);
 		if (error) {
 			result = HOSTNAME_INVALIDNAME;
 			goto numeric;
-		} else for (ores = res; ; res = res->ai_next) {
+		}
+		for (ores = res; ; res = res->ai_next) {
 			if (res == NULL) {
 				freeaddrinfo(ores);
 				result = HOSTNAME_INCORRECTNAME;
@@ -131,15 +147,19 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 			}
 			if (sa->sa_len == addrlen &&
 			    sa->sa_family == addr->sa_family) {
-				u_int16_t port;
-
-				port = ((struct sockinet *)addr)->si_port;
-				((struct sockinet *)addr)->si_port = 0;
+				((struct sockinet *)sa)->si_port = ((struct sockinet *)addr)->si_port;
+#ifdef INET6
+				/*
+				 * XXX: sin6_socpe_id may not been
+				 * filled by DNS
+				 */
+				if (sa->sa_family == AF_INET6 &&
+				    ((struct sockaddr_in6 *)sa)->sin6_scope_id == 0)
+					((struct sockaddr_in6 *)sa)->sin6_scope_id = ((struct sockaddr_in6 *)addr)->sin6_scope_id;
+#endif
 				if (!memcmp(sa, addr, sa->sa_len)) {
 					result = HOSTNAME_FOUND;
-					((struct sockinet *)addr)->si_port =
-						port;
-					if (ores->ai_canonname == 0) {
+					if (ores->ai_canonname == NULL) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
@@ -154,58 +174,11 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 					strncpy(host, buf, hsize);
 					break;
 				}
-				((struct sockinet *)addr)->si_port = port;
 			}
-#ifdef INET6
-			/*
-			 * XXX IPv4 mapped IPv6 addr consideraton,
-			 * specified in rfc2373.
-			 */
-			if (sa->sa_family == AF_INET &&
-			    addr->sa_family == AF_INET6) {
-				struct in_addr *in;
-				struct in6_addr *in6;
-
-				in = &((struct sockaddr_in *)sa)->sin_addr;
-				in6 = &((struct sockaddr_in6 *)addr)->sin6_addr;
-				if (IN6_IS_ADDR_V4MAPPED(in6) &&
-				    !memcmp(&in6->s6_addr[12], in,
-					    sizeof(*in))) {
-					result = HOSTNAME_FOUND;
-					if (ores->ai_canonname == 0 ||
-					    strlen(ores->ai_canonname) > hsize) {
-						freeaddrinfo(ores);
-						goto numeric;
-					}
-					strncpy(host, ores->ai_canonname,
-						hsize);
-					break;
-				}
-			}
-#endif
 		}
 		freeaddrinfo(ores);
 	} else {
-		struct sockaddr_in sin;
     numeric:
-#ifdef INET6
-		if (addr->sa_family == AF_INET6) {
-			struct sockaddr_in6 *sin6;
-
-			sin6 = (struct sockaddr_in6 *)addr;
-			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-				memset(&sin, 0, sizeof(sin));
-				sin.sin_len = sizeof(struct sockaddr_in);
-				sin.sin_family = AF_INET;
-				sin.sin_port = sin6->sin6_port;
-				memcpy(&sin.sin_addr,
-				       &sin6->sin6_addr.s6_addr[12],
-				       sizeof(struct in_addr));
-				addr = (struct sockaddr *)&sin;
-				addrlen = sin.sin_len;
-			}
-		}
-#endif
 		if (getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
 				NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
 			strncpy(host, buf, hsize);
