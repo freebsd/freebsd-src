@@ -79,6 +79,7 @@
 #include "ncp.h"
 #include "bundle.h"
 #include "tun.h"
+#include "probe.h"
 
 
 #define OPCODE_QUERY	0
@@ -941,7 +942,7 @@ ipv6_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   int nb;
 
-  if (bundle->ncp.ipv6cp.fsm.state != ST_OPENED) {
+  if (!probe.ipv6_available || bundle->ncp.ipv6cp.fsm.state != ST_OPENED) {
     log_Printf(LogWARN, "ipv6_Input: IPV6CP not open - packet dropped\n");
     m_freem(bp);
     return NULL;

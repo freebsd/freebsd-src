@@ -73,6 +73,7 @@
 #include "prompt.h"
 #include "async.h"
 #include "physical.h"
+#include "probe.h"
 
 
 #ifndef NOINET6
@@ -224,6 +225,11 @@ ipv6cp_Show(struct cmdargs const *arg)
 {
   struct ipv6cp *ipv6cp = &arg->bundle->ncp.ipv6cp;
 
+  if (!probe.ipv6_available) {
+    prompt_Printf(arg->prompt, "ipv6 not available\n");
+    return 0;
+  }
+
   prompt_Printf(arg->prompt, "%s [%s]\n", ipv6cp->fsm.name,
                 State2Nam(ipv6cp->fsm.state));
   if (ipv6cp->fsm.state == ST_OPENED) {
@@ -251,7 +257,7 @@ ipv6cp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPV6CP from link */
   m_settype(bp, MB_IPV6CPIN);
-  if (bundle_Phase(bundle) == PHASE_NETWORK)
+  if (bundle_Phase(bundle) == PHASE_NETWORK && probe.ipv6_available)
     fsm_Input(&bundle->ncp.ipv6cp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
