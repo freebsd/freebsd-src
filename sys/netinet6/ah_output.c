@@ -521,6 +521,15 @@ ah4_finaldst(m)
 	q = (u_char *)(ip + 1);
 	i = 0;
 	while (i < optlen) {
+		if (i + IPOPT_OPTVAL >= optlen)
+			return NULL;
+		if (q[i + IPOPT_OPTVAL] == IPOPT_EOL ||
+		    q[i + IPOPT_OPTVAL] == IPOPT_NOP ||
+		    i + IPOPT_OLEN < optlen)
+			;
+		else
+			return NULL;
+
 		switch (q[i + IPOPT_OPTVAL]) {
 		case IPOPT_EOL:
 			i = optlen;	/* bye */
