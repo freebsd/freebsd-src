@@ -561,25 +561,40 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 	_ftp_seterr(999);
 	return -1;
     }
+    DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", us->size));
 
     if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS)
 	goto ouch;
     for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
 	/* nothing */ ;
-    sscanf(ln, "%04d%02d%02d%02d%02d%02d",
-	   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-	   &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
-    /* XXX should check the return value from sscanf */
+    e = 999;
+    switch (strspn(ln, "0123456789")) {
+    case 14:
+	break;
+    case 15:
+	ln++;
+	ln[0] = '2';
+	ln[1] = '0';
+	break;
+    default:
+	goto ouch;
+    }
+    if (sscanf(ln, "%04d%02d%02d%02d%02d%02d",
+	       &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+	       &tm.tm_hour, &tm.tm_min, &tm.tm_sec) != 6)
+	goto ouch;
     tm.tm_mon--;
     tm.tm_year -= 1900;
     tm.tm_isdst = -1;
-    t = mktime(&tm);
+    t = timegm(&tm);
     if (t == (time_t)-1)
 	t = time(NULL);
-    else
-	t += tm.tm_gmtoff;
     us->mtime = t;
     us->atime = t;
+    DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
+		  "%02d:%02d:%02d\033[m]\n",
+		  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		  tm.tm_hour, tm.tm_min, tm.tm_sec));
     return 0;
 
 ouch:
