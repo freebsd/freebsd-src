@@ -666,7 +666,7 @@
       called <literal>dirhash</literal> has been added.  Conditional on the
       <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
       of operations on very large directories at the expense of some
-      memory.</para>
+      memory. &merged;</para>
 
     </sect3>
 
