@@ -1062,7 +1062,7 @@ munlock(p, uap)
 	mtx_lock(&vm_mtx);
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
-	mtx_lock(&vm_mtx);
+	mtx_unlock(&vm_mtx);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
