@@ -56,6 +56,15 @@ trlld.o				optional	oltr			\
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
 	no-implicit-rule
 #
+compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_ioctl.c	optional	compat_linux
+compat/linux/linux_ipc.c	optional	compat_linux
+compat/linux/linux_mib.c	optional	compat_linux
+compat/linux/linux_misc.c	optional	compat_linux
+compat/linux/linux_signal.c	optional	compat_linux
+compat/linux/linux_socket.c	optional	compat_linux
+compat/linux/linux_stats.c	optional	compat_linux
+compat/linux/linux_util.c	optional	compat_linux
 contrib/dev/fla/fla.c		optional	fla
 contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
@@ -313,19 +322,11 @@ i386/isa/vesa.c			optional	vga vesa
 i386/isa/wt.c			count		wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
-i386/linux/linux_file.c		optional	compat_linux
-i386/linux/linux_ioctl.c	optional	compat_linux
-i386/linux/linux_ipc.c		optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		\
 	dependency 	"linux_assym.h"
-i386/linux/linux_mib.c		optional	compat_linux
-i386/linux/linux_misc.c		optional	compat_linux
-i386/linux/linux_signal.c	optional	compat_linux
-i386/linux/linux_socket.c	optional	compat_linux
-i386/linux/linux_stats.c	optional	compat_linux
+i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
-i386/linux/linux_util.c		optional	compat_linux
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
