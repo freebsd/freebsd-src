@@ -2374,6 +2374,15 @@ is set to
 these are the flags passed to
 .Xr usbd 8
 daemon.
+.It Va watchdogd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start the
+.Xr watchdogd 8
+daemon at boot time.
+This requires that the kernel have been compiled with
+.Cd "options WATCHDOG" .
 .It Va jail_enable
 .Pq Vt bool
 If set to
