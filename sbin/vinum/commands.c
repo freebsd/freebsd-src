@@ -65,7 +65,7 @@
 
 static void dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen);
 
-void 
+void
 vinum_create(int argc, char *argv[], char *arg0[])
 {
     int error;
@@ -156,7 +156,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 }
 
 /* Read vinum config from a disk */
-void 
+void
 vinum_read(int argc, char *argv[], char *arg0[])
 {
     int error;
@@ -194,7 +194,7 @@ vinum_read(int argc, char *argv[], char *arg0[])
 }
 
 #ifdef VINUMDEBUG
-void 
+void
 vinum_debug(int argc, char *argv[], char *arg0[])
 {
     struct debuginfo info;
@@ -210,19 +210,19 @@ vinum_debug(int argc, char *argv[], char *arg0[])
 }
 #endif
 
-void 
+void
 vinum_modify(int argc, char *argv[], char *arg0[])
 {
     fprintf(stderr, "Modify command is currently not implemented\n");
 }
 
-void 
+void
 vinum_set(int argc, char *argv[], char *arg0[])
 {
     fprintf(stderr, "set is not implemented yet\n");
 }
 
-void 
+void
 vinum_rm(int argc, char *argv[], char *arg0[])
 {
     int object;
@@ -258,7 +258,7 @@ vinum_rm(int argc, char *argv[], char *arg0[])
     }
 }
 
-void 
+void
 vinum_resetconfig(int argc, char *argv[], char *arg0[])
 {
     char reply[32];
@@ -287,7 +287,7 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 }
 
 /* Initialize a plex */
-void 
+void
 vinum_init(int argc, char *argv[], char *arg0[])
 {
     if (argc > 0) {					    /* initialize plexes */
@@ -324,13 +324,13 @@ vinum_init(int argc, char *argv[], char *arg0[])
     }
 }
 
-void 
+void
 initvol(int volno)
 {
     printf("Not implemented yet\n");
 }
 
-void 
+void
 initplex(int plexno, char *name)
 {
     int sdno;
@@ -398,7 +398,7 @@ initplex(int plexno, char *name)
 	exit(0);					    /* we've done our dash */
 }
 
-void 
+void
 initsd(int sdno)
 {
     pid_t pid;
@@ -457,13 +457,13 @@ initsd(int sdno)
     /* Bring the subdisk up */
     message->index = sd.sdno;				    /* pass object number */
     message->type = sd_object;				    /* and type of object */
-    message->state = object_up;
+    message->state = object_initialized;
     message->force = 0;					    /* don't insist */
     ioctl(superdev, VINUM_SETSTATE, message);
     exit(0);
 }
 
-void 
+void
 vinum_start(int argc, char *argv[], char *arg0[])
 {
     int object;
@@ -603,7 +603,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
     }
 }
 
-void 
+void
 vinum_stop(int argc, char *argv[], char *arg0[])
 {
     int object;
@@ -657,7 +657,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
     }
 }
 
-void 
+void
 vinum_label(int argc, char *argv[], char *arg0[])
 {
     int object;
@@ -692,7 +692,7 @@ vinum_label(int argc, char *argv[], char *arg0[])
     }
 }
 
-void 
+void
 reset_volume_stats(int volno, int recurse)
 {
     struct vinum_ioctl_msg msg;
@@ -715,7 +715,7 @@ reset_volume_stats(int volno, int recurse)
     }
 }
 
-void 
+void
 reset_plex_stats(int plexno, int recurse)
 {
     struct vinum_ioctl_msg msg;
@@ -741,7 +741,7 @@ reset_plex_stats(int plexno, int recurse)
     }
 }
 
-void 
+void
 reset_sd_stats(int sdno, int recurse)
 {
     struct vinum_ioctl_msg msg;
@@ -760,7 +760,7 @@ reset_sd_stats(int sdno, int recurse)
     }
 }
 
-void 
+void
 reset_drive_stats(int driveno)
 {
     struct vinum_ioctl_msg msg;
@@ -776,7 +776,7 @@ reset_drive_stats(int driveno)
     }
 }
 
-void 
+void
 vinum_resetstats(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -823,7 +823,7 @@ vinum_resetstats(int argc, char *argv[], char *argv0[])
  * attach subdisk plex [offset] [rename]
  * attach plex volume  [rename]
  */
-void 
+void
 vinum_attach(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -949,7 +949,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
  * detach subdisk plex [rename]
  * detach plex volume [rename]
  */
-void 
+void
 vinum_detach(int argc, char *argv[], char *argv0[])
 {
     struct vinum_ioctl_msg msg;
@@ -997,7 +997,7 @@ vinum_detach(int argc, char *argv[], char *argv0[])
 	    reply->error);
 }
 
-static void 
+static void
 dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -1020,7 +1020,7 @@ dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, in
 /* Rename an object:
  * rename <object> "newname"
  */
-void 
+void
 vinum_rename_2(char *oldname, char *newname)
 {
     struct vinum_rename_msg msg;
@@ -1094,7 +1094,7 @@ vinum_rename_2(char *oldname, char *newname)
     }
 }
 
-void 
+void
 vinum_rename(int argc, char *argv[], char *argv0[])
 {
     if (argc != 2) {
@@ -1112,14 +1112,14 @@ vinum_rename(int argc, char *argv[], char *argv0[])
  * Replace an object.  Currently only defined for a drive: move all
  * the subdisks on a drive to a new drive.
  */
-void 
+void
 vinum_replace(int argc, char *argv[], char *argv0[])
 {
     fprintf(stderr, "replace not implemented yet\n");
 }
 
 /* Primitive help function */
-void 
+void
 vinum_help(int argc, char *argv[], char *argv0[])
 {
     char commands[] =
@@ -1192,7 +1192,7 @@ vinum_help(int argc, char *argv[], char *argv0[])
 /* Set daemon options.
  * XXX quick and dirty: use a bitmap, which requires
  * knowing which bit does what.  FIXME */
-void 
+void
 vinum_setdaemon(int argc, char *argv[], char *argv0[])
 {
     int options;
@@ -1217,7 +1217,7 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
 }
 
 /* Save config info */
-void 
+void
 vinum_saveconfig(int argc, char *argv[], char *argv0[])
 {
     int ioctltype;
@@ -1236,7 +1236,7 @@ vinum_saveconfig(int argc, char *argv[], char *argv0[])
  * commands.  It will be of the form "vinum#",
  * where # is a small positive number.
  */
-void 
+void
 genvolname()
 {
     int v;						    /* volume number */
@@ -1311,7 +1311,7 @@ create_drive(char *devicename)
  * as much space as we can get on the specified drives.
  * If the drives aren't Vinum drives, make them so.
  */
-void 
+void
 vinum_concat(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
@@ -1409,7 +1409,7 @@ vinum_concat(int argc, char *argv[], char *argv0[])
  * as much space as we can get on the specified drives.
  * If the drives aren't Vinum drives, make them so.
  */
-void 
+void
 vinum_stripe(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
@@ -1558,7 +1558,7 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
  * -s flag; otherwise they will be concatenated.  It's
  * possible that the two plexes may differ in length.
  */
-void 
+void
 vinum_mirror(int argc, char *argv[], char *argv0[])
 {
     int o;						    /* object number */
@@ -1724,7 +1724,7 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_readpol(int argc, char *argv[], char *argv0[])
 {
     int object;
