@@ -1,11 +1,8 @@
 /* buf.c: This file contains the scratch-file buffer rountines for the
    ed line editor. */
 /*-
- * Copyright (c) 1992 The Regents of the University of California.
+ * Copyright (c) 1993 Andrew Moore, Talke Studio.
  * All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Rodney Ruddock of the University of Guelph.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,18 +12,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -35,37 +25,32 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
-static char sccsid[] = "@(#)buf.c	5.5 (Berkeley) 3/28/93";
+static char *rcsid = "@(#)$Id: buf.c,v 1.3 1993/12/14 16:19:56 alm Exp $";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/file.h>
-#include <unistd.h>
 
 #include "ed.h"
 
-extern char errmsg[];
 
 FILE *sfp;				/* scratch file pointer */
-char *sfbuf = NULL;			/* scratch file input buffer */
-int sfbufsz = 0;			/* scratch file input buffer size */
 off_t sfseek;				/* scratch file position */
 int seek_write;				/* seek before writing */
-line_t line0;				/* initial node of line queue */
+line_t buffer_head;			/* incore buffer */
 
-/* gettxt: get a line of text from the scratch file; return pointer
+/* get_sbuf_line: get a line of text from the scratch file; return pointer
    to the text */
 char *
-gettxt(lp)
+get_sbuf_line(lp)
 	line_t *lp;
 {
+	static char *sfbuf = NULL;	/* buffer */
+	static int sfbufsz = 0;		/* buffer size */
+
 	int len, ct;
 
-	if (lp == &line0)
+	if (lp == &buffer_head)
 		return NULL;
 	seek_write = 1;				/* force seek on write */
 	/* out of position */
@@ -77,8 +62,8 @@ gettxt(lp)
 			return NULL;
 		}
 	}
-	len = lp->len & ~ACTV;
-	CKBUF(sfbuf, sfbufsz, len + 1, NULL);
+	len = lp->len;
+	REALLOC(sfbuf, sfbufsz, len + 1, NULL);
 	if ((ct = fread(sfbuf, sizeof(char), len, sfp)) <  0 || ct != len) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		sprintf(errmsg, "cannot read temp file");
@@ -90,13 +75,10 @@ gettxt(lp)
 }
 
 
-extern long curln;
-extern long lastln;
-
-/* puttxt: write a line of text to the scratch file and add a line node
+/* put_sbuf_line: write a line of text to the scratch file and add a line node
    to the editor buffer;  return a pointer to the end of the text */
 char *
-puttxt(cs)
+put_sbuf_line(cs)
 	char *cs;
 {
 	line_t *lp;
@@ -115,7 +97,7 @@ puttxt(cs)
 		sprintf(errmsg, "line too long");
 		return NULL;
 	}
-	len = (s - cs) & ~ACTV;
+	len = s - cs;
 	/* out of position */
 	if (seek_write) {
 		if (fseek(sfp, 0L, SEEK_END) < 0) {
@@ -126,7 +108,7 @@ puttxt(cs)
 		sfseek = ftell(sfp);
 		seek_write = 0;
 	}
-	/* assert: spl1() */
+	/* assert: SPL1() */
 	if ((ct = fwrite(cs, sizeof(char), len, sfp)) < 0 || ct != len) {
 		sfseek = -1;
 		fprintf(stderr, "%s\n", strerror(errno));
@@ -135,37 +117,37 @@ puttxt(cs)
 	}
 	lp->len = len;
 	lp->seek  = sfseek;
-	lpqueue(lp);
+	add_line_node(lp);
 	sfseek += len;			/* update file position */
 	return ++s;
 }
 
 
-/* lpqueue: add a line node in the editor buffer after the current line */
+/* add_line_node: add a line node in the editor buffer after the current line */
 void
-lpqueue(lp)
+add_line_node(lp)
 	line_t *lp;
 {
 	line_t *cp;
 
-	cp = getlp(curln);				/* this getlp last! */
-	insqueue(lp, cp);
-	lastln++;
-	curln++;
+	cp = get_addressed_line_node(current_addr);				/* this get_addressed_line_node last! */
+	insque(lp, cp);
+	addr_last++;
+	current_addr++;
 }
 
 
-/* getaddr: return line number of pointer */
+/* get_line_node_addr: return line number of pointer */
 long
-getaddr(lp)
+get_line_node_addr(lp)
 	line_t *lp;
 {
-	line_t *cp = &line0;
+	line_t *cp = &buffer_head;
 	long n = 0;
 
-	while (cp != lp && (cp = cp->next) != &line0)
+	while (cp != lp && (cp = cp->q_forw) != &buffer_head)
 		n++;
-	if (n && cp == &line0) {
+	if (n && cp == &buffer_head) {
 		sprintf(errmsg, "invalid address");
 		return ERR;
 	 }
@@ -173,43 +155,47 @@ getaddr(lp)
 }
 
 
-/* getlp: return pointer to a line node in the editor buffer */
+/* get_addressed_line_node: return pointer to a line node in the editor buffer */
 line_t *
-getlp(n)
+get_addressed_line_node(n)
 	long n;
 {
-	static line_t *lp = &line0;
+	static line_t *lp = &buffer_head;
 	static long on = 0;
 
-	spl1();
+	SPL1();
 	if (n > on)
-		if (n <= (on + lastln) >> 1)
+		if (n <= (on + addr_last) >> 1)
 			for (; on < n; on++)
-				lp = lp->next;
+				lp = lp->q_forw;
 		else {
-			lp = line0.prev;
-			for (on = lastln; on > n; on--)
-				lp = lp->prev;
+			lp = buffer_head.q_back;
+			for (on = addr_last; on > n; on--)
+				lp = lp->q_back;
 		}
 	else
 		if (n >= on >> 1)
 			for (; on > n; on--)
-				lp = lp->prev;
+				lp = lp->q_back;
 		else {
-			lp = &line0;
+			lp = &buffer_head;
 			for (on = 0; on < n; on++)
-				lp = lp->next;
+				lp = lp->q_forw;
 		}
-	spl0();
+	SPL0();
 	return lp;
 }
 
 
+extern int newline_added;
+
 char sfn[15] = "";				/* scratch file name */
 
-/* sbopen: open scratch file */
-sbopen()
+/* open_sbuf: open scratch file */
+int
+open_sbuf()
 {
+	isbinary = newline_added = 0;
 	strcpy(sfn, "/tmp/ed.XXXXXX");
 	if (mktemp(sfn) == NULL || (sfp = fopen(sfn, "w+")) == NULL) {
 		fprintf(stderr, "%s: %s\n", sfn, strerror(errno));
@@ -220,8 +206,9 @@ sbopen()
 }
 
 
-/* sbclose: close scratch file */
-sbclose()
+/* close_sbuf: close scratch file */
+int
+close_sbuf()
 {
 	if (sfp) {
 		if (fclose(sfp) < 0) {
@@ -237,7 +224,7 @@ sbclose()
 }
 
 
-/* quit: remove scratch file and exit */
+/* quit: remove_lines scratch file and exit */
 void
 quit(n)
 	int n;
@@ -252,23 +239,30 @@ quit(n)
 
 unsigned char ctab[256];		/* character translation table */
 
-/* init_buf: open scratch buffer; initialize line queue */
+/* init_buffers: open scratch buffer; initialize line queue */
 void
-init_buf()
+init_buffers()
 {
 	int i = 0;
 
-	if (sbopen() < 0)
+	/* Read stdin one character at a time to avoid i/o contention 
+	   with shell escapes invoked by nonterminal input, e.g.,
+	   ed - <<EOF
+	   !cat
+	   hello, world
+	   EOF */
+	setbuffer(stdin, stdinbuf, 1);
+	if (open_sbuf() < 0)
 		quit(2);
-	requeue(&line0, &line0);
+	REQUE(&buffer_head, &buffer_head);
 	for (i = 0; i < 256; i++)
 		ctab[i] = i;
 }
 
 
-/* translit: translate characters in a string */
+/* translit_text: translate characters in a string */
 char *
-translit(s, len, from, to)
+translit_text(s, len, from, to)
 	char *s;
 	int len;
 	int from;

@@ -1,17 +1,23 @@
+SHELL=	/bin/sh
 ED=	../obj/ed
 
-all: build test
-	@echo done
+all: check
+	@:
+
+check: build test
+	@if grep -h '\*\*\*' errs.o scripts.o; then :; else \
+		echo "tests completed successfully."; \
+	fi
 
 build: mkscripts.sh
-	@echo building test scripts...
-	@chmod +x mkscripts.sh
-	@./mkscripts.sh ${ED}
+	@if [ -f errs.o ]; then :; else \
+		echo "building test scripts for $(ED) ..."; \
+		$(SHELL) mkscripts.sh $(ED); \
+	fi
 
 test: build ckscripts.sh
-	@echo running test scripts...
-	@chmod +x ckscripts.sh
-	@./ckscripts.sh ${ED}
+	@echo testing $(ED) ...
+	@$(SHELL) ckscripts.sh $(ED)
 
 clean:
-	rm -f *.ed *.[oz] *~
+	rm -f *.ed *.red *.[oz] *~
