@@ -98,14 +98,14 @@ sio_pccard_probe(dev)
 #endif
 	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
 	/* until bus_setup_intr */
-	return (sioprobe(dev, 0, 1));
+	return (sioprobe(dev, 0, 0UL, 1));
 }
 
 static int
 sio_pccard_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev, 0));
+	return (sioattach(dev, 0, 0UL));
 }
 
 static int
