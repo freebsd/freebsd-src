@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.1 1997/06/26 18:02:47 smp Exp smp $
+ *	$Id: smptests.h,v 1.4 1997/07/06 23:36:49 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -33,12 +33,47 @@
  * various 'tests in progress'
  */
 
-/* address of POST hardware port */
+/*
+ * address of POST hardware port
+ *
 #define POST_ADDR		0x80
+ */
+#ifdef POST_ADDR
+/*
+ * Overwrite the current_postcode low nibble .
+ */
+#define ASMPOSTCODE_LO(X)			\
+	movl	_current_postcode, %eax ;	\
+	andl	$0xf0, %eax ;			\
+	orl	$X, %eax ;			\
+	outb	%al, $POST_ADDR
+
+/*
+ * Overwrite the current_postcode high nibble .
+ * Note: this does NOT shift the digit to the high position!
+ */
+#define ASMPOSTCODE_HI(X)			\
+	movl	_current_postcode, %eax ;	\
+	andl	$0x0f, %eax ;			\
+	orl	$X, %eax ;			\
+	outb	%al, $POST_ADDR
+#else
+#define ASMPOSTCODE_LO(X)
+#define ASMPOSTCODE_HI(X)
+#endif /* POST_ADDR */
+
+
+/*
+ * misc. counters
+ *
+#define COUNT_XINVLTLB_HITS
+#define COUNT_SPURIOUS_INTS
+ */
 
 
 /*
  * IPI for stop/restart of other CPUs
+ *
 #define TEST_CPUSTOP
 #define DEBUG_CPUSTOP
  */

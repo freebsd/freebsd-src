@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.12 1997/06/25 20:59:15 fsmp Exp $
+ * $Id: smp.h,v 1.5 1997/07/06 23:36:49 smp Exp smp $
  *
  */
 
@@ -27,8 +27,18 @@
 
 /*
  * For sending values to POST displays.
+ * XXX FIXME: where does this really belong, isa.h/isa.c perhaps?
  */
-#define POSTCODE(X)		outb(0x80, (X))
+extern int current_postcode;  /** XXX currently in mp_machdep.c */
+#define POSTCODE(X)	current_postcode = (X), \
+			outb(0x80, current_postcode)
+#define POSTCODE_LO(X)	current_postcode &= 0xf0, \
+			current_postcode |= ((X) & 0x0f), \
+			outb(0x80, current_postcode)
+#define POSTCODE_HI(X)	current_postcode &= 0x0f, \
+			current_postcode |= (((X) << 4) & 0xf0), \
+			outb(0x80, current_postcode)
+
 
 #include <machine/apic.h>
 
