@@ -38,44 +38,102 @@ cons25w|ansiw|ansi80x25-raw:\
 	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
 	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:up=\E[A:\
-	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[37;40m:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:sc=\E7:rc=\E8:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
 	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
-	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:\
+	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
-	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:
+	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:km:
 cons25|ansis|ansi80x25:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:tc=cons25w:
 cons25-m|ansis-mono|ansi80x25-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
+cons30|ansi80x30:\
+	:li#30:tc=cons25:
+cons30-m|ansi80x30-mono:\
+	:li#30:tc=cons25-m:
+cons43|ansi80x43:\
+	:li#43:tc=cons25:
+cons43-m|ansi80x43-mono:\
+	:li#43:tc=cons25-m:
 cons50|ansil|ansi80x50:\
 	:li#50:tc=cons25:
 cons50-m|ansil-mono|ansi80x50-mono:\
 	:li#50:tc=cons25-m:
-# Syscons console with koi8-r Russian code table.
+cons60|ansi80x60:\
+	:li#60:tc=cons25:
+cons60-m|ansi80x60-mono:\
+	:li#60:tc=cons25-m:
+# KOI8-R FreeBSD console with ACS support
 cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^XI^U0\215:\
-	:tc=cons25w:
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
+	:kD=\E[K:tc=cons25w:
 cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
+cons30r|cons30-koi8-r:\
+	:li#30:tc=cons25r:
+cons30r-m|cons30-koi8-r-mono:\
+	:li#30:tc=cons25r-m:
+cons43r|cons43-koi8-r:\
+	:li#43:tc=cons25r:
+cons43r-m|cons43-koi8-r-mono:\
+	:li#43:tc=cons25r-m:
 cons50r|cons50-koi8-r:\
 	:li#50:tc=cons25r:
 cons50r-m|cons50-koi8-r-mono:\
 	:li#50:tc=cons25r-m:
-# 80x25 ISO 8859-1 FreeBSD console
+cons60r|cons60-koi8-r:\
+	:li#60:tc=cons25r:
+cons60r-m|cons60-koi8-r-mono:\
+	:li#60:tc=cons25r-m:
+# ISO 8859-2 FreeBSD console with ACS support
+cons25l2|cons25-iso8859-2:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237,\206.\204-\203h\212+\205i\2110\200y\232z\233{\234|\235}\236:\
+	:tc=cons25w:
+cons25l2-m|cons25-iso8859-2-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l2:
+cons30l2|cons30-iso8859-2:\
+	:li#30:tc=cons25l2:
+cons30l2-m|cons30-iso8859-2-mono:\
+	:li#30:tc=cons25l2-m:
+cons43l2|cons43-iso8859-2:\
+	:li#43:tc=cons25l2:
+cons43l2-m|cons43-iso8859-2-mono:\
+	:li#43:tc=cons25l2-m:
+cons50l2|cons50-iso8859-2:\
+	:li#50:tc=cons25l2:
+cons50l2-m|cons50-iso8859-2-mono:\
+	:li#50:tc=cons25l2-m:
+cons60l2|cons60-iso8859-2:\
+	:li#60:tc=cons25l2:
+cons60l2-m|cons60-iso8859-2-mono:\
+	:li#60:tc=cons25l2-m:
+# ISO 8859-1 FreeBSD console with ACS support
 cons25l1|cons25-iso8859-1:\
-	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273i\247y\232z\233:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
-# 80x50 ISO 8859-1 FreeBSD console
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
+cons30l1|cons30-iso8859-1:\
+	:li#30:tc=cons25l1:
+cons30l1-m|cons30-iso8859-1-mono:\
+	:li#30:tc=cons25l1-m:
+cons43l1|cons43-iso8859-1:\
+	:li#43:tc=cons25l1:
+cons43l1-m|cons43-iso8859-1-mono:\
+	:li#43:tc=cons25l1-m:
 cons50l1|cons50-iso8859-1:\
 	:li#50:tc=cons25l1:
 cons50l1-m|cons50-iso8859-1-mono:\
 	:li#50:tc=cons25l1-m:
+cons60l1|cons60-iso8859-1:\
+	:li#60:tc=cons25l1:
+cons60l1-m|cons60-iso8859-1-mono:\
+	:li#60:tc=cons25l1-m:
+#
 dosansi|ANSI.SYS standard crt:\
 	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
 	:do=\E[B:li#25:mi:nd=\E[C:\
