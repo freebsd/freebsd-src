@@ -1,2 +1,4 @@
-CFLAGS+= -Wall -g -static
+# $FreeBSD$
+
+CFLAGS+= -Wall -static
 BINDIR?= /usr/sbin
