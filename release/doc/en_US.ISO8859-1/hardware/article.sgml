@@ -955,7 +955,7 @@
 	  <para>Danpex EN-6200P2</para>
         </listitem>
 	<listitem>
-	  <para>Elecom Laneed LD-CDL/TX</para>
+	  <para>Elecom Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD, LD-CDWA (DP83902A), MACNICA Ethernet ME1 for JEIDA</para>
         </listitem>
 	<listitem>
 	  <para>IO DATA PCLATE</para>
@@ -966,8 +966,11 @@
 	<listitem>
 	  <para>IC-CARD Ethernet/IC-CARD+ Ethernet</para>
         </listitem>
+        <listitem>
+          <para>Kingston KNE-PC2, KNE-PCM/x Ethernet</para>
+        </listitem>
 	<listitem>
-	  <para>Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card
+	  <para>Linksys EC2T/PCMPC100/PCM100, PCMLM56, EtherFast 10/100 PC Card, Combo PCMCIA Ethernet Card
 	  (PCMPC100 V2)</para>
         </listitem>
 	<listitem>
