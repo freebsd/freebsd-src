@@ -43,7 +43,7 @@ The
 bridge driver allows the generic audio drivers including
 .Xr pcm 4
 to attach to the following ISA sound cards:
-.Bl -bullet -tag -width 2m indent
+.Bl -bullet -width 2m
 .It
 Creative SB16, SB32, SB AWE64 (including Gold) and ViBRA16
 .It
@@ -57,7 +57,7 @@ If the secondary
 DMA channel is C, set the flags to (C | 0x10). For a sound card without the
 secondary DMA channel, the flags should be set to zero.
 .Sh DIAGNOSTICS
-.Bl -tag -width 2m  % begin list
+.Bl -tag -width 2m
 .It sb_dspwr(XX) timed out.
 .Pp
 A command to the DSP has timed out.

@@ -98,7 +98,7 @@ Nodes may be assigned a globally unique
 name which can be
 used to refer to the node.
 The name must not contain the characters
-.Dq \&.
+.Dq .\&
 or
 .Dq \&:
 and is limited to
@@ -127,7 +127,7 @@ A hook has an
 name which is unique among all hooks
 on that node (other hooks on other nodes may have the same name).
 The name must not contain a
-.Dq \&.
+.Dq .\&
 or a
 .Dq \&:
 and is
@@ -474,7 +474,7 @@ starting hook traversal at the local node.
 .Pp
 There are a couple of special possibilities for the node name.
 The name
-.Dq \&.
+.Dq .\&
 (referred to as
 .Dq \&.: )
 always refers to the local node.
@@ -556,8 +556,6 @@ addressing to route the messages. The message may have travelled from
 to
 .Em B
 as a synchronous reply, saving time and cycles.
-
-
 .Pp
 A similar graph might be used to represent multi-link PPP running
 over an ISDN line:
@@ -578,7 +576,6 @@ however you should
 check
 .Pa sys/netgraph/netgraph.h 
 on your system for more up-to-date versions.
-
 .Bd -literal
 struct  ng_node {
   char    *name;                /* Optional globally unique name */
@@ -896,7 +893,6 @@ header fields filled in, plus the NUL-terminated string version of
 the arguments in the arguments field.  If successful, the reply
 contains the binary version of the control message.
 .El
-
 .Sh Flow Control Messages
 In addition to the control messages that affect nodes with respect to the
 graph, there are also a number of 
@@ -937,19 +933,15 @@ code may either be statically compiled
 into the kernel or else loaded dynamically as a KLD via
 .Xr kldload 8 .
 In the former case, include
-.Bd -literal -offset 4n -compact
-
-   options NETGRAPH
-
-.Ed
+.Pp
+.Dl options NETGRAPH
+.Pp
 in your kernel configuration file. You may also include selected
 node types in the kernel compilation, for example:
-.Bd -literal -offset 4n -compact
-
-   options NETGRAPH
-   options NETGRAPH_SOCKET
-   options NETGRAPH_ECHO
-
+.Bd -literal -offset indent
+options NETGRAPH
+options NETGRAPH_SOCKET
+options NETGRAPH_ECHO
 .Ed
 .Pp
 Once the
@@ -1106,7 +1098,6 @@ This intriguing node looks like a socket to the system but diverts
 all data to and from the netgraph system for further processing. This allows
 such things as UDP tunnels to be almost trivially implemented from the 
 command line.
-
 .El
 .Pp
 Refer to the section at the end of this man page for more nodes types.

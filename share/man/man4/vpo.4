@@ -61,13 +61,14 @@ filesystem, check the slice of the disk with the
 utility.
 .Pp
 In order to unixify a ZIP disk, put the following in /etc/disktab:
-
+.Bd -literal
 zip|zip 100:\\
         :ty=removable:se#512:nc#96:nt#64:ns#32:\\
         :pa#196608:oa#0:ba#4096:fa#512:\\
         :pb#196608:ob#0:bb#4096:fb#512:\\
         :pc#196608:oc#0:bc#4096:fc#512:
-
+.Ed
+.Pp
 and use
 .Xr disklabel 8 .
 .Pp

@@ -49,15 +49,15 @@ is a two-wire interface through which simple power-related chips can communicate
 with rest of the system.
 It uses I2C as its backbone (see
 .Xr iicbus 4 ).
-
+.Pp
 A system using SMB passes messages to and from devices instead of tripping
 individual control lines.
-
+.Pp
 With the SMBus, a device can provide manufacturer information, tell the
 system what its model/part number is, save its state for a suspend event,
 report different types of errors, accept control parameters, and return its
 status.
-
+.Pp
 The SMBus may share the same host device and physical bus as ACCESS bus
 components provided that an appropriate electrical bridge is provided
 between the internal SMB devices and external ACCESS bus devices.
