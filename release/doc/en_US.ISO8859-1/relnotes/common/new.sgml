@@ -144,7 +144,13 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The TCP implementation now includes partial (output-only)
+	support for RFC 2385 (TCP-MD5) digest support.  This feature,
+	enabled with the <literal>TCP_SIGNATURE</literal> and
+	<literal>FAST_IPSEC</literal> kernel options, is a TCP option
+	for authenticating TCP sessions.  &man.setkey.8; now includes
+	support for the TCP-MD5 class of security associations.
+	</para>
 
     </sect3>
 
@@ -196,6 +202,10 @@
 
     <para>&man.makewhatis.1;, formerly a Perl script, has been
       reimplemented in C.</para>
+
+    <para>&man.rtld.1; now has support for the dynamic mapping of
+      shared object dependencies.  More information on using this
+      feature can be found in &man.libmap.conf.5;.<para>
 
     <para>&man.stat.1; from <application>NetBSD</application>, as of 5
       June 2002 has, been imported.</para>
