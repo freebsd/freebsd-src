@@ -977,12 +977,11 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			(m->busy == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 
-			if ((m->queue - m->pc) == PQ_CACHE) {
-				vm_page_lock_queues();
+			vm_page_lock_queues();
+			if ((m->queue - m->pc) == PQ_CACHE)
 				vm_page_deactivate(m);
-				vm_page_unlock_queues();
-			}
 			mpte = pmap_enter_quick(pmap, addr, m, mpte);
+			vm_page_unlock_queues();
 		}
 		VM_OBJECT_UNLOCK(lobject);
 	}
