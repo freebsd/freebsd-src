@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define UCYCOM_EP_INPUT		 0
 #define UCYCOM_EP_OUTPUT	 1
 
-#define UCYCOM_MAX_IOLEN	 32
+#define UCYCOM_MAX_IOLEN	 32U
 
 struct ucycom_softc {
 	device_t		 sc_dev;
@@ -252,7 +252,7 @@ ucycom_attach(device_t dev)
 	sc->sc_olen = hid_report_size(urd, urdlen, hid_output, &sc->sc_oid);
 
 	if (sc->sc_ilen > UCYCOM_MAX_IOLEN || sc->sc_olen > UCYCOM_MAX_IOLEN) {
-		device_printf(dev, "I/O report size too big (%d, %d, %d)\n",
+		device_printf(dev, "I/O report size too big (%zu, %zu, %u)\n",
 		    sc->sc_ilen, sc->sc_olen, UCYCOM_MAX_IOLEN);
 		return (ENXIO);
 	}
