@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.27 1998/07/04 22:30:21 julian Exp $
+ * $Id: kern_conf.c,v 1.28 1998/10/25 17:44:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,7 @@ cdevsw_add_generic(int bdev, int cdev, struct cdevsw *cdevsw)
 }
 
 int
-cdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
+cdevsw_module_handler(module_t mod, int what, void *arg)
 {
 	struct cdevsw_module_data* data = (struct cdevsw_module_data*) arg;
 	int error;
@@ -190,7 +190,7 @@ cdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
 }
 
 int
-bdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
+bdevsw_module_handler(module_t mod, int what, void* arg)
 {
 	struct bdevsw_module_data* data = (struct bdevsw_module_data*) arg;
 	int error;
