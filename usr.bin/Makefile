@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.45 1995/03/30 12:49:25 jkh Exp $
+#	$Id: Makefile,v 1.46 1995/04/13 21:11:53 wollman Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -36,7 +36,7 @@ SUBDIR+=cmp look systat tail vmstat
 .elif	${MACHINE} == "hp300"
 SUBDIR+=cmp ld look systat tail vmstat
 .elif	${MACHINE} == "i386"
-SUBDIR+=cmp look systat tail vmstat
+SUBDIR+=cmp kzip look systat tail vmstat
 # XXX Use gnu/usr.bin/ld for now
 .elif	${MACHINE} == "luna68k"
 SUBDIR+=cmp ld look systat tail vmstat
