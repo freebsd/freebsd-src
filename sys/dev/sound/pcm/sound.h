@@ -196,7 +196,6 @@ extern devclass_t pcm_devclass;
  * DDB/DEB to enable/disable debugging stuff
  * BVDDB   to enable debugging when bootverbose
  */
-#define DDB(x)	x	/* XXX */
 #define BVDDB(x) if (bootverbose) x
 
 #ifndef DEB
