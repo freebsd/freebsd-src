@@ -26,17 +26,8 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
 #include <locale.h>
-
-/* will be removed ***************************/
-#include "collate.h"
-
-int __collcmp (c1, c2)
-	unsigned char c1, c2;
-{
-	return collate_range_cmp (c1, c2);
-}
-/* will be removed ***************************/
 
 int collate_range_cmp (c1, c2)
 	int c1, c2;
