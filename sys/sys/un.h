@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $Id: un.h,v 1.13 1997/08/16 19:16:15 wollman Exp $
+ * $Id: un.h,v 1.14 1998/05/15 20:11:40 wollman Exp $
  */
 
 #ifndef _SYS_UN_H_
@@ -47,8 +47,8 @@ struct	sockaddr_un {
 };
 
 #ifdef KERNEL
-struct unpcb;
 struct mbuf;
+struct socket;
 
 int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
 		struct mbuf *nam, struct mbuf *control));
