@@ -127,7 +127,7 @@ typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
  */
 #define PFS_IOCTL_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
-	unsigned long cmd, caddr_t data
+	unsigned long cmd, void *data
 #define PFS_IOCTL_PROTO(name) \
 	int name(PFS_IOCTL_ARGS);
 typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
