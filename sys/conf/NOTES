@@ -1417,7 +1417,7 @@ device uart0	at isa? port 0x330 irq 5
 # The bridge drivers for sound cards. Do not forget pcm as well.
 #
 # sbc:  Creative SoundBlaster ISA PnP/non-PnP
-#	Includes ESS and Advance.
+#	Supports ESS and Avance ISA chips as well.
 # gusc: Gravis UltraSound ISA PnP/non-PnP
 # csa:  Crystal Semiconductor CS461x/428x PCI
 
