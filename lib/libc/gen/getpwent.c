@@ -424,7 +424,7 @@ grpagain:
 				latch++;
 			}
 again:
-			if (getnetgrent(&host, &user, &domain) == NULL) {
+			if (getnetgrent(&host, &user, &domain) == 0) {
 				if ((gr = getgrnam(grp+2)) != NULL)
 					goto grpagain;
 				latch = 0;
@@ -448,7 +448,7 @@ again:
 		if (grp[1] == '@') {
 			setnetgrent(grp+2);
 			rv = 0;
-			while(getnetgrent(&host, &user, &domain) != NULL) {
+			while(getnetgrent(&host, &user, &domain) != 0) {
 				store(user);
 				rv++;
 			}

@@ -468,7 +468,7 @@ is_section (name)
   register char **vs;
 
   for (vs = section_list; *vs != NULL; vs++)
-    if ((strcmp (*vs, name) == NULL)
+    if ((strcmp (*vs, name) == 0)
 	|| (isdigit (name[0]) && strlen(name) == 1))
       return strdup (name);
 
@@ -557,7 +557,7 @@ convert_name (name, to_cat)
   t1 = strrchr (to_name, '/');
   if (t1 != NULL)
     {
-      *t1 = NULL;
+      *t1 = '\0';
       t2 = strrchr (to_name, '/');
       *t1 = '/';
     }

@@ -53,7 +53,7 @@ QIC_Geom geo;				/* tape geometry */
 int tvno = 1;				/* tape volume number */
 int tvlast;				/* TRUE if last volume in set */
 long tvsize = 0;			/* tape volume size in bytes */
-long tvtime = NULL;			/* tape change time */
+long tvtime = 0;			/* tape change time */
 char *tvnote = "";			/* tape note */
 int doretension = 0;			/* TRUE if we should retension tape */
 
