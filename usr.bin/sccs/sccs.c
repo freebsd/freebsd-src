@@ -302,11 +302,11 @@ char *gstrncat(char *, char *, size_t, size_t);
 int
 main(int argc, char *argv[])
 {
-	register char *p;
-	register int i;
+	char *p;
+	int i;
 # ifndef V6
 # ifndef SCCSDIR
-	register struct passwd *pw;
+	struct passwd *pw;
 	char buf[FBUFSIZ];
 
 	/* pull "SccsDir" out of the environment (possibly) */
@@ -424,14 +424,14 @@ main(int argc, char *argv[])
 int
 command(char **argv, bool forkflag, char *arg0)
 {
-	register struct sccsprog *cmd;
-	register char *p;
+	struct sccsprog *cmd;
+	char *p;
 	char buf[FBUFSIZ];
 	char *nav[1000];
 	char **np;
-	register char **ap;
-	register int i;
-	register char *q;
+	char **ap;
+	int i;
+	char *q;
 	int rval = 0;
 	char *editchs;
 
@@ -670,7 +670,7 @@ command(char **argv, bool forkflag, char *arg0)
 struct sccsprog *
 lookup(char *name)
 {
-	register struct sccsprog *cmd;
+	struct sccsprog *cmd;
 
 	for (cmd = SccsProg; cmd->sccsname != NULL; cmd++)
 	{
@@ -703,12 +703,12 @@ lookup(char *name)
 int
 callprog(char *progpath, short flags, char **argv, bool forkflag)
 {
-	register int i;
-	register int wpid;
+	int i;
+	int wpid;
 	auto int st;
-	register int sigcode;
-	register int coredumped;
-	register const char *sigmsg;
+	int sigcode;
+	int coredumped;
+	const char *sigmsg;
 	char sigmsgbuf[10+1];	/* "Signal 127" + terminating '\0' */
 
 # ifdef DEBUG
@@ -827,9 +827,9 @@ callprog(char *progpath, short flags, char **argv, bool forkflag)
 char *
 makefile(char *name)
 {
-	register char *p;
+	char *p;
 	char buf[3*FBUFSIZ];
-	register char *q;
+	char *q;
 
 	p = rindex(name, '/');
 	if (p == NULL)
@@ -979,14 +979,14 @@ clean(int mode, char **argv)
 	struct dirent *dir;
 	char buf[FBUFSIZ];
 	char *bufend;
-	register DIR *dirp;
-	register char *basefile;
+	DIR *dirp;
+	char *basefile;
 	bool gotedit;
 	bool gotpfent;
 	FILE *pfp;
 	bool nobranch = FALSE;
-	register struct pfile *pf;
-	register char **ap;
+	struct pfile *pf;
+	char **ap;
 	char *usernm = NULL;
 	char *subdir = NULL;
 	char *cmdname;
@@ -1137,7 +1137,7 @@ clean(int mode, char **argv)
 bool
 isbranch(char *sid)
 {
-	register char *p;
+	char *p;
 	int dots;
 
 	dots = 0;
@@ -1173,11 +1173,11 @@ isbranch(char *sid)
 bool
 unedit(char *fn)
 {
-	register FILE *pfp;
+	FILE *pfp;
 	char *cp, *pfn;
 	static char tfn[] = _PATH_TMP;
 	FILE *tfp;
-	register char *q;
+	char *q;
 	bool delete = FALSE;
 	bool others = FALSE;
 	char *myname;
@@ -1326,8 +1326,8 @@ dodiff(char **getv, char *gfile)
 {
 	int pipev[2];
 	int rval;
-	register int i;
-	register int pid;
+	int i;
+	int pid;
 	auto int st;
 	sig_t osig;
 
@@ -1388,7 +1388,7 @@ dodiff(char **getv, char *gfile)
 char *
 tail(char *fn)
 {
-	register char *p;
+	char *p;
 
 	for (p = fn; *p != 0; p++)
 		if (*p == '/' && p[1] != '\0' && p[1] != '/')
@@ -1415,7 +1415,7 @@ getpfent(FILE *pfp)
 {
 	static struct pfile ent;
 	static char buf[PFILELG];
-	register char *p;
+	char *p;
 
 	if (fgets(buf, sizeof buf, pfp) == NULL)
 		return (NULL);
@@ -1546,7 +1546,7 @@ char *
 username(void)
 {
 # ifdef UIDUSER
-	register struct passwd *pw;
+	struct passwd *pw;
 
 	pw = getpwuid(getuid());
 	if (pw == NULL)
@@ -1556,7 +1556,7 @@ username(void)
 	}
 	return (pw->pw_name);
 # else
-	register char *p;
+	char *p;
 
 	p = getenv("USER");
 	if (p == NULL || p[0] == '\0')
