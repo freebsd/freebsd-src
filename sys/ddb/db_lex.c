@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.c,v 1.8 1995/11/29 10:25:23 phk Exp $
+ *	$Id: db_lex.c,v 1.9 1995/12/07 12:44:52 davidg Exp $
  */
 
 /*
@@ -39,8 +39,8 @@
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 
-char	db_line[120];
-char *	db_lp, *db_endlp;
+static char	db_line[120];
+static char *	db_lp, *db_endlp;
 
 static int	db_lex __P((void));
 static void 	db_flush_line __P((void));
