@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 static unsigned int ldt_mask[LDT_WORDS];
 static int initialized = 0;
 
-void
+static void	initialize(void);
+
+static void
 initialize(void)
 {
 	int i, j;
