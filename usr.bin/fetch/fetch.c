@@ -468,7 +468,7 @@ fetch(char *URL, const char *path)
 			else
 				++slash;
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
-			    slash - path, path, slash);
+			    (int)(slash - path), path, slash);
 		}
 		
 		if (tmppath != NULL) {
