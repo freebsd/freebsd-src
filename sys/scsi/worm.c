@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.39 1997/05/19 17:30:40 jmz Exp $
+ *      $Id: worm.c,v 1.40 1997/05/28 21:25:49 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -80,6 +80,7 @@ struct worm_quirks
 	errval	(*prepare_track)(struct scsi_link *, struct wormio_prepare_track *t);
 	errval	(*finalize_track)(struct scsi_link *);
 	errval	(*finalize_disk)(struct scsi_link *, int toc_type, int onp);
+	errval	(*write_session)(struct scsi_link *, struct wormio_write_session *);
 };
 
 
@@ -138,6 +139,7 @@ static errval worm_read_toc(struct scsi_link *sc_link,
 			    u_int32_t mode, u_int32_t start,
 			    struct cd_toc_entry *data, u_int32_t len);
 static errval worm_rezero_unit(struct scsi_link *sc_link);
+static errval worm_read_session_info(struct scsi_link *, struct wormio_session_info *);
 static int worm_sense_handler(struct scsi_xfer *);
 
 /* XXX should be moved out to an LKM */
@@ -150,6 +152,7 @@ static errval hp4020i_prepare_disk(struct scsi_link *, int dummy, int speed);
 static errval hp4020i_prepare_track(struct scsi_link *, struct  wormio_prepare_track *);
 static errval hp4020i_finalize_track(struct scsi_link *);
 static errval hp4020i_finalize_disk(struct scsi_link *, int toc_type, int onp);
+static errval hp4020i_write_session(struct scsi_link *, struct wormio_write_session *);
 
 static worm_devsw_installed = 0;
 
@@ -199,11 +202,13 @@ static struct scsi_device worm_switch =
 
 static struct worm_quirks worm_quirks_plasmon = {
     rf4100_prepare_disk, rf4100_prepare_track,
-    rf4100_finalize_track, rf4100_finalize_disk
+    rf4100_finalize_track, rf4100_finalize_disk,
+    0
 };
 static struct worm_quirks worm_quirks_philips = {
     hp4020i_prepare_disk, hp4020i_prepare_track,
-    hp4020i_finalize_track, hp4020i_finalize_disk
+    hp4020i_finalize_track, hp4020i_finalize_disk,
+    hp4020i_write_session
 };
 
 static inline void
@@ -675,6 +680,28 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	}
 	break;
 
+	case WORMIOCREADSESSIONINFO:
+	{
+	    struct wormio_session_info si;
+	    error = worm_read_session_info(sc_link, &si);
+	    if (error)
+		break;
+	    NTOHS(si.lead_in);
+	    NTOHS(si.lead_out);
+	    bcopy(&si, addr, sizeof si);
+	}
+	break;
+
+	case WORMIOCWRITESESSION:
+	    if (worm->quirks->write_session) {
+		error = (worm->quirks->write_session)
+		    (sc_link, (struct wormio_write_session *) addr);
+		if (!error) 
+		    worm->worm_flags |=	WORMFL_TRACK_PREPED;
+	    } else
+		error = ENXIO;
+	    break;
+
 	case WORMIOERROR:
             bcopy(&(worm->error), addr, sizeof (int));
 	    break;
@@ -852,6 +879,27 @@ worm_rezero_unit(struct scsi_link *sc_link)
 			     5000,
 			     NULL,
 			     0);
+}
+
+static errval
+worm_read_session_info(struct scsi_link *sc_link, struct wormio_session_info *data)
+{
+	struct scsi_read_session_info cmd;
+	
+	SC_DEBUG(sc_link, SDEV_DB2, ("worm_read_session_info"));
+
+	bzero(&cmd, sizeof(cmd));
+	cmd.op_code = READ_SESSION_INFO;
+	cmd.transfer_length = sizeof(struct wormio_session_info);
+	return scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &cmd,
+			     sizeof(cmd),
+			     (u_char *) data,
+			     sizeof(struct wormio_session_info),
+			     /*WORMRETRY*/ 4,
+			     5000,
+			     NULL,
+			     SCSI_DATA_IN);
 }
 
 /*
@@ -1269,7 +1317,17 @@ struct hp_4020i_pages
 			u_char	reserved2[2];
 		}
 		page_0x21;
-		/* mode page 0x22 omitted by now */
+		struct
+		{
+			u_char	catalog_valid;
+			u_char	catalog_c1_c2; /* catalog number, BCD */
+			u_char	catalog_c3_c4;
+			u_char	catalog_c5_c6;
+			u_char	catalog_c7_c8;
+			u_char	catalog_c9_c10;
+			u_char	catalog_c11_c12;
+			u_char	catalog_c13_0;
+		} page_0x22;
 		struct
 		{
 			u_char	speed_select;
@@ -1284,7 +1342,6 @@ struct hp_4020i_pages
 	}
 	pages;
 };
-
 
 static errval
 hp4020i_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
@@ -1514,7 +1571,90 @@ hp4020i_finalize_disk(struct scsi_link *sc_link, int toc_type, int onp)
 			     NULL,
 			     0);
 }
+static errval
+hp4020i_write_session(struct scsi_link *sc_link, struct wormio_write_session *ws)
+{
+    struct {
+	struct scsi_mode_header header;
+	struct blk_desc blk_desc;
+	struct hp_4020i_pages page;
+	} dat;
+    struct scsi_mode_select cmd1;
+    struct scsi_write_session cmd2;
+    struct scsi_data *worm;
+    u_int32_t pagelen, dat_len, blk_len;
+    errval error;
 
+    SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_write_session"));
+
+    if (ws->toc_type < 0 || ws->toc_type > WORM_TOC_TYPE_CDI || ws->lofp & ~3)
+	return EINVAL;
+
+    pagelen = sizeof(dat.page.pages.page_0x22) + PAGE_HEADERLEN;
+    dat_len = sizeof(struct scsi_mode_header)
+	+ sizeof(struct blk_desc)
+	+ pagelen;
+
+    worm = sc_link->sd;
+
+    /* set the block size to 2352 and the catalog */
+    bzero(&dat, sizeof(dat));
+    bzero(&cmd1, sizeof(cmd1));
+    cmd1.op_code = MODE_SELECT;
+    cmd1.byte2 |= SMS_PF;
+    cmd1.length = dat_len;
+    dat.header.blk_desc_len = sizeof(struct blk_desc);
+    dat.page.page_code = HP4020I_PAGE_CODE_22;
+    dat.page.param_len = sizeof(dat.page.pages.page_0x22);
+    blk_len = 2352;
+    if (ws->catalog[0] >= '0' && ws->catalog[0] <= '9') {
+	dat.page.pages.page_0x22.catalog_valid = 1;
+	dat.page.pages.page_0x22.catalog_c1_c2 = ((ws->catalog[0]-'0') << 4)
+	    | ((ws->catalog[1]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c3_c4 = ((ws->catalog[2]-'0') << 4)
+	    | ((ws->catalog[3]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c5_c6 = ((ws->catalog[4]-'0') << 4)
+	    | ((ws->catalog[5]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c7_c8 = ((ws->catalog[6]-'0') << 4)
+	    | ((ws->catalog[7]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c9_c10 = ((ws->catalog[8]-'0') << 4)
+	    | ((ws->catalog[9]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c11_c12 = ((ws->catalog[10]-'0') << 4)
+	    | ((ws->catalog[11]-'0') << 4);
+	dat.page.pages.page_0x22.catalog_c13_0 = ((ws->catalog[12]-'0') << 4);
+    }
+    scsi_uto3b(blk_len, dat.blk_desc.blklen);
+	
+    error = scsi_scsi_cmd(sc_link,
+			  (struct scsi_generic *) &cmd1,
+			  sizeof(cmd1),
+			  (u_char *) &dat,
+			  dat_len,
+			  /*WORM_RETRIES*/ 4,
+			  5000,
+			  NULL,
+			  SCSI_DATA_OUT);
+
+    if (!error) {
+	worm->blk_size = blk_len;
+	bzero(&cmd2, sizeof(cmd2));
+	cmd2.op_code = WRITE_SESSION;
+	cmd2.action = (ws->lofp << 4) | (ws->onp? WORM_FIXATION_ONP: 0) + ws->toc_type;
+	scsi_uto2b(ws->length, &cmd2.transfer_length_2);
+
+	error = scsi_scsi_cmd(sc_link,
+			      (struct scsi_generic *) &cmd2,
+			      sizeof(cmd2),
+			      ws->track_desc,
+			      ws->length,
+			      1,
+			      5000,
+			      NULL,
+			      SCSI_DATA_OUT);
+    }
+    return error;
+}
+    
 /*
  * End HP C4324/C4325 (4020i) section.
  */
