@@ -209,6 +209,7 @@ struct scb {
 	scb_flag		flags;
 	struct	ahc_dma_seg 	*ahc_dma;/* Pointer to SG segments */
 	struct	scsi_sense	sense_cmd;
+	u_int8_t		sg_count;/* How full ahc_dma_seg is */
 	u_int8_t		position;/* Position in card's scbarray */
 };
 

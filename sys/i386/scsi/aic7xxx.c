@@ -1208,7 +1208,7 @@ ahc_handle_seqint(ahc, intstat)
 				hscb->datalen |= sg->len;
 				hscb->cmdpointer = vtophys(sc);
 				hscb->cmdlen = sizeof(*sc);
-
+				scb->sg_count = hscb->SG_segment_count;
 				scb->flags |= SCB_SENSE;
 				ahc_outb(ahc, RETURN_1, SEND_SENSE);
 
@@ -1344,15 +1344,29 @@ ahc_handle_seqint(ahc, intstat)
 		 * BITBUCKET mode.
 		 */
 		u_int8_t scbindex = ahc_inb(ahc, SCB_TAG);
+		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
 		u_int32_t overrun;
+		int i;
 		scb = ahc->scb_data->scbarray[scbindex];
 		overrun = ahc_inb(ahc, STCNT0)
 			| (ahc_inb(ahc, STCNT1) << 8)
 			| (ahc_inb(ahc, STCNT2) << 16);
 		overrun = 0x00ffffff - overrun;
 		sc_print_addr(scb->xs->sc_link);
-		printf("data overrun of %d bytes detected."
-		       "  Forcing a retry.\n", overrun);
+		printf("data overrun of %d bytes detected in %s phase."
+		       "  Tag == 0x%x.  Forcing a retry.\n", overrun,
+		       lastphase == P_DATAIN ? "Data-In" : "Data-Out",
+		       scb->hscb->tag);
+		sc_print_addr(scb->xs->sc_link);
+		printf("%s seen Data Phase.  Length = %d.  NumSGs = %d.\n",
+		       ahc_inb(ahc, FLAGS) & DPHASE ? "Have" : "Haven't",
+		       scb->xs->datalen, scb->sg_count);
+		for (i = 0; i < scb->sg_count; i++) {
+			printf("sg[%d] - Addr 0x%x : Length %d\n",
+			       i,
+			       scb->ahc_dma[i].addr,
+			       scb->ahc_dma[i].len);
+		}
 		/*
 		 * Set this and it will take affect when the
 		 * target does a command complete.
@@ -2374,6 +2388,7 @@ ahc_scsi_cmd(xs)
 			sg++;
 		}
 		hscb->SG_segment_count = seg;
+		scb->sg_count = hscb->SG_segment_count;
 
 		/* Copy the first SG into the data pointer area */
 		hscb->data = scb->ahc_dma->addr;
@@ -2395,6 +2410,7 @@ ahc_scsi_cmd(xs)
 		 * No data xfer, use non S/G values
 	 	 */
 		hscb->SG_segment_count = 0;
+		scb->sg_count = hscb->SG_segment_count;
 		hscb->SG_list_pointer = 0;
 		hscb->data = 0;
 		hscb->datalen = (SCB_LIST_NULL << 24);
@@ -3443,11 +3459,11 @@ ahc_calc_residual(scb)
 		 * SG segments that are after the SG where
 		 * the transfer stopped.
 		 */
-		resid_sgs = hscb->residual_SG_segment_count - 1;
+		resid_sgs = scb->hscb->residual_SG_segment_count - 1;
 		while (resid_sgs > 0) {
 			int sg;
 
-			sg = hscb->SG_segment_count - resid_sgs;
+			sg = scb->sg_count - resid_sgs;
 			xs->resid += scb->ahc_dma[sg].len;
 			resid_sgs--;
 		}
