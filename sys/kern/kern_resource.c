@@ -313,11 +313,12 @@ struct rtprio_args {
 
 int
 rtprio(td, uap)
-	struct thread *td;
+	struct thread *td;		/* curthread */
 	register struct rtprio_args *uap;
 {
 	struct proc *curp;
-	register struct proc *p;
+	struct proc *p;
+	struct ksegrp *kg;
 	struct rtprio rtp;
 	int cierror, error;
 
@@ -342,7 +343,33 @@ rtprio(td, uap)
 		if ((error = p_cansee(td, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
-		pri_to_rtp(FIRST_KSEGRP_IN_PROC(p), &rtp);
+		/*
+		 * Return OUR priority if no pid specified,
+		 * or if one is, report the highest priority
+		 * in the process. There isn't much more you can do as 
+		 * there is only room to return a single priority.
+		 * XXXKSE  Maybe need a new interface to report 
+		 * priorities of multiple system scope threads.
+		 * Note: specifying our own pid is not the same
+		 * as leaving it zero.
+		 */
+		if (uap->pid == 0) {
+			pri_to_rtp(td->td_ksegrp, &rtp);
+		} else {
+			struct rtprio rtp2;
+
+			rtp.type = RTP_PRIO_IDLE;
+			rtp.prio = RTP_PRIO_MAX;
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				pri_to_rtp(kg, &rtp2);
+				if ((rtp2.type <  rtp.type) ||
+				    ((rtp2.type == rtp.type) &&
+				     (rtp2.prio < rtp.prio))) {
+					rtp.type = rtp2.type;
+					rtp.prio = rtp2.prio;
+				}
+			}
+		}
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
@@ -373,7 +400,21 @@ rtprio(td, uap)
 			}
 		}
 		mtx_lock_spin(&sched_lock);
-		error = rtp_to_pri(&rtp, FIRST_KSEGRP_IN_PROC(p));
+		/*
+		 * If we are setting our own priority, set just our
+		 * KSEGRP but if we are doing another process,
+		 * do all the groups on that process. If we
+		 * specify our own pid we do the latter.
+		 */
+		if (uap->pid == 0) {
+			error = rtp_to_pri(&rtp, td->td_ksegrp);
+		} else {
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				if ((error = rtp_to_pri(&rtp, kg)) != 0) {
+					break;
+				}
+			}
+		}
 		mtx_unlock_spin(&sched_lock);
 		break;
 	default:
