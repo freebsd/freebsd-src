@@ -1001,7 +1001,7 @@ case ${background_fsck} in
 	echo "${bgfsck_msg}."
 
 	(sleep ${background_fsck_delay}; nice -4 fsck -B -p) 2>&1 | \
-	    logger -p daemon.notice &
+	    logger -p daemon.notice -t fsck &
 	;;
 esac
 
