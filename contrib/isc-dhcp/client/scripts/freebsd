@@ -79,6 +79,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   if [ x$current_hostname = x ] || \
      [ x$current_hostname = x$old_host_name ]; then
     if [ x$new_host_name != x$old_host_name ]; then
+      $LOGGER New Hostname: $new_host_name
       hostname $new_host_name
     fi
   fi
