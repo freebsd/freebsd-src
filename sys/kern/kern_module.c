@@ -457,10 +457,10 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	id = mod->id;
 	refs = mod->refs;
 	name = mod->name;
-	CP(data32, mod->data, intval);
-	CP(data32, mod->data, uintval);
-	CP(data32, mod->data, longval);
-	CP(data32, mod->data, ulongval);
+	CP(mod->data, data32, intval);
+	CP(mod->data, data32, uintval);
+	CP(mod->data, data32, longval);
+	CP(mod->data, data32, ulongval);
 	MOD_SUNLOCK;
 	stat32 = uap->stat;
 
