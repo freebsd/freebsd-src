@@ -6,7 +6,7 @@
 .\"this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\"----------------------------------------------------------------------------
 .\"
-.\"$Id: jail.8,v 1.2 1999/05/04 18:20:53 phk Exp $
+.\"$Id: jail.8,v 1.3 1999/05/05 19:23:45 phk Exp $
 .\"
 .\"
 .Dd April 28, 1999
@@ -30,6 +30,23 @@ command imprisons a process and all future decendants.
 Please see the
 .Xr jail 2
 man page for further details.
+.Sh EXAMPLES
+This shows how to setup a jail directory tree:
+.Bd -literal 
+D=/here/is/the/jail
+cd /usr/src
+make hierarchy DESTDIR=$D
+make obj
+make all
+make install DESTDIR=$D
+cd etc
+make distribution DESTDIR=$D
+cd $D/dev
+sh MAKEDEV jail
+cd $D
+ln -sf dev/null kernel
+echo "proc $D/proc procfs rw 0 0" >> /etc/fstab
+.Ed
 .Sh SEE ALSO
 .Xr chroot 2 ,
 .Xr jail 2
