@@ -10,13 +10,13 @@
 .Os FreeBSD
 .Sh NAME
 .Nm asr
-.Nd driver for Adaptec I2O based SCSI host bus adapters
+.Nd driver for Adaptec I2O based SCSI/ATA host bus adapters
 .Sh SYNOPSIS
 .Cd "device asr"
 .Sh DESCRIPTION
 The Adaptec
 .Nm
-driver provides access to SCSI disks
+driver provides access to disks
 and disk arrays controlled by I2O based host bus adapters and
 SmartRAID SCSI RAID adapters through the standard SCSI disk
 .Xr da 4
@@ -25,6 +25,7 @@ The adapters currently supported include the following RAID adapters:
 .Pp
 .Bl -tag -width "Adaptec SmartRAID PM1554" -compact
 .It Adaptec SCSI RAID 2100S
+.It Adaptec ATA-100 RAID 2400A
 .It Adaptec SCSI RAID 3200S
 .It Adaptec SCSI RAID 3400S
 .It Adaptec SmartRAID PM1554
@@ -43,6 +44,8 @@ ACPI and up to four channels of Ultra 160 SCSI,
 or two channels of 1GB Fibre.
 All support RAID-0, RAID-1, RAID-10, RAID-5 and RAID-50 arrays.
 All SCSI target types are supported.
+For the ATA based controllers, one IDE drive per channel is supported.
+Hot-swapping of IDE drives is not supported at this time.
 .Pp
 The PCI adapters automatically configure
 using the configuration mechanism of the bus they are on.
@@ -56,15 +59,19 @@ Please contact Adaptec directly to obtain the latest information
 on configuration utilities for the adapters.
 Currently there are both a GUI Motif based configuration utility
 and a CLI based configuration utility available from the Adaptec Web site.
-Note that in the absence of a native BSD/OS version
+Note that in the absence of a native FreeBSD version
 of the configuration utilities
 does not mean one can not configure the devices via the BIOS
 based configuration tool Storage Manager on ROM (SMOR).
 .Sh FILES
 .Bl -tag -width "/dev/asr*" -compact
 .It Pa /dev/asr*
-Adaptec SCSI RAID device nodes
+Adaptec SCSI RAID control nodes
 .El
+.Sh NOTES
+The ATA based controllers present their devices as SCSI-like devices via CAM.
+For IDE drives attached to these cards, a subset of standard SCSI commands
+and mode pages are understood via translation performed in the card's firmware.
 .Sh SEE ALSO
 .Xr da 4
 .Sh HISTORY
