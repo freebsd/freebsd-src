@@ -26,6 +26,7 @@ CLEANFILES+= hack.onames.h makedefs
 #
 BINOWN=         games
 BINMODE=        4550
+INSTALLFLAGS+=  -fschg
 
 .depend: hack.onames.h
 
