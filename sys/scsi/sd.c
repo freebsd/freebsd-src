@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.43 1994/12/03 22:52:57 phk Exp $
+ *      $Id: sd.c,v 1.44 1994/12/16 06:03:24 phk Exp $
  */
 
 #define SPLSD splbio
@@ -1132,7 +1132,7 @@ sddump(dev_t dev)
 		 * to wait for an xs.
 		 */
 		bzero(xs, sizeof(sx));
-		xs->flags |= SCSI_NOMASK | SCSI_NOSLEEP | INUSE;
+		xs->flags |= SCSI_NOMASK | SCSI_NOSLEEP | INUSE | SCSI_DATA_OUT;
 		xs->sc_link = sd->sc_link;
 		xs->retries = SD_RETRIES;
 		xs->timeout = 10000;	/* 10000 millisecs for a disk ! */
