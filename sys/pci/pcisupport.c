@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.89 1999/01/27 20:09:21 dillon Exp $
+**  $Id: pcisupport.c,v 1.90 1999/01/28 00:57:53 dillon Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -43,7 +43,7 @@
 
 #include "opt_pci.h"
 #include "opt_smp.h"
-/*#include "intpm.h"*/
+#include "intpm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
