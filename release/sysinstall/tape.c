@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6 1995/06/11 19:30:11 rgrimes Exp $
+ * $Id: tape.c,v 1.6.2.1 1995/09/18 17:00:27 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,9 +63,9 @@ mediaInitTape(Device *dev)
     msgConfirm("Insert tape into %s and press return", dev->description);
     msgNotify("Attempting to extract from %s...", dev->description);
     if (!strcmp(dev->name, "ft0"))
-	i = vsystem("ft | cpio -iduVm -H tar");
+	i = vsystem("ft | cpio -iduvm -H tar");
     else
-	i = vsystem("cpio -iduVm -H tar -I %s", dev->devname);
+	i = vsystem("cpio -iduvm -H tar -I %s", dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
 	return TRUE;
