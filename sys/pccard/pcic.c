@@ -108,7 +108,7 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
 /*
  * Free up resources allocated so far.
  */
-static void
+void
 pcic_dealloc(device_t dev)
 {
 	struct pcic_softc *sc;
@@ -125,7 +125,6 @@ pcic_dealloc(device_t dev)
 		bus_teardown_intr(dev, sc->irqres, sc->ih);
 	if (sc->irqres)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqrid, sc->irqres);
-		
 }
 
 /*
@@ -293,30 +292,6 @@ pcic_attach(device_t dev)
 		slt->cdata = sp;
 		sp->slt = slt;
 		sp->sc = sc;
-	}
-
-	if (sc->flags & PCIC_IO_MAPPED) {
-		rid = 0;
-		r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-		    RF_ACTIVE);
-		if (!r) {
-			pcic_dealloc(dev);
-			return (ENXIO);
-		}
-		sc->iorid = rid;
-		sc->iores = r;
-	}
-
-	if (sc->flags & PCIC_MEM_MAPPED) {
-		rid = 0;
-		r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
-		    RF_ACTIVE);
-		if (!r) {
-			pcic_dealloc(dev);
-			return (ENXIO);
-		}
-		sc->memrid = rid;
-		sc->memres = r;
 	}
 
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
