@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1996/08/30 03:01:34 peter Exp $
+# $Id: Makefile,v 1.12 1996/09/01 00:48:29 ache Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
@@ -15,7 +15,7 @@ MAN8=	named.8
 CLEANFILES+= version.c
 
 version.c: Version.c ${BIND_DIR}/Makefile
-	(u=$${USER-root} d=`pwd` h=`hostname` t=`LC_TIME= date`; \
+	(u=$${USER-root} d=`pwd` h=`hostname` t=`LC_TIME=C date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	    < ${BIND_DIR}/named/Version.c > version.c)
