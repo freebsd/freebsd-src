@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.14 1995/05/29 04:01:09 davidg Exp $
+ * $Id: nfs_subs.c,v 1.15 1995/05/30 08:12:43 rgrimes Exp $
  */
 
 /*
@@ -712,7 +712,26 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	fp = (struct nfsv2_fattr *)cp2;
 	vtyp = nfstov_type(fp->fa_type);
 	vmode = fxdr_unsigned(u_short, fp->fa_mode);
-	if (vtyp == VNON || vtyp == VREG)
+	/*
+	 * XXX
+	 *
+	 * The duplicate information returned in fa_type and fa_mode
+	 * is an ambiguity in the NFS version 2 protocol.
+	 *
+	 * VREG should be taken literally as a regular file.  If a
+	 * server intents to return some type information differently
+	 * in the upper bits of the mode field (e.g. for sockets, or
+	 * FIFOs), NFSv2 mandates fa_type to be VNON.  Anyway, we
+	 * leave the examination of the mode bits even in the VREG
+	 * case to avoid breakage for bogus servers, but we make sure
+	 * that there are actually type bits set in the upper part of
+	 * fa_mode (and failing that, trust the va_type field).
+	 *
+	 * NFSv3 cleared the issue, and requires fa_mode to not
+	 * contain any type information (while also introduing sockets
+	 * and FIFOs for fa_type).
+	 */
+	if (vtyp == VNON || (vtyp == VREG && (vmode & S_IFMT) != 0))
 		vtyp = IFTOVT(vmode);
 	if (isnq) {
 		rdev = fxdr_unsigned(long, fp->fa_nqrdev);
