@@ -655,10 +655,6 @@ ext2_mountfs(devvp, mp, td)
 		VOP_UNLOCK(devvp, 0, td);
 		return (error);
 	}
-#ifdef READONLY
-/* turn on this to force it to be read-only */
-	mp->mnt_flag |= MNT_RDONLY;
-#endif
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	/*
