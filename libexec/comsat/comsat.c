@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: comsat.c,v 1.8 1997/02/22 14:21:23 peter Exp $
+ *	$Id: comsat.c,v 1.9 1997/09/15 00:27:49 ache Exp $
  */
 
 #ifndef lint
@@ -296,7 +296,7 @@ jkfprintf(tp, user, file, offset)
 			 */
 			if (((ch & 0x80) && ch < 0xA0) ||
 			    (!(ch & 0x80) && !isprint(ch) &&
-			     !isspace(ch) && ch != '\007')
+			     !isspace(ch) && ch != '\a' && ch != '\b')
 			   ) {
 				if (ch & 0x80) {
 					ch &= ~0x80;
