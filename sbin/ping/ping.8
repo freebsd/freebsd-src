@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl ADQRadfnoqrv
+.Op Fl ADQRadfMnoqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -152,14 +152,19 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
+.It Fl L
+Suppress loopback of multicast packets.
+This flag only applies if the ping destination is a multicast address.
 .It Fl m Ar ttl
 Set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
 .Va net.inet.ip.ttl
 MIB variable.
-.It Fl L
-Suppress loopback of multicast packets.
-This flag only applies if the ping destination is a multicast address.
+.It Fl M
+Use ICMP_MASKREQ instead of ICMP_ECHO.  Print the netmask of the remote
+machine.  Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable ICMP_MASKREPLY.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
