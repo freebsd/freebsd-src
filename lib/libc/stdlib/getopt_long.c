@@ -1,4 +1,4 @@
-/*	$OpenBSD: getopt_long.c,v 1.16 2004/02/04 18:17:25 millert Exp $	*/
+/*	$OpenBSD: getopt_long.c,v 1.17 2004/06/03 18:46:52 millert Exp $	*/
 /*	$NetBSD: getopt_long.c,v 1.15 2002/01/31 22:43:40 tv Exp $	*/
 
 /*
@@ -571,9 +571,10 @@ start:
 		} else if (!(flags & FLAG_PERMUTE)) {
 			/*
 			 * If permutation is disabled, we can accept an
-			 * optional arg separated by whitespace.
+			 * optional arg separated by whitespace so long
+			 * as it does not start with a dash (-).
 			 */
-			if (optind + 1 < nargc)
+			if (optind + 1 < nargc && *nargv[optind + 1] != '-')
 				optarg = nargv[++optind];
 		}
 		place = EMSG;
