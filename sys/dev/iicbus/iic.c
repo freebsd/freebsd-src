@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.8 1999/05/07 10:09:46 phk Exp $
+ *	$Id: iic.c,v 1.9 1999/05/08 21:59:03 dfr Exp $
  *
  */
 #include <sys/param.h>
@@ -277,6 +277,6 @@ iic_drvinit(void *unused)
 }
 
 DEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, CDEV_MAJOR,
-			NODEV, iic_cdevsw, 0, 0);
+			NOMAJ, iic_cdevsw, 0, 0);
 
 SYSINIT(iicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,iic_drvinit,NULL)

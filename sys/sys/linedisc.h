@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.52 1999/05/08 06:40:12 phk Exp $
+ * $Id: conf.h,v 1.53 1999/05/09 08:58:44 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -228,15 +228,17 @@ struct module;
 struct devsw_module_data {
 	int	(*chainevh)(struct module *, int, void *); /* next handler */
 	void	*chainarg;	/* arg for next event handler */
-	dev_t	bdev;		/* device major to use */
-	dev_t	cdev;		/* device major to use */
+	int	bmaj;		/* device major to use */
+	int	cmaj;		/* device major to use */
 	struct	cdevsw *cdevsw;	/* device functions */
+	/* Do not initialize fields hereafter */
+	dev_t	bdev;
+	dev_t	cdev;
 };
 
 #define DEV_MODULE(name, cmaj, bmaj, devsw, evh, arg)			\
 static struct devsw_module_data name##_devsw_mod = {			\
-    evh, arg, bmaj == NOMAJ ? NODEV : makedev(bmaj, 0),			\
-    cmaj == NOMAJ ? NODEV :  makedev(cmaj, 0), &devsw			\
+    evh, arg, bmaj, cmaj, &devsw					\
 };									\
 									\
 static moduledata_t name##_mod = {					\
