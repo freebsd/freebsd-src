@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Wed Aug 22 17:02:43 2001]
+ *	last edit-date: [Fri Oct 26 19:32:38 2001]
  *
  *---------------------------------------------------------------------------*
  *
@@ -366,12 +366,7 @@ i4biprattach()
 		sc->sc_dialresp = DSTAT_NONE;	/* no response */
 		sc->sc_lastdialresp = DSTAT_NONE;
 		
-#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
-		/* do not call bpfattach in ether_ifattach */
-		ether_ifattach(&sc->sc_if, 0);
-#else
 		if_attach(&sc->sc_if);
-#endif
 
 #if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
