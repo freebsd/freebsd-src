@@ -79,11 +79,11 @@ __FBSDID("$FreeBSD$");
  *
  *	o Jumbo frames
  *
- * 	o GMII and TBI ports/registers for interfacing with copper
+ *	o GMII and TBI ports/registers for interfacing with copper
  *	  or fiber PHYs
  *
- *      o RX and TX DMA rings can have up to 1024 descriptors
- *        (the 8139C+ allows a maximum of 64)
+ *	o RX and TX DMA rings can have up to 1024 descriptors
+ *	  (the 8139C+ allows a maximum of 64)
  *
  *	o Slight differences in register layout from the 8139C+
  *
@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
  * programming API as the older 8169, but also have some vendor-specific
  * registers for the on-board PHY. The 8110S is a LAN-on-motherboard
  * part designed to be pin-compatible with the RealTek 8100 10/100 chip.
- * 
+ *
  * This driver takes advantage of the RX and TX checksum offload and
  * VLAN tag insertion/extraction features. It also implements TX
  * interrupt moderation using the timer interrupt registers, which
@@ -389,7 +389,7 @@ re_gmii_readreg(dev, phy, reg)
 	int			i;
 
 	if (phy != 1)
-		return(0);
+		return (0);
 
 	sc = device_get_softc(dev);
 
@@ -397,7 +397,7 @@ re_gmii_readreg(dev, phy, reg)
 
 	if (reg == RL_GMEDIASTAT) {
 		rval = CSR_READ_1(sc, RL_GMEDIASTAT);
-		return(rval);
+		return (rval);
 	}
 
 	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
@@ -469,9 +469,9 @@ re_miibus_readreg(dev, phy, reg)
 	/* Pretend the internal PHY is only at address 0 */
 	if (phy) {
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 	}
-	switch(reg) {
+	switch (reg) {
 	case MII_BMCR:
 		re8139_reg = RL_BMCR;
 		break;
@@ -490,7 +490,7 @@ re_miibus_readreg(dev, phy, reg)
 	case MII_PHYIDR1:
 	case MII_PHYIDR2:
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 	/*
 	 * Allow the rlphy driver to read the media status
 	 * register. If we have a link partner which does not
@@ -500,15 +500,15 @@ re_miibus_readreg(dev, phy, reg)
 	case RL_MEDIASTAT:
 		rval = CSR_READ_1(sc, RL_MEDIASTAT);
 		RL_UNLOCK(sc);
-		return(rval);
+		return (rval);
 	default:
 		printf("re%d: bad phy register\n", sc->rl_unit);
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 	}
 	rval = CSR_READ_2(sc, re8139_reg);
 	RL_UNLOCK(sc);
-	return(rval);
+	return (rval);
 }
 
 static int
@@ -532,9 +532,9 @@ re_miibus_writereg(dev, phy, reg, data)
 	/* Pretend the internal PHY is only at address 0 */
 	if (phy) {
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 	}
-	switch(reg) {
+	switch (reg) {
 	case MII_BMCR:
 		re8139_reg = RL_BMCR;
 		break;
@@ -553,16 +553,16 @@ re_miibus_writereg(dev, phy, reg, data)
 	case MII_PHYIDR1:
 	case MII_PHYIDR2:
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 		break;
 	default:
 		printf("re%d: bad phy register\n", sc->rl_unit);
 		RL_UNLOCK(sc);
-		return(0);
+		return (0);
 	}
 	CSR_WRITE_2(sc, re8139_reg, data);
 	RL_UNLOCK(sc);
-	return(0);
+	return (0);
 }
 
 static void
@@ -686,7 +686,7 @@ re_diag(sc)
 
 	MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	if (m0 == NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	/*
 	 * Initialize the NIC in test mode. This sets the chip up
@@ -816,7 +816,7 @@ re_probe(dev)
 	t = re_devs;
 	sc = device_get_softc(dev);
 
-	while(t->rl_name != NULL) {
+	while (t->rl_name != NULL) {
 		if ((pci_get_vendor(dev) == t->rl_vid) &&
 		    (pci_get_device(dev) == t->rl_did)) {
 
@@ -830,7 +830,7 @@ re_probe(dev)
 			if (sc->rl_res == NULL) {
 				device_printf(dev,
 				    "couldn't map ports/memory\n");
-				return(ENXIO);
+				return (ENXIO);
 			}
 			sc->rl_btag = rman_get_bustag(sc->rl_res);
 			sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
@@ -845,13 +845,13 @@ re_probe(dev)
 			mtx_destroy(&sc->rl_mtx);
 			if (t->rl_basetype == hwrev) {
 				device_set_desc(dev, t->rl_name);
-				return(0);
+				return (0);
 			}
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 /*
@@ -902,7 +902,7 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 	 * reception.)
 	 */
 	idx = ctx->rl_idx;
-	while(1) {
+	for (;;) {
 		u_int32_t		cmdstat;
 		d = &ctx->rl_ring[idx];
 		if (le32toh(d->rl_cmdstat) & RL_RDESC_STAT_OWN) {
@@ -982,7 +982,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-            NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->rl_ldata.rl_tx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -991,11 +991,11 @@ re_allocmem(dev, sc)
 
 	/* Allocate DMA'able memory for the TX ring */
 
-        error = bus_dmamem_alloc(sc->rl_ldata.rl_tx_list_tag,
+	error = bus_dmamem_alloc(sc->rl_ldata.rl_tx_list_tag,
 	    (void **)&sc->rl_ldata.rl_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-            &sc->rl_ldata.rl_tx_list_map);
-        if (error)
-                return (ENOMEM);
+	    &sc->rl_ldata.rl_tx_list_map);
+	if (error)
+		return (ENOMEM);
 
 	/* Load the map for the TX ring. */
 
@@ -1011,7 +1011,7 @@ re_allocmem(dev, sc)
 			    &sc->rl_ldata.rl_tx_dmamap[i]);
 		if (error) {
 			device_printf(dev, "can't create DMA map for TX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
@@ -1020,7 +1020,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-            NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->rl_ldata.rl_rx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -1029,11 +1029,11 @@ re_allocmem(dev, sc)
 
 	/* Allocate DMA'able memory for the RX ring */
 
-        error = bus_dmamem_alloc(sc->rl_ldata.rl_rx_list_tag,
+	error = bus_dmamem_alloc(sc->rl_ldata.rl_rx_list_tag,
 	    (void **)&sc->rl_ldata.rl_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-            &sc->rl_ldata.rl_rx_list_map);
-        if (error)
-                return (ENOMEM);
+	    &sc->rl_ldata.rl_rx_list_map);
+	if (error)
+		return (ENOMEM);
 
 	/* Load the map for the RX ring. */
 
@@ -1049,11 +1049,11 @@ re_allocmem(dev, sc)
 			    &sc->rl_ldata.rl_rx_dmamap[i]);
 		if (error) {
 			device_printf(dev, "can't create DMA map for RX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1350,7 +1350,7 @@ re_detach(dev)
 	RL_UNLOCK(sc);
 	mtx_destroy(&sc->rl_mtx);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -1366,7 +1366,7 @@ re_newbuf(sc, idx, m)
 	if (m == NULL) {
 		n = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (n == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		m = n;
 	} else
 		m->m_data = m->m_ext.ext_buf;
@@ -1385,7 +1385,7 @@ re_newbuf(sc, idx, m)
 	arg.rl_flags = 0;
 	arg.rl_ring = sc->rl_ldata.rl_rx_list;
 
-        error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag,
+	error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag,
 	    sc->rl_ldata.rl_rx_dmamap[idx], m, re_dma_map_desc,
 	    &arg, BUS_DMA_NOWAIT);
 	if (error || arg.rl_maxsegs != 1) {
@@ -1397,11 +1397,11 @@ re_newbuf(sc, idx, m)
 	sc->rl_ldata.rl_rx_list[idx].rl_cmdstat |= htole32(RL_RDESC_CMD_OWN);
 	sc->rl_ldata.rl_rx_mbuf[idx] = m;
 
-        bus_dmamap_sync(sc->rl_ldata.rl_mtag,
+	bus_dmamap_sync(sc->rl_ldata.rl_mtag,
 	    sc->rl_ldata.rl_rx_dmamap[idx],
 	    BUS_DMASYNC_PREREAD);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -1418,7 +1418,7 @@ re_tx_list_init(sc)
 	sc->rl_ldata.rl_tx_considx = 0;
 	sc->rl_ldata.rl_tx_free = RL_TX_DESC_CNT;
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -1433,7 +1433,7 @@ re_rx_list_init(sc)
 
 	for (i = 0; i < RL_RX_DESC_CNT; i++) {
 		if (re_newbuf(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	}
 
 	/* Flush the RX descriptors */
@@ -1445,7 +1445,7 @@ re_rx_list_init(sc)
 	sc->rl_ldata.rl_rx_prodidx = 0;
 	sc->rl_head = sc->rl_tail = NULL;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1558,7 +1558,7 @@ re_rxeof(sc)
 
 		if (sc->rl_head != NULL) {
 			m->m_len = total_len % (MCLBYTES - ETHER_ALIGN);
-			/* 
+			/*
 			 * Special case: if there's 4 bytes or less
 			 * in this buffer, the mbuf can be discarded:
 			 * the last 4 bytes is the CRC, which we don't
@@ -1685,7 +1685,7 @@ re_txeof(sc)
 	 * This is done in case the transmitter has gone idle.
 	 */
 	if (sc->rl_ldata.rl_tx_free != RL_TX_DESC_CNT)
-                CSR_WRITE_4(sc, RL_TIMERCNT, 1);
+		CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 
 	return;
 }
@@ -1846,7 +1846,7 @@ re_encap(sc, m_head, idx)
 	struct m_tag		*mtag;
 
 	if (sc->rl_ldata.rl_tx_free <= 4)
-		return(EFBIG);
+		return (EFBIG);
 
 	/*
 	 * Set up checksum offload. Note: checksum offload bits must
@@ -1877,7 +1877,7 @@ re_encap(sc, m_head, idx)
 
 	if (error && error != EFBIG) {
 		printf("re%d: can't map mbuf (error %d)\n", sc->rl_unit, error);
-		return(ENOBUFS);
+		return (ENOBUFS);
 	}
 
 	/* Too many segments to map, coalesce into a single mbuf */
@@ -1885,7 +1885,7 @@ re_encap(sc, m_head, idx)
 	if (error || arg.rl_maxsegs == 0) {
 		m_new = m_defrag(m_head, M_DONTWAIT);
 		if (m_new == NULL)
-			return(1);
+			return (1);
 		else
 			m_head = m_new;
 
@@ -1899,7 +1899,7 @@ re_encap(sc, m_head, idx)
 		if (error) {
 			printf("re%d: can't map mbuf (error %d)\n",
 			    sc->rl_unit, error);
-			return(EFBIG);
+			return (EFBIG);
 		}
 	}
 
@@ -1937,7 +1937,7 @@ re_encap(sc, m_head, idx)
 	RL_DESC_INC(arg.rl_idx);
 	*idx = arg.rl_idx;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -2200,7 +2200,7 @@ re_ifmedia_upd(ifp)
 	mii = device_get_softc(sc->rl_miibus);
 	mii_mediachg(mii);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -2237,7 +2237,7 @@ re_ioctl(ifp, command, data)
 
 	RL_LOCK(sc);
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > RL_JUMBO_MTU)
 			error = EINVAL;
@@ -2280,7 +2280,7 @@ re_ioctl(ifp, command, data)
 
 	RL_UNLOCK(sc);
 
-	return(error);
+	return (error);
 }
 
 static void
