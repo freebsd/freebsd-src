@@ -119,6 +119,7 @@ static VAR var[] = {
 		LONG, "ld", 0},
 	{"mtxname", "MUTEX", NULL, LJUST, mtxname, NULL, 6, 0, CHAR, NULL,
 		0},
+	{"mwchan", "MWCHAN", NULL, LJUST, mwchan, NULL, 6, 0, CHAR, NULL, 0},
 	{"ni", "", "nice", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"nice", "NI", NULL, 0, kvar, NULL, 2, KOFF(ki_nice), CHAR, "d",
 		0},
