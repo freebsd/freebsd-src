@@ -1,5 +1,4 @@
-/* $Id: ispmbox.h,v 1.4.2.2 1999/07/03 01:47:14 mjacob Exp $ */
-/* release_6_5_99 */
+/* $Id: ispmbox.h,v 1.4.2.3 1999/07/05 20:43:14 mjacob Exp $ */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -439,28 +438,38 @@ typedef struct {
 /*
  * Initialization Control Block
  *
- * Version One format.
+ * Version One (prime) format.
  */
-typedef struct {
+typedef struct isp_icb {
 	u_int8_t	icb_version;
 	u_int8_t	_reserved0;
-        u_int16_t	icb_fwoptions;
-        u_int16_t	icb_maxfrmlen;
+	u_int16_t	icb_fwoptions;
+	u_int16_t	icb_maxfrmlen;
 	u_int16_t	icb_maxalloc;
 	u_int16_t	icb_execthrottle;
 	u_int8_t	icb_retry_count;
 	u_int8_t	icb_retry_delay;
-        u_int8_t	icb_nodename[8];
+	u_int8_t	icb_portname[8];
 	u_int16_t	icb_hardaddr;
 	u_int8_t	icb_iqdevtype;
-	u_int8_t	_reserved1;
-        u_int8_t	icb_portname[8];
+	u_int8_t	icb_logintime;
+	u_int8_t	icb_nodename[8];
 	u_int16_t	icb_rqstout;
 	u_int16_t	icb_rspnsin;
-        u_int16_t	icb_rqstqlen;
-        u_int16_t	icb_rsltqlen;
-        u_int16_t	icb_rqstaddr[4];
-        u_int16_t	icb_respaddr[4];
+	u_int16_t	icb_rqstqlen;
+	u_int16_t	icb_rsltqlen;
+	u_int16_t	icb_rqstaddr[4];
+	u_int16_t	icb_respaddr[4];
+	u_int16_t	icb_lunenables;
+	u_int8_t	icb_ccnt;
+	u_int8_t	icb_icnt;
+	u_int16_t	icb_lunetimeout;
+	u_int16_t	_reserved1;
+	u_int16_t	icb_xfwoptions;
+	u_int8_t	icb_racctimer;
+	u_int8_t	icb_idelaytimer;
+	u_int16_t	icb_zfwoptions;
+	u_int16_t	_reserved2[13];
 } isp_icb_t;
 #define	ICB_VERSION1	1
 
@@ -479,6 +488,7 @@ typedef struct {
 #define	ICBOPT_STOP_ON_QFULL	0x1000
 #define	ICBOPT_FULL_LOGIN	0x2000
 #define	ICBOPT_USE_PORTNAME	0x4000
+#define	ICBOPT_EXTENDED		0x8000
 
 
 #define	ICB_MIN_FRMLEN		256
