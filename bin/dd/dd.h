@@ -42,9 +42,9 @@
 typedef struct {
 	u_char	*db;			/* buffer address */
 	u_char	*dbp;			/* current buffer I/O address */
-	int	dbcnt;			/* current buffer byte count */
-	int	dbrcnt;			/* last read byte count */
-	int	dbsz;			/* buffer size */
+	size_t	dbcnt;			/* current buffer byte count */
+	size_t	dbrcnt;			/* last read byte count */
+	size_t	dbsz;			/* buffer size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe (not truncatable) */
@@ -57,20 +57,20 @@ typedef struct {
 	int	fd;			/* file descriptor */
 	off_t	offset;			/* # of blocks to skip */
 
-	quad_t	f_stats;		/* # of full blocks processed */
-	quad_t	p_stats;		/* # of partial blocks processed */
-	quad_t	s_stats;		/* # of odd swab blocks */
-	quad_t	t_stats;		/* # of truncations */
+	u_quad_t	f_stats;	/* # of full blocks processed */
+	u_quad_t	p_stats;	/* # of partial blocks processed */
+	u_quad_t	s_stats;	/* # of odd swab blocks */
+	u_quad_t	t_stats;	/* # of truncations */
 } IO;
 
 typedef struct {
-	quad_t	in_full;		/* # of full input blocks */
-	quad_t	in_part;		/* # of partial input blocks */
-	quad_t	out_full;		/* # of full output blocks */
-	quad_t	out_part;		/* # of partial output blocks */
-	quad_t	trunc;			/* # of truncated records */
-	quad_t	swab;			/* # of odd-length swab blocks */
-	quad_t	bytes;			/* # of bytes written */
+	u_quad_t	in_full;	/* # of full input blocks */
+	u_quad_t	in_part;	/* # of partial input blocks */
+	u_quad_t	out_full;	/* # of full output blocks */
+	u_quad_t	out_part;	/* # of partial output blocks */
+	u_quad_t	trunc;		/* # of truncated records */
+	u_quad_t	swab;		/* # of odd-length swab blocks */
+	u_quad_t	bytes;		/* # of bytes written */
 	double	start; 			/* start time of dd */
 } STAT;
 

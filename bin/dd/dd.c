@@ -80,9 +80,9 @@ void	(*cfunc) __P((void));	/* conversion function */
 quad_t	cpy_cnt;		/* # of blocks to copy */
 off_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
-int	cbsz;			/* conversion block size */
+size_t	cbsz;			/* conversion block size */
 quad_t	files_cnt = 1;		/* # of files to copy */
-u_char	*ctab;			/* conversion table */
+const u_char	*ctab;			/* conversion table */
 
 int
 main(argc, argv)
@@ -154,11 +154,11 @@ setup()
 	 */
 	if (!(ddflags & (C_BLOCK|C_UNBLOCK))) {
 		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
-			err(1, NULL);
+			err(1, "input buffer");
 		out.db = in.db;
-	} else if ((in.db = malloc((u_int)(MAX(in.dbsz, cbsz) + cbsz))) == NULL
-		   || (out.db = malloc((u_int)(out.dbsz + cbsz))) == NULL)
-		err(1, NULL);
+	} else if ((in.db = malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
+	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
+		err(1, "output buffer");
 	in.dbp = in.db;
 	out.dbp = out.db;
 
@@ -181,43 +181,26 @@ setup()
 	 * built-in tables.
 	 */
 	if (ddflags & (C_LCASE|C_UCASE)) {
-		if (ddflags & C_ASCII) {
+		if (ddflags & (C_ASCII|C_EBCDIC)) {
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (isupper(ctab[cnt]))
-						ctab[cnt] = tolower(ctab[cnt]);
+					casetab[cnt] = tolower(ctab[cnt]);
 			} else {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (islower(ctab[cnt]))
-						ctab[cnt] = toupper(ctab[cnt]);
-			}
-		} else if (ddflags & C_EBCDIC) {
-			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (isupper(cnt))
-						ctab[cnt] = ctab[tolower(cnt)];
-			} else {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (islower(cnt))
-						ctab[cnt] = ctab[toupper(cnt)];
+					casetab[cnt] = toupper(ctab[cnt]);
 			}
 		} else {
-			ctab = ddflags & C_LCASE ? u2l : l2u;
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (isupper(cnt))
-						ctab[cnt] = tolower(cnt);
-					else
-						ctab[cnt] = cnt;
+					casetab[cnt] = tolower(cnt);
 			} else {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					if (islower(cnt))
-						ctab[cnt] = toupper(cnt);
-					else
-						ctab[cnt] = cnt;
+					casetab[cnt] = toupper(cnt);
 			}
 		}
+		ctab = casetab;
 	}
+
 	(void)gettimeofday(&tv, (struct timezone *)NULL);
 	st.start = tv.tv_sec + tv.tv_usec * 1e-6; 
 }
@@ -229,7 +212,7 @@ getfdtype(io)
 	struct stat sb;
 	int type;
 
-	if (fstat(io->fd, &sb))
+	if (fstat(io->fd, &sb) == -1)
 		err(1, "%s", io->name);
 	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
 		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
@@ -258,7 +241,7 @@ dd_in()
 			return;
 
 		/*
-		 * Zero the buffer first if sync; If doing block operations
+		 * Zero the buffer first if sync; if doing block operations,
 		 * use spaces.
 		 */
 		if (ddflags & C_SYNC) {
@@ -344,7 +327,7 @@ dd_in()
 }
 
 /*
- * Cleanup any remaining I/O and flush output.  If necesssary, output file
+ * Clea nup any remaining I/O and flush output.  If necessary, the output file
  * is truncated.
  */
 static void
@@ -371,10 +354,11 @@ void
 dd_out(force)
 	int force;
 {
-	static int warned;
-	int cnt, n, i, sparse;
-	ssize_t nw;
 	u_char *outp;
+	size_t cnt, i, n;
+	ssize_t nw;
+	static int warned;
+	int sparse;
 
 	/*
 	 * Write one or more blocks out.  The common case is writing a full
@@ -458,6 +442,6 @@ dd_out(force)
 
 	/* Reassemble the output block. */
 	if (out.dbcnt)
-		memmove(out.db, out.dbp - out.dbcnt, out.dbcnt);
+		(void)memmove(out.db, out.dbp - out.dbcnt, out.dbcnt);
 	out.dbp = out.db + out.dbcnt;
 }
