@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.8 1998/02/13 05:10:22 brian Exp $
+ *  $Id: physical.c,v 1.1.2.9 1998/02/16 00:00:56 brian Exp $
  *
  */
 
@@ -72,7 +72,7 @@ Physical_IsATTY(struct physical *phys) {
 
 int
 Physical_IsSync(struct physical *phys) {
-   return phys->speed == 0;
+   return phys->cfg.speed == 0;
 }
 
 int
@@ -103,16 +103,16 @@ Physical_SetDevice(struct physical *phys, const char *new_device_list) {
 int
 Physical_SetSpeed(struct physical *phys, int speed) {
    if (IntToSpeed(speed) != B0) {
-      phys->speed = speed;
+      phys->cfg.speed = speed;
       return 1;
    } else {
-	  return 0;
+      return 0;
    }
 }
 
 void
 Physical_SetSync(struct physical *phys) {
-   phys->speed = 0;
+   phys->cfg.speed = 0;
 }
 
 
@@ -120,7 +120,7 @@ int
 Physical_SetRtsCts(struct physical *phys, int enable) {
    assert(enable == 0 || enable == 1);
 
-   phys->rts_cts = enable;
+   phys->cfg.rts_cts = enable;
    return 1;
 }
 
@@ -128,24 +128,24 @@ void
 Physical_SetDedicated(struct physical *phys, int enable) {
    assert(enable == 0 || enable == 1);
 
-   phys->is_dedicated = enable;
+   phys->cfg.is_dedicated = enable;
 }
 
 void
 Physical_SetDirect(struct physical *phys, int enable) {
    assert(enable == 0 || enable == 1);
 
-   phys->is_direct = enable;
+   phys->cfg.is_direct = enable;
 }
 
 int
 Physical_IsDirect(struct physical *phys) {
-   return phys->is_direct;
+   return phys->cfg.is_direct;
 }
 
 int
 Physical_IsDedicated(struct physical *phys) {
-   return phys->is_dedicated;
+   return phys->cfg.is_dedicated;
 }
 
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.20 1998/02/17 19:28:33 brian Exp $
+ * $Id: modem.c,v 1.77.2.21 1998/02/17 19:28:49 brian Exp $
  *
  *  TODO:
  */
@@ -100,9 +100,9 @@ modem_Create(const char *name)
   p->link.Close = modem_Hangup;
   p->link.Destroy = modem_Destroy;
   p->fd = -1;
-  p->rts_cts = MODEM_CTSRTS;
-  p->speed = MODEM_SPEED;
-  p->parity = CS8;
+  p->cfg.rts_cts = MODEM_CTSRTS;
+  p->cfg.speed = MODEM_SPEED;
+  p->cfg.parity = CS8;
   p->desc.type = PHYSICAL_DESCRIPTOR;
   p->desc.UpdateSet = modem_UpdateSet;
   p->desc.IsSet = Physical_IsSet;
@@ -345,7 +345,7 @@ modem_SetParity(struct physical *modem, const char *str)
 
   val = GetParityValue(str);
   if (val > 0) {
-    modem->parity = val;
+    modem->cfg.parity = val;
     tcgetattr(modem->fd, &rstio);
     rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
     rstio.c_cflag |= val;
@@ -598,7 +598,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     LogPrintf(LogDEBUG, "modem_Open: modem (get): iflag = %x, oflag = %x,"
 	      " cflag = %x\n", rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
     cfmakeraw(&rstio);
-    if (modem->rts_cts)
+    if (modem->cfg.rts_cts)
       rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
     else {
       rstio.c_cflag |= CLOCAL;
@@ -625,10 +625,10 @@ modem_Open(struct physical *modem, struct bundle *bundle)
        * If we are working as direct mode, don't change tty speed.
        */
       rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
-      rstio.c_cflag |= modem->parity;
-      if (cfsetspeed(&rstio, IntToSpeed(modem->speed)) == -1) {
+      rstio.c_cflag |= modem->cfg.parity;
+      if (cfsetspeed(&rstio, IntToSpeed(modem->cfg.speed)) == -1) {
 	LogPrintf(LogWARN, "Unable to set modem speed (modem %d to %d)\n",
-		  modem->fd, modem->speed);
+		  modem->fd, modem->cfg.speed);
       }
     }
     tcsetattr(modem->fd, TCSADRAIN, &rstio);
@@ -700,7 +700,7 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   }
   tcgetattr(modem->fd, &rstio);
   cfmakeraw(&rstio);
-  if (modem->rts_cts)
+  if (modem->cfg.rts_cts)
     rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
   else
     rstio.c_cflag |= CLOCAL;
@@ -913,9 +913,9 @@ modem_ShowStatus(struct cmdargs const *arg)
   if (Physical_IsSync(arg->cx->physical))
     prompt_Printf(&prompt, "sync\n");
   else
-    prompt_Printf(&prompt, "%d\n", arg->cx->physical->speed);
+    prompt_Printf(&prompt, "%d\n", arg->cx->physical->cfg.speed);
 
-  switch (arg->cx->physical->parity & CSIZE) {
+  switch (arg->cx->physical->cfg.parity & CSIZE) {
   case CS7:
     prompt_Printf(&prompt, "cs7, ");
     break;
@@ -923,8 +923,8 @@ modem_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(&prompt, "cs8, ");
     break;
   }
-  if (arg->cx->physical->parity & PARENB) {
-    if (arg->cx->physical->parity & PARODD)
+  if (arg->cx->physical->cfg.parity & PARENB) {
+    if (arg->cx->physical->cfg.parity & PARODD)
       prompt_Printf(&prompt, "odd parity, ");
     else
       prompt_Printf(&prompt, "even parity, ");
@@ -932,7 +932,7 @@ modem_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(&prompt, "no parity, ");
 
   prompt_Printf(&prompt, "CTS/RTS %s.\n",
-                (arg->cx->physical->rts_cts ? "on" : "off"));
+                (arg->cx->physical->cfg.rts_cts ? "on" : "off"));
 
   if (LogIsKept(LogDEBUG))
     prompt_Printf(&prompt, "fd = %d, modem control = %o\n",

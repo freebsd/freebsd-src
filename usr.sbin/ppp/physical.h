@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.7 1998/02/10 03:22:03 brian Exp $
+ *  $Id: physical.h,v 1.1.2.8 1998/02/13 05:10:22 brian Exp $
  *
  */
 
@@ -32,16 +32,20 @@ struct physical {
                                   (Possibly this should be
                                   dev_is_not_tcp?) XXX-ML */
 
-  unsigned is_dedicated : 1;   /* Dedicated mode?  XXX-ML - not yet initialized */
-  unsigned is_direct : 1;      /* Direct mode?  XXX-ML - not yet initialized */
   struct mbuf *out;
   int connect_count;
 
   /* XXX-ML Most of the below is device specific, and probably do not
       belong in the generic physical struct. It comes from modem.c. */
-  unsigned rts_cts : 1;        /* Is rts/cts enabled? */
-  unsigned int parity;         /* What parity is enabled? (TTY flags) */
-  unsigned int speed;          /* Modem speed */
+
+  struct {
+    unsigned is_dedicated : 1; /* Dedicated mode?  XXX-ML - not yet init'd */
+    unsigned is_direct : 1;    /* Direct mode?  XXX-ML - not yet initialized */
+    unsigned rts_cts : 1;      /* Is rts/cts enabled? */
+    unsigned int parity;       /* What parity is enabled? (TTY flags) */
+    unsigned int speed;        /* Modem speed */
+  } cfg;
+
   struct termios ios;          /* To be able to reset from raw mode */
 };
 
