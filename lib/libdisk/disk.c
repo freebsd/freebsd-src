@@ -66,7 +66,7 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 	u_long offset = 0;
 
-	strcpy(device,"/dev/r");
+	strcpy(device,"/dev/");
 	strcat(device,name);
 
 	d = (struct disk *)malloc(sizeof *d);
@@ -235,7 +235,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,"/dev/r");
+		strcpy(pname,"/dev/");
 		strcat(pname,sname);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
@@ -300,7 +300,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,"/dev/r");
+		strcpy(pname,"/dev/");
 		strcat(pname,name);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
