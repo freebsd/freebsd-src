@@ -962,7 +962,6 @@ nfs4_lookup(struct vop_lookup_args *ap)
 
 	if ((error = cache_lookup(dvp, vpp, cnp)) && error != ENOENT) {
 		struct vattr vattr;
-		int vpid;
 
 		if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0) {
 			*vpp = NULLVP;
@@ -971,7 +970,6 @@ nfs4_lookup(struct vop_lookup_args *ap)
 
 		vhold(*vpp);
 		newvp = *vpp;
-		vpid = newvp->v_id;
 		/*
 		 * See the comment starting `Step through' in ufs/ufs_lookup.c
 		 * for an explanation of the locking protocol
@@ -996,18 +994,16 @@ nfs4_lookup(struct vop_lookup_args *ap)
 			}
 		}
 		if (!error) {
-			if (vpid == newvp->v_id) {
-			   if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
-			    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
-				nfsstats.lookupcache_hits++;
-				if (cnp->cn_nameiop != LOOKUP &&
-				    (flags & ISLASTCN))
-					cnp->cn_flags |= SAVENAME;
-				vdrop(newvp);
-				return (0);
-			   }
-			   cache_purge(newvp);
+			if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
+			 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+			     nfsstats.lookupcache_hits++;
+			     if (cnp->cn_nameiop != LOOKUP &&
+				 (flags & ISLASTCN))
+				     cnp->cn_flags |= SAVENAME;
+			     vdrop(newvp);
+			     return (0);
 			}
+			cache_purge(newvp);
 			vput(newvp);
 			if (lockparent && dvp != newvp && (flags & ISLASTCN))
 				VOP_UNLOCK(dvp, 0, td);
