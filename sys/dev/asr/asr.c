@@ -590,48 +590,6 @@ STATIC u_int32_t	 asr_time_delta(IN struct timeval start,
 					     IN struct timeval end);
 #endif
 
-#ifdef ASR_VERY_BROKEN
-/*
- * Initialize the dynamic cdevsw hooks.
- */
-STATIC void
-asr_drvinit (
-	void * unused)
-{
-	static int asr_devsw_installed = 0;
-
-	if (asr_devsw_installed) {
-		return;
-	}
-	asr_devsw_installed++;
-	/*
-	 * Find a free spot (the report during driver load used by
-	 * osd layer in engine to generate the controlling nodes).
-	 */
-	while ((asr_cdevsw.d_maj < NUMCDEVSW)
-	 && (devsw(makedev(asr_cdevsw.d_maj,0)) != (struct cdevsw *)NULL)) {
-		++asr_cdevsw.d_maj;
-	}
-	if (asr_cdevsw.d_maj >= NUMCDEVSW) for (
-	  asr_cdevsw.d_maj = 0;
-	  (asr_cdevsw.d_maj < CDEV_MAJOR)
-	   && (devsw(makedev(asr_cdevsw.d_maj,0)) != (struct cdevsw *)NULL);
-	  ++asr_cdevsw.d_maj);
-	/*
-	 *	Come to papa
-	 */
-	cdevsw_add(&asr_cdevsw);
-	/*
-	 *	delete any nodes that would attach to the primary adapter,
-	 * let the adapter scans add them.
-	 */
-	destroy_dev(makedev(asr_cdevsw.d_maj,0));
-} /* asr_drvinit */
-
-/* Must initialize before CAM layer picks up our HBA driver */
-SYSINIT(asrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asr_drvinit,NULL)
-#endif
-
 /* I2O support routines */
 #define	defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
 #define	getAlignLong(STRUCT,NAME) ((STRUCT *)(NAME))
