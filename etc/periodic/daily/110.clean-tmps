@@ -27,6 +27,7 @@ case "$daily_clean_tmps_enable" in
 
 	    set -f noglob
 	    args="-atime +$daily_clean_tmps_days -mtime +$daily_clean_tmps_days"
+	    args="${args} -ctime +$daily_clean_tmps_days"
 	    [ -n "$daily_clean_tmps_ignore" ] &&
 		args="$args "`echo " ${daily_clean_tmps_ignore% }" |
 		    sed 's/[ 	][ 	]*/ ! -name /g'`
