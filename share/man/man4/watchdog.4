@@ -1,5 +1,5 @@
 .\" Copyright (c) 2004 Poul-Henning Kamp <phk@FreeBSD.org>
-.\" Copyright (c) 2003  Sean M. Kelly <smkelly@FreeBSD.org>
+.\" Copyright (c) 2003, 2004 Sean M. Kelly <smkelly@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -52,9 +52,9 @@ The interface is through a device named "/dev/" _PATH_WATCHDOG which
 responds to a single ioctl call, WDIOCPATPAT.
 .Pp
 The ioctl call takes an argument which consists of a timeout value
-specified an integer power of two nanoseconds.
+specified as an integer power of two nanoseconds.
 .Pp
-In the flag WD_ACTIVE signals that the watchdog will be kept from 
+The WD_ACTIVE flag signals that the watchdog will be kept from 
 timing out from userland, for instance by the
 .Xr watchdogd 8
 daemon.
@@ -66,9 +66,8 @@ watchdog implementations support the request.
 If the ioctl fails, for instance if no watchdog supports the timeout
 length, all watchdogs are disabled and must be explicitly reenabled.
 .Sh SEE ALSO
-.Xr sysctl 8 ,
 .Xr watchdogd 8
-.Xr watchdogd 9
+.Xr watchdog 9
 .Sh HISTORY
 The
 .Nm
