@@ -40,7 +40,8 @@ struct var;
 struct varent;
 
 extern fixpt_t ccpu;
-extern int cflag, eval, fscale, mempages, nlistread, rawcpu;
+extern int cflag, eval, fscale, nlistread, rawcpu;
+extern unsigned long mempages;
 extern time_t now;
 extern int sumrusage, termwidth, totwidth;
 extern VARENT *vhead;
