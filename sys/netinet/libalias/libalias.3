@@ -66,11 +66,12 @@ The packet aliasing engine was designed to operate in user space outside
 of the kernel, without any access to private kernel data structure, but
 the source code can also be ported to a kernel environment.
 .Sh INITIALIZATION AND CONTROL
-Two special functions,
-.Fn PacketAliasInit
-and
-.Fn PacketAliasSetAddress ,
+One special function,
+.Fn PacketAliasInit ,
 must always be called before any packet handling may be performed.
+Normally, the
+.Fn PacketAliasSetAddress
+function is called afterwards, to set the default aliasing address.
 In addition, the operating mode of the packet aliasing engine can be
 customized by calling
 .Fn PacketAliasSetMode .
@@ -98,7 +99,7 @@ below for the meaning of these mode bits.
 This function will always return the packet aliasing engine to the same
 initial state.
 .Fn PacketAliasSetAddress
-must be called afterwards, and any desired changes from the default mode
+is normally called afterwards, and any desired changes from the default mode
 bits listed above require a call to
 .Fn PacketAliasSetMode .
 .Pp
@@ -130,6 +131,8 @@ local area network are aliased.
 All outgoing packets are re-mapped to this address unless overridden by a
 static address mapping established by
 .Fn PacketAliasRedirectAddr .
+If this function is not called, and no static rules match, an outgoing
+packet retains its source address.
 .Pp
 If the
 .Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
