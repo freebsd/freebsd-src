@@ -2121,6 +2121,13 @@ int script_go (ip)
 			wstatus = 0;
 		}
 	} else {
+		if ((i = open(_PATH_DEVNULL, O_RDWR)) != -1) {
+			dup2(i, STDIN_FILENO);
+			dup2(i, STDOUT_FILENO);
+			dup2(i, STDERR_FILENO);
+			if (i > STDERR_FILENO)
+				close(i);
+		}
 		execve (scriptName, argv, envp);
 		error ("execve (%s, ...): %m", scriptName);
 		exit (0);
