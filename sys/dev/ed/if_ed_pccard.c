@@ -27,22 +27,21 @@
  * $FreeBSD$
  */
 
-/*
- * BROKEN
- * 		There is no way to specify a softc struct
- *		for a PCCARD device.
- */
-
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
+#include <sys/kernel.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_mib.h>
 
 #include <sys/select.h>
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -51,49 +50,31 @@
 /*
  *      PC-Card (PCMCIA) specific code.
  */
-static int	ed_pccard_init		__P((struct pccard_devinfo *));
-static void	ed_pccard_unload	__P((struct pccard_devinfo *));
-static int	ep_pccard_intr		__P((struct pccard_devinfo *)); 
-static int	ed_pccard_probe		__P((struct isa_device *, u_char *));
-static int	ed_pccard_attach	__P((device_t));
+static int	ed_pccard_probe(device_t);
+static int	ed_pccard_attach(device_t);
+static void	ed_pccard_detach(device_t);
 
-PCCARD_MODULE(ed, ed_pccard_init, ed_pccard_unload, ed_pccard_intr, 0, net_imask);
+static device_method_t ed_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ed_pccard_probe),
+	DEVMETHOD(device_attach,	ed_pccard_attach),
+	DEVMETHOD(device_attach,	ed_pccard_detach),
 
-/*
- *      Initialize the device - called from Slot manager.
- */
-static int
-ed_pccard_init(struct pccard_devinfo *devi)
-{
-	int i;
-	u_char e;
-	struct ed_softc *sc = device_get_softc(devi->isahd.id_device);
-	int error;
+	{ 0, 0 }
+};
 
-	/* validate unit number. */
-	if (devi->isahd.id_unit >= NEDTOT)
-		return(ENODEV);
-	/*
-	 * Probe the device. If a value is returned, the
-	 * device was found at the location.
-	 */
-	sc->gone = 0;
-	if (error = ed_pccard_probe(&devi->isahd, devi->misc))
-		return(error);
-	e = 0;
-	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		e |= devi->misc[i];
-	if (e)
-		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			sc->arpcom.ac_enaddr[i] = devi->misc[i];
-	if (ed_pccard_attach(devi->isahd.id_device) == 0)
-		return(ENXIO);
+static driver_t ed_pccard_driver = {
+	"ed",
+	ed_pccard_methods,
+	sizeof(struct ed_softc)
+};
 
-	return(0);
-}
+static devclass_t ed_pccard_devclass;
+
+DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_pccard_devclass, 0, 0);
 
 /*
- *      edunload - unload the driver and clear the table.
+ *      ed_pccard_detach - unload the driver and clear the table.
  *      XXX TODO:
  *      This is usually called when the card is ejected, but
  *      can be caused by a modunload of a controller driver.
@@ -102,33 +83,20 @@ ed_pccard_init(struct pccard_devinfo *devi)
  *      read and write do not hang.
  */
 static void
-ed_pccard_unload(struct pccard_devinfo *devi)
+ed_pccard_detach(device_t dev)
 {
-	struct ed_softc *sc = device_get_softc(devi->isahd.id_device);
+	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	if (sc->gone) {
-		printf("ed%d: already unloaded\n", devi->isahd.id_unit);
+		device_printf(dev, "already unloaded\n");
 		return;
 	}
 	ifp->if_flags &= ~IFF_RUNNING;
 	if_down(ifp);
+	bus_teardown_intr(dev, sc->irq_res, &sc->irq_handle);
 	sc->gone = 1;
-	printf("ed%d: unload\n", devi->isahd.id_unit);
-}
-
-/*
- *      card_intr - Shared interrupt called from
- *      front end of PC-Card handler.
- */
-static int
-ed_pccard_intr(struct pccard_devinfo *devi)
-{
-	struct ed_softc *sc = device_get_softc(devi->isahd.id_device);
-
-	edintr(sc);
-
-	return(1);
+	device_printf(dev, "unload\n");
 }
 
 /* 
@@ -137,18 +105,22 @@ ed_pccard_intr(struct pccard_devinfo *devi)
  * supplied (from the CIS), relying on the probe to find it instead.
  */
 static int
-ed_pccard_probe(isa_dev, ether)
-	struct isa_device *isa_dev;
-	u_char *ether;
+ed_pccard_probe(device_t dev)
 {
 	int     error;
+	const char *name;
+
+	name = pccard_get_name(dev);
+	printf("ed_pccard_probe: Does %s match?\n", name);
+	if (strcmp(name, "ed"))
+		return ENXIO;
 	  
-	error = ed_probe_WD80x3(isa_dev->id_device);
+	error = ed_probe_WD80x3(dev);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_Novell(isa_dev->id_device);
+	error = ed_probe_Novell(dev);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
@@ -158,29 +130,32 @@ end:
 		error = ed_alloc_irq(dev, 0, 0);
 
 	ed_release_resources(dev);
+printf("probe %d\n", error);
 	return (error);
 }
 
 static int
-ed_pccard_attach(dev)
-        device_t dev;
+ed_pccard_attach(device_t dev)
 {
-        struct ed_softc *sc = device_get_softc(dev);
-        int flags = device_get_flags(dev);
-        int error;
-        
-        if (sc->port_used > 0)
-                ed_alloc_port(dev, sc->port_rid, 1);
-        if (sc->mem_used)
-                ed_alloc_memory(dev, sc->mem_rid, 1);
-        ed_alloc_irq(dev, sc->irq_rid, 0);
-                
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-                               edintr, sc, &sc->irq_handle);
-        if (error) {
-                ed_release_resources(dev);
-                return (error);
-        }              
+	struct ed_softc *sc = device_get_softc(dev);
+	int flags = device_get_flags(dev);
+	int error;
+	
+	if (sc->port_used > 0)
+		ed_alloc_port(dev, sc->port_rid, 1);
+	if (sc->mem_used)
+		ed_alloc_memory(dev, sc->mem_rid, 1);
+	ed_alloc_irq(dev, sc->irq_rid, 0);
+		
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+			       edintr, sc, &sc->irq_handle);
+	if (error) {
+		printf("setup intr failed %d \n", error);
+		ed_release_resources(dev);
+		return (error);
+	}	      
 
-        return ed_attach(sc, device_get_unit(dev), flags);
+	error = ed_attach(sc, device_get_unit(dev), flags);
+	printf("attach failed %d\n", error);
+	return error;
 } 
