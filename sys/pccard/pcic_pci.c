@@ -35,8 +35,10 @@
 #include <sys/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#include <machine/bus.h>
 #include <pccard/pcic_pci.h>
 #include <pccard/i82365.h>
+#include <pccard/pcicvar.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
