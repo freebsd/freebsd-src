@@ -31,9 +31,9 @@ extern char *xmalloc ();
 
 /* Some character stuff. */
 #define control_character_threshold 0x020   /* Smaller than this is control. */
-#define meta_character_threshold 255        /* Larger than this is Meta. */
+#define meta_character_threshold 0x07f	    /* Larger than this is Meta. */
 #define control_character_bit 0x40	    /* 0x000000, must be off. */
-#define meta_character_bit 0x100            /* x0000000, must be on. */
+#define meta_character_bit 0x080	    /* x0000000, must be on. */
 #define largest_char 255		    /* Largest character value. */
 
 #define META_CHAR(c) ((c) > meta_character_threshold && (c) <= largest_char)
