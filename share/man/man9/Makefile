@@ -92,6 +92,7 @@ MAN=	accept_filter.9 \
 	get_cyclecount.9 \
 	getnewvnode.9 \
 	groupmember.9 \
+	g_access.9 \
 	g_attach.9 \
 	g_bio.9 \
 	g_consumer.9 \
