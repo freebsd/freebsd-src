@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.27 1998/03/30 09:51:00 phk Exp $
+ * $Id: vfs_aio.c,v 1.28 1998/04/17 22:36:50 des Exp $
  */
 
 /*
@@ -51,7 +51,7 @@
 #include <machine/cpu.h>
 #include <machine/limits.h>
 
-static	int jobrefid;
+static	long jobrefid;
 
 #define JOBST_NULL			0x0
 #define	JOBST_JOBQPROC		0x1
@@ -1409,7 +1409,7 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 	for (cb = TAILQ_FIRST(&ki->kaio_jobdone);
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			if (ujob == cb->uuaiocb) {
 				p->p_retval[0] = cb->uaiocb._aiocb_private.status;
 			} else {
@@ -1432,7 +1432,7 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 		cb;
 		cb = ncb) {
 		ncb = TAILQ_NEXT(cb, plist);
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			splx(s);
 			if (ujob == cb->uuaiocb) {
 				p->p_retval[0] = cb->uaiocb._aiocb_private.status;
@@ -1515,7 +1515,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		for (cb = TAILQ_FIRST(&ki->kaio_jobdone);
 			cb; cb = TAILQ_NEXT(cb, plist)) {
 			for(i = 0; i < njoblist; i++) {
-				if (((int) cb->uaiocb._aiocb_private.kernelinfo) ==
+				if (((long) cb->uaiocb._aiocb_private.kernelinfo) ==
 					ijoblist[i]) {
 					if (ujoblist[i] != cb->uuaiocb)
 						error = EINVAL;
@@ -1530,7 +1530,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		for (cb = TAILQ_FIRST(&ki->kaio_bufdone);
 			cb; cb = TAILQ_NEXT(cb, plist)) {
 			for(i = 0; i < njoblist; i++) {
-				if (((int) cb->uaiocb._aiocb_private.kernelinfo) ==
+				if (((long) cb->uaiocb._aiocb_private.kernelinfo) ==
 					ijoblist[i]) {
 					splx(s);
 					if (ujoblist[i] != cb->uuaiocb)
@@ -1598,7 +1598,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
 
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			p->p_retval[0] = cb->uaiocb._aiocb_private.error;
 			return 0;
 		}
@@ -1608,7 +1608,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
 
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			p->p_retval[0] = EINPROGRESS;
 			return 0;
 		}
@@ -1618,7 +1618,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	for (cb = TAILQ_FIRST(&ki->kaio_bufdone);
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			p->p_retval[0] = cb->uaiocb._aiocb_private.error;
 			splx(s);
 			return 0;
@@ -1628,7 +1628,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	for (cb = TAILQ_FIRST(&ki->kaio_bufqueue);
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
-		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
+		if (((long) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
 			p->p_retval[0] = EINPROGRESS;
 			splx(s);
 			return 0;
@@ -1861,7 +1861,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 	cbptr = uap->acb_list;
 	for(i = 0; i < uap->nent; i++) {
 		iocb = (struct aiocb *) fuword((caddr_t) &cbptr[i]);
-		if (((int) iocb != -1) && ((int) iocb != NULL)) {
+		if (((long) iocb != -1) && ((long) iocb != NULL)) {
 			error = _aio_aqueue(p, iocb, lj, 0);
 			if (error == 0) {
 				nentqueued++;
@@ -1896,7 +1896,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 				 * Fetch address of the control buf pointer in user space
 				 */
 				iocb = (struct aiocb *) fuword((caddr_t) &cbptr[i]);
-				if (((int) iocb == -1) || ((int) iocb == 0))
+				if (((long) iocb == -1) || ((long) iocb == 0))
 					continue;
 
 				/*
@@ -1913,7 +1913,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 				for (cb = TAILQ_FIRST(&ki->kaio_jobdone);
 					cb;
 					cb = TAILQ_NEXT(cb, plist)) {
-					if (((int) cb->uaiocb._aiocb_private.kernelinfo) ==
+					if (((long) cb->uaiocb._aiocb_private.kernelinfo) ==
 						jobref) {
 						if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
 							curproc->p_stats->p_ru.ru_oublock +=
@@ -1933,7 +1933,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 				for (cb = TAILQ_FIRST(&ki->kaio_bufdone);
 					cb;
 					cb = TAILQ_NEXT(cb, plist)) {
-					if (((int) cb->uaiocb._aiocb_private.kernelinfo) ==
+					if (((long) cb->uaiocb._aiocb_private.kernelinfo) ==
 						jobref) {
 						found++;
 						break;
