@@ -664,8 +664,8 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			goto handle_nosign;
 		case 'z':
 			base = 16;
-			if (sign)
-				goto handle_sign;
+			sign = 1;
+			goto handle_sign;
 handle_nosign:
 			sign = 0;
 			if (jflag)
