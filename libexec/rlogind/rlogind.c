@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rlogind.c,v 1.15 1997/02/22 14:22:08 peter Exp $
  */
 
 #ifndef lint
@@ -226,10 +226,12 @@ doit(f, fromp)
 	fromp->sin_port = ntohs((u_short)fromp->sin_port);
 	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof(struct in_addr),
 	    fromp->sin_family);
-	if (hp)
-		(void)strcpy(hostname, hp->h_name);
-	else
-		(void)strcpy(hostname, inet_ntoa(fromp->sin_addr));
+	if (hp) {
+		(void)strncpy(hostname, hp->h_name, sizeof(hostname));
+	} else {
+		(void)strncpy(hostname, inet_ntoa(fromp->sin_addr), sizeof(hostname));
+	}
+	hostname[sizeof(hostname) - 1] = '\0';
 
 #ifdef	KERBEROS
 	if (use_kerberos) {
