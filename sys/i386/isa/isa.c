@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.72 1996/09/06 23:07:45 phk Exp $
+ *	$Id: isa.c,v 1.73 1996/09/10 23:30:50 bde Exp $
  */
 
 /*
@@ -516,8 +516,7 @@ static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 #define VALID_DMA_MASK (7)
 
 /* high byte of address is stored in this port for i-th dma channel */
-static short dmapageport[8] =
-	{ 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
+static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 
 /*
  * Setup a DMA channel's bounce buffer.
