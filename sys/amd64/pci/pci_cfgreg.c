@@ -292,7 +292,8 @@ pci_cfgintr(int bus, int device, int pin, int oldirq)
 	int			i, irq;
 	struct bios_regs	args;
 	u_int16_t		v;
-	int already = 0;
+ 	int already = 0;
+ 	int errok = 0;
     
 	v = pcibios_get_version();
 	if (v < 0x0210) {
@@ -326,29 +327,52 @@ pci_cfgintr(int bus, int device, int pin, int oldirq)
 			    device, 'A' + pin - 1, oldirq);
 			return (oldirq);
 		}
+
+		/*
+		 * We try to find a linked interrupt, then we look to see
+		 * if the interrupt is uniquely routed, then we look for
+		 * a virgin interrupt.  The virgin interrupt should return
+		 * an interrupt we can route, but if that fails, maybe we
+		 * should try harder to route a different interrupt.
+		 * However, experience has shown that that's rarely the
+		 * failure mode we see.
+		 */
 		irq = pci_cfgintr_linked(pe, pin);
-		if (irq == PCI_INVALID_IRQ)
+		if (irq != PCI_INVALID_IRQ)
+			already = 1;
+		if (irq == PCI_INVALID_IRQ) {
 			irq = pci_cfgintr_unique(pe, pin);
+			if (irq != PCI_INVALID_IRQ)
+				errok = 1;
+		}
 		if (irq == PCI_INVALID_IRQ)
 			irq = pci_cfgintr_virgin(pe, pin);
 		if (irq == PCI_INVALID_IRQ)
 			break;
 
 		/*
-		 * Ask the BIOS to route the interrupt
+		 * Ask the BIOS to route the interrupt.  If we picked an
+		 * interrupt that failed, we should really try other
+		 * choices that the BIOS offers us.
+		 *
+		 * For uniquely routed interrupts, we need to try
+		 * to route them on some machines.  Yet other machines
+		 * fail to route, so we have to pretend that in that
+		 * case it worked.  Isn't pc hardware fun?
+		 *
+		 * NOTE: if we want to whack hardware to do this, then
+		 * I think the right way to do that would be to have
+		 * bridge drivers that do this.  I'm not sure that the
+		 * $PIR table would be valid for those interrupt
+		 * routers.
 		 */
 		args.eax = PCIBIOS_ROUTE_INTERRUPT;
 		args.ebx = (bus << 8) | (device << 3);
 		/* pin value is 0xa - 0xd */
 		args.ecx = (irq << 8) | (0xa + pin - 1);
 		if (!already &&
-		    bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL))) {
-			/*
-			 * XXX if it fails, we should try to smack the router
-			 * hardware directly.
-			 * XXX Also, there may be other choices that we can
-			 * try that will work.
-			 */
+		    bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)) &&
+		    !errok) {
 			PRVERB(("pci_cfgintr: ROUTE_INTERRUPT failed.\n"));
 			return(PCI_INVALID_IRQ);
 		}
