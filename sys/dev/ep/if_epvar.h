@@ -35,6 +35,8 @@ struct ep_softc {
 	u_char		ep_connector;	/* Configured connector.	 */
 	int		stat;		/* some flags */
 	int		gone;		/* adapter is not present (for PCCARD) */
+	struct resource *irq;		/* IRQ resource */
+	void		*ih;		/* Interrupt handle cookie */
 #define	F_RX_FIRST		0x1
 #define	F_PROMISC		0x8
 
