@@ -92,6 +92,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result);
+void dialog_clear_norefresh(void);
 void dialog_clear(void);
 void dialog_update(void);
 void init_dialog(void);
