@@ -1,5 +1,4 @@
 .\"	$KAME: inet6_opt_init.3,v 1.7 2004/12/27 05:08:23 itojun Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (C) 2004 WIDE Project.
 .\" All rights reserved.
@@ -27,6 +26,8 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
 .\"
 .Dd December 23, 2004
 .Dt INET6_OPT_INIT 3
@@ -63,7 +64,7 @@
 Building and parsing the Hop-by-Hop and Destination options is
 complicated.
 The advanced sockets API defines a set of functions to
-help applications create and manipulate Hop-by-Hope and Destination
+help applications create and manipulate Hop-by-Hop and Destination
 options.
 This man page describes the functions specified in
 IETF Draft RFC3542.
@@ -82,13 +83,14 @@ function
 returns the number of bytes needed for an empty
 extension header, one without any options.
 If the
-.Va extbuf
+.Fa extbuf
 argument points to a valid section of memory
 then the
 .Fn inet6_opt_init
 function also initializes the extension header's length field.
 When attempting to initialize an extension buffer passed in the
-.Va extbuf argument
+.Fa extbuf
+argument,
 .Fa extlen
 must be a positive multiple of 8 or else the function fails and
 returns \-1 to the caller.
@@ -96,7 +98,7 @@ returns \-1 to the caller.
 .Ss inet6_opt_append
 The
 .Fn inet6_opt_append
-function can perform to different jobs.
+function can perform two different jobs.
 When a valid
 .Fa extbuf
 argument is supplied it appends an option to the extension buffer and
@@ -109,7 +111,8 @@ of
 is
 .Dv NULL
 then the
-.Fn inet6_opt_append function only reports what the total length would
+.Fn inet6_opt_append
+function only reports what the total length would
 be if the option were actually appended.
 The
 .Fa len
@@ -156,11 +159,12 @@ parameter must have a value of 1, 2, 4, or 8 and cannot exceed the
 value of
 .Fa len .
 The alignment values represent no alignment, 16 bit, 32 bit and 64 bit
-alignments respectively.
+alignments, respectively.
 .\"
 .Ss inet6_opt_finish
 The
 .Fn inet6_opt_finish
+function
 calculates the final padding necessary to make the extension header a
 multiple of 8 bytes, as required by the IPv6 extension header
 specification, and returns the extension header's updated total
@@ -191,7 +195,8 @@ The
 argument is a pointer to memory that was returned by the
 .Fn inet6_opt_append
 call and the
-.Fa offset argument specifies where the option should be placed in the
+.Fa offset
+argument specifies where the option should be placed in the
 data buffer.
 The
 .Fa val
@@ -231,14 +236,12 @@ extension buffer.
 The option is returned in the arguments
 .Fa typep , lenp ,
 and
-.Fa databufp .
-.Fa typep, lenp,
-and
-.Fa databufp
+.Fa databufp ,
+which
 point to the 8-bit option type, the 8-bit option length and the option
-data respectively.
+data, respectively.
 This function does not return any PAD1 or PADN options.
-When an error occurs or there are no more options the return
+When an error occurs or there are no more options, the return
 value is \-1.
 .\"
 .Ss inet6_opt_find
@@ -252,11 +255,13 @@ If the option is found then the
 .Fa lenp
 and
 .Fa databufp
-arguments are updated to point to the option's length and data
+arguments are updated to point to the option's length and data,
 respectively.
+The
 .Fa extbuf
 and
 .Fa extlen
+arguments
 must point to a valid extension buffer and give its length.
 The
 .Fa offset
@@ -294,7 +299,7 @@ by calculating
 which can be used when extracting option content with multiple fields.
 Robust receivers must verify alignment before calling this function.
 .\"
-.Sh DIAGNOSTICS
+.Sh RETURN VALUES
 All the functions return
 \-1
 on an error.
@@ -323,10 +328,10 @@ directory of its kit.
 .%N RFC2460
 .%D December 1998
 .Re
-.Sh HISTORY
-The implementation first appeared in KAME advanced networking kit.
 .Sh STANDARDS
 The functions are documented in
 .Dq Advanced Sockets API for IPv6
 .Pq RFC3542 .
 .\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.
