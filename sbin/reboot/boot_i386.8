@@ -318,9 +318,9 @@ Seek failed
 Timeout
 .El
 .Pp
-.Sy "IMPORTANT NOTE" :
-Because of limitations imposed by the conventional
-disk interface provided by the BIOS, all boot-related files and
+.Sy "NOTE" :
+On older machines, or otherwise where EDD support (disk packet
+interface support) is not available, all boot-related files and
 structures (including the kernel) that need to be accessed during the
 boot phase must reside on the disk at or below cylinder 1023 (as the
 BIOS understands the geometry).  When a
@@ -343,5 +343,3 @@ keyboard.  If an
 .Dq XT/AT
 keyboard (with no F11 and F12 keys, etc.) is attached, the probe will
 fail.
-.Pp
-Some features are not yet documented.
