@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <posix4/posix4.h>
 
@@ -45,11 +46,15 @@ static int facility[CTL_P1003_1B_MAXID - 1];
 
 #if 1
 
+SYSCTL_DECL(_p1003_1b);
+
 #define P1B_SYSCTL(num, name)  \
 SYSCTL_INT(_p1003_1b, num, \
 	name, CTLFLAG_RD, facility + num - 1, 0, "");
 
 #else
+
+SYSCTL_DECL(_kern_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
 SYSCTL_INT(_kern_p1003_1b, OID_AUTO, \
@@ -57,7 +62,6 @@ SYSCTL_INT(_kern_p1003_1b, OID_AUTO, \
 SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
 
 #endif
-
 
 P1B_SYSCTL(CTL_P1003_1B_ASYNCHRONOUS_IO, asynchronous_io);
 P1B_SYSCTL(CTL_P1003_1B_MAPPED_FILES, mapped_files);

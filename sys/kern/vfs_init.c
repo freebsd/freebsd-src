@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.42 1999/01/28 00:57:47 dillon Exp $
+ * $Id: vfs_init.c,v 1.43 1999/01/28 17:32:00 dillon Exp $
  */
 
 
@@ -331,9 +331,7 @@ int
 vfs_register(struct vfsconf *vfc)
 {
 	struct linker_set *l;
-	struct sysctl_oid **oidpp;
 	struct vfsconf *vfsp;
-	int i, exists;
 
 	vfsp = NULL;
 	l = &sysctl__vfs;
@@ -343,35 +341,6 @@ vfs_register(struct vfsconf *vfc)
 				return EEXIST;
 
 	vfc->vfc_typenum = maxvfsconf++;
-	if (vfc->vfc_vfsops->vfs_oid != NULL) {
-		/*
-		 * Attach the oid to the "vfs" node of the sysctl tree if
-		 * it isn't already there (it will be there for statically
-		 * configured vfs's).
-		 */
-		exists = 0;
-		for (i = l->ls_length,
-		    oidpp = (struct sysctl_oid **)l->ls_items;
-		    i-- != 0; oidpp++)
-			if (*oidpp == vfc->vfc_vfsops->vfs_oid) {
-				exists = 1;
-				break;
-			}
-		if (exists == 0)
-			for (i = l->ls_length,
-			    oidpp = (struct sysctl_oid **)l->ls_items;
-			    i-- != 0; oidpp++) {
-				if (*oidpp == NULL ||
-				    *oidpp == &sysctl___vfs_mod0 ||
-				    *oidpp == &sysctl___vfs_mod1) {
-					*oidpp = vfc->vfc_vfsops->vfs_oid;
-					break;
-				}
-			}
-
-		vfc->vfc_vfsops->vfs_oid->oid_number = vfc->vfc_typenum;
-		sysctl_order_all();
-	}
 	if (vfsp)
 		vfsp->vfc_next = vfc;
 	else
@@ -390,8 +359,6 @@ vfs_register(struct vfsconf *vfc)
 int
 vfs_unregister(struct vfsconf *vfc)
 {
-	struct linker_set *l;
-	struct sysctl_oid **oidpp;
 	struct vfsconf *vfsp, *prev_vfsp;
 	int error, i, maxtypenum;
 
@@ -416,18 +383,6 @@ vfs_unregister(struct vfsconf *vfc)
 		prev_vfsp->vfc_next = vfsp->vfc_next;
 	else
 		vfsconf = vfsp->vfc_next;
-	if (vfsp->vfc_vfsops->vfs_oid != NULL) {
-		l = &sysctl__vfs;
-		for (i = l->ls_length,
-		    oidpp = (struct sysctl_oid **)l->ls_items;
-		    i--; oidpp++) {
-			if (*oidpp == vfsp->vfc_vfsops->vfs_oid) {
-				*oidpp = NULL;
-				sysctl_order_all();
-				break;
-			}
-		}
-	}
 	maxtypenum = VFS_GENERIC;
 	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
 		if (maxtypenum < vfsp->vfc_typenum)

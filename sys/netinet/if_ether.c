@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.51 1999/01/18 01:54:36 fenner Exp $
+ * $Id: if_ether.c,v 1.52 1999/01/19 23:17:03 fenner Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -64,6 +65,7 @@
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
 
+SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
 /* timer values */

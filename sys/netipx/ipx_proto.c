@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.12 1997/12/15 20:31:14 eivind Exp $
+ * $Id: ipx_proto.c,v 1.13 1998/02/09 06:10:24 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -43,6 +43,7 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <net/radix.h>
