@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.29 1998/10/08 09:56:10 obrien Exp $";
+	"$Id: vmstat.c,v 1.32 1999/01/09 06:03:54 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -113,6 +113,7 @@ static	int nintr;
 static	long *intrloc;
 static	char **intrname;
 static	int nextintsrow;
+static  int extended_vm_stats;
 
 struct	utmp utmp;
 
@@ -296,8 +297,7 @@ labelkre()
 	mvprintw(INTSROW, INTSCOL + 3, " Interrupts");
 	mvprintw(INTSROW + 1, INTSCOL + 9, "total");
 
-	mvprintw(VMSTATROW + 0, VMSTATCOL + 10, "cow");
-	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "zfod");
+	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "cow");
 	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "wire");
 	mvprintw(VMSTATROW + 3, VMSTATCOL + 10, "act");
 	mvprintw(VMSTATROW + 4, VMSTATCOL + 10, "inact");
@@ -346,6 +346,20 @@ labelkre()
 				" %5.5s", tmpstr);
 			j++;
 		}
+
+	if (j <= 4) {
+		/*
+		 * room for extended VM stats
+		 */
+		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
+		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "%%slo-z");
+		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "tfree");
+		extended_vm_stats = 1;
+	} else {
+		extended_vm_stats = 0;
+		mvprintw(VMSTATROW + 0, VMSTATCOL + 10, "zfod");
+	}
+
 	for (i = 0; i < nintr; i++) {
 		if (intrloc[i] == 0)
 			continue;
@@ -457,8 +471,10 @@ showkre()
 	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
 	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
 	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
-	PUTRATE(Cnt.v_cow_faults, VMSTATROW + 0, VMSTATCOL + 3, 6);
-	PUTRATE(Cnt.v_zfod, VMSTATROW + 1, VMSTATCOL + 4, 5);
+	if (extended_vm_stats == 0) {
+		PUTRATE(Cnt.v_zfod, VMSTATROW + 0, VMSTATCOL + 4, 5);
+	}
+	PUTRATE(Cnt.v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 6);
 	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
@@ -470,6 +486,23 @@ showkre()
 	PUTRATE(Cnt.v_pdwakeups, VMSTATROW + 10, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_pdpages, VMSTATROW + 11, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
+
+	if (extended_vm_stats) {
+	    Y(Cnt.v_ozfod);
+
+	    PUTRATE(Cnt.v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
+	    putint(
+		((s.Cnt.v_ozfod < s.Cnt.v_zfod) ?
+		    s.Cnt.v_ozfod * 100 / s.Cnt.v_zfod : 
+		    0
+		),
+		VMSTATROW + 12, 
+		VMSTATCOL - 16,
+		9
+	    );
+	    PUTRATE(Cnt.v_tfree, VMSTATROW + 13, VMSTATCOL - 16, 9);
+	}
+
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
 	putint(s.desiredvnodes, VMSTATROW + 14, VMSTATCOL, 9);
 	putint(s.numvnodes, VMSTATROW + 15, VMSTATCOL, 9);
