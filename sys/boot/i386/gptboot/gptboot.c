@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.3 1998/10/13 21:35:42 rnordier Exp $
+ *	$Id: boot2.c,v 1.4 1998/10/13 22:17:05 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -105,6 +105,7 @@ static int parse(char *);
 static void readfile(const char *, void *, size_t);
 static ino_t lookup(const char *);
 static int fsfind(const char *, ino_t *);
+static int xfsread(ino_t, void *, size_t);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static int printf(const char *,...);
@@ -126,6 +127,7 @@ main(void)
 {
     int autoboot, helpon, i;
 
+    v86.ctl = V86_FLAGS;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
     dsk.type = dsk.drive & DRV_HARD ? MAJ_WD : MAJ_FD;
     dsk.unit = dsk.drive & DRV_MASK;
@@ -194,7 +196,7 @@ load(const char *fname)
 	printf("No `%s'\n", fname);
 	return;
     }
-    if (fsread(ino, &hdr, sizeof(hdr)) != sizeof(hdr))
+    if (xfsread(ino, &hdr, sizeof(hdr)))
 	return;
     if (N_GETMAGIC(hdr.ex) == ZMAGIC)
 	fmt = 0;
@@ -209,11 +211,11 @@ load(const char *fname)
 	p = PTOV(addr);
 	printf("%s=0x%x ", "text", (unsigned)hdr.ex.a_text);
 	fs_off = PAGE_SIZE;
-	if (fsread(ino, p, hdr.ex.a_text) != hdr.ex.a_text)
+	if (xfsread(ino, p, hdr.ex.a_text))
 	    return;
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	printf("%s=0x%x ", "data", (unsigned)hdr.ex.a_data);
-	if (fsread(ino, p, hdr.ex.a_data) != hdr.ex.a_data)
+	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
 	p += hdr.ex.a_data;
 	printf("%s=0x%x ", "bss", (unsigned)hdr.ex.a_bss);
@@ -224,23 +226,23 @@ load(const char *fname)
 	printf("symbols=[");
 	printf("+0x%x", (unsigned)hdr.ex.a_syms);
 	if (hdr.ex.a_syms) {
-	    if (fsread(ino, p, hdr.ex.a_syms) != hdr.ex.a_syms)
+	    if (xfsread(ino, p, hdr.ex.a_syms))
 		return;
 	    p += hdr.ex.a_syms;
-	    if (fsread(ino, p, sizeof(int)) != sizeof(int))
+	    if (xfsread(ino, p, sizeof(int)))
 		return;
 	    x = *(uint32_t *)p;
 	    p += sizeof(int);
 	    x -= sizeof(int);
 	    printf("+0x%x", x);
-	    if (fsread(ino, p, x) != x)
+	    if (xfsread(ino, p, x))
 		return;
 	    p += x;
 	}
     } else {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phoff && j < 2; i++) {
-	    if (fsread(ino, ep + j, sizeof(ep[0])) != sizeof(ep[0]))
+	    if (xfsread(ino, ep + j, sizeof(ep[0])))
 		return;
 	    if (ep[j].p_type == PT_LOAD)
 		j++;
@@ -249,7 +251,7 @@ load(const char *fname)
 	    p = PTOV(ep[i].p_paddr & 0xffffff);
 	    printf("%s=0x%x ", !i ? "text" : "data", ep[i].p_filesz);
 	    fs_off = ep[i].p_offset;
-	    if (fsread(ino, p, ep[i].p_filesz) != ep[i].p_filesz)
+	    if (xfsread(ino, p, ep[i].p_filesz))
 		return;
 	}
 	printf("%s=0x%x ", "bss", ep[1].p_memsz - ep[1].p_filesz);
@@ -259,14 +261,14 @@ load(const char *fname)
 	if (hdr.eh.e_shnum == hdr.eh.e_shstrndx + 3) {
 	    fs_off = hdr.eh.e_shoff + sizeof(es[0]) *
 		(hdr.eh.e_shstrndx + 1);
-	    if (fsread(ino, &es, sizeof(es)) != sizeof(es))
+	    if (xfsread(ino, &es, sizeof(es)))
 		return;
 	    for (i = 0; i < 2; i++) {
 		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
 		p += sizeof(es[i].sh_size);
 		printf("+0x%x", es[i].sh_size);
 		fs_off = es[i].sh_offset;
-		if (fsread(ino, p, es[i].sh_size) != es[i].sh_size)
+		if (xfsread(ino, p, es[i].sh_size))
 		    return;
 		p += es[i].sh_size;
 	    }
@@ -412,6 +414,16 @@ fsfind(const char *name, ino_t * ino)
 	}
     if (n != -1 && ls)
 	putchar('\n');
+    return 0;
+}
+
+static int
+xfsread(ino_t inode, void *buf, size_t nbyte)
+{
+    if (fsread(inode, buf, nbyte) != nbyte) {
+	printf("Invalid %s\n", "format");
+	return -1;
+    }
     return 0;
 }
 
@@ -670,7 +682,6 @@ malloc(size_t size)
 static uint32_t
 memsize(int type)
 {
-    v86.ctl = V86_FLAGS;
     v86.addr = type;
     v86.eax = 0x8800;
     v86int();
@@ -693,6 +704,9 @@ drvinfo(int drive)
 static int
 drvread(void *buf, unsigned lba, unsigned nblk)
 {
+    static unsigned c = 0x2d5c7c2f;
+
+    printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
     v86.addr = 0x604;
     v86.eax = nblk;
