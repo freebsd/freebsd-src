@@ -108,6 +108,7 @@ struct dpt_softc_list dpt_softcs = TAILQ_HEAD_INITIALIZER(dpt_softcs);
 /* ================= Private Inline Function declarations ===================*/
 static __inline int		dpt_just_reset(dpt_softc_t * dpt);
 static __inline int		dpt_raid_busy(dpt_softc_t * dpt);
+static __inline int		dpt_pio_wait (u_int32_t, u_int, u_int, u_int);
 static __inline int		dpt_wait(dpt_softc_t *dpt, u_int bits,
 					 u_int state);
 static __inline struct dpt_ccb* dptgetccb(struct dpt_softc *dpt);
@@ -180,6 +181,22 @@ dpt_raid_busy(dpt_softc_t * dpt)
 		return (1);
 	else
 		return (0);
+}
+
+static __inline int
+dpt_pio_wait (u_int32_t base, u_int reg, u_int bits, u_int state)
+{
+	int   i;
+	u_int c;
+
+	for (i = 0; i < 20000; i++) {	/* wait 20ms for not busy */
+		c = inb(base + reg) & bits;
+		if (!(c == state))
+			return (0);
+		else
+			DELAY(50);
+	}
+	return (-1);
 }
 
 static __inline int
@@ -369,6 +386,95 @@ dptallocccbs(dpt_softc_t *dpt)
 		dpt->total_dccbs++;
 	}
 	return (i);
+}
+
+dpt_conf_t *
+dpt_pio_get_conf (u_int32_t base)
+{
+	static dpt_conf_t *	conf;
+	u_int16_t *		p;
+	int			i;
+
+	/*
+	 * Allocate a dpt_conf_t
+	 */
+	if (!conf) {
+		conf = (dpt_conf_t *)malloc(sizeof(dpt_conf_t),
+						 M_DEVBUF, M_NOWAIT);
+	}
+	
+	/*
+	 * If we didn't get one then we probably won't ever get one.
+	 */
+	if (!conf) {
+		printf("dpt: unable to allocate dpt_conf_t\n");
+		return (NULL);
+	}
+
+	/*
+	 * If we have one, clean it up.
+	 */
+	bzero(conf, sizeof(dpt_conf_t));
+
+	/*
+	 * Reset the controller.
+	 */
+	outb((base + HA_WCOMMAND), EATA_CMD_RESET);
+
+	/*
+	 * Wait for the controller to become ready.
+	 */
+	if (dpt_pio_wait(base, HA_RSTATUS, HA_SBUSY, 0)) {
+		printf("dpt: timeout waiting for controller to become ready\n");
+		return (NULL);
+	}
+
+	if (dpt_pio_wait(base, HA_RAUXSTAT, HA_ABUSY, 0)) {
+		printf("dpt: timetout waiting for adapter ready.\n");
+		return (NULL);
+	}
+
+	/*
+	 * Send the PIO_READ_CONFIG command.
+	 */
+	outb((base + HA_WCOMMAND), EATA_CMD_PIO_READ_CONFIG);
+
+	/*
+	 * Read the data into the struct.
+	 */
+	p = (u_int16_t *)conf;
+	for (i = 0; i < (sizeof(dpt_conf_t) / 2); i++) {
+
+		if (dpt_pio_wait(base, HA_RSTATUS, HA_SDRQ, 0)) {
+			printf("dpt: timeout in data read.\n");
+			return (NULL);
+		}
+
+		*p = inw(base + HA_RDATA);
+		p++;
+	}
+
+	if (inb(base + HA_RSTATUS) & HA_SERROR) {
+		printf("dpt: error reading configuration data.\n");
+		return (NULL);
+	}
+
+#define BE_EATA_SIGNATURE	0x45415441
+#define LE_EATA_SIGNATURE	0x41544145
+
+	/*
+	 * Test to see if we have a valid card.
+	 */
+	if ((conf->signature == BE_EATA_SIGNATURE) ||
+	    (conf->signature == LE_EATA_SIGNATURE)) {
+
+		while (inb(base + HA_RSTATUS) & HA_SDRQ) {
+ 			inw(base + HA_RDATA);
+		}
+
+		return (conf);
+	}
+	return (NULL);
 }
 
 /*
