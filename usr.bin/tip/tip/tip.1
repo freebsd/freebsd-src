@@ -1,3 +1,6 @@
+.\"	$OpenBSD: tip.1,v 1.19 2001/09/23 06:15:30 pvalchev Exp $
+.\"	$NetBSD: tip.1,v 1.7 1994/12/08 09:31:05 jtc Exp $
+.\"
 .\" Copyright (c) 1980, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -126,9 +129,10 @@ The command string sent to the local
 system is processed by the shell.
 .It Ic \&~C
 Fork a child process on the local system to perform special protocols
-such as \s-1XMODEM\s+1.  The child program will be run with the following
-somewhat unusual arrangement of file descriptors:
-.Bd -literal -offset indent -compact
+such as \s-1XMODEM\s+1.
+The child program will be run with the following somewhat unusual
+arrangement of file descriptors:
+.Bd -literal -offset indent
 0 <-> local tty in
 1 <-> local tty out
 2 <-> local tty out
@@ -139,28 +143,60 @@ somewhat unusual arrangement of file descriptors:
 Send a
 .Dv BREAK
 to the remote system.
-For systems which don't support the
-necessary
-.Ar ioctl
-call the break is simulated by a sequence of line speed changes
-and
-.Dv DEL
-characters.
+For systems which don't support the necessary
+.Fn ioctl
+call the break is simulated by a sequence of line speed changes and
+DEL characters.
 .It Ic \&~s
 Set a variable (see the discussion below).
+.It Ic \&~v
+List all variables and their values (if set).
 .It Ic \&~^Z
 Stop
 .Nm
 (only available with job control).
 .It Ic \&~^Y
-Stop only the ``local side'' of
+Stop only the
+.Dq local side
+of
 .Nm
-(only available with job control);
-the ``remote side'' of
-.Nm ,
+(only available with job control); the
+.Dq remote side
+of
+.Nm tip ,
 the side that displays output from the remote host, is left running.
 .It Ic \&~?
-Get a summary of the tilde escapes
+Get a summary of the tilde escapes.
+.El
+.Pp
+To find the system description and thus the operating characteristics
+of
+.Ar system-name ,
+.Nm
+searches for a system description with a name identical to
+.Ar system-name .
+The search order is
+.Bl -enum -offset indent
+.It
+If the environment variable
+.Ev REMOTE
+does not start with a
+.Ql \&/
+it is assumed to be a system description, and is considered first.
+.It
+If the environment variable
+.Ev REMOTE
+begins with a
+.Ql \&/
+it is assumed to be a path to a
+.Xr remote 5
+database, and the specified database is searched.
+.It 
+The default
+.Xr remote 5
+database,
+.Pa /etc/remote ,
+is searched.
 .El
 .Pp
 The
@@ -180,20 +216,17 @@ to be used may be specified on the command line, e.g.\&
 .Pp
 When
 .Nm
-establishes a connection it sends out a
-connection message to the remote system; the default value, if any,
-is defined in
-.Pa /etc/remote
-(see
-.Xr remote 5 ) .
+establishes a connection it sends out the connection message
+specified in the
+.Ar cm
+capability of the system description being used.
 .Pp
 When
 .Nm
-prompts for an argument (e.g. during setup of
-a file transfer) the line typed may be edited with the standard
-erase and kill characters.  A null line in response to a prompt,
-or an interrupt, will abort the dialogue and return you to the
-remote machine.
+prompts for an argument (e.g., during setup of a file transfer) the
+line typed may be edited with the standard erase and kill characters.
+A null line in response to a prompt, or an interrupt, will abort the
+dialogue and return you to the remote machine.
 .Pp
 The
 .Nm
@@ -205,12 +238,20 @@ and by honoring the locking protocol used by
 During file transfers
 .Nm
 provides a running count of the number of lines transferred.
-When using the ~> and ~< commands, the ``eofread'' and ``eofwrite''
-variables are used to recognize end-of-file when reading, and
-specify end-of-file when writing (see below).  File transfers
-normally depend on tandem mode for flow control.  If the remote
-system does not support tandem mode, ``echocheck'' may be set
-to indicate
+When using the
+.Ic ~>
+and
+.Ic ~<
+commands, the
+.Dq eofread
+and
+.Dq eofwrite
+variables are used to recognize end-of-file when reading, and specify
+end-of-file when writing (see below).
+File transfers normally depend on tandem mode for flow control.
+If the remote system does not support tandem mode,
+.Dq echocheck
+may be set to indicate
 .Nm
 should synchronize with the remote system on the echo of each
 transmitted character.
@@ -237,65 +278,79 @@ utility maintains a set of
 .Ar variables
 which control its operation.
 Some of these variables are read-only to normal users (root is allowed
-to change anything of interest).  Variables may be displayed
-and set through the ``s'' escape.  The syntax for variables is patterned
-after
-.Xr vi  1
+to change anything of interest).
+Variables may be displayed and set through the
+.Sq s
+escape.
+The syntax for variables is patterned after
+.Xr vi 1
 and
-.Xr Mail  1  .
-Supplying ``all''
+.Xr Mail 1 .
+Supplying
+.Dq all
 as an argument to the set command displays all variables readable by
-the user.  Alternatively, the user may request display of a particular
-variable by attaching a `?' to the end.  For example ``escape?''
+the user.
+Alternatively, the user may request display of a particular variable
+by attaching a
+.Ql ?
+to the end.
+For example,
+.Dq escape?
 displays the current escape character.
 .Pp
-Variables are numeric, string, character, or boolean values.  Boolean
-variables are set merely by specifying their name; they may be reset
-by prepending a `!' to the name.  Other variable types are set by
-concatenating an `=' and the value.  The entire assignment must not
-have any blanks in it.  A single set command may be used to interrogate
-as well as set a number of variables.
+Variables are numeric, string, character, or boolean values.
+Boolean variables are set merely by specifying their name; they may be
+reset by prepending a
+.Ql !
+to the name.
+Other variable types are set by concatenating an
+.Ql =
+and the value.
+The entire assignment must not have any blanks in it.
+A single set command may be used to interrogate as well as set a
+number of variables.
 Variables may be initialized at run time by placing set commands
-(without the ``~s'' prefix in a file
+(without the
+.Ql ~s
+prefix in a file
 .Pa .tiprc
-in one's home directory).  The
+in one's home directory).
+The
 .Fl v
 option causes
 .Nm
 to display the sets as they are made.
 Certain common variables have abbreviations.
-The following is a list of common variables,
-their abbreviations, and their default values.
+The following is a list of common variables, their abbreviations, and
+their default values:
 .Bl -tag -width Ar
 .It Ar beautify
-(bool) Discard unprintable characters when a session is being scripted;
-abbreviated
-.Ar be  .
+(bool) Discard unprintable characters when a session is being
+scripted; abbreviated
+.Ar be .
 .It Ar baudrate
 (num) The baud rate at which the connection was established;
 abbreviated
-.Ar ba  .
-.It Ar chardelay
-(num) Number of milliseconds to delay after the transmission of
-each character;
-abbreviated
-.Ar cdelay  .
+.Ar ba .
 .It Ar dialtimeout
-(num) When dialing a phone number, the time (in seconds)
-to wait for a connection to be established; abbreviated
-.Ar dial  .
+(num) When dialing a phone number, the time (in seconds) to wait for a
+connection to be established; abbreviated
+.Ar dial .
 .It Ar echocheck
 (bool) Synchronize with the remote host during file transfer by
 waiting for the echo of the last character transmitted; default is
-.Ar off  .
+.Ar off .
 .It Ar eofread
 (str) The set of characters which signify an end-of-transmission
-during a ~< file transfer command; abbreviated
-.Ar eofr  .
+during a
+.Ic ~<
+file transfer command; abbreviated
+.Ar eofr .
 .It Ar eofwrite
-(str) The string sent to indicate end-of-transmission during
-a ~> file transfer command; abbreviated
-.Ar eofw  .
+(str) The string sent to indicate end-of-transmission during a
+.Ic ~>
+file transfer command; abbreviated
+.Ar eofw .
 .It Ar eol
 (str) The set of characters which indicate an end-of-line.
 The
@@ -303,107 +358,96 @@ The
 utility will recognize escape characters only after an end-of-line.
 .It Ar escape
 (char) The command prefix (escape) character; abbreviated
-.Ar es  ;
-default value is `~'.
+.Ar es ;
+default value is
+.Ql ~ .
 .It Ar exceptions
-(str) The set of characters which should not be discarded
-due to the beautification switch; abbreviated
-.Ar ex  ;
-default value is ``\et\en\ef\eb''.
+(str) The set of characters which should not be discarded due to the
+beautification switch; abbreviated
+.Ar ex ;
+default value is
+.Dq \et\en\ef\eb .
 .It Ar force
 (char) The character used to force literal data transmission;
 abbreviated
-.Ar fo  ;
-default value is `^P'.
+.Ar fo ;
+default value is
+.Ql ^P .
 .It Ar framesize
 (num) The amount of data (in bytes) to buffer between filesystem
 writes when receiving files; abbreviated
-.Ar fr  .
+.Ar fr .
 .It Ar host
 (str) The name of the host to which you are connected; abbreviated
-.Ar ho  .
-.It Ar linedelay
-(num) Number of milliseconds to delay after the transmission of
-each line;
-abbreviated
-.Ar ldelay  .
-.It Ar login
-(str) Pathname of a login shell script to run once connected; standard input
-and output are redirected to the remote host.
-Leading tildes in the pathname
-are expanded expansion; abbreviated
-.Ar li  .
-.It Ar logout
-(str) Pathname of a shell script to run before disconnecting; standard input
-and output are redirected to the remote host.
-Leading tildes in the pathname
-are expanded expansion; abbreviated
-.Ar lo  .
+.Ar ho .
 .It Ar prompt
 (char) The character which indicates an end-of-line on the remote
 host; abbreviated
-.Ar pr  ;
-default value is `\en'.  This value is used to synchronize during
-data transfers.  The count of lines transferred during a file transfer
-command is based on receipt of this character.
+.Ar pr ;
+default value is
+.Ql \en .
+This value is used to synchronize during data transfers.
+The count of lines transferred during a file transfer command is based
+on receipt of this character.
 .It Ar raise
 (bool) Upper case mapping mode; abbreviated
-.Ar ra  ;
+.Ar ra ;
 default value is
-.Ar off  .
-When this mode is enabled, all lower case letters will be mapped to
-upper case by
+.Ar off .
+When this mode is enabled, all lowercase letters will be mapped to
+uppercase by
 .Nm
 for transmission to the remote machine.
 .It Ar raisechar
-(char) The input character used to toggle upper case mapping mode;
+(char) The input character used to toggle uppercase mapping mode;
 abbreviated
-.Ar rc  ;
-default value is `^A'.
+.Ar rc ;
+default value is
+.Ql ^A .
 .It Ar record
 (str) The name of the file in which a session script is recorded;
 abbreviated
-.Ar rec  ;
-default value is ``tip.record''.
+.Ar rec ;
+default value is
+.Dq tip.record .
 .It Ar script
 (bool) Session scripting mode; abbreviated
-.Ar sc  ;
+.Ar sc ;
 default is
-.Ar off  .
+.Ar off .
 When
 .Ar script
 is
-.Li true  ,
+.Li true ,
 .Nm
-will record everything transmitted by the remote machine in
-the script record file specified in
-.Ar record  .
+will record everything transmitted by the remote machine in the script
+record file specified in
+.Ar record .
 If the
 .Ar beautify
 switch is on, only printable
 .Tn ASCII
-characters will be included in
-the script file (those characters between 040 and 0177).  The
-variable
+characters will be included in the script file (those characters
+between 040 and 0177).
+The variable
 .Ar exceptions
 is used to indicate characters which are an exception to the normal
 beautification rules.
 .It Ar tabexpand
 (bool) Expand tabs to spaces during file transfers; abbreviated
-.Ar tab  ;
+.Ar tab ;
 default value is
-.Ar false  .
+.Ar false .
 Each tab is expanded to 8 spaces.
 .It Ar verbose
 (bool) Verbose mode; abbreviated
-.Ar verb  ;
+.Ar verb ;
 default is
-.Ar true  .
+.Ar true .
 When verbose mode is enabled,
 .Nm
-prints messages while dialing, shows the current number
-of lines transferred during a file transfer operations,
-and more.
+prints messages while dialing, shows the current number of lines
+transferred during a file transfer operations, and more.
 .El
 .Sh ENVIRONMENT
 The
@@ -411,52 +455,54 @@ The
 utility uses the following environment variables:
 .Bl -tag -width Fl
 .It Ev SHELL
-(str) The name of the shell to use for the ~! command; default
-value is ``/bin/sh'', or taken from the environment.
+The name of the shell to use for the
+.Ic ~!
+command; default value is
+.Dq /bin/sh .
 .It Ev HOME
-(str) The home directory to use for the ~c command; default
-value is taken from the environment.
+The home directory to use for the
+.Ic ~c
+command.
 .It Ev HOST
-Check for a default host if none specified.
+The default value for
+.Ar system-name
+if none is specified via the command line.
+.It Ev REMOTE
+A system description, or an absolute path to a
+.Xr remote 5
+system description database.
+.It Ev PHONES
+A path to a
+.Xr phones 5
+database.
 .El
-.Pp
-The variables
-.Ev ${REMOTE}
-and
-.Ev ${PHONES}
-are also exported.
 .Sh FILES
-.Bl -tag -width /var/spool/lock/LCK..* -compact
-.It Pa /etc/modems
-Global modem configuration data base.
+.Bl -tag -width "/var/spool/lock/LCK..*" -compact
 .It Pa /etc/remote
-Global system descriptions.
+global
+.Xr remote 5
+database
 .It Pa /etc/phones
-Global phone number data base.
-.It Ev ${REMOTE}
-Private system descriptions.
-.It Ev ${PHONES}
-Private phone numbers.
+default
+.Xr phones 5
+file
 .It Pa ~/.tiprc
-Initialization file.
+initialization file
 .It Pa tip.record
-Record file.
+record file
 .It Pa /var/log/aculog
-Line access log.
+line access log
 .It Pa /var/spool/lock/LCK..*
-Lock file to avoid conflicts with
-.Xr uucp 1 .
+lock file to avoid conflicts with
+.Xr uucp
 .El
-.Sh DIAGNOSTICS
-Diagnostics are, hopefully, self explanatory.
 .Sh SEE ALSO
-.Xr cu 1 ,
 .Xr phones 5 ,
 .Xr remote 5
 .Sh HISTORY
 The
 .Nm
-command appeared in
+appeared command in
 .Bx 4.2 .
 .Sh BUGS
 The full set of variables is undocumented and should, probably, be
