@@ -1601,8 +1601,8 @@ ttyx?|ttyy?|ttyz?)
 	*c) unit=12;;	*d) unit=13;;	*e) unit=14;;	*f) unit=15;;
 	esac
 	case $i in
-	ttyy?)  unit=$(($unit \+ 16));;
-	ttyz?)  unit=$(($unit \+ 32));;
+	ttyy?)  unit=$(($unit + 16));;
+	ttyz?)  unit=$(($unit + 32));;
 	esac
 	mknod $i c 42 $unit
 	;;
