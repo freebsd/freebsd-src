@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb_locl.h,v 1.18 2002/09/10 20:03:48 joda Exp $ */
+/* $Id: hdb_locl.h,v 1.18.4.1 2003/09/10 22:04:39 lha Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __HDB_LOCL_H__
@@ -54,6 +54,9 @@
 #endif
 #ifdef HAVE_SYS_FILE_H
 #include <sys/file.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
 #endif
 #include <roken.h>
 
