@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stddef.h>
@@ -50,18 +51,38 @@ mbstowcs(pwcs, s, n)
 {
 	char const *e;
 	int cnt = 0;
+	rune_t r;
 
-	if (!pwcs || !s)
+	if (!s) {
+		errno = EINVAL;
 		return (-1);
+	}
 
+	if (pwcs == NULL) {
+		/* Convert and count only, do not store. */
+		while ((r = sgetrune(s, MB_LEN_MAX, &e)) != _INVALID_RUNE &&
+		    r != 0) {
+			s = e;
+			cnt++;
+		}
+		if (r == _INVALID_RUNE) {
+			errno = EILSEQ;
+			return (-1);
+		}
+	}
+
+	/* Convert, store and count characters. */
 	while (n-- > 0) {
 		*pwcs = sgetrune(s, MB_LEN_MAX, &e);
-		if (*pwcs == _INVALID_RUNE)
+		if (*pwcs == _INVALID_RUNE) {
+			errno = EILSEQ;
 			return (-1);
+		}
 		if (*pwcs++ == 0)
 			break;
 		s = e;
 		++cnt;
 	}
+
 	return (cnt);
 }
