@@ -124,6 +124,16 @@ static char *PDU_Types[] = { "GET REQUEST", "GETNEXT REQUEST", "GET RESPONSE", "
 #define	SNMP_VERSION_2	2
 
 /*
+ * SNMP Error-status values
+ */
+#define	SNMP_ERR_NOERROR	0
+#define	SNMP_ERR_TOOBIG		1
+#define	SNMP_ERR_NOSUCHNAME	2
+#define	SNMP_ERR_BADVALUE	3
+#define	SNMP_ERR_READONLY	4
+#define	SNMP_ERR_GENERR		5
+
+/*
  * Max string length for Variable
  */
 #define	STRLEN		128
@@ -1222,9 +1232,9 @@ build_pdu ( hdr, type )
 	    *bp++ = ASN_INTEGER;
 	    *bp++ = 0x01;	/* length = 1 */
 	    if ( erridx )
-		*bp++ = 0x02;	/* NoSuch */
+		*bp++ = SNMP_ERR_NOSUCHNAME;
 	    else
-		*bp++ = 0x00;	/* NoError */
+		*bp++ = SNMP_ERR_NOERROR;
 	    /* Error Index */
 	    *bp++ = ASN_INTEGER;
 	    *bp++ = 0x01;	/* length = 1 */
@@ -2306,10 +2316,12 @@ ilmi_do_state ()
 				/*
 				 * First look for empty table. If found, go to next state.
 				 */
-				if ( oid_ncmp ( &Objids[ADDRESS_OBJID], &Hdr->head->oid,
-				    Objids[ADDRESS_OBJID].oid[0] ) == 1 ) {
+				if ((Hdr->error == SNMP_ERR_NOSUCHNAME) ||
+				    ((Hdr->error == SNMP_ERR_NOERROR) &&
+				     ( oid_ncmp ( &Objids[ADDRESS_OBJID], &Hdr->head->oid,
+				      Objids[ADDRESS_OBJID].oid[0] ) == 1 ))) {
 					ilmi_state[intf] = ILMI_RUNNING; /* ILMI_REG; */
-				} else {
+				} else if (Hdr->error == SNMP_ERR_NOERROR) {
 					/*
 					 * Check to see if this matches our address
 					 * and if so, that it's a VALID entry.
