@@ -50,8 +50,10 @@
 #ifdef PCCARDCISDEBUG
 int	pccardcis_debug = 0;
 #define	DPRINTF(arg) if (pccardcis_debug) printf arg
+#define	DEVPRINTF(arg) if (pccardcis_debug) device_printf arg
 #else
 #define	DPRINTF(arg)
+#define	DEVPRINTF(arg)
 #endif
 
 #define	PCCARD_CIS_SIZE		1024
@@ -68,8 +70,7 @@ struct cis_state {
 int	pccard_parse_cis_tuple(struct pccard_tuple *, void *);
 
 void
-pccard_read_cis(sc)
-	struct pccard_softc *sc;
+pccard_read_cis(struct pccard_softc *sc)
 {
 	struct cis_state state;
 
@@ -97,16 +98,11 @@ pccard_read_cis(sc)
 }
 
 int
-pccard_scan_cis(dev, fct, arg)
-	struct device *dev;
-	int (*fct)(struct pccard_tuple *, void *);
-	void *arg;
+pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
+	void *arg)
 {
-	struct pccard_softc *sc = (struct pccard_softc *) dev;
-	pccard_chipset_tag_t pct;
-	pccard_chipset_handle_t pch;
-	int window;
-	struct pccard_mem_handle pcmh;
+	struct resource *res;
+	int rid;
 	struct pccard_tuple tuple;
 	int longlink_present;
 	int longlink_common;
@@ -121,34 +117,22 @@ pccard_scan_cis(dev, fct, arg)
 
 	ret = 0;
 
-	pct = sc->pct;
-	pch = sc->pch;
-
 	/* allocate some memory */
 
-	if (pccard_chip_mem_alloc(pct, pch, PCCARD_CIS_SIZE, &pcmh)) {
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 
+	    PCCARD_CIS_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+	if (res == NULL) {
 #ifdef DIAGNOSTIC
-		printf("%s: can't alloc memory to read attributes\n",
-		    sc->dev.dv_xname);
+		device_printf(dev, "can't alloc memory to read attributes\n");
 #endif
 		return -1;
 	}
-	tuple.memt = pcmh.memt;
-	tuple.memh = pcmh.memh;
+	tuple.memt = rman_get_bustag(res);
+	tuple.memh = rman_get_bushandle(res);
 
-	/* initialize state for the primary tuple chain */
-	if (pccard_chip_mem_map(pct, pch, PCCARD_MEM_ATTR, 0,
-	    PCCARD_CIS_SIZE, &pcmh, &tuple.ptr, &window)) {
-		pccard_chip_mem_free(pct, pch, &pcmh);
-#ifdef DIAGNOSTIC
-		printf("%s: can't map memory to read attributes\n",
-		    sc->dev.dv_xname);
-#endif
-		return -1;
-	}
-#ifndef __FreeBSD__
 	DPRINTF(("cis mem map %x\n", (unsigned int) tuple.memh));
-#endif
+
 	tuple.mult = 2;
 
 	longlink_present = 1;
@@ -158,7 +142,7 @@ pccard_scan_cis(dev, fct, arg)
 	mfc_count = 0;
 	mfc_index = 0;
 
-	DPRINTF(("%s: CIS tuple chain:\n", sc->dev.dv_xname));
+	DEVPRINTF((dev, "CIS tuple chain:\n"));
 
 	while (1) {
 		while (1) {
@@ -177,8 +161,6 @@ pccard_scan_cis(dev, fct, arg)
 				/* Call the function for the END tuple, since
 				   the CIS semantics depend on it */
 				if ((*fct) (&tuple, arg)) {
-					pccard_chip_mem_unmap(pct, pch,
-							      window);
 					ret = 1;
 					goto done;
 				}
@@ -253,11 +235,8 @@ pccard_scan_cis(dev, fct, arg)
 					if (cksum != (sum & 0xff)) {
 						DPRINTF((" failed sum=%x\n",
 						    sum));
-#if XXX
-						printf("%s: CIS checksum "
-						    "failed\n",
-						    sc->dev.dv_xname);
-#endif
+						device_printf(dev, 
+						    "CIS checksum failed\n");
 #if 0
 						/*
 						 * XXX Some working cards have
@@ -310,8 +289,6 @@ pccard_scan_cis(dev, fct, arg)
 			default:
 				{
 					if ((*fct) (&tuple, arg)) {
-						pccard_chip_mem_unmap(pct,
-						    pch, window);
 						ret = 1;
 						goto done;
 					}
@@ -339,6 +316,10 @@ pccard_scan_cis(dev, fct, arg)
 			/* skip to the next tuple */
 			tuple.ptr += 2 + tuple.length;
 		}
+
+#ifdef XXX	/* I'm not up to this tonight, need to implement new API */
+		/* to deal with moving windows and such.  At least that's */
+		/* what it appears at this instant */
 
 		/*
 		 * the chain is done.  Clean up and move onto the next one,
@@ -372,10 +353,8 @@ pccard_scan_cis(dev, fct, arg)
 
 				if (!longlink_common)
 					tuple.ptr /= 2;
-#ifndef __FreeBSD__
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
-#endif
 				tuple.mult = longlink_common ? 1 : 2;
 				longlink_present = 0;
 				longlink_common = 1;
@@ -392,10 +371,8 @@ pccard_scan_cis(dev, fct, arg)
 
 				if (!mfc[mfc_index].common)
 					tuple.ptr /= 2;
-#ifndef __FreeBSD__
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
-#endif
 				/* set parse state, and point at the next one */
 
 				tuple.mult = mfc[mfc_index].common ? 1 : 2;
@@ -432,13 +409,11 @@ pccard_scan_cis(dev, fct, arg)
 
 			break;
 		}
+#endif /* XXX */
 	}
 
-	pccard_chip_mem_unmap(pct, pch, window);
-
 done:
-	/* Last, free the allocated memory block */
-	pccard_chip_mem_free(pct, pch, &pcmh);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
 
 	return (ret);
 }
@@ -610,9 +585,7 @@ pccard_print_cis(device_t dev)
 }
 
 int
-pccard_parse_cis_tuple(tuple, arg)
-	struct pccard_tuple *tuple;
-	void *arg;
+pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 {
 	/* most of these are educated guesses */
 	static struct pccard_config_entry init_cfe = {
