@@ -18,7 +18,6 @@ MAN=	acpi_toshiba.4 \
 	gsc.4 \
 	ie.4 \
 	io.4 \
-	le.4 \
 	linux.4 \
 	lnc.4 \
 	longrun.4 \
