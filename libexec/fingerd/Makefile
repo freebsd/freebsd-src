@@ -5,6 +5,7 @@ PROG=	fingerd
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN=	fingerd.8
+WARNS?=	2
 
 WFORMAT=0
 
