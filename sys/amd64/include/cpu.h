@@ -94,17 +94,17 @@ void	fork_trampoline(void);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
- * for non-critical timing.
+ * for random-harvesting purposes.
  */
 static __inline u_int64_t
 get_cyclecount(void)
 {
 #if defined(I386_CPU) || defined(I486_CPU)
-	struct timespec tv;
+	struct bintime bt;
 
 	if (!tsc_present) {
-		nanotime(&tv);
-		return (tv.tv_sec * (u_int64_t)1000000000 + tv.tv_nsec);
+		binuptime(&bt);
+		return (bt.frac ^ bt.sec);
 	}
 #endif
 	return (rdtsc());
