@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.12 1998/06/18 15:32:06 bde Exp $
+ *	$Id: intr_machdep.c,v 1.13 1998/06/18 16:08:46 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -429,12 +429,15 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	set_lapic_isrloc(intr, vector);
 #endif
 	/*
-	 * XXX MULTIPLE_IOAPICSXXX
 	 * Reprogram the vector in the IO APIC.
 	 */
-	select = (intr * 2) + IOAPIC_REDTBL0;
-	value = io_apic_read(0, select) & ~IOART_INTVEC;
-	io_apic_write(0, select, value | vector);
+	if (int_to_apicintpin[intr].ioapic >= 0) {
+		select = int_to_apicintpin[intr].redirindex;
+		value = io_apic_read(int_to_apicintpin[intr].ioapic, 
+				     select) & ~IOART_INTVEC;
+		io_apic_write(int_to_apicintpin[intr].ioapic, 
+			      select, value | vector);
+	}
 #else
 	setidt(ICU_OFFSET + intr,
 	       flags & INTR_FAST ? fastintr[intr] : slowintr[intr],

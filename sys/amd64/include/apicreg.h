@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.7 1997/08/04 17:20:39 smp Exp smp $
+ *	$Id: apic.h,v 1.11 1997/08/04 17:31:24 fsmp Exp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -113,12 +113,6 @@
  * global defines, etc.
  */
 
-/**
- * this enables code concerned with handling more than one IO APIC.
- * Note: this is NOT READY for use!
- *
-#define MULTIPLE_IOAPICS
- */
 
 /******************************************************************************
  * LOCAL APIC structure

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.8 1998/07/22 08:39:08 dfr Exp $
+ * $Id: pci_compat.c,v 1.9 1998/08/07 08:20:36 dfr Exp $
  *
  */
 
@@ -182,7 +182,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 		if (error != 0)
 			return 0;
 #ifdef APIC_IO
-		nextpin = next_apic_pin(irq);
+		nextpin = next_apic_irq(irq);
 		
 		if (nextpin < 0)
 			return 1;
@@ -196,10 +196,10 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 		 */
 
 		muxcnt = 2;
-		nextpin = next_apic_pin(nextpin);
+		nextpin = next_apic_irq(nextpin);
 		while (muxcnt < 5 && nextpin >= 0) {
 			muxcnt++;
-			nextpin = next_apic_pin(nextpin);
+			nextpin = next_apic_irq(nextpin);
 		}
 		if (muxcnt >= 5) {
 			printf("bogus MP table, more than 4 IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n");
@@ -208,7 +208,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 		
 		printf("bogus MP table, %d IO APIC pins connected to the same PCI device or ISA/EISA interrupt\n", muxcnt);
 
-		nextpin = next_apic_pin(irq);
+		nextpin = next_apic_irq(irq);
 		while (nextpin >= 0) {
 			idesc = intr_create(dev_instance, nextpin, func, arg,
 					    maskptr, 0);
@@ -216,7 +216,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 			if (error != 0)
 				return 0;
 			printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);
-			nextpin = next_apic_pin(nextpin);
+			nextpin = next_apic_irq(nextpin);
 		}
 #endif
 	}
