@@ -98,6 +98,7 @@ static Obj_Entry *obj_from_addr(const void *);
 static void objlist_add(Objlist *, Obj_Entry *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+static void prebind(void *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
@@ -1232,8 +1233,13 @@ relocate_objects(Obj_Entry *first, bool bind_now)
 	}
 
 	/* Process the PLT relocations. */
-	if (reloc_plt(obj, bind_now))
+	if (reloc_plt(obj) == -1)
+	    return -1;
+	/* Relocate the jump slots if we are doing immediate binding. */
+	if (bind_now)
+	    if (reloc_jmpslots(obj) == -1)
 		return -1;
+
 
 	/*
 	 * Set up the magic number and version in the Obj_Entry.  These
@@ -1361,8 +1367,11 @@ dllockinit(void *context,
            void (*lock_destroy)(void *lock),
 	   void (*context_destroy)(void *context))
 {
+    bool is_dflt = false;
+
     /* NULL arguments mean reset to the built-in locks. */
     if (lock_create == NULL) {
+	is_dflt = true;
 	context = NULL;
 	lock_create = lockdflt_create;
 	rlock_acquire = wlock_acquire = lockdflt_acquire;
@@ -1383,15 +1392,18 @@ dllockinit(void *context,
 	lockinfo.context_destroy(lockinfo.context);
 
     /*
-     * Allocate the locks we will need and call all the new locking
-     * methods, to accomplish any needed lazy binding for the methods
-     * themselves.
+     * Make sure the shared objects containing the locking methods are
+     * fully bound, to avoid infinite recursion when they are called
+     * from the lazy binding code.
      */
+    if (!is_dflt) {
+	prebind((void *)rlock_acquire);
+	prebind((void *)wlock_acquire);
+	prebind((void *)lock_release);
+    }
+
+    /* Allocate our lock. */
     lockinfo.thelock = lock_create(lockinfo.context);
-    rlock_acquire(lockinfo.thelock);
-    lock_release(lockinfo.thelock);
-    wlock_acquire(lockinfo.thelock);
-    lock_release(lockinfo.thelock);
 
     /* Record the new method information. */
     lockinfo.context = context;
@@ -1400,6 +1412,23 @@ dllockinit(void *context,
     lockinfo.lock_release = lock_release;
     lockinfo.lock_destroy = lock_destroy;
     lockinfo.context_destroy = context_destroy;
+}
+
+static void
+prebind(void *addr)
+{
+    Obj_Entry *obj;
+
+    if ((obj = obj_from_addr(addr)) == NULL) {
+	_rtld_error("Cannot determine shared object of locking method at %p",
+	  addr);
+	die();
+    }
+    if (!obj->rtld && !obj->jmpslots_done) {
+	dbg("Pre-binding %s for locking", obj->path);
+	if (reloc_jmpslots(obj) == -1)
+	    die();
+    }
 }
 
 void *

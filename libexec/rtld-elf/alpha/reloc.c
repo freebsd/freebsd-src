@@ -159,7 +159,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 
 /* Process the PLT relocations. */
 int
-reloc_plt(Obj_Entry *obj, bool bind_now)
+reloc_plt(Obj_Entry *obj)
 {
     /* All PLT relocations are the same kind: either Elf_Rel or Elf_Rela. */
     if (obj->pltrelsize != 0) {
@@ -175,17 +175,6 @@ reloc_plt(Obj_Entry *obj, bool bind_now)
 	    /* Relocate the GOT slot pointing into the PLT. */
 	    where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 	    *where += (Elf_Addr)obj->relocbase;
-
-	    if (bind_now) {	/* Fully resolve the procedure address. */
-		const Elf_Sym *def;
-		const Obj_Entry *defobj;
-
-		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
-		if (def == NULL)
-		    return -1;
-		reloc_jmpslot(where,
-		  (Elf_Addr)(defobj->relocbase + def->st_value));
-	    }
 	}
     } else {
 	const Elf_Rela *relalim;
@@ -200,19 +189,56 @@ reloc_plt(Obj_Entry *obj, bool bind_now)
 	    /* Relocate the GOT slot pointing into the PLT. */
 	    where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 	    *where += (Elf_Addr)obj->relocbase;
-
-	    if (bind_now) {	/* Fully resolve the procedure address. */
-		const Elf_Sym *def;
-		const Obj_Entry *defobj;
-
-		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true);
-		if (def == NULL)
-		    return -1;
-		reloc_jmpslot(where,
-		  (Elf_Addr)(defobj->relocbase + def->st_value));
-	    }
 	}
     }
+    return 0;
+}
+
+/* Relocate the jump slots in an object. */
+int
+reloc_jmpslots(Obj_Entry *obj)
+{
+    if (obj->jmpslots_done)
+	return 0;
+    /* All PLT relocations are the same kind: either Elf_Rel or Elf_Rela. */
+    if (obj->pltrelsize != 0) {
+	const Elf_Rel *rellim;
+	const Elf_Rel *rel;
+
+	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	for (rel = obj->pltrel;  rel < rellim;  rel++) {
+	    Elf_Addr *where;
+	    const Elf_Sym *def;
+	    const Obj_Entry *defobj;
+
+	    assert(ELF_R_TYPE(rel->r_info) == R_ALPHA_JMP_SLOT);
+	    where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+	    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true);
+	    if (def == NULL)
+		return -1;
+	    reloc_jmpslot(where,
+	      (Elf_Addr)(defobj->relocbase + def->st_value));
+	}
+    } else {
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
+
+	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+	for (rela = obj->pltrela;  rela < relalim;  rela++) {
+	    Elf_Addr *where;
+	    const Elf_Sym *def;
+	    const Obj_Entry *defobj;
+
+	    assert(ELF_R_TYPE(rela->r_info) == R_ALPHA_JMP_SLOT);
+	    where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+	    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true);
+	    if (def == NULL)
+		return -1;
+	    reloc_jmpslot(where,
+	      (Elf_Addr)(defobj->relocbase + def->st_value));
+	}
+    }
+    obj->jmpslots_done = true;
     return 0;
 }
 
