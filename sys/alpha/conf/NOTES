@@ -53,6 +53,7 @@ controller	isa0
 # sufficient for any number of installed devices.
 controller	ncr0
 controller	isp0
+controller	ahc0
 #controller	esp0
 
 controller	scbus0
