@@ -3169,7 +3169,8 @@ xl_stop(struct xl_softc *sc)
 			sc->xl_cdata.xl_rx_chain[i].xl_mbuf = NULL;
 		}
 	}
-	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
+	if (sc->xl_ldata.xl_rx_list != NULL)
+		bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 	/*
 	 * Free the TX list buffers.
 	 */
@@ -3183,7 +3184,8 @@ xl_stop(struct xl_softc *sc)
 			sc->xl_cdata.xl_tx_chain[i].xl_mbuf = NULL;
 		}
 	}
-	bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
+	if (sc->xl_ldata.xl_tx_list != NULL)
+		bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 }
