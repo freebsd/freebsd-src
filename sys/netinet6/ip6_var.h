@@ -244,6 +244,9 @@ struct	ip6stat {
 
 	u_quad_t ip6s_forward_cachehit;
 	u_quad_t ip6s_forward_cachemiss;
+
+	/* number of times that each rule of source selection is applied. */
+	u_quad_t ip6s_sources_rule[16];
 };
 
 #ifdef _KERNEL
@@ -322,6 +325,8 @@ extern int   ip6_lowportmin;		/* minimum reserved port */
 extern int   ip6_lowportmax;		/* maximum reserved port */
 
 extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
+extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
+					in the source address selection */
 
 #ifdef PFIL_HOOKS
 extern	struct pfil_head inet6_pfil_hook;
@@ -392,6 +397,12 @@ int	rip6_usrreq __P((struct socket *,
 int	dest6_input __P((struct mbuf **, int *, int));
 int	none_input __P((struct mbuf **, int *, int));
 
+struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *,
+	struct ip6_pktopts *, struct ip6_moptions *, struct route_in6 *,
+	struct in6_addr *, int *));
+int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
+	struct rtentry **, int));
 #ifdef RANDOM_IP_ID
 u_int32_t ip6_randomid __P((void));
 u_int32_t ip6_randomflowlabel __P((void));
