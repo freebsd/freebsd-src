@@ -176,7 +176,7 @@ struct cdevsw {
 	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
-	char		*d_name;	/* base device name, e.g. 'vn' */
+	const char	*d_name;	/* base device name, e.g. 'vn' */
 	d_parms_t	*d_bogoparms;	/* XXX not used */
 	int		d_maj;
 	d_dump_t	*d_dump;
@@ -280,7 +280,7 @@ int	cdevsw_remove __P((struct cdevsw *old));
 dev_t	chrtoblk __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 int	devsw_module_handler __P((struct module *mod, int what, void *arg));
-char   *devtoname __P((dev_t dev));
+const char *devtoname __P((dev_t dev));
 void	freedev __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
