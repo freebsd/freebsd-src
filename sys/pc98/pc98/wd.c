@@ -618,7 +618,7 @@ wdstrategy(struct bio *bp)
 	int	s;
 
 	du = bp->bio_disk->d_drv1;
-	if (du == NULL ||  bp->bio_blkno < 0 ||
+	if (du == NULL ||  bp->bio_pblkno < 0 ||
 	    bp->bio_bcount % DEV_BSIZE != 0) {
 
 		bp->bio_error = EINVAL;
