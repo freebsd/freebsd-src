@@ -273,12 +273,6 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	TAILQ_REMOVE(&ifp->if_addrhead, ifa0, ifa_link);
 
 	/*
-	 * refs goes from 1->0 if no external refs. note.. 
-	 * This will not free it ... looks for -1.
-	 */
-	IFAFREE(ifa0);
-
-	/*
 	 * Now remove the at_ifaddr from the parallel structure
 	 * as well, or we'd be in deep trouble
 	 */
@@ -301,11 +295,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	}
 
 	/*
-	 * Now dump the memory we were using.
-	 * Decrement the reference count.
-	 * This should probably be the last reference
-	 * as the count will go from 0 to -1.
-	 * (unless there is still a route referencing this)
+	 * Now reclaim the reference.
 	 */
 	IFAFREE(ifa0);
 	break;
