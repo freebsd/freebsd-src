@@ -174,7 +174,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		ms->sectorsize = cp->provider->sectorsize;
 		if (ms->sectorsize < 512)
 			break;
-		gsp->frontstuff = 16 * ms->sectorsize;
 		mediasize = cp->provider->mediasize;
 		buf = g_read_data(cp, 0, ms->sectorsize, &error);
 		if (buf == NULL || error != 0)

@@ -51,8 +51,6 @@ struct g_slicer {
 	u_int		nslice;
 	u_int		nprovider;
 	u_int		nhot;
-	off_t		cfrontstuff;
-	off_t		frontstuff;
 	struct g_slice	*slices;
 	struct g_slice	*hot;
 	void		*softc;

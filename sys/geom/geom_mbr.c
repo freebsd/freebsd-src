@@ -297,7 +297,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (sectorsize < 512)
 			break;
 		ms->sectorsize = sectorsize;
-		gsp->frontstuff = sectorsize * fwsectors;
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
@@ -404,7 +403,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize != 512)
 			break;
-		gsp->frontstuff = sectorsize * fwsectors;
 		for (;;) {
 			buf = g_read_data(cp, off, sectorsize, &error);
 			if (buf == NULL || error != 0)
