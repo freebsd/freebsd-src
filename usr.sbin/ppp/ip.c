@@ -121,7 +121,7 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
     if (len < (24 >> 3))	/* don't allow fragment to over-write header */
       return (1);
     /* permit fragments on in and out filter */
-    return (filter->fragok);
+    return (!filter->fragok);
   }
   
   cproto = gotinfo = estab = syn = finrst = didname = 0;
