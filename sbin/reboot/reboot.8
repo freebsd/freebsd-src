@@ -43,13 +43,13 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl nqp
+.Op Fl lnqp
 .Nm
-.Op Fl dnqp
+.Op Fl dlnqp
 .Nm fasthalt
-.Op Fl nqp
+.Op Fl lnqp
 .Nm fastboot
-.Op Fl dnqp
+.Op Fl dlnqp
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -72,6 +72,17 @@ The system is requested to create a crash dump.  This option is
 supported only when rebooting, and it has no effect unless a dump
 device has previously been specified with
 .Xr dumpon 8 .
+.It Fl l
+The halt or reboot is
+.Em not
+logged to the system log.
+This option is intended for applications such as 
+.Xr shutdown 8 ,
+that call
+.Nm
+or 
+.Nm halt
+and log this themselves.
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
