@@ -122,8 +122,11 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		if ((vp->v_iflag & VI_OBJDIRTY) != 0) {
 			struct vm_object *obj;
 			VI_UNLOCK(vp);
-			if (VOP_GETVOBJECT(vp, &obj) == 0)
+			if (VOP_GETVOBJECT(vp, &obj) == 0) {
+				VM_OBJECT_LOCK(obj);
 				vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+				VM_OBJECT_UNLOCK(obj);
+			}
 			VI_LOCK(vp);
 		}
 
