@@ -145,7 +145,7 @@ newnode(np)
 	if (np->e_type != NODE)
 		badentry(np, "newnode: not a node");
 	cp = myname(np);
-	if (!Nflag && mkdir(cp, 0777) < 0) {
+	if (!Nflag && mkdir(cp, 0777) < 0 && !uflag) {
 		np->e_flags |= EXISTED;
 		fprintf(stderr, "warning: %s: %s\n", cp, strerror(errno));
 		return;
@@ -205,6 +205,10 @@ linkit(existing, new, type)
 	char *existing, *new;
 	int type;
 {
+
+	/* if we want to unlink first, do it now so *link() won't fail */
+	if (uflag && !Nflag)
+		(void)unlink(new);
 
 	if (type == SYMLINK) {
 		if (!Nflag && symlink(existing, new) < 0) {

@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/7/94";
 
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
+int	uflag = 0;
 int	dokerberos = 0;
 char	command = '\0';
 long	dumpnum = 1;
@@ -97,9 +98,9 @@ main(argc, argv)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define	optlist "b:cdf:hikmNRrs:tvxy"
+#define	optlist "b:cdf:hikmNRrs:tuvxy"
 #else
-#define	optlist "b:cdf:himNRrs:tvxy"
+#define	optlist "b:cdf:himNRrs:tuvxy"
 #endif
 	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
@@ -153,6 +154,9 @@ main(argc, argv)
 				errx(1, "illegal dump number -- %s", optarg);
 			if (dumpnum <= 0)
 				errx(1, "dump number must be greater than 0");
+			break;
+		case 'u':
+			uflag = 1;
 			break;
 		case 'v':
 			vflag = 1;
@@ -289,10 +293,10 @@ usage()
 {
 	(void)fprintf(stderr, "usage:\t%s%s%s%s%s",
 	    "restore tfhksvy [file ...]\n",
-	    "\trestore xfhkmsvy [file ...]\n",
-	    "\trestore ifhkmsvy\n",
-	    "\trestore rfksvy\n",
-	    "\trestore Rfksvy\n");
+	    "\trestore xfhkmsuvy [file ...]\n",
+	    "\trestore ifhkmsuvy\n",
+	    "\trestore rfksvuy\n",
+	    "\trestore Rfksvuy\n");
 	done(1);
 }
 

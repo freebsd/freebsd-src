@@ -552,6 +552,8 @@ extractfile(name)
 		return (linkit(lnkbuf, name, SYMLINK));
 
 	case IFIFO:
+		if (uflag && !Nflag)
+			(void)unlink(name);
 		if (mkfifo(name, mode) < 0) {
 			fprintf(stderr, "%s: cannot create FIFO: %s\n",
 				name, strerror(errno));
@@ -571,6 +573,8 @@ extractfile(name)
 			skipfile();
 			return (GOOD);
 		}
+		if (uflag)
+			(void)unlink(name);
 		if (mknod(name, mode, (int)curfile.dip->di_rdev) < 0) {
 			fprintf(stderr, "%s: cannot create special file: %s\n",
 			    name, strerror(errno));
@@ -589,6 +593,8 @@ extractfile(name)
 			skipfile();
 			return (GOOD);
 		}
+		if (uflag)
+			(void)unlink(name);
 		if ((ofile = open(name, O_WRONLY | O_CREAT | O_TRUNC,
 		    0666)) < 0) {
 			fprintf(stderr, "%s: cannot create file: %s\n",
