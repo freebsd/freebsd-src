@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.h,v 1.3 1996/08/12 19:18:46 ache Exp $
+ * $Id: collate.h,v 1.4 1996/10/15 21:53:23 ache Exp $
  */
 
 #ifndef COLLATE_H_INCLUDED
@@ -57,6 +57,7 @@ u_char *__collate_strdup __P((u_char *));
 u_char *__collate_substitute __P((const u_char *));
 int __collate_load_tables __P((char *));
 void __collate_lookup __P((u_char *, int *, int *, int *));
+int  __collate_range_cmp __P((int, int));
 #ifdef COLLATE_DEBUG
 void __collate_print_tables __P((void));
 #endif
