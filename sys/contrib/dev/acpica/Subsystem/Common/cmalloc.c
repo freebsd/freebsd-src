@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmalloc - local memory allocation routines
- *              $Revision: 78 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -422,11 +422,11 @@ AcpiCmDeleteElementFromAllocList (
 
         if (Size == sizeof (ACPI_OPERAND_OBJECT))
         {
-            DEBUG_PRINT (TRACE_ALLOCATIONS, ("CmDelete: Freeing size 0x%X (ACPI_OPERAND_OBJECT)\n", Size));
+            DEBUG_PRINT (TRACE_ALLOCATIONS, ("CmDelete: Freeing size %X (ACPI_OPERAND_OBJECT)\n", Size));
         }
         else
         {
-            DEBUG_PRINT (TRACE_ALLOCATIONS, ("CmDelete: Freeing size 0x%X\n", Size));
+            DEBUG_PRINT (TRACE_ALLOCATIONS, ("CmDelete: Freeing size %X\n", Size));
         }
 
         AcpiOsFree (Element);
@@ -611,7 +611,7 @@ AcpiCmDumpCurrentAllocations (
     AcpiCmReleaseMutex (ACPI_MTX_MEMORY);
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-        ("Total number of unfreed allocations = %d\n", i));
+        ("Total number of unfreed allocations = %d(%X)\n", i,i));
 
     return_VOID;
 }
@@ -664,7 +664,7 @@ _CmAllocate (
         /* Report allocation error */
 
         _REPORT_ERROR (Module, Line, Component,
-                ("CmAllocate: Could not allocate size 0x%x\n", Size));
+                ("CmAllocate: Could not allocate size %X\n", Size));
 
         return_VALUE (NULL);
     }
@@ -679,7 +679,7 @@ _CmAllocate (
     }
 
     DEBUG_PRINT (TRACE_ALLOCATIONS,
-        ("CmAllocate: %p Size 0x%x\n", Address, Size));
+        ("CmAllocate: %p Size %X\n", Address, Size));
 #endif
 
     return_PTR (Address);
@@ -733,7 +733,7 @@ _CmCallocate (
         /* Report allocation error */
 
         _REPORT_ERROR (Module, Line, Component,
-                ("CmCallocate: Could not allocate size 0x%x\n", Size));
+                ("CmCallocate: Could not allocate size %X\n", Size));
         return_VALUE (NULL);
     }
 
@@ -748,7 +748,7 @@ _CmCallocate (
 #endif
 
     DEBUG_PRINT (TRACE_ALLOCATIONS,
-        ("CmCallocate: %p Size 0x%x\n", Address, Size));
+        ("CmCallocate: %p Size %X\n", Address, Size));
 
     return_PTR (Address);
 }

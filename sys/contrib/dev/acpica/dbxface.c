@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 31 $
+ *              $Revision: 32 $
  *
  ******************************************************************************/
 
@@ -167,7 +167,7 @@ AcpiDbSingleStep (
         {
             /* Hit the breakpoint, resume single step, reset breakpoint */
 
-            AcpiOsPrintf ("***Break*** at AML offset 0x%X\n", Op->AmlOffset);
+            AcpiOsPrintf ("***Break*** at AML offset %X\n", Op->AmlOffset);
             AcpiGbl_CmSingleStep = TRUE;
             AcpiGbl_StepToNextCall = FALSE;
             WalkState->MethodBreakpoint = 0;

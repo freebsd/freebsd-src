@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmeval - Object evaluation
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -193,7 +193,7 @@ AcpiCmEvaluateNumericObject (
     {
         Status = AE_TYPE;
         DEBUG_PRINT (ACPI_ERROR,
-            ("Type returned from %s was not a number: %d \n",
+            ("Type returned from %s was not a number: %X \n",
             ObjectName, ObjDesc->Common.Type));
     }
     else
@@ -283,8 +283,8 @@ AcpiCmExecute_HID (
     {
         Status = AE_TYPE;
         DEBUG_PRINT (ACPI_ERROR,
-            ("Type returned from _HID was not a number or string: [0x%X] \n",
-            ObjDesc->Common.Type));
+            ("Type returned from _HID not a number or string: %s(%X) \n",
+            AcpiCmGetTypeName (ObjDesc->Common.Type), ObjDesc->Common.Type));
     }
 
     else
@@ -380,7 +380,7 @@ AcpiCmExecute_UID (
     {
         Status = AE_TYPE;
         DEBUG_PRINT (ACPI_ERROR,
-            ("Type returned from _UID was not a number or string: %d \n",
+            ("Type returned from _UID was not a number or string: %X \n",
             ObjDesc->Common.Type));
     }
 
@@ -474,7 +474,7 @@ AcpiCmExecute_STA (
         {
             Status = AE_TYPE;
             DEBUG_PRINT (ACPI_ERROR,
-                ("Type returned from _STA was not a number: %d \n",
+                ("Type returned from _STA was not a number: %X \n",
                 ObjDesc->Common.Type));
         }
 

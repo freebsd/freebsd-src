@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 48 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -159,7 +159,7 @@ AcpiDsGetPredicateValue (
 
     if (HasResultObj)
     {
-        Status = AcpiDsResultStackPop (&ObjDesc, WalkState);
+        Status = AcpiDsResultPop (&ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT (ACPI_ERROR,
@@ -172,7 +172,7 @@ AcpiDsGetPredicateValue (
 
     else
     {
-        Status = AcpiDsCreateOperand (WalkState, Op);
+        Status = AcpiDsCreateOperand (WalkState, Op, 0);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -352,6 +352,12 @@ AcpiDsExecBeginOp (
     {
     case OPTYPE_CONTROL:
 
+        Status = AcpiDsResultStackPush (WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
         Status = AcpiDsExecBeginControlOp (WalkState, Op);
         break;
 
@@ -370,6 +376,34 @@ AcpiDsExecBeginOp (
 
             Status = AcpiDsLoad2BeginOp (Op->Opcode, Op, WalkState, NULL);
         }
+
+
+        if (Op->Opcode == AML_REGION_OP)
+        {
+            Status = AcpiDsResultStackPush (WalkState);
+        }
+
+        break;
+
+
+    /* most operators with arguments */
+
+    case OPTYPE_MONADIC1:
+    case OPTYPE_DYADIC1:
+    case OPTYPE_MONADIC2:
+    case OPTYPE_MONADIC2R:
+    case OPTYPE_DYADIC2:
+    case OPTYPE_DYADIC2R:
+    case OPTYPE_DYADIC2S:
+    case OPTYPE_RECONFIGURATION:
+    case OPTYPE_INDEX:
+    case OPTYPE_MATCH:
+    case OPTYPE_FATAL:
+    case OPTYPE_CREATE_FIELD:
+
+        /* Start a new result/operand state */
+
+        Status = AcpiDsResultStackPush (WalkState);
         break;
 
 
@@ -486,6 +520,8 @@ AcpiDsExecEndOp (
     case OPTYPE_FATAL:
 
 
+        /* Build resolved operand stack */
+
         Status = AcpiDsCreateOperands (WalkState, FirstArg);
         if (ACPI_FAILURE (Status))
         {
@@ -494,9 +530,17 @@ AcpiDsExecEndOp (
 
         OperandIndex = WalkState->NumOperands - 1;
 
+
+        /* Done with this result state (Now that operand stack is built) */
+
+        Status = AcpiDsResultStackPop (WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            goto Cleanup;
+        }
+
         switch (Optype)
         {
-
         case OPTYPE_MONADIC1:
 
             /* 1 Operand, 0 ExternalResult, 0 InternalResult */
@@ -510,11 +554,6 @@ AcpiDsExecEndOp (
             /* 1 Operand, 0 ExternalResult, 1 InternalResult */
 
             Status = AcpiAmlExecMonadic2 (Opcode, WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
             break;
 
 
@@ -523,11 +562,6 @@ AcpiDsExecEndOp (
             /* 1 Operand, 1 ExternalResult, 1 InternalResult */
 
             Status = AcpiAmlExecMonadic2R (Opcode, WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
             break;
 
 
@@ -536,7 +570,6 @@ AcpiDsExecEndOp (
             /* 2 Operands, 0 ExternalResult, 0 InternalResult */
 
             Status = AcpiAmlExecDyadic1 (Opcode, WalkState);
-
             break;
 
 
@@ -545,11 +578,6 @@ AcpiDsExecEndOp (
             /* 2 Operands, 0 ExternalResult, 1 InternalResult */
 
             Status = AcpiAmlExecDyadic2 (Opcode, WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
             break;
 
 
@@ -557,18 +585,7 @@ AcpiDsExecEndOp (
 
             /* 2 Operands, 1 or 2 ExternalResults, 1 InternalResult */
 
-
-            /* NEW INTERFACE:
-             * Pass in WalkState, keep result obj  but let interpreter
-             * push the result
-             */
-
             Status = AcpiAmlExecDyadic2R (Opcode, WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
             break;
 
 
@@ -577,11 +594,22 @@ AcpiDsExecEndOp (
             /* 2 Operands, 0 ExternalResult, 1 InternalResult */
 
             Status = AcpiAmlExecDyadic2S (Opcode, WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
+            break;
 
+
+        case OPTYPE_INDEX:  /* Type 2 opcode with 3 operands */
+
+            /* 3 Operands, 1 ExternalResult, 1 InternalResult */
+
+            Status = AcpiAmlExecIndex (WalkState, &ResultObj);
+            break;
+
+
+        case OPTYPE_MATCH:  /* Type 2 opcode with 6 operands */
+
+            /* 6 Operands, 0 ExternalResult, 1 InternalResult */
+
+            Status = AcpiAmlExecMatch (WalkState, &ResultObj);
             break;
 
 
@@ -599,32 +627,16 @@ AcpiDsExecEndOp (
 
             Status = AcpiAmlExecFatal (WalkState);
             break;
+        }
 
-
-        case OPTYPE_INDEX:  /* Type 2 opcode with 3 operands */
-
-            /* 3 Operands, 1 ExternalResult, 1 InternalResult */
-
-            Status = AcpiAmlExecIndex (WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
-            break;
-
-
-        case OPTYPE_MATCH:  /* Type 2 opcode with 6 operands */
-
-            /* 6 Operands, 0 ExternalResult, 1 InternalResult */
-
-            Status = AcpiAmlExecMatch (WalkState, &ResultObj);
-            if (ACPI_SUCCESS (Status))
-            {
-                Status = AcpiDsResultStackPush (ResultObj, WalkState);
-            }
-
-            break;
+        /*
+         * If a result object was returned from above, push it on the
+         * current result stack
+         */
+        if (ACPI_SUCCESS (Status) &&
+            ResultObj)
+        {
+            Status = AcpiDsResultPush (ResultObj, WalkState);
         }
 
         break;
@@ -636,6 +648,7 @@ AcpiDsExecEndOp (
 
         Status = AcpiDsExecEndControlOp (WalkState, Op);
 
+        AcpiDsResultStackPop (WalkState);
         break;
 
 
@@ -726,12 +739,16 @@ AcpiDsExecEndOp (
                 Op));
 
             Status = AcpiDsEvalRegionOperands (WalkState, Op);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
 
+            Status = AcpiDsResultStackPop (WalkState);
             break;
 
 
         case AML_METHOD_OP:
-
             break;
 
 

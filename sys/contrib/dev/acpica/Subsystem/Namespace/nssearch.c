@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 59 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -170,7 +170,7 @@ AcpiNsSearchNode (
             ("NsSearchNode: Searching %s [%p]\n",
             ScopeName, Node));
         DEBUG_PRINT (TRACE_NAMES,
-            ("NsSearchNode: For %4.4s (type 0x%X)\n",
+            ("NsSearchNode: For %4.4s (type %X)\n",
             &TargetName, Type));
         DEBUG_EXEC (AcpiCmFree (ScopeName));
     }
@@ -223,7 +223,7 @@ AcpiNsSearchNode (
             }
 
             DEBUG_PRINT (TRACE_NAMES,
-                ("NsSearchNode: Name %4.4s (actual type 0x%X) found at %p\n",
+                ("NsSearchNode: Name %4.4s (actual type %X) found at %p\n",
                 &TargetName, NextNode->Type, NextNode));
 
             *ReturnNode = NextNode;
@@ -251,7 +251,7 @@ AcpiNsSearchNode (
     /* Searched entire table, not found */
 
     DEBUG_PRINT (TRACE_NAMES,
-        ("NsSearchNode: Name %4.4s (type 0x%X) not found at %p\n",
+        ("NsSearchNode: Name %4.4s (type %X) not found at %p\n",
         &TargetName, Type, NextNode));
 
 
@@ -317,7 +317,7 @@ AcpiNsSearchParentTree (
         if (AcpiNsLocal (Type))
         {
             DEBUG_PRINT (TRACE_NAMES,
-                ("NsSearchParentTree: [%4.4s] (type 0x%X) is local (no search)\n",
+                ("NsSearchParentTree: [%4.4s] (type %X) is local (no search)\n",
                 &TargetName, Type));
         }
 

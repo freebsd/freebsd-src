@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 30 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -164,7 +164,7 @@ AcpiTbHandleToObject (
     }
 
 
-    DEBUG_PRINT (ACPI_ERROR, ("TableId=0x%X does not exist\n", TableId));
+    DEBUG_PRINT (ACPI_ERROR, ("TableId=%X does not exist\n", TableId));
     return (AE_BAD_PARAMETER);
 }
 
@@ -392,7 +392,7 @@ AcpiTbMapAcpiTable (
     }
 
     DEBUG_PRINT (ACPI_INFO,
-        ("Mapped memory for ACPI table, length=%d(0x%X) at %p\n",
+        ("Mapped memory for ACPI table, length=%d(%X) at %p\n",
         TableSize, TableSize, Table));
 
     *Size = TableSize;

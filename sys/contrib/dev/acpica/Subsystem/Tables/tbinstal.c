@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -275,7 +275,7 @@ AcpiTbRecognizeTable (
     if (Status == AE_SUPPORT)
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("Unsupported table %s (Type %d) was found and discarded\n",
+            ("Unsupported table %s (Type %X) was found and discarded\n",
             AcpiGbl_AcpiTableData[TableType].Name, TableType));
     }
 

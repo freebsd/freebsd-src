@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 39 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -469,7 +469,7 @@ AcpiTbGetAllTables (
     /* Dump the entire DSDT */
 
     DEBUG_PRINT (TRACE_TABLES,
-        ("Hex dump of DSDT (After header), size %d (0x%x)\n",
+        ("Hex dump of DSDT (After header), size %d (%x)\n",
         AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length));
     DUMP_BUFFER ((UINT8 *) (AcpiGbl_DSDT + 1), AcpiGbl_DSDT->Length);
 
