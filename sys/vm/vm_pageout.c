@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.10 1994/09/06 11:28:46 davidg Exp $
+ * $Id: vm_pageout.c,v 1.11 1994/09/12 11:31:36 davidg Exp $
  */
 
 /*
@@ -541,8 +541,7 @@ redeact:
 
 morefree:
 	/*
-	 * now check malloc area or swap processes out if we are in low
-	 * memory conditions
+	 * now swap processes out if we are in low memory conditions
 	 */
 	if (cnt.v_free_count <= cnt.v_free_min) {
 		/*
@@ -550,6 +549,7 @@ morefree:
 		 */
 		swapout_threads();
 	}
+
 	/*
 	 * scan the processes for exceeding their rlimits or if process
 	 * is swapped out -- deactivate pages 
@@ -591,7 +591,7 @@ rescanproc1:
 			limit = 0;
 
 		size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
-		if (limit > 0 && size >= limit) {
+		if (limit >= 0 && size >= limit) {
 			overage = (size - limit) / NBPG;
 			vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				(vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
@@ -704,7 +704,6 @@ rescan1:
 		} 
 		m = next;
 	}
-
 
 	/*
 	 *	Compute the page shortage.  If we are still very low on memory
