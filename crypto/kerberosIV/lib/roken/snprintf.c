@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: snprintf.c,v 1.19 1999/03/27 16:32:57 joda Exp $");
+RCSID("$Id: snprintf.c,v 1.24 1999/12/02 16:58:52 joda Exp $");
 #endif
 #include <stdio.h>
 #include <stdarg.h>
@@ -125,7 +120,7 @@ as_append_char (struct state *state, unsigned char c)
 
 static int
 append_number(struct state *state,
-	      unsigned long num, unsigned base, unsigned char *rep,
+	      unsigned long num, unsigned base, char *rep,
 	      int width, int prec, int flags, int minusp)
 {
   int len = 0;
@@ -222,7 +217,7 @@ append_string (struct state *state,
   if(prec != -1)
     width -= prec;
   else
-    width -= strlen(arg);
+    width -= strlen((char *)arg);
   if(!(flags & minus_flag))
     while(width-- > 0)
       if((*state->append_char) (state, ' '))
@@ -268,11 +263,11 @@ append_char(struct state *state,
 
 #define PARSE_INT_FORMAT(res, arg, unsig) \
 if (long_flag) \
-     res = va_arg(arg, unsig long); \
+     res = (unsig long)va_arg(arg, unsig long); \
 else if (short_flag) \
-     res = va_arg(arg, unsig short); \
+     res = (unsig short)va_arg(arg, unsig short); \
 else \
-     res = va_arg(arg, unsig int)
+     res = (unsig int)va_arg(arg, unsig int)
 
 /*
  * zyxprintf - return 0 or -1
@@ -435,6 +430,9 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 	*arg = state->s - state->str;
 	break;
       }
+      case '\0' :
+	  --format;
+	  /* FALLTHROUGH */
       case '%' :
 	if ((*state->append_char)(state, c))
 	  return -1;
@@ -600,12 +598,13 @@ vsnprintf (char *str, size_t sz, const char *format, va_list args)
 {
   struct state state;
   int ret;
+  unsigned char *ustr = (unsigned char *)str;
 
   state.max_sz = 0;
   state.sz     = sz;
-  state.str    = str;
-  state.s      = str;
-  state.theend = str + sz - 1;
+  state.str    = ustr;
+  state.s      = ustr;
+  state.theend = ustr + sz - 1;
   state.append_char = sn_append_char;
   state.reserve     = sn_reserve;
 

@@ -23,7 +23,7 @@
 
 #include "sample.h"
 
-RCSID("$Id: sample_client.c,v 1.19 1999/05/08 02:23:43 assar Exp $");
+RCSID("$Id: sample_client.c,v 1.21 1999/11/13 06:27:01 assar Exp $");
 
 static void
 usage (void)
@@ -56,13 +56,13 @@ main(int argc, char **argv)
     char **h_addr_list;
 
     set_progname (argv[0]);
-    strcpy_truncate (service, SAMPLE_SERVICE, sizeof(service));
+    strlcpy (service, SAMPLE_SERVICE, sizeof(service));
     port = 0;
 
-    while ((c = getopt(argc, argv, "s:p:")) != EOF)
+    while ((c = getopt(argc, argv, "s:p:")) != -1)
 	switch(c) {
 	case 's' :
-	    strcpy_truncate (service, optarg, sizeof(service));
+	    strlcpy (service, optarg, sizeof(service));
 	    break;
 	case 'p' :
 	    serv = getservbyname (optarg, "tcp");

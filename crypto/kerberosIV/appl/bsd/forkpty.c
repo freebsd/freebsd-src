@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -40,7 +35,7 @@
 
 #ifndef HAVE_FORKPTY
 
-RCSID("$Id: forkpty.c,v 1.53.2.2 1999/08/19 13:37:16 assar Exp $");
+RCSID("$Id: forkpty.c,v 1.57 1999/12/02 16:58:28 joda Exp $");
 
 /* Only CRAY is known to have problems with forkpty(). */
 #if defined(CRAY)
@@ -169,7 +164,7 @@ ptym_open_streams_flavor(char *pts_name,
 	char *ptr1;
 	if ((ptr1 = ptsname(fdm)) != NULL) /* Get slave's name */
 	    /* Return name of slave */  
-	    strcpy_truncate(pts_name, ptr1, pts_name_sz);
+	    strlcpy(pts_name, ptr1, pts_name_sz);
 	else {
 	    close(fdm);
 	    return(-4);
@@ -268,7 +263,7 @@ ptym_open(char *pts_name, size_t pts_name_sz, int *streams_pty)
 	char *p = _getpty(&fdm, O_RDWR, 0600, 1);
 	if (p) {
 	    *streams_pty = 1;
-	    strcpy_truncate (pts_name, p, pts_name_sz);
+	    strlcpy (pts_name, p, pts_name_sz);
 	    return fdm;
 	}
     }
@@ -398,7 +393,7 @@ forkpty_truncate(int *ptrfdm,
 
     if (slave_name != NULL)
 	/* Return name of slave */
-	strcpy_truncate(slave_name, pts_name, slave_name_sz);
+	strlcpy(slave_name, pts_name, slave_name_sz);
 
     pid = fork();
     if (pid < 0)

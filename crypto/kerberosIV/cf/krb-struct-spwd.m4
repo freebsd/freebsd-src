@@ -1,10 +1,10 @@
-dnl $Id
+dnl $Id: krb-struct-spwd.m4,v 1.3 1999/07/13 21:04:11 assar Exp $
 dnl
 dnl Test for `struct spwd'
 
 AC_DEFUN(AC_KRB_STRUCT_SPWD, [
 AC_MSG_CHECKING(for struct spwd)
-AC_CACHE_VAL(ac_cv_type_struct_spwd, [
+AC_CACHE_VAL(ac_cv_struct_spwd, [
 AC_TRY_COMPILE(
 [#include <pwd.h>
 #ifdef HAVE_SHADOW_H

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.14 1999/03/16 17:31:39 assar Exp $");
+RCSID("$Id: verify_user.c,v 1.17.2.1 1999/12/06 22:57:17 assar Exp $");
 
 /*
  * Verify user (name.instance@realm) with `password'.
@@ -134,7 +129,7 @@ krb_verify_user_srvtab_exact(char *name,
 }
 		
 /*
- *
+ * Try to verify the user and password against all the local realms.
  */
 
 int
@@ -146,45 +141,26 @@ krb_verify_user_srvtab(char *name,
 		       char *linstance,
 		       char *srvtab)
 {
+  int ret;
   int n;
   char rlm[256];
-#define ERICSSON_COMPAT 1
-#ifdef  ERICSSON_COMPAT
-  FILE *f;
 
-  f = fopen ("/etc/krb.localrealms", "r");
-  if (f != NULL) {
-    while (fgets(rlm, sizeof(rlm), f) != NULL) {
-      if (rlm[strlen(rlm) - 1] == '\n')
-	rlm[strlen(rlm) - 1] = '\0';
-
-      if (krb_verify_user_srvtab_exact(name, instance, rlm, password,
-				       secure, linstance, srvtab)
-	  == KSUCCESS) {
-	fclose(f);
-	return KSUCCESS;
-      }
-    }
-    fclose (f);
-    return krb_verify_user_srvtab_exact(name, instance, realm, password,
-					secure, linstance, srvtab);
-  }
-#endif
   /* First try to verify against the supplied realm. */
-  if (krb_verify_user_srvtab_exact(name, instance, realm, password,
-				   secure, linstance, srvtab)
-      == KSUCCESS)
+  ret = krb_verify_user_srvtab_exact(name, instance, realm, password,
+				     secure, linstance, srvtab);
+  if (ret == KSUCCESS)
     return KSUCCESS;
 
   /* Verify all local realms, except the supplied realm. */
   for (n = 1; krb_get_lrealm(rlm, n) == KSUCCESS; n++)
-    if (strcmp(rlm, realm) != 0)
-      if (krb_verify_user_srvtab_exact(name, instance, rlm, password,
-				       secure, linstance, srvtab)
-	  == KSUCCESS)
+    if (strcmp(rlm, realm) != 0) {
+      ret = krb_verify_user_srvtab_exact(name, instance, rlm, password,
+					 secure, linstance, srvtab);
+      if (ret == KSUCCESS)
 	return KSUCCESS;
+    }
 
-  return KFAILURE;
+  return ret;
 }
 
 /*
@@ -205,5 +181,5 @@ krb_verify_user(char *name,
 				   password,
 				   secure,
 				   linstance,
-				   KEYFILE);
+				   (char *)KEYFILE);
 }

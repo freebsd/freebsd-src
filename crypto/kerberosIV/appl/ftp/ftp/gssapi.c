@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -43,7 +38,7 @@
 #endif
 #include <gssapi.h>
 
-RCSID("$Id: gssapi.c,v 1.7 1999/04/10 15:08:39 assar Exp $");
+RCSID("$Id: gssapi.c,v 1.13 1999/12/02 16:58:29 joda Exp $");
 
 struct gss_data {
     gss_ctx_id_t context_hdl;
@@ -117,6 +112,36 @@ gss_encode(void *app_data, void *from, int length, int level, void **to)
     return output.length;
 }
 
+static void
+sockaddr_to_gss_address (const struct sockaddr *sa,
+			 OM_uint32 *addr_type,
+			 gss_buffer_desc *gss_addr)
+{
+    switch (sa->sa_family) {
+#ifdef HAVE_IPV6
+    case AF_INET6 : {
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+
+	gss_addr->length = 16;
+	gss_addr->value  = &sin6->sin6_addr;
+	*addr_type       = GSS_C_AF_INET6;
+	break;
+    }
+#endif
+    case AF_INET : {
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+
+	gss_addr->length = 4;
+	gss_addr->value  = &sin->sin_addr;
+	*addr_type       = GSS_C_AF_INET;
+	break;
+    }
+    default :
+	errx (1, "unknown address family %d", sa->sa_family);
+	
+    }
+}
+
 /* end common stuff */
 
 #ifdef FTP_SERVER
@@ -131,12 +156,13 @@ gss_adat(void *app_data, void *buf, size_t len)
     struct gss_data *d = app_data;
 
     gss_channel_bindings_t bindings = malloc(sizeof(*bindings));
-    bindings->initiator_addrtype = GSS_C_AF_INET;
-    bindings->initiator_address.length = 4;
-    bindings->initiator_address.value = &his_addr.sin_addr;
-    bindings->acceptor_addrtype = GSS_C_AF_INET;
-    bindings->acceptor_address.length = 4;
-    bindings->acceptor_address.value = &ctrl_addr.sin_addr;
+    sockaddr_to_gss_address (his_addr,
+			     &bindings->initiator_addrtype,
+			     &bindings->initiator_address);
+    sockaddr_to_gss_address (ctrl_addr,
+			     &bindings->acceptor_addrtype,
+			     &bindings->acceptor_address);
+
     bindings->application_data.length = 0;
     bindings->application_data.value = NULL;
 
@@ -216,7 +242,7 @@ struct sec_server_mech gss_server_mech = {
 
 #else /* FTP_SERVER */
 
-extern struct sockaddr_in hisctladdr, myctladdr;
+extern struct sockaddr *hisctladdr, *myctladdr;
 
 static int
 gss_auth(void *app_data, char *host)
@@ -237,6 +263,23 @@ gss_auth(void *app_data, char *host)
 			       &name,
 			       GSS_C_NT_HOSTBASED_SERVICE,
 			       &target_name);
+    if (GSS_ERROR(maj_stat)) {
+	OM_uint32 new_stat;
+	OM_uint32 msg_ctx = 0;
+	gss_buffer_desc status_string;
+	    
+	gss_display_status(&new_stat,
+			   min_stat,
+			   GSS_C_MECH_CODE,
+			   GSS_C_NO_OID,
+			   &msg_ctx,
+			   &status_string);
+	printf("Error importing name %s: %s\n", 
+	       (char *)name.value,
+	       (char *)status_string.value);
+	gss_release_buffer(&new_stat, &status_string);
+	return AUTH_ERROR;
+    }
     free(name.value);
     
 
@@ -244,12 +287,14 @@ gss_auth(void *app_data, char *host)
     input.value = NULL;
 
     bindings = malloc(sizeof(*bindings));
-    bindings->initiator_addrtype = GSS_C_AF_INET;
-    bindings->initiator_address.length = 4;
-    bindings->initiator_address.value = &myctladdr.sin_addr;
-    bindings->acceptor_addrtype = GSS_C_AF_INET;
-    bindings->acceptor_address.length = 4;
-    bindings->acceptor_address.value = &hisctladdr.sin_addr;
+
+    sockaddr_to_gss_address (myctladdr,
+			     &bindings->initiator_addrtype,
+			     &bindings->initiator_address);
+    sockaddr_to_gss_address (hisctladdr,
+			     &bindings->acceptor_addrtype,
+			     &bindings->acceptor_address);
+
     bindings->application_data.length = 0;
     bindings->application_data.value = NULL;
 
@@ -268,8 +313,8 @@ gss_auth(void *app_data, char *host)
 					NULL,
 					NULL);
 	if (GSS_ERROR(maj_stat)) {
-	    int new_stat;
-	    int msg_ctx = 0;
+	    OM_uint32 new_stat;
+	    OM_uint32 msg_ctx = 0;
 	    gss_buffer_desc status_string;
 	    
 	    gss_display_status(&new_stat,

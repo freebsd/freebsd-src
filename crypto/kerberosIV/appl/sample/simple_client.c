@@ -10,7 +10,7 @@
  */
 
 #include "sample.h"
-RCSID("$Id: simple_client.c,v 1.13 1998/06/09 19:24:39 joda Exp $");
+RCSID("$Id: simple_client.c,v 1.15 1999/11/13 06:29:01 assar Exp $");
 
 #define MSG "hi, Jennifer!"		/* message text */
 
@@ -174,12 +174,12 @@ main(int argc, char **argv)
 
   set_progname (argv[0]);
 
-  strcpy_truncate (service, SAMPLE_SERVICE, sizeof(service));
+  strlcpy (service, SAMPLE_SERVICE, sizeof(service));
 
-  while ((c = getopt(argc, argv, "s:p:")) != EOF)
+  while ((c = getopt(argc, argv, "s:p:")) != -1)
     switch(c) {
     case 's' :
-      strcpy_truncate (service, optarg, sizeof(service));
+      strlcpy (service, optarg, sizeof(service));
       break;
     case 'p' :
       serv = getservbyname (optarg, "tcp");

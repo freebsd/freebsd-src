@@ -21,7 +21,7 @@ or implied warranty.
         
 #include "krb_locl.h"
 
-RCSID("$Id: tf_util.c,v 1.35 1999/06/29 21:18:11 bg Exp $");
+RCSID("$Id: tf_util.c,v 1.39 1999/12/02 18:03:16 assar Exp $");
 
 
 #define TOO_BIG -1
@@ -33,6 +33,10 @@ RCSID("$Id: tf_util.c,v 1.35 1999/06/29 21:18:11 bg Exp $");
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
+
+#define MAGIC_TICKET_NAME "magic"
+#define MAGIC_TICKET_TIME_DIFF_INST "time-diff"
+#define MAGIC_TICKET_ADDR_INST "our-address"
 
 /*
  * fd must be initialized to something that won't ever occur as a real
@@ -162,12 +166,17 @@ tf_init(char *tf_name, int rw)
    * All library functions now assume that the right set of userids
    * are set upon entry, therefore it's not strictly necessary to
    * perform these test for programs adhering to these assumptions.
+   *
+   * This doesn't work on cygwin because getuid() returns a different
+   * uid than the owner of files that are created.
    */
+#ifndef __CYGWIN__
   {
     uid_t me = getuid();
     if (stat_buf.st_uid != me && me != 0)
       return TKT_FIL_ACC;
   }
+#endif
 
   /*
    * If "wflag" is set, open the ticket file in append-writeonly mode
@@ -377,11 +386,8 @@ tf_put_pinst(const char *inst)
  * EOF          - end of file encountered
  */
 
-#define MAGIC_TICKET_NAME "magic"
-#define MAGIC_TICKET_INST "time-diff"
-	  
-int
-tf_get_cred(CREDENTIALS *c)
+static int
+real_tf_get_cred(CREDENTIALS *c)
 {
   KTEXT   ticket = &c->ticket_st;	/* pointer to ticket */
   int     k_errno;
@@ -391,7 +397,6 @@ tf_get_cred(CREDENTIALS *c)
       krb_warning ("tf_get_cred called before tf_init.\n");
     return TKT_FIL_INI;
   }
-again:
   if ((k_errno = tf_gets(c->service, SNAME_SZ)) < 2)
     switch (k_errno) {
     case TOO_BIG:
@@ -443,17 +448,69 @@ again:
       krb_warning ("tf_get_cred: failed tf_read.\n");
     return TKT_FIL_FMT;
   }
-  if(strcmp(c->service, MAGIC_TICKET_NAME) == 0 &&
-     strcmp(c->instance, MAGIC_TICKET_INST) == 0) {
-      /* we found the magic `time diff' ticket; update the kdc time
-         differential, and then get the next ticket */
-      u_int32_t d;
-
-      krb_get_int(c->ticket_st.dat, &d, 4, 0);
-      krb_set_kdc_time_diff(d);
-      goto again;
-  }
   return KSUCCESS;
+}
+
+int
+tf_get_cred(CREDENTIALS *c)
+{
+  int ret;
+  int fake;
+
+  do {
+    fake = 0;
+
+    ret = real_tf_get_cred (c);
+    if (ret)
+      return ret;
+
+    if(strcmp(c->service, MAGIC_TICKET_NAME) == 0) {
+      if(strcmp(c->instance, MAGIC_TICKET_TIME_DIFF_INST) == 0) {
+	/* we found the magic `time diff' ticket; update the kdc time
+         differential, and then get the next ticket */
+	u_int32_t d;
+
+	krb_get_int(c->ticket_st.dat, &d, 4, 0);
+	krb_set_kdc_time_diff(d);
+	fake = 1;
+      } else if (strcmp(c->instance, MAGIC_TICKET_ADDR_INST) == 0) {
+	fake = 1;
+      }
+    }
+  } while (fake);
+  return ret;
+}
+
+int
+tf_get_cred_addr(char *realm, size_t realm_sz, struct in_addr *addr)
+{
+  int ret;
+  int fake;
+  CREDENTIALS cred;
+
+  do {
+    fake = 1;
+
+    ret = real_tf_get_cred (&cred);
+    if (ret)
+      return ret;
+
+    if(strcmp(cred.service, MAGIC_TICKET_NAME) == 0) {
+      if(strcmp(cred.instance, MAGIC_TICKET_TIME_DIFF_INST) == 0) {
+	/* we found the magic `time diff' ticket; update the kdc time
+         differential, and then get the next ticket */
+	u_int32_t d;
+
+	krb_get_int(cred.ticket_st.dat, &d, 4, 0);
+	krb_set_kdc_time_diff(d);
+      } else if (strcmp(cred.instance, MAGIC_TICKET_ADDR_INST) == 0) {
+	strlcpy(realm, cred.realm, realm_sz);
+	memcpy (addr, cred.ticket_st.dat, sizeof(*addr));
+	fake = 0;
+      }
+    }
+  } while (fake);
+  return ret;
 }
 
 /*
@@ -650,7 +707,8 @@ tf_setup(CREDENTIALS *cred, const char *pname, const char *pinst)
 	int d = krb_get_kdc_time_diff();
 	krb_put_int(d, t.dat, sizeof(t.dat), 4);
 	t.length = 4;
-	tf_save_cred(MAGIC_TICKET_NAME, MAGIC_TICKET_INST, cred->realm, s, 
+	tf_save_cred(MAGIC_TICKET_NAME, MAGIC_TICKET_TIME_DIFF_INST,
+		     cred->realm, s, 
 		     cred->lifetime, 0, &t, cred->issue_date);
     }
     ret = tf_save_cred(cred->service, cred->instance, cred->realm, 
@@ -677,4 +735,71 @@ in_tkt(char *pname, char *pinst)
 
     tf_close();
     return KSUCCESS;
+}
+
+/*
+ * If there's a magic ticket with an address for realm `realm' in
+ * ticket file, return it in `addr'.
+ * realm == NULL means any realm.
+ */
+
+int
+tf_get_addr (const char *realm, struct in_addr *addr)
+{
+  CREDENTIALS cred;
+  krb_principal princ;
+  int ret;
+
+  ret = tf_init (tkt_string (), R_TKT_FIL);
+  if (ret)
+    return ret;
+
+  ret = tf_get_pname (princ.name);
+  if (ret)
+    goto out;
+  ret = tf_get_pinst (princ.name);
+  if (ret)
+    goto out;
+  while ((ret = real_tf_get_cred (&cred)) == KSUCCESS) {
+    if (strcmp (cred.service, MAGIC_TICKET_NAME) == 0
+	&& strcmp (cred.instance, MAGIC_TICKET_ADDR_INST) == 0
+	&& (realm == NULL
+	    || strcmp (cred.realm, realm) == 0)) {
+      memcpy (addr, cred.ticket_st.dat, sizeof(*addr));
+      goto out;
+    }
+  }
+  ret = KFAILURE;
+
+out:
+  tf_close ();
+  return ret;
+}
+
+/*
+ * Store `realm, addr' as a magic ticket.
+ */
+
+int
+tf_store_addr (const char *realm, struct in_addr *addr)
+{
+  CREDENTIALS c;
+  krb_principal princ;
+  int ret;
+  des_cblock s = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  KTEXT_ST t;
+
+  ret = tf_init (tkt_string (), W_TKT_FIL);
+  if (ret)
+    return ret;
+
+  t.length = sizeof(*addr);
+  memcpy (t.dat, addr, sizeof(*addr));
+
+  ret = tf_save_cred (MAGIC_TICKET_NAME, MAGIC_TICKET_ADDR_INST,
+		      (char *)realm, s, 0, /* lifetime */ 
+		      0, /* kvno */
+		      &t, time(NULL));
+  tf_close ();
+  return ret;
 }

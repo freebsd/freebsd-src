@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -45,7 +40,7 @@
 #include "krb_locl.h"
 #include "ticket_memory.h"
 
-RCSID("$Id: ticket_memory.c,v 1.13 1998/08/23 18:07:41 assar Exp $");
+RCSID("$Id: ticket_memory.c,v 1.15 1999/12/02 16:58:44 joda Exp $");
 
 void msg(char *text, int error);
 
@@ -81,7 +76,7 @@ newTktMem(const char *tf_name)
 	if(GetLastError() != ERROR_ALREADY_EXISTS) {
             memset(SharedMemory, 0, sizeof(*SharedMemory));
 	    if(tf_name)
-		strcpy_truncate(SharedMemory->tmname,
+		strlcpy(SharedMemory->tmname,
 				tf_name, sizeof(SharedMemory->tmname));
 	}
     }
@@ -261,7 +256,7 @@ tf_get_pname(char *p)
 	return KFAILURE;
     if(!TktStore->pname[0])
 	return KFAILURE;
-    strcpy_truncate(p, TktStore->pname, ANAME_SZ);
+    strlcpy(p, TktStore->pname, ANAME_SZ);
     return KSUCCESS;
 }
 
@@ -277,7 +272,7 @@ tf_put_pname(char *p)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    strcpy_truncate(TktStore->pname, p, sizeof(TktStore->pname));
+    strlcpy(TktStore->pname, p, sizeof(TktStore->pname));
     return KSUCCESS;
 }
 
@@ -298,7 +293,7 @@ tf_get_pinst(char *inst)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    strcpy_truncate(inst, TktStore->pinst, INST_SZ);
+    strlcpy(inst, TktStore->pinst, INST_SZ);
     return KSUCCESS;
 }
 
@@ -314,7 +309,7 @@ tf_put_pinst(char *inst)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    strcpy_truncate(TktStore->pinst, inst, sizeof(TktStore->pinst));
+    strlcpy(TktStore->pinst, inst, sizeof(TktStore->pinst));
     return KSUCCESS;
 }
 
@@ -391,16 +386,16 @@ tf_save_cred(char *service,	/* Service name */
     if(last == -1)
 	return KFAILURE;
     cred = mem->cred_vec+last;
-    strcpy_truncate(cred->service, service, sizeof(cred->service));
-    strcpy_truncate(cred->instance, instance, sizeof(cred->instance));
-    strcpy_truncate(cred->realm, realm, sizeof(cred->realm));
+    strlcpy(cred->service, service, sizeof(cred->service));
+    strlcpy(cred->instance, instance, sizeof(cred->instance));
+    strlcpy(cred->realm, realm, sizeof(cred->realm));
     memcpy(cred->session, session, sizeof(cred->session));
     cred->lifetime = lifetime;
     cred->kvno = kvno;
     memcpy(&(cred->ticket_st), ticket, sizeof(*ticket));
     cred->issue_date = issue_date;
-    strcpy_truncate(cred->pname, mem->pname, sizeof(cred->pname));
-    strcpy_truncate(cred->pinst, mem->pinst, sizeof(cred->pinst));
+    strlcpy(cred->pname, mem->pname, sizeof(cred->pname));
+    strlcpy(cred->pinst, mem->pinst, sizeof(cred->pinst));
     PostUpdateMessage();
     return KSUCCESS;
 }

@@ -1,3 +1,51 @@
+1999-11-22  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (afslog_uid_int): handle d->realm == NULL
+	
+1999-11-17  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (afslog_uid_int): don't look at the local realm at
+ 	all.  just use the realm from the ticket file.
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:1:1
+
+	* afskrb5.c (get_cred): always request a DES key
+
+Mon Oct 18 17:40:21 1999  Bjoern Groenvall  <bg@mummel.sics.se>
+
+	* common.c (find_cells): Trim trailing whitespace from
+ 	cellname. Lines starting with # are regarded as comments.
+
+Fri Oct  8 18:17:22 1999  Bjoern Groenvall  <bg@mummel.sics.se>
+
+	* afskrb.c, common.c : Change code to make a clear distinction
+ 	between hinted realm and ticket realm.
+
+	* kafs_locl.h: Added argument realm_hint.
+
+	* common.c (_kafs_get_cred): Change code to acquire the ``best''
+ 	possible ticket. Use cross-cell authentication only as method of
+ 	last resort.
+
+	* afskrb.c (afslog_uid_int): Add realm_hint argument and extract
+ 	realm from ticket file.
+
+	* afskrb5.c (afslog_uid_int): Added argument realm_hint.
+
+1999-10-03  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (get_cred): update to new krb524_convert_creds_kdc
+
+1999-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: ignore the comlicated aix construct if !krb4
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
 1999-07-22  Assar Westerlund  <assar@sics.se>
 
 	* afssysdefs.h: define AFS_SYSCALL to 73 for Solaris 2.7

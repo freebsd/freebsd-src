@@ -1,4 +1,4 @@
-.\" $Id: krb.extra.5,v 1.1.2.1 1999/07/22 03:16:36 assar Exp $
+.\" $Id: krb.extra.5,v 1.4 1999/11/25 05:30:42 assar Exp $
 .\"
 .Dd June 24, 1999
 .Dt KRB.EXTRA 5
@@ -29,12 +29,21 @@ compute a direction bit, and this might break if the server has a
 different idea about which address to use then the client
 .It krb4_proxy
 address of a web-proxy to use when connecting to the KDC via HTTP
+.It krb_default_tkt_root
+the default prefix for ticket files. E.g, if your uid is 42 and the
+prefix is /tmp/tkt then your default ticket file will be /tmp/tkt42
+.It krb_default_keyfile
+the default kefile, normally /etc/srvtab
+.It nat_in_use
+if a Network Address Translator (NAT) is being used.
 .El
 .Sh EXAMPLES
 .Bd -literal
 # this is a comment
+krb_default_tkt_root = /tkt/tkt_
 kdc_timesync = yes
 firewall_address = 10.0.0.1
+krb_default_keyfile = /etc/kerberosIV/srvtab
 .Ed
 .Sh SEE ALSO
 .Xr krb.equiv 5 ,

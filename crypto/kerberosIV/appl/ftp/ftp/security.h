@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: security.h,v 1.3 1999/04/07 14:15:20 joda Exp $ */
+/* $Id: security.h,v 1.7 1999/12/02 16:58:30 joda Exp $ */
 
 #ifndef __security_h__
 #define __security_h__
@@ -105,6 +100,8 @@ int sec_putc (int, FILE *);
 int sec_read (int, void *, int);
 int sec_read_msg (char *, int);
 int sec_vfprintf (FILE *, const char *, va_list);
+int sec_fprintf2(FILE *f, const char *fmt, ...);
+int sec_vfprintf2(FILE *, const char *, va_list);
 int sec_write (int, char *, int);
 
 #ifdef FTP_SERVER
@@ -118,6 +115,7 @@ void delete_ftp_command (void);
 void new_ftp_command (char *);
 int sec_userok (char *);
 int secure_command (void);
+enum protection_level get_command_prot(void);
 #else
 void sec_end (void);
 int sec_login (char *);
@@ -125,6 +123,9 @@ void sec_prot (int, char **);
 int sec_request_prot (char *);
 void sec_set_protection_level (void);
 void sec_status (void);
+
+enum protection_level set_command_prot(enum protection_level);
+
 #endif
 
 #endif /* __security_h__ */  

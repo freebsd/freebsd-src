@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: net_write.c,v 1.2 1998/11/22 09:45:21 assar Exp $");
+RCSID("$Id: net_write.c,v 1.4 1999/12/02 16:58:51 joda Exp $");
 #endif
 
 #include <sys/types.h>
@@ -54,7 +49,7 @@ RCSID("$Id: net_write.c,v 1.2 1998/11/22 09:45:21 assar Exp $");
 ssize_t
 net_write (int fd, const void *buf, size_t nbytes)
 {
-    const char *cbuf = (char *)buf;
+    const char *cbuf = (const char *)buf;
     ssize_t count;
     size_t rem = nbytes;
 

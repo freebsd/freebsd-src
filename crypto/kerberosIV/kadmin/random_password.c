@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #include "kadm_locl.h"
 
-RCSID("$Id: random_password.c,v 1.2 1998/06/09 19:24:56 joda Exp $");
+RCSID("$Id: random_password.c,v 1.4 1999/12/02 16:58:36 joda Exp $");
 
 /* This file defines some a function that generates a random password,
    that can be used when creating a large amount of principals (such
@@ -71,7 +66,7 @@ random_password(char *pw, size_t len, u_int32_t *low, u_int32_t *high)
 		      "abcdefghijklmnopqrstuvwxyz", 7, 
 		      "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 2, 
 		      "@$%&*()-+=:,/<>1234567890", 1);
-    strcpy_truncate(pw, pass, len);
+    strlcpy(pw, pass, len);
     memset(pass, 0, strlen(pass));
     free(pass);
 #endif

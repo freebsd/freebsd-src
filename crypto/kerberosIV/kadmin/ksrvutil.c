@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: ksrvutil.c,v 1.47 1999/06/29 18:53:58 bg Exp $");
+RCSID("$Id: ksrvutil.c,v 1.50 1999/11/13 06:33:59 assar Exp $");
 
 #include "ksrvutil.h"
 
@@ -322,11 +322,11 @@ main(int argc, char **argv)
 
     /* This is used only as a default for adding keys */
     if (krb_get_lrealm(local_realm, 1) != KSUCCESS)
-	strcpy_truncate(local_realm,
+	strlcpy(local_realm,
 			KRB_REALM,
 			sizeof(local_realm));
     
-    while((c = getopt(argc, argv, "ikc:f:p:r:u")) != EOF) {
+    while((c = getopt(argc, argv, "ikc:f:p:r:u")) != -1) {
 	switch (c) {
 	case 'i':
 	    interactive++;
@@ -335,10 +335,10 @@ main(int argc, char **argv)
 	    key++;
 	    break;
 	case 'c':
-	    strcpy_truncate(cellname, optarg, sizeof(cellname));
+	    strlcpy(cellname, optarg, sizeof(cellname));
 	    break;
 	case 'f':
-	    strcpy_truncate(keyfile, optarg, sizeof(keyfile));
+	    strlcpy(keyfile, optarg, sizeof(keyfile));
 	    break;
 	case 'p':
 	    if((status = kname_parse (u_name, u_inst, u_realm, optarg)) !=
@@ -347,7 +347,7 @@ main(int argc, char **argv)
 		      krb_get_err_text(status));
 	    break;
 	case 'r':
-	    strcpy_truncate(u_realm, optarg, sizeof(u_realm));
+	    strlcpy(u_realm, optarg, sizeof(u_realm));
 	    break;
 	case 'u':
 	    unique_filename = 1;
@@ -359,7 +359,7 @@ main(int argc, char **argv)
     if (optind >= argc)
 	usage();
     if (*u_realm == '\0')
-	 strcpy_truncate (u_realm, local_realm, sizeof(u_realm));
+	 strlcpy (u_realm, local_realm, sizeof(u_realm));
     if (strcmp(argv[optind], "list") == 0) {
 	if (arg_entered)
 	    usage();
@@ -411,10 +411,10 @@ main(int argc, char **argv)
 	warnx("`-u' flag is only used with `get'");
 
     if (!keyfile[0])
-	strcpy_truncate(keyfile, KEYFILE, sizeof(keyfile));
+	strlcpy(keyfile, KEYFILE, sizeof(keyfile));
 
-    strcpy_truncate(work_keyfile, keyfile, sizeof(work_keyfile));
-    strcpy_truncate(backup_keyfile, keyfile, sizeof(backup_keyfile));
+    strlcpy(work_keyfile, keyfile, sizeof(work_keyfile));
+    strlcpy(backup_keyfile, keyfile, sizeof(backup_keyfile));
     
     if (change || add || (get && !unique_filename) || delete) {
 	snprintf(work_keyfile, sizeof(work_keyfile), "%s.work", keyfile);
@@ -475,9 +475,8 @@ main(int argc, char **argv)
 		printf("\n");
 	    }
 	    else if (change) {
-		snprintf(change_tkt, sizeof(change_tkt),
-			 TKT_ROOT "_ksrvutil.%u",
-			 (unsigned)getpid());
+		snprintf(change_tkt, sizeof(change_tkt), "%s_ksrvutil.%u",
+			 TKT_ROOT, (unsigned)getpid());
 		krb_set_tkt_string(change_tkt);
 		destroyp = TRUE;
 
@@ -584,24 +583,24 @@ main(int argc, char **argv)
 		p = strchr(databuf, '.');
 		if (p != NULL) {
 		    *p++ = '\0';
-		    strcpy_truncate (sname, databuf, sizeof(sname));
-		    strcpy_truncate (sinst, p, sizeof(sinst));
+		    strlcpy (sname, databuf, sizeof(sname));
+		    strlcpy (sinst, p, sizeof(sinst));
 		} else {
-		    strcpy_truncate (sname, databuf, sizeof(sname));
+		    strlcpy (sname, databuf, sizeof(sname));
 		    safe_read_stdin("Instance: ", databuf, sizeof(databuf));
-		    strcpy_truncate (sinst, databuf, sizeof(databuf));
+		    strlcpy (sinst, databuf, sizeof(databuf));
 		}
 
 		safe_read_stdin("Realm: ", databuf, sizeof(databuf));
 		if (databuf[0] != '\0')
-		    strcpy_truncate (srealm, databuf, sizeof(srealm));
+		    strlcpy (srealm, databuf, sizeof(srealm));
 		else
-		    strcpy_truncate (srealm, local_realm, sizeof(srealm));
+		    strlcpy (srealm, local_realm, sizeof(srealm));
 
 		safe_read_stdin("Version number: ", databuf, sizeof(databuf));
 		key_vno = atoi(databuf);
 		if (!srealm[0])
-		    strcpy_truncate(srealm, local_realm, sizeof(srealm));
+		    strlcpy(srealm, local_realm, sizeof(srealm));
 		printf("New principal: ");
 		print_name(sname, sinst, srealm);
 		printf("; version %d\n", key_vno);

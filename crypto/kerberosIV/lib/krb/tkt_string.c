@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: tkt_string.c,v 1.14 1998/06/09 19:25:28 joda Exp $");
+RCSID("$Id: tkt_string.c,v 1.15 1999/09/16 20:41:55 assar Exp $");
 
 /*
  * This routine is used to generate the name of the file that holds
@@ -46,7 +46,7 @@ tkt_string(void)
 
     if (!*krb_ticket_string) {
         if ((env = getenv("KRBTKFILE"))) {
-	    strcpy_truncate (krb_ticket_string,
+	    strlcpy (krb_ticket_string,
 			     env,
 			     sizeof(krb_ticket_string));
 	} else {
@@ -71,5 +71,5 @@ tkt_string(void)
 void
 krb_set_tkt_string(const char *val)
 {
-    strcpy_truncate (krb_ticket_string, val, sizeof(krb_ticket_string));
+    strlcpy (krb_ticket_string, val, sizeof(krb_ticket_string));
 }

@@ -18,7 +18,7 @@
 
 #include "sample.h"
 
-RCSID("$Id: sample_server.c,v 1.12 1999/03/10 18:33:53 joda Exp $");
+RCSID("$Id: sample_server.c,v 1.14 1999/11/13 06:28:49 assar Exp $");
 
 static void
 usage (void)
@@ -53,16 +53,16 @@ main(int argc, char **argv)
 
     roken_openlog(__progname, LOG_ODELAY, LOG_DAEMON);
 
-    strcpy_truncate (service, SAMPLE_SERVICE, sizeof(service));
+    strlcpy (service, SAMPLE_SERVICE, sizeof(service));
     *srvtab = '\0';
 
-    while ((c = getopt (argc, argv, "s:t:i")) != EOF)
+    while ((c = getopt (argc, argv, "s:t:i")) != -1)
 	switch (c) {
 	case 's' :
-	    strcpy_truncate (service, optarg, sizeof(service));
+	    strlcpy (service, optarg, sizeof(service));
 	    break;
 	case 't' :
-	    strcpy_truncate (srvtab, optarg, sizeof(srvtab));
+	    strlcpy (srvtab, optarg, sizeof(srvtab));
 	    break;
 	case 'i':
 	    no_inetd = 1;
@@ -122,7 +122,7 @@ main(int argc, char **argv)
 	/* now that we have decoded the authenticator, translate
 	   the kerberos principal.instance@realm into a local name */
 	if (krb_kntoln(&auth_data, lname) != KSUCCESS)
-	    strcpy_truncate(lname,
+	    strlcpy(lname,
 			    "*No local name returned by krb_kntoln*",
 			    sizeof(lname));
 	/* compose the reply */

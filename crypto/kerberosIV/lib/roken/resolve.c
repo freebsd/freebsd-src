@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -48,7 +43,7 @@
 #endif
 #include "resolve.h"
 
-RCSID("$Id: resolve.c,v 1.21 1999/07/03 02:36:26 assar Exp $");
+RCSID("$Id: resolve.c,v 1.22 1999/12/02 16:58:52 joda Exp $");
 
 #if defined(HAVE_RES_SEARCH) && defined(HAVE_DN_EXPAND)
 

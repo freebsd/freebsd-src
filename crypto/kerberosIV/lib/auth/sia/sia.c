@@ -33,7 +33,7 @@
 
 #include "sia_locl.h"
 
-RCSID("$Id: sia.c,v 1.30 1999/04/08 13:07:38 joda Exp $");
+RCSID("$Id: sia.c,v 1.32 1999/10/03 15:49:36 joda Exp $");
 
 int 
 siad_init(void)
@@ -105,7 +105,7 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
     char pwbuf[1024];
     struct state *s = (struct state*)entity->mech[pkgind];
 #ifdef SIA_KRB5
-    char *realm;
+    krb5_realm *realms, *r;
     krb5_principal principal;
     krb5_ccache ccache;
     krb5_error_code ret;
@@ -125,21 +125,20 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
     }
 
 #ifdef SIA_KRB5
-    ret = krb5_get_default_realm(s->context, &realm);
-    krb5_build_principal(s->context, &principal, 
-			 strlen(realm),
-			 realm,
-			 entity->name,
-			 NULL);
+    ret = krb5_get_default_realms(s->context, &realms);
 
-	
-    if(!krb5_kuserok(s->context, principal, entity->name))
+    for (r = realms; *r != NULL; ++r) {
+	krb5_make_principal (s->context, &principal, *r, entity->name, NULL);
+
+	if(krb5_kuserok(s->context, principal, entity->name))
+	    break;
+    }
+    krb5_free_host_realm (s->context, realms);
+    if (*r == NULL)
 	return SIADFAIL;
+
     sprintf(s->ticket, "FILE:/tmp/krb5_cc%d_%d", pwd->pw_uid, getpid());
     ret = krb5_cc_resolve(s->context, s->ticket, &ccache);
-    if(ret)
-	return SIADFAIL;
-    ret = krb5_cc_initialize(s->context, ccache, principal);
     if(ret)
 	return SIADFAIL;
 #endif
@@ -181,8 +180,8 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
     }
 #endif
 #ifdef SIA_KRB5
-    ret = krb5_verify_user(s->context, principal, ccache,
-			   entity->password, 1, NULL);
+    ret = krb5_verify_user_lrealm(s->context, principal, ccache,
+				  entity->password, 1, NULL);
     if(ret){
 	/* if this is most likely a local user (such as
 	   root), just silently return failure when the

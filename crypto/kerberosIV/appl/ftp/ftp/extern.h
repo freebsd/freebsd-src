@@ -33,7 +33,7 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-/* $Id: extern.h,v 1.16 1999/05/21 09:21:51 assar Exp $ */
+/* $Id: extern.h,v 1.18 1999/10/28 20:49:10 assar Exp $ */
 
 #include <setjmp.h>
 #include <stdlib.h>
@@ -62,7 +62,7 @@ void	cmdabort (int);
 void	cmdscanner (int);
 int	command (char *fmt, ...);
 int	confirm (char *, char *);
-FILE   *dataconn (char *);
+FILE   *dataconn (const char *);
 void	delete (int, char **);
 void	disconnect (int, char **);
 void	do_chmod (int, char **);
@@ -80,7 +80,7 @@ int	getreply (int);
 int	globulize (char **);
 char   *gunique (char *);
 void	help (int, char **);
-char   *hookup (char *, int);
+char   *hookup (const char *, int);
 void	ftp_idle (int, char **);
 int     initconn (void);
 void	intr (int);

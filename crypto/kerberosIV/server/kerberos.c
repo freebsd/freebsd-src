@@ -9,7 +9,7 @@
 #include "config.h"
 #include "protos.h"
 
-RCSID("$Id: kerberos.c,v 1.84.2.1 1999/07/22 03:18:03 assar Exp $");
+RCSID("$Id: kerberos.c,v 1.87 1999/11/13 06:35:39 assar Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,7 +245,7 @@ set_tgtkey(char *r)
     copy_to_key(&p->key_low, &p->key_high, key);
     unseal(&key);
     krb_set_key(key, 0);
-    strcpy_truncate (lastrealm, r, REALM_SZ);
+    strlcpy (lastrealm, r, REALM_SZ);
     return (KSUCCESS);
 }
 
@@ -276,7 +276,7 @@ kerberos(unsigned char *buf, int len,
     
     unsigned char *p = buf;
     if(len < 2){
-	strcpy_truncate((char*)rpkt->dat,
+	strlcpy((char*)rpkt->dat,
 			"Packet too short",
 			sizeof(rpkt->dat));
 	return KFAILURE;
@@ -287,7 +287,7 @@ kerberos(unsigned char *buf, int len,
     pvno = *p++;
     if(pvno != KRB_PROT_VERSION){
 	msg = klog(L_KRB_PERR, "KRB protocol version mismatch (%d)", pvno);
-	strcpy_truncate((char*)rpkt->dat,
+	strlcpy((char*)rpkt->dat,
 			msg,
 			sizeof(rpkt->dat));
 	return KERB_ERR_PKT_VER;
@@ -308,14 +308,14 @@ kerberos(unsigned char *buf, int len,
 	     inet_ntoa(client->sin_addr),
 	     proto, ntohs(server->sin_port));
 	if((err = check_princ(name, inst, 0, &a_name))){
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    krb_get_err_text(err),
 			    sizeof(rpkt->dat));
 	    return err;
 	}
 	tk->length = 0;
 	if((err = check_princ(service, sinst, 0, &s_name))){
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    krb_get_err_text(err),
 			    sizeof(rpkt->dat));
 	    return err;
@@ -346,13 +346,13 @@ kerberos(unsigned char *buf, int len,
 	}
 	return 0;
     case AUTH_MSG_APPL_REQUEST:
-	strcpy_truncate(realm, (char*)buf + 3, REALM_SZ);
+	strlcpy(realm, (char*)buf + 3, REALM_SZ);
 	if((err = set_tgtkey(realm))){
 	    msg = klog(L_ERR_UNK,
 		       "Unknown realm %s from %s (%s/%u)", 
 		       realm, inet_ntoa(client->sin_addr),
 		       proto, ntohs(server->sin_port));
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    msg,
 			    sizeof(rpkt->dat));
 	    return err;
@@ -370,7 +370,7 @@ kerberos(unsigned char *buf, int len,
 		       proto,
 		       ntohs(server->sin_port),
 		       krb_get_err_text(err));
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    msg,
 			    sizeof(rpkt->dat));
 	    return err;
@@ -389,14 +389,14 @@ kerberos(unsigned char *buf, int len,
 	if(strcmp(ad.prealm, realm)){
 	    msg = klog(L_ERR_UNK, "Can't hop realms: %s -> %s", 
 		       realm, ad.prealm);
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    msg,
 			    sizeof(rpkt->dat));
 	    return KERB_ERR_PRINCIPAL_UNKNOWN;
 	}
 
 	if(!strcmp(service, "changepw")){
-	    strcpy_truncate((char*)rpkt->dat, 
+	    strlcpy((char*)rpkt->dat, 
 			    "Can't authorize password changed based on TGT",
 			    sizeof(rpkt->dat));
 	    return KERB_ERR_PRINCIPAL_UNKNOWN;
@@ -404,7 +404,7 @@ kerberos(unsigned char *buf, int len,
 
 	err = check_princ(service, sinst, life, &s_name);
 	if(err){
-	    strcpy_truncate((char*)rpkt->dat,
+	    strlcpy((char*)rpkt->dat,
 			    krb_get_err_text(err),
 			    sizeof(rpkt->dat));
 	    return err;
@@ -449,7 +449,7 @@ kerberos(unsigned char *buf, int len,
 		   inet_ntoa(client->sin_addr),
 		   proto,
 		   ntohs(server->sin_port));
-	strcpy_truncate((char*)rpkt->dat,
+	strlcpy((char*)rpkt->dat,
 			msg,
 			sizeof(rpkt->dat));
 	return KFAILURE;
@@ -707,7 +707,7 @@ main(int argc, char **argv)
 
     set_progname (argv[0]);
 
-    while ((c = getopt(argc, argv, "snmp:P:a:l:r:i:")) != EOF) {
+    while ((c = getopt(argc, argv, "snmp:P:a:l:r:i:")) != -1) {
 	switch(c) {
 	case 's':
 	    /*
@@ -767,7 +767,7 @@ main(int argc, char **argv)
 	case 'r':
 	    /* Set realm name */
 	    rflag++;
-	    strcpy_truncate(local_realm, optarg, sizeof(local_realm));
+	    strlcpy(local_realm, optarg, sizeof(local_realm));
 	    break;
 	case 'i':
 	    /* Only listen on this address */

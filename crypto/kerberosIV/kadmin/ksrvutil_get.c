@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -39,7 +34,7 @@
 #include "kadm_locl.h"
 #include "ksrvutil.h"
 
-RCSID("$Id: ksrvutil_get.c,v 1.38 1999/06/29 21:19:37 bg Exp $");
+RCSID("$Id: ksrvutil_get.c,v 1.43 1999/12/02 16:58:36 joda Exp $");
 
 #define BAD_PW 1
 #define GOOD_PW 0
@@ -186,15 +181,15 @@ get_srvtab_ent(int unique_filename, int fd, char *filename,
     Kadm_vals values;
     int ret;
 
-    strcpy_truncate(chname, krb_get_phost(inst), sizeof(chname));
+    strlcpy(chname, krb_get_phost(inst), sizeof(chname));
     if(strcmp(inst, chname))
 	fprintf(stderr, 
 		"Warning: Are you sure `%s' should not be `%s'?\n",
 		inst, chname);
     
     memset(&values, 0, sizeof(values));
-    strcpy_truncate(values.name, name, sizeof(values.name));
-    strcpy_truncate(values.instance, inst, sizeof(values.instance));
+    strlcpy(values.name, name, sizeof(values.name));
+    strlcpy(values.instance, inst, sizeof(values.instance));
     des_new_random_key(&newkey);
     values.key_low = (newkey[0] << 24) | (newkey[1] << 16)
 	| (newkey[2] << 8) | (newkey[3] << 0);
@@ -220,15 +215,20 @@ get_srvtab_ent(int unique_filename, int fd, char *filename,
     { 
 	int old = krb_use_admin_server(1);
 
-	strcpy_truncate(old_tktfile, tkt_string(), sizeof(old_tktfile));
-	snprintf(new_tktfile, sizeof(new_tktfile),
-		 TKT_ROOT "_ksrvutil-get.%u",
-		 (unsigned)getpid());
+	strlcpy(old_tktfile, tkt_string(), sizeof(old_tktfile));
+	snprintf(new_tktfile, sizeof(new_tktfile), "%s_ksrvutil-get.%u",
+		 TKT_ROOT, (unsigned)getpid());
 	krb_set_tkt_string(new_tktfile);
       
 	ret = krb_get_in_tkt(name, inst, realm, name, inst,
 			     1, key_to_key, NULL, &newkey);
 	krb_use_admin_server(old);
+ 	if (ret) {
+	    warnx ("getting tickets for %s: %s", 
+		   krb_unparse_name_long(name, inst, realm),
+		   krb_get_err_text(ret));
+	    return;
+  	}
     }
       
     if (ret == KSUCCESS &&
@@ -238,7 +238,8 @@ get_srvtab_ent(int unique_filename, int fd, char *filename,
 	(ret = tf_get_cred(&c)) == KSUCCESS)
 	kvno = c.kvno;
     else {
-	warnx ("Could not find the cred in the ticket file");
+	warnx ("Could not find the cred in the ticket file: %s",
+	       krb_get_err_text(ret));
 	return;
     }
 
@@ -302,8 +303,8 @@ ksrvutil_kadm(int unique_filename, int fd, char *filename, struct srv_ent *p)
     /*
      *  create ticket file and get admin tickets
      */
-    snprintf(tktstring, sizeof(tktstring),
-	     TKT_ROOT "_ksrvutil_%d", (int)getpid());
+    snprintf(tktstring, sizeof(tktstring), "%s_ksrvutil_%d",
+	     TKT_ROOT, (int)getpid());
     krb_set_tkt_string(tktstring);
     destroyp = TRUE;
        
@@ -327,7 +328,7 @@ parseinput (char *result, size_t sz, char *val, char *def)
   int inq;
 
   if (val[0] == '\0') {
-    strcpy_truncate (result, def, sz);
+    strlcpy (result, def, sz);
     return;
   }
   lim = result + sz - 1;
@@ -362,7 +363,7 @@ ksrvutil_get(int unique_filename, int fd, char *filename, int argc, char **argv)
   int i;
 
   gethostname(local_hostname, sizeof(local_hostname));
-  strcpy_truncate(local_hostname,
+  strlcpy(local_hostname,
 		  krb_get_phost(local_hostname),
 		  sizeof(local_hostname));
 
@@ -375,7 +376,7 @@ ksrvutil_get(int unique_filename, int fd, char *filename, int argc, char **argv)
 	leave(NULL,1);
       }
       p->next = head;
-      strcpy_truncate (p->realm, u_realm, sizeof(p->realm));
+      strlcpy (p->realm, u_realm, sizeof(p->realm));
       if (kname_parse (p->name, p->inst, p->realm, argv[i]) !=
 	  KSUCCESS) {
 	warnx ("parse error on '%s'\n", argv[i]);
@@ -383,11 +384,11 @@ ksrvutil_get(int unique_filename, int fd, char *filename, int argc, char **argv)
 	continue;
       }
       if (p->name[0] == '\0')
-	strcpy_truncate(p->name, "rcmd", sizeof(p->name));
+	strlcpy(p->name, "rcmd", sizeof(p->name));
       if (p->inst[0] == '\0')
-	strcpy_truncate(p->inst, local_hostname, sizeof(p->inst));
+	strlcpy(p->inst, local_hostname, sizeof(p->inst));
       if (p->realm[0] == '\0')
-	strcpy_truncate(p->realm, u_realm, sizeof(p->realm));
+	strlcpy(p->realm, u_realm, sizeof(p->realm));
       head = p;
     }
 
@@ -412,9 +413,9 @@ ksrvutil_get(int unique_filename, int fd, char *filename, int argc, char **argv)
 	}
 	p->next=head;
 	head=p;
-	strcpy_truncate(p->name, sname, sizeof(p->name));
-	strcpy_truncate(p->inst, sinst, sizeof(p->inst));
-	strcpy_truncate(p->realm, srealm, sizeof(p->realm));
+	strlcpy(p->name, sname, sizeof(p->name));
+	strlcpy(p->inst, sinst, sizeof(p->inst));
+	strlcpy(p->realm, srealm, sizeof(p->realm));
       }
     }while(ny("Add more keys?"));
   

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -43,7 +38,7 @@
 #endif
 #include <krb.h>
 
-RCSID("$Id: krb4.c,v 1.30 1999/06/15 03:50:28 assar Exp $");
+RCSID("$Id: krb4.c,v 1.36.2.1 1999/12/06 17:29:45 assar Exp $");
 
 #ifdef FTP_SERVER
 #define LOCAL_ADDR ctrl_addr
@@ -52,7 +47,8 @@ RCSID("$Id: krb4.c,v 1.30 1999/06/15 03:50:28 assar Exp $");
 #define LOCAL_ADDR myctladdr
 #define REMOTE_ADDR hisctladdr
 #endif
-extern struct sockaddr_in LOCAL_ADDR, REMOTE_ADDR;
+
+extern struct sockaddr *LOCAL_ADDR, *REMOTE_ADDR;
 
 struct krb4_data {
     des_cblock key;
@@ -78,11 +74,15 @@ krb4_decode(void *app_data, void *buf, int len, int level)
     struct krb4_data *d = app_data;
     
     if(level == prot_safe)
-	e = krb_rd_safe(buf, len, &d->key, &REMOTE_ADDR, &LOCAL_ADDR, &m);
+	e = krb_rd_safe(buf, len, &d->key,
+			(struct sockaddr_in *)REMOTE_ADDR,
+			(struct sockaddr_in *)LOCAL_ADDR, &m);
     else
 	e = krb_rd_priv(buf, len, d->schedule, &d->key, 
-			&REMOTE_ADDR, &LOCAL_ADDR, &m);
+			(struct sockaddr_in *)REMOTE_ADDR,
+			(struct sockaddr_in *)LOCAL_ADDR, &m);
     if(e){
+	syslog(LOG_ERR, "krb4_decode: %s", krb_get_err_text(e));
 	return -1;
     }
     memmove(buf, m.app_data, m.app_length);
@@ -102,10 +102,12 @@ krb4_encode(void *app_data, void *from, int length, int level, void **to)
     *to = malloc(length + 31);
     if(level == prot_safe)
 	return krb_mk_safe(from, *to, length, &d->key, 
-			   &LOCAL_ADDR, &REMOTE_ADDR);
+			   (struct sockaddr_in *)LOCAL_ADDR,
+			   (struct sockaddr_in *)REMOTE_ADDR);
     else if(level == prot_private)
 	return krb_mk_priv(from, *to, length, d->schedule, &d->key, 
-			   &LOCAL_ADDR, &REMOTE_ADDR);
+			   (struct sockaddr_in *)LOCAL_ADDR,
+			   (struct sockaddr_in *)REMOTE_ADDR);
     else
 	return -1;
 }
@@ -124,17 +126,18 @@ krb4_adat(void *app_data, void *buf, size_t len)
     int tmp_len;
     struct krb4_data *d = app_data;
     char inst[INST_SZ];
+    struct sockaddr_in *his_addr_sin = (struct sockaddr_in *)his_addr;
 
     memcpy(tkt.dat, buf, len);
     tkt.length = len;
 
     k_getsockinst(0, inst, sizeof(inst));
     kerror = krb_rd_req(&tkt, "ftp", inst, 
-			his_addr.sin_addr.s_addr, &auth_dat, "");
+			his_addr_sin->sin_addr.s_addr, &auth_dat, "");
     if(kerror == RD_AP_UNDEC){
 	k_getsockinst(0, inst, sizeof(inst));
 	kerror = krb_rd_req(&tkt, "rcmd", inst, 
-			    his_addr.sin_addr.s_addr, &auth_dat, "");
+			    his_addr_sin->sin_addr.s_addr, &auth_dat, "");
     }
 
     if(kerror){
@@ -145,15 +148,17 @@ krb4_adat(void *app_data, void *buf, size_t len)
     memcpy(d->key, auth_dat.session, sizeof(d->key));
     des_set_key(&d->key, d->schedule);
 
-    strcpy_truncate(d->name, auth_dat.pname, sizeof(d->name));
-    strcpy_truncate(d->instance, auth_dat.pinst, sizeof(d->instance));
-    strcpy_truncate(d->realm, auth_dat.prealm, sizeof(d->instance));
+    strlcpy(d->name, auth_dat.pname, sizeof(d->name));
+    strlcpy(d->instance, auth_dat.pinst, sizeof(d->instance));
+    strlcpy(d->realm, auth_dat.prealm, sizeof(d->instance));
 
     cs = auth_dat.checksum + 1;
     {
 	unsigned char tmp[4];
 	KRB_PUT_INT(cs, tmp, 4, sizeof(tmp));
-	tmp_len = krb_mk_safe(tmp, msg, 4, &d->key, &LOCAL_ADDR, &REMOTE_ADDR);
+	tmp_len = krb_mk_safe(tmp, msg, 4, &d->key,
+			      (struct sockaddr_in *)LOCAL_ADDR,
+			      (struct sockaddr_in *)REMOTE_ADDR);
     }
     if(tmp_len < 0){
 	reply(535, "Error creating reply: %s.", strerror(errno));
@@ -204,15 +209,15 @@ mk_auth(struct krb4_data *d, KTEXT adat,
     CREDENTIALS cred;
     char sname[SNAME_SZ], inst[INST_SZ], realm[REALM_SZ];
 
-    strcpy_truncate(sname, service, sizeof(sname));
-    strcpy_truncate(inst, krb_get_phost(host), sizeof(inst));
-    strcpy_truncate(realm, krb_realmofhost(host), sizeof(realm));
+    strlcpy(sname, service, sizeof(sname));
+    strlcpy(inst, krb_get_phost(host), sizeof(inst));
+    strlcpy(realm, krb_realmofhost(host), sizeof(realm));
     ret = krb_mk_req(adat, sname, inst, realm, checksum);
     if(ret)
 	return ret;
-    strcpy_truncate(sname, service, sizeof(sname));
-    strcpy_truncate(inst, krb_get_phost(host), sizeof(inst));
-    strcpy_truncate(realm, krb_realmofhost(host), sizeof(realm));
+    strlcpy(sname, service, sizeof(sname));
+    strlcpy(inst, krb_get_phost(host), sizeof(inst));
+    strlcpy(realm, krb_realmofhost(host), sizeof(realm));
     ret = krb_get_cred(sname, inst, realm, &cred);
     memmove(&d->key, &cred.session, sizeof(des_cblock));
     des_key_sched(&d->key, d->schedule);
@@ -231,6 +236,8 @@ krb4_auth(void *app_data, char *host)
     int checksum;
     u_int32_t cs;
     struct krb4_data *d = app_data;
+    struct sockaddr_in *localaddr  = (struct sockaddr_in *)LOCAL_ADDR;
+    struct sockaddr_in *remoteaddr = (struct sockaddr_in *)REMOTE_ADDR;
 
     checksum = getpid();
     ret = mk_auth(d, &adat, "ftp", host, checksum);
@@ -241,7 +248,38 @@ krb4_auth(void *app_data, char *host)
 	return AUTH_CONTINUE;
     }
 
-    if(base64_encode(adat.dat, adat.length, &p) < 0) {
+#ifdef HAVE_KRB_GET_OUR_IP_FOR_REALM
+    if (krb_get_config_bool("nat_in_use")) {
+      struct in_addr natAddr;
+
+      if (krb_get_our_ip_for_realm(krb_realmofhost(host),
+				   &natAddr) != KSUCCESS
+	  && krb_get_our_ip_for_realm(NULL, &natAddr) != KSUCCESS)
+	printf("Can't get address for realm %s\n",
+	       krb_realmofhost(host));
+      else {
+	if (natAddr.s_addr != localaddr->sin_addr.s_addr) {
+	  printf("Using NAT IP address (%s) for kerberos 4\n",
+		 inet_ntoa(natAddr));
+	  localaddr->sin_addr = natAddr;
+	  
+	  /*
+	   * This not the best place to do this, but it
+	   * is here we know that (probably) NAT is in
+	   * use!
+	   */
+
+	  passivemode = 1;
+	  printf("Setting: Passive mode on.\n");
+	}
+      }
+    }
+#endif
+
+    printf("Local address is %s\n", inet_ntoa(localaddr->sin_addr));
+    printf("Remote address is %s\n", inet_ntoa(remoteaddr->sin_addr));
+
+   if(base64_encode(adat.dat, adat.length, &p) < 0) {
 	printf("Out of memory base64-encoding.\n");
 	return AUTH_CONTINUE;
     }
@@ -266,7 +304,8 @@ krb4_auth(void *app_data, char *host)
     }
     adat.length = len;
     ret = krb_rd_safe(adat.dat, adat.length, &d->key, 
-		      &hisctladdr, &myctladdr, &msg_data);
+		      (struct sockaddr_in *)hisctladdr, 
+		      (struct sockaddr_in *)myctladdr, &msg_data);
     if(ret){
 	printf("Error reading reply from server: %s.\n", 
 	       krb_get_err_text(ret));

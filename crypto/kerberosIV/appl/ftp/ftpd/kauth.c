@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "ftpd_locl.h"
 
-RCSID("$Id: kauth.c,v 1.22 1999/06/29 21:19:33 bg Exp $");
+RCSID("$Id: kauth.c,v 1.25 1999/12/02 16:58:31 joda Exp $");
 
 static KTEXT_ST cip;
 static unsigned int lifetime;
@@ -85,7 +80,7 @@ store_ticket(KTEXT cip)
 	return(INTK_BADPW);
     
     /* extract server's name */
-    strcpy_truncate(sp.name, ptr, sizeof(sp.name));
+    strlcpy(sp.name, ptr, sizeof(sp.name));
     ptr += len + 1;
     left -= len + 1;
 
@@ -94,7 +89,7 @@ store_ticket(KTEXT cip)
 	return(INTK_BADPW);
     
     /* extract server's instance */
-    strcpy_truncate(sp.instance, ptr, sizeof(sp.instance));
+    strlcpy(sp.instance, ptr, sizeof(sp.instance));
     ptr += len + 1;
     left -= len + 1;
 
@@ -103,7 +98,7 @@ store_ticket(KTEXT cip)
 	return(INTK_BADPW);
     
     /* extract server's realm */
-    strcpy_truncate(sp.realm, ptr, sizeof(sp.realm));
+    strlcpy(sp.realm, ptr, sizeof(sp.realm));
     ptr += len + 1;
     left -= len + 1;
 
@@ -176,6 +171,10 @@ kauth(char *principal, char *ticket)
     char *p;
     int ret;
   
+    if(get_command_prot() != prot_private) {
+	reply(500, "Request denied (bad protection level)");
+	return;
+    }
     ret = krb_parse_name(principal, &pr);
     if(ret){
 	reply(500, "Bad principal: %s.", krb_get_err_text(ret));
@@ -304,12 +303,12 @@ klist(void)
 		   "  Issued", "  Expires", "  Principal (kvno)");
 	    header = 0;
 	}
-	strcpy_truncate(buf1, short_date(c.issue_date), sizeof(buf1));
+	strlcpy(buf1, short_date(c.issue_date), sizeof(buf1));
 	c.issue_date = krb_life_to_time(c.issue_date, c.lifetime);
 	if (time(0) < (unsigned long) c.issue_date)
-	    strcpy_truncate(buf2, short_date(c.issue_date), sizeof(buf2));
+	    strlcpy(buf2, short_date(c.issue_date), sizeof(buf2));
 	else
-	    strcpy_truncate(buf2, ">>> Expired <<< ", sizeof(buf2));
+	    strlcpy(buf2, ">>> Expired <<< ", sizeof(buf2));
 	lreply(200, "%s  %s  %s (%d)", buf1, buf2,
 	       krb_unparse_name_long(c.service, c.instance, c.realm), c.kvno); 
     }

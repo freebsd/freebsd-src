@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcp.c,v 1.49 1999/07/06 03:17:58 assar Exp $");
+RCSID("$Id: rcp.c,v 1.52 1999/11/16 16:54:16 bg Exp $");
 
 /* Globals */
 static char	dst_realm_buf[REALM_SZ];
@@ -41,7 +41,9 @@ static char	*dest_realm = NULL;
 static int	use_kerberos = 1;
 
 static int	doencrypt = 0;
-#define	OPTIONS	"dfKk:prtx"
+#define	OPTIONS	"dfKk:prtxl:"
+
+static char *user_name = NULL;	/* Given as -l option. */
 
 static int errs, rem;
 static struct passwd *pwd;
@@ -146,11 +148,11 @@ run_err(const char *fmt, ...)
 	va_start(args, fmt);
 	++errs;
 #define RCPERR "\001rcp: "
-	strcpy_truncate (errbuf, RCPERR, sizeof(errbuf));
+	strlcpy (errbuf, RCPERR, sizeof(errbuf));
 	vsnprintf (errbuf + strlen(errbuf),
 		   sizeof(errbuf) - strlen(errbuf),
 		   fmt, args);
-	strcat_truncate (errbuf, "\n", sizeof(errbuf));
+	strlcat (errbuf, "\n", sizeof(errbuf));
 	des_write (rem, errbuf, strlen(errbuf));
 	if (!iamremote)
 		vwarnx(fmt, args);
@@ -490,7 +492,7 @@ toremote(char *targ, int argc, char **argv)
 			exit(1);
 	} else {
 		thost = argv[argc - 1];
-		tuser = NULL;
+		tuser = user_name;
 	}
 
 	for (i = 0; i < argc - 1; i++) {
@@ -854,6 +856,8 @@ tolocal(int argc, char **argv)
 #else
 			host = argv[i];
 			suser = pwd->pw_name;
+			if (user_name)
+			    suser = user_name;
 #endif
 		} else {
 			*host++ = 0;
@@ -937,14 +941,14 @@ main(int argc, char **argv)
 
 
 	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch(ch) {			/* User-visible flags. */
 		case 'K':
 			use_kerberos = 0;
 			break;
 		case 'k':
 			dest_realm = dst_realm_buf;
-			strcpy_truncate(dst_realm_buf, optarg, REALM_SZ);
+			strlcpy(dst_realm_buf, optarg, REALM_SZ);
 			break;
 		case 'x':
 			doencrypt = 1;
@@ -967,6 +971,9 @@ main(int argc, char **argv)
 		case 't':			/* "to" */
 			iamremote = 1;
 			tflag = 1;
+			break;
+		case 'l':
+		        user_name = optarg;
 			break;
 		case '?':
 		default:
