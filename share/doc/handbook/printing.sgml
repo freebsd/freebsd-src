@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.11 1996/10/05 18:36:21 wosch Exp $
+     $Id: printing.sgml,v 1.12 1996/12/02 13:11:42 max Exp $
 
      The FreeBSD Documentation Project
 
@@ -2332,7 +2332,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 <code>
 #!bin/sh
 #
-#  DVI to PostScript printer filter
+#  psdf - DVI to PostScript printer filter
 #  Installed in /usr/local/libexec/psdf
 #
 #  Invoked by lpd when user runs lpr -d
@@ -2991,7 +2991,7 @@ EOF
 <code>
 #!/bin/sh
 #
-#  DVI to PostScript printer filter
+#  psdf - DVI to PostScript printer filter
 #  Installed in /usr/local/libexec/psdf
 #
 #  Invoked by lpd when user runs lpr -d
