@@ -8,9 +8,8 @@ FONTDIR = /usr/share/syscons/fonts
 
 NOMAN = noman
 
-all:;
-
-clean:;
+all clean:
+	@echo -n
 
 install:
 	cd ${.CURDIR}; \
