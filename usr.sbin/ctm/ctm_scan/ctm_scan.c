@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.6 1994/09/26 06:00:55 phk Exp $
+ * $Id: ctm_scan.c,v 1.7 1994/12/03 22:54:04 phk Exp $
  *
  */
 #include <stdio.h>
@@ -164,10 +164,19 @@ main(int argc, char **argv)
 	    perror(argv[1]);
 	    return 2;
 	}
+	argc--;
+	argv++;
     }
 
     /* 
      * Scan the directories recursively.
      */
-    return Do(".");
+    if (argc > 1) {
+	while (argc > 1) {
+		Do(argv[1]);
+		argc--;
+		argv++;
+	}
+    } else 
+	    return Do(".");
 }
