@@ -337,6 +337,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DIMAGE 2330*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * DIVA USB Mp3 Player.
+		 * Doesn't work correctly with 6 byte reads/writes.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DIVA USB", "Media Reader","*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
