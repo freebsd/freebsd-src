@@ -46,6 +46,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stddef.h>
 #include <errno.h>
+#include "un-namespace.h"
 
 static const struct afd {
 	int a_af;
@@ -145,12 +147,12 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		if (sp) {
 			if (strlen(sp->s_name) + 1 > servlen)
 				return EAI_MEMORY;
-			strlcpy(serv, sp->s_name, servlen);
+			_strlcpy(serv, sp->s_name, servlen);
 		} else {
 			snprintf(numserv, sizeof(numserv), "%u", ntohs(port));
 			if (strlen(numserv) + 1 > servlen)
 				return EAI_MEMORY;
-			strlcpy(serv, numserv, servlen);
+			_strlcpy(serv, numserv, servlen);
 		}
 	}
 
@@ -223,7 +225,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			numaddrlen = strlen(numaddr);
 			if (numaddrlen + 1 > hostlen) /* don't forget terminator */
 				return EAI_MEMORY;
-			strlcpy(host, numaddr, hostlen);
+			_strlcpy(host, numaddr, hostlen);
 			break;
 		}
 	} else {
@@ -246,7 +248,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				freehostent(hp);
 				return EAI_MEMORY;
 			}
-			strlcpy(host, hp->h_name, hostlen);
+			_strlcpy(host, hp->h_name, hostlen);
 			freehostent(hp);
 		} else {
 			if (flags & NI_NAMEREQD)
@@ -293,7 +295,7 @@ ip6_parsenumeric(sa, addr, host, hostlen, flags)
 	numaddrlen = strlen(numaddr);
 	if (numaddrlen + 1 > hostlen) /* don't forget terminator */
 		return EAI_MEMORY;
-	strlcpy(host, numaddr, hostlen);
+	_strlcpy(host, numaddr, hostlen);
 
 	if (((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
 		char zonebuf[MAXHOSTNAMELEN];
