@@ -232,13 +232,18 @@ bt_isa_attach(device_t dev)
 	}
 			
 	/* XXX Should be a child of the ISA or VL bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
-                               lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
-                               filter, filter_arg,
-                               /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-                               /*nsegments*/~0,
-                               /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-                               /*flags*/0, &bt->parent_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ NULL,
+				/* alignemnt	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ lowaddr,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ filter,
+				/* filterarg	*/ filter_arg,
+				/* maxsize	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* nsegments	*/ ~0,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->parent_dmat) != 0) {
 		bt_isa_release_resources(dev);
                 return (ENOMEM);
         }                              
@@ -251,16 +256,20 @@ bt_isa_attach(device_t dev)
 
 	if (lowaddr != BUS_SPACE_MAXADDR_32BIT) {
 		/* DMA tag for our sense buffers */
-		if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1,
-				       /*boundary*/0,
-				       /*lowaddr*/BUS_SPACE_MAXADDR,
-				       /*highaddr*/BUS_SPACE_MAXADDR,
-				       /*filter*/NULL, /*filterarg*/NULL,
-				       bt->max_ccbs
-					   * sizeof(struct scsi_sense_data),
-				       /*nsegments*/1,
-				       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-				       /*flags*/0, &bt->sense_dmat) != 0) {
+		if (bus_dma_tag_create(
+				/* parent	*/ bt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ bt->max_ccbs *
+						   sizeof(struct scsi_sense_data),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->sense_dmat) != 0) {
 			bt_isa_release_resources(dev);
 			return (ENOMEM);
 		}
