@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.4 1995/10/20 16:50:01 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.6 1995/10/21 14:07:48 jkh Exp $
 
 Table of Contents
 -----------------
@@ -274,7 +274,6 @@ fpa:    DEC DEFPA PCI FDDI adapter
 gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:    Genius GS-4500 hand scanner
 gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-gusmax: Gravis Ultrasound MAX (currently broken)
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
