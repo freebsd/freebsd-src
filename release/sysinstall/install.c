@@ -284,7 +284,7 @@ installFixitCDROM(dialogMenuItem *self)
      * a little kludge dance here..
      */
     if (symlink("/dist", "/mnt2")) {
-	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
+	msgConfirm("Unable to symlink /mnt2 to the disc mount point.  Please report this\n"
 		   "unexpected failure to freebsd-bugs@FreeBSD.org.");
 	return DITEM_FAILURE;
     }
@@ -307,7 +307,7 @@ installFixitCDROM(dialogMenuItem *self)
 	Mkdir("/var/run");
 	if (vsystem("/mnt2/sbin/ldconfig -s /mnt2/usr/lib")) {
 	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
-		       "Dynamic executables from the CDROM likely won't work.");
+		       "Dynamic executables from the disc likely won't work.");
 	}
     }
 
@@ -320,7 +320,7 @@ installFixitCDROM(dialogMenuItem *self)
     if (!file_readable("/usr/libexec/ld-elf.so.1")) {
 	if (symlink("/mnt2/usr/libexec/ld-elf.so.1", "/usr/libexec/ld-elf.so.1")) {
 	    msgConfirm("Warning: could not create the symlink for ld-elf.so.1\n"
-		       "Dynamic executables from the CDROM likely won't work.");
+		       "Dynamic executables from the disc likely won't work.");
 	}
     }
     /* optional nicety */

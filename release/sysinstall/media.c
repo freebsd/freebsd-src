@@ -144,8 +144,8 @@ mediaSetCDROM(dialogMenuItem *self)
     cnt = deviceCount(devs);
     if (!cnt) {
 	if (self)	/* Interactive? */
-	    msgConfirm("No CDROM devices found!  Please check that your system's\n"
-		       "configuration is correct and that the CDROM drive is of a supported\n"
+	    msgConfirm("No CD/DVD devices found!  Please check that your system's\n"
+		       "configuration is correct and that the CD/DVD drive is of a supported\n"
 		       "type.  For more information, consult the hardware guide\n"
 		       "in the Doc menu.");
 	return DITEM_FAILURE | DITEM_CONTINUE;
