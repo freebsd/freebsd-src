@@ -70,7 +70,18 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1370_PCI_ID 0x50001274
 #define ES1371_PCI_ID 0x13711274
 #define ES1371_PCI_ID2 0x13713274
-#define ES1371_PCI_ID3 0x58801274
+#define CT5880_PCI_ID 0x58801274
+
+#define ES1371REV_ES1371_B  0x09
+
+#define ES1371REV_ES1373_8  0x08
+#define ES1371REV_ES1373_A  0x04
+#define ES1371REV_ES1373_B  0x06
+
+#define ES1371REV_CT5880_A  0x07
+
+#define CT5880REV_CT5880_C  0x02
+#define CT5880REV_CT5880_D  0x03
 
 #define ES_BUFFSIZE 4096
 
@@ -486,13 +497,16 @@ es1371_init(struct es_info *es, device_t dev)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	if (revid == 7 || revid >= 9 || (devid == ES1371_PCI_ID3 && revid == 2)) {
-#define ES1371_BINTSUMM_OFF 0x07
-		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
-		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
+	if ((devid == ES1371_PCI_ID && revid == ES1371REV_ES1373_8) ||
+	    (devid == ES1371_PCI_ID && revid == ES1371REV_CT5880_A) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D)) {
+		bus_space_write_4(es->st, es->sh, ES1370_REG_STATUS, 0x20000000);
+		DELAY(20000);
+		if (debug > 0) device_printf(dev, "ac97 2.1 enabled\n");
 	} else { /* pre ac97 2.1 card */
 		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
-		if (debug > 0) printf("es_init pre ac97 2.1\n");
+		if (debug > 0) device_printf(dev, "ac97 pre-2.1 enabled\n");
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 	bus_space_write_4(es->st, es->sh, ES1371_REG_LEGACY, 0);
@@ -730,16 +744,63 @@ es1371_wait_src_ready(struct es_info *es)
 static int
 es_pci_probe(device_t dev)
 {
-	if (pci_get_devid(dev) == ES1370_PCI_ID) {
+	switch(pci_get_devid(dev)) {
+	case ES1370_PCI_ID:
 		device_set_desc(dev, "AudioPCI ES1370");
 		return 0;
-	} else if (pci_get_devid(dev) == ES1371_PCI_ID ||
-		   pci_get_devid(dev) == ES1371_PCI_ID2 ||
-		   pci_get_devid(dev) == ES1371_PCI_ID3) {
-		device_set_desc(dev, "AudioPCI ES1371");
+
+	case ES1371_PCI_ID:
+		switch(pci_get_revid(dev)) {
+		case ES1371REV_ES1371_B:
+			device_set_desc(dev, "AudioPCI ES1371-B");
+			return 0;
+
+		case ES1371REV_ES1373_A:
+			device_set_desc(dev, "AudioPCI ES1373-A");
+			return 0;
+
+		case ES1371REV_ES1373_B:
+			device_set_desc(dev, "AudioPCI ES1373-B");
+			return 0;
+
+		case ES1371REV_ES1373_8:
+			device_set_desc(dev, "AudioPCI ES1373-8");
+			return 0;
+
+		case ES1371REV_CT5880_A:
+			device_set_desc(dev, "Creative CT5880-A");
+			return 0;
+
+		default:
+			device_set_desc(dev, "AudioPCI ES1371-?");
+			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
+			return 0;
+		}
+
+	case ES1371_PCI_ID2:
+		device_set_desc(dev, "Strange AudioPCI ES1371-?");
+		device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
 		return 0;
+
+	case CT5880_PCI_ID:
+		switch(pci_get_revid(dev)) {
+		case CT5880REV_CT5880_C:
+			device_set_desc(dev, "Creative CT5880-C");
+			return 0;
+
+		case CT5880REV_CT5880_D:
+			device_set_desc(dev, "Creative CT5880-D");
+			return 0;
+
+		default:
+			device_set_desc(dev, "Creative CT5880-?");
+			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
+			return 0;
+		}
+
+	default:
+		return ENXIO;
 	}
-	return ENXIO;
 }
 
 static int
@@ -793,7 +854,7 @@ es_pci_attach(device_t dev)
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
 	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
-	    pci_get_devid(dev) == ES1371_PCI_ID3) {
+	    pci_get_devid(dev) == CT5880_PCI_ID) {
 		if(-1 == es1371_init(es, dev)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
