@@ -269,11 +269,11 @@ add_dir_to_mpath_list (mp, p)
 
   status = is_directory (p);
 
-  if (status < 0)
+  if (status < 0 && debug)
     {
       fprintf (stderr, "Warning: couldn't stat file %s!\n", p);
     }
-  else if (status == 0)
+  else if (status == 0 && debug)
     {
       fprintf (stderr, "Warning: %s isn't a directory!\n", p);
     }
