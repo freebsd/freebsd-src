@@ -63,7 +63,7 @@ void
 tTflag(s)
 	register char *s;
 {
-	int first, last;
+	unsigned int first, last;
 	register unsigned int i;
 
 	if (*s == '\0')
