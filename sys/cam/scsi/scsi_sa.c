@@ -155,7 +155,8 @@ typedef enum {
 	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
 	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
 	SA_QUIRK_2FM		= 0x08,	/* Needs Two File Marks at EOD */
-	SA_QUIRK_1FM		= 0x10	/* No more than 1 File Mark at EOD */
+	SA_QUIRK_1FM		= 0x10,	/* No more than 1 File Mark at EOD */
+	SA_QUIRK_NODREAD	= 0x20	/* Don't try and dummy read density */
 } sa_quirks;
 
 struct sa_softc {
@@ -224,7 +225,11 @@ static struct sa_quirk_entry sa_quirk_table[] =
 {
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP, 0
+		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_NODREAD, 0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
+		  "Python*", "*"}, SA_QUIRK_NODREAD, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
@@ -1788,23 +1793,27 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			error = ENOMEM;
 			goto exit;
 		}
-		scsi_sa_read_write(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG, 1,
-		    FALSE, 0, 8192, (void *) rblim, 8192, SSD_FULL_SIZE,
-		    120 * 60 * 1000);
-		(void) cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
-		    &softc->device_stats);
-		QFRLS(ccb);
-		scsi_rewind(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
-		    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
-		error = cam_periph_runccb(ccb, saerror, 0,
-		    SF_NO_PRINT | SF_RETRY_SELTO | SF_RETRY_UA,
-		    &softc->device_stats);
-		QFRLS(ccb);
-		if (error) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("unable to rewind after test read\n");
-			xpt_release_ccb(ccb);
-			goto exit;
+
+		if ((softc->quirks & SA_QUIRK_NODREAD) == 0) {
+			scsi_sa_read_write(&ccb->csio, 0, sadone,
+			    MSG_SIMPLE_Q_TAG, 1, FALSE, 0, 8192,
+			    (void *) rblim, 8192, SSD_FULL_SIZE,
+			    120 * 60 * 1000);
+			(void) cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
+			    &softc->device_stats);
+			QFRLS(ccb);
+			scsi_rewind(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
+			error = cam_periph_runccb(ccb, saerror, 0,
+			    SF_NO_PRINT | SF_RETRY_SELTO | SF_RETRY_UA,
+			    &softc->device_stats);
+			QFRLS(ccb);
+			if (error) {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("unable to rewind after test read\n");
+				xpt_release_ccb(ccb);
+				goto exit;
+			}
 		}
 
 		/*
@@ -2816,9 +2825,12 @@ saprevent(struct cam_periph *periph, int action)
 	if ((action == PR_PREVENT) && (softc->flags & SA_FLAG_TAPE_LOCKED) != 0)
 		return;
 
-	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
+	/*
+	 * We can be quiet about illegal requests.
+	 */
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
 		sf = 0;
-	else
+	} else
 		sf = SF_QUIET_IR;
 
 	ccb = cam_periph_getccb(periph, 1);
@@ -2827,9 +2839,6 @@ saprevent(struct cam_periph *periph, int action)
 	scsi_prevent(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, action,
 	    SSD_FULL_SIZE, 100000);
 
-	/*
-	 * We can be quiet about illegal requests.
-	 */
 	error = cam_periph_runccb(ccb, saerror, 0, sf, &softc->device_stats);
 	QFRLS(ccb);
 	if (error == 0) {
