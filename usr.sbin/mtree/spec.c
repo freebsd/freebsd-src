@@ -172,10 +172,10 @@ noparent:		errx(1, "line %d: no parent node", lineno);
 static void
 set(t, ip)
 	char *t;
-	register NODE *ip;
+	NODE *ip;
 {
 	register int type;
-	register char *kw, *val = NULL;
+	char *kw, *val = NULL;
 	struct group *gr;
 	struct passwd *pw;
 	mode_t *m;
@@ -211,6 +211,12 @@ set(t, ip)
 				errx(1, "strdup");
 			}
 			break;
+		case F_FLAGS:
+			if (strcmp("none", val) == 0)
+				ip->st_flags = 0;
+			else if (string_to_flags(&val, &ip->st_flags,NULL) != 0)
+				errx(1, "line %d: invalid flag %s",lineno, val);
+ 			break;
 		case F_GID:
 			ip->st_gid = strtoul(val, &ep, 10);
 			if (*ep)

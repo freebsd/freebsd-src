@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtree.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <string.h>
 #include <stdlib.h>
 
 #define	KEYDEFAULT \
-	(F_GID | F_MODE | F_NLINK | F_SIZE | F_SLINK | F_TIME | F_UID)
+	(F_GID | F_MODE | F_NLINK | F_SIZE | F_SLINK | F_TIME | F_UID | F_FLAGS)
 
 #define	MISMATCHEXIT	2
 
@@ -55,6 +56,7 @@ typedef struct _node {
 	gid_t	st_gid;				/* gid */
 #define	MBITS	(S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO)
 	mode_t	st_mode;			/* mode */
+	u_long	st_flags;			/* flags */
 	nlink_t	st_nlink;			/* link count */
 
 #define	F_CKSUM	0x0001				/* check sum */
@@ -77,6 +79,7 @@ typedef struct _node {
 						/* not change */
 #define	F_SHA1	0x20000				/* SHA-1 digest */
 #define	F_RMD160 0x40000			/* RIPEMD160 digest */
+#define	F_FLAGS	0x80000				/* file flags */
 	u_int	flags;				/* items set */
 
 #define	F_BLOCK	0x001				/* block special */
