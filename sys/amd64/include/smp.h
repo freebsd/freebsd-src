@@ -166,6 +166,7 @@ int	apic_ipi		__P((int, int, int));
 int	selected_apic_ipi	__P((u_int, int, int));
 int	io_apic_setup		__P((int));
 void	io_apic_set_id		__P((int, int));
+int	io_apic_get_id		__P((int));
 int	ext_int_setup		__P((int, int));
 
 #if defined(READY)
