@@ -38,7 +38,7 @@
 .Nm sliplogin
 .Nd attach a serial line network interface
 .Sh SYNOPSIS
-.Nm sliplogin
+.Nm
 .Op Ar loginname Op Ar device
 .Sh DESCRIPTION
 .Nm Sliplogin
@@ -102,7 +102,7 @@ entry, in order starting with
 .Pp
 Only the super-user may attach a network interface.  The interface is
 automatically detached when the other end hangs up or the
-.Nm sliplogin
+.Nm
 process dies.  If the kernel slip
 module has been configured for it, all routes through that interface will
 also disappear at the same time.  If there is other processing a site
@@ -161,7 +161,7 @@ and
 .It Ar keepalive
 Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
 this amount of time,
-.Nm sliplogin
+.Nm
 closes the line and exits.
 The default value is no timeout (zero).
 .It Ar outfill
@@ -181,11 +181,11 @@ If any of first two parameters is equal to zero, it will not affect
 the corresponding SLIP configuration.
 .Sh EXAMPLE
 The normal use of
-.Nm sliplogin
+.Nm
 is to create a
 .Pa /etc/passwd
 entry for each legal, remote slip site with
-.Nm sliplogin
+.Nm
 as the shell for that entry.  E.g.,
 .Bd -literal
 Sfoo:ikhuy6:2010:1:slip line to foo:/tmp:/usr/sbin/sliplogin
@@ -212,19 +212,21 @@ to the local host name and
 is the local host IP netmask.
 .Pp
 Note that
-.Nm sliplogin
+.Nm
 must be setuid to root and, while not a security hole, moral defectives
 can use it to place terminal lines in an unusable state and/or deny
 access to legitimate users of a remote slip line.  To prevent this,
-a site can create a group, say
-.Em slip ,
-that only the slip login accounts are put in then make sure that
-.Pa /usr/sbin/sliplogin
-is in group
-.Em slip
-and mode 4550 (setuid root, only group
-.Em slip
-can execute binary).
+.Nm
+is installed as user
+.Em root ,
+group
+.Em network
+and mode 4550 so that only members of group
+.Em network
+may run
+.Nm sliplogin .
+The system administrator should make sure that all legitimate users
+are a member of the correct group.
 .Sh DIAGNOSTICS
 .Nm Sliplogin
 logs various information to the system log daemon,
