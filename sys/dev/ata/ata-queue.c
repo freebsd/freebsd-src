@@ -242,7 +242,8 @@ ata_completed(void *context, int dummy)
 	 * if reinit succeeds, retries still permit and device didn't
 	 * get removed by the reinit, reinject request
 	 */
-	if (ata_reinit(ch) && request->retries-- > 0 && request->device->param){
+	if (!ata_reinit(ch) && request->retries-- > 0
+	    && request->device->param){
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "completed reinject");
