@@ -81,8 +81,6 @@
 #include <isa/fdc.h>
 #include <isa/rtc.h>
 
-/* misuse a flag to identify format operation */
-
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
@@ -98,8 +96,6 @@
 #define NUMTYPES 17
 #define NUMDENS  (NUMTYPES - 7)
 
-/* These defines (-1) must match index for fd_types */
-#define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
 #define NO_TYPE		0	/* must match NO_TYPE in ft.c */
 #define FD_1720         1
 #define FD_1480         2
@@ -144,6 +140,8 @@ static struct fd_type fd_types[NUMTYPES] =
 };
 
 #define DRVS_PER_CTLR 2		/* 2 floppies */
+
+#define MAX_SEC_SIZE	(128 << 3)
 
 /***********************************************************************\
 * Per controller structure.						*
@@ -291,7 +289,11 @@ fdin_rd(fdc_p fdc)
 
 #endif
 
-static	d_open_t	Fdopen;	/* NOTE, not fdopen */
+/*
+ * named Fdopen() to avoid confusion with fdopen() in fd(4); the
+ * difference is now only meaningful for debuggers
+ */
+static	d_open_t	Fdopen;
 static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
@@ -383,7 +385,6 @@ enable_fifo(fdc_p fdc)
 	if ((fdc->flags & FDC_HAS_FIFO) == 0) {
 		
 		/*
-		 * XXX: 
 		 * Cannot use fd_cmd the normal way here, since
 		 * this might be an invalid command. Thus we send the
 		 * first byte, and check for an early turn of data directon.
@@ -822,7 +823,7 @@ fdc_attach(device_t dev)
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
 	if (error) {
-		device_printf(dev, "cannot re-aquire resources\n");
+		device_printf(dev, "cannot re-acquire resources\n");
 		return error;
 	}
 	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
@@ -836,10 +837,13 @@ fdc_attach(device_t dev)
 	fdc->flags |= FDC_ATTACHED;
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
-		/* Acquire the DMA channel forever, The driver will do the rest */
-				/* XXX should integrate with rman */
+		/*
+		 * Acquire the DMA channel forever, the driver will do
+		 * the rest
+		 * XXX should integrate with rman
+		 */
 		isa_dma_acquire(fdc->dmachan);
-		isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
+		isa_dmainit(fdc->dmachan, MAX_SEC_SIZE);
 	}
 	fdc->state = DEVIDLE;
 
@@ -1151,7 +1155,7 @@ fd_attach(device_t dev)
 	 * Export the drive to the devstat interface.
 	 */
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
-			  device_get_unit(dev), 512, DEVSTAT_NO_ORDERED_TAGS,
+			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
 			  DEVSTAT_PRIORITY_FD);
 	return (0);
@@ -1221,10 +1225,12 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 
 	if (needspecify) {
 		/*
-		 * XXX
-		 * special case: since we have just woken up the FDC
-		 * from its sleep, we silently assume the command will
-		 * be accepted, and do not test for a timeout
+		 * we silently assume the command will be accepted
+		 * after an FDC reset
+		 *
+		 * Steinbach's Guideline for Systems Programming:
+		 * Never test for an error condition you don't know
+		 * how to handle.
 		 */
 		(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
 			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
@@ -1302,7 +1308,7 @@ fdc_reset(fdc_p fdc)
 	fdout_wr(fdc, fdc->fdout);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 
-	/* XXX after a reset, silently believe the FDC will accept commands */
+	/* after a reset, silently believe the FDC will accept commands */
 	(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
 		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 		     0);
