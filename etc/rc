@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.191 1999/08/06 06:16:06 peter Exp $
+#	$Id: rc,v 1.192 1999/08/06 06:20:19 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -401,7 +401,7 @@ fi
 
 if [ "X${update_motd}" != X"NO" ]; then
 	T=`mktemp /tmp/_motd.XXXXXX`
-	if [ $? -ne 0 ]; then
+	if [ $? -eq 0 ]; then
 		uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
 		awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
 		cmp -s $T /etc/motd || {
