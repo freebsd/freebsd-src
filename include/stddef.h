@@ -39,6 +39,7 @@
 #define _STDDEF_H_
 
 #include <sys/cdefs.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 
 typedef	__ptrdiff_t	ptrdiff_t;
@@ -60,10 +61,6 @@ typedef	__size_t	size_t;
 typedef	__wchar_t	wchar_t;
 #define	_WCHAR_T_DECLARED
 #endif
-#endif
-
-#ifndef	NULL
-#define	NULL	0
 #endif
 
 #define	offsetof(type, member)	__offsetof(type, member)

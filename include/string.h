@@ -38,6 +38,7 @@
 #define	_STRING_H_
 
 #include <sys/cdefs.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 
 /*
@@ -51,10 +52,6 @@
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
-#endif
-
-#ifndef	NULL
-#define	NULL	0
 #endif
 
 __BEGIN_DECLS
