@@ -401,10 +401,7 @@ getit(void)
 {
 	int high, low;
 
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_lock_spin(&clock_lock);
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -412,11 +409,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_unlock_spin(&clock_lock);
-
+	mtx_unlock_spin(&clock_lock);
 	return ((high << 8) | low);
 }
 
@@ -457,8 +450,18 @@ DELAY(int n)
 	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
 	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
 	 * multiplications and divisions to scale the count take a while).
+	 *
+	 * However, if ddb is active then use a fake counter since reading
+	 * the i8254 counter involves acquiring a lock.  ddb must not do
+	 * locking for many reasons, but it calls here for at least atkbd
+	 * input.
 	 */
-	prev_tick = getit();
+#ifdef KDB
+	if (kdb_active)
+		prev_tick = 1;
+	else
+#endif
+		prev_tick = getit();
 	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
@@ -485,7 +488,15 @@ DELAY(int n)
 			     / 1000000;
 
 	while (ticks_left > 0) {
-		tick = getit();
+#ifdef KDB
+		if (kdb_active) {
+			inb(0x84);
+			tick = prev_tick - 1;
+			if (tick <= 0)
+				tick = timer0_max_count;
+		} else
+#endif
+			tick = getit();
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
