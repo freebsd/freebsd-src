@@ -668,7 +668,7 @@ found:
 		 */
 		if (mff || ip->ip_off) {
 			ipstat.ips_fragments++;
-			m->m_pkthdr.header = ip;
+			m->m_pkthdr.header = (caddr_t)ip;
 #ifdef IPDIVERT
 			m = ip_reass(m,
 			    fp, &ipq[sum], &divert_info, &divert_cookie);
