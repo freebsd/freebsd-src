@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.24 1998/02/19 08:12:11 guido Exp $";
+	"$Id: pwd_mkdb.c,v 1.25 1998/04/19 07:15:34 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -580,6 +580,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: pwd_mkdb [-c] [-p] [-d <dest dir>] [-u <local username>] file\n");
+"usage: pwd_mkdb [-C] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
 	exit(1);
 }
