@@ -794,6 +794,9 @@ ripsend(ifcp, sin6, flag)
 	struct	in6_addr *nh;	/* next hop */
 	int	maxrte;
 
+	if (qflag)
+		return;
+
 	if (ifcp == NULL) {
 		/*
 		 * Request from non-link local address is not
