@@ -26,7 +26,7 @@
 #
 # kbdmap/vidfont - front end for syscons
 #
-# $Id: kbdmap.pl,v 1.6 1997/02/22 16:06:02 peter Exp $
+# $Id: kbdmap.pl,v 1.7 1997/05/19 07:30:45 jkh Exp $
 
 
 # simple test if syscons works
@@ -229,8 +229,9 @@ sub menu_read {
 }
 
 sub dialog {
+    srand;
     local(@argv) = @_;
-    local($tmp) = "/tmp/_kbd_lang$$";
+    local($tmp) = "/tmp/_kbd_lang" . rand(9999);
 
     $dialog = "/usr/bin/dialog \\
 --clear \\
