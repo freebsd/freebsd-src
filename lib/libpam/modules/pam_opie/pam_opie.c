@@ -89,7 +89,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	user = NULL;
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
-		pwd = getpwnam(getlogin());
+		if ((pwd = getpwnam(getlogin())) == NULL)
+			PAM_RETURN(PAM_AUTH_ERR);
 		user = pwd->pw_name;
 	}
 	else {
@@ -125,7 +126,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 
 	/* We have to copy the response, because opieverify mucks with it. */
-	snprintf(resp, sizeof resp, "%s", response);
+	strlcpy(resp, response, sizeof (resp));
 
 	/*
 	 * Opieverify is supposed to return -1 only if an error occurs.
