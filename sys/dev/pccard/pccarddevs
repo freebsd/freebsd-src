@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.131 2001/06/29 14:56:22 christos Exp $ */
+/* $NetBSD: pcmciadevs,v 1.139 2001/09/29 13:59:16  ichiro Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -65,6 +65,7 @@ vendor DLINK_2			0x0143	D-Link
 vendor SIMPLETECH		0x014d	Simple Technology
 vendor LUCENT			0x0156	Lucent Technologies
 vendor AIRONET			0x015f	Aironet Wireless Communications
+vendor PSION			0x016c	Psion
 vendor COMPAQ2			0x0183	Compaq
 vendor KINGSTON			0x0186	Kingston
 vendor DAYNA			0x0194	Dayna Corporation
@@ -75,12 +76,14 @@ vendor FARALLON			0x0200  Farallon Communications
 vendor TELECOMDEVICE		0x021b  Telecom Device
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
+vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor IODATA2			0x028a	I-O DATA
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor COMPEX			0x8a01	Compex Corporation
 vendor MELCO			0x8a01	Melco Corporation
+vendor ZONET			0x8a01	Zonet Technology Inc.
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
@@ -109,6 +112,7 @@ product 3COM 3CXM056BNW		0x002f 3Com/NoteWorthy 3CXM056-BNW 56K Modem
 product 3COM 3CXEM556		0x0035 3Com/Megahertz 3CXEM556 Ethernet/Modem
 product 3COM 3CXEM556INT	0x003d 3Com/Megahertz 3CXEM556-INT Ethernet/Modem
 product 3COM 3CCFEM556BI	0x0556 3Com/Megahertz 3CCFEM556BI Ethernet/Modem
+product 3COM 3CRWE62092A	0x2092 3Com 3CRWE62092A	Wireless LAN
 
 /* Compaq Products */
 product COMPAQ2 CPQ_10_100	0x010a Compaq Netelligent 10/100 Ethernet
@@ -202,6 +206,9 @@ product OLICOM TR		0x2132 GoCard Token Ring 16/4
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 
+/* Psion */
+product PSION GOLDCARD		0x0020 Psion Gold Card
+
 /* US Robotics Products */
 product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
 
@@ -279,6 +286,9 @@ product RATOC REX_R280		0x1	RATOC REX-R280
 /* Samsung */
 product	SAMSUNG SWL_2000N	0x02	Samsung MagicLAN SWL-2000N
 
+/* Symbol */
+product	SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
+
 /* Telecom Device */
 product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
 
@@ -290,6 +300,10 @@ product EMTAC WLAN		0x0002	EMTAC A2424i 11Mbps WLAN Card
 
 /* BUFFALO */
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
+
+/* ZONET */
+product ZONET ZEN		0x0100	Zonet Zen 10/10
+
 
 /* Cards we know only by their cis */
 vendor PREMAX			-1 	Premax
@@ -312,6 +326,7 @@ vendor AMD			-1	AMD
 vendor INTERSIL			-1	Intersil
 vendor SYNERGY21		-1	Synergy 21
 vendor CNET			-1	CNet
+vendor EIGERLABS		-1	Eiger labs,Inc.
 
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product PREMAX PE200		{ "PMX&sp&sp&sp", "PE-200", NULL, NULL } PreMax PE-200
@@ -324,6 +339,7 @@ product PLANEX FNW3600T		-1 Planex FNW-3600-T
 product PLANEX FNW3700T		-1 Planex FNW-3700-T
 product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
+product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
 product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
@@ -364,4 +380,10 @@ product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01"
 product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
 product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
 product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
+product GEMTEK WLAN		{ "Intersil", "PRISM&sp2_5&spPCMCIA&spADAPTER", "ISL37300P", "Eval-RevA" } GEMTEK Prism2_5 WaveLAN Card
+/*
+ * vendor ID of EPX_AA2000 is Fujitsu (0x0004) and product ID is 0x2000, but
+ * it conflicts with Fujitsu Towa LA501 Ethernet.
+ */
+product EIGERLABS EPX_AA2000	{ "Eiger&splabs,Inc.", "EPX-AA2000&spPC&spSound&spCard", NULL, NULL } EPX-AA2000 PC Sound Card
 product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000
