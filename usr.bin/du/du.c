@@ -50,10 +50,12 @@ static const char rcsid[] =
 
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
+#include <fnmatch.h>
 #include <fts.h>
 #include <math.h>
 #include <stdio.h>
@@ -88,10 +90,19 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
 int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
+SLIST_HEAD(ignhead, ignentry) ignores;
+struct ignentry {
+	char			*mask;
+	SLIST_ENTRY(ignentry)	next;
+};
+
 int		linkchk __P((FTSENT *));
 static void	usage __P((void));
 void		prthumanval __P((double));
 unit_t		unit_adjust __P((double *));
+void		ignoreadd __P((const char *));
+void		ignoreclean __P((void));
+int		ignorep __P((FTSENT *));
 
 int
 main(argc, argv)
@@ -112,11 +123,15 @@ main(argc, argv)
 	save = argv;
 	ftsoptions = 0;
 	depth = INT_MAX;
+	SLIST_INIT(&ignores);
 	
-	while ((ch = getopt(argc, argv, "HLPasd:chkrx")) != -1)
+	while ((ch = getopt(argc, argv, "HI:LPasd:chkrx")) != -1)
 		switch (ch) {
 			case 'H':
 				Hflag = 1;
+				break;
+			case 'I':
+				ignoreadd(optarg);
 				break;
 			case 'L':
 				if (Pflag)
@@ -224,8 +239,13 @@ main(argc, argv)
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 			case FTS_D:			/* Ignore. */
+				if (ignorep(p))
+					fts_set(fts, p, FTS_SKIP);
 				break;
 			case FTS_DP:
+				if (ignorep(p))
+					break;
+
 				p->fts_parent->fts_number +=
 				    p->fts_number += p->fts_statp->st_blocks;
 				
@@ -249,6 +269,9 @@ main(argc, argv)
 				rval = 1;
 				break;
 			default:
+				if (ignorep(p))
+					break;
+
 				if (p->fts_statp->st_nlink > 1 && linkchk(p))
 					break;
 				
@@ -281,6 +304,7 @@ main(argc, argv)
 		}
 	}
 
+	ignoreclean();
 	exit(rval);
 }
 
@@ -366,6 +390,46 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k] [-x] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k] [-x] [-I mask] [file ...]\n");
 	exit(EX_USAGE);
+}
+
+void
+ignoreadd(mask)
+	const char *mask;
+{
+	struct ignentry *ign;
+
+	ign = calloc(1, sizeof(*ign));
+	if (ign == NULL)
+		errx(1, "cannot allocate memory");
+	ign->mask = strdup(mask);
+	if (ign->mask == NULL)
+		errx(1, "cannot allocate memory");
+	SLIST_INSERT_HEAD(&ignores, ign, next);
+}
+
+void
+ignoreclean()
+{
+	struct ignentry *ign;
+	
+	while (!SLIST_EMPTY(&ignores)) {
+		ign = SLIST_FIRST(&ignores);
+		SLIST_REMOVE_HEAD(&ignores, next);
+		free(ign->mask);
+		free(ign);
+	}
+}
+
+int
+ignorep(ent)
+	FTSENT *ent;
+{
+	struct ignentry *ign;
+
+	SLIST_FOREACH(ign, &ignores, next)
+		if (fnmatch(ign->mask, ent->fts_name, 0) != FNM_NOMATCH)
+			return 1;
+	return 0;
 }
