@@ -110,7 +110,6 @@ static struct kern_devconf kdc_qcam_template = {
 #define	QC_OPEN			0x01		/* device open */
 #define	QC_ALIVE		0x02		/* probed and attached */
 #define	QC_BIDIR_HW		0x04		/* bidir parallel port */
-#define	QC_BIDIR_REQ		0x08		/* bidir xfer requested */
 
 #define	QC_MAXFRAMEBUFSIZE	(QC_MAX_XSIZE*QC_MAX_YSIZE)
 
@@ -360,13 +359,9 @@ qcam_xferparms (struct qcam_softc *qs)
 
 	/*
 	 * XXX the && qs->bpp==6 is a temporary hack because we don't
-	 *     have code for doing 4bpp bidirectional transfers yet
-	 *     ...soon, my son.
+	 *     have code for doing 4bpp bidirectional transfers yet.
 	 */
-
-	bidir = (((qs->flags & (QC_BIDIR_HW|QC_BIDIR_REQ)) ==
-			       (QC_BIDIR_HW|QC_BIDIR_REQ)) &&
-		 (qs->bpp == 6));
+	bidir = (qs->flags & QC_BIDIR_HW) && (qs->bpp == 6);
 
 	if (bidir)
 		qs->xferparms |= QC_XFER_BIDIR;
@@ -631,11 +626,6 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		info->qc_brightness	= qs->brightness;
 		info->qc_whitebalance	= qs->whitebalance;
 		info->qc_contrast	= qs->contrast;
-
-		if (qs->flags & QC_BIDIR_REQ)
-			info->qc_mode	= QC_MODE_BIDIR;
-		else
-			info->qc_mode	= QC_MODE_UNIDIR;
 		break;
 
 	case QC_SET:
@@ -655,9 +645,6 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		    info->qc_contrast     > UCHAR_MAX)
 			return EINVAL;
 
-		if (info->qc_mode & ~QC_MODE_BIDIR)
-			return EINVAL;
-
 		/* version check */
 		if (info->qc_version != QC_IOCTL_VERSION)
 			return EINVAL;
@@ -671,11 +658,6 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		qs->brightness	  = info->qc_brightness;
 		qs->whitebalance  = info->qc_whitebalance;
 		qs->contrast	  = info->qc_contrast;
-
-		if (info->qc_mode & QC_MODE_BIDIR)
-			qs->flags |= QC_BIDIR_REQ;
-		else
-			qs->flags &= ~QC_BIDIR_REQ;
 
 		/* request initialization before next scan pass */
 		qs->init_req = 1;
