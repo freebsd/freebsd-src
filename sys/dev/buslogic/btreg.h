@@ -633,6 +633,7 @@ struct bt_softc {
 	bus_dmamap_t		 sense_dmamap;
 	SLIST_HEAD(, sg_map_node) sg_maps;
 	bus_addr_t		 mailbox_physbase;
+	bus_addr_t		 mailbox_addrlimit;
 	u_int			 num_ccbs;	/* Number of CCBs malloc'd */
 	u_int			 max_ccbs;	/* Maximum allocatable CCBs */
 	u_int			 max_sg;

@@ -46,7 +46,10 @@
 
 #define EISA_DEVICE_ID_BUSLOGIC_74X_B	0x0ab34201
 #define EISA_DEVICE_ID_BUSLOGIC_74X_C	0x0ab34202
+#define EISA_DEVICE_ID_SDC3222B		0x0ab34281
 #define EISA_DEVICE_ID_SDC3222F		0x0ab34781
+#define EISA_DEVICE_ID_SDC3222WS	0x0ab34981
+#define EISA_DEVICE_ID_SDC3222WB	0x0ab34982
 #define	EISA_DEVICE_ID_AMI_4801		0x05a94801
 
 #define BT_IOSIZE		0x04		/* Move to central header */
@@ -163,8 +166,17 @@ bt_match(eisa_id_t type)
 		case EISA_DEVICE_ID_BUSLOGIC_74X_C:
 			return ("Buslogic 74xC SCSI host adapter");
 			break;
+		case EISA_DEVICE_ID_SDC3222B:
+			return ("Storage Dimensions SDC3222B SCSI host adapter");
+			break;
 		case EISA_DEVICE_ID_SDC3222F:
 			return ("Storage Dimensions SDC3222F SCSI host adapter");
+			break;
+		case EISA_DEVICE_ID_SDC3222WS:
+			return ("Storage Dimensions SDC3222WS SCSI host adapter");
+			break;
+		case EISA_DEVICE_ID_SDC3222WB:
+			return ("Storage Dimensions SDC3222WB SCSI host adapter");
 			break;
 		case EISA_DEVICE_ID_AMI_4801:
 			return ("AMI Series 48 SCSI host adapter");
