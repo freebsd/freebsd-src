@@ -429,7 +429,14 @@ devfs_destroy(dev_t dev)
 	}
 }
 
-devfs_create_t *devfs_create_hook = devfs_create;
-devfs_destroy_t *devfs_destroy_hook = devfs_destroy;
-int devfs_present = 1;
+static void
+devfs_init(void *junk)
+{
+	devfs_create_hook = devfs_create;
+	devfs_destroy_hook = devfs_destroy;
+	devfs_present = 1;
+}
+
+SYSINIT(devfs, SI_SUB_DRIVERS, SI_ORDER_FIRST, devfs_init, NULL);
+
 #endif
