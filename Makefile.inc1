@@ -200,7 +200,7 @@ WMAKEENV=	${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 -DNO_WERROR
+WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
 # install stage
 IMAKEENV=	${CROSSENV} \
