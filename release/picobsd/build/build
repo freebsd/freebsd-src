@@ -41,24 +41,24 @@ export BUILDDIR
 set_defaults() {
     TYPE=${TYPE:-dial} # PicoBSD type (isp, router, net, custom, ...
 
-    while read name suff sz init mfs_in floppy_in ; do
+    # build image list
+    cat /dev/null > .image.list
+    for i in ../* ; do
+	if [ -d $i -a -f $i/PICOBSD ] ; then
+	    a=`awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}' < $i/PICOBSD`
+	    if [ "$a" != "" ]; then
+		echo "`basename $i`  $a" >>.image.list
+	    fi
+	fi
+    done
+    while read name sz init mfs_in floppy_in ; do
 	if [ "$name" != "#" -a $name != "" ] ; then
-	    eval ${name}_suffix=$suff
 	    eval ${name}_DFLT_SIZE=$sz
 	    eval ${name}_INIT=$init
 	    eval ${name}_MFS_INODES=$mfs_in
 	    eval ${name}_FLOPPY_INODES=$floppy_in
 	fi
-    done <<__eof__
-# build	MFS		- Byte/inode -
-# name		suffix	DFLT_SZ	init	MFS	FLOPPY
-dial		-D	2400	init	4096	32768
-router		-R	2400	oinit	3072	32768
-net		-N	2400	init	4096	32768
-isp		-I	2400	init	4096	32768
-install		-S	2400	init	4096	4096
-custom		-C	2400	init	8192	32768
-__eof__
+    done < .image.list
 }
 
 set_msgs() {
@@ -68,13 +68,18 @@ set_msgs() {
     fi
 
     MSG="PicoBSD build -- Current parameters:\n\n\t1.  ${MSG1}\n\
-\t2.  MFS size: ${SIZE} kB\n\t3.  Language: ${LANGUAGE}\n\
+\t2.  MFS size: ${MFS_SIZE} kB\n\t3.  Language: ${LANGUAGE}\n\
 \t4.  Site-info: ${SITE}\n"
 }
 
 
 # Main build procedure. It calls another scripts (stage1)
 main() {
+
+    if [ "X${TYPE}" = "X" ] ; then
+       echo "^G^G^G-> wrong floppy type"
+       exit 10
+    fi
 
     export suffix
 
@@ -88,14 +93,8 @@ main() {
     echo ""
     sleep 2
 
-    export SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
+    export MFS_SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
     export SITE MFS_INODES FLOPPY_INODES FLOPPY_SIZE
-
-    # Build the kernel, if necessary
-    echo ""
-    echo "-> Checking if we have to build the PICOBSD kernel..."
-    (cd ../${TYPE}; make -f ${BUILDDIR}/Makefile.conf )
-    echo ""
 
     ./stage1
     if [ "X$?" != "X0" ] ; then
@@ -152,12 +151,16 @@ set_custom() {
 # associated to each type. We can override them manually afterwards.
 
 set_type() {
-
-    eval SIZE=$"${TYPE}_DFLT_SIZE"
+    eval MFS_SIZE=$"${TYPE}_DFLT_SIZE"
     eval INIT=$"${TYPE}_INIT"
     eval MFS_INODES=$"${TYPE}_MFS_INODES"
     eval FLOPPY_INODES=$"${TYPE}_FLOPPY_INODES"
-    eval suffix=$"${TYPE}_suffix"
+    suffix="-${TYPE}"
+    if [ "${MFS_SIZE}" = "" ] ; then
+	echo "TYPE $TYPE not found!"
+	sleep 2
+	TYPE=""
+    fi
 
     case ${TYPE} in
     custom)
@@ -185,7 +188,7 @@ build_package() {
 	    LANGUAGE=${y}
 	    set_type
 	    echo "---------------------------------------------">>build.status
-	    echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${SIZE}" >>build.status
+	    echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${MFS_SIZE}" >>build.status
 	    main
 	    if [ "X$?" != "X0" ] ; then
 		echo "	** FAILED! **">>build.status
@@ -193,7 +196,7 @@ build_package() {
 		echo "	(ok)">>build.status
 	    fi
 	    mv picobsd.bin pb_${y}${suffix}.bin
-	    echo "Calling ./clean for ${TYPE}, ${LANGUAGE}, ${SIZE}">>build.status
+	    echo "Calling ./clean for ${TYPE}, ${LANGUAGE}, ${MFS_SIZE}">>build.status
 	    ./clean ${TYPE}
 	done
     done
@@ -210,7 +213,7 @@ main_dialog() {
 	T "${MSG1}" \
 	K "edit Kernel config file for ${TYPE}" \
 	E "Edit crunch.conf file for ${TYPE}" \
-	S "MFS Size: ${SIZE}kB" \
+	S "MFS Size: ${MFS_SIZE}kB" \
 	L "Language: ${LANGUAGE}" \
 	I "Init type: ${INIT}" \
 	F "Floppy size: ${FLOPPY_SIZE}kB" \
@@ -224,12 +227,8 @@ main_dialog() {
     case ${ans} in
     T)
 	dialog --menu "Setup the type of configuration" 12 70 5 \
-	    dial "dialin (ppp etc.)" \
-	    router "router/bridge/mrouter" \
-	    net "net admin tool" \
-            install "network system installer" \
-	    isp "isp (ppp and terminal server)" \
-	    custom "custom config (need pathname)" 2> ${RISU} || rm ${RISU}
+	    `awk '{ print $1, $1 }' < .image.list` \
+		2> ${RISU} || rm ${RISU}
 	if [ -f ${RISU} ] ; then
 	    TYPE=`cat ${RISU}`
 	    set_type
@@ -257,9 +256,9 @@ Keep in mind that this memory is \
 totally lost to other programs. Usually you want to keep \
 this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 	if [ -f ${RISU} ] ; then
-	    SIZE=`cat ${RISU}`
-	    if [ "${SIZE}" = "" ] ; then
-		eval SIZE=$"${TYPE}_DFLT_SIZE"
+	    MFS_SIZE=`cat ${RISU}`
+	    if [ "${MFS_SIZE}" = "" ] ; then
+		eval MFS_SIZE=$"${TYPE}_DFLT_SIZE"
 	    fi
 	fi
 	;;
@@ -337,6 +336,7 @@ this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 do_install() {
     dialog --title "Build ${TYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
+`cat .build.reply` \
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n
 WARNING: the contents of the floppy will be permanently erased!\n\
@@ -345,7 +345,7 @@ Your options:\n\
 	* ^C or [Cancel] to abort,\n\
 	* Enter to install \"picobsd.bin\",\n\
 	* name of other file to install.\n\
-" 20 70 2> ${RISU}
+" 20 80 2> ${RISU}
     if [ "$?" = "0" ]; then
 	FILENAME=`cat ${RISU}`
 	if [ "${FILENAME}" = "" ] ; then
@@ -368,6 +368,7 @@ if [ "$1" = "-n" ] ; then
     shift
 fi
 TYPE=$1
+SITE=$2
 set_defaults
 set_type
 
