@@ -235,11 +235,14 @@ LOCALDIR=		/usr/local/bin
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-EXTRAS= cdrom.1 ftp.1
+EXTRAS= ftp.1
+.if !defined(NOCDROM)
+EXTRAS+= cdrom.1
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .if ${TARGET} != "pc98"
 BOOTABLE="-b"
+.endif
 .endif
 .endif
 
@@ -371,6 +374,7 @@ rerelease release:
 	KERNELS \
 	KERNEL_FLAGS \
 	MAKE_ISOS \
+	NOCDROM \
 	NODOC \
 	NOKERBEROS \
 	NOPORTS \
