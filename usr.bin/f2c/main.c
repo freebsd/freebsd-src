@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1994 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 extern char F2C_version[];
@@ -30,6 +30,7 @@ int complex_seen, dcomplex_seen;
 
 LOCAL int Max_ftn_files;
 
+int badargs;
 char **ftn_files;
 int current_ftn_file = 0;
 
@@ -47,6 +48,9 @@ flag checksubs = NO;
 flag r8flag = NO;
 flag use_bs = YES;
 flag keepsubs = NO;
+flag byterev = NO;
+int intr_omit;
+static int no_cd, no_i90;
 #ifdef TYQUAD
 flag use_tyquad = YES;
 #endif
@@ -72,6 +76,7 @@ static int uselongints = NO;	/* YES => tyint = TYLONG */
 int addftnsrc = NO;		/* Include ftn source in output */
 int usedefsforcommon = NO;	/* Use #defines for common reference */
 int forcedouble = YES;		/* force real functions to double */
+int dneg = NO;			/* f77 treatment of unary minus */
 int Ansi = NO;
 int def_equivs = YES;
 int tyioint = TYLONG;
@@ -155,11 +160,20 @@ static arg_info table[] = {
     f2c_entry ("f", P_NO_ARGS, P_INT, &warn72, 2),
     f2c_entry ("s", P_NO_ARGS, P_INT, &keepsubs, 1),
     f2c_entry ("d", P_ONE_ARG, P_STRING, &outbuf, 0),
+    f2c_entry ("cd", P_NO_ARGS, P_INT, &no_cd, 1),
+    f2c_entry ("i90", P_NO_ARGS, P_INT, &no_i90, 2),
 #ifdef TYQUAD
     f2c_entry ("!i8", P_NO_ARGS, P_INT, &use_tyquad, NO),
 #endif
 
 	/* options omitted from man pages */
+
+	/* -b ==> for unformatted I/O, call do_unio (for noncharacter  */
+	/* data of length > 1 byte) and do_ucio (for the rest) rather  */
+	/* than do_uio.  This permits modifying libI77 to byte-reverse */
+	/* numeric data. */
+
+    f2c_entry ("b", P_NO_ARGS, P_INT, &byterev, YES),
 
 	/* -ev ==> implement equivalence with initialized pointers */
     f2c_entry ("ev", P_NO_ARGS, P_INT, &def_equivs, NO),
@@ -185,7 +199,13 @@ static arg_info table[] = {
 
 	/* -Dnnn = debug level nnn */
 
-    f2c_entry ("D", P_ONE_ARG, P_INT, &debugflag, YES)
+    f2c_entry ("D", P_ONE_ARG, P_INT, &debugflag, YES),
+
+	/* -dneg ==> under (default) -!R, imitate f77's bizarre	*/
+	/* treatment of unary minus of REAL expressions by	*/
+	/* promoting them to DOUBLE PRECISION . */
+
+    f2c_entry ("dneg", P_NO_ARGS, P_INT, &dneg, YES)
 }; /* table */
 
 extern char *c_functions;	/* "c_functions"	*/
@@ -269,6 +289,8 @@ set_externs(Void)
 	protorettypes[TYREAL] = "E_f";
 	casttypes[TYREAL] = "E_fp";
 	}
+    else
+	dneg = 0;
 
     if (maxregvar > MAXREGVAR) {
 	warni("-O%d: too many register variables", maxregvar);
@@ -462,6 +484,9 @@ main(int argc, char **argv)
 
 	parse_args (argc, argv, table, sizeof(table)/sizeof(arg_info),
 		ftn_files, Max_ftn_files);
+	if (badargs)
+		return 1;
+	intr_omit = no_cd | no_i90;
 	if (keepsubs && checksubs) {
 		warn("-C suppresses -s\n");
 		keepsubs = 0;
@@ -499,22 +524,21 @@ main(int argc, char **argv)
 	pass1_file=opf(p1_file, binwrite);
 	initkey();
 	if (file_name && *file_name) {
-		cdfilename = coutput;
 		if (debugflag != 1) {
-                      if (!o_coutput)
-                        coutput = c_name(file_name,'c');
-                      else
-                        coutput = o_coutput;
-		      cdfilename = copys(outbtail);
-		      if (Castargs1 >= 2)
+		        if (!o_coutput)
+			  coutput = c_name(file_name,'c');
+			else
+			  coutput = o_coutput;
+			if (Castargs1 >= 2)
 				proto_fname = c_name(file_name,'P');
-		}
+			}
+		cdfilename = coutput;
 		if (skipC)
 			coutput = 0;
-                if (coutput[0] == '-') {
-                        c_output = stdout;
-		        coutput = 0;
-		}
+		if (coutput[0] == '-'){
+		        c_output = stdout;
+			coutput = 0;
+		      }
 		else if (!(c_output = fopen(coutput, textwrite))) {
 			file_name = coutput;
 			coutput = 0;	/* don't delete read-only .c file */
@@ -619,6 +643,7 @@ sed \"s/^\\/\\*>>>'\\(.*\\)'<<<\\*\\/\\$/cat >'\\1' <<'\\/*<<<\\1>>>*\\/'/\" | /
 		{
 		warn("missing final end statement");
 		endproc();
+	        nerr = 1;
 		}
 	done(nerr ? 1 : 0);
 	/* NOT REACHED */ return 0;

@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -111,6 +111,13 @@ table_entry opcode_table[] = {
 	/* OPDABS 59 */		{ UNARY_OP, 0, "dabs(%l)" },
 	/* OPMIN2 60 */		{ BINARY_OP,   0, "min(%l,%r)" },
 	/* OPMAX2 61 */		{ BINARY_OP,   0, "max(%l,%r)" },
+	/* OPBITTEST 62 */	{ BINARY_OP,   0, "bit_test(%l,%r)" },
+	/* OPBITCLR 63 */	{ BINARY_OP,   0, "bit_clear(%l,%r)" },
+	/* OPBITSET 64 */	{ BINARY_OP,   0, "bit_set(%l,%r)" },
+#ifdef TYQUAD
+	/* OPQBITCLR 65 */	{ BINARY_OP,   0, "qbit_clear(%l,%r)" },
+	/* OPQBITSET 66 */	{ BINARY_OP,   0, "qbit_set(%l,%r)" },
+#endif
 
 /* kludge to imitate (under forcedouble) f77's bizarre treatement of OPNEG... */
 
@@ -119,13 +126,14 @@ table_entry opcode_table[] = {
 
 #define OPNEG_KLUDGE (sizeof(opcode_table)/sizeof(table_entry) - 1)
 
+extern int dneg;
 static char opeqable[sizeof(opcode_table)/sizeof(table_entry)];
 
 
 static void output_arg_list Argdcl((FILEP, struct Listblock*));
 static void output_binary Argdcl((FILEP, Exprp));
 static void output_list Argdcl((FILEP, struct Listblock*));
-static void output_literal Argdcl((FILEP, int, Constp));
+static void output_literal Argdcl((FILEP, long, Constp));
 static void output_prim Argdcl((FILEP, struct Primblock*));
 static void output_unary Argdcl((FILEP, Exprp));
 
@@ -591,7 +599,7 @@ out_addr(FILE *fp, struct Addrblock *addrp)
 				out_const(fp, (Constp)addrp);
 				break;
 			case STGMEMNO:
-				output_literal (fp, (int)addrp->memno,
+				output_literal (fp, addrp->memno,
 					(Constp)addrp);
 				break;
 			default:
@@ -692,10 +700,10 @@ out_addr(FILE *fp, struct Addrblock *addrp)
 #ifdef KR_headers
 output_literal(fp, memno, cp)
 	FILE *fp;
-	int memno;
+	long memno;
 	Constp cp;
 #else
-output_literal(FILE *fp, int memno, Constp cp)
+output_literal(FILE *fp, long memno, Constp cp)
 #endif
 {
     struct Literal *litp, *lastlit;
@@ -783,7 +791,7 @@ output_unary(FILE *fp, struct Exprblock *e)
 
     switch (e -> opcode) {
         case OPNEG:
-		if (e->vtype == TYREAL && forcedouble) {
+		if (e->vtype == TYREAL && dneg) {
 			e->opcode = OPNEG_KLUDGE;
 			output_binary(fp,e);
 			e->opcode = OPNEG;
@@ -840,14 +848,15 @@ opconv_fudge(fp, e)
 opconv_fudge(FILE *fp, struct Exprblock *e)
 #endif
 {
-	/* special handling for ichar and character*1 */
+	/* special handling for conversions, ichar and character*1 */
 	register expptr lp;
 	register union Expression *Offset;
 	register char *cp;
 	int lt;
-	char buf[8];
+	char buf[8], *s;
 	unsigned int k;
 	Namep np;
+	Addrp ap;
 
 	if (!(lp = e->leftp))	/* possible with erroneous Fortran */
 		return 1;
@@ -911,9 +920,41 @@ opconv_fudge(FILE *fp, struct Exprblock *e)
 				badtag("opconv_fudge", lp->tag);
 			}
 		}
-	if (lt != e->vtype)
-		nice_printf(fp, "(%s) ",
-			c_type_decl(e->vtype, 0));
+	if (lt != e->vtype) {
+		s = c_type_decl(e->vtype, 0);
+		if (ISCOMPLEX(lt)) {
+ tryagain:
+			np = (Namep)e->leftp;
+			switch(np->tag) {
+			  case TNAME:
+				nice_printf(fp, "(%s) %s%sr", s,
+					np->cvarname,
+					np->vstg == STGARG ? "->" : ".");
+				return 1;
+			  case TADDR:
+				ap = (Addrp)np;
+				switch(ap->uname_tag) {
+				  case UNAM_IDENT:
+					nice_printf(fp, "(%s) %s.r", s,
+						ap->user.ident);
+					return 1;
+				  case UNAM_NAME:
+					nice_printf(fp, "(%s) ", s);
+					out_addr(fp, ap);
+					nice_printf(fp, ".r");
+					return 1;
+				  }
+			  case TEXPR:
+				e = (Exprp)np;
+				if (e->opcode == OPWHATSIN)
+					goto tryagain;
+			  default:
+				fatali("Unexpected tag %d in opconv_fudge",
+					np->tag);
+			  }
+			}
+		nice_printf(fp, "(%s) ", s);
+		}
 	return 0;
 	}
 
@@ -1103,22 +1144,9 @@ out_call(FILE *outfile, int op, int ftype, expptr len, expptr name, expptr args)
 	arglist = arglist -> nextp;
     } /* if ISCOMPLEX */
 
-/* Now we can actually start to write out the function invocation */
-
-    if (ftype == TYREAL && forcereal)
-	nice_printf(outfile, "(real)");
-    if (name -> tag == TEXPR && name -> exprblock.opcode == OPWHATSIN) {
-	nice_printf (outfile, "(");
-	np = (Namep)name->exprblock.leftp; /*expr_out will free name */
-	expr_out (outfile, name);
-	nice_printf (outfile, ")");
-	}
-    else {
-	np = (Namep)name;
-	expr_out(outfile, name);
-	}
-
     /* prepare to cast procedure parameters -- set A if we know how */
+    np = name->tag == TEXPR && name->exprblock.opcode == OPWHATSIN
+	? (Namep)name->exprblock.leftp : (Namep)name;
 
     A = Ac = 0;
     if (np->tag == TNAME && (at = np->arginfo)) {
@@ -1127,6 +1155,18 @@ out_call(FILE *outfile, int op, int ftype, expptr len, expptr name, expptr args)
 	if (Ansi && (at->defined || at->nargs > 0))
 		Ac = at->atypes;
     	}
+
+/* Now we can actually start to write out the function invocation */
+
+    if (ftype == TYREAL && forcereal)
+	nice_printf(outfile, "(real)");
+    if (name -> tag == TEXPR && name -> exprblock.opcode == OPWHATSIN) {
+	nice_printf (outfile, "(");
+	expr_out (outfile, name);
+	nice_printf (outfile, ")");
+	}
+    else
+	expr_out(outfile, name);
 
     nice_printf(outfile, "(");
 
@@ -1252,17 +1292,16 @@ out_call(FILE *outfile, int op, int ftype, expptr len, expptr name, expptr args)
 	      } else {
 		expptr memoffset;
 
-		if (q->tag == TADDR &&
+		if (q->tag == TADDR && (
 			!ONEOF (q -> addrblock.vstg, M(STGEXT)|M(STGLENG))
-			&& (
-			ONEOF(q->addrblock.vstg,
+			&& (ONEOF(q->addrblock.vstg,
 				M(STGCOMMON)|M(STGEQUIV)|M(STGMEMNO))
-			|| ((memoffset = q->addrblock.memoffset)
+			    || ((memoffset = q->addrblock.memoffset)
 				&& (!ISICON(memoffset)
 				|| memoffset->constblock.Const.ci)))
 			|| ONEOF(q->addrblock.vstg,
 					M(STGINIT)|M(STGAUTO)|M(STGBSS))
-				&& !q->addrblock.isarray)
+				&& !q->addrblock.isarray))
 		    nice_printf (outfile, "&");
 		else if (q -> tag == TNAME
 			&& !oneof_stg(&q->nameblock, q -> nameblock.vstg,

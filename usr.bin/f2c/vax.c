@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1992, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992, 1993, 1994 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -141,13 +141,17 @@ make_int_expr(expptr e)
 {
     chainp listp;
     Addrp ap;
+    expptr e1;
 
     if (e != ENULL)
 	switch (e -> tag) {
 	    case TADDR:
-	        if (e -> addrblock.vstg == STGARG
-		 && !e->addrblock.isarray)
-		    e = mkexpr (OPWHATSIN, e, ENULL);
+		if (e->addrblock.isarray) {
+			if (e1 = e->addrblock.memoffset)
+				e->addrblock.memoffset = make_int_expr(e1);
+			}
+		else if (e->addrblock.vstg == STGARG)
+			e = mkexpr(OPWHATSIN, e, ENULL);
 	        break;
 	    case TEXPR:
 	        e -> exprblock.leftp = make_int_expr (e -> exprblock.leftp);

@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -317,7 +317,8 @@ mkconv(register int t, register expptr p)
 
 /* If we're casting a constant which is not in the literal table ... */
 
-	else if( ISCONST(p) && pt!=TYADDR && pt != TYCHAR)
+	else if( ISCONST(p) && pt!=TYADDR && pt != TYCHAR
+		|| p->tag == TADDR && p->addrblock.uname_tag == UNAM_CONST)
 	{
 		if (ISINT(t) && ISINT(pt) || ISREAL(t) && ISREAL(pt)) {
 			/* avoid trouble with -i2 */
@@ -326,6 +327,8 @@ mkconv(register int t, register expptr p)
 			}
 		q = (expptr) mkconst(t);
 		consconv(t, &q->constblock, &p->constblock );
+		if (p->tag == TADDR)
+			q->constblock.vstg = p->addrblock.user.kludge.vstg1;
 		frexpr(p);
 	}
 	else {
@@ -921,26 +924,35 @@ fixargs(int doput, struct Listblock *p0)
 
 				p->datap = doput ? (char *)putconst((Constp)q)
 						 : (char *)q;
+				continue;
 			}
 
 /* Take a function name and turn it into an Addr.  This only happens when
    nothing else has figured out the function beforehand */
 
-			else if(qtag==TPRIM && q->primblock.argsp==0 &&
-			    q->primblock.namep->vclass==CLPROC &&
-			    q->primblock.namep->vprocclass != PTHISPROC)
+			if (qtag == TPRIM && q->primblock.argsp == 0) {
+			    if (q->primblock.namep->vclass==CLPROC
+			     && q->primblock.namep->vprocclass != PTHISPROC) {
 				p->datap = (char *)mkaddr(q->primblock.namep);
+				continue;
+				}
 
-			else if(qtag==TPRIM && q->primblock.argsp==0 &&
-			    q->primblock.namep->vdim!=NULL)
+			    if (q->primblock.namep->vdim != NULL) {
 				p->datap = (char *)mkscalar(q->primblock.namep);
+				if ((q->primblock.fcharp||q->primblock.lcharp)
+				 && (q->primblock.namep->vtype != TYCHAR
+				  || q->primblock.namep->vdim))
+					sserr(q->primblock.namep);
+				continue;
+				}
 
-			else if(qtag==TPRIM && q->primblock.argsp==0 &&
-			    q->primblock.namep->vdovar &&
-			    (t = (tagptr) memversion(q->primblock.namep)) )
+			    if (q->primblock.namep->vdovar
+			     && (t = (tagptr) memversion(q->primblock.namep))) {
 				p->datap = (char *)fixtype(t);
-			else
-				p->datap = (char *)fixtype(q);
+				continue;
+				}
+			    }
+			p->datap = (char *)fixtype(q);
 		}
 	return(nargs);
 }
@@ -1002,7 +1014,6 @@ adjust_arginfo(register Namep np)
 			&& (at = ep->entryname->arginfo))
 				--at->nargs;
 	}
-
 
 
  expptr
@@ -1412,10 +1423,12 @@ mklhs(register struct Primblock *p, int subkeep)
 	if(p->fcharp || p->lcharp)
 	{
 		if(np->vtype != TYCHAR)
-			errstr("substring of noncharacter %s", np->fvarname);
+			sserr(np);
 		else	{
 			if(p->lcharp == NULL)
-				p->lcharp = (expptr) cpexpr(s->vleng);
+				p->lcharp = (expptr)(
+					/* s->vleng == 0 only with errors */
+					s->vleng ? cpexpr(s->vleng) : ICON(1));
 			if(p->fcharp) {
 				doing_vleng = 1;
 				s->vleng = fixtype(mkexpr(OPMINUS,
@@ -2246,6 +2259,13 @@ addop:
 	case OPBITNOT:
 	case OPLSHIFT:
 	case OPRSHIFT:
+	case OPBITTEST:
+	case OPBITCLR:
+	case OPBITSET:
+#ifdef TYQUAD
+	case OPQBITCLR:
+	case OPQBITSET:
+#endif
 
 	case OPLT:
 	case OPGT:
@@ -2408,7 +2428,8 @@ cktype(register int op, register int lt, register int rt)
 
 		else if( ! ISNUMERIC(lt) || ! ISNUMERIC(rt) )
 			ERR("comparison of nonarithmetic data")
-			    return(TYLOGICAL);
+	case OPBITTEST:
+		return(TYLOGICAL);
 
 	case OPCONCAT:
 		if(lt==TYCHAR && rt==TYCHAR)
@@ -2471,6 +2492,17 @@ cktype(register int op, register int lt, register int rt)
 	case OPABS:
 	case OPDABS:
 		return(lt);
+
+	case OPBITCLR:
+	case OPBITSET:
+		if (lt < TYLONG)
+			lt = TYLONG;
+		return(lt);
+#ifdef TYQUAD
+	case OPQBITCLR:
+	case OPQBITSET:
+		return TYQUAD;
+#endif
 
 	case OPCOMMA:
 	case OPCOMMA_ARG:
@@ -2638,8 +2670,23 @@ fold(register expptr e)
 		break;
 
 	case OPRSHIFT:
-		p->Const.ci = lp->constblock.Const.ci >>
+		p->Const.ci = (unsigned long)lp->constblock.Const.ci >>
 		    rp->constblock.Const.ci;
+		break;
+
+	case OPBITTEST:
+		p->Const.ci = (lp->constblock.Const.ci &
+				1L << rp->constblock.Const.ci) != 0;
+		break;
+
+	case OPBITCLR:
+		p->Const.ci = lp->constblock.Const.ci &
+				~(1L << rp->constblock.Const.ci);
+		break;
+
+	case OPBITSET:
+		p->Const.ci = lp->constblock.Const.ci |
+				1L << rp->constblock.Const.ci;
 		break;
 
 	case OPCONCAT:
@@ -2895,8 +2942,17 @@ conspower(Constp p, Constp ap, ftnint n)
 	x0.vstg = 0;
 	if(n < 0)
 	{
+		n = -n;
 		if( ISINT(type) )
 		{
+			switch(ap->Const.ci) {
+				case 0:
+					err("0 ** negative number");
+					return;
+				case 1:
+				case -1:
+					goto mult;
+				}
 			err("integer ** negative number");
 			return;
 		}
@@ -2905,11 +2961,10 @@ conspower(Constp p, Constp ap, ftnint n)
 			err("0.0 ** negative number");
 			return;
 			}
-		n = -n;
 		consbinop(OPSLASH, type, &x, p, &x0);
 	}
 	else
-		consbinop(OPSTAR, type, &x, p, &x0);
+ mult:		consbinop(OPSTAR, type, &x, p, &x0);
 
 	for( ; ; )
 	{
@@ -3132,6 +3187,8 @@ consbinop(int opcode, int type, Constp cpp, Constp app, Constp bpp)
 				k = 0;
 			else	k = 1;
 			break;
+		case TYLOGICAL:
+			k = ap->ci - bp->ci;
 		}
 
 		switch(opcode)
@@ -3364,3 +3421,16 @@ zdiv(register dcomplex *c, register dcomplex *a, register dcomplex *b)
 		c->dimag = (a->dimag - a->dreal*ratio) / den;
 	}
 }
+
+
+ void
+#ifdef KR_headers
+sserr(np) Namep np;
+#else
+sserr(Namep np)
+#endif
+{
+	errstr(np->vtype == TYCHAR
+		? "substring of character array %.70s"
+		: "substring of noncharacter %.73s", np->fvarname);
+	}

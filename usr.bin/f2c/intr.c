@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1992, 1994-5 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992, 1994-6 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -37,6 +37,7 @@ struct Intrbits
 	char intrno /* :7 */;
 	char dblcmplx;
 	char dblintrno;	/* for -r8 */
+	char extflag;	/* for -cd, -i90 */
 	};
 
 /* List of all intrinsic functions.  */
@@ -203,6 +204,24 @@ LOCAL struct Intrblock
 "fpmake",	{ INTRGEN, 2, 91 },
 "fpscal",	{ INTRGEN, 2, 93 },
 
+"cdabs", 	{ INTRSPEC, TYDREAL,	13, 1, 0, 1 },
+"cdsqrt", 	{ INTRSPEC, TYDCOMPLEX, 38, 1, 0, 1 },
+"cdexp", 	{ INTRSPEC, TYDCOMPLEX, 42, 1, 0, 1 },
+"cdlog", 	{ INTRSPEC, TYDCOMPLEX, 46, 1, 0, 1 },
+"cdsin", 	{ INTRSPEC, TYDCOMPLEX, 52, 1, 0, 1 },
+"cdcos", 	{ INTRSPEC, TYDCOMPLEX, 56, 1, 0, 1 },
+
+"iand",		{ INTRBOOL, TYUNKNOWN, OPBITAND, 0, 0, 2 },
+"ior",		{ INTRBOOL, TYUNKNOWN, OPBITOR,  0, 0, 2 },
+"ieor",		{ INTRBOOL, TYUNKNOWN, OPBITXOR, 0, 0, 2 },
+
+"btest",	{ INTRBGEN, TYLOGICAL, OPBITTEST,0, 0, 2 },
+"ibclr",	{ INTRBGEN, TYUNKNOWN, OPBITCLR, 0, 0, 2 },
+"ibset",	{ INTRBGEN, TYUNKNOWN, OPBITSET, 0, 0, 2 },
+"ibits",	{ INTRBGEN, TYUNKNOWN, OPBITBITS,0, 0, 2 },
+"ishft",	{ INTRBGEN, TYUNKNOWN, OPBITSH,  0, 0, 2 },
+"ishftc",	{ INTRBGEN, TYUNKNOWN, OPBITSHC, 0, 0, 2 },
+
 "" };
 
 
@@ -346,6 +365,7 @@ LOCAL struct Specblock
 
 	{ TYREAL,TYREAL,2,"r_scal" },
 	{ TYDREAL,TYDREAL,2,"d_scal" },
+
 	{ 0 }
 } ;
 
@@ -493,6 +513,12 @@ intrcall(Namep np, struct Listblock *argsp, int nargs)
 	int mtype;
 	int op;
 	int f1field, f2field, f3field;
+	char *s;
+	static char	bit_bits[] =	"?bit_bits",
+			bit_shift[] =	"?bit_shift",
+			bit_cshift[] = 	"?bit_cshift";
+	static char *bitop[3] = { bit_bits, bit_shift, bit_cshift };
+	static int t_pref[2] = { 'l', 'q' };
 
 	packed.ijunk = np->vardesc.varno;
 	f1field = packed.bits.f1;
@@ -512,6 +538,67 @@ intrcall(Namep np, struct Listblock *argsp, int nargs)
 
 	switch(f1field)
 	{
+	case INTRBGEN:
+		op = f3field;
+		if( ! ONEOF(mtype, MSKINT) )
+			goto badtype;
+		if (op < OPBITBITS) {
+			if(nargs != 2)
+				goto badnargs;
+			if (op != OPBITTEST) {
+#ifdef TYQUAD
+				if (mtype == TYQUAD)
+					op += 2;
+#endif
+				goto intrbool2;
+				}
+			q = mkexpr(op, (expptr)argsp->listp->datap,
+			    		(expptr)argsp->listp->nextp->datap);
+			q->exprblock.vtype = TYLOGICAL;
+			goto intrbool2a;
+			}
+		if (nargs != 2 && (nargs != 3 || op == OPBITSH))
+			goto badnargs;
+		cp = argsp->listp;
+		ep = (expptr)cp->datap;
+		if (ep->headblock.vtype < TYLONG)
+			cp->datap = (char *)mkconv(TYLONG, ep);
+		while(cp->nextp) {
+			cp = cp->nextp;
+			ep = (expptr)cp->datap;
+			if (ep->headblock.vtype != TYLONG)
+				cp->datap = (char *)mkconv(TYLONG, ep);
+			}
+		if (op == OPBITSH) {
+			ep = (expptr)argsp->listp->nextp->datap;
+			if (ISCONST(ep)) {
+				if ((i = ep->constblock.Const.ci) < 0) {
+					q = (expptr)argsp->listp->datap;
+					if (ISCONST(q)) {
+						ep->constblock.Const.ci = -i;
+						op = OPRSHIFT;
+						goto intrbool2;
+						}
+					}
+				else {
+					op = OPLSHIFT;
+					goto intrbool2;
+					}
+				}
+			}
+		else if (nargs == 2) {
+			if (op == OPBITBITS)
+				goto badnargs;
+			cp->nextp = mkchain((char*)ICON(-1), 0);
+			}
+		ep = (expptr)argsp->listp->datap;
+		i = ep->headblock.vtype;
+		s = bitop[op - OPBITBITS];
+		*s = t_pref[i - TYLONG];
+		ap = builtin(i, s, 1);
+		return fixexpr((Exprp)
+				mkexpr(OPCCALL, (expptr)ap, (expptr)argsp) );
+
 	case INTRBOOL:
 		op = f3field;
 		if( ! ONEOF(mtype, MSKINT|MSKLOGICAL) )
@@ -526,9 +613,11 @@ intrcall(Namep np, struct Listblock *argsp, int nargs)
 		{
 			if(nargs != 2)
 				goto badnargs;
+ intrbool2:
 			q = mkexpr(op, (expptr)argsp->listp->datap,
 			    		(expptr)argsp->listp->nextp->datap);
 		}
+ intrbool2a:
 		frchain( &(argsp->listp) );
 		free( (charptr) argsp);
 		return(q);
@@ -735,11 +824,19 @@ intrfunct(char *s)
 #endif
 {
 	register struct Intrblock *p;
+	int i;
+	extern int intr_omit;
 
 	for(p = intrtab; p->intrval.intrgroup!=INTREND ; ++p)
 	{
 		if( !strcmp(s, p->intrfname) )
 		{
+			if (i = p->intrval.extflag) {
+				if (i & intr_omit)
+					return 0;
+				if (noextflag)
+					errext(s);
+				}
 			packed.bits.f1 = p->intrval.intrgroup;
 			packed.bits.f2 = p->intrval.intrstuff;
 			packed.bits.f3 = p->intrval.intrno;
@@ -793,6 +890,7 @@ intraddr(Namep np)
 	case INTRMAX:
 	case INTRBOOL:
 	case INTRCNST:
+	case INTRBGEN:
 bad:
 		errstr("cannot pass %s as actual", np->fvarname);
 		return((Addrp)errnode());

@@ -48,6 +48,7 @@ extern flag intonly;
 static chainp datastack;
 extern long laststfcn, thisstno;
 extern int can_include;	/* for netlib */
+extern struct Primblock *primchk Argdcl((expptr));
 
 #define ESNULL (Extsym *)0
 #define NPNULL (Namep)0

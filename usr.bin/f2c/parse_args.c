@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1994 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1994-5 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 /* parse_args
@@ -94,6 +94,7 @@ static int arg_parse Argdcl((char*, arg_info*));
 static char *lower_string Argdcl((char*, char*));
 static int match Argdcl((char*, char*, arg_info*, boolean));
 static int put_one_arg Argdcl((int, char*, char**, char*, char*));
+extern int badargs;
 
 
  boolean
@@ -148,6 +149,7 @@ parse_args(int argc, char **argv, arg_info *table, int entries, char **others, i
 			fprintf (stderr, "%s:  too many parameters: ",
 				this_program);
 			fprintf (stderr, "'%s' ignored\n", *argv);
+			badargs++;
 		    } /* else */
 		} /* if (others) */
 		argv0 = *++argv;
@@ -219,6 +221,7 @@ arg_verify(char **argv, arg_info *table, int entries)
 	    fprintf (stderr, "%s [arg_verify]:  too many ", this_program);
 	    fprintf (stderr, "flags in entry %d:  '%x' (hex)\n", i,
 		    arg_flags (*arg));
+	    badargs++;
 	} /* if */
 
 /* Check the argument count */
@@ -230,6 +233,7 @@ arg_verify(char **argv, arg_info *table, int entries)
 		fprintf (stderr, "%s [arg_verify]:  invalid ", this_program);
 		fprintf (stderr, "argument count in entry %d:  '%d'\n", i,
 			count);
+		badargs++;
 	    } /* if count != P_NO_ARGS ... */
 
 /* Check the result field; want to be able to store results */
@@ -239,6 +243,7 @@ arg_verify(char **argv, arg_info *table, int entries)
 		    fprintf (stderr, "%s [arg_verify]:  ", this_program);
 		    fprintf (stderr, "no argument storage given for ");
 		    fprintf (stderr, "entry %d\n", i);
+		    badargs++;
 		} /* if arg_result_ptr */
 	}
 
@@ -246,10 +251,12 @@ arg_verify(char **argv, arg_info *table, int entries)
 
 	{ int type = arg_result_type (*arg);
 
-	    if (type < P_STRING || type > P_DOUBLE)
+	    if (type < P_STRING || type > P_DOUBLE) {
 		    fprintf(stderr,
 			"%s [arg_verify]:  bad arg type in entry %d:  '%d'\n",
 			this_program, i, type);
+		    badargs++;
+		    }
 	}
 
 /* Check table size */
@@ -260,6 +267,7 @@ arg_verify(char **argv, arg_info *table, int entries)
 		fprintf (stderr, "%s [arg_verify]:  bad ", this_program);
 		fprintf (stderr, "table size in entry %d:  '%d'\n", i,
 			size);
+		badargs++;
 	    } /* if (arg_count == P_INFINITE_ARGS && size < 1) */
 	}
 
@@ -469,11 +477,14 @@ put_one_arg(int type, char *str, char **store, char *prefix, char *string)
 	    case P_FILE:
 	    case P_OLD_FILE:
 	    case P_NEW_FILE:
-		*store = str;
-		if (str == NULL)
-		    fprintf (stderr, "%s: Missing argument after '%s%s'\n",
-			    this_program, prefix, string);
-		length = str ? strlen (str) : 0;
+		if (str == NULL) {
+			fprintf(stderr, "%s: Missing argument after '%s%s'\n",
+				this_program, prefix, string);
+			length = 0;
+			badargs++;
+			}
+		else
+			length = strlen(*store = str);
 		break;
 	    case P_CHAR:
 		*((char *) store) = *str;
@@ -482,19 +493,23 @@ put_one_arg(int type, char *str, char **store, char *prefix, char *string)
 	    case P_SHORT:
 		L = atol(str);
 		*(short *)store = (short) L;
-		if (L != *(short *)store)
+		if (L != *(short *)store) {
 		    fprintf(stderr,
 	"%s%s parameter '%ld' is not a SHORT INT (truncating to %d)\n",
 			    prefix, string, L, *(short *)store);
+		    badargs++;
+		    }
 		length = strlen (str);
 		break;
 	    case P_INT:
 		L = atol(str);
 		*(int *)store = (int)L;
-		if (L != *(int *)store)
+		if (L != *(int *)store) {
 		    fprintf(stderr,
 	"%s%s parameter '%ld' is not an INT (truncating to %d)\n",
 			    prefix, string, L, *(int *)store);
+		    badargs++;
+		    }
 		length = strlen (str);
 		break;
 	    case P_LONG:
@@ -510,8 +525,8 @@ put_one_arg(int type, char *str, char **store, char *prefix, char *string)
 		length = strlen (str);
 		break;
 	    default:
-		fprintf (stderr, "put_one_arg:  bad type '%d'\n",
-			type);
+		fprintf (stderr, "put_one_arg:  bad type '%d'\n", type);
+		badargs++;
 		break;
 	} /* switch */
     } /* if (store) */
