@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.55 1996/06/08 06:48:34 dyson Exp $
+ *	$Id: vm_page.c,v 1.56 1996/06/12 06:52:06 dyson Exp $
  */
 
 /*
@@ -797,7 +797,6 @@ vm_page_free_wakeup()
 		wakeup(&vm_pageout_pages_needed);
 		vm_pageout_pages_needed = 0;
 	}
-	cnt.v_free_count++;
 	/*
 	 * wakeup processes that are waiting on memory if we hit a
 	 * high water mark. And wakeup scheduler process if we have
@@ -846,8 +845,9 @@ vm_page_free(m)
 		TAILQ_INSERT_HEAD(&vm_page_queue_free, m, pageq);
 	}
 
-	splx(s);
+	cnt.v_free_count++;
 	vm_page_free_wakeup();
+	splx(s);
 }
 
 void
@@ -869,9 +869,9 @@ vm_page_free_zero(m)
 
 	TAILQ_INSERT_HEAD(&vm_page_queue_zero, m, pageq);
 	++vm_page_zero_count;
-
-	splx(s);
+	cnt.v_free_count++;
 	vm_page_free_wakeup();
+	splx(s);
 }
 
 /*
@@ -992,14 +992,7 @@ vm_page_cache(m)
 	TAILQ_INSERT_TAIL(&vm_page_queue_cache, m, pageq);
 	m->queue = PQ_CACHE;
 	cnt.v_cache_count++;
-	if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-		wakeup(&cnt.v_free_count);
-		wakeup(&proc0);
-	}
-	if (vm_pageout_pages_needed) {
-		wakeup(&vm_pageout_pages_needed);
-		vm_pageout_pages_needed = 0;
-	}
+	vm_page_free_wakeup();
 	splx(s);
 }
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.7 1996/05/24 05:14:44 dyson Exp $
+ *	$Id: default_pager.c,v 1.8 1996/05/29 05:12:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -153,3 +154,15 @@ default_pager_convert_to_swap(object)
 		object->type = OBJT_DEFAULT;
 	}
 }
+
+void
+default_pager_convert_to_swapq(object)
+	vm_object_t object;
+{
+	if (object &&
+		(object->type == OBJT_DEFAULT) &&
+		(object != kernel_object && object != kmem_object) &&
+		(object->size > ((cnt.v_page_count - cnt.v_wire_count) / 4)))
+		default_pager_convert_to_swap(object);
+}
+
