@@ -71,6 +71,7 @@
 #include <sys/rman.h>
 #include <sys/timetc.h>
 #include <sys/timepps.h>
+#include <sys/uio.h>
 
 #include <isa/isavar.h>
 
@@ -1676,6 +1677,39 @@ siointr(arg)
 #endif /* COM_MULTIPORT */
 }
 
+static struct timespec siots[8192];
+static int siotso;
+static int volatile siotsunit = -1;
+
+static int
+sysctl_siots(SYSCTL_HANDLER_ARGS)
+{
+	char buf[128];
+	long long delta;
+	size_t len;
+	int error, i;
+
+	for (i = 1; i < siotso; i++) {
+		delta = (long long)(siots[i].tv_sec - siots[i - 1].tv_sec) *
+		    1000000000 +
+		    (siots[i].tv_nsec - siots[i - 1].tv_nsec);
+		len = sprintf(buf, "%lld\n", delta);
+		if (delta >= 110000)
+			len += sprintf(buf + len - 1, ": *** %ld.%09ld\n",
+			    (long)siots[i].tv_sec, siots[i].tv_nsec);
+		if (i == siotso - 1)
+			buf[len - 1] = '\0';
+		error = SYSCTL_OUT(req, buf, len);
+		if (error != 0)
+			return (error);
+		uio_yield();
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, siots, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_siots, "A", "sio timestamps");
+
 static void
 siointr1(com)
 	struct com_s	*com;
@@ -1845,7 +1879,7 @@ cont:
 		if (line_status & LSR_TXRDY
 		    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
 			ioptr = com->obufq.l_head;
-			if (com->tx_fifo_size > 1) {
+			if (com->tx_fifo_size > 1 && com->unit != siotsunit) {
 				u_int	ocount;
 
 				ocount = com->obufq.l_tail - ioptr;
@@ -1858,6 +1892,11 @@ cont:
 			} else {
 				outb(com->data_port, *ioptr++);
 				++com->bytes_out;
+				if (com->unit == siotsunit) {
+					nanouptime(&siots[siotso]);
+					siotso = (siotso + 1) %
+					    (sizeof siots / sizeof siots[0]);
+				}
 			}
 			com->obufq.l_head = ioptr;
 			if (COM_IIR_TXRDYBUG(com->flags)) {
@@ -2206,7 +2245,8 @@ comparam(tp, t)
 		 * interrupt disablement times in other parts of the system,
 		 * without producing silo overflow errors.
 		 */
-		com->fifo_image = t->c_ospeed <= 4800
+		com->fifo_image = com->unit == siotsunit ? 0
+				  : t->c_ospeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDH;
 #ifdef COM_ESP
 		/*
