@@ -88,6 +88,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-libraries"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-manuals"
 CDROM_SET_1="${CDROM_SET_1} x11/gnome"
 CDROM_SET_1="${CDROM_SET_1} x11/kde2"
+CDROM_SET_1="${CDROM_SET_1} www/links"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
@@ -128,6 +129,8 @@ CDROM_SET_1="${CDROM_SET_1} www/lynx"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
+CDROM_SET_1="${CDROM_SET_1} graphics/gimp1"
+CDROM_SET_1="${CDROM_SET_1} lang/gnat"
 
 # VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
@@ -149,8 +152,6 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
-CDROM_SET_3="${CDROM_SET_3} graphics/gimp1"
-CDROM_SET_3="${CDROM_SET_3} lang/gnat"
 
 ## End of set for CDROM #3
 
