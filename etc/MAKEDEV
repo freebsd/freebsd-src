@@ -51,7 +51,6 @@
 #	mlxd*	Mylex DAC960 RAID disk volumes
 #	mly*	Mylex RAID controllers (newer models)
 #	scd*	Sony CD-ROM disks
-#	vn*	vnode disks
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	wfd*	IDE floppy disk drives (LS-120)
 #
@@ -265,7 +264,6 @@ all)
 	sh $0 acd0 acd0t afd0 ast0			# ATAPI devices
 	sh $0 wd0 wd1 wd2 wd3				# OLD disk
 	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
-	sh $0 vn0					# virtual disk
 	sh $0 cd0 matcd0 mcd0 scd0			# cdrom
 	sh $0 sa0 wt0					# tape
 	sh $0 vty12					# virtual tty
@@ -304,7 +302,6 @@ fixit)
 	sh $0 acd0 afd0 ast0				# ATAPI devices
 	sh $0 wd0					# OLD disk
 	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
-	sh $0 vn0					# virtual disk
 	sh $0 cd0					# cdrom
 	sh $0 sa0					# tape
 	sh $0 vty2					# virtual tty
@@ -398,7 +395,7 @@ wt*)
 	;;
 
 # Individual slices.
-aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
@@ -412,7 +409,6 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
 	twed*s*) name=twed; chr=147;;
-	vn*s*) name=vn; chr=43;;
 	wd*s*) name=wd;  chr=3;;
 	wfd*s*) name=wfd; chr=87;;
 	esac
@@ -589,7 +585,7 @@ ata)
 	;;
 	
 
-aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
@@ -603,7 +599,6 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
 	twed*) name=twed; chr=147;;
-	vn*) name=vn; chr=43;;
 	wd*) name=wd;  chr=3;;
 	wfd*) name=wfd; chr=87;;
 	esac
@@ -624,12 +619,6 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 		do
 			sh $0 $name$unit$slicepartname
 		done
-		if [ "x$name" = "xvn" ] ; then
-			# We need to control device so we can configure
-			# the vn disks with vnconfig
-			mknod  $name$unit.ctl c \
-			    $chr `expr $unit '*' 8 + 33554432` root:operator
-		fi
 		;;
 	*)
 		echo bad unit for disk in: $i
