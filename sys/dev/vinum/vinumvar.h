@@ -214,7 +214,7 @@ enum objflags {
     VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
     VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
-    VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open */
+    VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -238,7 +238,6 @@ struct _vinum_conf {
     int volumes_used;
 
     int flags;
-    int opencount;					    /* number of times we've been opened */
 #if VINUMDEBUG
     int lastrq;
     struct buf *lastbuf;
@@ -441,10 +440,8 @@ struct volume {
 							    * for round-robin */
     dev_t devno;					    /* device number */
     int flags;						    /* status and configuration flags */
-    int opencount;					    /* number of opens (all the same process) */
     int openflags;					    /* flags supplied to last open(2) */
     u_int64_t size;					    /* size of volume */
-    int disk;						    /* disk index */
     int blocksize;					    /* logical block size */
     int active;						    /* number of outstanding requests active */
     int subops;						    /* and the number of suboperations */
@@ -482,12 +479,10 @@ struct meminfo {
 };
 
 struct mc {
+    struct timeval time;
     int seq;
     int size;
     short line;
-    short flags;
-#define ALLOC_KVA 1					    /* allocated via kva calls */
-    int *databuf;					    /* really vm_object_t */
     caddr_t address;
     char file[16];
 };
@@ -546,6 +541,8 @@ enum debugflags {
     DEBUG_RESID = 4,					    /* go into debugger in complete_rqe */
     DEBUG_LASTREQS = 8,					    /* keep a circular buffer of last requests */
     DEBUG_REVIVECONFLICT = 16,				    /* print info about revive conflicts */
+    DEBUG_EOFINFO = 32,					    /* print info about EOF detection */
+    DEBUG_MEMFREE = 64,					    /* keep info about Frees */
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
 };
 
