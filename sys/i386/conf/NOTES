@@ -195,6 +195,9 @@ options 	CPU_DISABLE_CMPXCHG
 options 	MATH_EMULATE		#Support for x87 emulation
 # Don't enable both of these in a real config.
 options 	GPL_MATH_EMULATE	#Support for x87 emulation via
+
+# Debug options
+options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
 					#new math emulator
 
 #
