@@ -76,11 +76,11 @@
 #include <sys/fcntl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <machine/clock.h>
-#include <machine/ipl.h>
 #ifndef SMP
 #include <machine/lock.h>
 #endif
@@ -1582,11 +1582,7 @@ terminate_tx_service:
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-#if 0
 	schedsofttty();
-#else
-	panic("Fix the i386/isa/cy.c files call to schedsofttty()");
-#endif
 
 	COM_UNLOCK();
 }
