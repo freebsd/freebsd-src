@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.21 1995/02/09 11:13:30 jkh Exp $
+ * $Id: tty.c,v 1.25 1995/02/14 21:21:25 ugen Exp $
  */
 
 #include "snp.h"
@@ -58,13 +58,11 @@
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
-
-#if (defined NSNP) && (NSNP > 0)
+#if NSNP > 0
 #include <sys/snoop.h>
 #endif
 
 #include <vm/vm.h>
-
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
 static void	ttyblock __P((struct tty *tp));
@@ -225,6 +223,22 @@ ttyclose(tp)
 #define	TTBREAKC(c)							\
 	((c) == '\n' || (((c) == cc[VEOF] ||				\
 	(c) == cc[VEOL] || (c) == cc[VEOL2]) && (c) != _POSIX_VDISABLE))
+
+/*-
+ * TODO:
+ *	o Fix races for sending the start char in ttyflush().
+ *	o Handle inter-byte timeout for "MIN > 0, TIME > 0" in ttselect().
+ *	  With luck, there will be MIN chars before select() returns().
+ *	o Handle CLOCAL consistently for ptys.  Perhaps disallow setting it.
+ *	o Don't allow input in TS_ZOMBIE case.  It would be visible through
+ *	  FIONREAD.
+ *	o Do the new sio locking stuff here and use it to avoid special
+ *	  case for EXTPROC?
+ *	o Lock PENDIN too?
+ *	o Move EXTPROC and/or PENDIN to t_state?
+ *	o Wrap most of ttioctl in spltty/splx.
+ *	o Implement TIOCNOTTY or remove it from <sys/ioctl.h>.
+ */
 
 
 /*
@@ -1012,6 +1026,8 @@ ttywait(tp)
 				break;
 		}
 	}
+	if (!error && (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)))
+		error = EIO;
 	splx(s);
 	return (error);
 }
@@ -1143,10 +1159,8 @@ ttylclose(tp, flag)
 	int flag;
 {
 
-	if (flag & IO_NDELAY)
+	if ((flag & IO_NDELAY) || ttywflush(tp))
 		ttyflush(tp, FREAD | FWRITE);
-	else
-		ttywflush(tp);
 	return (0);
 }
 
@@ -1601,10 +1615,9 @@ loop:
 				cc = 0;
 				break;
 			}
-#if (defined NSNP)  &&  (NSNP > 0)
-		if (tp->t_state&TS_SNOOP && tp->t_sc!=NULL) {
-			snpin((struct snoop *)tp->t_sc,cp,cc);
-		}
+#if NSNP > 0
+			if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
+				snpin((struct snoop *)tp->t_sc, cp, cc);
 #endif
 		}
 		/*
@@ -2115,37 +2128,33 @@ ttysleep(tp, chan, pri, wmesg, timo)
 }
 
 /*
- * Allocate a tty structure and its associated buffers.
+ * XXX this is usable but not useful or used.  ttselect() requires an array
+ * of tty structs.  Most tty drivers have ifdefs for using ttymalloc() but
+ * assume a different interface.
+ */
+/*
+ * Allocate a tty struct.  Clists in the struct will be allocated by
+ * ttyopen().
  */
 struct tty *
 ttymalloc()
 {
         struct tty *tp;
 
-        MALLOC(tp, struct tty *, sizeof(struct tty), M_TTYS, M_WAITOK);
+        tp = malloc(sizeof *tp, M_TTYS, M_WAITOK);
         bzero(tp, sizeof *tp);
-
-	/*
-         * Initialize or restore a cblock allocation policy suitable for
-         * the standard line discipline.
-         */
-        clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
-        clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
-        clist_alloc_cblocks(&tp->t_rawq, TTYHOG, 512);
-	
-        return(tp);
+        return (tp);
 }
 
+#if 0 /* XXX not yet usable: session leader holds a ref (see kern_exit.c). */
 /*
- * Free a tty structure and its buffers.
+ * Free a tty struct.  Clists in the struct should have been freed by
+ * ttyclose().
  */
 void
 ttyfree(tp)
-struct tty *tp;
+	struct tty *tp;
 {
-        clist_free_cblocks(&tp->t_canq);
-        clist_free_cblocks(&tp->t_outq);
-        clist_free_cblocks(&tp->t_rawq);
-        FREE(tp, M_TTYS);
+        free(tp, M_TTYS);
 }
-
+#endif /* 0 */
