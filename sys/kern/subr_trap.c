@@ -185,7 +185,7 @@ ast(struct trapframe *framep)
 	sticks = ke->ke_sticks;
 	sflag = p->p_sflag;
 	flags = ke->ke_flags;
-	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND);
+	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
 	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
 	cnt.v_soft++;
 	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
