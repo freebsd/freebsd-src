@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.2 1999/11/28 05:49:27 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.3 1999/11/29 20:53:36 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.59 1999/11/27 01:03:18 soren Exp $ */
+/* $NetBSD: pcmciadevs,v 1.60 1999/11/29 02:28:19 jun Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -359,6 +359,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "TDK Corporation",
 	    "TDK DFL9610 Ethernet & Digital Cellular"	},
+	},
+	{
+	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_LAK_CF010,
+	    PCCARD_CIS_TDK_LAK_CF010,
+	    0,
+	    "TDK Corporation",
+	    "TDK LAC-CF010"	},
 	},
 	{
 	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_XIR_CE_10,
