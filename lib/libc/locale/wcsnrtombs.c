@@ -63,11 +63,11 @@ __wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
 				/* Invalid character - wcrtomb() sets errno. */
 				return ((size_t)-1);
 			else if (*s == L'\0')
-				break;
+				return (nbytes + nb - 1);
 			s++;
 			nbytes += nb;
 		}
-		return (nbytes + nb - 1);
+		return (nbytes);
 	}
 
 	while (len > 0 && nwc-- > 0) {
