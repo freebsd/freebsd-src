@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "timedc.h"
 #include <sys/file.h>
@@ -188,7 +189,7 @@ clockdiff(argc, argv)
 	/* get the address for the date ready */
 	sp = getservbyname(DATE_PORT, DATE_PROTO);
 	if (!sp) {
-		warnx("%s/%s is an unknown service", DATE_PORT, DATE_PROTO);
+		warnx("%s/%s: unknown service", DATE_PORT, DATE_PROTO);
 		dayaddr.sin_port = 0;
 	} else {
 		dayaddr.sin_port = sp->s_port;
@@ -287,7 +288,7 @@ msite(argc, argv)
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		warnx("udp/timed: unknown service");
+		warnx("timed/udp: unknown service");
 		return;
 	}
 	dest.sin_port = srvp->s_port;
@@ -390,7 +391,7 @@ testing(argc, argv)
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		warnx("udp/timed: unknown service");
+		warnx("timed/udp: unknown service");
 		return;
 	}
 
@@ -446,7 +447,7 @@ tracing(argc, argv)
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		warnx("udp/timed: unknown service");
+		warnx("timed/udp: unknown service");
 		return;
 	}
 	dest.sin_port = srvp->s_port;

@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -163,8 +164,7 @@ int	 verify(char *, int);
 static void usage(void);
 #ifdef DEBUG
 char	*interval(int, char *);
-void	 Sendto __P((int, const void *, size_t, int,
-		     const struct sockaddr *, int));
+void	 Sendto(int, const void *, size_t, int, const struct sockaddr *, int);
 #define	 sendto Sendto
 #endif
 
@@ -217,7 +217,7 @@ main(int argc, char *argv[])
 	openlog("rwhod", LOG_PID, LOG_DAEMON);
 	sp = getservbyname("who", "udp");
 	if (sp == NULL) {
-		syslog(LOG_ERR, "udp/who: unknown service");
+		syslog(LOG_ERR, "who/udp: unknown service");
 		exit(1);
 	}
 	if (chdir(_PATH_RWHODIR) < 0) {
