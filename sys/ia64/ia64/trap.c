@@ -668,11 +668,10 @@ trap(int vector, struct trapframe *tf)
 		FPSWA_BUNDLE bundle;
 		char *ip;
 
-		/* Always fatal in kernel. Should never happen. */
-		if (!user)
-			trap_panic(vector, tf);
-
 		if (fpswa_interface == NULL) {
+			if (!user)
+				trap_panic(vector, tf);
+
 			sig = SIGFPE;
 			ucode = 0;
 			break;
@@ -682,12 +681,15 @@ trap(int vector, struct trapframe *tf)
 		if (vector == IA64_VEC_FLOATING_POINT_TRAP &&
 		    (tf->tf_special.psr & IA64_PSR_RI) == 0)
 			ip -= 16;
-		error = copyin(ip, &bundle, 16);
-		if (error) {
-			sig = SIGBUS;	/* EFAULT, basically */
-			ucode = 0;	/* exception summary */
-			break;
-		}
+		if (user) {
+			error = copyin(ip, &bundle, 16);
+			if (error) {
+				sig = SIGBUS;	/* EFAULT, basically */
+				ucode = 0;	/* exception summary */
+				break;
+			}
+		} else
+			bcopy(ip, &bundle, 16);
 
 		/* f6-f15 are saved in exception_save */
 		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
@@ -739,11 +741,12 @@ trap(int vector, struct trapframe *tf)
 			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
 			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
 			panic("fpswa fatal error on fp fault");
-		} else {
+		} else if (user) {
 			sig = SIGFPE;
 			ucode = 0;		/* XXX exception summary */
 			break;
-		}
+		} else
+			goto out;
 	}
 
 	case IA64_VEC_IA32_EXCEPTION:
