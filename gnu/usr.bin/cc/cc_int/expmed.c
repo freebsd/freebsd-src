@@ -299,7 +299,10 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
       /* Here we transfer the words of the field
 	 in the order least significant first.
 	 This is because the most significant word is the one which may
-	 be less than full.  */
+	 be less than full.
+	 However, only do that if the value is not BLKmode.  */
+
+      int backwards = WORDS_BIG_ENDIAN && fieldmode != BLKmode;
 
       int nwords = (bitsize + (BITS_PER_WORD - 1)) / BITS_PER_WORD;
       int i;
@@ -315,8 +318,8 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
 	{
 	  /* If I is 0, use the low-order word in both field and target;
 	     if I is 1, use the next to lowest word; and so on.  */
-	  int wordnum = (WORDS_BIG_ENDIAN ? nwords - i - 1 : i);
-	  int bit_offset = (WORDS_BIG_ENDIAN
+	  int wordnum = (backwards ? nwords - i - 1 : i);
+	  int bit_offset = (backwards
 			    ? MAX (bitsize - (i + 1) * BITS_PER_WORD, 0)
 			    : i * BITS_PER_WORD);
 	  store_bit_field (op0, MIN (BITS_PER_WORD,
@@ -369,7 +372,10 @@ store_bit_field (str_rtx, bitsize, bitnum, fieldmode, value, align, total_size)
       && !(bitsize == 1 && GET_CODE (value) == CONST_INT)
       /* Ensure insv's size is wide enough for this field.  */
       && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_insv][3])
-	  >= bitsize))
+	  >= bitsize)
+      && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
+	    && (bitsize + bitpos
+		> GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_insv][3]))))
     {
       int xbitpos = bitpos;
       rtx value1;
@@ -741,19 +747,13 @@ store_split_bit_field (op0, bitsize, bitpos, value, align)
 			 >> (bitsize - bitsdone - thissize))
 			& (((HOST_WIDE_INT) 1 << thissize) - 1));
       else
-	{
-	  /* The args are chosen so that the last part
-	     includes the lsb.  */
-	  int bit_offset = 0;
-	  /* If the value isn't in memory, then it must be right aligned
-	     if a register, so skip past the padding on the left.  If it
-	     is in memory, then there is no padding on the left.  */
-	  if (GET_CODE (value) != MEM)
-	    bit_offset = BITS_PER_WORD - bitsize;
-	  part = extract_fixed_bit_field (word_mode, value, 0, thissize,
-					  bit_offset + bitsdone,
-					  NULL_RTX, 1, align);
-	}
+	/* The args are chosen so that the last part includes the lsb.
+	   Give extract_bit_field the value it needs (with endianness
+	   compensation) to fetch the piece we want.  */
+	part = extract_fixed_bit_field (word_mode, value, 0, thissize,
+					GET_MODE_BITSIZE (GET_MODE (value))
+					- bitsize + bitsdone,
+					NULL_RTX, 1, align);
 #else
       /* Fetch successively more significant portions.  */
       if (GET_CODE (value) == CONST_INT)
@@ -972,7 +972,10 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
 #ifdef HAVE_extzv
       if (HAVE_extzv
 	  && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extzv][0])
-	      >= bitsize))
+	      >= bitsize)
+	  && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
+		&& (bitsize + bitpos
+		    > GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extzv][0]))))
 	{
 	  int xbitpos = bitpos, xoffset = offset;
 	  rtx bitsize_rtx, bitpos_rtx;
@@ -1111,7 +1114,10 @@ extract_bit_field (str_rtx, bitsize, bitnum, unsignedp,
 #ifdef HAVE_extv
       if (HAVE_extv
 	  && (GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extv][0])
-	      >= bitsize))
+	      >= bitsize)
+	  && ! ((GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG)
+		&& (bitsize + bitpos
+		    > GET_MODE_BITSIZE (insn_operand_mode[(int) CODE_FOR_extv][0]))))
 	{
 	  int xbitpos = bitpos, xoffset = offset;
 	  rtx bitsize_rtx, bitpos_rtx;
@@ -2053,23 +2059,31 @@ expand_mult (mode, op0, op1, target, unsignedp)
 {
   rtx const_op1 = op1;
 
+  /* synth_mult does an `unsigned int' multiply.  As long as the mode is
+     less than or equal in size to `unsigned int' this doesn't matter.
+     If the mode is larger than `unsigned int', then synth_mult works only
+     if the constant value exactly fits in an `unsigned int' without any
+     truncation.  This means that multiplying by negative values does
+     not work; results are off by 2^32 on a 32 bit machine.  */
+
   /* If we are multiplying in DImode, it may still be a win
      to try to work with shifts and adds.  */
   if (GET_CODE (op1) == CONST_DOUBLE
       && GET_MODE_CLASS (GET_MODE (op1)) == MODE_INT
-      && HOST_BITS_PER_INT <= BITS_PER_WORD)
-    {
-      if ((CONST_DOUBLE_HIGH (op1) == 0 && CONST_DOUBLE_LOW (op1) >= 0)
-	  || (CONST_DOUBLE_HIGH (op1) == -1 && CONST_DOUBLE_LOW (op1) < 0))
-	const_op1 = GEN_INT (CONST_DOUBLE_LOW (op1));
-    }
+      && HOST_BITS_PER_INT >= BITS_PER_WORD
+      && CONST_DOUBLE_HIGH (op1) == 0)
+    const_op1 = GEN_INT (CONST_DOUBLE_LOW (op1));
+  else if (HOST_BITS_PER_INT < GET_MODE_BITSIZE (mode)
+	   && GET_CODE (op1) == CONST_INT
+	   && INTVAL (op1) < 0)
+    const_op1 = 0;
 
   /* We used to test optimize here, on the grounds that it's better to
      produce a smaller program when -O is not used.
      But this causes such a terrible slowdown sometimes
      that it seems better to use synth_mult always.  */
 
-  if (GET_CODE (const_op1) == CONST_INT)
+  if (const_op1 && GET_CODE (const_op1) == CONST_INT)
     {
       struct algorithm alg;
       struct algorithm alg2;
@@ -2087,13 +2101,20 @@ expand_mult (mode, op0, op1, target, unsignedp)
       mult_cost = MIN (12 * add_cost, mult_cost);
 
       synth_mult (&alg, val, mult_cost);
-      synth_mult (&alg2, - val,
-		  (alg.cost < mult_cost ? alg.cost : mult_cost) - negate_cost);
-      if (alg2.cost + negate_cost < alg.cost)
-	alg = alg2, variant = negate_variant;
+
+      /* This works only if the inverted value actually fits in an
+	 `unsigned int' */
+      if (HOST_BITS_PER_INT >= GET_MODE_BITSIZE (mode))
+	{
+	  synth_mult (&alg2, - val,
+		      (alg.cost < mult_cost ? alg.cost : mult_cost) - negate_cost);
+	  if (alg2.cost + negate_cost < alg.cost)
+	    alg = alg2, variant = negate_variant;
+	}
 
       /* This proves very useful for division-by-constant.  */
-      synth_mult (&alg2, val - 1, (alg.cost < mult_cost ? alg.cost : mult_cost) - add_cost);
+      synth_mult (&alg2, val - 1,
+		  (alg.cost < mult_cost ? alg.cost : mult_cost) - add_cost);
       if (alg2.cost + add_cost < alg.cost)
 	alg = alg2, variant = add_variant;
 
@@ -2131,7 +2152,9 @@ expand_mult (mode, op0, op1, target, unsignedp)
 	      int log = alg.log[opno];
 	      int preserve = preserve_subexpressions_p ();
 	      rtx shift_subtarget = preserve ? 0 : accum;
-	      rtx add_target = opno == alg.ops - 1 && target != 0 ? target : 0;
+	      rtx add_target
+		= (opno == alg.ops - 1 && target != 0 && variant != add_variant
+		  ? target : 0);
 	      rtx accum_target = preserve ? 0 : accum;
 	      
 	      switch (alg.op[opno])
@@ -2568,7 +2591,7 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
   rtx quotient = 0, remainder = 0;
   rtx last;
   int size;
-  rtx insn;
+  rtx insn, set;
   optab optab1, optab2;
   int op1_is_constant, op1_is_pow2;
 
@@ -2813,10 +2836,13 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		  }
 
 		insn = get_last_insn ();
-		REG_NOTES (insn)
-		  = gen_rtx (EXPR_LIST, REG_EQUAL,
-			     gen_rtx (UDIV, compute_mode, op0, op1),
-			     REG_NOTES (insn));
+		if (insn != last
+		    && (set = single_set (insn)) != 0
+		    && SET_DEST (set) == quotient)
+		  REG_NOTES (insn)
+		    = gen_rtx (EXPR_LIST, REG_EQUAL,
+			       gen_rtx (UDIV, compute_mode, op0, op1),
+			       REG_NOTES (insn));
 	      }
 	    else		/* TRUNC_DIV, signed */
 	      {
@@ -2878,11 +2904,14 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		    if (d < 0)
 		      {
 			insn = get_last_insn ();
-			REG_NOTES (insn)
-			  = gen_rtx (EXPR_LIST, REG_EQUAL,
-				     gen_rtx (DIV, compute_mode, op0,
-					      GEN_INT (abs_d)),
-				     REG_NOTES (insn));
+			if (insn != last
+			    && (set = single_set (insn)) != 0
+			    && SET_DEST (set) == quotient)
+			  REG_NOTES (insn)
+			    = gen_rtx (EXPR_LIST, REG_EQUAL,
+				       gen_rtx (DIV, compute_mode, op0,
+						GEN_INT (abs_d)),
+				       REG_NOTES (insn));
 
 			quotient = expand_unop (compute_mode, neg_optab,
 						quotient, quotient, 0);
@@ -2935,14 +2964,14 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 		      }
 		  }
 
-		if (quotient != 0)
-		  {
-		    insn = get_last_insn ();
-		    REG_NOTES (insn)
-		      = gen_rtx (EXPR_LIST, REG_EQUAL,
-				 gen_rtx (DIV, compute_mode, op0, op1),
-				 REG_NOTES (insn));
-		  }
+		insn = get_last_insn ();
+		if (insn != last
+		    && (set = single_set (insn)) != 0
+		    && SET_DEST (set) == quotient)
+		  REG_NOTES (insn)
+		    = gen_rtx (EXPR_LIST, REG_EQUAL,
+			       gen_rtx (DIV, compute_mode, op0, op1),
+			       REG_NOTES (insn));
 	      }
 	    break;
 	  }
@@ -3218,6 +3247,44 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 	  }
 	else /* signed */
 	  {
+	    if (op1_is_constant && EXACT_POWER_OF_2_OR_ZERO_P (INTVAL (op1))
+		&& INTVAL (op1) >= 0)
+	      {
+		/* This is extremely similar to the code for the unsigned case
+		   above.  For 2.7 we should merge these variants, but for
+		   2.6.1 I don't want to touch the code for unsigned since that
+		   get used in C.  The signed case will only be used by other
+		   languages (Ada).  */
+
+		rtx t1, t2, t3;
+		unsigned HOST_WIDE_INT d = INTVAL (op1);
+		t1 = expand_shift (RSHIFT_EXPR, compute_mode, op0,
+				   build_int_2 (floor_log2 (d), 0),
+				   tquotient, 0);
+		t2 = expand_binop (compute_mode, and_optab, op0,
+				   GEN_INT (d - 1),
+				   NULL_RTX, 1, OPTAB_LIB_WIDEN);
+		t3 = gen_reg_rtx (compute_mode);
+		t3 = emit_store_flag (t3, NE, t2, const0_rtx,
+				      compute_mode, 1, 1);
+		if (t3 == 0)
+		  {
+		    rtx lab;
+		    lab = gen_label_rtx ();
+		    emit_cmp_insn (t2, const0_rtx, EQ, NULL_RTX,
+				   compute_mode, 0, 0);
+		    emit_jump_insn (gen_beq (lab));
+		    expand_inc (t1, const1_rtx);
+		    emit_label (lab);
+		    quotient = t1;
+		  }
+		else
+		  quotient = force_operand (gen_rtx (PLUS, compute_mode,
+						     t1, t3),
+					    tquotient);
+		break;
+	      }
+
 	    /* Try using an instruction that produces both the quotient and
 	       remainder, using truncation.  We can easily compensate the
 	       quotient or remainder to get ceiling rounding, once we have the

@@ -395,9 +395,9 @@ static const short yyrline[] = { 0,
   1576,  1585,  1590,  1595,  1600,  1604,  1608,  1619,  1626,  1633,
   1640,  1651,  1655,  1658,  1663,  1686,  1720,  1745,  1774,  1789,
   1800,  1804,  1808,  1811,  1816,  1818,  1821,  1823,  1827,  1832,
-  1835,  1841,  1846,  1851,  1853,  1862,  1863,  1869,  1871,  1876,
-  1878,  1882,  1885,  1891,  1894,  1896,  1898,  1900,  1907,  1912,
-  1917,  1919,  1928,  1931,  1936,  1939
+  1835,  1841,  1846,  1851,  1853,  1862,  1863,  1869,  1871,  1881,
+  1883,  1887,  1890,  1896,  1899,  1901,  1903,  1905,  1912,  1917,
+  1922,  1924,  1933,  1936,  1941,  1944
 };
 
 static const char * const yytname[] = {   "$","error","$illegal.","IDENTIFIER",
@@ -3252,60 +3252,65 @@ case 348:
 case 349:
 #line 1872 "c-parse.y"
 { yyval.ttype = get_parm_info (0);
-		  if (pedantic)
-		    pedwarn ("ANSI C requires a named argument before `...'");
+		  /* Gcc used to allow this as an extension.  However, it does
+		     not work for all targets, and thus has been disabled.
+		     Also, since func (...) and func () are indistinguishable,
+		     it caused problems with the code in expand_builtin which
+		     tries to verify that BUILT_IN_NEXT_ARG is being used
+		     correctly.  */
+		  error ("ANSI C requires a named argument before `...'");
 		;
     break;}
 case 350:
-#line 1877 "c-parse.y"
+#line 1882 "c-parse.y"
 { yyval.ttype = get_parm_info (1); ;
     break;}
 case 351:
-#line 1879 "c-parse.y"
+#line 1884 "c-parse.y"
 { yyval.ttype = get_parm_info (0); ;
     break;}
 case 352:
-#line 1884 "c-parse.y"
+#line 1889 "c-parse.y"
 { push_parm_decl (yyvsp[0].ttype); ;
     break;}
 case 353:
-#line 1886 "c-parse.y"
+#line 1891 "c-parse.y"
 { push_parm_decl (yyvsp[0].ttype); ;
     break;}
 case 354:
-#line 1893 "c-parse.y"
+#line 1898 "c-parse.y"
 { yyval.ttype = build_tree_list (yyvsp[-1].ttype, yyvsp[0].ttype)	; ;
     break;}
 case 355:
-#line 1895 "c-parse.y"
+#line 1900 "c-parse.y"
 { yyval.ttype = build_tree_list (yyvsp[-1].ttype, yyvsp[0].ttype)	; ;
     break;}
 case 356:
-#line 1897 "c-parse.y"
+#line 1902 "c-parse.y"
 { yyval.ttype = build_tree_list (yyvsp[-1].ttype, yyvsp[0].ttype); ;
     break;}
 case 357:
-#line 1899 "c-parse.y"
+#line 1904 "c-parse.y"
 { yyval.ttype = build_tree_list (yyvsp[-1].ttype, yyvsp[0].ttype)	; ;
     break;}
 case 358:
-#line 1901 "c-parse.y"
+#line 1906 "c-parse.y"
 { yyval.ttype = build_tree_list (yyvsp[-1].ttype, yyvsp[0].ttype); ;
     break;}
 case 359:
-#line 1908 "c-parse.y"
+#line 1913 "c-parse.y"
 { pushlevel (0);
 		  clear_parm_order ();
 		  declare_parm_level (1); ;
     break;}
 case 360:
-#line 1912 "c-parse.y"
+#line 1917 "c-parse.y"
 { yyval.ttype = yyvsp[0].ttype;
 		  parmlist_tags_warning ();
 		  poplevel (0, 0, 0); ;
     break;}
 case 362:
-#line 1920 "c-parse.y"
+#line 1925 "c-parse.y"
 { tree t;
 		  for (t = yyvsp[-1].ttype; t; t = TREE_CHAIN (t))
 		    if (TREE_VALUE (t) == NULL_TREE)
@@ -3313,19 +3318,19 @@ case 362:
 		  yyval.ttype = tree_cons (NULL_TREE, NULL_TREE, yyvsp[-1].ttype); ;
     break;}
 case 363:
-#line 1930 "c-parse.y"
+#line 1935 "c-parse.y"
 { yyval.ttype = build_tree_list (NULL_TREE, yyvsp[0].ttype); ;
     break;}
 case 364:
-#line 1932 "c-parse.y"
+#line 1937 "c-parse.y"
 { yyval.ttype = chainon (yyvsp[-2].ttype, build_tree_list (NULL_TREE, yyvsp[0].ttype)); ;
     break;}
 case 365:
-#line 1938 "c-parse.y"
+#line 1943 "c-parse.y"
 { yyval.ttype = build_tree_list (NULL_TREE, yyvsp[0].ttype); ;
     break;}
 case 366:
-#line 1940 "c-parse.y"
+#line 1945 "c-parse.y"
 { yyval.ttype = chainon (yyvsp[-2].ttype, build_tree_list (NULL_TREE, yyvsp[0].ttype)); ;
     break;}
 }
@@ -3526,5 +3531,5 @@ yyerrhandle:
   yystate = yyn;
   goto yynewstate;
 }
-#line 1943 "c-parse.y"
+#line 1948 "c-parse.y"
 

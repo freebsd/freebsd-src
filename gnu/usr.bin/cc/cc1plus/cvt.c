@@ -304,7 +304,7 @@ build_up_reference (type, arg, flags, checkconst)
 
   /* Pass along const and volatile down into the type. */
   if (TYPE_READONLY (type) || TYPE_VOLATILE (type))
-    target_type = c_build_type_variant (target_type, TYPE_READONLY (type),
+    target_type = cp_build_type_variant (target_type, TYPE_READONLY (type),
 					TYPE_VOLATILE (type));
   targ = arg;
   if (TREE_CODE (targ) == SAVE_EXPR)
@@ -425,10 +425,11 @@ build_up_reference (type, arg, flags, checkconst)
       break;
 
     case PARM_DECL:
+#if 0
       if (targ == current_class_decl)
 	{
 	  error ("address of `this' not available");
-#if 0
+/* #if 0 */	  
 	  /* This code makes the following core dump the compiler on a sun4,
 	     if the code below is used.
 
@@ -465,16 +466,18 @@ build_up_reference (type, arg, flags, checkconst)
 	  TREE_ADDRESSABLE (targ) = 1; /* so compiler doesn't die later */
 	  put_var_into_stack (targ);
 	  break;
-#else
+/* #else */
 	  return error_mark_node;
-#endif
+/* #endif */	  
 	}
+#endif
       /* Fall through.  */
     case VAR_DECL:
     case CONST_DECL:
-      if (DECL_REGISTER (targ) && !TREE_ADDRESSABLE (targ))
-	warning ("address needed to build reference for `%s', which is declared `register'",
-		 IDENTIFIER_POINTER (DECL_NAME (targ)));
+      if (DECL_REGISTER (targ) && !TREE_ADDRESSABLE (targ)
+	  && !DECL_ARTIFICIAL (targ))
+	cp_warning ("address needed to build reference for `%D', which is declared `register'",
+		    targ);
       else if (staticp (targ))
 	literal_flag = 1;
 
@@ -491,6 +494,8 @@ build_up_reference (type, arg, flags, checkconst)
 	return rval;
       }
 
+    case PREINCREMENT_EXPR:
+    case PREDECREMENT_EXPR:
     case MODIFY_EXPR:
     case INIT_EXPR:
       {
@@ -631,7 +636,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
 	    {
 	      int r = TREE_READONLY (expr);
 	      int v = TREE_THIS_VOLATILE (expr);
-	      ttr = c_build_type_variant (TREE_TYPE (expr), r, v);
+	      ttr = cp_build_type_variant (TREE_TYPE (expr), r, v);
 	    }
 
 	  if (! lvalue_p (expr) &&
@@ -1206,6 +1211,9 @@ cp_convert (type, expr, convtype, flags)
   else if (TREE_CODE (TREE_TYPE (e)) == REFERENCE_TYPE)
     e = convert_from_reference (e);
 
+  if (TREE_CODE (e) == OFFSET_REF)
+    e = resolve_offset_ref (e);
+
   if (TREE_READONLY_DECL_P (e))
     e = decl_constant_value (e);
 
@@ -1223,18 +1231,13 @@ cp_convert (type, expr, convtype, flags)
 	  if (flag_pedantic_errors)
 	    return error_mark_node;
 	}
-      if (form == OFFSET_TYPE)
-	cp_error_at ("pointer-to-member expression object not composed with type `%D' object",
-		     TYPE_NAME (TYPE_OFFSET_BASETYPE (intype)));
-      else if (IS_AGGR_TYPE (intype))
+      if (IS_AGGR_TYPE (intype))
 	{
 	  tree rval;
 	  rval = build_type_conversion (CONVERT_EXPR, type, e, 1);
-	  if (rval) return rval;
-	  if (code == BOOLEAN_TYPE)
-	    cp_error ("`%#T' used where a `bool' was expected", intype);
-	  else
-	    cp_error ("`%#T' used where an `int' was expected", intype);
+	  if (rval)
+	    return rval;
+	  cp_error ("`%#T' used where a `%T' was expected", intype, type);
 	  return error_mark_node;
 	}
       if (code == BOOLEAN_TYPE)
@@ -2021,11 +2024,16 @@ type_promotes_to (type)
      wider.  */
   else if (TREE_CODE (type) == ENUMERAL_TYPE
 	   || type == wchar_type_node)
-    type = type_for_size
-      (MAX (TYPE_PRECISION (type), TYPE_PRECISION (integer_type_node)),
-       (flag_traditional
-	|| (TYPE_PRECISION (type) >= TYPE_PRECISION (integer_type_node)))
-       && TREE_UNSIGNED (type));
+    {
+      int precision = MAX (TYPE_PRECISION (type),
+			   TYPE_PRECISION (integer_type_node));
+      tree totype = type_for_size (precision, 0);
+      if (TREE_UNSIGNED (type)
+	  && ! int_fits_type_p (TYPE_MAX_VALUE (type), totype))
+	type = type_for_size (precision, 1);
+      else
+	type = totype;
+    }
   else if (C_PROMOTING_INTEGER_TYPE_P (type))
     {
       /* Traditionally, unsignedness is preserved in default promotions.
@@ -2040,5 +2048,5 @@ type_promotes_to (type)
   else if (type == float_type_node)
     type = double_type_node;
 
-  return c_build_type_variant (type, constp, volatilep);
+  return cp_build_type_variant (type, constp, volatilep);
 }

@@ -446,6 +446,18 @@ global_alloc (file)
     if (regs_ever_live[i])
       local_reg_n_refs[i] = 0;
 
+  /* Likewise for regs used in a SCRATCH.  */
+  for (i = 0; i < scratch_list_length; i++)
+    if (scratch_list[i])
+      {
+	int regno = REGNO (scratch_list[i]);
+	int lim = regno + HARD_REGNO_NREGS (regno, GET_MODE (scratch_list[i]));
+	int j;
+
+	for (j = regno; j < lim; j++)
+	  local_reg_n_refs[j] = 0;
+      }
+	
   /* Allocate the space for the conflict and preference tables and
      initialize them.  */
 
@@ -923,6 +935,12 @@ find_reg (allocno, losers, alt_regs_p, accept_call_clobbered, retrying)
 
   IOR_HARD_REG_SET (used1, hard_reg_conflicts[allocno]);
 
+#ifdef CLASS_CANNOT_CHANGE_SIZE
+  if (reg_changes_size[allocno_reg[allocno]])
+    IOR_HARD_REG_SET (used1,
+		      reg_class_contents[(int) CLASS_CANNOT_CHANGE_SIZE]);
+#endif
+
   /* Try each hard reg to see if it fits.  Do this in two passes.
      In the first pass, skip registers that are preferred by some other pseudo
      to give it a better chance of getting one of those registers.  Only if
@@ -1097,27 +1115,42 @@ find_reg (allocno, losers, alt_regs_p, accept_call_clobbered, retrying)
 	      /* Don't use a reg no good for this pseudo.  */
 	      && ! TEST_HARD_REG_BIT (used2, regno)
 	      && HARD_REGNO_MODE_OK (regno, mode)
-	      && (((double) local_reg_n_refs[regno]
-		   / local_reg_live_length[regno])
-		  < ((double) allocno_n_refs[allocno]
-		     / allocno_live_length[allocno])))
+#ifdef CLASS_CANNOT_CHANGE_SIZE
+	      && ! (reg_changes_size[allocno_reg[allocno]]
+		    && (TEST_HARD_REG_BIT
+			(reg_class_contents[(int) CLASS_CANNOT_CHANGE_SIZE],
+			 regno)))
+#endif
+	      )
 	    {
-	      /* Hard reg REGNO was used less in total by local regs
-		 than it would be used by this one allocno!  */
-	      int k;
-	      for (k = 0; k < max_regno; k++)
-		if (reg_renumber[k] >= 0)
-		  {
-		    int r = reg_renumber[k];
-		    int endregno
-		      = r + HARD_REGNO_NREGS (r, PSEUDO_REGNO_MODE (k));
+	      /* We explicitly evaluate the divide results into temporary
+		 variables so as to avoid excess precision problems that occur
+		 on a i386-unknown-sysv4.2 (unixware) host.  */
+		 
+	      double tmp1 = ((double) local_reg_n_refs[regno]
+			    / local_reg_live_length[regno]);
+	      double tmp2 = ((double) allocno_n_refs[allocno]
+			     / allocno_live_length[allocno]);
 
-		    if (regno >= r && regno < endregno)
-		      reg_renumber[k] = -1;
-		  }
+	      if (tmp1 < tmp2)
+		{
+		  /* Hard reg REGNO was used less in total by local regs
+		     than it would be used by this one allocno!  */
+		  int k;
+		  for (k = 0; k < max_regno; k++)
+		    if (reg_renumber[k] >= 0)
+		      {
+			int r = reg_renumber[k];
+			int endregno
+			  = r + HARD_REGNO_NREGS (r, PSEUDO_REGNO_MODE (k));
 
-	      best_reg = regno;
-	      break;
+			if (regno >= r && regno < endregno)
+			  reg_renumber[k] = -1;
+		      }
+
+		  best_reg = regno;
+		  break;
+		}
 	    }
 	}
     }

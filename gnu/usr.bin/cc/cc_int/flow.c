@@ -177,6 +177,12 @@ int *reg_basic_block;
 
 int *reg_n_refs;
 
+/* Indexed by N; says whether a psuedo register N was ever used
+   within a SUBREG that changes the size of the reg.  Some machines prohibit
+   such objects to be in certain (usually floating-point) registers.  */
+
+char *reg_changes_size;
+
 /* Indexed by N, gives number of places register N dies.
    This information remains valid for the rest of the compilation
    of the current function; it is used to control register allocation.  */
@@ -601,6 +607,20 @@ find_basic_blocks (f, nonlocal_label_list)
 		  mark_label_ref (PATTERN (insn), insn, 0);
 	      }
 	}
+
+      /* ??? See if we have a "live" basic block that is not reachable.
+	 This can happen if it is headed by a label that is preserved or
+	 in one of the label lists, but no call or computed jump is in
+	 the loop.  It's not clear if we can delete the block or not,
+	 but don't for now.  However, we will mess up register status if
+	 it remains unreachable, so add a fake reachability from the
+	 previous block.  */
+
+      for (i = 1; i < n_basic_blocks; i++)
+	if (block_live[i] && ! basic_block_drops_in[i]
+	    && GET_CODE (basic_block_head[i]) == CODE_LABEL
+	    && LABEL_REFS (basic_block_head[i]) == basic_block_head[i])
+	  basic_block_drops_in[i] = 1;
 
       /* Now delete the code for any basic blocks that can't be reached.
 	 They can occur because jump_optimize does not recognize
@@ -1055,18 +1075,18 @@ life_analysis (f, nregs)
 
 	  {
 	    register rtx jump, head;
+
 	    /* Update the basic_block_new_live_at_end's of the block
 	       that falls through into this one (if any).  */
 	    head = basic_block_head[i];
-	    jump = PREV_INSN (head);
 	    if (basic_block_drops_in[i])
 	      {
-		register int from_block = BLOCK_NUM (jump);
 		register int j;
 		for (j = 0; j < regset_size; j++)
-		  basic_block_new_live_at_end[from_block][j]
+		  basic_block_new_live_at_end[i-1][j]
 		    |= basic_block_live_at_start[i][j];
 	      }
+
 	    /* Update the basic_block_new_live_at_end's of
 	       all the blocks that jump to this one.  */
 	    if (GET_CODE (head) == CODE_LABEL)
@@ -1182,6 +1202,9 @@ allocate_for_life_analysis ()
 
   reg_n_deaths = (short *) oballoc (max_regno * sizeof (short));
   bzero ((char *) reg_n_deaths, max_regno * sizeof (short));
+
+  reg_changes_size = (char *) oballoc (max_regno * sizeof (char));
+  bzero (reg_changes_size, max_regno * sizeof (char));;
 
   reg_live_length = (int *) oballoc (max_regno * sizeof (int));
   bzero ((char *) reg_live_length, max_regno * sizeof (int));
@@ -1512,11 +1535,11 @@ propagate_block (old, first, last, final, significant, bnum)
 
 		  /* Calls may also reference any of the global registers,
 		     so they are made live.  */
-
 		  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 		    if (global_regs[i])
-		      live[i / REGSET_ELT_BITS]
-			|= ((REGSET_ELT_TYPE) 1 << (i % REGSET_ELT_BITS));
+		      mark_used_regs (old, live,
+				      gen_rtx (REG, reg_raw_mode[i], i),
+				      final, insn);
 
 		  /* Calls also clobber memory.  */
 		  last_mem_set = 0;
@@ -2081,11 +2104,21 @@ find_auto_inc (needed, x, insn)
 	  && (use = find_use_as_address (PATTERN (insn), addr, offset),
 	      use != 0 && use != (rtx) 1))
 	{
-	  int win = 0;
 	  rtx q = SET_DEST (set);
+	  enum rtx_code inc_code = (INTVAL (XEXP (y, 1)) == size
+				    ? (offset ? PRE_INC : POST_INC)
+				    : (offset ? PRE_DEC : POST_DEC));
 
 	  if (dead_or_set_p (incr, addr))
-	    win = 1;
+	    {
+	      /* This is the simple case.  Try to make the auto-inc.  If
+		 we can't, we are done.  Otherwise, we will do any
+		 needed updates below.  */
+	      if (! validate_change (insn, &XEXP (x, 0),
+				     gen_rtx (inc_code, Pmode, addr),
+				     0))
+		return;
+	    }
 	  else if (GET_CODE (q) == REG
 		   /* PREV_INSN used here to check the semi-open interval
 		      [insn,incr).  */
@@ -2113,13 +2146,24 @@ find_auto_inc (needed, x, insn)
 		  BLOCK_NUM (temp) = BLOCK_NUM (insn);
 		}
 
+	      /* If we can't make the auto-inc, or can't make the
+		 replacement into Y, exit.  There's no point in making
+		 the change below if we can't do the auto-inc and doing
+		 so is not correct in the pre-inc case.  */
+
+	      validate_change (insn, &XEXP (x, 0),
+			       gen_rtx (inc_code, Pmode, q),
+			       1);
+	      validate_change (incr, &XEXP (y, 0), q, 1);
+	      if (! apply_change_group ())
+		return;
+
+	      /* We now know we'll be doing this change, so emit the
+		 new insn(s) and do the updates.  */
 	      emit_insns_before (insns, insn);
 
 	      if (basic_block_head[BLOCK_NUM (insn)] == insn)
 		basic_block_head[BLOCK_NUM (insn)] = insns;
-
-	      XEXP (x, 0) = q;
-	      XEXP (y, 0) = q;
 
 	      /* INCR will become a NOTE and INSN won't contain a
 		 use of ADDR.  If a use of ADDR was just placed in
@@ -2134,7 +2178,6 @@ find_auto_inc (needed, x, insn)
 
 	      addr = q;
 	      regno = REGNO (q);
-	      win = 1;
 
 	      /* REGNO is now used in INCR which is below INSN, but
 		 it previously wasn't live here.  If we don't mark
@@ -2150,46 +2193,38 @@ find_auto_inc (needed, x, insn)
 		  reg_n_calls_crossed[regno]++;
 	    }
 
-	  if (win
-	      /* If we have found a suitable auto-increment, do
-		 POST_INC around the register here, and patch out the
-		 increment instruction that follows. */
-	      && validate_change (insn, &XEXP (x, 0),
-				  gen_rtx ((INTVAL (XEXP (y, 1)) == size
-					    ? (offset ? PRE_INC : POST_INC)
-					    : (offset ? PRE_DEC : POST_DEC)),
-					   Pmode, addr), 0))
+	  /* If we haven't returned, it means we were able to make the
+	     auto-inc, so update the status.  First, record that this insn
+	     has an implicit side effect.  */
+
+	  REG_NOTES (insn)
+	    = gen_rtx (EXPR_LIST, REG_INC, addr, REG_NOTES (insn));
+
+	  /* Modify the old increment-insn to simply copy
+	     the already-incremented value of our register.  */
+	  if (! validate_change (incr, &SET_SRC (set), addr, 0))
+	    abort ();
+
+	  /* If that makes it a no-op (copying the register into itself) delete
+	     it so it won't appear to be a "use" and a "set" of this
+	     register.  */
+	  if (SET_DEST (set) == addr)
 	    {
-	      /* Record that this insn has an implicit side effect.  */
-	      REG_NOTES (insn)
-		= gen_rtx (EXPR_LIST, REG_INC, addr, REG_NOTES (insn));
+	      PUT_CODE (incr, NOTE);
+	      NOTE_LINE_NUMBER (incr) = NOTE_INSN_DELETED;
+	      NOTE_SOURCE_FILE (incr) = 0;
+	    }
 
-	      /* Modify the old increment-insn to simply copy
-		 the already-incremented value of our register.  */
-	      SET_SRC (set) = addr;
-	      /* Indicate insn must be re-recognized.  */
-	      INSN_CODE (incr) = -1;
+	  if (regno >= FIRST_PSEUDO_REGISTER)
+	    {
+	      /* Count an extra reference to the reg.  When a reg is
+		 incremented, spilling it is worse, so we want to make
+		 that less likely.  */
+	      reg_n_refs[regno] += loop_depth;
 
-	      /* If that makes it a no-op (copying the register into itself)
-		 then delete it so it won't appear to be a "use" and a "set"
-		 of this register.  */
-	      if (SET_DEST (set) == addr)
-		{
-		  PUT_CODE (incr, NOTE);
-		  NOTE_LINE_NUMBER (incr) = NOTE_INSN_DELETED;
-		  NOTE_SOURCE_FILE (incr) = 0;
-		}
-
-	      if (regno >= FIRST_PSEUDO_REGISTER)
-		{
-		  /* Count an extra reference to the reg.  When a reg is
-		     incremented, spilling it is worse, so we want to make
-		     that less likely.  */
-		  reg_n_refs[regno] += loop_depth;
-		  /* Count the increment as a setting of the register,
-		     even though it isn't a SET in rtl.  */
-		  reg_n_sets[regno]++;
-		}
+	      /* Count the increment as a setting of the register,
+		 even though it isn't a SET in rtl.  */
+	      reg_n_sets[regno]++;
 	    }
 	}
     }
@@ -2256,6 +2291,20 @@ mark_used_regs (needed, live, x, final, insn)
 	find_auto_inc (needed, x, insn);
 #endif
       break;
+
+    case SUBREG:
+      if (GET_CODE (SUBREG_REG (x)) == REG
+	  && REGNO (SUBREG_REG (x)) >= FIRST_PSEUDO_REGISTER
+	  && (GET_MODE_SIZE (GET_MODE (x))
+	      != GET_MODE_SIZE (GET_MODE (SUBREG_REG (x))))
+	  && (INTEGRAL_MODE_P (GET_MODE (x))
+	      || INTEGRAL_MODE_P (GET_MODE (SUBREG_REG (x)))))
+	reg_changes_size[REGNO (SUBREG_REG (x))] = 1;
+
+      /* While we're here, optimize this case.  */
+      x = SUBREG_REG (x);
+
+      /* ... fall through ... */
 
     case REG:
       /* See a register other than being set
@@ -2368,6 +2417,16 @@ mark_used_regs (needed, live, x, final, insn)
 #endif
 		)
 	      {
+		/* Check for the case where the register dying partially
+		   overlaps the register set by this insn.  */
+		if (regno < FIRST_PSEUDO_REGISTER
+		    && HARD_REGNO_NREGS (regno, GET_MODE (x)) > 1)
+		  {
+		    int n = HARD_REGNO_NREGS (regno, GET_MODE (x));
+		    while (--n >= 0)
+		      some_needed |= dead_or_set_regno_p (insn, regno + n);
+		  }
+
 		/* If none of the words in X is needed, make a REG_DEAD
 		   note.  Otherwise, we must make partial REG_DEAD notes.  */
 		if (! some_needed)

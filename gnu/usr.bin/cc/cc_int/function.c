@@ -152,9 +152,8 @@ int current_function_args_size;
 
 int current_function_pretend_args_size;
 
-/* # of bytes of outgoing arguments required to be pushed by the prologue.
-   If this is non-zero, it means that ACCUMULATE_OUTGOING_ARGS was defined
-   and no stack adjusts will be done on function calls.  */
+/* # of bytes of outgoing arguments.  If ACCUMULATE_OUTGOING_ARGS is
+   defined, the needed space is pushed by the prologue. */
 
 int current_function_outgoing_args_size;
 
@@ -356,6 +355,8 @@ struct temp_slot
   tree rtl_expr;
   /* Non-zero if this temporary is currently in use.  */
   char in_use;
+  /* Non-zero if this temporary has its address taken.  */
+  char addr_taken;
   /* Nesting level at which this slot is being used.  */
   int level;
   /* Non-zero if this should survive a call to free_temp_slots.  */
@@ -461,7 +462,8 @@ find_function_data (decl)
    since this function knows only about language-independent variables.  */
 
 void
-push_function_context ()
+push_function_context_to (toplevel)
+     int toplevel;
 {
   struct function *p = (struct function *) xmalloc (sizeof (struct function));
 
@@ -512,7 +514,7 @@ push_function_context ()
   p->fixup_var_refs_queue = 0;
   p->epilogue_delay_list = current_function_epilogue_delay_list;
 
-  save_tree_status (p);
+  save_tree_status (p, toplevel);
   save_storage_status (p);
   save_emit_status (p);
   init_emit ();
@@ -524,11 +526,18 @@ push_function_context ()
     (*save_machine_status) (p);
 }
 
+void
+push_function_context ()
+{
+  push_function_context_to (0);
+}
+
 /* Restore the last saved context, at the end of a nested function.
    This function is called from language-specific code.  */
 
 void
-pop_function_context ()
+pop_function_context_from (toplevel)
+     int toplevel;
 {
   struct function *p = outer_function_chain;
 
@@ -545,7 +554,8 @@ pop_function_context ()
   current_function_calls_alloca = p->calls_alloca;
   current_function_has_nonlocal_label = p->has_nonlocal_label;
   current_function_has_nonlocal_goto = p->has_nonlocal_goto;
-  current_function_contains_functions = 1;
+  if (! toplevel)
+    current_function_contains_functions = 1;
   current_function_args_size = p->args_size;
   current_function_pretend_args_size = p->pretend_args_size;
   current_function_arg_offset_rtx = p->arg_offset_rtx;
@@ -577,8 +587,9 @@ pop_function_context ()
   temp_slots = p->temp_slots;
   temp_slot_level = p->temp_slot_level;
   current_function_epilogue_delay_list = p->epilogue_delay_list;
+  reg_renumber = 0;
 
-  restore_tree_status (p);
+  restore_tree_status (p, toplevel);
   restore_storage_status (p);
   restore_expr_status (p);
   restore_emit_status (p);
@@ -601,6 +612,11 @@ pop_function_context ()
   /* Reset variables that have known state during rtx generation.  */
   rtx_equal_function_value_matters = 1;
   virtuals_instantiated = 0;
+}
+
+void pop_function_context ()
+{
+  pop_function_context_from (0);
 }
 
 /* Allocate fixed slots in the stack frame of the current function.  */
@@ -784,6 +800,11 @@ assign_stack_temp (mode, size, keep)
 {
   struct temp_slot *p, *best_p = 0;
 
+  /* If SIZE is -1 it means that somebody tried to allocate a temporary
+     of a variable size.  */
+  if (size == -1)
+    abort ();
+
   /* First try to find an available, already-allocated temporary that is the
      exact size we require.  */
   for (p = temp_slots; p; p = p->next)
@@ -812,7 +833,7 @@ assign_stack_temp (mode, size, keep)
 	  if (best_p->size - rounded_size >= alignment)
 	    {
 	      p = (struct temp_slot *) oballoc (sizeof (struct temp_slot));
-	      p->in_use = 0;
+	      p->in_use = p->addr_taken = 0;
 	      p->size = best_p->size - rounded_size;
 	      p->slot = gen_rtx (MEM, BLKmode,
 				 plus_constant (XEXP (best_p->slot, 0),
@@ -845,7 +866,9 @@ assign_stack_temp (mode, size, keep)
     }
 
   p->in_use = 1;
+  p->addr_taken = 0;
   p->rtl_expr = sequence_rtl_expr;
+
   if (keep == 2)
     {
       p->level = target_temp_slot_level;
@@ -969,6 +992,28 @@ update_temp_slot_address (old, new)
     }
 }
 
+/* If X could be a reference to a temporary slot, mark the fact that its
+   adddress was taken.  */
+
+void
+mark_temp_addr_taken (x)
+     rtx x;
+{
+  struct temp_slot *p;
+
+  if (x == 0)
+    return;
+
+  /* If X is not in memory or is at a constant address, it cannot be in
+     a temporary slot.  */
+  if (GET_CODE (x) != MEM || CONSTANT_P (XEXP (x, 0)))
+    return;
+
+  p = find_temp_slot_from_address (XEXP (x, 0));
+  if (p != 0)
+    p->addr_taken = 1;
+}
+
 /* If X could be a reference to a temporary slot, mark that slot as belonging
    to the to one level higher.  If X matched one of our slots, just mark that
    one.  Otherwise, we can't easily predict which it is, so upgrade all of
@@ -981,31 +1026,52 @@ void
 preserve_temp_slots (x)
      rtx x;
 {
-  struct temp_slot *p;
+  struct temp_slot *p = 0;
 
+  /* If there is no result, we still might have some objects whose address
+     were taken, so we need to make sure they stay around.  */
   if (x == 0)
-    return;
+    {
+      for (p = temp_slots; p; p = p->next)
+	if (p->in_use && p->level == temp_slot_level && p->addr_taken)
+	  p->level--;
+
+      return;
+    }
 
   /* If X is a register that is being used as a pointer, see if we have
      a temporary slot we know it points to.  To be consistent with
      the code below, we really should preserve all non-kept slots
      if we can't find a match, but that seems to be much too costly.  */
-  if (GET_CODE (x) == REG && REGNO_POINTER_FLAG (REGNO (x))
-      && (p = find_temp_slot_from_address (x)) != 0)
+  if (GET_CODE (x) == REG && REGNO_POINTER_FLAG (REGNO (x)))
+    p = find_temp_slot_from_address (x);
+
+  /* If X is not in memory or is at a constant address, it cannot be in
+     a temporary slot, but it can contain something whose address was
+     taken.  */
+  if (p == 0 && (GET_CODE (x) != MEM || CONSTANT_P (XEXP (x, 0))))
     {
-      p->level--;
+      for (p = temp_slots; p; p = p->next)
+	if (p->in_use && p->level == temp_slot_level && p->addr_taken)
+	  p->level--;
+
       return;
     }
-    
-  /* If X is not in memory or is at a constant address, it cannot be in
-     a temporary slot.  */
-  if (GET_CODE (x) != MEM || CONSTANT_P (XEXP (x, 0)))
-    return;
 
   /* First see if we can find a match.  */
-  p = find_temp_slot_from_address (XEXP (x, 0));
+  if (p == 0)
+    p = find_temp_slot_from_address (XEXP (x, 0));
+
   if (p != 0)
     {
+      /* Move everything at our level whose address was taken to our new
+	 level in case we used its address.  */
+      struct temp_slot *q;
+
+      for (q = temp_slots; q; q = q->next)
+	if (q != p && q->addr_taken && q->level == p->level)
+	  q->level--;
+
       p->level--;
       return;
     }
@@ -2191,6 +2257,8 @@ optimize_bit_field (body, insn, equiv_mem)
 	     and then for which byte of the word is wanted.  */
 
 	  register int offset = INTVAL (XEXP (bitfield, 2));
+	  rtx insns;
+
 	  /* Adjust OFFSET to count bits from low-address byte.  */
 #if BITS_BIG_ENDIAN != BYTES_BIG_ENDIAN
 	  offset = (GET_MODE_BITSIZE (GET_MODE (XEXP (bitfield, 0)))
@@ -2209,8 +2277,12 @@ optimize_bit_field (body, insn, equiv_mem)
 #endif
 	    }
 
-	  memref = change_address (memref, mode, 
+	  start_sequence ();
+	  memref = change_address (memref, mode,
 				   plus_constant (XEXP (memref, 0), offset));
+	  insns = get_insns ();
+	  end_sequence ();
+	  emit_insns_before (insns, insn);
 
 	  /* Store this memory reference where
 	     we found the bit field reference.  */
@@ -3150,6 +3222,13 @@ assign_parms (fndecl, second_time)
 	  continue;
 	}
 
+      /* If the parm is to be passed as a transparent union, use the
+	 type of the first field for the tests below.  We have already
+	 verified that the modes are the same.  */
+      if (DECL_TRANSPARENT_UNION (parm)
+	  || TYPE_TRANSPARENT_UNION (passed_type))
+	passed_type = TREE_TYPE (TYPE_FIELDS (passed_type));
+
       /* See if this arg was passed by invisible reference.  It is if
 	 it is an object whose size depends on the contents of the
 	 object itself or if the machine requires these objects be passed
@@ -3425,6 +3504,9 @@ assign_parms (fndecl, second_time)
 
 	      else if (PARM_BOUNDARY % BITS_PER_WORD != 0)
 		abort ();
+
+	      if (TREE_READONLY (parm))
+		RTX_UNCHANGING_P (stack_parm) = 1;
 
 	      move_block_from_reg (REGNO (entry_parm),
 				   validize_mem (stack_parm),
@@ -4251,7 +4333,9 @@ trampoline_address (function)
   /* Find an existing trampoline and return it.  */
   for (link = trampoline_list; link; link = TREE_CHAIN (link))
     if (TREE_PURPOSE (link) == function)
-      return XEXP (RTL_EXPR_RTL (TREE_VALUE (link)), 0);
+      return
+	round_trampoline_addr (XEXP (RTL_EXPR_RTL (TREE_VALUE (link)), 0));
+
   for (fp = outer_function_chain; fp; fp = fp->next)
     for (link = fp->trampoline_list; link; link = TREE_CHAIN (link))
       if (TREE_PURPOSE (link) == function)
@@ -4693,6 +4777,11 @@ mark_varargs ()
 
 /* Expand a call to __main at the beginning of a possible main function.  */
 
+#if defined(INIT_SECTION_ASM_OP) && !defined(INVOKE__main)
+#undef HAS_INIT_SECTION
+#define HAS_INIT_SECTION
+#endif
+
 void
 expand_main_function ()
 {
@@ -4700,10 +4789,10 @@ expand_main_function ()
     {
       /* The zero below avoids a possible parse error */
       0;
-#if !defined (INIT_SECTION_ASM_OP) || defined (INVOKE__main)
+#if !defined (HAS_INIT_SECTION)
       emit_library_call (gen_rtx (SYMBOL_REF, Pmode, NAME__MAIN), 0,
 			 VOIDmode, 0);
-#endif /* not INIT_SECTION_ASM_OP or INVOKE__main */
+#endif /* not HAS_INIT_SECTION */
     }
 }
 
@@ -4858,7 +4947,7 @@ expand_function_start (subr, parms_have_cleanups)
   if (aggregate_value_p (DECL_RESULT (subr)))
     {
       /* Returning something that won't go in a register.  */
-      register rtx value_address;
+      register rtx value_address = 0;
 
 #ifdef PCC_STATIC_STRUCT_RETURN
       if (current_function_returns_pcc_struct)
@@ -4965,11 +5054,23 @@ expand_function_start (subr, parms_have_cleanups)
 
   /* Fetch static chain values for containing functions.  */
   tem = decl_function_context (current_function_decl);
-  /* If not doing stupid register allocation, then start off with the static
-     chain pointer in a pseudo register.  Otherwise, we use the stack
-     address that was generated above.  */
+  /* If not doing stupid register allocation copy the static chain
+     pointer into a psuedo.  If we have small register classes, copy the
+     value from memory if static_chain_incoming_rtx is a REG.  If we do
+     stupid register allocation, we use the stack address generated above.  */
   if (tem && ! obey_regdecls)
-    last_ptr = copy_to_reg (static_chain_incoming_rtx);
+    {
+#ifdef SMALL_REGISTER_CLASSES
+      /* If the static chain originally came in a register, put it back
+	 there, then move it out in the next insn.  The reason for
+	 this peculiar code is to satisfy function integration.  */
+      if (GET_CODE (static_chain_incoming_rtx) == REG)
+	emit_move_insn (static_chain_incoming_rtx, last_ptr);
+#endif
+
+      last_ptr = copy_to_reg (static_chain_incoming_rtx);
+    }
+
   context_display = 0;
   while (tem)
     {
@@ -5036,7 +5137,9 @@ expand_function_end (filename, line, end_bindings)
      on a machine that fails to restore the registers.  */
   if (NON_SAVING_SETJMP && current_function_calls_setjmp)
     {
-      setjmp_protect (DECL_INITIAL (current_function_decl));
+      if (DECL_INITIAL (current_function_decl) != error_mark_node)
+	setjmp_protect (DECL_INITIAL (current_function_decl));
+
       setjmp_protect_args ();
     }
 #endif

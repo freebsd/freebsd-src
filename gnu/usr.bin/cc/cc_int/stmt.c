@@ -1380,6 +1380,8 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
       i = decode_reg_name (regname);
       if (i >= 0 || i == -4)
 	++nclobbers;
+      else if (i == -2)
+	error ("unknown register name `%s' in `asm'", regname);
     }
 
   last_expr_type = 0;
@@ -1569,8 +1571,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 		  continue;
 		}
 
-	      error ("unknown register name `%s' in `asm'", regname);
-	      return;
+	      /* Ignore unknown register, error already signalled.  */
 	    }
 
 	  /* Use QImode since that's guaranteed to clobber just one reg.  */
@@ -1730,7 +1731,7 @@ warn_if_unused_value (exp)
 	while (TREE_CODE (tem) == CONVERT_EXPR || TREE_CODE (tem) == NOP_EXPR)
 	  tem = TREE_OPERAND (tem, 0);
 
-	if (TREE_CODE (tem) == MODIFY_EXPR)
+	if (TREE_CODE (tem) == MODIFY_EXPR || TREE_CODE (tem) == INIT_EXPR)
 	  return 0;
       }
       /* ... fall through ... */
@@ -1930,6 +1931,17 @@ expand_start_else ()
   emit_jump (cond_stack->data.cond.endif_label);
   emit_label (cond_stack->data.cond.next_label);
   cond_stack->data.cond.next_label = 0;  /* No more _else or _elseif calls. */
+}
+
+/* After calling expand_start_else, turn this "else" into an "else if"
+   by providing another condition.  */
+
+void
+expand_elseif (cond)
+     tree cond;
+{
+  cond_stack->data.cond.next_label = gen_label_rtx ();
+  do_jump (cond, cond_stack->data.cond.next_label, NULL_RTX);
 }
 
 /* Generate RTL for the end of an if-then.
@@ -2501,7 +2513,15 @@ expand_return (retval)
     }
 
   /* Are any cleanups needed?  E.g. C++ destructors to be run?  */
+  /* This is not sufficient.  We also need to watch for cleanups of the
+     expression we are about to expand.  Unfortunately, we cannot know
+     if it has cleanups until we expand it, and we want to change how we
+     expand it depending upon if we need cleanups.  We can't win.  */
+#if 0
   cleanups = any_pending_cleanups (1);
+#else
+  cleanups = 1;
+#endif
 
   if (TREE_CODE (retval) == RESULT_DECL)
     retval_rhs = retval;
@@ -3510,6 +3530,17 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
       tree cleanup_elt = TREE_PURPOSE (decl_elts);
       enum machine_mode mode = TYPE_MODE (TREE_TYPE (decl_elt));
 
+      /* Propagate the union's alignment to the elements.  */
+      DECL_ALIGN (decl_elt) = DECL_ALIGN (decl);
+
+      /* If the element has BLKmode and the union doesn't, the union is
+         aligned such that the element doesn't need to have BLKmode, so
+         change the element's mode to the appropriate one for its size.  */
+      if (mode == BLKmode && DECL_MODE (decl) != BLKmode)
+	DECL_MODE (decl_elt) = mode
+	  = mode_for_size (TREE_INT_CST_LOW (DECL_SIZE (decl_elt)),
+			   MODE_INT, 1);
+
       /* (SUBREG (MEM ...)) at RTL generation time is invalid, so we
          instead create a new MEM rtx with the proper mode.  */
       if (GET_CODE (x) == MEM)
@@ -4055,6 +4086,191 @@ bc_pushcase (value, label)
   return 0;
 }
 
+/* Returns the number of possible values of TYPE.
+   Returns -1 if the number is unknown or variable.
+   Returns -2 if the number does not fit in a HOST_WIDE_INT.
+   Sets *SPARENESS to 2 if TYPE is an ENUMERAL_TYPE whose values
+   do not increase monotonically (there may be duplicates);
+   to 1 if the values increase monotonically, but not always by 1;
+   otherwise sets it to 0.  */
+
+HOST_WIDE_INT
+all_cases_count (type, spareness)
+     tree type;
+     int *spareness;
+{
+  HOST_WIDE_INT count, count_high = 0;
+  *spareness = 0;
+
+  switch (TREE_CODE (type))
+    {
+      tree t;
+    case BOOLEAN_TYPE:
+      count = 2;
+      break;
+    case CHAR_TYPE:
+      count = 1 << BITS_PER_UNIT;
+      break;
+    default:
+    case INTEGER_TYPE:
+      if (TREE_CODE (TYPE_MIN_VALUE (type)) != INTEGER_CST
+	  || TREE_CODE (TYPE_MIN_VALUE (type)) != INTEGER_CST)
+	return -1;
+      else
+	{
+	  /* count
+	     = TREE_INT_CST_LOW (TYPE_MAX_VALUE (type))
+	     - TREE_INT_CST_LOW (TYPE_MIN_VALUE (type)) + 1
+	     but with overflow checking. */
+	  tree mint = TYPE_MIN_VALUE (type);
+	  tree maxt = TYPE_MAX_VALUE (type);
+	  HOST_WIDE_INT lo, hi;
+	  neg_double(TREE_INT_CST_LOW (mint), TREE_INT_CST_HIGH (mint),
+		     &lo, &hi);
+	  add_double(TREE_INT_CST_LOW (maxt), TREE_INT_CST_HIGH (maxt),
+		     lo, hi, &lo, &hi);
+	  add_double (lo, hi, 1, 0, &lo, &hi);
+	  if (hi != 0 || lo < 0)
+	    return -2;
+	  count = lo;
+	}
+      break;
+    case ENUMERAL_TYPE:
+      count = 0;
+      for (t = TYPE_VALUES (type); t != NULL_TREE; t = TREE_CHAIN (t))
+	{
+	  if (TREE_CODE (TYPE_MIN_VALUE (type)) != INTEGER_CST
+	      || TREE_CODE (TREE_VALUE (t)) != INTEGER_CST
+	      || TREE_INT_CST_LOW (TYPE_MIN_VALUE (type)) + count
+	      != TREE_INT_CST_LOW (TREE_VALUE (t)))
+	    *spareness = 1;
+	  count++;
+	}
+      if (*spareness == 1)
+	{
+	  tree prev = TREE_VALUE (TYPE_VALUES (type));
+	  for (t = TYPE_VALUES (type); t = TREE_CHAIN (t), t != NULL_TREE; )
+	    {
+	      if (! tree_int_cst_lt (prev, TREE_VALUE (t)))
+		{
+		  *spareness = 2;
+		  break;
+		}
+	      prev = TREE_VALUE (t);
+	    }
+	  
+	}
+    }
+  return count;
+}
+
+
+#define BITARRAY_TEST(ARRAY, INDEX) \
+  ((ARRAY)[(unsigned)(INDEX) / HOST_BITS_PER_CHAR]\
+			  & (1 << ((unsigned)(INDEX) % HOST_BITS_PER_CHAR)))
+#define BITARRAY_SET(ARRAY, INDEX) \
+  ((ARRAY)[(unsigned)(INDEX) / HOST_BITS_PER_CHAR]\
+			  |= 1 << ((unsigned)(INDEX) % HOST_BITS_PER_CHAR))
+
+/* Set the elements of the bitstring CASES_SEEN (which has length COUNT),
+   with the case values we have seen, assuming the case expression
+   has the given TYPE.
+   SPARSENESS is as determined by all_cases_count.
+
+   The time needed is propotional to COUNT, unless
+   SPARSENESS is 2, in which case quadratic time is needed.  */
+
+void
+mark_seen_cases (type, cases_seen, count, sparseness)
+     tree type;
+     unsigned char *cases_seen;
+     long count;
+     int sparseness;
+{
+  long i;
+
+  tree next_node_to_try = NULL_TREE;
+  long next_node_offset = 0;
+
+  register struct case_node *n;
+  tree val = make_node (INTEGER_CST);
+  TREE_TYPE (val) = type;
+  for (n = case_stack->data.case_stmt.case_list; n;
+       n = n->right)
+    {
+      TREE_INT_CST_LOW (val) = TREE_INT_CST_LOW (n->low);
+      TREE_INT_CST_HIGH (val) = TREE_INT_CST_HIGH (n->low);
+      while ( ! tree_int_cst_lt (n->high, val))
+	{
+	  /* Calculate (into xlo) the "offset" of the integer (val).
+	     The element with lowest value has offset 0, the next smallest
+	     element has offset 1, etc.  */
+
+	  HOST_WIDE_INT xlo, xhi;
+	  tree t;
+	  if (sparseness == 2)
+	    {
+	      /* This less efficient loop is only needed to handle
+		 duplicate case values (multiple enum constants
+		 with the same value).  */
+	      for (t = TYPE_VALUES (type), xlo = 0;  t != NULL_TREE;
+		   t = TREE_CHAIN (t), xlo++)
+		{
+		  if (tree_int_cst_equal (val, TREE_VALUE (t)))
+		    BITARRAY_SET (cases_seen, xlo);
+		}
+	    }
+	  else
+	    {
+	      if (sparseness && TYPE_VALUES (type) != NULL_TREE)
+		{
+		  /* The TYPE_VALUES will be in increasing order, so
+		     starting searching where we last ended.  */
+		  t = next_node_to_try;
+		  xlo = next_node_offset;
+		  xhi = 0;
+		  for (;;)
+		    {
+		      if (t == NULL_TREE)
+			{
+			  t = TYPE_VALUES (type);
+			  xlo = 0;
+			}
+		      if (tree_int_cst_equal (val, TREE_VALUE (t)))
+			{
+			  next_node_to_try = TREE_CHAIN (t);
+			  next_node_offset = xlo + 1;
+			  break;
+			}
+		      xlo++;
+		      t = TREE_CHAIN (t);
+		      if (t == next_node_to_try)
+			break;
+		    }
+		}
+	      else
+		{
+		  t = TYPE_MIN_VALUE (type);
+		  if (t)
+		    neg_double (TREE_INT_CST_LOW (t), TREE_INT_CST_HIGH (t),
+				&xlo, &xhi);
+		  else
+		    xlo = xhi = 0;
+		  add_double (xlo, xhi,
+			      TREE_INT_CST_LOW (val), TREE_INT_CST_HIGH (val),
+			      &xlo, &xhi);
+		}
+	      
+	      if (xhi == 0 && xlo >= 0 && xlo < count)
+		BITARRAY_SET (cases_seen, xlo);
+	    }
+	  add_double (TREE_INT_CST_LOW (val), TREE_INT_CST_HIGH (val),
+		      1, 0,
+		      &TREE_INT_CST_LOW (val), &TREE_INT_CST_HIGH (val));
+	}
+    }
+}
+
 /* Called when the index of a switch statement is an enumerated type
    and there is no default label.
 
@@ -4075,37 +4291,55 @@ check_for_full_enumeration_handling (type)
   register tree chain;
   int all_values = 1;
 
+  /* True iff the selector type is a numbered set mode. */
+  int sparseness = 0;
+
+  /* The number of possible selector values. */
+  HOST_WIDE_INT size;
+
+  /* For each possible selector value. a one iff it has been matched
+     by a case value alternative. */
+  unsigned char *cases_seen;
+
+  /* The allocated size of cases_seen, in chars. */
+  long bytes_needed;
+  tree t;
+
   if (output_bytecode)
     {
       bc_check_for_full_enumeration_handling (type);
       return;
     }
 
-  /* The time complexity of this loop is currently O(N * M), with
-     N being the number of members in the enumerated type, and
-     M being the number of case expressions in the switch. */
+  if (! warn_switch)
+    return;
 
-  for (chain = TYPE_VALUES (type);
-       chain;
-       chain = TREE_CHAIN (chain))
+  size = all_cases_count (type, &sparseness);
+  bytes_needed = (size + HOST_BITS_PER_CHAR) / HOST_BITS_PER_CHAR;
+
+  if (size > 0 && size < 600000
+      /* We deliberately use malloc here - not xmalloc. */
+      && (cases_seen = (unsigned char *) malloc (bytes_needed)) != NULL)
     {
-      /* Find a match between enumeral and case expression, if possible.
-	 Quit looking when we've gone too far (since case expressions
-	 are kept sorted in ascending order).  Warn about enumerators not
-	 handled in the switch statement case expression list. */
+      long i;
+      tree v = TYPE_VALUES (type);
+      bzero (cases_seen, bytes_needed);
 
-      for (n = case_stack->data.case_stmt.case_list;
-	   n && tree_int_cst_lt (n->high, TREE_VALUE (chain));
-	   n = n->right)
-	;
+      /* The time complexity of this code is normally O(N), where
+	 N being the number of members in the enumerated type.
+	 However, if type is a ENUMERAL_TYPE whose values do not
+	 increase monotonically, quadratic time may be needed. */
 
-      if (!n || tree_int_cst_lt (TREE_VALUE (chain), n->low))
+      mark_seen_cases (type, cases_seen, size, sparseness);
+
+      for (i = 0;  v != NULL_TREE && i < size; i++, v = TREE_CHAIN (v))
 	{
-	  if (warn_switch)
+	  if (BITARRAY_TEST(cases_seen, i) == 0)
 	    warning ("enumeration value `%s' not handled in switch",
-		     IDENTIFIER_POINTER (TREE_PURPOSE (chain)));
-	  all_values = 0;
+		     IDENTIFIER_POINTER (TREE_PURPOSE (v)));
 	}
+
+      free (cases_seen);
     }
 
   /* Now we go the other way around; we warn if there are case

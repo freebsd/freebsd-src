@@ -170,11 +170,6 @@ static int last_call_cuid;
 
 static rtx subst_insn;
 
-/* If nonzero, this is the insn that should be presumed to be
-   immediately in front of `subst_insn'.  */
-
-static rtx subst_prev_insn;
-
 /* This is the lowest CUID that `subst' is currently dealing with.
    get_last_value will not return a value if the register was set at or
    after this CUID.  If not for this mechanism, we could get confused if
@@ -880,7 +875,11 @@ can_combine_p (insn, i3, pred, succ, pdest, psrc)
       /* Can't merge a function call.  */
       || GET_CODE (src) == CALL
       /* Don't eliminate a function call argument.  */
-      || (GET_CODE (i3) == CALL_INSN && find_reg_fusage (i3, USE, dest))
+      || (GET_CODE (i3) == CALL_INSN
+	  && (find_reg_fusage (i3, USE, dest)
+	      || (GET_CODE (dest) == REG
+		  && REGNO (dest) < FIRST_PSEUDO_REGISTER
+		  && global_regs[REGNO (dest)])))
       /* Don't substitute into an incremented register.  */
       || FIND_REG_INC_NOTE (i3, dest)
       || (succ && FIND_REG_INC_NOTE (succ, dest))
@@ -1203,6 +1202,8 @@ try_combine (i3, i2, i1)
   rtx new_i3_notes, new_i2_notes;
   /* Notes that we substituted I3 into I2 instead of the normal case.  */
   int i3_subst_into_i2 = 0;
+  /* Notes that I1, I2 or I3 is a MULT operation.  */
+  int have_mult = 0;
 
   int maxreg;
   rtx temp;
@@ -1238,7 +1239,6 @@ try_combine (i3, i2, i1)
   if (i1 && INSN_CUID (i1) > INSN_CUID (i2))
     temp = i1, i1 = i2, i2 = temp;
 
-  subst_prev_insn = 0;
   added_links_insn = 0;
 
   /* First check for one important special-case that the code below will
@@ -1354,9 +1354,8 @@ try_combine (i3, i2, i1)
 	     never appear in the insn stream so giving it the same INSN_UID
 	     as I2 will not cause a problem.  */
 
-	  subst_prev_insn = i1
-	    = gen_rtx (INSN, VOIDmode, INSN_UID (i2), 0, i2,
-		       XVECEXP (PATTERN (i2), 0, 1), -1, 0, 0);
+	  i1 = gen_rtx (INSN, VOIDmode, INSN_UID (i2), 0, i2,
+			XVECEXP (PATTERN (i2), 0, 1), -1, 0, 0);
 
 	  SUBST (PATTERN (i2), XVECEXP (PATTERN (i2), 0, 0));
 	  SUBST (XEXP (SET_SRC (PATTERN (i2)), 0),
@@ -1391,6 +1390,15 @@ try_combine (i3, i2, i1)
       undo_all ();
       return 0;
     }
+
+  /* See if any of the insns is a MULT operation.  Unless one is, we will
+     reject a combination that is, since it must be slower.  Be conservative
+     here.  */
+  if (GET_CODE (i2src) == MULT
+      || (i1 != 0 && GET_CODE (i1src) == MULT)
+      || (GET_CODE (PATTERN (i3)) == SET
+	  && GET_CODE (SET_SRC (PATTERN (i3))) == MULT))
+    have_mult = 1;
 
   /* If I3 has an inc, then give up if I1 or I2 uses the reg that is inc'd.
      We used to do this EXCEPT in one case: I3 has a post-inc in an
@@ -1601,7 +1609,11 @@ try_combine (i3, i2, i1)
 	 really no reason to).  */
       || max_reg_num () != maxreg
       /* Fail if we couldn't do something and have a CLOBBER.  */
-      || GET_CODE (newpat) == CLOBBER)
+      || GET_CODE (newpat) == CLOBBER
+      /* Fail if this new pattern is a MULT and we didn't have one before
+	 at the outer level.  */
+      || (GET_CODE (newpat) == SET && GET_CODE (SET_SRC (newpat)) == MULT
+	  && ! have_mult))
     {
       undo_all ();
       return 0;
@@ -1804,13 +1816,14 @@ try_combine (i3, i2, i1)
 	  && ! reg_referenced_p (i2dest, newpat))
 	{
 	  rtx newdest = i2dest;
+	  enum rtx_code split_code = GET_CODE (*split);
+	  enum machine_mode split_mode = GET_MODE (*split);
 
 	  /* Get NEWDEST as a register in the proper mode.  We have already
 	     validated that we can do this.  */
-	  if (GET_MODE (i2dest) != GET_MODE (*split)
-	      && GET_MODE (*split) != VOIDmode)
+	  if (GET_MODE (i2dest) != split_mode && split_mode != VOIDmode)
 	    {
-	      newdest = gen_rtx (REG, GET_MODE (*split), REGNO (i2dest));
+	      newdest = gen_rtx (REG, split_mode, REGNO (i2dest));
 
 	      if (REGNO (i2dest) >= FIRST_PSEUDO_REGISTER)
 		SUBST (regno_reg_rtx[REGNO (i2dest)], newdest);
@@ -1819,25 +1832,27 @@ try_combine (i3, i2, i1)
 	  /* If *SPLIT is a (mult FOO (const_int pow2)), convert it to
 	     an ASHIFT.  This can occur if it was inside a PLUS and hence
 	     appeared to be a memory address.  This is a kludge.  */
-	  if (GET_CODE (*split) == MULT
+	  if (split_code == MULT
 	      && GET_CODE (XEXP (*split, 1)) == CONST_INT
 	      && (i = exact_log2 (INTVAL (XEXP (*split, 1)))) >= 0)
-	    SUBST (*split, gen_rtx_combine (ASHIFT, GET_MODE (*split),
+	    SUBST (*split, gen_rtx_combine (ASHIFT, split_mode,
 					    XEXP (*split, 0), GEN_INT (i)));
 
 #ifdef INSN_SCHEDULING
 	  /* If *SPLIT is a paradoxical SUBREG, when we split it, it should
 	     be written as a ZERO_EXTEND.  */
-	  if (GET_CODE (*split) == SUBREG
-	      && GET_CODE (SUBREG_REG (*split)) == MEM)
-	    SUBST (*split, gen_rtx_combine (ZERO_EXTEND, GET_MODE (*split),
+	  if (split_code == SUBREG && GET_CODE (SUBREG_REG (*split)) == MEM)
+	    SUBST (*split, gen_rtx_combine (ZERO_EXTEND, split_mode,
 					    XEXP (*split, 0)));
 #endif
 
 	  newi2pat = gen_rtx_combine (SET, VOIDmode, newdest, *split);
 	  SUBST (*split, newdest);
 	  i2_code_number = recog_for_combine (&newi2pat, i2, &new_i2_notes);
-	  if (i2_code_number >= 0)
+
+	  /* If the split point was a MULT and we didn't have one before,
+	     don't use one now.  */
+	  if (i2_code_number >= 0 && ! (split_code == MULT && ! have_mult))
 	    insn_code_number = recog_for_combine (&newpat, i3, &new_i3_notes);
 	}
     }
@@ -3261,10 +3276,7 @@ simplify_rtx (x, op0_mode, last, in_dest)
 	  && (temp = simplify_unary_operation (NOT, mode,
 					       XEXP (XEXP (x, 0), 1),
 					       mode)) != 0)
-	{
-	  SUBST (XEXP (XEXP (x, 0), 1), temp);
-	  return XEXP (x, 0);
-	}
+	return gen_binary (XOR, mode, XEXP (XEXP (x, 0), 0), temp);
 	      
       /* (not (ashift 1 X)) is (rotate ~1 X).  We used to do this for operands
 	 other than 1, but that is not valid.  We could do a similar
@@ -3436,6 +3448,13 @@ simplify_rtx (x, op0_mode, last, in_dest)
 	  && GET_MODE (XEXP (XEXP (XEXP (x, 0), 0), 0)) == mode)
 	return gen_unary (GET_CODE (XEXP (x, 0)), mode, mode,
 			  XEXP (XEXP (XEXP (x, 0), 0), 0));
+
+      /* (float_truncate:SF (subreg:DF (float_truncate:SF X) 0))
+	 is (float_truncate:SF x).  */
+      if (GET_CODE (XEXP (x, 0)) == SUBREG
+	  && subreg_lowpart_p (XEXP (x, 0))
+	  && GET_CODE (SUBREG_REG (XEXP (x, 0))) == FLOAT_TRUNCATE)
+	return SUBREG_REG (XEXP (x, 0));
       break;  
 
 #ifdef HAVE_cc0
@@ -4354,6 +4373,7 @@ simplify_set (x)
       && GET_MODE_CLASS (GET_MODE (src)) == MODE_INT
       && (GET_CODE (XEXP (src, 0)) == EQ || GET_CODE (XEXP (src, 0)) == NE)
       && XEXP (XEXP (src, 0), 1) == const0_rtx
+      && GET_MODE (src) == GET_MODE (XEXP (XEXP (src, 0), 0))
       && (num_sign_bit_copies (XEXP (XEXP (src, 0), 0),
 			       GET_MODE (XEXP (XEXP (src, 0), 0)))
 	  == GET_MODE_BITSIZE (GET_MODE (XEXP (XEXP (src, 0), 0))))
@@ -6874,8 +6894,10 @@ nonzero_bits (x, mode)
 	int width1 = floor_log2 (nz1) + 1;
 	int low0 = floor_log2 (nz0 & -nz0);
 	int low1 = floor_log2 (nz1 & -nz1);
-	int op0_maybe_minusp = (nz0 & ((HOST_WIDE_INT) 1 << (mode_width - 1)));
-	int op1_maybe_minusp = (nz1 & ((HOST_WIDE_INT) 1 << (mode_width - 1)));
+	HOST_WIDE_INT op0_maybe_minusp
+	  = (nz0 & ((HOST_WIDE_INT) 1 << (mode_width - 1)));
+	HOST_WIDE_INT op1_maybe_minusp
+	  = (nz1 & ((HOST_WIDE_INT) 1 << (mode_width - 1)));
 	int result_width = mode_width;
 	int result_low = 0;
 
@@ -8618,6 +8640,7 @@ simplify_comparison (code, pop0, pop1)
 		{
 		  op0 = gen_lowpart_for_combine (tmode, inner_op0);
 		  op1 = gen_lowpart_for_combine (tmode, inner_op1);
+		  code = unsigned_condition (code);
 		  changed = 1;
 		  break;
 		}
@@ -8819,6 +8842,7 @@ simplify_comparison (code, pop0, pop1)
 	    {
 	      const_op = 0, op1 = const0_rtx;
 	      code = LT;
+	      break;
 	    }
 	  else
 	    break;
@@ -9811,15 +9835,10 @@ get_last_value (x)
     {
       rtx insn, set;
 
-      /* If there is an insn that is supposed to be immediately
-	 in front of subst_insn, use it.  */
-      if (subst_prev_insn != 0)
-	insn = subst_prev_insn;
-      else
-	for (insn = prev_nonnote_insn (subst_insn);
-	     insn && INSN_CUID (insn) >= subst_low_cuid;
-	     insn = prev_nonnote_insn (insn))
-	  ;
+      for (insn = prev_nonnote_insn (subst_insn);
+	   insn && INSN_CUID (insn) >= subst_low_cuid;
+	   insn = prev_nonnote_insn (insn))
+	;
 
       if (insn
 	  && (set = single_set (insn)) != 0
@@ -10332,10 +10351,7 @@ distribute_notes (notes, from_insn, i3, i2, elim_i2, elim_i1)
       switch (REG_NOTE_KIND (note))
 	{
 	case REG_UNUSED:
-	  /* If this note is from any insn other than i3, then we have no
-	     use for it, and must ignore it.
-
-	     Any clobbers for i3 may still exist, and so we must process
+	  /* Any clobbers for i3 may still exist, and so we must process
 	     REG_UNUSED notes from that insn.
 
 	     Any clobbers from i2 or i1 can only exist if they were added by
@@ -10345,14 +10361,18 @@ distribute_notes (notes, from_insn, i3, i2, elim_i2, elim_i1)
 	     if it is for the same register as the original i3 dest.
 	     In that case, we will notice that the register is set in i3,
 	     and then add a REG_UNUSED note for the destination of i3, which
-	     is wrong.  */
-	  if (from_insn != i3)
-	    break;
+	     is wrong.  However, it is possible to have REG_UNUSED notes from
+	     i2 or i1 for register which were both used and clobbered, so
+	     we keep notes from i2 or i1 if they will turn into REG_DEAD
+	     notes.  */
 
 	  /* If this register is set or clobbered in I3, put the note there
 	     unless there is one already.  */
-	  else if (reg_set_p (XEXP (note, 0), PATTERN (i3)))
+	  if (reg_set_p (XEXP (note, 0), PATTERN (i3)))
 	    {
+	      if (from_insn != i3)
+		break;
+
 	      if (! (GET_CODE (XEXP (note, 0)) == REG
 		     ? find_regno_note (i3, REG_UNUSED, REGNO (XEXP (note, 0)))
 		     : find_reg_note (i3, REG_UNUSED, XEXP (note, 0))))
@@ -10633,7 +10653,9 @@ distribute_notes (notes, from_insn, i3, i2, elim_i2, elim_i1)
 			{
 			  rtx piece = gen_rtx (REG, reg_raw_mode[i], i);
 
-			  if (reg_referenced_p (piece, PATTERN (place))
+			  if ((reg_referenced_p (piece, PATTERN (place))
+			       || (GET_CODE (place) == CALL_INSN
+				   && find_reg_fusage (place, USE, piece)))
 			      && ! dead_or_set_p (place, piece)
 			      && ! reg_bitfield_target_p (piece,
 							  PATTERN (place)))
