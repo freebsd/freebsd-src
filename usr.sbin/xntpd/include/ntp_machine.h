@@ -379,6 +379,7 @@ in this file.
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/4.4BSD"
 #endif
+#define MCAST
 #ifdef SYS_FREEBSD
 #define HAVE_TERMIOS
 #define HAVE_UNAME
