@@ -41,55 +41,67 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the Rio500 MP3 player from Diamond MultiMedia which attaches to the USB port. The
+driver provides support for the Rio500 MP3 player from Diamond MultiMedia
+which attaches to the USB port.
+The
 .Nm
 device must be configured in the kernel, along with
-.Nm usb
-and one of the controllers:
-.Nm uhci
+.Em usb
+and one of the
+.Em uhci
 or
-.Nm ohci
+.Em ohci
+controllers.
 .Pp
-The 
-.Nm /dev/urio0
-device can subsequentlty be used by the Rio500 userland applications.
+Subsequently, the
+.Pa /dev/urio0
+device can be used by the Rio500 userland applications.
 .Sh FILES
 .Bl -tag -width /dev/ums0 -compact
 .It Pa /dev/urio0
 blocking device node 
-.Sh EXAMPLE
+.Sh EXAMPLES
+The following line in the kernel configuration file adds the
+.Nm
+driver to the kernel:
 .Dl device urio0
 .Pp
-Adds the
-.Nm 
-driver to the kernel. Create the device node in the /dev directory:
-.Pp
+The following commands create the device node in the
+.Pa /dev
+directory:
 .Dl cd /dev
 .Dl sh MAKEDEV urio0
 .Pp
-And finally
-.Pp
-.Dl rio_add_song /local/MP3/TraceyChapman/02-Fast-Car.mp3
-.Pp
-Will download a song over the 
-.Nm USB
-connection into your Rio500.
-.Pp
+Finally, to download a song over the
+.Tn USB
+connection into the Rio500 using the
+.Xr rio_add_song 1
+utility (see the
+.Sx SEE ALSO
+section):
+.Dl rio_add_song /usr/local/MP3/TraceyChapman/02-Fast-Car.mp3
 .Sh SEE ALSO
 .Xr ohci 4 ,
 .Xr uhci 4 ,
-.Xr usb 4 ,
-.Xr http://rio500.sourceforge.org WWW
+.Xr usb 4
+.Rs
+.%T The Rio 500 SourceForge Project Web Page
+.%O http://rio500.sourceforge.net/
+.Re
 .Pp
-The rio500 tools from the SourceForge are the actual userland tools
-you use to download, format or rename songs on your players. When
-compiling you must make sure that 
-.Nm /usr/include/dev/usb/rio_usb.h
-is in your include path, and that you configure the
-.Nm /dev/urio0
-as the device with following configure:
-.Pp
-CFLAGS="-I/usr/include/dev/usb" ./configure --with-devicepath='/dev' --with-deviceentry='urio0'
+The Rio500 tools from SourceForge
+are the actual userland tools used to download,
+format or rename songs on players.
+When compiling these tools,
+the following pre-build configuration command will ensure that
+.Pa rio_usb.h
+is available in the include path
+and that the device used is
+.Pa /dev/urio0 :
+.Bd -literal -offset indent
+CFLAGS="-I/usr/include/dev/usb" ./configure \\
+    --with-devicepath='/dev' --with-deviceentry='urio0'
+.Ed
 .\".Sh HISTORY
 .Sh AUTHORS
 The
@@ -97,7 +109,7 @@ The
 driver was written by
 .An Iwasa Kazmi Aq kzmi@ca2.so-net.ne.jp
 for
-.Fx
+.Fx .
 .Pp
 This manual page was written by
 .An Dirk-Willem van Gulik Aq dirkx@webweaving.org
