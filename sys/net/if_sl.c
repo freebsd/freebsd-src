@@ -960,7 +960,7 @@ slinput(int c, struct tty *tp)
 			m_freem(m);
 			goto newpack;
 		}
-		if (! netisr_queue(NETISR_IP, m)) {
+		if (netisr_queue(NETISR_IP, m)) {	/* (0) on success. */
 			sc->sc_if.if_ierrors++;
 			sc->sc_if.if_iqdrops++;
 		}

@@ -376,7 +376,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		panic("%s: bogus ip version %u", __func__, v>>4);
 	}
 
-	if (!netisr_queue(isr, m)) {
+	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		ipipstat.ipips_qfull++;
 		DPRINTF(("%s: packet dropped because of full queue\n",
 			__func__));

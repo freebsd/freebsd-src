@@ -449,7 +449,7 @@ ah4_input(m, off)
 			goto fail;
 		}
 
-		if (! netisr_queue(NETISR_IP, m)) {
+		if (netisr_queue(NETISR_IP, m)) {	/* (0) on success. */
 			ipsecstat.in_inval++;
 			m = NULL;
 			goto fail;
@@ -841,7 +841,7 @@ ah6_input(mp, offp, proto)
 			goto fail;
 		}
 
-		if (! netisr_queue(NETISR_IPV6, m)) {
+		if (netisr_queue(NETISR_IPV6, m)) {	/* (0) on success. */
 			ipsec6stat.in_inval++;
 			m = NULL;
 			goto fail;
