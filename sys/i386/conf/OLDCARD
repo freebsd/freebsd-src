@@ -150,7 +150,7 @@ device		npx
 device		pmtimer
 
 # PCCARD (PCMCIA) support
-device		card		# pccard bus
+device		card	1	# pccard bus
 device		pcic		# PCMCIA bridge
 
 # Serial (COM) ports
