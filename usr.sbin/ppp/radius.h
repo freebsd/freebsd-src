@@ -97,6 +97,7 @@ struct radacct {
 
 struct bundle;
 
+extern void radius_Flush(struct radius *);
 extern void radius_Init(struct radius *);
 extern void radius_Destroy(struct radius *);
 

@@ -871,6 +871,7 @@ IpcpLayerDown(struct fsm *fp)
     log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
 #ifndef NORADIUS
+    radius_Flush(&fp->bundle->radius);
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct,
                    fp->bundle->links, RAD_STOP, &ipcp->throughput);
 
