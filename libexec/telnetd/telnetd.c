@@ -75,11 +75,11 @@ int debug = 0;
 int keepalive = 1;
 const char *altlogin;
 
-void doit __P((struct sockaddr *));
-int terminaltypeok __P((char *));
-void startslave __P((char *, int, char *));
-extern void usage P((void));
-static void _gettermname __P((void));
+void doit(struct sockaddr *);
+int terminaltypeok(char *);
+void startslave(char *, int, char *);
+extern void usage(void);
+static void _gettermname(void);
 
 /*
  * The string to pass to getopt().  We do it this way so
@@ -110,7 +110,7 @@ int family = AF_INET;
 char *hostname;
 char host_name[MAXHOSTNAMELEN];
 
-extern void telnet P((int, int, char *));
+extern void telnet(int, int, char *);
 
 int level;
 char user_name[256];

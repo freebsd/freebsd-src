@@ -57,14 +57,6 @@
 #ifndef	__MISC_PROTO__
 #define	__MISC_PROTO__
 
-#if	!defined(P)
-#ifdef	__STDC__
-#define	P(x)	x
-#else
-#define	P(x)	()
-#endif
-#endif
-
 void auth_encrypt_init(char *, char *, const char *, int);
 void auth_encrypt_connect(int);
 void printd(const unsigned char *, int);
