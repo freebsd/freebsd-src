@@ -60,7 +60,7 @@
 #include <geom/geom.h>
 #include <machine/stdarg.h>
 
-struct method_list_head g_methods = LIST_HEAD_INITIALIZER(g_methods);
+struct class_list_head g_classs = LIST_HEAD_INITIALIZER(g_classs);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 static int g_nproviders;
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
@@ -68,7 +68,7 @@ char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 static int g_ignition;
 
 void
-g_add_method(struct g_method *mp)
+g_add_class(struct g_class *mp)
 {
 
 	if (!g_ignition) {
@@ -76,16 +76,16 @@ g_add_method(struct g_method *mp)
 		g_init();
 	}
 	g_topology_lock();
-	g_trace(G_T_TOPOLOGY, "g_add_method(%s)", mp->name);
+	g_trace(G_T_TOPOLOGY, "g_add_class(%s)", mp->name);
 	LIST_INIT(&mp->geom);
-	LIST_INSERT_HEAD(&g_methods, mp, method);
+	LIST_INSERT_HEAD(&g_classs, mp, class);
 	if (g_nproviders > 0)
-		g_post_event(EV_NEW_METHOD, mp, NULL, NULL, NULL);
+		g_post_event(EV_NEW_CLASS, mp, NULL, NULL, NULL);
 	g_topology_unlock();
 }
 
 struct g_geom *
-g_new_geomf(struct g_method *mp, char *fmt, ...)
+g_new_geomf(struct g_class *mp, char *fmt, ...)
 {
 	struct g_geom *gp;
 	va_list ap;
@@ -100,7 +100,7 @@ g_new_geomf(struct g_method *mp, char *fmt, ...)
 	mtx_unlock(&Giant);
 	gp = g_malloc(sizeof *gp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	gp->name = (char *)(gp + 1);
-	gp->method = mp;
+	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
 	LIST_INIT(&gp->provider);
@@ -135,8 +135,8 @@ g_new_consumer(struct g_geom *gp)
 	struct g_consumer *cp;
 
 	g_topology_assert();
-	KASSERT(gp->method->orphan != NULL,
-	    ("g_new_consumer on method(%s) without orphan", gp->method->name));
+	KASSERT(gp->class->orphan != NULL,
+	    ("g_new_consumer on class(%s) without orphan", gp->class->name));
 
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
 	cp->geom = gp;
@@ -377,10 +377,10 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
-	KASSERT(pp->geom->method->access != NULL, ("NULL method->access"));
+	KASSERT(pp->geom->class->access != NULL, ("NULL class->access"));
 
 	/*
-	 * If our method cares about being spoiled, and we have been, we
+	 * If our class cares about being spoiled, and we have been, we
 	 * are probably just ahead of the event telling us that.  Fail
 	 * now rather than having to unravel this later.
 	 */
@@ -430,7 +430,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	else if (pp->acw != 0 && pp->acw == -dcw && !(pp->geom->flags & G_GEOM_WITHER))
 		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 
-	error = pp->geom->method->access(pp, dcr, dcw, dce);
+	error = pp->geom->class->access(pp, dcr, dcw, dce);
 	if (!error) {
 		pp->acr += dcr;
 		pp->acw += dcw;
@@ -549,33 +549,33 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 	g_post_event(EV_SPOILED, NULL, NULL, pp, cp);
 }
 
-static struct g_method *
-g_method_by_name(char *name)
+static struct g_class *
+g_class_by_name(char *name)
 {
-	struct g_method *mp;
+	struct g_class *mp;
 
-	g_trace(G_T_TOPOLOGY, "g_method_by_name(%s)", name);
+	g_trace(G_T_TOPOLOGY, "g_class_by_name(%s)", name);
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_methods, method)
+	LIST_FOREACH(mp, &g_classs, class)
 		if (!strcmp(mp->name, name))
 			return (mp);
 	return (NULL);
 }
 
 struct g_geom *
-g_create_geomf(char *method, struct g_provider *pp, char *fmt, ...)
+g_create_geomf(char *class, struct g_provider *pp, char *fmt, ...)
 {
 	va_list ap;
 	struct sbuf *sb;
 	char *s;
-	struct g_method *mp;
+	struct g_class *mp;
 	struct g_geom *gp;
 
-	g_trace(G_T_TOPOLOGY, "g_create_geom(%s, %p(%s))", method,
+	g_trace(G_T_TOPOLOGY, "g_create_geom(%s, %p(%s))", class,
 		pp, pp == NULL ? "" : pp->name);
 	g_topology_assert();
 	gp = NULL;
-	mp = g_method_by_name(method);
+	mp = g_class_by_name(class);
 	if (mp == NULL)
 		return (NULL);
 	if (fmt != NULL) {
@@ -600,19 +600,19 @@ g_create_geomf(char *method, struct g_provider *pp, char *fmt, ...)
 }
 
 struct g_geom *
-g_insert_geom(char *method, struct g_consumer *cp)
+g_insert_geom(char *class, struct g_consumer *cp)
 {
-	struct g_method *mp;
+	struct g_class *mp;
 	struct g_geom *gp;
 	struct g_provider *pp, *pp2;
 	struct g_consumer *cp2;
 	int error;
 
-	g_trace(G_T_TOPOLOGY, "g_insert_geomf(%s, %p)", method, cp);
+	g_trace(G_T_TOPOLOGY, "g_insert_geomf(%s, %p)", class, cp);
 	g_topology_assert();
 	KASSERT(cp->provider != NULL, ("g_insert_geomf but not attached"));
 	/* XXX: check for events ?? */
-	mp = g_method_by_name(method);
+	mp = g_class_by_name(class);
 	if (mp == NULL)
 		return (NULL);
 	if (mp->create_geom == NULL)
