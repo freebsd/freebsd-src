@@ -91,13 +91,11 @@ one of the following socket options should be used to enable or disable
 PIM processing in the kernel.
 Note that those options require certain privilege
 (i.e., root privilege):
-.Pp
 .Bd -literal
 /* IPv4 */
 int v = 1;        /* 1 to enable, or 0 to disable */
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
 .Ed
-.Pp
 .Bd -literal
 /* IPv6 */
 int v = 1;        /* 1 to enable, or 0 to disable */
@@ -140,7 +138,7 @@ opening first a
 (see
 .Xr socket 2 ) ,
 with protocol value of
-.Dq IPPROTO_PIM :
+.Dv IPPROTO_PIM :
 .Bd -literal
 /* IPv4 */
 int pim_s4;
@@ -176,17 +174,29 @@ packets:
 .\" XXX the PIM-SM number must be updated after RFC 2362 is
 .\" replaced by a new RFC by the end of year 2003 or so.
 The PIM-SM protocol is specified in RFC 2362 (to be replaced by
-.Xr draft-ietf-pim-sm-v2-new-* ) .
+.%T draft-ietf-pim-sm-v2-new-* ) .
 The PIM-DM protocol is specified in
-.Xr draft-ietf-pim-dm-new-v2-* ) .
+.%T draft-ietf-pim-dm-new-v2-* ) .
 .\"
 .Sh AUTHORS
+.An -nosplit
 The original IPv4 PIM kernel support for IRIX and SunOS-4.x was
-implemented by Ahmed Helmy (USC and SGI).
-Later the code was ported to various BSD flavors and modified by
-George Edmond Eddy (Rusty) (ISI),
-Hitoshi Asaeda (WIDE Project), and Pavlin Radoslavov (USC/ISI and ICSI).
+implemented by
+.An Ahmed Helmy
+(USC and SGI).
+Later the code was ported to various
+.Bx
+flavors and modified by
+.An George Edmond Eddy
+(Rusty) (ISI),
+.An Hitoshi Asaeda
+(WIDE Project), and
+.An Pavlin Radoslavov
+(USC/ISI and ICSI).
 The IPv6 PIM kernel support was implemented by the KAME project
-(http://www.kame.net), and was based on the IPv4 PIM kernel support.
+.Pq Pa http://www.kame.net ,
+and was based on the IPv4 PIM kernel support.
 .Pp
-This manual page was written by Pavlin Radoslavov (ICSI).
+This manual page was written by
+.An Pavlin Radoslavov
+(ICSI).
