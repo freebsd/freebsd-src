@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.7 1998/01/05 07:30:25 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -128,7 +128,7 @@ main(int ac, char **av) {
   int in_exec = 0;
   char *fname = NULL;
 
-  while ((c = getopt(ac, av, "p:o:S")) != EOF) {
+  while ((c = getopt(ac, av, "p:o:S")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
       pid = atoi(optarg);
