@@ -40,6 +40,8 @@
 #ifndef _RADIX_H_
 #include <sys/param.h>
 #ifdef	_KERNEL
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
@@ -1027,7 +1029,9 @@ rn_inithead(head, off)
 	if (rnh == 0)
 		return (0);
 	Bzero(rnh, sizeof (*rnh));
+#ifdef _KERNEL
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
+#endif
 	*head = rnh;
 	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
 	ttt = rnh->rnh_nodes + 2;
