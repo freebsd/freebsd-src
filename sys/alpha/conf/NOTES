@@ -60,7 +60,7 @@ options 	NFS_ROOT		#NFS usable as root device
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root device
-#options 	DEVFS			#Device Filesystem
+options 	DEVFS			#Device Filesystem
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
