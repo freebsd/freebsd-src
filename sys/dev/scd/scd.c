@@ -40,12 +40,9 @@
  *
  */
 
-
 /* $FreeBSD$ */
 
-/* Please send any comments to micke@dynas.se */
-
-#define	SCD_DEBUG	0
+#undef	SCD_DEBUG
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -164,7 +161,6 @@ static struct cdevsw scd_cdevsw = {
 	/* flags */	D_DISK,
 };
 
-
 int
 scd_attach(struct scd_softc *sc)
 {
@@ -184,7 +180,7 @@ scd_attach(struct scd_softc *sc)
 		UID_ROOT, GID_OPERATOR, 0640, "scd%d", unit);
 	sc->scd_dev_t->si_drv1 = (void *)sc;
 
-	return 0;
+	return (0);
 }
 
 static	int
@@ -200,17 +196,17 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 	/* not initialized*/
 	if (!(cd->flags & SCDINIT))
-		return ENXIO;
+		return (ENXIO);
 
 	/* invalidated in the meantime? mark all open part's invalid */
 	if (cd->openflag)
-		return ENXIO;
+		return (ENXIO);
 
 	XDEBUG(sc, 1, "DEBUG: status = 0x%x\n", SCD_READ(sc, IREG_STATUS));
 
 	if ((rc = spin_up(sc)) != 0) {
 		print_error(sc, rc);
-		return EIO;
+		return (EIO);
 	}
 	if (!(cd->flags & SCDTOC)) {
 		int loop_count = 3;
@@ -220,12 +216,12 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 				rc = spin_up(sc);
 				if (rc) {
 					print_error(sc, rc);\
-					return EIO;
+					return (EIO);
 				}
 				continue;
 			}
 			device_printf(sc->dev, "TOC read error 0x%x\n", rc);
-			return EIO;
+			return (EIO);
 		}
 	}
 
@@ -234,7 +230,7 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	cd->openflag = 1;
 	cd->flags |= SCDVALID;
 
-	return 0;
+	return (0);
 }
 
 static	int
@@ -248,7 +244,7 @@ scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 	cd = &sc->data;
 
 	if (!(cd->flags & SCDINIT) || !cd->openflag)
-		return ENXIO;
+		return (ENXIO);
 
 	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
 		(void)send_cmd(sc, CMD_SPIN_DOWN, 0);
@@ -259,7 +255,7 @@ scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 	/* close channel */
 	cd->openflag = 0;
 
-	return 0;
+	return (0);
 }
 
 static	void
@@ -369,7 +365,7 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	XDEBUG(sc, 1, "ioctl: cmd=0x%lx\n", cmd);
 
 	if (!(cd->flags & SCDVALID))
-		return EIO;
+		return (EIO);
 
 	switch (cmd) {
 	case DIOCGMEDIASIZE:
@@ -383,7 +379,7 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	case CDIOCPLAYTRACKS:
 		return scd_playtracks(sc, (struct ioc_play_track *) addr);
 	case CDIOCPLAYBLOCKS:
-		return EINVAL;
+		return (EINVAL);
 	case CDIOCPLAYMSF:
 		return scd_playmsf(sc, (struct ioc_play_msf *) addr);
 	case CDIOCREADSUBCHANNEL:
@@ -402,33 +398,33 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	case CDIOCSETMUTE:
 	case CDIOCSETLEFT:
 	case CDIOCSETRIGHT:
-		return EINVAL;
+		return (EINVAL);
 	case CDIOCRESUME:
 		return scd_resume(sc);
 	case CDIOCPAUSE:
 		return scd_pause(sc);
 	case CDIOCSTART:
-		return EINVAL;
+		return (EINVAL);
 	case CDIOCSTOP:
 		return scd_stop(sc);
 	case CDIOCEJECT:
 		return scd_eject(sc);
 	case CDIOCALLOW:
-		return 0;
+		return (0);
 	case CDIOCSETDEBUG:
 #ifdef SCD_DEBUG
 		scd_debuglevel++;
 #endif
-		return 0;
+		return (0);
 	case CDIOCCLRDEBUG:
 #ifdef SCD_DEBUG
 		scd_debuglevel = 0;
 
 #endif
-		return 0;
+		return (0);
 	default:
 		device_printf(sc->dev, "unsupported ioctl (cmd=0x%lx)\n", cmd);
-		return ENOTTY;
+		return (ENOTTY);
 	}
 }
 
@@ -448,12 +444,12 @@ scd_playtracks(struct scd_softc *sc, struct ioc_play_track *pt)
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		if (rc == -ERR_NOT_SPINNING) {
 			if (spin_up(sc) != 0)
-				return EIO;
+				return (EIO);
 			rc = read_toc(sc);
 		}
 		if (rc != 0) {
 			print_error(sc, rc);
-			return EIO;
+			return (EIO);
 		}
 	}
 
@@ -464,7 +460,7 @@ scd_playtracks(struct scd_softc *sc, struct ioc_play_track *pt)
 	    || a > cd->last_track
 	    || a > z
 	    || z > cd->last_track)
-		return EINVAL;
+		return (EINVAL);
 
 	bcopy(cd->toc[a].start_msf, &msf.start_m, 3);
 	hsg2msf(msf2hsg(cd->toc[z+1].start_msf)-1, &msf.end_m);
@@ -507,17 +503,17 @@ scd_play(struct scd_softc *sc, struct ioc_play_msf *msf)
 		if (rc == -ERR_NOT_SPINNING) {
 			cd->flags &= ~SCDSPINNING;
 			if (spin_up(sc) != 0)
-				return EIO;
+				return (EIO);
 		} else if (rc < 0) {
 			print_error(sc, rc);
-			return EIO;
+			return (EIO);
 		} else {
 			break;
 		}
 	}
 	cd->audio_status = CD_AS_PLAY_IN_PROGRESS;
 	bcopy((char *)msf, (char *)&cd->last_play, sizeof(struct ioc_play_msf));
-	return 0;
+	return (0);
 }
 
 static int
@@ -527,7 +523,7 @@ scd_stop(struct scd_softc *sc)
 
 	(void)send_cmd(sc, CMD_STOP_AUDIO, 0);
 	cd->audio_status = CD_AS_PLAY_COMPLETED;
-	return 0;
+	return (0);
 }
 
 static int
@@ -537,13 +533,13 @@ scd_pause(struct scd_softc *sc)
 	struct sony_subchannel_position_data subpos;
 
 	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS)
-		return EINVAL;
+		return (EINVAL);
 
 	if (read_subcode(sc, &subpos) != 0)
-		return EIO;
+		return (EIO);
 
 	if (send_cmd(sc, CMD_STOP_AUDIO, 0) != 0)
-		return EIO;
+		return (EIO);
 
 	cd->last_play.start_m = subpos.abs_msf[0];
 	cd->last_play.start_s = subpos.abs_msf[1];
@@ -555,7 +551,7 @@ scd_pause(struct scd_softc *sc)
 		cd->last_play.start_s,
 		cd->last_play.start_f);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -563,7 +559,7 @@ scd_resume(struct scd_softc *sc)
 {
 
 	if (sc->data.audio_status != CD_AS_PLAY_PAUSED)
-		return EINVAL;
+		return (EINVAL);
 	return scd_play(sc, &sc->data.last_play);
 }
 
@@ -579,9 +575,9 @@ scd_eject(struct scd_softc *sc)
 	    send_cmd(sc, CMD_SPIN_DOWN, 0) != 0 ||
 	    send_cmd(sc, CMD_EJECT, 0) != 0)
 	{
-		return EIO;
+		return (EIO);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -595,13 +591,13 @@ scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
 		sch->address_format, sch->data_format);
 
 	if (sch->address_format != CD_MSF_FORMAT)
-		return EINVAL;
+		return (EINVAL);
 
 	if (sch->data_format != CD_CURRENT_POSITION)
-		return EINVAL;
+		return (EINVAL);
 
 	if (read_subcode(sc, &q) != 0)
-		return EIO;
+		return (EIO);
 
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = CD_MSF_FORMAT;
@@ -616,8 +612,8 @@ scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
 	data.what.position.absaddr.msf.frame = bcd2bin(q.abs_msf[2]);
 
 	if (copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len))!=0)
-		return EFAULT;
-	return 0;
+		return (EFAULT);
+	return (0);
 }
 
 int
@@ -691,10 +687,10 @@ read_subcode(struct scd_softc *sc, struct sony_subchannel_position_data *scp)
 
 	rc = send_cmd(sc, CMD_GET_SUBCHANNEL_DATA, 0);
 	if (rc < 0 || rc < sizeof(*scp))
-		return EIO;
+		return (EIO);
 	if (get_result(sc, rc, (u_char *)scp) != 0)
-		return EIO;
-	return 0;
+		return (EIO);
+	return (0);
 }
 
 /* State machine copied from mcd.c */
@@ -921,7 +917,7 @@ waitfor_param:
 			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
 			return;
 		}
-#if SCD_DEBUG
+#ifdef SCD_DEBUG
 		if (mbx->count < 100 && scd_debuglevel > 0)
 			device_printf(sc->dev, "mbx->count (paramwait) = %d(%d)\n", mbx->count, 100);
 #endif
@@ -1021,7 +1017,7 @@ process_attention(struct scd_softc *sc)
 		SCD_WRITE(sc, OREG_CONTROL, CBIT_ATTENTION_CLEAR);
 		code = SCD_READ(sc, IREG_RESULT);
 
-#if SCD_DEBUG
+#ifdef SCD_DEBUG
 		if (scd_debuglevel > 0) {
 			if (count == 1)
 				device_printf(sc->dev, "DEBUG: ATTENTIONS = 0x%x", code);
@@ -1054,7 +1050,7 @@ process_attention(struct scd_softc *sc)
 		}
 		DELAY(100);
 	}
-#if SCD_DEBUG
+#ifdef SCD_DEBUG
 	if (scd_debuglevel > 0 && count > 0)
 		printf("\n");
 #endif
@@ -1073,7 +1069,7 @@ again:
 	rc = send_cmd(sc, CMD_SPIN_UP, 0, 0, res_reg, &res_size);
 	if (rc != 0) {
 		XDEBUG(sc, 2, "CMD_SPIN_UP error 0x%x\n", rc);
-		return rc;
+		return (rc);
 	}
 
 	if (!(sc->data.flags & SCDTOC)) {
@@ -1081,15 +1077,15 @@ again:
 		if (rc == ERR_NOT_SPINNING) {
 			if (loop_count++ < 3)
 				goto again;
-			return rc;
+			return (rc);
 		}
 		if (rc != 0)
-			return rc;
+			return (rc);
 	}
 
 	sc->data.flags |= SCDSPINNING;
 
-	return 0;
+	return (0);
 }
 
 static struct sony_tracklist *
@@ -1098,24 +1094,24 @@ get_tl(struct sony_toc *toc, int size)
 	struct sony_tracklist *tl = &toc->tracks[0];
 
 	if (tl->track != 0xb0)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
 	if (tl->track != 0xb1)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
 	if (tl->track != 0xb2)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
 	if (tl->track != 0xb3)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
 	if (tl->track != 0xb4)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
 	if (tl->track != 0xc0)
-		return tl;
+		return (tl);
 	(char *)tl += 9;
-	return tl;
+	return (tl);
 }
 
 static int
@@ -1131,13 +1127,13 @@ read_toc(struct scd_softc *sc)
 
 	rc = send_cmd(sc, CMD_GET_TOC, 1, part+1);
 	if (rc < 0)
-		return rc;
+		return (rc);
 	if (rc > sizeof(toc)) {
 		device_printf(sc->dev, "program error: toc too large (%d)\n", rc);
-		return EIO;
+		return (EIO);
 	}
 	if (get_result(sc, rc, (u_char *)&toc) != 0)
-		return EIO;
+		return (EIO);
 
 	XDEBUG(sc, 1, "toc read. len = %d, sizeof(toc) = %d\n", rc, sizeof(toc));
 
@@ -1183,7 +1179,7 @@ read_toc(struct scd_softc *sc)
 
 	cd->flags |= SCDTOC;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1209,7 +1205,7 @@ get_result(struct scd_softc *sc, int result_len, u_char *result)
 		if (loop_index++ >= 10) {
 			loop_index = 1;
 			if (waitfor_status_bits(sc, SBIT_RESULT_READY, 0))
-				return EIO;
+				return (EIO);
 			SCD_WRITE(sc, OREG_CONTROL, CBIT_RESULT_READY_CLEAR);
 		}
 		if (result)
@@ -1217,7 +1213,7 @@ get_result(struct scd_softc *sc, int result_len, u_char *result)
 		else
 			(void)SCD_READ(sc, IREG_RESULT);
 	}
-	return 0;
+	return (0);
 }
 
 /* Returns -0x100 for timeout, -(drive error code) OR number of result bytes */
@@ -1231,7 +1227,7 @@ send_cmd(struct scd_softc *sc, u_char cmd, u_int nargs, ...)
 
 	if (waitfor_status_bits(sc, 0, SBIT_BUSY)) {
 		device_printf(sc->dev, "drive busy\n");
-		return -0x100;
+		return (-0x100);
 	}
 
 	XDEBUG(sc, 1, "DEBUG: send_cmd: cmd=0x%x nargs=%d", cmd, nargs);
@@ -1244,7 +1240,7 @@ send_cmd(struct scd_softc *sc, u_char cmd, u_int nargs, ...)
 			break;
 	if (!FSTATUS_BIT(sc, FBIT_WPARAM_READY)) {
 		XDEBUG(sc, 1, "\nwparam timeout\n");
-		return -EIO;
+		return (-EIO);
 	}
 
 	va_start(ap, nargs);
@@ -1260,7 +1256,7 @@ send_cmd(struct scd_softc *sc, u_char cmd, u_int nargs, ...)
 
 	rc = waitfor_status_bits(sc, SBIT_RESULT_READY, SBIT_BUSY);
 	if (rc)
-		return -0x100;
+		return (-0x100);
 
 	SCD_WRITE(sc, OREG_CONTROL, CBIT_RESULT_READY_CLEAR);
 	switch ((rc = SCD_READ(sc, IREG_RESULT)) & 0xf0) {
@@ -1269,12 +1265,12 @@ send_cmd(struct scd_softc *sc, u_char cmd, u_int nargs, ...)
 		/* FALLTHROUGH */
 	case 0x50:
 		XDEBUG(sc, 1, "DEBUG: send_cmd: drive_error=0x%x\n", rc);
-		return -rc;
+		return (-rc);
 	case 0x00:
 	default:
 		rc = SCD_READ(sc, IREG_RESULT);
 		XDEBUG(sc, 1, "DEBUG: send_cmd: result_len=%d\n", rc);
-		return rc;
+		return (rc);
 	}
 }
 
@@ -1310,7 +1306,7 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 		while (max_loop++ < 1000) {
 			c = SCD_READ(sc, IREG_STATUS);
 			if (c == 0xff)
-				return EIO;
+				return (EIO);
 			if (c & SBIT_ATTENTION) {
 				process_attention(sc);
 				continue;
@@ -1341,7 +1337,7 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 	if ((c & bits_set) == bits_set &&
 	    (c & bits_clear) == 0)
 	{
-		return 0;
+		return (0);
 	}
 #ifdef SCD_DEBUG
 	if (scd_debuglevel > 0)
@@ -1349,7 +1345,7 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 	else
 #endif
 		device_printf(sc->dev, "timeout.\n");
-	return EIO;
+	return (EIO);
 }
 
 /* these two routines for xcdplayer - "borrowed" from mcd.c */
@@ -1361,14 +1357,14 @@ scd_toc_header (struct scd_softc *sc, struct ioc_toc_header* th)
 
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
-		return EIO;
+		return (EIO);
 	}
 
 	th->starting_track = cd->first_track;
 	th->ending_track = cd->last_track;
 	th->len = 0; /* not used */
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1380,7 +1376,7 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
-		return EIO;
+		return (EIO);
 	}
 
 	/* find the toc to copy*/
@@ -1390,12 +1386,12 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 
 	/* verify starting track */
 	if (i < cd->first_track || i > cd->last_track+1)
-		return EINVAL;
+		return (EINVAL);
 
 	/* valid length ? */
 	if (len < sizeof(struct cd_toc_entry)
 	    || (len % sizeof(struct cd_toc_entry)) != 0)
-		return EINVAL;
+		return (EINVAL);
 
 	/* copy the toc data */
 	toc_entry.control = cd->toc[i].ctl;
@@ -1410,9 +1406,9 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 
 	/* copy the data back */
 	if (copyout(&toc_entry, te->data, sizeof(struct cd_toc_entry)) != 0)
-		return EFAULT;
+		return (EFAULT);
 
-	return 0;
+	return (0);
 }
 
 
@@ -1425,7 +1421,7 @@ scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
-		return EIO;
+		return (EIO);
 	}
 
 	/* find the toc to copy*/
@@ -1435,7 +1431,7 @@ scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 
 	/* verify starting track */
 	if (i < cd->first_track || i > cd->last_track+1)
-		return EINVAL;
+		return (EINVAL);
 
 	/* copy the toc data */
 	toc_entry.control = cd->toc[i].ctl;
@@ -1451,5 +1447,5 @@ scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 	/* copy the data back */
 	bcopy(&toc_entry, &te->entry, sizeof(struct cd_toc_entry));
 
-	return 0;
+	return (0);
 }
