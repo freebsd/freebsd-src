@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_ar.c,v 1.14 1997/02/22 09:36:15 peter Exp $
  */
 
 /*
@@ -348,6 +348,13 @@ arattach(struct isa_device *id)
 
 		sppp_attach((struct ifnet *)&sc->ifsppp);
 		if_attach(ifp);
+
+		/*
+		 * Shortcut the sppp tls/tlf actions to up/down events
+		 * since our lower layer is always ready.
+		 */
+		sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+		sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
 
 #if NBPFILTER > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
