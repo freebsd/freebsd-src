@@ -1,21 +1,18 @@
-List of things that should be added at some point:
+List of things that should be added:
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-+ X11 interface.
-
++ X11 (Tk, Motif, Xaw) interface.
++ Interpreted language (Perl5, Scheme, Tcl)
++ Ports: Windows, Windows NT, MSDOS
 + Message catalogs.
-
 + Forms editing package; use RE's to verify field contents.
-
 + Internationalization, including wide character support.
++ Support for single line window editing, including full editing
+  capability on the vi colon command line.
++ Rob Pike's sam style RE's.
 
-+ Make db, curses real libraries that we load against instead of
-  compiling directly.
-
-+ Full editing capability on the : command line.
-
-+ Rob Pike's sam RE's.
-
+List of suggested features:
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 + Filename completion.  While on the subject of completion, it would be
   nice to have the completion mechanism found in tcsh version >= 6.03.
   For instance, the completion for the `:cd' command will be directories
@@ -23,8 +20,6 @@ List of things that should be added at some point:
   set at that moment, and for `:set un' will be all options that are set
   at that moment.  The completion for `:< count' will be the flags.
 
-List of suggested features:
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 + Add a "push" command that would push a file on the tags stack.
   (Essentially make tags a special case of the stack, and make
   the stack more general purpose.)

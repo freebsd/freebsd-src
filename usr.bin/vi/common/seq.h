@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)seq.h	8.11 (Berkeley) 7/17/94
+ *	@(#)seq.h	8.12 (Berkeley) 8/16/94
  */
 
 /*
@@ -56,11 +56,11 @@ enum seqtype { SEQ_ABBREV, SEQ_COMMAND, SEQ_INPUT };
 struct _seq {
 	LIST_ENTRY(_seq) q;		/* Linked list of all sequences. */
 	enum seqtype stype;		/* Sequence type. */
-	char	*name;			/* Sequence name (if any). */
+	CHAR_T	*name;			/* Sequence name (if any). */
 	size_t	 nlen;			/* Name length. */
-	char	*input;			/* Sequence input keys. */
+	CHAR_T	*input;			/* Sequence input keys. */
 	size_t	 ilen;			/* Input keys length. */
-	char	*output;		/* Sequence output keys. */
+	CHAR_T	*output;		/* Sequence output keys. */
 	size_t	 olen;			/* Output keys length. */
 
 #define	SEQ_FUNCMAP	0x01		/* If unresolved function key.*/
@@ -69,11 +69,11 @@ struct _seq {
 	u_int8_t flags;
 };
 
-int	 seq_delete __P((SCR *, char *, size_t, enum seqtype));
+int	 seq_delete __P((SCR *, CHAR_T *, size_t, enum seqtype));
 int	 seq_dump __P((SCR *, enum seqtype, int));
-SEQ	*seq_find __P((SCR *, SEQ **, char *, size_t, enum seqtype, int *));
+SEQ	*seq_find __P((SCR *, SEQ **, CHAR_T *, size_t, enum seqtype, int *));
 void	 seq_init __P((SCR *));
 int	 seq_mdel __P((SEQ *));
 int	 seq_save __P((SCR *, FILE *, char *, enum seqtype));
-int	 seq_set __P((SCR *, char *, size_t,
-	    char *, size_t, char *, size_t, enum seqtype, int));
+int	 seq_set __P((SCR *, CHAR_T *, size_t,
+	    CHAR_T *, size_t, CHAR_T *, size_t, enum seqtype, int));

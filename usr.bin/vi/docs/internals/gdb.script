@@ -1,4 +1,4 @@
-#	@(#)gdb.script	8.2 (Berkeley) 9/29/93
+#	@(#)gdb.script	8.3 (Berkeley) 8/16/94
 
 # display the SVI screen map
 # usage dmap(sp)
@@ -39,9 +39,18 @@ define	tmap
 	end
 end
 
-# display the SVI private structure
+# display the private structures
+define	vip
+	print *((VI_PRIVATE *)sp->vi_private)
+end
 define	svp
 	print *((SVI_PRIVATE *)sp->svi_private)
+end
+define	exp
+	print *((EX_PRIVATE *)sp->ex_private)
+end
+define	sxp
+	print *((SEX_PRIVATE *)sp->sex_private)
 end
 
 # display the marks

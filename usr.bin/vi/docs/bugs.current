@@ -6,9 +6,6 @@ List of known bugs:
 + The option sidescroll is completely wrong, and setting it does more
   harm than good.
 
-+ We're not blocking signals when manipulating the SCR/EXF chains.
-  This is necessary, since we walk them on signal receipt.
-
 + When nvi edits files that don't have trailing newlines, it appends
   one, regardless.
 
