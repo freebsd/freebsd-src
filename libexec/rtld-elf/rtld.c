@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.10 1998/09/16 02:54:08 jdp Exp $
+ *      $Id: rtld.c,v 1.11 1998/09/22 02:09:56 jdp Exp $
  */
 
 /*
@@ -1155,6 +1155,7 @@ dlclose(void *handle)
 	    } else
 		linkp = &obj->next;
 	}
+	obj_tail = linkp;
     }
 
     GDB_STATE(RT_CONSISTENT);
