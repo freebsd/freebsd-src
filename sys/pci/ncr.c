@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.9 1994/10/13 01:11:13 se Exp $
+**  $Id: ncr.c,v 1.10 1994/10/14 23:59:36 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -73,7 +73,7 @@
 */
 
 #ifndef SCSI_NCR_MAX_SYNC
-#define SCSI_NCR_MAX_SYNC   (0)
+#define SCSI_NCR_MAX_SYNC   (10000)
 #endif /* SCSI_NCR_MAX_SYNC */
 
 /*
@@ -82,7 +82,7 @@
 */
 
 #ifndef SCSI_NCR_MAX_WIDE
-#define SCSI_NCR_MAX_WIDE   (0)
+#define SCSI_NCR_MAX_WIDE   (1)
 #endif /* SCSI_NCR_MAX_WIDE */
 
 /*
@@ -91,7 +91,7 @@
 */
 
 #ifndef SCSI_NCR_MAX_TAGS
-#define SCSI_NCR_MAX_TAGS    (0)
+#define SCSI_NCR_MAX_TAGS    (4)
 #endif /* SCSI_NCR_MAX_TAGS */
 
 /*==========================================================
@@ -125,7 +125,7 @@
 **    for each tag of each target.
 */
 
-#define MAX_START   (20)
+#define MAX_START   (7 * SCSI_NCR_MAX_TAGS)
 
 /*
 **    The maximum number of segments a transfer is split into.
@@ -141,16 +141,10 @@
 #define MAX_SIZE  ((MAX_SCATTER-1) * NBPG)
 
 /*
-**    Enable some processor/os dependent functions.
-*/
-
-#define DIRTY 1
-
-/*
 **    Write disk status information to dkstat ?
 */
 
-#define DK  1
+#define DK  0
 
 /*==========================================================
 **
@@ -1228,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.9 1994/10/13 01:11:13 se Exp $\n";
+	"\n$Id: ncr.c,v 1.10 1994/10/14 23:59:36 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3333,7 +3327,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.9 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.10 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
