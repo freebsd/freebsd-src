@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2003
+.Dd January 31, 2004
 .Dt LIBMAP.CONF 5
 .Os
 .Sh NAME
@@ -71,24 +71,24 @@ changing symlinks.
 #
 # candidate		mapping
 #
-libc_r.so.5		libthr.so.1	# Everything uses 'libthr'
-libc_r.so		libthr.so
+libpthread.so.5		libpthread.so.1	# Everything uses 'libpthread'
+libpthread.so		libpthread.so
 
 [/usr/local/bin/mplayer]		# 'mplayer' uses libc_r.
-libc_r.so.5		libc_r.so.5
-libc_r.so		libc_r.so
+libpthread.so.5		libc_r.so.5
+libpthread.so		libc_r.so
 
 [mplayer]
-libc_r.so.5		libc_r.so.5
-libc_r.so		libc_r.so
+libpthread.so.5		libc_r.so.5
+libpthread.so		libc_r.so
 
-[/usr/local/sbin/httpd]			# Apache uses libkse
-libc_r.so.5		libkse.so.1
-libc_r.so		libkse.so
+[/usr/local/sbin/httpd]			# Apache uses libthr
+libpthread.so.5		libthr.so.1
+libpthread.so		libthr.so
 
 [httpd]
-libc_r.so.5		libkse.so.1
-libc_r.so		libkse.so
+libpthread.so.5		libthr.so.1
+libpthread.so		libthr.so
 .Ed
 .Sh FILES
 .Bl -tag -width ".Pa /etc/libmap.conf" -compact
