@@ -248,6 +248,7 @@ addr_spec:
 
 swap_spec:
 	  SWAP optional_on swap_device_list
+		= { yyerror("swap specification obsolete, ignored"); }
 	;
 	
 swap_device_list:
@@ -257,7 +258,6 @@ swap_device_list:
 	
 swap_device:
 	  swap_device_spec optional_size optional_sflag
-	      = { mkswap(*confp, $1, $2, $3); }
 	;
 
 swap_device_spec:

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.14 1997/09/17 06:20:45 charnier Exp $";
+	"$Id: mkswapconf.c,v 1.15 1998/06/09 14:02:08 dfr Exp $";
 #endif /* not lint */
 
 /*
@@ -118,8 +118,6 @@ do_swap(fl)
 	} else {
 		fprintf(fp, "dev_t\tdumpdev = NODEV;\t\t\t/* unconfigured */\n");
 	}
-	fprintf(fp, "\n");
-	fprintf(fp, "void\nsetconf()\n{\n}\n");
 	fclose(fp);
 	moveifchanged(path(newswapname), path(swapname));
 	return (swap);
