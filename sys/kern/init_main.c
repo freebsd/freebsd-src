@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.97 1998/10/06 11:55:40 dfr Exp $
+ * $Id: init_main.c,v 1.98 1998/10/09 23:42:47 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -143,26 +143,30 @@ sysinit_add(set)
 	struct sysinit **xipp;
 	int count = 0;
 
-	for (sipp = sysinit; *sipp; sipp++)
-		count++;
+	if (newsysinit)
+		for (sipp = newsysinit; *sipp; sipp++)
+			count++;
+	else
+		for (sipp = sysinit; *sipp; sipp++)
+			count++;
 	for (sipp = set; *sipp; sipp++)
 		count++;
-	if (newsysinit)
-		for (sipp = set; *sipp; sipp++)
-			count++;
+	count++;		/* Trailing NULL */
 	newset = malloc(count * sizeof(*sipp), M_TEMP, M_NOWAIT);
 	if (newset == NULL)
 		panic("cannot malloc for sysinit");
 	xipp = newset;
-	for (sipp = sysinit; *sipp; sipp++)
-		*xipp++ = *sipp;
-	for (sipp = set; *sipp; sipp++)
-		*xipp++ = *sipp;
-	if (newsysinit) {
+	if (newsysinit)
 		for (sipp = newsysinit; *sipp; sipp++)
 			*xipp++ = *sipp;
-		free(newset, M_TEMP);
-	}
+	else
+		for (sipp = sysinit; *sipp; sipp++)
+			*xipp++ = *sipp;
+	for (sipp = set; *sipp; sipp++)
+		*xipp++ = *sipp;
+	*xipp = NULL;
+	if (newsysinit)
+		free(newsysinit, M_TEMP);
 	newsysinit = newset;
 }
 
