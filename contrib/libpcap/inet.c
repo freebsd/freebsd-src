@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 1995, 1996
+ * Copyright (c) 1994, 1995, 1996, 1997, 1998
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: inet.c,v 1.20 96/10/19 14:58:47 leres Exp $ (LBL)";
+    "@(#) $Header: inet.c,v 1.22 98/01/30 17:29:34 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -72,7 +72,8 @@ struct rtentry;
 #ifdef IFF_LOOPBACK
 #define ISLOOPBACK(p) ((p)->ifr_flags & IFF_LOOPBACK)
 #else
-#define ISLOOPBACK(p) (strcmp((p)->ifr_name, "lo0") == 0)
+#define ISLOOPBACK(p) ((p)->ifr_name[0] == 'l' && (p)->ifr_name[1] == 'o' && \
+    (isdigit((p)->ifr_name[2]) || (p)->ifr_name[2] == '\0'))
 #endif
 
 /*
@@ -99,6 +100,7 @@ pcap_lookupdev(errbuf)
 	ifc.ifc_len = sizeof ibuf;
 	ifc.ifc_buf = (caddr_t)ibuf;
 
+	memset((char *)ibuf, 0, sizeof(ibuf));
 	if (ioctl(fd, SIOCGIFCONF, (char *)&ifc) < 0 ||
 	    ifc.ifc_len < sizeof(struct ifreq)) {
 		(void)sprintf(errbuf, "SIOCGIFCONF: %s", pcap_strerror(errno));

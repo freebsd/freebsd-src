@@ -1,4 +1,81 @@
-@(#) $Header: CHANGES,v 1.36 96/11/30 21:01:15 leres Exp $ (LBL)
+@(#) $Header: CHANGES,v 1.47 98/07/25 12:40:16 leres Exp $ (LBL)
+
+v0.4 Sat Jul 25 12:40:09 PDT 1998
+
+- Fix endian problem with DLT_NULL devices. From FreeBSD via Bill
+  Fenner (fenner@parc.xerox.com)
+
+- Fix alignment problem with FDDI under DLPI. This was causing core
+  dumps under Solaris.
+
+- Added configure options to disable flex and bison. Resulted from a
+  bug report by barnett@grymoire.crd.ge.com (Bruce Barnett). Also added
+  options to disable gcc and to force a particular packet capture type.
+
+- Added support for Fore ATM interfaces (qaa and fa) under IRIX. Thanks
+  to John Hawkinson (jhawk@mit.edu)
+
+- Change Linux PPP and SLIP to use DLT_RAW since the kernel does not
+  supply any "link layer" data.
+
+- Change Linux to use SIOCGIFHWADDR ioctl to determine link layer type.
+  Thanks to Thomas Sailer (sailer@ife.ee.ethz.ch)
+
+- Change IRIX PPP to use DLT_RAW since the kernel does not supply any
+  "link layer" data.
+
+- Modified to support the new BSD/OS 2.1 PPP and SLIP link layer header
+  formats.
+
+- Added some new SGI snoop interface types. Thanks to Steve Alexander
+  (sca@refugee.engr.sgi.com)
+
+- Fixes for HP-UX 10.20 (which is similar to HP-UX 9). Thanks to
+  Richard Allen (ra@hp.is) and Steinar Haug (sthaug@nethelp.no)
+
+- Fddi supports broadcast as reported by Jeff Macdonald
+  (jeff@iacnet.com). Also correct ieee802 and arcnet.
+
+- Determine Linux pcap buffer size at run time or else it might not be
+  big enough for some interface types (e.g. FDDI). Thanks to Jes
+  Sorensen (Jes.Sorensen@cern.ch)
+
+- Fix some linux alignment problems.
+
+- Document promisc argument to pcap_open_live(). Reported by Ian Marsh
+  (ianm@sics.se)
+
+- Support Metricom radio packets under Linux. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Bind to interface name under Linux to avoid packets from multiple
+  interfaces on multi-homed hosts. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Change L_SET to SEEK_SET for HP-UX. Thanks to Roland Roberts
+  (rroberts@muller.com)
+
+- Fixed an uninitialized memory reference found by Kent Vander Velden
+  (graphix@iastate.edu)
+
+- Fixed lex pattern for IDs to allow leading digits. As reported by
+  Theo de Raadt (deraadt@cvs.openbsd.org)
+
+- Fixed Linux include file problems when using GNU libc.
+
+- Ifdef ARPHRD_FDDI since not all versions of the Linux kernel have it.
+  Reported reported by Eric Jacksch (jacksch@tenebris.ca)
+
+- Fixed bug in pcap_dispatch() that kept it from returning on packet
+  timeouts.
+
+- Changed ISLOOPBACK() macro when IFF_LOOPBACK isn't available to check
+  for "lo" followed by an eos or digit (newer versions of Linux
+  apparently call the loopback "lo" instead of "lo0").
+
+- Fixed Linux networking include files to use ints instead of longs to
+  avoid problems with 64 bit longs on the alpha. Thanks to Cristian
+  Gafton (gafton@redhat.com)
 
 v0.3 Sat Nov 30 20:56:27 PST 1996
 
