@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.106 1999/01/28 00:57:56 dillon Exp $
+ * $Id: ufs_vnops.c,v 1.107 1999/02/13 08:38:28 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -396,13 +396,20 @@ ufs_getattr(ap)
 	vap->va_ctime.tv_nsec = ip->i_ctimensec;
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
-	/* this doesn't belong here */
-	if (vp->v_type == VBLK)
-		vap->va_blocksize = BLKDEV_IOSIZE;
-	else if (vp->v_type == VCHR)
-		vap->va_blocksize = MAXBSIZE;
-	else
+
+	/*
+	 * Use the information contained in v_specinfo for VBLK and VCHR
+	 * vnodes, and in the underlying mount point for (typically) VREG
+	 * vnodes.  Note that vp->v_specmountpoint can be NULL.
+	 */
+	if (vp->v_type == VBLK) {
+		vap->va_blocksize = vp->v_specinfo->si_bsize_best;
+	} else if (vp->v_type == VCHR) {
+		vap->va_blocksize = vp->v_specinfo->si_bsize_max;
+	} else {
 		vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
+	}
+
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
 	vap->va_type = IFTOVT(ip->i_mode);
 	vap->va_filerev = ip->i_modrev;
