@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.80 1999/04/28 11:36:52 phk Exp $
+ * $Id: kern_exit.c,v 1.81 1999/06/07 20:37:29 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -508,8 +508,11 @@ loop:
 			/*
 			 * Destroy empty prisons
 			 */
-			if (p->p_prison && !--p->p_prison->pr_ref)
+			if (p->p_prison && !--p->p_prison->pr_ref) {
+				if (p->p_prison->pr_linux != NULL)
+					FREE(p->p_prison->pr_linux, M_PRISON);
 				FREE(p->p_prison, M_PRISON);
+			}
 
 			/*
 			 * Finally finished with old proc entry.
