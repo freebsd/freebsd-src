@@ -25,59 +25,94 @@
 .\"
 .\"       $FreeBSD$
 .\"
-.Dd January 17, 2000
-.Dt POSIX1E 3
+.Dd January 28, 2000
+.Dt ACL_SET 3
 .Os FreeBSD 4.0
 .Sh NAME
-.Nm posix1e \- introduction to the POSIX.1e security API
+.Fd int
+.Nm acl_set_file ,
+.Nm acl_set_fd ,
+.Nm acl_set_fd_np
+.Nd Get an ACL for a file
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
-.Fd #include <sys/audit.h>
-.Fd #include <sys/capability.h>
-.Fd #include <sys/mac.h>
+.Ft int
+.Fn acl_set_file "const char *path_p" "acl_type_t type" "acl_t acl"
+.Ft int
+.Fn acl_set_fd "int fd" "acl_t acl"
+.Ft int
+.Fn acl_set_fd_np "int fd" "acl_t acl" "acl_type_t type"
 .Sh DESCRIPTION
-The IEEE POSIX.1e specification never left draft form, but the interfaces
-it describes are now widely used despite inherrent limitations.  Currently,
-only a few of the interfaces and features are implemented in FreeBSD,
-although efforts are underway to complete the integration at this time.
-
-POSIX.1e describes five security extensions to the base POSIX.1 API:
-Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
-Control, and Information Flow Labels.  Of these, the ACL interfaces are
-currently included with FreeBSD, Auditing, Capabilities, and Mandatory
-Access Control are in the wings, and Information Flow Labels are not on
-the calendar.
-
-POSIX.1e defines both syntax and semantics for these features, but fairly
-substantial changes are required to implement these features in the 
-operating system.  As shipped, FreeBSD 4.0 permits file systems to export
-Access Control Lists via the VFS, and provides a library for userland
-access to and manipulation of these ACLs, but support for ACLs is not
-provided by any file systems shipped in the base operating system.
-Available API calls relating to ACLs are described in detail in
-.Xr acl 3 .
-
-The patches supporting other POSIX.1e features are not available in the
-base operating system at this time--however, more information on them
-may be found on the FreeBSD POSIX.1e implementation web page:
-
-http://www.watson.org/fbsd-hardening/posix1e/
+The
+.Fn acl_set_file ,
+.Fn acl_set_fd ,
+and
+.Fn acl_set_fd_np
+each associate an ACL with an object referred to by
+.Va fd
+or
+.Va path_p .  
+All except
+.Fn acl_set_fd_np
+are POSIX.1e calls--
+.Fn acl_set_fd
+allows only the setting of ACLs of type ACL_TYPE_ACCESS
+where as 
+.Fn acl_set_fd_np
+allows the setting of ACLs of any type.
 .Sh IMPLEMENTATION NOTES
 FreeBSD's support for POSIX.1e interfaces and features is still under
 development at this time.
-.Sh ENVIRONMENT
-POSIX.1e assigns security labels to all objects, extending the security
-functionality described in POSIX.1.  These additional labels provide
-fine-grained discretionary access control, fine-grained capabilities,
-and labels necessary for mandatory access control.  POSIX.2c describes
-a set of userland utilities for manipulating these labels.  These userland
-utilities are not bundled with FreeBSD 4.0 so as to discourage their
-use in the short term.
-.Sh FILES
+.Sh RETURN VALUES
+Upon successfull completion, the function shall return a value of zero.
+Otherwise, a value of -1 shall be returned and
+.Va errno
+shall be set to indicate the error.
+.Sh ERRORS
+If any of the following conditions occur, these functions shall return
+-1 and set
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix, or the
+object exists and the process does not have appropriate access rights.
+.It Bq Er EBADF
+The
+.Va fd
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+Argument
+.Va acl
+does not point to a valid ACL for this object, or the ACL type
+specified in
+.Va type
+is invalid for this object, or both.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters, or an
+entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named object does not exist, or the
+.Va path_p
+argument points to an empty string.
+.It Bq Er ENOMEM
+Insufficient memory available to fulfill request.
+.It Bq Er ENOSPC
+The directory or file system that would contain the new ACL cannot be
+extended, or the file system is out of file allocation resources.
+.It Bq Er EOPNOTSUPP
+The file system does not support ACL retrieval.
+.It Bq Er EROFS
+This function requires modification of a file system which is currently
+read-only.
+.El
 .Sh SEE ALSO
 .Xr acl 3 ,
-.Xr acl 9 ,
-.Xr extattr 9
+.Xr acl_delete 3 ,
+.Xr acl_get 3 ,
+.Xr acl_valid 3 ,
+.Xr posix1e 3
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
@@ -86,7 +121,7 @@ page for more information.
 .Sh HISTORY
 POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
 .Sh AUTHORS
-Robert N M Watson, Ilmar S Habibulin
+Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
