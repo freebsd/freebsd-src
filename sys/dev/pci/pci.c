@@ -953,9 +953,13 @@ static void pci_rescan()
 **========================================================
 */
 
-int pci_register_lkm (struct pci_device *dvp)
+int pci_register_lkm (struct pci_device *dvp, int if_revision)
 {
 	struct pci_lkm *lkm;
+
+	if (if_version != 0) {
+		return -1;
+	}
 
 	if (!dvp || !dvp->pd_probe || !dvp->pd_attach) {
 		return -1;
