@@ -127,6 +127,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # Builtin hardware
 device		auxio		# auxiliary I/O device
+device		clkbrd		# Clock Board (blinkenlight on Sun Exx00)
 device		genclock	# Generic clock interface
 device		eeprom		# eeprom (really a front-end for the MK48Txx)
 device		mk48txx		# Mostek MK48Txx clocks

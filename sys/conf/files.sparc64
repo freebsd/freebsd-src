@@ -50,6 +50,7 @@ libkern/flsl.c			standard
 sparc64/central/central.c	optional	central
 sparc64/creator/creator_upa.c	optional	creator sc
 sparc64/ebus/ebus.c		optional	ebus
+sparc64/fhc/clkbrd.c		optional	clkbrd fhc
 sparc64/fhc/fhc.c		optional	fhc
 sparc64/fhc/fhc_central.c	optional	fhc central
 sparc64/fhc/fhc_nexus.c		optional	fhc

@@ -50,6 +50,7 @@ device		mc146818	# Motorola MC146818 and compatible clocks
 #
 
 device		auxio		# auxiliary I/O device
+device		clkbrd		# Clock Board (blinkenlight on Sun Exx00)
 device		creator		# Creator, Creator3D and Elite3D graphics cards
 
 device		ofw_console	# Open Firmware console device
