@@ -39,7 +39,7 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm df
-.Op Fl in
+.Op Fl ink
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
@@ -60,6 +60,11 @@ The following options are available:
 .Bl -tag -width Ds
 .It Fl i
 Include statistics on the number of free inodes.
+.It Fl k
+Use 1024-byte (1-Kbyte) blocks rather than the default.  Note that
+this overrides the
+.Ev BLOCKSIZE
+specification from the environment.
 .It Fl n
 Print out the previously obtained statistics from the filesystems.
 This option should be used if it is possible that one or more

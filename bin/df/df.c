@@ -121,10 +121,13 @@ main(argc, argv)
 	int ch, err, i, maxwidth, width;
 	char *mntpt;
 
-	while ((ch = getopt(argc, argv, "int:")) != EOF)
+	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
 		switch (ch) {
 		case 'i':
 			iflag = 1;
+			break;
+		case 'k':
+			putenv("BLOCKSIZE=1024");
 			break;
 		case 'n':
 			nflag = 1;
@@ -415,6 +418,7 @@ bread(off, buf, cnt)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: df [-in] [file | file_system ...]\n");
+	fprintf(stderr, 
+		"usage: df [-ikn] [-t fstype] [file | file_system ...]\n");
 	exit(1);
 }
