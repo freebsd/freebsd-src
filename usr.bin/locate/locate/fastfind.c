@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.4 1996/10/20 16:54:51 wosch Exp $
+ * $Id: fastfind.c,v 1.5 1996/10/23 16:46:47 ache Exp $
  */
 
 
@@ -154,7 +154,7 @@ fastfind
 	/* init bigram table */
 #ifdef FF_MMAP
 	if (len < (2*NBG)) {
-		(void)fprintf(stderr, "database to small: %s\n", database);
+		(void)fprintf(stderr, "database too small: %s\n", database);
 		exit(1);
 	}
 	
