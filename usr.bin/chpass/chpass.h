@@ -64,14 +64,14 @@ extern int master_mode;
 
 int	 atot(char *, time_t *);
 struct passwd *edit(const char *, struct passwd *);
-char    *ok_shell(char *);
+int      ok_shell(char *);
+char    *dup_shell(char *);
 int	 p_change(char *, struct passwd *, ENTRY *);
 int	 p_class(char *, struct passwd *, ENTRY *);
 int	 p_expire(char *, struct passwd *, ENTRY *);
 int	 p_gecos(char *, struct passwd *, ENTRY *);
 int	 p_gid(char *, struct passwd *, ENTRY *);
 int	 p_hdir(char *, struct passwd *, ENTRY *);
-int	 p_login(char *, struct passwd *, ENTRY *);
 int	 p_login(char *, struct passwd *, ENTRY *);
 int	 p_passwd(char *, struct passwd *, ENTRY *);
 int	 p_shell(char *, struct passwd *, ENTRY *);

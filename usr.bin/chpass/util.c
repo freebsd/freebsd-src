@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <ctype.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -139,18 +138,45 @@ bad:		return (1);
 	return (0);
 }
 
-char *
+int
 ok_shell(char *name)
 {
 	char *p, *sh;
 
 	setusershell();
 	while ((sh = getusershell())) {
-		if (!strcmp(name, sh))
-			return (name);
+		if (!strcmp(name, sh)) {
+			endusershell();
+			return (1);
+		}
 		/* allow just shell name, but use "real" path */
-		if ((p = strrchr(sh, '/')) && strcmp(name, p + 1) == 0)
-			return (sh);
+		if ((p = strrchr(sh, '/')) && strcmp(name, p + 1) == 0) {
+			endusershell();
+			return (1);
+		}
 	}
+	endusershell();
+	return (0);
+}
+
+char *
+dup_shell(char *name)
+{
+	char *p, *sh, *ret;
+
+	setusershell();
+	while ((sh = getusershell())) {
+		if (!strcmp(name, sh)) {
+			endusershell();
+			return (strdup(name));
+		}
+		/* allow just shell name, but use "real" path */
+		if ((p = strrchr(sh, '/')) && strcmp(name, p + 1) == 0) {
+			ret = strdup(sh);
+			endusershell();
+			return (ret);
+		}
+	}
+	endusershell();
 	return (NULL);
 }

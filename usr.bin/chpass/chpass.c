@@ -53,15 +53,9 @@ static char sccsid[] = "@(#)chpass.c	8.4 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/signal.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -292,7 +286,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "Usage: chpass%s %s [user]\n",
+	    "usage: chpass%s %s [user]\n",
 #ifdef YP
 	    " [-d domain] [-h host]",
 #else
