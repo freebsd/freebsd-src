@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disktab.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef	_DISKTAB_H_
@@ -41,7 +42,7 @@
  */
 #define	DISKTAB		"/etc/disktab"
 
-struct	disktab {
+struct disktab {
 	char	*d_name;		/* drive name */
 	char	*d_type;		/* drive type */
 	int	d_secsize;		/* sector size in bytes */

@@ -35,7 +35,7 @@
  * Signal frames, arguments passed to application signal handlers.
  */
 
-struct	osigframe {
+struct osigframe {
 	/*
 	 * The first four members may be used by applications.
 	 */
