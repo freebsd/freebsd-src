@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.146 1999/02/04 22:34:23 adam Exp $
+#	$Id: GENERIC,v 1.147 1999/02/10 02:18:31 des Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -145,9 +145,9 @@ device		sio1	at isa? port "IO_COM2" tty irq 3
 device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
-# Parallell port
+# Parallel port
 device		ppc0	at isa? port? net irq 7
-constroller	ppbus0
+controller	ppbus0
 device		nlpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
