@@ -2393,6 +2393,7 @@ Parse_File(char *name, FILE *stream)
 
 		    *cp2 = '\0';
 
+		    cp = Var_Subst(NULL, cp, VAR_CMD, FALSE);
 		    Var_Delete(cp, VAR_GLOBAL);
 		    goto nextLine;
 		}
