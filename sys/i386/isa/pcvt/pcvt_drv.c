@@ -83,6 +83,8 @@
 
 #include "pcvt_hdr.h"		/* global include */
 
+extern int getchar __P((void));
+
 #if PCVT_NETBSD
 	extern u_short *Crtat;
 #endif /* PCVT_NETBSD */
