@@ -20,7 +20,7 @@ STRIPFILES=     tmac.e tmac.s tmac.doc tmac.doc.old
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 
 
-afterinstall:
+beforeinstall:
 	for f in ${FILES}; do \
 		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			${.CURDIR}/$$f ${DESTDIR}${TMACDIR}; \
