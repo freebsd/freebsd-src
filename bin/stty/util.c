@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: util.c,v 1.2 1994/09/24 02:59:05 davidg Exp $
  */
 
 #ifndef lint
@@ -62,5 +62,5 @@ checkredirect()
 	if (isatty(STDOUT_FILENO) && isatty(STDERR_FILENO) &&
 	    !fstat(STDOUT_FILENO, &sb1) && !fstat(STDERR_FILENO, &sb2) &&
 	    (sb1.st_rdev != sb2.st_rdev))
-warn("stdout appears redirected, but stdin is the control descriptor");
+warnx("stdout appears redirected, but stdin is the control descriptor");
 }
