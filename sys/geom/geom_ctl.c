@@ -406,21 +406,14 @@ struct g_provider *
 gctl_get_provider(struct gctl_req *req, char const *arg)
 {
 	char const *p;
-	struct g_class *cp;
-	struct g_geom *gp;
 	struct g_provider *pp;
 
 	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL)
 		return (NULL);
-	LIST_FOREACH(cp, &g_classes, class) {
-		LIST_FOREACH(gp, &cp->geom, geom) {
-			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (!strcmp(p, pp->name))
-					return (pp);
-			}
-		}
-	}
+	pp = g_provider_by_name(p);
+	if (pp != NULL)
+		return (pp);
 	gctl_error(req, "Provider not found");
 	return (NULL);
 }

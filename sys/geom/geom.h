@@ -204,6 +204,7 @@ void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
 void g_detach(struct g_consumer *cp);
 void g_error_provider(struct g_provider *pp, int error);
+struct g_provider *g_provider_by_name(char const *arg);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
 int g_handleattr(struct bio *bp, const char *attribute, void *val, int len);
