@@ -106,7 +106,7 @@ char *alloca ();
    Also, when `ordering' is RETURN_IN_ORDER,
    each non-option ARGV-element is returned here.  */
 
-char *optarg = 0;
+char *optarg = NULL;
 
 /* Index in ARGV of the next element to be scanned.
    This is used for communication to and from the caller
@@ -190,12 +190,10 @@ static enum
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
-char *getenv ();
+char *getenv(const char *_name);
 
 static char *
-my_index (str, chr)
-     const char *str;
-     int chr;
+my_index(const char *str, int chr)
 {
   while (*str)
     {
@@ -237,8 +235,7 @@ static int last_nonopt;
    the new indices of the non-options in ARGV after they are moved.  */
 
 static void
-exchange (argv)
-     char **argv;
+exchange(char **argv)
 {
   int nonopts_size = (last_nonopt - first_nonopt) * sizeof (char *);
   char **temp = (char **) __alloca (nonopts_size);
@@ -315,13 +312,8 @@ exchange (argv)
    long-named options.  */
 
 int
-_getopt_internal (argc, argv, optstring, longopts, longind, long_only)
-     int argc;
-     char *const *argv;
-     const char *optstring;
-     const struct option *longopts;
-     int *longind;
-     int long_only;
+_getopt_internal(int argc, char *const *argv, const char *optstring,
+    const struct option *longopts, int *longind, int long_only)
 {
   int option_index;
 
@@ -649,10 +641,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 }
 
 int
-getopt (argc, argv, optstring)
-     int argc;
-     char *const *argv;
-     const char *optstring;
+getopt(int argc, char *const *argv, const char *optstring)
 {
   return _getopt_internal (argc, argv, optstring,
 			   (const struct option *) 0,
