@@ -1553,8 +1553,19 @@ dpt_attach(dpt_softc_t *dpt)
 		dpt->sims[i] = cam_sim_alloc(dpt_action, dpt_poll, "dpt",
 					     dpt, dpt->unit, /*untagged*/2,
 					     /*tagged*/dpt->max_dccbs, devq);
+		if (dpt->sims[i] == NULL) {
+			if (i == 0)
+				cam_simq_free(devq);
+			else
+				printf(	"%s(): Unable to attach bus %d "
+					"due to resource shortage\n",
+					__func__, i);
+			break;
+		}
+
 		if (xpt_bus_register(dpt->sims[i], i) != CAM_SUCCESS) {
 			cam_sim_free(dpt->sims[i], /*free_devq*/i == 0);
+			dpt->sims[i] = NULL;
 			break;
 		}
 
@@ -1564,6 +1575,7 @@ dpt_attach(dpt_softc_t *dpt)
 				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_bus_deregister(cam_sim_path(dpt->sims[i]));
 			cam_sim_free(dpt->sims[i], /*free_devq*/i == 0);
+			dpt->sims[i] = NULL;
 			break;
 		}
 
