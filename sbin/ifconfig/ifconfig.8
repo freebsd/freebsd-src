@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id$
+.\"	$Id: ifconfig.8,v 1.6 1996/02/06 20:35:51 wollman Exp $
 .\"
-.Dd February 6, 1996
+.Dd February 13, 1996
 .Dt IFCONFIG 8
 .Os BSD 4.2
 .Sh NAME
@@ -80,20 +80,20 @@ or a
 .Tn DARPA
 Internet address expressed in the Internet standard
 .Dq dot notation .
-For the Xerox Network Systems(tm) family,
-addresses are 
-.Ar net:a.b.c.d.e.f ,
-where
-.Ar net
-is the assigned network number (in decimal),
-and each of the six bytes of the host number,
-.Ar a
-through
-.Ar f ,
-are specified in hexadecimal.
-The host number may be omitted on 10Mb/s Ethernet interfaces,
-which use the hardware physical address,
-and on interfaces other than the first.
+.\" For the Xerox Network Systems(tm) family,
+.\" addresses are 
+.\" .Ar net:a.b.c.d.e.f ,
+.\" where
+.\" .Ar net
+.\" is the assigned network number (in decimal),
+.\" and each of the six bytes of the host number,
+.\" .Ar a
+.\" through
+.\" .Ar f ,
+.\" are specified in hexadecimal.
+.\" The host number may be omitted on 10Mb/s Ethernet interfaces,
+.\" which use the hardware physical address,
+.\" and on interfaces other than the first.
 .\" For the
 .\" .Tn ISO
 .\" family, addresses are specified as a long hexadecimal string,
@@ -108,11 +108,12 @@ Since an interface can receive transmissions in differing protocols
 with different naming schemes, specifying the address family is recommended.
 The address or protocol families currently
 supported are
-.Dq inet ,
+.Dq inet
 .\" .Dq iso ,
-.Dq ipx ,
 and
-.Dq ns .
+.Dq ipx .
+.\" and
+.\" .Dq ns .
 .It Ar Interface
 The
 .Ar interface
@@ -164,15 +165,15 @@ marked ``down'', the system will not attempt to
 transmit messages through that interface. 
 If possible, the interface will be reset to disable reception as well.
 This action does not automatically disable routes using the interface.
-.It Cm ipdst
-This is used to specify an Internet host who is willing to receive
-ip packets encapsulating NS packets bound for a remote network.
-An apparent point to point link is constructed, and
-the address specified will be taken as the NS address and network
-of the destination.
-IP encapsulation of
-.Tn CLNP
-packets is done differently.
+.\" .It Cm ipdst
+.\" This is used to specify an Internet host who is willing to receive
+.\" ip packets encapsulating NS packets bound for a remote network.
+.\" An apparent point to point link is constructed, and
+.\" the address specified will be taken as the NS address and network
+.\" of the destination.
+.\" IP encapsulation of
+.\" .Tn CLNP
+.\" packets is done differently.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -250,8 +251,10 @@ the hardware will be re-initialized.
 .El
 .Pp
 .Pp
-.Nm Ifconfig
+The
+.Nm ifconfig
 .Fl a
+command
 displays information on all interfaces.  When followed by a configuration
 parameter, it will also set the configuration on all interfaces.
 .Pp
