@@ -51,11 +51,21 @@ The
 function transforms a null-terminated string pointed to by
 .Fa src
 according to the current locale collation if any,
-then copies not more than
-.Fa n-1
-characters of the resulting string into
+then copies the resulting string
+into
+.Fa dst .
+Not more than
+.Fa n
+characters are copied into
 .Fa dst ,
-terminating it with a null character and then returns the resulting length.
+including the terminating null character added.
+If
+.Fa n
+is set to 0,
+.Fa dst
+is permitted to be a NULL pointer (it helps to determine an actual size needed
+for transformation).
+.Pp
 Comparing two strings using
 .Fn strcmp
 after
@@ -63,6 +73,11 @@ after
 is equal to comparing
 two original strings with
 .Fn strcoll .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn strxfrm
+returns the length of the transformed string not including
+the terminating null character.
 .Sh BUGS
 Sometimes the behavior of this function is unpredictable.
 .Sh SEE ALSO

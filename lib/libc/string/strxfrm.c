@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.8 1997/02/22 15:03:31 peter Exp $
+ * $Id: strxfrm.c,v 1.9 1998/06/05 09:49:51 ache Exp $
  */
 
 #include <stdlib.h>
@@ -38,43 +38,48 @@ strxfrm(dest, src, len)
 	size_t len;
 {
 	int prim, sec, l;
-	char *d = dest, *s, *ss;
-
-	if (len < 1)
-		return 0;
+	size_t slen;
+	char *s, *ss;
 
 	if (!*src) {
-		*d = '\0';
+		if (len > 0)
+			*dest = '\0';
 		return 0;
 	}
 
 	if (__collate_load_error) {
-		size_t slen = strlen(src);
-
-		if (slen < len) {
-			strcpy(d, src);
-			return slen;
+		slen = strlen(src);
+		if (len > 0) {
+			if (slen < len)
+				strcpy(dest, src);
+			else {
+				strncpy(dest, src, len - 1);
+				dest[len - 1] = '\0';
+			}
 		}
-		strncpy(d, src, len - 1);
-		d[len - 1] = '\0';
-		return len - 1;
+		return slen;
 	}
 
+	slen = 0;
 	prim = sec = 0;
 	ss = s = __collate_substitute(src);
-	while (*s && len > 1) {
+	while (*s) {
 		while (*s && !prim) {
 			__collate_lookup(s, &l, &prim, &sec);
 			s += l;
 		}
 		if (prim) {
-			*d++ = (char)prim;
-			len--;
+			if (len > 1) {
+				*dest++ = (char)prim;
+				len--;
+			}
+			slen++;
 			prim = 0;
 		}
 	}
 	free(ss);
-	*d = '\0';
+	if (len > 0)
+		*dest = '\0';
 
-	return d - dest;
+	return slen;
 }
