@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.28 1998/11/14 16:15:04 dg Exp $";
+	"$Id: main.c,v 1.29 1998/11/15 05:55:58 bde Exp $";
 #endif /* not lint */
 
 /*-
@@ -449,6 +449,7 @@ main(argc, argv)
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
     	char *machine = getenv("MACHINE");
+	char *machine_arch = getenv("MACHINE_ARCH");
 	Lst sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
@@ -525,6 +526,14 @@ main(argc, argv)
 	    machine = utsname.machine;
 #else
 	    machine = MACHINE;
+#endif
+	}
+
+	if (!machine_arch) {
+#ifndef MACHINE_ARCH
+		machine_arch = "unknown";
+#else
+		machine_arch = MACHINE_ARCH;
 #endif
 	}
 
@@ -626,9 +635,7 @@ main(argc, argv)
 	Var_Set(MAKEFLAGS, "", VAR_GLOBAL);
 	Var_Set("MFLAGS", "", VAR_GLOBAL);
 	Var_Set("MACHINE", machine, VAR_GLOBAL);
-#ifdef MACHINE_ARCH
-	Var_Set("MACHINE_ARCH", MACHINE_ARCH, VAR_GLOBAL);
-#endif
+	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL);
 
 	/*
 	 * First snag any flags out of the MAKE environment variable.
