@@ -6,7 +6,7 @@ PROG=	geom
 MAN=	geom.8
 SRCS=	geom.c subr.c
 
-NOSHARED=NO
+NO_SHARED=NO
 
 CFLAGS+= -DCLASS_DIR=\"${CLASS_DIR}\"
 CFLAGS+= -I${.CURDIR}/../../../sys -I${.CURDIR} -I${.CURDIR}/..

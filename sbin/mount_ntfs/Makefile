@@ -14,7 +14,7 @@ WARNS?=	0
 
 # Needs to be dynamically linked for optional dlopen() access to
 # userland libiconv
-NOSHARED?=	NO
+NO_SHARED?=	NO
 
 .PATH:	${MOUNT}
 

@@ -16,7 +16,7 @@ GDB_CPU=	i386
 GDB_CPU=	${TARGET_ARCH}
 .endif
 
-NOSHARED?=yes
+NO_SHARED?=yes
 PROG=	gdb
 XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
 	blockframe.c breakpoint.c buildsym.c complaints.c completer.c	\

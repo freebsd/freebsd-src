@@ -22,7 +22,7 @@ CFLAGS+=${CRUNCH_CFLAGS}
 STRIP?=	-s
 .endif
 
-.if defined(NOSHARED) && (${NOSHARED} != "no" && ${NOSHARED} != "NO")
+.if defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 LDFLAGS+= -static
 .endif
 

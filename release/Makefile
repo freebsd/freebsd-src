@@ -472,7 +472,7 @@ release rerelease:
 	NOCDROM \
 	NODOC \
 	NOPORTS \
-	NOSHARED \
+	NO_SHARED \
 	NOSRC \
 	NO_CPU_CFLAGS \
 	NO_CPU_COPTFLAGS \

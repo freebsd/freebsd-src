@@ -5,5 +5,5 @@ BINDIR?=	/sbin
 WARNS?=	2
 
 .if defined(NO_DYNAMICROOT)
-NOSHARED?=	YES
+NO_SHARED?=	YES
 .endif
