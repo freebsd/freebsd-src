@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.9 1999/05/06 03:23:24 archie Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.10 1999/05/12 17:28:31 archie Exp $ (LBL)";
 #endif
 
 /*
@@ -388,6 +388,7 @@ main(int argc, char **argv)
 	register int tos = 0;
 	register int lsrr = 0;
 	register int optlen = 0;
+	int requestPort = -1;
 	int sump = 0;
 	int sockerrno;
 
@@ -487,8 +488,8 @@ main(int argc, char **argv)
 			break;
 
 		case 'p':
-			port = atoi(optarg);
-			if (port <= 0) {
+			requestPort = atoi(optarg);
+			if (requestPort <= 0) {
 				Fprintf(stderr, "%s: port must be > 0\n", prog);
 				exit(1);
 			}
@@ -541,6 +542,9 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+
+	/* Set requested port, if any, else default for this protocol */
+	port = (requestPort != -1) ? requestPort : proto->port;
 
 	/* Check min vs. max TTL */
 	if (min_ttl > max_ttl) {
