@@ -158,7 +158,7 @@ only forth also support-functions
 : load-pnp
   0 to end_of_file?
   reset_line_reading
-  s" /boot/pnpid.conf" fopen fd !
+  s" /boot/pnpid.conf" O_RDONLY fopen fd !
   fd @ -1 <> if
     begin
       end_of_file? 0=

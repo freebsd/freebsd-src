@@ -642,9 +642,19 @@ Reads a single character from a file.
 .It Ic fload Pq Ar fd --
 Process file
 .Em fd .
-.It Ic fopen Pq Ar addr len -- fd
+.It Ic fopen Pq Ar addr len mode Li -- Ar fd
 Open a file.
-Returns a file descriptor, or -1 in case of failure.
+Returns a file descriptor, or \-1 in case of failure. The
+.Ar mode
+parameter selects whether the file is to be opened for read access, write
+access, or both.
+The constants
+.Dv O_RDONLY , O_WRONLY ,
+and
+.Dv O_RDWR
+are defined in
+.Pa /boot/support.4th ,
+indicating read only, write only, and read-write access, respectively.
 .It Xo
 .Ic fread
 .Pq Ar fd addr len -- len'

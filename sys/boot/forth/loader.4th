@@ -26,8 +26,8 @@
 
 s" arch-alpha" environment? [if] [if]
 	s" loader_version" environment?  [if]
-		11 < [if]
-			.( Loader version 1.1+ required) cr
+		12 < [if]
+			.( Loader version 1.2+ required) cr
 			abort
 		[then]
 	[else]
@@ -38,8 +38,8 @@ s" arch-alpha" environment? [if] [if]
 
 s" arch-i386" environment? [if] [if]
 	s" loader_version" environment?  [if]
-		10 < [if]
-			.( Loader version 1.0+ required) cr
+		11 < [if]
+			.( Loader version 1.1+ required) cr
 			abort
 		[then]
 	[else]

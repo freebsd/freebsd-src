@@ -80,6 +80,16 @@
 8 constant before_load_error
 9 constant after_load_error
 
+\ I/O constants
+
+0 constant SEEK_SET
+1 constant SEEK_CUR
+2 constant SEEK_END
+
+0 constant O_RDONLY
+1 constant O_WRONLY
+2 constant O_RDWR
+
 \ Crude structure support
 
 : structure:
@@ -931,23 +941,12 @@ support-functions definitions
 
 only forth also support-functions definitions
 
-: create_null_terminated_string  { addr len -- addr' len }
-  len char+ allocate if out_of_memory throw then
-  >r
-  addr r@ len move
-  0 r@ len + c!
-  r> len
-;
-
 \ Interface to loading conf files
 
 : load_conf  ( addr len -- )
   0 to end_of_file?
   reset_line_reading
-  create_null_terminated_string
-  over >r
-  fopen fd !
-  r> free-memory
+  O_RDONLY fopen fd !
   fd @ -1 = if open_error throw then
   ['] process_conf catch
   fd @ fclose
