@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.27 1997/05/05 09:34:33 peter Exp $
+ *	$Id: clock.h,v 1.28 1997/12/26 20:42:01 phk Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -28,6 +28,11 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
+extern int	statclock_disable;
+extern u_int	timer_freq;
+extern int	timer0_max_count;
+extern u_int	timer0_overflow_threshold;
+extern u_int	timer0_prescaler_count;
 #if defined(I586_CPU) || defined(I686_CPU)
 #ifndef SMP
 extern u_int	tsc_bias;
@@ -38,11 +43,6 @@ extern u_int	tsc_freq;
 extern u_int	tsc_multiplier;
 #endif
 #endif
-extern int	statclock_disable;
-extern u_int	timer_freq;
-extern int	timer0_max_count;
-extern u_int	timer0_overflow_threshold;
-extern u_int	timer0_prescaler_count;
 extern int	wall_cmos_clock;
 
 /*
@@ -87,9 +87,9 @@ clock_latency(void)
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 /*
- * When we update `time', on i586's we also update `tsc_bias'
+ * When we update `time', on we also update `tsc_bias'
  * atomically.  `tsc_bias' is the best available approximation to
- * the value of the i586 counter (mod 2^32) at the time of the i8254
+ * the value of the TSC (mod 2^32) at the time of the i8254
  * counter transition that caused the clock interrupt that caused the
  * update.  clock_latency() gives the time between the transition and
  * the update to within a few usec provided another such transition
@@ -101,13 +101,13 @@ static __inline void
 cpu_clockupdate(volatile struct timeval *otime, struct timeval *ntime)
 {
 	if (tsc_freq != 0) {
-		u_int i586_count;	/* truncated */
+		u_int tsc_count;	/* truncated */
 		u_int i8254_count;
 
 		disable_intr();
 		i8254_count = clock_latency();
-		i586_count = rdtsc();
-		tsc_bias = i586_count
+		tsc_count = rdtsc();
+		tsc_bias = tsc_count
 				- (u_int)
 				  (((unsigned long long)tsc_comultiplier
 				    * i8254_count)

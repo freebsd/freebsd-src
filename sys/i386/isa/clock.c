@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.104 1997/11/18 11:16:56 bde Exp $
+ *	$Id: clock.c,v 1.105 1997/12/26 20:42:05 phk Exp $
  */
 
 /*
@@ -116,16 +116,6 @@
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
-#if defined(I586_CPU) || defined(I686_CPU)
-#ifndef SMP
-u_int	tsc_bias;
-u_int	tsc_comultiplier;
-#endif
-u_int	tsc_freq;
-#ifndef SMP
-u_int	tsc_multiplier;
-#endif
-#endif
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 #ifdef TIMER_FREQ
@@ -136,6 +126,16 @@ u_int	timer_freq = 1193182;
 int	timer0_max_count;
 u_int	timer0_overflow_threshold;
 u_int	timer0_prescaler_count;
+#if defined(I586_CPU) || defined(I686_CPU)
+#ifndef SMP
+u_int	tsc_bias;
+u_int	tsc_comultiplier;
+#endif
+u_int	tsc_freq;
+#ifndef SMP
+u_int	tsc_multiplier;
+#endif
+#endif
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
