@@ -881,7 +881,7 @@ fxp_detach(device_t dev)
 	FXP_LOCK(sc);
 	s = splimp();
 
-	sc->gone = 1;
+	sc->suspend = 1;	/* Do same thing as we do for suspend */
 	/*
 	 * Close down routes etc.
 	 */
@@ -1499,10 +1499,12 @@ fxp_intr(void *xsc)
 	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
 
-	if (sc->gone)
-		return;
-
 	FXP_LOCK(sc);
+	if (sc->suspended) {
+		FXP_UNLOCK(sc);
+		return;
+	}
+
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING) {
 		FXP_UNLOCK(sc);
@@ -1516,12 +1518,6 @@ fxp_intr(void *xsc)
 		return;
 	}
 #endif
-
-	if (sc->suspended) {
-		FXP_UNLOCK(sc);
-		return;
-	}
-
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 		/*
 		 * It should not be possible to have all bits set; the
@@ -2362,8 +2358,12 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int s, error = 0;
 
-	if (sc->gone)
-		return (ENODEV);
+	/*
+	 * Detaching causes us to call ioctl with the mutex owned.  Preclude
+	 * that by saying we're busy if the lock is already held.
+	 */
+	if (mtx_owned(&sc->sc_mtx))
+		return (EBUSY);
 
 	FXP_LOCK(sc);
 	s = splimp();
