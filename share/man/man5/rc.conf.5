@@ -126,11 +126,13 @@ daemon.
 .It Ar hostname
 (str) The Fully Qualified Domain Name of your host on the network.
 This should almost certainly be set to something meaningful, even if
-you've no network connected.
+you have no network connected.  If you are using
+.Xr dhclient 8
+to set your hostname via DHCP, this variable should be set to an empty string.
 .It Ar nisdomainname
 (str) The NIS domainname of your host, or
 .Ar NO
-if you're not running NIS.
+if you are not running NIS.
 .It Ar dhcp_program
 (str) Path to the DHCP client progam (/sbin/dhclient, the ISC DHCP client,
 is the default).
@@ -139,7 +141,7 @@ is the default).
 .It Ar firewall_enable
 (bool) Set to
 .Ar NO
-if you don't want have firewall rules loaded at startup, or 
+if you do not want have firewall rules loaded at startup, or 
 .Ar YES 
 if you do.
 If set to
