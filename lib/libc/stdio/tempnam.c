@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tempnam.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: tempnam.c,v 1.5 1997/02/22 15:02:37 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -46,6 +46,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
+
+__warn_references(tempnam,
+    "warning: tempnam() possibly used unsafely; consider using mkstemp()");
+
+extern char *_mktemp __P((char *));
 
 char *
 tempnam(dir, pfx)
@@ -60,10 +65,10 @@ tempnam(dir, pfx)
 	if (!pfx)
 		pfx = "tmp.";
 
-	if ((f = getenv("TMPDIR"))) {
+	if (issetugid() == 0 && (f = getenv("TMPDIR"))) {
 		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
 		    *(f + strlen(f) - 1) == '/'? "": "/", pfx);
-		if ((f = mktemp(name)))
+		if ((f = _mktemp(name)))
 			return(f);
 	}
 
