@@ -133,7 +133,6 @@ static struct nlist nl[] = {
 	{ "_ipsecstat" },
 #define N_IPSEC6STAT	31
 	{ "_ipsec6stat" },
-#ifdef notyet
 #define N_PIM6STAT	32
 	{ "_pim6stat" },
 #define N_MRT6PROTO	33
@@ -144,7 +143,6 @@ static struct nlist nl[] = {
 	{ "_mf6ctable" },
 #define N_MIF6TABLE	36
 	{ "_mif6table" },
-#endif
 	{ "" },
 };
 
@@ -481,21 +479,17 @@ main(argc, argv)
 			if (af == AF_INET || af == AF_UNSPEC)
 				mrt_stats(nl[N_MRTSTAT].n_value);
 #ifdef INET6
-#ifdef notyet
 			if (af == AF_INET6 || af == AF_UNSPEC)
 				mrt6_stats(nl[N_MRT6STAT].n_value);
-#endif
 #endif
 		} else {
 			if (af == AF_INET || af == AF_UNSPEC)
 				mroutepr(nl[N_MFCTABLE].n_value,
 					 nl[N_VIFTABLE].n_value);
 #ifdef INET6
-#ifdef notyet
 			if (af == AF_INET6 || af == AF_UNSPEC)
 				mroute6pr(nl[N_MF6CTABLE].n_value,
 					  nl[N_MIF6TABLE].n_value);
-#endif
 #endif
 		}
 		exit(0);
