@@ -332,9 +332,13 @@ rawprint(caddr_t loc, size_t len)
 	static u_char *p;
 	int i;
 
+	TCHECK2(*loc, len);
+	
 	p = (u_char *)loc;
 	for (i = 0; i < len; i++)
 		printf("%02x", p[i] & 0xff);
+trunc:
+
 }
 
 struct attrmap {
@@ -1060,6 +1064,8 @@ isakmp_sub_print(u_char np, struct isakmp_gen *ext, u_char *ep,
 	cp = (u_char *)ext;
 
 	while (np) {
+		TCHECK2(*ext, sizeof(e));
+		
 		safememcpy(&e, ext, sizeof(e));
 
 		if (ep < (u_char *)ext + ntohs(e.len)) {
@@ -1085,6 +1091,8 @@ isakmp_sub_print(u_char np, struct isakmp_gen *ext, u_char *ep,
 		ext = (struct isakmp_gen *)cp;
 	}
 	return cp;
+trunc:
+	return NULL;
 }
 
 static char *
