@@ -34,7 +34,14 @@
   <para>This distribution of &os; &release.current; is a
     <quote>point release</quote>, intended to address some issues
     (primarily security-related) discovered in &os; &release.base;.
-    The distribution can be found at <ulink
+    Originally, it was to carry the version number 4.6.1.  However,
+    several additional issues arose during the release engineering
+    process, causing added delays.  To avoid confusion, the release
+    engineering and security teams decided that it would be best to
+    rename the release-in-progress to 4.6.2.</para>
+
+  <para>
+    This distribution can be found at <ulink
     url="&release.url;"></ulink> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
     distributions of &os; can be found in the <ulink
@@ -76,7 +83,7 @@
     &release.prev; are also listed.</para>
 
   <para>Release note entries that describe changes specific to this
-    point release are marked with &new.461;.</para>
+    point release are marked with &new.462;.</para>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
