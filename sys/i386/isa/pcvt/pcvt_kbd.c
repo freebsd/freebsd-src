@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Fri Mar 24 18:38:16 1995]
+ * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Sun Apr  2 18:59:04 1995]
  *
  */
 
@@ -308,12 +308,7 @@ kbd_response(void)
 		if (--timeo == 0)
 			return (-1);
 
-#if PCVT_NETBSD > 9
-	delay(6);				/* Gateway 2000 fix - ziff */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-	DELAY(6);				/* Gateway 2000 fix - ziff */
-#endif
-
+	PCVT_KBD_DELAY();		/* 7 us delay */
 	ch = inb(CONTROLLER_DATA);
 
 #if PCVT_SHOWKEYS
@@ -941,13 +936,7 @@ loop:
 	{
 		if (!noblock)		/* source = 8042 */
 		{
-
-#if PCVT_NETBSD > 9
-			delay(6);	/* Gateway 2000 fix - ziff */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-			DELAY(6);	/* Gateway 2000 fix - ziff */
-#endif
-
+			PCVT_KBD_DELAY();	/* 7 us delay */
 			dt = inb(CONTROLLER_DATA);	/* get from obuf */
 		}
 		else			/* source = keyboard fifo */
@@ -966,14 +955,8 @@ loop:
 	
 	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
-		
-#if PCVT_NETBSD > 9
-		delay(6);		/* Gateway 2000 fix - ziff */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-		DELAY(6);		/* Gateway 2000 fix - ziff */
-#endif
-
-		dt = inb(CONTROLLER_DATA);		/* yes, get it ! */
+		PCVT_KBD_DELAY();		/* 7 us delay */
+		dt = inb(CONTROLLER_DATA);	/* yes, get data */
 
 #endif /* !PCVT_KBD_FIFO */
 
@@ -1261,13 +1244,7 @@ no_mouse_event:
 	{
 		if (!noblock)		/* source = 8042 */
 		{
-			
-#if PCVT_NETBSD > 9
-			delay(6);	/* Gateway 2000 fix - ziff */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-			DELAY(6);	/* Gateway 2000 fix - ziff */
-#endif
-
+			PCVT_KBD_DELAY();	/* 7 us delay */
 			dt = inb(CONTROLLER_DATA);
 		}
 		else			/* source = keyboard fifo */
@@ -1287,14 +1264,8 @@ no_mouse_event:
 	
 	if(inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
-		
-#if PCVT_NETBSD > 9
-		delay(6);		/* Gateway 2000 fix - ziff */
-#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
-		DELAY(6);		/* Gateway 2000 fix - ziff */
-#endif
-
-		dt = inb(CONTROLLER_DATA);		/* yes, get it ! */
+		PCVT_KBD_DELAY();		/* 7 us delay */
+		dt = inb(CONTROLLER_DATA);	/* yes, get data ! */
 	}
 
 #endif /* !PCVT_KBD_FIFO */

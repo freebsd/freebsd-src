@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.163 1995/04/06 14:01:20 ache Exp $
+#	$Id: LINT,v 1.164 1995/04/08 09:36:02 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -385,6 +385,7 @@ options		BOUNCE_BUFFERS
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 #options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
 #options		XSERVER			# include code for XFree86
+#options		FAT_CURSOR		# start with block cursor
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
