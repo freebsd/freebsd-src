@@ -315,6 +315,8 @@ struct fw_eui64 {
 		((eui)->hi >> (8*(3-(x)))): 	\
 		((eui)->lo >> (8*(7-(x))))	\
 	) & 0xff)
+#define FW_EUI64_EQUAL(x, y) \
+	((x).hi == (y).hi && (x).lo == (y).lo)
 
 struct fw_asyreq {
 	struct fw_asyreq_t{

@@ -718,8 +718,8 @@ fwohci_timeout(void *arg)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)arg;
-	sc->fc.timeouthandle = timeout(fwohci_timeout,
-				(void *)sc, FW_XFERTIMEOUT * hz * 10);
+	callout_reset(&sc->fc.timeout_callout, FW_XFERTIMEOUT * hz * 10,
+			(void *)fwohci_timeout, (void *)sc);
 }
 
 u_int32_t
