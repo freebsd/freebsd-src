@@ -468,6 +468,7 @@ struct vr_softc {
 	struct vr_chain_data	vr_cdata;
 	struct callout_handle	vr_stat_ch;
 	struct mtx		vr_mtx;
+	int			suspended;	/* if 1, sleeping/detaching */
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
