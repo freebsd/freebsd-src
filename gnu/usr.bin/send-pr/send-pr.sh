@@ -85,9 +85,6 @@ if [ "$LOGNAME" = "" ]; then
 	fi
 fi
 
-FROM="$LOGNAME"
-REPLY_TO="${REPLY_TO:-${REPLYTO:-$LOGNAME}}"
-
 # Find out the name of the originator of this PR.
 if [ -n "$NAME" ]; then
   ORIGINATOR="$NAME"
@@ -101,6 +98,9 @@ else
   ORIGINATOR="`cat $PTEMP`"
   rm -f $PTEMP
 fi
+
+FROM="$ORIGINATOR <$LOGNAME>"
+REPLY_TO="$ORIGINATOR <${REPLY_TO:-${REPLYTO:-$LOGNAME}}>"
 
 if [ -n "$ORGANIZATION" ]; then
   if [ -f "$ORGANIZATION" ]; then
