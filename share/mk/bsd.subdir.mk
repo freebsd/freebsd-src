@@ -1,9 +1,11 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.2 1994/08/04 21:09:26 wollman Exp $
+#	$Id: bsd.subdir.mk,v 1.3 1994/08/28 15:35:30 bde Exp $
 
 .MAIN: all
 
+.if !defined(DEBUG_FLAGS)
 STRIP?=	-s
+.endif
 
 BINGRP?=	bin
 BINOWN?=	bin
