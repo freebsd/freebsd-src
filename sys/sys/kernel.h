@@ -155,10 +155,9 @@ enum sysinit_sub_id {
 	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
 	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
-	SI_SUB_VINUM		= 0xb300000,	/* Configure vinum */
-	SI_SUB_RAID		= 0xb380000,	/* Configure RAIDframe */
+	SI_SUB_RAID		= 0xb380000,	/* Configure RAIDframe or Vinum */
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
-	SI_SUB_SWAP		= 0xc000000,	/* swap*/
+	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
 	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
