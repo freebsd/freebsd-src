@@ -46,12 +46,12 @@ provided separately can be used by anyone.   A freely (from outside the
 U.S.) exportable European distribution of DES for our non U.S. users also
 exists and is described in the FreeBSD FAQ.
 
-If password security for FreeBSD is all you need, and you have no requirement
-for copying encrypted passwords from different hosts (Suns, DEC machines, etc)
-into FreeBSD password entries, then FreeBSD's MD5 based security may be
-all you require!  We feel that our default security model is more than
-a match for DES, and without any messy export issues to deal with.  If you're
-outside (or even inside) the U.S., give it a try!
+If password security for FreeBSD is all you need, and you have no
+requirement for copying encrypted passwords from different hosts (Suns,
+DEC machines, etc) into FreeBSD password entries, then FreeBSD's MD5
+based security may be all you require!  We feel that our default security
+model is more than a match for DES, and without any messy export issues
+to deal with.  If you're outside (or even inside) the U.S., give it a try!
 
 
 1.1 What's new in 2.0?
@@ -505,4 +505,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.6 1994/11/09 23:26:57 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.7 1994/11/10 03:51:18 jkh Exp $
