@@ -42,12 +42,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/queue.h>
 #include <sys/blist.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
+#include <sys/exec.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -55,9 +57,15 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/tty.h>
+#include <sys/user.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
+
+#include <net/if.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -66,10 +74,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
-
-#include <sys/exec.h>
-#include <sys/user.h>
-#include <sys/vmmeter.h>
 
 #include <machine/clock.h>
 
@@ -84,9 +88,6 @@ extern int ncpus;
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #endif /* __i386__ */
-
-#include <sys/socket.h>
-#include <net/if.h>
 
 #include <compat/linux/linux_mib.h>
 #include <fs/pseudofs/pseudofs.h>
@@ -646,12 +647,9 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	struct ifnet *ifp;
 	int eth_index = 0;
 
-	sbuf_printf(sb,
-	    "Inter-|   Receive					     "
-	    "	      |	 Transmit\n"
-	    " face |bytes    packets errs drop fifo frame compressed "
-	    "multicast|bytes	packets errs drop fifo colls carrier "
-	    "compressed\n");
+	sbuf_printf(sb, "%6s|%58s|%s\n%6s|%58s|%5$s\n",
+	    "Inter-", "   Receive", "  Transmit", " face",
+	    "bytes    packets errs drop fifo frame compressed");
 
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (strcmp(ifp->if_name, "lo") == 0) {
@@ -660,11 +658,10 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 			sbuf_printf(sb, "%5.5s%d:", "eth", eth_index);
 			eth_index++;
 		}
-		sbuf_printf(sb,
-		    "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
-		    "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
-		    0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
-		    0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L);
+		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
+		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
+		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
+		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
 	}
 	
 	return (0);
@@ -700,6 +697,23 @@ linprocfs_docmdline(PFS_FILL_ARGS)
 	return (0);
 }
 
+#if 0
+/*
+ * Filler function for proc/modules
+ */
+static int
+linprocfs_domodules(PFS_FILL_ARGS)
+{
+	struct linker_file *lf;
+	
+	TAILQ_FOREACH(lf, &linker_files, link) {
+		sbuf_printf(sb, "%-20s%8lu%4d\n", lf->filename,
+		    (unsigned long)lf->size, lf->refs);
+	}
+	return (0);
+}
+#endif
+
 /*
  * Directory structure
  */
@@ -733,6 +747,9 @@ static struct pfs_node linprocfs_root_nodes[] = {
 	PFS_FILE(   "devices",	0,    0,   0,	0444, linprocfs_dodevices),
 	PFS_FILE(   "loadavg",	0,    0,   0,	0444, linprocfs_doloadavg),
 	PFS_FILE(   "meminfo",	0,    0,   0,	0444, linprocfs_domeminfo),
+#if 0
+	PFS_FILE(   "mdodules",	0,    0,   0,	0444, linprocfs_domodules),
+#endif
 	PFS_FILE(   "stat",	0,    0,   0,	0444, linprocfs_dostat),
 	PFS_FILE(   "uptime",	0,    0,   0,	0444, linprocfs_douptime),
 	PFS_FILE(   "version",	0,    0,   0,	0444, linprocfs_doversion),
@@ -745,6 +762,6 @@ static struct pfs_node linprocfs_root_nodes[] = {
 static struct pfs_node linprocfs_root =
 	PFS_ROOT(linprocfs_root_nodes);
 
-PSEUDOFS(linprocfs, linprocfs_root);
+PSEUDOFS(linprocfs, linprocfs_root, 1);
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
