@@ -37,14 +37,15 @@
 
 struct thread;
 
+#define	IA64_FIXED_BREAK	0x84B5D
+
 #ifdef __GNUC__
 
 static __inline void
 breakpoint(void)
 {
-	__asm __volatile("break 0x80100"); /* XXX use linux value */
+	__asm __volatile("break.m %0" :: "i"(IA64_FIXED_BREAK));
 }
-
 
 #define	HAVE_INLINE_FFS
 
