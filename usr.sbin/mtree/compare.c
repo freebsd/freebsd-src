@@ -194,7 +194,7 @@ typeerr:		LABEL;
 		    ctime(&p->fts_statp->st_mtimespec.tv_sec));
 		tab = "\t";
 	}
-	if (s->flags & F_CKSUM)
+	if (s->flags & F_CKSUM) {
 		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0) {
 			LABEL;
 			(void)printf("%scksum: %s: %s\n",
@@ -215,6 +215,7 @@ typeerr:		LABEL;
 			}
 			tab = "\t";
 		}
+	}
 #ifdef MD5
 	if (s->flags & F_MD5) {
 		char *new_digest, buf[33];
