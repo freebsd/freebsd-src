@@ -325,7 +325,7 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 }
 
 /*
- * Return a suitable struct cdev *value for (dev).
+ * Return a suitable dev_t value for (dev).
  */
 int
 bc_getdev(struct i386_devdesc *dev)
@@ -344,7 +344,7 @@ bc_getdev(struct i386_devdesc *dev)
      * XXX: Need to examine device spec here to figure out if SCSI or
      * ATAPI.  No idea on how to figure out device number.  All we can
      * really pass to the kernel is what bus and device on which bus we
-     * were booted from, which struct cdev *isn't well suited to since those
+     * were booted from, which dev_t isn't well suited to since those
      * number don't match to unit numbers very well.  We may just need
      * to engage in a hack where we pass -C to the boot args if we are
      * the boot device.
