@@ -84,14 +84,12 @@ static const char rcsid[] =
 #endif
 
 /*
- * Various supported device vendors/types and their names.
+ * Various supported device vendors/products.
  */
 static struct cue_type cue_devs[] = {
-	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE,
-	    "CATC Netmate USB Ethernet" },
-	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2,
-	    "CATC Netmate USB Ethernet" },
-	{ 0, 0, NULL }
+	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE },
+	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2 },
+	{ 0, 0 }
 };
 
 static struct usb_qdat cue_qdat;
@@ -431,12 +429,11 @@ USB_MATCH(cue)
 	dd = &uaa->device->ddesc;
 
 	t = cue_devs;
-	while(t->cue_name != NULL) {
+	while(t->cue_vid) {
 		if (uaa->vendor == t->cue_vid &&
 		    uaa->product == t->cue_did) {
 			USETW(dd->bcdDevice, 0x220);
 			uaa->device->quirks = usbd_find_quirk(dd);
-			device_set_desc(self, t->cue_name);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
 		t++;
@@ -466,6 +463,13 @@ USB_ATTACH(cue)
 	sc->cue_iface = uaa->iface;
 	sc->cue_udev = uaa->device;
 	sc->cue_unit = device_get_unit(self);
+
+	if (usbd_set_config_no(sc->cue_udev, CUE_CONFIG_NO, 0)) {
+		printf("cue%d: getting interface handle failed\n",
+		    sc->cue_unit);
+		splx(s);
+		USB_ATTACH_ERROR_RETURN;
+	}
 
 	id = usbd_get_interface_descriptor(uaa->iface);
 
