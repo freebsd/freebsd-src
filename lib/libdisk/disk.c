@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.35 1998/05/19 11:15:44 obrien Exp $
+ * $Id: disk.c,v 1.36 1998/09/15 10:23:17 gibbs Exp $
  *
  */
 
@@ -41,6 +41,23 @@ struct disk *
 Open_Disk(const char *name)
 {
 	return Int_Open_Disk(name,0);
+}
+
+static u_int32_t
+Read_Int32(u_int32_t *p)
+{
+    u_int8_t *bp = (u_int8_t *)p;
+    return bp[0] | (bp[1] << 8) | (bp[2] << 16) | (bp[3] << 24);
+}
+
+static void
+Write_Int32(u_int32_t *p, u_int32_t v)
+{
+    u_int8_t *bp = (u_int8_t *)p;
+    bp[0] = (v >> 0) & 0xff;
+    bp[1] = (v >> 8) & 0xff;
+    bp[2] = (v >> 16) & 0xff;
+    bp[3] = (v >> 24) & 0xff;
 }
 
 struct disk *
@@ -94,10 +111,13 @@ Int_Open_Disk(const char *name, u_long size)
 
 	p = read_block(fd,0);
 	dp = (struct dos_partition*)(p+DOSPARTOFF);
-	for(i=0;i<NDOSPART;i++) {
-		if (dp->dp_start >= size) continue;
-		if (dp->dp_start+dp->dp_size >= size) continue;
-		if (!dp->dp_size) continue;
+	for (i=0; i < NDOSPART; i++) {
+		if (Read_Int32(&dp->dp_start) >= size)
+		    continue;
+		if (Read_Int32(&dp->dp_start) + Read_Int32(&dp->dp_size) >= size)
+		    continue;
+		if (!Read_Int32(&dp->dp_size))
+		    continue;
 
 		if (dp->dp_typ == DOSPTYP_ONTRACK) {
 			d->flags |= DISK_ON_TRACK;
