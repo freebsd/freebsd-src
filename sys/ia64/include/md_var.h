@@ -51,5 +51,6 @@ int	fill_regs __P((struct thread *, struct reg *));
 int	set_regs __P((struct thread *, struct reg *));
 int	fill_fpregs __P((struct thread *, struct fpreg *));
 int	set_fpregs __P((struct thread *, struct fpreg *));
+int	ia64_running_in_simulator __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */
