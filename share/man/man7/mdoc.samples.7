@@ -148,6 +148,7 @@ outlined as follows:
 .It "Names" .
 .It "Options" .
 .It "Pathnames" .
+.It "Standards" .
 .It "Variables" .
 .It "Cross References" .
 .El
@@ -1350,6 +1351,56 @@ macro formats path or file names.
 The
 .Ql \&.Pa
 macro is parsed and is callable.
+.Ss Standards
+The
+.Ql \&.St
+macro replaces standard abbreviature with its formal name.
+.Pp
+.Dl Usage: .St abbreviature
+.Pp
+Available pairs for
+.Dq Abbreviature/Formal Name
+are:
+.Bl -tag -width "-p1003.2-92XX." -compact -offset indent
+.It Li "-ansiC"
+.St -ansiC
+.It Li "-ansiC-89"
+.St -ansiC-89
+.It Li "-ieee754"
+.St -ieee754
+.It Li "-iso8802-3"
+.St -iso8802-3
+.It Li "-iso9899"
+.St -iso9899
+.It Li "-iso9945-1"
+.St -iso9945-1
+.It Li "-isoC"
+.St -isoC
+.It Li "-p1003.1"
+.St -p1003.1
+.It Li "-p1003.1-88"
+.St -p1003.1-88
+.It Li "-p1003.1-90"
+.St -p1003.1-90
+.It Li "-p1003.1b"
+.St -p1003.1b
+.It Li "-p1003.1b-93"
+.St -p1003.1b-93
+.It Li "-p1003.1g"
+.St -p1003.1g
+.It Li "-p1003.2"
+.St -p1003.2
+.It Li "-p1003.2-92"
+.St -p1003.2-92
+.It Li "-susv2"
+.St -susv2
+.It Li "-xpg3"
+.St -xpg3
+.It Li "-xpg4"
+.St -xpg4
+.It Li "-xpg4.2"
+.St -xpg4.2
+.El
 .Ss Variables
 Generic variable reference:
 .Pp
