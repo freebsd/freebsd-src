@@ -805,11 +805,9 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 void
 nfsrv_timer(void *arg)
 {
-	int s;
 	struct nfssvc_sock *slp;
 	u_quad_t cur_usec;
 
-	s = splnet();
 	NFSD_LOCK();
 	/*
 	 * Scan the write gathering queues for writes that need to be
@@ -822,6 +820,5 @@ nfsrv_timer(void *arg)
 			nfsrv_wakenfsd(slp);
 	}
 	NFSD_UNLOCK();
-	splx(s);
 	callout_reset(&nfsrv_callout, nfsrv_ticks, nfsrv_timer, NULL);
 }
