@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.10 1997/08/24 06:24:51 se Exp $
+**  $Id: ncrreg.h,v 1.11 1997/08/31 19:42:31 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -535,50 +535,13 @@ struct scr_tblsel {
 /*
 **	Messages
 */
-
-#define	M_COMPLETE	(0x00)
-#define	M_EXTENDED	(0x01)
-#define	M_SAVE_DP	(0x02)
-#define	M_RESTORE_DP	(0x03)
-#define	M_DISCONNECT	(0x04)
-#define	M_ID_ERROR	(0x05)
-#define	M_ABORT		(0x06)
-#define	M_REJECT	(0x07)
-#define	M_NOOP		(0x08)
-#define	M_PARITY	(0x09)
-#define	M_LCOMPLETE	(0x0a)
-#define	M_FCOMPLETE	(0x0b)
-#define	M_RESET		(0x0c)
-#define	M_ABORT_TAG	(0x0d)
-#define	M_CLEAR_QUEUE	(0x0e)
-#define	M_INIT_REC	(0x0f)
-#define	M_REL_REC	(0x10)
-#define	M_TERMINATE	(0x11)
-#define	M_SIMPLE_TAG	(0x20)
-#define	M_HEAD_TAG	(0x21)
-#define	M_ORDERED_TAG	(0x22)
-#define	M_IGN_RESIDUE	(0x23)
-#define	M_IDENTIFY   	(0x80)
-
 #define	M_X_MODIFY_DP	(0x00)
-#define	M_X_SYNC_REQ	(0x01)
-#define	M_X_WIDE_REQ	(0x03)
 
 /*
 **	Status
 */
-
-#define	S_GOOD		(0x00)
-#define	S_CHECK_COND	(0x02)
-#define	S_COND_MET	(0x04)
-#define	S_BUSY		(0x08)
-#define	S_INT		(0x10)
-#define	S_INT_COND_MET	(0x14)
-#define	S_CONFLICT	(0x18)
-#define	S_TERMINATED	(0x20)
-#define	S_QUEUE_FULL	(0x28)
-#define	S_ILLEGAL	(0xff)
-#define	S_SENSE		(0x80)
+#define	SCSI_STATUS_ILLEGAL	(0xff)
+#define	SCSI_STATUS_SENSE	(0x80)
 
 /*
 **	Bits defining chip features.
