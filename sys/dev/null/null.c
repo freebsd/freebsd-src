@@ -71,8 +71,9 @@ static struct cdevsw zero_cdevsw = {
 
 static void *zbuf;
 
+/* ARGSUSED */
 static int
-null_read(dev_t dev __unused, struct uio *uio, int flags __unused)
+null_read(dev_t dev __unused, struct uio *uio __unused, int flags __unused)
 {
 
 	return 0;
@@ -86,8 +87,10 @@ null_write(dev_t dev __unused, struct uio *uio, int flags __unused)
 	return 0;
 }
 
+/* ARGSUSED */
 static int
-null_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+null_ioctl(dev_t dev __unused, u_long cmd, caddr_t data __unused,
+    int flags __unused, struct thread *td)
 {
 	int error;
 
