@@ -258,7 +258,7 @@ exec_shell(const char *command, char *use_shell, char *use_name)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,

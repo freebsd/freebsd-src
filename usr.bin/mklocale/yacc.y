@@ -201,9 +201,7 @@ int debug = 0;
 FILE *fp;
 
 int
-main(ac, av)
-	int ac;
-	char *av[];
+main(int ac, char *av[])
 {
     int x;
 

@@ -7,5 +7,6 @@ SRCS=	append.c ar.c archive.c contents.c delete.c extract.c misc.c \
 CFLAGS+=-I${.CURDIR}
 MAN=	ar.1aout ar.5
 BINDIR=	/usr/libexec/aout
+WARNS?=	4
 
 .include <bsd.prog.mk>
