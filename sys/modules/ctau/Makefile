@@ -12,7 +12,7 @@ NG_CRONYX?=	0
 NETGRAPH=	${NG_CRONYX}
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+= opt_ng_cronyx.h opt_netgraph.h bpf.h sppp.h
+CLEANFILES+= bpf.h sppp.h
 
 opt_netgraph.h:
 	echo "#define NETGRAPH $(NETGRAPH)" > opt_netgraph.h
