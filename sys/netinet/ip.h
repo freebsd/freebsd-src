@@ -37,6 +37,8 @@
 #ifndef _NETINET_IP_H_
 #define _NETINET_IP_H_
 
+#include <sys/cdefs.h>
+
 /*
  * Definitions for internet protocol version 4.
  * Per RFC 791, September 1981.
@@ -67,7 +69,7 @@ struct ip {
 	u_char	ip_p;			/* protocol */
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} __attribute__((__packed__));
+} __packed;
 
 #ifdef CTASSERT
 CTASSERT(sizeof (struct ip) == 20);
