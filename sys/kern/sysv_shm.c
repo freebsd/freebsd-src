@@ -97,8 +97,8 @@ struct shmmap_state {
 
 static void shm_deallocate_segment(struct shmid_ds *);
 static int shm_find_segment_by_key(key_t);
-static struct shmid_ds *shm_find_segment_by_shmid(int, int);
-static struct shmid_ds *shm_find_segment_by_shmidx(int, int);
+static struct shmid_ds *shm_find_segment_by_shmid(int);
+static struct shmid_ds *shm_find_segment_by_shmidx(int);
 static int shm_delete_mapping(struct vmspace *vm, struct shmmap_state *);
 static void shmrealloc(void);
 static void shminit(void);
@@ -139,6 +139,7 @@ struct	shminfo shminfo = {
 };
 
 static int shm_use_phys;
+static int shm_allow_removed;
 
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0, "");
@@ -148,6 +149,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
     &shm_use_phys, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
+    &shm_allow_removed, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLFLAG_RD,
     NULL, 0, sysctl_shmsegs, "", "");
 
@@ -165,7 +168,7 @@ shm_find_segment_by_key(key)
 }
 
 static struct shmid_ds *
-shm_find_segment_by_shmid(int shmid, int wantrem)
+shm_find_segment_by_shmid(int shmid)
 {
 	int segnum;
 	struct shmid_ds *shmseg;
@@ -174,23 +177,25 @@ shm_find_segment_by_shmid(int shmid, int wantrem)
 	if (segnum < 0 || segnum >= shmalloced)
 		return (NULL);
 	shmseg = &shmsegs[segnum];
-	if (!((shmseg->shm_perm.mode & SHMSEG_ALLOCATED) ||
-  	    (wantrem && !(shmseg->shm_perm.mode & SHMSEG_REMOVED))) ||
+	if ((shmseg->shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
+	    (!shm_allow_removed &&
+	     (shmseg->shm_perm.mode & SHMSEG_REMOVED) != 0) ||
 	    shmseg->shm_perm.seq != IPCID_TO_SEQ(shmid))
 		return (NULL);
 	return (shmseg);
 }
 
 static struct shmid_ds *
-shm_find_segment_by_shmidx(int segnum, int wantrem)
+shm_find_segment_by_shmidx(int segnum)
 {
 	struct shmid_ds *shmseg;
 
 	if (segnum < 0 || segnum >= shmalloced)
 		return (NULL);
 	shmseg = &shmsegs[segnum];
-	if (!((shmseg->shm_perm.mode & SHMSEG_ALLOCATED) ||
-  	    (wantrem && !(shmseg->shm_perm.mode & SHMSEG_REMOVED))))
+	if ((shmseg->shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
+	    (!shm_allow_removed &&
+	     (shmseg->shm_perm.mode & SHMSEG_REMOVED) != 0))
 		return (NULL);
 	return (shmseg);
 }
@@ -294,12 +299,11 @@ struct shmat_args {
  * MPSAFE
  */
 int
-kern_shmat(td, shmid, shmaddr, shmflg, wantrem)
+kern_shmat(td, shmid, shmaddr, shmflg)
 	struct thread *td;
 	int shmid;
 	const void *shmaddr;
 	int shmflg;
-	int wantrem;
 {
 	struct proc *p = td->td_proc;
 	int i, flags;
@@ -323,7 +327,7 @@ kern_shmat(td, shmid, shmaddr, shmflg, wantrem)
 			shmmap_s[i].shmid = -1;
 		p->p_vmspace->vm_shm = shmmap_s;
 	}
-	shmseg = shm_find_segment_by_shmid(shmid, wantrem);
+	shmseg = shm_find_segment_by_shmid(shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
 		goto done2;
@@ -396,7 +400,7 @@ shmat(td, uap)
 	struct thread *td;
 	struct shmat_args *uap;
 {
-	return kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg, 0);
+	return kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg);
 }
 
 struct oshmid_ds {
@@ -433,7 +437,7 @@ oshmctl(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 	mtx_lock(&Giant);
-	shmseg = shm_find_segment_by_shmid(uap->shmid, 0);
+	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
 		goto done2;
@@ -481,13 +485,12 @@ struct shmctl_args {
  * MPSAFE
  */
 int
-kern_shmctl(td, shmid, cmd, buf, bufsz, wantrem)
+kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
 	int shmid;
 	int cmd;
 	void *buf;
 	size_t *bufsz;
-	int wantrem;
 {
 	int error = 0;
 	struct shmid_ds *shmseg;
@@ -519,9 +522,9 @@ kern_shmctl(td, shmid, cmd, buf, bufsz, wantrem)
 	}
 	}
 	if (cmd == SHM_STAT)
-		shmseg = shm_find_segment_by_shmidx(shmid, wantrem);
+		shmseg = shm_find_segment_by_shmidx(shmid);
 	else
-		shmseg = shm_find_segment_by_shmid(shmid, wantrem);
+		shmseg = shm_find_segment_by_shmid(shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
 		goto done2;
@@ -592,7 +595,7 @@ shmctl(td, uap)
 			goto done;
 	}
 	
-	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz, 0);
+	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz);
 	if (error)
 		goto done;
 	
