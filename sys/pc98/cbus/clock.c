@@ -153,6 +153,7 @@ u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 u_int	tsc_freq;
 int	tsc_is_broken;
+u_int	tsc_present;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 struct mtx clock_lock;
 
@@ -193,12 +194,6 @@ static void rtc_serialcombit __P((int));
 static void rtc_serialcom __P((int));
 static int rtc_inb __P((void));
 static void rtc_outb __P((int));
-#endif
-#if defined(I386_CPU) || defined(I486_CPU)
-	u_int	tsc_present;	/* Not static; other parts of the kernel
-				 * Need to know this */
-#else
-static	u_int	tsc_present;
 #endif
 
 static	unsigned i8254_get_timecount __P((struct timecounter *tc));
