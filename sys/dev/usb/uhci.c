@@ -158,6 +158,9 @@ struct uhci_pipe {
 LIST_HEAD(, uhci_intr_info) uhci_ii_free;
 
 Static void		uhci_busreset(uhci_softc_t *);
+Static void		uhci_reset(uhci_softc_t *);
+Static void		uhci_shutdown(void *v);
+Static void		uhci_power(int, void *);
 Static usbd_status	uhci_run(uhci_softc_t *, int run);
 Static uhci_soft_td_t  *uhci_alloc_std(uhci_softc_t *);
 Static void		uhci_free_std(uhci_softc_t *, uhci_soft_td_t *);
@@ -1667,9 +1670,6 @@ uhci_abort_xfer_end(void *v)
 	int s;
 
 	s = splusb();
-#ifdef DIAGNOSTIC
-	ii->isdone = 1;
-#endif
 	usb_transfer_complete(xfer);
 	splx(s);
 }
@@ -2295,12 +2295,6 @@ uhci_device_isoc_done(usbd_xfer_handle xfer)
 	LIST_REMOVE(ii, list);	/* remove from active list */
 
 #ifdef DIAGNOSTIC
-	if (xfer->busy_free != XFER_BUSY) {
-		printf("uhci_device_isoc_done: xfer=%p not busy 0x%08x\n",
-		       xfer, xfer->busy_free);
-		return;
-	}
-
         if (ii->stdend == NULL) {
                 printf("uhci_device_isoc_done: xfer=%p stdend==NULL\n", xfer);
 #ifdef UHCI_DEBUG
