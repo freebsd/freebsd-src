@@ -153,6 +153,7 @@ foreach $src ( @filenames ) {
       print CFILE "\n";
       print CFILE "#include <sys/param.h>\n";
       print CFILE "#include <sys/queue.h>\n";
+      print CFILE "#include <sys/sysctl.h>\n";
       print CFILE "#include <sys/bus_private.h>\n";
    }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.8 1999/01/16 17:44:08 dfr Exp $
+ *	$Id: bus.h,v 1.9 1999/03/06 16:52:04 bde Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -74,7 +74,6 @@ struct driver {
     driver_type_t	type;
     size_t		softc;		/* size of device softc struct */
     void		*priv;		/* driver private data */
-    TAILQ_ENTRY(driver) link;		/* list of devices on bus */
     device_ops_t	ops;		/* compiled method table */
 };
 
@@ -136,6 +135,9 @@ int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 int	bus_release_resource(device_t dev, int type, int rid, 
 			     struct resource *r);
+int	bus_setup_intr(device_t dev, struct resource *r,
+		       driver_intr_t handler, void *arg, void **cookiep);
+int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 
 /*
  * Access functions for device.
@@ -158,19 +160,24 @@ device_t	device_get_parent(device_t dev);
 int	device_get_children(device_t dev, device_t **listp, int *countp);
 void	*device_get_ivars(device_t dev);
 const	char *device_get_name(device_t dev);
+const	char *device_get_nameunit(device_t dev);
 void	*device_get_softc(device_t dev);
 device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
-int	device_is_enabled(device_t dev);
 int	device_is_alive(device_t dev); /* did probe succeed? */
+int	device_is_enabled(device_t dev);
+int	device_is_quiet(device_t dev);
 void	device_print_prettyname(device_t dev);
 void	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe_and_attach(device_t dev);
+void	device_quiet(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
+void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
 int	device_set_driver(device_t dev, driver_t *driver);
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
+void	device_verbose(device_t dev);
 
 /*
  * Access functions for devclass.
