@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.16 1997/11/30 23:21:08 dyson Exp $
+ * $Id: vfs_aio.c,v 1.17 1997/12/01 07:01:45 dyson Exp $
  */
 
 /*
@@ -1350,6 +1350,7 @@ retryproc:
 		num_aio_resv_start++;
 		if ((error = aio_newproc()) == 0) {
 			num_aio_resv_start--;
+			p->p_retval[0] = 0;
 			goto retryproc;
 		}
 		num_aio_resv_start--;
