@@ -13,7 +13,7 @@
 */
 
 /*
- * $Id: simple_httpd.c,v 1.1 1998/08/19 16:24:06 abial Exp $
+ * $Id: simple_httpd.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 #include <stdio.h>
@@ -31,6 +31,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
+#define LOGDIR "/var/log"
 
 int             http_sock, con_sock;
 int             http_port = 80;
@@ -129,7 +130,7 @@ traite_req()
           strcat(logfile,"/");
           strcat(logfile,"jhttp.log");
           }
-       else strcpy(logfile,"/usr/adm/jhttpd.log");
+       else strcpy(logfile, LOGDIR "/jhttpd.log");
 
        if ( access(logfile,W_OK))
             { 
@@ -349,8 +350,9 @@ char *adate()
         struct tm *t;
         time(&now);
         t = localtime(&now);
-        sprintf(out, "%02d:%02d:%02d %02d/%02d/%02d",
-                     t->tm_hour, t->tm_min, t->tm_sec,
-                     t->tm_mday, t->tm_mon+1, t->tm_year );
+
+        sprintf(out, "%4d/%02d/%02d %02d:%02d:%02d",
+                     t->tm_year+1900, t->tm_mon+1, t->tm_mday,
+                     t->tm_hour, t->tm_min, t->tm_sec );
         return out;
 }
