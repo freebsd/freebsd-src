@@ -50,7 +50,7 @@ typedef struct {
 	void		*ih;
 } atkbd_softc_t;
 
-devclass_t	atkbd_devclass;
+static devclass_t	atkbd_devclass;
 
 static void	atkbdidentify(driver_t *driver, device_t dev);
 static int	atkbdprobe(device_t dev);

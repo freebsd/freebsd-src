@@ -135,7 +135,7 @@ g_event_procbody(void)
 	}
 }
 
-struct kproc_desc g_event_kp = {
+static struct kproc_desc g_event_kp = {
 	"g_event",
 	g_event_procbody,
 	&g_event_proc,

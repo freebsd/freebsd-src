@@ -60,7 +60,7 @@
 
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
   
-devclass_t ppc_devclass;
+static devclass_t ppc_devclass;
 
 static int ppc_probe(device_t dev);
 static int ppc_attach(device_t dev);
