@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.84 1996/05/15 17:32:46 joerg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.85 1996/05/16 23:17:49 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -216,6 +216,7 @@
 	  <item>John Hay - &lt;jhay@mikom.csir.co.za&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
+	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
