@@ -98,6 +98,9 @@ int ss_fltsz_local = TCP_MAXWIN;               /* something large */
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
 	&ss_fltsz_local, 1, "Slow start flight size for local networks");
 
+int     tcp_do_newreno = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
+        0, "Enable NewReno Algorithms");
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
@@ -118,6 +121,7 @@ tcp_output(tp)
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
+	int maxburst = TCP_MAXBURST;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 #ifdef INET6
@@ -778,12 +782,12 @@ send:
 		 */
 		if (!callout_active(tp->tt_rexmt) &&
 		    tp->snd_nxt != tp->snd_una) {
-			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
-				      tcp_timer_rexmt, tp);
 			if (callout_active(tp->tt_persist)) {
 				callout_stop(tp->tt_persist);
 				tp->t_rxtshift = 0;
 			}
+			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+				      tcp_timer_rexmt, tp);
 		}
 	} else
 		if (SEQ_GT(tp->snd_nxt + len, tp->snd_max))
@@ -889,7 +893,7 @@ out:
 	tp->t_flags &= ~TF_ACKNOW;
 	if (tcp_delack_enabled)
 		callout_stop(tp->tt_delack);
-	if (sendalot)
+	if (sendalot && (!tcp_do_newreno || --maxburst))
 		goto again;
 	return (0);
 }
