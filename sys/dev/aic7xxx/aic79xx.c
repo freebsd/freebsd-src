@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#223 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#224 $
  */
 
 #ifdef __linux__
@@ -404,19 +404,11 @@ rescan_fifos:
 			/* Toggle to the other mode. */
 			fifo_mode ^= 1;
 			ahd_set_modes(ahd, fifo_mode, fifo_mode);
-			if (ahd_scb_active_in_fifo(ahd, scb) != 0)
+
+			if (ahd_scb_active_in_fifo(ahd, scb) == 0)
 				continue;
 
 			ahd_run_data_fifo(ahd, scb);
-
-			if (ahd_scb_active_in_fifo(ahd, scb) != 0) {
-				/*
-				 * Delay a bit so that status has
-				 * a chance to change before we look
-				 * at this FIFO again.
-				 */
-				aic_delay(200);
-			}
 
 			/*
 			 * Running this FIFO may cause a CFG4DATA for
@@ -428,8 +420,11 @@ rescan_fifos:
 			 * until the transaction is not active in either
 			 * FIFO just to be sure.  Reset our loop counter
 			 * so we will visit both FIFOs again before
-			 * declaring this transaction finished.
+			 * declaring this transaction finished.  We
+			 * also delay a bit so that status has a chance
+			 * to change before we look at this FIFO again.
 			 */
+			aic_delay(200);
 			goto rescan_fifos;
 		}
 		ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
