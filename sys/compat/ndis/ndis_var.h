@@ -1434,7 +1434,10 @@ struct ndis_miniport_block {
 	ndis_status		nmb_setstat;
 	struct nte_head		nmb_timerlist;
 	vm_offset_t		nmb_img;
+	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
+
+TAILQ_HEAD(nd_head, ndis_miniport_block);
 
 typedef ndis_status (*ndis_init_handler)(ndis_status *, uint32_t *,
 		ndis_medium *, uint32_t, ndis_handle, ndis_handle);
