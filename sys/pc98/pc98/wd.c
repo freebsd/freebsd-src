@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.50 1998/04/25 04:27:54 kato Exp $
+ *	$Id: wd.c,v 1.51 1998/04/25 05:19:33 kato Exp $
  */
 
 /* TODO:
@@ -133,7 +133,7 @@ extern void wdstart(int ctrlr);
 #define WDOPT_MULTIMASK	0x00ff
 
 #ifdef PC98
-static inline u_char
+static __inline u_char
 epson_errorf(int wdc)
 {
 	u_char  wdc_error;
