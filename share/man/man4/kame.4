@@ -31,11 +31,9 @@
 .Dd April 13, 1999
 .Dt KAME 4
 .Os
-.\"
 .Sh NAME
 .Nm KAME
 .Nd introduction and roadmap to KAME IPv6 software package
-.\"
 .Sh DESCRIPTION
 .Nm KAME
 software package is a result of joint work of several IPv6 researchers
@@ -43,16 +41,24 @@ in Japan, to provide reference implementation of IPv6 to
 Berkeley Software Distribution
 .Pq BSD
 derived system such as BSD/OS,
-FreeBSD, NetBSD and OpenBSD
+.Fx ,
+.Nx
+and
+.Ox
 .Pq in alphabetical order .
 .Pp
 .\" Package consists of set of patches and additions to kernel,
 .\" modification to application, daemons, header files and libraries.
 KAME kit consists of IPv6/IPsec-ready kernel, application, daemons,
 header files and libraries.
-.\"
 .Sh HIGHLIGHTS
 Following are some of highlights of this implementation.
+.Pp
+Note: features not yet integrated into
+.Fx
+are marked with the
+.Pq -
+sign.
 .\"
 .Ss Kernel
 IPv6 and IPsec protocol stacks are implemented and available.
@@ -67,18 +73,13 @@ See below for conformance to standards and/or internet drafts.
 .Xr rtsold 8 .
 .\"
 .Ss Routing
-.Xr bgpd 8 ,
-.Xr hroute6d 8 ,
-.Xr rip6admin 8 ,
 .Xr rip6query 8 ,
 .Xr route6d 8 .
 .\"
 .Ss Multicast (includes routing and utilities)
-.Xr mcastread 1 ,
-.Xr mcastsend 1 ,
-.Xr mchat 1 ,
+.Xr mchat 1
+.Pq - ,
 .Xr ifmcstat 8 ,
-.Xr mld6query 8 ,
 .Xr pim6dd 8 ,
 .Xr pim6sd 8 ,
 .Xr pim6stat 8 .
@@ -86,13 +87,12 @@ See below for conformance to standards and/or internet drafts.
 .Ss Transition Tools
 Two IPv4 to IPv6 transition tools are available.
 TCP relay translator, FAITH
-.Po
-.Xr faithd 8
-.Pc .
+.Pq Xr faithd 8
 and SIIT IPv6-to-v4 header translator implementation
-.Po
+.Pq Xr ptrconfig 8 .
 .Xr ptrconfig 8
-.Pc . 
+is not yet integrated into
+.Fx .
 .\"
 .Ss IPsec and tunnelling
 .Xr gifconfig 8 ,
@@ -107,12 +107,10 @@ Dozen of existing tools are modified for IPsec support, like
 .Xr ping 8 .
 .\"
 .Ss Utilities/Diagnosis
-.Xr cksum6 1 ,
-.Xr v6test 1 ,
-.Xr icmp6dump 8 ,
+.Xr v6test 1
+.Pq - ,
 .Xr ping6 8 ,
-.Xr traceroute6 8 ,
-.Xr v6p 8 .
+.Xr traceroute6 8 .
 .Pp
 Dozen of existing utilities are modified for IPv6/IPsec support, like
 .Xr ftp 1
@@ -131,41 +129,25 @@ Dozen of existing daemons are modified for IPv6/IPsec support, like
 and/or
 .Xr telnetd 8 .
 .\"
-.Ss Miscellaneous
-SuMiRe IPv4 NAT
-.Po
-.Xr pma 8
-.Pc
-is available in addition to OS-supplied IPv4 NAT.
-.\"
 .Sh DOCUMENTATION
 Although some of documentations have not modified yet, program itself
 may be heavily modified.
 Following lists are not complete, but give you some idea what kind of
 new software modules are available, or, modifications are made.
 Please refer to each manual page for detail.
-Manpages are installed into
-.Pa /usr/local/v6/man
-so you may want to add the pathname to
-.Dv MANPATH .
 .\"
 .Ss Installation and basic usage documentations
-Please read following files in directory
-.Pa /usr/local/v6/share/doc/kame
-to get basic idea and installation methods on 
-.Nm KAME :
-.Pa README ,
-.Pa RELNOTES ,
-.Pa USAGE 
+Please read the following files in the directories
+.Pa /usr/share/doc/IPv6
 and
-.Pa IMPLEMENTATION .
+.Pa /usr/share/examples/IPv6
+to get a basic idea of (and installation methods for
+.Nm Ns .
+You also can check out the IPv6 and IPsec chapters in the
+.Fx
+handbook.
 Also check latest status of project at web page:
 .Pa http://www.kame.net/ .
-.Po
-Hope you can see a
-.Dq Dancing Turtle
-.Dv :-)
-.Pc
 .\"
 .Ss APIs introduced or modified
 .Xr if_indextoname 3 ,
@@ -197,9 +179,9 @@ Please consult the manpages referred above.
 .\"
 .Sh REFERENCES
 To understand
-.Nm KAME
-protocol stack conformance, please refer
-.Pa /usr/local/v6/share/doc/kame/IMPLEMENTATION .
+.Nm
+protocol stack conformance, please refer to
+.Pa /usr/share/doc/IPv6/IMPLEMENTATION .
 .Pp
 Bug reporting form, user mailing list, frequently asked questions list,
 latest packages, related software, and more information can be found at
@@ -216,3 +198,9 @@ status of KAME software at following THAI project web page:
 The
 .Nm 
 project started in April 1999.
+.Nm
+kit was mostly integrated into
+.Fx
+by
+.An Youshinobu Inoue Aq shin@FreeBSD.org
+in January 2000.
