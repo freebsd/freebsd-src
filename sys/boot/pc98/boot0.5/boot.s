@@ -97,8 +97,8 @@ boot:
 	#	%cx:	cylinder number of boot partition
 	#	%si:	pointer to partition table
 	movw	b_partn, %ax
-	movb	$10, %cl
-	shl	%cl, %ax		# %ax = partition number * 32 * 32
+	movb	$5, %cl
+	shl	%cl, %ax		# %ax = partition number * 32
 	addw	b_secsize, %ax
 	movw	%ax, %si		# %si = pointer to partition table
 	movw	b_cylinder, %cx		# %cx = cylinder
@@ -118,7 +118,7 @@ boot:
 	xorw	%ax, %ax
 	movw	%ax, %ds		# %ds = 0
 	movw	%di, %ax		# Restore %ax
-	xorb	%ah, %ah		# %di = 0
+	xorb	%ah, %ah		# %ah = 0
 	xorw	%di, %di		# %di = 0
 	sti
 
