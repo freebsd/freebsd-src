@@ -2,7 +2,7 @@
 
 all:	makewhatis
 
-obj depend rcsfreeze all:
+obj depend rcsfreeze tags all:
 	@echo -n
 
 cleandir: clean
