@@ -71,7 +71,7 @@ struct syscall syscalls[] = {
 	{ "fcntl", 1, 3,
 	  { { Int, 0 } , { Fcntl, 1 }, { Hex, 2 }}},
 	{ "readlink", 1, 3,
-	  { { String, 0 } , { String | OUT, 1 }, { Int, 2 }}},
+	  { { String, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
 	  { { Int, 0 }, {Quad, 2 }, { Whence, 4 }}},
 	{ "linux_lseek", 2, 3,
@@ -271,7 +271,7 @@ remove_trailing_or(char *str)
  */
 
 char *
-print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
+print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
   char *tmp = NULL;
   switch (sc->type & ARG_MASK) {
   case Hex:
@@ -338,6 +338,18 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
   case Ptr:
     asprintf(&tmp, "0x%lx", args[sc->offset]);
     break;
+  case Readlinkres:
+    {
+      char *tmp2;
+      if (retval == -1) {
+	tmp = strdup("");
+	break;
+      }
+      tmp2 = get_string(fd, (void*)args[sc->offset], retval);
+      asprintf(&tmp, "\"%s\"", tmp2);
+      free(tmp2);
+    }
+  break;
   case Ioctl:
     {
       const char *temp = ioctlname(args[sc->offset]);
