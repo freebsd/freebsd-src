@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.10 1997/02/22 09:43:05 peter Exp $
+ *	$Id: boot.c,v 1.11 1997/03/13 16:58:15 kato Exp $
  */
 
 
@@ -70,8 +70,8 @@ static char boot_config[BOOT_CONFIG_SIZE];
 char *dflt_name;
 #endif
 char *name;
-char namebuf[NAMEBUF_LEN];
-struct bootinfo bootinfo;
+static char namebuf[NAMEBUF_LEN];
+static struct bootinfo bootinfo;
 int loadflags;
 
 static void getbootdev(char *ptr, int *howto);
