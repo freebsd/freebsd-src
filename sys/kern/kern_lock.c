@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.21 1999/01/08 17:31:08 eivind Exp $
+ * $Id: kern_lock.c,v 1.22 1999/01/10 01:58:24 eivind Exp $
  */
 
 #include "opt_lint.h"
@@ -171,11 +171,20 @@ acquire(struct lock *lkp, int extflags, int wanted) {
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
+#ifndef	DEBUG_LOCKS
 lockmgr(lkp, flags, interlkp, p)
+#else
+debuglockmgr(lkp, flags, interlkp, p, name, file, line)
+#endif
 	struct lock *lkp;
 	u_int flags;
 	struct simplelock *interlkp;
 	struct proc *p;
+#ifdef	DEBUG_LOCKS
+	const char *name;	/* Name of lock function */
+	const char *file;	/* Name of file call is from */
+	int line;		/* Line number in file */
+#endif
 {
 	int error;
 	pid_t pid;
@@ -283,6 +292,11 @@ lockmgr(lkp, flags, interlkp, p)
 				panic("lockmgr: non-zero exclusive count");
 #endif
 			lkp->lk_exclusivecount = 1;
+#if defined(DEBUG_LOCKS)
+			lkp->lk_filename = file;
+			lkp->lk_lineno = line;
+			lkp->lk_lockername = name;
+#endif
 			COUNT(p, 1);
 			break;
 		}
@@ -338,6 +352,11 @@ lockmgr(lkp, flags, interlkp, p)
 			panic("lockmgr: non-zero exclusive count");
 #endif
 		lkp->lk_exclusivecount = 1;
+#if defined(DEBUG_LOCKS)
+			lkp->lk_filename = file;
+			lkp->lk_lineno = line;
+			lkp->lk_lockername = name;
+#endif
 		COUNT(p, 1);
 		break;
 
@@ -383,6 +402,11 @@ lockmgr(lkp, flags, interlkp, p)
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = pid;
 		lkp->lk_exclusivecount = 1;
+#if defined(DEBUG_LOCKS)
+			lkp->lk_filename = file;
+			lkp->lk_lineno = line;
+			lkp->lk_lockername = name;
+#endif
 		COUNT(p, 1);
 		break;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.60 1998/11/02 02:36:16 peter Exp $
+ * $Id: vfs_vnops.c,v 1.61 1999/01/05 18:49:56 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -510,10 +510,18 @@ vn_poll(fp, events, cred, p)
  * acquire requested lock.
  */
 int
+#ifndef	DEBUG_LOCKS
 vn_lock(vp, flags, p)
+#else
+debug_vn_lock(vp, flags, p, filename, line)
+#endif
 	struct vnode *vp;
 	int flags;
 	struct proc *p;
+#ifdef	DEBUG_LOCKS
+	const char *filename;
+	int line;
+#endif
 {
 	int error;
 	
@@ -526,7 +534,12 @@ vn_lock(vp, flags, p)
 			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {
-			error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, p);
+#ifdef	DEBUG_LOCKS
+			vp->filename = filename;
+			vp->line = line;
+#endif
+			error = VOP_LOCK(vp,
+				    flags | LK_NOPAUSE | LK_INTERLOCK, p);
 			if (error == 0)
 				return (error);
 		}
