@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * uuencode [input] output
@@ -139,7 +140,7 @@ main(int argc, char *argv[])
  * Copy from in to out, encoding in base64 as you go along.
  */
 void
-base64_encode()
+base64_encode(void)
 {
 #define	GROUPS	8 /* Group output chunks */
 	unsigned char buf[6];
@@ -166,7 +167,7 @@ base64_encode()
  * Copy from in to out, encoding as you go along.
  */
 void
-encode()
+encode(void)
 {
 	register int ch, n;
 	register char *p;
@@ -210,7 +211,7 @@ encode()
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,"usage: uuencode [-m] [-o outfile] [infile] remotefile\n");
 	exit(1);
