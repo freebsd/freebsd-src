@@ -378,7 +378,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
 	write(STDERR_FILENO, ":", 1);
 	write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
 	write(STDERR_FILENO, "\n", 1);
-	exit(1);
+	_exit(1);
     }
 
     /*
