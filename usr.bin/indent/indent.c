@@ -83,7 +83,7 @@ main(int argc, char **argv)
     int         force_nl;	/* when true, code must be broken */
     int         hd_type = 0;	/* used to store type of stmt for if (...),
 				 * for (...), etc */
-    int i;		/* local loop counter */
+    int		i;		/* local loop counter */
     int         scase;		/* set to true when we see a case, so we will
 				 * know what to do with the following colon */
     int         sp_sw;		/* when true, we are in the expression of
@@ -91,8 +91,8 @@ main(int argc, char **argv)
     int         squest;		/* when this is positive, we have seen a ?
 				 * without the matching : in a <c>?<s>:<s>
 				 * construct */
-    int		use_tabs;	/* true if using tabs to indent to var name */
     const char *t_ptr;		/* used for copying tokens */
+    int		tabs_to_var;	/* true if using tabs to indent to var name */
     int         type_code;	/* the type of token, returned by lexi */
 
     int         last_else = 0;	/* true iff last keyword was an else */
@@ -765,8 +765,12 @@ check_type:
 		}
 		else if (ps.in_parameter_declaration && !ps.in_or_st) {
 		    ps.i_l_follow = 0;
-		    dump_line();
-		    ps.want_blank = false;
+		    if (function_brace_split) {	/* dump the line prior to the
+						 * brace ... */
+			dump_line();
+			ps.want_blank = false;
+		    } else	/* add a space between the decl and brace */
+			ps.want_blank = true;
 		}
 	    }
 	    if (ps.in_parameter_declaration)
@@ -914,11 +918,11 @@ check_type:
 	    if (ps.ind_level == 0 || ps.dec_nest > 0) {
 		/* global variable or struct member in local variable */
 		dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
-		use_tabs = ps.decl_indent > 0;
+		tabs_to_var = (use_tabs ? ps.decl_indent > 0 : 0);
 	    } else {
 		/* local variable */
 		dec_ind = ps.local_decl_indent > 0 ? ps.local_decl_indent : i;
-		use_tabs = ps.local_decl_indent > 0;
+		tabs_to_var = (use_tabs ? ps.local_decl_indent > 0 : 0);
 	    }
 	    goto copy_id;
 
@@ -935,18 +939,34 @@ check_type:
 			    ps.dumped_decl_indent = 1;
 			    e_code += strlen(e_code);
 			} else {
+			    int cur_dec_ind;
 			    int pos, startpos;
 
+			    /*
+			     * in order to get the tab math right for
+			     * indentations that are not multiples of 8 we
+			     * need to modify both startpos and dec_ind
+			     * (cur_dec_ind) here by eight minus the
+			     * remainder of the current starting column
+			     * divided by eight. This seems to be a
+			     * properly working fix
+			     */
 			    startpos = e_code - s_code;
+			    cur_dec_ind = dec_ind;
 			    pos = startpos;
-			    if (use_tabs) {
-				while ((pos & ~7) + 8 <= dec_ind) {
+			    if ((ps.ind_level * ps.ind_size) % 8 != 0) {
+				pos += (ps.ind_level * ps.ind_size) % 8;
+				cur_dec_ind += (ps.ind_level * ps.ind_size) % 8;
+			    }
+
+			    if (tabs_to_var) {
+				while ((pos & ~7) + 8 <= cur_dec_ind) {
 				    CHECK_SIZE_CODE;
 				    *e_code++ = '\t';
 				    pos = (pos & ~7) + 8;
 				}
 			    }
-			    while (pos < dec_ind) {
+			    while (pos < cur_dec_ind) {
 				CHECK_SIZE_CODE;
 				*e_code++ = ' ';
 				pos++;
