@@ -64,7 +64,6 @@ static int udf_strategy(struct vop_strategy_args *);
 static int udf_bmap(struct vop_bmap_args *);
 static int udf_lookup(struct vop_cachedlookup_args *);
 static int udf_reclaim(struct vop_reclaim_args *);
-static void udf_dumpblock(void *, int) __unused;
 static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, uint8_t **);
 static int udf_bmap_internal(struct udf_node *, uint32_t, daddr_t *, uint32_t *);
 
@@ -429,24 +428,6 @@ udf_read(struct vop_read_args *a)
 	return (error);
 }
 
-/* Convienience routine to dump a block in hex */
-static void
-udf_dumpblock(void *data, int len)
-{
-	int i, j;
-
-	for (i = 0; i < len; i++) {
-		printf("\noffset= %d: ", i);
-		for (j = 0; j < 8; j++) {
-			if (i + j == len)
-				break;
-			printf("0x%02x ", (uint8_t)((uint8_t*)(data))[i + j]);
-		}
-		i += j - 1;
-	}
-	printf("\n");
-}
-
 /*
  * Call the OSTA routines to translate the name from a CS0 dstring to a
  * 16-bit Unicode String.  Hooks need to be placed in here to translate from
@@ -758,7 +739,7 @@ udf_readdir(struct vop_readdir_args *a)
 		/* XXX Should we return an error on a bad fid? */
 		if (udf_checktag(&fid->tag, TAGID_FID)) {
 			printf("Invalid FID tag\n");
-			udf_dumpblock(fid, UDF_FID_SIZE);
+			hexdump(fid, UDF_FID_SIZE, NULL, 0);
 			error = EIO;
 			break;
 		}
