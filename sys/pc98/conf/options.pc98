@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.91 1999/06/24 08:31:08 kato Exp $
+#	$Id: options.pc98,v 1.92 1999/08/08 11:13:47 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -9,7 +9,6 @@ PMAP_SHPGPERPROC	opt_pmap.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
-LINUX			opt_dontuse.h
 
 DEBUG_LINUX		opt_linux.h
 
