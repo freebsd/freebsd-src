@@ -12,7 +12,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm.c,v 1.3 1994/10/01 05:12:22 davidg Exp $
  */
 
 #include "apm.h"
@@ -79,88 +79,70 @@ struct addr48 {
 	u_short		segment;
 } apm_addr;
 
+int apm_errno;
 
-/* register structure for BIOS call */
-union real_regs {
-	struct xregs {
-		u_short	ax;
-		u_short	bx __attribute__ ((packed));
-		u_short	cx __attribute__ ((packed));
-		u_short	dx __attribute__ ((packed));
-		u_short	si __attribute__ ((packed));
-		u_short	di __attribute__ ((packed));
-		u_short	cf __attribute__ ((packed));	/* carry */
-	} x;
-	struct hlregs {
-		u_char	al;
-		u_char	ah __attribute__ ((packed));
-		u_char	bl __attribute__ ((packed));
-		u_char	bh __attribute__ ((packed));
-		u_char	cl __attribute__ ((packed));
-		u_char	ch __attribute__ ((packed));
-		u_char	dl __attribute__ ((packed));
-		u_char	dh __attribute__ ((packed));
-		u_short	si __attribute__ ((packed));
-		u_short	di __attribute__ ((packed));
-		u_short	cf __attribute__ ((packed));	/* carry */
-	} hl;
-};
+inline
+int
+apm_int(u_long *eax,u_long *ebx,u_long *ecx)
+{
+	u_long cf;
+	__asm ("pushl	%%ebp
+		pushl	%%edx
+		xorl	%3,%3
+		lcall	_apm_addr
+		jnc	1f
+		incl	%3
+	1:	popl	%%edx
+		popl	%%ebp"
+		: "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=D" (cf)
+		: "0" (*eax),  "1" (*ebx),  "2" (*ecx)
+		);		
+	apm_errno = ((*eax) >> 8) & 0xff;
+	return cf;
+}
 
-
-/* call APM BIOS */
-extern void call_apm(union real_regs* regs);
-
-extern u_char apm_errno;
 
 /* enable/disable power management */
 static int 
 apm_enable_disable_pm(int enable)
 {
-	union real_regs regs;
+	u_long eax,ebx,ecx;
 
-	regs.hl.ah = APM_BIOS;
-	regs.hl.al = APM_ENABLEDISABLEPM;
+	eax = (APM_BIOS<<8) | APM_ENABLEDISABLEPM;
+
 	if (intversion >= INTVERSION(1, 1)) {
-		regs.x.bx  = PMDV_ALLDEV;
+		ebx  = PMDV_ALLDEV;
+	} else {
+		ebx  = 0xffff;	/* APM version 1.0 only */
 	}
-	else {
-		regs.x.bx  = 0xffff;	/* APM version 1.0 only */
-	}
-	regs.x.cx  = enable;
-	call_apm(&regs);
-	return regs.x.cf;
+	ecx  = enable;
+	return apm_int(&eax,&ebx,&ecx);
 }
 
 /* engage/disengage power management (APM 1.1 or later) */
 static int 
 apm_engage_disengage_pm(int engage)
 {
-	union real_regs regs;
+	u_long eax,ebx,ecx,i;
 
-	regs.hl.ah = APM_BIOS;
-	regs.hl.al = APM_ENGAGEDISENGAGEPM;
-	regs.x.bx = PMDV_ALLDEV;
-	regs.x.cx = engage;
-	call_apm(&regs);
-	return regs.x.cf;
+	eax = (APM_BIOS<<8) | APM_ENGAGEDISENGAGEPM;
+	ebx = PMDV_ALLDEV;
+	ecx = engage;
+	i = apm_int(&eax,&ebx,&ecx);
+	return i;
 }
 
 /* get PM event */
 static u_int 
 apm_getevent(void)
 {
-	union real_regs regs;
+	u_long eax,ebx,ecx;
 
-	regs.hl.ah = APM_BIOS;
-	regs.hl.al = APM_GETPMEVENT;
-	call_apm(&regs);
-	if (regs.x.cf) {
-#if 0
-		printf("No event: errcode = %d\n", apm_errno);
-#endif
+	eax = (APM_BIOS<<8) | APM_GETPMEVENT;
+	
+	if (apm_int(&eax,&ebx,&ecx))
 		return PMEV_NOEVENT;
-	}
-	return (u_int)regs.x.bx;
+	return ebx & 0xffff;
 }
 
 /*
@@ -176,19 +158,18 @@ static int	resumed_event = 1;
 static int 
 apm_suspend_system(void)
 {
-	union real_regs regs;
+	u_long eax,ebx,ecx;
 
-	regs.hl.ah = APM_BIOS;
-	regs.hl.al = APM_SETPWSTATE;
-	regs.x.bx = PMDV_ALLDEV;
-	regs.x.cx = PMST_SUSPEND;
-	call_apm(&regs);
-	if (regs.x.cf) {
-		printf("Entire system suspend failure: errcode = %d\n", apm_errno);
+	eax = (APM_BIOS<<8) | APM_SETPWSTATE;
+	ebx = PMDV_ALLDEV;
+	ecx = PMST_SUSPEND;
+
+	if (apm_int(&eax,&ebx,&ecx)) {
+		printf("Entire system suspend failure: errcode = %ld\n", 
+			0xff & (eax >> 8));
 		return 1;
 	}
 	resumed_event = 1;
-
 	return 0;
 }
 
@@ -302,8 +283,8 @@ apm_default_resume(void)
 static int 
 apm_default_suspend(void)
 {
-	int	pl;
 #if 0
+	int	pl;
 	pl = splhigh();
 	sync(curproc, NULL, NULL);
 	splx(pl);
@@ -362,21 +343,19 @@ apm_suspend_hook_delete(apm_hook_func_t delete_node)
 static int
 apm_get_info(apm_info_t aip)
 {
-	union real_regs regs;
+	u_long eax,ebx,ecx;
 
-	regs.hl.ah = APM_BIOS;
-	regs.hl.al = APM_GETPWSTATUS;
-	regs.x.bx = PMDV_ALLDEV;
-	call_apm(&regs);
-	if (regs.x.cf) {
-		printf("Get APM info failure: errcode = %d\n", apm_errno);
+	eax = (APM_BIOS<<8)|APM_GETPWSTATUS;
+	ebx = PMDV_ALLDEV;
+
+	if (apm_int(&eax,&ebx,&ecx))
 		return 1;
-	}
-	aip->ai_major = (u_int)majorversion;
-	aip->ai_minor = (u_int)minorversion;
-	aip->ai_acline = (u_int)regs.hl.bh;
-	aip->ai_batt_stat = (u_int)regs.hl.bl;
-	aip->ai_batt_life = (u_int)regs.hl.cl;
+
+	aip->ai_acline    = (ebx >> 8) & 0xff;
+	aip->ai_batt_stat = ebx & 0xff;
+	aip->ai_batt_life = ecx & 0xff;
+	aip->ai_major     = (u_int)majorversion;
+	aip->ai_minor     = (u_int)minorversion;
 	return 0;
 }
 
@@ -414,8 +393,7 @@ static void apm_processevent(void);
 void 
 apm_suspend_resume(void)
 {
-	int	pl;
-#if 0
+#ifdef APM_DEBUG
 	printf("Called apm_suspend_resume();\n");
 #endif
 	if (apm_initialized) {
@@ -432,7 +410,7 @@ apm_cpu_idle(void)
 {
 	if (idle_cpu) {
 		if (active) {
-			asm("movw $0x5305, %ax; lcall _apm_addr");
+			__asm ("movw $0x5305, %ax; lcall _apm_addr");
 		}
 	}
 	/*
@@ -446,7 +424,7 @@ apm_cpu_idle(void)
 	 * APM driver.
 	 */
 	if (!active || halt_cpu) {
-		asm("sti ; hlt");	/* wait for interrupt */
+		__asm("sti ; hlt");	/* wait for interrupt */
 	}
 }
 
@@ -455,7 +433,7 @@ void
 apm_cpu_busy(void)
 {
 	if (idle_cpu && active) {
-		asm("movw $0x5306, %ax; lcall _apm_addr");
+		__asm("movw $0x5306, %ax; lcall _apm_addr");
 	}
 }
 
@@ -470,8 +448,8 @@ apm_cpu_busy(void)
 static void 
 apm_timeout(void *arg1)
 {
-#if 0
-	printf("Called apm_timeout\n");
+#ifdef APM_DEBUG
+	printf("t");
 #endif
 	apm_processevent();
 	timeout(apm_timeout, NULL, hz / 2); /* 2 Hz */
@@ -482,7 +460,7 @@ apm_timeout(void *arg1)
 static void 
 apm_event_enable(void)
 {
-#if 0
+#ifdef APM_DEBUG
 	printf("called apm_event_enable()\n");
 #endif
 	if (apm_initialized) {
@@ -495,7 +473,7 @@ apm_event_enable(void)
 static void 
 apm_event_disable(void)
 {
-#if 0
+#ifdef APM_DEBUG
 	printf("called apm_event_disable()\n");
 #endif
 	if (apm_initialized) {
@@ -552,6 +530,9 @@ apmprobe(struct isa_device *dvp)
 	if ((apm_version & 0xff00) != 0x0100) return 0;
 	if ((apm_version & 0x00f0) >= 0x00a0) return 0;
 	if ((apm_version & 0x000f) >= 0x000a) return 0;
+#ifdef APM_DEBUG
+	printf("sizeof 48bit %d\n",sizeof(struct addr48));
+#endif
 	return -1;
 }
 
@@ -564,21 +545,6 @@ is_enabled(int enabled)
 	return "disabled";
 }
 
-static const char *
-apm_error(void)
-{
-	static char buffer[64];
-
-	switch (apm_errno) {
-	case 0:
-		return "APM OK."; 
-	default:
-		sprintf(buffer, "Unknown Error 0x%x", (u_int)apm_errno);
-		return buffer;
-	}
-}
-
-
 
 /* Process APM event */
 static void
@@ -586,16 +552,16 @@ apm_processevent(void)
 {
 	int i, apm_event;
 
-getevent:
 	while (1) {
 		if ((apm_event = apm_getevent()) == PMEV_NOEVENT) {
 			break;
 		}
-#if 0
 #if 1
-#define OPMEV_DEBUGMESSAGE(symbol) case symbol: break;
+#ifdef APM_DEBUG
+#  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
+		printf("Original APM Event: " #symbol "\n"); break
 #else
-#define OPMEV_DEBUGMESSAGE(symbol) case symbol: printf("Original APM Event: " #symbol "\n"); break
+#  define OPMEV_DEBUGMESSAGE(symbol) case symbol: break;
 #endif
 		switch (apm_event) {
 			OPMEV_DEBUGMESSAGE(PMEV_NOEVENT);
@@ -630,10 +596,11 @@ getevent:
 			}
 		}
 #if 1
-#if 1
-#define PMEV_DEBUGMESSAGE(symbol) case symbol: break;
+#ifdef APM_DEBUG
+#  define PMEV_DEBUGMESSAGE(symbol) case symbol: \
+		printf("APM Event: " #symbol "\n"); break
 #else
-#define PMEV_DEBUGMESSAGE(symbol) case symbol: printf("APM Event: " #symbol "\n"); break
+#  define PMEV_DEBUGMESSAGE(symbol) case symbol: break;
 #endif
 		switch (apm_event) {
 			PMEV_DEBUGMESSAGE(PMEV_NOEVENT);
@@ -703,14 +670,17 @@ apmattach(struct isa_device *dvp)
 	disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
 	/* print bootstrap messages */
-#ifdef DEBUG
-	printf(" found APM BIOS version %d.%d\n", dvp->id_unit, majorversion, minorversion);
-	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n", dvp->id_unit, cs32_base, cs16_base, ds_base);
-	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n", dvp->id_unit, cs_entry, is_enabled(idle_cpu), is_enabled(!disabled));
-#else
+#ifdef APM_DEBUG
+	printf(" found APM BIOS version %d.%d\n",  majorversion, minorversion);
+	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
+		dvp->id_unit, cs32_base, cs16_base, ds_base);
+	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n",
+		dvp->id_unit, cs_entry, is_enabled(idle_cpu), 
+		is_enabled(!disabled));
+#else /* APM_DEBUG */
 	printf(" found APM BIOS version %d.%d\n", majorversion, minorversion);
 	printf("apm%d: Idling CPU %s\n", dvp->id_unit, is_enabled(idle_cpu));
-#endif
+#endif /* APM_DEBUG */
 
 	/*
 	 * APM 1.0 does not have:
@@ -720,7 +690,8 @@ apmattach(struct isa_device *dvp)
 	 *	2. engage/disengage operations
 	 */
 	if (intversion >= INTVERSION(1, 1)) {
-		printf("apm%d: Engaged control %s\n", dvp->id_unit, is_enabled(!disengaged));
+		printf("apm%d: Engaged control %s\n",
+			dvp->id_unit, is_enabled(!disengaged));
 	}
 	else {
 		cs_limit = 0xffff;
@@ -737,14 +708,16 @@ apmattach(struct isa_device *dvp)
 	/* enable power management */
 	if (disabled) {
 		if (apm_enable_disable_pm(1)) {
-			printf("Warning: APM enable function failed! [%s]\n", apm_error());
+			printf("Warning: APM enable function failed! [%x]\n", 
+				apm_errno);
 		}
 	}
 
 	/* engage power managment (APM 1.1 or later) */
 	if (intversion >= INTVERSION(1, 1) && disengaged) {
 		if (apm_engage_disengage_pm(1)) {
-			printf("Warning: APM engage function failed [%s]\n", apm_error());
+			printf("Warning: APM engage function failed [%x]\n", 
+				apm_errno);
 		}
 	}
 
@@ -782,7 +755,7 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	int error = 0;
 	int pl;
 
-#if 0
+#ifdef APM_DEBUG
 	printf("APM ioctl: minor = %d, cmd = 0x%x\n", minor(dev), cmd);
 #endif
 
