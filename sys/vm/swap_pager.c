@@ -303,7 +303,7 @@ swap_pager_swap_init()
 	 * can hold 16 pages, so this is probably overkill.
 	 */
 
-	n = cnt.v_page_count * 2;
+	n = cnt.v_page_count;
 
 	swap_zone = zinit(
 	    "SWAPMETA", 
