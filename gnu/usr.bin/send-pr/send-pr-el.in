@@ -108,7 +108,7 @@
 (defvar send-pr::sites nil
   "List of GNATS support sites; computed at runtime.")
 (defvar send-pr:default-site
-  (or (gnats::get-config "GNATS_SITE") "freebsd-gnats@freebsd.org")
+  (or (gnats::get-config "GNATS_SITE") "freefall")
   "Default site to send bugs to.")
 (defvar send-pr:::site send-pr:default-site
   "The site to which a problem report is currently being submitted, or NIL
@@ -127,7 +127,7 @@ at runtime.")
 (defconst send-pr::fields
   (` (("Category" send-pr::set-categories
        (, (or (gnats::get-config "DEFAULT_CATEGORY") nil)) enum)
-      ("Class" (("sw-bug") ("doc-bug") ("change-request") ("support"))
+      ("Class" (("sw-bug") ("doc-bug") ("change-request"))
        (, (or (gnats::get-config "DEFAULT_CONFIDENTIAL") 0)) enum)
       ("Confidential" (("yes") ("no"))
        (, (or (gnats::get-config "DEFAULT_CONFIDENTIAL") 1)) enum)
