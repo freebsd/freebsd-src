@@ -126,6 +126,8 @@ struct cu_data {
 	u_int			cu_recvsz;	/* recv size */
 	struct pollfd		pfdp;
 	int			cu_async;
+	int			cu_connect;	/* Use connect(). */
+	int			cu_connected;	/* Have done connect(). */
 	char			cu_inbuf[1];
 };
 
@@ -239,6 +241,8 @@ clnt_dg_create(fd, svcaddr, program, version, sendsz, recvsz)
 	cu->cu_sendsz = sendsz;
 	cu->cu_recvsz = recvsz;
 	cu->cu_async = FALSE;
+	cu->cu_connect = FALSE;
+	cu->cu_connected = FALSE;
 	(void) gettimeofday(&now, NULL);
 	call_msg.rm_xid = __RPC_GETXID(&now);
 	call_msg.rm_call.cb_prog = program;
@@ -308,9 +312,10 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	struct timeval startime, curtime;
 	int firsttimeout = 1;
 	int dtbsize = __rpc_dtbsize();
+	struct sockaddr *sa;
 	sigset_t mask;
 	sigset_t newmask;
-	socklen_t inlen;
+	socklen_t inlen, salen;
 	ssize_t recvlen = 0;
 	int rpc_lock_value;
 	u_int32_t xid;
@@ -332,6 +337,22 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 		timeout = cu->cu_total;	/* use default timeout */
 	}
 
+	if (cu->cu_connect && !cu->cu_connected) {
+		if (_connect(cu->cu_fd, (struct sockaddr *)&cu->cu_raddr,
+		    cu->cu_rlen) < 0) {
+			release_fd_lock(cu->cu_fd, mask);
+			cu->cu_error.re_errno = errno;
+			return (cu->cu_error.re_status = RPC_CANTSEND);
+		}
+		cu->cu_connected = 1;
+	}
+	if (cu->cu_connected) {
+		sa = NULL;
+		salen = 0;
+	} else {
+		sa = (struct sockaddr *)&cu->cu_raddr;
+		salen = cu->cu_rlen;
+	}
 	time_waited.tv_sec = 0;
 	time_waited.tv_usec = 0;
 	retransmit_time = cu->cu_wait;
@@ -360,9 +381,7 @@ call_again:
 	outlen = (size_t)XDR_GETPOS(xdrs);
 
 send_again:
-	if (_sendto(cu->cu_fd, cu->cu_outbuf, outlen, 0,
-	    (struct sockaddr *)(void *)&cu->cu_raddr, (socklen_t)cu->cu_rlen)
-	    != outlen) {
+	if (_sendto(cu->cu_fd, cu->cu_outbuf, outlen, 0, sa, salen) != outlen) {
 		cu->cu_error.re_errno = errno;
 		release_fd_lock(cu->cu_fd, mask);
 		return (cu->cu_error.re_status = RPC_CANTSEND);
@@ -737,6 +756,9 @@ clnt_dg_control(cl, request, info)
 		break;
 	case CLSET_ASYNC:
 		cu->cu_async = *(int *)(void *)info;
+		break;
+	case CLSET_CONNECT:
+		cu->cu_connect = *(int *)(void *)info;
 		break;
 	default:
 		release_fd_lock(cu->cu_fd, mask);
