@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.46 -->
+<!-- Original revision: 1.47 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -323,42 +323,37 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
 
 <tag><label id="mirrors-pt">ポルトガル</tag>
 
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@pt.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
 <itemize>
 
 <item>
-<url url="ftp://ftp.ua.pt/pub/misc/FreeBSD"
-	name="ftp://ftp.ua.pt/pub/misc/FreeBSD"><newline>
-	連絡先: <url url="mailto:archie@ua.pt"
-	name="archie@ua.pt">.
-
+<url url="ftp://ftp.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.pt.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"><newline>
 </itemize>
 
 <tag><label id="mirrors-ru">ロシア</tag>
-
-<itemize>
 
 何か問題がある場合は, このドメインの
 <url url="mailto:hostmaster@ru.FreeBSD.ORG" name="hostmaster">
 に連絡してください. 
 
-<item>
-<url url="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"><newline>
-	連絡先: <url url="mailto:ftp-adm@ftp1.ru.freebsd.org"
-	name="ftp-adm@ftp1.ru.freebsd.org">.
+<itemize>
 
 <item>
-<url url="ftp://ftp.kiae.su/FreeBSD"
-	name="ftp://ftp.kiae.su/FreeBSD"><newline>
-	連絡先: <url url="mailto:ftp@ftp.kiae.su"
-	name="ftp@ftp.kiae.su">.
-
+<url url="ftp://ftp.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.ru.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.ru.freebsd.org/FreeBSD"
+	name="ftp://ftp2.ru.freebsd.org/FreeBSD"><newline>
 <item>
 <url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
-	連絡先: <url url="mailto:ivt@ftp3.ru.freebsd.org"
-	name="ivt@ftp3.ru.freebsd.org">.
-
 </itemize>
 
 <tag><label id="mirrors-za">南アフリカ</tag>
