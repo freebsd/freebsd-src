@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.obj.mk,v 1.19 1997/02/22 13:56:12 peter Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, log files etc.
@@ -66,9 +66,9 @@ obj:
 .else
 .if !defined(OBJLINK)
 obj:	_SUBDIR
-	@if ! test -d ${CANONICALOBJDIR}; then \
+	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
-		if ! test -d ${CANONICALOBJDIR}; then \
+		if ! test -d ${CANONICALOBJDIR}/; then \
 			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
@@ -76,9 +76,9 @@ obj:	_SUBDIR
 	fi
 .else
 obj:	_SUBDIR
-	@if ! test -d ${CANONICALOBJDIR}; then \
+	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
-		if ! test -d ${CANONICALOBJDIR}; then \
+		if ! test -d ${CANONICALOBJDIR}/; then \
 			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
@@ -92,7 +92,7 @@ obj:	_SUBDIR
 
 .if !target(objlink)
 objlink: _SUBDIR
-	@if test -d ${CANONICALOBJDIR}; then \
+	@if test -d ${CANONICALOBJDIR}/; then \
 		rm -f ${.CURDIR}/obj; \
 		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
 	else \
@@ -112,7 +112,7 @@ whereobj:
 # cleanup
 #
 cleanobj:
-	@if [ -d ${CANONICALOBJDIR} ]; then \
+	@if [ -d ${CANONICALOBJDIR}/ ]; then \
 		rm -rf ${CANONICALOBJDIR}; \
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
