@@ -31,11 +31,11 @@ SRCDIR=		${.CURDIR}/../../contrib/file
 .PATH:		${SRCDIR}
 
 CFLAGS+=	-DMAGIC='"$(MAGICFILE)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
-CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR} -I${SRCDIR}
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  readelf.c print.c
+		compress.c is_tar.c  readelf.c print-hacked.c
 #		compress.c is_tar.c  readelf.c internat.c print.c
 
 MAN=		file.1 magic.5
@@ -50,6 +50,10 @@ all:	file magic
 
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
+
+CLEANFILES+=	print-hacked.c
+print-hacked.c: print.c
+	sed -e 's|daylight|0/*daylight*/|g' ${.ALLSRC} > ${.TARGET}
 
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
