@@ -50,7 +50,7 @@
 .\" SOFTWARE.
 .\" -
 .\" --Copyright--
-.\" $Id: host.1,v 8.2 1997/03/14 02:29:44 vixie Exp $
+.\" $Id: host.1,v 8.4 2000/02/29 03:50:47 vixie Exp $
 .\" $FreeBSD$
 .\"
 .Dd December 15, 1994
@@ -194,6 +194,10 @@ Turn off recursion in the request.
 This means that the name server will return only data it has in
 its own database.  It will not ask other servers for more 
 information.
+.It Fl d
+Turn on debugging.  Network transactions are shown in detail.
+.It Fl s
+Chase signatures back to parent key (DNSSEC).
 .It Fl t Ar querytype
 Allows you to specify a particular 
 .Ar querytype 
@@ -239,24 +243,35 @@ option is particularly useful for filtering information returned by
 .Ic host ;
 see the explanation of the
 .Dq Fl l
-option for more information.
-.It Fl v
-Use "verbose" format for printout.  This
-is the official domain master file format, which is documented 
-in the man page for 
-.Xr @INDOT@named @SYS_OPS_EXT@ .
-Without this option, output still follows
-this format in general terms, but some attempt is made to make it
-more intelligible to normal users.  Without 
-.Dq Fl v ,
-any "a", "mx", and "cname" records
-are written out as "has address", "mail is handled by", and
-"is a nickname for" (respectively), and TTL and class fields are not shown.
-.It Fl w 
-This causes 
-.Ic host 
-to wait forever for a response.  Normally
-it will time out after approximate one minute.
+option, below, for more information.
+.It Fl a 
+.Dq all ;
+this is equivalent to 
+.Dq Fl v Fl t Cm any .
+.It Fl l
+List a complete domain; e.g.:
+.Pp
+.D1 Ic host -l rutgers.edu
+.Pp
+will give a listing of all hosts in the rutgers.edu domain.  The 
+.Dq Fl t
+option is used to filter what information is presented, as you 
+would expect.  The default is address information, which also
+include PTR and NS records.  The command
+.Pp
+.D1 Ic host -l -v -t any rutgers.edu
+.Pp
+will give a complete download of the zone data for rutgers.edu,
+in the official master file format.  (However the SOA record is
+listed twice, for arcane reasons.)  
+.Pp
+.Sy NOTE: 
+.Dq Fl l 
+is implemented by
+doing a complete zone transfer and then filtering out the information
+the you have asked for.  This command should be used only if it
+is absolutely necessary.
+.El
 .Sh CUSTOMIZING HOST NAME LOOKUP
 In general, if the name supplied by the user does not
 have any dots in it, a default domain is appended to the end.
