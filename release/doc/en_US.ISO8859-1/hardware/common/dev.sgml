@@ -721,16 +721,7 @@
     &hwlist.snd.cs4281;
     &hwlist.snd.solo;
 
-    <para arch="i386,amd64">Advance (&man.sbc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Asound 100 and 110</para>
-	</listitem>
-        <listitem>
-	  <para>Logic ALS120 and ALS4000</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.sbc;
 
     &hwlist.snd.cmi;
 
@@ -739,14 +730,6 @@
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
-
-    <para arch="i386,alpha,amd64">ESS
-      <itemizedlist>
-        <listitem>
-	  <para>ES1868, ES1869, ES1879 and ES1888 (&man.sbc.4; driver)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
 
     &hwlist.snd.maestro;
 
@@ -766,29 +749,6 @@
     <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; driver)</para>
 
     <para arch="i386,amd64">S3 Sonicvibes</para>
-
-    <para arch="i386,alpha,amd64">Creative Technologies SoundBlaster series (&man.sbc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>SoundBlaster</para>
-	</listitem>
-        <listitem>
-	  <para>SoundBlaster Pro</para>
-	</listitem>
-        <listitem>
-	  <para>SoundBlaster AWE-32</para>
-	</listitem>
-        <listitem>
-	  <para>SoundBlaster AWE-64</para>
-	</listitem>
-        <listitem>
-	  <para>SoundBlaster AWE-64 GOLD</para>
-	</listitem>
-        <listitem>
-	  <para>SoundBlaster ViBRA-16</para>
-	</listitem>
-      </itemizedlist>
-    </para>
 
     &hwlist.snd.emu10k1;
 
