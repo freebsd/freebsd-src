@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25 1995/05/30 08:05:46 rgrimes Exp $
+ * $Id: kern_sysctl.c,v 1.26 1995/07/09 02:49:30 peter Exp $
  */
 
 /*
@@ -713,11 +713,12 @@ fill_eproc(p, ep)
 	bzero(ep, sizeof(*ep));
 
 	ep->e_paddr = p;
-	if (p->p_cred)
+	if (p->p_cred) {
 		ep->e_pcred = *p->p_cred;
-	if (p->p_ucred)
-		ep->e_ucred = *p->p_ucred;
-	if (p->p_stat != SIDL && p->p_stat != SZOMB) {
+		if (p->p_ucred)
+			ep->e_ucred = *p->p_ucred;
+	}
+	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		register struct vmspace *vm = p->p_vmspace;
 
 #ifdef pmap_resident_count
