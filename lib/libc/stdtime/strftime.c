@@ -55,6 +55,7 @@ static const char Bfmt[][10] = {
 static char *_add P((const char *, char *, const char *));
 static char *_conv P((int, const char *, char *, const char *));
 static char *_fmt P((const char *, const struct tm *, char *, const char *));
+static char *_secs P((const struct tm *, char *, const char *));
 
 size_t strftime P((char *, size_t, const char *, const struct tm *));
 
@@ -232,6 +233,9 @@ label:
 			case 'S':
 				pt = _conv(t->tm_sec, "%02d", pt, ptlim);
 				continue;
+			case 's':
+				pt = _secs(t, pt, ptlim);
+				continue;
 			case 'T':
 			case 'X':
 				pt = _fmt("%H:%M:%S", t, pt, ptlim);
@@ -379,6 +383,24 @@ _conv(n, format, pt, ptlim)
 
 	(void) sprintf(buf, format, n);
 	return _add(buf, pt, ptlim);
+}
+
+static char *
+_secs(t, pt, ptlim)
+	const struct tm *t;
+	char *pt;
+	const char *ptlim;
+{
+	static char buf[INT_STRLEN_MAXIMUM(int) + 1];
+	register time_t s;
+	register char *p;
+	struct tm tmp;
+
+	/* Make a copy, mktime(3) modifies the tm struct. */
+	tmp = *t;
+	s = mktime(&tmp);
+	(void) sprintf(buf, "%d", s);
+	return(_add(buf, pt, ptlim));
 }
 
 static char *
