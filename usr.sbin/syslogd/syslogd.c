@@ -104,14 +104,11 @@ static const char rcsid[] =
 
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
+
 const char	*LogName = _PATH_LOG;
 const char	*ConfFile = _PATH_LOGCONF;
 const char	*PidFile = _PATH_LOGPID;
 const char	ctty[] = _PATH_CONSOLE;
-#if defined _OLD_PATH_LOG
-int		alt_fifo;
-const char	*OldLogName = _OLD_PATH_LOG;
-#endif
 
 #define FDMASK(fd)	(1 << (fd))
 
@@ -243,9 +240,6 @@ main(argc, argv)
 			break;
 		case 'p':		/* path */
 			LogName = optarg;
-#if defined _OLD_PATH_LOG
-			alt_fifo = 1;
-#endif
 			break;
 		case 'I':		/* backwards compatible w/FreeBSD */
 		case 's':		/* no network mode */
@@ -298,43 +292,6 @@ main(argc, argv)
 	} else
 		created_lsock = 1;
 
-#if defined(_OLD_PATH_LOG)
-#define LNKSZ 128
-	/*
-	 * don't make a link for the old fifo name if we are just testing 
-	 * (presumably the real syslogd might be using it)
-	 */
-	if (! alt_fifo ) {
-		struct stat statb;
-		char linkbuf[LNKSZ+1];
-		
-		linkbuf[LNKSZ + 1] = '\0';
-		if(stat(OldLogName,&statb) == 0) {
-			switch(statb.st_mode & S_IFMT) {
-		 	case S_IFLNK:
-				/*
-				 * if it's already corrct leave it
-				 * (great for ro filesystems)
-				 */
-				if((readlink(OldLogName, linkbuf, LNKSZ) > 0)
-				 && (! strcmp(OldLogName,linkbuf)))
-					goto linkok;
-			case S_IFIFO:
-				/* if the unlink fails the symlink will too */
-				unlink(OldLogName);
-			}
-		}
-		if(symlink(LogName,OldLogName)) {
-			(void) sprintf(line,
-				"cannot create symlink %s, continuing.",
-				OldLogName);
-			logerror(line);
-			dprintf("warning: cannot create symlink %s (%d)\n",
-				OldLogName, errno);
-		}
-	}
-linkok:
-#endif
 	if (!SecureMode)
 		finet = socket(AF_INET, SOCK_DGRAM, 0);
 	else
