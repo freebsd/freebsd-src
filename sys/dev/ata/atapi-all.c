@@ -237,13 +237,6 @@ atapi_transfer(struct atapi_request *request)
     if (request->ccb[0] != ATAPI_REQUEST_SENSE)
 	atp->cmd = request->ccb[0];
 
-    /* flag if we can trust the DSC bit */
-    if (request->ccb[0] == ATAPI_READ || request->ccb[0] == ATAPI_READ_BIG ||
-        request->ccb[0] == ATAPI_WRITE || request->ccb[0] == ATAPI_WRITE_BIG)
-        atp->flags |= ATAPI_F_DSC_USED;
-    else
-	atp->flags &= ~ATAPI_F_DSC_USED;
-
     /* if DMA enabled setup DMA hardware */
     request->flags &= ~ATPR_F_DMA_USED; 
     if ((atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) &&
