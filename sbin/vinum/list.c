@@ -57,14 +57,16 @@
 #include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <dev/vinum/request.h>
-/* Take a size in sectors and return a pointer to a
- * string which represents the size best.
- * If lj is != 0, return left justified, otherwise
- * in a fixed 10 character field suitable for
- * columnar printing.
+/*
+ * Take a size in sectors and return a pointer to
+ * a string which represents the size best.  If lj
+ * is != 0, return left justified, otherwise in a
+ * fixed 10 character field suitable for columnar
+ * printing.
  *
- * Note this uses a static string: it's only intended to
- * be used immediately for printing */
+ * Note this uses a static string: it's only
+ * intended to be used immediately for printing.
+ */
 char *
 roughlength(long long bytes, int lj)
 {
@@ -389,6 +391,16 @@ vinum_lpi(int plexno, int recurse)
 		printf("\tStripe size: %s\n", roughlength(plex.stripesize * DEV_BSIZE, 1));
 	    else
 		printf("\n");
+	    if (plex.organization == plex_raid5) {
+		if (plex.rebuildblock != 0)
+		    printf("\t\tRebuild block pointer:\t\t%s (%d%%)\n",
+			roughlength(plex.rebuildblock << DEV_BSHIFT, 0),
+			(int) (((u_int64_t) (plex.rebuildblock * 100)) / plex.length / (plex.subdisks - 1)));
+		if (plex.checkblock != 0)
+		    printf("\t\tCheck block pointer:\t\t%s (%d%%)\n",
+			roughlength(plex.checkblock << DEV_BSHIFT, 0),
+			(int) (((u_int64_t) (plex.checkblock * 100)) / plex.length / (plex.subdisks - 1)));
+	    }
 	    if (plex.volno >= 0) {
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
@@ -639,20 +651,24 @@ listconfig()
 	perror("Can't get vinum config");
 	return;
     }
-    if (verbose || (!sflag)) {
-	printf("Configuration summary\n\n");
-	printf("Drives:\t\t%d (%d configured)\n", vinum_conf.drives_used, vinum_conf.drives_allocated);
-	printf("Volumes:\t%d (%d configured)\n", vinum_conf.volumes_used, vinum_conf.volumes_allocated);
-	printf("Plexes:\t\t%d (%d configured)\n", vinum_conf.plexes_used, vinum_conf.plexes_allocated);
-	printf("Subdisks:\t%d (%d configured)\n\n", vinum_conf.subdisks_used, vinum_conf.subdisks_allocated);
+    printf("%3d drives\n", vinum_conf.drives_used);
+    if (vinum_conf.drives_used > 0) {
+	vinum_ld(0, NULL, NULL);
+	printf("\n");
     }
-    vinum_ld(0, NULL, NULL);
-    printf("\n");
-    vinum_lv(0, NULL, NULL);
-    printf("\n");
-    vinum_lp(0, NULL, NULL);
-    printf("\n");
-    vinum_ls(0, NULL, NULL);
+    printf("%3d volumes\n", vinum_conf.volumes_used);
+    if (vinum_conf.volumes_used > 0) {
+	vinum_lv(0, NULL, NULL);
+	printf("\n");
+    }
+    printf("%3d plexes\n", vinum_conf.plexes_used);
+    if (vinum_conf.plexes_used > 0) {
+	vinum_lp(0, NULL, NULL);
+	printf("\n");
+    }
+    printf("%3d subdisks\n", vinum_conf.subdisks_used);
+    if (vinum_conf.subdisks_used > 0)
+	vinum_ls(0, NULL, NULL);
 }
 
 /* Convert a timeval to Tue Oct 13 13:54:14.0434324
@@ -720,12 +736,14 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		perror("Can't get information");
 		return;
 	    }
+	    /* Compress devminor into something printable. */
+	    rq.devminor = (rq.devminor & 0xff)
+		| ((rq.devminor & 0xfff0000) >> 8);
 	    switch (rq.type) {
 	    case loginfo_unused:			    /* never been used */
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-	    case loginfo_sdio:				    /* subdisk I/O */
 		printf("%s %dVS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.type,
@@ -737,8 +755,8 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		    rq.info.b.b_bcount);
 		break;
 
-	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
 	    case loginfo_sdiol:				    /* subdisk I/O launch */
+	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
 		printf("%s %dLR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.type,
@@ -810,6 +828,28 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		    rq.info.rqe.groupoffset);
 		break;
 
+	    case loginfo_sdio:				    /* subdisk I/O */
+		printf("%s %dVS %s %p\t\t  0x%-9x\t%ld\t%d\n",
+		    timetext(&rq.timestamp),
+		    rq.type,
+		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.b.b_blkno,
+		    rq.info.b.b_bcount,
+		    rq.devminor);
+		break;
+
+	    case loginfo_sdiodone:			    /* subdisk I/O done */
+		printf("%s %dDN %s %p\t\t  0x%-9x\t%ld\t%d\n",
+		    timetext(&rq.timestamp),
+		    rq.type,
+		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.b.b_blkno,
+		    rq.info.b.b_bcount,
+		    rq.devminor);
+		break;
+
 	    case loginfo_lockwait:
 		printf("%s Lockwait  %p\t%d\t  0x%x\n",
 		    timetext(&rq.timestamp),
@@ -832,7 +872,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		    rq.bp,
 		    rq.info.lockinfo.plexno,
 		    rq.info.lockinfo.stripe);
-
+		break;
 	    }
 	}
     }
@@ -1026,3 +1066,6 @@ list_defective_objects()
 	}
     }
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
