@@ -430,7 +430,7 @@ sbc_attach(device_t dev)
 	err = "setup_intr";
 	for (i = 0; i < IRQ_MAX; i++) {
 		scp->ihl[i].parent = scp;
-		if (snd_setup_intr(dev, scp->irq[i], INTR_MPSAFE, sbc_intr, &scp->ihl[i], &scp->ih[i]))
+		if (snd_setup_intr(dev, scp->irq[i], 0, sbc_intr, &scp->ihl[i], &scp->ih[i]))
 			goto bad;
 	}
 

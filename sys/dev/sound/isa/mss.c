@@ -1711,10 +1711,10 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	mixer_init(dev, (mss->bd_id == MD_YM0020)? &ymmix_mixer_class : &mssmix_mixer_class, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
-		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, opti931_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, 0, opti931_intr, mss, &mss->ih);
 		break;
     	default:
-		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, mss_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, 0, mss_intr, mss, &mss->ih);
     	}
     	if (pdma == rdma)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
