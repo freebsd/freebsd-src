@@ -81,6 +81,9 @@ struct gif_softc {
 #define	GIF_MTU_MIN	(1280)	/* Minimum MTU */
 #define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
 
+#define	MTAG_GIF	1080679712
+#define	MTAG_GIF_CALLED	0
+
 /* Prototypes */
 void gifattach0(struct gif_softc *);
 void gif_input(struct mbuf *, int, struct ifnet *);
