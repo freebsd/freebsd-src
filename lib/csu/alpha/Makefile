@@ -1,13 +1,11 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../common
-
-SRCS=		crt1.c crti.S crtn.S
-OBJS=		${SRCS:N*.h:R:S/$/.o/g}
-OBJS+=		gcrt1.o
-CFLAGS+=	-Wall -Wno-unused \
-		-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include
+SRCS=	crt1.c crti.S crtn.S
+OBJS=	${SRCS:N*.h:R:S/$/.o/g}
+OBJS+=	gcrt1.o
+WARNS?=	6
+CFLAGS+= -I${.CURDIR}/../common -I${.CURDIR}/../../libc/include
 
 all: ${OBJS}
 
