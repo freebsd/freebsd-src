@@ -102,12 +102,19 @@ mount_mfs -s 2048 -T qp120at dummy /conf/etc
 cp -Rp /etc/* /conf/etc
 chkerr $? "MFS mount on /conf/etc"
 
+# Pick up default, network-specific, and host-specific config, in that
+# order
+
+if [ -d /conf/default/etc/ ]; then
+	cp -Rp /conf/default/etc/* /conf/etc
+fi
+
+if [ -d /conf/${bootp_ipbca} ] ; then
+	cp -Rp /conf/${bootp_ipbca}/etc/* /conf/etc
+fi
+
 if [ -d /conf/${bootp_ipa} ] ; then
-        cp -Rp /conf/${bootp_ipa}/etc/* /conf/etc
-elif [ -d /conf/${bootp_ipbca} ] ; then
-        cp -Rp /conf/${bootp_ipbca}/etc/* /conf/etc
-else
-        cp -Rp /conf/default/etc/* /conf/etc
+	cp -Rp /conf/${bootp_ipa}/etc/* /conf/etc
 fi
 
 # Make the new directory available as /etc
