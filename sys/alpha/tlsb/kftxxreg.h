@@ -1,3 +1,4 @@
+/* $Id$ */
 /* $NetBSD: kftxxreg.h,v 1.4 1997/06/04 01:47:15 cgd Exp $ */
 
 /*
