@@ -92,7 +92,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	int error, i, j, npart;
 	u_char *buf;
 	struct g_pc98_softc *ms;
-	u_int secsize, u, v;
+	u_int sectorsize, u, v;
 	u_int fwsect, fwhead;
 	off_t mediasize, start, length;
 
@@ -110,12 +110,12 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
-		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
+		j = sizeof sectorsize;
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &sectorsize);
 		if (error) {
-			secsize = 512;
+			sectorsize = 512;
 			printf("g_pc98_taste: error %d Sectors are %d bytes\n",
-			    error, secsize);
+			    error, sectorsize);
 		}
 		j = sizeof mediasize;
 		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
@@ -139,7 +139,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			    error, fwhead);
 		}
 		buf = g_read_data(cp, 0,
-		    secsize < 1024 ? 1024 : secsize, &error);
+		    sectorsize < 1024 ? 1024 : sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
 
@@ -157,8 +157,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				continue;
 			printf("Index: %d\n", i);
 			g_hexdump(buf+512 + i * 32, 32);
-			start = v * fwsect * fwhead * secsize;
-			length = (u - v) * fwsect * fwhead * secsize;
+			start = v * fwsect * fwhead * sectorsize;
+			length = (u - v) * fwsect * fwhead * sectorsize;
 			printf("c%d - c%d (%llx - %llx) = %s\n",
 			     v, u, start, length, buf + 512 + 16 + i * 32);
 			npart++;
