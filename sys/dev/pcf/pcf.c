@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
-#include <i386/isa/isa_device.h>
-
 #include <dev/iicbus/iiconf.h>
 #include "iicbus_if.h"
 

@@ -203,8 +203,6 @@ i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/isa.c			optional	isa
-i386/isa/isa_compat.c		optional	isa compat_oldisa	\
-	warning "Old ISA driver compatibility shims present."
 i386/isa/npx.c			optional	npx
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
