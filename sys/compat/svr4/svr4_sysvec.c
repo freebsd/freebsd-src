@@ -179,13 +179,14 @@ struct sysentvec svr4_sysvec = {
   &svr4_szsigcode,
   NULL,
   "SVR4",
-  elf_coredump,
+  elf32_coredump,
   NULL,
   SVR4_MINSIGSTKSZ
 };
 
 Elf32_Brandinfo svr4_brand = {
   ELFOSABI_SYSV,
+  EM_386,			/* XXX only implemented for x86 so far. */
   "SVR4",
   svr4_emul_path,
   "/lib/libc.so.1",
@@ -376,7 +377,7 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
-		if (elf_insert_brand_entry(&svr4_brand) < 0)
+		if (elf32_insert_brand_entry(&svr4_brand) < 0)
 			error = EINVAL;
 		if (error)
 			printf("cannot insert svr4 elf brand handler\n");
@@ -385,9 +386,9 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		/* Only allow the emulator to be removed if it isn't in use. */
-		if (elf_brand_inuse(&svr4_brand) != 0) {
+		if (elf32_brand_inuse(&svr4_brand) != 0) {
 			error = EBUSY;
-		} else if (elf_remove_brand_entry(&svr4_brand) < 0) {
+		} else if (elf32_remove_brand_entry(&svr4_brand) < 0) {
 			error = EINVAL;
 		}
 

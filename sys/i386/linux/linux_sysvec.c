@@ -792,13 +792,14 @@ struct sysentvec elf_linux_sysvec = {
 	&linux_szsigcode,
 	linux_prepsyscall,
 	"Linux ELF",
-	elf_coredump,
+	elf32_coredump,
 	exec_linux_imgact_try,
 	LINUX_MINSIGSTKSZ
 };
 
 static Elf32_Brandinfo linux_brand = {
 					ELFOSABI_LINUX,
+					EM_386,
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
@@ -807,6 +808,7 @@ static Elf32_Brandinfo linux_brand = {
 
 static Elf32_Brandinfo linux_glibc2brand = {
 					ELFOSABI_LINUX,
+					EM_386,
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
@@ -832,7 +834,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		     ++brandinfo)
-			if (elf_insert_brand_entry(*brandinfo) < 0)
+			if (elf32_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
@@ -845,12 +847,12 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		     ++brandinfo)
-			if (elf_brand_inuse(*brandinfo))
+			if (elf32_brand_inuse(*brandinfo))
 				error = EBUSY;
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
 			     *brandinfo != NULL; ++brandinfo)
-				if (elf_remove_brand_entry(*brandinfo) < 0)
+				if (elf32_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
 		if (error == 0) {

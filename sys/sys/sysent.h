@@ -79,6 +79,11 @@ struct sysentvec {
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	int		sv_minsigstksz;	/* minimum signal stack size */
+	int		sv_pagesize;	/* pagesize override */
+	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS override */
+	vm_offset_t	sv_usrstack;	/* USRSTACK override */
+	register_t	*(*sv_copyout_strings)(struct image_params *);
+	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
 };
 
 #ifdef _KERNEL

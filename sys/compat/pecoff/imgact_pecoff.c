@@ -465,7 +465,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	    peofs + PECOFF_HDR_SIZE, (caddr_t) sh, scnsiz);
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
-	exec_new_vmspace(imgp);
+	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
 	vmspace = imgp->proc->p_vmspace;
 	for (i = 0; i < fp->f_nscns; i++) {
 		prot = VM_PROT_WRITE;	/* XXX for relocation? */

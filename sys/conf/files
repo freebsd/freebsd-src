@@ -841,7 +841,9 @@ isofs/cd9660/cd9660_rrip.c	optional cd9660
 isofs/cd9660/cd9660_util.c	optional cd9660
 isofs/cd9660/cd9660_vfsops.c	optional cd9660
 isofs/cd9660/cd9660_vnops.c	optional cd9660
-kern/imgact_elf.c	standard
+kern/imgact_elf32.c	standard
+kern/imgact_elf64.c	standard
+kern/imgact_elfN.c	standard
 kern/imgact_shell.c	standard
 kern/inflate.c		optional gzip
 kern/init_main.c	standard
