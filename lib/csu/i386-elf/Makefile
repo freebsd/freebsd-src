@@ -1,11 +1,11 @@
 #
-#	$Id: Makefile,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+#	$Id: Makefile,v 1.2 1998/09/07 23:31:59 jdp Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-SOBJS=		crtbegin.so crtend.so
+SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-elf
 CFLAGS+=	-Wall -Wno-unused
 LDFLAGS+=	-elf
@@ -22,7 +22,7 @@ gcrt1.o:	crt1.c
 realinstall:
 .for file in ${OBJS} ${SOBJS}
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.so$/S.o/}
+	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
 .endfor
 
 .include <bsd.lib.mk>

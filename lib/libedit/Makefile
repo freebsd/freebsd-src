@@ -58,7 +58,7 @@ help.h: ${ASRC} makelist
 editline.c:
 	sh ${.CURDIR}/makelist -e ${OSRCS} > ${.TARGET}
 
-beforedepend editline.o editline.po editline.so: \
+beforedepend editline.o editline.po editline.So: \
 	vi.h emacs.h common.h fcns.h fcns.c help.h help.c
 
 test:	test.o libedit.a ${DPADD} ${LIBTERMCAP}
