@@ -320,10 +320,8 @@ cpu_thread_clean(struct thread *td)
 		 * XXX do we need to move the TSS off the allocated pages
 		 * before freeing them?  (not done here)
 		 */
-		mtx_lock(&Giant);
 		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
-		mtx_unlock(&Giant);
 		pcb->pcb_ext = 0;
 	}
 }
