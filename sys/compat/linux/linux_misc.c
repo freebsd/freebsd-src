@@ -970,7 +970,7 @@ linux_setgroups(p, uap)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser(p)) != 0)
+	if ((error = suser_xxx(NULL, p, PRISON_ROOT)) != 0)
 		return (error);
 
 	if (ngrp >= NGROUPS)
