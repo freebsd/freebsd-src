@@ -178,7 +178,8 @@ pkg_do(char *pkg)
 	}
     }
 
-    /* Test whether to use the old method of passing tokens to deinstallation
+    /*
+     * Test whether to use the old method of passing tokens to deinstallation
      * scripts, and set appropriate variables..
      */
 
@@ -213,8 +214,10 @@ pkg_do(char *pkg)
 	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
     }
 
-    /* Some packages aren't packed right, so we need to just ignore
-       delete_package()'s status.  Ugh! :-( */
+    /*
+     * Some packages aren't packed right, so we need to just ignore
+     * delete_package()'s status.  Ugh! :-(
+     */
     if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
 	warnx(
 	"couldn't entirely delete package (perhaps the packing list is\n"

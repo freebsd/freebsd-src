@@ -116,8 +116,10 @@ copy_plist(char *home, Package *plist)
     dev_t curdir;
 
     maxargs = sysconf(_SC_ARG_MAX);
-    maxargs -= 64;			/* some slop for the tar cmd text,
-					   and sh -c */
+    maxargs -= 64;			/*
+					 * Some slop for the tar cmd text,
+					 * and sh -c
+					 */
     where_args = malloc(maxargs);
     if (!where_args) {
 	cleanup(0);
@@ -132,9 +134,11 @@ copy_plist(char *home, Package *plist)
     if (stat(".", &stb) == 0)
 	curdir = stb.st_dev;
     else
-	curdir = (dev_t) -1;		/* It's ok if this is a valid dev_t;
-					   this is just a hint for an
-					   optimization. */
+	curdir = (dev_t) -1;		/*
+					 * It's ok if this is a valid dev_t;
+					 * this is just a hint for an
+					 * optimization.
+					 */
 
     while (p) {
 	if (p->type == PLIST_CWD)
@@ -152,11 +156,15 @@ copy_plist(char *home, Package *plist)
 	    if (fexists(fn)) {
 		if (lstat(fn, &stb) == 0 && stb.st_dev == curdir &&
 		    S_ISREG(stb.st_mode)) {
-		    /* if we can link it to the playpen, that avoids a copy
-		       and saves time. */
+		    /*
+		     * If we can link it to the playpen, that avoids a copy
+		     * and saves time.
+		     */
 		    if (p->name[0] != '/') {
-			/* don't link abspn stuff--it doesn't come from
-			   local dir! */
+			/*
+			 * Don't link abspn stuff--it doesn't come from
+			 * local dir!
+			 */
 			if (trylink(fn, p->name) == 0) {
 			    p = p->next;
 			    continue;
@@ -198,8 +206,10 @@ copy_plist(char *home, Package *plist)
 		sprintf(fn, "%s/%s", mythere ? mythere : where, p->name);
 		if (lstat(fn, &stb) == 0 && stb.st_dev == curdir &&
 		    S_ISREG(stb.st_mode)) {
-		    /* if we can link it to the playpen, that avoids a copy
-		       and saves time. */
+		    /*
+		     * If we can link it to the playpen, that avoids a copy
+		     * and saves time.
+		     */
 		    if (trylink(fn, p->name) == 0) {
 			p = p->next;
 			continue;

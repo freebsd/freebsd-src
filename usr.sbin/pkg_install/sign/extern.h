@@ -29,10 +29,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Convention: all functions that operate on a FILE * also take a filename
-   for diagnostic purposes.  The file can be connected to a pipe, so
-	- don't rewind
-	- don't reopen from filename.
+/*
+ * Convention: all functions that operate on a FILE * also take a filename
+ * for diagnostic purposes.  The file can be connected to a pipe, so
+ *	- don't rewind
+ *	- don't reopen from filename.
  */
 
 struct mygzip_header;
