@@ -504,9 +504,6 @@
       <para>The &man.vlan.4; device is now loadable, unloadable, and
       clonable.</para>
 
-      <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
-      PRO1000-T (10/100/1000) adapters. &merged;</para>
-
       <para>The &man.xl.4; driver now supports the 3Com 3C556 and 3C556B
       MiniPCI adapters used on some laptops. &merged;</para>
 
@@ -514,7 +511,7 @@
       tagged frames (on the <quote>Cyclone</quote> or newer
       chipsets). &merged;</para>
 
-      <para>The &man.xl.4; driver now supports receive-side TCP/IP
+      <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C. &merged;</para>
 

@@ -1250,10 +1250,6 @@
 	  (&man.fxp.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>Intel PRO/1000, PRO/1000-F, and PRO/1000-T Gigabit Ethernet
-	  (&man.wx.4; driver)</para>
-        </listitem>
-        <listitem>
 	  <para>Intel InBusiness 10/100 PCI Network Adapter
 	  (&man.fxp.4 driver)</para>
         </listitem>
