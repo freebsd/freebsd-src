@@ -443,11 +443,11 @@ auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
     if (len >= ntohs(authp->in.hdr.length))
       return bp;
     authp->in.hdr.length = htons(0);
-    log_Printf(LogWARN, "auth_ReadHeader: Short packet (%u > %u) !\n",
+    log_Printf(LogWARN, "auth_ReadHeader: Short packet (%u > %zu) !\n",
                ntohs(authp->in.hdr.length), len);
   } else {
     authp->in.hdr.length = htons(0);
-    log_Printf(LogWARN, "auth_ReadHeader: Short packet header (%u > %u) !\n",
+    log_Printf(LogWARN, "auth_ReadHeader: Short packet header (%u > %zu) !\n",
                (int)(sizeof authp->in.hdr), len);
   }
 
@@ -459,12 +459,12 @@ struct mbuf *
 auth_ReadName(struct authinfo *authp, struct mbuf *bp, size_t len)
 {
   if (len > sizeof authp->in.name - 1)
-    log_Printf(LogWARN, "auth_ReadName: Name too long (%u) !\n", len);
+    log_Printf(LogWARN, "auth_ReadName: Name too long (%zu) !\n", len);
   else {
     size_t mlen = m_length(bp);
 
     if (len > mlen)
-      log_Printf(LogWARN, "auth_ReadName: Short packet (%u > %u) !\n",
+      log_Printf(LogWARN, "auth_ReadName: Short packet (%zu > %zu) !\n",
                  len, mlen);
     else {
       bp = mbuf_Read(bp, (u_char *)authp->in.name, len);

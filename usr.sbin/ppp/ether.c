@@ -519,7 +519,7 @@ ether_Create(struct physical *p)
      * magically exist as a way of hooking stuff onto an ethernet device
      */
     path = (char *)alloca(ifacelen + 2);
-    sprintf(path, "%.*s:", ifacelen, iface);
+    sprintf(path, "%.*s:", (int)ifacelen, iface);
     if (NgSendMsg(dev->cs, path, NGM_GENERIC_COOKIE, NGM_LISTHOOKS,
                   NULL, 0) < 0) {
       log_Printf(LogWARN, "%s Cannot send a netgraph message: %s\n",
