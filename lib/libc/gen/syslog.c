@@ -109,7 +109,7 @@ vsyslog(pri, fmt, ap)
 	}
 
 	/* Check priority against setlogmask values. */
-	if (!LOG_MASK(LOG_PRI(pri)) & LogMask)
+	if (!(LOG_MASK(LOG_PRI(pri)) & LogMask))
 		return;
 
 	saved_errno = errno;
