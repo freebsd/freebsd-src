@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.5 1998/05/28 09:30:02 phk Exp $
+ * $Id: globaldata.h,v 1.6 1998/08/18 07:47:12 msmith Exp $
  */
 
 /*
@@ -44,6 +44,7 @@ struct globaldata {
 	struct pcb	*curpcb;
 	struct i386tss	common_tss;
 	struct timeval	switchtime;
+	int		switchticks;
 #ifdef VM86
 	struct segment_descriptor common_tssd;
 	u_int		private_tss;
