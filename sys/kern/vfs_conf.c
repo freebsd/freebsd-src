@@ -199,8 +199,10 @@ vfs_mountroot_try(char *mountfrom)
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
 
 done:
-	free(vfsname, M_MOUNT);
-	free(path, M_MOUNT);
+	if (vfsname != NULL)
+		free(vfsname, M_MOUNT);
+	if (path != NULL)
+		free(path, M_MOUNT);
 	if (error != 0) {
 		if (mp != NULL)
 			free(mp, M_MOUNT);
