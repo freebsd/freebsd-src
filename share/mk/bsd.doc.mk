@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.41 1997/11/09 15:03:11 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.42 1998/02/25 01:35:16 bde Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 #
@@ -172,6 +172,10 @@ depend:
 
 .if !target(maninstall)
 maninstall:
+.endif
+
+.if !target(regress)
+regress:
 .endif
 
 .include <bsd.dep.mk>

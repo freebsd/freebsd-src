@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.45 1998/03/06 05:43:46 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.46 1998/03/06 07:28:01 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -231,6 +231,12 @@ KERN=	${.CURDIR}/../../sys/kern
 
 vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
+
+_sysregress:	${_INLINKS} ${PROG}
+	ld -A /sys/compile/LKM/kernel ${PROG} ${DEPLKMS} -o lkm_verify_tmp
+	rm lkm_verify_tmp
+
+regress:	_sysregress
 
 .include <bsd.obj.mk>
 .include <bsd.dep.mk>
