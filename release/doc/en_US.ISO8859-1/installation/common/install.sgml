@@ -750,13 +750,12 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  it's the right one by examining its size).</para>
 
 	  <para><application>FIPS</application> does NOT currently
-	  work with FAT32 or VFAT style partitions as used by newer
-	  versions of Windows 95.  To split up such a partition, you
-	  will need a commercial product such as
-	  <application>Partition Magic</application>.  Sorry, but this
-	  is just the breaks if you've got a Windows partition hogging
-	  your whole disk and you don't want to reinstall from
-	  scratch.</para>
+          work with NTFS style partitions.  To split up such a
+          partition, you will need a commercial product such as
+          <application>Partition Magic</application>.  Sorry, but this
+          is just the breaks if you've got a Windows partition hogging
+          your whole disk and you don't want to reinstall from
+          scratch.</para>
 	  
 	</answer>
       </qandaentry>
