@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id: resourcevar.h,v 1.11 1998/03/28 10:33:23 bde Exp $
+ * $Id: resourcevar.h,v 1.12 1998/05/28 09:30:27 phk Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -47,6 +47,9 @@ struct pstats {
 #define	pstat_startzero	p_ru
 	struct	rusage p_ru;		/* stats for this proc */
 	struct	rusage p_cru;		/* sum of stats for reaped children */
+	u_int64_t p_uu;			/* previous user time (us) */
+	u_int64_t p_su;			/* previous system time (us) */
+	u_int64_t p_iu;			/* previous interrupt time (us) */
 #define	pstat_endzero	pstat_startcopy
 
 #define	pstat_startcopy	p_timer
