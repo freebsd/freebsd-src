@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <fnmatch.h>
 #include <fts.h>
 #include <grp.h>
+#include <limits.h>
 #include <pwd.h>
 #include <regex.h>
 #include <stdio.h>
@@ -528,6 +529,13 @@ f_exec(plan, entry)
 	int status;
 	char *file;
 
+	if (entry == NULL && plan->flags & F_EXECPLUS) {
+		if (plan->e_ppos == plan->e_pbnum)
+			return (1);
+		plan->e_argv[plan->e_ppos] = NULL;
+		goto doexec;
+	}
+
 	/* XXX - if file/dir ends in '/' this will not work -- can it? */
 	if ((plan->flags & F_EXECDIR) && \
 	    (file = strrchr(entry->fts_path, '/')))
@@ -535,12 +543,24 @@ f_exec(plan, entry)
 	else
 		file = entry->fts_path;
 
-	for (cnt = 0; plan->e_argv[cnt]; ++cnt)
-		if (plan->e_len[cnt])
-			brace_subst(plan->e_orig[cnt], &plan->e_argv[cnt],
-			    file, plan->e_len[cnt]);
+	if (plan->flags & F_EXECPLUS) {
+		if ((plan->e_argv[plan->e_ppos] = strdup(file)) == NULL)
+			err(1, NULL);
+		plan->e_len[plan->e_ppos] = strlen(file);
+		plan->e_psize += plan->e_len[plan->e_ppos];
+		if (++plan->e_ppos < plan->e_pnummax &&
+		    plan->e_psize < plan->e_psizemax)
+			return (1);
+		plan->e_argv[plan->e_ppos] = NULL;
+	} else {
+		for (cnt = 0; plan->e_argv[cnt]; ++cnt)
+			if (plan->e_len[cnt])
+				brace_subst(plan->e_orig[cnt],
+				    &plan->e_argv[cnt], file,
+				    plan->e_len[cnt]);
+	}
 
-	if ((plan->flags & F_NEEDOK) && !queryuser(plan->e_argv))
+doexec:	if ((plan->flags & F_NEEDOK) && !queryuser(plan->e_argv))
 		return 0;
 
 	/* make sure find output is interspersed correctly with subprocesses */
@@ -561,6 +581,12 @@ f_exec(plan, entry)
 		warn("%s", plan->e_argv[0]);
 		_exit(1);
 	}
+	if (plan->flags & F_EXECPLUS) {
+		while (--plan->e_ppos >= plan->e_pbnum)
+			free(plan->e_argv[plan->e_ppos]);
+		plan->e_ppos = plan->e_pbnum;
+		plan->e_psize = plan->e_pbsize;
+	}
 	pid = waitpid(pid, &status, 0);
 	return (pid != -1 && WIFEXITED(status) && !WEXITSTATUS(status));
 }
@@ -578,7 +604,8 @@ c_exec(option, argvp)
 	char ***argvp;
 {
 	PLAN *new;			/* node returned */
-	int cnt;
+	long argmax;
+	int cnt, i;
 	char **argv, **ap, *p;
 
 	/* XXX - was in c_execdir, but seems unnecessary!?
@@ -595,12 +622,32 @@ c_exec(option, argvp)
 			    "%s: no terminating \";\"", option->name);
 		if (**ap == ';')
 			break;
+		if (**ap == '+' && ap != argv && strcmp(*(ap - 1), "{}") == 0) {
+			new->flags |= F_EXECPLUS;
+			break;
+		}
 	}
 
 	if (ap == argv)
 		errx(1, "%s: no command specified", option->name);
 
 	cnt = ap - *argvp + 1;
+	if (new->flags & F_EXECPLUS) {
+		new->e_ppos = new->e_pbnum = cnt - 2;
+		if ((argmax = sysconf(_SC_ARG_MAX)) == -1) {
+			warn("sysconf(_SC_ARG_MAX)");
+			argmax = _POSIX_ARG_MAX;
+		}
+		/*
+		 * Estimate the maximum number of arguments as {ARG_MAX}/10,
+		 * and the maximum number of bytes to use for arguments as
+		 * {ARG_MAX}*(3/4).
+		 */
+		new->e_pnummax = argmax / 10;
+		new->e_psizemax = (argmax / 4) * 3;
+		new->e_pbsize = 0;
+		cnt += new->e_pnummax + 1;
+	}
 	if ((new->e_argv = malloc(cnt * sizeof(char *))) == NULL)
 		err(1, NULL);
 	if ((new->e_orig = malloc(cnt * sizeof(char *))) == NULL)
@@ -610,8 +657,11 @@ c_exec(option, argvp)
 
 	for (argv = *argvp, cnt = 0; argv < ap; ++argv, ++cnt) {
 		new->e_orig[cnt] = *argv;
+		if (new->flags & F_EXECPLUS)
+			new->e_pbsize += strlen(*argv) + 1;
 		for (p = *argv; *p; ++p)
-			if (p[0] == '{' && p[1] == '}') {
+			if (!(new->flags & F_EXECPLUS) && p[0] == '{' &&
+			    p[1] == '}') {
 				if ((new->e_argv[cnt] =
 				    malloc(MAXPATHLEN)) == NULL)
 					err(1, NULL);
@@ -623,9 +673,20 @@ c_exec(option, argvp)
 			new->e_len[cnt] = 0;
 		}
 	}
+	if (new->flags & F_EXECPLUS) {
+		new->e_psize = new->e_pbsize;
+		cnt--;
+		for (i = 0; i < new->e_pnummax; i++) {
+			new->e_argv[cnt] = NULL;
+			new->e_len[cnt] = 0;
+			cnt++;
+		}
+		argv = ap;
+		goto done;
+	}
 	new->e_argv[cnt] = new->e_orig[cnt] = NULL;
 
-	*argvp = argv + 1;
+done:	*argvp = argv + 1;
 	return new;
 }
 
