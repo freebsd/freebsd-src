@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.17 1997/08/23 05:16:26 smp Exp smp $
+ *	$Id: exception.s,v 1.19 1997/08/28 09:50:41 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -40,19 +40,27 @@
 #include <machine/trap.h>			/* trap codes */
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <machine/param.h>
+#include <machine/smptests.h>			/* INTR_SIMPLELOCK */
 
+#ifndef SMP
+#undef INTR_SIMPLELOCK				/* simplifies cpp tests */
+#undef REAL_ECPL
+#undef REAL_ICPL
+#undef REAL_AICPL
+#undef REAL_AVCPL
+#endif /* !SMP */
 
-#if defined(SMP) && defined(REAL_ECPL)
+#ifdef REAL_ECPL
 
 #define ECPL_LOCK	SCPL_LOCK
 #define ECPL_UNLOCK	SCPL_UNLOCK
 
-#else /* SMP */
+#else /* REAL_ECPL */
 
 #define ECPL_LOCK
 #define ECPL_UNLOCK
 
-#endif /* SMP */
+#endif /* REAL_ECPL */
 
 #define	KCSEL		0x08			/* kernel code selector */
 #define	KDSEL		0x10			/* kernel data selector */
@@ -148,26 +156,35 @@ IDTVEC(fpu)
 	movl	%ax,%ds
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
+
 #ifdef SMP
 	MPLOCKED incl _cnt+V_TRAP
 	FPU_LOCK
 	ECPL_LOCK
+#ifdef INTR_SIMPLELOCK
+	movl	_cml,%eax
+	pushl	%eax			/* save original cml */
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cml
+#else
 	movl	_cpl,%eax
 	pushl	%eax			/* save original cpl */
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
+#endif /* INTR_SIMPLELOCK */
 	ECPL_UNLOCK
 	pushl	$0			/* dummy unit to finish intr frame */
-	call	_npxintr
-#else
+#else /* SMP */
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0			/* dummy unit to finish intr frame */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
-	call	_npxintr
 #endif /* SMP */
+
+	call	_npxintr
+
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
@@ -194,7 +211,11 @@ calltrap:
 	MPLOCKED incl _cnt+V_TRAP
 	ALIGN_LOCK
 	ECPL_LOCK
+#ifdef INTR_SIMPLELOCK
+	orl	$SWI_AST_MASK,_cml
+#else
 	orl	$SWI_AST_MASK,_cpl
+#endif
 	ECPL_UNLOCK
 	call	_trap
 
@@ -212,16 +233,20 @@ calltrap:
 	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jne	1f
 #endif /* VM86 */
+
 #ifdef SMP
 	ECPL_LOCK
-	/* XXX will this work??? */
+#ifdef INTR_SIMPLELOCK
+	pushl	_cml			/* XXX will this work??? */
+#else
 	pushl	_cpl
+#endif /* INTR_SIMPLELOCK */
 	ECPL_UNLOCK
 	jmp	2f
 1:
 	pushl	$0			/* cpl to restore */
 2:
-#else
+#else /* SMP */
 	movl	_cpl,%eax
 1:
 	pushl	%eax
@@ -263,7 +288,11 @@ IDTVEC(syscall)
 	MPLOCKED incl _cnt+V_SYSCALL
 	SYSCALL_LOCK
 	ECPL_LOCK
+#ifdef INTR_SIMPLELOCK
+	movl	$SWI_AST_MASK,_cml
+#else
 	movl	$SWI_AST_MASK,_cpl
+#endif
 	ECPL_UNLOCK
 	call	_syscall
 
@@ -293,7 +322,11 @@ IDTVEC(int0x80_syscall)
 	MPLOCKED incl _cnt+V_SYSCALL
 	ALTSYSCALL_LOCK
 	ECPL_LOCK
+#ifdef INTR_SIMPLELOCK
+	movl	$SWI_AST_MASK,_cml
+#else
 	movl	$SWI_AST_MASK,_cpl
+#endif
 	ECPL_UNLOCK
 	call	_syscall
 

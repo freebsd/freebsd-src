@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.3 1997/08/24 00:05:37 fsmp Exp $
+ *	$Id: simplelock.s,v 1.8 1997/08/29 07:26:27 smp Exp smp $
  */
 
 /*
@@ -32,6 +32,7 @@
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <i386/isa/intr_machdep.h>
 	
+#include <machine/smptests.h>			/** FAST_HI */
 
 /*
  * The following impliments the primitives described in i386/i386/param.h
@@ -172,7 +173,11 @@ ENTRY(ss_lock)
 	movl	$1, %ecx		/* value for a held lock */
 ssetlock:
 	pushl	lapic_tpr		/* save current task priority */
+#ifdef FAST_HI
+	movl	$TPR_BLOCK_FHWI, lapic_tpr	/* block FAST hw INTs */
+#else
 	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
+#endif
 	xchgl	%ecx, (%eax)		/* compete */
 	testl	%ecx, %ecx
 	jz	sgotit			/* it was clear, return */
