@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jan 12 15:43:51 2001]
+ *	last edit-date: [Wed Aug 22 17:02:43 2001]
  *
  *---------------------------------------------------------------------------*
  *
@@ -520,6 +520,8 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
                 sc->sc_if.if_oerrors++;
                 return(ENOBUFS);
         }	
+
+        IF_ENQUEUE(ifq, m);
 #endif
 	
 	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
