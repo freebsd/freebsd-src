@@ -1,0 +1,353 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\"
+.\" $FreeBSD$
+.\"
+.\" ng_atm(4) man page
+.\"
+.Dd June 24, 2003
+.Dt ng_atm 4
+.Os FreeBSD
+.Sh NAME
+.Nm ng_atm
+.Nd netgraph ATM node type
+.Sh SYNOPSIS
+.Fd #include <net/if_atm.h>
+.Fd #include <netgraph/ng_atm.h>
+.Sh DESCIPTION
+The
+.Nm
+netgraph node type allows
+.Xr natm 4
+ATM drivers to be connected to the 
+.Xr netgraph 4
+networking subsystem.
+When the
+.Nm
+module is loaded a node is automatically create for each
+.Xr natm 4
+ATM interface. The nodes are named with the same name as the
+interface. Nodes are also created, if a driver for an ATM
+card is loaded after
+.Nm
+was loaded.
+.Pp
+.Nm
+nodes are persistent. They are removed when the interface is removed.
+SHUTDOWN messages are ignored by the node.
+.Sh HOOKS
+Four special hooks with fixed names and an unlimited number of hooks with user
+defined names are supported. Three of the fixed hooks are attached to
+strategic points in the information flow in the
+.Xr natm 4
+system and support only reading. The fourth fixed hook behaves like the other
+user hooks, but a number of management messages are sent along the hook.
+The other hooks can be attached to VCIs dynamically by means of
+control messages to the
+.Nm
+node and can be written and read.
+.Pp
+The four fixed hooks are:
+.Bl -tag -width orphans
+.It Dv input
+This is a connection to the raw input stream from the network.
+If this hook is connected, all incoming packets are delivered out to
+this hook. Note, that this redirects ALL input. Neither
+.Xr natm 4
+nor the user hooks will see any input if
+.Dv input
+is connected.
+An
+.Dv atm_pseudohdr
+(see
+.Xr natm 4 )
+is prepended to the actual data.
+.It Dv output
+This is a connection to the raw output stream to the network device.
+If this hook is connected, all outgoing packets are handed over to
+the netgraph system and delivered to the hook instead of beeing delivered
+to the ATM driver.
+An
+.Dv atm_pseudohdr
+(see
+.Xr natm 4 )
+is prepended to the actual data.
+.It Dv orphans
+This hook receives all packets that are unrecognized, i.e. do not belong to
+either a
+.Xr natm 4
+socket, a
+.Nm
+VCI or
+.Xr natm 4
+IP.
+Because ATM is connection oriented and packets are received on a given VCI only
+when someone initiates this VCI, packets should never be orphaned. There is
+however one exception: if you use
+.Xr natm 4
+IP with LLC/SNAP encapsulation packets with don't have the IP protocol
+indicated in the packet header are delivered out of this hook.
+An
+.Dv atm_pseudohdr
+(see
+.Xr natm 4 )
+is prepended to the actual data send out to the hook.
+.It Dv manage
+This hook behaves exactly like a normal user hook (see below) except, that
+the node at the other hand will receive management messages.
+.El
+.Pp
+Hooks for dynamically initiated VCIs can have whatever name is allowed by
+.Xr netgraph 4 
+as long as the name does not collide with one of the three predefined names.
+.Pp
+To initiate packet sending an receiving on a dynamic hook one has to issue
+a
+.Dv NGM_ATM_CPCS_INIT
+control message. To terminate sending and receiving one must send a
+.Dv NGM_ATM_CPCS_TERM
+message (see
+.Sx CONTROL MESSAGES ) . 
+The data send and received on these hooks has no additional
+headers.
+.Sh CONTROL MESSAGES
+This node type supports the generic messages plus the following:
+.Bl -tag -width xxx
+.It Dv NGM_ATM_GET_IFNAME
+Return the name of the interface as a NUL-terminated string.
+This is normally the same name as that of the node.
+.It Dv NGM_ATM_GET_CONFIG
+Returns a structure defining the configuration of the interface:
+.Bd -literal
+struct ng_atm_config {
+	uint32_t	pcr;		/* peak cell rate */
+	uint32_t	maxvpi;		/* maximum vpi */
+	uint32_t	maxvci;		/* maximum vci */
+	uint32_t	max_vpcs;	/* maximum number of VPCs */
+	uint32_t	max_vccs;	/* maximum number of VCCs */
+};
+.Ed
+.It Dv NGM_ATM_GET_VCCS
+Returns the table of open VCCs from the driver. This table consists of
+a header and a variable sized array of entries, one for each open vcc:
+.Bd -literal
+struct atmio_vcctable {
+	uint32_t	count;		/* number of vccs */
+	struct atmio_vcc vccs[0];	/* array of VCCs */
+};
+struct atmio_vcc {
+	uint16_t	flags;		/* flags */
+	uint16_t	vpi;		/* VPI */
+	uint16_t	vci;		/* VCI */
+	uint16_t	rmtu;		/* Receive maximum CPCS size */
+	uint16_t	tmtu;		/* Transmit maximum CPCS size */
+	uint8_t		aal;		/* aal type */
+	uint8_t		traffic;	/* traffic type */
+	struct atmio_tparam tparam;	/* traffic parameters */
+};
+struct atmio_tparam {
+	uint32_t	pcr;	/* 24bit: Peak Cell Rate */
+	uint32_t	scr;	/* 24bit: VBR Sustainable Cell Rate */
+	uint32_t	mbs;	/* 24bit: VBR Maximum burst size */
+	uint32_t	mcr;	/* 24bit: MCR */
+	uint32_t	icr;	/* 24bit: ABR ICR */
+	uint32_t	tbe;	/* 24bit: ABR TBE (1...2^24-1) */
+	uint8_t		nrm;	/*  3bit: ABR Nrm */
+	uint8_t		trm;	/*  3bit: ABR Trm */
+	uint16_t	adtf;	/* 10bit: ABR ADTF */
+	uint8_t		rif;	/*  4bit: ABR RIF */
+	uint8_t		rdf;	/*  4bit: ABR RDF */
+	uint8_t		cdf;	/*  3bit: ABR CDF */
+};
+.Ed
+.Pp
+Note, that this is the driver's table, so all VCCs opened via
+.Xr natm 4
+sockets and IP are also shown. They can, however, be distinguished by
+their flags. The
+.Dv flags
+field contains the following flags:
+.Bl -column ATM_PH_LLCSNAP -offset indent
+.It Dv ATM_PH_AAL5 Ta use AAL5 instead of AAL0
+.It Dv ATM_PH_LLCSNAP Ta if AAL5 use LLC SNAP encapsulation
+.It Dv ATM_FLAG_NG Ta this is a netgraph VCC
+.It Dv ATM_FLAG_HARP Ta this is a HARP VCC
+.It Dv ATM_FLAG_NORX Ta transmit only VCC
+.It Dv ATM_FLAG_NOTX Ta receive only VCC
+.It Dv ATMIO_FLAG_PVC Ta treat channel as a PVC
+.El
+.Pp
+If the
+.Dv ATM_FLAG_NG
+flag is set, then
+.Dv traffic
+and
+.Dv tparam
+contain meaningful information.
+.Pp
+.Dv aal
+contains one of the following values:
+.Bl -column ATM_PH_LLCSNAP -offset indent
+.It Dv ATMIO_AAL_0 Ta AAL 0 (raw cells)
+.It Dv ATMIO_AAL_34 Ta AAL 3 or AAL 4
+.It Dv ATMIO_AAL_5 Ta AAL 5
+.It Dv ATMIO_AAL_RAW Ta device specific raw cells
+.El
+.Pp
+.Dv traffic
+can have one of the following values (not all drivers support
+all traffic types however):
+.Bl -column ATM_PH_LLCSNAP -offset indent
+.It Dv ATMIO_TRAFFIC_UBR
+.It Dv ATMIO_TRAFFIC_CBR
+.It Dv ATMIO_TRAFFIC_ABR
+.It Dv ATMIO_TRAFFIC_VBR
+.El
+.It Dv NGM_ATM_CPCS_INIT
+Initialize a VCC for sending and receiving. The argument is a structure:
+.Bd -literal
+struct ng_atm_cpcs_init {
+	char		name[NG_HOOKLEN + 1];
+	uint32_t	flags;		/* flags. (if_natmio.h) */
+	uint16_t	vci;		/* VCI to open */
+	uint16_t	vpi;		/* VPI to open */
+	uint16_t	rmtu;		/* receive maximum PDU */
+	uint16_t	tmtu;		/* transmit maximum PDU */
+	uint8_t		aal;		/* AAL type (if_natmio.h) */
+	uint8_t		traffic;	/* traffic type (if_natmio.h) */
+	uint32_t	pcr;		/* Peak cell rate */
+	uint32_t	scr;		/* Sustainable cell rate */
+	uint32_t	mbs;		/* Maximum burst size */
+	uint32_t	mcr;		/* Minimum cell rate */
+	uint32_t	icr;		/* ABR: Initial cell rate */
+	uint32_t	tbe;		/* ABR: Transmit buffer exposure */
+	uint8_t		nrm;		/* ABR: Nrm */
+	uint8_t		trm;		/* ABR: Trm */
+	uint16_t	adtf;		/* ABR: ADTF */
+	uint8_t		rif;		/* ABR: RIF */
+	uint8_t		rdf;		/* ABR: RDF */
+	uint8_t		cdf;		/* ABR: CDF */
+};
+.Ed
+.Pp
+.Dv name
+is the name of the hook for which sending and receiving should be enabled.
+This hook must already be connected.
+.Dv vpi
+and
+.Dv vci
+are the respective VPI and VCI values to use for the ATM cells. They must be
+withing the range, given by the 
+.Dv maxvpi
+and
+.Dv maxvci
+fields of the
+.Dv ng_atm_config
+structure.
+.Dv flags
+contains the flags (see above) and the other fields describe the
+type of traffic.
+.It Dv NGM_ATM_CPCS_TERM
+Stop sending and receiving on the indicated hook. The argument is a
+.Bd -literal
+struct ng_atm_cpcs_term {
+	char		name[NG_HOOKLEN + 1];
+};
+.Ed
+.Sh MANAGEMENT MESSAGES
+If the
+.Dv manage
+hook is connected certain messages are sent along the hook. They are
+received by the peer node with a cookie of
+.Dv NG_ATM_COOKIE .
+.Bl -tag -width xxx
+.It Dv NGM_ATM_CARRIER_CHANGE
+The carrier state of the ATM physical interface has changed.
+The message has the following structure:
+.Bd -literal
+struct ng_atm_carrier_change {
+	uint32_t	node;
+	uint32_t	state;
+};
+.Ed
+.Pp
+.Dv node
+is the node Id of the ATM node. This can be used by the managing entity
+(for example
+.Xr ilmid 8 )
+to manage several interfaces at the same time through the same node.
+.Dv state is 1 if the carrier was detected and 0 if it was lost.
+.It Dv NGM_ATM_VCC_CHANGE
+A permanent VCC has been added, deleted or changed. This is used by
+.Xr ilmid
+to generate the appropriate ILMI traps. The structure of the message is:
+.Bd -literal
+struct ng_atm_vcc_change {
+	uint32_t	node;
+	uint16_t	vci;
+	uint8_t		vpi;
+	uint8_t		state;
+};
+.Ed
+Where
+.Dv state
+is 0 if the PVC was deleted and 1 if it was added or modified.
+.El
+.Sh FLOW CONTROL
+If the hardware driver supports it the node can emit flow control messages
+along a user hook. The format of these messages is described in
+.Pa netgraph/ng_message.h .
+The
+.Nm
+node may generate
+.Dv NGM_HIGH_WATER_PASSED and NGM_LOW_WATER_PASSED
+messages. The first one indicates that the hardware driver has stopped output
+on the channel and drops new packets, the second one reports that
+output was reenabled. Currently the structures are not filled with
+information.
+.Sh SHUTDOWN
+The nodes are persistent as long as the corresponding interface exists.
+Upon receipt of a
+.Dv NGM_SHUTDOWN
+messages all hooks are disconnected and the node is reinitialized. All
+VCCs opened via netgraph are closed. When the ATM interface is unloaded
+the node disappears.
+If the node is compiled with
+.Dv NGATM_DEBUG
+there is a sysctl
+.Cm net.graph.atm.allow_shutdown
+which when set to a non-zero values allows the nodes to shut down.
+Note, that this is intended for development only and may lead to kernel
+panics if set.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr natm 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An Harti Brandt Aq harti@freebsd.org
