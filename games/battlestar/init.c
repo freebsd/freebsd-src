@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 5/31/93";
 #include <sys/types.h>
 #include "externs.h"
 #include <pwd.h>
+#include <string.h>
 
 initialize(startup)
 	char startup;

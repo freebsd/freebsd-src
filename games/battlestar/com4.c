@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)com4.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "externs.h"
 
 take(from)
