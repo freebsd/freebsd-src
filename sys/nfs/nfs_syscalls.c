@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.46 1999/02/16 10:49:53 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.47 1999/02/18 09:19:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -89,7 +89,9 @@ extern int nfsrvw_procrastinate_v3;
 struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 static int nuidhash_max = NFS_MAXUIDHASH;
 
+#ifndef NFS_NOSERVER
 static void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
+#endif
 static int	nfssvc_iod __P((struct proc *));
 
 #define	TRUE	1
@@ -466,8 +468,6 @@ nfssvc_nfsd(nsd, argp, p)
 	register struct mbuf *m;
 	register int siz;
 	register struct nfssvc_sock *slp;
-	register struct socket *so;
-	register int *solockp;
 	struct nfsd *nfsd = nsd->nsd_nfsd;
 	struct nfsrv_descript *nd = NULL;
 	struct mbuf *mreq;
@@ -527,13 +527,10 @@ nfssvc_nfsd(nsd, argp, p)
 					nfsrv_zapsock(slp);
 				else if (slp->ns_flag & SLP_NEEDQ) {
 					slp->ns_flag &= ~SLP_NEEDQ;
-					(void) nfs_sndlock(&slp->ns_solock,
-						&slp->ns_solock,
-						(struct nfsreq *)0);
+					(void) nfs_slplock(slp, 1);
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
 						M_WAIT);
-					nfs_sndunlock(&slp->ns_solock,
-						&slp->ns_solock);
+					nfs_slpunlock(slp);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
 				cur_usec = nfs_curusec();
@@ -561,12 +558,7 @@ nfssvc_nfsd(nsd, argp, p)
 			continue;
 		}
 		splx(s);
-		so = slp->ns_so;
-		sotype = so->so_type;
-		if (so->so_proto->pr_flags & PR_CONNREQUIRED)
-			solockp = &slp->ns_solock;
-		else
-			solockp = (int *)0;
+		sotype = slp->ns_so->so_type;
 		if (nd) {
 		    getmicrotime(&nd->nd_starttime);
 		    if (nd->nd_nam2)
@@ -692,11 +684,10 @@ nfssvc_nfsd(nsd, argp, p)
 				M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
-			if (solockp)
-				(void) nfs_sndlock(solockp, solockp, 
-					(struct nfsreq *)0);
+			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
+				(void) nfs_slplock(slp, 1);
 			if (slp->ns_flag & SLP_VALID)
-			    error = nfs_send(so, nd->nd_nam2, m, NULL);
+			    error = nfs_send(slp->ns_so, nd->nd_nam2, m, NULL);
 			else {
 			    error = EPIPE;
 			    m_freem(m);
@@ -709,8 +700,8 @@ nfssvc_nfsd(nsd, argp, p)
 				m_freem(nd->nd_mrep);
 			if (error == EPIPE)
 				nfsrv_zapsock(slp);
-			if (solockp)
-				nfs_sndunlock(solockp, solockp);
+			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
+				nfs_slpunlock(slp);
 			if (error == EINTR || error == ERESTART) {
 				free((caddr_t)nd, M_NFSRVDESC);
 				nfsrv_slpderef(slp);
@@ -831,6 +822,44 @@ nfsrv_slpderef(slp)
 	if (--(slp->ns_sref) == 0 && (slp->ns_flag & SLP_VALID) == 0) {
 		TAILQ_REMOVE(&nfssvc_sockhead, slp, ns_chain);
 		free((caddr_t)slp, M_NFSSVC);
+	}
+}
+
+/*
+ * Lock a socket against others.
+ */
+int
+nfs_slplock(slp, wait)
+	register struct nfssvc_sock *slp;
+	int wait;
+{
+	int *statep = &slp->ns_solock;
+
+	if (!wait && (*statep & NFSSTA_SNDLOCK))
+		return(0);	/* already locked, fail */
+	while (*statep & NFSSTA_SNDLOCK) {
+		*statep |= NFSSTA_WANTSND;
+		(void) tsleep((caddr_t)statep, PZERO - 1, "nfsslplck", 0);
+	}
+	*statep |= NFSSTA_SNDLOCK;
+	return (1);
+}
+
+/*
+ * Unlock the stream socket for others.
+ */
+void
+nfs_slpunlock(slp)
+	register struct nfssvc_sock *slp;
+{
+	int *statep = &slp->ns_solock;
+
+	if ((*statep & NFSSTA_SNDLOCK) == 0)
+		panic("nfs slpunlock");
+	*statep &= ~NFSSTA_SNDLOCK;
+	if (*statep & NFSSTA_WANTSND) {
+		*statep &= ~NFSSTA_WANTSND;
+		wakeup((caddr_t)statep);
 	}
 }
 

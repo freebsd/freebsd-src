@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.38 1998/09/05 15:17:33 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.39 1998/10/31 15:31:25 peter Exp $
  */
 
 
@@ -81,13 +81,15 @@ time_t nqnfsstarttime = (time_t)0;
 int nqsrv_clockskew = NQ_CLOCKSKEW;
 int nqsrv_writeslack = NQ_WRITESLACK;
 int nqsrv_maxlease = NQ_MAXLEASE;
+#ifndef NFS_NOSERVER
 static int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
+#endif
 
 struct vop_lease_args;
 
+#ifndef NFS_NOSERVER
 static int	nqsrv_cmpnam __P((struct nfssvc_sock *, struct sockaddr *,
 			struct nqhost *));
-extern void	nqnfs_lease_updatetime __P((int deltat));
 static int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
 static void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
 				   struct sockaddr *nam));
@@ -99,6 +101,8 @@ static void	nqsrv_send_eviction __P((struct vnode *vp, struct nqlease *lp,
 					 struct ucred *cred));
 static void	nqsrv_unlocklease __P((struct nqlease *lp));
 static void	nqsrv_waitfor_expiry __P((struct nqlease *lp));
+#endif
+extern void	nqnfs_lease_updatetime __P((int deltat));
 
 /*
  * Signifies which rpcs can have piggybacked lease requests
@@ -366,7 +370,6 @@ nqnfs_vop_lease_check(ap)
 	return (0);
 }
 
-#endif /* NFS_NOSERVER */
 
 /*
  * Add a host to an nqhost structure for a lease.
@@ -560,15 +563,13 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			}
 			if (((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
 			    (lph->lph_slp->ns_flag & SLP_VALID) == 0) ||
-			    (solockp && (*solockp & NFSSTA_SNDLOCK)))
+			    (nfs_slplock(lph->lph_slp, 0) == 0))
 				m_freem(m);
 			else {
-				if (solockp)
-					*solockp |= NFSSTA_SNDLOCK;
 				(void) nfs_send(so, nam2, m,
 						(struct nfsreq *)0);
 				if (solockp)
-					nfs_sndunlock(solockp, solockp);
+					nfs_slpunlock(lph->lph_slp);
 			}
 			if (lph->lph_flag & LC_UDP)
 				FREE(nam2, M_SONAME);
@@ -628,8 +629,6 @@ tryagain:
 			lph++;
 	}
 }
-
-#ifndef NFS_NOSERVER
 
 /*
  * Nqnfs server timer that maintains the server lease queue.
@@ -899,6 +898,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 	return (error);
 }
 
+#ifndef NFS_NOSERVER 
 /*
  * Client vacated message function.
  */
@@ -940,16 +940,13 @@ nqnfs_vacated(vp, cred)
 	myrep.r_flags = 0;
 	myrep.r_nmp = nmp;
 	if (nmp->nm_soflags & PR_CONNREQUIRED)
-		(void) nfs_sndlock(&nmp->nm_flag, &nmp->nm_state,
-			(struct nfsreq *)0);
+		(void) nfs_sndlock(&myrep);
 	(void) nfs_send(nmp->nm_so, nmp->nm_nam, m, &myrep);
 	if (nmp->nm_soflags & PR_CONNREQUIRED)
-		nfs_sndunlock(&nmp->nm_flag, &nmp->nm_state);
+		nfs_sndunlock(&myrep);
 nfsmout:
 	return (error);
 }
-
-#ifndef NFS_NOSERVER 
 
 /*
  * Called for client side callbacks
@@ -1225,6 +1222,7 @@ nqnfs_lease_updatetime(deltat)
 	simple_unlock(&mountlist_slock);
 }
 
+#ifndef NFS_NOSERVER 
 /*
  * Lock a server lease.
  */
@@ -1253,6 +1251,7 @@ nqsrv_unlocklease(lp)
 	if (lp->lc_flag & LC_WANTED)
 		wakeup((caddr_t)lp);
 }
+#endif /* NFS_NOSERVER */
 
 /*
  * Update a client lease.
