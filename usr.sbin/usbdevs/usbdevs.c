@@ -102,7 +102,7 @@ usbdev(f, a, rec)
 	if (verbose) {
 		printf("%s(0x%04x), %s(0x%04x), rev %s",
 			di.product, di.productNo,
-			di.vendor, di.vendorNo, di.revision);
+			di.vendor, di.vendorNo, di.release);
 	} else
 		printf("%s, %s", di.product, di.vendor);
 	printf("\n");
