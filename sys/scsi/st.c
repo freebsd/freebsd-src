@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.21 1994/10/23 21:27:59 wollman Exp $
+ * $Id: st.c,v 1.22 1994/10/28 13:19:36 jkh Exp $
  */
 
 /*
@@ -27,8 +27,7 @@
  *
  */
 
-#include	<sys/types.h>
-#include	<st.h>
+#include <sys/types.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -229,7 +228,7 @@ struct st_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
 	struct scsi_xfer scsi_xfer;	/* scsi xfer struct for this drive */
 	u_int32 xfer_block_wait;	/* is a process waiting? */
-}      *st_data[NST];
+};
 
 #define ST_INITIALIZED	0x01
 #define	ST_INFO_VALID	0x02
@@ -255,6 +254,11 @@ struct st_data {
 			ST_FIXEDBLOCKS | ST_READONLY | \
 			ST_FM_WRITTEN | ST_2FM_AT_EOD | ST_PER_ACTION)
 
+struct st_driver {
+	u_int32		size;
+	struct st_data	**st_data;
+} st_driver;
+
 static u_int32 next_st_unit = 0;
 
 static int
@@ -269,7 +273,8 @@ static int
 st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
 	       size_t len)
 {
-	return scsi_externalize(st_data[kdc->kdc_unit]->sc_link, userp, &len);
+	return scsi_externalize(st_driver.st_data[kdc->kdc_unit]->sc_link,
+				userp, &len);
 }
 
 static struct kern_devconf kdc_st_template = {
@@ -304,28 +309,53 @@ stattach(sc_link)
 	struct scsi_link *sc_link;
 {
 	u_int32 unit;
-	struct st_data *st;
+	struct st_data *st, **strealloc;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("stattach: "));
+
 	/*
-	 * Check we have the resources for another drive
+	 * allocate the resources for another drive
+	 * if we have already allocate a st_data pointer we must
+	 * copy the old pointers into a new region that is
+	 * larger and release the old region, aka realloc
+	 */
+	/* XXX
+	 * This if will always be true for now, but future code may
+	 * preallocate more units to reduce overhead.  This would be
+	 * done by changing the malloc to be (next_st_unit * x) and
+	 * the st_driver.size++ to be +x
 	 */
 	unit = next_st_unit++;
-
-	if (unit >= NST) {
-		printf("Too many scsi tapes..(%d > %d) reconfigure kernel\n",
-		    (unit + 1), NST);
-		return 0;
+        if (unit >= st_driver.size) {
+		strealloc =
+			malloc(sizeof(st_driver.st_data) * next_st_unit,
+			M_DEVBUF, M_NOWAIT);
+		if (!strealloc) {
+			printf("st%ld: malloc failed for strealloc\n", unit);
+			return (0);
+		}
+		/* Make sure we have something to copy before we copy it */
+		bzero(strealloc, sizeof(st_driver.st_data) * next_st_unit);
+		if (st_driver.size) {
+			bcopy(st_driver.st_data, strealloc,
+				sizeof(st_driver.st_data) * st_driver.size);
+			free(st_driver.st_data, M_DEVBUF);
+		}
+		st_driver.st_data = strealloc;
+		st_driver.st_data[unit] = NULL;
+		st_driver.size++;
 	}
-	if (st_data[unit]) {
-		printf("st%d: Already has storage!\n", unit);
-		return 0;
+	if (st_driver.st_data[unit]) {
+		printf("st%ld: Already has storage!\n", unit);
+		return (0);
 	}
-	sc_link->device = &st_switch;
-	sc_link->dev_unit = unit;
-	st = st_data[unit] = malloc(sizeof(struct st_data), M_DEVBUF, M_NOWAIT);
+	/*
+	 * allocate the per drive data area
+	 */
+	st = st_driver.st_data[unit] =
+		malloc(sizeof(struct st_data), M_DEVBUF, M_NOWAIT);
 	if (!st) {
-		printf("st%d: malloc failed in st.c\n", unit);
+		printf("st%ld: malloc failed for st_data\n", unit);
 		return 0;
 	}
 	bzero(st, sizeof(struct st_data));
@@ -334,8 +364,8 @@ stattach(sc_link)
 	 * Store information needed to contact our base driver
 	 */
 	st->sc_link = sc_link;
-
-
+	sc_link->device = &st_switch;
+	sc_link->dev_unit = unit;
 
 	/*
 	 * Check if the drive is a known criminal and take
@@ -385,7 +415,7 @@ void
 st_identify_drive(unit)
 	u_int32 unit;
 {
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	struct scsi_inquiry_data inqbuf;
 	struct rogues *finger;
 	char    manu[32];
@@ -528,10 +558,10 @@ stopen(dev, flags)
 	/*
 	 * Check the unit is legal
 	 */
-	if (unit >= NST) {
+	if (unit >= st_driver.size) {
 		return (ENXIO);
 	}
-	st = st_data[unit];
+	st = st_driver.st_data[unit];
 	/*
 	 * Make sure the device has been initialised
 	 */
@@ -540,7 +570,7 @@ stopen(dev, flags)
 
 	sc_link = st->sc_link;
 	SC_DEBUG(sc_link, SDEV_DB1, ("open: dev=0x%x (unit %d (of %d))\n"
-		,dev, unit, NST));
+		,dev, unit, st_driver.size));
 	/*
 	 * Only allow one at a time
 	 */
@@ -617,7 +647,7 @@ stclose(dev)
 
 	unit = UNIT(dev);
 	mode = MODE(dev);
-	st = st_data[unit];
+	st = st_driver.st_data[unit];
 	sc_link = st->sc_link;
 
 	SC_DEBUG(sc_link, SDEV_DB1, ("closing\n"));
@@ -660,7 +690,7 @@ st_mount_tape(dev, flags)
 	unit = UNIT(dev);
 	mode = MODE(dev);
 	dsty = DSTY(dev);
-	st = st_data[unit];
+	st = st_driver.st_data[unit];
 	sc_link = st->sc_link;
 
 	if (st->flags & ST_MOUNTED)
@@ -755,7 +785,7 @@ st_mount_tape(dev, flags)
 void
 st_unmount(int unit, boolean eject)
 {
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	struct scsi_link *sc_link = st->sc_link;
 	int32   nmarks;
 
@@ -782,7 +812,7 @@ st_decide_mode(unit, first_read)
 	u_int32	unit;
 	boolean	first_read;
 {
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 #ifdef SCSIDEBUG
 	struct scsi_link *sc_link = st->sc_link;
 #endif
@@ -919,7 +949,7 @@ void
 stminphys(bp)
 	struct buf *bp;
 {
-	(*(st_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
+	(*(st_driver.st_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
 }
 
 /*
@@ -939,7 +969,7 @@ ststrategy(bp)
 
 	ststrats++;
 	unit = UNIT((bp->b_dev));
-	st = st_data[unit];
+	st = st_driver.st_data[unit];
 	SC_DEBUG(st->sc_link, SDEV_DB1,
 	    (" strategy: %d bytes @ blk%d\n", bp->b_bcount, bp->b_blkno));
 	/*
@@ -1028,7 +1058,7 @@ void
 ststart(unit)
 	u_int32	unit;
 {
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	struct scsi_link *sc_link = st->sc_link;
 	register struct buf *bp = 0;
 	struct scsi_rw_tape cmd;
@@ -1175,7 +1205,7 @@ stioctl(dev, cmd, arg, flag)
 	flags = 0;		/* give error messages, act on errors etc. */
 	unit = UNIT(dev);
 	dsty = DSTY(dev);
-	st = st_data[unit];
+	st = st_driver.st_data[unit];
 	hold_blksiz = st->blksiz;
 	hold_density = st->density;
 
@@ -1336,7 +1366,7 @@ st_read(unit, buf, size, flags)
 	char   *buf;
 {
 	struct scsi_rw_tape scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 
 	/*
 	 * If it's a null transfer, return immediatly
@@ -1378,7 +1408,7 @@ st_rd_blk_lim(unit, flags)
 {
 	struct scsi_blk_limits scsi_cmd;
 	struct scsi_blk_limits_data scsi_blkl;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	errval  errno;
 	struct scsi_link *sc_link = st->sc_link;
 
@@ -1451,7 +1481,7 @@ st_mode_sense(unit, flags)
 			 * back when you issue a mode select
 			 */
 	} scsi_sense_page_0;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	struct scsi_link *sc_link = st->sc_link;
 
 	/*
@@ -1532,7 +1562,7 @@ st_mode_select(unit, flags)
 		struct blk_desc blk_desc;
 		unsigned char sense_data[PAGE_0_SENSE_DATA_SIZE];
 	} dat_page_0;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 
 	/*
 	 * Define what sort of structure we're working with
@@ -1587,7 +1617,7 @@ st_space(unit, number, what, flags)
 {
 	errval  error;
 	struct scsi_space scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 
 	switch ((int)what) {
 	case SP_BLKS:
@@ -1660,7 +1690,7 @@ st_write_filemarks(unit, number, flags)
 	int32   number;
 {
 	struct scsi_write_filemarks scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 
 	/*
 	 * It's hard to write a negative number of file marks.
@@ -1713,7 +1743,7 @@ st_chkeod(unit, position, nmarks, flags)
 	u_int32 flags;
 {
 	errval  error;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 
 	switch ((int)(st->flags & (ST_WRITTEN | ST_FM_WRITTEN | ST_2FM_AT_EOD))) {
 	default:
@@ -1740,7 +1770,7 @@ st_load(unit, type, flags)
 	u_int32 unit, type, flags;
 {
 	struct scsi_load scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	struct scsi_link *sc_link = st->sc_link;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
@@ -1777,7 +1807,7 @@ st_rewind(unit, immed, flags)
 	boolean immed;
 {
 	struct scsi_rewind scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	errval  error;
 	int32   nmarks;
 
@@ -1808,7 +1838,7 @@ st_erase(unit, immed, flags)
 	boolean immed;
 {
 	struct scsi_erase scsi_cmd;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	errval  error;
 	int32   nmarks;
 
@@ -1860,7 +1890,7 @@ st_interpret_sense(xs)
 	boolean silent = xs->flags & SCSI_SILENT;
 	struct buf *bp = xs->bp;
 	u_int32 unit = sc_link->dev_unit;
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	u_int32 key;
 	int32   info;
 
@@ -2003,7 +2033,7 @@ errval
 st_touch_tape(unit)
 	u_int32	unit;
 {
-	struct st_data *st = st_data[unit];
+	struct st_data *st = st_driver.st_data[unit];
 	char   *buf;
 	u_int32 readsiz;
 	errval  errno;
