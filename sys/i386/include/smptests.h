@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.12 1997/07/15 00:09:00 smp Exp smp $
+ *	$Id: smptests.h,v 1.10 1997/07/15 03:27:12 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -60,9 +60,9 @@
  * IPI for stop/restart of other CPUs
  *
 #define COUNT_CSHITS
+#define DEBUG_CPUSTOP
  */
 #define TEST_CPUSTOP
-#define DEBUG_CPUSTOP
 
 
 /*
