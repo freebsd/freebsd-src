@@ -143,8 +143,7 @@ cninit(void)
         cn_mute = ((boothowto & (RB_MUTE
 			|RB_SINGLE
 			|RB_VERBOSE
-			|RB_ASKNAME
-			|RB_CONFIG)) == RB_MUTE);
+			|RB_ASKNAME)) == RB_MUTE);
 
 	/*
 	 * Find the first console with the highest priority.

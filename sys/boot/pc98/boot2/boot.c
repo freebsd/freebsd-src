@@ -408,8 +408,6 @@ nextarg:
 					f |= RB_ASKNAME;
 				if (c == 'C')
 					f |= RB_CDROM;
-				if (c == 'c')
-					f |= RB_CONFIG;
 				if (c == 'D')
 					f ^= RB_DUAL;
 				if (c == 'd')

@@ -49,7 +49,6 @@
 #define	RB_RDONLY	0x080	/* mount root fs read-only */
 #define	RB_DUMP		0x100	/* dump kernel memory before reboot */
 #define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
-#define	RB_CONFIG	0x400	/* invoke user configuration routing */
 #define	RB_VERBOSE	0x800	/* print all potentially useful info */
 #define	RB_SERIAL	0x1000	/* use serial port as console */
 #define	RB_CDROM	0x2000	/* use cdrom as root */
