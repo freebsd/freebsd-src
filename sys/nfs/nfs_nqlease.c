@@ -387,6 +387,7 @@ nqsrv_addhost(lph, slp, nam)
 		return;
 	}
 	nsso = slp->ns_so;
+	lph->lph_slp = slp;
 	if (nsso && nsso->so_proto->pr_protocol == IPPROTO_UDP) {
 		saddr = (struct sockaddr_in *)nam;
 		lph->lph_flag |= (LC_VALID | LC_UDP);
@@ -399,7 +400,6 @@ nqsrv_addhost(lph, slp, nam)
 #endif
 	} else {
 		lph->lph_flag |= (LC_VALID | LC_SREF);
-		lph->lph_slp = slp;
 		slp->ns_sref++;
 	}
 }
@@ -506,7 +506,6 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	register int siz;
 	struct nqm *lphnext = lp->lc_morehosts;
 	struct mbuf *m, *mreq, *mb, *mb2, *mheadend;
-	struct socket *so;
 	struct sockaddr *nam2;
 	struct sockaddr_in *saddr;
 	nfsfh_t nfh;
@@ -514,12 +513,16 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	caddr_t bpos, cp;
 	u_int32_t xid, *tl;
 	int len = 1, ok = 1, i = 0;
-	int sotype, *solockp;
 
 	while (ok && (lph->lph_flag & LC_VALID)) {
-		if (nqsrv_cmpnam(slp, nam, lph))
+		if (nqsrv_cmpnam(slp, nam, lph)) {
 			lph->lph_flag |= LC_VACATED;
-		else if ((lph->lph_flag & (LC_LOCAL | LC_VACATED)) == 0) {
+		} else if ((lph->lph_flag & (LC_LOCAL | LC_VACATED)) == 0) {
+			struct socket *so;
+			int sotype;
+			int *solockp = NULL;
+
+			so = lph->lph_slp->ns_so;
 			if (lph->lph_flag & LC_UDP) {
 				MALLOC(nam2, struct sockaddr *,
 				       sizeof *nam2, M_SONAME, M_WAITOK);
@@ -528,20 +531,16 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 				saddr->sin_family = AF_INET;
 				saddr->sin_addr.s_addr = lph->lph_inetaddr;
 				saddr->sin_port = lph->lph_port;
-				so = lph->lph_slp->ns_so;
 			} else if (lph->lph_flag & LC_CLTP) {
 				nam2 = lph->lph_nam;
-				so = lph->lph_slp->ns_so;
 			} else if (lph->lph_slp->ns_flag & SLP_VALID) {
 				nam2 = (struct sockaddr *)0;
-				so = lph->lph_slp->ns_so;
-			} else
+			} else {
 				goto nextone;
+			}
 			sotype = so->so_type;
 			if (so->so_proto->pr_flags & PR_CONNREQUIRED)
 				solockp = &lph->lph_slp->ns_solock;
-			else
-				solockp = (int *)0;
 			nfsm_reqhead((struct vnode *)0, NQNFSPROC_EVICTED,
 				NFSX_V3FH + NFSX_UNSIGNED);
 			fhp = &nfh.fh_generic;
@@ -576,11 +575,11 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			 * nfs_sndlock if PR_CONNREQUIRED XXX
 			 */
 
-			if (((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
-			    (lph->lph_slp->ns_flag & SLP_VALID) == 0) ||
-			    (nfs_slplock(lph->lph_slp, 0) == 0))
+			if ((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
+			    ((lph->lph_slp->ns_flag & SLP_VALID) == 0 ||
+			    nfs_slplock(lph->lph_slp, 0) == 0)) {
 				m_freem(m);
-			else {
+			} else {
 				(void) nfs_send(so, nam2, m,
 						(struct nfsreq *)0);
 				if (solockp)
