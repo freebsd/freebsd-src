@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ata-dma.c,v 1.1 1999/03/28 18:57:19 sos Exp $
  */
 
 #include "ata.h"
@@ -90,7 +90,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    devno = (scp->unit << 1) + (device) ? 1 : 0;
 	    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 	    new48 = (1 << devno) + (2 << (16 + (devno << 2)));
-
             pci_conf_write(scp->tag, 0x48, 
 			   (pci_conf_read(scp->tag, 0x48) & ~mask48) | new48);
 	    return 0;
@@ -158,8 +157,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     case 0x4d33105a:	/* Promise Ultra/33 / FastTrack controllers */
 	devno = (scp->unit << 1) + (device) ? 1 : 0;
 	if (udmamode >=2) {
-	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004127f3);
 	    printf("ata%d: %s: settting up UDMA2 mode on Promise chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -169,10 +166,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
+	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
+	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004127f3);
+	    return 0;
 	}
 	else if (wdmamode >= 2 && apiomode >= 4) {
-	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004367f3);
 	    printf("ata%d: %s: settting up WDMA2 mode on Promise chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -182,11 +180,14 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
+	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
+	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004367f3);
+	    return 0;
         }
 	else {
-	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004fe924);
 	    printf("ata%d: %s: settting up PIO mode on Promise chip OK\n",
 		   scp->lun, (device) ? "slave" : "master");
+	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004fe924);
 	}
 	break;
     
