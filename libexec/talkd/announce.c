@@ -34,7 +34,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)announce.c	8.2 (Berkeley) 1/7/94";
+static char sccsid[] = "@(#)announce.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -43,13 +43,17 @@ static char sccsid[] = "@(#)announce.c	8.2 (Berkeley) 1/7/94";
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+
 #include <protocols/talkd.h>
+
 #include <errno.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <paths.h>
+#include <vis.h>
 
 extern char hostname[];
 
@@ -78,7 +82,7 @@ announce(request, remote_machine)
 
 #define max(a,b) ( (a) > (b) ? (a) : (b) )
 #define N_LINES 5
-#define N_CHARS 120
+#define N_CHARS 256
 
 /*
  * Build a block of characters containing the message.
@@ -100,33 +104,37 @@ print_mesg(tty, tf, request, remote_machine)
 	char line_buf[N_LINES][N_CHARS];
 	int sizes[N_LINES];
 	char big_buf[N_LINES*N_CHARS];
-	char *bptr, *lptr, *ttymsg();
+	char *bptr, *lptr, *vis_user;
 	int i, j, max_size;
 
 	i = 0;
 	max_size = 0;
 	gettimeofday(&clock, &zone);
 	localclock = localtime( &clock.tv_sec );
-	(void)sprintf(line_buf[i], " ");
+	(void)snprintf(line_buf[i], N_CHARS, " ");
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
 	i++;
-	(void)sprintf(line_buf[i], "Message from Talk_Daemon@%s at %d:%02d ...",
-	hostname, localclock->tm_hour , localclock->tm_min );
+	(void)snprintf(line_buf[i], N_CHARS,
+		"Message from Talk_Daemon@%s at %d:%02d ...",
+		hostname, localclock->tm_hour , localclock->tm_min );
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
 	i++;
-	(void)sprintf(line_buf[i], "talk: connection requested by %s@%s",
-		request->l_name, remote_machine);
+
+	vis_user = malloc(strlen(request->l_name) * 4 + 1);
+	strvis(vis_user, request->l_name, VIS_CSTYLE);
+	(void)snprintf(line_buf[i], N_CHARS,
+	    "talk: connection requested by %s@%s", vis_user, remote_machine);
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
 	i++;
-	(void)sprintf(line_buf[i], "talk: respond with:  talk %s@%s",
-		request->l_name, remote_machine);
+	(void)snprintf(line_buf[i], N_CHARS, "talk: respond with:  talk %s@%s",
+	    vis_user, remote_machine);
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
 	i++;
-	(void)sprintf(line_buf[i], " ");
+	(void)snprintf(line_buf[i], N_CHARS, " ");
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
 	i++;
