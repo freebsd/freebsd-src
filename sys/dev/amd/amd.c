@@ -2492,7 +2492,7 @@ amd_probe(device_t dev)
 	if (pci_get_devid(dev) == PCI_DEVICE_ID_AMD53C974) {
 		device_set_desc(dev,
 			"Tekram DC390(T)/AMD53c974 SCSI Host Adapter");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

@@ -349,7 +349,7 @@ adlink_probe(device_t self)
 	if (pci_get_devid(self) != 0x80da10e8)
 		return (ENXIO);
 	device_set_desc(self, "Adlink PCI-9812 4 ch 12 bit 20 msps");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
