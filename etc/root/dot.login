@@ -12,8 +12,7 @@ set path = ($path /usr/local/interviews/bin/$CPU)
 setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
 
 # 8-bit locale (germany)
-#setenv ENABLE_STARTUP_LOCALE
-#setenv LANG de_DE.ISO8859-1
+#setenv LANG de_DE.ISO_8859-1
 
 # A rightous umask
 umask 22
