@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.51 1998/07/11 07:45:28 bde Exp $
+ *	$Id: identcpu.c,v 1.52 1998/10/06 13:16:23 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -839,6 +839,7 @@ static void
 print_AMD_info(void)
 {
 	u_int regs[4];
+	quad_t amd_whcr;
 
 	do_cpuid(0x80000000, regs);
 	if (regs[0] >= 0x80000005) {
@@ -855,5 +856,23 @@ print_AMD_info(void)
 		printf(", %d bytes/line", regs[3] & 0xff);
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
+	}
+	switch (cpu_id & 0xFF0) {
+	case 0x560:	/* K6 0.35u */
+	case 0x570:	/* K6 0.25u */
+	case 0x580:	/* K6-2 */
+	case 0x590:	/* K6-3 */
+		amd_whcr = rdmsr(0xc0000082);
+		if (!(amd_whcr & 0x00fe)) {
+			printf("Write Allocate Disable\n");
+		} else {
+			printf("Write Allocate Enable Limit: %dM bytes\n",
+			    (u_int32_t)(amd_whcr & 0x00fe) * 2);
+			printf("Write Allocate 15-16M bytes: %s\n",
+			    (amd_whcr & 0x0001) ? "Enable" : "Disable");
+			printf("Hardware Write Allocate Control: %s\n",
+			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
+		}
+		break;
 	}
 }
