@@ -250,15 +250,20 @@ uhci_pci_attach(device_t self)
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
+	/* uhci_pci_match must never return NULL if uhci_pci_probe succeeded */
 	device_set_desc(sc->sc_bus.bdev, uhci_pci_match(self));
-	if (pci_get_vendor(self) == PCI_UHCI_VENDORID_INTEL) {
+	switch (pci_get_vendor(self)) {
+	case PCI_UHCI_VENDORID_INTEL:
 		sprintf(sc->sc_vendor, "Intel");
-	} else if (pci_get_vendor(self) == PCI_UHCI_VENDORID_VIA) {
+		break;
+	case PCI_UHCI_VENDORID_VIA:
 		sprintf(sc->sc_vendor, "VIA");
-	} else {
-		device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
-		    pci_get_devid(self));
-		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
+		break;
+	default:
+		if (bootverbose)
+			device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
+			    pci_get_devid(self));
+		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
 	switch (pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
