@@ -1,0 +1,14 @@
+#!/bin/sh -
+#
+# $Id$
+
+exit 0		# do not run by default
+
+echo ""
+echo "Check for files belongs to an unknown user or unknown group:"
+
+# directories to be verified
+: ${NOIDSEARCHPATHS="/"}
+
+find -H $NOIDSEARCHPATHS -fstype local \( -nogroup -or -nouser \) -print
+
