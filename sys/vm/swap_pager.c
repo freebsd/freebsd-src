@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.61 1996/03/02 02:54:17 dyson Exp $
+ * $Id: swap_pager.c,v 1.62 1996/03/03 21:11:05 dyson Exp $
  */
 
 /*
@@ -1045,6 +1045,11 @@ swap_pager_getpages(object, m, count, reqpage)
 		if (swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
 			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
+		if (rv == VM_PAGER_OK) {
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m[reqpage]));
+			m[reqpage]->valid = VM_PAGE_BITS_ALL;
+			m[reqpage]->dirty = 0;
+		}
 	} else {
 		/*
 		 * release the physical I/O buffer
@@ -1084,9 +1089,9 @@ swap_pager_getpages(object, m, count, reqpage)
 
 			/*
 			 * If we're out of swap space, then attempt to free
-			 * some whenever pages are brought in. We must clear
-			 * the clean flag so that the page contents will be
-			 * preserved.
+			 * some whenever multiple pages are brought in. We
+			 * must set the dirty bits so that the page contents
+			 * will be preserved.
 			 */
 			if (SWAPLOW) {
 				for (i = 0; i < count; i++) {
@@ -1097,11 +1102,6 @@ swap_pager_getpages(object, m, count, reqpage)
 		} else {
 			swap_pager_ridpages(m, count, reqpage);
 		}
-	}
-	if (rv == VM_PAGER_OK) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m[reqpage]));
-		m[reqpage]->valid = VM_PAGE_BITS_ALL;
-		m[reqpage]->dirty = 0;
 	}
 	return (rv);
 }
