@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.48 1998/06/15 19:06:55 brian Exp $
+ * $Id: route.c,v 1.49 1998/06/16 19:40:40 brian Exp $
  *
  */
 
@@ -139,7 +139,7 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
 }
 
 static struct bits {
-  u_long b_mask;
+  u_int32_t b_mask;
   char b_val;
 } bits[] = {
   { RTF_UP, 'U' },
@@ -176,7 +176,7 @@ static struct bits {
 #endif
 
 static void
-p_flags(struct prompt *prompt, u_long f, int max)
+p_flags(struct prompt *prompt, u_int32_t f, int max)
 {
   char name[33], *flags;
   register struct bits *p = bits;
