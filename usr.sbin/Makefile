@@ -38,7 +38,6 @@ SUBDIR=	IPXrouted \
 	ifmcstat \
 	inetd \
 	iostat \
-	ipftest \
 	ipresend \
 	ipsend \
 	iptest \
