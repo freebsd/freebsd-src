@@ -438,6 +438,11 @@
       should reduce the buffer usage on large systems handling many
       connections. &merged;</para>
 
+      <para>TCP's default buffer sizes, controlled by the
+      <varname>net.inet.tcp.sendspace</varname> and 
+      <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
+      been increased to 32K and 64K respectively.</para>
+
       <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
       which is on by default, causes IP to verify that an incoming
       packet arrives on an interface that has an address matching the
@@ -941,6 +946,9 @@
     an attacker to execute arbitrary code in the context of a setuid
     binary.  This flaw has been corrected (see security advisory
     FreeBSD-SA-01:42). &merged;</para>
+
+    <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
+    (see security advisory FreeBSD-SA-01:48). &merged;</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -1630,6 +1638,9 @@
     a device if none has been specified on the command line, but
     instead tries to figure out the default device name from the
     root device.</para>
+
+    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
+    sending messages with empty bodies. &merged;</para>
 
     <sect3>
       <title>Contributed Software</title>
