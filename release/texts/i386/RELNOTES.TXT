@@ -154,6 +154,11 @@ Groff/troff/eqn has been updated to version 1.11.
 Gdb has been updated to version 4.18 and is now part of the standard
 release for FreeBSD/alpha.
 
+`chown' has moved from "/usr/sbin" to "/sbin".  This is due to dependencies
+on it by `MAKEDEV'.  Please update any scripts that have "/usr/sbin"
+hardcoded in them.  Since `chgrp' is a link to `chown', `chgrp' has moved
+from "/usr/bin" to "/bin" to reside on the same partition.
+
 
 2. Supported Configurations
 ---------------------------
