@@ -134,7 +134,7 @@ ktrace_init(void *dummy)
 		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK);
 		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	}
-	kthread_create(ktr_loop, NULL, NULL, RFHIGHPID, "ktrace");
+	kthread_create(ktr_loop, NULL, NULL, RFHIGHPID, 0, "ktrace");
 }
 SYSINIT(ktrace_init, SI_SUB_KTRACE, SI_ORDER_ANY, ktrace_init, NULL);
 

@@ -676,7 +676,7 @@ smb_iod_create(struct smb_vc *vcp)
 	smb_sl_init(&iod->iod_evlock, "90evl");
 	STAILQ_INIT(&iod->iod_evlist);
 	error = kthread_create(smb_iod_thread, iod, &iod->iod_p,
-	    RFNOWAIT, "smbiod%d", iod->iod_id);
+	    RFNOWAIT, 0, "smbiod%d", iod->iod_id);
 	if (error) {
 		SMBERROR("can't start smbiod: %d", error);
 		free(iod, M_SMBIOD);

@@ -312,7 +312,7 @@ aac_attach(struct aac_softc *sc)
 	/* Create the AIF thread */
 #if __FreeBSD_version > 500005
 	if (kthread_create((void(*)(void *))aac_host_command, sc,
-			   &sc->aifthread, 0, "aac%daif", unit))
+			   &sc->aifthread, 0, 0, "aac%daif", unit))
 #else
 	if (kthread_create((void(*)(void *))aac_host_command, sc,
 			   &sc->aifthread, "aac%daif", unit))

@@ -1001,7 +1001,7 @@ aio_newproc()
 	int error;
 	struct proc *p;
 
-	error = kthread_create(aio_daemon, curproc, &p, RFNOWAIT, "aiod%d",
+	error = kthread_create(aio_daemon, curproc, &p, RFNOWAIT, 0, "aiod%d",
 			       num_aio_procs);
 	if (error)
 		return error;

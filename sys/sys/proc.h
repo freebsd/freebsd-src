@@ -314,6 +314,10 @@ struct thread {
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
+	int		td_kstack_pages; /* Size of the kstack */
+	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
+	vm_offset_t	td_altkstack;	/* Kernel VA of alternate kstack. */
+	int		td_altkstack_pages; /* Size of the alternate kstack */
 };
 /* flags kept in td_flags */ 
 #define	TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
@@ -844,7 +848,7 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *ses
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, struct proc **);
+int	fork1(struct thread *, int, int, struct proc **);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
