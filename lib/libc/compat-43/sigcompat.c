@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -107,5 +109,5 @@ sigpause(mask)
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-	return (sigsuspend(&set));
+	return (_libc_sigsuspend(&set));
 }

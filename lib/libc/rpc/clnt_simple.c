@@ -86,7 +86,7 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	} else {
 		crp->valid = 0;
 		if (crp->socket != -1)
-			(void)close(crp->socket);
+			(void)_libc_close(crp->socket);
 		crp->socket = RPC_ANYSOCK;
 		if (crp->client) {
 			clnt_destroy(crp->client);

@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -78,7 +80,7 @@ __opendir2(name, flags)
 		errno = ENOTDIR;
 		return (NULL);
 	}
-	if ((fd = open(name, O_RDONLY | O_NONBLOCK)) == -1)
+	if ((fd = _libc_open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return (NULL);
 	dirp = NULL;
 	if (fstat(fd, &statb) != 0)
@@ -87,7 +89,7 @@ __opendir2(name, flags)
 		errno = ENOTDIR;
 		goto fail;
 	}
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
+	if (_libc_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
 	    (dirp = malloc(sizeof(DIR))) == NULL)
 		goto fail;
 
@@ -161,8 +163,8 @@ __opendir2(name, flags)
 		 * which has also been read -- see fts.c.
 		 */
 		if (flags & DTF_REWIND) {
-			(void) close(fd);
-			if ((fd = open(name, O_RDONLY)) == -1) {
+			(void)_libc_close(fd);
+			if ((fd = _libc_open(name, O_RDONLY)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);
@@ -268,7 +270,7 @@ __opendir2(name, flags)
 fail:
 	saved_errno = errno;
 	free(dirp);
-	(void) close(fd);
+	(void)_libc_close(fd);
 	errno = saved_errno;
 	return (NULL);
 }

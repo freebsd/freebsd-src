@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -128,7 +130,7 @@ __hash_open(file, flags, mode, info, dflags)
 		new_table = 1;
 	}
 	if (file) {
-		if ((hashp->fp = open(file, flags, mode)) == -1)
+		if ((hashp->fp = _libc_open(file, flags, mode)) == -1)
 			RETURN_ERROR(errno, error0);
 
 		/* if the .db file is empty, and we had permission to create
@@ -137,7 +139,7 @@ __hash_open(file, flags, mode, info, dflags)
 		     fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
 			new_table = 1;
 
-		(void)fcntl(hashp->fp, F_SETFD, 1);
+		(void)_libc_fcntl(hashp->fp, F_SETFD, 1);
 	}
 	if (new_table) {
 		if (!(hashp = init_hash(hashp, file, (HASHINFO *)info)))
@@ -149,7 +151,7 @@ __hash_open(file, flags, mode, info, dflags)
 		else
 			hashp->hash = __default_hash;
 
-		hdrsize = read(hashp->fp, &hashp->hdr, sizeof(HASHHDR));
+		hdrsize = _libc_read(hashp->fp, &hashp->hdr, sizeof(HASHHDR));
 #if BYTE_ORDER == LITTLE_ENDIAN
 		swap_header(hashp);
 #endif
@@ -240,7 +242,7 @@ __hash_open(file, flags, mode, info, dflags)
 
 error1:
 	if (hashp != NULL)
-		(void)close(hashp->fp);
+		(void)_libc_close(hashp->fp);
 
 error0:
 	free(hashp);
@@ -438,7 +440,7 @@ hdestroy(hashp)
 			free(hashp->mapp[i]);
 
 	if (hashp->fp != -1)
-		(void)close(hashp->fp);
+		(void)_libc_close(hashp->fp);
 
 	free(hashp);
 
@@ -507,7 +509,7 @@ flush_meta(hashp)
 	swap_header_copy(&hashp->hdr, whdrp);
 #endif
 	if ((lseek(fp, (off_t)0, SEEK_SET) == -1) ||
-	    ((wsize = write(fp, whdrp, sizeof(HASHHDR))) == -1))
+	    ((wsize = _libc_write(fp, whdrp, sizeof(HASHHDR))) == -1))
 		return (-1);
 	else
 		if (wsize != sizeof(HASHHDR)) {

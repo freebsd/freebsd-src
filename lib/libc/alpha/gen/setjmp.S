@@ -44,7 +44,9 @@
 
 	.set	noreorder
 
-LEAF(setjmp, 1)
+XLEAF(setjmp, 1)
+XLEAF(_libc_setjmp, 1)
+LEAF(__setjmp, 1)
 	LDGP(pv)
 	stq	ra, (2 * 8)(a0)			/* sc_pc = return address */
 	stq	s0, (( 9 + 4) * 8)(a0)		/* saved bits of sc_regs */
@@ -113,9 +115,11 @@ LEAF(setjmp, 1)
 
 	mov	zero, v0			/* return zero */
 	RET
-END(setjmp)
+END(__setjmp)
 
-LEAF(longjmp, 2)
+XLEAF(longjmp, 2)
+XLEAF(_libc_longjmp, 2)
+LEAF(__longjmp, 2)
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
 	PCALL(sigreturn)			/* use sigreturn to return */
@@ -124,4 +128,4 @@ botch:
 	CALL(longjmperror)
 	CALL(abort)
 	RET					/* "can't" get here... */
-END(longjmp)
+END(__longjmp)

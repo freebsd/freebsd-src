@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -44,7 +46,8 @@ static char sccsid[] = "@(#)system.c	8.1 (Berkeley) 6/4/93";
 #include <paths.h>
 #include <errno.h>
 
-int system(command)
+int
+__system(command)
 	const char *command;
 {
 	pid_t pid;
@@ -81,7 +84,7 @@ int system(command)
 		_exit(127);
 	default:			/* parent */
 		do {
-			pid = waitpid(pid, &pstat, 0);
+			pid = _libc_waitpid(pid, &pstat, 0);
 		} while (pid == -1 && errno == EINTR);
 		break;
 	}
@@ -90,3 +93,6 @@ int system(command)
 	(void)sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 	return(pid == -1 ? -1 : pstat);
 }
+
+__weak_reference(__system, _libc_system);
+__weak_reference(_libc_system, system);
