@@ -838,7 +838,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFnrsv] [-a directory] [-f config-file]\n"
+	    "usage: newsyslog [-CFnrsv] [-a directory] [-d directory] [-f config-file]\n"
 	    "                 [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
