@@ -77,7 +77,7 @@ struct archive_entry_header_ustar {
  * A filled-in copy of the header for initialization.
  */
 static const struct archive_entry_header_ustar template_header = {
-	{ },				/* name */
+	{ "" },				/* name */
 	{ "000000" }, { ' ', '\0' },	/* mode, space-null termination. */
 	{ "000000" }, { ' ', '\0' },	/* uid, space-null termination. */
 	{ "000000" }, { ' ', '\0' },	/* gid, space-null termination. */
@@ -85,15 +85,15 @@ static const struct archive_entry_header_ustar template_header = {
 	{ "00000000000" }, { ' ' },	/* mtime, space termination. */
 	{ "        " },			/* Initial checksum value. */
 	{ '0' },			/* default: regular file */
-	{ },				/* linkname */
+	{ "" },				/* linkname */
 	{ "ustar" },			/* magic */
 	{ '0', '0' },			/* version */
-	{ },				/* uname */
-	{ },				/* gname */
+	{ "" },				/* uname */
+	{ "" },				/* gname */
 	{ "000000" }, { ' ', '\0' },	/* rdevmajor, space-null termination */
 	{ "000000" }, { ' ', '\0' },	/* rdevminor, space-null termination */
-	{ },				/* prefix */
-	{ }				/* padding */
+	{ "" },				/* prefix */
+	{ "" }				/* padding */
 };
 
 static int	archive_write_ustar_data(struct archive *a, const void *buff,
