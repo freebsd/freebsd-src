@@ -931,6 +931,8 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 static int
 fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 {
+	struct l_flock linux_flock;
+	struct flock bsd_flock;
 	struct file *fp;
 	long arg;
 	int error, result;
@@ -977,44 +979,6 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 			arg |= O_ASYNC;
 		return (kern_fcntl(td, args->fd, F_SETFL, arg));
 
-	case LINUX_F_GETOWN:
-		return (kern_fcntl(td, args->fd, F_GETOWN, 0));
-
-	case LINUX_F_SETOWN:
-		/*
-		 * XXX some Linux applications depend on F_SETOWN having no
-		 * significant effect for pipes (SIGIO is not delivered for
-		 * pipes under Linux-2.2.35 at least).
-		 */
-		error = fget(td, args->fd, &fp);
-		if (error)
-			return (error);
-		if (fp->f_type == DTYPE_PIPE) {
-			fdrop(fp, td);
-			return (EINVAL);
-		}
-		fdrop(fp, td);
-
-		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
-	}
-
-	return (EINVAL);
-}
-
-int
-linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
-{
-	struct linux_fcntl64_args args64;
-	struct l_flock linux_flock;
-	struct flock bsd_flock;
-	int error;
-
-#ifdef DEBUG
-	if (ldebug(fcntl))
-		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
-#endif
-
-	switch (args->cmd) {
 	case LINUX_F_GETLK:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
@@ -1045,7 +1009,40 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 		linux_to_bsd_flock(&linux_flock, &bsd_flock);
 		return (kern_fcntl(td, args->fd, F_SETLKW,
 		     (intptr_t)&bsd_flock));
+
+	case LINUX_F_GETOWN:
+		return (kern_fcntl(td, args->fd, F_GETOWN, 0));
+
+	case LINUX_F_SETOWN:
+		/*
+		 * XXX some Linux applications depend on F_SETOWN having no
+		 * significant effect for pipes (SIGIO is not delivered for
+		 * pipes under Linux-2.2.35 at least).
+		 */
+		error = fget(td, args->fd, &fp);
+		if (error)
+			return (error);
+		if (fp->f_type == DTYPE_PIPE) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+		fdrop(fp, td);
+
+		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
 	}
+
+	return (EINVAL);
+}
+
+int
+linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
+{
+	struct linux_fcntl64_args args64;
+
+#ifdef DEBUG
+	if (ldebug(fcntl))
+		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
+#endif
 
 	args64.fd = args->fd;
 	args64.cmd = args->cmd;
@@ -1067,7 +1064,6 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 #endif
 
 	switch (args->cmd) {
-	case LINUX_F_GETLK:
 	case LINUX_F_GETLK64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
@@ -1081,7 +1077,6 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		return (copyout(&linux_flock, (caddr_t)args->arg,
 		    sizeof(linux_flock)));
 
-	case LINUX_F_SETLK:
 	case LINUX_F_SETLK64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
@@ -1091,7 +1086,6 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		return (kern_fcntl(td, args->fd, F_SETLK,
 		    (intptr_t)&bsd_flock));
 
-	case LINUX_F_SETLKW:
 	case LINUX_F_SETLKW64:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
