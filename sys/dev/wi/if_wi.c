@@ -1519,7 +1519,7 @@ static void wi_start(ifp)
 	 * Use RFC1042 encoding for IP and ARP datagrams,
 	 * 802.3 for anything else.
 	 */
-	if (ntohs(eh->ether_type) > 1518) {
+	if (ntohs(eh->ether_type) > ETHER_MAX_LEN) {
 		bcopy((char *)&eh->ether_dhost,
 		    (char *)&tx_frame.wi_addr1, ETHER_ADDR_LEN);
 		bcopy((char *)&eh->ether_shost,
