@@ -100,7 +100,40 @@ _start(char *ap, ...)
 	monstartup(&eprol, &etext);
 #endif
 	_init();
+#ifndef __GNUC__
 	exit( main(argc, argv, env) );
+#else
+	/*
+	 * Some versions of gcc-2 expect the stack frame to be aligned as
+	 * follows after it is set up in main():
+	 *
+	 *  +--------------+ <--- aligned by PREFERRED_STACK_BOUNDARY
+	 *  +%ebp (if any) +
+	 *  +--------------+
+	 *  |return address|
+	 *  +--------------+
+	 *  |  arguments   |
+	 *  |      :       |
+	 *  |      :       |
+	 *  +--------------+
+	 *
+	 * We implement the above to fix just the usual case in FreeBSD-4.
+	 * Alignment for main() is too compiler-dependent to handle correctly
+	 * in all cases here (or in the kernel).  E.g., a different alignment
+	 * is required for at least gcc-2.95.4 even for the small variation
+	 * of compiling main() with -fomit-frame-pointer.
+	 */
+	__asm__("
+	andl	$~0xf, %%esp		# align stack to 16-byte boundary
+	subl	$12+12, %%esp		# space for args and padding
+	movl	%0, 0(%%esp)
+	movl	%1, 4(%%esp)
+	movl	%2, 8(%%esp)
+	call	main
+	movl	%%eax, 0(%%esp)
+	call	exit
+	" : : "r" (argc), "r" (argv), "r" (env) : "ax", "cx", "dx", "memory");
+#endif
 }
 
 #ifdef GCRT
