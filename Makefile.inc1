@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.20 1998/09/23 10:30:43 obrien Exp $
+#	$Id: Makefile.inc1,v 1.22 1998/09/26 01:30:36 sos Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -580,6 +580,7 @@ includes:
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
