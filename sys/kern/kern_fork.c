@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.50 1997/12/12 04:00:58 dyson Exp $
+ * $Id: kern_fork.c,v 1.51 1998/01/22 17:29:46 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -271,7 +271,8 @@ retry:
 again:
 		for (; p2 != 0; p2 = p2->p_list.le_next) {
 			while (p2->p_pid == nextpid ||
-			    p2->p_pgrp->pg_id == nextpid) {
+			    p2->p_pgrp->pg_id == nextpid ||
+			    p2->p_session->s_sid == nextpid) {
 				nextpid++;
 				if (nextpid >= pidchecked)
 					goto retry;
@@ -281,6 +282,9 @@ again:
 			if (p2->p_pgrp->pg_id > nextpid &&
 			    pidchecked > p2->p_pgrp->pg_id)
 				pidchecked = p2->p_pgrp->pg_id;
+			if (p2->p_session->s_sid > nextpid &&
+			    pidchecked > p2->p_session->s_sid)
+				pidchecked = p2->p_session->s_sid;
 		}
 		if (!doingzomb) {
 			doingzomb = 1;
