@@ -382,8 +382,10 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 			break;
 	}
 
-	if (!foundit)
+	if (!foundit) {
+		free(record);
 		return (-1);
+	}
 
 	/*
 	 * Got the capability record, but now we have to expand all tc=name
