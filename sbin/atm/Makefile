@@ -1,9 +1,6 @@
-#
-#
 # ===================================
 # HARP  |  Host ATM Research Platform
 # ===================================
-#
 #
 # This Host ATM Research Platform ("HARP") file (the "Software") is
 # made available by Network Computing Services, Inc. ("NetworkCS")
@@ -24,7 +21,6 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $FreeBSD$
-#
 
 SUBDIR=	atm \
 	fore_dnld \
