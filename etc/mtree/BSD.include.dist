@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.19 1998/09/15 10:21:53 gibbs Exp $
+#	$Id: BSD.include.dist,v 1.20 1998/09/15 11:44:39 phk Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -54,8 +54,6 @@
     ss
     ..
     sys
-    ..
-    tcl
     ..
     ufs
         ffs
