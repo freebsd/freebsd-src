@@ -386,7 +386,7 @@ rerelease release:
 		cd ${CHROOTDIR}/usr/ports/$$i && \
 			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
 			WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
-			fetch-recursive ; \
+			checksum-recursive ; \
 	done
 .endif
 .endif
