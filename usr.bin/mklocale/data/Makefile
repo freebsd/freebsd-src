@@ -11,6 +11,7 @@ LOCALES=        ja_JP.EUC \
 		lt_LN.ISO_8859-2 \
 		lt_LN.DIS_8859-15 \
 		ru_SU.CP866 \
+		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
 		zh_CN.EUC \
 		zh_TW.Big5
