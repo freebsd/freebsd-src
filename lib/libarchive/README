@@ -4,20 +4,41 @@ libarchive: a library for reading and writing streaming archives
 
 This is all under a BSD license.  Use, enjoy, but don't blame me if it breaks!
 
-As of February, 2004, the library proper is fairly complete and compiles
-cleanly on FreeBSD 5-CURRENT.  The API should be stable now.
-
 Documentation:
- * libarchive(3) gives an overview of the library as a whole
- * archive_read(3) and archive_write(3) provide detailed calling
+ * libarchive.3 gives an overview of the library as a whole
+ * archive_read.3 and archive_write.3 provide detailed calling
    sequences for the read and write APIs
- * archive_entry(3) details the "struct archive_entry" utility class
- * tar(5) documents the "tar" file formats supported by the library
+ * archive_entry.3 details the "struct archive_entry" utility class
+ * tar.5 documents the "tar" file formats supported by the library
 
 You should also read the copious comments in "archive.h" and the source
 code for the sample "bsdtar" program for more details.  Please let me know
 about any errors or omissions you find.  (In particular, I no doubt missed
-a few things when researching the tar(5) page.)
+a few things when researching the tar.5 page.)
+
+Currently, the library automatically detects and reads the following:
+  * gzip compression
+  * bzip2 compression
+  * compress/LZW compression
+  * GNU tar format (including GNU long filenames, long link names, and
+    sparse files)
+  * Solaris 9 extended tar format (including ACLs)
+  * Old V7 tar archives
+  * POSIX ustar
+  * POSIX pax interchange format
+  * POSIX octet-oriented cpio
+  * SVR4 ASCII cpio
+  * Binary cpio (big-endian or little-endian)
+
+The library can write:
+  * gzip compression
+  * bzip2 compression
+  * POSIX ustar
+  * POSIX pax interchange format
+  * "restricted" pax format, which will create ustar archives except for
+    entries that require pax extensions (for long filenames, ACLs, etc).
+  * POSIX octet-oriented cpio
+  * shar archives
 
 Notes:
  * This is a heavily stream-oriented system.  There is no direct
@@ -28,30 +49,27 @@ Notes:
  * The library is designed to be extended with new compression and
    archive formats.  The only requirement is that the format be
    readable or writable as a stream and that each archive entry be
-   independent.  For example, zip archives can't be written as a
-   stream because they require the compressed size of the data as part
-   of the file header.  Similarly, some file attributes for zip
-   archives can't be extracted when streaming because those attributes
-   are only stored in the end-of-archive central directory and thus
-   aren't available when the corresponding entry is actually
-   extracted.
+   independent.
 
- * Under certain circumstances, you can append entries to an archive
-   by opening the file for reading, skimming to the end of the archive,
-   noting the file location, then opening it for write with a custom write
-   callback that seeks to the appropriate position before writing.  Be
-   sure to not enable any compression support if you do this!
+ * On read, compression and format are always detected automatically.
 
- * Compression and blocking are handled implicitly and, as far as
-   possible, transparently.  All archive I/O is correctly blocked, even if
-   it's compressed.  On read, the compression format is detected
-   automatically and the appropriate decompressor is invoked.
+ * I've attempted to minimize static link pollution.  If you don't
+   explicitly invoke a particular feature (such as support for a
+   particular compression or format), it won't get pulled in.
+   In particular, if you don't explicitly enable a particular
+   compression or decompression support, you won't need to link
+   against the corresponding compression or decompression libraries.
+   This also reduces the size of statically-linked binaries in
+   environments where that matters.
 
- * It should be easy to implement a system that reads one
-   archive and writes entries to another archive, omitting
-   or adding entries as appropriate along the way.  This permits
-   "re-writing" of archive streams in lieu of in-place modification.
-   bsdtar has some code to demonstrate this.
+ * On read, the library accepts whatever blocks you hand it.
+   Your read callback is free to pass the library a byte at a time
+   or mmap the entire archive and give it to the library at once.
+   On write, the library always produces correctly-blocked
+   output.
+
+ * The object-style approach allows you to have multiple archive streams
+   open at once.  bsdtar uses this in its "@archive" extension.
 
  * The archive itself is read/written using callback functions.
    You can read an archive directly from an in-memory buffer or
@@ -65,26 +83,6 @@ Notes:
    an archive and write the data directly to a socket.  If you want
    to read/write entries to disk, there are convenience functions to
    make this especially easy.
-
- * Read supports most common tar formats, including GNU tar,
-   POSIX-compliant "ustar interchange format", and the
-   shiny-and-improved POSIX "pax extended interchange format."  The
-   pax format, in particular, eliminates most of the traditional tar
-   limitations in a standard way that is increasingly well supported.
-   (GNU tar notably does not support "pax interchange format"; the
-   GPL-licensed 'star' archiver does, however.)  GNU format is only
-   incompletely supported at this time; if you really need GNU-format
-   sparse file support, volume headers, or GNU-format split archives,
-   let me know.
-
-   There's also support for a grab-bag of non-tar formats, including
-   POSIX cpio and shar.
-
- * When writing tar formats, consider using "pax restricted" format
-   by default.  This avoids the pax extensions whenever it can, enabling
-   them only on entries that cannot be correctly archived with ustar
-   format.  Thus, you get the broad compatibility of ustar with the
-   safety of pax's support for very long filenames, etc.
 
  * Note: "pax interchange format" is really an extended tar format,
    despite what the name says.
