@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.13 1997/01/03 07:45:41 kato Exp $
+ *	$Id: pc98.c,v 1.14 1997/01/04 06:48:28 kato Exp $
  */
 
 /*
@@ -393,7 +393,7 @@ config_isadev_c(isdp, mp, reconfig)
 	if (!reconfig && haveseen_isadev(isdp, checkbits))
 		return;
 	if (!reconfig && isdp->id_maddr) {
-		isdp->id_maddr -= 0xa0000; /* XXX should be a define */
+		isdp->id_maddr -= ISA_HOLE_START;
 		isdp->id_maddr += atdevbase;
 	}
 	if (reconfig) {
