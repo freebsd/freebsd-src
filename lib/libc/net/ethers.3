@@ -62,10 +62,15 @@ structure, which is defined in the header file
 .Aq Pa netinet/if_ether.h :
 .Bd -literal -offset indent
 /*
+ * The number of bytes in an ethernet (MAC) address.
+ */
+#define ETHER_ADDR_LEN		6
+
+/*
  * Structure of a 48-bit Ethernet address.
  */
 struct  ether_addr {
-        u_char octet[6];
+        u_char octet[ETHER_ADDR_LEN];
 };
 .Ed
 .Pp
@@ -130,11 +135,15 @@ returns a pointer to a string containing an
 representation of an ethernet address. If it is unable to convert
 the supplied
 .Ar ether_addr
-structure, it returns a NULL pointer. Likewise,
+structure, it returns a
+.Dv NULL
+pointer. Likewise,
 .Fn ether_aton
 returns a pointer to an
 .Ar ether_addr
-structure on success and a NULL pointer on failure.
+structure on success and a
+.Dv NULL
+pointer on failure.
 .Pp
 The
 .Fn ether_ntohost
