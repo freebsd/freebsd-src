@@ -290,7 +290,7 @@ extern unsigned long get_time(void);
  */
 #define PERMANENT_MALLOC(typecast, mem_ptr, size, linux_ptr) \
   {(mem_ptr) = (typecast)malloc((size), M_DEVBUF, M_NOWAIT); \
-   if (!(mem_ptr))panic("SOUND: Cannot allocate memory\n");}
+   if (!(mem_ptr))panic("SOUND: Cannot allocate memory");}
 
 /*
  * The macro DEFINE_TIMER defines variables for the ACTIVATE_TIMER if

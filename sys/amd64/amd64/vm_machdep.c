@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.33 1995/03/01 23:59:21 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.34 1995/03/16 18:11:33 bde Exp $
  */
 
 #include "npx.h"
@@ -155,7 +155,7 @@ vm_bounce_page_free(pa, count)
 	int bit;
 
 	if (count != 1)
-		panic("vm_bounce_page_free -- no support for > 1 page yet!!!\n");
+		panic("vm_bounce_page_free -- no support for > 1 page yet!!!");
 
 	for(index=0;index<bouncepages;index++) {
 		if( pa == bouncepa[index])
@@ -493,11 +493,11 @@ vm_bounce_init()
 	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
 
 	if (!bounceallocarray)
-		panic("Cannot allocate bounce resource array\n");
+		panic("Cannot allocate bounce resource array");
 
 	bouncepa = malloc(bouncepages * sizeof(vm_offset_t), M_TEMP, M_NOWAIT);
 	if (!bouncepa)
-		panic("Cannot allocate physical memory array\n");
+		panic("Cannot allocate physical memory array");
 
 	for(i=0;i<bounceallocarraysize;i++) {
 		bounceallocarray[i] = 0xffffffff;

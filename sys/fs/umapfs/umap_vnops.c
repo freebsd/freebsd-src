@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.6 1994/09/21 23:22:43 wollman Exp $
+ * $Id: umap_vnops.c,v 1.7 1994/10/10 07:55:44 phk Exp $
  */
 
 /*
@@ -89,7 +89,7 @@ umap_bypass(ap)
 	 */
 	if (descp->vdesc_vp_offsets == NULL ||
 	    descp->vdesc_vp_offsets[0] == VDESC_NO_OFFSET)
-		panic ("umap_bypass: no vp's in map.\n");
+		panic ("umap_bypass: no vp's in map.");
 #endif
 
 	/*

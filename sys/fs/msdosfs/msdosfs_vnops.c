@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.11 1994/12/27 12:37:36 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.12 1995/01/09 16:05:00 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1185,7 +1185,7 @@ msdosfs_rename(ap)
 		cn = fdep->de_StartCluster;
 		if (cn == MSDOSFSROOT) {
 			/* this should never happen */
-			panic("msdosfs_rename(): updating .. in root directory?\n");
+			panic("msdosfs_rename(): updating .. in root directory?");
 		} else {
 			bn = cntobn(pmp, cn);
 		}

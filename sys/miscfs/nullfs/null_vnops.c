@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.5 1994/09/21 23:22:41 wollman Exp $
+ * $Id: null_vnops.c,v 1.6 1994/10/10 07:55:29 phk Exp $
  */
 
 /*
@@ -225,7 +225,7 @@ null_bypass(ap)
 	 */
 	if (descp->vdesc_vp_offsets == NULL ||
 	    descp->vdesc_vp_offsets[0] == VDESC_NO_OFFSET)
-		panic ("null_bypass: no vp's in map.\n");
+		panic ("null_bypass: no vp's in map.");
 #endif
 
 	/*
