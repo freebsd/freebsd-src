@@ -453,13 +453,15 @@ extern int vfs_badlock_print;
 /*
  * [dfr] Kludge until I get around to fixing all the vfs locking.
  */
-#define IS_LOCKING_VFS(vp)	((vp)->v_tag == VT_UFS			\
+#define IS_LOCKING_VFS(vp)	(  ((vp)->v_tag == VT_UFS		\
 				 || (vp)->v_tag == VT_NFS		\
 				 || (vp)->v_tag == VT_LFS		\
 				 || (vp)->v_tag == VT_ISOFS		\
 				 || (vp)->v_tag == VT_MSDOSFS		\
 				 || (vp)->v_tag == VT_DEVFS		\
-				 || (vp)->v_tag == VT_UDF)
+				 || (vp)->v_tag == VT_UDF)		\
+				 && ((vp)->v_type != VBLK		\
+				 && (vp)->v_type != VCHR) )
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\
@@ -467,7 +469,7 @@ do {									\
 									\
 	if (_vp && IS_LOCKING_VFS(_vp) && !VOP_ISLOCKED(_vp, NULL)) {	\
 		if (vfs_badlock_print)					\
-			printf("%s: %p is not locked but should be",	\
+			printf("%s: %p is not locked but should be\n",	\
 			    str, _vp);					\
 		if (vfs_badlock_panic)					\
 			Debugger("Lock violation.\n");			\
@@ -483,7 +485,7 @@ do {									\
 		lockstate = VOP_ISLOCKED(_vp, curthread);		\
 		if (lockstate == LK_EXCLUSIVE) {			\
 			if (vfs_badlock_print)				\
-				printf("%s: %p is locked but should not be",	\
+				printf("%s: %p is locked but should not be\n",	\
 				    str, _vp);				\
 			if (vfs_badlock_panic)				\
 				Debugger("Lock Violation.\n");		\
