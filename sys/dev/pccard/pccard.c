@@ -54,7 +54,7 @@
 #define PCCARDDEBUG
 
 #ifdef PCCARDDEBUG
-int	pccard_debug = 1;
+int	pccard_debug = 0;
 #define	DPRINTF(arg) if (pccard_debug) printf arg
 #define	DEVPRINTF(arg) if (pccard_debug) device_printf arg
 #define PRVERBOSE(arg) printf arg
