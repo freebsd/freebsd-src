@@ -38,10 +38,8 @@
  * @(#)compat.c	8.2 (Berkeley) 3/19/94
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * compat.c --
