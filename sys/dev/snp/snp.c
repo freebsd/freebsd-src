@@ -141,14 +141,17 @@ snplwrite(tp, uio, flag)
 	struct uio uio2;
 	struct snoop *snp;
 	int error, ilen;
-	char ibuf[512];
+	char *ibuf;
 
+	error = 0;
+	ibuf = NULL;
 	snp = tp->t_sc;
 	while (uio->uio_resid > 0) {
-		ilen = imin(sizeof(ibuf), uio->uio_resid);
+		ilen = imin(512, uio->uio_resid);
+		ibuf = malloc(ilen, M_SNP, M_WAITOK);
 		error = uiomove(ibuf, ilen, uio);
 		if (error != 0)
-			return (error);
+			break;
 		snp_in(snp, ibuf, ilen);
 		/* Hackish, but probably the least of all evils. */
 		iov.iov_base = ibuf;
@@ -162,9 +165,13 @@ snplwrite(tp, uio, flag)
 		uio2.uio_procp = uio->uio_procp;
 		error = ttwrite(tp, &uio2, flag);
 		if (error != 0)
-			return (error);
+			break;
+		free(ibuf, M_SNP);
+		ibuf = NULL;
 	}
-	return (0);
+	if (ibuf != NULL)
+		free(ibuf, M_SNP);
+	return (error);
 }
 
 static struct tty *
