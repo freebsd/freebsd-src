@@ -28,7 +28,11 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <builtin.h>
 
 extern "C" {
+#if 1
+#include <rx.h>
+#else
 #include <regex.h>
+#endif
 }
 
 #include <Regex.h>
@@ -46,17 +50,18 @@ Regex::Regex(const char* t, int fast, int bufsize,
 {
   int tlen = (t == 0)? 0 : strlen(t);
   buf = new re_pattern_buffer;
+  memset (buf, 0, sizeof(re_pattern_buffer));
   reg = new re_registers;
   if (fast)
     buf->fastmap = (char*)malloc(256);
   else
     buf->fastmap = 0;
-  buf->translate = (char*)transtable;
+  buf->translate = (unsigned char*)transtable;
   if (tlen > bufsize)
     bufsize = tlen;
   buf->allocated = bufsize;
   buf->buffer = (char *)malloc(buf->allocated);
-  char* msg = re_compile_pattern((const char*)t, tlen, buf);
+  const char* msg = re_compile_pattern((const char*)t, tlen, buf);
   if (msg != 0)
     (*lib_error_handler)("Regex", msg);
   else if (fast)

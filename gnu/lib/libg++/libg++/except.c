@@ -1,7 +1,7 @@
-/* 
-Copyright (C) 1993 Free Software Foundation
+/*  This is part of GNU C++ Library.
+Copyright (C) 1994 Free Software Foundation
 
-This file is part of the GNU IO Library.  This library is free
+This file is part of the GNU C++ Library.  This library is free
 software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the
 Free Software Foundation; either version 2, or (at your option)
@@ -22,24 +22,58 @@ the resulting executable to be covered by the GNU General Public License.
 This exception does not however invalidate any other reasons why
 the executable file might be covered by the GNU General Public License. */
 
-#include "libioP.h"
-#ifdef __STDC__
-#include <stdlib.h>
+/* terminate(), unexpected(), set_terminate(), set_unexpected() as
+   well as the default terminate func and default unexpected func */
+
+#if 0
+extern int printf();
 #endif
 
-int
-_IO_fclose(fp)
-     register _IO_FILE *fp;
+typedef void (*vfp)();
+
+void
+__default_terminate()
 {
-  int status = 0;
-  CHECK_FILE(fp, EOF);
-  if (fp->_IO_file_flags & _IO_IS_FILEBUF)
-    status = _IO_file_close_it(fp);
-  fp->_jumps->__finish(fp);
-  if (fp != _IO_stdin && fp != _IO_stdout && fp != _IO_stderr)
-    {
-      fp->_IO_file_flags = 0;
-      free(fp);
-    }
-  return status;
+  abort();
+}
+
+void
+__default_unexpected()
+{
+  __default_terminate();
+}
+
+static vfp __terminate_func = __default_terminate;
+static vfp __unexpected_func = __default_unexpected;
+
+vfp
+set_terminate(func)
+vfp func;
+{
+  vfp old = __terminate_func;
+
+  __terminate_func = func;
+  return old;
+}
+
+vfp
+set_unexpected(func)
+vfp func;
+{
+  vfp old = __unexpected_func;
+
+  __unexpected_func = func;
+  return old;
+}
+
+void
+terminate()
+{
+  __terminate_func();
+}
+
+void
+unexpected()
+{
+  __unexpected_func();
 }

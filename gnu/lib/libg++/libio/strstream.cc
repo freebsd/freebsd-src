@@ -76,7 +76,7 @@ char *strstreambuf::str()
     return base();
 }
 
-_IO_ssize_t strstreambuf::pcount() { return _IO_str_count (this); }
+_IO_ssize_t strstreambuf::pcount () { return _IO_write_ptr - _IO_write_base; }
 
 int strstreambuf::overflow(int c /* = EOF */)
 {

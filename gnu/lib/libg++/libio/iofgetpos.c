@@ -32,7 +32,7 @@ _IO_fgetpos(fp, posp)
      _IO_fpos_t *posp;
 {
   _IO_fpos_t pos;
-  COERCE_FILE(fp);
+  CHECK_FILE(fp, EOF);
   pos = _IO_seekoff(fp, 0, _IO_seek_cur|_IO_seek_not_in|_IO_seek_not_out);
   if (pos == _IO_pos_BAD)
     {

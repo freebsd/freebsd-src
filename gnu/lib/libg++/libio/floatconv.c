@@ -23,7 +23,7 @@ This exception does not however invalidate any other reasons why
 the executable file might be covered by the GNU General Public License. */
 
 #include <libioP.h>
-#ifdef USE_DTOA
+#ifdef _IO_USE_DTOA
 /****************************************************************
  *
  * The author of this software is David M. Gay.
@@ -489,7 +489,7 @@ s2b
 #endif
 {
   int i, k;
-  long x, y;
+  _G_int32_t x, y;
 
   x = (nd + 8) / 9;
   for(k = 0, y = 1; x > y; y <<= 1, k++) ;
@@ -643,7 +643,7 @@ mult
         xbe = xb + wb;
         xc0 = c->x;
         for(; xb < xbe; xb++, xc0++) {
-                if (y = *xb & 0xffff) {
+                if ((y = *xb & 0xffff)) {
                         x = xa;
                         xc = xc0;
                         carry = 0;
@@ -657,7 +657,7 @@ mult
                                 while(x < xae);
                         *xc = carry;
                         }
-                if (y = *xb >> 16) {
+                if ((y = *xb >> 16)) {
                         x = xa;
                         xc = xc0;
                         carry = 0;
@@ -794,9 +794,9 @@ diff
 #endif
 {
         int i, wa, wb;
-        long borrow, y; /* We need signed shifts here. */
+        _G_int32_t borrow, y; /* We need signed shifts here. */
         unsigned32 *xa, *xae, *xb, *xbe, *xc;
-        long z;
+        _G_int32_t z;
 
         i = cmp(a,b);
         if (!i) {
@@ -856,7 +856,7 @@ ulp
         (double x)
 #endif
 {
-        register long L;
+        register _G_int32_t L;
         double a;
 
         L = (word0(x) & Exp_mask) - (P-1)*Exp_msk1;
@@ -879,7 +879,7 @@ ulp
                 else {
                         word0(a) = 0;
                         L -= Exp_shift;
-                        word1(a) = L >= 31 ? 1 : 1 << 31 - L;
+                        word1(a) = L >= 31 ? 1 : 1 << (31 - L);
                         }
                 }
 #endif
@@ -913,16 +913,16 @@ b2d
         k = hi0bits(y);
         *e = 32 - k;
         if (k < Ebits) {
-                d0 = Exp_1 | y >> Ebits - k;
+                d0 = Exp_1 | y >> (Ebits - k);
                 w = xa > xa0 ? *--xa : 0;
-                d1 = y << (32-Ebits) + k | w >> Ebits - k;
+                d1 = y << ((32-Ebits) + k) | w >> (Ebits - k);
                 goto ret_d;
                 }
         z = xa > xa0 ? *--xa : 0;
         if (k -= Ebits) {
-                d0 = Exp_1 | y << k | z >> 32 - k;
+                d0 = Exp_1 | y << k | z >> (32 - k);
                 y = xa > xa0 ? *--xa : 0;
-                d1 = z << k | y >> 32 - k;
+                d1 = z << k | y >> (32 - k);
                 }
         else {
                 d0 = Exp_1 | y;
@@ -974,9 +974,9 @@ d2b
 	  z |= Exp_msk11;
 #endif
 
-        if (y = d1) {
-                if (k = lo0bits(&y)) {
-                        x[0] = y | z << 32 - k;
+        if ((y = d1)) {
+                if ((k = lo0bits(&y))) {
+                        x[0] = y | z << (32 - k);
                         z >>= k;
                         }
                 else
@@ -1091,7 +1091,7 @@ _IO_strtod
                  e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
         CONST char *s, *s0, *s1;
         double aadj, aadj1, adj, rv, rv0;
-        long L;
+        _G_int32_t L;
         unsigned32 y, z;
 	Bigint _bb, _b_avail, _bd, _bd0, _bs, _delta;
 	Bigint *bb = Binit(&_bb);
@@ -1280,7 +1280,7 @@ _IO_strtod
         /* Get starting approximation = rv * 10**e1 */
 
         if (e1 > 0) {
-                if (i = e1 & 15)
+                if ((i = e1 & 15))
                         rv *= tens[i];
                 if (e1 &= ~15) {
                         if (e1 > DBL_MAX_10_EXP) {
@@ -1320,7 +1320,7 @@ _IO_strtod
                 }
         else if (e1 < 0) {
                 e1 = -e1;
-                if (i = e1 & 15)
+                if ((i = e1 & 15))
                         rv /= tens[i];
                 if (e1 &= ~15) {
                         e1 >>= 4;
@@ -1588,7 +1588,7 @@ _IO_strtod
                 z = word0(rv) & Exp_mask;
                 if (y == z) {
                         /* Can we stop now? */
-                        L = (long)aadj;
+                        L = (_G_int32_t)aadj;
                         aadj -= L;
                         /* The tolerances below are conservative. */
                         if (dsign || word1(rv) || word0(rv) & Bndry_mask) {
@@ -1620,10 +1620,10 @@ quorem
 #endif
 {
         int n;
-        long borrow, y;
+        _G_int32_t borrow, y;
         unsigned32 carry, q, ys;
         unsigned32 *bx, *bxe, *sx, *sxe;
-        long z;
+        _G_int32_t z;
         unsigned32 si, zs;
 
         n = S->wds;
@@ -1777,7 +1777,7 @@ _IO_dtoa
         int bbits, b2, b5, be, dig, i, ieps, ilim, ilim0, ilim1,
                 j, j1, k, k0, k_check, leftright, m2, m5, s2, s5,
                 spec_case, try_quick;
-        long L;
+        _G_int32_t L;
 #ifndef Sudden_Underflow
         int denorm;
 #endif
@@ -1874,8 +1874,8 @@ _IO_dtoa
 		unsigned32 x;
 
                 i = bbits + be + (Bias + (P-1) - 1);
-                x = i > 32  ? word0(d) << 64 - i | word1(d) >> i - 32
-                            : word1(d) << 32 - i;
+                x = i > 32  ? word0(d) << (64 - i) | word1(d) >> (i - 32)
+                            : word1(d) << (32 - i);
                 d2 = x;
                 word0(d2) -= 31*Exp_msk1; /* adjust exponent */
                 i -= (Bias + (P-1) - 1) + 1;
@@ -2006,7 +2006,7 @@ _IO_dtoa
                                         }
                         d /= ds;
                         }
-                else if (j1 = -k) {
+                else if ((j1 = -k)) {
                         d *= tens[j1 & 0xf];
                         for(j = j1 >> 4; j; j >>= 1, i++)
                                 if (j & 1) {
@@ -2039,7 +2039,7 @@ _IO_dtoa
                          */
                         eps = 0.5/tens[ilim-1] - eps;
                         for(i = 0;;) {
-                                L = (long)d;
+                                L = (_G_int32_t)d;
                                 d -= L;
                                 *s++ = '0' + (int)L;
                                 if (d < eps)
@@ -2057,7 +2057,7 @@ _IO_dtoa
                         /* Generate ilim digits, then fix them up. */
                         eps *= tens[ilim-1];
                         for(i = 1;; i++, d *= 10.) {
-                                L = (long)d;
+                                L = (_G_int32_t)d;
                                 d -= L;
                                 *s++ = '0' + (int)L;
                                 if (i == ilim) {
@@ -2092,7 +2092,7 @@ _IO_dtoa
                         goto one_digit;
                         }
                 for(i = 1;; i++) {
-                        L = (long)(d / ds);
+                        L = (_G_int32_t)(d / ds);
                         d -= L*ds;
 #ifdef Check_FLT_ROUNDS
                         /* If FLT_ROUNDS == 2, L will usually be high by 1 */
@@ -2104,7 +2104,7 @@ _IO_dtoa
                         *s++ = '0' + (int)L;
                         if (i == ilim) {
                                 d += d;
-                                if (d > ds || d == ds && L & 1) {
+                                if (d > ds || (d == ds && L & 1)) {
  bump_up:
                                         while(*--s == '9')
                                                 if (s == s0) {
@@ -2169,7 +2169,7 @@ _IO_dtoa
                                 b_avail = b;
                                 b = b_tmp;
                                 }
-                        if (j = b5 - m5)
+                        if ((j = b5 - m5))
                                 b = pow5mult(b, j);
                         }
                 else
@@ -2203,7 +2203,7 @@ _IO_dtoa
          * and for all and pass them and a shift to quorem, so it
          * can do shifts and ors to compute the numerator for q.
          */
-        if (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0x1f)
+        if ((i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0x1f))
                 i = 32 - i;
         if (i > 4) {
                 i -= 4;
@@ -2276,15 +2276,15 @@ _IO_dtoa
                                 goto ret;
                                 }
 #endif
-                        if (j < 0 || j == 0 && !mode
+                        if (j < 0 || (j == 0 && !mode
 #ifndef ROUND_BIASED
                                                         && !(word1(d) & 1)
 #endif
-                                        ) {
+                                        )) {
                                 if (j1 > 0) {
                                         b = lshift(b, 1);
                                         j1 = cmp(b, S);
-                                        if ((j1 > 0 || j1 == 0 && dig & 1)
+                                        if ((j1 > 0 || (j1 == 0 && dig & 1))
                                         && dig++ == '9')
                                                 goto round_9_up;
                                         }
@@ -2324,7 +2324,7 @@ _IO_dtoa
 
         b = lshift(b, 1);
         j = cmp(b, S);
-        if (j > 0 || j == 0 && dig & 1) {
+        if (j > 0 || (j == 0 && dig & 1)) {
  roundoff:
                 while(*--s == '9')
                         if (s == s0) {
@@ -2354,4 +2354,4 @@ _IO_dtoa
                 *rve = s;
         return s0;
         }
-#endif /* USE_DTOA */
+#endif /* _IO_USE_DTOA */
