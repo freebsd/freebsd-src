@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * jot - print sequential or random data
@@ -90,9 +91,7 @@ int		putdata(double, long);
 static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	double	xd, yd;
 	long	id;
@@ -104,7 +103,7 @@ main(argc, argv)
 	int	ch;
 
 	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
-		switch ((char)ch) {
+		switch (ch) {
 		case 'r':
 			randomize = 1;
 			break;
@@ -291,9 +290,7 @@ main(argc, argv)
 }
 
 int
-putdata(x, notlast)
-	double x;
-	long notlast;
+putdata(double x, long int notlast)
 {
 
 	if (boring)
@@ -328,7 +325,7 @@ putdata(x, notlast)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 	"usage: jot [-cnr] [-b word] [-w word] [-s string] [-p precision]",
@@ -337,8 +334,7 @@ usage()
 }
 
 int
-getprec(str)
-	char *str;
+getprec(char *str)
 {
 	char	*p;
 	char	*q;
@@ -355,7 +351,7 @@ getprec(str)
 }
 
 void
-getformat()
+getformat(void)
 {
 	char	*p, *p2;
 	int dot, hash, space, sign, numbers = 0;
