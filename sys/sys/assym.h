@@ -32,7 +32,7 @@
 #define	_SYS_ASSYM_H_
 
 #ifndef offsetof
-#define	offsetof(s, m)		(&((struct s*)0)->m)
+#define	offsetof(t, m)		(&((t *)0)->m)
 #endif
 
 #ifndef __assym
