@@ -1216,6 +1216,11 @@ vm_object_shadow(
 	 * shadowed object.
 	 */
 	result->backing_object = source;
+	/*
+	 * Store the offset into the source object, and fix up the offset into
+	 * the new object.
+	 */
+	result->backing_object_offset = *offset;
 	if (source != NULL) {
 		VM_OBJECT_LOCK(source);
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
@@ -1233,11 +1238,6 @@ vm_object_shadow(
 		    PQ_L2_MASK;
 	}
 
-	/*
-	 * Store the offset into the source object, and fix up the offset into
-	 * the new object.
-	 */
-	result->backing_object_offset = *offset;
 
 	/*
 	 * Return the new things
