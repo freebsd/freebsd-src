@@ -593,7 +593,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 			}
 			break;
 		}
-		keybuf[0] |= _PW_VERSION(st->version);
+		keybuf[0] = _PW_VERSIONED(keybuf[0], st->version);
 		rv = st->db->get(st->db, &key, &entry, 0);
 		if (rv < 0 || rv > 1) { /* should never return > 1 */
 			*errnop = errno;
@@ -1500,7 +1500,7 @@ docompat:
 			memcpy(&keybuf[1], &store, sizeof(store));
 			key.size = sizeof(store) + 1;
 		}
-		keybuf[0] = _PW_KEYBYNUM | _PW_VERSION(st->version);
+		keybuf[0] = _PW_VERSIONED(_PW_KEYBYNUM, st->version);
 		rv = st->db->get(st->db, &key, &entry, 0);
 		if (rv < 0 || rv > 1) { /* should never return > 1 */
 			*errnop = errno;
