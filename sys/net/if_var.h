@@ -140,7 +140,6 @@ struct ifnet {
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface capabilities */
 	int	if_capenable;		/* enabled features */
-	int	if_ipending;		/* interrupts pending */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	struct	if_data if_data;
@@ -205,12 +204,6 @@ typedef void if_init_f_t(void *);
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
 #define	if_list		if_link
-
-/*
- * Bit values in if_ipending
- */
-#define	IFI_RECV	1	/* I want to receive */
-#define	IFI_XMIT	2	/* I want to transmit */
 
 /*
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
