@@ -126,6 +126,9 @@ const char *trap_msg[] = {
 	"trap instruction",
 };
 
+int unaligned_fixup(struct thread *td, struct trapframe *tf);
+int emulate_insn(struct thread *td, struct trapframe *tf);
+
 void
 trap(struct trapframe *tf)
 {
@@ -175,6 +178,11 @@ trap(struct trapframe *tf)
 	 * User Mode Traps
 	 */
 	case T_ALIGN:
+		if ((sig = unaligned_fixup(td, tf)) == 0) {
+			TF_DONE(tf);
+			goto user;
+		}
+		goto trapsig;
 	case T_ALIGN_LDDF:
 	case T_ALIGN_STDF:
 		sig = SIGBUS;
@@ -222,7 +230,10 @@ trap(struct trapframe *tf)
 		}
 		goto userout;
 	case T_INSN_ILLEGAL:
-		sig = SIGILL;
+		if ((sig = emulate_insn(td, tf)) == 0) {
+			TF_DONE(tf);
+			goto user;
+		}
 		goto trapsig;
 	case T_PRIV_ACTION:
 	case T_PRIV_OPCODE:
@@ -521,8 +532,7 @@ syscall(struct trapframe *tf)
 	 * (usually), instead we need to advance one instruction.
 	 */
 	tpc = tf->tf_tpc;
-	tf->tf_tpc = tf->tf_tnpc;
-	tf->tf_tnpc += 4;
+	TF_DONE(tf);
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
