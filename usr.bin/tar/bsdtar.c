@@ -306,8 +306,9 @@ main(int argc, char **argv)
 			bsdtar->option_absolute_paths = 1;
 			break;
 		case 'p': /* GNU tar, star */
-			umask(0);
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_PERM;
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 			break;
 		case 'r': /* SUSv2 */
 			if (mode != '\0')
