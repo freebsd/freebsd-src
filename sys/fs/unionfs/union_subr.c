@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.18 1997/04/16 16:24:24 kato Exp $
+ * $Id: union_subr.c,v 1.19 1997/08/02 14:32:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -649,6 +649,16 @@ union_copyup(un, docopy, cred, p)
 {
 	int error;
 	struct vnode *lvp, *uvp;
+
+	/*
+	 * If the user does not have read permission, the vnode should not
+	 * be copied to upper layer.
+	 */
+	vn_lock(un->un_lowervp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = VOP_ACCESS(un->un_lowervp, VREAD, cred, p);
+	VOP_UNLOCK(un->un_lowervp, 0, p);
+	if (error)
+		return (error);
 
 	error = union_vn_create(&uvp, un, p);
 	if (error)
