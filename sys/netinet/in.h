@@ -229,7 +229,8 @@ struct ip_mreq {
 #define IPCTL_RTEXPIRE		5	/* cloned route expiration time */
 #define IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
 #define IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
-#define	IPCTL_MAXID		8
+#define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
+#define	IPCTL_MAXID		9
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -240,6 +241,7 @@ struct ip_mreq {
 	{ "rtexpire", CTLTYPE_INT }, \
 	{ "rtminexpire", CTLTYPE_INT }, \
 	{ "rtmaxcache", CTLTYPE_INT }, \
+	{ "sourceroute", CTLTYPE_INT }, \
 }
 
 
