@@ -1,5 +1,6 @@
                                  RELEASE NOTES
                            FreeBSD 4.2-STABLE snapshot
+                               (i386 Architecture)
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
