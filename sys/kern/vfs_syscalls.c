@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.1 1996/12/21 19:04:24 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.2 1997/03/07 09:20:08 joerg Exp $
  */
 
 /*
@@ -414,6 +414,7 @@ statfs(p, uap, retval)
 	register struct statfs *sp;
 	int error;
 	struct nameidata nd;
+	struct statfs sb;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
 	error = namei(&nd);
@@ -426,6 +427,11 @@ statfs(p, uap, retval)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	if (p->p_ucred->cr_uid != 0) {
+		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		sp = &sb;
+	}
 	return (copyout((caddr_t)sp, (caddr_t)uap->buf, sizeof(*sp)));
 }
 
@@ -449,6 +455,7 @@ fstatfs(p, uap, retval)
 	struct mount *mp;
 	register struct statfs *sp;
 	int error;
+	struct statfs sb;
 
 	error = getvnode(p->p_fd, uap->fd, &fp);
 	if (error)
@@ -459,6 +466,11 @@ fstatfs(p, uap, retval)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	if (p->p_ucred->cr_uid != 0) {
+		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		sp = &sb;
+	}
 	return (copyout((caddr_t)sp, (caddr_t)uap->buf, sizeof(*sp)));
 }
 
