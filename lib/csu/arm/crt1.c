@@ -96,9 +96,8 @@ __asm("	.text			\n"
 "	b	 __start  ");
 /* ARGSUSED */
 void
-__start(int argc, char **argv, char **env,
-    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void),
-    struct ps_strings *ps_strings)
+__start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
+    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
 {
 	const char *s;
 
@@ -118,7 +117,6 @@ __start(int argc, char **argv, char **env,
 		atexit(cleanup);
 	else
 		_init_tls();
-
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
