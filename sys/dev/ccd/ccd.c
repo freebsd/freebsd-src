@@ -87,6 +87,7 @@
  *	Moffett Field, CA 94035
  */
 
+#include "opt_devfs.h"
 #include "ccd.h"
 
 #include <sys/param.h>
@@ -108,6 +109,10 @@
 
 #include <sys/ccdvar.h>
 
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 #if defined(CCDDEBUG) && !defined(DEBUG)
 #define DEBUG
@@ -284,6 +289,29 @@ putccdbuf(struct ccdbuf *cbp)
 #define CCD_OFFSET 16
 #endif
 
+#ifdef DEVFS
+static void
+ccd_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	int i, u;
+	char *s;
+
+	if (*dev != NODEV)
+		return;
+	i = devfs_stdclone(name, &s, "ccd", &u);
+	if (i != 2)
+		return;
+	if (u >= numccd)
+		return;
+	if (*s <= 'a' || *s >= 'h')
+		return;
+	if (s[1] != '\0')
+		return;
+	*dev = make_dev(&ccd_cdevsw, u * 8 + *s - 'a',
+		UID_ROOT, GID_OPERATOR, 0640, name);
+}
+#endif DEVFS
+
 /*
  * Called by main() during pseudo-device attachment.  All we need
  * to do is allocate enough space for devices to be configured later, and
@@ -318,8 +346,11 @@ ccdattach()
 
 	cdevsw_add(&ccd_cdevsw);
 	/* XXX: is this necessary? */
-	for (i = 0; i < numccd; ++i)
+	for (i = 0; i < numccd; ++i) 
 		ccddevs[i].ccd_dk = -1;
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, ccd_clone, 0, 1000);
+#endif
 }
 
 static int
@@ -1704,10 +1735,3 @@ printiinfo(ii)
 	}
 }
 #endif
-
-
-/* Local Variables: */
-/* c-argdecl-indent: 8 */
-/* c-continued-statement-offset: 8 */
-/* c-indent-level: 8 */
-/* End: */
