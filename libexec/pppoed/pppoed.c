@@ -330,7 +330,7 @@ Spawn(const char *prog, const char *acname, const char *provider,
         _exit(EX_OSERR);
       }
       /* If we have a provider code, set it */
-      if (provider ) {
+      if (provider) {
         slen = strlen(provider);
         data = (struct ngpppoe_init_data *)alloca(sizeof *data + slen);
         snprintf(data->hook, sizeof data->hook, "%s", ngc.ourhook);
