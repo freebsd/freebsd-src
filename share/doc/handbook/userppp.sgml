@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.13 1997/03/14 04:17:44 brian Exp $ -->
+<!-- $Id: userppp.sgml,v 1.14 1997/05/08 01:45:59 brian Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -326,7 +326,7 @@ x.x.x.x:
    You should NOT use 0 as either IP address.  If you do, ppp will not be
    able to set up the correct initial entries in the routing table.
 
-   Note also that the HISADDR macro is not yet available in ppp.conf.
+   Note also that the HISADDR macro is not yet available in <tt>ppp.conf</tt>.
 
    See the pmdemand entry in the files <tt>/etc/ppp/ppp.conf.sample</tt> and
    <tt>/etc/ppp/ppp.linkup.sample</tt> for a detailed example.
