@@ -542,5 +542,5 @@ uhidpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(uhid, usb, uhid_driver, uhid_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);
 #endif
