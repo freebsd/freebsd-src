@@ -20,8 +20,7 @@
 #    ever read sources, credits must appear in the documentation.
 # 4. This notice may not be removed or altered.
 
-#SRCDIR=	${.CURDIR}/../../contrib/file
-SRCDIR=	${.CURDIR}/../file-4.10/src
+SRCDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${SRCDIR}
 
 PROG=	file
