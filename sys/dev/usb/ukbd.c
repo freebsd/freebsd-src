@@ -113,10 +113,11 @@ typedef struct ukbd_softc {
 typedef void usbd_intr_t(usbd_xfer_handle, usbd_private_handle, usbd_status);
 typedef void usbd_disco_t(void *);
 
+Static int		ukbd_resume(device_t self);
 Static usbd_intr_t	ukbd_intr;
 Static int		ukbd_driver_load(module_t mod, int what, void *arg);
 
-USB_DECLARE_DRIVER(ukbd);
+USB_DECLARE_DRIVER_INIT(ukbd, DEVMETHOD(device_resume, ukbd_resume));
 
 USB_MATCH(ukbd)
 {
@@ -204,6 +205,18 @@ ukbd_detach(device_t self)
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
+	return (0);
+}
+
+Static int
+ukbd_resume(device_t self)
+{
+	keyboard_t *kbd;
+
+	kbd = kbd_get_keyboard(kbd_find_keyboard(DRIVER_NAME,
+						 device_get_unit(self)));
+	if (kbd)
+		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
 	return (0);
 }
 
