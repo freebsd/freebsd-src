@@ -87,7 +87,7 @@ typedef struct {
 } Elf64_Auxargs;
 
 typedef struct {
-	char *brand;
+	int brand;
 	char *emul_path;
 	char *interp_path;
         struct sysentvec *sysvec;
