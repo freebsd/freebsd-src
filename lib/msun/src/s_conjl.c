@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 The FreeBSD Project.
+ * Copyright (c) 2004 Stefan Farfeleder
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,34 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef _COMPLEX_H
-#define _COMPLEX_H
+#include <complex.h>
 
-#ifdef __GNUC__
-#define _Complex	__complex__
-#define _Complex_I	1.0fi
-#endif
-
-#define complex		_Complex
-#define I		_Complex_I
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-
-double		cabs(double complex);
-float		cabsf(float complex);
-double		cimag(double complex);
-float		cimagf(float complex);
-long double	cimagl(long double complex);
-double complex	conj(double complex);
-float complex	conjf(float complex);
 long double complex
-		conjl(long double complex);
-double		creal(double complex);
-float		crealf(float complex);
-long double	creall(long double complex);
-
-__END_DECLS
-
-#endif /* _COMPLEX_H */
+conjl(long double complex z)
+{
+	return creall(z) - I * cimagl(z);
+}
