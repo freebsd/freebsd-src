@@ -143,7 +143,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.12 1998/05/05 01:53:15 alex Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.13 1998/07/09 22:51:59 des Exp $";
 
 /* Local functions */
 
@@ -421,7 +421,7 @@ assign_date(struct tm *tm, long mday, long mon, long year)
 	    year -= 1900;
 	else
 	    panic("garbled time");
-    } else {
+    } else if (year != -1) {
 	struct tm *lt;
 	time_t now;
 
