@@ -265,7 +265,7 @@ SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin, CTLFLAG_RW, \
 	&ipsec_ah_keymin,	0,	"");
 
 /* perfered old SA rather than new SA */
-SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	prefered_oldsa, CTLFLAG_RW,\
+SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	preferred_oldsa, CTLFLAG_RW,\
 	&key_preferred_oldsa,	0,	"");
 
 #ifndef LIST_FOREACH
