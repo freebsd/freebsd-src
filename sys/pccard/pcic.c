@@ -81,6 +81,9 @@ static struct pcic_slot {
 	char controller;		/* Device type */
 	char revision;			/* Device Revision */
 	struct slot *slotp;		/* Back ptr to slot */
+	u_char (*getb)(struct pcic_slot *sp, int reg);
+	void   (*putb)(struct pcic_slot *sp, int reg, u_char val);
+	u_char	*regs;			/* Pointer to regs in mem */
 } pcic_slots[PCIC_MAX_SLOTS];
 
 static int		pcic_irq;
@@ -95,20 +98,32 @@ static struct slot_ctrl cinfo;
  * Read a register from the PCIC.
  */
 static inline unsigned char
-getb (struct pcic_slot *sp, int reg)
+getb1(struct pcic_slot *sp, int reg)
 {
-	outb (sp->index, sp->offset + reg);
-	return inb (sp->data);
+	outb(sp->index, sp->offset + reg);
+	return inb(sp->data);
+}
+
+static inline unsigned char
+getb2(struct pcic_slot *sp, int reg)
+{
+	return (sp->regs[reg]);
 }
 
 /*
  * Write a register on the PCIC
  */
 static inline void
-putb (struct pcic_slot *sp, int reg, unsigned char val)
+putb1(struct pcic_slot *sp, int reg, unsigned char val)
 {
-	outb (sp->index, sp->offset + reg);
-	outb (sp->data, val);
+	outb(sp->index, sp->offset + reg);
+	outb(sp->data, val);
+}
+
+static inline void
+putb2(struct pcic_slot *sp, int reg, unsigned char val)
+{
+	sp->regs[reg] = val;
 }
 
 /*
@@ -117,7 +132,7 @@ putb (struct pcic_slot *sp, int reg, unsigned char val)
 static inline void
 clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
-	putb (sp, reg, getb (sp, reg) & ~mask);
+	sp->putb(sp, reg, sp->getb(sp, reg) & ~mask);
 }
 
 /*
@@ -126,17 +141,17 @@ clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 static inline void
 setb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
-	putb (sp, reg, getb (sp, reg) | mask);
+	sp->putb(sp, reg, sp->getb(sp, reg) | mask);
 }
 
 /*
  * Write a 16 bit value to 2 adjacent PCIC registers
  */
 static inline void
-putw (struct pcic_slot *sp, int reg, unsigned short word)
+putw(struct pcic_slot *sp, int reg, unsigned short word)
 {
-	putb (sp, reg, word & 0xFF);
-	putb (sp, reg + 1, (word >> 8) & 0xff);
+	sp->putb(sp, reg, word & 0xFF);
+	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
 }
 
 
@@ -213,7 +228,8 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 int
 pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp,cmd,ver,pcic_handle,pcic_handle,lkm_nullcmd);
+	MOD_DISPATCH(pcic, lkmtp, cmd, ver,
+		pcic_handle, pcic_handle, lkm_nullcmd);
 }
 
 /*
@@ -226,11 +242,11 @@ pcic_unload(struct lkm_table *lkmtp, int cmd)
 	int	slot;
 	struct pcic_slot *sp = pcic_slots;
 
-	untimeout(pcictimeout,0);
+	untimeout(pcictimeout, 0);
 	if (pcic_irq) {
 		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
 			if (sp->slotp)
-				putb(sp, PCIC_STAT_INT, 0);
+				sp->putb(sp, PCIC_STAT_INT, 0);
 		}
 		unregister_intr(pcic_irq, pcicintr);
 	}
@@ -275,7 +291,7 @@ build_freelist(u_int pcic_mask)
 	freemask = 0; 
  
 	/* Walk through all of the IRQ's and find any that aren't allocated. */ 
-	for (irq = 0; irq < ICU_LEN; irq++) { 
+	for (irq = 1; irq < ICU_LEN; irq++) { 
 		/* 
 		 * If the PCIC controller can't generate it, don't
 		 * bother checking to see if it it's free. 
@@ -356,9 +372,9 @@ pcic_memory(struct slot *slotp, int win)
 		 * The values are all stored as the upper 12 bits of the
 		 * 24 bit address i.e everything is allocated as 4 Kb chunks.
 		 */
-		putw (sp, reg, sys_addr & 0xFFF);
-		putw (sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
-		putw (sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
+		putw(sp, reg, sys_addr & 0xFFF);
+		putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
+		putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
 #if 0
 		printf("card offs = card_adr = 0x%x 0x%x, sys_addr = 0x%x\n", 
 			mp->card, ((mp->card >> 12) - sys_addr) & 0x3FFF,
@@ -385,24 +401,24 @@ pcic_memory(struct slot *slotp, int win)
 	printf("Map window to sys addr 0x%x for %d bytes, card 0x%x\n",
 		mp->start, mp->size, mp->card);
 	printf("regs are: 0x%02x%02x 0x%02x%02x 0x%02x%02x flags 0x%x\n",
-		getb(sp, reg), getb(sp, reg+1),
-		getb(sp, reg+2), getb(sp, reg+3),
-		getb(sp, reg+4), getb(sp, reg+5),
+		sp->getb(sp, reg), sp->getb(sp, reg+1),
+		sp->getb(sp, reg+2), sp->getb(sp, reg+3),
+		sp->getb(sp, reg+4), sp->getb(sp, reg+5),
 		mp->flags);
 #endif
 		/*
 		 * Enable the memory window. By experiment, we need a delay.
 		 */
-		setb (sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
+		setb(sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
 		DELAY(50);
 	} else {
 #if 0
 		printf("Unmapping window %d\n", win);
 #endif
-		clrb (sp, PCIC_ADDRWINE, 1<<win);
-		putw (sp, reg, 0);
-		putw (sp, reg+2, 0);
-		putw (sp, reg+4, 0);
+		clrb(sp, PCIC_ADDRWINE, 1<<win);
+		putw(sp, reg, 0);
+		putw(sp, reg+2, 0);
+		putw(sp, reg+4, 0);
 	}
 	return(0);
 }
@@ -474,8 +490,8 @@ pcic_io(struct slot *slotp, int win)
 #ifdef	PCIC_DEBUG
 printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 #endif	/* PCIC_DEBUG */
-		putw (sp, reg, ip->start);
-		putw (sp, reg+2, ip->start+ip->size-1);
+		putw(sp, reg, ip->start);
+		putw(sp, reg+2, ip->start+ip->size-1);
 		x = 0;
 		if (ip->flags & IODF_ZEROWS)
 			x |= PCIC_IO_0WS;
@@ -490,24 +506,24 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 		 * Flags for window 0 in lower nybble, and in upper nybble
 		 * for window 1.
 		 */
-		ioctlv = getb(sp, PCIC_IOCTL);
+		ioctlv = sp->getb(sp, PCIC_IOCTL);
 		DELAY(100);
 		switch (win) {
 		case 0:
-			putb(sp, PCIC_IOCTL, x | (ioctlv & 0xf0));
+			sp->putb(sp, PCIC_IOCTL, x | (ioctlv & 0xf0));
 			break;
 		case 1:
-			putb(sp, PCIC_IOCTL, (x << 4) | (ioctlv & 0xf));
+			sp->putb(sp, PCIC_IOCTL, (x << 4) | (ioctlv & 0xf));
 			break;
 		}
 		DELAY(100);
-		setb (sp, PCIC_ADDRWINE, mask);
+		setb(sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
 	} else {
-		clrb (sp, PCIC_ADDRWINE, mask);
+		clrb(sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
-		putw (sp, reg, 0);
-		putw (sp, reg + 2, 0);
+		putw(sp, reg, 0);
+		putw(sp, reg + 2, 0);
 	}
 	return(0);
 }
@@ -559,6 +575,8 @@ pcic_probe(void)
 		/*
 		 *	Initialise the PCIC slot table.
 		 */
+		sp->getb = getb1;
+		sp->putb = putb1;
 		if (slot < 4) {
 			sp->index = PCIC_INDEX_0;
 			sp->data = PCIC_DATA_0;
@@ -575,7 +593,7 @@ pcic_probe(void)
 		 * ones would need to be probed at the new offset we set after
 		 * we assume it's broken.
 		 */
-		if (slot == 1 && maybe_vlsi && getb(sp, PCIC_ID_REV) != 0x84) {
+		if (slot == 1 && maybe_vlsi && sp->getb(sp, PCIC_ID_REV) != 0x84) {
 			sp->index += 4;
 			sp->data += 4;
 			sp->offset = PCIC_SLOT_SIZE << 1;
@@ -585,7 +603,7 @@ pcic_probe(void)
 		 * Intel PCMCIA controllers use 0x82 and 0x83
 		 * IBM clone chips use 0x88 and 0x89, apparently
 		 */
-		c = getb (sp, PCIC_ID_REV);
+		c = sp->getb(sp, PCIC_ID_REV);
 		sp->revision = -1;
 		switch(c) {
 		/*
@@ -601,7 +619,7 @@ pcic_probe(void)
 			outb(sp->index, 0x0E);
 			outb(sp->index, 0x37);
 			setb(sp, 0x3A, 0x40);
-			c = getb (sp, PCIC_ID_REV);
+			c = sp->getb(sp, PCIC_ID_REV);
 			if (c & 0x08) {
 				sp->controller = ((sp->revision = c & 7) == 4) ?	
 					PCIC_VG469 : PCIC_VG468 ;
@@ -611,7 +629,7 @@ pcic_probe(void)
 			/*
 			 * Check for RICOH RF5C396 PCMCIA Controller
 			 */
-			c = getb (sp, 0x3a);
+			c = sp->getb(sp, 0x3a);
 			if (c == 0xb2) {
 				sp->controller = PCIC_RF5C396;
 			}
@@ -639,10 +657,10 @@ pcic_probe(void)
 		/*
 		 *	Check for Cirrus logic chips.
 		 */
-		putb(sp, 0x1F, 0);
-		c = getb(sp, 0x1F);
+		sp->putb(sp, 0x1F, 0);
+		c = sp->getb(sp, 0x1F);
 		if ((c & 0xC0) == 0xC0) {
-			c = getb(sp, 0x1F);
+			c = sp->getb(sp, 0x1F);
 			if ((c & 0xC0) == 0) {
 				if (c & 0x20)
 					sp->controller = PCIC_PD672X;
@@ -688,7 +706,7 @@ pcic_probe(void)
 		 *	clear out the registers.
 		 */
 		for (i = 2; i < 0x40; i++)
-			putb(sp, i, 0);
+			sp->putb(sp, i, 0);
 #endif	/* PCIC_NOCLRREGS */
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
@@ -715,10 +733,21 @@ pcic_probe(void)
 				printf("pcic: controller irq %d\n", pcic_irq);
 		}
 		/*
+		 * Modem cards send the speaker audio (dialing noises)
+		 * to the host's speaker.  Cirrus Logic PCIC chips must
+		 * enable this.  There is also a Low Power Dynamic Mode bit
+		 * that claims to reduce power consumption by 30%, so
+		 * enable it and hope for the best.
+		 */
+		if (sp->controller == PCIC_PD672X) {
+			setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+			setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+		}
+		/*
 		 *	Check for a card in this slot.
 		 */
-		setb (sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
-		if ((getb (sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
+		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
 			slotp->laststate = slotp->state = empty;
 		} else {
 			slotp->laststate = slotp->state = filled;
@@ -728,7 +757,7 @@ pcic_probe(void)
 		 *	Assign IRQ for slot changes
 		 */
 		if (pcic_irq > 0)
-			putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+			sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	}
 #ifdef	PC98
 	if (validslots == 0){
@@ -775,6 +804,7 @@ pcic_probe(void)
 static int
 pcic_ioctl(struct slot *slotp, int cmd, caddr_t data)
 {
+	struct pcic_slot *sp = slotp->cdata;
 
 	switch(cmd) {
 	default:
@@ -784,10 +814,10 @@ pcic_ioctl(struct slot *slotp, int cmd, caddr_t data)
 	 */
 	case PIOCGREG:
 		((struct pcic_reg *)data)->value =
-			getb(slotp->cdata, ((struct pcic_reg *)data)->reg);
+			sp->getb(sp, ((struct pcic_reg *)data)->reg);
 		break;
 	case PIOCSREG:
-		putb(slotp->cdata, ((struct pcic_reg *)data)->reg,
+		sp->putb(sp, ((struct pcic_reg *)data)->reg,
 			((struct pcic_reg *)data)->value);
 		break;
 	}
@@ -864,7 +894,7 @@ pcic_power(struct slot *slotp)
 				reg |= PCIC_VCC_5V_KING;
 				break;
 			}
-			reg |= PCIC_VCC_5V;
+			reg |= PCIC_VCC_3V;
 			if ((sp->controller == PCIC_VG468)||
 				(sp->controller == PCIC_VG469))
 				setb(sp, 0x2f, 0x03) ;
@@ -886,12 +916,20 @@ pcic_power(struct slot *slotp)
 		}
 		break;
 	}
-	putb (sp, PCIC_POWER, reg);
+	sp->putb(sp, PCIC_POWER, reg);
 	DELAY(300*1000);
 	if (slotp->pwr.vcc) {
 		reg |= PCIC_OUTENA;
-		putb (sp, PCIC_POWER, reg);
-		DELAY (100*1000);
+		sp->putb(sp, PCIC_POWER, reg);
+		DELAY(100*1000);
+	}
+	/* Some chips are smarter than us it seems, so if we weren't
+	 * allowed to use 5V, try 3.3 instead
+	 */
+	if (!(sp->getb(sp, PCIC_STATUS) &  0x40) && slotp->pwr.vcc == 50) {
+		slotp->pwr.vcc = 33;
+		slotp->pwr.vpp = 0;
+		return (pcic_power(slotp));
 	}
 	return(0);
 }
@@ -936,7 +974,8 @@ pcic_mapirq (struct slot *slotp, int irq)
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
-		putb (sp, PCIC_INT_GEN, (getb (sp, PCIC_INT_GEN) & 0xF0) | irq);
+		sp->putb(sp, PCIC_INT_GEN, 
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
 }
 
 /*
@@ -965,29 +1004,29 @@ pcic_reset(void *chan)
 	    case 0: /* Something funny happended on the way to the pub... */
 		return;
 	    case 1: /* Assert reset */
-		clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
+		clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slotp->insert_seq = 2;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 2: /* Deassert it again */
-		setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
+		setb(sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slotp->insert_seq = 3;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 3: /* Wait if card needs more time */
-		if (!getb(sp, PCIC_STATUS) & PCIC_READY) {
+		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
 			timeout(pcic_reset, (void*) slotp, hz/10);
 			return;
 		}
 	}
 	slotp->insert_seq = 0;
 	if (sp->controller == PCIC_PD672X || sp->controller == PCIC_PD6710) {
-		putb(sp, PCIC_TIME_SETUP0, 0x1);
-		putb(sp, PCIC_TIME_CMD0, 0x6);
-		putb(sp, PCIC_TIME_RECOV0, 0x0);
-		putb(sp, PCIC_TIME_SETUP1, 1);
-		putb(sp, PCIC_TIME_CMD1, 0xf);
-		putb(sp, PCIC_TIME_RECOV1, 0);
+		sp->putb(sp, PCIC_TIME_SETUP0, 0x1);
+		sp->putb(sp, PCIC_TIME_CMD0, 0x6);
+		sp->putb(sp, PCIC_TIME_RECOV0, 0x0);
+		sp->putb(sp, PCIC_TIME_SETUP1, 1);
+		sp->putb(sp, PCIC_TIME_CMD1, 0xf);
+		sp->putb(sp, PCIC_TIME_RECOV1, 0);
 	}
 	selwakeup(&slotp->selp);
 }
@@ -1005,8 +1044,8 @@ pcic_disable(struct slot *slotp)
 	    return;
 	}
 #endif
-	putb(sp, PCIC_INT_GEN, 0);
-	putb(sp, PCIC_POWER, 0);
+	sp->putb(sp, PCIC_INT_GEN, 0);
+	sp->putb(sp, PCIC_POWER, 0);
 }
 
 /*
@@ -1053,9 +1092,9 @@ pcicintr(int unit)
 #endif	/* PC98 */
 	s = splhigh();
 	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++)
-		if (sp->slotp && (chg = getb(sp, PCIC_STAT_CHG)) != 0)
+		if (sp->slotp && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0)
 			if (chg & PCIC_CDTCH) {
-				if ((getb(sp, PCIC_STATUS) & PCIC_CD) ==
+				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
 					pccard_event(sp->slotp,
 						card_inserted);
@@ -1073,6 +1112,11 @@ pcicintr(int unit)
 static void
 pcic_resume(struct slot *slotp)
 {
+	struct pcic_slot *sp = slotp->cdata;
 	if (pcic_irq > 0)
-		putb(slotp->cdata, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+		sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+	if (sp->controller == PCIC_PD672X) {
+		setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+	}
 }

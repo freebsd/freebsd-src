@@ -35,6 +35,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -56,6 +57,27 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
+SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
+
+static int pcic_resume_reset =
+#ifdef PCIC_RESUME_RESET
+	1;
+#else
+	0;
+#endif
+
+SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW, 
+	&pcic_resume_reset, 0, "");
+
+static int apm_pccard_resume =
+#ifdef APM_PCCARD_RESUME
+	1;
+#else
+	0;
+#endif
+
+SYSCTL_INT(_machdep_pccard, OID_AUTO, apm_pccard_resume, CTLFLAG_RW, 
+	&apm_pccard_resume, 0, "");
 
 #define	PCCARD_MEMSIZE	(4*1024)
 
@@ -331,10 +353,11 @@ slot_suspend(void *arg)
 	struct slot *sp = arg;
 	struct pccard_dev *dp;
 
-	for (dp = sp->devices; dp; dp = dp->next)
-		(void) dp->drv->suspend(dp);
-	if (!sp->suspend_power)
-		sp->ctrl->disable(sp);
+	if (sp->state == filled) {
+		for (dp = sp->devices; dp; dp = dp->next)
+			(void)dp->drv->suspend(dp);
+	}
+	sp->ctrl->disable(sp);
 	return (0);
 }
 
@@ -342,18 +365,33 @@ static int
 slot_resume(void *arg)
 {
 	struct slot *sp = arg;
-	struct pccard_dev *dp;
 
-#ifdef PCIC_RESUME_RESET
-	sp->ctrl->resume(sp);
-#endif
+	if (pcic_resume_reset)
+		sp->ctrl->resume(sp);
+	if (apm_pccard_resume) {
+		/* Fake card removal/insertion events */
+		if (sp->state == filled) {
+			int s;
 
-	if (!sp->suspend_power)
+			s = splhigh();
+			disable_slot(sp);
+			sp->state = empty;
+			splx(s);
+			sp->insert_seq = 1;
+			timeout(inserted, (void *)sp, hz);
+			selwakeup(&sp->selp);
+		}
+	} else {
+		struct pccard_dev *dp;
+
 		sp->ctrl->power(sp);
-	if (sp->irq)
-		sp->ctrl->mapirq(sp, sp->irq);
-	for (dp = sp->devices; dp; dp = dp->next)
-		(void) dp->drv->init(dp, 0);
+		if (sp->irq)
+			sp->ctrl->mapirq(sp, sp->irq);
+		if (sp->state == filled) { 
+			for (dp = sp->devices; dp; dp = dp->next)
+				(void)dp->drv->init(dp, 0);
+		}
+	}
 	return (0);
 }
 #endif	/* NAPM > 0 */
@@ -624,9 +662,6 @@ inserted(void *arg)
 	 *	Now start resetting the card.
 	 */
 	sp->ctrl->reset(sp);
-#if   NAPM > 0
-	sp->suspend_power = 0;
-#endif
 }
 
 /*
