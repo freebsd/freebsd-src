@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.27 1999/05/10 00:20:46 peter Exp $ */
+/*	$Id: if_tx.c,v 1.28 1999/07/03 20:17:05 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -67,7 +67,7 @@
 	  } \
 	}
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_bdg.h"
 
 #include <sys/param.h>
@@ -105,7 +105,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
@@ -355,7 +355,7 @@ epic_openbsd_attach(
 	/* Attach os interface and bpf */
 	if_attach(ifp);
 	ether_ifattach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(&sc->sc_if.if_bpf, ifp, DLT_EN10MB,
 	    sizeof(struct ether_header));
 #endif
@@ -552,7 +552,7 @@ epic_freebsd_attach(
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp,DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -848,7 +848,7 @@ epic_ifstart(struct ifnet * const ifp){
 		/* Set watchdog timer */
 		ifp->if_timer = 8;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if( ifp->if_bpf ) 
 #if defined(__FreeBSD__)
 			bpf_mtap( ifp, m0 );
@@ -918,15 +918,15 @@ epic_rx_done __P((
 		m->m_pkthdr.rcvif = &(sc->sc_if);
 		m->m_pkthdr.len = m->m_len = len;
 
-#if NBPFILTER > 0
-		/* Give mbuf to BPFILTER */
+#if NBPF > 0
+		/* Give mbuf to BPF */
 		if( sc->sc_if.if_bpf ) 
 #if defined(__FreeBSD__)
 			bpf_mtap( &sc->sc_if, m );
 #else /* __OpenBSD__ */
 			bpf_mtap( sc->sc_if.if_bpf, m );
 #endif /* __FreeBSD__ */
-#endif /* NBPFILTER */
+#endif /* NBPF */
 
 #ifdef BRIDGE
 		if (do_bridge) {
@@ -949,7 +949,7 @@ epic_rx_done __P((
 		}
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #ifdef BRIDGE
 		/*
 		 * This deserves explanation
@@ -959,7 +959,7 @@ epic_rx_done __P((
 		 * address of one of the other interfaces.
 		 *
 		 * But if the bridge is off, then we have to drop
-		 * stuff that came in just via bpfilter.
+		 * stuff that came in just via bpf.
 		 */
 		if (!do_bridge)
 #endif

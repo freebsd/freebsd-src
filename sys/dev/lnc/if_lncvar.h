@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.h,v 1.9 1998/11/26 00:57:32 paul Exp $
+ * $Id: if_lnc.h,v 1.10 1999/01/31 00:56:32 paul Exp $
  */
 
 #include <i386/isa/ic/Am7990.h>
@@ -39,7 +39,7 @@
  * Initialize multicast address hashing registers to accept
  * all multicasts (only used when in promiscuous mode)
  */
-#if NBPFILTER > 0
+#if NBPF > 0
 #define MULTI_INIT_ADDR 0xff
 #else
 #define MULTI_INIT_ADDR 0

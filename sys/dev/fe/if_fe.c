@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.49 1999/03/03 10:40:26 kato Exp $
+ * $Id: if_fe.c,v 1.50 1999/05/04 12:59:59 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -70,7 +70,7 @@
  */
 
 #include "fe.h"
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_fe.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
@@ -110,7 +110,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -2763,7 +2763,7 @@ fe_attach ( struct isa_device * dev )
 		       sc->sc_unit);
 	}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* If BPF is in the kernel, call the attach for it.  */
  	bpfattach(&sc->sc_if, DLT_EN10MB, sizeof(struct ether_header));
 #endif
@@ -3132,7 +3132,7 @@ fe_start ( struct ifnet *ifp )
 		 * and only if it is in "receive everything"
 		 * mode.)
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if ( sc->sc_if.if_bpf
 		  && !( sc->sc_if.if_flags & IFF_PROMISC ) ) {
 			bpf_mtap( &sc->sc_if, m );
@@ -3764,7 +3764,7 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 
 #define ETHER_ADDR_IS_MULTICAST(A) (*(char *)(A) & 1)
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If it is, hand off the raw packet to bpf.

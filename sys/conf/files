@@ -392,7 +392,7 @@ ntfs/ntfs_subr.c		optional ntfs
 ntfs/ntfs_compr.c		optional ntfs
 ntfs/ntfs_ihash.c		optional ntfs
 net/bpf.c		standard
-net/bpf_filter.c	optional bpfilter
+net/bpf_filter.c	optional bpf
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard

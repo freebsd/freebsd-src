@@ -54,8 +54,8 @@
 #include <netns/ns_if.h>
 #endif
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -144,7 +144,7 @@ tunattach(dummy)
 		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		if_attach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
 	}
@@ -340,7 +340,7 @@ tunoutput(ifp, m0, dst, rt)
 		return EHOSTDOWN;
 	}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m0, int *));
@@ -366,7 +366,7 @@ tunoutput(ifp, m0, dst, rt)
 
 		bpf_mtap(ifp, &m);
 	}
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (tp->tun_flags & TUN_LMODE) {
@@ -628,7 +628,7 @@ tunwrite(dev, uio, flag)
 	top->m_pkthdr.len = tlen;
 	top->m_pkthdr.rcvif = ifp;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as

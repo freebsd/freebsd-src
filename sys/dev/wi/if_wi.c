@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $
+ *	$Id: if_wi.c,v 1.7 1999/07/04 14:40:22 wpaul Exp $
  */
 
 /*
@@ -67,7 +67,7 @@
 #define WI_HERMES_AUTOINC_WAR	/* Work around data write autoinc bug. */
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "card.h"
 #include "wi.h"
 
@@ -94,7 +94,7 @@
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.56 1999/07/04 14:35:23 wpaul Exp $";
+	"$Id: if_wi.c,v 1.7 1999/07/04 14:40:22 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -363,7 +363,7 @@ static int wi_attach(isa_dev)
 		if_attach(ifp);
 		ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -463,7 +463,7 @@ static void wi_rxeof(sc)
 
 	ifp->if_ipackets++;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* Handle BPF listeners. */
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m);
@@ -1239,7 +1239,7 @@ static void wi_start(ifp)
 		    m0->m_pkthdr.len + 2);
 	}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * If there's a BPF listner, bounce a copy of
 	 * this frame to him.

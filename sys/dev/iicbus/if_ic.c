@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ic.c,v 1.3 1998/12/07 21:58:16 archie Exp $
+ *	$Id: if_ic.c,v 1.4 1999/05/08 21:59:03 dfr Exp $
  */
 
 /*
@@ -59,9 +59,9 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 
-#include "bpfilter.h"
+#include "bpf.h"
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -151,7 +151,7 @@ icattach(device_t dev)
 
 	if_attach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, ICHDRLEN);
 #endif
 
@@ -322,7 +322,7 @@ icintr (device_t dev, int event, char *ptr)
 	  sc->ic_if.if_ipackets ++;
 	  sc->ic_if.if_ibytes += len;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (sc->ic_if.if_bpf)
 		bpf_tap(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
 #endif
@@ -417,7 +417,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 
 	} while ((mm = mm->m_next));
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 		struct mbuf m0, *n = m;
 

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.33 1998/06/21 14:53:23 bde Exp $
+ * $Id: if_fddisubr.c,v 1.34 1999/01/27 22:42:13 dillon Exp $
  */
 
 #include "opt_atalk.h"
@@ -105,7 +105,7 @@ extern u_char	aarp_org_code[ 3 ];
 extern struct ifqueue pkintrq;
 #endif
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #define senderr(e) { error = (e); goto bad;}
 
@@ -309,7 +309,7 @@ fddi_output(ifp, m0, dst, rt0)
 		break;
 	}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	case AF_IMPLINK:
 	{
 		fh = mtod(m, struct fddi_header *);

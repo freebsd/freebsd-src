@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.39 1998/12/07 21:58:21 archie Exp $
+ * $Id: if_el.c,v 1.40 1999/01/12 01:29:42 eivind Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -20,7 +20,7 @@
  *	- Does not currently support multicasts
  */
 #include "el.h"
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -48,7 +48,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -213,7 +213,7 @@ el_attach(struct isa_device *idev)
 	  sc->arpcom.ac_enaddr, ":");
 
 	/* Finally, attach to bpf filter if it is present. */
-#if NBPFILTER > 0
+#if NBPF > 0
 	dprintf(("Attaching to BPF...\n"));
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
@@ -348,7 +348,7 @@ el_start(struct ifnet *ifp)
 		len = max(len,ETHER_MIN_LEN);
 
 		/* Give the packet to the bpf, if any */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if(sc->arpcom.ac_if.if_bpf)
 			bpf_tap(&sc->arpcom.ac_if, sc->el_pktbuf, len);
 #endif
@@ -438,7 +438,7 @@ elread(struct el_softc *sc,caddr_t buf,int len)
 
 	eh = (struct ether_header *)buf;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check if there's a bpf filter listening on this interface.
 	 * If so, hand off the raw packet to bpf.

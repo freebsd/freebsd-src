@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.32 1999/05/09 17:07:01 peter Exp $
+ *	$Id: if_tl.c,v 1.33 1999/07/02 04:17:15 peter Exp $
  */
 
 /*
@@ -178,7 +178,7 @@
  * itself thereby reducing the load on the host CPU.
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -194,7 +194,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -221,7 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.32 1999/05/09 17:07:01 peter Exp $";
+	"$Id: if_tl.c,v 1.33 1999/07/02 04:17:15 peter Exp $";
 #endif
 
 /*
@@ -1786,7 +1786,7 @@ tl_attach(config_id, unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -1966,7 +1966,7 @@ static int tl_intvec_rxeof(xsc, type)
 				continue;
 		}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 	 	 * Handle BPF listeners. Let the BPF user see the packet, but
 	 	 * don't pass it up to the ether_input() layer unless it's
@@ -2434,7 +2434,7 @@ static void tl_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->tl_mbuf);
 #endif

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.57 1999/05/06 18:12:27 peter Exp $
+ * $Id: if_ze.c,v 1.58 1999/05/06 18:43:58 peter Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -64,7 +64,7 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 
 #include "ze.h"
 #if	NZE > 0
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -92,7 +92,7 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -650,7 +650,7 @@ ze_attach(isa_dev)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -871,7 +871,7 @@ ze_init(unit)
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
 		outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Initialize multicast address hashing registers to accept
 	 *	 all multicasts (only used when in promiscuous mode)
@@ -1042,7 +1042,7 @@ outloop:
 	/*
 	 * If there is BPF support in the configuration, tap off here.
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m0);
 	}
@@ -1434,7 +1434,7 @@ ze_ioctl(ifp, command, data)
 		    	    ((ifp->if_flags & IFF_RUNNING) == 0))
 				ze_init(ifp->if_unit);
 		}
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_flags & IFF_PROMISC) {
 			/*
 			 * Set promiscuous mode on interface.
@@ -1518,7 +1518,7 @@ ze_get_packet(sc, buf, len)
 	m = ze_ring_to_mbuf(sc, buf, m, len);
 	if (m == NULL) goto bad;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf.

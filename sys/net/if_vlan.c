@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.6 1999/03/15 01:21:59 wpaul Exp $
+ *	$Id: if_vlan.c,v 1.7 1999/04/07 23:26:43 wpaul Exp $
  */
 
 /*
@@ -57,7 +57,7 @@
 #include "vlan.h"
 #if NVLAN > 0
 #include "opt_inet.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -69,7 +69,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 #include <net/ethernet.h>
@@ -176,7 +176,7 @@ vlaninit(void *dummy)
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		if_attach(ifp);
 		ether_ifattach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 		/* Now undo some of the damage... */
@@ -209,10 +209,10 @@ vlan_start(struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
 			break;
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 		/*
 		 * If the LINK0 flag is set, it means the underlying interface
@@ -304,7 +304,7 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	 */
 	m->m_pkthdr.rcvif = &ifv->ifv_if;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifv->ifv_if.if_bpf) {
 		/*
 		 * Do the usual BPF fakery.  Note that we don't support
@@ -356,7 +356,7 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 	m->m_len -= EVL_ENCAPLEN;
 	m->m_pkthdr.len -= EVL_ENCAPLEN;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifv->ifv_if.if_bpf) {
 		/*
 		 * Do the usual BPF fakery.  Note that we don't support

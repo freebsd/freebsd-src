@@ -106,7 +106,7 @@
 #include "xe.h"
 #include "card.h"
 #include "apm.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #if NXE > 0
 
@@ -131,9 +131,9 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -808,7 +808,7 @@ xe_attach (struct isa_device *dev) {
   if_attach(scp->ifp);
   ether_ifattach(scp->ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
   /* If BPF is in the kernel, call the attach for it */
 #if XE_DEBUG > 1
   printf("xe%d: BPF listener attached\n", scp->unit);
@@ -944,7 +944,7 @@ xe_start(struct ifnet *ifp) {
       return;
     }
 
-#if NBPFILTER > 0
+#if NBPF > 0
     /* Tap off here if there is a bpf listener */
     if (ifp->if_bpf) {
 #if XE_DEBUG > 1
@@ -952,7 +952,7 @@ xe_start(struct ifnet *ifp) {
 #endif
       bpf_mtap(ifp, mbp);
     }
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
     ifp->if_timer = 5;			/* In case we don't hear from the card again */
     scp->tx_queued++;
@@ -1266,7 +1266,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	  else
 	    insw(scp->dev->id_iobase+XE_EDP, ehp, len >> 1);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	  /*
 	   * Check if there's a BPF listener on this interface. If so, hand
 	   * off the raw packet to bpf.
@@ -1289,7 +1289,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	      mbp = NULL;
 	    }
 	  }
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 	  if (mbp != NULL) {
 	    mbp->m_pkthdr.len = mbp->m_len = len - ETHER_HDR_LEN;

@@ -19,7 +19,7 @@
 #undef DEBUG
 
 #include "cx.h"
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_devfs.h"
 
 #include "sppp.h"
@@ -38,7 +38,7 @@
 
 #include <net/if.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -285,7 +285,7 @@ cxattach (struct isa_device *id)
 			sppp_attach (c->ifp);
 			if_attach (c->ifp);
 			sp = (struct sppp*) c->ifp;
-#if NBPFILTER > 0
+#if NBPF > 0
 			/* If BPF is in the kernel, call the attach for it. */
 			bpfattach (c->ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
@@ -481,7 +481,7 @@ cxput (cx_chan_t *c, char b)
 		return;
 	}
 	m_copydata (m, 0, len, buf);
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (c->ifp->if_bpf)
 		bpf_mtap (c->ifp, m);
 #endif
@@ -805,7 +805,7 @@ cxinput (cx_chan_t *c, void *buf, unsigned len)
 	printmbuf (m);
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf.

@@ -1,17 +1,17 @@
-#	$Id: Makefile,v 1.1 1999/04/16 21:52:27 peter Exp $
+#	$Id: Makefile,v 1.2 1999/04/18 13:31:23 dfr Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= fxp
-SRCS	= if_fxp.c fxp.h bpfilter.h opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= fxp.h bpfilter.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_fxp.c fxp.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= fxp.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 fxp.h:
 	echo "#define NFXP 1" > fxp.h
 
-bpfilter.h:
-	echo "#define NBPFILTER 0" > bpfilter.h
+bpf.h:
+	echo "#define NBPF 0" > bpf.h
 
 opt_bdg.h:
 	touch opt_bdg.h

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.74 1999/04/27 11:17:02 phk Exp $
+ * $Id: if_sl.c,v 1.75 1999/07/01 22:14:51 peter Exp $
  */
 
 /*
@@ -68,7 +68,7 @@
 #include "sl.h"
 #if NSL > 0
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #if !defined(ACTUALLY_LKM_NOT_KERNEL) && !defined(KLD_MODULE)
 #include "opt_slip.h"
@@ -105,7 +105,7 @@
 #include <net/if_slvar.h>
 #include <net/slip.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -150,7 +150,7 @@ PSEUDO_SET(slattach, if_sl);
  * time.  So, setting SLIP_HIWAT to ~100 guarantees that we'll lose
  * at most 1% while maintaining good interactive response.
  */
-#if NBPFILTER > 0
+#if NBPF > 0
 #define	BUFOFFSET	(128+sizeof(struct ifnet **)+SLIP_HDRLEN)
 #else
 #define	BUFOFFSET	(128+sizeof(struct ifnet **))
@@ -232,7 +232,7 @@ slattach(dummy)
 		sc->sc_if.if_linkmib = sc;
 		sc->sc_if.if_linkmiblen = sizeof *sc;
 		if_attach(&sc->sc_if);
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
 #endif
 	}
@@ -539,7 +539,7 @@ slstart(tp)
 	register struct ip *ip;
 	int s;
 	struct mbuf *m2;
-#if NBPFILTER > 0
+#if NBPF > 0
 	u_char bpfbuf[SLTMAX + SLIP_HDRLEN];
 	register int len = 0;
 #endif
@@ -584,7 +584,7 @@ slstart(tp)
 		 * queueing, and the connection id compression will get
 		 * munged when this happens.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * We need to save the TCP/IP header before it's
@@ -613,7 +613,7 @@ slstart(tp)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
 		}
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
@@ -776,7 +776,7 @@ slinput(c, tp)
 	register struct mbuf *m;
 	register int len;
 	int s;
-#if NBPFILTER > 0
+#if NBPF > 0
 	u_char chdr[CHDR_LEN];
 #endif
 
@@ -845,7 +845,7 @@ slinput(c, tp)
 			/* less than min length packet - ignore */
 			goto newpack;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Save the compressed header, so we
@@ -886,7 +886,7 @@ slinput(c, tp)
 			} else
 				goto error;
 		}
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.
