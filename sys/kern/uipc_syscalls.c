@@ -1487,12 +1487,11 @@ sf_buf_free(caddr_t addr, void *args)
 {
 	struct sf_buf *sf;
 	struct vm_page *m;
-	int s;
 
 	sf = dtosf(addr);
+	mtx_lock(&vm_mtx);
 	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
-	s = splvm();
 	vm_page_unwire(m, 0);
 	/*
 	 * Check for the object going away on us. This can
@@ -1501,7 +1500,7 @@ sf_buf_free(caddr_t addr, void *args)
 	 */
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
-	splx(s);
+	mtx_unlock(&vm_mtx);
 	sf->m = NULL;
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
@@ -1646,16 +1645,19 @@ retry_lookup:
 		 *
 		 *	Wait and loop if busy.
 		 */
+		mtx_lock(&vm_mtx);
 		pg = vm_page_lookup(obj, pindex);
 
 		if (pg == NULL) {
 			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NORMAL);
 			if (pg == NULL) {
 				VM_WAIT;
+				mtx_unlock(&vm_mtx);
 				goto retry_lookup;
 			}
 			vm_page_wakeup(pg);
 		} else if (vm_page_sleep_busy(pg, TRUE, "sfpbsy")) {
+			mtx_unlock(&vm_mtx);
 			goto retry_lookup;
 		}
 
@@ -1680,6 +1682,7 @@ retry_lookup:
 			 * completes.
 			 */
 			vm_page_io_start(pg);
+			mtx_unlock(&vm_mtx);
 
 			/*
 			 * Get the page from backing store.
@@ -1698,6 +1701,7 @@ retry_lookup:
 			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
 			        p->p_ucred);
 			VOP_UNLOCK(vp, 0, p);
+			mtx_lock(&vm_mtx);
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
 			if (error) {
@@ -1712,6 +1716,7 @@ retry_lookup:
 					vm_page_busy(pg);
 					vm_page_free(pg);
 				}
+				mtx_unlock(&vm_mtx);
 				sbunlock(&so->so_snd);
 				goto done;
 			}
@@ -1722,12 +1727,13 @@ retry_lookup:
 		 * Get a sendfile buf. We usually wait as long as necessary,
 		 * but this wait can be interrupted.
 		 */
+		mtx_unlock(&vm_mtx);
 		if ((sf = sf_buf_alloc()) == NULL) {
-			s = splvm();
+			mtx_lock(&vm_mtx);
 			vm_page_unwire(pg, 0);
 			if (pg->wire_count == 0 && pg->object == NULL)
 				vm_page_free(pg);
-			splx(s);
+			mtx_unlock(&vm_mtx);
 			sbunlock(&so->so_snd);
 			error = EINTR;
 			goto done;
@@ -1737,8 +1743,10 @@ retry_lookup:
 		 * Allocate a kernel virtual page and insert the physical page
 		 * into it.
 		 */
+		mtx_lock(&vm_mtx);
 		sf->m = pg;
 		pmap_qenter(sf->kva, &pg, 1);
+		mtx_unlock(&vm_mtx);
 		/*
 		 * Get an mbuf header and set it up as having external storage.
 		 */
