@@ -64,12 +64,12 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_cisco.h>
 
-#define CISCO_MULTICAST         0x8f	/* Cisco multicast address */
-#define CISCO_UNICAST           0x0f	/* Cisco unicast address */
-#define CISCO_KEEPALIVE         0x8035	/* Cisco keepalive protocol */
-#define CISCO_ADDR_REQ          0	/* Cisco address request */
-#define CISCO_ADDR_REPLY        1	/* Cisco address reply */
-#define CISCO_KEEPALIVE_REQ     2	/* Cisco keepalive request */
+#define	CISCO_MULTICAST		0x8f	/* Cisco multicast address */
+#define	CISCO_UNICAST		0x0f	/* Cisco unicast address */
+#define	CISCO_KEEPALIVE		0x8035	/* Cisco keepalive protocol */
+#define	CISCO_ADDR_REQ		0	/* Cisco address request */
+#define	CISCO_ADDR_REPLY	1	/* Cisco address reply */
+#define	CISCO_KEEPALIVE_REQ	2	/* Cisco keepalive request */
 
 #define KEEPALIVE_SECS		10
 
@@ -79,7 +79,7 @@ struct cisco_header {
 	u_short protocol;
 };
 
-#define CISCO_HEADER_LEN          sizeof (struct cisco_header)
+#define	CISCO_HEADER_LEN	sizeof (struct cisco_header)
 
 struct cisco_packet {
 	u_long  type;
@@ -90,7 +90,7 @@ struct cisco_packet {
 	u_short time1;
 };
 
-#define CISCO_PACKET_LEN (sizeof(struct cisco_packet))
+#define	CISCO_PACKET_LEN (sizeof(struct cisco_packet))
 
 struct protoent {
 	hook_p  hook;		/* the hook for this proto */
@@ -344,8 +344,8 @@ cisco_rcvdata(hook_p hook, item_p item)
 	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct protoent *pep;
 	struct cisco_header *h;
-	int error = 0;
 	struct mbuf *m;
+	int error = 0;
 
 	if ((pep = NG_HOOK_PRIVATE(hook)) == NULL)
 		goto out;
@@ -443,8 +443,8 @@ cisco_input(sc_p sc, item_p item)
 	const struct cisco_header *h;
 	struct cisco_header hdrbuf;
 	struct protoent *pep;
-	int error = 0;
 	struct mbuf *m;
+	int error = 0;
 
 	/* Get data */
 	m = NGI_M(item);
@@ -580,11 +580,9 @@ static void
 cisco_keepalive(void *arg)
 {
 	const sc_p sc = arg;
-	int s = splimp();
 
 	cisco_send(sc, CISCO_KEEPALIVE_REQ, sc->local_seq, sc->remote_seq);
 	sc->seqRetries++;
-	splx(s);
 	sc->handle = timeout(cisco_keepalive, sc, hz * KEEPALIVE_SECS);
 }
 
@@ -597,9 +595,9 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	struct cisco_header *h;
 	struct cisco_packet *ch;
 	struct mbuf *m;
+	struct timeval time;
 	u_long  t;
 	int     error = 0;
-	struct timeval time;
 
 	getmicrouptime(&time);
 
