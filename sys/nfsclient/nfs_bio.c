@@ -581,7 +581,6 @@ again:
 			    brelse(bp);
 		    }
 		    while (error == NFSERR_BAD_COOKIE) {
-			printf("got bad cookie vp %p bp %p\n", vp, bp);
 			(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, 0, cred, td, 1);
 			/*
