@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.14 1998/08/18 00:32:47 bde Exp $	*/
+/*	$Id: bootp_subr.c,v 1.15 1998/08/23 03:07:16 wollman Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -345,7 +345,7 @@ bootpc_call(call,reply,procp)
 		error = sosend(so, (struct sockaddr *)sin, &auio, NULL, 
 			       NULL, 0, procp);
 		if (error) {
-			printf("bootpc_call: sosend: %d\n", error);
+			printf("bootpc_call: sosend: %d state %08x\n", error, (int)so->so_state);
 			goto out;
 		}
 
