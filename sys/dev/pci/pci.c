@@ -1934,7 +1934,8 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 * implement (a) we don't power the device down on a reattach.
 	 */
 	cls = pci_get_class(dev);
-	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY &&
+	    cls != PCIC_BASEPERIPH) {
 		/*
 		 * PCI spec is clear that we can only go into D3 state from
 		 * D0 state.  Transition from D[12] into D0 before going
