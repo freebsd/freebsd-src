@@ -1224,6 +1224,7 @@ product SUNTAC PS64P1		0x0005	SUNTAC U-Cable type P1
 product SUNTAC VS10U		0x0009	SUNTAC Slipper U
 product	SUNTAC IS96U		0x000a	SUNTAC Ir-Trinity
 product	SUNTAC AS64LX		0x000b	SUNTAC U-Cable type A3
+product SUNTAC AS144L4		0x0011	SUNTAC U-Cable type A4
 
 /* Sun Microsystems products */
 product SUN KEYBOARD		0x0005	Type 6 USB keyboard
