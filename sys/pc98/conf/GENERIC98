@@ -55,8 +55,6 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 
-options 	COM_MULTIPORT
-
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
@@ -86,7 +84,7 @@ device		wd0	at wdc0 drive 0
 
 # ATAPI devices on wdc?
 device		wcd0		#IDE CD-ROM
-#device 	wfd0		#IDE Floppy (e.g. LS-120)
+#device		wfd0		#IDE Floppy (e.g. LS-120)
 #device		wst0		#IDE Tape (e.g. Travan)
 
 # SCSI Controllers
@@ -126,17 +124,18 @@ device		cd0		# CD
 device		pass0		# Passthrough device (direct SCSI access)
 
 # Proprietary or custom CD-ROM Interfaces
-controller	matcd0	at isa? port?
+device		matcd0	at isa? port?
 
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD irq 1
-#options	KBD_INSTALL_CDEV
+#options 	KBD_INSTALL_CDEV
 
 device		gdc0	at isa?
 
 # splash screen/screen saver
 pseudo-device	splash
 
+# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa?
 
 # Floating point support - do not disable.
@@ -147,10 +146,12 @@ device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
-#device		pcic0	at card?
-#device		pcic1	at card?
+#device		pcic0	at isa?
+#device		pcic1	at isa?
 
 # Serial (COM) ports
+#
+options 	COM_MULTIPORT
 #
 # COM1
 device		sio0	at isa? port IO_COM1 irq 4
@@ -174,18 +175,18 @@ device		sio1	at isa? port 0x238 irq 5 flags 0x12000000
 #device		sio1	at isa? port 0x50e0 irq 5 flags 0x18000101
 #device		sio2	at isa? port 0x51e0 flags 0x18000101
 # ESP98
-#options	COM_ESP
+#options 	COM_ESP
 #device		sio1	at isa? port 0x18b0 irq 5 flags 0x19000000
 
 device		mse0	at isa? port IO_MSE irq 13
 
 # NEW Parallel port
 device		ppc0	at isa? port? irq 14
-controller	ppbus0
-device		lpt0	at ppbus?
-device		plip0	at ppbus?
-device		ppi0	at ppbus?
-#controller	vpo0	at ppbus?
+controller	ppbus0		# Parallel port bus (required)
+device		lpt0		# Printer
+device		plip0		# TCP/IP over parallel
+device		ppi0		# Parallel port interface device
+#controller	vpo0		# Requires scbus and da0
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
 device		olpt0	at isa? port IO_LPT
@@ -227,6 +228,9 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed7: LA-98
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
+#
+# MB86960A NIC
+#
 # fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
 # fe1: C-NET(98)P2/C-NET(9N)E
 #
@@ -246,17 +250,22 @@ device ep0 at isa? port 0x40d0 irq 3
 device fe0 at isa? port 0x00d0 irq 3
 device fe1 at isa? port 0x73d0 irq 5
 device lnc0 at isa? port 0x03d0 irq 6
-#device zp0 at isa? port 0x00d0 irq 10 iomem 0xe0000
 
-options FE_8BIT_SUPPORT		# LAC-98 support
+options 	FE_8BIT_SUPPORT		# LAC-98 support
+
+# PCCARD NIC drivers.
+# ze and zp take over the pcic and cannot coexist with generic pccard
+# support, nor the ed and ep drivers they replace.
+#device		zp0	at isa? port 0x00d0 irq 10 iomem 0xe0000
 
 #controller	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
 #device	opl0	at isa? port 0x28d2
-#device pcm0    at isa? port 0xa460 irq 12
+#device	nss0	at isa? port 0xa460 irq 12
 #device	mss0	at isa? port 0xf40 irq 12 drq 1
+#device	mpu0	at isa? port 0xe0d0 irq 6
 
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
@@ -271,4 +280,4 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # Be aware of the administrative consequences of enabling this!
 pseudo-device	bpf		#Berkeley packet filter
 
-pseudo-device compat_atdisk
+#pseudo-device	compat_atdisk	#IBM-PC HDD support
