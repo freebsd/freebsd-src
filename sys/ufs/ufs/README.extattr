@@ -77,7 +77,7 @@ For example, by creating the following tree, the two EAs,
 posix1e.acl_access and posix1e.acl_default will be enabled in the system
 namespace of the root file system, reserving space for attribute data:
 
-  mkdir /.attribute /.attribute/system
+  mkdir -p /.attribute/system
   cd /.attribute/system
   extattrctl initattr -p / 388 posix1e.acl_access
   extattrctl initattr -p / 388 posix1e.acl_default
