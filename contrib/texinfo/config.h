@@ -34,6 +34,10 @@
    */
 /* #undef HAVE_DCGETTEXT */
 
+/* Define to 1 if you have the declaration of `getenv', and to 0 if you don't.
+   */
+#define HAVE_DECL_GETENV 1
+
 /* Define if this function is declared. */
 #define HAVE_DECL_STRCASECMP 1
 
@@ -53,7 +57,7 @@
 #define HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the `feof_unlocked' function. */
-/* #undef HAVE_FEOF_UNLOCKED */
+#define HAVE_FEOF_UNLOCKED 1
 
 /* Define to 1 if you have the `fgets_unlocked' function. */
 /* #undef HAVE_FGETS_UNLOCKED */
@@ -62,7 +66,7 @@
 #define HAVE_GETCWD 1
 
 /* Define to 1 if you have the `getc_unlocked' function. */
-/* #undef HAVE_GETC_UNLOCKED */
+#define HAVE_GETC_UNLOCKED 1
 
 /* Define to 1 if you have the `getegid' function. */
 #define HAVE_GETEGID 1
@@ -79,14 +83,21 @@
 /* Define if the GNU gettext() function is already present or preinstalled. */
 /* #undef HAVE_GETTEXT */
 
+/* Define to 1 if you have the `gettimeofday' function. */
+/* #undef HAVE_GETTIMEOFDAY */
+
 /* Define to 1 if you have the `getuid' function. */
 #define HAVE_GETUID 1
 
 /* Define if you have the iconv() function. */
 /* #undef HAVE_ICONV */
 
-/* Define to 1 if you have the <inttypes.h> header file. */
+/* Define if <inttypes.h> exists and doesn't clash with <sys/types.h>. */
 #define HAVE_INTTYPES_H 1
+
+/* Define if <inttypes.h> exists, doesn't clash with <sys/types.h>, and
+   declares uintmax_t. */
+#define HAVE_INTTYPES_H_WITH_UINTMAX 1
 
 /* Define to 1 if you have the <io.h> header file. */
 /* #undef HAVE_IO_H */
@@ -107,7 +118,7 @@
 #define HAVE_LOCALE_H 1
 
 /* Define to 1 if you have the <malloc.h> header file. */
-#define HAVE_MALLOC_H 1
+/* #undef HAVE_MALLOC_H */
 
 /* Define to 1 if you have the `memcpy' function. */
 #define HAVE_MEMCPY 1
@@ -123,6 +134,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #define HAVE_MEMSET 1
+
+/* Define to 1 if you have the `mkstemp' function. */
+#define HAVE_MKSTEMP 1
 
 /* Define to 1 if you have a working `mmap' system call. */
 #define HAVE_MMAP 1
@@ -151,6 +165,9 @@
 /* Define to 1 if you have the `setvbuf' function. */
 #define HAVE_SETVBUF 1
 
+/* Define to 1 if you have the `sigaction' function. */
+#define HAVE_SIGACTION 1
+
 /* Define to 1 if you have the `sigprocmask' function. */
 #define HAVE_SIGPROCMASK 1
 
@@ -161,13 +178,17 @@
 #define HAVE_STDDEF_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
-/* #undef HAVE_STDINT_H */
+#define HAVE_STDINT_H 1
+
+/* Define if <stdint.h> exists, doesn't clash with <sys/types.h>, and declares
+   uintmax_t. */
+#define HAVE_STDINT_H_WITH_UINTMAX 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
 /* Define to 1 if you have the `stpcpy' function. */
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* Define to 1 if you have the `strcasecmp' function. */
 #define HAVE_STRCASECMP 1
@@ -212,6 +233,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
+/* Define to 1 if you have the <sys/stream.h> header file. */
+/* #undef HAVE_SYS_STREAM_H */
+
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
 
@@ -236,8 +260,14 @@
 /* Define to 1 if you have the `tsearch' function. */
 #define HAVE_TSEARCH 1
 
+/* Define if you have the 'uintmax_t' type in <stdint.h> or <inttypes.h>. */
+#define HAVE_UINTMAX_T 1
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+
+/* Define if you have the 'unsigned long long' type. */
+#define HAVE_UNSIGNED_LONG_LONG 1
 
 /* Define to 1 if you have the `vprintf' function. */
 #define HAVE_VPRINTF 1
@@ -251,8 +281,17 @@
 /* Define to 1 if you have the `__argz_stringify' function. */
 /* #undef HAVE___ARGZ_STRINGIFY */
 
+/* Define to 1 if you have the `__fsetlocking' function. */
+/* #undef HAVE___FSETLOCKING */
+
+/* Define to 1 if you have the `__secure_getenv' function. */
+/* #undef HAVE___SECURE_GETENV */
+
 /* Define as const if the declaration of iconv() needs const. */
 /* #undef ICONV_CONST */
+
+/* Define if integer division by zero raises signal SIGFPE. */
+#define INTDIV0_RAISES_SIGFPE 1
 
 /* Name of package */
 #define PACKAGE "texinfo"
@@ -264,13 +303,16 @@
 #define PACKAGE_NAME "GNU Texinfo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU Texinfo 4.2"
+#define PACKAGE_STRING "GNU Texinfo 4.6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "texinfo"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2"
+#define PACKAGE_VERSION "4.6"
+
+/* Define if <inttypes.h> exists and defines unusable PRI* macros. */
+/* #undef PRI_MACROS_BROKEN */
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -293,7 +335,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.2"
+#define VERSION "4.6"
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
@@ -312,8 +354,15 @@
    if it is not supported. */
 /* #undef inline */
 
+/* Define to rpl_mkstemp if the replacement function should be used. */
+/* #undef mkstemp */
+
 /* Define to `long' if <sys/types.h> does not define. */
 /* #undef off_t */
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */
+
+/* Define to unsigned long or unsigned long long if <stdint.h> and
+   <inttypes.h> don't define. */
+/* #undef uintmax_t */

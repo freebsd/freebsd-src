@@ -1,7 +1,8 @@
 /* cmds.c -- Texinfo commands.
-   $Id: cmds.c,v 1.79 2002/03/28 16:35:29 karl Exp $
+   $Id: cmds.c,v 1.18 2003/04/21 01:02:39 karl Exp $
 
-   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
 #include "defun.h"
 #include "files.h"
 #include "footnote.h"
+#include "html.h"
 #include "insertion.h"
 #include "lang.h"
 #include "macro.h"
@@ -54,7 +56,8 @@ void
   cm_anchor (), cm_node (), cm_menu (), cm_xref (), cm_ftable (),
   cm_vtable (), cm_pxref (), cm_inforef (), cm_uref (), cm_email (),
   cm_quotation (), cm_display (), cm_smalldisplay (), cm_itemize (),
-  cm_enumerate (), cm_tab (), cm_table (), cm_itemx (), cm_noindent (),
+  cm_enumerate (), cm_tab (), cm_table (), cm_itemx (), 
+  cm_noindent (), cm_indent (),
   cm_setfilename (), cm_br (), cm_sp (), cm_page (), cm_group (),
   cm_center (), cm_ref (), cm_include (), cm_bye (), cm_item (), cm_end (),
   cm_kindex (), cm_cindex (), cm_findex (), cm_pindex (), cm_vindex (),
@@ -64,7 +67,8 @@ void
   cm_defcodeindex (), cm_result (), cm_expansion (), cm_equiv (),
   cm_print (), cm_error (), cm_point (), cm_today (), cm_flushleft (),
   cm_flushright (), cm_finalout (), cm_cartouche (), cm_detailmenu (),
-  cm_multitable (), cm_settitle (), cm_titlefont (), cm_tt (),
+  cm_multitable (), cm_settitle (), cm_titlefont (), cm_titlepage (), 
+  cm_tie (), cm_tt (),
   cm_verbatim (), cm_verbatiminclude ();
 
 /* Conditionals. */
@@ -72,7 +76,10 @@ void cm_set (), cm_clear (), cm_ifset (), cm_ifclear ();
 void cm_value (), cm_ifeq ();
 
 /* Options. */
-static void cm_paragraphindent (), cm_exampleindent ();
+static void 
+  cm_exampleindent (),
+  cm_firstparagraphindent (),
+  cm_paragraphindent ();
 
 /* Internals. */
 static void cm_obsolete ();
@@ -92,6 +99,7 @@ COMMAND command_table[] = {
   { ",", cm_accent_cedilla, MAYBE_BRACE_ARGS },
   { "-", cm_no_op, NO_BRACE_ARGS },
   { ".", insert_self, NO_BRACE_ARGS },
+  { "/", cm_no_op, NO_BRACE_ARGS },
   { ":", cm_no_op, NO_BRACE_ARGS },
   { "=", cm_accent, MAYBE_BRACE_ARGS },
   { "?", insert_self, NO_BRACE_ARGS },
@@ -217,6 +225,7 @@ COMMAND command_table[] = {
   { "file", cm_code, BRACE_ARGS },
   { "finalout", cm_no_op, NO_BRACE_ARGS },
   { "findex", cm_findex, NO_BRACE_ARGS },
+  { "firstparagraphindent", cm_firstparagraphindent, NO_BRACE_ARGS },
   { "flushleft", cm_flushleft, NO_BRACE_ARGS },
   { "flushright", cm_flushright, NO_BRACE_ARGS },
   { "footnote", cm_footnote, NO_BRACE_ARGS}, /* self-arg eater */
@@ -237,12 +246,15 @@ COMMAND command_table[] = {
   { "ifnotinfo", cm_ifnotinfo, NO_BRACE_ARGS },
   { "ifnotplaintext", cm_ifnotplaintext, NO_BRACE_ARGS },
   { "ifnottex", cm_ifnottex, NO_BRACE_ARGS },
+  { "ifnotxml", cm_ifnotxml, NO_BRACE_ARGS },
   { "ifplaintext", cm_ifplaintext, NO_BRACE_ARGS },
   { "ifset", cm_ifset, NO_BRACE_ARGS },
   { "iftex", cm_iftex, NO_BRACE_ARGS },
+  { "ifxml", cm_ifxml, NO_BRACE_ARGS },
   { "ignore", command_name_condition, NO_BRACE_ARGS },
   { "image", cm_image, BRACE_ARGS },
   { "include", cm_include, NO_BRACE_ARGS },
+  { "indent", cm_indent, NO_BRACE_ARGS },
   { "inforef", cm_inforef, BRACE_ARGS },
   { "insertcopying", cm_insert_copying, NO_BRACE_ARGS },
   { "item", cm_item, NO_BRACE_ARGS },
@@ -264,7 +276,7 @@ COMMAND command_table[] = {
   { "need", cm_ignore_line, NO_BRACE_ARGS },
   { "node", cm_node, NO_BRACE_ARGS },
   { "noindent", cm_noindent, NO_BRACE_ARGS },
-  { "noindent", cm_novalidate, NO_BRACE_ARGS },
+  { "novalidate", cm_novalidate, NO_BRACE_ARGS },
   { "nwnode", cm_node, NO_BRACE_ARGS },
   { "o", cm_special_char, BRACE_ARGS },
   { "oddfooting", cm_ignore_line, NO_BRACE_ARGS },
@@ -320,10 +332,11 @@ COMMAND command_table[] = {
   { "tab", cm_tab, NO_BRACE_ARGS },
   { "table", cm_table, NO_BRACE_ARGS },
   { "tex", cm_tex, NO_BRACE_ARGS },
+  { "tie", cm_tie, BRACE_ARGS },
   { "tieaccent", cm_accent, MAYBE_BRACE_ARGS },
   { "tindex", cm_tindex, NO_BRACE_ARGS },
   { "titlefont", cm_titlefont, BRACE_ARGS },
-  { "titlepage", command_name_condition, NO_BRACE_ARGS },
+  { "titlepage", cm_titlepage, NO_BRACE_ARGS },
   { "today", cm_today, BRACE_ARGS },
   { "top", cm_top, NO_BRACE_ARGS  },
   { "u", cm_accent, MAYBE_BRACE_ARGS },
@@ -345,6 +358,7 @@ COMMAND command_table[] = {
   { "vindex", cm_vindex, NO_BRACE_ARGS },
   { "vtable", cm_vtable, NO_BRACE_ARGS },
   { "w", cm_w, BRACE_ARGS },
+  { "xml", cm_html, NO_BRACE_ARGS },
   { "xref", cm_xref, BRACE_ARGS },
 
   /* Deprecated commands.  These used to be for italics.  */
@@ -387,9 +401,9 @@ insert_space (arg)
   if (arg == START)
     {
       if (xml && !docbook)
-	xml_insert_entity ("space");
+        xml_insert_entity ("space");
       else
-	add_char (' ');
+        add_char (' ');
     }
 }
 
@@ -418,11 +432,12 @@ cm_dots (arg)
   if (arg == START)
     {
       if (xml && !docbook)
-	xml_insert_entity ("dots");
+        xml_insert_entity ("dots");
       else if (docbook)
-	xml_insert_entity ("hellip");
+        xml_insert_entity ("hellip");
       else
-	add_word (html ? "<small>...</small>" : "...");
+        add_word (html && !in_fixed_width_font
+                  ? "<small class=\"dots\">...</small>" : "...");
     }
 }
 
@@ -441,7 +456,8 @@ cm_enddots (arg)
 	  add_char ('.');
 	}
       else
-	add_word (html ? "<small>...</small>." : "....");
+	add_word (html && !in_fixed_width_font 
+                  ? "<small class=\"enddots\">....</small>" : "....");
     }
 }
 
@@ -553,24 +569,24 @@ cm_code (arg)
     xml_insert_element (CODE, arg);
   else
     {
-  extern int printing_index;
+      extern int printing_index;
 
-  if (arg == START)
-    {
-      in_fixed_width_font++;
+      if (arg == START)
+        {
+          in_fixed_width_font++;
 
-      if (html)
+          if (html)
+            insert_html_tag (arg, "code");
+          else if (!printing_index)
+            add_char ('`');
+        }
+      else if (html)
         insert_html_tag (arg, "code");
-      else if (!printing_index)
-        add_char ('`');
-    }
-  else if (html)
-    insert_html_tag (arg, "code");
-  else
-    {
-      if (!printing_index)
-        add_meta_char ('\'');
-    }
+      else
+        {
+          if (!printing_index)
+            add_meta_char ('\'');
+        }
     }
 }
 
@@ -604,9 +620,10 @@ cm_url (arg, start, end)
   else if (html)
     {
       if (arg == START)
-        add_word ("&lt;<code>");
-      else
-	add_word ("</code>&gt;");
+        add_word ("&lt;");
+      insert_html_tag (arg, "code");
+      if (arg != START)
+        add_word ("&gt;");
     }
   else
     if (arg == START)
@@ -748,7 +765,7 @@ cm_verb (arg)
   last_char_was_newline = 0;
 
   if (html)
-    add_word ("<pre>");
+    add_word ("<tt>");
 
   if (input_text_offset < input_text_length)
     {
@@ -770,18 +787,28 @@ cm_verb (arg)
       character = curchar ();
 
       if (character == '\n')
-        line_number++;
-      /*
-	Assume no newlines in END_VERBATIM
-      */
+        {
+          line_number++;
+          if (html)
+            add_word ("<br>\n");
+        }
+
+      else if (html && character == '<')
+        add_word ("&lt;");
+
+      else if (html && character == '&')
+        add_word ("&amp;");
+
       else if (character == delimiter)
-	{
+	{ /* Assume no newlines in END_VERBATIM. */
 	  seen_end = 1;
 	  input_text_offset++;
 	  break;
 	}
 
-      add_char (character);
+      else
+        add_char (character);
+
       input_text_offset++;
     }
 
@@ -798,8 +825,11 @@ cm_verb (arg)
     }
 
   if (html)
-    add_word ("</pre>");
+    add_word ("</tt>");
+
+  in_fixed_width_font--;
 }
+
 
 void
 cm_strong (arg, position)
@@ -872,25 +902,9 @@ cm_r (arg)
     xml_insert_element (R, arg);
   else
     {
-      extern int printing_index;
+      if (html)
+	insert_html_tag (arg, "");
 
-      /* People use @r{} in index entries like this:
-	 
-      @findex foo@r{, some text}
-      
-      This is supposed to produce output as if the entry were saying
-      "@code{foo}, some text", since the "fn" index is typeset as
-      @code.  The following attempts to do the same in HTML.  Note that
-      this relies on the fact that only @code bumps up the variable
-      in_fixed_width_font while processing index entries in HTML mode.  */
-      if (html && printing_index)
-	{
-	  int level = in_fixed_width_font;
-	  
-	  while (level--)
-	    insert_html_tag (arg == START ? END : START, "code");
-	}
-      
       not_fixed_width (arg);
     }
 }
@@ -902,7 +916,27 @@ cm_titlefont (arg)
   if (xml)
     xml_insert_element (TITLEFONT, arg);
   else
-  not_fixed_width (arg);
+   {
+     not_fixed_width (arg);
+     if (html)
+	{
+	  html_title_written = 1; /* suppress title from @settitle */
+	  if (arg == START)
+	    add_word ("<h1 class=\"titlefont\">");
+	  else
+	    add_word ("</h1>\n");
+	}
+   }
+}
+
+int titlepage_cmd_present = 0;
+
+void
+cm_titlepage (arg)
+     int arg;
+{
+  titlepage_cmd_present = 1;
+  command_name_condition ();
 }
 
 /* Various commands are no-op's. */
@@ -932,6 +966,22 @@ cm_w (arg, start, end)
 }
 
 
+/* An unbreakable word space.  Same as @w{ } for makeinfo, but different
+   for TeX (the space stretches and stretches, and does not inhibit
+   hyphenation).  */
+void
+cm_tie (arg)
+    int arg;
+{
+  if (arg == START)
+    {
+      cm_w (START);
+      add_char (' ');
+    }
+  else
+    cm_w (END);
+}
+
 /* Explain that this command is obsolete, thus the user shouldn't
    do anything with it. */
 static void
@@ -943,8 +993,8 @@ cm_obsolete (arg, start, end)
 }
 
 
-/* This says to inhibit the indentation of the next paragraph, but
-   not of following paragraphs.  */
+/* Inhibit the indentation of the next paragraph, but not of following
+   paragraphs.  */
 void
 cm_noindent ()
 {
@@ -952,10 +1002,17 @@ cm_noindent ()
     inhibit_paragraph_indentation = -1;
 }
 
+/* Force indentation of the next paragraph. */
+void
+cm_indent ()
+{
+  inhibit_paragraph_indentation = 0;
+}
+
 /* I don't know exactly what to do with this.  Should I allow
    someone to switch filenames in the middle of output?  Since the
    file could be partially written, this doesn't seem to make sense.
-   Another option: ignore it, since they don't *really* want to
+   Another option: ignore it, since they don't really want to
    switch files.  Finally, complain, or at least warn.  It doesn't
    really matter, anyway, since this doesn't get executed.  */
 void
@@ -976,9 +1033,16 @@ cm_settitle ()
     {
       xml_begin_document (current_output_filename);
       xml_insert_element (SETTITLE, START);
+      xml_in_book_title = 1;
       get_rest_of_line (0, &title);
       execute_string ("%s", title);
+      xml_in_book_title = 0;
       xml_insert_element (SETTITLE, END);
+      if (docbook && !xml_in_bookinfo)
+	{
+	  xml_insert_element (BOOKINFO, START);
+	  xml_in_bookinfo = 1;
+	}
     }
   else
     get_rest_of_line (0, &title);
@@ -1115,7 +1179,7 @@ cm_center ()
   execute_string ("%s", (char *)line);
   free (line);
   uninhibit_output_flushing ();
-   if (html)
+  if (html)
     add_word ("</div>");
 
    else
@@ -1214,7 +1278,7 @@ cm_exdent ()
   int save_indent = current_indent;
   int save_in_fixed_width_font = in_fixed_width_font;
 
-  /* Read argument  */
+  /* Read argument.  */
   get_rest_of_line (0, &line);
 
   /* Exdent the output.  Actually this may be a no-op.   */
@@ -1242,6 +1306,7 @@ cm_exdent ()
 
   current_indent = save_indent;
   in_fixed_width_font = save_in_fixed_width_font;
+  start_paragraph ();
 }
 
 /* 
@@ -1253,13 +1318,17 @@ static void
 handle_include (verbatim_include)
   int verbatim_include;
 {
-  char *filename;
+  char *arg, *filename;
 
   if (macro_expansion_output_stream && !executing_string)
     me_append_before_this_command ();
 
   close_paragraph ();
-  get_rest_of_line (0, &filename);
+  get_rest_of_line (0, &arg);
+  /* We really only want to expand @value, but it's easier to just do
+     everything.  TeX will only work with @value.  */
+  filename = text_expansion (arg);
+  free (arg);
 
   if (macro_expansion_output_stream && !executing_string)
     remember_itext (input_text, input_text_offset);
@@ -1283,8 +1352,6 @@ handle_include (verbatim_include)
 
   if (!find_and_load (filename))
     {
-      extern int errno;
-
       popfile ();
       line_number--;
 
@@ -1350,6 +1417,7 @@ cm_paragraphindent ()
   free (arg);
 }
 
+
 /* @exampleindent: change indentation of example-like environments.   */
 static int
 set_default_indentation_increment (string)
@@ -1371,6 +1439,34 @@ cm_exampleindent ()
   
   get_rest_of_line (1, &arg);
   if (set_default_indentation_increment (arg) != 0)
+    line_error (_("Bad argument to %c%s"), COMMAND_PREFIX, command);
+
+  free (arg);
+}
+
+
+/* @firstparagraphindent: suppress indentation in first paragraphs after
+   headings. */
+static int
+set_firstparagraphindent (string)
+     char *string;
+{
+  if (STREQ (string, "insert") || STREQ (string, _("insert")))
+    do_first_par_indent = 1;
+  else if (STREQ (string, "none") || STREQ (string, _("none")))
+    do_first_par_indent = 0;
+  else
+    return -1;
+  return 0;
+}
+
+static void
+cm_firstparagraphindent ()
+{
+  char *arg;
+
+  get_rest_of_line (1, &arg);
+  if (set_firstparagraphindent (arg) != 0)
     line_error (_("Bad argument to %c%s"), COMMAND_PREFIX, command);
 
   free (arg);

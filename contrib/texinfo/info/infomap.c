@@ -1,8 +1,8 @@
-/* $FreeBSD$ */
 /* infomap.c -- keymaps for Info.
-   $Id: infomap.c,v 1.28 2002/02/08 23:02:53 karl Exp $
+   $Id: infomap.c,v 1.7 2003/05/13 16:27:04 karl Exp $
 
-   Copyright (C) 1993, 97, 98, 99, 2001, 02 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,47 +59,154 @@ keymap_make_keymap ()
   return (keymap);
 }
 
+#if defined(INFOKEY)
+static FUNCTION_KEYSEQ *
+find_function_keyseq (map, c, rootmap)
+  Keymap map;
+  int c;
+  Keymap rootmap;
+{
+  FUNCTION_KEYSEQ *k;
+
+  if (map[c].type != ISFUNC)
+    abort();
+  if (map[c].function == NULL)
+    return NULL;
+  for (k = map[c].function->keys; k; k = k->next)
+    {
+      const unsigned char *p;
+      Keymap m = rootmap;
+      if (k->map != rootmap)
+	continue;
+      for (p = k->keyseq; *p && m[*p].type == ISKMAP; p++)
+	m = (Keymap)m[*p].function;
+      if (*p != c || p[1])
+	continue;
+      if (m[*p].type != ISFUNC)
+	abort ();
+      break;
+    }
+  return k;
+}
+
+static void
+add_function_keyseq (function, keyseq, rootmap)
+  InfoCommand *function;
+  const unsigned char *keyseq;
+  Keymap rootmap;
+{
+  FUNCTION_KEYSEQ *ks;
+
+  if (function == NULL ||
+      function == InfoCmd(info_do_lowercase_version) ||
+      function == InfoCmd(ea_insert))
+    return;
+  ks = (FUNCTION_KEYSEQ *)xmalloc (sizeof(FUNCTION_KEYSEQ));
+  ks->next = function->keys;
+  ks->map = rootmap;
+  ks->keyseq = xstrdup(keyseq);
+  function->keys = ks;
+}
+
+static void
+remove_function_keyseq (function, keyseq, rootmap)
+  InfoCommand *function;
+  const unsigned char *keyseq;
+  Keymap rootmap;
+{
+
+  FUNCTION_KEYSEQ *k, *kp;
+
+  if (function == NULL ||
+      function == InfoCmd(info_do_lowercase_version) ||
+      function == InfoCmd(ea_insert))
+    return;
+  for (kp = NULL, k = function->keys; k; kp = k, k = k->next)
+    if (k->map == rootmap && strcmp(k->keyseq, keyseq) == 0)
+      break;
+  if (!k)
+    abort ();
+  if (kp)
+    kp->next = k->next;
+  else
+    function->keys = k->next;
+}
+#endif /* INFOKEY */
+
 /* Return a new keymap which is a copy of MAP. */
 Keymap
-keymap_copy_keymap (map)
-     Keymap map;
+keymap_copy_keymap (map, rootmap, newroot)
+  Keymap map;
+  Keymap rootmap;
+  Keymap newroot;
 {
   int i;
   Keymap keymap;
+#if defined(INFOKEY)
+  FUNCTION_KEYSEQ *ks;
+#endif /* INFOKEY */
 
   keymap = keymap_make_keymap ();
+  if (!newroot)
+    newroot = keymap;
 
   for (i = 0; i < 256; i++)
     {
       keymap[i].type = map[i].type;
-      keymap[i].function = map[i].function;
+      switch (map[i].type)
+	{
+	case ISFUNC:
+	  keymap[i].function = map[i].function;
+#if defined(INFOKEY)
+	  ks = find_function_keyseq (map, i, rootmap, NULL);
+	  if (ks)
+	    add_function_keyseq(map[i].function, ks->keyseq, newroot);
+#endif /* INFOKEY */
+	  break;
+	case ISKMAP:
+	  keymap[i].function = (InfoCommand *)keymap_copy_keymap (
+	      (Keymap)map[i].function, rootmap);
+	  break;
+	}
     }
   return (keymap);
 }
 
 /* Free the keymap and its descendants. */
 void
-keymap_discard_keymap (map)
-     Keymap (map);
+keymap_discard_keymap (map, rootmap)
+  Keymap map;
+  Keymap rootmap;
 {
   int i;
 
   if (!map)
     return;
+  if (!rootmap)
+    rootmap = map;
 
   for (i = 0; i < 256; i++)
     {
+#if defined(INFOKEY)
+      FUNCTION_KEYSEQ *ks;
+#endif /* INFOKEY */
       switch (map[i].type)
         {
         case ISFUNC:
+#if defined(INFOKEY)
+	  ks = find_function_keyseq(map, i, rootmap);
+	  if (ks)
+	    remove_function_keyseq (map[i].function, ks->keyseq, rootmap);
+#endif /* INFOKEY */
           break;
 
         case ISKMAP:
-          keymap_discard_keymap ((Keymap)map[i].function);
+          keymap_discard_keymap ((Keymap)map[i].function, rootmap);
           break;
 
         }
     }
+  free(map);
 }
 
 /* Conditionally bind key sequence. */
@@ -117,27 +224,45 @@ keymap_bind_keyseq (map, keyseq, keyentry)
 
   while ((c = *s++) != '\0')
     {
+#if defined(INFOKEY)
+      FUNCTION_KEYSEQ *ks;
+#endif /* INFOKEY */
       switch (m[c].type)
         {
         case ISFUNC:
+#if defined(INFOKEY)
+	  ks = find_function_keyseq(m, c, map);
+	  if (ks)
+	    remove_function_keyseq (m[c].function, ks->keyseq, map);
+#else /* !INFOKEY */
           if (!(m[c].function == NULL || (
-#if !defined(INFOKEY)
                 m != map &&
-#endif /* !INFOKEY */
                 m[c].function == InfoCmd(info_do_lowercase_version))
 	      ))
             return 0;
+#endif /* !INFOKEY */
 
           if (*s != '\0')
             {
               m[c].type = ISKMAP;
+              /* Here we are casting the Keymap pointer returned from
+                 keymap_make_keymap to an InfoCommand pointer.  Ugh.
+                 This makes the `function' structure garbage
+                 if it's actually interpreted as an InfoCommand.
+                 Should really be using a union, and taking steps to
+                 avoid the possible error.  */
               m[c].function = (InfoCommand *)keymap_make_keymap ();
             }
           break;
 
         case ISKMAP:
+#if defined(INFOKEY)
+	  if (*s == '\0')
+	    keymap_discard_keymap ((Keymap)m[c].function, map);
+#else /* !INFOKEY */
           if (*s == '\0')
             return 0;
+#endif
           break;
         }
       if (*s != '\0')
@@ -147,18 +272,7 @@ keymap_bind_keyseq (map, keyseq, keyentry)
       else
         {
 #if defined(INFOKEY)
-	  FUNCTION_KEYSEQ *k;
-
-	  for (k = keyentry->function->keys; k && k->map != map; k = k->next)
-	    ;
-	  if (!k)
-	    {
-	      FUNCTION_KEYSEQ *ks = (FUNCTION_KEYSEQ *)xmalloc (sizeof(FUNCTION_KEYSEQ));
-	      ks->next = keyentry->function->keys;
-	      ks->map = map;
-	      ks->keyseq = xstrdup (keyseq);
-	      keyentry->function->keys = ks;
-	    }
+	  add_function_keyseq (keyentry->function, keyseq, map);
 #endif /* INFOKEY */
           m[c] = *keyentry;
         }
@@ -506,8 +620,8 @@ initialize_vi_like_keymaps ()
   map['b'].function = ea_backward_word;
   map['d'].function = ea_kill_word;
   map['f'].function = ea_forward_word;
-  map['h'].function = ea_forward;
-  map['l'].function = ea_backward;
+  map['h'].function = ea_backward;
+  map['l'].function = ea_forward;
   map['w'].function = ea_forward_word;
   map['x'].function = ea_delete;
   map['X'].function = ea_kill_word;
@@ -1379,7 +1493,7 @@ fetch_user_maps()
 #endif
 	if (filename == NULL || (f = open(filename, O_RDONLY)) == (-1))
 	{
-		if (filename)
+		if (filename && errno != ENOENT)
 		{
 			info_error(filesys_error_string(filename, errno));
 			free(filename);
@@ -1553,7 +1667,6 @@ section_to_keymaps(map, table, len)
 	unsigned char *p;
 	unsigned char *seq;
 	unsigned int seqlen;
-	KEYMAP_ENTRY ke;
 	enum { getseq, gotseq, getaction } state = getseq;
 
 	stop = len > 0 ? table[0] : 0;
@@ -1666,7 +1779,6 @@ initialize_info_keymaps ()
   int i;
   int suppress_info_default_bindings = 0;
   int suppress_ea_default_bindings = 0;
-  Keymap map;
 
   if (!info_keymap)
     {
@@ -1722,3 +1834,4 @@ initialize_info_keymaps ()
 }
 
 #endif /* defined(INFOKEY) */
+/* vim: set sw=2 cino={1s>2sn-s^-se-s: */

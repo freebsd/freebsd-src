@@ -1,3 +1,12 @@
+$Id: README,v 1.3 2002/12/05 21:42:23 karl Exp $
+texinfo/doc/README
+
+  Copyright (C) 2002 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
 This directory contains documentation on the Texinfo system and the TeX
 sources needed to process Texinfo sources.  We recommend using the
 texi2dvi included in this distribution to run a Texinfo manual through
@@ -23,7 +32,7 @@ ones, you very likely have to update your ls-R file; do this with the
 mktexlsr command.  In older versions, this was named MakeTeXls-R.
 
 You can get the latest texinfo.tex from
-ftp://ftp.gnu.org/gnu/texinfo.tex (and all GNU mirrors)
+ftp://ftp.gnu.org/gnu/texinfo/texinfo.tex (and all GNU mirrors)
 ftp://tug.org/tex/texinfo.tex (and all CTAN mirrors)
 or on the FSF machines in /home/gd/gnu/doc/texinfo.tex.
 If you have problems with the version in this distribution, please check

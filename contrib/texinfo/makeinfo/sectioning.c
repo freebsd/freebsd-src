@@ -1,7 +1,7 @@
-/* sectioning.c -- all related stuff @chapter, @section... @contents
-   $Id: sectioning.c,v 1.17 2002/02/09 00:54:51 karl Exp $
+/* sectioning.c -- for @chapter, @section, ..., @contents ...
+   $Id: sectioning.c,v 1.10 2003/05/13 16:37:54 karl Exp $
 
-   Copyright (C) 1999, 2001, 02 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-   Written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
+   Originally written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
 
 #include "system.h"
 #include "cmds.h"
@@ -52,7 +52,7 @@ section_alist_type section_alist[] = {
   { "heading",             3, ENUM_SECT_NO,  TOC_NO },
   { "chapheading",         2, ENUM_SECT_NO,  TOC_NO },
   { "majorheading",        2, ENUM_SECT_NO,  TOC_NO },
-  
+
   { "top",                 1, ENUM_SECT_NO,  TOC_YES },
   { NULL,                  0, 0, 0 }
 };
@@ -103,10 +103,10 @@ get_sectioning_number (level, num)
     {
       p = s + strlen (s);
       if ((i == 0) && (enum_marker == APPENDIX_MAGIC))
-	sprintf (p, "%c.", numbers[i] + 64); /* Should be changed to
+        sprintf (p, "%c.", numbers[i] + 64); /* Should be changed to
                                                 be more portable */
       else
-	sprintf (p, "%d.", numbers[i]);
+        sprintf (p, "%d.", numbers[i]);
     }
 
   /* the last number is never followed by a dot */
@@ -151,7 +151,7 @@ search_sectioning (text)
   /* ignore the optional command prefix */
   if (text[0] == COMMAND_PREFIX)
     text++;
-  
+
   for (i = 0; (t = section_alist[i].name); i++)
     {
       if (strcmp (t, text) == 0)
@@ -161,7 +161,7 @@ search_sectioning (text)
     }
   return -1;
 }
-    
+
 /* Return an integer which identifies the type section present in TEXT. */
 int
 what_section (text)
@@ -203,7 +203,7 @@ what_section (text)
     {
       return_val = section_alist[index].level + section_alist_offset;
       if (return_val < 0)
-	return_val = 0;
+        return_val = 0;
       else if (return_val > 5)
           return_val = 5;
       return return_val;
@@ -215,6 +215,11 @@ void
 sectioning_underscore (cmd)
      char *cmd;
 {
+  /* If we're not indenting the first paragraph, we shall make it behave
+     like @noindent is called directly after the section heading. */
+  if (! do_first_par_indent)
+    cm_noindent ();
+
   if (xml)
     {
       char *temp;
@@ -227,11 +232,11 @@ sectioning_underscore (cmd)
       free (temp);
       xml_close_sections (level);
       /* Mark the beginning of the section
-	 If the next command is printindex, we will remove
-	 the section and put an Index instead */
+         If the next command is printindex, we will remove
+         the section and put an Index instead */
       flush_output ();
       xml_last_section_output_position = output_paragraph_offset;
-      
+
       xml_insert_element (xml_element (cmd), START);
       xml_insert_element (TITLE, START);
       xml_open_section (level, cmd);
@@ -239,8 +244,8 @@ sectioning_underscore (cmd)
       execute_string ("%s\n", temp);
       free (temp);
       xml_insert_element (TITLE, END);
-    } 
-  else 
+    }
+  else
     {
   char character;
   char *temp;
@@ -262,7 +267,7 @@ sectioning_underscore (cmd)
     {
       character = scoring_characters[level];
       insert_and_underscore (level, character, cmd);
-	}
+        }
     }
 }
 
@@ -279,44 +284,44 @@ handle_enum_increment (level, index)
   if (number_sections && section_alist[index].num == ENUM_SECT_NO)
     {
       if (level == 0
-	  && enum_marker != UNNUMBERED_MAGIC)
-	enum_marker = UNNUMBERED_MAGIC;
+          && enum_marker != UNNUMBERED_MAGIC)
+        enum_marker = UNNUMBERED_MAGIC;
     }
   /* enumerate only things which are allowed */
   if (number_sections && section_alist[index].num)
     {
       /* reset the marker if we get into enumerated areas */
       if (section_alist[index].num == ENUM_SECT_YES
-	  && level == 0
-	  && enum_marker == UNNUMBERED_MAGIC)
-	enum_marker = 0;
+          && level == 0
+          && enum_marker == UNNUMBERED_MAGIC)
+        enum_marker = 0;
       /* This is special for appendix; if we got the first
          time an appendix command then we are entering appendix.
          Thats the point we have to start countint with A, B and so on. */
       if (section_alist[index].num == ENUM_SECT_APP
-	  && level == 0
-	  && enum_marker != APPENDIX_MAGIC)
-	{
-	  enum_marker = APPENDIX_MAGIC;
-	  numbers [0] = 0; /* this means we start with Appendix A */
-	}
-  
+          && level == 0
+          && enum_marker != APPENDIX_MAGIC)
+        {
+          enum_marker = APPENDIX_MAGIC;
+          numbers [0] = 0; /* this means we start with Appendix A */
+        }
+
       /* only increment counters if we are not in unnumbered
          area. This handles situations like this:
          @unnumbered ....   This sets enum_marker to UNNUMBERED_MAGIC
          @section ....   */
       if (enum_marker != UNNUMBERED_MAGIC)
-	{
-	  int i;
+        {
+          int i;
 
-	  /* reset all counters which are one level deeper */
-	  for (i = level; i < 3; i++)
-	    numbers [i + 1] = 0;
-  
-	  numbers[level]++;
-	  return xstrdup
-	    (get_sectioning_number (level, section_alist[index].num));
-	}
+          /* reset all counters which are one level deeper */
+          for (i = level; i < 3; i++)
+            numbers [i + 1] = 0;
+
+          numbers[level]++;
+          return xstrdup
+            (get_sectioning_number (level, section_alist[index].num));
+        }
     } /* if (number_sections)... */
 
   return xstrdup ("");
@@ -397,6 +402,7 @@ insert_and_underscore (level, with_char, cmd)
 /* Insert the text following input_text_offset up to the end of the
    line as an HTML heading element of the appropriate `level' and
    tagged as an anchor for the current node.. */
+
 void
 sectioning_html (level, cmd)
      int level;
@@ -413,7 +419,10 @@ sectioning_html (level, cmd)
   old_no_indent = no_indent;
   no_indent = 1;
 
-  add_word_args ("<h%d>", level + 2); /* level 0 (chapter) is <h2> */
+  /* level 0 (chapter) is <h2>, everything else is <h3>.  We don't want
+     to go lower than that because browsers then start rendering the
+     headings smaller than the text.  */
+  add_word_args ("<h%d class=\"%s\">", MIN (3, level + 2), cmd);
 
   /* If we are outside of any node, produce an anchor that
      the TOC could refer to.  */
@@ -426,8 +435,11 @@ sectioning_html (level, cmd)
       toc_anchor = substring (starting_pos + sizeof (a_name) - 1,
                               output_paragraph + output_paragraph_offset);
       /* This must be added after toc_anchor is extracted, since
-	 toc_anchor cannot include the closing </a>.  For details,
-	 see toc.c:toc_add_entry and toc.c:contents_update_html.  */
+         toc_anchor cannot include the closing </a>.  For details,
+         see toc.c:toc_add_entry and toc.c:contents_update_html.
+
+         Also, the anchor close must be output before the section name
+         in case the name itself contains an anchor. */
       add_word ("</a>");
     }
   starting_pos = output_paragraph + output_paragraph_offset;
@@ -523,7 +535,7 @@ cm_top ()
           if (tag->flags & TAG_FLAG_IS_TOP)
             {
               file_line_error (tag->filename, tag->line_no,
-			       _("Here is the %ctop node"), COMMAND_PREFIX);
+                               _("Here is the %ctop node"), COMMAND_PREFIX);
               return;
             }
           tag = tag->next_ent;
@@ -531,7 +543,6 @@ cm_top ()
     }
   else
     {
-      TAG_ENTRY *top_node = find_node ("Top");
       top_node_seen = 1;
 
       /* It is an error to use @top before using @node. */

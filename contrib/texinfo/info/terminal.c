@@ -1,9 +1,8 @@
-/* $FreeBSD$ */
-/* terminal.c -- How to handle the physical terminal for Info.
-   $Id: terminal.c,v 1.23 2001/11/16 23:16:04 karl Exp $
+/* terminal.c -- how to handle the physical terminal for Info.
+   $Id: terminal.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 97, 98, 99, 2001
-   Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1996, 1997, 1998,
+   1999, 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /* index.c -- indexing for Texinfo.
-   $Id: index.c,v 1.25 2002/03/19 14:43:04 karl Exp $
+   $Id: index.c,v 1.8 2003/05/16 23:52:40 karl Exp $
 
-   Copyright (C) 1998, 99, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -334,7 +334,6 @@ init_indices ()
   /* If there were existing indices, get rid of them now. */
   for (i = 0; i < defined_indices; i++)
     {
-      undefindex (name_index_alist[i]->name);
       if (name_index_alist[i])
         { /* Suppose we're called with two input files, and the first
              does a @synindex pg cp.  Then, when we get here to start
@@ -342,9 +341,15 @@ init_indices ()
              undefindex (because it's pointing to "cp").  So free it
              here; otherwise, when we try to define the pg index again
              just below, it will still point to cp.  */
-          free (name_index_alist[i]->name);
-          free (name_index_alist[i]);
-          name_index_alist[i] = NULL;
+          undefindex (name_index_alist[i]->name);
+
+          /* undefindex sets all this to null in some cases.  */
+          if (name_index_alist[i])
+            {
+              free (name_index_alist[i]->name);
+              free (name_index_alist[i]);
+              name_index_alist[i] = NULL;
+            }
         }
     }
 
@@ -551,16 +556,16 @@ make_index_entries_unique (array, count)
   free (copy);
 }
 
-/* Sort the index passed in INDEX, returning an array of
-   pointers to elements.  The array is terminated with a NULL
-   pointer.  We call qsort because it's supposed to be fast.
-   I think this looks bad. */
+
+/* Sort the index passed in INDEX, returning an array of pointers to
+   elements.  The array is terminated with a NULL pointer.  */
+
 INDEX_ELT **
 sort_index (index)
      INDEX_ELT *index;
 {
   INDEX_ELT **array;
-  INDEX_ELT *temp = index;
+  INDEX_ELT *temp;
   int count = 0;
   int save_line_number = line_number;
   char *save_input_filename = input_filename;
@@ -573,35 +578,36 @@ sort_index (index)
      characters @AE{} etc., to sort incorrectly.  */
   html = 0;
 
-  while (temp)
-    {
-      count++;
-      temp = temp->next;
-    }
-
-  /* We have the length.  Make an array. */
-
+  for (temp = index, count = 0; temp; temp = temp->next, count++)
+    ;
+  /* We have the length, now we can allocate an array. */
   array = xmalloc ((count + 1) * sizeof (INDEX_ELT *));
-  count = 0;
-  temp = index;
 
-  while (temp)
+  for (temp = index, count = 0; temp; temp = temp->next, count++)
     {
-      array[count++] = temp;
+      /* Allocate new memory for the return array, since parts of the
+         original INDEX get freed.  Otherwise, if the document calls
+         @printindex twice on the same index, with duplicate entries,
+         we'll have garbage the second time.  There are cleaner ways to
+         deal, but this will suffice for now.  */
+      array[count] = xmalloc (sizeof (INDEX_ELT));
+      *(array[count]) = *(temp);  /* struct assignment, hope it's ok */
+
+      /* Adjust next pointers to use the new memory.  */
+      if (count > 0)
+        array[count-1]->next = array[count];
 
       /* Set line number and input filename to the source line for this
          index entry, as this expansion finds any errors.  */
-      line_number = array[count - 1]->defining_line;
-      input_filename = array[count - 1]->defining_file;
+      line_number = array[count]->defining_line;
+      input_filename = array[count]->defining_file;
 
       /* If this particular entry should be printed as a "code" index,
-         then expand it as @code{entry}, i.e. as in fixed-width font.  */
-      array[count-1]->entry = expansion (temp->entry_text,
-				         array[count-1]->code);
-
-      temp = temp->next;
+         then expand it as @code{entry}, i.e., as in fixed-width font.  */
+      array[count]->entry = expansion (temp->entry_text, array[count]->code);
     }
   array[count] = NULL;    /* terminate the array. */
+
   line_number = save_line_number;
   input_filename = save_input_filename;
   html = save_html;
@@ -619,11 +625,19 @@ sort_index (index)
       if (lang_env && !STREQ (lang_env, "C") && !STREQ (lang_env, "POSIX"))
         index_compare_fn = strcoll;
     }
-#endif /* HAVE_STRCOLL */    
+#endif /* HAVE_STRCOLL */
 
   /* Sort the array. */
   qsort (array, count, sizeof (INDEX_ELT *), index_element_compare);
+
+  /* Remove duplicate entries.  */
   make_index_entries_unique (array, count);
+
+  /* Replace the original index with the sorted one, in case the
+     document wants to print it again.  If the index wasn't empty.  */
+  if (index)
+    *index = **array;
+
   return array;
 }
 
@@ -662,18 +676,18 @@ cm_printindex ()
 
       index = index_list (index_name);
       if (index == (INDEX_ELT *)-1)
-	{
-	  line_error (_("Unknown index `%s' in @printindex"), index_name);
-	  free (index_name);
-	  return;
-	}
-      
+        {
+          line_error (_("Unknown index `%s' in @printindex"), index_name);
+          free (index_name);
+          return;
+        }
+
       /* Do this before sorting, so execute_string is in the good environment */
       if (xml && docbook)
-	xml_begin_index ();
-      
+        xml_begin_index ();
+
       /* Do this before sorting, so execute_string in index_element_compare
-	 will give the same results as when we actually print.  */
+         will give the same results as when we actually print.  */
       printing_index = 1;
       filling_enabled = 0;
       inhibit_paragraph_indentation = 1;
@@ -682,178 +696,183 @@ cm_printindex ()
       xml_sort_index = 0;
       close_paragraph ();
       if (html)
-	add_word ("<ul compact>");
+        add_word_args ("<ul class=\"index-%s\" compact>", index_name);
       else if (!no_headers && !docbook)
-	add_word ("* Menu:\n\n");
-      
+        add_word ("* Menu:\n\n");
+
       me_inhibit_expansion++;
-      
+
       /* This will probably be enough.  */
       line_length = 100;
       line = xmalloc (line_length);
-      
+
       for (item = 0; (index = array[item]); item++)
-	{
-	  /* A pathological document might have an index entry outside of any
-	     node.  Don't crash; try using the section name instead.  */
-	  char *index_node = index->node;
-	  
-	  line_number = index->defining_line;
-	  input_filename = index->defining_file;
-	  
-	  if ((!index_node || !*index_node) && html)
-	    index_node = toc_find_section_of_node (index_node);
-	  
-	  if (!index_node || !*index_node)
-	    {
-	      line_error (_("Entry for index `%s' outside of any node"),
-			  index_name);
-	      if (html || !no_headers)
-		index_node = _("(outside of any node)");
-	    }
-	  
-	  if (html)
-	    /* fixme: html: we should use specific index anchors pointing
+        {
+          /* A pathological document might have an index entry outside of any
+             node.  Don't crash; try using the section name instead.  */
+          const char *index_node = index->node;
+
+          line_number = index->defining_line;
+          input_filename = index->defining_file;
+
+          if ((!index_node || !*index_node) && html)
+            index_node = toc_find_section_of_node (index_node);
+
+          if (!index_node || !*index_node)
+            {
+              line_error (_("Entry for index `%s' outside of any node"),
+                          index_name);
+              if (html || !no_headers)
+                index_node = _("(outside of any node)");
+            }
+
+          if (html)
+            /* fixme: html: we should use specific index anchors pointing
            to the actual location of the indexed position (but then we
            have to find something to wrap the anchor around). */
-	    {
-	      if (last_index
-		  && STREQ (last_index->entry_text, index->entry_text))
-		add_word (", ");  /* Don't repeat the previous entry. */
-	      else
-		{
-		  /* In the HTML case, the expanded index entry is not
-		     good for us, since it was expanded for non-HTML mode
-		     inside sort_index.  So we need to HTML-escape and
-		     expand the original entry text here.  */
-		  char *escaped_entry = xstrdup (index->entry_text);
-		  char *expanded_entry;
-		  
-		  /* expansion() doesn't HTML-escape the argument, so need
-		     to do it separately.  */
-		  escaped_entry = escape_string (escaped_entry);
-		  expanded_entry = expansion (escaped_entry, index->code);
-		  add_word_args ("\n<li>%s: ", expanded_entry);
-		  free (escaped_entry);
-		  free (expanded_entry);
-		}
-	      add_word ("<a href=\"");
-	      if (index->node && *index->node)
-		{
-		  /* Make sure any non-macros in the node name are expanded.  */
-		  in_fixed_width_font++;
-		  index_node = expansion (index_node, 0);
-		  in_fixed_width_font--;
-		  add_anchor_name (index_node, 1);
-		  add_word_args ("\">%s</a>", index_node);
-		  free (index_node);
-		}
-	      else if (STREQ (index_node, _("(outside of any node)")))
-		{
-		  add_anchor_name (index_node, 1);
-		  add_word_args ("\">%s</a>", index_node);
-		}
-	      else
-		/* If we use the section instead of the (missing) node, then
-		   index_node already includes all we need except the #.  */
-		add_word_args ("#%s</a>", index_node);
-	    }
-	  else if (xml && docbook)
-	    {
-	      xml_insert_indexentry (index->entry, index_node);
-	    }
-	  else
-	    {
-	      unsigned new_length = strlen (index->entry);
-	      
-	      if (new_length < 50) /* minimum length used below */
-		new_length = 50;
-	      new_length += strlen (index_node) + 7; /* * : .\n\0 */
-	      
-	      if (new_length > line_length)
-		{
-		  line_length = new_length;
-		  line = xrealloc (line, line_length);
-		}
-	      /* Print the entry, nicely formatted.  We've already
-		 expanded any commands in index->entry, including any
-		 implicit @code.  Thus, can't call execute_string, since
-		 @@ has turned into @. */
-	      if (!no_headers)
-		{
-		  sprintf (line, "* %-37s  ", index->entry);
-		  line[2 + strlen (index->entry)] = ':';
-		  insert_string (line);
-		  /* Make sure any non-macros in the node name are expanded.  */
-		  in_fixed_width_font++;
-		  execute_string ("%s.\n", index_node);
-		  in_fixed_width_font--;
-		}
-	      else
-		{
-		  /* With --no-headers, the @node lines are gone, so
-		     there's little sense in referring to them in the
-		     index.  Instead, output the number or name of the
-		     section that corresponds to that node.  */
-		  char *section_name = toc_find_section_of_node (index_node);
-		  
-		  sprintf (line, "%-*s ", number_sections ? 50 : 1, index->entry);
-		  line[strlen (index->entry)] = ':';
-		  insert_string (line);
-		  if (section_name)
-		    {
-		      int idx = 0;
-		      unsigned ref_len = strlen (section_name) + 30;
-		      
-		      if (ref_len > line_length)
-			{
-			  line_length = ref_len;
-			  line = xrealloc (line, line_length);
-			}
-		      
-		      if (number_sections)
-			{
-			  while (section_name[idx]
-				 && (isdigit (section_name[idx])
-				     || (idx && section_name[idx] == '.')))
-			    idx++;
-			}
-		      if (idx)
-			sprintf (line, " See %.*s.\n", idx, section_name);
-		      else
-			sprintf (line, "\n          See ``%s''.\n", section_name);
-		      insert_string (line);
-		    }
-		  else
-		    {
-		      insert_string (" "); /* force a blank */
-		      execute_string ("See node %s.\n", index_node);
-		    }
-		}
-	    }
-	  
-	  /* Prevent `output_paragraph' from growing to the size of the
-	     whole index.  */
-	  flush_output ();
-	  last_index = index;
-	}
+            {
+              if (last_index
+                  && STREQ (last_index->entry_text, index->entry_text))
+                add_word (", ");  /* Don't repeat the previous entry. */
+              else
+                {
+                  /* In the HTML case, the expanded index entry is not
+                     good for us, since it was expanded for non-HTML mode
+                     inside sort_index.  So we need to HTML-escape and
+                     expand the original entry text here.  */
+                  char *escaped_entry = xstrdup (index->entry_text);
+                  char *expanded_entry;
+
+                  /* expansion() doesn't HTML-escape the argument, so need
+                     to do it separately.  */
+                  escaped_entry = escape_string (escaped_entry);
+                  expanded_entry = expansion (escaped_entry, index->code);
+                  add_word_args ("\n<li>%s: ", expanded_entry);
+                  free (escaped_entry);
+                  free (expanded_entry);
+                }
+              add_word ("<a href=\"");
+              if (index->node && *index->node)
+                {
+                  /* Make sure any non-macros in the node name are expanded.  */
+                  char *expanded_index;
+
+                  in_fixed_width_font++;
+                  expanded_index = expansion (index_node, 0);
+                  in_fixed_width_font--;
+                  add_anchor_name (expanded_index, 1);
+                  add_word_args ("\">%s</a>", expanded_index);
+                  free (expanded_index);
+                }
+              else if (STREQ (index_node, _("(outside of any node)")))
+                {
+                  add_anchor_name (index_node, 1);
+                  add_word_args ("\">%s</a>", index_node);
+                }
+              else
+                /* If we use the section instead of the (missing) node, then
+                   index_node already includes all we need except the #.  */
+                add_word_args ("#%s</a>", index_node);
+            }
+          else if (xml && docbook)
+            {
+              /* In the DocBook case, the expanded index entry is not
+                 good for us, since it was expanded for non-DocBook mode
+                 inside sort_index.  So we send the original entry text
+                 to be used with execute_string.  */
+              xml_insert_indexentry (index->entry_text, index_node);
+            }
+          else
+            {
+              unsigned new_length = strlen (index->entry);
+
+              if (new_length < 50) /* minimum length used below */
+                new_length = 50;
+              new_length += strlen (index_node) + 7; /* * : .\n\0 */
+
+              if (new_length > line_length)
+                {
+                  line_length = new_length;
+                  line = xrealloc (line, line_length);
+                }
+              /* Print the entry, nicely formatted.  We've already
+                 expanded any commands in index->entry, including any
+                 implicit @code.  Thus, can't call execute_string, since
+                 @@ has turned into @. */
+              if (!no_headers)
+                {
+                  sprintf (line, "* %-37s  ", index->entry);
+                  line[2 + strlen (index->entry)] = ':';
+                  insert_string (line);
+                  /* Make sure any non-macros in the node name are expanded.  */
+                  in_fixed_width_font++;
+                  execute_string ("%s.\n", index_node);
+                  in_fixed_width_font--;
+                }
+              else
+                {
+                  /* With --no-headers, the @node lines are gone, so
+                     there's little sense in referring to them in the
+                     index.  Instead, output the number or name of the
+                     section that corresponds to that node.  */
+                  char *section_name = toc_find_section_of_node (index_node);
+
+                  sprintf (line, "%-*s ", number_sections ? 50 : 1, index->entry);
+                  line[strlen (index->entry)] = ':';
+                  insert_string (line);
+                  if (section_name)
+                    {
+                      int idx = 0;
+                      unsigned ref_len = strlen (section_name) + 30;
+
+                      if (ref_len > line_length)
+                        {
+                          line_length = ref_len;
+                          line = xrealloc (line, line_length);
+                        }
+
+                      if (number_sections)
+                        {
+                          while (section_name[idx]
+                                 && (isdigit (section_name[idx])
+                                     || (idx && section_name[idx] == '.')))
+                            idx++;
+                        }
+                      if (idx)
+                        sprintf (line, " See %.*s.\n", idx, section_name);
+                      else
+                        sprintf (line, "\n          See ``%s''.\n", section_name);
+                      insert_string (line);
+                    }
+                  else
+                    {
+                      insert_string (" "); /* force a blank */
+                      execute_string ("See node %s.\n", index_node);
+                    }
+                }
+            }
+
+          /* Prevent `output_paragraph' from growing to the size of the
+             whole index.  */
+          flush_output ();
+          last_index = index;
+        }
 
       free (line);
       free (index_name);
-      
+
       me_inhibit_expansion--;
-      
       printing_index = 0;
-      free (array);
+
       close_single_paragraph ();
       filling_enabled = saved_filling_enabled;
       inhibit_paragraph_indentation = saved_inhibit_paragraph_indentation;
       input_filename = saved_input_filename;
       line_number = saved_line_number;
-      
+
       if (html)
-	add_word ("</ul>");
+        add_word ("</ul>");
       else if (xml && docbook)
-	xml_end_index ();
+        xml_end_index ();
     }
 }

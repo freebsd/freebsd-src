@@ -1,5 +1,5 @@
 \input texinfo    @c -*-texinfo-*-
-@comment $Id: info-stnd.texi,v 1.43 2002/03/23 20:38:57 karl Exp $
+@comment $Id: info-stnd.texi,v 1.5 2003/02/19 13:32:54 karl Exp $
 @comment %**start of header
 @setfilename info-stnd.info
 @include version-stnd.texi
@@ -14,7 +14,7 @@ This manual is for GNU Info (version @value{VERSION}, @value{UPDATED}),
 a program for viewing documents in Info format (usually created from
 Texinfo source files).
 
-Copyright @copyright{} 1992, 93, 96, 97, 98, 99, 2001, 02
+Copyright @copyright{} 1992, 1993, 1996, 1997, 1998, 1999, 2001, 2002, 2003
 Free Software Foundation, Inc.
 
 @quotation
@@ -73,8 +73,7 @@ first, as it includes more background information and a thorough tutorial.
 * Printing Nodes::              How to print out the contents of a node.
 * Miscellaneous Commands::      A few commands that defy categories.
 * Variables::                   How to change the default behavior of Info.
-* Custom Key Bindings::         How to define your own key-to-command
-				  bindings.
+* Custom Key Bindings::         How to define your own key-to-command bindings.
 * Copying This Manual::         The GNU Free Documentation License.
 * Index::                       Global index containing keystrokes,
                                   command names, variable names,
@@ -465,7 +464,7 @@ commands detailed in this section are used to shift which part of the
 current node is visible on the screen.
 
 Scrolling commands are bound differently when @samp{--vi-keys} operation
-(@pxref{--vi-keys}) is in effect.  These key bindings are designated
+is in effect (@pxref{--vi-keys}).  These key bindings are designated
 with ``vi-like operation''.
 
 @table @asis
@@ -1048,7 +1047,7 @@ different node, perhaps in another Info file.  Such pointers are called
 * Selecting Xrefs::             Commands for selecting menu or note items.
 @end menu
 
-@node Parts of an Xref, Selecting Xrefs,  , Xref Commands
+@node Parts of an Xref
 @section Parts of an Xref
 
 Cross references have two major parts: the first part is called the
@@ -1096,7 +1095,7 @@ documentation:  @xref{xref, , Writing an Xref, texinfo, the Texinfo
 Manual}, for more information on creating your own texinfo cross
 references.
 
-@node Selecting Xrefs,  , Parts of an Xref, Xref Commands
+@node Selecting Xrefs
 @section Selecting Xrefs
 
 The following table lists the Info commands which operate on menu items.
@@ -1207,7 +1206,7 @@ windows.
 * The Echo Area::               Used for displaying errors and reading input.
 @end menu
 
-@node The Mode Line, Basic Windows,  , Window Commands
+@node The Mode Line
 @section The Mode Line
 
 A @dfn{mode line} is a line of inverse video which appears at the bottom
@@ -1257,7 +1256,7 @@ showing possible completions:
 -----Info: *Completions*, 7 lines --All---------------------------------
 @end example
 
-@node Basic Windows, The Echo Area, The Mode Line, Window Commands
+@node Basic Windows
 @section Window Commands
 
 It can be convenient to view more than one node at a time.  To allow
@@ -1332,7 +1331,7 @@ its contents.  The variable @code{automatic-tiling} can cause
 @xref{Variables, , @code{automatic-tiling}}.
 @end table
 
-@node The Echo Area,  , Basic Windows, Window Commands
+@node The Echo Area
 @section The Echo Area
 @cindex echo area
 
@@ -1465,9 +1464,9 @@ Transpose the characters at the cursor.
 The next group of commands deal with @dfn{killing}, and @dfn{yanking}
 text@footnote{
 Some people are used to calling these operations @dfn{cut} and
-@dfn{paste}, respectively.}.   For an in depth discussion of killing and
-yanking, @pxref{Killing, , Killing and Deleting, emacs, the GNU Emacs
-Manual}
+@dfn{paste}, respectively.}.   For an in-depth discussion of killing and
+yanking, see @ref{Killing, , Killing and Deleting, emacs, the GNU Emacs
+Manual}.
 
 @table @asis
 @item @key{M-d} (@code{echo-area-kill-word})
@@ -1809,15 +1808,16 @@ Here is a list of the variables that you can set in Info.
 @table @code
 @item automatic-footnotes
 @vindex automatic-footnotes
-When set to @code{On}, footnotes appear and disappear automatically.
-This variable is @code{On} by default.  When a node is selected, a
-window containing the footnotes which appear in that node is created,
-and the footnotes are displayed within the new window.  The window that
-Info creates to contain the footnotes is called @samp{*Footnotes*}.  If
-a node is selected which contains no footnotes, and a @samp{*Footnotes*}
-window is on the screen, the @samp{*Footnotes*} window is deleted.
-Footnote windows created in this fashion are not automatically tiled so
-that they can use as little of the display as is possible.
+When set to @code{On}, footnotes appear and disappear automatically;
+else, they appear at the bottom of the node text.  This variable is
+@code{Off} by default.  When a node is selected, a window containing
+the footnotes which appear in that node is created, and the footnotes
+are displayed within the new window.  The window that Info creates to
+contain the footnotes is called @samp{*Footnotes*}.  If a node is
+selected which contains no footnotes, and a @samp{*Footnotes*} window
+is on the screen, the @samp{*Footnotes*} window is deleted.  Footnote
+windows created in this fashion are not automatically tiled so that
+they can use as little of the display as is possible.
 
 @item automatic-tiling
 @vindex automatic-tiling

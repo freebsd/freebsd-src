@@ -1,7 +1,8 @@
 /* node.c -- nodes for Texinfo.
-   $Id: node.c,v 1.34 2002/03/26 16:16:29 karl Exp $
+   $Id: node.c,v 1.12 2003/05/01 00:30:07 karl Exp $
 
-   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -306,7 +307,12 @@ remember_node (node, prev, next, up, position, line_no, fname, flags)
         node_number++;
         new->number = node_number;
       }
-    new->html_fname = fname;
+    if (fname)
+      new->html_fname = fname;
+    else
+      /* This happens for Top node under split-HTML, for example.  */
+      new->html_fname
+	= normalize_filename (filename_part (current_output_filename));
     new->next_ent = tag_table;
     tag_table = new;
   }
@@ -478,7 +484,7 @@ set_current_output_filename (fname)
 /* The order is: nodename, nextnode, prevnode, upnode.
    If all of the NEXT, PREV, and UP fields are empty, they are defaulted.
    You must follow a node command which has those fields defaulted
-   with a sectioning command (e.g. @chapter) giving the "level" of that node.
+   with a sectioning command (e.g., @chapter) giving the "level" of that node.
    It is an error not to do so.
    The defaults come from the menu in this node's parent. */
 void
@@ -589,7 +595,7 @@ cm_node ()
   filling_enabled = indented_fill = 0;
   if (!html || (html && splitting))
     current_footnote_number = 1;
-  
+
   if (verbose_mode)
     printf (_("Formatting node %s...\n"), node);
 
@@ -603,7 +609,7 @@ cm_node ()
       xml_begin_node ();
       if (!docbook)
 	{
-	  xml_insert_element (NODENAME, START);      
+	  xml_insert_element (NODENAME, START);
 	  if (macro_expansion_output_stream && !executing_string)
 	    me_execute_string (node);
 	  else
@@ -652,7 +658,7 @@ cm_node ()
               }
 
           line_error
-            (_("Node `%s' requires a sectioning command (e.g. %c%s)"),
+            (_("Node `%s' requires a sectioning command (e.g., %c%s)"),
              node, COMMAND_PREFIX, polite_section_name);
         }
       else
@@ -914,10 +920,11 @@ cm_node ()
 	}
 
       if (splitting || !no_headers)
-        { /* Navigation bar.   The <p> avoids the links area running
-             on with old Lynxen.  */
+        { /* Navigation bar. */
+          add_word ("<div class=\"node\">\n");
+          /* The <p> avoids the links area running on with old Lynxen. */
           add_word_args ("<p>%s\n", splitting ? "" : "<hr>");
-          add_word_args ("%s<a name=\"", _("Node:"));
+          add_word_args ("%s%s<a name=\"", _("Node:"), "&nbsp;");
           tem = expand_node_name (node);
           add_anchor_name (tem, 0);
           add_word_args ("\">%s</a>", tem);
@@ -928,7 +935,8 @@ cm_node ()
               tem = expansion (next, 0);
 	      add_word (",\n");
 	      add_word (_("Next:"));
-	      add_word ("<a rel=next accesskey=n href=\"");
+              add_word ("&nbsp;");
+	      add_word ("<a rel=\"next\" accesskey=\"n\" href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -938,7 +946,8 @@ cm_node ()
               tem = expansion (prev, 0);
 	      add_word (",\n");
 	      add_word (_("Previous:"));
-	      add_word ("<a rel=previous accesskey=p href=\"");
+              add_word ("&nbsp;");
+	      add_word ("<a rel=\"previous\" accesskey=\"p\" href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -948,7 +957,8 @@ cm_node ()
               tem = expansion (up, 0);
 	      add_word (",\n");
 	      add_word (_("Up:"));
-	      add_word ("<a rel=up accesskey=u href=\"");
+              add_word ("&nbsp;");
+	      add_word ("<a rel=\"up\" accesskey=\"u\" href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -956,6 +966,7 @@ cm_node ()
           /* html fixxme: we want a `top' or `contents' link here.  */
 
           add_word_args ("\n%s<br>\n", splitting ? "<hr>" : "");
+      	  add_word ("</div>\n");
         }
     }
   else if (docbook)
@@ -971,7 +982,7 @@ cm_node ()
       if (prev)
 	{
 	  xml_insert_element (NODEPREV, START);
-	  execute_string ("%s", prev);	    
+	  execute_string ("%s", prev);
 	  xml_insert_element (NODEPREV, END);
 	}
       if (up)
@@ -1033,6 +1044,9 @@ cm_anchor (arg)
 
   /* Parse the anchor text.  */
   anchor = get_xref_token (1);
+
+  /* Force all versions of "top" to be "Top". */
+  normalize_node_name (anchor);
 
   /* In HTML mode, need to actually produce some output.  */
   if (html)
@@ -1274,7 +1288,7 @@ validate (tag, line, label)
   if (!result)
     {
       line_number = line;
-      line_error (_("%s reference to nonexistent node `%s'"), label, tag);
+      line_error (_("%s reference to nonexistent node `%s' (perhaps incorrect sectioning?)"), label, tag);
       return 0;
     }
   result->touched++;
@@ -1284,7 +1298,7 @@ validate (tag, line, label)
 /* The strings here are followed in the message by `reference to...' in
    the `validate' routine.  They are only used in messages, thus are
    translated.  */
-static char *
+static const char *
 reftype_type_string (type)
      enum reftype type;
 {
@@ -1377,7 +1391,7 @@ validate_file (tag_table)
                 }
               if (you_lose)
                 {
-                  line_error (_("Next field of node `%s' not pointed to"),
+                  line_error (_("Next field of node `%s' not pointed to (perhaps incorrect sectioning?)"),
                               tags->node);
                   file_line_error (temp_tag->filename, temp_tag->line_no,
 				   _("This node (%s) has the bad Prev"),
@@ -1451,7 +1465,7 @@ validate_file (tag_table)
       if (!tags->up
           && !(tags->flags & TAG_FLAG_ANCHOR)
           && strcasecmp (tags->node, "Top") != 0)
-        line_error (_("`%s' has no Up field"), tags->node);
+        line_error (_("`%s' has no Up field (perhaps incorrect sectioning?)"), tags->node);
       else if (tags->up)
         {
           int valid_p = validate (tags->up, tags->line_no, _("Up"));
@@ -1590,7 +1604,7 @@ last_node_p (tags)
         break;
       }
   }
-  
+
   return last;
 }
 
@@ -1620,8 +1634,8 @@ split_file (filename, size)
   if (size == 0)
     size = DEFAULT_SPLIT_SIZE;
 
-  if ((stat (filename, &fileinfo) != 0) ||
-      (((long) fileinfo.st_size) < SPLIT_SIZE_THRESHOLD))
+  if ((stat (filename, &fileinfo) != 0)
+      || (((long) fileinfo.st_size) < size))
     return;
   file_size = (long) fileinfo.st_size;
 
@@ -1647,6 +1661,10 @@ split_file (filename, size)
     int which_file = 1;
     TAG_ENTRY *tags = tag_table;
     char *indirect_info = NULL;
+
+    /* Maybe we want a Local Variables section.  */
+    char *trailer = info_trailer ();
+    int trailer_len = trailer ? strlen (trailer) : 0;
 
     /* Remember the `header' of this file.  The first tag in the file is
        the bottom of the header; the top of the file is the start. */
@@ -1769,7 +1787,9 @@ split_file (filename, size)
                       || write (fd, the_header, header_size) != header_size
                       || write (fd, the_file + file_top, file_bot - file_top)
                          != (file_bot - file_top)
-                      || (close (fd)) < 0)
+                      || (trailer_len
+                          && write (fd, trailer, trailer_len) != trailer_len)
+                      || close (fd) < 0)
                     {
                       perror (split_filename);
                       if (fd != -1)
@@ -1814,7 +1834,16 @@ split_file (filename, size)
       /* Inhibit newlines. */
       paragraph_is_open = 0;
 
+      /* Write the indirect tag table.  */
       write_tag_table_indirect ();
+
+      /* preserve local variables in info output.  */
+      if (trailer)
+        {
+          insert_string (trailer);
+          free (trailer);
+        }
+
       fclose (output_stream);
       free (the_header);
       free (the_file);

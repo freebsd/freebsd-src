@@ -1,4 +1,6 @@
+$FreeBSD$
 */ABOUT-NLS
+*/INSTALL.generic
 */Makefile.am
 */Makefile.in
 */acinclude.m4
@@ -24,10 +26,12 @@
 */lib/alloca.c
 */lib/memcpy.c
 */lib/memmove.c
+*/lib/mkstemp.c
 */lib/strcasecmp.c
 */lib/strdup.c
 */lib/strerror.c
 */lib/strncasecmp.c
+*/lib/tempname.c
 */m4/*
 */makeinfo/tests
 */missing
@@ -37,7 +41,9 @@
 */util/deref.c
 */util/fix*
 */util/gen-dir-node
+*/util/infosrch
 */util/install-info-html
 */util/tex3patch
 */util/texi-docstring-magic.el
 */util/texi2dvi
+*/util/txitextest

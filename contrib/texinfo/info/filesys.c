@@ -1,7 +1,8 @@
 /* filesys.c -- filesystem specific functions.
-   $Id: filesys.c,v 1.15 2002/03/23 20:45:24 karl Exp $
+   $Id: filesys.c,v 1.3 2003/01/31 19:18:11 karl Exp $
 
-   Copyright (C) 1993, 97, 98, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2000, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -266,43 +267,43 @@ info_absolute_file (fname)
   return info_file_in_path (filename_non_directory (fname), containing_dir);
 }
 
-/* Given a string containing units of information separated by
-   the PATH_SEP character, return the next one pointed to by
-   IDX, or NULL if there are no more.
-   Advance IDX to the character after the colon. */
+
+/* Given a string containing units of information separated by the
+   PATH_SEP character, return the next one after IDX, or NULL if there
+   are no more.  Advance IDX to the character after the colon. */
+
 char *
 extract_colon_unit (string, idx)
      char *string;
      int *idx;
 {
-  register int i, start;
+  int i = *idx;
+  int start = *idx;
 
-  i = start = *idx;
-  if ((i >= strlen (string)) || !string)
-    return ((char *) NULL);
+  if (!string || i >= strlen (string))
+    return NULL;
 
+  /* Advance to next PATH_SEP.  */
   while (string[i] && string[i] != PATH_SEP[0])
     i++;
-  if (i == start)
-    {
-      return ((char *) NULL);
-    }
-  else
-    {
-      char *value;
 
-      value = (char *) xmalloc (1 + (i - start));
-      strncpy (value, &string[start], (i - start));
-      value[i - start] = '\0';
-      if (string[i])
-        ++i;
-      *idx = i;
-      return (value);
-    }
+  if (!string[i] && i == start) /* end of string, and didn't advance */
+    return NULL;
+
+  {
+    char *value = xmalloc ((i - start) + 1);
+    strncpy (value, &string[start], (i - start));
+    value[i - start] = 0;
+
+    i++; /* move past PATH_SEP */
+    *idx = i;
+    return value;
+  }
 }
 
 /* A structure which associates a filename with its expansion. */
-typedef struct {
+typedef struct
+{
   char *filename;
   char *expansion;
 } FILENAME_LIST;

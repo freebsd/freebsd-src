@@ -1,7 +1,8 @@
 /* system.h: system-dependent declarations; include this first.
-   $Id: system.h,v 1.22 2002/02/26 14:31:18 karl Exp $
+   $Id: system.h,v 1.5 2003/03/22 17:40:39 karl Exp $
 
-   Copyright (C) 1997, 98, 99, 00, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +25,16 @@
 
 #include <config.h>
 
+#ifdef MIKTEX
+#include <gnu-miktex.h>
+#define S_ISDIR(x) ((x)&_S_IFDIR) 
+#else
+/* MiKTeX defines substring() in a separate DLL, where it has its
+   own __declspec declaration.  We don't want to try to duplicate 
+   this Microsoft-ism here.  */
+extern char *substring ();
+#endif
+
 /* <unistd.h> should be included before any preprocessor test
    of _POSIX_VERSION.  */
 #ifdef HAVE_UNISTD_H
@@ -43,7 +54,10 @@
 #endif
 
 /* For gettext (NLS).  */
+#define const
 #include "gettext.h"
+#undef const
+
 #define _(String) gettext (String)
 #define N_(String) (String)
 
@@ -240,9 +254,19 @@ struct passwd *getpwnam ();
 extern void *xmalloc (), *xrealloc ();
 extern char *xstrdup ();
 extern void xexit ();
-extern char *substring ();
 
 /* For convenience.  */
 #define STREQ(s1,s2) (strcmp (s1, s2) == 0)
+
+/* We don't need anything fancy.  If we did need something fancy, gnulib
+   has it.  */
+#ifdef MIN
+#undef MIN
+#endif
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#ifdef MAX
+#undef MAX
+#endif
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 
 #endif /* TEXINFO_SYSTEM_H */

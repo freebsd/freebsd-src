@@ -1,7 +1,7 @@
-/* variables.c -- How to manipulate user visible variables in Info.
-   $Id: variables.c,v 1.8 2001/11/16 23:16:19 karl Exp $
+/* variables.c -- how to manipulate user visible variables in Info.
+   $Id: variables.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1993, 97, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

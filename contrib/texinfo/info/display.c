@@ -1,7 +1,7 @@
 /* display.c -- How to display Info windows.
-   $Id: display.c,v 1.7 2002/03/08 21:41:44 karl Exp $
+   $Id: display.c,v 1.4 2003/05/13 16:20:44 karl Exp $
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ display_update_one_window (win)
 
   for (; nodetext < last_node_char; nodetext++)
     {
-      char *rep, *rep_carried_over, rep_temp[2];
+      char *rep = NULL, *rep_carried_over, rep_temp[2];
       int replen;
 
       if (isprint (*nodetext))
@@ -152,6 +152,15 @@ display_update_one_window (win)
             {
               replen = win->width - pl_index + pl_ignore;
             }
+	  else if (*nodetext == '\0'
+		   && (nodetext + 1) < last_node_char
+		   && *(nodetext + 1) == '\b')
+	    {
+	      /* Found new style image tag/cookie \0\b[ or \0\b]
+		 Just skip for now.  */
+	      nodetext++;
+	      continue;
+	    }
           else
             {
               rep = printed_representation (*nodetext, pl_index);
@@ -211,7 +220,7 @@ display_update_one_window (win)
                  to the next line. */
               for (i = 0; pl_index < (win->width + pl_ignore - 1);)
                 printed_line[pl_index++] = rep[i++];
-              
+
               rep_carried_over = rep + i;
 
               /* If printing the last character in this window couldn't
@@ -233,8 +242,10 @@ display_update_one_window (win)
           entry = display[line_index + win->first_row];
 
           /* If the screen line is inversed, then we have to clear
-             the line from the screen first.  Why, I don't know. */
-          if (entry->inverse
+             the line from the screen first.  Why, I don't know.
+             (But don't do this if we have no visible entries, as can
+             happen if the window is shrunk very small.)  */
+          if ((entry && entry->inverse)
 	      /* Need to erase the line if it has escape sequences.  */
 	      || (raw_escapes_p && strchr (entry->text, '\033') != 0))
             {
@@ -322,7 +333,7 @@ display_update_one_window (win)
               printed_line[0] = '\0';
 
               begin = nodetext;
-              
+
               while ((nodetext < last_node_char) && (*nodetext != '\n'))
                 nodetext++;
             }

@@ -1,7 +1,7 @@
 /* html.c -- html-related utilities.
-   $Id: html.c,v 1.26 2002/03/23 20:39:49 karl Exp $
+   $Id: html.c,v 1.18 2003/06/02 12:32:29 karl Exp $
 
-   Copyright (C) 1999, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,14 +24,19 @@
 #include "makeinfo.h"
 #include "sectioning.h"
 
+HSTACK *htmlstack = NULL;
+
+static char *process_css_file (/* char * */);
+
 /* See html.h.  */
 int html_output_head_p = 0;
+int html_title_written = 0;
+
 
 void
 html_output_head ()
 {
-  static char *html_title = NULL;
-  static int html_title_written = 0;
+  static const char *html_title = NULL;
 
   if (html_output_head_p)
     return;
@@ -47,16 +52,22 @@ html_output_head ()
   add_word ("<meta http-equiv=\"Content-Type\" content=\"text/html");
   if (document_encoding_code != no_encoding)
     add_word_args ("; charset=%s",
-                   encoding_table[document_encoding_code].ecname);
+                   encoding_table[document_encoding_code].encname);
   add_word ("\">\n");
 
   if (!document_description)
     document_description = html_title;
 
-  add_word_args ("<meta name=description content=\"%s\">\n",
+  add_word_args ("<meta name=\"description\" content=\"%s\">\n",
                  document_description);
-  add_word_args ("<meta name=generator content=\"makeinfo %s\">\n", VERSION);
-  add_word ("<link href=\"http://www.gnu.org/software/texinfo/\" rel=generator-home>\n");
+  add_word_args ("<meta name=\"generator\" content=\"makeinfo %s\">\n",
+                 VERSION);
+#if 0
+  /* let's not do this now, since it causes mozilla to put up a
+     navigation bar.  */
+  add_word ("<link href=\"http://www.gnu.org/software/texinfo/\" \
+rel=\"generator-home\">\n");
+#endif
 
   if (copying_text)
     { /* copying_text has already been fully expanded in
@@ -69,14 +80,204 @@ html_output_head ()
       insert_string ("-->\n");
     }
 
+  /* Put the style definitions in a comment for the sake of browsers
+     that don't support <style>.  */
+  add_word ("<meta http-equiv=\"Content-Style-Type\" content=\"text/css\">\n");
+  add_word ("<style type=\"text/css\"><!--\n");
+
+  {
+    char *css_inline = NULL;
+
+    if (css_include)
+      /* This writes out any @import commands from the --css-file,
+         and returns any actual css code following the imports.  */
+      css_inline = process_css_file (css_include);
+
+    /* This seems cleaner than adding <br>'s at the end of each line for
+       these "roman" displays.  It's hardly the end of the world if the
+       browser doesn't do <style>s, in any case; they'll just come out in
+       typewriter.  */
+#define CSS_FONT_INHERIT "font-family:inherit"
+    add_word_args ("  pre.display { %s }\n", CSS_FONT_INHERIT);
+    add_word_args ("  pre.format  { %s }\n", CSS_FONT_INHERIT);
+
+    /* Alternatively, we could do <font size=-1> in insertion.c, but this
+       way makes it easier to override.  */
+#define CSS_FONT_SMALLER "font-size:smaller"
+    add_word_args ("  pre.smalldisplay { %s; %s }\n", CSS_FONT_INHERIT,
+                   CSS_FONT_SMALLER);
+    add_word_args ("  pre.smallformat  { %s; %s }\n", CSS_FONT_INHERIT,
+                   CSS_FONT_SMALLER);
+    add_word_args ("  pre.smallexample { %s }\n", CSS_FONT_SMALLER);
+    add_word_args ("  pre.smalllisp    { %s }\n", CSS_FONT_SMALLER);
+
+    /* Write out any css code from the user's --css-file.  */
+    if (css_inline)
+      add_word (css_inline);
+
+    add_word ("--></style>\n");
+  }
+
   add_word ("</head>\n<body>\n");
 
-  if (title && !html_title_written)
+  if (title && !html_title_written && titlepage_cmd_present)
     {
-      add_word_args ("<h1>%s</h1>\n", html_title);
+      add_word_args ("<h1 class=\"settitle\">%s</h1>\n", html_title);
       html_title_written = 1;
     }
 }
+
+
+
+/* Append CHAR to BUFFER, (re)allocating as necessary.  We don't handle
+   null characters.  */
+
+typedef struct
+{
+  unsigned size;    /* allocated */
+  unsigned length;  /* used */
+  char *buffer;
+} buffer_type;
+
+
+static buffer_type *
+init_buffer ()
+{
+  buffer_type *buf = xmalloc (sizeof (buffer_type));
+  buf->length = 0;
+  buf->size = 0;
+  buf->buffer = NULL;
+
+  return buf;
+}
+
+
+static void
+append_char (buf, c)
+    buffer_type *buf;
+    int c;
+{
+  buf->length++;
+  if (buf->length >= buf->size)
+    {
+      buf->size += 100;
+      buf->buffer = xrealloc (buf->buffer, buf->size);
+    }
+  buf->buffer[buf->length - 1] = c;
+  buf->buffer[buf->length] = 0;
+}
+
+
+/* Read the cascading style-sheet file FILENAME.  Write out any @import
+   commands, which must come first, by the definition of css.  If the
+   file contains any actual css code following the @imports, return it;
+   else return NULL.  */
+
+static char *
+process_css_file (filename)
+    char *filename;
+{
+  int c, lastchar;
+  FILE *f;
+  buffer_type *import_text = init_buffer ();
+  buffer_type *inline_text = init_buffer ();
+  unsigned lineno = 1;
+  enum { null_state, comment_state, import_state, inline_state } state
+    = null_state, prev_state;
+
+  /* read from stdin if `-' is the filename.  */
+  f = STREQ (filename, "-") ? stdin : fopen (filename, "r");
+  if (!f)
+    {
+      error (_("%s: could not open --css-file: %s"), progname, filename);
+      return NULL;
+    }
+
+  /* Read the file.  The @import statements must come at the beginning,
+     with only whitespace and comments allowed before any inline css code.  */
+  while ((c = getc (f)) >= 0)
+    {
+      if (c == '\n')
+        lineno++;
+
+      switch (state)
+        {
+        case null_state: /* between things */
+          if (c == '@')
+            {
+              /* If there's some other @command, just call it an
+                 import, it's all the same to us.  So don't bother
+                 looking for the `import'.  */
+              append_char (import_text, c);
+              state = import_state;
+            }
+          else if (c == '/')
+            { /* possible start of a comment */
+              int nextchar = getc (f);
+              if (nextchar == '*')
+                state = comment_state;
+              else
+                {
+                  ungetc (nextchar, f); /* wasn't a comment */
+                  state = inline_state;
+                }
+            }
+          else if (isspace (c))
+            ; /* skip whitespace; maybe should use c_isspace?  */
+
+          else
+            /* not an @import, not a comment, not whitespace: we must
+               have started the inline text.  */
+            state = inline_state;
+
+          if (state == inline_state)
+            append_char (inline_text, c);
+
+          if (state != null_state)
+            prev_state = null_state;
+          break;
+
+        case comment_state:
+          if (c == '/' && lastchar == '*')
+            state = prev_state;  /* end of comment */
+          break;  /* else ignore this comment char */
+
+        case import_state:
+          append_char (import_text, c);  /* include this import char */
+          if (c == ';')
+            { /* done with @import */
+              append_char (import_text, '\n');  /* make the output nice */
+              state = null_state;
+              prev_state = import_state;
+            }
+          break;
+
+        case inline_state:
+          /* No harm in writing out comments, so don't bother parsing
+             them out, just append everything.  */
+          append_char (inline_text, c);
+          break;
+        }
+
+      lastchar = c;
+    }
+
+  /* Reached the end of the file.  We should not be still in a comment.  */
+  if (state == comment_state)
+    warning (_("%s:%d: --css-file ended in comment"), filename, lineno);
+
+  /* Write the @import text, if any.  */
+  if (import_text->buffer)
+    {
+      add_word (import_text->buffer);
+      free (import_text->buffer);
+      free (import_text);
+    }
+
+  /* We're wasting the buffer struct memory, but so what.  */
+  return inline_text->buffer;
+}
+
 
 
 /* Escape HTML special characters in the string if necessary,
@@ -136,12 +337,45 @@ escape_string (string)
   return newstring - newlen;
 }
 
+
+
+/* Save current tag.  */
+void
+push_tag (tag)
+     char *tag;
+{
+  HSTACK *newstack = xmalloc (sizeof (HSTACK));
+
+  newstack->tag = tag;
+  newstack->next = htmlstack;
+  htmlstack = newstack;
+}
+
+/* Get last tag.  */
+void
+pop_tag ()
+{
+  HSTACK *tos = htmlstack;
+
+  if (!tos)
+    {
+      line_error (_("[unexpected] no html tag to pop"));
+      return;
+    }
+
+  htmlstack = htmlstack->next;
+  free (tos);
+}
+
 /* Open or close TAG according to START_OR_END. */
 void
 insert_html_tag (start_or_end, tag)
      int start_or_end;
      char *tag;
 {
+  char *old_tag = NULL;
+  int do_return = 0;
+
   if (!paragraph_is_open && (start_or_end == START))
     {
       /* Need to compensate for the <p> we are about to insert, or
@@ -150,13 +384,51 @@ insert_html_tag (start_or_end, tag)
       adjust_braces_following (output_paragraph_offset, 3);
       add_word ("<p>");
     }
-  add_char ('<');
+
   if (start_or_end != START)
-    add_char ('/');
-  add_word (tag);
-  add_char ('>');
+    pop_tag ();
+
+  if (htmlstack)
+    old_tag = htmlstack->tag;
+
+  if (htmlstack
+      && (strcmp (htmlstack->tag, tag) == 0))
+    do_return = 1;
+
+  if (start_or_end == START)
+    push_tag (tag);
+
+  if (do_return)
+    return;
+
+  /* texinfo.tex doesn't support more than one font attribute
+     at the same time.  */
+  if ((start_or_end == START) && old_tag && *old_tag)
+    {
+      add_word ("</");
+      add_word (old_tag);
+      add_char ('>');
+    }
+
+  if (*tag)
+    {
+      add_char ('<');
+      if (start_or_end != START)
+        add_char ('/');
+      add_word (tag);
+      add_char ('>');
+    }
+
+  if ((start_or_end != START) && old_tag && *old_tag)
+    {
+      add_char ('<');
+      add_word (old_tag);
+      add_char ('>');
+    }
 }
 
+
+
 /* Output an HTML <link> to the filename for NODE, including the
    other string as extra attributes. */
 void
@@ -169,7 +441,7 @@ add_link (nodename, attributes)
       add_word_args ("%s", attributes);
       add_word_args (" href=\"");
       add_anchor_name (nodename, 1);
-      add_word ("\"></a>\n");
+      add_word ("\">\n");
     }
 }
 
@@ -295,8 +567,8 @@ nodename_to_filename_1 (nodename, href)
 	  p = strchr (nodename, ')');
 	  if (p == NULL)
 	    {
-	      line_error (_("Invalid node name: `%s'"), nodename);
-	      exit (1);
+	      line_error (_("[unexpected] invalid node name: `%s'"), nodename);
+	      xexit (1);
 	    }
 
 	  length = p - nodename - 1;

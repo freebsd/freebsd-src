@@ -1,8 +1,9 @@
 /* $FreeBSD$ */
 /* install-info -- create Info directory entry(ies) for an Info file.
-   $Id: install-info.c,v 1.55 2002/03/11 19:55:23 karl Exp $
+   $Id: install-info.c,v 1.9 2003/05/19 13:10:59 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,6 +124,7 @@ struct option longopts[] =
   { "dir-file",  required_argument, NULL, 'd' },
   { "entry",     required_argument, NULL, 'e' },
   { "help",      no_argument, NULL, 'h' },
+  { "infodir",   required_argument, NULL, 'D' },
   { "info-dir",  required_argument, NULL, 'D' },
   { "info-file", required_argument, NULL, 'i' },
   { "item",      required_argument, NULL, 'e' },
@@ -167,33 +169,6 @@ fatal (s1, s2, s3)
   xexit (1);
 }
 
-/* Memory allocation and string operations.  */
-
-/* Like malloc but get fatal error if memory is exhausted.  */
-void *
-xmalloc (size)
-     unsigned int size;
-{
-  extern void *malloc ();
-  void *result = malloc (size);
-  if (result == NULL)
-    fatal (_("virtual memory exhausted"), 0, 0);
-  return result;
-}
-
-/* Like realloc but get fatal error if memory is exhausted.  */
-void *
-xrealloc (obj, size)
-     void *obj;
-     unsigned int size;
-{
-  extern void *realloc ();
-  void *result = realloc (obj, size);
-  if (result == NULL)
-    fatal (_("virtual memory exhausted"), 0, 0);
-  return result;
-}
-
 /* Return a newly-allocated string
    whose contents concatenate those of S1, S2, S3.  */
 char *
@@ -313,6 +288,11 @@ strip_info_suffix (fname)
   if (len > 3 && FILENAME_CMP (ret + len - 3, ".gz") == 0)
     {
       len -= 3;
+      ret[len] = 0;
+    }
+  else if (len > 4 && FILENAME_CMP (ret + len - 4, ".bz2") == 0)
+    {
+      len -= 4;
       ret[len] = 0;
     }
 
@@ -463,8 +443,10 @@ The first time you invoke Info you start off looking at this node.\n\
   In Emacs, you can click mouse button 2 on a menu item or cross reference\n\
   to select it.\n\
 \n\
-* Menu:\n\
-"), "File: dir,\tNode: Top"); /* This part must not be translated.  */
+%s\n\
+"), "File: dir,\tNode: Top",  /* These keywords must not be translated.  */
+    "* Menu:"
+);
           if (fclose (f) < 0)
             pfatal_with_name (dirfile);
         }
@@ -516,6 +498,13 @@ open_possibly_compressed_file (filename, create_callback,
     {
       *opened_filename = concat (filename, ".gz", "");
       f = fopen (*opened_filename, FOPEN_RBIN);
+  if (!f)
+    {
+      free (*opened_filename);
+      *opened_filename = concat (filename, ".bz2", "");
+      f = fopen (*opened_filename, FOPEN_RBIN);
+    }
+
 #ifdef __MSDOS__
       if (!f)
         {
@@ -570,6 +559,18 @@ open_possibly_compressed_file (filename, create_callback,
     *compression_program = "gzip.exe";
 #else
     *compression_program = "gzip";
+#endif
+  else if(data[0] == 'B' && data[1] == 'Z' && data[2] == 'h')
+#ifndef STRIP_DOT_EXE
+    *compression_program = "bzip2.exe";
+#else
+    *compression_program = "bzip2";
+#endif
+  else if(data[0] == 'B' && data[1] == 'Z' && data[2] == '0')
+#ifndef STRIP_DOT_EXE
+    *compression_program = "bzip.exe";
+#else
+    *compression_program = "bzip";
 #endif
   else
     *compression_program = NULL;
@@ -913,7 +914,7 @@ parse_input (lines, nlines, sections, entries)
     }
   if (start_of_this_entry != 0)
     fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"),
-	   0, 0);
+           0, 0);
 
   /* If we ignored the INFO-DIR-ENTRY directives, we need now go back
      and plug the names of all the sections we found into every
@@ -1246,11 +1247,11 @@ main (argc, argv)
         case 'V':
           printf ("install-info (GNU %s) %s\n", PACKAGE, VERSION);
           puts ("");
-	  printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
+          printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the files named COPYING.\n"),
-		  "2002");
+                  "2003");
           xexit (0);
 
         default:
@@ -1271,7 +1272,7 @@ For more information about these matters, see the files named COPYING.\n"),
 
   if (!infile)
     fatal (_("No input file specified; try --help for more information."),
-	   0, 0);
+           0, 0);
   if (!dirfile)
     fatal (_("No dir file specified; try --help for more information."), 0, 0);
 
@@ -1344,7 +1345,7 @@ For more information about these matters, see the files named COPYING.\n"),
     char *infile_basename = infile + strlen (infile);
 
     if (HAVE_DRIVE (infile))
-      infile += 2;	/* get past the drive spec X: */
+      infile += 2;      /* get past the drive spec X: */
 
     while (infile_basename > infile && !IS_SLASH (infile_basename[-1]))
       infile_basename--;
@@ -1400,7 +1401,7 @@ For more information about these matters, see the files named COPYING.\n"),
                       }
                     if (!spec || spec == entry->entry_sections_tail)
                       continue;
-                    
+
                     /* Subtract one because dir_lines is zero-based,
                        but the `end_line' and `start_line' members are
                        one-based.  */
@@ -1450,6 +1451,7 @@ For more information about these matters, see the files named COPYING.\n"),
                   entries_to_add, input_sections, compression_program);
 
   xexit (0);
+  return 0; /* Avoid bogus warnings.  */
 }
 
 /* Divide the text at DATA (of SIZE bytes) into lines.

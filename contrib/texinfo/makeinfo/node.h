@@ -1,7 +1,7 @@
 /* node.h -- declarations for Node.
-   $Id: node.h,v 1.6 2002/01/16 15:52:45 karl Exp $
+   $Id: node.h,v 1.1 2002/08/25 23:38:39 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

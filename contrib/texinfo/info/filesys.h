@@ -1,7 +1,7 @@
 /* filesys.h -- external declarations for filesys.c.
-   $Id: filesys.h,v 1.5 1998/07/21 22:25:44 karl Exp $
+   $Id: filesys.h,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /* nodemenu.c -- produce a menu of all visited nodes.
-   $Id: nodemenu.c,v 1.8 1998/06/28 19:54:27 karl Exp $
+   $Id: nodemenu.c,v 1.3 2003/05/13 16:37:54 karl Exp $
 
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "info.h"
 
 /* Return a line describing the format of a node information line. */
-static char *
+static const char *
 nodemenu_format_info ()
 {
   return (_("\n\
@@ -101,7 +101,7 @@ format_node_info (node)
   if (node->filename && *(node->filename))
     {
       len = pad_to (51, line_buffer);
-      sprintf (line_buffer + len, node->filename);
+      strcpy (line_buffer + len, node->filename);
     }
 
   return xstrdup (line_buffer);

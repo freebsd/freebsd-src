@@ -1,7 +1,7 @@
 /* m-x.c -- Meta-x minibuffer reader.
-   $Id: m-x.c,v 1.9 2001/11/16 23:14:33 karl Exp $
+   $Id: m-x.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1993, 97, 98, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -1,5 +1,5 @@
 /* window.h -- Structure and flags used in manipulating Info windows.
-   $Id: window.h,v 1.4 1997/07/15 18:45:47 karl Exp $
+   $Id: window.h,v 1.1 2002/08/25 23:38:38 karl Exp $
 
    This file is part of GNU Info, a program for reading online documentation
    stored in Info format.

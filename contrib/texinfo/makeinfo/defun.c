@@ -1,7 +1,8 @@
 /* defun.c -- @defun and friends.
-   $Id: defun.c,v 1.19 2002/03/18 16:54:54 karl Exp $
+   $Id: defun.c,v 1.6 2003/05/09 23:51:10 karl Exp $
 
-   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +20,11 @@
 
 #include "system.h"
 #include "defun.h"
-#include "docbook.h"
+#include "xml.h"
 #include "insertion.h"
 #include "makeinfo.h"
+#include "cmds.h"
+#include "html.h"
 
 
 #define DEFUN_SELF_DELIMITING(c) \
@@ -239,7 +242,13 @@ process_defun_args (defun_args, auto_var_p)
         }
 
       if (DEFUN_SELF_DELIMITING (defun_arg[0]))
-        add_char (defun_arg[0]);
+        {
+          /* Within @deffn and friends, texinfo.tex makes parentheses
+             sans serif and brackets bold.  We use roman instead.  */
+          insert_html_tag (START, "");
+          add_char (defun_arg[0]);
+          insert_html_tag (END, "");
+        }
       else if (defun_arg[0] == '&')
         if (html)
           {
@@ -323,7 +332,8 @@ defun_internal (type, x_p)
 {
   enum insertion_type base_type;
   char **defun_args, **scan_args;
-  char *category, *defined_name, *type_name, *type_name2;
+  const char *category;
+  char *defined_name, *type_name, *type_name2;
 
   {
     char *line;
@@ -433,7 +443,7 @@ defun_internal (type, x_p)
   if (*scan_args && **scan_args && **scan_args == '(')
     warning ("`%c' follows defined name `%s' instead of whitespace",
              **scan_args, defined_name);
-    
+
   if (!x_p)
     begin_insertion (type);
 
@@ -446,8 +456,6 @@ defun_internal (type, x_p)
     /* Start the definition on new paragraph.  */
     if (html)
       add_word ("<p>\n");
-    if (docbook)
-      docbook_begin_paragraph ();
   }
 
   if (!html && !docbook)
@@ -506,30 +514,34 @@ defun_internal (type, x_p)
         case defvr:
         case deftp:
           /* <i> is for the following function arguments.  */
-          add_word ("<b>");
+          insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
-          add_word ("</b><i>");
+          insert_html_tag (END, "b");
+          insert_html_tag (START, "i");
           break;
         case deftypefn:
         case deftypevr:
           execute_string ("%s ", type_name);
-          add_word ("<b>");
+          insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
-          add_word ("</b><i>");
+          insert_html_tag (END, "b");
+          insert_html_tag (START, "i");
           break;
         case defcv:
         case defop:
-          add_word ("<b>");
+          insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
-          add_word ("</b><i>");
+          insert_html_tag (END, "b");
+          insert_html_tag (START, "i");
           break;
         case deftypemethod:
         case deftypeop:
         case deftypeivar:
           execute_string ("%s ", type_name2);
-          add_word ("<b>");
+          insert_html_tag (START, "b");
           execute_string ("%s", defined_name);
-          add_word ("</b><i>");
+          insert_html_tag (END, "b");
+          insert_html_tag (START, "i");
           break;
         }
     } /* if (html)... */
@@ -543,19 +555,24 @@ defun_internal (type, x_p)
         case deftp:
         case defcv:
         case defop:
-          add_word_args ("<%s>%s</%s>", DB_FUNCTION, defined_name,
-                                        DB_FUNCTION);
+	  xml_insert_element (FUNCTION, START);
+          execute_string ("%s", defined_name);
+	  xml_insert_element (FUNCTION, END);
           break;
         case deftypefn:
         case deftypevr:
-          add_word_args ("%s <%s>%s</%s>", type_name, DB_FUNCTION,
-                                           defined_name, DB_FUNCTION);
+          execute_string ("%s ", type_name);
+	  xml_insert_element (FUNCTION, START);
+          execute_string ("%s", defined_name);
+	  xml_insert_element (FUNCTION, END);
           break;
         case deftypemethod:
         case deftypeop:
         case deftypeivar:
-          add_word_args ("%s <%s>%s</%s>", type_name2, DB_FUNCTION,
-                                           defined_name, DB_FUNCTION);
+          execute_string ("%s ", type_name2);
+	  xml_insert_element (FUNCTION, START);
+          execute_string ("%s", defined_name);
+	  xml_insert_element (FUNCTION, END);
           break;
         }
 
@@ -602,7 +619,7 @@ defun_internal (type, x_p)
         case deftp:
         case deftypefn:
         case deftypevr:
-          add_word ("</i>"); /* close italic area for arguments */
+          insert_html_tag (END, "i"); /* close italic area for arguments */
           /* put the rest into the second column */
 	  add_word ("</td>\n");
           add_html_elt ("<td align=\"right\">");
@@ -618,14 +635,14 @@ defun_internal (type, x_p)
         case defop:
         case deftypemethod:
         case deftypeop:
-	  add_word ("</i>");
+          insert_html_tag (END, "i");
 	  add_word ("</td>\n");
 	  add_html_elt ("<td align=\"right\">");
 	  execute_string ("%s %s %s", category, _("on"), type_name);
 	  break;
 
         case deftypeivar:
-	  add_word ("</i>");
+          insert_html_tag (END, "i");
 	  add_word ("</td>\n");
 	  add_html_elt ("<td align=\"right\">");
 	  execute_string ("%s %s %s", category, _("of"), type_name);
@@ -698,27 +715,26 @@ defun_internal (type, x_p)
 void
 cm_defun ()
 {
-  int x_p;
   enum insertion_type type;
-  char *temp = xstrdup (command);
-
-  x_p = (command[strlen (command) - 1] == 'x');
+  char *base_command = xstrdup (command);  /* command with any `x' removed */
+  int x_p = (command[strlen (command) - 1] == 'x');
 
   if (x_p)
-    temp[strlen (temp) - 1] = 0;
+    base_command[strlen (base_command) - 1] = 0;
 
-  type = find_type_from_name (temp);
-  free (temp);
+  type = find_type_from_name (base_command);
 
   /* If we are adding to an already existing insertion, then make sure
      that we are already in an insertion of type TYPE. */
   if (x_p && (!insertion_level || insertion_stack->insertion != type))
     {
-      line_error (_("Must be in `%s' insertion to use `%sx'"),
-                  command, command);
+      line_error (_("Must be in `@%s' environment to use `@%s'"),
+                  base_command, command);
       discard_until ("\n");
       return;
     }
+  else
+    defun_internal (type, x_p);
 
-  defun_internal (type, x_p);
+  free (base_command);
 }

@@ -1,7 +1,8 @@
-/* multi.c -- multitable stuff for makeinfo.
-   $Id: multi.c,v 1.23 2002/01/19 01:09:08 karl Exp $
+/* multi.c -- multiple-column tables (@multitable) for makeinfo.
+   $Id: multi.c,v 1.4 2002/11/04 21:28:10 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -423,8 +424,9 @@ multitable_item ()
   /* start at column 1 */
   select_output_environment (1);
   if (!output_paragraph) {
-    line_error (_("Cannot select column #%d in multitable"), current_env_no);
-    exit (1);
+    line_error (_("[unexpected] cannot select column #%d in multitable"),
+                current_env_no);
+    xexit (1);
   }
 
   init_column ();

@@ -1,13 +1,57 @@
-Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
-Free Software Foundation.
-
-Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
-any later version published by the Free Software Foundation; with no
-Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.  
-
-
+$Id: TODO,v 1.8 2003/04/27 13:12:24 karl Exp $
+This is the todo list for GNU Texinfo.
 If you are interested in working on any of these, email bug-texinfo@gnu.org.
+
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 
+  2001, 2002, 2003 Free Software Foundation.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+* General:
+  - Test for memory leaks, e.g., with valgrind:
+    http://developer.kde.org/~sewardj/
+  - Rationalize and improve the dir categories in existing manuals.
+    See http://mail.gnu.org/pipermail/emacs-devel/2002-October/013094.html
+    (and the containing thread).
+  - Extend and improve the tests.
+  - Get Info declared as a MIME Content-Type.
+  - Support compressed image files.
+  - Handle reference card creation, perhaps by only paying attention to
+    sectioning and @def... commands.
+  - Allow @end (and other?) commands to be indented in the source.
+
+* Language:
+  - @figure, something like:
+@figure [xref-label]
+@figureinclude <filename>, [<height>], [<width>]
+@figurehsize <dimen>
+@figurevsize <dimen>
+@caption ... @end caption
+<arbitrary Texinfo commands>
+@end figure
+  - @else for the @if... conditionals.
+  - @xindexterm [def] primary [,secondary [,tertiary]]  or some such?
+  - multicolumn * width to take up `the rest'.
+  - another table command to take N succeeding items and split them
+    into M columns (see eplain).
+  - support bibliographies with BibTeX (see web2c/doc for kludge prototype).
+  - @flushboth to combine @flushleft and @flushright, for RFC's.
+  - @part sectioning command.
+  - Allow subitems and `see' and `see also' in indices.
+  - @exercise/@answer command for, e.g., gawk.
+  - Allow @hsep/@vsep at @item, instead of just in template.
+  - Support automatic line numbering of examples.
+  - Better macro syntax.
+  - Allow : in node names for info files, for names like
+    `class::method'.  Likewise index entries.  A quoting mechanism such
+    as surrounding node names with SPACE BACKSPACE is probably the best
+    solution, although this is an incompatible change to Info format, sigh.
+  - Change bars.  This is difficult or impossible in TeX,
+    unfortunately.  To do it right requires device driver support.
+    wdiff or ediff may be all we can do.
+  - @LaTeX{} command to produce the LaTeX logo.
 
 * Makeinfo:
   - Try directory of main source file.
@@ -34,43 +78,7 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
   - Support 8-bit input characters, perhaps via the ec fonts.
   - Repeat table headings if a @multitable is multiple pages long.
   - Table of contents gets misaligned if there are 10 or more [sub]sections.
-
-* General:
-  - Rationalize and improve the dir categories in existing manuals.
-  - @xindexterm [def] primary [,secondary [,tertiary]]  or some such?
-  - Support compressed image files.
-  - Handle reference card creation, perhaps by only paying attention to
-    sectioning and @def... commands.
-  - Allow @end (and other?) commands to be indented in the source.
-  - Get Info declared as a MIME Content-Type.
-
-* Language:
-  - @figure:
-@figure [xref-label]
-@figureinclude <filename>, [<height>], [<width>]
-@figurehsize <dimen>
-@figurevsize <dimen>
-@caption ... @end caption
-<arbitrary Texinfo commands>
-@end figure
-  - multicolumn * width to take up `the rest'.
-  - another table command to take N succeeding items and split them
-    into M columns (see eplain).
-  - support bibliographies with BibTeX (see web2c/doc for kludge prototype).
-  - @flushboth to combine @flushleft and @flushright, for RFC's.
-  - @part sectioning command.
-  - Allow subitems and `see' and `see also' in indices.
-  - @exercise/@answer command for, e.g., gawk.
-  - Allow @hsep/@vsep at @item, instead of just in template.
-  - Support automatic line numbering of examples.
-  - Better macro syntax.
-  - Allow : in node names for info files, for names like
-    `class::method'.  Likewise index entries.  A quoting mechanism such
-    as surrounding node names with SPACE BACKSPACE is probably the best
-    solution, although this is an incompatible change to Info format, sigh.
-  - Change bars.  This is difficult or impossible in TeX,
-    unfortunately.  To do it right requires device driver support.
-    wdiff or ediff may be all we can do.
+  - Use url.sty (or something) to allow linebreak of url's.
 
 * Doc:
   - Include a complete functional summary, as in a reference card, in
@@ -96,15 +104,20 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
   - Incorporate an X-based viewer, perhaps tkinfo
       http://www.math.ucsb.edu/~boldt/tkinfo/
     or saxinfo.
+  - Write technical definition of Info format.
 
 * PDF:
   - make each letter of the index (A, B, ...) a section in the TOC.
     From Carsten Dominik <dominik@astro.uva.nl>.
-
   
 * install-info:
   - be able to copy the info file to compile-time $(infodir), to
     simplify by-hand installation.
+
+* texindex:
+  - read source file (specified by new option) for @documentlanguage
+  and/or @documentencoding, and change the sorting appropriately.
+  From: Wojciech Polak <polak@gnu.org>, 26 Apr 2003 11:30:59 +0200.
 
 
 Ideas that will not be implemented:

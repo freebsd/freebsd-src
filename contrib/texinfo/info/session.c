@@ -1,8 +1,7 @@
-/* $FreeBSD$ */
 /* session.c -- user windowing interface to Info.
-   $Id: session.c,v 1.45 2002/03/02 15:05:04 karl Exp $
+   $Id: session.c,v 1.8 2003/03/22 17:41:16 karl Exp $
 
-   Copyright (C) 1993, 96, 97, 98, 99, 2000, 01, 02
+   Copyright (C) 1993, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -2009,6 +2008,73 @@ DECLARE_INFO_COMMAND (info_menu_digit, _("Select this menu item"))
   return;
 }
 
+
+
+/* Return a pointer to the xref in XREF_LIST that is nearest to POS, or
+   NULL if XREF_LIST is empty.  That is, if POS is within any of the
+   given xrefs, return that one.  Otherwise, return the one with the
+   nearest beginning or end.  If there are two that are equidistant,
+   prefer the one forward.  The return is in newly-allocated memory,
+   since the caller frees it.
+   
+   This is called from info_menu_or_ref_item with XREF_LIST being all
+   the xrefs in the node, and POS being point.  The ui function that
+   starts it all off is select-reference-this-line.
+
+   This is not the same logic as in info.el.  Info-get-token prefers
+   searching backwards to searching forwards, and has a hardwired search
+   limit of 200 chars (in Emacs 21.2).  */
+
+static REFERENCE **
+nearest_xref (xref_list, pos)
+    REFERENCE **xref_list;
+    long pos;
+{
+  int this_xref;
+  int nearest = -1;
+  long best_delta = -1;
+  
+  for (this_xref = 0; xref_list[this_xref]; this_xref++)
+    {
+      long delta;
+      REFERENCE *xref = xref_list[this_xref];
+      if (xref->start <= pos && pos <= xref->end)
+        { /* POS is within this xref, we're done */
+          nearest = this_xref;
+          break;
+        }
+      
+      /* See how far POS is from this xref.  Take into account the
+         `*Note' that begins the xref, since as far as the user is
+         concerned, that's where it starts.  */
+      delta = MIN (labs (pos - (xref->start - strlen (INFO_XREF_LABEL))),
+                   labs (pos - xref->end));
+      
+      /* It's the <= instead of < that makes us choose the forward xref
+         of POS if two are equidistant.  Of course, because of all the
+         punctuation surrounding xrefs, it's not necessarily obvious
+         where one ends.  */
+      if (delta <= best_delta || best_delta < 0)
+        {
+          nearest = this_xref;
+          best_delta = delta;
+        }
+    }
+  
+  /* Maybe there was no list to search through.  */
+  if (nearest < 0)
+    return NULL;
+  
+  /* Ok, we have a nearest xref, make a list of it.  */
+  {
+    REFERENCE **ret = xmalloc (sizeof (REFERENCE *) * 2);
+    ret[0] = info_copy_reference (xref_list[nearest]);
+    ret[1] = NULL;
+    return ret;
+  }
+}
+
+
 /* Read a menu or followed reference from the user defaulting to the
    reference found on the current line, and select that node.  The
    reading is done with completion.  BUILDER is the function used
@@ -2022,10 +2088,10 @@ info_menu_or_ref_item (window, count, key, builder, ask_p)
      REFERENCE **(*builder) ();
      int ask_p;
 {
-  REFERENCE **menu, *entry, *defentry = (REFERENCE *)NULL;
   char *line;
-
-  menu = (*builder) (window->node);
+  REFERENCE *entry;
+  REFERENCE *defentry = NULL;
+  REFERENCE **menu = (*builder) (window->node);
 
   if (!menu)
     {
@@ -2039,10 +2105,8 @@ info_menu_or_ref_item (window, count, key, builder, ask_p)
   /* Default the selected reference to the one which is on the line that
      point is in.  */
   {
-    REFERENCE **refs = (REFERENCE **)NULL;
-    int point_line;
-
-    point_line = window_line_of_point (window);
+    REFERENCE **refs = NULL;
+    int point_line = window_line_of_point (window);
 
     if (point_line != -1)
       {
@@ -2071,45 +2135,35 @@ info_menu_or_ref_item (window, count, key, builder, ask_p)
               refs = manpage_xrefs_in_binding (window->node, &binding);
             else
 #endif /* HANDLE_MAN_PAGES */
-	    {
-	      refs = info_xrefs (&binding);
-	      if (!refs && point_line > 0)
-		{
-		  /* People get annoyed that Info cannot find an xref
-		     which starts on a previous line and ends on this
-		     one.  So if we fail to find a reference on this
-		     line, let's try the one before.  */
-		  binding.start =
-		    window->line_starts[point_line - 1] - binding.buffer;
-		  refs = info_xrefs (&binding);
-		}
-	    }
+              refs = nearest_xref (menu, window->point);
           }
 
-        if (refs)
+        if (refs && refs[0])
           {
-            if ((strcmp (refs[0]->label, "Menu") != 0) ||
-                (builder == info_xrefs_of_node))
+            if (strcmp (refs[0]->label, "Menu") != 0
+                || builder == info_xrefs_of_node)
               {
                 int which = 0;
 
-                /* Find the closest reference to point. */
-                if (builder == info_xrefs_of_node)
+                /* For xrefs, find the closest reference to point,
+                   unless we only have one reference (as we will if
+                   we've called nearest_xref above).  It would be better
+                   to have only one piece of code, but the conditions
+                   when we call this are tangled.  */
+                if (builder == info_xrefs_of_node && refs[1])
                   {
                     int closest = -1;
 
                     for (; refs[which]; which++)
                       {
-                        if ((window->point >= refs[which]->start) &&
-                            (window->point <= refs[which]->end))
+                        if (window->point >= refs[which]->start
+                            && window->point <= refs[which]->end)
                           {
                             closest = which;
                             break;
                           }
                         else if (window->point < refs[which]->start)
-                          {
-                            break;
-                          }
+                          break;
                       }
                     if (closest == -1)
                       which--;
@@ -2139,9 +2193,9 @@ info_menu_or_ref_item (window, count, key, builder, ask_p)
 
       /* Build the prompt string. */
       if (defentry)
-        prompt = (char *)xmalloc (20 + strlen (defentry->label));
+        prompt = (char *)xmalloc (99 + strlen (defentry->label));
       else
-        prompt = (char *)xmalloc (20);
+        prompt = (char *)xmalloc (99);
 
       if (builder == info_menu_of_node)
         {
@@ -2434,7 +2488,8 @@ NODE *
 info_follow_menus (initial_node, menus, errstr, errarg1, errarg2)
      NODE *initial_node;
      char **menus;
-     char **errstr, **errarg1, **errarg2;
+     const char **errstr;
+     char **errarg1, **errarg2;
 {
   NODE *node = NULL;
   *errstr = *errarg1 = *errarg2 = NULL;
@@ -2797,7 +2852,7 @@ program_name_from_file_name (file_name)
 DECLARE_INFO_COMMAND (info_goto_invocation_node,
 		      _("Find the node describing program invocation"))
 {
-  char *invocation_prompt = _("Find Invocation node of [%s]: ");
+  const char *invocation_prompt = _("Find Invocation node of [%s]: ");
   char *program_name, *line;
   char *default_program_name, *prompt, *file_name;
   NODE *top_node;
@@ -3849,7 +3904,8 @@ show_isearch_prompt (dir, string, failing_p)
      int failing_p;
 {
   register int i;
-  char *prefix, *prompt, *p_rep;
+  const char *prefix;
+  char *prompt, *p_rep;
   int prompt_len, p_rep_index, p_rep_size;
 
   if (dir < 0)
@@ -3878,8 +3934,10 @@ show_isearch_prompt (dir, string, failing_p)
       p_rep_index += strlen (rep);
     }
 
-  prompt_len = strlen (prefix) + p_rep_index + 20;
-  prompt = (char *)xmalloc (prompt_len);
+  prompt_len = strlen (prefix) + p_rep_index + 1;
+  if (failing_p)
+    prompt_len += strlen (_("Failing "));
+  prompt = xmalloc (prompt_len);
   sprintf (prompt, "%s%s%s", failing_p ? _("Failing ") : "", prefix,
            p_rep ? p_rep : "");
 
@@ -3937,7 +3995,7 @@ incremental_search (window, count, ignore)
       key = info_get_input_char ();
       window_get_state (window, &mystate);
 
-      if (key == DEL)
+      if (key == DEL || key == Control ('h'))
         {
           /* User wants to delete one level of search? */
           if (!isearch_states_index)
@@ -3968,9 +4026,15 @@ incremental_search (window, count, ignore)
 
       if (!Meta_p (key) || key > 32)
         {
-          func = InfoFunction(window->keymap[key].function);
+          /* If this key is not a keymap, get its associated function,
+             if any.  If it is a keymap, then it's probably ESC from an
+             arrow key, and we handle that case below.  */
+          char type = window->keymap[key].type;
+          func = type == ISFUNC
+                 ? InfoFunction(window->keymap[key].function)
+                 : NULL;  /* function member is a Keymap if ISKMAP */
 
-          if (isprint (key) || func == (VFunction *)NULL)
+          if (isprint (key) || (type == ISFUNC && func == NULL))
             {
             insert_and_search:
 

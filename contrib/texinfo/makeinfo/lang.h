@@ -1,7 +1,7 @@
 /* lang.h -- declarations for language codes etc.
-   $Id: lang.h,v 1.7 2001/09/11 18:04:29 karl Exp $
+   $Id: lang.h,v 1.4 2003/05/01 00:05:27 karl Exp $
 
-   Copyright (C) 1999, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,9 +79,10 @@ extern language_type language_table[];
  */
 typedef enum {
     no_encoding,
-    ISO_8859_1,    /* default for en, de, */
-    ISO_8859_2,    /* actualy not supported like the rest below */
-    ISO_8859_3,
+    US_ASCII,
+    ISO_8859_1,
+    ISO_8859_2,
+    ISO_8859_3,    /* this and none of the rest are supported. */
     ISO_8859_4,
     ISO_8859_5,
     ISO_8859_6,
@@ -117,7 +118,7 @@ typedef struct
 typedef struct
 {
   encoding_code_type ec; /* document encoding type (see above enum) */
-  char *ecname;          /* encoding name like ISO-8859-1 */
+  char *encname;         /* encoding name like "ISO-8859-1", valid in Emacs */
   iso_map_type *isotab;  /* address of ISO translation table */
 } encoding_type;
 

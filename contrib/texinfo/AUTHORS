@@ -1,3 +1,26 @@
-Richard Stallman, Brian Fox, Bob Chassell, Noah Friedman, Paul Rubin,
-Karl Berry, Eli Zaretskii, and many others.
+$Id: AUTHORS,v 1.5 2003/05/08 00:51:55 karl Exp $
+Texinfo authors.
 
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Akim Demaille		texi2dvi.
+Andreas Schwab		texinfo.tex, configure.ac, most makeinfo files.
+Bob Chassell		texinfo.tex, original texinfo.txi.
+Brian Fox		all makeinfo/* and info/* files, info-stnd.texi.
+Dave Love		original makeinfo/html.[ch].
+Eli Zaretskii		all files.
+Karl Berry		all files.
+Noah Friedman		original texi2dvi.
+Paul Rubin		original makeinfo/multi.c.
+Philippe Martin		original makeinfo xml/docbook output.
+Richard Stallman	original texinfo.tex, install-info.c,
+			texindex.c, texinfo.txi.
+Zack Weinberg		texinfo.tex (@macro implementation).
+
+See http://www.iro.umontreal.ca/contrib/po/HTML/team-LL.html for the
+translation teams for a given language LL.
+
+Many files included in Texinfo distribution are copied from other
+locations.  See util/srclist*.
