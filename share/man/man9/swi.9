@@ -1,4 +1,4 @@
-.\" Copyright (c) 2000 John H. Baldwin
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,68 +28,68 @@
 .Dt SWI 9
 .Os
 .Sh NAME
-.Nm sched_swi ,
-.Nm sinthand_add
+.Nm swi_add ,
+.Nm swi_sched
 .Nd register and schedule software interrupt handlers
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
-.Fd #include <sys/proc.h>
 .Fd #include <sys/interrupt.h>
 .Vt "extern	struct ithd *tty_ithd" ;
 .Vt "extern	struct ithd *clk_ithd" ;
-.Vt "extern	struct intrhand *net_ih" ;
-.Vt "extern	struct intrhand *softclock_ih" ;
-.Vt "extern	struct intrhand *vm_ih" ;
-.Ft void
-.Fn sched_swi "struct intrhand *handler" "int flags"
-.Ft struct intrhand *
-.Fo sinthand_add
+.Vt "extern	void *net_ih" ;
+.Vt "extern	void *softclock_ih" ;
+.Vt "extern	void *vm_ih" ;
+.Ft int
+.Fo swi_add
+.Fa "struct ithd **ithdp"
 .Fa "const char *name"
-.Fa "struct ithd **thread"
 .Fa "driver_intr_t handler"
 .Fa "void *arg"
 .Fa "int pri"
-.Fa "int flags"
+.Fa "enum intr_type flags"
+.Fa "void **cookiep"
 .Fc
+.Ft void
+.Fn swi_sched "void *handler" "int flags"
 .Sh DESCRIPTION
 These functions are used to register and schedule software interrupt handlers.
 Software interrupt handlers are attached to a software interrupt thread, just
 as hardware interrupt handlers are attached to a hardware interrupt thread.
-This means that multiple handlers can be attached to the same thread.
+Multiple handlers can be attached to the same thread.
 Software interrupt handlers can be used to queue up less critical processing
 inside of hardware interrupt handlers so that the work can be done at a later
 time.
 Software interrupt threads are different from other kernel threads in that they
 are treated as an interrupt thread.
 This means that time spent executing these threads is counted as interrupt
-time, and that they can be run via a lightweight context switch during
-.Fn ast .
+time, and that they can be run via a lightweight context switch.
 .Pp
 The
-.Fn sinthand_add
+.Fn swi_add
 function is used to register a new software interrupt handler.
 The
-.Fa name
-argument is used to associate a name with a specific handler.
-This name is appended to the name of the software interrupt thread that this
-handler is attached to.
-The
-.Fa thread
+.Fa ithdp
 argument is an optional pointer to a
 .Li struct ithd
 pointer.
 If this argument points to an existing software interrupt thread, then this
 handler will be attached to that thread.
 Otherwise a new thread will be created, and if
-.Fa thread
+.Fa ithdp
 is not
 .Dv NULL ,
 then the pointer at that address to will be modified to point to the
 newly created thread.
 The
+.Fa name
+argument is used to associate a name with a specific handler.
+This name is appended to the name of the software interrupt thread that this
+handler is attached to.
+The
 .Fa handler
-is the function that will be called when the handler is scheduled to run.
+argument is the function that will be executed when the handler is scheduled
+to run.
 The
 .Fa arg
 parameter will be passed in as the only parameter to
@@ -97,22 +97,27 @@ parameter will be passed in as the only parameter to
 when the function is executed.
 The
 .Fa pri
-value specifies the priority to assign to an interrupt thread if one is created,
+value specifies the priority of this interrupt handler relative to other
+software interrupt handlers.
+If an interrupt thread is created, then this value is used as the vector,
 and the
 .Fa flags
 argument is used to specify the attributes of a handler such as
 .Dv INTR_MPSAFE .
-.Fn sinthand_add
-returns a pointer to a
-.Li struct intrhand
-which is used later to schedule the handler to run.
+The
+.Fn cookiep
+argument points to a
+.Li void *
+cookie.
+This cookie will be set to a value that uniquely identifies this handler,
+and is used to schedule the handler for execution later on.
 .Pp
 The
-.Fn sched_swi
+.Fn swi_sched
 function is used to schedule an interrupt handler and its associated thread to
 run.
 The
-.Fa handler
+.Fa cookie
 argument specifies which software interrupt handler should be scheduled to run.
 The
 .Fa flags
@@ -164,40 +169,67 @@ handler cookies are used to schedule software interrupt threads to run for the
 networking stack, clock interrupt, and VM subsystem respectively.
 .Sh RETURN VALUES
 The
-.Fn sinthand_add
-function returns a pointer to the newly created
-.Li struct intrhand
-if successful or
-.Dv NULL
-on error.
+.Fn swi_add
+function returns zero on success and non-zero on failure.
+.Sh ERRORS
+The
+.Fn swi_add
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+.It Bq Er EINVAL
+The
+.Fa flags
+argument specifies either
+.Dv INTR_ENTROPY
+or
+.Dv INTR_FAST .
+.It Bq Er EINVAL
+The
+.Fa ithdp
+argument points to a hardware interrupt thread.
+.It Bq Er EINVAL
+Either of the
+.Fa name
+or
+.Fa handler
+arguments are
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Dv INTR_EXCL
+flag is specified and the interrupt thread pointed to by
+.Fa ithdp
+already has at least one handler, or the interrupt thread already has an
+exclusive handler.
+.El
 .Sh SEE ALSO
+.Xr ithread 9 ,
 .Xr taskqueue 9
 .Sh HISTORY
 The
-.Fn sinthand_add
-and the
-.Fn sched_swi
+.Fn swi_add
+and
+.Fn swi_sched
 functions first appeared in
 .Fx 5.0 .
+They replaced the
+.Fn register_swi
+function which appeared in
+.Fx 3.0
+and the
+.Fn setsoft* ,
+and
+.Fn schedsoft*
+functions which date back to at least
+.Bx 4.4 .
 .Sh BUGS
-The
-.Fn sinthand_add
-function currently doesn't check for or allow for the
-.Dv INTR_EXCL
-flag to be used to allow a software interrupt handler to have exclusive
-access to a particular software interrupt thread.
-There is also no checking to verify that one does not add a software interrupt
-handler to a hardware interrupt thread.
-.Pp
-The
-.Fn sinthand_add
-function should really return an error code and use a
-.Fa "void **cookiep"
-argument to return a cookie that is passed in as the first argument to
-.Fn sched_swi
-instead of exposing the
-.Li struct intrhand
-type.
 .Pp
 Most of the global variables described in this manual page should not be
 global, or at the very least should not be declared in
