@@ -161,10 +161,7 @@ ptyinit(dev_t devc)
 
 /*ARGSUSED*/
 static	int
-ptsopen(dev, flag, devtype, td)
-	dev_t dev;
-	int flag, devtype;
-	struct thread *td;
+ptsopen(dev_t dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp;
 	int error;
@@ -202,10 +199,7 @@ ptsopen(dev, flag, devtype, td)
 }
 
 static	int
-ptsclose(dev, flag, mode, td)
-	dev_t dev;
-	int flag, mode;
-	struct thread *td;
+ptsclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 	int err;
@@ -217,10 +211,7 @@ ptsclose(dev, flag, mode, td)
 }
 
 static	int
-ptsread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ptsread(dev_t dev, struct uio *uio, int flag)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -283,10 +274,7 @@ again:
  * indirectly, when tty driver calls ptsstart.
  */
 static	int
-ptswrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ptswrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
@@ -301,8 +289,7 @@ ptswrite(dev, uio, flag)
  * Wake up process selecting or sleeping for input from controlling tty.
  */
 static void
-ptsstart(tp)
-	struct tty *tp;
+ptsstart(struct tty *tp)
 {
 	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
@@ -316,9 +303,7 @@ ptsstart(tp)
 }
 
 static void
-ptcwakeup(tp, flag)
-	struct tty *tp;
-	int flag;
+ptcwakeup(struct tty *tp, int flag)
 {
 	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
@@ -333,10 +318,7 @@ ptcwakeup(tp, flag)
 }
 
 static	int
-ptcopen(dev, flag, devtype, td)
-	dev_t dev;
-	int flag, devtype;
-	struct thread *td;
+ptcopen(dev_t dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp;
 	struct pt_ioctl *pti;
@@ -362,11 +344,7 @@ ptcopen(dev, flag, devtype, td)
 }
 
 static	int
-ptcclose(dev, flags, fmt, td)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct thread *td;
+ptcclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct tty *tp;
 
@@ -392,10 +370,7 @@ ptcclose(dev, flags, fmt, td)
 }
 
 static	int
-ptcread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ptcread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
@@ -453,9 +428,7 @@ ptcread(dev, uio, flag)
 }
 
 static	void
-ptsstop(tp, flush)
-	struct tty *tp;
-	int flush;
+ptsstop(struct tty *tp, int flush)
 {
 	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 	int flag;
@@ -477,10 +450,7 @@ ptsstop(tp, flush)
 }
 
 static	int
-ptcpoll(dev, events, td)
-	dev_t dev;
-	int events;
-	struct thread *td;
+ptcpoll(dev_t dev, int events, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
@@ -528,10 +498,7 @@ ptcpoll(dev, events, td)
 }
 
 static	int
-ptcwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ptcwrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
 	u_char *cp = 0;
@@ -639,12 +606,7 @@ block:
 
 /*ARGSUSED*/
 static	int
-ptyioctl(dev, cmd, data, flag, td)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct thread *td;
+ptyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
@@ -810,17 +772,8 @@ ptyioctl(dev, cmd, data, flag, td)
 	return (error);
 }
 
-
-static void ptc_drvinit(void *unused);
-
-static void pty_clone(void *arg, char *name, int namelen, dev_t *dev);
-
 static void
-pty_clone(arg, name, namelen, dev)
-	void *arg;
-	char *name;
-	int namelen;
-	dev_t *dev;
+pty_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
 	int u;
 
@@ -854,8 +807,7 @@ pty_clone(arg, name, namelen, dev)
 }
 
 static void
-ptc_drvinit(unused)
-	void *unused;
+ptc_drvinit(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
