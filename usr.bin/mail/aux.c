@@ -179,7 +179,7 @@ hfield(field, mp)
 	while (lc > 0) {
 		if ((lc = gethfield(ibuf, linebuf, lc, &colon)) < 0)
 			return oldhfield;
-		if (hfield = ishfield(linebuf, colon, field))
+		if ((hfield = ishfield(linebuf, colon, field)) != NULL)
 			oldhfield = save2str(hfield, oldhfield);
 	}
 	return oldhfield;
@@ -572,7 +572,7 @@ name1(mp, reptype)
 	if (reptype == 0 && (cp = hfield("sender", mp)) != NOSTR)
 		return cp;
 	ibuf = setinput(mp);
-	namebuf[0] = 0;
+	namebuf[0] = '\0';
 	if (readline(ibuf, linebuf, LINESIZE) < 0)
 		return(savestr(namebuf));
 newname:

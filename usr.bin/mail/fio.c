@@ -70,8 +70,7 @@ setptr(ibuf)
 	(void)sprintf(linebuf, "%s/mail.XXXXXX", tmpdir);
 	if ((c = mkstemp(linebuf)) == -1 ||
 	    (mestmp = Fdopen(c, "r+")) == NULL) {
-		(void)fprintf(stderr, "mail: can't open %s\n", linebuf);
-		exit(1);
+		errx(1, "can't open %s", linebuf);
 	}
 	(void)unlink(linebuf);
 
@@ -194,7 +193,7 @@ setinput(mp)
 	fflush(otf);
 	if (fseek(itf, (long)positionof(mp->m_block, mp->m_offset), 0) < 0) {
 		perror("fseek");
-		panic("temporary file seek");
+		panic("Temporary file seek");
 	}
 	return (itf);
 }
