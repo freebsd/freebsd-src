@@ -44,6 +44,9 @@ get_remote_hostname(int socket, int use_dns)
 		cleanup_exit(255);
 	}
 
+	if (from.ss_family == AF_INET)
+		check_ip_options(socket, ntop);
+
 	ipv64_normalise_mapped(&from, &fromlen);
 
 	if (from.ss_family == AF_INET6)
@@ -55,9 +58,6 @@ get_remote_hostname(int socket, int use_dns)
 
 	if (!use_dns)
 		return xstrdup(ntop);
-
-	if (from.ss_family == AF_INET)
-		check_ip_options(socket, ntop);
 
 	debug3("Trying to reverse map address %.100s.", ntop);
 	/* Map the IP address to a host name. */

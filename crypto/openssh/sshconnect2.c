@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.134 2004/01/19 21:25:15 markus Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.135 2004/03/05 10:53:58 markus Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -1044,7 +1044,7 @@ pubkey_prepare(Authctxt *authctxt)
 					break;
 				}
 			}
-			if (!found) {
+			if (!found && !options.identities_only) {
 				id = xmalloc(sizeof(*id));
 				memset(id, 0, sizeof(*id));
 				id->key = key;

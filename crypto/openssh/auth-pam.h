@@ -1,4 +1,4 @@
-/* $Id: auth-pam.h,v 1.24 2004/02/10 02:23:29 dtucker Exp $ */
+/* $Id: auth-pam.h,v 1.25 2004/03/08 12:04:07 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Damien Miller.  All rights reserved.
@@ -31,7 +31,7 @@
 # define SSHD_PAM_SERVICE		__progname
 #endif
 
-void start_pam(const char *);
+void start_pam(Authctxt *);
 void finish_pam(void);
 u_int do_pam_account(void);
 void do_pam_session(void);

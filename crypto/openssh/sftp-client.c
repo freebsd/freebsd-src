@@ -20,7 +20,7 @@
 /* XXX: copy between two remote sites */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-client.c,v 1.46 2004/02/17 05:39:51 djm Exp $");
+RCSID("$OpenBSD: sftp-client.c,v 1.47 2004/03/03 09:30:42 djm Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -805,13 +805,8 @@ do_download(struct sftp_conn *conn, char *remote_path, char *local_path,
 	max_req = 1;
 	progress_counter = 0;
 
-	if (showprogress) {
-		if (size)
-			start_progress_meter(remote_path, size,
-			    &progress_counter);
-		else
-			printf("Fetching %s to %s\n", remote_path, local_path);
-	}
+	if (showprogress && size != 0)
+		start_progress_meter(remote_path, size, &progress_counter);
 
 	while (num_req > 0 || max_req > 0) {
 		char *data;
@@ -1036,8 +1031,6 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	offset = 0;
 	if (showprogress)
 		start_progress_meter(local_path, sb.st_size, &offset);
-	else
-		printf("Uploading %s to %s\n", local_path, remote_path);
 
 	for (;;) {
 		int len;

@@ -57,6 +57,10 @@ RCSID("$OpenBSD: ssh-agent.c,v 1.117 2003/12/02 17:01:15 markus Exp $");
 #include "scard.h"
 #endif
 
+#if defined(HAVE_SYS_PRCTL_H)
+#include <sys/prctl.h>	/* For prctl() and PR_SET_DUMPABLE */
+#endif
+
 typedef enum {
 	AUTH_UNUSED,
 	AUTH_SOCKET,
@@ -1022,6 +1026,11 @@ main(int ac, char **av)
 	/* drop */
 	setegid(getgid());
 	setgid(getgid());
+
+#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+	/* Disable ptrace on Linux without sgid bit */
+	prctl(PR_SET_DUMPABLE, 0);
+#endif
 
 	SSLeay_add_all_algorithms();
 
