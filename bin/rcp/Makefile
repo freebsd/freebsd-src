@@ -7,14 +7,14 @@ CFLAGS+=-DBINDIR=${BINDIR}
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
-DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES}
+DPADD=	${LIBUTIL} ${LIBKRB} ${LIBCRYPTO}
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd \
 	-I${.CURDIR}
-LDADD=	-lutil -lkrb -ldes
+LDADD=	-lutil -lkrb -lcrypto
 DISTRIBUTION=	krb4
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
