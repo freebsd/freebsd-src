@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.43 1994/10/03 14:38:27 jkh Exp $
+# $Id: bsd.port.mk,v 1.44 1994/10/04 14:44:56 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -241,7 +241,7 @@ build: configure pre-build
 	@if [ -f ${SCRIPTDIR}/post-build ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		sh ${SCRIPTDIR}/post-build; \
 	fi
 .endif
@@ -268,13 +268,13 @@ ${CONFIGURE_COOKIE}:
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		sh ${SCRIPTDIR}/pre-configure; \
 	fi
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
@@ -286,7 +286,7 @@ ${CONFIGURE_COOKIE}:
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		sh ${SCRIPTDIR}/post-configure; \
 	fi
 	@touch -f ${CONFIGURE_COOKIE}
