@@ -26,13 +26,13 @@ struct dbreg {
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
-void	setregs __P((struct thread *, u_long, u_long, u_long));
-int	fill_regs __P((struct thread *, struct reg *));
-int	set_regs __P((struct thread *, struct reg *));
-int	fill_fpregs __P((struct thread *, struct fpreg *));
-int	set_fpregs __P((struct thread *, struct fpreg *));
-int	fill_dbregs __P((struct thread *, struct dbreg *));
-int	set_dbregs __P((struct thread *, struct dbreg *));
+void	setregs(struct thread *, u_long, u_long, u_long);
+int	fill_regs(struct thread *, struct reg *);
+int	set_regs(struct thread *, struct reg *);
+int	fill_fpregs(struct thread *, struct fpreg *);
+int	set_fpregs(struct thread *, struct fpreg *);
+int	fill_dbregs(struct thread *, struct dbreg *);
+int	set_dbregs(struct thread *, struct dbreg *);
 #endif
 
 #endif /* _POWERPC_REG_H_ */

@@ -79,12 +79,12 @@ extern char *syscallnames[];
 #endif
 
 #if 0 /* XXX: not used yet */
-static int fix_unaligned __P((struct proc *p, struct trapframe *frame));
+static int fix_unaligned(struct proc *p, struct trapframe *frame);
 #endif
-static void trap_fatal __P((struct trapframe *frame));
-static void printtrap __P((int vector, struct trapframe *frame, int isfatal,
-			      int user));
-static int trap_pfault __P((struct trapframe *frame, int user));
+static void trap_fatal(struct trapframe *frame);
+static void printtrap(int vector, struct trapframe *frame, int isfatal,
+			      int user);
+static int trap_pfault(struct trapframe *frame, int user);
 static int handle_onfault (struct trapframe *frame);
 
 static const char *ppc_exception_names[] = {
@@ -139,7 +139,7 @@ static const char *ppc_exception_names[] = {
 };
 
 static void
-printtrap __P((int vector, struct trapframe *frame, int isfatal, int user))
+printtrap(int vector, struct trapframe *frame, int isfatal, int user)
 {
 
 	printf("\n");
