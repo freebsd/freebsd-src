@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.99 1995/01/15 06:13:46 jkh Exp $
+#	$Id: Makefile,v 1.100 1995/01/15 11:21:47 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -396,121 +396,6 @@ bin-tarball:
 		mkdir -p ${RELEASEDIR}/tarballs/bin; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bin/bin.)
-
-srcbase-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - [A-Z]* | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/base.)
-
-srcbin-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - bin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/srcbin.)
-
-srcetc-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - etc | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/etc.)
-
-srcgames-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - games | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/games.)
-
-srcgnu-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - gnu | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/gnu.)
-
-srcinclude-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - include | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/include.)
-
-srclib-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - lib | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lib.)
-
-srclibexec-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - libexec | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/libexec.)
-
-srcrelease-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - release | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
-
-srcsbin-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - sbin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sbin.)
-
-srcsecure-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/secure; \
-		tar -cf - secure | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secure.)
-
-srcelkm-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - lkm | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lkm.)
-
-srcerelease-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - release | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
-
-srcebones-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/secure; \
-		tar -cf - eBones | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/ebones.)
-
-srcshare-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - share | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/share.)
-
-srcsys-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - sys lkm | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sys.)
-
-srcusrbin-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - usr.bin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrbin.)
-
-srcusrsbin-tarball:
-	(cd ${RELEASEDIR}/src/usr/src; \
-		mkdir -p ${RELEASEDIR}/tarballs/src; \
-		tar -cf - usr.sbin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrsbin.)
-
-src-tarball: srcbase-tarball srcbin-tarball srcetc-tarball \
-	srcgames-tarball srcgnu-tarball srcinclude-tarball \
-	srclib-tarball srcsecure-tarball srclibexec-tarball \
-	srcsbin-tarball srcshare-tarball srcsys-tarball \
-	srcusrbin-tarball srcusrsbin-tarball srcrelease-tarball \
-	srcebones-tarball srclkm-tarball srcrelease-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
