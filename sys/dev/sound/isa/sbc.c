@@ -194,24 +194,23 @@ sb_identify_board(struct resource *io)
 }
 
 static struct isa_pnp_id sbc_ids[] = {
-	{0x01008c0e, "Creative ViBRA16C"},
-	{0x31008c0e, "Creative SB16/SB32"},
-	{0x41008c0e, "Creative SB16/SB32"},
-	{0x42008c0e, "Creative SB AWE64"}, /* CTL00c1 */
-	{0x43008c0e, "Creative ViBRA16X"},
-	{0x44008c0e, "Creative SB AWE64 Gold"},
-	{0x45008c0e, "Creative SB AWE64"}, /* CTL0045 */
+	{0x01008c0e, "Creative ViBRA16C"},		/* CTL0001 */
+	{0x31008c0e, "Creative SB16/SB32"},		/* CTL0031 */
+	{0x41008c0e, "Creative SB16/SB32"},		/* CTL0041 */
+	{0x42008c0e, "Creative SB AWE64"},		/* CTL0042 */
+	{0x43008c0e, "Creative ViBRA16X"},		/* CTL0043 */
+	{0x44008c0e, "Creative SB AWE64 Gold"},		/* CTL0044 */
+	{0x45008c0e, "Creative SB AWE64"},		/* CTL0045 */
 
-	{0x01000000, "Avance Asound 100"},
-	{0x01100000, "Avance Asound 110"},
-	{0x01200001, "Avance Logic ALS120"},
+	{0x01100000, "Avance Asound 110"},		/* @@@1001 */
+	{0x01200001, "Avance Logic ALS120"},		/* @@@2001 */
 
-	{0x68187316, "ESS ES1868"}, /* ESS1868 */
-	{0x69187316, "ESS ES1869"}, /* ESS1869 */
-	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},
-	{0x79187316, "ESS ES1879"}, /* ESS1879 */
-	{0x88187316, "ESS ES1888"}, /* ESS1888 */
-	{0x07017316, "ESS ES1888 (DEC OEM)"}, /* DEC on-board ESS1888 */
+	{0x68187316, "ESS ES1868"},			/* ESS1868 */
+	{0x69187316, "ESS ES1869"},			/* ESS1869 */
+	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ac */
+	{0x79187316, "ESS ES1879"},			/* ESS1879 */
+	{0x88187316, "ESS ES1888"},			/* ESS1888 */
+	{0x07017316, "ESS ES1888 (DEC OEM)"},		/* ESS0107 */
 	{0}
 };
 
@@ -333,7 +332,7 @@ sbc_attach(device_t dev)
     	}
 
 	switch (logical_id) {
-    	case 0x43008c0e: /* CTL0043 */
+    	case 0x43008c0e:	/* CTL0043 */
 		f |= BD_F_SB16X;
 		break;
 	}
@@ -482,7 +481,7 @@ sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 
 	alloced[*rid]++;
-	 return (res[*rid]);
+	return (res[*rid]);
 }
 
 static int
@@ -648,4 +647,3 @@ static driver_t sbc_driver = {
 
 /* sbc can be attached to an isa bus. */
 DRIVER_MODULE(sbc, isa, sbc_driver, sbc_devclass, 0, 0);
-
