@@ -86,13 +86,6 @@ main(argc, argv)
 	    Cflag = TRUE;
 	    cyclethreshold = atoi( *++argv );
 	    break;
-	case 'c':
-#if 0
-	    cflag = TRUE;
-#else
-	    errx(1, "-c isn't supported on this architecture yet");
-#endif
-	    break;
 	case 'd':
 	    dflag = TRUE;
 	    setlinebuf(stdout);
