@@ -17,6 +17,6 @@ BINDIR=	/usr/libexec
 .PATH: ${.CURDIR}/../common
 
 lint.7: makeman
-	sh ${.CURDIR}/makeman ${BINDIR}/${PROG} -m >${.TARGET}
+	sh ${.CURDIR}/makeman ${DESTDIR}${BINDIR}/${PROG} -m >${.TARGET}
 
 .include <bsd.prog.mk>
