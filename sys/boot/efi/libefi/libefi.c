@@ -120,7 +120,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	 * If the string is already in Unicode-16, we make a copy so that
 	 * we know we can always modify the string.
 	 */
-	if (img->LoadOptionsSize) {
+	if (img->LoadOptionsSize > 0 && img->LoadOptions != NULL) {
 		if (img->LoadOptionsSize == strlen(img->LoadOptions) + 1) {
 			args = malloc(img->LoadOptionsSize << 1);
 			for (argc = 0; argc < img->LoadOptionsSize; argc++)
