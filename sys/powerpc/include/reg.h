@@ -22,6 +22,6 @@ struct dbreg {
 	unsigned long	junk;
 };
 
-void	setregs(struct proc *, u_long, u_long, u_long);
+void	setregs(struct thread *, u_long, u_long, u_long);
 
 #endif /* _POWERPC_REG_H_ */

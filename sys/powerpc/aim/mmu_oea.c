@@ -375,7 +375,7 @@ pte_spill(vm_offset_t addr)
  * This is called during powerpc_init, before the system is really initialized.
  */
 void
-pmap_bootstrap(u_int kernelstart, u_int kernelend)
+pmap_setavailmem(u_int kernelstart, u_int kernelend)
 {
 	struct mem_region	*mp, *mp1;
 	int			cnt, i;
@@ -585,6 +585,22 @@ pmap_bootstrap(u_int kernelstart, u_int kernelend)
 	}
 #endif
 
+	nextavail = avail->start;
+	avail_start = avail->start;
+	for (mp = avail, i = 0; mp->size; mp++) {
+		avail_end = mp->start + mp->size;
+		phys_avail[i++] = mp->start;
+		phys_avail[i++] = mp->start + mp->size;
+	}
+
+
+}
+
+void
+pmap_bootstrap()
+{
+	int i;
+
 	/*
 	 * Initialize kernel pmap and hardware.
 	 */
@@ -631,14 +647,6 @@ pmap_bootstrap(u_int kernelstart, u_int kernelend)
 		      :: "r"((u_int)ptable | (ptab_mask >> 10)));
 
 	tlbia();
-
-	nextavail = avail->start;
-	avail_start = avail->start;
-	for (mp = avail, i = 0; mp->size; mp++) {
-		avail_end = mp->start + mp->size;
-		phys_avail[i++] = mp->start;
-		phys_avail[i++] = mp->start + mp->size;
-	}
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
@@ -1449,7 +1457,7 @@ pmap_activate(struct thread *td)
 	int		psl, i, ksr, seg;
 
 	pcb = td->td_pcb;
-	pmap = td->td_pric->p_vmspace->vm_map.pmap;
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	/*
 	 * XXX Normally performed in cpu_fork().
@@ -1664,6 +1672,86 @@ pmap_swapout_proc(struct proc *p)
 	return;
 }
 
+
+/*
+ * Create the kernel stack (including pcb for i386) for a new thread.
+ * This routine directly affects the fork perf for a process and
+ * create performance for a thread.
+ */
+void
+pmap_new_thread(td)
+	struct thread *td;
+{
+	/* XXX: coming soon... */
+	return;
+}
+
+/*
+ * Dispose the kernel stack for a thread that has exited.
+ * This routine directly impacts the exit perf of a process and thread.
+ */
+void
+pmap_dispose_thread(td)
+	struct thread *td;
+{
+	/* XXX: coming soon... */
+	return;
+}
+
+/*
+ * Allow the Kernel stack for a thread to be prejudicially paged out.
+ */
+void
+pmap_swapout_thread(td)
+	struct thread *td;
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		pmap_kremove(ks + i * PAGE_SIZE);
+	}
+}
+
+/*
+ * Bring the kernel stack for a specified thread back in.
+ */
+void
+pmap_swapin_thread(td)
+	struct thread *td;
+{
+	int i, rv;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_thread: cannot get kstack for proc: %d\n", td->td_proc->p_pid);
+			m = vm_page_lookup(ksobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
+}
+
 void
 pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, boolean_t pageable)
 {
@@ -1741,7 +1829,7 @@ pmap_steal_memory(vm_size_t size)
 }
 
 /*
- * Create the UPAGES for a new process.
+ * Create the UAREA_PAGES for a new process.
  * This routine directly affects the fork perf for a process.
  */
 void
@@ -1761,20 +1849,20 @@ pmap_new_proc(struct proc *p)
 	 */
 	upobj = p->p_upages_obj;
 	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UPAGES);
+		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
 		p->p_upages_obj = upobj;
 	}
 
-	/* get a kernel virtual address for the UPAGES for this proc */
-	up = p->p_addr;
+	/* get a kernel virtual address for the UAREA_PAGES for this proc */
+	up = (vm_offset_t)p->p_uarea;
 	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
 		if (up == 0)
 			panic("pmap_new_proc: upage allocation failed");
-		p->p_addr = (struct user *)up;
+		p->p_uarea = (struct user *)up;
 	}
 
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
