@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.2 1995/02/15 06:28:20 jkh Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.3 1995/02/15 11:59:41 jkh Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.2 1995/02/15 06:28:20 jkh E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.3  1995/02/15  11:59:41  jkh
+ * Fix a few more nits.  Should compile better now! :_)
+ *
  * Revision 1.2  1995/02/15  06:28:20  jkh
  * Fix up include paths, nuke some warnings.
  *
@@ -76,7 +79,7 @@ int             nnic_output(), nnic_state();
 static          discon_req(), sel_b2_prot_req(), reset_plci();
 static short    bsintr;
 
-struct isa_driver nnidriver = {nnicprobe, nnicattach, "nnic"};
+struct isa_driver nnicdriver = {nnicprobe, nnicattach, "nnic"};
 
 typedef enum
 {
