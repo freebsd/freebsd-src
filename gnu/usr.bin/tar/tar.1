@@ -3,7 +3,7 @@
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"
-.\"	$Id: tar.1,v 1.9 1997/06/05 23:12:13 max Exp $
+.\"	$Id: tar.1,v 1.10 1997/06/23 04:51:55 steve Exp $
 .\"
 .Dd August 6, 1994
 .Os FreeBSD
@@ -197,6 +197,9 @@ Don't extract file modified time.
 .It Fl M
 .It Fl -multi-volume
 Create/list/extract multi-volume archive.
+.It Fl n
+.It Fl -norecurse
+Don't recurse into subdirectories when creating.
 .It Fl N Ar date
 .It Fl -after-date Ar date
 .It Fl -newer Ar date
@@ -289,8 +292,6 @@ Block the output of compression program for tapes or floppies
 (otherwise writes will be of odd length, which device drivers may reject).
 .It Fl [0-7][lmh]
 Specify tape drive and density.
-.It Fl -norecurse
-Don't recurse into subdirectories when creating.
 .It Fl -unlink
 Unlink files before creating them.
 .El
