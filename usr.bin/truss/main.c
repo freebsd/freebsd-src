@@ -79,7 +79,7 @@ usage(void)
 struct ex_types {
   const char *type;
   void (*enter_syscall)(struct trussinfo *, int);
-  int (*exit_syscall)(struct trussinfo *, int);
+  long (*exit_syscall)(struct trussinfo *, int);
 } ex_types[] = {
 #ifdef __alpha__
   { "FreeBSD ELF", alpha_syscall_entry, alpha_syscall_exit },
