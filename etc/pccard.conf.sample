@@ -255,6 +255,15 @@ card "NETGEAR" "FA410TX" "Fast Ethernet"
 	remove  echo NETGEAR FA410TX Ethernet removed
 	remove  ifconfig ed0 delete
 
+# Network Everywhere Ethernet 10BaseT PC Card
+card "Network Everywhere" "Ethernet 10BaseT PC Card"
+	config  0x1 "ed0" ?
+	insert  echo Network Everywhere Ethernet 10BaseT PC Card inserted
+	insert  /etc/pccard_ether ed0
+	remove  echo Network Everywhere Ethernet 10BaseT PC Card removed
+	remove  /sbin/ifconfig ed0 delete
+
+
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
 	config  0x23 "sio2" ?
