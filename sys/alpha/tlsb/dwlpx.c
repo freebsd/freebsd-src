@@ -844,7 +844,7 @@ static device_method_t dwlpx_methods[] = {
 	DEVMETHOD(bus_read_ivar,	dwlpx_read_ivar),
 	DEVMETHOD(bus_setup_intr,	dwlpx_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	dwlpx_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	alpha_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
