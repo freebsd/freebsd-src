@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.31 1999/05/30 16:52:09 phk Exp $
+ *	$Id: ctx.c,v 1.32 1999/05/31 11:25:54 phk Exp $
  */
 
 /*
@@ -111,18 +111,12 @@
 #include "ctx.h"
 #if NCTX > 0
 
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
@@ -184,7 +178,6 @@ static struct ctx_soft_registers {
 	int     iobase;
 	caddr_t maddr;
 	int     msize;
-	void	*devfs_token;
 }       ctx_sr[NCTX];
 
 
@@ -216,11 +209,7 @@ ctxattach(struct isa_device * devp)
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
-#ifdef DEVFS
-	sr->devfs_token = 
-		devfs_add_devswf(&ctx_cdevsw, 0, DV_CHR, 0, 0, 0600,
-				 "ctx%d", devp->id_unit);
-#endif /* DEVFS */
+	make_dev(&ctx_cdevsw, 0, 0, 0, 0600, "ctx%d", devp->id_unit);
 	return (1);
 }
 

@@ -40,14 +40,12 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.107 1999/05/30 16:52:19 phk Exp $
+ *	$Id: mcd.c,v 1.108 1999/05/31 11:26:15 phk Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include "mcd.h"
 #if NMCD > 0
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -57,9 +55,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -150,12 +145,6 @@ static struct mcd_data {
 	short	debug;
 	struct buf_queue_head head;		/* head of buf queue */
 	struct mcd_mbx mbx;
-#ifdef	DEVFS
-	void *ra_devfs_token;		/* store the devfs handle here */
-	void *rc_devfs_token;		/* store the devfs handle here */
-	void *a_devfs_token;		/* store the devfs handle here */
-	void *c_devfs_token;		/* store the devfs handle here */
-#endif
 } mcd_data[NMCD];
 
 /* reader state machine */
@@ -275,24 +264,14 @@ int mcd_attach(struct isa_device *dev)
 	mcd_configure(cd);
 #endif
 	/* name filled in probe */
-#ifdef DEVFS
-	cd->ra_devfs_token = 
-		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rmcd%da", unit);
-	cd->rc_devfs_token = 
-		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rmcd%dc", unit);
-	cd->a_devfs_token = 
-		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "mcd%da", unit);
-	cd->c_devfs_token = 
-		devfs_add_devswf(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "mcd%dc", unit);
-#endif
+	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
+	    UID_ROOT, GID_OPERATOR, 0640, "rmcd%da", unit);
+	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
+	    UID_ROOT, GID_OPERATOR, 0640, "rmcd%dc", unit);
+	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
+	    UID_ROOT, GID_OPERATOR, 0640, "mcd%da", unit);
+	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
+	    UID_ROOT, GID_OPERATOR, 0640, "mcd%dc", unit);
 	return 1;
 }
 

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.87 1999/05/31 11:26:28 phk Exp $
+ *	$Id: si.c,v 1.88 1999/08/18 17:42:41 nsayer Exp $
  */
 
 #ifndef lint
@@ -41,7 +41,6 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 
 #include "opt_compat.h"
 #include "opt_debug_si.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -56,9 +55,6 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -248,17 +244,6 @@ struct si_softc {
 #if NEISA > 0
 	int		sc_eisa_iobase;	/* EISA io port address */
 	int		sc_eisa_irq;	/* EISA irq number */
-#endif
-#ifdef	DEVFS
-	struct {
-		void	*ttya;
-		void	*cuaa;
-		void	*ttyl;
-		void	*cual;
-		void	*ttyi;
-		void	*cuai;
-	} devfs_token[32]; /* what is the max per card? */
-	void	*control_token;
 #endif
 };
 static struct si_softc si_softc[NSI];		/* up to 4 elements */
@@ -1100,34 +1085,18 @@ try_next2:
 		done_chartimes = 1;
 	}
 
-#ifdef DEVFS
 /*	path	name	devsw		minor	type   uid gid perm*/
 	for ( x = 0; x < sc->sc_nport; x++ ) {
 		/* sync with the manuals that start at 1 */
 		y = x + 1 + id->id_unit * (1 << SI_CARDSHIFT);
-		sc->devfs_token[x].ttya = devfs_add_devswf(
-			&si_cdevsw, x,
-			DV_CHR, 0, 0, 0600, "ttyA%02d", y);
-		sc->devfs_token[x].cuaa = devfs_add_devswf(
-			&si_cdevsw, x + 0x00080,
-			DV_CHR, 0, 0, 0600, "cuaA%02d", y);
-		sc->devfs_token[x].ttyi = devfs_add_devswf(
-			&si_cdevsw, x + 0x10000,
-			DV_CHR, 0, 0, 0600, "ttyiA%02d", y);
-		sc->devfs_token[x].cuai = devfs_add_devswf(
-			&si_cdevsw, x + 0x10080,
-			DV_CHR, 0, 0, 0600, "cuaiA%02d", y);
-		sc->devfs_token[x].ttyl = devfs_add_devswf(
-			&si_cdevsw, x + 0x20000,
-			DV_CHR, 0, 0, 0600, "ttylA%02d", y);
-		sc->devfs_token[x].cual = devfs_add_devswf(
-			&si_cdevsw, x + 0x20080,
-			DV_CHR, 0, 0, 0600, "cualA%02d", y);
+		make_dev( &si_cdevsw, x, 0, 0, 0600, "ttyA%02d", y);
+		make_dev( &si_cdevsw, x + 0x00080, 0, 0, 0600, "cuaA%02d", y);
+		make_dev( &si_cdevsw, x + 0x10000, 0, 0, 0600, "ttyiA%02d", y);
+		make_dev( &si_cdevsw, x + 0x10080, 0, 0, 0600, "cuaiA%02d", y);
+		make_dev( &si_cdevsw, x + 0x20000, 0, 0, 0600, "ttylA%02d", y);
+		make_dev( &si_cdevsw, x + 0x20080, 0, 0, 0600, "cualA%02d", y);
 	}
-	sc->control_token = 
-		devfs_add_devswf(&si_cdevsw, 0x40000, DV_CHR, 0, 0, 0600, 
-				 "si_control");
-#endif
+	make_dev(&si_cdevsw, 0x40000, 0, 0, 0600, "si_control");
 	return (1);
 }
 

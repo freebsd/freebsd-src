@@ -24,18 +24,12 @@
 
 #if NGP > 0
 
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
 #include <i386/isa/gpibreg.h>
 #include <i386/isa/gpib.h>
 #include <i386/isa/isa_device.h>
@@ -110,9 +104,6 @@ static struct gpib_softc {
 	u_char	sc_flags;	/* flags (open and internal)	*/
         char	sc_unit;	/* gpib device number		*/
         char	*sc_inbuf;	/* buffer for data		*/
-#ifdef DEVFS
-	void	*devfs_token;	/* handle for devfs entry	*/
-#endif
 } gpib_sc; /* only support one of these? */
 static int oldcount;
 static char oldbytes[2];
@@ -158,10 +149,7 @@ gpattach(isdp)
            printf ("gp%d: type AT-GPIB chip NAT4882A\n",sc->sc_unit);
         sc->sc_flags |=ATTACHED;
 
-#ifdef DEVFS
-	sc->devfs_token = 
-		devfs_add_devswf(&gp_cdevsw, 0, DV_CHR, 0, 0, 0600, "gp");
-#endif
+	make_dev(&gp_cdevsw, 0, 0, 0, 0600, "gp");
         return (1);
 }
 

@@ -27,12 +27,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.90 1999/05/31 11:25:57 phk Exp $
+ *	$Id: cy.c,v 1.91 1999/06/04 18:13:25 bde Exp $
  */
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
-
 #include "cy.h"
 
 /*
@@ -80,10 +78,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/clock.h>
 #include <machine/ipl.h>
 #ifndef SMP
@@ -325,14 +319,6 @@ struct com_s {
 	 */
 	u_char	obuf1[256];
 	u_char	obuf2[256];
-#ifdef DEVFS
-	void	*devfs_token_ttyd;
-	void	*devfs_token_ttyl;
-	void	*devfs_token_ttyi;
-	void	*devfs_token_cuaa;
-	void	*devfs_token_cual;
-	void	*devfs_token_cuai;
-#endif
 };
 
 /* PCI driver entry point. */
@@ -636,32 +622,24 @@ cyattach_common(cy_iobase, cy_align)
 		register_swi(SWI_TTY, siopoll);
 		sio_registered = TRUE;
 	}
-#ifdef DEVFS
-	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-		unit, DV_CHR,
+	make_dev(&sio_cdevsw, unit,
 		UID_ROOT, GID_WHEEL, 0600, "ttyc%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR,
+	make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
 		UID_ROOT, GID_WHEEL, 0600, "ttyic%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR,
+	make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
 		UID_ROOT, GID_WHEEL, 0600, "ttylc%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR,
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
 		UID_UUCP, GID_DIALER, 0660, "cuac%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_INIT_STATE,
 		UID_UUCP, GID_DIALER, 0660, "cuaic%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
 		UID_UUCP, GID_DIALER, 0660, "cualc%r%r", adapter,
 		unit % CY_MAX_PORTS);
-#endif
 		}
 	}
 

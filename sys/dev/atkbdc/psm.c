@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.15 1999/08/17 12:14:13 yokota Exp $
+ * $Id: psm.c,v 1.16 1999/08/22 06:11:52 yokota Exp $
  */
 
 /*
@@ -65,7 +65,6 @@
 #ifdef __i386__
 #include "apm.h"
 #endif
-#include "opt_devfs.h"
 #include "opt_psm.h"
 
 #if NPSM > 0
@@ -81,9 +80,6 @@
 #include <sys/malloc.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/select.h>
 #include <sys/uio.h>
 
@@ -181,10 +177,6 @@ struct psm_softc {		/* Driver status information */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
-#ifdef DEVFS
-    void          *devfs_token;
-    void          *b_devfs_token;
-#endif
 #ifdef PSM_HOOKAPM
     struct apmhook resumehook;
 #endif
@@ -1094,14 +1086,8 @@ psmattach(device_t dev)
     sc->state = PSM_VALID;
 
     /* Done */
-#ifdef    DEVFS
-    sc->devfs_token =
-        devfs_add_devswf(&psm_cdevsw, PSM_MKMINOR(unit, FALSE),
-        DV_CHR, 0, 0, 0666, "psm%d", unit);
-    sc->b_devfs_token =
-        devfs_add_devswf(&psm_cdevsw, PSM_MKMINOR(unit, TRUE),
-        DV_CHR, 0, 0, 0666, "bpsm%d", unit);
-#endif /* DEVFS */
+    make_dev(&psm_cdevsw, PSM_MKMINOR(unit, FALSE), 0, 0, 0666, "psm%d", unit);
+    make_dev(&psm_cdevsw, PSM_MKMINOR(unit, TRUE), 0, 0, 0666, "bpsm%d", unit);
 
 #ifdef PSM_HOOKAPM
     sc->resumehook.ah_name = "PS/2 mouse";

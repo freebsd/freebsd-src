@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.14 1999/07/03 08:23:00 phk Exp $
+ * $Id: xrpu.c,v 1.15 1999/07/13 08:15:22 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -17,8 +17,6 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include "xrpu.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -26,9 +24,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/timepps.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/xrpuio.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -184,10 +179,8 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 			if (xt->xt_pps[i].xt_addr_assert == 0
 			    && xt->xt_pps[i].xt_addr_clear == 0)
 				continue;
-#ifdef DEVFS
-			devfs_add_devswf(&xrpu_cdevsw, (i+1)<<16, DV_CHR, UID_ROOT, GID_WHEEL, 
-			    0600, "xpps%d", i);
-#endif
+			make_dev(&xrpu_cdevsw, (i+1)<<16, 
+			    UID_ROOT, GID_WHEEL, 0600, "xpps%d", i);
 			sc->pps[i].ppscap = 0;
 			if (xt->xt_pps[i].xt_addr_assert) {
 				sc->assert[i] = sc->virbase62 + xt->xt_pps[i].xt_addr_assert;
@@ -263,8 +256,5 @@ xrpu_attach (pcici_t tag, int unit)
 		    (u_long)sc->physbase, (u_long)sc->virbase);
 
 
-#ifdef DEVFS
-	devfs_add_devswf(&xrpu_cdevsw, 0, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-		"xrpu%d", unit);
-#endif
+	make_dev(&xrpu_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "xrpu%d", unit);
 }

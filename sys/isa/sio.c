@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.254 1999/08/09 10:34:55 phk Exp $
+ *	$Id: sio.c,v 1.255 1999/08/09 11:02:38 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -38,7 +38,6 @@
 #include "opt_comconsole.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 #include "opt_sio.h"
 #include "sio.h"
 /* #include "pnp.h" */
@@ -70,9 +69,6 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/timepps.h>
 
 #include <isa/isareg.h>
@@ -298,14 +294,6 @@ struct com_s {
 	 */
 	u_char	obuf1[256];
 	u_char	obuf2[256];
-#ifdef DEVFS
-	void	*devfs_token_ttyd;
-	void	*devfs_token_ttyl;
-	void	*devfs_token_ttyi;
-	void	*devfs_token_cuaa;
-	void	*devfs_token_cual;
-	void	*devfs_token_cuai;
-#endif
 };
 
 #ifdef COM_ESP
@@ -1124,26 +1112,18 @@ determined_type: ;
 		register_swi(SWI_TTY, siopoll);
 		sio_registered = TRUE;
 	}
-#ifdef DEVFS
-	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
-	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
-	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
-	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-#endif
+	make_dev(&sio_cdevsw, unit,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
+	make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
+	make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
+	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_INIT_STATE,
+	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
+	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
+	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 	pps_init(&com->pps);

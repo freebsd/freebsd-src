@@ -12,11 +12,12 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: cam_extend.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 /*
  * XXX XXX XXX XXX  We should get DEVFS working so that we
  * don't have to do this, possibly sparse, array based junk.
+ * XXX: We can do this now with dev_t, that's even better.
  */
 /*
  * Extensible arrays: Use a realloc like implementation to permit

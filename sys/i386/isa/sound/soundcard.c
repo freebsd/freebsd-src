@@ -26,13 +26,7 @@
  * SUCH DAMAGE.
  * 
  */
-#include "opt_devfs.h"
-
 #include <i386/isa/sound/sound_config.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
-
 #if NSND > 0	/* from "snd.h" */
 #include "uart.h"
 
@@ -508,7 +502,6 @@ sndattach(struct isa_device * dev)
     }
 
     cdevsw_add(&snd_cdevsw);
-#ifdef DEVFS
 #define GID_SND GID_GAMES
 #define UID_SND UID_ROOT
 #define PERM_SND 0660
@@ -517,40 +510,25 @@ sndattach(struct isa_device * dev)
      *	duplicate creation of same node failed (ie. bad cookie returned)
      */
     if (dev->id_driver == &opldriver){
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SEQ,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "sequencer%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "sequencer");
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SEQ,
+	    UID_SND, GID_SND, PERM_SND, "sequencer%r", dev->id_unit);
     } else if (dev->id_driver == &mpudriver || 
                dev->id_driver == &sbmididriver ||
 	       dev->id_driver == &uartdriver){
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "midi%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "midi");
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	    UID_SND, GID_SND, PERM_SND, "midi%r", dev->id_unit);
     } else {
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "dsp%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "dsp");
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "dspW%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "dspW");
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "audio%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "audio");
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "mixer%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "mixer");
-	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
-			 DV_CHR, UID_SND, GID_SND, PERM_SND,
-			 "sndstat%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "sndstat");
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	    UID_SND, GID_SND, PERM_SND, "dsp%r", dev->id_unit);
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	    UID_SND, GID_SND, PERM_SND, "dspW%r", dev->id_unit);
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	    UID_SND, GID_SND, PERM_SND, "audio%r", dev->id_unit);
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	    UID_SND, GID_SND, PERM_SND, "mixer%r", dev->id_unit);
+	make_dev(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	    UID_SND, GID_SND, PERM_SND, "sndstat%r", dev->id_unit);
     }
-#endif /* DEVFS */
     return TRUE;
 }
 

@@ -25,13 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.49 1999/05/30 16:52:21 phk Exp $
+ *	$Id: pcaudio.c,v 1.50 1999/05/31 11:26:19 phk Exp $
  */
 
 #include "pca.h"
 #if NPCA > 0
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -47,10 +45,6 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
@@ -117,11 +111,6 @@ static unsigned char alaw_linear[] = {
 	25, 	234, 	121, 	134, 	0, 		255, 	102, 	154, 
 	76, 	181, 	125, 	130, 	0, 		255, 	115, 	141, 
 };
-
-#ifdef DEVFS
-static	void	*pca_devfs_token;
-static	void	*pcac_devfs_token;
-#endif
 
 static int pca_sleep = 0;
 static int pca_initialized = 0;
@@ -329,13 +318,8 @@ pcaattach(struct isa_device *dvp)
 {
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
-#ifdef DEVFS
-	pca_devfs_token = 
-		devfs_add_devswf(&pca_cdevsw, 0, DV_CHR, 0, 0, 0600, "pcaudio");
-	pcac_devfs_token = 
-		devfs_add_devswf(&pca_cdevsw, 128, DV_CHR, 0, 0, 0600, 
-				 "pcaudioctl");
-#endif /*DEVFS*/
+	make_dev(&pca_cdevsw, 0, 0, 0, 0600, "pcaudio");
+	make_dev(&pca_cdevsw, 128, 0, 0, 0600, "pcaudioctl");
 
 	return 1;
 }

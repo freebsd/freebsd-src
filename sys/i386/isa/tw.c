@@ -32,8 +32,6 @@
 #include "tw.h"
 #if NTW > 0
 
-#include "opt_devfs.h"
-
 /*
  * Driver configuration parameters
  */
@@ -148,10 +146,6 @@
 #include <sys/syslog.h>
 #include <sys/select.h>
 #include <sys/poll.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 #ifdef HIRESTIME
@@ -278,9 +272,6 @@ static struct tw_sc {
 #define SC_RCV_TIME_LEN	128
   int sc_rcv_time[SC_RCV_TIME_LEN]; /* usec time stamp on interrupt */
 #endif /* HIRESTIME */
-#ifdef	DEVFS
-  void	*devfs_token;		/* store the devfs handle */
-#endif
 } tw_sc[NTW];
 
 static int tw_zcport;		/* offset of port for zero crossing signal */
@@ -418,13 +409,7 @@ static int twattach(idp)
   sc->sc_state = 0;
   sc->sc_rcount = 0;
   callout_handle_init(&sc->abortrcv_ch);
-
-#ifdef DEVFS
-	sc->devfs_token = 
-		devfs_add_devswf(&tw_cdevsw, unit, DV_CHR, 0, 0, 
-				 0600, "tw%d", unit);
-#endif
-
+  make_dev(&tw_cdevsw, unit, 0, 0, 0600, "tw%d", unit);
   return (1);
 }
 

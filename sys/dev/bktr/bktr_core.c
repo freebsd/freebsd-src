@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.85 1999/06/12 14:54:54 roger Exp $ */
+/* $Id: brooktree848.c,v 1.89 1999/07/12 15:51:48 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -444,7 +444,6 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #ifdef __FreeBSD__
 #include "bktr.h"
 #include "opt_bktr.h"
-#include "opt_devfs.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
 
@@ -484,10 +483,6 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #else
   #define NSMBUS 0
 #endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 
 #if (__FreeBSD_version >=400000) || (NSMBUS > 0)
   #include <sys/bus.h>		/* used by smbus and newbus */
@@ -6961,13 +6956,9 @@ bktr_attach( device_t dev )
 	/* call the common attach code */
 	common_bktr_attach( bktr, unit, fun, rev );
 
-#ifdef DEVFS
-	/* XXX This just throw away the token, which should probably be fixed when
-	   DEVFS is finally made really operational. */
-	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
-#endif /* DEVFS */
+	make_dev(&bktr_cdevsw, unit,    0, 0, 0444, "bktr%d",  unit);
+	make_dev(&bktr_cdevsw, unit+16, 0, 0, 0444, "tuner%d", unit);
+	make_dev(&bktr_cdevsw, unit+32, 0, 0, 0444, "vbi%d", unit);
 
 	return 0;
 
@@ -7473,13 +7464,9 @@ bktr_attach( pcici_t tag, int unit )
 	/* call the common attach code */
 	common_bktr_attach( bktr, unit, fun, rev );
  
-#ifdef DEVFS
-	/* XXX This just throw away the token, which should probably be fixed when
-	   DEVFS is finally made really operational. */
-	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
-#endif /* DEVFS */
+	make_dev(&bktr_cdevsw, unit,    0, 0, 0444, "bktr%d",  unit);
+	make_dev(&bktr_cdevsw, unit+16, 0, 0, 0444, "tuner%d", unit);
+	make_dev(&bktr_cdevsw, unit+32, 0, 0, 0444, "vbi%d", unit);
 
 }
 

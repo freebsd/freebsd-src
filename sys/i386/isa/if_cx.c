@@ -20,8 +20,6 @@
 
 #include "cx.h"
 #include "bpf.h"
-#include "opt_devfs.h"
-
 #include "sppp.h"
 #if NSPPP <= 0
 #error The device 'cx' requires sppp.
@@ -43,10 +41,6 @@
 #endif
 
 #include <i386/isa/isa_device.h>
-#ifdef DEVFS
-extern struct cdevsw cx_cdevsw;
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #define watchdog_func_t void(*)(struct ifnet *)
 #define start_func_t    void(*)(struct ifnet*)
 
@@ -216,10 +210,6 @@ cxprobe (struct isa_device *id)
  * The adapter is present, initialize the driver structures.
  */
 
-#ifdef DEVFS
-static void *cx_devfs_token;
-#endif 
-
 static int
 cxattach (struct isa_device *id)
 {
@@ -300,10 +290,11 @@ cxattach (struct isa_device *id)
 		timeout (cxtimeout, 0, hz*5);
 
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
-#ifdef DEVFS
-	cx_devfs_token =
-		devfs_add_devswf(&cx_cdevsw, 0, DV_CHR, 0, 0, 0600, "cx");
-#endif
+	{
+	extern struct cdevsw cx_cdevsw;
+
+	make_dev(&cx_cdevsw, 0, 0, 0, 0600, "cx");
+	}
 	return (1);
 }
 

@@ -36,12 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.64 1999/06/07 20:37:27 msmith Exp $
+ * $Id: kern_descrip.c,v 1.65 1999/08/04 18:53:44 green Exp $
  */
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -64,10 +62,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
@@ -1292,43 +1286,18 @@ SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, 
     &maxfiles, 0, "Maximum number of files");
 
-static int fildesc_devsw_installed;
-#ifdef DEVFS
-static	void *devfs_token_stdin;
-static	void *devfs_token_stdout;
-static	void *devfs_token_stderr;
-static	void *devfs_token_fildesc[NUMFDESC];
-#endif
-
-static void 	fildesc_drvinit(void *unused)
+static void
+fildesc_drvinit(void *unused)
 {
-#ifdef DEVFS
 	int fd;
-#endif
 
-	if( ! fildesc_devsw_installed ) {
-		cdevsw_add(&fildesc_cdevsw);
-		fildesc_devsw_installed = 1;
-#ifdef DEVFS
-		for (fd = 0; fd < NUMFDESC; fd++)
-			devfs_token_fildesc[fd] =
-				devfs_add_devswf(&fildesc_cdevsw, fd, DV_CHR,
-						 UID_BIN, GID_BIN, 0666,
-						 "fd/%d", fd);
-		devfs_token_stdin =
-			devfs_add_devswf(&fildesc_cdevsw, 0, DV_CHR,
-					 UID_ROOT, GID_WHEEL, 0666,
-					 "stdin");
-		devfs_token_stdout =
-			devfs_add_devswf(&fildesc_cdevsw, 1, DV_CHR,
-					 UID_ROOT, GID_WHEEL, 0666,
-					 "stdout");
-		devfs_token_stderr =
-			devfs_add_devswf(&fildesc_cdevsw, 2, DV_CHR,
-					 UID_ROOT, GID_WHEEL, 0666,
-					 "stderr");
-#endif
-    	}
+	cdevsw_add(&fildesc_cdevsw);
+	for (fd = 0; fd < NUMFDESC; fd++)
+		make_dev(&fildesc_cdevsw, fd,
+		    UID_BIN, GID_BIN, 0666, "fd/%d", fd);
+	make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "stdin");
+	make_dev(&fildesc_cdevsw, 1, UID_ROOT, GID_WHEEL, 0666, "stdout");
+	make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "stderr");
 }
 
 struct fileops badfileops = {

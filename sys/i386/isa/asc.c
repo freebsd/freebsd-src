@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.37 1999/05/30 16:52:07 phk Exp $
+ * $Id: asc.c,v 1.38 1999/05/31 11:25:50 phk Exp $
  */
 
 #include "asc.h"
@@ -48,12 +48,6 @@
 #include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/select.h>
-
-#include "opt_devfs.h"
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/uio.h>
 
 #include <machine/asc_ioctl.h>
@@ -162,12 +156,6 @@ struct asc_unit {
   struct selinfo selp;
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
-#ifdef DEVFS
-  void *devfs_asc;	  /* storage for devfs tokens (handles) */
-  void *devfs_ascp;
-  void *devfs_ascd;
-  void *devfs_ascpd;
-#endif
 };
 
 static struct asc_unit unittab[NASC];                                 
@@ -497,23 +485,15 @@ ascattach(struct isa_device *isdp)
 
     scu->selp.si_flags=0;
     scu->selp.si_pid=(pid_t)0;
-#ifdef DEVFS
 #define ASC_UID 0
 #define ASC_GID 13
-    scu->devfs_asc = 
-		devfs_add_devswf(&asc_cdevsw, unit<<6, DV_CHR, ASC_UID,
-				 ASC_GID, 0666, "asc%d", unit);
-    scu->devfs_ascp = 
-		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + FRMT_PBM), DV_CHR, 
-				 ASC_UID,  ASC_GID, 0666, "asc%dp", unit);
-    scu->devfs_ascd = 
-		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + DBUG_MASK), DV_CHR, 
-				 ASC_UID,  ASC_GID, 0666, "asc%dd", unit);
-    scu->devfs_ascpd = 
-		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM),
-				 DV_CHR, ASC_UID, ASC_GID, 0666, "asc%dpd", 
-				 unit);
-#endif /*DEVFS*/
+  make_dev(&asc_cdevsw, unit<<6, ASC_UID, ASC_GID, 0666, "asc%d", unit);
+  make_dev(&asc_cdevsw, ((unit<<6) + FRMT_PBM),
+    ASC_UID,  ASC_GID, 0666, "asc%dp", unit);
+  make_dev(&asc_cdevsw, ((unit<<6) + DBUG_MASK),
+    ASC_UID,  ASC_GID, 0666, "asc%dd", unit);
+  make_dev(&asc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM), 
+    ASC_UID, ASC_GID, 0666, "asc%dpd", unit);
   return ATTACH_SUCCESS;
 }
 

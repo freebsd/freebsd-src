@@ -79,18 +79,9 @@
 #include "vt.h"
 #if NVT > 0
 
-#include "opt_devfs.h"
-
 #define EXTERN			/* allocate mem */
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#if !defined(MAXCONS)
-#define MAXCONS 16
-#endif
-static void *pcvt_devfs_token[MAXCONS];
-#endif /*DEVFS*/
 
 #if PCVT_FREEBSD >= 200
 #include <sys/bus.h>
@@ -220,9 +211,6 @@ pcattach(struct isa_device *dev)
 {
 #endif /* PCVT_NETBSD > 9 */
 
-#ifdef DEVFS
-	int vt;
-#endif /*DEVFS*/
 	int i;
 
 	vt_coldmalloc();		/* allocate memory for screens */
@@ -389,14 +377,6 @@ pcattach(struct isa_device *dev)
 
 #if PCVT_FREEBSD > 205
 	cdevsw_add(&pc_cdevsw);
-
-#ifdef DEVFS	
-	for(vt = 0; vt < MAXCONS; vt++) {
-          pcvt_devfs_token[vt] = 
-		devfs_add_devswf(&pc_cdevsw, vt,
-                                 DV_CHR, 0, 0, 0600, "ttyv%r", vt );
-	}
-#endif DEVFS
 #endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 9

@@ -31,14 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.26 1999/05/30 16:53:00 phk Exp $
+ * $Id: tty_tty.c,v 1.27 1999/05/31 11:27:41 phk Exp $
  */
 
 /*
  * Indirect driver for controlling tty.
  */
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,9 +46,6 @@
 #include <sys/ttycom.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 static	d_open_t	cttyopen;
 static	d_read_t	cttyread;
@@ -193,26 +188,13 @@ cttypoll(dev, events, p)
 	return (VOP_POLL(ttyvp, events, p->p_ucred, p));
 }
 
-static	int	ctty_devsw_installed;
-#ifdef DEVFS
-static 	void	*ctty_devfs_token;
-#endif
-
 static void ctty_drvinit __P((void *unused));
 static void
 ctty_drvinit(unused)
 	void *unused;
 {
 
-	if( ! ctty_devsw_installed ) {
-		cdevsw_add(&ctty_cdevsw);
-		ctty_devsw_installed = 1;
-#ifdef DEVFS
-		ctty_devfs_token = 
-			devfs_add_devswf(&ctty_cdevsw, 0, DV_CHR, 0, 0, 
-					0666, "tty");
-#endif
-    	}
+	make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "tty");
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)

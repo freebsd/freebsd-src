@@ -30,10 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.58 1999/08/17 20:25:50 billf Exp $
+ * $Id: kern_conf.c,v 1.59 1999/08/20 20:24:59 julian Exp $
  */
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -44,10 +42,6 @@
 #include <sys/vnode.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif	/* DEVFS */
-
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
@@ -63,6 +57,8 @@ MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 static struct specinfo devt_stash[DEVT_STASH];
 
 static SLIST_HEAD(devt_hash_head, specinfo) dev_hash[DEVT_HASH];
+
+devfs_create_t *devfs_create_hook;
 
 /*
  * Routine to convert from character to block device number.
@@ -239,9 +235,6 @@ makedev(int x, int y)
 	}
 	bzero(si, sizeof(*si));
 	si->si_udev = udev;
-	si->si_bsize_phys = DEV_BSIZE;
-	si->si_bsize_best = BLKDEV_IOSIZE;
-	si->si_bsize_max = MAXBSIZE;
 	if (y > 256)
 		sprintf(si->si_name, "#%d/0x%x", x, y);
 	else
@@ -313,17 +306,8 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	va_end(ap);
 	dev->si_devsw = devsw;
 
-#ifdef	DEVFS
-        dev->si_devfs = devfs_add_devswf(devsw, minor, DV_CHR,
-	    uid, gid, perms, dev->si_name);
-	/* XXX HACK .. name may not start in 'r' */
-	if ((devsw->d_bmaj != -1)
-	&& (*dev->si_name == 'r')
-	&& ((devsw->d_flags & D_TYPEMASK) == D_DISK))  {
-        	dev->si_devfs = devfs_add_devswf(devsw, minor, DV_BLK,
-	    				uid, gid, perms, dev->si_name + 1);
-	}
-#endif /* DEVFS */
+	if (devfs_create_hook)
+		devfs_create_hook(dev, uid, gid, perms);
 	return (dev);
 }
 

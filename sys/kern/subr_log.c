@@ -31,14 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.35 1999/05/30 16:52:56 phk Exp $
+ * $Id: subr_log.c,v 1.36 1999/05/31 11:27:35 phk Exp $
  */
 
 /*
  * Error log buffer for kernel printf's.
  */
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,9 +50,6 @@
 #include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/filedesc.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #define LOG_RDPRI	(PZERO + 1)
 
@@ -264,26 +259,14 @@ logioctl(dev, com, data, flag, p)
 	return (0);
 }
 
-static	int	log_devsw_installed;
-#ifdef DEVFS
-static	void	*log_devfs_token;
-#endif
 
 static void log_drvinit __P((void *unused));
+
 static void
 log_drvinit(unused)
 	void *unused;
 {
-
-	if( ! log_devsw_installed ) {
-		cdevsw_add(&log_cdevsw);
-		log_devsw_installed = 1;
-#ifdef DEVFS
-		log_devfs_token = devfs_add_devswf(&log_cdevsw, 0, DV_CHR,
-						   UID_ROOT, GID_WHEEL, 0600,
-						   "klog");
-#endif
-    	}
+	make_dev(&log_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "klog");
 }
 
 SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,log_drvinit,NULL)
