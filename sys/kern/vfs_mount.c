@@ -1604,7 +1604,7 @@ vfs_mountroot_ask(void)
 #if defined(__i386__) || defined(__ia64__)
 		printf("                       eg. ufs:da0s1a\n");
 #else
-		printf("                       eg. ufs:da0a\n");
+		printf("                       eg. ufs:/dev/da0a\n");
 #endif
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
