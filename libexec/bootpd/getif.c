@@ -1,7 +1,7 @@
 /*
  * getif.c : get an interface structure
  *
- *	$Id$
+ *	$Id: getif.c,v 1.3 1996/09/22 21:52:12 wosch Exp $
  */
 
 #include <sys/types.h>
@@ -15,9 +15,7 @@
 #include <sys/stropts.h>
 #endif
 
-#ifdef _AIX32
 #include <sys/time.h>		/* for struct timeval in net/if.h */	
-#endif
 #include <net/if.h>				/* for struct ifreq */
 #include <netinet/in.h>
 

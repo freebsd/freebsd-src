@@ -7,7 +7,7 @@
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
  *
- *	$Id: getether.c,v 1.4 1996/09/22 21:52:09 wosch Exp $
+ *	$Id: getether.c,v 1.4.2.1 1997/12/24 18:58:02 imp Exp $
  */
 
 #include <sys/types.h>
@@ -111,6 +111,7 @@ getether(ifname, eap)
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 /* Thanks to John Brezak <brezak@ch.hp.com> for this code. */
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>

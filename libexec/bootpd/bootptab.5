@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Header: /home/ncvs/src/libexec/bootpd/bootptab.5,v 1.1.1.2 1996/01/23 01:34:00 pst Exp $
+.\"	$Header: /home/ncvs/src/libexec/bootpd/bootptab.5,v 1.1.1.2.2.1 1998/02/03 07:37:45 charnier Exp $
 .\"
 .TH BOOTPTAB 5 "October 31, 1991" "Carnegie Mellon University"
 .UC 6
@@ -348,11 +348,11 @@ entry may be extended over multiple lines if the lines end with a backslash
 may appear in any order, with the following exceptions:  the hostname must be
 the very first field in an entry, and the hardware type must precede the
 hardware address.
-.PP
+.Pp
 An example
-.I /etc/bootptab
+.Pa /etc/bootptab
 file follows:
-.PP
+.Pp
 .nf
 	# Sample bootptab file (domain=andrew.cmu.edu)
 
@@ -385,11 +385,12 @@ file follows:
 	mtoliver:ht=1:ha=00DD00FE1600:tc=.default:
 
 .fi
-.SH FILES
-/etc/bootptab
-
-.SH "SEE ALSO"
-.br
-bootpd(8), tftpd(8),
-.br
+.Sh FILES
+.Bl -tag -width /etc/bootptab -compact
+.It /etc/bootptab
+.El
+.Sh "SEE ALSO"
+.Xr bootpd 8 ,
+.Xr tftpd 8
+.Pp
 DARPA Internet Request For Comments RFC951, RFC1048, RFC1084, Assigned Numbers
