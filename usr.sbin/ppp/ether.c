@@ -51,6 +51,7 @@
 #include <sys/linker.h>
 #include <sys/module.h>
 #endif
+#include <sys/stat.h>
 #include <sys/uio.h>
 #include <termios.h>
 #include <sys/time.h>
@@ -623,29 +624,40 @@ ether_Create(struct physical *p)
 
   } else {
     /* See if we're a netgraph socket */
-    struct sockaddr_ng ngsock;
-    struct sockaddr *sock = (struct sockaddr *)&ngsock;
-    int sz;
+    struct stat st;
 
-    sz = sizeof ngsock;
-    if (getsockname(p->fd, sock, &sz) != -1 && sock->sa_family == AF_NETGRAPH) {
-      /*
-       * It's a netgraph node... We can't determine hook names etc, so we
-       * stay pretty impartial....
-       */
-      log_Printf(LogPHASE, "%s: Link is a netgraph node\n", p->link.name);
+    if (fstat(p->fd, &st) != -1 && (st.st_mode & S_IFSOCK)) {
+      struct sockaddr_storage ssock;
+      struct sockaddr *sock = (struct sockaddr *)&ssock;
+      int sz;
 
-      if ((dev = malloc(sizeof *dev)) == NULL) {
-        log_Printf(LogWARN, "%s: Cannot allocate an ether device: %s\n",
-                   p->link.name, strerror(errno));
+      sz = sizeof ssock;
+      if (getsockname(p->fd, sock, &sz) == -1) {
+        log_Printf(LogPHASE, "%s: Link is a closed socket !\n", p->link.name);
+        close(p->fd);
+        p->fd = -1;
         return NULL;
       }
 
-      memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
-      dev->cs = -1;
-      dev->timeout = 0;
-      dev->connected = CARRIER_OK;
-      *dev->hook = '\0';
+      if (sock->sa_family == AF_NETGRAPH) {
+        /*
+         * It's a netgraph node... We can't determine hook names etc, so we
+         * stay pretty impartial....
+         */
+        log_Printf(LogPHASE, "%s: Link is a netgraph node\n", p->link.name);
+
+        if ((dev = malloc(sizeof *dev)) == NULL) {
+          log_Printf(LogWARN, "%s: Cannot allocate an ether device: %s\n",
+                     p->link.name, strerror(errno));
+          return NULL;
+        }
+
+        memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
+        dev->cs = -1;
+        dev->timeout = 0;
+        dev->connected = CARRIER_OK;
+        *dev->hook = '\0';
+      }
     }
   }
 
