@@ -708,7 +708,7 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/boot[12] /boot/loader ${RD}/image.${FSIMAGE}/boot
-.if !defined(BIGBOOT) || ${MACHINE_ARCH} == "alpha"
+.if !defined(BIGBOOT)
 	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
