@@ -251,7 +251,7 @@ db_mach_vtrace(void)
 	db_printf("%s", kp->ktr_desc);
 #else
 	db_printf(kp->ktr_desc, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
-	    kp->ktr_parm4, kp->ktr_parm5);
+	    kp->ktr_parm4, kp->ktr_parm5, kp->ktr_parm6);
 #endif
 	db_printf("\n");
 
