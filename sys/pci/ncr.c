@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.20 1995/02/10 13:24:52 se Exp $
+**  $Id: ncr.c,v 1.21 1995/02/14 06:20:03 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl11 95/02/09"
+#define	NCR_PATCHLEVEL	"pl12 95/02/09"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -1228,7 +1228,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.20 1995/02/10 13:24:52 se Exp $\n";
+	"\n$Id: ncr.c,v 1.21 1995/02/14 06:20:03 phk Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -6396,9 +6396,39 @@ static	int	ncr_scatter
 **==========================================================
 */
 
+static int ncr_regtest (struct ncb* np)
+{
+	register volatile u_long data, *addr;
+#ifndef NCR_IOMAPPED
+	/*
+	**	ncr registers may NOT be cached.
+	**	write 0xffffffff to a read only register area,
+	**	and try to read it back.
+	*/
+	addr = (u_long*) &np->reg->nc_dstat;
+	data = 0xffffffff;
+	*addr= data;
+	data = *addr;
+#if 1
+	if (data == 0xffffffff) {
+#else
+	if ((data & 0xe2f0fffd) != 0x02000080) {
+#endif
+		printf ("CACHE TEST FAILED: reg dstat-sstat2 readback %x.\n",
+			(unsigned) data);
+		return (0x10);
+	};
+	return (0);
+#endif
+}
+
 static int ncr_snooptest (struct ncb* np)
 {
 	u_long	ncr_rd, ncr_wr, ncr_bk, host_rd, host_wr, pc, err=0;
+#ifndef NCR_IOMAPPED
+	err |= ncr_regtest (np);
+	if (err) return (err);
+#endif
 	/*
 	**	init
 	*/
