@@ -266,13 +266,14 @@ get_term()
 #ifdef TIOCGWINSZ
 	if (ioctl(2, TIOCGWINSZ, &w) == 0 && w.ws_row > 0)
 		sc_height = w.ws_row;
+	else
 #else
 #ifdef WIOCGETD
 	if (ioctl(2, WIOCGETD, &w) == 0 && w.uw_height > 0)
 		sc_height = w.uw_height/w.uw_vs;
-#endif
-#endif
 	else
+#endif
+#endif
 		sc_height = tgetnum("li");
 	hard = (sc_height < 0 || tgetflag("hc"));
 	if (hard) {
