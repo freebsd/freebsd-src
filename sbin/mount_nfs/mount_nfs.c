@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.14.2.1 1997/05/14 08:19:20 dfr Exp $";
+	"$Id: mount_nfs.c,v 1.14.2.2 1997/05/14 12:06:34 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -209,7 +209,7 @@ int	xdr_fh __P((XDR *, struct nfhret *));
 
 /*
  * Used to set mount flags with getmntopts.  Call with dir=TRUE to
- * initialise altflags from the current mount flags.  Call with
+ * initialize altflags from the current mount flags.  Call with
  * dir=FALSE to update mount flags with the new value of altflags after
  * the call to getmntopts.
  */
@@ -503,7 +503,7 @@ main(argc, argv)
 			 * as last time, so that the right ticket file
 			 * is found.
 			 * Get the Kerberos credential structure so that
-			 * we have the seesion key and get a ticket for
+			 * we have the session key and get a ticket for
 			 * this uid.
 			 * For more info see the IETF Draft "Authentication
 			 * in ONC RPC".
@@ -529,7 +529,7 @@ main(argc, argv)
 				realm, 0);
 
 			/*
-			 * Fill in the AKN_FULLNAME authenticator and verfier.
+			 * Fill in the AKN_FULLNAME authenticator and verifier.
 			 * Along with the Kerberos ticket, we need to build
 			 * the timestamp verifier and encrypt it in CBC mode.
 			 */
@@ -742,7 +742,7 @@ tryagain:
 					mountmode = V2;
 					goto tryagain;
 				} else {
-					errx(1, "Can't contact NFS server");
+					errx(1, "can't contact NFS server");
 				}
 			}
 	while (retrycnt > 0) {

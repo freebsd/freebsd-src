@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.13.2.2 1997/08/21 22:47:42 jlemon Exp $
+ *	$Id: modload.c,v 1.13.2.3 1997/09/03 06:53:51 jkh Exp $
  */
 
 #include <stdio.h>
@@ -358,7 +358,7 @@ main(argc, argv)
 	}
 
 	/*
-	 * Save ourselves before disaster (potentitally) strikes...
+	 * Save ourselves before disaster (potentially) strikes...
 	 */
 	sync();
 
