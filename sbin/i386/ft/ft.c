@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1993 Steve Gerakines
+ *  Copyright (c) 1993, 1994 Steve Gerakines
  *
  *  This is freely redistributable software.  You may do anything you
  *  wish with it, so long as the above notice stays intact.
@@ -18,6 +18,10 @@
  *
  *  ft.c - simple floppy tape filter
  *
+ *  06/07/94 v1.0 ++sg
+ *  Added support for tape retension.  Added retries for ecc failures.
+ *  Moved to release.
+ *
  *  01/28/94 v0.3b (Jim Babb)
  *  Fixed bug when all sectors in a segment are marked bad.
  *
@@ -27,7 +31,7 @@
  *  09/02/93 v0.2 pl01
  *  Initial revision.
  *
- *  usage: ftfilt [ -f tape ] [ description ]
+ *  usage: ft [ -f tape ] [ description ]
  */
 
 #include <stdio.h>
@@ -51,6 +55,7 @@ int tvlast;				/* TRUE if last volume in set */
 long tvsize = 0;			/* tape volume size in bytes */
 long tvtime = NULL;			/* tape change time */
 char *tvnote = "";			/* tape note */
+int doretension = 0;			/* TRUE if we should retension tape */
 
 /* Lookup the badmap for a given track and segment. */
 #define BADMAP(t,s)	hptr->qh_badmap[(t)*geo.g_segtrk+(s)]
@@ -62,45 +67,22 @@ char *tvnote = "";			/* tape note */
 #define	equal(s1,s2)	(strcmp(s1, s2) == 0)
 
 
-
-/* Entry */
-main(int argc, char *argv[])
+/*
+ *  Print tape usage and then leave.
+ */
+void
+usage(void)
 {
-  int r, s;
-	char *tape, *getenv();
-
-	if (argc > 2 && (equal(argv[1], "-t") || equal(argv[1], "-f"))) {
-		argc -= 2;
-		tape = argv[2];
-		argv += 2;
-	} else
-		if ((tape = getenv("TAPE")) == NULL)
-			tape = DEFQIC;
-  if (argc > 1) {
-	tvnote = argv[1];
-	if (strlen(tvnote) > 18) argv[1][18] = '\0';
-  }
-
-  /* Open the tape device */
-  if ((tfd = open(tape, 2)) < 0) {
-	perror(tape);
-	exit(1);
-  }
-
-  if (!isatty(0))
-	do_write();
-  else if (!isatty(1))
-	do_read();
-  else
-	do_getname();
-
-  close(tfd);
-  exit(0);
+  fprintf(stderr, "usage: ft [ -r ] [ -f device ] [ \"description\" ]\n");
+  exit(1);
 }
 
 
-/* Check status of tape drive */
-int check_stat(int fd, int wr)
+/*
+ *  Check status of tape drive
+ */
+int
+check_stat(int fd, int wr)
 {
   int r, s;
   int sawit = 0;
@@ -138,8 +120,11 @@ int check_stat(int fd, int wr)
 }
 
 
-
-ULONG qtimeval(time_t t)
+/*
+ *  Convert time_t value to QIC time value.
+ */
+ULONG
+qtimeval(time_t t)
 {
   struct tm *tp;
   ULONG r;
@@ -154,8 +139,12 @@ ULONG qtimeval(time_t t)
   return(r);
 }
 
-/* Return tm struct from QIC date format. */
-struct tm *qtime(UCHAR *qt)
+
+/*
+ *  Return tm struct from QIC date format.
+ */
+struct tm *
+qtime(UCHAR *qt)
 {
   ULONG *vp = (ULONG *)qt;
   struct tm t;
@@ -178,7 +167,10 @@ struct tm *qtime(UCHAR *qt)
   return(localtime(&tv));
 }
 
-/* Return a string, zero terminated */
+
+/*
+ *  Return a string, zero terminated.
+ */
 char *qstr(char *str, int nchar)
 {
   static char tstr[256];
@@ -187,7 +179,11 @@ char *qstr(char *str, int nchar)
   return(tstr);
 }
 
-/* Read header from tape */
+
+/*
+ *  Read header from tape
+ */
+int
 get_header(int fd)
 {
   int r, sn, bytes;
@@ -238,6 +234,9 @@ get_header(int fd)
 }
 
 
+/*
+ *  Open /dev/tty and ask for next volume.
+ */
 ask_vol(int vn)
 {
   FILE *inp;
@@ -255,21 +254,26 @@ ask_vol(int vn)
 }
 
 
-/* Return the name of the tape only. */
-do_getname()
+/*
+ *  Return the name of the tape only.
+ */
+void
+do_getname(void)
 {
   if (check_stat(tfd, 0)) exit(1);
   if (get_header(tfd)) exit(1);
   fprintf(stderr, "\"%s\" - %s",
 		qstr(hptr->qh_tname,44), asctime(qtime(hptr->qh_chgdate)));
-  ioctl(tfd, QIOREWIND);
 }
 
 
-/* Extract data from tape to stdout */
-do_read()
+/*
+ *  Extract data from tape to stdout.
+ */
+void
+do_read(void)
 {
-  int sno, vno, sbytes, r;
+  int sno, vno, sbytes, r, eccfails;
   long curpos;
   char *hname;
   QIC_Segment s;
@@ -281,6 +285,13 @@ do_read()
 		ask_vol(vno);
 		continue;
 	}
+
+	if (doretension) {
+		ioctl(tfd, QIOBOT);
+		ioctl(tfd, QIOEOT);
+		ioctl(tfd, QIOBOT);
+	}
+
 	if (get_header(tfd)) {
 		ask_vol(vno);
 		continue;
@@ -303,36 +314,50 @@ do_read()
 
 	/* Process this volume */
 	curpos = 0;
-	for (sno = hptr->qh_first; tvsize > 0; sno++) {
+	eccfails = 0;
+	sno = hptr->qh_first;
+	while (tvsize > 0) {
 		s.sg_trk = sno / geo.g_segtrk;
 		s.sg_seg = sno % geo.g_segtrk;
 		s.sg_badmap = BADMAP(s.sg_trk,s.sg_seg);
 		sbytes = sect_bytes(s.sg_badmap) - QCV_ECCSIZE;
 		s.sg_data = (UCHAR *)&buff[0];
-
-		/* skip segments with *all* sectors flagged as bad */
-		if (sbytes > 0) {
-			if (ioctl(tfd, QIOREAD, &s) < 0) perror("QIOREAD");
-			r = check_parity(s.sg_data, s.sg_badmap, s.sg_crcmap);
-			if (r) fprintf(stderr, "** warning: ecc failed at byte %ld\n",
-									 curpos);
-			if (tvsize < sbytes) sbytes = tvsize;
-			write(1, s.sg_data, sbytes);
-			tvsize -= sbytes;
-			curpos += sbytes;
+		if (sbytes <= 0) {
+			sno++;
+			continue;
 		}
+		if (ioctl(tfd, QIOREAD, &s) < 0) perror("QIOREAD");
+
+		if (check_parity(s.sg_data, s.sg_badmap, s.sg_crcmap)) {
+			if (++eccfails <= 5) {
+				fprintf(stderr,
+					"ft: retry %d at segment %d byte %ld\n",
+					eccfails, sno, curpos);
+				continue;
+			} else
+				fprintf(stderr,
+				"ft: *** ecc failure in segment %d at byte %ld\n",
+						sno, curpos);
+		}
+		if (tvsize < sbytes) sbytes = tvsize;
+		write(1, s.sg_data, sbytes);
+		tvsize -= sbytes;
+		curpos += sbytes;
+		sno++;
+		eccfails = 0;
 	}
 	if (tvlast) break;
 	ioctl(tfd, QIOREWIND);
 	ask_vol(++vno);
   }
-  ioctl(tfd, QIOREWIND);
-  return(0);
 }
 
 
-/* Dump data from stdin to tape */
-do_write()
+/*
+ *  Dump data from stdin to tape.
+ */
+void
+do_write(void)
 {
   int sno, vno, amt, sbytes;
   int c, maxseg, r;
@@ -348,6 +373,13 @@ do_write()
 		ask_vol(vno);
 		continue;
 	}
+
+	if (doretension) {
+		ioctl(tfd, QIOBOT);
+		ioctl(tfd, QIOEOT);
+		ioctl(tfd, QIOBOT);
+	}
+
 	if (get_header(tfd)) {
 		ask_vol(vno);
 		continue;
@@ -376,6 +408,7 @@ do_write()
 				break;
 			}
 		}
+
 		/* skip the segment if *all* sectors are flagged as bad */
 		if (amt) {
 			if (amt < sbytes)
@@ -410,7 +443,7 @@ do_write()
 		if (ioctl(tfd, QIOWRITE, &s) < 0) {
 			perror("QIOWRITE");
 			exit(1);
-			}
+		}
 	}
 	if (dhsn >= 0) {
 		s.sg_trk = dhsn / geo.g_segtrk;
@@ -428,5 +461,57 @@ do_write()
 	if (tvlast) break;
 	ask_vol(++vno);
   }
-  return(0);
+}
+
+
+/*
+ *  Entry.
+ */
+void
+main(int argc, char *argv[])
+{
+  int r, s, i;
+  char *tape, *getenv();
+
+
+  /* Get device from environment, command line will override. */
+  if ((tape = getenv("TAPE")) == NULL) tape = DEFQIC;
+
+  /* Process args. */
+  for (i = 1; i < argc; i++) {
+	if (argv[i][0] != '-') break;
+	switch (argv[i][1]) {
+	    case 'f':
+	    case 't':
+		if (i == (argc - 1)) usage();
+		tape = argv[++i];
+		break;
+	    case 'r':
+		doretension = 1;
+		break;
+	    default:
+		usage();
+	}
+  }
+  if (i < (argc - 1)) usage();
+  if (i < argc) {
+	tvnote = argv[i];
+	if (strlen(tvnote) > 18) argv[i][18] = '\0';
+  }
+
+  /* Open the tape device */
+  if ((tfd = open(tape, 2)) < 0) {
+	perror(tape);
+	exit(1);
+  }
+
+  if (!isatty(0))
+	do_write();
+  else if (!isatty(1))
+	do_read();
+  else
+	do_getname();
+
+  close(tfd);
+  exit(0);
 }
