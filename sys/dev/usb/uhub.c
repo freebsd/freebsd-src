@@ -81,8 +81,8 @@ struct uhub_softc {
 	u_char			sc_running;
 };
 
-Static usbd_status uhub_explore __P((usbd_device_handle hub));
-Static void uhub_intr __P((usbd_xfer_handle, usbd_private_handle,usbd_status));
+Static usbd_status uhub_explore(usbd_device_handle hub);
+Static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
 #if defined(__FreeBSD__)
 Static bus_child_detached_t uhub_child_detached;

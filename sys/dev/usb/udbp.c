@@ -201,15 +201,15 @@ Static struct ng_type ng_udbp_typestruct = {
 	ng_udbp_cmdlist
 };
 
-Static int udbp_setup_in_transfer	__P((udbp_p sc));
-Static void udbp_in_transfer_cb		__P((usbd_xfer_handle xfer,
+Static int udbp_setup_in_transfer	(udbp_p sc);
+Static void udbp_in_transfer_cb		(usbd_xfer_handle xfer,
 					usbd_private_handle priv,
-					usbd_status err));
+					usbd_status err);
 
-Static int udbp_setup_out_transfer	__P((udbp_p sc));
-Static void udbp_out_transfer_cb	__P((usbd_xfer_handle xfer,
+Static int udbp_setup_out_transfer	(udbp_p sc);
+Static void udbp_out_transfer_cb	(usbd_xfer_handle xfer,
 					usbd_private_handle priv,
-					usbd_status err));
+					usbd_status err);
 
 USB_DECLARE_DRIVER(udbp);
 

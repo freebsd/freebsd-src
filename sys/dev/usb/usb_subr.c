@@ -75,19 +75,19 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
-Static usbd_status	usbd_set_config __P((usbd_device_handle, int));
-Static char *usbd_get_string __P((usbd_device_handle, int, char *));
-Static int usbd_getnewaddr __P((usbd_bus_handle bus));
+Static usbd_status	usbd_set_config(usbd_device_handle, int);
+Static char *usbd_get_string(usbd_device_handle, int, char *);
+Static int usbd_getnewaddr(usbd_bus_handle bus);
 #if defined(__NetBSD__)
-Static int usbd_print __P((void *aux, const char *pnp));
-Static int usbd_submatch __P((device_ptr_t, struct cfdata *cf, void *));
+Static int usbd_print(void *aux, const char *pnp);
+Static int usbd_submatch(device_ptr_t, struct cfdata *cf, void *);
 #elif defined(__OpenBSD__)
-Static int usbd_submatch __P((device_ptr_t, void *, void *));
+Static int usbd_submatch(device_ptr_t, void *, void *);
 #endif
-Static void usbd_free_iface_data __P((usbd_device_handle dev, int ifcno));
-Static void usbd_kill_pipe __P((usbd_pipe_handle));
+Static void usbd_free_iface_data(usbd_device_handle dev, int ifcno);
+Static void usbd_kill_pipe(usbd_pipe_handle);
 Static usbd_status usbd_probe_and_attach 
-	__P((device_ptr_t parent, usbd_device_handle dev, int port, int addr));
+	(device_ptr_t parent, usbd_device_handle dev, int port, int addr);
 
 Static u_int32_t usb_cookie_no = 0;
 

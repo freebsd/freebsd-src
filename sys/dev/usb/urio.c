@@ -97,11 +97,11 @@ int	uriodebug = 100;
 #define RIO_NODIR  2
 
 #if defined(__NetBSD__)
-int urioopen __P((dev_t, int, int, struct proc *));
-int urioclose __P((dev_t, int, int, struct proc *p));
-int urioread __P((dev_t, struct uio *uio, int));
-int uriowrite __P((dev_t, struct uio *uio, int));
-int urioioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+int urioopen(dev_t, int, int, struct proc *);
+int urioclose(dev_t, int, int, struct proc *p);
+int urioread(dev_t, struct uio *uio, int);
+int uriowrite(dev_t, struct uio *uio, int);
+int urioioctl(dev_t, u_long, caddr_t, int, struct proc *);
 
 cdev_decl(urio);
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
