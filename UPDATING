@@ -4,6 +4,20 @@ major breakages in tracking -current.  Not all things will be listed
 here, and it only starts on Novemeber 18, 1998.  If you have an
 earlier version of FreeBSD, you are on your own.
 
+19981202:
+	New groups from 19981201 commented out of mtree, so they
+	aren't strictly needed, but still a good idea to have.
+
+19981201:
+	New user/group added: bind.  From src/etc/master.passwd and
+	src/etc/group:
+		% grep <newstuff> /usr/src/etc/group 
+		bind:*:53:
+		% grep <newstuff> /usr/src/etc/master.passwd 
+		tty:*:4:65533::0:0:Tty Sandbox:/:/sbin/nologin
+		kmem:*:5:65533::0:0:KMem Sandbox:/:/sbin/nologin
+		bind:*:53:53::0:0:Bind Sandbox:/:/sbin/nologin
+
 19981118:
 	PAM integrated into the tree.   Requires new /etc/pam.conf file
 	to silence warnings from authentication programs (login, etc).
@@ -12,4 +26,4 @@ earlier version of FreeBSD, you are on your own.
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id:$
+$Id: UPDATING,v 1.1 1998/12/15 00:24:32 imp Exp $
