@@ -720,7 +720,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		/*
 		 * If the buffer is not delayed-write (i.e. dirty), or it
 		 * is delayed-write but either locked or inval, it cannot
-		 * partake in teh clustered write.
+		 * partake in the clustered write.
 		 */
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
 		  ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) != B_DELWRI) ||
