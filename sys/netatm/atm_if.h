@@ -43,6 +43,8 @@
  */
 #define ATM_NIF_MTU	9180		/* Default network interface MTU */
 
+#define ATM_PCR_25	59111		/* Peak Cell Rate for 25.6 Mbs */
+#define ATM_PCR_DS3	(12*8000)	/* 12 cells in 1/8000 sec */
 #define ATM_PCR_TAXI100	227273		/* Peak Cell Rate for 100 Mbs TAXI */
 #define ATM_PCR_TAXI140	318181		/* Peak Cell Rate for 140 Mbs TAXI */
 #define ATM_PCR_OC3C	353207		/* Peak Cell Rate for OC3c */
@@ -65,7 +67,9 @@ enum atm_vendor {
 	VENDOR_UNKNOWN,			/* Unknown vendor */
 	VENDOR_FORE,			/* FORE Systems, Inc. */
 	VENDOR_ENI,			/* Efficient Networks, Inc. */
-	VENDOR_IDT			/* Integrated Device Technology, Inc. */
+	VENDOR_IDT,			/* Integrated Device Technology, Inc. */
+	VENDOR_PROSUM,			/* Prosum, Inc. */
+	VENDOR_NETGRAPH			/* Netgraph device */
 };
 typedef enum atm_vendor	Atm_vendor;
 
@@ -77,7 +81,10 @@ enum atm_vendapi {
 	VENDAPI_UNKNOWN,		/* Unknown interface */
 	VENDAPI_FORE_1,			/* FORE - 200 Series */
 	VENDAPI_ENI_1,			/* ENI - Midway */
-	VENDAPI_IDT_1			/* IDT - NICStAR */
+	VENDAPI_IDT_1,			/* IDT - NICStAR */
+	VENDAPI_IDT_2,			/* IDT 77252 */
+	VENDAPI_NETGRAPH_1,		/* Netgraph API v1 */
+	VENDAPI_FORE_2,			/* FORE - HE Series */
 };
 typedef enum atm_vendapi	Atm_vendapi;
 
@@ -92,7 +99,17 @@ enum atm_device {
 	DEV_FORE_PCA200E,		/* FORE PCA-200E */
 	DEV_FORE_ESA200E,		/* FORE ESA-200E */
 	DEV_ENI_155P,			/* ENI-155p */
-	DEV_IDT_155			/* IDT NICStAR */
+	DEV_IDT_155,			/* IDT NICStAR */
+	DEV_PROATM_25,			/* Prosum boards based on IDT 77252 */
+	DEV_PROATM_155,			/* Prosum boards based on IDT 77252 */
+	DEV_VATMPIF,			/* Virtual ATM Physical IF */
+	DEV_FORE_LE25,			/* ForeLE-25 */
+	DEV_FORE_LE155,			/* ForeLE-155 */
+	DEV_IDT_25,			/* IDT NICStAR */
+	DEV_IDTABR_25,			/* IDT 77252 evaluation board */
+	DEV_IDTABR_155,			/* IDT 77252 evaluation board */
+	DEV_FORE_HE155,			/* ForeRunnerHE-155 */
+	DEV_FORE_HE622,			/* ForeRunnerHE-622 */
 };
 typedef enum atm_device	Atm_device;
 
@@ -106,7 +123,10 @@ enum atm_media {
 	MEDIA_TAXI_140,			/* TAXI - 140 Mbps */
 	MEDIA_OC3C,			/* OC-3C */
 	MEDIA_OC12C,			/* OC-12C */
-	MEDIA_UTP155			/* UTP-155 */
+	MEDIA_UTP155,			/* UTP-155 */
+	MEDIA_UTP25,			/* UTP-25.6 */
+	MEDIA_VIRTUAL,			/* Virtual Link */
+	MEDIA_DSL			/* xDSL */
 };
 typedef enum atm_media	Atm_media;
 
@@ -119,7 +139,9 @@ enum atm_bus {
 	BUS_SBUS_B16,			/* SBus: 16 byte (4 word) max burst */
 	BUS_SBUS_B32,			/* SBus: 32 byte (8 word) max burst */
 	BUS_PCI,			/* PCI */
-	BUS_EISA			/* EISA */
+	BUS_EISA,			/* EISA */
+	BUS_USB,			/* USB */
+	BUS_VIRTUAL			/* Virtual Bus */
 };
 typedef enum atm_bus	Atm_bus;
 
