@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.152 1998/04/02 02:10:47 eivind Exp $
+ *	$Id: wd.c,v 1.153 1998/04/08 20:04:36 sos Exp $
  */
 
 /* TODO:
@@ -1901,9 +1901,26 @@ failed:
 	du->dk_dd.d_secsize = DEV_BSIZE;
 	if ((du->cfg_flags & WDOPT_LBA) && wp->wdp_lbasize) {
 		du->dk_dd.d_nsectors = 63;
-		du->dk_dd.d_ntracks = 64;
-		du->dk_dd.d_ncylinders = wp->wdp_lbasize / (63*64);
-		du->dk_dd.d_secpercyl= 63*64;
+		if (wp->wdp_lbasize < 16*63*1024) {		/* <=528.4 MB */
+			du->dk_dd.d_ntracks = 16;
+		}
+		else if (wp->wdp_lbasize < 32*63*1024) {	/* <=1.057 GB */
+			du->dk_dd.d_ntracks = 32;
+		}
+		else if (wp->wdp_lbasize < 64*63*1024) {	/* <=2.114 GB */
+			du->dk_dd.d_ntracks = 64;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=4.228 GB */
+			du->dk_dd.d_ntracks = 128;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=8.422 GB */
+			du->dk_dd.d_ntracks = 255;
+		}
+		else {						/* >8.422 GB */
+			du->dk_dd.d_ntracks = 255;		/* XXX */
+		}
+		du->dk_dd.d_secpercyl= du->dk_dd.d_ntracks*du->dk_dd.d_nsectors;
+		du->dk_dd.d_ncylinders = wp->wdp_lbasize/du->dk_dd.d_secpercyl;
 		du->dk_dd.d_secperunit = wp->wdp_lbasize;
 		du->dk_flags |= DKFL_LBA;
 	}
