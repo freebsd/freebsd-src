@@ -40,6 +40,103 @@
 
 /***************************************************************************\
  *                                                                         *
+ *                          SUPPORTED CHIPSETS                             *
+ *                                                                         *
+\***************************************************************************/
+
+static struct au88x0_chipset au88x0_chipsets[] = {
+	{
+		.auc_name		= "Aureal Vortex (8820)",
+		.auc_pci_id		= 0x000112eb,
+
+		.auc_control		= 0x1280c,
+
+		.auc_irq_source		= 0x12800,
+		.auc_irq_mask		= 0x12804,
+		.auc_irq_control	= 0x12808,
+		.auc_irq_status		= 0x1199c,
+
+		.auc_dma_control	= 0x1060c,
+
+		.auc_fifo_size		= 0x20,
+		.auc_wt_fifos		= 32,
+		.auc_wt_fifo_base	= 0x0e800,
+		.auc_wt_fifo_ctl	= 0x0f800,
+		.auc_wt_dma_ctl		= 0x10500,
+		.auc_adb_fifos		= 16,
+		.auc_adb_fifo_base	= 0x0e000,
+		.auc_adb_fifo_ctl	= 0x0f840,
+		.auc_adb_dma_ctl	= 0x10580,
+
+		.auc_adb_route_base	= 0x10800,
+		.auc_adb_route_bits	= 7,
+		.auc_adb_codec_in	= 0x48,
+		.auc_adb_codec_out	= 0x58,
+	},
+	{
+		.auc_name		= "Aureal Vortex 2 (8830)",
+		.auc_pci_id		= 0x000212eb,
+
+		.auc_control		= 0x2a00c,
+
+		.auc_irq_source		= 0x2a000,
+		.auc_irq_mask		= 0x2a004,
+		.auc_irq_control	= 0x2a008,
+		.auc_irq_status		= 0x2919c,
+
+		.auc_dma_control	= 0x27ae8,
+
+		.auc_fifo_size		= 0x40,
+		.auc_wt_fifos		= 64,
+		.auc_wt_fifo_base	= 0x10000,
+		.auc_wt_fifo_ctl	= 0x16000,
+		.auc_wt_dma_ctl		= 0x27900,
+		.auc_adb_fifos		= 32,
+		.auc_adb_fifo_base	= 0x14000,
+		.auc_adb_fifo_ctl	= 0x16100,
+		.auc_adb_dma_ctl	= 0x27a00,
+
+		.auc_adb_route_base	= 0x28000,
+		.auc_adb_route_bits	= 8,
+		.auc_adb_codec_in	= 0x70,
+		.auc_adb_codec_out	= 0x88,
+	},
+	{
+		.auc_name		= "Aureal Vortex Advantage (8810)",
+		.auc_pci_id		= 0x000312eb,
+
+		.auc_control		= 0x2a00c,
+
+		.auc_irq_source		= 0x2a000,
+		.auc_irq_mask		= 0x2a004,
+		.auc_irq_control	= 0x2a008,
+		.auc_irq_status		= 0x2919c,
+
+		.auc_dma_control	= 0x27ae8,
+
+		.auc_fifo_size		= 0x20,
+		.auc_wt_fifos		= 32,
+		.auc_wt_fifo_base	= 0x10000,
+		.auc_wt_fifo_ctl	= 0x16000,
+		.auc_wt_dma_ctl		= 0x27fd8,
+		.auc_adb_fifos		= 16,
+		.auc_adb_fifo_base	= 0x14000,
+		.auc_adb_fifo_ctl	= 0x16100,
+		.auc_adb_dma_ctl	= 0x27180,
+
+		.auc_adb_route_base	= 0x28000,
+		.auc_adb_route_bits	= 8,
+		.auc_adb_codec_in	= 0x70,
+		.auc_adb_codec_out	= 0x88,
+	},
+	{
+		.auc_pci_id		= 0,
+	}
+};
+
+
+/***************************************************************************\
+ *                                                                         *
  *                       FORMATS AND CAPABILITIES                          *
  *                                                                         *
 \***************************************************************************/
@@ -343,12 +440,13 @@ static void
 au88x0_intr(void *arg)
 {
 	struct au88x0_info *aui = arg;
+	struct au88x0_chipset *auc = aui->aui_chipset;
 	int pending, source;
 
-	pending = au88x0_read(aui, AU88X0_IRQ_PENDING, 4);
+	pending = au88x0_read(aui, auc->auc_irq_control, 4);
 	if ((pending & AU88X0_IRQ_PENDING_BIT) == 0)
 		return;
-	source = au88x0_read(aui, AU88X0_IRQ_SOURCE, 4);
+	source = au88x0_read(aui, auc->auc_irq_source, 4);
 	if (source & AU88X0_IRQ_FATAL_ERR)
 		device_printf(aui->aui_dev,
 		    "fatal error interrupt received\n");
@@ -358,8 +456,8 @@ au88x0_intr(void *arg)
 	/* XXX handle the others... */
 
 	/* acknowledge the interrupts we just handled */
-	au88x0_write(aui, AU88X0_IRQ_SOURCE, source, 4);
-	au88x0_read(aui, AU88X0_IRQ_SOURCE, 4);
+	au88x0_write(aui, auc->auc_irq_source, source, 4);
+	au88x0_read(aui, auc->auc_irq_source, 4);
 }
 
 
@@ -377,19 +475,20 @@ au88x0_intr(void *arg)
 static void
 au88x0_fifo_init(struct au88x0_info *aui)
 {
+	struct au88x0_chipset *auc = aui->aui_chipset;
 	int i;
 
 	/* reset, then clear the ADB FIFOs */
-	for (i = 0; i < AU88X0_ADB_FIFOS; ++i)
-		au88x0_write(aui, AU88X0_ADB_FIFO_CTL + i * 4, 0x42000, 4);
-	for (i = 0; i < AU88X0_ADB_FIFOS * AU88X0_ADB_FIFO_SIZE; ++i)
-		au88x0_write(aui, AU88X0_ADB_FIFO_BASE + i * 4, 0, 4);
+	for (i = 0; i < auc->auc_adb_fifos; ++i)
+		au88x0_write(aui, auc->auc_adb_fifo_ctl + i * 4, 0x42000, 4);
+	for (i = 0; i < auc->auc_adb_fifos * auc->auc_fifo_size; ++i)
+		au88x0_write(aui, auc->auc_adb_fifo_base + i * 4, 0, 4);
 
 	/* reset, then clear the WT FIFOs */
-	for (i = 0; i < AU88X0_WT_FIFOS; ++i)
-		au88x0_write(aui, AU88X0_WT_FIFO_CTL + i * 4, 0x42000, 4);
-	for (i = 0; i < AU88X0_WT_FIFOS * AU88X0_WT_FIFO_SIZE; ++i)
-		au88x0_write(aui, AU88X0_WT_FIFO_BASE + i * 4, 0, 4);
+	for (i = 0; i < auc->auc_wt_fifos; ++i)
+		au88x0_write(aui, auc->auc_wt_fifo_ctl + i * 4, 0x42000, 4);
+	for (i = 0; i < auc->auc_wt_fifos * auc->auc_fifo_size; ++i)
+		au88x0_write(aui, auc->auc_wt_fifo_base + i * 4, 0, 4);
 }
 
 /*
@@ -398,15 +497,16 @@ au88x0_fifo_init(struct au88x0_info *aui)
 static void
 au88x0_init(struct au88x0_info *aui)
 {
+	struct au88x0_chipset *auc = aui->aui_chipset;
 
 	/* reset the chip */
-	au88x0_write(aui, AU88X0_CONTROL, 0xffffffff, 4);
+	au88x0_write(aui, auc->auc_control, 0xffffffff, 4);
 	DELAY(10000);
 
 	/* clear all interrupts */
-	au88x0_write(aui, AU88X0_IRQ_SOURCE, 0xffffffff, 4);
-	au88x0_read(aui, AU88X0_IRQ_SOURCE, 4);
-	au88x0_read(aui, AU88X0_IRQ_STATUS, 4);
+	au88x0_write(aui, auc->auc_irq_source, 0xffffffff, 4);
+	au88x0_read(aui, auc->auc_irq_source, 4);
+	au88x0_read(aui, auc->auc_irq_status, 4);
 
 	/* initialize the codec */
 	au88x0_codec_init(aui);
@@ -416,7 +516,7 @@ au88x0_init(struct au88x0_info *aui)
 
 	/* initialize the DMA engine */
 	/* XXX chicken-waving! */
-	au88x0_write(aui, AU88X0_DMA_CONTROL, 0x1380000, 4);
+	au88x0_write(aui, auc->auc_dma_control, 0x1380000, 4);
 }
 
 /*
@@ -448,18 +548,17 @@ au88x0_set_status(device_t dev)
 static int
 au88x0_pci_probe(device_t dev)
 {
+	struct au88x0_chipset *auc;
+	uint32_t pci_id;
 
-	switch (pci_get_devid(dev)) {
-	case AUREAL_VORTEX_2:
-		device_set_desc(dev, "Aureal Vortex 2");
-		return (0);
-	case AUREAL_VORTEX_ADVANTAGE:
-		device_set_desc(dev, "Aureal Vortex Advantage");
-		return (0);
-	default:
-		return (ENXIO);
+	pci_id = pci_get_devid(dev);
+	for (auc = au88x0_chipsets; auc->auc_pci_id; ++auc) {
+		if (auc->auc_pci_id == pci_id) {
+			device_set_desc(dev, auc->auc_name);
+			return (0);
+		}
 	}
-	return (0);
+	return (ENXIO);
 }
 
 /*
@@ -468,6 +567,7 @@ au88x0_pci_probe(device_t dev)
 static int
 au88x0_pci_attach(device_t dev)
 {
+	struct au88x0_chipset *auc;
 	struct au88x0_info *aui = NULL;
 	uint32_t config;
 	int error;
@@ -480,15 +580,11 @@ au88x0_pci_attach(device_t dev)
 
 	/* Model-specific parameters */
 	aui->aui_model = pci_get_devid(dev);
-	switch (aui->aui_model) {
-	case AUREAL_VORTEX_1:
-		break;
-	case AUREAL_VORTEX_2:
-	case AUREAL_VORTEX_ADVANTAGE:
-		break;
-	default:
+	for (auc = au88x0_chipsets; auc->auc_pci_id; ++auc)
+		if (auc->auc_pci_id == aui->aui_model)
+			aui->aui_chipset = auc;
+	if (aui->aui_chipset == NULL)
 		panic("%s() called for non-au88x0 device", __func__);
-	}
 
 	/* enable pio, mmio, bus-mastering dma */
 	config = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -567,8 +663,8 @@ au88x0_pci_attach(device_t dev)
 	/* register with the pcm driver */
 	if (pcm_register(dev, aui, 0, 0))
 		goto failed;
-#if 0
 	pcm_addchan(dev, PCMDIR_PLAY, &au88x0_chan_class, aui);
+#if 0
 	pcm_addchan(dev, PCMDIR_REC, &au88x0_chan_class, aui);
 #endif
 	au88x0_set_status(dev);
