@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/28/95
+ * $FreeBSD$
  */
 
 extern char tbuf[1024];			/* Temp buffer for anybody. */
@@ -48,3 +49,4 @@ void	 netfinger __P((char *));
 PERSON	*palloc __P((void));
 char	*prphone __P((char *));
 void	 sflag_print __P((void));
+int	 show_text __P((char *, char *, char *));
