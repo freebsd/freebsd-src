@@ -45,7 +45,6 @@ struct random_systat {
 	random_read_func_t	*read;
 	random_write_func_t	*write;
 	random_reseed_func_t	*reseed;
-	struct mtx		lock;
 };
 
 extern struct random_systat random_systat;
