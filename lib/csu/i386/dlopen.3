@@ -39,10 +39,10 @@
 .Sh SYNOPSIS
 .Fd #include <dlfcn.h>
 .Ft void *
-.Fn dlopen "char *path" "int mode"
+.Fn dlopen "const char *path" "int mode"
 .Ft void *
-.Fn dlsym "void *handle" "char *symbol"
-.Ft char *
+.Fn dlsym "void *handle" "const char *symbol"
+.Ft const char *
 .Fn dlerror "void"
 .Ft int
 .Fn dlclose "void *handle"
