@@ -34,7 +34,8 @@
 "/usr/src/gnu/libexec:/usr/src/contrib:"		\
 "/usr/src/secure/bin:/usr/src/secure/usr.bin:"		\
 "/usr/src/secure/sbin:/usr/src/secure/usr.sbin:"	\
-"/usr/src/secure/libexec:/usr/src/crypto"
+"/usr/src/secure/libexec:/usr/src/crypto:"		\
+"/usr/src/games"
 
 /* Each subdirectory of PATH_PORTS will be appended to PATH_SOURCES. */
 #define PATH_PORTS "/usr/ports"
@@ -43,7 +44,7 @@
 #define MANPATHCMD "manpath -q"
 
 /* How to obtain the location of manpages, and how to match this result. */
-#define MANWHEREISCMD "man -S1:8 -w %s 2>/dev/null"
+#define MANWHEREISCMD "man -S1:8:6 -w %s 2>/dev/null"
 #define MANWHEREISMATCH "^.* [(]source: (.*)[)]$"
 
 /* Command used to locate sources that have not been found yet. */
