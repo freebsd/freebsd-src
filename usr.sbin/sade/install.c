@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.208 1998/03/24 09:51:57 jkh Exp $
+ * $Id: install.c,v 1.209 1998/07/18 09:42:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -999,7 +999,6 @@ installVarDefaults(dialogMenuItem *self)
     char *cp;
 
     /* Set default startup options */
-    variable_set2(VAR_ROUTER_ENABLE,		"NO");
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
