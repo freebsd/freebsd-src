@@ -1335,7 +1335,7 @@ again:
 			error = tsleep(&nmp->nm_bufq, slpflag | PRIBIO,
 				       "nfsaio", slptimeo);
 			if (error) {
-				if (nfs_sigintr(nmp, NULL, td->td_proc))
+				if (nfs_sigintr(nmp, NULL, td ? td->td_proc : NULL))
 					return (EINTR);
 				if (slpflag == PCATCH) {
 					slpflag = 0;
