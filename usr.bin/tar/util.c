@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#include <sys/types.h>  /* Linux doesn't define mode_t, etc. in sys/stat.h. */
 #include <archive_entry.h>
 #include <ctype.h>
 #include <stdarg.h>
