@@ -984,6 +984,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    char *a;
 	    char hname[INET6_ADDRSTRLEN];
 
+	    sin.sin6.sin6_scope_id = 0;
 	    if (getnameinfo((struct sockaddr *)&sin, sin.sin6.sin6_len,
 			    hname, sizeof(hname),
 			    NULL, 0, NI_NUMERICHOST) != 0) {
