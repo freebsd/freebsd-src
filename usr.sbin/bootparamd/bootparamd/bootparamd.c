@@ -15,6 +15,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 #include <rpcsvc/ypclnt.h>
 #include "bootparam_prot.h"
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
