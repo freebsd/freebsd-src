@@ -162,6 +162,7 @@ char *basename(char *);
 
 void expand_table(void **, int, int);
 
+struct disklabel;
 struct request;
 struct rqgroup *allocrqg(struct request *rq, int elements);
 void deallocrqg(struct rqgroup *rqg);
