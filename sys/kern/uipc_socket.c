@@ -1666,6 +1666,7 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 		if (sopt_size > MLEN) {
 			MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
+				m_freem(m);
 				m_freem(*mp);
 				return ENOBUFS;
 			}
