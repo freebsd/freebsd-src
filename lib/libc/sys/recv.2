@@ -124,10 +124,11 @@ argument to a
 function is formed by
 .Em or Ap ing
 one or more of the values:
-.Bl -column MSG_WAITALL -offset indent
+.Bl -column MSG_DONTWAIT -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
+.It Dv MSG_DONTWAIT Ta don't block
 .El
 .Pp
 The
@@ -145,6 +146,12 @@ the full request is satisfied.
 However, the call may still return less data than requested
 if a signal is caught, an error or disconnect occurs,
 or the next data to be received is of a different type than that returned.
+The MSG_DONTWAIT flag requests the call to return when it would block otherwise.
+If no data is available
+.Va errno
+is set to
+.Er EAGAIN .
+This flag is not available in strict ANSI or C99 compilation mode.
 .Pp
 The
 .Fn recvmsg
