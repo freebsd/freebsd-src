@@ -144,14 +144,14 @@ struct ng_mesg {
 
 /* Downstream messages */
 #define NGM_DROP_LINK		41	/* drop DTR, etc. - stay in the graph */
-#define NGM_RAISE LINK		42	/* if you previously dropped it */
-#define NGM_FLUSH_QUEUE		43		/* no data */
+#define NGM_RAISE_LINK		42	/* if you previously dropped it */
+#define NGM_FLUSH_QUEUE		43	/* no data */
 #define NGM_GET_BANDWIDTH	(44|NGM_READONLY)	/* either real or measured */
-#define NGM_SET_XMIT_Q_LIMITS	45		/* includes queue state */
+#define NGM_SET_XMIT_Q_LIMITS	45	/* includes queue state */
 #define NGM_GET_XMIT_Q_LIMITS	(46|NGM_READONLY)	/* returns queue state */
-#define NGM_MICROMANAGE		47		/* We want sync. queue state
+#define NGM_MICROMANAGE		47	/* We want sync. queue state
 						reply for each packet sent */
-#define NGM_SET_FLOW_MANAGER	48		/* send flow control here */ 
+#define NGM_SET_FLOW_MANAGER	48	/* send flow control here */ 
 /* Structure used for NGM_MKPEER */
 struct ngm_mkpeer {
 	char	type[NG_TYPELEN + 1];			/* peer type */
