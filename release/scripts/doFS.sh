@@ -7,12 +7,7 @@ set -ex
 
 export BLOCKSIZE=512
 
-if [ "$1" = "-s" ]; then
-	do_size="yes"; shift
-else
-	do_size=""
-fi
-
+MACHINE=${1:+"-m $1"}; shift
 FSIMG=$1; shift
 RD=$1 ; shift
 MNT=$1 ; shift
@@ -27,14 +22,14 @@ FSLABEL=$1 ; shift
 # disklabel fails otherwise.
 #
 if [ -f "${RD}/trees/base/boot/boot" ]; then
-	BOOT1="-B -b ${RD}/trees/base/boot/boot"
+	BOOT="-B -b ${RD}/trees/base/boot/boot"
 elif [ -f "${RD}/trees/base/boot/boot1" ]; then
-	BOOT1="-B -b ${RD}/trees/base/boot/boot1"
+	BOOT="-B -b ${RD}/trees/base/boot/boot1"
 	if [ -f "${RD}/trees/base/boot/boot2" ]; then
-		BOOT2="-s ${RD}/trees/base/boot/boot2"
+		BOOT="${BOOT} -s ${RD}/trees/base/boot/boot2"
 	fi
 else
-	BOOT1="-r"
+	BOOT="-r"
 fi
 
 deadlock=20
@@ -63,7 +58,7 @@ dofs_vn () {
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
-	disklabel -w ${BOOT1} ${BOOT2} ${VNDEVICE} ${FSLABEL}
+	disklabel -w ${BOOT} ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
@@ -83,9 +78,6 @@ dofs_vn () {
 
 	echo "*** Filesystem is ${FSSIZE} K, $4 left"
 	echo "***     ${FSINODE} bytes/inode, $7 left"
-	if [ "${do_size}" ]; then
-		echo ${FSSIZE} > ${FSIMG}.size
-	fi
 	break;
     done
 
@@ -110,7 +102,7 @@ dofs_md () {
 		echo "No /dev/$MDDEVICE" 1>&2
 		exit 1
 	fi
-	disklabel -w ${BOOT1} ${BOOT2} ${MDDEVICE} ${FSLABEL}
+	disklabel ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
@@ -130,9 +122,6 @@ dofs_md () {
 
 	echo "*** Filesystem is ${FSSIZE} K, $4 left"
 	echo "***     ${FSINODE} bytes/inode, $7 left"
-	if [ "${do_size}" ]; then
-		echo ${FSSIZE} > ${FSIMG}.size
-	fi
 	break;
     done
 }

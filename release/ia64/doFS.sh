@@ -7,12 +7,6 @@
 
 set -e
 
-if [ "$1" = "-s" ]; then
-	opt_s="-s"; shift
-else
-	opt_s=""
-fi
-
 FSIMG=$1; shift
 RD=$1 ; shift
 MNT=$1 ; shift
@@ -26,7 +20,7 @@ FSLABEL=$1 ; shift
 if [ x$FSLABEL != "xefi" ]; then
     DOFS_SH=`dirname $0`/../scripts/`basename $0`
     echo Tranferring control to $DOFS_SH...
-    exec sh $DOFS_SH $opt_s $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
+    exec sh $DOFS_SH ia64 $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
 fi
 
 export BLOCKSIZE=512
@@ -80,6 +74,3 @@ mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 
 echo "*** Filesystem is ${FSSIZE} K, $4 left"
 echo "***     ${FSINODE} bytes/inode, $7 left"
-if [ "${opt_s}" ]; then
-    echo ${FSSIZE} > ${FSIMG}.size
-fi
