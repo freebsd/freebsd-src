@@ -32,7 +32,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2003
+.Dd March 30, 2004
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -635,6 +635,34 @@ For IEEE 802.11 wireless interfaces, disable powersave mode.
 .It Cm powersavesleep Ar sleep
 For IEEE 802.11 wireless interfaces, set the desired max powersave sleep
 time in milliseconds.
+.It Cm protmode Ar technique
+For IEEE 802.11 wireless interfaces operating in 11g, use the specified
+technique for protecting OFDM frames in a mixed 11b/11g network.
+The set of valid techniques is
+.Dq off ,
+.Dq cts
+(CTS to self),
+and
+.Dq rtscts
+(RTS/CTS).
+Technique names are case insensitive.
+.It Cm rtsthreshold Ar length
+For IEEE 802.11 wireless interfaces, set the threshold for which 
+transmitted frames are preceded by transmission of an
+RTS
+control frame.
+.Ar Length
+is the frame size in bytes and must be in the range 1 to 2312.
+Not all adaptors support setting the RTS threshold.
+.It Cm txpower Ar power
+For IEEE 802.11 wireless interfaces, set the power used to transmit frames.
+.Ar Power
+is a unitless value in the range 0 to 100 that is interpreted
+by drivers to derive a device-specific value.
+Out of range values are truncated.
+Typically only a few discreet power settings are available and
+the driver will use the setting closest to the specified value.
+Not all adaptors support changing the transmit power.
 .It Cm wepmode Ar mode
 For IEEE 802.11 wireless interfaces, set the desired WEP mode.
 Not all adaptors support all modes.
