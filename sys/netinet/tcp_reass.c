@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.30 1995/10/13 16:00:25 wollman Exp $
+ *	$Id: tcp_input.c,v 1.31 1995/11/03 22:31:54 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -70,6 +72,8 @@ int	tcprexmtthresh = 3;
 tcp_seq	tcp_iss;
 tcp_cc	tcp_ccgen;
 struct	tcpstat tcpstat;
+SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
+	CTLFLAG_RD, &tcpstat , tcpstat, "");
 u_long	tcp_now;
 struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.17 1995/10/29 21:30:25 olah Exp $
+ *	$Id: tcp_usrreq.c,v 1.18 1995/11/03 22:08:11 olah Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -45,7 +46,6 @@
 #include <sys/errno.h>
 #include <sys/stat.h>
 #include <vm/vm.h>
-#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -592,7 +592,11 @@ tcp_ctloutput(op, so, level, optname, mp)
  * be set by the route).
  */
 u_long	tcp_sendspace = 1024*16;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace,
+	CTLFLAG_RW, &tcp_sendspace , 0, "");
 u_long	tcp_recvspace = 1024*16;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace,
+	CTLFLAG_RW, &tcp_recvspace , 0, "");
 
 /*
  * Attach TCP protocol to socket, allocating

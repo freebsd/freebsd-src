@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.9 1995/10/03 16:54:17 wollman Exp $
+ *	$Id: tcp_timer.c,v 1.10 1995/11/03 22:19:50 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -63,7 +65,13 @@
 #include <netinet/tcpip.h>
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
+	CTLFLAG_RW, &tcp_keepidle , 0, "");
+
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
+	CTLFLAG_RW, &tcp_keepintvl , 0, "");
+
 int	tcp_keepcnt = TCPTV_KEEPCNT;		/* max idle probes */
 int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;	/* max idle time in persist */
 int	tcp_maxidle;

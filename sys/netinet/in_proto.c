@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.18 1995/09/21 17:58:07 wollman Exp $
+ *	$Id: in_proto.c,v 1.19 1995/10/26 20:30:42 julian Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/radix.h>
@@ -178,6 +179,14 @@ struct domain inetdomain =
     };
 
 DOMAIN_SET(inet);
+
+SYSCTL_NODE(_net,PF_INET,	   inet,CTLFLAG_RW,0,	"InterNet Protocols");
+
+SYSCTL_NODE(_net_inet,IPPROTO_IP,  ip,	CTLFLAG_RW,0,	"IP");
+SYSCTL_NODE(_net_inet,IPPROTO_ICMP,icmp,CTLFLAG_RW,0,	"ICMP");
+SYSCTL_NODE(_net_inet,IPPROTO_UDP, udp,	CTLFLAG_RW,0,	"UDP");
+SYSCTL_NODE(_net_inet,IPPROTO_TCP, tcp,	CTLFLAG_RW,0,	"TCP");
+SYSCTL_NODE(_net_inet,IPPROTO_IGMP,igmp,CTLFLAG_RW,0,	"IGMP");
 
 #include "imp.h"
 #if NIMP > 0
