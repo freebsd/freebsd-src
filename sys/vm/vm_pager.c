@@ -265,8 +265,6 @@ vm_pager_deallocate(object)
  * vm_pager_get_pages() - inline, see vm/vm_pager.h
  * vm_pager_put_pages() - inline, see vm/vm_pager.h
  * vm_pager_has_page() - inline, see vm/vm_pager.h
- * vm_pager_page_inserted() - inline, see vm/vm_pager.h
- * vm_pager_page_removed() - inline, see vm/vm_pager.h
  */
 
 vm_offset_t
