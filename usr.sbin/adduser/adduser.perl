@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.8 1995/10/19 06:26:49 jkh Exp $
+# $Id: adduser.perl,v 1.9 1995/10/22 11:44:16 jkh Exp $
 #
 
 # read variables
@@ -938,7 +938,13 @@ sub home_create {
 	return 0;
     }
 
-    return mkdir("$homedir",0755) if $dotdir eq "no";
+    if ($dotdir eq 'no') {
+	if (!mkdir("$homedir",0755)) {
+	    warn "mkdir $homedir: $!\n"; return 0;
+	}
+	system 'chown', "$name:$group", $homedir;
+	return !$?;
+    }
 
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
