@@ -2075,27 +2075,6 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	bcopy((caddr_t) src, (caddr_t) dst, PAGE_SIZE);
 }
 
-
-/*
- *	Routine:	pmap_pageable
- *	Function:
- *		Make the specified pages (by pmap, offset)
- *		pageable (or not) as requested.
- *
- *		A page which is not pageable may not take
- *		a fault; therefore, its page table entry
- *		must remain valid for the duration.
- *
- *		This routine is merely advisory; pmap_enter
- *		will specify that these pages are to be wired
- *		down (or not) as appropriate.
- */
-void
-pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
-	      boolean_t pageable)
-{
-}
-
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may

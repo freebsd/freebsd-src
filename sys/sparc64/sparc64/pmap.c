@@ -1597,15 +1597,6 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 }
 
 /*
- * Make the specified page pageable (or not).  Unneeded.
- */
-void
-pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
-	      boolean_t pageable)
-{
-}
-
-/*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
  * be changed upwards or downwards in the future; it
