@@ -79,6 +79,7 @@ vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor ERICSSON			0x016b	Ericsson
 vendor PSION			0x016c	Psion
 vendor COMPAQ2			0x0183	Compaq
+vendor PARALON			0x0183	Paralon Technologies Inc
 vendor KINGSTON			0x0186	Kingston
 vendor MELCO			0x018a	Melco Corporation
 vendor DAYNA			0x0194	Dayna Corporation
