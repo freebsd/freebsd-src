@@ -87,7 +87,6 @@ static void		pcic98_resume(struct slot *);
  *	Per-slot data table.
  */
 struct pcic_slot {
-	int slotnum;			/* My slot number */
 	int index;			/* Index register */
 	int data;			/* Data register */
 	int offset;			/* Offset value for index */
@@ -475,7 +474,6 @@ pcic_probe(device_t dev)
 		 *	Allocate a slot and initialise the data structures.
 		 */
 		validslots++;
-		sp->slotnum = slotnum + sc->unit * PCIC_CARD_SLOTS;
 		sp->slt = (struct slot *) 1;
 		/*
 		 * Modem cards send the speaker audio (dialing noises)
