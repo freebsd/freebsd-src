@@ -50,6 +50,8 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 device		sab		# Siemens SAB82532 based serial ports
 device		zs		# Zilog 8530 based serial ports
 
+option 		OFWCONS_POLL_HZ=4	# 20 or more works best on Ultra2
+
 
 #####################################################################
 # Devices we don't want to deal with
