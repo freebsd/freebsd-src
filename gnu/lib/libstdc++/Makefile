@@ -11,8 +11,10 @@ SUPDIR=	${SRCDIR}/libsupc++
 #SUBDIR=	doc
 
 LIB=		stdc++
+.if ${MACHINE_ARCH} != "sparc64"
 SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
+.endif
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR}
