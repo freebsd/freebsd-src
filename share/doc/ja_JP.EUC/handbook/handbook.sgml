@@ -25,7 +25,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.1.6">
+<!ENTITY rel.current CDATA "2.1.7">
 
 ]>
 
