@@ -204,7 +204,7 @@ devfs_newdirent(char *name, int namelen)
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
 	bcopy(name, de->de_dirent->d_name, namelen);
 	de->de_dirent->d_name[namelen] = '\0';
-	getnanotime(&de->de_ctime);
+	vfs_timestamp(&de->de_ctime);
 	de->de_mtime = de->de_atime = de->de_ctime;
 	de->de_links = 1;
 	return (de);
@@ -221,7 +221,7 @@ devfs_vmkdir(char *name, int namelen, struct devfs_dirent *dotdot)
 	TAILQ_INIT(&dd->de_dlist);
 
 	dd->de_dirent->d_type = DT_DIR;
-	dd->de_mode = 0755;
+	dd->de_mode = 0555;
 	dd->de_links = 2;
 	dd->de_dir = dd;
 
@@ -337,7 +337,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_inode = dm->dm_inode++;
 				de->de_uid = 0;
 				de->de_gid = 0;
-				de->de_mode = 0666;
+				de->de_mode = 0755;
 				de->de_dirent->d_type = DT_LNK;
 				pdev = dev->si_parent;
 				j = strlen(pdev->si_name) + 1;
