@@ -144,7 +144,8 @@ static int nbigpipe;
 static int amountpipekva;
 
 static void pipeclose __P((struct pipe *cpipe));
-static void pipeinit __P((struct pipe *cpipe));
+static void pipe_free_kmem __P((struct pipe *cpipe));
+static int pipe_create __P((struct pipe **cpipep));
 static __inline int pipelock __P((struct pipe *cpipe, int catch));
 static __inline void pipeunlock __P((struct pipe *cpipe));
 static __inline void pipeselwakeup __P((struct pipe *cpipe));
@@ -154,7 +155,7 @@ static void pipe_destroy_write_buffer __P((struct pipe *wpipe));
 static int pipe_direct_write __P((struct pipe *wpipe, struct uio *uio));
 static void pipe_clone_write_buffer __P((struct pipe *wpipe));
 #endif
-static void pipespace __P((struct pipe *cpipe));
+static int pipespace __P((struct pipe *cpipe, int size));
 
 static vm_zone_t pipe_zone;
 
@@ -170,7 +171,7 @@ pipe(p, uap)
 		int	dummy;
 	} */ *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = p->p_fd;
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
 	int fd, error;
@@ -178,11 +179,13 @@ pipe(p, uap)
 	if (pipe_zone == NULL)
 		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0, 0, 4);
 
-	rpipe = zalloc( pipe_zone);
-	pipeinit(rpipe);
+	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
+		pipeclose(rpipe); 
+		pipeclose(wpipe); 
+		return (ENFILE);
+	}
+	
 	rpipe->pipe_state |= PIPE_DIRECTOK;
-	wpipe = zalloc( pipe_zone);
-	pipeinit(wpipe);
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
 	error = falloc(p, &rf, &fd);
@@ -230,61 +233,82 @@ pipe(p, uap)
 
 /*
  * Allocate kva for pipe circular buffer, the space is pageable
+ * This routine will 'realloc' the size of a pipe safely, if it fails
+ * it will retain the old buffer.
+ * If it fails it will return ENOMEM.
  */
-static void
-pipespace(cpipe)
+static int
+pipespace(cpipe, size)
 	struct pipe *cpipe;
+	int size;
 {
+	struct vm_object *object;
+	caddr_t buffer;
 	int npages, error;
 
-	npages = round_page(cpipe->pipe_buffer.size)/PAGE_SIZE;
+	npages = round_page(size)/PAGE_SIZE;
 	/*
 	 * Create an object, I don't like the idea of paging to/from
 	 * kernel_object.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	cpipe->pipe_buffer.object = vm_object_allocate(OBJT_DEFAULT, npages);
-	cpipe->pipe_buffer.buffer = (caddr_t) vm_map_min(kernel_map);
+	object = vm_object_allocate(OBJT_DEFAULT, npages);
+	buffer = (caddr_t) vm_map_min(kernel_map);
 
 	/*
 	 * Insert the object into the kernel map, and allocate kva for it.
 	 * The map entry is, by default, pageable.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	error = vm_map_find(kernel_map, cpipe->pipe_buffer.object, 0,
-		(vm_offset_t *) &cpipe->pipe_buffer.buffer, 
-		cpipe->pipe_buffer.size, 1,
+	error = vm_map_find(kernel_map, object, 0,
+		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
-	if (error != KERN_SUCCESS)
-		panic("pipeinit: cannot allocate pipe -- out of kvm -- code = %d", error);
+	if (error != KERN_SUCCESS) {
+		vm_object_deallocate(object);
+		return (ENOMEM);
+	}
+
+	/* free old resources if we're resizing */
+	pipe_free_kmem(cpipe);
+	cpipe->pipe_buffer.object = object;
+	cpipe->pipe_buffer.buffer = buffer;
+	cpipe->pipe_buffer.size = size;
+	cpipe->pipe_buffer.in = 0;
+	cpipe->pipe_buffer.out = 0;
+	cpipe->pipe_buffer.cnt = 0;
 	amountpipekva += cpipe->pipe_buffer.size;
+	return (0);
 }
 
 /*
  * initialize and allocate VM and memory for pipe
  */
-static void
-pipeinit(cpipe)
-	struct pipe *cpipe;
+static int
+pipe_create(cpipep)
+	struct pipe **cpipep;
 {
+	struct pipe *cpipe;
+	int error;
 
-	cpipe->pipe_buffer.in = 0;
-	cpipe->pipe_buffer.out = 0;
-	cpipe->pipe_buffer.cnt = 0;
-	cpipe->pipe_buffer.size = PIPE_SIZE;
+	*cpipep = zalloc(pipe_zone);
+	if (*cpipep == NULL)
+		return (ENOMEM);
 
-	/* Buffer kva gets dynamically allocated */
-	cpipe->pipe_buffer.buffer = NULL;
-	/* cpipe->pipe_buffer.object = invalid */
-
+	cpipe = *cpipep;
+	
+	/* so pipespace()->pipe_free_kmem() doesn't follow junk pointer */
+	cpipe->pipe_buffer.object = NULL;
+#ifndef PIPE_NODIRECT
+	cpipe->pipe_map.kva = NULL;
+#endif
+	/*
+	 * protect so pipeclose() doesn't follow a junk pointer
+	 * if pipespace() fails.
+	 */
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
-	vfs_timestamp(&cpipe->pipe_ctime);
-	cpipe->pipe_atime = cpipe->pipe_ctime;
-	cpipe->pipe_mtime = cpipe->pipe_ctime;
-	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
 
 #ifndef PIPE_NODIRECT
 	/*
@@ -296,6 +320,18 @@ pipeinit(cpipe)
 	cpipe->pipe_map.npages = 0;
 	/* cpipe->pipe_map.ms[] = invalid */
 #endif
+
+	error = pipespace(cpipe, PIPE_SIZE);
+	if (error) {
+		return (error);
+	}
+
+	vfs_timestamp(&cpipe->pipe_ctime);
+	cpipe->pipe_atime = cpipe->pipe_ctime;
+	cpipe->pipe_mtime = cpipe->pipe_ctime;
+	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
+
+	return (0);
 }
 
 
@@ -308,6 +344,7 @@ pipelock(cpipe, catch)
 	int catch;
 {
 	int error;
+
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
 		if ((error = tsleep( cpipe,
@@ -326,6 +363,7 @@ static __inline void
 pipeunlock(cpipe)
 	struct pipe *cpipe;
 {
+
 	cpipe->pipe_state &= ~PIPE_LOCK;
 	if (cpipe->pipe_state & PIPE_LWANT) {
 		cpipe->pipe_state &= ~PIPE_LWANT;
@@ -337,6 +375,7 @@ static __inline void
 pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
+
 	if (cpipe->pipe_state & PIPE_SEL) {
 		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeup(&cpipe->pipe_sel);
@@ -355,7 +394,6 @@ pipe_read(fp, uio, cred, flags, p)
 	struct proc *p;
 	int flags;
 {
-
 	struct pipe *rpipe = (struct pipe *) fp->f_data;
 	int error;
 	int nread = 0;
@@ -575,6 +613,7 @@ pipe_destroy_write_buffer(wpipe)
 struct pipe *wpipe;
 {
 	int i;
+
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
@@ -597,7 +636,7 @@ struct pipe *wpipe;
  */
 static void
 pipe_clone_write_buffer(wpipe)
-struct pipe *wpipe;
+	struct pipe *wpipe;
 {
 	int size;
 	int pos;
@@ -629,6 +668,7 @@ pipe_direct_write(wpipe, uio)
 	struct uio *uio;
 {
 	int error;
+
 retry:
 	while (wpipe->pipe_state & PIPE_DIRECTW) {
 		if ( wpipe->pipe_state & PIPE_WANTR) {
@@ -719,7 +759,6 @@ pipe_write(fp, uio, cred, flags, p)
 {
 	int error = 0;
 	int orig_resid;
-
 	struct pipe *wpipe, *rpipe;
 
 	rpipe = (struct pipe *) fp->f_data;
@@ -742,47 +781,16 @@ pipe_write(fp, uio, cred, flags, p)
 		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
 		(wpipe->pipe_buffer.cnt == 0)) {
 
-		if (wpipe->pipe_buffer.buffer) {
-			amountpipekva -= wpipe->pipe_buffer.size;
-			kmem_free(kernel_map,
-				(vm_offset_t)wpipe->pipe_buffer.buffer,
-				wpipe->pipe_buffer.size);
-		}
-
-#ifndef PIPE_NODIRECT
-		if (wpipe->pipe_map.kva) {
-			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
-			kmem_free(kernel_map,
-				wpipe->pipe_map.kva,
-				wpipe->pipe_buffer.size + PAGE_SIZE);
-		}
-#endif
-
-		wpipe->pipe_buffer.in = 0;
-		wpipe->pipe_buffer.out = 0;
-		wpipe->pipe_buffer.cnt = 0;
-		wpipe->pipe_buffer.size = BIG_PIPE_SIZE;
-		wpipe->pipe_buffer.buffer = NULL;
-		++nbigpipe;
-
-#ifndef PIPE_NODIRECT
-		wpipe->pipe_map.cnt = 0;
-		wpipe->pipe_map.kva = 0;
-		wpipe->pipe_map.pos = 0;
-		wpipe->pipe_map.npages = 0;
-#endif
-
-	}
-		
-
-	if( wpipe->pipe_buffer.buffer == NULL) {
 		if ((error = pipelock(wpipe,1)) == 0) {
-			pipespace(wpipe);
+			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
+				nbigpipe++;
 			pipeunlock(wpipe);
 		} else {
 			return error;
 		}
 	}
+		
+	KASSERT(wpipe->pipe_buffer.buffer != NULL, ("pipe buffer gone"));
 
 	++wpipe->pipe_busy;
 	orig_resid = uio->uio_resid;
@@ -1004,10 +1012,10 @@ int
 pipe_ioctl(fp, cmd, data, p)
 	struct file *fp;
 	u_long cmd;
-	register caddr_t data;
+	caddr_t data;
 	struct proc *p;
 {
-	register struct pipe *mpipe = (struct pipe *)fp->f_data;
+	struct pipe *mpipe = (struct pipe *)fp->f_data;
 
 	switch (cmd) {
 
@@ -1056,7 +1064,7 @@ pipe_poll(fp, events, cred, p)
 	struct ucred *cred;
 	struct proc *p;
 {
-	register struct pipe *rpipe = (struct pipe *)fp->f_data;
+	struct pipe *rpipe = (struct pipe *)fp->f_data;
 	struct pipe *wpipe;
 	int revents = 0;
 
@@ -1133,6 +1141,34 @@ pipe_close(fp, p)
 	return 0;
 }
 
+static void
+pipe_free_kmem(cpipe)
+	struct pipe *cpipe;
+{
+
+	if (cpipe->pipe_buffer.buffer != NULL) {
+		if (cpipe->pipe_buffer.size > PIPE_SIZE)
+			--nbigpipe;
+		amountpipekva -= cpipe->pipe_buffer.size;
+		kmem_free(kernel_map,
+			(vm_offset_t)cpipe->pipe_buffer.buffer,
+			cpipe->pipe_buffer.size);
+		cpipe->pipe_buffer.buffer = NULL;
+	}
+#ifndef PIPE_NODIRECT
+	if (cpipe->pipe_map.kva != NULL) {
+		amountpipekva -= cpipe->pipe_buffer.size + PAGE_SIZE;
+		kmem_free(kernel_map,
+			cpipe->pipe_map.kva,
+			cpipe->pipe_buffer.size + PAGE_SIZE);
+		cpipe->pipe_map.cnt = 0;
+		cpipe->pipe_map.kva = 0;
+		cpipe->pipe_map.pos = 0;
+		cpipe->pipe_map.npages = 0;
+	}
+#endif
+}
+
 /*
  * shutdown the pipe
  */
@@ -1141,6 +1177,7 @@ pipeclose(cpipe)
 	struct pipe *cpipe;
 {
 	struct pipe *ppipe;
+
 	if (cpipe) {
 		
 		pipeselwakeup(cpipe);
@@ -1169,22 +1206,7 @@ pipeclose(cpipe)
 		/*
 		 * free resources
 		 */
-		if (cpipe->pipe_buffer.buffer) {
-			if (cpipe->pipe_buffer.size > PIPE_SIZE)
-				--nbigpipe;
-			amountpipekva -= cpipe->pipe_buffer.size;
-			kmem_free(kernel_map,
-				(vm_offset_t)cpipe->pipe_buffer.buffer,
-				cpipe->pipe_buffer.size);
-		}
-#ifndef PIPE_NODIRECT
-		if (cpipe->pipe_map.kva) {
-			amountpipekva -= cpipe->pipe_buffer.size + PAGE_SIZE;
-			kmem_free(kernel_map,
-				cpipe->pipe_map.kva,
-				cpipe->pipe_buffer.size + PAGE_SIZE);
-		}
-#endif
+		pipe_free_kmem(cpipe);
 		zfree(pipe_zone, cpipe);
 	}
 }
