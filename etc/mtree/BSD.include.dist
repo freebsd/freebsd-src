@@ -138,6 +138,8 @@
             include
             ..
         ..
+        netflow
+        ..
     ..
     netinet
     ..
