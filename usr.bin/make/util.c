@@ -2,13 +2,13 @@
  * Missing stuff from OS's
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
-
 #include <stdio.h>
 #include <errno.h>
 #include "make.h"
+
+#ifndef lint
+__RCSID("$FreeBSD$");
+#endif
 
 #if !__STDC__
 # ifndef const
