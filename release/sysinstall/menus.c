@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.145 1997/10/04 15:50:09 jkh Exp $
+ * $Id: menus.c,v 1.146 1997/10/13 11:45:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1101,13 +1101,15 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { "6 Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
-      { "7 Options",	"View/Set various installation options",
+      { "6 Startup",	"Configure system startup services",
+	NULL,	dmenuSubmenu, NULL, &MenuStartup },
+      { "8 Options",	"View/Set various installation options",
 	NULL, optionsEditor },
-      { "8 Packages",	"Install pre-packaged software for FreeBSD",
+      { "9 Packages",	"Install pre-packaged software for FreeBSD",
 	NULL, configPackages },
-      { "9 Root Password", "Set the system manager's password",
+      { "A Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
-      { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
+      { "B HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
 #ifdef USE_XIG_ENVIRONMENT
       { "X X + CDE",	"Configure X Window system & CDE environment",
@@ -1127,6 +1129,49 @@ DMenu MenuConfigure = {
       { NULL } },
 };
 
+DMenu MenuStartup = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "Startup Services Menu",
+    "This menu allows you to configure various aspects of your system's\n"
+    "startup configuration.  Remember to use SPACE to select items!  The\n"
+    "RETURN key will leave this menu (as with all checkbox menus).",
+    NULL,
+    NULL,
+    { { "APM",		"Auto-power management services (typically laptops)",
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "apm_enable=YES" },
+      { "pccard",	"Enable PCCARD (AKA PCMCIA) services (also laptops)",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "pccard_enable=YES" },
+      { "pccard mem",	"Set PCCARD memory address (if enabled)",
+	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_mem" },
+      { "pccard ifconfig",	"List of PCCARD ethernet devices to configure",
+	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_ifconfig" },
+      { " ",		" -- ", NULL,	NULL, NULL, NULL, ' ', ' ', ' ' },
+      { "startup dirs",	"Set the list of dirs to look for startup scripts",
+	dmenuVarCheck, dmenuISetVariable, NULL, "local_startup" },
+      { "named",	"Run a local name server on this host",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "named_enable=YES" },
+      { "named flags",	"Set default flags to named (if enabled)",
+	dmenuVarCheck, dmenuISetVariable, NULL, "named_flags" },
+      { "nis client",	"This host wishes to be an NIS client.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "nis_client_enable=YES" },
+      { "nis server",	"This host wishes to be an NIS server.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "nis_server_enable=YES" },
+      { " ",		" -- ", NULL,	NULL, NULL, NULL, ' ', ' ', ' ' },
+      { "accounting",	"This host wishes to run process accounting.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "accounting_enable=YES" },
+      { "lpd",		"This host has a printer and wants to run lpd.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "lpd_enable=YES" },
+      { "linux",	"This host wants to be able to run linux binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "linux_enable=YES" },
+      { "quotas",	"This host wishes to check quotas on startup.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
+      { "SCO",		"This host wants to be able to run IBCS2 binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
+      { "Exit",		"Exit this menu (returning to previous)",
+	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
+      { NULL } },
+};
+
 DMenu MenuNetworking = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
@@ -1142,6 +1187,12 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
       { "NFS server",	"This machine will be an NFS server",
 	dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable" },
+      { "AMD",	"This machine wants to run the auto-mounter service",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "amd_enable=YES" },
+      { "AMD Flags",	"Set flags to AMD service (if enabled)",
+	dmenuVarCheck, dmenuISetVariable, NULL, "amd_flags" },
+      { "TCP Extentions",	"Allow RFC1323 and RFC1544 TCP extentions?",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "tcp_extentions=YES" },
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
 #ifdef NETCON_EXTENTIONS
