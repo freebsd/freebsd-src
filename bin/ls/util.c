@@ -79,7 +79,8 @@ prn_normal(const char *s)
 		for (i = 0; i < (int)clen; i++)
 			putchar((unsigned char)s[i]);
 		s += clen;
-		n += wcwidth(wc);
+		if (iswprint(wc))
+			n += wcwidth(wc);
 	}
 	return (n);
 }
