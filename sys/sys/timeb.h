@@ -50,4 +50,12 @@ struct timeb {
 	short	dstflag;		/* DST == non-zero */
 };
 
+#ifndef _KERNEL
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int ftime __P((struct timeb *));
+__END_DECLS
+#endif /* _KERNEL */
+
 #endif
