@@ -1604,6 +1604,25 @@ is set to
 these are the flags to pass to the
 .Xr ntpd 8
 daemon.
+.It Va ntpd_sync_on_start
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Xr ntpd 8
+is run with the
+.Op Fl g
+flag, which syncs the system's clock on startup.
+See
+.Xr ntpd 8
+for more information regarding the
+.Op Fl g
+option.
+This is a preferred alternative to using
+.Xr ntpdate 1
+or specifying the
+.Pa /etc/rc.conf
+tunable
+.Op Ar ntpdate_enable .
 .It Va nis_client_enable
 .Pq Vt bool
 If set to
