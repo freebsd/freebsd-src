@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.101 1996/06/25 20:30:05 bde Exp $
+ *	$Id: if_ed.c,v 1.102 1996/08/04 10:57:29 phk Exp $
  */
 
 /*
@@ -324,11 +324,6 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ11,
 	IRQ15
 };
-
-#define	ETHER_MIN_LEN	60
-#define ETHER_MAX_LEN	1514
-#define	ETHER_ADDR_LEN	6
-#define	ETHER_HDR_SIZE	14
 
 static struct kern_devconf kdc_ed_template = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -1944,7 +1939,7 @@ outloop:
 			goto outloop;
 	}
 
-	sc->txb_len[sc->txb_new] = max(len, ETHER_MIN_LEN);
+	sc->txb_len[sc->txb_new] = max(len, (ETHER_MIN_LEN-ETHER_CRC_LEN));
 
 	sc->txb_inuse++;
 
@@ -2020,8 +2015,8 @@ ed_rint(sc)
 			ed_pio_readmem(sc, (int)packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
-		if (len > (ETHER_MAX_LEN + sizeof(struct ed_ring)) ||
-		    len < (ETHER_HDR_SIZE + sizeof(struct ed_ring))) {
+		if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring)) ||
+		    len < (ETHER_MIN_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring))) {
 			/*
 			 * Length is a wild value. There's a good chance that
 			 * this was caused by the NIC being old and buggy.

@@ -13,6 +13,7 @@ Author: Martin Renters
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/mount.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
@@ -52,11 +53,6 @@ Author: Martin Renters
 
 #define TRUE		1
 #define FALSE		0
-
-#define ETHER_ADDR_SIZE		6	/* Size of Ethernet address */
-#define ETHER_HDR_SIZE		14	/* Size of ethernet header */
-#define ETH_MIN_PACKET		64
-#define ETH_MAX_PACKET		1518
 
 #define VENDOR_NONE	0
 #define VENDOR_WD	1

@@ -43,7 +43,7 @@ unsigned char  *eth_node_addr;
 The following two variables are used externally
 **************************************************************************/
 char eth_driver[] = "ed0";
-char packet[ETH_MAX_PACKET];
+char packet[ETHER_MAX_LEN];
 int  packetlen;
 
 #ifdef	INCLUDE_NE
@@ -418,7 +418,7 @@ eth_transmit(d,t,s,p)
                 *(eth_bmem+13) = t;
                 bcopy(p, eth_bmem+14, s);
                 s += 14;
-                while (s < ETH_MIN_PACKET) *(eth_bmem+(s++)) = 0;
+                while (s < ETHER_MIN_LAN) *(eth_bmem+(s++)) = 0;
         }
 #endif
 #ifdef INCLUDE_WD
@@ -438,7 +438,7 @@ eth_transmit(d,t,s,p)
 		*(eth_bmem+13) = t;
 		bcopy(p, eth_bmem+14, s);
 		s += 14;
-		while (s < ETH_MIN_PACKET) *(eth_bmem+(s++)) = 0;
+		while (s < ETHER_MIN_LAN) *(eth_bmem+(s++)) = 0;
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, 0);
 			inb(0x84);
@@ -458,7 +458,7 @@ eth_transmit(d,t,s,p)
 		eth_pio_write(&type, (eth_tx_start<<8)+12, 2);
 		eth_pio_write(p, (eth_tx_start<<8)+14, s);
 		s += 14;
-		if (s < ETH_MIN_PACKET) s = ETH_MIN_PACKET;
+		if (s < ETHER_MIN_LEN) s = ETHER_MIN_LEN;
 	}
 #endif
 	twiddle();
@@ -565,7 +565,7 @@ eth_poll()
 	if (ret && (type == ARP)) {
 		struct arprequest *arpreq;
 		unsigned long reqip;
-		arpreq = (struct arprequest *)&packet[ETHER_HDR_SIZE];
+		arpreq = (struct arprequest *)&packet[ETHER_HDR_LEN];
 		convert_ipaddr(&reqip, arpreq->tipaddr);
 		if ((ntohs(arpreq->opcode) == ARP_REQUEST) &&
 			(reqip == arptable[ARP_CLIENT].ipaddr)) {

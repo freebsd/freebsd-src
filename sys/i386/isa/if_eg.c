@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.15 1996/08/04 10:58:16 phk Exp $
+ * $Id: if_eg.c,v 1.16 1996/08/04 20:04:11 phk Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -87,10 +87,6 @@
 #else
 #define dprintf(x)
 #endif
-
-#define ETHER_MIN_LEN	64
-#define ETHER_MAX_LEN	1518
-#define ETHER_ADDR_LEN	6
 
 #define EG_INLEN  	10
 #define EG_BUFLEN	0x0670

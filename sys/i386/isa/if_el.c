@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.23 1996/02/06 18:50:40 wollman Exp $
+ * $Id: if_el.c,v 1.24 1996/06/18 01:22:20 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -63,9 +63,6 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_elreg.h>
-
-#define ETHER_MIN_LEN	64
-#define ETHER_MAX_LEN	1518
 
 /* For debugging convenience */
 #ifdef EL_DEBUG
