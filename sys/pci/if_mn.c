@@ -1144,7 +1144,7 @@ mn_timeout(void *xsc)
 
 	mn_intr(xsc);
 	sc = xsc;
-	timeout(mn_timeout, xsc, 1000);
+	timeout(mn_timeout, xsc, 10 * hz);
 	round++;
 	if (round == 2) {
 		sc->m32_mem.ccb = 0x00008004;
