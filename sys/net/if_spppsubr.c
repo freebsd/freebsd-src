@@ -961,7 +961,7 @@ sppp_attach(struct ifnet *ifp)
 	struct sppp *sp = (struct sppp*) ifp;
 
 	/* Initialize keepalive handler. */
-	if (spppq != NULL)
+	if (spppq == NULL)
 		TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
 
 	/* Insert new entry into the keepalive list. */
@@ -1020,7 +1020,7 @@ sppp_detach(struct ifnet *ifp)
 		}
 
 	/* Stop keepalive handler. */
-	if (spppq != NULL)
+	if (spppq == NULL)
 		UNTIMEOUT(sppp_keepalive, 0, keepalive_ch);
 
 	for (i = 0; i < IDX_COUNT; i++)
