@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.11 1999/01/10 16:41:14 nsouch Exp $
+ *	$Id: ppbconf.c,v 1.12 1999/01/11 21:22:41 nsouch Exp $
  *
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/linker_set.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>

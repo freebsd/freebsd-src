@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.27 1998/05/19 18:42:03 phk Exp $
+ *	$Id: db_command.c,v 1.28 1998/07/08 10:53:45 bde Exp $
  */
 
 /*
@@ -35,7 +35,7 @@
  * Command dispatcher.
  */
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/linker_set.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
 
