@@ -813,22 +813,25 @@ acpi_isa_get_logicalid(device_t dev)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     pnpid = 0;
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+
     ACPI_LOCK;
     
     /* Fetch and validate the HID. */
     if ((h = acpi_get_handle(dev)) == NULL)
-	return (0);
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
+	goto out;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
-	return (0);
+	goto out;
     devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     if ((devinfo->Valid & ACPI_VALID_HID) != 0)
 	pnpid = PNP_EISAID(devinfo->HardwareId.Value);
 
-    AcpiOsFree(buf.Pointer);
+out:
+    if (buf.Pointer != NULL)
+	AcpiOsFree(buf.Pointer);
     ACPI_UNLOCK;
     return_VALUE (pnpid);
 }
@@ -848,16 +851,17 @@ acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 
     pnpid = cids;
     valid = 0;
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+
     ACPI_LOCK;
     
     /* Fetch and validate the CID */
     if ((h = acpi_get_handle(dev)) == NULL)
-	return (0);
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
+	goto out;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
-	return (0);
+	goto out;
     devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
     if ((devinfo->Valid & ACPI_VALID_CID) == 0)
 	goto out;
@@ -872,7 +876,8 @@ acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
     }
 
 out:
-    AcpiOsFree(buf.Pointer);
+    if (buf.Pointer != NULL)
+	AcpiOsFree(buf.Pointer);
     ACPI_UNLOCK;
     return_VALUE (valid);
 }
