@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2002
+.Dd September 20, 2003
 .Dt BRIDGE 4
 .Os
 .Sh NAME
@@ -63,18 +63,18 @@ is controlled by several
 .Xr sysctl 8
 variables, as follows.
 .Bl -tag -width indent
-.It Va net.link.ether.bridge
-set to
+.It Va net.link.ether.bridge.enable
+Set to
 .Li 1
 to enable bridging, set to
 .Li 0
 to disable it.
-.It Va net.link.ether.bridge_ipfw
-set to
+.It Va net.link.ether.bridge.ipfw
+Set to
 .Li 1
 to enable
 .Xr ipfw 8
-filtering on bridged packets.
+processing of bridged packets.
 Note that
 .Xr ipfw 8
 rules only apply
@@ -86,8 +86,19 @@ section and the
 .Xr ipfw 8
 manpage for more details on the interaction of bridging
 and the firewall.
-.It Va net.link.ether.bridge_cfg
-contains a list of interfaces on which bridging is to be performed.
+.It Va net.link.ether.bridge.ipf
+Set to
+.Li 1
+to enable
+.Xr ipf 8
+processing of bridged packets.
+Note that
+.Xr ipf 8
+rules only apply
+to IP packets.
+Non-IP packets are accepted by default.
+.It Va net.link.ether.bridge.config
+Set to the list of interfaces to bridge.
 Interfaces are separated by spaces, commas or tabs.
 Each interface
 can be optionally followed by a colon and an integer indicating the
@@ -110,13 +121,17 @@ section for more examples.
 The list of interfaces is rescanned every time the list is
 modified, bridging is enabled, or new interfaces are created or
 destroyed.
+An explicit request to refresh the bridge configuration can also
+be done by writing any value to
+.Va net.link.ether.bridge.refresh .
 Interfaces that are in the list but cannot be used
 for bridging (because they are non-existing, or not Ethernet or VLAN)
 are not used and a warning message is generated.
 .El
 .Pp
 Bridging requires interfaces to be put in promiscuous mode,
-and transmit packets with Ethernet source addresses.
+and transmit packets with Ethernet source addresses different
+than their own.
 Some interfaces (e.g.\&
 .Xr wi 4 )
 do not support this functionality.
@@ -129,13 +144,13 @@ cluster can be set as follows.
 No cluster-ID is specified here, which
 will cause the interfaces to appear as part of cluster #1.
 .Pp
-.Dl "sysctl net.link.ether.bridge_cfg=dc0,dc1,fxp1"
+.Dl "sysctl net.link.ether.bridge.config=dc0,dc1,fxp1"
 .Pp
 If you do not know what actual interfaces will be present on
 your system, you can just put all existing interfaces in the
 configuration, as follows:
 .Pp
-.Dl sysctl net.link.ether.bridge_cfg="`ifconfig -l`"
+.Dl sysctl net.link.ether.bridge.config="`ifconfig -l`"
 .Pp
 This will result in a space-separated list of interfaces.
 Out of the list, only Ethernet and VLAN interfaces will be
@@ -145,7 +160,7 @@ a warning message.
 More complex configurations can be used to create multiple
 clusters, e.g.\&
 .Pp
-.Dl "sysctl net.link.ether.bridge_cfg=dc0:3,dc1:3,fxp0:4,fxp1:4"
+.Dl "sysctl net.link.ether.bridge.config=dc0:3,dc1:3,fxp0:4,fxp1:4"
 .Pp
 will create two completely independent clusters.
 .Pp
@@ -161,7 +176,7 @@ and
 .Li dc2 ,
 respectively:
 .Bd -literal -offset indent
-sysctl net.link.ether.bridge_cfg=vlan0:34,dc1:34,vlan1:56,dc2:56
+sysctl net.link.ether.bridge.config=vlan0:34,dc1:34,vlan1:56,dc2:56
 ifconfig vlan0 vlan 10 vlandev dc0
 ifconfig vlan1 vlan 20 vlandev dc0
 .Ed
@@ -169,12 +184,12 @@ ifconfig vlan1 vlan 20 vlandev dc0
 Note how there is no relation between the 802.1q VLAN identifiers
 (10 and 20) and the cluster-ID's (34 and 56) used in
 the
-.Va bridge_cfg
+.Va bridge.config
 variable.
 .Pp
 Note also that the trunk interface
 does not even appear in the
-.Va bridge_cfg ,
+.Va bridge.config ,
 as VLAN tag insertion/removal
 is performed by the
 .Xr vlan 4
@@ -223,6 +238,7 @@ loadable module.
 .Xr ip 4 ,
 .Xr ng_bridge 4 ,
 .Xr vlan 4 ,
+.Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr sysctl 8
 .Sh HISTORY
