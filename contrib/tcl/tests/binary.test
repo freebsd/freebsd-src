@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) binary.test 1.10 97/08/06 08:56:11
+# SCCS: @(#) binary.test 1.13 97/09/11 18:50:30
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -443,18 +443,24 @@ test binary-13.12 {Tcl_BinaryObjCmd: float overflow} {nonPortable macOrUnix} {
 test binary-13.13 {Tcl_BinaryObjCmd: float overflow} {nonPortable pcOnly} {
     binary format f -3.402825e+38
 } \xff\xff\x7f\xff
-test binary-13.14 {Tcl_BinaryObjCmd: format} {
+test binary-13.14 {Tcl_BinaryObjCmd: float underflow} {nonPortable macOrUnix} {
+    binary format f -3.402825e-100
+} \x80\x00\x00\x00
+test binary-13.15 {Tcl_BinaryObjCmd: float underflow} {nonPortable pcOnly} {
+    binary format f -3.402825e-100
+} \x00\x00\x00\x80
+test binary-13.16 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format f2 {1.6}} msg] $msg
 } {1 {number of elements in list does not match count}}
-test binary-13.15 {Tcl_BinaryObjCmd: format} {
+test binary-13.17 {Tcl_BinaryObjCmd: format} {
     set a {1.6 3.4}
     list [catch {binary format f $a} msg] $msg
 } [list 1 "expected floating-point number but got \"1.6 3.4\""]
-test binary-13.16 {Tcl_BinaryObjCmd: format} {nonPortable macOrUnix} {
+test binary-13.18 {Tcl_BinaryObjCmd: format} {nonPortable macOrUnix} {
     set a {1.6 3.4}
     binary format f1 $a
 } \x3f\xcc\xcc\xcd
-test binary-13.17 {Tcl_BinaryObjCmd: format} {nonPortable pcOnly} {
+test binary-13.19 {Tcl_BinaryObjCmd: format} {nonPortable pcOnly} {
     set a {1.6 3.4}
     binary format f1 $a
 } \xcd\xcc\xcc\x3f
@@ -1312,7 +1318,7 @@ test binary-37.8 {GetFormatSpec: numbers} {
     set arg1 foo
     list [binary scan abcdef "a0x3" arg1] $arg1
 } {1 {}}
-test binary-37.8 {GetFormatSpec: numbers} {
+test binary-37.9 {GetFormatSpec: numbers} {
     # test format of neg numbers
     # bug report/fix provided by Harald Kirsch
     set x [binary format f* {1 -1 2 -2 0}]
@@ -1320,37 +1326,61 @@ test binary-37.8 {GetFormatSpec: numbers} {
     set bla
 } {1.0 -1.0 2.0 -2.0 0.0}
 
-# FormatNumber is thoroughly tested above, so we don't have any explicit tests
-test binary-38.1 {ScanNumber: sign extension} {
+test binary-38.1 {FormatNumber: word alignment} {
+    set x [binary format c1s1 1 1]
+} \x01\x01\x00
+test binary-38.2 {FormatNumber: word alignment} {
+    set x [binary format c1S1 1 1]
+} \x01\x00\x01
+test binary-38.3 {FormatNumber: word alignment} {
+    set x [binary format c1i1 1 1]
+} \x01\x01\x00\x00\x00
+test binary-38.4 {FormatNumber: word alignment} {
+    set x [binary format c1I1 1 1]
+} \x01\x00\x00\x00\x01
+test binary-38.5 {FormatNumber: word alignment} {nonPortable macOrUnix} {
+    set x [binary format c1d1 1 1.6]
+} \x01\x3f\xf9\x99\x99\x99\x99\x99\x9a
+test binary-38.6 {FormatNumber: word alignment} {nonPortable pcOnly} {
+    set x [binary format c1d1 1 1.6]
+} \x01\x9a\x99\x99\x99\x99\x99\xf9\x3f
+test binary-38.7 {FormatNumber: word alignment} {nonPortable macOrUnix} {
+    set x [binary format c1f1 1 1.6]
+} \x01\x3f\xcc\xcc\xcd
+test binary-38.8 {FormatNumber: word alignment} {nonPortable pcOnly} {
+    set x [binary format c1f1 1 1.6]
+} \x01\xcd\xcc\xcc\x3f
+
+test binary-39.1 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x52\xa3 c2 arg1] $arg1
 } {1 {82 -93}}
-test binary-38.2 {ScanNumber: sign extension} {
+test binary-39.2 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x01\x02\x01\x81\x82\x01\x81\x82 s4 arg1] $arg1
 } {1 {513 -32511 386 -32127}}
-test binary-38.3 {ScanNumber: sign extension} {
+test binary-39.3 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x01\x02\x01\x81\x82\x01\x81\x82 S4 arg1] $arg1
 } {1 {258 385 -32255 -32382}}
-test binary-38.4 {ScanNumber: sign extension} {
+test binary-39.4 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x01\x01\x01\x02\x81\x01\x01\x01\x01\x82\x01\x01\x01\x01\x82\x01\x01\x01\x01\x81 i5 arg1] $arg1
 } {1 {33620225 16843137 16876033 25297153 -2130640639}}
-test binary-38.5 {ScanNumber: sign extension} {
+test binary-39.5 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x01\x01\x01\x02\x81\x01\x01\x01\x01\x82\x01\x01\x01\x01\x82\x01\x01\x01\x01\x81 I5 arg1] $arg1
 } {1 {16843010 -2130640639 25297153 16876033 16843137}}
 
-test binary-39.1 {ScanNumber: floating point overflow} {nonPortable unixOnly} {
+test binary-40.1 {ScanNumber: floating point overflow} {nonPortable unixOnly} {
     catch {unset arg1}
     list [binary scan \xff\xff\xff\xff f1 arg1] $arg1
 } {1 -NaN}
-test binary-39.2 {ScanNumber: floating point overflow} {nonPortable macOnly} {
+test binary-40.2 {ScanNumber: floating point overflow} {nonPortable macOnly} {
     catch {unset arg1}
     list [binary scan \xff\xff\xff\xff f1 arg1] $arg1
 } {1 -NAN(255)}
-test binary-39.3 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
+test binary-40.3 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
     catch {unset arg1}
     set result [binary scan \xff\xff\xff\xff f1 arg1]
     if {([string compare $arg1 -1.\#QNAN] == 0)
@@ -1360,15 +1390,15 @@ test binary-39.3 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
 	lappend result failure
     }
 } {1 success}
-test binary-39.4 {ScanNumber: floating point overflow} {nonPortable unixOnly} {
+test binary-40.4 {ScanNumber: floating point overflow} {nonPortable unixOnly} {
     catch {unset arg1}
     list [binary scan \xff\xff\xff\xff\xff\xff\xff\xff d1 arg1] $arg1
 } {1 -NaN}
-test binary-39.5 {ScanNumber: floating point overflow} {nonPortable macOnly} {
+test binary-40.5 {ScanNumber: floating point overflow} {nonPortable macOnly} {
     catch {unset arg1}
     list [binary scan \xff\xff\xff\xff\xff\xff\xff\xff d1 arg1] $arg1
 } {1 -NAN(255)}
-test binary-39.6 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
+test binary-40.6 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
     catch {unset arg1}
     set result [binary scan \xff\xff\xff\xff\xff\xff\xff\xff d1 arg1]
     if {([string compare $arg1 -1.\#QNAN] == 0)
@@ -1378,3 +1408,36 @@ test binary-39.6 {ScanNumber: floating point overflow} {nonPortable pcOnly} {
 	lappend result failure
     }
 } {1 success}
+
+test binary-41.1 {ScanNumber: word alignment} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x01\x00 c1s1 arg1 arg2] $arg1 $arg2
+} {2 1 1}
+test binary-41.2 {ScanNumber: word alignment} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x00\x01 c1S1 arg1 arg2] $arg1 $arg2
+} {2 1 1}
+test binary-41.3 {ScanNumber: word alignment} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x01\x00\x00\x00 c1i1 arg1 arg2] $arg1 $arg2
+} {2 1 1}
+test binary-41.4 {ScanNumber: word alignment} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x00\x00\x00\x01 c1I1 arg1 arg2] $arg1 $arg2
+} {2 1 1}
+test binary-41.5 {ScanNumber: word alignment} {nonPortable macOrUnix} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x3f\xcc\xcc\xcd c1f1 arg1 arg2] $arg1 $arg2
+} {2 1 1.60000002384}
+test binary-41.6 {ScanNumber: word alignment} {nonPortable pcOnly} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\xcd\xcc\xcc\x3f c1f1 arg1 arg2] $arg1 $arg2
+} {2 1 1.60000002384}
+test binary-41.7 {ScanNumber: word alignment} {nonPortable macOrUnix} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x3f\xf9\x99\x99\x99\x99\x99\x9a c1d1 arg1 arg2] $arg1 $arg2
+} {2 1 1.6}
+test binary-41.8 {ScanNumber: word alignment} {nonPortable pcOnly} {
+    catch {unset arg1; unset arg2}
+    list [binary scan \x01\x9a\x99\x99\x99\x99\x99\xf9\x3f c1d1 arg1 arg2] $arg1 $arg2
+} {2 1 1.6}

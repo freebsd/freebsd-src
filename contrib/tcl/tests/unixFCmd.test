@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) unixFCmd.test 1.14 97/08/15 10:22:11
+# SCCS: @(#) unixFCmd.test 1.15 97/11/03 15:58:22
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -79,16 +79,17 @@ test unixFCmd-1.5 {TclpRenameFile: ENOENT} {
 test unixFCmd-1.6 {TclpRenameFile: ENOTDIR} {
     # can't make it happen
 } {}
-test unixFCmd-1.7 {TclpRenameFile: EXDEV} {nonPortable} {
+test unixFCmd-1.7 {TclpRenameFile: EXDEV} {
     cleanup
-    file mkdir td1
-    if [file exists /kernel] {
-	set msg [list [catch {file rename /kernel td1} msg] $msg]
-	set a1 {1 {can't unlink "/kernel": permission denied}}
-	expr {$msg == $a1}
-    } else {
-        list 1
-    }
+    file mkdir foo/bar
+    file attr foo -perm 040555
+    set msg [list [catch {file rename foo/bar /tmp} msg] $msg]
+    set a1 {1 {can't unlink "foo/bar": permission denied}}
+    set result [expr {$msg == $a1}]
+    catch {file delete /tmp/bar}
+    catch {file attr foo -perm 040777}
+    catch {file delete -force foo}
+    set result
 } {1}
 
 test unixFCmd-2.1 {TclpCopyFile: target exists: lstat(dst) == 0} {
@@ -232,7 +233,7 @@ test unixFCmd-17.3 {SetPermissionsAttribute} {
     close [open foo.test w]
     list [catch {file attributes foo.test -permissions foo} msg] $msg [file delete -force -- foo.test]
 } {1 {expected integer but got "foo"} {}}
-test unixFCmd-18.1 { nix pwd} {nonPortable} {
+test unixFCmd-18.1 {Unix pwd} {nonPortable} {
     # This test is nonportable because SunOS generates a weird error
     # message when the current directory isn't readable.
     set cd [pwd]

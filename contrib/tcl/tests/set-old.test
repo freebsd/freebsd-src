@@ -7,12 +7,12 @@
 # No output means no errors were found.
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994-1996 Sun Microsystems, Inc.
+# Copyright (c) 1994-1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) set-old.test 1.20 97/07/25 17:45:55
+# SCCS: @(#) set-old.test 1.22 97/10/29 14:05:07
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -297,45 +297,72 @@ test set-old-8.7 {array command, anymore option} {
     catch {unset a}
     list [catch {array anymore a x} msg] $msg
 } {1 {"a" isn't an array}}
-test set-old-8.8 {array command, donesearch option} {
+test set-old-8.8 {array command, anymore option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array anymore a x]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {1 {"a" isn't an array}}
+test set-old-8.9 {array command, donesearch option} {
     catch {unset a}
     list [catch {array donesearch a x} msg] $msg
 } {1 {"a" isn't an array}}
-test set-old-8.9 {array command, exists option} {
+test set-old-8.10 {array command, donesearch option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array donesearch a x]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {1 {"a" isn't an array}}
+test set-old-8.11 {array command, exists option} {
     list [catch {array exists a b} msg] $msg
 } {1 {wrong # args: should be "array exists arrayName"}}
-test set-old-8.10 {array command, exists option} {
+test set-old-8.12 {array command, exists option} {
     catch {unset a}
     array exists a
 } {0}
-test set-old-8.11 {array command, exists option} {
+test set-old-8.13 {array command, exists option} {
     catch {unset a}
     set a(0) 1
     array exists a
 } {1}
-test set-old-8.12 {array command, get option} {
+test set-old-8.14 {array command, exists option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array exists a]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {0 0}
+test set-old-8.15 {array command, get option} {
     list [catch {array get} msg] $msg
 } {1 {wrong # args: should be "array option arrayName ?arg ...?"}}
-test set-old-8.13 {array command, get option} {
+test set-old-8.16 {array command, get option} {
     list [catch {array get a b c} msg] $msg
 } {1 {wrong # args: should be "array get arrayName ?pattern?"}}
-test set-old-8.14 {array command, get option} {
+test set-old-8.17 {array command, get option} {
     catch {unset a}
     array get a
 } {}
-test set-old-8.15 {array command, get option} {
+test set-old-8.18 {array command, get option} {
     catch {unset a}
     set a(22) 3
     set {a(long name)} {}
     array get a
 } {22 3 {long name} {}}
-test set-old-8.16 {array command, get option (unset variable)} {
+test set-old-8.19 {array command, get option (unset variable)} {
     catch {unset a}
     set a(x) 3
     trace var a(y) w ignore
     array get a
 } {x 3}
-test set-old-8.17 {array command, get option, with pattern} {
+test set-old-8.20 {array command, get option, with pattern} {
     catch {unset a}
     set a(x1) 3
     set a(x2) 4
@@ -344,7 +371,16 @@ test set-old-8.17 {array command, get option, with pattern} {
     set a(b2) 25
     array get a x*
 } {x1 3 x2 4 x3 5}
-test set-old-8.18 {array command, names option} {
+test set-old-8.21 {array command, get option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array get a]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {0 {}}
+test set-old-8.22 {array command, names option} {
     catch {unset a}
     set a(22) 3
     list [catch {array names a 4 5} msg] $msg
@@ -353,25 +389,25 @@ test set-old-8.19 {array command, names option} {
     catch {unset a}
     array names a
 } {}
-test set-old-8.20 {array command, names option} {
+test set-old-8.23 {array command, names option} {
     catch {unset a}
     set a(22) 3; set a(Textual_name) 44; set "a(name with spaces)" xxx
     list [catch {lsort [array names a]} msg] $msg
 } {0 {22 Textual_name {name with spaces}}}
-test set-old-8.21 {array command, names option} {
+test set-old-8.24 {array command, names option} {
     catch {unset a}
     set a(22) 3; set a(33) 44;
     trace var a(xxx) w ignore
     list [catch {lsort [array names a]} msg] $msg
 } {0 {22 33}}
-test set-old-8.22 {array command, names option} {
+test set-old-8.25 {array command, names option} {
     catch {unset a}
     set a(22) 3; set a(33) 44;
     trace var a(xxx) w ignore
     set a(xxx) value
     list [catch {lsort [array names a]} msg] $msg
 } {0 {22 33 xxx}}
-test set-old-8.23 {array command, names option} {
+test set-old-8.26 {array command, names option} {
     catch {unset a}
     set a(axy) 3
     set a(bxy) 44
@@ -379,63 +415,118 @@ test set-old-8.23 {array command, names option} {
     set a(xxx) value
     list [lsort [array names a *xy]] [lsort [array names a]]
 } {{axy bxy} {axy bxy no xxx}}
-test set-old-8.24 {array command, nextelement option} {
+test set-old-8.27 {array command, names option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array names a]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {0 {}}
+test set-old-8.28 {array command, nextelement option} {
     list [catch {array nextelement a} msg] $msg
 } {1 {wrong # args: should be "array nextelement arrayName searchId"}}
-test set-old-8.25 {array command, nextelement option} {
+test set-old-8.29 {array command, nextelement option} {
     catch {unset a}
     list [catch {array nextelement a b} msg] $msg
 } {1 {"a" isn't an array}}
-test set-old-8.26 {array command, set option} {
+test set-old-8.30 {array command, nextelement option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array nextelement a b]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {1 {"a" isn't an array}}
+test set-old-8.31 {array command, set option} {
     list [catch {array set a} msg] $msg
 } {1 {wrong # args: should be "array set arrayName list"}}
-test set-old-8.27 {array command, set option} {
+test set-old-8.32 {array command, set option} {
     list [catch {array set a 1 2} msg] $msg
 } {1 {wrong # args: should be "array set arrayName list"}}
-test set-old-8.28 {array command, set option} {
+test set-old-8.33 {array command, set option} {
     list [catch {array set a "a \{ c"} msg] $msg
 } {1 {unmatched open brace in list}}
-test set-old-8.29 {array command, set option} {
+test set-old-8.34 {array command, set option} {
     catch {unset a}
     set a 44
     list [catch {array set a {a b c d}} msg] $msg
 } {1 {can't set "a(a)": variable isn't array}}
-test set-old-8.30 {array command, set option} {
+test set-old-8.35 {array command, set option} {
     catch {unset a}
     set a(xx) yy
     array set a {b c d e}
     array get a
 } {d e xx yy b c}
-test set-old-8.31 {array command, size option} {
-    list [catch {array size a 4} msg] $msg
-} {1 {wrong # args: should be "array size arrayName"}}
-test set-old-8.32 {array command, size option} {
+test set-old-8.36 {array command, set option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array set a {x 0}]
+        }
+        set a(x)
+    }
+    list [catch {foo 1} msg] $msg
+} {0 {}}
+test set-old-8.37 {array command, set option} {
+    catch {unset aVaRnAmE}
+    array set aVaRnAmE {}
+    list [info exists aVaRnAmE] [catch {set aVaRnAmE} msg] $msg
+} {1 1 {can't read "aVaRnAmE": variable is array}}
+test set-old-8.38 {array command, size option} {
     catch {unset a}
     array size a
 } {0}
-test set-old-8.33 {array command, size option} {
+test set-old-8.39 {array command, size option} {
+    list [catch {array size a 4} msg] $msg
+} {1 {wrong # args: should be "array size arrayName"}}
+test set-old-8.40 {array command, size option} {
+    catch {unset a}
+    array size a
+} {0}
+test set-old-8.41 {array command, size option} {
     catch {unset a}
     set a(22) 3; set a(Textual_name) 44; set "a(name with spaces)" xxx
     list [catch {array size a} msg] $msg
 } {0 3}
-test set-old-8.34 {array command, size option} {
+test set-old-8.42 {array command, size option} {
     catch {unset a}
     set a(22) 3; set a(xx) 44; set a(y) xxx
     unset a(22) a(y) a(xx)
     list [catch {array size a} msg] $msg
 } {0 0}
-test set-old-8.35 {array command, size option} {
+test set-old-8.43 {array command, size option} {
     catch {unset a}
     set a(22) 3;
     trace var a(33) rwu ignore
     list [catch {array size a} msg] $msg
 } {0 1}
-test set-old-8.36 {array command, startsearch option} {
+test set-old-8.44 {array command, size option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    proc foo {x} {
+        if {$x==1} {
+            return [array size a]
+        }
+        set a(x) 123
+    }
+    list [catch {foo 1} msg] $msg
+} {0 0}
+test set-old-8.45 {array command, startsearch option} {
     list [catch {array startsearch a b} msg] $msg
 } {1 {wrong # args: should be "array startsearch arrayName"}}
-test set-old-8.37 {array command, startsearch option} {
+test set-old-8.46 {array command, startsearch option} {
     catch {unset a}
     list [catch {array startsearch a} msg] $msg
+} {1 {"a" isn't an array}}
+test set-old-8.47 {array command, startsearch option, array doesn't exist yet but has compiler-allocated procedure slot} {
+    catch {rename p ""}
+    proc p {x} {
+        if {$x==1} {
+            return [array startsearch a]
+        }
+        set a(x) 123
+    }
+    list [catch {p 1} msg] $msg
 } {1 {"a" isn't an array}}
 
 test set-old-9.1 {ids for array enumeration} {
@@ -676,4 +767,5 @@ test set-old-12.2 {cleanup on procedure return} {
 catch {unset a}
 catch {unset b}
 catch {unset c}
+catch {unset aVaRnAmE}
 return ""

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) append.test 1.16 97/04/09 11:29:33
+# SCCS: @(#) append.test 1.17 97/10/28 15:45:52
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -156,3 +156,19 @@ test append-6.2 {lappend errors} {
     set x ""
     list [catch {lappend x(0) 44} msg] $msg
 } {1 {can't set "x(0)": variable isn't array}}
+
+test append-7.1 {lappend-created var and error in trace on that var} {
+    catch {rename foo ""}
+    catch {unset x}
+    trace variable x w foo
+    proc foo {} {global x; unset x}
+    catch {lappend x 1}
+    proc foo {args} {global x; unset x}
+    info exists x
+    set x
+    lappend x 1
+    list [info exists x] [catch {set x} msg] $msg
+} {0 1 {can't read "x": no such variable}}
+
+catch {unset x}
+catch {rename foo ""}

@@ -2,12 +2,12 @@ dnl	This file is an input file used by the GNU "autoconf" program to
 dnl	generate the file "configure", which is run during Tcl installation
 dnl	to configure the system for the local environment.
 AC_INIT(../generic/tcl.h)
-# SCCS: @(#) configure.in 1.140 97/08/12 10:36:18
+# SCCS: @(#) configure.in 1.144 97/11/20 12:39:44
 
 TCL_VERSION=8.0
 TCL_MAJOR_VERSION=8
 TCL_MINOR_VERSION=0
-TCL_PATCH_LEVEL=""
+TCL_PATCH_LEVEL="p2"
 VERSION=${TCL_VERSION}
 
 if test "${prefix}" = "NONE"; then
@@ -36,7 +36,7 @@ AC_C_CROSS
 
 # Check if Posix compliant getcwd exists, if not we'll use getwd.
 AC_CHECK_FUNCS(getcwd, , AC_DEFINE(USEGETWD))
-# Nb: if getcwd uses popen and pwd(1) (like Solaris) we should really
+# Nb: if getcwd uses popen and pwd(1) (like SunOS 4) we should really
 # define USEGETWD even if the posix getcwd exists. Add a test ?
 
 AC_REPLACE_FUNCS(opendir strstr)
@@ -267,6 +267,12 @@ fi
 if test $libbsd = yes; then
     AC_DEFINE(USE_DELTA_FOR_TZ)
 fi
+
+#--------------------------------------------------------------------
+#	Some systems (e.g., IRIX 4.0.5) lack the st_blksize field
+#	in struct stat.
+#--------------------------------------------------------------------
+AC_STRUCT_ST_BLKSIZE
 
 #--------------------------------------------------------------------
 #	On some systems strstr is broken: it returns a pointer even

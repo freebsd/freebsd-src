@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) interp.test 1.61 97/08/04 19:59:52
+# SCCS: @(#) interp.test 1.64 97/09/04 16:02:23
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -1974,6 +1974,43 @@ test interp-26.2 {result code transmission 2} {knownBug} {
     list $res
 } {-1 0 1 2 3 4 5}
 
+test interp-26.3 {errorInfo transmission : regular interps} {
+    set interp [interp create];
+    proc MyError {secret} {
+	return -code error "msg"
+    }
+    proc MyTestAlias {interp args} {
+	MyError "some secret"
+    }
+    interp alias $interp test {} MyTestAlias $interp;
+    set res [interp eval $interp {catch test;set errorInfo}]
+    interp delete $interp;
+    set res
+} {msg
+    while executing
+"MyError "some secret""
+    (procedure "test" line 2)
+    invoked from within
+"catch test"}
+
+test interp-26.4 {errorInfo transmission : safe interps} {knownBug} {
+    # this test fails because the errorInfo is fully transmitted
+    # whether the interp is safe or not. this is maybe a feature
+    # and not a bug.
+    set interp [interp create -safe];
+    proc MyError {secret} {
+	return -code error "msg"
+    }
+    proc MyTestAlias {interp args} {
+	MyError "some secret"
+    }
+    interp alias $interp test {} MyTestAlias $interp;
+    set res [interp eval $interp {catch test;set errorInfo}]
+    interp delete $interp;
+    set res
+} {msg
+    while executing
+"catch test"}
 
 # Interps & Namespaces
 test interp-27.1 {interp aliases & namespaces} {
@@ -2153,11 +2190,67 @@ test interp-28.1 {getting fooled by slave's namespace ?} {
     set r
 } {}
 
+# Tests of recursionlimit
+# We need testsetrecursionlimit so we need Tcltest package
+if {[catch {package require Tcltest} msg]} {
+    puts "This application hasn't been compiled with Tcltest"
+    puts "skipping remining interp tests that relies on it."
+} else {
+    # 
+test interp-29.1 {recursion limit} {
+    set i [interp create]
+    load {} Tcltest $i
+    set r [interp eval $i {
+	testsetrecursionlimit 50
+	proc p {} {incr ::i; p}
+	set i 0
+	catch p
+	set i
+    }]
+   interp delete $i
+   set r
+} 49
+
+test interp-29.2 {recursion limit inheritance} {
+    set i [interp create]
+    load {} Tcltest $i
+    set ii [interp eval $i {
+	testsetrecursionlimit 50
+	interp create
+    }]
+    set r [interp eval [list $i $ii] {
+	proc p {} {incr ::i; p}
+	set i 0
+	catch p
+	set i
+    }]
+   interp delete $i
+   set r
+} 49
+
+#    # Deep recursion (into interps when the regular one fails):
+#    # still crashes...
+#    proc p {} {
+#	if {[catch p ret]} {
+#	    catch {
+#		set i [interp create]
+#		interp eval $i [list proc p {} [info body p]]
+#		interp eval $i p
+#	    }
+#	    interp delete $i
+#	    return ok
+#	}
+#	return $ret
+#    }
+#    p
+
 # more tests needed...
 
 # Interp & stack
 #test interp-29.1 {interp and stack (info level)} {
 #} {}
+
+}
 
 
 foreach i [interp slaves] {

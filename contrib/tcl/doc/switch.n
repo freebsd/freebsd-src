@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) switch.n 1.8 96/03/25 20:24:31
+'\" SCCS: @(#) switch.n 1.10 97/10/31 13:05:55
 '\" 
 .so man.macros
 .TH switch n 7.0 Tcl "Tcl Built-In Commands"
@@ -14,9 +14,9 @@
 .SH NAME
 switch \- Evaluate one of several scripts, depending on a given value
 .SH SYNOPSIS
-\fBswitch\fI \fR?\fIoptions\fR?\fI string \fIpattern body \fR?\fIpattern body \fR...?
+\fBswitch \fR?\fIoptions\fR?\fI string pattern body \fR?\fIpattern body \fR...?
 .sp
-\fBswitch\fI \fR?\fIoptions\fR?\fI string \fR{\fIpattern body \fR?\fIpattern body \fR...?}
+\fBswitch \fR?\fIoptions\fR?\fI string \fR{\fIpattern body \fR?\fIpattern body \fR...?}
 .BE
 
 .SH DESCRIPTION

@@ -13,7 +13,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIOUtil.c 1.132 97/04/23 16:21:42
+ * SCCS: @(#) tclIOUtil.c 1.133 97/09/24 16:38:57
  */
 
 #include "tclInt.h"
@@ -220,6 +220,7 @@ Tcl_EvalFile(interp, fileName)
     Tcl_DString buffer;
     char *nativeName;
     Tcl_Channel chan;
+    Tcl_Obj *cmdObjPtr;
 
     Tcl_ResetResult(interp);
     oldScriptFile = iPtr->scriptFile;
@@ -268,7 +269,21 @@ Tcl_EvalFile(interp, fileName)
         goto error;
     }
 
-    result = Tcl_Eval(interp, cmdBuffer);
+    /*
+     * Transfer the buffer memory allocated above to the object system.
+     * Tcl_EvalObj will own this new string object if needed,
+     * so past the Tcl_EvalObj point, we must not ckfree(cmdBuffer)
+     * but rather use the reference counting mechanism.
+     * (Nb: and we must not thus not use goto error after this point)
+     */
+    cmdObjPtr = Tcl_NewObj();
+    cmdObjPtr->bytes = cmdBuffer;
+    cmdObjPtr->length = result;
+    
+    Tcl_IncrRefCount(cmdObjPtr);
+    result = Tcl_EvalObj(interp, cmdObjPtr);
+    Tcl_DecrRefCount(cmdObjPtr);
+
     if (result == TCL_RETURN) {
 	result = TclUpdateReturnInfo(iPtr);
     } else if (result == TCL_ERROR) {
@@ -283,7 +298,6 @@ Tcl_EvalFile(interp, fileName)
 	Tcl_AddErrorInfo(interp, msg);
     }
     iPtr->scriptFile = oldScriptFile;
-    ckfree(cmdBuffer);
     Tcl_DStringFree(&buffer);
     return result;
 

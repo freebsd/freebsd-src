@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# @(#) obj.test 1.11 97/08/06 08:56:09
+# @(#) obj.test 1.12 97/10/31 17:23:23
 
 if {[info commands testobj] == {}} {
     puts "This application hasn't been compiled with the \"testobj\""
@@ -411,10 +411,10 @@ test obj-24.5 {SetIntFromAny, error parsing string} {
 } {x17 1 {expected integer but got "x17"}}
 test obj-24.6 {SetIntFromAny, integer too large} {nonPortable} {
     set result ""
-    lappend result [teststringobj set 1 12345678901234567890]
+    lappend result [teststringobj set 1 123456789012345678901]
     lappend result [catch {testintobj mult10 1} msg]
     lappend result $msg
-} {12345678901234567890 1 {integer value too large to represent}}
+} {123456789012345678901 1 {integer value too large to represent}}
 test obj-24.7 {SetIntFromAny, error converting from "empty string"} {
     set result ""
     lappend result [testobj newobj 1]

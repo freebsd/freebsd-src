@@ -11,7 +11,7 @@ cases the person's name and e-mail address are listed.  I'm
 interested in getting new porting information to add to the file;
 please mail updates to "john.ousterhout@eng.sun.com".
 
-This file reflects information provided for Tcl 7.4 and later releases.
+This file reflects information provided for Tcl 7.4 and later releases (8.x).
 If there is no information for your configuration in this file, check
 the file "porting.old" too;  it contains information that was
 submitted for Tcl 7.3 and earlier releases, and some of that information
@@ -19,14 +19,14 @@ may still be valid.
 
 A new porting database has recently become available on the Web at
 the following URL:
-    http://www.sunlabs.com/cgi-bin/tcl/info.4.0
-This page provides information about the platforms on which Tcl 7.4
-and Tk 4.0 have been compiled and what changes were needed to get Tcl
+    http://www.sunlabs.com/cgi-bin/tcl/info.8.0
+This page provides information about the platforms on which Tcl and
+and Tk 8.0 have been compiled and what changes were needed to get Tcl
 and Tk to compile.  You can also add new entries to that database
 when you install Tcl and Tk on a new platform.  The Web database is
 likely to be more up-to-date than this file.
 
-sccsid = SCCS: @(#) porting.notes 1.18 96/12/31 14:50:27
+sccsid = SCCS: @(#) porting.notes 1.20 97/11/03 09:43:40
 
 --------------------------------------------
 Solaris, various versions
@@ -49,6 +49,26 @@ So far these reports have all been for older versions of Tcl, but
 if you run into problems, edit the Makefile after "configure" is
 run and add "-DNO_DIRENT_H=1" to the definitions of DEFS.  Do this
 before compiling.
+
+--------------------------------------------
+SunOS 4 and potentially other OSes
+--------------------------------------------
+
+On systems where both getcwd(3) and getwd(3) exist, check the man
+page and if getcwd, like on SunOS 4, uses popen to pwd(1)
+add -DUSEGETWD to the flags CFLAGS so getwd will be used instead.
+
+That is, change the CFLAGS = -O line so it reads 
+CFLAGS = -O -DUSEGETWD
+
+--------------------------------------------
+Linux, ELF, various versions/distributions
+--------------------------------------------
+
+If ./configure --enable-shared complains it can not do a shared
+library you might have to make the following symbolic link:
+ln -s /lib/libdl.so.1 /lib/libdl.so
+then remove config.cache and re run configure.
 
 --------------------------------------------
 Pyramid DC/OSx SVr4, DC/OSx version 94c079
