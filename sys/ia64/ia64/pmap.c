@@ -1762,7 +1762,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size, int limit)
 {
-	pmap_t oldpmap;
 	vm_offset_t tmpidx;
 	int psize;
 	vm_page_t p;
@@ -1770,21 +1769,18 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 	if (pmap == NULL || object == NULL)
 		return;
-
-	oldpmap = pmap_install(pmap);
-
+	VM_OBJECT_LOCK(object);
 	psize = ia64_btop(size);
 
 	if ((object->type != OBJT_VNODE) ||
 		((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
 			(object->resident_page_count > MAX_INIT_PT))) {
-		pmap_install(oldpmap);
-		return;
+		goto unlock_return;
 	}
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
-			return;
+			goto unlock_return;
 		psize = object->size - pindex;
 	}
 
@@ -1823,8 +1819,10 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 					vm_page_deactivate(p);
 				vm_page_busy(p);
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
 				pmap_enter_quick(pmap,
 						 addr + ia64_ptob(tmpidx), p);
+				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
 			}
@@ -1855,16 +1853,18 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 					vm_page_deactivate(p);
 				vm_page_busy(p);
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
 				pmap_enter_quick(pmap,
 						 addr + ia64_ptob(tmpidx), p);
+				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
 		}
 	}
-	pmap_install(oldpmap);
-	return;
+unlock_return:
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
