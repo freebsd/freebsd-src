@@ -153,11 +153,11 @@ List of directories to search for startup script files.
 The field separator to use for breaking down the list of startup script files
 into individual filenames.
 The default is a space.
-It isn't necessary to change this unless there are startup scripts with names
+It is not necessary to change this unless there are startup scripts with names
 containing spaces.
 .It Va hostname
 .Pq Vt str
-The Fully Qualified Domain Name of this computer on the network.
+The Fully Qualified Domain Name of this host on the network.
 This should almost certainly be set to something meaningful, even if
 there is no network connection.
 If
@@ -166,7 +166,7 @@ is used to set the hostname via DHCP,
 this variable should be set to an empty string.
 .It Va nisdomainname
 .Pq Vt str
-The NIS domain name of this computer, or
+The NIS domain name of this host, or
 .Dq NO
 if NIS is not used.
 .It Va dhcp_program
@@ -502,7 +502,7 @@ Setting this to
 .Dq NO
 might help remedy such problems with connections as randomly hanging
 or other weird behavior.
-Some hardware/software out there is known
+Some network devices are known
 to be broken with respect to these options.
 .It Va log_in_vain
 .Pq Vt bool
@@ -551,7 +551,7 @@ for troubleshooting networks.
 Set to the list of network interfaces to configure on this host.
 For example, if the only network devices in the system are the loopback
 device
-.Pq lo0
+(lo0)
 and a NIC using the ed0 driver,
 this could be set to
 .Dq "lo0 ed0"
@@ -559,10 +559,9 @@ An
 .No ifconfig_ Ns Em interface
 variable is also assumed to exist for each value of
 .Em interface .
-It is also possible to add IP alias entries here in cases where it is
-desired for a
-single interface to have multiple IP addresses registered against
-it.
+It is also possible to add IP alias entires here in cases where
+multiple IP addresses registered against a single interface
+are desired.
 Assuming that the interface in question was ed0, it might look
 something like this:
 .Bd -literal
@@ -1413,7 +1412,7 @@ the
 daemon is started for doing cut/paste selection on the console.
 .It Va moused_type
 .Pq Vt str
-This is the protocol type of mouse connected to this computer.
+This is the protocol type of the mouse connected to this host.
 This variable must be set if
 .Va moused_enable
 is set to
