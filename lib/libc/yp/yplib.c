@@ -58,7 +58,7 @@ struct dom_binding {
 	u_short dom_server_port;
 	int dom_socket;
 	CLIENT *dom_client;
-	u_short dom_local_port;
+	u_short dom_local_port;	/* now I finally know what this is for. */
 	long dom_vers;
 };
 
@@ -221,6 +221,8 @@ _yp_dobind(dom, ypdb)
 	CLIENT *client;
 	int new = 0, r;
 	int retries = 0;
+	struct sockaddr_in check;
+	int checklen = sizeof(struct sockaddr_in);
 
 	gpid = getpid();
 	if( !(pid==-1 || pid==gpid) ) {
@@ -246,12 +248,29 @@ _yp_dobind(dom, ypdb)
 		if( strcmp(dom, ysd->dom_domain) == 0)
 			break;
 
+
 	if(ysd==NULL) {
 		ysd = (struct dom_binding *)malloc(sizeof *ysd);
 		bzero((char *)ysd, sizeof *ysd);
 		ysd->dom_socket = -1;
 		ysd->dom_vers = 0;
 		new = 1;
+	} else {
+	/* Check the socket -- may have been hosed by the caller. */
+		if (getsockname(ysd->dom_socket, (struct sockaddr *)&check,
+		    &checklen) == -1 || check.sin_family != AF_INET ||
+		    check.sin_port != ysd->dom_local_port) {
+		/* Socket became bogus somehow... need to rebind. */
+			int save, sock;
+
+			sock = ysd->dom_socket;
+			save = dup(ysd->dom_socket);
+			clnt_destroy(ysd->dom_client);
+			ysd->dom_vers = 0;
+			ysd->dom_client = NULL;
+			sock = dup2(save, sock);
+			close(save);
+		}
 	}
 
 again:
@@ -270,6 +289,7 @@ again:
 		if(ysd->dom_client) {
 			clnt_destroy(ysd->dom_client);
 			ysd->dom_client = NULL;
+			ysd->dom_socket = -1;
 		}
 		sprintf(path, "%s/%s.%d", BINDINGDIR, dom, 2);
 		if( (fd=open(path, O_RDONLY)) == -1) {
@@ -323,6 +343,7 @@ skipit:
 		if(ysd->dom_client) {
 			clnt_destroy(ysd->dom_client);
 			ysd->dom_client = NULL;
+			ysd->dom_socket = -1;
 		}
 		bzero((char *)&clnt_sin, sizeof clnt_sin);
 		clnt_sin.sin_family = AF_INET;
@@ -354,8 +375,11 @@ skipit:
 		if(r != RPC_SUCCESS) {
 			clnt_destroy(client);
 			ysd->dom_vers = -1;
-			if (r == RPC_PROGUNAVAIL || r == RPC_PROCUNAVAIL)
+			if (r == RPC_PROGUNAVAIL || r == RPC_PROCUNAVAIL) {
+				if (new)
+					free(ysd);
 				return(YPERR_YPBIND);
+			}
 			fprintf(stderr,
 			"YP: server for domain %s not responding, retrying\n", dom);
 			goto again;
@@ -396,6 +420,23 @@ gotit:
 		}
 		if( fcntl(ysd->dom_socket, F_SETFD, 1) == -1)
 			perror("fcntl: F_SETFD");
+		/*
+		 * We want a port number associated with this socket
+		 * so that we can check its authenticity later.
+		 */
+		checklen = sizeof(struct sockaddr_in);
+		bzero((char *)&check, checklen);
+		bind(ysd->dom_socket, (struct sockaddr *)&check, checklen);
+		check.sin_family = AF_INET;
+		if (!getsockname(ysd->dom_socket,
+		    (struct sockaddr *)&check, &checklen)) {
+			ysd->dom_local_port = check.sin_port;
+		} else {
+			clnt_destroy(ysd->dom_client);
+			if (new)
+				free(ysd);
+			return(YPERR_YPBIND);
+		}
 	}
 
 	if(new) {
