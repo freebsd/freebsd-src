@@ -2,7 +2,10 @@
 
 SUBDIR=			\
 	atm 		\
-	atmpif
+	atmbase		\
+	atmpif		\
+	sscfu		\
+	sscop
 
 .include <bsd.subdir.mk>
 
