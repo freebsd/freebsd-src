@@ -78,16 +78,6 @@ static char	*forVar;	/* Iteration variable */
 static Buffer	*forBuf;	/* Commands in loop */
 static Lst	forLst;		/* List of items */
 
-/*
- * State of a for loop.
- */
-typedef struct _For {
-	Buffer	*buf;		/* Unexpanded buffer */
-	char	*var;		/* Index name */
-	Lst	lst;		/* List of variables */
-	int	lineno;		/* Line # */
-} For;
-
 /*-
  *-----------------------------------------------------------------------
  * For_Eval --
@@ -121,7 +111,6 @@ For_Eval(char *line)
 		 * maybe start of a for loop
 		 */
 		Buffer	*buf;
-		Buffer	*buf1;
 		size_t	varlen;
 
 		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
@@ -178,22 +167,17 @@ For_Eval(char *line)
 		/*
 		 * Make a list with the remaining words
 		 */
-		Lst_Init(&forLst);
-		buf = Buf_Init(0);
-
-		buf1 = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
-		sub = Buf_GetAll(buf1, NULL);
-		Buf_Destroy(buf1, FALSE);
-
+		sub = Buf_Peel(Var_Subst(NULL, ptr, VAR_CMD, FALSE));
 		for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
 			;
 
-		for (wrd = ptr; *ptr; ptr++) {
+		Lst_Init(&forLst);
+		buf = Buf_Init(0);
+		for (wrd = ptr; *ptr != '\0'; ptr++) {
 			if (isspace((unsigned char)*ptr)) {
 				Buf_AppendRange(buf, wrd, ptr);
-				Buf_AddByte(buf, (Byte)'\0');
-				Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
-				Buf_Destroy(buf, FALSE);
+				Lst_AtFront(&forLst, Buf_Peel(buf));
+
 				buf = Buf_Init(0);
 				while (*ptr && isspace((unsigned char)*ptr))
 					ptr++;
@@ -203,9 +187,7 @@ For_Eval(char *line)
 		DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
 		if (ptr - wrd > 0) {
 			Buf_AppendRange(buf, wrd, ptr);
-			Buf_AddByte(buf, (Byte)'\0');
-			Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
-			Buf_Destroy(buf, FALSE);
+			Lst_AtFront(&forLst, Buf_Peel(buf));
 		} else {
 			Buf_Destroy(buf, TRUE);
 		}
@@ -272,7 +254,6 @@ For_Run(int lineno)
 	Buffer		*buf;	/* the contents of the for loop */
 	const char	*val;	/* current value of loop variable */
 	LstNode		*ln;
-	Buffer		*buf1;
 	char		*str;
 
 	if (forVar == NULL || forBuf == NULL)
@@ -292,10 +273,8 @@ For_Run(int lineno)
 		Var_Set(var, val, VAR_GLOBAL);
 
 		DEBUGF(FOR, ("--- %s = %s\n", var, val));
-		buf1 = Var_Subst(var, (char *)Buf_GetAll(buf, NULL),
-		    VAR_GLOBAL, FALSE);
-		str = Buf_GetAll(buf1, NULL);
-		Buf_Destroy(buf1, FALSE);
+		str = Buf_Peel(Var_Subst(var, (char *)Buf_GetAll(buf, NULL),
+		    VAR_GLOBAL, FALSE));
 
 		Parse_FromString(str, lineno);
 		Var_Delete(var, VAR_GLOBAL);
