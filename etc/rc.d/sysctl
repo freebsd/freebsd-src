@@ -49,8 +49,8 @@ FreeBSD_start()
 						sysctl ${var}
 						;;
 					esac
-				elif [ "$1" -eq "last" ]; then
-					warn "sysctl ${mib} does not exits."
+				elif [ "$1" = "last" ]; then
+					warn "sysctl ${mib} does not exist."
 				fi
 				;;
 			esac
