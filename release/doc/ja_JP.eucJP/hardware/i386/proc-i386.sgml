@@ -1,8 +1,8 @@
 <!--
     $FreeBSD$
-    Original revision: 1.3
+    Original revision: 1.5
 -->
-<sect1>
+<sect1 id="proc">
   <title>対応プロセッサおよびマザーボード</title>
 
   <para>&os;/i386 は、さまざまな <quote>IBM PC 互換機</quote>上で動作します。

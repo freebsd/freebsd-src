@@ -29,10 +29,10 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.124
+        Original revision: 1.126
 -->
 
-<sect1>
+<sect1 id="support">
   <sect1info>
     <pubdate>$FreeBSD$</pubdate>
   </sect1info>

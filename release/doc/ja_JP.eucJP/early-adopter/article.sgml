@@ -25,7 +25,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.9
+    Original revision: 1.11
 -->
 
 <article>
@@ -46,7 +46,7 @@
     </copyright>
   </articleinfo>
 
-  <sect1>
+  <sect1 id="intro">
     <title>はじめに</title>
 
     <para>&os; 5.0 は、2 年ぶりに公開される新しいメジャーバージョンです。
@@ -85,7 +85,7 @@
       にアップグレードする際の注意点を示します。</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="release-overview">
     <title>&os; リリース工程の概要</title>
 
     <para>&os; では、ソースコードリポジトリに複数の開発ブランチを置く
@@ -136,7 +136,7 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="new">
     <title>新機能</title>
 
     <para>&os; 5.0 の大きな魅力の 1 つは、数多くの新機能です。
@@ -203,7 +203,7 @@
       のリリースノートに書かれています。</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="drawbacks">
     <title>初期リリースを使う上での欠点</title>
 
     <para>&os; 5.0 には説明したような新機能が追加されているのですが、
@@ -285,7 +285,7 @@
       4-STABLE ブランチから公開されるリリース版を利用することを推奨しています。</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="plans-stable">
     <title>4-STABLE ブランチに対する今後の予定</title>
 
     <para>&os; 5.0 が公開されても、4-STABLE ブランチの開発が終了するわけではありません。
@@ -320,7 +320,7 @@
       他のリリース版もこのルールに則ったサポートを行ないます。</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="upgrade">
     <title>アップグレードの際の注意点</title>
 
     <para>この節では現在 &os; システムを利用している方向けに、
@@ -425,7 +425,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="summary">
     <title>まとめ</title>
 
     <para>&os; 5.0 には魅力的な機能がたくさん含まれています。
