@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.1 1994/07/03 20:50:34 sos Exp $
+ *	$Id: syscons.c,v 1.50 1994/08/17 08:51:59 sos Exp $
  */
 
 #include "sc.h"
@@ -54,15 +54,15 @@
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <machine/console.h>
+#include <machine/psl.h>
+#include <machine/frame.h>
+#include <machine/pc/display.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
 #include <i386/i386/cons.h>
-#include <machine/console.h>
-#include <machine/psl.h>
-#include <machine/frame.h>
-#include <machine/pc/display.h>
 
 #if !defined(NCONS)
 #define NCONS 12
