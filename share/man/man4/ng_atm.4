@@ -232,7 +232,7 @@ all traffic types however):
 Initialize a VCC for sending and receiving. The argument is a structure:
 .Bd -literal
 struct ng_atm_cpcs_init {
-	char		name[NG_HOOKLEN + 1];
+	char		name[NG_HOOKSIZ];
 	uint32_t	flags;		/* flags. (if_natmio.h) */
 	uint16_t	vci;		/* VCI to open */
 	uint16_t	vpi;		/* VPI to open */
@@ -276,7 +276,7 @@ type of traffic.
 Stop sending and receiving on the indicated hook. The argument is a
 .Bd -literal
 struct ng_atm_cpcs_term {
-	char		name[NG_HOOKLEN + 1];
+	char		name[NG_HOOKSIZ];
 };
 .Ed
 .El

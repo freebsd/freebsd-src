@@ -135,7 +135,7 @@ structure shown below.
 The three commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_init_data {
-    char       hook[NG_HOOKLEN + 1];   /* hook to monitor on */
+    char       hook[NG_HOOKSIZ];       /* hook to monitor on */
     u_int16_t  data_len;               /* service name length */
     char       data[0];                /* init data goes here */
 };
@@ -171,7 +171,7 @@ above messages, and reports the Access Concentrator Name.
 The four commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_sts {
-    char    hook[NG_HOOKLEN + 1]; /* hook associated with event session */
+    char    hook[NG_HOOKSIZ];    /* hook associated with event session */
 };
 .Ed
 .Sh SHUTDOWN
@@ -257,7 +257,7 @@ setup(char *ethername, char *service, char *sessname,
 	}               message;
 	/********tracking our little graph ********/
 	char            path[100];
-	char            source_ID[NG_NODELEN + 1];
+	char            source_ID[NG_NODESIZ];
 	char            pppoe_node_name[100];
 	int             k;
 

@@ -44,7 +44,7 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotNg MODULE-IDENTITY
-    LAST-UPDATED "200201310000Z"
+    LAST-UPDATED "200311140000Z"
     ORGANIZATION "Fraunhofer FOKUS, CATS"
     CONTACT-INFO
 	    "		Hartmut Brandt
@@ -66,32 +66,32 @@ begemotNgObjects	OBJECT IDENTIFIER ::= { begemotNg 1 }
 -- --------------------------------------------------------------------------
 
 NgTypeName ::= TEXTUAL-CONVENTION
-    DISPLAY-HINT "15a"
+    DISPLAY-HINT "31a"
     STATUS	current
     DESCRIPTION
 	"Name of a netgraph type."
-    SYNTAX	OCTET STRING (SIZE(1..15))
+    SYNTAX	OCTET STRING (SIZE(1..31))
 
 NgNodeName ::= TEXTUAL-CONVENTION
-    DISPLAY-HINT "15a"
+    DISPLAY-HINT "31a"
     STATUS	current
     DESCRIPTION
 	"Name of a netgraph node."
-    SYNTAX	OCTET STRING (SIZE(1..15))
+    SYNTAX	OCTET STRING (SIZE(1..31))
 
 NgNodeNameOrEmpty ::= TEXTUAL-CONVENTION
-    DISPLAY-HINT "15a"
+    DISPLAY-HINT "31a"
     STATUS	current
     DESCRIPTION
 	"Name of a netgraph node."
-    SYNTAX	OCTET STRING (SIZE(0..15))
+    SYNTAX	OCTET STRING (SIZE(0..31))
 
 NgHookName ::= TEXTUAL-CONVENTION
-    DISPLAY-HINT "15a"
+    DISPLAY-HINT "31a"
     STATUS	current
     DESCRIPTION
 	"Name of a netgraph hook."
-    SYNTAX	OCTET STRING (SIZE(1..15))
+    SYNTAX	OCTET STRING (SIZE(1..31))
 
 NgNodeId ::= TEXTUAL-CONVENTION
     DISPLAY-HINT "x"

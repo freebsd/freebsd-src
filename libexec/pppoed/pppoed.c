@@ -497,7 +497,7 @@ nglogx(const char *fmt, ...)
 int
 main(int argc, char *argv[])
 {
-  char hostname[MAXHOSTNAMELEN], *exec, rhook[NG_HOOKLEN + 1];
+  char hostname[MAXHOSTNAMELEN], *exec, rhook[NG_HOOKSIZ];
   unsigned char response[1024];
   const char *label, *prog, *provider, *acname;
   struct ngm_connect ngc;

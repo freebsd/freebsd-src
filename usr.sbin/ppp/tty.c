@@ -227,7 +227,7 @@ static void
 tty_SetAsyncParams(struct physical *p, u_int32_t mymap, u_int32_t hismap)
 {
   struct ttydevice *dev = device2tty(p->handler);
-  char asyncpath[NG_PATHLEN + 1];
+  char asyncpath[NG_PATHSIZ];
   struct ng_async_cfg cfg;
 
   if (isngtty(dev)) {
@@ -256,7 +256,7 @@ LoadLineDiscipline(struct physical *p)
   u_char rbuf[sizeof(struct ng_mesg) + sizeof(struct nodeinfo)];
   struct ng_mesg *reply;
   struct nodeinfo *info;
-  char ttypath[NG_NODELEN + 1];
+  char ttypath[NG_NODESIZ];
   struct ngm_mkpeer ngm;
   struct ngm_connect ngc;
   int ldisc, cs, ds, hot, speed;
