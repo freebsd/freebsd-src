@@ -418,7 +418,7 @@ rtioctl(action, ort)
 			len++;
 			w.w_netmask.sin_len = len;
 			len = 1 + ((len - 1) | (sizeof(long) - 1));
-		} else 
+		} else
 			len = sizeof(long);
 		rtm.rtm_msglen -= (sizeof(w.w_netmask) - len);
 	}

@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
- * 
+ * $Id: route.c,v 1.2 1995/02/26 12:17:56 amurai Exp $
+ *
  */
 #include <sys/types.h>
 #include <machine/endian.h>

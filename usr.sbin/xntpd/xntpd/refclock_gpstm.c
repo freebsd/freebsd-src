@@ -279,7 +279,7 @@ gpstm_start(unit, peer)
 	/*
 	 * POSIX serial line parameters (termios interface)
 	 *
-	 * The GPSTMCLK option provides timestamping at the driver level. 
+	 * The GPSTMCLK option provides timestamping at the driver level.
 	 * It requires the tty_clk streams module.
 	 *
 	 * The GPSTMPPS option provides timestamping at the driver level.
@@ -333,7 +333,7 @@ gpstm_start(unit, peer)
 	/*
 	 * 4.3bsd serial line parameters (sgttyb interface)
 	 *
-	 * The GPSTMCLK option provides timestamping at the driver level. 
+	 * The GPSTMCLK option provides timestamping at the driver level.
 	 * It requires the tty_clk line discipline and 4.3bsd or later.
 	 */
     {	struct sgttyb ttyb;
@@ -513,7 +513,7 @@ gpstm_receive(rbufp)
 	dpend = dpt + rbufp->recv_length;
 	cp = gpstm->lastcode;
 	while (dpt < dpend) {
-		if ((*cp = 0x7f & *dpt++) >= ' ') cp++; 
+		if ((*cp = 0x7f & *dpt++) >= ' ') cp++;
 #ifdef GPSTMCLK
 		else if (*cp == '\r') {
 			if (dpend - dpt < 8) {
@@ -618,7 +618,7 @@ gpstm_receive(rbufp)
 		}
 
 		/*
-		 * Convert format 0 and check values 
+		 * Convert format 0 and check values
 		 */
 		gpstm->year = 0;		/* fake */
 		gpstm->day = cp[0] - '0';

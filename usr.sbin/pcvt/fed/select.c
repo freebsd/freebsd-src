@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote 
+ * 4. The name of the developer may not be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
  *
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	select.c, 3.00, last edit-date: [Sun Jan  2 20:09:36 1994]  
+ * 	select.c, 3.00, last edit-date: [Sun Jan  2 20:09:36 1994]
  */
 
 /*---------------------------------------------------------------------------
@@ -78,14 +78,14 @@ int selectc()
 	int ret;
 	char h, l;
 	unsigned int k_ch;
-	
+
 	c = (curchar / 16);
 	r = (curchar % 16);
 
 	for(;;)
 	{
 		dis_cmd("   Select Character");
-		
+
 		sel_mode();
 
 		curchar = r + (c*16);
@@ -96,12 +96,12 @@ int selectc()
 		l = ((mvwinch(set_win,(r+1),((c*2)+2))) & A_CHARTEXT);
 		wattron(set_win,A_REVERSE);
 		mvwprintw(set_win,(r+1),((c*2)+1),"%c%c",h,l);
-		wattroff(set_win,A_REVERSE);		
+		wattroff(set_win,A_REVERSE);
 		wmove(set_win,(r+1),((c*2)+1));
 		wrefresh(set_win);
-		
+
 		k_ch = wgetch(set_win);
-		
+
 		switch(k_ch)
 		{
 			case K_LEFT:
@@ -141,7 +141,7 @@ int selectc()
 				break;
 
 			case 'e':
-			case 'E':			
+			case 'E':
 				edit_mode();
 				dis_cmd("   Edit Character");
 				display(curchar);
@@ -195,25 +195,25 @@ int selectc()
 			case 'q':
 			case 'Q':
 				normal_set(r,c);
-				wrefresh(set_win);			
+				wrefresh(set_win);
 				return(1);
 				break;
-			
+
 			case 'x':
 			case 'X':
 				normal_set(r,c);
-				wrefresh(set_win);			
+				wrefresh(set_win);
 				return(0);
 				break;
 
 			case 0x0c:
 				wrefresh(curscr);
 				break;
-			
+
 			default:
 				beep();
 				break;
-				
+
 		}
 	}
 }
@@ -221,7 +221,7 @@ int selectc()
 void normal_set(int r, int c)
 {
 	char h, l;
-	
+
 	h = ((mvwinch(set_win,(r+1),((c*2)+1))) & A_CHARTEXT);
 	l = ((mvwinch(set_win,(r+1),((c*2)+2))) & A_CHARTEXT);
 	wattroff(set_win,A_REVERSE);
@@ -234,7 +234,7 @@ int sel_dest(void)
 	int c, r;
 	char h, l;
 	unsigned int k_ch;
-	
+
 	c = (curchar / 16);
 	r = (curchar % 16);
 
@@ -242,19 +242,19 @@ int sel_dest(void)
 	{
 
 		curchar = r + (c*16);
-		
+
 		display(curchar);
-		
+
 		h = ((mvwinch(set_win,(r+1),((c*2)+1))) & A_CHARTEXT);
 		l = ((mvwinch(set_win,(r+1),((c*2)+2))) & A_CHARTEXT);
 		wattron(set_win,A_UNDERLINE);
 		mvwprintw(set_win,(r+1),((c*2)+1),"%c%c",h,l);
-		wattroff(set_win,A_UNDERLINE);		
+		wattroff(set_win,A_UNDERLINE);
 		wmove(set_win,(r+1),((c*2)+1));
 		wrefresh(set_win);
 
 		k_ch = wgetch(set_win);
-		
+
 		switch(k_ch)
 		{
 			case K_LEFT:
@@ -292,7 +292,7 @@ int sel_dest(void)
 					c++;
 				}
 				break;
-				
+
 			case '\r':
 			case '\n':
 				normal_uset(r,c);
@@ -301,9 +301,9 @@ int sel_dest(void)
 			case 0x0c:
 				wrefresh(curscr);
 				break;
-			
+
 			default:
-				normal_uset(r,c);			
+				normal_uset(r,c);
 				return(-1);
 		}
 	}
@@ -315,7 +315,7 @@ void normal_uset(int r, int c)
 
 	h = ((mvwinch(set_win,(r+1),((c*2)+1))) & A_CHARTEXT);
 	l = ((mvwinch(set_win,(r+1),((c*2)+2))) & A_CHARTEXT);
-	
+
 	wattroff(set_win,A_UNDERLINE);
 	mvwprintw(set_win,(r+1),((c*2)+1),"%c%c",h,l);
 	wmove(set_win,(r+1),((c*2)+1));
@@ -324,9 +324,9 @@ void normal_uset(int r, int c)
 	{
 		wattron(set_win,A_REVERSE);
 		mvwprintw(set_win,(r+1),((c*2)+1),"%c%c",h,l);
-		wattroff(set_win,A_REVERSE);		
+		wattroff(set_win,A_REVERSE);
 		wmove(set_win,(r+1),((c*2)+1));
-	}	
+	}
 }
 
 

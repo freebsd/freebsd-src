@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id: auth.c,v 1.2 1995/02/26 12:17:12 amurai Exp $
- * 
+ *
+ * $Id: auth.c,v 1.3 1995/02/27 10:57:38 amurai Exp $
+ *
  *	TODO:
  *		o Imprement check against with registerd IP addresses.
  */

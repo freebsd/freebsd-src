@@ -195,7 +195,7 @@ char *
 devtoname(dev)
 	dev_t dev;
 {
-	char buf[80]; 
+	char buf[80];
 	register struct devdescription *dp;
 	int part;
 	char partname[2];
@@ -242,7 +242,7 @@ initdevtable()
 		* Allow a comment		*
 		\*******************************/
 		if(linebuf[0] == '#') continue;
-	
+
 		if (sscanf(linebuf, "%s\t%d\n", buf, &maj) == 2) {
 			*dp = (struct devdescription *)malloc(sizeof (**dp));
 			(*dp)->dev_name = ns(buf);

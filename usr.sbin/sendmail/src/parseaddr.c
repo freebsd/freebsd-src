@@ -1084,7 +1084,7 @@ rewrite(pvp, ruleset, reclevel, e)
 			if (xpvp != NULL)
 			{
 				cataddr(xpvp, NULL, replac,
-					&pvpbuf[sizeof pvpbuf] - replac, 
+					&pvpbuf[sizeof pvpbuf] - replac,
 					'\0');
 				*++arg_rvp = replac;
 			}

@@ -95,7 +95,7 @@ inet_netmatch(sin1, sin2)
 inet_portmatch(sin)
 	register struct sockaddr_in *sin;
 {
-	
+
 	return (sin->sin_port == sp->s_port);
 }
 

@@ -13,7 +13,7 @@ DPADD=	${LIBUTIL} ${LIBKVM}
 LDADD=	-lutil -lkvm
 MAN1=	mailq.0 newaliases.0
 MAN5=	aliases.0
-MAN8=	sendmail.0 
+MAN8=	sendmail.0
 LINKS=	/usr/sbin/sendmail /usr/bin/newaliases \
 	/usr/sbin/sendmail /usr/bin/mailq
 BINDIR=	/usr/sbin

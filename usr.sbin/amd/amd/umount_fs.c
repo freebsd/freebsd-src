@@ -37,7 +37,7 @@
  *
  *	@(#)umount_fs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: umount_fs.c,v 5.2.2.1 1992/02/09 15:09:10 jsp beta $
+ * $Id: umount_fs.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
  *
  */
 
@@ -189,7 +189,7 @@ char *fs_name;
 		if (!error) {
 		        free_mntlist(mlist);
 			mp = mlist = read_mtab(fs_name);
-			
+
 			/*
 			 * Search the mount table looking for
 			 * the correct (ie last) matching entry
@@ -201,7 +201,7 @@ char *fs_name;
 					mp_save = mp;
 				mp = mp->mnext;
 			}
-			
+
 			if (mp_save) {
 				mnt_free(mp_save->mnt);
 				mp_save->mnt = 0;

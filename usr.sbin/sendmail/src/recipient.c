@@ -835,7 +835,7 @@ include(fname, forwarding, ctladdr, sendq, e)
 			if (uid != 0)
 				(void) setreuid(0, uid);
 		}
-#endif                   
+#endif
 	}
 
 	if (tTd(27, 9))

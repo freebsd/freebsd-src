@@ -5,12 +5,15 @@
  *
  * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Log: parsetest.c,v $
+ * Revision 1.1.1.4  1994/09/29  23:01:34  wollman
+ * xntp 3.4e from Dave Mills @ UDel
+ *
  * Revision 3.14  1994/05/12  12:49:27  kardel
  * printf fmt/arg cleanup
  *
@@ -90,7 +93,7 @@ static char *strstatus(buffer, state)
   int i;
 
   *buffer = '\0';
-  
+
   i = 0;
   while (flagstrings[i].bit)
     {
@@ -102,18 +105,18 @@ static char *strstatus(buffer, state)
 	}
       i++;
     }
-  
+
   if (state & (PARSEB_S_LEAP|PARSEB_S_ANTENNA|PARSEB_S_PPS|PARSEB_S_POSITION))
     {
       register char *s, *t;
-      
+
       if (buffer[0])
 	strcat(buffer, "; ");
 
       strcat(buffer, "(");
 
       t = s = buffer + strlen(buffer);
-      
+
       i = 0;
       while (sflagstrings[i].bit)
 	{
@@ -124,7 +127,7 @@ static char *strstatus(buffer, state)
 		  strcpy(t, "; ");
 		  t += 2;
 		}
-	      
+
 	      strcpy(t, sflagstrings[i].name);
 	      t += strlen(t);
 	    }
@@ -159,7 +162,7 @@ static char *parsestatus(state, buffer)
   int i;
 
   *buffer = '\0';
-  
+
   i = 0;
   while (flagstrings[i].bit)
     {
@@ -171,7 +174,7 @@ static char *parsestatus(state, buffer)
 	}
       i++;
     }
-  
+
   return buffer;
 }
 
@@ -188,7 +191,7 @@ main(argc, argv)
   else
     {
       int fd;
-      
+
       fd = open(argv[1], O_RDWR);
       if (fd == -1)
 	{
@@ -200,9 +203,9 @@ main(argc, argv)
 	  parsectl_t  dct;
 	  parsetime_t parsetime;
 	  struct strioctl strioc;
-	  
+
 	  printf("parsetest.c,v 3.11 1994/01/23 19:00:01 kardel Exp\n");
-	  
+
 	  while (ioctl(fd, I_POP, 0) == 0)
 	    ;
 
@@ -226,14 +229,14 @@ main(argc, argv)
 
 	  dct.parsestatus.flags |= PARSE_STAT_FILTER;
 	  strioc.ic_cmd = PARSEIOC_SETSTAT;
-	  
+
 	  if (ioctl(fd, I_STR, &strioc) == -1)
 	    {
 	      perror("ioctl(fd, I_STR(PARSEIOC_SETSTAT))");
 	      exit(1);
 	    }
 	  printf("PARSE clock FILTERMODE\n");
-	  
+
 	  if (ioctl(fd, I_STR, &strioc) == -1)
 	    {
 	      perror("ioctl(fd, I_STR(PARSEIOC_GETSTAT))");
@@ -264,7 +267,7 @@ main(argc, argv)
 		     (unsigned long)parsetime.parse_status,
 		     parsestatus(parsetime.parse_status, tmp1));
 	    }
-	  
+
 	  close(fd);
 	}
     }

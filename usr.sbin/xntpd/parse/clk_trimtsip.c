@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTSIP)
 /*
- * $Header: /src/NTP/REPOSITORY/v3/parse/clk_trimble.c,v 3.9 1994/02/02 17:45:27 kardel Exp $
+ * $Header: /home/ncvs/src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.1.1.1 1994/09/29 23:01:31 wollman Exp $
  *
  * Trimble TSIP support - CURRENTLY VERY MUCH UNDER CONSTRUCTION
  */
@@ -159,7 +159,7 @@ static unsigned LONG inp_tsip(parseio, ch, ctime)
 
   return (parseio->parse_index == parseio->parse_dsize-1); /* buffer full - attempt to parse (likely to fail) */
 }
-     
+
 #define GPSORIGIN	2524953600	/* NTP origin - GPS origin in seconds */
 #define SECSPERWEEK	604800	/* seconds per week - GPS tells us about weeks */
 #define L_UF_SCALE	4294967296.0	/* scale a float fraction to l_uf units */
@@ -227,7 +227,7 @@ cvt_trimtsip(buffer, size, format, clock, t)
   else
     {
       cmd = buffer[1];
-      
+
 #ifdef DEBUG
       if (debug > 1)
       switch(cmd)
@@ -323,7 +323,7 @@ cvt_trimtsip(buffer, size, format, clock, t)
 		{
 #ifdef DEBUG
 		  if (debug)
-		    printf("sv6+ seconds <= 0 (%e), setting POWERUP\n"); 
+		    printf("sv6+ seconds <= 0 (%e), setting POWERUP\n");
 #endif
 		  clock->flags = PARSEB_POWERUP;
 		  return CVT_OK;
@@ -341,10 +341,10 @@ cvt_trimtsip(buffer, size, format, clock, t)
 
 		if (t->t_leap == ADDSECOND)
 		    clock->flags |= PARSEB_LEAPADD;
-		      
+
 		if (t->t_leap == DELSECOND)
 		    clock->flags |= PARSEB_LEAPDEL;
-	
+
 		if (t->t_operable)
 		    clock->flags &= ~(PARSEB_NOSYNC|PARSEB_POWERUP);
 		else
@@ -467,5 +467,8 @@ getint(bp)
 /*
  * History:
  *
- * $Log: clk_trimble.c,v $
+ * $Log: clk_trimtsip.c,v $
+ * Revision 1.1.1.1  1994/09/29  23:01:31  wollman
+ * xntp 3.4e from Dave Mills @ UDel
+ *
  */

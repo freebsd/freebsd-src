@@ -192,7 +192,7 @@ copyqueue(addr)
 		addr = addr->q_next;
 	}
 	*tail = NULL;
-	
+
 	return ret;
 }
 /*

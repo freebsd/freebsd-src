@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
- * 
+ * $Id: mbuf.c,v 1.2 1995/02/26 12:17:42 amurai Exp $
+ *
  */
 #include "defs.h"
 
@@ -112,7 +112,7 @@ int len;
   }
   return(bp);
 }
-  
+
 void
 mbwrite(bp, ptr, cnt)
 struct mbuf *bp;

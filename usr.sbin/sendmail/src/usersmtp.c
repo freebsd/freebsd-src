@@ -617,7 +617,7 @@ smtpquit(m, mci, e)
 
 	/*
 	**	Suppress errors here -- we may be processing a different
-	**	job when we do the quit connection, and we don't want the 
+	**	job when we do the quit connection, and we don't want the
 	**	new job to be penalized for something that isn't it's
 	**	problem.
 	*/

@@ -24,7 +24,7 @@ O=	+O1
 DBMDEF=	-DNDBM -DNEWDB -DNIS
 
 # environment definitions (e.g., -D_AIX3)
-ENVDEF=	
+ENVDEF=
 
 # see also conf.h for additional compilation flags
 

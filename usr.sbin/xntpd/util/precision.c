@@ -108,7 +108,7 @@ int default_get_resolution()
  * In order to guard against spurious values, which could occur if we
  * happen to hit a fat interrupt, we do this for MINLOOPS times and
  * keep the minimum value obtained.
- */  
+ */
 int default_get_precision()
 {
 	struct timeval tp;

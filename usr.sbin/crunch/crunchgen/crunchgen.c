@@ -28,7 +28,7 @@
  * crunchgen.c
  *
  * Generates a Makefile and main C file for a crunched executable,
- * from specs given in a .conf file.  
+ * from specs given in a .conf file.
  */
 #include <stdlib.h>
 #include <unistd.h>
@@ -98,7 +98,7 @@ int is_nonempty_file(char *pathname);
 
 /* helper routines for main() */
 
-void usage(void);			
+void usage(void);
 void parse_conf_file(void);
 void gen_outputs(void);
 
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     verbose = 1;
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
-    
+
     if(argc > 0) pname = argv[0];
 
     while((optc = getopt(argc, argv, "lm:c:e:fq")) != -1) {
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 
     if(argc != 1) usage();
 
-    /* 
+    /*
      * generate filenames
      */
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 
 void usage(void)
 {
-    fprintf(stderr, 
+    fprintf(stderr,
 	"%s [-fq] [-m <makefile>] [-c <c file>] [-e <exec file>] <conffile>\n",
 	    pname);
     exit(1);
@@ -187,7 +187,7 @@ void usage(void)
 /* helper routines for parse_conf_file */
 
 void parse_one_file(char *filename);
-void parse_line(char *line, int *fc, char **fv, int nf); 
+void parse_line(char *line, int *fc, char **fv, int nf);
 void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
@@ -247,7 +247,7 @@ void parse_one_file(char *filename)
 	    continue;
 	}
 	if(fieldc < 2) {
-	    fprintf(stderr, 
+	    fprintf(stderr,
 		    "%s:%d: %s command needs at least 1 argument, skipping.\n",
 		    curfilename, linenum, fieldv[0]);
 	    goterror = 1;
@@ -291,7 +291,7 @@ void add_srcdirs(int argc, char **argv)
 	if(is_dir(argv[i]))
 	    add_string(&srcdirs, argv[i]);
 	else {
-	    fprintf(stderr, "%s:%d: `%s' is not a directory, skipping it.\n", 
+	    fprintf(stderr, "%s:%d: `%s' is not a directory, skipping it.\n",
 		    curfilename, linenum, argv[i]);
 	    goterror = 1;
 	}
@@ -319,7 +319,7 @@ void add_prog(char *progname)
 
     p2 = malloc(sizeof(prog_t));
     if(p2) p2->name = strdup(progname);
-    if(!p2 || !p2->name) 
+    if(!p2 || !p2->name)
 	out_of_memory();
 
     p2->next = NULL;
@@ -340,7 +340,7 @@ void add_link(int argc, char **argv)
     prog_t *p = find_prog(argv[1]);
 
     if(p == NULL) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s:%d: no prog %s previously declared, skipping link.\n",
 		curfilename, linenum, argv[1]);
 	goterror = 1;
@@ -370,7 +370,7 @@ void add_special(int argc, char **argv)
 
     if(p == NULL) {
 	if(reading_cache) return;
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s:%d: no prog %s previously declared, skipping special.\n",
 		curfilename, linenum, argv[1]);
 	goterror = 1;
@@ -411,7 +411,7 @@ void add_special(int argc, char **argv)
 
 
  argcount:
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s:%d: too %s arguments, expected \"special %s %s <string>\".\n",
 	    curfilename, linenum, argc < 4? "few" : "many", argv[1], argv[2]);
     goterror = 1;
@@ -463,7 +463,7 @@ void gen_outputs(void)
     gen_output_cfile();
     gen_output_makefile();
     status("");
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "Run \"make -f %s objs exe\" to build crunched binary.\n",
 	    outmkname);
 }
@@ -478,7 +478,7 @@ void fillin_program(prog_t *p)
     sprintf(line, "filling in parms for %s", p->name);
     status(line);
 
-    if(!p->ident) 
+    if(!p->ident)
 	p->ident = genident(p->name);
     if(!p->srcdir) {
 	srcparent = dir_search(p->name);
@@ -509,11 +509,11 @@ void fillin_program(prog_t *p)
 	fprintf(stderr, "%s: %s: warning: could not find source directory.\n",
 		infilename, p->name);
     if(!p->objs && verbose)
-	fprintf(stderr, "%s: %s: warning: could not find any .o files.\n", 
+	fprintf(stderr, "%s: %s: warning: could not find any .o files.\n",
 		infilename, p->name);
 
     if(!p->objpaths) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: %s: error: no objpaths specified or calculated.\n",
 		infilename, p->name);
 	p->goterror = goterror = 1;
@@ -533,7 +533,7 @@ void fillin_program_objs(prog_t *p, char *path)
 	goterror = 1;
 	return;
     }
-	
+
     fprintf(f, ".include \"%s\"\n", path);
     fprintf(f, ".if defined(PROG) && !defined(OBJS)\n");
     fprintf(f, "OBJS=${PROG}.o\n");
@@ -551,7 +551,7 @@ void fillin_program_objs(prog_t *p, char *path)
     while(fgets(line, MAXLINELEN, f)) {
 	if(strncmp(line, "OBJS= ", 6)) {
 	    fprintf(stderr, "make error: %s", line);
-	    goterror = 1;	
+	    goterror = 1;
 	    continue;
 	}
 	cp = line + 6;
@@ -575,8 +575,8 @@ void remove_error_progs(void)
 {
     prog_t *p1, *p2;
 
-    p1 = NULL; p2 = progs; 
-    while(p2 != NULL) { 
+    p1 = NULL; p2 = progs;
+    while(p2 != NULL) {
 	if(!p2->goterror)
 	    p1 = p2, p2 = p2->next;
 	else {
@@ -644,7 +644,7 @@ void gen_output_makefile(void)
     top_makefile_rules(outmk);
 
     for(p = progs; p != NULL; p = p->next)
-	prog_makefile_rules(outmk, p); 
+	prog_makefile_rules(outmk, p);
 
     fprintf(outmk, "\n# ========\n");
     fclose(outmk);
@@ -668,7 +668,7 @@ void gen_output_cfile(void)
 	return;
     }
 
-    fprintf(outcf, 
+    fprintf(outcf,
 	  "/* %s - generated from %s by crunchgen %s */\n",
 	    outcfname, infilename, CRUNCH_VERSION);
 
@@ -687,7 +687,7 @@ void gen_output_cfile(void)
 	    fprintf(outcf, "\t{ \"%s\", _crunched_%s_stub },\n",
 		    s->str, p->ident);
     }
-    
+
     fprintf(outcf, "\t{ EXECNAME, crunched_main },\n");
     fprintf(outcf, "\t{ NULL, NULL }\n};\n");
     fclose(outcf);
@@ -745,7 +745,7 @@ void top_makefile_rules(FILE *outmk)
 	fprintf(outmk, " %s_make", p->ident);
     fprintf(outmk, "\n\n");
 
-    fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n", 
+    fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n",
 	    execfname, execfname);
     fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
@@ -766,11 +766,11 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR); make $(%s_OBJS))\n\n", 
+	fprintf(outmk, "\t(cd $(%s_SRCDIR); make $(%s_OBJS))\n\n",
 		p->ident, p->ident);
     }
     else
-	fprintf(outmk, "%s_make:\n\t@echo \"** cannot make objs for %s\"\n\n", 
+	fprintf(outmk, "%s_make:\n\t@echo \"** cannot make objs for %s\"\n\n",
 		p->ident, p->name);
 
     fprintf(outmk,   "%s_OBJPATHS=", p->ident);
@@ -783,9 +783,9 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	    p->ident, p->name);
     fprintf(outmk, "%s.lo: %s_stub.o $(%s_OBJPATHS)\n",
 	    p->name, p->name, p->ident);
-    fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)\n", 
+    fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)\n",
 	    p->name, p->name, p->ident);
-    fprintf(outmk, "\tcrunchide -k __crunched_%s_stub %s.lo\n", 
+    fprintf(outmk, "\tcrunchide -k __crunched_%s_stub %s.lo\n",
 	    p->ident, p->name);
 }
 

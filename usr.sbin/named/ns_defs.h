@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 1.12 1994/07/23 23:23:56 vixie Exp $
+ *	$Id: ns_defs.h,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $
  */
 
 /*
@@ -8,7 +8,7 @@
  * -
  * Copyright (c) 1986
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -67,7 +67,7 @@
  * larger land on 32-bit boundaries; smaller structure members have been
  * deliberately shuffled and smaller integer sizes chosen where possible
  * to make sure this happens.  This is all meant to avoid structure member
- * padding which can cost a _lot_ of memory when you have hundreds of 
+ * padding which can cost a _lot_ of memory when you have hundreds of
  * thousands of entries in your cache.
  */
 
@@ -127,7 +127,7 @@ struct zoneinfo {
 	int		z_class;	/* class of zone */
 #ifdef SECURE_ZONES
 	struct netinfo *secure_nets;	/* list of secure networks for zone */
-#endif	
+#endif
 };
 
 	/* zone types (z_type) */
@@ -304,11 +304,11 @@ struct nameser {
 #endif
 	u_int8_t	xfers;		/* #/xfers running right now */
 };
-		
+
 
 #ifdef NCACHE
 #define NOERROR_NODATA   6 /* only used internally by the server, used for
-                            * -ve $ing non-existence of records. 6 is not 
+                            * -ve $ing non-existence of records. 6 is not
                             * a code used as yet anyway. anant@isi.edu
                             */
 #define NTTL		600 /* ttl for negative data: 10 minutes? */

@@ -67,7 +67,7 @@ main(argc, argv)
 	argv += optind;
 
 	switch(argc) {
-	case 0: 
+	case 0:
 		if (acct(NULL)) {
 			(void)fprintf(stderr,
 			    "accton: %s\n", strerror(errno));

@@ -43,7 +43,7 @@
 #define	NODEV	((dev_t)-1)
 
 struct file_list {
-	struct	file_list *f_next;	
+	struct	file_list *f_next;
 	char	*f_fn;			/* the name */
 	u_char	f_type;			/* see below */
 	u_char	f_flags;		/* see below */

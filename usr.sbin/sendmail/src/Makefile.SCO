@@ -46,7 +46,7 @@ STDIR=	${DESTDIR}/usr/lib
 HFDIR=	${DESTDIR}/usr/lib
 
 # additional .o files needed
-OBJADD=	
+OBJADD=
 
 ###################  end of user configuration flags  ######################
 

@@ -1,8 +1,8 @@
 /*
  * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
- *  
+ *
  * dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
- * 
+ *
  * Ported to FreeBSD 2.0 1995/03/20 by Vincenzo Capuano
  *
  * DCF77 100/200ms pulse synchronisation daemon program (via 50Baud serial line)
@@ -17,7 +17,7 @@
  *
  * Copyright (c) 1993,1994
  * Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -269,7 +269,7 @@ typedef struct clocktime clocktime_t;
  *   while the length is given as the difference between the start index and
  *   the start index of the following field.
  */
-static struct rawdcfcode 
+static struct rawdcfcode
 {
   char offset;			/* start bit */
 } rawdcfcode[] =
@@ -336,7 +336,7 @@ static struct dcfparam
 {
   unsigned char onebits[60];
   unsigned char zerobits[60];
-} dcfparam = 
+} dcfparam =
 {
   "###############RADMLS1248124P124812P1248121241248112481248P", /* 'ONE' representation */
   "--------------------s-------p------p----------------------p"  /* 'ZERO' representation */
@@ -357,7 +357,7 @@ static unsigned long ext_bf(buf, idx)
   register int i, first;
 
   first = rawdcfcode[idx].offset;
-  
+
   for (i = rawdcfcode[idx+1].offset - 1; i >= first; i--)
     {
       sum <<= 1;
@@ -407,7 +407,7 @@ static unsigned long convert_rawdcf(buffer, size, clock)
       PRINTF("%-30s", "*** INCOMPLETE");
       return CVT_NONE;
     }
-  
+
   /*
    * check Start and Parity bits
    */
@@ -705,7 +705,7 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
    * if everything went well so far return the result of the symbolic
    * conversion routine else just the accumulated errors
    */
-  if (rtc != CVT_NONE) 
+  if (rtc != CVT_NONE)
     {
       PRINTF("%-30s", "*** BAD DATA");
     }
@@ -723,13 +723,13 @@ dcf_to_unixtime(clock, cvtrtc)
   register unsigned long *cvtrtc;
 {
 #define SETRTC(_X_)	{ if (cvtrtc) *cvtrtc = (_X_); }
-  static int days_of_month[] = 
+  static int days_of_month[] =
     {
       0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
   register int i;
   time_t t;
-  
+
   /*
    * map 2 digit years to 19xx (DCF77 is a 20th century item)
    */
@@ -751,7 +751,7 @@ dcf_to_unixtime(clock, cvtrtc)
       SETRTC(CVT_FAIL|CVT_BADDATE);
       return -1;
     }
-  
+
   /*
    * sorry, slow section here - but it's not time critical anyway
    */
@@ -817,7 +817,7 @@ dcf_to_unixtime(clock, cvtrtc)
    */
   t = TIMES60(t) + clock->minute;
 				/* sec */
-  
+
   /*
    * calculate UTC in minutes
    */
@@ -1219,7 +1219,7 @@ main(argc, argv)
 			errs=1;
 		      }
 		    break;
-	      
+
 	      case 'd':
 		    if (ac > 1)
 		      {
@@ -1232,7 +1232,7 @@ main(argc, argv)
 			errs=1;
 		      }
 		    break;
-	      
+
 	      default:
 		    fprintf(stderr, "%s: unknown option -%c\n", argv[0], c);
 		    errs=1;
@@ -1340,7 +1340,7 @@ main(argc, argv)
        */
       if (!interactive)
 	detach();
-      
+
       /*
        * get syslog() initialized
        */
@@ -1379,7 +1379,7 @@ main(argc, argv)
 	it.it_interval.tv_usec = 0;
 	it.it_value.tv_sec     = 1<<ADJINTERVAL;
 	it.it_value.tv_usec    = 0;
-	
+
       if (setitimer(ITIMER_REAL, &it, (struct itimerval *)0) == -1)
 	{
 	  syslog(LOG_ERR, "setitimer: %m");
@@ -1392,7 +1392,7 @@ main(argc, argv)
 #if defined(SYS_FREEBSD) && defined(BOEDER)
       if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK) == -1)
 	perror("F_SETFL");
-      
+
       if (ioctl(fd, TIOCCDTR, 0) == -1)
 	perror("TIOCCDTR");
 #endif
@@ -1603,7 +1603,7 @@ main(argc, argv)
 		fflush(stdout);
 	    }
 	} while ((rrc == -1) && (errno == EINTR));
-      
+
       /*
        * lost IO - sorry guys
        */
@@ -1613,6 +1613,6 @@ main(argc, argv)
     }
 
   closelog();
-  
+
   return 0;
 }

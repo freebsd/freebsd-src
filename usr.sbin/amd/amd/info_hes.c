@@ -37,7 +37,7 @@
  *
  *	@(#)info_hes.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_hes.c,v 5.2.2.1 1992/02/09 15:08:29 jsp beta $
+ * $Id: info_hes.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
  *
  */
 
@@ -293,7 +293,7 @@ int anslen;
 				      sizeof(struct in_addr));
 				server.sin_family = AF_INET;
 				server.sin_port = htons(NAMESERVER_PORT);
-					
+
 				if (connect(s, &server,
 					    sizeof(struct sockaddr)) < 0) {
 					(void) close(s);
@@ -482,7 +482,7 @@ char *name;
 {
 	char *end_pos;
 	short targ_len, cur_len;
-	
+
 	targ_len = strlen(hs_domain);
 	cur_len = strlen(name);
 	if (cur_len <= targ_len)

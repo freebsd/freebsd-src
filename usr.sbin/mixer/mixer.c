@@ -2,7 +2,7 @@
  *	This is an example of a mixer program for Linux
  *
  *	updated 1/1/93 to add stereo, level query, broken
- *      	devmask kludge - cmetz@thor.tjhsst.edu 
+ *      	devmask kludge - cmetz@thor.tjhsst.edu
  *
  * (C) Craig Metz and Hannu Savolainen 1993.
  *
@@ -27,13 +27,13 @@ void usage(void)
 	int i, n = 0;
 	printf("Usage: mixer { ");
 
-	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) 
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
 			if (n)
 				putchar('|');
 			printf(names[i]);
 			n = 1;
-		} 
+		}
 	printf(" } <value>\n  or   mixer { +rec|-rec } <devicename>\n");
 	exit(1);
 }
@@ -53,7 +53,7 @@ void print_recsrc(void)
 	fprintf(stderr, "\n");
 }
 
-int 
+int
 main(int argc, char *argv[])
 {
 	int foo, bar, baz, dev;
@@ -125,9 +125,9 @@ main(int argc, char *argv[])
 			if (strchr(argv[2], ':') == NULL) {
 				sscanf(argv[2], "%d", &bar);
 				dev = bar;
-			} else 
+			} else
 				sscanf(argv[2], "%d:%d", &bar, &dev);
-	
+
 			if (bar < 0)
 				bar = 0;
 			if (dev < 0)

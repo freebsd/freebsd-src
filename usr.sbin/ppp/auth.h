@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: auth.h,v 1.1 1995/02/27 03:17:51 amurai Exp $
  *
  *	TODO:
  */
@@ -24,7 +24,7 @@
 #define	_AUTH_H_
 
 typedef enum { VALID, INVALID, NOT_FOUND } LOCAL_AUTH_VALID;
-LOCAL_AUTH_VALID	LocalAuthValidate( char *, char *, char *); 
+LOCAL_AUTH_VALID	LocalAuthValidate( char *, char *, char *);
 
 struct authinfo {
   void (*ChallengeFunc)();

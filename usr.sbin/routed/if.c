@@ -86,7 +86,7 @@ if_ifwithdstaddr(addr)
 }
 
 /*
- * Find the interface on the network 
+ * Find the interface on the network
  * of the specified address.
  */
 struct interface *

@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: entry.c,v 1.1.1.1 1994/08/27 13:43:02 jkh Exp $";
+static char rcsid[] = "$Id: entry.c,v 1.2 1995/04/12 19:04:26 ache Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]
@@ -271,7 +271,7 @@ load_entry(file, error_func, pw, envp)
 	 * too bad we don't know in advance how long it will be, since we
 	 * need to malloc a string for it... so, we limit it to MAX_COMMAND.
 	 * XXX - should use realloc().
-	 */ 
+	 */
 	ch = get_string(cmd, MAX_COMMAND, file, "\n");
 
 	/* a file without a \n before the EOF is rude, so we'll complain...
@@ -321,7 +321,7 @@ get_list(bits, low, high, names, ch, file)
 
 	/* list = range {"," range}
 	 */
-	
+
 	/* clear the bit string, since the default is 'off'.
 	 */
 	bit_nclear(bits, 0, (high-low+1));

@@ -1,14 +1,14 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_RAWDCF)
 /*
  * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.16 1994/05/31 20:02:40 kardel Exp
- *  
+ *
  * clk_rawdcf.c,v 3.16 1994/05/31 20:02:40 kardel Exp
  *
  * Raw DCF77 pulse clock support
  *
  * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -106,13 +106,13 @@ static struct dcfparam
 {
   unsigned char onebits[60];
   unsigned char zerobits[60];
-} dcfparam = 
+} dcfparam =
 {
   "###############RADMLS1248124P124812P1248121241248112481248P", /* 'ONE' representation */
   "--------------------s-------p------p----------------------p"  /* 'ZERO' representation */
 };
 
-static struct rawdcfcode 
+static struct rawdcfcode
 {
   char offset;			/* start bit */
 } rawdcfcode[] =
@@ -166,7 +166,7 @@ static u_long ext_bf(buf, idx, zero)
   register int i, first;
 
   first = rawdcfcode[idx].offset;
-  
+
   for (i = rawdcfcode[idx+1].offset - 1; i >= first; i--)
     {
       sum <<= 1;
@@ -213,7 +213,7 @@ static u_long convert_rawdcf(buffer, size, dcfparam, clock)
 #endif
 	  return CVT_NONE;
     }
-  
+
   for (i = 0; i < 58; i++)
     {
       if ((*s != *b) && (*s != *c))
@@ -232,7 +232,7 @@ static u_long convert_rawdcf(buffer, size, dcfparam, clock)
       c++;
       s++;
     }
-  
+
   /*
    * check Start and Parity bits
    */
@@ -489,7 +489,7 @@ static u_long snt_rawdcf(parseio, ptime)
   clocktime_t clock;
   u_long cvtrtc;
   time_t t;
-  
+
   /*
    * start at last sample and add second index - gross, may have to be much more careful
    */
@@ -531,7 +531,7 @@ static u_long snt_rawdcf(parseio, ptime)
 /*
  * History:
  *
- * clk_rawdcf.c,v $ 
+ * clk_rawdcf.c,v $
  * Revision 3.16  1994/05/31  20:02:40  kardel
  * sync on ONE transition
  *

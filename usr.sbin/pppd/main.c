@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.2 1994/09/25 02:32:07 wollman Exp $";
+static char rcsid[] = "$Id: main.c,v 1.3 1995/04/29 13:55:34 ache Exp $";
 #endif
 
 #define SETSID
@@ -205,7 +205,7 @@ main(argc, argv)
     p = ttyname(0);
     if (p)
 	strcpy(devname, p);
-  
+
     if (gethostname(hostname, MAXNAMELEN) < 0 ) {
 	perror("couldn't get hostname");
 	die(1);
@@ -228,7 +228,7 @@ main(argc, argv)
      */
     for (i = 0; i < N_PROTO; i++)
 	(*prottbl[i].init)(0);
-  
+
     progname = *argv;
 
     if (!options_from_file(_PATH_SYSOPTIONS, REQ_SYSOPTIONS, 0) ||
@@ -322,7 +322,7 @@ main(argc, argv)
 	syslog(LOG_ERR, "socket : %m");
 	die(1);
     }
-  
+
     /*
      * Compute mask of all interesting signals and install signal handlers
      * for each.  Only one signal handler may be active at a time.  Therefore,
@@ -411,7 +411,7 @@ main(argc, argv)
 	syslog(LOG_INFO, "Connected...");
 	sleep(1);		/* give it time to set up its terminal */
     }
-  
+
     /* set line speed, flow control, etc.; clear CLOCAL if modem option */
     set_up_tty(fd, 0);
 
@@ -473,7 +473,7 @@ main(argc, argv)
 	syslog(LOG_ERR, "fcntl(F_SETFL, FNDELAY | FASYNC): %m");
 	die(1);
     }
-  
+
     /*
      * Block all signals, start opening the connection, and  wait for
      * incoming signals (reply, timeout, etc.).
@@ -732,7 +732,7 @@ int fd, on;
 /*
  * quit - Clean up state and exit.
  */
-void 
+void
 quit()
 {
     die(0);
@@ -784,7 +784,7 @@ cleanup(status, arg)
 	fd = -1;
     }
 
-    if (pidfilename[0] != 0 && unlink(pidfilename) < 0) 
+    if (pidfilename[0] != 0 && unlink(pidfilename) < 0)
 	syslog(LOG_WARNING, "unable to unlink pid file: %m");
     pidfilename[0] = 0;
 
@@ -810,10 +810,10 @@ timeout(func, arg, time)
 {
     struct itimerval itv;
     struct callout *newp, **oldpp;
-  
+
     MAINDEBUG((LOG_DEBUG, "Timeout %x:%x in %d seconds.",
 	       (int) func, (int) arg, time));
-  
+
     /*
      * Allocate timeout.
      */
@@ -823,7 +823,7 @@ timeout(func, arg, time)
     }
     newp->c_arg = arg;
     newp->c_func = func;
-  
+
     /*
      * Find correct place to link it in and decrement its time by the
      * amount of time used by preceding timeouts.
@@ -837,7 +837,7 @@ timeout(func, arg, time)
     if (*oldpp)
 	(*oldpp)->c_time -= time;
     *oldpp = newp;
-  
+
     /*
      * If this is now the first callout then we have to set a new
      * itimer.
@@ -871,9 +871,9 @@ untimeout(func, arg)
     struct itimerval itv;
     struct callout **copp, *freep;
     int reschedule = 0;
-  
+
     MAINDEBUG((LOG_DEBUG, "Untimeout %x:%x.", (int) func, (int) arg));
-  
+
     /*
      * If the first callout is unscheduled then we have to set a new
      * itimer.
@@ -882,7 +882,7 @@ untimeout(func, arg)
 	callout->c_func == func &&
 	callout->c_arg == arg)
 	reschedule = 1;
-  
+
     /*
      * Find first matching timeout.  Add its time to the next timeouts
      * time.
@@ -897,7 +897,7 @@ untimeout(func, arg)
 	    (void) free((char *) freep);
 	    break;
 	}
-  
+
     if (reschedule) {
 	itv.it_interval.tv_sec = itv.it_interval.tv_usec =
 	    itv.it_value.tv_usec = 0;
@@ -925,7 +925,7 @@ adjtimeout()
 {
     struct timeval tv;
     int timediff;
-  
+
     if (callout == NULL)
 	return;
     /*
@@ -941,7 +941,7 @@ adjtimeout()
     if (timediff < 0 ||
 	timediff > callout->c_time + 1)
 	return;
-  
+
     callout->c_time -= timediff;	/* OK, Adjust time */
 }
 
@@ -1052,7 +1052,7 @@ alrm(sig)
 	list = list->c_next;
 	(void) free((char *) freep);
     }
-  
+
 }
 
 

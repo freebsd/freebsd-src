@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_subr.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfs_subr.c,v 5.2.2.1 1992/02/09 15:08:53 jsp beta $
+ * $Id: nfs_subr.c,v 1.1.1.1 1994/05/26 05:22:00 rgrimes Exp $
  *
  */
 
@@ -88,7 +88,7 @@ struct attrstat **attrpp;
 }
 
 /*ARGSUSED*/
-voidp 
+voidp
 nfsproc_null_2(argp, rqstp)
 voidp argp;
 struct svc_req *rqstp;
@@ -166,7 +166,7 @@ struct svc_req *rqstp;
 
 
 /*ARGSUSED*/
-voidp 
+voidp
 nfsproc_root_2(argp, rqstp)
 voidp argp;
 struct svc_req *rqstp;
@@ -283,7 +283,7 @@ struct svc_req *rqstp;
 
 
 /*ARGSUSED*/
-voidp 
+voidp
 nfsproc_writecache_2(argp, rqstp)
 voidp argp;
 struct svc_req *rqstp;

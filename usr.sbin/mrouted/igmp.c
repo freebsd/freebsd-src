@@ -32,7 +32,7 @@ void init_igmp()
 {
     struct ip *ip;
 
-    if ((igmp_socket = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP)) < 0) 
+    if ((igmp_socket = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP)) < 0)
 	log(LOG_ERR, errno, "IGMP socket");
 
     k_hdr_include(TRUE);	/* include IP header when sending */
@@ -124,9 +124,9 @@ void accept_igmp(recvlen)
     src       = ip->ip_src.s_addr;
     dst       = ip->ip_dst.s_addr;
 
-    /* 
+    /*
      * this is most likely a message from the kernel indicating that
-     * a new src grp pair message has arrived and so, it would be 
+     * a new src grp pair message has arrived and so, it would be
      * necessary to install a route into the kernel for this.
      */
     if (ip->ip_p == 0) {
@@ -170,7 +170,7 @@ void accept_igmp(recvlen)
 	case IGMP_HOST_NEW_MEMBERSHIP_REPORT:
 	    accept_group_report(src, dst, group,igmp->igmp_type);
 	    return;
-	    
+
 	case IGMP_HOST_LEAVE_MESSAGE:
 	    leave_group_message(src, dst, group);
 	    return;
@@ -226,7 +226,7 @@ void accept_igmp(recvlen)
 		    return;
 	    }
 
- 
+
  	case IGMP_PIM:		/* %%% hack for PIM  %%% */
  	    return;
 

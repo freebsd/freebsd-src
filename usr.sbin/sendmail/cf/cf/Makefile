@@ -27,7 +27,7 @@ CLEANFILES=	cs-hidden.cf cs-exposed.cf \
 
 all: $(CLEANFILES)
 
-depend install: 
+depend install:
 
 # this is overkill, but....
 M4FILES=\

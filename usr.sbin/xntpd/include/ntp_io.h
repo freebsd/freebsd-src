@@ -1,5 +1,5 @@
 /*
- * POSIX says use <fnct.h> to get O_* symbols and 
+ * POSIX says use <fnct.h> to get O_* symbols and
  * SEEK_SET symbol form <untisd.h>.
  */
 #if defined(NTP_POSIX_SOURCE)

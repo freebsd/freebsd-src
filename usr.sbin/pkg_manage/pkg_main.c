@@ -1,5 +1,5 @@
 /***************************************************************
- * 
+ *
  * Program:	pkg_main.c
  * Author:	Marc van Kempen
  * Desc:	main routine for pkg_manage
@@ -15,7 +15,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  ***************************************************************/
 
 #include "pkg_manage.h"
@@ -45,7 +45,7 @@ main(int argc, char **argv)
     if (p_inf.Nitems > 0) {
 	FreeInfo();
     }
- 
+
     clear();
     dialog_update();
     end_dialog();

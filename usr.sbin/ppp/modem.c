@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.4 1995/03/11 15:18:48 amurai Exp $
- * 
+ * $Id: modem.c,v 1.5 1995/04/16 13:38:39 amurai Exp $
+ *
  *  TODO:
  */
 #include "fsm.h"

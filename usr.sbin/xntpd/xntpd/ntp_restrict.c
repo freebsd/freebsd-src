@@ -182,7 +182,7 @@ restrictions(srcadr)
 		res_not_found++;
 	else
 		res_found++;
-	
+
 	/*
 	 * The following implements limiting the number of clients
 	 * accepted from a given network. The notion of "same network"
@@ -194,7 +194,7 @@ restrictions(srcadr)
 	 *	- take the list of clients recorded
 	 *        from the given "network" seen within the last
 	 *        client_limit_period seconds
-	 *      - if there are at most client_limit entries: 
+	 *      - if there are at most client_limit entries:
 	 *        --> access allowed
 	 *      - otherwise sort by time first seen
 	 *      - current client among the first client_limit seen
@@ -226,7 +226,7 @@ restrictions(srcadr)
 		 * How nice, MRU list provides our current client as the
 		 * first entry in the list.
 		 * Monitoring was verified to be active above, thus we
-		 * know an entry for our client must exist, or some 
+		 * know an entry for our client must exist, or some
 		 * brain dead set the memory limit for mon entries to ZERO!!!
 		 */
 		this_client = mon_mru_list.mru_next;
@@ -410,7 +410,7 @@ restrict(op, resaddr, resmask, mflags, flags)
 		}
 		rl->flags |= (u_short)flags;
 		break;
-	
+
 	case RESTRICT_UNFLAG:
 		/*
 		 * Remove some bits from the flags.  If we didn't
@@ -425,7 +425,7 @@ restrict(op, resaddr, resmask, mflags, flags)
 			rl->flags &= (u_short)~flags;
 		}
 		break;
-	
+
 	case RESTRICT_REMOVE:
 		/*
 		 * Remove an entry from the table entirely if we found one.

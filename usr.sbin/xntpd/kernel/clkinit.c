@@ -1,9 +1,9 @@
 /*
 **	dynamically loadable clk driver
 **
-**	$Header: /usr/src/etc/xntp3.3ww/kernel/RCS/clkinit.c,v 1.1 1994/06/15 22:14:38 rob Exp $
+**	$Header: /home/ncvs/src/usr.sbin/xntpd/kernel/clkinit.c,v 1.1.1.1 1994/09/29 23:02:47 wollman Exp $
 **
-**	william robertson <rob@agate.berkeley.edu>  
+**	william robertson <rob@agate.berkeley.edu>
 */
 
 #include <sys/types.h>
@@ -42,10 +42,10 @@ struct vdstat *vds;
 	       log(LOG_ERR, "clk stream module already loaded\n");
 	       return (EADDRINUSE);
 	  }
- 
+
 	  i = findmod("\0");
 
-	  if (i == -1 || fmodsw[i].f_name[0] != '\0') 
+	  if (i == -1 || fmodsw[i].f_name[0] != '\0')
 	    return(-1);
 
 	  for (j = 0; vd.Drv_name[j] != '\0'; j++)	/* XXX check bounds */
@@ -66,7 +66,7 @@ struct vdstat *vds;
 	  fmodsw[i].f_str = 0;
 
 	  return(0);
-     
+
 	case VDSTAT:
 	  return(0);
 

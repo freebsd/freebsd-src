@@ -24,7 +24,7 @@ unsigned short card;
 unsigned short crtcaddr;
 unsigned short clockreg;
 
-static double range[15] = {50.0, 51.0, 53.2, 58.5, 60.7, 64.4, 66.8, 73.5, 
+static double range[15] = {50.0, 51.0, 53.2, 58.5, 60.7, 64.4, 66.8, 73.5,
 			   75.6, 80.9, 83.2, 91.5, 100.0, 120.0, 120.0};
 
 #ifdef __STDC__
@@ -216,7 +216,7 @@ static void init_clock(setup, crtcport)
    int i;
    unsigned char c;
 
-#ifndef PCVT_STANDALONE   
+#ifndef PCVT_STANDALONE
    (void)xf86DisableInterrupts();
 #endif
 

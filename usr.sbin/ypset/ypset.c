@@ -62,7 +62,7 @@ char *dom, *server;
 	int sock, port;
 	int r;
 	unsigned long server_addr;
-	
+
 	if( (port=htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0) {
 		fprintf(stderr, "%s not running ypserv.\n", server);
 		exit(1);
@@ -84,7 +84,7 @@ char *dom, *server;
 	strncpy(ypsd.ypsetdom_domain, dom, sizeof ypsd.ypsetdom_domain);
 	ypsd.ypsetdom_port = port;
 	ypsd.ypsetdom_vers = YPVERS;
-	
+
 	tv.tv_sec = 15;
 	tv.tv_usec = 0;
 	sock = RPC_ANYSOCK;

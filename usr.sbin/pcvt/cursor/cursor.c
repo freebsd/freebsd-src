@@ -43,7 +43,7 @@ static char *id =
  *	-hm	adding option -d <device>
  *
  *---------------------------------------------------------------------------*/
-	
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -67,7 +67,7 @@ char *argv[];
 	int end = -1;
 	int dflag = -1;
 	char *device;
-	
+
 	while( (c = getopt(argc, argv, "d:n:s:e:")) != EOF)
 	{
 		switch(c)
@@ -76,15 +76,15 @@ char *argv[];
 				device = optarg;
 				dflag = 1;
 				break;
-				
+
 			case 'n':
 				screen = atoi(optarg);
 				break;
-				
+
 			case 's':
 				start = atoi(optarg);
 				break;
-				
+
 			case 'e':
 				end = atoi(optarg);
 				break;
@@ -96,7 +96,7 @@ char *argv[];
 		}
 	}
 
-	if(start == -1 || end == -1)	
+	if(start == -1 || end == -1)
 		usage();
 
 	if(dflag == -1)
@@ -118,7 +118,7 @@ char *argv[];
 	if(screen == -1)
 	{
 		struct stat stat;
-		
+
 		if((fstat(fd, &stat)) == -1)
 		{
 			char buffer[80];
@@ -130,7 +130,7 @@ char *argv[];
 
 		screen = minor(stat.st_rdev);
 	}
-	
+
 	cursorshape.start = start;
 	cursorshape.end = end;
 	cursorshape.screen_no = screen;

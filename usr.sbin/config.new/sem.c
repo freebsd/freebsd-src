@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -416,7 +416,7 @@ exclude(nv, name, what)
 	return (0);
 }
 
-/* 
+/*
  * Map things like "ra0b" => makedev(major("ra"), 0*8 + 'b'-'a').
  * Handle the case where the device number is given but there is no
  * corresponding name, and map NULL to the default.

@@ -20,7 +20,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  *
- * $Header: /proj/X11/mit/server/ddx/x386/RCS/compiler.h,v 1.2 1991/06/27 00:01:11 root Exp $
+ * $Header: /home/ncvs/src/usr.sbin/pcvt/set2061/compiler.h,v 1.1.1.1 1995/02/05 13:49:25 jkh Exp $
  */
 
 
@@ -221,7 +221,7 @@ inw(port)
 /*
  * rdinx - read the indexed byte port 'port', index 'ind', and return its value
  */
-static __inline__ unsigned char 
+static __inline__ unsigned char
 #ifdef __STDC__
 rdinx(unsigned short port, unsigned char ind)
 #else
@@ -239,7 +239,7 @@ unsigned char ind;
 /*
  * wrinx - write 'val' to port 'port', index 'ind'
  */
-static __inline__ void 
+static __inline__ void
 #ifdef __STDC__
 wrinx(unsigned short port, unsigned char ind, unsigned char val)
 #else
@@ -258,7 +258,7 @@ unsigned char ind, val;
  */
 static __inline__ void
 #ifdef __STDC__
-modinx(unsigned short port, unsigned char ind, 
+modinx(unsigned short port, unsigned char ind,
        unsigned char mask, unsigned char new)
 #else
 modinx(port, ind, mask, new)
@@ -322,7 +322,7 @@ unsigned char ind, mask;
 }
 
 /*
- * testinx - returns true iff all bits of register 'port', index 'ind' are 
+ * testinx - returns true iff all bits of register 'port', index 'ind' are
  *     	     readable & writable.
  */
 static __inline__ int

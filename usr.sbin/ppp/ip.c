@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id: ip.c,v 1.2 1995/02/26 12:17:33 amurai Exp $
- * 
+ *
+ * $Id: ip.c,v 1.3 1995/03/11 15:18:42 amurai Exp $
+ *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
@@ -240,7 +240,7 @@ int direction;
   logit = (loglevel & (1 << LOG_TCPIP));
 
   pip = (struct ip *)cp;
-  
+
   if (logit) logprintf("%s  ", Direction[direction]);
 
   ptop = (cp + (pip->ip_hl << 2));
@@ -379,7 +379,7 @@ int count;
   Enqueue(&IpOutputQueues[pri], bp);
 }
 
-int 
+int
 IsIpEnqueued()
 {
   struct mqueue *queue;

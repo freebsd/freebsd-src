@@ -11,7 +11,7 @@
  *	an 8 byte chunk of data which is encrypted in pass 2
  *	NOCRYPT_OCTETS worth of unencrypted data, followed by:
  *	BLOCK_OCTETS worth of ciphered checksum.
- */ 
+ */
 #define	NOCRYPT_OCTETS	4
 #define	BLOCK_OCTETS	8
 

@@ -176,7 +176,7 @@ findexistingpeer(addr, start_peer)
 		peer = peer_hash[HASH_ADDR(addr)];
 	else
 		peer = start_peer->next;
-	
+
 	while (peer != 0) {
 		if (NSRCADR(addr) == NSRCADR(&peer->srcadr)
 		    && NSRCPORT(addr) == NSRCPORT(&peer->srcadr))
@@ -233,8 +233,8 @@ findpeer(srcadr, dstadr, fd)
 					    ntoa(srcadr));
 			}
 
-			/* 
-			 * Multicast hacks to determine peer when a 
+			/*
+			 * Multicast hacks to determine peer when a
 			 * packet arrives and there exists an assoc.
 			 * with src in client/server mode
 			 */
@@ -316,7 +316,7 @@ unpeer(peer_to_remove)
 		peer = peer_hash[hash];
 		while (peer != 0 && peer->next != peer_to_remove)
 			peer = peer->next;
-		
+
 		if (peer == 0) {
 			peer_hash_count[hash]++;
 			syslog(LOG_ERR, "peer struct for %s not in table!",
@@ -339,7 +339,7 @@ unpeer(peer_to_remove)
 		peer = assoc_hash[hash];
 		while (peer != 0 && peer->ass_next != peer_to_remove)
 			peer = peer->ass_next;
-		
+
 		if (peer == 0) {
 			assoc_hash_count[hash]++;
 			syslog(LOG_ERR,
@@ -453,7 +453,7 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 	 */
 	extern s_fp sys_bdelay;
 	extern long sys_clock;
-	
+
 	if (peer_free_count == 0)
 		getmorepeermem();
 

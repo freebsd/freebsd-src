@@ -294,7 +294,7 @@ smtp(e)
 					MyHostName, CurSmtpClient);
 				break;
 			}
-			
+
 			/* print extended message and brag */
 			message("250-%s Hello %s, pleased to meet you",
 				MyHostName, CurSmtpClient);
@@ -486,7 +486,7 @@ smtp(e)
 					MaxMessageSize);
 				/* NOTREACHED */
 			}
-				
+
 			if (!enoughspace(msize))
 			{
 				message("452 Insufficient disk space; try again later");

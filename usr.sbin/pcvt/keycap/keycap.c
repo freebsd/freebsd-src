@@ -91,7 +91,7 @@ char *id,*cstr;
 	register char *c = cstr+n;
 
 	if (strncmp(id,cstr,n)==0 &&
-	    (*c==':' || *c=='|' || *c=='=' || *c=='#') || *c=='@') 
+	    (*c==':' || *c=='|' || *c=='=' || *c=='#') || *c=='@')
 	    	return c;
 	return 0;
 }
@@ -258,7 +258,7 @@ char *id;
 		bp = kskip(bp);
 		if (*bp == 0)
 			return (-1);
-		if ((xp=nmatch(id,bp)) == 0) 
+		if ((xp=nmatch(id,bp)) == 0)
 			continue;
 		bp = xp;	/* we have an entry */
 		if (*bp == '@')

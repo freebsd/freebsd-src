@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 4.9.1.24 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_resp.c,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_resp.c,v 4.9.1.24 1994/07/23 23:23:56 vixie Exp $
  * -
  * Copyright (c) 1986, 1988, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_resp.c,v 4.9.1.24 1994/07/23 23:23:56 vixie Exp $
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_resp.c,v 4.9.1.24 1994/07/23 23:23:56 vixie Exp $
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -317,7 +317,7 @@ ns_resp(msg, msglen)
 				       inet_ntoa(from_addr.sin_addr),
 				       ntohs(from_addr.sin_port));
 			}
-			/* 
+			/*
 			 * We don't know who this response came from so it
 			 * gets dropped on the floor.
 			 */
@@ -355,7 +355,7 @@ ns_resp(msg, msglen)
 		    rtrip = ((tt.tv_sec - stp->tv_sec) * 1000 +
 			(tt.tv_usec - stp->tv_usec) / 1000);
 		}
-		
+
 		dprintf(3, (ddt, "stime %d/%d  now %d/%d rtt %d\n",
 			    stp->tv_sec, stp->tv_usec,
 			    tt.tv_sec, tt.tv_usec, rtrip));
@@ -374,7 +374,7 @@ ns_resp(msg, msglen)
 				ns->d_nstime = (u_int32_t)rtrip;
 			else
 				ns->d_nstime = (u_int32_t)
-						(ns->d_nstime * ALPHA 
+						(ns->d_nstime * ALPHA
 						 +
 						 (1-ALPHA) * (u_int32_t)rtrip);
 			/* prevent floating point overflow,
@@ -404,7 +404,7 @@ ns_resp(msg, msglen)
 		 * Watch out for records that may have timed out
 		 * and are no longer the correct type.			XXX
 		 */
-		
+
 		for (n = 0, qs = qp->q_addr; n < qp->q_naddr; n++, qs++) {
 			ns2 = qs->nsdata;
 			if ((!ns2) || (ns2 == ns))
@@ -714,7 +714,7 @@ ns_resp(msg, msglen)
 	 *  If there are addresses and this is a local query,
 	 *  sort them appropriately for the local context.
 	 */
-	if (ancount > 1 && (lp = local(&qp->q_from)) != NULL) 
+	if (ancount > 1 && (lp = local(&qp->q_from)) != NULL)
 		sort_response(tp, ancount, lp, msg + msglen);
 
 	/*
@@ -1231,7 +1231,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		if ( (hp->opcode == UPDATED) || (hp->opcode == UPDATEDA) ) {
 			if (cp != (u_char *)(msg + msglen)) {
 			    dprintf(1,
-				    (ddt, 
+				    (ddt,
 				     "FORMERR UPDATE message length off\n"
 				     )
 				    );
@@ -1239,7 +1239,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			    return (-1);
 			}
 		}
-		if ((zonenum = findzone(dname, class)) == 0) { 
+		if ((zonenum = findzone(dname, class)) == 0) {
 			hp->rcode = NXDOMAIN;
 			return (-1);
 		}
@@ -1319,7 +1319,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			hp->rcode = FORMERR;
 			return (-1);
 		}
-		if ((zonenum = findzone(dname, class)) == 0) { 
+		if ((zonenum = findzone(dname, class)) == 0) {
 			hp->rcode = NXDOMAIN;
 			return (-1);
 		}
@@ -1426,7 +1426,7 @@ send_msg(msg, msglen, qp)
 #ifdef DEBUG
 	if (debug) {
 		fprintf(ddt,"send_msg -> [%s] (%s %d %d) id=%d\n",
-			inet_ntoa(qp->q_from.sin_addr), 
+			inet_ntoa(qp->q_from.sin_addr),
 			qp->q_stream == QSTREAM_NULL ? "UDP" : "TCP",
 			qp->q_stream == QSTREAM_NULL ? qp->q_dfd
 						     : qp->q_stream->s_rfd,
@@ -1640,7 +1640,7 @@ sysquery(dname, class, type, nss, nsc)
 	dprintf(1, (ddt,
 		  "sysquery: send -> [%s].%d dfd=%d nsid=%d id=%d retry=%ld\n",
 		    inet_ntoa(nsa->sin_addr),
-		    ntohs(nsa->sin_port), qp->q_dfd, 
+		    ntohs(nsa->sin_port), qp->q_dfd,
 		    ntohs(qp->q_nsid), ntohs(qp->q_id),
 		    qp->q_time));
 #ifdef DEBUG
@@ -1708,7 +1708,7 @@ check_root()
 	check_ns();
 }
 
-/* 
+/*
  * Check the root to make sure that for each NS record we have a A RR
  */
 static void
@@ -1792,7 +1792,7 @@ findns(npp, class, nsp, countp, flag)
 	register struct databuf *dp;
 	register struct	databuf **nspp;
 	struct hashbuf *htp;
-	
+
 #ifdef DATUMREFCNT
 	nsp[0] = NULL;
 #endif
@@ -1916,7 +1916,7 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 		/* cycle order of RRs, for a load balancing effect... */
 
 		register struct databuf **dpp;
- 
+
 		for (dpp = &np->n_data;  dp = *dpp;  dpp = &dp->d_next) {
 			if (dp->d_next && wanted(dp, class, type)) {
 				register struct databuf *lp;
@@ -1934,7 +1934,7 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 		}
 	}
 #endif /*ROUND_ROBIN*/
-  
+
 	buflen = *lenp;
 	cp = ((char *)hp) + *countp;
 	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {

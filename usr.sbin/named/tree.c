@@ -93,7 +93,7 @@ tree_init(ppr_tree)
 	*ppr_tree = NULL;
 	RETV
 }
-	
+
 
 tree_t
 tree_srch(ppr_tree, pfi_compare, p_user)

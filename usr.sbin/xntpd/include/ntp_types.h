@@ -55,6 +55,6 @@
 #define U_LONG u_long
 #endif /* U_LONG */
 #endif /* __ alplha */
-    
+
 #endif /* _NTP_TYPES_ */
 

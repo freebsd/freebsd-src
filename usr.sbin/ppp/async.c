@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.2 1995/02/26 12:17:11 amurai Exp $
- * 
+ * $Id: async.c,v 1.3 1995/04/16 12:06:39 amurai Exp $
+ *
  */
 #include "fsm.h"
 #include "hdlc.h"

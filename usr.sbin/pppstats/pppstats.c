@@ -1,6 +1,6 @@
 /*
  * print PPP statistics:
- * 	pppstats [-i interval] [-v] [interface] [system] [core] 
+ * 	pppstats [-i interval] [-v] [interface] [system] [core]
  *
  *	Brad Parker (brad@cayman.com) 6/92
  *
@@ -26,7 +26,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: pppstats.c,v 1.2 1994/11/12 19:33:41 lars Exp $";
+static char rcsid[] = "$Id: pppstats.c,v 1.3 1994/11/19 13:57:06 jkh Exp $";
 #endif
 
 #include <ctype.h>
@@ -112,7 +112,7 @@ struct nlist nl[] = {
 char	*system = "/vmunix";
 #else
 #include <paths.h>
-#if defined(__FreeBSD__) 
+#if defined(__FreeBSD__)
 	/* _PATH_UNIX is defined as "Do not use _PATH_UNIX" */
 char	*system = NULL;
 #else
@@ -206,7 +206,7 @@ main(argc, argv)
 	}
 #endif
 #else
-#if defined(sun) 
+#if defined(sun)
 	/* SunOS */
 	if ((kd = kvm_open(system, kmemf, (char *)0, O_RDONLY, NULL)) == NULL) {
 	    perror("kvm_open");

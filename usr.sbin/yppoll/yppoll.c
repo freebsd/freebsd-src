@@ -96,6 +96,6 @@ char **argv;
                 exit(1);
 	}
         printf("The master server is %s.\n", master);
-        
+
         exit(0);
 }

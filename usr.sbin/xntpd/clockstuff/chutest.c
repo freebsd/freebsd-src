@@ -166,7 +166,7 @@ openterm(dev)
 		error("ioctl(TIOCEXCL)", "", "");
 	if (debug)
 		(void) fprintf(stderr, "done\n");
-	
+
 	ttyb.sg_ispeed = ttyb.sg_ospeed = B300;
 	ttyb.sg_erase = ttyb.sg_kill = 0;
 	ttyb.sg_flags = EVENP|ODDP|RAW;
@@ -552,7 +552,7 @@ chufilter(chuc, rtime)
 			(void) printf("Bad format, halves don't match\n");
 			return;
 		}
-	
+
 	/*
 	 * Break out the code into the BCD nibbles.  Only need to fiddle
 	 * with the first half since both are identical.  Note the first
@@ -705,7 +705,7 @@ codeokay:
 		isneg = 1;
 	else
 		isneg = 0;
-	
+
 	/*
 	 * Here is a multiply-by-0.1 optimization that should apply
 	 * just about everywhere.  If the magnitude of the sum

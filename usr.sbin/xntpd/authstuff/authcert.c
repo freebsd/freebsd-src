@@ -89,7 +89,7 @@ put8(lp)
 {
 	int i;
 
-	
+
 	for(i = 0; i < 2; i++)
 		printf("%08lx", (u_long)(*lp++));
 }

@@ -67,7 +67,7 @@ again:
 		for (; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 			/*
 			 * We don't advance time on a routing entry for
-			 * a passive gateway or that for our only interface. 
+			 * a passive gateway or that for our only interface.
 			 * The latter is excused because we don't act as
 			 * a routing information supplier and hence would
 			 * time it out.  This is fair as if it's down

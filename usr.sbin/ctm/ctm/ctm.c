@@ -6,15 +6,15 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.9 1995/03/19 13:42:54 joerg Exp $
+ * $Id: ctm.c,v 1.10 1995/03/26 20:09:50 phk Exp $
  *
- * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
+ * This is the client program of 'CTM'.  It will apply a CTM-patch to a
  * collection of files.
  *
  * Options we'd like to see:
  *
  * -a 			Attempt best effort.
- * -b <dir>		Base-dir	
+ * -b <dir>		Base-dir
  * -B <file>		Backup to tar-file.
  * -d <int>		Debug TBD.
  * -m <mail-addr>	Email me instead.
@@ -40,7 +40,7 @@
 extern int Proc(char *, unsigned applied);
 
 int
-main(int argc, char **argv) 
+main(int argc, char **argv)
 {
     int stat=0;
     int c;
@@ -48,12 +48,12 @@ main(int argc, char **argv)
     extern char * optarg;
     FILE *statfile;
     unsigned applied = 0;
-    
+
     Verbose = 1;
     Paranoid = 1;
     setbuf(stderr,0);
     setbuf(stdout,0);
-    
+
     while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:Vv")) != -1) {
 	switch (c) {
 	    case 'c': CheckIt++;	break; /* Only check it */
@@ -91,7 +91,7 @@ main(int argc, char **argv)
 	fscanf(statfile, "%*s %u", &applied);
 	fclose(statfile);
     }
-    
+
     if(!argc)
 	stat |= Proc("-", applied);
 

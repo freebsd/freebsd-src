@@ -505,7 +505,7 @@ process_private(rbufp, mod_okay)
 	 */
 	if (proc->needs_auth) {
 		l_fp ftmp;
-		
+
 		/*
 		 * If this guy is restricted from doing this, don't let him
 		 * If wrong key was used, or packet doesn't have mac, return.
@@ -548,7 +548,7 @@ process_private(rbufp, mod_okay)
 		L_SUB(&ftmp, &rbufp->recv_time);
 		if (L_ISNEG(&ftmp))
 			L_NEG(&ftmp);
-		
+
 		if (ftmp.l_ui >= INFO_TS_MAXSKEW_UI) {
 			/*
 			 * He's a loser.  Tell him.
@@ -922,7 +922,7 @@ sys_info(srcadr, inter, inpkt)
 	HTONL_FP(&sys_reftime, &is->reftime);
 
 	is->poll = sys_poll;
-	
+
 	is->flags = 0;
 	if (sys_bclient)
 		is->flags |= INFO_FLAG_BCLIENT;
@@ -1853,7 +1853,7 @@ get_auth_info(srcadr, inter, inpkt)
 	ia->decryptions = htonl(authdecryptions);
 	ia->keyuncached = htonl(authkeyuncached);
 	ia->timereset = htonl(current_time - auth_timereset);
-	
+
 	(void) more_pkt();
 	flush_pkt();
 }
@@ -2233,7 +2233,7 @@ get_kernel_info(srcadr, inter, inpkt)
 	ik->calcnt = htonl(ntx.calcnt);
 	ik->errcnt = htonl(ntx.errcnt);
 	ik->stbcnt = htonl(ntx.stbcnt);
-	
+
 	(void) more_pkt();
 	flush_pkt();
 }

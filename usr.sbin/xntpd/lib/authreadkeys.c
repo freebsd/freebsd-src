@@ -44,7 +44,7 @@ nexttok(str)
 	 */
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
-	
+
 	/*
 	 * Save this and space to end of token
 	 */
@@ -52,19 +52,19 @@ nexttok(str)
 	while (*cp != '\0' && *cp != '\n' && *cp != ' '
 	    && *cp != '\t' && *cp != '#')
 		cp++;
-	
+
 	/*
 	 * If token length is zero return an error, else set end of
 	 * token to zero and return start.
 	 */
 	if (starttok == cp)
 		return 0;
-	
+
 	if (*cp == ' ' || *cp == '\t')
 		*cp++ = '\0';
 	else
 		*cp = '\0';
-	
+
 	*str = cp;
 	return starttok;
 }
@@ -107,7 +107,7 @@ extern	int	fclose		P((FILE *stream));
 		token = nexttok(&line);
 		if (token == 0)
 			continue;
-		
+
 		/*
 		 * First is key number.  See if it is okay.
 		 */

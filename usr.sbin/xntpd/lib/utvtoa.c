@@ -14,7 +14,7 @@ utvtoa(tv)
 	register char *buf;
 
 	LIB_GETBUF(buf);
-	
+
 	(void) sprintf(buf, "%lu.%06lu", (u_long)tv->tv_sec,
 	    (u_long)tv->tv_usec);
 	return buf;

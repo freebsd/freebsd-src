@@ -21,23 +21,23 @@ SUBDIR= ac accton adduser amd arp bootparamd chown chroot cron crunch ctm \
 .if   make(clean) || make(cleandir)
 SUBDIR+=apm apmconf bad144 cdplay config config.new fdformat fdwrite \
 	fdcontrol iostat kbdcontrol lptcontrol mixer ncrcontrol rtprio \
-	sgsc spkrtest vidcontrol 
+	sgsc spkrtest vidcontrol
 .elif ${MACHINE} == "hp300"
-SUBDIR+=config iostat 
+SUBDIR+=config iostat
 .elif ${MACHINE} == "i386"
 SUBDIR+=apm apmconf bad144 cdplay config fdformat fdwrite fdcontrol iostat \
 	kbdcontrol lptcontrol mixer ncrcontrol rtprio sgsc spkrtest \
 	vidcontrol
 .elif ${MACHINE} == "luna68k"
-SUBDIR+=config iostat 
+SUBDIR+=config iostat
 .elif ${MACHINE} == "mips"
-SUBDIR+=config iostat 
+SUBDIR+=config iostat
 .elif ${MACHINE} == "sparc"
-SUBDIR+=config.new eeprom 
+SUBDIR+=config.new eeprom
 .elif ${MACHINE} == "tahoe"
-SUBDIR+=config iostat 
+SUBDIR+=config iostat
 .elif ${MACHINE} == "vax"
-SUBDIR+=bad144 config iostat 
+SUBDIR+=bad144 config iostat
 .endif
 
 .include <bsd.subdir.mk>

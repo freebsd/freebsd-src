@@ -273,7 +273,7 @@ ptime(ms)
 numeric(c1, c2)
 	caddr_t *c1, *c2;
 {
-	
+
 	return (*c1 - *c2);
 }
 

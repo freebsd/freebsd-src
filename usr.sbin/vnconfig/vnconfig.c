@@ -183,7 +183,7 @@ main(argc, argv)
 	exit(rv);
 }
 
-int 
+int
 what_opt(str,p)
 	char *str;
 	u_long *p;
@@ -267,7 +267,7 @@ config(vnp)
 			printf("%s: %d bytes on %s\n",
 			       dev, vnio.vn_size, file);
 	}
-	/* 
+	/*
 	 * Set an option
 	 */
 	if (flags & VN_SET) {
@@ -281,7 +281,7 @@ config(vnp)
 		} else if (verbose)
 			printf("%s: flags now=%08x\n",dev,l);
 	}
-	/* 
+	/*
 	 * Reset an option
 	 */
 	if (flags & VN_RESET) {

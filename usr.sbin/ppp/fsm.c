@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id:$
- * 
+ *
+ * $Id: fsm.c,v 1.2 1995/02/26 12:17:27 amurai Exp $
+ *
  *  TODO:
  *		o Refer loglevel for log output
  *		o Better option log display
@@ -323,7 +323,7 @@ struct mbuf *bp;
 {
   int plen, flen;
   int ackaction = 0;
- 
+
   plen = plength(bp);
   flen = ntohs(lhp->length) - sizeof(*lhp);
   if (plen < flen) {
@@ -446,7 +446,7 @@ struct fsmheader *lhp;
 struct mbuf *bp;
 {
   int plen, flen;
- 
+
   plen = plength(bp);
   flen = ntohs(lhp->length) - sizeof(*lhp);
   if (plen < flen) {
@@ -563,7 +563,7 @@ struct fsmheader *lhp;
 struct mbuf *bp;
 {
   int plen, flen;
- 
+
   plen = plength(bp);
   flen = ntohs(lhp->length) - sizeof(*lhp);
   if (plen < flen) {

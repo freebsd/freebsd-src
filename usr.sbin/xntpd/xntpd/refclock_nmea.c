@@ -237,7 +237,7 @@ nmea_receive(rbufp)
 		   !isdigit(dp[2]) ||
 		   !isdigit(dp[3]) ||
 		   !isdigit(dp[4]) ||
-		   !isdigit(dp[5])	
+		   !isdigit(dp[5])
 		  ) {
 		    refclock_report(peer, CEVNT_BADREPLY);
 		    return;
@@ -290,7 +290,7 @@ nmea_receive(rbufp)
 	pp->hour = ((dp[0] - '0') * 10) + dp[1] - '0';
 	pp->minute = ((dp[2] - '0') * 10) + dp[3] -  '0';
 	pp->second = ((dp[4] - '0') * 10) + dp[5] - '0';
-	pp->msec = 0; 
+	pp->msec = 0;
 
 	if (pp->hour > 23 || pp->minute > 59 || pp->second > 59) {
 		refclock_report(peer, CEVNT_BADTIME);

@@ -76,7 +76,7 @@
  * run time using xntpdc. If true, the kernel modifications are active
  * as described above; if false, the kernel is bypassed entirely (except
  * for the PPS frequency update, if enabled) and the daemon PLL used
- * instead. 
+ * instead.
  */
 #define RSH_DRIFT_TO_FRAC (CLOCK_DSCALE - 16)
 #define RSH_DRIFT_TO_ADJ (RSH_DRIFT_TO_FRAC - CLOCK_ADJ)
@@ -389,7 +389,7 @@ local_clock(fp_offset, peer)
 	 * by the time constant, which is adjusted in response to the
 	 * phase error and dispersion. Note the frequency is not changed
 	 * if the local clock driver is in control.
-	 */ 
+	 */
 	} else if (interval < allan) {
 		int time_constant = min(peer->ppoll, sys_poll) -
 		    NTP_MINPOLL;
@@ -507,7 +507,7 @@ local_clock(fp_offset, peer)
 #endif /* DEBUG */
 
 	(void) record_loop_stats(fp_offset, drift_comp, sys_poll);
-	
+
 	/*
 	 * Whew.  I've had enough.
 	 */

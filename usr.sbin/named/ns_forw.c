@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 4.9.1.17 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_forw.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_forw.c,v 4.9.1.17 1994/07/23 23:23:56 vixie Exp $
  * -
  * Copyright (c) 1986
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_forw.c,v 4.9.1.17 1994/07/23 23:23:56 vixie Exp $
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_forw.c,v 4.9.1.17 1994/07/23 23:23:56 vixie Exp $
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -74,7 +74,7 @@ static char rcsid[] = "$Id: ns_forw.c,v 4.9.1.17 1994/07/23 23:23:56 vixie Exp $
 /*
  * Forward the query to get the answer since its not in the database.
  * Returns FW_OK if a request struct is allocated and the query sent.
- * Returns FW_DUP if this is a duplicate of a pending request. 
+ * Returns FW_DUP if this is a duplicate of a pending request.
  * Returns FW_NOSERVER if there were no addresses for the nameservers.
  * Returns FW_SERVFAIL on malloc error or if asked to do something
  * dangerous, such as fwd to ourselves or fwd to the host that asked us.

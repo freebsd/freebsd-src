@@ -1,5 +1,5 @@
 #ifndef LINT
-static char rcsid[] = "$Id: db_secure.c,v 1.6 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: db_secure.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
 #endif
 
 /* this file was contributed by Gregory Neil Shapiro of WPI in August 1993 */
@@ -91,10 +91,10 @@ build_secure_netlist(zp)
 				"build_secure_netlist (%s): Bad address: %s\n",
 				    zp->z_origin, buf));
 			syslog(LOG_ERR,
-			       "build_secure_netlist (%s): Bad address: %s", 
+			       "build_secure_netlist (%s): Bad address: %s",
 			       zp->z_origin, buf);
 			errs++;
-			continue;	
+			continue;
 		}
 		if (maskptr && *maskptr) {
 			if (*maskptr == 'h' || *maskptr == 'H') {
@@ -110,18 +110,18 @@ build_secure_netlist(zp)
 					       zp->z_origin, maskptr);
 					errs++;
 					continue;
-				}	
-			}    
+				}
+			}
 		} else {
 			ntp->mask = net_mask(ntp->my_addr);
 		}
 		if (ntp->my_addr.s_addr & ~(ntp->mask)) {
-			dprintf(1, (ddt, 
+			dprintf(1, (ddt,
 		 "build_secure_netlist (%s): addr (%s) is not in mask (x%x)\n",
 				    zp->z_origin,
 				    inet_ntoa(ntp->my_addr),
 				    ntp->mask));
-			syslog(LOG_WARNING, 
+			syslog(LOG_WARNING,
 		   "build_secure_netlist (%s): addr (%s) is not in mask (x%x)",
 			       zp->z_origin,
 			       inet_ntoa(ntp->my_addr),
@@ -133,10 +133,10 @@ build_secure_netlist(zp)
 
 		/* Check for duplicates */
 		if (addr_on_netlist(ntp->my_addr, *netlistp)) {
-			dprintf(1, (ddt, 
+			dprintf(1, (ddt,
 			   "build_secure_netlist (%s): duplicate address %s\n",
 				    zp->z_origin, inet_ntoa(ntp->my_addr)));
-			syslog(LOG_WARNING, 
+			syslog(LOG_WARNING,
 			   "build_secure_netlist (%s): duplicate address %s\n",
 			       zp->z_origin, inet_ntoa(ntp->my_addr));
 			errs++;

@@ -558,7 +558,7 @@ tst_keyboard() {
      - DECKPNM (Keypad Numeric Mode)
 
 The standard VT100 keayboard layout:
- 
+
                                                         UP   DN   LE  RI
 
 ESC   1!   2@   3#   4$   5%   6^   7&   8*   9(   0)   -_   =+   `~  BS
@@ -1321,7 +1321,7 @@ tst_vt52() {
   for (i = 2; i <= 23; i++) {
     vt52cup(i,70); printf("%s", "**Foobar");
   }
-  vt52cup(23,10); 
+  vt52cup(23,10);
   for (i = 23; i >= 2; i--) {
     printf("%s", "*");
     printf("%c", 8);	/* BS */

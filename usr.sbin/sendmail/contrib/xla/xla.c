@@ -166,7 +166,7 @@ xla_init(line)
 	}
 	XlaRules[XlaNext].reject = atoi(s);
 	if (tTd(59, 10))
-		printf("xla_init: rule #%d = %s q=%d r=%d\n", XlaNext, 
+		printf("xla_init: rule #%d = %s q=%d r=%d\n", XlaNext,
 			XlaRules[XlaNext].mask,
 			XlaRules[XlaNext].queue, XlaRules[XlaNext].reject);
 	XlaNext++;

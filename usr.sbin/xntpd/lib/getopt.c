@@ -63,7 +63,7 @@ ntp_getopt(argc, argv, optstring)
 		scan = NULL;
 		ntp_optind++;
 	}
-	
+
 	if (scan == NULL || *scan == '\0') {
 		if (ntp_optind >= argc
 		    || argv[ntp_optind][0] != '-'
@@ -75,7 +75,7 @@ ntp_getopt(argc, argv, optstring)
 			ntp_optind++;
 			return (EOF);
 		}
-	
+
 		scan = argv[ntp_optind++]+1;
 	}
 

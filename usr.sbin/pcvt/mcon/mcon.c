@@ -95,19 +95,19 @@ int main(int argc, char **argv) {
 			do_set = 1;
 			if(left == -1) goto keynameerr;
 			break;
-			
+
 		case 'm':
 			mid = nametoscan(optarg);
 			do_set = 1;
 			if(mid == -1) goto keynameerr;
 			break;
-			
+
 		case 'r':
 			right = nametoscan(optarg);
 			do_set = 1;
 			if(right == -1) goto keynameerr;
 			break;
-			
+
 		keynameerr:
 		{
 			fprintf(stderr, "unknown key name: %s\n",
@@ -115,12 +115,12 @@ int main(int argc, char **argv) {
 			errs++;
 		}
 			break;
-			
+
 		case 'a':
 			accel = 1000 * strtol(optarg, 0, 10);
 			do_set = 1;
 			break;
-			
+
 		case 's':
 			if(strcmp(optarg, "0") == 0
 			   || strcmp(optarg, "false") == 0
@@ -137,21 +137,21 @@ int main(int argc, char **argv) {
 			}
 			do_set = 1;
 			break;
-			
+
 		default:
 			errs++;
 		}
-	
+
 	argc -= optind;
 	argv += optind;
-	
+
 	if(errs || argc != 1) {
 		fprintf(stderr, "usage: "
 			"mouse [-l key][-m key][-r key][-a acctime][-s 0|1] "
 			"mousedev\n");
 		return 2;
 	}
-	
+
 	if((fd = open(argv[0], O_RDONLY)) < 0) {
 		perror("open(mousedev)");
 		return 2;
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
 
 	if(accel) mdef.acceltime = accel;
 	if(sticky != -1) mdef.stickybuttons = sticky;
-	
+
 	if(ioctl(fd, KBDMOUSESET, &mdef) < 0) {
 		perror("ioctl(KBDMOUSESET)");
 		return 1;

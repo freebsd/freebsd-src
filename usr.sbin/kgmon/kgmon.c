@@ -284,7 +284,7 @@ setprof(kvp, state)
 			return;
 		}
 		(void)seteuid(getuid());
-	} else if (kvm_write(kvp->kd, (u_long)&p->state, (void *)&state, sz) 
+	} else if (kvm_write(kvp->kd, (u_long)&p->state, (void *)&state, sz)
 	    == sz)
 		return;
 bad:

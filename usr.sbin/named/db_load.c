@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 4.9.1.18 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: db_load.c,v 1.2 1994/09/22 20:45:03 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: db_load.c,v 4.9.1.18 1994/07/23 23:23:56 vixie Exp $
  * -
  * Copyright (c) 1986, 1988, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: db_load.c,v 4.9.1.18 1994/07/23 23:23:56 vixie Exp $
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: db_load.c,v 4.9.1.18 1994/07/23 23:23:56 vixie Exp $
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -271,7 +271,7 @@ db_load(filename, in_origin, zp, doinginclude)
 				n = 0;
 				do {
 				    if (n > (INT_MAX - (*cp - '0')) / 10) {
-					syslog(LOG_ERR, 
+					syslog(LOG_ERR,
 					   "%s: line %d: number > %lu\n",
 					   filename, lineno, INT_MAX);
 					dprintf(1, (ddt,
@@ -415,7 +415,7 @@ db_load(filename, in_origin, zp, doinginclude)
 				n = (u_int32_t) zp->z_refresh;
 				PUTLONG(n, cp);
 				if (zp->z_type == Z_SECONDARY
-#if defined(STUBS) 
+#if defined(STUBS)
 				    || zp->z_type == Z_STUB
 #endif
 				    ) {
@@ -639,7 +639,7 @@ db_load(filename, in_origin, zp, doinginclude)
 			    != OK) {
 #ifdef DEBUG
 				if (debug && (c != DATAEXISTS))
-					fprintf(ddt, "update failed %s %d\n", 
+					fprintf(ddt, "update failed %s %d\n",
 						domain, type);
 #endif
 				free((char*) dp);
@@ -711,9 +711,9 @@ gettoken(fp, src)
 					return (ORIGIN);
 			}
 			dprintf(1, (ddt,
-				    "%s: line %d: Unknown $ option: $%s\n", 
+				    "%s: line %d: Unknown $ option: $%s\n",
 				    src, lineno, op));
-			syslog(LOG_ERR,"%s: line %d: Unknown $ option: $%s\n", 
+			syslog(LOG_ERR,"%s: line %d: Unknown $ option: $%s\n",
 			       src, lineno, op);
 			return (ERROR);
 
@@ -915,11 +915,11 @@ getnum(fp, src, is_serial)
 		seendigit = 1;
 	}
 	if (m > 9999) {
-		syslog(LOG_ERR, 
-		       "%s:%d: number after the decimal point exceeds 9999", 
+		syslog(LOG_ERR,
+		       "%s:%d: number after the decimal point exceeds 9999",
 		       src, lineno);
 		dprintf(1, (ddt,
-			"%s:%d: number after the decimal point exceeds 9999", 
+			"%s:%d: number after the decimal point exceeds 9999",
 			    src, lineno));
 		exit(1);	/* XXX why exit here?? */
 	}
@@ -1022,7 +1022,7 @@ getprotocol(fp, src)
 	char b[MAXLEN];
 
 	(void) getword(b, sizeof(b), fp);
-		
+
 	k = protocolnumber(b);
 	if(k == -1)
 		syslog(LOG_ERR, "%s: line %d: unknown protocol: %s.",
@@ -1123,7 +1123,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 		if (!inet_aton(buf, &ntp->my_addr)) {
 			syslog(LOG_ERR, "%s contains bogus element (%s)",
 			       print_tag, buf);
-			continue;	
+			continue;
 		}
 		if (maskp) {
 			if (!inet_aton(maskp, &ina)) {
@@ -1159,7 +1159,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 	}
 	if (ntp)
 		free((char *)ntp);
-	
+
 	dprintf(1, (ddt, "\n"));
 #ifdef DEBUG
 	if (debug > 2)

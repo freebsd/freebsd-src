@@ -102,7 +102,7 @@ static int	 tof;		/* true if at top of form */
 static char	class[32];		/* classification field */
 static char	fromhost[32];		/* user's host machine */
 				/* indentation size in static characters */
-static char	indent[10] = "-i0"; 
+static char	indent[10] = "-i0";
 static char	jobname[100];		/* job or file name */
 static char	length[10] = "-l";	/* page length in lines */
 static char	logname[32];		/* user's login name */
@@ -967,7 +967,7 @@ scan_out(scfd, scsp, dlm)
 		while (*--strp == BACKGND && strp >= outbuf)
 			;
 		strp++;
-		*strp++ = '\n';	
+		*strp++ = '\n';
 		(void) write(scfd, outbuf, strp-outbuf);
 	}
 }

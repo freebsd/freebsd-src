@@ -17,15 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.2 1995/02/26 12:18:01 amurai Exp $
- * 
+ * $Id: timer.c,v 1.3 1995/03/11 15:18:51 amurai Exp $
+ *
  *  TODO:
  */
 #include "defs.h"
 #include <sys/time.h>
 #include <signal.h>
 #include "timeout.h"
-#ifdef SIGALRM 
+#ifdef SIGALRM
 #include <errno.h>
 #endif
 void StopTimerNoBlock( struct pppTimer *);
@@ -180,7 +180,7 @@ TimerService()
 #endif
 	if (exp->func)
 	  (*exp->func)(exp->arg);
-	/* 
+	/*
          * Just Removing each item from expired list
          * And exp->enext will be intialized at next expire
          * in this funtion.
@@ -212,7 +212,7 @@ u_int sleep( u_int sec )
   gettimeofday( &st, NULL );
   to.tv_sec =  sec;
   to.tv_usec = 0;
-  std = st.tv_sec * 1000000 + st.tv_usec; 
+  std = st.tv_sec * 1000000 + st.tv_usec;
   for (;;) {
     if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
          errno != EINTR ) {
@@ -221,7 +221,7 @@ u_int sleep( u_int sec )
        gettimeofday( &et, NULL );
        sld = to.tv_sec * 1000000 + to.tv_sec;
        nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-       if ( sld > nwd ) 
+       if ( sld > nwd )
           sld -= nwd;
        else
           sld  = 1; /* Avoid both tv_sec/usec is 0 */
@@ -241,7 +241,7 @@ void usleep( u_int usec)
   gettimeofday( &st, NULL );
   to.tv_sec =  0;
   to.tv_usec = usec;
-  std = st.tv_sec * 1000000 + st.tv_usec; 
+  std = st.tv_sec * 1000000 + st.tv_usec;
   for (;;) {
     if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
          errno != EINTR ) {
@@ -250,7 +250,7 @@ void usleep( u_int usec)
        gettimeofday( &et, NULL );
        sld = to.tv_sec * 1000000 + to.tv_sec;
        nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-       if ( sld > nwd ) 
+       if ( sld > nwd )
           sld -= nwd;
        else
           sld  = 1; /* Avoid both tv_sec/usec is 0 */
