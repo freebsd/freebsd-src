@@ -89,6 +89,7 @@ extern int ncpus;
 #include <machine/md_var.h>
 #endif /* __i386__ */
 
+#include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
@@ -627,7 +628,7 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
  * Filler function for proc/pid/exe
  */
 static int
-linprocfs_doexelink(PFS_FILL_ARGS)
+linprocfs_doprocexe(PFS_FILL_ARGS)
 {
 	char *fullpath = "unknown";
 	char *freepath = NULL;
@@ -645,20 +646,17 @@ linprocfs_doexelink(PFS_FILL_ARGS)
 static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
+	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
 	struct ifnet *ifp;
-	int eth_index = 0;
 
-	sbuf_printf(sb, "%6s|%58s|%s\n%6s|%58s|%5$s\n",
+	sbuf_printf(sb, "%6s|%58s|%s\n%6s|%58s|%58s\n",
 	    "Inter-", "   Receive", "  Transmit", " face",
+	    "bytes    packets errs drop fifo frame compressed",
 	    "bytes    packets errs drop fifo frame compressed");
 
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (strcmp(ifp->if_name, "lo") == 0) {
-			sbuf_printf(sb, "%6.6s:", ifp->if_name);
-		} else {
-			sbuf_printf(sb, "%5.5s%d:", "eth", eth_index);
-			eth_index++;
-		}
+		linux_ifname(ifp, ifname, sizeof ifname);
+			sbuf_printf(sb, "%6.6s:", ifname);
 		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
 		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
 		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
@@ -716,68 +714,63 @@ linprocfs_domodules(PFS_FILL_ARGS)
 #endif
 
 /*
- * Directory structure
+ * Constructor
  */
+static int
+linprocfs_init(PFS_INIT_ARGS)
+{
+	struct pfs_node *root;
+	struct pfs_node *dir;
 
-static struct pfs_node linprocfs_proc_nodes[] = {
-	PFS_THIS,
-	PFS_PARENT,
-	PFS_FILE(   "cmdline",	linprocfs_doproccmdline,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_SYMLINK("exe",	linprocfs_doexelink,
-	    NULL,	NULL,		NULL,	0),
-     /* PFS_FILE(   "mem",	procfs_domem,
-	    NULL,	NULL,		NULL,	PFS_RDWR|PFS_RAW), */
-	PFS_FILE(   "stat",	linprocfs_doprocstat,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "status",	linprocfs_doprocstatus,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_LASTNODE
-};
+	root = pi->pi_root;
 
-static struct pfs_node linprocfs_net_nodes[] = {
-	PFS_THIS,
-	PFS_PARENT,
-	PFS_FILE(   "dev",	linprocfs_donetdev,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_LASTNODE
-};
-
-static struct pfs_node linprocfs_root_nodes[] = {
-	PFS_THIS,
-	PFS_PARENT,
-	PFS_FILE(   "cmdline",	linprocfs_docmdline,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "cpuinfo",	linprocfs_docpuinfo,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "devices",	linprocfs_dodevices,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "loadavg",	linprocfs_doloadavg,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "meminfo",	linprocfs_domeminfo,
-	    NULL,	NULL,		NULL,	PFS_RD),
+#define PFS_CREATE_FILE(name) \
+	pfs_create_file(root, #name, &linprocfs_do##name, NULL, NULL, PFS_RD)
+	PFS_CREATE_FILE(cmdline);
+	PFS_CREATE_FILE(cpuinfo);
+	PFS_CREATE_FILE(devices);
+	PFS_CREATE_FILE(loadavg);
+	PFS_CREATE_FILE(meminfo);
 #if 0
-	PFS_FILE(   "modules",	linprocfs_domodules,
-	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_CREATE_FILE(modules);
 #endif
-	PFS_FILE(   "stat",	linprocfs_dostat,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "uptime",	linprocfs_douptime,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_FILE(   "version",	linprocfs_doversion,
-	    NULL,	NULL,		NULL,	PFS_RD),
-	PFS_DIR(    "net",	linprocfs_net_nodes,
-	    NULL,	NULL,		NULL,	0),
-	PFS_PROCDIR(		linprocfs_proc_nodes,
-	    NULL,	NULL,		NULL,	0),
-	PFS_SYMLINK("self",	linprocfs_doselflink,
-	    NULL,	NULL,		NULL,	0),
-	PFS_LASTNODE
-};
+	PFS_CREATE_FILE(stat);
+	PFS_CREATE_FILE(uptime);
+	PFS_CREATE_FILE(version);
+#undef PFS_CREATE_FILE
+	pfs_create_link(root, "self", &linprocfs_doselflink,
+	    NULL, NULL, 0);
 
-static struct pfs_node linprocfs_root =
-	PFS_ROOT(linprocfs_root_nodes);
+	dir = pfs_create_dir(root, "net", NULL, NULL, 0);
+	pfs_create_file(dir, "dev", &linprocfs_donetdev,
+	    NULL, NULL, PFS_RD);
 
-PSEUDOFS(linprocfs, linprocfs_root, 1);
+	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
+	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
+	    NULL, NULL, PFS_RD);
+	pfs_create_link(dir, "exe", &linprocfs_doprocexe,
+	    NULL, NULL, 0);
+	pfs_create_file(dir, "mem", &procfs_doprocmem,
+	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
+	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
+	    NULL, NULL, PFS_RD);
+
+	return (0);
+}
+
+/*
+ * Destructor
+ */
+static int
+linprocfs_uninit(PFS_INIT_ARGS)
+{
+
+	/* nothing to do, pseudofs will GC */
+	return (0);
+}
+
+PSEUDOFS(linprocfs, 1);
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
