@@ -15,9 +15,6 @@ error:
 FONTS	= 	vt220l.814 vt220h.814 vt220l.808 vt220h.808 \
 		vt220l.816 vt220h.816 vt220l.810 vt220h.810
 
-LIBMODE	=	644
-LIBOWN	=	bin
-LIBGRP	=	bin
 CLEANFILES= 	${FONTS}
 
 all: $(FONTS)
@@ -26,7 +23,7 @@ install: ${FONTS}
 	@if [ ! -d ${DESTDIR}${FONTDIR} ]; then mkdir ${DESTDIR}${FONTDIR};fi
 	@for i in ${FONTS}; do \
 		${ECHO} "installing font $$i into ${DESTDIR}${FONTDIR}"; \
-		${INSTALL} ${COPY} -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
+		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		$$i ${DESTDIR}${FONTDIR}; \
 	done
 
