@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.53 1999/01/21 21:54:32 msmith Exp $
+ * $Id: kern_malloc.c,v 1.54 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include "opt_vm.h"
@@ -348,11 +348,12 @@ free(addr, type)
 	freep->type = type;
 #endif /* INVARIANTS */
 	kup->ku_freecnt++;
-	if (kup->ku_freecnt >= kbp->kb_elmpercl)
+	if (kup->ku_freecnt >= kbp->kb_elmpercl) {
 		if (kup->ku_freecnt > kbp->kb_elmpercl)
 			panic("free: multiple frees");
 		else if (kbp->kb_totalfree > kbp->kb_highwat)
 			kbp->kb_couldfree++;
+	}
 	kbp->kb_totalfree++;
 	ksp->ks_memuse -= size;
 	if (ksp->ks_memuse + size >= ksp->ks_limit &&

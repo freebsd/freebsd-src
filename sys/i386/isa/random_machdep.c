@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.29 1998/06/21 11:33:32 bde Exp $
+ * $Id: random_machdep.c,v 1.30 1999/04/21 07:26:28 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -365,12 +365,12 @@ random_poll(dev_t dev, int events, struct proc *p)
 	int revents = 0;
 
 	s = splhigh();
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (random_state.entropy_count >= 8)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(p, &random_state.rsel);
-
+	}
 	splx(s);
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= events & (POLLOUT | POLLWRNORM);	/* heh */

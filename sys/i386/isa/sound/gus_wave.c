@@ -626,13 +626,15 @@ gus_set_voice_pos(int voice, long position)
 {
 	int             sample_no;
 
-	if ((sample_no = sample_map[voice]) != -1)
-		if (position < samples[sample_no].len)
+	if ((sample_no = sample_map[voice]) != -1) {
+		if (position < samples[sample_no].len) {
 			if (voices[voice].volume_irq_mode == VMODE_START_NOTE)
 				voices[voice].offset_pending = position;
 			else
 				gus_write_addr(0x0a, sample_ptrs[sample_no] + position,
 				    samples[sample_no].mode & WAVE_16_BITS);
+		}
+	}
 }
 
 static void

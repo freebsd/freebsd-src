@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.52 1999/01/12 12:16:50 eivind Exp $
+ * $Id: ip_mroute.c,v 1.53 1999/01/18 02:06:57 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -2195,13 +2195,14 @@ rsvp_input(m, iphlen)
 	printf("rsvp_input: m->m_len = %d, sbspace() = %ld\n",
 	       m->m_len,sbspace(&(viftable[vifi].v_rsvpd->so_rcv)));
 
-    if (socket_send(viftable[vifi].v_rsvpd, m, &rsvp_src) < 0)
+    if (socket_send(viftable[vifi].v_rsvpd, m, &rsvp_src) < 0) {
 	if (rsvpdebug)
 	    printf("rsvp_input: Failed to append to socket\n");
-    else
+    } else {
 	if (rsvpdebug)
 	    printf("rsvp_input: send packet up\n");
-    
+    }
+
     splx(s);
 }
 

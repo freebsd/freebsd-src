@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.2 1997/01/17 23:54:31 joerg Exp $
+ * $Id: pdq.c,v 1.3 1999/01/27 19:35:33 dillon Exp $
  *
  */
 
@@ -752,8 +752,9 @@ pdq_process_received_data(
 			status.rxs_rcc_reason, status.rxs_fsc, status.rxs_fsb_e));
 	    if (status.rxs_rcc_reason == 7)
 		goto discard_frame;
-	    if (status.rxs_rcc_reason != 0)
+	    if (status.rxs_rcc_reason != 0) {
 		/* hardware fault */
+	    }
 	    if (status.rxs_rcc_badcrc) {
 		printf(PDQ_OS_PREFIX " MAC CRC error (source=%x-%x-%x-%x-%x-%x)\n",
 		       PDQ_OS_PREFIX_ARGS,
