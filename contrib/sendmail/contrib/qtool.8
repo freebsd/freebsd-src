@@ -1,4 +1,4 @@
-.\" Copyright (c) 1999, 2001 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1999, 2001-2002 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\"
 .\" By using this file, you agree to the terms and conditions set
@@ -6,9 +6,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: qtool.8,v 8.16 2001/11/21 19:21:20 gshapiro Exp $
+.\"     $Id: qtool.8,v 8.17 2002/01/29 21:55:49 ca Exp $
 .\"
-.TH QTOOL 8 "$Date: 2001/11/21 19:21:20 $"
+.TH QTOOL 8 "$Date: 2002/01/29 21:55:49 $"
 .SH NAME
 qtool
 \- manipulate sendmail queues
@@ -25,6 +25,11 @@ source [source ...]
 moves the queue files used by sendmail between queues. It uses the same
 locking mechanism as sendmail so can be safely used while sendmail is
 running.
+However, it should not be used when queue groups have been configured
+to move queue files into directories to which they do not belong according
+to the queue group selections made in the sendmail.cf file.
+Unless you are absolutely sure you do not interfere with the queue group
+selection mechanism, do not move queue files around.
 .PP
 With no options,
 .B qtool

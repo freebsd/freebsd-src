@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`$Id: compat_check.m4,v 1.3 2001/11/21 18:40:06 ca Exp $')
+VERSIONID(`$Id: compat_check.m4,v 1.4 2002/02/26 22:15:31 gshapiro Exp $')
 divert(-1)
 ifdef(`_ACCESS_TABLE_', `',
 `errprint(`FEATURE(`compat_check') requires FEATURE(`access_db')
@@ -25,7 +25,7 @@ R$+ $| $+		$: <$(access Compat:$1<@>$2 $:OK $)>
 R$* $| $*		$@ ok
 # act on the result,
 # it must be one of the following... anything else will be allowed..
-dnl for consistency with the other two even though discard does not take an
+dnl for consistency with the other two even though discard does not take a
 dnl reply code
 R< DISCARD:$* >	$#discard $: $1 " - discarded by check_compat"
 R< DISCARD $* >	$#discard $: $1 " - discarded by check_compat"

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: ldap_routing.m4,v 8.8 2001/06/27 21:46:31 gshapiro Exp $')
+VERSIONID(`$Id: ldap_routing.m4,v 8.10 2002/03/27 22:17:43 ca Exp $')
 divert(-1)
 
 # Check first two arguments.  If they aren't set, may need to warn in proto.m4
@@ -31,9 +31,9 @@ ifelse(len(X`'_ARG4_), `1', `',
 LOCAL_CONFIG
 # LDAP routing maps
 Kldapmh ifelse(len(X`'_ARG1_), `1',
-	       `ldap -1 -v mailHost -k (&(objectClass=inetLocalMailRecipient)(mailLocalAddress=%0))',
+	       `ldap -1 -T<TMPF> -v mailHost -k (&(objectClass=inetLocalMailRecipient)(mailLocalAddress=%0))',
 	       `_ARG1_')
 
 Kldapmra ifelse(len(X`'_ARG2_), `1',
-		`ldap -1 -v mailRoutingAddress -k (&(objectClass=inetLocalMailRecipient)(mailLocalAddress=%0))',
+		`ldap -1 -T<TMPF> -v mailRoutingAddress -k (&(objectClass=inetLocalMailRecipient)(mailLocalAddress=%0))',
 		`_ARG2_')

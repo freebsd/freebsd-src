@@ -37,20 +37,21 @@ run-time linker.
 
 <H2><a name="config">Configuring Sendmail</A></H2>
 
-First, you must compile sendmail versions before 8.12 with _FFR_MILTER
-defined.  To do this, add the following lines to your build
+First, you must compile sendmail with MILTER defined.
+If you use a sendmail version older than 8.12 please see
+the instructions for your version.
+To do this, add the following lines to your build
 configuration file (devtools/Site/config.site.m4)
 <pre>
-APPENDDEF(`conf_sendmail_ENVDEF', `-D_FFR_MILTER=1')
-APPENDDEF(`conf_libmilter_ENVDEF', `-D_FFR_MILTER=1') 
+APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER')
 </pre>
 
 then type <code>./Build -c</code> in your sendmail directory.
 
 <P>
 Next, you must add the desired filters to your sendmail configuration
-(.mc) file.  With versions before 8.12, the file must then be
-processed with _FFR_MILTER defined.  Mail filters have three equates:
+(.mc) file.
+Mail filters have three equates:
 The required <code>S=</code> equate specifies the socket where
 sendmail should look for the filter; The optional <code>F=</code> and
 <code>T=</code> equates specify flags and timeouts, respectively.  All
@@ -117,7 +118,7 @@ third uses an IP socket on port 999.
 
 	define(`confINPUT_MAIL_FILTERS', `filter2,filter1,filter3')
 <hr width="30%">
-	m4 <b>-D_FFR_MILTER</b> ../m4/cf.m4 myconfig.mc &gt; myconfig.cf
+	m4 ../m4/cf.m4 myconfig.mc &gt; myconfig.cf
 </pre>
 By default, the filters would be run in the order declared,
 i.e. "filter1, filter2, filter3"; however, since
@@ -160,7 +161,7 @@ For information about available macros and their meanings, please
 consult the sendmail documentation.
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set

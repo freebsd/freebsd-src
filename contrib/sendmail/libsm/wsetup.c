@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,14 +13,14 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: wsetup.c,v 1.19 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: wsetup.c,v 1.20 2002/02/07 18:02:45 ca Exp $")
 #include <stdlib.h>
 #include <errno.h>
 #include <sm/io.h>
 #include "local.h"
 
 /*
-**  SM_WSETUP -- check writting is safe
+**  SM_WSETUP -- check writing is safe
 **
 **  Various output routines call wsetup to be sure it is safe to write,
 **  because either flags does not include SMMWR, or buf is NULL.
@@ -55,6 +55,8 @@ sm_wsetup(fp)
 			/* clobber any ungetc data */
 			if (HASUB(fp))
 				FREEUB(fp);
+
+			/* discard read buffer */
 			fp->f_flags &= ~(SMRD|SMFEOF);
 			fp->f_r = 0;
 			fp->f_p = fp->f_bf.smb_base;

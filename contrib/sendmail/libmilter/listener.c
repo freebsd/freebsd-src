@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.81 2002/01/08 23:14:23 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.82 2002/01/22 18:46:47 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -77,11 +77,11 @@ mi_milteropen(conn, backlog, socksize, family, name)
 	{
 		*colon = '\0';
 
- 		if (*p == '\0')
+		if (*p == '\0')
 		{
 #if NETUNIX
 			/* default to AF_UNIX */
- 			addr.sa.sa_family = AF_UNIX;
+			addr.sa.sa_family = AF_UNIX;
 			*socksize = sizeof (struct sockaddr_un);
 #else /* NETUNIX */
 # if NETINET
@@ -138,7 +138,7 @@ mi_milteropen(conn, backlog, socksize, family, name)
 		colon = p;
 #if NETUNIX
 		/* default to AF_UNIX */
- 		addr.sa.sa_family = AF_UNIX;
+		addr.sa.sa_family = AF_UNIX;
 		*socksize = sizeof (struct sockaddr_un);
 #else /* NETUNIX */
 # if NETINET
@@ -476,7 +476,7 @@ mi_closener()
 		struct stat fileinfo;
 
 		removable = sockpath != NULL &&
-#if _FFR_MILTER_ROOT_UNSAFE 
+#if _FFR_MILTER_ROOT_UNSAFE
 			    geteuid() != 0 &&
 #endif /* _FFR_MILTER_ROOT_UNSAFE */
 			    fstat(listenfd, &sockinfo) == 0 &&

@@ -14,11 +14,15 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.928 2002/01/10 03:23:29 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.935 2002/03/23 18:30:40 gshapiro Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
 #endif /* HASSETUSERCONTEXT */
+
+#if NETINET || NETINET6
+# include <arpa/inet.h>
+#endif /* NETINET || NETINET6 */
 
 #if STARTTLS || SASL
 # include "sfsasl.h"
@@ -2112,6 +2116,7 @@ tryhost:
 			if (i == EX_OK)
 			{
 				goodmxfound = true;
+				markstats(e, firstto, STATS_CONNECT);
 				mci->mci_state = MCIS_OPENING;
 				mci_cache(mci);
 				if (TrafficLogFile != NULL)
@@ -2501,6 +2506,22 @@ tryhost:
 				new_ruid = m->m_uid;
 			else
 				new_ruid = DefUid;
+
+# if _FFR_USE_SETLOGIN
+			/* run disconnected from terminal and set login name */
+			if (setsid() >= 0 &&
+			    ctladdr != NULL && ctladdr->q_uid != 0 &&
+			    new_euid == ctladdr->q_uid)
+			{
+				struct passwd *pwd;
+
+				pwd = sm_getpwuid(ctladdr->q_uid);
+				if (pwd != NULL && suidwarn)
+					(void) setlogin(pwd->pw_name);
+				endpwent();
+			}
+# endif /* _FFR_USE_SETLOGIN */
+
 			if (new_euid != NO_UID)
 			{
 				if (RunAsUid != 0 && new_euid != RunAsUid)
@@ -2631,8 +2652,10 @@ tryhost:
 						     j | FD_CLOEXEC);
 			}
 
+# if !_FFR_USE_SETLOGIN
 			/* run disconnected from terminal */
 			(void) setsid();
+# endif /* !_FFR_USE_SETLOGIN */
 
 			/* try to execute the mailer */
 			(void) execve(m->m_mailer, (ARGV_T) pv,
@@ -3931,6 +3954,13 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 			statmsg = buf;
 			usestat = true;
 		}
+		else if (bitnset(M_LMTP, m->m_flags) && e->e_statmsg != NULL)
+		{
+			(void) sm_snprintf(buf, sizeof buf, "%s (%s)", statmsg,
+					   shortenstring(e->e_statmsg, 403));
+			statmsg = buf;
+			usestat = true;
+		}
 	}
 
 	/*
@@ -4998,11 +5028,17 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		}
 		(void) sm_strlcpy(targetfile, SafeFileEnv, sizeof targetfile);
 		realfile = targetfile + len;
-		if (targetfile[len - 1] != '/')
-			(void) sm_strlcat(targetfile, "/", sizeof targetfile);
 		if (*filename == '/')
 			filename++;
-		(void) sm_strlcat(targetfile, filename, sizeof targetfile);
+		if (*filename != '\0')
+		{
+			/* paranoia: trailing / should be removed in readcf */
+			if (targetfile[len - 1] != '/')
+				(void) sm_strlcat(targetfile,
+						  "/", sizeof targetfile);
+			(void) sm_strlcat(targetfile, filename,
+					  sizeof targetfile);
+		}
 	}
 	else if (mailer->m_rootdir != NULL)
 	{
@@ -5044,6 +5080,14 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 	**	Note that we MUST use fork, not vfork, because of
 	**	the complications of calling subroutines, etc.
 	*/
+
+
+	/*
+	**  Dispose of SIGCHLD signal catchers that may be laying
+	**  around so that the waitfor() below will get it.
+	*/
+
+	(void) sm_signal(SIGCHLD, SIG_DFL);
 
 	DOFORK(fork);
 
@@ -5234,6 +5278,9 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 
 		if (realfile != targetfile)
 		{
+			char save;
+
+			save = *realfile;
 			*realfile = '\0';
 			if (tTd(11, 20))
 				sm_dprintf("mailfile: chroot %s\n", targetfile);
@@ -5243,7 +5290,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 				       targetfile);
 				RETURN(EX_CANTCREAT);
 			}
-			*realfile = '/';
+			*realfile = save;
 		}
 
 		if (tTd(11, 40))
