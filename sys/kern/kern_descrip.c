@@ -1701,7 +1701,7 @@ fdcheckstd(td)
 			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
 			    td);
 			flags = FREAD | FWRITE;
-			error = vn_open(&nd, &flags, 0);
+			error = vn_open(&nd, &flags, 0, -1);
 			if (error != 0) {
 				FILEDESC_LOCK(fdp);
 				fdp->fd_ofiles[fd] = NULL;

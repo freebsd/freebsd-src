@@ -144,7 +144,7 @@ acct(td, uap)
 	if (uap->path != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
-		error = vn_open(&nd, &flags, 0);
+		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
 			goto done2;
 		NDFREE(&nd, NDF_ONLY_PNBUF);

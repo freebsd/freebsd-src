@@ -1392,7 +1392,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 		 */
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, td);
 		flags = FREAD;
-		error = vn_open(&nd, &flags, 0);
+		error = vn_open(&nd, &flags, 0, -1);
 		if (error == 0) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			type = nd.ni_vp->v_type;
@@ -1440,7 +1440,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, td);
 	flags = FREAD;
-	error = vn_open(&nd, &flags, 0);
+	error = vn_open(&nd, &flags, 0, -1);
 	if (error)
 		goto bad;
 	NDFREE(&nd, NDF_ONLY_PNBUF);

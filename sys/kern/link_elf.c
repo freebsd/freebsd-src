@@ -561,7 +561,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
     flags = FREAD;
-    error = vn_open(&nd, &flags, 0);
+    error = vn_open(&nd, &flags, 0, -1);
     if (error)
 	return error;
     NDFREE(&nd, NDF_ONLY_PNBUF);

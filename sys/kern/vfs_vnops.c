@@ -84,13 +84,13 @@ struct 	fileops vnops = {
 };
 
 int
-vn_open(ndp, flagp, cmode)
+vn_open(ndp, flagp, cmode, fdidx)
 	register struct nameidata *ndp;
-	int *flagp, cmode;
+	int *flagp, cmode, fdidx;
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
 
-	return (vn_open_cred(ndp, flagp, cmode, td->td_ucred));
+	return (vn_open_cred(ndp, flagp, cmode, td->td_ucred, fdidx));
 }
 
 /*
@@ -101,10 +101,11 @@ vn_open(ndp, flagp, cmode)
  * due to the NDINIT being done elsewhere.
  */
 int
-vn_open_cred(ndp, flagp, cmode, cred)
+vn_open_cred(ndp, flagp, cmode, cred, fdidx)
 	register struct nameidata *ndp;
 	int *flagp, cmode;
 	struct ucred *cred;
+	int fdidx;
 {
 	struct vnode *vp;
 	struct mount *mp;
