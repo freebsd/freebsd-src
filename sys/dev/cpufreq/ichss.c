@@ -211,12 +211,13 @@ ichss_pci_probe(device_t dev)
 static int
 ichss_probe(device_t dev)
 {
-	device_t perf_dev;
+	device_t est_dev, perf_dev;
 	int error, type;
 
 	/*
 	 * If the ACPI perf driver has attached and is not just offering
-	 * info, let it manage things.  
+	 * info, let it manage things.  Also, if Enhanced SpeedStep is
+	 * available, don't attach.
 	 */
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
 	if (perf_dev && device_is_attached(perf_dev)) {
@@ -224,6 +225,9 @@ ichss_probe(device_t dev)
 		if (error == 0 && (type & CPUFREQ_FLAG_INFO_ONLY) == 0)
 			return (ENXIO);
 	}
+	est_dev = device_find_child(device_get_parent(dev), "est", -1);
+	if (est_dev && device_is_attached(est_dev))
+		return (ENXIO);
 
 	device_set_desc(dev, "SpeedStep ICH");
 	return (-1000);
