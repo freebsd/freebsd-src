@@ -420,6 +420,9 @@ hw.pcic.irq="0"</programlisting>
     the binary.  In addition, &man.uustat.1; is now run via
     <filename>/etc/periodic/daily/410.status-uucp</filename> as
     <username>uucp</username>, not <username>root</username>.</para>
+
+    <para>A security hole in the form of a buffer overflow in the
+    &man.semop.2; system call has been closed.</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
