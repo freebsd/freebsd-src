@@ -86,6 +86,20 @@ mtree(8) now includes support for a file listing pathnames to be excluded
 when creating and verifying prototypes.  This makes it easier to use
 mtree as a part of an intrusion-detection system.  [MERGED]
 
+OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
+and enhancements.
+
+The OPIE one-time-password suite has been updated to 2.32.
+
+OpenSSH has been upgraded to 2.1.0, which provides support for the
+SSH2 protocol, including DSA keys.  Therefore, OpenSSH users in the US
+no longer need to rely on the restrictively-licensed RSAREF toolkit
+which is required to handle RSA keys.  OpenSSH 2.1 interoperates well
+with other SSH2 clients and servers, including the ssh2 port.  See
+http://www.openssh.com for more details.
+
+OpenSSH can now authenticate using OPIE passwords in SSH1 mode.
+Support is not yet available in SSH2 mode.
 
 2. Supported Configurations
 ---------------------------
