@@ -82,6 +82,8 @@ void getstr __P((char *, int, char *));
 /*VARARGS1*/
 void error __P(());
 
+int no_uid_0 = 1;
+
 /*
  * remote execute server:
  *	username\0
@@ -98,6 +100,9 @@ main(argc, argv)
 	struct sockaddr_in from;
 	int fromlen;
 	struct hostent *hp;
+
+	if (argc == 2 && !strcmp(argv[1], "-i"))
+		no_uid_0 = 0;
 
 	openlog(argv[0], LOG_PID, LOG_AUTH);
 	fromlen = sizeof (from);
@@ -191,7 +196,7 @@ doit(f, fromp)
 		}
 	}
 
-	if (pwd->pw_uid == 0 || *pwd->pw_passwd == '\0' ||
+	if ((pwd->pw_uid == 0 && no_uid_0) || *pwd->pw_passwd == '\0' ||
 	    (pwd->pw_expire && time(NULL) >= pwd->pw_expire)) {
 		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
 		error("Login incorrect.\n");
