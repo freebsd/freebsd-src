@@ -1042,10 +1042,10 @@ pmap_dispose_thread(td)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
-		vm_page_busy(m);
 		ptek[i] = 0;
 		pmap_invalidate_page(kernel_pmap, ks + i * PAGE_SIZE);
 		vm_page_lock_queues();
+		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 		vm_page_unlock_queues();
