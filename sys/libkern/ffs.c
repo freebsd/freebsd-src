@@ -37,17 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 /*
- * ffs -- vax ffs instruction
+ * Find First Set bit
  */
 int
-ffs(mask)
-	register int mask;
+ffs(int mask)
 {
-	register int bit;
+	int bit;
 
 	if (mask == 0)
-		return(0);
+		return (0);
 	for (bit = 1; !(mask & 1); bit++)
 		mask >>= 1;
-	return(bit);
+	return (bit);
 }
