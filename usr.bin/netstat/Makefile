@@ -7,7 +7,7 @@ CFLAGS+=-I/sys # -g
 .PATH:	${.CURDIR}/../../sys/netiso
 BINGRP=	kmem
 BINMODE=2555
-LDADD=	-lkvm
+LDADD=	-lkvm -lipx
 DPADD=	${LIBKVM}
 
 .include <bsd.prog.mk>

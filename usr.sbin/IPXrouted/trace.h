@@ -37,7 +37,7 @@
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: trace.h,v 1.4 1995/10/11 18:57:34 jhay Exp $
+ *	$Id: trace.h,v 1.1 1995/10/26 21:28:30 julian Exp $
  */
 
 /*
@@ -83,30 +83,38 @@ FILE	*ftrace;		/* output trace file */
 	  if (tracing) { \
 		ifp = if_iflookup(src); \
 		if (ifp) \
-			trace(&ifp->int_input, src, &packet[sizeof(struct ipxdp)], size, \
+			trace(&ifp->int_input, src, \
+				&packet[sizeof(struct ipx)], size, \
 				ntohl(ifp->int_metric)); \
 	  } \
 	  if (tracepackets && ftrace) \
-		dumppacket(ftrace, "from", src, &packet[sizeof(struct ipxdp)], size); \
+		dumppacket(ftrace, "from", src, \
+				&packet[sizeof(struct ipx)], size); \
 	}
 #define	TRACE_OUTPUT(ifp, dst, size) { \
 	  if (tracing) { \
 		ifp = if_iflookup(dst); \
 		if (ifp) \
-		    trace(&ifp->int_output, dst, &packet[sizeof(struct ipxdp)], size, ifp->int_metric); \
+		    trace(&ifp->int_output, dst, \
+				&packet[sizeof(struct ipx)], \
+				size, ifp->int_metric); \
 	  } \
 	  if (tracepackets && ftrace) \
-		dumppacket(ftrace, "to", dst, &packet[sizeof(struct ipxdp)], size); \
+		dumppacket(ftrace, "to", dst, \
+				&packet[sizeof(struct ipx)], size); \
 	}
 
 #define	TRACE_SAP_OUTPUT(ifp, dst, size) { \
 	  if (tracing) { \
 		ifp = if_iflookup(dst); \
 		if (ifp) \
-		    trace(&ifp->int_output, dst, &packet[sizeof(struct ipxdp)], size, ifp->int_metric); \
+		    trace(&ifp->int_output, dst, \
+				&packet[sizeof(struct ipx)], \
+				size, ifp->int_metric); \
 	  } \
 	  if (tracepackets && ftrace) \
-		dumpsappacket(ftrace, "to", dst, &packet[sizeof(struct ipxdp)], size); \
+		dumpsappacket(ftrace, "to", dst, \
+				&packet[sizeof(struct ipx)], size); \
 	}
 
 void traceinit(struct interface *);
