@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <langinfo.h>
 #include <nlist.h>
 #include <paths.h>
 #include <signal.h>
@@ -270,11 +271,15 @@ fetchkre()
 {
 	time_t now;
 	struct tm *tp;
+	static int d_first = -1;
+
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	time(&now);
 	tp = localtime(&now);
-	(void) strftime(buf, sizeof(buf), "%c", tp);
-	buf[16] = '\0';
+	(void) strftime(buf, sizeof(buf),
+			d_first ? "%e %b %R" : "%b %e %R", tp);
 	getinfo(&s, state);
 }
 
