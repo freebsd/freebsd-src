@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.48 1998/03/04 10:25:55 dufault Exp $
+ * $Id: kern_synch.c,v 1.49 1998/03/08 09:56:59 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -103,10 +103,13 @@ static void maybe_resched(struct proc *chk)
 {
 	struct proc *p = curproc; /* XXX */
 
+	/* If the current scheduler is the idle scheduler or
+	 * the priority of the new one is higher then reschedule.
+	 */
 	if (p == 0 ||
-	((chk->p_priority < curpriority) &&
-	((RTP_PRIO_BASE(chk->p_rtprio.type) ==
-	RTP_PRIO_BASE(p->p_rtprio.type)))))
+	RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_IDLE ||
+	(chk->p_priority < curpriority &&
+	RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_BASE(chk->p_rtprio.type)) )
 		need_resched();
 }
 
