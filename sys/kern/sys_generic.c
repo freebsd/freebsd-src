@@ -768,13 +768,29 @@ select(p, uap)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = selscan(p, ibits, obits, uap->nd);
+	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			/*
+			 * An event of our interest may occur during locking a process.
+			 * In order to avoid missing the event that occured during locking
+			 * the process, test P_SELECT and rescan file descriptors if
+			 * necessary.
+			 */
+			if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
+				ncoll = nselcoll;
+				p->p_flag |= P_SELECT;
+				PROC_UNLOCK(p);
+				error = selscan(p, ibits, obits, uap->nd);
+				PROC_LOCK(p);
+			}
 			goto done;
+		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
@@ -958,13 +974,29 @@ poll(p, uap)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = pollscan(p, (struct pollfd *)bits, nfds);
+	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			/*
+			 * An event of our interest may occur during locking a process.
+			 * In order to avoid missing the event that occured during locking
+			 * the process, test P_SELECT and rescan file descriptors if
+			 * necessary.
+			 */
+			if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
+				ncoll = nselcoll;
+				p->p_flag |= P_SELECT;
+				PROC_UNLOCK(p);
+				error = pollscan(p, (struct pollfd *)bits, nfds);
+				PROC_LOCK(p);
+			}
 			goto done;
+		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?

@@ -114,17 +114,31 @@ nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events, struct proc *p)
 	}
 	timo = 0;
 	PROC_LOCK(p);
-retry:
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = nb_poll(nbp, events, p);
+	PROC_LOCK(p);
 	if (error) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			/*
+			 * An event of our interest may occur during locking a process.
+			 * In order to avoid missing the event that occured during locking
+			 * the process, test P_SELECT and rescan file descriptors if
+			 * necessary.
+			 */
+			if ((p->p_flag & P_SELECT) == 0) {
+				p->p_flag |= P_SELECT;
+				PROC_UNLOCK(p);
+				error = nb_poll(nbp, events, p);
+				PROC_LOCK(p);
+			}
 			goto done;
+		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
