@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.8 1998/06/15 19:06:53 brian Exp $
+ *	$Id: mp.c,v 1.9 1998/06/16 19:40:40 brian Exp $
  */
 
 #include <sys/types.h>
@@ -294,8 +294,7 @@ mp_Down(struct mp *mp)
     mpserver_Close(&mp->server);
 
     /* CCP goes down with a bang */
-    fsm_Down(&mp->link.ccp.fsm);
-    fsm_Close(&mp->link.ccp.fsm);
+    fsm2initial(&mp->link.ccp.fsm);
 
     /* Received fragments go in the bit-bucket */
     while (mp->inbufs) {
