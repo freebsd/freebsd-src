@@ -53,7 +53,7 @@
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
