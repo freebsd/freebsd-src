@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.9 1996/03/24 00:08:02 wosch Exp $
+#	$Id: bsd.man.mk,v 1.10 1996/04/09 23:10:19 wosch Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -61,20 +61,18 @@ maninstall:: ${MAN${sect}}
 .endfor
 
 .if defined(MLINKS) && !empty(MLINKS)
-	@set ${MLINKS}; \
-	while test $$# -ge 2; do \
-		name=$$1; \
-		shift; \
-		sect=`expr $$name : '.*\.\([^.]*\)'`; \
-		dir=${DESTDIR}${MANDIR}$$sect; \
-		l=$${dir}${MANSUBDIR}/$$name; \
-		name=$$1; \
-		shift; \
-		sect=`expr $$name : '.*\.\([^.]*\)'`; \
-		dir=${DESTDIR}${MANDIR}$$sect; \
-		t=$${dir}${MANSUBDIR}/$$name; \
+	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
+	while : ; do \
+		case $$# in \
+			0) break;; \
+			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
+		esac; \
+		name=$$1; shift; sect=$$1; shift; \
+		l=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
+		name=$$1; shift; sect=$$1; shift; \
+		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
 		rm -f $${t} $${t}${ZEXTENSION}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
-	done; true
+	done
 .endif
