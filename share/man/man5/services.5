@@ -66,6 +66,14 @@ not interpreted by the routines which search the file.
 Service names may contain any printable
 character other than a field delimiter, newline,
 or comment character.
+.Sh NIS INTERACTION
+Access to the NIS
+.Pa services.byname
+map can be enabled by adding a single ``+'' on a line by itself
+in the
+.Pa /etc/services
+file. This causes the contenits of the NIS services map to be inserted
+at the location where the ``+'' appears.
 .Sh FILES
 .Bl -tag -width /etc/services -compact
 .It Pa /etc/services
