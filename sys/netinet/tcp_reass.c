@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.66 1997/11/20 20:04:49 wollman Exp $
+ *	$Id: tcp_input.c,v 1.67 1997/12/19 23:46:15 bde Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -315,19 +315,6 @@ tcp_input(m, iphlen)
 		goto drop;
 	}
 #endif /* TUBA_INCLUDE */
-
-	/*
-	 * Reject attempted self-connects.  XXX This actually masks
-	 * a bug elsewhere, since self-connect should work.
-	 * However, a urrently-active DoS attack in the Internet
-	 * sends a phony self-connect request which causes an infinite
-	 * loop.
-	 */
-	if (ti->ti_src.s_addr == ti->ti_dst.s_addr
-	    && ti->ti_sport == ti->ti_dport) {
-		tcpstat.tcps_badsyn++;
-		goto drop;
-	}
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -626,6 +613,7 @@ findpcb:
 	 * If the state is LISTEN then ignore segment if it contains an RST.
 	 * If the segment contains an ACK then it is bad and send a RST.
 	 * If it does not contain a SYN then it is not interesting; drop it.
+	 * If it is from this socket, drop it, it must be forged.
 	 * Don't bother responding if the destination was a broadcast.
 	 * Otherwise initialize tp->rcv_nxt, and tp->irs, select an initial
 	 * tp->iss, and send a segment:
@@ -643,6 +631,9 @@ findpcb:
 		if (tiflags & TH_ACK)
 			goto dropwithreset;
 		if ((tiflags & TH_SYN) == 0)
+			goto drop;
+		if ((ti->ti_dport == ti->ti_sport) &&
+		    (ti->ti_dst.s_addr == ti->ti_src.s_addr))
 			goto drop;
 		/*
 		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
@@ -760,6 +751,23 @@ findpcb:
 		tcpstat.tcps_accepts++;
 		goto trimthenstep6;
 		}
+
+	/*
+	 * If the state is SYN_RECEIVED:
+	 *	if seg contains SYN/ACK, send a RST.
+	 *	if seg contains an ACK, but not for our SYN/ACK, send a RST.
+	 */
+	case TCPS_SYN_RECEIVED:
+		if (tiflags & TH_ACK) {
+			if (tiflags & TH_SYN) {
+				tcpstat.tcps_badsyn++;
+				goto dropwithreset;
+			}
+			if (SEQ_LEQ(ti->ti_ack, tp->snd_una) ||
+			    SEQ_GT(ti->ti_ack, tp->snd_max))
+				goto dropwithreset;
+		}
+		break;
 
 	/*
 	 * If the state is SYN_SENT:
@@ -1176,14 +1184,11 @@ trimthenstep6:
 	switch (tp->t_state) {
 
 	/*
-	 * In SYN_RECEIVED state if the ack ACKs our SYN then enter
-	 * ESTABLISHED state and continue processing, otherwise
-	 * send an RST.
+	 * In SYN_RECEIVED state, the ack ACKs our SYN, so enter
+	 * ESTABLISHED state and continue processing.
+	 * The ACK was checked above.
 	 */
 	case TCPS_SYN_RECEIVED:
-		if (SEQ_GT(tp->snd_una, ti->ti_ack) ||
-		    SEQ_GT(ti->ti_ack, tp->snd_max))
-			goto dropwithreset;
 
 		tcpstat.tcps_connects++;
 		soisconnected(so);
