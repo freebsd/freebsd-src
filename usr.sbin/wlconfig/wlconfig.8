@@ -16,7 +16,8 @@ radio LAN card.  Various parameters stored in the nonvolatile Parameter
 Storage Area (PSA) on the card can be modified with this program, which
 obviates the need for the DOS-based
 .Nm instconf.exe
-program.
+program.  It can also be used to interrogate the optional signal
+strength cache which may have been compiled into the driver.
 .Pp
 The
 .Ar ifname
@@ -29,7 +30,7 @@ The
 .Ar param
 and 
 .Ar value
-arguments can be used to change the value of several of the parameters.
+arguments can be used to change the value of several parameters.
 Any number of 
 .Ar param value
 pairs may be supplied.
@@ -59,6 +60,25 @@ initialized.  This sets the default NWID loaded at startup.
 .It curnwid
 This sets the current operating NWID (but does not save it to the
 PSA).
+.It cache
+The driver may maintain a per interface fixed size cache of signal strength,
+silence, and quality levels, which are indexed by sender MAC addresses. 
+Input packets are stored in the cache, and when received, the values
+stored in the radio modem are interrogated and stored.
+There are also two sysctl values (iponly and multicast only) which
+can be used for filtering out some input packets.  By default, the
+cache mechanism stores only non-unicast IP packets, but this can
+be changed with sysctl(8).  Each non-filtered
+input packet causes a cache update, hence one can monitor 
+the antennae signal strength to a remote system.  
+There are three commands that can be given as values:
+.Sq raw ,
+which prints out the raw signal strength data as found in the radio
+modem hardware value,
+.Sq scale ,
+which scales the raw hardware values to 0..100%, and
+.Sq zero
+which clears out the cache in case you want to store new samples. 
 .El
 .Pp
 Note that if the IRQ on the Wavelan card is incorrect, the interface
@@ -96,8 +116,16 @@ Databus width         : 16 (variable)
 Configuration state   : unconfigured
 CRC-16                : 0x3c26
 CRC status            : OK
+.Pp
+Print a scaled version of the signal strength cache :
+.Bd -literal -offset
+# wlconfig wl0 cache scale
 .Ed
+.Sh SEE ALSO
+.Xr wl 4,
+.Xr sysctl 8 .
 .Sh HISTORY
 This implementation of the
 .Nm wlconfig
-command is completely new, written for Hilink Internet by Michael Smith.
+command is completely new, written for Hilink Internet by Michael Smith, 
+and updated by Jim Binkley &c.
