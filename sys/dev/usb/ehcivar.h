@@ -87,8 +87,11 @@ struct ehci_soft_islot {
 #define EHCI_HASH_SIZE 128
 #define EHCI_COMPANION_MAX 8
 
+#define EHCI_SCFLG_DONEINIT	0x0001	/* ehci_init() has been called. */
+
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
+	int sc_flags;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
@@ -161,10 +164,11 @@ typedef struct ehci_softc {
 
 usbd_status	ehci_init(ehci_softc_t *);
 int		ehci_intr(void *);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 int		ehci_detach(ehci_softc_t *, int);
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int		ehci_activate(device_ptr_t, enum devact);
 #endif
+void		ehci_power(int state, void *priv);
 void		ehci_shutdown(void *v);
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)

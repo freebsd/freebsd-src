@@ -124,12 +124,13 @@ USB_DECLARE_DRIVER_INIT(uhub,
 devclass_t uhubroot_devclass;
 
 Static device_method_t uhubroot_methods[] = {
+	DEVMETHOD(bus_child_detached, uhub_child_detached),
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 
-	/* detach is not allowed for a root hub */
+	DEVMETHOD(device_detach, uhub_detach),
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),

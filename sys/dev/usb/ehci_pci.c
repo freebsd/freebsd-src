@@ -102,8 +102,36 @@ static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 static int ehci_pci_attach(device_t self);
 static int ehci_pci_detach(device_t self);
 static int ehci_pci_shutdown(device_t self);
+static int ehci_pci_suspend(device_t self);
+static int ehci_pci_resume(device_t self);
 static void ehci_pci_givecontroller(device_t self);
 static void ehci_pci_takecontroller(device_t self);
+
+static int
+ehci_pci_suspend(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_suspend(self);
+	if (err)
+		return (err);
+	ehci_power(PWR_SUSPEND, sc);
+
+	return 0;
+}
+
+static int
+ehci_pci_resume(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+
+	ehci_pci_takecontroller(self);
+	ehci_power(PWR_RESUME, sc);
+	bus_generic_resume(self);
+
+	return 0;
+}
 
 static int
 ehci_pci_shutdown(device_t self)
@@ -296,14 +324,14 @@ ehci_pci_attach(device_t self)
 
 	ehci_pci_takecontroller(self);
 	err = ehci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= EHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed err=%d\n", err);
-#if 0 /* TODO */
 		ehci_pci_detach(self);
-#endif
 		return EIO;
 	}
 	return 0;
@@ -314,10 +342,10 @@ ehci_pci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX this code is not yet fit to be used as detach for the EHCI
-	 * controller
-	 */
+	if (sc->sc_flags & EHCI_SCFLG_DONEINIT) {
+		ehci_detach(sc, 0);
+		sc->sc_flags &= ~EHCI_SCFLG_DONEINIT;
+	}
 
 	/*
 	 * disable interrupts that might have been switched on in ehci_init
@@ -406,6 +434,9 @@ static device_method_t ehci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ehci_pci_probe),
 	DEVMETHOD(device_attach, ehci_pci_attach),
+	DEVMETHOD(device_detach, ehci_pci_detach),
+	DEVMETHOD(device_suspend, ehci_pci_suspend),
+	DEVMETHOD(device_resume, ehci_pci_resume),
 	DEVMETHOD(device_shutdown, ehci_pci_shutdown),
 
 	/* Bus interface */

@@ -168,10 +168,6 @@ struct ehci_pipe {
 	} u;
 };
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-Static void		ehci_power(int, void *);
-#endif
-
 Static usbd_status	ehci_open(usbd_pipe_handle);
 Static void		ehci_poll(struct usbd_bus *);
 Static void		ehci_softintr(void *);
@@ -929,32 +925,38 @@ ehci_poll(struct usbd_bus *bus)
 		ehci_intr1(sc);
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 int
 ehci_detach(struct ehci_softc *sc, int flags)
 {
 	int rv = 0;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_child != NULL)
 		rv = config_detach(sc->sc_child, flags);
 
 	if (rv != 0)
 		return (rv);
+#endif
 
+	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
+	EOWRITE4(sc, EHCI_USBCMD, 0);
+	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
 	usb_uncallout(sc->sc_tmo_pcd, ehci_pcd_enable, sc);
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_powerhook != NULL)
 		powerhook_disestablish(sc->sc_powerhook);
 	if (sc->sc_shutdownhook != NULL)
 		shutdownhook_disestablish(sc->sc_shutdownhook);
+#endif
 
 	usb_delay_ms(&sc->sc_bus, 300); /* XXX let stray task complete */
 
+	usb_freemem(&sc->sc_bus, &sc->sc_fldma);
 	/* XXX free other data structures XXX */
 
 	return (rv);
 }
-#endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
@@ -981,10 +983,9 @@ ehci_activate(device_ptr_t self, enum devact act)
  * Handle suspend/resume.
  *
  * We need to switch to polling mode here, because this routine is
- * called from an intterupt context.  This is all right since we
+ * called from an interrupt context.  This is all right since we
  * are almost suspended anyway.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 void
 ehci_power(int why, void *v)
 {
@@ -1000,7 +1001,9 @@ ehci_power(int why, void *v)
 	s = splhardusb();
 	switch (why) {
 	case PWR_SUSPEND:
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	case PWR_STANDBY:
+#endif
 		sc->sc_bus.use_polling++;
 #if 0
 OOO
@@ -1044,14 +1047,15 @@ OOO
 #endif
 		sc->sc_bus.use_polling--;
 		break;
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	case PWR_SOFTSUSPEND:
 	case PWR_SOFTSTANDBY:
 	case PWR_SOFTRESUME:
 		break;
+#endif
 	}
 	splx(s);
 }
-#endif
 
 /*
  * Shut down the controller when the system is going down.
