@@ -249,7 +249,8 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
-	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH);
+	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH) * 
+		sizeof(struct ich_desc);
 	ch->blkcnt = 2;
 	ch->blksz = sc->bufsz / ch->blkcnt;
 
@@ -442,7 +443,9 @@ ich_intr(void *p)
 }
 
 /* ------------------------------------------------------------------------- */
-/* Sysctl to control ac97 speed (some boards overclocked ac97). */
+/* Sysctl to control ac97 speed (some boards appear to end up using 
+ * XTAL_IN rather than BIT_CLK for link timing). 
+ */
 
 static int
 ich_initsys(struct sc_info* sc)
@@ -458,7 +461,9 @@ ich_initsys(struct sc_info* sc)
 }
 
 /* -------------------------------------------------------------------- */
-/* Calibrate card (some boards are overclocked and need scaling) */
+/* Calibrate card to determine the clock source.  The source maybe a 
+ * function of the ac97 codec initialization code (to be investigated).
+ */
 
 static
 void ich_calibrate(void *arg)
