@@ -339,9 +339,9 @@ pci_readcfg(pcicfgregs *probe)
 		if (devlist_entry == NULL)
 			return (NULL);
 
-		cfg = &devlist_entry->cfg;
+		bzero(devlist_entry, sizeof(*devlist_entry));
 
-		bzero(cfg, sizeof *cfg);
+		cfg = &devlist_entry->cfg;
 
 		cfg->bus		= probe->bus;
 		cfg->slot		= probe->slot;
