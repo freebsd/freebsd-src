@@ -276,11 +276,7 @@ int
 ncp_conn_cnt(void) {
 	int error, cnt = 0, len = sizeof(cnt);
 	
-#if __FreeBSD_version < 400001
-	error = sysctlbyname("net.ipx.ncp.conn_cnt", &cnt, &len, NULL, 0);
-#else
 	error = sysctlbyname("net.ncp.conn_cnt", &cnt, &len, NULL, 0);
-#endif
 	if (error) cnt = 0;
 	return cnt;
 }
@@ -394,11 +390,7 @@ ncp_conn_list(void) {
 	len = cnt*(sizeof(struct ncp_conn_stat))+sizeof(int);
 	p = malloc(len);
 	if (p == NULL) return NULL;
-#if __FreeBSD_version < 400001
-	error = sysctlbyname("net.ipx.ncp.conn_stat", p, &len, NULL, 0);
-#else
 	error = sysctlbyname("net.ncp.conn_stat", p, &len, NULL, 0);
-#endif
 	if (error) {
 		free(p);
 		p = NULL;
