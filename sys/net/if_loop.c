@@ -183,7 +183,7 @@ static moduledata_t loop_mod = {
 	0
 }; 
 
-DECLARE_MODULE(loop, loop_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(ifp, m, dst, rt)
