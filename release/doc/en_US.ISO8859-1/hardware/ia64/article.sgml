@@ -22,9 +22,10 @@
   &artheader;
 
   <abstract>
-    <para>This document is in a very preliminary state.  It is
-      incomplete, and is almost certainly not be an accurate
-      reflection of reality.</para>
+    <para>This is a preliminary document.  It is incomplete, and in
+      need of additional content.  Please send additional information
+      on &arch.print; processors, motherboards, and various devices
+      working on &os; to the &a.ia64;.</para>
   </abstract>
 
   &sect.intro;
