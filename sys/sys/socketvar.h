@@ -380,7 +380,7 @@ struct socket *
 	sonewconn3 __P((struct socket *head, int connstatus, struct proc *p));
 int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
 			 size_t minlen));
-int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
+int	sooptcopyout __P((struct sockopt *sopt, const void *buf, size_t len));
 
 /* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
 int	soopt_getm __P((struct sockopt *sopt, struct mbuf **mp));

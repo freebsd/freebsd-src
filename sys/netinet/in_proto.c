@@ -36,6 +36,7 @@
 
 #include "opt_ipdivert.h"
 #include "opt_ipx.h"
+#include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 
@@ -56,6 +57,9 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/igmp_var.h>
+#ifdef PIM
+#include <netinet/pim_var.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -230,6 +234,14 @@ struct ipprotosw inetsw[] = {
   &rip_usrreqs
 },
 #endif
+#ifdef PIM
+{ SOCK_RAW,	&inetdomain,	IPPROTO_PIM,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  pim_input,	0,		0,		rip_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
+},
+#endif
 	/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,
@@ -274,4 +286,6 @@ SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef IPDIVERT
 SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	divert,	CTLFLAG_RW, 0,	"DIVERT");
 #endif
-
+#ifdef PIM
+SYSCTL_NODE(_net_inet, IPPROTO_PIM,    pim,    CTLFLAG_RW, 0,  "PIM");
+#endif
