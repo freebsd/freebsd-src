@@ -265,8 +265,6 @@ struct _vinum_conf {
 #if VINUMDEBUG
     int lastrq;
     struct buf *lastbuf;
-    struct rqinfo **rqipp;
-    struct rqinfo *rqinfop;
 #endif
 };
 
@@ -573,7 +571,7 @@ enum debugflags {
     DEBUG_MEMFREE = 64,					    /* keep info about Frees */
     DEBUG_BIGDRIVE = 128,				    /* pretend our drives are 100 times the size */
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
-    DEBUG_EXITFREE = 512,				    /* log "freeing malloc" on exit  */
+    DEBUG_WARNINGS = 512,				    /* log various relatively harmless warnings  */
 };
 
 #ifdef KERNEL
