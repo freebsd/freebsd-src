@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.32 1997/02/22 16:10:32 peter Exp $
+ * $Id: main.c,v 1.33 1997/02/25 14:05:03 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -349,9 +349,9 @@ char **argv;
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
   pending_signal(SIGHUP, Hangup);
-  pending_signal(SIGTERM, CloseSession);
-  pending_signal(SIGINT, CloseSession);
-  pending_signal(SIGQUIT, CloseSession);
+  signal(SIGTERM, CloseSession);
+  signal(SIGINT, CloseSession);
+  signal(SIGQUIT, CloseSession);
 #ifdef SIGSEGV
   pending_signal(SIGSEGV, Hangup);
 #endif
@@ -359,7 +359,7 @@ char **argv;
   pending_signal(SIGPIPE, Hangup);
 #endif
 #ifdef SIGALRM
-  pending_signal(SIGALRM, SIG_IGN);
+  signal(SIGALRM, SIG_IGN);
 #endif
   if(mode & MODE_INTER)
     {
