@@ -48,8 +48,7 @@
 #endif
 
 /* Static ports to access PnP state machine */
-#if defined(PC98) && defined(_KERNEL)
-/* pnp.h is included from pnpinfo.c. */
+#ifdef PC98
 #define _PNP_ADDRESS		0x259
 #define _PNP_WRITE_DATA		0xa59
 #else
