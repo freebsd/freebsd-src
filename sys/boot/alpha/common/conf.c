@@ -59,6 +59,9 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_CDROM_SUPPORT
     &cd9660_fsops,
 #endif
+#ifdef LOADER_EXT2FS_SUPPORT
+    &ext2fs_fsops,
+#endif
 #ifdef LOADER_NET_SUPPORT
     &nfs_fsops,
 #endif
