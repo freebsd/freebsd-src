@@ -232,6 +232,32 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	}
 }
 
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0) {
+		td->td_md.md_saved_pil = rdpr(pil);
+		wrpr(pil, 0, 14);
+	}
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		wrpr(pil, td->td_md.md_saved_pil, 0);
+}
+
 unsigned
 tick_get_timecount(struct timecounter *tc)
 {

@@ -390,6 +390,30 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 }
 
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0)
+		td->td_md.md_saved_cspr = disable_interrupts(I32_bit | F32_bit);
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		restore_interrupts(td->td_md.md_saved_cspr);
+}
+
 /*
  * Clear registers on exec
  */

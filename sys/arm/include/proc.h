@@ -46,7 +46,8 @@ struct md_utrap {
 };
 
 struct mdthread {
-	register_t md_savecrit;
+	int	md_spinlock_count;	/* (k) */
+	register_t md_saved_cspr;	/* (k) */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
 	void *md_tp;

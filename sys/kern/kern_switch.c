@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 #include <sys/smp.h>
 #endif
-#include <machine/critical.h>
 #if defined(SMP) && defined(SCHED_4BSD)
 #include <sys/sysctl.h>
 #endif
@@ -581,8 +580,6 @@ critical_enter(void)
 	struct thread *td;
 
 	td = curthread;
-	if (td->td_critnest == 0)
-		cpu_critical_enter(td);
 	td->td_critnest++;
 	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
@@ -610,7 +607,6 @@ critical_exit(void)
 		}
 #endif
 		td->td_critnest = 0;
-		cpu_critical_exit(td);
 	} else {
 		td->td_critnest--;
 	}

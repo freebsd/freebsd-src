@@ -167,7 +167,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
 	struct thread *_tid = (tid);					\
 									\
-	critical_enter();						\
+	spinlock_enter();						\
 	if (!_obtain_lock((mp), _tid)) {				\
 		if ((mp)->mtx_lock == (uintptr_t)_tid)			\
 			(mp)->mtx_recurse++;				\
@@ -179,7 +179,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
 	struct thread *_tid = (tid);					\
 									\
-	critical_enter();						\
+	spinlock_enter();						\
 	if ((mp)->mtx_lock == (uintptr_t)_tid)				\
 		(mp)->mtx_recurse++;					\
 	else {								\
@@ -207,8 +207,8 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  * Since spin locks are not _too_ common, inlining this code is not too big 
  * a deal.
  *
- * Since we always perform a critical_enter() when attempting to acquire a
- * spin lock, we need to always perform a matching critical_exit() when
+ * Since we always perform a spinlock_enter() when attempting to acquire a
+ * spin lock, we need to always perform a matching spinlock_exit() when
  * releasing a spin lock.  This includes the recursion cases.
  */
 #ifndef _rel_spin_lock
@@ -218,7 +218,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		(mp)->mtx_recurse--;					\
 	else								\
 		_release_lock_quick((mp));				\
-	critical_exit();						\
+	spinlock_exit();						\
 } while (0)
 #else /* SMP */
 #define _rel_spin_lock(mp) do {						\
@@ -226,7 +226,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		(mp)->mtx_recurse--;					\
 	else								\
 		(mp)->mtx_lock = MTX_UNOWNED;				\
-	critical_exit();						\
+	spinlock_exit();						\
 } while (0)
 #endif /* SMP */
 #endif

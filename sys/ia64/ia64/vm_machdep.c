@@ -158,6 +158,10 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb->pcb_special.sp = (uintptr_t)tf - 16;
 	pcb->pcb_special.rp = FDESC_FUNC(fork_trampoline);
 	cpu_set_fork_handler(td, (void (*)(void*))fork_return, td);
+
+	/* Setup to release sched_lock in fork_exit(). */
+	td->td_md.md_spinlock_count = 1;
+	td->td_md.md_saved_intr = 1;
 }
 
 void
@@ -271,6 +275,10 @@ cpu_fork(struct thread *td1, struct proc *p2 __unused, struct thread *td2,
 	td2->td_pcb->pcb_special.sp = (uintptr_t)stackp - 16;
 	td2->td_pcb->pcb_special.rp = FDESC_FUNC(fork_trampoline);
 	cpu_set_fork_handler(td2, (void (*)(void*))fork_return, td2);
+
+	/* Setup to release sched_lock in fork_exit(). */
+	td2->td_md.md_spinlock_count = 1;
+	td2->td_md.md_saved_intr = 1;
 }
 
 /*

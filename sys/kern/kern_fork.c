@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <machine/critical.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -764,7 +763,6 @@ fork_exit(callout, arg, frame)
 
 	sched_lock.mtx_lock = (uintptr_t)td;
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	cpu_critical_fork_exit();
 	CTR4(KTR_PROC, "fork_exit: new thread %p (kse %p, pid %d, %s)",
 		td, td->td_sched, p->p_pid, p->p_comm);
 
