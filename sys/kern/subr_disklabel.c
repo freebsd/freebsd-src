@@ -216,3 +216,61 @@ done:
 	brelse(bp);
 	return (error);
 }
+
+/*
+ * Determine the size of the transfer, and make sure it is
+ * within the boundaries of the partition. Adjust transfer
+ * if needed, and signal errors or early completion.
+ */
+int
+bounds_check_with_label(struct bio *bp, struct disklabel *lp, int wlabel)
+{
+        struct partition *p = lp->d_partitions + dkpart(bp->bio_dev);
+        int labelsect = lp->d_partitions[0].p_offset;
+        int maxsz = p->p_size,
+                sz = (bp->bio_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
+
+        /* overwriting disk label ? */
+        /* XXX should also protect bootstrap in first 8K */
+        if (bp->bio_blkno + p->p_offset <= LABELSECTOR + labelsect &&
+#if LABELSECTOR != 0
+            bp->bio_blkno + p->p_offset + sz > LABELSECTOR + labelsect &&
+#endif
+            (bp->bio_cmd == BIO_WRITE) && wlabel == 0) {
+                bp->bio_error = EROFS;
+                goto bad;
+        }
+
+#if     defined(DOSBBSECTOR) && defined(notyet)
+        /* overwriting master boot record? */
+        if (bp->bio_blkno + p->p_offset <= DOSBBSECTOR &&
+            (bp->bio_cmd == BIO_WRITE) && wlabel == 0) {
+                bp->bio_error = EROFS;
+                goto bad;
+        }
+#endif
+
+        /* beyond partition? */
+        if (bp->bio_blkno < 0 || bp->bio_blkno + sz > maxsz) {
+                /* if exactly at end of disk, return an EOF */
+                if (bp->bio_blkno == maxsz) {
+                        bp->bio_resid = bp->bio_bcount;
+                        return(0);
+                }
+                /* or truncate if part of it fits */
+                sz = maxsz - bp->bio_blkno;
+                if (sz <= 0) {
+                        bp->bio_error = EINVAL;
+                        goto bad;
+                }
+                bp->bio_bcount = sz << DEV_BSHIFT;
+        }
+
+        bp->bio_pblkno = bp->bio_blkno + p->p_offset;
+        return(1);
+
+bad:
+        bp->bio_flags |= BIO_ERROR;
+        return(-1);
+}
+
