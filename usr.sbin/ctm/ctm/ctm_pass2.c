@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_pass2.c,v 1.4 1994/09/22 02:49:19 phk Exp $
  *
  */
 
@@ -14,7 +14,7 @@
 #define BADREAD 32
 
 /*---------------------------------------------------------------------------*/
-/* Pass2 -- Validate the incomming CTM-file.
+/* Pass2 -- Validate the incoming CTM-file.
  */
 
 int
