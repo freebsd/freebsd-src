@@ -196,6 +196,7 @@ userret(p, frame, oticks)
 			    (u_int)(p->p_sticks - oticks) * psratio);
 
 	curpriority = p->p_priority;
+	currtpriority = p->p_rtprio.prio;
 }
 
 /*
