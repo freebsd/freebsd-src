@@ -208,6 +208,7 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
+#define	B_00000100	0x00000100	/* Available flag. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_NOWDRAIN	0x00000800	/* Avoid wdrain deadlock */
@@ -218,12 +219,13 @@ struct buf {
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
-#define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
-#define	B_DIRTY		0x00200000	/* Needs writing later. */
+#define	B_00080000	0x00080000	/* Available flag. */
+#define	B_00100000	0x00100000	/* Available flag. */
+#define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
-#define	B_WANT		0x00800000	/* Used by vm_pager.c */
+#define	B_00800000	0x00800000	/* Available flag. */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
-#define	B_XXX		0x02000000	/* Debugging flag. */
+#define	B_02000000	0x02000000	/* Available flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define	B_08000000	0x08000000	/* Available flag. */
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
@@ -231,11 +233,11 @@ struct buf {
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_80000000	0x80000000	/* Available flag. */
 
-#define PRINT_BUF_FLAGS "\20\40autochain\37cluster\36vmio\35ram\34ordered" \
-	"\33paging\32xxx\31writeinprog\30want\27relbuf\26dirty" \
-	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
-	"\17locked\16inval\15scanned\14error\13eintr\12done\11freebuf" \
-	"\10delwri\7call\6cache\4direct\3async\2needcommit\1age"
+#define PRINT_BUF_FLAGS "\20\40b31\37cluster\36vmio\35ram\34b27" \
+	"\33paging\32b25\31writeinprog\30b23\27relbuf\26dirty\25b20" \
+	"\24b19\23phys\22clusterok\21malloc\20nocache\17locked\16inval" \
+	"\15scanned\14nowdrain\13eintr\12done\11b8\10delwri\7validsuspwrt" \
+	"\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.
