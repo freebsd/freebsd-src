@@ -48,6 +48,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
@@ -219,7 +220,7 @@ struct mutex_prof {
 #define MPROF_TOT 1
 #define MPROF_CNT 2
 #define MPROF_AVG 3
-	u_int64_t counter[4];
+	uintmax_t counter[4];
 	struct mutex_prof *next;
 };
 
@@ -284,7 +285,7 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	    "max", "total", "count", "average", "name");
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i)
-		sbuf_printf(sb, "%12llu %12llu %12llu %12llu %s:%d (%s)\n",
+		sbuf_printf(sb, "%12ju %12ju %12ju %12ju %s:%d (%s)\n",
 		    mprof_buf[i].counter[MPROF_MAX] / 1000,
 		    mprof_buf[i].counter[MPROF_TOT] / 1000,
 		    mprof_buf[i].counter[MPROF_CNT],
