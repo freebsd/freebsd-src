@@ -320,6 +320,7 @@ General protocol conventions:
 * Filenames::                       Conventions regarding filenames
 * File transmissions::              How file contents are transmitted
 * Strings::                         Strings in various requests and responses
+* Dates::                           Times and dates
 
 The protocol itself:
 
@@ -468,6 +469,32 @@ existing practice is probably to just transmit whatever the user
 specifies, and hope that everyone involved agrees which character set is
 in use, or sticks to a common subset.
 
+@node Dates
+@section Dates
+
+The protocol contains times and dates in various places.
+
+For the @samp{-D} option to the @code{annotate}, @code{co}, @code{diff},
+@code{export}, @code{history}, @code{rdiff}, @code{rtag}, @code{tag},
+and @code{update} requests, the server should support two formats:
+
+@example
+26 May 1997 13:01:40 GMT  ; @r{RFC 822 as modified by RFC 1123}
+5/26/1997 13:01:40 GMT    ; @r{traditional}
+@end example
+
+The former format is preferred; the latter however is sent by the CVS
+command line client (versions 1.5 through at least 1.9).
+
+For the @samp{-d} option to the @code{log} request, servers should at
+least support RFC 822/1123 format.  Clients are encouraged to use this
+format too (traditionally the command line CVS client has just passed
+along the date format specified by the user, however).
+
+For @code{Mod-time}, see the description of that response.
+
+For @code{Notify}, see the description of that request.
+
 @node Request intro
 @section Request intro
 
@@ -517,7 +544,7 @@ for the original directory, then the command.
 The @var{local-directory} is relative to
 the top level at which the command is occurring (i.e. the last
 @code{Directory} which is sent before the command);
-to indicate that top level, @samp{.} should be send for
+to indicate that top level, @samp{.} should be sent for
 @var{local-directory}.
 
 Here is an example of where a client gets @var{repository} and
@@ -892,7 +919,6 @@ directory.
 @itemx tag \n
 @itemx status \n
 @itemx log \n
-@itemx remove \n
 @itemx admin \n
 @itemx history \n
 @itemx watchers \n
@@ -1033,6 +1059,23 @@ directories, as described above), use @samp{.} for
 @var{local-directory}.  Specifying another string for
 @var{local-directory} may not get an error, but it will get you strange
 @code{Checked-in} responses from the buggy servers.
+
+@item remove \n
+Response expected: yes.  Remove a file.  This uses any
+previous @code{Argument}, @code{Directory}, @code{Entry}, or
+@code{Modified} requests, if they have been sent.  The
+last @code{Directory} sent specifies the working directory at the time
+of the operation.
+
+Note that this request does not actually do anything to the repository;
+the only effect of a successful @code{remove} request is to supply the
+client with a new entries line containing @samp{-} to indicate a removed
+file.  In fact, the client probably could perform this operation without
+contacting the server, although using @code{remove} may cause the server
+to perform a few more checks.
+
+The client sends a subsequent @code{ci} request to actually record the
+removal in the repository.
 
 @item watch-on \n
 @itemx watch-off \n

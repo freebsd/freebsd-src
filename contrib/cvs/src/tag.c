@@ -275,8 +275,17 @@ check_fileproc (callerdat, finfo)
 	    error (0, 0, "nothing known about %s", finfo->file);
 	return (1);
     }
-    p->data = RCS_getversion(vers->srcfile, numtag, date, force_tag_match,
-			     (int *) NULL);
+
+    /* Here we duplicate the calculation in tag_fileproc about which
+       version we are going to tag.  There probably are some subtle races
+       (e.g. numtag is "foo" which gets moved between here and
+       tag_fileproc).  */
+    if (numtag == NULL && date == NULL)
+	p->data = xstrdup (vers->vn_user);
+    else
+	p->data = RCS_getversion (vers->srcfile, numtag, date,
+				  force_tag_match, NULL);
+
     if (p->data != NULL)
     {
         int addit = 1;
@@ -377,7 +386,7 @@ pretag_proc(repository, filter)
     run_arg (delete_flag ? "del" : force_tag_move ? "mov" : "add");
     run_arg (repository);
     walklist(tlist, pretag_list_proc, NULL);
-    return (run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
+    return (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL));
 }
 
 static void

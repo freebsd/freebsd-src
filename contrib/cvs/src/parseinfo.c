@@ -346,6 +346,18 @@ warning: this CVS does not support PreservePermissions");
 		goto error_return;
 	    }
 	}
+	else if (strcmp (line, "TopLevelAdmin") == 0)
+	{
+	    if (strcmp (p, "no") == 0)
+		top_level_admin = 0;
+	    else if (strcmp (p, "yes") == 0)
+		top_level_admin = 1;
+	    else
+	    {
+		error (0, 0, "unrecognized value '%s' for TopLevelAdmin", p);
+		goto error_return;
+	    }
+	}
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a
