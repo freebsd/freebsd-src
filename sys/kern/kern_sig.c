@@ -172,19 +172,15 @@ int
 CURSIG(struct proc *p)
 {
 	sigset_t tmpset;
-	int r = 0;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (SIGISEMPTY(p->p_siglist))
-		goto out;
+		return (0);
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	if (SIGISEMPTY(tmpset) && (p->p_flag & P_TRACED) == 0)
-		goto out;
-	r = issignal(p);
-out:
-	PROC_UNLOCK(p);
-	return (r);
+		return (0);
+	return (issignal(p));
 }
 
 static __inline int
@@ -1386,6 +1382,7 @@ issignal(p)
 				stop(p);
 				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
+				p->p_stats->p_ru.ru_nivcsw++;
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
@@ -1464,6 +1461,7 @@ issignal(p)
 				stop(p);
 				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
+				p->p_stats->p_ru.ru_nivcsw++;
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
@@ -1536,10 +1534,12 @@ postsig(sig)
 
 	KASSERT(sig != 0, ("postsig"));
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 #ifdef KTRACE
+	PROC_UNLOCK(p);
 	mtx_lock(&Giant);
-#endif
 	PROC_LOCK(p);
+#endif
 	ps = p->p_sigacts;
 	SIGDELSET(p->p_siglist, sig);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
@@ -1603,6 +1603,7 @@ postsig(sig)
 		}
 		PROC_UNLOCK(p);
 		(*p->p_sysent->sv_sendsig)(action, sig, &returnmask, code);
+		PROC_LOCK(p);
 	}
 }
 
