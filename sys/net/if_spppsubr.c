@@ -6,7 +6,7 @@
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
  * Heavily revamped to conform to RFC 1661.
- * Copyright (C) 1997, Joerg Wunsch.
+ * Copyright (C) 1997, 2001 Joerg Wunsch.
  *
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -58,6 +58,10 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <net/slcompress.h>
 
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 #include <machine/cpu.h> /* XXX for softnet */
@@ -135,6 +139,8 @@
 #define PPP_ISO		0x0023		/* ISO OSI Protocol */
 #define PPP_XNS		0x0025		/* Xerox NS Protocol */
 #define PPP_IPX		0x002b		/* Novell IPX Protocol */
+#define PPP_VJ_COMP	0x002d		/* VJ compressed TCP/IP */
+#define PPP_VJ_UCOMP	0x002f		/* VJ uncompressed TCP/IP */
 #define PPP_IPV6	0x0057		/* Internet Protocol Version 6 */
 #define PPP_LCP		0xc021		/* Link Control Protocol */
 #define PPP_PAP		0xc023		/* Password Authentication Protocol */
@@ -169,6 +175,8 @@
 
 #define IPV6CP_OPT_IFID	1	/* interface identifier */
 #define IPV6CP_OPT_COMPRESSION	2	/* IPv6 compression protocol */
+
+#define IPCP_COMP_VJ		0x2d	/* Code for VJ compression */
 
 #define PAP_REQ			1	/* PAP name/password request */
 #define PAP_ACK			2	/* PAP acknowledge */
@@ -500,6 +508,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct ppp_header *h;
 	struct ifqueue *inq = 0;
 	struct sppp *sp = (struct sppp *)ifp;
+	int len;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	if (ifp->if_flags & IFF_UP)
@@ -588,6 +597,32 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			if (sp->state[IDX_IPV6CP] == STATE_OPENED) {
 				schednetisr (NETISR_IPV6);
 				inq = &ip6intrq;
+			}
+			break;
+		case PPP_VJ_COMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if ((len =
+				     sl_uncompress_tcp((u_char **)&m->m_data,
+						       m->m_len,
+						       TYPE_COMPRESSED_TCP,
+						       &sp->pp_comp)) <= 0)
+					goto drop;
+				m->m_len = m->m_pkthdr.len = len;
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
+			}
+			break;
+		case PPP_VJ_UCOMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if ((len =
+				     sl_uncompress_tcp((u_char **)&m->m_data,
+						       m->m_len,
+						       TYPE_UNCOMPRESSED_TCP,
+						       &sp->pp_comp)) <= 0)
+					goto drop;
+				m->m_len = m->m_pkthdr.len = len;
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
 			}
 			break;
 #endif
@@ -691,6 +726,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct ppp_header *h;
 	struct ifqueue *ifq = NULL;
 	int s, rv = 0;
+	int ipproto = PPP_IP;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
@@ -757,6 +793,28 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			ifq = &sp->pp_fastq;
 		else if (INTERACTIVE (ntohs (tcp->th_dport)))
 			ifq = &sp->pp_fastq;
+
+		/*
+		 * Do IP Header compression
+		 */
+		if (sp->pp_mode != IFF_CISCO && (sp->ipcp.flags & IPCP_VJ) &&
+		    ip->ip_p == IPPROTO_TCP)
+			switch (sl_compress_tcp(m, ip, &sp->pp_comp,
+						sp->ipcp.compress_cid)) {
+			case TYPE_COMPRESSED_TCP:
+				ipproto = PPP_VJ_COMP;
+				break;
+			case TYPE_UNCOMPRESSED_TCP:
+				ipproto = PPP_VJ_UCOMP;
+				break;
+			case TYPE_IP:
+				ipproto = PPP_IP;
+				break;
+			default:
+				m_freem(m);
+				splx(s);
+				return (EINVAL);
+			}
 	}
 #endif
 
@@ -806,7 +864,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			 * not ready to carry IP packets, and return
 			 * ENETDOWN, as opposed to ENOBUFS.
 			 */
-			h->protocol = htons(PPP_IP);
+			h->protocol = htons(ipproto);
 			if (sp->state[IDX_IPCP] != STATE_OPENED)
 				rv = ENETDOWN;
 		}
@@ -896,7 +954,8 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_down = lcp.Down;
 	mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
 	mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
-
+	sp->enable_vj = 1;
+	sl_compress_init(&sp->pp_comp, -1);
 	sppp_lcp_init(sp);
 	sppp_ipcp_init(sp);
 	sppp_ipv6cp_init(sp);
@@ -2689,7 +2748,8 @@ sppp_ipcp_open(struct sppp *sp)
 	STDDCL;
 	u_long myaddr, hisaddr;
 
-	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN|IPCP_MYADDR_SEEN|IPCP_MYADDR_DYN);
+	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN | IPCP_MYADDR_SEEN |
+			    IPCP_MYADDR_DYN | IPCP_VJ);
 
 	sppp_get_ip_addrs(sp, &myaddr, &hisaddr, 0);
 	/*
@@ -2705,7 +2765,6 @@ sppp_ipcp_open(struct sppp *sp)
 			    SPP_ARGS(ifp));
 		return;
 	}
-
 	if (myaddr == 0L) {
 		/*
 		 * I don't have an assigned address, so i need to
@@ -2715,6 +2774,11 @@ sppp_ipcp_open(struct sppp *sp)
 		sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
 	} else
 		sp->ipcp.flags |= IPCP_MYADDR_SEEN;
+	if (sp->enable_vj) {
+		sp->ipcp.opts |= (1 << IPCP_OPT_COMPRESSION);
+		sp->ipcp.max_state = MAX_STATES - 1;
+		sp->ipcp.compress_cid = 1;
+	}
 	sppp_open_event(&ipcp, sp);
 }
 
@@ -2749,6 +2813,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	u_long hisaddr, desiredaddr;
 	int gotmyaddr = 0;
+	int desiredcomp;
 
 	len -= 4;
 	origlen = len;
@@ -2769,6 +2834,37 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			if (!sp->enable_vj) {
+				/* VJ compression administratively disabled */
+				if (debug)
+					log(-1, "[locally disabled] ");
+				break;
+			}
+			/*
+			 * In theory, we should only conf-rej an
+			 * option that is shorter than RFC 1618
+			 * requires (i.e. < 4), and should conf-nak
+			 * anything else that is not VJ.  However,
+			 * since our algorithm always uses the
+			 * original option to NAK it with new values,
+			 * things would become more complicated.  In
+			 * pratice, the only commonly implemented IP
+			 * compression option is VJ anyway, so the
+			 * difference is negligible.
+			 */
+			if (len >= 6 && p[1] == 6) {
+				/*
+				 * correctly formed compression option
+				 * that could be VJ compression
+				 */
+				continue;
+			}
+			if (debug)
+				log(-1,
+				    "optlen %d [invalid/unsupported] ",
+				    p[1]);
+			break;
 		case IPCP_OPT_ADDRESS:
 			if (len >= 6 && p[1] == 6) {
 				/* correctly formed address option */
@@ -2807,6 +2903,27 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			desiredcomp = p[2] << 8 | p[3];
+			/* We only support VJ */
+			if (desiredcomp == IPCP_COMP_VJ) {
+				if (debug)
+					log(-1, "VJ [ack] ");
+				sp->ipcp.flags |= IPCP_VJ;
+				sl_compress_init(&sp->pp_comp, p[4]);
+				sp->ipcp.max_state = p[4];
+				sp->ipcp.compress_cid = p[5];
+				continue;
+			}
+			if (debug)
+				log(-1,
+				    "compproto %#04x [not supported] ",
+				    desiredcomp);
+			p[2] = IPCP_COMP_VJ >> 8;
+			p[3] = IPCP_COMP_VJ;
+			p[4] = sp->ipcp.max_state;
+			p[5] = sp->ipcp.compress_cid;
+			break;
 		case IPCP_OPT_ADDRESS:
 			/* This is the address he wants in his end */
 			desiredaddr = p[2] << 24 | p[3] << 16 |
@@ -2917,6 +3034,9 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			sp->ipcp.opts &= ~(1 << IPCP_OPT_COMPRESSION);
+			break;
 		case IPCP_OPT_ADDRESS:
 			/*
 			 * Peer doesn't grok address option.  This is
@@ -2943,6 +3063,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	u_char *buf, *p;
 	struct ifnet *ifp = &sp->pp_if;
 	int debug = ifp->if_flags & IFF_DEBUG;
+	int desiredcomp;
 	u_long wantaddr;
 
 	len -= 4;
@@ -2959,6 +3080,23 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			if (len >= 6 && p[1] == 6) {
+				desiredcomp = p[2] << 8 | p[3];
+				if (debug)
+					log(-1, "[wantcomp %#04x] ",
+						desiredcomp);
+				if (desiredcomp == IPCP_COMP_VJ) {
+					sl_compress_init(&sp->pp_comp, p[4]);
+					sp->ipcp.max_state = p[4];
+					sp->ipcp.compress_cid = p[5];
+					if (debug)
+						log(-1, "[agree] ");
+				} else
+					sp->ipcp.opts &=
+						~(1 << IPCP_OPT_COMPRESSION);
+			}
+			break;
 		case IPCP_OPT_ADDRESS:
 			/*
 			 * Peer doesn't like our local IP address.  See
@@ -3031,6 +3169,14 @@ sppp_ipcp_scr(struct sppp *sp)
 	u_long ouraddr;
 	int i = 0;
 
+	if (sp->ipcp.opts & (1 << IPCP_OPT_COMPRESSION)) {
+		opt[i++] = IPCP_OPT_COMPRESSION;
+		opt[i++] = 6;
+		opt[i++] = IPCP_COMP_VJ >> 8;
+		opt[i++] = IPCP_COMP_VJ;
+		opt[i++] = sp->ipcp.max_state;
+		opt[i++] = sp->ipcp.compress_cid;
+	}
 	if (sp->ipcp.opts & (1 << IPCP_OPT_ADDRESS)) {
 		sppp_get_ip_addrs(sp, &ouraddr, 0, 0);
 		opt[i++] = IPCP_OPT_ADDRESS;
@@ -4858,6 +5004,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 				bcopy(spr.defs.hisauth.secret, sp->hisauth.secret,
 				      AUTHKEYLEN);
 		}
+		/* set VJ enable flag */
+		sp->enable_vj = spr.defs.enable_vj;
 		break;
 
 	default:
