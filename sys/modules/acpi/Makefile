@@ -53,7 +53,7 @@ CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 
 # Debugging support
 .if ACPI_DEBUG
-CFLAGS+=-DACPI_DEBUG -DACPI_DISASSEMBLER
+CFLAGS+=-DACPI_DEBUG
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
 SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
