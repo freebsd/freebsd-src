@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.9 1997/06/09 03:27:37 brian Exp $
+ * $Id: slcompress.c,v 1.10 1997/08/25 00:29:28 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 #ifndef lint
-static char const rcsid[] = "$Id: slcompress.c,v 1.9 1997/06/09 03:27:37 brian Exp $";
+static char const rcsid[] = "$Id: slcompress.c,v 1.10 1997/08/25 00:29:28 brian Exp $";
 
 #endif
 
@@ -47,17 +47,17 @@ struct slstat slstat;
 #endif
 
 void
-sl_compress_init(struct slcompress * comp)
+sl_compress_init(struct slcompress * comp, int max_state)
 {
   register u_int i;
   register struct cstate *tstate = comp->tstate;
 
   bzero((char *) comp, sizeof(*comp));
-  for (i = MAX_STATES - 1; i > 0; --i) {
+  for (i = max_state; i > 0; --i) {
     tstate[i].cs_id = i;
     tstate[i].cs_next = &tstate[i - 1];
   }
-  tstate[0].cs_next = &tstate[MAX_STATES - 1];
+  tstate[0].cs_next = &tstate[max_state];
   tstate[0].cs_id = 0;
   comp->last_cs = &tstate[0];
   comp->last_recv = 255;
@@ -359,14 +359,11 @@ found:
    * know what order packets will go on the line.  In this case, we always
    * send a "new" connection id so the receiver state stays synchronized.
    */
-#ifdef SL_NOFASTQ
-  if (comp->last_xmit == cs->cs_id) {
+  if (comp->last_xmit == cs->cs_id && compress_cid) {
     hlen -= deltaS + 3;
     cp += hlen;
     *cp++ = changes;
-  } else
-#endif
-  {
+  } else {
     comp->last_xmit = cs->cs_id;
     hlen -= deltaS + 4;
     cp += hlen;
@@ -428,7 +425,7 @@ sl_uncompress_tcp(u_char ** bufp,
     if (hlen > MAX_HDR)
       goto bad;
     BCOPY(ip, &cs->cs_ip, hlen);
-    cs->cs_ip.ip_sum = 0;
+    /* cs->cs_ip.ip_sum = 0; */
     cs->cs_hlen = hlen;
     INCR(sls_uncompressedin)
       return (len);
@@ -552,6 +549,7 @@ sl_uncompress_tcp(u_char ** bufp,
   {
     register u_short *bp = (u_short *) cp;
 
+    cs->cs_ip.ip_sum = 0;
     for (changes = 0; hlen > 0; hlen -= 2)
       changes += *bp++;
     changes = (changes & 0xffff) + (changes >> 16);
