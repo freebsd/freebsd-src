@@ -699,7 +699,8 @@ void fillin_program_objs(prog_t *p, char *path)
 
 	fclose(f);
 
-	snprintf(line, MAXLINELEN, "make -f %s crunchgen_objs 2>&1", tempfname);
+	snprintf(line, MAXLINELEN, "cd %s && make -f %s crunchgen_objs 2>&1",
+	    p->srcdir, tempfname);
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");
 		goterror = 1;
