@@ -34,13 +34,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -86,7 +86,7 @@ struct ttytab {
 
 static long	currentout,			/* current logout value */
 		maxrec;				/* records to display */
-static char	*file = _PATH_WTMP;		/* wtmp file */
+static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int      d_first;
@@ -96,11 +96,12 @@ static time_t	snaptime;			/* if != 0, we will only
 						 */
 
 void	 addarg __P((int, char *));
+time_t	 dateconv __P((char *));
 void	 hostconv __P((char *));
 void	 onintr __P((int));
 char	*ttyconv __P((char *));
-time_t	 dateconv __P((char *));
 int	 want __P((struct utmp *));
+void	 usage __P((void));
 void	 wtmp __P((void));
 
 void
@@ -196,7 +197,7 @@ wtmp()
 	long	bl;
 	time_t	delta;				/* time difference */
 	int	bytes, wfd;
-	char    *crmsg;
+	const	char *crmsg;
 	char ct[80];
 	struct tm *tm;
 	int	 snapfound = 0;			/* found snapshot entry? */
@@ -338,8 +339,8 @@ wtmp()
 					}
 					delta = tt->logout - bp->ut_time;
 					if ( sflag ) {
-						printf("  (%8lu)\n", 
-						    delta);
+						printf("  (%8ld)\n", 
+						    (long)delta);
 					} else {
 						tm = gmtime(&delta);
 						(void) strftime(ct, sizeof(ct),
@@ -349,7 +350,8 @@ wtmp()
 							printf("  (%s)\n", ct);
 						else
 							printf(" (%ld+%s)\n",
-							    delta / 86400,  ct);
+							    (long)delta /
+							    86400, ct);
 					}
 				}
 				if (maxrec != -1 && !--maxrec)
@@ -359,7 +361,7 @@ wtmp()
 		}
 	}
 	tm = localtime(&buf[0].ut_time);
-	(void) strftime(ct, sizeof(ct), "\nwtmp begins %c\n", tm);
+	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
 	printf("%s", ct);
 }
 
