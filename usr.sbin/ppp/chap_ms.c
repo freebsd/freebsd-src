@@ -180,7 +180,7 @@ GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge,
 
 #ifndef __FreeBSD__
 #define LENGTH 20
-char *
+static char *
 SHA1_End(SHA_CTX *ctx, char *buf)
 {
     int i;
