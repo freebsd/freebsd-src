@@ -32,7 +32,7 @@
 .endif
 
 .if ${CC} != "cc"
-MKDEPCMD?=	CC=${CC} mkdep
+MKDEPCMD?=	CC='${CC}' mkdep
 .else
 MKDEPCMD?=	mkdep
 .endif
