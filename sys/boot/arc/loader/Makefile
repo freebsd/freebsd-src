@@ -42,9 +42,9 @@ vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 ${BASE}.exe: ${BASE}.sym ${BASE}.help
 	elf2exe ${BASE}.sym ${BASE}.exe
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o setdef0.o setdef1.o
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
 	${LD} -o ${BASE}.sym -M -N -Ttext ${LOAD_ADDRESS} \
-	${CRT} setdef0.o ${OBJS} setdef1.o vers.o -L${DESTDIR}${LIBDIR} \
+	${CRT} ${OBJS} vers.o -L${DESTDIR}${LIBDIR} \
 	${LIBSTAND} ${LIBARC} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
 
 ${BASE}.help: help.common help.alpha
@@ -63,18 +63,9 @@ beforeinstall:
 start.o:	${.CURDIR}/../lib/arch/${MACHINE_ARCH}/start.S
 	${CC} -c ${CFLAGS} $<
 
-setdef0.o: setdefs.h
-
-setdef1.o: setdefs.h
-
 machine:
 	ln -sf ${.CURDIR}/../../../alpha/include machine
 
 .include <bsd.prog.mk>
-
-.ORDER: setdefs.h setdef0.c setdef1.c
-setdefs.h setdef0.c setdef1.c: ${OBJS}
-	@echo Generating linker sets
-	@gensetdefs ${OBJS}
 
 beforedepend ${OBJS}: machine

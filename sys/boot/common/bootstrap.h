@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/linker_set.h>
 
 /*
  * Generic device specifier; architecture-dependant 
@@ -232,50 +233,6 @@ vm_offset_t	aout_findsym(char *name, struct preloaded_file *fp);
 
 int	elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
 
-#ifndef NEW_LINKER_SET
-#include <sys/linker_set.h>
-
-/* XXX just for conversion's sake, until we move to the new linker set code */
-
-#define SET_FOREACH(pvar, set)				\
-	    for ((char*) pvar = set.ls_items;			\
-		 (char*) pvar < (char*) &set.ls_items[set.ls_length];	\
-		 pvar++)
-
-#else /* NEW_LINKER_SET */
-
-/*
- * Private macros, not to be used outside this header file.
- */
-#define __MAKE_SET(set, sym)						\
-	static void *__CONCAT(__setentry,__LINE__)			\
-	__attribute__((__section__("set_" #set),__unused__)) = &sym
-#define __SET_BEGIN(set)						\
-	({ extern void *__CONCAT(__start_set_,set);			\
-	    &__CONCAT(__start_set_,set); })
-#define __SET_END(set)							\
-	({ extern void *__CONCAT(__stop_set_,set);			\
-	    &__CONCAT(__stop_set_,set); })
-
-/*
- * Public macros.
- */
-
-/* Add an entry to a set. */
-#define DATA_SET(set, sym) __MAKE_SET(set, sym)
-
-/*
- * Iterate over all the elements of a set.
- *
- * Sets always contain addresses of things, and "pvar" points to words
- * containing those addresses.  Thus is must be declared as "type **pvar",
- * and the address of each set item is obtained inside the loop by "*pvar".
- */
-#define SET_FOREACH(pvar, set)						\
-	for (pvar = (__typeof__(pvar))__SET_BEGIN(set);			\
-	    pvar < (__typeof__(pvar))__SET_END(set); pvar++)
-#endif
-
 /*
  * Support for commands 
  */
@@ -291,7 +248,7 @@ struct bootblk_command
     static struct bootblk_command _cmd_ ## tag = { key, desc, func };	\
     DATA_SET(Xcommand_set, _cmd_ ## tag)
 
-extern struct linker_set Xcommand_set;
+SET_DECLARE(Xcommand_set, struct bootblk_command);
 
 /* 
  * The intention of the architecture switch is to provide a convenient
