@@ -380,7 +380,7 @@ register int td;
 	}
 }
 
-char *dumpfmt = "`%s'\t`%s'\n";	       /* format string for dumpdef   */
+const char dumpfmt[] = "`%s'\t`%s'\n";	       /* format string for dumpdef   */
 
 /*
  * expand - user-defined macro expansion
