@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.120 1995/03/21 20:24:00 jkh Exp $
+#	$Id: Makefile,v 1.121 1995/03/22 20:37:53 phk Exp $
 #
 # How to roll a release:
 #
@@ -279,7 +279,7 @@ release.9:
 		if [ -d /usr/src/$$i ] ; then \
 			cd ${.CURDIR} ; \
 				$(MAKE) doTARBALL SD=/usr/src \
-					TD=src/$$i ARG="$$i" ; \
+					TD=src ARG="$$i" ; \
 		fi ; \
 	done
 	( cd ${RD}/dists/src; \
@@ -344,7 +344,7 @@ doTARBALL:
 	mkdir -p ${RD}/dists/${TD}
 	( cd ${SD} ; \
 		echo rolling ${TD} tarball ;\
-		tar --exclude CVS -cf - ${ARG} | \
+		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/`basename ${TD}`. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
