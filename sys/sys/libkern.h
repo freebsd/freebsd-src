@@ -86,6 +86,8 @@ void	 srandom(u_long);
 char	*strcat(char *, const char *);
 int	 strcmp(const char *, const char *);
 char	*strcpy(char *, const char *);
+size_t	 strlcat(char *, const char *, size_t);
+size_t	 strlcpy(char *, const char *, size_t);
 size_t	 strlen(const char *);
 int	 strncmp(const char *, const char *, size_t);
 char	*strncpy(char *, const char *, size_t);
