@@ -56,7 +56,6 @@ static const char rcsid[] =
 #include <vm/pmap.h>
 
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <nlist.h>
 #include <paths.h>
@@ -107,26 +106,26 @@ off_t	dumplo;				/* where dump starts on dumpdev */
 int	dumpmag;			/* magic number in dump */
 int	dumpsize;			/* amount of memory dumped */
 
-char	*kernel;
+char	*kernel;			/* user-specified kernel */
 char	*savedir;			/* directory to save dumps in */
-char	*ddname;			/* name of dump device */
+char	ddname[MAXPATHLEN];		/* name of dump device */
 dev_t	dumpdev;			/* dump device */
 int	dumpfd;				/* read/write descriptor on char dev */
 time_t	now;				/* current date */
-char	panic_mesg[1024];
-int	panicstr;
-char	vers[1024];
+char	panic_mesg[1024];		/* panic message */
+int	panicstr;		        /* flag: dump was caused by panic */
+char	vers[1024];			/* version of kernel that crashed */
 
 int	clear, compress, force, verbose;	/* flags */
+int	keep;			/* keep dump on device */
 
 void	 check_kmem __P((void));
 int	 check_space __P((void));
 void	 clear_dump __P((void));
-int	 Create __P((char *, int));
 void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
 void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
 int	 dump_exists __P((void));
-char    *find_dev __P((dev_t));
+void     find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
@@ -147,7 +146,7 @@ main(argc, argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "cdfN:vz")) != -1)
+	while ((ch = getopt(argc, argv, "dfkN:vz")) != -1)
 		switch(ch) {
 		case 'c':
 			clear = 1;
@@ -158,6 +157,9 @@ main(argc, argv)
 			break;
 		case 'f':
 			force = 1;
+			break;
+		case 'k':
+			keep = 1;
 			break;
 		case 'N':
 			kernel = optarg;
@@ -205,19 +207,20 @@ main(argc, argv)
 
 	save_core();
 
-	clear_dump();
+	if (!keep)
+		clear_dump();
+	
 	exit(0);
 }
 
 void
 kmem_setup()
 {
-	FILE *fp;
 	int kmem, i;
 	const char *dump_sys;
-	int mib[2];
 	size_t len;
 	long kdumplo;		/* block number where dump starts on dumpdev */
+	char *p;
 
 	/*
 	 * Some names we need for the currently running system, others for
@@ -228,8 +231,7 @@ kmem_setup()
 	 * the same!)
 	 */
 	if ((nlist(getbootfile(), current_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", getbootfile(),
-		       strerror(errno));
+		syslog(LOG_ERR, "%s: nlist: %m", getbootfile());
 	for (i = 0; cursyms[i] != -1; i++)
 		if (current_nl[cursyms[i]].n_value == 0) {
 			syslog(LOG_ERR, "%s: %s not in namelist",
@@ -239,7 +241,7 @@ kmem_setup()
 
 	dump_sys = kernel ? kernel : getbootfile();
 	if ((nlist(dump_sys, dump_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", dump_sys, strerror(errno));
+		syslog(LOG_ERR, "%s: nlist: %m", dump_sys);
 	for (i = 0; dumpsyms[i] != -1; i++)
 		if (dump_nl[dumpsyms[i]].n_value == 0) {
 			syslog(LOG_ERR, "%s: %s not in namelist",
@@ -247,10 +249,8 @@ kmem_setup()
 			exit(1);
 		}
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_DUMPDEV;
 	len = sizeof dumpdev;
-	if (sysctl(mib, 2, &dumpdev, &len, NULL, 0) == -1) {
+	if (sysctlbyname("kern.dumpdev", &dumpdev, &len, NULL, 0) == -1) {
 		syslog(LOG_ERR, "sysctl: kern.dumpdev: %m");
 		exit(1);
 	}
@@ -268,19 +268,19 @@ kmem_setup()
 		    (long long)dumplo, kdumplo, DEV_BSIZE);
 	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
-	ddname = find_dev(dumpdev);
+	find_dev(dumpdev);
 	dumpfd = Open(ddname, O_RDWR);
-	fp = fdopen(kmem, "r");
-	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: fdopen: %m", _PATH_KMEM);
-		exit(1);
-	}
 	if (kernel)
 		return;
-	(void)fseek(fp, (off_t)current_nl[X_VERSION].n_value, L_SET);
-	(void)fgets(vers, sizeof(vers), fp);
 
-	/* Don't fclose(fp), we use dumpfd later. */
+	lseek(kmem, (off_t)current_nl[X_VERSION].n_value, SEEK_SET);
+	Read(kmem, vers, sizeof(vers));
+	vers[sizeof(vers) - 1] = '\0';
+	p = strchr(vers, '\n');
+	if (p)
+		p[1] = '\0';
+
+	/* Don't fclose(fp), we use kmem later. */
 }
 
 void
@@ -306,17 +306,24 @@ check_kmem()
 	}
 }
 
+/*
+ * Clear the magic number in the dump header.
+ */
 void
 clear_dump()
 {
-	long newdumplo;
+	int newdumpmag;
 
-	newdumplo = 0;
-	DumpWrite(dumpfd, &newdumplo, sizeof(newdumplo),
+	newdumpmag = 0;
+	DumpWrite(dumpfd, &newdumpmag, sizeof(newdumpmag),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
 	close(dumpfd);
 }
 
+/*
+ * Check if a dump exists by looking for a magic number in the dump
+ * header.
+ */
 int
 dump_exists()
 {
@@ -335,12 +342,18 @@ dump_exists()
 }
 
 char buf[1024 * 1024];
+#define BLOCKSIZE (1<<12)
+#define BLOCKMASK (~(BLOCKSIZE-1))
 
+/*
+ * Save the core dump.
+ */
 void
 save_core()
 {
 	register FILE *fp;
-	register int bounds, ifd, nr, nw, ofd;
+	register int bounds, ifd, nr, nw;
+	int hs, he;		/* start and end of hole */
 	char path[MAXPATHLEN];
 	mode_t oumask;
 
@@ -353,7 +366,7 @@ save_core()
 		goto err1;
 	if (fgets(buf, sizeof(buf), fp) == NULL) {
 		if (ferror(fp))
-err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
+err1:			syslog(LOG_WARNING, "%s: %m", path);
 		bounds = 0;
 	} else
 		bounds = atoi(buf);
@@ -370,14 +383,14 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
 	    savedir, bounds, compress ? ".Z" : "");
-	if (compress) {
-		if ((fp = zopen(path, "w", 0)) == NULL) {
-			syslog(LOG_ERR, "%s: %s", path, strerror(errno));
-			exit(1);
-		}
-		ofd = -1;	/* Not actually used. */
-	} else
-		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (compress)
+		fp = zopen(path, "w", 0);
+	else
+		fp = fopen(path, "w");
+	if (fp == NULL) {
+		syslog(LOG_ERR, "%s: %m", path);
+		exit(1);
+	}
 	(void)umask(oumask);
 
 	/* Seek to the start of the core. */
@@ -398,13 +411,44 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
-		if (compress)
-			nw = fwrite(buf, 1, nr, fp);
-		else
-			nw = write(ofd, buf, nr);
+		for (nw = 0; nw < nr; nw = he) {
+			/* find a contiguous block of zeroes */
+			for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+				for (he = hs; he < nr && buf[he] == 0; ++he)
+					/* nothing */ ;
+
+				/* is the hole long enough to matter? */
+				if (he >= hs + BLOCKSIZE)
+					break;
+			}
+			
+			/* back down to a block boundary */
+			he &= BLOCKMASK;
+
+			/*
+			 * 1) Don't go beyond the end of the buffer.
+			 * 2) If the end of the buffer is less than
+			 *    BLOCKSIZE bytes away, we're at the end
+			 *    of the file, so just grab what's left.
+			 */
+			if (hs + BLOCKSIZE > nr)
+				hs = he = nr;
+			
+			/*
+			 * At this point, we have a partial ordering:
+			 *     nw <= hs <= he <= nr
+			 * If hs > nw, buf[nw..hs] contains non-zero data.
+			 * If he > hs, buf[hs..he] is all zeroes.
+			 */
+			if (hs > nw)
+				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
+					break;
+			if (he > hs)
+				if (fseek(fp, he - hs, SEEK_CUR) == -1)
+					break;
+		}
 		if (nw != nr) {
-			syslog(LOG_ERR, "%s: %s",
-			    path, strerror(nw == 0 ? EIO : errno));
+			syslog(LOG_ERR, "%s: %m", path);
 err2:			syslog(LOG_WARNING,
 			    "WARNING: vmcore may be incomplete");
 			(void)printf("\n");
@@ -412,88 +456,102 @@ err2:			syslog(LOG_WARNING,
 		}
 	}
 
-	if (compress)
-		(void)fclose(fp);
-	else
-		(void)close(ofd);
+	(void)fclose(fp);
 
 	/* Copy the kernel. */
 	ifd = Open(kernel ? kernel : getbootfile(), O_RDONLY);
 	(void)snprintf(path, sizeof(path), "%s/kernel.%d%s",
 	    savedir, bounds, compress ? ".Z" : "");
-	if (compress) {
-		if ((fp = zopen(path, "w", 0)) == NULL) {
-			syslog(LOG_ERR, "%s: %s", path, strerror(errno));
-			exit(1);
-		}
-	} else
-		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (compress)
+		fp = zopen(path, "w", 0);
+	else
+		fp = fopen(path, "w");
+	if (fp == NULL) {
+		syslog(LOG_ERR, "%s: %m", path);
+		exit(1);
+	}
 	syslog(LOG_NOTICE, "writing %skernel to %s",
 	    compress ? "compressed " : "", path);
 	while ((nr = read(ifd, buf, sizeof(buf))) > 0) {
-		if (compress)
-			nw = fwrite(buf, 1, nr, fp);
-		else
-			nw = write(ofd, buf, nr);
+		nw = fwrite(buf, 1, nr, fp);
 		if (nw != nr) {
-			syslog(LOG_ERR, "%s: %s",
-			    path, strerror(nw == 0 ? EIO : errno));
+			syslog(LOG_ERR, "%s: %m", path);
 			syslog(LOG_WARNING,
 			    "WARNING: kernel may be incomplete");
 			exit(1);
 		}
 	}
 	if (nr < 0) {
-		syslog(LOG_ERR, "%s: %s",
-		    kernel ? kernel : getbootfile(), strerror(errno));
+		syslog(LOG_ERR, "%s: %m", kernel ? kernel : getbootfile());
 		syslog(LOG_WARNING,
 		    "WARNING: kernel may be incomplete");
 		exit(1);
 	}
-	if (compress)
-		(void)fclose(fp);
-	else
-		(void)close(ofd);
+	(void)fclose(fp);
 	close(ifd);
 }
 
-char *
+/*
+ * Verify that the specified device node exists and matches the
+ * specified device.
+ */
+int
+verify_dev(name, dev)
+	char *name;
+	register dev_t dev;
+{
+	struct stat sb;
+
+	if (lstat(name, &sb) == -1)
+		return (-1);
+	if (!S_ISCHR(sb.st_mode) || sb.st_rdev != dev)
+		return (-1);
+	return (0);
+}
+
+/*
+ * Find the dump device.
+ *
+ *  1) try devname(3); see if it returns something sensible
+ *  2) scan /dev for the desired node
+ *  3) as a last resort, try to create the node we need
+ */
+void
 find_dev(dev)
 	register dev_t dev;
 {
-	register DIR *dfd;
-	struct dirent *dir;
-	struct stat sb;
-	char *dp, devname[MAXPATHLEN + 1];
+	struct dirent *ent;
+	char *dn, *dnp;
+	DIR *d;
 
-	if ((dfd = opendir(_PATH_DEV)) == NULL) {
-		syslog(LOG_ERR, "%s: %s", _PATH_DEV, strerror(errno));
-		exit(1);
+	strcpy(ddname, _PATH_DEV);
+	dnp = ddname + sizeof _PATH_DEV - 1;
+	if ((dn = devname(dev, S_IFCHR)) != NULL) {
+		strcpy(dnp, dn);
+		if (verify_dev(ddname, dev) == 0)
+			return;
 	}
-	(void)strcpy(devname, _PATH_DEV);
-	while ((dir = readdir(dfd))) {
-		(void)strcpy(devname + sizeof(_PATH_DEV) - 1, dir->d_name);
-		if (lstat(devname, &sb)) {
-			syslog(LOG_ERR, "%s: %s", devname, strerror(errno));
-			continue;
-		}
-		if ((sb.st_mode & S_IFMT) != S_IFCHR &&
-		    (sb.st_mode & S_IFMT) != S_IFBLK)
-			continue;
-		if (dev == sb.st_rdev) {
-			closedir(dfd);
-			if ((dp = strdup(devname)) == NULL) {
-				syslog(LOG_ERR, "%s", strerror(errno));
-				exit(1);
+	if ((d = opendir(_PATH_DEV)) != NULL) {
+		while ((ent = readdir(d))) {
+			strcpy(dnp, ent->d_name);
+			if (verify_dev(ddname, dev) == 0) {
+				closedir(d);
+				return;
 			}
-			return (dp);
 		}
+		closedir(d);
 	}
-	closedir(dfd);
-	syslog(LOG_ERR, "can't find device %d/%d", major(dev), minor(dev));
+	strcpy(dnp, "dump");
+	if (mknod(ddname, S_IFCHR|S_IRUSR|S_IWUSR, dev) == 0)
+		return;
+	syslog(LOG_ERR, "can't find device %d/%#x", major(dev), minor(dev));
 	exit(1);
 }
 
+/*
+ * Extract the date and time of the crash from the dump header, and
+ * make sure it looks sane (within one week of current date and time).
+ */
 int
 get_crashtime()
 {
@@ -515,6 +573,9 @@ get_crashtime()
 	return (1);
 }
 
+/*
+ * Extract the size of the dump from the dump header.
+ */
 void
 get_dumpsize()
 {
@@ -524,6 +585,10 @@ get_dumpsize()
 	dumpsize *= getpagesize();
 }
 
+/*
+ * Check that sufficient space is available on the disk that holds the
+ * save directory.
+ */
 int
 check_space()
 {
@@ -684,21 +749,6 @@ DumpRead(fd, bp, size, off, flag)
 	}
 }
 
-int
-Create(file, mode)
-	char *file;
-	int mode;
-{
-	register int fd;
-
-	fd = creat(file, mode);
-	if (fd < 0) {
-		syslog(LOG_ERR, "%s: %m", file);
-		exit(1);
-	}
-	return (fd);
-}
-
 void
 Write(fd, bp, size)
 	int fd, size;
@@ -707,7 +757,7 @@ Write(fd, bp, size)
 	int n;
 
 	if ((n = write(fd, bp, size)) < size) {
-		syslog(LOG_ERR, "write: %s", strerror(n == -1 ? errno : EIO));
+		syslog(LOG_ERR, "write: %m");
 		exit(1);
 	}
 }
@@ -715,6 +765,6 @@ Write(fd, bp, size)
 void
 usage()
 {
-	(void)syslog(LOG_ERR, "usage: savecore [-cfvz] [-N system] directory");
+	(void)syslog(LOG_ERR, "usage: savecore [-cfkvz] [-N system] directory");
 	exit(1);
 }
