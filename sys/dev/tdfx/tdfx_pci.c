@@ -269,7 +269,7 @@ tdfx_attach(device_t dev) {
 	 * Why would we want that many voodoo cards anyhow? 
 	 */
 	tdfx_info->devt = make_dev(&tdfx_cdev, device_get_unit(dev),
-		0, 0, 02660, "3dfx%x", device_get_unit(dev));
+		UID_ROOT, GID_WHEEL, 0600, "3dfx%x", device_get_unit(dev));
 	
 	return 0;
 }
