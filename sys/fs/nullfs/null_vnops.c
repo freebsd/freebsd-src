@@ -296,7 +296,7 @@ null_bypass(ap)
 	 * with the modified argument structure.
 	 */
 	if (vps_p[0] && *vps_p[0])
-		error = VCALL(*(vps_p[0]), descp->vdesc_offset, ap);
+		error = VCALL(ap);
 	else {
 		printf("null_bypass: no map for %s\n", descp->vdesc_name);
 		error = EINVAL;
