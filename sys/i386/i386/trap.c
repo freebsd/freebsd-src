@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.128 1998/08/23 10:16:26 bde Exp $
+ *	$Id: trap.c,v 1.129 1998/12/02 08:15:16 kato Exp $
  */
 
 /*
@@ -593,7 +593,7 @@ kernel_trap:
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", eva);
+			uprintf(", fault VA = 0x%lx", (u_long)eva);
 		uprintf("\n");
 	}
 #endif
