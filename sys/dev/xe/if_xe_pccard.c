@@ -315,8 +315,6 @@ static const struct pccard_product xe_pccard_products[] = {
 	PCMCIA_CARD(XIRCOM, CEM33, 0),
 	PCMCIA_CARD(XIRCOM, CEM56, 0),
 	PCMCIA_CARD(XIRCOM, REM56, 0),
-	PCMCIA_CARD(XIRCOM, CNW_801, 0),
-	PCMCIA_CARD(XIRCOM, CNW_802, 0),
         { NULL }
 };
 
