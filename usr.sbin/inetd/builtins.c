@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.11 1999/07/24 17:06:05 green Exp $
+ * $Id: builtins.c,v 1.12 1999/07/25 23:15:03 green Exp $
  *
  */
 
@@ -307,15 +307,9 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
  * support.
  */
 
-/*
- * NOTE: If any of the asprintf()s here fail, rest assured that faulting
- * in the buffers for using snprintf() would have also failed.
- * Asprintf() is the proper way to do what we do.
- */
-
 /* ARGSUSED */
 void
-iderror(lport, fport, s, er)
+iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
 	int lport, fport, s, er;
 {
 	char *p;
@@ -334,7 +328,7 @@ iderror(lport, fport, s, er)
 
 /* ARGSUSED */
 void
-ident_stream(s, sep)		/* Ident service */
+ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	int s;
 	struct servtab *sep;
 {
@@ -353,8 +347,17 @@ ident_stream(s, sep)		/* Ident service */
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
+	/*
+	 * Reset getopt() since we are a fork() but not an exec() from
+	 * a parent which used getopt() already.
+	 */
 	optind = 1;
 	optreset = 1;
+	/*
+	 * Take the internal argument vector and count it out to make an
+	 * argument count for getopt. This can be used for any internal
+	 * service to read arguments and use getopt() easily.
+	 */
 	for (av = sep->se_argv; *av; av++)
 		argc++;
 	if (argc) {
@@ -402,6 +405,12 @@ ident_stream(s, sep)		/* Ident service */
 	len = sizeof(sin[1]);
 	if (getpeername(s, (struct sockaddr *)&sin[1], &len) == -1)
 		iderror(0, 0, s, errno);
+	/*
+	 * We're going to prepare for and execute reception of a
+	 * packet of data from the user. The data is in the format
+	 * "local_port , foreign_port\r\n" (with local being the
+	 * server's port and foreign being the client's.)
+	 */
 	FD_ZERO(&fdset);
 	FD_SET(s, &fdset);
 	if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
@@ -416,17 +425,30 @@ ident_stream(s, sep)		/* Ident service */
 	buf[len] = '\0';
 	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
 		iderror(0, 0, s, 0);
-	if (!rflag)
+	if (!rflag) /* Send HIDDEN-USER immediately if not "real" */
 		iderror(lport, fport, s, -1);
+	/*
+	 * We take the input and construct an array of two sockaddr_ins
+	 * which contain the local address information and foreign
+	 * address information, respectively, used to look up the
+	 * credentials for the socket (which are returned by the
+	 * sysctl "net.inet.tcp.getcred" when we call it.) The
+	 * arrays have been filled in above via get{peer,sock}name(),
+	 * so right here we are only setting the ports.
+	 */
 	sin[0].sin_port = htons(lport);
 	sin[1].sin_port = htons(fport);
 	len = sizeof(uc);
 	if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
 	    sizeof(sin)) == -1)
 		iderror(lport, fport, s, errno);
-	pw = getpwuid(uc.cr_uid);
+	pw = getpwuid(uc.cr_uid);	/* Look up the pw to get the username */
 	if (pw == NULL)
 		iderror(lport, fport, s, errno);
+	/*
+	 * If enabled, we check for a file named ".noident" in the user's
+	 * home directory. If found, we return HIDDEN-USER.
+	 */
 	if (nflag) {
 		if (asprintf(&p, "%s/.noident", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
@@ -436,13 +458,30 @@ ident_stream(s, sep)		/* Ident service */
 		}
 		free(p);
 	}
+	/*
+	 * Here, if enabled, we read a user's ".fakeid" file in their
+	 * home directory. It consists of a line containing the name
+	 * they want.
+	 */
 	if (fflag) {
 		FILE *fakeid = NULL;
 
 		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
+		/*
+		 * Here we set ourself to effectively be the user, so we don't
+		 * open any files we have no permission to open, especially
+		 * symbolic links to sensitive root-owned files or devices.
+		 */
 		seteuid(pw->pw_uid);
 		setegid(pw->pw_gid);
+		/*
+		 * If we were to lstat() here, it would do no good, since it
+		 * would introduce a race condition and could be defeated.
+		 * Therefore, we open the file we have permissions to open
+		 * and if it's not a regular file, we close it and end up
+		 * returning the user's real username.
+		 */
 		fakeid = fopen(p, "r");
 		free(p);
 		if (fakeid != NULL &&
@@ -454,13 +493,27 @@ ident_stream(s, sep)		/* Ident service */
 				goto printit;
 			}
 			fclose(fakeid);
+			/*
+			 * Usually, the file will have the desired identity
+			 * in the form "identity\n", so we use strtok() to
+			 * end the string (which fgets() doesn't do.)
+			 */
 			strtok(buf, "\r\n");
+			/* User names of >16 characters are invalid */
 			if (strlen(buf) > 16)
 				buf[16] = '\0';
 			cp = buf;
+			/* Allow for beginning white space... */
 			while (isspace(*cp))
 				cp++;
+			/* ...and ending white space. */
 			strtok(cp, " \t");
+			/*
+			 * If the name is a zero-length string or matches
+			 * the name of another user, it's invalid, so
+			 * we will return their real identity instead.
+			 */
+			
 			if (!*cp || getpwnam(cp))
 				cp = getpwuid(uc.cr_uid)->pw_name;
 		} else
@@ -468,6 +521,7 @@ ident_stream(s, sep)		/* Ident service */
 	} else
 		cp = pw->pw_name;
 printit:
+	/* Finally, we make and send the reply. */
 	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
 	    cp) == -1) {
 		syslog(LOG_ERR, "asprintf: %m");
