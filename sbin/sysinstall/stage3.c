@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.2 1994/10/20 04:59:58 phk Exp $
+ * $Id: stage3.c,v 1.3 1994/10/20 19:30:53 ache Exp $
  *
  */
 
@@ -37,10 +37,9 @@
 void
 stage3()
 {
-	char *diskname;
-	struct ufs_args ufsargs;
-	char           *s;
-	int             i;
+	char		pbuf[90];
+	char		dbuf[90];
+	FILE		*f;
 
 	/*
 	 * Extract the disk-name from /etc/fstab, we wrote it ourselves,
@@ -48,76 +47,38 @@ stage3()
 	 * XXX: Multidisk installs.  We need to mount all partitions.
 	 */
 
-	i = open("/etc/fstab", O_RDONLY);
-	if (i < 0) {
-		Fatal("Couldn't open /etc/fstab");
+	f = fopen("/this_is_hd","r");
+	if (!f) {
+		Fatal("Couldn't open /this_is_hd");
 	}
-	read(i, scratch, 100);
-	for (s = scratch; *s != ' ' && *s != '\t'; s++);
-	s--;
-	*s = '\0';
-	s = scratch + 5;
-	diskname = malloc(strlen(s) + 1);
-	if (!diskname) {
-		Fatal("malloc failed");
+	while(fgets(dbuf,sizeof pbuf, f)) {
+		dbuf[strlen(dbuf)-1] = 0;
+		fgets(pbuf,sizeof pbuf, f);
+		pbuf[strlen(pbuf)-1] = 0;
+		MountUfs(dbuf,0,pbuf,0);
 	}
-	strcpy(diskname, s);
-	close(i);
+	fclose(f);
 
-	sprintf(scratch, "mount -u /dev/%sa /", diskname);
-	TellEm(scratch);
-	sprintf(scratch, "/dev/%sa", diskname);
-	ufsargs.fspec = scratch;
-	if (mount(MOUNT_UFS, "/", MNT_UPDATE, (caddr_t) & ufsargs) == -1) {
-		sprintf(errmsg, "Failed to mount root read/write: %s\n%s", strerror(errno), ufsargs.fspec);
-		Fatal(errmsg);
-	}
-	sprintf(scratch, "mount /dev/%se /usr", diskname);
-	TellEm(scratch);
-	sprintf(scratch, "/dev/%se", diskname);
-	ufsargs.fspec = scratch;
-	if (mount(MOUNT_UFS, "/usr", 0, (caddr_t) & ufsargs) == -1) {
-		sprintf(errmsg, "Failed to mount /usr: %s\n%s", strerror(errno), ufsargs.fspec);
-		Fatal(errmsg);
-	}
-	TellEm("mkdir /proc");
-	if (mkdir("/proc", S_IRWXU) == -1) {
-		sprintf(errmsg, "Couldn't create directory /proc: %s\n",
-			strerror(errno));
-		Fatal(errmsg);
-	}
-	TellEm("mkdir /root");
-	if (mkdir("/root", S_IRWXU) == -1) {
-		sprintf(errmsg, "Couldn't create directory /root: %s\n",
-			strerror(errno));
-		Fatal(errmsg);
-	}
-	TellEm("mkdir /var");
-	if (mkdir("/var", S_IRWXU) == -1) {
-		sprintf(errmsg, "Couldn't create directory /var: %s\n",
-			strerror(errno));
-		Fatal(errmsg);
-	}
-	TellEm("mkdir /var/run");
-	if (mkdir("/var/run", S_IRWXU) == -1) {
-		sprintf(errmsg, "Couldn't create directory /var/run: %s\n",
-			strerror(errno));
-		Fatal(errmsg);
-	}
+	Mkdir("/proc");
+	Mkdir("/root");
+	Mkdir("/var");
+	Mkdir("/var/run");
+
 	sprintf(scratch, "Insert CPIO floppy in floppy drive 0\n");
 	dialog_msgbox("Stage 2 installation", scratch, 6, 75, 1);
-	ufsargs.fspec = "/dev/fd0a";
-	if (mount(MOUNT_UFS, "/mnt", MNT_RDONLY, (caddr_t) & ufsargs) == -1) {
-		sprintf(errmsg, "Failed to mount /mnt: %s\n%s", strerror(errno), ufsargs.fspec);
-		Fatal(errmsg);
-	}
+
+	MountUfs("/dev/fd0a",0,"/mnt",0);
 	TellEm("sh -c 'cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum'");
-	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
+
+	if (exec(0, "/bin/sh",
+		"/bin/sh", "-e", "-c",
 		 "cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum", 0) == -1)
 		Fatal(errmsg);
 
 	TellEm("sh -c 'cd /mnt ; ls install magic | cpio -dump /'");
-	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
+
+	if (exec(0, "/bin/sh",
+		"/bin/sh", "-e", "-c",
 		 "cd /mnt ; ls magic | cpio -dump /", 0) == -1)
 		Fatal(errmsg);
 
@@ -127,7 +88,8 @@ stage3()
 		Fatal(errmsg);
 	}
 	TellEm("sh -c 'cd /dev ; sh MAKEDEV all'");
-	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
+	if (exec(0, "/bin/sh",
+		"/bin/sh", "-e", "-c",
 		 "PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH ; cd /dev ; sh MAKEDEV all", 0) == -1)
 		Fatal(errmsg);
 
@@ -141,5 +103,5 @@ stage3()
 	close(0);
 	close(1);
 	close(2);
-	execl("/sbin/init", "init", 0);
+	execl(0,"/sbin/init", "init", 0);
 }

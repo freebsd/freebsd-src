@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.3 1994/10/20 06:48:40 phk Exp $
+ * $Id: utils.c,v 1.4 1994/10/20 19:30:56 ache Exp $
  *
  */
 
@@ -43,11 +43,13 @@ void
 Fatal(char *fmt, ...)
 {
 	char *p;
+	int i = errno;
 	va_list ap;
 	p = Malloc(2048);
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
+	sprintf(p+strlen(p),"\nErrno= %d, %s.",i,strerror(i));
 	dialog_msgbox("Fatal", p, 12, 75, 1);
 	free(p);
 	end_dialog();
@@ -90,52 +92,6 @@ StrAlloc(char *str)
 	return p;
 }
 
-int
-exec(char *cmd, char *args, ...)
-{
-	int pid, w, status;
-	char **argv = NULL;
-	int arg = 0;
-	int no_args = 0;
-	va_list ap;
-	struct stat dummy;
-
-	if (stat(cmd, &dummy) == -1) {
-		sprintf(errmsg, "Executable %s does not exist\n", cmd);
-		return(-1);
-	}
-
-	va_start(ap, args);
-	do {
-		if (arg == no_args) {
-			no_args += 10;
-			if (!(argv = realloc(argv, no_args * sizeof(char *)))) {
-				sprintf(errmsg, "Failed to allocate memory during exec of %s\n", cmd);
-				return(-1);
-			}
-			if (arg == 0)
-				argv[arg++] = (char *)args;
-		}
-	} while ((argv[arg++] = va_arg(ap, char *)));
-	va_end(ap);
-
-	if ((pid = fork()) == 0) {
-		execv(cmd, argv);
-		exit(1);
-	}
-	
-	while ((w = wait(&status)) != pid && w != -1)
-		;
-
-	free(argv);
-	if (w == -1) {
-		sprintf(errmsg, "Child process %s terminated abnormally\n", cmd);
-		return(-1);
-	}
-
-	return(0);
-}
-
 void
 MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
 {
@@ -153,11 +109,7 @@ MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
 	strcat(pbuf,mountpoint);
 
 	if(do_mkdir && access(pbuf,R_OK)) {
-		TellEm("mkdir %s",pbuf); 
-		if (mkdir(pbuf,S_IRWXU) == -1) {
-			Fatal("Couldn't create directory %s: %s\n",
-				pbuf,strerror(errno));
-		}
+		Mkdir(pbuf);
 	}
 
 	strcpy(dbuf,"/dev/");
@@ -168,5 +120,15 @@ MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
 	if (mount(MOUNT_UFS,pbuf, 0, (caddr_t) &ufsargs) == -1) {
 		Fatal("Error mounting %s on : %s\n",
 			dbuf, pbuf, strerror(errno));
+	}
+}
+
+void
+Mkdir(char *path)
+{
+	TellEm("mkdir %s",path);
+	if (mkdir(path, S_IRWXU) == -1) {
+		Fatal("Couldn't create directory %s: %s\n",
+			path,strerror(errno));
 	}
 }
