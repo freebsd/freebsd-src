@@ -1,2 +1,0 @@
-BEGIN { while( getline > 0) { print } }
-BEGIN { while( getline > 0) { print } }

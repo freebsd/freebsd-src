@@ -1,1 +1,0 @@
-gawk: fnarray.awk:5: fatal: attempt to use function `foo' as array
