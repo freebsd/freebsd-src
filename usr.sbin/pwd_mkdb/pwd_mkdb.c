@@ -151,7 +151,7 @@ main(argc, argv)
 	/* Open the temporary insecure password database. */
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
 	(void)snprintf(sbuf, sizeof(sbuf), "%s/%s.tmp", prefix, _SMP_DB);
-	if(username) {
+	if (username) {
 		(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _MP_DB);
 		(void)snprintf(sbuf2, sizeof(sbuf2), "%s/%s", prefix, _SMP_DB);
 
@@ -188,8 +188,10 @@ main(argc, argv)
 			p = (char *)data.data;
 
 			/* jump over pw_name and pw_passwd, to get to pw_uid */
-			while(*p++);
-			while(*p++);
+			while (*p++)
+				;
+			while (*p++)
+				;
 
 			buf[0] = _PW_KEYBYUID;
 			memmove(buf + 1, p, sizeof(int));
@@ -198,7 +200,7 @@ main(argc, argv)
 
 			if ((pw_db->get)(pw_db, &key, &data, 0) == 0) {
 				/* First field of data.data holds pw_pwname */
-				if(!strcmp(data.data, username))
+				if (!strcmp(data.data, username))
 					methoduid = 0;
 				else
 					methoduid = R_NOOVERWRITE;
@@ -260,10 +262,10 @@ main(argc, argv)
 	sdata.data = (u_char *)sbuf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if(pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
+		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
-		if (!username  || (strcmp(username, pwd.pw_name) == 0)) {
+		if (!username || (strcmp(username, pwd.pw_name) == 0)) {
 			/* Create insecure data. */
 			p = buf;
 			COMPACT(pwd.pw_name);
@@ -367,7 +369,7 @@ main(argc, argv)
 			    pwd.pw_dir, pwd.pw_shell);
 	}
 	/* If YP enabled, set flag. */
-	if(yp_enabled) {
+	if (yp_enabled) {
 		buf[0] = yp_enabled + 2;
 		data.size = 1;
 		tbuf[0] = _PW_KEYYPENABLED;
@@ -524,6 +526,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] [-u <local username> file\n");
+	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] [-u <local username>] file\n");
 	exit(1);
 }
