@@ -478,15 +478,12 @@ Disk_Names()
     struct diskslices ds;
     int fd;
     static char **disks;
-#ifndef PC98
     int error;
     size_t listsize;
     char *disklist, **dp;
-#endif
 
     disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
-#ifndef PC98
     error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
     if (!error) {
 	    disklist = (char *)malloc(listsize);
@@ -498,7 +495,6 @@ Disk_Names()
 	    return disks;
     }
     warn("kern.disks sysctl not available");
-#endif
     k = 0;
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < MAX_NO_DISKS; i++) {
