@@ -1448,9 +1448,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/4,
 					/* cbfcnp */ cddone,
-					(bp->bio_flags & BIO_ORDERED) != 0 ?
-					    MSG_ORDERED_Q_TAG : 
-					    MSG_SIMPLE_Q_TAG,
+					MSG_SIMPLE_Q_TAG,
 					/* read */bp->bio_cmd == BIO_READ,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,

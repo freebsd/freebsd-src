@@ -102,9 +102,6 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RD, &ata_wc, 0,
 SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 	   "ATA disk tagged queuing support");
 
-/* experimental cache flush on BIO_ORDERED */
-#undef ATA_FLUSHCACHE_ON 
-
 void
 ad_attach(struct ata_device *atadev)
 {
@@ -367,16 +364,6 @@ ad_start(struct ata_device *atadev)
 
     if (!bp)
 	return;
-
-#ifdef ATA_FLUSHCACHE_ON 
-    /*
-     * if BIO_ORDERED is set cache should be flushed, if there are
-     * any outstanding requests, hold off and wait for them to finish
-     */
-    if (adp->flags & AD_F_TAG_ENABLED &&
-	bp->bio_flags & BIO_ORDERED && adp->outstanding > 0)
-	return;
-#endif
 
     /* if tagged queueing enabled get next free tag */
     if (adp->flags & AD_F_TAG_ENABLED) {
@@ -690,16 +677,6 @@ ad_interrupt(struct ad_request *request)
 
     request->bp->bio_resid = request->bytecount;
 
-#ifdef ATA_FLUSHCACHE_ON 
-    if (request->bp->bio_flags & BIO_ORDERED) {
-	request->flags |= ADR_F_FLUSHCACHE;
-	if (ata_command(adp->device, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_IMMEDIATE))
-	    ata_prtdev(adp->device, "flushing cache failed\n");
-	else
-	    return ATA_OP_CONTINUES;
-    }
-finish:
-#endif
     biofinish(request->bp, &adp->stats, 0);
     ad_free(request);
     adp->outstanding--;

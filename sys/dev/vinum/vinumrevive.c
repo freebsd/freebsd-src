@@ -175,7 +175,7 @@ revive_block(int sdno)
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	bp->b_flags &= ~B_DONE;				    /* no longer done */
-	bp->b_ioflags = BIO_ORDERED;			    /* and make this an ordered write */
+	bp->b_ioflags = 0;
 	bp->b_iocmd = BIO_WRITE;
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->revived;			    /* write it to here */
