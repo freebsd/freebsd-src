@@ -20,7 +20,7 @@ SUBDIR+=libc libcompat libcom_err libcurses libdisk libedit \
 SUBDIR+= libc_r
 .endif
 
-.if !exists(../secure) || defined(NOSECURE) || defined(NOCRYPT)
+.if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
 SUBDIR+= libcrypt
 .else
 SUBDIR+= ../secure/lib/libcrypt
@@ -30,7 +30,7 @@ SUBDIR+= libcrypt
 .endif
 .endif
 
-.if !exists(../eBones) || defined(NOSECURE)
+.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE)
 SUBDIR+= libtelnet
 .else
 .if defined(RELEASEDIR)
