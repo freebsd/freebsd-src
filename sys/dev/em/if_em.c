@@ -1855,9 +1855,11 @@ em_setup_interface(device_t dev, struct adapter * adapter)
         ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
 #endif
 
+	ifp->if_capabilities = ifp->if_capenable = 0;
+
 	if (adapter->hw.mac_type >= em_82543) {
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_capenable = ifp->if_capabilities;
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+		ifp->if_capenable |= IFCAP_HWCSUM;
 	}
 
 	/*
@@ -1865,7 +1867,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if __FreeBSD_version >= 500000
-        ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
 
