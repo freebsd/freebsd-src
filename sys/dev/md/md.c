@@ -1095,7 +1095,7 @@ md_drvinit(void *unused)
 		c = preload_search_info(mod, MODINFO_ADDR);
 		ptr = *(u_char **)c;
 		c = preload_search_info(mod, MODINFO_SIZE);
-		len = *(unsigned *)c;
+		len = *(size_t *)c;
 		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
 		    MD_NAME, mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
