@@ -83,13 +83,13 @@
 # order, but that's not important.
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
-	cleandepend cleandir depend distribute distribworld everything \
+	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy includes install installcheck installkernel \
 	reinstallkernel installmost installworld libraries lint \
 	mk most obj objlink regress rerelease tags update
 
 .ORDER: buildworld installworld
-.ORDER: buildworld distribworld
+.ORDER: buildworld distributeworld
 .ORDER: buildkernel installkernel
 .ORDER: buildkernel reinstallkernel
 
