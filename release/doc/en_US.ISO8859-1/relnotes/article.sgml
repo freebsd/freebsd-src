@@ -177,7 +177,7 @@
       devices.</para>
 
     <para arch="i386,pc98,powerpc">Initial support has been added for
-      Firewire devices (see &man.firewire.4;). &merged;</para>
+      FireWire devices (see &man.firewire.4;). &merged;</para>
 
     <para arch="i386" role="historic">The &man.ichsmb.4; driver for the Intel 82801AA
       (ICH) SMBus controller and compatibles has been
@@ -1327,7 +1327,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
 	emulates a direct access device.</para>
 
-      <para arch="i386" role="historic">The ciss driver, for devices utilizing the
+      <para arch="i386" role="historic">The &man.ciss.4; driver, for devices utilizing the
 	Common Interface for SCSI-3 Support, has been added.  This
 	driver supports the Compaq SmartRAID 5* family of RAID
 	controllers (5300, 532, 5i). &merged;</para>
@@ -1373,10 +1373,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 	</para>
 
-      <para role="historic">The ida disk driver now has crashdump
+      <para role="historic">The &man.ida.4; disk driver now has crashdump
 	support. &merged;</para>
 
-      <para arch="i386" role="historic">The iir driver has been added to support the
+      <para arch="i386" role="historic">The &man.iir.4; driver has been added to support the
 	Intel Integrated RAID controllers, as well as prior ICP Vortex
 	controllers.</para>
 
@@ -1447,7 +1447,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	can now be set at boot time and runtime via the
 	<varname>kern.cam.scsi_delay</varname> tunable/sysctl.</para>
 
-      <para>The trm driver has been added to support SCSI adapters
+      <para>The &man.trm.4; driver has been added to support SCSI adapters
         using the Tekram TRM-S1040 SCSI chipset. &merged;</para>
 
       <para arch="i386" role="historic">The &man.twe.4; 3ware ATA RAID driver has
@@ -2420,7 +2420,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       3.5.1-RELEASE. &merged;</para>
 
     <para>A <filename>compat4x</filename> distribution has been added
-      for compatibility with &os; 4-STABLE.</para>
+      for compatibility with &os; 4-STABLE.  It includes a subset of
+      the libraries distributed with &os; 4.7-RELEASE.</para>
 
     <para role="historic">&man.config.8; is now better about converting various
       warnings that should have been errors into actual fatal errors
@@ -2665,6 +2666,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.ftpd.8; now supports the <option>-W</option> option
       to disable logging FTP sessions to &man.wtmp.5;. &merged;</para>
+
+    <para>The &man.fwcontrol.8; utility has been added to help users
+      access and control the FireWire subsystem. &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.gdb.1; now supports hardware
       watchpoints (using the kernel's debug register + support that
@@ -3497,6 +3501,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.su.1; now uses <application>PAM</application> for
       authentication.</para>
 
+    <para>The &man.swapoff.8; command has been added to disable paging
+      and swapping on a device.  A related &man.swapctl.8; command has
+      been added to provide an interface to &man.swapon.8; and
+      &man.swapoff.8; similar to other BSDs.
+
+      <note>
+        <para>The &man.swapoff.8; feature should be considered
+	  experimental.</para>
+      </note>
+    </para>
+
     <para role="historic">Boot-time &man.syscons.4; configuration was moved to a
       machine-independent
       <filename>/etc/rc.syscons</filename>. &merged;</para>
@@ -3775,6 +3790,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       force its utility argument to be called after some number of
       lines. &merged;</para>
 
+    <para>&man.xargs.1; now supports a <option>-P</option> option to
+      execute multiple copies of the same utility in parallel.</para>
+
     <para role="historic">The compiler chain now uses the FSF-supplied C/C++ runtime
       initialization code.  This change brings about better
       compatibility with code generated from the various egcs and gcc
@@ -3841,7 +3859,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>am-utils</application> has been updated to
 	6.0.7.</para>
 
-      <para>A 10 February 2002 snapshot of <application>awk</application> from Bell Labs (variously
+      <para>A 13 December 2002 snapshot of <application>awk</application> from Bell Labs (variously
 	known as <quote>BWK awk</quote> or <quote>The One True
 	AWK</quote>) has been imported.  It is available as
 	<command>awk</command> or
@@ -3869,6 +3887,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	this brings the &man.bzip2.1; program and the
 	<filename>libbz2</filename> library to the base
 	system. &merged;</para>
+
+      <para>All of the <application>bzip2</application> suite of
+        applications is now installed in the base system (in
+        particular, <command>bzip2recover</command> is now built and
+        installed. &merged;</para>
 
       <para role="historic">The &man.ee.1; <application>Easy Editor</application> has
 	been updated to 1.4.2. &merged;</para>
@@ -3965,7 +3988,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 4.1.1b.</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Citronella</quote> release) has been imported,
+        (<quote>Daffodil</quote> release) has been imported,
         replacing
         <application>Linux-PAM</application>.</para>
 
@@ -4066,7 +4089,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>CVS</title>
 
 	<para><application>cvs</application> has been updated to
-	  a snapshot of 1.11.2.1, as of 1 December 2002.</para>
+	  a snapshot of 1.11.2.1, as of 1 December 2002. &merged;</para>
 
 	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
