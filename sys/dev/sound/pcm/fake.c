@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "pcm.h"
-
 #include <dev/sound/pcm/sound.h>
 
 /* channel interface */
