@@ -168,9 +168,14 @@ int	installboot;	/* non-zero if we should install a boot program */
 char	*xxboot;	/* primary boot */
 char	boot0[MAXPATHLEN];
 
-static int labeloffset;
-static int bbsize;
-static int alphacksum;
+static int labeloffset = LABELOFFSET;
+static int bbsize = BBSIZE;
+static int alphacksum =
+#if defined(__alpha__)
+	1;
+#else
+	0;
+#endif
 
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
@@ -217,6 +222,7 @@ main(int argc, char *argv[])
 				if (!strcmp(optarg, "i386")) {
 					labeloffset = 512;
 					bbsize = 8192;
+					alphacksum = 0;
 				} else if (!strcmp(optarg, "alpha")) {
 					labeloffset = 64;
 					bbsize = 8192;
