@@ -66,6 +66,7 @@
 
 #ifdef	__FreeBSD__
 #include <sys/device_port.h>
+#include <sys/kdb.h>
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
@@ -86,7 +87,7 @@
 
 #ifdef	__FreeBSD__
 #undef	MSG_IDENTIFY
-#define	SCSI_LOW_DEBUGGER(dev)	Debugger((dev))
+#define	SCSI_LOW_DEBUGGER(dev)	kdb_enter(dev)
 #define	SCSI_LOW_DELAY(mu)	DELAY((mu))
 #define	SCSI_LOW_SPLSCSI	splcam
 #define	SCSI_LOW_BZERO(pt, size)	bzero((pt), (size))
