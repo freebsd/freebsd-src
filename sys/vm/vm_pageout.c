@@ -397,6 +397,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
+		KASSERT((mt->flags & PG_WRITEABLE) == 0,
+		    ("vm_pageout_flush: page %p is not write protected", mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
 		case VM_PAGER_PEND:
@@ -433,8 +435,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
 			vm_page_io_finish(mt);
-			if (!vm_page_count_severe() || !vm_page_try_to_cache(mt))
-				pmap_page_protect(mt, VM_PROT_READ);
+			if (vm_page_count_severe())
+				vm_page_try_to_cache(mt);
 		}
 	}
 	return numpagedout;
