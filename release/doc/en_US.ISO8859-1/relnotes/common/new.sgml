@@ -187,7 +187,7 @@
 
     <para>An &man.orm.4; device has been added to claim the option
     ROMs in the ISA memory I/O space, to prevent other drivers from
-    mistakenly assigned address that conflict with these ROMs. &merged;</para>
+    mistakenly assigning addresses that conflict with these ROMs. &merged;</para>
 
     <para>The out-of-swap process termination code now begins killing
     processes earlier to avoid deadlocks; it now also takes into
