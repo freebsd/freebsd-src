@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * Copyright (c) 1992 Terrence R. Lambert.
+ * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -34,22 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)machdep.c	7.4 (Berkeley) 6/3/91
- *
- * PATCHES MAGIC		LEVEL	PATCH THAT GOT US HERE
- * --------------------		-----	----------------------
- * CURRENT PATCH LEVEL:		5	00158
- * --------------------		-----	----------------------
- *
- * 15 Aug 92	William Jolitz		Large memory bug
- * 15 Aug 92	Terry Lambert		Fixed CMOS RAM size bug
- * 25 Mar 93	Sean Eric Fagan		Added #ifdef HZ around microtime for
- *					the new microtime.s routine
- * 08 Apr 93	Andrew Herbert		Fixes for kmem_alloc panics
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- * 25 Apr 93	Bruce Evans		New intr-0.1 code
+ *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.6 1993/08/09 06:16:41 rgrimes Exp $";
 
 
 #include <stddef.h>
@@ -87,10 +74,6 @@ extern vm_offset_t avail_end;
 
 #define	EXPECT_BASEMEM	640	/* The expected base memory*/
 #define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
-
-#if __GNUC__ >= 2
-__main(){}
-#endif
 
 /*
  * Declare these as initialized data so we can patch them.
