@@ -82,6 +82,13 @@
 #define EXTERN			/* allocate mem */
 
 #include "pcvt_hdr.h"		/* global include */
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#if !defined(MAXCONS)
+#define MAXCONS 16
+#endif
+static void *pcvt_devfs_token[MAXCONS];
+#endif /*DEVFS*/
 
 extern int getchar __P((void));
 
@@ -101,8 +108,7 @@ static int pcvt_xmode_set(int on, struct proc *p); /* initialize for X mode */
 
 #if PCVT_FREEBSD > 205
 static struct kern_devconf kdc_vt[];
-static inline void
-vt_registerdev(struct isa_device *id, const char *name);
+static inline void vt_registerdev(struct isa_device *id, const char *name);
 static char vt_description[];
 #define VT_DESCR_LEN 40
 #endif /* PCVT_FREEBSD > 205 */
@@ -162,6 +168,9 @@ pcattach(struct isa_device *dev)
 {
 #endif /* PCVT_NETBSD > 9 */
 
+#ifdef DEVFS
+	int vt;
+#endif /*DEVFS*/
 	int i;
 
 	vt_coldmalloc();		/* allocate memory for screens */
@@ -332,6 +341,14 @@ pcattach(struct isa_device *dev)
 
 	cdevsw_add(&dev, &pcdevsw, NULL);
 	}
+
+#ifdef DEVFS	
+	for(vt = 0; vt < MAXCONS; vt++) {
+          pcvt_devfs_token[vt] = 
+		devfs_add_devswf(&pcdevsw, vt,
+                                 DV_CHR, 0, 0, 0600, "ttyv%n", vt );
+	}
+#endif DEVFS
 #endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 9
