@@ -1,4 +1,4 @@
-PATH=$HOME/bin:/bin:/usr/bin:/usr/X11/bin:/usr/contrib/bin:/usr/games/bin:/usr/old/bin:/usr/local/bin
+PATH=$HOME/bin:/bin:/usr/bin:/usr/games:/usr/X11R6/bin:/usr/local/bin
 export PATH
 
 EDITOR=vi
