@@ -167,6 +167,11 @@ which(1) and killall(1) are now C programs, rather than Perl scripts.
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file. [MERGED]
 
+nsswitch support has been merged from NetBSD.  By creating an 
+nsswitch.conf(5) file, FreeBSD can be configured so that various 
+databases such as passwd(5) and group(5) can be looked up using flat 
+files, NIS, or Hesiod.
+
 
 2. Supported Configurations
 ---------------------------
