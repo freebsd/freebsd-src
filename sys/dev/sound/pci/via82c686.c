@@ -85,17 +85,23 @@ static int viachan_trigger(void *data, int go);
 static int viachan_getptr(void *data);
 static pcmchan_caps *viachan_getcaps(void *data);
 
-static pcmchan_caps via_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t via_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps via_playcaps = {4000, 48000, via_playfmt, 0};
 
-static pcmchan_caps via_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t via_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps via_reccaps = {4000, 48000, via_recfmt, 0};
 
 static pcm_channel via_chantemplate = {
 	viachan_init,

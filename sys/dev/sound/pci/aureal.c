@@ -46,17 +46,23 @@ static int auchan_trigger(void *data, int go);
 static int auchan_getptr(void *data);
 static pcmchan_caps *auchan_getcaps(void *data);
 
-static pcmchan_caps au_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t au_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps au_playcaps = {4000, 48000, au_playfmt, 0};
 
-static pcmchan_caps au_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t au_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
 
 static pcm_channel au_chantemplate = {
 	auchan_init,
