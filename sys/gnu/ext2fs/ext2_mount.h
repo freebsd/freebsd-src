@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id: ufsmount.h,v 1.7 1997/02/22 09:47:54 peter Exp $
+ * $Id: ufsmount.h,v 1.8 1997/09/22 21:24:03 joerg Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -91,6 +91,7 @@ struct ufsmount {
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
 	struct	netexport um_export;		/* export information */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
+	struct malloc_type *um_malloctype;	/* The inodes malloctype */
 };
 
 /*
