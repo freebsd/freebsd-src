@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.64 1999/01/16 11:39:08 kato Exp $
+ **      $Id: userconfig.c,v 1.65 1999/01/18 11:01:57 kato Exp $
  **/
 
 /**
@@ -2531,7 +2531,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.64 1999/01/16 11:39:08 kato Exp $
+ *      $Id: userconfig.c,v 1.65 1999/01/18 11:01:57 kato Exp $
  */
 
 #include "scbus.h"
@@ -2546,7 +2546,10 @@ typedef struct _cmdparm {
     union {
 	struct isa_device *dparm;
 	int iparm;
-	void *aparm;
+	union {
+		void *aparm;
+		const char *sparm;
+	} u;
     } parm;
 } CmdParm;
 
@@ -2569,8 +2572,8 @@ static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
-static int parse_args(char *, CmdParm *);
-static unsigned long strtoul(const char *, char **, int);
+static int parse_args(const char *, CmdParm *);
+static unsigned long strtoul(const char *, const char **, int);
 static int save_dev(struct isa_device *);
 
 static int list_devices(CmdParm *);
@@ -2713,10 +2716,10 @@ parse_cmd(char *cmd)
 }
 
 static int
-parse_args(char *cmd, CmdParm *parms)
+parse_args(const char *cmd, CmdParm *parms)
 {
     while (1) {
-	char *ptr;
+	const char *ptr;
 
 	if (*cmd == ' ' || *cmd == '\t') {
 	    ++cmd;
@@ -2765,7 +2768,7 @@ parse_args(char *cmd, CmdParm *parms)
 	    continue;
 	}
 	if (parms->type == PARM_ADDR) {
-	    parms->parm.aparm = (void *)(uintptr_t)strtoul(cmd, &ptr, 0);
+	    parms->parm.u.aparm = (void *)(uintptr_t)strtoul(cmd, &ptr, 0);
 	    if (cmd == ptr) {
 	        printf("Invalid address argument\n");
 	        return 1;
@@ -2775,7 +2778,7 @@ parse_args(char *cmd, CmdParm *parms)
 	    continue;
 	}
 	if (parms->type == PARM_STRING) {
-	    parms->parm.aparm = (void *)cmd ;
+	    parms->parm.u.sparm = cmd;
 	    return 0;
 	}
     }
@@ -2857,7 +2860,7 @@ set_device_iosize(CmdParm *parms)
 static int
 set_device_mem(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_maddr = parms[1].parm.aparm;
+    parms[0].parm.dparm->id_maddr = parms[1].parm.u.aparm;
     save_dev(parms[0].parm.dparm);
     return 0;
 }
@@ -2896,7 +2899,8 @@ set_pnp_parms(CmdParm *parms)
 {   
     u_long idx, val, ldn, csn;
     int i;
-    char *q, *p=parms[0].parm.aparm;
+    const char *q;
+    const char *p = parms[0].parm.u.sparm;
     struct pnp_cinfo d;
 
     csn=strtoul(p,&q, 0);
@@ -3372,7 +3376,7 @@ static int errno;
 static unsigned long
 strtoul(nptr, endptr, base)
 	const char *nptr;
-	char **endptr;
+	const char **endptr;
 	register int base;
 {
 	register const char *s = nptr;
@@ -3411,7 +3415,7 @@ strtoul(nptr, endptr, base)
 			break;
 		if (c >= base)
 			break;
-		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
+		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
 			any = -1;
 		else {
 			any = 1;
@@ -3425,7 +3429,7 @@ strtoul(nptr, endptr, base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (char *)(any ? s - 1 : nptr);
+		*endptr = (const char *)(any ? s - 1 : nptr);
 	return (acc);
 }
 
