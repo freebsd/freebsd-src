@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.16 1996/03/12 06:20:14 peter Exp $
+ *  $Id: linux_misc.c,v 1.17 1996/03/19 15:02:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,9 +60,6 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-
-#include <machine/cpu.h>
-#include <machine/psl.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.13 1995/12/14 08:31:37 phk Exp $
+ * $Id: kern_time.c,v 1.14 1995/12/26 01:07:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -42,8 +42,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-
-#include <machine/cpu.h>
 
 struct timezone tz;
 

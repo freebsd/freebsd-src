@@ -65,7 +65,6 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
-#include <machine/cpu.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.43 1996/03/11 06:11:39 hsu Exp $
+ * $Id: vm_glue.c,v 1.44 1996/04/03 05:23:36 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -92,7 +92,6 @@
 #include <sys/user.h>
 
 #include <machine/stdarg.h>
-#include <machine/cpu.h>
 
 /*
  * System initialization

@@ -51,7 +51,6 @@
 #include	<sys/devfsext.h>
 #endif /* DEVFS */
 
-#include	<machine/cpu.h>
 #include	<machine/clock.h>
 #include	<machine/qcam.h>
 

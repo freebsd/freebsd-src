@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.56 1996/02/05 14:23:19 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.57 1996/03/03 01:57:45 jkh Exp $
  */
 
 #include "npx.h"
@@ -53,7 +53,6 @@
 #include <sys/vmmeter.h>
 
 #include <machine/clock.h>
-#include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
