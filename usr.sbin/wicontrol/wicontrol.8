@@ -131,8 +131,7 @@ NICs support a maximum transmit rate of 2Mbps while the turbo NICs
 support a maximum speed of 6Mbps.
 The following table shows the
 legal transmit rate settings and the corresponding transmit speeds:
-.Bd -filled -offset indent
-.Bl -column "TX rate " "NIC speed "
+.Bl -column "TX rate " "NIC speed " -offset indent
 .Em "TX rate	NIC speed"
 1	Fixed Low (1Mbps)
 2	Fixed Standard (2Mbps)
@@ -142,7 +141,6 @@ legal transmit rate settings and the corresponding transmit speeds:
 6	Auto Rate Select (Standard)
 7	Auto Rate Select (Medium)
 .El
-.Ed
 .Pp
 The standard NICs support only settings 1 through 3. Turbo NICs support
 all the above listed speed settings.
@@ -272,8 +270,7 @@ Recognized regulatory authorities include
 the FCC (United States), ETSI (Europe), France and Japan.
 Frequencies
 in the table are specified in Mhz.
-.Bd -filled -offset indent
-.Bl -column "Channel ID " "FCC " "ETSI " "France " "Japan "
+.Bl -column "Channel ID " "FCC " "ETSI " "France " "Japan " -offset indent
 .Em "Channel ID	FCC	ETSI	France	Japan"
 1	2412	2412	-	2412
 2	2417	2417	-	2417
@@ -290,7 +287,6 @@ in the table are specified in Mhz.
 13	-	2472	2472	2472
 14	-	-	-	2484
 .El
-.Ed
 .Pp
 If an illegal channel is specified, the
 NIC will revert to its default channel.
