@@ -56,17 +56,19 @@ extern int dvsend(int, char *, char, int);
 static void
 usage(void)
 {
-	printf("fwcontrol [-g gap_count] [-b pri_req] [-c node]"
+	fprintf(stderr, "fwcontrol [-g gap_count] [-b pri_req] [-c node]"
 		" [-r] [-t] [-d node] [-l file] [-R file] [-S file]\n");
-	printf("\t-g: broadcast gap_count by phy_config packet\n");
-	printf("\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
-	printf("\t-c: read configuration ROM\n");
-	printf("\t-r: bus reset\n");
-	printf("\t-t: read topology map\n");
-	printf("\t-d: hex dump of configuration ROM\n");
-	printf("\t-l: load and parse hex dump file of configuration ROM\n");
-	printf("\t-R: Receive DV stream\n");
-	printf("\t-S: Send DV stream\n");
+	fprintf(stderr, "\t-g: broadcast gap_count by phy_config packet\n");
+	fprintf(stderr,
+		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
+	fprintf(stderr, "\t-c: read configuration ROM\n");
+	fprintf(stderr, "\t-r: bus reset\n");
+	fprintf(stderr, "\t-t: read topology map\n");
+	fprintf(stderr, "\t-d: hex dump of configuration ROM\n");
+	fprintf(stderr,
+		"\t-l: load and parse hex dump file of configuration ROM\n");
+	fprintf(stderr, "\t-R: Receive DV stream\n");
+	fprintf(stderr, "\t-S: Send DV stream\n");
 	exit(0);
 }
 
