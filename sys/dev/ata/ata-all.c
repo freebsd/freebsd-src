@@ -115,7 +115,6 @@ ata_probe(device_t dev)
     return 0;
 }
 
-
 int
 ata_attach(device_t dev)
 {
@@ -190,7 +189,6 @@ ata_detach(device_t dev)
     ata_fail_requests(ch, NULL);
 
     /* unlock the channel */
-    ch->running = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
@@ -237,12 +235,14 @@ ata_reinit(struct ata_channel *ch)
     if (!ch->r_irq)
 	return ENXIO;
 
-    /* reset the HW */
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
+
     ATA_FORCELOCK_CH(ch);
+    ata_catch_inflight(ch);
     ch->flags |= ATA_IMMEDIATE_MODE;
     devices = ch->devices;
+
     ch->hw.reset(ch);
 
     if (bootverbose)
@@ -267,7 +267,6 @@ ata_reinit(struct ata_channel *ch)
     }
 
     /* unlock the channel */
-    ch->running = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
