@@ -607,6 +607,7 @@ twed_strategy(twe_bio *bp)
 
     debug_called(4);
 
+    bp->bio_driver1 = &sc->twed_drive->td_unit;
     TWED_BIO_IN;
 
     /* bogus disk? */
