@@ -46,7 +46,7 @@ struct gpt_hdr {
 	uint32_t	hdr_entries;
 	uint32_t	hdr_entsz;
 	uint32_t	hdr_crc_table;
-};
+} __attribute__((packed));
 
 struct gpt_ent {
 	struct uuid	ent_type;
