@@ -39,12 +39,15 @@ int
 fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 {
 
-	ORIENTLOCK(fp, 1);
-
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
 	/* XXX Inefficient */
 	while (*ws != '\0')
-		if (fputwc(*ws++, fp) == WEOF)
+		if (__fputwc(*ws++, fp) == WEOF) {
+			FUNLOCKFILE(fp);
 			return (-1);
+		}
+	FUNLOCKFILE(fp);
 
 	return (0);
 }
