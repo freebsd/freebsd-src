@@ -57,7 +57,7 @@ float
 __ieee754_powf(float x, float y)
 {
 	float z,ax,z_h,z_l,p_h,p_l;
-	float y1,t1,t2,r,s,t,u,v,w;
+	float y1,t1,t2,r,s,sn,t,u,v,w;
 	int32_t i,j,k,yisint,n;
 	int32_t hx,hy,ix,iy,is;
 
@@ -120,14 +120,19 @@ __ieee754_powf(float x, float y)
 	    return z;
 	}
 
+	n = ((u_int32_t)hx>>31)-1;
+
     /* (x<0)**(non-int) is NaN */
-	if(((((u_int32_t)hx>>31)-1)|yisint)==0) return (x-x)/(x-x);
+	if((n|yisint)==0) return (x-x)/(x-x);
+
+	sn = one; /* s (sign of result -ve**odd) = -1 else = 1 */
+	if((n|(yisint-1))==0) sn = -one;/* (-ve)**(odd int) */
 
     /* |y| is huge */
 	if(iy>0x4d000000) { /* if |y| > 2**27 */
 	/* over/underflow if x is not close to one */
-	    if(ix<0x3f7ffff8) return (hy<0)? huge*huge:tiny*tiny;
-	    if(ix>0x3f800007) return (hy>0)? huge*huge:tiny*tiny;
+	    if(ix<0x3f7ffff8) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
+	    if(ix>0x3f800007) return (hy>0)? sn*huge*huge:sn*tiny*tiny;
 	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
 	    t = ax-1;		/* t has 20 trailing zeros */
@@ -192,10 +197,6 @@ __ieee754_powf(float x, float y)
 	    t2 = z_l-(((t1-t)-dp_h[k])-z_h);
 	}
 
-	s = one; /* s (sign of result -ve**odd) = -1 else = 1 */
-	if(((((u_int32_t)hx>>31)-1)|(yisint-1))==0)
-	    s = -one;	/* (-ve)**(odd int) */
-
     /* split up y into y1+y2 and compute (y1+y2)*(t1+t2) */
 	GET_FLOAT_WORD(is,y);
 	SET_FLOAT_WORD(y1,is&0xfffff000);
@@ -204,14 +205,14 @@ __ieee754_powf(float x, float y)
 	z = p_l+p_h;
 	GET_FLOAT_WORD(j,z);
 	if (j>0x43000000)				/* if z > 128 */
-	    return s*huge*huge;				/* overflow */
+	    return sn*huge*huge;			/* overflow */
 	else if (j==0x43000000) {			/* if z == 128 */
-	    if(p_l+ovt>z-p_h) return s*huge*huge;	/* overflow */
+	    if(p_l+ovt>z-p_h) return sn*huge*huge;	/* overflow */
 	}
 	else if ((j&0x7fffffff)>0x43160000)		/* z <= -150 */
-	    return s*tiny*tiny;				/* underflow */
+	    return sn*tiny*tiny;			/* underflow */
 	else if (j==0xc3160000){			/* z == -150 */
-	    if(p_l<=z-p_h) return s*tiny*tiny;		/* underflow */
+	    if(p_l<=z-p_h) return sn*tiny*tiny;		/* underflow */
 	}
     /*
      * compute 2**(p_h+p_l)
@@ -242,5 +243,5 @@ __ieee754_powf(float x, float y)
 	j += (n<<23);
 	if((j>>23)<=0) z = scalbnf(z,n);	/* subnormal output */
 	else SET_FLOAT_WORD(z,j);
-	return s*z;
+	return sn*z;
 }
