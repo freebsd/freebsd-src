@@ -21,7 +21,6 @@
 machine		powerpc
 cpu		OEA
 ident		GENERIC
-maxusers	0
 
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"
