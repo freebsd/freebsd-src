@@ -240,7 +240,8 @@ searchloop:
 		 * "dirchk" to be true.
 		 */
 		ep = (struct direct *)((char *)bp->b_data + entryoffsetinblock);
-		if (ep->d_reclen == 0 ||
+		if (ep->d_reclen == 0 || ep->d_reclen >
+		    DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
 		    (dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 
@@ -590,7 +591,7 @@ ufs_dirbad(ip, offset, how)
 	mp = ITOV(ip)->v_mount;
 	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
 	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
-	if ((mp->mnt_stat.f_flags & MNT_RDONLY) == 0)
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		panic("ufs_dirbad: bad dir");
 }
 
