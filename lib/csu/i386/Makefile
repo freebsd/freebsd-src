@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.23 1995/11/02 12:42:41 ache Exp $
+#	$Id: Makefile,v 1.24 1996/05/07 23:16:08 wosch Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -43,15 +43,13 @@ sgcrt0.o: scrt0.o
 	mv -f a.out ${.TARGET}
 
 beforeinstall:
-	cmp -s ${.CURDIR}/dlfcn.h ${DESTDIR}/usr/include/dlfcn.h || \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/dlfcn.h ${DESTDIR}/usr/include
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
+		${DESTDIR}/usr/include
 
 realinstall:
 .for i in ${OBJS}
-	cmp -s $i ${DESTDIR}/usr/lib/$i || \
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-		$i ${DESTDIR}/usr/lib
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i \
+		${DESTDIR}/usr/lib
 .endfor
 
 depend:	.depend
