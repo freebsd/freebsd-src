@@ -75,13 +75,13 @@ The standard time sharing scheduler;
 .It Bq Er SCHED_RR
 Round-robin scheduling across same priority processes.
 .El
-.Sh RETURN
+.Sh RETURN VALUES
 If successful, the
 .Fn sched_get_priority_max
 and
 .Fn sched_get_priority_min
 functions shall return the appropriate maximum or minimum values,
-respectively.  If unsuccessful, the shall return a value of -1 and set
+respectively.  If unsuccessful, they shall return a value of -1 and set
 .Fa errno
 to indicate the error.
 .Pp
