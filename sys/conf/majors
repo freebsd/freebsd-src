@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.28 1998/02/17 10:44:23 sos Exp $
+$Id: majors.i386,v 1.29 1998/02/17 10:52:56 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -113,7 +113,7 @@ chrdev	name		comments
 70	od		SCSI "magneto-optical disk type"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
-73	qcam		quickcam
+73	??		was qcam
 74	ccd		concatenated disk
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)

@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.189 1998/02/15 14:42:31 peter Exp $
+#	$Id: files.i386,v 1.190 1998/02/17 11:32:33 sos Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -152,8 +152,6 @@ i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
 i386/isa/psm.c			optional	psm	device-driver
-i386/isa/qcam.c			optional	qcam	device-driver
-i386/isa/qcamio.c		optional	qcam	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
