@@ -40,11 +40,14 @@
 .Sh SYNOPSIS
 .Nm head
 .Op Fl n Ar count
+.Op Fl c Ar bytes
 .Op Ar file ...
 .Sh DESCRIPTION
 This filter displays the first
 .Ar count
-lines of each of the specified files, or of the standard input if no
+lines or 
+.Ar bytes
+of each of the specified files, or of the standard input if no
 files are specified.
 If
 .Ar count
