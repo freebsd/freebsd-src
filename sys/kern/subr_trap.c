@@ -81,7 +81,7 @@ userret(td, frame, oticks)
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
-	    (ke->ke_flags & KEF_ASTPENDING) == 0))
+	    (td->td_kse->ke_flags & KEF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
@@ -119,7 +119,7 @@ userret(td, frame, oticks)
 	 * DO special thread processing, e.g. upcall tweaking and such
 	 */
 	if (p->p_flag & P_KSES) {
-		thread_userret(p, kg, ke, td, frame);
+		thread_userret(td, frame);
 		/* printf("KSE thread returned"); */
 	}
 
@@ -149,7 +149,7 @@ ast(struct trapframe *framep)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	struct kse *ke = td->td_kse;
+	struct kse *ke;
 	struct ksegrp *kg = td->td_ksegrp;
 	u_int prticks, sticks;
 	int sflag;
@@ -178,6 +178,7 @@ ast(struct trapframe *framep)
 	 * ast() will be called again.
 	 */
 	mtx_lock_spin(&sched_lock);
+	ke = td->td_kse;
 	sticks = ke->ke_sticks;
 	sflag = p->p_sflag;
 	flags = ke->ke_flags;
