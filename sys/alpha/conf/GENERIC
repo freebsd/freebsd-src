@@ -97,6 +97,7 @@ device		atapist		# ATAPI tape drives
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 #device		esp		# 53C94 & friends, not CAM-ified
 device		isp		# Qlogic family
+device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
@@ -130,7 +131,7 @@ device		sc	1
 # real time clock
 device		mcclock
 
-# Serial (COM) ports
+# Serial (COM) ports (required)
 device		sio		# 8250, 16[45]50 based serial ports
 
 # Parallel port
