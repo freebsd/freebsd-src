@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)mount_nfs.8	8.2 (Berkeley) 3/27/94
 .\"
+.\" $Id$
+.\""
 .Dd March 27, 1994
 .Dt MOUNT_NFS 8
 .Os BSD 4.4
@@ -175,6 +177,53 @@ The following NFS specific option is also available:
 .It port=<port_number>
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
+.El
+.Pp
+.Bl -tag -width "dumbtimerXX"
+\fBHistoric \&-o options\fR
+.Pp
+Use of these options is deprecated, they are only mentioned here for
+compatibility with historic versions of
+.Nm mount_nfs .
+.It bg
+Same as
+.Fl b .
+.It conn
+Same as
+.Fl c .
+.It dumbtimer
+Same as
+.Fl d .
+.It intr
+Same as
+.Fl i .
+.It kerb
+Same as
+.Fl K .
+.It nfsv3
+Same as
+.Fl 3 .
+.It rdirplus
+Same as
+.Fl l .
+.It mntudp
+Same as
+.Fl U .
+.It resvport
+Same as
+.Fl P .
+.It seqpacket
+Same as
+.Fl p .
+.It nqnfs
+Same as
+.Fl q .
+.It soft
+Same as
+.Fl s .
+.It tcp
+Same as
+.Fl T.
 .El
 .It Fl q
 Use the leasing extensions to the NFS Version 3 protocol to maintain cache consistency.
