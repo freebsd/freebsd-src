@@ -102,6 +102,8 @@ vnode_pager_init(void)
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.
+ *
+ * MPSAFE
  */
 vm_object_t
 vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -109,8 +111,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 	struct vnode *vp;
-
-	GIANT_REQUIRED;
 
 	/*
 	 * Pageout to vnode, no can do yet.
@@ -120,6 +120,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vp = (struct vnode *) handle;
 
+	mtx_lock(&Giant);
 	/*
 	 * Prevent race condition when allocating the object. This
 	 * can happen with NFS vnodes since the nfsnode isn't locked.
@@ -147,23 +148,21 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * And an object of the appropriate size
 		 */
 		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
-		object->flags = 0;
 
 		object->un_pager.vnp.vnp_size = size;
 
 		object->handle = handle;
 		vp->v_object = object;
-		vp->v_usecount++;
 	} else {
 		object->ref_count++;
-		vp->v_usecount++;
 	}
-
+	vp->v_usecount++;
 	vp->v_flag &= ~VOLOCK;
 	if (vp->v_flag & VOWANT) {
 		vp->v_flag &= ~VOWANT;
 		wakeup(vp);
 	}
+	mtx_unlock(&Giant);
 	return (object);
 }
 
