@@ -43,10 +43,12 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.48 1998/07/11 07:45:42 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.49 1998/07/20 12:37:59 bde Exp $
  */
 
 #include "opt_devfs.h"
+
+#include <stddef.h>
 
 #include <sys/param.h>
 #include <sys/buf.h>
@@ -556,6 +558,32 @@ dsisopen(ssp)
 	return (0);
 }
 
+/*
+ * Allocate a slices "struct" and initialize it to contain only an empty
+ * compatibility slice (pointing to itself), a whole disk slice (covering
+ * the disk as described by the label), and (nslices - BASE_SLICES) empty
+ * slices beginning at BASE_SLICE.
+ */
+struct diskslices *
+dsmakeslicestruct(nslices, lp)
+	int nslices;
+	struct disklabel *lp;
+{
+	struct diskslice *sp;
+	struct diskslices *ssp;
+
+	ssp = malloc(offsetof(struct diskslices, dss_slices) +
+		     nslices * sizeof *sp, M_DEVBUF, M_WAITOK);
+	ssp->dss_bdevsw = NULL;
+	ssp->dss_cdevsw = NULL;
+	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
+	ssp->dss_nslices = nslices;
+	sp = &ssp->dss_slices[0];
+	bzero(sp, nslices * sizeof *sp);
+	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
+	return (ssp);
+}
+
 char *
 dsname(dname, unit, slice, part, partname)
 	char	*dname;
@@ -623,6 +651,13 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	if (ssp != NULL && need_init)
 		dsgone(sspp);
 	if (need_init) {
+		/*
+		 * Allocate a minimal slices "struct".  This will become
+		 * the final slices "struct" if we don't want real slices
+		 * or if we can't find any real slices.
+		 */
+		*sspp = dsmakeslicestruct(BASE_SLICE, lp);
+
 		TRACE(("dsinit\n"));
 		error = dsinit(dname, dev, strat, lp, sspp);
 		if (error != 0) {
