@@ -261,8 +261,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
-#include <net/if_media.h>
-#include <net/if_ieee80211.h>
+#include <net80211/ieee80211.h>
 #include <net/if_llc.h>
 
 #include <dev/pccard/pccardvar.h>
