@@ -121,6 +121,10 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		balance = balance_id(balancep);
 	}
 	slicep = gctl_get_paraml(req, "slice", sizeof(*slicep));
+	if (slicep == NULL) {
+		gctl_error(req, "No '%s' argument.", "slice");
+		return;
+	}
 	if (*slicep == -1)
 		slice = sc->sc_slice;
 	else
@@ -298,6 +302,10 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		}
 		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
 			name += strlen("/dev/");
+		if (g_mirror_find_disk(sc, name) != NULL) {
+			gctl_error(req, "Provider %s already inserted.", name);
+			continue;
+		}
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {
 			gctl_error(req, "Unknown provider %s.", name);
