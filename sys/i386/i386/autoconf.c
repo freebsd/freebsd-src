@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.80 1997/11/21 05:44:07 peter Exp $
+ *	$Id: autoconf.c,v 1.81 1997/11/21 18:14:02 bde Exp $
  */
 
 /*
@@ -58,6 +58,7 @@
 
 #include <machine/bootinfo.h>
 #include <machine/cons.h>
+#include <machine/ipl.h>
 #include <machine/md_var.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
@@ -235,6 +236,14 @@ configure(dummy)
 	 * XXX this is slightly misplaced.
 	 */
 	spl0();
+
+	/*
+	 * Allow lowering of the ipl to the lowest kernel level if we
+	 * panic (or call tsleep() before clearing `cold').  No level is
+	 * completely safe (since a panic may occur in a critical region
+	 * at splhigh()), but we want at least bio interrupts to work.
+	 */
+	safepri = cpl;
 
 #if NCARD > 0
 	/* After everyone else has a chance at grabbing resources */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.62 1997/11/18 15:16:54 bde Exp $
+ * $Id: systm.h,v 1.63 1997/11/21 11:37:03 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -49,6 +49,7 @@ extern int securelevel;		/* system security level (see init(8)) */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
+extern int safepri;		/* safe ipl when cold or panicing */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
 
