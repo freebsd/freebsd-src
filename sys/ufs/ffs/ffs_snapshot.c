@@ -339,7 +339,7 @@ restart:
 		goto out1;
 	copy_fs = (struct fs *)(nbp->b_data + blkoff(fs, SBOFF));
 	bcopy(fs, copy_fs, fs->fs_sbsize);
-	if ((fs->fs_flags & FS_UNCLEAN) == 0)
+	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 		copy_fs->fs_clean = 1;
 	if (fs->fs_sbsize < SBSIZE)
 		bzero(&nbp->b_data[blkoff(fs, SBOFF) + fs->fs_sbsize],

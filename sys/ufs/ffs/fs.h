@@ -328,9 +328,18 @@ struct fs {
 
 /*
  * Filesystem flags.
+ *
+ * Note that the FS_NEEDSFSCK flag is set and cleared only by the
+ * fsck utility. It is set when background fsck finds an unexpected
+ * inconsistency which requires a traditional foreground fsck to be
+ * run. Such inconsistencies should only be found after an uncorrectable
+ * disk error. A foreground fsck will clear the FS_NEEDSFSCK flag when
+ * it has successfully cleaned up the filesystem. The kernel uses this
+ * flag to enforce that inconsistent filesystems be mounted read-only.
  */
-#define FS_UNCLEAN    0x01    /* filesystem not clean at mount */
-#define FS_DOSOFTDEP  0x02    /* filesystem using soft dependencies */
+#define FS_UNCLEAN    0x01	/* filesystem not clean at mount */
+#define FS_DOSOFTDEP  0x02	/* filesystem using soft dependencies */
+#define FS_NEEDSFSCK  0x04	/* filesystem needs sync fsck before mount */
 
 /*
  * Rotational layout table format types
