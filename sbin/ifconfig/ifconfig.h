@@ -38,6 +38,7 @@ extern struct ifreq ifr;
 
 extern char name[32];	/* name of interface */
 extern int allmedia;
+extern int supmedia;
 struct afswtch;
 
 extern void setmedia(const char *, int, int, const struct afswtch *rafp);

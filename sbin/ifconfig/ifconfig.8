@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl L
+.Op Fl m
 .Ar interface
 .Op Ar address_family
 .Oo
@@ -52,6 +53,7 @@
 .Fl a
 .Op Fl L
 .Op Fl d
+.Op Fl m
 .Op Fl u
 .Op Ar address_family
 .Nm
@@ -62,6 +64,7 @@
 .Nm
 .Op Fl L
 .Op Fl d
+.Op Fl m
 .Op Fl u
 .Sh DESCRIPTION
 .Nm Ifconfig
@@ -530,6 +533,10 @@ will report only the details specific to that protocol family.
 If the driver does supports the media selection system, the supported
 media list will be included in the output.
 .Pp
+If the
+.Fl m
+flag is passed before an interface name, ifconfig will display all
+of the supported media for the specified interface.
 If
 .Fl L
 flag is supplied, address lifetime is displayed for IPv6 addresses,
