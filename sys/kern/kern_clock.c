@@ -303,17 +303,16 @@ startprofclock(p)
 	 * it should be protected later on by a time_lock, which would
 	 * cover psdiv, etc. as well.
 	 */
-	mtx_lock_spin(&sched_lock);
-	if (p->p_sflag & PS_STOPPROF) {
-		mtx_unlock_spin(&sched_lock);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (p->p_flag & P_STOPPROF)
 		return;
-	}
-	if ((p->p_sflag & PS_PROFIL) == 0) {
-		p->p_sflag |= PS_PROFIL;
+	if ((p->p_flag & P_PROFIL) == 0) {
+		mtx_lock_spin(&sched_lock);
+		p->p_flag |= P_PROFIL;
 		if (++profprocs == 1)
 			cpu_startprofclock();
+		mtx_unlock_spin(&sched_lock);
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -325,21 +324,20 @@ stopprofclock(p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-retry:
-	mtx_lock_spin(&sched_lock);
-	if (p->p_sflag & PS_PROFIL) {
-		if (p->p_profthreads) {
-			p->p_sflag |= PS_STOPPROF;
-			mtx_unlock_spin(&sched_lock);
-			msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
-			       "stopprof", NULL);
-			goto retry;
+	if (p->p_flag & P_PROFIL) {
+		if (p->p_profthreads != 0) {
+			p->p_flag |= P_STOPPROF;
+			while (p->p_profthreads != 0)
+				msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
+				    "stopprof", NULL);
+			p->p_flag &= ~P_STOPPROF;
 		}
-		p->p_sflag &= ~(PS_PROFIL|PS_STOPPROF);
+		mtx_lock_spin(&sched_lock);
+		p->p_flag &= ~P_PROFIL;
 		if (--profprocs == 0)
 			cpu_stopprofclock();
+		mtx_unlock_spin(&sched_lock);
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -440,7 +438,7 @@ profclock(frame)
 		 * bother trying to count it.
 		 */
 		td = curthread;
-		if (td->td_proc->p_sflag & PS_PROFIL)
+		if (td->td_proc->p_flag & P_PROFIL)
 			addupc_intr(td, CLKF_PC(frame), 1);
 	}
 #ifdef GPROF
