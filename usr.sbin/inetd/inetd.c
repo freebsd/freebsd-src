@@ -126,22 +126,23 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <libutil.h>
+#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <syslog.h>
 #include <tcpd.h>
 #include <unistd.h>
-#include <libutil.h>
-#include <sysexits.h>
-#include <ctype.h>
 
 #include "inetd.h"
 #include "pathnames.h"
