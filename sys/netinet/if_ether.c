@@ -522,24 +522,25 @@ in_arpinput(m)
 	op = ntohs(ea->arp_op);
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
 	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
-	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next)
-#ifdef BRIDGE
+	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
 		/*
 		 * For a bridge, we want to check the address irrespective
 		 * of the receive interface. (This will change slightly
 		 * when we have clusters of interfaces).
 		 */
-		if (!do_bridge) {
+#ifdef BRIDGE
+#define BRIDGE_TEST (do_bridge)
 #else
-		{
+#define BRIDGE_TEST (0) /* cc will optimise the test away */
 #endif
-			if (ia->ia_ifp == &ac->ac_if) {
-				maybe_ia = ia;
-				if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
-				     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))
-					break;
+		if ((BRIDGE_TEST) || (ia->ia_ifp == &ac->ac_if)) {
+			maybe_ia = ia;
+			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
+			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)) {
+				break;
 			}
 		}
+	}
 	if (maybe_ia == 0) {
 		m_freem(m);
 		return;
