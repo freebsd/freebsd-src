@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.51 1998/05/21 21:45:46 brian Exp $
+ * $Id: ipcp.c,v 1.52 1998/05/23 22:24:39 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -611,7 +611,7 @@ IpcpLayerStart(struct fsm * fp)
   /* We're about to start up ! */
   log_Printf(LogIPCP, "%s: IpcpLayerStart.\n", fp->link->name);
 
-  /* This is where we should be setting up the interface in DEMAND mode */
+  /* This is where we should be setting up the interface in AUTO mode */
 }
 
 static void
@@ -685,7 +685,7 @@ IpcpLayerDown(struct fsm *fp)
       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
   }
 
-  if (!(ipcp->fsm.bundle->phys_type & PHYS_DEMAND))
+  if (!(ipcp->fsm.bundle->phys_type & PHYS_AUTO))
     ipcp_CleanInterface(ipcp);
 }
 
@@ -800,7 +800,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
             if (iplist_ip2pos(&ipcp->cfg.peer_list, ipcp->peer_ifip) >= 0)
               /*
                * If we've already got a valid address configured for the peer
-               * (in DEMAND mode), try NAKing with that so that we don't
+               * (in AUTO mode), try NAKing with that so that we don't
                * have to upset things too much.
                */
               ipcp->peer_ip = ipcp->peer_ifip;

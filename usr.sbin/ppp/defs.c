@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.13 1998/05/21 21:45:03 brian Exp $
+ *	$Id: defs.c,v 1.14 1998/05/29 00:03:00 brian Exp $
  */
 
 
@@ -72,12 +72,12 @@ static struct {
   int mode;
   const char *name;
 } modes[] = {
-  { PHYS_MANUAL, "interactive" },
-  { PHYS_DEMAND, "auto" },
+  { PHYS_INTERACTIVE, "interactive" },
+  { PHYS_AUTO, "auto" },
   { PHYS_DIRECT, "direct" },
   { PHYS_DEDICATED, "dedicated" },
-  { PHYS_PERM, "ddial" },
-  { PHYS_1OFF, "background" },
+  { PHYS_DDIAL, "ddial" },
+  { PHYS_BACKGROUND, "background" },
   { PHYS_ALL, "*" },
   { 0, 0 }
 };
