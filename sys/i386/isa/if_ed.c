@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.118 1997/09/02 01:18:07 bde Exp $
+ *	$Id: if_ed.c,v 1.119 1997/09/08 10:27:09 davidg Exp $
  */
 
 /*
@@ -451,7 +451,7 @@ ed_probe_WD80x3(isa_dev)
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
-	u_int   memsize;
+	u_int   memsize, maddr;
 	u_char  iptr, isa16bit, sum;
 
 	sc->asic_addr = isa_dev->id_iobase;
@@ -628,6 +628,13 @@ ed_probe_WD80x3(isa_dev)
 	 */
 	if (isa_dev->id_msize)
 		memsize = isa_dev->id_msize;
+
+	maddr = (u_int) isa_dev->id_maddr & 0xffffff;
+	if (maddr < 0xc0000 || maddr + memsize > 0x1000000) {
+		printf("ed%d: Invalid ISA memory address range configured: 0x%x - 0x%x\n",
+		    isa_dev->id_unit, maddr, maddr + memsize);
+		return 0;
+	}
 
 	/*
 	 * (note that if the user specifies both of the following flags that
