@@ -50,7 +50,7 @@ ssize_t ofw_readin(const int fd, vm_offset_t dest, const size_t len);
 extern int	ofw_boot(void);
 extern int	ofw_autoload(void);
 
-void	ofw_memmap(void);
+void	ofw_memmap(int);
 void	*ofw_alloc_heap(unsigned int);
 void	ofw_release_heap(void);
 
@@ -67,6 +67,13 @@ extern void	reboot(void);
 struct ofw_reg
 {
 	cell_t		base;
+	cell_t		size;
+};
+
+struct ofw_reg2
+{
+	cell_t		base_hi;
+	cell_t		base_lo;
 	cell_t		size;
 };
 
