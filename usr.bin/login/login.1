@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)login.1	8.1 (Berkeley) 6/9/93
-.\"	$Id: login.1,v 1.5 1996/12/23 23:09:47 wosch Exp $
+.\"	$Id: login.1,v 1.4.2.1 1997/01/02 17:48:02 mpp Exp $
 .\"
 .Dd June 9, 1993
 .Dt LOGIN 1
@@ -95,6 +95,8 @@ exists,
 .Nm login
 checks to see if the user and host pair are specifically allowed or denied
 access.
+Login access may also be controlled via the login class, which provides
+allow and deny records based on time, tty and remote host name.
 .Pp
 If the file
 .Pa /etc/fbtab
@@ -124,6 +126,12 @@ Login enters information into the environment (see
 specifying the user's home directory (HOME), command interpreter (SHELL),
 search path (PATH), terminal type (TERM) and user name (both LOGNAME and
 USER).
+Other environment variables may be set due to entries in the login
+class capabilities database, for the login class assigned in the
+user's system passwd record.
+The login class also controls the maximum and current process resource
+limits granted to a login, process priorities and many other aspects of
+a user's login environment.
 .Pp
 The standard shells,
 .Xr csh 1
@@ -136,6 +144,8 @@ utility.
 .Bl -tag -width /var/mail/userXXX -compact
 .It Pa /etc/fbtab
 changes device protections
+.It Pa /etc/login.conf
+login class capabilities database
 .It Pa /etc/motd
 message-of-the-day
 .It Pa /etc/nologin
@@ -158,6 +168,7 @@ makes login quieter
 .Xr getpass 3 ,
 .Xr fbtab 5 ,
 .Xr login.access 5 ,
+.Xr login.conf 5 ,
 .Xr utmp 5 ,
 .Xr environ 7 ,
 .Xr nologin 8

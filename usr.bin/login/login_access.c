@@ -41,6 +41,7 @@ static int string_match();
 
 /* login_access - match username/group and host/tty with access control file */
 
+int
 login_access(user, from)
 char   *user;
 char   *from;
@@ -62,7 +63,7 @@ char   *from;
      * non-existing table means no access control.
      */
 
-    if (fp = fopen(_PATH_LOGACCESS, "r")) {
+    if ((fp = fopen(_PATH_LOGACCESS, "r")) != NULL) {
 	while (!match && fgets(line, sizeof(line), fp)) {
 	    lineno++;
 	    if (line[end = strlen(line) - 1] != '\n') {
@@ -120,7 +121,7 @@ int   (*match_fn) ();
     for (tok = strtok(list, sep); tok != 0; tok = strtok((char *) 0, sep)) {
 	if (strcasecmp(tok, "EXCEPT") == 0)	/* EXCEPT: give up */
 	    break;
-	if (match = (*match_fn) (tok, item))	/* YES */
+	if ((match = (*match_fn)(tok, item)) != NULL)	/* YES */
 	    break;
     }
     /* Process exceptions to matches. */
@@ -137,6 +138,7 @@ int   (*match_fn) ();
 /* netgroup_match - match group against machine or user */
 
 static int netgroup_match(group, machine, user)
+gid_t   group;
 char   *machine;
 char   *user;
 {
@@ -148,6 +150,7 @@ char   *user;
     return (innetgr(group, machine, user, mydomain));
 #else
     syslog(LOG_ERR, "NIS netgroup support not configured");
+    return 0;
 #endif
 }
 
@@ -170,7 +173,7 @@ char   *string;
 	return (netgroup_match(tok + 1, (char *) 0, string));
     } else if (string_match(tok, string)) {	/* ALL or exact match */
 	return (YES);
-    } else if (group = getgrnam(tok)) {		/* try group membership */
+    } else if ((group = getgrnam(tok)) != NULL) {/* try group membership */
 	for (i = 0; group->gr_mem[i]; i++)
 	    if (strcasecmp(string, group->gr_mem[i]) == 0)
 		return (YES);
