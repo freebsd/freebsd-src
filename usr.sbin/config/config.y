@@ -414,6 +414,10 @@ Option:
 		op->op_name = $1;
 		op->op_next = opt;
 		op->op_value = 0;
+		/*
+		 * op->op_line is 1-based; yyline is 0-based but is now 1
+		 * larger than when `Save_id' was lexed.
+		 */
 		op->op_line = yyline;
 		opt = op;
 		if ((s = strchr(op->op_name, '='))) {
@@ -429,7 +433,7 @@ Option:
 		op->op_name = $1;
 		op->op_next = opt;
 		op->op_value = $3;
-		op->op_line = yyline;
+		op->op_line = yyline + 1;
 		opt = op;
 	      } ;
 
@@ -464,7 +468,7 @@ Mkoption:
 		op->op_ownfile = 0;	/* for now */
 		op->op_next = mkopt;
 		op->op_value = $3;
-		op->op_line = yyline;
+		op->op_line = yyline + 1;
 		mkopt = op;
 	      } ;
 
