@@ -1,6 +1,7 @@
 #!/usr/bin/awk -f
 # Convert forth source files to a giant C string
 # Joe Abley <jabley@patho.gen.nz>, 12 January 1999
+# $FreeBSD$
 
 BEGIN \
 {
@@ -91,6 +92,6 @@ END \
   printf "    \"quit \";\n";
   printf "\n\nvoid ficlCompileSoftCore(FICL_VM *pVM)\n";
   printf "{\n";
-  printf "    assert(ficlExec(pVM, softWords, -1) != VM_ERREXIT);\n";
+  printf "    assert(ficlExec(pVM, softWords) != VM_ERREXIT);\n";
   printf "}\n";
 }
