@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.54 1994/08/19 11:45:15 davidg Exp $
+ *	$Id: machdep.c,v 1.55 1994/08/20 16:02:57 davidg Exp $
  */
 
 #include "npx.h"
@@ -57,6 +57,7 @@
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <sys/ioctl.h>
+#include <sys/sysent.h>
 #include <sys/tty.h>
 #include <sys/sysctl.h>
 
@@ -510,6 +511,12 @@ sendsig(catcher, sig, mask, code)
 	/* 
 	 * Build the argument list for the signal handler.
 	 */
+	if (p->p_sysent->sv_sigtbl) {
+		if (sig < p->p_sysent->sv_sigsize)
+			sig = p->p_sysent->sv_sigtbl[sig];
+		else
+			sig = p->p_sysent->sv_sigsize + 1;
+	}
 	fp->sf_signum = sig;
 	fp->sf_code = code;
 	fp->sf_scp = &fp->sf_sc;
