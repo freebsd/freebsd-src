@@ -63,6 +63,7 @@ int
 		do_dynamic,		/* display dynamic rules */
 		do_expired,		/* display expired dynamic rules */
 		do_compact,		/* show rules in compact mode */
+		do_force,		/* do not ask for confirmation */
 		show_sets,		/* display rule sets */
 		test_only,		/* only check syntax */
 		comment_only,		/* only print action and comment */
@@ -3593,7 +3594,6 @@ ipfw_main(int oldac, char **oldav)
 	int ch, ac, save_ac;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
-	int do_force = 0;		/* Don't ask for confirmation */
 
 #define WHITESP		" \t\f\v\n\r"
 	if (oldac == 0)
@@ -3678,7 +3678,8 @@ ipfw_main(int oldac, char **oldav)
 	}
 
 	/* Set the force flag for non-interactive processes */
-	do_force = !isatty(STDIN_FILENO);
+	if (!do_force)
+		do_force = !isatty(STDIN_FILENO);
 
 	/* Save arguments for final freeing of memory. */
 	save_ac = ac;
@@ -3840,10 +3841,14 @@ ipfw_readfile(int ac, char *av[])
 
 	filename = av[ac-1];
 
-	while ((c = getopt(ac, av, "cNnp:qS")) != -1) {
+	while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
 		switch(c) {
 		case 'c':
 			do_compact = 1;
+			break;
+
+		case 'f':
+			do_force = 1;
 			break;
 
 		case 'N':
