@@ -317,15 +317,15 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 
-	/*
-	 * Lock no longer needed
-	 */
-	VOP_UNLOCK(vp, 0, td);
-	locked = 0;
-
 	/* Pull in executable header into kernel_map */
 	error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
 	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp, 0);
+	/*
+	 * Lock no longer needed
+	 */
+	locked = 0;
+	VOP_UNLOCK(vp, 0, td);
+
 	if (error)
 		goto cleanup;
 
