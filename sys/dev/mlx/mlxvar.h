@@ -98,6 +98,7 @@ struct mlx_command
 
     void			(* mc_complete)(struct mlx_command *mc);	/* completion handler */
     void			*mc_private;	/* submitter-private data or wait channel */
+    int				mc_command;
 };
 
 /*
