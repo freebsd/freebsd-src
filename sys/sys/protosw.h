@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.3 1994/08/21 04:41:56 paul Exp $
+ * $Id: protosw.h,v 1.4 1994/10/08 01:45:27 phk Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -211,7 +211,6 @@ char	*prcorequests[] = {
 
 #ifdef KERNEL
 extern	struct protosw *pffindproto(), *pffindtype();
-void	pfctlinput __P((int,struct sockaddr *));
 #endif
 
 #endif
