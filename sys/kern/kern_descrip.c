@@ -221,6 +221,7 @@ fcntl(td, uap)
 
 	error = 0;
 	switch (uap->cmd) {
+	case F_SETLKW:
 	case F_SETLK:
 	case F_GETLK:
 		error = copyin((caddr_t)(intptr_t)uap->arg, &fl, sizeof(fl));
