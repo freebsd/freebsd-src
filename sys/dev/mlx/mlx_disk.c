@@ -235,11 +235,15 @@ mlxd_attach(device_t dev)
 
     /* 
      * Set maximum I/O size to the lesser of the recommended maximum and the practical
-     * maximum.
+     * maximum except on v2 cards where the maximum is set to 8 pages.
      */
-    s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
-    s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
-    sc->mlxd_disk.d_maxsize = imin(s1, s2);
+    if (sc->mlxd_controller->mlx_iftype == MLX_IFTYPE_2)
+	dsk->si_iosize_max = 8 * PAGE_SIZE;
+    else {
+	s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
+	s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
+	dsk->si_iosize_max = imin(s1, s2);
+    }
 
     disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, NULL, NULL);
 
