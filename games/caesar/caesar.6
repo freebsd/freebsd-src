@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Ar rotation
+.Nm rot13
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,6 +53,9 @@ reads from the standard input and writes to the standard output.
 The optional numerical argument
 .Ar rotation
 may be used to specify a specific rotation value.
+If invoked as
+.Nm rot13 ,
+a rotation value of 13 will be used.
 .Pp
 The frequency (from most common to least) of English letters is as follows:
 .Pp
