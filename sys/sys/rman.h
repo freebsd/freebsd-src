@@ -99,6 +99,7 @@ uint32_t rman_make_alignment_flags(uint32_t size);
 
 #define rman_get_start(r)	((r)->r_start)
 #define rman_get_end(r)		((r)->r_end)
+#define	rman_get_size(r)	(((r)->r_end - (r)->r_start) + 1)
 #define rman_get_flags(r)	((r)->r_flags)
 #define	rman_set_virtual(r,v)	((r)->r_virtual = (v))
 #define	rman_get_virtual(r)	((r)->r_virtual)
