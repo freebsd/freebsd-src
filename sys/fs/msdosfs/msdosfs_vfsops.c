@@ -315,8 +315,6 @@ msdosfs_omount(mp, path, data, td)
 	if (error) {
 		if ((mp->mnt_flag & MNT_UPDATE) == 0)
 			msdosfs_unmount(mp, MNT_FORCE, td);
-		else
-			vrele(devvp);
 		return error;
 	}
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
