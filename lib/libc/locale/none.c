@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,60 +41,62 @@ static char sccsid[] = "@(#)none.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <limits.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <rune.h>
 #include <stdlib.h>
+#include <wchar.h>
 
-rune_t	_none_sgetrune(const char *, size_t, char const **);
-int	_none_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+int	_none_init(_RuneLocale *);
+size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
-_none_init(rl)
-	_RuneLocale *rl;
+_none_init(_RuneLocale *rl)
 {
-	rl->sgetrune = _none_sgetrune;
-	rl->sputrune = _none_sputrune;
+
+	__mbrtowc = _none_mbrtowc;
+	__wcrtomb = _none_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 1;
 	return(0);
 }
 
-rune_t
-_none_sgetrune(string, n, result)
-	const char *string;
-	size_t n;
-	char const **result;
+size_t
+_none_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
 {
-	if (n < 1) {
-		if (result)
-			*result = string;
-		return(_INVALID_RUNE);
-	}
-	if (result)
-		*result = string + 1;
-	return(*string & 0xff);
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (0);
+	if (n == 0)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
+	if (pwc != NULL)
+		*pwc = (unsigned char)*s;
+	return (*s == '\0' ? 0 : 1);
 }
 
-int
-_none_sputrune(c, string, n, result)
-	rune_t c;
-	char *string, **result;
-	size_t n;
+size_t
+_none_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
-	if (n >= 1) {
-		if (string) {
-			if (c < 0 || c > UCHAR_MAX) {
-				if (result)
-					*result = NULL;
-				return (0);
-			}
-			*string = c;
-		}
-		if (result)
-			*result = string + 1;
-	} else if (result)
-		*result = (char *)0;
-	return(1);
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (1);
+	if (wc < 0 || wc > UCHAR_MAX) {
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
+	*s = (unsigned char)wc;
+	return (1);
 }
