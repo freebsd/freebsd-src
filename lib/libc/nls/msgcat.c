@@ -96,10 +96,8 @@ catopen(name, type)
 	    strchr(lang, '/') != NULL)
 		lang = "C";
 
-	if ((plang = cptr1 = strdup(lang)) == NULL) {
-		errno = ENOMEM;
+	if ((plang = cptr1 = strdup(lang)) == NULL)
 		return (NLERR);
-	}
 	if ((cptr = strchr(cptr1, '@')) != NULL)
 		*cptr = '\0';
 	pter = pcode = "";
@@ -120,8 +118,9 @@ catopen(name, type)
 		nlspath = _DEFAULT_NLS_PATH;
 
 	if ((base = cptr = strdup(nlspath)) == NULL) {
+		saverr = errno;
 		free(plang);
-		errno = ENOMEM;
+		errno = saverr;
 		return (NLERR);
 	}
 
@@ -328,10 +327,11 @@ static char     *_errowner = "Message Catalog System";
 }
 
 #define NOSPACE() {                                              \
+	saverr = errno;                                          \
 	(void)fclose(cat->fp);                                   \
 	(void)fprintf(stderr, "%s: no more memory.", _errowner); \
 	free(cat);                                               \
-	errno = ENOMEM;                                          \
+	errno = saverr;                                          \
 	return (NLERR);                                          \
 }
 
@@ -364,10 +364,8 @@ loadCat(catpath)
 	off_t           nextSet;
 	int             saverr;
 
-	if ((cat = (MCCatT *)malloc(sizeof(MCCatT))) == NULL) {
-		errno = ENOMEM;
+	if ((cat = (MCCatT *)malloc(sizeof(MCCatT))) == NULL)
 		return (NLERR);
-	}
 	cat->loadType = MCLoadBySet;
 
 	if ((cat->fp = fopen(catpath, "r")) == NULL) {
@@ -427,7 +425,9 @@ loadCat(catpath)
 			int     res;
 
 			if ((res = loadSet(cat, set)) <= 0) {
+				saverr = errno;
 				__nls_free_resources(cat, i);
+				errno = saverr;
 				if (res < 0)
 					NOSPACE();
 				CORRUPT();
@@ -458,10 +458,8 @@ loadSet(cat, set)
 	/* Get the data */
 	if (fseeko(cat->fp, set->data.off, SEEK_SET) == -1)
 		return (0);
-	if ((set->data.str = malloc(set->dataLen)) == NULL) {
-		errno = ENOMEM;
+	if ((set->data.str = malloc(set->dataLen)) == NULL)
 		return (-1);
-	}
 	if (fread(set->data.str, set->dataLen, 1, cat->fp) != 1) {
 		saverr = errno;
 		free(set->data.str);
@@ -478,8 +476,9 @@ loadSet(cat, set)
 	}
 	if ((set->u.msgs = (MCMsgT *)malloc(sizeof(MCMsgT) * set->numMsgs)) ==
 	    NULL) {
+		saverr = errno;
 		free(set->data.str);
-		errno = ENOMEM;
+		errno = saverr;
 		return (-1);
 	}
 
