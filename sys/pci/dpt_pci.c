@@ -34,7 +34,7 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.4 1998/02/20 13:11:50 bde Exp $"
+#ident "$Id: dpt_pci.c,v 1.5 1998/03/11 00:30:16 julian Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -110,7 +110,7 @@ dpt_pci_probe(pcici_t tag, pcidi_t type)
 #define PCI_SUBCLASS_MASS_STORAGE_SCSI 0x00000000
 #endif
 
-    if ( !already_announced ) {
+    if ( bootverbose && !already_announced ) {
 	printf("DPT:  PCI SCSI HBA Driver, version %d.%d.%d\n",
 	       DPT_RELEASE, DPT_VERSION, DPT_PATCH);
 	++already_announced;
