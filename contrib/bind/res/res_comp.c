@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_comp.c,v 8.12 1997/06/01 20:34:37 vixie Exp $";
+static char rcsid[] = "$Id: res_comp.c,v 8.13 1998/04/07 04:24:06 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -63,9 +63,10 @@ static char rcsid[] = "$Id: res_comp.c,v 8.12 1997/06/01 20:34:37 vixie Exp $";
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 
-#include <stdio.h>
-#include <resolv.h>
 #include <ctype.h>
+#include <errno.h>
+#include <resolv.h>
+#include <stdio.h>
 
 #if defined(BSD) && (BSD >= 199103)
 # include <unistd.h>
@@ -74,8 +75,17 @@ static char rcsid[] = "$Id: res_comp.c,v 8.12 1997/06/01 20:34:37 vixie Exp $";
 # include "../conf/portability.h"
 #endif
 
-static int	dn_find __P((u_char *exp_dn, u_char *msg,
-			     u_char **dnptrs, u_char **lastdnptr));
+static int	ns_name_ntop __P((const u_char *, char *, size_t));
+static int	ns_name_pton __P((const char *, u_char *, size_t));
+static int	ns_name_unpack __P((const u_char *, const u_char *,
+				    const u_char *, u_char *, size_t));
+static int	ns_name_pack __P((const u_char *, u_char *, int,
+				  const u_char **, const u_char **));
+static int	ns_name_uncompress __P((const u_char *, const u_char *,
+					const u_char *, char *, size_t));
+static int	ns_name_compress __P((const char *, u_char *, size_t,
+				      const u_char **, const u_char **));
+static int	ns_name_skip __P((const u_char **, const u_char *));
 
 /*
  * Expand compressed domain name 'comp_dn' to full domain name.
@@ -85,261 +95,40 @@ static int	dn_find __P((u_char *exp_dn, u_char *msg,
  * Return size of compressed name or -1 if there was an error.
  */
 int
-dn_expand(msg, eomorig, comp_dn, exp_dn, length)
-	const u_char *msg, *eomorig, *comp_dn;
-	char *exp_dn;
-	int length;
+dn_expand(const u_char *msg, const u_char *eom, const u_char *src,
+	  char *dst, int dstsiz)
 {
-	register const u_char *cp;
-	register char *dn;
-	register int n, c;
-	char *eom;
-	int len = -1, checked = 0, octets = 0;
+	int n = ns_name_uncompress(msg, eom, src, dst, (size_t)dstsiz);
 
-	dn = exp_dn;
-	cp = comp_dn;
-	eom = exp_dn + length;
-	/*
-	 * fetch next label in domain name
-	 */
-	while (n = *cp++) {
-		/*
-		 * Check for indirection
-		 */
-		switch (n & INDIR_MASK) {
-		case 0:
-			octets += (n + 1);
-			if (octets > MAXCDNAME)
-				return (-1);
-			if (dn != exp_dn) {
-				if (dn >= eom)
-					return (-1);
-				*dn++ = '.';
-			}
-			if (dn+n >= eom)
-				return (-1);
-			checked += n + 1;
-			while (--n >= 0) {
-				if (((c = *cp++) == '.') || (c == '\\')) {
-					if (dn + n + 2 >= eom)
-						return (-1);
-					*dn++ = '\\';
-				}
-				*dn++ = c;
-				if (cp >= eomorig)	/* out of range */
-					return (-1);
-			}
-			break;
-
-		case INDIR_MASK:
-			if (len < 0)
-				len = cp - comp_dn + 1;
-			cp = msg + (((n & 0x3f) << 8) | (*cp & 0xff));
-			if (cp < msg || cp >= eomorig)	/* out of range */
-				return (-1);
-			checked += 2;
-			/*
-			 * Check for loops in the compressed name;
-			 * if we've looked at the whole message,
-			 * there must be a loop.
-			 */
-			if (checked >= eomorig - msg)
-				return (-1);
-			break;
-
-		default:
-			return (-1);			/* flag error */
-		}
-	}
-	*dn = '\0';
-	if (len < 0)
-		len = cp - comp_dn;
-	return (len);
+	if (n > 0 && dst[0] == '.')
+		dst[0] = '\0';
+	return (n);
 }
 
 /*
- * Compress domain name 'exp_dn' into 'comp_dn'.
+ * Pack domain name 'exp_dn' in presentation form into 'comp_dn'.
  * Return the size of the compressed name or -1.
  * 'length' is the size of the array pointed to by 'comp_dn'.
- * 'dnptrs' is a list of pointers to previous compressed names. dnptrs[0]
- * is a pointer to the beginning of the message. The list ends with NULL.
- * 'lastdnptr' is a pointer to the end of the arrary pointed to
- * by 'dnptrs'. Side effect is to update the list of pointers for
- * labels inserted into the message as we compress the name.
- * If 'dnptr' is NULL, we don't try to compress names. If 'lastdnptr'
- * is NULL, we don't update the list.
  */
 int
-dn_comp(exp_dn, comp_dn, length, dnptrs, lastdnptr)
-	const char *exp_dn;
-	u_char *comp_dn, **dnptrs, **lastdnptr;
-	int length;
+dn_comp(const char *src, u_char *dst, int dstsiz,
+	u_char **dnptrs, u_char **lastdnptr)
 {
-	register u_char *cp, *dn;
-	register int c, l;
-	u_char **cpp, **lpp, *sp, *eob;
-	u_char *msg;
-
-	dn = (u_char *)exp_dn;
-	cp = comp_dn;
-	if (length > MAXCDNAME)
-		length = MAXCDNAME;
-	eob = cp + length;
-	lpp = cpp = NULL;
-	if (dnptrs != NULL) {
-		if ((msg = *dnptrs++) != NULL) {
-			for (cpp = dnptrs; *cpp != NULL; cpp++)
-				;
-			lpp = cpp;	/* end of list to search */
-		}
-	} else
-		msg = NULL;
-	for (c = *dn++; c != '\0'; ) {
-		/* look to see if we can use pointers */
-		if (msg != NULL) {
-			if ((l = dn_find(dn-1, msg, dnptrs, lpp)) >= 0) {
-				if (cp+1 >= eob)
-					return (-1);
-				*cp++ = (l >> 8) | INDIR_MASK;
-				*cp++ = l % 256;
-				return (cp - comp_dn);
-			}
-			/* not found, save it */
-			if (lastdnptr != NULL && cpp < lastdnptr-1) {
-				*cpp++ = cp;
-				*cpp = NULL;
-			}
-		}
-		sp = cp++;	/* save ptr to length byte */
-		do {
-			if (c == '.') {
-				c = *dn++;
-				break;
-			}
-			if (c == '\\') {
-				if ((c = *dn++) == '\0')
-					break;
-			}
-			if (cp >= eob) {
-				if (msg != NULL)
-					*lpp = NULL;
-				return (-1);
-			}
-			*cp++ = c;
-		} while ((c = *dn++) != '\0');
-		/* catch trailing '.'s but not '..' */
-		if ((l = cp - sp - 1) == 0 && c == '\0') {
-			cp--;
-			break;
-		}
-		if (l <= 0 || l > MAXLABEL) {
-			if (msg != NULL)
-				*lpp = NULL;
-			return (-1);
-		}
-		*sp = l;
-	}
-	if (cp >= eob) {
-		if (msg != NULL)
-			*lpp = NULL;
-		return (-1);
-	}
-	*cp++ = '\0';
-	return (cp - comp_dn);
+	return (ns_name_compress(src, dst, (size_t)dstsiz,
+				 (const u_char **)dnptrs,
+				 (const u_char **)lastdnptr));
 }
 
 /*
  * Skip over a compressed domain name. Return the size or -1.
  */
 int
-__dn_skipname(comp_dn, eom)
-	const u_char *comp_dn, *eom;
-{
-	register const u_char *cp;
-	register int n;
+__dn_skipname(const u_char *ptr, const u_char *eom) {
+	const u_char *saveptr = ptr;
 
-	cp = comp_dn;
-	while (cp < eom && (n = *cp++)) {
-		/*
-		 * check for indirection
-		 */
-		switch (n & INDIR_MASK) {
-		case 0:			/* normal case, n == len */
-			cp += n;
-			continue;
-		case INDIR_MASK:	/* indirection */
-			cp++;
-			break;
-		default:		/* illegal type */
-			return (-1);
-		}
-		break;
-	}
-	if (cp > eom)
+	if (ns_name_skip(&ptr, eom) == -1)
 		return (-1);
-	return (cp - comp_dn);
-}
-
-static int
-mklower(ch)
-	register int ch;
-{
-	if (isascii(ch) && isupper(ch))
-		return (tolower(ch));
-	return (ch);
-}
-
-/*
- * Search for expanded name from a list of previously compressed names.
- * Return the offset from msg if found or -1.
- * dnptrs is the pointer to the first name on the list,
- * not the pointer to the start of the message.
- */
-static int
-dn_find(exp_dn, msg, dnptrs, lastdnptr)
-	u_char *exp_dn, *msg;
-	u_char **dnptrs, **lastdnptr;
-{
-	register u_char *dn, *cp, **cpp;
-	register int n;
-	u_char *sp;
-
-	for (cpp = dnptrs; cpp < lastdnptr; cpp++) {
-		dn = exp_dn;
-		sp = cp = *cpp;
-		while (n = *cp++) {
-			/*
-			 * check for indirection
-			 */
-			switch (n & INDIR_MASK) {
-			case 0:		/* normal case, n == len */
-				while (--n >= 0) {
-					if (*dn == '.')
-						goto next;
-					if (*dn == '\\')
-						dn++;
-					if (mklower(*dn++) != mklower(*cp++))
-						goto next;
-				}
-				if ((n = *dn++) == '\0' && *cp == '\0')
-					return (sp - msg);
-				if (n == '.')
-					continue;
-				goto next;
-
-			case INDIR_MASK:	/* indirection */
-				cp = msg + (((n & 0x3f) << 8) | *cp);
-				break;
-
-			default:	/* illegal type */
-				return (-1);
-			}
-		}
-		if (*dn == '\0')
-			return (sp - msg);
-	next:	;
-	}
-	return (-1);
+	return (ptr - saveptr);
 }
 
 /*
@@ -509,3 +298,640 @@ __putlong(l, msgp)
 {
 	PUTLONG(l, msgp);
 }
+
+/* ++ From BIND 8.1.1. ++ */
+/*
+ * Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
+
+/*"Id: ns_name.c,v 1.1 1997/12/13 02:41:13 vixie Exp vixie"*/
+
+/*#include "port_before.h"*/
+
+/*#include <sys/types.h>*/
+
+/*#include <netinet/in.h>*/
+/*#include <arpa/nameser.h>*/
+
+/*#include <errno.h>*/
+/*#include <resolv.h>*/
+/*#include <string.h>*/
+
+/*#include "port_after.h"*/
+
+#define NS_CMPRSFLGS	0xc0	/* Flag bits indicating name compression. */
+#define NS_MAXCDNAME	255	/* maximum compressed domain name */
+
+/* Data. */
+
+static char		digits[] = "0123456789";
+
+/* Forward. */
+
+static int		special(int);
+static int		printable(int);
+static int		dn_find(const u_char *, const u_char *,
+				const u_char * const *,
+				const u_char * const *);
+
+/* Public. */
+
+/*
+ * ns_name_ntop(src, dst, dstsiz)
+ *	Convert an encoded domain name to printable ascii as per RFC1035.
+ * return:
+ *	Number of bytes written to buffer, or -1 (with errno set)
+ * notes:
+ *	The root is returned as "."
+ *	All other domains are returned in non absolute form
+ */
+static int
+ns_name_ntop(src, dst, dstsiz)
+	const u_char *src;
+	char *dst;
+	size_t dstsiz;
+{
+	const u_char *cp;
+	char *dn, *eom;
+	u_char c;
+	u_int n;
+
+	cp = src;
+	dn = dst;
+	eom = dst + dstsiz;
+
+	while ((n = *cp++) != 0) {
+		if ((n & NS_CMPRSFLGS) != 0) {
+			/* Some kind of compression pointer. */
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		if (dn != dst) {
+			if (dn >= eom) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			*dn++ = '.';
+		}
+		if (dn + n >= eom) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		for ((void)NULL; n > 0; n--) {
+			c = *cp++;
+			if (special(c)) {
+				if (dn + 1 >= eom) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				*dn++ = '\\';
+				*dn++ = (char)c;
+			} else if (!printable(c)) {
+				if (dn + 3 >= eom) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				*dn++ = '\\';
+				*dn++ = digits[c / 100];
+				*dn++ = digits[(c % 100) / 10];
+				*dn++ = digits[c % 10];
+			} else {
+				if (dn >= eom) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				*dn++ = (char)c;
+			}
+		}
+	}
+	if (dn == dst) {
+		if (dn >= eom) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		*dn++ = '.';
+	}
+	if (dn >= eom) {
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	*dn++ = '\0';
+	return (dn - dst);
+}
+
+/*
+ * ns_name_pton(src, dst, dstsiz)
+ *	Convert a ascii string into an encoded domain name as per RFC1035.
+ * return:
+ *	-1 if it fails
+ *	1 if string was fully qualified
+ *	0 is string was not fully qualified
+ * notes:
+ *	Enforces label and domain length limits.
+ */
+
+static int
+ns_name_pton(src, dst, dstsiz)
+	const char *src;
+	u_char *dst;
+	size_t dstsiz;
+{
+	u_char *label, *bp, *eom;
+	int c, n, escaped;
+	char *cp;
+
+	escaped = 0;
+	bp = dst;
+	eom = dst + dstsiz;
+	label = bp++;
+
+	while ((c = *src++) != 0) {
+		if (escaped) {
+			if ((cp = strchr(digits, c)) != NULL) {
+				n = (cp - digits) * 100;
+				if ((c = *src++) == 0 ||
+				    (cp = strchr(digits, c)) == NULL) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				n += (cp - digits) * 10;
+				if ((c = *src++) == 0 ||
+				    (cp = strchr(digits, c)) == NULL) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				n += (cp - digits);
+				if (n > 255) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				c = n;
+			}
+			escaped = 0;
+		} else if (c == '\\') {
+			escaped = 1;
+			continue;
+		} else if (c == '.') {
+			c = (bp - label - 1);
+			if ((c & NS_CMPRSFLGS) != 0) {	/* Label too big. */
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			if (label >= eom) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			*label = c;
+			/* Fully qualified ? */
+			if (*src == '\0') {
+				if (c != 0) {
+					if (bp >= eom) {
+						errno = EMSGSIZE;
+						return (-1);
+					}
+					*bp++ = '\0';
+				}
+				if ((bp - dst) > MAXCDNAME) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				return (1);
+			}
+			if (c == 0) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			label = bp++;
+			continue;
+		}
+		if (bp >= eom) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		*bp++ = (u_char)c;
+	}
+	c = (bp - label - 1);
+	if ((c & NS_CMPRSFLGS) != 0) {		/* Label too big. */
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	if (label >= eom) {
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	*label = c;
+	if (c != 0) {
+		if (bp >= eom) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		*bp++ = 0;
+	}
+	if ((bp - dst) > MAXCDNAME) {	/* src too big */
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	return (0);
+}
+
+/*
+ * ns_name_unpack(msg, eom, src, dst, dstsiz)
+ *	Unpack a domain name from a message, source may be compressed.
+ * return:
+ *	-1 if it fails, or consumed octets if it succeeds.
+ */
+static int
+ns_name_unpack(msg, eom, src, dst, dstsiz)
+	const u_char *msg;
+	const u_char *eom;
+	const u_char *src;
+	u_char *dst;
+	size_t dstsiz;
+{
+	const u_char *srcp, *dstlim;
+	u_char *dstp;
+	int n, c, len, checked;
+
+	len = -1;
+	checked = 0;
+	dstp = dst;
+	srcp = src;
+	dstlim = dst + dstsiz;
+	if (srcp < msg || srcp >= eom) {
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	/* Fetch next label in domain name. */
+	while ((n = *srcp++) != 0) {
+		/* Check for indirection. */
+		switch (n & NS_CMPRSFLGS) {
+		case 0:
+			/* Limit checks. */
+			if (dstp + n + 1 >= dstlim || srcp + n >= eom) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			checked += n + 1;
+			*dstp++ = n;
+			memcpy(dstp, srcp, n);
+			dstp += n;
+			srcp += n;
+			break;
+
+		case NS_CMPRSFLGS:
+			if (srcp >= eom) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			if (len < 0)
+				len = srcp - src + 1;
+			srcp = msg + (((n & 0x3f) << 8) | (*srcp & 0xff));
+			if (srcp < msg || srcp >= eom) {  /* Out of range. */
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			checked += 2;
+			/*
+			 * Check for loops in the compressed name;
+			 * if we've looked at the whole message,
+			 * there must be a loop.
+			 */
+			if (checked >= eom - msg) {
+				errno = EMSGSIZE;
+				return (-1);
+			}
+			break;
+
+		default:
+			errno = EMSGSIZE;
+			return (-1);			/* flag error */
+		}
+	}
+	*dstp = '\0';
+	if (len < 0)
+		len = srcp - src;
+	return (len);
+}
+
+/*
+ * ns_name_pack(src, dst, dstsiz, dnptrs, lastdnptr)
+ *	Pack domain name 'domain' into 'comp_dn'.
+ * return:
+ *	Size of the compressed name, or -1.
+ * notes:
+ *	'dnptrs' is an array of pointers to previous compressed names.
+ *	dnptrs[0] is a pointer to the beginning of the message. The array
+ *	ends with NULL.
+ *	'lastdnptr' is a pointer to the end of the array pointed to
+ *	by 'dnptrs'.
+ * Side effects:
+ *	The list of pointers in dnptrs is updated for labels inserted into
+ *	the message as we compress the name.  If 'dnptr' is NULL, we don't
+ *	try to compress names. If 'lastdnptr' is NULL, we don't update the
+ *	list.
+ */
+static int
+ns_name_pack(src, dst, dstsiz, dnptrs, lastdnptr)
+	const u_char *src;
+	u_char *dst;
+	int dstsiz;
+	const u_char **dnptrs;
+	const u_char **lastdnptr;
+{
+	u_char *dstp;
+	const u_char **cpp, **lpp, *eob, *msg;
+	const u_char *srcp;
+	int n, l;
+
+	srcp = src;
+	dstp = dst;
+	eob = dstp + dstsiz;
+	lpp = cpp = NULL;
+	if (dnptrs != NULL) {
+		if ((msg = *dnptrs++) != NULL) {
+			for (cpp = dnptrs; *cpp != NULL; cpp++)
+				(void)NULL;
+			lpp = cpp;	/* end of list to search */
+		}
+	} else
+		msg = NULL;
+
+	/* make sure the domain we are about to add is legal */
+	l = 0;
+	do {
+		n = *srcp;
+		if ((n & NS_CMPRSFLGS) != 0) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		l += n + 1;
+		if (l > MAXCDNAME) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		srcp += n + 1;
+	} while (n != 0);
+
+	srcp = src;
+	do {
+		/* Look to see if we can use pointers. */
+		n = *srcp;
+		if (n != 0 && msg != NULL) {
+			l = dn_find(srcp, msg, (const u_char * const *)dnptrs,
+				    (const u_char * const *)lpp);
+			if (l >= 0) {
+				if (dstp + 1 >= eob) {
+					errno = EMSGSIZE;
+					return (-1);
+				}
+				*dstp++ = (l >> 8) | NS_CMPRSFLGS;
+				*dstp++ = l % 256;
+				return (dstp - dst);
+			}
+			/* Not found, save it. */
+			if (lastdnptr != NULL && cpp < lastdnptr - 1 &&
+			    (dstp - msg) < 0x4000) {
+				*cpp++ = dstp;
+				*cpp = NULL;
+			}
+		}
+		/* copy label to buffer */
+		if (n & NS_CMPRSFLGS) {		/* Should not happen. */
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		if (dstp + 1 + n >= eob) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		memcpy(dstp, srcp, n + 1);
+		srcp += n + 1;
+		dstp += n + 1;
+	} while (n != 0);
+
+	if (dstp > eob) {
+		if (msg != NULL)
+			*lpp = NULL;
+		errno = EMSGSIZE;
+		return (-1);
+	} 
+	return (dstp - dst);
+}
+
+/*
+ * ns_name_uncompress(msg, eom, src, dst, dstsiz)
+ *	Expand compressed domain name to presentation format.
+ * return:
+ *	Number of bytes read out of `src', or -1 (with errno set).
+ * note:
+ *	Root domain returns as "." not "".
+ */
+static int
+ns_name_uncompress(msg, eom, src, dst, dstsiz)
+	const u_char *msg;
+	const u_char *eom;
+	const u_char *src;
+	char *dst;
+	size_t dstsiz;
+{
+	u_char tmp[NS_MAXCDNAME];
+	int n;
+	
+	if ((n = ns_name_unpack(msg, eom, src, tmp, sizeof tmp)) == -1)
+		return (-1);
+	if (ns_name_ntop(tmp, dst, dstsiz) == -1)
+		return (-1);
+	return (n);
+}
+
+/*
+ * ns_name_compress(src, dst, dstsiz, dnptrs, lastdnptr)
+ *	Compress a domain name into wire format, using compression pointers.
+ * return:
+ *	Number of bytes consumed in `dst' or -1 (with errno set).
+ * notes:
+ *	'dnptrs' is an array of pointers to previous compressed names.
+ *	dnptrs[0] is a pointer to the beginning of the message.
+ *	The list ends with NULL.  'lastdnptr' is a pointer to the end of the
+ *	array pointed to by 'dnptrs'. Side effect is to update the list of
+ *	pointers for labels inserted into the message as we compress the name.
+ *	If 'dnptr' is NULL, we don't try to compress names. If 'lastdnptr'
+ *	is NULL, we don't update the list.
+ */
+static int
+ns_name_compress(src, dst, dstsiz, dnptrs, lastdnptr)
+	const char *src;
+	u_char *dst;
+	size_t dstsiz;
+	const u_char **dnptrs;
+	const u_char **lastdnptr;
+{
+	u_char tmp[NS_MAXCDNAME];
+
+	if (ns_name_pton(src, tmp, sizeof tmp) == -1)
+		return (-1);
+	return (ns_name_pack(tmp, dst, dstsiz, dnptrs, lastdnptr));
+}
+
+/*
+ * ns_name_skip(ptrptr, eom)
+ *	Advance *ptrptr to skip over the compressed name it points at.
+ * return:
+ *	0 on success, -1 (with errno set) on failure.
+ */
+static int
+ns_name_skip(ptrptr, eom)
+	const u_char **ptrptr;
+	const u_char *eom;
+{
+	const u_char *cp;
+	u_int n;
+
+	cp = *ptrptr;
+	while (cp < eom && (n = *cp++) != 0) {
+		/* Check for indirection. */
+		switch (n & NS_CMPRSFLGS) {
+		case 0:			/* normal case, n == len */
+			cp += n;
+			continue;
+		case NS_CMPRSFLGS:	/* indirection */
+			cp++;
+			break;
+		default:		/* illegal type */
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		break;
+	}
+	if (cp > eom) {
+		errno = EMSGSIZE;
+		return (-1);
+	}
+	*ptrptr = cp;
+	return (0);
+}
+
+/* Private. */
+
+/*
+ * special(ch)
+ *	Thinking in noninternationalized USASCII (per the DNS spec),
+ *	is this characted special ("in need of quoting") ?
+ * return:
+ *	boolean.
+ */
+static int
+special(ch)
+	int ch;
+{
+	switch (ch) {
+	case 0x22: /* '"' */
+	case 0x2E: /* '.' */
+	case 0x3B: /* ';' */
+	case 0x5C: /* '\\' */
+	/* Special modifiers in zone files. */
+	case 0x40: /* '@' */
+	case 0x24: /* '$' */
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*
+ * printable(ch)
+ *	Thinking in noninternationalized USASCII (per the DNS spec),
+ *	is this character visible and not a space when printed ?
+ * return:
+ *	boolean.
+ */
+static int
+printable(ch)
+	int ch;
+{
+	return (ch > 0x20 && ch < 0x7f);
+}
+
+/*
+ *	Thinking in noninternationalized USASCII (per the DNS spec),
+ *	convert this character to lower case if it's upper case.
+ */
+static int
+mklower(ch)
+	int ch;
+{
+	if (ch >= 0x41 && ch <= 0x5A)
+		return (ch + 0x20);
+	return (ch);
+}
+
+/*
+ * dn_find(domain, msg, dnptrs, lastdnptr)
+ *	Search for the counted-label name in an array of compressed names.
+ * return:
+ *	offset from msg if found, or -1.
+ * notes:
+ *	dnptrs is the pointer to the first name on the list,
+ *	not the pointer to the start of the message.
+ */
+static int
+dn_find(domain, msg, dnptrs, lastdnptr)
+	const u_char *domain;
+	const u_char *msg;
+	const u_char * const *dnptrs;
+	const u_char * const *lastdnptr;
+{
+	const u_char *dn, *cp, *sp;
+	const u_char * const *cpp;
+	u_int n;
+
+	for (cpp = dnptrs; cpp < lastdnptr; cpp++) {
+		dn = domain;
+		sp = cp = *cpp;
+		while ((n = *cp++) != 0) {
+			/*
+			 * check for indirection
+			 */
+			switch (n & NS_CMPRSFLGS) {
+			case 0:			/* normal case, n == len */
+				if (n != *dn++)
+					goto next;
+				for ((void)NULL; n > 0; n--)
+					if (mklower(*dn++) != mklower(*cp++))
+						goto next;
+				/* Is next root for both ? */
+				if (*dn == '\0' && *cp == '\0')
+					return (sp - msg);
+				if (*dn)
+					continue;
+				goto next;
+
+			case NS_CMPRSFLGS:	/* indirection */
+				cp = msg + (((n & 0x3f) << 8) | *cp);
+				break;
+
+			default:	/* illegal type */
+				errno = EMSGSIZE;
+				return (-1);
+			}
+		}
+ next: ;
+	}
+	errno = ENOENT;
+	return (-1);
+}
+
+/* -- From BIND 8.1.1. -- */
