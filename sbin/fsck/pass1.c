@@ -179,7 +179,8 @@ checkinode(inumber, idesc)
 {
 	register struct dinode *dp;
 	struct zlncnt *zlnp;
-	int ndb, j;
+	u_int64_t kernmaxfilesize;
+	ufs_daddr_t ndb, j;
 	mode_t mode;
 	char *symbuf;
 
@@ -202,8 +203,10 @@ checkinode(inumber, idesc)
 		return;
 	}
 	lastino = inumber;
-	if (/* dp->di_size < 0 || */
-	    dp->di_size + sblock.fs_bsize - 1 < dp->di_size ||
+	/* This should match the file size limit in ffs_mountfs(). */
+	kernmaxfilesize = (u_int64_t)0x40000000 * sblock.fs_bsize - 1;
+	if (dp->di_size > kernmaxfilesize ||
+	    dp->di_size > sblock.fs_maxfilesize ||
 	    (mode == IFDIR && dp->di_size > MAXDIRSIZE)) {
 		if (debug)
 			printf("bad size %qu:", dp->di_size);
