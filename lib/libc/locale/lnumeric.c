@@ -28,8 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
-#include "lnumeric.h"
+
 #include "ldpart.h"
+#include "lnumeric.h"
 
 extern int __nlocale_changed;
 extern const char *__fix_locale_grouping_str(const char *);
