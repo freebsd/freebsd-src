@@ -38,6 +38,7 @@
 .Fl a Ar BD_ADDR
 .Fl C Ar channel
 .Fl l Ar label
+.Fl u Ar N
 .Nm
 .Fl s
 .Op Fl dh
@@ -126,6 +127,17 @@ In both client and server modes this required option specifies which
 label will be used.
 .It Fl s
 Act as a RFCOMM server.
+.It Fl u Ar N
+This option maps directly onto
+.Fl unit
+.Xr ppp 8
+command line option and tells
+.Nm
+to instruct
+.Xr ppp 8
+to only attempt to open
+.Pa /dev/tun Ns Ar N .
+This option only works in the client mode.
 .El
 .Sh PPP CONFIGURATION
 .Ss Important Notes on PPP Configuration
@@ -272,14 +284,18 @@ mode with
 label.
 .Sh DIAGNOSTICS
 .Ex -std
-.Sh BUGS
+.Sh CAVEAT
 The
 .Nm
-utility
-does not register services with local SDP (Service Discovery Protocol) daemon.
+utility in server mode will try to register Bluetooth LAN Access Over PPP
+service with local SPD daemon. If local SDP daemon is not running the
+.Nm
+utility will exit with error.
 .Sh SEE ALSO
 .Xr rfcomm_sppd 1 ,
 .Xr ng_btsocket 4 ,
-.Xr ppp 8
+.Xr ppp 8 ,
+.Xr sdpcontrol 8 ,
+.Xr sdpd 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
