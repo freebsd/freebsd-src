@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.85 1999/07/19 11:00:56 jkh Exp $
+ * $Id: tcpip.c,v 1.86 1999/07/22 08:51:42 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -384,11 +384,9 @@ netconfig:
 	di->use_dhcp = use_dhcp;
 
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
-#ifdef notyet	/* XXX this will only work once bpf is a loadable kernel mod */
 	if (use_dhcp)
 	    sprintf(temp, "DHCP");
 	else
-#endif
 	    sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	variable_set2(ifn, temp, 1);
 	ifaces = variable_get(VAR_INTERFACES);
