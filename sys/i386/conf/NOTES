@@ -663,7 +663,7 @@ options		SAFE_RNDTEST	# enable rndtest support
 device		apm
 hint.apm.0.flags="0x20"
 device		pmtimer			# Adjust system timer at wakeup time
-device		cy	1
+device		cy
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 hint.cy.0.at="isa"
 hint.cy.0.irq="10"

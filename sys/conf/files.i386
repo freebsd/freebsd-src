@@ -267,7 +267,6 @@ i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/atpic.c		standard
 i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		standard
-i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/if_el.c		count		el
@@ -413,4 +412,3 @@ pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
 pci/agp_nvidia.c		optional	agp
-pci/cy_pci.c			optional	cy pci
