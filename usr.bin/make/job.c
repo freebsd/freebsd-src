@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.7 1997/02/22 19:27:11 peter Exp $
+ *	$Id: job.c,v 1.8 1998/04/28 05:08:10 imp Exp $
  */
 
 #ifndef lint
@@ -1851,6 +1851,7 @@ JobStart(gn, flags, previous)
 				    JobSaveCommand,
 				   (ClientData)job->node);
 		}
+		job->node->made = MADE;
 		Make_Update(job->node);
 	    }
 	    free((Address)job);
