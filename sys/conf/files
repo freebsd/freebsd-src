@@ -209,10 +209,11 @@ dev/ex/if_ex_pccard.c	optional ex card
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
 dev/firewire/firewire.c	optional firewire
+dev/firewire/fwcrom.c	optional firewire
+dev/firewire/fwdev.c	optional firewire
+dev/firewire/fwmem.c	optional firewire
 dev/firewire/fwohci.c	optional firewire
 dev/firewire/fwohci_pci.c	optional firewire pci
-dev/firewire/fwmem.c	optional firewire
-dev/firewire/fwdev.c	optional firewire
 dev/firewire/if_fwe.c	optional fwe
 dev/firewire/sbp.c	optional sbp
 dev/fxp/if_fxp.c	optional fxp
