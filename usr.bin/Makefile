@@ -186,6 +186,7 @@ SUBDIR=	apply \
 	wall \
 	wc \
 	what \
+	whereis \
 	which \
 	who \
 	whois \
