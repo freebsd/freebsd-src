@@ -31,23 +31,27 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <vis.h>
+
 #include "ps.h"
 
 static char *cmdpart(char *);
@@ -61,14 +65,14 @@ static char *
 shquote(char **argv)
 {
 	static long arg_max = -1;
-	long len;
+	size_t len;
 	char **p, *dst, *src;
 	static char *buf = NULL;
 
 	if (buf == NULL) {
 		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 			errx(1, "sysconf _SC_ARG_MAX failed");
-		if ((buf = malloc((4 * arg_max)  +  1)) == NULL)
+		if ((buf = malloc((u_int)(4 * arg_max)  +  1)) == NULL)
 			errx(1, "malloc failed");
 	}
 
@@ -80,7 +84,7 @@ shquote(char **argv)
 	for (p = argv; (src = *p++) != 0; ) {
 		if (*src == 0)
 			continue;
-		len = (4 * arg_max - (dst - buf)) / 4;
+		len = (size_t)(4 * arg_max - (dst - buf)) / 4;
 		strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
 		    VIS_NL | VIS_CSTYLE);
 		while (*dst)
@@ -103,13 +107,13 @@ cmdpart(char *arg0)
 	return ((cp = strrchr(arg0, '/')) != NULL ? cp + 1 : arg0);
 }
 
-char *
-fmt_argv(char **argv, char *cmd, int maxlen)
+const char *
+fmt_argv(char **argv, char *cmd, size_t maxlen)
 {
-	int len;
+	size_t len;
 	char *ap, *cp;
 
-	if (argv == 0 || argv[0] == 0) {
+	if (argv == NULL || argv[0] == NULL) {
 		if (cmd == NULL)
 			return ("");
 		ap = NULL;
@@ -118,12 +122,13 @@ fmt_argv(char **argv, char *cmd, int maxlen)
 		ap = shquote(argv);
 		len = strlen(ap) + maxlen + 4;
 	}
-	if ((cp = malloc(len)) == NULL)
+	cp = malloc(len);
+	if (cp == NULL)
 		return (NULL);
 	if (ap == NULL)
-		sprintf(cp, " (%.*s)", maxlen, cmd);
+		sprintf(cp, " (%.*s)", (int)maxlen, cmd);
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
-		sprintf(cp, "%s (%.*s)", ap, maxlen, cmd);
+		sprintf(cp, "%s (%.*s)", ap, (int)maxlen, cmd);
 	else
 		(void) strcpy(cp, ap);
 	return (cp);
