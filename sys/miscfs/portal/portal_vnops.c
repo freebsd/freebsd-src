@@ -453,7 +453,7 @@ portal_getattr(ap)
 	vap->va_blocksize = DEV_BSIZE;
 	nanotime(&vap->va_atime);
 	vap->va_mtime = vap->va_atime;
-	vap->va_ctime = vap->va_ctime;
+	vap->va_ctime = vap->va_mtime;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
 	vap->va_rdev = 0;
