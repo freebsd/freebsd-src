@@ -140,7 +140,7 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 #
 .if ${TARGET_ARCH} == "i386"
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
-.else
+.elif ${TARGET_ARCH} != "ia64"
 COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
@@ -207,6 +207,13 @@ BOOTINODE=		8192
 MFSINODE=		8192
 BIGBOOTLABEL=		auto
 MFSLABEL=		auto
+.elif ${TARGET_ARCH} == "ia64"
+BIGBOOTLABEL=		fd120m
+BIGBOOTSIZE=		123264
+BOOTINODE=		15872
+MFSINODE=		8192
+MFSLABEL=		auto
+MFSSIZE=		8192
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -242,6 +249,9 @@ CD_DISC2=		${CD}/disc2
 LOCALDIR=		/usr/local/bin
 
 .if ${TARGET_ARCH} == "sparc64"
+CRUNCH_TARGETS= boot
+FIXIT_TARGET=
+.elif ${TARGET_ARCH} == "ia64"
 CRUNCH_TARGETS= boot
 FIXIT_TARGET=
 .endif
@@ -651,7 +661,9 @@ release.9:
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
+.if ${TARGET} != "ia64"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
+.endif
 .if ${TARGET} == "i386"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
@@ -1000,6 +1012,8 @@ doMFSKERN:
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
 	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader /boot/loader
+.elif ${TARGET} == "ia64"
+	@cp /boot/loader.efi ${RD}/image.${FSIMAGE}/boot
 .else
 	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
