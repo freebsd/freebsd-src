@@ -32,12 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)displayq.c	8.4 (Berkeley) 4/28/95";
+static char sccsid[] = "@(#)displayq.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/file.h>
 
 #include <signal.h>
 #include <fcntl.h>
@@ -125,7 +124,7 @@ displayq(format)
 		fatal("cannot examine spooling area\n");
 	if (stat(LO, &statb) >= 0) {
 		if (statb.st_mode & 0100) {
-			if (remote)
+			if (sendtorem)
 				printf("%s: ", host);
 			printf("Warning: %s is down: ", printer);
 			fd = open(ST, O_RDONLY);
@@ -138,7 +137,7 @@ displayq(format)
 				putchar('\n');
 		}
 		if (statb.st_mode & 010) {
-			if (remote)
+			if (sendtorem)
 				printf("%s: ", host);
 			printf("Warning: %s queue is turned off\n", printer);
 		}
@@ -151,8 +150,8 @@ displayq(format)
 		else {
 			/* get daemon pid */
 			cp = current;
-			while ((i = getc(fp)) != EOF && i != '\n')
-				*cp++ = i;
+			while ((*cp = getc(fp)) != EOF && *cp != '\n')
+				cp++;
 			*cp = '\0';
 			i = atoi(current);
 			if (i <= 0 || kill(i, 0) < 0)
@@ -160,13 +159,13 @@ displayq(format)
 			else {
 				/* read current file name */
 				cp = current;
-				while ((i = getc(fp)) != EOF && i != '\n')
-					*cp++ = i;
+				while ((*cp = getc(fp)) != EOF && *cp != '\n')
+					cp++;
 				*cp = '\0';
 				/*
 				 * Print the status file.
 				 */
-				if (remote)
+				if (sendtorem)
 					printf("%s: ", host);
 				fd = open(ST, O_RDONLY);
 				if (fd >= 0) {
@@ -192,7 +191,7 @@ displayq(format)
 		}
 		free(queue);
 	}
-	if (!remote) {
+	if (!sendtorem) {
 		if (nitems == 0)
 			puts("no entries");
 		return;
@@ -216,7 +215,7 @@ displayq(format)
 		(void) strcpy(cp, user[i]);
 	}
 	strcat(line, "\n");
-	fd = getport(RM, 0);
+	fd = getport(RM);
 	if (fd < 0) {
 		if (from != host)
 			printf("%s: ", host);
@@ -238,7 +237,7 @@ displayq(format)
 void
 warn()
 {
-	if (remote)
+	if (sendtorem)
 		printf("\n%s: ", host);
 	puts("Warning: no daemon present");
 	current[0] = '\0';
@@ -272,7 +271,7 @@ inform(cf)
 
 	if (rank < 0)
 		rank = 0;
-	if (remote || garbage || strcmp(cf, current))
+	if (sendtorem || garbage || strcmp(cf, current))
 		rank++;
 	j = 0;
 	while (getline(cfp)) {
@@ -417,7 +416,7 @@ ldump(nfile, file, copies)
 	else
 		printf("%-32s", nfile);
 	if (*file && !stat(file, &lbuf))
-		printf(" %ld bytes", (long)lbuf.st_size);
+		printf(" %qd bytes", lbuf.st_size);
 	else
 		printf(" ??? bytes");
 	putchar('\n');
