@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.75 1996/08/27 16:25:53 wosch Exp $
+#	$Id: GENERIC98,v 1.3 1996/08/31 15:06:28 asami Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
 
@@ -76,17 +76,17 @@ options		DIAGNOSTIC
 
 config		kernel	root on wd0
 
-controller	nec0
+controller	isa0
 controller	pci0
 
-controller	fdc0	at nec? port "IO_FD1" bio irq 11 drq 2 vector fdintr
+controller	fdc0	at isa? port "IO_FD1" bio irq 11 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 disk		fd2	at fdc0 drive 2
 disk		fd3	at fdc0 drive 3
 tape		ft0	at fdc0 drive 4
 
-controller	wdc0	at nec? port "IO_WD1" bio irq 9 vector wdintr
+controller	wdc0	at isa? port "IO_WD1" bio irq 9 vector wdintr
 disk		wd0	at wdc0 drive 0
 #disk		wd1	at wdc0 drive 1
 #disk		wd2	at wdc0 drive 2
@@ -96,10 +96,13 @@ options		ATAPI	# Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd	#IDE CD-ROM
 
-controller	sbic0	at nec? port "IO_SCSI" bio irq 5 drq 3 vector sbicintr
-#controller	sbic0	at nec? port "IO_SCSI" bio irq 5 drq 3 flags 0xff vector sbicintr
-controller	aic0	at nec? port 0x1840 bio irq 5 vector aicintr
+# A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
+# for any number of installed devices.
+controller	ncr0
 controller	ahc0
+controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 vector sbicintr
+#controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0xff vector sbicintr
+controller	aic0	at isa? port 0x1840 bio irq 5 vector aicintr
 
 controller	scbus0
 
@@ -111,49 +114,74 @@ device		cd0	#Only need one of these, the code dynamically grows
 
 device		od0
 
-controller	matcd0	at nec? port? bio
+controller	matcd0	at isa? port? bio
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at nec? port "IO_KBD" tty irq 1 vector scintr
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 #options		XSERVER			# include code for XFree86
 
 # Mandatory, don't remove
-device		npx0	at nec? port "IO_NPX" irq 8 vector npxintr
+device		npx0	at isa? port "IO_NPX" irq 8 vector npxintr
 
 #
 # Laptop support (see LINT for more options)
 #
-device		apm0    at nec?	disable	# Advanced Power Management
+device		apm0    at isa?	disable	# Advanced Power Management
 options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
 # PCCARD (PCMCIA) support
 #controller	crd0
 #device		pcic0	at crd?
 #device		pcic1	at crd?
 
-device		lpt0	at nec? port "IO_LPT"  tty
-device		mse0	at nec? port "IO_MSE" tty irq 13 vector mseintr
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+device		sio1	at isa? port 0xd2  tty irq 5 flags 0x101 vector siointr
+device		sio2	at isa? port 0x8d2 tty flags 0x101 vector siointr
 
-device		sio0	at nec? port "IO_COM1" tty irq 4 vector siointr
-device		sio1	at nec? port 0xd2  tty irq 5 flags 0x101 vector siointr
-device		sio2	at nec? port 0x8d2 tty flags 0x101 vector siointr
+device		lpt0	at isa? port "IO_LPT"  tty
+device		mse0	at isa? port "IO_MSE" tty irq 13 vector mseintr
 
+# Order is important here due to intrusive probes, do *not* alphabetize
+# this list of network interfaces until the probes have been fixed.
+# Right now it appears that the ie0 must be probed before ep0. See
+# revision 1.20 of this file.
+device de0
+device fxp0
+device vx0
 
-device ed0 at nec? port 0x00d0 net irq 6 vector edintr
-device ed1 at nec? port 0x56d0 net irq 5 vector edintr
-device ed2 at nec? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 vector edintr
-device fe0 at nec? port 0x00d0 net irq 3 vector feintr
-device zp0 at nec? port 0x0300 net irq 10 iomem 0xe0000 vector zpintr 
-device ep0 at nec? port 0x00d0 net irq 6 vector epintr
+#
+# DP8390 NIC
+#
+# ed0: generic driver
+# ed1: LANEED LD-BDN
+# ed2: EGY-98
+# ed3: LGY-98
+# ed4: ICM-IF-2766/EN-2298-T
+# ed5: SIC-98
+# ed6: PC-9801-108
+# ed7: LA-98
+#
+device ed0 at isa? port 0x00d0 net irq 6 vector edintr
+device ed1 at isa? port 0x00d8 net irq 6 flags 0x20000 vector edintr
+device ed2 at isa? port 0x00d8 net irq 6 flags 0x30000 vector edintr
+device ed3 at isa? port 0x00d8 net irq 6 flags 0x40000 vector edintr
+device ed4 at isa? port 0x56d0 net irq 5 flags 0x50000 vector edintr
+device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x60000 vector edintr
+device ed6 at isa? port 0x00d0 net irq 6 flags 0x80000 vector edintr
+device ed7 at isa? port 0x00d0 net irq 6 flags 0x90000 vector edintr
+
+device fe0 at isa? port 0x00d0 net irq 3 vector feintr
+device zp0 at isa? port 0x0300 net irq 10 iomem 0xe0000 vector zpintr 
+device ep0 at isa? port 0x00d0 net irq 6 vector epintr
 
 #controller	snd0
-#device	sb0	at nec? port 0x20d2 irq 10 conflicts drq 3 vector sbintr
-#device	sbxvi0 	at nec? drq 3
-#device	sbmidi0	at nec? port 0x80d2
-#device	opl0	at nec? port 0x28d2
+#device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3 vector sbintr
+#device	sbxvi0 	at isa? drq 3
+#device	sbmidi0	at isa? port 0x80d2
+#device	opl0	at isa? port 0x28d2
 
-#device pcm0    at nec? port 0xa460 irq 12 vector pcmintr
+#device pcm0    at isa? port 0xa460 irq 12 vector pcmintr
 
-#device	mss0	at nec? port 0xf40 irq12 drq 1 vectro adintr
+#device	mss0	at isa? port 0xf40 irq12 drq 1 vectro adintr
 
 pseudo-device	loop
 pseudo-device	ether
