@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: linux.h,v 1.14 1997/02/22 09:38:19 peter Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -517,8 +517,53 @@ struct trapframe;
 #define LINUX_SIOCGIFDSTADDR		0x8917
 #define LINUX_SIOCGIFBRDADDR		0x8919
 #define LINUX_SIOCGIFNETMASK		0x891b
+#define LINUX_SIOCGIFHWADDR		0x8927
 #define LINUX_SIOCADDMULTI		0x8931
 #define LINUX_SIOCDELMULTI		0x8932
+
+struct linux_sockaddr
+{
+    unsigned short	sa_family;
+    char		sa_data[14];
+};
+
+struct linux_ifmap 
+{
+    unsigned long	mem_start;
+    unsigned long	mem_end;
+    unsigned short	base_addr; 
+    unsigned char	irq;
+    unsigned char	dma;
+    unsigned char	port;
+};
+
+struct linux_ifreq 
+{
+#define LINUX_IFHWADDRLEN     6
+#define LINUX_IFNAMSIZ        16
+    union
+    {
+	char    ifrn_name[LINUX_IFNAMSIZ];		/* if name, e.g. "en0" */	
+    } ifr_ifrn;
+        
+    union {
+	struct linux_sockaddr	ifru_addr;
+	struct linux_sockaddr	ifru_dstaddr;
+	struct linux_sockaddr	ifru_broadaddr;
+	struct linux_sockaddr	ifru_netmask;
+	struct linux_sockaddr	ifru_hwaddr;
+	short			ifru_flags;
+	int			ifru_metric;
+	int			ifru_mtu;
+	struct linux_ifmap	ifru_map;
+	char			ifru_slave[LINUX_IFNAMSIZ];	/* Just fits the size */
+	caddr_t			ifru_data;
+    } ifr_ifru;
+};
+
+#define ifr_name	ifr_ifrn.ifrn_name		/* interface name       */
+#define ifr_hwaddr	ifr_ifru.ifru_hwaddr		/* MAC address          */
+
 
 /* serial_struct values for TIOC[GS]SERIAL ioctls */
 #define LINUX_ASYNC_CLOSING_WAIT_INF  0
@@ -547,5 +592,30 @@ struct trapframe;
 #define LINUX_ASYNC_PGRP_LOCKOUT    	0x0200
 #define LINUX_ASYNC_CALLOUT_NOHUP   	0x0400
 #define LINUX_ASYNC_FLAGS     		0x0FFF
+
+/* structure and defines for i386_modify_ldt */
+
+/* Maximum number of LDT entries supported. */
+#define LDT_ENTRIES     8192
+/* The size of each LDT entry. */
+#define LDT_ENTRY_SIZE  8
+
+struct modify_ldt_ldt_s {
+        unsigned int  entry_number;
+        unsigned long base_addr;
+        unsigned int  limit;
+        unsigned int  seg_32bit:1;
+        unsigned int  contents:2;
+        unsigned int  read_exec_only:1;
+        unsigned int  limit_in_pages:1;
+        unsigned int  seg_not_present:1;
+};
+
+#define MODIFY_LDT_CONTENTS_DATA	0
+#define MODIFY_LDT_CONTENTS_STACK	1
+#define MODIFY_LDT_CONTENTS_CODE	2
+
+#define LINUX_MODIFY_LDT_GET		0
+#define LINUX_MODIFY_LDT_SET		1
 
 #endif /* !_I386_LINUX_LINUX_H_ */
