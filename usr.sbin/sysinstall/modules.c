@@ -34,8 +34,14 @@
 #include <sys/linker.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <fnmatch.h>
+
+/* Prototypes */
+static int		kldModuleFire(dialogMenuItem *self);
 
 #define MODULESDIR "/stand/modules"
+#define DISTMOUNT "/dist"
 
 void
 moduleInitialize(void)
@@ -89,3 +95,111 @@ moduleInitialize(void)
 	closedir(dirp);
     }
 }
+
+int
+kldBrowser(dialogMenuItem *self)
+{
+    DMenu	*menu;
+    int		i, what = DITEM_SUCCESS, msize, count;
+    DIR		*dir;
+    struct dirent *de;
+    char	*err;
+    
+    err = NULL;
+    
+    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
+	msgConfirm("Unable to set media device to floppy.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    if (!DEVICE_INIT(mediaDevice)) {
+	msgConfirm("Unable to mount floppy filesystem.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    msize = sizeof(DMenu) + (sizeof(dialogMenuItem) * 2);
+    count = 0;
+    if ((menu = malloc(msize)) == NULL) {
+	err = "Failed to allocate memory for menu";
+	goto errout;
+    }
+
+    bcopy(&MenuKLD, menu, sizeof(DMenu));
+	
+    bzero(&menu->items[count], sizeof(menu->items[0]));
+    menu->items[count].prompt = strdup("X Exit");
+    menu->items[count].title = strdup("Exit this menu (returning to previous)");
+    menu->items[count].fire = dmenuExit;
+    count++;
+	
+    if ((dir = opendir(DISTMOUNT)) == NULL) {
+	err = "Couldn't open directory";
+	goto errout;
+    }
+    
+    while ((de = readdir(dir)) != NULL) {
+	if (fnmatch("*.ko", de->d_name, FNM_CASEFOLD))
+	    continue;
+	
+	msize += sizeof(dialogMenuItem);
+	if ((menu = realloc(menu, msize)) == NULL) {
+	    err = "Failed to allocate memory for menu item";
+	    goto errout;
+	}
+	    
+	bzero(&menu->items[count], sizeof(menu->items[0]));
+	menu->items[count].fire = kldModuleFire;
+
+	menu->items[count].prompt = strdup(de->d_name);
+	menu->items[count].title = menu->items[count].prompt;
+	    
+	count++;
+    }
+
+    closedir(dir);
+
+    menu->items[count].prompt = NULL;
+    menu->items[count].title = NULL;
+    
+    dmenuOpenSimple(menu, FALSE);
+    
+    mediaClose();
+
+    deviceRescan();
+    
+  errout:    
+    for (i = 0; i < count; i++)
+	free(menu->items[i].prompt);
+    
+    free(menu);
+
+    if (err != NULL) {
+	what |= DITEM_FAILURE;
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm(err);
+    }
+    
+    return (what);
+}
+
+static int
+kldModuleFire(dialogMenuItem *self) {
+    char	fname[256];
+
+    bzero(fname, sizeof(fname));
+    snprintf(fname, sizeof(fname), "%s/%s", DISTMOUNT, self->prompt);
+
+    if (kldload(fname) < 0) {
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm("Loading module %s failed\n", fname);
+    } else {
+	if (!variable_get(VAR_NO_ERROR))
+	    msgConfirm("Loaded module %s OK", fname);
+    }
+
+    return(0);
+ }
