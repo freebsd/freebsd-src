@@ -4,10 +4,6 @@
 
 .PATH: ${SRCDIR}/binutils
 
-.if ${MACHINE_ARCH} == "i386"
-CFLAGS+=	-Dprint_insn_i386=print_insn_i386_att
-.endif
-
 PROG=	gdb
 XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
@@ -29,13 +25,14 @@ XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 SRCS=	init.c ${XSRCS}
 SRCS+=	wait.h
 
-.if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
-.include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
+.if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
+.include "${.CURDIR}/Makefile.${TARGET_ARCH}"
 .endif
 
-WARNS=	0
-#CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
-CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+CFLAGS+=	-DCROSS_COMPILE=1
+.endif
+CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb
