@@ -138,6 +138,12 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 
 	ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
 	error = 0;
+
+	/*
+         * No security check required: information retrieval only.  If
+         * new functions are added here, a check might be required.
+         */
+
 	switch (cmd) {
 	case ACPIIO_BATT_GET_UNITS:
 		*(int *)addr = acpi_battery_get_units();
