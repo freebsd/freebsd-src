@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: fsdbutil.c,v 1.5 1997/03/13 12:44:53 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -97,6 +97,7 @@ printstat(cp, inum, dp)
     struct group *grp;
     struct passwd *pw;
     char *p;
+    time_t t;
 
     printf("%s: ", cp);
     switch (dp->di_mode & IFMT) {
@@ -130,13 +131,16 @@ printstat(cp, inum, dp)
 	break;
     }
     printf("I=%lu MODE=%o SIZE=%qu", inum, dp->di_mode, dp->di_size);
-    p = ctime((time_t *)&dp->di_mtime);
+    t = dp->di_mtime;
+    p = ctime(&t);
     printf("\n\tMTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
 	   dp->di_mtimensec);
-    p = ctime((time_t *)&dp->di_ctime);
+    t = dp->di_ctime;
+    p = ctime(&t);
     printf("\n\tCTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
 	   dp->di_ctimensec);
-    p = ctime((time_t *)&dp->di_atime);
+    t = dp->di_atime;
+    p = ctime(&t);
     printf("\n\tATIME=%15.15s %4.4s [%d nsec]\n", &p[4], &p[20],
 	   dp->di_atimensec);
 
