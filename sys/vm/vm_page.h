@@ -267,8 +267,6 @@ extern struct mtx vm_page_queue_free_mtx;
 #define ACT_ADVANCE		3
 #define ACT_INIT		5
 #define ACT_MAX			64
-#define PFCLUSTER_BEHIND	3
-#define PFCLUSTER_AHEAD		3
 
 #ifdef _KERNEL
 /*
