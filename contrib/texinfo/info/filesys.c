@@ -1,5 +1,5 @@
 /* filesys.c -- filesystem specific functions.
-   $Id: filesys.c,v 1.14 2002/03/02 15:05:04 karl Exp $
+   $Id: filesys.c,v 1.15 2002/03/23 20:45:24 karl Exp $
 
    Copyright (C) 1993, 97, 98, 2000 Free Software Foundation, Inc.
 
@@ -510,6 +510,7 @@ filesys_read_info_file (pathname, filesize, finfo, is_compressed)
 	 want to waste storage.  */
       if (*filesize < st_size)
 	contents = (char *)xrealloc (contents, 1 + *filesize);
+      contents[*filesize] = '\0';
 
       return (contents);
     }
@@ -596,6 +597,7 @@ filesys_read_compressed (pathname, filesize, finfo)
 	{
 	  *filesize = convert_eols (contents, offset);
 	  contents = (char *)xrealloc (contents, 1 + *filesize);
+	  contents[*filesize] = '\0';
 	}
     }
   else

@@ -1,5 +1,5 @@
 /* toc.c -- table of contents handling.
-   $Id: toc.c,v 1.21 2002/02/23 19:12:15 karl Exp $
+   $Id: toc.c,v 1.22 2002/04/01 14:07:11 karl Exp $
 
    Copyright (C) 1999, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -74,16 +74,16 @@ toc_add_entry (tocname, level, node_name, anchor)
 
   if (html)
     {
-      /* We need to insert the expanded node name into the TOC, so
-         that when we eventually output the TOC, its <A REF= link will
-         point to the <A NAME= tag created by cm_node in the navigation
+      /* We need to insert the expanded node name into the toc, so
+         that when we eventually output the toc, its <a ref= link will
+         point to the <a name= tag created by cm_node in the navigation
          bar.  We cannot expand the containing_node member, for the
          reasons explained in the WARNING below.  We also cannot wait
-         with the node name expansion until the TOC is actually output,
+         with the node name expansion until the toc is actually output,
          since by that time the macro definitions may have been changed.
          So instead we store in the tocname member the expanded node
-         name and the TOC name concatenated together (with the necessary
-         HTML markup), since that's how they are output.  */
+         name and the toc name concatenated together (with the necessary
+         html markup), since that's how they are output.  */
       if (!anchor)
         s = expanded_node = expand_node_name (node_name);
       else

@@ -1,7 +1,6 @@
 */ABOUT-NLS
 */Makefile.am
 */Makefile.in
-*/acconfig.h
 */acinclude.m4
 */aclocal.m4
 */config.guess
@@ -34,7 +33,6 @@
 */missing
 */mkinstalldirs
 */po/*
-*/stamp-h.in
 */util/*awk
 */util/deref.c
 */util/fix*

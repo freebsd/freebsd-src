@@ -8,7 +8,7 @@ vary so widely.  Installing them in the wrong place would give a false
 sense of security.  So, you should simply cp *.tex to the appropriate
 place.  If your installation follows the TeX Directory Structure
 standard (http://tug.org/tds/), this will be the directory
-TEXMF/tex/texinfo/ for texinfo.tex, TEXMF/tex/plain/dvips/ for epsf.tex,
+TEXMF/tex/texinfo/ for texinfo.tex, TEXMF/tex/generic/dvips/ for epsf.tex,
 and TEXMF/pdftex/plain/misc for pdfcolor.tex.  If you use the default
 installation paths, TEXMF will be /usr/local/share/texmf.  On systems
 with TeX preinstalled, as most GNU/Linux distributions offer, TEXMF

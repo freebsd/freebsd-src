@@ -1,5 +1,5 @@
 Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
-Free Software Foundation.
+Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
@@ -8,6 +8,43 @@ Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.
 
 This file records noteworthy changes.
 
+
+*** IMPORTANT NEWS FOR ALL AUTHORS OF TEXINFO MANUALS ***
+
+As of version 4.2, Texinfo has a new command @copying to define the
+copyright and copying permissions for a manual.  It's important to
+switch to using it as soon as possible (as in your next release),
+because the historical method of doing copyright permissions using
+@ifinfo failed to output copyright information in the HTML (or XML)
+formats.  The manual has detailed explanations and examples.  For
+convenience, here's a url to one of the relevant sections:
+  http://texinfo.org/manual/Document-Permissions.html
+
+
+
+4.2 (1 April 2002)
+* Language:
+  . new command @copying to define copying permissions.  See above.
+  . new conditionals @ifplaintext, @ifnotplaintext for the plain text
+    (--no-headers) output format.
+  . new command @\ to produce literal \ inside @math, since \ by itself
+    no longer works.
+* makeinfo:
+  . emit accesskey attributes for keyboard shortcuts to menu items.
+  . @{even,every,odd}{footing,header} are ignored by makeinfo now, so
+    they no longer need to be enclosed in @iftex.
+* texinfo.tex:
+  . bug fix for pdf-format table of contents.
+* info:
+  . bug fixes for -R (--raw-escapes).
+  . --help shows short option names.
+* Distribution:
+  . the doc.c, funs.h, and key.c files in info/ are no longer generated
+    at make time, to appease Automake's make distcheck.
+  . gettext 0.11.1, autoconf 2.53, automake 1.6 (with install-info kludge).
+
+
+
 4.1 (4 March 2002)
 * Language:
   . new commands @verbatim and @verb for printing verbatim inserts.
@@ -34,6 +71,7 @@ This file records noteworthy changes.
   . update to GNU gettext 0.11, autoconf 2.52, and automake 1.5.
   . Danish, Swedish, and Hebrew message translations.
 
+
 4.0 (28 September 1999)
 * Language:
   . New command @anchor for cross references to arbitrary points.

@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* makeinfo -- convert Texinfo source into other formats.
-   $Id: makeinfo.c,v 1.195 2002/02/11 17:12:49 karl Exp $
+   $Id: makeinfo.c,v 1.205 2002/03/28 16:33:48 karl Exp $
 
    Copyright (C) 1987, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
    Free Software Foundation, Inc.
@@ -67,6 +67,7 @@ char *output_filename = NULL;
 /* Name of the output file that the user elected to pass on the command line.
    Such a name overrides any name found with the @setfilename command. */
 char *command_output_filename = NULL;
+static char *save_command_output_filename = NULL;
 
 /* Flags which control initial output string for xrefs. */
 int px_ref_flag = 0;
@@ -372,12 +373,11 @@ usage (exit_value)
   {
     printf (_("Usage: %s [OPTION]... TEXINFO-FILE...\n"), progname);
     printf ("\n");
-    /* xgettext: no-wrap */
+
     puts (_("\
 Translate Texinfo source documentation to various other formats, by default\n\
 Info files suitable for reading online with Emacs or standalone GNU Info.\n"));
 
-    /* xgettext: no-wrap */
     printf (_("\
 General options:\n\
       --error-limit=NUM       quit after NUM errors (default %d).\n\
@@ -396,9 +396,6 @@ General options:\n\
 Output format selection (default is to produce Info):\n\
       --docbook             output DocBook rather than Info.\n\
       --html                output HTML rather than Info.\n\
-      --no-headers          output plain text, suppressing Info node\n\
-                              separators and Node: lines; also, write to\n\
-                              standard output without --output.\n\
       --xml                 output XML (TexinfoML) rather than Info.\n\
 "));
 
@@ -406,13 +403,16 @@ Output format selection (default is to produce Info):\n\
 General output options:\n\
   -E, --macro-expand FILE   output macro-expanded source to FILE.\n\
                             ignoring any @setfilename.\n\
+      --no-headers          suppress node separators, Node: lines, and menus\n\
+                              from Info output (thus producing plain text)\n\
+                              or from HTML (thus producing shorter output);\n\
+                              also, write to standard output by default.\n\
       --no-split            suppress splitting of Info or HTML output,\n\
                             generate only one output file.\n\
       --number-sections     output chapter and sectioning numbers.\n\
   -o, --output=FILE         output to FILE (directory if split HTML),\n\
 "));
 
-     /* xgettext: no-wrap */
      printf (_("\
 Options for Info and plain text:\n\
       --enable-encoding       output accented and special characters in\n\
@@ -431,7 +431,6 @@ Options for Info and plain text:\n\
   }
   printf ("\n");
 
-     /* xgettext: no-wrap */
      puts (_("\
 Input file options:\n\
       --commands-in-node-names   allow @ commands in node names.\n\
@@ -440,38 +439,44 @@ Input file options:\n\
   -P DIR                         prepend DIR to the @include search path.\n\
   -U VAR                         undefine the variable VAR, as with @clear.\n\
 "));
-     /* xgettext: no-wrap */
+
      puts (_("\
 Conditional processing in input:\n\
-     --ifhtml      process @ifhtml and @html even if not generating HTML.\n\
-     --ifinfo      process @ifinfo text even when generating HTML.\n\
-     --iftex       process @iftex and @tex text; implies --no-split.\n\
-     --no-ifhtml   do not process @ifhtml and @html text.\n\
-     --no-ifinfo   do not process @ifinfo text.\n\
-     --no-iftex    do not process @iftex and @tex text.\n\
+  --ifhtml          process @ifhtml and @html even if not generating HTML.\n\
+  --ifinfo          process @ifinfo even if not generating Info.\n\
+  --ifplaintext     process @ifplaintext even if not generating plain text.\n\
+  --iftex           process @iftex and @tex; implies --no-split.\n\
+  --no-ifhtml       do not process @ifhtml and @html text.\n\
+  --no-ifinfo       do not process @ifinfo text.\n\
+  --no-ifplaintext  do not process @ifplaintext text.\n\
+  --no-iftex        do not process @iftex and @tex text.\n\
 "));
 
-     /* xgettext: no-wrap */
      puts (_("\
   The defaults for the @if... conditionals depend on the output format:\n\
   if generating HTML, --ifhtml is on and the others are off;\n\
-  if generating Info or plain text, --ifinfo is on and the others are off.\n\
+  if generating Info, --ifinfo is on and the others are off;\n\
+  if generating plain text, --ifplaintext is on and the others are off;\n\
 "));
 
-  /* xgettext: no-wrap */
-  puts (_("\
+  fputs (_("\
 Examples:\n\
   makeinfo foo.texi                     write Info to foo's @setfilename\n\
-  makeinfo --html foo.texi              write HTML to foo's @setfilename\n\
-  makeinfo --no-headers -o - foo.texi   write plain text to standard output\n\
+  makeinfo --html foo.texi              write HTML to @setfilename\n\
+  makeinfo --xml foo.texi               write XML to @setfilename\n\
+  makeinfo --docbook foo.texi           write DocBook XML to @setfilename\n\
+  makeinfo --no-headers foo.texi        write plain text to standard output\n\
+\n\
+  makeinfo --html --no-headers foo.texi write html without node lines, menus\n\
   makeinfo --number-sections foo.texi   write Info with numbered sections\n\
   makeinfo --no-split foo.texi          write one Info file however big\n\
-"));
+"), stdout);
 
-  /* xgettext: no-wrap */
-  puts (_("\
+  puts (_("\n\
 Email bug reports to bug-texinfo@gnu.org,\n\
-general questions and discussion to help-texinfo@gnu.org."));
+general questions and discussion to help-texinfo@gnu.org.\n\
+Texinfo home page: http://www.gnu.org/software/texinfo/"));
+
   xexit (exit_value);
 }
 
@@ -488,11 +493,13 @@ struct option long_options[] =
   { "html", 0, 0, 'w' },
   { "ifhtml", 0, &process_html, 1 },
   { "ifinfo", 0, &process_info, 1 },
+  { "ifplaintext", 0, &process_plaintext, 1 },
   { "iftex", 0, &process_tex, 1 },
   { "macro-expand", 1, 0, 'E' },
   { "no-headers", 0, &no_headers, 1 },
   { "no-ifhtml", 0, &process_html, 0 },
   { "no-ifinfo", 0, &process_info, 0 },
+  { "no-ifplaintext", 0, &process_plaintext, 0 },
   { "no-iftex", 0, &process_tex, 0 },
   { "no-number-footnotes", 0, &number_footnotes, 0 },
   { "no-number-sections", 0, &number_sections, 0 },
@@ -608,6 +615,7 @@ main (argc, argv)
 
         case 'o': /* --output */
           command_output_filename = xstrdup (optarg);
+          save_command_output_filename = command_output_filename;
           break;
 
         case 'p': /* --paragraph-indent */
@@ -690,7 +698,6 @@ For more information about these matters, see the files named COPYING.\n"),
         case 'w': /* --html */
           html = 1;
           process_html = 1;
-          process_info = 0;
           break;
 
         case 'x': /* --xml */
@@ -736,7 +743,19 @@ For more information about these matters, see the files named COPYING.\n"),
       if (!command_output_filename)
         command_output_filename = xstrdup ("-");
     }
+    
+  if (process_info == -1)
+    { /* no explicit --[no-]ifinfo option, so we'll do @ifinfo
+         if we're generating info or (for compatibility) plain text.  */
+      process_info = !html && !xml;
+    }
 
+  if (process_plaintext == -1)
+    { /* no explicit --[no-]ifplaintext option, so we'll do @ifplaintext
+         if we're generating plain text.  */
+      process_plaintext = no_headers && !html && !xml;
+    }
+    
   if (verbose_mode)
     print_version_info ();
 
@@ -1275,14 +1294,15 @@ convert_from_file (name)
 }
 
 /* Given OUTPUT_FILENAME == ``/foo/bar/baz.html'', return
-   ``/foo/bar/baz/baz.html''.
+   "/foo/bar/baz/baz.html".  This routine is called only if html && splitting.
    
   Split html output goes into the subdirectory of the toplevel
   filename, without extension.  For example:
-
       @setfilename foo.info
-
-  produces output in files foo/index.html, foo/second-node.html, .... */
+  produces output in files foo/index.html, foo/second-node.html, ...
+  
+  But if the user said -o foo.whatever on the cmd line, then use
+  foo.whatever unchanged.  */
 
 static char *
 insert_toplevel_subdirectory (output_filename)
@@ -1290,7 +1310,7 @@ insert_toplevel_subdirectory (output_filename)
 {
   char *dir, *subdir, *base, *basename, *p;
   char buf[PATH_MAX];
-  int max_name_len;
+  struct stat st;
   static const char index_name[] = "index.html";
   const int index_len = sizeof (index_name) - 1;
 
@@ -1304,36 +1324,48 @@ insert_toplevel_subdirectory (output_filename)
   p = strrchr (base, '.');
   if (p)
     *p = 0;
-      
+
   /* Split html output goes into subdirectory of toplevel name. */
   subdir = "";
   if (FILENAME_CMP (base, filename_part (dir)) != 0)
-    subdir = base;
-  
-  max_name_len = strlen (basename);
-  if (index_len > max_name_len)
-    max_name_len = index_len;
+    {
+      if (save_command_output_filename
+          && STREQ (output_filename, save_command_output_filename))
+        subdir = basename;  /* from user, use unchanged */
+      else
+        subdir = base;      /* implicit, omit suffix */
+    }
 
   free (output_filename);
-  output_filename = xmalloc (strlen (dir) + 1 
-			     + strlen (subdir) + 1
-			     + max_name_len
+  output_filename = xmalloc (strlen (dir) + 1
+			     + strlen (basename) + 1
+			     + index_len
 			     + 1);
   strcpy (output_filename, dir);
   if (strlen (dir))
     strcat (output_filename, "/");
   strcat (output_filename, subdir);
-  if (mkdir (output_filename, 0777) == -1 && errno != EEXIST)
+  if (mkdir (output_filename, 0777) == -1 && errno != EEXIST
+      /* output_filename might exist, but be a non-directory.  */
+      || (stat (output_filename, &st) == 0 && !S_ISDIR (st.st_mode)))
     { /* that failed, try subdir name with .html */
       strcpy (output_filename, dir);
       if (strlen (dir))
         strcat (output_filename, "/");
       strcat (output_filename, basename);
-      if (mkdir (output_filename, 0777) == -1 && errno != EEXIST)
-        {
+      if (mkdir (output_filename, 0777) == -1)
+	{
+	  char *errmsg = strerror (errno);
+
+	  if ((errno == EEXIST
+#ifdef __MSDOS__
+	       || errno == EACCES
+#endif
+	       )
+	      && (stat (output_filename, &st) == 0 && !S_ISDIR (st.st_mode)))
+	    errmsg = _("File exists, but is not a directory");
           line_error (_("Can't create directory `%s': %s"),
-                      output_filename,
-                      strerror (errno));
+                      output_filename, errmsg);
           exit (1);
         }
       strcat (output_filename, "/");
@@ -1450,7 +1482,7 @@ convert_from_loaded_file (name)
         input_text_offset = 0;
 
       real_output_filename = output_filename = command_output_filename;
-      command_output_filename = NULL;
+      command_output_filename = NULL;  /* for included files or whatever */
     }
 
   canon_white (output_filename);
@@ -1693,7 +1725,14 @@ handle_menu_entry ()
           in_paragraph = 0;
         }
 
-      add_word ("<li><a href=\"");
+      add_word ("<li><a");
+      if (next_menu_item_number <= 9)
+	{
+	  add_word(" accesskey=");
+	  add_word_args("%d", next_menu_item_number);
+	  next_menu_item_number++;
+	}
+      add_word (" href=\"");
       string = expansion (tem, 0);
       add_anchor_name (string, 1);
       add_word ("\">");
@@ -3923,6 +3962,9 @@ maybe_update_execution_strings (text, new_len)
   abort ();
 }
 
+/* FIXME: this is an arbitrary limit.  */
+#define EXECUTE_STRING_MAX 16*1024
+
 /* Execute the string produced by formatting the ARGs with FORMAT.  This
    is like submitting a new file with @include. */
 void
@@ -3940,7 +3982,7 @@ execute_string (format, va_alist)
   va_list ap;
 #endif
 
-  es = get_execution_string (4000);
+  es = get_execution_string (EXECUTE_STRING_MAX);
   temp_string = es->string;
   es->in_use = 1;
 
@@ -3969,10 +4011,47 @@ execute_string (format, va_alist)
 
 
 /* Return what would be output for STR (in newly-malloced memory), i.e.,
-   expand Texinfo commands.  If IMPLICIT_CODE is set, expand @code{STR}.  */
+   expand Texinfo commands.  If IMPLICIT_CODE is set, expand @code{STR}.
+   This is generally used for short texts; filling, indentation, and
+   html escapes are disabled.  */
 
 char *
 expansion (str, implicit_code)
+    char *str;
+    int implicit_code;
+{
+  char *result;
+  
+  /* Inhibit indentation and filling, so that extra newlines
+     are not added to the expansion.  (This is undesirable if
+     we write the expanded text to macro_expansion_output_stream.)  */
+  int saved_filling_enabled = filling_enabled;
+  int saved_indented_fill = indented_fill;
+  int saved_no_indent = no_indent;
+  int saved_escape_html = escape_html;
+
+  filling_enabled = 0;
+  indented_fill = 0;
+  no_indent = 1;
+  escape_html = 0;
+  
+  result = full_expansion (str, implicit_code);
+
+  filling_enabled = saved_filling_enabled;
+  indented_fill = saved_indented_fill;
+  no_indent = saved_no_indent;
+  escape_html = saved_escape_html;  
+  
+  return result;
+}
+
+
+/* Expand STR (or @code{STR} if IMPLICIT_CODE is nonzero).  No change to
+   any formatting parameters -- filling, indentation, html escapes,
+   etc., are not reset.  */
+
+char *
+full_expansion (str, implicit_code)
     char *str;
     int implicit_code;
 {
@@ -3984,13 +4063,7 @@ expansion (str, implicit_code)
   int saved_paragraph_is_open = paragraph_is_open;
   int saved_output_column = output_column;
 
-  /* Inhibit indentation and filling, so that extra newlines
-     are not added to the expansion.  (This is undesirable if
-     we write the expanded text to macro_expansion_output_stream.)  */
-  int saved_filling_enabled = filling_enabled;
-  int saved_indented_fill = indented_fill;
-  int saved_no_indent = no_indent;
-  int saved_escape_html = escape_html;
+  /* More output state to save.  */
   int saved_meta_pos = meta_char_pos;
   int saved_last_char = last_inserted_character;
   int saved_last_nl = last_char_was_newline;
@@ -4001,14 +4074,14 @@ expansion (str, implicit_code)
      it from under our feet if it finds any macros in STR.  */
   char *saved_command = command ? xstrdup (command) : NULL;
 
-  filling_enabled = 0;
-  indented_fill = 0;
-  no_indent = 1;
-  escape_html = 0;
-
   inhibit_output_flushing ();
   paragraph_is_open = 1;
-  execute_string (implicit_code ? "@code{%s}" : "%s", str);
+  if (strlen (str) > (implicit_code
+		      ? EXECUTE_STRING_MAX - 1 - sizeof("@code{}")
+		      : EXECUTE_STRING_MAX - 1))
+    line_error (_("`%.40s...' is too long for expansion; not expanded"), str);
+  else
+    execute_string (implicit_code ? "@code{%s}" : "%s", str);
   uninhibit_output_flushing ();
 
   /* Copy the expansion from the buffer.  */
@@ -4020,13 +4093,11 @@ expansion (str, implicit_code)
   /* Pretend it never happened.  */
   free_and_clear (&command);
   command = saved_command;
+
   output_paragraph_offset = start;
   paragraph_is_open = saved_paragraph_is_open;
   output_column = saved_output_column;
-  filling_enabled = saved_filling_enabled;
-  indented_fill = saved_indented_fill;
-  no_indent = saved_no_indent;
-  escape_html = saved_escape_html;
+
   meta_char_pos = saved_meta_pos;
   last_inserted_character = saved_last_char;
   last_char_was_newline = saved_last_nl;
@@ -4044,10 +4115,13 @@ text_expansion (str)
 {
   char *ret;
   int save_html = html;
+  int save_xml = xml;
   
   html = 0;
+  xml = 0;
   ret = expansion (str, 0);
   html = save_html;
+  xml = save_xml;
   
   return ret;
 }

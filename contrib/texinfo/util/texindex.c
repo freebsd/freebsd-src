@@ -1,5 +1,5 @@
 /* Process TeX index dribble output into an actual index.
-   $Id: texindex.c,v 1.37 2002/01/19 01:12:54 karl Exp $
+   $Id: texindex.c,v 1.41 2002/03/11 19:55:46 karl Exp $
 
    Copyright (C) 1987, 91, 92, 96, 97, 98, 99, 2000, 01, 02
    Free Software Foundation, Inc. 
@@ -286,7 +286,8 @@ _("Usually FILE... is specified as `foo.%c%c\' for a document `foo.texi'.\n"),
   fputs (_("\n\
 Email bug reports to bug-texinfo@gnu.org,\n\
 general questions and discussion to help-texinfo@gnu.org.\n\
-"), f);
+Texinfo home page: http://www.gnu.org/software/texinfo/"), f);
+  fputs ("\n", f);
 
   xexit (result_value);
 }

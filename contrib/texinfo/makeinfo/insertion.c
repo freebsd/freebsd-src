@@ -1,5 +1,5 @@
 /* insertion.c -- insertions for Texinfo.
-   $Id: insertion.c,v 1.39 2002/03/02 15:05:21 karl Exp $
+   $Id: insertion.c,v 1.47 2002/04/01 14:01:36 karl Exp $
 
    Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -28,16 +28,17 @@
 /* Must match list in insertion.h.  */
 static char *insertion_type_names[] =
 { 
-  "cartouche", "defcv", "deffn", "defivar", "defmac", "defmethod",
-  "defop", "defopt", "defspec", "deftp", "deftypefn", "deftypefun",
-  "deftypeivar", "deftypemethod", "deftypeop", "deftypevar",
-  "deftypevr", "defun", "defvar", "defvr", "detailmenu", "direntry",
-  "display", "documentdescription", "enumerate", "example", "flushleft",
-  "flushright", "format", "ftable", "group", "ifclear", "ifhtml",
-  "ifinfo", "ifnothtml", "ifnotinfo", "ifnottex", "ifset", "iftex",
-  "itemize", "lisp", "menu", "multitable", "quotation", "rawhtml",
-  "rawtex", "smalldisplay", "smallexample", "smallformat", "smalllisp",
-  "verbatim", "table", "tex", "vtable", "bad_type"
+  "cartouche", "copying", "defcv", "deffn", "defivar", "defmac",
+  "defmethod", "defop", "defopt", "defspec", "deftp", "deftypefn",
+  "deftypefun", "deftypeivar", "deftypemethod", "deftypeop",
+  "deftypevar", "deftypevr", "defun", "defvar", "defvr", "detailmenu",
+  "direntry", "display", "documentdescription", "enumerate", "example",
+  "flushleft", "flushright", "format", "ftable", "group", "ifclear",
+  "ifhtml", "ifinfo", "ifnothtml", "ifnotinfo", "ifnotplaintext", "ifnottex",
+  "ifplaintext", "ifset", "iftex", "itemize", "lisp", "menu",
+  "multitable", "quotation", "rawhtml", "rawtex", "smalldisplay",
+  "smallexample", "smallformat", "smalllisp", "verbatim", "table",
+  "tex", "vtable", "bad_type"
 };
 
 /* All nested environments.  */
@@ -46,21 +47,23 @@ INSERTION_ELT *insertion_stack = NULL;
 /* How deeply we're nested.  */
 int insertion_level = 0;
 
-/* Whether to examine menu lines.  */
-int in_menu = 0;
+/* Set to 1 if we've processed (commentary) text in a @menu that
+   wasn't part of a menu item.  */
+int had_menu_commentary;
 
 /* How to examine menu lines.  */
 int in_detailmenu = 0;
 
-/* Set to 1 if we've processed (commentary) text in a @menu that
-   wasn't part of a menu item.  */
-int had_menu_commentary;
+/* Whether to examine menu lines.  */
+int in_menu = 0;
 
 /* Set to 1 if <p> is written in normal context. 
    Used for menu and itemize. */
 int in_paragraph = 0;
 
 static const char dl_tag[] = "<dl>\n";
+extern void cm_insert_copying ();
+
 
 void
 init_insertion_stack ()
@@ -95,7 +98,9 @@ current_item_function ()
         case ifinfo:
         case ifnothtml:
         case ifnotinfo:
+        case ifnotplaintext:
         case ifnottex:
+        case ifplaintext:
         case ifset:
         case iftex:
         case rawhtml:
@@ -382,7 +387,8 @@ begin_insertion (type)
 
       if (xml)
 	xml_insert_element (MENU, START);
-      
+
+      next_menu_item_number = 1;
       in_menu++;
       in_fixed_width_font++;
       no_discard++;
@@ -430,13 +436,44 @@ begin_insertion (type)
       }
       break;
 
+    case copying:
+      {
+        /* Save the copying text away for @insertcopying,
+           typically used on the back of the @titlepage (for TeX) and
+           the Top node (for info/html).  */
+        char *text;
+        int start_of_end;
+
+        discard_until ("\n"); /* ignore remainder of @copying line */
+        start_of_end = get_until ("\n@end copying", &text);
+
+        /* include all the output-format-specific markup.  */
+        copying_text = full_expansion (text, 0);
+        free (text);
+
+        input_text_offset = start_of_end; /* go back to the @end to match */
+      }
+      
+      /* For info, output the copying text right away, so it will end up
+         in the header of the Info file, before the first node, and thus
+         get copied automatically to all the split files.  For xml, also
+         output it right away since xml output is never split.
+         For html, we output it specifically in html_output_head. 
+         For plain text, there's no way to hide it, so the author must
+          use @insertcopying in the desired location.  */
+      if (!html && !no_headers)
+        cm_insert_copying ();
+      break;
+      
     case quotation:
       /* @quotation does filling (@display doesn't).  */
       if (html)
         add_word ("<blockquote>\n");
       else
         {
-          close_single_paragraph ();
+          /* with close_single_paragraph, we get no blank line above
+             within @copying.  */
+          close_paragraph ();
           last_char_was_newline = no_indent = 0;
           indented_fill = filling_enabled = 1;
           inhibit_paragraph_indentation = 1;
@@ -567,7 +604,9 @@ begin_insertion (type)
     case ifinfo:
     case ifnothtml:
     case ifnotinfo:
+    case ifnotplaintext:
     case ifnottex:
+    case ifplaintext:
     case ifset:
     case iftex:
     case rawtex:
@@ -665,6 +704,9 @@ end_insertion (type)
 	case ifinfo:
 	case documentdescription:	
 	  break;
+	case copying:
+	  xml_insert_element (COPYING, END);
+	  break;
 	case quotation:
 	  xml_insert_element (QUOTATION, END);
 	  break;
@@ -712,13 +754,16 @@ end_insertion (type)
   switch (type)
     {
       /* Insertions which have no effect on paragraph formatting. */
+    case copying:
     case documentdescription:
     case ifclear:
     case ifinfo:
     case ifhtml:
     case ifnothtml:
     case ifnotinfo:
+    case ifnotplaintext:
     case ifnottex:
+    case ifplaintext:
     case ifset:
     case iftex:
     case rawtex:
@@ -728,11 +773,6 @@ end_insertion (type)
       escape_html = 1;
       break;
 
-    case direntry:              /* Eaten if html. */
-      insert_string ("END-INFO-DIR-ENTRY\n\n");
-      close_insertion_paragraph ();
-      break;
-
     case detailmenu:
       in_detailmenu--;          /* No longer hacking menus. */
       if (!in_menu)
@@ -740,6 +780,11 @@ end_insertion (type)
           if (!no_headers)
             close_insertion_paragraph ();
         }
+      break;
+
+    case direntry:              /* Eaten if html. */
+      insert_string ("END-INFO-DIR-ENTRY\n\n");
+      close_insertion_paragraph ();
       break;
 
     case menu:
@@ -942,6 +987,26 @@ cm_cartouche ()
 }
 
 void
+cm_copying ()
+{
+  if (xml)
+    xml_insert_element (COPYING, START);
+  begin_insertion (copying);
+}
+
+/* Not an insertion, despite the name, but it goes with cm_copying.  */
+void
+cm_insert_copying ()
+{
+  if (copying_text)
+    { /* insert_string rather than add_word because we've already done
+         full expansion on copying_text when we saved it.  */
+      insert_string (copying_text);
+      insert ('\n');
+    }
+}
+
+void
 cm_format ()
 {
   if (xml)
@@ -1136,25 +1201,6 @@ cm_group ()
   begin_insertion (group);
 }
 
-void
-cm_ifinfo ()
-{
-  if (process_info)
-    begin_insertion (ifinfo);
-  else
-    command_name_condition ();
-}
-
-void
-cm_ifnotinfo ()
-{
-  if (!process_info)
-    begin_insertion (ifnotinfo);
-  else
-    command_name_condition ();
-}
-
-
 /* Insert raw HTML (no escaping of `<' etc.). */
 void
 cm_html ()
@@ -1179,6 +1225,44 @@ cm_ifnothtml ()
 {
   if (!process_html)
     begin_insertion (ifnothtml);
+  else
+    command_name_condition ();
+}
+
+
+void
+cm_ifinfo ()
+{
+  if (process_info)
+    begin_insertion (ifinfo);
+  else
+    command_name_condition ();
+}
+
+void
+cm_ifnotinfo ()
+{
+  if (!process_info)
+    begin_insertion (ifnotinfo);
+  else
+    command_name_condition ();
+}
+
+
+void
+cm_ifplaintext ()
+{
+  if (process_plaintext)
+    begin_insertion (ifplaintext);
+  else
+    command_name_condition ();
+}
+
+void
+cm_ifnotplaintext ()
+{
+  if (!process_plaintext)
+    begin_insertion (ifnotplaintext);
   else
     command_name_condition ();
 }
@@ -1339,7 +1423,9 @@ cm_item ()
         case ifinfo:
         case ifnothtml:
         case ifnotinfo:
+        case ifnotplaintext:
         case ifnottex:
+        case ifplaintext:
         case ifset:
         case iftex:
         case rawhtml:
