@@ -152,6 +152,7 @@
 #	kbd	keyboard devices
 #	agpgart	AGP interface
 #	cfs*	Coda Distributed Filesystem
+#	nsmb*	SMB/CIFS protocol interface
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -334,6 +335,7 @@ all)
 	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
 	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
 	sh MAKEDEV agpgart				# cdev, AGP
+	sh MAKEDEV nsmb0				# cdev, SMB/CIFS
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1799,6 +1801,11 @@ tw*)
 cfs*)
 	unit=`expr $i : 'cfs\(.*\)'`
 	mknod cfs$unit c 93 $unit root:operator
+	;;
+
+nsmb*)
+	unit=`expr $i : 'nsmb\(.*\)'`
+	mknod nsmb$unit c 144 $unit
 	;;
 
 local)
