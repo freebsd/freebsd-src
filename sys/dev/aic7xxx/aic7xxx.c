@@ -5672,8 +5672,8 @@ bus_reset:
 				ahc_search_qinfifo(ahc, SCB_TARGET(scb),
 						   channel, SCB_LUN(scb),
 						   SCB_LIST_NULL,
-						   CAM_REQUEUE_REQ,
 						   ROLE_INITIATOR,
+						   CAM_REQUEUE_REQ,
 						   SEARCH_COMPLETE);
 				xpt_print_path(scb->ccb->ccb_h.path);
 				printf("Queuing a BDR SCB\n");
@@ -5862,7 +5862,7 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	active_scb = ahc_inb(ahc, SCBPTR);
 
 	found = ahc_search_qinfifo(ahc, target, channel, lun, tag,
-				   CAM_REQUEUE_REQ, role, SEARCH_COMPLETE);
+				   role, CAM_REQUEUE_REQ, SEARCH_COMPLETE);
 
 	/*
 	 * Search waiting for selection list.
