@@ -186,6 +186,7 @@ startup_setrunelocale(encoding)
 		fclose(fp);
 		return(EFTYPE);
 	}
+	fclose(fp);
 
 	if (!rl->encoding[0])
 		return(EINVAL);

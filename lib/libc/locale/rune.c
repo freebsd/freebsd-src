@@ -86,6 +86,7 @@ setrunelocale(encoding)
 		fclose(fp);
 		return(EFTYPE);
 	}
+	fclose(fp);
 
 	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2")) {
 		return(_UTF2_init(rl));
