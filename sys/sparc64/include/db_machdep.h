@@ -44,7 +44,7 @@ extern db_regs_t ddb_regs;
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
 
-#define	BKPT_INST	(0)
+#define	BKPT_INST	(0x91d03001)
 #define	BKPT_SIZE	(4)
 #define	BKPT_SET(inst)	(BKPT_INST)
 
