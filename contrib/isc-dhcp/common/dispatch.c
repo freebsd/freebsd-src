@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: dispatch.c,v 1.47.2.12 1999/02/23 17:37:00 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dispatch.c,v 1.47.2.14 1999/03/29 22:16:36 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -74,7 +74,6 @@ void discover_interfaces (state)
 	struct ifreq ifr;
 	int i;
 	int sock;
-	int address_count = 0;
 	struct subnet *subnet;
 	struct shared_network *share;
 	struct sockaddr_in foo;
@@ -356,6 +355,9 @@ void discover_interfaces (state)
 		      case ARPHRD_TUNNEL:
 			/* ignore tunnel interfaces. */
 #endif
+#ifdef HAVE_ARPHRD_ROSE
+		      case ARPHRD_ROSE:
+#endif
 #ifdef HAVE_ARPHRD_LOOPBACK
 		      case ARPHRD_LOOPBACK:
 			/* ignore loopback interface */
@@ -368,7 +370,7 @@ void discover_interfaces (state)
 			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
 			break;
 
-#ifndef ARPHRD_IEEE802
+#ifndef HAVE_ARPHRD_IEEE802
 # define ARPHRD_IEEE802 HTYPE_IEEE802
 #endif
 		      case ARPHRD_IEEE802:
@@ -377,7 +379,7 @@ void discover_interfaces (state)
 			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
 			break;
 
-#ifndef ARPHRD_FDDI
+#ifndef HAVE_ARPHRD_FDDI
 # define ARPHRD_FDDI HTYPE_FDDI
 #endif
 		      case ARPHRD_FDDI:
@@ -394,9 +396,26 @@ void discover_interfaces (state)
 			break;
 #endif
 
+#ifdef HAVE_ARPHRD_AX25
+		      case ARPHRD_AX25:
+			tmp -> hw_address.hlen = 6;
+			tmp -> hw_address.htype = ARPHRD_AX25;
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
+			break;
+#endif
+
+#ifdef HAVE_ARPHRD_NETROM
+		      case ARPHRD_NETROM:
+			tmp -> hw_address.hlen = 6;
+			tmp -> hw_address.htype = ARPHRD_NETROM;
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
+			break;
+#endif
+
 		      default:
-			error ("%s: unknown hardware address type %d",
+			warn ("%s: unknown hardware address type %d",
 			       ifr.ifr_name, sa.sa_family);
+			break;
 		}
 	}
 #endif /* defined (HAVE_SIOCGIFHWADDR) && !defined (HAVE_AF_LINK) */
