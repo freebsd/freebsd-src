@@ -56,6 +56,7 @@ static void cis_info(struct cis *, unsigned char *, int);
 static void device_desc(unsigned char *, int, struct dev_mem *);
 static void config_map(struct cis *, unsigned char *, int);
 static void cis_config(struct cis *, unsigned char *, int);
+static void cis_manuf_id(struct cis *, unsigned char *, int);
 static void cis_func_id(struct cis *, unsigned char *, int);
 static void cis_network_ext(struct cis *, unsigned char *, int);
 static struct tuple_list *read_one_tuplelist(int, int, off_t);
@@ -139,6 +140,9 @@ readcis(int fd)
 				break;
 			case CIS_CONFIG:	/* 0x1B */
 				cis_config(cp, tp->data, tp->length);
+				break;
+			case CIS_MANUF_ID:	/* 0x20 */
+				cis_manuf_id(cp, tp->data, tp->length);
 				break;
 			case CIS_FUNC_ID:	/* 0x21 */
 				cis_func_id(cp, tp->data, tp->length);
@@ -238,6 +242,20 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 		cp->add_info2 = strdup("[none]");
 }
 
+static void
+cis_manuf_id(struct cis *cp, unsigned char *p, int len)
+{
+	if (len > 4) {
+		cp->manufacturer = tpl16(p);
+		cp->product = tpl16(p+2);
+		if (len == 5)
+			cp->prodext = *(p+4); /* For xe driver */
+	} else {
+		cp->manufacturer=0;
+		cp->product=0;
+		cp->prodext=0;
+	}
+}
 /*
  *	Fills in CIS function ID.
  */
