@@ -63,7 +63,7 @@
  * data, which is 240 words long, so 256 should be a safe
  * value.
  */
-#define AN_MAX_DATALEN	512
+#define AN_MAX_DATALEN	4096
 
 struct an_req {
 	u_int16_t	an_len;
@@ -261,7 +261,7 @@ struct an_ltv_stats {
 	u_int32_t		an_uptime_usecs;	/* 0x178 */
 	u_int32_t		an_uptime_secs;		/* 0x17C */
 	u_int32_t		an_lostsync_better_ap;	/* 0x180 */
-	u_int32_t		an_rsvd[10];
+	u_int32_t		an_rsvd[15];
 };
 
 /*
@@ -337,6 +337,7 @@ struct an_ltv_genconfig {
 	u_int8_t		an_magic_packet_action;	/* 0x98 */
 	u_int8_t		an_magic_packet_ctl;	/* 0x99 */
 	u_int16_t		an_rsvd9;
+	u_int16_t		an_spare[13];
 };
 
 #define AN_OPMODE_IBSS_ADHOC			0x0000
@@ -415,6 +416,18 @@ struct an_ltv_ssidlist {
 	char			an_ssid2[32];
 	u_int16_t		an_ssid3_len;
 	char			an_ssid3[32];
+};
+
+struct an_ltv_ssid_entry{
+	u_int16_t		an_len;
+	char			an_ssid[32];
+};
+
+#define MAX_SSIDS 25
+struct an_ltv_ssidlist_new {
+	u_int16_t		an_len;
+	u_int16_t		an_type;
+	struct an_ltv_ssid_entry an_entry[MAX_SSIDS];
 };
 
 /*
@@ -501,7 +514,7 @@ struct an_ltv_caps {
 	u_int16_t		an_softcaps;		/* 0x7C */
 	u_int16_t		an_bootblockrev;	/* 0x7E */
 	u_int16_t		an_req_hw_support;	/* 0x80 */
-	u_int16_t		an_unknown;		/* 0x82 */
+	u_int16_t		an_unknown[31];		/* 0x82 */
 };
 
 /*
@@ -580,7 +593,7 @@ struct an_ltv_status {
 	u_int8_t		an_avg_noise_prev_min_db;       /* 0x7D */
 	u_int8_t		an_max_noise_prev_min_pc;       /* 0x7E */
 	u_int8_t		an_max_noise_prev_min_db;       /* 0x7F */
-	u_int16_t		an_spare[5];
+	u_int16_t		an_spare[8];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
