@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.31 1996/08/21 21:55:48 dyson Exp $
+ * $Id: nfs_serv.c,v 1.32 1996/09/03 14:24:59 bde Exp $
  */
 
 /*
@@ -2899,6 +2899,7 @@ again:
 		nfsm_srvpostop_attr(getret, &at);
 		return (0);
 	}
+	vput(nvp);
 	    
 	dirlen = len = NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF + 2 * NFSX_UNSIGNED;
 	nfsm_reply(cnt);
