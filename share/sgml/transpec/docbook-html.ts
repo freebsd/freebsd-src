@@ -111,6 +111,9 @@ ${_action &r.blkpe;t}</end>'>
 <!ENTITY r.hyphen "60">
 <!ENTITY r.nl "61">
 
+<!ENTITY r.inchdr "70">
+<!ENTITY r.incftr "71">
+
 <!ENTITY cmap SYSTEM "/usr/share/sgml/transpec/html.cmap">
 <!ENTITY sdata SYSTEM "/usr/share/sgml/transpec/html.sdata">
 
@@ -431,8 +434,10 @@ ${_action &r.blkpe;t}</end>
 <start>^&lt;!-- Generated on ${date} using ${transpec} -->
 &lt;!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
 &lt;HTML>&lt;TITLE>${_followrel descendant TITLE &r.pass;}&lt;/TITLE>
-&lt;BODY BGCOLOR="#FFFFFF" TEXT="#000000">^</start>
+&lt;BODY BGCOLOR="#FFFFFF" TEXT="#000000">
+${_isset inchdr &r.inchdr;}^</start>
 <end>^${_set fnotenum 1}${_action &r.fnote;t}
+${_isset incftr &r.incftr;}
 &lt;/BODY>&lt;/HTML></end>
 </rule>
 
@@ -755,6 +760,13 @@ ${_action &r.blkpe;t}</end>
 <rule> <!-- Subtable appearing as a table cell -->
 <match>
 <gi>ENTRYTBL
+</rule>
+
+<rule> <!-- Environmental variable -->
+<match>
+<gi>ENVVAR
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Brief text set at the beginning of a document as relevant to its content -->
@@ -1600,6 +1612,14 @@ ${_action &r.blkpe;t}</end>
             areas with associated callouts -->
 <match>
 <gi>PROGRAMLISTINGCO
+</rule>
+
+<rule> <!-- Character indicating the start of an input field in a
+            computer display -->
+<match>
+<gi>PROMPT
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Defined set of data associated with a window -->
@@ -2803,5 +2823,23 @@ ${_find top gi FOOTNOTE &r.fnotei;}
 <action>
 <replace>^</replace>
 </rule>
+
+<!-- Insert a header file -->
+<rule id="&r.inchdr;">
+<match>
+<varval>inchdr .
+<action>
+<replace>${_include ${inchdr}}</replace>
+</rule>
+
+<!-- Insert a footer file -->
+<rule id="&r.incftr;">
+<match>
+<varval>incftr .
+<action>
+<replace>${_include ${incftr}}</replace>
+</rule>
+
+
 
 </transpec>
