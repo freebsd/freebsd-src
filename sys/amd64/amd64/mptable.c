@@ -2480,9 +2480,6 @@ ap_init(void)
 /*
  * For statclock, we send an IPI to all CPU's to have them call this
  * function.
- *
- * WARNING! unpend() will call statclock_process() directly and skip this
- * routine.
  */
 void
 forwarded_statclock(struct trapframe frame)
@@ -2515,9 +2512,6 @@ forward_statclock(void)
  * sched_lock if we could simply peek at the CPU to determine the user/kernel
  * state and call hardclock_process() on the CPU receiving the clock interrupt
  * and then just use a simple IPI to handle any ast's if needed.
- *
- * WARNING! unpend() will call hardclock_process() directly and skip this
- * routine.
  */
 void
 forwarded_hardclock(struct trapframe frame)

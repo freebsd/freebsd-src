@@ -96,8 +96,6 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%edx)
 	movl	%edi,PCB_EDI(%edx)
 	movl	%gs,PCB_GS(%edx)
-	pushfl					/* PSL */
-	popl	PCB_PSL(%edx)
 
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
@@ -235,8 +233,6 @@ sw1b:
 	movl	PCB_EDI(%edx),%edi
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
-	pushl	PCB_PSL(%edx)
-	popfl
 
 #if defined(SMP) && defined(GRAB_LOPRIO)
 	/* Hold LOPRIO for interrupts. */
@@ -343,8 +339,6 @@ ENTRY(savectx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 	movl	%gs,PCB_GS(%ecx)
-	pushfl
-	popl	PCB_PSL(%ecx)
 
 #ifdef DEV_NPX
 	/*
