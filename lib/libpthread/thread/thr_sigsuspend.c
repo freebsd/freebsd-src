@@ -53,12 +53,13 @@ _sigsuspend(const sigset_t *set)
 		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
 		    set, sizeof(sigset_t));
 
+		THR_LOCK_SWITCH(curthread);
 		THR_SET_STATE(curthread, PS_SIGSUSPEND);
-
-		THR_SCHED_UNLOCK(curthread, curthread);
 
 		/* Wait for a signal: */
 		_thr_sched_switch(curthread);
+
+		THR_UNLOCK_SWITCH(curthread);
 
 		/* Always return an interrupted error: */
 		errno = EINTR;

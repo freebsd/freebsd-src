@@ -104,7 +104,9 @@ _pthread_exit(void *status)
 	 * Flag this thread as exiting.  Threads should now be prevented
 	 * from joining to this thread.
 	 */
+	THR_SCHED_LOCK(curthread, curthread);
 	curthread->flags |= THR_FLAGS_EXITING;
+	THR_SCHED_UNLOCK(curthread, curthread);
 
 	/* Save the return value: */
 	curthread->ret = status;
@@ -121,10 +123,11 @@ _pthread_exit(void *status)
 	}
 
 	/* This thread will never be re-scheduled. */
-	THR_SCHED_LOCK(curthread, curthread);
+	THR_LOCK_SWITCH(curthread);
 	THR_SET_STATE(curthread, PS_DEAD);
-	THR_SCHED_UNLOCK(curthread, curthread);
 	_thr_sched_switch(curthread);
+	/* Never reach! */
+	THR_UNLOCK_SWITCH(curthread);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");

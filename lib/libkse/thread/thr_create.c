@@ -297,6 +297,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * pair if necessary.
 			 */
 			ret = _thr_schedule_add(curthread, new_thread);
+			if (ret != 0) {
+				KSE_LOCK_ACQUIRE(curthread->kse,
+				    &_thread_list_lock);
+				THR_LIST_REMOVE(new_thread);
+				KSE_LOCK_RELEASE(curthread->kse,
+				    &_thread_list_lock);
+			}
 			_kse_critical_leave(crit);
 			if (ret != 0)
 				free_thread(curthread, new_thread);
