@@ -97,15 +97,10 @@ The allowed list of CPU names is architecture specific and is
 defined in the file
 .Pa sys/conf/options. Ns Aq Ar arch .
 .\" -------- DEVICE --------
-.It Ic device Ar name Op Ar count
-Configures device
-.Ar name
+.It Ic device Ar name Op , Ar name Op ...
+.It Ic devices Ar name Op , Ar name Op ...
+Configures the specified devices
 for inclusion into the kernel image.
-If
-.Ar count
-is specified, the device is configured for
-.Ar count
-instances.
 Devices that are common to all architectures are
 defined in the file
 .Pa sys/conf/files .
@@ -233,6 +228,17 @@ As explained in
 .Xr tuning 7 ,
 this tunable can also be set at boot time using
 .Xr loader 8 .
+.\" -------- NODEVICE --------
+.It Ic nodevice Ar name Op , Ar name Op ...
+.It Ic nodevices Ar name Op , Ar name Op ...
+Remove the specified devices
+from the list of previously selected devices.
+This directive can be used to cancel the effects of
+.Ic device
+or
+.Ic devices
+directives in files included using
+.Ic include .
 .\" -------- NOMAKEOPTION --------
 .It Ic nomakeoption Ar name
 Removes previously defined
@@ -245,26 +251,26 @@ This directive can be used to cancel the effects of
 directives in files included using
 .Ic include .
 .\" -------- NOOPTION --------
-.It Ic nooption Ar kerneloptionname
-Remove kernel option
-.Ar kerneloptionname
+.It Ic nooption Ar name Op , Ar name Op ...
+.It Ic nooptions Ar name Op , Ar name Op ...
+Remove the specified kernel options
 from the list of previously defined options.
 This directive can be used to cancel the effects of
+.Ic option
+or
 .Ic options
 directives in files included using
 .Ic include .
 .\" -------- OPTIONS --------
-.It Ic options Ar optionspecs
+.It Ic option Ar optionspec Op , Ar optionspec Op ...
+.It Ic options Ar optionspec Op , Ar optionspec Op ...
 Add compile time kernel options to the kernel build.
-The argument
-.Ar optionspecs
-is a comma separated list of option specifications.
 Each option specification has the form
 .Pp
-.D1 Ar KernelOptionName Ns Op = Ns Ar OptionValue
+.D1 Ar name Ns Op = Ns Ar value
 .Pp
 If
-.Ar OptionValue
+.Ar value
 is not specified, it is assumed to be
 .Dv NULL .
 Options common to all architectures are specified in
