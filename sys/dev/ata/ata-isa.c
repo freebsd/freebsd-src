@@ -117,6 +117,7 @@ ata_isa_probe(device_t dev)
     ch->locking = ata_isa_lock;
     ch->device[MASTER].setmode = ata_isa_setmode;
     ch->device[SLAVE].setmode = ata_isa_setmode;
+    ata_generic_hw(ch);
     return ata_probe(dev);
 }
 

@@ -113,7 +113,6 @@ ata_probe(device_t dev)
 	return EEXIST;
 
     /* initialize the softc basics */
-    ata_generic_hw(ch);
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
     ch->device[MASTER].mode = ATA_PIO;
@@ -253,10 +252,7 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[MASTER].detach) {
 	    if (request && (request->device == &ch->device[MASTER])) {
 		request->result = ENXIO;
-		if (request->callback)
-		    (request->callback)(request);
-		else
-        	    sema_post(&request->done);
+		request->retries = 0;
 	    }
 	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    ata_fail_requests(ch, &ch->device[MASTER]);
@@ -267,10 +263,7 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[SLAVE].detach) {
 	    if (request && (request->device == &ch->device[SLAVE])) {
 		request->result = ENXIO;
-		if (request->callback)
-		    (request->callback)(request);
-		else
-        	    sema_post(&request->done);
+		request->retries = 0;
 	    }
 	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    ata_fail_requests(ch, &ch->device[SLAVE]);
@@ -692,7 +685,7 @@ ata_identify_devices(struct ata_channel *ch)
     }
 
     /* setup basic transfer mode by setting PIO mode and DMA if supported */
-    if (ch->device[MASTER].attach) {
+    if (ch->device[MASTER].param) {
 	ch->device[MASTER].setmode(&ch->device[MASTER], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_MASTER) && atapi_dma &&
 	      (ch->device[MASTER].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR)||
@@ -700,7 +693,7 @@ ata_identify_devices(struct ata_channel *ch)
 	    ch->device[MASTER].setmode(&ch->device[MASTER], ATA_DMA_MAX);
 
     }
-    if (ch->device[SLAVE].attach) {
+    if (ch->device[SLAVE].param) {
 	ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_SLAVE) && atapi_dma &&
 	      (ch->device[SLAVE].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR) ||
