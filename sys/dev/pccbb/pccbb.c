@@ -60,7 +60,7 @@
  */
 
 /*
- * Driver for PCI to Cardbus Bridge chips
+ * Driver for PCI to CardBus Bridge chips
  *
  * References:
  *  TI Datasheets:
@@ -510,8 +510,8 @@ cbb_chipinit(struct cbb_softc *sc)
 	topic_common:;
 		/*
 		 * At offset 0xa0: SLOT CONTROL
-		 * 0x80 Enable Cardbus Functionality
-		 * 0x40 Enable Cardbus and PC Card registers
+		 * 0x80 Enable CardBus Functionality
+		 * 0x40 Enable CardBus and PC Card registers
 		 * 0x20 Lock ID in exca regs
 		 * 0x10 Write protect ID in config regs
 		 * Clear the rest of the bits, which defaults the slot
@@ -955,11 +955,12 @@ cbb_insert(struct cbb_softc *sc)
 	if (sockstate & CBB_SOCKET_STAT_16BIT) {
 		if (sc->pccarddev != NULL) {
 			sc->flags |= CBB_16BIT_CARD;
-			if (CARD_ATTACH_CARD(sc->pccarddev) != 0)
+			sc->flags |= CBB_CARD_OK;
+			if (CARD_ATTACH_CARD(sc->pccarddev) != 0) {
 				device_printf(sc->dev,
 				    "PC Card card activation failed\n");
-			else
-				sc->flags |= CBB_CARD_OK;
+				sc->flags &= ~CBB_CARD_OK;
+			}
 		} else {
 			device_printf(sc->dev,
 			    "PC Card inserted, but no pccard bus.\n");
@@ -967,14 +968,15 @@ cbb_insert(struct cbb_softc *sc)
 	} else if (sockstate & CBB_SOCKET_STAT_CB) {
 		if (sc->cbdev != NULL) {
 			sc->flags &= ~CBB_16BIT_CARD;
-			if (CARD_ATTACH_CARD(sc->cbdev) != 0)
+			sc->flags |= CBB_CARD_OK;
+			if (CARD_ATTACH_CARD(sc->cbdev) != 0) {
 				device_printf(sc->dev,
 				    "CardBus card activation failed\n");
-			else
-				sc->flags |= CBB_CARD_OK;
+				sc->flags &= ~CBB_CARD_OK;
+			}
 		} else {
 			device_printf(sc->dev,
-			    "CardBUS card inserted, but no cardbus bus.\n");
+			    "CardBus card inserted, but no cardbus bus.\n");
 		}
 	} else {
 		/*
@@ -1233,7 +1235,7 @@ cbb_do_power(device_t brdev)
 }
 
 /************************************************************************/
-/* Cardbus power functions						*/
+/* CardBus power functions						*/
 /************************************************************************/
 
 static void
@@ -1281,7 +1283,7 @@ cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 }
 
 /************************************************************************/
-/* Cardbus Resource							*/
+/* CardBus Resource							*/
 /************************************************************************/
 
 static int
