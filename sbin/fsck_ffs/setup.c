@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#define FSTYPENAMES
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <sys/sysctl.h>
