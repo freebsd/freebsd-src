@@ -1,5 +1,5 @@
-.\" 
-.\" Copyright (c) 2000 Søren Schmidt
+.\"
+.\" Copyright (c) 2000,2001 Søren Schmidt
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD$ src/usr.sbin/burncd/burncd.8,v 1.6.2.2 2000/12/08 15:27:58 ru Exp
 .\"
 .Dd January 6, 2000
 .Os
@@ -38,10 +38,13 @@
 .Op Fl f Ar device
 .Op Fl s Ar speed
 .Op Fl e
+.Op Fl l
+.Op Fl m
 .Op Fl p
 .Op Fl q
-.Ar [command]
-.Ar [command filename...]
+.Op Fl t
+.Op Ar command
+.Op Ar command Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -50,12 +53,17 @@ utility is used to burn CD-R/RW media using the ATAPI cd driver.
 Available options and operands:
 .Pp
 .Bl -tag -width XXXXXXXXXXXX
-.It Fl f Ar device 
+.It Fl f Ar device
 set the device to use for the burning process.
 .It Fl s Ar speed
-set the speed of the burner device, typically 1, 2 or 4. Defaults to 1.
+set the speed of the burner device.
+Defaults to 1.
 .It Fl e
-eject the CD-R/RW when done.
+eject the media when done.
+.It Fl l
+read a list of image files from filename.
+.It Fl m
+close disk in multisession mode (otherwise disk is closed as singlesession).
 .It Fl p
 use preemphasis on audio tracks.
 .It Fl q
@@ -64,64 +72,90 @@ quiet, do not print progress messages.
 test write, do not actually write on the media.
 .El
 .Pp
-.Ar command 
+.Ar command
 may be one of:
 .Pp
 .Bl -tag -width XXXXXXXXXXXX
-.It Ar msinfo
-Show the first LBA of the last track on the media 
+.It Cm msinfo
+Show the first LBA of the last track on the media
 and the next writeable address on the media for use with the
 .Xr mkisofs 1 Ns 's
-.Fl C 
+.Fl C
 switch when adding additional data to ISO filesystems with extra sessions.
-.It Ar blank
+.It Cm blank
 Blank a CD-RW medium.
-This uses the fast blanking method, so data are not physically overwritten, only those areas that make the media appear blank for further usage.
-.It Ar fixate
-Fixate the medium so that the TOC is generated and the media can be used in an ordinary CD drive. The driver defaults to creating multisession media.
-Should be the last command to 
+This uses the fast blanking method, so data are not physically overwritten,
+only those areas that make the media appear blank for further usage are erased.
+.It Cm erase
+Erase a CD-RW medium.
+This erases the entire media.
+Can take up to 1 hour to finish.
+.It Cm fixate
+Fixate the medium so that the TOC is generated and the media can be used
+in an ordinary CD drive.
+The driver defaults to creating singlesession media (see
+.Fl m
+option).
+Should be the last command to
 .Nm
 as the program exits when this has been done.
-.It Ar raw | audio
-Set the write mode to produce audio (raw mode) tracks for the following images on the command line.
-.It Ar data | mode1
-Set the write mode to produce data (mode1) tracks for the following image files
+.It Cm raw | audio
+Set the write mode to produce audio (raw mode) tracks for the following
+images on the command line.
+.It Cm data | mode1
+Set the write mode to produce data (mode1) tracks for the following
+image files
 on the command line.
-.It Ar mode2
-Set the write mode to produce data (mode2) tracks for the following image files
+.It Cm mode2
+Set the write mode to produce data (mode2) tracks for the following
+image files
 on the command line.
-.It Ar XAmode1
+.It Cm XAmode1
 Set the write mode to produce data (XAmode1) tracks for the following image
 files on the command line.
-.It Ar filename
-All other arguments are treated as filenames of images to write to the media.
+.It Ar file
+All other arguments are treated as filenames of images to write to the media,
+or in case the
+.Fl l
+option is used as files containing lists of images.
 .El
 .Pp
-Files whose length are not a multiple of the current media blocksize are quietly zero padded to fit the blocksize requirement.
-.Pp
+Files whose length are not a multiple of the current media blocksize are
+quietly zero padded to fit the blocksize requirement.
+The conventional filename
+.Fl
+refers to stdin, and can only be used once.
 .Sh EXAMPLES
 The typical usage for burning a data CD-R:
 .Bd -literal
 # burncd -f /dev/acd0c data file1 fixate
+.Ed
 .Pp
 The typical usage for burning an audio CD-R:
 .Bd -literal
 # burncd -f /dev/acd0c audio file1 file2 file3 fixate
+.Ed
 .Pp
 The typical usage for burning a mixed mode CD-R:
 .Bd -literal
 # burncd -f /dev/acd0c data file1 audio file2 file3 fixate
+.Ed
 .Pp
+The typical usage for burning from a compressed image file on stdin:
+.Bd -literal
+# gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate
+.Ed
 .Sh BUGS
 Probably, please report when found.
 .Sh HISTORY
-.Nm
-is currently under development.
 The
 .Nm
 command appeared in
 .Fx 4.0 .
 .Sh AUTHORS
-The program has been contributed by
+The
+.Nm
+command and this manpage was contributed by
 .An S\(/oren Schmidt ,
-Denmark.
+Denmark
+.Pq sos@FreeBSD.org .
