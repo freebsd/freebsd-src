@@ -226,7 +226,9 @@ struct mtx pmap_ridmutex;
  * Data for the pv entry allocation mechanism
  */
 static uma_zone_t pvzone;
+#if 0
 static struct vm_object pvzone_obj;
+#endif
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvbootentries;
@@ -236,9 +238,8 @@ static int pvbootnext, pvbootmax;
  * Data for allocating PTEs for user processes.
  */
 static uma_zone_t ptezone;
-static struct vm_object ptezone_obj;
 #if 0
-static struct ia64_lpte *pteinit;
+static struct vm_object ptezone_obj;
 #endif
 
 /*
@@ -558,8 +559,10 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+#if 0	/* incompatable with pmap_allocf above */
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 	uma_zone_set_obj(ptezone, &ptezone_obj, pv_entry_max);
+#endif
 }
 
 
