@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.416 1998/03/10 15:42:13 eivind Exp $
+#	$Id: LINT,v 1.417 1998/03/14 04:13:53 tegge Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1478,7 +1478,8 @@ options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
 
-# The 'dpt' driver provides hardware RAID-{0,1,5} support, multi-initiator I/O
+# The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
+# These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
 # See sys/dev/dpt for debugging and other subtle options.
 #   DPT_VERIFY_HINTR        Performs some strict hardware interrupts testing.
 #                           Only use if you suspect PCI bus corruption problems
