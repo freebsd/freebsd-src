@@ -1,0 +1,38 @@
+Welcome to use the Linux sound driver for FreeBSD. This
+driver supports the SoundBlaster, SB Pro, Pro Audio Spectrum 16,
+AdLib and Gravis UltraSound sound cards.
+
+In addition there is rather limited support for MPU-401
+(and compatible) midi cards. Also, the OPL-3 synthesizer
+of the SB Pro and PAS16 cards is now supported in the 4 OP
+modes.
+
+Most of the features of the /dev/sequencer device file are
+available just for GUS owners. 
+
+The SoundBlaster 16 and SB 16 ASP cards are not supported,
+though they may work in mono mode with speeds < 22 kHz. 
+The OPL-3 chicp of the SB 16 should work (without problems?).
+Is there anybody willing to implement the SB 16 support 
+(have the SB 16 and the SDK for it)?
+
+Since this driver is a sound driver, it does not contain support
+for SCSI/CD-ROM/Joystick -devices.
+
+Known bugs
+----------
+
+- It's not possible to open /dev/dsp (or /dev/audio) while the 
+  /dev/sequencer is open for output and GUS is the only soundcard
+  installed. It's possible if /dev/dsp is opened before /dev/sequencer
+  but at this time the GUS is not available for access via /dev/sequencer.
+  This is a limitation of the driver.
+- MPU-401 driver hangs the computer on boot if there is no MPU-401 installed.
+  It uses by default the I/O port 0x330, which is also used by the
+  Adaptec 1542 SCSI adapter.
+- The /dev/sequencer playback to GUS sounds sometimes rather weird. Hitting
+  ^C and playing again should solve this problem. This is probably caused by
+  incompatibilities between the GUS and certain VLB motherboards. Try to avoid
+  switching between VTs while patches are being loaded to the GUS.
+- There is a skeleton of the patch manager support. It doesn't work in
+  this version. 

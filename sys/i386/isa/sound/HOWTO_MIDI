@@ -1,0 +1,51 @@
+The following file describes the procedure for adding modules to MIDI 
+Please READ the main documentation files for the driver first!!!
+
+
+ Example: We have a sound card with a MIDI chip & port on it
+	  and, we call it  the 'MYBLASTER' card:
+ 
+ **************************************************************************
+
+  0: Run 'configure'. Select the MIDI on CHIP support option.
+ 
+  1: Write a midi driver module; 'blast_midi.c' 
+	(with functions for open,close,read,write,attach.)
+
+  1a: Write all functions except the 'attach' the way you want.
+ 
+      For the 'attach' function, look at a model in the 'pro_midi.c' 
+      file. Just dup it in the same fashion. For the 'generic_midi_operations'
+      structure which is required, see file 'dev_table.h'. 
+
+  2:  We called the 'attach' function: 'blast_attach'.
+
+      Go to the file 'dev_table.h' and add your driver name and the function
+      pointer ( which is 'blast_attach' ) to the 'midi_supported' table.
+    
+  3:  You are almost set.  Go and make a reference 
+      to an 'exclude constant'; say EXLCUDE_BLAST_MIDI in your module
+      (refer to the 'pro_midi.c' file for model). Also make sure to
+      add the constant to the file 'sound_config.h' (for example, look
+      where the constant EXCLUDE_PRO_MIDI is in the file.) 
+   
+  4:  Add the line
+
+        #define ALL_EXTERNAL_TO_ME
+
+      as the 1st line of your  'blast_midi.c' file. This happily, makes
+      you ignorant of everything else specific to the driver! :). 
+
+  4a: And of course, don't forget to make a device :). Note that your
+      minor number should be = ( 15 + position of your driver in the
+      'midi_supported' table in the 'dev_table.h' file ).
+
+      Eg: Your driver is the second one in the table. viz midi_supported[1].
+      Your device minor number should be ( 15 + 1 = 16 ). Then, make the
+      reference to your device as, say CMIDI_DEV_BLAST in the file
+      'sound_config.h'. Also add this in 'soundcard.c' for the open, read,
+      write and close routines. See files for example using CMIDI_DEV_PRO 
+      (which is the ProAudioSpectrum on chip MIDI).
+
+  5:  You are all set. If ever you have problems, follow the same model
+      as the file 'pro_midi.c', except for substituting your own functions!

@@ -1,0 +1,17 @@
+CAUTION!
+
+This is a prototype version of the Linux Sound Driver for FreeBSD.
+
+The official and supported version is 1.0c.
+
+This version 'should work' but there may be some bugs and the programmers
+API may change before the final version.
+
+There are some additional programs for GUS owners in the 
+gustest subdirectory of this directory, namely a module
+(.MOD, .STM and .669) player and a patch file loader.
+Additionally, there is a midithru program which allows
+you to play the synth on the soundcard with a midi keyboard 
+(also usable for OPL-3 owners).
+
+Hannu & FreeBSD team.
