@@ -115,18 +115,19 @@ sbni_attach_isa(device_t dev)
 	sc = device_get_softc(dev);
 
 	printf("sbni%d: <Granch SBNI12/ISA adapter> port 0x%x",
-	       next_sbni_unit, sc->base_addr);
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					 0ul, ~0ul, 1, RF_ACTIVE);
+	       next_sbni_unit, rman_get_start(sc->io_res));
+	sc->irq_res = bus_alloc_resource(
+	    dev, SYS_RES_IRQ, &sc->irq_rid, 0ul, ~0ul, 1, RF_ACTIVE);
 
 	if (sc->irq_res) {
 		printf(" irq %ld\n", rman_get_start(sc->irq_res));
-		error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				       sbni_intr, sc, &sc->irq_handle);
+		error = bus_setup_intr(
+		    dev, sc->irq_res, INTR_TYPE_NET,
+		    sbni_intr, sc, &sc->irq_handle);
 		if (error) {
 			printf("sbni%d: bus_setup_intr\n", next_sbni_unit);
-			bus_release_resource(dev, SYS_RES_IOPORT,
-					     sc->io_rid, sc->io_res);
+			bus_release_resource(
+			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
 			return (error);
 		}
 
@@ -149,12 +150,13 @@ sbni_attach_isa(device_t dev)
 		if ((master = connect_to_master(sc)) == 0) {
 			printf("\nsbni%d: failed to alloc irq\n",
 			       next_sbni_unit);
-			bus_release_resource(dev, SYS_RES_IOPORT,
-					     sc->io_rid, sc->io_res);
+			bus_release_resource(
+			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
 			return (ENXIO);
-		} else
+		} else {
 			printf(" shared irq with sbni%d\n",
 			       master->arpcom.ac_if.if_unit);
+		}
 	} 
 #endif	/* SBNI_DUAL_COMPOUND */
 
