@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.36 1999/05/09 13:00:46 phk Exp $
+ * $Id: kern_conf.c,v 1.37 1999/05/11 19:54:27 phk Exp $
  */
 
 #include <sys/param.h>
@@ -179,26 +179,30 @@ devsw_module_handler(module_t mod, int what, void* arg)
 int 
 major(dev_t x)
 {
+	u_intptr_t i = (u_int)x;
+
 #ifdef DEVT_FASCIST
-	return(253 - ((x >> 8) & 0xff));
+	return(253 - ((i >> 8) & 0xff));
 #else
-	return((x >> 8) & 0xff);
+	return((i >> 8) & 0xff);
 #endif
 }
 
 int
 minor(dev_t x)
 {
-	return(x & 0xffff00ff);
+	u_intptr_t i = (u_int)x;
+
+	return(i & 0xffff00ff);
 }
 
 dev_t
 makedev(int x, int y)
 {
 #ifdef DEVT_FASCIST
-        return (((253 - x) << 8) | y);
+        return ((dev_t) (((253 - x) << 8) | y));
 #else
-        return ((x << 8) | y);
+        return ((dev_t) ((x << 8) | y));
 #endif
 }
 
