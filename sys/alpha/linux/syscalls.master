@@ -111,7 +111,8 @@
 			    int prot, int flags, int fd, off_t pos); }
 72	UNIMPL	LINUX
 73	STD	LINUX	{ int linux_munmap(caddr_t addr, u_long len); }
-74	STD	LINUX	{ int linux_mprotect(caddr_t addr, size_t len, int prot); }
+74	STD	LINUX	{ int linux_mprotect(caddr_t addr, size_t len, \
+			    int prot); }
 75	UNIMPL	LINUX	madvise
 76	STD	LINUX	{ int linux_vhangup(void); }
 77	UNIMPL	LINUX
@@ -132,7 +133,8 @@
 			    osethostname sethostname_args int
 89	UNIMPL LINUX	getdtablesize
 90	NOPROTO	LINUX	{ int dup2(u_int from, u_int to); }
-91	STD	LINUX	{ int linux_newfstat(int fd, struct linux_newstat *buf); }
+91	STD	LINUX	{ int linux_newfstat(int fd, \
+			    struct linux_newstat *buf); }
 92	STD	LINUX	{ int linux_fcntl(int fd, int cmd, u_long arg); }
 93	STD	LINUX	{ int osf1_select(u_int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval *tv); }
@@ -223,8 +225,7 @@
 163	UNIMPL	LINUX
 164	UNIMPL	LINUX
 165	UNIMPL	LINUX
-166	NOPROTO	LINUX	{ int setdomainname(char *name, \
-			    int len); }
+166	NOPROTO	LINUX	{ int setdomainname(char *name, int len); }
 167	UNIMPL	LINUX
 168	UNIMPL	LINUX
 169	UNIMPL	LINUX
@@ -399,11 +400,9 @@
 			    const struct sched_param *param); }
 331	NOPROTO	POSIX	{ int sched_getparam (pid_t pid, \
 			    struct sched_param *param); }
-
 332	STD	POSIX	{ int linux_sched_setscheduler(pid_t pid, int policy, \
 			    const struct sched_param *param); }
 333	STD	POSIX	{ int linux_sched_getscheduler (pid_t pid); }
-
 334	NOPROTO	POSIX	{ int sched_yield (void); }
 335	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
 336	NOPROTO	POSIX	{ int sched_get_priority_min (int policy); }
