@@ -1026,6 +1026,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_vnode_stat =
 			    mpe->mpe_function;
 			break;
+		case MAC_CHECK_VNODE_SWAPON:
+			mpc->mpc_ops->mpo_check_vnode_swapon =
+			    mpe->mpe_function;
+			break;
 		case MAC_CHECK_VNODE_WRITE:
 			mpc->mpc_ops->mpo_check_vnode_write =
 			    mpe->mpe_function;
@@ -2600,6 +2604,24 @@ mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(check_vnode_stat, active_cred, file_cred, vp,
 	    &vp->v_label);
+	return (error);
+}
+
+int
+mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_swapon");
+
+	if (!mac_enforce_fs)  
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_swapon, cred, vp, &vp->v_label);
 	return (error);
 }
 

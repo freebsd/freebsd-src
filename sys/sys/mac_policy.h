@@ -385,6 +385,8 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_stat)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
+	int	(*mpo_check_vnode_swapon)(struct ucred *cred,
+		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_vnode_write)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
@@ -531,6 +533,7 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_SETOWNER,
 	MAC_CHECK_VNODE_SETUTIMES,
 	MAC_CHECK_VNODE_STAT,
+	MAC_CHECK_VNODE_SWAPON,
 	MAC_CHECK_VNODE_WRITE,
 };
 
