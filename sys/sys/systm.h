@@ -113,7 +113,6 @@ void	Debugger __P((const char *msg));
 int	dumpstatus __P((vm_offset_t addr, off_t count));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
-int	einval __P((void));
 int	seltrue __P((dev_t dev, int which, struct thread *td));
 int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));

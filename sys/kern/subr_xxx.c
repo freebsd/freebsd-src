@@ -52,17 +52,6 @@ eopnotsupp()
 }
 
 /*
- * Return error for an inval operation
- * on a specific object or file type.
- */
-int
-einval()
-{
-
-	return (EINVAL);
-}
-
-/*
  * Generic null operation, always returns success.
  */
 int
