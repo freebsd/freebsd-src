@@ -79,11 +79,11 @@ struct dbent {
 	int flags;
 };
 
-static CIRCLEQ_HEAD(circlehead, circleq_entry) qhead;
+static TAILQ_HEAD(circlehead, circleq_entry) qhead;
 
 struct circleq_entry {
 	struct dbent *dbptr;
-	CIRCLEQ_ENTRY(circleq_entry) links;
+	TAILQ_ENTRY(circleq_entry) links;
 };
 
 /*
@@ -91,7 +91,7 @@ struct circleq_entry {
  */
 void yp_init_dbs()
 {
-	CIRCLEQ_INIT(&qhead);
+	TAILQ_INIT(&qhead);
 	return;
 }
 
@@ -166,8 +166,8 @@ static void yp_flush()
 {
 	register struct circleq_entry *qptr;
 
-	qptr = qhead.cqh_last;
-	CIRCLEQ_REMOVE(&qhead, qptr, links);
+	qptr = TAILQ_LAST(&qhead, circlehead);
+	TAILQ_REMOVE(&qhead, qptr, links);
 	yp_free_qent(qptr);
 	numdbs--;
 
@@ -181,9 +181,9 @@ void yp_flush_all()
 {
 	register struct circleq_entry *qptr;
 
-	while(qhead.cqh_first != (void *)&qhead) {
-		qptr = qhead.cqh_first; /* save this */
-		CIRCLEQ_REMOVE(&qhead, qhead.cqh_first, links);
+	while(!TAILQ_EMPTY(&qhead)) {
+		qptr = TAILQ_FIRST(&qhead); /* save this */
+		TAILQ_REMOVE(&qhead, qptr, links);
 		yp_free_qent(qptr); 
 	}
 	numdbs = 0;
@@ -232,8 +232,7 @@ int yp_testflag(map, domain, flag)
 	strcat(buf, "/");
 	strcat(buf, map);
 
-	for (qptr = qhead.cqh_first; qptr != (void *)&qhead;
-						qptr = qptr->links.cqe_next) {
+	TAILQ_FOREACH(qptr, &qhead, links) {
 		if (!strcmp(qptr->dbptr->name, buf)) {
 			if (qptr->dbptr->flags & flag)
 				return(1);
@@ -245,7 +244,7 @@ int yp_testflag(map, domain, flag)
 	if (yp_open_db_cache(domain, map, NULL, 0) == NULL)
 		return(0);
 
-	if (qhead.cqh_first->dbptr->flags & flag)
+	if (TAILQ_FIRST(&qhead)->dbptr->flags & flag)
 		return(1);
 
 	return(0);
@@ -286,7 +285,7 @@ static int yp_cache_db(dbp, name, size)
 
 	qptr->dbptr->flags = yp_setflags(dbp);
 
-	CIRCLEQ_INSERT_HEAD(&qhead, qptr, links);
+	TAILQ_INSERT_HEAD(&qhead, qptr, links);
 	numdbs++;
 
 	return(0);
@@ -325,8 +324,7 @@ static DB *yp_find_db(name, key, size)
 {
 	register struct circleq_entry *qptr;
 
-	for (qptr = qhead.cqh_first; qptr != (void *)&qhead;
-						qptr = qptr->links.cqe_next) {
+	TAILQ_FOREACH(qptr, &qhead, links) {
 		if (!strcmp(qptr->dbptr->name, name)) {
 			if (size) {
 				if (size != qptr->dbptr->size ||
@@ -336,9 +334,9 @@ static DB *yp_find_db(name, key, size)
 				if (qptr->dbptr->size)
 					continue;
 			}
-			if (qptr != qhead.cqh_first) {
-				CIRCLEQ_REMOVE(&qhead, qptr, links);
-				CIRCLEQ_INSERT_HEAD(&qhead, qptr, links);
+			if (qptr != TAILQ_FIRST(&qhead)) {
+				TAILQ_REMOVE(&qhead, qptr, links);
+				TAILQ_INSERT_HEAD(&qhead, qptr, links);
 			}
 			return(qptr->dbptr->dbp);
 		}
@@ -496,7 +494,7 @@ int yp_get_record(domain,map,key,data,allow)
 
 	if ((rval = (dbp->get)(dbp, key, data, 0)) != 0) {
 #ifdef DB_CACHE
-		qhead.cqh_first->dbptr->size = 0;
+		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #else
 		(void)(dbp->close)(dbp);
 #endif
@@ -511,9 +509,9 @@ int yp_get_record(domain,map,key,data,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (qhead.cqh_first->dbptr->size) {
-		qhead.cqh_first->dbptr->key = "";
-		qhead.cqh_first->dbptr->size = 0;
+	if (TAILQ_FIRST(&qhead)->dbptr->size) {
+		TAILQ_FIRST(&qhead)->dbptr->key = "";
+		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 	}
 #else
 	bcopy((char *)data->data, (char *)&buf, data->size);
@@ -540,7 +538,7 @@ int yp_first_record(dbp,key,data,allow)
 
 	if ((rval = (dbp->seq)(dbp,key,data,R_FIRST)) != 0) {
 #ifdef DB_CACHE
-		qhead.cqh_first->dbptr->size = 0;
+		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #endif
 		if (rval == 1)
 			return(YP_NOKEY);
@@ -552,7 +550,7 @@ int yp_first_record(dbp,key,data,allow)
 	while (!strncmp(key->data, "YP_", 3) && !allow) {
 		if ((rval = (dbp->seq)(dbp,key,data,R_NEXT)) != 0) {
 #ifdef DB_CACHE
-			qhead.cqh_first->dbptr->size = 0;
+			TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #endif
 			if (rval == 1)
 				return(YP_NOKEY);
@@ -566,9 +564,9 @@ int yp_first_record(dbp,key,data,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (qhead.cqh_first->dbptr->size) {
-		qhead.cqh_first->dbptr->key = key->data;
-		qhead.cqh_first->dbptr->size = key->size;
+	if (TAILQ_FIRST(&qhead)->dbptr->size) {
+		TAILQ_FIRST(&qhead)->dbptr->key = key->data;
+		TAILQ_FIRST(&qhead)->dbptr->size = key->size;
 	}
 #else
 	bcopy((char *)data->data, (char *)&buf, data->size);
@@ -599,8 +597,8 @@ int yp_next_record(dbp,key,data,all,allow)
 			return(YP_NOMORE);
 		else {
 #ifdef DB_CACHE
-			qhead.cqh_first->dbptr->key = key->data;
-			qhead.cqh_first->dbptr->size = key->size;
+			TAILQ_FIRST(&qhead)->dbptr->key = key->data;
+			TAILQ_FIRST(&qhead)->dbptr->size = key->size;
 #endif
 			return(rval);
 		}
@@ -612,7 +610,7 @@ int yp_next_record(dbp,key,data,all,allow)
 
 	if (!all) {
 #ifdef DB_CACHE
-		if (qhead.cqh_first->dbptr->key == NULL) {
+		if (TAILQ_FIRST(&qhead)->dbptr->key == NULL) {
 #endif
 			(dbp->seq)(dbp,&lkey,&ldata,R_FIRST);
 			while (key->size != lkey.size ||
@@ -620,7 +618,7 @@ int yp_next_record(dbp,key,data,all,allow)
 			    (int)key->size))
 				if ((dbp->seq)(dbp,&lkey,&ldata,R_NEXT)) {
 #ifdef DB_CACHE
-					qhead.cqh_first->dbptr->size = 0;
+					TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #endif
 					return(YP_NOKEY);
 				}
@@ -632,7 +630,7 @@ int yp_next_record(dbp,key,data,all,allow)
 
 	if ((dbp->seq)(dbp,key,data,R_NEXT)) {
 #ifdef DB_CACHE
-		qhead.cqh_first->dbptr->size = 0;
+		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #endif
 		return(YP_NOMORE);
 	}
@@ -641,7 +639,7 @@ int yp_next_record(dbp,key,data,all,allow)
 	while (!strncmp(key->data, "YP_", 3) && !allow)
 		if ((dbp->seq)(dbp,key,data,R_NEXT)) {
 #ifdef DB_CACHE
-		qhead.cqh_first->dbptr->size = 0;
+		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 #endif
 			return(YP_NOMORE);
 		}
@@ -651,9 +649,9 @@ int yp_next_record(dbp,key,data,all,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (qhead.cqh_first->dbptr->size) {
-		qhead.cqh_first->dbptr->key = key->data;
-		qhead.cqh_first->dbptr->size = key->size;
+	if (TAILQ_FIRST(&qhead)->dbptr->size) {
+		TAILQ_FIRST(&qhead)->dbptr->key = key->data;
+		TAILQ_FIRST(&qhead)->dbptr->size = key->size;
 	}
 #else
 	bcopy((char *)key->data, (char *)&keybuf, key->size);
