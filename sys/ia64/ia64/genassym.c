@@ -67,7 +67,6 @@ ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_FPCURTHREAD,	offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_CURPCB,	offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_SWITCHTIME,	offsetof(struct pcpu, pc_switchtime));
 ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(MTX_LOCK,		offsetof(struct mtx, mtx_lock));
