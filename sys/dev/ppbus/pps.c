@@ -110,8 +110,6 @@ ppsattach(device_t dev)
 	intptr_t irq;
 	int i, unit, zero = 0;
 
-	bzero(sc, sizeof(struct pps_data)); /* XXX doesn't newbus do this? */
-
 	/* retrieve the ppbus irq */
 	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
 
