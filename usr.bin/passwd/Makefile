@@ -12,8 +12,8 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
 	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
 CFLAGS+=-Wall
 
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBMD}
+LDADD=	-lcrypt -lutil -lmd
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../rlogin 
 
@@ -31,8 +31,8 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
 	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
 CFLAGS+=-Wall
 
-DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
-LDADD=	-lcrypt -lrpcsvc -lutil
+DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL} ${LIBMD}
+LDADD=	-lcrypt -lrpcsvc -lutil -lmd
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../rlogin ${.CURDIR}/../../libexec/ypxfr \
 	${.CURDIR}/../../usr.sbin/rpc.yppasswdd
@@ -87,8 +87,9 @@ SRCS+=	kpasswd_standalone.c
 
 CFLAGS+=	-DKERBEROS
 # XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
-DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
-LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err -lutil
+DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} \
+	${LIBUTIL} ${LIBMD}
+LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err -lutil -lmd
 DISTRIBUTION=	krb4
 .endif
 
