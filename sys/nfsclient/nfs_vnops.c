@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.114 1998/11/15 20:36:16 msmith Exp $
+ * $Id: nfs_vnops.c,v 1.115 1998/12/25 10:34:27 dfr Exp $
  */
 
 
@@ -1741,7 +1741,6 @@ nfs_symlink(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct nfsv2_sattr *sp;
-	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -1807,7 +1806,6 @@ nfs_mkdir(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct nfsv2_sattr *sp;
-	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
