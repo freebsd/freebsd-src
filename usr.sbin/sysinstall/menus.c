@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.85 1996/09/08 01:39:25 jkh Exp $
+ * $Id: menus.c,v 1.86 1996/10/05 11:56:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -731,6 +731,8 @@ you wish to install.",
     NULL,
 { { "base",	"top-level files in /usr/src [300K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
+  { "contrib",	"/usr/src/contrib (contributed software) [33MB]",
+    dmenuFlagCheck, dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
   { "gnu",	"/usr/src/gnu (software from the GNU Project) [42MB]",
     dmenuFlagCheck, dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_GNU },
   { "etc",	"/usr/src/etc (miscellaneous system files) [460K]",
