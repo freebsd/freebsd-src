@@ -1,5 +1,3 @@
-/*	$NetBSD: sprite.h,v 1.5 1995/06/14 15:19:54 christos Exp $	*/
-
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)sprite.h	8.1 (Berkeley) 6/6/93
+ *	@(#)sprite.h	8.2 (Berkeley) 4/28/95
  */
 
 /*
@@ -71,7 +69,7 @@ typedef int Boolean;
 typedef int  ReturnStatus;
 
 /*
- * The following statuses overlap with the first 2 generic statuses
+ * The following statuses overlap with the first 2 generic statuses 
  * defined in status.h:
  *
  * SUCCESS			There was no error.
@@ -83,7 +81,7 @@ typedef int  ReturnStatus;
 
 
 /*
- * A nil pointer must be something that will cause an exception if
+ * A nil pointer must be something that will cause an exception if 
  * referenced.  There are two nils: the kernels nil and the nil used
  * by user processes.
  */

@@ -1,5 +1,3 @@
-/*	$NetBSD: lstClose.c,v 1.4 1995/06/14 15:20:50 christos Exp $	*/
-
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,11 +35,7 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)lstClose.c	8.1 (Berkeley) 6/6/93";
-#else
-static char rcsid[] = "$NetBSD: lstClose.c,v 1.4 1995/06/14 15:20:50 christos Exp $";
-#endif
+static char sccsid[] = "@(#)lstClose.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*-
@@ -74,7 +68,7 @@ Lst_Close (l)
     Lst	    l;	  	/* The list to close */
 {
     register List 	list = (List) l;
-
+    
     if (LstValid(l) == TRUE) {
 	list->isOpen = FALSE;
 	list->atEnd = Unknown;

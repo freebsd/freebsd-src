@@ -1,5 +1,3 @@
-/*	$NetBSD: make.h,v 1.10 1996/08/13 16:39:30 christos Exp $	*/
-
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
+ *	@(#)make.h	8.3 (Berkeley) 6/13/95
  */
 
 /*-
@@ -52,15 +50,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#if !defined(MAKE_BOOTSTRAP) && defined(BSD)
+#ifndef MAKE_BOOTSTRAP
 #include <sys/cdefs.h>
 #else
-#ifndef __P
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
 #else
-#define	__P(protos)	()		/* traditional C preprocessor */
-#endif
+#define	__P(protos)	()		/* traditional C preprocessor */    
 #endif
 #endif
 #if __STDC__
@@ -98,13 +94,12 @@
  *	16) a Lst of ``local'' variables that are specific to this target
  *	   and this target only (qv. var.c [$@ $< $?, etc.])
  *	17) a Lst of strings that are commands to be given to a shell
- *	   to create this target.
+ *	   to create this target. 
  */
 typedef struct GNode {
     char            *name;     	/* The target's name */
     char    	    *path;     	/* The full pathname of the file */
     int             type;      	/* Its type (see the OP flags, below) */
-    int		    order;	/* Its wait weight */
 
     Boolean         make;      	/* TRUE if this target needs to be remade */
     enum {
@@ -155,7 +150,7 @@ typedef struct GNode {
 } GNode;
 
 /*
- * Manifest constants
+ * Manifest constants 
  */
 #define NILGNODE	((GNode *) NIL)
 
@@ -166,7 +161,7 @@ typedef struct GNode {
  * placed in the 'type' field of each node. Any node that has
  * a 'type' field which satisfies the OP_NOP function was never never on
  * the lefthand side of an operator, though it may have been on the
- * righthand side...
+ * righthand side... 
  */
 #define OP_DEPENDS	0x00000001  /* Execution of commands depends on
 				     * kids (:) */
@@ -221,7 +216,7 @@ typedef struct GNode {
  * do if the desired node(s) is (are) not found. If the TARG_CREATE constant
  * is given, a new, empty node will be created for the target, placed in the
  * table of all targets and its address returned. If TARG_NOCREATE is given,
- * a NIL pointer will be returned.
+ * a NIL pointer will be returned. 
  */
 #define TARG_CREATE	0x01	  /* create node if not found */
 #define TARG_NOCREATE	0x00	  /* don't create it */
@@ -233,7 +228,7 @@ typedef struct GNode {
  * If longer, it should be increased. Reducing it will cause more copying to
  * be done for longer lines, but will save space for shorter ones. In any
  * case, it ought to be a power of two simply because most storage allocation
- * schemes allocate in powers of two.
+ * schemes allocate in powers of two. 
  */
 #define MAKE_BSIZE		256	/* starting size for expandable buffers */
 
@@ -244,7 +239,7 @@ typedef struct GNode {
  * be used instead of a space. If neither is given, no intervening characters
  * will be placed between the two strings in the final output. If the
  * STR_DOFREE bit is set, the two input strings will be freed before
- * Str_Concat returns.
+ * Str_Concat returns. 
  */
 #define STR_ADDSPACE	0x01	/* add a space when Str_Concat'ing */
 #define STR_DOFREE	0x02	/* free source strings after concatenation */
@@ -284,7 +279,7 @@ typedef struct GNode {
 #define DPREFIX           "*D"  /* directory part of PREFIX */
 
 /*
- * Global Variables
+ * Global Variables 
  */
 extern Lst  	create;	    	/* The list of target names specified on the
 				 * command line. used to resolve #if
@@ -327,8 +322,6 @@ extern time_t 	now;	    	/* The time at the start of this whole
 				 * process */
 
 extern Boolean	oldVars;    	/* Do old-style variable substitution */
-
-extern Lst	sysIncPath;	/* The system include path. */
 
 /*
  * debug control:

@@ -1,5 +1,3 @@
-/*	$NetBSD: lstRemove.c,v 1.4 1995/06/14 15:21:39 christos Exp $	*/
-
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,11 +35,7 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)lstRemove.c	8.1 (Berkeley) 6/6/93";
-#else
-static char rcsid[] = "$NetBSD: lstRemove.c,v 1.4 1995/06/14 15:21:39 christos Exp $";
-#endif
+static char sccsid[] = "@(#)lstRemove.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*-
@@ -78,7 +72,7 @@ Lst_Remove (l, ln)
 	!LstNodeValid (ln, l)) {
 	    return (FAILURE);
     }
-
+    
     /*
      * unlink it from the list
      */
@@ -88,7 +82,7 @@ Lst_Remove (l, ln)
     if (lNode->prevPtr != NilListNode) {
 	lNode->prevPtr->nextPtr = lNode->nextPtr;
     }
-
+    
     /*
      * if either the firstPtr or lastPtr of the list point to this node,
      * adjust them accordingly
@@ -121,7 +115,7 @@ Lst_Remove (l, ln)
     if (list->firstPtr == lNode) {
 	list->firstPtr = NilListNode;
     }
-
+    
     /*
      * note that the datum is unmolested. The caller must free it as
      * necessary and as expected.
@@ -131,7 +125,7 @@ Lst_Remove (l, ln)
     } else {
 	lNode->flags |= LN_DELETED;
     }
-
+    
     return (SUCCESS);
 }
 
