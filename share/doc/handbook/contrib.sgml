@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.15.2.7 1996/05/15 17:35:24 joerg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.15.2.8 1996/06/19 20:27:31 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -93,6 +93,7 @@
         <item>&a.se;  
         <item>&a.fenner;
         <item>&a.jfieber;
+	<item>&a.jhay;
         <item>&a.lars;
         <item>&a.tg;
         <item>&a.graichen;
@@ -219,12 +220,10 @@
 	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
-	  <item>John Hay &lt;jhay@mikom.csir.co.za&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
-	  <item>Julian Stacey &lt;stacey@guug.de&gt;
-	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
+	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
@@ -330,8 +329,7 @@
 	<item>John Woods &lt;jfw@eddie.mit.edu&gt;
 	<item>Jordan K. Hubbard &lt;jkh@whisker.hubbard.ie&gt;
 	<item>Julian Elischer &lt;julian@dialix.oz.au&gt;
-	<item>Julian Stacey &lt;stacey@guug.de&gt; 
-	  (fallback: &lt;julian@meepmeep.pcs.com&gt;)
+	<item>Julian Stacey &lt;jhs@freebsd.org&gt; 
 	<item>Karl Lehenbauer &lt;karl@NeoSoft.com&gt; 
 	  &lt;karl@one.neosoft.com&gt;
 	<item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
