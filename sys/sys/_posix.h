@@ -69,12 +69,6 @@
 
 #else
 
-/* Default to existing user space version.
- */
-#ifndef _POSIX_VERSION
-#define	_POSIX_VERSION		199009L
-#endif
-
 /* Test for visibility of P1003.1B features:
  * If _POSIX_SOURCE and POSIX_C_SOURCE are completely undefined
  * they show up.
