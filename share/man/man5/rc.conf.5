@@ -470,14 +470,6 @@ This prevents OS fingerprinting, but may
 break some legitimate applications.
 This option is only available if the
 kernel was built with the TCP_DROP_SYNFIN option.
-.It Ar tcp_restrict_rst
-(bool) Set to
-.Ar NO
-by default.
-Setting to YES will cause the kernel to refrain from emitting TCP RST frames
-in response to invalid TCP packets (e.g. frames destined for closed ports).
-This option is only available if the kernel was built with the
-TCP_RESTRICT_RST option.
 .It Ar icmp_drop_redirect
 (bool) Set to
 .Ar NO
