@@ -87,7 +87,8 @@ and
 .Dv SIOCSIFNETMASK ,
 and thus can be used with
 .Xr ifconfig 8
-like any other Ethernet interface. When the system chooses to transmit
+like any other Ethernet interface.
+When the system chooses to transmit
 an Ethernet frame on the network interface, the frame can be read from
 the control device
 (it appears as
@@ -114,7 +115,8 @@ Once the interface is ready,
 will return an Ethernet frame if one is available; if not, it will
 either block until one is or return
 .Er EWOULDBLOCK ,
-depending on whether non-blocking I/O has been enabled. If the frame
+depending on whether non-blocking I/O has been enabled.
+If the frame
 is longer than is allowed for in the buffer passed to
 .Fn read ,
 the extra data will be silently dropped.
@@ -123,7 +125,8 @@ A
 .Xr write 2
 call passes an Ethernet frame in to be
 .Dq received
-on the pseudo-interface.  Each
+on the pseudo-interface.
+Each
 .Fn write
 call supplies exactly one frame; the frame length is taken from the
 amount of data provided to
@@ -143,7 +146,8 @@ calls are supported
 .It Dv TAPSDEBUG
 The argument should be a pointer to an
 .Va int ;
-this sets the internal debugging variable to that value.  What, if
+this sets the internal debugging variable to that value.
+What, if
 anything, this variable controls is not documented here; see the source
 code.
 .It Dv TAPGDEBUG
@@ -184,7 +188,8 @@ Retrieve the Media Access Control
 .Pq Dv MAC
 address of the
 .Dq remote
-side. This command is used by the VMware port and expected to be executed on
+side.
+This command is used by the VMware port and expected to be executed on
 descriptor, associated with control device
 (usually
 .Pa /dev/vmnet Ns Sy N
@@ -195,7 +200,8 @@ The
 which is passed as the argument, is expected to have enough space to store
 the
 .Dv MAC
-address. At the open time both
+address.
+At the open time both
 .Dq local
 and
 .Dq remote
@@ -209,7 +215,8 @@ Set the Media Access Control
 .Pq Dv MAC
 address of the
 .Dq remote
-side. This command is used by VMware port and expected to be executed on
+side.
+This command is used by VMware port and expected to be executed on
 a descriptor, associated with control device
 (usually
 .Pa /dev/vmnet Ns Sy N ) .
@@ -225,30 +232,35 @@ brought down
 (as if with
 .Dq ifconfig tap Ns Sy N No down )
 unless the devices is a VMnet device.
-All queued frames are thrown away. If the interface is up when the data
+All queued frames are thrown away.
+If the interface is up when the data
 device is not open, output frames are thrown away rather than
 letting them pile up.
 .Pp
 The
 .Nm
 device is also can be used with the VMware port as a replacement
-for the old VMnet device driver. The driver uses the minor number
+for the old VMnet device driver.
+The driver uses the minor number
 to select between
 .Nm
 and
 .Nm vmnet
-devices. VMnet minor numbers begin at
+devices.
+VMnet minor numbers begin at
 .Va 0x800000
 +
 .Va N .
 Where
 .Va N
-is a VMnet unit number. In this case control device is expected to be
+is a VMnet unit number.
+In this case control device is expected to be
 .Pa /dev/vmnet Ns Sy N ,
 and network interface will be
 .Sy vmnet Ns Ar N .
 Additionally, VMnet devices do not ifconfig themselves down when the
-control device is closed. Everything else is the same.
+control device is closed.
+Everything else is the same.
 .Pp
 In addition to mentioned above
 .Xr ioctl 2
