@@ -68,7 +68,7 @@ devfs_mount(mp, path, data, ndp, p)
 	struct proc *p;
 {
 	int error;
-	u_int size;
+	size_t size;
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
 
