@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.57 1998/11/24 20:25:52 eivind Exp $
+ * 	$Id: pmap.h,v 1.57.2.1 1999/04/25 12:44:06 des Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -175,12 +175,12 @@ pmap_kextract(vm_offset_t va)
 }
 
 #if 0
-#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
+#define	vtophys(va)	(((vm_offset_t) (*vtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
 #else
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 #endif
 
-#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
+#define	avtophys(va)	(((vm_offset_t) (*avtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
 
 #endif
 
