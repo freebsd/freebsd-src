@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lockf.c,v 1.1.1.1 1997/01/08 20:12:59 jdp Exp $
+ * $Id: lockf.c,v 1.1.1.1.2.1 1997/01/09 20:01:47 jdp Exp $
  */
 
 #include <sys/types.h>
@@ -192,7 +192,9 @@ timeout(int sig)
 static void
 usage(void)
 {
-    errx(EX_USAGE, "usage: lockf [-s] [-t seconds] file command [arguments]");
+	fprintf(stderr,
+		"usage: lockf [-s] [-t seconds] file command [arguments]\n");
+	exit(EX_USAGE);
 }
 
 /*
