@@ -39,7 +39,7 @@
 #include <sys/systm.h>
 
 /* XXX this should be in a header. */
-extern int	misccall __P((struct proc *p, void *uap, int retval[]));
+extern int	misccall __P((struct proc *p, void *uap));
 
 /*
  * This is the actual code for the system call... it can't be static because
@@ -56,10 +56,9 @@ extern int	misccall __P((struct proc *p, void *uap, int retval[]));
  * files into a single ".o" file for use by "modload".
  */
 int
-misccall( p, uap, retval)
+misccall( p, uap)
 struct proc	*p;
 void		*uap;
-int		retval[];
 {
 	/*
 	 * Our new system call simply prints a message; it takes no
