@@ -40,7 +40,7 @@ character device driver provides generic i/o to any
 .Xr smbus 4
 instance.
 In order to control SMB devices, use
-.Pa /dev/smb Ns Em ?
+.Pa /dev/smb?
 with the ioctls described below.
 Any of these ioctl commands takes a pointer to
 .Vt struct smbcmd
@@ -73,40 +73,40 @@ The
 field is always used, and provides the address of the
 SMBus slave device to talk to.
 .Pp
-.Bl -column ".Sy SMB_QUICK_WRITE" -compact
+.Bl -column ".Dv SMB_QUICK_WRITE" -compact
 .It Em Ioctl Ta Em Description
 .Pp
-.It Sy SMB_QUICK_WRITE Ta
+.It Dv SMB_QUICK_WRITE Ta
 The
 .Em QuickWrite
 command just issues the device address with write intent
 to the bus, without transferring any data.
-.It Sy SMB_QUICK_READ Ta
+.It Dv SMB_QUICK_READ Ta
 The
 .Em QuickRead
 command just issues the device address with read intent
 to the bus, without transferring any data.
-.It Sy SMB_SENDB Ta
+.It Dv SMB_SENDB Ta
 The
 .Em SendByte
 command sends the byte provided in the
 .Fa cmd
 field to the device.
-.It Sy SMB_RECVB Ta
+.It Dv SMB_RECVB Ta
 The
 .Em ReceiveByte
 command reads a single byte from the device which will
 be returned in the
 .Fa cmd
 field.
-.It Sy SMB_WRITEB Ta
+.It Dv SMB_WRITEB Ta
 The
 .Em WriteByte
 command first sends the byte from the
 .Fa cmd
 field to the device, followed by the byte given in
 .Fa data.byte .
-.It Sy SMB_WRITEW Ta
+.It Dv SMB_WRITEW Ta
 The
 .Em WriteWord
 command first sends the byte from the
@@ -114,7 +114,7 @@ command first sends the byte from the
 field to the device, followed by the word given in
 .Fa data.word .
 Note that the SMBus byte-order is little-endian by definition.
-.It Sy SMB_READB Ta
+.It Dv SMB_READB Ta
 The
 .Em ReadByte
 command first sends the byte from the
@@ -123,7 +123,7 @@ field to the device, and then reads one byte of data from
 the device.
 The returned data will be stored in the location pointed to by
 .Fa data.byte_ptr .
-.It Sy SMB_READW Ta
+.It Dv SMB_READW Ta
 The
 .Em ReadWord
 command first sends the byte from the
@@ -132,7 +132,7 @@ field to the device, and then reads one word of data from
 the device.
 The returned data will be stored in the location pointed to by
 .Fa data.word_ptr .
-.It Sy SMB_PCALL Ta
+.It Dv SMB_PCALL Ta
 The
 .Em ProcedureCall
 command first sends the byte from the
@@ -142,7 +142,7 @@ field to the device, followed by the word provided in
 It then reads one word of data from the device, and returns it
 in the location pointed to by
 .Fa data.process.rdata .
-.It Sy SMB_BWRITE Ta
+.It Dv SMB_BWRITE Ta
 The
 .Em BlockWrite
 command first sends the byte from the
@@ -155,7 +155,7 @@ The SMBus specification mandates that no more than 32 bytes of
 data can be transferred in a single block read or write command.
 This value is available in the constant
 .Dv SMB_MAXBLOCKSIZE .
-.It Sy SMB_BREAD Ta
+.It Dv SMB_BREAD Ta
 The
 .Em BlockRead
 command first sends the byte from the

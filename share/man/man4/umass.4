@@ -86,15 +86,15 @@ Among the supported digital cameras are:
 Asahi Optical (PENTAX) Optio 230 & 330
 .El
 .Pp
-.Nm usb
+.Xr usb 4
 and one of
-.Nm uhci
+.Xr uhci 4
 or
-.Nm ohci
+.Xr ohci 4
 must be configured in the kernel as well.
 Last but not least, support for
 SCSI drives,
-.Nm da .
+.Xr da 4 .
 .Sh EXAMPLES
 .Bd -literal -offset indent
 device umass
@@ -130,9 +130,9 @@ mount -t ufs /dev/da0c /mnt
 .Ed
 .Pp
 Write a disklabel to the Zip drive (see
-.Nm vpo
+.Xr vpo 4
 for the
-.Nm disktab
+.Xr disktab 5
 entry), creates the file system and mounts the new file system on /mnt.
 .Pp
 .Dl "newfs_msdos /dev/da0"
@@ -149,7 +149,7 @@ based file systems when storing information such as images and
 videos.
 These file systems can be accessed by specifying the file system
 type as
-.Nm msdos
+.Cm msdos
 when using
 .Xr mount 8 .
 .Sh SEE ALSO
@@ -158,8 +158,8 @@ when using
 .Xr usb 4 ,
 .Xr vpo 4 ,
 .Xr disktab 5 ,
-.Xr camcontrol 8 ,
-.Xr bsdlabel 8
+.Xr bsdlabel 8 ,
+.Xr camcontrol 8
 .\".Sh HISTORY
 .Sh AUTHORS
 .An -nosplit

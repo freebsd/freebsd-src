@@ -52,7 +52,6 @@ struct task {
 	task_fn			ta_func;	/* task handler */
 	void			*ta_context;	/* argument for handler */
 };
-
 .Ed
 .Ft struct taskqueue *
 .Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
@@ -197,7 +196,7 @@ The thread taskqueue runs in a kernel thread context, and tasks run from
 this thread do not run under the Giant kernel lock.
 If the caller wants to run under Giant, he should explicitly acquire and
 release Giant in his taskqueue handler routine.
-
+.Pp
 To use these queues,
 call
 .Fn taskqueue_enqueue

@@ -226,33 +226,35 @@ based cards.
 List of removable network interfaces to be supported by
 .Pa /etc/pccard_ether .
 .It Va tmpmfs
-Controls the creation of an mfs
+Controls the creation of a
 .Pa /tmp
-file system.
+memory file system.
 Always happens if set to
 .Dq Li YES
 and never happens if set to
 .Dq Li NO .
-If set anything else, a memory file system is created if
+If set to anything else, a memory file system is created if
 .Pa /tmp
 is not writable.
 .It Va tmpsize
-Controls the size of a created mfm
-.Pa /tmp .
+Controls the size of a created
+.Pa /tmp
+memory file system.
 .It Va varmfs
-Controls the creation of an mfs
+Controls the creation of a
 .Pa /var
-file system.
+memory file system.
 Always happens if set to
 .Dq Li YES
 and never happens if set to
 .Dq Li NO .
-If set anything else, a memory file system is created if
+If set to anything else, a memory file system is created if
 .Pa /var
 is not writable.
 .It Va varsize
-Controls the size of a created mfm
-.Pa /var .
+Controls the size of a created
+.Pa /var
+memory file system.
 .It Va populate_var
 Controls the automatic population of the
 .Pa /var
@@ -261,7 +263,9 @@ Always happens if set to
 .Dq Li YES
 and never happens if set to
 .Dq Li NO .
-If set anything else, a memory file system is created if /tmp is not writable.
+If set to anything else, a memory file system is created if
+.Pa /tmp
+is not writable.
 Note that this process requires access to certain commands in
 .Pa /usr
 before
@@ -673,9 +677,8 @@ enables
 packet filtering.
 .Pp
 Typical usage will require putting
-.Bd -literal
-pf_enable="YES"
-.Ed
+.Pp
+.Dl pf_enable="YES"
 .Pp
 into
 .Pa /etc/rc.conf
@@ -684,7 +687,7 @@ and editing
 appropriately.
 .Pp
 Having
-.Bd -literal
+.Bd -literal -offset indent
 options PFIL_HOOKS
 options RANDOM_IP_ID
 .Ed
@@ -693,14 +696,14 @@ in the kernel configuration file is required for use as a
 .Xr kld 4
 module.
 .Pp
-.Bd -literal
-device pf
-.Ed
+.Dl "device pf"
 .Pp
 builds it into the kernel.
 .It Va pf_rules
 .Pq Vt str
-Path to pf ruleset configuration file
+Path to
+.Xr pf 4
+ruleset configuration file
 (default
 .Pa /etc/pf.conf ) .
 .It Va pf_program
@@ -738,7 +741,7 @@ is set to
 .Dq Li YES
 this controls where
 .Xr pflogd 8
-stores the logfile.
+stores the logfile
 (default
 .Pa /var/log/pflog ) .
 Check
@@ -1959,7 +1962,8 @@ Also refer to the files in
 for more detailed configuration information.
 .It Va atm_load
 .Pq Vt str
-This is a list of physical ATM interface drivers to load. Typical values are
+This is a list of physical ATM interface drivers to load.
+Typical values are
 .Dq Li hfa_pci
 and/or
 .Dq Li hea_pci .
@@ -2947,46 +2951,52 @@ and
 in time to be mounted from
 .Xr fstab 5 .
 Each listed unit
-.Nm X
+.Ar X
 must specify at least a
 .Ar type
 in a
-.Nm ramdisk_X_config
+.Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 variable.
-.It Va ramdisk_X_config
+.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 .Pq Vt str
 Arguments to
 .Xr mdconfig 8
 for ramdisk
-.Nm X .
-At minimum a 
-.Fl Ar t type
-must be specified, where 
+.Ar X .
+At minimum a
+.Fl t Ar type
+must be specified, where
 .Ar type
 must be one of
-.Nm malloc
+.Cm malloc
 or
-.Nm swap .
-.It Va ramdisk_X_newfs
+.Cm swap .
+.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _newfs
 .Pq Vt str
-Optional arguments passed to 
+Optional arguments passed to
 .Xr newfs 8
 to initialize ramdisk
-.Nm X .
-.It Va ramdisk_X_owner
+.Ar X .
+.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _owner
 .Pq Vt str
 An ownership specification passed to
 .Xr chown 8
 after the specified ramdisk unit
-.Nm X
-has been mounted.  Both the md device and the mount point will be changed.
-.It Va ramdisk_X_perms
+.Ar X
+has been mounted.
+Both the
+.Xr md 4
+device and the mount point will be changed.
+.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _perms
 .Pq Vt str
 A mode string passed to
 .Xr chmod 1
 after the specified ramdisk unit
-.Nm X
-has been mounted.  Both the md device and the mount point will be changed.
+.Ar X
+has been mounted.
+Both the
+.Xr md 4
+device and the mount point will be changed.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -3001,6 +3011,7 @@ has been mounted.  Both the md device and the mount point will be changed.
 .Xr info 1 ,
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
+.Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr ip 4 ,
 .Xr kld 4 ,
@@ -3038,9 +3049,9 @@ has been mounted.  Both the md device and the mount point will be changed.
 .Xr rc.sendmail 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
+.Xr rpcbind 8 ,
 .Xr rpc.lockd 8 ,
 .Xr rpc.statd 8 ,
-.Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sshd 8 ,
@@ -3049,7 +3060,6 @@ has been mounted.  Both the md device and the mount point will be changed.
 .Xr syslogd 8 ,
 .Xr timed 8 ,
 .Xr usbd 8 ,
-.Xr vi 1 ,
 .Xr vinum 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,

@@ -609,7 +609,9 @@ Set to disable the installation of
 as an suid root program.
 .It Va SENDMAIL_MC
 .Pq Vt str
-The default m4 configuration file to use at install time.
+The default
+.Xr m4 1
+configuration file to use at install time.
 The value should include the full path to the
 .Pa .mc
 file, e.g.,
@@ -621,7 +623,9 @@ Note that
 is now deprecated.
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
-The default m4 configuration file for mail submission
+The default
+.Xr m4 1
+configuration file for mail submission
 to use at install time.
 The value should include the full path to the
 .Pa .mc
@@ -643,14 +647,18 @@ file(s), e.g.,
 .Pa /etc/mail/bar.mc .
 .It Va SENDMAIL_CF_DIR
 .Pq Vt str
-Override the default location for the m4 configuration files used to build a
+Override the default location for the
+.Xr m4 1
+configuration files used to build a
 .Pa .cf
 file from a
 .Pa .mc
 file.
 .It Va SENDMAIL_M4_FLAGS
 .Pq Vt str
-Flags passed to m4 when building a
+Flags passed to
+.Xr m4 1
+when building a
 .Pa .cf
 file from a
 .Pa .mc

@@ -103,7 +103,9 @@ which can be used in conjunction with the
 function to request that a scheduled timeout be canceled.
 The
 .Fn timeout
-call is the old style and new code should use the callout_* functions.
+call is the old style and new code should use the
+.Fn callout_*
+functions.
 .Pp
 The function
 .Fn callout_handle_init
@@ -144,7 +146,9 @@ The behavior of calling untimeout without a previously initialized handle
 is undefined.
 The
 .Fn untimeout
-call is the old style and new code should use the callout_* functions.
+call is the old style and new code should use the
+.Fn callout_*
+functions.
 .Pp
 As handles are recycled by the system, it is possible (although unlikely)
 that a handle from one invocation of
@@ -176,7 +180,7 @@ The function
 .Fn callout_init
 initializes a callout so it can be passed to
 .Fn callout_stop ,
-.Fn callout_drain 
+.Fn callout_drain
 or
 .Fn callout_reset
 without any side effects.
