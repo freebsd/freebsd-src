@@ -1,27 +1,14 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.33 1997/08/30 01:23:40 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.37 1997/09/07 19:23:45 smp Exp smp $
  */
 
 
 #include <machine/apic.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>			/** various things... */
 
 #include "i386/isa/intr_machdep.h"
 
-
-#ifdef REAL_AVCPL
-
-#define AVCPL_LOCK	CPL_LOCK
-#define AVCPL_UNLOCK	CPL_UNLOCK
-
-#else /* REAL_AVCPL */
-
-#define AVCPL_LOCK
-#define AVCPL_UNLOCK
-
-#endif /* REAL_AVCPL */
 
 #ifdef FAST_SIMPLELOCK
 
@@ -185,17 +172,17 @@ IDTVEC(vec_name) ;							\
  *  and the EOI cycle would cause redundant INTs to occur.
  */
 #define MASK_LEVEL_IRQ(irq_num)						\
-	IMASK_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
 	jz	8f ;				/* edge, don't mask */	\
+	IMASK_LOCK ;				/* into critical reg */	\
 	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
 	movl	_ioapic, %ecx ;			/* ioapic[0] addr */	\
 	movl	$REDTBL_IDX(irq_num), (%ecx) ;	/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
 	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-8: ;									\
-	IMASK_UNLOCK
+	IMASK_UNLOCK ;							\
+8:
 
 /*
  * Test to see if the source is currntly masked, clear if so.
@@ -214,10 +201,24 @@ IDTVEC(vec_name) ;							\
 	IMASK_UNLOCK
 
 #ifdef INTR_SIMPLELOCK
+#define ENLOCK
+#define DELOCK
+#define LATELOCK call	_get_isrlock
+#else
+#define ENLOCK \
+	ISR_TRYLOCK ;		/* XXX this is going away... */		\
+	testl	%eax, %eax ;			/* did we get it? */	\
+	jz	1f
+#define DELOCK	ISR_RELLOCK
+#define LATELOCK
+#endif
+
+#ifdef CPL_AND_CML
 
 #define	INTR(irq_num, vec_name)						\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
+/* _XintrNN: entry point used by IDT/HWIs & splz_unpend via _vec[]. */	\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
@@ -228,9 +229,7 @@ IDTVEC(vec_name) ;							\
 	btsl	$(irq_num), iactive ;		/* lazy masking */	\
 	jc	1f ;				/* already active */	\
 ;									\
-	ISR_TRYLOCK ;		/* XXX this is going away... */		\
-	testl	%eax, %eax ;			/* did we get it? */	\
-	jz	1f ;				/* no */		\
+	ENLOCK ;							\
 ;									\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
@@ -242,6 +241,8 @@ IDTVEC(vec_name) ;							\
 ;									\
 	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
+;	 								\
+  /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
@@ -256,15 +257,18 @@ __CONCAT(Xresume,irq_num): ;						\
 	AVCPL_UNLOCK ;							\
 ;									\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
+	incl	_inside_intr ;						\
 	sti ;								\
 	call	*_intr_handler + (irq_num) * 4 ;			\
 	cli ;								\
+	decl	_inside_intr ;						\
 ;									\
 	lock ;	andl $~IRQ_BIT(irq_num), iactive ;			\
 	lock ;	andl $~IRQ_BIT(irq_num), _cil ;				\
 	UNMASK_IRQ(irq_num) ;						\
 	sti ;				/* doreti repeats cli/sti */	\
 	MEXITCOUNT ;							\
+	LATELOCK ;							\
 	jmp	_doreti ;						\
 ;									\
 	ALIGN_TEXT ;							\
@@ -282,14 +286,15 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 2: ;						/* masked by cpl|cml */	\
 	AVCPL_UNLOCK ;							\
-	ISR_RELLOCK ;		/* XXX this is going away... */		\
+	DELOCK ;		/* XXX this is going away... */		\
 	jmp	1b
 
-#else /* INTR_SIMPLELOCK */
+#else /* CPL_AND_CML */
 
 #define	INTR(irq_num, vec_name)						\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
+/* _XintrNN: entry point used by IDT/HWIs & splz_unpend via _vec[]. */	\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
@@ -311,6 +316,8 @@ IDTVEC(vec_name) ;							\
 ;									\
 	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
+;	 								\
+  /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
@@ -353,7 +360,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	ISR_RELLOCK ;		/* XXX this is going away... */		\
 	jmp	1b
 
-#endif /* INTR_SIMPLELOCK */
+#endif /* CPL_AND_CML */
 
 
 /*
@@ -487,14 +494,26 @@ MCOUNT_LABEL(bintr)
 MCOUNT_LABEL(eintr)
 
 	.data
-ihandlers:			/* addresses of interrupt handlers */
-				/* actually resumption addresses for HWI's */
+/*
+ * Addresses of interrupt handlers.
+ *  XresumeNN: Resumption addresses for HWIs.
+ */
+ihandlers:
+/*
+ * used by:
+ *  ipl.s:	doreti_unpend
+ */
 	.long	Xresume0,  Xresume1,  Xresume2,  Xresume3 
 	.long	Xresume4,  Xresume5,  Xresume6,  Xresume7
 	.long	Xresume8,  Xresume9,  Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	Xresume16, Xresume17, Xresume18, Xresume19
 	.long	Xresume20, Xresume21, Xresume22, Xresume23
+/*
+ * used by:
+ *  ipl.s:	doreti_unpend
+ *  apic_ipl.s:	splz_unpend
+ */
 	.long	swi_tty,   swi_net
 	.long	0, 0, 0, 0
 	.long	_softclock, swi_ast
@@ -506,6 +525,12 @@ imasks:				/* masks for interrupt handlers */
 	.long	0, 0, 0, 0
 	.long	SWI_CLOCK_MASK, SWI_AST_MASK
 
+/*
+ * IDT vector entry points for the HWIs.
+ *
+ * used by:
+ *   i386/isa/clock.c:		setup Xintr8254
+ */
 	.globl _ivectors
 _ivectors:
 	.long	_Xintr0,  _Xintr1,  _Xintr2,  _Xintr3 

@@ -36,23 +36,9 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.16 1997/08/28 09:51:32 smp Exp smp $
+ *	$Id: ipl.s,v 1.21 1997/09/07 21:47:45 smp Exp smp $
  */
 
-
-#ifdef REAL_ICPL
-
-#define ICPL_LOCK		CPL_LOCK
-#define ICPL_UNLOCK		CPL_UNLOCK
-#define FAST_ICPL_UNLOCK	movl	$0, _cpl_lock
-
-#else /* REAL_ICPL */
-
-#define ICPL_LOCK
-#define ICPL_UNLOCK
-#define FAST_ICPL_UNLOCK
-
-#endif /* REAL_ICPL */
 
 /*
  * AT/386
@@ -124,9 +110,10 @@ doreti_next:
 	movl	%eax, %edx		/* preserve cpl while getting lock */
 	ICPL_LOCK
 	movl	%edx, %eax
+doreti_next2:
 #endif
 	movl	%eax,%ecx
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	orl	_cpl, %ecx		/* add cpl to cml */
 #endif
 	notl	%ecx			/* set bit = unmasked level */
@@ -136,7 +123,7 @@ doreti_next:
 	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	doreti_unpend
 doreti_exit:
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	%eax, _cml
 #else
 	movl	%eax,_cpl
@@ -145,8 +132,8 @@ doreti_exit:
 	MPLOCKED decb _intr_nesting_level
 	MEXITCOUNT
 #ifdef VM86
-#ifdef INTR_SIMPLELOCK
-	/* XXX INTR_SIMPLELOCK needs work */
+#ifdef CPL_AND_CML
+	/* XXX CPL_AND_CML needs work */
 #error not ready for vm86
 #endif
 	/*
@@ -170,7 +157,7 @@ doreti_stop:
 
 #ifdef SMP
 #ifdef INTR_SIMPLELOCK
-/**#error code needed here to decide which lock to release, INTR or giant*/
+#error code needed here to decide which lock to release, INTR or giant
 #endif
 	/* release the kernel lock */
 	pushl	$_mp_lock		/* GIANT_LOCK */
@@ -217,21 +204,28 @@ doreti_unpend:
 	/* we enter with cpl locked */
 	bsfl	%ecx, %ecx		/* slow, but not worth optimizing */
 	btrl	%ecx, _ipending
+	jnc	doreti_next2		/* some intr cleared memory copy */
+	cmpl	$NHWI, %ecx
+	jae	no_cil
+	btsl	%ecx, _cil
+no_cil:	
 	FAST_ICPL_UNLOCK		/* preserves %eax */
 	sti				/* late to prevent INT deadlock */
 #else
 	sti
 	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
 	btrl	%ecx,_ipending
-#endif /* SMP */
 	jnc	doreti_next		/* some intr cleared memory copy */
+#endif /* SMP */
 
 	/*
-	 * setup call to _Xresume0 thru _Xresume23 for hwi,
-	 * or swi_tty, swi_net, _softclock, swi_ast for swi.
+	 * Setup JUMP to _Xresume0 thru _Xresume23 for HWIs,
+	 * or
+	 * Setup CALL of swi_tty, swi_net, _softclock, swi_ast for SWIs.
 	 */
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
+	/* XXX SMP this would leave cil set: */
 	je	doreti_next		/* "can't happen" */
 	cmpl	$NHWI,%ecx
 	jae	doreti_swi
@@ -239,7 +233,7 @@ doreti_unpend:
 #ifdef SMP
 	pushl	%eax			/* preserve %eax */
 	ICPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	popl	_cml
 #else
 	popl	_cpl
@@ -268,7 +262,7 @@ doreti_swi:
 	cli				/* prevent INT deadlock */
 	pushl	%eax			/* save cpl|cmpl */
 	ICPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	popl	_cml			/* restore cml */
 #else
 	popl	_cpl			/* restore cpl */
@@ -293,7 +287,7 @@ swi_ast_user:
 	movb	$0,_intr_nesting_level	/* finish becoming a trap handler */
 	call	_trap
 	subl	%eax,%eax		/* recover cpl|cml */
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	%eax, _cpl
 #endif
 	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
@@ -321,7 +315,7 @@ swi_ast_phantom:
 	orl $SWI_AST_PENDING, _ipending
 	/* cpl is unlocked in doreti_exit */
 	subl	%eax,%eax
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	%eax, _cpl
 #endif
 	jmp	doreti_exit	/* SWI_AST is highest so we must be done */

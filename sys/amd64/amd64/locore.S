@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.95 1997/08/24 00:05:33 fsmp Exp $
+ *	$Id: locore.s,v 1.5 1997/09/02 04:38:32 smp Exp smp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -105,6 +105,7 @@
 	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
 	.globl	_common_tss,_other_cpus,_my_idlePTD,_ss_tpr
 	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3
+	.globl	_inside_intr
 	.set	_cpuid,_SMP_prvpage+0		/* [0] */
 	.set	_curproc,_SMP_prvpage+4		/* [1] */
 	.set	_curpcb,_SMP_prvpage+8		/* [2] */
@@ -118,7 +119,8 @@
 	.set	_prv_CMAP1,_SMP_prvpage+40	/* [10] */
 	.set	_prv_CMAP2,_SMP_prvpage+44	/* [11] */
 	.set	_prv_CMAP3,_SMP_prvpage+48	/* [12] */
-	.set	_common_tss,_SMP_prvpage+52	/* 102 (ie: 104) bytes long */
+	.set	_inside_intr,_SMP_prvpage+52	/* [13] */
+	.set	_common_tss,_SMP_prvpage+56	/* 102 (ie: 104) bytes long */
 
 /* Fetch the .set's for the local apic */
 #include "i386/i386/mp_apicdefs.s"

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.30 1997/08/26 18:10:37 peter Exp $
+ * $Id: smp.h,v 1.27 1997/09/05 18:08:57 smp Exp smp $
  *
  */
 
@@ -167,6 +167,7 @@ extern volatile int		smp_idle_loops;
 /* 'private' global data in locore.s */
 extern volatile u_int		cpuid;
 extern volatile u_int		cpu_lockid;
+extern int			inside_intr;
 extern volatile u_int		other_cpus;
 
 #endif /* !LOCORE */
