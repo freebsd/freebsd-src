@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1998/10/06 19:23:57 msmith Exp $
+# $Id: Makefile,v 1.7 1998/11/01 09:31:07 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -13,7 +13,7 @@ NOPIC=		YES
 MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
-CFLAGS+=	-Wall #-g
+CFLAGS+=	-Wall -g
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
@@ -31,7 +31,7 @@ SRCS+=	strcasecmp.c
 .PATH:	${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
-        memcpy.c memmove.c memset.c rindex.c strcat.c strchr.c \
+        memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
@@ -91,7 +91,7 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 SRCS+=	inet_ntoa.c inet_addr.c
 
 # setjmp/longjmp
-.PATH:	${.CURDIR}/../libc/${MACHINE_ARCH}/gen
+.PATH:	${.CURDIR}/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 SRCS+=	setjmp.S
 
