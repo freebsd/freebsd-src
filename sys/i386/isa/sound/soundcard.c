@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.33 1995/11/29 10:48:16 julian Exp $
+ * $Id: soundcard.c,v 1.34 1995/11/29 14:40:28 julian Exp $
  */
 
 #include "sound_config.h"
@@ -499,7 +499,6 @@ static void 	snd_drvinit(void *unused)
 	if( ! snd_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&snd_cdevsw,NULL);
-		dev_chr = dev;
 		snd_devsw_installed = 1;
 #ifdef DEVFS
 		{
