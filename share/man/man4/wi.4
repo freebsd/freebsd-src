@@ -31,51 +31,47 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.\" DO NOT MAKE CHANGES TO THIS FILE WITHOUT AT LEAST SENDING DIRECT
-.\" MAIL TO imp@village.org AS HE IS TRYING TO KEEP THIS FILE IN SYNC
-.\" WITH OPENBSD.
-.Dd July 30, 2002
+.Dd January 
 .Dt WI 4
 .Os
 .Sh NAME
 .Nm wi
-.Nd "WaveLAN/IEEE, PRISM-II and Spectrum24 802.11DS wireless network driver"
+.Nd "Lucent Heremes, Intersil PRISM and Spectrum24 IEEE 802.11 driver"
 .Sh SYNOPSIS
 .Cd "device wi"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for wireless network adapters based around
-the Lucent Hermes, Intersil PRISM-II, Intersil PRISM-2.5, and Symbol
-Spectrum24 chipsets.
-All four chipsets provide a similar interface to the driver.
+the Lucent Hermes, Intersil PRISM-II, Intersil PRISM-2.5, Intersil
+Prism-3, and Symbol Spectrum24 chipsets.
+All five chipsets provide a similar interface to the driver.
 .Pp
-All host/device interaction is via programmed I/O.
 Supported features include 802.11 and 802.3 frames, power management, BSS,
 IBSS, WDS and old-style Lucent ad-hoc operation modes.
-Cards based on the Intersil PRISM-II and PRISM-2.5 chips also support a
-host-based access point mode which allows a card to act as a normal access
-point (with some assistance from the
+Cards based on the Intersil PRISM chips also support a host-based
+access point mode which allows a card to act as a normal access point
+(with some assistance from the
 .Nm
 driver).
 The Lucent Hermes and Symbol Spectrum24 chipsets do not contain this
 functionality.
-PRISM-II and PRISM-2.5 chips do not support the WDS functionality.
+The PRISM family of chips do not support the WDS functionality.
+All host/device interaction is via programmed I/O, even on those cards
+that support a DMA interface.
 .Pp
 The
 .Nm
 driver encapsulates all IP and ARP traffic as 802.11 frames, however
 it can receive either 802.11 or 802.3 frames.
-Transmit speed is selectable between 1Mbps fixed, 2Mbps fixed, 2Mbps
-with auto fallback, 5.5Mbps, 8Mbps, or 11Mbps depending on your hardware.
-The Lucent WaveLAN/IEEE Silver and Gold cards as well as the Intersil
-and Symbol cards have support for WEP encryption.
-The WaveLAN Gold as well as newer Intersil and Symbol cards support
-104bit keys, the others only accept 40bit keys.
-The Lucent WaveLAN/IEEE Bronze cards do not support WEP at all.
+Transmit speed is selectable between 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps
+depending on your hardware.
+Most hardware supports 11Mbps where the signal quality allows, but
+falls back to slower speeds when it does not.
+Except for the Lucent WaveLAN Bronze cards, all cards supported by the
+.Nm
+driver support WEP for encryption.
 To enable encryption, use the
-.Xr wicontrol 8
-utility to set your keys, or use
 .Xr ifconfig 8
 as shown below.
 .Pp
@@ -87,8 +83,8 @@ This mode requires the use of an access point (base station).
 .Pp
 The
 .Nm
-driver also supports a point-to-point mode where the ssid is
-ignored and stations can communicate amongst themselves without the
+driver also supports a point-to-point mode
+where stations can communicate amongst themselves without the
 aid of an access point.
 Note that there are two possible point-to-point modes.
 One mode, referred to as
@@ -105,7 +101,7 @@ preference to the
 .Dq "ad-hoc demo mode"
 in new installations.
 .Pp
-Cards based on the Intersil PRISM-II and PRISM-2.5 chips also
+Cards based on the Intersil PRISM family of chips also
 have a host-based access point mode which allows the card to
 act as an access point (base station).
 Access points are different than operating in IBSS mode.
@@ -226,12 +222,6 @@ The following such adapters are supported or expected to work:
 .It Wisecom Wireless LAN PCI Adapter
 .El
 .Sh EXAMPLES
-The following examples utilize
-.Xr ifconfig 8
-for simplicity, however,
-.Xr wicontrol 8
-can also be used to set wireless parameters.
-.Pp
 Join an existing BSS network (ie: connect to an access point):
 .Pp
 .Dl "ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00"
@@ -251,56 +241,38 @@ Join a Lucent legacy demo ad-hoc network with network name
 .Dq Li my_net :
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-	mediaopt adhoc
+	media DS/11Mbps mediaopt adhoc,link0
 .Ed
 .Pp
-Create an IBSS network with network name
-.Dq Li my_net :
-.Bd -literal -offset indent
-ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-	mediaopt ibss-master
-.Ed
-.Pp
-.Em Note :
-The infrastructure for
-.Cm mediaopt ibss-master
-has not been committed yet.
-.Pp
-Join an IBSS network with network name
+Join/create an IBSS network with network name
 .Dq Li my_net :
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
-	mediaopt ibss
+	media DS/11Mbps mediaopt adhoc
 .Ed
-.Pp
-.Em Note :
-The infrastructure for
-.Cm mediaopt ibss
-has not been committed yet.
 .Pp
 Create a host-based access point (Prism only):
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	mediaopt hostap
+	media DS/11Mbps mediaopt hostap
 .Ed
 .Pp
 Create a host-based access point with WEP enabled (Prism only):
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	wepmode on wepkey 0x1234567890 mediaopt hostap
+	wepmode on wepkey 0x1234567890 media DS/11Mbps mediaopt hostap
 .Ed
 .Pp
 Create a host-based wireless bridge to fxp0 (Prism only):
 .Bd -literal -offset indent
 Add BRIDGE to the kernel config.
-ifconfig wi0 inet up ssid my_ap mediaopt hostap
+ifconfig wi0 inet up ssid my_ap media DS/11Mbps mediaopt hostap
 sysctl net.link.ether.bridge=1
 sysctl net.link.ether.bridge_cfg="wi0 fxp0"
 sysctl net.inet.ip.forwarding=1
 .Ed
 .Pp
-This will give you approximately the same functionality as an access
-point.
+This will give you the same functionality as an access point.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "wi%d: init failed"
@@ -309,6 +281,7 @@ was issued.
 .It "wi%d: failed to allocate %d bytes on NIC"
 The driver was unable to allocate memory for transmit frames in the
 NIC's on-board RAM.
+This can also be an indication of an incorrectly configured interrupt.
 .It "wi%d: device timeout"
 The WaveLAN failed to generate an interrupt to acknowledge a transmit
 command.
@@ -336,26 +309,22 @@ driver was written by
 This man page comes from
 .Ox .
 .Sh CAVEATS
-The original Lucent WaveLAN cards usually default to channel 3;
-newer cards use channel 10 by default.
-Non-Lucent cards vary, for instance the Addtron cards use channel
-11 by default.
-Different regulatory domains have different default channels.
+Different regulatory domains have different default channels for adhoc
+mode.
+See
+.Xr ifconfig 8
+for information on how to change the channel.
 See
 .Xr wicontrol 8
-for information on how to change the channel.
+for information on different regulatory domains.
 .Pp
-IBSS creation does not currently work with Symbol cards.
-.Pp
-Prism2 host-based access point mode has bugs for firmware versions
-prior to 0.8.3.
+The Intersil Prism family of chips' host-based access point mode has
+bugs for firmware versions prior to 0.8.3.
+The driver currently precludes hostap functionality on old firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
-.Pp
-Symbol LA-4100 series CF cards need firmware downloaded into their RAM
-before they will function.
-This functionality is not presently in
-.Fx Ns 's
-.Nm
-driver.
+.Sh BUGS
+Not all the new messages are documented here, and many of them are
+indications of transient errors that are not indications of serious
+problems.
