@@ -43,7 +43,7 @@ stage4()
 		if(ffd > 0)
 			break;
 	}
-	TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -icdum");
+	TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
 	pipe(pfd);
 	zpid = fork();
 	if(!zpid) {
@@ -60,7 +60,7 @@ stage4()
 		close(pfd[1]);
 		close(1); open("/dev/null",O_WRONLY);
 		chdir("/stand");
-		i = exec (1,"/stand/cpio","/stand/cpio","-icdum", 0);
+		i = exec (1,"/stand/cpio","/stand/cpio","-idum", 0);
 		exit(i);
 	}
 	close(pfd[0]);
@@ -75,5 +75,6 @@ stage4()
 		Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
 			i,j,cpid,zpid,strerror(errno));
 
+	TellEm("unlink /stand/need_cpio_floppy");
 	unlink("/stand/need_cpio_floppy");
 }

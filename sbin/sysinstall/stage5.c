@@ -27,6 +27,8 @@
 void
 stage5()
 {
+	end_dialog();
+	dialog_active=0;
 	for(;;)
-		exec (1,"/stand/sh","/stand/-sh", 0);
+		exec (2,"/stand/sh","/stand/-sh", 0);
 }
