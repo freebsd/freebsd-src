@@ -35,6 +35,7 @@ static const char rcsid[] =
 
 #include <sys/wait.h>
 #include <machine/elf.h>
+#include <arpa/inet.h>
 #include <a.out.h>
 #include <dlfcn.h>
 #include <err.h>
