@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.504 1998/11/15 20:08:49 eivind Exp $
+#	$Id: LINT,v 1.505 1998/11/23 09:59:02 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -441,6 +441,12 @@ options		IPFILTER		#kernel ipfilter support
 options		IPFILTER_LOG		#ipfilter logging
 #options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
 options		TCPDEBUG
+
+# ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
+# typically want this option as it will help protect the machine from
+# D.O.S. packet attacks.
+#
+options         "ICMP_BANDLIM"
 
 #
 # ATM (HARP version) options
