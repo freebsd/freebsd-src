@@ -1120,7 +1120,7 @@ pci_chip_match(device_t dev)
 		return NULL;
 	case 0x12258086:
 		fixbushigh_i1225(dev);
-		return ("Intel 824?? host to PCI bridge");
+		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
 	case 0x71808086:
 		return ("Intel 82443LX (440 LX) host to PCI bridge");
 	case 0x71908086:
