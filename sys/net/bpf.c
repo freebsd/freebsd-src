@@ -493,11 +493,12 @@ bpfread(dev, uio, ioflag)
 			return (ENXIO);
 		}
 
-		if (ioflag & IO_NDELAY)
-			error = EWOULDBLOCK;
-		else
-			error = BPF_SLEEP((caddr_t)d, PRINET|PCATCH, "bpf",
-					  d->bd_rtout);
+		if (ioflag & IO_NDELAY) {
+			splx(s);
+			return (EWOULDBLOCK);
+		}
+		error = BPF_SLEEP((caddr_t)d, PRINET|PCATCH, "bpf",
+				  d->bd_rtout);
 		if (error == EINTR || error == ERESTART) {
 			splx(s);
 			return (error);
