@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.6 1996/09/14 02:57:25 bde Exp $
+ * $Id: collate.c,v 1.7 1996/10/15 21:53:22 ache Exp $
  */
 
 #include <rune.h>
@@ -180,6 +180,7 @@ __collate_print_tables()
 
 	printf("Substitute table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
+	    if (i != *__collate_substitute_table[i])
 		printf("\t'%c' --> \"%s\"\n", i,
 		       __collate_substitute_table[i]);
 	printf("Chain priority table:\n");
