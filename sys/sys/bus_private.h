@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.1 1998/06/10 10:57:23 dfr Exp $
+ *	$Id: bus_private.h,v 1.2 1998/06/14 13:46:10 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -45,6 +45,30 @@ struct devclass {
     device_t		*devices; /* array of devices indexed by unit */
     int			maxunit; /* size of devices array */
     int			nextunit; /* next unused unit number */
+};
+
+/*
+ * Resources from config(8).
+ */
+typedef enum {
+    RES_INT, RES_STRING, RES_LONG
+} resource_type;
+
+struct resource {
+    char		*name;
+    resource_type	type;
+    union {
+	long		longval;
+	int		intval;
+	char*		stringval;
+    } u;
+};
+
+struct config_device {
+    char		*name;	/* e.g. "lpt", "wdc" etc */
+    int			unit;
+    int			resource_count;
+    struct resource	*resources;
 };
 
 /*
