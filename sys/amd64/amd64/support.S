@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.15 1994/08/09 11:21:44 davidg Exp $
+ *	$Id: support.s,v 1.16 1994/09/04 10:24:22 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -1189,7 +1189,6 @@ ENTRY(rcr3)
 /* void load_cr3(caddr_t cr3) */
 ENTRY(load_cr3)
 	movl	4(%esp),%eax
-	orl	$I386_CR3PAT,%eax
 	movl	%eax,%cr3
 	ret
 

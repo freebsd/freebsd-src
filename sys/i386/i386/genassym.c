@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.9 1994/09/01 05:12:16 davidg Exp $
+ *	$Id: genassym.c,v 1.10 1994/09/02 05:58:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,6 @@ main()
 	struct sigframe *sigf = (struct sigframe *)0;
 	register unsigned i;
 
-	printf("#define\tI386_CR3PAT %d\n", I386_CR3PAT);
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
 	printf("#define\tP_FORW %d\n", &p->p_forw);
 	printf("#define\tP_BACK %d\n", &p->p_back);
@@ -91,7 +90,6 @@ main()
 /*	printf("#define\tV_PGREC %d\n", &vm->v_pgrec); */
 /*	printf("#define\tV_FASTPGREC %d\n", &vm->v_fastpgrec); */
 	printf("#define\tUPAGES %d\n", UPAGES);
-	printf("#define\tHIGHPAGES %d\n", HIGHPAGES);
 	printf("#define\tCLSIZE %d\n", CLSIZE);
 	printf("#define\tNBPG %d\n", NBPG);
 	printf("#define\tNPTEPG %d\n", NPTEPG);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.13 1994/05/25 08:57:22 rgrimes Exp $
+ *	$Id: vmparam.h,v 1.14 1994/09/01 03:16:40 davidg Exp $
  */
 
 
@@ -46,23 +46,6 @@
 /*
  * Machine dependent constants for 386.
  */
-
-/*
- * Virtual address space arrangement. On 386, both user and kernel
- * share the address space, not unlike the vax.
- * USRTEXT is the start of the user text/data space, while USRSTACK
- * is the top (end) of the user stack. Immediately above the user stack
- * resides the user structure, which is UPAGES long and contains the
- * kernel stack.
- *
- * Immediately after the user structure is the page table map, and then
- * kernal address space.
- */
-#define	USRTEXT		0UL
-/* #define	USRSTACK	0xFDBFE000UL */
-#define	BTOPUSRSTACK	(0xFDC00-(UPAGES))	/* btop(USRSTACK) */
-#define	LOWPAGES	0UL
-#define HIGHPAGES	UPAGES
 
 /*
  * Virtual memory related constants, all in bytes
@@ -83,6 +66,8 @@
 #ifndef SGROWSIZ
 #define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
+
+#define USRTEXT		(1*NBPG)		/* base of user text XXX bogus */
 
 /*
  * Default sizes of swap allocation chunks (see dmap.h).
@@ -112,11 +97,6 @@
 #define	USRIOSIZE 	1024
 
 /*
- * The size of the clock loop.
- */
-#define	LOOPPAGES	(maxfree - firstfree)
-
-/*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
  * amount of real time.  You probably shouldn't change this;
@@ -128,81 +108,11 @@
 #define	MAXSLP 		20
 
 /*
- * A swapped in process is given a small amount of core without being bothered
- * by the page replacement algorithm.  Basically this says that if you are
- * swapped in you deserve some resources.  We protect the last SAFERSS
- * pages against paging and will just swap you out rather than paging you.
- * Note that each process has at least UPAGES+CLSIZE pages which are not
- * paged anyways (this is currently 8+2=10 pages or 5k bytes), so this
- * number just means a swapped in process is given around 25k bytes.
- * Just for fun: current memory prices are 4600$ a megabyte on VAX (4/22/81),
- * so we loan each swapped in process memory worth 100$, or just admit
- * that we don't consider it worthwhile and swap it out to disk which costs
- * $30/mb or about $0.75.
- * { wfj 6/16/89: Retail AT memory expansion $800/megabyte, loan of $17
- *   on disk costing $7/mb or $0.18 (in memory still 100:1 in cost!) }
- */
-#define	SAFERSS		8		/* nominal ``small'' resident set size
-					   protected against replacement */
-
-/*
- * DISKRPM is used to estimate the number of paging i/o operations
- * which one can expect from a single disk controller.
- */
-#define	DISKRPM		60
-
-/*
- * Klustering constants.  Klustering is the gathering
- * of pages together for pagein/pageout, while clustering
- * is the treatment of hardware page size as though it were
- * larger than it really is.
- *
- * KLMAX gives maximum cluster size in CLSIZE page (cluster-page)
- * units.  Note that KLMAX*CLSIZE must be <= DMMIN in dmap.h.
- */
-
-#define	KLMAX	(4/CLSIZE)
-#define	KLSEQL	(2/CLSIZE)		/* in klust if vadvise(VA_SEQL) */
-#define	KLIN	(4/CLSIZE)		/* default data/stack in klust */
-#define	KLTXT	(4/CLSIZE)		/* default text in klust */
-#define	KLOUT	(4/CLSIZE)
-
-/*
- * KLSDIST is the advance or retard of the fifo reclaim for sequential
- * processes data space.
- */
-#define	KLSDIST	3		/* klusters advance/retard for seq. fifo */
-
-/*
- * There are two clock hands, initially separated by HANDSPREAD bytes
- * (but at most all of user memory).  The amount of time to reclaim
- * a page once the pageout process examines it increases with this
- * distance and decreases as the scan rate rises.
- */
-#define	HANDSPREAD	(2 * 1024 * 1024)
-
-/*
- * The number of times per second to recompute the desired paging rate
- * and poke the pagedaemon.
- */
-#define	RATETOSCHEDPAGING	4
-
-/*
- * Believed threshold (in megabytes) for which interleaved
- * swapping area is desirable.
- */
-#define	LOTSOFMEM	2
-
-#define	mapin(pte, v, pfnum, prot) \
-	{(*(int *)(pte) = ((pfnum)<<PGSHIFT) | (prot)) ; }
-
-/*
  * Mach derived constants
  */
 
 /* user/kernel map constants */
-#define	KERNBASE (0-(NKPDE+1)*(NBPG*NPTEPG))
-#define KERNSIZE (NKPDE*NBPG*NPTEPG)
+#define	KERNBASE ((0x400-1-NKPDE)*(NBPG*NPTEPG))
 
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
 #define VM_MAXUSER_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NPTEPG+UPAGES)))
@@ -212,27 +122,13 @@
 #define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNBASE - (NBPG*(NKPDE+2)))
 #define UPDT			VM_MIN_KERNEL_ADDRESS
-#define KPT_MIN_ADDRESS		((vm_offset_t)(KERNBASE) - (NBPG*(NKPDE+1)))
-#define KPT_MAX_ADDRESS		((vm_offset_t)(KERNBASE) - NBPG)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)ALT_MIN_ADDRESS - NBPG)
-#define ALT_MIN_ADDRESS		((vm_offset_t)((APTDPTDI) << 22))
-#define HIGHPAGES UPAGES
-
+#define KPT_MIN_ADDRESS		((vm_offset_t)KERNBASE - NBPG*(NKPDE+1))
+#define KPT_MAX_ADDRESS		((vm_offset_t)KERNBASE - NBPG)
+#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)KERNBASE + NKPT*NBPG*NPTEPG)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)
 #define VM_KMEM_SIZE		(16 * 1024 * 1024)
 #define VM_PHYS_SIZE		(USRIOSIZE*CLBYTES)
-
-/* pcb base */
-#define	pcbb(p)		((u_int)(p)->p_addr)
-
-/*
- * Flush MMU TLB
- */
-
-#ifndef I386_CR3PAT
-#define	I386_CR3PAT	0x0
-#endif
 
 #endif /* _MACHINE_VMPARAM_H_ */
