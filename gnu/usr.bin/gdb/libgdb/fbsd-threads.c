@@ -294,8 +294,8 @@ get_current_thread ()
   if (!in_thread_list (ptid))
     {
       add_thread (ptid);
-      inferior_ptid = ptid;
     }
+  inferior_ptid = ptid;
 }
 
 static void
