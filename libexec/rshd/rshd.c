@@ -127,7 +127,8 @@ main(int argc, char *argv[])
 {
 	extern int __check_rhosts_file;
 	struct linger linger;
-	int ch, on = 1, fromlen;
+	socklen_t fromlen;
+	int ch, on = 1;
 	struct sockaddr_storage from;
 
 	openlog("rshd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
@@ -218,7 +219,7 @@ doit(struct sockaddr *fromp)
 #ifdef IP_OPTIONS
 	if (af == AF_INET) {
 		u_char optbuf[BUFSIZ/3];
-		int optsize = sizeof(optbuf), ipproto, i;
+		socklen_t optsize = sizeof(optbuf), ipproto, i;
 		struct protoent *ip;
 
 		if ((ip = getprotobyname("ip")) != NULL)

@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 	SVCXPRT *transp;
 	int ok;
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 
 	/*
 	 * See if inetd started us

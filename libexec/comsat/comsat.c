@@ -88,8 +88,8 @@ int
 main(int argc, char *argv[])
 {
 	struct sockaddr_in from;
+	socklen_t fromlen;
 	int cc;
-	int fromlen;
 	char msgbuf[256];
 
 	/* verify proper invocation */
