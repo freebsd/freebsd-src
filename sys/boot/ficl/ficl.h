@@ -229,7 +229,7 @@ struct ficl_dict;
 ** complement of false... that unifies logical and bitwise operations
 ** nicely.
 */
-#define FICL_TRUE  (0xffffffffL)
+#define FICL_TRUE  (~(0L))
 #define FICL_FALSE (0)
 #define FICL_BOOL(x) ((x) ? FICL_TRUE : FICL_FALSE)
 
