@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.15 1999/05/06 22:08:57 peter Exp $
+ *	$Id: ip_dummynet.c,v 1.16 1999/08/11 14:37:58 luigi Exp $
  */
 
 /*
@@ -114,7 +114,7 @@ rt_unref(struct rtentry *rt)
     if (rt == NULL)
 	return ;
     if (rt->rt_refcnt <= 0)
-	printf("-- warning, refcnt now %d, decreasing\n", rt->rt_refcnt);
+	printf("-- warning, refcnt now %ld, decreasing\n", rt->rt_refcnt);
     RTFREE(rt);
 }
 
