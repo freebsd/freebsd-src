@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.83 1996/04/13 13:31:41 jkh Exp $
+ * $Id: install.c,v 1.84 1996/04/23 01:29:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,18 +287,18 @@ installExpress(dialogMenuItem *self)
 
     if (!Dists) {
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (installCommit(self) == DITEM_FAILURE)
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 
-    return DITEM_LEAVE_MENU;
+    return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /* Novice mode installation */
@@ -306,6 +306,7 @@ int
 installNovice(dialogMenuItem *self)
 {
     variable_set2(SYSTEM_STATE, "novice");
+    dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
@@ -316,6 +317,7 @@ installNovice(dialogMenuItem *self)
     if (diskPartitionEditor(self) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
+    dialog_clear();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
@@ -326,28 +328,30 @@ installNovice(dialogMenuItem *self)
     if (diskLabelEditor(self) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
+    dialog_clear();
     msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
 	       "canned distribution sets, ranging from minimal installation sets to full\n"
 	       "X11 developer oriented configurations.  You can also select a custom set\n"
 	       "of distributions if none of the provided ones are suitable.");
     while (1) {
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 	
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
 	    break;
     }
 
     if (!mediaDevice) {
+	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (installCommit(self) == DITEM_FAILURE)
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 
-    return DITEM_LEAVE_MENU;
+    return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /*
@@ -463,7 +467,7 @@ installCommit(dialogMenuItem *self)
 
     /* Final menu of last resort */
     if (!msgYesNo("Would you like to go to the general configuration menu for a chance to set\n"
-		  "any last configuration options?"))
+		  "any last options?"))
 	dmenuOpenSimple(&MenuConfigure);
 
     /* Write out any changes .. */
@@ -482,7 +486,7 @@ installCommit(dialogMenuItem *self)
 		       "see the Interfaces configuration item on the Configuration menu.");
     }
     else if (!strcmp(str, "novice")) {
-	if (Dists || i == DITEM_FAILURE) {
+	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE) {
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
 		       "scroll-lock feature.  You can also chose \"No\" at the next\n"
@@ -498,9 +502,9 @@ installCommit(dialogMenuItem *self)
 		       "may do so by typing: /stand/sysinstall.");
 	}
     }
-    variable_set2(SYSTEM_STATE, i == DITEM_FAILURE ? "error-install" : "full-install");
+    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
 
-    return i;
+    return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 int

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.33 1996/04/13 13:32:06 jkh Exp $
+ * $Id: options.c,v 1.34 1996/04/23 01:29:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -231,6 +231,7 @@ optionsEditor(dialogMenuItem *self)
 	standend();
 	clrtoeol();
 	move(0, 14);
+        refresh();
 
 	/* Start the edit loop */
 	key = toupper(getch());
