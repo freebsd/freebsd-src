@@ -1,7 +1,7 @@
-.\" $Id: atrun.man,v 1.4 1997/11/20 07:21:53 charnier Exp $
+.\" $Id: atrun.man,v 1.5 1998/07/01 05:47:58 jkoshy Exp $
 .Dd April 12, 1995
 .Dt ATRUN 8
-.Os "FreeBSD 2.1"
+.Os FreeBSD 2.1
 .Sh NAME
 .Nm atrun
 .Nd run jobs queued for later execution
