@@ -116,7 +116,7 @@ struct	in6_defrouter {
 	u_short	rtlifetime;
 	u_long	expire;
 	u_short if_index;
-} __attribute__((__packed__));
+};
 
 struct	in6_prlist {
 	char ifname[IFNAMSIZ];
@@ -147,7 +147,7 @@ struct in6_prefix {
 	u_short if_index;
 	u_short advrtrs; /* number of advertisement routers */
 	/* struct sockaddr_in6 advrtr[] */
-} __attribute__((__packed__));
+};
 
 #ifdef _KERNEL
 struct	in6_ondireq {
