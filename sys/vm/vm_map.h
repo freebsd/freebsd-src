@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.5 1995/03/16 18:17:17 bde Exp $
+ * $Id: vm_map.h,v 1.6 1995/07/13 08:48:28 davidg Exp $
  */
 
 /*
@@ -204,7 +204,10 @@ void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-void vm_map_print __P((vm_map_t, boolean_t));
+#ifdef DDB
+void vm_map_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int,
+		       char *));
+#endif
 int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_map_reference __P((vm_map_t));
 int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
