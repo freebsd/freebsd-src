@@ -130,7 +130,7 @@
 
     <para>A <filename>devctl</filename> device has been added to allow
       userland programs to learn when devices come and go in the device
-      tree (different from the XXX).  This facility is primariliy used
+      tree.  This facility is primarily used
       by the &man.devd.8; utility.</para>
 
     <para>&man.devfs.5;, which allows entries in the
