@@ -1,0 +1,107 @@
+.\" Written by Tom Rhodes for the FreeBSD Project.
+.\" Please see the /usr/src/COPYRIGHT file for copyright information.
+.\"
+.\" This document takes information from the IEEE 802.3 Standard
+.\" along with various comments from Peter Wemm, Robert Watson, and Bill Paul.
+.\" Originally this file looked much like the NetBSD mii(4) manual page, but
+.\" I doubt you would ever notice due to large differences.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2003
+.Dt MIIBUS 4
+.Os
+.Sh NAME
+.Nm miibus
+.Nd IEEE 802.3 Media Independent Interface network bus
+.Sh SYNOPSIS
+For most network interface cards (NIC):
+.Cd "device miibus"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interconnection between the Media Access Control (MAC)
+sublayer, the Physical Layer entities (PHY), Station Management (STA)
+entities, and the PHY Layer as defined by the IEEE 802.3 Standard.
+.Pp
+The
+.Nm
+layer allows network device drivers to share common support
+code for various external PHY devices.
+Most 10/100 network interface cards either use an MII transceiver
+or have built-in transceivers that can be programmed using an MII
+interface.
+The
+.Nm
+driver currently handles all of the media detection,
+selection, and reporting using the ifmedia interface.
+A generic driver has been included for all PHYs that are not
+handled by a specific driver, this is possible because all
+10/100 PHYs implement the same general register set along with
+their vendor specific register set.
+.Pp
+The following network device drivers use the
+.Nm
+interface:
+.Bl -tag -compact -width "Supported Devices"
+.It an		Aironet 4500/4800 802.11 wireless NICs
+.It aue		ADMtek USB Ethernet
+.It awi		BayStack 660 and others
+.It bge		Broadcom BCM570xx Gigabit Ethernet
+.It cue		CATC USB Ethernet
+.It dc		DEC/Intel 21143 and various workalikes
+.It ed		NE[12]000, SMC Ultra, 3c503, DS8390 cards
+.It fxp		Intel EtherExpress PRO/100B (82557, 82558)
+.It kue		Kawasaki LSI USB Ethernet
+.It pcn		AMD Am79C97x PCI 10/100
+.It rl		RealTek 8129/8139
+.It sf		Adaptec AIC-6915
+.It sis		Silicon Integrated Systems SiS 900/SiS 7016
+.It ste		Sundance ST201 (D-Link DFE-550TX)
+.It tl		Texas Instruments ThunderLAN
+.It tx		SMC EtherPower II (83c170)
+.It vr		VIA Rhine, Rhine II
+.It wb		Winbond W89C840F
+.It xl		3Com 3c90x
+.El
+.Sh COMPATIBILITY
+The implementation of
+.Nm
+was originally intended to have similar API interfaces
+to
+.Bsx 3.0
+and
+.Nx ,
+but as a result are not well behaved newbus device drivers.
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr arp 4 ,
+.Xr aue 4 ,
+.Xr awi 4 ,
+.Xr bge 4 ,
+.Xr cue 4 ,
+.Xr dc 4 ,
+.Xr ed 4 ,
+.Xr fxp 4 ,
+.Xr kue 4 ,
+.Xr netintro 4 ,
+.Xr pcn 4 ,
+.Xr rl 4 ,
+.Xr sf 4 ,
+.Xr sis 4 ,
+.Xr ste 4 ,
+.Xr tl 4 ,
+.Xr tx 4 ,
+.Xr vr 4 ,
+.Xr wb 4 ,
+.Xr xl 4 .
+.Sh STANDARDS
+More information on MII can be found in the IEEE 802.3 Standard.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
