@@ -79,8 +79,7 @@ using the entire string as the salt (or the first portion).
 .Pp
 All routines are designed to be time-consuming.  A brief test on a
 Pentium 166/MMX shows the DES crypt to do approximately 2640 crypts
-a CPU second, MD5 to do about 62 crypts a CPU second and SHA1
-to do about 18 crypts a CPU second.
+a CPU second and MD5 to do about 62 crypts a CPU second.
 .Ss DES Extended Format:
 .Pp
 The
@@ -145,8 +144,6 @@ Currently supported algorithms are:
 .Bl -tag -width 012345678 -compact -offset indent
 .It 1
 MD5
-.It 3
-SHA1
 .El
 .Pp
 Other crypt formats may be easilly added.  An example salt would be:
@@ -161,7 +158,7 @@ DES will be used.  Otherwise, the best algorithm is used, which is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
-SHA-1.
+MD5.
 .Pp
 How the salt is used will depend upon the algorithm for the hash.  For
 best results, specify at least two characters of salt.
@@ -175,9 +172,9 @@ will always return a pointer to a string.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
+.Xr cipher 3 ,
 .Xr getpass 3 ,
 .Xr passwd 5 ,
-.Xr shs 3 ,
 .Sh BUGS
 The
 .Fn crypt
@@ -201,4 +198,4 @@ Users should be aware that this code (and programs staticly linked with it)
 may not be exported from the U.S., although it apparently can be imported.
 .Sh AUTHORS
 Originally written by David Burren <davidb@werj.com.au>, later additions
-and changes by Brandon Gillespie, Poul-henning Kamp and Mark R V Murray.
+and changes by Poul-henning Kamp, Mark R V Murray and Kris Kennaway.
