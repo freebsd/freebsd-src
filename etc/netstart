@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.36 1995/12/28 01:24:03 jkh Exp $
+#	$Id: netstart,v 1.37 1996/01/02 19:47:05 pst Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -59,14 +59,8 @@ if [ "x$gateway" != "xNO" ]; then
 	sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
 fi
 
-if [ "x$routedflags" != "xNO" ] ; then
+if [ "x$router" != "xNO" ] ; then
 	echo -n starting routing daemon:
-
-	# $routedflags is imported from /etc/sysconfig.
-	# If $routedflags == NO, routed isn't run.
-
-	if [ "X${routedflags}" != X"NO" ]; then
-		echo -n ' routed';	routed $routedflags
-	fi
+	echo -n ' ${router}';	${router} ${routerflags}
 	echo '.'
 fi
