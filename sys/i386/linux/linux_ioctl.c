@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.25 1998/07/29 16:43:00 bde Exp $
+ *  $Id: linux_ioctl.c,v 1.26 1998/08/31 06:55:02 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -854,7 +854,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	mode = (struct vt_mode *)args->arg;
 	if (!ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
 	    mode->frsig = mode->acqsig;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
       }
 
     case LINUX_VT_GETSTATE:
