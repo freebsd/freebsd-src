@@ -108,6 +108,11 @@ data socket
 .Xr ng_socket 4 )
 when started.
 .Pp
+The environment variable
+.Dv HISMACADDR
+is made available to the child process and is set to the MAC address of
+the peer.
+.Pp
 Upon invocation,
 .Nm
 will attach a
