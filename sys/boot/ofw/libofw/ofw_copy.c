@@ -47,9 +47,11 @@ ofw_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
 	void	*destp, *addr;
 	size_t	dlen;
+	size_t  resid;
 
 	destp = (void *)(dest & ~PAGE_MASK);
-	dlen = roundup(len, PAGE_SIZE);
+	resid = dest & PAGE_MASK;
+	dlen = roundup(len + resid, PAGE_SIZE);
 
 	if (OF_call_method("claim", memory, 3, 1, destp, dlen, 0, &addr)
 	    == -1) {
