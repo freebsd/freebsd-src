@@ -496,6 +496,9 @@ Additional .mc files which should be built into .cf files at build time.
 The value should include the full path to the .mc file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_M4_FLAGS
+.Pq Vt str
+Flags passed to m4 when building a .cf file from a .mc file.
 .It Va SENDMAIL_CFLAGS
 .Pq Vt str
 Flags to pass to the compile command when building
