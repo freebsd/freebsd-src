@@ -1,6 +1,10 @@
 #!/bin/sh -
 #
+<<<<<<< picobsd
 # $FreeBSD$
+=======
+# $FreeBSD$
+>>>>>>> 1.18
 #
 # The new PicoBSD build script. Invoked as
 #
@@ -147,7 +151,7 @@ create_includes_and_libraries() {
     mkdir -p ${l_usrtree}/lib		# libraries
     mkdir -p ${l_usrtree}/sbin		# some binaries
     (cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${SRC}/.. \
-		make includes ) || fail $? includes
+		make -m ${SRC}/share/mk includes ) || fail $? includes
     # libraries already have the include path in the Makefile
     CFLAGS="-nostdinc" ; export CFLAGS
 
@@ -155,7 +159,8 @@ create_includes_and_libraries() {
 	# $e is the invocation of make with correct environment
 	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
 	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC}/.. \
-	    make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
+	    make -m ${SRC}/share/mk \
+		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
 	# need to 'make obj' in a few places. This is very
 	# version-specific... The following works for 5.0
 	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
@@ -434,7 +439,7 @@ do_kernel() {		# OK
 		MODULES=""
 		export MODULES
 	fi
-	make -v -f ${PICO_TREE}/build/Makefile.conf ) || \
+	make -m ${SRC}/share/mk -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
 
@@ -561,11 +566,12 @@ populate_mfs_tree() {
     log "Making and installing crunch1 from `pwd` src ${SRC}..."
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
-	make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+	make -m ${SRC}/share/mk \
+		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC LIBS CFLAGS # used by crunch.mk
     log "Now make -f crunch.mk"
-    make ${o_makeopts} -f ${BUILDDIR}/crunch.mk
+    make -m ${SRC}/share/mk ${o_makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
     mv crunch1 ${dst}/stand/crunch
     chmod 555 ${dst}/stand/crunch
@@ -762,10 +768,22 @@ fill_floppy_image() {
 
     (
     cd ${BUILDDIR}
-    cc -o wmk ${PICO_TREE}/build/write_mfs_in_kernel.c
     log "Preload kernel with file ${c_fs}"
+if [ true ] ; then
+    if [ -f ${PICO_TREE}/build/write_mfs_in_kernel.c ] ; then
+	cc -o wmk ${PICO_TREE}/build/write_mfs_in_kernel.c
+    else
+	cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
+    fi
     ./wmk kernel ${c_fs}
     rm wmk
+else	# not working yet, just a reminder
+    objdump -h kernel
+    objcopy --remove-section=md_root kernel
+    objcopy --add-section md_root=${c_fs} kernel
+    objcopy --set-section-flags md_root=contents,alloc,load,data kernel
+    objdump -h kernel
+fi
     log "Compress with kgzip and copy to floppy image"
     kgzip -o kernel.gz kernel
     cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
