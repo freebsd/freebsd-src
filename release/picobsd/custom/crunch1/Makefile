@@ -3,15 +3,29 @@
 #
 SRC?=/usr/src
 
+COMMOBJ?=	${.OBJDIR}/../../common-obj
+
 all: crunch
 
-crunch:
-	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
-	@crunchgen ./crunch1.conf
-	@${MAKE} -f crunch1.mk -DNOPAM all \
+crunch1.conf: crunch.conf
+	@cat ${.ALLSRC} | sed -e "s@/usr/src@${SRC}@" > ${.TARGET}
+
+crunch.mk: crunch1.conf crunch.inc
+	@crunchgen -h ${.CURDIR}/crunch.inc -m crunch.mk crunch1.conf
+
+crunch1.mk: crunch.mk
+	@sed -e "s@make depend@make obj \&\& make depend@" \
+		-e "s/@/usr/obj/@${COMMOBJ}@" crunch.mk > ${.TARGET}
+
+crunch: crunch1.mk
+	@if [! -d build ]; then mkdir build; fi
+	@cp crunch1.c build/
+	@(cd build && env MAKEOBJDIRPREFIX=${COMMOBJ} \
+	    ${MAKE} -f ../crunch1.mk -DNOPAM all \
 	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
 
 clean:
+	rm -rf build
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \
 		crunch.cache \
 		crunch.mk \
@@ -24,7 +38,7 @@ clean:
 
 install: 
 	rm -f ${MFS_MOUNTPOINT}/sbin/*
-	cp crunch1 ${MFS_MOUNTPOINT}/sbin/crunch
+	cp build/crunch1 ${MFS_MOUNTPOINT}/sbin/crunch
 	chmod 555 ${MFS_MOUNTPOINT}/sbin/crunch
 	for i in `crunchgen -l crunch1.conf` ; \
 	do \
