@@ -343,7 +343,7 @@ trap(int vector, struct trapframe *framep)
 	int i, user;
 	u_int sticks;
 
-	user = ((framep->tf_special.psr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
+	user = ((framep->tf_special.iip >> 61) < 5) ? 1 : 0;
 
 	/* Short-circuit break instruction based system calls. */
 	if (vector == IA64_VEC_BREAK && user &&
