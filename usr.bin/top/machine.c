@@ -53,6 +53,7 @@
 
 #include "top.h"
 #include "machine.h"
+#include "screen.h"
 
 static int check_nlist __P((struct nlist *));
 static int getkval __P((unsigned long, int *, int, char *));
@@ -60,7 +61,7 @@ extern char* printable __P((char *));
 int swapmode __P((int *retavail, int *retfree));
 static int smpmode;
 static int namelength;
-static int cmdlength;
+static int cmdlengthdelta;
 
 
 /* get_process_info passes back a handle.  This is what it looks like: */
@@ -315,7 +316,7 @@ register char *uname_field;
     snprintf(Header, sizeof(Header), smpmode ? smp_header : up_header,
 	     namelength, namelength, uname_field);
 
-    cmdlength = 80 - strlen(Header) + 6;
+    cmdlengthdelta = strlen(Header) - 7;
 
     return Header;
 }
@@ -634,7 +635,9 @@ char *(*get_userid)();
 	    format_time(cputime),
 	    100.0 * weighted_cpu(pct, pp),
 	    100.0 * pct,
-	    cmdlength,
+	    screen_width > cmdlengthdelta ?
+		screen_width - cmdlengthdelta :
+		0,
 	    printable(PP(pp, p_comm)));
 
     /* return the result */
