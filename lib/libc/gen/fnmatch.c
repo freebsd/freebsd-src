@@ -170,10 +170,8 @@ rangematch(pattern, test, flags, newp)
 	int flags;
 	char **newp;
 {
-	int negate, ok, first;
+	int negate, ok;
 	char c, c2;
-
-	first = 1;
 
 	/*
 	 * A bracket expression starting with an unquoted circumflex
@@ -193,8 +191,9 @@ rangematch(pattern, test, flags, newp)
 	 * itself in a bracket expression if it occurs first in the list.
 	 * -- POSIX.2 2.8.3.2
 	 */
-	for (ok = 0, c = *pattern++; c != ']' || first; c = *pattern++) {
-		first = 0;
+	ok = 0;
+	c = *pattern++;
+	do {
 		if (c == '\\' && !(flags & FNM_NOESCAPE))
 			c = *pattern++;
 		if (c == EOS)
@@ -225,7 +224,8 @@ rangematch(pattern, test, flags, newp)
 				ok = 1;
 		} else if (c == test)
 			ok = 1;
-	}
+	} while ((c = *pattern++) != ']');
+
 	*newp = (char *)pattern;
 	return (ok == negate ? RANGE_NOMATCH : RANGE_MATCH);
 }
