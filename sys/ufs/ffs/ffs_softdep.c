@@ -662,8 +662,10 @@ process_worklist_item(matchmnt, flags)
 		if (vp == NULL || !VOP_ISLOCKED(vp, CURPROC))
 			break;
 	}
-	if (wk == 0)
+	if (wk == 0) {
+		FREE_LOCK(&lk);
 		return (0);
+	}
 	WORKLIST_REMOVE(wk);
 	num_on_worklist -= 1;
 	FREE_LOCK(&lk);
