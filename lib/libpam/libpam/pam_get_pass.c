@@ -82,8 +82,6 @@ pam_get_pass(pam_handle_t *pamh, const char **passp, const char *prompt,
 			return retval;
 	}
 
-fprintf(stderr, "[pam_get_pass]\n%s\n", prompt);
-
 	if (item == NULL) {
 		/* The user hasn't entered a password yet. */
 		if (pam_test_option(options, PAM_OPT_USE_FIRST_PASS, NULL))
