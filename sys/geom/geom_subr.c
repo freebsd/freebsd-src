@@ -622,8 +622,6 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 
 	g_topology_assert();
 
-	if (!strcmp(pp->name, "geom.ctl"))
-		return;
 	LIST_FOREACH(cp2, &pp->consumers, consumers) {
 		if (cp2 == cp)
 			continue;
