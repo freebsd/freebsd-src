@@ -34,10 +34,10 @@
 0	NOPROTO	OSF1	{ int nosys(void); }
 1	MNOPROTO OSF1	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MNOPROTO OSF1	{ int fork(void); }
-3	NOPROTO	OSF1	{ ssize_t read(int fd, char *buf, ssize_t nbyte); }
-4	NOPROTO	OSF1	{ ssize_t write(int fd, char *buf, ssize_t nbyte); }
+3	MNOPROTO OSF1	{ ssize_t read(int fd, char *buf, ssize_t nbyte); }
+4	MNOPROTO OSF1	{ ssize_t write(int fd, char *buf, ssize_t nbyte); }
 5	UNIMPL	OSF1	old open
-6	NOPROTO	OSF1	{ int close(int fd); }
+6	MNOPROTO OSF1	{ int close(int fd); }
 7	STD	OSF1	{ int osf1_wait4(int pid, int *status, int options, \
 			    struct osf1_rusage *rusage); }
 8	UNIMPL	OSF1	old creat
@@ -54,12 +54,12 @@
 			    long bufsize, int flags); }
 19	STD	OSF1	{ off_t osf1_lseek(int fd, off_t offset, \
 			    int whence); }
-20	NOPROTO	OSF1	{ pid_t getpid(void); }
+20	MNOPROTO OSF1	{ pid_t getpid(void); }
 21	STD	OSF1	{ int osf1_mount(int type, char *path, int flags, \
 			    caddr_t data); }
 22	STD	OSF1	{ int osf1_unmount(char *path, int flags); }
-23	STD	OSF1	{ int osf1_setuid(uid_t uid); }
-24	NOPROTO	OSF1	{ uid_t getuid(void); }
+23	MSTD	OSF1	{ int osf1_setuid(uid_t uid); }
+24	MNOPROTO OSF1	{ uid_t getuid(void); }
 25	UNIMPL	OSF1	exec_with_loader
 26	UNIMPL	OSF1	ptrace
 27	UNIMPL	OSF1	recvmsg
@@ -73,24 +73,24 @@
 34	UNIMPL	OSF1	chflags
 35	UNIMPL	OSF1	fchflags
 36	NOPROTO	OSF1	{ int sync(void); }
-37	STD	OSF1	{ int osf1_kill(int pid, int signum); }
+37	MSTD	OSF1	{ int osf1_kill(int pid, int signum); }
 38	UNIMPL	OSF1	old stat
-39	NOPROTO	OSF1	{ int setpgid(int pid, int pgid); }
+39	MNOPROTO OSF1	{ int setpgid(int pid, int pgid); }
 40	UNIMPL	OSF1	old lstat
-41	NOPROTO	OSF1	{ int dup(u_int fd); }
-42	NOPROTO	OSF1	{ int pipe(void); }
+41	MNOPROTO OSF1	{ int dup(u_int fd); }
+42	MNOPROTO OSF1	{ int pipe(void); }
 43	STD	OSF1	{ int osf1_set_program_attributes( \
 			  vm_offset_t text_start, vm_offset_t text_len,\
 			  vm_offset_t bss_start, vm_offset_t bss_len); }
 44	UNIMPL	OSF1	profil
 45	STD	OSF1	{ int osf1_open(char *path, int flags, int mode); }
 46	OBSOL	OSF1	sigaction
-47	NOPROTO	OSF1	{ gid_t getgid(void); }
-48	STD	OSF1	{ int osf1_sigprocmask(int how, osf1_sigset_t mask); }
-49	NOPROTO	OSF1	{ int getlogin(char *namebuf, u_int namelen); }
-50	NOPROTO	OSF1	{ int setlogin(char *namebuf); }
+47	MNOPROTO OSF1	{ gid_t getgid(void); }
+48	MSTD	OSF1	{ int osf1_sigprocmask(int how, osf1_sigset_t mask); }
+49	MNOPROTO OSF1	{ int getlogin(char *namebuf, u_int namelen); }
+50	MNOPROTO OSF1	{ int setlogin(char *namebuf); }
 51	NOPROTO	OSF1	{ int acct(char *path); }
-52	STD	OSF1	{ int osf1_sigpending(struct proc *p, \
+52	MSTD	OSF1	{ int osf1_sigpending(struct proc *p, \
 			    osf1_sigset_t *mask ); }
 53	STD	OSF1	{ int osf1_classcntl(int opcode, int arg1, \
 			    int arg2, int arg3); }
@@ -101,10 +101,10 @@
 58	NOPROTO	OSF1	{ int readlink(char *path, char *buf, int count); }
 59	STD	OSF1	{ int osf1_execve(char *path, char **argp, \
 			    char **envp); }
-60	NOPROTO	OSF1	{ int umask(int newmask); }
+60	MNOPROTO OSF1	{ int umask(int newmask); }
 61	NOPROTO	OSF1	{ int chroot(char *path); }
 62	UNIMPL	OSF1	old fstat
-63	NOPROTO	OSF1	{ int getpgrp(void); }
+63	MNOPROTO OSF1	{ int getpgrp(void); }
 64	NOPROTO	OSF1	{ int ogetpagesize(void); }
 65	UNIMPL	OSF1	mremap
 66	MNOPROTO OSF1	{ int vfork(void); }
@@ -123,11 +123,11 @@
 76	UNIMPL	OSF1	old vhangup
 77	UNIMPL	OSF1	kmodcall
 78	UNIMPL	OSF1	mincore
-79	NOPROTO	OSF1	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
-80	NOPROTO	OSF1	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
+79	MNOPROTO OSF1	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
+80	MNOPROTO OSF1	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	UNIMPL	OSF1	old getpgrp
 ; OSF/1 setpgrp(); identical in function to setpgid().  XXX
-82	STD	OSF1	{ int osf1_setpgrp(int pid, int pgid); } 
+82	MSTD	OSF1	{ int osf1_setpgrp(int pid, int pgid); } 
 83	STD	OSF1	{ int osf1_setitimer(u_int which, struct itimerval *itv, \
 			    struct itimerval *oitv); }
 84	UNIMPL	OSF1	old wait
@@ -138,8 +138,8 @@
 			    ogethostname gethostname_args int
 88	MNOPROTO OSF1	{ int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
-89	NOPROTO	OSF1	{ int getdtablesize(void); }
-90	NOPROTO	OSF1	{ int dup2(u_int from, u_int to); }
+89	MNOPROTO OSF1	{ int getdtablesize(void); }
+90	MNOPROTO OSF1	{ int dup2(u_int from, u_int to); }
 91	STD	OSF1	{ int osf1_fstat(int fd, void *sb); }
 92	STD	OSF1	{ int osf1_fcntl(int fd, int cmd, void *arg); }
 93	STD	OSF1	{ int osf1_select(u_int nd, fd_set *in, fd_set *ou, \
@@ -147,18 +147,18 @@
 94	NOPROTO	OSF1	{ int poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
 95	NOPROTO	OSF1	{ int fsync(int fd); }
-96	NOPROTO	OSF1	{ int setpriority(int which, int who, int prio); }
+96	MNOPROTO OSF1	{ int setpriority(int which, int who, int prio); }
 97	STD	OSF1	{ int osf1_socket(int domain, int type, \
 			    int protocol); }
 98	NOPROTO	OSF1	{ int connect(int s, caddr_t name, int namelen); }
 99	NOPROTO	OSF1	{ int oaccept(int s, caddr_t name, int *anamelen); } \
 			    oaccept accept_args int
-100	NOPROTO	OSF1	{ int getpriority(int which, int who); }
+100	MNOPROTO OSF1	{ int getpriority(int which, int who); }
 101	NOPROTO	OSF1	{ int osend(int s, caddr_t buf, int len, \
 			    int flags); }
 102	NOPROTO	OSF1	{ int orecv(int s, caddr_t buf, int len, \
 			    int flags); }
-103	STD	OSF1	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
+103	MSTD	OSF1	{ int osf1_sigreturn(struct osigcontext *sigcntxp); }
 104	NOPROTO	OSF1	{ int bind(int s, caddr_t name, int namelen); }
 105	NOPROTO	OSF1	{ int setsockopt(int s, int level, int name, \
                             caddr_t val, int valsize); }
@@ -167,8 +167,8 @@
 108	UNIMPL	OSF1	old sigvec
 109	UNIMPL	OSF1	old sigblock
 110	UNIMPL	OSF1	old sigsetmask
-111	STD	OSF1	{ int osf1_sigsuspend(osf1_sigset_t ss); }
-112	STD	OSF1	{ int osf1_osigstack(struct sigstack *nss, \
+111	MSTD	OSF1	{ int osf1_sigsuspend(osf1_sigset_t ss); }
+112	MSTD	OSF1	{ int osf1_osigstack(struct sigstack *nss, \
 			    struct sigstack *oss); }
 113	UNIMPL	OSF1	old recvmsg
 114	UNIMPL	OSF1	old sendmsg
@@ -191,14 +191,14 @@
 125	NOPROTO	OSF1	{ int orecvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); } \
 			    orecvfrom recvfrom_args int
-126	NOPROTO	OSF1	{ int setreuid(int ruid, int euid); }
-127	NOPROTO	OSF1	{ int setregid(int rgid, int egid); }
+126	MNOPROTO OSF1	{ int setreuid(int ruid, int euid); }
+127	MNOPROTO OSF1	{ int setregid(int rgid, int egid); }
 128	NOPROTO	OSF1	{ int rename(const char *from, \
 			    const char *to); }
 129	STD	OSF1	{ int osf1_truncate(char *path, off_t length); }
 130	STD	OSF1	{ int osf1_ftruncate(int fd, off_t length); }
 131	NOPROTO	OSF1	{ int flock(int fd, int how); }
-132	STD	OSF1	{ int osf1_setgid(gid_t gid); }
+132	MSTD	OSF1	{ int osf1_setgid(gid_t gid); }
 133	STD	OSF1	{ int osf1_sendto(int s, caddr_t buf, size_t len, \
 			    int flags, struct sockaddr *to, int tolen); }
 134	NOPROTO	OSF1	{ int shutdown(int s, int how); }
@@ -216,7 +216,7 @@
 145	STD	OSF1	{ int osf1_setrlimit(u_int which, \
 			    struct rlimit *rlp); }
 146	UNIMPL	OSF1	old killpg
-147	NOPROTO	OSF1	{ int setsid(void); }
+147	MNOPROTO OSF1	{ int setsid(void); }
 148	UNIMPL	OSF1	quotactl
 149	MNOPROTO OSF1	{ int oquota(void); }
 150	NOPROTO	OSF1	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
@@ -226,7 +226,7 @@
 153	UNIMPL	OSF1
 154	UNIMPL	OSF1
 155	UNIMPL	OSF1
-156	STD	OSF1	{ int osf1_sigaction(long signum, \
+156	MSTD	OSF1	{ int osf1_sigaction(long signum, \
 			    struct osf1_sigaction *nsa,   \
 			    struct osf1_sigaction *osa,   \
 			    void *sigtramp); }
@@ -276,33 +276,33 @@
 197	UNIMPL	OSF1
 198	UNIMPL	OSF1
 199	UNIMPL	OSF1	swapon
-200	NOPROTO	OSF1	{ int msgctl(int msqid, int cmd, \
+200	MNOPROTO OSF1	{ int msgctl(int msqid, int cmd, \
                             struct msqid_ds *buf); }
-201	NOPROTO	OSF1	{ int msgget(key_t key, int msgflg); }
-202	NOPROTO	OSF1	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
+201	MNOPROTO OSF1	{ int msgget(key_t key, int msgflg); }
+202	MNOPROTO OSF1	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
                             long msgtyp, int msgflg); }
-203	NOPROTO	OSF1	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
+203	MNOPROTO OSF1	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
                             int msgflg); }
-204	NOPROTO	OSF1	{ int __semctl(int semid, int semnum, int cmd, \
+204	MNOPROTO OSF1	{ int __semctl(int semid, int semnum, int cmd, \
                             union semun *arg); }
-205	NOPROTO	OSF1	{ int semget(key_t key, int nsems, int semflg); }
-206	NOPROTO	OSF1	{ int semop(int semid, struct sembuf *sops, \
+205	MNOPROTO OSF1	{ int semget(key_t key, int nsems, int semflg); }
+206	MNOPROTO OSF1	{ int semop(int semid, struct sembuf *sops, \
                             u_int nsops); }
 207	MNOPROTO OSF1	{ int uname(struct utsname *name); }
 208	NOPROTO	OSF1	{ int lchown(char *path, int uid, \
 			    int gid); }
-209	NOPROTO	OSF1	{ int shmat(int shmid, void *shmaddr, int shmflg); }
-210	NOPROTO	OSF1	{ int shmctl(int shmid, int cmd, \
+209	MNOPROTO OSF1	{ int shmat(int shmid, void *shmaddr, int shmflg); }
+210	MNOPROTO OSF1	{ int shmctl(int shmid, int cmd, \
                             struct shmid_ds *buf); }
-211	NOPROTO	OSF1	{ int shmdt(void *shmaddr); }
-212	NOPROTO	OSF1	{ int shmget(key_t key, int size, int shmflg); }
+211	MNOPROTO OSF1	{ int shmdt(void *shmaddr); }
+212	MNOPROTO OSF1	{ int shmget(key_t key, int size, int shmflg); }
 213	UNIMPL	OSF1	mvalid
 214	UNIMPL	OSF1	getaddressconf
 215	UNIMPL	OSF1	msleep
 216	UNIMPL	OSF1	mwakeup
 217	STD	OSF1	{ int osf1_msync(caddr_t addr, size_t len, \
 			    int flags); }
-218	STD	OSF1	{int osf1_signal(int signum, void *handler); }
+218	MSTD	OSF1	{int osf1_signal(int signum, void *handler); }
 219	UNIMPL	OSF1	utc gettime
 220	UNIMPL	OSF1	utc adjtime
 221	UNIMPL	OSF1
@@ -317,16 +317,16 @@
 230	UNIMPL	OSF1
 231	UNIMPL	OSF1
 232	UNIMPL	OSF1
-233	NOPROTO	OSF1	{ pid_t getpgid(pid_t pid); }
-234	NOPROTO	OSF1	{ pid_t getsid(pid_t pid); }
-235	STD	OSF1	{ int osf1_sigaltstack(struct osf1_sigaltstack *nss, \
+233	MNOPROTO OSF1	{ pid_t getpgid(pid_t pid); }
+234	MNOPROTO OSF1	{ pid_t getsid(pid_t pid); }
+235	MSTD	OSF1	{ int osf1_sigaltstack(struct osf1_sigaltstack *nss, \
 			    struct osf1_sigaltstack *oss); }
 236	UNIMPL	OSF1	waitid
 237	UNIMPL	OSF1	priocntlset
 238	UNIMPL	OSF1	sigsendset
 239	UNIMPL	OSF1
 240	UNIMPL	OSF1	msfs_syscall
-241	STD	OSF1	{ int osf1_sysinfo(int cmd, char *buf, long count); }
+241	MSTD	OSF1	{ int osf1_sysinfo(int cmd, char *buf, long count); }
 242	UNIMPL	OSF1	uadmin
 243	UNIMPL	OSF1	fuser
 244	STD	OSF1    { int osf1_proplist_syscall(void); }
