@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: dir.h,v 1.7 1997/02/22 09:47:38 peter Exp $
  */
 
 #ifndef _UFS_UFS_DIR_H_
@@ -48,10 +48,7 @@
  * quantity to keep down the cost of doing lookup on a 32-bit machine.
  */
 #define	doff_t		int32_t
-
-#ifdef notused
 #define MAXDIRSIZE	(0x7fffffff)
-#endif
 
 /*
  * A directory consists of some number of blocks of DIRBLKSIZ
