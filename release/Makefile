@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.356 1998/06/08 20:58:02 jdp Exp $
+#	$Id: Makefile,v 1.357 1998/06/24 06:55:18 brian Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -322,11 +322,12 @@ release.4:
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
-		crunchgen ${.CURDIR}/$${j}_crunch.conf && \
-		${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
+		  crunchgen ${.CURDIR}/$${j}_crunch.conf && \
+		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
-		${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean \
+		( cd $${j}_crunch && \
+		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
