@@ -293,6 +293,7 @@ ENTRY(cpu_switch, 0)
 	mov	ar.bspstore=r18 ;;
 	mov	ar.rnat=r19
 	mov	pr=r20,0x1ffff
+	alloc	r14=ar.pfs,0,0,0,0	// lose current frame
 	;;
 	loadrs
 	mov	ar.rsc=3		// restart RSE
