@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 John D. Polstra.
+ * Copyright (c) 2001 David E. O'Brien.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,7 @@
 
 #include <sys/types.h>
 #include <machine/elf.h>
-
-/*
- * Hints file produced by ldconfig.
- */
-struct elfhints_hdr {
-	u_int32_t	magic;		/* Magic number */
-	u_int32_t	version;	/* File version (1) */
-	u_int32_t	strtab;		/* Offset of string table in file */
-	u_int32_t	strsize;	/* Size of string table */
-	u_int32_t	dirlist;	/* Offset of directory list in
-					   string table */
-	u_int32_t	dirlistlen;	/* strlen(dirlist) */
-	u_int32_t	spare[26];	/* Room for expansion */
-};
-
-#define ELFHINTS_MAGIC	0x746e6845
-
-#define _PATH_ELF_HINTS	"/var/run/ld-elf.so.hints"
+#include <sys/elf32.h>
+#include <sys/elf64.h>
 
 #endif /* !_ELF_H_ */
