@@ -31,14 +31,17 @@ int
 main(int argc, char **argv)
 {
 	int fd;
+	FILE *fdo;
 	pps_info_t pi;
 	pps_params_t pp;
 	pps_handle_t ph;
 	int i, mode;
 	u_int olda, oldc;
 	struct timespec to;
+	char const *ofn;
 
-	while ((i = getopt(argc, argv, "aAbBcCeuv")) != -1) {
+	ofn = NULL;
+	while ((i = getopt(argc, argv, "aAbBcCeo:uv")) != -1) {
 		switch (i) {
 		case 'a': aflag = 1; break;
 		case 'A': Aflag = 1; break;
@@ -47,6 +50,7 @@ main(int argc, char **argv)
 		case 'c': cflag = 1; break;
 		case 'C': Cflag = 1; break;
 		case 'e': eflag = 1; break;
+		case 'o': ofn = optarg; break;
 		case 'u': uflag = 1; break;
 		case 'v': vflag = 1; break;
 		case '?':
@@ -55,6 +59,13 @@ main(int argc, char **argv)
 			    "Usage: ppsapitest [-aAcC] device\n");
 			exit (1);
 		}
+	}
+	if (ofn != NULL) {
+		fdo = fopen(ofn, "w");
+		if (fdo == NULL)
+			err(1, "Cannot open %s", ofn);
+	} else {
+		fdo = NULL;
 	}
 	argc -= optind;
 	argv += optind;
@@ -162,6 +173,12 @@ main(int argc, char **argv)
 		else {
 			usleep(10000);
 			continue;
+		}
+		if (fdo != NULL) {
+			if (fwrite(&pi, sizeof pi, 1, fdo) != 1)
+				err(1, "Write error on %s", ofn);
+			if (uflag)
+				fflush(fdo);
 		}
 		Chew(&pi.assert_timestamp, &pi.clear_timestamp,
 			pi.assert_sequence, pi.clear_sequence);
