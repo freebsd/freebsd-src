@@ -2,9 +2,13 @@
 # $FreeBSD$
 
 LIB=	telnet
+
+INTERNALLIB=yes
+INTERNALSTATICLIB=yes
+NOPIC=	yes
+
 SRCS=	genget.c getent.c misc.c
 CFLAGS+= -DHAS_CGETENT
-NOPIC=	true
 
 #
 # Remove obsolete shared libraries, if any.  We don't bother moving them
