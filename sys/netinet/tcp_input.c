@@ -2321,9 +2321,11 @@ step6:
 		 * soreceive.  It's hard to imagine someone
 		 * actually wanting to send this much urgent data.
 		 */
+		SOCKBUF_LOCK(&so->so_rcv);
 		if (th->th_urp + so->so_rcv.sb_cc > sb_max) {
 			th->th_urp = 0;			/* XXX */
 			thflags &= ~TH_URG;		/* XXX */
+			SOCKBUF_UNLOCK(&so->so_rcv);	/* XXX */
 			goto dodata;			/* XXX */
 		}
 		/*
@@ -2342,15 +2344,14 @@ step6:
 		 */
 		if (SEQ_GT(th->th_seq+th->th_urp, tp->rcv_up)) {
 			tp->rcv_up = th->th_seq + th->th_urp;
-			SOCKBUF_LOCK(&so->so_rcv);
 			so->so_oobmark = so->so_rcv.sb_cc +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
 			if (so->so_oobmark == 0)
 				so->so_rcv.sb_state |= SBS_RCVATMARK;
-			SOCKBUF_UNLOCK(&so->so_rcv);
 			sohasoutofband(so);
 			tp->t_oobflags &= ~(TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 		}
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		/*
 		 * Remove out of band data so doesn't get presented to user.
 		 * This can happen independent of advancing the URG pointer,
