@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id$
+ *	$Id: aha1542.c,v 1.5 93/08/26 21:12:17 julian Exp Locker: julian $
  */
 
 /*
@@ -376,13 +376,13 @@ long int	aha_adapter_info();
 
 struct	scsi_switch	aha_switch =
 {
-	"aha",
 	aha_scsi_cmd,
 	ahaminphys,
 	0,
 	0,
 	aha_adapter_info,
-	0,0,0
+	"aha",
+	0,0
 };	
 #define AHA_CMD_TIMEOUT_FUDGE	200	/* multiplied to get Secs	*/
 #define AHA_RESET_TIMEOUT	1000000 /* time to wait for reset	*/

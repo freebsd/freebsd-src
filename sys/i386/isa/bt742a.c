@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: bt742a.c,v 1.5 1993/08/21 20:01:32 rgrimes Exp $
+ *	$Id: bt742a.c,v 1.13 93/08/26 21:12:24 julian Exp Locker: julian $
  */
 
 /*
@@ -401,13 +401,13 @@ long int bt_adapter_info();
 
 struct	scsi_switch	bt_switch =
 {
-	"bt",
 	bt_scsi_cmd,
 	btminphys,
 	0,
 	0,
 	bt_adapter_info,
-	0,0,0
+	"bt",
+	0,0
 };	
 #define BT_CMD_TIMEOUT_FUDGE 200 /* multiplied to get Secs */
 #define BT_RESET_TIMEOUT 1000000
