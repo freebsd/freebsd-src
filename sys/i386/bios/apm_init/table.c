@@ -11,6 +11,8 @@
  * use.
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
+ *
+ *	$Id$
  */
 
 #include <apm_bios.h>
