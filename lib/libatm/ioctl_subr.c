@@ -109,6 +109,7 @@ mem_retry:
 		errno = ENOMEM;
 		return(-1);
 	}
+	bzero(buf, buf_len);
 
 	/*
 	 * Set the buffer address and length in the request
@@ -331,6 +332,7 @@ verify_nif_name(name)
 		errno = ENOMEM;
 		return(-1);
 	}
+	bzero(nif_info, sizeof(struct air_netif_rsp));
 
 	/*
 	 * Set up the request
