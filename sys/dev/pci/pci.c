@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.78 1997/08/02 14:33:12 bde Exp $
+ * $Id: pci.c,v 1.79 1997/09/14 03:19:36 peter Exp $
  *
  */
 
@@ -357,6 +357,7 @@ pci_readcfg(pcicfgregs *probe)
 	return (cfg);
 }
 
+#if 0
 /* free pcicfgregs structure and all depending data structures */
 
 static int
@@ -369,6 +370,7 @@ pci_freecfg(pcicfgregs *cfg)
 	free(cfg, M_DEVBUF);
 	return (0);
 }
+#endif
 
 static void
 pci_addcfg(pcicfgregs *cfg)
@@ -491,9 +493,7 @@ pci_close(dev_t dev, int flag, int devtype, struct proc *p)
 static int
 pci_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
-	struct pci_conf_io *cio;
 	struct pci_io *io;
-	size_t iolen;
 	int error;
 
 	if (cmd != PCIOCGETCONF && !(flag & FWRITE))

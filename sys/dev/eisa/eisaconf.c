@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.31 1997/09/21 21:35:23 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.32 1997/10/28 15:58:08 bde Exp $
  */
 
 #include "opt_eisa.h"
@@ -112,7 +112,6 @@ void
 eisa_configure()
 {
 	int i,slot;
-	char *id_string;
 	struct eisa_device_node *dev_node;
 	struct eisa_driver **e_drvp;
 	struct eisa_driver *e_drv;
@@ -369,8 +368,6 @@ eisa_add_intr(e_dev, irq)
 	int irq;
 {
 	struct	irq_node *irq_info;
-	void	*dev_instance = (void *)-1; /* XXX use cfg->devdata  */
-	void	*idesc;
  
 	irq_info = (struct irq_node *)malloc(sizeof(*irq_info), M_DEVBUF,
 					     M_NOWAIT);
@@ -392,8 +389,6 @@ eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
 	u_int *maskptr;
 	int   shared;
 {
-	int result;
-	int s;
 	char string[25];
 	char separator = ',';
 

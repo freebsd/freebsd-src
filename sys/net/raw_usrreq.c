@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_usrreq.c,v 1.14 1997/08/16 19:15:27 wollman Exp $
+ *	$Id: raw_usrreq.c,v 1.15 1997/09/14 03:10:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -211,7 +211,6 @@ static int
 raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct rawcb *rp = sotorawcb(so);
-	unsigned len;
 
 	if (rp == 0)
 		return EINVAL;
@@ -283,7 +282,6 @@ static int
 raw_usockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct rawcb *rp = sotorawcb(so);
-	unsigned len;
 
 	if (rp == 0)
 		return EINVAL;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.45 1997/10/28 14:06:22 bde Exp $
+ * $Id: nfs_subs.c,v 1.46 1997/10/28 15:59:08 bde Exp $
  */
 
 /*
@@ -1216,7 +1216,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	struct timespec mtime;
 	struct vnode *nvp;
 	int v3 = NFS_ISV3(vp);
-	struct proc *p = curproc;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;

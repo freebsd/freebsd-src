@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.37 1997/10/28 15:58:31 bde Exp $
+ * $Id: if_ethersubr.c,v 1.38 1997/10/29 00:30:43 julian Exp $
  */
 
 #include <sys/param.h>
@@ -118,14 +118,13 @@ ether_output(ifp, m0, dst, rt0)
 {
 	short type;
 	int s, error = 0;
- 	u_char *cp, edst[6];
-	register struct mbuf *m2, *m = m0;
+ 	u_char edst[6];
+	register struct mbuf *m = m0;
 	register struct rtentry *rt;
 	struct mbuf *mcopy = (struct mbuf *)0;
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len;
 	struct arpcom *ac = (struct arpcom *)ifp;
-	register struct ifqueue *inq;
 #ifdef NETATALK
 	struct at_ifaddr *aa;
 #endif NETATALK
@@ -459,7 +458,7 @@ ether_input(ifp, eh, m)
 	struct mbuf *m;
 {
 	register struct ifqueue *inq;
-	u_short ether_type, *checksum;
+	u_short ether_type;
 	int s;
 #if defined (ISO) || defined (LLC) || defined(NETATALK)
 	register struct llc *l;

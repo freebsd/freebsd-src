@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.4 1997/10/28 15:58:21 bde Exp $
+ *	$Id: kern_module.c,v 1.5 1997/11/06 19:29:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,6 @@ static void
 module_shutdown(int arg1, void* arg2)
 {
     module_t mod;
-    int error;
 
     for (mod = TAILQ_FIRST(&modules); mod; mod = TAILQ_NEXT(mod, link))
 	MOD_EVENT(mod, MOD_SHUTDOWN);

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.132 1997/10/28 15:58:24 bde Exp $
+ * $Id: vfs_bio.c,v 1.133 1997/11/06 19:29:29 phk Exp $
  */
 
 /*
@@ -1278,7 +1278,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int s;
 	struct bufhashhdr *bh;
 	int maxsize;
-	static pid_t flushing = 0;
 
 	if (vp->v_mount) {
 		maxsize = vp->v_mount->mnt_stat.f_iosize;
@@ -2091,7 +2090,6 @@ vfs_clean_pages(struct buf * bp)
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
-		vm_object_t obj = vp->v_object;
 		vm_ooffset_t foff;
 
 		if (vp->v_type == VBLK)

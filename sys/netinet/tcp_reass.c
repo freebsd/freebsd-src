@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.63 1997/10/02 02:10:40 davidg Exp $
+ *	$Id: tcp_input.c,v 1.64 1997/10/28 15:58:52 bde Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -623,7 +623,6 @@ findpcb:
 	 * segment in this state.
 	 */
 	case TCPS_LISTEN: {
-		struct mbuf *am;
 		register struct sockaddr_in *sin;
 
 		if (tiflags & TH_RST)

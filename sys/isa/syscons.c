@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.235 1997/10/23 03:23:49 yokota Exp $
+ *  $Id: syscons.c,v 1.236 1997/10/26 07:36:13 yokota Exp $
  */
 
 #include "sc.h"
@@ -595,7 +595,6 @@ sckbdprobe(int unit, int flags)
 	goto fail;
     }
 
-succeed: 
     kbdc_set_device_mask(sc_kbdc, m | KBD_KBD_CONTROL_BITS),
     kbdc_lock(sc_kbdc, FALSE);
     return TRUE;
@@ -3451,7 +3450,6 @@ static void
 set_keyboard(int command, int data)
 {
     int s;
-    int c;
 
     if (sc_kbdc == NULL)
 	return;
