@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.48 1994/10/02 17:41:44 phk Exp $
+ *	$Id: wd.c,v 1.49 1994/10/07 21:17:41 phk Exp $
  */
 
 /* TODO:
@@ -76,6 +76,7 @@ static int wdtest = 0;
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/devconf.h>
 #include <machine/cpu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -84,6 +85,7 @@ static int wdtest = 0;
 #include <machine/apm_bios.h>
 #endif
 #include <sys/syslog.h>
+#include <sys/dkstat.h>
 #include <vm/vm.h>
 
 #define TIMEOUT		10000
@@ -105,6 +107,57 @@ static int wdtest = 0;
 
 /* Cylinder number for doing IO to.  Shares an entry in the buf struct. */
 #define b_cylin	b_resid
+
+static int wd_goaway(struct kern_devconf *, int);
+static int wdc_goaway(struct kern_devconf *, int);
+
+/*
+ * Templates for the kern_devconf structures used when we attach.
+ */
+static struct kern_devconf kdc_wd_template = {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"wd", 0, { "wdc0", MDDT_WDC, 0 },
+	0, 0, 0, wd_goaway
+};
+
+static struct kern_devconf kdc_wdc_template = {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"wdc", 0, { "isa0", MDDT_ISA, 0 },
+	0, 0, 0, wdc_goaway
+};
+
+static inline void
+wd_registerdev(int ctlr, int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_wd_template;
+	kdc->kdc_unit = unit;
+	sprintf(kdc->kdc_md.mddc_parent, "wdc%d", ctlr);
+	dev_attach(kdc);
+}
+
+static int
+wdc_goaway(struct kern_devconf *kdc, int force)
+{
+	if(force) {
+		dev_detach(kdc);
+		FREE(kdc, M_TEMP);
+		return 0;
+	} else {
+		return EBUSY;	/* XXX fix */
+	}
+}
+
+static int
+wd_goaway(struct kern_devconf *kdc, int force)
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
 
 /*
  * This biotab field doubles as a field for the physical unit number on
@@ -149,6 +202,7 @@ struct disk {
 #define	DKFL_WRITEPROT	0x00040	/* manual unit write protect */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
+	int	dk_dkunit;	/* number of statistics purposes */
 	struct disklabel dk_dd;	/* device configuration data */
 	struct disklabel dk_dd2;	/* DOS view converted to label */
 	struct dos_partition
@@ -276,9 +330,17 @@ wdattach(struct isa_device *dvp)
 	int	unit, lunit;
 	struct isa_device *wdup;
 	struct disk *du;
+	struct kern_devconf *kdc;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc)
+		return 0;
+	*kdc = kdc_wdc_template;
+	kdc->kdc_unit = dvp->id_unit;
+	dev_attach(kdc);
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
 		if (wdup->id_iobase != dvp->id_iobase)
@@ -326,16 +388,23 @@ wdattach(struct isa_device *dvp)
 				du->dk_dd.d_secperunit
 				* du->dk_dd.d_secsize / (1024 * 1024),
 				du->dk_dd.d_secperunit);
-			printf("%lu cyl, %lu head, %lu sec, bytes/sec %lu\n",
-				du->dk_dd.d_ncylinders,
-				du->dk_dd.d_ntracks,
-				du->dk_dd.d_nsectors,
-				du->dk_dd.d_secsize);
-			/*
-			 * Start timeout routine for this drive.
-			 * XXX timeout should be per controller.
-			 */
-			wdtimeout((caddr_t)du);
+		    printf("%lu cyl, %lu head, %lu sec, bytes/sec %lu\n",
+			   du->dk_dd.d_ncylinders,
+			   du->dk_dd.d_ntracks,
+			   du->dk_dd.d_nsectors,
+			   du->dk_dd.d_secsize);
+		    /*
+		     * Start timeout routine for this drive.
+		     * XXX timeout should be per controller.
+		     */
+		    wdtimeout((caddr_t)du);
+		    wd_registerdev(dvp->id_unit, lunit);
+		    if(dk_ndrive < DK_NDRIVE) {
+			    sprintf(dk_names[dk_ndrive], "wd%d", lunit);
+			    du->dk_dkunit = dk_ndrive++;
+		    } else {
+			    du->dk_dkunit = -1;
+		    }
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
@@ -607,6 +676,9 @@ loop:
 				wdunwedge(du);
 			}
 		}
+		if(du->dk_dkunit >= 0) {
+			dk_busy |= 1 << du->dk_dkunit;
+		}
 		while (wdcommand(du, cylin, head, sector, count, command)
 		       != 0) {
 			wderror(bp, du,
@@ -769,6 +841,10 @@ oops:
 	}
 
 	wdxfer[du->dk_lunit]++;
+	if(du->dk_dkunit >= 0) {
+		dk_xfer[du->dk_dkunit]++;
+	}
+	
 outt:
 	if (wdtab[unit].b_active) {
 		if ((bp->b_flags & B_ERROR) == 0) {
@@ -803,6 +879,10 @@ done: ;
 		dp->b_errcnt = 0;
 		du->dk_skip = 0;
 		biodone(bp);
+	}
+
+	if(du->dk_dkunit >= 0) {
+		dk_busy &= ~(1 << du->dk_dkunit);
 	}
 
 	/* controller idle */
