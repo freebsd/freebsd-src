@@ -397,7 +397,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 	while (!ok("Are you happy with this choice"));
 	for (i = 0; i < NDOSPART; i++)
 		partp[i].dp_flag = 0;
-	partp[active].dp_flag = ACTIVE;
+	if (active >= 0 && active < NDOSPART)
+		partp[active].dp_flag = ACTIVE;
 }
 
 get_params_to_use()
