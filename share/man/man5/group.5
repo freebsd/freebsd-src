@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: group.5,v 1.9 1997/02/22 13:25:59 peter Exp $
 .\"
 .Dd September 29, 1994
 .Dt GROUP 5
@@ -58,6 +58,10 @@ The group's decimal ID.
 .It member
 Group members.
 .El
+.Pp
+Lines whose first non-space/tab character is a pound-sign (#)
+are comments, and are ignored. Blank lines -  only spaces, tabs or 
+newline - are ignored too.
 .Pp
 The
 .Ar group
@@ -165,3 +169,5 @@ The YP/NIS functionality is modeled after
 and first appeared in
 .Tn FreeBSD
 1.1.
+Support for comments are appeared in
+.Fx 3.0 .
