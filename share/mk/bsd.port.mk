@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.21 1994/08/28 14:41:34 jkh Exp $
+# $Id: bsd.port.mk,v 1.22 1994/08/30 16:39:27 adam Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -96,7 +96,12 @@ PKG_CMD?=	pkg_create
 PKG_ARGS?=	-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
 PKG_SUFX?=	.tgz
 
-HOME_LOCATION?=	<original site unknown>
+# Set no default value for this so we can easily detect its absence.
+#HOME_LOCATION?=	<original site unknown>
+
+# Derived names so that they're easily overridable.
+DISTFILE?=	${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}
+PKGFILE?=	${PACKAGES}/${DISTNAME}${PKG_SUFX}
 
 .MAIN: all
 all: extract configure build
@@ -254,8 +259,7 @@ bundle: pre-bundle
 	   echo ">> WARNING:  This source has been configured and may"; \
 	   echo ">> produce a tainted distfile!"; \
 	fi
-	${BUNDLE_CMD} ${BUNDLE_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} \
-		${DISTNAME}
+	${BUNDLE_CMD} ${BUNDLE_ARGS} ${DISTFILE} ${DISTNAME}
 .endif
 
 .if !target(pre-extract)
@@ -274,14 +278,18 @@ ${EXTRACT_COOKIE}:
 	@echo "===>  Extracting for ${DISTNAME}"
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
-	@if [ ! -f ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} ]; then \
-	   echo ">> Sorry, can't find: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}"; \
+	@if [ ! -f ${DISTFILE} ]; then \
+	   echo ">> Sorry, can't find: ${DISTFILE}"; \
 	   echo ">> Please obtain this file from:"; \
+.if defined(HOME_LOCATION)
 	   echo ">>	${HOME_LOCATION}"; \
+.else
+	   echo ">>	<original site unknown>"; \
+.endif
 	   echo ">>before proceeding."; \
 	   exit 1; \
 	fi
-	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}
+	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTFILE}
 	@touch -f ${EXTRACT_COOKIE}
 .endif
 
