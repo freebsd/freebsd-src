@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.65 1999/06/24 20:08:56 jlemon Exp $
+ *	$Id: identcpu.c,v 1.66 1999/07/05 02:27:32 green Exp $
  */
 
 #include "opt_cpu.h"
@@ -877,7 +877,7 @@ print_AMD_info(void)
 
 	if (amd_maxregs >= 0x80000001) {
 		do_cpuid(0x80000001, regs);
-		printf(" AMD Features=0x%b\n", regs[3],
+		printf("  AMD Features=0x%b\n", regs[3],
 			"\020"		/* in hex */
 			"\001FPU"
 			"\002VME"
