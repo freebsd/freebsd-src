@@ -374,7 +374,7 @@ putScp(os)
 	if (psptr < PSMAX) {
 	    ++psptr;
 	    strncpy (pstack[psptr], pname, PNAMELEN);
-	    pstack[psptr][PNAMELEN] = NULL;
+	    pstack[psptr][PNAMELEN] = '\0';
 	    plstack[psptr] = blklevel;
 	}
     }
