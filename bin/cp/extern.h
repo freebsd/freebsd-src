@@ -37,7 +37,7 @@
 typedef struct {
 	char *p_end;			/* pointer to NULL at end of path */
 	char *target_end;               /* pointer to end of target base */
-	char p_path[MAXPATHLEN + 1];	/* pointer to the start of a path */
+	char p_path[PATH_MAX];		/* pointer to the start of a path */
 } PATH_T;
 
 extern PATH_T to;
