@@ -49,10 +49,7 @@ main(int argc, char *argv[])
 	char buf[MAXPATHLEN];
 	char *p;
 
-	if (argc == 1) {
-		if ((p = getcwd(NULL, 0)) == NULL)
-			err(1, "getcwd()");
-	} else if (argc == 2) {
+	if (argc == 2) {
 		if ((p = realpath(argv[1], buf)) == NULL)
 			err(1, "%s", buf);
 	} else
@@ -65,6 +62,6 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: realpath [path]\n");
+	(void)fprintf(stderr, "usage: realpath path\n");
   	exit(1);
 }
