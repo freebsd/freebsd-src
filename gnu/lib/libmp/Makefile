@@ -7,7 +7,7 @@ LIB=	mp
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
 
 .if ${MACHINE_ARCH} == "alpha"
-.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic \
+.PATH: ${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic \
 		${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR}/mpn/alpha -I${GMPDIR}/mpz -DBERKELEY_MP
@@ -15,31 +15,30 @@ CFLAGS+=	-I${GMPDIR}/mpn/alpha -I${GMPDIR}/mpz -DBERKELEY_MP
 MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s udiv_qrnnd.S
 
 .elif ${MACHINE_ARCH} == "i386"
-.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic \
-		${GMPDIR}/mpbsd
+.PATH: ${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic \
+       ${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR}/mpn/x86 -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 
 .elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
-.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/mips3 ${GMPDIR}/mpn/generic \
-		${GMPDIR}/mpbsd
+.PATH: ${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/mips3 ${GMPDIR}/mpn/generic \
+       ${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR}/mpn/mips3 -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s
 .elif ${MACHINE_ARCH} == "m68k"
-.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic \
-		${GMPDIR}/mpbsd
+.PATH: ${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic \
+       ${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR}/mpn/m68k -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
 
 .elif ${MACHINE_ARCH} == "arm32" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "ppc" ||  ${MACHINE_ARCH} == "sparc" || ${MACHINE_ARCH} == "sparc64"
-.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/generic \
-		${GMPDIR}/mpbsd
+.PATH: ${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/generic ${GMPDIR}/mpbsd
 
 CFLAGS+=	-I${GMPDIR}/mpz -DBERKELEY_MP
 
