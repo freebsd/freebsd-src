@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.1 1997/04/26 11:45:44 peter Exp $
+ * $Id: smp.h,v 1.2 1997/04/28 00:25:00 fsmp Exp $
  *
  */
 
@@ -35,7 +35,7 @@ extern u_int			mp_lock;
 /* functions in mplock.s */
 void	get_mplock		__P((void));
 void	rel_mplock		__P((void));
-void	expect_mplock		__P((void));
+void	try_mplock		__P((void));
 
 /* global data in mp_machdep.c */
 extern struct proc*		SMPcurproc[NCPU];
