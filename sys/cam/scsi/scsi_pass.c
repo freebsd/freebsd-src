@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_pass.c,v 1.2 1998/09/16 00:11:53 ken Exp $
  */
 
 #include <sys/param.h>
@@ -306,7 +306,6 @@ passasync(void *callback_arg, u_int32_t code,
 static cam_status
 passregister(struct cam_periph *periph, void *arg)
 {
-	int s;
 	struct pass_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
@@ -702,7 +701,6 @@ passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 static int
 passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 {
-	struct buf *bp[2];
 	struct pass_softc *softc;
 	struct cam_periph_map_info mapinfo;
 	int error, need_unmap;

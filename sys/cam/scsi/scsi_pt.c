@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_pt.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -176,7 +176,6 @@ ptclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct	cam_periph *periph;
 	struct	pt_softc *softc;
-	union	ccb *ccb;
 	int	unit;
 	int	error;
 
@@ -318,7 +317,6 @@ ptinit(void)
 static cam_status
 ptctor(struct cam_periph *periph, void *arg)
 {
-	int s;
 	struct pt_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;

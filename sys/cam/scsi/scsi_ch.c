@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.2 1998/10/02 05:25:49 ken Exp $
+ *      $Id: scsi_ch.c,v 1.3 1998/10/02 21:20:21 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -380,7 +380,6 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 static cam_status
 chregister(struct cam_periph *periph, void *arg)
 {
-	int s;
 	struct ch_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
