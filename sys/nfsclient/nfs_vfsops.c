@@ -981,10 +981,59 @@ loop:
 static int
 nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 {
+	struct nfsmount *nmp = VFSTONFS(mp);
+	struct vfsquery vq;
+	int error;
 
+	bzero(&vq, sizeof(vq));
 	switch (op) {
+#if 0
+	case VFS_CTL_NOLOCKS:
+		val = (nmp->nm_flag & NFSMNT_NOLOCKS) ? 1 : 0;
+ 		if (req->oldptr != NULL) {
+ 			error = SYSCTL_OUT(req, &val, sizeof(val));
+ 			if (error)
+ 				return (error);
+ 		}
+ 		if (req->newptr != NULL) {
+ 			error = SYSCTL_IN(req, &val, sizeof(val));
+ 			if (error)
+ 				return (error);
+			if (val)
+				nmp->nm_flag |= NFSMNT_NOLOCKS;
+			else
+				nmp->nm_flag &= ~NFSMNT_NOLOCKS;
+ 		}
+		break;
+#endif
+	case VFS_CTL_QUERY:
+		if (nmp->nm_state & NFSSTA_TIMEO)
+			vq.vq_flags |= VQ_NOTRESP;
+#if 0
+		if (!(nmp->nm_flag & NFSMNT_NOLOCKS) &&
+		    (nmp->nm_state & NFSSTA_LOCKTIMEO))
+			vq.vq_flags |= VQ_NOTRESPLOCK;
+#endif
+		error = SYSCTL_OUT(req, &vq, sizeof(vq));
+		break;
+ 	case VFS_CTL_TIMEO:
+ 		if (req->oldptr != NULL) {
+ 			error = SYSCTL_OUT(req, &nmp->nm_tprintf_initial_delay,
+ 			    sizeof(nmp->nm_tprintf_initial_delay));
+ 			if (error)
+ 				return (error);
+ 		}
+ 		if (req->newptr != NULL) {
+ 			error = SYSCTL_IN(req, &nmp->nm_tprintf_initial_delay,
+ 			    sizeof(nmp->nm_tprintf_initial_delay));
+ 			if (error)
+ 				return (error);
+ 			if (nmp->nm_tprintf_initial_delay < 0)
+ 				nmp->nm_tprintf_initial_delay = 0;
+ 		}
+		break;
 	default:
-		printf("nfs sysctl, op = %0X\n", (int) op);
+		return (ENOTSUP);
 	}
 	return (0);
 }
