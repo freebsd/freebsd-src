@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2004
+.Dd September 29, 2004
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -59,9 +59,9 @@
 .Ft void
 .Fn pfil_remove_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
 .Ft int
-.Fn (*func) "void *arg" "struct mbuf **mp" "struct ifnet *" "int dir"
+.Fn (*func) "void *arg" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
 .Ft int
-.Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir"
+.Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
 .Sh DESCRIPTION
 The
 .Nm

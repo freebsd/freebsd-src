@@ -437,7 +437,7 @@ tooshort:
 
 	odst = ip->ip_dst;
 	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif,
-	    PFIL_IN) != 0)
+	    PFIL_IN, NULL) != 0)
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;

@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041003:
+	The pfil API has gained an additional argument to pass an inpcb.
+	You should rebuild all pfil consuming modules: ipfw, ipfilter
+	and pf.
+
 20041001:
 	The following libraries had their version number bumped up:
 		/lib/libm.so.2 -> libm.so.3

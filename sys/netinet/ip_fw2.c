@@ -1532,20 +1532,47 @@ dump_table(ipfw_table *tbl)
 	return (0);
 }
 
+static void
+fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
+{
+	struct ucred *cr;
+
+	if (inp->inp_socket != NULL) {
+		cr = inp->inp_socket->so_cred;
+		ugp->fw_prid = jailed(cr) ?
+		    cr->cr_prison->pr_id : -1;
+		ugp->fw_uid = cr->cr_uid;
+		ugp->fw_ngroups = cr->cr_ngroups;
+		bcopy(cr->cr_groups, ugp->fw_groups,
+		    sizeof(ugp->fw_groups));
+	}
+}
+
 static int
 check_uidgid(ipfw_insn_u32 *insn,
 	int proto, struct ifnet *oif,
 	struct in_addr dst_ip, u_int16_t dst_port,
 	struct in_addr src_ip, u_int16_t src_port,
-	struct ip_fw_ugid *ugp, int *lookup)
+	struct ip_fw_ugid *ugp, int *lookup, struct inpcb *inp)
 {
 	struct inpcbinfo *pi;
 	int wildcard;
 	struct inpcb *pcb;
 	int match;
-	struct ucred *cr;
 	gid_t *gp;
 
+	/*
+	 * Check to see if the UDP or TCP stack supplied us with
+	 * the PCB. If so, rather then holding a lock and looking
+	 * up the PCB, we can use the one that was supplied.
+	 */
+	if (inp && *lookup == 0) {
+		INP_LOCK_ASSERT(inp);
+		if (inp->inp_socket != NULL) {
+			fill_ugid_cache(inp, ugp);
+			*lookup = 1;
+		}
+	}
 	/*
 	 * If we have already been here and the packet has no
 	 * PCB entry associated with it, then we can safely
@@ -1563,7 +1590,7 @@ check_uidgid(ipfw_insn_u32 *insn,
 		return 0;
 	match = 0;
 	if (*lookup == 0) {
-		INP_INFO_RLOCK(pi);	/* XXX LOR with IPFW */
+		INP_INFO_RLOCK(pi);
 		pcb =  (oif) ?
 			in_pcblookup_hash(pi,
 				dst_ip, htons(dst_port),
@@ -1576,13 +1603,7 @@ check_uidgid(ipfw_insn_u32 *insn,
 		if (pcb != NULL) {
 			INP_LOCK(pcb);
 			if (pcb->inp_socket != NULL) {
-				cr = pcb->inp_socket->so_cred;
-				ugp->fw_prid = jailed(cr) ?
-				    cr->cr_prison->pr_id : -1;
-				ugp->fw_uid = cr->cr_uid;
-				ugp->fw_ngroups = cr->cr_ngroups;
-				bcopy(cr->cr_groups, ugp->fw_groups,
-					sizeof(ugp->fw_groups));
+				fill_ugid_cache(pcb, ugp);
 				*lookup = 1;
 			}
 			INP_UNLOCK(pcb);
@@ -1938,7 +1959,7 @@ check_body:
 						    proto, oif,
 						    dst_ip, dst_port,
 						    src_ip, src_port, &fw_ugid_cache,
-						    &ugid_lookup);
+						    &ugid_lookup, args->inp);
 				break;
 
 			case O_RECV:

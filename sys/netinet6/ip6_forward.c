@@ -580,7 +580,7 @@ ip6_forward(m, srcrt)
 		goto pass;
 
 	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT);
+	error = pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
 	if (error != 0)
 		goto senderr;
 	if (m == NULL)

@@ -40,6 +40,7 @@
 
 struct mbuf;
 struct ifnet;
+struct inpcb;
 
 /*
  * The packet filter hooks are designed for anything to call them to
@@ -47,7 +48,7 @@ struct ifnet;
  */
 struct packet_filter_hook {
         TAILQ_ENTRY(packet_filter_hook) pfil_link;
-	int	(*pfil_func)(void *, struct mbuf **, struct ifnet *, int);
+	int	(*pfil_func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *);
 	void	*pfil_arg;
 	int	pfil_flags;
 };
@@ -84,12 +85,12 @@ struct pfil_head {
 };
 
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
-	    int);
+	    int, struct inpcb *inp);
 
 int	pfil_add_hook(int (*func)(void *, struct mbuf **,
-	    struct ifnet *, int), void *, int, struct pfil_head *);
+	    struct ifnet *, int, struct inpcb *), void *, int, struct pfil_head *);
 int	pfil_remove_hook(int (*func)(void *, struct mbuf **,
-	    struct ifnet *, int), void *, int, struct pfil_head *);
+	    struct ifnet *, int, struct inpcb *), void *, int, struct pfil_head *);
 
 int	pfil_head_register(struct pfil_head *);
 int	pfil_head_unregister(struct pfil_head *);

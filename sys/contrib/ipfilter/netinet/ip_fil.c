@@ -312,7 +312,8 @@ int dir;
 }
 # endif
 #endif /* __NetBSD_Version >= 105110000 && _KERNEL */
-#if (__FreeBSD_version >= 501108) && defined(_KERNEL)
+#if (__FreeBSD_version >= 501108) && (__FreeBSD_version < 503001) && \
+    defined(_KERNEL)
 
 static int
 fr_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
@@ -331,7 +332,29 @@ fr_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 		ifp, (dir == PFIL_OUT), mp));
 }
 # endif
-#endif /* __FreeBSD_version >= 501108 */
+
+#elif (__FreeBSD_version >= 503001) && defined(_KERNEL)
+
+static int
+fr_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
+{
+	struct ip *ip = mtod(*mp, struct ip *);
+	return fr_check(ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT), mp);
+}
+
+# ifdef USE_INET6
+#  include <netinet/ip6.h>
+
+static int
+fr_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
+{
+	return (fr_check(mtod(*mp, struct ip *), sizeof(struct ip6_hdr),
+		ifp, (dir == PFIL_OUT), mp));
+}
+# endif
+#endif /* __FreeBSD_version >= 503001 && _KERNEL */
 #ifdef	_KERNEL
 # if	defined(IPFILTER_LKM) && !defined(__sgi)
 int iplidentify(s)

@@ -52,7 +52,7 @@ MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock", MTX_DEF);
 static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
 
 static int pfil_list_remove(pfil_list_t *,
-    int (*)(void *, struct mbuf **, struct ifnet *, int), void *);
+    int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *);
 
 LIST_HEAD(, pfil_head) pfil_head_list =
     LIST_HEAD_INITIALIZER(&pfil_head_list);
@@ -113,7 +113,7 @@ PFIL_WUNLOCK(struct pfil_head *ph)
  */
 int
 pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
-    int dir)
+    int dir, struct inpcb *inp)
 {
 	struct packet_filter_hook *pfh;
 	struct mbuf *m = *mp;
@@ -126,7 +126,7 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	for (pfh = pfil_hook_get(dir, ph); pfh != NULL;
 	     pfh = TAILQ_NEXT(pfh, pfil_link)) {
 		if (pfh->pfil_func != NULL) {
-			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir);
+			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir, inp);
 			if (rv != 0 || m == NULL)
 				break;
 		}
@@ -233,7 +233,7 @@ pfil_head_get(int type, u_long val)
  *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
  */
 int
-pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int),
+pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
     void *arg, int flags, struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh1 = NULL;
@@ -305,7 +305,7 @@ error:
  * hook list.
  */
 int
-pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int),
+pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
     void *arg, int flags, struct pfil_head *ph)
 {
 	int err = 0;
@@ -361,7 +361,7 @@ pfil_list_add(pfil_list_t *list, struct packet_filter_hook *pfh1, int flags)
  */
 static int
 pfil_list_remove(pfil_list_t *list,
-    int (*func)(void *, struct mbuf **, struct ifnet *, int), void *arg)
+    int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *arg)
 {
 	struct packet_filter_hook *pfh;
 

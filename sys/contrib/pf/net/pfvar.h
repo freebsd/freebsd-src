@@ -54,6 +54,9 @@
 #include <netinet/tcp_fsm.h>
 
 struct ip;
+#ifdef __FreeBSD__
+struct inpcb;
+#endif
 
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
 #define	PF_TCPS_PROXY_DST	((TCP_NSTATES)+1)
@@ -1453,11 +1456,19 @@ void				 pf_rm_rule(struct pf_rulequeue *,
 				    struct pf_rule *);
 
 #ifdef INET
+#ifdef __FreeBSD__
+int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
+#else
 int	pf_test(int, struct ifnet *, struct mbuf **);
+#endif
 #endif /* INET */
 
 #ifdef INET6
+#ifdef __FreeBSD__
+int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
+#else
 int	pf_test6(int, struct ifnet *, struct mbuf **);
+#endif
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);

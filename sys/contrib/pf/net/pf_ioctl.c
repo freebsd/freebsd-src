@@ -182,14 +182,14 @@ static void		 pf_clear_srcnodes(void);
  * Wrapper functions for pfil(9) hooks
  */
 static int pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp,
-		int dir);
+		int dir, struct inpcb *inp);
 static int pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp,
-		int dir);
+		int dir, struct inpcb *inp);
 #ifdef INET6
 static int pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp,
-		int dir);
+		int dir, struct inpcb *inp);
 static int pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp,
-		int dir);
+		int dir, struct inpcb *inp);
 #endif
 
 static int 		 hook_pf(void);
@@ -3203,7 +3203,8 @@ shutdown_pf(void)
 }
 
 static int
-pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	/*
 	 * XXX Wed Jul 9 22:03:16 2003 UTC
@@ -3222,7 +3223,7 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 	        HTONS(h->ip_len);
 	        HTONS(h->ip_off);
 	}
-	chk = pf_test(PF_IN, ifp, m);
+	chk = pf_test(PF_IN, ifp, m, inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3237,7 +3238,8 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 }
 
 static int
-pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	/*
 	 * XXX Wed Jul 9 22:03:16 2003 UTC
@@ -3261,7 +3263,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 	        HTONS(h->ip_len);
 	        HTONS(h->ip_off);
 	}
-	chk = pf_test(PF_OUT, ifp, m);
+	chk = pf_test(PF_OUT, ifp, m, inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3277,14 +3279,15 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 
 #ifdef INET6
 static int
-pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	/*
 	 * IPv6 does not affected ip_len/ip_off byte order changes.
 	 */
 	int chk;
 
-	chk = pf_test6(PF_IN, ifp, m);
+	chk = pf_test6(PF_IN, ifp, m, inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3293,7 +3296,8 @@ pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 }
 
 static int
-pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	/*
 	 * IPv6 does not affected ip_len/ip_off byte order changes.
@@ -3305,7 +3309,7 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
 		in_delayed_cksum(*m);
 		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-	chk = pf_test6(PF_OUT, ifp, m);
+	chk = pf_test6(PF_OUT, ifp, m, inp);
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;

@@ -660,7 +660,7 @@ spd_done:
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT);
+	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 
