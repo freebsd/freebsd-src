@@ -255,7 +255,7 @@ npx_intr(dummy)
 	 * (this interrupt may occur after the thread has entered the
 	 * kernel via a syscall or an interrupt).  Otherwise, the npx
 	 * state of the thread that caused this interrupt must have been
-	 * pushed to the thread' pcb, and clearing of the busy latch
+	 * pushed to the thread's pcb, and clearing of the busy latch
 	 * above has finished the (essentially null) handling of this
 	 * interrupt.  Control will eventually return to the instruction
 	 * that caused it and it will repeat.  We will eventually (usually
