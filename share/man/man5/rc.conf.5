@@ -122,7 +122,14 @@ daemon.
 .It Ar local_startup
 (str) List of directories to search for startup script files.
 .It Ar local_periodic
-(str) List of directories to search for periodic scripts (3.0 only).
+(str) List of directories to search for periodic scripts.
+.It Ar man_locales
+(str) Space separated list of man locales installed at system. This value
+is used in periodic when calling
+.Xr catman 1
+or
+.Xr makewhatis 1 .
+They will be executed with -locale option for each of these locales.
 .It Ar hostname
 (str) The Fully Qualified Domain Name of your host on the network.
 This should almost certainly be set to something meaningful, even if
@@ -1046,6 +1053,8 @@ on system operation.
 .It Pa /etc/rc.conf.local
 .El
 .Sh SEE ALSO
+.Xr catman 1 ,
+.Xr makewhatis 1 ,
 .Xr gdb 1 ,
 .Xr info 1 ,
 .Xr exports 5 ,
@@ -1066,6 +1075,7 @@ on system operation.
 .Xr nfsiod 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
+.Xr periodic 8 ,
 .Xr portmap 8 ,
 .Xr quotacheck 8 ,
 .Xr rc 8 ,
