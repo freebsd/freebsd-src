@@ -7,7 +7,12 @@ CRUNCHFLAGS+= -DNOPAM -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT
 all: crunch
 
 crunch:
-	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
+	if [ "${INIT}" = "init" ]; then \
+		echo "progs init getty" >crunch1.conf ; \
+	else \
+		echo "progs ${INIT}" >crunch1.conf ; \
+	fi;
+	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >>crunch1.conf
 	@( if [ -f crunch.inc ] ; then \
 		crunchgen -h ./crunch.inc ./crunch1.conf ; \
 	else \
