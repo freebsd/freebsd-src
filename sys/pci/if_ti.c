@@ -2092,7 +2092,6 @@ static int
 ti_attach(dev)
 	device_t		dev;
 {
-	u_int32_t		command;
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
 	int			unit, error = 0, rid;
@@ -2123,14 +2122,6 @@ ti_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("ti%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
 
 	rid = TI_PCI_LOMEM;
 	sc->ti_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,

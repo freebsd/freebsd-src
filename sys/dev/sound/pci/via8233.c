@@ -739,7 +739,6 @@ via_attach(device_t dev)
 		return ENXIO;
 	}
 
-	pci_enable_io(dev, SYS_RES_IOPORT);
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	pci_enable_busmaster(dev);
 	

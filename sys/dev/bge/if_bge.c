@@ -1448,7 +1448,6 @@ bge_attach(dev)
 	device_t dev;
 {
 	int s;
-	u_int32_t command;
 	struct ifnet *ifp;
 	struct bge_softc *sc;
 	u_int32_t hwcfg = 0;
@@ -1466,14 +1465,6 @@ bge_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("bge%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
 
 	rid = BGE_PCI_BAR0;
 	sc->bge_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
