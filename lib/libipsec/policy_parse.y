@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: policy_parse.y,v 1.10 2000/05/07 05:25:03 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
@@ -25,10 +28,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-/* KAME $Id: policy_parse.y,v 1.1 1999/10/20 01:26:41 sakane Exp $ */
 
 /*
  * IN/OUT bound policy configuration take place such below:
@@ -59,24 +59,24 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 #include <netdb.h>
 
 #include "ipsec_strerror.h"
 
-#define	ATOX(c) \
+#define ATOX(c) \
   (isdigit(c) ? (c - '0') : (isupper(c) ? (c - 'A' + 10) : (c - 'a' + 10) ))
 
 static caddr_t pbuf = NULL;		/* sadb_x_policy buffer */
 static int tlen = 0;			/* total length of pbuf */
 static int offset = 0;			/* offset of pbuf */
-static int p_dir, p_type, p_protocol, p_mode, p_level;
+static int p_dir, p_type, p_protocol, p_mode, p_level, p_reqid;
 static struct sockaddr *p_src = NULL;
 static struct sockaddr *p_dst = NULL;
 
+struct _val;
 extern void yyerror __P((char *msg));
-static struct sockaddr *parse_sockaddr __P((/*struct _val *buf*/));
+static struct sockaddr *parse_sockaddr __P((struct _val *buf));
 static int rule_check __P((void));
 static int init_x_policy __P((void));
 static int set_x_request __P((struct sockaddr *src, struct sockaddr *dst));
@@ -85,8 +85,8 @@ static void policy_parse_request_init __P((void));
 static caddr_t policy_parse __P((char *msg, int msglen));
 
 extern void __policy__strbuffer__init__ __P((char *msg));
-extern int yyparse();
-extern int yylex();
+extern int yyparse __P((void));
+extern int yylex __P((void));
 
 %}
 
@@ -98,12 +98,12 @@ extern int yylex();
 	} val;
 }
 
-%token DIR ACTION PROTOCOL MODE LEVEL
+%token DIR ACTION PROTOCOL MODE LEVEL LEVEL_SPECIFY
 %token IPADDRESS
 %token ME ANY
 %token SLASH HYPHEN
 %type <num> DIR ACTION PROTOCOL MODE LEVEL
-%type <val> IPADDRESS
+%type <val> IPADDRESS LEVEL_SPECIFY
 
 %%
 policy_spec
@@ -116,6 +116,14 @@ policy_spec
 				return -1;
 		}
 		rules
+	|	DIR
+		{
+			p_dir = $1;
+			p_type = 0;	/* ignored it by kernel */
+
+			if (init_x_policy())
+				return -1;
+		}
 	;
 
 rules
@@ -139,11 +147,11 @@ rule
 	|	protocol SLASH mode SLASH SLASH level
 	|	protocol SLASH mode
 	|	protocol SLASH {
-			ipsec_errcode = EIPSEC_FEW_ARGUMENTS;
+			__ipsec_errcode = EIPSEC_FEW_ARGUMENTS;
 			return -1;
 		}
 	|	protocol {
-			ipsec_errcode = EIPSEC_FEW_ARGUMENTS;
+			__ipsec_errcode = EIPSEC_FEW_ARGUMENTS;
 			return -1;
 		}
 	;
@@ -157,7 +165,14 @@ mode
 	;
 
 level
-	:	LEVEL { p_level = $1; }
+	:	LEVEL {
+			p_level = $1;
+			p_reqid = 0;
+		}
+	|	LEVEL_SPECIFY {
+			p_level = IPSEC_LEVEL_UNIQUE;
+			p_reqid = atol($1.buf);	/* atol() is good. */
+		}
 	;
 
 addresses
@@ -174,13 +189,13 @@ addresses
 		}
 	|	ME HYPHEN ANY {
 			if (p_dir != IPSEC_DIR_OUTBOUND) {
-				ipsec_errcode = EIPSEC_INVAL_DIR;
+				__ipsec_errcode = EIPSEC_INVAL_DIR;
 				return -1;
 			}
 		}
 	|	ANY HYPHEN ME {
 			if (p_dir != IPSEC_DIR_INBOUND) {
-				ipsec_errcode = EIPSEC_INVAL_DIR;
+				__ipsec_errcode = EIPSEC_INVAL_DIR;
 				return -1;
 			}
 		}
@@ -195,7 +210,10 @@ void
 yyerror(msg)
 	char *msg;
 {
-	fprintf(stderr, "%s\n", msg);
+	extern char *__libipsecyytext;	/*XXX*/
+
+	fprintf(stderr, "libipsec: %s while parsing \"%s\"\n",
+		msg, __libipsecyytext);
 
 	return;
 }
@@ -213,43 +231,29 @@ parse_sockaddr(buf)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_flags = AI_NUMERICHOST;
 	error = getaddrinfo(buf->buf, serv, &hints, &res);
-	if (error != 0 || res->ai_addr == NULL) {
-		ipsec_set_strerror(error == EAI_SYSTEM ?
-				   gai_strerror(error) : strerror(errno));
+	if (error != 0) {
+		yyerror("invalid IP address");
+		__ipsec_set_strerror(gai_strerror(error));
 		return NULL;
 	}
 
 	if (res->ai_addr == NULL) {
-		ipsec_set_strerror(gai_strerror(error));
+		yyerror("invalid IP address");
+		__ipsec_set_strerror(gai_strerror(error));
 		return NULL;
 	}
 
 	newaddr = malloc(res->ai_addr->sa_len);
 	if (newaddr == NULL) {
-		ipsec_errcode = EIPSEC_NO_BUFS;
+		__ipsec_errcode = EIPSEC_NO_BUFS;
 		freeaddrinfo(res);
 		return NULL;
 	}
 	memcpy(newaddr, res->ai_addr, res->ai_addr->sa_len);
 
-	/*
-	 * XXX: If the scope of the destination is link-local,
-	 * embed the scope-id(in this case, interface index)
-	 * into the address.
-	 */
-	if (newaddr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6;
-
-		sin6 = (struct sockaddr_in6 *)newaddr;
-		if(IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-		   sin6->sin6_scope_id != 0)
-			*(u_short *)&sin6->sin6_addr.s6_addr[2] =
-				htons(sin6->sin6_scope_id & 0xffff);
-	}
-
 	freeaddrinfo(res);
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return newaddr;
 }
 
@@ -258,29 +262,29 @@ rule_check()
 {
 	if (p_type == IPSEC_POLICY_IPSEC) {
 		if (p_protocol == IPPROTO_IP) {
-			ipsec_errcode = EIPSEC_NO_PROTO;
+			__ipsec_errcode = EIPSEC_NO_PROTO;
 			return -1;
 		}
 
 		if (p_mode != IPSEC_MODE_TRANSPORT
 		 && p_mode != IPSEC_MODE_TUNNEL) {
-			ipsec_errcode = EIPSEC_INVAL_MODE;
+			__ipsec_errcode = EIPSEC_INVAL_MODE;
 			return -1;
 		}
 
 		if (p_src == NULL && p_dst == NULL) {
 			 if (p_mode != IPSEC_MODE_TRANSPORT) {
-				ipsec_errcode = EIPSEC_INVAL_ADDRESS;
+				__ipsec_errcode = EIPSEC_INVAL_ADDRESS;
 				return -1;
 			}
 		}
 		else if (p_src->sa_family != p_dst->sa_family) {
-			ipsec_errcode = EIPSEC_FAMILY_MISMATCH;
+			__ipsec_errcode = EIPSEC_FAMILY_MISMATCH;
 			return -1;
 		}
 	}
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return 0;
 }
 
@@ -293,7 +297,7 @@ init_x_policy()
 
 	pbuf = malloc(tlen);
 	if (pbuf == NULL) {
-		ipsec_errcode = EIPSEC_NO_BUFS;
+		__ipsec_errcode = EIPSEC_NO_BUFS;
 		return -1;
 	}
 	p = (struct sadb_x_policy *)pbuf;
@@ -304,7 +308,7 @@ init_x_policy()
 	p->sadb_x_policy_reserved = 0;
 	offset = tlen;
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return 0;
 }
 
@@ -322,7 +326,7 @@ set_x_request(src, dst)
 
 	pbuf = realloc(pbuf, tlen);
 	if (pbuf == NULL) {
-		ipsec_errcode = EIPSEC_NO_BUFS;
+		__ipsec_errcode = EIPSEC_NO_BUFS;
 		return -1;
 	}
 	p = (struct sadb_x_ipsecrequest *)&pbuf[offset];
@@ -330,12 +334,13 @@ set_x_request(src, dst)
 	p->sadb_x_ipsecrequest_proto = p_protocol;
 	p->sadb_x_ipsecrequest_mode = p_mode;
 	p->sadb_x_ipsecrequest_level = p_level;
+	p->sadb_x_ipsecrequest_reqid = p_reqid;
 	offset += sizeof(*p);
 
 	if (set_sockaddr(src) || set_sockaddr(dst))
 		return -1;
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return 0;
 }
 
@@ -344,7 +349,7 @@ set_sockaddr(addr)
 	struct sockaddr *addr;
 {
 	if (addr == NULL) {
-		ipsec_errcode = EIPSEC_NO_ERROR;
+		__ipsec_errcode = EIPSEC_NO_ERROR;
 		return 0;
 	}
 
@@ -354,7 +359,7 @@ set_sockaddr(addr)
 
 	offset += addr->sa_len;
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return 0;
 }
 
@@ -364,6 +369,7 @@ policy_parse_request_init()
 	p_protocol = IPPROTO_IP;
 	p_mode = IPSEC_MODE_ANY;
 	p_level = IPSEC_LEVEL_DEFAULT;
+	p_reqid = 0;
 	if (p_src != NULL) {
 		free(p_src);
 		p_src = NULL;
@@ -401,7 +407,7 @@ policy_parse(msg, msglen)
 	/* update total length */
 	((struct sadb_x_policy *)pbuf)->sadb_x_policy_len = PFKEY_UNIT64(tlen);
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 
 	return pbuf;
 }
@@ -415,12 +421,12 @@ ipsec_set_policy(msg, msglen)
 
 	policy = policy_parse(msg, msglen);
 	if (policy == NULL) {
-		if (ipsec_errcode == EIPSEC_NO_ERROR)
-			ipsec_errcode = EIPSEC_INVAL_ARGUMENT;
+		if (__ipsec_errcode == EIPSEC_NO_ERROR)
+			__ipsec_errcode = EIPSEC_INVAL_ARGUMENT;
 		return NULL;
 	}
 
-	ipsec_errcode = EIPSEC_NO_ERROR;
+	__ipsec_errcode = EIPSEC_NO_ERROR;
 	return policy;
 }
 
