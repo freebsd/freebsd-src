@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/10/05 19:20:36 rnordier Exp $
+#	$Id: Makefile,v 1.3 1998/10/09 17:19:51 rnordier Exp $
 
 PROG=		boot0
 NOMAN=
@@ -15,7 +15,7 @@ boot0: boot0.o
 	dd if=boot0.out of=${.TARGET} ibs=32 skip=1
 .else
 	${LD} -N -e start -Ttext ${ORG} -o boot0.out boot0.o
-	/usr/libexec/elf/objcopy -S -O binary boot0.out ${.TARGET}
+	objcopy -S -O binary boot0.out ${.TARGET}
 .endif
 
 boot0.o: boot0.m4 boot0.s
