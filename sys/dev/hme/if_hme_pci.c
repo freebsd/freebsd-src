@@ -132,13 +132,15 @@ hme_pci_attach(device_t dev)
 	struct hme_softc *sc = &hsc->hsc_hme;
 	int error;
 
-	/*
-	 * Enable memory-space and bus master accesses.  This is kinda of
-	 * gross; but the hme comes up with neither enabled.
-	 */
 	pci_enable_busmaster(dev);
+	/*
+	 * Some Sun HMEs do have their intpin register bogusly set to 0,
+	 * although it should be 1. correct that.
+	 */
+	if (pci_get_intpin(dev) == 0)
+		pci_set_intpin(dev, 1);
 
-	sc->sc_pci = 1; /* XXXXX should all be done in bus_dma. */
+	sc->sc_pci = 1;
 	sc->sc_dev = dev;
 
 	/*
