@@ -384,9 +384,11 @@ struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 	struct	devstat *device_stats;
-	eventhandler_tag clonetag;
 	dev_t	masterdev;
+#ifndef BURN_BRIDGES
+	eventhandler_tag clonetag;
 	dev_t	clonedevs[NUMDENS - 1];
+#endif
 	device_t dev;
 	fdu_t	fdu;
 #ifdef PC98
@@ -515,7 +517,9 @@ static int fdc_detach(device_t dev);
 static void fdc_add_child(device_t, const char *, int);
 static int fdc_attach(device_t);
 static int fdc_print_child(device_t, device_t);
+#ifndef BURN_BRIDGES
 static void fd_clone (void *, char *, int, dev_t *);
+#endif
 static int fd_probe(device_t);
 static int fd_attach(device_t);
 static int fd_detach(device_t);
@@ -1426,6 +1430,7 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
+#ifndef BURN_BRIDGES
 /*
  * Create a clone device upon request by devfs.
  */
@@ -1479,6 +1484,7 @@ fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 			}
 	}
 }
+#endif
 
 /*
  * Configuration/initialization, per drive.
@@ -1719,14 +1725,20 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-	int i;
 
 	fd = device_get_softc(dev);
+#ifndef BURN_BRIDGES
 	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
+#endif
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+#ifndef BURN_BRIDGES
+	{
+	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
 		fd->clonedevs[i] = NODEV;
+	}
+#endif
 	fd->device_stats = devstat_new_entry(device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1738,16 +1750,20 @@ static int
 fd_detach(device_t dev)
 {
 	struct	fd_data *fd;
-	int i;
 
 	fd = device_get_softc(dev);
 	untimeout(fd_turnoff, fd, fd->toffhandle);
 	devstat_remove_entry(fd->device_stats);
 	destroy_dev(fd->masterdev);
+#ifndef BURN_BRIDGES
+	{
+	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
 		if (fd->clonedevs[i] != NODEV)
 			destroy_dev(fd->clonedevs[i]);
 	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
+	}
+#endif
 
 	return (0);
 }
@@ -2012,6 +2028,11 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 			 *
 			 * If UA has been forced, proceed.
 			 *
+			 * If the drive has no changeline support,
+			 * or if the drive parameters have been lost
+			 * due to previous non-blocking access,
+			 * assume a forced UA condition.
+			 *
 			 * If motor is off, turn it on for a moment
 			 * and select our drive, in order to read the
 			 * UA hardware signal.
@@ -2027,7 +2048,8 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 			 */
 			unitattn = 0;
 			if ((dflags & FD_NO_CHLINE) != 0 ||
-			    (fd->flags & FD_UA) != 0) {
+			    (fd->flags & FD_UA) != 0 ||
+			    fd->ft == 0) {
 				unitattn = 1;
 				fd->flags &= ~FD_UA;
 #ifndef PC98
@@ -2095,8 +2117,12 @@ fdstrategy(struct bio *bp)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
 		      (u_long)major(bp->bio_dev), (u_long)minor(bp->bio_dev));
 	fdc = fd->fdc;
+	bp->bio_resid = bp->bio_bcount;
 	if (fd->type == FDT_NONE || fd->ft == 0) {
-		bp->bio_error = ENXIO;
+		if (fd->type != FDT_NONE && (fd->flags & FD_NONBLOCK))
+			bp->bio_error = EAGAIN;
+		else
+			bp->bio_error = ENXIO;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
@@ -2138,9 +2164,7 @@ fdstrategy(struct bio *bp)
  	nblocks = fd->ft->size;
 	if (blknum + bp->bio_bcount / fdblk > nblocks) {
 		if (blknum >= nblocks) {
-			if (bp->bio_cmd == BIO_READ)
-				bp->bio_resid = bp->bio_bcount;
-			else {
+			if (bp->bio_cmd != BIO_READ) {
 				bp->bio_error = ENOSPC;
 				bp->bio_flags |= BIO_ERROR;
 			}
@@ -3171,10 +3195,14 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	switch (cmd) {
 
 	case DIOCGMEDIASIZE:
+		if (fd->ft == 0)
+			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
 		*(off_t *)addr = (128 << (fd->ft->secsize)) * fd->ft->size;
 		return (0);
 
 	case DIOCGSECTORSIZE:
+		if (fd->ft == 0)
+			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
 		*(u_int *)addr = 128 << (fd->ft->secsize);
 		return (0);
 
