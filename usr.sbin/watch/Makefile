@@ -1,5 +1,5 @@
 PROG=	watch
-NOMAN=	
+MAN8=   watch.8
 BINMODE=500
 LDADD=	-ltermcap
 
