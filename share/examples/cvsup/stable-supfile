@@ -24,7 +24,7 @@
 #		This specifies the server host which will supply the
 #		file updates.  You must change it to one of the CVSup
 #		mirror sites listed in the FreeBSD Handbook at
-#		http://www.freebsd.org/handbook/mirrors.html.
+#		http://www.freebsd.org/doc/handbook/mirrors.html.
 #		You can	override this setting on the command line
 #		with cvsup's "-h host" option.
 #
@@ -64,7 +64,7 @@
 # Defaults that apply to all the collections
 #
 # IMPORTANT: Change the next line to use one of the CVSup mirror sites
-# listed at http://www.freebsd.org/handbook/mirrors.html.
+# listed at http://www.freebsd.org/doc/handbook/mirrors.html.
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
