@@ -398,7 +398,7 @@ buildkernel:
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 		${IMAKEENV} MACHINE=${MACHINE} KERNEL=${INSTALLKERNEL} \
-		    ${MAKE} install
+		    ${MAKE} KERNEL=${INSTALLKERNEL} install
 
 #
 # update
