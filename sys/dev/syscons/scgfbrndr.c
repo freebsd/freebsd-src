@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 #include "opt_gfb.h"
+#ifdef __sparc64__
 #include "opt_creator.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
