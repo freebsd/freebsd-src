@@ -160,7 +160,7 @@ aac_pci_probe(device_t dev)
 					      pci_get_subdevice(dev))))) {
 		
 			device_set_desc(dev, m->desc);
-			return(-10);	/* allow room to be overridden */
+			return(BUS_PROBE_DEFAULT);
 		}
 	}
 	return(ENXIO);
