@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: main.c,v 1.2 1994/10/20 04:59:56 phk Exp $
  *
  */
 
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 
 	setjmp(jmp_restart);
 
-	if (getenv("PAUL") || !access("/this_is_boot_flp",R_OK)) {
+	if (getenv("STAGE0") || !access("/this_is_boot_flp",R_OK)) {
 		stage0();
 		stage1();
 		/* XXX This is how stage one should output: */
@@ -98,9 +98,10 @@ main(int argc, char **argv)
 		mountpoint[1] = StrAlloc("/usr");
 		
 		stage2();
-	} else {
+	} else if (getenv("STAGE3)) {
 		stage3();
-	}
+	} else {
+		fprintf(stderr,"Must setenv STAGE0 or STAGE3");
 
 	return 0;
 }
