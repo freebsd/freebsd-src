@@ -32,7 +32,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 1995
+.Dd November 24, 2001
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -40,28 +40,28 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46Adknsuv
+.Op Fl 46Acdknsuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
-.Op Fl m Ar mark_interval
-.Op Fl p Ar log_socket
-.Op Fl P Ar pid_file
 .Op Fl l Ar path
+.Op Fl m Ar mark_interval
+.Op Fl P Ar pid_file
+.Op Fl p Ar log_socket
 .Sh DESCRIPTION
 The
 .Nm
-daemon reads and logs messages to the system console, log files, other
+utility reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl 4
-Forces
+Force
 .Nm
 to use IPv4 addresses only.
 .It Fl 6
-Forces
+Force
 .Nm
 to use IPv6 addresses only.
 .It Fl A
@@ -159,7 +159,7 @@ the IPv4 or IPv6 address which corresponds to it is used.
 .It Fl c
 Disable the compression of repeated instances of the same line
 into a single line of the form
-.Dq last message repeated N times
+.Dq Li "last message repeated N times"
 when the output is a pipe to another program.
 If specified twice, disable this compression in all cases.
 .It Fl d
@@ -223,7 +223,7 @@ message.
 .Pp
 The
 .Nm
-daemon reads its configuration file when it starts up and whenever it
+utility reads its configuration file when it starts up and whenever it
 receives a hangup signal.
 For information on the format of the configuration file,
 see
@@ -231,8 +231,8 @@ see
 .Pp
 The
 .Nm
-daemon reads messages from the
-.Tn UNIX
+utility reads messages from the
+.Ux
 domain socket
 .Pa /var/run/log ,
 from an Internet domain socket specified in
@@ -243,7 +243,7 @@ and from the special device
 .Pp
 The
 .Nm
-daemon creates its process ID file,
+utility creates its process ID file,
 by default
 .Pa /var/run/syslog.pid ,
 and stores its process
@@ -274,7 +274,7 @@ configuration file
 default process ID file
 .It Pa /var/run/log
 name of the
-.Tn UNIX
+.Ux
 domain datagram log socket
 .It Pa /dev/klog
 kernel log device
@@ -287,7 +287,7 @@ kernel log device
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.3 .
 .Pp
 The
