@@ -45,7 +45,7 @@
 
 /* Node type name */
 #define NG_RFC1490_NODE_TYPE		"rfc1490"
-#define NGM_RFC1490_NODE_COOKIE		861060632
+#define NGM_RFC1490_COOKIE		861060632
 
 /* Hook names */
 #define NG_RFC1490_HOOK_DOWNSTREAM	"downstream"

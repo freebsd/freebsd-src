@@ -61,11 +61,9 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_async.h>
+#include <netgraph/ng_parse.h>
 
 #include <net/ppp_defs.h>
-
-/* LCP protocol number */
-#define PROTO_LCP	0xc021
 
 /* Async decode state */
 #define MODE_HUNT	0
@@ -73,7 +71,7 @@
 #define MODE_ESC	2
 
 /* Private data structure */
-struct private {
+struct ng_async_private {
 	node_p  	node;		/* Our node */
 	hook_p  	async;		/* Asynchronous side */
 	hook_p  	sync;		/* Synchronous side */
@@ -86,7 +84,7 @@ struct private {
 	struct		ng_async_cfg	cfg;	/* Configuration */
 	struct		ng_async_stat	stats;	/* Statistics */
 };
-typedef struct private *sc_p;
+typedef struct ng_async_private *sc_p;
 
 /* Useful macros */
 #define ASYNC_BUF_SIZE(smru)	(2 * (smru) + 10)
@@ -94,7 +92,7 @@ typedef struct private *sc_p;
 #define ERROUT(x)		do { error = (x); goto done; } while (0)
 
 /* Netgraph methods */
-static ng_constructor_t	nga_constructor;
+static ng_constructor_t		nga_constructor;
 static ng_rcvdata_t		nga_rcvdata;
 static ng_rcvmsg_t		nga_rcvmsg;
 static ng_shutdown_t		nga_shutdown;
@@ -104,6 +102,55 @@ static ng_disconnect_t		nga_disconnect;
 /* Helper stuff */
 static int	nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta);
 static int	nga_rcv_async(const sc_p sc, struct mbuf *m, meta_p meta);
+
+/* Parse type for struct ng_async_cfg */
+static const struct ng_parse_struct_info
+	nga_config_type_info = NG_ASYNC_CONFIG_TYPE_INFO;
+static const struct ng_parse_type nga_config_type = {
+	&ng_parse_struct_type,
+	&nga_config_type_info
+};
+
+/* Parse type for struct ng_async_stat */
+static const struct ng_parse_struct_info
+	nga_stats_type_info = NG_ASYNC_STATS_TYPE_INFO;
+static const struct ng_parse_type nga_stats_type = {
+	&ng_parse_struct_type,
+	&nga_stats_type_info,
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist nga_cmdlist[] = {
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_SET_CONFIG,
+	  "setconfig",
+	  &nga_config_type,
+	  NULL
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_GET_CONFIG,
+	  "getconfig",
+	  NULL,
+	  &nga_config_type
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_GET_STATS,
+	  "getstats",
+	  NULL,
+	  &nga_stats_type
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_CLR_STATS,
+	  "clrstats",
+	  &nga_stats_type,
+	  NULL
+	},
+	{ 0 }
+};
 
 /* Define the netgraph node type */
 static struct ng_type typestruct = {
@@ -118,7 +165,8 @@ static struct ng_type typestruct = {
 	NULL,
 	nga_rcvdata,
 	nga_rcvdata,
-	nga_disconnect
+	nga_disconnect,
+	nga_cmdlist
 };
 NETGRAPH_INIT(async, &typestruct);
 
@@ -238,7 +286,6 @@ nga_rcvmsg(node_p node, struct ng_mesg *msg,
 			    || cfg->smru > NG_ASYNC_MAX_MRU)
 				ERROUT(EINVAL);
 			cfg->enabled = !!cfg->enabled;	/* normalize */
-			cfg->acfcomp = !!cfg->acfcomp;	/* normalize */
 			if (cfg->smru > sc->cfg.smru) {	/* reallocate buffer */
 				MALLOC(buf, u_char *, ASYNC_BUF_SIZE(cfg->smru),
 				    M_NETGRAPH, M_NOWAIT);
@@ -358,7 +405,7 @@ static int
 nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 {
 	struct ifnet *const rcvif = m->m_pkthdr.rcvif;
-	int acfcomp, alen, error = 0;
+	int alen, error = 0;
 	struct timeval time;
 	u_int16_t fcs, fcs0;
 	u_int32_t accm;
@@ -371,28 +418,20 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 		return (error);
 	}
 
-	/* Defaults for ACF compression and ACCM */
+	/* Get ACCM; special case LCP frames, which use full ACCM */
 	accm = sc->cfg.accm;
-	acfcomp = sc->cfg.acfcomp;
+	if (m->m_pkthdr.len >= 4) {
+		static const u_char lcphdr[4] = {
+		    PPP_ALLSTATIONS,
+		    PPP_UI,
+		    (u_char)(PPP_LCP >> 8),
+		    (u_char)(PPP_LCP & 0xff)
+		};
+		u_char buf[4];
 
-	/* Special case LCP frames: disable ACF and enable ACCM */
-	{
-		struct mbuf *n = m;
-		int off, proto;
-
-		for (proto = off = 0; (proto & 1) == 0; off++) {
-			while (n != NULL && off >= n->m_len) {
-				n = n->m_next;
-				off = 0;
-			}
-			if (n == NULL)
-				break;
-			proto = (proto << 8) | mtod(n, u_char *)[off];
-		}
-		if (proto == PROTO_LCP) {
+		m_copydata(m, 0, 4, (caddr_t)buf);
+		if (bcmp(buf, &lcphdr, 4) == 0)
 			accm = ~0;
-			acfcomp = 0;
-		}
 	}
 
 	/* Check for overflow */
@@ -417,11 +456,7 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 		sc->lasttime = time.tv_sec;
 	}
 
-	/* Add option address and control fields, then packet payload */
-	if (!acfcomp) {
-		ADD_BYTE(PPP_ALLSTATIONS);
-		ADD_BYTE(PPP_UI);
-	}
+	/* Add packet payload */
 	while (m != NULL) {
 		struct mbuf *n;
 

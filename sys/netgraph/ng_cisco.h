@@ -56,21 +56,38 @@
 
 /* Netgraph commands */
 enum {
-	/* This takes two struct in_addr's: the IP address and netmask */
-	NGM_CISCO_SET_IPADDR = 1,
-
-	/* This is both received and *sent* by this node (to the "inet"
-	   peer). The reply contains the same info as NGM_CISCO_SET_IPADDR. */
-	NGM_CISCO_GET_IPADDR,
-
-	/* This returns a struct ngciscostat (see below) */
-	NGM_CISCO_GET_STATUS,
+	NGM_CISCO_SET_IPADDR = 1,	/* requires a struct ng_cisco_ipaddr */
+	NGM_CISCO_GET_IPADDR,		/* returns a struct ng_cisco_ipaddr */
+	NGM_CISCO_GET_STATUS,		/* returns a struct ng_cisco_stat */
 };
 
-struct ngciscostat {
-	u_int32_t   seq_retries;		/* # unack'd retries */
-	u_int32_t   keepalive_period;	/* in seconds */
+struct ng_cisco_ipaddr {
+	struct in_addr	ipaddr;		/* IP address */
+	struct in_addr	netmask;	/* Netmask */
 };
+
+/* Keep this in sync with the above structure definition */
+#define NG_CISCO_IPADDR_TYPE_INFO	{			\
+	{							\
+	  { "ipaddr",		&ng_parse_ipaddr_type	},	\
+	  { "netmask",		&ng_parse_ipaddr_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+struct ng_cisco_stats {
+	u_int32_t   seqRetries;		/* # unack'd retries */
+	u_int32_t   keepAlivePeriod;	/* in seconds */
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_CISCO_STATS_TYPE_INFO	{			\
+	{							\
+	  { "seqRetries",	&ng_parse_int32_type	},	\
+	  { "keepAlivePeriod",	&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
 
 #endif /* _NETGRAPH_CISCO_H_ */
 

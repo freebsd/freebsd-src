@@ -57,6 +57,7 @@
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_ppp.h>
 #include <netgraph/ng_vjc.h>
 
@@ -162,7 +163,7 @@ static const char *const ng_ppp_hook_names[] = {
 #define HOOK_INDEX(hook)	(*((int16_t *) &(hook)->private))
 
 /* Node private data */
-struct private {
+struct ng_ppp_private {
 	struct ng_ppp_node_config	conf;
 	struct ng_ppp_link_stat		bundleStats;
 	struct ng_ppp_link_stat		linkStats[NG_PPP_MAX_LINKS];
@@ -178,7 +179,7 @@ struct private {
 					frags;		/* incoming fragments */
 	int				mpSeqOut;	/* next out MP seq # */
 };
-typedef struct private *priv_p;
+typedef struct ng_ppp_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ppp_constructor;
@@ -205,6 +206,78 @@ static int	ng_ppp_config_valid(node_p node,
 static void	ng_ppp_update(node_p node, int newConf);
 static void	ng_ppp_free_frags(node_p node);
 
+/* Parse type for struct ng_ppp_link_config */
+static const struct ng_parse_struct_info
+	ng_ppp_link_type_info = NG_PPP_LINK_TYPE_INFO;
+static const struct ng_parse_type ng_ppp_link_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_link_type_info,
+};
+
+/* Parse type for struct ng_ppp_node_config */
+struct ng_parse_fixedarray_info ng_ppp_array_info = {
+	&ng_ppp_link_type,
+	NG_PPP_MAX_LINKS
+};
+static const struct ng_parse_type ng_ppp_link_array_type = {
+	&ng_parse_fixedarray_type,
+	&ng_ppp_array_info,
+};
+static const struct ng_parse_struct_info ng_ppp_config_type_info
+	= NG_PPP_CONFIG_TYPE_INFO(&ng_ppp_link_array_type);
+static const struct ng_parse_type ng_ppp_config_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_config_type_info
+};
+
+/* Parse type for struct ng_ppp_link_stat */
+static const struct ng_parse_struct_info
+	ng_ppp_stats_type_info = NG_PPP_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_ppp_stats_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_stats_type_info
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_ppp_cmds[] = {
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_SET_CONFIG,
+	  "setconfig",
+	  &ng_ppp_config_type,
+	  NULL
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GET_CONFIG,
+	  "getconfig",
+	  NULL,
+	  &ng_ppp_config_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GET_LINK_STATS,
+	  "getstats",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_CLR_LINK_STATS,
+	  "clrstats",
+	  &ng_parse_int16_type,
+	  NULL
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GETCLR_LINK_STATS,
+	  "getclrstats",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats_type
+	},
+	{ 0 }
+};
+
 /* Node type descriptor */
 static struct ng_type ng_ppp_typestruct = {
 	NG_VERSION,
@@ -218,7 +291,8 @@ static struct ng_type ng_ppp_typestruct = {
 	NULL,
 	ng_ppp_rcvdata,
 	ng_ppp_rcvdata,
-	ng_ppp_disconnect
+	ng_ppp_disconnect,
+	ng_ppp_cmds
 };
 NETGRAPH_INIT(ppp, &ng_ppp_typestruct);
 
@@ -276,7 +350,8 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 	/* Figure out which hook it is */
 	if (strncmp(name, NG_PPP_HOOK_LINK_PREFIX,	/* a link hook? */
 	    strlen(NG_PPP_HOOK_LINK_PREFIX)) == 0) {
-		const char *cp, *eptr;
+		const char *cp;
+		char *eptr;
 
 		cp = name + strlen(NG_PPP_HOOK_LINK_PREFIX);
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
@@ -333,7 +408,7 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 		case NGM_PPP_SET_CONFIG:
 		    {
 			struct ng_ppp_node_config *const newConf =
-				(struct ng_ppp_node_config *) msg->data;
+			    (struct ng_ppp_node_config *) msg->data;
 
 			/* Check for invalid or illegal config */
 			if (msg->header.arglen != sizeof(*newConf))
@@ -625,7 +700,20 @@ ng_ppp_rmnode(node_p node)
 static int
 ng_ppp_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
+	const node_p node = hook->node;
+	const priv_p priv = node->private;
+	const int index = HOOK_INDEX(hook);
+
+	/* Zero out hook pointer */
+	if (index < 0)
+		priv->links[~index] = NULL;
+	else
+		priv->hooks[index] = NULL;
+
+	/* Update derived info (or go away if no hooks left) */
+	if (node->numhooks > 0)
+		ng_ppp_update(node, 0);
+	else
 		ng_rmnode(hook->node);
 	return (0);
 }
@@ -1062,7 +1150,8 @@ deliver:
 				meta2 = meta;
 
 			/* Send fragment */
-			error = ng_ppp_output(node, 0, PROT_MP, linkNum, m2, meta2);
+			error = ng_ppp_output(node, 0,
+			    PROT_MP, linkNum, m2, meta2);
 			if (error != 0) {
 				if (!lastFragment)
 					NG_FREE_DATA(m, meta);

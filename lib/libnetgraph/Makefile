@@ -9,8 +9,7 @@ SHLIB_MAJOR=	1
 
 SRCS=		sock.c msg.c debug.c
 
-CFLAGS+=	-g -Wall -O2 -Werror
-CFLAGS+=	-I/usr/src.freefall/sys
+CFLAGS+=	-g -Wall
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/netgraph.h \

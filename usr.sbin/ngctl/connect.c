@@ -49,7 +49,8 @@ const struct ngcmd connect_cmd = {
 	" \"path\" and \"relpath\" using hooks \"hook\" and \"peerhook\","
 	" respectively. The \"relpath\", if not absolute, is specified"
 	" relative to the node at \"path\"."
-	" If \"path\" is omitted then \".\" is assumed."
+	" If \"path\" is omitted then \".\" is assumed.",
+	{ "join" }
 };
 
 static int

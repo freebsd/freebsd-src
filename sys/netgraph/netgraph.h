@@ -112,7 +112,7 @@ struct meta_field_header {
 };
 
 /* To zero out an option 'in place' set it's cookie to this */
-#define INVALID_COOKIE 865455152
+#define NGM_INVALID_COOKIE	865455152
 
 /* This part of the metadata is always present if the pointer is non NULL */
 struct ng_meta {
@@ -132,7 +132,7 @@ typedef struct ng_meta *meta_p;
 /* node method definitions */
 typedef	int	ng_constructor_t(node_p *node);
 typedef	int	ng_rcvmsg_t(node_p node, struct ng_mesg *msg,
-				const char *retaddr, struct ng_mesg **resp);
+			const char *retaddr, struct ng_mesg **resp);
 typedef	int	ng_shutdown_t(node_p node);
 typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
 typedef	hook_p	ng_findhook_t(node_p node, const char *name);
@@ -141,12 +141,26 @@ typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta);
 typedef	int	ng_disconnect_t(hook_p hook);
 
 /*
+ * Command list -- each node type specifies the command that it knows
+ * how to convert between ASCII and binary using an array of these.
+ * The last element in the array must be a terminator with cookie=0.
+ */
+
+struct ng_cmdlist {
+	u_int32_t			cookie;		/* command typecookie */
+	int				cmd;		/* command number */
+	const char			*name;		/* command name */
+	const struct ng_parse_type	*mesgType;	/* args if !NGF_RESP */
+	const struct ng_parse_type	*respType;	/* args if NGF_RESP */
+};
+
+/*
  * Structure of a node type
  */
 struct ng_type {
 
-	u_int32_t version; 		/* must equal NG_VERSION */
-	const	char *name;		/* Unique type name */
+	u_int32_t	version; 	/* must equal NG_VERSION */
+	const		char *name;	/* Unique type name */
 	modeventhand_t	mod_event;	/* Module event handler (optional) */
 	ng_constructor_t *constructor;	/* Node constructor */
 	ng_rcvmsg_t	*rcvmsg;	/* control messages come here */
@@ -158,7 +172,9 @@ struct ng_type {
 	ng_rcvdata_t	*rcvdataq;	/* or here if been queued */
 	ng_disconnect_t	*disconnect;	/* notify on disconnect */
 
-	/* R/W data  private to the base netgraph code DON'T TOUCH!*/
+	const struct	ng_cmdlist *cmdlist;	/* commands we can convert */
+
+	/* R/W data private to the base netgraph code DON'T TOUCH! */
 	LIST_ENTRY(ng_type) types;		/* linked list of all types */
 	int		    refs;		/* number of instances */
 };

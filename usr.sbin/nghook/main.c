@@ -200,7 +200,7 @@ WriteAscii(u_char *buf, int len)
 				    sizeof(sbuf) - strlen(sbuf), "%c", ch);
 			} else
 				snprintf(sbuf + strlen(sbuf),
-				    sizeof(sbuf) - strlen(sbuf), "   ");
+				    sizeof(sbuf) - strlen(sbuf), " ");
 		snprintf(sbuf + strlen(sbuf),
 		    sizeof(sbuf) - strlen(sbuf), "\n");
 		(void) write(1, sbuf, strlen(sbuf));

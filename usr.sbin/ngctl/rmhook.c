@@ -47,7 +47,8 @@ const struct ngcmd rmhook_cmd = {
 	"Disconnect hook \"hook\" of the node at \"path\"",
 	"The rmhook command forces the node at \"path\" to break the link"
 	" formed by its hook \"hook\", if connected."
-	" If \"path\" is omitted then \".\" is assumed."
+	" If \"path\" is omitted then \".\" is assumed.",
+	{ "disconnect" }
 };
 
 static int

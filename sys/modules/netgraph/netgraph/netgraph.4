@@ -57,7 +57,7 @@ Nodes communicate along the edges to process data, implement protocols, etc.
 The aim of
 .Nm 
 is to supplement rather than replace the existing kernel networking
-infrastructure. It provides:
+infrastructure.  It provides:
 .Pp
 .Bl -bullet -compact -offset 2n
 .It
@@ -132,8 +132,19 @@ in the graph, one edge at a time. The first mbuf in a chain must have the
 .Dv M_PKTHDR
 flag set. Each node decides how to handle data coming in on its hooks.
 .Pp
-Control messages are type-specific structures sent from one node directly
-to an arbitrary other node. There are two ways to address such a message. If
+Control messages are type-specific C structures sent from one node
+directly to some arbitrary other node.  Control messages have a common
+header format, followed by type-specific data, and are binary structures
+for efficiency.  However, node types also may support conversion of the
+type specific data between binary and
+ASCII for debugging and human interface purposes (see the
+.Dv NGM_ASCII2BINARY
+and
+.Dv NGM_BINARY2ASCII
+generic control messages below).  Nodes are not required to support
+these conversions.
+.Pp
+There are two ways to address a control message. If
 there is a sequence of edges connecting the two nodes, the message
 may be ``source routed'' by specifying the corresponding sequence
 of hooks as the destination address for the message (relative
@@ -448,8 +459,17 @@ incrementing
 From a hook you can obtain the corresponding node, and from
 a node the list of all active hooks.
 .Pp
-Node types are described by this structure:
+Node types are described by these structures:
 .Bd -literal
+/** How to convert a control message from binary <-> ASCII */
+struct ng_cmdlist {
+  u_int32_t                  cookie;     /* typecookie */
+  int                        cmd;        /* command number */
+  const char                 *name;      /* command name */
+  const struct ng_parse_type *mesgType;  /* args if !NGF_RESP */
+  const struct ng_parse_type *respType;  /* args if NGF_RESP */
+};
+
 struct ng_type {
   u_int32_t version;                    /* Must equal NG_VERSION */
   const  char *name;                    /* Unique type name */
@@ -476,6 +496,9 @@ struct ng_type {
             struct mbuf *m,                     /* The data in an mbuf */
             meta_p meta);                       /* Meta-data, if any */
   int    (*disconnect)(hook_p hook);    /* Notify disconnection of hook */
+
+  /** How to convert control messages binary <-> ASCII */
+  const struct ng_cmdlist *cmdlist; 	/* Optional; may be NULL */
 };
 .Ed
 .Pp
@@ -554,6 +577,58 @@ purposes only).
 .Pp
 Some modules may choose to implement messages from more than one 
 of the header files and thus recognize more than one type cookie. 
+.Sh Control Message ASCII Form
+Control messages are in binary format for efficiency.  However, for
+debugging and human interface purposes, and if the node type supports
+it, control messages may be converted to and from an equivalent ASCII
+form.  The ASCII form is similar to the binary form, with two exceptions:
+.Pp
+.Bl -tag -compact -width xxx
+.It o
+The
+.Dv cmdstr
+header field must contain the ASCII name of the command, corresponding to the
+.Dv cmd
+header field.
+.It o
+The
+.Dv args
+field contains a NUL-terminated ASCII string version of the message arguments.
+.El
+.Pp
+In general, the arguments field of a control messgage can be any
+arbitrary C data type.  Netgraph includes parsing routines to support
+some pre-defined datatypes in ASCII with this simple syntax:
+.Pp
+.Bl -tag -compact -width xxx
+.It o
+Integer types are represented by base 8, 10, or 16 numbers.
+.It o
+Strings are enclosed in double quotes and respect the normal
+C language backslash escapes.
+.It o
+IP addresses have the obvious form.
+.It o
+Arrays are enclosed in square brackets, with the elements listed
+consecutively starting at index zero.  An element may have an optional
+index and equals sign preceeding it.  Whenever an element
+does not have an explicit index, the index is implicitly the previous
+element's index plus one.
+.It o
+Structures are enclosed in curly braces, and each field is specified
+in the form ``fieldname=value''.
+.It o
+Any array element or structure field whose value is equal to its
+``default value'' may be omitted. For integer types, the default value
+is usually zero; for string types, the empty string.
+.It o
+Array elements and structure fields may be specified in any order.
+.El
+.Pp
+Each node type may define its own arbitrary types by providing
+the necessary routines to parse and unparse.  ASCII forms defined
+for a specific node type are documented in the documentation for
+that node type.
 .Sh Generic Control Messages
 There are a number of standard predefined messages that will work
 for any node, as they are supported directly by the framework itself.
@@ -612,6 +687,31 @@ elect to not support this message. The text response must be less than
 .Dv NG_TEXTRESPONSE
 bytes in length (presently 1024). This can be used to return general
 status information in human readable form.
+.It Dv NGM_BINARY2ASCII
+This message converts a binary control message to its ASCII form.
+The entire control message to be converted is contained within the
+arguments field of the
+.Dv Dv NGM_BINARY2ASCII
+message itself.  If successful, the reply will contain the same control
+message in ASCII form.
+A node will typically only know how to translate messages that it
+itself understands, so the target node of the
+.Dv NGM_BINARY2ASCII
+is often the same node that would actually receive that message.
+.It Dv NGM_ASCII2BINARY
+The opposite of
+.Dv NGM_BINARY2ASCII .
+The entire control message to be converted, in ASCII form, is contained
+in the arguments section of the
+.Dv NGM_ASCII2BINARY
+and need only have the
+.Dv flags ,
+.Dv cmdstr ,
+and
+.Dv arglen
+header fields filled in, plus the NUL-terminated string version of
+the arguments in the arguments field.  If successful, the reply
+contains the binary version of the control message.
 .El
 .Sh Metadata
 Data moving through the
