@@ -74,7 +74,7 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2>
     <title>Hardware Requirements</title>
 
-    <para arch="i386">&os; for the &arch.print; requires a 386 or better
+    <para arch="i386,pc98">&os; for the &arch.print; requires a 386 or better
     processor to run (sorry, there is no support for 286 processors)
     and at least 5 megs of RAM to install and 4 megs of RAM to
     run. You will need at least 100MB of free hard drive space for the
@@ -119,10 +119,16 @@ from {alpha,i386}/INSTALL.TXT.
   supports bootable CDROMs, the steps outlined in this section will
   not be needed and can be skipped.</para>
 
-  <para>For a normal CDROM or network installation, all you need to
+  <para arch="i386,alpha">For a normal CDROM or network installation, all you need to
   copy onto actual floppies from the <filename>floppies/</filename> directory are the
   <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
   images (for 1.44MB floppies).</para>
+
+  <para arch="pc98">For a normal CDROM or network installation, all you need
+  to copy onto actual floppies from the <filename>floppies/</filename>
+  directory are the <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
+  images (for 1.44MB floppies) or <filename>kern-small.flp</filename> and
+  <filename>mfsroot-small.flp</filename> images (for 1.2MB floppies).</para>
 
   <para>Getting these images over the network is easy.  Simply fetch
   the
@@ -137,7 +143,7 @@ from {alpha,i386}/INSTALL.TXT.
     <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
   </para>
 
-  <para>Get two blank, freshly formatted floppies and image copy
+  <para arch="i386,alpha">Get two blank, freshly formatted floppies and image copy
   <filename>kern.flp</filename> onto one and <filename>mfsroot.flp</filename> onto the other.  These images are
   <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
   as regular files, you need to <quote>image</quote> copy them to the floppy with
@@ -145,22 +151,36 @@ from {alpha,i386}/INSTALL.TXT.
   <filename>tools</filename> directory on your CDROM or &os; FTP
   mirror) or the &man.dd.1; command in UNIX.</para>
 
+  <para arch="pc98">Get two blank, freshly formatted floppies and image copy
+  <filename>kern.flp</filename> onto one and <filename>mfsroot.flp</filename> onto the other.  These images are
+  <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
+  as regular files, you need to <quote>image</quote> copy them to the floppy with
+  <filename>rawrite.exe</filename> under DOS (see the
+  <filename>tools</filename> directory on your CDROM or &os; FTP
+  mirror) or the &man.dd.1; command in UNIX.</para>
+
   <para>For example, to create the kernel floppy image from DOS, you'd
   do something like this:</para>
 
-  <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+  <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+  <screen arch="pc98"><prompt>A></prompt> <userinput>rawrite</userinput></screen>
 
-  <para>Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
+  <para arch="i386,alpha">Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
+  somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
+
+  <para arch="pc98">Assuming that you'd copied <filename>rawrite.exe</filename> and <filename>kern.flp</filename> into a directory
   somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
 
   <para>If you're creating the boot floppy from a UNIX machine, you
   may find that:</para>
 
-  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+  <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+  <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0.1440</userinput></screen>
 
   <para>or</para>
 
-  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+  <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+  <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern-small.flp of=/dev/rfd0.1200</userinput></screen>
 
   <para>work well, depending on your hardware and operating system
   environment (different versions of UNIX have different names
@@ -206,9 +226,38 @@ from {alpha,i386}/INSTALL.TXT.
         </itemizedlist>
       </para>
 
+      <para arch="pc98">The easiest type of installation is from
+      CDROM.  If you have a supported CDROM drive and a &os;
+      installation CDROM, there is a next way of starting the
+      installation from it:
+        <itemizedlist>
+	  <listitem>
+	    <para>Build a set of &os; boot floppies from the
+            <filename>floppies/</filename> directory in every &os;
+            distribution.  Read <xref linkend="floppies"> for more
+            information on creating the bootable floppies under
+            different operating systems.  Then you simply boot from
+            the first floppy and you should soon be in the &os;
+            installation.</para>
+          </listitem>
+        </itemizedlist>
+      </para>
+
       <para arch="i386">If you don't have a CDROM (or your computer does not
       support booting from CDROM) and would like to simply install
       over the net using PPP, SLIP or a dedicated connection.
+      You should start the installation by building
+      a set of &os; boot floppies from the files
+      <filename>floppies/kern.flp</filename> and
+      <filename>floppies/mfsroot.flp</filename> using the instructions
+      found in <xref linkend="floppies">.  Restart your computer using
+      the <filename>kern.flp</filename> disk; when prompted, insert
+      the <filename>mfsroot.flp</filename> disk.  Then, please go to
+      <xref linkend="ftpnfs"> for additional tips on installing
+      via FTP or NFS.</para>
+
+      <para arch="pc98">If you don't have a CDROM and would like to
+      simply install over the net using PPP, SLIP or a dedicated connection.
       You should start the installation by building
       a set of &os; boot floppies from the files
       <filename>floppies/kern.flp</filename> and
@@ -434,23 +483,35 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <quote>Floppy</quote> and you'll be prompted for the rest.</para>
     </sect3>
 
-    <sect3 arch="i386">
+    <sect3 arch="i386,pc98">
       <title>Installing from a DOS partition</title>
 
-      <para>To prepare for installation from an MS-DOS partition you
+      <para arch="i386">To prepare for installation from an MS-DOS partition you
       should simply copy the files from the distribution into a
       directory called <filename>FREEBSD</filename> on the Primary DOS partition (<devicename>C:</devicename>).  For example, to do a minimal installation of &os; from
       DOS using files copied from the CDROM, you might do something
       like this:</para>
 
-      <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
+      <para arch="pc98">To prepare for installation from an MS-DOS partition you
+      should simply copy the files from the distribution into a
+      directory called <filename>FREEBSD</filename> on the Primary DOS partition (<devicename>A:</devicename>).  For example, to do a minimal installation of &os; from
+      DOS using files copied from the CDROM, you might do something
+      like this:</para>
+
+      <screen arch="i386"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
 <prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+      <screen arch="pc98"><prompt>A:\></prompt> <userinput>MD A:\FREEBSD</userinput>
+<prompt>A:\></prompt> <userinput>XCOPY /S E:\BIN A:\FREEBSD\BIN</userinput></screen>
 
       <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
 
-      <para>For as many distributions as you wish to install from DOS (and
+      <para arch="i386">For as many distributions as you wish to install from DOS (and
       you have free space for), install each one in a directory under
       <filename>C:\FREEBSD</filename> - the <filename>BIN</filename> dist is only the minimal requirement.</para>
+
+      <para arch="pc98">For as many distributions as you wish to install from DOS (and
+      you have free space for), install each one in a directory under
+      <filename>A:\FREEBSD</filename> - the <filename>BIN</filename> dist is only the minimal requirement.</para>
 
       <para>Once you've copied the directories, you can simply launch
       the installation from floppies as normal and select <quote>DOS</quote> as
@@ -669,7 +730,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
       </sect4>
     </sect3>
-    <sect3>
+    <sect3 arch="i386,alpha">
       <title>Tips for Serial Console Users</title>
 
       <para>If you'd like to install &os; on a machine using just a
