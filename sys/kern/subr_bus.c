@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.10 1998/11/14 21:58:51 wollman Exp $
+ *	$Id: subr_bus.c,v 1.11 1998/11/15 18:11:21 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -810,9 +810,9 @@ device_probe_and_attach(device_t dev)
 	return 0;
 
     if (dev->flags & DF_ENABLED) {
-	device_probe_child(bus, dev);
-	device_print_child(bus, dev);
-	if (dev->state == DS_ALIVE) {
+	error = device_probe_child(bus, dev);
+	if (!error) {
+	    device_print_child(bus, dev);
 	    error = DEVICE_ATTACH(dev);
 	    if (!error)
 		dev->state = DS_ATTACHED;
@@ -1257,7 +1257,7 @@ driver_module_handler(module_t mod, int what, void *arg)
 	case MOD_LOAD:
 		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
 			PDEBUG(("Loading module: driver %s on bus %s",
-				DRIVERNAME(dmd->dmd_driver[i]), 
+				DRIVERNAME(dmd->dmd_drivers[i]), 
 				dmd->dmd_busname));
 			error = devclass_add_driver(bus_devclass,
 						    dmd->dmd_drivers[i]);
