@@ -213,6 +213,7 @@ read_piece(char *input_file)
     char line[200];
     char delta[30];
     char pname[1000];
+    char tname[1000];
     char junk[2];
 
     ifp = stdin;
@@ -241,9 +242,10 @@ read_piece(char *input_file)
 		*s = '_';
 
 	    mk_piece_name(pname, delta, pce, npieces);
-	    if ((ofp = fopen(pname, "w")) == NULL)
+	    sprintf(tname,"tmp.%s",pname);
+	    if ((ofp = fopen(tname, "w")) == NULL)
 		{
-		err("cannot open '%s' for writing", pname);
+		err("cannot open '%s' for writing", tname);
 		status++;
 		continue;
 		}
@@ -267,7 +269,7 @@ read_piece(char *input_file)
 	    fclose(ofp);
 
 	    if (e)
-		err("error writing %s", pname);
+		err("error writing %s", tname);
 
 	    if (cksum != claimed_cksum)
 		err("checksum: read %d, calculated %d", claimed_cksum, cksum);
@@ -275,7 +277,15 @@ read_piece(char *input_file)
 	    if (e || cksum != claimed_cksum)
 		{
 		err("%s %d/%d discarded", delta, pce, npieces);
-		unlink(pname);
+		unlink(tname);
+		status++;
+		continue;
+		}
+
+	    if (rename(tname, pname) < 0)
+		{
+		err("error renaming %s to %s",tname,pname);
+		unlink(tname);
 		status++;
 		continue;
 		}
