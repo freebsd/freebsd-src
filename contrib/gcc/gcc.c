@@ -37,7 +37,6 @@ compilation is specified by a string called a "spec".  */
 #include <signal.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <assert.h>
 
 #ifndef _WIN32
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
@@ -4357,15 +4356,14 @@ main (argc, argv)
 #ifndef FREEBSD_NATIVE
   machine_suffix = concat4 (spec_machine, dir_separator_str,
                             spec_version, dir_separator_str);
-  just_machine_suffix = concat (spec_machine, dir_separator_str);
 #endif
+  just_machine_suffix = concat (spec_machine, dir_separator_str);
 
   specs_file = find_a_file (&startfile_prefixes, "specs", R_OK);
   /* Read the specs file unless it is a default one.  */
   if (specs_file != 0 && strcmp (specs_file, "specs"))
     read_specs (specs_file);
 
-#ifdef XXX_THIS_DUMPS_CORE
   /* We need to check standard_exec_prefix/just_machine_suffix/specs
       for any override of as, ld and libraries. */
    specs_file =(char *) alloca (strlen (standard_exec_prefix) +
@@ -4375,7 +4373,6 @@ main (argc, argv)
    strcat (specs_file, "specs");
    if (access (specs_file, R_OK) == 0)
      read_specs (specs_file, TRUE);
-#endif
 
   /* If not cross-compiling, look for startfiles in the standard places.  */
   /* The fact that these are done here, after reading the specs file,
