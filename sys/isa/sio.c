@@ -90,9 +90,9 @@
 #include <isa/sioreg.h>
 
 #ifdef COM_ESP
-#include <isa/ic/esp.h>
+#include <dev/ic/esp.h>
 #endif
-#include <isa/ic/ns16550.h>
+#include <dev/ic/ns16550.h>
 
 #ifndef __i386__
 #define disable_intr()
