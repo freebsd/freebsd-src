@@ -74,10 +74,6 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
-#define RESOURCE_RC	"daemon"
-#define RESOURCE_WINDOW "default"
-#define RESOURCE_GETTY	"default"
-static void setprocresources __P((const char *));
 #endif
 
 #include "pathnames.h"
@@ -98,6 +94,9 @@ extern void logwtmp __P((const char *, const char *, const char *));
 #define	WINDOW_WAIT		 3	/* wait N secs after starting window */
 #define	STALL_TIMEOUT		30	/* wait N secs after warning */
 #define	DEATH_WATCH		10	/* wait N secs for procs to die */
+#define RESOURCE_RC		"daemon"
+#define RESOURCE_WINDOW 	"default"
+#define RESOURCE_GETTY		"default"
 
 void handle __P((sig_t, ...));
 void delset __P((sigset_t *, ...));
@@ -169,6 +168,9 @@ void alrm_handler __P((int));
 void setsecuritylevel __P((int));
 int getsecuritylevel __P((void));
 int setupargv __P((session_t *, struct ttyent *));
+#ifdef LOGIN_CAP
+void setprocresources __P((const char *));
+#endif
 int clang;
 
 void clear_session_logs __P((session_t *));
@@ -747,7 +749,6 @@ runcom()
 #ifdef LOGIN_CAP
 		setprocresources(RESOURCE_RC);
 #endif
-
 		execv(_PATH_BSHELL, argv);
 		stall("can't exec %s for %s: %m", _PATH_BSHELL, _PATH_RUNCOM);
 		_exit(1);	/* force single user mode */
@@ -1454,14 +1455,14 @@ strk (char *p)
 }
 
 #ifdef LOGIN_CAP
-static void
-setprocresources(const char *cname)
+void
+setprocresources(cname)
+	const char *cname;
 {
-  login_cap_t *lc = login_getclassbyname(cname, NULL);
-  if (lc != NULL) {
-    setusercontext(lc, NULL, 0, LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
-    login_close(lc);
-  }
+	login_cap_t *lc;
+	if ((lc = login_getclassbyname(cname, (char*)NULL)) != NULL) {
+		setusercontext(lc, (struct passwd*)NULL, 0, LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
+		login_close(lc);
+	}
 }
 #endif
-
