@@ -1091,7 +1091,7 @@ cbb_intr(void *arg)
 				mtx_lock(&Giant);
 			(*ih->intr)(ih->arg);
 			if ((ih->flags & INTR_MPSAFE) != 0)
-				mtx_lock(&Giant);
+				mtx_unlock(&Giant);
 		}
 	}
 }
