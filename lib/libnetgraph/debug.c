@@ -1,4 +1,3 @@
-
 /*
  * debug.c
  *
@@ -36,9 +35,11 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
  * $Whistle: debug.c,v 1.24 1999/01/24 01:15:33 archie Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
