@@ -71,6 +71,8 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+#include <stdio.h>
+
 #include "alias_local.h"
 
 /*
