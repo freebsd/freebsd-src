@@ -244,7 +244,7 @@ ppp_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD: 
 		if_clone_attach(&ppp_cloner);
 
-		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL);
+		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL, 0);
 		/*
 		 * XXX layering violation - if_ppp can work over any lower
 		 * level transport that cares to attach to it.
@@ -1129,6 +1129,8 @@ pppintr()
     struct ppp_softc *sc;
     int s;
     struct mbuf *m;
+
+    GIANT_REQUIRED;
 
     LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	s = splimp();

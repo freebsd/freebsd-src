@@ -196,7 +196,7 @@ ip6_init()
 #endif /* PFIL_HOOKS */
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
+	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
 	scope6_init();
 	addrsel_policy_init();
 	nd6_init();
@@ -249,6 +249,7 @@ ip6_input(m)
 #endif
 	int srcrt = 0;
 
+	GIANT_REQUIRED;			/* XXX for now */
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
