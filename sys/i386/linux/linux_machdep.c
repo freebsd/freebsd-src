@@ -34,11 +34,19 @@
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/sysarch.h>
+
+#include <vm/vm.h>
+#include <sys/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -340,6 +348,26 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 
 		/* This gives us TOS */
 		bsd_args.addr = linux_args.addr + linux_args.len;
+
+		if (bsd_args.addr > p->p_vmspace->vm_maxsaddr) {
+			/* Some linux apps will attempt to mmap
+			 * thread stacks near the top of their
+			 * address space.  If their TOS is greater
+			 * than vm_maxsaddr, vm_map_growstack()
+			 * will confuse the thread stack with the
+			 * process stack and deliver a SEGV if they
+			 * attempt to grow the thread stack past their
+			 * current stacksize rlimit.  To avoid this,
+			 * adjust vm_maxsaddr upwards to reflect
+			 * the current stacksize rlimit rather
+			 * than the maximum possible stacksize.
+			 * It would be better to adjust the
+			 * mmap'ed region, but some apps do not check
+			 * mmap's return value.
+			 */
+			p->p_vmspace->vm_maxsaddr = (char *)USRSTACK -
+			    p->p_rlimit[RLIMIT_STACK].rlim_cur;
+		}
 
 		/* This gives us our maximum stack size */
 		if (linux_args.len > STACK_SIZE - GUARD_SIZE)
