@@ -157,7 +157,7 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 		return(ret);
 
 	/* give writers priority over readers */
-	while (prwlock->state < 0) {
+	while (prwlock->blocked_writers || prwlock->state < 0) {
 		ret = pthread_cond_wait(&prwlock->read_signal, &prwlock->lock);
 
 		if (ret != 0) {
