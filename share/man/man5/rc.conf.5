@@ -643,6 +643,12 @@ Then note that alias4 would
 be added since the search would
 stop with the missing alias3 entry.
 .Pp
+If
+.Pa /etc/start_if. Ns Aq Ar interface
+files are present, they are executed as sh-scripts before
+configurations specified in
+.Va ifconfig_ Ns Aq Ar interface .
+.Pp
 It is possible to bring up an interface with DHCP by setting the
 .Va ifconfig_ Ns Aq Ar interface
 variable to
