@@ -1,16 +1,15 @@
 #	@(#)Makefile	8.3 (Berkeley) 5/8/95
 # $FreeBSD$
 
+MOUNT=	${.CURDIR}/../../sbin/mount
+.PATH:	${MOUNT}
+
 PROG=	df
 SRCS=	df.c vfslist.c
 
-MOUNT=	${.CURDIR}/../../sbin/mount
 CFLAGS+= -I${MOUNT}
-.PATH:	${MOUNT}
 
 DPADD=	${LIBM}
 LDADD=	-lm
-
-WARNS?=	5
 
 .include <bsd.prog.mk>
