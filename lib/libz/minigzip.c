@@ -13,7 +13,8 @@
  * or in pipe mode.
  */
 
-/* @(#) $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include "zlib.h"
