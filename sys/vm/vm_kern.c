@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.12 1995/03/15 07:52:06 davidg Exp $
+ * $Id: vm_kern.c,v 1.13 1995/05/30 08:16:04 rgrimes Exp $
  */
 
 /*
@@ -306,7 +306,7 @@ kmem_malloc(map, size, waitflag)
 		vm_map_unlock(map);
 		if (map == mb_map) {
 			mb_map_full = TRUE;
-			log(LOG_ERR, "mb_map full\n");
+			log(LOG_ERR, "Out of mbuf clusters - increase maxusers!\n");
 			return (0);
 		}
 		if (waitflag == M_WAITOK)
