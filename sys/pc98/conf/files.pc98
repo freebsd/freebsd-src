@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.32 1997/08/16 01:31:22 kato Exp $
+#	$Id: files.pc98,v 1.33 1997/08/27 08:47:03 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -173,6 +173,7 @@ i386/isa/qcam.c			optional	qcam	device-driver
 i386/isa/qcamio.c		optional	qcam	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
+i386/isa/rp.c			optional	rp	device-driver
 i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
