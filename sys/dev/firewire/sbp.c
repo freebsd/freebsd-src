@@ -2031,19 +2031,24 @@ SBP_DEBUG(1)
 #if __FreeBSD_version >= 500000
 			printf(", %tx:%zd", segments[i].ds_addr,
 #else
-			printf(", %x:%zd", segments[i].ds_addr,
+			printf(", %x:%d", segments[i].ds_addr,
 #endif
 						segments[i].ds_len);
 		printf("\n");
 END_DEBUG
 		for (i = 0; i < seg; i++) {
 			s = &segments[i];
-#if 1			/* XXX LSI Logic "< 16 byte" bug might be hit */
+SBP_DEBUG(0)
+			/* XXX LSI Logic "< 16 byte" bug might be hit */
 			if (s->ds_len < 16)
 				printf("sbp_execute_ocb: warning, "
+#if __FreeBSD_version >= 500000
 					"segment length(%zd) is less than 16."
-					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+#else
+					"segment length(%d) is less than 16."
 #endif
+					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+END_DEBUG
 			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
 			ocb->ind_ptr[i].lo = htonl(s->ds_addr);
 		}

@@ -176,7 +176,7 @@ struct firewire_comm{
 		struct fw_bulkxfer *stdma2;
 		struct fw_bulkxfer *stproc;
 		u_int procptr;
-		int dvdbc, dvdiff, dvsync;
+		int dvdbc, dvdiff, dvsync, dvoffset;
 		struct fw_dvbuf *dvbuf;
 		STAILQ_HEAD(, fw_dvbuf) dvvalid;
 		STAILQ_HEAD(, fw_dvbuf) dvfree;

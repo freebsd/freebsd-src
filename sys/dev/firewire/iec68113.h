@@ -34,41 +34,48 @@
  *
  */
 struct ciphdr {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	u_int32_t src:8,
-		  len:8,
-		  dummy:8,
-		  dbc:8;
-	u_int32_t :16,
-		  cyc:16;
-#else
-	u_int32_t dbc:8,
-		  dummy:8,
-		  len:8,
-		  src:8;
-	u_int32_t cyc:16,
-		  :16;
-#endif
+	u_int8_t src:6,
+		 form0:1,	/* 0 */
+		 eoh0:1;	/* 0 */
+	u_int8_t len;
+	u_int8_t :2,
+		 sph:1,
+		 qpc:3,
+		 fn:1;
+	u_int8_t dbc;
+	u_int8_t fmt:6,
+#define CIP_FMT_DVCR	0
+#define CIP_FMT_MPEG	(1<<5)
+		 form1:1,	/* 0 */
+		 eoh1:1;	/* 1 */
+	union {
+		struct {
+			u_int8_t  :2,
+				stype:5,
+#define	CIP_STYPE_SD	0
+#define	CIP_STYPE_SDL	1
+#define	CIP_STYPE_HD	2
+		  		fs:1;		/* 50/60 field system
+								NTSC/PAL */
+	  		u_int16_t cyc:16;	/* take care of byte order! */
+		} __attribute__ ((packed)) dv;
+		u_int8_t bytes[3];
+	} fdf;
+
 };
 struct dvdbc{
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t :8,
-		  dbn:8,
-		  rsv0:3,
-		  z:1,
-		  dseq:4,
-		  seq:4,
-		  rsv1:1,
-		  sct:3;
-#else
-	u_int32_t seq:4,
-		  :1,
-		  sct:3,
-		  :3,
-		  z:1,
-		  dseq:4,
-		  dbn:8,
-		  :8;
-#endif
-	u_int32_t ld[19];
+	u_int8_t arb:4,		/* Arbitrary bit */
+		 :1,		/* Reserved */
+		 sct:3;		/* Section type */
+#define	DV_SCT_HEADER	0
+#define	DV_SCT_SUBCODE	1
+#define	DV_SCT_VAUX	2
+#define	DV_SCT_AUDIO	3
+#define	DV_SCT_VIDEO	4
+	u_int8_t :3,
+		 fsc:1,		/* ID of a DIF block in each channel */
+		 dseq:4;	/* DIF sequence number */
+	u_int8_t dbn;		/* DIF block number */
+	u_int8_t payload[77];
+#define	DV_DSF_12	0x80	/* PAL: payload[0] in Header DIF */
 };

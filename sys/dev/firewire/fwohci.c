@@ -74,6 +74,8 @@
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
 
+#include <dev/firewire/iec68113.h>
+
 #undef OHCI_DEBUG
 
 static char dbcode[16][0x10]={"OUTM", "OUTL","INPM","INPL",
@@ -1248,6 +1250,8 @@ fwohci_irxpp_enable(struct firewire_comm *fc, int dmach)
 		sc->ir[dmach].xferq.psize = FWPMAX_S400;
 		sc->ir[dmach].ndesc = 1;
 		fwohci_db_init(&sc->ir[dmach]);
+		if ((sc->ir[dmach].flags & FWOHCI_DBCH_INIT) == 0)
+			return ENOMEM;
 		err = fwohci_rx_enable(sc, &sc->ir[dmach]);
 	}
 	if(err){
@@ -1414,11 +1418,13 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 	tag = (sc->it[dmach].xferq.flag >> 6) & 3;
 	ich = sc->it[dmach].xferq.flag & 0x3f;
 	dbch = &sc->it[dmach];
-	if(dbch->ndb == 0){
+	if ((dbch->flags & FWOHCI_DBCH_INIT) == 0) {
 		dbch->xferq.queued = 0;
 		dbch->ndb = dbch->xferq.bnpacket * dbch->xferq.bnchunk;
 		dbch->ndesc = 3;
 		fwohci_db_init(dbch);
+		if ((dbch->flags & FWOHCI_DBCH_INIT) == 0)
+			return ENOMEM;
 		err = fwohci_tx_enable(sc, dbch);
 	}
 	if(err)
@@ -1469,8 +1475,12 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 		if(dbch->xferq.flag & FWXFERQ_DV){
 			db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma->start;
 			fp = (struct fw_pkt *)db_tr->buf;
-			fp->mode.ld[2] = htonl(0x80000000 +
-				((fc->cyctimer(fc) + 0x3000) & 0xf000));
+			dbch->xferq.dvoffset = 
+				((fc->cyctimer(fc) >> 12) + 4) & 0xf;
+#if 0
+			printf("dvoffset: %d\n", dbch->xferq.dvoffset);
+#endif
+			fp->mode.ld[2] |= htonl(dbch->xferq.dvoffset << 12);
 		}
 
 		OWRITE(sc, OHCI_ITCTL(dmach), OHCI_CNTL_DMA_RUN);
@@ -1485,11 +1495,12 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
 	int err = 0;
 	unsigned short tag, ich;
-	tag = (sc->ir[dmach].xferq.flag >> 6) & 3;
-	ich = sc->ir[dmach].xferq.flag & 0x3f;
-	OWRITE(sc, OHCI_IRMATCH(dmach), tagbit[tag] | ich);
 
 	if(!(sc->ir[dmach].xferq.flag & FWXFERQ_RUNNING)){
+		tag = (sc->ir[dmach].xferq.flag >> 6) & 3;
+		ich = sc->ir[dmach].xferq.flag & 0x3f;
+		OWRITE(sc, OHCI_IRMATCH(dmach), tagbit[tag] | ich);
+
 		sc->ir[dmach].xferq.queued = 0;
 		sc->ir[dmach].ndb = sc->ir[dmach].xferq.bnpacket *
 				sc->ir[dmach].xferq.bnchunk;
@@ -1502,6 +1513,8 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		}
 		sc->ir[dmach].ndesc = 2;
 		fwohci_db_init(&sc->ir[dmach]);
+		if ((sc->ir[dmach].flags & FWOHCI_DBCH_INIT) == 0)
+			return ENOMEM;
 		err = fwohci_rx_enable(sc, &sc->ir[dmach]);
 	}
 	if(err)
@@ -1539,8 +1552,8 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		OWRITE(sc, OHCI_IRCMD(dmach),
 			vtophys(((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma->start))->db) | sc->ir[dmach].ndesc);
 		OWRITE(sc, OHCI_IRCTL(dmach), OHCI_CNTL_DMA_RUN);
+		OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_DMA_IR);
 	}
-	OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_DMA_IR);
 	return err;
 }
 
@@ -1889,39 +1902,71 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 	struct fwohcidb_tr *db_tr;
 
 	dbch = &sc->it[dmach];
+#if 0	/* XXX OHCI interrupt before the last packet is really on the wire */
 	if((dbch->xferq.flag & FWXFERQ_DV) && (dbch->xferq.stdma2 != NULL)){
 		db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma2->start;
 /*
  * Overwrite highest significant 4 bits timestamp information
  */
 		fp = (struct fw_pkt *)db_tr->buf;
-		fp->mode.ld[2] |= htonl(0x80000000 |
-				((fc->cyctimer(fc) + 0x4000) & 0xf000));
+		fp->mode.ld[2] &= htonl(0xffff0fff);
+		fp->mode.ld[2] |= htonl((fc->cyctimer(fc) + 0x4000) & 0xf000);
 	}
+#endif
 	stat = OREAD(sc, OHCI_ITCTL(dmach)) & 0x1f;
 	switch(stat){
 	case FWOHCIEV_ACKCOMPL:
+#if 1
+	if (dbch->xferq.flag & FWXFERQ_DV) {
+		struct ciphdr *ciph;
+		int timer, timestamp, cycl, diff;
+		static int last_timer=0;
+
+		timer = (fc->cyctimer(fc) >> 12) & 0xffff;
+		db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma->start;
+		fp = (struct fw_pkt *)db_tr->buf;
+		ciph = (struct ciphdr *) &fp->mode.ld[1];
+		timestamp = db_tr->db[2].db.desc.count & 0xffff;
+		cycl = ntohs(ciph->fdf.dv.cyc) >> 12; 
+		diff = cycl - (timestamp & 0xf) - 1;
+		if (diff < 0)
+			diff += 16;
+		if (diff > 8)
+			diff -= 16;
+		if (firewire_debug)
+			printf("dbc: %3d timer: 0x%04x packet: 0x%04x"
+				" cyc: 0x%x diff: %+1d\n",
+				ciph->dbc, last_timer, timestamp, cycl, diff);
+		last_timer = timer;
+		/* XXX adjust dbch->xferq.dvoffset if diff != 0 or 1 */
+	}
+#endif
 		fw_tbuf_update(fc, dmach, 1);
 		break;
 	default:
+		device_printf(fc->dev, "Isochronous transmit err %02x\n", stat);
 		fw_tbuf_update(fc, dmach, 0);
 		break;
 	}
-	fwohci_itxbuf_enable(&sc->fc, dmach);
+	fwohci_itxbuf_enable(fc, dmach);
 }
 
 static void
 fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 {
+	struct firewire_comm *fc = &sc->fc;
 	int stat;
+
 	stat = OREAD(sc, OHCI_IRCTL(dmach)) & 0x1f;
 	switch(stat){
 	case FWOHCIEV_ACKCOMPL:
-		fw_rbuf_update(&sc->fc, dmach, 1);
-		wakeup(sc->fc.ir[dmach]);
-		fwohci_irx_enable(&sc->fc, dmach);
+		fw_rbuf_update(fc, dmach, 1);
+		wakeup(fc->ir[dmach]);
+		fwohci_irx_enable(fc, dmach);
 		break;
 	default:
+		device_printf(fc->dev, "Isochronous receive err %02x\n",
+									stat);
 		break;
 	}
 }
