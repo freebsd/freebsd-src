@@ -80,9 +80,8 @@ static struct cdevsw mlxd_cdevsw = {
 		/* bmaj */	MLXD_BDEV_MAJOR
 };
 
-static devclass_t	mlxd_devclass;
+devclass_t		mlxd_devclass;
 static struct cdevsw	mlxddisk_cdevsw;
-static int		disks_registered = 0;
 
 static device_method_t mlxd_methods[] = {
     DEVMETHOD(device_probe,	mlxd_probe),
@@ -272,7 +271,7 @@ mlxd_attach(device_t dev)
 
     dsk = disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, &mlxd_cdevsw, &mlxddisk_cdevsw);
     dsk->si_drv1 = sc;
-    disks_registered++;
+    sc->mlxd_dev_t = dsk;
 
     /* set maximum I/O size */
     dsk->si_iosize_max = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
@@ -288,10 +287,7 @@ mlxd_detach(device_t dev)
     debug_called(1);
 
     devstat_remove_entry(&sc->mlxd_stats);
-
-    /* hack to handle lack of destroy_disk() */
-    if (--disks_registered == 0)
-	cdevsw_remove(&mlxddisk_cdevsw);
+    disk_destroy(sc->mlxd_dev_t);
 
     return(0);
 }

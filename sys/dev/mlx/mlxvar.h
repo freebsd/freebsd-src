@@ -148,11 +148,13 @@ struct mlx_softc
 #define MLX_STATE_SUSPEND	(1<<3)	/* controller is suspended */
     struct callout_handle mlx_timeout;	/* periodic status monitor */
     time_t		mlx_lastpoll;	/* last time_second we polled for status */
-    int			mlx_lastevent;	/* sequence number of the last event we recorded */
+    u_int16_t		mlx_lastevent;	/* sequence number of the last event we recorded */
     int			mlx_currevent;	/* sequence number last time we looked */
-    int			mlx_rebuild;	/* if >= 0, drive is being rebuilt */
-    u_int32_t		mlx_rebuildstat;/* blocks left to rebuild if active */
-    int			mlx_check;	/* if >= 0, drive is being checked */
+    int			mlx_background;	/* if != 0 rebuild or check is in progress */
+#define MLX_BACKGROUND_CHECK		1	/* we started a check */
+#define MLX_BACKGROUND_REBUILD		2	/* we started a rebuild */
+#define MLX_BACKGROUND_SPONTANEOUS	3	/* it just happened somehow */
+    struct mlx_rebuild_status mlx_rebuildstat;	/* last rebuild status */
     struct mlx_pause	mlx_pause;	/* pending pause operation details */
 
     int			mlx_locks;	/* reentrancy avoidance */
@@ -213,6 +215,7 @@ extern d_close_t	mlx_close;
 extern d_ioctl_t	mlx_ioctl;
 
 extern devclass_t	mlx_devclass;
+extern devclass_t	mlxd_devclass;
 
 /*
  * Mylex System Disk driver
@@ -220,6 +223,7 @@ extern devclass_t	mlx_devclass;
 struct mlxd_softc 
 {
     device_t		mlxd_dev;
+    dev_t		mlxd_dev_t;
     struct mlx_softc	*mlxd_controller;
     struct mlx_sysdrive	*mlxd_drive;
     struct disk		mlxd_disk;
