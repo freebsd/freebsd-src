@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.1 1996/03/02 19:38:01 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.2 1996/03/10 08:42:48 sos Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -51,6 +51,7 @@
 #include <vm/vm_extern.h>
 #include <sys/user.h>
 #include <sys/exec.h>
+#include <sys/kernel.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/reg.h>
@@ -398,3 +399,19 @@ struct sysentvec elf_linux_sysvec = {
         linux_prepsyscall,
 };
 
+/*
+ * Installed either via SYSINIT() or via LKM stubs.
+ */
+Elf32_Interp_info linux_interp = {
+					&elf_linux_sysvec,
+					"/lib/ld-linux.so.1",
+					"/compat/linux"
+				 };
+
+#ifndef LKM
+/*
+ * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
+ * "proof of concept" stage and will be fixed shortly
+ */
+SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, elf_insert_interp, &linux_interp);
+#endif
