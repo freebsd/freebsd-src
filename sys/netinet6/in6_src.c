@@ -75,6 +75,8 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 
@@ -96,6 +98,22 @@
 #endif
 
 #include <net/net_osdep.h>
+
+static struct mtx addrsel_lock;
+#define	ADDRSEL_LOCK_INIT()	mtx_init(&addrsel_lock, "addrsel_lock", NULL, MTX_DEF)
+#define	ADDRSEL_LOCK()		mtx_lock(&addrsel_lock)
+#define	ADDRSEL_UNLOCK()	mtx_unlock(&addrsel_lock)
+#define	ADDRSEL_LOCK_ASSERT()	mtx_assert(&addrsel_lock, MA_OWNED)
+
+#define ADDR_LABEL_NOTAPP (-1)
+struct in6_addrpolicy defaultaddrpolicy;
+
+static void init_policy_queue __P((void));
+static int add_addrsel_policyent __P((struct in6_addrpolicy *));
+static int delete_addrsel_policyent __P((struct in6_addrpolicy *));
+static int walk_addrsel_policy __P((int (*)(struct in6_addrpolicy *, void *),
+				    void *));
+static int dump_addrsel_policyent __P((struct in6_addrpolicy *, void *));
 
 /*
  * Return an IPv6 address, which is the most appropriate for a given
@@ -527,4 +545,188 @@ in6_clearscope(addr)
 {
 	if (IN6_IS_SCOPE_LINKLOCAL(addr) || IN6_IS_ADDR_MC_INTFACELOCAL(addr))
 		addr->s6_addr16[1] = 0;
+}
+
+void
+addrsel_policy_init()
+{
+	ADDRSEL_LOCK_INIT();
+
+	init_policy_queue();
+
+	/* initialize the "last resort" policy */
+	bzero(&defaultaddrpolicy, sizeof(defaultaddrpolicy));
+	defaultaddrpolicy.label = ADDR_LABEL_NOTAPP;
+}
+
+/*
+ * Subroutines to manage the address selection policy table via sysctl.
+ */
+struct walkarg {
+	struct sysctl_req *w_req;
+};
+
+static int in6_src_sysctl(SYSCTL_HANDLER_ARGS);
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_NODE(_net_inet6_ip6, IPV6CTL_ADDRCTLPOLICY, addrctlpolicy,
+	CTLFLAG_RD, in6_src_sysctl, "");
+
+static int
+in6_src_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct walkarg w;
+
+	if (req->newptr)
+		return EPERM;
+
+	bzero(&w, sizeof(w));
+	w.w_req = req;
+
+	return (walk_addrsel_policy(dump_addrsel_policyent, &w));
+}
+
+int
+in6_src_ioctl(cmd, data)
+	u_long cmd;
+	caddr_t data;
+{
+	int i;
+	struct in6_addrpolicy ent0;
+
+	if (cmd != SIOCAADDRCTL_POLICY && cmd != SIOCDADDRCTL_POLICY)
+		return (EOPNOTSUPP); /* check for safety */
+
+	ent0 = *(struct in6_addrpolicy *)data;
+
+	if (ent0.label == ADDR_LABEL_NOTAPP)
+		return (EINVAL);
+	/* check if the prefix mask is consecutive. */
+	if (in6_mask2len(&ent0.addrmask.sin6_addr, NULL) < 0)
+		return (EINVAL);
+	/* clear trailing garbages (if any) of the prefix address. */
+	for (i = 0; i < 4; i++) {
+		ent0.addr.sin6_addr.s6_addr32[i] &=
+			ent0.addrmask.sin6_addr.s6_addr32[i];
+	}
+	ent0.use = 0;
+
+	switch (cmd) {
+	case SIOCAADDRCTL_POLICY:
+		return (add_addrsel_policyent(&ent0));
+	case SIOCDADDRCTL_POLICY:
+		return (delete_addrsel_policyent(&ent0));
+	}
+
+	return (0);		/* XXX: compromise compilers */
+}
+
+/*
+ * The followings are implementation of the policy table using a
+ * simple tail queue.
+ * XXX such details should be hidden.
+ * XXX implementation using binary tree should be more efficient.
+ */
+struct addrsel_policyent {
+	TAILQ_ENTRY(addrsel_policyent) ape_entry;
+	struct in6_addrpolicy ape_policy;
+};
+
+TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
+
+struct addrsel_policyhead addrsel_policytab;
+
+static void
+init_policy_queue()
+{
+	TAILQ_INIT(&addrsel_policytab);
+}
+
+static int
+add_addrsel_policyent(newpolicy)
+	struct in6_addrpolicy *newpolicy;
+{
+	struct addrsel_policyent *new, *pol;
+
+	ADDRSEL_LOCK();
+
+	/* duplication check */
+	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
+	     pol = TAILQ_NEXT(pol, ape_entry)) {
+		if (SA6_ARE_ADDR_EQUAL(&newpolicy->addr,
+				       &pol->ape_policy.addr) &&
+		    SA6_ARE_ADDR_EQUAL(&newpolicy->addrmask,
+				       &pol->ape_policy.addrmask)) {
+			return (EEXIST);	/* or override it? */
+		}
+	}
+
+	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
+	       M_WAITOK);
+	bzero(new, sizeof(*new));
+
+	/* XXX: should validate entry */
+	new->ape_policy = *newpolicy;
+
+	TAILQ_INSERT_TAIL(&addrsel_policytab, new, ape_entry);
+	ADDRSEL_UNLOCK();
+
+	return (0);
+}
+
+static int
+delete_addrsel_policyent(key)
+	struct in6_addrpolicy *key;
+{
+	struct addrsel_policyent *pol;
+
+	ADDRSEL_LOCK();
+
+	/* search for the entry in the table */
+	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
+	     pol = TAILQ_NEXT(pol, ape_entry)) {
+		if (SA6_ARE_ADDR_EQUAL(&key->addr, &pol->ape_policy.addr) &&
+		    SA6_ARE_ADDR_EQUAL(&key->addrmask,
+				       &pol->ape_policy.addrmask)) {
+			break;
+		}
+	}
+	if (pol == NULL)
+		return (ESRCH);
+
+	TAILQ_REMOVE(&addrsel_policytab, pol, ape_entry);
+	ADDRSEL_UNLOCK();
+
+	return (0);
+}
+
+static int
+walk_addrsel_policy(callback, w)
+	int (*callback) __P((struct in6_addrpolicy *, void *));
+	void *w;
+{
+	struct addrsel_policyent *pol;
+	int error = 0;
+
+	ADDRSEL_LOCK();
+	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
+	     pol = TAILQ_NEXT(pol, ape_entry)) {
+		if ((error = (*callback)(&pol->ape_policy, w)) != 0)
+			return (error);
+	}
+	ADDRSEL_UNLOCK();
+
+	return (error);
+}
+
+static int
+dump_addrsel_policyent(pol, arg)
+	struct in6_addrpolicy *pol;
+	void *arg;
+{
+	int error = 0;
+	struct walkarg *w = arg;
+
+	error = SYSCTL_OUT(w->w_req, pol, sizeof(*pol));
+
+	return (error);
 }

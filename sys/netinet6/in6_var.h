@@ -118,6 +118,15 @@ struct	in6_ifaddr {
 	struct nd_prefix *ia6_ndpr;
 };
 
+/* control structure to manage address selection policy */
+struct in6_addrpolicy {
+	struct sockaddr_in6 addr; /* prefix address */
+	struct sockaddr_in6 addrmask; /* prefix mask */
+	int preced;		/* precedence */
+	int label;		/* matching label */
+	u_quad_t use;		/* statistics */
+};
+
 /*
  * IPv6 interface statistics, as defined in RFC2465 Ipv6IfStatsEntry (p12).
  */
@@ -432,6 +441,9 @@ struct	in6_rrenumreq {
 #define SIOCGETMIFCNT_IN6	_IOWR('u', 107, \
 				      struct sioc_mif_req6) /* get pkt cnt per if */
 
+#define SIOCAADDRCTL_POLICY	_IOW('u', 108, struct in6_addrpolicy)
+#define SIOCDADDRCTL_POLICY	_IOW('u', 109, struct in6_addrpolicy)
+
 #define IN6_IFF_ANYCAST		0x01	/* anycast address */
 #define IN6_IFF_TENTATIVE	0x02	/* tentative address */
 #define IN6_IFF_DUPLICATED	0x04	/* DAD detected duplicate */
@@ -604,6 +616,7 @@ int in6_embedscope __P((struct in6_addr *, const struct sockaddr_in6 *,
 int in6_recoverscope __P((struct sockaddr_in6 *, const struct in6_addr *,
 	struct ifnet *));
 void in6_clearscope __P((struct in6_addr *));
+int in6_src_ioctl __P((u_long, caddr_t));
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */
