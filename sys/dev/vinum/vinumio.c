@@ -256,6 +256,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_dev = drive->dev;				    /* device */
 	bp->b_blkno = offset / drive->sectorsize;	    /* block number */
 	bp->b_offset = offset;
+	bp->b_iooffset = offset;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = buf;
 	bp->b_bcount = len;

@@ -448,6 +448,7 @@ launch_requests(struct request *rq, int reviveok)
 #endif
 		/* fire off the request */
 		rqe->b.b_offset = rqe->b.b_blkno << DEV_BSHIFT;
+		rqe->b.b_iooffset = rqe->b.b_offset;
 		DEV_STRATEGY(&rqe->b);
 	    }
 	}
@@ -993,6 +994,7 @@ sdio(struct buf *bp)
 	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif
     sbp->b.b_offset = sbp->b.b_blkno << DEV_BSHIFT;
+    sbp->b.b_iooffset = sbp->b.b_offset;
     DEV_STRATEGY(&sbp->b);
     splx(s);
 }
