@@ -65,7 +65,7 @@ static __inline void
 mtmsr(register_t value)
 {
 
-	__asm __volatile ("mtmsr %0" :: "r"(value));
+	__asm __volatile ("mtmsr %0; isync" :: "r"(value));
 }
 
 static __inline register_t
