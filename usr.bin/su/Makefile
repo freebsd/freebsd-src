@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id$
+#	$Id: Makefile,v 1.19 1998/08/30 17:02:51 gpalmer Exp $
 
 PROG=	su
 SRCS=	su.c
@@ -11,8 +11,8 @@ DPADD+= ${LIBUTIL}
 
 .if !defined(LC_AUTH)
 COPTS+=	-DSKEY
-LDADD+= -lskey -lcrypt
-DPADD+= ${LIBSKEY} ${LIBCRYPT}
+LDADD+= -lskey -lmd -lcrypt
+DPADD+= ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
 .endif
 
 .if defined(WHEELSU)
@@ -26,12 +26,6 @@ CFLAGS+=-DKERBEROS
 DPADD+=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
-.endif
-
-# Do we have to provide an implementation for libskey.so?
-.if ${OBJFORMAT} != elf || ${MACHINE_ARCH} == "alpha"
-LDADD+= -lmd
-DPADD+= ${LIBMD}
 .endif
 
 BINOWN=	root
