@@ -1,0 +1,138 @@
+<!-- 
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.5 2002/03/11 23:07:40 ue Exp $
+	$Id: article.sgml,v 1.6 2002/03/10 16:43:21 ue Exp $
+	basiert auf: 1.8
+-->
+
+<!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % translators PUBLIC "-//FreeBSD//ENTITIES DocBook Translator Entities//DE">
+%translators;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article lang="de">
+  <articleinfo>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+    <title>&os; &release.current; Errata</title>
+
+    <authorgroup>
+      <corpauthor>Das &os; Projekt</corpauthor>
+
+      <collab>
+        <collabname>Deutsche &Uuml;bersetzung von Udo Erdelhoff</collabname>
+      </collab>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:freebsd-doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+
+    <copyright>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+    <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
+      &release.current;, also wichtige Informationen, die erst nach
+      der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;ren
+      Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
+      Software oder Dokumentation, welche die Stabilit&auml;t und die
+      Nutzung beeintr&auml;chtigen k&ouml;nnten.  Sie sollten immer
+      die aktuelle Version dieses Dokumentes lesen, bevor sie diese
+      Version von &os; installieren.</para>
+
+<![ %release.type.snapshot [
+    <para>Diese Errata f&uuml;r &os; &release.prev; werden bis zum
+      Erscheinen von &os; &release.next; weiter aktualisiert
+      werden.</para>
+]]>
+
+<![ %release.type.release [
+    <para>Dies ist die letzte Version der Errata f&uuml;r &os;
+      &release.prev;.  Zuk&uuml;nftige Errata auf dem CVS-Zweig
+      &release.branch; werden &os; &release.current;  und die
+      nachfolgenden Ausgaben behandeln.</para>
+]]> 
+
+    <para>Zur Zeit gibt es keine Errata f&uuml;r &release.current;,
+      weil seit der Entstehung des Entwicklungszweiges
+      &release.branch; noch keine Version aus diesem Zweig
+      ver&ouml;ffentlicht wurde.  (Die erste derartige Version wird
+      &release.next; sein.) Diese Datei existiert, nur um eine saubere
+      Vorlage f&uuml;r neue Entwicklungszweige zu haben.  (Und dieser
+      Hinweis sollte nat&uuml;rlich nicht in einem Entwicklungszweig
+      auftauchen.)</para>
+  </abstract>
+
+  <sect1>
+    <title>Einleitung</title>
+
+    <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
+      Informationen &uuml; &os; &release.current;.  Bevor Sie diese
+      Version installieren, sollten Sie auf jeden Fall dieses Dokument
+      lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
+      der Ver&ouml;ffentlichung entdeckt (und vielleicht auch schon
+      behoben) wurden.</para>
+
+    <para>Die zusammen mit der Ver&ouml;ffentlichung erschienene
+      Version dieses Dokumentes (zum Beispiel die Version auf der
+      CDROM) ist per Definition veraltet.  Allerdings sind im Internet
+      aktualisierte Versionen verf&uuml;gbar, die die <quote>aktuellen
+      Errata</quote> f&uuml;r diese Version sind.  Diese Versionen
+      sind bei <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      und allen aktuellen Mirrors dieser Webseite
+      verf&uuml;gbar.</para>
+
+    <para>Die Snapshots von &os; &release.branch; (sowohl die der
+      Quelltexte als auch die der ausf&uuml;hrbaren Programme)
+      enthalten ebenfalls die zum Zeitpunkt ihrer
+      Ver&ouml;ffentlichung aktuelle Version dieses
+      Dokumentes.</para>
+
+    <para>Die Liste der &os; CERT security advisories finden Sie bei
+      <ulink url="http://www.FreeBSD.org/security/"></ulink> oder
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+  </sect1>
+
+  <sect1>
+    <title>Sicherheitshinweise</title>
+    <para></para>
+  </sect1>
+
+  <sect1>
+    <title>Informationen &uuml;ber Updates</title>
+    <para></para>
+  </sect1>
+</article>
