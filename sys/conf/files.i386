@@ -52,9 +52,14 @@ trlld.o				optional	oltr			\
 	no-implicit-rule
 #
 hal.o				optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu" \
+	dependency	"$S/contrib/dev/ath/public/i386-elf.hal.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/ath/public/i386-elf.hal.o.uu" \
 	no-implicit-rule
+opt_ah.h			optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/public/i386-elf.opt_ah.h"	\
+	compile-with	"cp $S/contrib/dev/ath/public/i386-elf.opt_ah.h opt_ah.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"opt_ah.h"
 #
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/contrib/dev/hptmv/i386-elf.raid.o.uu"	\
