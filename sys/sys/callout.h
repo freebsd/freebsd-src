@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.9 1997/09/24 16:39:27 gibbs Exp $
+ * $Id: callout.h,v 1.10 1997/12/01 05:45:15 davidg Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_
@@ -66,7 +66,7 @@ extern struct callout_list callfree;
 extern struct callout *callout;
 extern int	ncallout;
 extern struct callout_tailq *callwheel;
-extern int	callwheelsize, callwheelbits, callwheelmask;
+extern int	callwheelsize, callwheelbits, callwheelmask, softticks;
 #endif /* KERNEL */
 
 #endif /* _SYS_CALLOUT_H_ */

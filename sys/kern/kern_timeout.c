@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.49 1998/01/10 13:16:26 phk Exp $
+ * $Id: kern_timeout.c,v 1.50 1998/01/10 14:55:14 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -82,7 +82,7 @@ struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 
-static int softticks;			/* Like ticks, but for softclock(). */
+int softticks;			/* Like ticks, but for softclock(). */
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
 /*
@@ -119,10 +119,6 @@ softclock()
 				 * we last allowed interrupts.
 				 */
 
-	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) == NULL) {
-		softticks++;
-		return;
-	}
 
 	(void)splsoftclock();
 
