@@ -69,6 +69,7 @@
 #ifndef NO_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#include <openssl/bn.h>         /* To get BN_LLONG properly defined */
 #include <openssl/bio.h>
 
 #ifdef BN_LLONG
@@ -108,7 +109,11 @@
 #endif
 
 #if HAVE_LONG_LONG
-#define LLONG long long
+# if defined(WIN32) && !defined(__GNUC__)
+# define LLONG _int64
+# else
+# define LLONG long long
+# endif
 #else
 #define LLONG long
 #endif
@@ -151,7 +156,7 @@ static void _dopr(char **sbuffer, char **buffer,
 
 /* some handy macros */
 #define char_to_int(p) (p - '0')
-#define MAX(p,q) ((p >= q) ? p : q)
+#define OSSL_MAX(p,q) ((p >= q) ? p : q)
 
 static void
 _dopr(
@@ -502,13 +507,13 @@ fmtint(
     convert[place] = 0;
 
     zpadlen = max - place;
-    spadlen = min - MAX(max, place) - (signvalue ? 1 : 0);
+    spadlen = min - OSSL_MAX(max, place) - (signvalue ? 1 : 0);
     if (zpadlen < 0)
         zpadlen = 0;
     if (spadlen < 0)
         spadlen = 0;
     if (flags & DP_F_ZERO) {
-        zpadlen = MAX(zpadlen, spadlen);
+        zpadlen = OSSL_MAX(zpadlen, spadlen);
         spadlen = 0;
     }
     if (flags & DP_F_MINUS)
@@ -640,7 +645,7 @@ fmtfp(
             (caps ? "0123456789ABCDEF"
               : "0123456789abcdef")[fracpart % 10];
         fracpart = (fracpart / 10);
-    } while (fracpart && (fplace < 20));
+    } while (fplace < max);
     if (fplace == 20)
         fplace--;
     fconvert[fplace] = 0;
