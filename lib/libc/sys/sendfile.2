@@ -88,7 +88,11 @@ variable pointed to by
 .Pp
 The
 .Fa flags
-argument is currently undefined and should be specified as 0.
+argument has one possible value:
+.Fa SF_NODISKIO .
+This flag causes any sendfile call which would block on disk I/O to instead
+return EBUSY.  Busy servers may benefit by transferring requests that would
+block to a seperate I/O worker thread.
 .Pp
 When using a socket marked for non-blocking I/O,
 .Fn sendfile
@@ -137,7 +141,7 @@ for details).
 .Pp
 The number of
 .Xr sendfile 2
-buffers in use is determined at boot time by either the
+buffers available is determined at boot time by either the
 .Va kern.ipc.nsfbufs
 .Xr loader.conf 5
 variable or the
@@ -167,6 +171,10 @@ The
 .Fa s
 argument
 is not a valid socket descriptor.
+.It Bq Er EBUSY
+Completing the entire transfer would have required disk I/O, so
+it was aborted.  Partial data may have been sent.
+(This error can only occur when SF_NODISKIO is specified.)
 .It Bq Er ENOTSOCK
 The
 .Fa s
