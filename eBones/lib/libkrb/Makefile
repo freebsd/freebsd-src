@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.8 1995/09/13 17:23:55 markm Exp $
+#	$Id: Makefile,v 1.9 1995/09/14 04:05:02 gibbs Exp $
 
 LIB=	krb
 CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -DBSD42
@@ -31,7 +31,8 @@ MAN3=	krb.3 krb_realmofhost.3 krb_sendauth.3 krb_set_tkt_string.3 \
 MLINKS=	krb.3 krb_mk_req.3 krb.3 krb_rd_req.3 krb.3 krb_kntoln.3 \
 	krb.3 krb_set_key.3 krb.3 krb_get_cred.3 krb.3 krb_mk_priv.3 \
 	krb.3 krb_rd_priv.3 krb.3 krb_mk_safe.3 krb.3 krb_rd_safe.3 \
-	krb.3 krb_mk_err.3 krb.3 krb_rd_err.3 krb.3 krb_ck_repl.3
+	krb.3 krb_mk_err.3 krb.3 krb_rd_err.3 krb.3 krb_ck_repl.3 \
+	krb.3 krb_get_local_addr.3 krb.3 krb_bind_local_addr.3
 
 MLINKS+=krb_realmofhost.3 krb_get_phost.3 krb_realmofhost.3 krb_get_krbhst.3 \
 	krb_realmofhost.3 krb_get_admhst.3 krb_realmofhost.3 krb_get_lrealm.3

@@ -278,11 +278,14 @@ getport(alport)
 	int *alport;
 {
 	struct sockaddr_in sin;
-	int s;
+	int s, retval;
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
 	s = socket(AF_INET, SOCK_STREAM, 0);
+	if ((retval = krb_get_local_addr(&sin)) != KSUCCESS) {
+		fprintf(stderr, "krb_get_local_addr: %s\n",krb_err_txt[retval]);
+		close(s);
+		return (-1);
+	}
 	if (s < 0)
 		return (-1);
 	for (;;) {

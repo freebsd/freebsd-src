@@ -340,6 +340,7 @@ kerberos(username, user, uid)
 	char *p;
 	int kerno;
 	u_long faddr;
+	struct sockaddr_in local_addr;
 	char lrealm[REALM_SZ], krbtkfile[MAXPATHLEN];
 	char hostname[MAXHOSTNAMELEN], savehost[MAXHOSTNAMELEN];
 	char *krb_get_phost();
@@ -423,13 +424,13 @@ kerberos(username, user, uid)
 		dest_tkt();
 		return (1);
 	} else {
-		if (!(hp = gethostbyname(hostname))) {
-			warnx("can't get addr of %s", hostname);
+		if ((kerno = krb_get_local_addr(&local_addr)) != KSUCCESS) {
+			warnx("Unable to get our local address: %s",
+			      krb_err_txt[kerno]);
 			dest_tkt();
 			return (1);
 		}
-		memmove((char *)&faddr, (char *)hp->h_addr, sizeof(faddr));
-
+		faddr = local_addr.sin_addr.s_addr;
 		if ((kerno = krb_rd_req(&ticket, "rcmd", savehost, faddr,
 		    &authdata, "")) != KSUCCESS) {
 			warnx("kerberos: unable to verify rcmd ticket: %s\n",
