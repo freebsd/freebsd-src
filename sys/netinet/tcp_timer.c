@@ -136,10 +136,11 @@ tcp_slowtimo()
 	int s;
 
 	s = splnet();
-
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
-
 	splx(s);
+	INP_INFO_WLOCK(&tcbinfo);
+	(void) tcp_timer_2msl_tw(0);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
 /*
@@ -251,31 +252,69 @@ tcp_timer_2msl(xtp)
 	splx(s);
 }
 
-void
-tcp_timer_2msl_tw(xtw)
-	void *xtw;
-{
-	struct tcptw *tw = xtw;
-	int s;
+struct twlist {
+	LIST_HEAD(, tcptw)	tw_list;
+	struct tcptw	tw_tail;
+};
+#define TWLIST_NLISTS	2
+static struct twlist twl_2msl[TWLIST_NLISTS];
+static struct twlist *tw_2msl_list[] = { &twl_2msl[0], &twl_2msl[1], NULL };
 
-	s = splnet();
-	INP_INFO_WLOCK(&tcbinfo);
-	if (tw->tw_inpcb == NULL) {
-		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
-		return;
+void
+tcp_timer_init(void)
+{
+	int i;
+	struct twlist *twl;
+
+	for (i = 0; i < TWLIST_NLISTS; i++) {
+		twl = &twl_2msl[i];
+		LIST_INIT(&twl->tw_list);
+		LIST_INSERT_HEAD(&twl->tw_list, &twl->tw_tail, tw_2msl);
 	}
-	INP_LOCK(tw->tw_inpcb);
-	if (callout_pending(tw->tt_2msl) || !callout_active(tw->tt_2msl)) {
-		INP_UNLOCK(tw->tw_inpcb);
-		INP_INFO_WUNLOCK(&tcbinfo);
-		splx(s);
-		return;
+}
+
+void
+tcp_timer_2msl_reset(struct tcptw *tw, int timeo)
+{
+	int i;
+	struct tcptw *tw_tail;
+
+	if (tw->tw_time != 0)
+		LIST_REMOVE(tw, tw_2msl);
+	tw->tw_time = timeo + ticks;
+	i = timeo > tcp_msl ? 1 : 0;
+	tw_tail = &twl_2msl[i].tw_tail;
+	LIST_INSERT_BEFORE(tw_tail, tw, tw_2msl);
+}
+
+void
+tcp_timer_2msl_stop(struct tcptw *tw)
+{
+
+	if (tw->tw_time != 0)
+		LIST_REMOVE(tw, tw_2msl);
+}
+
+struct tcptw *
+tcp_timer_2msl_tw(int reuse)
+{
+	struct tcptw *tw, *tw_tail;
+	struct twlist *twl;
+	int i;
+	
+	for (i = 0; i < 2; i++) {
+		twl = tw_2msl_list[i];
+		tw_tail = &twl->tw_tail;
+		for (;;) {
+			tw = LIST_FIRST(&twl->tw_list);
+			if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
+				break;
+			INP_LOCK(tw->tw_inpcb);
+			if (tcp_twclose(tw, reuse) != NULL)
+				return (tw);
+		}
 	}
-	callout_deactivate(tw->tt_2msl);
-	tcp_twclose(tw);
-	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
+	return (NULL);
 }
 
 void
