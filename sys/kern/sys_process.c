@@ -45,7 +45,6 @@
 #include <machine/reg.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
@@ -153,8 +152,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
 	vm_offset_t kva;
-	int error;
-	int writing;
+	int error, writing;
 
 	GIANT_REQUIRED;
 
@@ -322,19 +320,23 @@ struct ptrace_args {
 int
 ptrace(struct thread *td, struct ptrace_args *uap)
 {
-	struct proc *curp = td->td_proc;
-	struct proc *p;
-	struct thread *td2;
 	struct iovec iov;
 	struct uio uio;
+	/*
+	 * XXX this obfuscation is to reduce stack usage, but the register
+	 * structs may be too large to put on the stack anyway.
+	 */
 	union {
-		struct reg	reg;
-		struct dbreg	dbreg;
-		struct fpreg	fpreg;
+		struct dbreg dbreg;
+		struct fpreg fpreg;
+		struct reg reg;
 	} r;
-	int error = 0;
-	int write;
+	struct proc *curp, *p;
+	struct thread *td2;
+	int error, write;
 
+	curp = td->td_proc;
+	error = 0;
 	write = 0;
 	if (uap->req == PT_TRACE_ME) {
 		p = curp;
@@ -347,14 +349,13 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
-
 	if ((error = p_candebug(curp, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (error);
 	}
 
 	/*
-	 * Don't debug system processes!
+	 * System processes can't be debugged.
 	 */
 	if ((p->p_flag & P_SYSTEM) != 0) {
 		PROC_UNLOCK(p);
@@ -446,7 +447,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	/*
 	 * Single step fixup ala procfs
 	 */
-	FIX_SSTEP(td2);				/* XXXKSE */
+	FIX_SSTEP(td2);			/* XXXKSE */
 #endif
 
 	/*
@@ -482,7 +483,8 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG))
+		/* XXX uap->data is used even in the PT_STEP case. */
+		if (uap->req != PT_STEP && (unsigned)uap->data >= NSIG)
 			return (EINVAL);
 
 		PHOLD(p);
@@ -523,12 +525,10 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 				PROC_LOCK(p);
 			p->p_flag &= ~(P_TRACED | P_WAITED);
 			p->p_oppid = 0;
-
 			PROC_UNLOCK(p);
 			sx_xunlock(&proctree_lock);
 
 			/* should we send SIGCHLD? */
-
 		}
 
 	sendsig:
@@ -537,13 +537,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
-			setrunnable(td2); /* XXXKSE */
+			setrunnable(td2);	/* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);
-			if (uap->data)		      
+			if (uap->data)
 				psignal(p, uap->data);
-
 		}
 		PROC_UNLOCK(p);
 		return (0);
@@ -562,7 +561,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		uio.uio_iovcnt = 1;
 		uio.uio_offset = (off_t)(uintptr_t)uap->addr;
 		uio.uio_resid = sizeof(int);
-		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
+		uio.uio_segflg = UIO_SYSSPACE;	/* i.e.: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_td = td;
 		error = proc_rwmem(p, &uio);
@@ -660,18 +659,15 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 int
 trace_req(struct proc *p)
 {
+
 	return (1);
 }
 
 /*
- * stopevent()
  * Stop a process because of a debugging event;
  * stay stopped until p->p_step is cleared
  * (cleared by PIOCCONT in procfs).
- *
- * Must be called with the proc struct mutex held.
  */
-
 void
 stopevent(struct proc *p, unsigned int event, unsigned int val)
 {
