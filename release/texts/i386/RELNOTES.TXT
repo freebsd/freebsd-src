@@ -62,6 +62,10 @@ TCP now has RFC 1323 extensions enabled by default in rc.conf(5).
 
 The ata(4) driver again has write-caching enabled by default.
 
+The O_DIRECT flag has been added to open(2) and fcntl(2).  Specifying
+this flag for open files will attempt to minimize the cache effects of
+reading and writing.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -105,6 +109,10 @@ filesystem.
 libcrypt now has support for Blowfish password hashing.
 
 Ukranian language support has been added to the FreeBSD console.
+
+pim6dd(8) and pim6sd(8) have been removed due to restrictive licensing
+conditions.  These programs are available in the ports collection as
+net/pim6dd and net/pim6dd.
 
 
 2. Supported Configurations

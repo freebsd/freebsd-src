@@ -28,7 +28,10 @@
   <sect2>
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>The <literal>O_DIRECT</literal> flag has been added to
+    &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
+    files will attempt to minimize the cache effects of reading and
+    writing.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -143,6 +146,11 @@
       new &man.mdoc.7; macro package (sometimes referred to as
       <literal>mdocNG</literal>), which removes many of the
       limitations of its predecessor.</para>
+
+      <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
+      restrictive licensing conditions.  These programs are available
+      in the ports collection as <filename>net/pim6dd</filename> and
+      <filename>net/pim6dd</filename>.</para>
 
     </sect3>
 
