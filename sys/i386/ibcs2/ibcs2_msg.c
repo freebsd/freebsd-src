@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
@@ -63,11 +64,10 @@ ibcs2_poll(td, uap)
 	struct thread *td;
 	struct ibcs2_poll_args *uap;
 {
-	int error, i;
+	int error, i, nfds;
 	fd_set *readfds, *writefds, *exceptfds;
-	struct timeval *timeout;
+	struct timeval timeout, *tp;
 	struct ibcs2_poll conv;
-	struct select_args tmp_select;
 	caddr_t sg = stackgap_init();
 
 	if (uap->nfds > FD_SETSIZE)
@@ -75,24 +75,19 @@ ibcs2_poll(td, uap)
 	readfds   = stackgap_alloc(&sg, sizeof(fd_set *));
 	writefds  = stackgap_alloc(&sg, sizeof(fd_set *));
 	exceptfds = stackgap_alloc(&sg, sizeof(fd_set *));
-	timeout   = stackgap_alloc(&sg, sizeof(struct timeval *));
 
 	FD_ZERO(readfds);
 	FD_ZERO(writefds);
 	FD_ZERO(exceptfds);
 	if (uap->timeout == -1)
-		timeout = NULL;
+		tp = NULL;
 	else {
-		timeout->tv_usec = (uap->timeout % 1000)*1000;
-		timeout->tv_sec  = uap->timeout / 1000;
+		timeout.tv_usec = (uap->timeout % 1000)*1000;
+		timeout.tv_sec  = uap->timeout / 1000;
+		tp = &timeout;
 	}
 
-	tmp_select.nd = 0;
-	tmp_select.in = readfds;
-	tmp_select.ou = writefds;
-	tmp_select.ex = exceptfds;
-	tmp_select.tv = timeout;
-
+	nfds = 0;
 	for (i = 0; i < uap->nfds; i++) {
 		if ((error = copyin(uap->fds + i*sizeof(struct ibcs2_poll),
 				   &conv, sizeof(conv))) != 0)
@@ -100,15 +95,16 @@ ibcs2_poll(td, uap)
 		conv.revents = 0;
 		if (conv.fd < 0 || conv.fd > FD_SETSIZE)
 			continue;
-		if (conv.fd >= tmp_select.nd)
-			tmp_select.nd = conv.fd + 1;
+		if (conv.fd >= nfds)
+			nfds = conv.fd + 1;
 		if (conv.events & IBCS2_READPOLL)
 			FD_SET(conv.fd, readfds);
 		if (conv.events & IBCS2_WRITEPOLL)
 			FD_SET(conv.fd, writefds);
 		FD_SET(conv.fd, exceptfds);
 	}
-	if ((error = select(td, &tmp_select)) != 0)
+	error = kern_select(td, nfds, readfds, writefds, exceptfds, tp);
+	if (error != 0)
 		return error;
 	if (td->td_retval[0] == 0)
 		return 0;
