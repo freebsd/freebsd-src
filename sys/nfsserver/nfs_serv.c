@@ -137,6 +137,9 @@ struct nfsrvstats nfsrvstats;
 SYSCTL_STRUCT(_vfs_nfsrv, NFS_NFSRVSTATS, nfsrvstats, CTLFLAG_RD,
 	&nfsrvstats, nfsrvstats, "S,nfsrvstats");
 
+static int	nfsrv_access_withgiant(struct vnode *vp, int flags,
+		    struct ucred *cred, int rdonly, struct thread *td,
+		    int override);
 static int	nfsrv_access(struct vnode *, int, struct ucred *, int,
 		    struct thread *, int);
 static void	nfsrvw_coalesce(struct nfsrv_descript *,
@@ -195,8 +198,10 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	nfsmode = fxdr_unsigned(u_int32_t, *tl);
+	NFSD_UNLOCK();
+	mtx_lock(&Giant);	/* VFS */
 	if ((nfsmode & NFSV3ACCESS_READ) &&
-		nfsrv_access(vp, VREAD, cred, rdonly, td, 0))
+		nfsrv_access_withgiant(vp, VREAD, cred, rdonly, td, 0))
 		nfsmode &= ~NFSV3ACCESS_READ;
 	if (vp->v_type == VDIR)
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
@@ -204,17 +209,15 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	else
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VWRITE, cred, rdonly, td, 0))
+		nfsrv_access_withgiant(vp, VWRITE, cred, rdonly, td, 0))
 		nfsmode &= ~testmode;
 	if (vp->v_type == VDIR)
 		testmode = NFSV3ACCESS_LOOKUP;
 	else
 		testmode = NFSV3ACCESS_EXECUTE;
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VEXEC, cred, rdonly, td, 0))
+		nfsrv_access_withgiant(vp, VEXEC, cred, rdonly, td, 0))
 		nfsmode &= ~testmode;
-	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
 	getret = VOP_GETATTR(vp, vap, cred, td);
 	vput(vp);
 	mtx_unlock(&Giant);	/* VFS */
@@ -857,12 +860,14 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		else
 			error = (vp->v_type == VDIR) ? EISDIR : EACCES;
 	}
-	if (!error) {
-		if ((error = nfsrv_access(vp, VREAD, cred, rdonly, td, 1)) != 0)
-			error = nfsrv_access(vp, VEXEC, cred, rdonly, td, 1);
-	}
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
+	if (!error) {
+		if ((error = nfsrv_access_withgiant(vp, VREAD, cred, rdonly,
+		    td, 1)) != 0)
+			error = nfsrv_access_withgiant(vp, VEXEC, cred,
+			    rdonly, td, 1);
+	}
 	getret = VOP_GETATTR(vp, vap, cred, td);
 	if (!error)
 		error = getret;
@@ -1497,9 +1502,11 @@ loop1:
 		} else {
 		    vp = NULL;
 		}
-		if (!error)
-		    error = nfsrv_access(vp, VWRITE, cred, rdonly, td, 1);
 		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
+		if (!error)
+		    error = nfsrv_access_withgiant(vp, VWRITE, cred, rdonly,
+			td, 1);
 		if (nfsd->nd_stable == NFSV3WRITE_UNSTABLE)
 		    ioflags = IO_NODELOCKED;
 		else if (nfsd->nd_stable == NFSV3WRITE_DATASYNC)
@@ -1511,7 +1518,6 @@ loop1:
 		uiop->uio_td = NULL;
 		uiop->uio_offset = nfsd->nd_off;
 		uiop->uio_resid = nfsd->nd_eoff - nfsd->nd_off;
-		mtx_lock(&Giant);	/* VFS */
 		if (uiop->uio_resid > 0) {
 		    mp = mrep;
 		    i = 0;
@@ -1910,8 +1916,8 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 	} else {
 		if (vap->va_size != -1) {
-			error = nfsrv_access(nd.ni_vp, VWRITE, cred,
-			    (nd.ni_cnd.cn_flags & RDONLY), td, 0);
+			error = nfsrv_access_withgiant(nd.ni_vp, VWRITE,
+			    cred, (nd.ni_cnd.cn_flags & RDONLY), td, 0);
 			if (!error) {
 				tempsize = vap->va_size;
 				VATTR_NULL(vap);
@@ -3370,13 +3376,8 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = NFSERR_BAD_COOKIE;
 #endif
 	}
-	if (!error) {
-		mtx_unlock(&Giant);	/* VFS */
-		NFSD_LOCK();
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, td, 0);
-		NFSD_UNLOCK();
-		mtx_lock(&Giant);	/* VFS */
-	}
+	if (!error)
+		error = nfsrv_access_withgiant(vp, VEXEC, cred, rdonly, td, 0);
 	if (error) {
 		vput(vp);
 		mtx_unlock(&Giant);	/* VFS */
@@ -3685,13 +3686,8 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!error && toff && verf && verf != at.va_filerev)
 		error = NFSERR_BAD_COOKIE;
 #endif
-	if (!error) {
-		mtx_unlock(&Giant);	/* VFS */
-		NFSD_LOCK();
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, td, 0);
-		NFSD_UNLOCK();
-		mtx_lock(&Giant);	/* VFS */
-	}
+	if (!error)
+		error = nfsrv_access_withgiant(vp, VEXEC, cred, rdonly, td, 0);
 	if (error) {
 		vput(vp);
 		mtx_unlock(&Giant);	/* VFS */
@@ -4473,7 +4469,8 @@ nfsmout:
  * Perform access checking for vnodes obtained from file handles that would
  * refer to files already opened by a Unix client. You cannot just use
  * vn_writechk() and VOP_ACCESS() for two reasons.
- * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write case
+ * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write
+ *     case.
  * 2 - The owner is to be given access irrespective of mode bits for some
  *     operations, so that processes that chmod after opening a file don't
  *     break. I don't like this because it opens a security hole, but since
@@ -4482,17 +4479,23 @@ nfsmout:
  *
  * The exception to rule 2 is EPERM. If a file is IMMUTABLE, VOP_ACCESS()
  * will return EPERM instead of EACCESS. EPERM is always an error.
+ *
+ * There are two versions: one to be called while holding Giant (which is
+ * needed due to use of VFS), and the other called with the NFS server lock
+ * (which will be dropped and reacquired).  This is necessary because
+ * nfsrv_access checks are required from both classes of contexts.
  */
 static int
-nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
-    struct thread *td, int override)
+nfsrv_access_withgiant(struct vnode *vp, int flags, struct ucred *cred,
+    int rdonly, struct thread *td, int override)
 {
 	struct vattr vattr;
 	int error;
 
-	NFSD_LOCK_ASSERT();
+	GIANT_REQUIRED;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
+
 	if (flags & VWRITE) {
 		/* Just vn_writechk() changed to check rdonly */
 		/*
@@ -4517,11 +4520,10 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 		if (vp->v_vflag & VV_TEXT)
 			return (ETXTBSY);
 	}
-	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
+
 	error = VOP_GETATTR(vp, &vattr, cred, td);
 	if (error)
-		goto out;
+		return (error);
 	error = VOP_ACCESS(vp, flags, cred, td);
 	/*
 	 * Allow certain operations for the owner (reads and writes
@@ -4529,9 +4531,21 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 	 */
 	if (override && error == EACCES && cred->cr_uid == vattr.va_uid)
 		error = 0;
-out:
-	NFSD_UNLOCK_ASSERT();
+	return (error);
+}
+
+static int
+nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
+    struct thread *td, int override)
+{
+	int error;
+
+	NFSD_LOCK_ASSERT();
+
+	NFSD_UNLOCK();
+	mtx_lock(&Giant);	/* VFS */
+	error = nfsrv_access_withgiant(vp, flags, cred, rdonly, td, override);
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
-	return error;
+	return (error);
 }
