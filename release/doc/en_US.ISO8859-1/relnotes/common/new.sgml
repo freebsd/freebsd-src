@@ -184,7 +184,7 @@
       &merged;</para>
 
     <para arch="i386,pc98">The DRM kernel modules have been updated from
-      DRI CVS as of 23 October 2003.  Among other changes, this
+      DRI CVS as of 12 November 2003.  Among other changes, this
       change includes a newly-ported SiS 300/305/540/630/730
       driver and mostly-complete SMPng locking.</para>
 
@@ -429,6 +429,9 @@
         </listitem>
       </itemizedlist>
 
+      <para>A number of fixes and updates to the IPv6 and IPSec code
+	have been imported from the KAME Project.</para>
+
       <para>Support for the IPv6 Advanced Sockets API now conforms to
         RFC 3542 (also known as RFC 2292bis), rather than RFC 2292.
         Applications using this API have been updated
@@ -498,6 +501,36 @@
 
       <para>Some off-by-one errors in the smbfs that prevented it from
 	working correctly with 15-character NetBIOS names have been fixed.</para>
+
+      <para>The sizes of some members of the <literal>statfs</literal>
+	structure have changed from 32 bits to 64 bits in order to
+	better support multi-terabyte filesystems.
+
+      <itemizedlist>
+	<listitem>
+	  <para>Users performing source upgrades across this change
+	    must ensure that their kernel and userland bits are in
+	    sync, by following the documented source upgrade
+	    procedures.</para>
+	</listitem>
+
+	<listitem>
+	  <para>A backward compatibility version of the &man.statfs.2;
+	    system call exists but only if the
+	    <literal>COMPAT_FREEBSD4</literal> kernel option is
+	    defined.  Including this option in the kernel is strongly
+	    encouraged.</para>
+	</listitem>
+
+        <listitem>
+	  <para>Programs that use the &man.statfs.2; will need to be
+	    recompiled.  Among the known examples are the 
+	    <filename role="package">devel/gnomevfs2</filename>,
+	    <filename role="package">mail/postfix</filename>, and
+	    <filename role="package">security/cfg</filename>
+	    ports.</para>
+	</listitem>
+      </itemizedlist>
 
     </sect3>
 
