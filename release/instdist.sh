@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.5 1994/11/17 16:18:35 jkh Exp $
+# $Id: instdist.sh,v 1.6 1994/11/18 10:05:44 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -104,7 +104,7 @@ to you or select \"other\" if you'd like to specify your own \n\
 choice.  Also note that not all sites carry the optional package
 or XFree86 3.1 distributions!  These are only guaranteed to be
 available from the primary U.S. ftp site.\n\n" \
-"Please select one of the following:" 22 76 8 \
+"Please select one of the following:" -1 -1 8 \
    "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
    "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
    "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" "United States" \
@@ -183,7 +183,7 @@ media_install_set()
 		copying="yes"
 		while [ "$copying" = "yes" ]; do
 			if dialog --title "Insert distribution diskette" \
-			  $clear --yesno "Please enter the next diskette and press OK to continue or Cancel if finished" 5 72; then
+			  $clear --yesno "Please enter the next diskette and press OK to continue or Cancel if finished" -1 -1; then
 				if ! mount_msdos ${media_device} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
 				else
@@ -234,12 +234,16 @@ available, you may chose to load one or all of them.  Optional \n\
 and mandatory distributions are so noted.  Please also note that \n\
 the secrdist is NOT FOR EXPORT from the U.S.!  Please don't \n\
 endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n" \
-"Please select one (we'll come back to this menu later):" 20 76 6 \
+"Please select one of the following ${DISTNAME} distributions:" -1 -1 10 \
   "?diskfree"  "Uh, first, how much disk space do I have free?" \
-  "bindist" "The ${DISTNAME} base distribution (mandatory - 80MB)" \
-  "srcdist" "The ${DISTNAME} source distribution (optional - 120MB)" \
-  "secrdist" "The ${DISTNAME} DES distribution (optional - 5MB)" \
-  "compat1xdist" "The FreeBSD 1.x binary compatability dist (optional - 2MB)"\
+  "bindist" "Binary base files (mandatory - $BINSIZE)" \
+  "games" "Games and other frivolities (optional - $GAMESIZE)" \
+  "manpages" "Manual pages (optional - $MANSIZE)" \
+  "proflibs" "Profiled libraries (optional - $PROFSIZE)" \
+  "dict" "Dictionary files for spelling checkers (optional - $DICTSIZE)" \
+  "srcdist" "Full sources for everything but DES (optional - $SRCSIZE)" \
+  "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
+  "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
   "packages" "The ${DISTNAME} optional software distribution (user choice)" \
      2> ${TMP}/menu.tmp.$$
 	retval=$?
@@ -285,7 +289,7 @@ one of the following options.  If none of the listed options works \n\
 for you then your best bet may be to simply hit ESC twice to get \n\
 a subshell and proceed manually on your own.  If you are already \n\
 finished with installation, select cancel to go on.\n\n\
-	Please choose one of the following:" 20 72 7 \
+	Please choose one of the following:" -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
 	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
@@ -313,7 +317,7 @@ finished with installation, select cancel to go on.\n\n\
 		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 20 72 3 \
+		Choose one of the following:" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
 		"floppy" "Floppy tape drive" \
@@ -340,7 +344,7 @@ system?  FreeBSD supports the following types:\n\n\
 		dialog $clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 15 72 2 \
+		Choose one of the following:" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
 			2> ${TMP}/menu.tmp.$$
@@ -433,7 +437,7 @@ Options, if any, should be separated by commas."; then
 		dialog $clear --title "User Intervention Requested" --msgbox "
 Please mount the filesystem you wish to use somewhere convenient and
 exit the shell when you're through.  I'll ask you for the location
-of the distribution when we come back." 12 72
+of the distribution when we come back." -1 -1
 		dialog --clear
 		/stand/sh
 		title="Please enter directory"

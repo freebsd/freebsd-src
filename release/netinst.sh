@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.3 1994/11/18 10:05:47 jkh Exp $
+# $Id: netinst.sh,v 1.4 1994/11/18 10:19:04 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -30,7 +30,7 @@ network_setup_ether()
 {
 	dialog $clear --title "Ethernet Interface Name" \
 	--menu "Please select the type of ethernet interface you have:\n\n" \
-	 20 76 7 \
+	 -1 -1 7 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280" \
 	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
 	"ep0" "3COM 3C509 at address 0x300 and IRQ 10" \
@@ -89,10 +89,10 @@ network_setup()
 		clear="--clear"
 		dialog $clear --title "Set up network interface" \
 		--menu "Please select the type of network connection you have:\n\n" \
-		15 72 3 \
+		-1 -1 3 \
 		"ether" "A supported ethernet card" \
 		"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
-		"PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
+		"PLIP" "A Parallel-Line IP setup (with standard laplink cable)" \
 		2> ${TMP}/menu.tmp.$$
 
 		retval=$?
