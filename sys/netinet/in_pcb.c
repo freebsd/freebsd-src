@@ -704,15 +704,13 @@ in_pcbpurgeif0(pcbinfo, ifp)
 	struct inpcbinfo *pcbinfo;
 	struct ifnet *ifp;
 {
-	struct inpcb *head;
 	struct inpcb *inp;
 	struct ip_moptions *imo;
 	int i, gap;
 
 	/* why no splnet here? XXX */
 	INP_INFO_RLOCK(pcbinfo);
-	head = LIST_FIRST(pcbinfo->listhead);
-	for (inp = head; inp != NULL; inp = LIST_NEXT(inp, inp_list)) {
+	LIST_FOREACH(inp, pcbinfo->listhead, inp_list) {
 		INP_LOCK(inp);
 		imo = inp->inp_moptions;
 		if ((inp->inp_vflag & INP_IPV4) &&
@@ -741,7 +739,7 @@ in_pcbpurgeif0(pcbinfo, ifp)
 		}
 		INP_UNLOCK(inp);
 	}
-	INP_INFO_RLOCK(pcbinfo);
+	INP_INFO_RUNLOCK(pcbinfo);
 }
 
 /*
