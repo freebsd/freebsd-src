@@ -319,13 +319,6 @@ next:
 			(void) snprintf(fname, sizeof fname, "options.%s", machinename);
 			goto openit;
 		}
-		if (first == 2) {
-			first++;
-			(void) snprintf(fname, sizeof fname, "options.%s", raisestr(ident));
-			fp = fopen(fname, "r");
-			if (fp != 0)
-				goto next;
-		}
 		return;
 	}
 	if (wd == 0)
