@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.26 1997/10/24 14:24:55 phk Exp $ */
+/* $Id: ccd.c,v 1.27 1997/11/18 14:39:04 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -93,9 +93,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
