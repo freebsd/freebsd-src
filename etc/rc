@@ -364,7 +364,8 @@ case ${syslogd_enable} in
 	fi
 
 	rm -f /var/run/log
-	echo -n ' syslogd';	syslogd ${syslogd_flags}
+	echo -n ' syslogd';
+	${syslogd_program:-/usr/sbin/syslogd} ${syslogd_flags}
 	;;
 esac
 
@@ -482,7 +483,7 @@ case ${inetd_enable} in
 [Nn][Oo])
 	;;
 *)
-	echo -n ' inetd';	inetd ${inetd_flags}
+	echo -n ' inetd'; ${inetd_program:-/usr/sbin/inetd} ${inetd_flags}
 	;;
 esac
 
