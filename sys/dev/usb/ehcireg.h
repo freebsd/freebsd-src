@@ -1,4 +1,4 @@
-/*	$NetBSD: ehcireg.h,v 1.13 2001/11/23 01:16:27 augustss Exp $	*/
+/*	$NetBSD: ehcireg.h,v 1.17 2004/06/23 06:45:56 mycroft Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -64,9 +64,17 @@
 
 #define PCI_EHCI_PORTWAKECAP	0x62	/* RW Port wake caps (opt)  */
 
-/* Regs ar EECP + offset */
-#define PCI_EHCI_USBLEGSUP	0x00
-#define PCI_EHCI_USBLEGCTLSTS	0x04
+/* EHCI Extended Capabilities */
+#define EHCI_EC_LEGSUP		0x01
+
+#define EHCI_EECP_NEXT(x)	(((x) >> 8) & 0xff)
+#define EHCI_EECP_ID(x)		((x) & 0xff)
+
+/* Legacy support extended capability */
+#define EHCI_LEGSUP_LEGSUP	0x01
+#define  EHCI_LEGSUP_OSOWNED	0x01000000 /* OS owned semaphore */
+#define  EHCI_LEGSUP_BIOSOWNED	0x00010000 /* BIOS owned semaphore */
+#define EHCI_LEGSUP_USBLEGCTLSTS 0x04
 
 /*** EHCI capability registers ***/
 
@@ -76,7 +84,7 @@
 
 #define EHCI_HCSPARAMS		0x04	/* RO Structural parameters */
 #define  EHCI_HCS_DEBUGPORT(x)	(((x) >> 20) & 0xf)
-#define  EHCI_HCS_P_INCICATOR(x) ((x) & 0x10000)
+#define  EHCI_HCS_P_INDICATOR(x) ((x) & 0x10000)
 #define  EHCI_HCS_N_CC(x)	(((x) >> 12) & 0xf) /* # of companion ctlrs */
 #define  EHCI_HCS_N_PCC(x)	(((x) >> 8) & 0xf) /* # of ports per comp. */
 #define  EHCI_HCS_PPC(x)	((x) & 0x10) /* port power control */
@@ -210,6 +218,7 @@ typedef struct {
 	ehci_link_t	qtd_altnext;
 	u_int32_t	qtd_status;
 #define EHCI_QTD_GET_STATUS(x)	(((x) >>  0) & 0xff)
+#define EHCI_QTD_SET_STATUS(x) ((x) <<  0)
 #define  EHCI_QTD_ACTIVE	0x80
 #define  EHCI_QTD_HALTED	0x40
 #define  EHCI_QTD_BUFERR	0x20
@@ -233,7 +242,8 @@ typedef struct {
 #define EHCI_QTD_GET_BYTES(x)	(((x) >> 16) &  0x7fff)
 #define EHCI_QTD_SET_BYTES(x)	((x) << 16)
 #define EHCI_QTD_GET_TOGGLE(x)	(((x) >> 31) &  0x1)
-#define EHCI_QTD_TOGGLE		0x80000000
+#define	EHCI_QTD_SET_TOGGLE(x)	((x) << 31)
+#define EHCI_QTD_TOGGLE_MASK	0x80000000
 	ehci_physaddr_t	qtd_buffer[EHCI_QTD_NBUFFERS];
 	ehci_physaddr_t qtd_buffer_hi[EHCI_QTD_NBUFFERS];
 } ehci_qtd_t;
@@ -261,8 +271,8 @@ typedef struct {
 #define EHCI_QH_HRECL		0x00008000
 #define EHCI_QH_GET_MPL(x)	(((x) >> 16) & 0x7ff) /* max packet len */
 #define EHCI_QH_SET_MPL(x)	((x) << 16)
-#define EHCI_QG_MPLMASK		0x07ff0000
-#define EHCI_QH_GET_CTL(x)	(((x) >> 26) & 0x01) /* control endpoint */
+#define EHCI_QH_MPLMASK		0x07ff0000
+#define EHCI_QH_GET_CTL(x)	(((x) >> 27) & 0x01) /* control endpoint */
 #define EHCI_QH_CTL		0x08000000
 #define EHCI_QH_GET_NRL(x)	(((x) >> 28) & 0x0f) /* NAK reload */
 #define EHCI_QH_SET_NRL(x)	((x) << 28)
