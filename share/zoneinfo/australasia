@@ -354,7 +354,7 @@ Zone Pacific/Yap	9:12:24	-	LMT	1901
 Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 			9:00	-	PLT
 
-# ZONE-DESCR Pacific Palau Rep._of_Palau Palau
+# ZONE-DESCR Pacific Palau Rep_of_Palau Palau
 
 # Palmyra
 # no information; probably like Pacific/Kiritmati
