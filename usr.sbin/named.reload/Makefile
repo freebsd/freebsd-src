@@ -1,15 +1,9 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../named/Makefile.inc"
-
-SCRIPTS=	named.reload
+SCRIPTS=	named.reload.sh
 MAN=		named.reload.8
-CLEANFILES+=	${SCRIPTS}
-SCRIPTSNAME=	${SCRIPTS}
 
-named.reload:	named.reload.sh ${BIND_DIR}/Makefile
-	sed -e "s|%INDOT%|${INDOT}|" \
-	    -e "s|%DESTSBIN%|${DESTSBIN}|" \
-	    < ${.CURDIR}/named.reload.sh > ${.TARGET}
+LINKS=		${BINDIR}/named.reload ${BINDIR}/named.reconfig
+MLINKS=		named.reload.8 named.reconfig.8
 
 .include <bsd.prog.mk>
