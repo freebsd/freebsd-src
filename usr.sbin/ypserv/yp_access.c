@@ -32,16 +32,23 @@
  */
 
 #include <rpc/rpc.h>
+#include <rpcsvc/yp.h>
+#include <rpcsvc/yppasswd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <paths.h>
+#include <errno.h>
 #include <sys/param.h>
 #include "yp_extern.h"
 #ifdef TCP_WRAPPER
 #include "tcpd.h"
+#endif
+
+#ifndef lint
+static const char rcsid[] = "$Id$";
 #endif
 
 extern int debug;
@@ -60,6 +67,99 @@ char *yp_procs[] = {	"ypproc_null" ,
 			"ypproc_maplist"
 		   };
 
+#ifdef TCP_WRAPPER
+void load_securenets()
+{
+}
+#else
+struct securenet {
+	struct in_addr net;
+	struct in_addr mask;
+	struct securenet *next;
+};
+
+struct securenet *securenets;
+
+#define LINEBUFSZ 1024
+
+/*
+ * Read /var/yp/securenets file and initialize the securenets
+ * list. If the file doesn't exist, we set up a dummy entry that
+ * allows all hosts to connect.
+ */
+void load_securenets()
+{
+	FILE *fp;
+	char path[MAXPATHLEN + 2];
+	char linebuf[1024 + 2];
+	struct securenet *tmp;
+
+	/*
+	 * If securenets is not NULL, we are being called to reload
+	 * the list; free the existing list before re-reading the
+	 * securenets file.
+	 */
+	if (securenets != NULL) {
+		while(securenets) {
+			tmp = securenets->next;
+			free(securenets->net);
+			free(securenets->mask);
+			free(securenets);
+			securenets = tmp;
+		}
+	}
+
+	snprintf(path, MAXPATHLEN, "%s/securenets", yp_dir);
+
+	if ((fp = fopen(path, "r")) == NULL) {
+		if (errno == ENOENT) {
+			securenets = (struct securenet *)malloc(sizeof(struct securenet));
+			securenets->net.s_addr = INADDR_ANY;
+			securenets->mask.s_addr = INADDR_BROADCAST;
+			securenets->next = NULL;
+			return;
+		} else {
+			yp_error("fopen(%s) failed: %s", path, strerror(errno));
+			exit(1);
+		}
+	}
+
+	securenets = NULL;
+
+	while(fgets(linebuf, LINEBUFSZ, fp)) {
+		char addr1[20], addr2[20];
+
+		if (linebuf[0] == '#')
+			continue;
+		if (sscanf(linebuf, "%s %s", addr1, addr2) < 2) {
+			yp_error("badly formatted securenets entry: %s",
+							linebuf);
+			continue;
+		}
+
+		tmp = (struct securenet *)malloc(sizeof(struct securenet));
+
+		if (!inet_aton((char *)&addr1, (struct in_addr *)&tmp->net)) {
+			yp_error("badly formatted securenets entry: %s", addr1);
+			free(tmp);
+			continue;
+		}
+
+		if (!inet_aton((char *)&addr2, (struct in_addr *)&tmp->mask)) {
+			yp_error("badly formatted securenets entry: %s", addr2);
+			free(tmp);
+			continue;
+		}
+
+		tmp->next = securenets;
+		securenets = tmp;
+	}
+
+	fclose(fp);
+	
+}
+#endif
+
 /*
  * Access control functions.
  *
@@ -71,10 +171,19 @@ char *yp_procs[] = {	"ypproc_null" ,
  *   assume that the caller is root and allow the RPC to succeed. If it
  *   isn't access is denied.
  *
- * - If we are compiled with the tcpwrapper package, we also check to see
- *   if the host makes it past the libwrap checks and deny access if it
- *   doesn't. Host address checks are disabled if not compiled with the
- *   tcp_wrapper package.
+ * - The client's IP address is checked against the securenets rules.
+ *   There are two kinds of securenets support: the built-in support,
+ *   which is very simple and depends on the presense of a
+ *   /var/yp/securenets file, and tcp-wrapper support, which requires
+ *   Wietse Venema's libwrap.a and tcpd.h. (Since the tcp-wrapper
+ *   package does not ship with FreeBSD, we use the built-in support
+ *   by default. Users can recompile the server the tcp-wrapper library
+ *   if they already have it installed and want to use hosts.allow and
+ *   hosts.deny to control access instead od having a seperate securenets
+ *   file.)
+ *
+ *   If no /var/yp/securenets file is present, the host access checks
+ *   are bypassed and all hosts are allowed to connect.
  *
  * The yp_validdomain() functions checks the domain specified by the caller
  * to make sure it's actually served by this server. This is more a sanity
@@ -87,15 +196,19 @@ int yp_access(map, rqstp)
 	const struct svc_req *rqstp;
 {
 	struct sockaddr_in *rqhost;
-#ifdef TCP_WRAPPER
 	int status = 0;
 	unsigned long oldaddr;
+#ifndef TCP_WRAPPER
+	struct securenet *tmp;
 #endif
 
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
 	if (debug) {
 		yp_error("Procedure %s called from %s:%d",
+			/* Hack to allow rpc.yppasswdd to use this routine */
+			rqstp->rq_prog == YPPASSWDPROG ?
+			"yppasswdproc_update" :
 			yp_procs[rqstp->rq_proc], inet_ntoa(rqhost->sin_addr),
 			ntohs(rqhost->sin_port));
 		if (map != NULL)
@@ -104,24 +217,41 @@ int yp_access(map, rqstp)
 
 	/* Check the map name if one was supplied. */
 	if (map != NULL) {
-		if (strstr(map, "master.passwd.") && ntohs(rqhost->sin_port) > 1023) {
+		if ((strstr(map, "master.passwd.") ||
+		    rqstp->rq_proc == YPPROC_XFR) &&
+		    ntohs(rqhost->sin_port) > 1023) {
 			yp_error("Access to %s denied -- client not privileged", map);
 			return(1);
 		}
 	}
 
 #ifdef TCP_WRAPPER
-	/* Check client address if TCP_WRAPPER is enalbled. */
 	status = hosts_ctl(progname, STRING_UNKNOWN,
-			   inet_ntoa(rqhost->sin_addr, "");
-
-	if (!status && rqhost->sin_addr.s_addr != oldaddr) {
-		yp_error("connect from %s:%d refused",
-			  inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
-		oldaddr = rqhost->sin_addr.s_addr;
-		return(1);
+			   inet_ntoa(rqhost->sin_addr), "");
+#else
+	tmp = securenets;
+	while(tmp) {
+		if (((rqhost->sin_addr.s_addr & ~tmp->mask.s_addr)
+		    | tmp->net.s_addr) == rqhost->sin_addr.s_addr) {
+			status = 1;
+			break;
+		}
+		tmp = tmp->next;
 	}
 #endif
+
+	if (!status) {
+		if (rqhost->sin_addr.s_addr != oldaddr) {
+			yp_error("connect from %s:%d to procedure %s refused",
+					inet_ntoa(rqhost->sin_addr),
+					ntohs(rqhost->sin_port),
+					rqstp->rq_prog == YPPASSWDPROG ?
+					"yppasswdproc_update" :
+					yp_procs[rqstp->rq_proc]);
+			oldaddr = rqhost->sin_addr.s_addr;
+		}
+		return(1);
+	}
 	return(0);
 
 }
@@ -134,7 +264,7 @@ int yp_validdomain(domain)
 
 	if (domain == NULL || strstr(domain, "binding") ||
 	    !strcmp(domain, ".") || !strcmp(domain, "..") ||
-	    strchr(domain, '/'))
+	    strchr(domain, '/') || strlen(domain) > YPMAXDOMAIN)
 		return(1);
 
 	snprintf(dompath, sizeof(dompath), "%s/%s", yp_dir, domain);

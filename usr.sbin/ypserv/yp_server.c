@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.3 1996/01/10 16:07:39 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.2 1995/12/23 21:35:35 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -407,6 +407,9 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 	 */
 	if (yp_access(NULL, (struct svc_req *)rqstp))
 		return (NULL);
+
+	/* Re-read the securenets database for the hell of it. */
+	load_securenets();
 
 	result = &rval;
 	return((void *) &result);
