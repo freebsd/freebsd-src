@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.21 1995/08/06 05:15:45 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.22 1995/10/26 23:54:13 gibbs Exp $"
 
 SCBMASK		= 0xff
 
@@ -1049,15 +1049,13 @@ initialize_scsiid:
 	mov	SCSIID,SINDEX ret
 
 initialize_for_target:
-#  Turn on Automatic PIO mode now, before we expect to see a REQ
-#  from the target.  It shouldn't hurt anything to leave it on.  Set
-#  CLRCHN here before the target has entered a data transfer mode -
+#  Set CLRCHN here before the target has entered a data transfer mode -
 #  with synchronous SCSI, if you do it later, you blow away some
 #  data in the SCSI FIFO that the target has already sent to you.
 #
 	clr	SIGSTATE 
 
-	or	SXFRCTL0,0x8a			# DFON|SPIOEN|CLRCHN
+	or	SXFRCTL0,0x02			# CLRCHN
 
 #  Make sure that the system knows we have not been through a DATA
 #  phase.
