@@ -20,6 +20,159 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.4	23/05/2000 - Released
+
+don't add TCP state if it is an RST packet and (attempt) to send out
+RST/ICMP packets in a manner that bypasses IP Filter.
+
+add patch to work with 4.0_STABLE delayed checksums
+
+3.4.3	20/05/2000 - Released
+
+fix ipmon -F
+
+don't truncate IPv6 packets on Solaris
+
+fix keep state for ICMP ECHO
+
+add some NAT stats and use def_nat_age rather than DEF_NAT_AGE
+
+don't make ftp proxy drop packets
+
+use MCLISREFERENCED() in tandem with M_EXT to check if IP fields need to be
+swapped back.
+
+fix up RST generation for non-Solaris
+
+get "short" flag right for IPv6
+
+3.4.2 - 10/5/2000 - Released
+
+Fix bug in dealing with "hlen == 1 and opt > 1" - Itojun
+
+ignore previous NAT mappings for 0/0 and 0/32 rules
+
+bring in a completely new ftp proxy
+
+allow NAT to cause packets to be dropped.
+
+add NetBSD callout support for 1.4-current
+
+3.4.1 - 30/4/2000 - Released
+
+add ratoui() and fix parsing of group numbers to allow 0 - UINT_MAX
+
+don't include opt_inet6.h for FreeBSD if KLD_MODULE is defined
+
+Solaris must use copyin() for all types of ioctl() args
+
+fix up screen/tty when leaving "top mode" of ipfstat
+
+linked list for maptable not setup correctly in nat_hostmap()
+
+check for maptable rather than nat_table[1] to see if malloc for maptable
+succeeded in nat_init
+
+fix handling of map NAT rules with "from/to" host specs
+
+fix printout out of source address when using "from/to" with map rules
+
+convert ip_len back to network byte order, not plen, for solaris as ip_len
+may have been changed by NAT and plen won't reflect this
+
+3.4 - 27/4/2000 - Released
+
+source address spoofing can be turned on (fr_chksrc) without using
+filter rules
+
+group numbers are now 32bits in size, up from 16bits
+
+IPv6 filtering available
+
+add frank volf's state-top patches
+
+add load splitting and round-robin attribute to redirect rules
+
+FreeBSD-4.0 support (including KLD)
+
+add top-style operation mode for ipfstat (-t)
+
+add save/restore of IP Filter state/NAT information (ipfs)
+
+further ftp proxy security checks
+
+support for adding and removing proxies at runtime
+
+3.3.13  26/04/2000 - Released
+
+Fix parsing of "range" with "portmap"
+
+Relax checking of ftp replies, slightly.
+
+Fix NAT timeouts for ICMP packets
+
+SunOS4 patches for ICMP redirects from Jurgen Keil (jk@tools.de)
+
+3.3.12  16/03/2000 - Released
+
+tighten up ftp proxy behaviour.  sigh.  yuck.  hate.
+
+fix bug in range check for NAT where the last IP# was not used.
+
+fix problem with icmp codes > 127 in filter rules caused bad things to
+happen and in particular, where #18 caused the rule to be printed
+erroneously.
+
+fix bug with the spl level not being reset when returning EIO from
+iplioctl due to ipfilter not being initialized yet.
+
+3.3.11  04/03/2000 - Released
+
+make "or-block" work with lines that start with "log"
+
+fix up parsing and printing of rules with syslog levels in them
+
+fix from Cy Schubert for calling of apr_fini only if non-null
+
+
+3.3.10	24/02/2000 - Released
+
+* fix back from guido for state tracking interfaces
+
+* update for NetBSD pfil interface changes
+
+* if attaching fails and we can abort, then cleanup when doing so.
+
+julian@computer.org:
+* solaris.c (fr_precheck): After calling freemsg on mt, set it point to *mp.
+* ipf.c (packetlogon): use flag to store the return value from get_flags.
+* ipmon.c (init_tabs): General cleanup so we do not have to cast
+  an int s->s_port to u_int port and try to check if the u_int port
+  is less than zero.
+
+3.3.9	15/02/2000 - Released
+
+fix scheduling of bad locking in fr_addstate() used when we attach onto
+a filter rule.
+
+fix up ip_statesync() with storing interface names in ipstate_t
+
+fix fr_running for LKM's - Eugene Polovnikov
+
+junk using pullupmsg() for solaris - it's next to useless for what we
+need to do here anyway - and implement what we require.
+
+don't call fr_delstate() in fr_checkstate(), when compiled for a user
+program, early but when we're finished with it (got fr & pass)
+
+ipnat(5) fix from Guido
+
+on solaris2, copy message and use that with filter if there is another
+copy if it being used (db_ref > 1).  bad for performance, but better
+than causing a crash.
+
+patch for solaris8-fcs compile from Casper Dik
+
 3.3.8	01/02/2000 - Released
 
 fix state handling of SYN packets.
@@ -84,11 +237,6 @@ fix problem where source address in icmp replies is reversed
 fix yet another problem with real audio.
 
 3.3.4	4/12/1999 - Released
-
-patches from Guido: fix panic in ip_state:fr_checkicmpmatchingstate(), fix
-byte order problem in ip_id (host order when called from ip_input(), vs
-network byte order when called from ip_output()) and  fix a problem where the
-fragment cache was never timedout early.
 
 fix up the real audio proxy to properly setup state information and NAT
 entries, thanks to Laine Stump for testing/advice/fixes.
