@@ -66,6 +66,7 @@
 #include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
@@ -1316,6 +1317,12 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Allocating one item from %s(%p)\n", zone->uz_name, zone);
 #endif
+
+	if (!(flags & M_NOWAIT)) {
+		KASSERT(curthread->td_intr_nesting_level == 0,
+		   ("malloc(M_WAITOK) in interrupt context"));
+		WITNESS_SLEEP(1, NULL);
+	}
 
 zalloc_restart:
 	cpu = PCPU_GET(cpuid);
