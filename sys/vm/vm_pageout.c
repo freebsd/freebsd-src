@@ -472,7 +472,7 @@ vm_pageout_object_deactivate_pages(map, object, desired)
 	vm_page_t p, next;
 	int actcount, rcount, remove_mode;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
 		return;
 
@@ -556,7 +556,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_object_t obj, bigobj;
 	int nothingwired;
 
-	GIANT_REQUIRED;
 	if (!vm_map_trylock(map))
 		return;
 
@@ -571,10 +570,15 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
-			if ((obj != NULL) && (obj->shadow_count <= 1) &&
-				((bigobj == NULL) ||
-				 (bigobj->resident_page_count < obj->resident_page_count))) {
-				bigobj = obj;
+			if (obj != NULL && VM_OBJECT_TRYLOCK(obj)) {
+				if (obj->shadow_count <= 1 &&
+				    (bigobj == NULL ||
+				     bigobj->resident_page_count < obj->resident_page_count)) {
+					if (bigobj != NULL)
+						VM_OBJECT_UNLOCK(bigobj);
+					bigobj = obj;
+				} else
+					VM_OBJECT_UNLOCK(obj);
 			}
 		}
 		if (tmpe->wired_count > 0)
@@ -582,9 +586,10 @@ vm_pageout_map_deactivate_pages(map, desired)
 		tmpe = tmpe->next;
 	}
 
-	if (bigobj)
+	if (bigobj != NULL) {
 		vm_pageout_object_deactivate_pages(map, bigobj, desired);
-
+		VM_OBJECT_UNLOCK(bigobj);
+	}
 	/*
 	 * Next, hunt around for other pages to deactivate.  We actually
 	 * do this search sort of wrong -- .text first is not the best idea.
@@ -595,8 +600,11 @@ vm_pageout_map_deactivate_pages(map, desired)
 			break;
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
-			if (obj)
+			if (obj != NULL) {
+				VM_OBJECT_LOCK(obj);
 				vm_pageout_object_deactivate_pages(map, obj, desired);
+				VM_OBJECT_UNLOCK(obj);
+			}
 		}
 		tmpe = tmpe->next;
 	}
@@ -606,6 +614,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * table pages.
 	 */
 	if (desired == 0 && nothingwired) {
+		GIANT_REQUIRED;
 		vm_page_lock_queues();
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
