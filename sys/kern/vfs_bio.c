@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.107 1996/11/30 22:41:40 dyson Exp $
+ * $Id: vfs_bio.c,v 1.108 1996/12/01 15:46:31 dyson Exp $
  */
 
 /*
@@ -154,7 +154,7 @@ bufinit()
  * cache is still the same as it would be for 8K filesystems.  This
  * keeps the size of the buffer cache "in check" for big block filesystems.
  */
-	maxbufspace = (nbuf + 8) * PAGE_SIZE;
+	maxbufspace = (nbuf + 8) * DFLTBSIZE;
 /*
  * reserve 1/3 of the buffers for metadata (VDIR) which might not be VMIO'ed
  */
