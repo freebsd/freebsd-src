@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.49 1998/03/12 20:02:09 eivind Exp $
+#	$Id: bsd.info.mk,v 1.50 1998/05/06 18:44:01 bde Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -76,8 +76,11 @@
 #
 # bsd.obj.mk: cleandir and obj
 
+.if !target(__initialized__)
+__initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
+.endif
 .endif
 
 MAKEINFO?=	makeinfo
