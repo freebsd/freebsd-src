@@ -2933,7 +2933,10 @@ static void dc_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		dc_start(ifp);
 
+#ifdef DEVICE_POLLING
 done:
+#endif /* DEVICE_POLLING */
+
 	DC_UNLOCK(sc);
 
 	return;
