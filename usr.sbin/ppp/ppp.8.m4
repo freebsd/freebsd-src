@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.132 1998/10/27 22:53:22 brian Exp $
+.\" $Id: ppp.8,v 1.133 1998/10/31 17:38:47 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2528,10 +2528,14 @@ allows.
 .It iface clear
 If this command is used while
 .Nm
-is in the OPENED state, all addresses except for the IPCP negotiated
-address are deleted from the interface.  If
+is in the OPENED state or while in
+.Fl auto
+mode, all addresses except for the IPCP negotiated address are deleted
+from the interface.  If
 .Nm
-is not in the OPENED state, all interface addresses are deleted.
+is not in the OPENED state and is not in
+.Fl auto
+mode, all interface addresses are deleted.
 .Pp
 .It iface delete[!]|rm[!] Ar addr
 This command deletes the given
