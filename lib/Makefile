@@ -20,7 +20,7 @@
 
 SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	libncurses libradius libskey libtacplus libutil \
-	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
+	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipsec libipx libisc libkvm libmenu \
 	${_libncp} \
