@@ -2456,7 +2456,7 @@ vprint(label, vp)
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
  */
-DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
+DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct mount *mp, *nmp;
