@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
- * $Id: ipc.h,v 1.7 1996/03/11 02:08:16 hsu Exp $
+ * $Id: ipc.h,v 1.5.4.1 1996/06/03 05:12:07 jkh Exp $
  */
 
 /*
@@ -83,6 +83,18 @@ struct ipc_perm {
 #define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
 
 int	ipcperm __P((struct ucred *,struct ipc_perm *,int));
+#else /* ! KERNEL */
+
+/* XXX doesn't really belong here, but has been historical practice in SysV. */
+
+#ifndef _POSIX_SOURCE
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+key_t	ftok __P((const char *, int));
+__END_DECLS
+#endif /* ! POSIX */
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_IPC_H_ */
