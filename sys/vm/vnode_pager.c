@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.74 1997/09/01 03:17:34 bde Exp $
+ *	$Id: vnode_pager.c,v 1.75 1997/10/06 02:38:30 dyson Exp $
  */
 
 /*
@@ -495,7 +495,7 @@ vnode_pager_input_smlfs(object, m)
 				crhold(bp->b_rcred);
 			if (bp->b_wcred != NOCRED)
 				crhold(bp->b_wcred);
-			bp->b_un.b_addr = (caddr_t) kva + i * bsize;
+			bp->b_data = (caddr_t) kva + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
 			bp->b_bcount = bsize;

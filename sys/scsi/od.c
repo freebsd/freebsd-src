@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.31 1997/09/02 20:06:32 bde Exp $
+ *	$Id: od.c,v 1.32 1997/09/21 22:03:01 gibbs Exp $
  */
 
 /*
@@ -636,7 +636,7 @@ odstart(u_int32_t unit, u_int32_t flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			OD_RETRIES,
 			100000,

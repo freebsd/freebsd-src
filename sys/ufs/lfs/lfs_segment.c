@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.24 1997/08/31 07:32:37 phk Exp $
+ * $Id: lfs_segment.c,v 1.25 1997/10/16 11:58:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -730,7 +730,7 @@ lfs_updatemeta(sp)
 				printf("lfs: negative bytes (segment %ld)\n",
 				    datosn(fs, daddr));
 				printf("lfs: bp = 0x%x, addr = 0x%x\n",
-						bp, bp->b_un.b_addr);
+						bp, bp->b_data);
 				panic ("Negative Bytes");
 			}
 #endif
