@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.29 1995/05/12 04:24:53 davidg Exp $
+ * $Id: vfs_subr.c,v 1.30 1995/05/21 21:38:51 davidg Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/time.h>
@@ -998,7 +999,7 @@ vclean(vp, flags)
 	 */
 	if (active) {
 		if (flags & DOCLOSE)
-			VOP_CLOSE(vp, IO_NDELAY, NOCRED, NULL);
+			VOP_CLOSE(vp, FNONBLOCK, NOCRED, NULL);
 		VOP_INACTIVE(vp);
 	}
 	/*
