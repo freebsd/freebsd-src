@@ -96,6 +96,14 @@ int	ipport_lastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
+/*
+ * Reserved ports accessible only to root. There are significant
+ * security considerations that must be accounted for when changing these,
+ * but the security benefits can be great. Please be careful.
+ */
+int	ipport_reservedhigh = IPPORT_RESERVED - 1;	/* 1023 */
+int	ipport_reservedlow = 0;
+
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
@@ -132,6 +140,10 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hifirstauto, 0, &sysctl_net_ipport_check, "I", "");
 SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedhigh,
+	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedhigh, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
+	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedlow, 0, "");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -288,8 +300,9 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 		if (lport) {
 			struct inpcb *t;
 			/* GROSS */
-			if (ntohs(lport) < IPPORT_RESERVED && td &&
-			    suser_cred(td->td_ucred, PRISON_ROOT))
+			if (ntohs(lport) <= ipport_reservedhigh &&
+			    ntohs(lport) >= ipport_reservedlow &&
+			    td && suser_cred(td->td_ucred, PRISON_ROOT))
 				return (EACCES);
 			if (td && jailed(td->td_ucred))
 				prison = 1;
