@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.61 1998/09/22 16:12:00 kato Exp $
+ *	$Id: clock.c,v 1.62 1998/10/13 02:33:21 kato Exp $
  */
 
 /*
@@ -752,7 +752,7 @@ calibrate_clocks(void)
 		prev_count = count;
 		if ((sec == start_sec + 1200) ||
 		    (sec < start_sec &&
-		        (u_int)sec + 0xffff == (u_int)start_sec + 1200))
+		        (u_int)sec + 0x10000 == (u_int)start_sec + 1200))
 			break;
 		if (--timeout == 0)
 			goto fail;
