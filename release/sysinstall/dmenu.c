@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.25.2.7 1997/09/17 16:35:34 pst Exp $
+ * $Id: dmenu.c,v 1.25.2.8 1997/10/14 18:17:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,10 +130,16 @@ dmenuSetKmapVariable(dialogMenuItem *tmp)
 int
 dmenuToggleVariable(dialogMenuItem *tmp)
 {
-    if (!variable_get((char *)tmp->data))
-	variable_set((char *)tmp->data);
+    char *var;
+
+    if (!(var = (char *)tmp->data)) {
+	msgConfirm("Incorrect data field for `%s'!", tmp->title);
+	return DITEM_FAILURE;
+    }
+    if (!variable_get(var))
+	variable_set(var);
     else
-	variable_unset((char *)tmp->data);
+	variable_unset(var);
     return DITEM_SUCCESS;
 }
 
@@ -201,8 +207,6 @@ dmenuVarCheck(dialogMenuItem *item)
     w = (char *)item->aux;
     if (!w)
 	w = (char *)item->data;
-    if (!w)
-	return FALSE;
     return variable_check(w);
 }
 
