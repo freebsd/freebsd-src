@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.15 1995/10/20 15:40:45 jkh Exp $
+ * $Id: media.c,v 1.25.2.16 1995/10/20 16:49:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,14 +297,14 @@ mediaSetFTP(char *str)
 int
 mediaSetFTPActive(char *str)
 {
-    OptFlags |= OPT_FTP_ACTIVE;
+    variable_set2(OPT_FTP_STATE, "active");
     return mediaSetFTP(str);
 }
 
 int
 mediaSetFTPPassive(char *str)
 {
-    OptFlags |= OPT_FTP_PASSIVE;
+    variable_set2(OPT_FTP_STATE, "passive");
     return mediaSetFTP(str);
 }
 
@@ -517,6 +517,27 @@ mediaVerify(void)
 	return mediaGetType(NULL) == RET_SUCCESS;
     }
     return TRUE;
+}
+
+/* Set FTP error behavior */
+int
+mediaSetFtpOnError(char *str)
+{
+    char *cp = variable_get(OPT_FTP_ONERROR);
+
+    if (!cp) {
+	msgConfirm("FTP error handling is not set to anything!");
+	return RET_FAIL;
+    }
+    else {
+	if (!strcmp(cp, "abort"))
+	    variable_set2(OPT_FTP_ONERROR, "retry");
+	else if (!strcmp(cp, "medium"))
+	    variable_set2(OPT_FTP_ONERROR, "reselect");
+	else /* must be "reselect" - wrap around */
+	    variable_set2(OPT_FTP_ONERROR, "abort");
+    }
+    return RET_SUCCESS;
 }
 
 /* Set the FTP username and password fields */
