@@ -194,25 +194,33 @@ chgproccnt(uid, diff, max)
  * Change the total socket buffer size a user has used.
  */
 int
-chgsbsize(uid, diff, max)
+chgsbsize(uid, hiwat, to, max)
 	uid_t	uid;
-	rlim_t	diff;
+	u_long *hiwat;
+	u_long	to;
 	rlim_t	max;
 {
 	struct uidinfo *uip;
+	rlim_t diff;
+	int s;
 
 	uip = uifind(uid);
-	if (diff < 0)
-		KASSERT(uip != NULL, ("reducing sbsize: lost count, uid = %d", uid));
+	KASSERT(to >= *hiwat || uip != NULL,
+	    ("reducing sbsize: lost count, uid = %d", uid));
 	if (uip == NULL)
 		uip = uicreate(uid);
+	s = splnet();
+	diff = to - *hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (diff > 0 && uip->ui_sbsize + diff > max) {
 		(void)uifree(uip);
+		splx(s);
 		return (0);
 	}
 	uip->ui_sbsize += diff;
+	*hiwat = to;
 	(void)uifree(uip);
+	splx(s);
 	return (1);
 }
 
