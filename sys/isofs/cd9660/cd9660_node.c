@@ -36,10 +36,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.22 1997/11/18 14:40:30 phk Exp $
+ * $Id: cd9660_node.c,v 1.23 1998/02/04 22:32:29 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -61,14 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.42 1998/02/04 22:33:45 eivind Exp $
+ * $Id: vm_kern.c,v 1.43 1998/02/05 03:32:39 dyson Exp $
  */
 
 /*
  *	Kernel memory management.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

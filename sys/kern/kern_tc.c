@@ -36,10 +36,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.53 1998/01/14 20:48:15 phk Exp $
+ * $Id: kern_clock.c,v 1.54 1998/02/04 22:32:30 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

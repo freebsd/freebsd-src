@@ -34,10 +34,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.16 1997/10/12 20:26:22 phk Exp $
+ * $Id: ufs_quota.c,v 1.17 1998/02/04 22:33:36 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

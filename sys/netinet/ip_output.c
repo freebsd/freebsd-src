@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.62 1997/11/07 09:20:45 phk Exp $
+ *	$Id: ip_output.c,v 1.63 1998/02/04 22:33:09 eivind Exp $
  */
 
 #define _IP_VHL
 
-#include "opt_diagnostic.h"
 #include "opt_ipdivert.h"
 
 #include <sys/param.h>

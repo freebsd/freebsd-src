@@ -23,10 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.1 1998/01/15 07:32:20 gibbs Exp $
+ *      $Id: busdma_machdep.c,v 1.2 1998/02/04 22:32:07 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

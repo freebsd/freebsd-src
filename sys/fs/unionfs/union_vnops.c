@@ -35,10 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.51 1998/02/04 22:32:55 eivind Exp $
+ * $Id: union_vnops.c,v 1.52 1998/02/06 02:42:21 kato Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

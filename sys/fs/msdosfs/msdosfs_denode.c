@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.28 1997/10/12 20:24:59 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.29 1998/02/04 22:33:00 eivind Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -47,8 +47,6 @@
  *
  * October 1992
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

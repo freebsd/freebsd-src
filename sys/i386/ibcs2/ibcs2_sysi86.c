@@ -29,8 +29,6 @@
  *	ibcs2_sysi86.c,v 1.1 1994/10/14 08:53:11 sos Exp
  */
 
-#include "opt_diagnostic.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>

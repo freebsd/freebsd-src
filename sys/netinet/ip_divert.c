@@ -30,10 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.18 1998/01/27 09:15:06 davidg Exp $
+ *	$Id: ip_divert.c,v 1.19 1998/02/04 22:33:06 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 #include "opt_inet.h"
 
 #ifndef INET

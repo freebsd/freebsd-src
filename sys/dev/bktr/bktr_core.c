@@ -218,7 +218,6 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "opt_diagnostic.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
 
