@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.20 1998/06/14 20:04:45 ahasty Exp $
+.\"     $Id: rc.conf.5,v 1.21 1998/06/25 04:27:56 jkoshy Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -137,9 +137,12 @@ is mandatory if
 .Ar natd_enable
 is set to
 .Ar YES .
+The interface may be given as an interface name or as an IP address.
 .It Ar natd_flags
 Additional natd flags should be placed here.  The
 .Fl n
+or
+.Fl a
 flag is automatically added with the above
 .Ar natd_interface
 as an argument.
