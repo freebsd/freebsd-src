@@ -74,16 +74,11 @@ svr4_sys_poll(p, uap)
        error = cerr;
        goto done;
      }
-     DPRINTF(("poll(%x, %x, %d) = %d\n", SCARG(uap, fds), SCARG(uap, nfds),
-	      SCARG(uap, timeout), p->p_retval[0]));
 
      for (idx = 0; idx < SCARG(uap, nfds); idx++) {
        /* POLLWRNORM already equals POLLOUT, so we don't worry about that */
        if (pfd[idx].revents & (POLLOUT | POLLWRNORM | POLLWRBAND))
 	    pfd[idx].revents |= (POLLOUT | POLLWRNORM | POLLWRBAND);
-       DPRINTF(("pollfd[%d]->fd = %d\n", idx, pfd[idx].fd));
-       DPRINTF(("pollfd[%d]->events = %x\n", idx, pfd[idx].events));
-       DPRINTF(("pollfd[%d]->revents = %x\n", idx, pfd[idx].revents));
      }
      if ((cerr = copyout(pfd, SCARG(uap, fds), siz)) != 0) {
        error = cerr;
