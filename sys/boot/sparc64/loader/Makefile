@@ -6,7 +6,6 @@ STRIP=
 NEWVERSWHAT=	"bootstrap loader" sparc64
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-NOFORTH=	yes
 
 # Architecture-specific loader code
 SRCS=		locore.S main.c metadata.c vers.c
