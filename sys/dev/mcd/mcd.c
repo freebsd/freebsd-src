@@ -151,11 +151,11 @@ static int	mcd_pause(struct mcd_softc *);
 static int	mcd_resume(struct mcd_softc *);
 static int	mcd_lock_door(struct mcd_softc *, int lock);
 static int	mcd_close_tray(struct mcd_softc *);
+static int	mcd_size(dev_t dev);
 
 static d_open_t		mcdopen;
 static d_close_t	mcdclose;
 static d_ioctl_t	mcdioctl;
-static d_psize_t	mcdsize;
 static d_strategy_t	mcdstrategy;
 
 #define CDEV_MAJOR 29
@@ -257,7 +257,7 @@ mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 		return (ENXIO);
 	}
 
-	if (mcdsize(dev) < 0) {
+	if (mcd_size(dev) < 0) {
 		device_printf(sc->dev, "failed to get disk size\n");
 		return (ENXIO);
 	}
@@ -437,7 +437,7 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 			}
 		if (   (sc->data.status & (MCDDOOROPEN|MCDDSKCHNG))
 		    || !(sc->data.status & MCDDSKIN)
-		    || mcdsize(dev) < 0
+		    || mcd_size(dev) < 0
 		   )
 			return (ENXIO);
 		sc->data.flags |= MCDVALID;
@@ -486,7 +486,7 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 }
 
 static int
-mcdsize(dev_t dev)
+mcd_size(dev_t dev)
 {
 	struct mcd_softc *sc;
 	int size;
