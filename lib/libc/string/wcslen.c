@@ -34,7 +34,6 @@ __RCSID("$NetBSD: wcslen.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <wchar.h>
 
 size_t
