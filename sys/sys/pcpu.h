@@ -83,7 +83,9 @@ extern struct cpuhead cpuhead;
 #define	curkse		(curthread->td_kse)
 #define	curksegrp	(curthread->td_ksegrp)
 #define	curproc		(curthread->td_proc)
+#ifndef curthread
 #define	curthread	PCPU_GET(curthread)
+#endif
 
 /*
  * MI PCPU support functions
