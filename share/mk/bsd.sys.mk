@@ -9,16 +9,21 @@
 .if !defined(NO_WARNS)
 . if defined(WARNS)
 .  if ${WARNS} > 0
-CFLAGS		+=	-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
-# XXX Delete -Wuninitialized by default for now -- the compiler doesn't
-# XXX always get it right.
-CFLAGS		+=	-Wno-uninitialized
 .   if !defined(NO_WERROR)
 CFLAGS		+=	-Werror
 .   endif
 .  endif
 .  if ${WARNS} > 1
-CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow
+CFLAGS		+=	-Wall
+# XXX Delete -Wuninitialized by default for now -- the compiler doesn't
+# XXX always get it right.
+CFLAGS		+=	-Wno-uninitialized
+.  endif
+.  if ${WARNS} > 2
+CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
+.  endif
+.  if ${WARNS} > 3
+CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
 .  endif
 . endif
 
