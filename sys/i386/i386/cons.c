@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.31 1995/09/03 05:43:01 julian Exp $
+ *	$Id: cons.c,v 1.32 1995/09/09 18:09:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -76,40 +76,65 @@ static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
 static struct tty *cn_tp;	/* physical console tty struct */
 
-#ifdef	DEVFS
+#ifdef DEVFS
+#include <sys/kernel.h>
 #include <sys/devfsext.h>
-#include "sys/kernel.h"
 
-void cndev_init(void *data) /* data not used */
+static void cndev_init __P((void *));
+SYSINIT(cndev, SI_SUB_DEVFS, SI_ORDER_ANY, cndev_init, NULL)
+
+static void
+cndev_init(dummy)
+	void *dummy;
 {
   void * x;
 /*            path	name		devsw   minor	type   uid gid perm*/
    x=dev_add("/misc",	"console",	cnopen, 0,	DV_CHR, 0,  0, 0640);
 }
-SYSINIT(cndev,SI_SUB_DEVFS, SI_ORDER_ANY, cndev_init, NULL)
-#endif /*DEVFS*/
+#endif /* DEVFS */
 
 void
 cninit()
 {
-	register struct consdev *cp;
-	struct cdevsw *cdp;
+	struct consdev *best_cp, *cp;
 
 	/*
-	 * Collect information about all possible consoles
-	 * and find the one with highest priority
+	 * Find the first console with the highest priority.
 	 */
+	best_cp = NULL;
 	for (cp = constab; cp->cn_probe; cp++) {
 		(*cp->cn_probe)(cp);
 		if (cp->cn_pri > CN_DEAD &&
-		    (cn_tab == NULL || cp->cn_pri > cn_tab->cn_pri))
-			cn_tab = cp;
+		    (best_cp == NULL || cp->cn_pri > best_cp->cn_pri))
+			best_cp = cp;
 	}
+
 	/*
-	 * No console, give up.
+	 * If no console, give up.
 	 */
-	if ((cp = cn_tab) == NULL)
+	if (best_cp == NULL) {
+		cn_tab = best_cp;
 		return;
+	}
+
+	/*
+	 * Initialize console, then attach to it.  This ordering allows
+	 * debugging using the previous console, if any.
+	 * XXX if there was a previous console, then its driver should
+	 * be informed when we forget about it.
+	 */
+	(*best_cp->cn_init)(best_cp);
+	cn_tab = best_cp;
+}
+
+void
+cninit_finish()
+{
+	struct cdevsw *cdp;
+
+	if (cn_tab == NULL)
+		return;
+
 	/*
 	 * Hook the open and close functions.
 	 */
@@ -127,10 +152,6 @@ cninit()
 	 * cn_tty to the wrong value) for a year or two.
 	 */
 	cn_tty = cn_tp;
-	/*
-	 * Turn on console
-	 */
-	(*cp->cn_init)(cp);
 }
 
 int
@@ -243,7 +264,6 @@ cnioctl(dev, cmd, data, flag, p)
 	return ((*cdevsw[major(dev)].d_ioctl)(dev, cmd, data, flag, p));
 }
 
-/*ARGSUSED*/
 int
 cnselect(dev, rw, p)
 	dev_t dev;
