@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/04/03 05:56:00 gibbs Exp $
+#	$Id: Makefile,v 1.3 1997/09/03 03:44:32 gibbs Exp $
 
 PROG=	aicasm
 
@@ -21,4 +21,11 @@ DEPENDFILE=
 
 CFLAGS+= -I.
 NOMAN=	noman
+
+.ifdef DEBUG
+CFLAGS+= -DDEBUG -g
+YFLAGS+= -t
+LFLAGS+= -d
+.endif
+
 .include <bsd.prog.mk>
