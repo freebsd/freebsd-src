@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.32 1995/10/02 13:43:11 davidg Exp $
+**  $Id: pci.c,v 1.23.4.4 1995/10/09 06:35:59 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -364,7 +364,7 @@ pci_bus_config (void)
 	*/
 	pci_bridge_config ();
 
-	printf ("Probing for devices on the PCI bus:\n");
+	printf ("Probing for devices on PCI bus %d:\n", pcicb->pcicb_bus);
 #ifndef PCI_QUIET
 	if (bootverbose && !pci_info_done) {
 		pci_info_done=1;
@@ -603,7 +603,7 @@ pci_bus_config (void)
 			if (bootverbose) {
 			    printf ("\tbridge from pci%d to pci%d through %d.\n",
 				primary, secondary, subordinate);
-			    printf ("\tmapping regs: io:%08lx mem:%08lx pmem:%08lx",
+			    printf ("\tmapping regs: io:%08lx mem:%08lx pmem:%08lx\n",
 				pci_conf_read (tag, PCI_PCI_BRIDGE_IO_REG),
 				pci_conf_read (tag, PCI_PCI_BRIDGE_MEM_REG),
 				pci_conf_read (tag, PCI_PCI_BRIDGE_PMEM_REG));
