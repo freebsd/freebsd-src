@@ -264,7 +264,7 @@ static fkeytab_t	default_fkeytab[NUM_FKEYS];
  * to tickle keyboard drivers when the low-level console is being initialized.
  * Almost nothing in the kernel has been initialied yet.  Try to probe
  * keyboards if possible.
- * NOTE: because of the way the low-level conole is initialized, this routine
+ * NOTE: because of the way the low-level console is initialized, this routine
  * may be called more than once!!
  */
 static int
