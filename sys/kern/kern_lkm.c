@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.28 1996/03/27 19:42:14 bde Exp $
+ * $Id: kern_lkm.c,v 1.29 1996/03/28 14:31:40 scrappy Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/lkm.h>
+#include <sys/vnode.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

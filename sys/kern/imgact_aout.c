@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.25 1996/03/19 15:02:44 bde Exp $
+ *	$Id: imgact_aout.c,v 1.26 1996/04/08 01:21:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -34,7 +34,9 @@
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/sysent.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
