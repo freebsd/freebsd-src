@@ -99,8 +99,8 @@ struct bus_space_tag SBUS_mem_space_tag = {
 };
 
 
-#include "opt_mecia.h"
-#ifdef DEV_MECIA
+#include "mecia.h"
+#if NMECIA > 0
 
 _BUS_SPACE_CALL_FUNCS_PROTO(NEPC_DA_io,u_int16_t,2)
 _BUS_SPACE_CALL_FUNCS_PROTO(NEPC_DA_io,u_int32_t,4)
@@ -144,7 +144,7 @@ struct bus_space_tag NEPC_mem_space_tag = {
 	}
 };
 
-#endif /* DEV_MECIA */
+#endif /* NMECIA > 0 */
 
 /*************************************************************************
  * map init

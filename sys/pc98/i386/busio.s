@@ -1371,8 +1371,8 @@ ENTRY(SBUS_RA_mem_space_copy_region_4)
 #undef	BUS_ACCESS_ADDR
 
 
-#include "opt_mecia.h"
-#ifdef DEV_MECIA
+#include "mecia.h"
+#if NMECIA > 0
 
 /***********************************************************
  * NEPC pcmcia 16 bits bus access
@@ -1668,4 +1668,4 @@ ENTRY(NEPC_RA_io_space_copy_region_4)
 	NEPC_BUS_RESTORE
 	ret
 
-#endif /* DEV_MECIA */
+#endif /* NMECIA > 0 */

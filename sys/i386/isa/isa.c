@@ -198,19 +198,24 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 int
 isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count)
 {
-	bus_addr_t	*addr;
+	bus_addr_t	start;
 	int		i;
 
-	addr = malloc(sizeof (bus_addr_t) * count, M_DEVBUF, M_NOWAIT);
-	if (addr == NULL)
-		return 1;
+	if (count > re->r_bushandle->bsh_maxiatsz) {
+		printf("isa_load_resourcev: map size too large\n");
+		return EINVAL;
+	}
 
-	for (i = 0; i < count; i++)
-		addr[i] = rman_get_start(re) + res[i];
+	start = rman_get_start(re);
+	for (i = 0; i < re->r_bushandle->bsh_maxiatsz; i++) {
+		if (i < count)
+			re->r_bushandle->bsh_iat[i] = start + res[i];
+		else
+			re->r_bushandle->bsh_iat[i] = start;
+	}
 
-	rman_set_bustag(re, I386_BUS_SPACE_IO_IND);
-	re->r_bushandle->bsh_iat = addr;
 	re->r_bushandle->bsh_iatsz = count;
+	re->r_bushandle->bsh_bam = re->r_bustag->bs_ra;	/* relocate access */
 
 	return 0;
 }
@@ -229,13 +234,13 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	 */
 	int	i;
 
-	for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
-		resource_list_release(rl, bus, child, type, rid + i,
-				      r->r_bushandle->bsh_res[i]);
-	if (r->r_bushandle->bsh_res != NULL)
-		free(r->r_bushandle->bsh_res, M_DEVBUF);
-	if (r->r_bushandle->bsh_iat != NULL)
-		free(r->r_bushandle->bsh_iat, M_DEVBUF);
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
+			resource_list_release(rl, bus, child, type, rid + i,
+					      r->r_bushandle->bsh_res[i]);
+		if (r->r_bushandle->bsh_res != NULL)
+			free(r->r_bushandle->bsh_res, M_DEVBUF);
+	}
 #endif
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
