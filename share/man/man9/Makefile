@@ -8,6 +8,7 @@ MAN=	accept_filter.9 \
 	atomic.9 \
 	bios.9 \
 	boot.9 \
+	bpf.9 \
 	buf.9 \
 	BUF_LOCK.9 \
 	BUF_LOCKFREE.9 \
