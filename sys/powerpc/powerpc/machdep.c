@@ -88,6 +88,7 @@ static const char rcsid[] =
 #include <sys/linker.h>
 #include <sys/cons.h>
 #include <sys/ucontext.h>
+#include <sys/sysent.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -129,6 +130,10 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 static char	model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
+static int cacheline_size = CACHELINESIZE;
+SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
+	   CTLFLAG_RD, &cacheline_size, 0, "");
+
 char		bootpath[256];
 
 #ifdef DDB
@@ -146,9 +151,7 @@ int		restore_ofw_mapping(void);
 
 void		install_extint(void (*)(void));
 
-#ifdef COMPAT_43
-void		osendsig(sig_t, int, sigset_t *, u_long);
-#endif
+int             setfault(faultbuf);             /* defined in locore.S */
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
@@ -382,12 +385,15 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
-	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
 	bcopy(&isitrap,  (void *)EXC_ISI,  (size_t)&isisize);
-	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_FPU,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_ALI,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_PGM,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_FPU,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
 
 	/*
 	 * Start initializing proc0 and thread0.
@@ -410,6 +416,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	mutex_init();
+
+	/*
+	 * Make sure translation has been enabled
+	 */
+	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
 
 	/*
 	 * Initialise virtual memory.
@@ -435,307 +446,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
-}
-
-#if 0 /* XXX: Old powerpc_init */
-void
-powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
-{
-	unsigned int		exc, scratch;
-	struct mem_region	*allmem, *availmem, *mp;
-	struct pcpu	*pcpup;
-
-	/*
-	 * Set up BAT0 to only map the lowest 256 MB area
-	 */
-	battable[0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
-	battable[0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
-
-	/*
-	 * Map PCI memory space.
-	 */
-	battable[0x8].batl = BATL(0x80000000, BAT_I, BAT_PP_RW);
-	battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
-
-	battable[0x9].batl = BATL(0x90000000, BAT_I, BAT_PP_RW);
-	battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
-
-	battable[0xa].batl = BATL(0xa0000000, BAT_I, BAT_PP_RW);
-	battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
-
-	/*
-	 * Map obio devices.
-	 */
-	battable[0xf].batl = BATL(0xf0000000, BAT_I, BAT_PP_RW);
-	battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
-
-	/*
-	 * Now setup fixed bat registers
-	 *
-	 * Note that we still run in real mode, and the BAT
-	 * registers were cleared above.
-	 */
-	/* BAT0 used for initial 256 MB segment */
-	__asm __volatile ("mtibatl 0,%0; mtibatu 0,%1;"
-		          "mtdbatl 0,%0; mtdbatu 0,%1;"
-		          :: "r"(battable[0].batl), "r"(battable[0].batu));
-	/*
-	 * Set up battable to map all RAM regions.
-	 * This is here because mem_regions() call needs bat0 set up.
-	 */
-	mem_regions(&allmem, &availmem);
-
-	/* Calculate the physical memory in the machine */
-	for (mp = allmem; mp->size; mp++)
-		physmem += btoc(mp->size);
-
-	for (mp = allmem; mp->size; mp++) {
-		vm_offset_t	pa = mp->start & 0xf0000000;
-		vm_offset_t	end = mp->start + mp->size;
-
-		do {
-			u_int n = pa >> 28;
-
-			battable[n].batl = BATL(pa, BAT_M, BAT_PP_RW);
-			battable[n].batu = BATU(pa, BAT_BL_256M, BAT_Vs);
-			pa += 0x10000000;
-		} while (pa < end);
-	}
-
-	chosen = OF_finddevice("/chosen");
-	save_ofw_mapping();
-
-	pmap_setavailmem(startkernel, endkernel);
-
-	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
-
-	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
-	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
-	proc0.p_uarea = proc0uarea;
-	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-
-	pcpup = pmap_steal_memory(round_page(sizeof(struct pcpu)));
-
-	/*
-	 * XXX: Pass 0 as CPU id.  This is bad.  We need to work out
-	 * XXX: which CPU we are somehow.
-	 */
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	__asm ("mtsprg 0, %0" :: "r"(pcpup));
-
-	/* Init basic tunables, hz etc */
-	init_param1();
-	init_param2(physmem);
-
-	PCPU_SET(curthread, &thread0);
-
-/* XXX: NetBSDism I _think_.  Not sure yet. */
-#if 0
-	curpm = PCPU_GET(curpcb)->pcb_pmreal = PCPU_GET(curpcb)->pcb_pm = kernel_pmap;
-#endif
-
-	mutex_init();
-
-	/*
-	 * Initialise console.
-	 */
-	cninit();
-
-#ifdef	__notyet__		/* Needs some rethinking regarding real/virtual OFW */
-	OF_set_callback(callback);
-#endif
-
-	/*
-	 * Set up trap vectors
-	 */
-	for (exc = EXC_RSVD; exc <= EXC_LAST; exc += 0x100) {
-		switch (exc) {
-		default:
-			bcopy(&trapcode, (void *)exc, (size_t)&trapsize);
-			break;
-		case EXC_DECR:
-			bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
-			break;
-#if 0 /* XXX: Not enabling these traps yet. */
-		case EXC_EXI:
-			/*
-			 * This one is (potentially) installed during autoconf
-			 */
-			break;
-		case EXC_ALI:
-			bcopy(&alitrap, (void *)EXC_ALI, (size_t)&alisize);
-			break;
-		case EXC_DSI:
-			bcopy(&dsitrap, (void *)EXC_DSI, (size_t)&dsisize);
-			break;
-		case EXC_ISI:
-			bcopy(&isitrap, (void *)EXC_ISI, (size_t)&isisize);
-			break;
-		case EXC_IMISS:
-			bcopy(&tlbimiss, (void *)EXC_IMISS, (size_t)&tlbimsize);
-			break;
-		case EXC_DLMISS:
-			bcopy(&tlbdlmiss, (void *)EXC_DLMISS, (size_t)&tlbdlmsize);
-			break;
-		case EXC_DSMISS:
-			bcopy(&tlbdsmiss, (void *)EXC_DSMISS, (size_t)&tlbdsmsize);
-			break;
-#if defined(DDB) || defined(IPKDB)
-		case EXC_TRC:
-		case EXC_PGM:
-		case EXC_BPT:
-#if defined(DDB)
-			bcopy(&ddblow, (void *)exc, (size_t)&ddbsize);
-#else
-			bcopy(&ipkdblow, (void *)exc, (size_t)&ipkdbsize);
-#endif
-			break;
-#endif /* DDB || IPKDB */
-#endif
-		}
-	}
-
-#if 0 /* XXX: coming soon... */
-	/*
-	 * external interrupt handler install
-	 */
-	install_extint(ext_intr);
-#endif
-
-	__syncicache((void *)EXC_RST, EXC_LAST - EXC_RST + 0x100);
-
-	/*
-	 * Now enable translation (and machine checks/recoverable interrupts).
-	 */
-	__asm ("mfmsr %0" : "=r"(scratch));
-	scratch |= PSL_IR | PSL_DR | PSL_ME | PSL_RI;
-	__asm ("mtmsr %0" :: "r"(scratch));
-
-	ofmsr &= ~PSL_IP;
-
-	/*
-	 * Parse arg string.
-	 */
-#ifdef DDB
-	bcopy(args + strlen(args) + 1, &startsym, sizeof(startsym));
-	bcopy(args + strlen(args) + 5, &endsym, sizeof(endsym));
-	if (startsym == NULL || endsym == NULL)
-		startsym = endsym = NULL;
-#endif
-
-	strcpy(bootpath, args);
-	args = bootpath;
-	while (*++args && *args != ' ');
-	if (*args) {
-		*args++ = 0;
-		while (*args) {
-			switch (*args++) {
-			case 'a':
-				boothowto |= RB_ASKNAME;
-				break;
-			case 's':
-				boothowto |= RB_SINGLE;
-				break;
-			case 'd':
-				boothowto |= RB_KDB;
-				break;
-			case 'v':
-				boothowto |= RB_VERBOSE;
-				break;
-			}
-		}
-	}
-
-#ifdef DDB
-	ddb_init((int)((u_int)endsym - (u_int)startsym), startsym, endsym);
-#endif
-#ifdef IPKDB
-	/*
-	 * Now trap to IPKDB
-	 */
-	ipkdb_init();
-	if (boothowto & RB_KDB)
-		ipkdb_connect(0);
-#endif
-
-	/*
-	 * Set the page size.
-	 */
-#if 0
-	vm_set_page_size();
-#endif
-
-	/*
-	 * Initialize pmap module.
-	 */
-	pmap_bootstrap();
-
-	restore_ofw_mapping();
-
-	PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
-
-	/* setup proc 0's pcb */
-	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
-	thread0.td_frame = &proc0_tf;
-}
-#endif
-
-static int N_mapping;
-static struct {
-	vm_offset_t	va;
-	int		len;
-	vm_offset_t	pa;
-	int		mode;
-} ofw_mapping[256];
-
-int
-save_ofw_mapping()
-{
-	int	mmui, mmu;
-
-	OF_getprop(chosen, "mmu", &mmui, 4);
-	mmu = OF_instance_to_package(mmui);
-
-	bzero(ofw_mapping, sizeof(ofw_mapping));
-
-	N_mapping =
-	    OF_getprop(mmu, "translations", ofw_mapping, sizeof(ofw_mapping));
-	N_mapping /= sizeof(ofw_mapping[0]);
-
-	return 0;
-}
-
-int
-restore_ofw_mapping()
-{
-	int		i;
-	struct vm_page	pg;
-
-	pmap_pinit(&ofw_pmap);
-
-	ofw_pmap.pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
-
-	for (i = 0; i < N_mapping; i++) {
-		vm_offset_t	pa = ofw_mapping[i].pa;
-		vm_offset_t	va = ofw_mapping[i].va;
-		int		size = ofw_mapping[i].len;
-
-		if (va < 0x80000000)			/* XXX */
-			continue;
-
-		while (size > 0) {
-			pg.phys_addr = pa;
-			pmap_enter(&ofw_pmap, va, &pg, VM_PROT_ALL,
-			    VM_PROT_ALL);
-			pa += PAGE_SIZE;
-			va += PAGE_SIZE;
-			size -= PAGE_SIZE;
-		}
-	}
-
-	return 0;
 }
 
 void
@@ -775,34 +485,117 @@ bzero(void *buf, size_t len)
 	}
 }
 
-#if 0
-void
-delay(unsigned n)
-{
-	u_long tb;
-
-	do {
-		__asm __volatile("mftb %0" : "=r" (tb));
-	} while (n > (int)(tb & 0xffffffff));
-}
-#endif
-
-#ifdef COMPAT_43
-void
-osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
-{
-
-	/* XXX: To be done */
-	return;
-}
-#endif
-
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
+	struct trapframe *tf;
+	struct sigframe *sfp;
+	struct sigacts *psp;
+	struct sigframe sf;
+	struct thread *td;
+	struct proc *p;
+	int oonstack, rndfsize;
 
-	/* XXX: To be done */
-	return;
+	td = curthread;
+	p = td->td_proc;
+	psp = p->p_sigacts;
+	tf = td->td_frame;
+	oonstack = sigonstack(tf->fixreg[1]);
+
+	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+
+	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
+	     catcher, sig);
+
+	/*
+	 * Save user context
+	 */
+	memset(&sf, 0, sizeof(sf));
+	sf.sf_uc.uc_sigmask = *mask;
+	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+	memcpy(&sf.sf_uc.uc_mcontext.mc_frame, tf, sizeof(struct trapframe));
+
+	/*
+	 * Allocate and validate space for the signal handler context. 
+	 */
+	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
+		   p->p_sigstk.ss_size - rndfsize);
+	} else {
+		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
+	}
+	PROC_UNLOCK(p);
+
+	/* 
+	 * Translate the signal if appropriate (Linux emu ?)
+	 */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];       
+
+	/*
+	 * Save the floating-point state, if necessary, then copy it. 
+	 */
+	/* XXX */
+
+	/*
+	 * Set up the registers to return to sigcode.
+	 *
+	 *   r1/sp - sigframe ptr
+	 *   lr    - sig function, dispatched to by blrl in trampoline
+	 *   r3    - sig number
+	 *   r4    - SIGINFO ? &siginfo : exception code
+	 *   r5    - user context
+	 *   srr0  - trampoline function addr
+	 */
+	tf->lr = (register_t)catcher;
+	tf->fixreg[1] = (register_t)sfp;
+	tf->fixreg[FIRSTARG] = sig;
+	tf->fixreg[FIRSTARG+2] = (register_t)&sfp->sf_uc;
+
+	PROC_LOCK(p);
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		/* 
+		 * Signal handler installed with SA_SIGINFO.
+		 */
+		tf->fixreg[FIRSTARG+1] = (register_t)&sfp->sf_si;
+
+		/*
+		 * Fill siginfo structure.
+		 */
+		sf.sf_si.si_signo = sig;
+		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void *)tf->srr0;
+		sf.sf_si.si_pid = p->p_pid;
+		sf.sf_si.si_uid = p->p_ucred->cr_uid;
+	} else {
+		/* Old FreeBSD-style arguments. */
+		tf->fixreg[FIRSTARG+1] = code;
+	}
+	PROC_UNLOCK(p);
+
+	tf->srr0 = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+
+	/*
+	 * copy the frame out to userland.
+	 */
+	if (copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf)) != 0) {
+		/*
+		 * Process has trashed its stack. Kill it.
+		 */
+		CTR2(KTR_SIG, "sendsig: sigexit td=%p sfp=%p", td, sfp);
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
+
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, 
+	     tf->srr0, tf->fixreg[1]);
+
+	PROC_LOCK(p);
 }
 
 /*
@@ -820,9 +613,47 @@ osigreturn(struct thread *td, struct osigreturn_args *uap)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
+	struct trapframe *tf;
+	struct proc *p;
+	ucontext_t uc;
 
-	/* XXX: To be done */
-	return(ENOSYS);
+	CTR2(KTR_SIG, "sigreturn: td=%p ucp=%p", td, uap->sigcntxp);
+
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)) != 0) {
+		CTR1(KTR_SIG, "sigreturn: efault td=%p", td);
+		return (EFAULT);
+	}
+
+	/*
+	 * Don't let the user set privileged MSR bits
+	 */
+	tf = td->td_frame;
+	if ((uc.uc_mcontext.mc_frame.srr1 & PSL_USERSTATIC) != 
+	    (tf->srr1 & PSL_USERSTATIC)) {
+		return (EINVAL);
+	}
+
+	/*
+	 * Restore the user-supplied context
+	 */
+	memcpy(tf, &uc.uc_mcontext.mc_frame, sizeof(struct trapframe));
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	p->p_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
+	PROC_UNLOCK(p);
+
+	/*
+	 * Restore FP state
+	 */
+	/* XXX */
+
+	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
+	     td, tf->srr0, tf->fixreg[1]);
+
+	return (EJUSTRETURN);
 }
 
 void
@@ -873,6 +704,14 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	 * XXX We have to set both regs and retval here due to different
 	 * XXX calling convention in trap.c and init_main.c.
 	 */
+        /*
+         * XXX PG: these get overwritten in the syscall return code.
+         * execve() should return EJUSTRETURN, like it does on NetBSD.
+         * Emulate by setting the syscall return value cells. The
+         * registers still have to be set for init's fork trampoline.
+         */
+        td->td_retval[0] = arginfo.ps_nargvstr;
+        td->td_retval[1] = (register_t)arginfo.ps_argvstr;
 	tf->fixreg[3] = arginfo.ps_nargvstr;
 	tf->fixreg[4] = (register_t)arginfo.ps_argvstr;
 	tf->fixreg[5] = (register_t)arginfo.ps_envstr;
@@ -947,14 +786,6 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 
 int
 ptrace_single_step(struct thread *td)
-{
-
-	/* XXX: coming soon... */
-	return (ENOSYS);
-}
-
-int
-ptrace_clear_single_step(struct thread *td)
 {
 
 	/* XXX: coming soon... */
