@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id: expr.y,v 1.9 1995/03/19 13:28:41 joerg Exp $
+ * $Id: expr.y,v 1.10 1995/08/04 17:08:07 joerg Exp $
  */
 
 #include <stdio.h>
@@ -15,7 +15,7 @@
 #include <err.h>
   
 enum valtype {
-	integer, string
+	integer, numeric_string, string
 } ;
 
 struct val {
@@ -56,7 +56,6 @@ char **av;
 %left <val> '+' '-'
 %left <val> '*' '/' '%'
 %left <val> ':'
-%left UNARY
 
 %token <val> TOKEN
 %type <val> start expr
@@ -94,7 +93,7 @@ int i;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		err (2, NULL);
+		errx (2, "malloc() failed");
 	}
 
 	vp->type = integer;
@@ -111,7 +110,7 @@ char *s;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		err (2, NULL);
+		errx (2, "malloc() failed");
 	}
 
 	for(i = 1, isint = isdigit(s[0]) || s[0] == '-';
@@ -122,9 +121,10 @@ char *s;
 			 isint = 0;
 	}
 
-	vp->type = string;
-	if(isint)
-		to_integer(vp);
+	if (isint)
+		vp->type = numeric_string;
+	else	
+		vp->type = string;
 
 	return vp;
 }
@@ -134,7 +134,7 @@ void
 free_value (vp)
 struct val *vp;
 {
-	if (vp->type == string)
+	if (vp->type == string || vp->type == numeric_string)
 		free (vp->u.s);	
 }
 
@@ -143,34 +143,19 @@ int
 to_integer (vp)
 struct val *vp;
 {
-	char *s;
-	int neg;
 	int i;
 
 	if (vp->type == integer)
 		return 1;
 
-	s = vp->u.s;
-	i = 0;
-      
-	neg = (*s == '-');
-	if (neg)
-		s++;
-      
-	for (;*s; s++) {
-		if (!isdigit (*s)) 
-			return 0;
-      
-		i *= 10;
-		i += *s - '0';
-	}
+	if (vp->type == string)
+		return 0;
 
+	/* vp->type == numeric_string, make it numeric */
+	i  = atoi(vp->u.s);
 	free (vp->u.s);
-	if (neg) 
-		i *= -1;
-  
+	vp->u.i = i;
 	vp->type = integer;
-	vp->u.i  = i;
 	return 1;
 }
 
@@ -180,12 +165,12 @@ struct val *vp;
 {
 	char *tmp;
 
-	if (vp->type == string)
+	if (vp->type == string || vp->type == numeric_string)
 		return;
 
 	tmp = malloc (25);
 	if (tmp == NULL) {
-		err (2, NULL);
+		errx (2, "malloc() failed");
 	}
 
 	sprintf (tmp, "%d", vp->u.i);
@@ -198,6 +183,7 @@ int
 isstring (vp)
 struct val *vp;
 {
+	/* only TRUE if this string is not a valid integer */
 	return (vp->type == string);
 }
 
@@ -241,7 +227,7 @@ struct val *vp;
 
 int yyparse ();
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -257,7 +243,7 @@ char **argv;
 	else
 		printf ("%s\n", result->u.s);
 
-	exit (is_zero_or_null (result));
+	return (is_zero_or_null (result));
 }
 
 int
@@ -306,6 +292,8 @@ struct val *a, *b;
 		to_string (b);	
 		r = make_integer (strcoll (a->u.s, b->u.s) == 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r = make_integer (a->u.i == b->u.i);
 	}
 
@@ -325,6 +313,8 @@ struct val *a, *b;
 		to_string (b);
 		r = make_integer (strcoll (a->u.s, b->u.s) > 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r= make_integer (a->u.i > b->u.i);
 	}
 
@@ -344,6 +334,8 @@ struct val *a, *b;
 		to_string (b);
 		r = make_integer (strcoll (a->u.s, b->u.s) < 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r = make_integer (a->u.i < b->u.i);
 	}
 
@@ -363,6 +355,8 @@ struct val *a, *b;
 		to_string (b);
 		r = make_integer (strcoll (a->u.s, b->u.s) >= 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r = make_integer (a->u.i >= b->u.i);
 	}
 
@@ -382,6 +376,8 @@ struct val *a, *b;
 		to_string (b);
 		r = make_integer (strcoll (a->u.s, b->u.s) <= 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r = make_integer (a->u.i <= b->u.i);
 	}
 
@@ -401,6 +397,8 @@ struct val *a, *b;
 		to_string (b);
 		r = make_integer (strcoll (a->u.s, b->u.s) != 0);
 	} else {
+		(void)to_integer(a);
+		(void)to_integer(b);
 		r = make_integer (a->u.i != b->u.i);
 	}
 
