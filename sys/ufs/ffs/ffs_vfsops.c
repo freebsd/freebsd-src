@@ -872,7 +872,7 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
 	/*
 	 * If not yet done, update UFS1 superblock with new wider fields.
 	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_size != fs->fs_old_size) {
+	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_maxbsize != fs->fs_bsize) {
 		fs->fs_maxbsize = fs->fs_bsize;
 		fs->fs_time = fs->fs_old_time;
 		fs->fs_size = fs->fs_old_size;
@@ -1469,6 +1469,10 @@ ffs_sbupdate(mp, waitfor)
 	void *space;
 	int i, size, error, allerror = 0;
 
+	if (fs->fs_ronly == 1 &&
+	    (mp->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) != 
+	    (MNT_RDONLY | MNT_UPDATE))
+		panic("ffs_sbupdate: write read-only filesystem");
 	/*
 	 * First write back the summary information.
 	 */
