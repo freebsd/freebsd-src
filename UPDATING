@@ -3,7 +3,11 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 to him.  See end of file for further details.
 
-1990408:
+19990409:
+	NOTE: New c++ compiler cannot be used with c++ binaries from
+	the old compiler and vice versa.
+
+19990408:
 	In recent days egcs has been imported into the tree.  A number
 	of problems have been discussed in -current.  Here is a highlight
 	of a few of the more common ones.  With the exception of make
@@ -185,4 +189,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.24 1999/04/09 06:17:37 imp Exp $
+$Id: UPDATING,v 1.25 1999/04/09 06:31:00 imp Exp $
