@@ -73,6 +73,7 @@
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/cons.h>
 #include <sys/mutex.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>

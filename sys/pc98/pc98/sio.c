@@ -4003,6 +4003,7 @@ CONS_DRIVER(sio, siocnprobe, siocninit, siocnterm, siocngetc, siocncheckc,
 /* To get the GDB related variables */
 #if DDB > 0
 #include <ddb/ddb.h>
+struct consdev gdbconsdev;
 #endif
 
 static void
@@ -4212,7 +4213,8 @@ siocnprobe(cp)
 				siogdbiobase = iobase;
 				siogdbunit = unit;
 #if DDB > 0
-				gdb_arg = makedev(CDEV_MAJOR, unit);
+				gdbconsdev.cn_dev = makedev(CDEV_MAJOR, unit);
+				gdb_arg = &gdbconsdev;
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
 #endif
@@ -4233,7 +4235,8 @@ siocnprobe(cp)
 		printf("configuration file (currently sio only).\n");
 		siogdbiobase = siocniobase;
 		siogdbunit = siocnunit;
-		gdb_arg = makedev(CDEV_MAJOR, siocnunit);
+		gdbconsdev.cn_dev = makedev(CDEV_MAJOR, siocnunit);
+		gdb_arg = &gdbconsdev;
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
 	}
@@ -4320,7 +4323,8 @@ siogdbattach(port, speed)
 	printf("sio%d: gdb debugging port\n", unit);
 	siogdbunit = unit;
 #if DDB > 0
-	gdb_arg = makedev(CDEV_MAJOR, unit);
+	gdbconsdev.cn_dev = makedev(CDEV_MAJOR, unit);
+	gdb_arg = &gdbconsdev;
 	gdb_getc = siocngetc;
 	gdb_putc = siocnputc;
 #endif
@@ -4352,15 +4356,16 @@ siogdbattach(port, speed)
 #endif
 
 static int
-siocncheckc(dev)
-	dev_t	dev;
+siocncheckc(struct consdev *cd)
 {
 	int	c;
+	dev_t	dev;
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
 	speed_t	speed;
 
+	dev = cd->cn_dev;
 	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
@@ -4381,15 +4386,16 @@ siocncheckc(dev)
 
 
 static int
-siocngetc(dev)
-	dev_t	dev;
+siocngetc(struct consdev *cd)
 {
 	int	c;
+	dev_t	dev;
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
 	speed_t	speed;
 
+	dev = cd->cn_dev;
 	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
@@ -4408,16 +4414,16 @@ siocngetc(dev)
 }
 
 static void
-siocnputc(dev, c)
-	dev_t	dev;
-	int	c;
+siocnputc(struct consdev *cd, int c)
 {
 	int	need_unlock;
 	int	s;
+	dev_t 	dev;
 	struct siocnstate	sp;
 	Port_t	iobase;
 	speed_t	speed;
 
+	dev = cd->cn_dev;
 	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;

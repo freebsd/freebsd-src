@@ -129,9 +129,7 @@ static void leave_prom(critical_t);
  * of the console area.
  */
 void
-promcnputc(dev, c)
-	dev_t dev;
-	int c;
+promcnputc(struct consdev *cp, int c)
 {
         prom_return_t ret;
 	unsigned char *to = (unsigned char *)0x20000000;
@@ -153,8 +151,7 @@ promcnputc(dev, c)
  * Wait for the prom to get a real char and pass it back.
  */
 int
-promcngetc(dev)
-	dev_t dev;
+promcngetc(struct consdev *cp)
 {
         prom_return_t ret;
 	register_t s;
@@ -174,8 +171,7 @@ promcngetc(dev)
  * If a char is ready, return it, otherwise return -1.
  */
 int
-promcncheckc(dev)
-	dev_t dev;
+promcncheckc(struct consdev *cp)
 {
         prom_return_t ret;
 	register_t s;

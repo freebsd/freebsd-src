@@ -66,6 +66,7 @@
 #include <vm/vm_pager.h>
 #include <sys/user.h>
 #include <sys/ptrace.h>
+#include <sys/cons.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>

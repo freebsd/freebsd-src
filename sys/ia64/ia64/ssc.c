@@ -116,13 +116,13 @@ ssccnattach(void *arg)
 SYSINIT(ssccnattach, SI_SUB_DRIVERS, SI_ORDER_ANY, ssccnattach, 0);
 
 static void
-ssccnputc(dev_t dev, int c)
+ssccnputc(struct consdev *cp, int c)
 {
 	ssc(c, 0, 0, 0, SSC_PUTCHAR);
 }
 
 static int
-ssccngetc(dev_t dev)
+ssccngetc(struct consdev *cp)
 {
 	int c;
 	do {
@@ -133,7 +133,7 @@ ssccngetc(dev_t dev)
 }
 
 static int
-ssccncheckc(dev_t dev)
+ssccncheckc(struct consdev *cp)
 {
     int c;
     c = ssc(0, 0, 0, 0, SSC_GETCHAR);
@@ -242,7 +242,7 @@ sscstart(struct tty *tp)
 
 	tp->t_state |= TS_BUSY;
 	while (tp->t_outq.c_cc != 0)
-		ssccnputc(tp->t_dev, getc(&tp->t_outq));
+		ssccnputc(NULL, getc(&tp->t_outq));
 	tp->t_state &= ~TS_BUSY;
 
 	ttwwakeup(tp);
@@ -270,7 +270,7 @@ ssctimeout(void *v)
 	struct tty *tp = v;
 	int c;
 
-	while ((c = ssccncheckc(tp->t_dev)) != -1) {
+	while ((c = ssccncheckc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN)
 			(*linesw[tp->t_line].l_rint)(c, tp);
 	}
