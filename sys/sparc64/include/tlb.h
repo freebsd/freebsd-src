@@ -64,6 +64,8 @@
 #define	TLB_DEMAP_NUCLEUS		(TLB_DEMAP_ID(TLB_DEMAP_ID_NUCLEUS))
 
 #define	TLB_CTX_KERNEL			(0)
+#define	TLB_CTX_USER_MIN		(1)
+#define	TLB_CTX_USER_MAX		(8192)
 
 #define	TLB_DTLB			(1 << 0)
 #define	TLB_ITLB			(1 << 1)
@@ -105,13 +107,9 @@ tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
 		membar(Sync);
-	} else {
-		stxa(AA_DMMU_SCXR, ASI_DMMU, ctx);
-		membar(Sync);
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
+	} else if (ctx != -1) {
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
-		membar(Sync);
-		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
 		membar(Sync);
 	}
 }
@@ -155,14 +153,9 @@ tlb_itlb_page_demap(u_long ctx, vm_offset_t va)
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_IMMU_DEMAP, 0);
 		flush(KERNBASE);
-	} else {
-		stxa(AA_DMMU_SCXR, ASI_DMMU, ctx);
-		membar(Sync);
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
+	} else if (ctx != -1) {
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_IMMU_DEMAP, 0);
-		membar(Sync);
-		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
-		/* flush probably not needed. */
 		membar(Sync);
 	}
 }
@@ -188,10 +181,12 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 }
 
 static __inline void
-tlb_context_demap(u_int context)
+tlb_context_demap(u_int ctx)
 {
-	tlb_dtlb_context_primary_demap();
-	tlb_itlb_context_primary_demap();
+	if (ctx != -1) {
+		tlb_dtlb_context_primary_demap();
+		tlb_itlb_context_primary_demap();
+	}
 }
 
 static __inline void
@@ -231,6 +226,7 @@ tlb_tte_demap(struct tte tte, u_int ctx)
 static __inline void
 tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
 {
+	KASSERT(ctx != -1, ("tlb_store: invalid context"));
 	if (tlb & TLB_DTLB)
 		tlb_dtlb_store(va, ctx, tte);
 	if (tlb & TLB_ITLB)
@@ -240,6 +236,7 @@ tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
 static __inline void
 tlb_store_slot(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
+	KASSERT(ctx != -1, ("tlb_store_slot: invalid context"));
 	if (tlb & TLB_DTLB)
 		tlb_dtlb_store_slot(va, ctx, tte, slot);
 	if (tlb & TLB_ITLB)

@@ -45,6 +45,9 @@
 #define	PCPU_MD_FIELDS							\
 	struct	intr_queue pc_iq;		/* interrupt queue */	\
 	u_int 	pc_mid;							\
+	u_int	pc_tlb_ctx;						\
+	u_int	pc_tlb_ctx_max;						\
+	u_int	pc_tlb_ctx_min;						\
 	u_int	pc_wp_insn;			/* watch point support */ \
 	u_long	pc_wp_pstate;						\
 	u_long	pc_wp_va;						\
