@@ -6,7 +6,7 @@ MAINTAINER= wosch
 MAN=	which.1
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/which.pl ${DESTDIR}${BINDIR}/which
 
 .include <bsd.prog.mk>

@@ -11,9 +11,9 @@ NOOBJ=	noobj
 all clean cleandir depend lint tags:
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MODE1} ${FILES1} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${MODE1} ${FILES1} \
 	    ${DESTDIR}${BINDIR}/skel
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MODE2} ${FILES2} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${MODE2} ${FILES2} \
 	    ${DESTDIR}${BINDIR}/skel
 
 .include <bsd.prog.mk>

@@ -14,7 +14,7 @@ SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
 
 afterinstall:
 .if !exists(${DESTDIR}/etc/mail/mailer.conf)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${.CURDIR}/../../etc/mail/mailer.conf ${DESTDIR}/etc/mail
 .endif
 

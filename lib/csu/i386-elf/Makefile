@@ -20,7 +20,7 @@ gcrt1.o:	crt1.c
 
 realinstall:
 .for file in ${OBJS}
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${OBJS} ${DESTDIR}${LIBDIR}
 .endfor
 

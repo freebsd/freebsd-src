@@ -225,11 +225,11 @@ kernel-install kernel-install.debug:
 	-chflags noschg ${DESTDIR}/${KERNEL}
 	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
 .endif
-	${INSTALL} ${COPY} -m 555 -o root -g wheel -fschg \
+	${INSTALL} -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/kernel-install//} ${DESTDIR}/${KERNEL}
 
 kernel-reinstall kernel-reinstall.debug:
-	${INSTALL} ${COPY} -m 555 -o root -g wheel -fschg \
+	${INSTALL} -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)

@@ -25,6 +25,6 @@ clean:
 	rm -f *.o fed *core* trace*
 
 install:
-	${INSTALL} ${COPY} -s -o bin -g bin fed $(DEST)
+	${INSTALL} -s -o bin -g bin fed $(DEST)
 
 .endif

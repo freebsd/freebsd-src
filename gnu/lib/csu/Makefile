@@ -67,7 +67,7 @@ tm.h:
 
 realinstall:
 .for file in ${OBJS} ${SOBJS}
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
 .endfor
 

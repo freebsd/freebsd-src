@@ -174,11 +174,11 @@ CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS}
 .if ${IFILES:N*.html}
-	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${IFILES:N*.html} ${DESTDIR}${INFODIR}
 .endif
 .if ${FORMATS:Mhtml}
-	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
 .endif
 .else

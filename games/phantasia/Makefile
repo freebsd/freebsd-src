@@ -27,7 +27,7 @@ setup: cross-phantglobs.o setup.o ${LIBM}
 beforeinstall:
 .for file in ${DATAFILES}
 .if !exists(${DESTDIR}/var/games/phantasia/${file})
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 660 \
 	    ${file} ${DESTDIR}/var/games/phantasia
 .endif
 .endfor

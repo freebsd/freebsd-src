@@ -65,7 +65,7 @@ all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
 .for lang in ${LOCALES}
-	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
+	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 		${LOCALEDIR}/${lang}/LC_MONETARY
 .endfor
 .for link in ${LATIN15LINKS}

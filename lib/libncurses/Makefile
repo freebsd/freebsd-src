@@ -257,7 +257,7 @@ DOCS=	ncurses-intro.html hackguide.html
 afterinstall:
 .for file in ${DOCS}
 	cd ${.CURDIR}/../../contrib/ncurses/misc ; \
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
 		${DESTDIR}${DOCSDIR}
 .endfor
 .endif
