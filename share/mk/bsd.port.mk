@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.216 1996/07/05 06:12:12 jkh Exp $
+# $Id: bsd.port.mk,v 1.217 1996/07/27 11:54:30 andreas Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -113,8 +113,8 @@
 #				  for it and go into "dir" to do a "make all install"
 #				  if it's not found.
 # BUILD_DEPENDS - A list of "prog:dir" pairs of other ports this
-#				  package depends to build (somewhere between the
-#				  "extract" to "build" stage).  "prog" is the name
+#				  package depends to build (between the "extract"
+#				  and "build" stages, inclusive).  "prog" is the name
 #				  of an executable.  make will search your $PATH for
 #				  it and go into "dir" to do a "make all install" if
 #				  it's not found.
