@@ -282,6 +282,11 @@ g_bde_map_sector(struct g_bde_work *wp)
 
 	/* restrict length to that zone */
 	len = kp->zone_cont - zoff;
+
+	/* ... and in general */
+	if (len > DFLTPHYS)
+		len = DFLTPHYS;
+
 	if (len < wp->length)
 		wp->length = len;
 
