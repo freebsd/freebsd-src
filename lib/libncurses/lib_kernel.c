@@ -310,3 +310,9 @@ int resetty()
 	return OK;
 }
 
+
+int
+resizeterm(int ToLines, int ToCols)
+{
+	return OK;
+}
