@@ -399,6 +399,7 @@ vm_object_vndeallocate(vm_object_t object)
 	struct vnode *vp = (struct vnode *) object->handle;
 
 	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
@@ -414,6 +415,7 @@ vm_object_vndeallocate(vm_object_t object)
 		mp_fixme("Unlocked vflag access.");
 		vp->v_vflag &= ~VV_TEXT;
 	}
+	VM_OBJECT_UNLOCK(object);
 	/*
 	 * vrele may need a vop lock
 	 */
@@ -440,8 +442,9 @@ vm_object_deallocate(vm_object_t object)
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
+			VM_OBJECT_LOCK(object);
 			vm_object_vndeallocate(object);
-			vm_object_unlock(object);
+			mtx_unlock(&Giant);
 			return;
 		}
 
