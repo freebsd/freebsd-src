@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 		argoff = 1;
 	}
 
-#define	OPTIONS	"468DEKde:i:l:"
+#define	OPTIONS	"468DEde:i:l:"
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '4':
