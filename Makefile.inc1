@@ -457,6 +457,10 @@ WMAKE_TGTS+=	build32
 buildworld: ${WMAKE_TGTS}
 .ORDER: ${WMAKE_TGTS}
 
+buildenv:
+	@echo Entering world for ${TARGET_ARCH}:${TARGET}
+	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything}
 toolchain: ${TOOLCHAIN_TGTS}
 kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
