@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.19 1995/02/20 13:58:14 davidg Exp $
+ *	$Id: vm_page.c,v 1.20 1995/02/20 14:00:50 davidg Exp $
  */
 
 /*
@@ -548,8 +548,12 @@ vm_page_unqueue(vm_page_t mem)
 {
 	int s, origflags;
 
-	s = splhigh();
 	origflags = mem->flags;
+
+	if ((origflags & (PG_ACTIVE|PG_INACTIVE|PG_CACHE)) == 0)
+		return origflags;
+
+	s = splhigh();
 	if (mem->flags & PG_ACTIVE) {
 		TAILQ_REMOVE(&vm_page_queue_active, mem, pageq);
 		cnt.v_active_count--;
@@ -1055,7 +1059,7 @@ vm_page_bits(int base, int size)
 {
 	u_short chunk;
 
-	if( (base == 0) && (size == PAGE_SIZE))
+	if ((base == 0) && (size >= PAGE_SIZE))
 		return VM_PAGE_BITS_ALL;
 	size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 	base = (base % PAGE_SIZE) / DEV_BSIZE;
