@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.103 1999/05/10 17:56:22 dfr Exp $
+ * $Id: pci.c,v 1.104 1999/05/20 15:33:31 gallatin Exp $
  *
  */
 
@@ -1229,7 +1229,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	int map;
 
 	isdefault = (device_get_parent(child) == dev
-		     && start == 0UL && end == ~0UL && count == 1);
+		     && start == 0UL && end == ~0UL);
 
 	switch (type) {
 	case SYS_RES_IRQ:
