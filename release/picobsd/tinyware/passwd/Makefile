@@ -1,9 +1,8 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 # $FreeBSD$
 
-# NOPAM is used by PicoBSD
+# Only NOPAM is used by PicoBSD and supported here
 
-.if defined(NOPAM)
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c 
@@ -15,41 +14,15 @@ CFLAGS+=-Wall
 DPADD=	${LIBCRYPT} ${LIBUTIL}
 LDADD=	-lcrypt -lutil
 .PATH:  ${.CURDIR}/../../../../usr.bin/chpass \
-	${.CURDIR}/../../../../usr.sbin/vipw \
-	${.CURDIR}/../../../../usr.bin/passwd
+#	${.CURDIR}/../../../../usr.sbin/vipw \
+#	${.CURDIR}/../../../../usr.bin/passwd
 
 CFLAGS+= -DLOGIN_CAP -DCRYPT -I. -I${.CURDIR} \
-	-I${.CURDIR}/../../../../usr.bin/passwd \
-	-I${.CURDIR}/../../../../usr.sbin/vipw \
-	-I${.CURDIR}/../../../../usr.bin/chpass \
-	-I${.CURDIR}/../../../../lib/libc/gen \
-	-Dyp_error=warnx -DLOGGING
-
-.else
-PROG=	passwd
-SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
-	yp_passwd.c ypxfr_misc.c ${GENSRCS}
-GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
-	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
-CFLAGS+=-Wall
-
-DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
-LDADD=	-lcrypt -lrpcsvc -lutil
-.PATH:  ${.CURDIR}/../../../../usr.bin/chpass \
-	${.CURDIR}/../../../../usr.sbin/vipw \
-	${.CURDIR}/../../../../usr.bin/passwd \
-	${.CURDIR}/../../../../libexec/ypxfr \
-	${.CURDIR}/../../../../usr.sbin/rpc.yppasswdd
-
-CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
-	-I${.CURDIR}/../../../../usr.bin/passwd \
-	-I${.CURDIR}/../../usr.sbin/vipw \
-	-I${.CURDIR}/../../../../usr.bin/chpass \
-	-I${.CURDIR}/../../../../libexec/ypxfr \
-	-I${.CURDIR}/../../../../usr.sbin/rpc.yppasswdd \
-	-I${.CURDIR}/../../../../lib/libc/gen \
-	-Dyp_error=warnx -DLOGGING
-.endif
+#	-I${.CURDIR}/../../../../usr.bin/passwd \
+#	-I${.CURDIR}/../../../../usr.sbin/vipw \
+#	-I${.CURDIR}/../../../../usr.bin/chpass \
+#	-I${.CURDIR}/../../../../lib/libc/gen \
+#	-Dyp_error=warnx -DLOGGING
 
 CLEANFILES= ${GENSRCS}
 
