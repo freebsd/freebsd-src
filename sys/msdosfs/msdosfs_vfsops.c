@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_vfsops.c,v 1.1 1994/09/19 15:41:45 dfr Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -577,11 +577,7 @@ msdosfs_statfs(mp, sbp, p)
 	/*
 	 * Fill in the stat block.
 	 */
-#ifdef COMPAT_09
-	sbp->f_type = 4;
-#else
-	sbp->f_type = 0;
-#endif
+	sbp->f_type = MOUNT_MSDOS;
 	sbp->f_bsize = pmp->pm_bpcluster;
 	sbp->f_iosize = pmp->pm_bpcluster;
 	sbp->f_blocks = pmp->pm_nmbrofclusters;
