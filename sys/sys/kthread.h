@@ -43,13 +43,12 @@ struct kproc_desc {
 };
 
 void	kproc_start __P((const void *));
+void	kproc_shutdown __P((void *, int));
 int     kthread_create __P((void (*)(void *), void *, struct proc **,
 	    int flags, const char *, ...)) __printflike(5, 6);
 void    kthread_exit __P((int)) __dead2;
-
-int	suspend_kproc __P((struct proc *, int));
-int	resume_kproc __P((struct proc *));
-void	kproc_suspend_loop __P((struct proc *));
-void	shutdown_kproc __P((void *, int));
+int	kthread_resume __P((struct proc *));
+int	kthread_suspend __P((struct proc *, int));
+void	kthread_suspend_check __P((struct proc *));
 
 #endif

@@ -601,7 +601,7 @@ SYSCTL_INT(_kern_shutdown, OID_AUTO, kproc_shutdown_wait, CTLFLAG_RW,
     &kproc_shutdown_wait, 0, "");
 
 void
-shutdown_kproc(void *arg, int howto)
+kproc_shutdown(void *arg, int howto)
 {
 	struct proc *p;
 	int error;
@@ -612,7 +612,7 @@ shutdown_kproc(void *arg, int howto)
 	p = (struct proc *)arg;
 	printf("Waiting (max %d seconds) for system process `%s' to stop...",
 	    kproc_shutdown_wait, p->p_comm);
-	error = suspend_kproc(p, kproc_shutdown_wait * hz);
+	error = kthread_suspend(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
 		printf("timed out\n");
