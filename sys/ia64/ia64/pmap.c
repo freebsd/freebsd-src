@@ -400,7 +400,7 @@ pmap_invalidate_rid(pmap_t pmap)
 static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	KASSERT(pmap == PCPU_GET(current_pmap),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
 		("invalidating TLB for non-current pmap"));
 	ia64_ptc_l(va, PAGE_SHIFT << 2);
 }
@@ -412,7 +412,7 @@ pmap_invalidate_all(pmap_t pmap)
 	int i, j;
 	critical_t psr;
 
-	KASSERT(pmap == PCPU_GET(current_pmap),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
 	psr = critical_enter();
