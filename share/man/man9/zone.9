@@ -29,8 +29,6 @@
 .Dt ZONE 9
 .Os
 .Sh NAME
-.Nm zbootinit ,
-.Nm zinitna ,
 .Nm zinit ,
 .Nm zalloc ,
 .Nm zfree ,
@@ -40,10 +38,6 @@
 .In sys/param.h
 .In sys/queue.h
 .In vm/uma.h
-.Ft void
-.Fn zbootinit "vm_zone_t z" "char *name" "int size" "void *item" "int nitems"
-.Ft int
-.Fn zinitna "vm_zone_t z" "struct vm_object *obj" "char *name" "int size" "int nentries" "int flags" "int zalloc"
 .Ft vm_zone_t
 .Fn zinit "char *name" "int size" "int nentries" "int flags" "int zalloc"
 .Ft void *
@@ -86,9 +80,6 @@ it will have been cleared to zeroes, however subsequent allocations
 will retain the contents as of the last free, with the exception of the
 fields mentioned above.
 .Pp
-Zones are created in one of two fashions, depending how far along the
-boot process is.
-.Pp
 If the VM system is fully initialized, a dynamically allocated zone can
 be created using
 .Fn zinit .
@@ -119,39 +110,6 @@ The final argument,
 indicates the number of VM pages by which the zone should grow every
 time it fills up.
 .Pp
-If the VM system is not yet fully initialized, the zone allocator
-cannot dynamically allocate VM pages from which to dole out items, so
-the caller needs to provide a static pool of items.
-In this case, the initialization is done in two stages: first,
-.Fn zbootinit
-is called before first use of the zone; later, when the VM system is
-up, the initialization of the zone is completed by calling
-.Fn zinitna .
-.Pp
-The first argument to
-.Fn zbootinit
-is a pointer to a static
-.Vt "struct vm_zone"
-to initialize.
-The second and third are the name of the zone and the size of the
-items it will hold.
-The fourth argument is a pointer to a static array of items from which
-the zone allocator will draw until the zone is fully initialized.
-The
-.Fa nitems
-argument is the number of items in the array.
-.Pp
-The arguments to
-.Fa zinitna
-are the same as for
-.Fa zinit ,
-with the addition of a pointer to the zone to initialize, and a
-pointer to a
-.Vt "struct vm_object"
-from which to allocate pages in the
-.Dv ZONE_INTERRUPT
-case.
-.Pp
 To allocate an item from a zone, simply call
 .Fn zalloc
 with a pointer to that zone; it will return a pointer to an item, or
@@ -166,8 +124,6 @@ with a pointer to the zone and a pointer to the item.
 .Pp
 Zones created with
 .Fn zinit
-or
-.Fn zinitna
 can be destroyed using
 .Fn zdestroy ,
 freeing all memory that was allocated for the zone.
@@ -177,10 +133,6 @@ must have been freed with
 .Fn zfree
 before.
 .Sh RETURN VALUES
-The
-.Fn zinitna
-function returns 1 on success and 0 on failure; the only failure case
-is inability to preallocate address space for an interrupt-safe zone.
 .Pp
 The
 .Fn zinit
@@ -191,12 +143,7 @@ or
 if it was unable to
 .Fn malloc
 a
-.Vt "struct vm_zone"
-or the
-.Dv ZONE_INTERRUPT
-flag was specified and
-.Fn zinitna
-failed to preallocate address space.
+.Vt "struct vm_zone" .
 .Pp
 The
 .Fn zalloc
