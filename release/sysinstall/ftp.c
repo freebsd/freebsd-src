@@ -191,7 +191,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (ftpErrno(OpenConn) != 550) {
 	    dev->shutdown(dev);
-	    if (ftpErrno(OpenConn) != 421))	/* Timeout? */
+	    if (ftpErrno(OpenConn) != 421)	/* Timeout? */
 		variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev)) {
