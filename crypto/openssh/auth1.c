@@ -118,7 +118,11 @@ do_authloop(Authctxt *authctxt)
 	/* If the user has no password, accept authentication immediately. */
 	if (options.password_authentication &&
 #if defined(KRB4) || defined(KRB5)
-	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
+	    (!options.kerberos_authentication
+#if defined(KRB4)
+	    || options.krb4_or_local_passwd
+#endif
+	    ) &&
 #endif
 #ifdef USE_PAM
 	    auth_pam_password(authctxt, "")
