@@ -10,7 +10,6 @@
 # libm must be built before libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
-# libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
@@ -19,13 +18,15 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd libmytinfo \
-	libncurses libradius libskey libtacplus libtermcap \
+SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd \
+	libradius libskey libtacplus \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
-	libcompat libcurses libdevstat libdisk libedit libfetch \
+	libcompat libdevstat libdisk libncurses libedit libfetch \
 	libftpio libgnumalloc ${_libio} libipx libkvm libopie libpam \
 	libpcap libresolv librpcsvc libss libstand \
 	${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
+
+#SUBDIR+=libmenu libpanel libform
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
