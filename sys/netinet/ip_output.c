@@ -186,7 +186,7 @@ ip_output(m0, opt, ro, flags, imo)
 	(void)ipsec_setsocket(m, NULL);
 #endif
 
-#ifdef	DIAGNOSTIC
+#ifdef	INVARIANTS	
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ip_output no HDR");
 	if (!ro)
@@ -1111,12 +1111,12 @@ ip_optcopy(ip, jp)
 			optlen = 1;
 			continue;
 		}
-#ifdef DIAGNOSTIC
+#ifdef	INVARIANTS 
 		if (cnt < IPOPT_OLEN + sizeof(*cp))
 			panic("malformed IPv4 option passed to ip_optcopy");
 #endif
 		optlen = cp[IPOPT_OLEN];
-#ifdef DIAGNOSTIC
+#ifdef	INVARIANTS 
 		if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
 			panic("malformed IPv4 option passed to ip_optcopy");
 #endif
