@@ -305,6 +305,8 @@ rerelease release:
 .endif
 	if [ -d ${RELEASEDISTFILES}/ ]; then \
 		cp -rp ${RELEASEDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
+	else \
+		mkdir -p ${CHROOTDIR}/usr/ports/distfiles \
 	fi
 .endif
 .endif
