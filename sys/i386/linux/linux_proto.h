@@ -322,7 +322,7 @@ struct	linux_swapoff_args {
 	register_t dummy;
 };
 struct	linux_sysinfo_args {
-	register_t dummy;
+	struct sysinfo *	info;	char info_[PAD_(struct sysinfo *)];
 };
 struct	linux_ipc_args {
 	int	what;	char what_[PAD_(int)];
