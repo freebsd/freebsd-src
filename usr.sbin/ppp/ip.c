@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.19 1998/04/06 09:12:29 brian Exp $
+ * $Id: ip.c,v 1.38.2.20 1998/04/07 00:53:48 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -367,7 +367,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   }
 
 #ifndef NOALIAS
-  if (mode & MODE_ALIAS) {
+  if (AliasEnabled()) {
     struct tun_data *frag;
     int iresult;
     char *fptr;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.12 1998/04/06 09:12:36 brian Exp $
+ *	$Id: server.c,v 1.16.2.13 1998/04/07 00:54:17 brian Exp $
  */
 
 #include <sys/types.h>
@@ -41,7 +41,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -143,7 +142,6 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
                  inet_ntoa(sin->sin_addr), sin->sin_port);
         break;
     }
-    IsInteractive(p);
     prompt_TtyCommandMode(p);
     prompt_Required(p);
   }

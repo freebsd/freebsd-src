@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.54 1998/04/06 09:12:25 brian Exp $
+ * $Id: command.c,v 1.131.2.55 1998/04/07 00:53:33 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -142,28 +142,6 @@ HelpCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
 
   return 0;
-}
-
-int
-IsInteractive(struct prompt *prompt)
-{
-  const char *m = NULL;
-
-  if (mode & MODE_DDIAL)
-    m = "direct dial";
-  else if (mode & MODE_BACKGROUND)
-    m = "background";
-  else if (mode & MODE_AUTO)
-    m = "auto";
-  else if (mode & MODE_DEDICATED)
-    m = "dedicated";
-  else if (mode & MODE_INTER)
-    m = "interactive";
-
-  if (m)
-    prompt_Printf(prompt, "Working in %s mode\n", m);
-
-  return mode & MODE_INTER;
 }
 
 static int
@@ -488,7 +466,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/06 09:12:38 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/07 00:53:33 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -792,9 +770,6 @@ TerminalCommand(struct cmdargs const *arg)
                   State2Nam(arg->cx->physical->link.lcp.fsm.state));
     return 1;
   }
-
-  if (!IsInteractive(arg->prompt))
-    return (1);
 
   datalink_Up(arg->cx, 0, 0);
   prompt_TtyTermMode(arg->prompt, arg->cx);
@@ -1583,20 +1558,12 @@ AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == 1)
     if (strcasecmp(arg->argv[0], "yes") == 0) {
-      if (!(mode & MODE_ALIAS)) {
-	if (loadAliasHandlers() == 0) {
-	  mode |= MODE_ALIAS;
-	  return 0;
-	}
-	LogPrintf(LogWARN, "Cannot load alias library\n");
-	return 1;
-      }
-      return 0;
+      if (loadAliasHandlers() == 0)
+	return 0;
+      LogPrintf(LogWARN, "Cannot load alias library\n");
+      return 1;
     } else if (strcasecmp(arg->argv[0], "no") == 0) {
-      if (mode & MODE_ALIAS) {
-	unloadAliasHandlers();
-	mode &= ~MODE_ALIAS;
-      }
+      unloadAliasHandlers();
       return 0;
     }
   return -1;
@@ -1609,13 +1576,13 @@ AliasOption(struct cmdargs const *arg)
   unsigned param = (unsigned)arg->cmd->args;
   if (arg->argc == 1)
     if (strcasecmp(arg->argv[0], "yes") == 0) {
-      if (mode & MODE_ALIAS) {
+      if (AliasEnabled()) {
 	(*PacketAlias.SetMode)(param, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");
     } else if (strcmp(arg->argv[0], "no") == 0) {
-      if (mode & MODE_ALIAS) {
+      if (AliasEnabled()) {
 	(*PacketAlias.SetMode)(0, param);
 	return 0;
       }

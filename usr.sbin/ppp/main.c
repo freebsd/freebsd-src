@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.45 1998/04/06 09:12:32 brian Exp $
+ * $Id: main.c,v 1.121.2.46 1998/04/07 00:54:07 brian Exp $
  *
  *	TODO:
  */
@@ -36,7 +36,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -225,9 +224,7 @@ ProcessArgs(int argc, char **argv)
       mode &= ~MODE_INTER;
 #ifndef NOALIAS
     } else if (strcmp(cp, "alias") == 0) {
-      if (loadAliasHandlers() == 0)
-	mode |= MODE_ALIAS;
-      else
+      if (loadAliasHandlers() != 0)
 	LogPrintf(LogWARN, "Cannot load alias library\n");
       optc--;			/* this option isn't exclusive */
 #endif
@@ -238,12 +235,12 @@ ProcessArgs(int argc, char **argv)
     argc--;
   }
   if (argc > 1) {
-    fprintf(stderr, "specify only one system label.\n");
+    fprintf(stderr, "You may specify only one system label.\n");
     exit(EX_START);
   }
 
   if (optc > 1) {
-    fprintf(stderr, "specify only one mode.\n");
+    fprintf(stderr, "You may specify only one mode.\n");
     exit(EX_START);
   }
 
@@ -296,8 +293,26 @@ main(int argc, char **argv)
   /* Allow output for the moment (except in direct mode) */
   if (mode & MODE_DIRECT)
     prompt = NULL;
-  else
+  else {
+    const char *m;
+
     SignalPrompt = prompt = prompt_Create(NULL, NULL, PROMPT_STD);
+    if (mode & MODE_DDIAL)
+      m = "direct dial";
+    else if (mode & MODE_BACKGROUND)
+      m = "background";
+    else if (mode & MODE_AUTO)
+      m = "auto";
+    else if (mode & MODE_DEDICATED)
+      m = "dedicated";
+    else if (mode & MODE_INTER)
+      m = "interactive";
+    else
+      m = NULL;
+
+    if (m)
+      prompt_Printf(prompt, "Working in %s mode\n", m);
+  }
 
   ID0init();
   if (ID0realuid() != 0) {
@@ -330,13 +345,7 @@ main(int argc, char **argv)
     LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
-
   SignalBundle = bundle;
-  if (prompt) {
-    prompt->bundle = bundle;
-    bundle_RegisterDescriptor(bundle, &prompt->desc);
-    IsInteractive(prompt);
-  }
 
   if (SelectSystem(bundle, "default", CONFFILE, prompt) < 0)
     prompt_Printf(prompt,
@@ -563,7 +572,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 	    struct mbuf *bp;
 
 #ifndef NOALIAS
-	    if (mode & MODE_ALIAS) {
+            if (AliasEnabled()) {
 	      (*PacketAlias.In)(tun.data, sizeof tun.data);
 	      n = ntohs(((struct ip *)tun.data)->ip_len);
 	    }
@@ -603,7 +612,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
       if (pri >= 0) {
 #ifndef NOALIAS
-	if (mode & MODE_ALIAS) {
+        if (AliasEnabled()) {
 	  (*PacketAlias.Out)(tun.data, sizeof tun.data);
 	  n = ntohs(((struct ip *)tun.data)->ip_len);
 	}

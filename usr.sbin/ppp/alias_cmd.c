@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.12.2.4 1998/04/06 09:12:21 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12.2.5 1998/04/07 00:53:12 brian Exp $
  */
 
 #include <sys/types.h>
@@ -15,7 +15,6 @@
 #include <string.h>
 #include <termios.h>
 
-#include "defs.h"
 #include "command.h"
 #include "log.h"
 #include "loadalias.h"
@@ -32,7 +31,7 @@ static int StrToAddrAndPort(const char *, struct in_addr *, u_short *, const cha
 int
 AliasRedirectPort(struct cmdargs const *arg)
 {
-  if (!(mode & MODE_ALIAS)) {
+  if (!AliasEnabled()) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
   } else if (arg->argc == 3) {
@@ -93,7 +92,7 @@ AliasRedirectPort(struct cmdargs const *arg)
 int
 AliasRedirectAddr(struct cmdargs const *arg)
 {
-  if (!(mode & MODE_ALIAS)) {
+  if (!AliasEnabled()) {
     prompt_Printf(arg->prompt, "alias not enabled\n");
     return 1;
   } else if (arg->argc == 2) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.21 1998/04/05 18:25:33 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.22 1998/04/06 09:12:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       prompt_Required(p);
       if (n)
         DecodeCommand(bundle, linebuff, n, p,
-                      IsInteractive(NULL) ? NULL : "Client");
+                      (mode & MODE_INTER) ? NULL : "Client");
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
       prompt_Destroy(p, 0);
