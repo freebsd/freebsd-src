@@ -1,9 +1,9 @@
 #
-# $Id: Makefile.alpha,v 1.1 1998/03/12 12:29:20 jb Exp $
+# $Id: Makefile.alpha,v 1.2 1998/05/04 21:16:46 jb Exp $
 #
 
 SRCS+=		coff-alpha.c cpu-alpha.c ecoff.c ecofflink.c elf64-alpha.c \
-		elf64.c elflink.c
+		elf64-target.h elf64.c elflink.c
 VECS+=		bfd_elf64_alpha_vec ecoffalpha_little_vec
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf64_alpha_vec
@@ -11,10 +11,6 @@ CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf64_alpha_vec
 CFLAGS+=	-DHAVE_bfd_elf64_alpha_vec
 CFLAGS+=	-DHAVE_ecoffalpha_little_vec
 CLEANFILES+=	elf64-target.h
-
-beforedepend: elf64-target.h
-
-elf64-alpha.o: elf64-target.h
 
 elf64-target.h: elfxx-target.h
 	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
