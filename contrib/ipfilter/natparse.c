@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -12,9 +12,9 @@
 #include <errno.h>
 #include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
-#include <strings.h>
+# include <strings.h>
 #else
-#include <sys/byteorder.h>
+# include <sys/byteorder.h>
 #endif
 #include <sys/time.h>
 #include <sys/param.h>
@@ -56,7 +56,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.24 2002/04/24 17:30:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.27 2002/12/06 11:40:27 darrenr Exp $";
 #endif
 
 
@@ -385,6 +385,13 @@ int linenum;
 		}
 		if (hostnum((u_32_t *)&ipn.in_inip, *cpp, linenum) == -1)
 			return NULL;
+#if SOLARIS
+		if (ntohl(ipn.in_inip) == INADDR_LOOPBACK) {
+			fprintf(stderr,
+				"localhost as destination not supported\n");
+			return NULL;
+		}
+#endif
 	} else {
 		if (!strcmp(*cpp, ipn.in_ifname))
 			*cpp = "0";
@@ -525,6 +532,19 @@ int linenum;
 				cpp++;
 			}
 
+			if (*cpp && !strcasecmp(*cpp, "mssclamp")) {
+				cpp++;
+				if (*cpp) {
+					ipn.in_mssclamp = atoi(*cpp);
+					cpp++;
+				} else {
+					fprintf(stderr,
+					   "%d: mssclamp with no parameters\n",
+						linenum);
+					return NULL;
+				}
+			}
+
 			if (*cpp) {
 				fprintf(stderr,
 				"%d: extra junk at the end of the line: %s\n",
@@ -569,14 +589,7 @@ int linenum;
 	if (!*cpp)
 		return &ipn;
 
-	if (ipn.in_redir == NAT_BIMAP) {
-		fprintf(stderr,
-			"%d: extra words at the end of bimap line: %s\n",
-			linenum, *cpp);
-		return NULL;
-	}
-
-	if (!strcasecmp(*cpp, "proxy")) {
+	if (ipn.in_redir != NAT_BIMAP && !strcasecmp(*cpp, "proxy")) {
 		if (ipn.in_redir == NAT_BIMAP) {
 			fprintf(stderr, "%d: cannot use proxy with bimap\n",
 				linenum);
@@ -631,7 +644,7 @@ int linenum;
 		(void) strncpy(ipn.in_plabel, *cpp, sizeof(ipn.in_plabel));
 		cpp++;
 
-	} else if (!strcasecmp(*cpp, "portmap")) {
+	} else if (ipn.in_redir != NAT_BIMAP && !strcasecmp(*cpp, "portmap")) {
 		if (ipn.in_redir == NAT_BIMAP) {
 			fprintf(stderr, "%d: cannot use portmap with bimap\n",
 				linenum);
@@ -709,6 +722,18 @@ int linenum;
 		else
 			ipn.in_age[1] = ipn.in_age[0];
 		cpp++;
+	}
+
+	if (*cpp && !strcasecmp(*cpp, "mssclamp")) {
+		cpp++;
+		if (*cpp) {
+			ipn.in_mssclamp = atoi(*cpp);
+			cpp++;
+		} else {
+			fprintf(stderr, "%d: mssclamp with no parameters\n",
+				linenum);
+			return NULL;
+		}
 	}
 
 	if (*cpp) {
