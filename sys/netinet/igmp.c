@@ -49,8 +49,11 @@
  * MULTICAST Revision: 3.5.1.4
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -447,6 +450,9 @@ igmp_sendpkt(inm, type, addr)
                 return;
 
 	m->m_pkthdr.rcvif = loif;
+#ifdef MAC
+	mac_create_mbuf_linklayer(inm->inm_ifp, m);
+#endif
 	m->m_pkthdr.len = sizeof(struct ip) + IGMP_MINLEN;
 	MH_ALIGN(m, IGMP_MINLEN + sizeof(struct ip));
 	m->m_data += sizeof(struct ip);
