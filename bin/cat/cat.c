@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 			vflag = 1;
 			break;
 		default:
-			(void)fprintf(stderr,
+			fprintf(stderr,
 			    "usage: cat [-benstuv] [-] [file ...]\n");
 			exit(1);
 		}
@@ -187,12 +187,12 @@ cook_cat(FILE *fp)
 					continue;
 				}
 				if (nflag && !bflag) {
-					(void)fprintf(stdout, "%6d\t", ++line);
+					fprintf(stdout, "%6d\t", ++line);
 					if (ferror(stdout))
 						break;
 				}
 			} else if (nflag) {
-				(void)fprintf(stdout, "%6d\t", ++line);
+				fprintf(stdout, "%6d\t", ++line);
 				if (ferror(stdout))
 					break;
 			}
@@ -240,7 +240,7 @@ raw_cat(int rfd)
 	int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
-	static char *buf;
+	static char *buf = NULL;
 	struct stat sbuf;
 
 	wfd = fileno(stdout);
@@ -268,14 +268,15 @@ udom_open(const char *path, int flags)
 {
 	struct sockaddr_un sou;
 	int fd;
-	int len;
+	unsigned int len;
 
 	bzero(&sou, sizeof(sou));
 
 	/*
 	 * Construct the unix domain socket address and attempt to connect
 	 */
-	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0) {
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd >= 0) {
 		sou.sun_family = AF_UNIX;
 		snprintf(sou.sun_path, sizeof(sou.sun_path), "%s", path);
 		len = strlen(sou.sun_path);
@@ -293,10 +294,12 @@ udom_open(const char *path, int flags)
 	if (fd >= 0) {
 		switch(flags & O_ACCMODE) {
 		case O_RDONLY:
-			shutdown(fd, SHUT_WR);
+			if (shutdown(fd, SHUT_WR) == -1)
+				perror("cat");
 			break;
 		case O_WRONLY:
-			shutdown(fd, SHUT_RD);
+			if (shutdown(fd, SHUT_RD) == -1)
+				perror("cat");
 			break;
 		default:
 			break;
@@ -306,4 +309,3 @@ udom_open(const char *path, int flags)
 }
 
 #endif
-

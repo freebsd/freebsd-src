@@ -73,10 +73,10 @@ netsettime(time_t tval)
 	struct timeval tout;
 	struct servent *sp;
 	struct tsp msg;
-	struct sockaddr_in sin, dest, from;
+	struct sockaddr_in lsin, dest, from;
 	fd_set ready;
 	long waittime;
-	int s, length, port, timed_ack, found, err;
+	int s, length, port, timed_ack, found, lerr;
 	char hostname[MAXHOSTNAMELEN];
 
 	if ((sp = getservbyname("timed", "udp")) == NULL) {
@@ -94,11 +94,11 @@ netsettime(time_t tval)
 		return (retval = 2);
 	}
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
+	memset(&lsin, 0, sizeof(lsin));
+	lsin.sin_family = AF_INET;
 	for (port = IPPORT_RESERVED - 1; port > IPPORT_RESERVED / 2; port--) {
-		sin.sin_port = htons((u_short)port);
-		if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
+		lsin.sin_port = htons((u_short)port);
+		if (bind(s, (struct sockaddr *)&lsin, sizeof(lsin)) >= 0)
 			break;
 		if (errno == EADDRINUSE)
 			continue;
@@ -142,11 +142,11 @@ loop:
 	FD_SET(s, &ready);
 	found = select(FD_SETSIZE, &ready, (fd_set *)0, (fd_set *)0, &tout);
 
-	length = sizeof(err);
+	length = sizeof(lerr);
 	if (!getsockopt(s,
-	    SOL_SOCKET, SO_ERROR, (char *)&err, &length) && err) {
-		if (err != ECONNREFUSED)
-			warnc(err, "send (delayed error)");
+	    SOL_SOCKET, SO_ERROR, (char *)&lerr, &length) && lerr) {
+		if (lerr != ECONNREFUSED)
+			warnc(lerr, "send (delayed error)");
 		goto bad;
 	}
 
