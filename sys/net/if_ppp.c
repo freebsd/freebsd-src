@@ -235,6 +235,8 @@ ppp_clone_destroy(struct ifnet *ifp)
 	mtx_destroy(&sc->sc_rawq.ifq_mtx);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
 	mtx_destroy(&sc->sc_inq.ifq_mtx);
+
+	free(sc, M_PPP);
 }
 
 static int
@@ -242,6 +244,7 @@ ppp_modevent(module_t mod, int type, void *data)
 { 
 	switch (type) { 
 	case MOD_LOAD: 
+		LIST_INIT(&ppp_softc_list);
 		if_clone_attach(&ppp_cloner);
 
 		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL, 0);
