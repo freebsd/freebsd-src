@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.4 1995/05/09 12:25:58 rgrimes Exp $ */
+/* $Id: scd.c,v 1.5 1995/05/30 08:03:02 rgrimes Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -142,10 +142,10 @@ struct scd_data {
 } scd_data[NSCD];
 
 /* prototypes */
-int	scdopen(dev_t dev);
-int	scdclose(dev_t dev);
+int	scdopen(dev_t dev, int flags, int fmt, struct proc *p);
+int	scdclose(dev_t dev, int flags, int fmt, struct proc *p);
 void	scdstrategy(struct buf *bp);
-int	scdioctl(dev_t dev, int cmd, caddr_t addr, int flags);
+int	scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
 int	scdsize(dev_t dev);
 
 static	int	bcd2bin(bcd_t b);
@@ -230,7 +230,7 @@ int scd_attach(struct isa_device *dev)
 }
 
 int
-scdopen(dev_t dev)
+scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
 	int rc;
@@ -283,7 +283,7 @@ scdopen(dev_t dev)
 }
 
 int
-scdclose(dev_t dev)
+scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
 	struct scd_data *cd;
@@ -419,7 +419,7 @@ scd_start(int unit)
 }
 
 int
-scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
+scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct scd_data *cd;
 	int unit,part;

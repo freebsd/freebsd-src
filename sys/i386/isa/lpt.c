@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.32 1995/06/22 07:03:20 davidg Exp $
+ *	$Id: lpt.c,v 1.33 1995/07/16 10:12:04 bde Exp $
  */
 
 /*
@@ -442,7 +442,7 @@ lptattach(struct isa_device *isdp)
  */
 
 int
-lptopen (dev_t dev, int flag)
+lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc;
 	int s;
@@ -576,7 +576,7 @@ lptout (struct lpt_softc * sc)
  */
 
 int
-lptclose(dev_t dev, int flag)
+lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
 	int port = sc->sc_port;
@@ -675,7 +675,7 @@ pushbytes(struct lpt_softc * sc)
  */
 
 int
-lptwrite(dev_t dev, struct uio * uio)
+lptwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
@@ -773,7 +773,7 @@ lptintr(int unit)
 }
 
 int
-lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
+lptioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
         struct	lpt_softc *sc;

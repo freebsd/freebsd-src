@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.17 1995/05/30 08:03:22 rgrimes Exp $
+ * $Id: wt.c,v 1.18 1995/09/05 05:45:34 julian Exp $
  *
  */
 
@@ -264,13 +264,13 @@ int wtattach (struct isa_device *id)
 
 struct isa_driver wtdriver = { wtprobe, wtattach, "wt", };
 
-int wtdump (int dev)
+int wtdump (dev_t dev)
 {
 	/* Not implemented */
 	return (EINVAL);
 }
 
-int wtsize (int dev)
+int wtsize (dev_t dev)
 {
 	/* Not implemented */
 	return (-1);
@@ -279,7 +279,7 @@ int wtsize (int dev)
 /*
  * Open routine, called on every device open.
  */
-int wtopen (int dev, int flag)
+int wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -357,7 +357,7 @@ int wtopen (int dev, int flag)
 /*
  * Close routine, called on last device close.
  */
-int wtclose (int dev)
+int wtclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -407,7 +407,7 @@ done:
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  * ioctl (int fd, WTQICMD, int qicop)           -- do QIC op
  */
-int wtioctl (int dev, int cmd, void *arg, int mode)
+int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;

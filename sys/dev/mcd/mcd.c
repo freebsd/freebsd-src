@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.44 1995/05/30 08:02:44 rgrimes Exp $
+ *	$Id: mcd.c,v 1.45 1995/08/15 19:56:59 joerg Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -164,10 +164,10 @@ struct mcd_data {
 #define MCD_S_WAITREAD	4
 
 /* prototypes */
-int	mcdopen(dev_t dev);
-int	mcdclose(dev_t dev);
+int	mcdopen(dev_t dev, int flags, int fmt, struct proc *p);
+int	mcdclose(dev_t dev, int flags, int fmt, struct proc *p);
 void	mcdstrategy(struct buf *bp);
-int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags);
+int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
 int	mcdsize(dev_t dev);
 static	void	mcd_done(struct mcd_mbx *mbx);
 static	void	mcd_start(int unit);
@@ -265,7 +265,7 @@ int mcd_attach(struct isa_device *dev)
 	return 1;
 }
 
-int mcdopen(dev_t dev)
+int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys,r,retry;
 	struct mcd_data *cd;
@@ -341,7 +341,7 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 	return ENXIO;
 }
 
-int mcdclose(dev_t dev)
+int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
 	struct mcd_data *cd;
@@ -491,7 +491,7 @@ static void mcd_start(int unit)
 	return;
 }
 
-int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
+int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct mcd_data *cd;
 	int unit,part;
