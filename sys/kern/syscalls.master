@@ -553,4 +553,9 @@
 			int new_grp_flag); }
 382	STD	BSD	{ int thread_wakeup(struct thread_mailbox *tmbx); }
 383	STD	BSD	{ int kse_yield(void); }
-
+384	UNIMPL	BSD	__mac_get_proc
+385	UNIMPL	BSD	__mac_set_proc
+386	UNIMPL	BSD	__mac_get_fd
+387	UNIMPL	BSD	__mac_get_file
+388	UNIMPL	BSD	__mac_set_fd
+389	UNIMPL	BSD	__mac_set_file
