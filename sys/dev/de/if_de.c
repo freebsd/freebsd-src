@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.45 1996/05/02 14:20:44 phk Exp $
+ * $Id: if_de.c,v 1.46 1996/05/03 21:01:34 phk Exp $
  *
  */
 
@@ -1092,7 +1092,18 @@ tulip_rx_intr(
 	    accept = 1;
 	    total_len -= sizeof(struct ether_header);
 	} else {
-	    ifp->if_ierrors++;
+#define RXERR(which, what) \
+	if (eop->d_status & which) \
+		printf("de%d: receiver: %s\n", ifp->if_unit, what)
+
+		RXERR(TULIP_DSTS_RxBADLENGTH, "packet length error");
+		RXERR(TULIP_DSTS_RxRUNT, "runt frame");
+		RXERR(TULIP_DSTS_RxTOOLONG, "frame too long");
+		RXERR(TULIP_DSTS_RxCOLLSEEN, "late collision");
+		RXERR(TULIP_DSTS_RxBADCRC, "CRC error");
+		RXERR(TULIP_DSTS_RxOVERFLOW, "FIFO overflow");
+#undef RXERR
+		ifp->if_ierrors++;
 	}
       next:
 	ifp->if_ipackets++;
