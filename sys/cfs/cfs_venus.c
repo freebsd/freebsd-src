@@ -1,45 +1,42 @@
 /*
-
-            Coda: an Experimental Distributed File System
-                             Release 3.1
-
-          Copyright (c) 1987-1998 Carnegie Mellon University
-                         All Rights Reserved
-
-Permission  to  use, copy, modify and distribute this software and its
-documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
-software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
-that credit is given to Carnegie Mellon University  in  all  documents
-and publicity pertaining to direct or indirect use of this code or its
-derivatives.
-
-CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
-SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
-FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
-DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
-RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
-ANY DERIVATIVE WORK.
-
-Carnegie  Mellon  encourages  users  of  this  software  to return any
-improvements or extensions that  they  make,  and  to  grant  Carnegie
-Mellon the rights to redistribute these changes without encumbrance.
-*/
-
-/* $Header: /afs/cs/project/coda-src/cvs/coda/kernel-src/vfs/freebsd/cfs/cfs_venus.c,v 1.11 1998/08/28 18:12:20 rvb Exp $ */
+ * 
+ *             Coda: an Experimental Distributed File System
+ *                              Release 3.1
+ * 
+ *           Copyright (c) 1987-1998 Carnegie Mellon University
+ *                          All Rights Reserved
+ * 
+ * Permission  to  use, copy, modify and distribute this software and its
+ * documentation is hereby granted,  provided  that  both  the  copyright
+ * notice  and  this  permission  notice  appear  in  all  copies  of the
+ * software, derivative works or  modified  versions,  and  any  portions
+ * thereof, and that both notices appear in supporting documentation, and
+ * that credit is given to Carnegie Mellon University  in  all  documents
+ * and publicity pertaining to direct or indirect use of this code or its
+ * derivatives.
+ * 
+ * CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
+ * SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
+ * FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
+ * DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
+ * RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
+ * ANY DERIVATIVE WORK.
+ * 
+ * Carnegie  Mellon  encourages  users  of  this  software  to return any
+ * improvements or extensions that  they  make,  and  to  grant  Carnegie
+ * Mellon the rights to redistribute these changes without encumbrance.
+ * 
+ * 	@(#) src/sys/cfs/cfs_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: $
+ * 
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/select.h>
-#ifdef	__FreeBSD_version
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-/* for CNV_OFLAGS below */
 #include <sys/fcntl.h>
 
 #include <cfs/coda.h>
@@ -342,11 +339,11 @@ venus_access(void *mdp, ViceFid *fid, int mode,
     /* send the open to venus. */
     INIT_IN(&inp->ih, CFS_ACCESS, cred, p);
     inp->VFid = *fid;
-#ifdef	NetBSD1_3
-    inp->flags = mode;
-#else
+    /* NOTE:
+     * NetBSD and Venus internals use the "data" in the low 3 bits.
+     * Hence, the conversion.
+     */
     inp->flags = mode>>6;
-#endif
 
     error = cfscall(mdp, Isize, &Osize, (char *)inp);
 
@@ -437,11 +434,7 @@ venus_create(void *mdp, ViceFid *fid,
     INIT_IN(&inp->ih, CFS_CREATE, cred, p);
     inp->VFid = *fid;
     inp->excl = exclusive ? C_O_EXCL : 0;
-#ifdef	NetBSD1_3
-    inp->mode = mode<<6;
-#else
     inp->mode = mode;
-#endif
     CNV_V2VV_ATTR(&inp->attr, va);
 
     inp->name = Isize;
