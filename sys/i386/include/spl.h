@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.6 1994/12/30 12:42:15 bde Exp $
+ *	$Id: spl.h,v 1.7 1995/05/11 00:13:01 wollman Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -74,6 +74,7 @@
 
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 extern	unsigned cpl;		/* current priority level mask */
+extern	volatile unsigned idelayed;	/* interrupts to become pending */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
 extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
@@ -85,10 +86,13 @@ extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
  * it is changed.  Pretending that ipending is a plain int happens to give
  * suitable atomic code for "ipending |= constant;".
  */
+#define	setdelayed()	(*(unsigned *)&ipending |= loadandclear(&idelayed))
 #define	setsoftast()	(*(unsigned *)&ipending |= SWI_AST_PENDING)
 #define	setsoftclock()	(*(unsigned *)&ipending |= SWI_CLOCK_PENDING)
 #define	setsoftnet()	(*(unsigned *)&ipending |= SWI_NET_PENDING)
 #define	setsofttty()	(*(unsigned *)&ipending |= SWI_TTY_PENDING)
+
+#define	schedsofttty()	(*(unsigned *)&idelayed |= SWI_TTY_PENDING)
 
 void	unpend_V __P((void));
 
