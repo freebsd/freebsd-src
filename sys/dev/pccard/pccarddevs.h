@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.67 2003/08/21 17:39:56 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.68 2003/08/21 17:49:50 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -86,6 +86,7 @@
 #define	PCMCIA_VENDOR_ERICSSON	0x016b	/* Ericsson */
 #define	PCMCIA_VENDOR_PSION	0x016c	/* Psion */
 #define	PCMCIA_VENDOR_COMPAQ2	0x0183	/* Compaq */
+#define	PCMCIA_VENDOR_PARALON	0x0183	/* Paralon Technologies Inc */
 #define	PCMCIA_VENDOR_KINGSTON	0x0186	/* Kingston */
 #define	PCMCIA_VENDOR_MELCO	0x018a	/* Melco Corporation */
 #define	PCMCIA_VENDOR_DAYNA	0x0194	/* Dayna Corporation */
