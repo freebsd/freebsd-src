@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.73 2000/05/31 16:14:42 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.76 2000/06/06 11:36:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -96,10 +96,9 @@ usbd_finish()
 	--usbd_nbuses;
 }
 
-Static __inline int usbd_xfer_isread(usbd_xfer_handle xfer);
-Static __inline int
-usbd_xfer_isread(xfer)
-	usbd_xfer_handle xfer;
+static __inline int usbd_xfer_isread(usbd_xfer_handle xfer);
+static __inline int
+usbd_xfer_isread(usbd_xfer_handle xfer)
 {
 	if (xfer->rqflags & URQ_REQUEST)
 		return (xfer->request.bmRequestType & UT_READ);
@@ -110,10 +109,8 @@ usbd_xfer_isread(xfer)
 
 #ifdef USB_DEBUG
 void usbd_dump_queue(usbd_pipe_handle);
-
 void
-usbd_dump_queue(pipe)
-	usbd_pipe_handle pipe;
+usbd_dump_queue(usbd_pipe_handle pipe)
 {
 	usbd_xfer_handle xfer;
 
@@ -704,7 +701,7 @@ usbd_set_interface(iface, altidx)
 	if (err)
 		return (err);
 
-	/* new setting work, we can free old endpoints */
+	/* new setting works, we can free old endpoints */
 	if (endpoints != NULL)
 		free(endpoints, M_USB);
 
