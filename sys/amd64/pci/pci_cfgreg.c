@@ -71,8 +71,10 @@ static int	pci_cfgintr_virgin(struct PIR_entry *pe, int pin);
 
 static void	pci_print_irqmask(u_int16_t irqs);
 static void	pci_print_route_table(struct PIR_table *prt, int size);
+#ifdef USE_PCI_BIOS_FOR_READ_WRITE
 static int	pcibios_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
+#endif
 static int	pcibios_cfgopen(void);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
@@ -195,9 +197,13 @@ pci_cfgregopen(void)
 static u_int32_t
 pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
+#ifdef USE_PCI_BIOS_FOR_READ_WRITE
 	return(usebios ? 
 	    pcibios_cfgread(bus, slot, func, reg, bytes) : 
 	    pcireg_cfgread(bus, slot, func, reg, bytes));
+#else
+	return (pcireg_cfgread(bus, slot, func, reg, bytes));
+#endif
 }
 
 u_int32_t
@@ -266,19 +272,18 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
-
+#ifdef USE_PCI_BIOS_FOR_READ_WRITE
 	if (usebios)
 		pcibios_cfgwrite(bus, slot, func, reg, data, bytes);
 	else
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
+#else
+	pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
+#endif
 }
 
 /*
  * Route a PCI interrupt
- *
- * XXX we don't do anything "right" with the function number in the PIR table
- *     (because the consumer isn't currently passing it in).  We don't care
- *     anyway, due to the way PCI interrupts are assigned.
  */
 int
 pci_cfgintr(int bus, int device, int pin, int oldirq)
@@ -324,8 +329,6 @@ pci_cfgintr(int bus, int device, int pin, int oldirq)
 		irq = pci_cfgintr_linked(pe, pin);
 		if (irq == PCI_INVALID_IRQ)
 			irq = pci_cfgintr_unique(pe, pin);
-		if (irq != PCI_INVALID_IRQ)
-			already = 1;
 		if (irq == PCI_INVALID_IRQ)
 			irq = pci_cfgintr_virgin(pe, pin);
 		if (irq == PCI_INVALID_IRQ)
@@ -599,6 +602,7 @@ pci_probe_route_table(int bus)
 	return (0);
 }
 
+#ifdef USE_PCI_BIOS_FOR_READ_WRITE
 /*
  * Config space access using BIOS functions 
  */
@@ -654,6 +658,7 @@ pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	args.edi = reg;
 	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
 }
+#endif
 
 /*
  * Determine whether there is a PCI BIOS present
