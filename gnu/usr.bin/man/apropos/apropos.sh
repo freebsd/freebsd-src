@@ -102,7 +102,7 @@ done |
 	done
 
 	# nothing found, exit
-	if [ -z "$line" -a ! -z "$line2"]; then
+	if [ -z "$line" -a ! -z "$line2" ]; then
 		printf -- "$line2"
 		exit $exit_nomatch
 	else
