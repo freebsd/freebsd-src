@@ -2343,7 +2343,7 @@ fdioctl(dev, cmd, addr, flag, p)
 		dl->d_secpercyl = fdt->size / fdt->tracks;
 		dl->d_type = DTYPE_FLOPPY;
 
-		if (readdisklabel(dkmodpart(dev, RAW_PART), dl)
+		if (readdisklabel(dev, dl)
 		    == NULL)
 			error = 0;
 		else
