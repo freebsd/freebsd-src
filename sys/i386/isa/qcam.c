@@ -118,7 +118,10 @@ qcam_registerdev (struct isa_device *id)
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
 
+#ifndef	ACTUALLY_LKM_NOT_KERNEL		/* there's a bug in dev_attach
+					   when running from an LKM */
 	dev_attach(kdc);
+#endif
 }
 
 static int
@@ -186,7 +189,7 @@ qcam_attach (struct isa_device *devp)
 static int
 qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct qcam_softc *qs = (struct qcam_softc *)&qcam_softc[UNIT(dev)];
+	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
 
 	if (!(qs->flags & QC_ALIVE))
 		return ENXIO;
@@ -195,7 +198,7 @@ qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 		return EBUSY;
 
 	qs->buffer_end = qs->buffer = malloc(QC_MAXFRAMEBUFSIZE, M_DEVBUF,
-					     M_NOWAIT);
+					     M_WAITOK);
 	if (!qs->buffer)
 		return ENOMEM;
 
@@ -212,7 +215,7 @@ qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 static int
 qcam_close (dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct qcam_softc *qs = (struct qcam_softc *)&qcam_softc[UNIT(dev)];
+	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
 
 	if (qs->buffer) {
 	    free(qs->buffer, M_DEVBUF);
@@ -228,7 +231,7 @@ qcam_close (dev_t dev, int flags, int fmt, struct proc *p)
 static int
 qcam_read (dev_t dev, struct uio *uio, int ioflag)
 {
-	struct qcam_softc *qs = (struct qcam_softc *)&qcam_softc[UNIT(dev)];
+	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
 	int bytes, bufsize;
 	int error;
 
@@ -252,7 +255,7 @@ qcam_read (dev_t dev, struct uio *uio, int ioflag)
 static int
 qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
-	struct qcam_softc *qs = (struct qcam_softc *)&qcam_softc[UNIT(dev)];
+	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
 	struct qcam      *info = (struct qcam *)data;
 
 	if (!data)
@@ -268,6 +271,7 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		info->qc_yorigin	= qs->y_origin;
 		info->qc_bpp		= qs->bpp;
 		info->qc_zoom		= qs->zoom;
+		info->qc_exposure	= qs->exposure;
 		info->qc_brightness	= qs->brightness;
 		info->qc_whitebalance	= qs->whitebalance;
 		info->qc_contrast	= qs->contrast;
@@ -300,6 +304,7 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		qs->y_origin	  = info->qc_yorigin;
 		qs->bpp		  = info->qc_bpp;
 		qs->zoom	  = info->qc_zoom;
+		qs->exposure	  = info->qc_exposure;
 		qs->brightness	  = info->qc_brightness;
 		qs->whitebalance  = info->qc_whitebalance;
 		qs->contrast	  = info->qc_contrast;
@@ -333,4 +338,68 @@ qcam_drvinit (void *unused)
 
 SYSINIT(qcamdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,qcam_drvinit,NULL)
 
+#ifdef QCAM_MODULE
+
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/lkm.h>
+
+static struct isa_device qcam_mod_dev =
+	{0, &qcamdriver, IO_LPT1, 0, -1, (caddr_t) 0, 0, 0, 0, 0, 0, 0, 0,
+	 0, 1, 0, 0};
+
+MOD_DEV(qcam, LM_DT_CHAR, CDEV_MAJOR, &qcam_cdevsw);
+
+static int 
+qcam_load (struct lkm_table *lkmtp, int cmd)
+{
+	if (qcam_probe(&qcam_mod_dev)) {
+	 	qcam_attach(&qcam_mod_dev);
+
+		qcam_drvinit(NULL); /* XXX this shouldn't NEED to be here
+				     * the LKM code should be doing this
+				     * for us! */
+
+	 	uprintf("qcam: driver loaded\n");
+		return 0;
+	} else {
+		uprintf("qcam: probe failed\n");
+		return 1;
+	}
+}
+
+static int
+qcam_unload (struct lkm_table *lkmtp, int cmd)
+{
+	struct qcam_softc *qs;
+	int i;
+
+	for (i = 0; i < NQCAM; i++) {
+		qs = &qcam_softc[i];
+		if (qs->flags & QC_OPEN) {
+			uprintf("qcam%d: cannot unload, device busy", qs->unit);
+			return 1;
+		}
+	}
+
+	uprintf("qcam: driver unloaded\n");
+	return 0;
+}
+
+static int
+qcam_stat (struct lkm_table *lkmtp, int cmd)
+{
+	return 0;
+}
+
+int
+qcam_mod (struct lkm_table *lkmtp, int cmd, int ver)
+{
+#define _module qcam_module
+	DISPATCH(lkmtp, cmd, ver,
+		 qcam_load, qcam_unload, qcam_stat);
+}
+
+#endif /* QCAM_MODULE */
 #endif /* NQCAM */
