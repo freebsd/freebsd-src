@@ -110,7 +110,6 @@ Write_Disk(const struct disk *d1)
 	for (c1 = d1->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name, "X")) continue;
-		j = c1->name[4] - '1';
 		j = c1->name[strlen(d1->name) + 1] - '1';
 		if (j < 0 || j > 3)
 			continue;
