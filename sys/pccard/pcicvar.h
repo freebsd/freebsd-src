@@ -64,8 +64,6 @@ struct pcic_softc
 	void			*ih;	/* Our interrupt handler. */
 	int			irq;
 	device_t		dev;	/* Our device */
-	bus_space_tag_t		bst;	/* Bus tag for our regs */
-	bus_space_handle_t	bsh;	/* Bus handle for our regs */
 	void (*slot_poll)(void *);
 	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
