@@ -980,6 +980,7 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb_obj == NULL)
 		pm->pm_tsb_obj = vm_object_allocate(OBJT_DEFAULT, TSB_PAGES);
 
+	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i,
 		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
@@ -994,6 +995,7 @@ pmap_pinit(pmap_t pm)
 
 		ma[i] = m;
 	}
+	VM_OBJECT_UNLOCK(pm->pm_tsb_obj);
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	for (i = 0; i < MAXCPU; i++)
