@@ -84,7 +84,7 @@ minor = (channel << 8) + (unit << 4) + dev
 #define PCMCHAN(x) ((PCMMINOR(x) & 0x0000ff00) >> 8)
 #define PCMUNIT(x) ((PCMMINOR(x) & 0x000000f0) >> 4)
 #define PCMDEV(x)   (PCMMINOR(x) & 0x0000000f)
-#define PCMMKMINOR(u, d) (((u) & 0x0f) << 4 | ((d) & 0x0f))
+#define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 8) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 static devclass_t pcm_devclass;
 
@@ -97,12 +97,20 @@ gsd(int unit)
 int
 pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
 {
+    	int unit = device_get_unit(dev);
     	snddev_info *d = device_get_softc(dev);
 	pcm_channel *ch;
 
 	ch = (dir == PCMDIR_PLAY)? &d->play[d->playcount++] : &d->rec[d->reccount++];
 	*ch = *templ;
 	chn_init(ch, devinfo, dir);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP, d->chancount),
+		 UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d", unit, d->chancount);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO, d->chancount),
+		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, d->chancount);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16, d->chancount),
+		 UID_ROOT, GID_WHEEL, 0666, "dspW%d.%d", unit, d->chancount);
+	/* XXX SND_DEV_NORESET? */
 	d->chancount++;
 	return 0;
 }
@@ -144,18 +152,11 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
     	if (!pcm_devclass) {
     		pcm_devclass = device_get_devclass(dev);
-		make_dev(&snd_cdevsw, PCMMKMINOR(0, SND_DEV_STATUS),
+		make_dev(&snd_cdevsw, PCMMKMINOR(0, SND_DEV_STATUS, 0),
 			 UID_ROOT, GID_WHEEL, 0444, "sndstat");
 	}
-	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL),
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
-	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP),
-		 UID_ROOT, GID_WHEEL, 0666, "dsp%d", unit);
-	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO),
-		 UID_ROOT, GID_WHEEL, 0666, "audio%d", unit);
-	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16),
-		 UID_ROOT, GID_WHEEL, 0666, "dspW%d", unit);
-	/* XXX SND_DEV_NORESET? */
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
     	sz = (numplay + numrec) * sizeof(pcm_channel *);
