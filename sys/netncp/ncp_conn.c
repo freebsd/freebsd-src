@@ -35,7 +35,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -43,7 +42,6 @@
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_subr.h>
-#include <netncp/ncp_user.h>
 #include <netncp/ncp_conn.h>
 
 SLIST_HEAD(ncp_handle_head,ncp_handle);
