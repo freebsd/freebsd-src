@@ -49,6 +49,7 @@ struct stat;
 struct thread;
 struct uio;
 struct knote;
+struct vnode;
 
 /*
  * Kernel descriptor table.
@@ -109,7 +110,14 @@ extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* actual number of open files */
 
 static __inline void fhold __P((struct file *fp));
+int fget __P((struct thread *td, int fd, struct file **fpp));
+int fget_read __P((struct thread *td, int fd, struct file **fpp));
+int fget_write __P((struct thread *td, int fd, struct file **fpp));
 int fdrop __P((struct file *fp, struct thread *td));
+
+int fgetvp __P((struct thread *td, int fd, struct vnode **vpp));
+int fgetvp_read __P((struct thread *td, int fd, struct vnode **vpp));
+int fgetvp_write __P((struct thread *td, int fd, struct vnode **vpp));
 
 static __inline void
 fhold(fp)

@@ -1678,8 +1678,7 @@ sf_buf_free(caddr_t addr, void *args)
 int
 sendfile(struct thread *td, struct sendfile_args *uap)
 {
-	struct file *fp;
-	struct filedesc *fdp = td->td_proc->p_fd;
+	struct file *fp = NULL;
 	struct vnode *vp;
 	struct vm_object *obj;
 	struct socket *so;
@@ -1689,30 +1688,19 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
 	off_t off, xfsize, sbytes = 0;
-	int error = 0, s;
+	int error, s;
 
 	mtx_lock(&Giant);
-	vp = NULL;
+
 	/*
-	 * Do argument checking. Must be a regular file in, stream
-	 * type and connected socket out, positive offset.
+	 * The descriptor must be a regular file and have a backing VM object.
 	 */
-	fp = holdfp(fdp, uap->fd, FREAD);
-	if (fp == NULL) {
-		error = EBADF;
+	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
-	}
-	if (fp->f_type != DTYPE_VNODE) {
-		error = EINVAL;
-		goto done;
-	}
-	vp = (struct vnode *)fp->f_data;
-	vref(vp);
 	if (vp->v_type != VREG || VOP_GETVOBJECT(vp, &obj) != 0) {
 		error = EINVAL;
 		goto done;
 	}
-	fdrop(fp, td);
 	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error)
 		goto done;
