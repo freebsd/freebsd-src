@@ -88,6 +88,7 @@ as
 If the returned value ANDed with
 .Dv FD_CLOEXEC
 is 0,
+the file will remain open across
 .Fn exec ,
 otherwise the file will be closed upon execution of
 .Fn exec
@@ -404,7 +405,7 @@ or the type is an exclusive lock and some portion of the
 segment of a file to be locked is already shared-locked or
 exclusive-locked by another process.
 .It Bq Er EBADF
-.Fa Fildes
+.Fa \&Fd
 is not a valid open file descriptor.
 .Pp
 The argument
@@ -418,7 +419,7 @@ the type of lock
 is a shared lock
 .Pq Dv F_RDLCK ,
 and
-.Fa fildes
+.Fa fd
 is not a valid file descriptor open for reading.
 .Pp
 The argument
@@ -432,7 +433,7 @@ the type of lock
 is an exclusive lock
 .Pq Dv F_WRLCK ,
 and
-.Fa fildes
+.Fa fd
 is not a valid file descriptor open for writing.
 .It Bq Er EDEADLK
 The argument
@@ -466,7 +467,7 @@ or
 and the data to which
 .Fa arg
 points is not valid, or
-.Fa fildes
+.Fa fd
 refers to a file that does not support locking.
 .It Bq Er EMFILE
 The argument
