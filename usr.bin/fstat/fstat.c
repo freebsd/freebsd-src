@@ -148,7 +148,7 @@ char *getmnton(struct mount *m);
 void pipetrans(struct pipe *pi, int i, int flag);
 void socktrans(struct socket *sock, int i);
 void getinetproto(int number);
-int  getfname(char *filename);
+int  getfname(const char *filename);
 void usage(void);
 
 
@@ -157,7 +157,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register struct passwd *passwd;
+	struct passwd *passwd;
 	struct kinfo_proc *p, *plast;
 	int arg, ch, what;
 	char *memf, *nlistf;
@@ -265,7 +265,7 @@ main(argc, argv)
 	exit(0);
 }
 
-char	*Uname, *Comm;
+const char	*Uname, *Comm;
 int	Pid;
 
 #define PREFIX(i) printf("%-8.8s %-10s %5d", Uname, Comm, Pid); \
@@ -450,7 +450,7 @@ vtrans(vp, i, flag)
 	struct vnode vn;
 	struct filestat fst;
 	char rw[3], mode[15];
-	char *badtype = NULL, *filename, *getmnton();
+	const char *badtype, *filename;
 
 	filename = badtype = NULL;
 	if (!KVM_READ(vp, &vn, sizeof (struct vnode))) {
@@ -491,13 +491,14 @@ vtrans(vp, i, flag)
 			
 		default: {
 			static char unknown[10];
-			sprintf(badtype = unknown, "?(%x)", vn.v_tag);
+			sprintf(unknown, "?(%x)", vn.v_tag);
+			badtype = unknown;
 			break;;
 		}
 	}
 	if (checkfile) {
 		int fsmatch = 0;
-		register DEVS *d;
+		DEVS *d;
 
 		if (badtype)
 			return;
@@ -617,7 +618,7 @@ nfs_filestat(vp, fsp)
 	struct filestat *fsp;
 {
 	struct nfsnode nfsnode;
-	register mode_t mode;
+	mode_t mode;
 
 	if (!KVM_READ(VTONFS(vp), &nfsnode, sizeof (nfsnode))) {
 		dprintf(stderr, "can't read nfsnode at %p for pid %d\n",
@@ -671,7 +672,7 @@ getmnton(m)
 		struct mount *m;
 		char mntonname[MNAMELEN];
 	} *mhead = NULL;
-	register struct mtab *mt;
+	struct mtab *mt;
 
 	for (mt = mhead; mt != NULL; mt = mt->next)
 		if (m == mt->m)
@@ -726,7 +727,7 @@ socktrans(sock, i)
 	struct socket *sock;
 	int i;
 {
-	static char *stypename[] = {
+	static const char *stypename[] = {
 		"unused",	/* 0 */
 		"stream", 	/* 1 */
 		"dgram",	/* 2 */
@@ -741,7 +742,7 @@ socktrans(sock, i)
 	struct inpcb	inpcb;
 	struct unpcb	unpcb;
 	int len;
-	char dname[32], *strcpy();
+	char dname[32];
 
 	PREFIX(i);
 
@@ -873,7 +874,7 @@ getinetproto(number)
 	int number;
 {
 	static int isopen;
-	register struct protoent *pe;
+	struct protoent *pe;
 
 	if (!isopen)
 		setprotoent(++isopen);
@@ -885,7 +886,7 @@ getinetproto(number)
 
 int
 getfname(filename)
-	char *filename;
+	const char *filename;
 {
 	struct stat statbuf;
 	DEVS *cur;
