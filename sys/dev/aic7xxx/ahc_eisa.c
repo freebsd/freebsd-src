@@ -31,7 +31,7 @@
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx_freebsd.h>
+#include <dev/aic7xxx/aic7xxx_osm.h>
 
 #include <dev/eisa/eisaconf.h>
 
@@ -148,7 +148,7 @@ aic7770_attach(device_t dev)
 		return (ENOMEM);
 	}
 	ahc->dev_softc = dev;
-	error = aic7770_config(ahc, entry);
+	error = aic7770_config(ahc, entry, /*unused ioport arg*/0);
 	if (error != 0) {
 		ahc_free(ahc);
 		return (error);
@@ -159,7 +159,7 @@ aic7770_attach(device_t dev)
 }
 
 int
-aic7770_map_registers(struct ahc_softc *ahc)
+aic7770_map_registers(struct ahc_softc *ahc, u_int unused_ioport_arg)
 {
 	struct	resource *regs;
 	int	rid;
@@ -191,10 +191,10 @@ aic7770_map_int(struct ahc_softc *ahc, int irq)
 	if (ahc->platform_data->irq == NULL)
 		return (ENOMEM);
 	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
-	return (0);
+	return (ahc_map_int(ahc));
 }
 
-static device_method_t ahc_eisa_methods[] = {
+static device_method_t ahc_eisa_device_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aic7770_probe),
 	DEVMETHOD(device_attach,	aic7770_attach),
@@ -204,7 +204,7 @@ static device_method_t ahc_eisa_methods[] = {
 
 static driver_t ahc_eisa_driver = {
 	"ahc",
-	ahc_eisa_methods,
+	ahc_eisa_device_methods,
 	sizeof(struct ahc_softc)
 };
 
