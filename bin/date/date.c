@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.15 1997/08/09 22:34:04 brian Exp $
+ *	$Id: date.c,v 1.16 1997/08/10 16:36:59 brian Exp $
  */
 
 #ifndef lint
@@ -254,7 +254,6 @@ setthetime(fmt, p)
 		logwtmp("|", "date", "");
 		tv.tv_sec = tval;
 		tv.tv_usec = 0;
-fprintf(stderr, "Set to \"%s\"\n", asctime(lt));
 		if (settimeofday(&tv, (struct timezone *)NULL))
 			err(1, "settimeofday (timeval)");
 		logwtmp("{", "date", "");
