@@ -39,7 +39,6 @@
 #include <dev/vinum/vinumhdr.h>
 
 #ifdef VINUMDEBUG
-jmp_buf command_fail;					    /* return on a failed command */
 #undef longjmp						    /* this was defined as LongJmp */
 void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 
