@@ -528,9 +528,10 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
  *	4.	end of a cluster - asynchronously write cluster
  */
 void
-cluster_write(bp, filesize)
+cluster_write(bp, filesize, seqcount)
 	struct buf *bp;
 	u_quad_t filesize;
+	int seqcount;
 {
 	struct vnode *vp;
 	daddr_t lbn;
@@ -565,13 +566,21 @@ cluster_write(bp, filesize)
 			 * write, or we have reached our maximum cluster size,
 			 * then push the previous cluster. Otherwise try
 			 * reallocating to make it sequential.
+			 *
+			 * Change to algorithm: only push previous cluster if
+			 * it was sequential from the point of view of the
+			 * seqcount heuristic, otherwise leave the buffer 
+			 * intact so we can potentially optimize the I/O
+			 * later on in the buf_daemon or update daemon
+			 * flush.
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
 			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
-				if (!async)
+				if (!async && seqcount > 0) {
 					cluster_wbuild_wb(vp, lblocksize,
 						vp->v_cstart, cursize);
+				}
 			} else {
 				struct buf **bpp, **endbp;
 				struct cluster_save *buflist;
@@ -581,14 +590,22 @@ cluster_write(bp, filesize)
 				    [buflist->bs_nchildren - 1];
 				if (VOP_REALLOCBLKS(vp, buflist)) {
 					/*
-					 * Failed, push the previous cluster.
+					 * Failed, push the previous cluster
+					 * if *really* writing sequentially
+					 * in the logical file (seqcount > 1),
+					 * otherwise delay it in the hopes that
+					 * the low level disk driver can
+					 * optimize the write ordering.
 					 */
 					for (bpp = buflist->bs_children;
 					     bpp < endbp; bpp++)
 						brelse(*bpp);
 					free(buflist, M_SEGMENT);
-					cluster_wbuild_wb(vp, lblocksize,
-					    vp->v_cstart, cursize);
+					if (seqcount > 1) {
+						cluster_wbuild_wb(vp, 
+						    lblocksize, vp->v_cstart, 
+						    cursize);
+					}
 				} else {
 					/*
 					 * Succeeded, keep building cluster.
@@ -630,17 +647,21 @@ cluster_write(bp, filesize)
 		}
 	} else if (lbn == vp->v_cstart + vp->v_clen) {
 		/*
-		 * At end of cluster, write it out.
+		 * At end of cluster, write it out if seqcount tells us we
+		 * are operating sequentially, otherwise let the buf or
+		 * update daemon handle it.
 		 */
 		bdwrite(bp);
-		cluster_wbuild_wb(vp, lblocksize, vp->v_cstart, vp->v_clen + 1);
+		if (seqcount > 1)
+			cluster_wbuild_wb(vp, lblocksize, vp->v_cstart, vp->v_clen + 1);
 		vp->v_clen = 0;
 		vp->v_cstart = lbn + 1;
-	} else
+	} else {
 		/*
 		 * In the middle of a cluster, so just delay the I/O for now.
 		 */
 		bdwrite(bp);
+	}
 	vp->v_lastw = lbn;
 	vp->v_lasta = bp->b_blkno;
 }

@@ -491,7 +491,7 @@ void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **));
 int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
-void	cluster_write __P((struct buf *, u_quad_t));
+void	cluster_write __P((struct buf *, u_quad_t, int));
 int	physio __P((dev_t dev, struct uio *uio, int ioflag));
 #define physread physio
 #define physwrite physio
