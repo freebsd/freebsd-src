@@ -188,8 +188,8 @@ print_acl(char *path, acl_type_t type)
 
 	printf("%s", acl_text);
 
-	acl_free(acl);
-	acl_free(acl_text);
+	(void)acl_free(acl);
+	(void)acl_free(acl_text);
 
 	return(0);
 }
