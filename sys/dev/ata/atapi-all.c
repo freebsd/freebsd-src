@@ -128,7 +128,7 @@ notfound:
 	atp = NULL;
     }
     /* store our softc */
-    scp->dev_softc[ATA_DEV(atp->unit)] = atp;
+    scp->dev_softc[ATA_DEV(device)] = atp;
 }
 
 int32_t	  
