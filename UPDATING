@@ -1,3 +1,6 @@
 Updating Information for FreeBSD Stable users
 
+When updating to 4.x-stable from 3.x-stable, please read src/UPDATING
+after updating to the new sources for important information.
+
 $FreeBSD$
