@@ -95,7 +95,7 @@ static void	cardbus_delete_resource(device_t cbdev, device_t child,
 static void	cardbus_delete_resource_method(device_t cbdev, device_t child,
 		    int type, int rid);
 static int	cardbus_detach(device_t cbdev);
-static int	cardbus_detach_card(device_t cbdev, int flags);
+static int	cardbus_detach_card(device_t cbdev);
 static void	cardbus_device_setup_regs(device_t brdev, int b, int s, int f,
 		    pcicfgregs *cfg);
 static void	cardbus_disable_busmaster_method(device_t cbdev, device_t child);
@@ -168,14 +168,14 @@ cardbus_attach(device_t cbdev)
 static int
 cardbus_detach(device_t cbdev)
 {
-	cardbus_detach_card(cbdev, DETACH_FORCE);
+	cardbus_detach_card(cbdev);
 	return 0;
 }
 
 static int
 cardbus_suspend(device_t self)
 {
-	cardbus_detach_card(self, DETACH_FORCE);
+	cardbus_detach_card(self);
 	return (0);
 }
 
@@ -209,8 +209,6 @@ cardbus_device_setup_regs(device_t brdev, int b, int s, int f, pcicfgregs *cfg)
 	cfg->maxlat = PCIB_READ_CONFIG(brdev, b, s, f, PCIR_MAXLAT, 1);
 }
 
-#define DETACH_NOWARN 0x800
-
 static int
 cardbus_attach_card(device_t cbdev)
 {
@@ -219,7 +217,7 @@ cardbus_attach_card(device_t cbdev)
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	int bus, slot, func;
 
-	cardbus_detach_card(cbdev, DETACH_NOWARN); /* detach existing cards */
+	cardbus_detach_card(cbdev); /* detach existing cards */
 
 	POWER_ENABLE_SOCKET(brdev, cbdev);
 	bus = pcib_get_bus(cbdev);
@@ -246,6 +244,7 @@ cardbus_attach_card(device_t cbdev)
 				continue;
 			if (dinfo->pci.cfg.mfdev)
 				cardbusfunchigh = CARDBUS_FUNCMAX;
+
 			cardbus_device_setup_regs(brdev, bus, slot, func,
 			    &dinfo->pci.cfg);
 			cardbus_print_verbose(dinfo);
@@ -258,22 +257,21 @@ cardbus_attach_card(device_t cbdev)
 			resource_list_init(&dinfo->pci.resources);
 			device_set_ivars(dinfo->pci.cfg.dev, dinfo);
 			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
-			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0) {
-				/* when fail, release all resources */
+			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0)
 				cardbus_release_all_resources(cbdev, dinfo);
-			} else
+			else
 				cardattached++;
 		}
 	}
 
 	if (cardattached > 0)
-		return 0;
+		return (0);
 	POWER_DISABLE_SOCKET(brdev, cbdev);
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
-cardbus_detach_card(device_t cbdev, int flags)
+cardbus_detach_card(device_t cbdev)
 {
 	int numdevs;
 	device_t *devlist;
@@ -283,12 +281,8 @@ cardbus_detach_card(device_t cbdev, int flags)
 	device_get_children(cbdev, &devlist, &numdevs);
 
 	if (numdevs == 0) {
-		if (!(flags & DETACH_NOWARN)) {
-			DEVPRINTF((cbdev, "detach_card: no card to detach!\n"));
-			POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
-		}
 		free(devlist, M_TEMP);
-		return ENOENT;
+		return (ENOENT);
 	}
 
 	for (tmp = 0; tmp < numdevs; tmp++) {
@@ -296,13 +290,9 @@ cardbus_detach_card(device_t cbdev, int flags)
 		int status = device_get_state(devlist[tmp]);
 
 		if (status == DS_ATTACHED || status == DS_BUSY) {
-			if (device_detach(dinfo->pci.cfg.dev) == 0 ||
-			    flags & DETACH_FORCE) {
-				cardbus_release_all_resources(cbdev, dinfo);
-				device_delete_child(cbdev, devlist[tmp]);
-			} else {
-				err++;
-			}
+			device_detach(dinfo->pci.cfg.dev);
+			cardbus_release_all_resources(cbdev, dinfo);
+			device_delete_child(cbdev, devlist[tmp]);
 			cardbus_freecfg(dinfo);
 		} else {
 			cardbus_release_all_resources(cbdev, dinfo);
@@ -310,28 +300,31 @@ cardbus_detach_card(device_t cbdev, int flags)
 			cardbus_freecfg(dinfo);
 		}
 	}
-	if (err == 0)
-		POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
+	POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
 	free(devlist, M_TEMP);
-	return err;
+	return (err);
 }
 
 static void
 cardbus_driver_added(device_t cbdev, driver_t *driver)
 {
-	/* XXX check if 16-bit or cardbus! */
 	int numdevs;
 	device_t *devlist;
 	int tmp;
+	struct cardbus_devinfo *dinfo;
 
 	device_get_children(cbdev, &devlist, &numdevs);
 
 	DEVICE_IDENTIFY(driver, cbdev);
+	POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		if (device_get_state(devlist[tmp]) == DS_NOTPRESENT) {
-			struct cardbus_devinfo *dinfo;
 			dinfo = device_get_ivars(devlist[tmp]);
-			cardbus_release_all_resources(cbdev, dinfo);
+#ifdef notyet
+			cardbus_device_setup_regs(brdev, bus, slot, func,
+			    &dinfo->pci.cfg);
+#endif
+			cardbus_print_verbose(dinfo);
 			resource_list_init(&dinfo->pci.resources);
 			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
 			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0) {
@@ -432,7 +425,7 @@ cardbus_read_device(device_t brdev, int b, int s, int f)
 	pcicfgregs *cfg = NULL;
 	struct cardbus_devinfo *devlist_entry = NULL;
 
-	if (REG(PCIR_DEVVENDOR, 4) != -1) {
+	if (REG(PCIR_DEVVENDOR, 4) != 0xffffffff) {
 		devlist_entry = malloc(sizeof(struct cardbus_devinfo),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
 		if (devlist_entry == NULL)
@@ -500,9 +493,7 @@ cardbus_freecfg(struct cardbus_devinfo *dinfo)
 static void
 cardbus_print_verbose(struct cardbus_devinfo *dinfo)
 {
-#ifndef CARDBUS_DEBUG
-	if (bootverbose)
-#endif /* CARDBUS_DEBUG */
+	if (bootverbose || cardbus_debug > 0)
 	{
 		pcicfgregs *cfg = &dinfo->pci.cfg;
 
@@ -511,7 +502,6 @@ cardbus_print_verbose(struct cardbus_devinfo *dinfo)
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		    cfg->baseclass, cfg->subclass, cfg->progif,
 		    cfg->hdrtype, cfg->mfdev);
-#ifdef CARDBUS_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, "
 		    "cachelnsz=%d (dwords)\n",
 		    cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
@@ -520,7 +510,6 @@ cardbus_print_verbose(struct cardbus_devinfo *dinfo)
 		    cfg->lattimer, cfg->lattimer * 30,
 		    cfg->mingnt, cfg->mingnt * 250, cfg->maxlat,
 		    cfg->maxlat * 250);
-#endif /* CARDBUS_DEBUG */
 		if (cfg->intpin > 0)
 			printf("\tintpin=%c, irq=%d\n",
 			    cfg->intpin + 'a' - 1, cfg->intline);

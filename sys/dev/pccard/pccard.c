@@ -83,7 +83,7 @@ SYSCTL_INT(_hw_pccard, OID_AUTO, cis_debug, CTLFLAG_RW,
 static int	pccard_ccr_read(struct pccard_function *pf, int ccr);
 static void	pccard_ccr_write(struct pccard_function *pf, int ccr, int val);
 static int	pccard_attach_card(device_t dev);
-static int	pccard_detach_card(device_t dev, int flags);
+static int	pccard_detach_card(device_t dev);
 static int	pccard_card_gettype(device_t dev, int *type);
 static void	pccard_function_init(struct pccard_function *pf);
 static void	pccard_function_free(struct pccard_function *pf);
@@ -259,7 +259,7 @@ pccard_attach_card(device_t dev)
 }
 
 static int
-pccard_detach_card(device_t dev, int flags)
+pccard_detach_card(device_t dev)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
@@ -776,14 +776,14 @@ pccard_attach(device_t dev)
 static int
 pccard_detach(device_t dev)
 {
-	pccard_detach_card(dev, 0);
+	pccard_detach_card(dev);
 	return 0;
 }
 
 static int
 pccard_suspend(device_t self)
 {
-	pccard_detach_card(self, 0);
+	pccard_detach_card(self);
 	return (0);
 }
 
