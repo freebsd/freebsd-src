@@ -1076,8 +1076,12 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 		if (bspst - td->td_kstack < s.ndirty)
 			__asm __volatile("flushrs;;");
 		__asm __volatile("mov	ar.rsc=3");
-		ustk = (uint64_t*)s.bspstore;
 		kstk = (uint64_t*)td->td_kstack;
+		ustk = (uint64_t*)s.bspstore;
+		if ((s.bspstore & 0x1ff) == 0x1f8) {
+			suword64(ustk++, s.rnat);
+			s.rnat = 0;
+		}
 		while (s.ndirty > 0) {
 			suword64(ustk++, *kstk++);
 			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
