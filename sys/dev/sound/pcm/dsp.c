@@ -57,6 +57,7 @@ getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
 	if ((d->flags & SD_F_SIMPLEX) && (d->flags & SD_F_PRIO_SET)) {
 		*rdch = (d->flags & SD_F_PRIO_RD)? d->arec[chan] : &d->fakechan;
 		*wrch = (d->flags & SD_F_PRIO_WR)? d->aplay[chan] : &d->fakechan;
+		d->fakechan.flags |= CHN_F_BUSY;
 	} else {
 		*rdch = d->arec[chan];
 		*wrch = d->aplay[chan];
@@ -76,24 +77,31 @@ setchns(snddev_info *d, int chan)
 int
 dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 {
-	pcm_channel *rdch = NULL, *wrch = NULL;
+	pcm_channel *rdch, *wrch;
 	u_int32_t fmt;
 
 	if (chan >= d->chancount) return ENODEV;
-	if (d->aplay[chan] || d->arec[chan]) return EBUSY;
+	if ((d->flags & SD_F_SIMPLEX) && (d->ref[chan] > 0)) return EBUSY;
+	rdch = d->arec[chan];
+	wrch = d->aplay[chan];
 	if (oflags & FREAD) {
-		rdch = allocchn(d, PCMDIR_REC);
-		if (!rdch) return EBUSY;
+		if (rdch == NULL) {
+			rdch = allocchn(d, PCMDIR_REC);
+			if (!rdch) return EBUSY;
+		} else return EBUSY;
 	}
 	if (oflags & FWRITE) {
-		wrch = allocchn(d, PCMDIR_PLAY);
-		if (!wrch) {
-			if (rdch) rdch->flags &= ~CHN_F_BUSY;
-			return EBUSY;
-		}
+		if (wrch == NULL) {
+			wrch = allocchn(d, PCMDIR_PLAY);
+			if (!wrch && (oflags & FREAD)) {
+				rdch->flags &= ~CHN_F_BUSY;
+				return EBUSY;
+			}
+		} else return EBUSY;
 	}
 	d->aplay[chan] = wrch;
 	d->arec[chan] = rdch;
+	d->ref[chan]++;
 	switch (devtype) {
 	case SND_DEV_DSP16:
 		fmt = AFMT_S16_LE;
@@ -115,7 +123,7 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 		return ENXIO;
 	}
 
-	if (rdch) {
+	if (rdch && (oflags & FREAD)) {
 	        chn_reset(rdch);
 		if (oflags & O_NONBLOCK) rdch->flags |= CHN_F_NBIO;
 		if (fmt) {
@@ -125,7 +133,7 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 			rdch->blocksize = 2048;
 		}
 	}
-	if (wrch) {
+	if (wrch && (oflags & FWRITE)) {
 	        chn_reset(wrch);
 		if (oflags & O_NONBLOCK) wrch->flags |= CHN_F_NBIO;
 		if (fmt) {
@@ -143,6 +151,8 @@ dsp_close(snddev_info *d, int chan, int devtype)
 {
 	pcm_channel *rdch, *wrch;
 
+	d->ref[chan]--;
+	if (d->ref[chan]) return 0;
 	d->flags &= ~SD_F_TRANSIENT;
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
