@@ -38,6 +38,7 @@
 .Nd run in the background
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
+.Ft int
 .Fn daemon "int nochdir" "int noclose"
 .Sh DESCRIPTION
 .Pp
@@ -59,15 +60,16 @@ is non-zero,
 will redirect standard input, standard output and standard error
 to ``/dev/null''.
 .Sh ERRORS
-The function
+If an error occurs,
 .Fn daemon
-may fail and set
+returns -1 and sets the global variable
 .Va errno
-for any of the errors specified for the library functions
+to any of the errors specified for the library functions
 .Xr fork 2
 and 
 .Xr setsid 2 .
 .Sh SEE ALSO
+.Xr fork 2 ,
 .Xr setsid 2
 .Sh HISTORY
 The
