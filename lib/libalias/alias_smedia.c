@@ -61,25 +61,26 @@
  * Authors: Erik Salander <erik@whistle.com>
  *          Junichi SATOH <junichi@astec.co.jp>
  *                        <junichi@junichi.org>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
    Alias_smedia.c is meant to contain the aliasing code for streaming media
    protocols.  It performs special processing for RSTP sessions under TCP.
    Specifically, when a SETUP request is sent by a client, or a 200 reply
-   is sent by a server, it is intercepted and modified.  The address is  
+   is sent by a server, it is intercepted and modified.  The address is
    changed to the gateway machine and an aliasing port is used.
 
-   More specifically, the "client_port" configuration parameter is 
-   parsed for SETUP requests.  The "server_port" configuration parameter is 
+   More specifically, the "client_port" configuration parameter is
+   parsed for SETUP requests.  The "server_port" configuration parameter is
    parsed for 200 replies eminating from a server.  This is intended to handle
    the unicast case.
 
    RTSP also allows a redirection of a stream to another client by using the
    "destination" configuration parameter.  The destination config parm would
-   indicate a different IP address.  This function is NOT supported by the 
+   indicate a different IP address.  This function is NOT supported by the
    RTSP translation code below.
 
    The RTSP multicast functions without any address translation intervention.
@@ -94,7 +95,7 @@
    changes of sequence and acknowledgment numbers, since the client
    machine is totally unaware of the modification to the TCP stream.
 
-   Initial version:  May, 2000 (eds)  
+   Initial version:  May, 2000 (eds)
 */
 
 #include <stdio.h>
@@ -108,8 +109,8 @@
 
 #include "alias_local.h"
 
-#define RTSP_CONTROL_PORT_NUMBER_1 554 
-#define RTSP_CONTROL_PORT_NUMBER_2 7070 
+#define RTSP_CONTROL_PORT_NUMBER_1 554
+#define RTSP_CONTROL_PORT_NUMBER_2 7070
 #define RTSP_PORT_GROUP            2
 
 #define ISDIGIT(a) (((a) >= '0') && ((a) <= '9'))
@@ -151,7 +152,7 @@ alias_rtsp_out(struct ip *pip,
     char    newdata[2048], *port_data, *port_newdata, stemp[80];
     int     links_created = 0, pkt_updated = 0;
     struct alias_link *rtsp_link = NULL;
-    struct in_addr null_addr; 
+    struct in_addr null_addr;
 
     /* Calculate data length of TCP packet */
     tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
@@ -216,15 +217,15 @@ alias_rtsp_out(struct ip *pip,
 
 		if (!links_created) {
 
-	  	  links_created = 1; 
+	  	  links_created = 1;
 		  /* Find an even numbered port number base that
 		     satisfies the contiguous number of ports we need  */
 		  null_addr.s_addr = 0;
 		  if (0 == (salias = FindNewPortGroup(null_addr,
 	       			    FindAliasAddress(pip->ip_src),
-				    sport, 0, 
-				    RTSP_PORT_GROUP, 
-				    IPPROTO_UDP, 1))) {  
+				    sport, 0,
+				    RTSP_PORT_GROUP,
+				    IPPROTO_UDP, 1))) {
 #ifdef DEBUG
 		    fprintf(stderr,
 		    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
@@ -360,7 +361,7 @@ alias_pna_out(struct ip *pip,
 	}
 	work += ntohs(msg_len);
     }
-    
+
     return 0;
 }
 
@@ -384,8 +385,8 @@ AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
     data += hlen;
 
     /* When aliasing a client, check for the SETUP request */
-    if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) || 
-      (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) { 
+    if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
+      (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
 
       if (dlen >= strlen(setup)) {
         if (memcmp(data, setup, strlen(setup)) == 0) {
@@ -406,23 +407,23 @@ AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
 
       if (dlen >= strlen(str200)) {
 
-        for (parseOk = 0, i = 0;         
-             i <= dlen - strlen(str200);          
+        for (parseOk = 0, i = 0;
+             i <= dlen - strlen(str200);
              i++) {
-          if (memcmp(&data[i], str200, strlen(str200)) == 0) { 
-            parseOk = 1; 
+          if (memcmp(&data[i], str200, strlen(str200)) == 0) {
+            parseOk = 1;
             break;
           }
         }
-        if (parseOk) { 
+        if (parseOk) {
 
-          i += strlen(str200);        /* skip string found */ 
+          i += strlen(str200);        /* skip string found */
           while(data[i] == ' ')       /* skip blank(s) */
 	    i++;
-	
+
           if ((dlen - i) >= strlen(okstr)) {
 
-            if (memcmp(&data[i], okstr, strlen(okstr)) == 0) 
+            if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
               alias_rtsp_out(pip, link, data, server_port_str);
 
           }

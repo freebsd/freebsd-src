@@ -22,9 +22,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 /*
     Alias_util.c contains general utilities used by other functions
@@ -47,7 +49,7 @@ been zeroed out.  If the checksum word is filled with the proper value,
 then these routines will give a result of zero (useful for testing
 purposes);
 */
-    
+
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -88,7 +90,7 @@ IpChecksum(struct ip *pip)
 
 }
 
-u_short 
+u_short
 TcpChecksum(struct ip *pip)
 {
     u_short *ptr;
@@ -101,7 +103,7 @@ TcpChecksum(struct ip *pip)
 
     tc = (struct tcphdr *) ((char *) pip + nhdr);
     ptr = (u_short *) tc;
-    
+
 /* Add up TCP header and data */
     nbytes = ntcp;
     sum = 0;

@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* file: alias_proxy.c
 
@@ -36,9 +37,9 @@
     modified.  In certain cases, it is necessary to somehow encode
     the original address/port info into the packet.  Two methods are
     presently supported: addition of a [DEST addr port] string at the
-    beginning a of tcp stream, or inclusion of an optional field
+    beginning of a tcp stream, or inclusion of an optional field
     in the IP header.
-    
+
     There is one public API function:
 
         PacketAliasProxyRule()    -- Adds and deletes proxy
@@ -300,7 +301,7 @@ ProxyEncodeTcpStream(struct alias_link *link,
 /* Translate destination address and port to string form */
     snprintf(buffer, sizeof(buffer) - 2, "[DEST %s %d]",
         inet_ntoa(GetProxyAddress (link)), (u_int) ntohs(GetProxyPort (link)));
-    
+
 /* Pad string out to a multiple of two in length */
     slen = strlen(buffer);
     switch (slen % 2)
@@ -662,7 +663,7 @@ PacketAliasProxyRule(const char *cmd)
                 else
                 {
                     *p = ' ';
-                
+
                     n = sscanf(token, "%s %s", s, str_server_port);
                     if (n != 2)
                         return -1;
@@ -752,7 +753,7 @@ PacketAliasProxyRule(const char *cmd)
                     src_addr = addr;
                     src_mask = mask;
                 }
-                else 
+                else
                 {
                     dst_addr = addr;
                     dst_mask = mask;
@@ -798,7 +799,7 @@ PacketAliasProxyRule(const char *cmd)
     }
 
     if (strlen(str_server_port) != 0)
-    { 
+    {
         int err;
 
         err = IpPort(str_server_port, proto, &server_port);
