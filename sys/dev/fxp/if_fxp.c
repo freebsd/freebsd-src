@@ -388,9 +388,9 @@ fxp_attach(device_t dev)
 	 * Enable bus mastering. Enable memory/port space too, in case
 	 * BIOS/Prom forgot about it.
 	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 2);
-	val |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 2);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, SYS_RES_IOPORT);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	fxp_powerstate_d0(dev);
