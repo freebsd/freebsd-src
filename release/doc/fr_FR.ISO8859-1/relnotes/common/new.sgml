@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.267
+     Original revision: 1.22.2.283
 -->
 
 <articleinfo>
@@ -200,7 +200,12 @@
       maximum de transfert. Cela permet de corriger un certain nombre de <literal>READ_BIG</literal>
       et autres erreus qui apparaissaient lors de l'acc&egrave;s &agrave; certains p&eacute;riph&eacute;riques
       ATA.</para>
+      <para arch="i386,alpha">Le gestionnaire de p&eacute;riph&eacute;rique mpt, permettant
+      le support des architectures des controlleurs Fibre Channel LSI 
+      Logic Fusion/MP a &eacute;t&eacute; ajout&eacute;.
 
+      <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;riques pst, permettant le 
+      support des controleurs RAID Promise SuperTrak ATA, a &eacute;t&eacute; ajout&eacute;.</para>
 
       <para></para>
     </sect3>
@@ -221,7 +226,18 @@
 
     <sect3>
       <title>support Multim&eacute;dia</title>
-      
+
+        <para arch="i386">Le controleur audio VT8233 dispose maintenant de
+	son propre gestionnaire de p&eacute;riph&eacute;rique, pour faciliter le support
+	de toutes les versions de mat&eacute;riel. Il est chargeable au d&eacute;marrage
+	en ajoutant <literal>device pcm</literal>au fichier de configuration
+	du noyau et en ajoutant <literal>snd_via8233="YES"</literal> au 
+	fichier <filename>/boot/loader.conf</filename>. La documentation
+	pour son support a &eacute;t&eacute; fournie par VIA.</para>
+
+      <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;riques sonore ich permet 
+      maintenant un support rudimentaire audio ich4.</para>
+    
       <para></para>
 
     </sect3>
@@ -237,37 +253,59 @@
   <sect2 id="security">
     <title>Changements li&eacute;s a la s&eacute;curit&eacute;</title>
 
-    <para>La correction originelle de l'avis de s&eacute;curit&eacute; SA-02:23 (en
-    rapport avec les descripteurs de fichiers et les set-user-id ou set-group-id)
+    <para>La correction originelle de l'avis de s&eacute;curit&eacute; 
+    SA-02:23 (en rapport avec les descripteurs de fichiers et les set-user-id 
+    ou set-group-id)
     contenait une erreur. Il etait possible de l'exploiter via les
     syst&egrave;mes utilisant &man.procfs.5; ou &man.linprocfs.5;. Cette
-    erreur a &eacute;t&eacute; corrig&eacute;e et un avis de s&eacute;curit&eacute; r&eacute;vis&eacute;
+    erreur a &eacute;t&eacute; corrig&eacute;e et un avis de 
+    s&eacute;curit&eacute; r&eacute;vis&eacute;
     a &eacute;t&eacute; publi&eacute;. <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
       contient plus de d&eacute;tails.</para>
 
     <para>Un d&eacute;passement de tampon dans le r&eacute;solveur, qui pouvait
     etre exploit&eacute; par un serveur DNS malicieux ou un attaquant en 
-    modifiant les messages DNS a &eacute;t&eacute; corrig&eacute;. Voye&eacute; l'avis
-    de s&eacute;curit&eacute; <ulink
+    modifiant les messages DNS a &eacute;t&eacute; corrig&eacute;. 
+    Voyez l'avis de s&eacute;curit&eacute; <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
       pour plus de d&eacute;tails.</para>
 
+      <para>Un d&eacute;passement de tampon dans &man.tcpdump.1;, qui pouvait etre
+      atteint lorsque des paquets NFS &eacute;taient mal construits a &eacute;t&eacute; corrig&eacute;.
+      Voyez l'avis de s&eacute;curit&eacute;
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      pour plus de d&eacute;tails.</para>
+
+<para>&man.ktrace.1; ne peut plus suivre l'activit&eacute; des processus
+    disposant de droits privil&eacute;gi&eacute;s; cela permet de 
+    pr&eacute;venir l'obtention d'informations sensibles dont le processus 
+    dispose avant de perdre les privil&egrave;ges. Pour plus d'informations 
+    voyez l'avis de s&eacute;curit&eacute;
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      .</para>
+ 
+
     <para>Une "race condition" dans &man.pppd.8;, permettant de changer les
-    permissions d'un fichier de façon arbitraire a &eacute;t&eacute; r&eacute;solue.
+    permissions d'un fichier de façon arbitraire a &eacute;t&eacute; 
+    r&eacute;solue.
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
     </para>
 
     <para>De multiples d&eacute;passements de tampons dans
-      <application>OpenSSL</application> on &eacute;t&eacute; corrig&eacute;s via
+      <application>OpenSSL</application> on &eacute;t&eacute; 
+      corrig&eacute;s via
       la mise ç jour dans le syst&egrave;me de base de la version de
       <application>OpenSSL</application>. Pour plus d'informations, 
       voyez l'avis de s&eacute;curit&eacute; <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
       </para>
 
-    <para>Un d&eacute;passement de tampon dans le d&eacute;codeur XDR a &eacute;t&eacute; corrig&eacute;.
+    <para>Un d&eacute;passement de tampon dans le d&eacute;codeur XDR a 
+    &eacute;t&eacute; corrig&eacute;.
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.
     </para>
@@ -285,35 +323,21 @@
        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
       .</para>
 
-    <para>Un bogue permettant aux utilisateurs locaux de g&eacute;n&eacute;r&eacute; des panics du
-    syst&egrave;me via le m&eacute;canisme &man.kqueue.2; a &eacute;t&eacute; corrig&eacute;.
+    <para>Un bogue permettant aux utilisateurs locaux de 
+    g&eacute;n&eacute;r&eacute; des panics du syst&egrave;me via 
+    le m&eacute;canisme &man.kqueue.2; a &eacute;t&eacute; corrig&eacute;.
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
     </para>
 
     <para>Plusieurs bogues dans la v&eacute;rifications des limites dans les 
-    appels syst&egrave;mes, qui r&eacute;sultaient en retour de trop grandes portions
-    de m&eacute;moire du noyau ont &eacute;t&eacute; fix&eacute;s
+    appels syst&egrave;mes, qui r&eacute;sultaient en retour de trop grandes 
+    portions de m&eacute;moire du noyau ont &eacute;t&eacute; fix&eacute;s
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
     </para>
 
-    <para>Un d&eacute;passement de tampon dans &man.tcpdump.1;, qui apparaissait
-    dans le cas de certains paquets NFS mal construits, a &eacute;t&eacute; 
-    corrig&eacute;. Voyez l'avis de s&eacute;curit&eacute;
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
-      pour plus de d&eacute;tails.</para>
-
-    <para>&man.ktrace.1; ne peut plus suivre l'activit&eacute; des processus
-    disposant de droits privil&eacute;gi&eacute;s; cela permet de pr&eacute;venir
-    l'obtention d'informations sensibles dont le processus dispose
-    avant de perdre les privil&egrave;ges. Pour plus d'informations voyez
-    l'avis de s&eacute;curit&eacute;
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
-      .</para>
- 
+      
    </sect2>
 
   <sect2 id="userland">
@@ -461,27 +485,27 @@
 
     <sect3>
       <title>Logiciels externes</title>
-      <para><application>BIND</application> a &eacute;t&eacute; mis &agrave; jour en 
-      version 8.3.3.</para>
+      <para><application>BIND</application> a &eacute;t&eacute; mis &agrave; 
+      jour en version 8.3.3.</para>
 
-      <para><application>gcc</application> a &eacute;t&eacute; mis ç jour en version
-	2.95.4.</para>
+      <para><application>gcc</application> a &eacute;t&eacute; mis &agrave; jour 
+      en version 2.95.4.</para>
 
-      <para><application>libpcap</application> a &eacute;t&eacute; mis &agrave; jour en
-       version 0.7.1.</para>
+      <para><application>libpcap</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 0.7.1.</para>
 
       <para>Le d&eacute;mon FTP de NetBSD, plus connu sous le nom
 	<application>lukemftpd</application> 1.2 beta 1, a &eacute;t&eacute;
 	import&eacute; et est disponible sous&man.lukemftpd.8;.</para>
 
-      <para>&man.m4.1; a &eacute;t&eacute; import&eacute; depuis la version du 26 Avril
-      2002 de OpenBSD.</para>
+      <para>&man.m4.1; a &eacute;t&eacute; import&eacute; depuis la version 
+      du 26 Avril 2002 de OpenBSD.</para>
 
       <para>La suite de mot de passe unique <application>OPIE</application>
 	a &eacute;t&eacute; mise &agrave; jour en version 2.4.</para>
 
-      <para><application>OpenSSH</application> a &eacute;t&eacute; mis &agrave; jour en 
-      version 3.4p1.  Parmis les changement il y a:
+      <para><application>OpenSSH</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 3.4p1.  Parmis les changements il y a:
 	  <itemizedlist>
 	    <listitem>
 	      <para>Les fichiers <filename>*2</filename> sont obsol&egrave;tes
