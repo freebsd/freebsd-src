@@ -23,5 +23,6 @@ case $retval in
   1)
     echo "Cancel pressed.";;
   255)
+    [ -z "$input" ] || echo $input ;
     echo "ESC pressed.";;
 esac
