@@ -336,7 +336,7 @@ int	setpolicy __P((int so, char *policy));
 #endif
 void	send_probe(int, int);
 void	tvsub(struct timeval *, struct timeval *);
-__dead	void usage(void);
+void usage(void);
 int	wait_for_reply(int, struct sockaddr_in *, struct timeval *);
 
 void	udp_prep(struct outdata *);
@@ -1274,7 +1274,7 @@ savestr(register const char *str)
 	return (cp);
 }
 
-__dead void
+void
 usage(void)
 {
 	extern char version[];
