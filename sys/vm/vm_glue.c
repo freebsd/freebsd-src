@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.66 1997/09/01 03:17:16 bde Exp $
+ * $Id: vm_glue.c,v 1.67 1997/11/07 08:53:42 phk Exp $
  */
 
 #include "opt_rlimit.h"
@@ -71,6 +71,7 @@
 #include <sys/buf.h>
 #include <sys/shm.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 
 #include <sys/kernel.h>
 #include <sys/unistd.h>
@@ -372,6 +373,22 @@ loop:
 	(((p)->p_lock == 0) && \
 		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO|P_SWAPPING)) == P_INMEM)
 
+
+/*
+ * Swap_idle_threshold1 is the guaranteed swapped in time for a process
+ */
+int swap_idle_threshold1 = 2;
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold1,
+	CTLFLAG_RW, &swap_idle_threshold1, 0, "");
+
+/*
+ * Swap_idle_threshold2 is the time that a process can be idle before
+ * it will be swapped out, if idle swapping is enabled.
+ */
+int swap_idle_threshold2 = 10;
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2,
+	CTLFLAG_RW, &swap_idle_threshold2, 0, "");
+
 /*
  * Swapout is driven by the pageout daemon.  Very simple, we find eligible
  * procs and unwire their u-areas.  We try to always "swap" at least one
@@ -381,7 +398,7 @@ loop:
  * if any, otherwise the longest-resident process.
  */
 void
-swapout_procs()
+swapout_procs(int action)
 {
 	register struct proc *p;
 	struct proc *outp, *outp2;
@@ -411,11 +428,22 @@ retry:
 				continue;
 
 			/*
-			 * do not swapout a process waiting on a critical
-			 * event of some kind
+			 * Do not swapout a process waiting on a critical
+			 * event of some kind.  Also guarantee swap_idle_threshold1
+			 * time in memory.
 			 */
 			if (((p->p_priority & 0x7f) < PSOCK) ||
-				(p->p_slptime <= 10))
+				(p->p_slptime < swap_idle_threshold1))
+				continue;
+
+			/*
+			 * If the system is under memory stress, or if we are swapping
+			 * idle processes >= swap_idle_threshold2, then swap the process
+			 * out.
+			 */
+			if (((action & VM_SWAP_NORMAL) == 0) &&
+				(((action & VM_SWAP_IDLE) == 0) ||
+				  (p->p_slptime < swap_idle_threshold2)))
 				continue;
 
 			++vm->vm_refcnt;
@@ -436,11 +464,15 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			swapout(p);
-			vm_map_deallocate(&vm->vm_map);
-			vmspace_free(vm);
-			didswap++;
-			goto retry;
+			if ((action & VM_SWAP_NORMAL) ||
+				((action & VM_SWAP_IDLE) &&
+				 (p->p_slptime > swap_idle_threshold2))) {
+				swapout(p);
+				vm_map_deallocate(&vm->vm_map);
+				vmspace_free(vm);
+				didswap++;
+				goto retry;
+			}
 		}
 	}
 	/*

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_pageout.h,v 1.20 1997/02/22 09:48:34 peter Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -82,6 +82,12 @@ extern int vm_pageout_pages_needed;
 #define VM_PAGEOUT_ASYNC 0
 #define VM_PAGEOUT_SYNC 1
 #define VM_PAGEOUT_FORCE 2
+
+/*
+ * Swap out requests
+ */
+#define VM_SWAP_NORMAL 1
+#define VM_SWAP_IDLE 2
 
 /*
  *	Exported routines.
