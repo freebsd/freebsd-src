@@ -299,7 +299,7 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes incsinstall
+	cd ${.CURDIR}; ${WMAKE} includes; ${WMAKE} SHARED=symlinks incsinstall
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
