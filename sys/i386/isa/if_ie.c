@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.33 1996/02/06 18:50:45 wollman Exp $
+ *	$Id: if_ie.c,v 1.34 1996/06/18 01:22:22 bde Exp $
  */
 
 /*
@@ -145,6 +145,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/i82586.h>

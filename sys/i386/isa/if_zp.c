@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.20 1996/06/12 05:03:46 gpalmer Exp $
+ *	$Id: if_zp.c,v 1.21 1996/06/18 01:22:24 bde Exp $
  */
 /*-
  * TODO:
@@ -144,6 +144,7 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_zpreg.h>

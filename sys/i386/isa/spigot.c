@@ -69,6 +69,7 @@ error "Can only have 1 spigot configured."
 #endif /* DEVFS */
 
 #include	<machine/frame.h>
+#include	<machine/md_var.h>
 #include	<machine/spigot.h>
 #include	<machine/psl.h>
 
