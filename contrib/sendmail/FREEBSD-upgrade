@@ -35,6 +35,7 @@ All local changes should be submitted to the Sendmail Consortium
 The following files make up the sendmail build/install/runtime
 infrastructure in FreeBSD:
 
+	Makefile.inc1
 	bin/Makefile
 	bin/rmail/Makefile
 	contrib/sendmail/
@@ -50,6 +51,7 @@ infrastructure in FreeBSD:
 	etc/mail/mailertable.sample
 	etc/mail/virtusertable.sample
 	etc/mtree/BSD.include.dist
+	etc/mtree/BSD.sendmail.dist
 	etc/mtree/BSD.usr.dist
 	etc/mtree/BSD.var.dist
 	etc/periodic/daily/440.status-mailq
