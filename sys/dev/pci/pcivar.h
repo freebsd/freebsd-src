@@ -308,6 +308,8 @@ pci_get_powerstate(device_t dev)
     return PCI_GET_POWERSTATE(device_get_parent(dev), dev);
 }
 
+device_t pci_find_bsf(u_int8_t, u_int8_t, u_int8_t);
+device_t pci_find_device(u_int16_t, u_int16_t);
 #endif	/* _SYS_BUS_H_ */
 
 /*
