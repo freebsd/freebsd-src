@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.22 1999/05/06 20:16:14 ken Exp $
+ *      $Id: aha.c,v 1.23 1999/05/06 22:18:21 peter Exp $
  */
 
 #include "pnp.h"
@@ -367,18 +367,21 @@ aha_probe(struct aha_softc* aha)
 	 * errs on the side of conservatism.  Besides, no one will
 	 * notice a 10mS delay here, even the 1542B card users :-)
 	 *
-	 * Some compatible cards return 0 here.
+	 * Some compatible cards return 0 here.  Some cards also
+	 * seem to return 0x7f.
 	 *
 	 * XXX I'm not sure how this will impact other cloned cards 
 	 *
 	 * This really should be replaced with the esetup command, since
-	 * that appears to be more reliable.
+	 * that appears to be more reliable.  This becomes more and more
+	 * true over time as we discover more cards that don't read the
+	 * geometry register consistantly.
 	 */
 	if (aha->boardid <= 0x42) {
 		/* Wait 10ms before reading */
 		DELAY(10000);
 		status = aha_inb(aha, GEOMETRY_REG);
-		if (status != 0xff && status != 0x00) {
+		if (status != 0xff && status != 0x00 && status != 0x7f) {
 			PRVERB(("%s: Geometry Register test failed 0x%x\n",
 				aha_name(aha), status));
 			return (ENXIO);
