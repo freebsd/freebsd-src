@@ -1,6 +1,6 @@
 // <deque> -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,21 +58,24 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_DEQUE
-#define _CPP_DEQUE 1
+#ifndef _GLIBCXX_DEQUE
+#define _GLIBCXX_DEQUE 1
 
 #pragma GCC system_header
 
 #include <bits/functexcept.h>
 #include <bits/stl_algobase.h>
-#include <bits/stl_alloc.h>
+#include <bits/allocator.h>
 #include <bits/stl_construct.h>
 #include <bits/stl_uninitialized.h>
 #include <bits/stl_deque.h>
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-#  include <bits/deque.tcc>
+#ifndef _GLIBCXX_EXPORT_TEMPLATE
+# include <bits/deque.tcc>
 #endif
 
-#endif /* _CPP_DEQUE */
+#ifdef _GLIBCXX_DEBUG
+# include <debug/deque>
+#endif
 
+#endif /* _GLIBCXX_DEQUE */

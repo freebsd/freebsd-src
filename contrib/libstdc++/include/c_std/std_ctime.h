@@ -41,8 +41,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CTIME
-#define _CPP_CTIME 1
+#ifndef _GLIBCXX_CTIME
+#define _GLIBCXX_CTIME 1
 
 #pragma GCC system_header
 

@@ -1,6 +1,6 @@
 // Locale support (codecvt) -*- C++ -*-
 
-// Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,8 +36,8 @@
 // Written by Benjamin Kosnik <bkoz@cygnus.com>
 
   // XXX
-  // Define this here to codecvt.cc can have _S_max_size definition.
-#define _GLIBCPP_USE___ENC_TRAITS 1
+  // Define this here so codecvt.cc can have _S_max_size definition.
+#define _GLIBCXX_USE___ENC_TRAITS 1
 
   // Extension to use icov for dealing with character encodings,
   // including conversions and comparisons between various character
@@ -81,10 +81,11 @@
 
     explicit __enc_traits(const char* __int, const char* __ext, 
 			  int __ibom = 0, int __ebom = 0)
-    : _M_in_desc(0), _M_out_desc(0), _M_ext_bom(0), _M_int_bom(0)
+    : _M_in_desc(0), _M_out_desc(0), _M_ext_bom(__ebom), _M_int_bom(__ibom)
     {
       strncpy(_M_int_enc, __int, _S_max_size);
       strncpy(_M_ext_enc, __ext, _S_max_size);
+      _M_init();
     }
 
     // 21.1.2 traits typedefs
@@ -92,12 +93,17 @@
     // typedef STATE_T state_type
     // requires: state_type shall meet the requirements of
     // CopyConstructible types (20.1.3)
+    // NB: This does not preseve the actual state of the conversion
+    // descriptor member, but it does duplicate the encoding
+    // information.
     __enc_traits(const __enc_traits& __obj): _M_in_desc(0), _M_out_desc(0)
     {
       strncpy(_M_int_enc, __obj._M_int_enc, _S_max_size);
       strncpy(_M_ext_enc, __obj._M_ext_enc, _S_max_size);
       _M_ext_bom = __obj._M_ext_bom;
       _M_int_bom = __obj._M_int_bom;
+      _M_destroy();
+      _M_init();
     }
 
     // Need assignment operator as well.
@@ -106,21 +112,15 @@
     {
       strncpy(_M_int_enc, __obj._M_int_enc, _S_max_size);
       strncpy(_M_ext_enc, __obj._M_ext_enc, _S_max_size);
-      _M_in_desc = 0;
-      _M_out_desc = 0;
       _M_ext_bom = __obj._M_ext_bom;
       _M_int_bom = __obj._M_int_bom;
+      _M_destroy();
+      _M_init();
       return *this;
     }
 
     ~__enc_traits()
-    {
-      __desc_type __err = reinterpret_cast<iconv_t>(-1);
-      if (_M_in_desc && _M_in_desc != __err) 
-	iconv_close(_M_in_desc);
-      if (_M_out_desc && _M_out_desc != __err) 
-	iconv_close(_M_out_desc);
-    } 
+    { _M_destroy(); } 
 
     void
     _M_init()
@@ -130,13 +130,31 @@
 	{
 	  _M_in_desc = iconv_open(_M_int_enc, _M_ext_enc);
 	  if (_M_in_desc == __err)
-	    __throw_runtime_error("creating iconv input descriptor failed.");
+	    __throw_runtime_error(__N("__enc_traits::_M_init "
+				  "creating iconv input descriptor failed"));
 	}
       if (!_M_out_desc)
 	{
 	  _M_out_desc = iconv_open(_M_ext_enc, _M_int_enc);
 	  if (_M_out_desc == __err)
-	    __throw_runtime_error("creating iconv output descriptor failed.");
+	    __throw_runtime_error(__N("__enc_traits::_M_init "
+				  "creating iconv output descriptor failed"));
+	}
+    }
+
+    void
+    _M_destroy()
+    {
+      const __desc_type __err = reinterpret_cast<iconv_t>(-1);
+      if (_M_in_desc && _M_in_desc != __err) 
+	{
+	  iconv_close(_M_in_desc);
+	  _M_in_desc = 0;
+	}
+      if (_M_out_desc && _M_out_desc != __err) 
+	{
+	  iconv_close(_M_out_desc);
+	  _M_out_desc = 0;
 	}
     }
 
@@ -171,7 +189,7 @@
 
     const char* 
     _M_get_external_enc()
-    { return _M_ext_enc; }
+    { return _M_ext_enc; }    
   };
 
   // Partial specialization
@@ -230,7 +248,7 @@
       do_always_noconv() const throw();
 
       virtual int 
-      do_length(const state_type&, const extern_type* __from, 
+      do_length(state_type&, const extern_type* __from, 
 		const extern_type* __end, size_t __max) const;
 
       virtual int 
@@ -447,15 +465,15 @@
   template<typename _InternT, typename _ExternT>
     int 
     codecvt<_InternT, _ExternT, __enc_traits>::
-    do_length(const state_type&, const extern_type* __from, 
+    do_length(state_type&, const extern_type* __from, 
 	      const extern_type* __end, size_t __max) const
-    { return min(__max, static_cast<size_t>(__end - __from)); }
+    { return std::min(__max, static_cast<size_t>(__end - __from)); }
 
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-// 74.  Garbled text for codecvt::do_max_length
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 74.  Garbled text for codecvt::do_max_length
   template<typename _InternT, typename _ExternT>
     int 
     codecvt<_InternT, _ExternT, __enc_traits>::
     do_max_length() const throw()
     { return 1; }
-#endif
+

@@ -41,8 +41,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CSTDLIB
-#define _CPP_CSTDLIB 1
+#ifndef _GLIBCXX_CSTDLIB
+#define _GLIBCXX_CSTDLIB 1
 
 #pragma GCC system_header
 
@@ -81,7 +81,7 @@
 #undef wcstombs
 #undef wctomb
 
-namespace std 
+namespace std
 {
   using ::div_t;
   using ::ldiv_t;
@@ -101,9 +101,11 @@ namespace std
   using ::labs;
   using ::ldiv;
   using ::malloc;
+#ifdef _GLIBCXX_HAVE_MBSTATE_T
   using ::mblen;
   using ::mbstowcs;
   using ::mbtowc;
+#endif // _GLIBCXX_HAVE_MBSTATE_T
   using ::qsort;
   using ::rand;
   using ::realloc;
@@ -112,17 +114,19 @@ namespace std
   using ::strtol;
   using ::strtoul;
   using ::system;
+#ifdef _GLIBCXX_USE_WCHAR_T
   using ::wcstombs;
   using ::wctomb;
+#endif // _GLIBCXX_USE_WCHAR_T
 
-  inline long 
+  inline long
   abs(long __i) { return labs(__i); }
 
   inline ldiv_t
   div(long __i, long __j) { return ldiv(__i, __j); }
-} 
+}
 
-#if _GLIBCPP_USE_C99
+#if _GLIBCXX_USE_C99
 
 #undef _Exit
 #undef llabs
@@ -135,57 +139,57 @@ namespace std
 
 namespace __gnu_cxx
 {
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   using ::lldiv_t;
 #endif
-#if _GLIBCPP_USE_C99_CHECK || _GLIBCPP_USE_C99_DYNAMIC
+#if _GLIBCXX_USE_C99_CHECK || _GLIBCXX_USE_C99_DYNAMIC
   extern "C" void (_Exit)(int);
 #endif
-#if !_GLIBCPP_USE_C99_DYNAMIC
+#if !_GLIBCXX_USE_C99_DYNAMIC
   using ::_Exit;
 #endif
 
-  inline long long 
+  inline long long
   abs(long long __x) { return __x >= 0 ? __x : -__x; }
 
-  inline long long 
+  inline long long
   llabs(long long __x) { return __x >= 0 ? __x : -__x; }
 
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
-  inline lldiv_t 
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
+  inline lldiv_t
   div(long long __n, long long __d)
   { lldiv_t __q; __q.quot = __n / __d; __q.rem = __n % __d; return __q; }
 
-  inline lldiv_t 
+  inline lldiv_t
   lldiv(long long __n, long long __d)
   { lldiv_t __q; __q.quot = __n / __d; __q.rem = __n % __d; return __q; }
 #endif
 
-#if _GLIBCPP_USE_C99_LONG_LONG_CHECK || _GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
+#if _GLIBCXX_USE_C99_LONG_LONG_CHECK || _GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   extern "C" long long int (atoll)(const char *);
   extern "C" long long int
     (strtoll)(const char * restrict, char ** restrict, int);
   extern "C" unsigned long long int
     (strtoull)(const char * restrict, char ** restrict, int);
 #endif
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   using ::atoll;
   using ::strtoll;
   using ::strtoull;
 #endif
   using ::strtof;
-  using ::strtold; 
-} 
+  using ::strtold;
+}
 
 namespace std
 {
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC 
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   using __gnu_cxx::lldiv_t;
 #endif
   using __gnu_cxx::_Exit;
   using __gnu_cxx::abs;
-  using __gnu_cxx::llabs; 
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC 
+  using __gnu_cxx::llabs;
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   using __gnu_cxx::div;
   using __gnu_cxx::lldiv;
 #endif
@@ -197,4 +201,4 @@ namespace std
 }
 #endif
 
-#endif 
+#endif

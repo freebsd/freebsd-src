@@ -1,6 +1,6 @@
 // <stack> -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,20 +58,16 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_STACK
-#define _CPP_STACK 1
+#ifndef _GLIBCXX_STACK
+#define _GLIBCXX_STACK 1
 
 #pragma GCC system_header
 
 #include <bits/stl_algobase.h>
-#include <bits/stl_alloc.h>
+#include <bits/allocator.h>
 #include <bits/stl_construct.h>
 #include <bits/stl_uninitialized.h>
-#include <bits/stl_deque.h>
+#include <deque>
 #include <bits/stl_stack.h>
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-#  include <bits/deque.tcc>
-#endif
-
-#endif /* _CPP_STACK */
+#endif /* _GLIBCXX_STACK */

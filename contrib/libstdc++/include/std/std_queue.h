@@ -1,6 +1,6 @@
 // <queue> -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,25 +58,21 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_QUEUE
-#define _CPP_QUEUE 1
+#ifndef _GLIBCXX_QUEUE
+#define _GLIBCXX_QUEUE 1
 
 #pragma GCC system_header
+
 #include <bits/c++config.h>
 #include <bits/functexcept.h>
 #include <bits/stl_algobase.h>
-#include <bits/stl_alloc.h>
+#include <bits/allocator.h>
 #include <bits/stl_construct.h>
 #include <bits/stl_uninitialized.h>
-#include <bits/stl_vector.h>
 #include <bits/stl_heap.h>
-#include <bits/stl_deque.h>
 #include <bits/stl_function.h>
+#include <deque>
+#include <vector>
 #include <bits/stl_queue.h>
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-#  include <bits/deque.tcc>
-#  include <bits/vector.tcc>
-#endif
-
-#endif /* _CPP_QUEUE */
+#endif /* _GLIBCXX_QUEUE */

@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- numeric_limits classes.
 
-// Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -40,8 +40,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_NUMERIC_LIMITS
-#define _CPP_NUMERIC_LIMITS 1
+#ifndef _GLIBCXX_NUMERIC_LIMITS
+#define _GLIBCXX_NUMERIC_LIMITS 1
 
 #pragma GCC system_header
 
@@ -82,8 +82,8 @@
 // GCC only intrinsicly supports modulo integral types.  The only remaining
 // integral exceptional values is division by zero.  Only targets that do not
 // signal division by zero in some "hard to ignore" way should use false.
-#ifndef __glibcpp_integral_traps
-# define __glibcpp_integral_traps true
+#ifndef __glibcxx_integral_traps
+# define __glibcxx_integral_traps true
 #endif
 
 // float
@@ -91,124 +91,220 @@
 
 // Default values.  Should be overriden in configuration files if necessary.
 
-#ifndef __glibcpp_float_has_denorm_loss
-#  define __glibcpp_float_has_denorm_loss false
+#ifndef __glibcxx_float_has_denorm_loss
+#  define __glibcxx_float_has_denorm_loss false
 #endif
-#ifndef __glibcpp_float_traps
-#  define __glibcpp_float_traps false
+#ifndef __glibcxx_float_traps
+#  define __glibcxx_float_traps false
 #endif
-#ifndef __glibcpp_float_tinyness_before
-#  define __glibcpp_float_tinyness_before false
+#ifndef __glibcxx_float_tinyness_before
+#  define __glibcxx_float_tinyness_before false
 #endif
 
 // double
 
 // Default values.  Should be overriden in configuration files if necessary.
 
-#ifndef __glibcpp_double_has_denorm_loss
-#  define __glibcpp_double_has_denorm_loss false
+#ifndef __glibcxx_double_has_denorm_loss
+#  define __glibcxx_double_has_denorm_loss false
 #endif
-#ifndef __glibcpp_double_traps
-#  define __glibcpp_double_traps false
+#ifndef __glibcxx_double_traps
+#  define __glibcxx_double_traps false
 #endif
-#ifndef __glibcpp_double_tinyness_before
-#  define __glibcpp_double_tinyness_before false
+#ifndef __glibcxx_double_tinyness_before
+#  define __glibcxx_double_tinyness_before false
 #endif
 
 // long double
 
 // Default values.  Should be overriden in configuration files if necessary.
 
-#ifndef __glibcpp_long_double_has_denorm_loss
-#  define __glibcpp_long_double_has_denorm_loss false
+#ifndef __glibcxx_long_double_has_denorm_loss
+#  define __glibcxx_long_double_has_denorm_loss false
 #endif
-#ifndef __glibcpp_long_double_traps
-#  define __glibcpp_long_double_traps false
+#ifndef __glibcxx_long_double_traps
+#  define __glibcxx_long_double_traps false
 #endif
-#ifndef __glibcpp_long_double_tinyness_before
-#  define __glibcpp_long_double_tinyness_before false
+#ifndef __glibcxx_long_double_tinyness_before
+#  define __glibcxx_long_double_tinyness_before false
 #endif
 
 // You should not need to define any macros below this point.
 
-#define __glibcpp_signed(T)	((T)(-1) < 0)
+#define __glibcxx_signed(T)	((T)(-1) < 0)
 
-#define __glibcpp_min(T) \
-  (__glibcpp_signed (T) ? (T)1 << __glibcpp_digits (T) : (T)0)
+#define __glibcxx_min(T) \
+  (__glibcxx_signed (T) ? (T)1 << __glibcxx_digits (T) : (T)0)
 
-#define __glibcpp_max(T) \
-  (__glibcpp_signed (T) ? ((T)1 << __glibcpp_digits (T)) - 1 : ~(T)0)
+#define __glibcxx_max(T) \
+  (__glibcxx_signed (T) ? ((T)1 << __glibcxx_digits (T)) - 1 : ~(T)0)
 
-#define __glibcpp_digits(T) \
-  (sizeof(T) * __CHAR_BIT__ - __glibcpp_signed (T))
+#define __glibcxx_digits(T) \
+  (sizeof(T) * __CHAR_BIT__ - __glibcxx_signed (T))
 
 // The fraction 643/2136 approximates log10(2) to 7 significant digits.
-#define __glibcpp_digits10(T) \
-  (__glibcpp_digits (T) * 643 / 2136)
+#define __glibcxx_digits10(T) \
+  (__glibcxx_digits (T) * 643 / 2136)
 
 
 namespace std
 {
+  /**
+   *  @brief Describes the rounding style for floating-point types.
+   *
+   *  This is used in the std::numeric_limits class.
+  */
   enum float_round_style
   {
-    round_indeterminate       = -1,
-    round_toward_zero         = 0,
-    round_to_nearest          = 1,
-    round_toward_infinity     = 2,
-    round_toward_neg_infinity = 3
+    round_indeterminate       = -1,    ///< Self-explanatory.
+    round_toward_zero         = 0,     ///< Self-explanatory.
+    round_to_nearest          = 1,     ///< To the nearest representable value.
+    round_toward_infinity     = 2,     ///< Self-explanatory.
+    round_toward_neg_infinity = 3      ///< Self-explanatory.
   };
 
+  /**
+   *  @brief Describes the denormalization for floating-point types.
+   *
+   *  These values represent the presence or absence of a variable number
+   *  of exponent bits.  This type is used in the std::numeric_limits class.
+  */
   enum float_denorm_style
   {
+    /// Indeterminate at compile time whether denormalized values are allowed.
     denorm_indeterminate = -1,
+    /// The type does not allow denormalized values.
     denorm_absent        = 0,
+    /// The type allows denormalized values.
     denorm_present       = 1
   };
 
-  //
-  // The primary class traits
-  //
+  /**
+   *  @brief Part of std::numeric_limits.
+   *
+   *  The @c static @c const members are usable as integral constant
+   *  expressions.
+   *
+   *  @note This is a seperate class for purposes of efficiency; you
+   *        should only access these members as part of an instantiation
+   *        of the std::numeric_limits class.
+  */
   struct __numeric_limits_base
   {
+    /** This will be true for all fundamental types (which have
+        specializations), and false for everything else.  */
     static const bool is_specialized = false;
 
+    /** The number of @c radix digits that be represented without change:  for
+        integer types, the number of non-sign bits in the mantissa; for
+        floating types, the number of @c radix digits in the mantissa.  */
     static const int digits = 0;
+    /** The number of base 10 digits that can be represented without change. */
     static const int digits10 = 0;
+    /** True if the type is signed.  */
     static const bool is_signed = false;
+    /** True if the type is integer.
+     *  @if maint
+     *  Is this supposed to be "if the type is integral"?
+     *  @endif
+    */
     static const bool is_integer = false;
+    /** True if the type uses an exact representation.  "All integer types are
+        exact, but not all exact types are integer.  For example, rational and
+        fixed-exponent representations are exact but not integer."
+        [18.2.1.2]/15  */
     static const bool is_exact = false;
+    /** For integer types, specifies the base of the representation.  For
+        floating types, specifies the base of the exponent representation.  */
     static const int radix = 0;
 
+    /** The minimum negative integer such that @c radix raised to the power of
+        (one less than that integer) is a normalized floating point number.  */
     static const int min_exponent = 0;
+    /** The minimum negative integer such that 10 raised to that power is in
+        the range of normalized floating point numbers.  */
     static const int min_exponent10 = 0;
+    /** The maximum positive integer such that @c radix raised to the power of
+        (one less than that integer) is a representable finite floating point
+	number.  */
     static const int max_exponent = 0;
+    /** The maximum positive integer such that 10 raised to that power is in
+        the range of representable finite floating point numbers.  */
     static const int max_exponent10 = 0;
 
+    /** True if the type has a representation for positive infinity.  */
     static const bool has_infinity = false;
+    /** True if the type has a representation for a quiet (non-signaling)
+        "Not a Number."  */
     static const bool has_quiet_NaN = false;
+    /** True if the type has a representation for a signaling
+        "Not a Number."  */
     static const bool has_signaling_NaN = false;
+    /** See std::float_denorm_style for more information.  */
     static const float_denorm_style has_denorm = denorm_absent;
+    /** "True if loss of accuracy is detected as a denormalization loss,
+        rather than as an inexact result." [18.2.1.2]/42  */
     static const bool has_denorm_loss = false;
 
+    /** True if-and-only-if the type adheres to the IEC 559 standard, also
+        known as IEEE 754.  (Only makes sense for floating point types.)  */
     static const bool is_iec559 = false;
+    /** "True if the set of values representable by the type is finite.   All
+        built-in types are bounded, this member would be false for arbitrary
+	precision types." [18.2.1.2]/54  */
     static const bool is_bounded = false;
+    /** True if the type is @e modulo, that is, if it is possible to add two
+        positive numbers and have a result that wraps around to a third number
+        that is less.  Typically false for floating types, true for unsigned
+        integers, and true for signed integers.  */
     static const bool is_modulo = false;
 
+    /** True if trapping is implemented for this type.  */
     static const bool traps = false;
+    /** True if tinyness is detected before rounding.  (see IEC 559)  */
     static const bool tinyness_before = false;
+    /** See std::float_round_style for more information.  This is only
+        meaningful for floating types; integer types will all be
+	round_toward_zero.  */
     static const float_round_style round_style = round_toward_zero;
   };
 
+  /**
+   *  @brief Properties of fundamental types.
+   *
+   *  This class allows a program to obtain information about the
+   *  representation of a fundamental type on a given platform.  For
+   *  non-fundamental types, the functions will return 0 and the data
+   *  members will all be @c false.
+   *
+   *  @if maint
+   *  _GLIBCXX_RESOLVE_LIB_DEFECTS:  DRs 201 and 184 (hi Gaby!) are
+   *  noted, but not incorporated in this documented (yet).
+   *  @endif
+  */
   template<typename _Tp>
     struct numeric_limits : public __numeric_limits_base
     {
+      /** The minimum finite value, or for floating types with
+          denormalization, the minimum positive normalized value.  */
       static _Tp min() throw() { return static_cast<_Tp>(0); }
+      /** The maximum finite value.  */
       static _Tp max() throw() { return static_cast<_Tp>(0); }
+      /** The @e machine @e epsilon:  the difference between 1 and the least
+          value greater than 1 that is representable.  */
       static _Tp epsilon() throw() { return static_cast<_Tp>(0); }
+      /** The maximum rounding error measurement (see LIA-1).  */
       static _Tp round_error() throw() { return static_cast<_Tp>(0); }
+      /** The representation of positive infinity, if @c has_infinity.  */
       static _Tp infinity() throw()  { return static_cast<_Tp>(0); }
+      /** The representation of a quiet "Not a Number," if @c has_quiet_NaN. */
       static _Tp quiet_NaN() throw() { return static_cast<_Tp>(0); }
+      /** The representation of a signaling "Not a Number," if
+          @c has_signaling_NaN. */
       static _Tp signaling_NaN() throw() { return static_cast<_Tp>(0); }
+      /** The minimum positive denormalized value.  For types where
+          @c has_denorm is false, this is the minimum positive normalized
+	  value.  */
       static _Tp denorm_min() throw() { return static_cast<_Tp>(0); }
     };
 
@@ -262,7 +358,7 @@ namespace std
       // It is not clear what it means for a boolean type to trap.
       // This is a DR on the LWG issue list.  Here, I use integer
       // promotion semantics.
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -273,13 +369,13 @@ namespace std
       static const bool is_specialized = true;
 
       static char min() throw()
-      { return __glibcpp_min(char); }
+      { return __glibcxx_min(char); }
       static char max() throw()
-      { return __glibcpp_max(char); }
+      { return __glibcxx_max(char); }
 
-      static const int digits = __glibcpp_digits (char);
-      static const int digits10 = __glibcpp_digits10 (char);
-      static const bool is_signed = __glibcpp_signed (char);
+      static const int digits = __glibcxx_digits (char);
+      static const int digits10 = __glibcxx_digits10 (char);
+      static const bool is_signed = __glibcxx_signed (char);
       static const bool is_integer = true;
       static const bool is_exact = true;
       static const int radix = 2;
@@ -312,7 +408,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -327,8 +423,8 @@ namespace std
       static signed char max() throw()
       { return __SCHAR_MAX__; }
 
-      static const int digits = __glibcpp_digits (signed char);
-      static const int digits10 = __glibcpp_digits10 (signed char);
+      static const int digits = __glibcxx_digits (signed char);
+      static const int digits10 = __glibcxx_digits10 (signed char);
       static const bool is_signed = true;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -362,7 +458,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -377,8 +473,8 @@ namespace std
       static unsigned char max() throw()
       { return __SCHAR_MAX__ * 2U + 1; }
 
-      static const int digits = __glibcpp_digits (unsigned char);
-      static const int digits10 = __glibcpp_digits10 (unsigned char);
+      static const int digits = __glibcxx_digits (unsigned char);
+      static const int digits10 = __glibcxx_digits10 (unsigned char);
       static const bool is_signed = false;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -412,7 +508,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -423,13 +519,13 @@ namespace std
       static const bool is_specialized = true;
 
       static wchar_t min() throw()
-      { return __glibcpp_min (wchar_t); }
+      { return __glibcxx_min (wchar_t); }
       static wchar_t max() throw()
-      { return __glibcpp_max (wchar_t); }
+      { return __glibcxx_max (wchar_t); }
 
-      static const int digits = __glibcpp_digits (wchar_t);
-      static const int digits10 = __glibcpp_digits10 (wchar_t);
-      static const bool is_signed = __glibcpp_signed (wchar_t);
+      static const int digits = __glibcxx_digits (wchar_t);
+      static const int digits10 = __glibcxx_digits10 (wchar_t);
+      static const bool is_signed = __glibcxx_signed (wchar_t);
       static const bool is_integer = true;
       static const bool is_exact = true;
       static const int radix = 2;
@@ -462,7 +558,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -477,8 +573,8 @@ namespace std
       static short max() throw()
       { return __SHRT_MAX__; }
 
-      static const int digits = __glibcpp_digits (short);
-      static const int digits10 = __glibcpp_digits10 (short);
+      static const int digits = __glibcxx_digits (short);
+      static const int digits10 = __glibcxx_digits10 (short);
       static const bool is_signed = true;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -512,7 +608,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -527,8 +623,8 @@ namespace std
       static unsigned short max() throw()
       { return __SHRT_MAX__ * 2U + 1; }
 
-      static const int digits = __glibcpp_digits (unsigned short);
-      static const int digits10 = __glibcpp_digits10 (unsigned short);
+      static const int digits = __glibcxx_digits (unsigned short);
+      static const int digits10 = __glibcxx_digits10 (unsigned short);
       static const bool is_signed = false;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -562,7 +658,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -577,8 +673,8 @@ namespace std
       static int max() throw()
       { return __INT_MAX__; }
 
-      static const int digits = __glibcpp_digits (int);
-      static const int digits10 = __glibcpp_digits10 (int);
+      static const int digits = __glibcxx_digits (int);
+      static const int digits10 = __glibcxx_digits10 (int);
       static const bool is_signed = true;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -612,7 +708,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -627,8 +723,8 @@ namespace std
       static unsigned int max() throw()
       { return __INT_MAX__ * 2U + 1; }
 
-      static const int digits = __glibcpp_digits (unsigned int);
-      static const int digits10 = __glibcpp_digits10 (unsigned int);
+      static const int digits = __glibcxx_digits (unsigned int);
+      static const int digits10 = __glibcxx_digits10 (unsigned int);
       static const bool is_signed = false;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -662,7 +758,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -677,8 +773,8 @@ namespace std
       static long max() throw()
       { return __LONG_MAX__; }
 
-      static const int digits = __glibcpp_digits (long);
-      static const int digits10 = __glibcpp_digits10 (long);
+      static const int digits = __glibcxx_digits (long);
+      static const int digits10 = __glibcxx_digits10 (long);
       static const bool is_signed = true;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -712,7 +808,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -727,8 +823,8 @@ namespace std
       static unsigned long max() throw()
       { return __LONG_MAX__ * 2UL + 1; }
 
-      static const int digits = __glibcpp_digits (unsigned long);
-      static const int digits10 = __glibcpp_digits10 (unsigned long);
+      static const int digits = __glibcxx_digits (unsigned long);
+      static const int digits10 = __glibcxx_digits10 (unsigned long);
       static const bool is_signed = false;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -762,7 +858,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -777,8 +873,8 @@ namespace std
       static long long max() throw()
       { return __LONG_LONG_MAX__; }
 
-      static const int digits = __glibcpp_digits (long long);
-      static const int digits10 = __glibcpp_digits10 (long long);
+      static const int digits = __glibcxx_digits (long long);
+      static const int digits10 = __glibcxx_digits10 (long long);
       static const bool is_signed = true;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -812,7 +908,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -827,8 +923,8 @@ namespace std
       static unsigned long long max() throw()
       { return __LONG_LONG_MAX__ * 2ULL + 1; }
 
-      static const int digits = __glibcpp_digits (unsigned long long);
-      static const int digits10 = __glibcpp_digits10 (unsigned long long);
+      static const int digits = __glibcxx_digits (unsigned long long);
+      static const int digits10 = __glibcxx_digits10 (unsigned long long);
       static const bool is_signed = false;
       static const bool is_integer = true;
       static const bool is_exact = true;
@@ -862,7 +958,7 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = true;
 
-      static const bool traps = __glibcpp_integral_traps;
+      static const bool traps = __glibcxx_integral_traps;
       static const bool tinyness_before = false;
       static const float_round_style round_style = round_toward_zero;
     };
@@ -893,14 +989,12 @@ namespace std
       static const int max_exponent = __FLT_MAX_EXP__;
       static const int max_exponent10 = __FLT_MAX_10_EXP__;
 
-      static const bool has_infinity
-	= __builtin_huge_valf () / 2 == __builtin_huge_valf ();
-      static const bool has_quiet_NaN
-	= __builtin_nanf ("") != __builtin_nanf ("");
+      static const bool has_infinity = __FLT_HAS_INFINITY__;
+      static const bool has_quiet_NaN = __FLT_HAS_QUIET_NAN__;
       static const bool has_signaling_NaN = has_quiet_NaN;
       static const float_denorm_style has_denorm
 	= __FLT_DENORM_MIN__ ? denorm_present : denorm_absent;
-      static const bool has_denorm_loss = __glibcpp_float_has_denorm_loss;
+      static const bool has_denorm_loss = __glibcxx_float_has_denorm_loss;
 
       static float infinity() throw()
       { return __builtin_huge_valf (); }
@@ -916,14 +1010,14 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = false;
 
-      static const bool traps = __glibcpp_float_traps;
-      static const bool tinyness_before = __glibcpp_float_tinyness_before;
+      static const bool traps = __glibcxx_float_traps;
+      static const bool tinyness_before = __glibcxx_float_tinyness_before;
       static const float_round_style round_style = round_to_nearest;
     };
 
-#undef __glibcpp_float_has_denorm_loss
-#undef __glibcpp_float_traps
-#undef __glibcpp_float_tinyness_before
+#undef __glibcxx_float_has_denorm_loss
+#undef __glibcxx_float_traps
+#undef __glibcxx_float_tinyness_before
 
   template<>
     struct numeric_limits<double>
@@ -951,14 +1045,12 @@ namespace std
       static const int max_exponent = __DBL_MAX_EXP__;
       static const int max_exponent10 = __DBL_MAX_10_EXP__;
 
-      static const bool has_infinity
-	= __builtin_huge_val () / 2 == __builtin_huge_val ();
-      static const bool has_quiet_NaN
-	= __builtin_nan ("") != __builtin_nan ("");
+      static const bool has_infinity = __DBL_HAS_INFINITY__;
+      static const bool has_quiet_NaN = __DBL_HAS_QUIET_NAN__;
       static const bool has_signaling_NaN = has_quiet_NaN;
       static const float_denorm_style has_denorm
 	= __DBL_DENORM_MIN__ ? denorm_present : denorm_absent;
-      static const bool has_denorm_loss = __glibcpp_double_has_denorm_loss;
+      static const bool has_denorm_loss = __glibcxx_double_has_denorm_loss;
 
       static double infinity() throw()
       { return __builtin_huge_val(); }
@@ -974,14 +1066,14 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = false;
 
-      static const bool traps = __glibcpp_double_traps;
-      static const bool tinyness_before = __glibcpp_double_tinyness_before;
+      static const bool traps = __glibcxx_double_traps;
+      static const bool tinyness_before = __glibcxx_double_tinyness_before;
       static const float_round_style round_style = round_to_nearest;
     };
 
-#undef __glibcpp_double_has_denorm_loss
-#undef __glibcpp_double_traps
-#undef __glibcpp_double_tinyness_before
+#undef __glibcxx_double_has_denorm_loss
+#undef __glibcxx_double_traps
+#undef __glibcxx_double_tinyness_before
 
   template<>
     struct numeric_limits<long double>
@@ -1009,15 +1101,13 @@ namespace std
       static const int max_exponent = __LDBL_MAX_EXP__;
       static const int max_exponent10 = __LDBL_MAX_10_EXP__;
 
-      static const bool has_infinity
-	= __builtin_huge_vall () / 2 == __builtin_huge_vall ();
-      static const bool has_quiet_NaN
-	= __builtin_nanl ("") != __builtin_nanl ("");
+      static const bool has_infinity = __LDBL_HAS_INFINITY__;
+      static const bool has_quiet_NaN = __LDBL_HAS_QUIET_NAN__;
       static const bool has_signaling_NaN = has_quiet_NaN;
       static const float_denorm_style has_denorm
 	= __LDBL_DENORM_MIN__ ? denorm_present : denorm_absent;
       static const bool has_denorm_loss
-	= __glibcpp_long_double_has_denorm_loss;
+	= __glibcxx_long_double_has_denorm_loss;
 
       static long double infinity() throw()
       { return __builtin_huge_vall (); }
@@ -1033,21 +1123,21 @@ namespace std
       static const bool is_bounded = true;
       static const bool is_modulo = false;
 
-      static const bool traps = __glibcpp_long_double_traps;
-      static const bool tinyness_before = __glibcpp_long_double_tinyness_before;
+      static const bool traps = __glibcxx_long_double_traps;
+      static const bool tinyness_before = __glibcxx_long_double_tinyness_before;
       static const float_round_style round_style = round_to_nearest;
     };
 
-#undef __glibcpp_long_double_has_denorm_loss
-#undef __glibcpp_long_double_traps
-#undef __glibcpp_long_double_tinyness_before
+#undef __glibcxx_long_double_has_denorm_loss
+#undef __glibcxx_long_double_traps
+#undef __glibcxx_long_double_tinyness_before
 
 } // namespace std
 
-#undef __glibcpp_signed
-#undef __glibcpp_min
-#undef __glibcpp_max
-#undef __glibcpp_digits
-#undef __glibcpp_digits10
+#undef __glibcxx_signed
+#undef __glibcxx_min
+#undef __glibcxx_max
+#undef __glibcxx_digits
+#undef __glibcxx_digits10
 
-#endif // _CPP_NUMERIC_LIMITS
+#endif // _GLIBCXX_NUMERIC_LIMITS

@@ -40,14 +40,14 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CSTDDEF
-#define _CPP_CSTDDEF 1
+#ifndef _GLIBCXX_CSTDDEF
+#define _GLIBCXX_CSTDDEF 1
 
 #pragma GCC system_header
 
 #include <stddef.h>
 
-namespace std 
+namespace std
 {
   using ::ptrdiff_t;
   using ::size_t;
