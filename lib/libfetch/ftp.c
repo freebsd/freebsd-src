@@ -218,6 +218,10 @@ _ftp_transfer(int cd, char *oper, char *file,
     high = (flags && strchr(flags, 'h'));
     verbose = (flags && strchr(flags, 'v'));
 
+    /* passive mode */
+    if (!pasv && (s = getenv("FTP_PASSIVE_MODE")) != NULL)
+	pasv = (strncasecmp(s, "no", 2) != 0);
+
     /* change directory */
     if (((s = strrchr(file, '/')) != NULL) && (s != file)) {
 	*s = 0;
