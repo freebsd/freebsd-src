@@ -26,6 +26,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 
@@ -46,9 +47,11 @@
 int	ddp_cksum = 1;
 
 int
-ddp_output( struct ddpcb *ddp, struct mbuf *m)
+/*ddp_output( struct ddpcb *ddp, struct mbuf *m)*/
+ddp_output( struct mbuf *m, struct socket *so)
 {
     struct ddpehdr	*deh;
+    struct ddpcb *ddp = sotoddpcb( so );
 
     M_PREPEND( m, sizeof( struct ddpehdr ), M_WAIT );
 
