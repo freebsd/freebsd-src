@@ -347,3 +347,12 @@ struct acd {
 	u_int next_writeable_lba;	/* Next writable position */
 	struct wormio_prepare_track preptrack;	/* Scratch region */
 };
+
+struct ioc_read_audio {
+	u_char address_format;
+	union msf_lba address;
+	int nframes;
+	u_char* buffer;
+};
+
+#define CDIOCREADAUDIO _IOWR('c',31,struct ioc_read_audio)
