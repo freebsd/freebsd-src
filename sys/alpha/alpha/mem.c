@@ -46,14 +46,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/msgbuf.h>
 #include <sys/signalvar.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
@@ -141,7 +142,7 @@ static int
 mmrw(dev_t dev, struct uio *uio, int flags)
 {
 	vm_offset_t o, v;
-	int c;
+	int c = 0;
 	struct iovec *iov;
 	int error = 0, rw;
 	vm_offset_t addr, eaddr;
