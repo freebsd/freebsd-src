@@ -83,7 +83,7 @@ The
 .Fn getw
 function
 obtains the next
-.Em int
+.Vt int
 (if present)
 from the stream pointed at by
 .Fa stream .
@@ -92,9 +92,9 @@ If successful, these routines return the next requested object
 from the
 .Fa stream .
 Character values are returned as an
-.Li unsigned char
+.Vt "unsigned char"
 converted to an
-.Li int .
+.Vt int .
 If the stream is at end-of-file or a read error occurs,
 the routines return
 .Dv EOF .
@@ -136,7 +136,7 @@ and
 must be used to check for failure after calling
 .Fn getw .
 The size and byte order of an
-.Em int
+.Vt int
 varies from one machine to another, and
 .Fn getw
 is not recommended for portable applications.
