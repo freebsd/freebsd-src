@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.3 1999/07/22 21:42:49 green Exp $
+ * $Id: builtins.c,v 1.4 1999/07/23 03:51:52 green Exp $
  *
  */
 
@@ -336,13 +336,14 @@ ident_stream(s, sep)		/* Ident service */
 
 					switch (sscanf(optarg, "%d.%d", &sec,
 					    &usec)) {
+					case 2:
+						tv.tv_usec = usec;
 					case 1:
 						tv.tv_sec = sec;
 						break;
-					case 2:
-						tv.tv_usec = usec;
-						break;
 					default:
+						if (debug)
+							warnx("bad argument to -t option");
 						break;
 					}
 				} while (0);
