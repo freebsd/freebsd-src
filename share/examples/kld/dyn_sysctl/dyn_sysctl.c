@@ -153,7 +153,7 @@ load (module_t mod, int cmd, void *arg)
 			printf("Ok\n");
 		break;
 	default :
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return error;
