@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: which.pl,v 1.12 1998/01/02 13:46:25 helbig Exp $
+# $Id: which.pl,v 1.8.2.2 1998/01/24 13:40:18 helbig Exp $
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});
@@ -42,13 +42,13 @@ if ($ARGV[0] eq "-a") {
 }
 
 foreach $prog (@ARGV) {
-    if ("$prog" =~ '/' && -x "$prog") {
+    if ("$prog" =~ '/' && -x "$prog" && -f "$prog") {
 	print "$prog\n" unless $silent;
 	$found = 1;
     } else {
 	foreach $e (@path) {
 	    $e = "." if !$e;
-	    if (-x "$e/$prog") {
+	    if (-x "$e/$prog" && -f "$e/$prog") {
 		print "$e/$prog\n" unless $silent;
 		$found = 1;
 		last unless $all;
