@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signal.h>
 #include <sys/mman.h>
 #include <sys/ioccom.h>
+#include <sys/fcntl.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -76,6 +77,11 @@ SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
 #define MAXLEN (512 << fwmem_speed)
+
+struct fwmem_softc {
+	struct fw_eui64 eui;
+	int refcount;
+};
 
 static struct fw_xfer *
 fwmem_xfer_req(
@@ -260,18 +266,25 @@ fwmem_write_block(
 int
 fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
-	struct fw_eui64 *eui;
+	struct fwmem_softc *fms;
 
-	if (dev->si_drv1 != NULL)
-		return (EBUSY);
-
-	eui = (struct fw_eui64 *)malloc(sizeof(struct fw_eui64),
+	if (dev->si_drv1 != NULL) {
+		if ((flags & FWRITE) != 0)
+			return (EBUSY);
+		fms = (struct fwmem_softc *)dev->si_drv1;
+		fms->refcount ++;
+	} else {
+		fms = (struct fwmem_softc *)malloc(sizeof(struct fwmem_softc),
 							M_FW, M_WAITOK);
-	if (eui == NULL)
-		return ENOMEM;
-	bcopy(&fwmem_eui64, eui, sizeof(struct fw_eui64));
-	dev->si_drv1 = (void *)eui;
-	dev->si_iosize_max = DFLTPHYS;
+		if (fms == NULL)
+			return ENOMEM;
+		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));
+		dev->si_drv1 = (void *)fms;
+		dev->si_iosize_max = DFLTPHYS;
+		fms->refcount = 1;
+	}
+	if (fwmem_debug)
+		printf("%s: refcount=%d\n", __FUNCTION__, fms->refcount);
 
 	return (0);
 }
@@ -279,8 +292,16 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 int
 fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
 {
-	free(dev->si_drv1, M_FW);
-	dev->si_drv1 = NULL;
+	struct fwmem_softc *fms;
+
+	fms = (struct fwmem_softc *)dev->si_drv1;
+	fms->refcount --;
+	if (fwmem_debug)
+		printf("%s: refcount=%d\n", __FUNCTION__, fms->refcount);
+	if (fms->refcount < 1) {
+		free(dev->si_drv1, M_FW);
+		dev->si_drv1 = NULL;
+	}
 
 	return (0);
 }
@@ -309,6 +330,7 @@ void
 fwmem_strategy(struct bio *bp)
 {
 	struct firewire_softc *sc;
+	struct fwmem_softc *fms;
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
 	dev_t dev;
@@ -321,11 +343,12 @@ fwmem_strategy(struct bio *bp)
 	sc = devclass_get_softc(firewire_devclass, unit);
 
 	s = splfw();
-	fwdev = fw_noderesolve_eui64(sc->fc, (struct fw_eui64 *)dev->si_drv1);
+	fms = (struct fwmem_softc *)dev->si_drv1;
+	fwdev = fw_noderesolve_eui64(sc->fc, &fms->eui);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
-					fwmem_eui64.hi, fwmem_eui64.lo);
+					fms->eui.hi, fms->eui.lo);
 		err = EINVAL;
 		goto error;
 	}
@@ -375,13 +398,16 @@ error:
 int
 fwmem_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
+	struct fwmem_softc *fms;
 	int err = 0;
+
+	fms = (struct fwmem_softc *)dev->si_drv1;
 	switch (cmd) {
 	case FW_SDEUI64:
-		bcopy(data, dev->si_drv1, sizeof(struct fw_eui64));
+		bcopy(data, &fms->eui, sizeof(struct fw_eui64));
 		break;
 	case FW_GDEUI64:
-		bcopy(dev->si_drv1, data, sizeof(struct fw_eui64));
+		bcopy(&fms->eui, data, sizeof(struct fw_eui64));
 		break;
 	default:
 		err = EINVAL;
