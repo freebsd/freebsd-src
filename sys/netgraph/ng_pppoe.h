@@ -94,7 +94,7 @@ struct ngpppoestat {
  *
  * When this structure is accepted by the NGM_PPPOE_WAIT command.
  * If no service is given this is assumed to accept ALL PADI requests.
- * This may at some time take a regexp exporession, but not yet.
+ * This may at some time take a regexp expression, but not yet.
  * Matching PADI requests will be passed up the named hook.
  *
  *
