@@ -188,6 +188,9 @@ NDINIT(ndp, op, flags, segflg, namep, p)
 		vrele(_ndp->ni_dvp);					\
 		_ndp->ni_dvp = NULL;					\
 	}								\
+	if (!(_flags & NDF_NO_VP_UNLOCK) &&				\
+	    (_ndp->ni_cnd.cn_flags & LOCKLEAF) && _ndp->ni_vp)		\
+		VOP_UNLOCK(_ndp->ni_vp, 0, _ndp->ni_cnd.cn_proc);	\
 	if (!(_flags & NDF_NO_VP_RELE) &&				\
 	    _ndp->ni_vp) {						\
 		vrele(_ndp->ni_vp);					\
