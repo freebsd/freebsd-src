@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.27 1997/11/18 14:39:04 phk Exp $ */
+/* $Id: ccd.c,v 1.28 1998/01/31 03:19:06 eivind Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -631,7 +631,7 @@ ccdopen(dev, flags, fmt, p)
 		ccdgetdisklabel(dev);
 
 	/* Check that the partition exists. */
-	if (part != RAW_PART && ((part > lp->d_npartitions) ||
+	if (part != RAW_PART && ((part >= lp->d_npartitions) ||
 	    (lp->d_partitions[part].p_fstype == FS_UNUSED))) {
 		error = ENXIO;
 		goto done;
@@ -938,6 +938,7 @@ ccdintr(cs, bp)
 	register struct buf *bp;
 {
 
+      s = splbio();
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
 		printf("ccdintr(%x, %x)\n", cs, bp);
