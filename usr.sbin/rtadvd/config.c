@@ -71,7 +71,7 @@
 #include "if.h"
 #include "config.h"
 
-static void makeentry __P((char *, int, char *, int));
+static void makeentry __P((char *, size_t, int, char *, int));
 static void get_prefix __P((struct rainfo *));
 static int getinet6sysctl __P((int));
 
@@ -312,7 +312,8 @@ getconfig(intface)
 
 			pfx->origin = PREFIX_FROM_CONFIG;
 
-			makeentry(entbuf, i, "prefixlen", added);
+			makeentry(entbuf, sizeof(entbuf), i, "prefixlen",
+			    added);
 			MAYHAVE(val, entbuf, 64);
 			if (val < 0 || val > 128) {
 				syslog(LOG_ERR,
@@ -322,7 +323,8 @@ getconfig(intface)
 			}
 			pfx->prefixlen = (int)val;
 
-			makeentry(entbuf, i, "pinfoflags", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pinfoflags",
+			    added);
 #ifdef MIP6
 			if (mobileip6)
 			{
@@ -341,7 +343,7 @@ getconfig(intface)
 			pfx->routeraddr = val & ND_OPT_PI_FLAG_ROUTER;
 #endif
 
-			makeentry(entbuf, i, "vltime", added);
+			makeentry(entbuf, sizeof(entbuf), i, "vltime", added);
 			MAYHAVE(val64, entbuf, DEF_ADVVALIDLIFETIME);
 			if (val64 < 0 || val64 > 0xffffffff) {
 				syslog(LOG_ERR,
@@ -351,7 +353,8 @@ getconfig(intface)
 			}
 			pfx->validlifetime = (u_int32_t)val64;
 
-			makeentry(entbuf, i, "vltimedecr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "vltimedecr",
+			    added);
 			if (agetflag(entbuf)) {
 				struct timeval now;
 				gettimeofday(&now, 0);
@@ -359,7 +362,7 @@ getconfig(intface)
 					now.tv_sec + pfx->validlifetime;
 			}
 
-			makeentry(entbuf, i, "pltime", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pltime", added);
 			MAYHAVE(val64, entbuf, DEF_ADVPREFERREDLIFETIME);
 			if (val64 < 0 || val64 > 0xffffffff) {
 				syslog(LOG_ERR,
@@ -369,7 +372,8 @@ getconfig(intface)
 			}
 			pfx->preflifetime = (u_int32_t)val64;
 
-			makeentry(entbuf, i, "pltimedecr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pltimedecr",
+			    added);
 			if (agetflag(entbuf)) {
 				struct timeval now;
 				gettimeofday(&now, 0);
@@ -377,7 +381,7 @@ getconfig(intface)
 					now.tv_sec + pfx->preflifetime;
 			}
 
-			makeentry(entbuf, i, "addr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "addr", added);
 			addr = (char *)agetstr(entbuf, &bp);
 			if (addr == NULL) {
 				syslog(LOG_ERR,
@@ -456,7 +460,7 @@ getconfig(intface)
 		/* link into chain */
 		insque(rti, &tmp->route);
 
-		makeentry(entbuf, i, "rtrplen", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrplen", added);
 		MAYHAVE(val, entbuf, 64);
 		if (val < 0 || val > 128) {
 			syslog(LOG_ERR,
@@ -466,7 +470,7 @@ getconfig(intface)
 		}
 		rti->prefixlen = (int)val;
 
-		makeentry(entbuf, i, "rtrflags", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrflags", added);
 		MAYHAVE(val, entbuf, 0);
 		rti->rtpref = val & ND_RA_FLAG_RTPREF_MASK;
 		if (rti->rtpref == ND_RA_FLAG_RTPREF_RSV) {
@@ -475,7 +479,7 @@ getconfig(intface)
 			exit(1);
 		}
 
-		makeentry(entbuf, i, "rtrltime", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrltime", added);
 		/*
 		 * XXX: since default value of route lifetime is not defined in
 		 * draft-draves-route-selection-01.txt, I took the default 
@@ -491,7 +495,7 @@ getconfig(intface)
 		}
 		rti->ltime = (u_int32_t)val64;
 
-		makeentry(entbuf, i, "rtrprefix", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrprefix", added);
 		addr = (char *)agetstr(entbuf, &bp);
 		if (addr == NULL) {
 			syslog(LOG_ERR,
@@ -625,17 +629,21 @@ get_prefix(struct rainfo *rai)
 }
 
 static void
-makeentry(buf, id, string, add)
-    char *buf, *string;
-    int id, add;
+makeentry(buf, len, id, string, add)
+	char *buf;
+	size_t len;
+	int id;
+	char *string;
+	int add;
 {
+	char *ep = buf + len;
+
 	strcpy(buf, string);
 	if (add) {
 		char *cp;
 
 		cp = (char *)index(buf, '\0');
-		cp += sprintf(cp, "%d", id);
-		*cp = '\0';
+		snprintf(cp, ep - cp, "%d", id);
 	}
 }
 
