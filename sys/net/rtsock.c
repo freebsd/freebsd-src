@@ -584,6 +584,10 @@ rt_msg1(type, rtinfo)
 		len = sizeof(struct if_msghdr);
 		break;
 
+	case RTM_IFANNOUNCE:
+		len = sizeof(struct if_announcemsghdr);
+		break;
+
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
@@ -848,6 +852,34 @@ rt_newmaddrmsg(cmd, ifma)
 	route_proto.sp_protocol = ifma->ifma_addr->sa_family;
 	raw_input(m, &route_proto, &route_src, &route_dst);
 }
+
+/*
+ * This is called to generate routing socket messages indicating
+ * network interface arrival and departure.
+ */
+void
+rt_ifannouncemsg(ifp, what)
+	struct ifnet *ifp;
+	int what;
+{
+	struct if_announcemsghdr *ifan;
+	struct mbuf *m;
+	struct rt_addrinfo info;
+
+	if (route_cb.any_count == 0)
+		return;
+	bzero((caddr_t)&info, sizeof(info));
+	m = rt_msg1(RTM_IFANNOUNCE, &info);
+	if (m == NULL)
+		return;
+	ifan = mtod(m, struct if_announcemsghdr *);
+	ifan->ifan_index = ifp->if_index;
+	snprintf(ifan->ifan_name, sizeof(ifan->ifan_name),
+	    "%s%d", ifp->if_name, ifp->if_unit);
+	ifan->ifan_what = what;
+	route_proto.sp_protocol = 0;
+	raw_input(m, &route_proto, &route_src, &route_dst);
+ }
 
 /*
  * This is used in dumping the kernel table via sysctl().

@@ -188,6 +188,21 @@ struct ifma_msghdr {
 };
 
 /*
+ * Message format announcing the arrival or departure of a network interface.
+ */
+struct if_announcemsghdr {
+	u_short	ifan_msglen;	/* to skip over non-understood messages */
+	u_char	ifan_version;	/* future binary compatibility */
+	u_char	ifan_type;	/* message type */
+	u_short	ifan_index;	/* index for associated ifp */
+	char	ifan_name[IFNAMSIZ]; /* if name, e.g. "en0" */
+	u_short	ifan_what;	/* what type of announcement */
+};
+
+#define	IFAN_ARRIVAL	0	/* interface arrival */
+#define	IFAN_DEPARTURE	1	/* interface departure */
+
+/*
  * Interface request structure used for socket
  * ioctl's.  All interface ioctl's must have parameter
  * definitions which begin with ifr_name.  The
