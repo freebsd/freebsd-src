@@ -82,13 +82,11 @@ int master_mode;
 static void	baduser(void);
 static void	usage(void);
 
-char localhost[] = "localhost";
-
 int
 main(int argc, char *argv[])
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw, *old_pw;
+	struct passwd lpw, *old_pw, *pw;
 	int ch, pfd, tfd;
 	const char *password;
 	char *arg = NULL;
@@ -98,6 +96,7 @@ main(int argc, char *argv[])
 	const char *yp_domain = NULL, *yp_host = NULL;
 #endif
 
+	pw = old_pw = NULL;
 	op = EDITENTRY;
 #ifdef YP
 	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:loy")) != -1)

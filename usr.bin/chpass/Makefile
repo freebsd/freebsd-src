@@ -8,8 +8,7 @@ BINMODE=4555
 .PATH:	${.CURDIR}/../../usr.sbin/pwd_mkdb \
 	${.CURDIR}/../../lib/libc/gen
 CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen
-WARNS?=	4
-NO_WERROR=yes
+WARNS?=	5
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
