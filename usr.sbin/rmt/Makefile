@@ -4,6 +4,6 @@ PROG=	rmt
 MAN8=	rmt.8
 
 beforeinstall:
-	ln -s ${BINDIR}/rmt ${DESTDIR}/etc/rmt
+	ln -fs ${BINDIR}/rmt ${DESTDIR}/etc/rmt
 
 .include <bsd.prog.mk>
