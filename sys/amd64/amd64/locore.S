@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.38 1994/10/22 17:51:46 phk Exp $
+ *	$Id: locore.s,v 1.39 1994/10/25 07:25:55 davidg Exp $
  */
 
 /*
@@ -45,7 +45,6 @@
  *			Bruce Evans, Wolfgang Solfrank, and many others.
  */
 
-#include "npx.h"			/* for NNPX */
 #include "assym.s"			/* system definitions */
 #include <machine/psl.h>		/* processor status longword defs */
 #include <machine/pte.h>		/* page table entry definitions */
@@ -73,12 +72,15 @@
  * PTmap is recursive pagemap at top of virtual address space.
  * Within PTmap, the page directory can be found (third indirection).
  */
-	.globl	_PTmap,_PTD,_PTDpde,_Sysmap
+	.globl	_PTmap,_PTD,_PTDpde
 	.set	_PTmap,PTDPTDI << PDRSHIFT
 	.set	_PTD,_PTmap + (PTDPTDI * NBPG)
 	.set	_PTDpde,_PTD + (PTDPTDI * PDESIZE)
 
-/* Sysmap is the base address of the kernel page tables */
+/*
+ * Sysmap is the base address of the kernel page tables.
+ * It is a bogus interface for kgdb and isn't used by the kernel itself.
+ */
 	.set	_Sysmap,_PTmap + (KPTDI * NBPG)
 
 /*
@@ -108,7 +110,7 @@
 tmpstk:
 	.long	0		/* for debugging tmpstk stack underflow */
 
-	.globl	_boothowto,_bootdev,_curpcb
+	.globl	_boothowto,_bootdev
 
 	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
 
@@ -122,11 +124,11 @@ _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
 
-	.globl	_KERNend
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 
-	.globl	_IdlePTD,_KPTphys
+	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
+
 _KPTphys:	.long	0			/* phys addr of kernel page tables */
 
 	.globl	_proc0paddr
@@ -711,7 +713,8 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	addl	$KERNBASE,%edx			/* add virtual base */
 	movl	%edx,_atdevbase
 
-#if N_SC > 0
+#include "sc.h"
+#if NSC > 0
 	/* XXX: can't scinit relocate Crtat relative to atdevbase itself? */
 	.globl _Crtat				/* XXX - locore should not know about */
 	movl	_Crtat,%eax			/* variables of device drivers (pccons)! */
