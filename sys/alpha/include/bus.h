@@ -247,15 +247,15 @@ extern struct alpha_busspace *busspace_isa_mem;
 						(void*)(a), c)
 
 #define memcpy_fromio(d, s, c) \
-	bus_space_read_region_1(busspace_isa_mem, s, 0, d, c)
+	bus_space_read_region_1(busspace_isa_mem, (uintptr_t)(s), 0, d, c)
 #define memcpy_toio(d, s, c) \
-	bus_space_write_region_1(busspace_isa_mem, d, 0, s, c)
+	bus_space_write_region_1(busspace_isa_mem, (uintptr_t)(d), 0, s, c)
 #define memcpy_io(d, s, c) \
-	bus_space_copy_region_1(busspace_isa_mem, s, 0, d, 0, c)
+	bus_space_copy_region_1(busspace_isa_mem, (uintptr_t)(s), 0, d, 0, c)
 #define memset_io(d, v, c) \
-	bus_space_set_region_1(busspace_isa_mem, d, 0, v, c)
+	bus_space_set_region_1(busspace_isa_mem, (uintptr_t)(d), 0, v, c)
 #define memsetw_io(d, v, c) \
-	bus_space_set_region_2(busspace_isa_mem, d, 0, v, c)
+	bus_space_set_region_2(busspace_isa_mem, (uintptr_t)(d), 0, v, c)
 
 static __inline void
 memsetw(void *d, int val, size_t size)
