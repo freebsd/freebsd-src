@@ -29,6 +29,7 @@ MENU:pt:Escolha o layout do teclado
 MENU:es:Seleccione el idioma de su teclado
 MENU:iw:κμω ϊγμχξδ ϊτω ϊΰ ψηα
 MENU:uk:BΙΒΕÒ¦ΤΨ ÒΟΪΛΜΑΔΛΥ ΛΜΑΧ¦ΑΤΥÒΙ
+MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv,pt,es:iso-8x16.fnt
@@ -36,6 +37,7 @@ FONT:ru:koi8-r-8x16.fnt
 FONT:pl:iso02-8x16.fnt
 FONT:iw:iso08-8x16.fnt
 FONT:uk:koi8-u-8x16.fnt
+FONT:el:iso07-8x16.fnt
 # 
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
@@ -89,6 +91,9 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:Dinamarquκs Codepage 865
 danish.cp865.kbd:es:Danιs Codepage 865
 
+el.iso07.kbd:en:Greek ISO-8859-7 (104 keys)
+el.iso07.kbd:el:Ελληνικό ISO-8859-7 (104 πλήκτρων)
+
 estonian.iso.kbd:en:Estonian ISO-8859-1
 estonian.iso.kbd:de:Estnisch ISO-8859-1
 estonian.iso.kbd:es:Estonio ISO-8859-1
@@ -141,6 +146,12 @@ german.cp850.kbd:fr:Allemand Code page 850
 german.cp850.kbd:pt:Alemγo Codepage 850
 german.cp850.kbd:es:Alemαn Codepage 850
 german.cp850.kbd:uk:ξ¦ΝΕΓΨΛΑ CP-850
+
+gr.elot.acc.kbd:en:Greek ISO-8859-7 ELOT
+gr.elot.acc.kbd:el:Ελληνικό ISO-8859-7 ΕΛΟΤ
+
+gr.us101.acc.kbd:en:Greek ISO-8859-7 (101 keys)
+gr.us101.acc.kbd:en:Ελληνικό ISO-8859-7 (101 πλήκτρων)
 
 iw.iso8.kbd:en:Hebrew ISO-8859-8
 iw.iso8.kbd:he:ISO-8859-8 ϊιψας
