@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 2001 Cameron Grant <gandalf@vilnya.demon.co.uk>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +26,8 @@
  * $FreeBSD$
  */
 
-int dsp_open(struct snddev_info *d, int chan, int oflags, int devtype, pid_t pid);
-int dsp_close(struct snddev_info *d, int chan, int devtype);
-int dsp_read(struct snddev_info *d, int chan, struct uio *buf, int flag);
-int dsp_write(struct snddev_info *d, int chan, struct uio *buf, int flag);
-int dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg);
-int dsp_poll(struct snddev_info *d, int chan, int events, struct proc *p);
-int dsp_mmap(struct snddev_info *d, int chan, vm_offset_t offset, int nprot);
+int vchan_create(struct pcm_channel *parent);
+int vchan_destroy(struct pcm_channel *c);
+int vchan_initsys(struct snddev_info *d);
 
 
