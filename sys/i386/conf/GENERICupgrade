@@ -8,7 +8,7 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id: GENERICupgrade,v 1.1 1998/08/30 03:06:23 jb Exp $
+#	$Id: GENERICupgrade,v 1.2 1998/09/16 17:44:37 phk Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -16,7 +16,7 @@ cpu		"I486_CPU"
 cpu		"I586_CPU"
 cpu		"I686_CPU"
 ident		GENERIC
-maxusers	10
+maxusers	32
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
@@ -30,7 +30,6 @@ options		NFS_ROOT		#NFS usable as root device
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
-options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
 options		USERCONFIG		#boot -c editor
@@ -67,7 +66,7 @@ device		wfd0		#IDE Floppy (e.g. LS-120)
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
 controller	ncr0
-controller	amd0
+#controller	amd0
 controller	ahb0
 controller	ahc0
 controller	isp0
@@ -76,22 +75,25 @@ controller	isp0
 # document here  - see the LINT file in this directory and look up the
 # dpt0 entry there for much fuller documentation on this.  The options
 # line following dpt0 here is also currently a *required* option for it.
-controller      dpt0
-options DPT_MEASURE_PERFORMANCE
+# controller      dpt0
+# options DPT_MEASURE_PERFORMANCE
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
-controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
-controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
-controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
-controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
-controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
-controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
+controller	adv0	at isa? port ? cam irq ?
+controller	bt0	at isa? port ? cam irq ?
+controller	aha0	at isa? port ? cam irq ?
+#controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
+#controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
+#controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+#controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
+#controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
 controller	scbus0
 
 device		da0
 
 device		sa0
+
+device		pass0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
@@ -103,9 +105,9 @@ controller	matcd0	at isa? port 0x230 bio
 device		scd0	at isa? port 0x230 bio
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		sc0	at isa? port "IO_KBD" conflicts tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
-#device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+#device		vt0	at isa? port "IO_KBD" conflicts tty irq 1 vector pcrint
 #options		XSERVER			# support for X server
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
