@@ -47,8 +47,9 @@
  *
  * Most important Changes:
  *
+ * 010124: Fixed WF2Q behaviour
  * 010122: Fixed spl protection.
- * 000601: WF2Q+ support
+ * 000601: WF2Q support
  * 000106: large rewrite, use heaps to handle very many pipes.
  * 980513:	initial release
  *
@@ -92,7 +93,7 @@ static int dn_hash_size = 64 ;	/* default hash size */
 
 /* statistics on number of queue searches and search steps */
 static int searches, search_steps ;
-static int pipe_expire = 0 ;   /* expire queue if empty */
+static int pipe_expire = 1 ;   /* expire queue if empty */
 static int dn_max_ratio = 16 ; /* max queues/buckets ratio */
 
 static int red_lookup_depth = 256;	/* RED - default lookup table depth */
@@ -100,16 +101,21 @@ static int red_avg_pkt_size = 512;      /* RED - default medium packet size */
 static int red_max_pkt_size = 1500;     /* RED - default max packet size */
 
 /*
- * ready_heap contains all dn_flow_queue's scheduled for action
- * at a given time.
- * wfq_ready_heap contains the schedulable pipe.
- * Extract_heap contains pipes because it is there that packets
- * in the delay line are held.
+ * Three heaps contain queues and pipes that the scheduler handles:
+ *
+ * ready_heap contains all dn_flow_queue related to fixed-rate pipes.
+ *
+ * wfq_ready_heap contains the pipes associated with WF2Q flows
+ *
+ * extract_heap contains pipes associated with delay lines.
+ *
  */
 static struct dn_heap ready_heap, extract_heap, wfq_ready_heap ;
+
 static int heap_init(struct dn_heap *h, int size) ;
 static int heap_insert (struct dn_heap *h, dn_key key1, void *p);
 static void heap_extract(struct dn_heap *h, void *obj);
+
 static void transmit_event(struct dn_pipe *pipe);
 static void ready_event(struct dn_flow_queue *q);
 
@@ -151,6 +157,8 @@ static void rt_unref(struct rtentry *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
+
+int if_tx_rdy(struct ifnet *ifp);
 
 /*
  * ip_fw_chain is used when deleting a pipe, because ipfw rules can
@@ -270,22 +278,22 @@ heap_extract(struct dn_heap *h, void *obj)
 {  
     int child, father, max = h->elements - 1 ;
 
-    if (max < 0)
+    if (max < 0) {
+	printf("warning, extract from empty heap 0x%p\n", h);
 	return ;
+    }
     father = 0 ; /* default: move up smallest child */
     if (obj != NULL) { /* extract specific element, index is at offset */
-	if (h->offset <= 0) {
-	    printf("*** extract from middle not supported!!!\n");
-	    return ; /* or maybe panic... */
-	}
+	if (h->offset <= 0)
+	    panic("*** heap_extract from middle not supported on this heap!!!\n");
 	father = *((int *)((char *)obj + h->offset)) ;
 	if (father < 0 || father >= h->elements) {
 	    printf("dummynet: heap_extract, father %d out of bound 0..%d\n",
 		father, h->elements);
 	    panic("heap_extract");
 	}
-	RESET_OFFSET(h, father); 
     }
+    RESET_OFFSET(h, father);
     child = HEAP_LEFT(father) ;		/* left child */
     while (child <= max) {		/* valid entry */
 	if (child != max && DN_KEY_LT(h->p[child+1].key, h->p[child].key) )
@@ -302,7 +310,7 @@ heap_extract(struct dn_heap *h, void *obj)
 	 */
 	h->p[father] = h->p[max] ;
 	heap_insert(h, father, NULL); /* this one cannot fail */
-    }   
+    }
 }           
 
 /*
@@ -343,8 +351,6 @@ heap_move(struct dn_heap *h, dn_key new_key, void *object)
     SET_OFFSET(h, i);
 }
 
-
-
 /*
  * heapify() will reorganize data inside an array to maintain the
  * heap property. It is needed when we delete a bunch of entries.
@@ -366,7 +372,7 @@ heap_free(struct dn_heap *h)
 {
     if (h->size >0 )
 	free(h->p, M_IPFW);
-    h->elements = h->size = 0 ;
+    bzero(h, sizeof(*h) );
 }
 
 /*
@@ -384,7 +390,7 @@ heap_free(struct dn_heap *h)
  * ready_event() does something similar with fixed-rate queues, and the
  * event handled is the finish time of the head pkt.
  *
- * wfq_ready_event() does something similar with WFQ queues, and the
+ * wfq_ready_event() does something similar with WF2Q queues, and the
  * event handled is the start time of the head pkt.
  *
  * In all cases, we make sure that the data structures are consistent
@@ -426,14 +432,17 @@ transmit_event(struct dn_pipe *pipe)
 #ifdef BRIDGE
 	case DN_TO_BDG_FWD : {
 	    struct mbuf *m = (struct mbuf *)pkt;
-	    struct ether_header hdr;
+	    struct ether_header *eh;
 
 	    if (pkt->dn_m->m_len < ETHER_HDR_LEN
 	      && (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
 		printf("dummynet/bridge: pullup fail, dropping pkt\n");
 		break;
 	    }
-	    bcopy(mtod(pkt->dn_m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+	    /*
+	     * same as ether_input, make eh be a pointer into the mbuf
+	     */
+	    eh = (void *)pkt->dn_m->m_data ;
 	    m_adj(pkt->dn_m, ETHER_HDR_LEN);
 	    /*
 	     * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
@@ -441,7 +450,7 @@ transmit_event(struct dn_pipe *pipe)
 	     * (originally pkt->dn_m, but could be something else now) if
 	     * it has not consumed it.
 	     */
-	    bdg_forward(&m, &hdr, pkt->ifp);
+	    bdg_forward(&m, eh, pkt->ifp);
 	    if (m)
 		m_freem(m);
 	    }
@@ -569,6 +578,7 @@ ready_event_wfq(struct dn_pipe *p)
     int p_was_empty = (p->head == NULL) ;
     struct dn_heap *sch = &(p->scheduler_heap);
     struct dn_heap *blh = &(p->backlogged_heap);
+    struct dn_heap *neh = &(p->not_eligible_heap) ;
 
     if (p->if_name[0] == 0) /* tx clock is simulated */
 	p->numbytes += ( curr_time - p->sched_time ) * p->bandwidth;
@@ -581,64 +591,71 @@ ready_event_wfq(struct dn_pipe *p)
 	}
     }
 
-    while ( sch->elements && p->numbytes >= 0 ) {
-	struct dn_heap *neh ;
-	u_int64_t normalized_service ;
-	struct dn_flow_queue *q = sch->p[0].object ;
-	struct dn_pkt *pkt = q->head;  
-	struct dn_flow_set *fs = q->fs;   
-	u_int64_t len = pkt->dn_m->m_pkthdr.len;
-	int len_scaled = p->bandwidth ? len*8*hz : 0 ;
+    /*
+     * While we have backlogged traffic AND credit, we need to do
+     * something on the queue.
+     */
+    while ( blh->elements>0 && p->numbytes >= 0 ) {
+	if (sch->elements > 0) { /* have some eligible pkts to send out */
+	    struct dn_flow_queue *q = sch->p[0].object ;
+	    struct dn_pkt *pkt = q->head;  
+	    struct dn_flow_set *fs = q->fs;   
+	    u_int64_t len = pkt->dn_m->m_pkthdr.len;
+	    int len_scaled = p->bandwidth ? len*8*hz : 0 ;
 
-	heap_extract(sch, NULL); /* remove queue from heap */
-	p->numbytes -= len_scaled ;
-	move_pkt(pkt, q, p, len);
-	    
-	/* XXX should we do this at the end of the service ? */
-	/* evaluate normalized service */
-	normalized_service = (len<<MY_M)/p->sum ;
-	q->S = q->F ; /* update start time */
-	if (q->len == 0) {
-	    /*
-	     * Session not backlogged any more, remove from backlogged
-	     * and insert into idle_heap
-	     */
-	    heap_extract(blh, q);
-	    fs->backlogged-- ;
-	    /* p->sum -= fs->weight; XXX don't do this here ! */
-	    heap_insert(&(p->idle_heap), q->F, q);
-	} else { /* session backlogged again: update values */
-	    len = (q->head)->dn_m->m_pkthdr.len;
-	    q->F += (len<<MY_M)/(u_int64_t) fs->weight ;
-	    /* update queue position in backlogged_heap */
-	    heap_move(blh, q->S, q);
+	    heap_extract(sch, NULL); /* remove queue from heap */
+	    p->numbytes -= len_scaled ;
+	    move_pkt(pkt, q, p, len);
+
+	    p->V += (len<<MY_M) / p->sum ; /* update V */
+	    q->S = q->F ; /* update start time */
+	    if (q->len == 0) { /* Flow not backlogged any more */
+		heap_extract(blh, q);
+		fs->backlogged-- ;
+		heap_insert(&(p->idle_heap), q->F, q);
+	    } else { /* still backlogged */
+		/*
+		 * update F and position in backlogged queue, then
+		 * put flow in not_eligible_heap (we will fix this later).
+		 */
+		len = (q->head)->dn_m->m_pkthdr.len;
+		q->F += (len<<MY_M)/(u_int64_t) fs->weight ;
+		heap_move(blh, q->S, q);
+		heap_insert(neh, q->S, q);
+	    }
 	}
-	/* update virtual time */
-	p->V += normalized_service ;
 	if (blh->elements > 0)
 	    p->V = MAX64 ( p->V, blh->p[0].key );
-	DEB(printf("-- %d backlogged, V is %d\n",
-		blh->elements, (int)(p->V >> MY_M) ); )
-
 	/* move from not_eligible_heap to scheduler_heap */
 	neh = &(p->not_eligible_heap) ;
 	while (neh->elements > 0 && DN_KEY_LEQ(neh->p[0].key, p->V) ) {
-	    struct dn_flow_queue *temp = neh->p[0].object ;
+	    struct dn_flow_queue *q = neh->p[0].object ;
 	    heap_extract(neh, NULL);
-	    heap_insert(sch, temp->F, temp);
+	    heap_insert(sch, q->F, q);
 	}
 
-	if (q->len) {/* need to reschedule queue */
-	    if ( DN_KEY_LEQ(q->S, p->V) )
-		heap_insert(sch, q->F, q); /* schedule following packet */
-	    else
-		heap_insert(neh, q->S, q); /* queue in not_eligible_heap */
-	}
 	if (p->if_name[0] != '\0') {/* tx clock is from a real thing */
 	    p->numbytes = -1 ; /* mark not ready for I/O */
 	    break ;
 	}
     }
+    if (blh->elements == 0 && p->numbytes >= 0 && p->idle_heap.elements > 0) {
+	/*
+	 * no traffic and no events scheduled. We can get rid of idle-heap.
+	 */
+	int i ;
+
+	for (i = 0 ; i < p->idle_heap.elements ; i++) {
+	    struct dn_flow_queue *q = p->idle_heap.p[i].object ;
+
+	    q->F = 0 ;
+	    q->S = q->F + 1 ;
+	}
+	p->sum = 0 ;
+	p->V = 0 ;
+	p->idle_heap.elements = 0 ;
+    }
+
     /*
      * If we are getting clocks from dummynet (not a real interface) and
      * If we are under credit, schedule the next ready event.
@@ -745,6 +762,7 @@ if_tx_rdy(struct ifnet *ifp)
 	p->numbytes = 0 ; /* mark ready for I/O */
 	ready_event_wfq(p);
     }
+    return 0 ;
 }
 
 /*
@@ -762,7 +780,7 @@ expire_queues(struct dn_flow_set *fs)
     fs->last_expired = time_second ;
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is overflow */
 	for (prev=NULL, q = fs->rq[i] ; q != NULL ; )
-	    if (q->head != NULL) {
+	    if (q->head != NULL || q->S != q->F+1) {
   		prev = q ;
   	        q = q->next ;
   	    } else { /* entry is idle, expire it */
@@ -845,8 +863,8 @@ find_queue(struct dn_flow_set *fs)
 	    search_steps++;
 	    if (bcmp(&last_pkt, &(q->id), sizeof(q->id) ) == 0)
 		break ; /* found */
-	    else if (pipe_expire && q->head == NULL) {
-		/* entry is idle, expire it */
+	    else if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
+		/* entry is idle and not in any heap, expire it */
 		struct dn_flow_queue *old_q = q ;
 
 		if (prev != NULL)
@@ -1017,6 +1035,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     s = splimp();
 
     pipe_nr &= 0xffff ;
+
     if ( (fs = rule->rule->pipe_ptr) == NULL ) {
 	fs = locate_flowset(pipe_nr, rule);
 	if (fs == NULL)
@@ -1033,7 +1052,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    printf("No pipe %d for queue %d, drop pkt\n",
 		fs->parent_nr, fs->fs_nr);
 	    goto dropit ;
-    }
+	}
     }
     q = find_queue(fs);
     if ( q == NULL )
@@ -1095,28 +1114,34 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	static int errors = 0 ;
 	if (q->blh_pos >= 0 ) /* good... */
 	    goto done;
-	printf("+++ hey [%d] flow 0x%08x not idle but not in heap\n",
+	printf("+++ hey [%d] flow 0x%8p not idle but not in heap\n",
 	    ++errors, q);
     }
     /*
-     * The flow was previously idle, so we need to schedule it.
+     * If we reach this point the flow was previously idle, so we need
+     * to schedule it. This involves different actions for fixed-rate or
+     * WF2Q queues.
      */
     if ( (rule->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE ) {
-	/* fixed-rate queue: just insert into the ready_heap. */
+	/*
+	 * Fixed-rate queue: just insert into the ready_heap.
+	 */
 	dn_key t = 0 ;
 	if (pipe->bandwidth) 
 	    t = SET_TICKS(pkt, q, pipe);
 	q->sched_time = curr_time ;
 	if (t == 0)	/* must process it now */
-	ready_event( q );
+	    ready_event( q );
 	else
 	    heap_insert(&ready_heap, curr_time + t , q );
     } else {
 	/*
-	 * WF2Q: compute start time and put into backlogged list. Then
-	 * look at eligibility -- if not eligibile, it means that
-	 * there is some other flow already scheduled for the same pipe.
-	 * If eligible, AND the pipe is idle, then call ready_event_wfq().
+	 * WF2Q: first compute start time S. If the flow was not in the
+	 * idle_heap (denoted by S=F+1), S is set to the virtual time V
+	 * for that pipe, and we update the sum of weights for the pipe.
+	 * Otherwise, remove flow from idle_heap and set S to max(F,V).
+	 * Then compute finish time F = S + len/weight, and insert into
+	 * backlogged_heap according to S.
 	 */
 	if (DN_KEY_GT(q->S, q->F)) { /* means timestamps are invalid */
 	    q->S = pipe->V ;
@@ -1129,8 +1154,20 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 
 	heap_insert(&(pipe->backlogged_heap), q->S, q);
 	fs->backlogged++ ;
+	if (pipe->backlogged_heap.elements == 1)
+	    pipe->V = MAX64 ( q->S, pipe->V );
+	/*
+	 * Look at eligibility. A flow is not eligibile if S>V (when
+	 * this happens, it means that there is some other flow already
+	 * scheduled for the same pipe, so the scheduler_heap cannot be
+	 * empty). If the flow is not eligible we just store it in the
+	 * appropriate heap. Otherwise, we store in the scheduler_heap
+	 * and possibly invoke ready_event_wfq() right now if there is
+	 * leftover credit.
+	 */
 	if (DN_KEY_GT(q->S, pipe->V) ) { /* not eligible */
-	    DDB(printf("== not eligible, size %d\n", (int)len);)
+	    if (pipe->scheduler_heap.elements == 0)
+		printf("++ ouch! not eligible but empty scheduler!\n");
 	    heap_insert(&(pipe->not_eligible_heap), q->S, q);
 	} else {
 	    heap_insert(&(pipe->scheduler_heap), q->F, q);
@@ -1153,7 +1190,7 @@ dropit:
     if (q)
 	q->drops++ ;
     m_freem(m);
-    return 0 ; /* XXX should I return an error ? */
+    return ENOBUFS ;
 }
 
 /*
@@ -1524,10 +1561,10 @@ config_pipe(struct dn_pipe *p)
     return 0 ;
 }
 
-	    /*
+/*
  * Helper function to remove from a heap queues which are linked to
  * a flow_set about to be deleted.
-	     */
+*/
 static void
 fs_remove_from_heap(struct dn_heap *h, struct dn_flow_set *fs)
 {
@@ -1553,9 +1590,9 @@ pipe_remove_from_heap(struct dn_heap *h, struct dn_pipe *p)
 	int i = 0 ;
 	for (i=0; i < h->elements ; i++ ) {
 	    if (h->p[i].object == p) { /* found it */
-			h->elements-- ;
-			h->p[i] = h->p[h->elements] ;
-		    heapify(h);
+		h->elements-- ;
+		h->p[i] = h->p[h->elements] ;
+		heapify(h);
 		break ;
 	    }
 	}
@@ -1635,8 +1672,8 @@ delete_pipe(struct dn_pipe *p)
 	/* remove reference to here from extract_heap and wfq_ready_heap */
 	pipe_remove_from_heap(&extract_heap, b);
 	pipe_remove_from_heap(&wfq_ready_heap, b);
-	    splx(s);
-	    free(b, M_IPFW);
+	splx(s);
+	free(b, M_IPFW);
     } else { /* this is a dummynet queue (dn_flow_set) */
 	struct dn_flow_set *a, *b;
 
@@ -1662,7 +1699,7 @@ delete_pipe(struct dn_pipe *p)
 	    fs_remove_from_heap(&(b->pipe->backlogged_heap), b);
 	    fs_remove_from_heap(&(b->pipe->not_eligible_heap), b);
 	    fs_remove_from_heap(&(b->pipe->scheduler_heap), b);
-#if 0	/* XXX should i remove from idle_heap as well ? */
+#if 1	/* XXX should i remove from idle_heap as well ? */
 	    fs_remove_from_heap(&(b->pipe->idle_heap), b);
 #endif
 	}
@@ -1817,7 +1854,7 @@ ip_dn_ctl(struct sockopt *sopt)
 static void
 ip_dn_init(void)
 {
-    printf("DUMMYNET initialized (010116)\n");
+    printf("DUMMYNET initialized (010124)\n");
     all_pipes = NULL ;
     all_flow_sets = NULL ;
     ready_heap.size = ready_heap.elements = 0 ;
