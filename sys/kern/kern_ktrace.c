@@ -473,12 +473,14 @@ ktrcsw(out, user)
 	kc->user = user;
 	ktr_submitrequest(req);
 }
-#endif
+#endif /* KTRACE */
 
 /* Interface and common routines */
 
 /*
  * ktrace system call
+ *
+ * MPSAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ktrace_args {
@@ -506,6 +508,12 @@ ktrace(td, uap)
 	struct nameidata nd;
 	struct ucred *cred;
 
+	/*
+	 * Need something to (un)trace.
+	 */
+	if (ops != KTROP_CLEARFILE && facs == 0)
+		return (EINVAL);
+
 	td->td_inktrace = 1;
 	if (ops != KTROP_CLEAR) {
 		/*
@@ -513,8 +521,10 @@ ktrace(td, uap)
 		 */
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
+		mtx_lock(&Giant);
 		error = vn_open(&nd, &flags, 0);
 		if (error) {
+			mtx_unlock(&Giant);
 			td->td_inktrace = 0;
 			return (error);
 		}
@@ -523,9 +533,11 @@ ktrace(td, uap)
 		VOP_UNLOCK(vp, 0, td);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
+			mtx_unlock(&Giant);
 			td->td_inktrace = 0;
 			return (EACCES);
 		}
+		mtx_unlock(&Giant);
 	}
 	/*
 	 * Clear all uses of the tracefile.
@@ -543,8 +555,10 @@ ktrace(td, uap)
 					p->p_traceflag = 0;
 					mtx_unlock(&ktrace_mtx);
 					PROC_UNLOCK(p);
+					mtx_lock(&Giant);
 					(void) vn_close(vp, FREAD|FWRITE,
 						cred, td);
+					mtx_unlock(&Giant);
 					crfree(cred);
 				} else {
 					PROC_UNLOCK(p);
@@ -557,20 +571,13 @@ ktrace(td, uap)
 		goto done;
 	}
 	/*
-	 * need something to (un)trace (XXX - why is this here?)
-	 */
-	if (!facs) {
-		error = EINVAL;
-		goto done;
-	}
-	/*
 	 * do it
 	 */
+	sx_slock(&proctree_lock);
 	if (uap->pid < 0) {
 		/*
 		 * by process group
 		 */
-		sx_slock(&proctree_lock);
 		pg = pgfind(-uap->pid);
 		if (pg == NULL) {
 			sx_sunlock(&proctree_lock);
@@ -587,37 +594,46 @@ ktrace(td, uap)
 				ret |= ktrsetchildren(td, p, ops, facs, vp);
 			else
 				ret |= ktrops(td, p, ops, facs, vp);
-		sx_sunlock(&proctree_lock);
 	} else {
 		/*
 		 * by pid
 		 */
 		p = pfind(uap->pid);
 		if (p == NULL) {
+			sx_sunlock(&proctree_lock);
 			error = ESRCH;
 			goto done;
 		}
+		/*
+		 * The slock of the proctree lock will keep this process
+		 * from going away, so unlocking the proc here is ok.
+		 */
 		PROC_UNLOCK(p);
-		/* XXX: UNLOCK above has a race */
 		if (descend)
 			ret |= ktrsetchildren(td, p, ops, facs, vp);
 		else
 			ret |= ktrops(td, p, ops, facs, vp);
 	}
+	sx_sunlock(&proctree_lock);
 	if (!ret)
 		error = EPERM;
 done:
-	if (vp != NULL)
+	if (vp != NULL) {
+		mtx_lock(&Giant);
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
+		mtx_unlock(&Giant);
+	}
 	td->td_inktrace = 0;
 	return (error);
-#else
-	return ENOSYS;
-#endif
+#else /* !KTRACE */
+	return (ENOSYS);
+#endif /* KTRACE */
 }
 
 /*
  * utrace system call
+ *
+ * MPSAFE
  */
 /* ARGSUSED */
 int
@@ -650,9 +666,9 @@ utrace(td, uap)
 	req->ktr_header.ktr_len = uap->len;
 	ktr_submitrequest(req);
 	return (0);
-#else
+#else /* !KTRACE */
 	return (ENOSYS);
-#endif
+#endif /* KTRACE */
 }
 
 #ifdef KTRACE
@@ -701,8 +717,11 @@ ktrops(td, p, ops, facs, vp)
 	}
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (tracevp != NULL)
+	if (tracevp != NULL) {
+		mtx_lock(&Giant);
 		vrele(tracevp);
+		mtx_unlock(&Giant);
+	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 
@@ -720,7 +739,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
-	sx_slock(&proctree_lock);
+	sx_assert(&proctree_lock, SX_LOCKED);
 	for (;;) {
 		ret |= ktrops(td, p, ops, facs, vp);
 		/*
@@ -731,10 +750,8 @@ ktrsetchildren(td, top, ops, facs, vp)
 		if (!LIST_EMPTY(&p->p_children))
 			p = LIST_FIRST(&p->p_children);
 		else for (;;) {
-			if (p == top) {
-				sx_sunlock(&proctree_lock);
+			if (p == top)
 				return (ret);
-			}
 			if (LIST_NEXT(p, p_sibling)) {
 				p = LIST_NEXT(p, p_sibling);
 				break;
