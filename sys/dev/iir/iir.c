@@ -48,7 +48,6 @@
 /* #include "opt_iir.h" */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -60,6 +59,7 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/endian.h>
 #include <machine/stdarg.h>
 
 #include <cam/cam.h>
