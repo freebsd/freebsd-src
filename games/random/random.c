@@ -103,8 +103,7 @@ main(argc, argv)
 		/* NOTREACHED */
 	}
 
-	if (srandomdev() < 0)
-		srandom(time(NULL) ^ getpid());
+	srandomdev();
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
