@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.22 1995/02/20 19:42:35 guido Exp $
+ * $Id: kern_sysctl.c,v 1.23 1995/03/16 18:12:37 bde Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include <sys/buf.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/conf.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
@@ -192,6 +193,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	struct proc *p;
 {
 	int error, level, inthostid;
+	dev_t ndumpdev;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF
@@ -293,6 +295,14 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	case KERN_NTP_PLL:
 		return (ntp_sysctl(name + 1, namelen - 1, oldp, oldlenp,
 				   newp, newlen, p));
+	case KERN_DUMPDEV:
+		ndumpdev = dumpdev;
+		error = sysctl_struct(oldp, oldlenp, newp, newlen, &ndumpdev,
+				      sizeof ndumpdev);
+		if (!error && ndumpdev != dumpdev) {
+			error = setdumpdev(ndumpdev);
+		}
+		return error;
 	default:
 		return (EOPNOTSUPP);
 	}
