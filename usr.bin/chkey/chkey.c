@@ -27,9 +27,15 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static char sccsid[] = "@(#)chkey.c 1.7 91/03/11 Copyr 1986 Sun Micro";
+static const char sccsid[] = "@(#)chkey.c 1.7 91/03/11 Copyr 1986 Sun Micro";
 #endif
+
 /*
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
@@ -37,7 +43,6 @@ static char sccsid[] = "@(#)chkey.c 1.7 91/03/11 Copyr 1986 Sun Micro";
 /*
  * Command to change one's public key in the public key database
  */
-#include <stdio.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #ifdef YP
@@ -46,15 +51,17 @@ static char sccsid[] = "@(#)chkey.c 1.7 91/03/11 Copyr 1986 Sun Micro";
 #else
 #define	YPOP_STORE	4
 #endif
-#include <pwd.h>
-#include <string.h>
 #include <sys/fcntl.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
-extern char *getpass();
+#include "extern.h"
+
 #define index strchr
-extern char *crypt();
 #ifdef YPPASSWD
-struct passwd *ypgetpwuid();
+struct passwd *ypgetpwuid(uid_t);
 #endif
 
 #ifdef YP
@@ -65,6 +72,10 @@ static char PKFILE[] = "/etc/publickey";
 #endif	/* YP */
 static char ROOTKEY[] = "/etc/.rootkey";
 
+static void usage(char *);
+extern int yp_update(char *, char *, int, char *, size_t, char *, size_t);
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -228,6 +239,7 @@ main(argc, argv)
 	/* NOTREACHED */
 }
 
+static void
 usage(name)
 	char *name;
 {
@@ -240,6 +252,7 @@ usage(name)
 /*
  * Set the entry in the public key file
  */
+int
 setpublicmap(name, public, secret)
 	char *name;
 	char *public;
