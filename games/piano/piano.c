@@ -15,7 +15,7 @@ char *myname;
 int verbose;
 static char *initcmd = "t160 o1 l16 ml";
 
-static char usage_msg[] =
+static const char usage_msg[] =
 	"simple keyboard player V0.8086\n"
 	"usage: %s [-v][-i str]\n"
 	"\t-i str defaults 't160 o1 l16 ml'\n"
