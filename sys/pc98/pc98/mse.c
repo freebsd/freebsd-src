@@ -287,7 +287,10 @@ mseprobe(idp)
 {
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&mse_cdevsw);
 	/*
 	 * Check for each mouse type in the table.
 	 */
@@ -922,19 +925,5 @@ mse_get98m(port, dx, dy, but)
 	outb(port + INT, INT_ENABLE); /* INT enable */
 }
 #endif
-
-static int mse_devsw_installed;
-
-static void 	mse_drvinit(void *unused)
-{
-
-	if( ! mse_devsw_installed ) {
-		cdevsw_add(&mse_cdevsw);
-		mse_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(msedev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mse_drvinit,NULL)
-
 
 #endif /* NMSE */
