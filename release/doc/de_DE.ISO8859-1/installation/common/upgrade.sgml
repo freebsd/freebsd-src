@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.3 2002/03/12 17:24:26 ue Exp $
-  $Id: upgrade.sgml,v 1.3 2002/03/10 15:37:18 ue Exp $
-  basiert auf: 1.7
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.6 2002/11/09 23:29:49 ue Exp $
+  basiert auf: 1.9
 
 	This section contains the contents of the old UPGRADE.TXT
 	file.
@@ -35,6 +34,22 @@
       System auf eine neuere &os;-Version zu aktualisieren.  Sie
       sollten das <emphasis>nicht</emphasis> versuchen.</para>
   </important>
+
+  <warning>
+    <para>Sie sollten nicht versuchen, Ihr System mit der
+      Upgrade-Funktion von &man.sysinstall.8; von &os; 4-STABLE auf
+      &os; &release.current;  zu aktualisieren.  Einige in &os;
+      4-STABLE vorhandene Dateien f&uuml;hren zu Problemen, sie werden
+      aber bei dieser Art der Aktualisierung nicht entfernt.  Ein
+      drastisches Beispiel ist ein veraltetes
+      <filename>/usr/include/g++</filename>, das dazu f&uuml;hren
+      kann, da&szlig; C++ Programme nicht korrekt (oder gar nicht)
+      &uuml;bersetzt werden.</para>
+
+    <para>Diese Anleitung zur Aktualisierung ist nur f&uuml;r Benutzer
+      gedacht, die schon einen halbwegs aktuellen &os;
+      &release.branch;  Snapshot installiert haben.</para>
+  </warning>
 
   <sect2>
     <title>Einf&uuml;hrung</title>
@@ -165,7 +180,7 @@
 
       <para>Es gibt keine Einschr&auml;nkungen bei der Auswahl der zu
         aktualisierenden Distributionen.  Allerdings sollten Sie die
-        Distribution <literal>bin</literal> auf jeden Fall
+        Distribution <literal>base</literal> auf jeden Fall
         aktualisieren; wenn Sie die Onlinehilfe installiert hatten,
         sollte auch die Distribution <literal>man</literal>
         aktualisieren.  Wenn Sie zus&auml;tzliche Funktionalit&auml;t
