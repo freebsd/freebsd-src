@@ -36,9 +36,11 @@
 #define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
 #define ROUND(x) ((x) & DMA_ALIGN_MASK)
+
 /*
 #define DEB(x) x
 */
+
 static void buf_clear(snd_dbuf *b, u_int32_t fmt, int length);
 static void chn_dmaupdate(pcm_channel *c);
 static void chn_wrintr(pcm_channel *c);
@@ -263,10 +265,9 @@ chn_wrfeed(pcm_channel *c)
 		bs->fl = 0;
 		a = 0;
 	}
-	/*
-	printf("b: [rl: %d, rp %d, fl %d, fp %d]; bs: [rl: %d, rp %d, fl %d, fp %d]\n",
-		b->rl, b->rp, b->fl, b->fp, bs->rl, bs->rp, bs->fl, bs->fp);
-	*/
+    	DEB(if (c->flags & CHN_F_CLOSING)
+		printf("b: [rl: %d, rp %d, fl %d, fp %d]; bs: [rl: %d, rp %d, fl %d, fp %d]\n",
+			b->rl, b->rp, b->fl, b->fp, bs->rl, bs->rp, bs->fl, bs->fp));
 	/* Don't allow write unaligned data */
 	while (bs->rl > a && b->fl > a) {
 		/* ensure we always have a whole number of samples */
@@ -939,22 +940,25 @@ chn_resetbuf(pcm_channel *c)
 void
 buf_isadma(snd_dbuf *b, int go)
 {
-	if (ISA_DMA(b)) {
-		switch (go) {
-		case PCMTRIG_START:
-			DEB(printf("buf 0x%p ISA DMA started\n", b));
-			isa_dmastart(b->dir | ISADMA_RAW, b->buf,
-					b->bufsize, b->chan);
-			break;
-		case PCMTRIG_STOP:
-		case PCMTRIG_ABORT:
-			DEB(printf("buf 0x%p ISA DMA stopped\n", b));
-			isa_dmastop(b->chan);
-			isa_dmadone(b->dir | ISADMA_RAW, b->buf, b->bufsize,
-				    b->chan);
-			break;
-		}
-    	} else KASSERT(1, ("buf_isadma called on invalid channel"));
+	KASSERT(b, ("buf_isadma called with b == NULL"));
+	KASSERT(ISA_DMA(b), ("buf_isadma called on non-ISA channel"));
+
+	switch (go) {
+	case PCMTRIG_START:
+		isa_dmastart(b->dir | ISADMA_RAW, b->buf, b->bufsize, b->chan);
+		break;
+
+	case PCMTRIG_STOP:
+	case PCMTRIG_ABORT:
+		isa_dmastop(b->chan);
+		isa_dmadone(b->dir | ISADMA_RAW, b->buf, b->bufsize, b->chan);
+		break;
+	}
+
+	DEB(printf("buf 0x%p ISA DMA %s, channel %d\n",
+		b,
+		(go == PCMTRIG_START)? "started" : "stopped",
+		b->chan));
 }
 
 int
@@ -1071,11 +1075,15 @@ chn_flush(pcm_channel *c)
     	snd_dbuf *bs = &c->buffer2nd;
 
     	DEB(printf("chn_flush c->flags 0x%08x\n", c->flags));
+	if (!b->dl)
+		return 0;
+
     	c->flags |= CHN_F_CLOSING;
     	if (c->direction == PCMDIR_REC)
 		chn_abort(c);
-    	else if (b->dl) {
-		resid_p = resid = b->rl + bs->rl;
+    	else {
+		resid = b->rl + bs->rl;
+		resid_p = resid;
 		count = 10;
 		while ((count > 0) && (resid > 0) && !b->underflow) {
 			/* still pending output data. */
@@ -1087,7 +1095,7 @@ chn_flush(pcm_channel *c)
  			s = spltty();
 			chn_dmaupdate(c);
 			splx(s);
-			DEB(printf("chn_flush: now rl = %d, fl = %d\n", b->rl, b->fl));
+			DEB(printf("chn_flush: now rl = %d, fl = %d, resid = %d\n", b->rl, b->fl, resid));
 			resid = b->rl + bs->rl;
 			if (resid >= resid_p)
 				count--;
@@ -1095,7 +1103,7 @@ chn_flush(pcm_channel *c)
    		}
 		if (count == 0)
 			DEB(printf("chn_flush: timeout flushing dbuf_out, cnt 0x%x flags 0x%x\n", b->rl, c->flags));
-    		if (c->direction == PCMDIR_PLAY && b->dl)
+    		if (b->dl)
 			chn_abort(c);
 	}
     	c->flags &= ~CHN_F_CLOSING;
