@@ -493,8 +493,9 @@ usage()
 #ifdef KERBEROS
 		"k"
 #endif
-		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
-		"            [-h level] [-s feet] [-T date] filesystem\n"
+		"nu] [-B records] [-b blocksize] [-D dumpdates]\n"
+		"            [-d density] [-f file ] [-h level] [-s feet] "
+		"[-T date] filesystem\n"
 		"       dump [-W | -w]\n");
 	exit(X_STARTUP);
 }
