@@ -496,6 +496,7 @@ dev/hme/if_hme_pci.c	optional hme pci
 dev/hme/if_hme_sbus.c	optional hme sbus
 dev/ichsmb/ichsmb.c	optional ichsmb
 dev/ichsmb/ichsmb_pci.c	optional ichsmb pci
+dev/ichwd/ichwd.c	optional ichwd
 dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
