@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.7 1999/02/28 02:12:18 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.8 1999/06/28 01:57:50 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -60,6 +64,9 @@ revive_block(int sdno)
     int size;						    /* size of revive block, bytes */
     int s;						    /* priority level */
     daddr_t plexblkno;					    /* lblkno in plex */
+    int psd;						    /* parity subdisk number */
+    int stripe;						    /* stripe number */
+    int isparity = 0;					    /* set if this is the parity stripe */
 
     plexblkno = 0;					    /* to keep the compiler happy */
     sd = &SD[sdno];
@@ -116,10 +123,84 @@ revive_block(int sdno)
 	break;
 
     case plex_raid5:
+	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
+	plexblkno = sd->plexoffset			    /* base */
+	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
+	    +sd->revived % plex->stripesize;		    /* offset from beginning of stripe */
+	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
+	psd = plex->subdisks - 1 - stripe % plex->subdisks; /* parity subdisk for this stripe */
+	isparity = plex->sdnos[psd] == sdno;		    /* note if it's the parity subdisk */
+	/*
+	 * Now adjust for the strangenesses 
+	 * in RAID-5 striping 
+	 */
+	if (sd->plexsdno > psd)				    /* beyond the parity stripe, */
+	    plexblkno -= plex->stripesize;		    /* one stripe less */
+	break;
     case plex_disorg:					    /* to keep the compiler happy */
     }
 
-    {
+    if (isparity) {					    /* we're reviving a parity block, */
+	int mysdno;
+	int *tbuf;					    /* temporary buffer to read the stuff in to */
+	caddr_t parity_buf;				    /* the address supplied by geteblk */
+	int isize;
+	int i;
+
+	tbuf = (int *) Malloc(size);
+	isize = size / (sizeof(int));			    /* number of ints in the buffer */
+	/*
+	 * We have calculated plexblkno assuming it
+	 * was a data block.  Go back to the beginning
+	 * of the band 
+	 */
+	plexblkno -= plex->stripesize * sd->plexsdno;
+
+	/*
+	 * Read each subdisk in turn, except for
+	 * this one, and xor them together 
+	 */
+	parity_buf = bp->b_data;			    /* save the buffer getblk gave us */
+	bzero(parity_buf, size);			    /* start with nothing */
+	bp->b_data = (caddr_t) tbuf;			    /* read into here */
+	for (mysdno = 0; mysdno < plex->subdisks; mysdno++) { /* for each subdisk */
+	    if (mysdno != sdno) {			    /* not our subdisk */
+		if (vol != NULL)			    /* it's part of a volume, */
+		    /*
+		       * First, read the data from the volume.  We don't
+		       * care which plex, that's the driver's job 
+		     */
+		    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
+		else					    /* it's an unattached plex */
+		    bp->b_dev = VINUMRBDEV(sd->plexno, VINUM_RAWPLEX_TYPE); /* create the device number */
+
+		bp->b_blkno = plexblkno;		    /* read from here */
+		bp->b_flags = B_READ;			    /* either way, read it */
+		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
+		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
+		vinumstart(bp, 1);
+		biowait(bp);
+		if (bp->b_flags & B_ERROR)		    /* can't read, */
+		    /*
+		       * If we have a read error, there's nothing
+		       * we can do.  By this time, the daemon has
+		       * already run out of magic 
+		     */
+		    break;
+		/*
+		 * To save time, we do the XOR wordwise.  This
+		 * requires sectors to be a multiple of the
+		 * length of an int, which is currently always
+		 * the case 
+		 */
+		for (i = 0; i < isize; i++)
+		    ((int *) parity_buf)[i] ^= tbuf[i];	    /* xor in the buffer */
+		plexblkno += plex->stripesize;		    /* move on to the next subdisk */
+	    }
+	}
+	bp->b_data = parity_buf;			    /* put the buf header back the way it was */
+	Free(tbuf);
+    } else {
 	bp->b_blkno = plexblkno;			    /* start here */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
