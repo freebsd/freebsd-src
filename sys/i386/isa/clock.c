@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.90 1997/07/18 03:59:28 fsmp Exp $
+ *	$Id: clock.c,v 1.91 1997/07/19 02:28:29 fsmp Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 #include <machine/ipl.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
-#include <machine/smptests.h>		/** TEST_ALTTIMER */
+#include <machine/smptests.h>		/** TEST_ALTTIMER, APIC_PIN0_TIMER */
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
@@ -874,12 +874,27 @@ cpu_initclocks()
 
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
-#if 0
-#ifndef IO_ICU1
-#define IO_ICU1			0x20
-#endif /* IO_ICU1 */
-#endif /** 0 */
+#ifdef APIC_PIN0_TIMER
+	/*
+	 * Allow 8254 timer to INTerrupt 8259:
+	 *  re-initialize master 8259:
+	 *   reset; prog 4 bytes, single ICU, edge triggered
+	 */
+	outb(IO_ICU1, 0x13);
+	outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
+	outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
+	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
+	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
 
+	/* program IO APIC for type 3 INT on INT0 */
+	if (ext_int_setup(0, 0) < 0)
+		panic("8254 redirect via APIC pin0 impossible!");
+
+	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
+		      /* unit */ 0);
+	INTREN(IRQ0);
+#else /* APIC_PIN0_TIMER */
 	/* 8254 is traditionally on ISA IRQ0 */
 	if ((x = isa_apic_pin(0)) < 0) {
 		/* bummer, attempt to redirect thru the 8259 */
@@ -917,7 +932,8 @@ cpu_initclocks()
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
 	INTREN(mask8254);
-#else
+#endif /* APIC_PIN0_TIMER */
+#else /* APIC_IO */
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
