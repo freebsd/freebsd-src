@@ -127,7 +127,7 @@
     <para>More information on &os; release engineering processes can be found
       on the <ulink
       url="http://www.FreeBSD.org/releng/index.html">Release
-      Engineering Web pages</ulink> and in the &os; <ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">Release
+      Engineering Web pages</ulink> and in the &os; <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/index.html">Release
       Engineering</ulink> article.</para>
 
   </sect1>
@@ -164,8 +164,8 @@
       </listitem>
 
       <listitem>
-	<para>GCC:  The compiler toolchain is now based on GCC
-	  3.<replaceable>X</replaceable>, rather than GCC
+	<para>GCC:  The compiler toolchain is now based on a GCC
+	  3.2.1 pre-release snapshot, rather than GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
 
@@ -222,7 +222,9 @@
       <listitem>
         <para>Because of changes in kernel data structures and
           ABIs/APIs, third-party binary device drivers will require
-          modifications to work correctly under &os; 5.0.</para>
+          modifications to work correctly under &os; 5.0.  There is
+          a possibility of more minor ABI/API changes before the
+          5-STABLE branch is created.</para>
       </listitem>
 
       <listitem>
@@ -263,6 +265,14 @@
           -STABLE branch.  (It is likely that the 5-STABLE development
           branch will be created sometime after 5.1-RELEASE or
           5.2-RELEASE.)</para>
+      </listitem>
+
+      <listitem>
+	<para>Documentation (such as the &os; <ulink
+          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.html">Handbook</ulink>
+          and <ulink
+          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html">FAQ</ulink>)
+          may not reflect changes recently made to &os; 5.0.</para>
       </listitem>
 
     </itemizedlist>
@@ -335,14 +345,17 @@
       <para>As of this time, the binary upgrade option in
         &man.sysinstall.8; has not been well-tested for
         cross-major-version upgrades.  Using this feature is not
-        recommended.</para>
+        recommended.  In particular, a binary upgrade will leave
+        behind a number of files that are present in &os;
+        4.<replaceable>X</replaceable> but not in 5.0.  These obsolete
+        files may create some problems.</para>
 
       <para>On the i386 and pc98 platforms, a UserConfig utility
         exists on 4-STABLE to allow boot-time configuration of ISA
         devices when booting from installation media.  Under &os;
         5.0, this functionality has been replaced in part by the
         &man.device.hints.5; mechanism (it allows specifying the same
-        parameters, but is not interactive).</para>
+        parameters, but with a very different interface).</para>
 
       <para>Floppy-based binary installations may require downloading
         a third, new floppy image holding additional device drivers
@@ -383,7 +396,15 @@
         difficulties which made updates problematic.  
         The base system utilities that used Perl have either
         been rewritten (if still applicable) or discarded (if
-        obsolete).</para>
+        obsolete).<para>
+
+      <para>Some scripts expect to find a Perl interpreter at
+        <filename>/usr/bin/perl</filename>.  The
+        <filename>use.perl</filename> command, a part of the Perl
+        port, can be used to create an appropriate set of symbolic
+        links for them.  In particular, <command>use.perl
+        port</command> will generally set things up as
+        expected.</para>
 
       <para>It is generally possible to run old
         4.<replaceable>X</replaceable> executables under
