@@ -39,6 +39,8 @@
 .Nm stty ,
 .Nm gtty
 .Nd set and get terminal state (defunct)
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <sgtty.h>
 .Ft int
@@ -48,7 +50,6 @@
 .Sh DESCRIPTION
 .Bf -symbolic
 These interfaces are obsoleted by ioctl(2).
-They are available from the compatibility library, libcompat.
 .Ef
 .Pp
 The

@@ -37,6 +37,8 @@
 .Sh NAME
 .Nm cuserid
 .Nd get user name associated with effective UID
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <stdio.h>
 .Ft char *
@@ -47,7 +49,6 @@ The
 .Fn cuserid
 function is made obsolete by
 .Xr getpwuid 3 .
-It is available from the compatibility library, libcompat.
 .Ef
 .Pp
 The function
