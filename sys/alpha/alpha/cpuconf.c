@@ -122,41 +122,46 @@ extern void api_up1000_init(int);
 #endif
 
 struct cpuinit cpuinit[] = {
-	cpu_notsupp("???"),			     /*  0: ??? */
-	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
-	cpu_notsupp("ST_DEC_4000"),		     /*  2: ST_DEC_4000 */
-	cpu_notsupp("ST_DEC_7000"),		     /*  3: ST_DEC_7000 */
-	cpu_notsupp("DEC_3000_500"),		     /*  4: ST_DEC_3000_500 */
-	cpu_notsupp("???"),			     /*  5: ??? */
-	cpu_notsupp("ST_DEC_2000_300"),		     /*  6: ST_DEC_2000_300 */
-	cpu_notsupp("DEC_3000_300"),  		     /*  7: ST_DEC_3000_300 */
-	cpu_init(avalon_a12_init,"ST_AVALON_A12"),   /*  8: ST_AVALON_A12 */
-	cpu_init(dec_2100_a500_init, "ST_DEC_2100_A500"),	/*  9: ST_DEC_2100_A500 */
-	cpu_notsupp("ST_DEC_APXVME_64"),	     /* 10: ST_DEC_APXVME_64 */
-	cpu_init(dec_axppci_33_init,"DEC_AXPPCI_33"),/* 11: ST_DEC_AXPPCI_33 */
-	cpu_init(dec_kn8ae_init,"DEC_KN8AE"),	     /* 12: ST_DEC_21000 */
-	cpu_init(dec_2100_a50_init,"DEC_2100_A50"),  /* 13: ST_DEC_2100_A50 */
-	cpu_notsupp("ST_DEC_MUSTANG"),		     /* 14: ST_DEC_MUSTANG */
-	cpu_init(dec_kn20aa_init,"DEC_KN20AA"),	     /* 15: ST_DEC_KN20AA */
-	cpu_notsupp("???"),			     /* 16: ??? */
-	cpu_init(dec_1000a_init, "ST_DEC_1000"),     /* 17: ST_DEC_1000 */
-	cpu_notsupp("???"),			     /* 18: ??? */
-	cpu_notsupp("ST_EB66"),			     /* 19: ST_EB66 */
-	cpu_init(dec_eb64plus_init,"DEC_EB64PLUS"),  /* 20: ST_EB64P */
-	cpu_notsupp("ST_ALPHABOOK1"),		     /* 21: ST_ALPHABOOK1 */
-	cpu_init(dec_kn300_init,"DEC_KN300"),	     /* 22: ST_DEC_4100 */
-	cpu_notsupp("ST_DEC_EV45_PBP"),		     /* 23: ST_DEC_EV45_PBP */
-	cpu_init(dec_2100_a500_init, "ST_DEC_2100A_A500"), /* 24: ST_DEC_2100A_A500 */
-	cpu_notsupp("???"),			     /* 25: ??? */
-	cpu_init(dec_eb164_init,"DEC_EB164"),	     /* 26: ST_EB164 */
-	cpu_init(dec_1000a_init,"ST_DEC_1000A"),     /* 27: ST_DEC_1000A */
-	cpu_notsupp("ST_DEC_ALPHAVME_224"),	   /* 28: ST_DEC_ALPHAVME_224 */
-	cpu_notsupp("???"),			     /* 29: ??? */
-	cpu_init(st550_init,"DEC_ST550"),            /* 30: ST_DEC_550 */
-	cpu_notsupp("???"),			     /* 31: ??? */
-	cpu_notsupp("ST_DEC_EV56_PBP"),		     /* 32: ST_DEC_EV56_PBP */
-	cpu_notsupp("ST_DEC_ALPHAVME_320"),	   /* 33: ST_DEC_ALPHAVME_320 */
-	cpu_init(st6600_init, "ST_DEC_ST6600"),	     /* 34: ST_DEC_6600 */
+	cpu_notsupp("???"),				/*  0: ??? */
+	cpu_notsupp("ST_ADU"),				/*  1: ADU */
+	cpu_notsupp("ST_DEC_4000"),			/*  2: Cobra */
+	cpu_notsupp("ST_DEC_7000"),			/*  3: Ruby */
+	cpu_notsupp("DEC_3000_500"),			/*  4: Flamingo */
+	cpu_notsupp("???"),				/*  5: simulator */
+	cpu_notsupp("ST_DEC_2000_300"),			/*  6: Jensen */
+	cpu_notsupp("DEC_3000_300"),			/*  7: Pelican */
+	cpu_init(avalon_a12_init,"ST_AVALON_A12"),	/*  8: AVALON */
+	cpu_init(dec_2100_a500_init, "ST_DEC_2100_A500"), /*  9: Sable */
+	cpu_notsupp("ST_DEC_APXVME_64"),		/* 10: AXPvme */
+	cpu_init(dec_axppci_33_init,"DEC_AXPPCI_33"),	/* 11: NoName */
+	cpu_init(dec_kn8ae_init,"DEC_KN8AE"),		/* 12: Turbolaser */
+	cpu_init(dec_2100_a50_init,"DEC_2100_A50"),	/* 13: Avanti */
+	cpu_notsupp("ST_DEC_MUSTANG"),			/* 14: Mustang */
+	cpu_init(dec_kn20aa_init,"DEC_KN20AA"),		/* 15: Alcor */
+	cpu_notsupp("cancelled"),			/* 16: cancelled */
+	cpu_init(dec_1000a_init, "ST_DEC_1000"),	/* 17: Mikasa */
+	cpu_notsupp("ST_DEC_EB64"),			/* 18: EB64 */
+	cpu_notsupp("ST_EB66"),				/* 19: EB66 */
+	cpu_init(dec_eb64plus_init,"DEC_EB64PLUS"),	/* 20: EB64+ */
+	cpu_notsupp("ST_ALPHABOOK1"),			/* 21: AlphaBook */
+	cpu_init(dec_kn300_init,"DEC_KN300"),		/* 22: Rawhide */
+	cpu_notsupp("ST_DEC_EV45_PBP"),			/* 23: K2 */
+	cpu_init(dec_2100_a500_init, "ST_DEC_2100A_A500"), /* 24: Lynx */
+	cpu_notsupp("ST_DEC_ALPHAXL"),			/* 25: AlphaXL */
+	cpu_init(dec_eb164_init,"DEC_EB164"),		/* 26: EB164 */
+	cpu_init(dec_1000a_init,"ST_DEC_1000A"),	/* 27: Noritake */
+	cpu_notsupp("ST_DEC_ALPHAVME_224"),		/* 28: Cortex */
+	cpu_notsupp("unused"),				/* 29: unused */
+	cpu_init(st550_init,"DEC_ST550"),		/* 30: Miata */
+	cpu_notsupp("ST_DEC_XXM"),			/* 31: XXM */
+	cpu_notsupp("ST_DEC_EV56_PBP"),			/* 32: Takara */
+	cpu_notsupp("ST_DEC_ALPHAVME_320"),		/* 33: Yukon */
+	cpu_init(st6600_init, "ST_DEC_ST6600"),		/* 34: Tsunami */
+	cpu_notsupp("ST_DEC_WILDFIRE"),			/* 35: Wildfire */
+	cpu_notsupp("ST_DEC_CUSCO"),		     	/* 36: Cusco */
+	cpu_notsupp("ST_DEC_EIGER"),			/* 37: Eiger */
+	cpu_notsupp("ST_DEC_TITAN"),			/* 38: Titan */
+	cpu_notsupp("ST_DEC_MARVEL")			/* 39: Marvel */
 };
 int ncpuinit = (sizeof(cpuinit) / sizeof(cpuinit[0]));
 
