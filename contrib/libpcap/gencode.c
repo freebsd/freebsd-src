@@ -564,6 +564,11 @@ init_linktype(type)
 		off_nl = 6;	/* XXX in reality, variable! */
 		return;
 
+	case DLT_IEEE802_11:
+		off_linktype = 30; /* XXX variable */
+		off_nl = 32;
+		return;
+
 	case DLT_EN10MB:
 		off_linktype = 12;
 		off_nl = 14;
@@ -659,6 +664,7 @@ init_linktype(type)
 		off_nl = 22;
 		return;
 
+#ifdef notdef
 	case DLT_IEEE802_11:
 		/*
 		 * 802.11 doesn't really have a link-level type field.
@@ -675,6 +681,7 @@ init_linktype(type)
 		off_linktype = 24;
 		off_nl = 30;
 		return;
+#endif
 
 	case DLT_PRISM_HEADER:
 		/*
