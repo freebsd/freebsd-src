@@ -5,10 +5,14 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011126:
+	You need to remove /usr/obj/.../usr.bin/tip before rebuilding
+	after this date.
+
 20011103:
 	Most of the awk issues have been resolved.  Some rough
 	edges may be left, but for the most part things should be
-	back to "normal." For CURRENT's usual definition of "normal.
+	back to "normal." For CURRENT's usual definition of "normal."
 
 20011030:
 	Awk has been upgraded to the one true awk from bell labs.  Expect
