@@ -1657,7 +1657,6 @@ issignal(td)
 #endif
 				break;		/* == ignore */
 			}
-#if 0
 			/*
 			 * If there is a pending stop signal to process
 			 * with default action, stop here,
@@ -1679,16 +1678,9 @@ issignal(td)
 				PROC_UNLOCK(p->p_pptr);
 				mtx_lock_spin(&sched_lock);
 				stop(p);
-				PROC_UNLOCK(p);
-				DROP_GIANT();
-				p->p_stats->p_ru.ru_nivcsw++;
-				mi_switch();
 				mtx_unlock_spin(&sched_lock);
-				PICKUP_GIANT();
-				PROC_LOCK(p);
 				break;
 			} else
-#endif
 			     if (prop & SA_IGNORE) {
 				/*
 				 * Except for SIGCONT, shouldn't get here.
