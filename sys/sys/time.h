@@ -38,6 +38,7 @@
 #define _SYS_TIME_H_
 
 #include <sys/types.h>
+#include <sys/timespec.h>
 
 /*
  * Structure returned by gettimeofday(2) system call,
@@ -47,25 +48,6 @@ struct timeval {
 	long	tv_sec;		/* seconds */
 	long	tv_usec;	/* and microseconds */
 };
-
-#ifndef _TIMESPEC_DECLARED
-#define _TIMESPEC_DECLARED
-struct timespec {
-	time_t	tv_sec;		/* seconds */
-	long	tv_nsec;	/* and nanoseconds */
-};
-#endif
-
-#define	TIMEVAL_TO_TIMESPEC(tv, ts)					\
-	do {								\
-		(ts)->tv_sec = (tv)->tv_sec;				\
-		(ts)->tv_nsec = (tv)->tv_usec * 1000;			\
-	} while (0)
-#define	TIMESPEC_TO_TIMEVAL(tv, ts)					\
-	do {								\
-		(tv)->tv_sec = (ts)->tv_sec;				\
-		(tv)->tv_usec = (ts)->tv_nsec / 1000;			\
-	} while (0)
 
 struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
@@ -79,6 +61,7 @@ struct timezone {
 #define	DST_EET		5	/* Eastern European dst */
 #define	DST_CAN		6	/* Canada */
 
+#if __BSD_VISIBLE
 struct bintime {
 	time_t	sec;
 	uint64_t frac;
@@ -166,6 +149,7 @@ timeval2bintime(struct timeval *tv, struct bintime *bt)
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
 }
+#endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
 
