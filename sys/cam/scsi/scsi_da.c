@@ -25,14 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.4 1998/09/19 04:59:35 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.5 1998/09/20 07:17:11 gibbs Exp $
  */
 
+#include "opt_hw_wdog.h"
+
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/dkbad.h>
@@ -41,8 +41,8 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 
-#include <machine/cons.h>	/* For cncheckc */
-#include <machine/md_var.h>	/* For Maxmem */
+#include <machine/cons.h>
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -53,12 +53,8 @@
 #include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
-#include <cam/cam_debug.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_da.h>
-
 
 typedef enum {
 	DA_STATE_PROBE,
@@ -109,11 +105,6 @@ struct da_softc {
 	struct	 disk_params params;
 	struct	 diskslices *dk_slices;	/* virtual drives */
 	union	 ccb saved_ccb;
-#ifdef	DEVFS
-	void	*b_devfs_token;
-	void	*c_devfs_token;
-	void	*ctl_devfs_token;
-#endif
 };
 
 static	d_open_t	daopen;
@@ -234,20 +225,17 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
-		    
-		if (softc->dk_slices != NULL) {
-			/*
-			 * If any partition is open, but the disk has
-			 * been invalidated, disallow further opens.
-			 */
-			if (dsisopen(softc->dk_slices)) {
-				cam_periph_unlock(periph);
-				return(ENXIO);
-			}
-
-			/* Invalidate our pack information */
-			dsgone(&softc->dk_slices);
+		/*
+		 * If any partition is open, although the disk has
+		 * been invalidated, disallow further opens.
+		 */
+		if (dsisopen(softc->dk_slices)) {
+			cam_periph_unlock(periph);
+			return (ENXIO);
 		}
+
+		/* Invalidate our pack information. */
+		dsgone(&softc->dk_slices);
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
 	}
 
@@ -284,9 +272,25 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	if (error == 0) {
+		struct ccb_getdev cgd;
+
 		/* Build label for whole disk. */
 		bzero(&label, sizeof(label));
 		label.d_type = DTYPE_SCSI;
+
+		/*
+		 * Grab the inquiry data to get the vendor and product names.
+		 * Put them in the typename and packname for the label.
+		 */
+		xpt_setup_ccb(&cgd.ccb_h, periph->path, /*priority*/ 1);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+
+		strncpy(label.d_typename, cgd.inq_data.vendor,
+			min(SID_VENDOR_SIZE, sizeof(label.d_typename)));
+		strncpy(label.d_packname, cgd.inq_data.product,
+			min(SID_PRODUCT_SIZE, sizeof(label.d_packname)));
+		
 		label.d_secsize = softc->params.secsize;
 		label.d_nsectors = softc->params.secs_per_track;
 		label.d_ntracks = softc->params.heads;
@@ -347,6 +351,10 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 	}
 
 	dsclose(dev, fmt, softc->dk_slices);
+	if (dsisopen(softc->dk_slices)) {
+		cam_periph_unlock(periph);
+		return (0);
+	}
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
@@ -1210,53 +1218,32 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						scsi_sense_desc(asc,ascq,
 								&cgd.inq_data));
 				else { 
-					/*
-					 * If we have sense information, go
-					 * ahead and print it out.
-					 * Otherwise, just say that we 
-					 * couldn't attach.
-					 */
-					if ((have_sense) && (asc || ascq) 
-					 && (error_code == SSD_CURRENT_ERROR))
-						sprintf(announce_buf, 
-							"fatal error: %s, %s "
-							"-- failed to attach "
-							"to device",
-						scsi_sense_key_text[sense_key], 
-						scsi_sense_desc(asc,ascq,
-								&cgd.inq_data));
-					else 
-						sprintf(announce_buf, 
-							"fatal error, failed" 
-							" to attach to device");
+					if (have_sense)
+						scsi_sense_print(
+							&done_ccb->csio);
+					else {
+						xpt_print_path(periph->path);
+						printf("got CAM status %#x\n",
+						       done_ccb->ccb_h.status);
+					}
 
-					/*
-					 * Just print out the error, not
-					 * the full probe message, when we
-					 * don't attach.
-					 */
-					printf("%s%d: %s\n", 
-					       periph->periph_name,
-					       periph->unit_number,
-						announce_buf);
-					scsi_sense_print(&done_ccb->csio);
+					xpt_print_path(periph->path);
+					printf("fatal error, failed" 
+					       " to attach to device");
 
 					/*
 					 * Free up resources.
 					 */
-					cam_extend_release(daperiphs,
-							   periph->unit_number);
 					cam_periph_invalidate(periph);
-					periph = NULL;
+					announce_buf[0] = '\0';
 				} 
 			}
 		}
 		free(rdcap, M_TEMP);
-		if (periph != NULL) {
+		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
-			softc->state = DA_STATE_NORMAL;		
-			cam_periph_unlock(periph);
-		}
+		softc->state = DA_STATE_NORMAL;		
+		cam_periph_unlock(periph);
 		break;
 	}
 	case DA_CCB_WAITING:
