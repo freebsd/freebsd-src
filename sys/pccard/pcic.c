@@ -500,8 +500,11 @@ pcic_probe(device_t dev)
 		cinfo.maxio	= 2;	/* fake for UE2212 LAN card */
 #endif  
 		validslots++;
-		/* XXX Do I need to allocated the port resources? */
-		device_set_desc(dev, "NEC PC98 Original PCMCIA Controller");
+		slt = pccard_alloc_slot(&cinfo);
+		slt->cdata = sp;
+		sp->slt = slt;
+		/* XXX need to allocated the port resources */
+		device_set_desc(dev, "MECIA PC98 Original PCMCIA Controller");
 	}
 #endif  /* PC98 */
 	return(validslots ? 0 : ENXIO);
