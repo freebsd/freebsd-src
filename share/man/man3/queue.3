@@ -887,7 +887,7 @@ TAILQ_FOREACH(np, &head, entries)
 TAILQ_FOREACH_REVERSE(np, &head, tailhead, entries)
 	np-> ...
 					/* TailQ Deletion. */
-while (!TAILQ_EMPTY(head)) {
+while (!TAILQ_EMPTY(&head)) {
 	n1 = TAILQ_FIRST(&head);
 	TAILQ_REMOVE(&head, n1, entries);
 	free(n1);
