@@ -44,10 +44,4 @@
 
 #define	NSWI		7
 
-/*
- * astpending bits
- */
-#define	AST_PENDING	0x00000001
-#define	AST_RESCHED	0x00000002
-
 #endif /* !_MACHINE_IPL_H_ */
