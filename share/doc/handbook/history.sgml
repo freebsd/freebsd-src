@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.8 1995/10/24 02:23:42 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.9 1995/11/14 13:54:06 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -87,13 +87,13 @@ We also intend to focus on any remaining areas of weakness, like documentation
 or missing drivers, and steadily increase the overall quality and feature set
 of the system well into 1996 and beyond.
 
-It should also be noted that the development of FreeBSD is <b>not</b> a closed
+It should also be noted that the development of FreeBSD is <em>not</em> a closed
 process, despite some popular misconceptions to the contrary, and anyone
 is free to contribute code or ideas.  Once a contributor has established
 a reasonable track record for reliability, we generally even give them direct
 access to the central source tree (kept under CVS) where their changes will
 propagate automatically to all users of FreeBSD.  Our centralised development
-model is designed for the convenience of the <b>users</b> of FreeBSD, who
+model is designed for the convenience of the <em>users</em> of FreeBSD, who
 are thus provided with an easy way of tracking one central code base, not
 to keep potential contributors out!  Anyone and everyone is free to
 contribute, and people who've shown a consistent and significant dedication
