@@ -39,7 +39,8 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: hub.mc,v 1.1.4.1 1997/08/14 15:03:42 peter Exp $')
+include(../m4/cf.m4)
+VERSIONID(`$Id: hub.mc,v 1.1.4.2 1997/08/22 16:55:31 peter Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -80,3 +81,42 @@ define(`confFORWARD_PATH', `/var/forward/$u')dnl
 
 LOCAL_CONFIG
 Cw localhost freefall.freebsd.org
+
+Kdenyip hash -o -a.REJECT /etc/mail/denyip.db
+Kspamsites hash -o -a.REJECT /etc/mail/spamsites.db
+
+Scheck_relay
+# called with host.tld and IP address of connecting host.
+# ip address must NOT be in the "denyip" database
+R$* $| [$+		$1 $| $2			should not be needed
+R$* $| $+]		$1 $| $2			same (bat 2nd ed p510)
+R$* $| $*		$: $1 $| $(denyip $2 $)
+R$* $| $*.REJECT	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($2)
+# host must *not* be in the "spamsites" database
+R$+.$+.$+ $| $*		$2.$3 $| $4
+R$+.$+ $| $*		$: $(spamsites $1.$2 $) $| $3
+R$*.REJECT $| $*	$#error $: 521 blocked. contact postmaster@FreeBSD.ORG ($1)
+# Host must be resolvable
+#R$* $| $*		$: <?> <$1 $| $2> $>3 foo@$1
+#R<?> <$*> $*<@$*.>	$: $1
+#R<?> <$*> $*<@$*>	$#error $: 451 Domain does not resolve ($1)
+
+# spamsites database optional--fail safe, deliver the mail. 
+Scheck_mail
+# called with envelope sender, "Mail From: xxx", of SMTP conversation
+#
+# can't force DNS, Poul-Henning Kamp and others dont resolve
+# <root@dgbmsu1.s2.dgb.tfs>... Domain does not resolve
+#
+R$*			$: <?> $>3 $1
+R<?> $* < @ $+ . >	$: $2 
+# R<?> $* < @ $+ >	$#error $: "451 Domain does not resolve"
+R<?> $* < @ $+ >	$: $2
+R$+.$+.$+		$2.$3  
+R$*			$: $(spamsites $1 $: OK $)
+ROK			$@ OK 
+R$+.REJECT		$#error $: 521 $1 
+
+Sxlat						# for sendmail -bt
+R$* $$| $*		$: $1 $| $2
+R$* $| $*		$@ $>check_relay $1 $| $2
