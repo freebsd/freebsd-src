@@ -1351,6 +1351,9 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 #ifdef INVARIANT_SUPPORT
 	struct lock_instance *instance;
 
+	if (lock->lo_witness == NULL || witness_dead)
+		return;
+
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) != 0)
 		instance = find_instance(curproc->p_sleeplocks, lock);
 	else if ((lock->lo_class->lc_flags & LC_SPINLOCK) != 0)
