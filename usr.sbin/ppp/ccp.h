@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.3.2.2 1997/08/25 00:34:21 brian Exp $
+ * $Id: ccp.h,v 1.3.2.3 1998/01/26 20:04:19 brian Exp $
  *
  *	TODO:
  */
@@ -48,8 +48,8 @@ struct ccpstate {
   int out_init;			/* Init called for out algorithm */
   int in_init;			/* Init called for in algorithm */
 
-  u_long uncompout, compout;
-  u_long uncompin, compin;
+  u_long uncompout, compout;	/* Outgoing bytes before/after compression */
+  u_long uncompin, compin;	/* Incoming bytes after/before decompression */
 };
 
 extern struct ccpstate CcpInfo;
