@@ -1,5 +1,5 @@
 #! /usr/bin/awk -f
-#	$NetBSD: devlist2h.awk,v 1.6 1999/08/17 16:06:20 augustss Exp $
+#	$NetBSD: usb/devlist2h.awk,v 1.9 2001/01/18 20:28:22 jdolecek Exp $
 #  $FreeBSD$
 #
 # Copyright (c) 1995, 1996 Christopher G. Demetriou
@@ -175,7 +175,7 @@ END {
 
 	printf("\n") > dfile
 
-	printf("struct usb_knowndev usb_knowndevs[] = {\n") > dfile
+	printf("const struct usb_knowndev usb_knowndevs[] = {\n") > dfile
 	for (i = 1; i <= nproducts; i++) {
 		printf("\t{\n") > dfile
 		printf("\t    USB_VENDOR_%s, USB_PRODUCT_%s_%s,\n",
