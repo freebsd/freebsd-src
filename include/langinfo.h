@@ -30,7 +30,12 @@
 #define	_LANGINFO_H_
 
 #include <sys/cdefs.h>
-#include <nl_types.h>
+#include <sys/_types.h>
+
+#ifndef _NL_ITEM_DECLARED
+typedef	__nl_item	nl_item;
+#define	_NL_ITEM_DECLARED
+#endif
 
 #define	CODESET		0	/* codeset name */
 #define	D_T_FMT		1	/* string for formatting date and time */
@@ -97,12 +102,17 @@
 
 #define	YESEXPR		52	/* affirmative response expression */
 #define	NOEXPR		53	/* negative response expression */
+
+#if __BSD_VISIBLE || __XSI_VISIBLE <= 500
 #define	YESSTR		54	/* affirmative response for yes/no queries */
 #define	NOSTR		55	/* negative response for yes/no queries */
+#endif
 
 #define	CRNCYSTR	56	/* currency symbol */
 
+#if __BSD_VISIBLE
 #define	D_MD_ORDER	57	/* month/day order (local extension) */
+#endif
 
 __BEGIN_DECLS
 char	*nl_langinfo(nl_item);
