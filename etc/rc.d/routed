@@ -17,18 +17,7 @@ name="routed"
 #       subroutines in rc.subr won't catch it.
 #
 load_rc_config $name
-
 rcvar="router_enable"
 command="${router:-/sbin/${name}}"
 eval ${name}_flags=${router_flags}
-start_precmd=
-
-routed_precmd()
-{
-	if checkyesno gated && checkyesno routed; then
-		warn "gated and routed both requested to be run: only running gated."
-		return 1
-	fi
-}
-
 run_rc_command "$1"
