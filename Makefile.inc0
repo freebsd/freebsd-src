@@ -1,0 +1,109 @@
+#
+#	$Id$
+#
+# This makefile ensures that the object directory is set according to the
+# object format to avoid mixing aout and elf formatted files during the
+# transition period.
+#
+# >> Beware, this makefile  overwrites the local build environment! <<
+#
+
+#
+# Build things relative to the user's preferred object directory,
+# defaulting to /usr/obj if not defined.
+#
+MAKEOBJDIRPREFIX?=/usr/obj
+
+#
+# Variables passed to make work better if they are set as environment
+# variables instead of command line options.
+#
+MK_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${OBJFORMAT}
+
+#
+# We should always use the current set of mk files, not the installed ones.
+# This makefile is a wrapper for the backend makefile (Makefile.inc1).
+#
+MAKE=	make -m ${.CURDIR}/share/mk -f Makefile.inc1
+
+#
+# These are the backend targets.
+#
+BKTGTS=	all depend everything includes install installmost most obj update
+
+
+#
+# A generic rule for the backend targets.
+#
+${BKTGTS} :
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} ${.TARGET}
+
+#
+# Temporary path and environment for the legacy build.
+#
+ELFTMPPATH=	${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/sbin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/bin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/sbin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/bin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/games
+LEGACY_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout	\
+		PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1	\
+		TOOLROOT=${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp
+
+#
+# world
+#
+# Attempt to rebuild and reinstall *everything*, with reasonable chance of
+# success, regardless of how old your existing system is. If building on
+# an i386/elf system, build the aout legacy cruft too.
+#
+world:
+	@echo "--------------------------------------------------------------"
+	@echo " ${OBJFORMAT} make world started on `LC_TIME=C date`"
+	@echo "--------------------------------------------------------------"
+.if target(pre-world)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Making 'pre-world' target"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} pre-world
+.endif
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-build
+.endif
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} -B installworld
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-install
+.endif
+.if target(post-world)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Making 'post-world' target"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} post-world
+.endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " ${OBJFORMAT} make world completed on `LC_TIME=C date`"
+	@echo "--------------------------------------------------------------"
+
+#
+# buildworld
+#
+# Build the world in the current object format, plus the legacy aout
+# support if the current object format is elf on i386.
+#
+buildworld	:
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-build
+.endif
+
+#
+# installworld
+#
+# Install the world in the current object format, plus the legacy aout
+# support if the current object format is elf on i386.
+#
+installworld	:
+	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} installworld
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} -DNOMAN -DNOINFO legacy-install
+.endif
