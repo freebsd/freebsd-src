@@ -597,6 +597,9 @@ capabilities of the adaptor.
 It may be specified either as a plain
 string or as a string of hexadecimal digits proceeded by
 .Ql 0x .
+For maximum portability, hex keys are recommended;
+the mapping of text keys to WEP encryption is usually driver-specific.   
+In particular, the Windows drivers do this mapping differently to FreeBSD.
 A key may be cleared by setting it to
 .Ql - .
 If WEP is supported then there are at least four keys.
