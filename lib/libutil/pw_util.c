@@ -185,16 +185,21 @@ pw_lock(void)
 		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
 			err(1, "%s", masterpasswd);
 		/* XXX vulnerable to race conditions */
-		if (flock(lockfd, LOCK_EX|LOCK_NB))
-			errx(1, "the password db file is busy");
+		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+			if (errno == EWOULDBLOCK) {
+				errx(1, "the password db file is busy");
+			} else {
+				err(1, "could not lock the passwd file: ");
+			}
+		}
 
 		/*
 		 * If the password file was replaced while we were trying to
 		 * get the lock, our hardlink count will be 0 and we have to
 		 * close and retry.
 		 */
-		if (fstat(lockfd, &st) < 0)
-			errx(1, "fstat() failed");
+		if (fstat(lockfd, &st) == -1)
+			err(1, "fstat() failed: ");
 		if (st.st_nlink != 0)
 			break;
 		close(lockfd);
