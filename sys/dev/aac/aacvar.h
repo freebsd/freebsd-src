@@ -332,10 +332,10 @@ struct aac_softc
 	TAILQ_HEAD(,aac_container)	aac_container_tqh;
 	aac_lock_t		aac_container_lock;
 
-	/* Protect the sync fib */
-#define AAC_SYNC_LOCK_FORCE	(1 << 0)
-	aac_lock_t		aac_sync_lock;
-
+	/*
+	 * The general I/O lock.  This protects the sync fib, the lists, the
+	 * queues, and the registers.
+	 */
 	aac_lock_t		aac_io_lock;
 
 	/* delayed activity infrastructure */
@@ -395,9 +395,6 @@ extern void		aac_startio(struct aac_softc *sc);
 extern int		aac_alloc_command(struct aac_softc *sc,
 					  struct aac_command **cmp);
 extern void		aac_release_command(struct aac_command *cm);
-extern int		aac_alloc_sync_fib(struct aac_softc *sc,
-					 struct aac_fib **fib, int flags);
-extern void		aac_release_sync_fib(struct aac_softc *sc);
 extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
 				     u_int32_t xferstate, struct aac_fib *fib,
 				     u_int16_t datasize);
@@ -574,3 +571,20 @@ aac_print_printf(struct aac_softc *sc)
 	sc->aac_common->ac_printf[0] = 0;
 	AAC_QNOTIFY(sc, AAC_DB_PRINTF);
 }
+
+static __inline int
+aac_alloc_sync_fib(struct aac_softc *sc, struct aac_fib **fib)
+{
+
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+	*fib = &sc->aac_common->ac_sync_fib;
+	return (0);
+}
+
+static __inline void
+aac_release_sync_fib(struct aac_softc *sc)
+{
+
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+}
+
