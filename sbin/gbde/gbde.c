@@ -32,7 +32,7 @@
  * $FreeBSD$
  *
  * XXX: Future stuff
- * 
+ *
  * Replace the template file options (-i & -f) with command-line variables
  * "-v property=foo"
  *
@@ -40,7 +40,7 @@
  *
  * Introduce -E, alternate entropy source (instead of /dev/random)
  *
- * Introduce -i take IV from keyboard or 
+ * Introduce -i take IV from keyboard or
  *
  * Introduce -I take IV from file/cmd
  *
@@ -178,7 +178,7 @@ random_bits(void *p, u_int len)
 		if (fdr < 0)
 			err(1, "/dev/urandom");
 	}
-		
+
 	i = read(fdr, p, len);
 	if (i != (int)len)
 		err(1, "read from /dev/urandom");
@@ -240,7 +240,7 @@ encrypt_sector(void *d, int len, int klen, void *key)
 	keyInstance ki;
 	cipherInstance ci;
 	int error;
-	
+
 	error = rijndael_cipherInit(&ci, MODE_CBC, NULL);
 	if (error <= 0)
 		errx(1, "rijndael_cipherInit=%d", error);
@@ -587,7 +587,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		total_sectors = strtoul(p, &q, 0);
 		if (!*p || *q)
 			errx(1, "total_sectors not a proper number");
-		if (last_sector == 0) 
+		if (last_sector == 0)
 			last_sector = first_sector + total_sectors - 1;
 	}
 
@@ -637,9 +637,9 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 			break;
 		}
 		gl->lsector[u] = o;
-	}	
+	}
 	for (; u < G_BDE_MAXKEYS; u++) {
-		do 
+		do
 			random_bits(&o, sizeof o);
 		while (o < gl->sectorN);
 		gl->lsector[u] = o;
@@ -676,7 +676,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 
 	random_bits(gl->mkey, sizeof gl->mkey);
 	random_bits(gl->salt, sizeof gl->salt);
-	
+
 	return;
 }
 
@@ -705,10 +705,10 @@ main(int argc, char **argv)
 		usage("Too few arguments\n");
 
        if ((i = modfind("g_bde")) < 0) {
-               /* need to load the gbde module */
-               if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0) {
-                       usage(GBDEMOD ": Kernel module not available");
-               }
+	       /* need to load the gbde module */
+	       if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0) {
+		       usage(GBDEMOD ": Kernel module not available");
+	       }
        }
 	doopen = 0;
 	if (!strcmp(argv[1], "attach")) {
