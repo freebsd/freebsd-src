@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.10 1999/01/04 18:38:23 peter Exp $
+ *	$Id: interp.c,v 1.11 1999/01/13 21:59:58 abial Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -99,7 +99,8 @@ interact(void)
     /*
      * Read our default configuration
      */
-    source("/boot/loader.rc");
+    if(source("/boot/loader.rc")!=CMD_OK)
+	source("/boot/boot.conf");
     printf("\n");
     /*
      * Before interacting, we might want to autoboot.
@@ -146,10 +147,12 @@ static int
 command_source(int argc, char *argv[])
 {
     int		i;
+    int		res;
 
-    for (i = 1; i < argc; i++)
-	source(argv[i]);
-    RETURN(CMD_OK);
+    res=CMD_OK;
+    for (i = 1; (i < argc) && (res == CMD_OK); i++)
+	res=source(argv[i]);
+    return(res);
 }
 
 struct sourceline 
@@ -162,18 +165,18 @@ struct sourceline
     struct sourceline	*next;
 };
 
-void
+int
 source(char *filename)
 {
     struct sourceline	*script, *se, *sp;
     char		input[256];			/* big enough? */
-    int			argc;
+    int			argc,res;
     char		**argv, *cp;
     int			fd, flags, line;
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
-	printf("can't open '%s': %s\n", filename, strerror(errno));
-	return;
+	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
+	return(CMD_ERROR);
     }
 
     /*
@@ -220,6 +223,7 @@ source(char *filename)
      * Execute the script
      */
     argv = NULL;
+    res = CMD_OK;
     for (sp = script; sp != NULL; sp = sp->next) {
 	
 	/* print if not being quiet */
@@ -233,13 +237,16 @@ source(char *filename)
 	    if ((argc > 0) && (perform(argc, argv) != 0)) {
 		/* normal command */
 		printf("%s: %s\n", argv[0], command_errmsg);
-		if (!(sp->flags & SL_IGNOREERR))
+		if (!(sp->flags & SL_IGNOREERR)) {
+		    res=CMD_ERROR;
 		    break;
+		}
 	    }
 	    free(argv);
 	    argv = NULL;
 	} else {
 	    printf("%s line %d: parse error\n", filename, sp->line);
+	    res=CMD_ERROR;
 	    break;
 	}
     }
@@ -250,6 +257,7 @@ source(char *filename)
 	script = script->next;
 	free(se);
     }
+    return(res);
 }
 
 /*
