@@ -37,15 +37,28 @@ INSTALL_CF=	${SENDMAIL_CF}
 .endif
 .endif
 
-DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
+.ifndef SENDMAIL_SET_USER_ID
+.if defined(SENDMAIL_SUBMIT_MC)
+INSTALL_SUBMIT_CF=${SENDMAIL_SUBMIT_MC:R}.cf
+.endif
+.endif
 
-ALL+=		${INSTALL_CF}
+DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
+DEST_SUBMIT_CF=	${DESTDIR}/etc/mail/submit.cf
+
+ALL+=		${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 
 # Make sure we don't remove /etc/mail/sendmail.cf on make clean
 # since this will break a running system during a buildworld.
 .if defined(INSTALL_CF)
 .if ${INSTALL_CF} != ${DEST_CF}
 CLEANFILES+=	${INSTALL_CF}
+.endif
+.endif
+
+.if defined(INSTALL_SUBMIT_CF)
+.if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
+CLEANFILES+=	${INSTALL_SUBMIT_CF}
 .endif
 .endif
 
@@ -60,7 +73,7 @@ all:		${ALL}
 
 depend:
 
-install:	${INSTALL_CF}
+install:	${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
@@ -70,14 +83,22 @@ install:	${INSTALL_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
 		${DEST_CF}
 .endif
+.endif
 .if defined(SENDMAIL_ADDITIONAL_CF)
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
+.ifndef SENDMAIL_SET_USER_ID
+.if defined(INSTALL_SUBMIT_CF)
+.if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
+.endif
+.endif
 .endif
 
 # Helper for src/etc/Makefile
-distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
+distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
@@ -97,11 +118,20 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DEST_CF}
 .endif
-.ifndef SENDMAIL_SET_USER_ID
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
-	    ${DESTDIR}/etc/mail/submit.mc
+	    ${DESTDIR}/etc/mail/freebsd.submit.mc
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
-	    ${DESTDIR}/etc/mail/submit.cf
+	    ${DESTDIR}/etc/mail/freebsd.submit.cf
+.ifndef SENDMAIL_SET_USER_ID
+.if defined(INSTALL_SUBMIT_CF)
+.if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
+.endif
+.else
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	    ${DEST_SUBMIT_CF}
+.endif
 .endif
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile

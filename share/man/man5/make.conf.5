@@ -520,6 +520,16 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
+.It Va SENDMAIL_SUBMIT_MC
+.Pq Vt str
+The default m4 configuration file for mail submission
+to use at install time.
+The value should include the full path to the
+.Pa .mc
+file, e.g.,
+.Pa /etc/mail/mysubmit.mc .
+Use with caution as a make install will overwrite any existing
+.Pa /etc/mail/submit.cf .
 .It Va SENDMAIL_ADDITIONAL_MC
 .Pq Vt str
 Additional
