@@ -73,7 +73,7 @@ main(argc, argv)
 	char **argv;
 {
 	register int ch;
-	int width;
+	int rval, width;
 	char *p;
 
 	(void) setlocale(LC_CTYPE, "");
@@ -110,14 +110,16 @@ main(argc, argv)
 
 	if (width == -1)
 		width = DEFLINEWIDTH;
+	rval = 0;
 	if (!*argv)
 		fold(width);
 	else for (; *argv; ++argv)
 		if (!freopen(*argv, "r", stdin)) {
-			err(1, "%s", *argv);
+			warn("%s", *argv);
+			rval = 1;
 		} else
 			fold(width);
-	exit(0);
+	exit(rval);
 }
 
 static void
