@@ -6,6 +6,8 @@ Author: Martin Renters
 
 **************************************************************************/
 
+/* #define MDEBUG */
+
 #include "netboot.h"
 
 int	jmp_bootmenu[10];
@@ -112,6 +114,10 @@ load()
 		arptable[ARP_SERVER].ipaddr,
 		arptable[ARP_GATEWAY].ipaddr);
 
+#ifdef MDEBUG
+	printf("\n=>>"); getchar();
+#endif
+
 		/* Now use TFTP to load configuration file */
 	sprintf(cfg,"cfg.%I",arptable[ARP_CLIENT].ipaddr);
 	printf("Loading %s...\r\n",cfg);
@@ -123,7 +129,11 @@ load()
 			longjmp(jmp_bootmenu,1);
 		}
 	}
-		/* Execute commands in config file */
+
+#ifdef MDEBUG
+	printf("\n=>>"); getchar();
+#endif
+
 	p = config_buffer;
 	while(*p) {
 		q = cmd_line;
@@ -134,6 +144,10 @@ load()
 		if (*p) p++;
 	}
 
+#ifdef MDEBUG
+	printf("\n=>>"); getchar();
+#endif
+
 		/* Check to make sure we've got a rootfs */
 	if (!arptable[ARP_ROOTSERVER].ipaddr) {
 		printf("No ROOT filesystem server!\r\n");
@@ -141,7 +155,10 @@ load()
 	}
 
 		/* Fill in nfsdiskless.myif */
-	sprintf(&nfsdiskless.myif.ifra_name,"ed0");
+	/*
+	sprintf(&nfsdiskless.myif.ifra_name,"ep0");
+	*/
+	eth_fillname(&nfsdiskless.myif.ifra_name);
         nfsdiskless.myif.ifra_addr.sa_len = sizeof(struct sockaddr);
         nfsdiskless.myif.ifra_addr.sa_family = AF_INET;
 	addr = htonl(arptable[ARP_CLIENT].ipaddr);
