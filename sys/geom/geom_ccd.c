@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.7 1996/01/31 11:25:46 asami Exp $ */
+/* $Id: ccd.c,v 1.8 1996/03/21 04:13:25 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -136,12 +136,31 @@ int ccddebug = CCDB_FOLLOW | CCDB_INIT | CCDB_IO | CCDB_LABEL | CCDB_VNODE;
 #define	ccdunit(x)	dkunit(x)
 #define ccdpart(x)	dkpart(x)
 
+/*
+   This is how mirroring works (only writes are special):
+
+   When initiating a write, ccdbuffer() returns two "struct ccdbuf *"s
+   linked together by the cb_mirror field.  "cb_pflags &
+   CCDPF_MIRROR_DONE" is set to 0 on both of them.
+
+   When a component returns to ccdiodone(), it checks if "cb_pflags &
+   CCDPF_MIRROR_DONE" is set or not.  If not, it sets the partner's
+   flag and returns.  If it is, it means its partner has already
+   returned, so it will go to the regular cleanup.
+
+ */
+
 struct ccdbuf {
 	struct buf	cb_buf;		/* new I/O buf */
 	struct buf	*cb_obp;	/* ptr. to original I/O buf */
 	int		cb_unit;	/* target unit */
 	int		cb_comp;	/* target component */
+	int		cb_pflags;	/* mirror/parity status flag */
+	struct ccdbuf	*cb_mirror;	/* mirror counterpart */
 };
+
+/* bits in cb_pflags */
+#define CCDPF_MIRROR_DONE 1	/* if set, mirror counterpart is done */
 
 #define	getccdbuf()		\
 	((struct ccdbuf *)malloc(sizeof(struct ccdbuf), M_DEVBUF, M_WAITOK))
@@ -703,10 +722,7 @@ ccdstrategy(bp)
 		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
 			goto done;
 
-	if (cs->sc_cflags & CCDF_MIRROR && (bp->b_flags & B_READ) == 0)
-		bp->b_resid = bp->b_bcount*2;
-	else
-		bp->b_resid = bp->b_bcount;
+	bp->b_resid = bp->b_bcount;
 
 	/*
 	 * "Start" the unit.
@@ -896,6 +912,11 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 		cbp->cb_buf.b_vp = ci2->ci_vp;
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
+		/* link together the ccdbuf's and clear "mirror done" flag */
+		cb[0]->cb_mirror = cb[1];
+		cb[1]->cb_mirror = cb[0];
+		cb[0]->cb_pflags &= ~CCDPF_MIRROR_DONE;
+		cb[1]->cb_pflags &= ~CCDPF_MIRROR_DONE;
 	}
 }
 
@@ -923,10 +944,7 @@ ccdintr(cs, bp)
 		dk_busy &= ~(1 << cs->sc_dk);
 #endif
 	if (bp->b_flags & B_ERROR)
-		if (cs->sc_cflags & CCDF_MIRROR && (bp->b_flags & B_READ) == 0)
-			bp->b_resid = bp->b_bcount*2;
-		else
-			bp->b_resid = bp->b_bcount;
+		bp->b_resid = bp->b_bcount;
 	biodone(bp);
 }
 
@@ -965,6 +983,18 @@ ccdiodone(cbp)
 		       unit, bp->b_error, cbp->cb_comp);
 #endif
 	}
+
+	if (ccd_softc[unit].sc_cflags & CCDF_MIRROR &&
+	    (cbp->cb_buf.b_flags & B_READ) == 0)
+		if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
+			/* I'm done before my counterpart, so just set
+			   partner's flag and return */
+			cbp->cb_mirror->cb_pflags |= CCDPF_MIRROR_DONE;
+			putccdbuf(cbp);
+			splx(s);
+			return;
+		}
+		
 	count = cbp->cb_buf.b_bcount;
 	putccdbuf(cbp);
 
