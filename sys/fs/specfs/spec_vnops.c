@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.95 1999/08/13 16:29:21 phk Exp $
+ * $Id: spec_vnops.c,v 1.96 1999/08/14 11:40:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -849,7 +849,7 @@ spec_getpages(ap)
 
 		if (nextoff <= nread) {
 			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		} else if (toff < nread) {
 			/*
 			 * Since this is a VM request, we have to supply the
@@ -859,7 +859,7 @@ spec_getpages(ap)
 			vm_page_set_validclean(m, 0, nread - toff);
 		} else {
 			m->valid = 0;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		}
 
 		if (i != ap->a_reqpage) {
