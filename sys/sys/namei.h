@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.13 1997/02/22 09:45:38 peter Exp $
+ * $Id: namei.h,v 1.14 1997/05/04 09:17:38 phk Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -162,8 +162,8 @@ struct	namecache {
 	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
-	char	nc_flag;		/* flag bits */
-	char	nc_nlen;		/* length of name */
+	u_char	nc_flag;		/* flag bits */
+	u_char	nc_nlen;		/* length of name */
 	char	nc_name[0];	/* segment name */
 };
 
