@@ -9,6 +9,9 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 
+#include "debug.h"
+#include "rtld.h"
+
 #ifndef _PATH_LIBMAP_CONF
 #define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
 #endif
@@ -119,7 +122,7 @@ lm_init (void)
 		if (!iseol(*cp)) continue;
 
 		*cp = '\0';
-		lm_add(p, strdup(f), strdup(t));
+		lm_add(p, xstrdup(f), xstrdup(t));
 	}
 	fclose(fp);
 	return;
@@ -169,9 +172,9 @@ lm_add (char *p, char *f, char *t)
 #endif
 
 	if ((lml = lmp_find(p)) == NULL)
-		lml = lmp_init(strdup(p));
+		lml = lmp_init(xstrdup(p));
 
-	lm = malloc(sizeof(struct lm));
+	lm = xmalloc(sizeof(struct lm));
 	lm->f = f;
 	lm->t = t;
 	TAILQ_INSERT_HEAD(lml, lm, lm_link);
@@ -185,8 +188,14 @@ lm_find (const char *p, const char *f)
 
 	if (p != NULL && (lml = lmp_find(p)) != NULL) {
 		t = lml_find(lml, f);
-		if (t != NULL)
+		if (t != NULL) {
+			/*
+			 * Add a global mapping if we have
+			 * a successful constrained match.
+			 */
+			lm_add(NULL, xstrdup(f), xstrdup(t));
 			return (t);
+		}
 	}
 	lml = lmp_find("$DEFAULT$");
 	if (lml != NULL)
@@ -224,7 +233,7 @@ lmp_init (char *n)
 {
 	struct lmp *lmp;
 
-	lmp = malloc(sizeof(struct lmp));
+	lmp = xmalloc(sizeof(struct lmp));
 	lmp->p = n;
 	TAILQ_INIT(&lmp->lml);
 	TAILQ_INSERT_HEAD(&lmp_head, lmp, lmp_link);
