@@ -106,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.143 1997/12/29 00:02:18 jkh Exp $
+#	$Id: MAKEDEV,v 1.144 1997/12/29 00:03:36 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -183,8 +183,7 @@ scsictl=$((1 << 29))
 disk_umask=037			# allow group operator to read disks
 tape_umask=017			# allow group operator to read/write tapes
 
-for i
-do
+for i in $*; do
 case $i in
 
 all)
