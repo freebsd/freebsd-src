@@ -38,6 +38,7 @@
 #include <sys/sysctl.h>
 #include <ctype.h>
 #include <errno.h>
+#include <string.h>
 
 #ifdef APPLE
 #include <sys/types.h>
