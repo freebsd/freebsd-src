@@ -474,6 +474,7 @@ pgdelete(pgrp)
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
 
+	SIGIO_LOCK();
 	PGRP_LOCK(pgrp);
 
 	/*
@@ -481,6 +482,7 @@ pgdelete(pgrp)
 	 * F_SETOWN with our pgid.
 	 */
 	funsetownlst(&pgrp->pg_sigiolst);
+	SIGIO_UNLOCK();
 
 	if (pgrp->pg_session->s_ttyp != NULL &&
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
