@@ -1193,15 +1193,14 @@ trapsignal(p, sig, code)
 {
 	register struct sigacts *ps = p->p_sigacts;
 
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(p->p_sigcatch, sig) &&
 	    !SIGISMEMBER(p->p_sigmask, sig)) {
 		p->p_stats->p_ru.ru_nsignals++;
 #ifdef KTRACE
-		if (KTRPOINT(p, KTR_PSIG))
-			ktrpsig(p->p_tracep, sig, ps->ps_sigact[_SIG_IDX(sig)],
-				&p->p_sigmask, code);
+		if (KTRPOINT(curthread, KTR_PSIG))
+			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
+			    &p->p_sigmask, code);
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], sig,
 						&p->p_sigmask, code);
@@ -1224,7 +1223,6 @@ trapsignal(p, sig, code)
 		psignal(p, sig);
 	}
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 }
 
 /*
@@ -1735,8 +1733,8 @@ postsig(sig)
 	SIGDELSET(p->p_siglist, sig);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_PSIG))
-		ktrpsig(p->p_tracep, sig, action, p->p_flag & P_OLDMASK ?
+	if (KTRPOINT(td, KTR_PSIG))
+		ktrpsig(sig, action, p->p_flag & P_OLDMASK ?
 		    &p->p_oldsigmask : &p->p_sigmask, 0);
 #endif
 	_STOPEVENT(p, S_SIG, sig);
