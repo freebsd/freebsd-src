@@ -275,6 +275,8 @@
             ..
             cvsup
             ..
+	    dialog
+	    ..
             diskless
                 209.157.86.12
                 ..
