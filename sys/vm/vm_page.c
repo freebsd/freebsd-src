@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.33 1995/07/13 08:48:37 davidg Exp $
+ *	$Id: vm_page.c,v 1.34 1995/07/20 05:28:07 davidg Exp $
  */
 
 /*
@@ -996,6 +996,22 @@ vm_page_bits(int base, int size)
 	base = (base % PAGE_SIZE) / DEV_BSIZE;
 	chunk = vm_page_dev_bsize_chunks[size / DEV_BSIZE];
 	return (chunk << base) & VM_PAGE_BITS_ALL;
+}
+
+/*
+ * set a page valid and clean
+ */
+void
+vm_page_set_validclean(m, base, size)
+	vm_page_t m;
+	int base;
+	int size;
+{
+	int pagebits = vm_page_bits(base, size);
+	m->valid |= pagebits;
+	m->dirty &= ~pagebits;
+	if( base == 0 && size == PAGE_SIZE)
+		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 }
 
 /*
