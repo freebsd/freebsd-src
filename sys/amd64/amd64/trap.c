@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.89 1997/04/06 02:29:19 dyson Exp $
+ *	$Id: trap.c,v 1.90 1997/04/07 06:45:15 peter Exp $
  */
 
 /*
@@ -936,5 +936,24 @@ bad:
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, rval[0]);
+#endif
+}
+
+/*
+ * Simplified back end of syscall(), used when returning from fork()
+ * directly into user mode.
+ */
+void
+fork_return(p, frame)
+	struct proc *p;
+	struct trapframe frame;
+{
+	frame.tf_eax = 0;		/* Child returns zero */
+	frame.tf_eflags &= ~PSL_C;	/* success */
+
+	userret(p, &frame, 0);
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET))
+		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 #endif
 }

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_glue.c,v 1.61 1997/02/22 09:48:17 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -74,6 +74,7 @@
 
 #include <sys/kernel.h>
 #include <sys/dkstat.h>
+#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -197,15 +198,13 @@ vsunlock(addr, len, dirtied)
  * Here we arrange for the address space to be copied or referenced,
  * allocate a user struct (pcb and kernel stack), then call the
  * machine-dependent layer to fill those in and make the new process
- * ready to run.
- * NOTE: the kernel stack may be at a different location in the child
- * process, and thus addresses of automatic variables may be invalid
- * after cpu_fork returns in the child process.  We do nothing here
- * after cpu_fork returns.
+ * ready to run.  The new process is set up so that it returns directly
+ * to user mode to avoid stack copying and relocation problems.
  */
-int
-vm_fork(p1, p2)
+void
+vm_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
+	int flags;
 {
 	register struct user *up;
 	int i;
@@ -216,10 +215,15 @@ vm_fork(p1, p2)
 		VM_WAIT;
 	}
 
-	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
+	if (flags & RFMEM) {
+		p2->p_vmspace = p1->p_vmspace;
+		p1->p_vmspace->vm_refcnt++;
+	} else {
+		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
-	if (p1->p_vmspace->vm_shm)
-		shmfork(p1, p2);
+		if (p1->p_vmspace->vm_shm)
+			shmfork(p1, p2);
+	}
 
 	pmap_new_proc(p2);
 
@@ -242,12 +246,10 @@ vm_fork(p1, p2)
 
 
 	/*
-	 * cpu_fork will copy and update the kernel stack and pcb, and make
-	 * the child ready to run.  It marks the child so that it can return
-	 * differently than the parent. It returns twice, once in the parent
-	 * process and once in the child.
+	 * cpu_fork will copy and update the pcb, set up the kernel stack,
+	 * and make the child ready to run.
 	 */
-	return (cpu_fork(p1, p2));
+	cpu_fork(p1, p2);
 }
 
 /*

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.24 1997/02/22 09:48:24 peter Exp $
+ * $Id: vm_map.h,v 1.25 1997/04/06 02:29:44 dyson Exp $
  */
 
 /*
@@ -152,7 +152,6 @@ struct vmspace {
 	struct pmap vm_pmap;	/* private physical map */
 	int vm_refcnt;		/* number of references */
 	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
-	vm_object_t vm_upages_obj;	/* UPAGES object */
 /* we copy from vm_startcopy to the end of the structure on fork */
 #define vm_startcopy vm_rssize
 	segsz_t vm_rssize;	/* current resident set size in pages */
