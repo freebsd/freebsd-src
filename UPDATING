@@ -1,9 +1,8 @@
 Updating Information for FreeBSD current users
 
 This file is maintained and copyrighted by M. Warner Losh
-<imp@village.org>.  Please send new entries directly to him.  See end
-of file for further details.  For commonly done items, please see the
-COMMON ITEMS: section later in the file.
+<imp@village.org>.  See end of file for further details.  For commonly
+done items, please see the COMMON ITEMS: section later in the file.
 
 NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	FreeBSD 5.0-CURRENT has many debugging features turned on, in
@@ -802,7 +801,10 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	of the config file has changed as well.  Please see GENERIC or
 	NEWCARD for examples of the new format.
 
-	Indirectly, this also breaks USERCONFIG
+	Indirectly, this also breaks USERCONFIG.  Unless a newer entry
+	says that it has been fixed, assume that must use the hints mechanism
+	in the loader if you need to use a machine with very old ISA cards
+	in it.
 
 20000522:
 	A new set of binutils went into the tree today.  Anybody
@@ -975,16 +977,13 @@ breakages in tracking -current.  Not all things will be listed here,
 and it only starts on March 15, 2000.  Updating files can found in
 previous releases if your system is older than this.
 
-Please filter your entries through Warner Losh (imp@village.org) so
-that the style, formatting, etc of this file can be maintained.
-
 Copyright information:
 
-Copyright 1998, 2001 M. Warner Losh.  All Rights Reserved.
+Copyright 1998, 2002 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, publication, translation and use, with or without
 modification, in full or in part, in any form or format of this
-document are permitted.
+document are permitted without further permission from the author.
 
 THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
 IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
