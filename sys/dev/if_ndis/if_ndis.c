@@ -108,7 +108,9 @@ static __stdcall void ndis_linksts_done	(ndis_handle);
 static void ndis_intr		(void *);
 static void ndis_intrtask	(void *, int);
 static void ndis_tick		(void *);
+static void ndis_ticktask	(void *, int);
 static void ndis_start		(struct ifnet *);
+static void ndis_starttask	(void *, int);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
@@ -332,6 +334,8 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_intrmtx, device_get_nameunit(dev), "ndisisrlock",
 	    MTX_DEF | MTX_RECURSE);
 	TASK_INIT(&sc->ndis_intrtask, 0, ndis_intrtask, sc);
+	TASK_INIT(&sc->ndis_ticktask, 0, ndis_ticktask, sc);
+	TASK_INIT(&sc->ndis_starttask, 0, ndis_starttask, sc);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -772,8 +776,7 @@ ndis_txeof(adapter, packet, status)
 
 	m_freem(m);
 
-	if (ifp->if_snd.ifq_head != NULL)
-		ndis_start(ifp);
+	taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
 
 	return;
 }
@@ -814,8 +817,7 @@ ndis_linksts_done(adapter)
 		device_printf(sc->ndis_dev, "link up\n");
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
-		if (ifp->if_snd.ifq_head != NULL)
-			ndis_start(ifp);
+		taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		device_printf(sc->ndis_dev, "link down\n");
@@ -887,6 +889,16 @@ ndis_tick(xsc)
 	void			*xsc;
 {
 	struct ndis_softc	*sc;
+	sc = xsc;
+	taskqueue_enqueue(taskqueue_swi, &sc->ndis_ticktask);
+}
+
+static void
+ndis_ticktask(xsc, pending)
+	void			*xsc;
+	int			pending;
+{
+	struct ndis_softc	*sc;
 	__stdcall ndis_checkforhang_handler hangfunc;
 	uint8_t			rval;
 	ndis_media_state	linkstate;
@@ -943,6 +955,19 @@ ndis_map_sclist(arg, segs, nseg, mapsize, error)
 		sclist->nsl_elements[i].nse_len = segs[i].ds_len;
 	}
 
+	return;
+}
+
+static void
+ndis_starttask(arg, pending)
+	void			*arg;
+	int			pending;
+{
+	struct ifnet		*ifp;
+
+	ifp = arg;
+	if (ifp->if_snd.ifq_head != NULL)
+		ndis_start(ifp);
 	return;
 }
 
@@ -1120,12 +1145,12 @@ ndis_init(xsc)
 	 * the default checkforhang timeout is approximately 2
 	 * seconds.
 	 */
+
 	if (sc->ndis_block.nmb_checkforhangsecs == 0)
 		sc->ndis_block.nmb_checkforhangsecs = 2;
 
-	if (sc->ndis_chars.nmc_checkhang_func != NULL)
-		sc->ndis_stat_ch = timeout(ndis_tick, sc,
-		    hz * sc->ndis_block.nmb_checkforhangsecs);
+	sc->ndis_stat_ch = timeout(ndis_tick, sc,
+	    hz * sc->ndis_block.nmb_checkforhangsecs);
 
 	/*NDIS_UNLOCK(sc);*/
 
@@ -1486,8 +1511,8 @@ ndis_watchdog(ifp)
 
 	ndis_reset(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
-		ndis_start(ifp);
+	taskqueue_enqueue(taskqueue_swi, &sc->ndis_starttask);
+
 	NDIS_UNLOCK(sc);
 
 	return;
