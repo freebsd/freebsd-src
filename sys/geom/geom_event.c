@@ -210,9 +210,16 @@ void
 g_cancel_event(void *ref)
 {
 	struct g_event *ep, *epn;
+	struct g_provider *pp;
 	u_int n;
 
 	mtx_lock(&g_eventlock);
+	TAILQ_FOREACH(pp, &g_doorstep, orphan) {
+		if (pp != ref)
+			continue;
+		TAILQ_REMOVE(&g_doorstep, pp, orphan);
+		break;
+	}
 	for (ep = TAILQ_FIRST(&g_events); ep != NULL; ep = epn) {
 		epn = TAILQ_NEXT(ep, events);
 		for (n = 0; n < G_N_EVENTREFS; n++) {
