@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.10 1994/08/13 03:50:01 wollman Exp $
+ *	$Id: icu.s,v 1.11 1994/08/15 03:15:19 wollman Exp $
  */
 
 /*
@@ -57,7 +57,6 @@
 _cpl:	.long	HWI_MASK | SWI_MASK	/* current priority (all off) */
 	.globl	_imen
 _imen:	.long	HWI_MASK		/* interrupt mask enable (all h/w off) */
-_high_imask:	.long	HWI_MASK | SWI_MASK
 	.globl  _stat_imask
 _stat_imask:	.long	(1 << 8)
 	.globl	_tty_imask
@@ -236,8 +235,8 @@ splz_swi:
 	jmp	splz_next
 
 /*
- * Fake clock IRQ so that it appears to come from our caller and not from
- * vec0, so that kernel profiling works.
+ * Fake clock interrupt(s) so that they appear to come from our caller instead
+ * of from here, so that system profiling works.
  * XXX do this more generally (for all vectors; look up the C entry point).
  * XXX frame bogusness stops us from just jumping to the C entry point.
  */
@@ -250,7 +249,17 @@ vec0:
 	pushl	%eax
 	cli
 	MEXITCOUNT
-	jmp	_Vclk
+	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
+
+	ALIGN_TEXT
+vec8:
+	popl	%eax	
+	pushfl
+	pushl	$KCSEL
+	pushl	%eax
+	cli
+	MEXITCOUNT
+	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
 
 #define BUILD_VEC(irq_num) \
 	ALIGN_TEXT ; \
@@ -265,7 +274,6 @@ vec/**/irq_num: ; \
 	BUILD_VEC(5)
 	BUILD_VEC(6)
 	BUILD_VEC(7)
-	BUILD_VEC(8)
 	BUILD_VEC(9)
 	BUILD_VEC(10)
 	BUILD_VEC(11)
