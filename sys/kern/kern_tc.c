@@ -39,26 +39,16 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
-static unsigned nbintime;
-static unsigned nbinuptime;
-static unsigned nmicrotime;
-static unsigned nnanotime;
-static unsigned ngetmicrotime;
-static unsigned ngetnanotime;
-static unsigned nmicrouptime;
-static unsigned nnanouptime;
-static unsigned ngetmicrouptime;
-static unsigned ngetnanouptime;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nbintime, CTLFLAG_RD, &nbintime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nbinuptime, CTLFLAG_RD, &nbinuptime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrotime, CTLFLAG_RD, &nmicrotime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nnanotime, CTLFLAG_RD, &nnanotime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrouptime, CTLFLAG_RD, &nmicrouptime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, nnanouptime, CTLFLAG_RD, &nnanouptime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetmicrotime, CTLFLAG_RD, &ngetmicrotime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetnanotime, CTLFLAG_RD, &ngetnanotime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetmicrouptime, CTLFLAG_RD, &ngetmicrouptime, 0, "");
-SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetnanouptime, CTLFLAG_RD, &ngetnanouptime, 0, "");
+#define TC_STATS(foo) \
+	static unsigned foo; \
+	SYSCTL_INT(_kern_timecounter, OID_AUTO, foo, CTLFLAG_RD, & foo, 0, "")
+
+TC_STATS(nbinuptime);    TC_STATS(nnanouptime);    TC_STATS(nmicrouptime);
+TC_STATS(nbintime);      TC_STATS(nnanotime);      TC_STATS(nmicrotime);
+TC_STATS(ngetbinuptime); TC_STATS(ngetnanouptime); TC_STATS(ngetmicrouptime);
+TC_STATS(ngetbintime);   TC_STATS(ngetnanotime);   TC_STATS(ngetmicrotime);
+
+#undef TC_STATS
 
 /*
  * Implement a dummy timecounter which we can use until we get a real one
@@ -72,7 +62,7 @@ dummy_get_timecount(struct timecounter *tc)
 	static unsigned now;
 
 	if (tc->tc_generation == 0)
-		tc->tc_generation++;
+		tc->tc_generation = 1;
 	return (++now);
 }
 
@@ -94,17 +84,6 @@ tc_delta(struct timecounter *tc)
 	    tc->tc_counter_mask);
 }
 
-/*
- * We have eight functions for looking at the clock, four for
- * microseconds and four for nanoseconds.  For each there is fast
- * but less precise version "get{nano|micro}[up]time" which will
- * return a time which is up to 1/HZ previous to the call, whereas
- * the raw version "{nano|micro}[up]time" will return a timestamp
- * which is as precise as possible.  The "up" variants return the
- * time relative to system boot, these are well suited for time
- * interval measurements.
- */
-
 void
 binuptime(struct bintime *bt)
 {
@@ -121,50 +100,32 @@ binuptime(struct bintime *bt)
 }
 
 void
+nanouptime(struct timespec *ts)
+{
+	struct bintime bt;
+
+	nnanouptime++;
+	binuptime(&bt);
+	bintime2timespec(&bt, ts);
+}
+
+void
+microuptime(struct timeval *tv)
+{
+	struct bintime bt;
+
+	nmicrouptime++;
+	binuptime(&bt);
+	bintime2timeval(&bt, tv);
+}
+
+void
 bintime(struct bintime *bt)
 {
 
 	nbintime++;
 	binuptime(bt);
 	bintime_add(bt, &boottimebin);
-}
-
-void
-getmicrotime(struct timeval *tvp)
-{
-	struct timecounter *tc;
-	unsigned gen;
-
-	ngetmicrotime++;
-	do {
-		tc = timecounter;
-		gen = tc->tc_generation;
-		*tvp = tc->tc_microtime;
-	} while (gen == 0 || gen != tc->tc_generation);
-}
-
-void
-getnanotime(struct timespec *tsp)
-{
-	struct timecounter *tc;
-	unsigned gen;
-
-	ngetnanotime++;
-	do {
-		tc = timecounter;
-		gen = tc->tc_generation;
-		*tsp = tc->tc_nanotime;
-	} while (gen == 0 || gen != tc->tc_generation);
-}
-
-void
-microtime(struct timeval *tv)
-{
-	struct bintime bt;
-
-	nmicrotime++;
-	bintime(&bt);
-	bintime2timeval(&bt, tv);
 }
 
 void
@@ -178,16 +139,26 @@ nanotime(struct timespec *ts)
 }
 
 void
-getmicrouptime(struct timeval *tvp)
+microtime(struct timeval *tv)
+{
+	struct bintime bt;
+
+	nmicrotime++;
+	bintime(&bt);
+	bintime2timeval(&bt, tv);
+}
+
+void
+getbinuptime(struct bintime *bt)
 {
 	struct timecounter *tc;
 	unsigned gen;
 
-	ngetmicrouptime++;
+	ngetbinuptime++;
 	do {
 		tc = timecounter;
 		gen = tc->tc_generation;
-		bintime2timeval(&tc->tc_offset, tvp);
+		*bt = tc->tc_offset;
 	} while (gen == 0 || gen != tc->tc_generation);
 }
 
@@ -206,23 +177,60 @@ getnanouptime(struct timespec *tsp)
 }
 
 void
-microuptime(struct timeval *tv)
+getmicrouptime(struct timeval *tvp)
 {
-	struct bintime bt;
+	struct timecounter *tc;
+	unsigned gen;
 
-	nmicrouptime++;
-	binuptime(&bt);
-	bintime2timeval(&bt, tv);
+	ngetmicrouptime++;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		bintime2timeval(&tc->tc_offset, tvp);
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
-nanouptime(struct timespec *ts)
+getbintime(struct bintime *bt)
 {
-	struct bintime bt;
+	struct timecounter *tc;
+	unsigned gen;
 
-	nnanouptime++;
-	binuptime(&bt);
-	bintime2timespec(&bt, ts);
+	ngetbintime++;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*bt = tc->tc_offset;
+	} while (gen == 0 || gen != tc->tc_generation);
+	bintime_add(bt, &boottimebin);
+}
+
+void
+getnanotime(struct timespec *tsp)
+{
+	struct timecounter *tc;
+	unsigned gen;
+
+	ngetnanotime++;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*tsp = tc->tc_nanotime;
+	} while (gen == 0 || gen != tc->tc_generation);
+}
+
+void
+getmicrotime(struct timeval *tvp)
+{
+	struct timecounter *tc;
+	unsigned gen;
+
+	ngetmicrotime++;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*tvp = tc->tc_microtime;
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 static void
