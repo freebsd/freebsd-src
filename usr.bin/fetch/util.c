@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.3 1997/02/05 19:59:18 wollman Exp $
+ *	$Id: util.c,v 1.4 1997/02/07 17:55:01 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -167,7 +167,7 @@ parse_host_port(const char *s, char **hostname, int *port)
 		ul = strtoul(colon + 1, &ep, 10);
 		if (*ep != '\0' || colon[1] == '\0' || errno != 0
 		    || ul < 1 || ul > 65534) {
-			warnx("`%s': invalid port number", s);
+			warnx("`%s': invalid port number", colon + 1);
 			return EX_USAGE;
 		}
 
