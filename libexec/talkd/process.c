@@ -87,6 +87,11 @@ process_request(mp, rp)
 		rp->answer = BADCTLADDR;
 		return;
 	}
+	if (strchr(mp->l_name, 27)) {
+		syslog(LOG_NOTICE, "Illegal user name. Aborting");
+		rp->answer = FAILED;
+		return;
+	}
 	mp->pid = ntohl(mp->pid);
 	if (debug)
 		print_request("process_request", mp);
