@@ -122,13 +122,13 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 	size_t		stack_size;
 
 	/*
-	 * Round up stack size to nearest multiple of PAGE_SIZE, so that mmap()
+	 * Round up stack size to nearest multiple of pthread_page_size, so that mmap()
 	 * will work.  If the stack size is not an even multiple, we end up
 	 * initializing things such that there is unused space above the
 	 * beginning of the stack, so the stack sits snugly against its guard.
 	 */
-	if (stacksize % PAGE_SIZE != 0)
-		stack_size = ((stacksize / PAGE_SIZE) + 1) * PAGE_SIZE;
+	if (stacksize % pthread_page_size != 0)
+		stack_size = ((stacksize / pthread_page_size) + 1) * pthread_page_size;
 	else
 		stack_size = stacksize;
 
@@ -137,7 +137,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 	 * from the default-size stack cache:
 	 */
 	if (stack_size == PTHREAD_STACK_DEFAULT &&
-	    guardsize == PTHREAD_GUARD_DEFAULT) {
+	    guardsize == pthread_guard_default) {
 		/*
 		 * Use the garbage collector mutex for synchronization of the
 		 * spare stack list.
@@ -187,7 +187,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 
 		if (last_stack == NULL)
 			last_stack = _usrstack - PTHREAD_STACK_INITIAL -
-			    PTHREAD_GUARD_DEFAULT;
+			    pthread_guard_default;
 
 		/* Allocate a new stack. */
 		stack = last_stack - stack_size;
@@ -217,17 +217,17 @@ _thread_stack_free(void *stack, size_t stacksize, size_t guardsize)
 	struct stack	*spare_stack;
 
 	spare_stack = (stack + stacksize - sizeof(struct stack));
-	/* Round stacksize up to nearest multiple of PAGE_SIZE. */
-	if (stacksize % PAGE_SIZE != 0) {
-		spare_stack->stacksize = ((stacksize / PAGE_SIZE) + 1) *
-		    PAGE_SIZE;
+	/* Round stacksize up to nearest multiple of pthread_page_size. */
+	if (stacksize % pthread_page_size != 0) {
+		spare_stack->stacksize = ((stacksize / pthread_page_size) + 1) *
+		    pthread_page_size;
 	} else
 		spare_stack->stacksize = stacksize;
 	spare_stack->guardsize = guardsize;
 	spare_stack->stackaddr = stack;
 
 	if (spare_stack->stacksize == PTHREAD_STACK_DEFAULT &&
-	    spare_stack->guardsize == PTHREAD_GUARD_DEFAULT) {
+	    spare_stack->guardsize == pthread_guard_default) {
 		/* Default stack/guard size. */
 		LIST_INSERT_HEAD(&_dstackq, spare_stack, qe);
 	} else {

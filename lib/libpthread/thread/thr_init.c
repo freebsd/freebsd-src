@@ -146,6 +146,8 @@ static void *libgcc_references[] = {
 	&_pthread_mutex_unlock
 };
 
+int pthread_guard_default;
+int pthread_page_size;
 
 /*
  * Threaded process initialization
@@ -158,8 +160,17 @@ _thread_init(void)
 	int             i;
 	size_t		len;
 	int		mib[2];
+	int		sched_stack_size;	/* Size of scheduler stack. */
+
 	struct clockinfo clockinfo;
 	struct sigaction act;
+
+	pthread_page_size = getpagesize();
+	pthread_guard_default = getpagesize();
+	sched_stack_size = getpagesize();
+    	
+	pthread_attr_default.guardsize_attr = pthread_guard_default;
+
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
@@ -247,7 +258,7 @@ _thread_init(void)
 		PANIC("Cannot allocate memory for initial thread");
 	}
 	/* Allocate memory for the scheduler stack: */
-	else if ((_thread_kern_sched_stack = malloc(SCHED_STACK_SIZE)) == NULL)
+	else if ((_thread_kern_sched_stack = malloc(sched_stack_size)) == NULL)
 		PANIC("Failed to allocate stack for scheduler");
 	else {
 		/* Zero the global kernel thread structure: */
@@ -280,7 +291,7 @@ _thread_init(void)
 		 * thread stack that is just beyond.
 		 */
 		if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
-		    PTHREAD_GUARD_DEFAULT, PTHREAD_GUARD_DEFAULT, 0, MAP_ANON,
+		    pthread_guard_default, pthread_guard_default, 0, MAP_ANON,
 		    -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
 
@@ -294,7 +305,7 @@ _thread_init(void)
 		/* Setup the context for the scheduler: */
 		_setjmp(_thread_kern_sched_jb);
 		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack +
-		    SCHED_STACK_SIZE - sizeof(double));
+		    sched_stack_size - sizeof(double));
 		SET_RETURN_ADDR_JB(_thread_kern_sched_jb, _thread_kern_scheduler);
 
 		/*
