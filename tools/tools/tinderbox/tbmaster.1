@@ -47,6 +47,8 @@ The following options are recognized:
 .Bl -tag -width 12n
 .It Fl c Ar CONFIG , Fl -config Ns = Ns Ar CONFIG
 The name of the configuration to use.
+If specified multiple times, all listed configurations will be run in
+sequence.
 The default is the hostname minus the domain part.
 .It Fl d , Fl -dump
 Dumps the configuration and exits without running the tinderbox.
