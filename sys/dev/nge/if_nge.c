@@ -2114,10 +2114,13 @@ nge_ioctl(ifp, command, data)
 			 * 8152 (TX FIFO size minus 64 minus 18), turn off
 			 * TX checksum offloading.
 			 */
-			if (ifr->ifr_mtu >= 8152)
+			if (ifr->ifr_mtu >= 8152) {
+				ifp->if_capenable &= ~IFCAP_TXCSUM;
 				ifp->if_hwassist = 0;
-			else
+			} else {
+				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist = NGE_CSUM_FEATURES;
+			}
 		}
 		break;
 	case SIOCSIFFLAGS:
