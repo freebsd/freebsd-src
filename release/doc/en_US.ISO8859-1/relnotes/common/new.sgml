@@ -205,7 +205,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2 id="security">
     <title>Security-Related Changes</title>
 
-    <para></para>
+    <para>An <quote>off-by-one</quote> bug has been fixed in
+      <application>OpenSSH</application>'s multiplexing code.  This bug
+      could have allowed a connecting SSH client to execute arbitrary
+      code with the privileges of the client user.  (See security
+      advisory <ulink
+        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
