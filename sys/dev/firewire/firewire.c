@@ -1020,10 +1020,9 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 	}else{
 		printf(", cable IRM = %d", fc->irm);
 		if (fc->irm == fc->nodeid)
-			printf(" (me)\n");
-		else
-			printf("\n");
+			printf(" (me)");
 	}
+	printf("\n");
 
 	if (try_bmr && (fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == 0x3f)) {
 		if (fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)) {
