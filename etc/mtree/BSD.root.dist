@@ -8,7 +8,7 @@
 
 /set type=file uname=root gname=wheel mode=0775
 
-sys	type=link size=18 link=usr/src/sys
+sys	type=link size=12 link=usr/src/sys
 
 dev	type=dir
 	fd	type=dir uname=bin gname=bin mode=555
