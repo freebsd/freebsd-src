@@ -336,11 +336,11 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		printf("\t%.1f%% of cluster map consumed\n",
 		    totspace[1] * 100.0 / (nmbclusters * MCLBYTES));
 	mlen = sizeof(nsfbufs);
-	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, NULL) &&
+	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, 0) &&
 	    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen, NULL,
-	    NULL) &&
+	    0) &&
 	    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak, &mlen, NULL,
-	    NULL)) {
+	    0)) {
 		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
 		    nsfbufsused, nsfbufspeak, nsfbufs);
 	}
