@@ -159,21 +159,20 @@ name="FreeBSD-current">.
 <item>Which files do you want to receive?<label id="cvsup:config:files">
 
 <p>As with sup, the files available via CVSup are organized into named
-groups called "collections".  The collections making up the FreeBSD
-source tree are described in <ref id="sup:dists" name="the sup
-collections document">.  In this example, we wish to receive the
+groups called "collections".  The collections that are available are
+described <ref id="cvsup:collec" name="here">.
+In this example, we wish to receive the
 entire main source tree for the FreeBSD system.  There is a single
 large collection "src-all" which will give us all of that, except the
 export-controlled cryptography support.  Let us assume for this
 example that we are in the USA or Canada.  Then we can get the
-cryptography code with two additional collections, "src-eBones" and
-"src-secure".  As a first step toward constructing our supfile, we
+cryptography code with one additional collection, "cvs-crypto".
+As a first step toward constructing our supfile, we
 simply list these collections, one per line:
 
 <verb>
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 
 <p><item>Which version(s) of them do you want?<label id="cvsup:config:vers">
@@ -331,8 +330,7 @@ substantially.
   *default base=/usr/local/etc/cvsup
   *default release=cvs delete use-rel-suffix compress
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 </itemize>
 
@@ -393,6 +391,113 @@ type "cvsup -H".  For more detailed descriptions, see the manual page.
 <p>Once you are satisfied with the way updates are working, you can arrange
 for regular runs of cvsup using cron(8).  Obviously, you should not let
 cvsup use its GUI when running it from cron.
+
+<sect1><heading>CVSup File Collections<label id="cvsup:collec"></heading>
+
+<p>The file collections available via CVSup are organized
+hierarchically.  There are a few large collections, and they are
+divided into smaller sub-collections.  Receiving a large collection
+is equivalent to receiving each of its sub-collections.
+The hierarchical relationships among collections are reflected by
+the use of indentation in the list below.
+
+<p> The most commonly used collections are <tt/src-all/,
+<tt/cvs-crypto/, and <tt/ports-all/.  The other collections are used
+only by small groups of people for specialized purposes, and some mirror
+sites may not carry all of them.
+
+<descrip>
+<tag><tt>cvs-all release=cvs</tt></tag>
+The main FreeBSD CVS repository, excluding the export-restricted
+cryptography code.
+  <p>
+  <descrip>
+  <tag><tt>distrib release=cvs</tt></tag>
+  Files related to the distribution and mirroring of FreeBSD.
+  <tag><tt>ports-all release=cvs</tt></tag>
+  The FreeBSD ports collection.
+    <p>
+    <descrip>
+    <tag><tt>ports-archivers release=cvs</tt></tag><p>
+    <tag><tt>ports-astro release=cvs</tt></tag><p>
+    <tag><tt>ports-audio release=cvs</tt></tag><p>
+    <tag><tt>ports-base release=cvs</tt></tag><p>
+    <tag><tt>ports-benchmarks release=cvs</tt></tag><p>
+    <tag><tt>ports-cad release=cvs</tt></tag><p>
+    <tag><tt>ports-chinese release=cvs</tt></tag><p>
+    <tag><tt>ports-comms release=cvs</tt></tag><p>
+    <tag><tt>ports-databases release=cvs</tt></tag><p>
+    <tag><tt>ports-devel release=cvs</tt></tag><p>
+    <tag><tt>ports-editors release=cvs</tt></tag><p>
+    <tag><tt>ports-emulators release=cvs</tt></tag><p>
+    <tag><tt>ports-games release=cvs</tt></tag><p>
+    <tag><tt>ports-graphics release=cvs</tt></tag><p>
+    <tag><tt>ports-japanese release=cvs</tt></tag><p>
+    <tag><tt>ports-lang release=cvs</tt></tag><p>
+    <tag><tt>ports-mail release=cvs</tt></tag><p>
+    <tag><tt>ports-math release=cvs</tt></tag><p>
+    <tag><tt>ports-mbone release=cvs</tt></tag><p>
+    <tag><tt>ports-misc release=cvs</tt></tag><p>
+    <tag><tt>ports-net release=cvs</tt></tag><p>
+    <tag><tt>ports-news release=cvs</tt></tag><p>
+    <tag><tt>ports-plan9 release=cvs</tt></tag><p>
+    <tag><tt>ports-print release=cvs</tt></tag><p>
+    <tag><tt>ports-russian release=cvs</tt></tag><p>
+    <tag><tt>ports-security release=cvs</tt></tag><p>
+    <tag><tt>ports-shells release=cvs</tt></tag><p>
+    <tag><tt>ports-sysutils release=cvs</tt></tag><p>
+    <tag><tt>ports-vietnamese release=cvs</tt></tag><p>
+    <tag><tt>ports-www release=cvs</tt></tag><p>
+    <tag><tt>ports-x11 release=cvs</tt></tag><p>
+    </descrip>
+  <tag><tt>src-all release=cvs</tt></tag>
+  The main FreeBSD sources, excluding the export-restricted cryptography
+  code.
+    <p>
+    <descrip>
+    <tag><tt>src-base/cvs</tt></tag><p>
+    <tag><tt>src-bin/cvs</tt></tag><p>
+    <tag><tt>src-contrib/cvs</tt></tag><p>
+    <tag><tt>src-etc/cvs</tt></tag><p>
+    <tag><tt>src-games/cvs</tt></tag><p>
+    <tag><tt>src-gnu/cvs</tt></tag><p>
+    <tag><tt>src-include/cvs</tt></tag><p>
+    <tag><tt>src-lib/cvs</tt></tag><p>
+    <tag><tt>src-libexec/cvs</tt></tag><p>
+    <tag><tt>src-release/cvs</tt></tag><p>
+    <tag><tt>src-sbin/cvs</tt></tag><p>
+    <tag><tt>src-share/cvs</tt></tag><p>
+    <tag><tt>src-sys/cvs</tt></tag><p>
+    <tag><tt>src-tools/cvs</tt></tag><p>
+    <tag><tt>src-usrbin/cvs</tt></tag><p>
+    <tag><tt>src-usrsbin/cvs</tt></tag><p>
+    </descrip>
+  <tag><tt>www release=cvs</tt></tag>
+  The sources for the World Wide Web data.
+  </descrip>
+<tag><tt>cvs-crypto release=cvs</tt></tag>
+The export-restricted cryptography code.
+  <p>
+  <descrip>
+  <tag><tt>cvs-crypto release=cvs</tt></tag>
+  The export-restricted cryptography code.
+    <p>
+    <descrip>
+    <tag><tt>src-eBones release=cvs</tt></tag><p>
+    <tag><tt>src-secure release=cvs</tt></tag><p>
+    </descrip>
+  </descrip>
+<tag><tt>distrib release=self</tt></tag>
+The CVSup server's own configuration files.
+<tag><tt>gnats release=current</tt></tag>
+The GNATS bug-tracking database.
+<tag><tt>src-sys release=lite2</tt></tag>
+The CVS repository for the lite2 kernel merge.
+<tag><tt>src-sys release=smp</tt></tag>
+The CVS repository for the SMP project.
+<tag><tt>www release=current</tt></tag>
+The installed World Wide Web data.
+</descrip>
 
 <sect1><heading>Announcements, Questions, and Bug Reports</heading>
 
