@@ -3648,6 +3648,9 @@ ed_get_packet(sc, buf, len, multicast)
 			ed_ring_copy(sc, buf+14, (char *)(eh+1), len - 14);
 		if (ifp != BDG_LOCAL )
 			bdg_forward(&m, ifp); /* not local, need forwarding */
+		if (m == NULL)
+			return ; /* dropped */
+		eh = mtod(m, struct ether_header *);
 		if (ifp == BDG_LOCAL || ifp == BDG_BCAST || ifp == BDG_MCAST)
 			goto getit ;
 		/* not local and not multicast, just drop it */
