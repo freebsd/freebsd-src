@@ -1,0 +1,258 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Arthur Olson.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ctime.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd June 4, 1993
+.Dt CTIME 3
+.Os BSD 4.3
+.Sh NAME
+.Nm asctime ,
+.Nm ctime ,
+.Nm difftime ,
+.Nm gmtime ,
+.Nm localtime ,
+.Nm mktime
+.Nd transform binary date and time value to
+.Tn ASCII
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <time.h>
+.Vt extern char *tzname[2];
+.Ft char *
+.Fn ctime "const time_t *clock"
+.Ft double
+.Fn difftime "time_t time1" "time_t time0"
+.Ft char *
+.Fn asctime "const struct tm *tm"
+.Ft struct tm *
+.Fn localtime "const time_t *clock"
+.Ft struct tm *
+.Fn gmtime "const time_t *clock"
+.Ft time_t
+.Fn mktime "struct tm *tm"
+.Sh DESCRIPTION
+The functions
+.Fn ctime ,
+.Fn gmtime
+and
+.Fn localtime
+all take as an argument a time value representing the time in seconds since
+the Epoch (00:00:00
+.Tn UTC ,
+January 1, 1970; see
+.Xr time 3 ) .
+.Pp
+The function
+.Fn localtime
+converts the time value pointed at by
+.Fa clock ,
+and returns a pointer to a
+.Dq Fa struct tm
+(described below) which contains
+the broken-out time information for the value after adjusting for the current
+time zone (and any other factors such as Daylight Saving Time).
+Time zone adjustments are performed as specified by the
+.Ev TZ
+environmental variable (see
+.Xr tzset 3 ) .
+The function
+.Fn localtime
+uses
+.Xr tzset
+to initialize time conversion information if
+.Xr tzset
+has not already been called by the process.
+.Pp
+After filling in the tm structure,
+.Fn localtime
+sets the
+.Fa tm_isdst Ns 'th
+element of
+.Fa tzname
+to a pointer to an
+.Tn ASCII
+string that's the time zone abbreviation to be
+used with
+.Fn localtime Ns 's
+return value.
+.Pp
+The function
+.Fn gmtime
+similarly converts the time value, but without any time zone adjustment,
+and returns a pointer to a tm structure (described below).
+.Pp
+The
+.Fn ctime
+function
+adjusts the time value for the current time zone in the same manner as
+.Fn localtime ,
+and returns a pointer to a 26-character string of the form:
+.Bd -literal -offset indent
+Thu Nov 24 18:22:48 1986\en\e0
+.Ed
+.Pp
+All the fields have constant width.
+.Pp
+The
+.Fn asctime
+function
+converts the broken down time in the structure
+.Fa tm
+pointed at by
+.Fa *tm
+to the form
+shown in the example above.
+.Pp
+The function
+.Fn mktime
+converts the broken-down time, expressed as local time, in the structure
+pointed to by tm into a time value with the same encoding as that of the
+values returned by the
+.Xr time 3
+function, that is, seconds from the Epoch,
+.Tn UTC .
+.Pp
+The original values of the
+.Fa tm_wday
+and
+.Fa tm_yday
+components of the structure are ignored, and the original values of the
+other components are not restricted to their normal ranges.
+(A positive or zero value for
+.Fa tm_isdst
+causes
+.Fn mktime
+to presume initially that summer time (for example, Daylight Saving Time)
+is or is not in effect for the specified time, respectively.
+A negative value for
+.Fa tm_isdst
+causes the
+.Fn mktime
+function to attempt to divine whether summer time is in effect for the
+specified time.)
+.Pp
+On successful completion, the values of the
+.Fa tm_wday
+and
+.Fa tm_yday
+components of the structure are set appropriately, and the other components
+are set to represent the specified calendar time, but with their values
+forced to their normal ranges; the final value of
+.Fa tm_mday
+is not set until
+.Fa tm_mon
+and
+.Fa tm_year
+are determined.
+.Fn Mktime
+returns the specified calendar time; if the calendar time cannot be
+represented, it returns \-1;
+.Pp
+The
+.Fn difftime
+function
+returns the difference between two calendar times,
+.Pf ( Fa time1
+-
+.Fa time0 ) ,
+expressed in seconds.
+.Pp
+External declarations as well as the tm structure definition are in the 
+.Aq Pa time.h
+include file.
+The tm structure includes at least the following fields:
+.Bd -literal -offset indent
+int tm_sec;	/\(** seconds (0 - 60) \(**/
+int tm_min;	/\(** minutes (0 - 59) \(**/
+int tm_hour;	/\(** hours (0 - 23) \(**/
+int tm_mday;	/\(** day of month (1 - 31) \(**/
+int tm_mon;	/\(** month of year (0 - 11) \(**/
+int tm_year;	/\(** year \- 1900 \(**/
+int tm_wday;	/\(** day of week (Sunday = 0) \(**/
+int tm_yday;	/\(** day of year (0 - 365) \(**/
+int tm_isdst;	/\(** is summer time in effect? \(**/
+char \(**tm_zone;	/\(** abbreviation of timezone name \(**/
+long tm_gmtoff;	/\(** offset from UTC in seconds \(**/
+.Ed
+.Pp
+The
+field
+.Fa tm_isdst
+is non-zero if summer time is in effect.
+.Pp
+The field
+.Fa tm_gmtoff
+is the offset (in seconds) of the time represented from
+.Tn UTC ,
+with positive
+values indicating east of the Prime Meridian.
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr gettimeofday 2 ,
+.Xr getenv 3 ,
+.Xr time 3 ,
+.Xr tzset 3 ,
+.Xr tzfile 5
+.Sh HISTORY
+This manual page is derived from
+the time package contributed to Berkeley by
+Arthur Olsen and which appeared in
+.Bx 4.3 .
+.Sh BUGS
+Except for 
+.Fn difftime
+and
+.Fn mktime ,
+these functions leaves their result in an internal static object and return
+a pointer to that object. Subsequent calls to these
+function will modify the same object.
+.Pp
+The
+.Fa tm_zone
+field of a returned tm structure points to a static array of characters,
+which will also be overwritten by any subsequent calls (as well as by
+subsequent calls to
+.Xr tzset 3
+and
+.Xr tzsetwall 3 ) .
+.Pp
+Use of the external variable
+.Fa tzname
+is discouraged; the
+.Fa tm_zone
+entry in the tm structure is preferred.
+.Pp
+Avoid using out-of-range values with
+.Fn mktime
+when setting up lunch with promptness sticklers in Riyadh.

@@ -4,7 +4,7 @@
 
 # machine-independent string sources
 SRCS+=	memccpy.c strcasecmp.c strcoll.c strdup.c strerror.c \
-	strftime.c strmode.c strtok.c strxfrm.c swab.c
+	strmode.c strtok.c strxfrm.c swab.c
 
 # machine-dependent string sources
 .include "${.CURDIR}/${MACHINE}/string/Makefile.inc"
@@ -84,7 +84,7 @@ MAN3+=	string/bcmp.3 string/bcopy.3 string/bstring.3 string/bzero.3 \
 	string/memcmp.3 string/memcpy.3 string/memmove.3 string/memset.3 \
 	string/rindex.3 string/strcasecmp.3 string/strcat.3 string/strchr.3 \
 	string/strcmp.3 string/strcoll.3 string/strcpy.3 string/strcspn.3 \
-	string/strftime.3 string/string.3 string/strlen.3 string/strmode.3 \
+	string/string.3 string/strlen.3 string/strmode.3 \
 	string/strdup.3 string/strerror.3 string/strpbrk.3 string/strrchr.3 \
 	string/strsep.3 string/strspn.3 string/strstr.3 string/strtok.3 \
 	string/strxfrm.3 string/swab.3
