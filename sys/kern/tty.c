@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.59 1995/07/30 12:39:16 bde Exp $
+ * $Id: tty.c,v 1.60 1995/07/30 13:52:56 bde Exp $
  */
 
 /*-
@@ -95,9 +95,9 @@
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
 static int	ttnread __P((struct tty *));
-static void	ttyblock __P((struct tty *tp));
 static void	ttyecho __P((int, struct tty *tp));
 static void	ttyrubo __P((struct tty *, int));
+static void	ttyunblock __P((struct tty *tp));
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -176,6 +176,14 @@ char const char_type[] = {
 #define	SET(t, f)	(t) |= (f)
 #define	CLR(t, f)	(t) &= ~(f)
 #define	ISSET(t, f)	((t) & (f))
+
+/*
+ * Input control starts when we would not be able to fit the maximum
+ * contents of the ping-pong buffers and finishes when we would be able
+ * to fit that much plus 1/8 more.
+ */
+#define	I_HIGH_WATER	(TTYHOG - 2 * 256)	/* XXX */
+#define	I_LOW_WATER	((TTYHOG - 2 * 256) * 7 / 8)	/* XXX */
 
 #undef MAX_INPUT		/* XXX wrong in <sys/syslimits.h> */
 #define	MAX_INPUT	TTYHOG
@@ -285,9 +293,21 @@ ttyinput(c, tp)
 	}
 	++tk_nin;
 
+	/*
+	 * Block further input iff:
+	 * current input > threshold AND input is available to user program
+	 * AND input flow control is enabled and not yet invoked.
+	 * The 3 is slop for PARMRK.
+	 */
+	iflag = tp->t_iflag;
+	if (tp->t_rawq.c_cc + tp->t_canq.c_cc > I_HIGH_WATER - 3 &&
+	    (!ISSET(lflag, ICANON) || tp->t_canq.c_cc != 0) &&
+	    (ISSET(tp->t_cflag, CRTS_IFLOW) || ISSET(iflag, IXOFF)) &&
+	    !ISSET(tp->t_state, TS_TBLOCK))
+		ttyblock(tp);
+
 	/* Handle exceptional conditions (break, parity, framing). */
 	cc = tp->t_cc;
-	iflag = tp->t_iflag;
 	err = (ISSET(c, TTY_ERRORMASK));
 	if (err) {
 		CLR(c, TTY_ERRORMASK);
@@ -317,11 +337,7 @@ parmrk:
 				c = 0;
 		}
 	}
-	/*
-	 * In tandem mode, check high water mark.
-	 */
-	if (ISSET(iflag, IXOFF) || ISSET(tp->t_cflag, CRTS_IFLOW))
-		ttyblock(tp);
+
 	if (!ISSET(tp->t_state, TS_TYPEN) && ISSET(iflag, ISTRIP))
 		CLR(c, 0x80);
 	if (!ISSET(lflag, EXTPROC)) {
@@ -1109,6 +1125,7 @@ ttyflush(tp, rw)
 	register int s;
 
 	s = spltty();
+again:
 	if (rw & FWRITE)
 		CLR(tp->t_state, TS_TTSTOP);
 #ifdef sun4c						/* XXX */
@@ -1123,24 +1140,32 @@ ttyflush(tp, rw)
 		tp->t_rocol = 0;
 		CLR(tp->t_state, TS_LOCAL);
 		ttwakeup(tp);
+		if (ISSET(tp->t_state, TS_TBLOCK)) {
+			ttyunblock(tp);
+			if (ISSET(tp->t_iflag, IXOFF)) {
+				/*
+				 * XXX wait a bit in the hope that the stop
+				 * character (if any) will go out.  Waiting
+				 * isn't good since it allows races.  This
+				 * will be fixed when the stop character is
+				 * put in a special queue.  Don't bother with
+				 * the checks in ttywait() since the timeout
+				 * will save us.
+				 */
+				SET(tp->t_state, TS_SO_OCOMPLETE);
+				ttysleep(tp, TSA_OCOMPLETE(tp), TTOPRI,
+					 "ttyfls", hz / 10);
+				/*
+				 * Don't try sending the stop character again.
+				 */
+				CLR(tp->t_state, TS_TBLOCK);
+				goto again;
+			}
+		}
 	}
 	if (rw & FWRITE) {
 		FLUSHQ(&tp->t_outq);
 		ttwwakeup(tp);
-	}
-	if ((rw & FREAD) &&
-	    ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
-		int queue_full = 0;
-
-		if (ISSET(tp->t_iflag, IXOFF) &&
-		    tp->t_cc[VSTART] != _POSIX_VDISABLE &&
-		    (queue_full = putc(tp->t_cc[VSTART], &tp->t_outq)) == 0 ||
-		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
-			CLR(tp->t_state, TS_TBLOCK);
-			ttstart(tp);
-			if (queue_full) /* try again */
-				SET(tp->t_state, TS_TBLOCK);
-		}
 	}
 	splx(s);
 }
@@ -1168,34 +1193,37 @@ ttychars(tp)
 }
 
 /*
- * Send stop character on input overflow.
+ * Handle input high water.  Send stop character for the IXOFF case.  Turn
+ * on our input flow control bit and propagate the changes to the driver.
+ * XXX the stop character should be put in a special high priority queue.
+ */
+void
+ttyblock(tp)
+	struct tty *tp;
+{
+
+	SET(tp->t_state, TS_TBLOCK);
+	if (ISSET(tp->t_iflag, IXOFF) && tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
+	    putc(tp->t_cc[VSTOP], &tp->t_outq) != 0)
+		CLR(tp->t_state, TS_TBLOCK);	/* try again later */
+	ttstart(tp);
+}
+
+/*
+ * Handle input low water.  Send start character for the IXOFF case.  Turn
+ * off our input flow control bit and propagate the changes to the driver.
+ * XXX the start character should be put in a special high priority queue.
  */
 static void
-ttyblock(tp)
-	register struct tty *tp;
+ttyunblock(tp)
+	struct tty *tp;
 {
-	register int total;
 
-	total = tp->t_rawq.c_cc + tp->t_canq.c_cc;
-	/*
-	 * Block further input iff: current input > threshold
-	 * AND input is available to user program.
-	 */
-	if (total >= TTYHOG / 2 &&
-	    !ISSET(tp->t_state, TS_TBLOCK) &&
-	    (!ISSET(tp->t_lflag, ICANON) || tp->t_canq.c_cc > 0)) {
-		int queue_full = 0;
-
-		if (ISSET(tp->t_iflag, IXOFF) &&
-		    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
-		    (queue_full = putc(tp->t_cc[VSTOP], &tp->t_outq)) == 0 ||
-		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
-			SET(tp->t_state, TS_TBLOCK);
-			ttstart(tp);
-			if (queue_full) /* try again */
-				CLR(tp->t_state, TS_TBLOCK);
-		}
-	}
+	CLR(tp->t_state, TS_TBLOCK);
+	if (ISSET(tp->t_iflag, IXOFF) && tp->t_cc[VSTART] != _POSIX_VDISABLE &&
+	    putc(tp->t_cc[VSTART], &tp->t_outq) != 0)
+		SET(tp->t_state, TS_TBLOCK);	/* try again later */
+	ttstart(tp);
 }
 
 void
@@ -1590,26 +1618,18 @@ slowcase:
 			break;
 		first = 0;
 	}
+
+out:
 	/*
 	 * Look to unblock input now that (presumably)
 	 * the input queue has gone down.
 	 */
-out:
 	s = spltty();
-	if (ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
-		int queue_full = 0;
-
-		if (ISSET(tp->t_iflag, IXOFF) &&
-		    cc[VSTART] != _POSIX_VDISABLE &&
-		    (queue_full = putc(cc[VSTART], &tp->t_outq)) == 0 ||
-		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
-			CLR(tp->t_state, TS_TBLOCK);
-			ttstart(tp);
-			if (queue_full) /* try again */
-				SET(tp->t_state, TS_TBLOCK);
-		}
-	}
+	if (ISSET(tp->t_state, TS_TBLOCK) &&
+	    tp->t_rawq.c_cc + tp->t_canq.c_cc <= I_LOW_WATER)
+		ttyunblock(tp);
 	splx(s);
+
 	return (error);
 }
 
