@@ -28,11 +28,12 @@
 #ifndef RTLD_H /* { */
 #define RTLD_H 1
 
+#include <machine/elf.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 
+#include <elf-hints.h>
 #include <link.h>
-#include <elf.h>
 #include <stddef.h>
 
 #include "rtld_machdep.h"

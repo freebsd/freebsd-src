@@ -32,7 +32,7 @@
 
 #include <ctype.h>
 #include <dirent.h>
-#include <elf.h>
+#include <elf-hints.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>

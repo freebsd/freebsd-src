@@ -38,11 +38,11 @@ static const char rcsid[] =
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <machine/elf.h>
 
 #define FREEBSD_AOUT
 
 #include <a.out.h>
-#include <elf.h>
 #include <link.h>
 #include <stab.h>
 
