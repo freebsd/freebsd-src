@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2005
+.Dd February 6, 2005
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Nm untimeout ,
 .Nm callout_handle_init ,
 .Nm callout_init ,
+.Nm callout_init_mtx ,
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
@@ -70,6 +71,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Ft void
 .Fn callout_init "struct callout *c" "int mpsafe"
+.Ft void
+.Fn callout_init_mtx "struct callout *c" "struct mtx *mtx" "int flags"
 .Ft int
 .Fn callout_stop "struct callout *c"
 .Ft int
@@ -178,6 +181,7 @@ Thus they are protected from re-entrancy.
 .Pp
 The functions
 .Fn callout_init ,
+.Fn callout_init_mtx ,
 .Fn callout_stop ,
 .Fn callout_drain
 and
@@ -202,6 +206,26 @@ that is,
 the Giant lock will be acquired before calling the callout function,
 and released when the callout function returns.
 .Pp
+The
+.Fn callout_init_mtx
+function may be used as an alternative to
+.Fn callout_init .
+The parameter
+.Fa mtx
+specifies a mutex that is to be acquired by the callout subsystem
+before calling the callout function, and released when the callout
+function returns.
+The following
+.Fa flags
+may be specified:
+.Bl -tag -width CALLOUT_RETURNUNLOCKED
+.It Dv CALLOUT_RETURNUNLOCKED
+The callout function will release
+.Fa mtx
+itself, so the callout subsystem should not attempt to unlock it
+after the callout function returns.
+.El
+.Pp
 The function
 .Fn callout_stop
 cancels a callout if it is currently pending.
@@ -210,6 +234,8 @@ If the callout is pending, then
 will return a non-zero value.
 If the callout is not set, has already been serviced or is currently
 being serviced, then zero will be returned.
+If the callout has an associated mutex, then that mutex must be
+held when this function is called.
 .Pp
 The function
 .Fn callout_drain
@@ -234,6 +260,8 @@ first performs the equivalent of
 to disestablish the callout, and then establishes a new callout in the
 same manner as
 .Fn timeout .
+If the callout has an associated mutex, then that mutex must be
+held when this function is called.
 .Pp
 The macros
 .Fn callout_pending ,
@@ -294,6 +322,27 @@ tries to reset or stop the callout.
 The callout subsystem provides a number of mechanisms to address these
 synchronization concerns:
 .Bl -enum -offset indent
+.It
+If the callout has an associated mutex that was specified using the
+.Fn callout_init_mtx
+function (or implicitly specified as the
+.Va Giant
+mutex using
+.Fn callout_init
+with
+.Fa mpsafe
+set to
+.Dv FALSE ) ,
+then this mutex is used to avoid the race conditions.
+The associated mutex must be acquired by the caller before calling
+.Fn callout_stop
+or
+.Fn callout_reset
+and it is guaranteed that the callout will be correctly stopped
+or reset as expected.
+Note that it is still necessary to use
+.Fn callout_drain
+before destroying the callout or its associated mutex.
 .It
 The return value from
 .Fn callout_stop
