@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.63 1996/01/27 02:33:36 bde Exp $
+ *	$Id: isa.c,v 1.64 1996/03/10 02:10:27 jkh Exp $
  */
 
 /*
@@ -270,8 +270,6 @@ isa_configure() {
 	dev_attach(&kdc_isa0);
 
 	splhigh();
-	enable_intr();
-	INTREN(IRQ_SLAVE);
 	printf("Probing for devices on the ISA bus:\n");
 	/* First probe all the sensitive probes */
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
