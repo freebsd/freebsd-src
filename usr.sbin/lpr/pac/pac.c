@@ -450,7 +450,8 @@ chkprinter(s)
 	case PCAPERR_TCLOOP:
 		fatal(pp, "%s", pcaperr(stat));
 	}
-	acctfile = pp->acct_file;
+	if ((acctfile = pp->acct_file) == NULL)
+		errx(3, "accounting not enabled for printer %s", s);
 	if (!pflag && pp->price100)
 		price = pp->price100/10000.0;
 	sumfile = (char *) calloc(sizeof(char), strlen(acctfile)+5);
