@@ -18,15 +18,15 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
-	libncurses libradius libskey libtacplus \
+SUBDIR=	${_csu} libcom_err libmd ${_libcrypt} ${_libm} \
+	libncurses libradius libskey libtacplus libutil \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipsec libipx libkvm libmenu \
 	${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
 	libposix1e libresolv librpcsvc libss \
-	libstand ${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
+	libstand ${_libtelnet} ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
