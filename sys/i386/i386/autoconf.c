@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.40 1995/10/21 00:55:13 phk Exp $
+ *	$Id: autoconf.c,v 1.41 1995/11/05 04:43:11 gibbs Exp $
  */
 
 /*
@@ -309,8 +309,7 @@ static void
 setroot()
 {
 	int  majdev, mindev, unit, part, adaptor;
-	dev_t temp = 0, orootdev;
-	struct swdevt *swp;
+	dev_t orootdev;
 
 /*printf("howto %x bootdev %x ", boothowto, bootdev);*/
 	if (boothowto & RB_DFLTROOT ||
