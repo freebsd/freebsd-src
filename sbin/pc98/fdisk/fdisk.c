@@ -35,6 +35,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -331,11 +332,11 @@ main(int argc, char *argv[])
 	{
 		static char realname[12];
 
-		if(strncmp(argv[0], "/dev", 4) == 0)
+		if(strncmp(argv[0], _PATH_DEV, sizeof _PATH_DEV - 2) == 0)
 			disk = argv[0];
 		else
 		{
-			snprintf(realname, 12, "/dev/%s", argv[0]);
+			snprintf(realname, 12, "%s%s", _PATH_DEV, argv[0]);
 			disk = realname;
 		}
 		

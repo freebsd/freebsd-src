@@ -52,6 +52,7 @@
  * $FreeBSD$
  */
 
+#include <paths.h>
 #include "defs.h"
 
 #ifdef SNMP
@@ -424,7 +425,7 @@ main(argc, argv)
 	(void)setpgrp();
 #else 
 #ifdef TIOCNOTTY
-	t = open("/dev/tty", 2);
+	t = open(_PATH_TTY, 2);
 	if (t >= 0) {
 	    (void)ioctl(t, TIOCNOTTY, (char *)0);
 	    (void)close(t);

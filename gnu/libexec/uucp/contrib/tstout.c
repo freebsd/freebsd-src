@@ -15,6 +15,8 @@
    This program must run suid to root.
    */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -36,7 +38,7 @@ main (argc, argv)
   char *z;
 
   if (argc != 2
-      || strncmp (argv[1], "/dev/", sizeof "/dev/" - 1) != 0)
+      || strncmp (argv[1], _PATH_DEV, sizeof _PATH_DEV - 1) != 0)
     {
       fprintf (stderr, "Usage: tstout device\n");
       exit (EXIT_FAILURE);

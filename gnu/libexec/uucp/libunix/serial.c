@@ -37,6 +37,7 @@ const char serial_rcsid[] = "$FreeBSD$";
 
 #include <errno.h>
 #include <ctype.h>
+#include <paths.h>
 
 #if HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -497,10 +498,10 @@ fsserial_init (qconn, qcmds, zdevice)
       size_t clen;
 
       clen = strlen (zdevice);
-      q->zdevice = zbufalc (sizeof "/dev/" + clen);
-      memcpy (q->zdevice, "/dev/", sizeof "/dev/" - 1);
-      memcpy (q->zdevice + sizeof "/dev/" - 1, zdevice, clen);
-      q->zdevice[sizeof "/dev/" + clen - 1] = '\0';
+      q->zdevice = zbufalc (sizeof _PATH_DEV + clen);
+      memcpy (q->zdevice, _PATH_DEV, sizeof _PATH_DEV - 1);
+      memcpy (q->zdevice + sizeof _PATH_DEV - 1, zdevice, clen);
+      q->zdevice[sizeof _PATH_DEV + clen - 1] = '\0';
     }
   q->o = -1;
   q->ord = -1;
@@ -519,7 +520,7 @@ fsysdep_stdin_init (qconn)
 {
   /* chmod /dev/tty to prevent other users from writing messages to
      it.  This is essentially `mesg n'.  */
-  (void) chmod ("/dev/tty", S_IRUSR | S_IWUSR);
+  (void) chmod (_PATH_TTY, S_IRUSR | S_IWUSR);
   return fsserial_init (qconn, &sstdincmds, (const char *) NULL);
 }
 
@@ -959,8 +960,8 @@ fsserial_open (qconn, ibaud, fwait, tlocal)
 #else
       const char *z;
 
-      if (strncmp (q->zdevice, "/dev/", sizeof "/dev/" - 1) == 0)
-	z = q->zdevice + sizeof "/dev/" - 1;
+      if (strncmp (q->zdevice, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
+	z = q->zdevice + sizeof _PATH_DEV - 1;
       else
 	z = q->zdevice;
       ulog_device (z);
@@ -1651,8 +1652,8 @@ fsysdep_modem_begin_dial (qconn, qdial)
       zfree = NULL;
       if (*z != '/')
 	{
-	  zfree = zbufalc (sizeof "/dev/" + strlen (z));
-	  sprintf (zfree, "/dev/%s", z);
+	  zfree = zbufalc (sizeof _PATH_DEV + strlen (z));
+	  sprintf (zfree, "%s%s", _PATH_DEV, z);
 	  z = zfree;
 	}
 

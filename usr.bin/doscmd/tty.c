@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <signal.h>
 #include <sys/time.h>
 #ifdef __FreeBSD__
@@ -306,8 +307,8 @@ console_init()
     }
 #endif
 
-    if ((fd = open("/dev/console", 2)) < 0) {
-	perror("/dev/console");
+    if ((fd = open(_PATH_CONSOLE, 2)) < 0) {
+	perror(_PATH_CONSOLE);
 	quit(1);
     }
 
@@ -2036,7 +2037,7 @@ video_init()
 	i = 0;
     	if (fds)
 	    for (i = 0; i < nfds && (i == 0 || fds[i-1] < 63); ++i)
-		if ((fds[i] = open("/dev/null", 0)) < 0)
+		if ((fds[i] = open(_PATH_DEVNULL, 0)) < 0)
 		    break;
 	/*
 	 * Leave 3 fds behind for X to play with

@@ -1,3 +1,7 @@
+/* $FreeBSD$ */
+
+#include <paths.h>
+
 #include "EXTERN.h"
 #include "common.h"
 #include "INTERN.h"
@@ -247,7 +251,7 @@ long arg1,arg2,arg3;
 	write(1, buf, strlen(buf));
 	r = read(1, buf, sizeof buf);
     }
-    else if ((ttyfd = open("/dev/tty", 2)) >= 0 && isatty(ttyfd)) {
+    else if ((ttyfd = open(_PATH_TTY, 2)) >= 0 && isatty(ttyfd)) {
 					/* might be deleted or unwriteable */
 	write(ttyfd, buf, strlen(buf));
 	r = read(ttyfd, buf, sizeof buf);
@@ -382,7 +386,7 @@ int assume_exists;
     if (debug & 128)
 	say4("fetchname %s %d %d\n",at,strip_leading,assume_exists);
 #endif
-    if (strnEQ(at, "/dev/null", 9))	/* so files can be created by diffing */
+    if (strnEQ(at, _PATH_DEVNULL, sizeof _PATH_DEVNULL - 1))	/* so files can be created by diffing */
 	return Nullch;			/*   against /dev/null. */
     name = fullname = t = savestr(at);
 

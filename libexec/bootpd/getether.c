@@ -18,6 +18,7 @@
 #endif
 
 #include <ctype.h>
+#include <paths.h>
 #include <syslog.h>
 
 #include "getether.h"
@@ -195,7 +196,7 @@ getether(ifname, eap)
 	char *enaddr;
 	int unit = -1;				/* which unit to attach */
 
-	snprintf(devname, sizeof(devname), "/dev/%s", ifname);
+	snprintf(devname, sizeof(devname), "%s%s", _PATH_DEV, ifname);
 	fd = open(devname, 2);
 	if (fd < 0) {
 		/* Try without the trailing digit. */

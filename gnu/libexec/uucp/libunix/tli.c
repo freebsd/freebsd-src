@@ -38,6 +38,7 @@ const char tli_rcsid[] = "$FreeBSD$";
 #include "system.h"
 
 #include <errno.h>
+#include <paths.h>
 
 #if HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -267,8 +268,8 @@ ftli_open (qconn, ibaud, fwait)
   zfreedev = NULL;
   if (*zdevice != '/')
     {
-      zfreedev = zbufalc (sizeof "/dev/" + strlen (zdevice));
-      sprintf (zfreedev, "/dev/%s", zdevice);
+      zfreedev = zbufalc (sizeof _PATH_DEV + strlen (zdevice));
+      sprintf (zfreedev, "%s%s", _PATH_DEV, zdevice);
       zdevice = zfreedev;
     }
 

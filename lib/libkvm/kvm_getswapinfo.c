@@ -28,6 +28,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <nlist.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -188,7 +189,7 @@ kvm_getswapinfo(
 					    swap_ary[i].ksw_devname,
 					    sizeof(swap_ary[i].ksw_devname),
 					    "%s%s",
-					    ((flags & SWIF_DEV_PREFIX) ? "/dev/" : ""),
+					    ((flags & SWIF_DEV_PREFIX) ? _PATH_DEV : ""),
 					    devname(swinfo.sw_dev, S_IFCHR)
 					);
 				}

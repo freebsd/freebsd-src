@@ -39,6 +39,7 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <unistd.h>
@@ -116,7 +117,7 @@ main(int argc, char **argv)
 
 
     /* XXX should only be for tty mode */
-    fd = open ("/dev/null", O_RDWR);
+    fd = open (_PATH_DEVNULL, O_RDWR);
     if (fd != 3)
 	dup2 (fd, 3); /* stdaux */
     if (fd != 4)

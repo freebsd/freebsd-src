@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* Still missing:
  *
  * mkctm 
@@ -27,6 +29,7 @@
 #include <unistd.h>
 #include <md5.h>
 #include <err.h>
+#include <paths.h>
 #include <signal.h>
 
 #define DEFAULT_IGNORE	"/CVS$|/\\.#|00_TRANS\\.TBL$"
@@ -560,7 +563,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (!logf)
-		logf = fopen("/dev/null", "w");
+		logf = fopen(_PATH_DEVNULL, "w");
 
 	setbuf(stdout, 0);
 

@@ -36,6 +36,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <locale.h>
+#include <paths.h>
 
 #ifdef I4B_EXTERNAL_MONITOR
 #include "monitor.h"
@@ -707,7 +708,7 @@ isdnrdhdl(void)
 				break;
 
 			default:
-				log(LL_WRN, "ERROR, unknown message received from /dev/isdn (0x%x)", msg_rd_buf[0]);
+				log(LL_WRN, "ERROR, unknown message received from %sisdn (0x%x)", _PATH_DEV, msg_rd_buf[0]);
 				break;
 		}
 	}

@@ -39,6 +39,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -156,7 +157,7 @@ main(int argc, char **argv)
 
 		if (strchr(Devname, '/') == NULL) {
 			char *acp = malloc(6 + strlen(Devname));
-			strcpy(acp, "/dev/");
+			strcpy(acp, _PATH_DEV);
 			strcat(acp, Devname);
 			Devname = acp;
 		}
