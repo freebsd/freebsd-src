@@ -3,6 +3,7 @@
 SUBDIR =
 SUBDIR += blank
 SUBDIR += daemon
+SUBDIR += dragon
 SUBDIR += fade
 SUBDIR += fire
 SUBDIR += green

@@ -41,12 +41,11 @@
 #include <dev/syscons/syscons.h>
 
 #define SAVER_NAME	 "warp_saver"
-#define SCRW		 320
-#define SCRH		 200
 #define SPP		 15
 #define STARS		 (SPP * (1 + 2 + 4 + 8))
 
 static u_char		*vid;
+static int		 banksize, scrmode, bpsl, scrw, scrh;
 static int		 blanked;
 static int		 star[STARS];
 static u_char		 warp_pal[768] = {
@@ -59,17 +58,31 @@ static u_char		 warp_pal[768] = {
 };
 
 static void
-warp_update(void)
+warp_update(video_adapter_t *adp)
 {
-	int i, j, k, n;
-	
+	int i, j, k, n, o, p;
+
 	for (i = 1, k = 0, n = SPP*8; i < 5; i++, n /= 2) {
 		for (j = 0; j < n; j++, k++) {
-			vid[star[k]] = 0;
+			p = (star[k] / scrw) *  bpsl + (star[k] % scrw);
+			o = 0;
+			while (p > banksize) {
+				p -= banksize;
+				o += banksize;
+			}
+			set_origin(adp, o);
+			vid[p] = 0;
 			star[k] += i;
-			if (star[k] > SCRW * SCRH)
-				star[k] -= SCRW * SCRH;
-			vid[star[k]] = i;
+			if (star[k] > scrw*scrh)
+				star[k] -= scrw*scrh;
+			p = (star[k] / scrw) *  bpsl + (star[k] % scrw);
+			o = 0;
+			while (p > banksize) {
+				p -= banksize;
+				o += banksize;
+			}
+			set_origin(adp, o);
+			vid[p] = i;
 		}
 	}
 }
@@ -77,23 +90,27 @@ warp_update(void)
 static int
 warp_saver(video_adapter_t *adp, int blank)
 {
-	int pl;
+	int i, pl;
 	
 	if (blank) {
 		/* switch to graphics mode */
 		if (blanked <= 0) {
 			pl = splhigh();
-			set_video_mode(adp, M_VGA_CG320);
+			set_video_mode(adp, scrmode);
 			load_palette(adp, warp_pal);
 			set_border(adp, 0);
 			blanked++;
 			vid = (u_char *)adp->va_window;
+			banksize = adp->va_window_size;
+			bpsl = adp->va_line_width;
 			splx(pl);
-			bzero(vid, SCRW * SCRH);
+			for (i = 0; i < bpsl * scrh; i += banksize) {
+				set_origin(adp, i);
+				bzero(vid, banksize);
+			}
 		}
-		
 		/* update display */
-		warp_update();
+		warp_update(adp);
 	} else {
 		blanked = 0;
 	}
@@ -106,17 +123,25 @@ warp_init(video_adapter_t *adp)
 	video_info_t info;
 	int i;
 	
-	/* check that the console is capable of running in 320x200x256 */
-	if (get_mode_info(adp, M_VGA_CG320, &info)) {
+	if (!get_mode_info(adp, M_VGA_CG320, &info)) {
+		scrmode = M_VGA_CG320;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x480, &info)) {
+		scrmode = M_PC98_PEGC640x480;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x400, &info)) {
+		scrmode = M_PC98_PEGC640x400;
+	} else {
 		log(LOG_NOTICE,
 		    "%s: the console does not support M_VGA_CG320\n",
 		    SAVER_NAME);
 		return (ENODEV);
 	}
 	
+	scrw = info.vi_width;
+	scrh = info.vi_height;
+
 	/* randomize the star field */
 	for (i = 0; i < STARS; i++)
-		star[i] = random() % (SCRW * SCRH);
+		star[i] = random() % (scrw * scrh);
 	
 	return (0);
 }
