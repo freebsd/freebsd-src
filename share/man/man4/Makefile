@@ -189,6 +189,7 @@ MAN=	aac.4 \
 	ng_UI.4 \
 	ng_uni.4 \
 	ng_vjc.4 \
+	ng_vlan.4 \
 	nmdm.4 \
 	nsp.4 \
 	null.4 \
