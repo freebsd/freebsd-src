@@ -19,6 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 #include "system.h"
 #include "cpplib.h"
@@ -1225,6 +1227,7 @@ new_pending_directive (pend, text, handler)
   DEF_OPT("std=gnu89",                0,      OPT_std_gnu89)                  \
   DEF_OPT("std=gnu99",                0,      OPT_std_gnu99)                  \
   DEF_OPT("std=gnu9x",                0,      OPT_std_gnu9x)                  \
+  DEF_OPT("std=bsd",                  0,      OPT_std_bsd)                    \
   DEF_OPT("std=iso9899:1990",         0,      OPT_std_iso9899_1990)           \
   DEF_OPT("std=iso9899:199409",       0,      OPT_std_iso9899_199409)         \
   DEF_OPT("std=iso9899:1999",         0,      OPT_std_iso9899_1999)           \
@@ -1509,6 +1512,9 @@ cpp_handle_option (pfile, argc, argv, ignore)
 	case OPT_std_gnu9x:
 	case OPT_std_gnu99:
 	  set_lang (pfile, CLK_GNUC99);
+	  break;
+	case OPT_std_bsd:
+	  set_lang (pfile, CLK_GNUC89);
 	  break;
 	case OPT_std_iso9899_199409:
 	  set_lang (pfile, CLK_STDC94);
