@@ -537,20 +537,36 @@ buildkernel:
 	@echo "===> ${_kernel}"
 	mkdir -p ${KRNLOBJDIR}
 .if !defined(NO_KERNELCONFIG)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 1: configuring the kernel"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
 			${KERNCONFDIR}/${_kernel}
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 2.1: cleaning up the object tree"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} ${CLEANDIR}
 .endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 2.2: rebuilding the object tree"
+	@echo "--------------------------------------------------------------"
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} obj
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 2.3: build tools"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
 	    ${MAKE} -DNO_CPU_CFLAGS -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} obj
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
@@ -560,9 +576,17 @@ buildkernel:
 .endfor
 .endif
 .if !defined(NO_KERNELDEPEND)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 3.1: making dependencies"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} depend -DNO_MODULES_OBJ
 .endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 3.2: building everything"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} all -DNO_MODULES_OBJ
 	@echo "--------------------------------------------------------------"
