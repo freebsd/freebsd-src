@@ -56,7 +56,7 @@ case $# in
 esac
 
 
-bigrams=$TMPDIR/_concatdb$$.bigrams
+bigrams=`mktemp ${TMPDIR=/tmp}/_bigrams.XXXXXXXXXX` || exit 1
 trap 'rm -f $bigrams' 0 1 2 3 5 10 15
 
 for db 
