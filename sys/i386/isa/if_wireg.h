@@ -117,7 +117,11 @@ struct wi_softc	{
 	int			wi_nextitem;
 #endif
 	struct callout_handle	wi_stat_ch;
+	struct mtx		wi_mtx;
 };
+
+#define	WI_LOCK(_sc)		mtx_enter(&(_sc)->wi_mtx, MTX_DEF)
+#define	WI_UNLOCK(_sc)		mtx_exit(&(_sc)->wi_mtx, MTX_DEF)
 
 #define WI_TIMEOUT	65536
 
