@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <wctype.h>
@@ -38,9 +37,6 @@ enum {
 	_WCT_TOUPPER	= 2
 };
 
-/*
- * TODO: Supply a macro version of this.
- */
 wint_t
 towctrans(wint_t wc, wctrans_t desc)
 {
