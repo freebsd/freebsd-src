@@ -9,27 +9,20 @@ freebsd-bugs@FreeBSD.org or using the send-pr command (those preferring a
 WEB based interface can also see http://www.freebsd.org/send-pr.html).
 
 For information about FreeBSD and the layout of the 3.0-SNAPSHOT release
-directory, see ABOUT.TXT.  For installation instructions, see the
-INSTALL.TXT and HARDWARE.TXT files.
+directory (especially if you're installing from floppies!), see ABOUT.TXT.
+For installation instructions, see the INSTALL.TXT and HARDWARE.TXT files.
 
 
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
 
-The kernel code from 4.4BSD-Lite2 has been (finally) merged.
+KERNEL CHANGES:
 
-The SMP (Symmetric MultiProcessing) branch has been merged into
--current.
+The code from 4.4BSD-Lite2 has been (finally) merged.
+
+The SMP (Symmetric MultiProcessing) branch has been merged.
 
 Secure RPC is now supported (and usable with NFS et al).
-
-The default username length has increased to 16 characters.
-Caution:  Old utmp/wtmp files will NOT work with this change since
-the data records will be of the old size.  For a conversion utility
-to aid with this, see /usr/src/tools/3.0-upgrade.
-
-/etc/sysconfig now replaced by more compact /etc/rc.conf file
-(new since 2.2.1).
 
 Use the new if_multiaddrs list for multicast addresses rather than the
 previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
@@ -59,16 +52,39 @@ Statically linked binaries from older releases and other BSD platforms
 are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
 popen() implementation.
 
-fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
-This brings it in line with the numbers used in the device names
-in /dev.
-
-The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
-believed to be fixed.
-
 With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
 Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
 to the kernel, and BSD/OS's contributed dosemu has been ported.
+
+
+SECURITY CHANGES:
+
+7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
+8/22	buffer overflows in tip corrected (benign since tip isn't
+	set[ug]id)
+8/26	buffer overflow in glob fixed, no know exploits
+8/27	vacation security problem with sendmail corrected (SNI)
+8/29	inetd sleeps less when children exit, making DoS attacks much
+	harder.
+8/29	fts now race-proof and find -execdir added (-current only)
+
+The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
+also believed to be fixed.
+
+
+USERLAND CHANGES:
+
+The default username length has increased to 16 characters.
+Caution:  Old utmp/wtmp files will NOT work with this change since
+the data records will be of the old size.  For a conversion utility
+to aid with this, see /usr/src/tools/3.0-upgrade.
+
+/etc/sysconfig now replaced by more compact /etc/rc.conf file
+(new since 2.2.1).
+
+fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
+This brings it in line with the numbers used in the device names
+in /dev.
 
 
 2. Supported Configurations
@@ -293,16 +309,17 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 2.1.7-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.0-SNAP and 2.2.x-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
         Concord CA  94520
-        1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
+        1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (FAX)
 
 Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp from:
-        ftp://ftp.cdrom.com/cdrom/catalog.
+
+        ftp://ftp.cdrom.com/cdrom/catalog
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
 FreeBSD 3.0-SNAP CDs are $39.95 or $14.95 with a FreeBSD-SNAP subscription
@@ -349,7 +366,7 @@ reports.  However, before submitting, please try to make sure whether
 the problem might have already been fixed since.
 
 
-Otherwise, for any questions or suggestions, please send mail to:
+Otherwise, for any questions or tech support issues, please send mail to:
 
                 freebsd-questions@FreeBSD.org
 
@@ -394,11 +411,6 @@ or, if you've loaded the doc distribution:
 
         file:/usr/share/doc/handbook/staff.html
 
-Additional FreeBSD helpers and beta testers:
-
-        Coranth Gryphon            Dave Rivers 
-        Kaleb S. Keithley          Terry Lambert
-        David Dawes                Don Lewis
 
 Special mention to:
 
