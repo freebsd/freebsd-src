@@ -52,6 +52,7 @@ EXT_SED_CMD =	INDOT_U=`echo "${INDOT}"|tr "[a-z]" "[A-Z]"`; \
 		-e "s/@BSD_SYSCALL_EXT_U@/$${BSD_SYSCALL_EXT_U}/g" \
 		-e "s/@LIB_C_EXT@/${LIB_C_EXT}/g" \
 		-e "s/@LIB_C_EXT_U@/$${LIB_C_EXT_U}/g" \
-		-e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
+		-e "s@/etc/named\.conf@/etc/namedb/named.conf@g" \
+		-e "s/^ *$$/.Pp/"
 
 MANFILTER=	${EXT_SED_CMD}
