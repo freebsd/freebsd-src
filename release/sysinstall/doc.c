@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.15 1996/04/07 03:52:23 jkh Exp $
+ * $Id: doc.c,v 1.12 1996/04/13 13:31:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,14 +57,12 @@ docBrowser(dialogMenuItem *self)
 
     /* First, make sure we have whatever browser we've chosen is here */
     if (package_add(browser) != DITEM_SUCCESS) {
-	dialog_clear();
 	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
 		   "wish to verify that your media is configured correctly and\n"
 		   "try again.", browser);
 	return DITEM_FAILURE;
     }
     if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {
-	dialog_clear();
 	if (!msgYesNo("Hmmm.  The %s package claims to have installed, but I can't\n"
 		      "find its binary in %s!  You may wish to try a different\n"
 		      "location to load the package from (go to Media menu) and see if that\n"
@@ -92,7 +90,6 @@ docShowDocument(dialogMenuItem *self)
     char *str = self->prompt;
 
     if (!file_executable(browser)) {
-	dialog_clear();
 	msgConfirm("Can't find the browser in %s!  Please ensure that it's\n"
 		   "properly set in the Options editor.", browser);
 	return DITEM_FAILURE;
@@ -115,8 +112,9 @@ docShowDocument(dialogMenuItem *self)
     }
     if (where) {
 	sprintf(tmp, "%s %s", browser, where);
+	dialog_clear();
 	systemExecute(tmp);
-	return DITEM_SUCCESS;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
 	msgConfirm("Hmmmmm!  I can't seem to access the documentation you selected!\n"
@@ -124,4 +122,3 @@ docShowDocument(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
 }
-

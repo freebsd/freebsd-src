@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.10 1996/04/07 03:52:16 jkh Exp $
+ * $Id: anonFTP.c,v 1.11 1996/04/13 13:31:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -211,7 +211,7 @@ createFtpUser(void)
 }
 
 /* This is it - how to get the setup values */
-int
+static int
 anonftpOpenDialog(void)
 {
     WINDOW              *ds_win;
@@ -405,9 +405,8 @@ configAnonFTP(dialogMenuItem *self)
     dialog_clear();
     i = anonftpOpenDialog();
     if (i != DITEM_SUCCESS) {
-	dialog_clear();
 	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
-	return DITEM_SUCCESS;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     
     /*** Use defaults for any invalid values ***/
@@ -431,7 +430,7 @@ configAnonFTP(dialogMenuItem *self)
     /*** If HomeDir does not exist, create it ***/
     
     if (!directory_exists(tconf.homedir)) {
-	vsystem("mkdir -p %s" ,tconf.homedir);
+	vsystem("mkdir -p %s", tconf.homedir);
     }
     
     if (directory_exists(tconf.homedir)) {
@@ -453,33 +452,25 @@ configAnonFTP(dialogMenuItem *self)
 	    vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
 	    i = DITEM_FAILURE;
 	}
 	
-	dialog_clear();
 	if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
 	    char cmd[256];
-	    WINDOW *w;
-
-	    w = savescr();
 	    dialog_clear();
-	    msgNotify("Uncompressing the editor - please wait..");
 	    vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
 	    sprintf(cmd, "%s %s/etc/%s", variable_get(VAR_EDITOR), tconf.homedir, MOTD_FILE);
 	    if (!systemExecute(cmd))
 		i = DITEM_SUCCESS;
 	    else
 		i = DITEM_FAILURE;
-	    restorescr(w);
 	}
     }
     else {
-	dialog_clear();
 	msgConfirm("Invalid Directory: %s\n"
 		   "Anonymous FTP will not be set up.", tconf.homedir);
 	i = DITEM_FAILURE;
     }
-    return i;
+    return i | DITEM_RESTORE;
 }

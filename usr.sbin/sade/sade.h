@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.49 1996/04/07 03:52:35 jkh Exp $
+ * $Id: sysinstall.h,v 1.50 1996/04/13 13:32:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -383,6 +383,7 @@ extern void	diskPartition(Device *dev, Disk *d);
 /* dist.c */
 extern int	distSetCustom(char *str);
 extern int	distReset(dialogMenuItem *self);
+extern int	distSrcReset(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
 extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);

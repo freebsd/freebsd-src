@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.19 1996/04/07 03:52:29 jkh Exp $
+ * $Id: installUpgrade.c,v 1.20 1996/04/13 13:31:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,6 @@ typedef struct _hitList {
 static void
 doByHand(HitList *h)
 {
-    dialog_clear();
     msgConfirm("/etc/%s is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  You'll need to merge the old and\n"
 	       "new versions by hand when the option to do so manually is later\n"
@@ -68,7 +67,6 @@ doByHand(HitList *h)
 static void
 yellSysconfig(HitList *h)
 {
-    dialog_clear();
     msgConfirm("/etc/sysconfig is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  Unfortunately, your system\n"
 	       "will also come up with a very different \"personality\" than it had\n"
@@ -151,11 +149,9 @@ traverseHitlist(HitList *h)
 {
     while (h->name) {
 	if (!file_readable(h->name)) {
-	    if (!h->optional) {
-		dialog_clear();
+	    if (!h->optional)
 		msgConfirm("Unable to find an old /etc/%s file!  That is decidedly non-standard and\n"
 			   "your upgraded system may function a little strangely as a result.");
-	    }
 	}
 	else {
 	    if (h->action == JUST_COPY) {
@@ -165,10 +161,8 @@ traverseHitlist(HitList *h)
 		/* Copy the old one into its place */
 		msgNotify("Resurrecting %s..", h->name);
 		/* Do this with tar so that symlinks and such are preserved */
-		if (vsystem("tar cf - %s | tar xpf - -C /etc", h->name)) {
-		    dialog_clear();
+		if (vsystem("tar cf - %s | tar xpf - -C /etc", h->name))
 		    msgConfirm("Unable to resurrect your old /etc/%s!  Hmmmm.", h->name);
-		}
 	    }
 	    else /* call handler */
 		h->handler(h);
@@ -185,7 +179,6 @@ installUpgrade(dialogMenuItem *self)
     struct termios foo;
 
     if (!RunningAsInit) {
-	dialog_clear();
 	msgConfirm("You can only perform this procedure when booted off the installation\n"
 		   "floppy.");
 	return DITEM_FAILURE;
@@ -199,7 +192,6 @@ installUpgrade(dialogMenuItem *self)
 	return DITEM_FAILURE;
 
     if (!Dists) {
-	dialog_clear();
 	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure will\n"
 		   "only upgrade those portions of the system for which a distribution has\n"
 		   "been selected.  In the next screen, we'll go to the Distributions menu\n"
@@ -211,7 +203,6 @@ installUpgrade(dialogMenuItem *self)
 
     /* No bin selected?  Not much of an upgrade.. */
     if (!(Dists & DIST_BIN)) {
-	dialog_clear();
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
@@ -225,13 +216,11 @@ installUpgrade(dialogMenuItem *self)
 	extractingBin = FALSE;
 
     if (!mediaDevice) {
-	dialog_clear();
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return DITEM_FAILURE;
     }
 
-    dialog_clear();
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
 	       "you will be expected to *Mount* any partitions you're interested in\n"
 	       "upgrading.  Don't set the Newfs flag to Y on anything in the label editor\n"
@@ -242,7 +231,6 @@ installUpgrade(dialogMenuItem *self)
 	       "step.");
 
     if (diskLabelEditor(self) == DITEM_FAILURE) {
-	dialog_clear();
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
 	return DITEM_FAILURE;
@@ -251,7 +239,6 @@ installUpgrade(dialogMenuItem *self)
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
     if (diskLabelCommit(self) == DITEM_FAILURE) {
-	dialog_clear();
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
@@ -259,14 +246,12 @@ installUpgrade(dialogMenuItem *self)
     }
 
     if (!copySelf()) {
-	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
 	return DITEM_FAILURE;
     }
 
     if (chroot("/mnt") == DITEM_FAILURE) {
-	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
@@ -277,7 +262,6 @@ installUpgrade(dialogMenuItem *self)
     systemCreateHoloshell();
 
     if (!rootExtract()) {
-	dialog_clear();
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		   "this problem and try again (the system will now reboot).");
 	reboot(0);
@@ -287,7 +271,6 @@ installUpgrade(dialogMenuItem *self)
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
 	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc, NULL)) {
-		dialog_clear();
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
 			     "bad idea!  Do you want to go back and specify the save directory again?"))
@@ -303,7 +286,6 @@ installUpgrade(dialogMenuItem *self)
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.205");
 	    if (system("chflags noschg /kernel && mv /kernel /kernel.205")) {
-		dialog_clear();
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?  Due to the\n"
 			      "way that this upgrade process works, you will have to reboot\n"
@@ -317,13 +299,12 @@ installUpgrade(dialogMenuItem *self)
     msgNotify("Beginning extraction of distributions..");
     if (distExtractAll(self) == DITEM_FAILURE) {
 	if (extractingBin && (Dists & DIST_BIN)) {
-	    dialog_clear();
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
+	    dialog_clear();
 	    reboot(0);
 	}
-	dialog_clear();
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
 		   "of the essentials.  We'll treat this as a warning since it may have been\n"
 		   "only non-essential distributions which failed to load.");
@@ -335,20 +316,17 @@ installUpgrade(dialogMenuItem *self)
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
 	if (installFixup(self) == DITEM_FAILURE) {
-	    dialog_clear();
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"
 		       "it comes time to merge your /etc customizations back.");
 	}
     }
     
-    dialog_clear();
     msgConfirm("First stage of upgrade completed successfully!\n\n"
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
 
     if (chdir(saved_etc)) {
-	dialog_clear();
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
@@ -359,7 +337,6 @@ installUpgrade(dialogMenuItem *self)
 	traverseHitlist(etc_files);
     }
 
-    dialog_clear();
     msgConfirm("OK!  At this stage, we've resurrected all the /etc files we could\n"
 	       "(and you may have been warned about some that you'll have to merge\n"
 	       "yourself by hand) and we're going to drop you into a shell to do\n"

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.30 1996/03/21 09:30:14 jkh Exp $
+ * $Id: package.c,v 1.31 1996/04/13 13:32:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,7 +71,6 @@ package_extract(Device *dev, char *name, Boolean depended)
     }
 
     if (!dev->init(dev)) {
-	dialog_clear();
 	msgConfirm("Unable to initialize media type for package extract.");
 	return DITEM_FAILURE;
     }
@@ -92,7 +91,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	int i, tot, pfd[2];
 	pid_t pid;
 
-	dialog_clear();
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
@@ -143,11 +141,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
 	else {
-	    dialog_clear();
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
 	}
 	ret = DITEM_FAILURE;
     }
-    return ret;
+    return ret | DITEM_RESTORE;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.39 1996/04/07 03:52:20 jkh Exp $
+ * $Id: disks.c,v 1.40 1996/04/13 13:31:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,7 +73,6 @@ print_chunks(Disk *d)
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
 	int sz;
 
-	dialog_clear();
 	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
@@ -175,10 +174,12 @@ diskPartition(Device *dev, Disk *d)
     Boolean chunking;
     char *msg = NULL;
     u_char *mbrContents;
+    WINDOW *w;
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
 
+    w = savescr();
     clear();
     record_chunks(d);
     while (chunking) {
@@ -325,9 +326,8 @@ diskPartition(Device *dev, Disk *d)
 		break;
 	    d = Open_Disk(d->name);
 	    if (!d) {
-		dialog_clear();
 		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
-		return;
+		break;
 	    }
 	    Free_Disk(dev->private);
 	    dev->private = d;
@@ -353,19 +353,19 @@ diskPartition(Device *dev, Disk *d)
 		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
 
-		if (diskPartitionWrite(NULL) != DITEM_SUCCESS) {
-		    dialog_clear();
+		if (diskPartitionWrite(NULL) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
-		}
-		else {
+		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
-		}
 	    }
 	    break;
 
 	case '|':
 	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
+		WINDOW *w;
+
+		w = savescr();
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
@@ -374,6 +374,7 @@ diskPartition(Device *dev, Disk *d)
 		dialog_clear();
 		DialogActive = TRUE;
 		record_chunks(d);
+		restorescr(w);
 	    }
 	    else
 		msg = "Wise choice!";
@@ -403,25 +404,21 @@ diskPartition(Device *dev, Disk *d)
 	msgConfirm(p);
 	free(p);
     }
-    dialog_clear();
+    restorescr(w);
 }
 
 static int
 partitionHook(dialogMenuItem *selected)
 {
     Device **devs = NULL;
-    WINDOW *w;
 
     devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("Unable to find disk %s!", selected->prompt);
 	return DITEM_FAILURE;
     }
     devs[0]->enabled = TRUE;
-    w = savescr();
     diskPartition(devs[0], (Disk *)devs[0]->private);
-    restorescr(w);
     return DITEM_SUCCESS;
 }
 
@@ -448,7 +445,6 @@ diskPartitionEditor(dialogMenuItem *self)
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
@@ -462,7 +458,6 @@ diskPartitionEditor(dialogMenuItem *self)
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
 	if (!menu) {
-	    dialog_clear();
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
 		       "were detected properly.  This can be done by pressing the\n"
@@ -471,14 +466,7 @@ diskPartitionEditor(dialogMenuItem *self)
 	    i = DITEM_FAILURE;
 	}
 	else {
-	    WINDOW *w;
-
-	    w = savescr();
-	    if (dmenuOpenSimple(menu))
-		i = DITEM_SUCCESS;
-	    else
-		i = DITEM_FAILURE;
-	    restorescr(w);
+	    i = dmenuOpenSimple(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	}
     }
@@ -495,14 +483,12 @@ diskPartitionWrite(dialogMenuItem *self)
     if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
 	return DITEM_SUCCESS;
     else if (!cp) {
-	dialog_clear();
 	msgConfirm("You must partition the disk(s) before this option can be used.");
 	return DITEM_FAILURE;
     }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("Unable to find any disks to write to??");
 	return DITEM_FAILURE;
     }
@@ -517,7 +503,6 @@ diskPartitionWrite(dialogMenuItem *self)
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (Write_Disk(d)) {
-	    dialog_clear();
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return DITEM_FAILURE;
 	}
@@ -528,15 +513,11 @@ diskPartitionWrite(dialogMenuItem *self)
 
 		msgNotify("Running bad block scan on partition %s", c1->name);
 		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret) {
-		    dialog_clear();
+		if (ret)
 		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		}
 		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret) {
-		    dialog_clear();
+		if (ret)
 		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
-		}
 	    }
 	}
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.23 1996/04/07 03:52:18 jkh Exp $
+ * $Id: config.c,v 1.24 1996/04/13 13:31:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -151,7 +151,6 @@ configFstab(void)
 	if (file_readable("/etc/fstab"))
 	    return DITEM_SUCCESS;
 	else {
-	    dialog_clear();
 	    msgConfirm("Attempting to rebuild your /etc/fstab file.  Warning: If you had\n"
 		       "any CD devices in use before running sysinstall then they may NOT\n"
 		       "be found by this run!");
@@ -160,7 +159,6 @@ configFstab(void)
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("No disks found!");
 	return DITEM_FAILURE;
     }
@@ -189,7 +187,6 @@ configFstab(void)
 
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
-	dialog_clear();
 	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
 		   "will be required.");
 	return DITEM_FAILURE;
@@ -210,7 +207,6 @@ configFstab(void)
     /* Write the first one out as /cdrom */
     if (cnt) {
 	if (Mkdir("/cdrom", NULL)) {
-	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
@@ -223,7 +219,6 @@ configFstab(void)
 
 	sprintf(cdname, "/cdrom%d", i);
 	if (Mkdir(cdname, NULL)) {
-	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
@@ -252,7 +247,6 @@ configSysconfig(void)
 
     fp = fopen("/etc/sysconfig", "r");
     if (!fp) {
-	dialog_clear();
 	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
 		   "rather strangely as a result of this.");
 	return;
@@ -335,8 +329,9 @@ int
 configXFree86(dialogMenuItem *self)
 {
     if (file_executable("/usr/X11R6/bin/xf86config")) {
+	dialog_clear();
 	systemExecute("/usr/X11R6/bin/xf86config");
-	return DITEM_SUCCESS;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
@@ -355,22 +350,18 @@ configResolv(void)
 	return;
 
     if (!variable_get(VAR_NAMESERVER)) {
-	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP)) {
-	    dialog_clear();
+	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
 	    msgConfirm("Warning:  Missing name server value - network operations\n"
 		       "may fail as a result!");
-	}
 	goto skip;
     }
     if (Mkdir("/etc", NULL)) {
-	dialog_clear();
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
     }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
-	dialog_clear();
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
@@ -430,7 +421,6 @@ configPackages(dialogMenuItem *self)
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
 	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
 	if (fd < 0) {
-	    dialog_clear();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
 		       "on the distribution media you've chosen (most likely an FTP site\n"
@@ -443,7 +433,6 @@ configPackages(dialogMenuItem *self)
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
 	if (index_read(fd, &top)) {
-	    dialog_clear();
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
 	    mediaDevice->close(mediaDevice, fd);
@@ -472,7 +461,6 @@ configPackages(dialogMenuItem *self)
 	    }
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
@@ -512,11 +500,8 @@ configPorts(dialogMenuItem *self)
 			 "as you'll need space to compile any ports.");
 	if (!cp || !*cp)
 	    return DITEM_FAILURE;
-	if (Mkdir(cp, NULL)) {
-	    dialog_clear();
-	    msgConfirm("Unable to make the %s directory!", cp);
+	if (Mkdir(cp, NULL))
 	    return DITEM_FAILURE;
-	}
 	else {
 	    if (strcmp(cp, "/usr/ports")) {
 		unlink("/usr/ports");
@@ -535,7 +520,6 @@ configPorts(dialogMenuItem *self)
 	    }
 	    msgNotify("Making a link tree from %s to %s.", dist, cp);
 	    if (lndir(dist, cp) != DITEM_SUCCESS) {
-		dialog_clear();
 		msgConfirm("The lndir function returned an error status and may not have.\n"
 			   "successfully generated the link tree.  You may wish to inspect\n"
 			   "the /usr/ports directory carefully for any missing link files.");
