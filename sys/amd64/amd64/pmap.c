@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.79 1996/03/10 23:06:00 dyson Exp $
+ *	$Id: pmap.c,v 1.80 1996/03/11 05:55:56 hsu Exp $
  */
 
 /*
@@ -1457,9 +1457,9 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_U)) != newpte) {
+		*pte = (pt_entry_t) newpte;
 		if (origpte)
 			pmap_update_1pg(va);
-		*pte = (pt_entry_t) newpte;
 	}
 
 	if (origpte == 0) {
@@ -1493,9 +1493,9 @@ pmap_qenter(va, m, count)
 		pt_entry_t npte = (pt_entry_t) ((int) (VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V));
 		pt_entry_t opte;
 		pte = vtopte(tva);
-		if ((opte = *pte) && (opte != npte))
-			pmap_update_1pg(tva);
+		opte = *pte;
 		*pte = npte;
+		if (opte) pmap_update_1pg(tva);
 	}
 }
 /*
@@ -1529,13 +1529,13 @@ pmap_kenter(va, pa)
 	register vm_offset_t pa;
 {
 	register pt_entry_t *pte;
-	pt_entry_t npte;
+	pt_entry_t npte, opte;
 
 	npte = (pt_entry_t) ((int) (pa | PG_RW | PG_V));
 	pte = vtopte(va);
-	if (*pte)
-		pmap_update_1pg(va);
+	opte = *pte;
 	*pte = npte;
+	if (opte) pmap_update_1pg(va);
 }
 
 /*
