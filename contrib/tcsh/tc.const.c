@@ -133,8 +133,9 @@ Char STRmbytemap[]	= { 'm', 'b', 'y', 't', 'e', 'm', 'a', 'p', '\0' };
 /* dspmbyte autoset trap */
 /* STRLANGEUCJP,STRLANGEUCJPB = EUCJP Trap */
 /* STRLANGEUCKR,STRLANGEUCKRB = EUCKR Trap */
+/* STRLANGEUCZH,STRLANGEUCZHB = EUCZH Trap */
 /* STRLANGSJIS,STRLANGSJISB = SJIS Trap */
-#  if defined(__FreeBSD__) || defined(__uxps__) || defined(sgi)  || defined(aix) || defined(__CYGWIN__) || defined(linux)
+#  if defined(__uxps__) || defined(sgi)  || defined(aix) || defined(__CYGWIN__) || defined(linux)
 Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'E', 'U', 'C', '\0' };
 Char STRLANGEUCKR[]	= { 'k', 'o', '_', 'K', 'R', '.', 'E', 'U', 'C', '\0' };
 #   if defined(__uxps__)
@@ -156,44 +157,61 @@ Char STRLANGSJIS[]	= { 'j', 'a', '_', 'J', 'P', '.', 'S', 'J', 'I', 'S',
 Char STRLANGSJISB[]	= { '\0' };
 Char STRLANGBIG5[]	= { 'z', 'h', '_', 'T', 'W', '.', 'B', 'i', 'g', '5',
 			    '\0' };
-#  elif defined(linux)
-Char STRLANGEUC[]	= { 'j', 'a', '_', 'J', 'P', '.', 'e', 'u', 'c', 'J',
+Char STRLANGEUCZH[]	= { '\0' };
+Char STRLANGEUCZHB[]	= { '\0' };
+#  elif defined(__FreeBSD__)
+Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'e', 'u', 'c', 'J',
 			    'P', '\0' };
-Char STRLANGEUCB[]	= { 'j', 'a', '_', 'J', 'P', '.', 'u', 'j', 'i', 's',
-			    '\0' };
+Char STRLANGEUCJPB[]	= { 'j', 'a', '_', 'J', 'P', '.', 'E', 'U', 'C', '\0' };
+Char STRLANGEUCKR[]	= { 'k', 'o', '_', 'K', 'R', '.', 'e', 'u', 'c', 'K',
+			    'R', '\0' };
+Char STRLANGEUCKRB[]	= { 'k', 'o', '_', 'K', 'R', '.', 'E', 'U', 'C', '\0' };
+Char STRLANGEUCZH[]	= { 'z', 'h', '_', 'C', 'N', '.', 'e', 'u', 'c', 'C',
+			    'N', '\0' };
+Char STRLANGEUCZHB[]	= { 'z', 'h', '_', 'C', 'N', '.', 'E', 'U', 'C', '\0' };
 Char STRLANGSJIS[]	= { 'j', 'a', '_', 'J', 'P', '.', 'S', 'J', 'I', 'S',
 			    '\0' };
-Char STRLANGSJISB[]	= { '\0' };
-Char STRLANGBIG5[]	= { '\0' };
+Char STRLANGSJISB[]	= { 'j', 'a', '_', 'J', 'P', '.', 'S', 'h', 'i', 'f',
+			    't', '_', 'J', 'I', 'S', '\0' };
+Char STRLANGBIG5[]	= { 'z', 'h', '_', 'T', 'W', '.', 'B', 'i', 'g', '5',
+			    '\0' };
 #  elif defined(__uxpm__)
 Char STRLANGEUCJP[]	= { 'j', 'a', 'p', 'a', 'n', '\0' };
 Char STRLANGEUCKR[]	= { 'k', 'o', 'r', 'e', 'a', '\0' };
+Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCJPB[]	= { '\0' };
 Char STRLANGEUCKRB[]	= { '\0' };
+Char STRLANGEUCZHB[]	= { '\0' };
 Char STRLANGSJIS[]	= { '\0' };
 Char STRLANGSJISB[]	= { '\0' };
 Char STRLANGBIG5[]	= { '\0' };
 #  elif defined(SOLARIS2)
 Char STRLANGEUCJP[]	= { 'j', 'a', '\0' };
 Char STRLANGEUCKR[]	= { 'k', 'o', '\0' };
+Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCJPB[]	= { 'j', 'a', 'p', 'a', 'n', 'e', 's', 'e', '\0' };
 Char STRLANGEUCKRB[]	= { 'k', 'o', 'r', 'e', 'a', 'n', '\0' };
+Char STRLANGEUCZHB[]	= { '\0' };
 Char STRLANGSJIS[]	= { '\0' };
 Char STRLANGSJISB[]	= { '\0' };
 Char STRLANGBIG5[]	= { '\0' };
 #  elif defined(hpux)
 Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'e', 'u', 'c', 'J', 'P' };
 Char STRLANGEUCKR[]	= { 'k', 'o', '_', 'K', 'R', '.', 'e', 'u', 'c', 'K', 'R' };
+Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCJPB[]	= { '\0' };
 Char STRLANGEUCKRB[]	= { '\0' };
+Char STRLANGEUCZHB[]	= { '\0' };
 Char STRLANGSJIS[]	= { '\0' };
 Char STRLANGSJISB[]	= { '\0' };
 Char STRLANGBIG5[]	= { '\0' };
 #  else
 Char STRLANGEUCJP[]	= { '\0' };
 Char STRLANGEUCKR[]	= { '\0' };
+Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCJPB[]	= { '\0' };
 Char STRLANGEUCKRB[]	= { '\0' };
+Char STRLANGEUCZHB[]	= { '\0' };
 Char STRLANGSJIS[]	= { '\0' };
 Char STRLANGSJISB[]	= { '\0' };
 Char STRLANGBIG5[]	= { '\0' };
