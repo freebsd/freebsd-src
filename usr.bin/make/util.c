@@ -155,9 +155,6 @@ signal(s, a)) ()
 #ifndef DEV_DEV_COMPARE
 # define DEV_DEV_COMPARE(a, b) ((a) == (b))
 #endif
-#define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
-#define ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
-
 
 /* strrcpy():
  *	Like strcpy, going backwards and returning the new pointer
