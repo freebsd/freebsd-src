@@ -26,7 +26,7 @@ main()
   exit(fl != 1);
 }
 ], bash_cv_dup2_broken=yes, bash_cv_dup2_broken=no,
-    [AC_MSG_ERROR(cannot check dup2 if cross compiling -- defaulting to no)
+    [AC_MSG_WARN(cannot check dup2 if cross compiling -- defaulting to no)
      bash_cv_dup2_broken=no])
 ])
 AC_MSG_RESULT($bash_cv_dup2_broken)
@@ -129,7 +129,7 @@ main()
 	exit(ok ? 0 : 5);
 }
 ], bash_cv_pgrp_pipe=no,bash_cv_pgrp_pipe=yes,
-   [AC_MSG_ERROR(cannot check pgrp synchronization if cross compiling -- defaulting to no)
+   [AC_MSG_WARN(cannot check pgrp synchronization if cross compiling -- defaulting to no)
     bash_cv_pgrp_pipe=no])
 ])
 AC_MSG_RESULT($bash_cv_pgrp_pipe)
@@ -187,7 +187,7 @@ main()
 #endif
   exit(1);
 }], bash_cv_type_rlimit=quad_t, bash_cv_type_rlimit=long,
-        [AC_MSG_ERROR(cannot check quad_t if cross compiling -- defaulting to long)
+        [AC_MSG_WARN(cannot check quad_t if cross compiling -- defaulting to long)
          bash_cv_type_rlimit=long])])
 ])
 AC_MSG_RESULT($bash_cv_type_rlimit)
@@ -211,7 +211,7 @@ AC_CACHE_VAL(bash_cv_decl_under_sys_siglist,
 #include <unistd.h>
 #endif], [ char *msg = _sys_siglist[2]; ],
   bash_cv_decl_under_sys_siglist=yes, bash_cv_decl_under_sys_siglist=no,
-  [AC_MSG_ERROR(cannot check for _sys_siglist[] if cross compiling -- defaulting to no)])])dnl
+  [AC_MSG_WARN(cannot check for _sys_siglist[] if cross compiling -- defaulting to no)])])dnl
 AC_MSG_RESULT($bash_cv_decl_under_sys_siglist)
 if test $bash_cv_decl_under_sys_siglist = yes; then
 AC_DEFINE(UNDER_SYS_SIGLIST_DECLARED)
@@ -237,7 +237,7 @@ char *msg = (char *)_sys_siglist[2];
 exit(msg == 0);
 }],
 	bash_cv_under_sys_siglist=yes, bash_cv_under_sys_siglist=no,
-	[AC_MSG_ERROR(cannot check for _sys_siglist[] if cross compiling -- defaulting to no)
+	[AC_MSG_WARN(cannot check for _sys_siglist[] if cross compiling -- defaulting to no)
 	 bash_cv_under_sys_siglist=no])])
 AC_MSG_RESULT($bash_cv_under_sys_siglist)
 if test $bash_cv_under_sys_siglist = yes; then
@@ -264,7 +264,7 @@ char *msg = sys_siglist[2];
 exit(msg == 0);
 }],
 	bash_cv_sys_siglist=yes, bash_cv_sys_siglist=no,
-	[AC_MSG_ERROR(cannot check for sys_siglist if cross compiling -- defaulting to no)
+	[AC_MSG_WARN(cannot check for sys_siglist if cross compiling -- defaulting to no)
 	 bash_cv_sys_siglist=no])])
 AC_MSG_RESULT($bash_cv_sys_siglist)
 if test $bash_cv_sys_siglist = yes; then
@@ -325,7 +325,7 @@ dir = opendir("/tmp/not_a_directory");
 unlink("/tmp/not_a_directory");
 exit (dir == 0);
 }], bash_cv_opendir_not_robust=yes,bash_cv_opendir_not_robust=no,
-    [AC_MSG_ERROR(cannot check opendir if cross compiling -- defaulting to no)
+    [AC_MSG_WARN(cannot check opendir if cross compiling -- defaulting to no)
      bash_cv_opendir_not_robust=no]
 )])
 AC_MSG_RESULT($bash_cv_opendir_not_robust)
@@ -356,109 +356,47 @@ fi
 
 AC_DEFUN(BASH_TYPE_INT32_T,
 [
-if test "X$bash_cv_type_int32_t" = "X"; then
-_bash_needmsg=yes
+if test "$ac_cv_sizeof_int" = 4; then
+  AC_CHECK_TYPE(int32_t, int)
+elif test "$ac_cv_sizeof_long" = 4; then
+  AC_CHECK_TYPE(int32_t, long)
 else
-AC_MSG_CHECKING(which builtin C type is 32 bits wide)
-_bash_needmsg=
-fi
-AC_CACHE_VAL(bash_cv_type_int32_t,
-[AC_TRY_RUN([
-main()
-{
-#if SIZEOF_INT == 4
-exit (0);
-#else
-#  if SIZEOF_LONG == 4
-exit (1);
-#  else
-#    error cannot find 32 bit type...
-#  endif
-#endif
-}], bash_cv_type_int32_t=int, bash_cv_type_int32_t=long,
-    [AC_MSG_ERROR(cannot check type sizes if cross-compiling -- defaulting to int)
-     bash_cv_type_int32_t=int]
-)])
-if test "X$_bash_needmsg" = "Xyes"; then
-AC_MSG_CHECKING(which builtin C type is 32 bits wide)
-fi
-AC_MSG_RESULT($bash_cv_type_int32_t);
-if test "$bash_cv_type_int32_t" = "int"; then
-AC_DEFINE(int32_t, int)
-else
-AC_DEFINE(int32_t, long)
+  AC_CHECK_TYPE(int32_t, int)
 fi
 ])
 
 AC_DEFUN(BASH_TYPE_U_INT32_T,
 [
-if test "X$bash_cv_type_u_int32_t" = "X"; then
-_bash_needmsg=yes
+if test "$ac_cv_sizeof_int" = 4; then
+  AC_CHECK_TYPE(u_int32_t, unsigned int)
+elif test "$ac_cv_sizeof_long" = 4; then
+  AC_CHECK_TYPE(u_int32_t, unsigned long)
 else
-AC_MSG_CHECKING(which unsigned builtin C type is 32 bits wide)
-_bash_needmsg=
-fi
-AC_CACHE_VAL(bash_cv_type_u_int32_t,
-[AC_TRY_RUN([
-main()
-{
-#if SIZEOF_INT == 4
-exit (0);
-#else
-#  if SIZEOF_LONG == 4
-exit (1);
-#  else
-#    error cannot find 32 bit type...
-#  endif
-#endif
-}], bash_cv_type_u_int32_t=int, bash_cv_type_u_int32_t=long,
-    [AC_MSG_ERROR(cannot check type sizes if cross-compiling -- defaulting to int)
-     bash_cv_type_u_int32_t=int]
-)])
-if test "X$_bash_needmsg" = "Xyes"; then
-AC_MSG_CHECKING(which unsigned builtin C type is 32 bits wide)
-fi
-AC_MSG_RESULT($bash_cv_type_u_int32_t);
-if test "$bash_cv_type_u_int32_t" = "int"; then
-AC_DEFINE(u_int32_t, unsigned int)
-else
-AC_DEFINE(u_int32_t, unsigned long)
+  AC_CHECK_TYPE(u_int32_t, unsigned int)
 fi
 ])
 
 AC_DEFUN(BASH_TYPE_PTRDIFF_T,
 [
-if test "X$bash_cv_type_ptrdiff_t" = "X"; then
-_bash_needmsg=yes
+if test "$ac_cv_sizeof_int" = "$ac_cv_sizeof_char_p"; then
+  AC_CHECK_TYPE(ptrdiff_t, int)
+elif test "$ac_cv_sizeof_long" = "$ac_cv_sizeof_char_p"; then
+  AC_CHECK_TYPE(ptrdiff_t, long)
 else
-AC_MSG_CHECKING(which builtin C type is correct for ptrdiff_t)
-_bash_needmsg=
+  AC_CHECK_TYPE(ptrdiff_t, int)
 fi
-AC_CACHE_VAL(bash_cv_type_ptrdiff_t,
-[AC_TRY_RUN([
-main()
-{
-#if SIZEOF_CHAR_P == SIZEOF_INT
-exit (0);
-#else
-#  if SIZEOF_CHAR_P == SIZEOF_LONG
-exit (1);
-#  else
-#    error cannot find type for pointer arithmetic...
-#  endif
-#endif
-}], bash_cv_type_ptrdiff_t=int, bash_cv_type_ptrdiff_t=long,
-    [AC_MSG_ERROR(cannot check type sizes if cross-compiling -- defaulting to int)
-     bash_cv_type_ptrdiff_t=int]
-)])
-if test "X$_bash_needmsg" = "Xyes"; then
-AC_MSG_CHECKING(which builtin C type is correct for ptrdiff_t)
-fi
-AC_MSG_RESULT($bash_cv_type_ptrdiff_t);
-if test "$bash_cv_type_ptrdiff_t" = "int"; then
-AC_DEFINE(ptrdiff_t, int)
+])
+
+AC_DEFUN(BASH_TYPE_BITS64_T,
+[
+if test "$ac_sv_sizeof_char_p" = 8; then
+  AC_CHECK_TYPE(bits64_t, char *)
+elif test "$ac_cv_sizeof_double" = 8; then
+  AC_CHECK_TYPE(bits64_t, double)
+elif test "$ac_cv_sizeof_long" = 8; then
+  AC_CHECK_TYPE(bits64_t, long)
 else
-AC_DEFINE(ptrdiff_t, long)
+  AC_CHECK_TYPE(bits64_t, double)
 fi
 ])
 
@@ -548,7 +486,7 @@ s = getenv("ABCDE");
 exit(s == 0);	/* force optimizer to leave getenv in */
 }
 ], bash_cv_getenv_redef=yes, bash_cv_getenv_redef=no,
-   [AC_MSG_ERROR(cannot check getenv redefinition if cross compiling -- defaulting to yes)
+   [AC_MSG_WARN(cannot check getenv redefinition if cross compiling -- defaulting to yes)
     bash_cv_getenv_redef=yes]
 )])
 AC_MSG_RESULT($bash_cv_getenv_redef)
@@ -574,7 +512,7 @@ pf = (_bashfunc) printf;
 exit(pf == 0);
 }
 ], bash_cv_printf_declared=yes, bash_cv_printf_declared=no,
-   [AC_MSG_ERROR(cannot check printf declaration if cross compiling -- defaulting to yes)
+   [AC_MSG_WARN(cannot check printf declaration if cross compiling -- defaulting to yes)
     bash_cv_printf_declared=yes]
 )])
 AC_MSG_RESULT($bash_cv_printf_declared)
@@ -593,7 +531,7 @@ long maxfds = ulimit(4, 0L);
 exit (maxfds == -1L);
 }
 ], bash_cv_ulimit_maxfds=yes, bash_cv_ulimit_maxfds=no,
-   [AC_MSG_ERROR(cannot check ulimit if cross compiling -- defaulting to no)
+   [AC_MSG_WARN(cannot check ulimit if cross compiling -- defaulting to no)
     bash_cv_ulimit_maxfds=no]
 )])
 AC_MSG_RESULT($bash_cv_ulimit_maxfds)
@@ -690,7 +628,7 @@ main()
 	exit (popen_called);
 }
 ], bash_cv_getcwd_calls_popen=no, bash_cv_getcwd_calls_popen=yes,
-   [AC_MSG_ERROR(cannot check whether getcwd calls popen if cross compiling -- defaulting to no)
+   [AC_MSG_WARN(cannot check whether getcwd calls popen if cross compiling -- defaulting to no)
     bash_cv_getcwd_calls_popen=no]
 )])
 AC_MSG_RESULT($bash_cv_getcwd_calls_popen)
@@ -814,7 +752,7 @@ main()
 	exit(nsigint != 2);
 }
 ], bash_cv_must_reinstall_sighandlers=no, bash_cv_must_reinstall_sighandlers=yes,
-   [AC_MSG_ERROR(cannot check signal handling if cross compiling -- defaulting to no)
+   [AC_MSG_WARN(cannot check signal handling if cross compiling -- defaulting to no)
     bash_cv_must_reinstall_sighandlers=no]
 )])
 AC_MSG_RESULT($bash_cv_must_reinstall_sighandlers)
@@ -883,7 +821,7 @@ exit(1);
 
 exit(0);
 }], bash_cv_job_control_missing=present, bash_cv_job_control_missing=missing,
-    [AC_MSG_ERROR(cannot check job control if cross-compiling -- defaulting to missing)
+    [AC_MSG_WARN(cannot check job control if cross-compiling -- defaulting to missing)
      bash_cv_job_control_missing=missing]
 )])
 AC_MSG_RESULT($bash_cv_job_control_missing)
@@ -928,7 +866,7 @@ close(fd);
 unlink ("/tmp/sh-np-autoconf");
 exit(0);
 }], bash_cv_sys_named_pipes=present, bash_cv_sys_named_pipes=missing,
-    [AC_MSG_ERROR(cannot check for named pipes if cross-compiling -- defaulting to missing)
+    [AC_MSG_WARN(cannot check for named pipes if cross-compiling -- defaulting to missing)
      bash_cv_sys_named_pipes=missing]
 )])
 AC_MSG_RESULT($bash_cv_sys_named_pipes)
@@ -979,7 +917,7 @@ siglongjmp(xx, 10);
 exit(1);
 #endif
 }], bash_cv_func_sigsetjmp=present, bash_cv_func_sigsetjmp=missing,
-    [AC_MSG_ERROR(cannot check for sigsetjmp/siglongjmp if cross-compiling -- defaulting to missing)
+    [AC_MSG_WARN(cannot check for sigsetjmp/siglongjmp if cross-compiling -- defaulting to missing)
      bash_cv_func_sigsetjmp=missing]
 )])
 AC_MSG_RESULT($bash_cv_func_sigsetjmp)
@@ -1246,7 +1184,7 @@ char    *v[];
 	exit (r1 > 0 && r2 > 0);
 }
 ], bash_cv_func_strcoll_broken=yes, bash_cv_func_strcoll_broken=no,
-   [AC_MSG_ERROR(cannot check strcoll if cross compiling -- defaulting to no)
+   [AC_MSG_WARN(cannot check strcoll if cross compiling -- defaulting to no)
     bash_cv_func_strcoll_broken=no]
 )])
 AC_MSG_RESULT($bash_cv_func_strcoll_broken)
@@ -1336,9 +1274,28 @@ main ()
 #endif
 }
 ], bash_cv_sys_restartable_syscalls=yes, bash_cv_sys_restartable_syscalls=no,
-   AC_MSG_ERROR(cannot check restartable syscalls if cross compiling))
+   AC_MSG_WARN(cannot check restartable syscalls if cross compiling))
 ])
 if test $bash_cv_sys_restartable_syscalls = yes; then
   AC_DEFINE(HAVE_RESTARTABLE_SYSCALLS)
 fi
 ])
+dnl
+dnl Check for 64-bit off_t -- used for malloc alignment
+dnl
+dnl C does not allow duplicate case labels, so the compile will fail if
+dnl sizeof(off_t) is > 4.
+dnl
+AC_DEFUN(BASH_CHECK_OFF_T_64,
+[AC_CACHE_CHECK(for 64-bit off_t, bash_cv_off_t_64,
+AC_TRY_COMPILE([
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <sys/types.h>
+],[
+switch (0) case 0: case (sizeof (off_t) <= 4):;
+], bash_cv_off_t_64=no, bash_cv_off_t_64=yes))
+if test $bash_cv_off_t_64 = yes; then
+        AC_DEFINE(HAVE_OFF_T_64)
+fi])

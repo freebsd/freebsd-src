@@ -365,6 +365,10 @@ hist_error(s, start, current, errtype)
       emsg = "unrecognized history modifier";
       elen = 29;
       break;
+    case NO_PREV_SUBST:
+      emsg = "no previous substitution";
+      elen = 24;
+      break;
     default:
       emsg = "unknown expansion error";
       elen = 23;
@@ -654,15 +658,6 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 		      }
 		  }
 
-		/* If there is no lhs, the substitution can't succeed. */
-		if (subst_lhs_len == 0)
-		  {
-		    *ret_string = hist_error (string, starting_index, i, SUBST_FAILED);
-		    free (result);
-		    free (temp);
-		    return -1;
-		  }
-
 		FREE (subst_rhs);
 		subst_rhs = get_subst_pattern (string, &i, delimiter, 1, &subst_rhs_len);
 
@@ -673,6 +668,15 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	      }
 	    else
 	      i += 2;
+
+	    /* If there is no lhs, the substitution can't succeed. */
+	    if (subst_lhs_len == 0)
+	      {
+		*ret_string = hist_error (string, starting_index, i, NO_PREV_SUBST);
+		free (result);
+		free (temp);
+		return -1;
+	      }
 
 	    l_temp = strlen (temp);
 	    /* Ignore impossible cases. */
