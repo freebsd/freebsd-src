@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 1997/04/04 01:44:18 ache Exp $
+# $Id: Makefile,v 1.15 1997/09/22 21:44:38 wosch Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
@@ -16,13 +16,13 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	koi8-rb-8x16.fnt koi8-rc-8x16.fnt \
 	INDEX.fonts
 
-FONTDIR = /usr/share/syscons/fonts
+FONTDIR = ${SHAREDIR}/syscons/fonts
 
 NOMAN = noman
 NOOBJ = noobj
 
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
 .include <bsd.prog.mk>
