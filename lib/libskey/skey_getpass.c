@@ -11,19 +11,15 @@ int     pwok;
 {
     static char buf[128];
     struct skey skey;
-    char   *pass = "";
-    char   *username = pwd ? pwd->pw_name : ":";
+    char   *pass;
     int     sflag;
 
     /* Attempt an s/key challenge. */
-    sflag = skeyinfo(&skey, username, buf);
-    if (!sflag)
+    sflag = (pwd == NULL || skeyinfo(&skey, pwd->pw_name, buf));
+    if (!sflag) {
 	printf("%s\n", buf);
-
-    if (!pwok) {
-	printf("(s/key required)\n");
-	if (sflag)
-	    return (pass);
+	if (!pwok)
+	    printf("(s/key required)\n");
     }
 
     pass = getpass(prompt);
