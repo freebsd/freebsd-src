@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tx.c,v 1.13 1998/07/04 08:02:46 semenu Exp $
+ *	$Id: if_tx.c,v 1.14 1998/07/13 09:53:07 bde Exp $
  *
  */
 
@@ -166,7 +166,7 @@ epic_ifioctl __P((
 	case SIOCDELMULTI:
 
 		/* Update out multicast list */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 		epic_set_mc_table(sc);
 		error = 0;
 #else
