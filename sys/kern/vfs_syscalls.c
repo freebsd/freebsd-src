@@ -1610,7 +1610,7 @@ access(p, uap)
 		if (SCARG(uap, flags) & X_OK)
 			flags |= VEXEC;
 		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-			error = VOP_ACCESS(vp, flags, cred, p);
+			error = VOP_ACCESS(vp, flags, tmpcred, p);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
