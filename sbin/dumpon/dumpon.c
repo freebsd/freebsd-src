@@ -79,7 +79,7 @@ check_size(int fd, const char *fn)
 		err(EX_OSERR, "can't get memory size");
 	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
 		err(EX_OSERR, "%s: can't get size", fn);
-	if (mediasize < physmem) {
+	if ((uintmax_t)mediasize < (uintmax_t)physmem) {
 		if (verbose)
 			printf("%s is smaller than physical memory\n", fn);
 		exit(EX_IOERR);
