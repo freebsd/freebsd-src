@@ -88,6 +88,9 @@ static __inline unsigned tco_delta __P((struct timecounter *tc));
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 long cp_time[CPUSTATES];
 
+SYSCTL_OPAQUE(_kern, OID_AUTO, cp_time, CTLFLAG_RD, &cp_time, sizeof(cp_time),
+    "LU", "CPU time statistics");
+
 long tk_cancc;
 long tk_nin;
 long tk_nout;
