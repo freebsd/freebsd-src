@@ -296,7 +296,7 @@ with the arguments supplied in
 .Ar daily_status_disks_df_flags
 .Pc
 and
-.Ic dump W .
+.Ic dump -W .
 .It Ar daily_status_disks_df_flags
 (str) Set to the arguments for the
 .Xr df 1
@@ -308,7 +308,7 @@ is set to
 (bool) Set to
 .Dq YES
 if you want to run
-.Pa /etc/uuclean.daily .
+.Ic uustat -a .
 .It Ar daily_status_network_enable
 (bool) Set to
 .Dq YES
@@ -405,7 +405,7 @@ before being deleted.
 .It Ar weekly_clean_kvmdb_verbose
 (bool) Set to
 .Dq YES
-if you want the removed files to be reported in your daily output.
+if you want the removed files to be reported in your weekly output.
 .It Ar weekly_uucp_enable
 (bool) Set to
 .Dq YES
