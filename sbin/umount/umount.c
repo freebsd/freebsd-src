@@ -308,11 +308,14 @@ int
 selected(type)
 	int type;
 {
+  int *tmp_typelist;
+
+      tmp_typelist=typelist;
 	/* If no type specified, it's always selected. */
-	if (typelist == NULL)
+      if (tmp_typelist == NULL)
 		return (1);
-	for (; *typelist != MOUNT_NONE; ++typelist)
-		if (type == *typelist)
+      for (; *tmp_typelist != MOUNT_NONE; ++tmp_typelist)
+              if (type == *tmp_typelist)
 			return (which == IN_LIST ? 1 : 0);
 	return (which == IN_LIST ? 0 : 1);
 }
