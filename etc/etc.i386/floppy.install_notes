@@ -42,10 +42,11 @@ to make initial installation of the system as easy as possible.
 
 2.  Boot the first floppy.  When it asks you to insert the file system,
     insert your second ``filesystem-floppy.''  Follow the instructions
-    that floppy gives you, making note of the type of disk it says to
-    copy the kernel to, ``sd0a'' or ``wd0a'' (``sd0a'' is for SCSI systems,
-    ``wd0a'' is for all others.) When the system halts, go on to the next
-    step.
+    that floppy gives you.  If partitions  already exist on the hard disk,
+    then by default, FreeBSD attempts to install at the end of these.
+    Before rebooting, note the type of disk it says to copy the kernel
+    to, ``sd0a'' or ``wd0a'' (``sd0a'' is for SCSI systems, ``wd0a'' is
+    for all others.)  When the system halts, go on to the next step.
 
 3.  Boot the first floppy again, but this time when it asks
     you to insert the file system floppy, just press the return key.
@@ -108,9 +109,22 @@ to make initial installation of the system as easy as possible.
 	mv /.profile /.profile.install
 	ln /root/.profile /.profile
 
-14. In addition to the source and binary distributions, many additional
-    packages, such as X11 and TeX, may be obtained from freebsd.cdrom.com -
-    please have a look around!  You may also find this a good time to
-    read the release notes in /usr/src/RELNOTES.FreeBSD.
+14. If your system has several operating systems, you may want to install
+    the Thomas Wolfram's os-bs boot manager for selecting which system to
+    boot.  This works well with DOS, OS/2, FreeBSD and other systems.  To
+    install it, boot MS-DOS and insert the dos-floppy of the FreeBSD
+    install suite in floppy drive A:.  Then enter the DOS commands:
+    > A:
+    > os-bs135
+    > cd os-bs
+    > os-bs
+    Use the cursor keys to highlight the install option and hit
+    ENTER.  The readme.1st file in the os-bs directory contains
+    more information about os-bs.
+
+15. In addition to the FreeBSD  source and binary distributions, many 
+    additional packages, such as X11 and TeX, may be obtained from 
+    freebsd.cdrom.com - please have a look around!  You may also find 
+    this a good time to read the release notes in /usr/src/RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.4 1993/09/08 11:25:14 alm Exp $
+End of $Id: floppy.install_notes,v 1.5 1993/09/08 22:51:49 jkh Exp $

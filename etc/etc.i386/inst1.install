@@ -114,7 +114,8 @@ analyze_fdisk_data() {
 force_offset=
 if [ $cyls_per_disk -gt 1024 ]; then
 	echo
-	echo "WARNING: >1024 cylinders."
+	echo "	WARNING: >1024 cylinders.  On some hardware, this prevents"
+	echo "	${OPSYSTEM} from sharing the disk with other operating systems."
 	echo -n "Overwriting existing partitions - okay? [y] "
 	read resp junk
 	[ ! "$resp" ] && resp=y
@@ -143,8 +144,8 @@ fi
 # Case II: no partitions used
 if [ $sysid_cnt -eq 0 ]; then
 	echo
-	echo "WARNING: partition table is either missing or corrupt."
-	echo "Existing partitions will be lost."
+	echo "	WARNING: partition table is either missing or corrupt."
+	echo "	Existing partitions will be lost."
 	part_cnt=${part_cnt:-4}
 	RUN_FDISK="overwrite"
 	opsys_off=1
@@ -234,9 +235,9 @@ if [ $disk_remaining -lt $disk_minimum ]; then
 		;;
 	*)
 		echo
-		echo "WARNING: To install ${OPSYSTEM}, you're on your own in figuring"
-		echo "out where on the disk it will fit without overwriting another"
-		echo "partition..."
+		echo "	WARNING: To install ${OPSYSTEM}, you're on your own in figuring"
+		echo "	out where on the disk it will fit without overwriting another"
+		echo "	partition..."
 		# Set defaults assuming there is only one partition at end of disk
 		eval start=\$start${extent_max_part}
 		# don't use first cylinder!
@@ -400,10 +401,6 @@ sc*|SC*)
 esac
 echo
 echo    "Disk is of device type $drivetype."
-echo
-echo -n "Number of bytes per disk sector? [${bytes_per_sect:-512}] "
-read resp junk
-bytes_per_sect=${resp:-${bytes_per_sect:-512}}
 if [ ! "$partition" ]; then
 	echo
 	echo    "Please wait.  Examining device /dev/r${drivename}d..."
@@ -434,6 +431,10 @@ echo	"a Maxtor IDE, model 7080 disk might be named \`maxtor7080'."
 echo -n "Disk label name (one word, please)? [${name:-mfr_model}] "
 read resp junk
 name=${resp:-${name:-mfr_model}}
+echo
+echo -n "Number of bytes per disk sector? [${bytes_per_sect:-512}] "
+read resp junk
+bytes_per_sect=${resp:-${bytes_per_sect:-512}}
 echo
 echo -n "Total number of disk cylinders? [${cyls_per_disk:-${DEFCYLN}}] "
 read resp junk
@@ -479,8 +480,10 @@ while :; do
 		opsys_off=${resp:-${opsys_off:-1}}
 	else
 		echo
-		echo "WARNING: Installing at cylinder 0 overwrites DOS partition table."
-		echo "Existing partitions will be lost, and subsequent installs may fail."
+		echo "	WARNING: Existing partitions will be lost.  In addition,"
+		echo "	installing at cylinder 0 may cause problems for some disk" 
+		echo "	controllers.  If the filesystem is corrupted or install"
+		echo "	fails, install at cylinder 1."
 		RUN_FDISK=""
 		cyls_per_opsys=$cyls_per_disk
 		partition=$disksize
@@ -750,17 +753,13 @@ if [ "$sect_fwd" = "sf:" ]; then
 	echo " done."
 	echo "Updating badblock table..."
 	# `2>&1 >/dev/null' filters stdout and leaves only stderr...
-	bad144 -s $drivename 2>&1 >/dev/null |
+	badlist=$(bad144 -s $drivename 2>&1 >/dev/null |
 	while read data; do
-		bad_seek=`expr $data : '[^(]*(seek)[^0-9]*\([0-9]*\)'`
-		bad_read=`expr $data : '[^(]*(read)[^0-9]*\([0-9]*\)'`
+		bad_seek=$(expr "$data" : '[^(]*(seek)[^0-9]*\([0-9]*\)')
+		bad_read=$(expr "$data" : '[^(]*(read)[^0-9]*\([0-9]*\)')
 		[ "$bad_seek" -o "$bad_read" ] && echo -n "$bad_seek $bad_read "
-	done >bad144.out
-	if [ -s bad144.out ]; then
-		read badlist <bad144.out
-		bad144 -a -c $drivename "$badlist"
-		>bad144.out
-	fi
+	done)
+	[ "$badlist" ] && bad144 -a -c $drivename "$badlist"
 	echo " done."
 fi
 
