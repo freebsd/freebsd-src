@@ -1729,7 +1729,7 @@ sscop_poll_ready(sop, m, trlr)
 	struct poll_pdu	*pp = (struct poll_pdu *)trlr;
 	sscop_seq	nps;
 
-	NTOHL(pp->poll_ns);
+	pp->poll_ns = ntohl(pp->poll_ns);
 
 	/*
 	 * If the poll sequence number is less than highest number
