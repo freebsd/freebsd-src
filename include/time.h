@@ -102,9 +102,9 @@ time_t time __P((time_t *));
 
 #ifdef	_THREAD_SAFE
 int asctime_r __P((const struct tm *, char *, int));
-int	ctime_r __P((const time_t *, char *, int));
-int	gmtime_r __P((const time_t *, struct tm *));
-int localtime_r __P((const time_t *, struct tm *));
+int ctime_r __P((const time_t *, char *, int));
+struct tm *gmtime_r __P((const time_t *, struct tm *));
+struct tm *localtime_r __P((const time_t *, struct tm *));
 #endif
 
 #ifndef _ANSI_SOURCE
