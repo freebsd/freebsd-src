@@ -359,10 +359,10 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	/* If we were given a wired unit number, check for existing device */
 	/* XXX imp XXX */
 	if (unit != -1) {
-		if (unit >= 0 && unit < dc->maxunit &&
-		    dc->devices[unit] != NULL) {
-			printf("%s: %s%d already exists; skipping it\n",
-			    dc->name, dc->name, *unitp);
+		if (unit >= 0 && unit < dc->maxunit && dc->devices[unit]) {
+			if (bootverbose)
+				printf("%s: %s%d already exists, skipping it\n",
+			    		dc->name, dc->name, *unitp);
 			return (EEXIST);
 		}
 	} else {
