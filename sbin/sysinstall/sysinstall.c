@@ -793,7 +793,7 @@ main(int argc, char **argv)
 	bcopy("FreeBSD", utsname.sysname, strlen("FreeBSD"));
     }
 #else
-    bcopy("FreeBSD-2.0.ALPHA", utsname.sysname, strlen("FreeBSD-2.0.ALPHA"));
+    bcopy(TITLE, utsname.sysname, strlen(TITLE));
 #endif
     
     /* XXX - libdialog has particularly bad return value checking */
