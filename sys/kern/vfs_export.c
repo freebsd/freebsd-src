@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.193 1999/05/08 07:02:38 phk Exp $
+ * $Id: vfs_subr.c,v 1.194 1999/05/11 19:54:33 phk Exp $
  */
 
 /*
@@ -1221,7 +1221,7 @@ checkalias(nvp, nvp_rdev, mp)
 
 	dev = udev2dev(nvp_rdev, 2);
 
-	vpp = &speclisth[SPECHASH(nvp_rdev)];
+	vpp = &speclisth[SPECHASH(minor(nvp_rdev))];
 loop:
 	simple_lock(&spechash_slock);
 	for (vp = *vpp; vp; vp = vp->v_specnext) {
