@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.171 1998/10/29 11:50:32 bde Exp $
+ * $Id: vfs_subr.c,v 1.172 1998/10/31 07:42:03 peter Exp $
  */
 
 /*
@@ -90,15 +90,6 @@ int vttoif_tab[9] = {
 	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK,
 	S_IFSOCK, S_IFIFO, S_IFMT,
 };
-
-/*
- * Insq/Remq for the vnode usage lists.
- */
-#define	bufinsvn(bp, dp)	LIST_INSERT_HEAD(dp, bp, b_vnbufs)
-#define	bufremvn(bp) {							\
-	LIST_REMOVE(bp, b_vnbufs);					\
-	(bp)->b_vnbufs.le_next = NOLIST;				\
-}
 
 static TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
 struct tobefreelist vnode_tobefree_list;	/* vnode free list */
@@ -428,9 +419,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp = NULL;
 	} else {
 		for (vp = TAILQ_FIRST(&vnode_free_list); vp; vp = nvp) {
-
 			nvp = TAILQ_NEXT(vp, v_freelist);
-
 			if (!simple_lock_try(&vp->v_interlock)) 
 				continue;
 			if (vp->v_usecount)
@@ -507,6 +496,8 @@ getnewvnode(tag, mp, vops, vpp)
 		numvnodes++;
 	}
 
+	TAILQ_INIT(&vp->v_cleanblkhd);
+	TAILQ_INIT(&vp->v_dirtyblkhd);
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
@@ -592,27 +583,27 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				slpflag | (PRIBIO + 1),
 				"vinvlbuf", slptimeo);
 		}
-		if (vp->v_dirtyblkhd.lh_first != NULL) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			splx(s);
 			if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, p)) != 0)
 				return (error);
 			s = splbio();
 			if (vp->v_numoutput > 0 ||
-			    vp->v_dirtyblkhd.lh_first != NULL)
+			    !TAILQ_EMPTY(&vp->v_dirtyblkhd))
 				panic("vinvalbuf: dirty bufs");
 		}
 		splx(s);
   	}
 	s = splbio();
 	for (;;) {
-		blist = vp->v_cleanblkhd.lh_first;
+		blist = TAILQ_FIRST(&vp->v_cleanblkhd);
 		if (!blist)
-			blist = vp->v_dirtyblkhd.lh_first;
+			blist = TAILQ_FIRST(&vp->v_dirtyblkhd);
 		if (!blist)
 			break;
 
 		for (bp = blist; bp; bp = nbp) {
-			nbp = bp->b_vnbufs.le_next;
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bp->b_flags & B_BUSY) {
 				bp->b_flags |= B_WANTED;
 				error = tsleep((caddr_t) bp,
@@ -675,7 +666,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	}
 	simple_unlock(&vp->v_interlock);
 
-	if (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first)
+	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) || !TAILQ_EMPTY(&vp->v_cleanblkhd))
 		panic("vinvalbuf: flush failed");
 	return (0);
 }
@@ -708,10 +699,8 @@ restart:
 	anyfreed = 1;
 	for (;anyfreed;) {
 		anyfreed = 0;
-		for ( bp = LIST_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
-
-			nbp = LIST_NEXT(bp, b_vnbufs);
-
+		for (bp = TAILQ_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bp->b_lblkno >= trunclbn) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
@@ -724,8 +713,7 @@ restart:
 					brelse(bp);
 					anyfreed = 1;
 				}
-				if (nbp && 
-					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) ||
+				if (nbp && (((nbp->b_xflags & B_VNCLEAN) == 0)||
 					 (nbp->b_vp != vp) ||
 					 (nbp->b_flags & B_DELWRI))) {
 					goto restart;
@@ -733,10 +721,8 @@ restart:
 			}
 		}
 
-		for (bp = LIST_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-
-			nbp = LIST_NEXT(bp, b_vnbufs);
-
+		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bp->b_lblkno >= trunclbn) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
@@ -749,8 +735,7 @@ restart:
 					brelse(bp);
 					anyfreed = 1;
 				}
-				if (nbp && 
-					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) ||
+				if (nbp && (((nbp->b_xflags & B_VNDIRTY) == 0)||
 					 (nbp->b_vp != vp) ||
 					 (nbp->b_flags & B_DELWRI) == 0)) {
 					goto restart;
@@ -761,10 +746,8 @@ restart:
 
 	if (length > 0) {
 restartsync:
-		for (bp = LIST_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-
-			nbp = LIST_NEXT(bp, b_vnbufs);
-
+		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
@@ -821,7 +804,9 @@ bgetvp(vp, bp)
 	 * Insert onto list for new vnode.
 	 */
 	s = splbio();
-	bufinsvn(bp, &vp->v_cleanblkhd);
+	bp->b_xflags |= B_VNCLEAN;
+	bp->b_xflags &= ~B_VNDIRTY;
+	TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_vnbufs);
 	splx(s);
 }
 
@@ -833,6 +818,7 @@ brelvp(bp)
 	register struct buf *bp;
 {
 	struct vnode *vp;
+	struct buflists *listheadp;
 	int s;
 
 #if defined(DIAGNOSTIC)
@@ -845,9 +831,15 @@ brelvp(bp)
 	 */
 	vp = bp->b_vp;
 	s = splbio();
-	if (bp->b_vnbufs.le_next != NOLIST)
-		bufremvn(bp);
-	if ((vp->v_flag & VONWORKLST) && (LIST_FIRST(&vp->v_dirtyblkhd) == NULL)) {
+	if (bp->b_xflags & (B_VNDIRTY|B_VNCLEAN)) {
+		if (bp->b_xflags & B_VNDIRTY)
+			listheadp = &vp->v_dirtyblkhd;
+		else 
+			listheadp = &vp->v_cleanblkhd;
+		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
+		bp->b_xflags &= ~(B_VNDIRTY|B_VNCLEAN);
+	}
+	if ((vp->v_flag & VONWORKLST) && TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vp->v_flag &= ~VONWORKLST;
 		LIST_REMOVE(vp, v_synclist);
 	}
@@ -946,7 +938,7 @@ sched_sync(void)
 			(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
 			VOP_UNLOCK(vp, 0, p);
 			if (LIST_FIRST(slp) == vp) {
-				if (LIST_FIRST(&vp->v_dirtyblkhd) == NULL &&
+				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
 				    vp->v_type != VBLK)
 					panic("sched_sync: fsync failed");
 				/*
@@ -1036,6 +1028,7 @@ reassignbuf(bp, newvp)
 	register struct vnode *newvp;
 {
 	struct buflists *listheadp;
+	struct vnode *oldvp;
 	int delay;
 	int s;
 
@@ -1048,9 +1041,15 @@ reassignbuf(bp, newvp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	if (bp->b_vnbufs.le_next != NOLIST) {
-		bufremvn(bp);
-		vdrop(bp->b_vp);
+	if (bp->b_xflags & (B_VNDIRTY|B_VNCLEAN)) {
+		oldvp = bp->b_vp;
+		if (bp->b_xflags & B_VNDIRTY)
+			listheadp = &oldvp->v_dirtyblkhd;
+		else 
+			listheadp = &oldvp->v_cleanblkhd;
+		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
+		bp->b_xflags &= ~(B_VNDIRTY|B_VNCLEAN);
+		vdrop(oldvp);
 	}
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
@@ -1076,20 +1075,28 @@ reassignbuf(bp, newvp)
 			}
 			vn_syncer_add_to_worklist(newvp, delay);
 		}
-		tbp = listheadp->lh_first;
-		if (!tbp || (tbp->b_lblkno > bp->b_lblkno)) {
-			bufinsvn(bp, listheadp);
+		bp->b_xflags |= B_VNDIRTY;
+		tbp = TAILQ_FIRST(listheadp);
+		if (tbp == NULL ||
+		    (bp->b_lblkno >= 0 && tbp->b_lblkno > bp->b_lblkno)) {
+			TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
 		} else {
-			while (tbp->b_vnbufs.le_next &&
-			    (tbp->b_vnbufs.le_next->b_lblkno < bp->b_lblkno)) {
-				tbp = tbp->b_vnbufs.le_next;
+			if (bp->b_lblkno >= 0) {
+				struct buf *ttbp;
+				while ((ttbp = TAILQ_NEXT(tbp, b_vnbufs)) &&
+				    (ttbp->b_lblkno < bp->b_lblkno)) {
+					tbp = ttbp;
+				}
+				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
+			} else {
+				TAILQ_INSERT_TAIL(listheadp, bp, b_vnbufs);
 			}
-			LIST_INSERT_AFTER(tbp, bp, b_vnbufs);
 		}
 	} else {
-		bufinsvn(bp, &newvp->v_cleanblkhd);
+		bp->b_xflags |= B_VNCLEAN;
+		TAILQ_INSERT_TAIL(&newvp->v_cleanblkhd, bp, b_vnbufs);
 		if ((newvp->v_flag & VONWORKLST) &&
-			LIST_FIRST(&newvp->v_dirtyblkhd) == NULL) {
+		    TAILQ_EMPTY(&newvp->v_dirtyblkhd)) {
 			newvp->v_flag &= ~VONWORKLST;
 			LIST_REMOVE(newvp, v_synclist);
 		}
