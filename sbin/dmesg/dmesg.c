@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (memf == NULL && nlistf == NULL) {
+	if (memf == NULL) {
 		/*
 		 * Running kernel.  Use sysctl.  This gives an unwrapped
 		 * buffer as a side effect.
@@ -196,6 +196,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dmesg [-a] [-M core] [-N system]\n");
+	(void)fprintf(stderr, "usage: dmesg [-a] [-M core [-N system]]\n");
 	exit(1);
 }
