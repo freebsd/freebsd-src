@@ -3874,8 +3874,8 @@ key_cmpspidx_withmask(
 		 * scope_id check. if sin6_scope_id is 0, we regard it
 		 * as a wildcard scope, which matches any scope zone ID. 
 		 */
-		if (spidx0->src.sin6.sin6_scope_id &&
-		    spidx1->src.sin6.sin6_scope_id &&
+		if (spidx0->dst.sin6.sin6_scope_id &&
+		    spidx1->dst.sin6.sin6_scope_id &&
 		    spidx0->dst.sin6.sin6_scope_id != spidx1->dst.sin6.sin6_scope_id)
 			return 0;
 		if (!key_bbcmp(&spidx0->dst.sin6.sin6_addr,
