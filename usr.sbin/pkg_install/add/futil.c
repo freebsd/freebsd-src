@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: futil.c,v 1.4 1993/09/04 05:06:27 jkh Exp $";
+static const char *rcsid = "$Id: futil.c,v 1.2 1993/09/03 23:00:34 jkh Exp $";
 #endif
 
 /*
@@ -62,25 +62,33 @@ make_hierarchy(char *dir)
 
 /* Using permission defaults, apply them as necessary */
 void
-apply_perms(char *dir, char *file)
+apply_perms(char *dir, char *arg)
 {
-    char fname[FILENAME_MAX];
+    char *cd_to;
 
-    if (!dir || *file == '/')	/* absolute path? */
-	strcpy(fname, file);
+    if (!dir || *arg == '/')	/* absolute path? */
+	cd_to = "/";
     else
-	sprintf(fname, "%s/%s", dir, file);
+	cd_to = dir;
+
     if (Mode)
-	if (vsystem("chmod -R %s %s", Mode, fname))
-	    whinge("Couldn't change mode of '%s' to '%s'.",
-		   fname, Mode);
-    if (Owner)
-	if (vsystem("chown -R %s %s", Owner, fname))
+	if (vsystem("cd %s && chmod -R %s %s", cd_to, Mode, arg))
+	    whinge("Couldn't change modes of '%s' to '%s'.",
+		   arg, Mode);
+    if (Owner && Group) {
+	if (vsystem("cd %s && chown -R %s.%s %s", cd_to, Owner, Group, arg))
+	    whinge("Couldn't change owner/group of '%s' to '%s.%s'.",
+		   arg, Owner, Group);
+	return;
+    }
+    if (Owner) {
+	if (vsystem("cd %s && chown -R %s %s", cd_to, Owner, arg))
 	    whinge("Couldn't change owner of '%s' to '%s'.",
-		   fname, Owner);
-    if (Group)
-	if (vsystem("chgrp -R %s %s", Group, fname))
+		   arg, Owner);
+	return;
+    } else if (Group)
+	if (vsystem("cd %s && chgrp -R %s %s", cd_to, Group, arg))
 	    whinge("Couldn't change group of '%s' to '%s'.",
-		   fname, Group);
+		   arg, Group);
 }
 

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.12 1994/10/14 05:55:46 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.13 1994/11/17 10:54:11 jkh Exp $";
 #endif
 
 /*
@@ -84,6 +84,8 @@ pkg_perform(char **pkgs)
 
     /* Make first "real contents" pass over it */
     check_list(home, &plist);
+    (void) umask(022);	/* make sure gen'ed directories, files don't have
+			   group or other write bits. */
     copy_plist(home, &plist);
     mark_plist(&plist);
 
@@ -110,6 +112,18 @@ pkg_perform(char **pkgs)
 	copy_file(home, Require, REQUIRE_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, REQUIRE_FNAME);
+    }
+    if (Display) {
+	copy_file(home, Display, DISPLAY_FNAME);
+	add_plist(&plist, PLIST_IGNORE, NULL);
+	add_plist(&plist, PLIST_FILE, DISPLAY_FNAME);
+	add_plist(&plist, PLIST_DISPLAY, DISPLAY_FNAME);
+    }
+    if (Mtree) {
+	copy_file(home, Mtree, MTREE_FNAME);
+	add_plist(&plist, PLIST_IGNORE, NULL);
+	add_plist(&plist, PLIST_FILE, MTREE_FNAME);
+	add_plist(&plist, PLIST_MTREE, MTREE_FNAME);
     }
 
     /* Run through the list again, picking up extra "local" items */

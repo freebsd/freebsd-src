@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.4 1993/09/06 23:28:42 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.5 1993/09/18 03:39:48 jkh Exp $";
 #endif
 
 /*
@@ -39,8 +39,7 @@ isdir(char *fname)
 {
     struct stat sb;
 
-    if (stat(fname, &sb) != FAIL &&
-	(sb.st_mode & S_IFDIR))
+    if (stat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
 	return TRUE;
     else
 	return FALSE;
@@ -48,7 +47,7 @@ isdir(char *fname)
 
 /* Check to see if file is a dir, and is empty */
 Boolean
-isempty(char *fname)
+isemptydir(char *fname)
 {
     if (isdir(fname)) {
 	DIR *dirp;
@@ -69,6 +68,19 @@ isempty(char *fname)
     return FALSE;
 }
 
+/* Check to see if file is a file and is empty. If nonexistent or not
+   a file, say "it's empty", otherwise return TRUE if zero sized. */
+Boolean
+isemptyfile(char *fname)
+{
+    struct stat sb;
+    if (stat(fname, &sb) != FAIL && S_ISREG(sb.st_mode)) {
+	if (sb.st_size != 0)
+	    return FALSE;
+    }
+    return TRUE;
+}
+
 char *
 get_file_contents(char *fname)
 {
@@ -84,7 +96,7 @@ get_file_contents(char *fname)
     if (fd == FAIL)
 	barf("Unable to open '%s' for reading.", fname);
     if (read(fd, contents, sb.st_size) != sb.st_size)
-	barf("Short read on '%s' - did not get %d bytes.", fname, sb.st_size);
+	barf("Short read on '%s' - did not get %qd bytes.", fname, sb.st_size);
     close(fd);
     contents[sb.st_size] = '\0';
     return contents;

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.11 1994/10/14 05:43:41 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.12 1994/11/17 10:53:21 jkh Exp $";
 #endif
 
 /*
@@ -26,6 +26,7 @@ static const char *rcsid = "$Id: perform.c,v 1.11 1994/10/14 05:43:41 jkh Exp $"
 #include "add.h"
 
 #include <signal.h>
+#include <sys/wait.h>
 
 static int pkg_do(char *);
 static int sanity_check(char *);
@@ -131,14 +132,40 @@ pkg_do(char *pkg)
     setenv(PKG_PREFIX_VNAME,
 	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
     PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+    /* Protect against old packages with bogus @name fields */
+    sprintf(LogDir, "%s/%s", LOG_DIR, basename_of(PkgName));
+    if (isdir(LogDir)) {
+	whinge("Package `%s' already recorded as installed.\n", PkgName);
+	code = 1;
+	goto success;	/* close enough for government work */
+    }
+    for (p = Plist.head; p ; p = p->next) {
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	if (Verbose)
+	    printf("Checking dependency on package list `%s'\n", p->name);
+	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
+	    whinge("Package `%s' depends on missing package `%s'%s.", PkgName,
+		   p->name, Force ? " (proceeding anyway)" : "");
+	    if (!Force)
+		code++;
+	}
+    }
+    if (code != 0)
+	goto success;	/* close enough for government work */
+
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
 	    printf("Running requirements file first for %s..\n", PkgName);
 	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
-	    whinge("Package %s fails requirements - not installed.",
-		   pkg_fullname);
-	    return 1;
+	    whinge("Package %s fails requirements %s",
+		   pkg_fullname,
+		   Force ? "installing anyway" : "- not installed.");
+	    if (!Force) {
+		code = 1;
+		goto success;	/* close enough for government work */
+	    }
 	}
     }
     if (!NoInstall && fexists(INSTALL_FNAME)) {
@@ -147,15 +174,65 @@ pkg_do(char *pkg)
 	    printf("Running install with PRE-INSTALL for %s..\n", PkgName);
 	if (!Fake && vsystem("./%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
-	    goto fail;
+	    code = 1;
+	    goto success;		/* nothing to uninstall yet */
 	}
     }
     extract_plist(home, &Plist);
+    if (!NoInstall && fexists(MTREE_FNAME)) {
+	if (Verbose)
+	    printf("Running mtree for %s..\n", PkgName);
+	p = find_plist(&Plist, PLIST_CWD);
+	if (Verbose)
+	    printf("mtree -u -f %s -d -e -p %s\n", MTREE_FNAME,
+		   p ? p->name : "/");
+	if (!Fake) {
+	    pid_t chpid;
+	    int rval, status;
+	    chpid = fork();
+	    if (chpid == 0) {
+		execl("/usr/sbin/mtree", "mtree", "-u", "-f", MTREE_FNAME,
+		      "-d", "-e", "-p", p ? p->name : "/");
+		perror("cannot execute mtree");
+		exit(3);
+	    }
+	    if (chpid == (pid_t) -1) {
+		warn("Cannot fork mtree");
+		code = 1;
+		goto fail;
+	    }
+	    if (waitpid(chpid, &status, 0) == -1) {
+		warn("Cannot wait for mtree");
+		code = 1;
+		goto fail;
+	    }
+	    if (!WIFEXITED(status)) {
+		whinge("Strange exit from mtree: %x", status);
+		code = 1;
+		goto fail;
+	    }
+#ifdef DEBUG
+	    whinge("mtree exits %d\n", WEXITSTATUS(status));
+#endif
+	    switch (WEXITSTATUS(status)) {
+	    case 0:
+		break;			/* normal */
+	    case 2:
+		whinge("\nWARNING: Mtree attempted some work which may not have completed.\n\tExamine the above output.\n\t(most likely it changed directory permissions)\n");
+		break;
+	    default:
+		whinge("Error status %d from mtree.", WEXITSTATUS(status));
+		code = 1;
+		goto fail;
+	    }
+	}
+    }
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
 	if (!Fake && vsystem("./%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
+	    code = 1;
 	    goto fail;
 	}
     }
@@ -163,6 +240,7 @@ pkg_do(char *pkg)
 	char contents[FILENAME_MAX];
 	FILE *cfile;
 
+	umask(022);
 	if (getuid() != 0)
 	    whinge("Not running as root - trying to record install anyway.");
 	if (!PkgName) {
@@ -198,15 +276,50 @@ pkg_do(char *pkg)
 	fclose(cfile);
 	copy_file(".", DESC_FNAME, LogDir);
 	copy_file(".", COMMENT_FNAME, LogDir);
+	if (fexists(DISPLAY_FNAME))
+	    copy_file(".", DISPLAY_FNAME, LogDir);
+	for (p = Plist.head; p ; p = p->next) {
+	    if (p->type != PLIST_PKGDEP)
+		continue;
+	    if (Verbose)
+		printf("Attempting to record dependency on package `%s'\n",
+		       p->name);
+	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename_of(p->name),
+		    REQUIRED_BY_FNAME);
+	    cfile = fopen(contents, "a");
+	    if (!cfile) {
+		whinge("Can't open dependency file '%s'!\n\tDependency registration incomplete.",
+		   contents);
+		continue;
+	    }
+	    fprintf(cfile, "%s\n", basename_of(PkgName));
+	    if (fclose(cfile) == EOF)
+		warn("Cannot properly close file %s", contents);
+	}
 	if (Verbose)
 	    printf("Package %s registered in %s\n", PkgName, LogDir);
     }
+    
+    if (p = find_plist(&Plist, PLIST_DISPLAY)) {
+	FILE *fp;
+	char buf[BUFSIZ];
+	fp = fopen(p->name, "r");
+	if (fp) {
+	    putc('\n', stdout);
+	    while (fgets(buf, sizeof(buf), fp))
+		fputs(buf, stdout);
+	    putc('\n', stdout);
+	    (void) fclose(fp);
+	} else
+	    warn("Cannot open display file `%s'.", p->name);
+    }
+
     goto success;
 
  fail:
-    /* Nuke the whole (installed) show */
+    /* Nuke the whole (installed) show, XXX but don't clean directories */
     if (!Fake)
-	delete_package(FALSE, &Plist);
+	delete_package(FALSE, FALSE, &Plist);
 
  success:
     /* delete the packing list contents */
@@ -240,7 +353,7 @@ cleanup(int signo)
 	printf("Signal %d received, cleaning up..\n", signo);
     if (Plist.head) {
 	if (!Fake)
-	    delete_package(FALSE, &Plist);
+	    delete_package(FALSE, FALSE, &Plist);
 	free_plist(&Plist);
     }
     if (!Fake && LogDir[0])

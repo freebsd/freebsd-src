@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.10 1994/10/04 16:07:50 jkh Exp $ */
+/* $Id: lib.h,v 1.11 1994/11/17 10:51:46 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -66,6 +66,9 @@
 #define INSTALL_FNAME	"+INSTALL"
 #define DEINSTALL_FNAME	"+DEINSTALL"
 #define REQUIRE_FNAME	"+REQUIRE"
+#define REQUIRED_BY_FNAME	"+REQUIRED_BY"
+#define DISPLAY_FNAME	"+DISPLAY"
+#define MTREE_FNAME	"+MTREE_DIRS"
 
 #define CMD_CHAR	'@'	/* prefix for extended PLIST cmd */
 
@@ -75,7 +78,8 @@
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT,
-    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC, PLIST_SRC
+    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
+    PLIST_PKGDEP, PLIST_MTREE, PLIST_DIR_RM, PLIST_IGNORE_INST
 };
 typedef enum _plist_t plist_t;
 
@@ -119,7 +123,7 @@ char		*get_file_contents(char *);
 void		write_file(char *, char *);
 void		copy_file(char *, char *, char *);
 void		copy_hierarchy(char *, char *, Boolean);
-int		delete_hierarchy(char *, Boolean);
+int		delete_hierarchy(char *, Boolean, Boolean);
 int		unpack(char *, char *);
 void		format_cmd(char *, char *, char *, char *);
 
@@ -142,7 +146,7 @@ void		add_plist_top(Package *, plist_t, char *);
 void		write_plist(Package *, FILE *);
 void		read_plist(Package *, FILE *);
 int		plist_cmd(char *, char **);
-int		delete_package(Boolean, Package *);
+int		delete_package(Boolean, Boolean, Package *);
 
 /* For all */
 void		usage(const char *, const char *, ...);

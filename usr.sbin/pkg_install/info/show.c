@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: show.c,v 1.4 1993/09/04 05:06:44 jkh Exp $";
+static const char *rcsid = "$Id: show.c,v 1.3 1993/09/08 01:46:59 jkh Exp $";
 #endif
 
 /*
@@ -74,6 +74,10 @@ show_plist(char *title, Package *plist, plist_t type)
 	    printf(Quiet ? "@cwd %s\n" : "\tCWD to %s\n", p->name);
 	    break;
 
+	case PLIST_SRC:
+	    printf(Quiet ? "@srcdir %s\n" : "\tSRCDIR to %s\n", p->name);
+	    break;
+
 	case PLIST_CMD:
 	    printf(Quiet ? "@exec %s\n" : "\tEXEC '%s'\n", p->name);
 	    break;
@@ -101,8 +105,30 @@ show_plist(char *title, Package *plist, plist_t type)
 	    ign = TRUE;
 	    break;
 
+	case PLIST_IGNORE_INST:
+	    printf(Quiet ? "@ignore_inst ??? doesn't belong here.\n" :
+		   "\tIgnore next file installation directive (doesn't belong)\n");
+	    ign = TRUE;
+	    break;
+
 	case PLIST_NAME:
 	    printf(Quiet ? "@name %s\n" : "\tPackage name: %s\n", p->name);
+	    break;
+
+	case PLIST_DISPLAY:
+	    printf(Quiet ? "@display %s\n" : "\tInstall message file: %s\n", p->name);
+	    break;
+
+	case PLIST_PKGDEP:
+	    printf(Quiet ? "@pkgdep %s\n" : "\tPackage depends on: %s\n", p->name);
+	    break;
+
+	case PLIST_MTREE:
+	    printf(Quiet ? "@mtree %s\n" : "\tPackage mtree file: %s\n", p->name);
+	    break;
+
+	case PLIST_DIR_RM:
+	    printf(Quiet ? "@dirrm %s\n" : "\tDeinstall directory remove: %s\n", p->name);
 	    break;
 
 	default:

@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.6 1994/05/25 06:28:14 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.7 1994/06/01 05:15:00 asami Exp $";
 #endif
 
 /*
@@ -26,7 +26,7 @@ static char *rcsid = "$Id: main.c,v 1.6 1994/05/25 06:28:14 jkh Exp $";
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acde:fikrpLqIvhl:";
+static char Options[] = "acdDe:fikrRpLqImvhl:";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -53,7 +53,7 @@ main(int argc, char **argv)
 	    Verbose = TRUE;
 	    /* Reasonable definition of 'everything' */
 	    Flags = SHOW_COMMENT | SHOW_DESC | SHOW_PLIST | SHOW_INSTALL |
-		SHOW_DEINSTALL | SHOW_REQUIRE;
+		SHOW_DEINSTALL | SHOW_REQUIRE | SHOW_DISPLAY | SHOW_MTREE;
 	    break;
 
 	case 'I':
@@ -72,6 +72,10 @@ main(int argc, char **argv)
 	    Flags |= SHOW_DESC;
 	    break;
 
+	case 'D':
+	    Flags |= SHOW_DISPLAY;
+	    break;
+
 	case 'f':
 	    Flags |= SHOW_PLIST;
 	    break;
@@ -88,8 +92,16 @@ main(int argc, char **argv)
 	    Flags |= SHOW_REQUIRE;
 	    break;
 
+	case 'R':
+	    Flags |= SHOW_REQBY;
+	    break;
+
 	case 'L':
 	    Flags |= SHOW_FILES;
+	    break;
+
+	case 'm':
+	    Flags |= SHOW_MTREE;
 	    break;
 
 	case 'l':
@@ -120,7 +132,7 @@ main(int argc, char **argv)
 
     /* Set some reasonable defaults */
     if (!Flags)
-	Flags = SHOW_COMMENT | SHOW_DESC;
+	Flags = SHOW_COMMENT | SHOW_DESC | SHOW_REQBY;
 
     /* Get all the remaining package names, if any */
     while (*argv)
@@ -151,15 +163,19 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-I         print 'index' of packages\n");
     fprintf(stderr, "-c         print `one line comment'\n");
     fprintf(stderr, "-d         print description\n");
+    fprintf(stderr, "-D         print install notice\n");
     fprintf(stderr, "-f         show packing list\n");
     fprintf(stderr, "-i         show install script\n");
     fprintf(stderr, "-k         show deinstall script\n");
     fprintf(stderr, "-r         show requirements script\n");
+    fprintf(stderr, "-R         show packages depending on this package\n");
     fprintf(stderr, "-p         show prefix\n");
     fprintf(stderr, "-l <str>   Prefix each info catagory with <str>\n");
+    fprintf(stderr, "-L         show intalled files\n");
+    fprintf(stderr, "-q         minimal output (``quiet'' mode)\n");
     fprintf(stderr, "-v         show all information\n");
     fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
     fprintf(stderr, "-e pkg     returns 0 if pkg is installed, 1 otherwise\n");
-    fprintf(stderr, "\n[no args = -c -d]\n");
+    fprintf(stderr, "\n[no args = -c -d -R]\n");
     exit(1);
 }
