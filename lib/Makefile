@@ -13,7 +13,7 @@ SUBDIR=csu/${MACHINE}
 SUBDIR+=	libc libcompat libcom_err libcurses libedit \
 		libdisk libf2c libftpio \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
-	libscsi libskey libss libtelnet libtermcap libutil liby
+	libscsi libskey libss libtelnet libtermcap libutil liby libz
 
 SUBDIR+= libcrypt
 .if exists(../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
