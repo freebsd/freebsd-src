@@ -292,28 +292,37 @@ ahbattach(device_t dev)
 	 */
 	/* DMA tag for mapping buffers into device visible space. */
 	/* XXX Should be a child of the EISA bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/AHB_NSEG,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &ahb->buffer_dmat) != 0)
+	if (bus_dma_tag_create(	/* parent	*/ NULL,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR_32BIT,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ MAXBSIZE,
+				/* nsegments	*/ AHB_NSEG,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ BUS_DMA_ALLOCNOW,
+				&ahb->buffer_dmat) != 0)
 		goto error_exit;
 
 	ahb->init_level++;
 
 	/* DMA tag for our ccb structures and ha inquiry data */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       (AHB_NECB * sizeof(struct ecb))
-			       + sizeof(*ahb->ha_inq_data),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &ahb->ecb_dmat) != 0)
+	if (bus_dma_tag_create(	/* parent	*/ NULL,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR_32BIT,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ (AHB_NECB *
+						    sizeof(struct ecb))
+						    + sizeof(*ahb->ha_inq_data),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&ahb->ecb_dmat) != 0)
 		goto error_exit;
 
 	ahb->init_level++;
