@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.41 1999/01/27 18:19:52 dillon Exp $
+ * $Id: mfs_vnops.c,v 1.42 1999/01/28 00:57:55 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -141,7 +141,7 @@ mfs_freeblks(ap)
 	struct vnode *vp;
 
 	if (!vfinddev(ap->a_vp->v_rdev, VBLK, &vp) || vp->v_usecount == 0)
-		panic("mfs_strategy: bad dev");
+		panic("mfs_freeblks: bad dev");
 
 	bp = geteblk(ap->a_length);
 	bp->b_flags |= B_FREEBUF | B_BUSY;
