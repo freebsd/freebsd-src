@@ -279,9 +279,9 @@ EXTRAS= ftp.1
 EXTRAS+= cdrom.1
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
+.endif
 .if ${TARGET} != "pc98"
 BOOTABLE="-b"
-.endif
 .endif
 .endif
 
