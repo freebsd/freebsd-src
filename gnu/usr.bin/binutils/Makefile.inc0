@@ -20,9 +20,7 @@ SRCDIR=	${.CURDIR}/${RELSRC}
 
 CFLAGS+= -D_GNU_SOURCE
 
-# We use "-I-" because without it our yacc-generated parser tries to
-# use GNU's bison-generated header files.
-CFLAGS+= -I- -I.
+CFLAGS+= -I.
 .if exists(${.CURDIR}/${BINUTIL_ARCH})
 CFLAGS+= -I${.CURDIR}/${BINUTIL_ARCH}
 .endif
