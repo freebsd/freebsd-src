@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $	*/
 /*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ __COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id$");
+__RCSID("$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $");
 __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #endif
 #endif /* not lint */
@@ -78,7 +78,7 @@ main(argc, argv)
 	int ch, top, rval;
 	long port;
 	struct passwd *pw = NULL;
-	char *cp, *ep, homedir[MAXPATHLEN];
+	char *cp, *ep, homedir[MAXPATHLEN], *s;
 	int dumbterm;
 
 	(void) setlocale(LC_ALL, "");
@@ -131,7 +131,10 @@ main(argc, argv)
 
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp + 1;
-	if (getenv("FTP_PASSIVE_MODE") || strcmp(cp, "pftp") == 0)
+	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL
+	    && strcasecmp(s, "yes") == 0)
+		passivemode = 1;
+	if (strcmp(cp, "pftp") == 0)
 		passivemode = 1;
 	else if (strcmp(cp, "gate-ftp") == 0)
 		gatemode = 1;
