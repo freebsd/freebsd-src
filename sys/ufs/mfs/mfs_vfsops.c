@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.5 1994/09/21 03:47:42 wollman Exp $
+ * $Id: mfs_vfsops.c,v 1.6 1995/03/16 18:16:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -166,6 +166,7 @@ mfs_initminiroot(base)
 	mfs_rootbase = base;
 	mfs_rootsize = fs->fs_fsize * fs->fs_size;
 	rootdev = makedev(255, mfs_minor++);
+	printf("rootfs is %ld Kbyte compiled in MFS\n",mfs_rootsize/1024);
 	return (mfs_rootsize);
 }
 
