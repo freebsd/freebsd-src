@@ -1820,16 +1820,7 @@ static const tulip_boardsw_t tulip_2114x_isv_boardsw = {
 /*
  * Code the read the SROM and MII bit streams (I2C)
  */
-static void
-tulip_delay_300ns(
-    tulip_softc_t * const sc)
-{
-    int idx;
-    for (idx = (300 / 33) + 1; idx > 0; idx--)
-	(void) TULIP_CSR_READ(sc, csr_busmode);
-}
-
-#define EMIT    do { TULIP_CSR_WRITE(sc, csr_srom_mii, csr); tulip_delay_300ns(sc); } while (0)
+#define EMIT    do { TULIP_CSR_WRITE(sc, csr_srom_mii, csr); DELAY(1); } while (0)
 
 static void
 tulip_srom_idle(
@@ -1902,7 +1893,7 @@ tulip_srom_read(
     tulip_srom_idle(sc);
 }
 
-#define MII_EMIT    do { TULIP_CSR_WRITE(sc, csr_srom_mii, csr); tulip_delay_300ns(sc); } while (0)
+#define MII_EMIT    do { TULIP_CSR_WRITE(sc, csr_srom_mii, csr); DELAY(1); } while (0)
 
 static void
 tulip_mii_writebits(
