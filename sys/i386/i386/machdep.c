@@ -192,7 +192,6 @@ SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_availpages, "I", "");
 
 int Maxmem = 0;
-long dumplo;
 
 vm_offset_t phys_avail[10];
 

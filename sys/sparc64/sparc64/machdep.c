@@ -112,7 +112,6 @@ int kernel_tlb_slots;
 
 int physmem;
 int cold = 1;
-long dumplo;
 int Maxmem;
 
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
