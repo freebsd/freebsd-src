@@ -32,14 +32,19 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)nice.c	8.2 (Berkeley) 4/16/94";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -48,6 +53,7 @@ static char sccsid[] = "@(#)nice.c	8.2 (Berkeley) 4/16/94";
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,42 +61,56 @@ static char sccsid[] = "@(#)nice.c	8.2 (Berkeley) 4/16/94";
 
 #define	DEFNICE	10
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int niceness = DEFNICE;
+	long niceness = DEFNICE;
+	int ch;
+	char *ep;
 
-	if (argc < 2)
-		usage();
+	/* Obsolescent syntax: -number, --number */
+	if (argc >= 2 && argv[1][0] == '-' && (argv[1][1] == '-' ||
+	    isdigit((unsigned char)argv[1][1])) && strcmp(argv[1], "--") != 0)
+		if (asprintf(&argv[1], "-n%s", argv[1] + 1) < 0)
+			err(1, "asprintf");
 
-	if (argv[1][0] == '-') {
-		if (argv[1][1] == '-' || isdigit(argv[1][1])) {
-			niceness = atoi(argv[1] + 1);
-			++argv;
-		} else
-			errx(1, "illegal option -- %s", argv[1]);
+	while ((ch = getopt(argc, argv, "n:")) != -1) {
+		switch (ch) {
+		case 'n':
+			errno = 0;
+			niceness = strtol(optarg, &ep, 10);
+			if (ep == optarg || *ep != '\0' || errno ||
+			    niceness < INT_MIN || niceness > INT_MAX)
+				errx(1, "%s: invalid nice value", optarg);
+			break;
+		default:
+			usage();
+		}
 	}
+	argc -= optind;
+	argv += optind;
 
-	if (argv[1] == NULL)
+	if (argc == 0)
 		usage();
 
 	errno = 0;
 	niceness += getpriority(PRIO_PROCESS, 0);
 	if (errno)
-		err(1, "getpriority");
-	if (setpriority(PRIO_PROCESS, 0, niceness))
-		err(1, "setpriority");
-	execvp(argv[1], &argv[1]);
-	err(1, "%s", argv[1]);
+		warn("getpriority");
+	else if (setpriority(PRIO_PROCESS, 0, (int)niceness))
+		warn("setpriority");
+	execvp(*argv, argv);
+	err(errno == ENOENT ? 127 : 126, "%s", *argv);
 }
 
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: nice [-number] command [arguments]\n");
+
+	(void)fprintf(stderr, "usage: nice [-n incr] utility [arguments]\n");
 	exit(1);
 }
