@@ -32,7 +32,7 @@
 .\"	@(#)dev_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 18, 2001
 .Os
 .Dt DEV_MKDB 8
 .Sh NAME
@@ -51,22 +51,28 @@ command creates a
 .Xr db 3
 hash access method database in
 .Ar file
-.Pf ( Pa /var/run/dev.db
+.Pa ( /var/run/dev.db
 by default)
 which contains the names of all of the character and block special
 files in
 .Ar directory
-.Pf ( Pa /dev
+.Pa ( /dev
 by default), using the file type and the
 .Fa st_rdev
 field as the key.
 .Pp
-Keys are a structure containing a mode_t followed by a dev_t,
+Keys are a structure containing a
+.Vt mode_t
+followed by a
+.Vt dev_t ,
 with any padding zero'd out.
-The former is the type of the file (st_mode & S_IFMT),
-the latter is the st_rdev field.
+The former is the type of the file
+.Va ( st_mode Li & Dv S_IFMT ) ,
+the latter is the
+.Va st_rdev
+field.
 .Sh FILES
-.Bl -tag -width /var/run/dev.db -compact
+.Bl -tag -width ".Pa /var/run/dev.db" -compact
 .It Pa /dev
 Default device directory.
 .It Pa /var/run/dev.db
