@@ -65,6 +65,7 @@ static struct _word {
     { "diskLabelCommit",	diskLabelCommit		},
     { "distReset",		distReset		},
     { "distSetCustom",		distSetCustom		},
+    { "distUnsetCustom",	distUnsetCustom		},
     { "distSetDeveloper",	distSetDeveloper	},
     { "distSetXDeveloper",	distSetXDeveloper	},
     { "distSetKernDeveloper",	distSetKernDeveloper	},
