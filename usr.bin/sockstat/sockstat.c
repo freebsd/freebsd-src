@@ -222,6 +222,8 @@ gather_inet(int proto)
 			len = bufsize;
 			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
 				break;
+			if (errno == ENOENT)
+				goto out;
 			if (errno != ENOMEM)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
