@@ -28,12 +28,9 @@
  * $FreeBSD$
  */
 
-#include "gdc.h"
 #include "opt_gdc.h"
 #include "opt_fb.h"
 #include "opt_syscons.h"
-
-#if NGDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1077,5 +1074,3 @@ gdc_diag(video_adapter_t *adp, int level)
 
     return 0;
 }
-
-#endif /* NGDC > 0 */
