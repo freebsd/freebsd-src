@@ -464,7 +464,7 @@ Instead of returning
 the user's name to the ident requester,
 report a
 username made up of random alphanumeric characters,
-e.g.
+e.g.\&
 .Dq c0c993 .
 The
 .Fl g
@@ -620,7 +620,9 @@ only wraps requests for a
 .Dq wait
 service while no servers are available to service requests.
 Once a
-connection to such a service has been allowed, inetd has no control
+connection to such a service has been allowed,
+.Nm
+has no control
 over subsequent connections to the service until no more servers
 are left listening for connection requests.
 .Pp
@@ -696,7 +698,9 @@ To do this you specify a
 .Em protocol
 of
 .Dq unix
-and specify the unix domain socket as the
+and specify the
+.Ux
+domain socket as the
 .Em service-name .
 The
 .Em service-type
@@ -710,26 +714,31 @@ optionally prefixed by an owner and mode
 of the form
 .Em :user:group:mode: .
 The specification:
-.Bd -literal -offset indent -compact
-:news:daemon:220:/var/run/sock
-.Ed
+.Pp
+.Dl ":news:daemon:220:/var/run/sock"
+.Pp
 creates a socket owned
-by user news in group daemon
+by user
+.Dq news
+in group
+.Dq daemon
 with permissions allowing only that user and group to connect.
-The default owner is the user that inetd is running as.
+The default owner is the user that
+.Nm
+is running as.
 The default mode only allows the socket's owner to connect.
 .Pp
-.Sy WARNING:
+.Sy WARNING :
 while creating
 .Ux
-domain socket 
+domain socket,
 .Nm
 must change the ownership and permissions on the socket.
 This can only be done securely if
 the directory in which the socket is created
 is writable only by root.
 Do
-.Sy NOT
+.Em NOT
 use
 .Nm
 to create sockets in world writable directories,
@@ -857,9 +866,9 @@ program attempted to renounce the privileged state associated with a
 socket but was unable to.
 .El
 .Sh SEE ALSO
+.Xr ipsec_set_policy 3 ,
 .Xr hosts_access 5 ,
 .Xr hosts_options 5 ,
-.Xr ipsec_set_policy 3 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr rpc 5 ,
@@ -867,9 +876,9 @@ socket but was unable to.
 .Xr comsat 8 ,
 .Xr fingerd 8 ,
 .Xr ftpd 8 ,
-.Xr rpcbind 8 ,
 .Xr rexecd 8 ,
 .Xr rlogind 8 ,
+.Xr rpcbind 8 ,
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
 .Xr tftpd 8
