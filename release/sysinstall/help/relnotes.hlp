@@ -5,6 +5,15 @@
 ------------------------------------
 Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
+Update to gcc 2.7.2.1 & add support for weak symbols.
+
+Many things moved/brought into /usr/src/contrib, updating and
+cleaning up the source tree accordingly.
+
+Support for compiled-in shared library ld paths.
+
+Update sgmlfmt to `instant'.
+
 
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
@@ -510,4 +519,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.11 1996/08/23 07:56:06 jkh Exp $
+$Id: relnotes.hlp,v 1.12 1996/09/21 06:47:27 jkh Exp $
