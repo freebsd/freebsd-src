@@ -400,8 +400,10 @@ pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 		return (TD_MALLOC);
 	ret = ps_pread(ta->ph, (psaddr_t)ta->thread_keytable_addr, keytable,
 	               ta->thread_max_keys * ta->thread_size_key);
-	if (ret != 0)
+	if (ret != 0) {
+		free(keytable);
 		return (P2T(ret));
+	}	
 	for (i = 0; i < ta->thread_max_keys; i++) {
 		allocated = *(int *)(keytable + i * ta->thread_size_key +
 			ta->thread_off_key_allocated);
