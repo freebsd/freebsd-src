@@ -1,0 +1,10 @@
+This file lists hardware, which doesn't do what it should do.
+
+All entries have a date and a mail-address associated with them, this 
+reflects when and by who they were added.
+
+For multifunctional devices, please indicate if other parts of the device
+work OK, or are untested.
+For mutual incompabilities, list both devices.
+For IDE-disks, list the string seen on boot of FreeBSD, if possible, and
+trade name.
