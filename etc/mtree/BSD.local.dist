@@ -25,17 +25,11 @@
             ..
             site_perl
                 5.6.0
-                    alpha-freebsd
-                        auto
-                        ..
-                    ..
                     auto
                     ..
-                    i386-freebsd
+		    mach
                         auto
                         ..
-                    ..
-                    mach
                     ..
                 ..
             ..
