@@ -454,15 +454,13 @@ _http_match(char *str, char *hdr)
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int e, enc = ENC_NONE, i, verbose;
+    int e, enc = ENC_NONE, i;
     struct cookie *c;
     char *ln, *p, *q;
     FILE *f, *cf;
     size_t len;
     off_t pos = 0;
 
-    verbose = (flags && strchr(flags, 'v'));
-    
     /* allocate cookie */
     if ((c = calloc(1, sizeof *c)) == NULL)
 	return NULL;
@@ -558,12 +556,13 @@ fetchPutHTTP(struct url *URL, char *flags)
 int
 fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    int e, verbose;
+    int e;
     size_t len;
     char *ln, *p;
     FILE *f;
     
-    verbose = (flags && strchr(flags, 'v'));
+    us->size = -1;
+    us->atime = us->mtime = 0;
     
     /* connect */
     if ((f = _http_connect(URL, flags)) == NULL)
@@ -604,7 +603,8 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 	    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", us->size));
 	}
     }
-    
+
+    fclose(f);
     return 0;
  ouch:
     _http_seterr(999); /* XXX do this properly RSN */
