@@ -38,14 +38,10 @@
 #include <sys/devicestat.h>
 #include <vm/vm.h>	     
 #include <vm/pmap.h>
-#if NPCI > 0
 #include <pci/pcivar.h>
-#endif
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
-
-#if NPCI > 0
 
 /* prototypes */
 static void cyrix_timing(struct ata_softc *, int, int);
@@ -1079,44 +1075,3 @@ hpt_timing(struct ata_softc *scp, int devno, int mode)
 	pci_write_config(parent, 0x40 + (devno << 2), (timing & ~0x80000000),4);
     }
 }
-
-#else /* NPCI > 0 */
-
-void *
-ata_dmaalloc(struct ata_softc *scp, int device)
-{
-    return 0;
-}
-
-void
-ata_dmainit(struct ata_softc *scp, int device,
-	    int piomode, int wdmamode, int udmamode)
-{
-}
-
-int
-ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
-	     caddr_t data, int32_t count)
-{
-    return -1;
-}
-
-void
-ata_dmastart(struct ata_softc *scp, int device, 
-	     struct ata_dmaentry *dmatab, int dir)
-{
-}
-
-int
-ata_dmadone(struct ata_softc *scp)
-{
-    return -1;
-}
-
-int
-ata_dmastatus(struct ata_softc *scp)
-{
-    return -1;
-}
-
-#endif /* NPCI > 0 */
