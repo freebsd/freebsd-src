@@ -36,10 +36,10 @@ echo "Subject: $host weekly run output"
 #	rm -rf $TDIR
 #fi
 
-if [ -f /usr/lib/uucp/clean.weekly ]; then
+if [ -f /usr/libexec/uucp/clean.weekly ]; then
 	echo ""
 	echo "Cleaning up UUCP:"
-	echo /usr/lib/uucp/clean.weekly | su daemon
+	echo /usr/libexec/uucp/clean.weekly | su daemon
 fi
 echo ""
 
