@@ -247,14 +247,17 @@ environment.
 A facility to allow all data exchanges to be encrypted should be
 present.
 .Pp
-Post-PAM, FreeBSD also needs the following patch applied besides
-properly configuring
-.Pa .rhosts .
- --- etc/pam.d/rsh.orig  Wed Dec 17 14:36:20 2003
- +++ etc/pam.d/rsh       Wed Dec 17 14:30:43 2003
- @@ -9 +9 @@
- -auth	required	pam_rhosts.so	no_warn
- +auth	required	pam_rhosts.so	no_warn	allow_root
+Post-PAM,
+.Fx
+also needs the following patch applied besides properly configuring
+.Pa .rhosts :
+.Bd -literal -offset indent
+--- etc/pam.d/rsh.orig  Wed Dec 17 14:36:20 2003
++++ etc/pam.d/rsh       Wed Dec 17 14:30:43 2003
+@@ -9 +9 @@
+-auth	required	pam_rhosts.so	no_warn
++auth	required	pam_rhosts.so	no_warn	allow_root
+.Ed
 .Pp
 A more extensible protocol (such as Telnet) should be used.
 .Sh HISTORY
