@@ -112,28 +112,28 @@ struct ncp_file_info {
 };
 
 struct nw_queue_job_entry {
-	u_int16_t InUse __attribute__((packed));
-	u_int32_t prev __attribute__((packed));
-	u_int32_t next __attribute__((packed));
-	u_int32_t ClientStation __attribute__((packed));
-	u_int32_t ClientTask __attribute__((packed));
-	u_int32_t ClientObjectID __attribute__((packed));
-	u_int32_t TargetServerID __attribute__((packed));
-	u_int8_t TargetExecTime[6] __attribute__((packed));
-	u_int8_t JobEntryTime[6] __attribute__((packed));
-	u_int32_t JobNumber __attribute__((packed));
-	u_int16_t JobType __attribute__((packed));
-	u_int16_t JobPosition __attribute__((packed));
-	u_int16_t JobControlFlags __attribute__((packed));
-	u_int8_t FileNameLen __attribute__((packed));
-	char JobFileName[13] __attribute__((packed));
-	u_int32_t JobFileHandle __attribute__((packed));
-	u_int32_t ServerStation __attribute__((packed));
-	u_int32_t ServerTaskNumber __attribute__((packed));
-	u_int32_t ServerObjectID __attribute__((packed));
-	char JobTextDescription[50] __attribute__((packed));
-	char ClientRecordArea[152] __attribute__((packed));
-};
+	u_int16_t	InUse;
+	u_int32_t	prev;
+	u_int32_t	next;
+	u_int32_t	ClientStation;
+	u_int32_t	ClientTask;
+	u_int32_t	ClientObjectID;
+	u_int32_t	TargetServerID;
+	u_int8_t	TargetExecTime[6];
+	u_int8_t	JobEntryTime[6];
+	u_int32_t	JobNumber;
+	u_int16_t	JobType;
+	u_int16_t	JobPosition;
+	u_int16_t	JobControlFlags;
+	u_int8_t	FileNameLen;
+	char		JobFileName[13];
+	u_int32_t	JobFileHandle;
+	u_int32_t	ServerStation;
+	u_int32_t	ServerTaskNumber;
+	u_int32_t	ServerObjectID;
+	char		JobTextDescription[50];
+	char		ClientRecordArea[152];
+} __attribute__((packed));
 
 struct queue_job {
 	struct nw_queue_job_entry j;
@@ -156,19 +156,19 @@ struct queue_job {
 #define   PRINT_BANNER   0x8000
 
 struct print_job_record {
-	u_int8_t Version __attribute__((packed));
-	u_int8_t TabSize __attribute__((packed));
-	u_int16_t Copies __attribute__((packed));
-	u_int16_t CtrlFlags __attribute__((packed));
-	u_int16_t Lines __attribute__((packed));
-	u_int16_t Rows __attribute__((packed));
-	char FormName[16] __attribute__((packed));
-	u_int8_t Reserved[6] __attribute__((packed));
-	char BannerName[13] __attribute__((packed));
-	char FnameBanner[13] __attribute__((packed));
-	char FnameHeader[14] __attribute__((packed));
-	char Path[80] __attribute__((packed));
-};
+	u_int8_t	Version;
+	u_int8_t	TabSize;
+	u_int16_t	Copies;
+	u_int16_t	CtrlFlags;
+	u_int16_t	Lines;
+	u_int16_t	Rows;
+	char		FormName[16];
+	u_int8_t	Reserved[6];
+	char		BannerName[13];
+	char		FnameBanner[13];
+	char		FnameHeader[14];
+	char		Path[80];
+} __attribute__((packed));
 
 struct ncp_station_addr {
 	u_int32_t	NetWork;
@@ -177,23 +177,23 @@ struct ncp_station_addr {
 } __attribute__((packed));
 
 struct ncp_prop_login_control {
-	u_int8_t AccountExpireDate[3] __attribute__((packed));
-	u_int8_t Disabled __attribute__((packed));
-	u_int8_t PasswordExpireDate[3] __attribute__((packed));
-	u_int8_t GraceLogins __attribute__((packed));
-	u_int16_t PasswordExpireInterval __attribute__((packed));
-	u_int8_t MaxGraceLogins __attribute__((packed));
-	u_int8_t MinPasswordLength __attribute__((packed));
-	u_int16_t MaxConnections __attribute__((packed));
-	u_int8_t ConnectionTimeMask[42] __attribute__((packed));
-	u_int8_t LastLogin[6] __attribute__((packed));
-	u_int8_t RestrictionMask __attribute__((packed));
-	u_int8_t reserved __attribute__((packed));
-	u_int32_t MaxDiskUsage __attribute__((packed));
-	u_int16_t BadLoginCount __attribute__((packed));
-	u_int32_t BadLoginCountDown __attribute__((packed));
-	struct ncp_station_addr LastIntruder __attribute__((packed));
-};
+	u_int8_t	AccountExpireDate[3];
+	u_int8_t	Disabled;
+	u_int8_t	PasswordExpireDate[3];
+	u_int8_t	GraceLogins;
+	u_int16_t	PasswordExpireInterval;
+	u_int8_t	MaxGraceLogins;
+	u_int8_t	MinPasswordLength;
+	u_int16_t	MaxConnections;
+	u_int8_t	ConnectionTimeMask[42];
+	u_int8_t	LastLogin[6];
+	u_int8_t	RestrictionMask;
+	u_int8_t	reserved;
+	u_int32_t	MaxDiskUsage;
+	u_int16_t	BadLoginCount;
+	u_int32_t	BadLoginCountDown;
+	struct ncp_station_addr LastIntruder;
+} __attribute__((packed));
 
 #define NCP_VOLNAME_LEN (16)
 #define NCP_NUMBER_OF_VOLUMES (64)
@@ -329,25 +329,25 @@ typedef struct nw_entry_info NW_ENTRY_INFO;
 #define DM_MODIFY_TIME		0x0200L
 #define DM_MODIFIER_ID		0x0400L
 #define DM_LAST_ACCESS_DATE	0x0800L
-#define DM_INHERITED_RIGHTS_MASK	0x1000L))
+#define DM_INHERITED_RIGHTS_MASK	0x1000L
 #define DM_MAXIMUM_SPACE	0x2000L
 
 struct nw_modify_dos_info {
-	u_int32_t attributes __attribute__((packed));
-	u_int16_t creationDate __attribute__((packed));
-	u_int16_t creationTime __attribute__((packed));
-	u_int32_t creatorID __attribute__((packed));
-	u_int16_t modifyDate __attribute__((packed));
-	u_int16_t modifyTime __attribute__((packed));
-	u_int32_t modifierID __attribute__((packed));
-	u_int16_t archiveDate __attribute__((packed));
-	u_int16_t archiveTime __attribute__((packed));
-	u_int32_t archiverID __attribute__((packed));
-	u_int16_t lastAccessDate __attribute__((packed));
-	u_int16_t inheritanceGrantMask __attribute__((packed));
-	u_int16_t inheritanceRevokeMask __attribute__((packed));
-	u_int32_t maximumSpace __attribute__((packed));
-};
+	u_int32_t attributes;
+	u_int16_t creationDate;
+	u_int16_t creationTime;
+	u_int32_t creatorID;
+	u_int16_t modifyDate;
+	u_int16_t modifyTime;
+	u_int32_t modifierID;
+	u_int16_t archiveDate;
+	u_int16_t archiveTime;
+	u_int32_t archiverID;
+	u_int16_t lastAccessDate;
+	u_int16_t inheritanceGrantMask;
+	u_int16_t inheritanceRevokeMask;
+	u_int32_t maximumSpace;
+}  __attribute__((packed));
 
 struct nw_search_seq {
 	u_int8_t	volNumber;
@@ -358,34 +358,34 @@ struct nw_search_seq {
 typedef struct nw_search_seq SEARCH_SEQUENCE;
 
 struct ncp_file_server_info {
-	u_int8_t	ServerName[48]		__attribute__((packed));
-	u_int8_t	FileServiceVersion	__attribute__((packed));
-	u_int8_t	FileServiceSubVersion	__attribute__((packed));
-	u_int16_t	MaximumServiceConnections __attribute__((packed));
-	u_int16_t	ConnectionsInUse	__attribute__((packed));
-	u_int16_t	NumberMountedVolumes	__attribute__((packed));
-	u_int8_t	Revision		__attribute__((packed));
-	u_int8_t	SFTLevel		__attribute__((packed));
-	u_int8_t	TTSLevel		__attribute__((packed));
-	u_int16_t	MaxConnectionsEverUsed	__attribute__((packed));
-	u_int8_t	AccountVersion		__attribute__((packed));
-	u_int8_t	VAPVersion		__attribute__((packed));
-	u_int8_t	QueueVersion		__attribute__((packed));
-	u_int8_t	PrintVersion		__attribute__((packed));
-	u_int8_t	VirtualConsoleVersion	__attribute__((packed));
-	u_int8_t	RestrictionLevel	__attribute__((packed));
-	u_int8_t	InternetBridge		__attribute__((packed));
-	u_int8_t	Reserved[60]		__attribute__((packed));
-};
+	u_int8_t	ServerName[48];
+	u_int8_t	FileServiceVersion;
+	u_int8_t	FileServiceSubVersion;
+	u_int16_t	MaximumServiceConnections;
+	u_int16_t	ConnectionsInUse;
+	u_int16_t	NumberMountedVolumes;
+	u_int8_t	Revision;
+	u_int8_t	SFTLevel;
+	u_int8_t	TTSLevel;
+	u_int16_t	MaxConnectionsEverUsed;
+	u_int8_t	AccountVersion;
+	u_int8_t	VAPVersion;
+	u_int8_t	QueueVersion;
+	u_int8_t	PrintVersion;
+	u_int8_t	VirtualConsoleVersion;
+	u_int8_t	RestrictionLevel;
+	u_int8_t	InternetBridge;
+	u_int8_t	Reserved[60];
+} __attribute__((packed));
 
 struct nw_time_buffer {
-	u_int8_t	year __attribute__((packed));
-	u_int8_t	month __attribute__((packed));
-	u_int8_t	day __attribute__((packed));
-	u_int8_t	hour __attribute__((packed));
-	u_int8_t	minute __attribute__((packed));
-	u_int8_t	second __attribute__((packed));
-	u_int8_t	wday __attribute__((packed));
-};
+	u_int8_t	year;
+	u_int8_t	month;
+	u_int8_t	day;
+	u_int8_t	hour;
+	u_int8_t	minute;
+	u_int8_t	second;
+	u_int8_t	wday;
+} __attribute__((packed));
 
 #endif /*_NCP_H_ */
