@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.155 1999/05/28 03:39:44 alc Exp $
+ * $Id: vm_object.c,v 1.156 1999/05/30 01:12:19 alc Exp $
  */
 
 /*
@@ -157,8 +157,6 @@ _vm_object_allocate(type, size, object)
 	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
-	object->cache_count = 0;
-	object->wire_count = 0;
 	object->shadow_count = 0;
 	object->pg_color = next_index;
 	if ( size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
