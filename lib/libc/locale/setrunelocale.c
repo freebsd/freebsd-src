@@ -61,7 +61,7 @@ setrunelocale(encoding)
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 
-	if (!encoding || strlen(encoding) > ENCODING_LEN ||
+	if (!encoding || !*encoding || strlen(encoding) > ENCODING_LEN ||
 	    (encoding[0] == '.' &&
 	     (encoding[1] == '\0' ||
 	      (encoding[1] == '.' && encoding[2] == '\0'))) ||
