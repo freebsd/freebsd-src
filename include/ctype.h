@@ -89,9 +89,12 @@ int	isascii(int);
 int	toascii(int);
 #endif
 
+#if __ISO_C_VISIBLE >= 1999
+int	isblank(int);
+#endif
+
 #if __BSD_VISIBLE
 int	digittoint(int);
-int	isblank(int);
 int	ishexnumber(int);
 int	isideogram(int);
 int	isnumber(int);
@@ -133,9 +136,12 @@ __END_DECLS
 #define	toascii(c)	((c) & 0x7F)
 #endif
 
+#if __ISO_C_VISIBLE >= 1999
+#define	isblank(c)	__istype((c), _CTYPE_B)
+#endif
+
 #if __BSD_VISIBLE
 #define	digittoint(c)	__maskrune((c), 0xFF)
-#define	isblank(c)	__istype((c), _CTYPE_B)
 #define	ishexnumber(c)	__istype((c), _CTYPE_X)
 #define	isideogram(c)	__istype((c), _CTYPE_I)
 #define	isnumber(c)	__istype((c), _CTYPE_D)
