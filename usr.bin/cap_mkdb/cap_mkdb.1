@@ -32,7 +32,7 @@
 .\"	@(#)cap_mkdb.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 22, 2005
 .Dt CAP_MKDB 1
 .Os
 .Sh NAME
@@ -40,10 +40,10 @@
 .Nd create capability database
 .Sh SYNOPSIS
 .Nm
+.Op Fl b | l
 .Op Fl v
 .Op Fl f Ar outfile
-.Ar file
-.Op Ar
+.Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -65,11 +65,22 @@ record is stored into the database.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl b
+Use big-endian byte order for database metadata.
 .It Fl f Ar outfile
 Specify a different database basename.
+.It Fl l
+Use little-endian byte order for database metadata.
 .It Fl v
 Print out the number of capability records in the database.
 .El
+.Pp
+The
+.Fl b
+and
+.Fl l
+flags are mutually exclusive.
+The default byte ordering is the current host order.
 .Sh FORMAT
 Each record is stored in the database using two different types of keys.
 .Pp
