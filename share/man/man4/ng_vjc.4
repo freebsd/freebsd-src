@@ -106,6 +106,7 @@ Downstream compressed TCP packets.
 Downstream uncompressed TCP packets.
 .It Dv vjip
 Downstream uncompressed IP packets.
+.El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
@@ -179,6 +180,7 @@ node immediately
 after detecting that a received frame has been lost, due to a bad
 checksum or for any other reason.  Failing to do this can result
 in corrupted TCP stream data.
+.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN

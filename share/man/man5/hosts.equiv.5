@@ -47,12 +47,12 @@ files contain information regarding
 trusted hosts and users on the network.
 For each host a single line should be present
 with the following information:
-
+.Pp
 simple
 .Bd -unfilled -offset indent
 hostname [username]
 .Ed
-
+.Pp
 or the more verbose
 .Bd -unfilled -offset indent
 [+-][hostname|@netgroup] [[+-][username|@netgroup]]
@@ -79,7 +79,7 @@ a comment; characters up to the end of the line are
 not interpreted by routines which search the file.
 .Pp
 Host names are specified in the conventional
-.Dq \&.
+.Dq .\&
 (dot) notation using the
 .Xr inet_addr 3
 routine

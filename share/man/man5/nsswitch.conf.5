@@ -63,12 +63,12 @@ take if that status code occurs.
 .Ss Sources
 The following sources are implemented:
 .Bl -column "compat" -offset indent -compact
-.Sy Source	Description
-.It files	Local files, such as
+.It Sy "Source	Description
+.It "files	Local files, such as"
 .Pa /etc/hosts ,
 and
 .Pa /etc/passwd .
-.It dns	Internet Domain Name System.
+.It "dns	Internet Domain Name System."
 .Dq hosts
 and
 .Sq networks
@@ -77,8 +77,8 @@ use
 class entries, all other databases use
 .Sy HS
 class (Hesiod) entries.
-.It nis	NIS (formerly YP)
-.It compat	support
+.It "nis	NIS (formerly YP)"
+.It "compat	support"
 .Sq +/-
 in the
 .Dq passwd
@@ -90,33 +90,33 @@ If this is present, it must be the only source for that entry.
 .Ss Databases
 The following databases are used by the following C library functions:
 .Bl -column "networks" -offset indent -compact
-.Sy Database	Used by
-.It group	
+.It Sy "Database	Used by"
+.It "group	"
 .Xr getgrent 3
-.It hosts	
+.It "hosts	"
 .Xr gethostbyname 3
-.It networks	
+.It "networks	"
 .Xr getnetbyname 3
-.It passwd	
+.It "passwd	"
 .Xr getpwent 3
-.It shells	
+.It "shells	"
 .Xr getusershell 3
 .El
 .Ss Status codes
 The following status codes are available:
 .Bl -column "tryagain" -offset indent -compact
-.Sy Status	Description
-.It success	The requested entry was found.
-.It notfound	The entry is not present at this source.
-.It tryagain	The source is busy, and may respond to retries.
-.It unavail	The source is not responding, or entry is corrupt.
+.It Sy "Status	Description"
+.It "success	The requested entry was found."
+.It "notfound	The entry is not present at this source."
+.It "tryagain	The source is busy, and may respond to retries."
+.It "unavail	The source is not responding, or entry is corrupt."
 .El
 .Ss Actions
 For each of the status codes, one of two actions is possible:
 .Bl -column "continue" -offset indent -compact
-.Sy Action	Description
-.It continue	Try the next source
-.It return	Return with the current result
+.It Sy "Action	Description"
+.It "continue	Try the next source"
+.It "return	Return with the current result"
 .El
 .Ss Format of file
 A
@@ -125,15 +125,15 @@ description of the syntax of
 .Nm
 is:
 .Bl -column "<criterion>" -offset indent
-.It <entry>	::=
+.It "<entry>	::="
 <database> ":" [<source> [<criteria>]]*
-.It <criteria>	::=
+.It "<criteria>	::="
 "[" <criterion>+ "]"
-.It <criterion>	::=
+.It "<criterion>	::="
 <status> "=" <action>
-.It <status>	::=
+.It "<status>	::="
 "success" | "notfound" | "unavail" | "tryagain"
-.It <action>	::=
+.It "<action>	::="
 "return" | "continue"
 .El
 .Pp
@@ -207,12 +207,12 @@ will default to an entry of
 for the requested database.
 Exceptions are:
 .Bl -column passwd_compat "dns files" -offset indent
-.Sy Database	Default source list
-.It group	compat
-.It group_compat	nis
-.It hosts	dns files
-.It passwd	compat
-.It passwd_compat	nis
+.It Sy "Database	Default source list"
+.It "group	compat"
+.It "group_compat	nis"
+.It "hosts	dns files"
+.It "passwd	compat"
+.It "passwd_compat	nis"
 .El
 .Sh FILES
 .Bl -tag -width /etc/nsswitch.conf -compact
@@ -229,9 +229,9 @@ and then from the DNS, and lookup user information from
 .Tn NIS
 then files, use:
 .Bl -column "passwd:" -offset indent
-.It hosts:	files dns
-.It passwd:	nis [notfound=return] files
-.It group:	nis [notfound=return] files
+.It "hosts:	files dns"
+.It "passwd:	nis [notfound=return] files"
+.It "group:	nis [notfound=return] files"
 .El
 .Pp
 The criteria

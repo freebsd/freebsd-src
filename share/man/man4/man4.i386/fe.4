@@ -93,7 +93,7 @@ Flag bits not specified below are reserved and must be set to 0.
 Actually, each bit is either just ignored by the driver,
 or tested and used to control undocumented features of the driver.
 Consult the source program for undocumented features.
-.Bl -tag -width "99999999"
+.Bl -tag -width 8n
 .It Li 0x007F
 These flag bits are used
 to initialize DLCR6 register of MB86960A/MB86965A chip,
@@ -218,7 +218,7 @@ The
 driver
 tries to get IRQ setting from the configuration EEPROM on the board,
 if
-.Dq irq \&?
+.Dq irq ?\&
 is specified in the configuration file.
 Unfortunately,
 AT1700 series and RE2000 series seems to have two types of models;
@@ -251,7 +251,7 @@ Statistics on the number of collisions maintained by the
 .Nm
 driver is not accurate;
 the
-.Fi i
+.Fl i
 option of
 .Xr netstat 1
 shows slightly less value than true number of collisions.

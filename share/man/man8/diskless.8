@@ -48,12 +48,12 @@ configuring a server for diskless Sun clients.
 When booting a system over the network, there are three
 phases of interaction between client and server:
 .Pp
-.Bl -tag -width 1.2 -compact
-.It 1.
+.Bl -enum -compact
+.It
 The PROM (or stage-1 bootstrap) loads a boot program.
-.It 2.
+.It
 The boot program loads a kernel.
-.It 3.
+.It
 The kernel does NFS mounts for root.
 .El
 .Pp
@@ -81,7 +81,7 @@ this phase depends on the design of the boot program.
 (The design described here is the one used by Sun and NetBSD/hp300.)
 The boot program:
 .Pp
-.Bl -tag -width 2.2 -compact
+.Bl -tag -width \&2.2 -compact
 .It 2.1
 gets the client IP address using
 .Tn RARP .
@@ -118,7 +118,7 @@ because there is no standard way for the boot program to pass
 the information it gathered on to the kernel.
 The procedure used by the kernel is as follows:
 .Pp
-.Bl -tag -width 2.2 -compact
+.Bl -tag -width \&2.2 -compact
 .It 3.1
 The kernel finds a boot server using the same procedure
 as described in steps 2.1 and 2.2 above.
@@ -142,8 +142,8 @@ might be configured -- other clients should be similar.
 Assuming the client's hostname is to be
 "myclient",
 .Pp
-.Bl -tag -width 2.1 -compact
-.It 1.
+.Bl -enum
+.It
 Add an entry to 
 .Pa /etc/ethers
 corresponding to the client's ethernet address:
@@ -152,16 +152,14 @@ corresponding to the client's ethernet address:
 .Ed
 This will be used by
 .Xr rarpd 8 .
-.Pp
-.It 2.
+.It
 Assign an IP address for myclient in your
 .Pa /etc/hosts
 or DNS database:
 .Bd -literal -offset indent -compact
 192.197.96.12           myclient
 .Ed
-.Pp
-.It 3.
+.It
 If booting a Sun machine, ensure that
 .Pa /etc/inetd.conf
 is configured to run
@@ -180,8 +178,7 @@ An entry might look like this:
 See the
 .Xr rbootd 8
 manual page for more information.
-.Pp
-.It 4.
+.It
 If booting a SPARC machine, install a copy of the appropriate diskless boot
 loader (such as
 .Pa /usr/mdec/boot )
@@ -212,8 +209,7 @@ If booting an HP 300-series machine, ensure that the network boot program
 before installation)
 is installed in the directory
 .Pa /usr/mdec/rbootd .
-
-.It 5.
+.It
 Add myclient to the bootparams database
 .Pa /etc/bootparams :
 .Bd -literal -offset indent -compact
@@ -224,8 +220,7 @@ Note: For the swap file to be mountable, you have to make sure that mountd is
 started with the
 .Fl r
 flag.
-
-.It 6.
+.It
 Build the swap file for myclient:
 .Bd -literal -offset indent -compact
 # mkdir /export/myclient
@@ -233,8 +228,7 @@ Build the swap file for myclient:
 # dd if=/dev/zero of=swap bs=16k count=1024
 .Ed
 This creates a 16 Megabyte swap file.
-.Pp
-.It 7.
+.It
 Populate myclient's
 .Pa /
 filesystem on the server.  How this is done depends on the
@@ -248,8 +242,7 @@ client's swap:
 .Bd -literal -offset indent -compact
 # mkdir /export/myclient/root/swap
 .Ed
-.Pp
-.It 8.
+.It
 Export the required filesystems in
 .Pa /etc/exports :
 .Bd -literal -offset indent -compact
@@ -278,8 +271,7 @@ lines:
 /export/usr.sun3 -ro myclient
 /export/myclient -rw=myclient,root=myclient
 .Ed
-.Pp
-.It 9.
+.It
 Copy and customize at least the following files in
 .Pa /export/myclient/root :
 .Bd -literal -offset indent -compact
@@ -292,8 +284,7 @@ Copy and customize at least the following files in
 .Pp
 Note that "le0" above should be replaced with the name of
 the network interface that the client will use for booting.
-.Pp
-.It 10.
+.It
 Correct the critical mount points and the swap file in the client's
 .Pa /etc/fstab
 (which will be

@@ -145,15 +145,15 @@ means
 .Dq Li require
 in the syntax.
 .Bl -column net.inet6.ipsec6.esp_trans_deflev integerxxx
-.It Sy Name	Type	Changeable
-.It net.inet.ipsec.esp_trans_deflev	integer	yes
-.It net.inet.ipsec.esp_net_deflev	integer	yes
-.It net.inet.ipsec.ah_trans_deflev	integer	yes
-.It net.inet.ipsec.ah_net_deflev	integer	yes
-.It net.inet6.ipsec6.esp_trans_deflev	integer	yes
-.It net.inet6.ipsec6.esp_net_deflev	integer	yes
-.It net.inet6.ipsec6.ah_trans_deflev	integer	yes
-.It net.inet6.ipsec6.ah_net_deflev	integer	yes
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.esp_trans_deflev	integer	yes"
+.It "net.inet.ipsec.esp_net_deflev	integer	yes"
+.It "net.inet.ipsec.ah_trans_deflev	integer	yes"
+.It "net.inet.ipsec.ah_net_deflev	integer	yes"
+.It "net.inet6.ipsec6.esp_trans_deflev	integer	yes"
+.It "net.inet6.ipsec6.esp_net_deflev	integer	yes"
+.It "net.inet6.ipsec6.ah_trans_deflev	integer	yes"
+.It "net.inet6.ipsec6.ah_net_deflev	integer	yes"
 .El
 .Pp
 If kernel finds no matching policy system wide default value is applied.
@@ -168,9 +168,9 @@ which asks the kernel to drop the packet.
 means
 .Dq Li none .
 .Bl -column net.inet6.ipsec6.def_policy integerxxx
-.It Sy Name	Type	Changeable
-.It net.inet.ipsec.def_policy	integer	yes
-.It net.inet6.ipsec6.def_policy	integer	yes
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.def_policy	integer	yes"
+.It "net.inet6.ipsec6.def_policy	integer	yes"
 .El
 .\"
 .Ss Miscellaneous sysctl variables
@@ -178,18 +178,18 @@ The following variables are accessible via
 .Xr sysctl 8 ,
 for tweaking kernel IPsec behavior:
 .Bl -column net.inet6.ipsec6.inbonud_call_ike integerxxx
-.It Sy Name	Type	Changeable
-.It net.inet.ipsec.ah_cleartos	integer	yes
-.It net.inet.ipsec.ah_offsetmask	integer	yes
-.It net.inet.ipsec.dfbit	integer	yes
-.It net.inet.ipsec.ecn	integer	yes
-.It net.inet.ipsec.debug	integer	yes
-.It net.inet6.ipsec6.ecn	integer	yes
-.It net.inet6.ipsec6.debug	integer	yes
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.ah_cleartos	integer	yes"
+.It "net.inet.ipsec.ah_offsetmask	integer	yes"
+.It "net.inet.ipsec.dfbit	integer	yes"
+.It "net.inet.ipsec.ecn	integer	yes"
+.It "net.inet.ipsec.debug	integer	yes"
+.It "net.inet6.ipsec6.ecn	integer	yes"
+.It "net.inet6.ipsec6.debug	integer	yes"
 .El
 .Pp
 The variables are interpreted as follows:
-.Bl -tag -width "123456"
+.Bl -tag -width 6n
 .It Li ipsec.ah_cleartos
 If set to non-zero, the kernel clears type-of-service field in the IPv4 header
 during AH authentication data computation.
