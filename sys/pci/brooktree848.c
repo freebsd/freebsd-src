@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.69 1999/04/28 10:54:06 dt Exp $ */
+/* $Id: brooktree848.c,v 1.70 1999/04/29 05:48:32 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -361,6 +361,12 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     This is usefull if you run another operating system
                     first to initialise the audio chip, then do a soft reboot.
                     Added for Yuri Gindin <yuri@xpert.com>
+
+1.62    29 Apr 1999 Added new cards: NEC PK-UG-X017 and I/O DATA GV-BCTV2/PCI
+                    Added new tuner: ALPS_TSBH1 (plus FM Radio for ALPS_TSCH5)
+                    Added support for BCTV audio mux.
+                    All submitted by Hiroki Mori <mori@infocity.co.jp> 
+
 */
 
 #define DDB(x) x
@@ -775,6 +781,11 @@ static struct {
 
 /* The control value for the ALPS TSCH5 Tuner */
 #define TSCH5_FCONTROL          0x82
+#define TSCH5_RADIO		0x86
+
+/* The control value for the ALPS TSBH1 Tuner */
+#define TSBH1_FCONTROL	0xce
+
 
 /* sync detect threshold */
 #if 0
@@ -814,7 +825,8 @@ static struct {
 #define PHILIPS_FR1216_PAL	10
 #define PHILIPS_FR1236_SECAM    11
 #define	ALPS_TSCH5		12
-#define Bt848_MAX_TUNER         13
+#define	ALPS_TSBH1		13
+#define Bt848_MAX_TUNER         14
 
 /* XXX FIXME: this list is incomplete */
 
@@ -964,9 +976,19 @@ static const struct TUNER tuners[] = {
            { TSCH5_FCONTROL,                    /* control byte for PLL */
              TSCH5_FCONTROL,
              TSCH5_FCONTROL,
+             TSCH5_RADIO },
+           { 0x00, 0x00 },                      /* band-switch crosspoints */
+           { 0x14, 0x12, 0x11, 0x04 } },        /* the band-switch values */
+
+        /* ALPS TSBH1 NTSC */
+        { "ALPS TSBH1",                         /* the 'name' */
+           TTYPE_NTSC,                          /* input type */
+           { TSBH1_FCONTROL,                    /* control byte for PLL */
+             TSBH1_FCONTROL,
+             TSBH1_FCONTROL,
              0x00 },
            { 0x00, 0x00 },                      /* band-switch crosspoints */
-           { 0x14, 0x12, 0x11, 0x00 } }         /* the band-switch values */
+           { 0x01, 0x02, 0x08, 0x00 } }         /* the band-switch values */
 };
 
 /******************************************************************************
@@ -992,7 +1014,9 @@ static const struct TUNER tuners[] = {
 #define	CARD_IMS_TURBO		5
 #define	CARD_AVER_MEDIA		6
 #define	CARD_OSPREY		7
-#define Bt848_MAX_CARD          8
+#define CARD_NEC_PK		8
+#define CARD_IO_GV		9
+#define Bt848_MAX_CARD		10 
 
 /*
  * the data for each type of card
@@ -1068,12 +1092,12 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
            0,
-           0,                                   /* EEProm size */
+           0,                                   /* EEProm type */
            0,                                   /* EEProm size */
            { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
 
-        {  CARD_OSPREY,			/* the card id */
-          "MMAC Osprey",                   /* the 'name' */
+        {  CARD_OSPREY,				/* the card id */
+          "MMAC Osprey",                   	/* the 'name' */
            NULL,                                /* the tuner */
 	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
@@ -1081,6 +1105,27 @@ static const struct CARDTYPE cards[] = {
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
            { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
+
+        {  CARD_NEC_PK,                         /* the card id */
+          "NEC PK-UG-X017",                     /* the 'name' */
+           NULL,                                /* the tuner */
+           0,                                   /* the tuner i2c address */
+           0,                                   /* dbx is optional */
+           0,
+           0,                                   /* EEProm type */
+           0,                                   /* EEProm size */
+           { 0x01, 0x02, 0x01, 0x00, 1 } },     /* audio MUX values */
+
+        {  CARD_IO_GV,                          /* the card id */
+          "I/O DATA GV-BCTV2/PCI",              /* the 'name' */
+           NULL,                                /* the tuner */
+           0,                                   /* the tuner i2c address */
+           0,                                   /* dbx is optional */
+           0,
+           0,                                   /* EEProm type */
+           0,                                   /* EEProm size */
+           { 0x00, 0x00, 0x00, 0x00, 1 } },     /* audio MUX values */
+
 
 };
 
@@ -1226,6 +1271,12 @@ static int      i2c_write_byte( bktr_ptr_t bktr, unsigned char data);
 static int      i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last );
 #endif
 
+/*
+ * CARD_GV_BCTV specific functions.
+ */
+static void set_bctv_audio( bktr_ptr_t bktr );
+static void bctv_gpio_write( bktr_ptr_t bktr, int port, int val );
+/*static int bctv_gpio_read( bktr_ptr_t bktr, int port );*/ /* Not used */
 
 #ifdef __FreeBSD__
 
@@ -2988,7 +3039,13 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	    ** If anyone has the exact values from the spec. sheet
 	    ** please forward them  -- fj@login.dknet.dk
 	    */
-	    temp=(int)*(unsigned long *)arg/5-407  +RADIO_OFFSET;
+
+            if(bktr->bt848_tuner == ALPS_TSCH5) {
+              temp=((int)*(unsigned long *)arg + 4125) * 32;
+              temp=temp/100 + (temp%100 >= 50 ? 1 : 0) +RADIO_OFFSET;
+            } else {
+              temp=(int)*(unsigned long *)arg/5-407  +RADIO_OFFSET;
+            }
 
 #ifdef BKTR_RADIO_DEBUG
   printf("bktr%d: arg=%d temp=%d\n",unit,(int)*(unsigned long *)arg,temp);
@@ -5888,7 +5945,11 @@ tv_freq( bktr_ptr_t bktr, int frequency )
 	if ( bktr->tuner.afc )
 		frequency -= 4;
 #endif
-	N = frequency + TBL_IF;
+
+        if(bktr->bt848_tuner == ALPS_TSCH5 && N == 3)   /* for FM frequency */
+                N = frequency;
+        else
+                N = frequency + TBL_IF;
 
 	if ( frequency > bktr->tuner.frequency ) {
 		i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
@@ -6081,6 +6142,20 @@ set_audio( bktr_ptr_t bktr, int cmd )
 		return( -1 );
 	}
 
+
+	/* Most cards have a simple audio multiplexer to select the
+	 * audio source. The I/O_GV card has a more advanced multiplexer
+	 * and requires special handling.
+	 */
+        if ( bktr->bt848_card == CARD_IO_GV ) {
+                set_bctv_audio( bktr );
+                return( 0 );
+	}
+
+	/* Proceed with the simpler audio multiplexer code for the majority
+	 * of Bt848 cards.
+	 */
+
 	bt848 =	bktr->base;
 
 	/*
@@ -6147,6 +6222,139 @@ set_BTSC( bktr_ptr_t bktr, int control )
 {
 	return( i2cWrite( bktr, TDA9850_WADDR, CON3ADDR, control ) );
 }
+
+/*
+ * CARD_GV_BCTV specific functions.
+ */
+
+#define BCTV_AUDIO_MAIN              0x10    /* main audio program */
+#define BCTV_AUDIO_SUB               0x20    /* sub audio program */
+#define BCTV_AUDIO_BOTH              0x30    /* main(L) + sub(R) program */
+
+#define BCTV_GPIO_REG0          1
+#define BCTV_GPIO_REG1          3
+
+#define BCTV_GR0_AUDIO_MODE     3
+#define BCTV_GR0_AUDIO_MAIN     0       /* main program */
+#define BCTV_GR0_AUDIO_SUB      3       /* sub program */
+#define BCTV_GR0_AUDIO_BOTH     1       /* main(L) + sub(R) */
+#define BCTV_GR0_AUDIO_MUTE     4       /* audio mute */
+#define BCTV_GR0_AUDIO_MONO     8       /* force mono */
+
+static void
+set_bctv_audio( bktr_ptr_t bktr )
+{
+        int data;
+
+        switch (bktr->audio_mux_select) {
+        case 1:         /* external */
+        case 2:         /* internal */
+                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 0);
+                break;
+        default:        /* tuner */
+                bctv_gpio_write(bktr, BCTV_GPIO_REG1, 1);
+                break;
+        }
+/*      switch (bktr->audio_sap_select) { */
+        switch (BCTV_AUDIO_BOTH) {
+        case BCTV_AUDIO_SUB:
+                data = BCTV_GR0_AUDIO_SUB;
+                break;
+        case BCTV_AUDIO_BOTH:
+                data = BCTV_GR0_AUDIO_BOTH;
+                break;
+        case BCTV_AUDIO_MAIN:
+        default:
+                data = BCTV_GR0_AUDIO_MAIN;
+                break;
+        }
+        if (bktr->audio_mute_state == TRUE)
+                data |= BCTV_GR0_AUDIO_MUTE;
+
+        bctv_gpio_write(bktr, BCTV_GPIO_REG0, data);
+
+        return;
+}
+
+/* gpio_data bit assignment */
+#define BCTV_GPIO_ADDR_MASK     0x000300
+#define BCTV_GPIO_WE            0x000400
+#define BCTV_GPIO_OE            0x000800
+#define BCTV_GPIO_VAL_MASK      0x00f000
+
+#define BCTV_GPIO_PORT_MASK     3
+#define BCTV_GPIO_ADDR_SHIFT    8
+#define BCTV_GPIO_VAL_SHIFT     12
+
+/* gpio_out_en value for read/write */
+#define BCTV_GPIO_OUT_RMASK     0x000f00
+#define BCTV_GPIO_OUT_WMASK     0x00ff00
+
+#define BCTV_BITS       100
+
+static void
+bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
+{
+        bt848_ptr_t bt848 = bktr->base;
+        u_long data, outbits;
+
+        port &= BCTV_GPIO_PORT_MASK;
+        switch (port) {
+        case 1:
+        case 3:
+                data = ((val << BCTV_GPIO_VAL_SHIFT) & BCTV_GPIO_VAL_MASK) |
+                       ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
+                       BCTV_GPIO_WE | BCTV_GPIO_OE;
+                outbits = BCTV_GPIO_OUT_WMASK;
+                break;
+        default:
+                return;
+        }
+        bt848->gpio_out_en = 0;
+        bt848->gpio_data = data;
+        bt848->gpio_out_en = outbits;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = data & ~BCTV_GPIO_WE;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = data;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = ~0;
+        bt848->gpio_out_en = 0;
+}
+
+/* Not yet used
+static int
+bctv_gpio_read( bktr_ptr_t bktr, int port )
+{
+        bt848_ptr_t bt848 = bktr->base;
+        u_long data, outbits, ret;
+
+        port &= BCTV_GPIO_PORT_MASK;
+        switch (port) {
+        case 1:
+        case 3:
+                data = ((port << BCTV_GPIO_ADDR_SHIFT) & BCTV_GPIO_ADDR_MASK) |
+                       BCTV_GPIO_WE | BCTV_GPIO_OE;
+                outbits = BCTV_GPIO_OUT_RMASK;
+                break;
+        default:
+                return( -1 );
+        }
+        bt848->gpio_out_en = 0;
+        bt848->gpio_data = data;
+        bt848->gpio_out_en = outbits;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = data & ~BCTV_GPIO_OE;
+        DELAY(BCTV_BITS);
+        ret = bt848->gpio_data;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = data;
+        DELAY(BCTV_BITS);
+        bt848->gpio_data = ~0;
+        bt848->gpio_out_en = 0;
+        return( (ret & BCTV_GPIO_VAL_MASK) >> BCTV_GPIO_VAL_SHIFT );
+}
+*/
 
 /*
  * setup the MSP34xx Stereo Audio Chip
