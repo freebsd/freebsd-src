@@ -244,8 +244,8 @@ void ext2_free_blocks (struct mount * mp, unsigned long block,
  * bitmap, and then for any free bit if that fails.
  */
 int ext2_new_block (struct mount * mp, unsigned long goal,
-		    long * prealloc_count,
-		    long * prealloc_block)
+		    int * prealloc_count,
+		    int * prealloc_block)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
 	struct buffer_head * bh;
