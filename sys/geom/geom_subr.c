@@ -209,7 +209,6 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	va_end(ap);
 	sbuf_finish(sb);
 	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
-	gp->protect = 0x020016601;
 	gp->name = g_malloc(sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	gp->class = mp;
 	gp->rank = 1;
@@ -290,7 +289,6 @@ g_new_consumer(struct g_geom *gp)
 	    gp->name, gp->class->name));
 
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
-	cp->protect = 0x020016602;
 	cp->geom = gp;
 	cp->stat = devstat_new_entry(cp, -1, 0, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
@@ -361,7 +359,6 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	va_end(ap);
 	sbuf_finish(sb);
 	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
-	pp->protect = 0x020016603;
 	pp->name = (char *)(pp + 1);
 	strcpy(pp->name, sbuf_data(sb));
 	sbuf_delete(sb);
@@ -797,24 +794,14 @@ g_sanity(void const *ptr)
 		return;
 	LIST_FOREACH(mp, &g_classes, class) {
 		KASSERT(mp != ptr, ("Ptr is live class"));
-		KASSERT(mp->protect == 0x20016600,
-		    ("corrupt class %p %x", mp, mp->protect));
 		LIST_FOREACH(gp, &mp->geom, geom) {
 			KASSERT(gp != ptr, ("Ptr is live geom"));
-			KASSERT(gp->protect == 0x20016601,
-			    ("corrupt geom, %p %x", gp, gp->protect));
 			KASSERT(gp->name != ptr, ("Ptr is live geom's name"));
 			LIST_FOREACH(cp, &gp->consumer, consumer) {
 				KASSERT(cp != ptr, ("Ptr is live consumer"));
-				KASSERT(cp->protect == 0x20016602,
-				    ("corrupt consumer %p %x",
-				    cp, cp->protect));
 			}
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				KASSERT(pp != ptr, ("Ptr is live provider"));
-				KASSERT(pp->protect == 0x20016603,
-				    ("corrupt provider %p %x",
-				    pp, pp->protect));
 			}
 		}
 	}
