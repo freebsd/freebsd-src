@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
 static void	checkdirs(struct vnode *olddp, struct vnode *newdp);
+static struct cdev *getdiskbyname(char *_name);
 static void	gets(char *cp);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata, int compat);
@@ -1449,7 +1450,7 @@ gets(char *cp)
  * we cannot use the vnode directly (because we unmount the DEVFS again)
  * so the filesystems still have to do the bdevvp() stunt.
  */
-struct cdev *
+static struct cdev *
 getdiskbyname(char *name)
 {
 	char *cp = name;
@@ -1490,7 +1491,10 @@ getdiskbyname(char *name)
 		error = lookup(&nid);
 		if (error)
 			break;
-		dev = vn_todev (nid.ni_vp);
+		if (nid.ni_vp->v_type != VCHR)
+			dev = NULL;
+		else
+			dev = nid.ni_vp->v_rdev;
 		NDFREE(&nid, 0);
 	} while (0);
 
