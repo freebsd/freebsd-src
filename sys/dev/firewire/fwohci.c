@@ -1091,12 +1091,15 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 					xfer->resp = err;
 					if (xfer->retry_req != NULL)
 						xfer->retry_req(xfer);
-					else
+					else {
+						xfer->recv.len = 0;
 						fw_xfer_done(xfer);
+					}
 				} else if (stat != FWOHCIEV_ACKPEND) {
 					if (stat != FWOHCIEV_ACKCOMPL)
 						xfer->state = FWXF_SENTERR;
 					xfer->resp = err;
+					xfer->recv.len = 0;
 					fw_xfer_done(xfer);
 				}
 			}
