@@ -59,6 +59,7 @@ struct bsdtar {
 	char		  option_honor_nodump; /* --nodump */
 	char		  option_interactive; /* -w */
 	char		  option_no_subdirs; /* -d */
+	char		  option_null; /* --null */
 	char		  option_stdout; /* -p */
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* -l */
@@ -67,6 +68,7 @@ struct bsdtar {
 	int		  fd;
 
 	/* Miscellaneous state information */
+	struct archive	 *archive;
 	const char	 *progname;
 	int		  argc;
 	char		**argv;
@@ -76,6 +78,7 @@ struct bsdtar {
 	uid_t		  user_uid; /* UID running this program */
 	int		  return_value; /* Value returned by main() */
 	char		  warned_lead_slash; /* Already displayed warning */
+	char		  next_line_is_dir; /* Used for -C parsing in -cT */
 
         /*
 	 * Data for various subsystems.  Full definitions are located in
@@ -94,10 +97,13 @@ void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
 void	bsdtar_strmode(struct archive_entry *entry, char *bp);
 void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
-void	exclude(struct bsdtar *, const char *pattern);
-void	exclude_from_file(struct bsdtar *, const char *pathname);
+int	exclude(struct bsdtar *, const char *pattern);
+int	exclude_from_file(struct bsdtar *, const char *pathname);
 int	excluded(struct bsdtar *, const char *pathname);
-void	include(struct bsdtar *, const char *pattern);
+int	include(struct bsdtar *, const char *pattern);
+int	include_from_file(struct bsdtar *, const char *pathname);
+int	process_lines(struct bsdtar *bsdtar, const char *pathname,
+	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
