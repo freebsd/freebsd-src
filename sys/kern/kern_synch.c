@@ -788,8 +788,13 @@ mi_switch(void)
 	/*
 	 * Check if the process exceeds its cpu resource allocation.  If
 	 * over max, arrange to kill the process in ast().
+	 *
+	 * XXX The checking for p_limit being NULL here is totally bogus,
+	 * but hides something easy to trip over, as a result of us switching
+	 * after the limit has been freed/set-to-NULL.  A KASSERT() will be
+	 * appropriate once this is no longer a bug, to watch for regression.
 	 */
-	if (p->p_state != PRS_ZOMBIE &&
+	if (p->p_state != PRS_ZOMBIE && p->p_limit != NULL &&
 	    p->p_limit->p_cpulimit != RLIM_INFINITY &&
 	    p->p_runtime.sec > p->p_limit->p_cpulimit) {
 		p->p_sflag |= PS_XCPU;
