@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.240 1997/05/07 20:12:47 peter Exp $
+ *	$Id: machdep.c,v 1.241 1997/05/11 12:39:43 bde Exp $
  */
 
 #include "npx.h"
@@ -130,7 +130,6 @@ extern void earlysetcpuclass(void);	/* same header file */
 extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
 extern void initializecpu(void);
-extern void init_sets(void);
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -1026,11 +1025,6 @@ init386(first)
 	proc0.p_addr = proc0paddr;
 
 	atdevbase = ISA_HOLE_START + KERNBASE;
-
-	/*
-	 * Fill in the length fields of all linker sets (necessary for ELF).
-	 */
-	init_sets();
 
 	/*
 	 * Initialize the console before we print anything out.
