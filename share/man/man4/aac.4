@@ -73,8 +73,13 @@ or a Linux-based management application.
 .Pp
 The
 .Pa /dev/aac?
-device nodes provides access to the management interface of the controller.
-One node exists per installed card.
+device nodes provide access to the management interface of the controller.
+One node exists per installed card.  The aliases
+.Pa /dev/afa?
+and
+.Pa /dev/hpn?
+exist for the Dell and HP flavors, respectively, and are required for
+the CLI management utility available from these vendors to work.
 Compiling the driver with the
 .Dv AAC_COMPAT_LINUX
 option enables the Linux-compatible
