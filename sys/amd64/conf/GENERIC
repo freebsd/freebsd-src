@@ -113,7 +113,7 @@ device		atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
-device		vga0	at isa? conflicts
+device		vga0	at isa?
 
 # splash screen/screen saver
 pseudo-device	splash
