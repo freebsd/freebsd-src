@@ -7,10 +7,6 @@
   <para>This section describes the boot-time configuration of the
   &os; kernel.</para>
 
-  <note>
-    <para>How architecture-dependent is this?</para>
-  </note>
-
   <sect2>
 
     <title>Default Configuration</title>
