@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmonad - ACPI AML execution for monadic (1 operand) operators
- *              $Revision: 108 $
+ *              $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -208,6 +208,9 @@ Cleanup:
     return_ACPI_STATUS (Status);
 }
 
+#define ObjDesc             Operand[0]
+#define ResDesc             Operand[1]
+
 
 /*******************************************************************************
  *
@@ -227,42 +230,12 @@ AcpiExMonadic1 (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_STATUS             Status;
-    ACPI_STATUS             ResolveStatus;
 
 
     FUNCTION_TRACE_PTR ("ExMonadic1", WALK_OPERANDS);
 
-
-    /* Resolve the operand */
-
-    ResolveStatus = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (Opcode),
-                    1, "after AcpiExResolveOperands");
-
-    /* Get the operand */
-
-    Status = AcpiDsObjStackPopObject (&ObjDesc, WalkState);
-
-    /* Check operand status */
-
-    if (ACPI_FAILURE (ResolveStatus))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
-
-        goto Cleanup;
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: bad operand(s) %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
-
-        goto Cleanup;
-    }
 
     /* Examine the opcode */
 
@@ -321,7 +294,6 @@ AcpiExMonadic1 (
     } /* switch */
 
 
-Cleanup:
 
     /* Always delete the operand */
 
@@ -350,13 +322,11 @@ AcpiExMonadic2R (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
-    ACPI_OPERAND_OBJECT     *ResDesc;
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
     ACPI_OPERAND_OBJECT     *RetDesc2 = NULL;
     UINT32                  ResVal;
-    ACPI_STATUS             Status;
-    ACPI_STATUS             ResolveStatus;
+    ACPI_STATUS             Status = AE_OK;
     UINT32                  i;
     UINT32                  j;
     ACPI_INTEGER            Digit;
@@ -365,35 +335,6 @@ AcpiExMonadic2R (
     FUNCTION_TRACE_PTR ("ExMonadic2R", WALK_OPERANDS);
 
 
-    /* Resolve all operands */
-
-    ResolveStatus = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiExResolveOperands");
-
-    /* Get all operands */
-
-    Status  = AcpiDsObjStackPopObject (&ResDesc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&ObjDesc, WalkState);
-
-    /* Now we can check the status codes */
-
-    if (ACPI_FAILURE (ResolveStatus))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
-
-        goto Cleanup;
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: bad operand(s) %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
-
-        goto Cleanup;
-    }
 
 
     /* Create a return object of type NUMBER for most opcodes */
@@ -550,21 +491,18 @@ AcpiExMonadic2R (
          * different than the return value stored in the result descriptor
          * (There are really two return values)
          */
-
         if ((ACPI_NAMESPACE_NODE *) ObjDesc == AcpiGbl_RootNode)
         {
             /*
              * This means that the object does not exist in the namespace,
              * return FALSE
              */
-
             RetDesc->Integer.Value = 0;
 
             /*
              * Must delete the result descriptor since there is no reference
              * being returned
              */
-
             AcpiUtRemoveReference (ResDesc);
             goto Cleanup;
         }
@@ -720,11 +658,10 @@ AcpiExMonadic2 (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *TmpDesc;
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
-    ACPI_STATUS             ResolveStatus;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
     UINT32                  Type;
     ACPI_INTEGER            Value;
 
@@ -732,38 +669,9 @@ AcpiExMonadic2 (
     FUNCTION_TRACE_PTR ("ExMonadic2", WALK_OPERANDS);
 
 
-    /* Attempt to resolve the operands */
-
-    ResolveStatus = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (Opcode),
-                    1, "after AcpiExResolveOperands");
-
-    /* Always get all operands */
-
-    Status = AcpiDsObjStackPopObject (&ObjDesc, WalkState);
-
-    /* Now we can check the status codes */
-
-    if (ACPI_FAILURE (ResolveStatus))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
-
-        goto Cleanup;
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Bad operand(s), %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
-
-        goto Cleanup;
-    }
 
 
     /* Get the operand and decode the opcode */
-
 
     switch (Opcode)
     {
@@ -794,9 +702,8 @@ AcpiExMonadic2 (
          * can be either an Node or an internal object.
          *
          * TBD: [Future] This may be the prototype code for all cases where
-         * an Reference is expected!! 10/99
+         * a Reference is expected!! 10/99
          */
-
         if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_NAMED))
         {
             RetDesc = ObjDesc;
@@ -808,7 +715,6 @@ AcpiExMonadic2 (
              * Duplicate the Reference in a new object so that we can resolve it
              * without destroying the original Reference object
              */
-
             RetDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
             if (!RetDesc)
             {
@@ -826,7 +732,6 @@ AcpiExMonadic2 (
          * Convert the RetDesc Reference to a Number
          * (This deletes the original RetDesc)
          */
-
         Status = AcpiExResolveOperands (AML_LNOT_OP, &RetDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -1010,7 +915,6 @@ AcpiExMonadic2 (
          * Now that we have the size of the object, create a result
          * object to hold the value
          */
-
         RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!RetDesc)
         {
@@ -1091,7 +995,6 @@ AcpiExMonadic2 (
              * This must be a reference object produced by the Index
              * ASL operation -- check internal opcode
              */
-
             if ((ObjDesc->Reference.Opcode != AML_INDEX_OP) &&
                 (ObjDesc->Reference.Opcode != AML_REF_OF_OP))
             {
@@ -1112,7 +1015,6 @@ AcpiExMonadic2 (
                  * 1) A Buffer
                  * 2) A Package
                  */
-
                 if (ObjDesc->Reference.TargetType == ACPI_TYPE_BUFFER_FIELD)
                 {
                     /*
@@ -1147,7 +1049,6 @@ AcpiExMonadic2 (
                      * element of the package.  We must add another reference to
                      * this object, however.
                      */
-
                     RetDesc = *(ObjDesc->Reference.Where);
                     if (!RetDesc)
                     {

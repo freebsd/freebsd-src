@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 44 $
+ *       $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -129,50 +129,44 @@ extern NATIVE_CHAR              *optarg;
 extern UINT8                    *AmlPtr;
 extern UINT32                   AmlLength;
 
-extern BOOLEAN                  opt_tables;
-extern BOOLEAN                  opt_disasm;
-extern BOOLEAN                  opt_stats;
-extern BOOLEAN                  opt_parse_jit;
-extern BOOLEAN                  opt_verbose;
-extern BOOLEAN                  opt_ini_methods;
+extern BOOLEAN                  AcpiGbl_DbOpt_tables;
+extern BOOLEAN                  AcpiGbl_DbOpt_disasm;
+extern BOOLEAN                  AcpiGbl_DbOpt_stats;
+extern BOOLEAN                  AcpiGbl_DbOpt_parse_jit;
+extern BOOLEAN                  AcpiGbl_DbOpt_verbose;
+extern BOOLEAN                  AcpiGbl_DbOpt_ini_methods;
 
 
-extern NATIVE_CHAR              *Args[DB_MAX_ARGS];
-extern NATIVE_CHAR              LineBuf[80];
-extern NATIVE_CHAR              ScopeBuf[40];
-extern NATIVE_CHAR              DebugFilename[40];
-extern BOOLEAN                  OutputToFile;
-extern NATIVE_CHAR              *Buffer;
-extern NATIVE_CHAR              *Filename;
-extern NATIVE_CHAR              *INDENT_STRING;
+extern NATIVE_CHAR              *AcpiGbl_DbArgs[DB_MAX_ARGS];
+extern NATIVE_CHAR              AcpiGbl_DbLineBuf[80];
+extern NATIVE_CHAR              AcpiGbl_DbScopeBuf[40];
+extern NATIVE_CHAR              AcpiGbl_DbDebugFilename[40];
+extern BOOLEAN                  AcpiGbl_DbOutputToFile;
+extern NATIVE_CHAR              *AcpiGbl_DbBuffer;
+extern NATIVE_CHAR              *AcpiGbl_DbFilename;
+extern NATIVE_CHAR              *AcpiGbl_DbDisasmIndent;
 extern UINT8                    AcpiGbl_DbOutputFlags;
 extern UINT32                   AcpiGbl_DbDebugLevel;
 extern UINT32                   AcpiGbl_DbConsoleDebugLevel;
 
-extern UINT32                   NumNames;
-extern UINT32                   NumMethods;
-extern UINT32                   NumRegions;
-extern UINT32                   NumPackages;
-extern UINT32                   NumAliases;
-extern UINT32                   NumDevices;
-extern UINT32                   NumFieldDefs;
-extern UINT32                   NumThermalZones;
-extern UINT32                   NumNodes;
-extern UINT32                   NumGrammarElements;
-extern UINT32                   NumMethodElements ;
-extern UINT32                   NumMutexes;
-extern UINT32                   NumPowerResources;
-extern UINT32                   NumBankFields ;
-extern UINT32                   NumIndexFields;
-extern UINT32                   NumEvents;
-
-extern UINT32                   SizeOfParseTree;
-extern UINT32                   SizeOfMethodTrees;
-extern UINT32                   SizeOfNTEs;
-extern UINT32                   SizeOfAcpiObjects;
+/*
+ * Statistic globals
+ */
+extern UINT16                   AcpiGbl_ObjTypeCount[INTERNAL_TYPE_NODE_MAX+1];
+extern UINT16                   AcpiGbl_NodeTypeCount[INTERNAL_TYPE_NODE_MAX+1];
+extern UINT16                   AcpiGbl_ObjTypeCountMisc;
+extern UINT16                   AcpiGbl_NodeTypeCountMisc;
+extern UINT32                   AcpiGbl_NumNodes;
+extern UINT32                   AcpiGbl_NumObjects;
 
 
-#define BUFFER_SIZE             4196
+extern UINT32                   AcpiGbl_SizeOfParseTree;
+extern UINT32                   AcpiGbl_SizeOfMethodTrees;
+extern UINT32                   AcpiGbl_SizeOfNodeEntries;
+extern UINT32                   AcpiGbl_SizeOfAcpiObjects;
+
+
+#define ACPI_DEBUG_BUFFER_SIZE  4196
 
 #define DB_REDIRECTABLE_OUTPUT  0x01
 #define DB_CONSOLE_OUTPUT       0x02
@@ -196,7 +190,7 @@ typedef struct ArgumentInfo
 
 #define PARAM_LIST(pl)                  pl
 
-#define DBTEST_OUTPUT_LEVEL(lvl)        if (opt_verbose)
+#define DBTEST_OUTPUT_LEVEL(lvl)        if (AcpiGbl_DbOpt_verbose)
 
 #define VERBOSE_PRINT(fp)               DBTEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}

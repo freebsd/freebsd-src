@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 93 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -147,7 +147,7 @@ AcpiExDecodeFieldAccessType (
     UINT16                  Length,
     UINT32                  *Alignment)
 {
-    PROC_NAME ("AcpiExDecodeFieldAccessType");
+    PROC_NAME ("ExDecodeFieldAccessType");
 
 
     switch (Access)
@@ -260,7 +260,7 @@ AcpiExPrepCommonFieldObject (
 
     ObjDesc->CommonField.BitLength  = (UINT16) FieldBitLength;
 
-    /* 
+    /*
      * Decode the access type so we can compute offsets.  The access type gives
      * two pieces of information - the width of each field access and the
      * necessary alignment of the access.  For AnyAcc, the width used is the
@@ -293,13 +293,13 @@ AcpiExPrepCommonFieldObject (
     }
 
 
-    /* 
+    /*
      * BaseByteOffset is the address of the start of the field within the region.  It is
      * the byte address of the first *datum* (field-width data unit) of the field.
      * (i.e., the first datum that contains at least the first *bit* of the field.)
      */
     NearestByteAddress                        = ROUND_BITS_DOWN_TO_BYTES (FieldBitPosition);
-    ObjDesc->CommonField.BaseByteOffset       = ROUND_DOWN (NearestByteAddress, 
+    ObjDesc->CommonField.BaseByteOffset       = ROUND_DOWN (NearestByteAddress,
                                                             DIV_8 (Alignment));
 
     /*
@@ -313,15 +313,15 @@ AcpiExPrepCommonFieldObject (
     /*
      * DatumValidBits is the number of valid field bits in the first field datum.
      */
-    ObjDesc->CommonField.DatumValidBits       = (UINT8) (AccessBitWidth - 
+    ObjDesc->CommonField.DatumValidBits       = (UINT8) (AccessBitWidth -
                                                          ObjDesc->CommonField.StartFieldBitOffset);
 
-    /* 
+    /*
      * Valid bits -- the number of bits that compose a partial datum,
      * 1) At the end of the field within the region (arbitrary starting bit offset)
      * 2) At the end of a buffer used to contain the field (starting offset always zero)
      */
-    ObjDesc->CommonField.EndFieldValidBits    = (UINT8) ((ObjDesc->CommonField.StartFieldBitOffset + 
+    ObjDesc->CommonField.EndFieldValidBits    = (UINT8) ((ObjDesc->CommonField.StartFieldBitOffset +
                                                             FieldBitLength) % AccessBitWidth);
     ObjDesc->CommonField.EndBufferValidBits   = (UINT8) (FieldBitLength % AccessBitWidth); /* StartBufferBitOffset always = 0 */
 

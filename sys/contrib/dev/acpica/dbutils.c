@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 41 $
+ *              $Revision: 43 $
  *
  ******************************************************************************/
 
@@ -154,7 +154,7 @@ AcpiDbSetOutputDestination (
 
     if (OutputFlags & DB_REDIRECTABLE_OUTPUT)
     {
-        if (OutputToFile)
+        if (AcpiGbl_DbOutputToFile)
         {
             AcpiDbgLevel = AcpiGbl_DbDebugLevel;
         }
@@ -232,7 +232,7 @@ AcpiDbDumpObject (
 
     case ACPI_TYPE_INTEGER:
 
-        AcpiOsPrintf ("[Integer] = %X%8.8X\n", HIDWORD (ObjDesc->Integer.Value), 
+        AcpiOsPrintf ("[Integer] = %X%8.8X\n", HIDWORD (ObjDesc->Integer.Value),
                                                LODWORD (ObjDesc->Integer.Value));
         break;
 

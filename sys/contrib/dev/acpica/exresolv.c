@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 96 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -457,7 +457,7 @@ AcpiExResolveObjectToValue (
                      * the package, can't dereference it
                      */
                     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                        "Attempt to deref an Index to NULL pkg element Idx=%p\n", 
+                        "Attempt to deref an Index to NULL pkg element Idx=%p\n",
                         StackDesc));
                     Status = AE_AML_UNINITIALIZED_ELEMENT;
                 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsaddr - Address resource descriptors (16/32/64)
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  ******************************************************************************/
 
@@ -301,7 +301,7 @@ AcpiRsAddress16Resource (
 
         /* Point the String pointer to the end of this structure */
 
-        OutputStruct->Data.Address16.ResourceSource.StringPtr = 
+        OutputStruct->Data.Address16.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 * )OutputStruct + StructSize);
 
         TempPtr = OutputStruct->Data.Address16.ResourceSource.StringPtr;
@@ -495,7 +495,7 @@ AcpiRsAddress16Stream (
         /*
          * Copy the string
          */
-        STRCPY (TempPointer, 
+        STRCPY (TempPointer,
                 LinkedList->Data.Address16.ResourceSource.StringPtr);
 
         /*
@@ -707,7 +707,7 @@ AcpiRsAddress32Resource (
 
         /* Point the String pointer to the end of this structure */
 
-        OutputStruct->Data.Address32.ResourceSource.StringPtr = 
+        OutputStruct->Data.Address32.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
 
         TempPtr = OutputStruct->Data.Address32.ResourceSource.StringPtr;
@@ -902,7 +902,7 @@ AcpiRsAddress32Stream (
         /*
          * Copy the string
          */
-        STRCPY (TempPointer, 
+        STRCPY (TempPointer,
             LinkedList->Data.Address32.ResourceSource.StringPtr);
 
         /*
@@ -1112,7 +1112,7 @@ AcpiRsAddress64Resource (
 
         /* Point the String pointer to the end of this structure */
 
-        OutputStruct->Data.Address64.ResourceSource.StringPtr = 
+        OutputStruct->Data.Address64.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
 
         TempPtr = OutputStruct->Data.Address64.ResourceSource.StringPtr;
@@ -1176,7 +1176,7 @@ AcpiRsAddress64Resource (
  *                                        the number of bytes of the
  *                                        OutputBuffer used
  *
- * RETURN:      Status 
+ * RETURN:      Status
  *
  * DESCRIPTION: Take the linked list resource structure and fills in the
  *              the appropriate bytes in a byte stream

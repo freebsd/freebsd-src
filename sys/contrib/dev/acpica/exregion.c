@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 55 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -195,7 +195,6 @@ AcpiExSystemMemorySpaceHandler (
      * Is 1) Address below the current mapping? OR
      *    2) Address beyond the current mapping?
      */
-
     if ((Address < MemInfo->MappedPhysicalAddress) ||
         (((ACPI_INTEGER) Address + Length) >
             ((ACPI_INTEGER) MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
@@ -204,7 +203,6 @@ AcpiExSystemMemorySpaceHandler (
          * The request cannot be resolved by the current memory mapping;
          * Delete the existing mapping and create a new one.
          */
-
         if (MemInfo->MappedLength)
         {
             /* Valid mapping, delete it */
@@ -414,8 +412,8 @@ AcpiExPciConfigSpaceHandler (
     PciRegister = (UINT16) Address;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "IO %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n", 
-        Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device, 
+        "IO %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+        Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device,
         PciId->Function, PciRegister));
 
     switch (Function)

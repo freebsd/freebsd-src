@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 37 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -147,7 +147,7 @@
 static ACPI_STATUS
 AcpiExLoadTableOp (
     ACPI_OPERAND_OBJECT     *RgnDesc,
-    ACPI_HANDLE             *DdbHandle)
+    ACPI_OPERAND_OBJECT     **DdbHandle)
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *TableDesc = NULL;
@@ -294,22 +294,22 @@ Cleanup:
 
 static ACPI_STATUS
 AcpiExUnloadTable (
-    ACPI_HANDLE             DdbHandle)
+    ACPI_OPERAND_OBJECT     *DdbHandle)
 {
     ACPI_STATUS             Status = AE_NOT_IMPLEMENTED;
-    ACPI_OPERAND_OBJECT     *TableDesc = (ACPI_OPERAND_OBJECT  *) DdbHandle;
+    ACPI_OPERAND_OBJECT     *TableDesc = DdbHandle;
     ACPI_TABLE_DESC         *TableInfo;
 
 
     FUNCTION_TRACE ("ExUnloadTable");
 
 
-    /* Validate the handle */
-    /* Although the handle is partially validated in AcpiExReconfiguration(),
-     *  when it calls AcpiExResolveOperands(), the handle is more completely
-     *  validated here.
+    /*
+     * Validate the handle
+     * Although the handle is partially validated in AcpiExReconfiguration(),
+     * when it calls AcpiExResolveOperands(), the handle is more completely
+     * validated here.
      */
-
     if ((!DdbHandle) ||
         (!VALID_DESCRIPTOR_TYPE (DdbHandle, ACPI_DESC_TYPE_INTERNAL)) ||
         (((ACPI_OPERAND_OBJECT  *)DdbHandle)->Common.Type !=
@@ -317,7 +317,6 @@ AcpiExUnloadTable (
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
-
 
     /* Get the actual table descriptor from the DdbHandle */
 
@@ -327,7 +326,6 @@ AcpiExUnloadTable (
      * Delete the entire namespace under this table Node
      * (Offset contains the TableId)
      */
-
     Status = AcpiNsDeleteNamespaceByOwner (TableInfo->TableId);
     if (ACPI_FAILURE (Status))
     {
@@ -364,55 +362,27 @@ AcpiExReconfiguration (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT     *RegionDesc = NULL;
-    ACPI_HANDLE             *DdbHandle;
 
 
     FUNCTION_TRACE ("ExReconfiguration");
 
+#define DdbHandle           Operand[0]
+#define RegionDesc          Operand[1]
 
-    /* Resolve the operands */
 
-    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiExResolveOperands");
-
-    /* Get the table handle, common for both opcodes */
-
-    Status |= AcpiDsObjStackPopObject ((ACPI_OPERAND_OBJECT  **) &DdbHandle,
-                                        WalkState);
 
     switch (Opcode)
     {
 
     case AML_LOAD_OP:
 
-        /* Get the region or field descriptor */
-
-        Status |= AcpiDsObjStackPopObject (&RegionDesc, WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Load) (%s)\n",
-                AcpiFormatException (Status)));
-
-            AcpiUtRemoveReference (RegionDesc);
-            return_ACPI_STATUS (Status);
-        }
-
-        Status = AcpiExLoadTableOp (RegionDesc, DdbHandle);
+        Status = AcpiExLoadTableOp (RegionDesc, &DdbHandle);
         break;
 
 
     case AML_UNLOAD_OP:
-
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (unload) (%s)\n",
-                AcpiFormatException (Status)));
-
-            return_ACPI_STATUS (Status);
-        }
 
         Status = AcpiExUnloadTable (DdbHandle);
         break;

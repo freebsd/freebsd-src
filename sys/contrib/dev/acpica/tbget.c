@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 52 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -240,6 +240,7 @@ AcpiTbGetTable (
 
     FUNCTION_TRACE ("TbGetTable");
 
+
     if (!TableInfo)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -251,7 +252,6 @@ AcpiTbGetTable (
         /*
          * Getting data from a buffer, not BIOS tables
          */
-
         TableHeader = BufferPtr;
         Status = AcpiTbValidateTableHeader (TableHeader);
         if (ACPI_FAILURE (Status))
@@ -345,7 +345,6 @@ AcpiTbGetAllTables (
      * This will NOT include the FACS and DSDT - we must get
      * them after the loop
      */
-
     for (Index = 0; Index < NumberOfTables; Index++)
     {
         /* Clear the TableInfo each time */
@@ -382,7 +381,6 @@ AcpiTbGetAllTables (
              * error.  Just get as many tables as we can, later we will
              * determine if there are enough tables to continue.
              */
-
             AcpiTbUninstallTable (&TableInfo);
         }
     }
@@ -408,18 +406,15 @@ AcpiTbGetAllTables (
      *
      */
 
-
     /*
      * Get the FACS (must have the FADT first, from loop above)
      * AcpiTbGetTableFacs will fail if FADT pointer is not valid
      */
-
     Status = AcpiTbGetTableFacs (TablePtr, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
-
 
     /* Install the FACS */
 
@@ -433,7 +428,6 @@ AcpiTbGetAllTables (
      * Create the common FACS pointer table
      * (Contains pointers to the original table)
      */
-
     Status = AcpiTbBuildCommonFacs (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
@@ -444,7 +438,6 @@ AcpiTbGetAllTables (
     /*
      * Get the DSDT (We know that the FADT is valid now)
      */
-
     Status = AcpiTbGetTable ((ACPI_PHYSICAL_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XDsdt),
                                 TablePtr, &TableInfo);
     if (ACPI_FAILURE (Status))
@@ -508,7 +501,7 @@ AcpiTbVerifyRsdp (
     UINT8                   *TablePtr;
 
 
-    FUNCTION_TRACE ("AcpiTbVerifyRsdp");
+    FUNCTION_TRACE ("TbVerifyRsdp");
 
 
     /*
@@ -591,6 +584,9 @@ AcpiTbGetRsdtAddress (void)
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress;
 
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * For RSDP revision 0 or 1, we use the RSDT.
      * For RSDP revision 2 (and above), we use the XSDT
@@ -611,14 +607,13 @@ AcpiTbGetRsdtAddress (void)
                             ACPI_GET_ADDRESS (AcpiGbl_RSDP->XsdtPhysicalAddress);
     }
 
-
     return (PhysicalAddress);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbValidateRsdt 
+ * FUNCTION:    AcpiTbValidateRsdt
  *
  * PARAMETERS:  TablePtr        - Addressable pointer to the RSDT.
  *
@@ -634,6 +629,7 @@ AcpiTbValidateRsdt (
 {
     UINT32                  NoMatch;
 
+
     PROC_NAME ("TbValidateRsdt");
 
 
@@ -643,12 +639,12 @@ AcpiTbValidateRsdt (
      */
     if (AcpiGbl_RSDP->Revision < 2)
     {
-        NoMatch = STRNCMP ((char *) TablePtr, RSDT_SIG, 
+        NoMatch = STRNCMP ((char *) TablePtr, RSDT_SIG,
                         sizeof (RSDT_SIG) -1);
     }
     else
     {
-        NoMatch = STRNCMP ((char *) TablePtr, XSDT_SIG, 
+        NoMatch = STRNCMP ((char *) TablePtr, XSDT_SIG,
                         sizeof (XSDT_SIG) -1);
     }
 
@@ -696,6 +692,8 @@ AcpiTbGetTablePointer (
     ACPI_STATUS             Status;
 
 
+    FUNCTION_ENTRY ();
+
 
     if ((Flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING)
     {
@@ -713,7 +711,6 @@ AcpiTbGetTablePointer (
 
     return (Status);
 }
-
 
 
 /*******************************************************************************
@@ -743,7 +740,6 @@ AcpiTbGetTableRsdt (
     /*
      * Get the RSDT from the RSDP
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
         AcpiGbl_RSDP, HIDWORD(AcpiGbl_RSDP->RsdtPhysicalAddress),
@@ -773,7 +769,7 @@ AcpiTbGetTableRsdt (
     }
 
 
-    /* 
+    /*
      * Valid RSDT signature, verify the checksum.  If it fails, just
      * print a warning and ignore it.
      */

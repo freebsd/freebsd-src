@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 28 $
+ *              $Revision: 29 $
  *
  *****************************************************************************/
 
@@ -298,13 +298,13 @@ AcpiPsPopScope (
 
     FUNCTION_TRACE ("PsPopScope");
 
+
     /*
      * Only pop the scope if there is in fact a next scope
      */
     if (Scope->Common.Next)
     {
         Scope = AcpiUtPopGenericState (&ParserState->Scope);
-
 
         /* return to parsing previous op */
 

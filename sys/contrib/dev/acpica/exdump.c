@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 116 $
+ *              $Revision: 122 $
  *
  *****************************************************************************/
 
@@ -261,7 +261,7 @@ AcpiExDumpOperand (
 
     if (VALID_DESCRIPTOR_TYPE (EntryDesc, ACPI_DESC_TYPE_NAMED))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Node: \n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p NS Node: ", EntryDesc));
         DUMP_ENTRY (EntryDesc, ACPI_LV_INFO);
         return (AE_OK);
     }
@@ -275,7 +275,7 @@ AcpiExDumpOperand (
 
     if (!VALID_DESCRIPTOR_TYPE (EntryDesc, ACPI_DESC_TYPE_INTERNAL))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p Not a local object \n", EntryDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%p Is not a local object \n", EntryDesc));
         DUMP_BUFFER (EntryDesc, sizeof (ACPI_OPERAND_OBJECT));
         return (AE_OK);
     }
@@ -414,22 +414,25 @@ AcpiExDumpOperand (
 
     case ACPI_TYPE_INTEGER:
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "Number %lX\n",
-                    EntryDesc->Integer.Value));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "Integer %8.8X%8.8X\n",
+                    HIDWORD (EntryDesc->Integer.Value),
+                    LODWORD (EntryDesc->Integer.Value)));
         break;
 
 
     case INTERNAL_TYPE_IF:
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "If [Number] %lX\n",
-                    EntryDesc->Integer.Value));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "If [Integer] %8.8X%8.8X\n",
+                    HIDWORD (EntryDesc->Integer.Value),
+                    LODWORD (EntryDesc->Integer.Value)));
         break;
 
 
     case INTERNAL_TYPE_WHILE:
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "While [Number] %lX\n",
-                    EntryDesc->Integer.Value));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "While [Integer] %8.8X%8.8X\n",
+                    HIDWORD (EntryDesc->Integer.Value),
+                    LODWORD (EntryDesc->Integer.Value)));
         break;
 
 
@@ -438,14 +441,13 @@ AcpiExDumpOperand (
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "Package count %X @ %p\n",
                     EntryDesc->Package.Count, EntryDesc->Package.Elements));
 
-
         /*
          * If elements exist, package vector pointer is valid,
          * and debug_level exceeds 1, dump package's elements.
          */
         if (EntryDesc->Package.Count &&
             EntryDesc->Package.Elements &&
-            GetDebugLevel () > 1)
+            AcpiDbgLevel > 1)
         {
             ACPI_OPERAND_OBJECT**Element;
             UINT16              ElementIndex;
@@ -487,16 +489,16 @@ AcpiExDumpOperand (
 
     case ACPI_TYPE_STRING:
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "String length %X @ %p\n\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "String length %X @ %p \"",
                     EntryDesc->String.Length, EntryDesc->String.Pointer));
 
-        for (i=0; i < EntryDesc->String.Length; i++)
+        for (i = 0; i < EntryDesc->String.Length; i++)
         {
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "%c",
                         EntryDesc->String.Pointer[i]));
         }
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "\n\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "\"\n"));
         break;
 
 
@@ -646,7 +648,8 @@ AcpiExDumpOperands (
     ACPI_OPERAND_OBJECT     **EntryDesc;
 
 
-    PROC_NAME ("AcpiExDumpOperands");
+    PROC_NAME ("ExDumpOperands");
+
 
     if (!Ident)
     {
@@ -660,10 +663,8 @@ AcpiExDumpOperands (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "************* AcpiExDumpOperands  Mode=%X ******************\n",
-        InterpreterMode));
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "From %12s(%d)  %s: %s\n", ModuleName, LineNumber, Ident, Note));
+        "************* Operand Stack Contents (Opcode [%s], %d Operands)\n",
+        Ident, NumLevels));
 
     if (NumLevels == 0)
     {
@@ -682,6 +683,9 @@ AcpiExDumpOperands (
         }
     }
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "************* Stack dump from %s(%d), %s\n",
+        ModuleName, LineNumber, Note));
     return;
 }
 
@@ -702,6 +706,9 @@ AcpiExDumpNode (
     ACPI_NAMESPACE_NODE     *Node,
     UINT32                  Flags)
 {
+
+    FUNCTION_ENTRY ();
+
 
     if (!Flags)
     {
@@ -740,7 +747,7 @@ AcpiExDumpObjectDescriptor (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  Flags)
 {
-    ACPI_OPCODE_INFO        *OpInfo;
+    const ACPI_OPCODE_INFO  *OpInfo;
 
 
     FUNCTION_TRACE ("ExDumpObjectDescriptor");
@@ -748,7 +755,7 @@ AcpiExDumpObjectDescriptor (
 
     if (!Flags)
     {
-        if (!((ACPI_DB_OBJECTS & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer)))
+        if (!((ACPI_LV_OBJECTS & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer)))
         {
             return;
         }

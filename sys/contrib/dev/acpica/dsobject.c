@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 71 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -170,7 +170,6 @@ AcpiDsInitOneObject (
      * We are only interested in objects owned by the table that
      * was just loaded
      */
-
     if (((ACPI_NAMESPACE_NODE *) ObjHandle)->OwnerId !=
             Info->TableDesc->TableId)
     {
@@ -206,7 +205,6 @@ AcpiDsInitOneObject (
          * Set the execution data width (32 or 64) based upon the
          * revision number of the parent ACPI table.
          */
-
         if (TableRevision == 1)
         {
             ((ACPI_NAMESPACE_NODE *)ObjHandle)->Flags |= ANOBJ_DATA_WIDTH_32;
@@ -332,7 +330,7 @@ AcpiDsInitObjectFromOp (
     ACPI_PARSE_OBJECT       *Arg;
     ACPI_PARSE2_OBJECT      *ByteList;
     ACPI_OPERAND_OBJECT     *ArgDesc;
-    ACPI_OPCODE_INFO        *OpInfo;
+    const ACPI_OPCODE_INFO  *OpInfo;
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
@@ -374,7 +372,7 @@ AcpiDsInitObjectFromOp (
 
         if (ArgDesc->Common.Type != ACPI_TYPE_INTEGER)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Expecting number, got obj: %p type %X\n",
                 ArgDesc, ArgDesc->Common.Type));
             AcpiUtRemoveReference (ArgDesc);
@@ -407,10 +405,9 @@ AcpiDsInitObjectFromOp (
         }
 
         /*
-         * Second arg is the buffer data (optional) ByteList can be either 
+         * Second arg is the buffer data (optional) ByteList can be either
          * individual bytes or a string initializer.
          */
-
         Arg = Op->Value.Arg;         /* skip first arg */
 
         ByteList = (ACPI_PARSE2_OBJECT *) Arg->Next;
@@ -433,10 +430,10 @@ AcpiDsInitObjectFromOp (
     case ACPI_TYPE_PACKAGE:
 
         /*
-         * When called, an internal package object has already been built and 
+         * When called, an internal package object has already been built and
          * is pointed to by ObjDesc.  AcpiDsBuildInternalObject builds another
-         * internal package object, so remove reference to the original so 
-         * that it is deleted.  Error checking is done within the remove 
+         * internal package object, so remove reference to the original so
+         * that it is deleted.  Error checking is done within the remove
          * reference function.
          */
         AcpiUtRemoveReference (ObjDesc);
@@ -503,7 +500,7 @@ AcpiDsInitObjectFromOp (
             }
 
             /*
-             * Decode constants here.  Turn them into real integer objects 
+             * Decode constants here.  Turn them into real integer objects
              * that are initialized to the value of the constant.
              */
             switch (Op->Opcode)
@@ -707,7 +704,7 @@ AcpiDsBuildInternalPackageObj (
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
-    
+
     if (Op->Opcode == AML_VAR_PACKAGE_OP)
     {
         /*
@@ -839,7 +836,6 @@ AcpiDsCreateNode (
         return_ACPI_STATUS (AE_OK);
     }
 
-
     /* Build an internal object for the argument(s) */
 
     Status = AcpiDsBuildInternalObject (WalkState, Op->Value.Arg, &ObjDesc);
@@ -847,7 +843,6 @@ AcpiDsCreateNode (
     {
         return_ACPI_STATUS (Status);
     }
-
 
     /* Re-type the object according to it's argument */
 
@@ -867,7 +862,6 @@ AcpiDsCreateNode (
 Cleanup:
 
     AcpiUtRemoveReference (ObjDesc);
-
     return_ACPI_STATUS (Status);
 }
 

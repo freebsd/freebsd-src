@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 82 $
+ *              $Revision: 84 $
  *
  *****************************************************************************/
 
@@ -117,12 +117,29 @@
 
 #define __EXUTILS_C__
 
+/*
+ * DEFINE_AML_GLOBALS is tested in amlcode.h
+ * to determine whether certain global names should be "defined" or only
+ * "declared" in the current compilation.  This enhances maintainability
+ * by enabling a single header file to embody all knowledge of the names
+ * in question.
+ *
+ * Exactly one module of any executable should #define DEFINE_GLOBALS
+ * before #including the header files which use this convention.  The
+ * names in question will be defined and initialized in that module,
+ * and declared as extern in all other modules which #include those
+ * header files.
+ */
+
+#define DEFINE_AML_GLOBALS
+
 #include "acpi.h"
 #include "acparser.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acevents.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_EXECUTER
         MODULE_NAME         ("exutils")
@@ -201,6 +218,9 @@ AcpiExValidateObjectType (
     ACPI_OBJECT_TYPE        Type)
 {
 
+    FUNCTION_ENTRY ();
+
+
     if ((Type > ACPI_TYPE_MAX && Type < INTERNAL_TYPE_BEGIN) ||
         (Type > INTERNAL_TYPE_MAX))
     {
@@ -232,11 +252,13 @@ AcpiExTruncateFor32bitTable (
     ACPI_WALK_STATE         *WalkState)
 {
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * Object must be a valid number and we must be executing
      * a control method
      */
-
     if ((!ObjDesc) ||
         (ObjDesc->Common.Type != ACPI_TYPE_INTEGER) ||
         (!WalkState->MethodNode))
@@ -405,6 +427,9 @@ _ntohl (
     } In;
 
 
+    FUNCTION_ENTRY ();
+
+
     In.Value = Value;
 
     Out.Bytes[0] = In.Bytes[3];
@@ -433,6 +458,10 @@ AcpiExEisaIdToString (
     NATIVE_CHAR             *OutString)
 {
     UINT32                  id;
+
+
+    FUNCTION_ENTRY ();
+
 
     /* swap to big-endian to get contiguous bits */
 
@@ -471,8 +500,10 @@ AcpiExUnsignedIntegerToString (
     UINT32                  DigitsNeeded;
 
 
-    DigitsNeeded = AcpiExDigitsNeeded (Value, 10);
+    FUNCTION_ENTRY ();
 
+
+    DigitsNeeded = AcpiExDigitsNeeded (Value, 10);
     OutString[DigitsNeeded] = '\0';
 
     for (Count = DigitsNeeded; Count > 0; Count--)

@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 79 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -159,6 +159,9 @@ AcpiGetHandle (
     ACPI_NAMESPACE_NODE     *PrefixNode = NULL;
 
 
+    FUNCTION_ENTRY ();
+
+
     /* Ensure that ACPI has been initialized */
 
     ACPI_IS_INITIALIZATION_COMPLETE (Status);
@@ -215,7 +218,7 @@ AcpiGetHandle (
 
 /****************************************************************************
  *
- * FUNCTION:    AcpiGetPathname
+ * FUNCTION:    AcpiGetName
  *
  * PARAMETERS:  Handle          - Handle to be converted to a pathname
  *              NameType        - Full pathname or single segment
@@ -275,7 +278,6 @@ AcpiGetName (
      * Wants the single segment ACPI name.
      * Validate handle and convert to an Node
      */
-
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     Node = AcpiNsConvertHandleToEntry (Handle);
     if (!Node)
@@ -381,7 +383,6 @@ AcpiGetObjectInfo (
      * not be present.  The Info->Valid bits are used
      * to indicate which methods ran successfully.
      */
-
     Info->Valid = 0;
 
     /* Execute the _HID method and save the result */
@@ -408,7 +409,6 @@ AcpiGetObjectInfo (
      * Execute the _STA method and save the result
      * _STA is not always present
      */
-
     Status = AcpiUtExecute_STA (Node, &DeviceStatus);
     if (ACPI_SUCCESS (Status))
     {
@@ -420,7 +420,6 @@ AcpiGetObjectInfo (
      * Execute the _ADR method and save result if successful
      * _ADR is not always present
      */
-
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR,
                                             Node, &Address);
 
