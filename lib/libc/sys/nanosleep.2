@@ -1,4 +1,4 @@
-.\"	$Id: nanosleep.2,v 1.1 1997/05/12 12:15:35 peter Exp $
+.\"	$Id: nanosleep.2,v 1.2 1997/06/01 09:47:05 peter Exp $
 .\"	$OpenBSD: nanosleep.2,v 1.1 1997/04/20 20:56:20 tholo Exp $
 .\"	$NetBSD: nanosleep.2,v 1.1 1997/04/17 18:12:02 jtc Exp $
 .\"
@@ -99,7 +99,8 @@ address space.
 was interrupted by the delivery of a signal.
 .It Bq Er EINVAL
 .Fa rqtp
-specified a nanosecond value less than zero or greater than 1000 million.
+specified a nanosecond value less than zero
+or greater than or equal to 1000 million.
 .It Bq Er ENOSYS
 .Nm
 is not supported by this implementation.
