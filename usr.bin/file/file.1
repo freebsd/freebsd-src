@@ -43,7 +43,7 @@ meaning anything else (data is usually `binary' or non-printable).
 Exceptions are well-known file formats (core files, tar archives)
 that are known to contain binary data.
 When modifying the file
-.I __MAGIC__
+.I /etc/magic
 or the program itself, 
 .B "preserve these keywords" .
 People depend on knowing that all the readable files in a directory
@@ -79,7 +79,7 @@ The concept of `magic number' has been applied by extension to data files.
 Any file with some invariant identifier at a small fixed
 offset into the file can usually be described in this way.
 The information in these files is read from the magic file
-.I __MAGIC__.
+.I /etc/magic.
 .PP
 If an argument appears to be an
 .SM ASCII 
@@ -135,10 +135,10 @@ The
 option causes symlinks to be followed, as the like-named option in
 .IR ls (1).
 .SH FILES
-.I __MAGIC__
+.I /etc/magic
 \- default list of magic numbers
 .SH SEE ALSO
-.IR magic (__SECTION__)
+.IR magic (5)
 \- description of magic file format.
 .br
 .IR Strings (1), " od" (1)
@@ -197,7 +197,7 @@ If your old
 command uses a magic file,
 keep the old magic file around for comparison purposes
 (rename it to 
-.IR __MAGIC__.orig ).
+.IR /etc/magic.orig ).
 .SH HISTORY
 There has been a 
 .I file
