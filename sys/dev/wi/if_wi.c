@@ -172,7 +172,7 @@ wi_write_val(struct wi_softc *sc, int rid, u_int16_t val)
 
 static	struct timeval lasttxerror;	/* time of last tx error msg */
 static	int curtxeps;			/* current tx error msgs/sec */
-static	int wi_txerate = 10;		/* tx error rate: max msgs/sec */
+static	int wi_txerate = 0;		/* tx error rate: max msgs/sec */
 SYSCTL_INT(_kern, OID_AUTO, wi, CTLFLAG_RW, &wi_txerate,
 	    0, "Wireless driver max tx error msgs/sec; 0 disables msgs");
 
