@@ -1130,7 +1130,12 @@ static void rl_rxeof(sc)
 				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-				m = m_pullup(m, MHLEN - RL_ETHER_ALIGN);
+				m = m_pullup(m, sizeof(struct ether_header));
+				if (m == NULL) {
+					printf("rl%d: m_pullup failed",
+					    sc->rl_unit);
+					ifp->if_ierrors++;
+				}
 			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
@@ -1345,6 +1350,14 @@ static int rl_encap(sc, m_head)
 
 	/* Pad frames to at least 60 bytes. */
 	if (m_head->m_pkthdr.len < RL_MIN_FRAMELEN) {
+		/*
+		 * Make security concious people happy: zero out the
+		 * bytes in the pad area, since we don't know what
+		 * this mbuf cluster buffer's previous user might
+		 * have left in it.
+	 	 */
+		bzero(mtod(m_head, char *) + m_head->m_pkthdr.len,
+		     RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
 		m_head->m_pkthdr.len +=
 		    (RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
 		m_head->m_len = m_head->m_pkthdr.len;
