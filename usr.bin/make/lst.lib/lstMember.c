@@ -46,25 +46,25 @@ __FBSDID("$FreeBSD$");
  *	See if a given datum is on a given list.
  */
 
-#include    "lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 LstNode
-Lst_Member(Lst l, void *d)
+Lst_Member(Lst list, void *d)
 {
-    List    	list = (List) l;
-    ListNode	lNode;
+    LstNode	lNode;
 
     lNode = list->firstPtr;
     if (lNode == NULL) {
-	return NULL;
+	return (NULL);
     }
 
     do {
 	if (lNode->datum == d) {
-	    return (LstNode)lNode;
+	    return (lNode);
 	}
 	lNode = lNode->nextPtr;
     } while (lNode != NULL && lNode != list->firstPtr);
 
-    return NULL;
+    return (NULL);
 }

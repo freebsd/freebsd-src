@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Perform a given function on all elements of a list.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------

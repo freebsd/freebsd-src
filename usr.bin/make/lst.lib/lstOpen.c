@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
  *	the list forever. Lst_IsAtEnd must be used to determine when to stop.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -72,12 +73,12 @@ ReturnStatus
 Lst_Open(Lst l)
 {
 
-	if (LstValid (l) == FALSE) {
+	if (Lst_Valid (l) == FALSE) {
 		return (FAILURE);
 	}
-	((List) l)->isOpen = TRUE;
-	((List) l)->atEnd = LstIsEmpty (l) ? Head : Unknown;
-	((List) l)->curPtr = NULL;
+	l->isOpen = TRUE;
+	l->atEnd = Lst_IsEmpty (l) ? LstHead : LstUnknown;
+	l->curPtr = NULL;
 
 	return (SUCCESS);
 }

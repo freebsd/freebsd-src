@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Return the last element of a list
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -62,13 +63,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_Last (l)
-    Lst	    l;
+Lst_Last(Lst l)
 {
-    if (!LstValid(l) || LstIsEmpty (l)) {
+
+    if (!Lst_Valid(l) || Lst_IsEmpty (l)) {
 	return (NULL);
     } else {
-	return ((LstNode)((List)l)->lastPtr);
+	return (l->lastPtr);
     }
 }
-

@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Initialize a new linked list.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -67,15 +68,15 @@ __FBSDID("$FreeBSD$");
 Lst
 Lst_Init(Boolean circ)
 {
-    List	nList;
+    Lst	nList;
 
-    PAlloc (nList, List);
+    nList = emalloc(sizeof(*nList));
 
     nList->firstPtr = NULL;
     nList->lastPtr = NULL;
     nList->isOpen = FALSE;
     nList->isCirc = circ;
-    nList->atEnd = Unknown;
+    nList->atEnd = LstUnknown;
 
-    return ((Lst)nList);
+    return (nList);
 }
