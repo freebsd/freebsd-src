@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.75 1997/05/28 10:01:03 se Exp $
+ * $Id: pci.c,v 1.2 1997/06/25 20:16:02 smp Exp smp $
  *
  */
 
@@ -50,6 +50,10 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <pci/pci_ioctl.h>
+
+#ifdef APIC_IO
+#include <machine/smp.h>
+#endif /* APIC_IO */
 
 /* return highest PCI bus number known to be used, or -1 if none */
 
@@ -337,15 +341,13 @@ pci_readcfg(pcicfgregs *probe)
 		if (cfg->intpin != 0) {
 			int airq;
 
-			airq = get_pci_apic_irq(cfg->bus,
-						cfg->slot, cfg->intpin);
-
+			airq = pci_apic_pin(cfg->bus, cfg->slot, cfg->intpin);
 			if ((airq >= 0) && (airq != cfg->intline)) {
 				undirect_pci_irq(cfg->intline);
 				cfg->intline = airq;
 			}
 		}
-#endif  /* APIC_IO */
+#endif /* APIC_IO */
 
 		cfg->mingnt		= pci_cfgread(cfg, PCIR_MINGNT, 1);
 		cfg->maxlat		= pci_cfgread(cfg, PCIR_MAXLAT, 1);
