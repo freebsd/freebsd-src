@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.7 1994/06/15 22:40:56 rich Exp $
+ *	$Id: ldconfig.c,v 1.8 1994/12/23 22:31:24 nate Exp $
  */
 
 #include <sys/param.h>
@@ -213,9 +213,9 @@ int	dewey[], ndewey;
 #endif
 
 int
-hinthash(cp, vmajor, vminor)
+hinthash(cp, vmajor)
 char	*cp;
-int	vmajor, vminor;
+int	vmajor;
 {
 	int	k = 0;
 
@@ -223,7 +223,6 @@ int	vmajor, vminor;
 		k = (((k << 1) + (k >> 14)) ^ (*cp++)) & 0x3fff;
 
 	k = (((k << 1) + (k >> 14)) ^ (vmajor*257)) & 0x3fff;
-	k = (((k << 1) + (k >> 14)) ^ (vminor*167)) & 0x3fff;
 
 	return k;
 }
@@ -275,7 +274,7 @@ build_hints()
 		struct hints_bucket	*bp;
 
 		bp = blist +
-		  (hinthash(shp->name, shp->major, shp->minor) % hdr.hh_nbucket);
+		  (hinthash(shp->name, shp->major) % hdr.hh_nbucket);
 
 		if (bp->hi_pathx) {
 			int	i;
@@ -415,7 +414,7 @@ listhints()
 			i,
 			strtab + bp->hi_namex, bp->hi_major, bp->hi_minor,
 			strtab + bp->hi_pathx,
-			hinthash(strtab+bp->hi_namex, bp->hi_major, bp->hi_minor)
+			hinthash(strtab+bp->hi_namex, bp->hi_major)
 					% hdr->hh_nbucket,
 			bp->hi_next);
 	}
