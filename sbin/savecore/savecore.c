@@ -66,12 +66,12 @@ static const char rcsid[] =
 
 extern FILE *zopen(const char *fname, const char *mode);
 
-#ifdef __alpha__
-#define ok(number) ALPHA_K0SEG_TO_PHYS(number)
-#endif
-
-#ifdef __i386__
+#if defined(__i386__) || defined(__sparc64__)
 #define ok(number) ((number) - kernbase)
+#elif defined(__alpha__)
+#define ok(number) ALPHA_K0SEG_TO_PHYS(number)
+#else
+#error savecore has not been ported to this platform yet.
 #endif
 
 struct nlist current_nl[] = {	/* Namelist for currently running system. */
@@ -122,7 +122,7 @@ char	panic_mesg[1024];		/* panic message */
 int	panicstr;		        /* flag: dump was caused by panic */
 char	vers[1024];			/* version of kernel that crashed */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__sparc64__)
 u_long	kernbase;			/* offset of kvm to core file */
 #endif
 
@@ -258,7 +258,7 @@ kmem_setup()
 			exit(1);
 		}
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__sparc64__)
 	if (dump_nl[X_KERNBASE].n_value != 0)
 		kernbase = dump_nl[X_KERNBASE].n_value;
 	else
