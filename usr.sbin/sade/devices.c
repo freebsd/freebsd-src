@@ -131,6 +131,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16			},
     { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
+    { DEVICE_TYPE_NETWORK,	"ds",		"Software discard network interface"				},
 #ifdef PC98
     { DEVICE_TYPE_DISK, 	"wd%d",		"IDE disk device",		3, 65538, 8, 16			},
     { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",		69, 2, 8, 4			},
@@ -446,7 +447,7 @@ skipif:
 	    Disk *d;
 
 	    /* Ignore memory disks */
-	    if (!strncmp(names[i], "md", 2))
+	    if (!strncmp(names[i], "m_d", 2))
 		continue;
 
 	    d = Open_Disk(names[i]);
