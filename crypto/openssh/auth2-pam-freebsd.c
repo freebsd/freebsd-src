@@ -154,6 +154,17 @@ pam_child(struct pam_ctxt *ctxt)
 	exit(0);
 }
 
+static void
+pam_cleanup(void *ctxtp)
+{
+	struct pam_ctxt *ctxt = ctxtp;
+	int status;
+
+	close(ctxt->pam_sock);
+	kill(ctxt->pam_pid, SIGHUP);
+	waitpid(ctxt->pam_pid, &status, 0);
+}
+
 static void *
 pam_init_ctx(Authctxt *authctxt)
 {
@@ -190,6 +201,7 @@ pam_init_ctx(Authctxt *authctxt)
 	}
 	ctxt->pam_sock = socks[0];
 	close(socks[1]);
+	fatal_add_cleanup(pam_cleanup, ctxt);
 	return (ctxt);
 }
 
@@ -295,6 +307,7 @@ pam_free_ctx(void *ctxtp)
 	struct pam_ctxt *ctxt = ctxtp;
 	int status;
 
+	fatal_remove_cleanup(pam_cleanup, ctxt);
 	close(ctxt->pam_sock);
 	kill(ctxt->pam_pid, SIGHUP);
 	waitpid(ctxt->pam_pid, &status, 0);
