@@ -218,6 +218,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 
     case 0x24db8086:	/* Intel ICH5 */
     case 0x24d18086:	/* Intel ICH5 SATA */
+    case 0x24ca8086:	/* Intel ICH4 mobile */
     case 0x24cb8086:	/* Intel ICH4 */
     case 0x248a8086:	/* Intel ICH3 mobile */ 
     case 0x248b8086:	/* Intel ICH3 */

@@ -146,6 +146,7 @@ ata_pci_match(device_t dev)
     case 0x248b8086:
 	return "Intel ICH3 ATA100 controller";
 
+    case 0x24ca8086:
     case 0x24cb8086:
 	return "Intel ICH4 ATA100 controller";
 
