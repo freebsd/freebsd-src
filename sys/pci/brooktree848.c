@@ -1958,21 +1958,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 	/* end of METEORSETGEO */
 
-	case BT848_I2CWR:
-		par = *(u_long *)arg;
-		write = (par >> 24) & 0xff ;
-		i2c_addr = (par >> 16) & 0xff ;
-		i2c_port = (par >> 8) & 0xff ;
-		data = (par) & 0xff ;
- 
-		if (write) { 
-			i2cWrite( bktr, i2c_addr, i2c_port, data);
-		} else {
-			data = i2cRead( bktr, i2c_addr);
-		}
-		*(u_long *)arg = (par & 0xffffff00) | ( data & 0xff );
-		break;
-
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
 	}
@@ -4086,9 +4071,6 @@ checkTuner:
 	    /* no tuner found */
 	    bktr->card.tuner = &tuners[ NO_TUNER ];
 	}
-
-	/* no tuner found */
-	bktr->card.tuner = &tuners[ NO_TUNER ];
 
 checkDBX:
 #if defined( OVERRIDE_DBX )
