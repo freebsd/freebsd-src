@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.39 1999/01/21 09:02:18 dillon Exp $
+ *	$Id: uipc_usrreq.c,v 1.40 1999/02/16 10:49:49 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@
 
 #include <vm/vm_zone.h>
 
-struct	vm_zone *unp_zone;
+static struct	vm_zone *unp_zone;
 static	unp_gen_t unp_gencnt;
 static	u_int unp_count;
 
