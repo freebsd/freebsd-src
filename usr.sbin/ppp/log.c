@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.4.2.3 1997/05/09 17:36:16 brian Exp $
+ * $Id: log.c,v 1.4.2.4 1997/05/26 00:52:21 brian Exp $
  *
  */
 #include "defs.h"
@@ -75,7 +75,8 @@ int tunno;
     return(1);
   }
 #endif
-  fprintf(stderr, "Log level is %02x\r\n", loglevel);
+  if (!(mode & MODE_DIRECT))
+    fprintf(stderr, "Log level is %02x\r\n", loglevel);
   logptr = logbuff;
   logcnt = 0;
   logtop = lognext = NULL;
