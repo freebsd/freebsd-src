@@ -2,6 +2,11 @@
 /*	$NetBSD: usb_port.h,v 1.54 2002/03/28 21:49:19 ichiro Exp $	*/
 /*	$FreeBSD$       */
 
+/* Also already merged from NetBSD:
+ *	$NetBSD: usb_port.h,v 1.57 2002/09/27 20:42:01 thorpej Exp $
+ *	$NetBSD: usb_port.h,v 1.58 2002/10/01 01:25:26 thorpej Exp $
+ */
+
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -95,6 +100,7 @@ typedef int usb_malloc_type;
 
 #define logprintf printf
 
+#define	USB_DNAME(dname)	dname
 #define USB_DECLARE_DRIVER(dname)  \
 int __CONCAT(dname,_match)(struct device *, struct cfdata *, void *); \
 void __CONCAT(dname,_attach)(struct device *, struct device *, void *); \
@@ -103,13 +109,12 @@ int __CONCAT(dname,_activate)(struct device *, enum devact); \
 \
 extern struct cfdriver __CONCAT(dname,_cd); \
 \
-struct cfattach __CONCAT(dname,_ca) = { \
-	sizeof(struct __CONCAT(dname,_softc)), \
-	__CONCAT(dname,_match), \
-	__CONCAT(dname,_attach), \
-	__CONCAT(dname,_detach), \
-	__CONCAT(dname,_activate), \
-}
+CFATTACH_DECL(USB_DNAME(dname), \
+    sizeof(struct ___CONCAT(dname,_softc)), \
+    ___CONCAT(dname,_match), \
+    ___CONCAT(dname,_attach), \
+    ___CONCAT(dname,_detach), \
+    ___CONCAT(dname,_activate))
 
 #define USB_MATCH(dname) \
 int __CONCAT(dname,_match)(struct device *parent, struct cfdata *match, void *aux)
@@ -262,7 +267,7 @@ struct cfdriver __CONCAT(dname,_cd) = { \
 	NULL, #dname, DV_DULL \
 }; \
 \
-struct cfattach __CONCAT(dname,_ca) = { \
+const struct cfattach __CONCAT(dname,_ca) = { \
 	sizeof(struct __CONCAT(dname,_softc)), \
 	__CONCAT(dname,_match), \
 	__CONCAT(dname,_attach), \

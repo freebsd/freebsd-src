@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.59 2002/09/23 05:51:20 simonb Exp $	*/
+/*	$NetBSD: uhub.c,v 1.61 2002/10/01 01:25:25 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /* Also already merged from netbsd:
@@ -108,10 +108,8 @@ Static bus_child_detached_t uhub_child_detached;
 USB_DECLARE_DRIVER(uhub);
 
 /* Create the driver instance for the hub connected to hub case */
-struct cfattach uhub_uhub_ca = {
-	sizeof(struct uhub_softc), uhub_match, uhub_attach,
-	uhub_detach, uhub_activate
-};
+CFATTACH_DECL(uhub_uhub, sizeof(struct uhub_softc),
+    uhub_match, uhub_attach, uhub_detach, uhub_activate)
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
 			DEVMETHOD(bus_driver_added, uhub_driver_added),
