@@ -1535,3 +1535,4 @@ pcic_detach(device_t dev)
 }
 
 SYSINIT(pcic, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, pcic_start_threads, 0);
+MODULE_VERSION(pcic, 1);
