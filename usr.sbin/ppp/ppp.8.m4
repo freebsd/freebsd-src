@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.108 1998/06/18 01:24:29 brian Exp $
+.\" $Id: ppp.8,v 1.109 1998/06/21 11:14:50 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2431,18 +2431,41 @@ file.  If
 is not given, the
 .Ar default
 label is used.
-.It open Op lcp|ccp
+.It open Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close
 command.  Using
 .Dq open
-with no arguments or with the
-.Dq lcp
-argument is the same as using
+with no arguments is the same as using
 .Dq dial
-in that all closed links are brought up.  If the
+with no arguments, where all closed links are brought up.
+.Pp
+If the
+.Dq lcp
+option is used, the link will also be brought up.  If however the LCP
+layer is already open, it will be renegotiated.  This allows various
+LCP options to be changed, after which
+.Dq open lcp
+can be used to put them into effect.  After renegotiating LCP,
+any agreed authentication will also take place.
+.Pp
+If the
 .Dq ccp
-argument is used, the relevant compression layer is opened.
+argument is used, the relevant compression layer is opened.  Again,
+if it is already open, it will be renegotiated.
+.Pp
+If the
+.Dq ipcp
+argument is used, the link will be brought up as with the 
+.Dq lcp
+argument.  If IPCP is already open, it will be renegotiated
+and the network interface will be reconfigured.
+.Pp
+It is probably not good practice to re-open the PPP state machines
+like this as it's possible that the peer will not behave correctly.
+It
+.Em is
+however useful as a way of forcing the CCP or VJ dictionaries to be reset.
 .It passwd Ar pass
 Specify the password required for access to the full
 .Nm

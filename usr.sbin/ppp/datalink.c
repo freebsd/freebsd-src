@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.11 1998/06/20 00:19:35 brian Exp $
+ *	$Id: datalink.c,v 1.12 1998/06/24 19:33:31 brian Exp $
  */
 
 #include <sys/types.h>
@@ -483,7 +483,8 @@ datalink_AuthOk(struct datalink *dl)
     }
   } else if (bundle_Phase(dl->bundle) == PHASE_NETWORK) {
     log_Printf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
-    datalink_AuthNotOk(dl);
+    datalink_NewState(dl, DATALINK_OPEN);
+    (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
     return;
   } else {
     dl->bundle->ncp.mp.peer = dl->peer;

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.17 1998/05/21 21:45:26 brian Exp $
+ * $Id: fsm.h,v 1.18 1998/06/20 00:19:38 brian Exp $
  *
  *	TODO:
  */
@@ -154,5 +154,6 @@ extern void fsm_Input(struct fsm *, struct mbuf *);
 extern void fsm_Close(struct fsm *);
 extern void fsm_NullRecvResetReq(struct fsm *);
 extern void fsm_NullRecvResetAck(struct fsm *, u_char);
+extern void fsm_Reopen(struct fsm *);
 extern void fsm2initial(struct fsm *);
 extern const char *State2Nam(u_int);
