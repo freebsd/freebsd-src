@@ -712,6 +712,7 @@ acpi_sysres_attach(device_t dev)
     return (0);
 }
 
+/* XXX The resource list may require locking and refcounting. */
 struct resource_list_entry *
 acpi_sysres_find(int type, u_long addr)
 {
