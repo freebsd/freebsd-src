@@ -181,10 +181,10 @@ shm_deallocate_segment(shmseg)
 	struct shm_handle *shm_handle;
 	size_t size;
 
+	/* for vm_object_deallocate */
+	mtx_assert(&vm_mtx, MA_OWNED);
 	shm_handle = shmseg->shm_internal;
-	mtx_lock(&vm_mtx);
 	vm_object_deallocate(shm_handle->shm_object);
-	mtx_unlock(&vm_mtx);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
 	size = round_page(shmseg->shm_segsz);
@@ -202,12 +202,12 @@ shm_delete_mapping(p, shmmap_s)
 	int segnum, result;
 	size_t size;
 
+	/* for vm_map_remove and shm_deallocate_segment */
+	mtx_assert(&vm_mtx, MA_OWNED);
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
 	size = round_page(shmseg->shm_segsz);
-	mtx_lock(&vm_mtx);
 	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va, shmmap_s->va + size);
-	mtx_unlock(&vm_mtx);
 	if (result != KERN_SUCCESS)
 		return EINVAL;
 	shmmap_s->shmid = -1;
@@ -233,6 +233,7 @@ shmdt(p, uap)
 {
 	struct shmmap_state *shmmap_s;
 	int i;
+	int error;
 
 	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
@@ -246,7 +247,10 @@ shmdt(p, uap)
 			break;
 	if (i == shminfo.shmseg)
 		return EINVAL;
-	return shm_delete_mapping(p, shmmap_s);
+	mtx_lock(&vm_mtx);
+	error = shm_delete_mapping(p, shmmap_s);
+	mtx_unlock(&vm_mtx);
+	return error;
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -455,7 +459,9 @@ shmctl(p, uap)
 		shmseg->shm_perm.key = IPC_PRIVATE;
 		shmseg->shm_perm.mode |= SHMSEG_REMOVED;
 		if (shmseg->shm_nattch <= 0) {
+			mtx_lock(&vm_mtx);
 			shm_deallocate_segment(shmseg);
+			mtx_unlock(&vm_mtx);
 			shm_last_free = IPCID_TO_IX(uap->shmid);
 		}
 		break;
@@ -663,6 +669,8 @@ shmexit_myhook(p)
 	struct shmmap_state *shmmap_s;
 	int i;
 
+	/* shm_delete_mapping requires this */
+	mtx_assert(&vm_mtx, MA_OWNED);
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
