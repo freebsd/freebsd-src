@@ -217,7 +217,6 @@ static void
 testcancel(struct pthread *curthread)
 {
 	/* Take the scheduling lock while fiddling with the state: */
-	THR_SCHED_LOCK(curthread, curthread);
 
 	if (checkcancel(curthread) != 0) {
 		/* Unlock before exiting: */
@@ -227,8 +226,6 @@ testcancel(struct pthread *curthread)
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
-
-	THR_SCHED_UNLOCK(curthread, curthread);
 }
 
 void
@@ -236,23 +233,29 @@ _pthread_testcancel(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
+	THR_SCHED_LOCK(curthread, curthread);
 	testcancel(curthread);
+	THR_SCHED_UNLOCK(curthread, curthread);
 }
 
 void
 _thr_enter_cancellation_point(struct pthread *thread)
 {
 	/* Look for a cancellation before we block: */
+	THR_SCHED_LOCK(thread, thread);
 	testcancel(thread);
 	thread->cancelflags |= THR_AT_CANCEL_POINT;
+	THR_SCHED_UNLOCK(thread, thread);
 }
 
 void
 _thr_leave_cancellation_point(struct pthread *thread)
 {
+	THR_SCHED_LOCK(thread, thread);
 	thread->cancelflags &= ~THR_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
 	testcancel(thread);
+	THR_SCHED_UNLOCK(thread, thread);
 }
 
 static void
@@ -263,9 +266,12 @@ finish_cancellation(void *arg)
 	curthread->continuation = NULL;
 	curthread->interrupted = 0;
 
+	THR_SCHED_LOCK(curthread, curthread);
 	if ((curthread->cancelflags & THR_CANCEL_NEEDED) != 0) {
 		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
+		THR_SCHED_UNLOCK(curthread, curthread);
 		_thr_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
 	}
+	THR_SCHED_UNLOCK(curthread, curthread);
 }

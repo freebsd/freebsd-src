@@ -126,6 +126,7 @@ _pq_init(pq_queue_t *pq)
 		/* Initialize the priority queue: */
 		TAILQ_INIT(&pq->pq_queue);
 		pq->pq_flags = 0;
+		pq->pq_threads = 0;
 	}
 	return (ret);
 }
@@ -151,10 +152,10 @@ _pq_remove(pq_queue_t *pq, pthread_t pthread)
 	 * from the priority queue when _pq_first is called.
 	 */
 	TAILQ_REMOVE(&pq->pq_lists[prio].pl_head, pthread, pqe);
-
+	pq->pq_threads--;
 	/* This thread is now longer in the priority queue. */
 	pthread->flags &= ~THR_FLAGS_IN_RUNQ;
-
+	
 	PQ_CLEAR_ACTIVE(pq);
 }
 
@@ -177,7 +178,7 @@ _pq_insert_head(pq_queue_t *pq, pthread_t pthread)
 	if (pq->pq_lists[prio].pl_queued == 0)
 		/* Insert the list into the priority queue: */
 		pq_insert_prio_list(pq, prio);
-
+	pq->pq_threads++;
 	/* Mark this thread as being in the priority queue. */
 	pthread->flags |= THR_FLAGS_IN_RUNQ;
 
@@ -203,7 +204,7 @@ _pq_insert_tail(pq_queue_t *pq, pthread_t pthread)
 	if (pq->pq_lists[prio].pl_queued == 0)
 		/* Insert the list into the priority queue: */
 		pq_insert_prio_list(pq, prio);
-
+	pq->pq_threads++;
 	/* Mark this thread as being in the priority queue. */
 	pthread->flags |= THR_FLAGS_IN_RUNQ;
 

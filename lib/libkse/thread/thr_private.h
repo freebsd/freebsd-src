@@ -143,6 +143,7 @@ typedef struct pq_queue {
 	int			 pq_size;  /* number of priority lists */
 #define	PQF_ACTIVE	0x0001
 	int			 pq_flags;
+	int			 pq_threads;
 } pq_queue_t;
 
 /*
@@ -197,6 +198,7 @@ struct kse {
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
 	int			k_waiting;
+	int			k_idle;		/* kse is idle */
 	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
 	int			k_done;		/* this KSE is done */
@@ -294,10 +296,14 @@ do { \
 
 #define	KSE_SET_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 1)
 
-#define	KSE_CLEAR_WAIT(kse) 	atomic_set_acq_int(&(kse)->k_waiting, 0)
+#define	KSE_CLEAR_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 0)
 
 #define	KSE_WAITING(kse)	(kse)->k_waiting != 0
 #define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_mbx)
+
+#define	KSE_SET_IDLE(kse)	((kse)->k_idle = 1)
+#define	KSE_CLEAR_IDLE(kse)	((kse)->k_idle = 0)
+#define	KSE_IS_IDLE(kse)	((kse)->k_idle != 0)
 
 /*
  * TailQ initialization values.
@@ -658,6 +664,7 @@ struct pthread {
 
 	/* Thread state: */
 	enum pthread_state	state;
+	int			lock_switch;
 
 	/*
 	 * Number of microseconds accumulated by this thread when
@@ -803,8 +810,11 @@ struct pthread {
 #define	THR_YIELD_CHECK(thrd)					\
 do {								\
 	if (((thrd)->critical_yield != 0) &&			\
-	    !(THR_IN_CRITICAL(thrd)))				\
+	    !(THR_IN_CRITICAL(thrd))) {				\
+		THR_LOCK_SWITCH(thrd);				\
 		_thr_sched_switch(thrd);			\
+		THR_UNLOCK_SWITCH(thrd);			\
+	}							\
 	else if (((thrd)->check_pending != 0) &&		\
 	    !(THR_IN_CRITICAL(thrd)))				\
 		_thr_sig_check_pending(thrd);			\
@@ -828,13 +838,29 @@ do {								\
 		_lock_release((lck),				\
 		    &(thrd)->lockusers[(thrd)->locklevel - 1]);	\
 		(thrd)->locklevel--;				\
-		if ((thrd)->locklevel != 0)			\
+		if ((thrd)->lock_switch)			\
 			;					\
-		else if ((thrd)->critical_yield != 0)		\
-			_thr_sched_switch(thrd);		\
-		else if ((thrd)->check_pending != 0)		\
-			_thr_sig_check_pending(thrd);		\
+		else {						\
+			THR_YIELD_CHECK(thrd);			\
+		}						\
 	}							\
+} while (0)
+
+#define THR_LOCK_SWITCH(thrd)						\
+do {									\
+	THR_ASSERT(!(thrd)->lock_switch, "context switch locked");	\
+	_kse_critical_enter();						\
+	KSE_SCHED_LOCK((thrd)->kse, (thrd)->kseg);			\
+	(thrd)->lock_switch = 1;					\
+} while (0)
+
+#define THR_UNLOCK_SWITCH(thrd)						\
+do {									\
+	THR_ASSERT((thrd)->lock_switch, "context switch not locked");	\
+	THR_ASSERT(_kse_in_critical(), "Er,not in critical region");	\
+	(thrd)->lock_switch = 0;					\
+	KSE_SCHED_UNLOCK((thrd)->kse, (thrd)->kseg);			\
+	_kse_critical_leave(&thrd->tmbx);				\
 } while (0)
 
 /*
@@ -907,8 +933,6 @@ do {								\
 	KSE_SCHED_UNLOCK((curthr)->kse, (thr)->kseg);	\
 	(curthr)->locklevel--;				\
 	_kse_critical_leave((curthr)->critical[(curthr)->locklevel]); \
-	if ((curthr)->locklevel == 0)			\
-		THR_YIELD_CHECK(curthr);		\
 } while (0)
 
 #define	THR_CRITICAL_ENTER(thr)		(thr)->critical_count++
@@ -917,7 +941,9 @@ do {								\
 	if (((thr)->critical_yield != 0) &&	\
 	    ((thr)->critical_count == 0)) {	\
 		(thr)->critical_yield = 0;	\
+		THR_LOCK_SWITCH(thr);		\
 		_thr_sched_switch(thr);		\
+		THR_UNLOCK_SWITCH(thr);		\
 	}					\
 } while (0)
 
@@ -1092,6 +1118,8 @@ void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf)
 void	_thr_seterrno(struct pthread *, int);
 void	_thr_enter_cancellation_point(struct pthread *);
 void	_thr_leave_cancellation_point(struct pthread *);
+int	_thr_setconcurrency(int new_level);
+int	_thr_setmaxconcurrency(void);
 
 /* XXX - Stuff that goes away when my sources get more up to date. */
 /* #include <sys/kse.h> */

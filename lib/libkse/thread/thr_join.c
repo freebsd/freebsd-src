@@ -70,16 +70,16 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		return (ESRCH);
 	}
 
+	THR_SCHED_LOCK(curthread, pthread);
 	/* Check if this thread has been detached: */
 	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+		THR_SCHED_UNLOCK(curthread, pthread);
 		/* Remove the reference and return an error: */
 		_thr_ref_delete(curthread, pthread);
 		ret = ESRCH;
 	} else {
 		/* Lock the target thread while checking its state. */
-		THR_SCHED_LOCK(curthread, pthread);
-		if ((pthread->state == PS_DEAD) ||
-		    ((pthread->flags & THR_FLAGS_EXITING) != 0)) {
+		if (pthread->state == PS_DEAD) {
 			if (thread_return != NULL)
 				/* Return the thread's return value: */
 				*thread_return = pthread->ret;
@@ -123,15 +123,13 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			THR_SCHED_UNLOCK(curthread, pthread);
 			_thr_ref_delete(curthread, pthread);
 
-			THR_SCHED_LOCK(curthread, curthread);
-			if (curthread->join_status.thread == pthread)
-				THR_SET_STATE(curthread, PS_JOIN);
-			THR_SCHED_UNLOCK(curthread, curthread);
-
+			THR_LOCK_SWITCH(curthread);
 			while (curthread->join_status.thread == pthread) {
+				THR_SET_STATE(curthread, PS_JOIN);
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 			}
+			THR_UNLOCK_SWITCH(curthread);
 
 			/*
 			 * The thread return value and error are set by the
