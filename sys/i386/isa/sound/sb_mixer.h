@@ -24,12 +24,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * Modified:
+ *	Hunyue Yau	Jan 6 1994
+ *	Added defines for the Sound Galaxy NX Pro mixer.
  * 
  */
+
 #define SBPRO_RECORDING_DEVICES	(SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
+
+/* Same as SB Pro, unless I find otherwise */
+#define SGNXPRO_RECORDING_DEVICES SBPRO_RECORDING_DEVICES
 
 #define SBPRO_MIXER_DEVICES		(SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE | SOUND_MASK_MIC | \
 					 SOUND_MASK_CD | SOUND_MASK_VOLUME)
+
+/* SG NX Pro has treble and bass settings on the mixer. The 'speaker'
+ * channel is the COVOX/DisneySoundSource emulation volume control
+ * on the mixer. It does NOT control speaker volume. Should have own
+ * mask eventually?
+ */
+#define SGNXPRO_MIXER_DEVICES	(SBPRO_MIXER_DEVICES|SOUND_MASK_BASS| \
+				 SOUND_MASK_TREBLE|SOUND_MASK_SPEAKER )
 
 #define SB16_RECORDING_DEVICES		(SOUND_MASK_SYNTH | SOUND_MASK_LINE | SOUND_MASK_MIC | \
 					 SOUND_MASK_CD)
@@ -61,6 +77,13 @@
 #define DMA_NR		0x81
 #define IRQ_STAT	0x82
 #define OPSW		0x3c
+
+/*
+ * Additional registers on the SG NX Pro 
+ */
+#define COVOX_VOL	0x42
+#define TREBLE_LVL	0x44
+#define BASS_LVL	0x46
 
 #define FREQ_HI         (1 << 3)/* Use High-frequency ANFI filters */
 #define FREQ_LOW        0	/* Use Low-frequency ANFI filters */
@@ -107,6 +130,23 @@ MIX_ENT(SOUND_MIXER_IMIX,	0x00, 0, 0, 0x00, 0, 0),
 MIX_ENT(SOUND_MIXER_ALTPCM,	0x00, 0, 0, 0x00, 0, 0),
 MIX_ENT(SOUND_MIXER_RECLEV,	0x00, 0, 0, 0x00, 0, 0)
 };
+
+#ifdef	__SGNXPRO__
+mixer_tab sgnxpro_mix = {
+MIX_ENT(SOUND_MIXER_VOLUME,	0x22, 7, 4, 0x22, 3, 4),
+MIX_ENT(SOUND_MIXER_BASS,	0x46, 2, 3, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_TREBLE,	0x44, 2, 3, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_SYNTH,	0x26, 7, 4, 0x26, 3, 4),
+MIX_ENT(SOUND_MIXER_PCM,	0x04, 7, 4, 0x04, 3, 4),
+MIX_ENT(SOUND_MIXER_SPEAKER,	0x42, 2, 3, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_LINE,	0x2e, 7, 4, 0x2e, 3, 4),
+MIX_ENT(SOUND_MIXER_MIC,	0x0a, 2, 3, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_CD,		0x28, 7, 4, 0x28, 3, 4),
+MIX_ENT(SOUND_MIXER_IMIX,	0x00, 0, 0, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_ALTPCM,	0x00, 0, 0, 0x00, 0, 0),
+MIX_ENT(SOUND_MIXER_RECLEV,	0x00, 0, 0, 0x00, 0, 0)
+};
+#endif
 
 mixer_tab sb16_mix = {
 MIX_ENT(SOUND_MIXER_VOLUME,	0x30, 7, 5, 0x31, 7, 5),

@@ -1,11 +1,11 @@
 
 /*
  * sound/sb_mixer.c
- * 
+ *
  * The low level mixer driver for the SoundBlaster Pro and SB16 cards.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -13,7 +13,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,7 +25,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
+ * Modified:
+ *	Hunyue Yau	Jan 6 1994
+ *	Added code to support the Sound Galaxy NX Pro mixer.
+ *
  */
 
 #include "sound_config.h"
@@ -87,9 +91,21 @@ sb_mixer_set_stereo (int mode)
 			    | (mode ? STEREO_DAC : MONO_DAC)));
 }
 
+/*
+ * Returns:
+ *	0	No mixer detected.
+ *	1	Only a plain Sound Blaster Pro style mixer detected.
+ *	2	The Sound Galaxy NX Pro mixer detected.
+ */
 static int
 detect_mixer (void)
 {
+#ifdef __SGNXPRO__
+  int             oldbass, oldtreble;
+
+#endif
+  int             retcode = 1;
+
   /*
    * Detect the mixer by changing parameters of two volume channels. If the
    * values read back match with the values written, the mixer is there (is
@@ -103,7 +119,30 @@ detect_mixer (void)
   if (sb_getmixer (VOC_VOL) != 0x33)
     return 0;
 
-  return 1;
+#ifdef __SGNXPRO__
+  /* Attempt to detect the SG NX Pro by check for valid bass/treble
+ * registers.
+ */
+  oldbass = sb_getmixer (BASS_LVL);
+  oldtreble = sb_getmixer (TREBLE_LVL);
+
+  sb_setmixer (BASS_LVL, 0xaa);
+  sb_setmixer (TREBLE_LVL, 0x55);
+
+  if ((sb_getmixer (BASS_LVL) != 0xaa) ||
+      (sb_getmixer (TREBLE_LVL) != 0x55))
+    {
+      retcode = 1;		/* 1 == Only SB Pro detected */
+    }
+  else
+    retcode = 2;		/* 2 == SG NX Pro detected */
+  /* Restore register in either case since SG NX Pro has EEPROM with
+   * 'preferred' values stored.
+   */
+  sb_setmixer (BASS_LVL, oldbass);
+  sb_setmixer (TREBLE_LVL, oldtreble);
+#endif
+  return retcode;
 }
 
 static void
@@ -320,13 +359,24 @@ sb_mixer_reset (void)
   set_recmask (SOUND_MASK_MIC);
 }
 
-void
+/*
+ * Returns a code depending on whether a SG NX Pro was detected.
+ * 0 == Plain SB 16 or SB Pro
+ * 1 == SG NX Pro detected.
+ *
+ * Used to update message.
+ */
+int
 sb_mixer_init (int major_model)
 {
+  int             mixerstat;
+
   sb_setmixer (0x00, 0);	/* Reset mixer */
 
-  if (!detect_mixer ())
-    return;			/* No mixer. Why? */
+  mixerstat = detect_mixer ();
+
+  if (!mixerstat)
+    return 0;			/* No mixer. Why? */
 
   mixer_initialized = 1;
   mixer_model = major_model;
@@ -335,9 +385,21 @@ sb_mixer_init (int major_model)
     {
     case 3:
       mixer_caps = SOUND_CAP_EXCL_INPUT;
-      supported_devices = SBPRO_MIXER_DEVICES;
-      supported_rec_devices = SBPRO_RECORDING_DEVICES;
-      iomap = &sbpro_mix;
+#ifdef __SGNXPRO__
+      if (mixerstat == 2)
+	{			/* A SGNXPRO was detected */
+	  supported_devices = SGNXPRO_MIXER_DEVICES;
+	  supported_rec_devices = SGNXPRO_RECORDING_DEVICES;
+	  iomap = &sgnxpro_mix;
+	}
+      else
+#endif
+	{			/* Otherwise plain SB Pro */
+	  supported_devices = SBPRO_MIXER_DEVICES;
+	  supported_rec_devices = SBPRO_RECORDING_DEVICES;
+	  iomap = &sbpro_mix;
+	}
+
       break;
 
     case 4:
@@ -349,11 +411,12 @@ sb_mixer_init (int major_model)
 
     default:
       printk ("SB Warning: Unsupported mixer type\n");
-      return;
+      return 0;
     }
 
   mixer_devs[num_mixers++] = &sb_mixer_operations;
   sb_mixer_reset ();
+  return (mixerstat == 2);
 }
 
 #endif
