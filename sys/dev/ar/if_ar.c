@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.14 1997/02/22 09:36:15 peter Exp $
+ * $Id: if_ar.c,v 1.15 1997/05/19 22:02:47 joerg Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.7 1997/05/19 22:02:49 joerg Exp $
+ * $Id: if_sr.c,v 1.8 1997/07/20 14:10:01 bde Exp $
  */
 
 /*
@@ -58,6 +58,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
