@@ -49,35 +49,35 @@
 
 #ifdef _KERNEL
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
-#define SBMALLOC(size)		malloc(size, M_SBUF, M_WAITOK)
-#define SBFREE(buf)		free(buf, M_SBUF)
+#define	SBMALLOC(size)		malloc(size, M_SBUF, M_WAITOK)
+#define	SBFREE(buf)		free(buf, M_SBUF)
 #else /* _KERNEL */
-#define KASSERT(e, m)
-#define SBMALLOC(size)		malloc(size)
-#define SBFREE(buf)		free(buf)
-#define min(x,y)		MIN(x,y)
+#define	KASSERT(e, m)
+#define	SBMALLOC(size)		malloc(size)
+#define	SBFREE(buf)		free(buf)
+#define	min(x,y)		MIN(x,y)
 #endif /* _KERNEL */
 
 /*
  * Predicates
  */
-#define SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
-#define SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
-#define SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
-#define SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
-#define SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
+#define	SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
+#define	SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
+#define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
+#define	SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
+#define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
 #define	SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 
 /*
  * Set / clear flags
  */
-#define SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
-#define SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
+#define	SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
+#define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
-#define SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
-#define SBUF_MAXEXTENDSIZE	PAGE_SIZE
-#define SBUF_MAXEXTENDINCR	PAGE_SIZE
+#define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
+#define	SBUF_MAXEXTENDSIZE	PAGE_SIZE
+#define	SBUF_MAXEXTENDINCR	PAGE_SIZE
 
 /*
  * Debugging support
@@ -101,11 +101,11 @@ _assert_sbuf_state(char *fun, struct sbuf *s, int state)
 	    ("%s called with %sfinished or corrupt sbuf", fun,
 	    (state ? "un" : "")));
 }
-#define assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
-#define assert_sbuf_state(s, i)	 _assert_sbuf_state(__func__, (s), (i))
+#define	assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
+#define	assert_sbuf_state(s, i)	 _assert_sbuf_state(__func__, (s), (i))
 #else /* _KERNEL && INVARIANTS */
-#define assert_sbuf_integrity(s) do { } while (0)
-#define assert_sbuf_state(s, i)	 do { } while (0)
+#define	assert_sbuf_integrity(s) do { } while (0)
+#define	assert_sbuf_state(s, i)	 do { } while (0)
 #endif /* _KERNEL && INVARIANTS */
 
 static int
