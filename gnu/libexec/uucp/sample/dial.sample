@@ -23,13 +23,17 @@ dialer hayes
 #  4) send "ATDT", then the telephone number (after translating any
 #     dialcodes).
 #  5) wait until the modem echoes "CONNECT"
-chat "" ATZ\r\d\c OK ATDT\T CONNECT
+#  6) Wait a little more, if your modem give CONNECT before carrier up
+chat "" ATZ\r\d\c OK ATDT\T CONNECT \p\c
 
 # If we get "BUSY" or "NO CARRIER" during the dial chat script we
 # abort the dial immediately.
 chat-fail BUSY
+chat-fail ERROR
+chat-fail NO\sDIALTONE
 chat-fail NO\sCARRIER
 
 # When the call is over, we make sure we hangup the modem.
+# You don't need this stuff, if you modem can handle DTR drop properly
 complete \d\d+++\d\dATH\r\c
 abort \d\d+++\d\dATH\r\c
