@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 1.5 1999/09/08 23:36:39 ezk Exp $
+ * $Id: srvr_nfs.c,v 1.7.2.5 2001/04/14 21:08:23 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -94,7 +94,13 @@ static int ping_len;
 static char ping_buf[sizeof(struct rpc_msg) + 32];
 
 #if defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3)
-/* protocols we know about, in order of preference */
+/*
+ * Protocols we know about, in order of preference.
+ *
+ * Note that Solaris 8 and newer NetBSD systems are switching to UDP first,
+ * so this order may have to be adjusted for Amd in the future once more
+ * vendors make that change. -Erez 11/24/2000
+ */
 static char *protocols[] = { "tcp", "udp", NULL };
 #endif /* defined(MNTTAB_OPT_PROTO) || defined(HAVE_FS_NFS3) */
 
@@ -169,7 +175,7 @@ start_ping(u_long nfs_version)
  * Called when a portmap reply arrives
  */
 static void
-got_portmap(voidp pkt, int len, struct sockaddr_in * sa, struct sockaddr_in * ia, voidp idv, int done)
+got_portmap(voidp pkt, int len, struct sockaddr_in *sa, struct sockaddr_in *ia, voidp idv, int done)
 {
   fserver *fs2 = (fserver *) idv;
   fserver *fs = 0;
@@ -228,7 +234,7 @@ got_portmap(voidp pkt, int len, struct sockaddr_in * sa, struct sockaddr_in * ia
  * Obtain portmap information
  */
 static int
-call_portmap(fserver *fs, AUTH * auth, u_long prog, u_long vers, u_long prot)
+call_portmap(fserver *fs, AUTH *auth, u_long prog, u_long vers, u_long prot)
 {
   struct rpc_msg pmap_msg;
   int len;
@@ -302,7 +308,7 @@ recompute_portmap(fserver *fs)
  * structure when the ping was transmitted.
  */
 static void
-nfs_pinged(voidp pkt, int len, struct sockaddr_in * sp, struct sockaddr_in * tsp, voidp idv, int done)
+nfs_pinged(voidp pkt, int len, struct sockaddr_in *sp, struct sockaddr_in *tsp, voidp idv, int done)
 {
   int xid = (long) idv;		/* for 64-bit archs */
   fserver *fs;
@@ -542,7 +548,7 @@ nfs_keepalive(voidp v)
 
 
 int
-nfs_srvr_port(fserver *fs, u_short * port, voidp wchan)
+nfs_srvr_port(fserver *fs, u_short *port, voidp wchan)
 {
   int error = -1;
   if ((fs->fs_flags & FSF_VALID) == FSF_VALID) {
@@ -645,15 +651,11 @@ find_nfs_srvr(mntfs *mf)
 
 #ifdef MNTTAB_OPT_PROTO
   {
-    char *proto_opt = hasmntopt(&mnt, MNTTAB_OPT_PROTO);
+    char *proto_opt = hasmnteq(&mnt, MNTTAB_OPT_PROTO);
     if (proto_opt) {
       char **p;
-
-      proto_opt += sizeof(MNTTAB_OPT_PROTO) - 1; /* skip the "proto" */
-
       for (p = protocols; *p; p ++)
-	if (proto_opt[0] == '=' &&
-	    NSTREQ(&proto_opt[1], *p, strlen(*p))) {
+	if (NSTREQ(proto_opt, *p, strlen(*p))) {
 	  nfs_proto = *p;
 	  break;
 	}
@@ -669,9 +671,20 @@ find_nfs_srvr(mntfs *mf)
   if (hasmntopt(&mnt, "nfsv2")) {
     nfs_version = (u_long) 2;	/* nullify any ``vers=X'' statements */
     nfs_proto = "udp";		/* nullify any ``proto=tcp'' statements */
-    plog(XLOG_WARNING, "found compatiblity option \"nfsv2\": set options vers=2, proto=udp for host %s", host);
+    plog(XLOG_WARNING, "found compatiblity option \"nfsv2\": set options vers=2,proto=udp for host %s", host);
   }
 #endif /* HAVE_NFS_NFSV2_H */
+
+  /* check if we globally overridden the NFS version/protocol */
+  if (gopt.nfs_vers) {
+    nfs_version = gopt.nfs_vers;
+    plog(XLOG_INFO, "find_nfs_srvr: force NFS version to %d",
+	 (int) nfs_version);
+  }
+  if (gopt.nfs_proto) {
+    nfs_proto = gopt.nfs_proto;
+    plog(XLOG_INFO, "find_nfs_srvr: force NFS protocol transport to %s", nfs_proto);
+  }
 
   /*
    * lookup host address and canonical name
