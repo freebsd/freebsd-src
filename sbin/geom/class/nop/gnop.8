@@ -37,6 +37,7 @@
 .Op Fl f Ar failprob
 .Op Fl o Ar offset
 .Op Fl s Ar size
+.Op Fl S Ar secsize
 .Ar dev1
 .Op Ar dev2 Op Ar ...
 .Nm
@@ -109,6 +110,8 @@ Specifies failure probability in percentage.
 Where to begin on the original provider.
 .It Fl s Ar size
 Size of the transparent provider.
+.It Fl S Ar secsize
+Sector size of the transparent provider.
 .It Fl v
 Be more verbose.
 .El
