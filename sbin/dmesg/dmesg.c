@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 #include <vis.h>
+#include <sys/syslog.h>
 
 struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -72,17 +73,22 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int ch, newl, skip;
-	register char *p, *ep;
+	int ch, newl, skip;
+	char *p, *ep;
 	struct msgbuf *bufp, cur;
 	char *bp, *memf, *nlistf;
 	kvm_t *kd;
 	char buf[5];
+	int all = 0;
+	int pri;
 
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "M:N:")) != -1)
+	while ((ch = getopt(argc, argv, "aM:N:")) != -1)
 		switch(ch) {
+		case 'a':
+			all++;
+			break;
 		case 'M':
 			memf = optarg;
 			break;
@@ -140,11 +146,20 @@ main(argc, argv)
 		ch = *p;
 		/* Skip "\n<.*>" syslog sequences. */
 		if (skip) {
-			if (ch == '>')
-				newl = skip = 0;
+			if (ch == '\n') {
+				skip = 0;
+				newl = 1;
+			} if (ch == '>') {
+				if (LOG_FAC(pri) == LOG_KERN || all)
+					newl = skip = 0;
+			} else if (ch >= '0' && ch <= '9') {
+				pri *= 10;
+				pri += ch - '0';
+			}
 			continue;
 		}
 		if (newl && ch == '<') {
+			pri = 0;
 			skip = 1;
 			continue;
 		}
