@@ -217,7 +217,7 @@ static ACPI_STATUS
 fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 {
 	struct fdc_walk_ctx *ctx;
-	device_t child;
+	device_t child, old_child;
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *pkg, *obj;
 	ACPI_STATUS status;
@@ -241,6 +241,7 @@ fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 	child = fdc_add_child(ctx->dev, "fd", ctx->index);
 	if (child == NULL)
 		goto out;
+	old_child = *dev;
 	*dev = child;
 
 	/* Get temporary buffer for _FDI probe. */
@@ -249,8 +250,14 @@ fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 	if (buf.Pointer == NULL)
 		goto out;
 
-	/* Evaluate _FDI to get drive type to pass to the child. */
-	status = ACPI_EVALUATE_OBJECT(ctx->acpi_dev, *dev, "_FDI", NULL, &buf);
+	/*
+	 * Evaluate _FDI to get drive type to pass to the child.  We use the
+	 * old child here since it has a valid ACPI_HANDLE since it is a
+	 * child of acpi.  A better way to implement this would be to make fdc
+	 * support the ACPI handle ivar for its children.
+	 */
+	status = ACPI_EVALUATE_OBJECT(ctx->acpi_dev, old_child, "_FDI", NULL,
+	    &buf);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
 			device_printf(ctx->dev, "_FDI failed - %#x\n", status);
