@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.7 1995/10/12 17:18:39 wollman Exp $";
+	"$Id: syslogd.c,v 1.8 1995/11/14 23:39:39 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -71,6 +71,7 @@ static const char rcsid[] =
 #define DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define TIMERINTVL	30		/* interval for checking flush, mark */
+#define TTYMSGTIME	1		/* timeout passed to ttymsg */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -191,6 +192,8 @@ int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
+int	SecureMode = 0;		/* when true, speak only unix domain socks */
+
 int     created_lsock = 0;      /* Flag if local socket created */
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
@@ -215,15 +218,13 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, funix, i, inetm, fklog, klogm, len, noudp;
+	int ch, funix, i, inetm, fklog, klogm, len;
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
 	char *p, line[MSG_BSIZE + 1];
 
-	noudp = 0;
-
-	while ((ch = getopt(argc, argv, "df:Im:p:")) != EOF)
+	while ((ch = getopt(argc, argv, "dsf:Im:p:")) != EOF)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
@@ -231,14 +232,15 @@ main(argc, argv)
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
 			break;
-		case 'I':		/* disable logging from UDP packets */
-			noudp = 1;
-			break;
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
 			break;
 		case 'p':		/* path */
 			LogName = optarg;
+			break;
+		case 'I':		/* backwards compatible w/FreeBSD */
+		case 's':		/* no network mode */
+			SecureMode++;
 			break;
 		case '?':
 		default:
@@ -285,7 +287,11 @@ main(argc, argv)
 	} else
 		created_lsock = 1;
 
-	finet = noudp ? -1 : socket(AF_INET, SOCK_DGRAM, 0);
+	if (!SecureMode)
+		finet = socket(AF_INET, SOCK_DGRAM, 0);
+	else
+		finet = -1;
+
 	inetm = 0;
 	if (finet >= 0) {
 		struct servent *sp;
@@ -380,7 +386,7 @@ usage()
 {
 
 	fprintf(stderr,
-		"usage: syslogd [-di] [-f conffile] [-m markinterval]"
+		"usage: syslogd [-ds] [-f conffile] [-m markinterval]"
 		" [-p logpath]\n");
 	exit(1);
 }
@@ -587,12 +593,12 @@ logmsg(pri, msg, from, flags)
 			if (f->f_prevcount)
 				fprintlog(f, 0, (char *)NULL);
 			f->f_repeatcount = 0;
+			f->f_prevpri = pri;
 			(void)strncpy(f->f_lasttime, timestamp, 15);
 			(void)strncpy(f->f_prevhost, from,
 					sizeof(f->f_prevhost));
 			if (msglen < MAXSVLINE) {
 				f->f_prevlen = msglen;
-				f->f_prevpri = pri;
 				(void)strcpy(f->f_prevline, msg);
 				fprintlog(f, flags, (char *)NULL);
 			} else {
@@ -668,9 +674,10 @@ fprintlog(f, flags, msg)
 		    iov[0].iov_base, iov[4].iov_base);
 		if (l > MAXLINE)
 			l = MAXLINE;
-		if (sendto(finet, line, l, 0,
-		    (struct sockaddr *)&f->f_un.f_forw.f_addr,
-		    sizeof(f->f_un.f_forw.f_addr)) != l) {
+		if ((finet >= 0) &&
+		     (sendto(finet, line, l, 0,
+			     (struct sockaddr *)&f->f_un.f_forw.f_addr,
+			     sizeof(f->f_un.f_forw.f_addr)) != l)) {
 			int e = errno;
 			(void)close(f->f_file);
 			f->f_type = F_UNUSED;
@@ -763,7 +770,7 @@ wallmsg(f, iov)
 		strncpy(line, ut.ut_line, sizeof(ut.ut_line));
 		line[sizeof(ut.ut_line)] = '\0';
 		if (f->f_type == F_WALL) {
-			if ((p = ttymsg(iov, 6, line, 60*5)) != NULL) {
+			if ((p = ttymsg(iov, 6, line, TTYMSGTIME)) != NULL) {
 				errno = 0;	/* already in msg */
 				logerror(p);
 			}
@@ -775,7 +782,8 @@ wallmsg(f, iov)
 				break;
 			if (!strncmp(f->f_un.f_uname[i], ut.ut_name,
 			    UT_NAMESIZE)) {
-				if ((p = ttymsg(iov, 6, line, 60*5)) != NULL) {
+				if ((p = ttymsg(iov, 6, line, TTYMSGTIME))
+								!= NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
 				}
