@@ -75,23 +75,20 @@
 
 #include "cdev.h"
 
+#if __FreeBSD_version < 500000
 #define CDEV_MAJOR 32
+#else
+#define CDEV_MAJOR MAJOR_AUTO
+#endif
 
 static struct cdevsw my_devsw = {
-	/* open */	mydev_open,
-	/* close */	mydev_close,
-	/* read */	mydev_read,
-	/* write */	mydev_write,
-	/* ioctl */	mydev_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"cdev",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* open */	.d_open = mydev_open,
+	/* close */	.d_close = mydev_close,
+	/* read */	.d_read = mydev_read,
+	/* write */	.d_write = mydev_write,
+	/* ioctl */	.d_ioctl = mydev_ioctl,
+	/* name */	.d_name = "cdev",
+	/* maj */	.d_maj = CDEV_MAJOR
 };
 
 /* 

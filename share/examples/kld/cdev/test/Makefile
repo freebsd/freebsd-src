@@ -89,4 +89,6 @@ unload:
 	@echo
 	${MODSTAT} -n cdev
 
+install:
+
 .include <bsd.prog.mk>
