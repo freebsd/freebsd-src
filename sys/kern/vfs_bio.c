@@ -2569,13 +2569,6 @@ loop:
 		else
 			bsize = size;
 
-		if (vp->v_bsize != bsize) {
-#if 0
-			printf("WARNING: Wrong block size on vnode: %d should be %d\n", vp->v_bsize, bsize);
-#endif
-			vp->v_bsize = bsize;
-		}
-
 		offset = blkno * bsize;
 		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) &&
 		    (vp->v_vflag & VV_OBJBUF);

@@ -863,10 +863,8 @@ getnewvnode(tag, mp, vops, vpp)
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	delmntque(vp);
-	if (mp != NULL) {
+	if (mp != NULL)
 		insmntque(vp, mp);
-		vp->v_bsize = mp->mnt_stat.f_iosize;
-	}
 
 	return (0);
 }
@@ -1812,7 +1810,6 @@ bdevvp(dev, vpp)
 	}
 	vp = nvp;
 	vp->v_type = VCHR;
-	vp->v_bsize = DEV_BSIZE;
 	addalias(vp, dev);
 	*vpp = vp;
 	return (0);
