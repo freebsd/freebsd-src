@@ -249,6 +249,7 @@ ALL_EMULATIONS = \
 	eelf32bmip.o \
 	eelf32bmipn32.o \
 	eelf32btsmip.o \
+	eelf32ltsmip.o \
 	eelf32ebmip.o \
 	eelf32elmip.o \
 	eelf32fr30.o \
@@ -358,6 +359,8 @@ ALL_64_EMULATIONS = \
 	eelf64_sparc.o \
 	eelf64alpha.o \
 	eelf64bmip.o \
+	eelf64btsmip.o \
+	eelf64ltsmip.o \
 	eelf64hppa.o
 
 
@@ -1159,6 +1162,9 @@ eelf32bsmip.c: $(srcdir)/emulparams/elf32bsmip.sh \
 eelf32btsmip.c: $(srcdir)/emulparams/elf32btsmip.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32btsmip "$(tdir_elf32btsmip)"
+eelf32ltsmip.c: $(srcdir)/emulparams/elf32ltsmip.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} elf32ltsmip "$(tdir_elf32ltsmip)"
 eelf32ebmip.c: $(srcdir)/emulparams/elf32ebmip.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32ebmip "$(tdir_elf32ebmip)"
@@ -1210,6 +1216,12 @@ eelf64_sparc.c: $(srcdir)/emulparams/elf64_sparc.sh \
 eelf64bmip.c: $(srcdir)/emulparams/elf64bmip.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf64bmip "$(tdir_elf64bmip)"
+eelf64btsmip.c: $(srcdir)/emulparams/elf64btsmip.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} elf64btsmip "$(tdir_elf64btsmip)"
+eelf64ltsmip.c: $(srcdir)/emulparams/elf64ltsmip.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} elf64ltsmip "$(tdir_elf64ltsmip)"
 eelf_i386.c: $(srcdir)/emulparams/elf_i386.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf_i386 "$(tdir_elf_i386)"
@@ -1592,7 +1604,7 @@ ld.info: $(srcdir)/ld.texinfo configdoc.texi ldver.texi
 
 ld.dvi: $(srcdir)/ld.texinfo configdoc.texi ldver.texi
 	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
-	  MAKEINFO="$(MAKEINFO) -I $(srcdir) -I $(BFDDIR)/doc" $(TEXI2DVI) $(srcdir)/ld.texinfo
+	  MAKEINFO="$(MAKEINFO) -I $(srcdir) -I $(BFDDIR)/doc" $(TEXI2DVI) -I $(BFDDIR)/doc $(srcdir)/ld.texinfo
 
 # We want to reconfigure if configure.host or configure.tgt changes.
 config.status: $(srcdir)/configure $(srcdir)/configure.host $(srcdir)/configure.tgt
@@ -1686,7 +1698,7 @@ ldexp.o: ldexp.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
 ldfile.o: ldfile.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   sysdep.h config.h $(INCDIR)/fopen-same.h $(INCDIR)/bfdlink.h \
   ld.h $(INCDIR)/bin-bugs.h ldmisc.h ldexp.h ldlang.h \
-  ldfile.h ldmain.h ldgram.h ldlex.h ldemul.h
+  ldfile.h ldmain.h ldgram.h ldlex.h ldemul.h $(INCDIR)/libiberty.h
 ldlang.o: ldlang.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   sysdep.h config.h $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h \
   $(INCDIR)/obstack.h $(INCDIR)/bfdlink.h ld.h $(INCDIR)/bin-bugs.h \
@@ -1711,9 +1723,9 @@ ldwrite.o: ldwrite.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   ldlang.h ldwrite.h ldmisc.h ldgram.h ldmain.h
 lexsup.o: lexsup.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   sysdep.h config.h $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h \
-  $(INCDIR)/getopt.h $(INCDIR)/bfdlink.h ld.h $(INCDIR)/bin-bugs.h \
-  ldmain.h ldmisc.h ldexp.h ldlang.h ldgram.h ldlex.h \
-  ldfile.h ldver.h ldemul.h $(INCDIR)/demangle.h
+  $(INCDIR)/bfdlink.h ld.h $(INCDIR)/bin-bugs.h ldmain.h \
+  ldmisc.h ldexp.h ldlang.h ldgram.h ldlex.h ldfile.h \
+  ldver.h ldemul.h $(INCDIR)/demangle.h
 mri.o: mri.c ../bfd/bfd.h $(INCDIR)/ansidecl.h sysdep.h \
   config.h $(INCDIR)/fopen-same.h ld.h $(INCDIR)/bin-bugs.h \
   ldexp.h ldlang.h ldmisc.h mri.h ldgram.h $(INCDIR)/libiberty.h
@@ -1734,7 +1746,7 @@ ldgram.o: ldgram.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   ldlex.h
 ldlex.o: ldlex.c ../bfd/bfd.h sysdep.h config.h $(INCDIR)/fopen-same.h \
   ld.h $(INCDIR)/bin-bugs.h ldgram.h ldmisc.h ldexp.h \
-  ldlang.h ldfile.h ldlex.h ldmain.h
+  ldlang.h ldfile.h ldlex.h ldmain.h $(INCDIR)/libiberty.h
 deffilep.o: deffilep.c $(INCDIR)/libiberty.h $(INCDIR)/ansidecl.h \
   ../bfd/bfd.h sysdep.h config.h $(INCDIR)/fopen-same.h \
   ld.h $(INCDIR)/bin-bugs.h ldmisc.h deffile.h
