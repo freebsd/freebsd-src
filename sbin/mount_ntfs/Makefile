@@ -1,0 +1,13 @@
+#
+#	$Id: Makefile,v 1.2 1999/01/30 05:06:53 semen Exp $
+#
+
+PROG=	mount_ntfs
+SRCS=	mount_ntfs.c getmntopts.c
+MAN8=	mount_ntfs.8
+
+MOUNT=	${.CURDIR}/../mount
+CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
+.PATH:	${MOUNT}
+
+.include <bsd.prog.mk>
