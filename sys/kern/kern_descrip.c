@@ -843,36 +843,31 @@ fpathconf(td, uap)
 	struct vnode *vp;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return (EBADF);
-	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
-		goto done2;
+		return (error);
 
 	switch (fp->f_type) {
 	case DTYPE_PIPE:
 	case DTYPE_SOCKET:
 		if (uap->name != _PC_PIPE_BUF) {
-			fdrop(fp, td);
 			error = EINVAL;
-			goto done2;
+		} else {
+			td->td_retval[0] = PIPE_BUF;
+			error = 0;
 		}
-		td->td_retval[0] = PIPE_BUF;
-		error = 0;
 		break;
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = (struct vnode *)fp->f_data;
+		mtx_lock(&Giant);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
+		mtx_unlock(&Giant);
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
 	fdrop(fp, td);
-done2:
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -1456,50 +1451,6 @@ closef(fp, td)
 }
 
 /*
- * Find the struct file 'fd' in process 'p' and bump it's refcount
- * struct file is not locked on return.
- */
-struct file *
-ffind_hold(td, fd)
-	struct thread *td;
-	int fd;
-{
-	struct file *fp;
-
-	fp = ffind_lock(td, fd);
-	if (fp != NULL)
-		FILE_UNLOCK(fp);
-	return (fp);
-}
-
-/*
- * Find the struct file 'fd' in process 'p' and bump it's refcount,
- * struct file is locked on return.
- */
-struct file *
-ffind_lock(td, fd)
-	struct thread *td;
-	int fd;
-{
-	struct filedesc *fdp;
-	struct file *fp;
-
-	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
-		return (NULL);
-	FILEDESC_LOCK(fdp);
-	if (fd < 0 || fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    fp->f_ops == &badfileops) {
-		fp = NULL;
-	} else {
-		FILE_LOCK(fp);
-		fhold_locked(fp);
-	}
-	FILEDESC_UNLOCK(fdp);
-	return (fp);
-}
-
-/*
  * Drop reference on struct file passed in, may call closef if the
  * reference hits zero.
  */
@@ -1515,29 +1466,38 @@ fdrop(fp, td)
 
 /*
  * Extract the file pointer associated with the specified descriptor for
- * the current user process.  If no error occured 0 is returned, *fpp
- * will be set to the file pointer, and the file pointer's ref count
- * will be bumped.  Use fdrop() to drop it.  If an error occured the
- * non-zero error is returned and *fpp is set to NULL.
+ * the current user process.
  *
- * This routine requires Giant for the moment.  Once enough of the
- * system is converted over to this and other encapsulated APIs we
- * will be able to mutex it and call it without Giant.
+ * If the descriptor doesn't exist, EBADF is returned.
+ *
+ * If the descriptor exists but doesn't match 'flags' then
+ * return EBADF for read attempts and EINVAL for write attempts.
+ *
+ * If 'hold' is set (non-zero) the file's refcount will be bumped on return.
+ * It should be droped with fdrop().
+ * If it is not set, then the refcount will not be bumped however the
+ * thread's filedesc struct will be returned locked (for fgetsock).
+ *
+ * If an error occured the non-zero error is returned and *fpp is set to NULL.
+ * Otherwise *fpp is set and zero is returned.
  */
 static __inline
 int
-_fget(struct thread *td, int fd, struct file **fpp, int flags)
+_fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 {
 	struct filedesc *fdp;
 	struct file *fp;
 
-	GIANT_REQUIRED;
-	fdp = td->td_proc->p_fd;
 	*fpp = NULL;
-	if ((u_int)fd >= fdp->fd_nfiles)
+	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
 		return(EBADF);
-	if ((fp = fdp->fd_ofiles[fd]) == NULL)
+	FILEDESC_LOCK(fdp);
+	if (fd < 0 || (u_int)fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[fd]) == NULL ||
+	    fp->f_ops == &badfileops) {
+		FILEDESC_UNLOCK(fdp);
 		return(EBADF);
+	}
 
 	/*
 	 * Note: FREAD failures returns EBADF to maintain backwards
@@ -1545,11 +1505,18 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags)
 	 *
 	 * Only one flag, or 0, may be specified.
 	 */
-	if (flags == FREAD && (fp->f_flag & FREAD) == 0)
+	if (flags == FREAD && (fp->f_flag & FREAD) == 0) {
+		FILEDESC_UNLOCK(fdp);
 		return(EBADF);
-	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0)
+	}
+	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0) {
+		FILEDESC_UNLOCK(fdp);
 		return(EINVAL);
-	++fp->f_count;
+	}
+	if (hold) {
+		fhold(fp);
+		FILEDESC_UNLOCK(fdp);
+	}
 	*fpp = fp;
 	return(0);
 }
@@ -1557,19 +1524,19 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags)
 int
 fget(struct thread *td, int fd, struct file **fpp)
 {
-    return(_fget(td, fd, fpp, 0));
+    return(_fget(td, fd, fpp, 0, 1));
 }
 
 int
 fget_read(struct thread *td, int fd, struct file **fpp)
 {
-    return(_fget(td, fd, fpp, FREAD));
+    return(_fget(td, fd, fpp, FREAD, 1));
 }
 
 int
 fget_write(struct thread *td, int fd, struct file **fpp)
 {
-    return(_fget(td, fd, fpp, FWRITE));
+    return(_fget(td, fd, fpp, FWRITE, 1));
 }
 
 /*
@@ -1583,34 +1550,20 @@ static __inline
 int
 _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 {
-	struct filedesc *fdp;
 	struct file *fp;
+	int error;
 
-	GIANT_REQUIRED;
-	fdp = td->td_proc->p_fd;
 	*vpp = NULL;
-	if ((u_int)fd >= fdp->fd_nfiles)
-		return(EBADF);
-	if ((fp = fdp->fd_ofiles[fd]) == NULL)
-		return(EBADF);
-	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO)
-		return(EINVAL);
-	if (fp->f_data == NULL)
-		return(EINVAL);
-
-	/*
-	 * Note: FREAD failures returns EBADF to maintain backwards
-	 * compatibility with what routines returned before.
-	 *
-	 * Only one flag, or 0, may be specified.
-	 */
-	if (flags == FREAD && (fp->f_flag & FREAD) == 0)
-		return(EBADF);
-	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0)
-		return(EINVAL);
-	*vpp = (struct vnode *)fp->f_data;
-	vref(*vpp);
-	return(0);
+	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
+		return (error);
+	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
+		error = EINVAL;
+	} else {
+		*vpp = (struct vnode *)fp->f_data;
+		vref(*vpp);
+	}
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	return (error);
 }
 
 int
@@ -1641,29 +1594,24 @@ fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
 int
 fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 {
-	struct filedesc *fdp;
 	struct file *fp;
-	struct socket *so;
+	int error;
 
-	GIANT_REQUIRED;
-	fdp = td->td_proc->p_fd;
 	*spp = NULL;
 	if (fflagp)
 		*fflagp = 0;
-	if ((u_int)fd >= fdp->fd_nfiles)
-		return(EBADF);
-	if ((fp = fdp->fd_ofiles[fd]) == NULL)
-		return(EBADF);
-	if (fp->f_type != DTYPE_SOCKET)
-		return(ENOTSOCK);
-	if (fp->f_data == NULL)
-		return(EINVAL);
-	so = (struct socket *)fp->f_data;
-	if (fflagp)
-		*fflagp = fp->f_flag;
-	soref(so);
-	*spp = so;
-	return(0);
+	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
+		return (error);
+	if (fp->f_type != DTYPE_SOCKET) {
+		error = ENOTSOCK;
+	} else {
+		*spp = (struct socket *)fp->f_data;
+		if (fflagp)
+			*fflagp = fp->f_flag;
+		soref(*spp);
+	}
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	return(error);
 }
 
 /*
@@ -1737,14 +1685,13 @@ flock(td, uap)
 	struct thread *td;
 	register struct flock_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);
 		return (EOPNOTSUPP);

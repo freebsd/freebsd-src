@@ -672,10 +672,8 @@ osf1_fstat(td, uap)
 	struct osf1_stat oub;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return (EBADF);
-
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
 	error = fo_stat(fp, &ub, td);
 	fdrop(fp, td);
 	cvtstat2osf1(&ub, &oub);

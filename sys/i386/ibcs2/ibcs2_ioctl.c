@@ -346,8 +346,7 @@ ibcs2_ioctl(td, uap)
 	struct file *fp;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL) {
+	if ((error = fget(td, uap->fd, &fp)) != 0) {
 		DPRINTF(("ibcs2_ioctl(%d): bad fd %d ", p->p_pid,
 			 SCARG(uap, fd)));
 		return EBADF;

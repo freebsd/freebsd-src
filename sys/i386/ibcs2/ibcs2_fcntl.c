@@ -194,10 +194,11 @@ ibcs2_open(td, uap)
 	PROC_LOCK(p);
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 		struct file *fp;
+		int error;
 
-		fp = ffind_hold(td, td->td_retval[0]);
+		error = fget(td, td->td_retval[0], &fp);
 		PROC_UNLOCK(p);
-		if (fp == NULL)
+		if (error)
 			return (EBADF);
 
 		/* ignore any error, just give it a try */

@@ -591,9 +591,8 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	/* Check that the FD given is legit. and change it to a pointer to a
 	 * struct file. */
 	fd = CMSG_DATA(cm);
-	fp = ffind_hold(td, fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, fd, &fp)) != 0)
+		return (error);
 
 	/* Depending on what kind of resource it is, act differently. For
 	 * devices, we treat it as a file. For a AF_NETGRAPH socket,

@@ -137,11 +137,13 @@ linux_open(struct thread *td, struct linux_open_args *args)
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 	struct file *fp;
 
-	fp = ffind_hold(td, td->td_retval[0]);
+	error = fget(td, td->td_retval[0], &fp);
 	PROC_UNLOCK(p);
-	if (fp->f_type == DTYPE_VNODE)
-	    fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
-	fdrop(fp, td);
+	if (!error) {
+		if (fp->f_type == DTYPE_VNODE)
+			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+	    fdrop(fp, td);
+	}
     } else
 	PROC_UNLOCK(p);
 #ifdef DEBUG
@@ -996,9 +998,9 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
 		 */
-		fp = ffind_hold(td, args->fd);
-		if (fp == NULL)
-			return EBADF;
+		error = fget(td, args->fd, &fp);
+		if (error)
+			return (error);
 		if (fp->f_type == DTYPE_PIPE) {
 			fdrop(fp, td);
 			return (EINVAL);

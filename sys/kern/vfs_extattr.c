@@ -1704,15 +1704,14 @@ lseek(td, uap)
 	} */ *uap;
 {
 	struct ucred *cred = td->td_proc->p_ucred;
-	register struct file *fp;
+	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
 	off_t offset;
 	int error, noneg;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);
 		return (ESPIPE);
