@@ -69,7 +69,7 @@ logmsg(const char *fmt, ...)
 	char s[256];
 
 	va_start(ap, fmt);
-	vsprintf(s, fmt, ap);
+	vsnprintf(s, 256, fmt, ap);
 
 	if (do_log)
 		syslog(LOG_ERR, "%s", s);
