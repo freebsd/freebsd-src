@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.14 1995/05/10 08:03:21 jkh Exp $
+ * $Id: disks.c,v 1.15 1995/05/10 09:25:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,12 +179,18 @@ get_mountpoint(struct chunk *c)
 	    return NULL;
 	}
 	else if (!strcmp(val, "/")) {
-	    if (c && c->flags & CHUNK_PAST_1024) {
-msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
-		return NULL;
+	    if (c) {
+	    	if (c->flags & CHUNK_PAST_1024) {
+		    msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
+		    return NULL;
+		}
+		else if (!(c->flags & CHUNK_BSD_COMPAT)) {
+		    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a region.  Please choose another partition for this.");
+		    return NULL;
+		}
+		else
+		    c->flags |= CHUNK_IS_ROOT;
 	    }
-	    else if (c)
-		c->flags |= CHUNK_IS_ROOT;
 	}
 	else if (c)
 	    c->flags &= ~CHUNK_IS_ROOT;
@@ -274,7 +280,7 @@ print_fbsd_chunks(void)
 		 "Newfs");
 	attrset(A_NORMAL);
     }
-				    
+
     srow = CHUNK_SLICE_START_ROW;
     prow = CHUNK_PART_START_ROW;
     pcol = 0;
@@ -321,10 +327,11 @@ print_fbsd_chunks(void)
 	    }
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
-	    sprintf(num, "%4ldMB", fbsd_chunk_info[i].c->size ?
+	    snprintf(num, 10, "%4ldMB", fbsd_chunk_info[i].c->size ?
 		    fbsd_chunk_info[i].c->size / 2048 : 0);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
+	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
 	    mvaddstr(prow, pcol, onestr);
 	    ++prow;
 	}
@@ -343,9 +350,9 @@ print_command_summary()
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
-    addstr("reverse video");
+    addstr("reverse video.");
     attrset(A_NORMAL);
-    mvprintw(22, 0, "Use F1 or ? to get more help");
+    mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
 

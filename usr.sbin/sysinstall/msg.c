@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.8 1995/05/07 05:58:57 jkh Exp $
+ * $Id: msg.c,v 1.9 1995/05/08 06:06:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -188,7 +188,7 @@ msgNotify(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    dialog_notify(errstr);
+    dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
     free(errstr);
 }
 

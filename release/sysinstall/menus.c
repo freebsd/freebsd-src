@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.9 1995/05/08 10:20:54 jkh Exp $
+ * $Id: menus.c,v 1.10 1995/05/10 07:44:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -245,7 +245,7 @@ If the first site selected doesn't respond, try one of the alternates.",
 
 /* The media selection menu */
 DMenu MenuMedia = {
-DMENU_NORMAL_TYPE,
+DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Choose Installation Media",
 "FreeBSD can be installed from a variety of different installation\n\
 media, ranging from floppies to the Internet.  If you're installing\n\
@@ -271,7 +271,7 @@ method.",
 
 /* The installation type menu */
 DMenu MenuInstallType = {
-DMENU_NORMAL_TYPE,
+DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Choose Installation Type",
 "As a convenience, we provide several `canned' installation types.\n\
 These pick what we consider to be the most reasonable defaults for the\n\
@@ -297,7 +297,7 @@ the list of distributions yourself, simply select `custom'.",
 };
 
 DMenu MenuDistributions = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "Select the distributions you wish to install.",
 "Please check off the distributions you wish to install.",
 "Press F1 for a more complete description of these distributions.",
@@ -328,7 +328,7 @@ DMENU_MULTIPLE_TYPE,
 };
 
 DMenu MenuSrcDistributions = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "Select the sub-components of src you wish to install.",
 "Please check off those portions of the FreeBSD source tree\n\
 you wish to install.  A brief description of each source\n\
@@ -371,9 +371,10 @@ hierarchy is contained in parenthesis below.",
 DMenu MenuXF86 = {
 DMENU_NORMAL_TYPE,
 "XFree86 3.1.1u1 Distribution",
-"Welcome to the XFree86 3.1.1u1 distribution from\n\
-The XFree86 Project, Inc.  Recommended sequence:  Select\n\
-desired release components, configure, start it up (optional!)",
+"Welcome to the XFree86 3.1.1u1 distribution from The XFree86\n\
+Project, Inc.  Our recommended sequence is to Select the desired\n\
+release components, Configure XFree86 and then (optionally)\n\
+Start it up!",
 "Press F1 to read the XFree86 release notes for FreeBSD",
 "XFree86.hlp",
 { { "Select", "Select and load components of the XFree86 distribution",
@@ -389,8 +390,8 @@ desired release components, configure, start it up (optional!)",
 
 DMenu MenuXF86Select = {
 DMENU_NORMAL_TYPE,
-"XFree86 3.1.1 \"Late\" Distribution",
-"Please select the components you need from the XFree86 3.1.1\n\
+"XFree86 3.1.1u1 Distribution",
+"Please select the components you need from the XFree86 3.1.1u1\n\
 distribution.  Select what you need from the basic components set\n\
 and at least one entry from the Server menu and the Font set menu\n",
 "Press F1 for a sample sequence",
@@ -405,10 +406,10 @@ and at least one entry from the Server menu and the Font set menu\n",
 };
 
 DMenu MenuXF86SelectCore = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "XFree86 3.1.1 base distribution types",
-"Please check off the primary XFree86 components you wish.\n\
-Those deemed most generally useful are already checked.",
+"Please check off the basic XFree86 components you wish to install.\n\
+Those deemed most generally useful are already checked off for you.",
 NULL,
 NULL,
 { { "*bin", "X client applications and shared libs [4MB].",
@@ -421,19 +422,19 @@ NULL,
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_XDMCF, 0	},
   { "doc", "READMEs and XFree86 specific man pages [0.5MB]",
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_DOC, 0	},
-  { "*man", "Man pages (except XFree86 specific ones in etc) [1.2MB]",
+  { "*man", "Man pages (except XFree86 specific ones) [1.2MB]",
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_MAN, 0	},
   { "prog", "Programmer's header and library files [4MB]",
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_PROG, 0	},
   { "link", "X Server reconfiguration kit [7.8MB]",
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_LINK, 0	},
-  { "pex", "PEX fonts and shared libs needed by PEX applications [0.5MB]",
+  { "pex", "PEX fonts and libs needed by PEX apps [0.5MB]",
 	DMENU_SET_FLAG, (void *)&XF86Dists, DIST_XF86_PEX, 0	},
   { NULL } },
 };
 
 DMenu MenuXF86SelectFonts = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "Font distribution selection.",
 "Please check off the individual font distributions you wish to\n\
 install.  At the minimum, you should certainly install the standard\n\
@@ -454,13 +455,12 @@ NULL,
 };
 
 DMenu MenuXF86SelectServer = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "X Server selection.",
-"Please check off the types of X servers you wish to\n\
-install.  If you are unsure as which server will work\n\
-for your graphics card, it is recommended that try the\n\
-SVGA or VGA16 servers (the VGA16 and Mono servers are also\n\
-particularly well-suited to most LCD displays).",
+"Please check off the types of X servers you wish to install.\n\
+If you are unsure as which server will work for your graphics card,\n\
+it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
+Mono servers are also particularly well-suited to most LCD displays).",
 "xservers.hlp",
 "Press F1 for more information on the various X server types",
 { { "*SVGA", "Standard VGA or Super VGA display",
@@ -489,7 +489,7 @@ particularly well-suited to most LCD displays).",
 };
 
 DMenu MenuDiskDevices = {
-DMENU_MULTIPLE_TYPE,
+DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
 "Select Drive(s)",
 "Please select the drive, or drives, on which you wish to install\n\
 FreeBSD.  You need to select at least one drive containing some free\n\
@@ -526,7 +526,7 @@ NULL,
 };
 
 DMenu MenuInstallFtpOptions = {
-DMENU_RADIO_TYPE,
+DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
 "Choose Ftp Options",
 "In case of ftp failure, how would you like this installation\n\
 to deal with it?  You have one of several choices:",
@@ -563,4 +563,3 @@ select Cancel to leave this menu.",
 	DMENU_CANCEL, (void *)NULL, 0, 0		},
   { NULL } },
 };
-

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.13 1995/05/08 21:39:37 jkh Exp $
+ * $Id: decode.c,v 1.1 1995/05/10 07:44:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,7 +97,7 @@ dispatch(DMenuItem *tmp, char *name)
 	break;
 
     case DMENU_CANCEL:
-	return FALSE;
+	return TRUE;
 	
     case DMENU_SET_VARIABLE:
 	variable_set((char *)tmp->ptr);
