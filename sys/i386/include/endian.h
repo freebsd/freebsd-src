@@ -72,7 +72,7 @@ __END_DECLS
 static __inline __uint32_t
 __uint16_swap_uint32(__uint32_t __x)
 {
-	__asm ("rorl $16, %1" : "=r" (__x) : "0" (__x));
+	__asm ("rorl $16, %0" : "+r" (__x));
 
 	return __x;
 }
@@ -81,12 +81,12 @@ static __inline __uint32_t
 __uint8_swap_uint32(__uint32_t __x)
 {
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
-	__asm ("bswap %0" : "=r" (__x) : "0" (__x));
+	__asm ("bswap %0" : "+r" (__x));
 #else
-	__asm ("xchgb %h1, %b1\n\t"
-	       "rorl $16, %1\n\t"
-	       "xchgb %h1, %b1"
-	       : "=q" (__x) : "0" (__x));
+	__asm ("xchgb %h0, %b0\n\t"
+	       "rorl $16, %0\n\t"
+	       "xchgb %h0, %b0"
+	       : "+q" (__x));
 #endif
 	return __x;
 }
@@ -94,7 +94,7 @@ __uint8_swap_uint32(__uint32_t __x)
 static __inline __uint16_t
 __uint8_swap_uint16(__uint16_t __x)
 {
-	__asm ("xchgb %h1, %b1" : "=q" (__x) : "0" (__x));
+	__asm ("xchgb %h0, %b0" : "+q" (__x));
 
 	return __x;
 }
