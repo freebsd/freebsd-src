@@ -157,7 +157,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 
 	M_ASSERTPKTHDR(m);
 	
-	args.next_hop = ip_claim_next_hop(m);
+	args.next_hop = m_claim_next_hop(m, PACKET_TAG_IPFORWARD);
 	dummytag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
 	if (dummytag != NULL) {
 		struct dn_pkt_tag *dt = (struct dn_pkt_tag *)(dummytag+1);
