@@ -146,6 +146,7 @@ vendor ALTEC		0x04d2	Altec Lansing Technologies
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor IIYAMA		0x04e1	Iiyama
 vendor SHUTTLE		0x04e6	Shuttle Technology
+vendor SAMSUNG		0x04e8	Samsung Electronics
 vendor ANNABOOKS	0x04ed	Annabooks
 vendor JVC		0x04f1	JVC
 vendor CHICONY		0x04f2	Chicony Electronics
@@ -1041,6 +1042,9 @@ product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
 /* RATOC Systems products */
 product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
+
+/* Samsung products */
+product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
