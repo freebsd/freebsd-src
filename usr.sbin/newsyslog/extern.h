@@ -36,13 +36,33 @@
 #include <sys/cdefs.h>
 #include <time.h>
 
+#define	PTM_PARSE_ISO8601	0x0001	/* Parse ISO-standard format */
+#define	PTM_PARSE_DWM		0x0002	/* Parse Day-Week-Month format */
+#define	PTM_PARSE_MATCHDOM	0x0004	/* If the user specifies a day-of-month,
+					 * then the result should be a month
+					 * which actually has that day.  Eg:
+					 * the user requests "day 31" when
+					 * the present month is February. */
+
+struct ptime_data;
+
+/* Some global variables from newsyslog.c which might be of interest */
+extern int	 dbg_at_times;		/* cmdline debugging option */
 extern int	 noaction;		/* command-line option */
 extern int	 verbose;		/* command-line option */
-
-extern time_t	 dbg_timenow;
-extern time_t	 timenow;
+extern struct ptime_data *dbg_timenow;
 
 __BEGIN_DECLS
-time_t		 parse8601(const char *_srcstr, time_t *_next_time);
-time_t		 parseDWM(char *_srcstr, time_t *_next_time);
+struct ptime_data *ptime_init(const struct ptime_data *_optsrc);
+int		 ptime_adjust4dst(struct ptime_data *_ptime, const struct
+		    ptime_data *_dstsrc);
+int		 ptime_free(struct ptime_data *_ptime);
+int		 ptime_relparse(struct ptime_data *_ptime, int _parseopts,
+		    time_t _basetime, const char *_str);
+const char	*ptimeget_ctime(const struct ptime_data *_ptime);
+double		 ptimeget_diff(const struct ptime_data *_minuend,
+		    const struct ptime_data *_subtrahend);
+time_t		 ptimeget_secs(const struct ptime_data *_ptime);
+int		 ptimeset_nxtime(struct ptime_data *_ptime);
+int		 ptimeset_time(struct ptime_data *_ptime, time_t _secs);
 __END_DECLS
