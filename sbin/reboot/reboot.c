@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pflag = 1;
-			howto |= (RB_POWEROFF | RB_HALT);
+			howto |= RB_POWEROFF;
 			break;
 		case 'q':
 			qflag = 1;
