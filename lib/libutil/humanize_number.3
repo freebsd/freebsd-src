@@ -42,7 +42,7 @@
 .Nm humanize_number
 .Nd format a number into a human readable form
 .Sh SYNOPSIS
-.In util.h
+.In libutil.h
 .Ft int
 .Fn humanize_number "char *buf" "size_t len" "int64_t number" "const char *suffix" "int scale" "int flags"
 .Sh DESCRIPTION
@@ -82,8 +82,9 @@ The prefixes are:
 .It E	exa	1152921504606846976
 .El
 .Pp
+The
 .Fa len
-must be at least 4 plus the length of
+argument must be at least 4 plus the length of
 .Fa suffix ,
 in order to ensure a useful result is generated into
 .Fa buffer .
@@ -122,8 +123,9 @@ Divide
 with 1000 instead of 1024.
 .El
 .Sh RETURN VALUES
+The
 .Fn humanize_number
-returns the number of characters stored in
+function returns the number of characters stored in
 .Fa buffer
 (excluding the terminating NUL) upon success, or \-1 upon failure.
 If
@@ -132,6 +134,7 @@ is specified, the prefix index number will be returned instead.
 .Sh SEE ALSO
 .Xr humanize_number 9
 .Sh HISTORY
+The
 .Fn humanize_number
-first appeared in
+function first appeared in
 .Nx 2.0 .
