@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.17 1995/01/17 22:04:38 ache Exp $
+#	$Id: bsd.doc.mk,v 1.18 1995/02/25 20:51:09 phk Exp $
 
 PRINTER?=	ps
 
@@ -129,3 +129,7 @@ depend:
 
 .endif
 
+.if !target(maninstall)
+maninstall:
+
+.endif
