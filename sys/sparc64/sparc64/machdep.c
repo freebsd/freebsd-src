@@ -245,6 +245,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0 = &proc0.p_thread;
 	thread0->td_kstack = proc0kstack;
+	thread0->td_pcb = (struct pcb *)thread0->td_kstack;
 	tf = (struct trapframe *)(thread0->td_kstack + KSTACK_PAGES *
 	    PAGE_SIZE) - 1;
 	tf->tf_tstate = TSTATE_IE;
