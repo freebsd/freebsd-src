@@ -116,7 +116,7 @@ interrupt(a0, a1, a2, framep)
 #endif
 		
 	case ALPHA_INTR_CLOCK:	/* clock interrupt */
-		CTR0(KTR_INTR, "clock interrupt");
+		/* CTR0(KTR_INTR, "clock interrupt"); */
 		if (PCPU_GET(cpuid) != hwrpb->rpb_primary_cpu_id) {
 			CTR0(KTR_INTR, "ignoring clock on secondary");
 			atomic_subtract_int(&p->p_intr_nesting_level, 1);

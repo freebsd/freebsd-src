@@ -267,10 +267,9 @@ static int
 getit(void)
 {
 	int high, low;
-	int s;
+	critical_t s;
 
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -278,7 +277,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	restore_intr(s);
+	critical_exit(s);
 	return ((high << 8) | low);
 }
 
@@ -369,10 +368,9 @@ static void
 set_timer_freq(u_int freq, int intr_freq)
 {
 	int new_timer0_max_count;
-	int s;
+	critical_t s;
 
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 	timer_freq = freq;
 	new_timer0_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
@@ -381,15 +379,16 @@ set_timer_freq(u_int freq, int intr_freq)
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 	}
-	restore_intr(s);
+	critical_exit(s);
 }
 
 static void
 handleclock(void* arg)
 {
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		int s = save_intr();
-		disable_intr();
+		critical_t s;
+		
+		s = critical_enter();
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
@@ -397,7 +396,7 @@ handleclock(void* arg)
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
-		restore_intr(s);
+		critical_exit(s);
 	}
 
 	hardclock(arg);
@@ -567,10 +566,9 @@ i8254_get_timecount(struct timecounter *tc)
 {
 	u_int count;
 	u_int high, low;
-	int s;
+	critical_t s;
 
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -588,7 +586,7 @@ i8254_get_timecount(struct timecounter *tc)
 	i8254_lastcount = count;
 	count += i8254_offset;
 
-	restore_intr(s);
+	critical_exit(s);
 	return (count);
 }
 
@@ -640,13 +638,14 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
-	int s = save_intr();
-	disable_intr();
+	critical_t s;
+
+	s = critical_enter();
 
 	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
 		if (!beeping) {
 			/* Something else owns it. */
-			restore_intr(s);
+			critical_exit(s);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
 
@@ -660,7 +659,7 @@ sysbeep(int pitch, int period)
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-	restore_intr(s);
+	critical_exit(s);
 	return (0);
 }
 
