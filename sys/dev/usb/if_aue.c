@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #include <sys/bus.h>
+#include <machine/bus.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
