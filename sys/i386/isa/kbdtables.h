@@ -14,7 +14,7 @@
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
  *	@(#)kbdtables.h	1.3 940123
- *	$Id: kbdtables.h,v 1.11 1994/02/01 09:27:43 ache Exp $
+ *	$Id: kbdtables.h,v 1.12 1994/04/26 09:24:06 sos Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -569,7 +569,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=50 */ F(58),  '2',   '2',   '2',  SET8|'2',  SET8|'2',  SET8|'2',  SET8|'2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',  SET8|'3',  SET8|'3',  SET8|'3',  SET8|'3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',  SET8|'0',  SET8|'0',  SET8|'0',  SET8|'0',  0x80, 0x02,
-/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x82, 0x02,
+/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,       RBT,    0x83, 0x02,
 /* sc=54 */  ALK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
@@ -698,7 +698,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=50 */ F(58),  '2',   '2',   '2',  SET8|'2',  SET8|'2',  SET8|'2',  SET8|'2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',  SET8|'3',  SET8|'3',  SET8|'3',  SET8|'3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',  SET8|'0',  SET8|'0',  SET8|'0',  SET8|'0',  0x80, 0x02,
-/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x82, 0x02,
+/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,       RBT,    0x83, 0x02,
 /* sc=54 */  ALK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
