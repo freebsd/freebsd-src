@@ -1441,11 +1441,10 @@ vga_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 static int
 vga_query_mode(video_adapter_t *adp, video_info_t *info)
 {
-    video_info_t buf;
     int i;
 
     if (!vga_init_done)
-	return -1;
+	return ENXIO;
 
     for (i = 0; bios_vmode[i].vi_mode != EOT; ++i) {
 	if (bios_vmode[i].vi_mode == NA)
@@ -1475,11 +1474,11 @@ vga_query_mode(video_adapter_t *adp, video_info_t *info)
 		continue;
 
 	/* verify if this mode is supported on this adapter */
-	if (vga_get_info(adp, bios_vmode[i].vi_mode, &buf))
+	if (vga_get_info(adp, bios_vmode[i].vi_mode, info))
 		continue;
-	return bios_vmode[i].vi_mode;
+	return 0;
     }
-    return -1;
+    return ENODEV;
 }
 
 /*
