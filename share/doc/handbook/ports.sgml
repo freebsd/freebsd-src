@@ -1,7 +1,7 @@
-<!-- $Id: ports.sgml,v 1.23 1997/02/22 12:59:06 peter Exp $ -->
+<!-- $Id: ports.sgml,v 1.24 1997/03/08 11:44:08 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>The Ports collection<label id="ports"></heading>
+<chapt><heading>Installing Applications: The Ports collection<label id="ports"></heading>
 
 <p><em>Contributed by &a.jraynard;.</em>
 
@@ -31,7 +31,7 @@ Foonix style unacceptable exception handling? And if not, why not?'').
 has already been done, and you can just type 'make install' and get a
 working program.
 
-<sect1><heading>Why have a Ports Collection?</heading>
+<sect><heading>Why have a Ports Collection?</heading>
 
 <p>The base FreeBSD system comes with a very wide range of tools and
 system utilities, but a lot of popular programs are not in the base
@@ -67,7 +67,7 @@ way of using standard tools that would automate the process.
 works in practice by combining a set of simple but very flexible tools
 into something very powerful.
 
-<sect1><heading> How does the Ports collection work?</heading>
+<sect><heading> How does the Ports collection work?</heading>
 <p>
 Programs are typically distributed on the Internet as a 
 <ref id="ports:tarball" name="tarball"> consisting of
@@ -184,14 +184,14 @@ id="ports:remove" name="remove"> all traces of it from your system.
 <p> See if you can match these steps to the make output. And if you
 were not impressed before, you should be by now!
 
-<sect1><heading>Getting a FreeBSD Port<label id="ports:getting"></heading>
+<sect><heading>Getting a FreeBSD Port<label id="ports:getting"></heading>
 <p>
 There are two ways of getting hold of the FreeBSD port for a
 program. One requires a <ref id="ports:cd" name="FreeBSD
 CDROM">, the other involves using an <ref id="ports:inet"
 name="Internet Connection.">
 
-<sect2><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
+<sect1><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
 <p>
 If you answered yes to the question ``Do you want to link the ports 
 collection to your CDROM'' during the FreeBSD installation, the initial
@@ -257,7 +257,7 @@ source in the CDROM due to licensing limitations.  In that case,
 you will need to look at the section on <ref id="ports:inet"
 name="Compiling ports using an Internet connection.">
 
-<sect2><heading>Compiling ports from the Internet<label
+<sect1><heading>Compiling ports from the Internet<label
 id="ports:inet"></heading>
 <p>
 If you do not have a CDROM, or you want to make sure you get the very
@@ -331,14 +331,14 @@ carried away and type 'get ports.tar.gz' unless you are prepared to
 download the distfiles directory as well - this contains the source
 code for every single port and will take a very long time to download!
 
-<sect1><heading>Skeletons<label id="ports:skeleton"></heading>
+<sect><heading>Skeletons<label id="ports:skeleton"></heading>
 <p>
 A team of compulsive hackers who have forgotten to eat in a frantic
 attempt to make a deadline? Something unpleasant lurking in the FreeBSD 
 attic? No, a skeleton here is a minimal framework that supplies everything
 needed to make the ports magic work.
 
-<sect2><heading>Makefile<label id="ports:makefile"></heading>
+<sect1><heading>Makefile<label id="ports:makefile"></heading>
 <p>
 The most important component of a skeleton is the Makefile. This contains
 various statements that specify how the port should be compiled and
@@ -406,7 +406,7 @@ how Makefiles work; suffice it to say that the lines starting with
 about what to do after installing the program, so that the man pages
 can be compressed after they have been put in their final destination.
 
-<sect2><heading>The files directory</heading>
+<sect1><heading>The files directory</heading>
 <p>
 The file containing the <ref id="ports:checksum" name="checksum"> for
 the port is called &quot;md5&quot;, after the MD5 algorithm
@@ -416,12 +416,12 @@ confusing name of &quot;files&quot;.
 This directory can also contain other miscellaneous files that are required
 by the port and do not belong anywhere else.
 
-<sect2><heading>The patches directory</heading>
+<sect1><heading>The patches directory</heading>
 <p>
 This directory contains the <ref id="ports:patch" name="patches"> needed
 to make everything work properly under FreeBSD.
 
-<sect2><heading>The pkg directory</heading>
+<sect1><heading>The pkg directory</heading>
 <p>
 This program contains three quite useful files:-
 
@@ -436,7 +436,7 @@ DESCR - a more detailed description.
 PLIST - a list of all the files that will be created when the program is installed.
 </itemize>
 
-<sect1><heading>It does not work?!<label id="ports:kaput"></heading>
+<sect><heading>It does not work?!<label id="ports:kaput"></heading>
 
 <p>Oh. You can do one of four (4) things :
 
@@ -475,12 +475,12 @@ dddprogram to install them to your system.
 
 </enum>
 
-<sect1><heading>I have this program that I would like to make into a port...</heading>
+<sect><heading>I have this program that I would like to make into a port...</heading>
 
 <p>Great! Please see the <ref id="porting:starting" name="guidelines">
 for detailed instructions on how to do this.
 
-<sect1><heading>Some Questions and Answers</heading>
+<sect><heading>Some Questions and Answers</heading>
 <p>
 <itemize>
 <item>
