@@ -656,7 +656,9 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
 #endif
 
-#if defined(__i386__)
+#if defined(PC98)
+    ficlSetEnv(pSys, "arch-pc98",         FICL_TRUE);
+#elif defined(__i386__)
     ficlSetEnv(pSys, "arch-i386",         FICL_TRUE);
     ficlSetEnv(pSys, "arch-alpha",        FICL_FALSE);
     ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
