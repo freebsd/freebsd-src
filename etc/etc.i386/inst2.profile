@@ -121,7 +121,7 @@ load_fd()
 	altdrive=
 	subdir=
 	while [ -z "$drive" ]; do
-		echo -n "Read from which drive (a, b, c or ? for help)? [c] "
+		echo -n "Read from which drive (or ? for help)? [c] "
 		read answer junk
 		case "${answer:-c}" in
 		a*b|A*B)	
