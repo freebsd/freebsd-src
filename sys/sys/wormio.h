@@ -88,7 +88,16 @@ struct wormio_write_session {
     u_char *track_desc;
 };
 #define WORMIOCWRITESESSION     _IOW('W', 32, struct wormio_write_session)
-    
+
+struct wormio_first_writable_addr {
+    int track;
+    int mode;
+    int raw;
+    int audio;
+    int *addr;
+};
+#define WORMIOCFIRSTWRITABLEADDR  _IOWR('W', 33, struct wormio_first_writable_addr)
+
 /* Errors/warnings */
 #define WORM_SEQUENCE_ERROR                  1
 #define WORM_DUMMY_BLOCKS_ADDED              2
