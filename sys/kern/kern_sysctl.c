@@ -57,6 +57,7 @@
 
 static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
 static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
+static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
 
 /*
  * Locking - this locks the sysctl tree in memory.
@@ -751,12 +752,16 @@ SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD, sysctl_sysctl_oiddescr, "");
 int
 sysctl_handle_int(SYSCTL_HANDLER_ARGS)
 {
-	int error = 0;
+	int tmpout, error = 0;
 
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
 	if (arg1)
-		error = SYSCTL_OUT(req, arg1, sizeof(int));
+		tmpout = *(int *)arg1;
 	else
-		error = SYSCTL_OUT(req, &arg2, sizeof(int));
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(int));
 
 	if (error || !req->newptr)
 		return (error);
@@ -776,10 +781,15 @@ int
 sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
+	long tmpout;
 
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
 	if (!arg1)
 		return (EINVAL);
-	error = SYSCTL_OUT(req, arg1, sizeof(long));
+	tmpout = *(long *)arg1;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(long));
 
 	if (error || !req->newptr)
 		return (error);
@@ -799,8 +809,23 @@ int
 sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
 	int error=0;
+	char *tmparg;
+	size_t outlen;
 
-	error = SYSCTL_OUT(req, arg1, strlen((char *)arg1)+1);
+	/*
+	 * Attempt to get a coherent snapshot by copying to a
+	 * temporary kernel buffer.
+	 */
+retry:
+	outlen = strlen((char *)arg1)+1;
+	tmparg = malloc(outlen, M_SYSCTLTMP, M_WAITOK);
+	strncpy(tmparg, (char *)arg1, outlen);
+	if (tmparg[outlen-1] != '\0') {
+		free(tmparg, M_SYSCTLTMP);
+		goto retry;
+	}
+	error = SYSCTL_OUT(req, tmparg, outlen);
+	free(tmparg, M_SYSCTLTMP);
 
 	if (error || !req->newptr)
 		return (error);
@@ -825,8 +850,22 @@ int
 sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	void *tmparg;
 
-	error = SYSCTL_OUT(req, arg1, arg2);
+	/*
+	 * Attempt to get a coherent snapshot, either by wiring the
+	 * user space buffer or copying to a temporary kernel buffer
+	 * depending on the size of the data.
+	 */
+	if (arg2 > PAGE_SIZE) {
+		sysctl_wire_old_buffer(req, arg2);
+		error = SYSCTL_OUT(req, arg1, arg2);
+	} else {
+		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
+		bcopy(arg1, tmparg, arg2);
+		error = SYSCTL_OUT(req, tmparg, arg2);
+		free(tmparg, M_SYSCTLTMP);
+	}
 
 	if (error || !req->newptr)
 		return (error);
