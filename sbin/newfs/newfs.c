@@ -50,6 +50,7 @@ static const char rcsid[] =
  */
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <sys/mount.h>
@@ -71,9 +72,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "newfs.h"
-
-static void fatal(const char *fmt, ...) __printflike(1, 2);
-static struct disklabel *getdisklabel(char *s, int fd);
 
 /*
  * The following two constants set the default block and fragment sizes.
@@ -121,7 +119,7 @@ int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
 u_int	fssize;			/* file system size */
 u_int	secpercyl = NSECTORS;	/* sectors per cylinder */
-int	sectorsize;		/* bytes/sector */
+u_int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
 int	fsize = 0;		/* fragment size */
 int	bsize = 0;		/* block size */
@@ -134,14 +132,15 @@ int	maxcontig = 0;		/* max contiguous blocks to allocate */
 int	maxbpg;			/* maximum blocks per file in a cyl group */
 int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
+int	fso;			/* filedescriptor to device */
 
 static char	device[MAXPATHLEN];
 static char	*disktype;
-static char	*progname;
 static int	t_or_u_flag;	/* user has specified -t or -u */
 static int	unlabeled;
 
-static void rewritelabel(char *s, int fd, register struct disklabel *lp);
+static struct disklabel *getdisklabel(char *s);
+static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
 
 int
@@ -151,15 +150,11 @@ main(int argc, char *argv[])
 	struct disklabel *lp;
 	struct partition oldpartition;
 	struct stat st;
-	struct statfs *mp;
-	char *cp, *s1, *s2, *special;
-	int ch, fsi, fso, len, n, vflag;
+	char *cp, *special;
+	int ch, n, vflag;
+	off_t mediasize;
 
 	vflag = 0;
-	if ((progname = strrchr(*argv, '/')))
-		++progname;
-	else
-		progname = *argv;
 
 	while ((ch = getopt(argc, argv,
 	    "NRS:T:Ua:b:c:e:f:g:h:i:m:o:s:u:v:")) != -1)
@@ -172,7 +167,7 @@ main(int argc, char *argv[])
 			break;
 		case 'S':
 			if ((sectorsize = atoi(optarg)) <= 0)
-				fatal("%s: bad sector size", optarg);
+				errx(1, "%s: bad sector size", optarg);
 			break;
 		case 'T':
 			disktype = optarg;
@@ -182,42 +177,42 @@ main(int argc, char *argv[])
 			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
-				fatal("%s: bad maximum contiguous blocks",
+				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
 			if ((bsize = atoi(optarg)) < MINBSIZE)
-				fatal("%s: bad block size", optarg);
+				errx(1, "%s: bad block size", optarg);
 			break;
 		case 'c':
 			if ((cpg = atoi(optarg)) <= 0)
-				fatal("%s: bad cylinders/group", optarg);
+				errx(1, "%s: bad cylinders/group", optarg);
 			cpgflg++;
 			break;
 		case 'e':
 			if ((maxbpg = atoi(optarg)) <= 0)
-		fatal("%s: bad blocks per file in a cylinder group",
+		errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
 			if ((fsize = atoi(optarg)) <= 0)
-				fatal("%s: bad fragment size", optarg);
+				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
 			if ((avgfilesize = atoi(optarg)) <= 0)
-				fatal("%s: bad average file size", optarg);
+				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
 			if ((avgfilesperdir = atoi(optarg)) <= 0)
-				fatal("%s: bad average files per dir", optarg);
+				errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
 			if ((density = atoi(optarg)) <= 0)
-				fatal("%s: bad bytes per inode", optarg);
+				errx(1, "%s: bad bytes per inode", optarg);
 			break;
 		case 'm':
 			if ((minfree = atoi(optarg)) < 0 || minfree > 99)
-				fatal("%s: bad free space %%", optarg);
+				errx(1, "%s: bad free space %%", optarg);
 			break;
 		case 'o':
 			if (strcmp(optarg, "space") == 0)
@@ -225,18 +220,18 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "time") == 0)
 				opt = FS_OPTTIME;
 			else
-				fatal(
+				errx(1, 
 		"%s: unknown optimization preference: use `space' or `time'",
 				    optarg);
 			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
-				fatal("%s: bad file system size", optarg);
+				errx(1, "%s: bad file system size", optarg);
 			break;
 		case 'u':
 			t_or_u_flag++;
 			if ((n = atoi(optarg)) < 0)
-				fatal("%s: bad sectors/track", optarg);
+				errx(1, "%s: bad sectors/track", optarg);
 			secpercyl = n;
 			break;
 		case 'v':
@@ -249,7 +244,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2 && argc != 1)
+	if (argc != 1)
 		usage();
 
 	special = argv[0];
@@ -261,89 +256,65 @@ main(int argc, char *argv[])
 		snprintf(device, sizeof(device), "%s%s", _PATH_DEV, special);
 		special = device;
 	}
-	if (Nflag)
-		fso = -1;
-	else {
-		fso = open(special, O_WRONLY);
-		if (fso < 0)
-			fatal("%s: %s", special, strerror(errno));
 
-		/* Bail if target special is mounted */
-		n = getmntinfo(&mp, MNT_NOWAIT);
-		if (n == 0)
-			fatal("%s: getmntinfo: %s", special, strerror(errno));
-
-		len = sizeof(_PATH_DEV) - 1;
-		s1 = special;
-		if (strncmp(_PATH_DEV, s1, len) == 0)
-			s1 += len;
-
-		while (--n >= 0) {
-			s2 = mp->f_mntfromname;
-			if (strncmp(_PATH_DEV, s2, len) == 0) {
-				s2 += len - 1;
-				*s2 = 'r';
-			}
-			if (strcmp(s1, s2) == 0 || strcmp(s1, &s2[1]) == 0)
-				fatal("%s is mounted on %s",
-				    special, mp->f_mntonname);
-			++mp;
-		}
-	}
-	fsi = open(special, O_RDONLY);
-	if (fsi < 0)
-		fatal("%s: %s", special, strerror(errno));
-	if (fstat(fsi, &st) < 0)
-		fatal("%s: %s", special, strerror(errno));
+	fso = open(special, Nflag ? O_RDONLY : O_RDWR);
+	if (fso < 0)
+		err(1, "%s", special);
+	if (fstat(fso, &st) < 0)
+		err(1, "%s", special);
 	if ((st.st_mode & S_IFMT) != S_IFCHR)
-		printf("%s: %s: not a character-special device\n",
-		    progname, special);
-	cp = strchr(argv[0], '\0');
-	if (cp == argv[0])
-		fatal("null special file name");
-	cp--;
-	if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-		fatal("%s: can't figure out file system partition",
-		    argv[0]);
-	if (disktype == NULL)
-		disktype = argv[1];
-	lp = getdisklabel(special, fsi);
-	if (vflag || isdigit(*cp))
-		pp = &lp->d_partitions[0];
-	else
-		pp = &lp->d_partitions[*cp - 'a'];
-	if (pp->p_size == 0)
-		fatal("%s: `%c' partition is unavailable",
-		    argv[0], *cp);
-	if (pp->p_fstype == FS_BOOT)
-		fatal("%s: `%c' partition overlaps boot program",
-		    argv[0], *cp);
-	if (fssize == 0)
-		fssize = pp->p_size;
-	if (fssize > pp->p_size)
-		fatal(
-		    "%s: maximum file system size on the `%c' partition is %d",
-		    argv[0], *cp, pp->p_size);
-	if (secpercyl == 0) {
-		secpercyl = lp->d_nsectors;
-		if (secpercyl <= 0)
-			fatal("%s: no default #sectors/track", argv[0]);
+		errx(1, "%s: not a character-special device", special);
+
+	if (sectorsize == 0) 
+		ioctl(fso, DIOCGSECTORSIZE, &sectorsize);
+	if (sectorsize && !ioctl(fso, DIOCGMEDIASIZE, &mediasize)) {
+		if (fssize == 0)
+			fssize = mediasize / sectorsize;
+		else if (fssize > mediasize / sectorsize)
+			errx(1, "%s: maximum filesystem size is %u",
+			    special, (u_int)(mediasize / sectorsize));
 	}
-	if (sectorsize == 0) {
-		sectorsize = lp->d_secsize;
-		if (sectorsize <= 0)
-			fatal("%s: no default sector size", argv[0]);
+	pp = NULL;
+	lp = getdisklabel(special);
+	if (lp != NULL) {
+		cp = strchr(special, '\0');
+		cp--;
+		if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+			errx(1, "%s: can't figure out file system partition",
+			    special);
+		if (vflag || isdigit(*cp))
+			pp = &lp->d_partitions[0];
+		else
+			pp = &lp->d_partitions[*cp - 'a'];
+		oldpartition = *pp;
+		if (pp->p_size == 0)
+			errx(1, "%s: `%c' partition is unavailable",
+			    special, *cp);
+		if (pp->p_fstype == FS_BOOT)
+			errx(1, "%s: `%c' partition overlaps boot program",
+			    special, *cp);
+		if (fssize == 0)
+			fssize = pp->p_size;
+		if (fssize > pp->p_size)
+			errx(1, 
+		    "%s: maximum file system size %d", special, pp->p_size);
+		if (secpercyl == 0)
+			secpercyl = lp->d_nsectors;
+		if (sectorsize == 0)
+			sectorsize = lp->d_secsize;
+		if (fsize == 0)
+			fsize = pp->p_fsize;
+		if (bsize == 0)
+			bsize = pp->p_frag * pp->p_fsize;
 	}
-	if (fsize == 0) {
-		fsize = pp->p_fsize;
-		if (fsize <= 0)
-			fsize = MAX(DFL_FRAGSIZE, lp->d_secsize);
-	}
-	if (bsize == 0) {
-		bsize = pp->p_frag * pp->p_fsize;
-		if (bsize <= 0)
-			bsize = MIN(DFL_BLKSIZE, 8 * fsize);
-	}
+	if (sectorsize <= 0)
+		errx(1, "%s: no default sector size", special);
+	if (fsize <= 0)
+		fsize = MAX(DFL_FRAGSIZE, sectorsize);
+	if (bsize <= 0)
+		bsize = MIN(DFL_BLKSIZE, 8 * fsize);
+	if (secpercyl <= 0)
+		errx(1, "%s: no default #sectors/track", special);
 	/*
 	 * Maxcontig sets the default for the maximum number of blocks
 	 * that may be allocated sequentially. With filesystem clustering
@@ -364,13 +335,12 @@ main(int argc, char *argv[])
 	 * case (4096 sectors per cylinder) is intended to disagree
 	 * with the disklabel.
 	 */
-	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
+	if (t_or_u_flag && lp != NULL && secpercyl != lp->d_secpercyl)
 		fprintf(stderr, "%s (%d) %s (%lu)\n",
 		    "Warning: calculated sectors per cylinder", secpercyl,
 		    "disagrees with disk label", (u_long)lp->d_secpercyl);
 	if (maxbpg == 0)
 		maxbpg = MAXBLKPG(bsize);
-	oldpartition = *pp;
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;
@@ -378,71 +348,50 @@ main(int argc, char *argv[])
 		sectorsize = DEV_BSIZE;
 		secpercyl *= secperblk;
 		fssize *= secperblk;
-		pp->p_size *= secperblk;
+		if (pp != NULL);
+			pp->p_size *= secperblk;
 	}
-	mkfs(pp, special, fsi, fso);
-	if (realsectorsize != DEV_BSIZE)
-		pp->p_size /= realsectorsize /DEV_BSIZE;
-	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
-		rewritelabel(special, fso, lp);
-	if (!Nflag)
-		close(fso);
-	close(fsi);
+	mkfs(pp, special);
+	if (!unlabeled) {
+		if (realsectorsize != DEV_BSIZE)
+			pp->p_size /= realsectorsize /DEV_BSIZE;
+		if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
+			rewritelabel(special, lp);
+	}
+	close(fso);
 	exit(0);
 }
 
 const char lmsg[] = "%s: can't read disk label; disk type must be specified";
 
 struct disklabel *
-getdisklabel(char *s, int fd)
+getdisklabel(char *s)
 {
 	static struct disklabel lab;
+	struct disklabel *lp;
 
-	if (ioctl(fd, DIOCGDINFO, (char *)&lab) < 0) {
-		if (disktype) {
-			struct disklabel *lp;
-
-			unlabeled++;
-			lp = getdiskbyname(disktype);
-			if (lp == NULL)
-				fatal("%s: unknown disk type", disktype);
+	if (!ioctl(fso, DIOCGDINFO, (char *)&lab))
+		return (&lab);
+	unlabeled++;
+	if (disktype) {
+		lp = getdiskbyname(disktype);
+		if (lp != NULL)
 			return (lp);
-		}
-		warn("ioctl (GDINFO)");
-		fatal(lmsg, s);
 	}
-	return (&lab);
+	return (NULL);
 }
 
 void
-rewritelabel(char *s, int fd, struct disklabel *lp)
+rewritelabel(char *s, struct disklabel *lp)
 {
 	if (unlabeled)
 		return;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
-	if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0) {
+	if (ioctl(fso, DIOCWDINFO, (char *)lp) < 0) {
 		warn("ioctl (WDINFO)");
-		fatal("%s: can't rewrite disk label", s);
+		errx(1, "%s: can't rewrite disk label", s);
 	}
-}
-
-/*VARARGS*/
-void
-fatal(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (fcntl(STDERR_FILENO, F_GETFL) < 0) {
-		openlog(progname, LOG_CONS, LOG_DAEMON);
-		vsyslog(LOG_ERR, fmt, ap);
-		closelog();
-	} else
-		vwarnx(fmt, ap);
-	va_end(ap);
-	exit(1);
-	/*NOTREACHED*/
 }
 
 static void
@@ -450,7 +399,7 @@ usage()
 {
 	fprintf(stderr,
 	    "usage: %s [ -fsoptions ] special-device%s\n",
-	    progname,
+	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,

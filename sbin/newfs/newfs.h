@@ -42,7 +42,7 @@ extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
 extern u_int	fssize;		/* file system size */
 extern u_int	secpercyl;	/* sectors per cylinder */
-extern int	sectorsize;	/* bytes/sector */
+extern u_int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	fsize;		/* fragment size */
 extern int	bsize;		/* block size */
@@ -55,4 +55,6 @@ extern int	maxcontig;	/* max contiguous blocks to allocate */
 extern int	maxbpg;		/* maximum blocks per file in a cyl group */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
-void mkfs (struct partition *, char *, int, int);
+extern int	fso;		/* filedescriptor to device */
+
+void mkfs (struct partition *, char *);
