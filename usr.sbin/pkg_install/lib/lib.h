@@ -129,6 +129,7 @@ Boolean		isemptydir(char *fname);
 Boolean		isemptyfile(char *fname);
 Boolean         isfile(char *);
 Boolean		isempty(char *);
+Boolean		issymlink(char *);
 Boolean		isURL(char *);
 char		*fileGetURL(char *, char *);
 char		*fileURLFilename(char *, char *, int);
