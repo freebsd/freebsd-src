@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.23 1995/07/13 08:48:05 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.24 1995/07/21 03:52:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -737,8 +737,7 @@ loop:
  * return the inode locked.  Detection and handling of mount points must be
  * done by the calling routine.
  */
-
-int	ffs_inode_hash_lock = 0;
+int ffs_inode_hash_lock;
 
 int
 ffs_vget(mp, ino, vpp)
@@ -756,12 +755,13 @@ ffs_vget(mp, ino, vpp)
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
+restart:
 	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
 		return (0);
 
 	/*
-	 * Lockout the creation of new entries in the FFS hash table
-	 * in case getnewvnode/MALLOC blocks, otherwise a duplicate
+	 * Lock out the creation of new entries in the FFS hash table in
+	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
 	 * may occur!
 	 */
 	if (ffs_inode_hash_lock) {
@@ -769,17 +769,15 @@ ffs_vget(mp, ino, vpp)
 			ffs_inode_hash_lock = -1;
 			tsleep(&ffs_inode_hash_lock, PVM, "ffsvgt", 0);
 		}
-		if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
-			return (0);
+		goto restart;
 	}
 	ffs_inode_hash_lock = 1;
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
 	if (error) {
-		if (ffs_inode_hash_lock < 0) {
+		if (ffs_inode_hash_lock < 0)
 			wakeup(&ffs_inode_hash_lock);
-		}
 		ffs_inode_hash_lock = 0;
 		*vpp = NULL;
 		return (error);
@@ -807,12 +805,8 @@ ffs_vget(mp, ino, vpp)
 	 */
 	ufs_ihashins(ip);
 
-	/*
-	 * Wakeup anybody blocked on our lock
-	 */
-	if (ffs_inode_hash_lock < 0) {
+	if (ffs_inode_hash_lock < 0)
 		wakeup(&ffs_inode_hash_lock);
-	}
 	ffs_inode_hash_lock = 0;
 
 	/* Read in the disk contents for the inode, copy into the inode. */
