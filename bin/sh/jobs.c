@@ -1229,7 +1229,10 @@ redir:
 		}
 		cmdputs(p);
 		if (n->type == NTOFD || n->type == NFROMFD) {
-			s[0] = n->ndup.dupfd + '0';
+			if (n->ndup.dupfd >= 0)
+				s[0] = n->ndup.dupfd + '0';
+			else
+				s[0] = '-';
 			s[1] = '\0';
 			cmdputs(s);
 		} else {

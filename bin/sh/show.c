@@ -152,7 +152,10 @@ shcmd(union node *cmd, FILE *fp)
 			fprintf(fp, "%d", np->nfile.fd);
 		fputs(s, fp);
 		if (np->nfile.type == NTOFD || np->nfile.type == NFROMFD) {
-			fprintf(fp, "%d", np->ndup.dupfd);
+			if (np->ndup.dupfd >= 0)
+				fprintf(fp, "%d", np->ndup.dupfd);
+			else
+				fprintf(fp, "-");
 		} else {
 			sharg(np->nfile.fname, fp);
 		}
