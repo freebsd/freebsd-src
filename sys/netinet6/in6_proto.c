@@ -126,6 +126,15 @@
 #endif
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec6.h>
+#define	IPSEC
+#define	IPSEC_ESP
+#define	ah6_input	ipsec6_common_input
+#define	esp6_input	ipsec6_common_input
+#define	ipcomp6_input	ipsec6_common_input
+#endif /* FAST_IPSEC */
+
 #include <netinet6/ip6protosw.h>
 
 #include <net/net_osdep.h>

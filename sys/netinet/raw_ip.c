@@ -71,6 +71,10 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#endif /*FAST_IPSEC*/
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
@@ -157,6 +161,13 @@ rip_input(m, off)
 					/* do not inject data to pcb */
 				}
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+				/* check AH/ESP integrity. */
+				if (ipsec4_in_reject(n, last)) {
+					policyfail = 1;
+					/* do not inject data to pcb */
+				}
+#endif /*FAST_IPSEC*/
 #ifdef MAC
 				if (policyfail == 0 &&
 				    mac_check_socket_deliver(last->inp_socket,
@@ -195,6 +206,15 @@ rip_input(m, off)
 			return;
 		}
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+		/* check AH/ESP integrity. */
+		if (ipsec4_in_reject(m, last)) {
+			m_freem(m);
+			ipstat.ips_delivered--;
+			/* do not inject data to pcb */
+			return;
+		}
+#endif /*FAST_IPSEC*/
 #ifdef MAC
 		if (mac_check_socket_deliver(last->inp_socket, m) != 0) {
 			m_freem(m);

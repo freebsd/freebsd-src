@@ -105,6 +105,11 @@
 #include <netinet6/ipsec6.h>
 #endif /*IPSEC*/
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#endif /* FAST_IPSEC */
+
 #include <machine/stdarg.h>
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
@@ -181,6 +186,15 @@ rip6_input(mp, offp, proto)
 				/* do not inject data into pcb */
 			} else
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+			/*
+			 * Check AH/ESP integrity.
+			 */
+			if (n && ipsec6_in_reject(n, last)) {
+				m_freem(n);
+				/* do not inject data into pcb */
+			} else
+#endif /*FAST_IPSEC*/
 			if (n) {
 				if (last->in6p_flags & IN6P_CONTROLOPTS ||
 				    last->in6p_socket->so_options & SO_TIMESTAMP)
@@ -212,6 +226,16 @@ rip6_input(mp, offp, proto)
 		/* do not inject data into pcb */
 	} else
 #endif /*IPSEC*/
+#ifdef FAST_IPSEC
+	/*
+	 * Check AH/ESP integrity.
+	 */
+	if (last && ipsec6_in_reject(m, last)) {
+		m_freem(m);
+		ip6stat.ip6s_delivered--;
+		/* do not inject data into pcb */
+	} else
+#endif /*FAST_IPSEC*/
 	if (last) {
 		if (last->in6p_flags & IN6P_CONTROLOPTS ||
 		    last->in6p_socket->so_options & SO_TIMESTAMP)

@@ -78,6 +78,10 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#endif /*FAST_IPSEC*/
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
@@ -167,10 +171,6 @@ udp_input(m, off)
 	struct mbuf *opts = 0;
 	int len;
 	struct ip save_ip;
-	struct sockaddr *append_sa;
-#ifdef MAC
-	int error;
-#endif
 
 	udpstat.udps_ipackets++;
 
@@ -201,6 +201,16 @@ udp_input(m, off)
 	/* destination port of 0 is illegal, based on RFC768. */
 	if (uh->uh_dport == 0)
 		goto badunlocked;
+
+	/*
+	 * Construct sockaddr format source address.
+	 * Stuff source address and datagram in user buffer.
+	 */
+	udp_in.sin_port = uh->uh_sport;
+	udp_in.sin_addr = ip->ip_src;
+#ifdef INET6
+	udp_in6.uin6_init_done = udp_ip6.uip6_init_done = 0;
+#endif
 
 	/*
 	 * Make mbuf data length reflect UDP length.
@@ -272,18 +282,10 @@ udp_input(m, off)
 		 */
 
 		/*
-		 * Construct sockaddr format source address.
-		 */
-		udp_in.sin_port = uh->uh_sport;
-		udp_in.sin_addr = ip->ip_src;
-		/*
 		 * Locate pcb(s) for datagram.
 		 * (Algorithm copied from raw_intr().)
 		 */
 		last = NULL;
-#ifdef INET6
-		udp_in6.uin6_init_done = udp_ip6.uip6_init_done = 0;
-#endif
 		LIST_FOREACH(inp, &udb, inp_list) {
 			INP_LOCK(inp);
 			if (inp->inp_lport != uh->uh_dport) {
@@ -308,29 +310,12 @@ udp_input(m, off)
 
 			if (last != NULL) {
 				struct mbuf *n;
-				int policyfail;
 
-				policyfail = 0;
-#ifdef IPSEC
-				/* check AH/ESP integrity. */
-				if (ipsec4_in_reject_so(m, last->inp_socket)) {
-					ipsecstat.in_polvio++;
-					policyfail = 1;
-					/* do not inject data to pcb */
-				}
-#endif /*IPSEC*/
-#ifdef MAC
-				if (mac_check_socket_deliver(last->inp_socket,
-				    m) != 0)
-					policyfail = 1;
-#endif
-				if (!policyfail) {
-					n = m_copy(m, 0, M_COPYALL);
-					if (n != NULL)
-						udp_append(last, ip, n,
+				n = m_copy(m, 0, M_COPYALL);
+				if (n != NULL)
+					udp_append(last, ip, n,
 						   iphlen +
 						   sizeof(struct udphdr));
-				}
 				INP_UNLOCK(last);
 			}
 			last = inp;
@@ -355,13 +340,6 @@ udp_input(m, off)
 			udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-#ifdef IPSEC
-		/* check AH/ESP integrity. */
-		if (ipsec4_in_reject_so(m, last->inp_socket)) {
-			ipsecstat.in_polvio++;
-			goto badheadlocked;
-		}
-#endif /*IPSEC*/
 		INP_UNLOCK(last);
 		INP_INFO_RUNLOCK(&udbinfo);
 		udp_append(last, ip, m, iphlen + sizeof(struct udphdr));
@@ -399,58 +377,12 @@ udp_input(m, off)
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
-#ifdef IPSEC
-	if (ipsec4_in_reject_so(m, inp->inp_socket)) {
-		ipsecstat.in_polvio++;
-		goto bad;
-	}
-#endif /*IPSEC*/
-#ifdef MAC
-	error = mac_check_socket_deliver(inp->inp_socket, m);
-	if (error)
-		goto bad;
-#endif
-
-	/*
-	 * Construct sockaddr format source address.
-	 * Stuff source address and datagram in user buffer.
-	 */
-	udp_in.sin_port = uh->uh_sport;
-	udp_in.sin_addr = ip->ip_src;
-	if (inp->inp_flags & INP_CONTROLOPTS
-	    || inp->inp_socket->so_options & SO_TIMESTAMP) {
-#ifdef INET6
-		if (inp->inp_vflag & INP_IPV6) {
-			int savedflags;
-
-			ip_2_ip6_hdr(&udp_ip6.uip6_ip6, ip);
-			savedflags = inp->inp_flags;
-			inp->inp_flags &= ~INP_UNMAPPABLEOPTS;
-			ip6_savecontrol(inp, &opts, &udp_ip6.uip6_ip6, m);
-			inp->inp_flags = savedflags;
-		} else
-#endif
-		ip_savecontrol(inp, &opts, ip, m);
-	}
- 	m_adj(m, iphlen + sizeof(struct udphdr));
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6) {
-		in6_sin_2_v4mapsin6(&udp_in, &udp_in6.uin6_sin);
-		append_sa = (struct sockaddr *)&udp_in6;
-	} else
-#endif
-	append_sa = (struct sockaddr *)&udp_in;
-	if (sbappendaddr(&inp->inp_socket->so_rcv, append_sa, m, opts) == 0) {
-		udpstat.udps_fullsock++;
-		goto bad;
-	}
-	sorwakeup(inp->inp_socket);
+	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr));
 	INP_UNLOCK(inp);
 	return;
 
 badheadlocked:
 	INP_INFO_RUNLOCK(&udbinfo);
-bad:
 	if (inp)
 		INP_UNLOCK(inp);
 badunlocked:
@@ -493,6 +425,27 @@ udp_append(last, ip, n, off)
 	struct sockaddr *append_sa;
 	struct mbuf *opts = 0;
 
+#ifdef IPSEC
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject_so(n, last->inp_socket)) {
+		ipsecstat.in_polvio++;
+		m_freem(n);
+		return;
+	}
+#endif /*IPSEC*/
+#ifdef FAST_IPSEC
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject(n, last)) {
+		m_freem(n);
+		return;
+	}
+#endif /*FAST_IPSEC*/
+#ifdef MAC
+	if (mac_check_socket_deliver(last->inp_socket, n) != 0) {
+		m_freem(n);
+		return;
+	}
+#endif
 	if (last->inp_flags & INP_CONTROLOPTS ||
 	    last->inp_socket->so_options & SO_TIMESTAMP) {
 #ifdef INET6

@@ -106,6 +106,12 @@
 #include <netkey/key.h>
 #endif
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
+#define	IPSEC
+#endif
+
 #include <net/net_osdep.h>
 
 #ifdef HAVE_NRL_INPCB

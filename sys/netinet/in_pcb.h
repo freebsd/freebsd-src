@@ -42,10 +42,10 @@
 #include <sys/_mutex.h>
 
 #include <net/route.h>
-#include <netinet6/ipsec.h> /* for IPSEC */
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
 #define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
+struct inpcbpolicy;
 
 /*
  * Common structure pcb for internet protocol implementation.
