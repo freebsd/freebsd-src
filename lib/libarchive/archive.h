@@ -208,6 +208,8 @@ int		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_TIME	(4) /* Default: mod time not restored */
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE (8) /* Default: Replace files on disk */
 #define	ARCHIVE_EXTRACT_UNLINK	(16) /* Default: don't unlink existing files */
+#define	ARCHIVE_EXTRACT_ACL	(32) /* Default: don't restore ACLs */
+#define	ARCHIVE_EXTRACT_FFLAGS	(64) /* Default: don't restore fflags */
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
