@@ -896,35 +896,39 @@ void	cpu_wait(struct proc *);
 
 /* New in KSE. */
 struct	ksegrp *ksegrp_alloc(void);
-void	ksegrp_free(struct ksegrp *td);
+void	ksegrp_free(struct ksegrp *kg);
+void	ksegrp_stash(struct ksegrp *kg);
 struct	kse *kse_alloc(void);
-void	kse_free(struct kse *td);
-struct	thread *thread_alloc(void);
-void	thread_free(struct thread *td);
+void	kse_free(struct kse *ke);
+void	kse_stash(struct kse *ke);
 void	cpu_set_upcall(struct thread *td, void *pcb);
 void	cpu_set_upcall_kse(struct thread *td, struct kse *ke);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	kse_reassign(struct kse *ke);
 void	kse_link(struct kse *ke, struct ksegrp *kg);
+void	kse_unlink(struct kse *ke);
 void	ksegrp_link(struct ksegrp *kg, struct proc *p);
+void	ksegrp_unlink(struct ksegrp *kg);
 void	make_kse_runnable(struct kse *ke);
 struct thread *signal_upcall(struct proc *p, int sig);
+struct	thread *thread_alloc(void);
 void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td);
+void	thread_free(struct thread *td);
+void	thread_getcontext(struct thread *td, ucontext_t *uc);
 void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse *ke);
 int	thread_setcontext(struct thread *td, ucontext_t *uc);
-void	thread_getcontext(struct thread *td, ucontext_t *uc);
 int	thread_single(int how);
 #define	SINGLE_NO_EXIT 0			/* values for 'how' */
 #define	SINGLE_EXIT 1
 void	thread_single_end(void);
 void	thread_stash(struct thread *td);
 int	thread_suspend_check(int how);
-void	thread_unsuspend(struct proc *p);
 void	thread_suspend_one(struct thread *td);
+void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 
