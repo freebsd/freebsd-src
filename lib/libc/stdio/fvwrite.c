@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,8 +68,10 @@ __sfvwrite(fp, uio)
 	if ((len = uio->uio_resid) == 0)
 		return (0);
 	/* make sure we can write */
-	if (cantwrite(fp))
+	if (cantwrite(fp)) {
+		errno = EBADF;
 		return (EOF);
+	}
 
 #define	MIN(a, b) ((a) < (b) ? (a) : (b))
 #define	COPY(n)	  (void)memcpy((void *)fp->_p, (void *)p, (size_t)(n))
