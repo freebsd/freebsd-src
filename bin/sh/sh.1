@@ -1233,9 +1233,11 @@ make it the first or last character listed.
 This section lists the commands which
 are builtin because they need to perform some operation
 that cannot be performed by a separate process.  In addition to
-these, a builtin version of the
+these, builtin versions of the
+.Xr printf 1
+and
 .Xr test 1
-command is provided for efficiency.
+commands are provided for efficiency.
 .Bl -tag -width indent
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
@@ -1924,6 +1926,7 @@ emacs-style command line editing features.
 .Xr builtin 1 ,
 .Xr echo 1 ,
 .Xr expr 1 ,
+.Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr test 1
 .Sh HISTORY
