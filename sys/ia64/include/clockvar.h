@@ -50,4 +50,4 @@ struct clocktime {
 
 #include "clock_if.h"
 
-void clockattach(device_t);
+void clockattach(kobj_t);
