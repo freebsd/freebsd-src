@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 5/4/95";
 
 void err __P((int, const char *, ...));
 void head __P((FILE *, int));
+void head_bytes __P((FILE *, int));
 void obsolete __P((char *[]));
 void usage __P((void));
 
@@ -70,13 +71,17 @@ main(argc, argv)
 {
 	register int ch;
 	FILE *fp;
-	int first, linecnt;
+	int first, linecnt = -1, bytecnt = -1;
 	char *ep;
 
 	obsolete(argv);
-	linecnt = 10;
-	while ((ch = getopt(argc, argv, "n:")) != -1)
+	while ((ch = getopt(argc, argv, "n:c:")) != -1)
 		switch(ch) {
+		case 'c':
+			bytecnt = strtol(optarg, &ep, 10);
+			if (*ep || bytecnt <= 0)
+				err(1, "illegal byte count -- %s", optarg);
+			break;
 		case 'n':
 			linecnt = strtol(optarg, &ep, 10);
 			if (*ep || linecnt <= 0)
@@ -89,7 +94,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (*argv)
+	if (linecnt != -1 && bytecnt != -1)
+		err(1, "can't combine line and byte counts");
+	if (linecnt == -1 )
+		linecnt = 10;
+	if (*argv) {
 		for (first = 1; *argv; ++argv) {
 			if ((fp = fopen(*argv, "r")) == NULL) {
 				err(0, "%s: %s", *argv, strerror(errno));
@@ -100,11 +109,18 @@ main(argc, argv)
 				    first ? "" : "\n", *argv);
 				first = 0;
 			}
-			head(fp, linecnt);
+			if (bytecnt == -1)
+				head(fp, linecnt);
+			else
+				head_bytes(fp, bytecnt);
 			(void)fclose(fp);
 		}
-	else
+	}
+	else if (bytecnt == -1)
 		head(stdin, linecnt);
+	else
+		head_bytes(stdin, bytecnt);
+
 	exit(eval);
 }
 
@@ -124,12 +140,34 @@ head(fp, cnt)
 }
 
 void
+head_bytes(fp, cnt)
+	 FILE *fp;
+	 register int cnt;
+{
+	char buf[4096];
+	register int readlen;
+
+	while (cnt) {
+		if (cnt < sizeof(buf))
+			readlen = cnt;
+		else
+			readlen = sizeof(buf);
+		readlen = fread(buf, sizeof(char), readlen, fp);
+		if (readlen == EOF)
+			break;
+		if (fwrite(buf, sizeof(char), readlen, stdout) != readlen)
+			err(1, "stdout: %s", strerror(errno));
+		cnt -= readlen;
+	}
+}
+
+void
 obsolete(argv)
 	char *argv[];
 {
 	char *ap;
 
-	while (ap = *++argv) {
+	while ((ap = *++argv)) {
 		/* Return if "--" or not "-[0-9]*". */
 		if (ap[0] != '-' || ap[1] == '-' || !isdigit(ap[1]))
 			return;
