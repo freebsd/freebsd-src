@@ -403,8 +403,8 @@ USB_MATCH(uaudio)
 	id = usbd_get_interface_descriptor(uaa->iface);
 	/* Trigger on the control interface. */
 	if (id == NULL || 
-	    id->bInterfaceClass != UCLASS_AUDIO ||
-	    id->bInterfaceSubClass != USUBCLASS_AUDIOCONTROL ||
+	    id->bInterfaceClass != UICLASS_AUDIO ||
+	    id->bInterfaceSubClass != UISUBCLASS_AUDIOCONTROL ||
 	    (usbd_get_quirks(uaa->device)->uq_flags & UQ_BAD_AUDIO))
 		return (UMATCH_NONE);
 
@@ -643,7 +643,7 @@ uaudio_find_iface(char *buf, int size, int *offsp, int subtype)
 		d = (void *)(buf + *offsp);
 		*offsp += d->bLength;
 		if (d->bDescriptorType == UDESC_INTERFACE &&
-		    d->bInterfaceClass == UCLASS_AUDIO &&
+		    d->bInterfaceClass == UICLASS_AUDIO &&
 		    d->bInterfaceSubClass == subtype)
 			return (d);
 	}
@@ -1353,7 +1353,7 @@ uaudio_identify_as(struct uaudio_softc *sc, usb_config_descriptor_t *cdesc)
 
 	/* Locate the AudioStreaming interface descriptor. */
 	offs = 0;
-	id = uaudio_find_iface(buf, size, &offs, USUBCLASS_AUDIOSTREAM);
+	id = uaudio_find_iface(buf, size, &offs, UISUBCLASS_AUDIOSTREAM);
 	if (id == NULL)
 		return (USBD_INVAL);
 
@@ -1381,7 +1381,7 @@ uaudio_identify_as(struct uaudio_softc *sc, usb_config_descriptor_t *cdesc)
 #endif
 			break;
 		}
-		id = uaudio_find_iface(buf, size, &offs,USUBCLASS_AUDIOSTREAM);
+		id = uaudio_find_iface(buf, size, &offs,UISUBCLASS_AUDIOSTREAM);
 		if (id == NULL)
 			break;
 	}
@@ -1415,7 +1415,7 @@ uaudio_identify_ac(struct uaudio_softc *sc, usb_config_descriptor_t *cdesc)
 
 	/* Locate the AudioControl interface descriptor. */
 	offs = 0;
-	id = uaudio_find_iface(buf, size, &offs, USUBCLASS_AUDIOCONTROL);
+	id = uaudio_find_iface(buf, size, &offs, UISUBCLASS_AUDIOCONTROL);
 	if (id == NULL)
 		return (USBD_INVAL);
 	if (offs + sizeof *acdp > size)
