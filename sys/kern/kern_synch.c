@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.38 1997/09/02 20:05:43 bde Exp $
+ * $Id: kern_synch.c,v 1.39 1997/09/21 22:00:14 gibbs Exp $
  */
 
 #include "opt_ktrace.h"
@@ -327,7 +327,7 @@ int
 tsleep(ident, priority, wmesg, timo)
 	void *ident;
 	int priority, timo;
-	char *wmesg;
+	const char *wmesg;
 {
 	struct proc *p = curproc;
 	int s, sig, catch = priority & PCATCH;
