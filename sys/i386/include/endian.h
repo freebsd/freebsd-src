@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.7 1996/10/21 17:15:05 nate Exp $
+ *	$Id: endian.h,v 1.7.2.1 1998/01/04 04:26:38 steve Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -57,7 +57,6 @@
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
-#endif
 
 __BEGIN_DECLS
 unsigned long	htonl __P((unsigned long));
@@ -65,6 +64,8 @@ unsigned short	htons __P((unsigned short));
 unsigned long	ntohl __P((unsigned long));
 unsigned short	ntohs __P((unsigned short));
 __END_DECLS
+
+#endif /* !KERNEL */
 
 #define __word_swap_long(x) \
 ({ register u_long __X = (x); \
