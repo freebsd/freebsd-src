@@ -121,9 +121,9 @@ static Token CondF(Boolean);
 static Token CondE(Boolean);
 
 static struct If {
-    char	*form;	      /* Form of if */
-    int		formlen;      /* Length of form */
-    Boolean	doNot;	      /* TRUE if default function should be negated */
+    char	*form;		/* Form of if */
+    int		formlen;	/* Length of form */
+    Boolean	doNot;		/* TRUE if default function should be negated */
     CondProc	*defProc;	/* Default function to apply */
 } ifs[] = {
     { "ifdef",	  5,	  FALSE,  CondDoDefined },
@@ -757,9 +757,9 @@ error:
 	    }
 	    default: {
 		CondProc	*evalProc;
-		Boolean invert = FALSE;
-		char	*arg;
-		int	arglen;
+		Boolean		invert = FALSE;
+		char		*arg;
+		int		arglen;
 
 		if (strncmp(condExpr, "defined", 7) == 0) {
 		    /*
