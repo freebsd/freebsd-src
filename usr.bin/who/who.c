@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -160,7 +161,7 @@ row(struct utmp *ut)
 {
 	char buf[80], tty[sizeof(_PATH_DEV) + UT_LINESIZE];
 	struct stat sb;
-	time_t idle;
+	time_t idle, t;
 	static int d_first = -1;
 	struct tm *tm;
 	char state;
@@ -184,7 +185,8 @@ row(struct utmp *ut)
 	if (Tflag)
 		printf("%c ", state);
 	printf("%-*.*s ", UT_LINESIZE, UT_LINESIZE, ut->ut_line);
-	tm = localtime(&ut->ut_time);
+	t = _time32_to_time(ut->ut_time);
+	tm = localtime(&t);
 	strftime(buf, sizeof(buf), d_first ? "%e %b %R" : "%b %e %R", tm);
 	printf("%-*s ", 12, buf);
 	if (uflag) {
@@ -265,7 +267,7 @@ whoami(FILE *fp)
 		name = "?";
 	strncpy(ut.ut_name, name, UT_NAMESIZE);
 	strncpy(ut.ut_line, tty, UT_LINESIZE);
-	time(&ut.ut_time);
+	ut.ut_time = _time_to_time32(time(NULL));
 	row(&ut);
 }
 
