@@ -259,7 +259,7 @@ modnext(struct thread *td, struct modnext_args *uap)
 	td->td_retval[0] = -1;
 
 	MOD_SLOCK;
-	if (SCARG(uap, modid) == 0) {
+	if (uap->modid == 0) {
 		mod = TAILQ_FIRST(&modules);
 		if (mod)
 			td->td_retval[0] = mod->id;
@@ -267,7 +267,7 @@ modnext(struct thread *td, struct modnext_args *uap)
 			error = ENOENT;
 		goto done2;
 	}
-	mod = module_lookupbyid(SCARG(uap, modid));
+	mod = module_lookupbyid(uap->modid);
 	if (mod == NULL) {
 		error = ENOENT;
 		goto done2;
@@ -293,7 +293,7 @@ modfnext(struct thread *td, struct modfnext_args *uap)
 	td->td_retval[0] = -1;
 
 	MOD_SLOCK;
-	mod = module_lookupbyid(SCARG(uap, modid));
+	mod = module_lookupbyid(uap->modid);
 	if (mod == NULL) {
 		error = ENOENT;
 	} else {
@@ -328,7 +328,7 @@ modstat(struct thread *td, struct modstat_args *uap)
 	char *name;
 
 	MOD_SLOCK;
-	mod = module_lookupbyid(SCARG(uap, modid));
+	mod = module_lookupbyid(uap->modid);
 	if (mod == NULL) {
 		MOD_SUNLOCK;
 		return (ENOENT);
@@ -338,7 +338,7 @@ modstat(struct thread *td, struct modstat_args *uap)
 	name = mod->name;
 	data = mod->data;
 	MOD_SUNLOCK;
-	stat = SCARG(uap, stat);
+	stat = uap->stat;
 
 	/*
 	 * Check the version of the user's structure.
@@ -380,7 +380,7 @@ modfind(struct thread *td, struct modfind_args *uap)
 	char name[MAXMODNAME];
 	module_t mod;
 
-	if ((error = copyinstr(SCARG(uap, name), name, sizeof name, 0)) != 0)
+	if ((error = copyinstr(uap->name, name, sizeof name, 0)) != 0)
 		return (error);
 
 	MOD_SLOCK;

@@ -199,8 +199,8 @@ ibcs2_sigaction(td, uap)
 	int error;
 
 	sg = stackgap_init();
-	nisa = SCARG(uap, act);
-	oisa = SCARG(uap, oact);
+	nisa = uap->act;
+	oisa = uap->oact;
 
 	if (oisa != NULL)
 		obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
@@ -217,9 +217,9 @@ ibcs2_sigaction(td, uap)
 	} else
 		nbsa = NULL;
 
-	SCARG(&sa, sig) = ibcs2_to_bsd_sig[_SIG_IDX(SCARG(uap, sig))];
-	SCARG(&sa, act) = nbsa;
-	SCARG(&sa, oact) = obsa;
+	sa.sig = ibcs2_to_bsd_sig[_SIG_IDX(uap->sig)];
+	sa.act = nbsa;
+	sa.oact = obsa;
 
 	if ((error = sigaction(td, &sa)) != 0)
 		return error;
@@ -242,24 +242,24 @@ ibcs2_sigsys(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct sigaction sa;
-	int signum = ibcs2_to_bsd_sig[_SIG_IDX(IBCS2_SIGNO(SCARG(uap, sig)))];
+	int signum = ibcs2_to_bsd_sig[_SIG_IDX(IBCS2_SIGNO(uap->sig))];
 	int error;
 	caddr_t sg = stackgap_init();
 
 	if (signum <= 0 || signum >= IBCS2_NSIG) {
-		if (IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGNAL_MASK ||
-		    IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGSET_MASK)
+		if (IBCS2_SIGCALL(uap->sig) == IBCS2_SIGNAL_MASK ||
+		    IBCS2_SIGCALL(uap->sig) == IBCS2_SIGSET_MASK)
 			td->td_retval[0] = (int)IBCS2_SIG_ERR;
 		return EINVAL;
 	}
 	
-	switch (IBCS2_SIGCALL(SCARG(uap, sig))) {
+	switch (IBCS2_SIGCALL(uap->sig)) {
 	case IBCS2_SIGSET_MASK:
 		/*
 		 * Check for SIG_HOLD action.
 		 * Otherwise, perform signal() except with different sa_flags.
 		 */
-		if (SCARG(uap, fp) != IBCS2_SIG_HOLD) {
+		if (uap->fp != IBCS2_SIG_HOLD) {
 			/* add sig to mask before exececuting signal handler */
 			sa.sa_flags = 0;
 			goto ibcs2_sigset;
@@ -273,9 +273,9 @@ ibcs2_sigsys(td, uap)
 
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, signum);
-			SCARG(&sa, how) = SIG_BLOCK;
-			SCARG(&sa, set) = &mask;
-			SCARG(&sa, oset) = NULL;
+			sa.how = SIG_BLOCK;
+			sa.set = &mask;
+			sa.oset = NULL;
 			return sigprocmask(td, &sa);
 		}
 		
@@ -296,11 +296,11 @@ ibcs2_sigsys(td, uap)
 		ibcs2_sigset:
 			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, sig) = signum;
-			SCARG(&sa_args, act) = nbsa;
-			SCARG(&sa_args, oact) = obsa;
+			sa_args.sig = signum;
+			sa_args.act = nbsa;
+			sa_args.oact = obsa;
 
-			sa.sa_handler = SCARG(uap, fp);
+			sa.sa_handler = uap->fp;
 			sigemptyset(&sa.sa_mask);
 #if 0
 			if (signum != SIGALRM)
@@ -321,7 +321,7 @@ ibcs2_sigsys(td, uap)
 			td->td_retval[0] = (int)sa.sa_handler;
 
 			/* special sigset() check */
-                        if(IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGSET_MASK) {
+                        if(IBCS2_SIGCALL(uap->sig) == IBCS2_SIGSET_MASK) {
 				PROC_LOCK(p);
 			        /* check to make sure signal is not blocked */
                                 if(sigismember(&p->p_sigmask, signum)) {
@@ -343,9 +343,9 @@ ibcs2_sigsys(td, uap)
 
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, signum);
-			SCARG(&sa, how) = SIG_UNBLOCK;
-			SCARG(&sa, set) = &mask;
-			SCARG(&sa, oset) = NULL;
+			sa.how = SIG_UNBLOCK;
+			sa.set = &mask;
+			sa.oset = NULL;
 			return sigprocmask(td, &sa);
 		}
 		
@@ -355,9 +355,9 @@ ibcs2_sigsys(td, uap)
 			struct sigaction *bsa;
 
 			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, sig) = signum;
-			SCARG(&sa_args, act) = bsa;
-			SCARG(&sa_args, oact) = NULL;
+			sa_args.sig = signum;
+			sa_args.act = bsa;
+			sa_args.oact = NULL;
 
 			sa.sa_handler = SIG_IGN;
 			sigemptyset(&sa.sa_mask);
@@ -380,7 +380,7 @@ ibcs2_sigsys(td, uap)
 			mask = p->p_sigmask;
 			PROC_UNLOCK(p);
 			SIGDELSET(mask, signum);
-			SCARG(&sa, sigmask) = &mask;
+			sa.sigmask = &mask;
 			return sigsuspend(td, &sa);
 		}
 		
@@ -399,27 +399,27 @@ ibcs2_sigprocmask(td, uap)
 	sigset_t bss;
 	int error = 0;
 
-	if (SCARG(uap, oset) != NULL) {
+	if (uap->oset != NULL) {
 		/* Fix the return value first if needed */
 		PROC_LOCK(p);
 		bsd_to_ibcs2_sigset(&p->p_sigmask, &iss);
 		PROC_UNLOCK(p);
-		if ((error = copyout(&iss, SCARG(uap, oset), sizeof(iss))) != 0)
+		if ((error = copyout(&iss, uap->oset, sizeof(iss))) != 0)
 			return error;
 	}
 		
-	if (SCARG(uap, set) == NULL)
+	if (uap->set == NULL)
 		/* Just examine */
 		return 0;
 
-	if ((error = copyin(SCARG(uap, set), &iss, sizeof(iss))) != 0)
+	if ((error = copyin(uap->set, &iss, sizeof(iss))) != 0)
 		return error;
 
 	ibcs2_to_bsd_sigset(&iss, &bss);
 
 	PROC_LOCK(p);
 
-	switch (SCARG(uap, how)) {
+	switch (uap->how) {
 	case IBCS2_SIG_BLOCK:
 		SIGSETOR(p->p_sigmask, bss);
 		SIG_CANTMASK(p->p_sigmask);
@@ -461,7 +461,7 @@ ibcs2_sigpending(td, uap)
 	PROC_UNLOCK(p);
 	bsd_to_ibcs2_sigset(&bss, &iss);
 
-	return copyout(&iss, SCARG(uap, mask), sizeof(iss));
+	return copyout(&iss, uap->mask, sizeof(iss));
 }
 
 int
@@ -474,11 +474,11 @@ ibcs2_sigsuspend(td, uap)
 	struct sigsuspend_args sa;
 	int error;
 
-	if ((error = copyin(SCARG(uap, mask), &sss, sizeof(sss))) != 0)
+	if ((error = copyin(uap->mask, &sss, sizeof(sss))) != 0)
 		return error;
 
 	ibcs2_to_bsd_sigset(&sss, &bss);
-	SCARG(&sa, sigmask) = &bss;
+	sa.sigmask = &bss;
 	return sigsuspend(td, &sa);
 }
 
@@ -494,7 +494,7 @@ ibcs2_pause(td, uap)
 	PROC_LOCK(p);
 	mask = td->td_proc->p_sigmask;
 	PROC_UNLOCK(p);
-	SCARG(&sa, sigmask) = &mask;
+	sa.sigmask = &mask;
 	return sigsuspend(td, &sa);
 }
 
@@ -505,7 +505,7 @@ ibcs2_kill(td, uap)
 {
 	struct kill_args ka;
 
-	SCARG(&ka, pid) = SCARG(uap, pid);
-	SCARG(&ka, signum) = ibcs2_to_bsd_sig[_SIG_IDX(SCARG(uap, signo))];
+	ka.pid = uap->pid;
+	ka.signum = ibcs2_to_bsd_sig[_SIG_IDX(uap->signo)];
 	return kill(td, &ka);
 }

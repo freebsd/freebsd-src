@@ -79,12 +79,12 @@ xenix_rdchk(td, uap)
 	caddr_t sg = stackgap_init();
 
 	DPRINTF(("IBCS2: 'xenix rdchk'\n"));
-	SCARG(&sa, fd) = SCARG(uap, fd);
-	SCARG(&sa, com) = FIONREAD;
-	SCARG(&sa, data) = stackgap_alloc(&sg, sizeof(int));
+	sa.fd = uap->fd;
+	sa.com = FIONREAD;
+	sa.data = stackgap_alloc(&sg, sizeof(int));
 	if ((error = ioctl(td, &sa)) != 0)
 		return error;
-	td->td_retval[0] = (*((int*)SCARG(&sa, data))) ? 1 : 0;
+	td->td_retval[0] = (*((int*)sa.data)) ? 1 : 0;
 	return 0;
 }
 
@@ -96,9 +96,9 @@ xenix_chsize(td, uap)
 	struct ftruncate_args sa;
 
 	DPRINTF(("IBCS2: 'xenix chsize'\n"));
-	SCARG(&sa, fd) = SCARG(uap, fd);
-	SCARG(&sa, pad) = 0;
-	SCARG(&sa, length) = SCARG(uap, size);
+	sa.fd = uap->fd;
+	sa.pad = 0;
+	sa.length = uap->size;
 	return ftruncate(td, &sa);
 }
 
@@ -123,7 +123,7 @@ xenix_ftime(td, uap)
 	itb.timezone = tz.tz_minuteswest;
 	itb.dstflag = tz.tz_dsttime != DST_NONE;
 
-	return copyout((caddr_t)&itb, (caddr_t)SCARG(uap, tp),
+	return copyout((caddr_t)&itb, (caddr_t)uap->tp,
 		       sizeof(struct ibcs2_timeb));
 }
 
@@ -132,8 +132,8 @@ xenix_nap(struct thread *td, struct xenix_nap_args *uap)
 {
 	long period;
 
-	DPRINTF(("IBCS2: 'xenix nap %d ms'\n", SCARG(uap, millisec)));
-	period = (long)SCARG(uap, millisec) / (1000/hz);
+	DPRINTF(("IBCS2: 'xenix nap %d ms'\n", uap->millisec));
+	period = (long)uap->millisec / (1000/hz);
 	if (period)
 		while (tsleep(&period, PPAUSE, "nap", period) 
 		       != EWOULDBLOCK) ;
@@ -200,22 +200,22 @@ xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
         int error, flags;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, uap->path);
 
         NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-            SCARG(uap, path), td);
+            uap->path, td);
         if ((error = namei(&nd)) != 0)
                 return error;
         vp = nd.ni_vp;
 
         /* Flags == 0 means only check for existence. */
-        if (SCARG(uap, flags)) {
+        if (uap->flags) {
                 flags = 0;
-                if (SCARG(uap, flags) & IBCS2_R_OK)
+                if (uap->flags & IBCS2_R_OK)
                         flags |= VREAD;
-                if (SCARG(uap, flags) & IBCS2_W_OK)
+                if (uap->flags & IBCS2_W_OK)
                         flags |= VWRITE;
-                if (SCARG(uap, flags) & IBCS2_X_OK)
+                if (uap->flags & IBCS2_X_OK)
                         flags |= VEXEC;
                 if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
                         error = VOP_ACCESS(vp, flags, cred, td);
