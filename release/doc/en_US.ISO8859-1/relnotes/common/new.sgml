@@ -36,13 +36,13 @@
 
     <para>The &man.kqueue.2; event notification facility was added to
     the &os; kernel.  This is a new interface which is able to
-    replace &man.poll.2;/&man.select.2, offering improved performance,
+    replace &man.poll.2;/&man.select.2;, offering improved performance,
     as well as the ability to report many different types of events.
     Support for monitoring changes in sockets, pipes, fifos, and files
     are present, as well as for signals and processes. &merged;</para>
 
     <para arch="i386">Support for Intel's Wired for Management 2.0 (PXE)
-    was added to the FreeBSD boot loader.  Due to API differences, the
+    was added to the &os; boot loader.  Due to API differences, the
     older PXE versions are not supported.  This allow network booting
     using DHCP. &merged;</para>
 
@@ -130,10 +130,10 @@
     vendor/device database, which can be used by
     &man.pciconf.8;.</para>
 
-    <para arch="i386">The &man.spic.4; driver, which provides access to the job
+    <para arch="i386">The &man.spic.4; driver, which provides access to the jog
     dial device on some Sony laptops, has been added.</para>
 
-    <para arch="i386">PECOFF (WIN32 Execution file format) support has been
+    <para arch="i386">PECOFF (Win32 Execution file format) support has been
     added.</para>
 
     <para>A VESA S3 linear framebuffer driver has been added.</para>
@@ -157,7 +157,7 @@
     mass-storage devices.  Entropy from the &man.random.4; device is
     now periodically saved to files in
     <filename>/var/db/entropy</filename>, as well as at
-    &man.shutdown.8; time.</para>
+    shutdown time.</para>
 
     <para>The &man.syscons.4; driver now supports keyboard-controlled
     pasting, by default bound to
@@ -177,7 +177,7 @@
     some of the per-CPU data.</para>
 
     <para>A new digi driver has been added to support PCI Xr-based and ISA
-    Xem Digiboard cards.  A new digictl program is (mainly) used to
+    Xem Digiboard cards.  A new &man.digictl.8; program is (mainly) used to
     re-initialise cards that have external port modules attached such as
     the PC/Xem.</para>
 
@@ -247,12 +247,12 @@
 
       <para arch="i386">Support for the 80386 processor has been
       removed from the <filename>GENERIC</filename> kernel, as this
-      code seriously pessimizes performance on other ia32
+      code seriously pessimizes performance on other IA32
       processors.</para>
 
       <para arch="i386">The <literal>I386_CPU</literal> kernel option
       to support the 80386 processor is now mutually exclusive with
-      support for other ia32 processors; this should slightly improve
+      support for other IA32 processors; this should slightly improve
       performance on the 80386 due to the elimination of runtime
       processor type checks.</para>
 
@@ -280,10 +280,10 @@
 
       <para arch="alpha">Kernel code has been added that allows older generation Alpha CPUs
       (EV4 and EV5) to emulate instructions of the newer Alpha CPU 
-      generations. This enables the use of binary-only programs like Adobe
-      Acrobat 4 on EV4 and EV5.</para>
+      generations. This enables the use of binary-only programs like <application>Adobe
+      Acrobat 4</application> on EV4 and EV5.</para>
 
-      <para arch="alpha">SMP support for the alpha is now operational.</para>
+      <para arch="alpha">SMP support for the Alpha is now operational.</para>
 
       <para arch="i386">Detection for new processors, such as the
       FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, and Transmeta
@@ -327,7 +327,7 @@
       supported by the &man.lnc.4; driver, the &man.pcn.4; driver runs
       these chips in 32-bit mode and uses the RX alignment feature to
       achieve zero-copy receive.  This driver is also
-      machine-independent, so it will work on both the i386 and alpha
+      machine-independent, so it will work on both the i386 and Alpha
       platforms.  The &man.lnc.4; driver is still needed to support non-PCI
       cards. &merged;</para>
 
@@ -410,7 +410,7 @@
       has been added. &merged;</para>
 
       <para>The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
-      been added to the netgraph subsystem.  The &man.ng.ether.4; node
+      been added to the &man.netgraph.4; subsystem.  The &man.ng.ether.4; node
       is now dynamically loadable.  Miscellaneous bug fixes and
       enhancements have also been made. &merged;</para>
 
@@ -490,7 +490,7 @@
       <option>-S</option> flags, to be used in creating
       <quote>proxy-only</quote> published entries.</para>
 
-      <para>&man.ipfw.8; now filters correctly in the presence of ECN bits in TCP
+      <para>&man.ipfw.4; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
 
       <para>&man.ipfw.8; will now avoid the display of dynamic
@@ -535,7 +535,7 @@
       configure-time options. &merged;</para>
 
       <para>The &man.ata.4; driver now has support for tagged queuing,
-      which is enabled by the <literal>hw.ata.tags</literal> loader
+      which is enabled by the <varname>hw.ata.tags</varname> loader
       tunable. &merged;</para>
 
       <para>The &man.ata.4; driver now has support for ATA
@@ -704,7 +704,7 @@
       replace an older, unified driver.  A driver for the CMedia
       CMI8338/CMI8738 sound chips has been added.  A driver for the
       CS4281 sound chip has been added.  A driver for the S3
-      Sonicvobes chipset has been added. &merged;</para>
+      Sonicvibes chipset has been added. &merged;</para>
 
       <para arch="i386">A driver for the Advance Logic ALS4000 has
       been added. &merged;</para>
@@ -933,7 +933,7 @@
     certain malformed packets, has been corrected (see security
     advisory FreeBSD-SA-01:29). &merged;</para>
 
-    <para>A security hole in FreeBSD's FFS and EXT2FS implementations,
+    <para>A security hole in &os;'s FFS and EXT2FS implementations,
     which allowed a race condition that could cause users to have
     unauthorized access to data, has been fixed (see security advisory
     FreeBSD-SA-01:30). &merged;</para>
@@ -1064,7 +1064,7 @@
     <filename>.pubkey</filename> file.</para>
 
     <para>nsswitch support has been merged from NetBSD.  By creating
-    an &man.nsswitch.conf.5; file, FreeBSD can be configured so that
+    an &man.nsswitch.conf.5; file, &os; can be configured so that
     various databases such as &man.passwd.5; and &man.group.5; can be
     looked up using flat files, NIS, or Hesiod.  The old
     <filename>hosts.conf</filename> file is no longer used.</para>
@@ -1120,7 +1120,7 @@
     modifiers.  These were added to reduce the differences between the
     &os; and
     OpenBSD/NetBSD
-    &man.make.1 programs. &merged; </para>
+    &man.make.1; programs. &merged; </para>
 
     <para>Bugs in &man.make.1;, among which include broken null suffix
     behavior, bad assumptions about current directory permissions, and
@@ -1238,7 +1238,7 @@
     thanks to some new dialog support functions. &merged;</para>
 
     <para>The default root partition in &man.sysinstall.8; is now
-    100MB on the i386 and 120MB on the alpha.</para>
+    100MB on the i386 and 120MB on the Alpha.</para>
 
     <para>Shortly after the receipt of a <literal>SIGINFO</literal>
     signal (normally control-T from the controlling tty), &man.fsck.ffs.8;
@@ -1352,7 +1352,7 @@
     specified number of tracks while playing an audio CD. &merged;</para>
 
     <para>&man.sysctl.8; now supports a <option>-N</option> option to
-    print out variable names only. &merged</para>
+    print out variable names only. &merged;</para>
 
     <para>&man.sysctl.8; has replaced the <option>-A</option> and
     <option>-X</option> options with <option>-ao</option> and
@@ -2021,7 +2021,7 @@
       new-style version numbers. &merged;</para>
 
       <para>To improve performance and disk utilization, the <quote>ports
-      skeletons</quote> in the FreeBSD Ports Collection have been restructured.
+      skeletons</quote> in the &os; Ports Collection have been restructured.
       Installed ports and packages should not be affected. &merged;</para>
 
       <para>All packages and ports now contain an <quote>origin</quote>
