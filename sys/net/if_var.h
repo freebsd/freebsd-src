@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if_var.h,v 1.7 1998/04/15 17:46:44 bde Exp $
+ *	$Id: if_var.h,v 1.8 1998/06/07 17:12:06 dfr Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -326,9 +326,9 @@ void	ifafree __P((struct ifaddr *));
 
 struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *, 
 					    struct ifnet *));
+int	if_simloop __P((struct ifnet *ifp, struct mbuf *m,
+		struct sockaddr *dst, int hlen));
 
-int	looutput __P((struct ifnet *,
-	   struct mbuf *, struct sockaddr *, struct rtentry *));
 #endif /* KERNEL */
 
 

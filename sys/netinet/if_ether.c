@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.45 1998/05/23 08:03:40 phk Exp $
+ * $Id: if_ether.c,v 1.46 1998/06/07 17:12:12 dfr Exp $
  */
 
 /*
@@ -104,7 +104,8 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	   &arp_proxyall, 0, "");
 
 static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-static void	arprequest __P((struct arpcom *, u_int32_t *, u_int32_t *, u_char *));
+static void	arprequest __P((struct arpcom *,
+			struct in_addr *, struct in_addr *, u_char *));
 static void	arpintr __P((void));
 static void	arptfree __P((struct llinfo_arp *));
 static void	arptimer __P((void *));
@@ -183,8 +184,8 @@ arp_rtrequest(req, rt, sa)
 		/* Announce a new entry if requested. */
 		if (rt->rt_flags & RTF_ANNOUNCE)
 			arprequest((struct arpcom *)rt->rt_ifp,
-			    &SIN(rt_key(rt))->sin_addr.s_addr,
-			    &SIN(rt_key(rt))->sin_addr.s_addr,
+			    &SIN(rt_key(rt))->sin_addr,
+			    &SIN(rt_key(rt))->sin_addr,
 			    (u_char *)LLADDR(SDL(gate)));
 		/*FALLTHROUGH*/
 	case RTM_RESOLVE:
@@ -275,7 +276,7 @@ arp_rtrequest(req, rt, sa)
 static void
 arprequest(ac, sip, tip, enaddr)
 	register struct arpcom *ac;
-	register u_int32_t *sip, *tip;
+	register struct in_addr *sip, *tip;
 	register u_char *enaddr;
 {
 	register struct mbuf *m;
@@ -374,9 +375,8 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 			rt->rt_expire = time_second;
 			if (la->la_asked++ < arp_maxtries)
 			    arprequest(ac,
-			        &(SIN(rt->rt_ifa->ifa_addr)->sin_addr.s_addr),
-				&(SIN(dst)->sin_addr.s_addr),
-				ac->ac_enaddr);
+			        &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
+				&SIN(dst)->sin_addr, ac->ac_enaddr);
 			else {
 				rt->rt_flags |= RTF_REJECT;
 				rt->rt_expire += arpt_down;
@@ -642,8 +642,8 @@ arp_ifinit(ac, ifa)
 	struct ifaddr *ifa;
 {
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
-		arprequest(ac, &(IA_SIN(ifa)->sin_addr.s_addr),
-			       &(IA_SIN(ifa)->sin_addr.s_addr), ac->ac_enaddr);
+		arprequest(ac, &IA_SIN(ifa)->sin_addr,
+			       &IA_SIN(ifa)->sin_addr, ac->ac_enaddr);
 	ifa->ifa_rtrequest = arp_rtrequest;
 	ifa->ifa_flags |= RTF_CLONING;
 }

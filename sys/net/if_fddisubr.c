@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.29 1998/05/20 14:08:43 dufault Exp $
+ * $Id: if_fddisubr.c,v 1.30 1998/05/21 00:33:16 dg Exp $
  */
 
 #include "opt_atalk.h"
@@ -139,12 +139,11 @@ fddi_output(ifp, m0, dst, rt0)
 	struct rtentry *rt0;
 {
 	u_int16_t type;
-	int s, error = 0;
+	int s, loop_copy = 0, error = 0;
  	u_char edst[6];
 	register struct mbuf *m = m0;
 	register struct rtentry *rt;
 	register struct fddi_header *fh;
-	struct mbuf *mcopy = (struct mbuf *)0;
 	struct arpcom *ac = (struct arpcom *)ifp;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -186,47 +185,22 @@ fddi_output(ifp, m0, dst, rt0)
 		if (!arpresolve(ac, m, &((struct sockaddr_in *)dst)->sin_addr, edst, &usetrailers))
 			return (0);	/* if not yet resolved */
 #endif
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
 #endif
 #ifdef IPX
 	case AF_IPX:
-		{
-		struct ifaddr *ia;
-
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-
-		for(ia = ifp->if_addrhead.tqh_first; ia != 0;
-		    ia = ia->ifa_link.tqe_next) {
-			if(ia->ifa_addr->sa_family == AF_IPX &&
-			   !bcmp((caddr_t)edst,
-				 (caddr_t)&((struct ipx_ifaddr *)ia)->ia_addr.sipx_addr.x_host,
-				 sizeof(edst)) )
-				return (looutput(ifp, m, dst, rt));
-		}
-
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
-		}
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
-            if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst)) {
-#ifdef NETATALKDEBUG
-                extern char *prsockaddr(struct sockaddr *);
-                printf("aarpresolv: failed for %s\n", prsockaddr(dst));
-#endif
+            if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst))
                 return (0);
-            }
 	    /*
 	     * ifaddr is the first thing in at_ifaddr
 	     */
@@ -261,11 +235,6 @@ fddi_output(ifp, m0, dst, rt0)
 		type = htons(ETHERTYPE_NS);
  		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst)))
-			return (looutput(ifp, m, dst, rt));
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
 #endif
 #ifdef	ISO
@@ -284,17 +253,6 @@ fddi_output(ifp, m0, dst, rt0)
 		/* If broadcasting on a simplex interface, loopback a copy */
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX) &&
-		    (mcopy = m_copy(m, 0, (int)M_COPYALL))) {
-			M_PREPEND(mcopy, sizeof (*fh), M_DONTWAIT);
-			if (mcopy) {
-				fh = mtod(mcopy, struct fddi_header *);
-				bcopy((caddr_t)edst,
-				      (caddr_t)fh->fddi_dhost, sizeof (edst));
-				bcopy((caddr_t)ac->ac_enaddr,
-				      (caddr_t)fh->fddi_shost, sizeof (edst));
-			}
-		}
 		M_PREPEND(m, 3, M_DONTWAIT);
 		if (m == NULL)
 			return (0);
@@ -320,18 +278,8 @@ fddi_output(ifp, m0, dst, rt0)
 		if (sdl && sdl->sdl_family != AF_LINK && sdl->sdl_alen <= 0)
 			goto bad; /* Not a link interface ? Funny ... */
 		bcopy(LLADDR(sdl), (char *)edst, sizeof(edst));
-		if ((ifp->if_flags & IFF_SIMPLEX) && (*edst & 1) &&
-		    (mcopy = m_copy(m, 0, (int)M_COPYALL))) {
-			M_PREPEND(mcopy, sizeof (*fh), M_DONTWAIT);
-			if (mcopy) {
-				fh = mtod(mcopy, struct fddi_header *);
-				bcopy((caddr_t)edst,
-				      (caddr_t)fh->fddi_dhost, sizeof (edst));
-				bcopy((caddr_t)ac->ac_enaddr,
-				      (caddr_t)fh->fddi_shost, sizeof (edst));
-				fh->fddi_fc = FDDIFC_LLC_ASYNC|FDDIFC_LLC_PRIO4;
-			}
-		}
+		if (*edst & 1)
+			loop_copy = 1;
 		type = 0;
 #ifdef LLC_DEBUG
 		{
@@ -402,9 +350,6 @@ fddi_output(ifp, m0, dst, rt0)
 		senderr(EAFNOSUPPORT);
 	}
 
-
-	if (mcopy)
-		(void) looutput(ifp, mcopy, dst, rt);
 	if (type != 0) {
 		register struct llc *l;
 		M_PREPEND(m, sizeof (struct llc), M_DONTWAIT);
@@ -417,6 +362,7 @@ fddi_output(ifp, m0, dst, rt0)
 		(void)memcpy((caddr_t) &l->llc_snap.ether_type, (caddr_t) &type,
 			sizeof(u_int16_t));
 	}
+
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
@@ -430,6 +376,30 @@ fddi_output(ifp, m0, dst, rt0)
   queue_it:
  	(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)ac->ac_enaddr,
 	    sizeof(fh->fddi_shost));
+
+	/*
+	 * If a simplex interface, and the packet is being sent to our
+	 * Ethernet address or a broadcast address, loopback a copy.
+	 * XXX To make a simplex device behave exactly like a duplex
+	 * device, we should copy in the case of sending to our own
+	 * ethernet address (thus letting the original actually appear
+	 * on the wire). However, we don't do that here for security
+	 * reasons and compatibility with the original behavior.
+	 */
+	if (ifp->if_flags & IFF_SIMPLEX) {
+		if ((m->m_flags & M_BCAST) || loop_copy) {
+			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+
+			(void) if_simloop(ifp,
+				n, dst, sizeof(struct fddi_header));
+	     	} else if (bcmp(fh->fddi_dhost,
+		    fh->fddi_shost, sizeof(fh->fddi_shost)) == 0) {
+			(void) if_simloop(ifp,
+				m, dst, sizeof(struct fddi_header));
+			return(0);	/* XXX */
+		}
+	}
+
 	s = splimp();
 	/*
 	 * Queue message on interface, and start output if interface
