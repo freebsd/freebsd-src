@@ -79,9 +79,12 @@ int	profiling;
 static void configfile(void);
 static void get_srcdir(void);
 static void usage(void);
-#if 0
-static void cleanheaders(char *, time_t);
-#endif
+static void cleanheaders(char *);
+
+struct hdr_list {
+	char *h_name;
+	struct hdr_list *h_next;
+} *htab;
 
 /*
  * Config builds a set of files for building a UNIX
@@ -94,9 +97,6 @@ main(int argc, char **argv)
 	struct stat buf;
 	int ch, len;
 	char *p;
-	time_t starttime;
-
-	starttime = time(0);
 
 	while ((ch = getopt(argc, argv, "d:gp")) != -1)
 		switch (ch) {
@@ -178,9 +178,7 @@ main(int argc, char **argv)
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
 	configfile();			/* put config file into kernel*/
-#if 0
-	cleanheaders(p, starttime);
-#endif
+	cleanheaders(p);
 	printf("Kernel build directory is %s\n", p);
 	exit(0);
 }
@@ -420,17 +418,19 @@ moveifchanged(const char *from_name, const char *to_name)
 	}
 }
 
-#if 0
 static void
-cleanheaders(char *p, time_t starttime)
+cleanheaders(char *p)
 {
 	DIR *dirp;
 	struct dirent *dp;
-	struct stat st;
 	struct file_list *fl;
+	struct hdr_list *hl;
 	int i;
 
-	starttime--;
+	remember("y.tab.h");
+	remember("setdefs.h");
+	for (fl = ftab; fl != NULL; fl = fl->f_next)
+		remember(fl->f_fn);
 
 	/*
 	 * Scan the build directory and clean out stuff that looks like
@@ -442,32 +442,49 @@ cleanheaders(char *p, time_t starttime)
 		/* Skip non-headers */
 		if (dp->d_name[i] != '.' || dp->d_name[i + 1] != 'h')
 			continue;
-		/* Skip stuff that config created or examined in this pass */
-		if (stat(path(dp->d_name), &st) == -1)
-			err(1, "stat(%s)", dp->d_name);
-		if (st.st_mtime >= starttime || st.st_atime >= starttime ||
-		    st.st_ctime >= starttime)
-			continue;
 		/* Skip special stuff, eg: bus_if.h, but check opt_*.h */
 		if (index(dp->d_name, '_') &&
 		    strncmp(dp->d_name, "opt_", 4) != 0)
 			continue;
-		/* Some more magic names to skip. Sigh. */
-		if (strcmp(dp->d_name, "setdefs.h") == 0 ||
-		    strcmp(dp->d_name, "y.tab.h") == 0)
-			continue;
 		/* Check if it is a target file */
-		for (fl = ftab; fl != NULL; fl = fl->f_next) {
-			if (strcmp(dp->d_name, fl->f_fn) == 0) {
+		for (hl = htab; hl != NULL; hl = hl->h_next) {
+			if (strcmp(dp->d_name, hl->h_name) == 0) {
 				break;
 			}
 		}
-		if (fl)
+		if (hl)
 			continue;
 		printf("Removing stale header: %s\n", dp->d_name);
 		unlink(path(dp->d_name));
 	}
 	(void)closedir(dirp);
-
 }
-#endif
+
+void
+remember(char *file)
+{
+	char *s;
+	struct hdr_list *hl;
+
+	if ((s = strrchr(file, '/')) != NULL)
+		s++;
+	else
+		s = file;
+	s = ns(s);
+
+	if (index(s, '_') && strncmp(s, "opt_", 4) != 0) {
+		free(s);
+		return;
+	}
+	for (hl = htab; hl != NULL; hl = hl->h_next) {
+		if (strcmp(s, hl->h_name) == 0) {
+			free(s);
+			return;
+		}
+	}
+	hl = malloc(sizeof(*hl));
+	bzero(hl, sizeof(*hl));
+	hl->h_name = s;
+	hl->h_next = htab;
+	htab = hl;
+}
