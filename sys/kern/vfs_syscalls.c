@@ -1631,8 +1631,8 @@ lseek(p, uap)
 	switch (SCARG(uap, whence)) {
 	case L_INCR:
 		if (noneg &&
-		    ((offset > 0 && fp->f_offset > OFF_MAX - offset) ||
-		     (offset < 0 && fp->f_offset < OFF_MIN - offset)))
+		    (fp->f_offset < 0 ||
+		     (offset > 0 && fp->f_offset > OFF_MAX - offset)))
 			return (EOVERFLOW);
 		offset += fp->f_offset;
 		break;
@@ -1641,8 +1641,8 @@ lseek(p, uap)
 		if (error)
 			return (error);
 		if (noneg &&
-		    ((offset > 0 && vattr.va_size > OFF_MAX - offset) ||
-		     (offset < 0 && vattr.va_size + offset > OFF_MAX)))
+		    (vattr.va_size > OFF_MAX ||
+		     (offset > 0 && vattr.va_size > OFF_MAX - offset)))
 			return (EOVERFLOW);
 		offset += vattr.va_size;
 		break;
