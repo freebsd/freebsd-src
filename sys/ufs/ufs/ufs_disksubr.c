@@ -1,3 +1,9 @@
+#define	PRE_DISKSLICE_COMPAT
+#ifndef PRE_DISKSLICE_COMPAT
+#define	correct_readdisklabel	readdisklabel
+#define	correct_writedisklabel	writedisklabel
+#endif
+
 /*
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -36,16 +42,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.5 1994/10/17 02:31:33 phk Exp $
+ * $Id: ufs_disksubr.c,v 1.6 1994/10/27 20:45:12 jkh Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
-#include <sys/syslog.h>
+#include <sys/diskslice.h>
 #include <sys/dkbad.h>
+#include <sys/syslog.h>
 
 /*
  * Seek sort for disks.  We depend on the driver which calls us using b_resid
@@ -148,6 +154,70 @@ insert:	bp->b_actf = bq->b_actf;
 	bq->b_actf = bp;
 }
 
+/*
+ * Attempt to read a disk label from a device using the indicated stategy
+ * routine.  The label must be partly set up before this: secpercyl and
+ * anything required in the strategy routine (e.g., sector size) must be
+ * filled in before calling us.  Returns NULL on success and an error
+ * string on failure.
+ */
+char *
+correct_readdisklabel(dev, strat, lp)
+	dev_t dev;
+	d_strategy_t *strat;
+	register struct disklabel *lp;
+{
+	register struct buf *bp;
+	struct disklabel *dlp;
+	char *msg = NULL;
+
+#if 0
+	/*
+	 * This clobbers valid labels built by drivers.  It should fail,
+	 * except on ancient systems, because it sets lp->d_npartitions
+	 * to 1 but the label is supposed to be read from the raw partition,
+	 * which is 0 only on ancient systems.  Apparently most drivers
+	 * don't check lp->d_npartitions.
+	 */
+	if (lp->d_secperunit == 0)
+		lp->d_secperunit = 0x1fffffff;
+	lp->d_npartitions = 1;
+	if (lp->d_partitions[0].p_size == 0)
+		lp->d_partitions[0].p_size = 0x1fffffff;
+	lp->d_partitions[0].p_offset = 0;
+#endif
+
+	bp = geteblk((int)lp->d_secsize);
+	bp->b_dev = dev;
+	bp->b_blkno = LABELSECTOR;
+	bp->b_bcount = lp->d_secsize;
+	bp->b_flags = B_BUSY | B_READ;
+	bp->b_cylinder = LABELSECTOR / lp->d_secpercyl;
+	(*strat)(bp);
+	if (biowait(bp))
+		msg = "I/O error";
+	else for (dlp = (struct disklabel *)bp->b_data;
+	    dlp <= (struct disklabel *)((char *)bp->b_data +
+	    DEV_BSIZE - sizeof(*dlp));
+	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
+		if (dlp->d_magic != DISKMAGIC || dlp->d_magic2 != DISKMAGIC) {
+			if (msg == NULL)
+				msg = "no disk label";
+		} else if (dlp->d_npartitions > MAXPARTITIONS ||
+			   dkcksum(dlp) != 0)
+			msg = "disk label corrupted";
+		else {
+			*lp = *dlp;
+			msg = NULL;
+			break;
+		}
+	}
+	bp->b_flags = B_INVAL | B_AGE;
+	brelse(bp);
+	return (msg);
+}
+
+#ifdef PRE_DISKSLICE_COMPAT
 /*
  * Attempt to read a disk label from a device using the indicated stategy
  * routine.  The label must be partly set up before this: secpercyl and
@@ -278,6 +348,7 @@ done:
 	brelse(bp);
 	return (msg);
 }
+#endif /* PRE_DISKSLICE_COMPAT */
 
 /*
  * Check new disk label for sensibility before setting it.
@@ -330,6 +401,55 @@ setdisklabel(olp, nlp, openmask)
 	return (0);
 }
 
+/*
+ * Write disk label back to device after modification.
+ */
+int
+correct_writedisklabel(dev, strat, lp)
+	dev_t dev;
+	d_strategy_t *strat;
+	register struct disklabel *lp;
+{
+	struct buf *bp;
+	struct disklabel *dlp;
+	int labelpart;
+	int error = 0;
+
+	labelpart = dkpart(dev);
+	if (lp->d_partitions[labelpart].p_offset != 0) {
+		if (lp->d_partitions[0].p_offset != 0)
+			return (EXDEV);			/* not quite right */
+		labelpart = 0;
+	}
+	bp = geteblk((int)lp->d_secsize);
+	bp->b_dev = dkmodpart(dev, labelpart);
+	bp->b_blkno = LABELSECTOR;
+	bp->b_bcount = lp->d_secsize;
+	bp->b_flags = B_READ;
+	(*strat)(bp);
+	error = biowait(bp);
+	if (error)
+		goto done;
+	for (dlp = (struct disklabel *)bp->b_data;
+	    dlp <= (struct disklabel *)
+	      ((char *)bp->b_data + lp->d_secsize - sizeof(*dlp));
+	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
+		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
+		    dkcksum(dlp) == 0) {
+			*dlp = *lp;
+			bp->b_flags = B_WRITE;
+			(*strat)(bp);
+			error = biowait(bp);
+			goto done;
+		}
+	}
+	error = ESRCH;
+done:
+	brelse(bp);
+	return (error);
+}
+
+#ifdef PRE_DISKSLICE_COMPAT
 /*
  * Write disk label back to device after modification.
  * For FreeBSD 2.0(x86) this routine will refuse to install a label if
@@ -456,6 +576,7 @@ done:
 		brelse(bp);
 	return (error);
 }
+#endif /* PRE_DISKSLICE_COMPAT */
 
 /*
  * Compute checksum for disk label.
@@ -495,9 +616,12 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	int pri, blkdone;
 	register struct disklabel *lp;
 {
-	int unit = dkunit(bp->b_dev), part = dkpart(bp->b_dev);
+	int unit = dkunit(bp->b_dev);
+	int slice = dkslice(bp->b_dev);
+	int part = dkpart(bp->b_dev);
 	register void (*pr) __P((const char *, ...));
 	char partname = 'a' + part;
+	char slicename[32];
 	int sn;
 
 	if (pri != LOG_PRINTF) {
@@ -505,8 +629,15 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		pr = addlog;
 	} else
 		pr = printf;
-	(*pr)("%s%d%c: %s %sing fsbn ", dname, unit, partname, what,
-	    bp->b_flags & B_READ ? "read" : "writ");
+	slicename[0] = '\0';
+	if (slice != WHOLE_DISK_SLICE)
+		sprintf(slicename, "s%d", slice);
+	(*pr)("%s%d%s", dname, unit, slice);
+#ifndef PRE_DISKSLICE_COMPAT
+	if (slice != WHOLE_DISK_SLICE)
+#endif
+		(*pr)("%c", partname);
+	(*pr)(": %s %sing fsbn ", what, bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;
 	if (bp->b_bcount <= DEV_BSIZE)
 		(*pr)("%d", sn);
@@ -523,7 +654,14 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		sn *= DEV_BSIZE / lp->d_secsize;		/* XXX */
 #endif
 		sn += lp->d_partitions[part].p_offset;
-		(*pr)(" (%s%d bn %d; cn %d", dname, unit, sn,
+		/*
+		 * XXX should add slice offset and not print the slice,
+		 * but we don't know the slice pointer.
+		 * XXX should print bp->b_pblkno so that this will work
+		 * independent of slices, labels and bad sector remapping,
+		 * but some drivers don't set bp->b_pblkno.
+		 */
+		(*pr)(" (%s%d%s bn %d; cn %d", dname, unit, slicename, sn,
 		    sn / lp->d_secpercyl);
 		sn %= lp->d_secpercyl;
 		(*pr)(" tn %d sn %d)", sn / lp->d_nsectors, sn % lp->d_nsectors);
