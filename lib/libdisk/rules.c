@@ -233,15 +233,18 @@ Rule_004(const struct disk *d, const struct chunk *c, char *msg)
 static void
 Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 {
-	Rule_000(d, c, msg);
-	Rule_001(d, c, msg);
-	Rule_002(d, c, msg);
-	Rule_003(d, c, msg);
-	Rule_004(d, c, msg);
-	if (c->part)
-		Check_Chunk(d, c->part, msg);
-	if (c->next)
-		Check_Chunk(d, c->next, msg);
+
+	if (platform == p_i386) {
+		Rule_000(d, c, msg);
+		Rule_001(d, c, msg);
+		Rule_002(d, c, msg);
+		Rule_003(d, c, msg);
+		Rule_004(d, c, msg);
+		if (c->part)
+			Check_Chunk(d, c->part, msg);
+		if (c->next)
+			Check_Chunk(d, c->next, msg);
+	}
 }
 
 char *
