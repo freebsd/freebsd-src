@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.2 1996/03/10 08:42:48 sos Exp $
+ *  $Id: linux_sysvec.c,v 1.3 1996/03/10 22:42:16 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -66,7 +66,7 @@
 int	linux_fixup __P((int **stack_base, struct image_params *iparams));
 int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
 void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
-void    linux_sendsig __P((sig_t catcher, int sig, int mask, unsigned code));
+void    linux_sendsig __P((sig_t catcher, int sig, int mask, u_long code));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -164,7 +164,7 @@ extern int _ucodesel, _udatasel;
  */
 
 void
-linux_sendsig(sig_t catcher, int sig, int mask, unsigned code)
+linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register int *regs;
@@ -176,7 +176,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, unsigned code)
 	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): linux_sendsig(%8x, %d, %d, %d)\n",
+	printf("Linux-emul(%d): linux_sendsig(%8x, %d, %d, %ld)\n",
 		p->p_pid, catcher, sig, mask, code);
 #endif
 	/*
