@@ -52,7 +52,7 @@ __RCSID("$NetBSD$");
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#ident "$Revision: 1.9 $"
+#ident "$FreeBSD$"
 
 
 pid_t	mypid;
