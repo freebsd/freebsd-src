@@ -127,23 +127,43 @@ loop:
 }
 
 /*
- * Insert the inode into the hash table, and return it locked.
+ * Check hash for duplicate of passed inode, and add if there is no one.
+ * if there is a duplicate, vget() it and return to the caller.
  */
-void
-ufs_ihashins(ip)
+int
+ufs_ihashins(ip, flags, ovpp)
 	struct inode *ip;
+	int flags;
+	struct vnode **ovpp;
 {
 	struct thread *td = curthread;		/* XXX */
 	struct ihashhead *ipp;
+	struct inode *oip;
+	struct vnode *ovp;
+	int error;
 
-	/* lock the inode, then put it on the appropriate hash list */
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, td);
-
+loop:
 	mtx_lock(&ufs_ihash_mtx);
 	ipp = INOHASH(ip->i_dev, ip->i_number);
+	LIST_FOREACH(oip, ipp, i_hash) {
+		if (ip->i_number == oip->i_number && ip->i_dev == oip->i_dev) {
+			ovp = ITOV(oip);
+			mtx_lock(&ovp->v_interlock);
+			mtx_unlock(&ufs_ihash_mtx);
+			error = vget(ovp, flags | LK_INTERLOCK, td);
+			if (error == ENOENT)
+				goto loop;
+			if (error)
+				return (error);
+			*ovpp = ovp;
+			return (0);
+		}
+	}
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
 	mtx_unlock(&ufs_ihash_mtx);
+	*ovpp = NULL;
+	return (0);
 }
 
 /*
