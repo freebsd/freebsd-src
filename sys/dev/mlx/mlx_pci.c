@@ -31,7 +31,6 @@
 #include <sys/kernel.h>
 
 #include <sys/bus.h>
-#include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
@@ -45,6 +44,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
