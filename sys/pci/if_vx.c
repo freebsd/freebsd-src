@@ -172,6 +172,8 @@ vx_pci_probe(
 {
    if(device_id == 0x590010b7ul)
       return "3Com 3c590 EtherLink III PCI";
+   if(device_id == 0x595010b7ul)
+      return "3Com 3c595 EtherLink III PCI";
    return NULL;
 }
 
