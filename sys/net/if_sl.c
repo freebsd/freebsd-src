@@ -186,8 +186,7 @@ static int	slstart(struct tty *);
 
 static struct linesw slipdisc = {
 	slopen,		slclose,	l_noread,	l_nowrite,
-	sltioctl,	slinput,	slstart,	ttymodem,
-	FRAME_END
+	sltioctl,	slinput,	slstart,	ttymodem
 };
 
 /*
@@ -350,17 +349,14 @@ slopen(dev, tp)
 	if (error)
 		return (error);
 
-	if (tp->t_line == SLIPDISC)
-		return (0);
-
 	if ((sc = slcreate()) == NULL)
 		return (ENOBUFS);
 
+	tp->t_hotchar = FRAME_END;
 	tp->t_sc = (caddr_t)sc;
 	sc->sc_ttyp = tp;
 	sc->sc_if.if_baudrate = tp->t_ospeed;
 	ttyflush(tp, FREAD | FWRITE);
-	tp->t_line = SLIPDISC;
 
 	/*
 	 * We don't use t_canq or t_rawq, so reduce their
@@ -417,7 +413,6 @@ slclose(tp,flag)
 	 */
 	s = splimp();		/* actually, max(spltty, splnet) */
 	clist_free_cblocks(&tp->t_outq);
-	tp->t_line = 0;
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc != NULL) {
 		if (sc->sc_outfill) {

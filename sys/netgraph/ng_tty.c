@@ -148,8 +148,7 @@ static struct linesw ngt_disc = {
 	ngt_tioctl,
 	ngt_input,
 	ngt_start,
-	ttymodem,
-	NG_TTY_DFL_HOTCHAR	/* XXX can't change this in serial driver */
+	ttymodem
 };
 
 /* Netgraph node type descriptor */
@@ -193,12 +192,7 @@ ngt_open(struct cdev *dev, struct tty *tp)
 	s = splnet();
 	(void) spltty();	/* XXX is this necessary? */
 
-	/* Already installed? */
-	if (tp->t_line == NETGRAPHDISC) {
-		sc = (sc_p) tp->t_sc;
-		if (sc != NULL && sc->tp == tp)
-			goto done;
-	}
+	tp->t_hotchar = NG_TTY_DFL_HOTCHAR;
 
 	/* Initialize private struct */
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
@@ -265,7 +259,6 @@ ngt_close(struct tty *tp, int flag)
 	s = spltty();
 	ttyflush(tp, FREAD | FWRITE);
 	clist_free_cblocks(&tp->t_outq);
-	tp->t_line = 0;
 	if (sc != NULL) {
 		if (sc->flags & FLG_TIMEOUT) {
 			untimeout(ngt_timeout, sc, sc->chand);

@@ -236,6 +236,7 @@ ttyopen(struct cdev *device, struct tty *tp)
 
 	s = spltty();
 	tp->t_dev = device;
+	tp->t_hotchar = 0;
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
 		ttyref(tp);
 		SET(tp->t_state, TS_ISOPEN);
@@ -276,6 +277,7 @@ ttyclose(struct tty *tp)
 
 	tp->t_gen++;
 	tp->t_line = TTYDISC;
+	tp->t_hotchar = 0;
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
 	tp->t_state = 0;
@@ -1072,18 +1074,25 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 
 		if ((u_int)t >= nlinesw)
 			return (ENXIO);
-		if (t != tp->t_line) {
-			s = spltty();
-			ttyld_close(tp, flag);
-			error = (*linesw[t]->l_open)(device, tp);
-			if (error) {
-				(void)ttyld_open(tp, device);
-				splx(s);
-				return (error);
-			}
-			tp->t_line = t;
-			splx(s);
+		if (t == tp->t_line)
+			return (0);
+		s = spltty();
+		ttyld_close(tp, flag);
+		tp->t_line = t;
+		error = ttyld_open(tp, device);
+		if (error) {
+			/*
+			 * If we fail to switch line discipline we cannot
+			 * fall back to the previous, because we can not
+			 * trust that ldisc to open successfully either.
+			 * Fall back to the default ldisc which we know 
+			 * will allways succeed.
+			 */
+			tp->t_line = TTYDISC;
+			(void)ttyld_open(tp, device);
 		}
+		splx(s);
+		return (error);
 		break;
 	}
 	case TIOCSTART:			/* start output, like ^Q */
@@ -2905,7 +2914,7 @@ ttyldoptim(struct tty *tp)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	return (linesw[tp->t_line]->l_hotchar);
+	return (tp->t_hotchar);
 }
 
 
