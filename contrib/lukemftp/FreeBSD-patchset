@@ -41,7 +41,7 @@ diff -ru src.orig/progressbar.c src/progressbar.c
  
  #include "progressbar.h"
 +
-+#define SECSPERHOUR	60
++#define SECSPERHOUR	(60 * 60)
 +#define SECSPERDAY	((long)60 * 60 * 24)
  
  #if !defined(NO_PROGRESS)
