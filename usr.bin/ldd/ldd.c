@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.15 1998/05/01 08:40:11 dfr Exp $
+ *	$Id: ldd.c,v 1.16 1998/08/30 18:30:59 jdp Exp $
  */
 
 #include <sys/types.h>
@@ -94,11 +94,13 @@ char	*argv[];
 		/*NOTREACHED*/
 	}
 
+#ifdef __i386__
 	if (vflag) {
 		for (c = 0; c < argc; c++)
 			dump_file(argv[c]);
 		exit(error_count == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
+#endif
 
 	/* ld.so magic */
 	setenv("LD_TRACE_LOADED_OBJECTS", "1", 1);
@@ -112,7 +114,7 @@ char	*argv[];
 		int	fd;
 		union {
 			struct exec aout;
-			Elf32_Ehdr elf;
+			Elf_Ehdr elf;
 		} hdr;
 		int	n;
 		int	status;
@@ -142,8 +144,8 @@ char	*argv[];
 				file_ok = 0;
 			}
 		} else if (n >= sizeof hdr.elf && IS_ELF(hdr.elf)) {
-			Elf32_Ehdr ehdr;
-			Elf32_Phdr phdr;
+			Elf_Ehdr ehdr;
+			Elf_Phdr phdr;
 			int dynamic = 0, i;
 
 			lseek(fd, 0, SEEK_SET);
