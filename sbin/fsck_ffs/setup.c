@@ -316,7 +316,7 @@ readsb(int listerr)
 			      sblock.fs_sblockloc ==
 				  numfrags(&sblock, sblock_try[i]))) &&
 			    sblock.fs_ncg >= 1 &&
-			    sblock.fs_bsize >= SBLOCKSIZE &&
+			    sblock.fs_bsize >= MINBSIZE &&
 			    sblock.fs_bsize >= sizeof(struct fs))
 				break;
 		}
