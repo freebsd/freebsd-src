@@ -74,6 +74,13 @@ prefix,
 in which case that signal is delivered to the process
 (see
 .Xr sigaction 2 ).
+.It Pa dbregs
+The debug registers as defined by
+.Dv "struct dbregs"
+in
+.Pa <machine/reg.h> .
+.Pa dbregs
+is currently only implemented on the i386 architecture.
 .It Pa etype
 The type of the executable referenced by the
 .Pa file
