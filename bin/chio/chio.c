@@ -1,4 +1,4 @@
-/*	$Id: $	*/
+/*	$Id: chio.c,v 1.1.1.1 1997/03/06 15:30:06 joerg Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
@@ -46,8 +46,6 @@
 
 #include "defs.h"
 #include "pathnames.h"
-
-extern	char *__progname;	/* from crt0.o */
 
 static	void usage __P((void));
 static	void cleanup __P((void));
@@ -209,8 +207,8 @@ do_move(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s "
-	    "<from ET> <from EU> <to ET> <to EU> [inv]\n", __progname, cname);
+	fprintf(stderr, "usage: chio %s "
+	    "<from ET> <from EU> <to ET> <to EU> [inv]\n", cname);
 	return (1);
 }
 
@@ -302,9 +300,9 @@ do_exchange(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s <src ET> <src EU> <dst1 ET> <dst1 EU>\n"
-	    "       [<dst2 ET> <dst2 EU>] [inv1] [inv2]\n",
-	    __progname, cname);
+	fprintf(stderr,
+		"usage: chio %s <src ET> <src EU> <dst1 ET> <dst1 EU>\n"
+		"       [<dst2 ET> <dst2 EU>] [inv1] [inv2]\n", cname);
 	return (1);
 }
 
@@ -363,8 +361,7 @@ do_position(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s <to ET> <to EU> [inv]\n",
-	    __progname, cname);
+	fprintf(stderr, "usage: chio %s <to ET> <to EU> [inv]\n", cname);
 	return (1);
 }
 
@@ -400,7 +397,7 @@ do_params(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s\n", __progname, cname);
+	fprintf(stderr, "usage: chio %s\n", cname);
 	return (1);
 }
 
@@ -427,7 +424,7 @@ do_getpicker(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s\n", __progname, cname);
+	fprintf(stderr, "usage: chio %s\n", cname);
 	return (1);
 }
 
@@ -456,7 +453,7 @@ do_setpicker(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s <picker>\n", __progname, cname);
+	fprintf(stderr, "usage: chio %s <picker>\n", cname);
 	return (1);
 }
 
@@ -562,8 +559,7 @@ do_status(cname, argc, argv)
 	return (0);
 
  usage:
-	fprintf(stderr, "usage: %s %s [<element type>]\n", __progname,
-	    cname);
+	fprintf(stderr, "usage: chio %s [<element type>]\n", cname);
 	return (1);
 }
 
@@ -657,7 +653,12 @@ cleanup()
 static void
 usage()
 {
+	int i;
 
-	fprintf(stderr, "usage: %s command arg1 arg2 ...\n", __progname);
+	fprintf(stderr, "usage: chio command arg1 arg2 ...\n");
+	fprintf(stderr, "commands:");
+	for (i = 0; commands[i].cc_name; i++)
+		fprintf(stderr, " %s", commands[i].cc_name);
+	fprintf(stderr, "\n");
 	exit(1);
 }
