@@ -2560,8 +2560,7 @@ vfs_unmountall()
 	if (curthread != NULL)
 		td = curthread;
 	else
-/* XXX XXX should this be proc0? */
-		td = FIRST_THREAD_IN_PROC(initproc);
+		td = FIRST_THREAD_IN_PROC(initproc); /* XXX XXX proc0? */
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */
