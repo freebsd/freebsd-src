@@ -317,7 +317,6 @@ spec_read(ap)
 		do {
 			bn = btodb(uio->uio_offset) & ~(bscale - 1);
 			on = uio->uio_offset % bsize;
-			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (seqcount > 1) {
 				nextbn = bn + bscale;
 				error = breadn(vp, bn, (int)bsize, &nextbn,
@@ -325,11 +324,32 @@ spec_read(ap)
 			} else {
 				error = bread(vp, bn, (int)bsize, NOCRED, &bp);
 			}
-			n = min(n, bsize - bp->b_resid);
+
+			/*
+			 * Figure out how much of the buffer is valid relative
+			 * to our offset into the buffer, which may be negative
+			 * if we are beyond the EOF.
+			 *
+			 * The valid size of the buffer is based on 
+			 * bp->b_bcount (which may have been truncated by
+			 * dscheck or the device) minus bp->b_resid, which
+			 * may be indicative of an I/O error if non-zero.
+			 */
+			if (error == 0) {
+				n = bp->b_bcount - on;
+				if (n < 0) {
+					error = EINVAL;
+				} else {
+					n = min(n, bp->b_bcount - bp->b_resid - on);
+					if (n < 0)
+						error = EIO;
+				}
+			}
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
+			n = min(n, uio->uio_resid);
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
@@ -409,16 +429,48 @@ spec_write(ap)
 		do {
 			bn = btodb(uio->uio_offset) & ~blkmask;
 			on = uio->uio_offset % bsize;
+
+			/*
+			 * Calculate potential request size, determine
+			 * if we can avoid a read-before-write.
+			 */
 			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (n == bsize)
 				bp = getblk(vp, bn, bsize, 0, 0);
 			else
 				error = bread(vp, bn, bsize, NOCRED, &bp);
+
+			/*
+			 * n is the amount of effective space in the buffer
+			 * that we wish to write relative to our offset into
+			 * the buffer. We have to truncate it to the valid
+			 * size of the buffer relative to our offset into
+			 * the buffer (which may end up being negative if
+			 * we are beyond the EOF).
+			 *
+			 * The valid size of the buffer is based on 
+			 * bp->b_bcount (which may have been truncated by
+			 * dscheck or the device) minus bp->b_resid, which
+			 * may be indicative of an I/O error if non-zero.
+			 *
+			 * XXX In a newly created buffer, b_bcount == bsize
+			 * and, being asynchronous, we have no idea of the
+			 * EOF.
+			 */
+			if (error == 0) {
+				n = min(n, bp->b_bcount - on);
+				if (n < 0) {
+					error = EINVAL;
+				} else {
+					n = min(n, bp->b_bcount - bp->b_resid - on);
+					if (n < 0)
+						error = EIO;
+				}
+			}
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
-			n = min(n, bsize - bp->b_resid);
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize)
 				bawrite(bp);
@@ -602,7 +654,9 @@ spec_freeblks(ap)
 }
 
 /*
- * This is a noop, simply returning what one has been given.
+ * Implement degenerate case where the block requested is the block
+ * returned, and assume that the entire device is contiguous in regards
+ * to the contiguous block range (runp and runb).
  */
 static int
 spec_bmap(ap)
@@ -615,15 +669,20 @@ spec_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	int runp = 0;
+	int runb = 0;
 
 	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
+		*ap->a_vpp = vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
+	if (vp->v_type == VBLK && vp->v_mount != NULL)
+		runp = runb = MAXBSIZE / vp->v_mount->mnt_stat.f_iosize;
 	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
+		*ap->a_runp = runp;
 	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
+		*ap->a_runb = runb;
 	return (0);
 }
 
