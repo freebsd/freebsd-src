@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp $
+ *	$Id: pmap.c,v 1.194 1998/05/11 01:06:08 dyson Exp $
  */
 
 /*
@@ -219,7 +219,7 @@ static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static unsigned * pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
-static vm_offset_t pmap_kmem_choose(vm_offset_t addr) ;
+static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 void pmap_collect(void);
 
 static unsigned pdir4mb;
@@ -2770,12 +2770,16 @@ pmap_zero_page(phys)
 #endif
 
 	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	invltlb_1pg((vm_offset_t) &prv_CPAGE3);
+	cpu_invlpg(&prv_CPAGE3);
 
-	bzero(&prv_CPAGE3, PAGE_SIZE);
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686)
+		i686_pagezero(&prv_CPAGE3);
+	else
+#endif
+		bzero(&prv_CPAGE3, PAGE_SIZE);
 
 	*(int *) prv_CMAP3 = 0;
-	invltlb_1pg((vm_offset_t) &prv_CPAGE3);
 #else
 #if !defined(MAX_PERF)
 	if (*(int *) CMAP2)
@@ -2783,9 +2787,15 @@ pmap_zero_page(phys)
 #endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	bzero(CADDR2, PAGE_SIZE);
+	invltlb_1pg(CADDR2);
+
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686)
+		i686_pagezero(CADDR2);
+	else
+#endif
+		bzero(CADDR2, PAGE_SIZE);
 	*(int *) CMAP2 = 0;
-	invltlb_1pg((vm_offset_t) CADDR2);
 #endif
 }
 
@@ -2811,13 +2821,13 @@ pmap_copy_page(src, dst)
 	*(int *) prv_CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) prv_CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
 
-	invltlb_2pg( (vm_offset_t) &prv_CPAGE1, (vm_offset_t) &prv_CPAGE2);
+	cpu_invlpg(&prv_CPAGE1);
+	cpu_invlpg(&prv_CPAGE2);
 
 	bcopy(&prv_CPAGE1, &prv_CPAGE2, PAGE_SIZE);
 
 	*(int *) prv_CMAP1 = 0;
 	*(int *) prv_CMAP2 = 0;
-	invltlb_2pg( (vm_offset_t) &prv_CPAGE1, (vm_offset_t) &prv_CPAGE2);
 #else
 #if !defined(MAX_PERF)
 	if (*(int *) CMAP1 || *(int *) CMAP2)
@@ -2831,7 +2841,6 @@ pmap_copy_page(src, dst)
 
 	*(int *) CMAP1 = 0;
 	*(int *) CMAP2 = 0;
-	invltlb_2pg( (vm_offset_t) CADDR1, (vm_offset_t) CADDR2);
 #endif
 }
 

@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.76 1998/03/09 22:09:11 eivind Exp $
+#	$Id: options.i386,v 1.77 1998/04/18 04:58:01 ahasty Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -74,6 +74,7 @@ I386_CPU		opt_global.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
+LINUX			opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
