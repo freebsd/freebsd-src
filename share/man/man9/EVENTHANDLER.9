@@ -39,7 +39,7 @@
 .Ft eventhandler_tag
 .Fo eventhandler_register
 .Fa "struct eventhandler_list *list"
-.Fa "char *name"
+.Fa "const char *name"
 .Fa "void *func"
 .Fa "void *arg"
 .Fa "int priority"
@@ -50,7 +50,7 @@
 .Fa "eventhandler_tag tag"
 .Fc
 .Ft "struct eventhandler_list *"
-.Fn eventhandler_find_list "char *name"
+.Fn eventhandler_find_list "const char *name"
 .Ft void
 .Fn eventhandler_prune_list "struct eventhandler_list *list"
 .Sh DESCRIPTION
