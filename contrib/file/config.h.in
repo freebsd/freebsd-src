@@ -9,6 +9,13 @@
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #undef HAVE_SYS_WAIT_H
 
+/* Define if your struct tm has tm_zone.  */
+#undef HAVE_TM_ZONE
+
+/* Define if you don't have tm_zone but do have the external array
+   tzname.  */
+#undef HAVE_TZNAME
+
 /* Define if major, minor, and makedev are declared in <mkdev.h>.  */
 #undef MAJOR_IN_MKDEV
 
@@ -24,6 +31,9 @@
 /* Define if you have the ANSI C header files.  */
 #undef STDC_HEADERS
 
+/* Define if your <sys/time.h> declares struct tm.  */
+#undef TM_IN_SYS_TIME
+
 /* Define if builtin ELF support is enabled.  */
 #undef BUILTIN_ELF
 
@@ -32,6 +42,12 @@
 
 /* Define if the `long long' type works.  */
 #undef HAVE_LONG_LONG
+
+/* Define if we have "tm_isdst" in "struct tm".  */
+#undef HAVE_TM_ISDST
+
+/* Define if we have a global "int" variable "daylight".  */
+#undef HAVE_DAYLIGHT
 
 /* Define to `unsigned char' if standard headers don't define.  */
 #undef uint8_t

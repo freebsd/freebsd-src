@@ -63,31 +63,33 @@
 
 9564	lelong		0x00011954	Unix Fast File system (little-endian),
 >8404	string		x		last mounted on %s,
->9504	ledate		x		last checkd at %s,
->8224	ledate		x		last writen at %s,
+#>9504	ledate		x		last checked at %s,
+>8224	ledate		x		last written at %s,
+>8401	byte		x		clean flag %d,
 >8228	lelong		x		number of blocks %d,
 >8232	lelong		x		number of data blocks %d,
 >8236	lelong		x		number of cylinder groups %d,
->8240	lelong		x		number of basic blocks %d,
->8244	lelong		x		number of fragment blocks %d,
->8248	lelong		x		minimum percentage of free blocks %d,
->8252	lelong		x		rotational delay %dms,
->8256	lelong		x		disk rotational speed %drps,
+>8240	lelong		x		block size %d,
+>8244	lelong		x		fragment size %d,
+>8252	lelong		x		minimum percentage of free blocks %d,
+>8256	lelong		x		rotational delay %dms,
+>8260	lelong		x		disk rotational speed %drps,
 >8320	lelong		0		TIME optimization
 >8320	lelong		1		SPACE optimization
 
-9564	belong		0x00011954	Unix Fast File system (little-endian),
+9564	belong		0x00011954	Unix Fast File system (big-endian),
 >8404	string		x		last mounted on %s,
->9504	bedate		x		last checkd at %s,
->8224	bedate		x		last writen at %s,
+#>9504	bedate		x		last checked at %s,
+>8224	bedate		x		last written at %s,
+>8401	byte		x		clean flag %d,
 >8228	belong		x		number of blocks %d,
 >8232	belong		x		number of data blocks %d,
 >8236	belong		x		number of cylinder groups %d,
->8240	belong		x		number of basic blocks %d,
->8244	belong		x		number of fragment blocks %d,
->8248	belong		x		minimum percentage of free blocks %d,
->8252	belong		x		rotational delay %dms,
->8256	belong		x		disk rotational speed %drps,
+>8240	belong		x		block size %d,
+>8244	belong		x		fragment size %d,
+>8252	belong		x		minimum percentage of free blocks %d,
+>8256	belong		x		rotational delay %dms,
+>8260	belong		x		disk rotational speed %drps,
 >8320	belong		0		TIME optimization
 >8320	belong		1		SPACE optimization
 
@@ -104,3 +106,13 @@
 #>0x460	lelong		&0x0000002	(filetype)
 #>0x464	lelong		&0x0000001	(sparse_super)
 >0x464	lelong		&0x0000002	(large files)
+
+# SGI disk labels - Nathan Scott <nathans@debian.org>
+0	belong		0x0BE5A941	SGI disk label (volume header)
+
+# SGI XFS filesystem - Nathan Scott <nathans@debian.org>
+0	belong		0x58465342	SGI XFS filesystem data
+>0x4	belong		x		(blksz=3D%d,
+>0x68	beshort		x		inosz=3D%d,
+>0x64	beshort		^0x2004		v1 dirs)
+>0x64	beshort		&0x2004		v2 dirs)

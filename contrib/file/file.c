@@ -56,7 +56,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.58 2001/07/22 21:04:15 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.59 2001/07/23 00:02:32 christos Exp $")
 #endif	/* lint */
 
 
@@ -131,7 +131,7 @@ main(argc, argv)
 	if ((usermagic = getenv("MAGIC")) != NULL)
 		magicfile = usermagic;
 	else
-		if (home = getenv("HOME")) {
+		if ((home = getenv("HOME")) != NULL) {
 			if ((usermagic = malloc(strlen(home) + 8)) != NULL) {
 				(void)strcpy(usermagic, home);
 				(void)strcat(usermagic, "/.magic");
