@@ -9,7 +9,7 @@
 
 # The following previously encumbered files have not yet been added to
 # the tree:
-# 11.adb 14.sccs 19.curses 
+# 11.adb 14.sccs
 
 SUBDIR=	 title contents 
 SUBDIR+=  01.cacm 02.implement 03.iosys 04.uprog 05.sysman 06.Clang 12.make 
