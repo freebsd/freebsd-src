@@ -2,9 +2,17 @@
 
 PROG=	strip
 MAN1=	strip.1
-STRIP=
 
-afterinstall:
-	./strip ${DESTDIR}${BINDIR}/strip
+all: maybe_stripped
+
+maybe_stripped: strip
+	cp -p strip maybe_stripped
+.if ${STRIP:M-s} != ""
+	./strip maybe_stripped
+.endif
+
+install: maninstall
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    maybe_stripped ${DESTDIR}${BINDIR}/strip
 
 .include <bsd.prog.mk>
