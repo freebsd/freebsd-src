@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.3 1997/02/07 02:32:33 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.4 1997/02/15 16:09:33 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -18,6 +18,8 @@
 	..
     ..
     libdata
+	gcc
+	..
 	lint
 	..
 	stallion
@@ -155,6 +157,8 @@
             ..
             cvsup
             ..
+            drivers
+            ..
             etc
 	    ..
 	    find_interface
@@ -283,6 +287,8 @@
             ..
             ja_JP.EUC
             ..
+	    ko_KR.EUC
+            ..
 	    lt_LN.ASCII
             ..
 	    lt_LN.ISO_8859-1
@@ -408,6 +414,8 @@
 	    it_IT.ISO_8859-1
             ..
             ja_JP.EUC
+            ..
+	    ko_KR.EUC
             ..
 	    lt_LN.ASCII
             ..
