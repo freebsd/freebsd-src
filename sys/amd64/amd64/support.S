@@ -167,6 +167,32 @@ ENTRY(memcpy)
 	movsb
 	ret
 
+/*
+ * pagecopy(%rdi=from, %rsi=to)
+ */
+ENTRY(pagecopy)
+	movq	$-PAGE_SIZE,%rax
+	movq	%rax,%rdx
+	subq	%rax,%rdi
+	subq	%rax,%rsi
+1:
+	prefetchnta (%rdi,%rax)
+	addq	$64,%rax
+	jne	1b
+2:
+	movq	(%rdi,%rdx),%rax
+	movnti	%rax,(%rsi,%rdx)
+	movq	8(%rdi,%rdx),%rax
+	movnti	%rax,8(%rsi,%rdx)
+	movq	16(%rdi,%rdx),%rax
+	movnti	%rax,16(%rsi,%rdx)
+	movq	24(%rdi,%rdx),%rax
+	movnti	%rax,24(%rsi,%rdx)
+	addq	$32,%rdx
+	jne	2b
+	sfence
+	ret
+
 /* fillw(pat, base, cnt) */  
 /*       %rdi,%rsi, %rdx */
 ENTRY(fillw)
