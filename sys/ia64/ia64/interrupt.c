@@ -76,41 +76,13 @@ void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 static u_int schedclk2;
 
 void
-interrupt(a0, a1, a2, framep)
-	unsigned long a0, a1, a2;
-	struct trapframe *framep;
+interrupt(u_int64_t vector, struct trapframe *framep)
 {
-#if 0
-	/*
-	 * Find our per-cpu globals.
-	 */
-	globalp = (struct globaldata *) alpha_pal_rdval();
-
 	atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
-	{
-		struct proc* p = curproc;
-		if (!p) p = &proc0;
-		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
-			mtx_enter(&Giant, MTX_DEF);
-			panic("possible stack overflow\n");
-		}
-	}
 
-	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
-	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
-	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
-	switch (a0) {
-	case ALPHA_INTR_XPROC:	/* interprocessor interrupt */
-		CTR0(KTR_INTR|KTR_SMP, "interprocessor interrupt");
-		smp_handle_ipi(framep); /* note: lock not taken */
-		break;
-		
-	case ALPHA_INTR_CLOCK:	/* clock interrupt */
+	switch (vector) {
+	case 240:	/* clock interrupt */
 		CTR0(KTR_INTR, "clock interrupt");
-		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
-			CTR0(KTR_INTR, "ignoring clock on secondary");
-			return;
-		}
 			
 		mtx_enter(&Giant, MTX_DEF);
 		cnt.v_intr++;
@@ -119,53 +91,20 @@ interrupt(a0, a1, a2, framep)
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		if (platform.clockintr){
-			(*platform.clockintr)(framep);
-			/* divide hz (1024) by 8 to get stathz (128) */
-			if((++schedclk2 & 0x7) == 0)
-				statclock((struct clockframe *)framep);
-		}
+		hardclock((struct clockframe *)framep);
+		setdelayed();
+		/* divide hz (1024) by 8 to get stathz (128) */
+		if((++schedclk2 & 0x7) == 0)
+			statclock((struct clockframe *)framep);
 		mtx_exit(&Giant, MTX_DEF);
-		break;
-
-	case  ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
-		mtx_enter(&Giant, MTX_DEF);
-		a0 = alpha_pal_rdmces();
-		if (platform.mcheck_handler)
-			(*platform.mcheck_handler)(a0, framep, a1, a2);
-		else
-			machine_check(a0, framep, a1, a2);
-		mtx_exit(&Giant, MTX_DEF);
-		break;
-
-	case ALPHA_INTR_DEVICE:	/* I/O device interrupt */
-		mtx_enter(&Giant, MTX_DEF);
-		cnt.v_intr++;
-		if (platform.iointr)
-			(*platform.iointr)(framep, a1);
-		mtx_exit(&Giant, MTX_DEF);
-		break;
-
-	case ALPHA_INTR_PERF:	/* interprocessor interrupt */
-		mtx_enter(&Giant, MTX_DEF);
-		perf_irq(a1, framep);
-		mtx_exit(&Giant, MTX_DEF);
-		break;
-
-	case ALPHA_INTR_PASSIVE:
-#if	0
-		printf("passive release interrupt vec 0x%lx (ignoring)\n", a1);
-#endif
 		break;
 
 	default:
 		mtx_enter(&Giant, MTX_DEF);
-		panic("unexpected interrupt: type 0x%lx vec 0x%lx a2 0x%lx\n",
-		    a0, a1, a2);
+		panic("unexpected interrupt: vec %ld\n", vector);
 		/* NOTREACHED */
 	}
 	atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
-#endif
 }
 
 
