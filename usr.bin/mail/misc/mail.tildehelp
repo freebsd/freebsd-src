@@ -2,7 +2,7 @@
 The following ~ escapes are defined:
 ~?		Print this message
 ~~		Quote a single tilde
-~.		Same as .
+~.		Simulate end-of-file on input
 ~A		Equivalent to: ~i Sign
 ~a		Equivalent to: ~i sign
 ~b users	Add users to "blind" cc list
@@ -19,16 +19,15 @@ The following ~ escapes are defined:
 ~p		Print the message buffer
 ~q		Quit, save partial message in dead.letter
 ~r file		Read a file into the message buffer
-~r !command	Insert the output of the command in the message
+~r !command	Insert the output of the command
 ~< file		Same as ~r
 ~< !command	Same as ~r
 ~R address	Set reply-to
 ~s subject	Set subject
 ~t users	Add users to the To list
 ~v		Invoke display editor on message
-~w file		Write message onto file.
+~w file		Write message onto file
 ~x		Quit, do not save to dead.letter
-~?		Print this message
 ~! command	Invoke the shell
 ~| command	Pipe the message through the command
 ~^ command	Same as ~|
