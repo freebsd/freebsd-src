@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.18 1997/08/20 05:25:47 fsmp Exp $
+ * $Id: mplock.s,v 1.19 1997/08/25 10:57:38 peter Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -21,7 +21,7 @@
  * 
  */
 
-#include <machine/asmacros.h>		/* miscellaneous asm macros */
+#include <machine/asmacros.h>
 #include <machine/smptests.h>		/** GRAB_LOPRIO */
 #include <machine/apic.h>
 
