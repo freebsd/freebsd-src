@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: mountroot.c,v 1.2 1998/04/20 21:54:19 julian Exp $
+ *	$Id: mountroot.c,v 1.3 1998/04/23 20:59:42 julian Exp $
  */
 
 /*
@@ -81,7 +81,7 @@ struct major_hack {
 {0,	"wd"},		/* ST506 disk controller (with IDE extensions) */
 {2,	"fd"},		/* floppy disk */
 {3,	"wt"},		/* QIC-02/36 tape */
-{4,	"sd"},		/* SCSI "disk" type */
+{4,	"da"},		/* SCSI "disk" type */
 {5,	"st"},		/* SCSI "tape" type */
 {6,	"cd"},		/* SCSI "cdrom" type */
 {7,	"mcd"},		/* Mitsumi CDROM interface */
