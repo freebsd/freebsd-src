@@ -53,7 +53,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
-MROFF_CMD?=	groff -Tascii -mtty-char -man
+MROFF_CMD?=	groff -Tascii -mtty-char -man -t
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -73,8 +73,6 @@ MAN+=	${MAN${sect}}
 all-man:
 
 .if defined(NOMANCOMPRESS)
-
-COPY=		-c
 
 # Make special arrangements to filter to a temporary file at build time
 # for NOMANCOMPRESS.
