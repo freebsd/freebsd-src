@@ -370,8 +370,7 @@ pckbd_configure(int flags)
 	if (resource_int_value(DRIVER_NAME, 0, "flags", &i) == 0) {
 		flags |= i;
 		/* if the driver is disabled, unregister the keyboard if any */
-		if (resource_int_value(DRIVER_NAME, 0, "disabled", &i) == 0
-		    && i != 0) {
+		if (resource_disabled(DRIVER_NAME, 0)) {
 			i = kbd_find_keyboard(DRIVER_NAME, PC98KBD_DEFAULT);
 			if (i >= 0) {
 				kbd = kbd_get_keyboard(i);
