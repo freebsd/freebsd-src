@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_sym.c,v 1.18 1997/02/22 09:28:29 peter Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ boolean_t
 db_eqname(src, dst, c)
 	char *src;
 	char *dst;
-	char c;
+	int c;
 {
 	if (!strcmp(src, dst))
 	    return (TRUE);
