@@ -82,21 +82,4 @@ _fini(void)
 	(*p_do_dtors)();
 }
 
-/*
- * Special ".note" entry specifying the ABI version.  See
- * http://www.netbsd.org/Documentation/kernel/elf-notes.html
- * for more information.
- */
-static const struct {
-    int32_t	namesz;
-    int32_t	descsz;
-    int32_t	type;
-    char	name[sizeof ABI_VENDOR];
-    int32_t	desc;
-} abitag __attribute__ ((section (ABI_SECTION))) = {
-    sizeof ABI_VENDOR,
-    sizeof(int32_t),
-    ABI_NOTETYPE,
-    ABI_VENDOR,
-    __FreeBSD_version
-};
+#include "crtbegin.c"

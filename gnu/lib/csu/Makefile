@@ -1,41 +1,37 @@
 # $FreeBSD$
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
+
 .PATH: ${GCCDIR}
 
-SRCS=		crtstuff.c tm.h
-OBJS=		crtbegin.o crtend.o
+SRCS=		crtbegin.c crtend.c tm.h
+OBJS=		${SRCS:N*.h:R:S/$/.o/g}
+#OBJS+=		gcrt1.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
-		-finhibit-size-directive -fno-inline-functions \
-		-fno-exceptions -fno-omit-frame-pointer
+CFLAGS+=	-elf -Wall 
+CFLAGS+=	-fkeep-inline-functions -finhibit-size-directive -fno-exceptions
+CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
+CFLAGS+=	-O0
+LDFLAGS+=	-elf
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
-CLEANFILES+=	tm.h
-
-CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
+CLEANFILES+=	${SRCS}
 
 all: ${OBJS} ${SOBJS}
 
-crtbegin.o:	crtstuff.c tm.h
-	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+gcrt1.o:	crt1.c
+	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.CURDIR}/crt1.c
 
-crtbegin.So:	crtstuff.c tm.h
-	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+crtbegin.c: crtstuff.c ${.CURDIR}/../../../lib/csu/common/crtbrand.c
+	cat ${.ALLSRC} > ${.TARGET}
 
-crtend.o:	crtstuff.c tm.h
-	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+#crtbegin.c crtend.c: crtstuff.c
+crtend.c: crtstuff.c
+	ln -sf ${.ALLSRC} ${.TARGET}
 
-crtend.So:	crtstuff.c tm.h
-	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
-
-#	KEEP THIS IN SYNC with src/gnu/usr.bin/cc/cc_tools/Makefile !!
+#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
