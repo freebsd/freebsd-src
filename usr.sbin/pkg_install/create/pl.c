@@ -50,8 +50,20 @@ check_list(const char *home, Package *pkg)
 	    there = p->name;
 	    break;
 	case PLIST_FILE:
+	    cp = NULL;
 	    sprintf(name, "%s/%s", there ? there : where, p->name);
-	    if ((cp = MD5File(name, buf)) != NULL) {
+	    if (issymlink(name)) {
+		int len;
+		char lnk[FILENAME_MAX];
+
+		if ((len = readlink(name, lnk, FILENAME_MAX)) > 0)
+		    cp = MD5Data((unsigned char *)lnk, len, buf);
+	    } else if (isfile(name)) {
+		/* Don't record MD5 checksum for device nodes and such */
+		cp = MD5File(name, buf);
+	    }
+
+	    if (cp != NULL) {
 		PackingList tmp = new_plist_entry();
 
 		tmp->name = copy_string(strconcat("MD5:", cp));

@@ -239,8 +239,10 @@ void
 read_plist(Package *pkg, FILE *fp)
 {
     char *cp, pline[FILENAME_MAX];
-    int cmd;
+    int cmd, major, minor;
 
+    pkg->fmtver_maj = 1;
+    pkg->fmtver_mnr = 0;
     while (fgets(pline, FILENAME_MAX, fp)) {
 	int len = strlen(pline);
 
@@ -249,17 +251,35 @@ read_plist(Package *pkg, FILE *fp)
 	if (!len)
 	    continue;
 	cp = pline;
-	if (pline[0] == CMD_CHAR) {
-	    cmd = plist_cmd(pline + 1, &cp);
-	    if (cmd == FAIL) {
-		cleanup(0);
-		errx(2, __FUNCTION__ ": bad command '%s'", pline);
-	    }
-	    if (*cp == '\0')
-		cp = NULL;
-	}
-	else
+	if (pline[0] != CMD_CHAR) {
 	    cmd = PLIST_FILE;
+	    goto bottom;
+	}
+	cmd = plist_cmd(pline + 1, &cp);
+	if (cmd == FAIL) {
+	    cleanup(0);
+	    errx(2, __FUNCTION__ ": bad command '%s'", pline);
+	}
+	if (*cp == '\0') {
+	    cp = NULL;
+	    goto bottom;
+	}
+	if (cmd == PLIST_COMMENT && sscanf(cp, "PKG_FORMAT_REVISION:%d.%d\n",
+					   &major, &minor) == 2) {
+	    pkg->fmtver_maj = major;
+	    pkg->fmtver_mnr = minor;
+	    if (verscmp(pkg, PLIST_FMT_VER_MAJOR, PLIST_FMT_VER_MINOR) <= 0)
+		goto bottom;
+
+	    warnx("plist format revision (%d.%d) is higher than supported"
+		  "(%d.%d)", pkg->fmtver_maj, pkg->fmtver_mnr,
+		  PLIST_FMT_VER_MAJOR, PLIST_FMT_VER_MINOR);
+	    if (pkg->fmtver_maj > PLIST_FMT_VER_MAJOR) {
+		cleanup(0);
+		exit(2);
+	    }
+	}
+bottom:
 	add_plist(pkg, cmd, cp);
     }
 }
@@ -397,9 +417,23 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    }
 	    else {
 		if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
-		    char *cp, buf[33];
+		    char *cp = NULL, buf[33];
 
-		    if ((cp = MD5File(tmp, buf)) != NULL) {
+		    /*
+		     * For packing lists whose version is 1.1 or greater, the md5
+		     * hash for a symlink is calculated on the string returned
+		     * by readlink().
+		     */
+		    if (issymlink(tmp) && verscmp(pkg, 1, 0) > 0) {
+			int len;
+			char linkbuf[FILENAME_MAX];
+
+			if ((len = readlink(tmp, linkbuf, FILENAME_MAX)) > 0)
+			     cp = MD5Data((unsigned char *)linkbuf, len, buf);
+		    } else if (isfile(tmp) || verscmp(pkg, 1, 1) < 0)
+			cp = MD5File(tmp, buf);
+
+		    if (cp != NULL) {
 			/* Mismatch? */
 			if (strcmp(cp, p->next->name + 4)) {
 			    warnx("`%s' fails original MD5 checksum - %s",
