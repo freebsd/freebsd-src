@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/devicestat.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-tape.h>

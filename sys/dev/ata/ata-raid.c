@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <geom/geom_disk.h>

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdio.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>

@@ -43,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <vm/uma.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
