@@ -14,28 +14,39 @@
 
 set -ex
 
-dd if=/dev/zero of=/tmp/$$.d count=$1
-MD=`mdconfig -a -t vnode -f /tmp/$$.d -x $3 -y $2`
-rm -f /tmp/$$.d
+SECTS=$1
+HD=$2
+SC=$3
+DATASLICE=$4
+WD=$5
+IMG=$6
+
+TMPFILE0=`mktemp -t nanobsd`
+TMPFILE1=`mktemp -t nanobsd`
+TMPDIR=`mktemp -d -t nanobsd`
+
+dd if=/dev/zero of=${TMPFILE0} count=${SECTS}
+MD=`mdconfig -a -t vnode -f ${TMPFILE0} -x ${SC} -y ${HD}`
+rm -f ${TMPFILE0}
 (
-sl=`expr "(" $1 - $3 - $4 ")" / 2`
-echo p 1 165 $3 $sl
-echo p 2 165 `expr $3 + $sl` $sl
-echo p 3 165 `expr $3 + $sl + $sl` $4
-) > /tmp/$$
-cat /tmp/$$
-fdisk -i -f /tmp/$$ $MD
-fdisk $MD
-boot0cfg -B -b /boot/boot0sio -s 1 -m 3 $MD 
-rm -f /tmp/$$
+sl=`expr "(" ${SECTS} - ${SC} - ${DATASLICE} ")" / 2`
+echo p 1 165 ${SC} $sl
+echo p 2 165 `expr ${SC} + $sl` $sl
+echo p 3 165 `expr ${SC} + $sl + $sl` ${DATASLICE}
+) > ${TMPFILE1}
+cat ${TMPFILE1}
+fdisk -i -f ${TMPFILE1} ${MD}
+fdisk ${MD}
+boot0cfg -B -b /boot/boot0sio -s 1 -m 3 ${MD}
+rm -f ${TMPFILE1}
 bsdlabel -w -B ${MD}s1
 newfs -O1 -U ${MD}s1a
 newfs -O1 -U ${MD}s3
-mount /dev/${MD}s1a /mnt
-(cd $5 && find . -print | cpio -dump /mnt) || true
-df /mnt
-umount /mnt
+mount /dev/${MD}s1a ${TMPDIR}
+(cd ${WD} && find . -print | cpio -dump ${TMPDIR}) || true
+df ${TMPDIR}
+umount ${TMPDIR}
 dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
-dd if=/dev/${MD} of=$6 bs=64k
+dd if=/dev/${MD} of=${IMG} bs=64k
 dd if=/dev/${MD}s1 of=${6}.s1 bs=64k
 mdconfig -d -u ${MD}
