@@ -313,6 +313,13 @@ rerelease release:
 	else \
 		mkdir -p ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
+.if defined(PREFETCHDISTFILES)
+	@for i in ${DOCPORTS}; do \
+		cd ${CHROOTDIR}/usr/ports/$$i && \
+			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
+			JADETEX=no WITHOUT_PYTHON=yes fetch-recursive ; \
+	done
+.endif
 .endif
 .endif
 .if make(rerelease)
