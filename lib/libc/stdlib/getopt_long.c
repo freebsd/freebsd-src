@@ -70,7 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef notyet
+#define GNU_COMPATIBLE		/* Be more compatible, configure's use us! */
+
+#ifndef GNU_COMPATIBLE
 #define	REPLACE_GETOPT		/* use this getopt as the system getopt(3) */
 #endif
 
@@ -110,11 +112,21 @@ static int nonopt_end = -1;   /* first option after non options (for permute) */
 
 /* Error messages */
 static const char recargchar[] = "option requires an argument -- %c";
+/* From P1003.2 */
+static const char illoptchar[] = "illegal option -- %c";
+#ifdef GNU_COMPATIBLE
+static const char gnuoptchar[] = "invalid option -- %c";
+
+static const char recargstring[] = "option `--%s' requires an argument";
+static const char ambig[] = "option `--%.*s' is ambiguous";
+static const char noarg[] = "option `--%.*s' doesn't allow an argument";
+static const char illoptstring[] = "unrecognized option `--%s'";
+#else
 static const char recargstring[] = "option requires an argument -- %s";
 static const char ambig[] = "ambiguous option -- %.*s";
 static const char noarg[] = "option doesn't take an argument -- %.*s";
-static const char illoptchar[] = "unknown option -- %c";
 static const char illoptstring[] = "unknown option -- %s";
+#endif
 
 /*
  * Compute the greatest common divisor of a and b.
@@ -300,7 +312,7 @@ getopt_internal(int nargc, char * const *nargv, const char *options,
 {
 	char *oli;				/* option letter list index */
 	int optchar, short_too;
-	static int posixly_correct = -1;
+	int posixly_correct;
 
 	if (options == NULL)
 		return (-1);
@@ -309,16 +321,18 @@ getopt_internal(int nargc, char * const *nargv, const char *options,
 	 * Disable GNU extensions if POSIXLY_CORRECT is set or options
 	 * string begins with a '+'.
 	 */
-	if (posixly_correct == -1)
-		posixly_correct = (getenv("POSIXLY_CORRECT") != NULL);
-	if (posixly_correct || *options == '+')
-		flags &= ~FLAG_PERMUTE;
-	/*
-	 * Code "else if (*options == '-')" was here.
-	 * Try to be more GNU compatible, configure's use us!
-	 */
+	posixly_correct = (getenv("POSIXLY_CORRECT") != NULL);
+#ifdef GNU_COMPATIBLE
 	if (*options == '-')
 		flags |= FLAG_ALLARGS;
+	else if (posixly_correct || *options == '+')
+		flags &= ~FLAG_PERMUTE;
+#else
+	if (posixly_correct || *options == '+')
+		flags &= ~FLAG_PERMUTE;
+	else if (*options == '-')
+		flags |= FLAG_ALLARGS;
+#endif
 	if (*options == '+' || *options == '-')
 		options++;
 
@@ -442,8 +456,14 @@ start:
 			return (-1);
 		if (!*place)
 			++optind;
+#ifdef GNU_COMPATIBLE
+		if (PRINT_ERROR)
+			warnx(posixly_correct ? illoptchar : gnuoptchar,
+			      optchar);
+#else
 		if (PRINT_ERROR)
 			warnx(illoptchar, optchar);
+#endif
 		optopt = optchar;
 		return (BADCH);
 	}
