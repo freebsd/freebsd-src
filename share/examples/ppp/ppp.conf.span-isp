@@ -143,7 +143,7 @@ vpn:
   set enddisc LABEL
   set speed sync
   set mrru 1500
-  alias enable yes
+  nat enable yes
   set authname vpnname
   set authkey vpnkey
   add! default HISADDR
@@ -181,7 +181,7 @@ vpn-nic:
 #
 # Of course it's simple to assign an IP block to the client with a simple
 # ``add'' command, and then have the client use those IP numbers on its
-# LAN rather than using ``alias enable yes''.
+# LAN rather than using ``nat enable yes''.
 
 vpn-in:
   set enddisc label
