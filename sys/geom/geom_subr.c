@@ -581,6 +581,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
+	KASSERT(dcr != 0 || dcw != 0 || dce != 0, ("NOP access request"));
 	KASSERT(pp->geom->access != NULL, ("NULL geom->access"));
 
 	/*
