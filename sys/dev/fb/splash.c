@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: splash.c,v 1.2 1999/01/11 03:06:28 yokota Exp $
+ * $Id: splash.c,v 1.4 1999/06/22 14:13:24 yokota Exp $
  */
 
 #include "splash.h"
@@ -73,8 +73,8 @@ splash_find_data(splash_decoder_t *decoder)
 		return ENOENT;
 	decoder->data_size = *(size_t *)p;
 	if (bootverbose)
-		printf("splash: image@%p, size:%u\n",
-		       decoder->data, decoder->data_size);
+		printf("splash: image@%p, size:%lu\n",
+		       (void *)decoder->data, (long)decoder->data_size);
 	return 0;
 }
 
