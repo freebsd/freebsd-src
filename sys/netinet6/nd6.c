@@ -60,11 +60,11 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
+#include <net/fddi.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <netinet/if_fddi.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
