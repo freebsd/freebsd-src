@@ -27,6 +27,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/msg.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -34,7 +35,9 @@
 
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 
-static void msginit __P((void *));
+static void msginit __P((void));
+static int msgunload __P((void));
+static int sysvmsg_modload __P((struct module *, int, void *));
 
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK
@@ -123,8 +126,7 @@ static struct msg *msghdrs;	/* MSGTQL msg headers */
 static struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 static void
-msginit(dummy)
-	void *dummy;
+msginit()
 {
 	register int i;
 
@@ -192,7 +194,70 @@ msginit(dummy)
 		msqids[i].msg_perm.mode = 0;
 	}
 }
-SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
+
+static int
+msgunload()
+{
+	struct msqid_ds *msqptr;
+	int msqid;
+
+	for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
+		/*
+		 * Look for an unallocated and unlocked msqid_ds.
+		 * msqid_ds's can be locked by msgsnd or msgrcv while
+		 * they are copying the message in/out.  We can't
+		 * re-use the entry until they release it.
+		 */
+		msqptr = &msqids[msqid];
+		if (msqptr->msg_qbytes != 0 ||
+		    (msqptr->msg_perm.mode & MSG_LOCKED) != 0)
+			break;
+	}
+	if (msqid != msginfo.msgmni)
+		return (EBUSY);
+
+	free(msgpool, M_MSG);
+	free(msgmaps, M_MSG);
+	free(msghdrs, M_MSG);
+	free(msqids, M_MSG);
+	return (0);
+}
+
+
+static int
+sysvmsg_modload(struct module *module, int cmd, void *arg)
+{
+	int error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		msginit();
+		break;
+	case MOD_UNLOAD:
+		error = msgunload();
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t sysvmsg_moduledata = {
+	"sysvmsg_mod",
+	&sysvmsg_modload,
+	NULL
+};
+
+SYSCALL_MODULE_HELPER(msgctl, 3);
+SYSCALL_MODULE_HELPER(msgget, 2);
+SYSCALL_MODULE_HELPER(msgsnd, 4);
+SYSCALL_MODULE_HELPER(msgrcv, 5);
+
+DECLARE_MODULE(sysvmsg_mod, sysvmsg_moduledata,
+	SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
 
 /*
  * Entry point for all MSG calls

@@ -291,4 +291,4 @@
 #define	SYS___cap_get_file	367
 #define	SYS___cap_set_fd	368
 #define	SYS___cap_set_file	369
-#define	SYS_MAXSYSCALL	370
+#define	SYS_MAXSYSCALL	371

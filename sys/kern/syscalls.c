@@ -377,4 +377,5 @@ char *syscallnames[] = {
 	"__cap_get_file",			/* 367 = __cap_get_file */
 	"__cap_set_fd",			/* 368 = __cap_set_fd */
 	"__cap_set_file",			/* 369 = __cap_set_file */
+	"lkmressys",			/* 370 = lkmressys */
 };
