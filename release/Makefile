@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.35 1994/11/11 22:27:11 jkh Exp $
+#	$Id: Makefile,v 1.36 1994/11/12 02:25:04 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -90,7 +90,8 @@ cpio.flp:
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
-	ls ${CPIO1} ${CPIO2} ${CPIO3} | cpio -H newc -oa | gzip -9 > cpio.flp
+	ls ${CPIO1} ${CPIO2} ${CPIO3} | cpio -H newc -oa | gzip -9 | \
+		dd obs=512 > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
