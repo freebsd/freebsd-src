@@ -1650,7 +1650,6 @@ union_inactive(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 	struct union_node *un = VTOUNION(vp);
 
 	/*
@@ -1670,8 +1669,6 @@ union_inactive(ap)
 		VOP_UNLOCK(un->un_uppervp, 0, td);
 	}
 #endif
-
-	VOP_UNLOCK(vp, 0, td);
 
 	if ((un->un_flags & UN_CACHED) == 0)
 		vgone(vp);

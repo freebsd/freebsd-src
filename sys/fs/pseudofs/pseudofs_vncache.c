@@ -248,7 +248,9 @@ pfs_exit(void *arg, struct proc *p)
 		if (pvd->pvd_pid == p->p_pid) {
 			vnp = pvd->pvd_vnode;
 			mtx_unlock(&pfs_vncache_mutex);
+			VOP_LOCK(vnp, LK_EXCLUSIVE, curthread);
 			vgone(vnp);
+			VOP_UNLOCK(vnp, 0, curthread);
 			mtx_lock(&pfs_vncache_mutex);
 			pvd = pfs_vncache;
 		} else {
@@ -278,7 +280,9 @@ pfs_disable(struct pfs_node *pn)
 		if (pvd->pvd_pn == pn) {
 			vnp = pvd->pvd_vnode;
 			mtx_unlock(&pfs_vncache_mutex);
+			VOP_LOCK(vnp, LK_EXCLUSIVE, curthread);
 			vgone(vnp);
+			VOP_UNLOCK(vnp, 0, curthread);
 			mtx_lock(&pfs_vncache_mutex);
 			pvd = pfs_vncache;
 		} else {

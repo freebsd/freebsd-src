@@ -220,8 +220,8 @@ loop:
 		 */
 		if ((vp->v_type == VDIR && (np->n_dosattr & SMB_FA_DIR) == 0) ||
 		    (vp->v_type == VREG && (np->n_dosattr & SMB_FA_DIR) != 0)) {
-			vput(vp);
 			vgone(vp);
+			vput(vp);
 			break;
 		}
 		*vpp = vp;
@@ -377,7 +377,6 @@ smbfs_inactive(ap)
 		np->n_flag &= ~NOPEN;
 		smbfs_attr_cacheremove(vp);
 	}
-	VOP_UNLOCK(vp, 0, td);
 	if (np->n_flag & NGONE)
 		vrecycle(vp, td);
 	return (0);

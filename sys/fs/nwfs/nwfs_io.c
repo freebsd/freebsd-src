@@ -600,7 +600,7 @@ nwfs_vinvalbuf(vp, td)
 /*	struct nwmount *nmp = VTONWFS(vp);*/
 	int error = 0;
 
-	if (vp->v_iflag & VI_XLOCK)
+	if (vp->v_iflag & VI_DOOMED)
 		return (0);
 
 	while (np->n_flag & NFLUSHINPROG) {

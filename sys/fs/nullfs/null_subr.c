@@ -128,7 +128,7 @@ loop:
 			 * recycling the nullfs vnode or another thread
 			 * in vrele() waiting for the vnode lock.
 			 */
-			if ((vp->v_iflag & VI_XLOCK) != 0) {
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
 				VI_UNLOCK(vp);
 				continue;
 			}
@@ -177,7 +177,7 @@ loop:
 			 * recycling the nullfs vnode or another thread
 			 * in vrele() waiting for the vnode lock.
 			 */
-			if ((ovp->v_iflag & VI_XLOCK) != 0) {
+			if ((ovp->v_iflag & VI_DOOMED) != 0) {
 				VI_UNLOCK(ovp);
 				continue;
 			}

@@ -872,7 +872,7 @@ msdosfs_sync(mp, waitfor, td)
 loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_XLOCK)) {
+		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
