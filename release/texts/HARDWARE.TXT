@@ -118,6 +118,8 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL,
 					 some PCnet-PCI cards)
+pcn0	dyn	dyn	n/a	dyn	AMD PCnet/FAST, PCnet/FAST+, 
+					PCnet/Home, and HomePNA cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
@@ -338,6 +340,7 @@ ATA controllers:
     AMD 756
     CMD 646
     Cypress 82C693
+    Cyrex 5530
     HighPoint HPT366
     HighPoint HPT370
     Intel PIIX
@@ -345,6 +348,7 @@ ATA controllers:
     Intel PIIX4
     Intel ICH
     Intel ICH2
+    Promise ATA100 OEM chip (pdc20265)
     Promise Fasttrak-33
     Promise Fasttrak-66
     Promise Fasttrak-100
@@ -520,6 +524,7 @@ chipsets, including the following:
     Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+AMD PCnet/FAST, PCnet/FAST+, HomePCI, and HomePNA.
 
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
