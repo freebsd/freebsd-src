@@ -63,7 +63,7 @@ static void
 g_up_procbody(void)
 {
 	struct proc *p = g_up_proc;
-	struct thread *tp = &p->p_xxthread;
+	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
@@ -86,7 +86,7 @@ static void
 g_down_procbody(void)
 {
 	struct proc *p = g_down_proc;
-	struct thread *tp = &p->p_xxthread;
+	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
