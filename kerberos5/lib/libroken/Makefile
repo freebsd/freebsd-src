@@ -28,6 +28,7 @@ SRCS=		\
 	k_getpwnam.c		\
 	k_getpwuid.c		\
 	mini_inetd.c		\
+	ndbm_wrap.c		\
 	net_read.c		\
 	net_write.c		\
 	parse_bytes.c		\
