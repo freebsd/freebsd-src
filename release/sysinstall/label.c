@@ -63,9 +63,9 @@
 
 /* The default root filesystem size */
 #ifdef __alpha__
-#define ROOT_DEFAULT_SIZE		70
+#define ROOT_DEFAULT_SIZE		110
 #else
-#define ROOT_DEFAULT_SIZE		50
+#define ROOT_DEFAULT_SIZE		100
 #endif
 
 /* The smallest swap partition we want to create by default */
@@ -174,9 +174,7 @@ diskLabelEditor(dialogMenuItem *self)
 	}
     }
     if (DITEM_STATUS(i) != DITEM_FAILURE) {
-	char *cp;
-
-	if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	if (variable_cmp(DISK_LABELLED, "written"))
 	    variable_set2(DISK_LABELLED, "yes", 0);
     }
     return i;
@@ -311,6 +309,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     strcpy(ret->newfs_cmd, "newfs ");
     strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
+    ret->soft = 0;
     if (!size)
 	return ret;
     return ret;
@@ -419,7 +418,7 @@ getNewfsCmd(PartInfo *p)
 #define PART_MOUNT_COL	10
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	38
+#define PART_OFF	39
 
 #define TOTAL_AVAIL_LINES       (10)
 #define PSLICE_SHOWABLE          (4)
@@ -537,7 +536,7 @@ print_label_chunks(void)
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry in the Chunk window */
 	else {
-	    char onestr[PART_OFF], num[10], *mountpoint, *newfs;
+	    char onestr[PART_OFF], num[10], *mountpoint, newfs[10];
 
 	    /*
 	     * We copy this into a blank-padded string so that it looks like
@@ -576,13 +575,17 @@ print_label_chunks(void)
 
 	    /* Now display the newfs field */
 	    if (label_chunk_info[i].type == PART_FAT)
-	        newfs = "DOS";
-	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM)
-		newfs = ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? "UFS Y" : "UFS N";
+	        strcpy(newfs, "DOS");
+	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
+		strcpy(newfs, "UFS");
+		if (((PartInfo *)label_chunk_info[i].c->private_data)->soft)
+		    strcat(newfs, "+S");
+		strcat(newfs, ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? " Y" : " N");
+	    }
 	    else if (label_chunk_info[i].type == PART_SWAP)
-		newfs = "SWAP";
+		strcpy(newfs, "SWAP");
 	    else
-		newfs = "*";
+		strcpy(newfs, "*");
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    snprintf(num, 10, "%5ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
@@ -596,8 +599,8 @@ print_label_chunks(void)
 	    if (i == here)
 		wattrset(ChunkWin, ATTR_SELECTED);
 
-            /*** lazy man's way of padding this string ***/
-            while (strlen( onestr ) < 37)
+            /*** lazy man's way of expensively padding this string ***/
+            while (strlen(onestr) < 37)
                 strcat(onestr, " ");
 
 	    mvwaddstr(ChunkWin, prow, pcol, onestr);
@@ -633,11 +636,11 @@ static void
 print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount pt.");
+    mvprintw(18, 0, "C = Create        D = Delete   M = Mount pt.");
     if (!RunningAsInit)
-	mvprintw(18, 49, "W = Write");
-    mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo      Q = Finish");
-    mvprintw(20, 0, "A = Auto Defaults for all!");
+	mvprintw(18, 47, "W = Write");
+    mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates");
+    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
@@ -877,7 +880,7 @@ diskLabel(Device *dev)
 		}
 
 		/* At this point, we're reasonably "labelled" */
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    break;
@@ -977,7 +980,7 @@ diskLabel(Device *dev)
 		else
 		    tmp->private_data = p;
 		tmp->private_free = safe_free;
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
@@ -1008,7 +1011,7 @@ diskLabel(Device *dev)
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
-	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	    if (variable_cmp(DISK_LABELLED, "written"))
 		variable_set2(DISK_LABELLED, "yes", 0);
 	    record_label_chunks(devs, dev);
 	    break;
@@ -1037,7 +1040,7 @@ diskLabel(Device *dev)
 			strcpy(p->mountpoint, "/bogus");
 		    }
 		}
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
@@ -1058,14 +1061,28 @@ diskLabel(Device *dev)
 	    clear_wins();
 	    break;
 
+	case 'S':	/* Toggle soft updates flag */
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
+		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
+		if (pi)
+		    pi->soft = !pi->soft;
+		else
+		    msg = MSG_NOT_APPLICABLE;
+	    }
+	    else
+		msg = MSG_NOT_APPLICABLE;
+	    break;
+
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
 		label_chunk_info[here].c->private_data =
 		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		if (pi && pi->soft)
+		    ((PartInfo *)label_chunk_info[here].c->private_data)->soft = 1;
 		safe_free(pi);
 		label_chunk_info[here].c->private_free = safe_free;
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    else
@@ -1074,7 +1091,7 @@ diskLabel(Device *dev)
 
 	case 'U':
 	    clear();
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes -\n"
 			   "it's too late to undo!");
 	    }
@@ -1098,10 +1115,10 @@ diskLabel(Device *dev)
 	    break;
 
 	case 'W':
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes - if you\n"
-			   "wish to overwrite them, you'll have to start this\n"
-			   "procedure again from the beginning.");
+			   "wish to overwrite them, you'll have to restart\n"
+			   "sysinstall first.");
 	    }
 	    else if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
 			  "installation.  If you are installing FreeBSD for the first time\n"
@@ -1134,7 +1151,7 @@ diskLabel(Device *dev)
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		DialogActive = TRUE;
 		record_label_chunks(devs, dev);
@@ -1199,7 +1216,7 @@ diskLabelNonInteractive(Device *dev)
 
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    char name[512];
-	    int entries = 1;
+	    int soft, entries = 1;
 
 	    while (entries) {
 		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
@@ -1207,7 +1224,7 @@ diskLabelNonInteractive(Device *dev)
 		    int sz;
 		    char typ[10], mpoint[50];
 
-		    if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
+		    if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
 			msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
 			status = DITEM_FAILURE;
 			continue;
@@ -1242,6 +1259,8 @@ diskLabelNonInteractive(Device *dev)
 			else {
 			    tmp->private_data = new_part(mpoint, TRUE, sz);
 			    tmp->private_free = safe_free;
+			    if (!soft)
+				((PartInfo *)tmp->private_data)->soft = 1;
 			    status = DITEM_SUCCESS;
 			}
 		    }
