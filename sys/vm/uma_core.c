@@ -630,10 +630,6 @@ slab_zalloc(uma_zone_t zone, int wait)
 #ifdef UMA_DEBUG
 	printf("slab_zalloc:  Allocating a new slab for %s\n", zone->uz_name);
 #endif
-	if (zone->uz_maxpages &&
-	    zone->uz_pages + zone->uz_ppera > zone->uz_maxpages)
-		return (NULL);
-
 	ZONE_UNLOCK(zone);
 
 	if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
@@ -1456,34 +1452,33 @@ new_slab:
 			ZONE_UNLOCK(zone);
 			return (NULL);
 		}
+		while (zone->uz_maxpages &&
+		    zone->uz_pages >= zone->uz_maxpages) {
+			zone->uz_flags |= UMA_ZFLAG_FULL;
+
+			if (wait & M_WAITOK)
+				msleep(zone, &zone->uz_lock, PVM, "zonelimit", 0);
+			else 
+				goto alloc_fail;
+
+			goto new_slab;
+		}
+
 		zone->uz_recurse++;
 		slab = slab_zalloc(zone, wait);
 		zone->uz_recurse--;
-		if (slab)  {
-			LIST_INSERT_HEAD(&zone->uz_part_slab, slab, us_link);
 		/* 
-		 * We might not have been able to get a page, but another cpu
-		 * could have while we were unlocked.
+		 * We might not have been able to get a slab but another cpu
+		 * could have while we were unlocked.  If we did get a slab put
+		 * it on the partially used slab list.  If not check the free
+		 * count and restart or fail accordingly.
 		 */
-		} else if (zone->uz_free == 0) {
-			/* If we're filling a bucket return what we have */
-			if (bucket != NULL)
-				zone->uz_fills--;
-			ZONE_UNLOCK(zone);
-
-			if (bucket != NULL && bucket->ub_ptr != -1)
-				return (bucket);
-			else 
-				return (NULL);
-		} else {
-			/* Another cpu must have succeeded */
-			if ((slab = LIST_FIRST(&zone->uz_part_slab)) == NULL) {
-				slab = LIST_FIRST(&zone->uz_free_slab);
-				LIST_REMOVE(slab, us_link);
-				LIST_INSERT_HEAD(&zone->uz_part_slab,
-				    slab, us_link);
-			}
-		}
+		if (slab)
+			LIST_INSERT_HEAD(&zone->uz_part_slab, slab, us_link);
+		else if (zone->uz_free == 0)
+			goto alloc_fail;
+		else 
+			goto new_slab;
 	}
 	/*
 	 * If this is our first time though put this guy on the list.
@@ -1536,6 +1531,16 @@ new_slab:
 		zone->uz_ctor(item, zone->uz_size, udata);
 
 	return (item);
+
+alloc_fail:
+	if (bucket != NULL)
+		zone->uz_fills--;
+	ZONE_UNLOCK(zone);
+
+	if (bucket != NULL && bucket->ub_ptr != -1)
+		return (bucket);
+
+	return (NULL);
 }
 
 /* See uma.h */
@@ -1550,6 +1555,14 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);
 #endif
+	/*
+	 * The race here is acceptable.  If we miss it we'll just have to wait
+	 * a little longer for the limits to be reset.
+	 */
+
+	if (zone->uz_flags & UMA_ZFLAG_FULL)
+		goto zfree_internal;
+
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
 	CPU_LOCK(zone, cpu);
@@ -1651,6 +1664,8 @@ zfree_start:
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
 
+zfree_internal:
+
 	uma_zfree_internal(zone, item, udata, 0);
 
 	return;
@@ -1725,6 +1740,14 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 	if (!skip && zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
 
+	if (zone->uz_flags & UMA_ZFLAG_FULL) {
+		if (zone->uz_pages < zone->uz_maxpages)
+			zone->uz_flags &= ~UMA_ZFLAG_FULL;
+
+		/* We can handle one more allocation */
+		wakeup_one(&zone);
+	}
+
 	ZONE_UNLOCK(zone);
 }
 
@@ -1734,7 +1757,7 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 {
 	ZONE_LOCK(zone);
 	if (zone->uz_ppera > 1)
-		zone->uz_maxpages = nitems / zone->uz_ppera;
+		zone->uz_maxpages = nitems * zone->uz_ppera;
 	else
 		zone->uz_maxpages = nitems / zone->uz_ipers;
 	ZONE_UNLOCK(zone);
