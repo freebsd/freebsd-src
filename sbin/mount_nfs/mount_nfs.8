@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\"
-.\" $Id: mount_nfs.8,v 1.8 1997/03/11 12:31:54 peter Exp $
+.\" $Id: mount_nfs.8,v 1.9 1997/04/18 16:23:09 dfr Exp $
 .\""
 .Dd March 29, 1995
 .Dt MOUNT_NFS 8
@@ -41,7 +41,7 @@
 .Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm mount_nfs
-.Op Fl 23KPTUbcdilqs
+.Op Fl 23KNPTUbcdilqs
 .Op Fl D Ar deadthresh
 .Op Fl I Ar readdirsize
 .Op Fl L Ar leaseterm
@@ -104,8 +104,14 @@ for more information.)
 Used with NQNFS to set the lease term to the specified number of seconds.
 Only use this argument for mounts with a large round trip delay.
 Values are normally in the 10-30 second range.
+.It Fl N
+Do
+.Em not
+use a reserved socket port number (see below).
 .It Fl P
 Use a reserved socket port number.
+This flag is obsolete, and only retained for compatibility reasons.
+Reserved port numbers are used by default now.
 This is useful for mounting servers that require clients to use a
 reserved port number on the mistaken belief that this makes NFS
 more secure. (For the rare case where the client has a trusted root account

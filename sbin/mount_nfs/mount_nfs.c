@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.22 1997/05/01 12:30:02 dfr Exp $";
+	"$Id: mount_nfs.c,v 1.23 1997/06/03 13:49:26 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -269,7 +269,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:iKL:lm:o:PpqR:r:sTt:w:x:U")) != -1)
+	    "23a:bcdD:g:I:iKL:lm:No:PpqR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '2':
 			mountmode = V2;
@@ -341,6 +341,9 @@ main(argc, argv)
 			realm[REALM_SZ - 1] = '\0';
 			break;
 #endif
+		case 'N':
+			nfsargsp->flags &= ~NFSMNT_RESVPORT;
+			break;
 		case 'o':
 			altflags = 0;
 			setflags(&altflags, &nfsargsp->flags, TRUE);
@@ -375,7 +378,7 @@ main(argc, argv)
 				mountmode = V3;
 			break;
 		case 'P':
-			nfsargsp->flags |= NFSMNT_RESVPORT;
+			/* obsolete for NFSMNT_RESVPORT, now default */
 			break;
 #ifdef ISO
 		case 'p':
