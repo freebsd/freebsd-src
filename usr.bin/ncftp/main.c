@@ -462,8 +462,6 @@ int getuserinfo(void)
 		cp = getenv("MAIL");
 #ifndef __FreeBSD__
 		if (cp == NULL)
-			cp = getenv("MAILPATH");
-		if (cp == NULL)
 			cp = getenv("mail");
 		if (cp == NULL)
 			(void) sprintf(str, "/usr/spool/mail/%s", uinfo.username);
