@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.72 1994/10/24 21:36:38 wollman Exp $
+ *	$Id: syscons.c,v 1.73 1994/10/26 21:51:22 bde Exp $
  */
 
 #include "sc.h"
@@ -2154,11 +2154,7 @@ scinit(void)
 		scp->ysize = ROW;
 		scp->bell_pitch = BELL_PITCH;
 		scp->bell_duration = BELL_DURATION;
-#ifndef LAPTOP
-		scp->status = NLKED;
-#else
-		scp->status = 0;
-#endif
+		scp->status = *(char *)(KERNBASE + 0x417) & 0x20 ? NLKED : 0;
 		scp->pid = 0;
 		scp->proc = NULL;
 		scp->smode.mode = VT_AUTO;
