@@ -11,7 +11,7 @@ SRCS+=		main.c conf.c dev_net.c
 
 # Enable BootForth
 BOOT_FORTH=	yes
-CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE_ARCH}
 .if BOOT_FORTH
 CFLAGS+=	-DBOOT_FORTH
 .if exists(${.OBJDIR}/../../ficl/libficl.a)
