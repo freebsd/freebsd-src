@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * Operating system dependent routines.
  *
@@ -48,14 +53,18 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
  * Unix features are present.
  */
 
+#include <sys/file.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/file.h>
-#include <signal.h>
+#include <sys/types.h>
+
+#include <errno.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <less.h>
+
+#include "less.h"
 #include "pathnames.h"
 
 volatile int reading;
@@ -164,6 +173,7 @@ iread(fd, buf, len)
 	int len;
 {
 	register int n;
+	static int neofs;
 
 	if (setjmp(read_label))
 		/*
@@ -174,6 +184,13 @@ iread(fd, buf, len)
 	flush();
 	reading = 1;
 	n = read(fd, buf, len);
+	/* There's really no terribly impressive reason why we should just
+	 * sighup after a single EOF read, nor is there any particular
+	 * reason why we SIGHUP ourselves rather than calling exit().  However,
+	 * none of it hurts, either. */
+	if (n == 0) neofs++;
+	if (neofs > 2) kill(getpid(), SIGHUP);
+
 	reading = 0;
 	if (n < 0)
 		return (-1);
@@ -250,7 +267,6 @@ bad_file(filename, message, len)
 	char *filename, *message;
 	u_int len;
 {
-	extern int errno;
 	struct stat statbuf;
 	char *strcat(), *strerror();
 
