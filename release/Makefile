@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.4 1995/06/02 18:17:47 jkh Exp $
+#	$Id: Makefile,v 1.192.2.5 1995/06/05 17:04:50 jkh Exp $
 #
 # How to roll a release:
 #
@@ -351,6 +351,7 @@ release.8: write_mfs_in_kernel
 	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
 	./write_mfs_in_kernel ${RD}/bootfd/kernel fs-image
 	kzip ${RD}/bootfd/kernel
+	mv ${RD}/bootfd/kernel ${RD}/kernel/MFSKERNEL
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
@@ -414,7 +415,7 @@ cdrom.1:
 	mkdir ${CD}
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
-	ln -f ${RD}/bootfd/kernel ${CD}
+	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
