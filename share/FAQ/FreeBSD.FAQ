@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.5 1994/10/09 01:14:51 pst Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.6 1994/10/10 10:39:09 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -245,6 +245,7 @@ FreeBSD supports the following SCSI controllers:
 Adaptec              AH-154x Series <ISA>
                      AH-174x Series <EISA>
                      AH-152x Series <ISA>
+		     AH-2742/2842 Series <ISA/EISA>
 Buslogic             BT-445 Series <VLB> (but see section 1.5)
                      BT-545 Series <ISA>
                      BT-742 Series <EISA>
@@ -283,11 +284,18 @@ Check the sio(4) man page to get more information on configuring such
 cards.
 
 
-2.5:  Does FreeBSD support the AHA-2742 SCSI adapter from Adaptec?
+2.5:  Does FreeBSD support the AHA-2742/2842 SCSI adapters from Adaptec?
 
-No, FreeBSD does not.  This is due to Adaptec's unwillingness to
-supply programming information under other than non-disclosure.  This
-is unfortunate, but there's nothing we can do about it.
+Yes, though portions of the sources are currently GPL'd (that is to say,
+distributed under the GNU Public License), so be aware of the fact should
+you wish to distribute kernel binaries compiled with it - you MUST also
+provide the sources to the driver with the kernel image to stay legal
+with the GPL!  This is easily enough done by simply including the contents
+of /usr/src/sys/gnu/{aic7770,misc} on whatever media you distribute the
+kernel.
+
+We are working to get the GPL restriction removed, but for now you should
+at least be aware of it.
 
  
 2.6:  I have a Mumbleco bus mouse.  Is it supported and if so, how do I set
