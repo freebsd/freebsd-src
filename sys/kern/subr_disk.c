@@ -18,16 +18,22 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <machine/md_var.h>
+#include <sys/ctype.h>
 
-MALLOC_DEFINE(M_DISK, "disk", "disk data");
+static MALLOC_DEFINE(M_DISK, "disk", "disk data");
 
 static d_strategy_t diskstrategy;
 static d_open_t diskopen;
 static d_close_t diskclose; 
 static d_ioctl_t diskioctl;
 static d_psize_t diskpsize;
- 
+
+struct disk *disk_enumerate(struct disk *disk);
+
+static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
+
 static void
 inherit_raw(dev_t pdev, dev_t dev)
 {
@@ -37,7 +43,6 @@ inherit_raw(dev_t pdev, dev_t dev)
 	dev->si_iosize_max = pdev->si_iosize_max;
 	dev->si_bsize_phys = pdev->si_bsize_phys;
 	dev->si_bsize_best = pdev->si_bsize_best;
-	return;
 }
 
 dev_t
@@ -61,12 +66,13 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	if (bootverbose)
 		printf("Creating DISK %s%d\n", cdevsw->d_name, unit);
 	dev = make_dev(proto, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
-	    0, 0, 0, "r%s%d", cdevsw->d_name, unit);
+	    UID_ROOT, GID_OPERATOR, 0640, "%s%d", cdevsw->d_name, unit);
 
 	dev->si_disk = dp;
 	dp->d_dev = dev;
 	dp->d_dsflags = flags;
 	dp->d_devsw = cdevsw;
+	LIST_INSERT_HEAD(&disklist, dp, d_list);
 	return (dev);
 }
 
@@ -107,10 +113,49 @@ disk_invalidate (struct disk *disk)
 void
 disk_destroy(dev_t dev)
 {
+	LIST_REMOVE(dev->si_disk, d_list);
+	bzero(dev->si_disk, sizeof(*dev->si_disk));
     	dev->si_disk = NULL;
 	destroy_dev(dev);
 	return;
 }
+
+struct disk *
+disk_enumerate(struct disk *disk)
+{
+	if (!disk)
+		return (LIST_FIRST(&disklist));
+	else
+		return (LIST_NEXT(disk, d_list));
+}
+
+static int
+sysctl_disks(SYSCTL_HANDLER_ARGS)
+{
+	struct disk *disk;
+	int error, first;
+
+	disk = NULL;
+	first = 1;
+
+	while ((disk = disk_enumerate(disk))) {
+		if (!first) {
+			error = SYSCTL_OUT(req, " ", 1);
+			if (error)
+				return error;
+		} else {
+			first = 0;
+		}
+		error = SYSCTL_OUT(req, disk->d_dev->si_name, strlen(disk->d_dev->si_name));
+		if (error)
+			return error;
+	}
+	error = SYSCTL_OUT(req, "", 1);
+	return error;
+}
+ 
+SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD, 0, NULL, 
+    sysctl_disks, "A", "names of available disks");
 
 /*
  * The cdevsw functions
@@ -174,10 +219,11 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 	error = 0;
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
+	if (!dp)
+		return (ENXIO);
 	dsclose(dev, devtype, dp->d_slice);
-	if (!dsisopen(dp->d_slice)) {
+	if (!dsisopen(dp->d_slice))
 		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, p);
-	}
 	return (error);
 }
 
@@ -218,6 +264,8 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
+	if (!dp)
+		return (ENXIO);
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
 		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, p);
