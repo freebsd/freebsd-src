@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.30 1998/01/25 09:16:55 jb Exp $";
+static char rcsid[] = "$Id: slattach.c,v 1.31 1998/02/20 07:28:50 jb Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -268,7 +268,7 @@ void acquire_line()
 
 	/* create PID file */
 	if((pidfile = fopen(pidfilename, "w"))) {
-		fprintf(pidfile, "%ld\n", getpid());
+		fprintf(pidfile, "%ld\n", (long)getpid());
 		fclose(pidfile);
 	}
 
