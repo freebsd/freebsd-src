@@ -255,7 +255,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	struct vattr va;
 	off_t off;
 	struct l_dirent linux_dirent;
 	struct l_dirent64 linux_dirent64;
@@ -275,11 +274,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return (EINVAL);
-	}
-
-	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
-		fdrop(fp, td);
-		return (error);
 	}
 
 	nbytes = args->count;
