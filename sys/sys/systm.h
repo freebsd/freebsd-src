@@ -259,8 +259,10 @@ int	msleep __P((void *chan, struct mtx *mtx, int pri, const char *wmesg,
 int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
 #define await(pri, timo)		mawait(NULL, pri, timo)
 int	mawait  __P((struct mtx *mtx, int pri, int timo));
-void	wakeup __P((void *chan));
-void	wakeup_one __P((void *chan));
+void	mwakeup __P((void *chan, struct mtx *mtx));
+#define	wakeup(chan)			mwakeup(chan, NULL)
+void	mwakeup_one __P((void *chan, struct mtx *mtx));
+#define	wakeup_one(chan)		mwakeup_one(chan, NULL)
 
 /*
  * Common `dev_t' stuff are declared here to avoid #include poisoning

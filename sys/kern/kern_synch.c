@@ -709,16 +709,21 @@ unsleep(p)
 }
 
 /*
- * Make all processes sleeping on the specified identifier runnable.
+ * Make all processes sleeping on the specified identifier runnable.  If
+ * non-NULL, the specified mutex is dropped before any processes are made
+ * runnable.
  */
 void
-wakeup(ident)
+mwakeup(ident, mtx)
 	register void *ident;
+	register struct mtx *mtx;
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
 
 	mtx_lock_spin(&sched_lock);
+	if (mtx != NULL)
+		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 	qp = &slpque[LOOKUP(ident)];
 restart:
 	TAILQ_FOREACH(p, qp, p_slpq) {
@@ -751,16 +756,20 @@ restart:
 /*
  * Make a process sleeping on the specified identifier runnable.
  * May wake more than one process if a target process is currently
- * swapped out.
+ * swapped out.  If non-NULL, the specified mutex is dropped before
+ * a process is made runnable.
  */
 void
-wakeup_one(ident)
+mwakeup_one(ident, mtx)
 	register void *ident;
+	register struct mtx *mtx;
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
 
 	mtx_lock_spin(&sched_lock);
+	if (mtx != NULL)
+		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 	qp = &slpque[LOOKUP(ident)];
 
 	TAILQ_FOREACH(p, qp, p_slpq) {

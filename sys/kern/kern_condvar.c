@@ -492,6 +492,26 @@ cv_signal(struct cv *cvp)
 }
 
 /*
+ * Signal a condition variable, dropping the passed in mutex before waking
+ * a waiting process.
+ */
+void
+cv_signal_drop(struct cv *cvp, struct mtx *mp)
+{
+
+	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
+	KASSERT(mp != NULL, ("%s: mp NULL", __FUNCTION__));
+	mtx_assert(mp, MA_OWNED | MA_NOTRECURSED);
+	mtx_lock_spin(&sched_lock);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
+	if (!TAILQ_EMPTY(&cvp->cv_waitq)) {
+		CV_SIGNAL_VALIDATE(cvp);
+		cv_wakeup(cvp);
+	}
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
  * Broadcast a signal to a condition variable.  Wakes up all waiting processes.
  * Should be called with the same mutex as was passed to cv_wait held.
  */
@@ -501,6 +521,25 @@ cv_broadcast(struct cv *cvp)
 
 	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
 	mtx_lock_spin(&sched_lock);
+	CV_SIGNAL_VALIDATE(cvp);
+	while (!TAILQ_EMPTY(&cvp->cv_waitq))
+		cv_wakeup(cvp);
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
+ * Broadcast a signal to a condition variable, dropping the passed in mutex
+ * before waking any waiting processes.
+ */
+void
+cv_broadcast_drop(struct cv *cvp, struct mtx *mp)
+{
+
+	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
+	KASSERT(mp != NULL, ("%s: mp NULL", __FUNCTION__));
+	mtx_assert(mp, MA_OWNED | MA_NOTRECURSED);
+	mtx_lock_spin(&sched_lock);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
 	CV_SIGNAL_VALIDATE(cvp);
 	while (!TAILQ_EMPTY(&cvp->cv_waitq))
 		cv_wakeup(cvp);
