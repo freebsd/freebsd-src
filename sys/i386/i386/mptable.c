@@ -1059,7 +1059,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	/* Nothing to do if there is no HTT support. */
 	if ((cpu_feature & CPUID_HTT) == 0)
 		return;
-	logical_cpus = (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16;
+	logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
 	if (logical_cpus <= 1)
 		return;
 
