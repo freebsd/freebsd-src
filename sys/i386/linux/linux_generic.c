@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_generic.c,v 1.2 1995/11/22 07:43:45 bde Exp $
+ *  $Id: linux_generic.c,v 1.3 1995/12/09 04:31:47 peter Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,9 @@
 #include <sys/exec.h>
 
 #include <vm/vm.h>		/* XXX for a macro in exec.h */
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <machine/vmparam.h>
 
 #include <i386/linux/linux.h>
 
