@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.10 1995/07/31 21:01:03 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.10 1995/07/31 21:01:03 bde Exp
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.11  1995/07/31  21:28:42  bde
+ * Use tsleep() instead of ttysleep() to wait for carrier since a generation
+ * change isn't an error.
+ *
  * Revision 1.10  1995/07/31  21:01:03  bde
  * Obtained from:	partly from ancient patches of mine via 1.1.5
  *
@@ -139,12 +143,11 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.10 1995/07/31 21:01:03 bde Exp
 
 #include "param.h"
 #include "systm.h"
+#include "conf.h"
 #include "ioctl.h"
 #include "select.h"
 #include "tty.h"
 #include "proc.h"
-#include "user.h"
-#include "conf.h"
 #include "file.h"
 #include "uio.h"
 #include "kernel.h"
@@ -153,8 +156,8 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.10 1995/07/31 21:01:03 bde Exp
 
 #include "gnu/isdn/isdn_ioctl.h"
 
-int             ityparam();
-void		itystart();
+extern int	ityparam __P((struct tty *tp, struct termios *t));
+extern void	itystart __P((struct tty *tp));
 
 int             nity = NITY;
 int             itydefaultrate = 64000;
@@ -275,7 +278,7 @@ itywrite(dev, uio, flag)
 }
 
 int
-ity_input(int no, int len, char *buf)
+ity_input(int no, int len, char *buf, int dir)
 {
 	register struct tty *tp = &ity_tty[no];
 	int i;
