@@ -509,7 +509,7 @@ combine(char *delta, int npieces, char *dname, char *pname, char *tname)
 	    err("cannot open '%s' for writing", tname);
 	    }
 	else
-	    err("*mktemp: '%s'", tname);
+	    err("*mkstemp: '%s'", tname);
 	return 0;
 	}
 
