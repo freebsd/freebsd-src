@@ -247,6 +247,9 @@ xdr_rpcb_stat(xdrs, objp)
 	if (!xdr_rpcbs_addrlist_ptr(xdrs, &objp->addrinfo)) {
 		return (FALSE);
 	}
+	if (!xdr_rpcbs_rmtcalllist_ptr(xdrs, &objp->rmtinfo)) {
+		return (FALSE);
+	}
 	return (TRUE);
 }
 
