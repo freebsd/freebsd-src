@@ -119,11 +119,13 @@ getpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
+		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 		LIST_FOREACH(p, &allproc, p_list)
 			if (!p_can(curp, p, P_CAN_SEE, NULL) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
+		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 		break;
 
 	default:
@@ -185,12 +187,14 @@ setpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
+		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who &&
 			    !p_can(curp, p, P_CAN_SEE, NULL)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
+		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 		break;
 
 	default:

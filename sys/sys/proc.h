@@ -45,6 +45,7 @@
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <sys/callout.h>		/* For struct callout_handle. */
 #include <sys/filedesc.h>
+#include <sys/lock.h>			/* For lockmgr. */
 #include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/signal.h>
@@ -483,6 +484,8 @@ struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 
 struct vm_zone;
 extern struct vm_zone *proc_zone;
+
+extern struct lock allproc_lock;
 
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));

@@ -72,6 +72,7 @@ struct pgrphashhead *pgrphashtbl;
 u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
+struct lock allproc_lock;
 vm_zone_t proc_zone;
 vm_zone_t ithread_zone;
 
@@ -82,6 +83,7 @@ void
 procinit()
 {
 
+	lockinit(&allproc_lock, PZERO, "allproc", 0, 0);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -113,10 +115,12 @@ pfind(pid)
 {
 	register struct proc *p;
 
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid)
-			return (p);
-	return (NULL);
+			break;
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	return (p);
 }
 
 /*
@@ -470,6 +474,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (error);
 	}
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
 			p = LIST_FIRST(&allproc);
@@ -525,10 +530,14 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				continue;
 
 			error = sysctl_out_proc(p, req, doingzomb);
-			if (error)
+			if (error) {
+				lockmgr(&allproc_lock, LK_RELEASE, NULL,
+				    CURPROC);
 				return (error);
+			}
 		}
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	return (0);
 }
 
