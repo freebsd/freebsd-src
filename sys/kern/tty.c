@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.28 1995/02/15 22:25:51 ache Exp $
+ * $Id: tty.c,v 1.29 1995/02/22 23:20:51 ache Exp $
  */
 
 #include "snp.h"
@@ -1114,7 +1114,8 @@ ttyblock(tp)
 	if (total >= TTYHOG / 2 &&
 	    !ISSET(tp->t_state, TS_TBLOCK) &&
 	    (!ISSET(tp->t_lflag, ICANON) || tp->t_canq.c_cc > 0)) {
-		if (tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
+		if (ISSET(tp->t_iflag, IXOFF) &&
+		    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
 		    putc(tp->t_cc[VSTOP], &tp->t_outq) == 0 ||
 		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			SET(tp->t_state, TS_TBLOCK);
@@ -1495,7 +1496,8 @@ read:
 	 */
 	s = spltty();
 	if (ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
-		if (cc[VSTART] != _POSIX_VDISABLE &&
+		if (ISSET(tp->t_iflag, IXOFF) &&
+		    cc[VSTART] != _POSIX_VDISABLE &&
 		    putc(cc[VSTART], &tp->t_outq) == 0 ||
 		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			CLR(tp->t_state, TS_TBLOCK);
