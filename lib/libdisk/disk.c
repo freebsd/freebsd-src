@@ -406,9 +406,9 @@ assignToDisk(void *arg, XMLToken t, u_int *slice, u_int64_t v)
 
 	switch ((int) t) {
 	case XML_FWHEADS:
-		dl->d_nsectors = (u_int32_t) v;
+		dl->d_nheads = (u_int32_t) v;
 	case XML_FWSECTORS:
-		dl->d_ntracks = (u_int32_t) v;
+		dl->d_nsectors = (u_int32_t) v;
 		break;
 	case XML_MEDIASIZE:
 		/* store this temporarily; it gets moved later */
