@@ -525,7 +525,6 @@ void	vop_unlock_pre(void *a);
  * This call works for vnodes in the kernel.
  */
 #define VCALL(c) ((c)->a_desc->vdesc_call(c))
-#define VDESC(OP) (& __CONCAT(OP,_desc))
 
 /*
  * VMIO support inline
