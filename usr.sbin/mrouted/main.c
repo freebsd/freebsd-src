@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 1.8 1994/08/24 23:53:42 thyagara Exp $
+ * $Id: main.c,v 1.2 1994/09/08 02:51:18 wollman Exp $
  */
 
 /*
@@ -24,10 +24,10 @@
 
 extern char *configfilename;
 
-static char pidfilename[]  = "/etc/mrouted.pid";
-static char dumpfilename[] = "/usr/tmp/mrouted.dump";
-static char cachefilename[] = "/usr/tmp/mrouted.cache";
-static char genidfilename[] = "/usr/tmp/mrouted.genid";
+static char pidfilename[]  = "/var/run/mrouted.pid";
+static char dumpfilename[] = "/var/tmp/mrouted.dump";
+static char cachefilename[] = "/var/tmp/mrouted.cache";
+static char genidfilename[] = "/var/tmp/mrouted.genid";
 
 int cache_lifetime 	= DEFAULT_CACHE_LIFETIME;
 int max_prune_lifetime 	= DEFAULT_CACHE_LIFETIME * 2;
