@@ -67,7 +67,7 @@ static const char rcsid[] =
 
 time_t get_date __P((char *date, struct timeb *now));
 
-#define	COMPARE(a, b) {							\
+#define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
 	case F_EQUAL:							\
 		return (a == b);					\
@@ -78,7 +78,7 @@ time_t get_date __P((char *date, struct timeb *now));
 	default:							\
 		abort();						\
 	}								\
-}
+} while(0)
 
 static PLAN *
 palloc(option)
@@ -135,6 +135,82 @@ find_parsenum(plan, option, vp, endch)
 	if (endch)
 		*endch = endchar[0];
 	return value;
+}
+
+/*
+ * find_parsetime --
+ *	Parse a string of the form [+-]([0-9]+[smhdw]?)+ and return the value.
+ */
+static long long
+find_parsetime(plan, option, vp)
+	PLAN *plan;
+	char *option, *vp;
+{
+	long long secs, value;
+	char *str, *unit;	/* Pointer to character ending conversion. */
+
+	/* Determine comparison from leading + or -. */
+	str = vp;
+	switch (*str) {
+	case '+':
+		++str;
+		plan->flags |= F_GREATER;
+		break;
+	case '-':
+		++str;
+		plan->flags |= F_LESSTHAN;
+		break;
+	default:
+		plan->flags |= F_EQUAL;
+		break;
+	}
+
+	value = strtoq(str, &unit, 10);
+	if (value == 0 && unit == str) {
+		errx(1, "%s: %s: illegal time value", option, vp);
+		/* NOTREACHED */
+	}
+	if (*unit == '\0')
+		return value;
+
+	/* Units syntax. */
+	secs = 0;
+	for (;;) {
+		switch(*unit) {
+		case 's':	/* seconds */
+			secs += value;
+			break;
+		case 'm':	/* minutes */
+			secs += value * 60;
+			break;
+		case 'h':	/* hours */
+			secs += value * 3600;
+			break;
+		case 'd':	/* days */
+			secs += value * 86400;
+			break;
+		case 'w':	/* weeks */
+			secs += value * 604800;
+			break;
+		default:
+			errx(1, "%s: %s: bad unit '%c'", option, vp, *unit);
+			/* NOTREACHED */
+		}
+		str = unit + 1;
+		if (*str == '\0')	/* EOS */
+			break;
+		value = strtoq(str, &unit, 10);
+		if (value == 0 && unit == str) {
+			errx(1, "%s: %s: illegal time value", option, vp);
+			/* NOTREACHED */
+		}
+		if (*unit == '\0') {
+			errx(1, "%s: %s: missing trailing unit", option, vp);
+			/* NOTREACHED */
+		}
+	}
+	plan->flags |= F_EXACTTIME;
+	return secs;
 }
 
 /*
@@ -226,16 +302,31 @@ f_Xtime(plan, entry)
 	FTSENT *entry;
 {
 	extern time_t now;
+	int exact_time;
+
+	exact_time = plan->flags & F_EXACTTIME;
 
 	if (plan->flags & F_TIME_C) {
-		COMPARE((now - entry->fts_statp->st_ctime +
-		    86400 - 1) / 86400, plan->t_data);
+		if (exact_time)
+			COMPARE(now - entry->fts_statp->st_ctime,
+			    plan->t_data);
+		else
+			COMPARE((now - entry->fts_statp->st_ctime +
+			    86400 - 1) / 86400, plan->t_data);
 	} else if (plan->flags & F_TIME_A) {
-		COMPARE((now - entry->fts_statp->st_atime +
-		    86400 - 1) / 86400, plan->t_data);
+		if (exact_time)
+			COMPARE(now - entry->fts_statp->st_atime,
+			    plan->t_data);
+		else
+			COMPARE((now - entry->fts_statp->st_atime +
+			    86400 - 1) / 86400, plan->t_data);
 	} else {
-		COMPARE((now - entry->fts_statp->st_mtime +
-		    86400 - 1) / 86400, plan->t_data);
+		if (exact_time)
+			COMPARE(now - entry->fts_statp->st_mtime,
+			    plan->t_data);
+		else
+			COMPARE((now - entry->fts_statp->st_mtime +
+			    86400 - 1) / 86400, plan->t_data);
 	}
 }
 
@@ -244,15 +335,16 @@ c_Xtime(option, argvp)
 	OPTION *option;
 	char ***argvp;
 {
-	char *ndays;
+	char *value;
 	PLAN *new;
 
-	ndays = nextarg(option, argvp);
+	value = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
-	new->t_data = find_parsenum(new, option->name, ndays, NULL);
-	TIME_CORRECT(new);
+	new->t_data = find_parsetime(new, option->name, value);
+	if (!(new->flags & F_EXACTTIME))
+		TIME_CORRECT(new);
 	return new;
 }
 
