@@ -2295,11 +2295,8 @@ dodata:							/* XXX */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-		if (tp->sack_enable) {
-			tp->rcv_laststart = th->th_seq; /* last recv'd segment*/
-			tp->rcv_lastend = th->th_seq + tlen;
-			tcp_update_sack_list(tp);
-		}
+		if (tp->sack_enable)
+			tcp_update_sack_list(tp, th->th_seq, th->th_seq + tlen);
 		/*
 		 * Note the amount of data that peer has sent into
 		 * our window, in order to estimate the sender's
