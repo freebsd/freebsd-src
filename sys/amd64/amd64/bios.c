@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 
 #define BIOS_START	0xe0000
@@ -84,7 +87,7 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
 	/* compare here */
 	if (!bcmp(sp + sigofs, sig, siglen)) {
 	    /* convert back to physical address */
-	    return((u_int32_t)BIOS_VADDRTOPADDR(sp));
+	    return((u_int32_t)(uintptr_t)BIOS_VADDRTOPADDR(sp));
 	}
 	sp += paralen;
     }

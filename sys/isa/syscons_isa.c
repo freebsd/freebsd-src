@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include <sys/sysctl.h>
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define BIOS_SLKED	(1 << 4)
 #define BIOS_ALKED	0
 
-#endif /* __i386__ */
+#endif
 
 #include <dev/syscons/syscons.h>
 
@@ -234,7 +234,7 @@ sc_get_cons_priority(int *unit, int *flags)
 void
 sc_get_bios_values(bios_values_t *values)
 {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	u_int8_t shift;
 
 	values->cursor_start = *(u_int8_t *)BIOS_PADDRTOVADDR(0x461);
@@ -244,19 +244,18 @@ sc_get_bios_values(bios_values_t *values)
 			       | ((shift & BIOS_NLKED) ? NLKED : 0)
 			       | ((shift & BIOS_SLKED) ? SLKED : 0)
 			       | ((shift & BIOS_ALKED) ? ALKED : 0);
-	values->bell_pitch = BELL_PITCH;
-#else /* !__i386__ */
+#else
 	values->cursor_start = 0;
 	values->cursor_end = 32;
 	values->shift_state = 0;
+#endif
 	values->bell_pitch = BELL_PITCH;
-#endif /* __i386__ */
 }
 
 int
 sc_tone(int herz)
 {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	int pitch;
 
 	if (herz) {
@@ -274,7 +273,7 @@ sc_tone(int herz)
 		outb(IO_PPI, inb(IO_PPI) & 0xFC);
 		release_timer2();
 	}
-#endif /* __i386__ */
+#endif
 
 	return 0;
 }
