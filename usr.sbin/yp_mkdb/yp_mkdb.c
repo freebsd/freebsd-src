@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp $
+ *	$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */
@@ -62,8 +62,8 @@ static void usage()
 {
 	fprintf(stderr, "usage: %s -c\n", progname);
 	fprintf(stderr, "usage: %s -u dbname\n", progname);
-	fprintf(stderr, "usage: %s [-c] [-i inputfile] [-o outputfile]\n",
-								progname);
+	fprintf(stderr, "usage: %s [-c] [-b] [-s] [-i inputfile] \
+[-o outputfile]\n", progname);
 	fprintf(stderr, "               [-d domainname ] [-m mastername] \
 inputfile dbname\n");
 	exit(1);
@@ -112,6 +112,8 @@ main (argc, argv)
 	char *infilename = NULL;
 	char *outfilename = NULL;
 	char *mastername = NULL;
+	int interdom = 0;
+	int secure = 0;
 	DB *dbp;
 	DBT key, data;
 	char buf[10240];
@@ -119,13 +121,19 @@ main (argc, argv)
 	FILE *ifp;
 	char hname[MAXHOSTNAMELEN + 2];
 
-	while ((ch = getopt(argc, argv, "uhcd:i:o:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) != EOF) {
 		switch(ch) {
 		case 'u':
 			un++;
 			break;
 		case 'c':
 			clear++;
+			break;
+		case 'b':
+			interdom++;
+			break;
+		case 's':
+			secure++;
 			break;
 		case 'd':
 			domain = optarg;
@@ -188,6 +196,22 @@ main (argc, argv)
 
 	if ((dbp = open_db(map, O_RDWR|O_EXLOCK|O_EXCL|O_CREAT)) == NULL)
 		err(1, "open_db(%s) failed", map);
+
+	if (interdom) {
+		key.data = "YP_INTERDOMAIN";
+		key.size = sizeof("YP_INTERDOMAIN") - 1;
+		data.data = "";
+		data.size = 0;
+		yp_put_record(dbp, &key, &data, 0);
+	}
+
+	if (secure) {
+		key.data = "YP_SECURE";
+		key.size = sizeof("YP_SECURE") - 1;
+		data.data = "";
+		data.size = 0;
+		yp_put_record(dbp, &key, &data, 0);
+	}
 
 	key.data = "YP_MASTER_NAME";
 	key.size = sizeof("YP_MASTER_NAME") - 1;
