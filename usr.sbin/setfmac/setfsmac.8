@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2003, 2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris Costello
@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2003
+.Dd February 17, 2004
 .Os
 .Dt SETFSMAC 8
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd set MAC label for a file hierarchy
 .Sh SYNOPSIS
 .Nm
-.Op Fl ehvx
+.Op Fl ehqvx
 .Oo Fl f Ar specfile Oc ...
 .Oo Fl s Ar specfile Oc ...
 .Ar
@@ -75,6 +75,8 @@ specification files.
 .It Fl h
 When a symbolic link is encountered, change the label of the link rather
 than the file the link points to.
+.It Fl q
+Do not print non-fatal warnings during execution.
 .It Fl s Ar specfile
 Apply the specifications in
 .Ar specfile ,

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by NAI Labs, the
@@ -77,6 +77,8 @@ void add_spec_line(const char *, int, struct label_spec_entry *, char *);
 int apply_specs(struct label_specs *, FTSENT *, int, int);
 int specs_empty(struct label_specs *);
 
+static int qflag;
+
 int
 main(int argc, char **argv)
 {
@@ -93,7 +95,8 @@ main(int argc, char **argv)
 	is_setfmac = strcmp(bn, "setfmac") == 0;
 	hflag = is_setfmac ? FTS_LOGICAL : FTS_PHYSICAL;
 	specs = new_specs();
-	while ((ch = getopt(argc, argv, is_setfmac ? "Rh" : "ef:s:vx")) != -1) {
+	while ((ch = getopt(argc, argv, is_setfmac ? "Rhq" : "ef:qs:vx")) !=
+	    -1) {
 		switch (ch) {
 		case 'R':
 			Rflag = 1;
@@ -106,6 +109,9 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			hflag = FTS_PHYSICAL;
+			break;
+		case 'q':
+			qflag = 1;
 			break;
 		case 's':
 			add_specs(specs, optarg, 1);
@@ -156,8 +162,10 @@ main(int argc, char **argv)
 					    "%.*s", ftsent->fts_pathlen,
 					    ftsent->fts_path);
 				}
-				warnx("labeling not supported in %.*s",
-				    ftsent->fts_pathlen, ftsent->fts_path);
+				if (!qflag)
+					warnx("labeling not supported in %.*s",
+					    ftsent->fts_pathlen,
+					    ftsent->fts_path);
 				fts_set(fts, ftsent, FTS_SKIP);
 			}
 			break;
@@ -181,9 +189,9 @@ usage(int is_setfmac)
 {
 
 	if (is_setfmac)
-		fprintf(stderr, "usage: setfmac [-Rh] label file ...\n");
+		fprintf(stderr, "usage: setfmac [-Rhq] label file ...\n");
 	else
-		fprintf(stderr, "usage: setfsmac [-ehvx] [-f specfile [...]] [-s specfile [...]] file ...\n");
+		fprintf(stderr, "usage: setfsmac [-ehqvx] [-f specfile [...]] [-s specfile [...]] file ...\n");
 	exit(1);
 }
 
@@ -270,7 +278,9 @@ add_specs(struct label_specs *specs, const char *file, int is_sebsd)
 			free(line);
 	}
 	fclose(fp);
-	warnx("%s: read %lu specifications", file, (long)spec->nentries);
+	if (!qflag)
+		warnx("%s: read %lu specifications", file,
+		    (long)spec->nentries);
 	STAILQ_INSERT_TAIL(&specs->head, spec, link);
 }
 
