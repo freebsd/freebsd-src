@@ -109,140 +109,20 @@ mac_none_syscall(struct thread *td, int call, void *arg)
  * Label operations.
  */
 static void
-mac_none_init_bpfdesc(struct bpf_d *bpf_d, struct label *label)
-{
-
-}
-
-static void
-mac_none_init_cred(struct ucred *ucred, struct label *label)
-{
-
-}
-
-static void
-mac_none_init_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
-{
-
-}
-
-static void
-mac_none_init_ifnet(struct ifnet *ifnet, struct label *label)
-{
-
-}
-
-static void
-mac_none_init_ipq(struct ipq *ipq, struct label *ipqlabel)
+mac_none_init_label(struct label *label)
 {
 
 }
 
 static int
-mac_none_init_mbuf(struct mbuf *mbuf, int how, struct label *label)
+mac_none_init_label_waitcheck(struct label *label, int flag)
 {
 
 	return (0);
 }
 
 static void
-mac_none_init_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
-{
-
-}
-
-static void
-mac_none_init_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
-{
-
-}
-
-static void
-mac_none_init_pipe(struct pipe *pipe, struct label *label)
-{
-
-}
-
-static void
-mac_none_init_temp(struct label *label)
-{
-
-}
-
-static void
-mac_none_init_vnode(struct vnode *vp, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_bpfdesc(struct bpf_d *bpf_d, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_cred(struct ucred *ucred, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_ifnet(struct ifnet *ifnet, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_ipq(struct ipq *ipq, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_mbuf(struct mbuf *mbuf, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
-{
-
-}
-
-static void
-mac_none_destroy_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
-{
-
-}
-
-static void
-mac_none_destroy_pipe(struct pipe *pipe, struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_temp(struct label *label)
-{
-
-}
-
-static void
-mac_none_destroy_vnode(struct vnode *vp, struct label *label)
+mac_none_destroy_label(struct label *label)
 {
 
 }
@@ -943,50 +823,58 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_init },
 	{ MAC_SYSCALL,
 	    (macop_t)mac_none_syscall },
-	{ MAC_INIT_BPFDESC,
-	    (macop_t)mac_none_init_bpfdesc },
-	{ MAC_INIT_CRED,
-	    (macop_t)mac_none_init_cred },
-	{ MAC_INIT_DEVFSDIRENT,
-	    (macop_t)mac_none_init_devfsdirent },
-	{ MAC_INIT_IFNET,
-	    (macop_t)mac_none_init_ifnet },
-	{ MAC_INIT_IPQ,
-	    (macop_t)mac_none_init_ipq },
-	{ MAC_INIT_MBUF,
-	    (macop_t)mac_none_init_mbuf },
-	{ MAC_INIT_MOUNT,
-	    (macop_t)mac_none_init_mount },
-	{ MAC_INIT_PIPE,
-	    (macop_t)mac_none_init_pipe },
-	{ MAC_INIT_SOCKET,
-	    (macop_t)mac_none_init_socket },
-	{ MAC_INIT_TEMP,
-	    (macop_t)mac_none_init_temp },
-	{ MAC_INIT_VNODE,
-	    (macop_t)mac_none_init_vnode },
-	{ MAC_DESTROY_BPFDESC,
-	    (macop_t)mac_none_destroy_bpfdesc },
-	{ MAC_DESTROY_CRED,
-	    (macop_t)mac_none_destroy_cred },
-	{ MAC_DESTROY_DEVFSDIRENT,
-	    (macop_t)mac_none_destroy_devfsdirent },
-	{ MAC_DESTROY_IFNET,
-	    (macop_t)mac_none_destroy_ifnet },
-	{ MAC_DESTROY_IPQ,
-	    (macop_t)mac_none_destroy_ipq },
-	{ MAC_DESTROY_MBUF,
-	    (macop_t)mac_none_destroy_mbuf },
-	{ MAC_DESTROY_MOUNT,
-	    (macop_t)mac_none_destroy_mount },
-	{ MAC_DESTROY_PIPE,
-	    (macop_t)mac_none_destroy_pipe },
-	{ MAC_DESTROY_SOCKET,
-	    (macop_t)mac_none_destroy_socket },
-	{ MAC_DESTROY_TEMP,
-	    (macop_t)mac_none_destroy_temp },
-	{ MAC_DESTROY_VNODE,
-	    (macop_t)mac_none_destroy_vnode },
+	{ MAC_INIT_BPFDESC_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_CRED_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_IFNET_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_IPQ_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_MBUF_LABEL,
+	    (macop_t)mac_none_init_label_waitcheck },
+	{ MAC_INIT_MOUNT_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_MOUNT_FS_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_PIPE_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_SOCKET_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_SOCKET_PEER_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_TEMP_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_INIT_VNODE_LABEL,
+	    (macop_t)mac_none_init_label },
+	{ MAC_DESTROY_BPFDESC_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_CRED_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_IFNET_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_IPQ_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_MBUF_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_MOUNT_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_MOUNT_FS_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_PIPE_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_SOCKET_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_SOCKET_PEER_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_TEMP_LABEL,
+	    (macop_t)mac_none_destroy_label },
+	{ MAC_DESTROY_VNODE_LABEL,
+	    (macop_t)mac_none_destroy_label },
 	{ MAC_EXTERNALIZE,
 	    (macop_t)mac_none_externalize },
 	{ MAC_INTERNALIZE,
