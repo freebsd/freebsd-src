@@ -2160,18 +2160,18 @@ fildesc_drvinit(void *unused)
 {
 	dev_t dev;
 
-	dev = make_dev(&fildesc_cdevsw, 0, UID_BIN, GID_BIN, 0666, "fd/0");
+	dev = make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "fd/0");
 	make_dev_alias(dev, "stdin");
-	dev = make_dev(&fildesc_cdevsw, 1, UID_BIN, GID_BIN, 0666, "fd/1");
+	dev = make_dev(&fildesc_cdevsw, 1, UID_ROOT, GID_WHEEL, 0666, "fd/1");
 	make_dev_alias(dev, "stdout");
-	dev = make_dev(&fildesc_cdevsw, 2, UID_BIN, GID_BIN, 0666, "fd/2");
+	dev = make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "fd/2");
 	make_dev_alias(dev, "stderr");
 	if (!devfs_present) {
 		int fd;
 
 		for (fd = 3; fd < NUMFDESC; fd++)
-			make_dev(&fildesc_cdevsw, fd, UID_BIN, GID_BIN, 0666,
-			    "fd/%d", fd);
+			make_dev(&fildesc_cdevsw, fd, UID_ROOT, GID_WHEEL,
+			    0666, "fd/%d", fd);
 	}
 }
 
