@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.134 1995/04/12 21:13:08 phk Exp $
+#	$Id: Makefile,v 1.135 1995/04/13 02:11:31 phk Exp $
 #
 # How to roll a release:
 #
@@ -36,7 +36,7 @@ FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
 
-NEWFSARGS=		-c 80 -b 4096 -f 512 -i 2000 -m 0 -t 0 -u 0 \
+NEWFSARGS=		-c 80 -b 4096 -f 512 -i 5000 -m 0 -t 0 -u 0 \
 				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
