@@ -49,8 +49,8 @@
 #include "physical.h"
 
 static struct mbuf *
-sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
-                int pri, u_short *proto)
+sync_LayerPush(struct bundle *bundle __unused, struct link *l __unused,
+	       struct mbuf *bp, int pri __unused, u_short *proto __unused)
 {
   log_DumpBp(LogSYNC, "Write", bp);
   m_settype(bp, MB_SYNCOUT);
@@ -59,8 +59,8 @@ sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
 }
 
 static struct mbuf *
-sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
-               u_short *proto)
+sync_LayerPull(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+               u_short *proto __unused)
 {
   struct physical *p = link2physical(l);
   int len;

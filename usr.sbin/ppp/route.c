@@ -184,7 +184,7 @@ static struct bits {
 #endif
 
 static void
-p_flags(struct prompt *prompt, u_int32_t f, int max)
+p_flags(struct prompt *prompt, u_int32_t f, unsigned max)
 {
   char name[33], *flags;
   register struct bits *p = bits;
@@ -192,7 +192,7 @@ p_flags(struct prompt *prompt, u_int32_t f, int max)
   if (max > sizeof name - 1)
     max = sizeof name - 1;
 
-  for (flags = name; p->b_mask && flags - name < max; p++)
+  for (flags = name; p->b_mask && flags - name < (int)max; p++)
     if (p->b_mask & f)
       *flags++ = p->b_val;
   *flags = '\0';
@@ -516,7 +516,7 @@ route_UpdateMTU(struct bundle *bundle)
       if (log_IsKept(LogTCPIP)) {
         ncprange_setsa(&dst, sa[RTAX_DST], sa[RTAX_NETMASK]);
         log_Printf(LogTCPIP, "route_UpdateMTU: Netif: %d (%s), dst %s,"
-                   " mtu %d\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
+                   " mtu %lu\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
                    ncprange_ntoa(&dst), bundle->iface->mtu);
       }
       rt_Update(bundle, sa[RTAX_DST], sa[RTAX_GATEWAY], sa[RTAX_NETMASK]);

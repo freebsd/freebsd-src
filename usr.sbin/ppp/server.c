@@ -192,7 +192,8 @@ server_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-server_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
+server_Write(struct fdescriptor *d __unused, struct bundle *bundle __unused,
+	     const fd_set *fdset __unused)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "server_Write: Internal error: Bad call !\n");
@@ -207,7 +208,8 @@ struct server server = {
     server_Read,
     server_Write
   },
-  -1
+  -1,
+  { "", "", 0, 0 }
 };
 
 enum server_stat
@@ -375,7 +377,7 @@ failed:
 }
 
 int
-server_Close(struct bundle *bundle)
+server_Close(struct bundle *bundle __unused)
 {
   if (server.fd >= 0) {
     if (*server.cfg.sockname != '\0') {

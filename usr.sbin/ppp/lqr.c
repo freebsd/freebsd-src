@@ -127,7 +127,7 @@ void
 lqr_ChangeOrder(struct lqrdata *src, struct lqrdata *dst)
 {
   u_int32_t *sp, *dp;
-  int n;
+  unsigned n;
 
   sp = (u_int32_t *) src;
   dp = (u_int32_t *) dst;
@@ -198,7 +198,7 @@ SendLqrReport(void *v)
 }
 
 struct mbuf *
-lqr_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
+lqr_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
 {
   struct physical *p = link2physical(l);
   struct lcp *lcp = p->hdlc.lqm.owner;
@@ -411,8 +411,8 @@ lqr_Analyse(const struct hdlc *hdlc, const struct lqrdata *oldlqr,
 }
 
 static struct mbuf *
-lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
-              int pri, u_short *proto)
+lqr_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+              int pri __unused, u_short *proto)
 {
   struct physical *p = link2physical(l);
   int len, layer, extra_async_bytes;
@@ -455,7 +455,7 @@ lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
         /* Not included - see rfc1989 */
         break;
       case LAYER_HDLC:
-        p->hdlc.lqm.ifOutOctets += hdlc_WrapperOctets(&l->lcp, *proto);
+        p->hdlc.lqm.ifOutOctets += hdlc_WrapperOctets();
         break;
       case LAYER_LQR:
         layer = l->nlayers;
@@ -508,7 +508,8 @@ lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
 }
 
 static struct mbuf *
-lqr_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
+lqr_LayerPull(struct bundle *b __unused, struct link *l __unused,
+	      struct mbuf *bp, u_short *proto)
 {
   /*
    * This is the ``Rx'' process from rfc1989, although a part of it is

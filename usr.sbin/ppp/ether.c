@@ -110,7 +110,7 @@ struct etherdevice {
 #define device2ether(d) \
   ((d)->type == ETHER_DEVICE ? (struct etherdevice *)d : NULL)
 
-int
+unsigned
 ether_DeviceSize(void)
 {
   return sizeof(struct etherdevice);
@@ -121,7 +121,7 @@ ether_Write(struct physical *p, const void *v, size_t n)
 {
   struct etherdevice *dev = device2ether(p->handler);
 
-  return NgSendData(p->fd, dev->hook, v, n) == -1 ? -1 : n;
+  return NgSendData(p->fd, dev->hook, v, n) == -1 ? -1 : (ssize_t)n;
 }
 
 static ssize_t
@@ -191,7 +191,7 @@ ether_Slot(struct physical *p)
 
 static void
 ether_device2iov(struct device *d, struct iovec *iov, int *niov,
-                 int maxiov, int *auxfd, int *nauxfd)
+                 int maxiov __unused, int *auxfd, int *nauxfd)
 {
   struct etherdevice *dev = device2ether(d);
   int sz = physical_MaxDeviceSize();
@@ -343,7 +343,7 @@ static const struct device baseetherdevice = {
 
 struct device *
 ether_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-                 int maxiov, int *auxfd, int *nauxfd)
+                 int maxiov __unused, int *auxfd, int *nauxfd)
 {
   if (type == ETHER_DEVICE) {
     struct etherdevice *dev = (struct etherdevice *)iov[(*niov)++].iov_base;
@@ -443,8 +443,10 @@ ether_Create(struct physical *p)
   struct ng_mesg *resp;
   const struct hooklist *hlist;
   const struct nodeinfo *ninfo;
-  char *path, *sessionid, *mode;
-  int ifacelen, f;
+  char *path, *sessionid;
+  const char *mode;
+  size_t ifacelen;
+  unsigned f;
 
   dev = NULL;
   path = NULL;

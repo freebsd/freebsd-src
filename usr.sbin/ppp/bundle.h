@@ -98,8 +98,8 @@ struct bundle {
 
   struct {
     struct {
-      int timeout;              /* NCP Idle timeout value */
-      int min_timeout;          /* Don't idle out before this */
+      unsigned timeout;       /* NCP Idle timeout value */
+      unsigned min_timeout;   /* Don't idle out before this */
     } idle;
     struct {
       char name[AUTHLEN];     /* PAP/CHAP system name */
@@ -110,7 +110,7 @@ struct bundle {
     u_short ifqueue;          /* Interface queue size */
 
     struct {
-      int timeout;            /* How long to leave the output queue choked */
+      unsigned timeout;       /* How long to leave the output queue choked */
     } choked;
   } cfg;
 
@@ -169,7 +169,7 @@ extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *, unsigned secs);
-extern void bundle_SetIdleTimer(struct bundle *, int, int);
+extern void bundle_SetIdleTimer(struct bundle *, unsigned, unsigned);
 extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
@@ -198,7 +198,7 @@ extern int bundle_RenameDatalink(struct bundle *, struct datalink *,
                                  const char *);
 extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
-extern int bundle_HighestState(struct bundle *);
+extern unsigned bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
 extern void bundle_AdjustFilters(struct bundle *, struct ncpaddr *,
                                  struct ncpaddr *);

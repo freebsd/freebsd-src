@@ -96,9 +96,9 @@
 }
 
 static void
-MSSFixup(struct tcphdr *tc, ssize_t pktlen, u_int16_t maxmss)
+MSSFixup(struct tcphdr *tc, size_t pktlen, u_int16_t maxmss)
 {
-  int hlen, olen, optlen;
+  size_t hlen, olen, optlen;
   u_char *opt;
   u_int16_t *mss;
   int accumulate;
@@ -144,7 +144,7 @@ static struct mbuf *
 tcpmss_Check(struct bundle *bundle, struct mbuf *bp)
 {
   struct ip *pip;
-  int hlen, plen;
+  size_t hlen, plen;
 
   if (!Enabled(bundle, OPT_TCPMSSFIXUP))
     return bp;
@@ -160,7 +160,7 @@ tcpmss_Check(struct bundle *bundle, struct mbuf *bp)
    */
   if (pip->ip_p == IPPROTO_TCP && (ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
       ntohs(pip->ip_len) == plen && hlen <= plen &&
-      plen - hlen >= sizeof(struct tcphdr))
+      plen >= sizeof(struct tcphdr) + hlen)
     MSSFixup((struct tcphdr *)(MBUF_CTOP(bp) + hlen), plen - hlen,
              MAXMSS(bundle->iface->mtu));
 
@@ -168,15 +168,15 @@ tcpmss_Check(struct bundle *bundle, struct mbuf *bp)
 }
 
 static struct mbuf *
-tcpmss_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
-                 int pri, u_short *proto)
+tcpmss_LayerPush(struct bundle *bundle, struct link *l __unused,
+		 struct mbuf *bp, int pri __unused, u_short *proto __unused)
 {
 	return tcpmss_Check(bundle, bp);
 }
 
 static struct mbuf *
-tcpmss_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
-                 u_short *proto)
+tcpmss_LayerPull(struct bundle *bundle, struct link *l __unused,
+		 struct mbuf *bp, u_short *proto __unused)
 {
 	return tcpmss_Check(bundle, bp);
 }

@@ -110,7 +110,7 @@ extern void hdlc_DecodePacket(struct bundle *, u_short, struct mbuf *,
                               struct link *);
 
 extern u_short hdlc_Fcs(u_char *, size_t);
-extern int hdlc_Detect(u_char const **, int, int);
-extern int hdlc_WrapperOctets(struct lcp *, u_short);
+extern int hdlc_Detect(u_char const **, unsigned, int);
+#define hdlc_WrapperOctets() (2)
 
 extern struct layer hdlclayer;

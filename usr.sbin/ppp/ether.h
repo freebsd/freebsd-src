@@ -34,4 +34,4 @@ struct device;
 extern struct device *ether_Create(struct physical *);
 extern struct device *ether_iov2device(int, struct physical *, struct iovec *,
                                        int *, int, int *, int *);
-extern int ether_DeviceSize(void);
+extern unsigned ether_DeviceSize(void);
