@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: implementation.ms,v 1.1 1996/04/13 08:30:13 phk Exp $
 .\"
 .ds RH Implementation
 .NH
@@ -28,7 +28,7 @@ The value can be one of:
 .B MALLOC_NOT_MINE
 Another part of the code may call brk(2) to get a piece of the cake.
 Consequently we cannot rely on the memory we get from the kernel to
-be one consequtive piece of memory and therefore we need a way to
+be one consecutive piece of memory and therefore we need a way to
 mark such pages as "untouchable".
 .IP
 .B MALLOC_FREE
