@@ -764,11 +764,11 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 * process.  We have to set or clear OBJ_ONEMAPPING 
 		 * appropriately.
 		 */
-		mtx_lock(&Giant);
+		vm_object_lock(object);
 		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		}
-		mtx_unlock(&Giant);
+		vm_object_unlock(object);
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
