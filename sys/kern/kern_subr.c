@@ -125,7 +125,9 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 			panic("vm_pgmoveco: renaming busy page");
 	}
 	kpindex = kern_pg->pindex;
+	vm_page_lock_queues();
 	vm_page_busy(kern_pg);
+	vm_page_unlock_queues();
 	vm_page_rename(kern_pg, uobject, upindex);
 	vm_page_flag_clear(kern_pg, PG_BUSY);
 	kern_pg->valid = VM_PAGE_BITS_ALL;

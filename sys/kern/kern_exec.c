@@ -758,7 +758,9 @@ exec_map_first_page(imgp)
 					break;
 				if (ma[i]->valid)
 					break;
+				vm_page_lock_queues();
 				vm_page_busy(ma[i]);
+				vm_page_unlock_queues();
 			} else {
 				ma[i] = vm_page_alloc(object, i,
 				    VM_ALLOC_NORMAL);
