@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.6 1995/03/14 01:52:52 thomas Exp $
+ * $Id: pdq_os.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.1  1995/03/14  09:16:07  davidg
+ * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
+ *
+ * Submitted by:	Matt Thomas
+ *
  * Revision 1.6  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
  * Use inl/inb/... inline macros provided by FreeBSD and BSDI
@@ -64,6 +69,10 @@
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+
+#ifdef __FreeBSD__
+#include <machine/clock.h>
+#endif
 
 #define	PDQ_USE_MBUFS
 #define	PDQ_OS_PREFIX			"%s%d: "
