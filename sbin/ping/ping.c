@@ -953,7 +953,9 @@ pr_pack(buf, cc, from, tv)
 			hlen = 0;
 			break;
 		case IPOPT_LSRR:
-			(void)printf("\nLSRR: ");
+		case IPOPT_SSRR:
+			(void)printf(*cp == IPOPT_LSRR ?
+			    "\nLSRR: " : "\nSSRR: ");
 			j = cp[IPOPT_OLEN] - IPOPT_MINOFF + 1;
 			hlen -= 2;
 			cp += 2;
