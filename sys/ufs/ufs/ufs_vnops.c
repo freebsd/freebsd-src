@@ -253,6 +253,8 @@ ufs_open(struct vop_open_args *ap)
 	if ((VTOI(vp)->i_flags & APPEND) &&
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
+	/* XXX: if we have the size we should pass it for speed */
+	vnode_create_vobject(vp, 0, ap->a_td);
 	return (0);
 }
 
