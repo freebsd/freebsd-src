@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: gprof.c,v 1.8 1998/09/07 23:31:59 jdp Exp $";
+	"$Id: gprof.c,v 1.9 1999/05/23 00:37:54 jmz Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -489,8 +489,8 @@ asgnsamples()
 	ccnt = samples[i];
 	if (ccnt == 0)
 		continue;
-	pcl = lowpc + scale * i;
-	pch = lowpc + scale * (i + 1);
+	pcl = lowpc + (unsigned long)(scale * i);
+	pch = lowpc + (unsigned long)(scale * (i + 1));
 	time = ccnt;
 #	ifdef DEBUG
 	    if ( debug & SAMPLEDEBUG ) {
