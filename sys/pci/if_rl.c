@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.13 1998/10/07 22:51:30 wpaul Exp $
+ *	$Id: if_rl.c,v 1.14 1998/11/18 20:27:28 wpaul Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_rl.c,v 1.13 1998/10/07 22:51:30 wpaul Exp $";
+	"$Id: if_rl.c,v 1.14 1998/11/18 20:27:28 wpaul Exp $";
 #endif
 
 /*
@@ -144,8 +144,8 @@ static struct rl_type rl_devs[] = {
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139,
 		"RealTek 8139 10/100BaseTX" },
-	{ RT_VENDORID_ALT, RT_DEVICEID_8139_ALT,
-		"RealTek 8139 10/100BaseTX" },
+	{ ACCTON_VENDORID, ACCTON_DEVICEID_5030,
+		"Accton MPX 5030/5038 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1571,6 +1571,7 @@ static int rl_encap(sc, c, m_head)
 	struct mbuf		*m_head;
 {
 	struct mbuf		*m;
+	struct mbuf		*m_new = NULL;
 
 	/*
 	 * There are two possible encapsulation mechanisms
@@ -1587,34 +1588,32 @@ static int rl_encap(sc, c, m_head)
 
 	m = m_head;
 
-	if (m->m_pkthdr.len > MHLEN || (mtod(m, u_int32_t) & 0x00000003)) {
-		struct mbuf		*m_new = NULL;
-
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("rl%d: no memory for tx list", sc->rl_unit);
+	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	if (m_new == NULL) {
+		printf("rl%d: no memory for tx list", sc->rl_unit);
+		return(1);
+	}
+	if (m_head->m_pkthdr.len > MHLEN) {
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			m_freem(m_new);
+			printf("rl%d: no memory for tx list",
+					sc->rl_unit);
 			return(1);
 		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
-				m_freem(m_new);
-				printf("rl%d: no memory for tx list",
-						sc->rl_unit);
-				return(1);
-			}
-		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,	
-					mtod(m_new, caddr_t));
-		m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
-		m_head = m_new;
 	}
+	m_copydata(m_head, 0, m_head->m_pkthdr.len,	
+				mtod(m_new, caddr_t));
+	m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
+	m_freem(m_head);
+	m_head = m_new;
 
 	/* Pad frames to at least 60 bytes. */
-	if (m_head->m_pkthdr.len < RL_MIN_FRAMELEN)
+	if (m_head->m_pkthdr.len < RL_MIN_FRAMELEN) {
 		m_head->m_pkthdr.len +=
 			(RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
+		m_head->m_len = m_head->m_pkthdr.len;
+	}
 
 	c->rl_mbuf = m_head;
 
