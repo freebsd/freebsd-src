@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)skip.c	5.12 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: skip.c,v 4.9.1.6 1994/06/01 21:10:16 vixie Exp $";
+static char rcsid[] = "$Id: skip.c,v 1.1.1.1 1994/09/22 21:36:02 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -80,7 +80,6 @@ static char rcsid[] = "$Id: skip.c,v 4.9.1.6 1994/06/01 21:10:16 vixie Exp $";
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include <stdio.h>
-#include "../../conf/portability.h"
 
 char *res_skip_rr();
 

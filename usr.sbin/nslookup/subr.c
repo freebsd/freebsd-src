@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: subr.c,v 4.9.1.7 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: subr.c,v 1.1.1.1 1994/09/22 21:36:02 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -84,9 +84,9 @@ static char rcsid[] = "$Id: subr.c,v 4.9.1.7 1994/07/19 22:51:24 vixie Exp $";
 #include <signal.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "res.h"
-#include "../../conf/portability.h"
-
 
 
 /*
@@ -113,7 +113,7 @@ static char rcsid[] = "$Id: subr.c,v 4.9.1.7 1994/07/19 22:51:24 vixie Exp $";
  *******************************************************************************
  */
 
-SIG_FN
+void
 IntrHandler()
 {
     extern jmp_buf env;
@@ -170,7 +170,7 @@ Malloc(size)
     ptr = malloc((unsigned) size);
     sigrelse(SIGINT);
 #else
-    { SIG_FN (*old)();
+    { void (*old)();
       old = signal(SIGINT, SIG_IGN);
       ptr = malloc((unsigned) size);
       signal(SIGINT, old);
