@@ -40,11 +40,10 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -63,12 +62,12 @@ static const char rcsid[] =
 int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
-int	check __P((char *, char *, struct stat *));
-void	checkdot __P((char **));
-void	rm_file __P((char **));
-void	rm_overwrite __P((char *, struct stat *));
-void	rm_tree __P((char **));
-void	usage __P((void));
+int	check(char *, char *, struct stat *);
+void	checkdot(char **);
+void	rm_file(char **);
+void	rm_overwrite(char *, struct stat *);
+void	rm_tree(char **);
+void	usage(void);
 
 /*
  * rm --
@@ -78,9 +77,7 @@ void	usage __P((void));
  * 	file removal.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, rflag;
 	char *p;
@@ -95,11 +92,14 @@ main(argc, argv)
 	else
 		++p;
 	if (strcmp(p, "unlink") == 0) {
-		if (argc == 2) {
-			rm_file(&argv[1]);
-			exit(eval);
-		} else 
+		while (getopt(argc, argv, "") != -1)
 			usage();
+		argc -= optind;
+		argv += optind;
+		if (argc != 1)
+			usage();
+		rm_file(&argv[0]);
+		exit(eval);
 	}
 
 	Pflag = rflag = 0;
@@ -157,8 +157,7 @@ main(argc, argv)
 }
 
 void
-rm_tree(argv)
-	char **argv;
+rm_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
@@ -289,8 +288,7 @@ err:
 }
 
 void
-rm_file(argv)
-	char **argv;
+rm_file(char **argv)
 {
 	struct stat sb;
 	int rval;
@@ -357,14 +355,12 @@ rm_file(argv)
  * XXX
  * This is a cheap way to *really* delete files.  Note that only regular
  * files are deleted, directories (and therefore names) will remain.
- * Also, this assumes a fixed-block file system (like FFS, or a V7 or a
- * System V file system).  In a logging file system, you'll have to have
+ * Also, this assumes a fixed-block filesystem (like FFS, or a V7 or a
+ * System V filesystem).  In a logging filesystem, you'll have to have
  * kernel support.
  */
 void
-rm_overwrite(file, sbp)
-	char *file;
-	struct stat *sbp;
+rm_overwrite(char *file, struct stat *sbp)
 {
 	struct stat sb;
 	struct statfs fsb;
@@ -416,9 +412,7 @@ err:	eval = 1;
 
 
 int
-check(path, name, sp)
-	char *path, *name;
-	struct stat *sp;
+check(char *path, char *name, struct stat *sp)
 {
 	int ch, first;
 	char modep[15], *flagsp;
@@ -459,8 +453,7 @@ check(path, name, sp)
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
 void
-checkdot(argv)
-	char **argv;
+checkdot(char **argv)
 {
 	char *p, **save, **t;
 	int complained;
@@ -484,7 +477,7 @@ checkdot(argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
