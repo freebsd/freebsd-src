@@ -72,6 +72,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 #include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
@@ -81,7 +83,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /*
  * TxDescriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
- *            80-4096 for 82540, 82544, 82545, and 82546-based adapters
+ *              80-4096 for others
  * Default Value: 256
  *   This value is the number of transmit descriptors allocated by the driver.
  *   Increasing this value allows the driver to queue more transmits. Each
@@ -92,7 +94,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /*
  * RxDescriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
- *            80-4096 for 82540, 82544, 82545, and 82546-based adapters
+ *              80-4096 for others
  * Default Value: 256
  *   This value is the number of receive descriptors allocated by the driver.
  *   Increasing this value allows the driver to buffer more incoming packets.
@@ -115,7 +117,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TIDV                         64
 
 /*
- * TxAbsIntDelay (82540, 82545, and 82546-based adapters only)
+ * TxAbsIntDelay (Not valid for 82542 and 82543)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
@@ -149,7 +151,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RDTR                         0
 
 /*
- * RxAbsIntDelay (82540, 82545, and 82546-based adapters only)
+ * RxAbsIntDelay (Not valid for 82542 and 82543)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
@@ -198,7 +200,7 @@ POSSIBILITY OF SUCH DAMAGE.
  *              1 - Wait for autonegotiation to complete
  *              0 - Don't wait for autonegotiation to complete
  */
-#define WAIT_FOR_AUTO_NEG_DEFAULT       1
+#define WAIT_FOR_AUTO_NEG_DEFAULT       0
 
 
 /* Tunables -- End */
@@ -370,6 +372,9 @@ struct adapter {
 	struct mbuf        *lmp;
 
 	u_int16_t          tx_fifo_head;
+
+	struct sysctl_ctx_list sysctl_ctx;
+        struct sysctl_oid *sysctl_tree;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
