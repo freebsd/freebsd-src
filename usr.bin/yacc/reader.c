@@ -1888,6 +1888,7 @@ print_grammar()
     if (!vflag) return;
 
     k = 1;
+    spacing = 0;
     for (i = 2; i < nrules; ++i)
     {
 	if (rlhs[i] != rlhs[i-1])

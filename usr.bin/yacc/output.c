@@ -636,6 +636,7 @@ int vector;
     short *from;
     short *to;
 
+    loc = 0;
     i = order[vector];
     t = tally[i];
     assert(t);
