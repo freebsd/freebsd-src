@@ -158,12 +158,12 @@ rfork(p, uap)
 
 
 int	nprocs = 1;				/* process 0 */
-static int nextpid = 0;
-SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &nextpid, 0, 
+int	lastpid = 0;
+SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0, 
     "Last used PID");
 
 /*
- * Random component to nextpid generation.  We mix in a random factor to make
+ * Random component to lastpid generation.  We mix in a random factor to make
  * it a little harder to predict.  We sanity check the modulus value to avoid
  * doing it in critical paths.  Don't let it be too small or we pointlessly
  * waste randomness entropy, and don't let it be impossibly large.  Using a
@@ -302,13 +302,13 @@ fork1(p1, flags, procp)
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
-	 * ready to use (from nextpid+1 through pidchecked-1).
+	 * ready to use (from lastpid+1 through pidchecked-1).
 	 *
 	 * If RFHIGHPID is set (used during system boot), do not allocate
 	 * low-numbered pids.
 	 */
 	sx_xlock(&allproc_lock);
-	trypid = nextpid + 1;
+	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10) {
 			trypid = 10;
@@ -365,12 +365,12 @@ again:
 	}
 
 	/*
-	 * RFHIGHPID does not mess with the nextpid counter during boot.
+	 * RFHIGHPID does not mess with the lastpid counter during boot.
 	 */
 	if (flags & RFHIGHPID)
 		pidchecked = 0;
 	else
-		nextpid = trypid;
+		lastpid = trypid;
 
 	p2 = newproc;
 	p2->p_stat = SIDL;			/* protect against others */
