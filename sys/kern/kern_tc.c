@@ -618,7 +618,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		return (EOPNOTSUPP);
 #endif
 	default:
-		return (ENOTTY);
+		return (ENOIOCTL);
 	}
 }
 
