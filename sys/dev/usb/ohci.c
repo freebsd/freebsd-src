@@ -3,6 +3,8 @@
 
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.128 2002/09/27 15:37:35 provos Exp $
+ *	$NetBSD: ohci.c,v 1.129 2002/09/29 20:58:25 augustss Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -637,6 +639,7 @@ ohci_alloc_sitd(ohci_softc_t *sc)
 			  OHCI_ITD_ALIGN, &dma);
 		if (err)
 			return (NULL);
+		s = splusb();
 		for(i = 0; i < OHCI_SITD_CHUNK; i++) {
 			offs = i * OHCI_SITD_SIZE;
 			sitd = KERNADDR(&dma, offs);
@@ -644,6 +647,7 @@ ohci_alloc_sitd(ohci_softc_t *sc)
 			sitd->nextitd = sc->sc_freeitds;
 			sc->sc_freeitds = sitd;
 		}
+		splx(s);
 	}
 
 	s = splusb();
@@ -1255,8 +1259,11 @@ void
 ohci_rhsc_enable(void *v_sc)
 {
 	ohci_softc_t *sc = v_sc;
+	int s;
 
+	s = splhardusb();
 	ohci_rhsc_able(sc, 1);
+	splx(s);
 }
 
 #ifdef USB_DEBUG
