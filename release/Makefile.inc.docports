@@ -35,6 +35,7 @@ MINIMALDOCPORTS= \
 	ports/graphics/peps \
 	ports/graphics/png \
 	ports/graphics/scr2png \
+	ports/graphics/scr2txt \
 	ports/graphics/tiff \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
