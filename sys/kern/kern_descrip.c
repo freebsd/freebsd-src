@@ -1492,9 +1492,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
 		return(EBADF);
 	FILEDESC_LOCK(fdp);
-	if (fd < 0 || (u_int)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    fp->f_ops == &badfileops) {
+	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
 		FILEDESC_UNLOCK(fdp);
 		return(EBADF);
 	}
