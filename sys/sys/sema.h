@@ -30,6 +30,8 @@
 #ifndef	_SYS_SEMA_H_
 #define	_SYS_SEMA_H_
 
+#include <sys/queue.h>
+#include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/condvar.h>
 
