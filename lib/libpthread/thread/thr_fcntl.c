@@ -41,6 +41,7 @@ int
 fcntl(int fd, int cmd,...)
 {
 	int             flags = 0;
+	int		nonblock;
 	int             oldfd;
 	int             ret;
 	int             status;
@@ -90,10 +91,37 @@ fcntl(int fd, int cmd,...)
 			ret = _thread_fd_table[fd]->flags;
 			break;
 		case F_SETFL:
+			/*
+			 * Get the file descriptor flags passed by the
+			 * caller:
+			 */
 			flags = va_arg(ap, int);
-			if ((ret = _thread_sys_fcntl(fd, cmd, flags | O_NONBLOCK)) == 0) {
-				_thread_fd_table[fd]->flags = flags;
-			}
+
+			/*
+			 * Check if the user wants a non-blocking file
+			 * descriptor:
+			 */
+			nonblock = flags & O_NONBLOCK;
+
+			/* Set the file descriptor flags: */
+			if ((ret = _thread_sys_fcntl(fd, cmd, flags | O_NONBLOCK)) != 0) {
+
+			/* Get the flags so that we behave like the kernel: */
+			} else if ((flags = _thread_sys_fcntl(fd,
+			    F_GETFL, 0)) == -1) {
+				/* Error getting flags: */
+				ret = -1;
+
+			/*
+			 * Check if the file descriptor is non-blocking
+			 * with respect to the user:
+			 */
+			} else if (nonblock)
+				/* A non-blocking descriptor: */
+				_thread_fd_table[fd]->flags = flags | O_NONBLOCK;
+			else
+				/* Save the flags: */
+				_thread_fd_table[fd]->flags = flags & ~O_NONBLOCK;
 			break;
 		default:
 			/* Might want to make va_arg use a union */
