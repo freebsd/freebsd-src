@@ -1111,7 +1111,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				/* case ENOBUFS: */
 				/* case ECONNREFUSED: */
 				default:
-					dprintf("removing entry\n", e);
+					dprintf("removing entry\n");
 					(void)close(f->f_file);
 					f->f_type = F_UNUSED;
 					break;
