@@ -62,132 +62,104 @@
 /*
  * MAC framework-related constants and limits.
  */
-#define	MAC_MAX_POLICY_NAME	32
+#define	MAC_MAX_POLICY_NAME		32
+#define	MAC_MAX_LABEL_ELEMENT_NAME	32
+#define	MAC_MAX_LABEL_ELEMENT_DATA	4096
+#define	MAC_MAX_LABEL_BUF_LEN		8192
+
+struct mac {
+	size_t		 m_buflen;
+	char		*m_string;
+};
+
+typedef struct mac	*mac_t;
+
+#ifndef _KERNEL
 
 /*
- * XXXMAC: Per-policy structures will be moved from mac.h to per-policy
- * include files once the revised user interface is available.
+ * Location of the userland MAC framework configuration file.  mac.conf
+ * binds policy names to shared libraries that understand those policies,
+ * as well as setting defaults for MAC-aware applications.
  */
+#define	MAC_CONFFILE	"/etc/mac.conf"
 
 /*
- * Structures and constants associated with a Biba Integrity policy.
- * mac_biba represents a Biba label, with mb_type determining its properties,
- * and mb_grade represents the hierarchal grade if valid for the current
- * mb_type.  These structures will move to mac_biba.h once we have dymamic
- * labels exposed to userland.
+ * Extended non-POSIX.1e interfaces that offer additional services
+ * available from the userland and kernel MAC frameworks.
  */
+int		 mac_free(mac_t _label);
+int		 mac_from_text(mac_t *_label, const char *_text);
+int		 mac_get_fd(int _fd, mac_t _label);
+int		 mac_get_file(const char *_path, mac_t _label);
+int		 mac_get_link(const char *_path, mac_t _label);
+int		 mac_get_pid(pid_t _pid, mac_t _label);
+int		 mac_get_proc(mac_t _label);
+int		 mac_is_present(const char *_policyname);
+int		 mac_prepare(mac_t *_label, char *_elements);
+int		 mac_prepare_file_label(mac_t *_label);
+int		 mac_prepare_ifnet_label(mac_t *_label);
+int		 mac_prepare_process_label(mac_t *_label);
+int		 mac_set_fd(int _fildes, const mac_t _label);
+int		 mac_set_file(const char *_path, mac_t _label);
+int		 mac_set_link(const char *_path, mac_t _label);
+int		 mac_set_proc(const mac_t _label);
+int		 mac_syscall(const char *_policyname, int _call, void *_arg);
+int		 mac_to_text(mac_t mac, char **_text);
+
+#endif /* !_KERNEL */
+
+/*
+ * XXXMAC: For compatibility until the labels on disk are changed.  We
+ * will enable the definitions in various policy include files once
+ * these can be disabled.
+ */
+
 #define	MAC_BIBA_MAX_COMPARTMENTS	256
+
 struct mac_biba_element {
 	u_short	mbe_type;
 	u_short	mbe_grade;
 	u_char	mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
 };
 
-/*
- * Biba labels consist of two components: a single label, and a label
- * range.  Depending on the context, one or both may be used; the mb_flags
- * field permits the provider to indicate what fields are intended for
- * use.
- */
 struct mac_biba {
 	int			mb_flags;
 	struct mac_biba_element	mb_single;
-	struct mac_biba_element mb_rangelow, mb_rangehigh;
+	struct mac_biba_element	mb_rangelow, mb_rangehigh;
 };
 
-/*
- * Structures and constants associated with a Multi-Level Security policy.
- * mac_mls represents an MLS label, with mm_type determining its properties,
- * and mm_level represents the hierarchal sensitivity level if valid for the
- * current mm_type.  These structures will move to mac_mls.h once we have
- * dynamic labels exposed to userland.
- */
 #define	MAC_MLS_MAX_COMPARTMENTS	256
+
 struct mac_mls_element {
 	u_short	mme_type;
 	u_short	mme_level;
 	u_char	mme_compartments[MAC_MLS_MAX_COMPARTMENTS >> 3];
 };
 
-/*
- * MLS labels consist of two components: a single label, and a label
- * range.  Depending on the context, one or both may be used; the mb_flags
- * field permits the provider to indicate what fields are intended for
- * use.
- */
 struct mac_mls {
 	int			mm_flags;
 	struct mac_mls_element	mm_single;
 	struct mac_mls_element	mm_rangelow, mm_rangehigh;
 };
 
-/*
- * Structures and constants associated with a Type Enforcement policy.
- * mac_te represents a Type Enforcement label.
- */
 #define	MAC_TE_TYPE_MAXLEN	32
 struct mac_te {
-	char	mt_type[MAC_TE_TYPE_MAXLEN+1];	/* TE type */
+	char	mt_type[MAC_TE_TYPE_MAXLEN];
 };
 
 struct mac_sebsd {
-	uint32_t	ms_psid;	/* persistent sid storage */
+	uint32_t	ms_psid;
 };
 
-/*
- * Composite structures and constants which combine the various policy
- * elements into common structures to be associated with subjects and
- * objects.
- */
-struct mac {
-	int		m_macflags;
-	struct mac_biba	m_biba;
-	struct mac_mls	m_mls;
-	struct mac_te	m_te;
-	struct mac_sebsd m_sebsd;
+struct oldmac {
+	int			m_macflags;
+	struct mac_biba		m_biba;
+	struct mac_mls		m_mls;
+	struct mac_te		m_te;
+	struct mac_sebsd	m_sebsd;
 };
-typedef struct mac	*mac_t;
 
-#define	MAC_FLAG_INITIALIZED		0x00000001	/* Is initialized. */
-
-#ifndef _KERNEL
-
-/*
- * POSIX.1e functions visible in the application namespace.
- */
-int	mac_dominate(const mac_t _labela, const mac_t _labelb);
-int	mac_equal(const mac_t labela, const mac_t _labelb);
-int	mac_free(void *_buf_p);
-mac_t	mac_from_text(const char *_text_p);
-mac_t	mac_get_fd(int _fildes);
-mac_t	mac_get_file(const char *_path_p);
-mac_t	mac_get_proc(void);
-mac_t	mac_glb(const mac_t _labela, const mac_t _labelb);
-mac_t	mac_lub(const mac_t _labela, const mac_t _labelb);
-int	mac_set_fd(int _fildes, const mac_t _label);
-int	mac_set_file(const char *_path_p, mac_t _label);
-int	mac_set_proc(const mac_t _label);
-ssize_t	mac_size(mac_t _label);
-char *	mac_to_text(const mac_t _label, size_t *_len_p);
-int	mac_valid(const mac_t _label);
-
-/*
- * Extensions to POSIX.1e visible in the application namespace.
- */
-int	mac_is_present_np(const char *_policyname);
-int	mac_syscall(const char *_policyname, int call, void *arg);
-
-/*
- * System calls wrapped by some POSIX.1e functions.
- */
-int	__mac_get_fd(int _fd, struct mac *_mac_p);
-int	__mac_get_file(const char *_path_p, struct mac *_mac_p);
-int	__mac_get_proc(struct mac *_mac_p);
-int	__mac_set_fd(int fd, struct mac *_mac_p);
-int	__mac_set_file(const char *_path_p, struct mac *_mac_p);
-int	__mac_set_proc(struct mac *_mac_p);
-
-#else /* _KERNEL */
+#ifdef _KERNEL
 
 /*
  * Kernel functions to manage and evaluate labels.
@@ -247,9 +219,9 @@ void	mac_destroy_vnode(struct vnode *);
 void	mac_create_devfs_device(dev_t dev, struct devfs_dirent *de);
 void	mac_create_devfs_directory(char *dirname, int dirnamelen,
 	    struct devfs_dirent *de);
-void	mac_create_devfs_vnode(struct devfs_dirent *de, struct vnode *vp);
 void	mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
 	    struct devfs_dirent *de);
+void	mac_create_devfs_vnode(struct devfs_dirent *de, struct vnode *vp);
 void	mac_create_vnode(struct ucred *cred, struct vnode *parent,
 	    struct vnode *child);
 void	mac_create_mount(struct ucred *cred, struct mount *mp);
