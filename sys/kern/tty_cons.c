@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -549,7 +551,11 @@ cnputc(int c)
 			cn->cn_putc(cn->cn_dev, '\r');
 		cn->cn_putc(cn->cn_dev, c);
 	}
+#ifdef DDB
 	if (console_pausing && !db_active && (c == '\n')) {
+#else
+	if (console_pausing && (c == '\n')) {
+#endif
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(*cp);
 		if (cngetc() == '.')
