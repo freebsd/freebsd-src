@@ -753,8 +753,7 @@ aac_start(struct aac_command *cm)
 	cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
 
 	/* save a pointer to the command for speedy reverse-lookup */
-	cm->cm_fib->Header.SenderData = (u_int32_t)cm;	/* XXX 64-bit physical
-							 * address issue */
+	cm->cm_fib->Header.SenderData = cm->cm_index;
 	/* put the FIB on the outbound queue */
 	error = aac_enqueue_fib(sc, cm->cm_queue, cm);
 	return(error);
@@ -867,7 +866,7 @@ aac_complete(void *context, int pending)
 			break;	/* nothing to do */
 
 		/* get the command, unmap and queue for later processing */
-		cm = (struct aac_command *)fib->Header.SenderData;
+		cm = sc->aac_commands + fib->Header.SenderData;
 		if (cm == NULL) {
 			AAC_PRINT_FIB(sc, fib);
 			break;
@@ -1161,6 +1160,7 @@ aac_alloc_commands(struct aac_softc *sc)
 		cm->cm_sc = sc;
 		cm->cm_fib = fm->aac_fibs + i;
 		cm->cm_fibphys = fibphys + (i * sizeof(struct aac_fib));
+		cm->cm_index = sc->total_fibs;
 
 		if ((error = bus_dmamap_create(sc->aac_buffer_dmat, 0,
 					       &cm->cm_datamap)) == 0)
