@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2003 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,13 +8,14 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: shm.c,v 1.10 2001/12/14 00:22:58 ca Exp $")
+SM_RCSID("@(#)$Id: shm.c,v 1.10.2.6 2003/06/13 21:17:48 ca Exp $")
 
 #if SM_CONF_SHM
 # include <stdlib.h>
 # include <unistd.h>
 # include <errno.h>
 # include <sm/shm.h>
+
 
 /*
 **  SM_SHMSTART -- initialize shared memory segment.
@@ -69,6 +70,7 @@ sm_shmstart(key, size, shmflg, shmid, owner)
 	return (void *) 0;
 }
 
+
 /*
 **  SM_SHMSTOP -- stop using shared memory segment.
 **
@@ -85,6 +87,7 @@ sm_shmstart(key, size, shmflg, shmid, owner)
 **		detaches (and maybe removes) shared memory segment.
 */
 
+
 int
 sm_shmstop(shm, shmid, owner)
 	void *shm;
@@ -99,4 +102,6 @@ sm_shmstop(shm, shmid, owner)
 		return r;
 	return 0;
 }
+
+
 #endif /* SM_CONF_SHM */

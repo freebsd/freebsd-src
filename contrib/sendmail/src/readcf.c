@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.8 2003/03/12 22:42:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.11 2003/04/03 23:04:06 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -291,11 +291,19 @@ readcf(cfname, safe, e)
 			if (rwp->r_rhs != NULL)
 			{
 				register char **ap;
+				int args, endtoken;
+#if _FFR_EXTRA_MAP_CHECK
+				int nexttoken;
+#endif /* _FFR_EXTRA_MAP_CHECK */
+				bool inmap;
 
 				rwp->r_rhs = copyplist(rwp->r_rhs, true, NULL);
 
 				/* check no out-of-bounds replacements */
 				nfuzzy += '0';
+				inmap = false;
+				args = 0;
+				endtoken = 0;
 				for (ap = rwp->r_rhs; *ap != NULL; ap++)
 				{
 					char *botch;
@@ -331,6 +339,65 @@ readcf(cfname, safe, e)
 						botch = "$~";
 						break;
 
+					  case CANONHOST:
+						if (!inmap)
+							break;
+						if (++args >= MAX_MAP_ARGS)
+							syserr("too many arguments for map lookup");
+						break;
+
+					  case HOSTBEGIN:
+						endtoken = HOSTEND;
+						/* FALLTHROUGH */
+					  case LOOKUPBEGIN:
+						/* see above... */
+						if ((**ap & 0377) == LOOKUPBEGIN)
+							endtoken = LOOKUPEND;
+						if (inmap)
+							syserr("cannot nest map lookups");
+						inmap = true;
+						args = 0;
+#if _FFR_EXTRA_MAP_CHECK
+						if (*(ap + 1) == NULL)
+						{
+							syserr("syntax error in map lookup");
+							break;
+						}
+						nexttoken = **(ap + 1) & 0377;
+						if (nexttoken == CANONHOST ||
+						    nexttoken == CANONUSER ||
+						    nexttoken == endtoken)
+						{
+							syserr("missing map name for lookup");
+							break;
+						}
+						if (*(ap + 2) == NULL)
+						{
+							syserr("syntax error in map lookup");
+							break;
+						}
+						if ((**ap & 0377) == HOSTBEGIN)
+							break;
+						nexttoken = **(ap + 2) & 0377;
+						if (nexttoken == CANONHOST ||
+						    nexttoken == CANONUSER ||
+						    nexttoken == endtoken)
+						{
+							syserr("missing key name for lookup");
+							break;
+						}
+#endif /* _FFR_EXTRA_MAP_CHECK */
+						break;
+
+					  case HOSTEND:
+					  case LOOKUPEND:
+						if ((**ap & 0377) != endtoken)
+							break;
+						inmap = false;
+						endtoken = 0;
+						break;
+
+
 #if 0
 /*
 **  This doesn't work yet as there are maps defined *after* the cf
@@ -365,6 +432,8 @@ readcf(cfname, safe, e)
 						syserr("Inappropriate use of %s on RHS",
 							botch);
 				}
+				if (inmap)
+					syserr("missing map closing token");
 			}
 			else
 			{
@@ -863,6 +932,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 		*p++ = '\0';
 		cl = p;
 
+#if LDAPMAP
 		if (strcmp(cl, "LDAP") == 0)
 		{
 			int n;
@@ -902,6 +972,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 			spec = buf;
 		}
 		else
+#endif /* LDAPMAP */
 		{
 			if ((spec = strchr(cl, ':')) == NULL)
 			{
@@ -2552,7 +2623,7 @@ setoption(opt, val, safe, sticky, e)
 			break;
 		p = newstr(ep);
 		if (!safe)
-			cleanstrcpy(p, p, MAXNAME);
+			cleanstrcpy(p, p, strlen(p) + 1);
 		macdefine(&CurEnv->e_macro, A_TEMP, mid, p);
 		break;
 
@@ -3276,13 +3347,13 @@ setoption(opt, val, safe, sticky, e)
 		else
 			MaxMimeFieldLength = MaxMimeHeaderLength / 2;
 
-		if (MaxMimeHeaderLength < 0)
+		if (MaxMimeHeaderLength <= 0)
 			MaxMimeHeaderLength = 0;
 		else if (MaxMimeHeaderLength < 128)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Warning: MaxMimeHeaderLength: header length limit set lower than 128\n");
 
-		if (MaxMimeFieldLength < 0)
+		if (MaxMimeFieldLength <= 0)
 			MaxMimeFieldLength = 0;
 		else if (MaxMimeFieldLength < 40)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
