@@ -172,7 +172,7 @@ main(argc, argv)
 	while (nhosts > 0) {
 	    --nhosts;
 
-	    if (inet_aton(hosts[nhosts], &addr.sin_addr) < 0) {
+	    if (!inet_aton(hosts[nhosts], &addr.sin_addr)) {
 		    syslog(LOG_ERR, "bad IP address: %s", hosts[nhosts]);
 		    exit(1);
 	    }
