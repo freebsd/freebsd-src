@@ -505,7 +505,7 @@ firewire_shutdown( device_t dev )
 
 
 static void
-firewire_xferq_drain(struct fw_xferq *xferq)
+fw_xferq_drain(struct fw_xferq *xferq)
 {
 	struct fw_xfer *xfer;
 
@@ -524,6 +524,17 @@ firewire_xferq_drain(struct fw_xferq *xferq)
 	}
 }
 
+void
+fw_drain_txq(struct firewire_comm *fc)
+{
+	int i;
+
+	fw_xferq_drain(fc->atq);
+	fw_xferq_drain(fc->ats);
+	for(i = 0; i < fc->nisodma; i++)
+		fw_xferq_drain(fc->it[i]);
+}
+
 /*
  * Called after bus reset.
  */
@@ -540,12 +551,6 @@ fw_busreset(struct firewire_comm *fc)
 		break;
 	}
 	fc->status = FWBUSRESET;
-/* XXX: discard all queued packet */
-	firewire_xferq_drain(fc->atq);
-	firewire_xferq_drain(fc->ats);
-	for(i = 0; i < fc->nisodma; i++)
-		firewire_xferq_drain(fc->it[i]);
-
 	CSRARC(fc, STATE_CLEAR)
 			= 1 << 23 | 0 << 17 | 1 << 16 | 1 << 15 | 1 << 14 ;
 	CSRARC(fc, STATE_SET) = CSRARC(fc, STATE_CLEAR);
@@ -1772,7 +1777,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 				ntohl(fp->mode.rreqq.dest_lo),
 				fp->mode.common.tcode);
 			if (fc->status == FWBUSRESET) {
-				printf("fw_rcv: cannot response(bus reset)!\n");
+				printf("fw_rcv: cannot respond(bus reset)!\n");
 				goto err;
 			}
 			xfer = fw_xfer_alloc(M_FWXFER);

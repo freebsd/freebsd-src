@@ -38,6 +38,12 @@
 .Nm sbp
 .Nd Serial Bus Protocol 2 (SBP-2) Mass Storage Devices driver
 .Sh SYNOPSIS
+.Cd "kldload firewire"
+.Cd "kldload cam"
+.Cd "kldload sbp"
+.Pp
+or
+.Pp
 .Cd "device sbp"
 .Cd "device firewire"
 .Cd "device scbus"
@@ -52,10 +58,20 @@ driver provides support for SBP-2 devices that attach to the firewire
 It should work with SBP-2 devices which CAM layer supports, for example,
 HDD, CDROM drive and DVD drive.
 .Pp
+Some users familier with
+.Xr umass 4
+might wander why the device is not detached at the CAM layer when the device
+is unplugged. It's detached only if the device has not been plugged again
+during several bus resets. This is for preventing to detach an active filesystem
+even when the device cannot be probe correctly for some reason after a bus reset
+or when the device is temporary disconnected because the user changes the bus
+topology. If you want to force to detach the device, run 'fwcontrol -r'
+several times.
 .Sh SEE ALSO
 .Xr camcontrol 8 ,
 .Xr firewire 4 ,
 .Xr fwcontrol 8 ,
+.Xr kldload 8 ,
 .Xr sysctl 8
 .Sh AUTHORS
 .An -nosplit

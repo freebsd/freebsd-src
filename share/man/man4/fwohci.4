@@ -39,6 +39,10 @@
 .Nm fwohci
 .Nd OHCI firewire chipset device driver
 .Sh SYNOPSIS
+.Cd "kldload firewire"
+.Pp
+or
+.Pp
 .Cd "device fwohci"
 .Cd "device firewire"
 .Sh DESCRIPTION
@@ -63,6 +67,7 @@ Ricoh R5C552
 .Xr firewire 4 ,
 .Xr fwcontrol 8 ,
 .Xr fwe 4 ,
+.Xr kldload 8 ,
 .Xr sbp 4
 .Sh HISTORY
 The
@@ -76,3 +81,11 @@ device driver was written by
 .An Katsushi Kobayashi
 and
 .An Hidetoshi Shimokawa .
+.Pp
+.Sh BUGS
+The driver allows physical access from any nodes on the bus by default.
+This means that any devices on the bus can read and modify any memory space
+which can be accessed by IEEE 1394 OHCI chip.  It is allowed mostly
+for sbp(4) devices. This should be changed to allow it only for specific
+devices.  Anyway FireWire is a bus and not expected to be connected with
+un-trustable devices because a node can monitor all the traffic. 
