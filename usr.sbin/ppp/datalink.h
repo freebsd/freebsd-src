@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.2 1998/02/16 19:09:51 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.3 1998/02/16 19:10:36 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -46,11 +46,15 @@ struct datalink {
   } script;
 
   struct pppTimer dial_timer;	/* For timing between opens & scripts */
-  int dial_tries;		/* try again this number of times */
-  int max_reconnect;		/* initially try again this number of times */
-  unsigned reconnect_tries;	/* currently try again this number of times */
-  int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
 
+  int dial_tries;		/* currently try again this number of times */
+  int max_dial;			/* initially try again this number of times */
+  int dial_timeout;		/* Redial timeout value */
+  int dial_next_timeout;	/* Redial next timeout value */
+
+  unsigned reconnect_tries;	/* currently try again this number of times */
+  int max_reconnect;		/* initially try again this number of times */
+  int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
 
   char *name;			/* Our name */
 

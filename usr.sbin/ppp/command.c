@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.18 1998/02/16 19:09:44 brian Exp $
+ * $Id: command.c,v 1.131.2.19 1998/02/16 19:10:30 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -523,22 +523,24 @@ ShowReconnect(struct cmdargs const *arg)
 static int
 ShowRedial(struct cmdargs const *arg)
 {
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
+
   prompt_Printf(&prompt, " Redial Timer: ");
 
-  if (VarRedialTimeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", VarRedialTimeout);
+  if (dl->dial_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", dl->dial_timeout);
   else
-    prompt_Printf(&prompt, " Random 0 - %d seconds, ", REDIAL_PERIOD);
+    prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
   prompt_Printf(&prompt, " Redial Next Timer: ");
 
-  if (VarRedialNextTimeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", VarRedialNextTimeout);
+  if (dl->dial_next_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", dl->dial_next_timeout);
   else
-    prompt_Printf(&prompt, " Random 0 - %d seconds, ", REDIAL_PERIOD);
+    prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
-  if (VarDialTries)
-    prompt_Printf(&prompt, "%d dial tries", VarDialTries);
+  if (dl->max_dial)
+    prompt_Printf(&prompt, "%d dial tries", dl->max_dial);
 
   prompt_Printf(&prompt, "\n");
 
@@ -868,6 +870,7 @@ SetReconnect(struct cmdargs const *arg)
 static int
 SetRedialTimeout(struct cmdargs const *arg)
 {
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
   int timeout;
   int tries;
   char *dot;
@@ -875,13 +878,13 @@ SetRedialTimeout(struct cmdargs const *arg)
   if (arg->argc == 1 || arg->argc == 2) {
     if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
 	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
-      VarRedialTimeout = -1;
+      dl->dial_timeout = -1;
       randinit();
     } else {
       timeout = atoi(arg->argv[0]);
 
       if (timeout >= 0)
-	VarRedialTimeout = timeout;
+	dl->dial_timeout = timeout;
       else {
 	LogPrintf(LogWARN, "Invalid redial timeout\n");
 	return -1;
@@ -891,25 +894,25 @@ SetRedialTimeout(struct cmdargs const *arg)
     dot = strchr(arg->argv[0], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
-	VarRedialNextTimeout = -1;
+	dl->dial_next_timeout = -1;
 	randinit();
       } else {
 	timeout = atoi(dot);
 	if (timeout >= 0)
-	  VarRedialNextTimeout = timeout;
+	  dl->dial_next_timeout = timeout;
 	else {
 	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
 	  return -1;
 	}
       }
     } else
-      VarRedialNextTimeout = NEXT_REDIAL_PERIOD;	/* Default next timeout */
+      dl->dial_next_timeout = DIAL_NEXT_TIMEOUT;  /* Default next timeout */
 
     if (arg->argc == 2) {
       tries = atoi(arg->argv[1]);
 
       if (tries >= 0) {
-	VarDialTries = tries;
+	dl->max_dial = tries;
       } else {
 	LogPrintf(LogWARN, "Invalid retry value\n");
 	return 1;

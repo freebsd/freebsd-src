@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.5 1998/02/16 19:10:03 brian Exp $
+ * $Id: vars.h,v 1.42.2.6 1998/02/16 19:10:44 brian Exp $
  *
  *	TODO:
  */
@@ -64,9 +64,6 @@ struct pppvars {
   int idle_timeout;		/* Idle timeout value */
   int lqr_timeout;		/* LQR timeout value */
   int retry_timeout;		/* Retry timeout value */
-  int redial_timeout;		/* Redial timeout value */
-  int redial_next_timeout;	/* Redial next timeout value */
-  int dial_tries;		/* Dial attempts before giving up, 0 == inf */
   int loopback;			/* Turn around packets addressed to me */
   char modem_devlist[LINE_LEN];	/* Comma-separated list of devices */
   char modem_dev[40];		/* Name of device / host:port */
@@ -123,9 +120,6 @@ struct pppvars {
 #define VarNextPhone    	pppVars.next_phone
 #define VarAltPhone     	pppVars.alt_phone
 #define	VarShortHost		pppVars.shostname
-#define VarRedialTimeout	pppVars.redial_timeout
-#define VarRedialNextTimeout	pppVars.redial_next_timeout
-#define VarDialTries		pppVars.dial_tries
 #define VarLoopback		pppVars.loopback
 
 #define VarAliasHandlers	   pppVars.handler

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.1 1998/01/29 00:49:16 brian Exp $
+ * $Id: defs.h,v 1.29.2.2 1998/02/16 19:10:38 brian Exp $
  *
  *	TODO:
  */
@@ -40,8 +40,8 @@
 #define	SERVER_PORT	3000	/* Base server port no. */
 #define	MODEM_CTSRTS	1	/* Default (true): use CTS/RTS signals */
 #define	RECONNECT_TIMEOUT 3	/* Default timer for carrier loss */
-#define	REDIAL_PERIOD	30	/* Default Hold time to redial */
-#define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
+#define	DIAL_TIMEOUT	30	/* Default and Max random time to redial */
+#define	DIAL_NEXT_TIMEOUT 3	/* Default Hold time to next number redial */
 #define SCRIPT_LEN 512		/* Size of login scripts */
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
 #define MAXARGS 40		/* How many args per config line */

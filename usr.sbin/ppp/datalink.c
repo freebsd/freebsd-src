@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.3 1998/02/16 19:09:48 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.4 1998/02/16 19:10:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
     if (Timeout > 0)
       dl->dial_timer.load = Timeout * SECTICKS;
     else
-      dl->dial_timer.load = (random() % REDIAL_PERIOD) * SECTICKS;
+      dl->dial_timer.load = (random() % DIAL_TIMEOUT) * SECTICKS;
     dl->dial_timer.func = datalink_OpenTimeout;
     dl->dial_timer.arg = dl;
     StartTimer(&dl->dial_timer);
@@ -98,21 +98,21 @@ datalink_HangupDone(struct datalink *dl)
     dl->state = DATALINK_CLOSED;
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
-    datalink_StartDialTimer(dl, VarRedialTimeout);
+    datalink_StartDialTimer(dl, dl->dial_timeout);
     bundle_LinkClosed(dl->bundle, dl);
   } else {
     LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     if (dl->dial_tries < 0) {
       datalink_StartDialTimer(dl, dl->reconnect_timeout);
-      dl->dial_tries = VarDialTries;
+      dl->dial_tries = dl->max_dial;
       dl->reconnect_tries--;
     } else {
       dl->dial_tries--;
       if (VarNextPhone == NULL)
-        datalink_StartDialTimer(dl, VarRedialTimeout);
+        datalink_StartDialTimer(dl, dl->dial_timeout);
       else
-        datalink_StartDialTimer(dl, VarRedialNextTimeout);
+        datalink_StartDialTimer(dl, dl->dial_next_timeout);
     }
   }
 }
@@ -137,24 +137,24 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           LogPrintf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
           dl->state = DATALINK_DIAL;
           chat_Init(&dl->chat, dl->physical, dl->script.dial, 1);
-          if (!(mode & MODE_DDIAL) && VarDialTries)
+          if (!(mode & MODE_DDIAL) && dl->max_dial)
             LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
-                      dl->name, VarDialTries - dl->dial_tries, VarDialTries);
+                      dl->name, dl->max_dial - dl->dial_tries, dl->max_dial);
         } else {
-          if (!(mode & MODE_DDIAL) && VarDialTries)
+          if (!(mode & MODE_DDIAL) && dl->max_dial)
             LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
-                      VarDialTries - dl->dial_tries, VarDialTries);
+                      dl->max_dial - dl->dial_tries, dl->max_dial);
           else
             LogPrintf(LogCHAT, "Failed to open modem\n");
 
-          if (!(mode & MODE_DDIAL) && VarDialTries && dl->dial_tries == 0) {
+          if (!(mode & MODE_DDIAL) && dl->max_dial && dl->dial_tries == 0) {
             LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
             bundle_LinkClosed(dl->bundle, dl);
           } else
-            datalink_StartDialTimer(dl, VarRedialTimeout);
+            datalink_StartDialTimer(dl, dl->dial_timeout);
         }
       }
       break;
@@ -289,17 +289,24 @@ datalink_Create(const char *name, struct bundle *bundle)
   dl->desc.Read = datalink_Read;
   dl->desc.Write = datalink_Write;
 
+  dl->state = DATALINK_CLOSED;
+
   *dl->script.dial = '\0';
   *dl->script.login = '\0';
   *dl->script.hangup = '\0';
 
-  dl->state = DATALINK_CLOSED;
   dl->bundle = bundle;
   dl->next = NULL;
+
   memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
+
   dl->dial_tries = 0;
-  dl->max_reconnect = 0;
+  dl->max_dial = 1;
+  dl->dial_timeout = DIAL_TIMEOUT;
+  dl->dial_next_timeout = DIAL_NEXT_TIMEOUT;
+
   dl->reconnect_tries = 0;
+  dl->max_reconnect = 0;
   dl->reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
@@ -342,7 +349,7 @@ datalink_Up(struct datalink *dl)
     LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     dl->reconnect_tries = dl->max_reconnect;
-    dl->dial_tries = VarDialTries;
+    dl->dial_tries = dl->max_dial;
   }
 }
 
