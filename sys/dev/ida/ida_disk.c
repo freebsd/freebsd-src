@@ -104,6 +104,7 @@ idad_strategy(struct bio *bp)
 		goto bad;
 	}
 
+	bp->bio_driver1 = drv;
 	s = splbio();
 	ida_submit_buf(drv->controller, bp);
 	splx(s);
