@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.68 1998/08/23 11:43:29 bde Exp $
+ * $Id: spec_vnops.c,v 1.69 1998/08/24 17:47:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -417,8 +417,10 @@ spec_ioctl(ap)
 	switch (ap->a_vp->v_type) {
 
 	case VCHR:
-	case VBLK:
 		return ((*cdevsw[major(dev)]->d_ioctl)(dev, ap->a_command, 
+		    ap->a_data, ap->a_fflag, ap->a_p));
+	case VBLK:
+		return ((*bdevsw[major(dev)]->d_ioctl)(dev, ap->a_command, 
 		    ap->a_data, ap->a_fflag, ap->a_p));
 	default:
 		panic("spec_ioctl");
