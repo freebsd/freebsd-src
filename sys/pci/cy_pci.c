@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #define	PLX_9060			0x0c
 #define	PLX_9080			0x0d
 
+extern devclass_t	cy_devclass;
+
 void	*cyattach_common(u_char volatile *iobase, int cy_align);
 driver_intr_t	cyintr;
 
@@ -85,8 +87,6 @@ static driver_t cy_pci_driver = {
 	cy_pci_methods,
 	0,
 };
-
-static devclass_t	cy_devclass;
 
 DRIVER_MODULE(cy, pci, cy_pci_driver, cy_devclass, 0, 0);
 MODULE_DEPEND(cy, pci, 1, 1, 1);
