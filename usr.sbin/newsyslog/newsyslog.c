@@ -32,6 +32,9 @@ static const char rcsid[] =
 #ifndef COMPRESS_POSTFIX
 #define COMPRESS_POSTFIX ".gz"
 #endif
+#ifndef	BZCOMPRESS_POSTFIX
+#define	BZCOMPRESS_POSTFIX ".bz2"
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -61,6 +64,7 @@ static const char rcsid[] =
 
 #define CE_COMPACT 1		/* Compact the achived log files */
 #define CE_BINARY  2		/* Logfile is in binary, don't add */
+#define CE_BZCOMPACT 8		/* Compact the achived log files with bzip2 */
 				/*  status messages */
 #define	CE_TRIMAT  4		/* trim at a specific time */
 
@@ -76,7 +80,7 @@ struct conf_entry {
 	int hours;		/* Hours between log trimming */
 	time_t trim_at;		/* Specific time to do trimming */
 	int permissions;	/* File permissions on the log */
-	int flags;		/* Flags (CE_COMPACT & CE_BINARY)  */
+	int flags;		/* Flags (CE_COMPACT & CE_BZCOMPACT & CE_BINARY)  */
 	int sig;		/* Signal to send */
 	struct conf_entry *next;/* Linked list pointer */
 };
@@ -105,6 +109,7 @@ static void usage();
 static void dotrim(char *log, char *pid_file, int numdays, int falgs, int perm, int owner_uid, int group_gid, int sig);
 static int log_trim(char *log);
 static void compress_log(char *log);
+static void bzcompress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(char *pid_file);
@@ -141,6 +146,8 @@ do_entry(struct conf_entry * ent)
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
 			printf("%s <%dZ>: ", ent->log, ent->numlogs);
+		else if (ent->flags & CE_BZCOMPACT)
+			printf("%s <%dJ>: ", ent->log, ent->numlogs);
 		else
 			printf("%s <%d>: ", ent->log, ent->numlogs);
 	}
@@ -174,6 +181,9 @@ do_entry(struct conf_entry * ent)
 			if (noaction && !verbose) {
 				if (ent->flags & CE_COMPACT)
 					printf("%s <%dZ>: trimming\n",
+					    ent->log, ent->numlogs);
+				else if (ent->flags & CE_BZCOMPACT)
+					printf("%s <%dJ>: trimming\n",
 					    ent->log, ent->numlogs);
 				else
 					printf("%s <%d>: trimming\n",
@@ -412,6 +422,8 @@ parse_file(char **files)
 		while (q && *q && !isspace(*q)) {
 			if ((*q == 'Z') || (*q == 'z'))
 				working->flags |= CE_COMPACT;
+			else if ((*q == 'J') || (*q == 'j'))
+				working->flags |= CE_BZCOMPACT;
 			else if ((*q == 'B') || (*q == 'b'))
 				working->flags |= CE_BINARY;
 			else if (*q != '-')
@@ -480,6 +492,7 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
+	char jfile1[MAXPATHLEN];
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
@@ -524,19 +537,25 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
+		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
+		    BZCOMPRESS_POSTFIX);
 	} else {
 		/* name of oldest log */
 		(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
+		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
+		    BZCOMPRESS_POSTFIX);
 	}
 
 	if (noaction) {
 		printf("rm -f %s\n", file1);
 		printf("rm -f %s\n", zfile1);
+		printf("rm -f %s\n", jfile1);
 	} else {
 		(void) unlink(file1);
 		(void) unlink(zfile1);
+		(void) unlink(jfile1);
 	}
 
 	/* Move down log files */
@@ -555,8 +574,16 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 		if (lstat(file1, &st)) {
 			(void) strlcat(zfile1, COMPRESS_POSTFIX, sizeof(zfile1));
 			(void) strlcat(zfile2, COMPRESS_POSTFIX, sizeof(zfile2));
-			if (lstat(zfile1, &st))
-				continue;
+			if (lstat(zfile1, &st)) {
+				strlcpy(zfile1, file1, sizeof(zfile1));
+				strlcpy(zfile2, file2, sizeof(zfile2));
+				strlcat(zfile1, BZCOMPRESS_POSTFIX,
+				    sizeof(zfile1));
+				strlcat(zfile2, BZCOMPRESS_POSTFIX,
+				    sizeof(zfile2));
+				if (lstat(zfile1, &st))
+					continue;
+			}
 		}
 		if (noaction) {
 			printf("mv %s %s\n", zfile1, zfile2);
@@ -624,7 +651,7 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 				printf("daemon pid %d notified\n", (int) pid);
 		}
 	}
-	if ((flags & CE_COMPACT)) {
+	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
 			warnx("log %s not compressed because daemon not notified", log);
 		else if (noaction)
@@ -637,9 +664,15 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 			}
 			if (archtodir) {
 				(void) snprintf(file1, sizeof(file1), "%s/%s", dirpart, namepart);
-				compress_log(file1);
+				if (flags & CE_COMPACT)
+					compress_log(file1);
+				else if (flags & CE_BZCOMPACT)
+					bzcompress_log(file1);
 			} else {
-				compress_log(log);
+				if (flags & CE_COMPACT)
+					compress_log(log);
+				else if (flags & CE_BZCOMPACT)
+					bzcompress_log(log);
 			}
 		}
 	}
@@ -670,10 +703,27 @@ compress_log(char *log)
 	(void) snprintf(tmp, sizeof(tmp), "%s.0", log);
 	pid = fork();
 	if (pid < 0)
-		err(1, "fork");
+		err(1, "gzip fork");
 	else if (!pid) {
 		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, (char *)0);
 		err(1, _PATH_GZIP);
+	}
+}
+
+/* Fork of bzip2 to compress the old log file */
+static void
+bzcompress_log(char *log)
+{
+	pid_t pid;
+	char tmp[MAXPATHLEN];
+
+	snprintf(tmp, sizeof(tmp), "%s.0", log);
+	pid = fork();
+	if (pid < 0)
+		err(1, "bzip2 fork");
+	else if (!pid) {
+		execl(_PATH_BZIP2, _PATH_BZIP2, "-f", tmp, 0);
+		err(1, _PATH_BZIP2);
 	}
 }
 
