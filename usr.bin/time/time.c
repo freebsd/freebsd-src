@@ -128,7 +128,7 @@ main(int argc, char **argv)
 	/* parent */
 	(void)signal(SIGINT, SIG_IGN);
 	(void)signal(SIGQUIT, SIG_IGN);
-	while (wait3(&status, 0, &ru) != pid);		/* XXX use waitpid */
+	while (wait4(pid, &status, 0, &ru) != pid);
 	gettimeofday(&after, (struct timezone *)NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
