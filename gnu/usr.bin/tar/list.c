@@ -95,6 +95,11 @@ read_and (do_something)
     {
       prev_status = status;
       status = read_header ();
+	/* check if the namelist got emptied during the course of reading */
+	/* the tape, if so stop by setting status to EOF */
+      if ((namelist == NULL) && nlpsfreed) { 
+	  status = EOF;
+      }
       switch (status)
 	{
 
