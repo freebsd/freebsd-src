@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.20 1998/12/22 17:28:25 mjacob Exp $";
+	"$Id: mt.c,v 1.21 1999/02/05 02:46:21 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -511,14 +511,19 @@ denstostring(int d)
 	static char buf[20];
 	struct densities *sd;
 
+	/* densities 0 and 0x7f are handled as special cases */
+	if (d == 0)
+		return "default";
+	if (d == 0x7f)
+		return "same";
 	for (sd = dens; sd->dens; sd++)
 		if (sd->dens == d)
 			break;
-	if (sd->dens == 0) {
+	if (sd->dens == 0)
 		sprintf(buf, "0x%02x", d);
-		return buf;
-	} else
-		return sd->name;
+	else 
+		sprintf(buf, "0x%02x:%s", d, sd->name);
+	return buf;
 }
 
 /*
