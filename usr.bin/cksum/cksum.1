@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cksum.1	8.1 (Berkeley) 6/29/93
+.\"	$Id$
 .\"
 .Dd June 29, 1993
 .Dt CKSUM 1
@@ -41,12 +42,12 @@
 .Nm cksum
 .Nd display file checksums and block counts
 .Sh SYNOPSIS
-.Nm cksum
+.Nm
 .Op Fl o Op \&1 \&| \&2
 .Op Ar file ...
 .Sh DESCRIPTION
 The
-.Nm cksum
+.Nm
 utility writes to the standard output three whitespace separated
 fields for each input file.
 These fields are a checksum
@@ -140,7 +141,7 @@ The bit sequence is complemented and the result is the CRC.
 .Ed
 .Pp
 The
-.Nm cksum
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 The default calculation is identical to that given in pseudo-code
@@ -155,10 +156,10 @@ article.
 .Re
 .Sh STANDARDS
 The
-.Nm cksum
+.Nm
 utility is expected to be POSIX 1003.2 compatible.
 .Sh HISTORY
 The
-.Nm cksum
-utility appears in
+.Nm
+utility appeared in
 .Bx 4.4 .
