@@ -79,6 +79,7 @@ struct vconnect_area vconnect_area = {
 
 /* local prototypes */
 static void	setup_boot(regcontext_t *REGS);
+static int	try_boot(int);
 static void	setup_command(int argc, char *argv[], regcontext_t *REGS);
 static FILE	*find_doscmdrc(void);
 static int	do_args(int argc, char *argv[]);
@@ -306,21 +307,15 @@ setup_boot(regcontext_t *REGS)
     booting = read_config(fp);			/* where to boot from? */
     fclose(fp);
     if (booting < 0) {				/* not specified */
-	if ((fd = disk_fd(booting = 0)) < 0)	/* try A: */
-	    fd = disk_fd(booting = 2);		/* try C: */
+	if ((fd = try_boot(booting = 0)) < 0)	/* try A: */
+	    fd = try_boot(booting = 2);		/* try C: */
     } else {
-	fd = disk_fd(booting);	/* do like the man says */
+	fd = try_boot(booting);	/* do like the man says */
     }
 
-    if (fd < 0) {			/* can we boot it? */
-	errx(1, "Cannot boot from %c", drntol(booting));
-    }
-
-    /* read bootblock */
-    if (read(fd, (char *)0x7c00, 512) != 512) {
-        errx(1, "Short read on boot block from %c:", drntol(booting));
-    }
-
+    if (fd < 0)
+	errx(1, "Failed to boot");
+    
     /* initialise registers for entry to bootblock */
     R_EFLAGS = 0x20202;
     R_CS = 0x0000;
@@ -339,6 +334,31 @@ setup_boot(regcontext_t *REGS)
     R_FS = 0x0000;
     R_GS = 0x0000;
 #endif	
+}
+
+/*
+** try_boot
+**
+** try to read the boot sector from the specified disk
+*/
+static int
+try_boot(int booting)
+{
+    int fd;
+
+    fd = disk_fd(booting);
+    if (fd < 0)	{			/* can we boot it? */
+	debug(D_DISK, "Cannot boot from %c\n", drntol(booting));
+	return -1;
+    }
+    
+    /* read bootblock */
+    if (read(fd, (char *)0x7c00, 512) != 512) {
+        debug(D_DISK, "Short read on boot block from %c:\n", drntol(booting));
+	return -1;
+    }
+    
+    return fd;
 }
 
 /*
