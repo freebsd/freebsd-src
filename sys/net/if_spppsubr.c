@@ -201,7 +201,6 @@ void sppp_input (struct ifnet *ifp, struct mbuf *m)
 	struct ifqueue *inq = 0;
 	int s;
 
-	ifp->if_lastchange = time;
 	if (ifp->if_flags & IFF_UP)
 		/* Count received bytes, add FCS and one flag */
 		ifp->if_ibytes += m->m_pkthdr.len + 3;
@@ -470,7 +469,6 @@ nosupport:
 	 * according to RFC 1333.
 	 */
 	ifp->if_obytes += m->m_pkthdr.len + 3;
-	ifp->if_lastchange = time;
 	splx (s);
 	return (0);
 }

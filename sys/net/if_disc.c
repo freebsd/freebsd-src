@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.11 1996/02/06 18:51:11 wollman Exp $
+ *	$Id: if_disc.c,v 1.12 1996/04/07 17:39:03 bde Exp $
  */
 
 /*
@@ -118,7 +118,6 @@ dsoutput(ifp, m, dst, rt)
 {
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("dsoutput no HDR");
-	ifp->if_lastchange = time;
 #if NBPFILTER > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.27 1996/01/26 22:09:54 wollman Exp $
+ * $Id: if.h,v 1.28 1996/02/06 18:51:10 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -100,7 +100,7 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	struct	timeval ifi_lastchange;	/* last updated */
+	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 
 /*
