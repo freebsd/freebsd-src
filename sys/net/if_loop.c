@@ -72,7 +72,11 @@
 
 #include "bpfilter.h"
 
+#ifdef TINY_LOMTU
 #define	LOMTU	(1024+512)
+#else
+#define LOMTU	65535
+#endif
 
 struct	ifnet loif;
 
