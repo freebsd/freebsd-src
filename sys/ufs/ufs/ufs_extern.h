@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.2 1994/08/02 07:54:54 davidg Exp $
+ * $Id: ufs_extern.h,v 1.3 1994/08/21 07:16:17 paul Exp $
  */
 
 #ifndef _UFS_UFS_UFS_EXTERN_H_
@@ -121,11 +121,9 @@ int	 ufsspec_close __P((struct vop_close_args *));
 int	 ufsspec_read __P((struct vop_read_args *));
 int	 ufsspec_write __P((struct vop_write_args *));
 
-#ifdef FIFO
 int	ufsfifo_read __P((struct vop_read_args *));
 int	ufsfifo_write __P((struct vop_write_args *));
 int	ufsfifo_close __P((struct vop_close_args *));
-#endif
 __END_DECLS
 
 #endif

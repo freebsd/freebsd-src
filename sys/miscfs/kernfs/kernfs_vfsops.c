@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.3 1994/08/02 07:45:02 davidg Exp $
+ * $Id: kernfs_vfsops.c,v 1.4 1994/09/21 03:46:59 wollman Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/types.h>
 #include <sys/proc.h>
