@@ -343,6 +343,7 @@ vop_nopoll(ap)
 	 * determining reliably whether or not the extended
 	 * functionality is present without hard-coding knowledge
 	 * of specific filesystem implementations.
+	 * Stay in sync with kern_conf.c::no_poll().
 	 */
 	if (ap->a_events & ~POLLSTANDARD)
 		return (POLLNVAL);

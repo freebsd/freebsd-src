@@ -1132,17 +1132,6 @@ clear_selinfo_list(td)
 	TAILQ_INIT(&td->td_selq);
 }
 
-/*ARGSUSED*/
-int
-seltrue(dev, events, td)
-	dev_t dev;
-	int events;
-	struct thread *td;
-{
-
-	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
-}
-
 /*
  * Record a select request.
  */
