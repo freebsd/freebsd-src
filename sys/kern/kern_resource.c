@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.8 1994/12/01 20:20:21 ats Exp $
+ * $Id: kern_resource.c,v 1.9 1994/12/02 23:00:40 ats Exp $
  */
 
 #include <sys/param.h>
@@ -346,6 +346,15 @@ dosetrlimit(p, which, limp)
 	if (which >= RLIM_NLIMITS)
 		return (EINVAL);
 	alimp = &p->p_rlimit[which];
+
+	/*
+	 * Preserve historical bugs by treating negative limits as unsigned.
+	 */
+	if (limp->rlim_cur < 0)
+		limp->rlim_cur = RLIM_INFINITY;
+	if (limp->rlim_max < 0)
+		limp->rlim_max = RLIM_INFINITY;
+
 	if (limp->rlim_cur > alimp->rlim_max || 
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = suser(p->p_ucred, &p->p_acflag)))
@@ -362,16 +371,16 @@ dosetrlimit(p, which, limp)
 	switch (which) {
 
 	case RLIMIT_DATA:
-		if ((u_quad_t) limp->rlim_cur > MAXDSIZ)
+		if (limp->rlim_cur > MAXDSIZ)
 			limp->rlim_cur = MAXDSIZ;
-		if ((u_quad_t) limp->rlim_max > MAXDSIZ)
+		if (limp->rlim_max > MAXDSIZ)
 			limp->rlim_max = MAXDSIZ;
 		break;
 
 	case RLIMIT_STACK:
-		if ((u_quad_t) limp->rlim_cur > MAXSSIZ)
+		if (limp->rlim_cur > MAXSSIZ)
 			limp->rlim_cur = MAXSSIZ;
-		if ((u_quad_t) limp->rlim_max > MAXSSIZ)
+		if (limp->rlim_max > MAXSSIZ)
 			limp->rlim_max = MAXSSIZ;
 		/*
 		 * Stack is allocated to the max at exec time with only
@@ -383,7 +392,7 @@ dosetrlimit(p, which, limp)
 			vm_size_t size;
 			vm_prot_t prot;
 
-			if ((u_quad_t) limp->rlim_cur > (u_quad_t) alimp->rlim_cur) {
+			if (limp->rlim_cur > alimp->rlim_cur) {
 				prot = VM_PROT_ALL;
 				size = limp->rlim_cur - alimp->rlim_cur;
 				addr = USRSTACK - limp->rlim_cur;
