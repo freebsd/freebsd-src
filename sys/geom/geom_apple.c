@@ -78,9 +78,9 @@ struct g_apple_softc {
 static void
 g_dec_drvrdesc(u_char *ptr, struct g_apple_softc *sc)
 {
-	sc->dd_bsiz = g_dec_be2(ptr + 2);
-	sc->dd_blkcnt = g_dec_be4(ptr + 4);
-	sc->dd_drvrcnt = g_dec_be4(ptr + 16);
+	sc->dd_bsiz = be16dec(ptr + 2);
+	sc->dd_blkcnt = be32dec(ptr + 4);
+	sc->dd_drvrcnt = be32dec(ptr + 16);
 }
 
 static void
@@ -88,9 +88,9 @@ g_dec_apple_partition(u_char *ptr, struct apm_partition *d)
 {
 	d->am_sig[0] = ptr[0];
 	d->am_sig[1] = ptr[1];
-	d->am_mapcnt = g_dec_be4(ptr + 4);
-	d->am_start = g_dec_be4(ptr + 8);
-	d->am_partcnt = g_dec_be4(ptr + 12);
+	d->am_mapcnt = be32dec(ptr + 4);
+	d->am_start = be32dec(ptr + 8);
+	d->am_partcnt = be32dec(ptr + 12);
 	memcpy(d->am_name, ptr + 16, 32);
 	memcpy(d->am_type, ptr + 48, 32);
 }
