@@ -1,16 +1,43 @@
 /*
+ * Copyright (c) Ian F. Darwin 1986-1995.
+ * Software written by Ian F. Darwin and others;
+ * maintained 1995-present by Christos Zoulas and others.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    This product includes software developed by Ian F. Darwin and others.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *  
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+/*
  * Names.h - names and types used by ascmagic in file(1).
  * These tokens are here because they can appear anywhere in
  * the first HOWMANY bytes, while tokens in MAGIC must
  * appear at fixed offsets into the file. Don't make HOWMANY
  * too high unless you have a very fast CPU.
  *
- * Copyright (c) Ian F. Darwin, 1987.
- * Written by Ian F. Darwin.
- *
- * See LEGAL.NOTICE
- *
- * $Id: names.h,v 1.19 2002/05/16 15:01:41 christos Exp $
+ * $Id: names.h,v 1.24 2004/03/22 19:09:12 christos Exp $
  */
 
 /*
@@ -33,10 +60,11 @@
 #define	L_HTML	11		/* HTML */
 #define	L_BCPL	12		/* BCPL */
 #define	L_M4	13		/* M4 */
+#define	L_PO	14		/* PO */
 
 static const struct {
-	char *human;
-	char *mime;
+	const char *human;
+	const char *mime;
 } types[] = {
 	{ "C program",					"text/x-c", },
 	{ "C++ program",				"text/x-c++" },
@@ -44,7 +72,7 @@ static const struct {
 	{ "make commands",				"text/x-makefile" },
 	{ "PL/1 program",				"text/x-pl1" },
 	{ "assembler program",				"text/x-asm" },
-	{ "English",					"text/plain, English" },
+	{ "English",					"text/plain" },
 	{ "Pascal program",				"text/x-pascal" },
 	{ "mail",					"text/x-mail" },
 	{ "news",					"text/x-news" },
@@ -52,7 +80,8 @@ static const struct {
 	{ "HTML document",				"text/html", },
 	{ "BCPL program",				"text/x-bcpl" },
 	{ "M4 macro language pre-processor",		"text/x-m4" },
-	{ "can't happen error on names.h/types",	"error/x-error" },
+	{ "PO (gettext message catalogue)",             "text/x-po" },
+	{ "cannot happen error on names.h/types",	"error/x-error" },
 	{ 0, 0}
 };
 
@@ -98,6 +127,7 @@ static struct names {
 } names[] = {
 	/* These must be sorted by eye for optimal hit rate */
 	/* Add to this list only after substantial meditation */
+	{"msgid",	L_PO},
 	{"dnl",		L_M4},
 	{"import",	L_JAVA},
 	{"\"libhdr\"",	L_BCPL},
@@ -154,6 +184,8 @@ static struct names {
 	{"HREF=",	L_HTML},
 	{"<body",	L_HTML},
 	{"<BODY",	L_HTML},
+	{"<html",	L_HTML},
+	{"<HTML",	L_HTML},
 	{NULL,		0}
 };
 #define NNAMES ((sizeof(names)/sizeof(struct names)) - 1)

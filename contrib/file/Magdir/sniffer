@@ -9,23 +9,25 @@
 # Microsoft Network Monitor 1.x capture files.
 #
 0	string		RTSS		NetMon capture file
->4	byte		x		- version %d
->5	byte		x		\b.%d
+>5	byte		x		- version %d
+>4	byte		x		\b.%d
 >6	leshort		0		(Unknown)
 >6	leshort		1		(Ethernet)
 >6	leshort		2		(Token Ring)
 >6	leshort		3		(FDDI)
+>6	leshort		4		(ATM)
 
 #
 # Microsoft Network Monitor 2.x capture files.
 #
 0	string		GMBU		NetMon capture file
->4	byte		x		- version %d
->5	byte		x		\b.%d
+>5	byte		x		- version %d
+>4	byte		x		\b.%d
 >6	leshort		0		(Unknown)
 >6	leshort		1		(Ethernet)
 >6	leshort		2		(Token Ring)
 >6	leshort		3		(FDDI)
+>6	leshort		4		(ATM)
 
 #
 # Network General Sniffer capture files.
@@ -58,6 +60,9 @@
 >44	leshort		0		(Ethernet)
 >44	leshort		1		(Token Ring)
 >44	leshort		2		(FDDI)
+>44	leshort		3		(WAN)
+>44	leshort		8		(ATM)
+>44	leshort		9		(802.11)
 
 #
 # "libpcap" capture files.
@@ -75,7 +80,7 @@
 >20	belong		4		(ProNET
 >20	belong		5		(CHAOS
 >20	belong		6		(Token Ring
->20	belong		7		(ARCNET
+>20	belong		7		(BSD ARCNET
 >20	belong		8		(SLIP
 >20	belong		9		(PPP
 >20	belong		10		(FDDI
@@ -92,10 +97,21 @@
 >20	belong		104		(BSD/OS Cisco HDLC
 >20	belong		105		(802.11
 >20	belong		106		(Linux Classical IP over ATM
+>20	belong		107		(Frame Relay
 >20	belong		108		(OpenBSD loopback
->20	belong		109		(OpenBSD IPSEC encrypted
+>20	belong		109		(OpenBSD IPsec encrypted
+>20	belong		112		(Cisco HDLC
 >20	belong		113		(Linux "cooked"
 >20	belong		114		(LocalTalk
+>20	belong		117		(OpenBSD PFLOG
+>20	belong		119		(802.11 with Prism header
+>20	belong		123		(SunATM
+>20	belong		127		(802.11 with radiotap header
+>20	belong		129		(Linux ARCNET
+>20	belong		140		(MTP2
+>20	belong		141		(MTP3
+>20	belong		143		(DOCSIS
+>20	belong		144		(IrDA
 >16	belong		x		\b, capture length %d)
 0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
 >4	leshort		x		- version %d
@@ -124,10 +140,21 @@
 >20	lelong		104		(BSD/OS Cisco HDLC
 >20	lelong		105		(802.11
 >20	lelong		106		(Linux Classical IP over ATM
+>20	lelong		107		(Frame Relay
 >20	lelong		108		(OpenBSD loopback
 >20	lelong		109		(OpenBSD IPSEC encrypted
+>20	lelong		112		(Cisco HDLC
 >20	lelong		113		(Linux "cooked"
 >20	lelong		114		(LocalTalk
+>20	lelong		117		(OpenBSD PFLOG
+>20	lelong		119		(802.11 with Prism header
+>20	lelong		123		(SunATM
+>20	lelong		127		(802.11 with radiotap header
+>20	lelong		129		(Linux ARCNET
+>20	lelong		140		(MTP2
+>20	lelong		141		(MTP3
+>20	lelong		143		(DOCSIS
+>20	lelong		144		(IrDA
 >16	lelong		x		\b, capture length %d)
 
 #
@@ -178,6 +205,7 @@
 #
 # AIX "iptrace" capture files.
 #
+0	string		iptrace\ 1.0	"iptrace" capture file
 0	string		iptrace\ 2.0	"iptrace" capture file
 
 #

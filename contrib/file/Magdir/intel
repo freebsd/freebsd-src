@@ -33,3 +33,15 @@
 0	leshort		=0514		80386 COFF executable
 >12	lelong		>0		not stripped
 >22	leshort		>0		- version %ld
+
+# rom: file(1) magic for BIOS ROM Extensions found in intel machines
+#      mapped into memory between 0xC0000 and 0xFFFFF
+# From Gürkan Sengün <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+0        beshort         0x55AA       BIOS (ia32) ROM Ext.
+>5       string          USB          USB
+>7       string          LDR          UNDI image
+>30      string          IBM          IBM comp. Video
+>26      string          Adaptec      Adaptec
+>28      string          Adaptec      Adaptec
+>42      string          PROMISE      Promise
+>2       byte            x            (%d*512)

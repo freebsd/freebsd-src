@@ -8,6 +8,9 @@
 # Netscape Address book  .nab
 0	string \000\017\102\104\000\000\000\000\000\000\001\000\000\000\000\002\000\000\000\002\000\000\004\000 Netscape Address book
 
+# Netscape Communicator address book
+0   string   \000\017\102\111 Netscape Communicator address book
+
 # .snm Caches
 0	string		#\ Netscape\ folder\ cache	Netscape folder cache
 0	string	\000\036\204\220\000	Netscape folder cache

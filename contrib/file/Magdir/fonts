@@ -7,9 +7,9 @@
 0	short		017001		byte-swapped Berkeley vfont data
 
 # PostScript fonts (must precede "printer" entries), quinlan@yggdrasil.com
-0	string		%!PS-AdobeFont-1.0	PostScript Type 1 font text
+0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
 >20	string		>\0			(%s)
-6	string		%!PS-AdobeFont-1.0	PostScript Type 1 font program data
+6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
 
 # X11 font files in SNF (Server Natural Format) format
 0	belong		00000004		X11 SNF font data, MSB first
@@ -49,3 +49,13 @@
 # downloadable fonts for browser (prints type) anthon@mnt.org
 0	string		PFR1		PFR1 font
 >102	string		>0		\b: %s
+
+# True Type fonts
+0	string	\000\001\000\000\000	TrueType font data
+
+0	string		\007\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
+0	string		\012\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
+
+# Opentype font data from Avi Bercovich
+0	string		OTTO		OpenType font data 
+

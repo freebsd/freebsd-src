@@ -32,8 +32,10 @@
 0	string		!<arch>\ndebian
 >8	string		debian-split	part of multipart Debian package
 >8	string		debian-binary	Debian binary package
->68	string		>\n		(format %s)
->136	ledate		x		created: %s
+>68	string		>\0		(format %s)
+>81	string		bz2		\b, uses bzip2 compression
+>84	string		gz		\b, uses gzip compression
+#>136	ledate		x		created: %s
 
 # other archives
 0	long		0177555		very old archive
@@ -187,7 +189,12 @@
 >20	byte		x		- header level %d
 
 # RAR archiver (Greg Roelofs, newt@uchicago.edu)
-0	string		Rar!		RAR archive data
+0	string		Rar!		RAR archive data,
+>44	byte		x		v%0x,
+>35	byte		0		os: MS-DOS
+>35	byte		1		os: OS/2
+>35	byte		2		os: Win32
+>35	byte		3		os: Unix
 
 # SQUISH archiver (Greg Roelofs, newt@uchicago.edu)
 0	string		SQSH		squished archive data (Acorn RISCOS)
@@ -239,9 +246,11 @@
 
 # Microsoft cabinets 
 # by David Necas (Yeti) <yeti@physics.muni.cz>
-0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
->25	byte	x		v%d
->24	byte	x		\b.%d
+#0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
+#>25	byte	x		v%d
+#>24	byte	x		\b.%d
+# MPi: All CABs have version 1.3, so this is pointless.
+# Better magic in debian-additions.
 
 # GTKtalog catalogs 
 # by David Necas (Yeti) <yeti@physics.muni.cz>
@@ -256,3 +265,56 @@
 0       string          PAR\0	PARity archive data
 >48	leshort		=0	- Index file
 >48	leshort		>0	- file number %d
+
+# Felix von Leitner <felix-file@fefe.de>
+0	string	d8:announce	BitTorrent file
+
+# Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
+0       beshort 0x0e0f          Atari MSA archive data
+>2      beshort x       	\b, %d sectors per track
+>4      beshort 0       	\b, 1 sided
+>4      beshort 1       	\b, 2 sided
+>6      beshort x       	\b, starting track: %d
+>8      beshort x       	\b, ending track: %d
+
+# Alternate ZIP string (amc@arwen.cs.berkeley.edu)
+0	string	PK00PK\003\004	Zip archive data
+
+# ACE archive (from http://www.wotsit.org/download.asp?f=ace)
+# by Stefan `Sec` Zehl <sec@42.org>
+7	string		**ACE**		ACE compressed archive
+>15	byte	>0		version %d
+>16	byte	=0x00		\b, from MS-DOS
+>16	byte	=0x01		\b, from OS/2
+>16	byte	=0x02		\b, from Win/32
+>16	byte	=0x03		\b, from Unix
+>16	byte	=0x04		\b, from MacOS
+>16	byte	=0x05		\b, from WinNT
+>16	byte	=0x06		\b, from Primos
+>16	byte	=0x07		\b, from AppleGS
+>16	byte	=0x08		\b, from Atari
+>16	byte	=0x09		\b, from Vax/VMS
+>16	byte	=0x0A		\b, from Amiga
+>16	byte	=0x0B		\b, from Next
+>14	byte	x		\b, version %d to extract
+>5	leshort &0x0080		\b, multiple volumes,
+>>17	byte	x		\b (part %d),
+>5	leshort &0x0002		\b, contains comment
+>5	leshort	&0x0200		\b, sfx
+>5	leshort	&0x0400		\b, small dictionary
+>5	leshort	&0x0800		\b, multi-volume
+>5	leshort	&0x1000		\b, contains AV-String
+>>30	string\x16*UNREGISTERED\x20VERSION*	(unregistered)
+>5	leshort &0x2000		\b, with recovery record
+>5	leshort &0x4000		\b, locked
+>5	leshort &0x8000		\b, solid
+# Date in MS-DOS format (whatever that is)
+#>18	lelong	x		Created on
+
+# sfArk : compression program for Soundfonts (sf2) by Dirk Jagdmann
+# <doj@cubic.org>
+0x1A	string	sfArk		sfArk compressed Soundfont
+>0x15	string	2
+>>0x1	string	>\0		Version %s
+>>0x2A	string	>\0		: %s
+

@@ -26,3 +26,15 @@
 # From: Kevin Sullivan <ksulliva@psc.edu>
 0	string		*mbx*		MBX mail folder
 
+# From: Simon Matter <simon.matter@invoca.ch>
+0	string		\241\002\213\015skiplist\ file\0\0\0	Cyrus skiplist DB
+
+# JAM(mbp) Fidonet message area databases
+# JHR file
+0	string	JAM\0			JAM message area header file
+>12	leshort >0			(%d messages)
+
+# Squish Fidonet message area databases
+# SQD file (requires at least one message in the area)
+256	leshort	0xAFAE4453		Squish message area data file
+>4	leshort	>0			(%d messages)

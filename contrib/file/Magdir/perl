@@ -11,6 +11,7 @@
 0	string		eval\ "exec\ /usr/bin/perl	perl script text
 0	string/b	#!\ /usr/local/bin/perl		perl script text
 0	string		eval\ "exec\ /usr/local/bin/perl	perl script text executable
+0	string		eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	perl script text
 
 # a couple more, by me
 # XXX: christos matches
