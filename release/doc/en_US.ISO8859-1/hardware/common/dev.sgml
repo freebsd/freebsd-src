@@ -10,14 +10,14 @@
 	these groups will be arranged by manufacturer, i.e. 3Com
 	Ethernet interfaces).  In cases where a group of devices
 	consists of multiple models (such as the 3C501, 3C503, etc.),
-	least each specific model or set of closely-related models as
+	list each specific model or set of closely-related models as
 	a separate item in an itemized list, sorted alphabetically.
 	Where applicable, a "Miscellaneous" section may follow all
 	other named sections.
 
 	These guidelines are not hard-and-fast rules, and exceptions
 	will occur.  Following these guidelines (vague as they may be)
-	is highly recommendations to try to keep the formatting of
+	is highly recommended to try to keep the formatting of
 	this section consistent.
 
 	We give manpage references using the &man entities where
