@@ -68,8 +68,12 @@ require that programs that use those two interfaces be recompiled.  Ports
 that use the CAM interface include xmcd, tosha, SANE, cdrecord and cdda2wav.
 Ports that use the devstat interface include xsysinfo and xperfmon.
 
+
 1.2. SECURITY FIXES
 -------------------
+Descriptor leak bug which was potentially open to a denial of service attack
+(by local users) was closed.  REF: KKIS.05051999.003b 
+
 
 1.3. USERLAND CHANGES
 ---------------------
