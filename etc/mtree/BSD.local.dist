@@ -288,6 +288,56 @@
             classes
             ..
         ..
+        locale
+            bg
+            ..
+            da
+            ..
+            de
+            ..
+            en
+            ..
+            en_GB
+            ..
+            eo
+            ..
+            es
+            ..
+            et
+            ..
+            fr
+            ..
+            he
+            ..
+            hr
+            ..
+            hu
+            ..
+            id
+            ..
+            it
+            ..
+            ja
+            ..
+            lt
+            ..
+            ms
+            ..
+            nb
+            ..
+            nl
+            ..
+            pt_BR
+            ..
+            ru
+            ..
+            sv
+            ..
+            tr
+            ..
+            zh_TW.Big5
+            ..
+        ..
         misc
         ..
         nls
@@ -470,5 +520,7 @@
         ..
         xml
         ..
+    ..
+    www
     ..
 ..
