@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.24 1999/03/09 22:04:44 brian Exp $";
+	"$Id: main.c,v 1.25 1999/04/04 04:36:50 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -194,7 +194,8 @@ main(argc, argv)
 	signal(SIGQUIT, SIG_IGN);
 
 	openlog("getty", LOG_ODELAY|LOG_CONS|LOG_PID, LOG_AUTH);
-	gethostname(hostname, sizeof(hostname));
+	gethostname(hostname, sizeof(hostname) - 1);
+	hostname[sizeof(hostname) - 1] = '\0';
 	if (hostname[0] == '\0')
 		strcpy(hostname, "Amnesiac");
 

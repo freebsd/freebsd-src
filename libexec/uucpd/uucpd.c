@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.16 1999/03/30 10:23:35 joerg Exp $";
+	"$Id: uucpd.c,v 1.17 1999/04/06 23:06:00 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -122,8 +122,8 @@ void badlogin(char *name, struct sockaddr_in *sin)
 {
 	char remotehost[MAXHOSTNAMELEN];
 
-	realhostname(remotehost, sizeof remotehost - 1, &sin->sin_addr);
-	remotehost[sizeof remotehost - 1] = '\0';
+	realhostname(remotehost, sizeof(remotehost) - 1, &sin->sin_addr);
+	remotehost[sizeof(remotehost) - 1] = '\0';
 
 	syslog(LOG_NOTICE, "LOGIN FAILURE FROM %s", remotehost);
 	syslog(LOG_AUTHPRIV|LOG_NOTICE,

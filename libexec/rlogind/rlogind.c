@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: rlogind.c,v 1.20 1998/12/16 07:20:44 peter Exp $";
+	"$Id: rlogind.c,v 1.21 1999/04/06 23:05:58 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -211,7 +211,7 @@ doit(f, fromp)
 {
 	int master, pid, on = 1;
 	int authenticated = 0;
-	char hostname[2 * MAXHOSTNAMELEN + 1];
+	char hostname[MAXHOSTNAMELEN];
 	char c;
 
 	alarm(60);
@@ -226,7 +226,7 @@ doit(f, fromp)
 
 	alarm(0);
 	fromp->sin_port = ntohs((u_short)fromp->sin_port);
-	realhostname(hostname, sizeof hostname - 1, &fromp->sin_addr);
+	realhostname(hostname, sizeof(hostname) - 1, &fromp->sin_addr);
 	hostname[sizeof(hostname) - 1] = '\0';
 
 #ifdef	KERBEROS

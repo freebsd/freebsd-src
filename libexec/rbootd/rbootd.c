@@ -55,7 +55,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rbootd.c,v 1.9 1997/11/24 07:33:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -168,11 +168,11 @@ main(argc, argv)
 	/*
 	 *  Grab our host name and pid.
 	 */
-	if (gethostname(MyHost, MAXHOSTNAMELEN) < 0) {
+	if (gethostname(MyHost, MAXHOSTNAMELEN - 1) < 0) {
 		syslog(LOG_ERR, "gethostname: %m");
 		Exit(0);
 	}
-	MyHost[MAXHOSTNAMELEN] = '\0';
+	MyHost[MAXHOSTNAMELEN - 1] = '\0';
 
 	MyPid = getpid();
 
