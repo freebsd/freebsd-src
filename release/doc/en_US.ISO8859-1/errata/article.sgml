@@ -104,10 +104,9 @@
 
     <para>The release note entry for the ESS Maestro-3/Allegro sound
     driver gave an incorrect command for loading the driver via
-    <filename>/boot/loader.conf</filename>.  The correct command is:
+    <filename>/boot/loader.conf</filename>.  The correct command is:</para>
 
-      <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
-    </para>
+    <programlisting>snd_maestro3_load="YES"</programlisting>
 
     <para>&man.ssh.1; is no longer SUID <username>root</username>.
     The primary manifestation of this change is that

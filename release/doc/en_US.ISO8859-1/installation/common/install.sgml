@@ -122,10 +122,9 @@ from {alpha,i386}/INSTALL.TXT.
       installation CDROM, you can boot FreeBSD directly from the
       CDROM. Insert the CDROM into the drive and type the following
       command to start the installation (substituting the name of the
-      appropriate CDROM drive if necessary):
+      appropriate CDROM drive if necessary):</para>
 
-        <screen>&gt;&gt;&gt;<userinput>boot dka0</userinput></screen>
-      </para>
+      <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dka0</userinput></screen>
 
       <para arch="alpha">Alternatively you can boot the installation
       from floppy disk. You should start the installation by building
@@ -135,10 +134,9 @@ from {alpha,i386}/INSTALL.TXT.
       found in <xref linkend="floppies">. From the SRM console prompt
       (<literal>&gt;&gt;&gt;</literal>), just insert the
       <filename>kern.flp</filename> floppy and type the following
-      command to start the installation:
+      command to start the installation:</para>
 
-        <screen>&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
-      </para>
+      <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
 
       <para arch="alpha">Insert the <filename>mfsroot.flp</filename>
       floppy when prompted and you will end up at the first screen of
@@ -183,15 +181,15 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="alpha">Once the install procedure has finished, you will be able
     to start &os;/&arch; by typing something like this to the SRM
-    prompt:
-      <screen>&gt;&gt;&gt;<userinput>boot dkc0</userinput></screen>
-    </para>
+    prompt:</para>
+
+    <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dkc0</userinput></screen>
 
     <para arch="alpha">This instructs the firmware to boot the specified disk. To
     find the SRM names of disks in your machine, use the <literal>show
-    device</literal> command:
+    device</literal> command:</para>
 
-      <screen>&gt;&gt;&gt;<userinput>show device</userinput>
+    <screen arch="alpha">&gt;&gt;&gt;<userinput>show device</userinput>
 dka0.0.0.4.0               DKA0           TOSHIBA CD-ROM XM-57  3476
 dkc0.0.0.1009.0            DKC0                       RZ1BB-BS  0658
 dkc100.1.0.1009.0          DKC100             SEAGATE ST34501W  0015
@@ -200,7 +198,6 @@ ewa0.0.0.3.0               EWA0              00-00-F8-75-6D-01
 pkc0.7.0.1009.0            PKC0                  SCSI Bus ID 7  5.27
 pqa0.0.0.4.0               PQA0                       PCI EIDE
 pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
-    </para>
 
     <para arch="alpha">This example is from a Digital Personal Workstation 433au
     and shows three disks attached to the machine. The first is a
@@ -210,16 +207,15 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
     <para arch="alpha">You can specify which kernel file to load and what boot
     options to use with the <option>-file</option> and
-    <option>-flags</option> options, for example:
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>boot -file kernel.old -flags s</userinput></screen>
-    </para>
+    <option>-flags</option> options, for example:</para>
 
-    <para arch="alpha">To make &os;/&arch; boot automatically, use these commands:
+    <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>boot -file kernel.old -flags s</userinput></screen>
 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set boot_osflags a</userinput>
+    <para arch="alpha">To make &os;/&arch; boot automatically, use these commands:</para>
+
+    <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>set boot_osflags a</userinput>
 <prompt>&gt;&gt;&gt;</prompt> <userinput>set bootdef_dev dkc0</userinput>
 <prompt>&gt;&gt;&gt;</prompt> <userinput>set auto_action BOOT</userinput></screen>
-    </para>
 
     <sect3>
       <title>Installing from a Network CDROM</title>
@@ -313,11 +309,12 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       machine, a format is still not a bad idea though you don't need
       to put a DOS filesystem on each floppy.  You can use the
       &man.disklabel.8; and &man.newfs.8; commands to put a UFS filesystem on a
-      floppy, as the following sequence of commands illustrates:
-        <screen>&prompt.root; <userinput>fdformat -f 1440 fd0.1440</userinput>
+      floppy, as the following sequence of commands
+      illustrates:</para>
+
+      <screen>&prompt.root; <userinput>fdformat -f 1440 fd0.1440</userinput>
 &prompt.root; <userinput>disklabel -w -r fd0.1440 floppy3</userinput>
 &prompt.root; <userinput>newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0</userinput></screen>
-      </para>
 
       <para>After you've formatted the floppies for DOS or UFS, you'll
       need to copy the files onto them.  The distribution files are
