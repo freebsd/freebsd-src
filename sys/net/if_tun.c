@@ -275,6 +275,8 @@ tunopen(dev_t dev, int flag, int mode, struct proc *p)
 	if (r == NULL)
 		return (EBUSY);
 
+	dev->si_flags &= ~SI_CHEAPCLONE;
+
 	tp = dev->si_drv1;
 	if (!tp) {
 		tuncreate(dev);
