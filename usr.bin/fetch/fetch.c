@@ -150,7 +150,7 @@ stat_display(struct xferstat *xs, int force)
 		fprintf(stderr, " (%lld bytes): %d%%", (long long)xs->size,
 		    (int)((100.0 * xs->rcvd) / xs->size));
 		elapsed = xs->last.tv_sec - xs->start.tv_sec;
-		if (elapsed > 30) {
+		if (elapsed > 30 && xs->rcvd > 0) {
 			long remaining;
 
 			remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
