@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: memalloc.c,v 1.11 1998/09/10 14:51:06 cracauer Exp $";
+	"$Id: memalloc.c,v 1.12 1998/09/13 19:24:57 tegge Exp $";
 #endif /* not lint */
 
 #include "shell.h"
@@ -77,7 +77,6 @@ ckrealloc(p, nbytes)
 	pointer p;
 	int nbytes;
 {
-
 	if ((p = realloc(p, nbytes)) == NULL)
 		error("Out of space");
 	return p;
@@ -91,7 +90,7 @@ ckrealloc(p, nbytes)
 char *
 savestr(s)
 	char *s;
-	{
+{
 	char *p;
 
 	p = ckmalloc(strlen(s) + 1);
@@ -141,7 +140,8 @@ stalloc(nbytes)
 		if (blocksize < MINSIZE)
 			blocksize = MINSIZE;
 		INTOFF;
-		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + blocksize);
+		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + 
+		    blocksize);
 		sp->prev = stackp;
 		stacknxt = sp->space;
 		stacknleft = blocksize;
@@ -158,7 +158,7 @@ stalloc(nbytes)
 void
 stunalloc(p)
 	pointer p;
-	{
+{
 	if (p == NULL) {		/*DEBUG */
 		write(2, "stunalloc\n", 10);
 		abort();
@@ -172,7 +172,7 @@ stunalloc(p)
 void
 setstackmark(mark)
 	struct stackmark *mark;
-	{
+{
 	mark->stackp = stackp;
 	mark->stacknxt = stacknxt;
 	mark->stacknleft = stacknleft;
@@ -182,11 +182,15 @@ setstackmark(mark)
 void
 popstackmark(mark)
 	struct stackmark *mark;
-	{
+{
 	struct stack_block *sp;
 
 	INTOFF;
 	while (stackp != mark->stackp) {
+		if (stackp == NULL) {
+			write(2, "Oops, stackp deleted\n", 21);
+			abort();
+		}
 		sp = stackp;
 		stackp = sp->prev;
 		ckfree(sp);
@@ -208,18 +212,24 @@ popstackmark(mark)
  */
 
 void
-growstackblock() {
+growstackblock()
+{
 	char *p;
-	int newlen = ALIGN(stacknleft * 2 + 100);
-	char *oldspace = stacknxt;
-	int oldlen = stacknleft;
+	int newlen;
+	char *oldspace;
+	int oldlen;
 	struct stack_block *sp;
+
+	newlen = ALIGN(stacknleft * 2 + 100);
+	oldspace = stacknxt;
+	oldlen = stacknleft;
 
 	if (stacknxt == stackp->space && stackp != &stackbase) {
 		INTOFF;
 		sp = stackp;
 		stackp = sp->prev;
-		sp = ckrealloc((pointer)sp, sizeof(struct stack_block) - MINSIZE + newlen);
+		sp = ckrealloc((pointer)sp, sizeof(struct stack_block) - 
+		    MINSIZE + newlen);
 		sp->prev = stackp;
 		stackp = sp;
 		stacknxt = sp->space;
@@ -266,8 +276,11 @@ grabstackblock(len)
 
 
 char *
-growstackstr() {
-	int len = stackblocksize();
+growstackstr() 
+{
+	int len;
+
+	len = stackblocksize();
 	if (herefd >= 0 && len >= 1024) {
 		xwrite(herefd, stackblock(), len);
 		sstrnleft = len - 1;
@@ -284,8 +297,11 @@ growstackstr() {
  */
 
 char *
-makestrspace() {
-	int len = stackblocksize() - sstrnleft;
+makestrspace() 
+{
+	int len;
+
+	len = stackblocksize() - sstrnleft;
 	growstackblock();
 	sstrnleft = stackblocksize() - len;
 	return stackblock() + len;
@@ -297,7 +313,7 @@ void
 ungrabstackstr(s, p)
 	char *s;
 	char *p;
-	{
+{
 	stacknleft += stacknxt - s;
 	stacknxt = s;
 	sstrnleft = stacknleft - (p - s);
