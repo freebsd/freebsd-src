@@ -2,7 +2,9 @@
 
 PROG=	mail.local
 MAN8=	mail.local.8
-# CFLAGS+= -DEXTRA_SAFETY
+.if defined(DONT_FSYNC)
+CFLAGS+= -DDONT_FSYNC
+.endif
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
