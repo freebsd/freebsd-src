@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /***********************************************************************
  *	FILE NAME : SCSIIOM.C					       *
  *	     BY   : C.L. Huang	  (ching@tekram.com.tw) 	       *

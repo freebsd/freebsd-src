@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #define logo_w 88
 #define logo_h 88
 

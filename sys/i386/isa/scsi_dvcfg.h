@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]

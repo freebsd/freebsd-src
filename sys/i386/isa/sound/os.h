@@ -1,6 +1,7 @@
 /*
  * os.h -- only included by sound_config.h right after local.h
  *
+ * $FreeBSD$
  */
 
 #ifndef _OS_H_

@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: htons.S,v 1.1 1996/04/17 22:36:54 cgd Exp $	*/
 
 /*
