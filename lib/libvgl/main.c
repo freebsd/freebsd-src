@@ -54,6 +54,7 @@ static int VGLOldMode;
 static size_t VGLBufSize;
 static byte *VGLMem = MAP_FAILED;
 static int VGLSwitchPending;
+static int VGLAbortPending;
 static int VGLOnDisplay;
 static unsigned int VGLCurWindow;
 static int VGLInitDone = 0;
@@ -67,6 +68,8 @@ struct vt_mode smode;
   if (!VGLInitDone)
     return;
   VGLInitDone = 0;
+  VGLSwitchPending = 0;
+  VGLAbortPending = 0;
 
   signal(SIGUSR1, SIG_IGN);
 
@@ -103,8 +106,12 @@ struct vt_mode smode;
 static void 
 VGLAbort()
 {
-  VGLEnd();
-  exit(0);
+  VGLAbortPending = 1;
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, SIG_IGN);
+  signal(SIGSEGV, SIG_IGN);
+  signal(SIGBUS, SIG_IGN);
+  signal(SIGUSR2, SIG_IGN);
 }
 
 static void
@@ -132,9 +139,11 @@ VGLInit(int mode)
   signal(SIGTERM, VGLAbort);
   signal(SIGSEGV, VGLAbort);
   signal(SIGBUS, VGLAbort);
+  signal(SIGUSR2, SIG_IGN);
 
   VGLOnDisplay = 1;
   VGLSwitchPending = 0;
+  VGLAbortPending = 0;
 
   if (ioctl(0, CONS_GET, &VGLOldMode) || ioctl(0, CONS_CURRENT, &adptype))
     return -1;
@@ -322,6 +331,10 @@ VGLInit(int mode)
 void
 VGLCheckSwitch()
 {
+  if (VGLAbortPending) {
+    VGLEnd();
+    exit(0);
+  }
   while (VGLSwitchPending) {
     unsigned int offset;
     unsigned int len;
