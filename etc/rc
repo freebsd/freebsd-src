@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.161 1998/12/10 08:06:59 jb Exp $
+#	$Id: rc,v 1.162 1998/12/11 08:25:12 jb Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -352,11 +352,39 @@ if [ "X${local_startup}" != X"NO" ]; then
 	echo .
 fi
 
+if [ "X${update_motd}" != X"NO" ]; then
+	T=/tmp/_motd
+	rm -f $T
+	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
+	awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
+	cp $T /etc/motd
+	chmod 644 /etc/motd
+	rm -f $T
+fi
+
 # Run rc.devfs if present to customify devfs
 [ -f /etc/rc.devfs ] && sh /etc/rc.devfs
 
-# Do traditional (but rather obsolete) rc.local file if it exists.
-[ -f /etc/rc.local ] && sh /etc/rc.local
+# Do traditional (but rather obsolete) rc.local file if it exists.  If you
+# use this file and want to make it programmatic, source /etc/rc.conf in
+# /etc/rc.local and add your custom variables to /etc/rc.conf.local, as
+# shown below.  Please do not put local extensions into /etc/rc itself. 
+# Use /etc/rc.local
+#
+# ---- rc.local  ----
+#     if [ -f /etc/rc.conf ]; then
+#             . /etc/rc.conf
+#     fi
+#
+#     ... additional startup conditionals ...
+# ---- rc.local  ----
+#
+
+if [ -f /etc/rc.local ]; then
+    echo -n 'starting local daemons:'
+    sh /etc/rc.local
+    echo '.'
+fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
 # repaired local file systems if you want the securelevel to be greater than 1.
