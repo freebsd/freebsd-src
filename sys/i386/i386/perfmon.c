@@ -26,8 +26,10 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.6 1996/06/12 05:02:51 gpalmer Exp $
+ *	$Id: perfmon.c,v 1.7 1996/08/02 21:15:48 bde Exp $
  */
+
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
