@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.202 1998/05/20 06:46:58 phk Exp $
+ *	$Id: sio.c,v 1.203 1998/05/31 10:53:55 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -775,14 +775,13 @@ sioprobe(dev)
 
 	enable_intr();
 
-	/* XXX the magic mask is to discard transient (clock) irqs. */
-	irqs = irqmap[1] & ~irqmap[0] & ~0x0105;
-	if (irqs != idev->id_irq)
+	irqs = irqmap[1] & ~irqmap[0];
+	if (idev->id_irq != 0 && (idev->id_irq & irqs) == 0)
 		printf(
-		    "sio%d: probed irq %d does not match configured irq %d\n",
-		    ffs(irqs) - 1, ffs(idev->id_irq) - 1);
+		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
+		    dev->id_unit, ffs(idev->id_irq) - 1, irqs);
 	if (bootverbose)
-		printf("sio%d: irq maps: %04x %04x %04x %04x\n",
+		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    dev->id_unit, irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
 	result = IO_COMSIZE;
