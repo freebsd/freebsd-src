@@ -1,5 +1,5 @@
 /*
- * $Id: label.c,v 1.23.2.2 1994/11/21 03:53:45 phk Exp $
+ * $Id: label.c,v 1.31 1994/12/27 23:26:51 jkh Exp $
  */
 
 #include <stdlib.h>
@@ -310,10 +310,6 @@ Press any key to return to Disklabel editor...
 	    break;
 
 	case 'a': case 'A':
-	    if (memcmp(lbl, Dlbl[diskno], sizeof *lbl)) {
-		yip = "Please (W)rite changed partition information first";
-		break;
-	    }
 	    j = AskWhichPartition("Assign which partition> ");
 	    if (j < 0) {
 		yip = "Invalid partition";
