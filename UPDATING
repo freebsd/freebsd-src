@@ -24,7 +24,7 @@ build and install as described in the COMMON ITEMS section.
 20010721:	p8	FreeBSD-SA-01:49 (part 1)
 	Fix buffer overflow in telnetd.
 
-20010719:	p7
+20010719:	p7	FreeBSD-SA-01:51
 	Add PRNG security patch from openssl to prevent guessing of
 	internal state.
 
