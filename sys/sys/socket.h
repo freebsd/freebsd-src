@@ -152,8 +152,9 @@ struct	accept_filter_arg {
 					 * in interface output routine
 					 */
 #define	AF_NETGRAPH	32		/* Netgraph sockets */
-
-#define	AF_MAX		33
+#define	AF_SLOW		33		/* 802.3ad slow protocol */
+#define	AF_SCLUSTER	34		/* Sitara cluster protocol */
+#define	AF_MAX		35
 
 /*
  * Structure used by kernel to store most
@@ -229,6 +230,8 @@ struct sockaddr_storage {
 #define	PF_NATM		AF_NATM
 #define	PF_ATM		AF_ATM
 #define	PF_NETGRAPH	AF_NETGRAPH
+#define	PF_SLOW		AF_SLOW
+#define PF_SCLUSTER	AF_SCLUSTER
 
 #define	PF_MAX		AF_MAX
 
@@ -276,6 +279,8 @@ struct sockaddr_storage {
 	{ "atm", CTLTYPE_NODE }, \
 	{ "hdrcomplete", CTLTYPE_NODE }, \
 	{ "netgraph", CTLTYPE_NODE }, \
+	{ "snp", CTLTYPE_NODE }, \
+	{ "scp", CTLTYPE_NODE }, \
 }
 
 /*
