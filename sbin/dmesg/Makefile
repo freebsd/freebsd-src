@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
+# $FreeBSD$
 
 PROG=	dmesg
-MAN8=	dmesg.8
+MAN=	dmesg.8
 BINGRP=	kmem
 BINMODE=2555
 LDADD=	-lkvm

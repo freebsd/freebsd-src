@@ -4,7 +4,7 @@
 
 PROG=	umount
 SRCS=	umount.c vfslist.c mounttab.c
-MAN8=	umount.8
+MAN=	umount.8
 
 MOUNT=	${.CURDIR}/../mount
 UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall

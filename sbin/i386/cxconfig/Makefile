@@ -1,4 +1,6 @@
-PROG = cxconfig
-MAN8 = cxconfig.8
+# $FreeBSD$
+
+PROG=	cxconfig
+MAN=	cxconfig.8
 
 .include <bsd.prog.mk>

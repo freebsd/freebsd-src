@@ -4,7 +4,7 @@
 
 PROG=   routed
 SRCS=   if.c input.c main.c output.c parms.c radix.c rdisc.c table.c trace.c
-MAN8=   routed.8
+MAN=   routed.8
 SUBDIR= rtquery
 LDADD+= -lmd
 DPADD+= ${LIBMD}

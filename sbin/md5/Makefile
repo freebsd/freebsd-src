@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/9/93
+# $FreeBSD$
 
 PROG=	md5
-SRCS=   md5.c
 
 LDADD+=	-lmd
 DPADD+= ${LIBMD}

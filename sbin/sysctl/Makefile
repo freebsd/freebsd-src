@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	sysctl
-MAN8=	sysctl.8
+MAN=	sysctl.8
 
 .include <bsd.prog.mk>

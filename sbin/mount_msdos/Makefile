@@ -4,7 +4,7 @@
 
 PROG=	mount_msdos
 SRCS=	mount_msdos.c getmntopts.c
-MAN8=	mount_msdos.8
+MAN=	mount_msdos.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

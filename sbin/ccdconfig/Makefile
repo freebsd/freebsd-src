@@ -1,6 +1,7 @@
+# $FreeBSD$
+
 PROG=	ccdconfig
-SRCS=	ccdconfig.c
-MAN8=	ccdconfig.8
+MAN=	ccdconfig.8
 
 CFLAGS+=	-I${.CURDIR}/../../sys
 LDADD+=		-lkvm
