@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.4 1998/10/03 14:33:06 rnordier Exp $
+#	$Id: btx.s,v 1.5 1998/10/03 18:05:12 rnordier Exp $
 
 #
 # Memory layout.
@@ -100,7 +100,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
 		.byte 0x0			# Major version
-		.byte 0x56			# Minor version
+		.byte 0x57			# Minor version
 		.byte 0x0			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
@@ -213,6 +213,7 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movl $MEM_USR,%edx		# User base address
 		movzwl %ss:BDA_MEM,%eax 	# Get free memory
 		shll $0xa,%eax			# To bytes
+		subl $0x1000,%eax		# Less arg space
 		subl %edx,%eax			# Less base
 		movb $SEL_UDATA,%cl		# User data selector
 		pushl %ecx			# Set SS
