@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.18 1999/05/02 21:46:31 peter Exp $
+ *	$Id: wst.c,v 1.19 1999/05/06 18:44:10 peter Exp $
  */
 
 #include "wdc.h"
@@ -373,7 +373,7 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
         wst_write_filemark(t, 0);
 
     /* Write filemark if data written to tape */
-    if (t->flags & (WST_DATA_WRITTEN | WST_FM_WRITTEN) == WST_DATA_WRITTEN)
+    if ((t->flags & (WST_DATA_WRITTEN | WST_FM_WRITTEN)) == WST_DATA_WRITTEN)
         wst_write_filemark(t, WEOF_WRITE_MASK);
 
     /* If minor is even rewind on close */
