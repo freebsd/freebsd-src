@@ -70,8 +70,6 @@
 #include <netinet6/in6_prefix.h>
 #include <netinet/icmp6.h>
 
-#include "loop.h"
-
 #include <net/net_osdep.h>
 
 #define ND6_SLOWTIMER_INTERVAL (60 * 60) /* 1 hour */
