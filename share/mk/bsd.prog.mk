@@ -33,7 +33,7 @@ PROG=	${PROG_CXX}
 .if defined(SRCS)
 
 # If there are Objective C sources, link with Objective C libraries.
-.if ${SRCS:M*.m} != ""
+.if !empty(SRCS:M*.m)
 OBJCLIBS?= -lobjc
 LDADD+=	${OBJCLIBS}
 .endif

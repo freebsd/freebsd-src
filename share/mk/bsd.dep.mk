@@ -94,13 +94,13 @@ CLEANFILES+= ${_LC}
 .for _YC in ${_YSRC:R}.c
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
-.if ${YFLAGS:M-d} != "" && ${SRCS:My.tab.h}
+.if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
 .ORDER: ${_YC} y.tab.h
 ${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
 CLEANFILES+= y.tab.c y.tab.h
-.elif ${YFLAGS:M-d} != ""
+.elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
 .ORDER: ${_YC} ${_YH}
 ${_YC} ${_YH}: ${_YSRC}
@@ -128,18 +128,18 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
 	rm -f ${DEPENDFILE}
-.if ${DPSRCS:M*.[cS]} != ""
+.if !empty(DPSRCS:M*.[cS])
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.[cS]}
 .endif
-.if ${DPSRCS:M*.cc} != "" || ${DPSRCS:M*.C} != "" || ${DPSRCS:M*.cpp} != "" || \
-    ${DPSRCS:M*.cxx} != ""
+.if !empty(DPSRCS:M*.cc) || !empty(DPSRCS:M*.C) || !empty(DPSRCS:M*.cpp) || \
+    !empty(DPSRCS:M*.cxx)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .endif
-.if ${DPSRCS:M*.m} != ""
+.if !empty(DPSRCS:M*.m)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} \
 	    ${OBJCFLAGS:M-Wno-import*} \
