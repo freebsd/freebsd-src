@@ -43,9 +43,11 @@ ahb	i386
 ahc	i386,pc98,alpha,sparc64,amd64
 ahd	i386,sparc64,amd64
 aic	i386,pc98,amd64
+amd	i386,pc98,amd64
 aue	i386,pc98,amd64
 awi	i386,pc98,amd64
 bge	i386,pc98,ia64,amd64
+bt	i386,amd64
 ciss	i386,amd64
 cm	i386
 cp	i386,pc98
@@ -54,8 +56,14 @@ cx	i386
 dpt	i386,amd64
 fe	i386,pc98,amd64
 hme	sparc64
+ida	i386
+iir	i386,amd64
+ips	i386,amd64
 isp	i386,pc98,alpha,ia64,sparc64,amd64
 my	i386,pc98
+nsp	i386,pc98
+ohci	i386,pc98,alpha,ia64,amd64
+stg	i386,pc98
 twe	i386
 txp	i386,pc98,alpha,amd64
 udav	i386,pc98,amd64
