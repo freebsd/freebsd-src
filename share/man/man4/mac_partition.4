@@ -29,50 +29,65 @@
 .\" SUCH DAMAGE.
 .\" 
 .\" $FreeBSD$
-.Dd DECEMBER 1, 2002
+.Dd DECEMBER 9, 2002
 .Os
-.Dt MAC_TEST 4
+.Dt MAC_PARTITION 4
 .Sh NAME
-.Nm mac_test
-.Nd MAC framework testing policy
+.Nm mac_partition
+.Nd process partition policy
 .Sh SYNOPSIS
-To compile the testing policy
-into your kernel, place the following lines in your kernel
+To compile the process partition policy into your kernel,
+place the following lines in your kernel
 configuration file:
 .Cd "options MAC"
-.Cd "options MAC_TEST"
+.Cd "options MAC_PARTITION"
 .Pp
-Alternately, to load the testing module at boot time, place the following line
-in your kernel configuration file:
+Alternately, to load the process partition module at boot time,
+place the following line in your kernel configuration file:
 .Cd "options MAC"
 .Pp
 and in
-.Xr loader.conf.5 :
-.Cd mac_test_load= Ns \&"YES"
+.Xr loader.conf 5 :
+.Cd mac_partition_load= Ns \&"YES"
 .Sh DESCRIPTION
 The
 .Nm
-policy module implements a testing facility for the MAC framework.
-Among other things,
-.Nm
-will try to catch corrupt labels the system is attempting to destroy and
-drop to the debugger.
-Additionally, a set of statistics regarding the number of times various
-MAC framework entry points have been called is stored in the
-.Va security.mac.test
-.Xr sysctl 8
-tree.
+policy module implements a process partition policy,
+which allows administrators to place running processes into
+.Dq partitions,
+based on their numeric process partition
+(specified in the process's MAC label).
+Processes with a specified partition can only see processes that are in the
+same partition.
+If no partition is specified for a process, it can see all other processes
+in the system
+(subject to other MAC policy restrictions not defined in this man page).
+No provisions for placing processes into multiple partitions is available.
 .Ss Label Format
-No labels are defined for
-.Nm .
+Partition labels take on the following format:
+.Pp
+.Dl partition/ Ns Sy value
+.Pp
+Where
+.Sy value
+can be any integer value or
+.Dq none .
+For example:
+.Pp
+.Bd -offset indent
+partition/1
+partition/20
+partition/none
+.Ed
 .Sh SEE ALSO
+.Xr LOMAC 4 ,
 .Xr mac_biba 4 ,
 .Xr mac_bsdextended 4 ,
 .Xr mac_ifoff 4 ,
 .Xr mac_mls 4 ,
 .Xr mac_none 4 ,
-.Xr mac_partition 4 ,
 .Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
 .Xr mac 9
 .Sh HISTORY
 The
@@ -94,7 +109,7 @@ concerning appropriateness for production use.
 The TrustedBSD MAC Framework is considered experimental in
 .Fx .
 .Pp
-While the MAC Framework design is intended to support the containment of
+While the MAC Framework design is intended to support the containment of  
 the root user, not all attack channels are currently protected by entry
 point checks.
 As such, MAC Framework policies should not be relied on, in isolation,
