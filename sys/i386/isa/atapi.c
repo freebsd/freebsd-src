@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Mon Jul 10 21:55:11 MSD 1995
+ * Version 1.3, Mon Aug 28 21:44:01 MSD 1995
  */
 
 /*
@@ -101,7 +101,6 @@
 
 #include "wdc.h"
 #include "wcd.h"
-/* #include "whd.h" -- add your driver here */
 /* #include "wmt.h" -- add your driver here */
 /* #include "wmd.h" -- add your driver here */
 
@@ -243,14 +242,22 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 		return;
 	}
 	switch (ap->devtype) {
-	default:
-		/* unknown ATAPI device */
-		printf ("wdc%d: unit %d: unknown ATAPI type=%d\n",
+	default: 			/* unknown ATAPI device */
+		printf ("wdc%d: unit %d: unknown ATAPI device type=%d\n",
 			ctlr, unit, ap->devtype);
 		break;
+
+	case AT_TYPE_DIRECT:            /* direct-access (magnetic disk) */
+#if NWHD > 0
+		/* Add your driver here */
+#else
+		printf ("wdc%d: ATAPI hard disks not supported\n", ctlr);
+		printf ("wdc%d: Could be old ATAPI CDROM, trying...\n", ctlr);
+		break;
+#endif
+
 	case AT_TYPE_CDROM:             /* CD-ROM device */
 #if NWCD > 0
-		/* ATAPI CD-ROM */
 		{
 			int wcdattach (struct atapi*, int, struct atapi_params*,
 				int, struct kern_devconf*);
@@ -263,25 +270,20 @@ void atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 		printf ("wdc%d: ATAPI CD-ROMs not configured\n", ctlr);
 		break;
 #endif
-	case AT_TYPE_DIRECT:            /* direct-access (magnetic disk) */
-#if NWHD > 0
-		/* Add your driver here */
-#else
-		printf ("wdc%d: ATAPI hard disks not supported\n", ctlr);
-		break;
-#endif
+
 	case AT_TYPE_TAPE:              /* streaming tape (QIC-121 model) */
 #if NWMT > 0
 		/* Add your driver here */
 #else
-		printf ("wdc%d: ATAPI streaming tapes not supported yet\n", ctlr);
+		printf ("wdc%d: ATAPI streaming tapes not supported\n", ctlr);
 		break;
 #endif
+
 	case AT_TYPE_OPTICAL:           /* optical disk */
 #if NWMD > 0
 		/* Add your driver here */
 #else
-		printf ("wdc%d: ATAPI optical disks not supported yet\n", ctlr);
+		printf ("wdc%d: ATAPI optical disks not supported\n", ctlr);
 		break;
 #endif
 	}
@@ -336,10 +338,15 @@ static struct atapi_params *atapi_probe (int port, int unit)
 		return (0);
 	bcopy (tb, ap, sizeof *ap);
 
-	/* Shuffle string byte order. */
-	for (i=0; i<sizeof(ap->model); i+=2) {
-		u_short *p = (u_short*) (ap->model + i);
-		*p = ntohs (*p);
+	/*
+	 * Shuffle string byte order.
+	 * Mitsumi and NEC drives don't need this.
+	 */
+	if (! ((ap->model[0] == 'N' && ap->model[1] == 'E') ||
+	    (ap->model[0] == 'F' && ap->model[1] == 'X'))) {
+		u_short *p = (u_short*) (ap->model + sizeof(ap->model));
+		while (--p >= (u_short*) ap->model)
+			*p = ntohs (*p);
 	}
 
 	/* Clean up the model by converting nulls to spaces, and
@@ -580,12 +587,13 @@ int atapi_io (struct atapi *ata, struct atapicmd *ac)
 	u_char ireason;
 	u_short len;
 
-	if (atapi_wait (ata->port, ac->count ? ARS_DRQ : 0) < 0) {
-		printf ("atapi%d.%d: controller not ready\n",
-			ata->ctrlr, ac->unit);
+	if (atapi_wait (ata->port, 0) < 0) {
+		ac->result.status = inb (ata->port + AR_STATUS);
+		ac->result.error = inb (ata->port + AR_ERROR);
 		ac->result.code = RES_NOTRDY;
-		ac->result.status = 0;
-		ac->result.error = 0;
+		printf ("atapi%d.%d: controller not ready, status=%b, error=%b\n",
+			ata->ctrlr, ac->unit, ac->result.status, ARS_BITS,
+			ac->result.error, AER_BITS);
 		return (0);
 	}
 
