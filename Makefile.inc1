@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.40 1998/11/13 00:59:00 jdp Exp $
+#	$Id: Makefile.inc1,v 1.41 1998/11/15 10:03:12 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -645,7 +645,7 @@ lib-tools:
 #
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
-# libcrypt must be built before libskey.
+# libcrypt must be built before libskey and libkrb.
 # libm must be built before libf2c, libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
