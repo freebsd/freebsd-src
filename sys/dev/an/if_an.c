@@ -364,7 +364,7 @@ int an_attach(sc, unit, flags)
 	sc->an_ssidlist.an_ssid1_len = strlen(AN_DEFAULT_NETNAME);
 
 	sc->an_config.an_opmode =
-	    AN_OPMODE_IBSS_ADHOC;
+	    AN_OPMODE_INFRASTRUCTURE_STATION;
 
 	sc->an_tx_rate = 0;
 	bzero((char *)&sc->an_stats, sizeof(sc->an_stats));
