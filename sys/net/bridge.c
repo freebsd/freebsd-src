@@ -99,15 +99,16 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>		/* for struct arpcom */
 #include <net/if_types.h>
 #include <net/if_var.h>
 
-#include <netinet/in.h> /* for struct arpcom */
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/if_ether.h> /* for struct arpcom */
 
 #ifdef PFIL_HOOKS
 #include <net/pfil.h>
@@ -299,7 +300,7 @@ static struct callout bdg_callout;
  * updating pointers in ifp2sc.
  */
 static struct cluster_softc *
-add_cluster(u_int16_t cluster_id, struct arpcom *ac)
+add_cluster(u_int16_t cluster_id, struct ifnet *ifp)
 {
     struct cluster_softc *c = NULL;
     int i;
@@ -353,7 +354,7 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
     n_clusters++;
 found:
     c = clusters + i;		/* the right cluster ... */
-    ETHER_ADDR_COPY(c->my_macs[c->ports].etheraddr, ac->ac_enaddr);
+    ETHER_ADDR_COPY(c->my_macs[c->ports].etheraddr, IFP2AC(ifp)->ac_enaddr);
     c->ports++;
     return c;
 bad:
@@ -532,7 +533,7 @@ parse_bdg_cfg(void)
 		    printf("%s already used, skipping\n", ifp->if_xname);
 		    break;
 		}
-		b->cluster = add_cluster(htons(cluster), (struct arpcom *)ifp);
+		b->cluster = add_cluster(htons(cluster), ifp);
 		b->flags |= IFF_USED ;
 		snprintf(bdg_stats.s[ifp->if_index].name,
 		    sizeof(bdg_stats.s[ifp->if_index].name),
