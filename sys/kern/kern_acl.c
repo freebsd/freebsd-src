@@ -30,9 +30,6 @@
 /*
  * Developed by the TrustedBSD Project.
  * Support for POSIX.1e access control lists.
- *
- * XXX: When vn_start_write() was scattered throughout the kernel, it
- * was not scattered here for some reason.  It needs to be.
  */
 
 #include "opt_cap.h"
@@ -573,15 +570,20 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernacl;
+	struct mount *mp;
 	int error;
 
 	error = copyin(aclp, &inkernacl, sizeof(struct acl));
 	if (error)
 		return(error);
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error != 0)
+		return (error);
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_SETACL(vp, type, &inkernacl, td->td_proc->p_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
 	return(error);
 }
 
@@ -610,13 +612,18 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 static int
 vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 {
+	struct mount *mp;
 	int error;
 
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error)
+		return (error);
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_proc->p_ucred,
 	    td);
 	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
 	return (error);
 }
 
