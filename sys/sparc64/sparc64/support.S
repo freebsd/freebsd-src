@@ -283,7 +283,7 @@ END(suswintr)
  * int suword(const void *base)
  */
 ENTRY(suword)
-	SU_BYTES(stwa, 8, .Lfsfault)
+	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword)
 
 ENTRY(fsbail)
@@ -323,10 +323,33 @@ ENTRY(setjmp)
 END(setjmp)
 
 /*
+ * Temporary stack for calling into the firmware. We need to setup one, because
+ * the MMU mapping for our stack page may be lost. When the firmware tries to
+ * spill the last window (the others are flushed before), this results in an
+ * DMMU miss trap, which is fatal with the firmware trap handlers installed.
+ * Additionally, it seems that the firmware does not immediately switch to an
+ * own stack (or maybe never?), therefore more space needs to be reserved.
+ * I hope this is sufficient now.
+ */
+	.align	4
+DATA(ofwstack)
+	.rept	CCFSZ * 8
+	.byte	0
+	.endr
+ofwstack_last:
+	.rept	CCFSZ
+	.byte	0
+	.endr
+END(ofwstack)
+
+/*
  * void openfirmware(cell_t args[])
  */
 ENTRY(openfirmware)
-	save	%sp, -CCFSZ, %sp
+	save
+	setx	ofwstack_last - SPOFF, %l0, %l1
+	mov	%l1, %sp	/* XXX race between save and %sp setup */
+	flushw
 	rdpr	%pstate, %l0
 	rdpr	%tl, %l1
 	rdpr	%tba, %l2
@@ -339,6 +362,8 @@ ENTRY(openfirmware)
 	ldx	[%l5], %l5
 	setx	ofw_vec, %l7, %l6
 	ldx	[%l6], %l6
+	rdpr	%pil, %l7
+	wrpr	%g0, 14, %pil
 	wrpr	%l5, 0, %tba
 	wrpr	%g0, 0, %tl
 	call	%l6
@@ -347,6 +372,7 @@ ENTRY(openfirmware)
 	wrpr	%l1, 0, %tl
 	wrpr	%l2, 0, %tba
 	stxa	%l4, [%l3] ASI_DMMU
+	wrpr	%l7, 0, %pil
 	membar	#Sync
 	flush	%sp
 	ret
