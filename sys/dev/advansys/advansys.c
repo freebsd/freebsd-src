@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.2 1998/09/20 05:04:05 gibbs Exp $
+ *      $Id: advansys.c,v 1.3 1998/10/07 03:32:56 gibbs Exp $
  */
 /*
  * Ported from:
@@ -75,7 +75,6 @@
 
 u_long adv_unit;
 
-static void	advminphys(struct buf *bp);
 static void	adv_action(struct cam_sim *sim, union ccb *ccb);
 static void	adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 				int nsegments, int error);
@@ -84,7 +83,7 @@ static void	adv_run_doneq(struct adv_softc *adv);
 static struct adv_ccb_info *
 		adv_alloc_ccb_info(struct adv_softc *adv);
 static void	adv_destroy_ccb_info(struct adv_softc *adv,
-				  struct adv_ccb_info *cinfo);
+				     struct adv_ccb_info *cinfo); 
 static __inline struct adv_ccb_info *
 		adv_get_ccb_info(struct adv_softc *adv);
 static __inline void adv_free_ccb_info(struct adv_softc *adv,
@@ -237,7 +236,6 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	 ccb_trans_settings *cts;
-		u_int	 offset;
 		target_bit_vector targ_mask;
 		struct adv_target_transinfo *tconf;
 		u_int	 update_type;
@@ -577,13 +575,6 @@ adv_destroy_ccb_info(struct adv_softc *adv, struct adv_ccb_info *cinfo)
 	free(cinfo, M_DEVBUF);
 }
 
-static void
-advminphys(struct buf *bp)
-{
-	if (bp->b_bcount > ((ADV_MAX_SG_LIST - 1) * PAGE_SIZE))
-		bp->b_bcount = ((ADV_MAX_SG_LIST - 1) * PAGE_SIZE);
-}
-
 void
 adv_timeout(void *arg)
 {
@@ -660,7 +651,6 @@ struct adv_softc *
 adv_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
 	struct	 adv_softc *adv;
-	int	 i;
    
 	if (unit >= NADV) {
 		printf("adv: unit number (%d) too high\n", unit);
@@ -701,7 +691,7 @@ adv_free(struct adv_softc *adv)
 
 		while ((cinfo = SLIST_FIRST(&adv->free_ccb_infos)) != NULL) {
 			SLIST_REMOVE_HEAD(&adv->free_ccb_infos, links);
-			adv_free_ccb_info(adv, cinfo);	
+			adv_destroy_ccb_info(adv, cinfo);	
 		}
 		
 		bus_dmamap_unload(adv->sense_dmat, adv->sense_dmamap);
@@ -900,7 +890,6 @@ adv_intr(void *arg)
 	u_int16_t saved_ram_addr;
 	u_int8_t  ctrl_reg;
 	u_int8_t  saved_ctrl_reg;
-	int	  status;
 	u_int8_t  host_flag;
 
 	adv = (struct adv_softc *)arg;
@@ -1132,9 +1121,7 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		 * We now traverse our list of pending CCBs and reinstate
 		 * their timeouts.
 		 */
-		struct cam_path *path;
 		struct ccb_hdr *ccb_h;
-		cam_status error;
 
 		ccb_h = LIST_FIRST(&adv->pending_ccbs);
 		while (ccb_h != NULL) {
