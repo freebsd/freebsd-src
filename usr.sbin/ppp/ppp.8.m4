@@ -2467,13 +2467,13 @@ mp:
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \\"\\" ATZ \e
            OK-AT-OK \\\\dATDT\\\\T TIMEOUT 45 CONNECT"
  set login
- set ifaddr 10.0.0.1/0 10.0.0.2/0
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 0.0.0.0 0.0.0.0
  set authname ppp
  set authkey ppppassword
 
  set mrru 1500
- clone 1,2,3
- link deflink remove
+ clone 1,2,3		# Create 3 new links - duplicates of the default
+ link deflink remove	# Delete the default link (called ``deflink'')
 .Ed
 .Pp
 Note how all cloning is done at the end of the configuration.
