@@ -320,6 +320,8 @@ setdefaults(e)
 	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
 	MaxHeadersLength = MAXHDRSLEN;
+	MaxMimeHeaderLength = MAXLINE;
+	MaxMimeFieldLength = MaxMimeHeaderLength / 2;
 	MaxForwardEntries = 0;
 #if SASL
 	AuthMechanisms = newstr(AUTH_MECHANISMS);
