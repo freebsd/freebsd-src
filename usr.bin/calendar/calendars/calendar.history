@@ -1,3 +1,12 @@
+/*
+ * History
+ *
+ * $Id: calendar.history,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ */
+
+#ifndef _calendar_history_
+#define _calendar_history_
+
 01/01	Anniversary of the Triumph of the Revolution in Cuba
 01/01	Castro expells Cuban President Batista, 1959
 01/01	Churchill delivers his "Iron Curtain" speech, 1947
@@ -484,3 +493,5 @@
 12/30	First Los Angeles freeway dedicated, 1940
 12/31	St. Sylvester in Switzerland
 12/31	Winterland closes its doors, 1978
+
+#endif /* !_calendar_history_ */
