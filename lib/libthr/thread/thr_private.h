@@ -141,7 +141,7 @@
  */
 #define TAILQ_INITIALIZER	{ NULL, NULL }
 
-#define	UMTX_INITIALIZER	{ NULL, NULL }
+#define	UMTX_INITIALIZER	{ NULL }
 
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
