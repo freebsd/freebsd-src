@@ -1076,6 +1076,7 @@ ffs_statfs(mp, sbp, td)
 	fs = ump->um_fs;
 	if (fs->fs_magic != FS_UFS1_MAGIC && fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_statfs");
+	sbp->f_version = STATFS_VERSION;
 	sbp->f_bsize = fs->fs_fsize;
 	sbp->f_iosize = fs->fs_bsize;
 	sbp->f_blocks = fs->fs_dsize;
@@ -1085,8 +1086,18 @@ ffs_statfs(mp, sbp, td)
 	    dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
+	sbp->f_namemax = NAME_MAX;
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 		sbp->f_type = mp->mnt_vfc->vfc_typenum;
+		sbp->f_syncwrites = mp->mnt_stat.f_syncwrites;
+		sbp->f_asyncwrites = mp->mnt_stat.f_asyncwrites;
+		sbp->f_syncreads = mp->mnt_stat.f_syncreads;
+		sbp->f_asyncreads = mp->mnt_stat.f_asyncreads;
+		sbp->f_owner = mp->mnt_stat.f_owner;
+		sbp->f_fsid = mp->mnt_stat.f_fsid;
+		bcopy((caddr_t)mp->mnt_stat.f_fstypename,
+			(caddr_t)&sbp->f_fstypename[0], MFSNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
 			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
