@@ -300,7 +300,7 @@ in6_selecthlim(in6p, ifp)
 	if (in6p && in6p->in6p_hops >= 0)
 		return (in6p->in6p_hops);
 	else if (ifp)
-		return (nd_ifinfo[ifp->if_index].chlim);
+		return (ND_IFINFO(ifp)->chlim);
 	else
 		return (ip6_defhlim);
 }

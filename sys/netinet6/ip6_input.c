@@ -106,6 +106,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/icmp6.h>
+#include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_prefix.h>
@@ -196,6 +197,7 @@ ip6_init()
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
+	scope6_init();
 	nd6_init();
 	frag6_init();
 #ifndef RANDOM_IP_ID
@@ -208,12 +210,6 @@ static void
 ip6_init2(dummy)
 	void *dummy;
 {
-
-	/*
-	 * to route local address of p2p link to loopback,
-	 * assign loopback address first.
-	 */
-	in6_ifattach(&loif[0], NULL);
 
 	/* nd6_timer_init */
 	callout_init(&nd6_timer_ch, 0);

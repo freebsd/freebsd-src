@@ -151,6 +151,7 @@ enum sysinit_sub_id {
 	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* XXX: set splimp (kludge)*/
 	SI_SUB_PROTO_IF		= 0x8400000,	/* interfaces*/
 	SI_SUB_PROTO_DOMAIN	= 0x8800000,	/* domains (address families?)*/
+	SI_SUB_PROTO_IFATTACHDOMAIN	= 0x8800001,	/* domain dependent data init*/
 	SI_SUB_PROTO_END	= 0x8ffffff,	/* XXX: set splx (kludge)*/
 	SI_SUB_KPROF		= 0x9000000,	/* kernel profiling*/
 	SI_SUB_KICK_SCHEDULER	= 0xa000000,	/* start the timeout events*/

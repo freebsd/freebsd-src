@@ -45,77 +45,61 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/scope6_var.h>
 
-struct scope6_id {
-	/*
-	 * 16 is correspondent to 4bit multicast scope field.
-	 * i.e. from node-local to global with some reserved/unassigned types.
-	 */
-	u_int32_t s6id_list[16];
-};
-static size_t if_indexlim = 8;
-struct scope6_id *scope6_ids = NULL;
+static struct scope6_id sid_default;
+#define SID(ifp) \
+	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
 
 void
+scope6_init()
+{
+
+	bzero(&sid_default, sizeof(sid_default));
+}
+
+struct scope6_id *
 scope6_ifattach(ifp)
 	struct ifnet *ifp;
 {
 	int s = splnet();
+	struct scope6_id *sid;
 
-	/*
-	 * We have some arrays that should be indexed by if_index.
-	 * since if_index will grow dynamically, they should grow too.
-	 */
-	if (scope6_ids == NULL || if_index >= if_indexlim) {
-		size_t n;
-		caddr_t q;
-
-		while (if_index >= if_indexlim)
-			if_indexlim <<= 1;
-
-		/* grow scope index array */
-		n = if_indexlim * sizeof(struct scope6_id);
-		/* XXX: need new malloc type? */
-		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
-		bzero(q, n);
-		if (scope6_ids) {
-			bcopy((caddr_t)scope6_ids, q, n/2);
-			free((caddr_t)scope6_ids, M_IFADDR);
-		}
-		scope6_ids = (struct scope6_id *)q;
-	}
-
-#define SID scope6_ids[ifp->if_index]
-
-	/* don't initialize if called twice */
-	if (SID.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL]) {
-		splx(s);
-		return;
-	}
+	sid = (struct scope6_id *)malloc(sizeof(*sid), M_IFADDR, M_WAITOK);
+	bzero(sid, sizeof(*sid));
 
 	/*
 	 * XXX: IPV6_ADDR_SCOPE_xxx macros are not standard.
 	 * Should we rather hardcode here?
 	 */
-	SID.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = ifp->if_index;
+	sid->s6id_list[IPV6_ADDR_SCOPE_NODELOCAL] = ifp->if_index;
+	sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = ifp->if_index;
 #ifdef MULTI_SCOPE
 	/* by default, we don't care about scope boundary for these scopes. */
-	SID.s6id_list[IPV6_ADDR_SCOPE_SITELOCAL] = 1;
-	SID.s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL] = 1;
+	sid->s6id_list[IPV6_ADDR_SCOPE_SITELOCAL] = 1;
+	sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL] = 1;
 #endif
-#undef SID
 
 	splx(s);
+	return sid;
+}
+
+void
+scope6_ifdetach(sid)
+	struct scope6_id *sid;
+{
+
+	free(sid, M_IFADDR);
 }
 
 int
 scope6_set(ifp, idlist)
 	struct ifnet *ifp;
-	u_int32_t *idlist;
+	struct scope6_id *idlist;
 {
 	int i, s;
 	int error = 0;
+	struct scope6_id *sid = SID(ifp);
 
-	if (scope6_ids == NULL)	/* paranoid? */
+	if (!sid)	/* paranoid? */
 		return (EINVAL);
 
 	/*
@@ -131,10 +115,10 @@ scope6_set(ifp, idlist)
 	s = splnet();
 
 	for (i = 0; i < 16; i++) {
-		if (idlist[i] &&
-		    idlist[i] != scope6_ids[ifp->if_index].s6id_list[i]) {
+		if (idlist->s6id_list[i] &&
+		    idlist->s6id_list[i] != sid->s6id_list[i]) {
 			if (i == IPV6_ADDR_SCOPE_LINKLOCAL &&
-			    idlist[i] > if_index) {
+			    idlist->s6id_list[i] > if_index) {
 				/*
 				 * XXX: theoretically, there should be no
 				 * relationship between link IDs and interface
@@ -150,7 +134,7 @@ scope6_set(ifp, idlist)
 			 * but we simply set the new value in this initial
 			 * implementation.
 			 */
-			scope6_ids[ifp->if_index].s6id_list[i] = idlist[i];
+			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
 	splx(s);
@@ -161,13 +145,14 @@ scope6_set(ifp, idlist)
 int
 scope6_get(ifp, idlist)
 	struct ifnet *ifp;
-	u_int32_t *idlist;
+	struct scope6_id *idlist;
 {
-	if (scope6_ids == NULL)	/* paranoid? */
+	struct scope6_id *sid = SID(ifp);
+
+	if (sid == NULL)	/* paranoid? */
 		return (EINVAL);
 
-	bcopy(scope6_ids[ifp->if_index].s6id_list, idlist,
-	      sizeof(scope6_ids[ifp->if_index].s6id_list));
+	*idlist = *sid;
 
 	return (0);
 }
@@ -237,31 +222,45 @@ in6_addr2scopeid(ifp, addr)
 	struct ifnet *ifp;	/* must not be NULL */
 	struct in6_addr *addr;	/* must not be NULL */
 {
-	int scope = in6_addrscope(addr);
+	int scope;
+	struct scope6_id *sid = SID(ifp);
 
-	if (scope6_ids == NULL)	/* paranoid? */
-		return (0);	/* XXX */
-	if (ifp->if_index >= if_indexlim)
-		return (0);	/* XXX */
+#ifdef DIAGNOSTIC
+	if (sid == NULL) { /* should not happen */
+		panic("in6_addr2zoneid: scope array is NULL");
+		/* NOTREACHED */
+	}
+#endif
 
-#define SID scope6_ids[ifp->if_index]
+	/*
+	 * special case: the loopback address can only belong to a loopback
+	 * interface.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(addr)) {
+		if (!(ifp->if_flags & IFF_LOOPBACK))
+			return (-1);
+		else
+			return (0); /* there's no ambiguity */
+	}
+
+	scope = in6_addrscope(addr);
+
 	switch(scope) {
 	case IPV6_ADDR_SCOPE_NODELOCAL:
 		return (-1);	/* XXX: is this an appropriate value? */
 
 	case IPV6_ADDR_SCOPE_LINKLOCAL:
-		return (SID.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL]);
+		return (sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL]);
 
 	case IPV6_ADDR_SCOPE_SITELOCAL:
-		return (SID.s6id_list[IPV6_ADDR_SCOPE_SITELOCAL]);
+		return (sid->s6id_list[IPV6_ADDR_SCOPE_SITELOCAL]);
 
 	case IPV6_ADDR_SCOPE_ORGLOCAL:
-		return (SID.s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL]);
+		return (sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL]);
 
 	default:
 		return (0);	/* XXX: treat as global. */
 	}
-#undef SID
 }
 
 void
@@ -269,28 +268,27 @@ scope6_setdefault(ifp)
 	struct ifnet *ifp;	/* note that this might be NULL */
 {
 	/*
-	 * Currently, this function just set the default "link" according to
-	 * the given interface.
+	 * Currently, this function just set the default "interfaces"
+	 * and "links" according to the given interface.
 	 * We might eventually have to separate the notion of "link" from
 	 * "interface" and provide a user interface to set the default.
 	 */
 	if (ifp) {
-		scope6_ids[0].s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
+		sid_default.s6id_list[IPV6_ADDR_SCOPE_NODELOCAL] =
+			ifp->if_index;
+		sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
 			ifp->if_index;
 	} else {
-		scope6_ids[0].s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
+		sid_default.s6id_list[IPV6_ADDR_SCOPE_NODELOCAL] = 0;
+		sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
 	}
 }
 
 int
 scope6_get_default(idlist)
-	u_int32_t *idlist;
+	struct scope6_id *idlist;
 {
-	if (scope6_ids == NULL)	/* paranoid? */
-		return (EINVAL);
-
-	bcopy(scope6_ids[0].s6id_list, idlist,
-	      sizeof(scope6_ids[0].s6id_list));
+	*idlist = sid_default;
 
 	return (0);
 }
@@ -299,5 +297,12 @@ u_int32_t
 scope6_addr2default(addr)
 	struct in6_addr *addr;
 {
-	return (scope6_ids[0].s6id_list[in6_addrscope(addr)]);
+	/*
+	 * special case: The loopback address should be considered as
+	 * link-local, but there's no ambiguity in the syntax.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(addr))
+		return (0);
+
+	return (sid_default.s6id_list[in6_addrscope(addr)]);
 }

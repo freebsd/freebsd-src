@@ -2712,8 +2712,7 @@ tcp_mss(tp, offer)
 		mss = rt->rt_rmx.rmx_mtu - min_protoh;
 	else {
 		if (isipv6) {
-			mss = nd_ifinfo[rt->rt_ifp->if_index].linkmtu -
-				min_protoh;
+			mss = ND_IFINFO(rt->rt_ifp)->linkmtu - min_protoh;
 			if (!in6_localaddr(&inp->in6p_faddr))
 				mss = min(mss, tcp_v6mssdflt);
 		} else {

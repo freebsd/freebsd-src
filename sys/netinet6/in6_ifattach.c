@@ -60,10 +60,6 @@
 
 #include <net/net_osdep.h>
 
-struct in6_ifstat **in6_ifstat = NULL;
-struct icmp6_ifstat **icmp6_ifstat = NULL;
-size_t in6_ifstatmax = 0;
-size_t icmp6_ifstatmax = 0;
 unsigned long in6_maxmtu = 0;
 
 #ifdef IP6_AUTO_LINKLOCAL
@@ -727,7 +723,6 @@ in6_ifattach(ifp, altifp)
 	struct ifnet *ifp;
 	struct ifnet *altifp;	/* secondary EUI64 source */
 {
-	static size_t if_indexlim = 8;
 	struct in6_ifaddr *ia;
 	struct in6_addr in6;
 
@@ -738,50 +733,6 @@ in6_ifattach(ifp, altifp)
 		return;
 #endif
 	}
-
-	/*
-	 * We have some arrays that should be indexed by if_index.
-	 * since if_index will grow dynamically, they should grow too.
-	 *	struct in6_ifstat **in6_ifstat
-	 *	struct icmp6_ifstat **icmp6_ifstat
-	 */
-	if (in6_ifstat == NULL || icmp6_ifstat == NULL ||
-	    if_index >= if_indexlim) {
-		size_t n;
-		caddr_t q;
-		size_t olim;
-
-		olim = if_indexlim;
-		while (if_index >= if_indexlim)
-			if_indexlim <<= 1;
-
-		/* grow in6_ifstat */
-		n = if_indexlim * sizeof(struct in6_ifstat *);
-		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
-		bzero(q, n);
-		if (in6_ifstat) {
-			bcopy((caddr_t)in6_ifstat, q,
-				olim * sizeof(struct in6_ifstat *));
-			free((caddr_t)in6_ifstat, M_IFADDR);
-		}
-		in6_ifstat = (struct in6_ifstat **)q;
-		in6_ifstatmax = if_indexlim;
-
-		/* grow icmp6_ifstat */
-		n = if_indexlim * sizeof(struct icmp6_ifstat *);
-		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
-		bzero(q, n);
-		if (icmp6_ifstat) {
-			bcopy((caddr_t)icmp6_ifstat, q,
-				olim * sizeof(struct icmp6_ifstat *));
-			free((caddr_t)icmp6_ifstat, M_IFADDR);
-		}
-		icmp6_ifstat = (struct icmp6_ifstat **)q;
-		icmp6_ifstatmax = if_indexlim;
-	}
-
-	/* initialize scope identifiers */
-	scope6_ifattach(ifp);
 
 	/*
 	 * quirks based on interface type
@@ -844,20 +795,6 @@ statinit:
 	/* update dynamically. */
 	if (in6_maxmtu < ifp->if_mtu)
 		in6_maxmtu = ifp->if_mtu;
-
-	if (in6_ifstat[ifp->if_index] == NULL) {
-		in6_ifstat[ifp->if_index] = (struct in6_ifstat *)
-			malloc(sizeof(struct in6_ifstat), M_IFADDR, M_WAITOK);
-		bzero(in6_ifstat[ifp->if_index], sizeof(struct in6_ifstat));
-	}
-	if (icmp6_ifstat[ifp->if_index] == NULL) {
-		icmp6_ifstat[ifp->if_index] = (struct icmp6_ifstat *)
-			malloc(sizeof(struct icmp6_ifstat), M_IFADDR, M_WAITOK);
-		bzero(icmp6_ifstat[ifp->if_index], sizeof(struct icmp6_ifstat));
-	}
-
-	/* initialize NDP variables */
-	nd6_ifattach(ifp);
 }
 
 /*
@@ -987,7 +924,7 @@ in6_get_tmpifid(ifp, retbuf, baseid, generate)
 	int generate;
 {
 	u_int8_t nullbuf[8];
-	struct nd_ifinfo *ndi = &nd_ifinfo[ifp->if_index];
+	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
 
 	bzero(nullbuf, sizeof(nullbuf));
 	if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) == 0) {
@@ -1009,9 +946,9 @@ void
 in6_tmpaddrtimer(ignored_arg)
 	void *ignored_arg;
 {
-	int i;
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
+	struct ifnet *ifp;
 	int s = splnet();
 
 	callout_reset(&in6_tmpaddrtimer_ch,
@@ -1019,8 +956,8 @@ in6_tmpaddrtimer(ignored_arg)
 	    ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, NULL);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	for (i = 1; i < if_index + 1; i++) {
-		ndi = &nd_ifinfo[i];
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*
 			 * We've been generating a random ID on this interface.
