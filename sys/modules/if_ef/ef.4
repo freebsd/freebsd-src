@@ -27,7 +27,7 @@
 .\"
 .Dd June 20, 1999
 .Dt EF 4
-.Os BSD
+.Os
 .Sh NAME
 .Nm ef
 .Nd
@@ -84,7 +84,7 @@ file:
 .Dl if_ef_load="YES"
 .Pp
 In this case an ordinary interface configuration commands can be used
-in
+in the
 .Xr rc.conf 5
 file:
 .Dl network_interfaces="ed2 lo0 tun0 ed2f0 ed2f1"
@@ -99,5 +99,5 @@ driver is loaded.
 .Sh SEE ALSO
 .Xr ipx 3 ,
 .Xr ifconfig 8
-.Sh AUTHOR
-Boris Popov.
+.Sh AUTHORS
+.An Boris Popov Aq bp@freebsd.org .
