@@ -48,9 +48,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "vt.h"
-#if NVT > 0
-
 #define PCVT_INCLUDE_VT_SELATTR	/* get inline function from pcvt_hdr.h */
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
@@ -2220,7 +2217,4 @@ hp_entry(int ch, struct video_state *svsp)
 	}
 }
 
-#endif	/* NVT > 0 */
-
 /* ------------------------- E O F ------------------------------------------*/
-

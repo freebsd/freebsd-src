@@ -54,9 +54,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "vt.h"
-#if NVT > 0
-
 #define MAIN
 #include <i386/isa/pcvt/pcvt_hdr.h>
 #undef MAIN
@@ -832,7 +829,5 @@ vgapelinit(void)
 		bcopy(vs[0].palette, vs[idx].palette,
 		      NVGAPEL * sizeof(struct rgb));
 }
-
-#endif	/* NVT > 0 */
 
 /*-------------------------- E O F -------------------------------------*/
