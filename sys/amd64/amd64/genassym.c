@@ -199,10 +199,6 @@ ASSYM(GD_KTR_BUF_DATA, offsetof(struct globaldata, gd_ktr_buf_data));
 
 #ifdef SMP
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
-ASSYM(GD_CPU_LOCKID, offsetof(struct globaldata, gd_cpu_lockid));
-ASSYM(GD_OTHER_CPUS, offsetof(struct globaldata, gd_other_cpus));
-ASSYM(PS_IDLESTACK, offsetof(struct privatespace, idlestack));
-ASSYM(PS_IDLESTACK_TOP, sizeof(struct privatespace));
 
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
