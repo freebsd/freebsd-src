@@ -128,26 +128,23 @@ static char *bridges[] =
 	"Vadem 469",
 	"Ricoh RF5C396",
 	"IBM KING PCMCIA Controller",
-	"PC-98 Original"
+	"PC-98 MECIA Controller"
 };
 
 /*
- *	Internal inline functions for accessing the PCIC.
- */
-/*
  * Read a register from the PCIC.
  */
-static __inline unsigned char
+static unsigned char
 getb1(struct pcic_slot *sp, int reg)
 {
 	outb(sp->index, sp->offset + reg);
-	return inb(sp->data);
+	return (inb(sp->data));
 }
 
 /*
  * Write a register on the PCIC
  */
-static __inline void
+static void
 putb1(struct pcic_slot *sp, int reg, unsigned char val)
 {
 	outb(sp->index, sp->offset + reg);
@@ -232,7 +229,7 @@ pcic_memory(struct slot *slt, int win)
 		putw(sp, reg+2, 0);
 		putw(sp, reg+4, 0);
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -300,7 +297,7 @@ pcic_io(struct slot *slt, int win)
 		putw(sp, reg, 0);
 		putw(sp, reg + 2, 0);
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -317,7 +314,6 @@ static int
 pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
-	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
 	int error;
@@ -351,7 +347,7 @@ pcic_probe(device_t dev)
 	if (!r) {
 		if (bootverbose)
 			device_printf(dev, "Cannot get I/O range\n");
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
@@ -467,11 +463,7 @@ pcic_probe(device_t dev)
 		 */
 		validslots++;
 		sp->slotnum = slotnum + validunits * PCIC_CARD_SLOTS;
-		slt = pccard_alloc_slot(&cinfo);
-		if (slt == 0)
-			continue;
-		slt->cdata = sp;
-		sp->slt = slt;
+		sp->slt = (struct slot *) 1;
 		/*
 		 * Modem cards send the speaker audio (dialing noises)
 		 * to the host's speaker.  Cirrus Logic PCIC chips must
@@ -506,14 +498,12 @@ pcic_probe(device_t dev)
 		cinfo.maxio	= 2;	/* fake for UE2212 LAN card */
 #endif  
 		validslots++;
-		slt = pccard_alloc_slot(&cinfo);
-		slt->cdata = sp;
-		sp->slt = slt;
+		sp->slt = (struct slot *) 1;
 		/* XXX need to allocated the port resources */
 		device_set_desc(dev, "MECIA PC98 Original PCMCIA Controller");
 	}
 #endif  /* PC98 */
-	return(validslots ? 0 : ENXIO);
+	return (validslots ? 0 : ENXIO);
 }
 
 static void
@@ -527,28 +517,43 @@ do_mgt_irq(struct pcic_slot *sp, int irq)
 static int
 pcic_attach(device_t dev)
 {
-	void		 *ih;
-	int rid;
+	int		error;
+	int		irq;
+	int		i;
+	void		*ih;
+	device_t	kid;
 	struct resource *r;
-	int irq;
-	int error;
+	int		rid;
+	struct slot	*slt;
 	struct pcic_slot *sp;
-	int i;
-	int stat;
+	int		stat;
 	
 	SET_UNIT(dev, validunits);
 	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
-		if (sp->slt)
-			device_add_child(dev, NULL, -1);
+		if (!sp->slt)
+			continue;
+		sp->slt = 0;
+		kid = device_add_child(dev, NULL, -1);
+		if (kid == NULL) {
+			device_printf(dev, "Can't add pccard bus slot %d", i);
+			return (ENXIO);
+		}
+		device_probe_and_attach(kid);
+		slt = pccard_init_slot(kid, &cinfo);
+		if (slt == 0) {
+			device_printf(dev, "Can't get pccard info slot %d", i);
+			return (ENXIO);
+		}
+		slt->cdata = sp;
+		sp->slt = slt;
 	}
 	validunits++;
 
 	rid = 0;
 	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (!r) {
-		return ENXIO;
-	}
+	if (!r)
+		return (ENXIO);
 
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 	if (irq == 0) {
@@ -575,7 +580,7 @@ pcic_attach(device_t dev)
 		    pcicintr, (void *) GET_UNIT(dev), &ih);
 		if (error) {
 			bus_release_resource(dev, SYS_RES_IRQ, rid, r);
-			return error;
+			return (error);
 		}
 		irq = rman_get_start(r);
 		device_printf(dev, "management irq %d\n", irq);
@@ -636,7 +641,7 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 
 	switch(cmd) {
 	default:
-		return(ENOTTY);
+		return (ENOTTY);
 	/*
 	 * Get/set PCIC registers
 	 */
@@ -649,7 +654,7 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 			((struct pcic_reg *)data)->value);
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -675,7 +680,7 @@ pcic_power(struct slot *slt)
 	case PCIC_I82365:
 		switch(slt->pwr.vpp) {
 		default:
-			return(EINVAL);
+			return (EINVAL);
 		case 0:
 			break;
 		case 50:
@@ -688,7 +693,7 @@ pcic_power(struct slot *slt)
 		}
 		switch(slt->pwr.vcc) {
 		default:
-			return(EINVAL);
+			return (EINVAL);
 		case 0:
 			break;
 		case 33:
@@ -737,7 +742,7 @@ pcic_power(struct slot *slt)
 		slt->pwr.vpp = 0;
 		return (pcic_power(slt));
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -911,7 +916,7 @@ pcic98_memory(struct slot *slt, int win)
 			printf(
 			"sys_addr must be 0xda000. requested address = %p\n",
 			mp->start);
-			return(EINVAL);
+			return (EINVAL);
 		}
 
 		/* omajinai ??? */
@@ -953,7 +958,7 @@ pcic98_memory(struct slot *slt, int win)
 		outw(PCIC98_REG_PAGOFS, reg_pagofs);
 #endif
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -968,8 +973,8 @@ pcic98_io(struct slot *slt, int win)
 		/* ignore for UE2212 */
 		printf(
 		"pcic98:Illegal PCIC I/O window(%d) request! Ignored.\n", win);
-/*		return(EINVAL);*/
-		return 0;
+/*		return (EINVAL);*/
+		return (0);
 	}
 
 	if (ip->flags & IODF_ACTIVE) {
@@ -1017,7 +1022,7 @@ pcic98_io(struct slot *slt, int win)
 		outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_MAPIO));
 		pcic98_mode = 0;
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -1028,7 +1033,7 @@ pcic98_power(struct slot *slt)
 	reg = inb(PCIC98_REG7) & (~PCIC98_VPP12V);
 	switch(slt->pwr.vpp) {
 	default:
-		return(EINVAL);
+		return (EINVAL);
 	case 50:
 		break;
 	case 120:
@@ -1041,7 +1046,7 @@ pcic98_power(struct slot *slt)
 	reg = inb(PCIC98_REG2) & (~PCIC98_VCC3P3V);
 	switch(slt->pwr.vcc) {
 	default:
-		return(EINVAL);
+		return (EINVAL);
 	case 33:
 		reg |= PCIC98_VCC3P3V;
 		break;
@@ -1050,7 +1055,7 @@ pcic98_power(struct slot *slt)
 	}
 	outb(PCIC98_REG2, reg);
 	DELAY(100*1000);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1141,7 +1146,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
 		err = cinfo.mapio(devi->slt, rid);
 		if (err)
-			return err;
+			return (err);
 		break;
 	}
 	case SYS_RES_IRQ:
@@ -1154,21 +1159,21 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_MEMORY: {
 		struct mem_desc *mp;
 		if (rid >= NUM_MEM_WINDOWS)
-			return EINVAL;
+			return (EINVAL);
 		mp = &devi->slt->mem[rid];
 		mp->flags |= MDF_ACTIVE;
 		mp->start = (caddr_t) rman_get_start(r);
 		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
 		err = cinfo.mapmem(devi->slt, rid);
 		if (err)
-			return err;
+			return (err);
 		break;
 	}
 	default:
 		break;
 	}
 	err = bus_generic_activate_resource(dev, child, type, rid, r);
-	return err;
+	return (err);
 }
 
 static int
@@ -1183,9 +1188,8 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
 		err = cinfo.mapio(devi->slt, rid);
-		if (err) {
-			return err;
-		}
+		if (err)
+			return (err);
 		break;
 	}
 	case SYS_RES_IRQ:
@@ -1194,16 +1198,15 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
 		err = cinfo.mapmem(devi->slt, rid);
-		if (err) {
-			return err;
-		}
+		if (err)
+			return (err);
 		break;
 	}
 	default:
 		break;
 	}
 	err = bus_generic_deactivate_resource(dev, child, type, rid, r);
-	return err;
+	return (err);
 }
 
 static int

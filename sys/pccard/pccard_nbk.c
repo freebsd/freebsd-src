@@ -108,8 +108,14 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 static int
 pccard_probe(device_t dev)
 {
-	device_set_desc(dev, "PC Card bus -- kludge version");
-	return 0;
+	device_set_desc(dev, "PC Card bus (classic)");
+	return (0);
+}
+
+static int
+pccard_attach(device_t dev)
+{
+	return (0);
 }
 
 static void
@@ -362,7 +368,7 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pccard_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	pccard_suspend),
 	DEVMETHOD(device_resume,	pccard_resume),
@@ -398,10 +404,10 @@ static device_method_t pccard_methods[] = {
 static driver_t pccard_driver = {
 	"pccard",
 	pccard_methods,
-	1,			/* no softc */
+	sizeof(struct slot)
 };
 
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, cbb, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, mecia, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
 MODULE_VERSION(pccard, 1);
