@@ -307,7 +307,7 @@ fetchParseURL(const char *URL)
 
     /* scheme name */
     if ((p = strstr(URL, ":/"))) {
-	snprintf(u->scheme, URL_SCHEMELEN+1, "%.*s", p - URL, URL);
+	snprintf(u->scheme, URL_SCHEMELEN+1, "%.*s", (int)(p - URL), URL);
 	URL = ++p;
 	/*
 	 * Only one slash: no host, leave slash as part of document
@@ -318,7 +318,8 @@ fetchParseURL(const char *URL)
     } else {
 	p = URL;
     }
-    if (!*URL || *URL == '/' || *URL == '.' || strchr(URL, '/') == NULL)
+    if (!*URL || *URL == '/' || *URL == '.' ||
+	(u->scheme[0] == '\0' && strchr(URL, '/') == NULL))
 	goto nohost;
 
     p = strpbrk(URL, "/@");
