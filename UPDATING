@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030204:	p4	FreeBSD-SA-03:01.cvs
+	Correct a double-free bug and disable a dangerous feature in
+	cvs.
+
 20030106:	p3	FreeBSD-SA-02:44.filedesc
 	Correct a reference counting bug in fpathconf(2).
 

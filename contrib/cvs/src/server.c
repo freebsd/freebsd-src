@@ -984,9 +984,6 @@ dirswitch (dir, repos)
 	return;
     }
 
-    if (dir_name != NULL)
-	free (dir_name);
-
     dir_len = strlen (dir);
 
     /* Check for a trailing '/'.  This is not ISDIRSEP because \ in the
@@ -1001,6 +998,9 @@ dirswitch (dir, repos)
 		     "E protocol error: invalid directory syntax in %s", dir);
 	return;
     }
+
+    if (dir_name != NULL)
+	free (dir_name);
 
     dir_name = malloc (strlen (server_temp_dir) + dir_len + 40);
     if (dir_name == NULL)
@@ -4738,8 +4738,8 @@ struct request requests[] =
   REQ_LINE("Max-dotdot", serve_max_dotdot, 0),
   REQ_LINE("Static-directory", serve_static_directory, 0),
   REQ_LINE("Sticky", serve_sticky, 0),
-  REQ_LINE("Checkin-prog", serve_checkin_prog, 0),
-  REQ_LINE("Update-prog", serve_update_prog, 0),
+  REQ_LINE("Checkin-prog", serve_noop, 0),
+  REQ_LINE("Update-prog", serve_noop, 0),
   REQ_LINE("Entry", serve_entry, RQ_ESSENTIAL),
   REQ_LINE("Kopt", serve_kopt, 0),
   REQ_LINE("Checkin-time", serve_checkin_time, 0),
