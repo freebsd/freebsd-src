@@ -158,31 +158,31 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |   NetBSD 1.6       OpenBSD 3.2       |
  |   FreeBSD 4.8      |      |    |            |             |
  |      |             |      | NetBSD 1.6.1    |             |
- |      |             |      |    |        OpenBSD 3.3     BSD/OS 5.0
- |      |             |      |    |            |             |
- |   FreeBSD 4.9      |      |    |        OpenBSD 3.4     BSD/OS 5.1 ISE
- |      |             |      |    |            |
- |      |             |      | NetBSD 1.6.2    |
- |      |             |      |    |            |
- |      |             |      |    |        OpenBSD 3.5
- |      |             |      |    v            |
- |   FreeBSD 4.10     |      |                 |
- |      |             |      |                 |
- |      v             |      |                 |
- |                    |      |                 |
-FreeBSD 5.0           |      |                 |
- |                    |      |                 |
-FreeBSD 5.1           |   NetBSD -current  OpenBSD -current
- |          \         |      |                 |
- |           ----- Mac OS X  |                 |
- |                   10.3    |                 |
-FreeBSD 5.2           |      |                 |
- |      |             |      |                 |
- |   FreeBSD 5.2.1    |      |                 |
- |                    |      |                 |
-FreeBSD 5 -current    |      |                 |
- |                    |      |                 |
- v                    v      v                 v
+ |      |--------.    |      |    |        OpenBSD 3.3     BSD/OS 5.0
+ |      |         \   |      |    |            |             |
+ |   FreeBSD 4.9   |  |      |    |        OpenBSD 3.4     BSD/OS 5.1 ISE
+ |      |          |  |      |    |            |
+ |      |          |  |      | NetBSD 1.6.2    |
+ |      |          |  |      |    |            |
+ |      |          |  |      |    |        OpenBSD 3.5
+ |      |          |  |      |    v            |
+ |   FreeBSD 4.10  |  |      |                 |
+ |      |          |  |      |                 |
+ |      v           `-|------|-----------------|---------------------.
+ |                    |      |                 |                      \
+FreeBSD 5.0           |      |                 |                       |
+ |                    |      |                 |                       |
+FreeBSD 5.1           |   NetBSD -current  OpenBSD -current        DragonFly 1.0
+ |          \         |      |                 |                       |
+ |           ----- Mac OS X  |                 |                       |
+ |                   10.3    |                 |                       |
+FreeBSD 5.2           |      |                 |                       |
+ |      |             |      |                 |                       |
+ |   FreeBSD 5.2.1    |      |                 |                       |
+ |                    |      |                 |                       |
+FreeBSD 5 -current    |      |                 |                       |
+ |                    |      |                 |                       |
+ v                    v      v                 v                       v
 
 Time
 ----------------
@@ -195,6 +195,7 @@ was the announcement in Usenet or if it was available as tape.
 	the 4.4BSD Operating System.
 [APL] Apple website [http://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
+[DFD] DragonFlyBSD Project, The.
 [DOC] README, COPYRIGHT on tape.
 [FBD] FreeBSD Project, The.
 [KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
@@ -403,6 +404,7 @@ FreeBSD 5.2.1		2004-02-22 [FBD] (patch release)
 NetBSD 1.6.2		2004-03-01 [NBD] (patch release)
 OpenBSD 3.5		2004-04-01 [OBD]
 FreeBSD 4.10		2004-05-27 [FBD]
+DragonFly 1.0		2004-07-12 [DFD]
 
 Bibliography
 ------------------------
