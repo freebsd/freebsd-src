@@ -96,10 +96,10 @@ typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
  * sigset_t manipulation macros
  */
 #define SIGADDSET(set, signo)						\
-	(set).__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo)
+	((set).__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo))
 
 #define SIGDELSET(set, signo)						\
-	(set).__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo)
+	((set).__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo))
 
 #define SIGEMPTYSET(set)						\
 	do {								\
@@ -118,10 +118,10 @@ typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
 #define SIGISMEMBER(set, signo)						\
 	((set).__bits[_SIG_WORD(signo)] & _SIG_BIT(signo))
 
-#define SIGISEMPTY(set)		__sigisempty(&(set))
+#define SIGISEMPTY(set)		(__sigisempty(&(set)))
 #define SIGNOTEMPTY(set)	(!__sigisempty(&(set)))
 
-#define SIGSETEQ(set1, set2)	__sigseteq(&(set1), &(set2))
+#define SIGSETEQ(set1, set2)	(__sigseteq(&(set1), &(set2)))
 #define SIGSETNEQ(set1, set2)	(!__sigseteq(&(set1), &(set2)))
 
 #define SIGSETOR(set1, set2)						\
@@ -160,7 +160,7 @@ typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
 
 #define sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
 
-#define SIG2OSIG(sig, osig)	osig = (sig).__bits[0]
+#define SIG2OSIG(sig, osig)	(osig = (sig).__bits[0])
 #define OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
 
 static __inline int
