@@ -96,9 +96,19 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>&man.devfs.5; is now mandatory; the
+      <literal>NODEVFS</literal> option has been removed from the set of
+      possible kernel configuration options.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
+
+    <para>A second process scheduler, designed to be a general purpose
+      scheduler with many SMP benefits, has been added to the scheduler
+      framework.  Exactly one scheduler must be specified in a kernel
+      configuration.  The original scheduler may be selected using
+      <literal>options&nbsp;SCHED_4BSD</literal>.  The newer
+      (experimental) scheduler can be selected by using
+      <literal>options&nbsp;SCHED_ULE</literal>.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -134,7 +144,9 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>&man.geom.4; is now mandatory; the
+        <literal>NO_GEOM</literal> has been removed from the set of
+        kernel configuration options.</para>
     </sect3>
 
     <sect3>
@@ -249,6 +261,9 @@
       <para><application>awk</application> from Bell Labs has been
 	updated to a 13 December 2002 snapshot.</para>
 
+      <para><application>BIND</application> has been updated to
+        version 8.3.4. &merged;</para>
+
       <para>All of the <application>bzip2</application> suite of
         applications is now installed in the base system (in
         particular, <command>bzip2recover</command> is now built and
@@ -260,8 +275,23 @@
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11.</para>
 
+      <para><application>libpcap</application> now has support for
+	selecting among multiple data link types on an
+	interface.</para>
+
       <para><application>OpenPAM</application> has been updated to the
         <quote>Daffodil</quote> release.</para>
+
+      <para><application>OpenSSL</application> has been updated to
+        release 0.9.7.  Among other features, this release includes
+        support for AES and takes advantage of &man.crypto.4;
+        devices.</para>
+
+      <para>&man.tcpdump.1; now supports a <option>-L</option> flag to
+	list the data link types available on an interface and a
+	<option>-y</option> to specify the data link type to use while
+	capturing packages.</para>
+
     </sect3>
 
     <sect3>
