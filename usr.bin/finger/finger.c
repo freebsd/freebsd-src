@@ -44,6 +44,10 @@
  *	login time is < 6 days.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -51,12 +55,8 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * Finger prints out information about users.  It is not portable since
@@ -93,10 +93,11 @@ int d_first = -1;
 char tbuf[1024];
 
 static void loginlist __P((void));
+static int option __P((int, char **));
 static void usage __P((void));
 static void userlist __P((int, char **));
 
-int
+static int
 option(argc, argv)
 	int argc;
 	char **argv;
@@ -151,6 +152,7 @@ main(argc, argv)
 	int envargc, argcnt;
 	char *envargv[3];
 	struct passwd *pw;
+	static char myname[] = "finger";
 
 	if (getuid() == 0 || geteuid() == 0) {
 		if ((pw = getpwnam(UNPRIV_NAME)) && pw->pw_uid > 0) {
@@ -172,7 +174,7 @@ main(argc, argv)
 	 */
 	if ((envargv[1] = getenv("FINGER"))) {
 		envargc = 2;
-		envargv[0] = "finger";
+		envargv[0] = myname;
 		envargv[2] = NULL;
 		(void) option(envargc, envargv);
 	}
@@ -216,11 +218,11 @@ main(argc, argv)
 static void
 loginlist()
 {
-	register PERSON *pn;
+	PERSON *pn;
 	DBT data, key;
 	struct passwd *pw;
 	struct utmp user;
-	int r, sflag;
+	int r, sflag1;
 	char name[UT_NAMESIZE + 1];
 
 	if (!freopen(_PATH_UTMP, "r", stdin))
@@ -240,10 +242,10 @@ loginlist()
 		enter_where(&user, pn);
 	}
 	if (db && lflag)
-		for (sflag = R_FIRST;; sflag = R_NEXT) {
+		for (sflag1 = R_FIRST;; sflag1 = R_NEXT) {
 			PERSON *tmp;
 
-			r = (*db->seq)(db, &key, &data, sflag);
+			r = (*db->seq)(db, &key, &data, sflag1);
 			if (r == -1)
 				err(1, "db seq");
 			if (r == 1)
@@ -255,14 +257,14 @@ loginlist()
 
 static void
 userlist(argc, argv)
-	register int argc;
-	register char **argv;
+	int argc;
+	char **argv;
 {
-	register PERSON *pn;
+	PERSON *pn;
 	DBT data, key;
 	struct utmp user;
 	struct passwd *pw;
-	int r, sflag, *used, *ip;
+	int r, sflag1, *used, *ip;
 	char **ap, **nargv, **np, **p;
 	FILE *conf_fp;
 	char conf_alias[LINE_MAX];
@@ -375,10 +377,10 @@ net:	for (p = nargv; *p;) {
 		enter_where(&user, pn);
 	}
 	if (db)
-		for (sflag = R_FIRST;; sflag = R_NEXT) {
+		for (sflag1 = R_FIRST;; sflag1 = R_NEXT) {
 			PERSON *tmp;
 
-			r = (*db->seq)(db, &key, &data, sflag);
+			r = (*db->seq)(db, &key, &data, sflag1);
 			if (r == -1)
 				err(1, "db seq");
 			if (r == 1)

@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/stat.h>
 #include <ctype.h>
@@ -69,8 +69,8 @@ void
 lflag_print()
 {
 	extern int pplan;
-	register PERSON *pn;
-	register int sflag, r;
+	PERSON *pn;
+	int sflag, r;
 	PERSON *tmp;
 	DBT data, key;
 
@@ -99,12 +99,12 @@ lflag_print()
 
 static void
 lprint(pn)
-	register PERSON *pn;
+	PERSON *pn;
 {
 	extern time_t now;
-	register struct tm *delta;
-	register WHERE *w;
-	register int cpr, len, maxlen;
+	struct tm *delta;
+	WHERE *w;
+	int cpr, len, maxlen;
 	struct tm *tp;
 	int oddfield;
 	char t[80];
@@ -293,12 +293,12 @@ demi_print(str, oddfield)
 
 int
 show_text(directory, file_name, header)
-	char *directory, *file_name, *header;
+	const char *directory, *file_name, *header;
 {
 	struct stat sb;
-	register FILE *fp;
-	register int ch, cnt;
-	register char *p, lastc;
+	FILE *fp;
+	int ch, cnt;
+	char *p, lastc;
 	int fd, nr;
 
 	lastc = '\0';
@@ -347,7 +347,7 @@ show_text(directory, file_name, header)
 
 static void
 vputc(ch)
-	register unsigned char ch;
+	unsigned char ch;
 {
 	int meta;
 
