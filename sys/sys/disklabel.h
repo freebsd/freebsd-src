@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.3 1994/08/02 07:52:49 davidg Exp $
+ * $Id: disklabel.h,v 1.4 1994/08/21 04:41:39 paul Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -316,6 +316,8 @@ struct partinfo {
 #define DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define DOSPARTOFF	446
 #define NDOSPART	4
+#define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	MBR_PTYPE_FreeBSD 0xa5	/* FreeBSD partition type */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */
@@ -323,7 +325,6 @@ struct dos_partition {
 	unsigned char	dp_ssect;	/* starting sector */
 	unsigned char	dp_scyl;	/* starting cylinder */
 	unsigned char	dp_typ;		/* partition type */
-#define		DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
 	unsigned char	dp_ehd;		/* end head */
 	unsigned char	dp_esect;	/* end sector */
 	unsigned char	dp_ecyl;	/* end cylinder */
