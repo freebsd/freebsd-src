@@ -587,8 +587,10 @@ dev/pst/pst-pci.c	optional pst pci
 dev/pst/pst-iop.c	optional pst
 dev/pst/pst-raid.c	optional pst
 dev/puc/puc.c		optional puc
+dev/puc/puc_ebus.c	optional puc ebus
 dev/puc/puc_pci.c	optional puc pci
 dev/puc/puc_pccard.c	optional puc pccard
+dev/puc/puc_sbus.c	optional puc sbus
 dev/puc/pucdata.c	optional puc pci
 dev/raidframe/rf_acctrace.c		optional raidframe
 dev/raidframe/rf_alloclist.c		optional raidframe

@@ -79,6 +79,7 @@ struct puc_device_description {
 		int	offset;
 		u_int	serialfreq;
 		u_int	flags;
+		int	regshft;
 	} ports[PUC_MAX_PORTS];
 	uint32_t	ilr_type;
 	uint32_t	ilr_offset[2];
@@ -92,20 +93,30 @@ struct puc_device_description {
 #define	PUC_PORT_TYPE_NONE	0
 #define	PUC_PORT_TYPE_COM	1
 #define	PUC_PORT_TYPE_LPT	2
+#define	PUC_PORT_TYPE_UART	3
+
+/* UART subtypes. */
+#define	PUC_PORT_SUBTYPE_MASK	(~0xff)
+#define	PUC_PORT_UART_NS8250	(0<<8)
+#define	PUC_PORT_UART_SAB82532	(1<<8)
+#define	PUC_PORT_UART_Z8530	(2<<8)
 
 /* Interrupt Latch Register (ILR) types */
 #define	PUC_ILR_TYPE_NONE	0
 #define	PUC_ILR_TYPE_DIGI	1
 
 #define	PUC_FLAGS_MEMORY	0x0001		/* Use memory mapped I/O. */
+#define	PUC_FLAGS_ALTRES	0x0002		/* Use alternate I/O type. */
 
 #define	PUC_PORT_VALID(desc, port) \
-  ((port) < PUC_MAX_PORTS && (desc)->ports[(port)].type != PUC_PORT_TYPE_NONE)
+  ((port) < PUC_MAX_PORTS && (desc).ports[(port)].type != PUC_PORT_TYPE_NONE)
 
 #define PUC_MAX_BAR		6
 
 enum puc_device_ivars {
-	PUC_IVAR_FREQ
+	PUC_IVAR_FREQ,
+	PUC_IVAR_SUBTYPE,
+	PUC_IVAR_REGSHFT
 };
 
 #ifdef PUC_ENTRAILS
@@ -120,11 +131,9 @@ int puc_setup_intr(device_t, device_t, struct resource *, int,
     void (*)(void *), void *, void **);
 int puc_teardown_intr(device_t, device_t, struct resource *,
     void *);
-const struct puc_device_description *puc_find_description(uint32_t,
-    uint32_t, uint32_t, uint32_t);
 
 struct puc_softc {
-	const struct puc_device_description *sc_desc;
+	struct puc_device_description sc_desc;
 
 	/* card-global dynamic data */
 	int			fastintr;
@@ -153,6 +162,3 @@ struct puc_softc {
 };
 
 #endif /* PUC_ENTRAILS */
-
-int puc_config_win877(struct puc_softc *);
-extern const struct puc_device_description puc_devices[];

@@ -82,6 +82,32 @@ __FBSDID("$FreeBSD$");
 #define PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
 
+extern const struct puc_device_description puc_devices[];
+
+int puc_config_win877(struct puc_softc *);
+
+static const struct puc_device_description *
+puc_find_description(uint32_t vend, uint32_t prod, uint32_t svend, 
+    uint32_t sprod)
+{
+	int i;
+
+#define checkreg(val, index) \
+    (((val) & puc_devices[i].rmask[(index)]) == puc_devices[i].rval[(index)])
+
+	for (i = 0; puc_devices[i].name != NULL; i++) {
+		if (checkreg(vend, PUC_REG_VEND) &&
+		    checkreg(prod, PUC_REG_PROD) &&
+		    checkreg(svend, PUC_REG_SVEND) &&
+		    checkreg(sprod, PUC_REG_SPROD))
+			return (&puc_devices[i]);
+	}
+
+#undef checkreg
+
+	return (NULL);
+}
+
 static int
 puc_pci_probe(device_t dev)
 {
