@@ -127,7 +127,7 @@ d_open_t  usbopen;
 d_close_t usbclose;
 d_read_t usbread;
 d_ioctl_t usbioctl;
-int usbpoll __P((dev_t, int, struct proc *));
+int usbpoll(dev_t, int, struct proc *);
 
 struct cdevsw usb_cdevsw = {
 	/* open */      usbopen,
@@ -147,10 +147,10 @@ struct cdevsw usb_cdevsw = {
 };
 #endif
 
-Static usbd_status usb_discover __P((struct usb_softc *));
+Static usbd_status usb_discover(struct usb_softc *);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-Static void	usb_create_event_thread __P((void *));
-Static void	usb_event_thread __P((void *));
+Static void	usb_create_event_thread(void *);
+Static void	usb_event_thread(void *);
 #endif
 
 #define USB_MAX_EVENTS 50
@@ -165,7 +165,7 @@ Static struct selinfo usb_selevent;
 Static struct proc *usb_async_proc;  /* process who wants USB SIGIO */
 Static int usb_dev_open = 0;
 
-Static int usb_get_next_event __P((struct usb_event *));
+Static int usb_get_next_event(struct usb_event *);
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 /* Flag to see if we are in the cold boot process. */
