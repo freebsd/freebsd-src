@@ -57,14 +57,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	userland programs that read kmem for tcp sockets directly
 	(netstat, sockstat, etc.)
 
-20041018:
-	A major sweep over the tty drivers to elimnate approx 3100
-	lines of copy&pasted code have been performed.  As a part of
-	this change some tty devices have changed names:
-	sio devices are now named:	{tty,cua}d%d[.init,.lock]
-	ucom devices are now named:	{tty,cua}U%d[.init,.lock]
-	For other drivers see the commit logs.
-
 20041007:
 	The FreeBSD keyword is no longer a requirement for a valid
 	rc.d script. The rc(8) and rc.shutdown(8) scripts no longer check
@@ -78,6 +70,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	One of the syscalls the 1:1 threading library libthr uses has
 	changed, thus breaking ABI compatibility. Make sure you rebuild
 	this library with the kernel.
+
+20041004:
+	A major sweep over the tty drivers to elimnate approx 3100
+	lines of copy&pasted code have been performed.  As a part of
+	this change some tty devices have changed names:
+	sio devices are now named:	{tty,cua}d%d[.init,.lock]
+	ucom devices are now named:	{tty,cua}U%d[.init,.lock]
+	For other drivers see the commit logs.
 
 20041001:
 	The following libraries had their version number bumped up:
@@ -278,9 +278,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	The console initialization on Alpha has been reworked and is now
 	identical to other platforms. This means that the hardcoding of
 	the serial console and the debug port has been removed. As such,
-	hints are now required for the sio(4) driver to become a console
-	or debug port. The NO_SIO option has been decommissioned because
-	of this.
+	hints (hint.sio.0.flags="0x10") are now required for the sio(4)
+	driver to become a console or debug port.  The NO_SIO option has
+	been decommissioned because of this.
+	Running mergemaster is the easiest way to ensure your
+	'boot/device.hints' has the needed line.
 
 20040710:
 	A revamp of the debugging code in the kernel with some visible
