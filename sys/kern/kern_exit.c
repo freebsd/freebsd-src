@@ -265,6 +265,14 @@ exit1(p, rv)
 	}
 #endif
 	/*
+	 * Release reference to text vnode
+	 */
+	if ((vtmp = p->p_textvp) != NULL) {
+		p->p_textvp = NULL;
+		vrele(vtmp);
+	}
+
+	/*
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
@@ -478,12 +486,6 @@ loop:
 			 * Decrement the count of procs running with this uid.
 			 */
 			(void)chgproccnt(p->p_cred->p_uidinfo, -1, 0);
-
-			/*
-			 * Release reference to text vnode
-			 */
-			if (p->p_textvp)
-				vrele(p->p_textvp);
 
 			/*
 			 * Free up credentials.
