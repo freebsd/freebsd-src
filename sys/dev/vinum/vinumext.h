@@ -33,13 +33,18 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.25 2000/05/10 06:08:43 grog Exp grog $
+ * $Id: vinumext.h,v 1.26 2000/05/16 07:38:08 grog Exp grog $
  * $FreeBSD$
  */
 
 /* vinumext.h: external definitions */
 
+/* *sigh* We still need this at the moment. */
+#ifdef _KERNEL
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
+#else
+extern struct __vinum_conf vinum_conf;			    /* configuration information */
+#endif
 
 #ifdef VINUMDEBUG
 extern int debug;					    /* debug flags */
@@ -203,22 +208,10 @@ enum sdstates sdstatemap(struct plex *plex);
 enum volplexstate vpstate(struct plex *plex);
 #endif
 
-enum keyword get_keyword(char *, struct keywordset *);
-void listconfig(void);
-char *drive_state(enum drivestate);
-char *volume_state(enum volumestate);
-char *plex_state(enum plexstate);
-char *plex_org(enum plexorg);
-char *sd_state(enum sdstate);
-enum drivestate DriveState(char *text);
-enum sdstate SdState(char *text);
-enum plexstate PlexState(char *text);
-enum volumestate VolState(char *text);
 struct drive *validdrive(int driveno, struct _ioctl_reply *);
 struct sd *validsd(int sdno, struct _ioctl_reply *);
 struct plex *validplex(int plexno, struct _ioctl_reply *);
 struct volume *validvol(int volno, struct _ioctl_reply *);
-int tokenize(char *, char *[]);
 void resetstats(struct vinum_ioctl_msg *msg);
 
 /* Locking */
@@ -243,6 +236,25 @@ int vinum_finddaemon(void);
 int vinum_setdaemonopts(int);
 extern struct daemonq *daemonq;				    /* daemon's work queue */
 extern struct daemonq *dqend;				    /* and the end of the queue */
+
+#undef Free						    /* defined in some funny net stuff */
+#ifdef _KERNEL
+#ifdef VINUMDEBUG
+#define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
+#define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
+caddr_t MMalloc(int size, char *, int);
+void FFree(void *mem, char *, int);
+#define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
+#else
+#define Malloc(x)  malloc((x), M_DEVBUF, \
+	curproc->p_intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
+#define Free(x)    free((x), M_DEVBUF)
+#define LOCKDRIVE(d) lockdrive (d)
+#endif
+#else
+#define Malloc(x)  malloc ((x))				    /* just the size */
+#define Free(x)	   free ((x))				    /* just the address */
+#endif
 
 /* Local Variables: */
 /* fill-column: 50 */
