@@ -5,7 +5,7 @@
 BINDIR=	/usr/bin
 
 PROG=	ntpq
-NOMAN=
+NO_MAN=
 SRCS= 	ntpq.c ntpq_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../

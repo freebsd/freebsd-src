@@ -4,6 +4,6 @@ PROG=	ns
 SRCS=	ns.c
 
 CFLAGS+= -DBRIDGING
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

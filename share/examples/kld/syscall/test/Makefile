@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG  = call
-NOMAN =
+NO_MAN =
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG= unaligned
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=
+NO_OBJ=
 FILES=	README.FIRST
 SUBDIR=	Doc Etc
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		rr	
-NOMAN=
+NO_MAN=
 CFLAGS+=	-g -Wall
 SRCS=		kse_asm.S rr.c 
 

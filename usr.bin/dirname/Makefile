@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	dirname
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

@@ -251,7 +251,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 
 BINDIR= ${SHAREDIR}/examples
 
-NOOBJ=
+NO_OBJ=
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful

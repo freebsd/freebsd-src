@@ -4,7 +4,7 @@
 PROG=autodriver
 
 SRCS=		autodriver.c
-NOMAN=
+NO_MAN=
 WARNS=		4
 CFLAGS+=	-g
 BINDIR?=	/sbin

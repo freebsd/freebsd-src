@@ -32,6 +32,6 @@ FILES=	armscii8-8x8.fnt armscii8-8x14.fnt armscii8-8x16.fnt \
 
 FILESDIR= ${SHAREDIR}/syscons/fonts
 
-NOOBJ=
+NO_OBJ=
 
 .include <bsd.prog.mk>

@@ -23,7 +23,7 @@
 #
 #		E.g. use `env MAKEOBJDIRPREFIX=/somewhere/obj make'
 #
-# NOOBJ		Do not create object directories.  This should not be set
+# NO_OBJ	Do not create object directories.  This should not be set
 #		if anything is built.
 #
 # +++ targets +++
@@ -65,7 +65,7 @@ CANONICALOBJDIR:=/usr/obj${.CURDIR}
 # issue a warning differentiating between cases 6 and (3 or 4).
 #
 objwarn:
-.if !defined(NOOBJ) && ${.OBJDIR} != ${CANONICALOBJDIR} && \
+.if !defined(NO_OBJ) && ${.OBJDIR} != ${CANONICALOBJDIR} && \
     !(defined(MAKEOBJDIRPREFIX) && exists(${CANONICALOBJDIR}/)) && \
     !(defined(MAKEOBJDIR) && exists(${MAKEOBJDIR}/))
 .if ${.OBJDIR} == ${.CURDIR}
@@ -76,7 +76,7 @@ objwarn:
 .endif
 .endif
 
-.if !defined(NOOBJ)
+.if !defined(NO_OBJ)
 .if !target(obj)
 obj: .PHONY
 	@if ! test -d ${CANONICALOBJDIR}/; then \
@@ -98,7 +98,7 @@ objlink:
 		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
 	fi
 .endif
-.endif !defined(NOOBJ)
+.endif !defined(NO_OBJ)
 
 #
 # where would that obj directory be?

@@ -3,7 +3,7 @@
 
 PROG=		bthidd
 #MAN=		bthidd.8 bthidd.conf.5
-NOMAN=		1
+NO_MAN=		1
 SRCS=		bthidd.c client.c hid.c kbd.c lexer.l parser.y server.c \
 		session.c
 

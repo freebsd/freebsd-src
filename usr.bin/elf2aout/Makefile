@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	elf2aout
-NOMAN=
+NO_MAN=
 NO_WERROR=
 WARNS?=	5
 

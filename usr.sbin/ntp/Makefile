@@ -4,7 +4,7 @@
 SUBDIR=	libntp libparse ntpd ntpdc ntpq ntpdate ntptrace \
 	ntptime ntp-keygen sntp
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 SUBDIR+=	doc
 .endif
 

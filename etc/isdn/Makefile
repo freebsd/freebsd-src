@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=
+NO_OBJ=
 
 SCRIPTS=	answer			\
 		isdntel.sh		\

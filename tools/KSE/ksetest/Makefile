@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		ksetest
-NOMAN=
+NO_MAN=
 CFLAGS+=	-g -Wall
 SRCS=		kse_asm.S kse_threads_test.c 
 

@@ -10,6 +10,6 @@ INTERNALLIB=
 SRCS=	dhcpctl.c callback.c remote.c
 
 MAN=	dhcpctl.3
-NOMAN=
+NO_MAN=
 
 .include <bsd.lib.mk>

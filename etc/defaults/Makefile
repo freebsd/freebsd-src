@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 FILES=	devfs.rules pccard.conf periodic.conf rc.conf
-NOOBJ=
+NO_OBJ=
 FILESDIR= /etc/defaults
 FILESMODE= 444
 

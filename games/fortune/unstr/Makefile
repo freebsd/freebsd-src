@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	unstr
-NOMAN=
+NO_MAN=
 CFLAGS+=-Wall -I${.CURDIR}/../strfile
 
 .include <bsd.prog.mk>

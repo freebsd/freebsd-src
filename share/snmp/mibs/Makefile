@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 FILES=	FREEBSD-MIB.txt
-NOOBJ=
+NO_OBJ=
 FILESDIR=	${SHAREDIR}/snmp/mibs
 
 .include <bsd.prog.mk>
