@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 long double
 wcstold(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	long double val;
 	char *buf, *end;
 	const wchar_t *wcp;
@@ -46,14 +48,16 @@ wcstold(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 		nptr++;
 
 	wcp = nptr;
-	if ((len = wcsrtombs(NULL, &wcp, 0, NULL)) == (size_t)-1) {
+	mbs = initial;
+	if ((len = wcsrtombs(NULL, &wcp, 0, &mbs)) == (size_t)-1) {
 		if (endptr != NULL)
 			*endptr = (wchar_t *)nptr;
 		return (0.0);
 	}
 	if ((buf = malloc(len + 1)) == NULL)
 		return (0.0);
-	wcsrtombs(buf, &wcp, len + 1, NULL);
+	mbs = initial;
+	wcsrtombs(buf, &wcp, len + 1, &mbs);
 
 	val = strtold(buf, &end);
 
