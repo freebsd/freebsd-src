@@ -39,7 +39,9 @@
 .Ft int
 .Fn i386_vm86 "int function" "void *data"
 .Sh DESCRIPTION
+The
 .Fn i386_vm86
+system call
 is used to call various vm86 related functions.
 .Fa function
 can be one of the following values:
@@ -80,7 +82,9 @@ bit set.  Control returns to the process upon delivery of a signal.
 .Sh RETURN VALUES
 .Rv -std i386_vm86
 .Sh ERRORS
+The
 .Fn i386_vm86
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
