@@ -274,10 +274,11 @@ struct arl_softc {
 	int	tx_len;
 	u_char	arl_rx[2048];
 	int	rx_len;
-        
+
 #ifdef ARLCACHE
 	struct arl_sigcache	arl_sigcache[MAXARLCACHE];
 #endif
+	struct ifmedia		arl_ifmedia;
 };
 #endif
 

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
+#include <net80211/ieee80211_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -106,8 +107,43 @@ static struct mbuf* arl_get	(caddr_t, int, int, struct ifnet *);
 static void	arl_cache_store	(struct arl_softc *, struct ether_header *,
 					u_int8_t, u_int8_t, int);
 #endif
-	
+
+static int  arl_media_change	(struct ifnet *);
+static void arl_media_status	(struct ifnet *, struct ifmediareq *);
+static void arl_read_config	(struct arl_softc *);
+
 devclass_t	arl_devclass;
+
+/*
+ * Copy config values to local cache
+ */
+static void
+arl_read_config(sc)
+	struct arl_softc *sc;
+{
+	bzero(&arcfg, sizeof(arcfg));
+
+	bcopy(ar->lanCardNodeId, arcfg.lanCardNodeId,
+		sizeof(ar->lanCardNodeId));
+	bcopy(ar->specifiedRouter, arcfg.specifiedRouter,
+		sizeof(ar->specifiedRouter));
+	GET_ARL_PARAM(hardwareType);
+	GET_ARL_PARAM(majorHardwareVersion);
+	GET_ARL_PARAM(minorHardwareVersion);
+	GET_ARL_PARAM(radioModule);
+	GET_ARL_PARAM(channelSet);
+	if (!arcfg.channelSet)
+		arcfg.channelSet = ar->defaultChannelSet;
+	GET_ARL_PARAM(channelNumber);
+	GET_ARL_PARAM(spreadingCode);
+	GET_ARL_PARAM(priority);
+	GET_ARL_PARAM(receiveMode);
+	arcfg.registrationMode = 1;	/* set default TMA mode */
+	arcfg.txRetry = 0;
+
+	bcopy(ar->name, arcfg.name, ARLAN_NAME_SIZE);
+	bcopy(ar->systemId, arcfg.sid, 4 * sizeof(arcfg.sid[0]));
+}
 
 /*
  * Attach device
@@ -118,15 +154,23 @@ arl_attach(dev)
 {
 	struct arl_softc* sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int		attached;
+	int		attached, configured = 0;
 
 	D(("attach\n"));
 
-	if (ar->configuredStatusFlag == 0 && bootverbose)
-		printf("arl%d: card is NOT configured\n", sc->arl_unit);
-
-	arl_reset (sc);
+	configured = ar->configuredStatusFlag;
 	attached = (ifp->if_softc != 0);
+
+	if (!configured && bootverbose)
+		device_printf(dev, "card is not configured\n");
+	else
+		arl_read_config(sc);
+
+	arl_reset(sc);
+
+	/* Read config for default values if card was not configured */
+	if (!configured)
+		arl_read_config(sc);
 
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
@@ -147,6 +191,18 @@ arl_attach(dev)
 	ifp->if_baudrate = 2000000;
 	ifp->if_timer = 0;
 
+	ifmedia_init(&sc->arl_ifmedia, 0, arl_media_change, arl_media_status);
+#define ADD(s, o)	ifmedia_add(&sc->arl_ifmedia, \
+	IFM_MAKEWORD(IFM_IEEE80211, (s), (o), 0), 0, NULL)
+	ADD(IFM_IEEE80211_DS1, 0);
+	ADD(IFM_IEEE80211_DS1, IFM_IEEE80211_ADHOC);
+	ADD(IFM_IEEE80211_DS2, 0);
+	ADD(IFM_IEEE80211_DS2, IFM_IEEE80211_ADHOC);
+	ifmedia_set(&sc->arl_ifmedia, IFM_MAKEWORD(IFM_IEEE80211,
+		arcfg.spreadingCode == 4 ? IFM_IEEE80211_DS2 : IFM_IEEE80211_DS1
+		, 0, 0)); 
+#undef ADD
+
 	/*
 	 * Attach the interface
 	 */
@@ -163,7 +219,7 @@ arl_attach(dev)
 
 /*
  * Hardware reset
- * reset all setting to default ( setted ARLANDGS )
+ * reset all setting to default (setted ARLANDGS)
  */
 static void
 arl_hwreset(sc)
@@ -336,9 +392,13 @@ arl_ioctl(ifp, cmd, data)
 {
 	struct arl_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct ieee80211req *ireq = (struct ieee80211req *)data;;
 	d_thread_t *td = _ARL_CURPROC;
 	struct arl_req arlan_io;
 	int count, s, error = 0;
+	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
+	u_int8_t *tmpptr;
+	u_int32_t newsid;
 	caddr_t user;
 
 	D(("ioctl %lx\n", cmd));
@@ -360,15 +420,119 @@ arl_ioctl(ifp, cmd, data)
 				arl_stop(sc);
 		}
 		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->arl_ifmedia, cmd);
+		break;
 
-#define GET_PARAM(name) (arlan_io.cfg.name = ar->name)
+	case SIOCG80211:
+		switch (ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			if (ireq->i_val != -1) {
+				error = EINVAL;
+				break;
+			}
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			snprintf(tmpstr, IEEE80211_NWID_LEN - 1, "0x%08x",
+					*(int *)arcfg.sid);
+			ireq->i_len = IEEE80211_NWID_LEN;
+			error = copyout(tmpstr, ireq->i_data,
+				IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			ireq->i_len = sizeof(arcfg.name);
+			tmpptr = arcfg.name;
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			bcopy(tmpptr, tmpstr, ireq->i_len);
+			error = copyout(tmpstr, ireq->i_data,
+				IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			ireq->i_val = arcfg.channelNumber;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			ireq->i_val = (arcfg.registrationMode == 2 ?
+				IEEE80211_POWERSAVE_PSP :
+				IEEE80211_POWERSAVE_OFF);
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+
+	case SIOCS80211:
+		if ((error = suser(td)))
+			break;
+		switch (ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			if (ireq->i_len > 4) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&newsid, sizeof(newsid));
+			error = copyin(ireq->i_data,
+				(u_char *)(&newsid) + 4 - ireq->i_len,
+				ireq->i_len);
+
+			if (error)
+				break;
+
+			newsid = htonl(newsid);
+			if (newsid < 0  || newsid % 2) {
+				error = EINVAL;
+				break;
+			}
+
+			bcopy(&newsid, arcfg.sid, sizeof(arcfg.sid));
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			if (ireq->i_len > ARLAN_NAME_SIZE) {
+				error = EINVAL;
+				break;
+			}
+			bzero(arcfg.name, ARLAN_NAME_SIZE);
+			error = copyin(ireq->i_data, arcfg.name, ireq->i_len);
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			if (ireq->i_val < 0 || ireq->i_val > 5) {
+				error = EINVAL;
+				break;
+			}
+			arcfg.channelNumber = ireq->i_val;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			switch (ireq->i_val) {
+			case IEEE80211_POWERSAVE_OFF:
+				if (arcfg.registrationMode == 2)
+					arcfg.registrationMode = 1;
+				break;
+			case IEEE80211_POWERSAVE_ON:
+			case IEEE80211_POWERSAVE_PSP:
+				arcfg.registrationMode = 2;
+				break;
+			default:
+				error = EINVAL;
+				break;
+			}
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+
+		if (!error)
+			arl_config(sc);
+
+		break;
+
+#define GET_PARAM(name) (arlan_io.cfg.name = arcfg.name)
 
 #define GET_COPY_PARAM(name)						\
 	{								\
 		bzero(arlan_io.cfg.name, sizeof(arlan_io.cfg.name));	\
-		bcopy(ar->name, arlan_io.cfg.name, sizeof(arlan_io.cfg.name)); \
+		bcopy(arcfg.name, arlan_io.cfg.name, sizeof(arlan_io.cfg.name)); \
 	}
-
 	case SIOCGARLALL:
 		bzero(&arlan_io, sizeof(arlan_io));
 		if (!suser(td)) {
@@ -388,7 +552,7 @@ arl_ioctl(ifp, cmd, data)
 		GET_PARAM(radioModule);
 		GET_PARAM(priority);
 		GET_PARAM(receiveMode);
-		arlan_io.cfg.txRetry = arcfg.txRetry;
+		GET_PARAM(txRetry);
 
 		user = (void *)ifr->ifr_data;
 		for (count = 0; count < sizeof(arlan_io); count++)
@@ -434,9 +598,7 @@ arl_ioctl(ifp, cmd, data)
 			SET_PARAM(registrationMode);
 			SET_PARAM(priority);
 			SET_PARAM(receiveMode);
-
-			if (arlan_io.what_set & ARLAN_SET_txRetry)
-				arcfg.txRetry = arlan_io.cfg.txRetry;
+			SET_PARAM(txRetry);
 
 			arl_config(sc);
 		}
@@ -455,7 +617,7 @@ arl_ioctl(ifp, cmd, data)
 		while (ar->interruptInProgress) ; /* wait */
 		bcopy(&(sc->arl_sigcache), (void *)ifr->ifr_data, sizeof(sc->arl_sigcache));
 		break;
-#endif 
+#endif
 	case SIOCGARLSTB:
 		user = (void *)ifr->ifr_data;
 		for (count = 0; count < sizeof(struct arl_stats); count++) {
@@ -680,7 +842,7 @@ arl_stop(sc)
 
 	ifp->if_timer = 0;        /* disable timer */
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
-	/*  arl_hwreset( unit );  */
+	/*  arl_hwreset(unit);  */
 	sc->rx_len = 0;
 	sc->tx_len = 0;
 	/* disable interrupt */
@@ -783,7 +945,7 @@ arl_read(sc, buf, len)
 		 * Note that the interface cannot be in promiscuous mode if
 		 * there are no bpf listeners.  And if el are in promiscuous
 		 * mode, el have to check if this packet is really ours.
-		 * 
+		 *
 		 * This test does not support multicasts.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC)
@@ -805,7 +967,7 @@ arl_read(sc, buf, len)
 		return;
 
 #ifdef ARLCACHE
-	arl_cache_store(sc, eh, ar->rxQuality & 0x0f, 
+	arl_cache_store(sc, eh, ar->rxQuality & 0x0f,
 			(ar->rxQuality & 0xf0) >> 4, ARLCACHE_RX);
 #endif
 
@@ -866,9 +1028,9 @@ arl_intr(arg)
 		arl_start(ifp);
 		ar->txStatusVector = 0;
 #ifdef ARLCACHE
-		arl_cache_store(sc, 
-			(struct ether_header *)(sc->arl_tx), 
-			ar->txAckQuality & 0x0f, 
+		arl_cache_store(sc,
+			(struct ether_header *)(sc->arl_tx),
+			ar->txAckQuality & 0x0f,
 			(ar->txAckQuality & 0xf0) >> 4, ARLCACHE_TX);
 #endif
 	}
@@ -928,8 +1090,8 @@ arl_alloc_irq(dev, rid, flags)
 	struct arl_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0ul, ~0ul, 1, (RF_ACTIVE | flags));
+	res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, (RF_ACTIVE | flags));
 	if (res) {
 		sc->irq_rid = rid;
 		sc->irq_res = res;
@@ -999,26 +1161,70 @@ arl_cache_store(sc, eh, level, quality, dir)
 	}
 
 	for (i = 0; i < MAXARLCACHE; i++) {
-		if (! bcmp(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost, 
-				sc->arl_sigcache[i].macsrc, 6) ) {
+		if (!bcmp(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost,
+				sc->arl_sigcache[i].macsrc, 6)) {
 			break;
 		}
 	}
 
-	if (i < MAXARLCACHE) {
+	if (i < MAXARLCACHE)
 		cache_slot = i;
-	}
 	else {
-		if (wrapindex == MAXARLCACHE) {
+		if (wrapindex == MAXARLCACHE)
 			wrapindex = 0;
-		}
 		cache_slot = wrapindex++;
 	}
 
-	bcopy(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost, 
-			sc->arl_sigcache[cache_slot].macsrc, 6);
+	bcopy(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost,
+	    sc->arl_sigcache[cache_slot].macsrc, 6);
 
 	sc->arl_sigcache[cache_slot].level[dir] = level;
 	sc->arl_sigcache[cache_slot].quality[dir] = quality;
 }
 #endif
+
+static int
+arl_media_change(ifp)
+	struct ifnet	*ifp;
+{
+	struct arl_softc *sc = ifp->if_softc;
+	int otype = arcfg.registrationMode;
+	int orate = arcfg.spreadingCode;
+
+	arcfg.spreadingCode = ieee80211_media2rate(
+		IFM_SUBTYPE(sc->arl_ifmedia.ifm_cur->ifm_media));
+
+	if (arcfg.spreadingCode == 2)
+		arcfg.spreadingCode = 3;
+
+	/* XXX Need fix for PSP mode */
+	if ((sc->arl_ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
+		arcfg.registrationMode = 0;
+	else
+		arcfg.registrationMode = 1;
+
+	if (otype != arcfg.registrationMode ||
+	    orate != arcfg.spreadingCode)
+		arl_config(sc);
+
+	return (0);
+}
+
+static void
+arl_media_status(ifp, imr)
+	struct ifnet		*ifp;
+	struct ifmediareq	*imr;
+{
+	struct arl_softc	*sc = ifp->if_softc;
+	int rate = (arcfg.spreadingCode == 4 ?  4 : 2);
+
+	imr->ifm_active = IFM_IEEE80211;
+
+	if (arcfg.registrationMode == 0)
+		imr->ifm_active |= IFM_IEEE80211_ADHOC;
+
+	imr->ifm_active |= ieee80211_rate2media(NULL, rate, IEEE80211_T_DS);
+	imr->ifm_status = IFM_AVALID;
+	if (!ARL_CHECKREG(sc))
+		imr->ifm_status |= IFM_ACTIVE;
+}
