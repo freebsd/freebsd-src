@@ -1,20 +1,7 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
 #
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         3       00160
-# --------------------         -----   ----------------------
-#
-# 17 Feb 93	Julian Elischer		Added files for scsi
-# 10 Mar 93	Rodney W. Grimes	Added files for lpt and lpa
-# 25 Mar 93	Sean Eric Fagan		Added microtime.s routine
-# 08 Apr 93	Rodney W. Grimes	Cleaned up the tabs, sorted file names
-#					Added ix, speaker, dcfclock
-# 23 Apr 93	Holger Veit		Added codrv
-# 26 May 93	Rodney W. Grimes	Rename of Bruce Evans com driver to sio
-#		Gene Stark		Add xten power controler driver (tw)
-#		David Greenman		Add ethernet driver (SMC/WD/3COM) (ed)
-#		Rick Macklem		Add bus mouse driver (mse)
-# 29 Jul 93	Jordan Hubbard		Removed codrv
+#	$Id$
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
