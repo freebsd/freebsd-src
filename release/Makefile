@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.47 1994/11/17 14:18:00 jkh Exp $
+#	$Id: Makefile,v 1.48 1994/11/17 15:19:59 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -96,7 +96,7 @@ cpio.flp:
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
 	ls ${CPIO1} ${CPIO2} ${CPIO3} | cpio -H newc -oa | gzip -9 | \
-		dd obs=512 > cpio.flp
+		dd conv=osync > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
@@ -146,7 +146,7 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-DISTRIBUTIONS=	bindist DES games 
+DISTRIBUTIONS=	bindist des games manpages proflibs dict
 MTREEFILES=	${.CURDIR}/../etc/mtree
 
 distribute: 
@@ -160,9 +160,9 @@ distribute:
 	mtree -deU -f ${MTREEFILES}/BSD.var.dist -p ${RELEASEDIR}/$$i/var ; \
 	mtree -deU -f ${MTREEFILES}/BSD.usr.dist -p ${RELEASEDIR}/$$i/usr ; \
 	done 
-	#( cd ${.CURDIR} ;  \
-		#${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
-	#install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
-		#${RELEASEDIR}/bindist/kernel
+	( cd ${.CURDIR} ;  \
+		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
+	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
+		${RELEASEDIR}/bindist/kernel
 
 .include <bsd.prog.mk>
