@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm.h	8.1 (Berkeley) 6/2/93
+ *	$Id$
  */
 
 #ifndef _KVM_H_
@@ -43,11 +44,22 @@
 #include <nlist.h>
 #include <sys/cdefs.h>
 
-__BEGIN_DECLS
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
+#ifdef	_BSD_SSIZE_T_
+typedef	_BSD_SSIZE_T_	ssize_t;
+#undef	_BSD_SSIZE_T_
+#endif
 
 typedef struct __kvm kvm_t;
 
 struct kinfo_proc;
+struct proc;
+
+__BEGIN_DECLS
 int	  kvm_close __P((kvm_t *));
 char	**kvm_getargv __P((kvm_t *, const struct kinfo_proc *, int));
 char	**kvm_getenvv __P((kvm_t *, const struct kinfo_proc *, int));
@@ -62,12 +74,9 @@ kvm_t	 *kvm_open
 kvm_t	 *kvm_openfiles
 	    __P((const char *, const char *, const char *, int, char *));
 ssize_t	  kvm_read __P((kvm_t *, unsigned long, void *, size_t));
-ssize_t	  kvm_write __P((kvm_t *, unsigned long, const void *, size_t));
-/* Comment this out until it can be fixed correctly.
 ssize_t	  kvm_uread
-	    __P((kvm_t *, struct proc *, unsigned long, char *, size_t));
-*/
-
+	    __P((kvm_t *, const struct proc *, unsigned long, char *, size_t));
+ssize_t	  kvm_write __P((kvm_t *, unsigned long, const void *, size_t));
 __END_DECLS
 
 #endif /* !_KVM_H_ */
