@@ -324,6 +324,13 @@ Changing these values departs from
 tradition and has security
 consequences that the administrator should carefully evaluate before
 modifying these settings.
+.Pp
+Ports are allocated at random within the specified port range in order
+to increase the difficulty of random spoofing attacks.  In scenarios
+such as benchmarking, this behavior may be undesireable.  In these
+cases,
+.Va net.inet.ip.portrange.randomized
+can be used to toggle randomization off.
 .Ss "Multicast Options"
 .Pp
 .Tn IP
