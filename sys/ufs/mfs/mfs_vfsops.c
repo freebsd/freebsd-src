@@ -78,6 +78,7 @@ static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
 			struct proc *p));
 static int	mfs_init __P((struct vfsconf *));
+static void	mfs_takeroot __P((void *));
 
 static struct cdevsw mfs_cdevsw = {
 	/* open */      noopen,
@@ -228,8 +229,14 @@ mfs_mount(mp, path, data, ndp, p)
 
 		mfs_rootbase = base;
 		mfs_rootsize = fs->fs_fsize * fs->fs_size;
-		printf("rootfs is %ld Kbyte compiled in MFS\n",
-		       mfs_rootsize/1024);
+
+		/* remake rootdev, since vfs_mountroot will have it wrong */
+		rootdev = make_dev(&mfs_cdevsw, mfs_minor, 
+		    0, 0, 0, "MFS%d", mfs_minor);
+		rootdev->si_bsize_phys = DEV_BSIZE;
+		rootdev->si_iosize_max = DFLTPHYS;
+		mfs_minor++;
+
 		if ((err = bdevvp(rootdev, &rootvp))) {
 			printf("mfs_mount: can't find rootvp\n");
 			return (err);
@@ -486,19 +493,28 @@ mfs_init(vfsp)
 {
 
 	cdevsw_add(&mfs_cdevsw);
-#ifdef MFS_ROOT
-	if (bootverbose)
-		printf("Considering MFS root f/s.\n");
-	if (mfs_getimage()) {
-		mountrootfsname = "mfs";
-		rootdev = make_dev(&mfs_cdevsw, mfs_minor, 
-		    0, 0, 0, "MFS%d", mfs_minor);
-		/* It is not clear that these will get initialized otherwise */
-		rootdev->si_bsize_phys = DEV_BSIZE;
-		rootdev->si_iosize_max = DFLTPHYS;
-		mfs_minor++;
-	} else if (bootverbose)
-		printf("No MFS image available as root f/s.\n");
-#endif
 	return (0);
 }
+
+#ifdef MFS_ROOT
+/*
+ * Just before root is mounted, check to see if we are a candidate
+ * to supply it.  If we have an image available, override the guessed
+ * defaults.
+ */
+static void
+mfs_takeroot(junk)
+	void *junk;
+{
+	if (bootverbose)
+		printf("Considering MFS root f/s...");
+	if (mfs_getimage()) {
+		rootdevnames[0] = "mfs:";
+		printf("preloaded filesystem found.\n");
+	} else if (bootverbose) {
+		printf("not found.\n");
+	}
+}
+
+SYSINIT(mfs_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, mfs_takeroot, NULL);
+#endif
