@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.57 1995/12/22 15:52:07 phk Exp $
+ *	$Id: mcd.c,v 1.58 1996/01/15 10:28:29 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -62,6 +62,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
 #include <sys/kernel.h>
+#include <machine/cpu.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -742,7 +743,8 @@ twiddle_thumbs(int port, int unit, int count, char *whine)
 		if (!(inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL))
 			return 1;
 		}
-	printf("mcd%d: timeout %s\n", unit, whine);
+	if (bootverbose)
+		printf("mcd%d: timeout %s\n", unit, whine);
 	return 0;
 }
 
