@@ -49,7 +49,7 @@ ifconfig_up()
 # ifconfig_down if
 #	Remove all inet entries from the $if interface. It returns
 #	0 if inet entries were found and removed. It returns 1 if
-#	no entries were found or the could not be removed.
+#	no entries were found or they could not be removed.
 #
 ifconfig_down()
 {
@@ -226,8 +226,28 @@ ipx_up()
 #
 ipx_down()
 {
-	# XXX - So, who's an IPX expert ?
-	return 1
+	[ -z "$1" ] && return 1
+	_ifs="^"
+	_ret=1
+
+	ipxList="`ifconfig $1 | grep 'ipx ' | tr "\n" "$_ifs"`"
+
+	oldifs="$IFS"
+	IFS="$_ifs"
+	for _ipx in $ipxList ; do
+		# get rid of extraneous line
+		[ -z "$_ipx" ] && break
+
+		_ipx=`expr "$_ipx" : '.*\(ipx [0-9a-h]\{1,8\}H*\.[0-9a-h]\{1,12\}\).*'`
+
+		IFS="$oldifs"
+		ifconfig $1 ${_ipx} delete
+		IFS="$_ifs"
+		_ret=0
+	done
+	IFS="$oldifs"
+
+	return $_ret
 }
 
 #
