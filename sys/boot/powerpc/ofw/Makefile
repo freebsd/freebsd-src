@@ -58,12 +58,12 @@ CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
 # where to get libstand from
 #XXX need a better way to do this
 LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
-#.if !exists(${LIBSTAND})
-#LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
-#.if !exists(${LIBSTAND})
-#LIBSTAND=	-lstand
-#.endif
-#.endif
+.if !exists(${LIBSTAND})
+LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+.if !exists(${LIBSTAND})
+LIBSTAND=	-lstand
+.endif
+.endif
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # OpenFirmware is expecting ELF components
