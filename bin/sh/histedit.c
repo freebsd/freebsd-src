@@ -480,6 +480,16 @@ str_to_event(char *str, int last)
 	}
 	return (he.num);
 }
+
+int
+bindcmd(int argc, char **argv)
+{
+
+	if (el == NULL)
+		error("line editing is disabled");
+	return (el_parse(el, argc, argv));
+}
+
 #else
 #include "error.h"
 
@@ -489,6 +499,14 @@ histcmd(int argc, char **argv)
 
 	error("not compiled with history support");
 	/*NOTREACHED*/
+	return (0);
+}
+
+int
+bindcmd(int argc, char **argv)
+{
+
+	error("not compiled with line editing support");
 	return (0);
 }
 #endif
