@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.78 1996/11/09 19:26:01 jkh Exp $
+ * $Id: dist.c,v 1.79 1996/11/09 19:47:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,7 +203,7 @@ distSetXDeveloper(dialogMenuItem *self)
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86ServerDists = DIST_XF86_SERVER_SVGA;
+    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     return distSetXF86(NULL) | distMaybeSetDES(self);
 }
@@ -231,7 +231,7 @@ distSetXUser(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_USER;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86ServerDists = DIST_XF86_SERVER_SVGA;
+    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     return distSetXF86(NULL) | distMaybeSetDES(self);
 }
