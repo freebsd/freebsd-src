@@ -128,7 +128,7 @@ struct wfd {
 	int flags;                      /* Device state flags */
 	int refcnt;                     /* The number of raw opens */
 	int maxblks;			/* transfer size limit */
-	struct buf_queue_head buf_queue;  /* Queue of i/o requests */
+	struct bio_queue_head buf_queue;  /* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct cappage cap;             /* Capabilities page info */
 	char description[80];           /* Device description */
@@ -141,7 +141,7 @@ static struct wfd *wfdtab[NUNIT]; /* Drive info by unit number */
 static int wfdnlun = 0;           /* Number of configured drives */
 
 static void wfd_start (struct wfd *t);
-static void wfd_done (struct wfd *t, struct buf *bp, int resid,
+static void wfd_done (struct wfd *t, struct bio *bp, int resid,
 	struct atapires result);
 static void wfd_error (struct wfd *t, struct atapires result);
 static int wfd_request_wait (struct wfd *t, u_char cmd, u_char a1, u_char a2,
@@ -186,7 +186,7 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	}
 	wfdtab[wfdnlun] = t;
 	bzero (t, sizeof (struct wfd));
-	bufq_init(&t->buf_queue);
+	bioq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;
 	lun = t->lun = wfdnlun;
@@ -397,21 +397,21 @@ int wfdclose (dev_t dev, int flags, int fmt, struct proc *p)
  * understand. The transfer is described by a buf and will include only one
  * physical transfer.
  */
-void wfdstrategy (struct buf *bp)
+void wfdstrategy (struct bio *bp)
 {
-	int lun = UNIT(bp->b_dev);
+	int lun = UNIT(bp->bio_dev);
 	struct wfd *t = wfdtab[lun];
 	int x;
 
 	/* If it's a null transfer, return immediatly. */
-	if (bp->b_bcount == 0) {
-		bp->b_resid = 0;
+	if (bp->bio_bcount == 0) {
+		bp->bio_resid = 0;
 		biodone (bp);
 		return;
 	}
 
 	/*
-	 * Do bounds checking, adjust transfer, and set b_pblkno.
+	 * Do bounds checking, adjust transfer, and set bio_pblkno.
          */
 	if (dscheck(bp, t->dk_slices) <= 0) {
 		biodone(bp);
@@ -421,7 +421,7 @@ void wfdstrategy (struct buf *bp)
 	x = splbio();
 
 	/* Place it in the queue of disk activities for this disk. */
-	bufqdisksort (&t->buf_queue, bp);
+	bioqdisksort (&t->buf_queue, bp);
 
 	/* Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion. */
@@ -439,7 +439,7 @@ void wfdstrategy (struct buf *bp)
  */
 static void wfd_start (struct wfd *t)
 {
-	struct buf *bp = bufq_first(&t->buf_queue);
+	struct bio *bp = bioq_first(&t->buf_queue);
 	u_long blkno, nblk;
 	u_char op_code;
 	long count;
@@ -452,7 +452,7 @@ static void wfd_start (struct wfd *t)
 		return;
 
 	/* Unqueue the request. */
-	bufq_remove(&t->buf_queue, bp);
+	bioq_remove(&t->buf_queue, bp);
 
 	/* Tell devstat we are starting on the transaction */
 	devstat_start_transaction(&t->device_stats);
@@ -460,27 +460,27 @@ static void wfd_start (struct wfd *t)
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the
 	 * logical blocksize of the device. */
-	blkno = bp->b_pblkno / (t->cap.sector_size / 512);
-	nblk = (bp->b_bcount + (t->cap.sector_size - 1)) / t->cap.sector_size;
+	blkno = bp->bio_pblkno / (t->cap.sector_size / 512);
+	nblk = (bp->bio_bcount + (t->cap.sector_size - 1)) / t->cap.sector_size;
 
 	if ((t->maxblks == 0) || (nblk <= t->maxblks)) {
 
-		if(bp->b_flags & B_READ) {
+		if(bp->bio_cmd & BIO_READ) {
 			op_code = ATAPI_READ_BIG;
-			count = bp->b_bcount;
+			count = bp->bio_bcount;
 		} else {
 			op_code = ATAPI_WRITE_BIG;
-			count = -bp->b_bcount;
+			count = -bp->bio_bcount;
 		}
 
 		/* only one transfer */
-		(int)bp->b_driver1 = 0;
-		(int)bp->b_driver2 = 0;
+		(int)bp->bio_driver1 = 0;
+		(int)bp->bio_driver2 = 0;
 		atapi_request_callback (t->ata, t->unit, op_code, 0,
 					blkno>>24, blkno>>16, blkno>>8, blkno,
 					0, nblk>>8, nblk, 0, 0,
 					0, 0, 0, 0, 0, 
-					(u_char*) bp->b_data, count, 
+					(u_char*) bp->bio_data, count, 
 					(void*)wfd_done, t, bp);
 	} else {
 
@@ -488,22 +488,22 @@ static void wfd_start (struct wfd *t)
 		 * We can't handle this request in a single
 		 * read/write operation.  Instead, queue a set of
 		 * transfers, and record the number of transfers
-		 * and the running residual in the b_driver
+		 * and the running residual in the bio_driver
 		 * fields of the bp.
 		 */ 
 
-		if(bp->b_flags & B_READ) {
+		if(bp->bio_cmd & BIO_READ) {
 			op_code = ATAPI_READ_BIG;
 		} else {
 			op_code = ATAPI_WRITE_BIG;
 		}
 
 		/* calculate number of transfers */
-		(int)bp->b_driver1 = (nblk - 1) / t->maxblks;
-		(int)bp->b_driver2 = 0;
+		(int)bp->bio_driver1 = (nblk - 1) / t->maxblks;
+		(int)bp->bio_driver2 = 0;
 
-		pxdest = (u_char *)bp->b_data;
-		pxcount = bp->b_bcount;
+		pxdest = (u_char *)bp->bio_data;
+		pxcount = bp->bio_bcount;
 
 		/* construct partial transfer requests */
 		while (nblk > 0) {
@@ -515,7 +515,7 @@ static void wfd_start (struct wfd *t)
 					       blkno, 0, pxnblk>>8, pxnblk, 
 					       0, 0, 0, 0, 0, 0, 0,
 					       pxdest, 
-					       (bp->b_flags & B_READ) ?
+					       (bp->bio_cmd & BIO_READ) ?
 					       count : -count, 
 					       (void*)wfd_done, t, bp);
 			nblk -= pxnblk;
@@ -526,25 +526,25 @@ static void wfd_start (struct wfd *t)
 	}
 }
 
-static void wfd_done (struct wfd *t, struct buf *bp, int resid,
+static void wfd_done (struct wfd *t, struct bio *bp, int resid,
 	struct atapires result)
 {
 		
 	if (result.code) {
 		wfd_error (t, result);
-		bp->b_error = EIO;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = EIO;
+		bp->bio_flags |= BIO_ERROR;
 	} else
-		(int)bp->b_driver2 += resid;
+		(int)bp->bio_driver2 += resid;
 	/*
 	 * We can't call biodone until all outstanding
 	 * transfer fragments are handled.  If one hits
 	 * an error, we will be returning an error, but
 	 * only when all are complete.
 	 */
-	if (((int)bp->b_driver1)-- <= 0) {
-		bp->b_resid = (int)bp->b_driver2;
-		devstat_end_transaction_buf(&t->device_stats, bp);
+	if (((int)bp->bio_driver1)-- <= 0) {
+		bp->bio_resid = (int)bp->bio_driver2;
+		devstat_end_transaction_bio(&t->device_stats, bp);
 		biodone (bp);
 	}
 	
