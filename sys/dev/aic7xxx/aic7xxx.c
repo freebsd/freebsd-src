@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#24 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#28 $
  *
  * $FreeBSD$
  */
@@ -906,7 +906,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		scb = NULL;
 
 	if ((ahc->features & AHC_ULTRA2) != 0
-		&& (status0 & IOERR) != 0) {
+	 && (status0 & IOERR) != 0) {
 		int now_lvd;
 
 		now_lvd = ahc_inb(ahc, SBLKCTL) & ENAB40;
@@ -977,8 +977,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		if (scb != NULL)
 			ahc_print_path(ahc, scb);
 		else
-			printf("%s:%c:%d: ", ahc_name(ahc),
-			       intr_channel,
+			printf("%s:%c:%d: ", ahc_name(ahc), intr_channel,
 			       SCSIID_TARGET(ahc, ahc_inb(ahc, SAVED_SCSIID)));
 		scsirate = ahc_inb(ahc, SCSIRATE);
 		printf("parity error detected %s. "
@@ -1017,22 +1016,46 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		unpause_sequencer(ahc);
 	} else if ((status & BUSFREE) != 0
 		&& (ahc_inb(ahc, SIMODE1) & ENBUSFREE) != 0) {
+		u_int lastphase;
+		u_int saved_scsiid;
+		u_int saved_lun;
+		u_int target;
+		u_int initiator_role_id;
+		char channel;
+		int printerror;
+
 		/*
-		 * First look at what phase we were last in.
+		 * Clear our selection hardware as soon as possible.
+		 * We may have an entry in the waiting Q for this target,
+		 * that is affected by this busfree and we don't want to
+		 * go about selecting the target while we handle the event.
+		 */
+		ahc_outb(ahc, SCSISEQ,
+			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
+
+		/*
+		 * Disable busfree interrupts and clear the busfree
+		 * interrupt status.  We do this here so that several
+		 * bus transactions occur prior to clearing the SCSIINT
+		 * latch.  It can take a bit for the clearing to take effect.
+		 */
+		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
+		ahc_outb(ahc, CLRSINT1, CLRBUSFREE|CLRSCSIPERR);
+
+		/*
+		 * Look at what phase we were last in.
 		 * If its message out, chances are pretty good
 		 * that the busfree was in response to one of
 		 * our abort requests.
 		 */
-		u_int lastphase = ahc_inb(ahc, LASTPHASE);
-		u_int saved_scsiid = ahc_inb(ahc, SAVED_SCSIID);
-		u_int saved_lun = ahc_inb(ahc, SAVED_LUN);
-		u_int target = SCSIID_TARGET(ahc, saved_scsiid);
-		u_int initiator_role_id = SCSIID_OUR_ID(saved_scsiid);
-		char channel = SCSIID_CHANNEL(ahc, saved_scsiid);
-		int printerror = 1;
+		lastphase = ahc_inb(ahc, LASTPHASE);
+		saved_scsiid = ahc_inb(ahc, SAVED_SCSIID);
+		saved_lun = ahc_inb(ahc, SAVED_LUN);
+		target = SCSIID_TARGET(ahc, saved_scsiid);
+		initiator_role_id = SCSIID_OUR_ID(saved_scsiid);
+		channel = SCSIID_CHANNEL(ahc, saved_scsiid);
+		printerror = 1;
 
-		ahc_outb(ahc, SCSISEQ,
-			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
 		if (lastphase == P_MESGOUT) {
 			struct ahc_devinfo devinfo;
 			u_int tag;
@@ -1045,9 +1068,9 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				 == MSG_ABORT_TAG)
 					tag = scb->hscb->tag;
 				ahc_print_path(ahc, scb);
-				printf("SCB %d - Abort %s Completed.\n",
+				printf("SCB %d - Abort%s Completed.\n",
 				       scb->hscb->tag, tag == SCB_LIST_NULL ?
-				       "" : "Tag");
+				       "" : " Tag");
 				ahc_abort_scbs(ahc, target, channel,
 					       saved_lun, tag,
 					       ROLE_INITIATOR,
@@ -1155,26 +1178,11 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				| (ahc_inb(ahc, SEQADDR1) << 8));
 		}
 		ahc_clear_msg_state(ahc);
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
-		ahc_outb(ahc, CLRSINT1, CLRBUSFREE|CLRSCSIPERR);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		restart_sequencer(ahc);
 	} else if ((status & SELTO) != 0) {
 		u_int scbptr;
 
-		scbptr = ahc_inb(ahc, WAITING_SCBH);
-		ahc_outb(ahc, SCBPTR, scbptr);
-		scb_index = ahc_inb(ahc, SCB_TAG);
-
-		scb = ahc_lookup_scb(ahc, scb_index);
-		if (scb == NULL) {
-			printf("%s: ahc_intr - referenced scb not "
-			       "valid during SELTO scb(%d, %d)\n",
-			       ahc_name(ahc), scbptr, scb_index);
-		} else {
-			ahc_set_transaction_status(scb, CAM_SEL_TIMEOUT);
-			ahc_freeze_devq(ahc, scb);
-		}
 		/* Stop the selection */
 		ahc_outb(ahc, SCSISEQ, 0);
 
@@ -1194,11 +1202,25 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		 */
 		ahc_outb(ahc, CLRSINT0, CLRSELINGO);
 
+		scbptr = ahc_inb(ahc, WAITING_SCBH);
+		ahc_outb(ahc, SCBPTR, scbptr);
+		scb_index = ahc_inb(ahc, SCB_TAG);
+
+		scb = ahc_lookup_scb(ahc, scb_index);
+		if (scb == NULL) {
+			printf("%s: ahc_intr - referenced scb not "
+			       "valid during SELTO scb(%d, %d)\n",
+			       ahc_name(ahc), scbptr, scb_index);
+		} else {
+			ahc_set_transaction_status(scb, CAM_SEL_TIMEOUT);
+			ahc_freeze_devq(ahc, scb);
+		}
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		restart_sequencer(ahc);
 	} else {
-		panic("%s: Missing case in ahc_handle_scsiint. status = %x\n",
-		      ahc_name(ahc), status);
+		printf("%s: Missing case in ahc_handle_scsiint. status = %x\n",
+		       ahc_name(ahc), status);
+		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 	}
 }
 
@@ -2027,6 +2049,14 @@ ahc_setup_initiator_msgout(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		ahc->msgout_len++;
 		ahc_print_path(ahc, scb);
 		printf("Bus Device Reset Message Sent\n");
+		/*
+		 * Clear our selection hardware in advance of
+		 * the busfree.  We may have an entry in the waiting
+		 * Q for this target, and we don't want to go about
+		 * selecting while we handle the busfree and blow it
+		 * away.
+		 */
+		ahc_outb(ahc, SCSISEQ, (ahc_inb(ahc, SCSISEQ) & ~ENSELO));
 	} else if ((scb->flags & SCB_ABORT) != 0) {
 		if ((scb->hscb->control & TAG_ENB) != 0)
 			ahc->msgout_buf[ahc->msgout_index++] = MSG_ABORT_TAG;
@@ -2034,7 +2064,16 @@ ahc_setup_initiator_msgout(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			ahc->msgout_buf[ahc->msgout_index++] = MSG_ABORT;
 		ahc->msgout_len++;
 		ahc_print_path(ahc, scb);
-		printf("Abort Message Sent\n");
+		printf("Abort%s Message Sent\n",
+		       (scb->hscb->control & TAG_ENB) != 0 ? " Tag" : "");
+		/*
+		 * Clear our selection hardware in advance of
+		 * the busfree.  We may have an entry in the waiting
+		 * Q for this target, and we don't want to go about
+		 * selecting while we handle the busfree and blow it
+		 * away.
+		 */
+		ahc_outb(ahc, SCSISEQ, (ahc_inb(ahc, SCSISEQ) & ~ENSELO));
 	} else if ((ahc->targ_msg_req & devinfo->target_mask) != 0
 		|| (scb->flags & SCB_NEGOTIATE) != 0) {
 		ahc_build_transfer_msg(ahc, devinfo);
@@ -3268,7 +3307,7 @@ ahc_alloc(void *platform_arg, char *name)
 #endif
 	memset(ahc, 0, sizeof(*ahc));
 	LIST_INIT(&ahc->pending_scbs);
-	/* We don't know or unit number until the OSM sets it */
+	/* We don't know our unit number until the OSM sets it */
 	ahc->name = name;
 	for (i = 0; i < 16; i++)
 		TAILQ_INIT(&ahc->untagged_queues[i]);
@@ -3397,8 +3436,13 @@ ahc_free(struct ahc_softc *ahc)
 		ahc_dma_tag_destroy(ahc, ahc->buffer_dmat);
 #endif
 		break;
+	case 0:
+		break;
 	}
 
+#ifndef __linux__
+	ahc_dma_tag_destroy(ahc, ahc->parent_dmat);
+#endif
 	ahc_platform_free(ahc);
 	for (i = 0; i < AHC_NUM_TARGETS; i++) {
 		struct tmode_tstate *tstate;
@@ -4682,7 +4726,7 @@ ahc_match_scb(struct ahc_softc *ahc, struct scb *scb, int target,
 
 		group = XPT_FC_GROUP(scb->io_ctx->ccb_h.func_code);
 		if (role == ROLE_INITIATOR) {
-			match = (group == XPT_FC_GROUP_COMMON)
+			match = (group != XPT_FC_GROUP_TMODE)
 			      && ((tag == scb->hscb->tag)
 			       || (tag == SCB_LIST_NULL));
 		} else if (role == ROLE_TARGET) {
@@ -4820,12 +4864,15 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 			case SEARCH_COMPLETE:
 			{
 				cam_status ostat;
+				cam_status cstat;
 
 				ostat = ahc_get_transaction_status(scb);
 				if (ostat == CAM_REQ_INPROG)
 					ahc_set_transaction_status(scb,
 								   status);
-				ahc_freeze_scb(scb);
+				cstat = ahc_get_transaction_status(scb);
+				if (cstat != CAM_REQ_CMP)
+					ahc_freeze_scb(scb);
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printf("Inactive SCB in qinfifo\n");
 				ahc_done(ahc, scb);
@@ -4920,12 +4967,15 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 			case SEARCH_COMPLETE:
 			{
 				cam_status ostat;
+				cam_status cstat;
 
 				ostat = ahc_get_transaction_status(scb);
 				if (ostat == CAM_REQ_INPROG)
 					ahc_set_transaction_status(scb,
 								   status);
-				ahc_freeze_scb(scb);
+				cstat = ahc_get_transaction_status(scb);
+				if (cstat != CAM_REQ_CMP)
+					ahc_freeze_scb(scb);
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printf("Inactive SCB in Waiting List\n");
 				ahc_done(ahc, scb);
@@ -4998,12 +5048,15 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				case SEARCH_COMPLETE:
 				{
 					cam_status ostat;
+					cam_status cstat;
 
 					ostat = ahc_get_transaction_status(scb);
 					if (ostat == CAM_REQ_INPROG)
 						ahc_set_transaction_status(scb,
 								   status);
-					ahc_freeze_scb(scb);
+					cstat = ahc_get_transaction_status(scb);
+					if (cstat != CAM_REQ_CMP)
+						ahc_freeze_scb(scb);
 					if ((scb->flags & SCB_ACTIVE) == 0)
 						printf("Inactive SCB in untaggedQ\n");
 					ahc_done(ahc, scb);
@@ -5289,7 +5342,8 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 			ostat = ahc_get_transaction_status(scbp);
 			if (ostat == CAM_REQ_INPROG)
 				ahc_set_transaction_status(scbp, status);
-			ahc_freeze_scb(scbp);
+			if (ahc_get_transaction_status(scbp) != CAM_REQ_CMP)
+				ahc_freeze_scb(scbp);
 			if ((scbp->flags & SCB_ACTIVE) == 0)
 				printf("Inactive SCB on pending list\n");
 			ahc_done(ahc, scbp);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#16 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#19 $
  *
  * $FreeBSD$
  */
@@ -902,10 +902,9 @@ ultra2_dma_loop:
 
 ultra2_dmafinish:
 		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
-		and	DFCNTRL, ~SCSIEN;
-		test	DFCNTRL, SCSIEN jnz .;
-		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
-			test	DFSTATUS, FIFOEMP jnz ultra2_dmafifoempty;
+		if ((ahc->features & AHC_DT) == 0) {
+			and	DFCNTRL, ~SCSIEN;
+			test	DFCNTRL, SCSIEN jnz .;
 		}
 ultra2_dmafifoflush:
 		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
@@ -1464,9 +1463,10 @@ mesgin_complete:
  * If ATN is raised, we still want to give the target a message.
  * Perhaps there was a parity error on this last message byte.
  * Either way, the target should take us to message out phase
- * and then attempt to complete the command again.
- * XXX - Need a critical section to do this corrctly.  Wait until
- *       we queue completions.
+ * and then attempt to complete the command again.  We should use a
+ * critical section here to guard against a timeout triggering
+ * for this command and setting ATN while we are still processing
+ * the completion.
 	test	SCSISIGI, ATNI jnz mesgin_done;
  */
 
@@ -1609,7 +1609,7 @@ mesgin_identify:
 	 * for this target or the transaction is for a different lun, then
 	 * this must be an untagged transaction.
 	 */
-	shr	SINDEX, 4, SELID;
+	shr	SINDEX, 4, SAVED_SCSIID;
 	and	SAVED_LUN, MSG_IDENTIFY_LUNMASK, A;
 	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		add	SINDEX, SCB_64_BTT;
@@ -2035,13 +2035,13 @@ dma_scb_fromhost:
 			 * continue the transfer.  This does not
 			 * happen for SCSI transfers as the SCSI module
 			 * will drain the FIFO as data is made available.
-			 * When the hang occurs, we know that at least
-			 * 8 bytes are in the FIFO because the PCI
+			 * When the hang occurs, we know that a multiple
+			 * of 8 bytes are in the FIFO because the PCI
 			 * module has an 8 byte input latch that only
 			 * dumps to the FIFO when HCNT == 0 or the
 			 * latch is full.
 			 */
-			mvi	A, -24;
+			clr	A;
 			/* Wait for some data to arrive. */
 dma_scb_hang_fifo:
 			test	DFSTATUS, FIFOEMP jnz dma_scb_hang_fifo;
@@ -2051,34 +2051,43 @@ dma_scb_hang_wait:
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			/*
-			 * The PCI no longer intends to perform a PCI
-			 * transaction and HDONE has not come true.
+			 * The PCI module no longer intends to perform
+			 * a PCI transaction and HDONE has not come true.
 			 * We are hung.  Drain the fifo.
 			 */
 dma_scb_hang_empty_fifo:
-			call	dfdat_in_8;
-			add	A, 8;
-			add	SINDEX, A, HCNT; 
 			/*
-			 * The result will be <= 0 (carry set) if at
-			 * least 8 bytes of data have been placed
-			 * into the fifo.
+			 * Skip lines not yet transfered into the FIFO.
 			 */
-			jc	dma_scb_hang_empty_fifo;
+			add	SINDEX, 7, HCNT;
+			shr	SINDEX, 3;
+
+			/*
+			 * Skip lines already copied out of the FIFO.
+			 */
+			add	A, A, SINDEX;
+
+			call	dma_scb_hang_dma_drain_fifo;
+
+			/*
+			 * Set the lines transferred to all but
+			 * those yet to reach the FIFO.
+			 */
+			not	SINDEX;
+			add	A, 5, SINDEX;
 			jmp	dma_scb_hang_fifo;
 dma_scb_hang_dma_done:
 			and	DFCNTRL, ~HDMAEN;
 			test	DFCNTRL, HDMAEN jnz .;
-			call	dfdat_in_8;
-			add	A, 8;
-			cmp	A, 8 jne . - 2;
+dma_scb_hang_dma_drain_fifo:
+			add	SEQADDR0, A;
 		} else {
 			call	dma_finish;
-			/* If we were putting the SCB, we are done */
-			call	dfdat_in_8;
-			call	dfdat_in_8;
-			call	dfdat_in_8;
 		}
+		/* If we were putting the SCB, we are done */
+		call	dfdat_in_8;
+		call	dfdat_in_8;
+		call	dfdat_in_8;
 dfdat_in_8:
 		mov	DINDIR,DFDAT;
 dfdat_in_7:
