@@ -301,12 +301,6 @@ main.15:	movw $LOAD,%bx			# Address for read
 		jne main.10			# No
 		callw putn			# Leave some space
 		jmp *%bx			# Invoke bootstrap
-/*
-		movw %bx,%si			# Memory to dump
-		movw $SECTOR_SIZE/16,%dx	# Lines to display
-		callw memdump			# Dump memory
-hang:		jmp hang			# Spin
-*/
 
 #
 # Display routines
@@ -485,66 +479,9 @@ os_netbsd:	.ascii "NetBS";		.byte 'D'|0x80
 os_bsdos:	.ascii "BSD/O";		.byte 'S'|0x80
 
 #
-# A set of functions to print out various parts of %ax in hex
+# Fake partition entry created at the end of the table used when loading
+# boot0 at the very beginning and when loading an MBR from another disk when
+# F5 is pressed.
 #
-hex16:		callw hex16.1			# Do upper 8
-hex16.1:	xchgb %ah,%al			# Save/restore
-hex8:		push %ax			# Save
-		shrb $0x4,%al			# Do upper
-		callw hex8.1			#  4
-		pop %ax				# Restore
-hex8.1: 	andb $0xf,%al			# Get lower 4
-		cmpb $0xa,%al			# Convert
-		sbbb $0x69,%al			#  to hex
-		das				#  digit
-		orb $0x20,%al			# To lower case
-		push %ax			# Save
-		callw putchr			# Print char
-		pop %ax				# Restore
-		retw				# (Recursive)
-
-#
-# Function to display a hexdump of memory.  Call with:
-#
-# %dx		- word     - number of lines to display, each line is 16 bytes
-# %ds:(%si)	- caddr_t  - memory to display
-#
-memdump:	movw %si,%ax			# Display the
-		callw hex16			#  memory offset
-		movb $':',%al			# Output a seperator
-		callw putchr			#  between the
-		movb $' ',%al			#  offset and
-		callw putchr			#  the data
-		push %si			# Save %si
-		movw $16,%cx			# Bytes per line
-memdump.1:	lodsb				# Get next byte
-		callw hex8			#  and display it
-		movb $' ',%al			# Determine which
-		cmpb $9,%cl			#  seperator
-		jne memdump.2			#  to use
-		movb $'-',%al			#  and then
-memdump.2:	callw putchr			#  display it
-		loop memdump.1			# Next byte
-		movb $'|',%al			# Start of character
-		callw putchr			#  display
-		pop %si				# Restore %si
-		movb $16,%cl			# Bytes per line
-memdump.3:	lodsb				# Get next byte
-		cmpb $32,%al			# Control character?
-		jb memdump.4			# Yes, so modify
-		cmpb $0x80,%al			# Upper ASCII?
-		jb memdump.5			# No, use raw characer
-memdump.4:	movb $'.',%al			# Use '.' instead of bad char
-memdump.5:	callw putchr			# Output character
-		loop memdump.3			# Do whole line
-		movb $'|',%al			# Start of character
-		callw putchr			#  display
-		push %si			# Save %si
-		callw putn			# New line
-		pop %si				# Restore %si
-		dec %dx				# Done yet?
-		jnz memdump			# No, keep going
-		retw				# Yes, return
-
 		.org SECTOR_SIZE*NUM_SECTORS, 0x0
 fake:
