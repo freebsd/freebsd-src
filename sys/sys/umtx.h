@@ -40,7 +40,6 @@
 
 struct umtx {
 	thr_id_t u_owner;	/* Owner of the mutex. */
-	thr_id_t u_blocked;	/* First blocked thread, owns wait queue. */
 };
 
 #ifndef _KERNEL
