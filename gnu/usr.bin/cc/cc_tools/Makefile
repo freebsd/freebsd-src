@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36 1999/08/16 04:10:44 obrien Exp $
+#	$Id: Makefile,v 1.37 1999/08/16 09:55:16 obrien Exp $
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
@@ -155,8 +155,8 @@ tm.h:
 	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"' > ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/att.h"' >> ${.TARGET}
-.endif
 	echo '#include "svr4.h"' >> ${.TARGET}
+.endif
 	echo '#include "${GCC_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/perform.h"' >> ${.TARGET}
