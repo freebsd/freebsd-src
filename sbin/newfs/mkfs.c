@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.3 (Berkeley) 2/3/94";
 #endif /* not lint */
 
+#include <err.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -153,10 +154,8 @@ mkfs(pp, fsys, fi, fo)
 		ppid = getpid();
 		(void) signal(SIGUSR1, started);
 		if (i = fork()) {
-			if (i == -1) {
-				perror("mfs");
-				exit(10);
-			}
+			if (i == -1)
+				err(10, "mfs");
 			if (waitpid(i, &status, 0) != -1 && WIFEXITED(status))
 				exit(WEXITSTATUS(status));
 			exit(11);
@@ -167,18 +166,14 @@ mkfs(pp, fsys, fi, fo)
 			unsigned char buf[BUFSIZ];
 			unsigned long l,l1;
 			fd = open(filename,O_RDWR|O_TRUNC|O_CREAT,0644);
-			if(fd < 0) {
-				perror(filename);
-				exit(12);
-			}
+			if(fd < 0)
+				err(12, "%s", filename);
 			for(l=0;l< fssize * sectorsize;l += l1) {
 				l1 = fssize * sectorsize;
 				if (BUFSIZ < l1)
 					l1 = BUFSIZ;
-				if (l1 != write(fd,buf,l1)) {
-					perror(filename);
-					exit(12);
-				}
+				if (l1 != write(fd,buf,l1))
+					err(12, "%s", filename);
 			}
 			membase = mmap(
 				0,
@@ -187,16 +182,14 @@ mkfs(pp, fsys, fi, fo)
 				MAP_SHARED,
 				fd,
 				0);
-			if((int)membase == -1) {
-				perror("mmap");
-				exit(12);
-			}
+			if((int)membase == -1)
+				err(12, "mmap");
 			close(fd);
 		} else {
 			if (fssize * sectorsize > memleft)
 				fssize = (memleft - 16384) / sectorsize;
-			if ((membase = malloc(fssize * sectorsize)) == 0)
-				exit(12);
+			if ((membase = malloc(fssize * sectorsize)) == NULL)
+				errx(13, "malloc failed");
 		}
 	}
 	fsi = fi;
@@ -435,7 +428,7 @@ mkfs(pp, fsys, fi, fo)
 	}
 	sblock.fs_fpg = (sblock.fs_cpg * sblock.fs_spc) / NSPF(&sblock);
 	if ((sblock.fs_cpg * sblock.fs_spc) % NSPB(&sblock) != 0) {
-		printf("panic (fs_cpg * fs_spc) % NSPF != 0");
+		printf("panic (fs_cpg * fs_spc) %% NSPF != 0");
 		exit(24);
 	}
 	if (sblock.fs_cpg < mincpg) {
@@ -591,6 +584,8 @@ next:
 	for (sblock.fs_csshift = 0; i > 1; i >>= 1)
 		sblock.fs_csshift++;
 	fscs = (struct csum *)calloc(1, sblock.fs_cssize);
+	if (fscs == NULL)
+		errx(31, "calloc failed");
 	sblock.fs_magic = FS_MAGIC;
 	sblock.fs_rotdelay = rotdelay;
 	sblock.fs_minfree = minfree;
@@ -1126,8 +1121,9 @@ calloc(size, numelm)
 	caddr_t base;
 
 	size *= numelm;
-	base = malloc(size);
-	bzero(base, size);
+	if ((base = malloc(size)) == NULL)
+		return (NULL);
+	memset(base, 0, size);
 	return (base);
 }
 
