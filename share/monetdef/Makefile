@@ -26,6 +26,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
+		hy_AM.ARMSCII-8 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
 		ja_JP.eucJP \
