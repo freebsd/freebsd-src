@@ -204,3 +204,7 @@ ${OBJS}: ${SRCS:M*.h}
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
+
+.if defined(PORTNAME)
+.include <bsd.pkg.mk>
+.endif
