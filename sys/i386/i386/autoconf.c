@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.108 1998/10/05 21:09:21 obrien Exp $
+ *	$Id: autoconf.c,v 1.109 1998/10/10 08:12:22 jkh Exp $
  */
 
 /*
@@ -407,9 +407,7 @@ setdumpdev(dev)
 		return (0);
 	}
 	maj = major(dev);
-	if (maj >= nblkdev)
-		return (ENXIO);
-	if (bdevsw[maj] == NULL)
+	if (maj >= nblkdev || bdevsw[maj] == NULL)
 		return (ENXIO);		/* XXX is this right? */
 	if (bdevsw[maj]->d_psize == NULL)
 		return (ENXIO);		/* XXX should be ENODEV ? */
@@ -452,7 +450,7 @@ setroot()
 	if (boothowto & RB_DFLTROOT || (bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
 	majdev = B_TYPE(bootdev);
-	if (bdevsw[majdev] == NULL)
+	if (majdev >= nblkdev || bdevsw[majdev] == NULL)
 		return;
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
