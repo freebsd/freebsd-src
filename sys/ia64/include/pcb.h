@@ -53,7 +53,6 @@ struct pcb {
 	uint64_t		pcb_ia32_fdr;
 	uint64_t		pcb_ia32_fir;
 	uint64_t		pcb_ia32_fsr;
-#endif
 };
 
 #ifdef _KERNEL
