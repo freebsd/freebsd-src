@@ -756,7 +756,7 @@ ASR_getStatus (
 
 		while (*((U8 * volatile)&(buffer->SyncByte)) == 0) {
 			if (--Delay == 0) {
-				buffer = (PI2O_EXEC_STATUS_GET_REPLY)NULL;
+				buffer = NULL;
 				break;
 			}
 			DELAY (1000);
@@ -767,7 +767,7 @@ ASR_getStatus (
 		virt->Mask = Old;
 		return (buffer);
 	}
-	return ((PI2O_EXEC_STATUS_GET_REPLY)NULL);
+	return (NULL);
 } /* ASR_getStatus */
 
 /*
@@ -864,7 +864,7 @@ asr_alloc_ccb (
 	OUT union asr_ccb * new_ccb;
 
 	if ((new_ccb = (union asr_ccb *)malloc(sizeof(*new_ccb),
-	  M_DEVBUF, M_WAITOK | M_ZERO)) != (union asr_ccb *)NULL) {
+	  M_DEVBUF, M_WAITOK | M_ZERO)) != NULL) {
 		new_ccb->ccb_h.pinfo.priority = 1;
 		new_ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
 		new_ccb->ccb_h.spriv_ptr0 = sc;
@@ -951,7 +951,7 @@ ASR_queue_c (
 	union asr_ccb	    * ccb;
 	OUT int		      status;
 
-	if ((ccb = asr_alloc_ccb (sc)) == (union asr_ccb *)NULL) {
+	if ((ccb = asr_alloc_ccb (sc)) == NULL) {
 		return (CAM_REQUEUE_REQ);
 	}
 
@@ -1042,7 +1042,7 @@ ASR_failActiveCommands (
 	 *	xpt_async (AC_BUS_RESET, sc->ha_path[bus], NULL);
 	 *  }
 	 */
-	while ((ccb = LIST_FIRST(&(sc->ha_ccb))) != (struct ccb_hdr *)NULL) {
+	while ((ccb = LIST_FIRST(&(sc->ha_ccb))) != NULL) {
 		ASR_ccbRemove (sc, (union asr_ccb *)ccb);
 
 		ccb->status &= ~CAM_STATUS_MASK;
@@ -1095,8 +1095,8 @@ STATIC INLINE int
 ASR_getBlinkLedCode (
 	IN Asr_softc_t * sc)
 {
-	if ((sc != (Asr_softc_t *)NULL)
-	 && (sc->ha_blinkLED != (u_int8_t *)NULL)
+	if ((sc != NULL)
+	 && (sc->ha_blinkLED != NULL)
 	 && (sc->ha_blinkLED[1] == 0xBC)) {
 		return (sc->ha_blinkLED[0]);
 	}
@@ -1132,13 +1132,13 @@ ASR_getTidAddress(
 	 *	sc must be valid before it gets here, so that check could be
 	 * dropped if speed a critical issue.
 	 */
-	if ((sc == (Asr_softc_t *)NULL)
+	if ((sc == NULL)
 	 || (bus > MAX_CHANNEL)
 	 || (target > sc->ha_MaxId)
 	 || (lun > sc->ha_MaxLun)) {
 		debug_asr_printf("(%lx,%d,%d,%d) target out of range\n",
 		  (u_long)sc, bus, target, lun);
-		return ((tid_t *)NULL);
+		return (NULL);
 	}
 	/*
 	 *	See if there is an associated bus list.
@@ -1149,7 +1149,7 @@ ASR_getTidAddress(
 	 */
 #	define BUS_CHUNK 8
 	new_size = ((target + BUS_CHUNK - 1) & ~(BUS_CHUNK - 1));
-	if ((bus_ptr = sc->ha_targets[bus]) == (target2lun_t *)NULL) {
+	if ((bus_ptr = sc->ha_targets[bus]) == NULL) {
 		/*
 		 *	Allocate a new structure?
 		 *		Since one element in structure, the +1
@@ -1159,9 +1159,9 @@ ASR_getTidAddress(
 		 || ((sc->ha_targets[bus] = bus_ptr = (target2lun_t *)malloc (
 		    sizeof(*bus_ptr) + (sizeof(bus_ptr->LUN) * new_size),
 		    M_TEMP, M_WAITOK | M_ZERO))
-		   == (target2lun_t *)NULL)) {
+		   == NULL)) {
 			debug_asr_printf("failed to allocate bus list\n");
-			return ((tid_t *)NULL);
+			return (NULL);
 		}
 		bus_ptr->size = new_size + 1;
 	} else if (bus_ptr->size <= new_size) {
@@ -1175,10 +1175,9 @@ ASR_getTidAddress(
 		if ((new_entry == FALSE)
 		 || ((new_bus_ptr = (target2lun_t *)malloc (
 		    sizeof(*bus_ptr) + (sizeof(bus_ptr->LUN) * new_size),
-		    M_TEMP, M_WAITOK | M_ZERO))
-		   == (target2lun_t *)NULL)) {
+		    M_TEMP, M_WAITOK | M_ZERO)) == NULL)) {
 			debug_asr_printf("failed to reallocate bus list\n");
-			return ((tid_t *)NULL);
+			return (NULL);
 		}
 		/*
 		 *	Copy the whole thing, safer, simpler coding
@@ -1202,7 +1201,7 @@ ASR_getTidAddress(
 	if ((new_size = lun) != 0) {
 		new_size = ((lun + TARGET_CHUNK - 1) & ~(TARGET_CHUNK - 1));
 	}
-	if ((target_ptr = bus_ptr->LUN[target]) == (lun2tid_t *)NULL) {
+	if ((target_ptr = bus_ptr->LUN[target]) == NULL) {
 		/*
 		 *	Allocate a new structure?
 		 *		Since one element in structure, the +1
@@ -1211,10 +1210,9 @@ ASR_getTidAddress(
 		if ((new_entry == FALSE)
 		 || ((bus_ptr->LUN[target] = target_ptr = (lun2tid_t *)malloc (
 		    sizeof(*target_ptr) + (sizeof(target_ptr->TID) * new_size),
-		    M_TEMP, M_WAITOK | M_ZERO))
-		   == (lun2tid_t *)NULL)) {
+		    M_TEMP, M_WAITOK | M_ZERO)) == NULL)) {
 			debug_asr_printf("failed to allocate target list\n");
-			return ((tid_t *)NULL);
+			return (NULL);
 		}
 		target_ptr->size = new_size + 1;
 	} else if (target_ptr->size <= new_size) {
@@ -1228,10 +1226,9 @@ ASR_getTidAddress(
 		if ((new_entry == FALSE)
 		 || ((new_target_ptr = (lun2tid_t *)malloc (
 		    sizeof(*target_ptr) + (sizeof(target_ptr->TID) * new_size),
-		    M_TEMP, M_WAITOK | M_ZERO))
-		   == (lun2tid_t *)NULL)) {
+		    M_TEMP, M_WAITOK | M_ZERO)) == NULL)) {
 			debug_asr_printf("failed to reallocate target list\n");
-			return ((tid_t *)NULL);
+			return (NULL);
 		}
 		/*
 		 *	Copy the whole thing, safer, simpler coding
@@ -1270,8 +1267,7 @@ ASR_getTid (
 	OUT tid_t	 retval;
 
 	s = splcam();
-	if (((tid_ptr = ASR_getTidAddress (sc, bus, target, lun, FALSE))
-	  == (tid_t *)NULL)
+	if (((tid_ptr = ASR_getTidAddress(sc, bus, target, lun, FALSE)) == NULL)
 	/* (tid_t)0 or (tid_t)-1 indicate no TID */
 	 || (*tid_ptr == (tid_t)0)) {
 		splx(s);
@@ -1306,7 +1302,7 @@ ASR_setTid (
 		}
 		s = splcam();
 		if ((tid_ptr = ASR_getTidAddress (sc, bus, target, lun, TRUE))
-		 == (tid_t *)NULL) {
+		 == NULL) {
 			splx(s);
 			return ((tid_t)-1);
 		}
@@ -1737,7 +1733,7 @@ ASR_getParams(
 	 && (Buffer_Ptr->Header.ResultCount)) {
 		return ((void *)(Buffer_Ptr->Info));
 	}
-	return ((void *)NULL);
+	return (NULL);
 } /* ASR_getParams */
 
 /*
@@ -1761,8 +1757,7 @@ ASR_acquireLct (
 	MessageSizeInBytes = sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE)
 	  - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT);
 	if ((Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)malloc (
-	  MessageSizeInBytes, M_TEMP, M_WAITOK))
-	  == (PI2O_EXEC_LCT_NOTIFY_MESSAGE)NULL) {
+	  MessageSizeInBytes, M_TEMP, M_WAITOK)) == NULL) {
 		return (ENOMEM);
 	}
 	(void)ASR_fillMessage((char *)Message_Ptr, MessageSizeInBytes);
@@ -1805,8 +1800,7 @@ ASR_acquireLct (
 		free (Message_Ptr, M_TEMP);
 		return (EINVAL);
 	}
-	if ((sc->ha_LCT = (PI2O_LCT)malloc (len, M_TEMP, M_WAITOK))
-	  == (PI2O_LCT)NULL) {
+	if ((sc->ha_LCT = (PI2O_LCT)malloc (len, M_TEMP, M_WAITOK)) == NULL) {
 		free (Message_Ptr, M_TEMP);
 		return (ENOMEM);
 	}
@@ -1874,10 +1868,10 @@ ASR_acquireLct (
 			PI2O_EXEC_LCT_NOTIFY_MESSAGE NewMessage_Ptr;
 
 			if ((NewMessage_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)
-			    malloc (MessageSizeInBytes, M_TEMP, M_WAITOK))
-			    == (PI2O_EXEC_LCT_NOTIFY_MESSAGE)NULL) {
+			    malloc(MessageSizeInBytes, M_TEMP, M_WAITOK))
+			    == NULL) {
 				free (sc->ha_LCT, M_TEMP);
-				sc->ha_LCT = (PI2O_LCT)NULL;
+				sc->ha_LCT = NULL;
 				free (Message_Ptr, M_TEMP);
 				return (ENOMEM);
 			}
@@ -1944,8 +1938,7 @@ ASR_acquireLct (
 			  ASR_getParams(sc,
 			    I2O_LCT_ENTRY_getLocalTID(Entry),
 			    I2O_HBA_SCSI_CONTROLLER_INFO_GROUP_NO,
-			    Buffer, sizeof(struct ControllerInfo)))
-			== (PI2O_HBA_SCSI_CONTROLLER_INFO_SCALAR)NULL) {
+			    Buffer, sizeof(struct ControllerInfo))) == NULL) {
 				continue;
 			}
 			Entry->le_target
@@ -1972,8 +1965,7 @@ ASR_acquireLct (
 			  ASR_getParams(sc,
 			    I2O_LCT_ENTRY_getLocalTID(Entry),
 			    I2O_DPT_DEVICE_INFO_GROUP_NO,
-			    Buffer, sizeof(struct DeviceInfo)))
-			== (PI2O_DPT_DEVICE_INFO_SCALAR)NULL) {
+			    Buffer, sizeof(struct DeviceInfo))) == NULL) {
 				continue;
 			}
 			Entry->le_type
@@ -2045,7 +2037,7 @@ ASR_init_message(
 			}
 		}
 		if (TID == (tid_t)0) {
-			return ((PI2O_MESSAGE_FRAME)NULL);
+			return (NULL);
 		}
 		I2O_MESSAGE_FRAME_setTargetAddress(Message_Ptr, TID);
 		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setTID(
@@ -2204,7 +2196,7 @@ ASR_initOutBound (
 		/*
 		 *	Populate the outbound table.
 		 */
-		if (sc->ha_Msgs == (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)NULL) {
+		if (sc->ha_Msgs == NULL) {
 
 			/* Allocate the reply frames */
 			size = sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)
@@ -2216,15 +2208,14 @@ ASR_initOutBound (
 			 */
 			if ((sc->ha_Msgs = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)
 			  contigmalloc (size, M_DEVBUF, M_WAITOK, 0ul,
-			    0xFFFFFFFFul, (u_long)sizeof(U32), 0ul))
-			  != (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)NULL) {
+			    0xFFFFFFFFul, (u_long)sizeof(U32), 0ul)) != NULL) {
 				(void)bzero ((char *)sc->ha_Msgs, size);
 				sc->ha_Msgs_Phys = KVTOPHYS(sc->ha_Msgs);
 			}
 		}
 
 		/* Initialize the outbound FIFO */
-		if (sc->ha_Msgs != (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)NULL)
+		if (sc->ha_Msgs != NULL)
 		for (size = sc->ha_Msgs_Count, addr = sc->ha_Msgs_Phys;
 		  size; --size) {
 			sc->ha_Virt->FromFIFO = addr;
@@ -2249,8 +2240,7 @@ ASR_setSysTab(
 	int			      retVal;
 
 	if ((SystemTable = (PI2O_SET_SYSTAB_HEADER)malloc (
-	  sizeof(I2O_SET_SYSTAB_HEADER), M_TEMP, M_WAITOK | M_ZERO))
-	  == (PI2O_SET_SYSTAB_HEADER)NULL) {
+	  sizeof(I2O_SET_SYSTAB_HEADER), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
 		return (ENOMEM);
 	}
 	for (ha = Asr_softc; ha; ha = ha->ha_next) {
@@ -2259,7 +2249,7 @@ ASR_setSysTab(
 	if ((Message_Ptr = (PI2O_EXEC_SYS_TAB_SET_MESSAGE)malloc (
 	  sizeof(I2O_EXEC_SYS_TAB_SET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	   + ((3+SystemTable->NumberEntries) * sizeof(I2O_SGE_SIMPLE_ELEMENT)),
-	  M_TEMP, M_WAITOK)) == (PI2O_EXEC_SYS_TAB_SET_MESSAGE)NULL) {
+	  M_TEMP, M_WAITOK)) == NULL) {
 		free (SystemTable, M_TEMP);
 		return (ENOMEM);
 	}
@@ -2407,8 +2397,8 @@ ASR_sync (
 	 * as the OS normally would flush all outstanding commands before
 	 * issuing a shutdown or an adapter reset).
 	 */
-	if ((sc != (Asr_softc_t *)NULL)
-	 && (LIST_FIRST(&(sc->ha_ccb)) != (struct ccb_hdr *)NULL)
+	if ((sc != NULL)
+	 && (LIST_FIRST(&(sc->ha_ccb)) != NULL)
 	 && ((TID = ASR_getTid (sc, bus, target, lun)) != (tid_t)-1)
 	 && (TID != (tid_t)0)) {
 		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
@@ -2549,11 +2539,11 @@ asr_pci_map_mem (
 	p &= ~15;
 	sc->ha_mem_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
 	  p, p + l, l, RF_ACTIVE);
-	if (sc->ha_mem_res == (struct resource *)NULL) {
+	if (sc->ha_mem_res == NULL) {
 		return (0);
 	}
 	sc->ha_Base = (void *)rman_get_start(sc->ha_mem_res);
-	if (sc->ha_Base == (void *)NULL) {
+	if (sc->ha_Base == NULL) {
 		return (0);
 	}
 	sc->ha_Virt = (i2oRegs_t *) rman_get_virtual(sc->ha_mem_res);
@@ -2571,10 +2561,10 @@ asr_pci_map_mem (
 		p &= ~15;
 		sc->ha_mes_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
 		  p, p + l, l, RF_ACTIVE);
-		if (sc->ha_mes_res == (struct resource *)NULL) {
+		if (sc->ha_mes_res == NULL) {
 			return (0);
 		}
-		if ((void *)rman_get_start(sc->ha_mes_res) == (void *)NULL) {
+		if ((void *)rman_get_start(sc->ha_mes_res) == NULL) {
 			return (0);
 		}
 		sc->ha_Fvirt = (U8 *) rman_get_virtual(sc->ha_mes_res);
@@ -2651,7 +2641,7 @@ asr_pci_map_mem (
 		}
 	}
 
-	if ((sc->ha_Base == (void *)NULL)
+	if ((sc->ha_Base == NULL)
 	 || (sc->ha_Base == (void *)PCI_MAP_MEMORY_ADDRESS_MASK)) {
 		debug_asr_printf ("asr_pci_map_mem: not configured by bios.\n");
 		return (0);
@@ -2666,7 +2656,7 @@ asr_pci_map_mem (
 	sc->ha_Virt = (i2oRegs_t *)pmap_mapdev ((u_long)sc->ha_Base - poffs,
 	  psize + poffs);
 
-	if (sc->ha_Virt == (i2oRegs_t *)NULL) {
+	if (sc->ha_Virt == NULL) {
 		return (0);
 	}
 
@@ -2728,7 +2718,7 @@ asr_pci_map_mem (
 		poffs = p - trunc_page (p);
 		sc->ha_Fvirt = (U8 *)pmap_mapdev (p - poffs, psize + poffs);
 
-		if (sc->ha_Fvirt == (U8 *)NULL) {
+		if (sc->ha_Fvirt == NULL) {
 			return (0);
 		}
 
@@ -2758,7 +2748,7 @@ asr_pci_map_int (
 
 	sc->ha_irq_res = bus_alloc_resource_any(tag, SYS_RES_IRQ, &rid,
 	  RF_ACTIVE | RF_SHAREABLE);
-	if (sc->ha_irq_res == (struct resource *)NULL) {
+	if (sc->ha_irq_res == NULL) {
 		return (0);
 	}
 	if (bus_setup_intr(tag, sc->ha_irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
@@ -2786,12 +2776,10 @@ asr_attach (ATTACH_ARGS)
 	struct scsi_inquiry_data * iq;
 	ATTACH_SET();
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) ==
-		(Asr_softc_t *)NULL)
-	{
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		ATTACH_RETURN(ENOMEM);
 	}
-	if (Asr_softc == (Asr_softc_t *)NULL) {
+	if (Asr_softc == NULL) {
 		/*
 		 *	Fixup the OS revision as saved in the dptsig for the
 		 *	engine (dptioctl.h) to pick up.
@@ -2869,8 +2857,7 @@ asr_attach (ATTACH_ARGS)
 		/* Check if the device is there? */
 		if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0)
 		 || ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc (
-		  sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK))
-		  == (PI2O_EXEC_STATUS_GET_REPLY)NULL)
+		  sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL)
 		 || (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
 			printf ("asr%d: could not initialize hardware\n", unit);
 			ATTACH_RETURN(ENODEV);	/* Get next, maybe better luck */
@@ -2936,8 +2923,7 @@ asr_attach (ATTACH_ARGS)
 		if ((Info = (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)
 		  ASR_getParams(sc, 0,
 		    I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO,
-		    Buffer, sizeof(struct BufferInfo)))
-		!= (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)NULL) {
+		    Buffer, sizeof(struct BufferInfo))) != NULL) {
 			sc->ha_blinkLED = sc->ha_Fvirt
 			  + I2O_DPT_EXEC_IOP_BUFFERS_SCALAR_getSerialOutputOffset(Info)
 			  + FW_DEBUG_BLED_OFFSET;
@@ -2989,7 +2975,7 @@ asr_attach (ATTACH_ARGS)
 
 	if ((iq = (struct scsi_inquiry_data *)malloc (
 	    sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO))
-	  != (struct scsi_inquiry_data *)NULL) {
+	  != NULL) {
 		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
 		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
 		int					      posted = 0;
@@ -3076,7 +3062,7 @@ asr_attach (ATTACH_ARGS)
 		int		bus;
 		union asr_ccb * ccb;
 
-		if ((ccb = asr_alloc_ccb (sc)) == (union asr_ccb *)NULL) {
+		if ((ccb = asr_alloc_ccb (sc)) == NULL) {
 			printf ("asr%d: CAM could not be notified of asynchronous callback parameters\n", unit);
 			ATTACH_RETURN(ENOMEM);
 		}
@@ -3198,7 +3184,7 @@ asr_action(
 		debug_asr_cmd_dump_ccb(ccb);
 
 		if ((Message_Ptr = ASR_init_message ((union asr_ccb *)ccb,
-		  (PI2O_MESSAGE_FRAME)Message)) != (PI2O_MESSAGE_FRAME)NULL) {
+		  (PI2O_MESSAGE_FRAME)Message)) != NULL) {
 			debug_asr_cmd2_printf ("TID=%x:\n",
 			  PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_getTID(
 			    (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr));
@@ -3501,7 +3487,7 @@ asr_intr (
 		 * and a generic handler for immunity against odd error
 		 * returns from the adapter.
 		 */
-		if (ccb == (union asr_ccb *)NULL) {
+		if (ccb == NULL) {
 			/*
 			 * Return Reply so that it can be used for the
 			 * next command
@@ -3825,7 +3811,7 @@ asr_open(
 	UNREFERENCED_PARAMETER(flags);
 	UNREFERENCED_PARAMETER(ifmt);
 
-	if (ASR_get_sc (dev) == (Asr_softc_t *)NULL) {
+	if (ASR_get_sc (dev) == NULL) {
 		return (ENODEV);
 	}
 	s = splcam ();
@@ -3898,8 +3884,7 @@ ASR_queue_i(
 	}
 	/* Copy in the message into a local allocation */
 	if ((Message_Ptr = (PI2O_MESSAGE_FRAME)malloc (
-	  sizeof(I2O_MESSAGE_FRAME), M_TEMP, M_WAITOK))
-	 == (PI2O_MESSAGE_FRAME)NULL) {
+	  sizeof(I2O_MESSAGE_FRAME), M_TEMP, M_WAITOK)) == NULL) {
 		debug_usr_cmd_printf (
 		  "Failed to acquire I2O_MESSAGE_FRAME memory\n");
 		return (ENOMEM);
@@ -3934,8 +3919,7 @@ ASR_queue_i(
 	case I2O_EXEC_STATUS_GET:
 	{	I2O_EXEC_STATUS_GET_REPLY status;
 
-		if (ASR_getStatus (sc->ha_Virt, sc->ha_Fvirt, &status)
-		  == (PI2O_EXEC_STATUS_GET_REPLY)NULL) {
+		if (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, &status) == NULL) {
 			debug_usr_cmd_printf ("getStatus failed\n");
 			return (ENXIO);
 		}
@@ -3965,7 +3949,7 @@ ASR_queue_i(
 	}
 
 	if ((Message_Ptr = (PI2O_MESSAGE_FRAME)malloc (MessageSizeInBytes,
-	  M_TEMP, M_WAITOK)) == (PI2O_MESSAGE_FRAME)NULL) {
+	  M_TEMP, M_WAITOK)) == NULL) {
 		debug_usr_cmd_printf ("Failed to acquire frame[%d] memory\n",
 		  MessageSizeInBytes);
 		return (ENOMEM);
@@ -3981,8 +3965,7 @@ ASR_queue_i(
 	/* Check the size of the reply frame, and start constructing */
 
 	if ((Reply_Ptr = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)malloc (
-	  sizeof(I2O_MESSAGE_FRAME), M_TEMP, M_WAITOK))
-	  == (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)NULL) {
+	  sizeof(I2O_MESSAGE_FRAME), M_TEMP, M_WAITOK)) == NULL) {
 		free (Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf (
 		  "Failed to acquire I2O_MESSAGE_FRAME memory\n");
@@ -4010,9 +3993,8 @@ ASR_queue_i(
 
 	if ((Reply_Ptr = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)malloc (
 	  ((ReplySizeInBytes > sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME))
-	    ? ReplySizeInBytes
-	    : sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)),
-	  M_TEMP, M_WAITOK)) == (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)NULL) {
+	    ? ReplySizeInBytes : sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)),
+	  M_TEMP, M_WAITOK)) == NULL) {
 		free (Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf ("Failed to acquire frame[%d] memory\n",
 		  ReplySizeInBytes);
@@ -4081,8 +4063,7 @@ ASR_queue_i(
 
 			if ((elm = (struct ioctlSgList_S *)malloc (
 			  sizeof(*elm) - sizeof(elm->KernelSpace) + len,
-			  M_TEMP, M_WAITOK))
-			  == (struct ioctlSgList_S *)NULL) {
+			  M_TEMP, M_WAITOK)) == NULL) {
 				debug_usr_cmd_printf (
 				  "Failed to allocate SG[%d]\n", len);
 				error = ENOMEM;
@@ -4170,8 +4151,7 @@ ASR_queue_i(
 					if ((NewMessage_Ptr
 					  = (PI2O_MESSAGE_FRAME)
 					    malloc (MessageSizeInBytes,
-					     M_TEMP, M_WAITOK))
-					    == (PI2O_MESSAGE_FRAME)NULL) {
+					     M_TEMP, M_WAITOK)) == NULL) {
 						debug_usr_cmd_printf (
 						  "Failed to acquire frame[%d] memory\n",
 						  MessageSizeInBytes);
@@ -4199,8 +4179,7 @@ ASR_queue_i(
 			++sg;
 		}
 		if (error) {
-			while ((elm = SLIST_FIRST(&sgList))
-			  != (struct ioctlSgList_S *)NULL) {
+			while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 				SLIST_REMOVE_HEAD(&sgList, link);
 				free (elm, M_TEMP);
 			}
@@ -4214,10 +4193,9 @@ ASR_queue_i(
 	debug_usr_cmd_dump_message(Message_Ptr);
 
 	/* Send the command */
-	if ((ccb = asr_alloc_ccb (sc)) == (union asr_ccb *)NULL) {
+	if ((ccb = asr_alloc_ccb (sc)) == NULL) {
 		/* Free up in-kernel buffers */
-		while ((elm = SLIST_FIRST(&sgList))
-		  != (struct ioctlSgList_S *)NULL) {
+		while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 			SLIST_REMOVE_HEAD(&sgList, link);
 			free (elm, M_TEMP);
 		}
@@ -4253,8 +4231,7 @@ ASR_queue_i(
 			}
 			splx(s);
 			/* Free up in-kernel buffers */
-			while ((elm = SLIST_FIRST(&sgList))
-			  != (struct ioctlSgList_S *)NULL) {
+			while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 				SLIST_REMOVE_HEAD(&sgList, link);
 				free (elm, M_TEMP);
 			}
@@ -4297,7 +4274,7 @@ ASR_queue_i(
 	}
 
 	/* Free up in-kernel buffers */
-	while ((elm = SLIST_FIRST(&sgList)) != (struct ioctlSgList_S *)NULL) {
+	while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 		/* Copy out as necessary */
 		if ((error == 0)
 		/* DIR bit considered `valid', error due to ignorance works */
@@ -4350,7 +4327,7 @@ asr_ioctl(
 	UNREFERENCED_PARAMETER(flag);
 	UNREFERENCED_PARAMETER(td);
 
-	if (sc != (Asr_softc_t *)NULL)
+	if (sc != NULL)
 	switch(cmd) {
 
 	case DPT_SIGNATURE:
