@@ -450,17 +450,16 @@ main(int argc, char **argv)
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
 			if (!selected[i])
 				continue;
-
 			if (bestidx == -1) {
 				/* The first entry of the list which matched. */
 				;
 			} else if (timercmp(&kp->ki_start, &best_tval, >)) {
 				/* This entry is newer than previous "best". */
-				if (oldest)     /* but we want the oldest */
+				if (oldest)	/* but we want the oldest */
 					continue;
 			} else {
 				/* This entry is older than previous "best". */
-				if (newest)     /* but we want the newest */
+				if (newest)	/* but we want the newest */
 					continue;
 			}
 			/* This entry is better than previous "best" entry. */
@@ -637,11 +636,11 @@ takepid(const char *pidfile)
 	char *endp, line[BUFSIZ];
 	FILE *fh;
 	long rval;
- 
+
 	fh = fopen(pidfile, "r");
 	if (fh == NULL)
 		err(STATUS_ERROR, "can't open pid file `%s'", pidfile);
- 
+
 	if (fgets(line, sizeof(line), fh) == NULL) {
 		if (feof(fh)) {
 			(void)fclose(fh);
@@ -651,7 +650,7 @@ takepid(const char *pidfile)
 		err(STATUS_ERROR, "can't read from pid file `%s'", pidfile);
 	}
 	(void)fclose(fh);
- 
+
 	rval = strtol(line, &endp, 10);
 	if (*endp != '\0' && !isspace((unsigned char)*endp))
 		errx(STATUS_ERROR, "invalid pid in file `%s'", pidfile);
