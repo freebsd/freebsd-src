@@ -186,7 +186,13 @@ _thread_init(void)
 		/* Initialize the thread stack cache: */
 		SLIST_INIT(&_stackq);
 
-		/* Create the red zone for the main stack. */
+		/*
+		 * Create a red zone below the main stack.  All other stacks are
+		 * constrained to a maximum size by the paramters passed to
+		 * mmap(), but this stack is only limited by resource limits, so
+		 * this stack needs an explicitly mapped red zone to protect the
+		 * thread stack that is just beyond.
+		 */
 		if (mmap((void *) USRSTACK - PTHREAD_STACK_INITIAL -
 		    PTHREAD_STACK_GUARD, PTHREAD_STACK_GUARD, 0, MAP_ANON,
 		    -1, 0) == MAP_FAILED)
