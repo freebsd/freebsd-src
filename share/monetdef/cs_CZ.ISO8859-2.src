@@ -22,15 +22,15 @@ Kè
 # frac_digits
 2
 # p_cs_precedes
-1
+0
 # p_sep_by_space
-2
-# n_cs_precedes
 1
+# n_cs_precedes
+0
 # n_sep_by_space
-2
+1
 # p_sign_posn
-4
+1
 # n_sign_posn
-4
+1
 # EOF
