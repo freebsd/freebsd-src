@@ -212,7 +212,8 @@ ubsec_probe(device_t dev)
 	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5820 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
-	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822))
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823))
 		return (0);
 	return (ENXIO);
 }
@@ -228,6 +229,7 @@ ubsec_partname(struct ubsec_softc *sc)
 		case PCI_PRODUCT_BROADCOM_5820:	return "Broadcom 5820";
 		case PCI_PRODUCT_BROADCOM_5821:	return "Broadcom 5821";
 		case PCI_PRODUCT_BROADCOM_5822:	return "Broadcom 5822";
+		case PCI_PRODUCT_BROADCOM_5823:	return "Broadcom 5823";
 		}
 		return "Broadcom unknown-part";
 	case PCI_VENDOR_BLUESTEEL:
@@ -276,7 +278,8 @@ ubsec_attach(device_t dev)
 
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
 	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
-	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822)) {
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823)) {
 		/* NB: the 5821/5822 defines some additional status bits */
 		sc->sc_statmask |= BS_STAT_MCR1_ALLEMPTY |
 		    BS_STAT_MCR2_ALLEMPTY;
