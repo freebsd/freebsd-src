@@ -38,15 +38,13 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static const char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
@@ -60,11 +58,11 @@ int	dflag;
 int	fflag;
 int	sflag;
 
-void	c_cut __P((FILE *, char *));
-void	f_cut __P((FILE *, char *));
-void	get_list __P((char *));
-int	main __P((int, char **));
-static 	void usage __P((void));
+void	c_cut (FILE *, const char *);
+void	f_cut (FILE *, const char *);
+void	get_list (char *);
+int	main (int, char **);
+static 	void usage (void);
 
 int
 main(argc, argv)
@@ -72,7 +70,7 @@ main(argc, argv)
 	char *argv[];
 {
 	FILE *fp;
-	void (*fcn) __P((FILE *, char *)) = NULL;
+	void (*fcn) (FILE *, const char *) = NULL;
 	int ch;
 
 	fcn = NULL;
@@ -129,7 +127,7 @@ main(argc, argv)
 	exit(0);
 }
 
-int autostart, autostop, maxval;
+size_t autostart, autostop, maxval;
 
 char positions[_POSIX2_LINE_MAX + 1];
 
@@ -137,7 +135,7 @@ void
 get_list(list)
 	char *list;
 {
-	int setautostart, start, stop;
+	size_t setautostart, start, stop;
 	char *pos;
 	char *p;
 
@@ -194,10 +192,11 @@ get_list(list)
 void
 c_cut(fp, fname)
 	FILE *fp;
-	char *fname;
+	const char *fname;
 {
 	int ch, col;
 	char *pos;
+	fname = NULL;
 
 	ch = 0;
 	for (;;) {
@@ -224,7 +223,7 @@ c_cut(fp, fname)
 void
 f_cut(fp, fname)
 	FILE *fp;
-	char *fname;
+	const char *fname;
 {
 	int ch, field, isdelim;
 	char *pos, *p, sep;
