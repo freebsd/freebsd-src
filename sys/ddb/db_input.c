@@ -189,16 +189,17 @@ db_inputchar(c)
 		if (db_lc > db_lbuf_start)
 		    db_delete(1, DEL_BWD);
 		break;
-	    case CTRL('u'):
-		/* delete to beginning of line */
-		if (db_lc > db_lbuf_start)
-		    db_delete(db_lc - db_lbuf_start, DEL_BWD);
-		break;
 	    case CTRL('d'):
 		/* erase next character */
 		if (db_lc < db_le)
 		    db_delete(1, DEL_FWD);
 		break;
+	    case CTRL('u'):
+		/* kill entire line: */
+		/* at first, delete to beginning of line */
+		if (db_lc > db_lbuf_start)
+		    db_delete(db_lc - db_lbuf_start, DEL_BWD);
+		/* FALLTHROUGH */
 	    case CTRL('k'):
 		/* delete to end of line */
 		if (db_lc < db_le)
