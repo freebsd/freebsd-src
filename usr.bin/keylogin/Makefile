@@ -1,10 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$Id$
 
 PROG=	keylogin
-SRCS=	keylogin.c
 
-MAN1=	keylogin.1
-
-LDADD+= -lrpcsvc
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
 
 .include <bsd.prog.mk>
