@@ -97,9 +97,10 @@
  * [See below for descriptions]
  *
  */
-void	mtx_sysinit(void *arg);
 void	mtx_init(struct mtx *m, const char *description, int opts);
 void	mtx_destroy(struct mtx *m);
+void	mtx_sysinit(void *arg);
+void	mutex_init(void);
 void	_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line);
