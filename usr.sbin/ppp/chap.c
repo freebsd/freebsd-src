@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.22 1998/04/06 09:12:24 brian Exp $
+ * $Id: chap.c,v 1.28.2.23 1998/04/07 00:53:25 brian Exp $
  *
  *	TODO:
  */
@@ -228,7 +228,8 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
        */
       if (memcmp(cp, cdigest, 16) == 0) {
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
-        Physical_Login(physical, name);
+        if (Enabled(bundle, OPT_UTMP))
+          Physical_Login(physical, name);
 
         if (physical->link.lcp.auth_iwait == 0)
           /*

@@ -17,13 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.26 1998/04/06 09:12:27 brian Exp $
+ * $Id: fsm.c,v 1.27.2.27 1998/04/07 00:53:41 brian Exp $
  *
  *  TODO:
- *		o Refer loglevel for log output
- *		o Better option log display
  */
+
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <string.h>
 #include <termios.h>
@@ -33,17 +35,22 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "lcpproto.h"
+#include "throughput.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "descriptor.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "vars.h"
-#include "throughput.h"
-#include "async.h"
 #include "link.h"
-#include "descriptor.h"
+#include "mp.h"
+#include "bundle.h"
+#include "async.h"
 #include "physical.h"
+#include "lcpproto.h"
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);
@@ -885,7 +892,8 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
   bp->cnt -= sizeof(struct fsmheader);
 
   codep = FsmCodes + lhp->code - 1;
-  if (lhp->id != fp->reqid && codep->check_reqid && Enabled(ConfIdCheck)) {
+  if (lhp->id != fp->reqid && codep->check_reqid &&
+      Enabled(fp->bundle, OPT_IDCHECK)) {
     LogPrintf(fp->LogLevel, "Recv%s(%d), dropped (expected %d)\n",
 	      codep->name, lhp->id, fp->reqid);
     return;
@@ -898,10 +906,10 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
     LogMemory();
 
   if (codep->inc_reqid && (lhp->id == fp->reqid ||
-                           (!Enabled(ConfIdCheck) && codep->check_reqid)))
+      (!Enabled(fp->bundle, OPT_IDCHECK) && codep->check_reqid)))
     fp->reqid++;	/* That's the end of that ``exchange''.... */
 
-  (codep->recv)(fp, lhp, bp);
+  (*codep->recv)(fp, lhp, bp);
 
   if (LogIsKept(LogDEBUG))
     LogMemory();

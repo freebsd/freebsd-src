@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.21 1998/04/07 00:54:01 brian Exp $
+ * $Id: lqr.c,v 1.22.2.22 1998/04/14 07:25:37 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -27,9 +27,6 @@
  */
 
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <string.h>
 #include <termios.h>
@@ -49,17 +46,11 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
 #include "mp.h"
-#include "bundle.h"
-#include "vars.h"
 #include "chat.h"
 #include "auth.h"
 #include "chap.h"
-#include "pap.h"
+#include "command.h"
 #include "datalink.h"
 
 struct echolqr {
@@ -172,7 +163,8 @@ LqrInput(struct physical *physical, struct mbuf *bp)
   if (len != sizeof(struct lqrdata))
     LogPrintf(LogERROR, "LqrInput: Got packet size %d, expecting %d !\n",
               len, sizeof(struct lqrdata));
-  else if (!Acceptable(ConfLqr) && !(physical->hdlc.lqm.method & LQM_LQR)) {
+  else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
+           !(physical->hdlc.lqm.method & LQM_LQR)) {
     bp->offset -= 2;
     bp->cnt += 2;
     lcp_SendProtoRej(physical->hdlc.lqm.owner, MBUF_CTOP(bp), bp->cnt);
@@ -229,7 +221,7 @@ StartLqm(struct lcp *lcp)
          sizeof physical->hdlc.lqm.lqr.peer);
 
   physical->hdlc.lqm.method = LQM_ECHO;
-  if (Enabled(ConfLqr) && !REJECTED(lcp, TY_QUALPROTO))
+  if (IsEnabled(physical->link.lcp.cfg.lqr) && !REJECTED(lcp, TY_QUALPROTO))
     physical->hdlc.lqm.method |= LQM_LQR;
   StopTimer(&physical->hdlc.lqm.timer);
 

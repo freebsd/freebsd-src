@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.9 1998/04/07 00:53:34 brian Exp $
+ * $Id: command.h,v 1.12.2.10 1998/04/14 23:17:03 brian Exp $
  *
  *	TODO:
  */
@@ -46,26 +46,10 @@ struct cmdtab {
   const void *args;
 };
 
-#define	VAR_AUTHKEY	0
-#define	VAR_DIAL	1
-#define	VAR_LOGIN	2
-#define	VAR_AUTHNAME	3
-#define	VAR_WINSIZE	4
-#define	VAR_DEVICE	5
-#define	VAR_ACCMAP	6
-#define	VAR_MRU		7
-#define	VAR_MTU		8
-#define	VAR_OPENMODE	9
-#define	VAR_PHONE	10
-#define	VAR_HANGUP	11
-#define	VAR_ENC		12
-#define	VAR_IDLETIMEOUT	13
-#define	VAR_LQRPERIOD	14
-#define	VAR_LCPRETRY	15
-#define	VAR_CHAPRETRY	16
-#define	VAR_PAPRETRY	17
-#define	VAR_CCPRETRY	18
-#define	VAR_IPCPRETRY	19
+#define NEG_ACCEPTED (1)
+#define NEG_ENABLED (2)
+#define IsAccepted(x) ((x) & NEG_ACCEPTED)
+#define IsEnabled(x) ((x) & NEG_ENABLED)
 
 extern int IsInteractive(struct prompt *);
 extern void InterpretCommand(char *, int, int *, char ***);
@@ -74,3 +58,4 @@ extern void RunCommand(struct bundle *, int, char const *const *,
 extern void DecodeCommand(struct bundle *, char *, int, struct prompt *,
                           const char *);
 extern struct link *ChooseLink(struct cmdargs const *);
+const char *command_ShowNegval(unsigned);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.59 1998/04/11 21:50:44 brian Exp $
+ * $Id: command.c,v 1.131.2.60 1998/04/14 23:17:01 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -62,7 +62,6 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "systems.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -81,6 +80,43 @@
 #include "chap.h"
 #include "datalink.h"
 
+/* ``set'' values */
+#define	VAR_AUTHKEY	0
+#define	VAR_DIAL	1
+#define	VAR_LOGIN	2
+#define	VAR_AUTHNAME	3
+#define	VAR_WINSIZE	4
+#define	VAR_DEVICE	5
+#define	VAR_ACCMAP	6
+#define	VAR_MRU		7
+#define	VAR_MTU		8
+#define	VAR_OPENMODE	9
+#define	VAR_PHONE	10
+#define	VAR_HANGUP	11
+#define	VAR_ENC		12
+#define	VAR_IDLETIMEOUT	13
+#define	VAR_LQRPERIOD	14
+#define	VAR_LCPRETRY	15
+#define	VAR_CHAPRETRY	16
+#define	VAR_PAPRETRY	17
+#define	VAR_CCPRETRY	18
+#define	VAR_IPCPRETRY	19
+
+/* ``accept|deny|disable|enable'' masks */
+#define NEG_HISMASK (1)
+#define NEG_MYMASK (2)
+
+/* ``accept|deny|disable|enable'' values */
+#define NEG_ACFCOMP	40
+#define NEG_CHAP	41
+#define NEG_DEFLATE	42
+#define NEG_LQR		43
+#define NEG_PAP		44
+#define NEG_PPPDDEFLATE	45
+#define NEG_PRED1	46
+#define NEG_PROTOCOMP	47
+#define NEG_VJCOMP	48
+
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
 static int QuitCommand(struct cmdargs const *);
@@ -91,6 +127,7 @@ static int SetCommand(struct cmdargs const *);
 static int LinkCommand(struct cmdargs const *);
 static int AddCommand(struct cmdargs const *);
 static int DeleteCommand(struct cmdargs const *);
+static int NegotiateCommand(struct cmdargs const *);
 #ifndef NOALIAS
 static int AliasCommand(struct cmdargs const *);
 static int AliasEnable(struct cmdargs const *);
@@ -351,7 +388,7 @@ FgShellCommand(struct cmdargs const *arg)
 }
 
 static struct cmdtab const Commands[] = {
-  {"accept", NULL, AcceptCommand, LOCAL_AUTH,
+  {"accept", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "accept option request", "accept option .."},
   {"add", NULL, AddCommand, LOCAL_AUTH,
   "add route", "add dest mask gateway", NULL},
@@ -373,17 +410,15 @@ static struct cmdtab const Commands[] = {
   "delete route", "delete dest", NULL},
   {NULL, "delete!", DeleteCommand, LOCAL_AUTH,
   "delete a route if it exists", "delete! dest", (void *)1},
-  {"deny", NULL, DenyCommand, LOCAL_AUTH,
+  {"deny", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Deny option request", "deny option .."},
   {"dial", "call", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Dial and login", "dial|call [remote]"},
-  {"disable", NULL, DisableCommand, LOCAL_AUTH,
+  {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
-  {"display", NULL, DisplayCommand, LOCAL_AUTH,
-  "Display option configs", "display"},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX,
   "Generate a down event", "down"},
-  {"enable", NULL, EnableCommand, LOCAL_AUTH,
+  {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
@@ -462,7 +497,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/11 21:50:44 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/14 23:17:01 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1554,4 +1589,220 @@ ChooseLink(struct cmdargs const *arg)
     struct datalink *dl = bundle2datalink(arg->bundle, NULL);
     return dl ? &dl->physical->link : NULL;
   }
+}
+
+static const char *
+ident_cmd(const char *cmd, unsigned *keep, unsigned *add)
+{
+  const char *result;
+
+  switch (*cmd) {
+    case 'A':
+    case 'a':
+      result = "accept";
+      *keep = NEG_MYMASK;
+      *add = NEG_ACCEPTED;
+      break;
+    case 'D':
+    case 'd':
+      switch (cmd[1]) {
+        case 'E':
+        case 'e':
+          result = "deny";
+          *keep = NEG_MYMASK;
+          *add = 0;
+          break;
+        case 'I':
+        case 'i':
+          result = "disable";
+          *keep = NEG_HISMASK;
+          *add = 0;
+          break;
+        default:
+          return NULL;
+      }
+      break;
+    case 'E':
+    case 'e':
+      result = "enable";
+      *keep = NEG_HISMASK;
+      *add = NEG_ENABLED;
+      break;
+    default:
+      return NULL;
+  }
+
+  return result;
+}
+
+static int
+OptSet(struct cmdargs const *arg)
+{
+  int bit = (int)arg->cmd->args;
+  const char *cmd;
+  unsigned keep;			/* Keep these bits */
+  unsigned add;				/* Add these bits */
+
+  if ((cmd = ident_cmd(arg->argv[arg->argn-2], &keep, &add)) == NULL)
+    return 1;
+
+  if (add)
+    arg->bundle->cfg.opt |= bit;
+  else
+    arg->bundle->cfg.opt &= ~bit;
+  return 0;
+}
+
+static int
+NegotiateSet(struct cmdargs const *arg)
+{
+  int param = (int)arg->cmd->args;
+  struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
+  struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
+  const char *cmd;
+  unsigned keep;			/* Keep these bits */
+  unsigned add;				/* Add these bits */
+
+  if ((cmd = ident_cmd(arg->argv[arg->argn-2], &keep, &add)) == NULL)
+    return 1;
+
+  if ((arg->cmd->lauth & LOCAL_CX) && !cx) {
+    LogPrintf(LogWARN, "%s %s: No context (use the `link' command)\n",
+              cmd, arg->cmd->name);
+    return 2;
+  } else if (cx && !(arg->cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
+    LogPrintf(LogWARN, "%s %s: Redundant context (%s) ignored\n",
+              cmd, arg->cmd->name, cx->name);
+    cx = NULL;
+  }
+
+  switch (param) {
+    case NEG_ACFCOMP:
+      cx->physical->link.lcp.cfg.acfcomp &= keep;
+      cx->physical->link.lcp.cfg.acfcomp |= add;
+      break;
+    case NEG_CHAP:
+      cx->physical->link.lcp.cfg.chap &= keep;
+      cx->physical->link.lcp.cfg.chap |= add;
+      break;
+    case NEG_DEFLATE:
+      l->ccp.cfg.neg[CCP_NEG_DEFLATE] &= keep;
+      l->ccp.cfg.neg[CCP_NEG_DEFLATE] |= add;
+      break;
+    case NEG_LQR:
+      cx->physical->link.lcp.cfg.lqr &= keep;
+      cx->physical->link.lcp.cfg.lqr |= add;
+      break;
+    case NEG_PAP:
+      cx->physical->link.lcp.cfg.pap &= keep;
+      cx->physical->link.lcp.cfg.pap |= add;
+      break;
+    case NEG_PPPDDEFLATE:
+      l->ccp.cfg.neg[CCP_NEG_DEFLATE24] &= keep;
+      l->ccp.cfg.neg[CCP_NEG_DEFLATE24] |= add;
+      break;
+    case NEG_PRED1:
+      l->ccp.cfg.neg[CCP_NEG_PRED1] &= keep;
+      l->ccp.cfg.neg[CCP_NEG_PRED1] |= add;
+      break;
+    case NEG_PROTOCOMP:
+      cx->physical->link.lcp.cfg.protocomp &= keep;
+      cx->physical->link.lcp.cfg.protocomp |= add;
+      break;
+    case NEG_VJCOMP:
+      arg->bundle->ncp.ipcp.cfg.vj.neg &= keep;
+      arg->bundle->ncp.ipcp.cfg.vj.neg |= add;
+      break;
+  }
+
+  return 0;
+}
+
+static struct cmdtab const NegotiateCommands[] = {
+  {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check reply FSM ids",
+  "disable|enable", (const void *)OPT_IDCHECK},
+  {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
+  "disable|enable", (const void *)OPT_LOOPBACK},
+  {"msext", NULL, OptSet, LOCAL_AUTH, "Send NS & NBNS values",
+  "disable|enable", (const void *)OPT_MSEXT},
+  {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
+  "disable|enable", (const void *)OPT_PASSWDAUTH},
+  {"proxy", NULL, OptSet, LOCAL_AUTH, "Create proxy ARP entry",
+  "disable|enable", (const void *)OPT_PROXY},
+  {"throughput", NULL, OptSet, LOCAL_AUTH, "Rolling throughput",
+  "disable|enable", (const void *)OPT_THROUGHPUT},
+  {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
+  "disable|enable", (const void *)OPT_UTMP},
+
+#define OPT_MAX 7	/* accept/deny allowed below and not above */
+
+  {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Address & Control field compression", "accept|deny|disable|enable",
+  (const void *)NEG_ACFCOMP},
+  {"chap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Challenge Handshake Authentication Protocol", "accept|deny|disable|enable",
+  (const void *)NEG_CHAP},
+  {"deflate", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Deflate compression", "accept|deny|disable|enable",
+  (const void *)NEG_DEFLATE},
+  {"lqr", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Link Quality Reports", "accept|deny|disable|enable",
+  (const void *)NEG_LQR},
+  {"pap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Password Authentication protocol", "accept|deny|disable|enable",
+  (const void *)NEG_PAP},
+  {"deflate24", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Deflate (type 24) compression", "accept|deny|disable|enable",
+  (const void *)NEG_PPPDDEFLATE},
+  {"pred1", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Predictor 1 compression", "accept|deny|disable|enable",
+  (const void *)NEG_PRED1},
+  {"protocomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Protocol field compression", "accept|deny|disable|enable",
+  (const void *)NEG_PROTOCOMP},
+  {"vjcomp", NULL, NegotiateSet, LOCAL_AUTH,
+  "Van Jacobson header compression", "accept|deny|disable|enable",
+  (const void *)NEG_VJCOMP},
+  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+  "Display this message", "accept|deny|disable|enable help|? [value]",
+  NegotiateCommands},
+  {NULL, NULL, NULL},
+};
+
+static int
+NegotiateCommand(struct cmdargs const *arg)
+{
+  if (arg->argc > arg->argn) {
+    char const *argv[3];
+    unsigned keep, add;
+    int n;
+
+    if ((argv[0] = ident_cmd(arg->argv[arg->argn-1], &keep, &add)) == NULL)
+      return -1;
+    argv[2] = NULL;
+
+    for (n = arg->argn; n < arg->argc; n++) {
+      argv[1] = arg->argv[n];
+      FindExec(arg->bundle, NegotiateCommands + (keep == NEG_HISMASK ?
+               0 : OPT_MAX), 2, 1, argv, arg->prompt, arg->cx);
+    }
+  } else if (arg->prompt)
+    prompt_Printf(arg->prompt, "Use `%s ?' to get a list or `%s ? <var>' for"
+	    " syntax help.\n", arg->argv[arg->argn], arg->argv[arg->argn] );
+  else
+    LogPrintf(LogWARN, "%s command must have arguments\n",
+              arg->argv[arg->argn] );
+
+  return 0;
+}
+
+const char *
+command_ShowNegval(unsigned val)
+{
+  switch (val&3) {
+    case 1: return "disabled & accepted";
+    case 2: return "enabled & denied";
+    case 3: return "enabled & accepted";
+  }
+  return "disabled & denied";
 }

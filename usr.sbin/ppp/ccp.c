@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.32 1998/04/06 09:12:23 brian Exp $
+ * $Id: ccp.c,v 1.30.2.33 1998/04/07 00:53:22 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -40,7 +40,6 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "vars.h"
 #include "pred.h"
 #include "deflate.h"
 #include "throughput.h"
@@ -100,7 +99,7 @@ static char const *cftypes[] = {
   "???",
   "LZS-DCP",		/* 23: LZS-DCP Compression Protocol (rfc1967) */
   "MAGNALINK/DEFLATE",	/* 24: Magnalink Variable Resource (rfc1975) */
-			/* 24: Deflate (according to pppd-2.3.1) */
+			/* 24: Deflate (according to pppd-2.3.*) */
   "DCE",		/* 25: Data Circuit-Terminating Equip (rfc1976) */
   "DEFLATE",		/* 26: Deflate (rfc1979) */
 };
@@ -139,10 +138,16 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 ccp->compin, ccp->uncompin);
 
   prompt_Printf(arg->prompt, "\n Defaults: ");
-  prompt_Printf(arg->prompt, "deflate windows: ");
+  prompt_Printf(arg->prompt, "FSM retry = %us\n", ccp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "           deflate windows: ");
   prompt_Printf(arg->prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
   prompt_Printf(arg->prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
-  prompt_Printf(arg->prompt, "           FSM retry = %us\n", ccp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "           DEFLATE:    %s\n",
+                command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE]));
+  prompt_Printf(arg->prompt, "           PREDICTOR1: %s\n",
+                command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
+  prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
+                command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
   return 0;
 }
 
@@ -160,6 +165,9 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.deflate.in.winsize = 0;
   ccp->cfg.deflate.out.winsize = 15;
   ccp->cfg.fsmretry = DEF_FSMRETRY;
+  ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
+  ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
+  ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
 
   ccp_Setup(ccp);
 }
@@ -206,7 +214,8 @@ CcpSendConfigReq(struct fsm *fp)
   ccp->my_proto = -1;
   ccp->out.algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
-    if (Enabled(algorithm[f]->Conf) && !REJECTED(ccp, algorithm[f]->id)) {
+    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
+        !REJECTED(ccp, algorithm[f]->id)) {
       if (alloc) {
         *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
         (*o)->val.id = algorithm[f]->id;
@@ -385,7 +394,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(algorithm[f]->Conf) && ccp->in.algorithm == -1) {
+	if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
+            ccp->in.algorithm == -1) {
 	  memcpy(&ccp->in.opt, cp, length);
           switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
           case MODE_REJ:
@@ -435,22 +445,23 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     cp += cp[1];
   }
 
-  if (mode_type != MODE_NOP && dec->rejend != dec->rej) {
-    /* rejects are preferred */
-    dec->ackend = dec->ack;
-    dec->nakend = dec->nak;
-    if (ccp->in.state == NULL) {
-      ccp->his_proto = -1;
-      ccp->in.algorithm = -1;
+  if (mode_type != MODE_NOP)
+    if (dec->rejend != dec->rej) {
+      /* rejects are preferred */
+      dec->ackend = dec->ack;
+      dec->nakend = dec->nak;
+      if (ccp->in.state == NULL) {
+        ccp->his_proto = -1;
+        ccp->in.algorithm = -1;
+      }
+    } else if (dec->nakend != dec->nak) {
+      /* then NAKs */
+      dec->ackend = dec->ack;
+      if (ccp->in.state == NULL) {
+        ccp->his_proto = -1;
+        ccp->in.algorithm = -1;
+      }
     }
-  } else if (mode_type != MODE_NOP && dec->nakend != dec->nak) {
-    /* then NAKs */
-    dec->ackend = dec->ack;
-    if (ccp->in.state == NULL) {
-      ccp->his_proto = -1;
-      ccp->in.algorithm = -1;
-    }
-  }
 }
 
 void

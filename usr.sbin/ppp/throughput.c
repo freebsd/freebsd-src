@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.5 1998/04/07 00:54:21 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.6 1998/04/10 13:19:23 brian Exp $
  */
 
 #include <sys/types.h>
@@ -35,7 +35,6 @@
 #include "log.h"
 #include "timer.h"
 #include "throughput.h"
-#include "vars.h"
 #include "descriptor.h"
 #include "prompt.h"
 
@@ -50,6 +49,7 @@ throughput_init(struct pppThroughput *t)
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
   t->Timer.name = "throughput";
   t->uptime = 0;
+  t->rolling = 0;
   throughput_stop(t);
 }
 
@@ -64,7 +64,7 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
     secs_up = 1;
   prompt_Printf(prompt, "%ld octets in, %ld octets out\n",
                 t->OctetsIn, t->OctetsOut);
-  if (Enabled(ConfThroughput)) {
+  if (t->rolling) {
     prompt_Printf(prompt, "  overall   %5ld bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
     prompt_Printf(prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
@@ -91,7 +91,7 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
                 secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
-    if (Enabled(ConfThroughput))
+    if (t->rolling)
       LogPrintf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond);
     else
@@ -121,11 +121,12 @@ throughput_sampler(void *v)
 }
 
 void
-throughput_start(struct pppThroughput *t, const char *name)
+throughput_start(struct pppThroughput *t, const char *name, int rolling)
 {
   throughput_init(t);
+  t->rolling = rolling ? 1 : 0;
   time(&t->uptime);
-  if (Enabled(ConfThroughput)) {
+  if (t->rolling) {
     t->Timer.state = TIMER_STOPPED;
     t->Timer.load = SECTICKS;
     t->Timer.func = throughput_sampler;
@@ -138,7 +139,7 @@ throughput_start(struct pppThroughput *t, const char *name)
 void
 throughput_stop(struct pppThroughput *t)
 {
-  if (Enabled(ConfThroughput))
+  if (t->rolling)
     StopTimer(&t->Timer);
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.40 1998/04/06 09:12:30 brian Exp $
+ * $Id: lcp.c,v 1.55.2.41 1998/04/07 00:53:55 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -42,7 +42,6 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "ccp.h"
-#include "vars.h"
 #include "async.h"
 #include "link.h"
 #include "physical.h"
@@ -146,6 +145,18 @@ lcp_ReportStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " (delay %ds)", lcp->cfg.openmode);
   prompt_Printf(arg->prompt, "\n           FSM retry = %us\n",
                 lcp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "\n Negotiation:\n");
+  prompt_Printf(arg->prompt, "           ACFCOMP =   %s\n",
+                command_ShowNegval(lcp->cfg.acfcomp));
+  prompt_Printf(arg->prompt, "           CHAP =      %s\n",
+                command_ShowNegval(lcp->cfg.chap));
+  prompt_Printf(arg->prompt, "           LQR =       %s\n",
+                command_ShowNegval(lcp->cfg.lqr));
+  prompt_Printf(arg->prompt, "           PAP =       %s\n",
+                command_ShowNegval(lcp->cfg.pap));
+  prompt_Printf(arg->prompt, "           PROTOCOMP = %s\n",
+                command_ShowNegval(lcp->cfg.protocomp));
+
   return 0;
 }
 
@@ -176,6 +187,12 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
   lcp->cfg.lqrperiod = DEF_LQRPERIOD;
   lcp->cfg.fsmretry = DEF_FSMRETRY;
 
+  lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
+  lcp->cfg.chap = NEG_ACCEPTED;
+  lcp->cfg.lqr = NEG_ACCEPTED;
+  lcp->cfg.pap = NEG_ACCEPTED;
+  lcp->cfg.protocomp = NEG_ENABLED|NEG_ACCEPTED;
+
   lcp_Setup(lcp, lcp->cfg.openmode);
 }
 
@@ -192,17 +209,18 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_auth = 0;
 
   lcp->want_mru = lcp->cfg.mru;
-  lcp->want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
+  lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
 
   if (lcp->fsm.parent) {
     lcp->his_accmap = 0xffffffff;
     lcp->want_accmap = lcp->cfg.accmap;
     lcp->his_protocomp = 0;
-    lcp->want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
+    lcp->want_protocomp = IsEnabled(lcp->cfg.protocomp) ? 1 : 0;
     lcp->want_magic = GenerateMagic();
-    lcp->want_auth = Enabled(ConfChap) ? PROTO_CHAP :
-                     Enabled(ConfPap) ?  PROTO_PAP : 0;
-    lcp->want_lqrperiod = Enabled(ConfLqr) ?  lcp->cfg.lqrperiod * 100 : 0;
+    lcp->want_auth = IsEnabled(lcp->cfg.chap) ? PROTO_CHAP :
+                     IsEnabled(lcp->cfg.pap) ?  PROTO_PAP : 0;
+    lcp->want_lqrperiod = IsEnabled(lcp->cfg.lqr) ?
+                          lcp->cfg.lqrperiod * 100 : 0;
   } else {
     lcp->his_accmap = lcp->want_accmap = 0;
     lcp->his_protocomp = lcp->want_protocomp = 1;
@@ -445,11 +463,11 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    LogPrintf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
-	  if (Acceptable(ConfPap)) {
+	  if (IsAccepted(lcp->cfg.pap)) {
 	    lcp->his_auth = proto;
 	    memcpy(dec->ackend, cp, length);
 	    dec->ackend += length;
-	  } else if (Acceptable(ConfChap)) {
+	  } else if (IsAccepted(lcp->cfg.chap)) {
 	    *dec->nakend++ = *cp;
 	    *dec->nakend++ = 5;
 	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
@@ -465,9 +483,9 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    goto reqreject;
 	  }
 #ifdef HAVE_DES
-          if (Acceptable(ConfChap) && (cp[4] == 5 || cp[4] == 0x80))
+          if (IsAccepted(lcp->cfg.chap) && (cp[4] == 0x05 || cp[4] == 0x80))
 #else
-          if (Acceptable(ConfChap) && cp[4] == 5)
+          if (IsAccepted(lcp->cfg.chap) && cp[4] == 0x05)
 #endif
 	  {
 	    lcp->his_auth = proto;
@@ -476,7 +494,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 #ifdef HAVE_DES
             link2physical(fp->link)->dl->chap.using_MSChap = cp[4] == 0x80;
 #endif
-	  } else if (Acceptable(ConfPap)) {
+	  } else if (IsAccepted(lcp->cfg.pap)) {
 	    *dec->nakend++ = *cp;
 	    *dec->nakend++ = 4;
 	    *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
@@ -496,7 +514,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       case MODE_NAK:
 	switch (proto) {
 	case PROTO_PAP:
-          if (Enabled(ConfPap))
+          if (IsEnabled(lcp->cfg.pap))
             lcp->want_auth = PROTO_PAP;
           else {
             LogPrintf(LogLCP, "Peer will only send PAP (not enabled)\n");
@@ -504,7 +522,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           }
           break;
 	case PROTO_CHAP:
-          if (Enabled(ConfChap))
+          if (IsEnabled(lcp->cfg.chap))
             lcp->want_auth = PROTO_CHAP;
           else {
             LogPrintf(LogLCP, "Peer will only send CHAP (not enabled)\n");
@@ -529,7 +547,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                 request, ntohs(req->proto), ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
-	if (ntohs(req->proto) != PROTO_LQR || !Acceptable(ConfLqr))
+	if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr))
 	  goto reqreject;
 	else {
 	  lcp->his_lqrperiod = ntohl(req->period);
@@ -593,7 +611,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(ConfProtocomp)) {
+	if (IsAccepted(lcp->cfg.protocomp)) {
 	  lcp->his_protocomp = 1;
 	  memcpy(dec->ackend, cp, 2);
 	  dec->ackend += 2;
@@ -623,7 +641,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       LogPrintf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(ConfAcfcomp)) {
+	if (IsAccepted(lcp->cfg.acfcomp)) {
 	  lcp->his_acfcomp = 1;
 	  memcpy(dec->ackend, cp, 2);
 	  dec->ackend += 2;
@@ -693,6 +711,15 @@ reqreject:
     plen -= length;
     cp += length;
   }
+
+  if (mode_type != MODE_NOP)
+    if (dec->rejend != dec->rej) {
+      /* rejects are preferred */
+      dec->ackend = dec->ack;
+      dec->nakend = dec->nak;
+    } else if (dec->nakend != dec->nak)
+      /* then NAKs */
+      dec->ackend = dec->ack;
 }
 
 void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.48 1998/04/10 14:55:11 brian Exp $
+ * $Id: modem.c,v 1.77.2.49 1998/04/10 23:51:30 brian Exp $
  *
  *  TODO:
  */
@@ -478,9 +478,10 @@ modem_Unlock(struct physical *modem)
 }
 
 static void
-modem_Found(struct physical *modem)
+modem_Found(struct physical *modem, struct bundle *bundle)
 {
-  throughput_start(&modem->link.throughput, "modem throughput");
+  throughput_start(&modem->link.throughput, "modem throughput",
+                   Enabled(bundle, OPT_THROUGHPUT));
   modem->connect_count++;
   LogPrintf(LogPHASE, "Connected!\n");
 }
@@ -507,12 +508,12 @@ modem_Open(struct physical *modem, struct bundle *bundle)
         return -1;
       }
       modem->fd = STDIN_FILENO;
-      modem_Found(modem);
+      modem_Found(modem, bundle);
     } else {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is not a tty\n");
       modem_SetDevice(modem, "");
       /* We don't call modem_Timeout() with this type of connection */
-      modem_Found(modem);
+      modem_Found(modem, bundle);
       return modem->fd = STDIN_FILENO;
     }
   } else {
@@ -535,7 +536,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	    modem->fd = -1;
 	  }
 	  else {
-	    modem_Found(modem);
+	    modem_Found(modem, bundle);
 	    LogPrintf(LogDEBUG, "modem_Open: Modem is %s\n", modem->name.full);
 	  }
 	}
@@ -555,7 +556,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	    *cp = ':';		/* Don't destroy name.full */
 	    if (modem->fd < 0)
 	      return (-1);
-	    modem_Found(modem);
+	    modem_Found(modem, bundle);
 	    LogPrintf(LogDEBUG, "modem_Open: Modem is socket %s\n",
                       modem->name.full);
 	  } else {

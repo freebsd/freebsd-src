@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.36.2.8 1998/04/03 19:21:03 brian Exp $
+#	$Id: Makefile,v 1.36.2.9 1998/04/03 19:25:19 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
 	datalink.c deflate.c defs.c filter.c fsm.c hdlc.c id.c ip.c \
 	ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c mbuf.c modem.c \
 	mp.c pap.c physical.c pred.c prompt.c route.c server.c sig.c \
-	slcompress.c systems.c throughput.c timer.c tun.c vars.c vjcomp.c
+	slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
 CFLAGS+=-Wall -Wpointer-arith
 LDADD+= -lmd -lcrypt -lutil -lz
 DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}

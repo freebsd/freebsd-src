@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.35 1998/04/10 13:19:08 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.36 1998/04/14 23:17:07 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -54,7 +54,6 @@
 #include "filter.h"
 #include "descriptor.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "vjcomp.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -142,34 +141,38 @@ ReportIpcpStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "%s [%s]\n", arg->bundle->ncp.ipcp.fsm.name,
           State2Nam(arg->bundle->ncp.ipcp.fsm.state));
   if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
-    prompt_Printf(arg->prompt, " His side:               %s, %s\n",
+    prompt_Printf(arg->prompt, " His side:        %s, %s\n",
 	    inet_ntoa(arg->bundle->ncp.ipcp.peer_ip),
             vj2asc(arg->bundle->ncp.ipcp.peer_compproto));
-    prompt_Printf(arg->prompt, " My side:                %s, %s\n",
+    prompt_Printf(arg->prompt, " My side:         %s, %s\n",
 	    inet_ntoa(arg->bundle->ncp.ipcp.my_ip),
             vj2asc(arg->bundle->ncp.ipcp.my_compproto));
   }
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " My Address:             %s/%d\n",
+  prompt_Printf(arg->prompt, " My Address:      %s/%d\n",
 	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
           arg->bundle->ncp.ipcp.cfg.my_range.width);
   if (iplist_isvalid(&arg->bundle->ncp.ipcp.cfg.peer_list))
-    prompt_Printf(arg->prompt, " His Address:            %s\n",
+    prompt_Printf(arg->prompt, " His Address:     %s\n",
             arg->bundle->ncp.ipcp.cfg.peer_list.src);
   else
-    prompt_Printf(arg->prompt, " His Address:            %s/%d\n",
+    prompt_Printf(arg->prompt, " His Address:     %s/%d\n",
 	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
           arg->bundle->ncp.ipcp.cfg.peer_range.width);
+
+  prompt_Printf(arg->prompt, "\nNegotiation:\n");
   if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
-    prompt_Printf(arg->prompt, " Negotiation(trigger):   %s\n",
+    prompt_Printf(arg->prompt, " Trigger Address: %s\n",
             inet_ntoa(arg->bundle->ncp.ipcp.cfg.TriggerAddress));
   else
-    prompt_Printf(arg->prompt, " Negotiation(trigger):   MYADDR\n");
-  prompt_Printf(arg->prompt, " Initial VJ slots:       %d\n",
-                arg->bundle->ncp.ipcp.cfg.VJInitSlots);
-  prompt_Printf(arg->prompt, " Initial VJ compression: %s\n",
-          arg->bundle->ncp.ipcp.cfg.VJInitComp ? "on" : "off");
+    prompt_Printf(arg->prompt, " Trigger Address: MYADDR\n");
+
+  prompt_Printf(arg->prompt, " VJ compression:  %s (%d slots %s slot compression)\n",
+                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.vj.neg),
+                arg->bundle->ncp.ipcp.cfg.vj.slots,
+          arg->bundle->ncp.ipcp.cfg.vj.slotcomp ? "with" : "without"
+);
 
   prompt_Printf(arg->prompt, "\n");
   throughput_disp(&arg->bundle->ncp.ipcp.throughput, arg->prompt);
@@ -188,13 +191,13 @@ SetInitVJ(struct cmdargs const *arg)
     slots = atoi(arg->argv[arg->argn+1]);
     if (slots < 4 || slots > 16)
       return 1;
-    arg->bundle->ncp.ipcp.cfg.VJInitSlots = slots;
+    arg->bundle->ncp.ipcp.cfg.vj.slots = slots;
     return 0;
   } else if (!strcasecmp(arg->argv[arg->argn], "slotcomp")) {
     if (!strcasecmp(arg->argv[arg->argn+1], "on"))
-      arg->bundle->ncp.ipcp.cfg.VJInitComp = 1;
+      arg->bundle->ncp.ipcp.cfg.vj.slotcomp = 1;
     else if (!strcasecmp(arg->argv[arg->argn+1], "off"))
-      arg->bundle->ncp.ipcp.cfg.VJInitComp = 0;
+      arg->bundle->ncp.ipcp.cfg.vj.slotcomp = 0;
     else
       return 2;
     return 0;
@@ -214,8 +217,8 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, 10, LogIPCP,
            bundle, l, parent, &ipcp_Callbacks, timer_names);
 
-  ipcp->cfg.VJInitSlots = DEF_VJ_STATES;
-  ipcp->cfg.VJInitComp = 1;
+  ipcp->cfg.vj.slots = DEF_VJ_STATES;
+  ipcp->cfg.vj.slotcomp = 1;
   memset(&ipcp->cfg.my_range, '\0', sizeof ipcp->cfg.my_range);
   if (gethostname(name, sizeof name) == 0) {
     hp = gethostbyname(name);
@@ -238,6 +241,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 #endif
 
   ipcp->cfg.fsmretry = DEF_FSMRETRY;
+  ipcp->cfg.vj.neg = NEG_ENABLED|NEG_ACCEPTED;
 
   memset(&ipcp->vj, '\0', sizeof ipcp->vj);
 
@@ -291,13 +295,13 @@ ipcp_Setup(struct ipcp *ipcp)
   else
     ipcp->my_ip = ipcp->cfg.my_range.ipaddr;
 
-  if (Enabled(ConfVjcomp))
+  if (IsEnabled(ipcp->cfg.vj.neg))
     ipcp->my_compproto = (PROTO_VJCOMP << 16) +
-                         ((ipcp->cfg.VJInitSlots - 1) << 8) +
-                         ipcp->cfg.VJInitComp;
+                         ((ipcp->cfg.vj.slots - 1) << 8) +
+                         ipcp->cfg.vj.slotcomp;
   else
     ipcp->my_compproto = 0;
-  sl_compress_init(&ipcp->vj.cslc, ipcp->cfg.VJInitSlots - 1);
+  sl_compress_init(&ipcp->vj.cslc, ipcp->cfg.vj.slots - 1);
 
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
@@ -372,7 +376,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
   bundle->ncp.ipcp.peer_ifip.s_addr = hisaddr.s_addr;
   bundle->ncp.ipcp.my_ifip.s_addr = myaddr.s_addr;
 
-  if (Enabled(ConfProxy))
+  if (Enabled(bundle, OPT_PROXY))
     sifproxyarp(bundle, bundle->ncp.ipcp.peer_ifip, s);
 
   close(s);
@@ -484,7 +488,7 @@ IpcpCleanInterface(struct ipcp *ipcp)
     return;
   }
 
-  if (Enabled(ConfProxy))
+  if (Enabled(ipcp->fsm.bundle, OPT_PROXY))
     cifproxyarp(ipcp->fsm.bundle, ipcp->peer_ifip, s);
 
   if (ipcp->my_ifip.s_addr != INADDR_ANY ||
@@ -577,7 +581,8 @@ IpcpLayerUp(struct fsm *fp)
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKUPFILE, NULL);
 
-  throughput_start(&ipcp->throughput, "IPCP throughput");
+  throughput_start(&ipcp->throughput, "IPCP throughput",
+                   Enabled(fp->bundle, OPT_THROUGHPUT));
   bundle_DisplayPrompt(fp->bundle);
 }
 
@@ -698,7 +703,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	if (!Acceptable(ConfVjcomp)) {
+	if (!IsAccepted(ipcp->cfg.vj.neg)) {
 	  memcpy(dec->rejend, cp, length);
 	  dec->rejend += length;
 	} else {
@@ -789,7 +794,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
     case TY_SECONDARY_DNS:
       switch (mode_type) {
       case MODE_REQ:
-        if (!Enabled(ConfMSExt)) {
+        if (Enabled(ipcp->fsm.bundle, OPT_MSEXT)) {
 	  LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
 	  ipcp->my_reject |= (1 << type);
 	  memcpy(dec->rejend, cp, length);
@@ -836,7 +841,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
     case TY_SECONDARY_NBNS:
       switch (mode_type) {
       case MODE_REQ:
-        if (!Enabled(ConfMSExt)) {
+        if (!Enabled(ipcp->fsm.bundle, OPT_MSEXT)) {
 	  LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
 	  ipcp->my_reject |= (1 << type);
 	  memcpy(dec->rejend, cp, length);
@@ -882,6 +887,15 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
     plen -= length;
     cp += length;
   }
+
+  if (mode_type != MODE_NOP)
+    if (dec->rejend != dec->rej) {
+      /* rejects are preferred */
+      dec->ackend = dec->ack;
+      dec->nakend = dec->nak;
+    } else if (dec->nakend != dec->nak)
+      /* then NAKs */
+      dec->ackend = dec->ack;
 }
 
 void

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.18 1998/04/05 19:02:49 brian Exp $
+ * $Id: lcp.h,v 1.16.2.19 1998/04/07 00:53:56 brian Exp $
  *
  *	TODO:
  */
@@ -55,6 +55,12 @@ struct lcp {
     int openmode;		/* when to start CFG REQs */
     u_int lqrperiod;		/* LQR frequency */
     u_int fsmretry;		/* FSM retry frequency */
+
+    unsigned acfcomp : 2;	/* Address & Control Field Compression neg */
+    unsigned chap : 2;		/* Challenge Handshake Authentication proto */
+    unsigned lqr : 2;		/* Link Quality Report */
+    unsigned pap : 2;		/* Password Authentication protocol */
+    unsigned protocomp : 2;	/* Protocol field compression */
   } cfg;
 };
 

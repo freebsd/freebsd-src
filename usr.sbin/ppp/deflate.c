@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.9 1998/04/06 09:12:26 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.10 1998/04/07 00:53:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,7 +34,6 @@
 
 #include "mbuf.h"
 #include "log.h"
-#include "vars.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -551,7 +550,7 @@ DeflateTermOutput(void *v)
 
 const struct ccp_algorithm PppdDeflateAlgorithm = {
   TY_PPPD_DEFLATE,	/* pppd (wrongly) expects this ``type'' field */
-  ConfPppdDeflate,
+  CCP_NEG_DEFLATE24,
   DeflateDispOpts,
   {
     DeflateSetOptsInput,
@@ -573,7 +572,7 @@ const struct ccp_algorithm PppdDeflateAlgorithm = {
 
 const struct ccp_algorithm DeflateAlgorithm = {
   TY_DEFLATE,		/* rfc 1979 */
-  ConfDeflate,
+  CCP_NEG_DEFLATE,
   DeflateDispOpts,
   {
     DeflateSetOptsInput,

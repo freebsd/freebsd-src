@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.23 1998/04/06 09:12:34 brian Exp $
+ * $Id: pap.c,v 1.20.2.24 1998/04/07 00:54:12 brian Exp $
  *
  *	TODO:
  */
@@ -152,7 +152,8 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  physical->link.lcp.auth_ineed = 0;
-          Physical_Login(physical, cp + 1);
+          if (Enabled(bundle, OPT_UTMP))
+            Physical_Login(physical, cp + 1);
 
           if (physical->link.lcp.auth_iwait == 0)
             /*

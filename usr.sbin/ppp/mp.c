@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.2 1998/04/06 09:12:34 brian Exp $
+ *	$Id: mp.c,v 1.1.2.3 1998/04/14 23:17:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -45,10 +45,7 @@
 #include "throughput.h"
 #include "slcompress.h"
 #include "ipcp.h"
-/* #include "loadalias.h" */
-/* #include "vars.h" */
 #include "auth.h"
-/* #include "systems.h" */
 #include "lcp.h"
 #include "lqr.h"
 #include "hdlc.h"

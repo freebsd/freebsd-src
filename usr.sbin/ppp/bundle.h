@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.27 1998/04/10 13:19:01 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.28 1998/04/11 21:50:39 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -32,6 +32,16 @@
 #define	PHASE_NETWORK		3	/* We're alive ! */
 #define	PHASE_TERMINATE		4	/* Terminating link */
 
+/* cfg.opt bit settings */
+#define OPT_IDCHECK	0x01
+#define OPT_LOOPBACK	0x02
+#define OPT_MSEXT	0x04
+#define OPT_PASSWDAUTH	0x08
+#define OPT_PROXY	0x10
+#define OPT_THROUGHPUT	0x20
+#define OPT_UTMP	0x40
+
+#define Enabled(b, o) ((b)->cfg.opt & (o))
 
 struct datalink;
 struct physical;
@@ -61,6 +71,7 @@ struct bundle {
       char name[50];          /* PAP/CHAP system name */
       char key[50];           /* PAP/CHAP key */
     } auth;
+    unsigned opt;             /* Uses OPT_ bits from above */
   } cfg;
 
   struct {

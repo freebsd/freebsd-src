@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.7 1998/04/06 09:12:35 brian Exp $
+ *	$Id: pred.c,v 1.20.2.8 1998/04/07 00:54:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,7 +36,6 @@
 
 #include "mbuf.h"
 #include "log.h"
-#include "vars.h"
 #include "timer.h"
 #include "fsm.h"
 #include "lqr.h"
@@ -313,7 +312,7 @@ Pred1SetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 
 const struct ccp_algorithm Pred1Algorithm = {
   TY_PRED1,
-  ConfPred1,
+  CCP_NEG_PRED1,
   Pred1DispOpts,
   {
     Pred1SetOptsInput,

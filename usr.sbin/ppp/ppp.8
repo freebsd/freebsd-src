@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.14 1998/04/10 13:19:17 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.15 1998/04/11 21:50:47 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1572,11 +1572,20 @@ in
 is capable of negotiating with
 .Nm pppd ,
 but only if
-.Dq pppd-deflate
+.Dq deflate24
 is
 .Ar enable Ns No d
 and
 .Ar accept Ns No ed .
+.It deflate24
+Default: Disabled and Denied.  This is a variance of the
+.Ar deflate
+option, allowing negotiation with the
+.Xr pppd 8
+program.  Refer to the
+.Ar deflate
+section above for details.  It is disabled by default as it violates
+.Pa rfc1975 .
 .It lqr
 Default: Disabled and Accepted.  This option decides if Link Quality
 Requests will be sent or accepted.  LQR is a protocol that allows
@@ -1629,15 +1638,6 @@ and
 in
 .Pa /etc/ppp/ppp.conf .
 PAP is accepted by default.
-.It pppd-deflate
-Default: Disabled and Denied.  This is a variance of the
-.Ar deflate
-option, allowing negotiation with the
-.Xr pppd 8
-program.  Refer to the
-.Ar deflate
-section above for details.  It is disabled by default as it violates
-.Pa rfc1975 .
 .It pred1
 Default: Enabled and Accepted.  This option decides if Predictor 1
 compression will be used by the Compression Control Protocol (CCP).
@@ -1704,7 +1704,7 @@ Default: Disabled.  Enabling this option will tell
 .Nm
 to proxy ARP for the peer.
 .It throughput
-Default: Disabled.  Enabling this option will tell
+Default: Enabled.  This option tells
 .Nm
 to gather thoroughput statistics.  Input and output is sampled over
 a rolling 5 second window, and current, best and total figures are
@@ -1712,7 +1712,7 @@ retained.  This data is output when the relevent
 .Em PPP
 layer shuts down, and is also available using the
 .Dq show
-command.  Troughput statistics are available at the
+command.  Throughput statistics are available at the
 .Dq IPCP
 and 
 .Dq modem
@@ -1972,11 +1972,6 @@ scripts for the given
 .Ar label .
 Otherwise, the current settings are used to establish
 the connection.
-.It display
-Displays the current status of the negotiable protocol
-values as specified under
-.Dq accept|deny|enable|disable option....
-above.
 .It down
 Bring the link down ungracefully, as if the physical layer had become
 unavailable.  It's not considered polite to use this command.
@@ -2082,8 +2077,10 @@ and
 .Em 15 .
 If
 .Ar in-winsize
-is specified, ppp will insist that this window size is used and will not
-accept any other values from the peer.
+is specified,
+.Nm
+will insist that this window size is used and will not accept any other
+values from the peer.
 .It set device|line Ar value[,value...]
 This sets the device(s) to which
 .Nm

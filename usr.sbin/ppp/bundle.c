@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.45 1998/04/11 21:50:37 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.46 1998/04/14 23:17:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -518,6 +518,9 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.fsm.object = &bundle;
 
   bundle.cfg.idle_timeout = NCP_IDLE_TIMEOUT;
+  *bundle.cfg.auth.name = '\0';
+  *bundle.cfg.auth.key = '\0';
+  bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_THROUGHPUT | OPT_UTMP;
   bundle.phys_type = type;
 
   bundle.links = datalink_Create("default", &bundle, &bundle.fsm, type);
@@ -535,6 +538,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.desc.Read = bundle_DescriptorRead;
   bundle.desc.Write = bundle_DescriptorWrite;
 
+  /* XXX: what's an IPCP link anyway :-( */
   ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
             &bundle.fsm);
 
@@ -850,6 +854,12 @@ bundle_ShowLinks(struct cmdargs const *arg)
   return 0;
 }
 
+static const char *
+optval(struct bundle *bundle, int bit)
+{
+  return (bundle->cfg.opt & bit) ? "enabled" : "disabled";
+}
+
 int
 bundle_ShowStatus(struct cmdargs const *arg)
 {
@@ -869,6 +879,21 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
+
+  prompt_Printf(arg->prompt, " ID check:   %s\n",
+                optval(arg->bundle, OPT_IDCHECK));
+  prompt_Printf(arg->prompt, " Loopback:   %s\n",
+                optval(arg->bundle, OPT_LOOPBACK));
+  prompt_Printf(arg->prompt, " MS Ext:     %s\n",
+                optval(arg->bundle, OPT_MSEXT));
+  prompt_Printf(arg->prompt, " PasswdAuth: %s\n",
+                optval(arg->bundle, OPT_PASSWDAUTH));
+  prompt_Printf(arg->prompt, " Proxy:      %s\n",
+                optval(arg->bundle, OPT_PROXY));
+  prompt_Printf(arg->prompt, " Throughput: %s\n",
+                optval(arg->bundle, OPT_THROUGHPUT));
+  prompt_Printf(arg->prompt, " Utmp:       %s\n",
+                optval(arg->bundle, OPT_UTMP));
 
   return 0;
 }

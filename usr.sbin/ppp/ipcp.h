@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.20 1998/04/07 00:53:52 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.21 1998/04/10 13:19:09 brian Exp $
  *
  *	TODO:
  */
@@ -43,8 +43,11 @@ struct ipcp {
   struct fsm fsm;			/* The finite state machine */
 
   struct {
-    int VJInitSlots;			/* Maximum VJ slots */
-    unsigned VJInitComp : 1;		/* Slot compression */
+    struct {
+      int slots;			/* Maximum VJ slots */
+      unsigned slotcomp : 1;		/* Slot compression */
+      unsigned neg : 2;			/* VJ negotiation */
+    } vj;
 
     struct in_range  my_range;		/* MYADDR spec */
     struct in_addr   netmask;		/* netmask (unused by most OSs) */

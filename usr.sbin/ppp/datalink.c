@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.36 1998/04/10 13:19:05 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.37 1998/04/14 23:17:04 brian Exp $
  */
 
 #include <sys/types.h>
@@ -223,6 +223,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
                         dl->name, dl->cfg.dial.max - dl->dial_tries,
                         dl->cfg.dial.max);
+            return datalink_UpdateSet(d, r, w, e, n);
           } else
             datalink_LoginDone(dl);
         } else {
@@ -263,7 +264,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               LogPrintf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
               dl->state = DATALINK_LOGIN;
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
-              break;
+              return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
               datalink_LoginDone(dl);
               break;
@@ -282,7 +283,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               dl->state = DATALINK_HANGUP;
               modem_Offline(dl->physical);
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
-              break;
+              return datalink_UpdateSet(d, r, w, e, n);
           }
           break;
       }
@@ -716,17 +717,15 @@ void
 datalink_Show(struct datalink *dl, struct prompt *prompt)
 {
   prompt_Printf(prompt, "Name: %s\n", dl->name);
-  prompt_Printf(prompt, " State:           %s\n", datalink_State(dl));
-#ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "  Encryption = %s\n",
+  prompt_Printf(prompt, " State:            %s\n", datalink_State(dl));
+  prompt_Printf(prompt, " CHAP Encryption:  %s\n",
                 dl->chap.using_MSChap ? "MSChap" : "MD5" );
-#endif
   prompt_Printf(prompt, "\nDefaults:\n");
-  prompt_Printf(prompt, " Phone List:      %s\n", dl->cfg.phone.list);
+  prompt_Printf(prompt, " Phone List:       %s\n", dl->cfg.phone.list);
   if (dl->cfg.dial.max)
-    prompt_Printf(prompt, " Dial tries:      %d, delay ", dl->cfg.dial.max);
+    prompt_Printf(prompt, " Dial tries:       %d, delay ", dl->cfg.dial.max);
   else
-    prompt_Printf(prompt, " Dial tries:      infinite, delay ");
+    prompt_Printf(prompt, " Dial tries:       infinite, delay ");
   if (dl->cfg.dial.next_timeout > 0)
     prompt_Printf(prompt, "%ds/", dl->cfg.dial.next_timeout);
   else
@@ -735,14 +734,14 @@ datalink_Show(struct datalink *dl, struct prompt *prompt)
     prompt_Printf(prompt, "%ds\n", dl->cfg.dial.timeout);
   else
     prompt_Printf(prompt, "random\n");
-  prompt_Printf(prompt, " Reconnect tries: %d, delay ", dl->cfg.reconnect.max);
+  prompt_Printf(prompt, " Reconnect tries:  %d, delay ", dl->cfg.reconnect.max);
   if (dl->cfg.reconnect.timeout > 0)
     prompt_Printf(prompt, "%ds\n", dl->cfg.reconnect.timeout);
   else
     prompt_Printf(prompt, "random\n");
-  prompt_Printf(prompt, " Dial Script:     %s\n", dl->cfg.script.dial);
-  prompt_Printf(prompt, " Login Script:    %s\n", dl->cfg.script.login);
-  prompt_Printf(prompt, " Hangup Script:   %s\n", dl->cfg.script.hangup);
+  prompt_Printf(prompt, " Dial Script:      %s\n", dl->cfg.script.dial);
+  prompt_Printf(prompt, " Login Script:     %s\n", dl->cfg.script.login);
+  prompt_Printf(prompt, " Hangup Script:    %s\n", dl->cfg.script.hangup);
 }
 
 int

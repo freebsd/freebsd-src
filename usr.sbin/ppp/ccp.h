@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.15 1998/04/03 19:23:54 brian Exp $
+ * $Id: ccp.h,v 1.14.2.16 1998/04/07 00:53:24 brian Exp $
  *
  *	TODO:
  */
@@ -35,6 +35,11 @@
 #define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
 #define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
+#define CCP_NEG_DEFLATE		0
+#define CCP_NEG_PRED1		1
+#define CCP_NEG_DEFLATE24	2
+#define CCP_NEG_TOTAL		3
+
 struct mbuf;
 
 struct ccp_config {
@@ -44,6 +49,7 @@ struct ccp_config {
     } in, out;
   } deflate;
   u_int fsmretry;		/* FSM retry frequency */
+  unsigned neg[CCP_NEG_TOTAL];
 };
 
 struct ccp_opt {
@@ -86,7 +92,7 @@ struct ccp {
 
 struct ccp_algorithm {
   int id;
-  int Conf;					/* A Conf value from vars.h */
+  int Neg;			/* ccp_config neg array item */
   const char *(*Disp)(struct lcp_opt *);
   struct {
     int (*Set)(struct lcp_opt *, const struct ccp_config *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.47 1998/04/07 23:46:02 brian Exp $
+ * $Id: main.c,v 1.121.2.48 1998/04/10 13:19:11 brian Exp $
  *
  *	TODO:
  */
@@ -57,7 +57,6 @@
 #include "mp.h"
 #include "bundle.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "auth.h"
 #include "systems.h"
 #include "ip.h"
@@ -554,7 +553,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       if (((struct ip *)tun.data)->ip_dst.s_addr ==
           bundle->ncp.ipcp.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
-	if (Enabled(ConfLoopback)) {
+        if (Enabled(bundle, OPT_LOOPBACK)) {
 	  pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
 	  if (pri >= 0) {
 	    struct mbuf *bp;

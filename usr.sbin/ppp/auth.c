@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.19 1998/04/06 09:12:22 brian Exp $
+ * $Id: auth.c,v 1.27.2.20 1998/04/07 00:53:18 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -40,7 +40,6 @@
 #include "throughput.h"
 #include "slcompress.h"
 #include "ipcp.h"
-#include "vars.h"
 #include "auth.h"
 #include "systems.h"
 #include "lcp.h"
@@ -126,7 +125,7 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
   }
 
 #ifndef NOPASSWDAUTH
-  if (Enabled(ConfPasswdAuth))
+  if (Enabled(bundle, OPT_PASSWDAUTH))
     return auth_CheckPasswd(system, "*", key);
 #endif
 
