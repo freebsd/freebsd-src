@@ -1,6 +1,6 @@
 # Do nothing for the following
 obj clean cleandir depend rcsfreeze all:
-	@echo No need to make $@ for rcsfreeze\; ignored
+	@echo -n
 
 install:
 	install -c -o bin -g bin -m 555 rcsfreeze.sh /usr/bin/rcsfreeze
