@@ -89,6 +89,6 @@ while (<STDIN>) {
 			}
 			next;
 		}
-		print "unrecognized config token $key\n";
+		print STDERR "unrecognized config token $key\n";
 	}
 }
