@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: write.c,v 1.9 1997/09/15 00:17:38 ache Exp $";
+	"$Id: write.c,v 1.10 1997/09/15 00:40:34 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -259,11 +259,12 @@ do_write(tty, mytty, myuid)
 	char path[MAXPATHLEN], host[MAXHOSTNAMELEN], line[512];
 
 	/* Determine our login name before the we reopen() stdout */
-	if ((login = getlogin()) == NULL)
+	if ((login = getlogin()) == NULL) {
 		if ((pwd = getpwuid(myuid)))
 			login = pwd->pw_name;
 		else
 			login = "???";
+	}
 
 	(void)snprintf(path, sizeof(path), "%s%s", _PATH_DEV, tty);
 	if ((freopen(path, "w", stdout)) == NULL)

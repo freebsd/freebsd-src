@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-	"$Id: indent.c,v 1.2 1997/07/15 09:50:59 charnier Exp $";
+	"$Id: indent.c,v 1.3 1998/10/18 04:46:24 thepish Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -208,16 +208,16 @@ main(argc, argv)
 	else
 	    set_option(argv[i]);
     }				/* end of for */
-    if (input == 0) {
+    if (input == 0)
 	input = stdin;
-    }
-    if (output == 0)
+    if (output == 0) {
 	if (troff || input == stdin)
 	    output = stdout;
 	else {
 	    out_name = in_name;
 	    bakcopy();
 	}
+    }
     if (ps.com_ind <= 1)
 	ps.com_ind = 2;		/* dont put normal comments before column 2 */
     if (troff) {

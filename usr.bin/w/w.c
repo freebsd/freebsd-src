@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.33 1999/03/31 21:01:39 brian Exp $";
+	"$Id: w.c,v 1.34 1999/04/22 23:40:56 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -325,7 +325,7 @@ main(argc, argv)
 		}
 	}
 
-	if (!nflag)
+	if (!nflag) {
 		if (gethostname(domain, sizeof(domain) - 1) < 0 ||
 		    (p = strchr(domain, '.')) == 0)
 			domain[0] = '\0';
@@ -333,6 +333,7 @@ main(argc, argv)
 			domain[sizeof(domain) - 1] = '\0';
 			memmove(domain, p, strlen(p) + 1);
 		}
+	}
 
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		char host_buf[UT_HOSTSIZE + 1];
