@@ -160,6 +160,7 @@ GENSET(setsoftcambio,	&ipending,	1 << SWI_CAMBIO)
 GENSET(setsoftvm,	&ipending,	1 << SWI_VM)
 GENSET(setsofttq,	&ipending,	1 << SWI_TQ)
 GENSET(setsoftclock,	&ipending,	1 << SWI_CLOCK)
+GENSET(setsoftcrypto,	&ipending,	1 << SWI_CRYPTO)
 
 GENSET(schedsofttty,	&idelayed,	1 << SWI_TTY)
 GENSET(schedsoftnet,	&idelayed,	1 << SWI_NET)
