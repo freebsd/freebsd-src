@@ -58,7 +58,7 @@
 #endif
 
 #ifdef __FreeBSD__
-DRIVER_MODULE(DRIVER_NAME, pci, DRM(driver), DRM(devclass), 0, 0);
+DRIVER_MODULE(radeon, pci, DRM(driver), DRM(devclass), 0, 0);
 #elif defined(__NetBSD__)
 CFDRIVER_DECL(radeon, DV_TTY, NULL);
 #endif /* __FreeBSD__ */
