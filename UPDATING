@@ -31,7 +31,7 @@ prior to 4.0 Release.
 	your entire ports tree, or you will have problems.
 
 20001006:
-	The perl build proceedure no longer installs miniperl, nor uses
+	The perl build procedure no longer installs miniperl, nor uses
 	the installed miniperl.  It is recommended that you delete
 	/usr/bin/miniperl.
 
@@ -611,7 +611,7 @@ versions of -stable/-current.
 	o sio no longer supports pnp nor pccard.  This will be corrected,
 	  but the new pccard code needs to be completed.
 	o Some of the sound drivers broke for some people.  It seems
-	  inconsistant as to who/what/when/where things broke.
+	  inconsistent as to who/what/when/where things broke.
 	o Duplicate device entries in your config do not work.  Previously
 	  they were silently ignored.  psm0 seems to be the most common
 	  duplicate choice, although some reports have come in from people
