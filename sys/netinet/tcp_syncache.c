@@ -694,16 +694,6 @@ syncache_socket(sc, lso, m)
 		tp->ts_recent = sc->sc_tsrecent;
 		tp->ts_recent_age = ticks;
 	}
-	if (sc->sc_flags & SCF_CC) {
-		/*
-		 * Initialization of the tcpcb for transaction;
-		 *   set SND.WND = SEG.WND,
-		 *   initialize CCsend and CCrecv.
-		 */
-		tp->t_flags |= TF_REQ_CC|TF_RCVD_CC;
-		tp->cc_send = sc->sc_cc_send;
-		tp->cc_recv = sc->sc_cc_recv;
-	}
 #ifdef TCP_SIGNATURE
 	if (sc->sc_flags & SCF_SIGNATURE)
 		tp->t_flags |= TF_SIGNATURE;
@@ -831,7 +821,6 @@ syncache_add(inc, to, th, sop, m)
 	struct syncache *sc = NULL;
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
-	struct rmxp_tao tao;
 	u_int32_t flowtmp;
 	int i, win;
 
@@ -839,7 +828,6 @@ syncache_add(inc, to, th, sop, m)
 
 	so = *sop;
 	tp = sototcpcb(so);
-	bzero(&tao, sizeof(tao));
 
 	/*
 	 * Remember the IP options, if any.
@@ -989,17 +977,6 @@ syncache_add(inc, to, th, sop, m)
 			sc->sc_flags |= SCF_WINSCALE;
 		}
 	}
-	if (tcp_do_rfc1644) {
-		/*
-		 * A CC or CC.new option received in a SYN makes
-		 * it ok to send CC in subsequent segments.
-		 */
-		if (to->to_flags & (TOF_CC|TOF_CCNEW)) {
-			sc->sc_cc_recv = to->to_cc;
-			sc->sc_cc_send = CC_INC(tcp_ccgen);
-			sc->sc_flags |= SCF_CC;
-		}
-	}
 	if (tp->t_flags & TF_NOOPT)
 		sc->sc_flags = SCF_NOOPT;
 #ifdef TCP_SIGNATURE
@@ -1018,58 +995,7 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_flags |= SCF_SACK;
 
 	/*
-	 * XXX
-	 * We have the option here of not doing TAO (even if the segment
-	 * qualifies) and instead fall back to a normal 3WHS via the syncache.
-	 * This allows us to apply synflood protection to TAO-qualifying SYNs
-	 * also. However, there should be a hueristic to determine when to
-	 * do this, and is not present at the moment.
-	 */
-
-	/*
-	 * Perform TAO test on incoming CC (SEG.CC) option, if any.
-	 * - compare SEG.CC against cached CC from the same host, if any.
-	 * - if SEG.CC > chached value, SYN must be new and is accepted
-	 *	immediately: save new CC in the cache, mark the socket
-	 *	connected, enter ESTABLISHED state, turn on flag to
-	 *	send a SYN in the next segment.
-	 *	A virtual advertised window is set in rcv_adv to
-	 *	initialize SWS prevention.  Then enter normal segment
-	 *	processing: drop SYN, process data and FIN.
-	 * - otherwise do a normal 3-way handshake.
-	 */
-	if (tcp_do_rfc1644)
-		tcp_hc_gettao(&sc->sc_inc, &tao);
-
-	if ((to->to_flags & TOF_CC) != 0) {
-		if (((tp->t_flags & TF_NOPUSH) != 0) &&
-		    sc->sc_flags & SCF_CC && tao.tao_cc != 0 &&
-		    CC_GT(to->to_cc, tao.tao_cc)) {
-			sc->sc_rxtslot = 0;
-			so = syncache_socket(sc, *sop, m);
-			if (so != NULL) {
-				tao.tao_cc = to->to_cc;
-				tcp_hc_updatetao(&sc->sc_inc, TCP_HC_TAO_CC,
-						 tao.tao_cc, 0);
-				*sop = so;
-			}
-			syncache_free(sc);
-			return (so != NULL);
-		}
-	} else {
-		/*
-		 * No CC option, but maybe CC.NEW: invalidate cached value.
-		 */
-		if (tcp_do_rfc1644) {
-			tao.tao_cc = 0;
-			tcp_hc_updatetao(&sc->sc_inc, TCP_HC_TAO_CC,
-					 tao.tao_cc, 0);
-		}
-	}
-
-	/*
-	 * TAO test failed or there was no CC option,
-	 *    do a standard 3-way handshake.
+	 * Do a standard 3-way handshake.
 	 */
 #ifdef TCPDEBUG
 	if (syncache_respond(sc, m, so) == 0) {
@@ -1127,8 +1053,7 @@ syncache_respond(sc, m)
 	} else {
 		optlen = TCPOLEN_MAXSEG +
 		    ((sc->sc_flags & SCF_WINSCALE) ? 4 : 0) +
-		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0) +
-		    ((sc->sc_flags & SCF_CC) ? TCPOLEN_CC_APPA * 2 : 0);
+		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0);
 #ifdef TCP_SIGNATURE
 		optlen += (sc->sc_flags & SCF_SIGNATURE) ?
 		    TCPOLEN_SIGNATURE + 2 : 0;
@@ -1238,19 +1163,6 @@ syncache_respond(sc, m)
 			*lp++ = htonl(ticks);
 			*lp   = htonl(sc->sc_tsrecent);
 			optp += TCPOLEN_TSTAMP_APPA;
-		}
-
-		/*
-		 * Send CC and CC.echo if we received CC from our peer.
-		 */
-		if (sc->sc_flags & SCF_CC) {
-			u_int32_t *lp = (u_int32_t *)(optp);
-
-			*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CC));
-			*lp++ = htonl(sc->sc_cc_send);
-			*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CCECHO));
-			*lp   = htonl(sc->sc_cc_recv);
-			optp += TCPOLEN_CC_APPA * 2;
 		}
 
 #ifdef TCP_SIGNATURE

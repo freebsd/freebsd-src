@@ -121,7 +121,6 @@ struct hc_metrics {
 	u_long	rmx_cwnd;	/* congestion window */
 	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
 	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */
-	struct	rmxp_tao rmx_tao; /* TAO cache for T/TCP */
 	/* tcp hostcache internal data */
 	int	rmx_expire;	/* lifetime for object */
 	u_long	rmx_hits;	/* number of hits */
@@ -457,28 +456,6 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 }
 
 /*
- * External function: lookup an entry in the hostcache and fill out the
- * supplied t/tcp tao structure.  Fills in null when no entry was found
- * or a value is not set.
- */
-void
-tcp_hc_gettao(struct in_conninfo *inc, struct rmxp_tao *tao)
-{
-	struct hc_metrics *hc_entry;
-
-	hc_entry = tcp_hc_lookup(inc);
-	if (hc_entry == NULL) {
-		bzero(tao, sizeof(*tao));
-		return;
-	}
-	hc_entry->rmx_hits++;
-	hc_entry->rmx_expire = tcp_hostcache.expire; /* start over again */
-
-	bcopy(&hc_entry->rmx_tao, tao, sizeof(*tao));
-	THC_UNLOCK(&hc_entry->rmx_head->hch_mtx);
-}
-
-/*
  * External function: update the mtu value of an entry in the hostcache.
  * Creates a new entry if none was found.
  */
@@ -590,43 +567,6 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 			hc_entry->rmx_recvpipe =
 			    (hc_entry->rmx_recvpipe + hcml->rmx_recvpipe) /2;
 		/* tcpstat.tcps_cachedrecvpipe++; */
-	}
-
-	TAILQ_REMOVE(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);
-	TAILQ_INSERT_HEAD(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);
-	THC_UNLOCK(&hc_entry->rmx_head->hch_mtx);
-}
-
-/*
- * External function: update the t/tcp tao of an entry in the hostcache.
- * Creates a new entry if none was found.
- */
-void
-tcp_hc_updatetao(struct in_conninfo *inc, int field, tcp_cc ccount, u_short mss)
-{
-	struct hc_metrics *hc_entry;
-
-	hc_entry = tcp_hc_lookup(inc);
-	if (hc_entry == NULL) {
-		hc_entry = tcp_hc_insert(inc);
-		if (hc_entry == NULL)
-			return;
-	}
-	hc_entry->rmx_updates++;
-	hc_entry->rmx_expire = tcp_hostcache.expire; /* start over again */
-
-	switch(field) {
-		case TCP_HC_TAO_CC:
-			hc_entry->rmx_tao.tao_cc = ccount;
-			break;
-
-		case TCP_HC_TAO_CCSENT:
-			hc_entry->rmx_tao.tao_ccsent = ccount;
-			break;
-
-		case TCP_HC_TAO_MSSOPT:
-			hc_entry->rmx_tao.tao_mssopt = mss;
-			break;
 	}
 
 	TAILQ_REMOVE(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);

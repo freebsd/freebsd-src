@@ -38,7 +38,6 @@
 #if __BSD_VISIBLE
 
 typedef	u_int32_t tcp_seq;
-typedef u_int32_t tcp_cc;		/* connection count per rfc1644 */
 
 #define tcp6_seq	tcp_seq	/* for KAME src sync over BSD*'s */
 #define tcp6hdr		tcphdr	/* for KAME src sync over BSD*'s */
@@ -94,13 +93,6 @@ struct tcphdr {
 
 #define	MAX_TCPOPTLEN		40	/* Absolute maximum TCP options len */
 
-#define	TCPOPT_CC		11		/* CC options: RFC-1644 */
-#define TCPOPT_CCNEW		12
-#define TCPOPT_CCECHO		13
-#define	   TCPOLEN_CC			6
-#define	   TCPOLEN_CC_APPA		(TCPOLEN_CC+2)
-#define	   TCPOPT_CC_HDR(ccopt)		\
-    (TCPOPT_NOP<<24|TCPOPT_NOP<<16|(ccopt)<<8|TCPOLEN_CC)
 #define	TCPOPT_SIGNATURE		19	/* Keyed MD5: RFC 2385 */
 #define	   TCPOLEN_SIGNATURE		18
 
