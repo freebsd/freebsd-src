@@ -101,6 +101,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	return 0;
 }
 
+#ifndef PC98
 static int
 Fixup_Extended_Names(struct disk *d, struct chunk *c)
 {
@@ -119,6 +120,7 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 	}
 	return 0;
 }
+#endif
 
 int
 Fixup_Names(struct disk *d)
@@ -131,7 +133,6 @@ Fixup_Names(struct disk *d)
 
 	c1 = d->chunks;
 	for(c2 = c1->part; c2 ; c2 = c2->next) {
-		c2->flags &= ~CHUNK_BSD_COMPAT;
 		if (c2->type == unused)
 			continue;
 		if (strcmp(c2->name, "X"))
@@ -157,12 +158,6 @@ Fixup_Names(struct disk *d)
 		free(c2->name);
 		c2->name = strdup(c1->name);
 #endif /*__i386__*/
-	}
-	for(c2 = c1->part; c2; c2 = c2->next) {
-		if (c2->type == freebsd) {
-			c2->flags |= CHUNK_BSD_COMPAT;
-			break;
-		}
 	}
 	for(c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type == freebsd)

@@ -179,10 +179,6 @@ main(int argc, char **argv)
 					strtol(cmds[5],0,0)));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"mknod")) {
-			MakeDevDisk(d,"/tmp");
-			continue;
-		}
 		if (!strcasecmp(*cmds,"delete") && ncmd == 2) {
 			printf("delete = %d\n",
 				Delete_Chunk(d,
@@ -234,7 +230,7 @@ main(int argc, char **argv)
 					strtol(cmds[5],0,0),
 					cmds[6]));
 #else
-					strtol(cmds[5],0,0)));
+					strtol(cmds[5],0,0), NULL));
 #endif
 			continue;
 		}
