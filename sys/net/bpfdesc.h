@@ -110,6 +110,7 @@ struct bpf_d {
 struct bpf_if {
 	struct bpf_if *bif_next;	/* list of all interfaces */
 	struct bpf_d *bif_dlist;	/* descriptor list */
+	struct bpf_if **bif_driverp;	/* pointer into softc */
 	u_int bif_dlt;			/* link layer type */
 	u_int bif_hdrlen;		/* length of header (with padding) */
 	struct ifnet *bif_ifp;		/* corresponding interface */
