@@ -163,6 +163,7 @@ long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
+long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 int interval = 1000;		/* interval between packets, ms */
 
 /* timing */
@@ -706,8 +707,11 @@ main(argc, argv)
 			}
 			(void)gettimeofday(&last, NULL);
 
-			if (ntransmitted != nreceived+1 && options & F_MISSED)
-				(void)write(STDOUT_FILENO, &BBELL, 1);
+			if (ntransmitted - nreceived - 1 > nmissedmax) {
+				nmissedmax = ntransmitted - nreceived - 1;
+				if (options & F_MISSED)
+					(void)write(STDOUT_FILENO, &BBELL, 1);
+			}
 		}
 	}
 	finish();
