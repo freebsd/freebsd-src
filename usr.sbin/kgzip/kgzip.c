@@ -49,6 +49,7 @@ static const char rcsid[] =
 #define SFX_MAX 	5	/* Size of larger filename suffix */
 
 const char *loader = "/usr/lib/kgzldr.o";  /* Default loader */
+int format;			/* Output format */
 
 char *tname;			/* Name of temporary file */
 
@@ -70,17 +71,25 @@ main(int argc, char *argv[])
 
     tmpdir = getenv("TMPDIR");
     if (asprintf(&tname, "%s/kgzXXXXXXXXXX", tmpdir == NULL ? _PATH_TMP : tmpdir) == -1)
-        errx(1, "Out of memory");
+	errx(1, "Out of memory");
 
     output = NULL;
     cflag = vflag = 0;
-    while ((c = getopt(argc, argv, "cvl:o:")) != -1)
+    while ((c = getopt(argc, argv, "cvf:l:o:")) != -1)
 	switch (c) {
 	case 'c':
 	    cflag = 1;
 	    break;
 	case 'v':
 	    vflag = 1;
+	    break;
+	case 'f':
+	    if (!strcmp(optarg, "aout"))
+		format = F_AOUT;
+	    else if (!strcmp(optarg, "elf"))
+		format = F_ELF;
+	    else
+		errx(1, "%s: Unknown format", optarg);
 	    break;
 	case 'l':
 	    loader = optarg;
@@ -98,8 +107,11 @@ main(int argc, char *argv[])
     atexit(cleanup);
     mk_fn(cflag, *argv, output, fn);
     memset(&kh, 0, sizeof(kh));
-    if (fn[FN_SRC])
+    if (fn[FN_SRC]) {
+	if (!format)
+	    format = F_ELF;
 	kgzcmp(&kh, fn[FN_SRC], fn[FN_OBJ]);
+    }
     if (!cflag)
 	kgzld(&kh, fn[FN_OBJ], fn[FN_KGZ]);
     if (vflag)
@@ -159,6 +171,6 @@ static void
 usage(void)
 {
     fprintf(stderr,
-	    "usage: kgzip [-cv] [-l file] [-o filename] file\n");
+      "usage: kgzip [-cv] [-f format] [-l file] [-o filename] file\n");
     exit(1);
 }

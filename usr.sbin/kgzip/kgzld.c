@@ -36,10 +36,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "aouthdr.h"
 #include "elfhdr.h"
 #include "kgzip.h"
-
-#define KGZOFF sizeof(struct kgz_elfhdr)
 
 #define align(x, y) (((x) + (y) - 1) & ~((y) - 1))
 
@@ -58,7 +57,23 @@ kgzld(struct kgz_hdr * kh, const char *f1, const char *f2)
     if (strcmp(kh->ident, "KGZ")) {
 	if ((idi.fd = open(idi.fname = f1, O_RDONLY)) == -1)
 	    err(1, "%s", idi.fname);
-	n = xread(&idi, kh, sizeof(*kh), KGZOFF);
+	if (!format) {
+	    union {
+		struct exec ex;
+		Elf32_Ehdr ee;
+	    } hdr;
+	    n = xread(&idi, &hdr, sizeof(hdr), 0);
+	    if (n >= sizeof(hdr.ee) && IS_ELF(hdr.ee))
+		format = F_ELF;
+	    else if (n >= sizeof(hdr.ex) &&
+		     N_GETMAGIC(hdr.ex) == OMAGIC)
+		format = F_AOUT;
+	    if (!format)
+		errx(1, "%s: Format not supported", idi.fname);
+	}
+	n = xread(&idi, kh, sizeof(*kh),
+		  format == F_AOUT ? sizeof(struct kgz_aouthdr0)
+				   : sizeof(struct kgz_elfhdr));
 	xclose(&idi);
 	if (n != sizeof(*kh) || strcmp(kh->ident, "KGZ"))
 	    errx(1, "%s: Invalid format", idi.fname);
@@ -68,7 +83,12 @@ kgzld(struct kgz_hdr * kh, const char *f1, const char *f2)
     case -1:
 	err(1, NULL);
     case 0:
-	execlp("ld", "ld", "-Ttext", addr, "-o", f2, loader, f1, NULL);
+	if (format == F_AOUT)
+	    execlp("ld", "ld", "-aout", "-Z", "-T", addr, "-o", f2,
+		   loader, f1, NULL);
+	else
+	    execlp("ld", "ld", "-Ttext", addr, "-o", f2, loader, f1,
+		   NULL);
 	warn(NULL);
 	_exit(1);
     default:
