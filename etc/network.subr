@@ -256,7 +256,7 @@ ipx_down()
 ifnet_rename()
 {
 
-	_ifn_list="`list_net_interfaces all`"
+	_ifn_list="`ifconfig -l`"
 	[ -z "$_ifn_list" ] && return 0
 	for _if in ${_ifn_list} ; do
 		eval _ifname=\$ifconfig_${_if}_name
