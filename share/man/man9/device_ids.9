@@ -27,33 +27,49 @@
 .\" $FreeBSD$
 .\"
 .Dd July 9, 2001
-.Dt MAJOR 9
+.Dt DEVICE_IDS 9
 .Os
 .Sh NAME
-.Nm major
-.Nd "returns the major number for the device"
+.Nm device_ids ,
+.Nm major ,
+.Nm minor ,
+.Nm umajor ,
+.Nm uminor
+.Nd "calculate device ids"
 .Sh SYNOPSIS
+.In sys/types.h
 .In sys/systm.h
 .Ft int
 .Fn major "dev_t dev"
+.Ft int
+.Fn minor "dev_t dev"
+.Ft int
+.Fn umajor "udev_t id"
+.Ft int
+.Fn uminor "udev_t id"
 .Sh DESCRIPTION
 The
-.Fn major
-function returns the major device number for the given device.
+.Nm
+family of functions take either the raw device ID,
+.Fa id ,
+or a pointer to the device structure,
+.Fa dev ,
+and return the integer
+value that is the major or minor device ID as requested.
 .Pp
-Its argument is:
-.Bl -tag -width ".Fa dev"
-.It Fa dev
-The device whose major device number should be returned.
-.El
+The actual major and minor device IDs are values masked from of the raw device ID.
+For details on the actual calculations used to determine the major or minor IDs see
+the actual source in
+.Pa kern_conf.c .
 .Sh RETURN VALUES
 An integer greater than zero and less than
-.Dv NUMCDEVSW ,
-or
+.Dv NUMCDEVSW .
+.Fn major
+and
+.Fn minor
+will return
 .Dv NOUDEV
 if the device is invalid.
-.Sh SEE ALSO
-.Xr minor 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
