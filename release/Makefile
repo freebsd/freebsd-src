@@ -1126,4 +1126,4 @@ doMFSKERN:
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
-.include <bsd.prog.mk>
+.include <bsd.obj.mk>
