@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.13 1995/11/14 06:24:00 markm Exp $
+#	$Id: rc.i386,v 1.14 1995/11/29 20:40:36 wollman Exp $
 #	Do i386 specific processing
 #
 
@@ -9,13 +9,13 @@ echo -n 'enabling FreeBSD/i386 options:'
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
 	echo -n ' ';		ibcs2
-	# XXX BOUGS - ibcs2 script shouldn't make any output on success
+	# XXX BOGUS - ibcs2 script shouldn't make any output on success
 fi
 
 # Start the Linux binary emulation if requested.
 if [ "X${linux}" = X"YES" ]; then
 	echo -n ' ';		linux
-	# XXX BOGUS - linux script shouldn't make any output on success
+	# XXX BOGUS - Linux script shouldn't make any output on success
 fi
 
 if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then

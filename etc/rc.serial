@@ -1,4 +1,4 @@
-# Change some defauls for serial devices.
+# Change some defaults for serial devices.
 # Standard defaults are:
 #	dtrwait 300 drainwait 0
 #	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl

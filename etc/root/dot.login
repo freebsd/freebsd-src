@@ -9,10 +9,10 @@ setenv CPU "FREEBSD"
 set path = ($path /usr/local/interviews/bin/$CPU)
 setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
 
-# 8-bit locale (germany)
+# 8-bit locale (Germany)
 #setenv LANG de_DE.ISO_8859-1
 
-# A rightous umask
+# A righteous umask
 umask 22
 
 /usr/games/fortune
