@@ -71,7 +71,7 @@
 #define DMA1_READY  0x08
 
 #ifdef GSCDEBUG
-#define lprintf if(scu->flags & DEBUG) printf
+#define lprintf if(scu->flags & FLAG_DEBUG) printf
 #else
 #define lprintf (void)
 #endif
@@ -401,7 +401,7 @@ gscprobe (struct isa_device *isdp)
   int stb;
   struct gsc_geom geom = NEW_GEOM;
 
-  scu->flags = DEBUG;
+  scu->flags = FLAG_DEBUG;
 
   lprintf("gsc%d.probe "
 	 "on iobase 0x%03x, irq %d, drq %d, addr %d, size %d\n",
@@ -477,7 +477,7 @@ gscprobe (struct isa_device *isdp)
 
   lprintf("gsc%d.probe: ok\n", unit);
 
-  scu->flags &= ~DEBUG;
+  scu->flags &= ~FLAG_DEBUG;
 
   return PROBE_SUCCESS;
 }
@@ -497,7 +497,7 @@ gscattach(struct isa_device *isdp)
   struct gsc_unit *scu = unittab + unit;
   char	name[32];
 
-  scu->flags |= DEBUG;
+  scu->flags |= FLAG_DEBUG;
 
   lprintf("gsc%d.attach: "
 	 "iobase 0x%03x, irq %d, drq %d, addr %d, size %d\n",
@@ -521,7 +521,7 @@ gscattach(struct isa_device *isdp)
 
   scu->flags |= ATTACHED;
   lprintf("gsc%d.attach: ok\n", unit);
-  scu->flags &= ~DEBUG;
+  scu->flags &= ~FLAG_DEBUG;
 #ifdef DEVFS
 #define GSC_UID 0
 #define GSC_GID 13
@@ -562,9 +562,9 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
   struct gsc_unit *scu = unittab + unit;
 
   if ( minor(dev) & DBUG_MASK )
-    scu->flags |= DEBUG;
+    scu->flags |= FLAG_DEBUG;
   else
-    scu->flags &= ~DEBUG;
+    scu->flags &= ~FLAG_DEBUG;
 
   switch(minor(dev) & FRMT_MASK) {
   case FRMT_PBM:
@@ -633,7 +633,7 @@ gscclose (dev_t dev, int flags, int fmt, struct proc *p)
   scu->sbuf.size = INVALID;
   scu->sbuf.poi  = INVALID;
 
-  scu->flags &= ~(DEBUG | OPEN | READING);
+  scu->flags &= ~(FLAG_DEBUG | OPEN | READING);
 
   return SUCCESS;
 }
