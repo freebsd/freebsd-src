@@ -36,6 +36,14 @@
 #ifndef _NFSCLIENT_NFSMOUNT_H_
 #define _NFSCLIENT_NFSMOUNT_H_
 
+struct nfs_tcp_mountstate {
+ 	int rpcresid;
+#define NFS_TCP_EXPECT_RPCMARKER 	0x0001 /* Expect to see a RPC/TCP marker next */
+#define NFS_TCP_FORCE_RECONNECT 	0x0002 /* Force a TCP reconnect */
+ 	int flags;
+	struct mtx mtx;
+};
+
 /*
  * Mount structure.
  * One allocated on every NFS mount.
@@ -79,6 +87,7 @@ struct	nfsmount {
 	struct nfs_rpcops *nm_rpcops;
 	int	nm_tprintf_initial_delay;	/* initial delay */
 	int	nm_tprintf_delay;		/* interval for messages */
+	struct nfs_tcp_mountstate nm_nfstcpstate;
 
 	/* NFSv4 */
 	uint64_t nm_clientid;
