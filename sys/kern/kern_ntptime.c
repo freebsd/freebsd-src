@@ -1,6 +1,6 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1993-1998			       *
+ * Copyright (c) David L. Mills 1993-1999			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
  * its documentation for any purpose and without fee is hereby	       *
@@ -75,16 +75,17 @@ typedef long long l_fp;
  * phase and frequency of the clock discipline loop which controls the
  * system clock.
  *
- * When the kernel time is reckoned directly in nanoseconds (NANO
+ * When the kernel time is reckoned directly in nanoseconds (NTP_NANO
  * defined), the time at each tick interrupt is derived directly from
  * the kernel time variable. When the kernel time is reckoned in
- * microseconds, (NANO undefined), the time is derived from the kernel
- * time variable together with a variable representing the leftover
- * nanoseconds at the last tick interrupt. In either case, the current
- * nanosecond time is reckoned from these values plus an interpolated
- * value derived by the clock routines in another architecture-specific
- * module. The interpolation can use either a dedicated counter or a
- * processor cycle counter (PCC) implemented in some architectures.
+ * microseconds, (NTP_NANO undefined), the time is derived from the
+ * kernel time variable together with a variable representing the
+ * leftover nanoseconds at the last tick interrupt. In either case, the
+ * current nanosecond time is reckoned from these values plus an
+ * interpolated value derived by the clock routines in another
+ * architecture-specific module. The interpolation can use either a
+ * dedicated counter or a processor cycle counter (PCC) implemented in
+ * some architectures.
  *
  * Note that all routines must run at priority splclock or higher.
  */
@@ -103,7 +104,7 @@ typedef long long l_fp;
  * A time variable is a signed 64-bit fixed-point number in ns and
  * fraction. It represents the remaining time offset to be amortized
  * over succeeding tick interrupts. The maximum time offset is about
- * 0.512 s and the resolution is about 2.3e-10 ns.
+ * 0.5 s and the resolution is about 2.3e-10 ns.
  *
  *			1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -116,7 +117,7 @@ typedef long long l_fp;
  * A frequency variable is a signed 64-bit fixed-point number in ns/s
  * and fraction. It represents the ns and fraction to be added to the
  * kernel time variable at each second. The maximum frequency offset is
- * about +-512000 ns/s and the resolution is about 2.3e-10 ns/s.
+ * about +-500000 ns/s and the resolution is about 2.3e-10 ns/s.
  *
  *			1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -144,6 +145,8 @@ static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
 
+int ntp_mult;
+int ntp_div;
 #ifdef PPS_SYNC
 /*
  * The following variables are used when a pulse-per-second (PPS) signal
@@ -152,7 +155,7 @@ static l_fp time_freq;			/* frequency offset (ns/s) */
  * controlled by the PPS signal.
  */
 #define PPS_FAVG	2		/* min freq avg interval (s) (shift) */
-#define PPS_FAVGMAX	7		/* max freq avg interval (s) (shift) */
+#define PPS_FAVGMAX	8		/* max freq avg interval (s) (shift) */
 #define PPS_PAVG	4		/* phase avg interval (s) (shift) */
 #define PPS_VALID	120		/* PPS signal watchdog max (s) */
 #define MAXTIME		500000		/* max PPS error (jitter) (ns) */
@@ -164,9 +167,9 @@ struct ppstime {
 };
 static struct ppstime pps_tf[3];	/* phase median filter */
 static struct ppstime pps_filt;		/* phase offset */
-static long pps_fcount;			/* frequency accumulator */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
 static long pps_offacc;			/* offset accumulator */
+static long pps_fcount;			/* frequency accumulator */
 static long pps_jitter;			/* scaled time dispersion (ns) */
 static long pps_stabil;			/* scaled frequency dispersion (ns/s) */
 static long pps_lastsec;		/* time at last calibration (s) */
@@ -245,6 +248,8 @@ SYSCTL_NODE(_kern, OID_AUTO, ntp_pll, CTLFLAG_RW, 0, "");
 SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, mult, CTLFLAG_RW, &ntp_mult, 0, "");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, div, CTLFLAG_RW, &ntp_div, 0, "");
 
 /*
  * ntp_adjtime() - NTP daemon application interface
@@ -261,6 +266,7 @@ int
 ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;	/* temporary structure */
+	long freq;		/* frequency ns/s) */
 	int modes;		/* mode bits from structure */
 	int s;			/* caller priority */
 	int error;
@@ -281,7 +287,14 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		return (error);
 	s = splclock();
 	if (modes & MOD_FREQUENCY) {
-		time_freq = (ntv.freq * 1000LL) << 16;
+		freq = (ntv.freq * 1000) << 16;
+		if (freq > MAXFREQ)
+			L_LINT(time_freq, MAXFREQ);
+		else if (freq < -MAXFREQ)
+			L_LINT(time_freq, -MAXFREQ);
+		else
+			L_LINT(time_freq, freq);
+
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
 #endif /* PPS_SYNC */
@@ -294,8 +307,14 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		time_status &= STA_RONLY;
 		time_status |= ntv.status & ~STA_RONLY;
 	}
-	if (modes & MOD_TIMECONST)
-		time_constant = ntv.constant;
+	if (modes & MOD_TIMECONST) {
+		if (ntv.constant < 0)
+			time_constant = 0;
+		else if (ntv.constant > MAXTC)
+			time_constant = MAXTC;
+		else
+			time_constant = ntv.constant;
+	}
 	if (modes & MOD_NANO)
 		time_status |= STA_NANO;
 	if (modes & MOD_MICRO)
@@ -318,16 +337,11 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		ntv.offset = L_GINT(time_offset);
 	else
 		ntv.offset = L_GINT(time_offset) / 1000;
-	ntv.freq = L_GINT((time_freq / 1000) * 65536);
+	ntv.freq = L_GINT((time_freq / 1000) << 16);
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
 	ntv.status = time_status;
-	if (ntv.constant < 0)
-		time_constant = 0;
-	else if (ntv.constant > MAXTC)
-		time_constant = MAXTC;
-	else
-		time_constant = ntv.constant;
+	ntv.constant = time_constant;
 	if (time_status & STA_NANO)
 		ntv.precision = time_precision;
 	else
@@ -335,7 +349,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	ntv.tolerance = MAXFREQ * SCALE_PPM;
 #ifdef PPS_SYNC
 	ntv.shift = pps_shift;
-	ntv.ppsfreq = L_GINT((pps_freq / 1000) * 65536);
+	ntv.ppsfreq = L_GINT((pps_freq / 1000) << 16);
 	ntv.jitter = pps_jitter;
 	if (time_status & STA_NANO)
 		ntv.jitter = pps_jitter;
@@ -508,8 +522,8 @@ ntp_init()
 	L_CLR(time_freq);
 #ifdef PPS_SYNC
 	pps_filt.sec = pps_filt.nsec = 0;
-	pps_fcount = 0;
 	pps_tf[0] = pps_tf[1] = pps_tf[2] = pps_filt; 
+	pps_fcount = 0;
 	L_CLR(pps_freq);
 #endif /* PPS_SYNC */	   
 }
@@ -717,10 +731,18 @@ hardpps(tsp, nsec)
 		}
 		pps_offacc = 0;
 		pps_offcnt = 0;
-
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].sec - pps_lastsec;
+	if (ntp_div && ntp_mult) {
+		L_LINT(ftemp, (pps_filt.nsec));
+		L_RSHIFT(ftemp, ntp_div);
+		L_MPY(ftemp, ntp_mult);
+		L_ADD(pps_freq, ftemp);
+		if (time_status & STA_PPSFREQ)
+			time_freq = pps_freq;
+		return;
+	}
 	if (u_sec < (1 << pps_shift))
 		return;
 
@@ -795,7 +817,7 @@ hardpps(tsp, nsec)
 	 * The frequency offset is averaged into the PPS frequency. If
 	 * enabled, the system clock frequency is updated as well.
 	 */
-	L_RSHIFT(ftemp, 1);
+	L_RSHIFT(ftemp, PPS_FAVG);
 	L_ADD(pps_freq, ftemp);
 	u_nsec = L_GINT(pps_freq);
 	if (u_nsec > MAXFREQ)
