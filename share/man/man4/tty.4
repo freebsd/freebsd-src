@@ -192,8 +192,8 @@ Assert data terminal ready (DTR).
 .It Dv TIOCCDTR Fa void
 Clear data terminal ready (DTR).
 .It Dv TIOCGPGRP Fa int *tpgrp
-Return the current process group the terminal is associated
-with in the integer pointed to by
+Return the current process group with which the terminal is associated
+in the integer pointed to by
 .Fa tpgrp .
 This is the underlying call that implements the
 .Xr termios 4
