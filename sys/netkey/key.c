@@ -2774,10 +2774,11 @@ key_delsah(sah)
 			/* sanity check */
 			KEY_CHKSASTATE(state, sav->state, "key_delsah");
 
-			key_freesav(sav);
-
 			/* remove back pointer */
 			sav->sah = NULL;
+
+			key_freesav(sav);
+
 			sav = NULL;
 		}
 	}
