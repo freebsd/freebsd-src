@@ -109,6 +109,7 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
+sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
@@ -419,6 +420,14 @@ Unmaintained drivers, they might or might not work for your hardware:
 
 4.2.    Network cards
 ----    -------------
+
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
 
 Allied-Telesis AT1700 and RE2000 cards
 
