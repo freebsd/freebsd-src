@@ -1,4 +1,4 @@
-/*	$NetBSD: in_cksum.c,v 1.3 1995/04/22 13:53:48 cgd Exp $	*/
+/*	$NetBSD: in_cksum.c,v 1.6 2000/03/31 19:55:09 castor Exp $	*/
 
 /*
  * Copyright (c) 1992 Regents of the University of California.
@@ -43,6 +43,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <machine/endian.h>
+
+#include "stand.h"
 
 /*
  * Checksum routine for Internet Protocol family headers.
@@ -71,12 +74,21 @@ in_cksum(p, len)
 			}
 		} else {
 			while ((len -= 2) >= 0) {
+#if BYTE_ORDER == BIG_ENDIAN
 				sum += *cp++ << 8;
 				sum += *cp++;
+#else
+				sum += *cp++;
+				sum += *cp++ << 8;
+#endif
 			}
 		}
 		if ((oddbyte = len & 1) != 0)
+#if BYTE_ORDER == BIG_ENDIAN
 			v = *cp << 8;
+#else
+			v = *cp;
+#endif
 	}
 	if (oddbyte)
 		sum += v;
