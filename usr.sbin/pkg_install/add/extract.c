@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.22 1998/10/12 20:01:48 jkh Exp $";
+	"$Id: extract.c,v 1.23 1998/10/28 22:44:24 jkh Exp $";
 #endif
 
 /*
@@ -29,8 +29,8 @@ static const char rcsid[] =
 
 
 #define STARTSTRING "tar cf - "
-#define TOOBIG(str) ((strlen(str) + 22 + strlen(home) + where_count > maxargs) \
-		|| (strlen(str) + 6 + strlen(home) + perm_count > maxargs))
+#define TOOBIG(str) ((strlen(str) + FILENAME_MAX + where_count > maxargs) \
+		|| (strlen(str) + FILENAME_MAX + perm_count > maxargs))
 
 #define PUSHOUT(todir) /* push out string */ \
         if (where_count > sizeof(STARTSTRING)-1) { \
