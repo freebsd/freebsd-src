@@ -64,20 +64,8 @@ char *tabs[] = { "", "\t", "\t\t" };
 
 FILE   *file __P((char *));
 void	show __P((FILE *, char *, char *));
+int     stricoll __P((char *, char *));
 static void	usage __P((void));
-
-int stricoll(char *s1, char *s2)
-{
-	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
-
-	for (p = line1; *s1; s1++)
-		*p++ = tolower((unsigned char)*s1);
-	*p = '\0';
-	for (p = line2; *s2; s2++)
-		*p++ = tolower((unsigned char)*s2);
-	*p = '\0';
-	return strcoll(s1, s2);
-}
 
 int
 main(argc, argv)
@@ -213,4 +201,19 @@ usage()
 {
 	(void)fprintf(stderr, "usage: comm [-123i] file1 file2\n");
 	exit(1);
+}
+
+int
+stricoll(s1, s2)
+	char *s1, *s2;
+{
+	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+
+	for (p = line1; *s1; s1++)
+		*p++ = toupper((unsigned char)*s1);
+	*p = '\0';
+	for (p = line2; *s2; s2++)
+		*p++ = toupper((unsigned char)*s2);
+	*p = '\0';
+	return strcoll(s1, s2);
 }
