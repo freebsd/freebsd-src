@@ -47,7 +47,7 @@
  * 06/03/93 v0.1 Alpha release Hopefully the last re-write.  Many bugs fixed,
  * many remain.
  * 
- * $Id: ft.c,v 1.9 1994/08/21 20:16:14 paul Exp $
+ * $Id: ft.c,v 1.10 1994/08/23 07:52:12 paul Exp $
  */
 
 #include "ft.h"
@@ -64,7 +64,6 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/ftape.h>
-#include <machine/pio.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>

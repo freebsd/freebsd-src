@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.34 1994/09/02 04:12:06 davidg Exp $
+ *	$Id: pmap.c,v 1.35 1994/09/04 04:11:57 davidg Exp $
  */
 
 /*
@@ -94,7 +94,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 
-#include <i386/include/cpufunc.h>
 #include <i386/include/cputypes.h>
 
 #include <i386/isa/isa.h>

@@ -14,7 +14,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pas.c,v 1.2 1994/09/11 20:28:50 phk Exp $
+ * $Id: pas.c,v 1.3 1994/09/13 06:44:39 phk Exp $
  *
  * This is a driver for the one particular kind of the "ProAudioSpectrum"
  * card from MediaVision.  To find out if your card is supported, you can
@@ -74,7 +74,6 @@
 #include "systm.h"
 #include "types.h"
 #include "buf.h"
-#include "machine/cpufunc.h"
 #include "i386/isa/isa_device.h"
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>

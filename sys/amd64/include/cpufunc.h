@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.22 1994/09/15 17:55:47 paul Exp $
+ *	$Id: cpufunc.h,v 1.23 1994/09/16 11:22:33 jkh Exp $
  */
 
 /*
@@ -46,9 +46,52 @@
 
 #include <machine/spl.h>
 
-#include <machine/pio.h>
-
 #ifdef	__GNUC__
+
+static inline u_char
+inb(u_short port)
+{
+	u_char data;
+
+	__asm __volatile("inb %1,%0" : "=a" (data) : "d" (port));
+	return data;
+}
+
+static inline u_short
+inw(u_short port)
+{
+	u_short data;
+
+	__asm __volatile("inw %1,%0" : "=a" (data) : "d" (port));
+	return data;
+}
+
+static inline u_long
+inl(u_short port)
+{
+	u_long data;
+
+	__asm __volatile("inl %1,%0" : "=a" (data) : "d" (port));
+	return data;
+}
+
+static inline void
+outb(u_short port, u_char val)
+{
+	__asm __volatile("outb %0,%1" : :"a" (val), "d" (port));
+}
+
+static inline void
+outw(u_short port, u_short val)
+{
+	__asm __volatile("outw %0,%1" : :"a" (val), "d" (port));
+}
+
+static inline void
+outl(u_short port, u_long val)
+{
+	__asm __volatile("outl %0,%1" : :"a" (val), "d" (port));
+}
 
 static inline int bdb(void)
 {
@@ -145,9 +188,6 @@ extern void DELAY(int);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
-#ifndef outw	/* If not inline defined */
-extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
-#endif
 extern void outsb(int /*u_short*/, void *, size_t);
 extern void outsw(int /*u_short*/, void *, size_t);
 extern void insw(int /*u_short*/, void *, size_t);
