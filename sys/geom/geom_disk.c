@@ -154,6 +154,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 static void
 g_disk_done(struct bio *bp)
 {
+#ifdef maybe_not
 	struct disk *dp;
 
 	dp = bp->bio_disk;
@@ -165,6 +166,10 @@ g_disk_done(struct bio *bp)
 	} else {
 		g_std_done(bp);
 	}
+#else
+	bp->bio_completed = bp->bio_length - bp->bio_resid;
+	g_std_done(bp);
+#endif
 }
 
 static void
