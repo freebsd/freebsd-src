@@ -544,12 +544,16 @@ enum pthread_state {
 	PS_STATE_MAX
 };
 
+struct sigwait_data {
+	sigset_t	*waitset;
+	siginfo_t	*siginfo;	/* used to save siginfo for sigwaitinfo() */
+};
 
 union pthread_wait_data {
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
 	struct lock	*lock;
-	siginfo_t	*sigwaitinfo;	/* used to save siginfo for sigwaitinfo() */
+	struct sigwait_data *sigwait;
 };
 
 /*
@@ -663,7 +667,6 @@ struct pthread {
 	 * The thread's base and pending signal masks.  The active
 	 * signal mask is stored in the thread's context (in mailbox).
 	 */
-	sigset_t		oldsigmask;
 	sigset_t		sigmask;
 	sigset_t		sigpend;
 	volatile int		check_pending;
