@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.13 1998/07/07 01:51:18 bde Exp $
+# $Id: Makefile,v 1.14 1998/08/15 07:15:51 jb Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
@@ -29,15 +29,21 @@ build-tools: mkbinorder mkcaplist mkcapsort mkversion
 capsort.c: mkcapsort
 	./mkcapsort > capsort.c
 
-mkcapsort: mkcapsort.c caplist.o compar.o
-	$(CC) -static $(CFLAGS) $(LDFLAGS) -o mkcapsort ${.CURDIR}/mkcapsort.c caplist.o compar.o
+.for f in caplist capsort compar findcap
+CLANFILES+= cross-$f.o
+cross-$f.o: $f.c
+	${CC} ${CFLAGS} -c -o ${.TARGET} ${.ALLSRC}
+.endfor
+
+mkcapsort: mkcapsort.c cross-caplist.o cross-compar.o
+	$(CC) -static $(CFLAGS) $(LDFLAGS) -o ${.TARGET} ${.ALLSRC}
 
 binorder.c: mkbinorder ${.CURDIR}/bin_order
 	./mkbinorder ${.CURDIR}/bin_order > binorder.c
 
-mkbinorder: mkbinorder.c capsort.o caplist.o compar.o findcap.o
-	$(CC) -static $(CFLAGS) $(LDFLAGS) -o mkbinorder ${.CURDIR}/mkbinorder.c capsort.o \
-		caplist.o compar.o findcap.o
+mkbinorder: mkbinorder.c cross-capsort.o cross-caplist.o cross-compar.o \
+	    cross-findcap.o
+	$(CC) -static $(CFLAGS) $(LDFLAGS) -o ${.TARGET} ${.ALLSRC}
 
 version.c: mkversion
 	./mkversion > version.c

@@ -7,18 +7,21 @@ LDADD=	-lm -lcurses -ltermcap -lcompat
 DATAFILES=characs gold lastdead mess monsters motd scoreboard void
 HIDEGAME=hidegame
 MAN6=	phantasia.6
-CLEANFILES=${DATAFILES} map setup setup.o stamp.setuprun
+CLEANFILES=${DATAFILES} cross-phantglobs.o map setup setup.o stamp.setuprun
 
 all: stamp.setuprun
 
 build-tools: setup
 
+cross-phantglobs.o: phantglobs.c
+	${CC} ${CFLAGS} -c -o ${.TARGET} ${.ALLSRC}
+
 stamp.setuprun: monsters.asc setup
 	./setup -m ${.CURDIR}/monsters.asc
 	touch ${.TARGET}
 
-setup: phantglobs.o setup.o ${LIBM}
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} phantglobs.o setup.o -lm
+setup: cross-phantglobs.o setup.o ${LIBM}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC:M*.o} -lm
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 \
