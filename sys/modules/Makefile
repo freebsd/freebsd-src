@@ -24,6 +24,7 @@ SUBDIR=	accf_data \
 	firewire \
 	fxp \
 	gx \
+	ida \
 	if_disc \
 	if_ef \
 	if_faith \
