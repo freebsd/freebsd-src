@@ -1,19 +1,6 @@
 /* $FreeBSD$
  *
  * $Log: common.h,v $
- * Revision 1.5  1998/01/21 14:37:16  ache
- * Resurrect patch 2.1 without FreeBSD Index: hack
- *
- * Revision 1.3  1995/05/30 05:02:30  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.2  1993/09/22  16:51:03  rich
- * Increaed the fixed static buffer sizes and maximum hunk size that
- * otherwise causes the XFree86 1.3 patch set to fail.
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
  * Revision 2.0.1.2  88/06/22  20:44:53  lwall
  * patch12: sprintf was declared wrong
  *

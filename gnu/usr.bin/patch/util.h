@@ -1,28 +1,6 @@
 /* $FreeBSD$
  *
  * $Log: util.h,v $
- * Revision 1.5  1998/01/21 14:37:25  ache
- * Resurrect patch 2.1 without FreeBSD Index: hack
- *
- * Revision 1.3  1997/02/13 21:10:45  jmg
- * Fix a problem with patch in that is will always default, even when the
- * controlling terminal is closed.  Now the function ask() will return 1 when th
- * input is known to come from a file or terminal, or it will return 0 when ther
- * was a read error.
- *
- * Modified the question "Skip patch?" so that on an error from ask it will skip
- * the patch instead of looping.
- *
- * Closes PR#777
- *
- * 2.2 candidate
- *
- * Revision 1.2  1995/05/30 05:02:38  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
  * Revision 2.0  86/09/17  15:40:06  lwall
  * Baseline for netwide release.
  *

@@ -9,65 +9,6 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
- * Revision 1.14  1998/01/22 07:44:04  ache
- * Add PATCH_INDEX_FIRST environment variable to do the same as -I option
- *
- * Revision 1.13  1998/01/21 15:15:39  ache
- * Update usage line with new option
- *
- * Revision 1.12  1998/01/21 15:10:13  ache
- * Add -I or --index-first option to take Index: precedence over context diff,
- * as it was in hacked FreeBSD version
- *
- * Revision 1.11  1998/01/21 14:37:22  ache
- * Resurrect patch 2.1 without FreeBSD Index: hack
- *
- * Revision 1.9  1997/10/23 02:44:22  ache
- * Add (unsigned char) cast to ctype macros
- *
- * Revision 1.8  1997/03/17 01:44:42  jmg
- * fix compilation warnings in patch... (with slight modification)
- *
- * also remove -Wall that I acidentally committed last time I was here...
- *
- * Submitted-by: Philippe Charnier
- *
- * Closes PR#2998
- *
- * Revision 1.7  1997/02/13 21:10:41  jmg
- * Fix a problem with patch in that is will always default, even when the
- * controlling terminal is closed.  Now the function ask() will return 1 when th
- * input is known to come from a file or terminal, or it will return 0 when ther
- * was a read error.
- *
- * Modified the question "Skip patch?" so that on an error from ask it will skip
- * the patch instead of looping.
- *
- * Closes PR#777
- *
- * 2.2 candidate
- *
- * Revision 1.6  1995/05/30 05:02:34  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.5  1995/01/12  22:09:40  hsu
- * Fix bug that created new files even when running in -C check mode.
- * Reviewed by: phk
- *
- * Revision 1.4  1994/02/25  21:46:04  phk
- * added the -C/-check again.
- *
- * Revision 1.3  1994/02/17  22:20:34  jkh
- * Put this back - I was somehow under the erroneous impression that patch was in
- * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
- *
- * Revision 1.2  1994/02/17  22:16:03  jkh
- * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
- * a patch before actually applying it.
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
  * Revision 2.0.2.0  90/05/01  22:17:50  davison
  * patch12u: unidiff support added
  *
