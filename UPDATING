@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020813:	p11
+	Bounds checking errors in accept(), getsockname(),
+	getpeername(), and a VESA ioctl() command were corrected.
+
 20020805:	p10	FreeBSD-SA-02:33.openssl
 	Correct a bug in the ASN.1 decoder which was introduced with
 	the recent OpenSSL update.
