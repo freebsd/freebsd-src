@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.10 1995/09/06 23:15:54 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.11 1995/09/07 06:01:36 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -77,6 +77,7 @@ int devfs_lookup(struct vop_lookup_args *ap) /*proto*/
 	struct vnode **result_vnode = ap->a_vpp;
         dn_p   dir_node;       /* the directory we are searching */
         dn_p   new_node;       /* the node we are searching for */
+	devnm_p new_nodename;
 	int flags = cnp->cn_flags;
         int op = cnp->cn_nameiop;       /* LOOKUP, CREATE, RENAME, or DELETE */
         int lockparent = flags & LOCKPARENT;
@@ -174,12 +175,14 @@ DBPRINT(("errr, maybe not cached "));
 
 	heldchar = cnp->cn_nameptr[cnp->cn_namelen];
 	cnp->cn_nameptr[cnp->cn_namelen] = '\0';
-	new_node = dev_findname(dir_node,cnp->cn_nameptr);
+	new_nodename = dev_findname(dir_node,cnp->cn_nameptr);
 	cnp->cn_nameptr[cnp->cn_namelen] = heldchar;
-	if(new_node)
+	if(new_nodename)
 	{
+		new_node = new_nodename->dnp;
 		goto found;
 	}
+	new_node = NULL; /* to be safe */
 /***********************************************************************\
 * Failed to find it.. (That may be good)				*
 \***********************************************************************/
@@ -736,6 +739,7 @@ DBPRINT(("write\n"));
 	}
 }
 
+/* presently not called from devices anyhow */
 int devfs_ioctl(struct vop_ioctl_args *ap) /*proto*/
         /*struct vop_ioctl_args  {
                 struct vnode *a_vp;
@@ -760,7 +764,7 @@ int devfs_select(struct vop_select_args *ap) /*proto*/
         } */
 {
 DBPRINT(("select\n"));
-	return 1;		/* DOS filesystems never block? */
+	return 1;		/* filesystems never block? */
 }
 
 int devfs_mmap(struct vop_mmap_args *ap) /*proto*/
@@ -829,6 +833,33 @@ DBPRINT(("link\n"));
 	return 0;
 }
 
+/*
+ * Rename system call. Seems overly complicated to me...
+ * 	rename("foo", "bar");
+ * is essentially
+ *	unlink("bar");
+ *	link("foo", "bar");
+ *	unlink("foo");
+ * but ``atomically''.
+ *
+ * When the target exists, both the directory
+ * and target vnodes are locked.
+ * the source and source-parent vnodes are referenced
+ *
+ *
+ * Basic algorithm is:
+ *
+ * 1) Bump link count on source while we're linking it to the
+ *    target.  This also ensure the inode won't be deleted out
+ *    from underneath us while we work (it may be truncated by
+ *    a concurrent `trunc' or `open' for creation).
+ * 2) Link source to destination.  If destination already exists,
+ *    delete it first.
+ * 3) Unlink source reference to node if still around. If a
+ *    directory was moved and the parent of the destination
+ *    is different from the source, patch the ".." entry in the
+ *    directory.
+ */
 int devfs_rename(struct vop_rename_args *ap) /*proto*/
         /*struct vop_rename_args  {
                 struct vnode *a_fdvp;
@@ -839,8 +870,212 @@ int devfs_rename(struct vop_rename_args *ap) /*proto*/
                 struct componentname *a_tcnp;
         } */
 {
-DBPRINT(("rename\n"));
-	return 0;
+	struct vnode *tvp = ap->a_tvp;
+	struct vnode *tdvp = ap->a_tdvp;
+	struct vnode *fvp = ap->a_fvp;
+	struct vnode *fdvp = ap->a_fdvp;
+	struct componentname *tcnp = ap->a_tcnp;
+	struct componentname *fcnp = ap->a_fcnp;
+	dn_p fp, fdp, tp, tdp;
+	devnm_p fnp,tnp;
+	int doingdirectory = 0, oldparent = 0, newparent = 0;
+	int error = 0;
+	uid_t outuid = tcnp->cn_cred->cr_uid;
+
+	/*
+	 * First catch an arbitrary restriction for this FS
+	 */
+	if(tcnp->cn_namelen > DEVMAXNAMESIZE) {
+		error = ENAMETOOLONG;
+		goto abortit;
+	}
+
+	/*
+	 * Lock our directories and get our name pointers
+	 * assume that the names are null terminated as they
+	 * are the end of the path. Get pointers to all our
+	 * devfs structures.
+	 */
+	if ( error = devfs_vntodn(tdvp,&tdp)) goto abortit;
+	if ( error = devfs_vntodn(fdvp,&fdp)) goto abortit;
+	if ( error = devfs_vntodn(fvp,&fp)) goto abortit;
+	fnp = dev_findname(fdp,fcnp->cn_nameptr);
+	if(!fnp) panic("devfs_rename: source dissapeared");
+	if (tvp) {
+		if ( error = devfs_vntodn(tvp,&tp)) goto abortit;
+		tnp = dev_findname(tdp,tcnp->cn_nameptr);
+		if(!tnp) panic("devfs_rename: target dissapeared");
+	} else {
+		tp = NULL;
+		tnp = NULL;
+	}
+	
+	/*
+	 * trying to move it out of devfs? (v_tag == VT_DEVFS)
+         * if we move a dir across mnt points. we need to fix all
+	 * the mountpoint pointers! XXX
+	 * so for now keep dirs within the same mount
+	 */
+	if ( (fvp->v_tag != VT_DEVFS)
+	 || (fvp->v_tag != tdvp->v_tag)
+	 || (tvp && (fvp->v_tag != tvp->v_tag))
+	 || ((fp->type == DEV_DIR) && (fp->dvm != tdp->dvm ))) {
+		error = EXDEV;
+abortit:
+		VOP_ABORTOP(tdvp, tcnp); 
+		if (tdvp == tvp) /* eh? */
+			vrele(tdvp);
+		else
+			vput(tdvp);
+		if (tvp)
+			vput(tvp);
+		VOP_ABORTOP(fdvp, fcnp); /* XXX, why not in NFS? */
+		vrele(fdvp);
+		vrele(fvp);
+		return (error);
+	}
+
+	/*
+	 * Check we are doing legal things WRT the new flags
+	 */
+	if ((tp && (tp->flags & (IMMUTABLE | APPEND)))
+	  || (fp->flags & (IMMUTABLE | APPEND))
+	  || (tdp->flags & APPEND) /*XXX eh?*/
+	  || (fdp->flags & APPEND)) {
+		error = EPERM;
+		goto abortit;
+	}
+
+	/*
+	 * Make sure that we don't try do something stupid
+	 */
+	if ((fp->type) == DEV_DIR) {
+		/*
+		 * Avoid ".", "..", and aliases of "." for obvious reasons.
+		 */
+		if ((fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.') 
+		    || (fcnp->cn_flags&ISDOTDOT) 
+		    || (tcnp->cn_namelen == 1 && tcnp->cn_nameptr[0] == '.') 
+		    || (tcnp->cn_flags&ISDOTDOT) 
+		    || (tdp == fp )) {
+			error = EINVAL;
+			goto abortit;
+		}
+		doingdirectory++;
+	}
+
+	/*
+	 * If ".." must be changed (ie the directory gets a new
+	 * parent) then the source directory must not be in the
+	 * directory heirarchy above the target, as this would
+	 * orphan everything below the source directory. Also
+	 * the user must have write permission in the source so
+	 * as to be able to change "..". 
+	 */
+	if (doingdirectory && (tdp != fdp)) {
+		dn_p tmp,ntmp;
+		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_proc);
+		tmp = tdp;
+		do {
+			if(tmp == fp) {
+				/* XXX unlock stuff here probably */
+				error = EINVAL;
+				goto out;
+			}
+			ntmp = tmp;
+		} while ((tmp = tmp->by.Dir.parent) != ntmp);
+	}
+
+	/***********************************
+	 * Start actually doing things.... *
+	 ***********************************/
+	TIMEVAL_TO_TIMESPEC(&time,&(fp->atime));
+	/*
+	 * Check if just deleting a link name.
+	 */
+	if (fvp == tvp) {
+		if (fvp->v_type == VDIR) {
+			error = EINVAL;
+			goto abortit;
+		}
+
+		/* Release destination completely. */
+		VOP_ABORTOP(tdvp, tcnp);
+		vput(tdvp);
+		vput(tvp);
+
+		/* Delete source. */
+		VOP_ABORTOP(fdvp, fcnp); /*XXX*/
+		vrele(fdvp);
+		vrele(fvp);
+		dev_free_name(fnp);
+		return 0;
+	}
+
+
+	/*
+	 * 1) Bump link count while we're moving stuff
+	 *    around.  If we crash somewhere before
+	 *    completing our work,  too bad :)
+	 */
+	fp->links++;
+	/*
+	 * If the target exists zap it (unless it's a non-empty directory)
+	 * We could do that as well but won't
+ 	 */
+	if (tp) {
+		int ouruid = tcnp->cn_cred->cr_uid;
+		/*
+		 * If the parent directory is "sticky", then the user must
+		 * own the parent directory, or the destination of the rename,
+		 * otherwise the destination may not be changed (except by
+		 * root). This implements append-only directories.
+		 * XXX shoudn't this be in generic code? 
+		 */
+		if ((tdp->mode & S_ISTXT)
+		  && ouruid != 0
+		  && ouruid != tdp->uid
+		  && ouruid != tp->uid ) {
+			error = EPERM;
+			goto bad;
+		}
+		/*
+		 * Target must be empty if a directory and have no links
+		 * to it. Also, ensure source and target are compatible
+		 * (both directories, or both not directories).
+		 */
+		if (( doingdirectory) && (tp->links > 2)) {
+				printf("nlink = %d\n",tp->links); /*XXX*/
+				error = ENOTEMPTY;
+				goto bad;
+		}
+		cache_purge(tvp); /*XXX*/
+		dev_free_name(tnp);
+		tp = NULL;
+	}
+	dev_add_name(tcnp->cn_nameptr,tdp,fnp->as.front.realthing,fp,&tnp);
+	fnp->dnp = NULL;
+	fp->links--; /* one less link to it.. */
+	dev_free_name(fnp);
+	fp->links--; /* we added one earlier*/
+	if (tdp)
+		vput(tdvp);
+	if (tp)
+		vput(fvp);
+	vrele(ap->a_fvp);
+	return (error);
+
+bad:
+	if (tp)
+		vput(tvp);
+	vput(tdvp);
+out:
+	if (VOP_LOCK(fvp) == 0) {
+		fp->links--; /* we added one earlier*/
+		vput(fvp);
+	} else
+		vrele(fvp);
+	return (error);
 }
 
 
@@ -1227,7 +1462,7 @@ void	devfs_dropvnode(dn_p dnp) /*proto*/
 #define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
 #define devfs_remove ((int (*) __P((struct  vop_remove_args *)))devfs_enotsupp)
 #define devfs_link ((int (*) __P((struct  vop_link_args *)))devfs_enotsupp)
-#define devfs_rename ((int (*) __P((struct  vop_rename_args *)))devfs_enotsupp)
+/*#define devfs_rename ((int (*) __P((struct  vop_rename_args *)))devfs_enotsupp)*/
 #define devfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))devfs_enotsupp)
 #define devfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))devfs_enotsupp)
 #define devfs_symlink ((int (*) __P((struct vop_symlink_args *)))devfs_enotsupp)
