@@ -40,6 +40,7 @@ SUBDIR=	IPXrouted \
 	kernbb \
 	keyserv \
 	lastlogin \
+	mailwrapper \
 	manctl \
 	memcontrol \
 	mergemaster \
@@ -136,10 +137,6 @@ SUBDIR+=named \
 
 .if !defined(NO_LPR)
 SUBDIR+=lpr
-.endif
-
-.if !defined(NO_MAILWRAPPER)
-SUBDIR+=mailwrapper
 .endif
 
 .if !defined(NO_SENDMAIL)
