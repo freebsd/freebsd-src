@@ -47,8 +47,8 @@ attacks from miscreants who create dangerous package files.
 .Pp
 You are advised to verify the competence and identity of those who
 provide installable package files.  For extra protection, examine all
-the package control files in the package record directory (
-.Pa /var/db/pkg/<pkg-name>/ ).
+the package control files in the package record directory
+.Pa ( /var/db/pkg/<pkg-name>/ ) .
 Pay particular attention to any +INSTALL, +POST-INSTALL, +DEINSTALL,
 +POST-DEINSTALL, +REQUIRE or +MTREE_DIRS files, and inspect the +CONTENTS
 file for
@@ -116,7 +116,7 @@ option is given).
 If the package contains a
 .Ar require
 file (see 
-.Xr pkg_create 1 ),
+.Xr pkg_create 1 ) ,
 then this is executed first as
 .Bd -filled -offset indent -compact
 .Cm require
@@ -163,7 +163,7 @@ are given during package creation time (using the
 and 
 .Cm Fl K
 flags to 
-.Xr pkg_create 1 ).
+.Xr pkg_create 1 ) .
 .Pp
 If a
 .Cm post-deinstall
@@ -197,7 +197,7 @@ are given during package creation time (using the
 and 
 .Cm Fl K
 flags to 
-.Xr pkg_create 1 ).
+.Xr pkg_create 1 ) .
 .Pp
 Reasoning behind passing keywords such as
 .Ar DEINSTALL
