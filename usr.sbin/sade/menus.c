@@ -240,7 +240,7 @@ DMenu MenuIndex = {
       { " Media, Tape",		"Select tape installation media.",	NULL, mediaSetTape },
       { " Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
       { " Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },
-      { " Media, CDROM",	"Select CDROM installation media.",	NULL, mediaSetCDROM },
+      { " Media, CDROM/DVD",	"Select CDROM/DVD installation media.",	NULL, mediaSetCDROM },
       { " Media, DOS",		"Select DOS installation media.",	NULL, mediaSetDOS },
       { " Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
       { " Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
@@ -410,11 +410,11 @@ DMenu MenuMouse = {
 
 DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose a CDROM type",
-    "FreeBSD can be installed directly from a CDROM containing a valid\n"
+    "Choose a CD/DVD type",
+    "FreeBSD can be installed directly from a CD/DVD containing a valid\n"
     "FreeBSD distribution.  If you are seeing this menu it is because\n"
-    "more than one CDROM drive was found on your system.  Please select one\n"
-    "of the following CDROM drives as your installation drive.",
+    "more than one CD/DVD drive was found on your system.  Please select one\n"
+    "of the following CD/DVD drives as your installation drive.",
     "Press F1 to read the installation guide",
     "INSTALL",
     { { NULL } },
@@ -692,12 +692,12 @@ DMenu MenuMedia = {
     "Choose Installation Media",
     "FreeBSD can be installed from a variety of different installation\n"
     "media, ranging from floppies to an Internet FTP server.  If you're\n"
-    "installing FreeBSD from a supported CDROM drive then this is generally\n"
+    "installing FreeBSD from a supported CD/DVD drive then this is generally\n"
     "the best media to use if you have no overriding reason for using other\n"
     "media.",
     "Press F1 for more information on the various media types",
     "media",
-    { { "1 CDROM",		"Install from a FreeBSD CDROM",		NULL, mediaSetCDROM },
+    { { "1 CD/DVD",		"Install from a FreeBSD CD/DVD",	NULL, mediaSetCDROM },
       { "2 FTP",		"Install from an FTP server",		NULL, mediaSetFTPActive },
       { "3 FTP Passive",	"Install from an FTP server through a firewall", NULL, mediaSetFTPPassive },
       { "4 HTTP",		"Install from an FTP server through a http proxy", NULL, mediaSetHTTP },

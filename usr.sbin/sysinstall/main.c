@@ -152,7 +152,7 @@ main(int argc, char **argv)
 	    || !msgNoYes("Are you sure you wish to exit?  The system will halt.")
 #else
 	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot\n"
-		         "(be sure to remove any floppies/CDROMs from the drives).")
+		         "(be sure to remove any floppies/CDs/DVDs from the drives).")
 #endif
 	    )
 	    break;
