@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.1.1.1 1996/06/14 10:04:36 asami Exp $
+ *	$Id: apm.c,v 1.2 1996/07/23 07:45:29 asami Exp $
  */
 
 #include "apm.h"
@@ -36,9 +36,9 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #ifdef PC98
-#include "pc98/pc98/pc98_device.h"
+#include <pc98/pc98/pc98_device.h>
 #else
-#include "i386/isa/isa_device.h"
+#include <i386/isa/isa_device.h>
 #endif
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
@@ -48,7 +48,7 @@
 #include <vm/pmap.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
-#include "apm_setup.h"
+#include <i386/apm/apm_setup.h>
 
 static int apm_display_off __P((void));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
@@ -585,15 +585,9 @@ apm_not_halt_cpu(struct apm_softc *sc)
 }
 
 /* device driver definitions */
-#ifdef PC98
-static int apmprobe (struct pc98_device *);
-static int apmattach(struct pc98_device *);
-struct pc98_driver apmdriver = {
-#else
 static int apmprobe (struct isa_device *);
 static int apmattach(struct isa_device *);
 struct isa_driver apmdriver = {
-#endif
 	apmprobe, apmattach, "apm" };
 
 /*
@@ -606,11 +600,7 @@ struct isa_driver apmdriver = {
  */
 
 static int
-#ifdef PC98
-apmprobe(struct pc98_device *dvp)
-#else
 apmprobe(struct isa_device *dvp)
-#endif
 {
 	if ( dvp->id_unit > 0 ) {
 		printf("apm: Only one APM driver supported.\n");
@@ -697,11 +687,7 @@ apm_processevent(struct apm_softc *sc)
  */
 
 static int
-#ifdef PC98
-apmattach(struct pc98_device *dvp)
-#else
 apmattach(struct isa_device *dvp)
-#endif
 {
 #define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc;

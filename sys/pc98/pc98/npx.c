@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: npx.c,v 1.2 1996/07/23 07:46:26 asami Exp $
  */
 
 #include "npx.h"
@@ -106,21 +106,11 @@ void	stop_emulating	__P((void));
 
 typedef u_char bool_t;
 
-#ifdef PC98
-static	int	npxattach	__P((struct pc98_device *dvp));
-static	int	npxprobe	__P((struct pc98_device *dvp));
-static	int	npxprobe1	__P((struct pc98_device *dvp));
-#else
 static	int	npxattach	__P((struct isa_device *dvp));
 static	int	npxprobe	__P((struct isa_device *dvp));
 static	int	npxprobe1	__P((struct isa_device *dvp));
-#endif
 
-#ifdef PC98
-struct	pc98_driver npxdriver = {
-#else
 struct	isa_driver npxdriver = {
-#endif
 	npxprobe, npxattach, "npx",
 };
 
@@ -201,11 +191,7 @@ static struct kern_devconf kdc_npx[NNPX] = { {
 } };
 
 static inline void
-#ifdef PC98
-npx_registerdev(struct pc98_device *id)
-#else
 npx_registerdev(struct isa_device *id)
-#endif
 {
 	int	unit;
 
@@ -229,7 +215,7 @@ npx_registerdev(struct isa_device *id)
  */
 static int
 npxprobe(dvp)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 {
 	int	result;
 	u_long	save_eflags;
@@ -285,7 +271,7 @@ npxprobe(dvp)
 
 static int
 npxprobe1(dvp)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 {
 	u_short control;
 	u_short status;
@@ -406,7 +392,7 @@ npxprobe1(dvp)
  */
 int
 npxattach(dvp)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 {
 	if (npx_ex16)
 		printf("npx%d: Exception 16 interface\n", dvp->id_unit);

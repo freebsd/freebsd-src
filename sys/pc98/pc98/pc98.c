@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: pc98.c,v 1.2 1996/07/23 07:46:28 asami Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
- *	$Id: pc98.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: pc98.c,v 1.2 1996/07/23 07:46:28 asami Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -157,17 +157,16 @@ static inthand_t *slowintr[ICU_LEN] = {
 };
 
 #ifdef PC98
-static void config_pc98dev __P((struct pc98_device *isdp, u_int *mp));
-static void config_pc98dev_c __P((struct pc98_device *isdp, u_int *mp,
+static void config_pc98dev __P((struct isa_device *isdp, u_int *mp));
+static void config_pc98dev_c __P((struct isa_device *isdp, u_int *mp,
 				 int reconfig));
-static void conflict __P((struct pc98_device *dvp, struct pc98_device *tmpdvp,
+static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  int item, char const *whatnot, char const *reason,
 			  char const *format));
-static int haveseen __P((struct pc98_device *dvp, struct pc98_device *tmpdvp,
+static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
 static int pc98_dmarangecheck __P((caddr_t va, u_int length, int chan));
 static inthand2_t pc98_strayintr;
-static void register_imask __P((struct pc98_device *dvp, u_int mask));
 #else
 static void config_isadev __P((struct isa_device *isdp, u_int *mp));
 static void config_isadev_c __P((struct isa_device *isdp, u_int *mp,
@@ -179,21 +178,16 @@ static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
 static int isa_dmarangecheck __P((caddr_t va, u_int length, int chan));
 static inthand2_t isa_strayintr;
-static void register_imask __P((struct isa_device *dvp, u_int mask));
 #endif
+static void register_imask __P((struct isa_device *dvp, u_int mask));
 
 /*
  * print a conflict message
  */
 static void
 conflict(dvp, tmpdvp, item, whatnot, reason, format)
-#ifdef PC98
-	struct pc98_device	*dvp;
-	struct pc98_device	*tmpdvp;
-#else
 	struct isa_device	*dvp;
 	struct isa_device	*tmpdvp;
-#endif
 	int			item;
 	char const		*whatnot;
 	char const		*reason;
@@ -212,8 +206,8 @@ conflict(dvp, tmpdvp, item, whatnot, reason, format)
  */
 static int
 haveseen(dvp, tmpdvp, checkbits)
-	struct pc98_device *dvp;
-	struct pc98_device *tmpdvp;
+	struct isa_device *dvp;
+	struct isa_device *tmpdvp;
 	u_int	checkbits;
 {
 	/*
@@ -288,10 +282,10 @@ haveseen(dvp, tmpdvp, checkbits)
  */
 int
 haveseen_pc98dev(dvp, checkbits)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 	u_int	checkbits;
 {
-	struct pc98_device *tmpdvp;
+	struct isa_device *tmpdvp;
 	int	status = 0;
 
 	for (tmpdvp = pc98_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
@@ -322,7 +316,7 @@ haveseen_pc98dev(dvp, checkbits)
  */
 void
 pc98_configure() {
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 
 	dev_attach(&kdc_nec0);
 
@@ -408,7 +402,7 @@ pc98_configure() {
  
 static void
 config_pc98dev(isdp, mp)
-     struct pc98_device *isdp;
+     struct isa_device *isdp;
      u_int *mp;
 {
 	config_pc98dev_c(isdp, mp, 0);
@@ -416,7 +410,7 @@ config_pc98dev(isdp, mp)
  
 void
 reconfig_pc98dev(isdp, mp)
-	struct pc98_device *isdp;
+	struct isa_device *isdp;
 	u_int *mp;
 {
 	config_pc98dev_c(isdp, mp, 1);
@@ -424,14 +418,14 @@ reconfig_pc98dev(isdp, mp)
 
 static void
 config_pc98dev_c(isdp, mp, reconfig)
-	struct pc98_device *isdp;
+	struct isa_device *isdp;
 	u_int *mp;
 	int reconfig;
 {
 	u_int checkbits;
 	int id_alive;
 	int last_alive;
-	struct pc98_driver *dp = isdp->id_driver;
+	struct isa_driver *dp = isdp->id_driver;
  
 	if (!isdp->id_enabled) {
 		printf("%s%d: disabled, not probed.\n",
@@ -552,7 +546,7 @@ config_pc98dev_c(isdp, mp, reconfig)
  * hw.devconf interface.
  */
 int
-pc98_externalize(struct pc98_device *id, struct sysctl_req *req)
+pc98_externalize(struct isa_device *id, struct sysctl_req *req)
 {
 	return (SYSCTL_OUT(req, id, sizeof *id));
 }
@@ -563,9 +557,9 @@ pc98_externalize(struct pc98_device *id, struct sysctl_req *req)
  * what the `internalize' routine is supposed to do.
  */
 int
-pc98_internalize(struct pc98_device *id, struct sysctl_req *req)
+pc98_internalize(struct isa_device *id, struct sysctl_req *req)
 {
-	struct pc98_device myid;
+	struct isa_device myid;
 	int rv;
 
 	rv = SYSCTL_IN(req, &myid, sizeof *id);
@@ -1031,15 +1025,11 @@ pc98_strayintr(d)
  *
  * XXX we should add capability flags IAMDISPLAY and ISUPPORTCONSOLES.
  */
-#ifdef PC98
-struct pc98_device *
-#else
 struct isa_device *
-#endif
 find_display()
 {
 #ifdef PC98
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 
 	for (dvp = pc98_devtab_tty; dvp->id_driver != NULL; dvp++)
 #else
@@ -1062,9 +1052,9 @@ find_display()
  *
  */
 
-struct pc98_device *find_pc98dev(table, driverp, unit)
-     struct pc98_device *table;
-     struct pc98_driver *driverp;
+struct isa_device *find_pc98dev(table, driverp, unit)
+     struct isa_device *table;
+     struct isa_driver *driverp;
      int unit;
 {
   if (driverp == NULL) /* sanity check */
@@ -1085,7 +1075,7 @@ struct pc98_device *find_pc98dev(table, driverp, unit)
  */
 int
 pc98_irq_pending(dvp)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 {
 	unsigned id_irq;
 
@@ -1175,7 +1165,7 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 
 static void
 register_imask(dvp, mask)
-	struct pc98_device *dvp;
+	struct isa_device *dvp;
 	u_int	mask;
 {
 	if (dvp->id_alive && dvp->id_irq) {

@@ -115,8 +115,8 @@ static struct sbic_softc *sbicdata[NSBIC];
 
 #define KVTOPHYS(x)	vtophys(x)
 
-static int  sbicprobe __P((struct pc98_device *));
-static int  sbicattach __P((struct pc98_device *));
+static int  sbicprobe __P((struct isa_device *));
+static int  sbicattach __P((struct isa_device *));
 
 static u_int32_t	sbic_adapter_info __P((int));
 static int  sbic_find __P((struct sbic_softc *));
@@ -202,7 +202,7 @@ struct scsi_device sbic_dev = {
 	, { 0, 0 }
 };
 
-struct pc98_driver sbicdriver = {
+struct isa_driver sbicdriver = {
 	sbicprobe,
 	sbicattach,
 	"sbic"
@@ -222,7 +222,7 @@ static struct kern_devconf kdc_sbic[NSBIC] = { {
 } };
 
 static inline void
-sbic_registerdev(struct pc98_device *id)
+sbic_registerdev(struct isa_device *id)
 {
 	if(id->id_unit)
 		kdc_sbic[id->id_unit] = kdc_sbic[0];
@@ -239,7 +239,7 @@ sbic_registerdev(struct pc98_device *id)
  */
 static int
 sbicprobe(dev)
-	struct pc98_device *dev;
+	struct isa_device *dev;
 {
 	int unit = sbicunit;
 	struct sbic_softc *sbic;
@@ -292,7 +292,7 @@ sbicprobe(dev)
  */
 static int
 sbicattach(dev)
-	struct pc98_device *dev;
+	struct isa_device *dev;
 {
 	int unit = dev->id_unit;
 	struct sbic_softc *sbic = sbicdata[unit];

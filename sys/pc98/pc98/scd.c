@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.2 1996/07/23 07:46:37 asami Exp $ */
+/* $Id: scd.c,v 1.3 1996/07/30 18:56:08 asami Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -187,15 +187,9 @@ static int scd_toc_header(int unit, struct ioc_toc_header *th);
 static int scd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
 #define SCD_LASTPLUS1 170 /* don't ask, xcdplayer passes this in */
 
-#ifdef PC98
-static int	scd_probe(struct pc98_device *dev);
-static int	scd_attach(struct pc98_device *dev);
-struct	pc98_driver	scddriver = { scd_probe, scd_attach, "scd" };
-#else
 static int	scd_probe(struct isa_device *dev);
 static int	scd_attach(struct isa_device *dev);
 struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
-#endif
 
 static	d_open_t	scdopen;
 static	d_close_t	scdclose;
@@ -227,11 +221,7 @@ static struct kern_devconf kdc_scd[NSCD] = { {
 } };
 
 static inline void
-#ifdef PC98
-scd_registerdev(struct pc98_device *id)
-#else
 scd_registerdev(struct isa_device *id)
-#endif
 {
 	if(id->id_unit)
 		kdc_scd[id->id_unit] = kdc_scd[0];
@@ -244,11 +234,7 @@ scd_registerdev(struct isa_device *id)
 	dev_attach(&kdc_scd[id->id_unit]);
 }
 
-#ifdef PC98
-int scd_attach(struct pc98_device *dev)
-#else
 int scd_attach(struct isa_device *dev)
-#endif
 {
 	int	unit = dev->id_unit;
 	struct scd_data *cd = scd_data + unit;
@@ -737,11 +723,7 @@ scd_subchan(int unit, struct ioc_read_subchannel *sc)
 }
 
 int
-#ifdef PC98
-scd_probe(struct pc98_device *dev)
-#else
 scd_probe(struct isa_device *dev)
-#endif
 {
 	struct sony_drive_configuration drive_config;
 	int unit = dev->id_unit;

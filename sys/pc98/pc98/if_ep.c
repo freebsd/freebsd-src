@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.2 1996/07/23 07:46:17 asami Exp $
+ *  $Id: if_ep.c,v 1.3 1996/07/30 18:56:03 asami Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -124,19 +124,11 @@ struct	ep_board ep_board[EP_MAX_BOARDS + 1];
 
 static	int eeprom_rdy __P((struct ep_softc *sc));
 
-#ifdef PC98
-static	int ep_isa_probe __P((struct pc98_device *));
-static struct ep_board * ep_look_for_board_at __P((struct pc98_device *is));
-static	int ep_isa_attach __P((struct pc98_device *));
-static	void ep_isa_registerdev __P((struct ep_softc *sc,
-				     struct pc98_device *id));
-#else
 static	int ep_isa_probe __P((struct isa_device *));
 static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
 static	int ep_isa_attach __P((struct isa_device *));
 static	void ep_isa_registerdev __P((struct ep_softc *sc,
 				     struct isa_device *id));
-#endif
 static	int epioctl __P((struct ifnet * ifp, int, caddr_t));
 static	void epmbuffill __P((caddr_t, int));
 static	void epmbufempty __P((struct ep_softc *));
@@ -161,11 +153,7 @@ static	char *ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
 #define ep_fset(f) (sc->stat|=(f))
 #define ep_frst(f) (sc->stat&=~(f))
 
-#ifdef PC98
-struct pc98_driver epdriver = {
-#else
 struct isa_driver epdriver = {
-#endif
     ep_isa_probe,
     ep_isa_attach,
     "ep",
@@ -236,11 +224,7 @@ ep_pccard_init(dp, first)
     struct pccard_dev *dp;
     int first;
 {
-#ifdef PC98
-    struct pc98_device *is = &dp->isahd;
-#else
     struct isa_device *is = &dp->isahd;
-#endif
     struct ep_softc *sc = ep_softc[is->id_unit];
     struct ep_board *epb;
     int i;
@@ -298,11 +282,7 @@ static int
 ep_pccard_attach(dp)
     struct pccard_dev *dp;
 {
-#ifdef PC98
-    struct pc98_device *is = &dp->isahd;
-#else
     struct isa_device *is = &dp->isahd;
-#endif
     struct ep_softc *sc = ep_softc[is->id_unit];
     u_short config;
 
@@ -365,11 +345,7 @@ card_intr(dp)
 static void
 ep_isa_registerdev(sc, id)
     struct ep_softc *sc;
-#ifdef PC98
-    struct pc98_device *id;
-#else
     struct isa_device *id;
-#endif
 {
     sc->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
 					    M_DEVBUF, M_NOWAIT);
@@ -400,11 +376,7 @@ eeprom_rdy(sc)
 
 static struct ep_board *
 ep_look_for_board_at(is)
-#ifdef PC98
-    struct pc98_device *is;
-#else
     struct isa_device *is;
-#endif
 {
     int data, i, j, id_port = ELINK_ID_PORT;
     int count = 0;
@@ -569,11 +541,7 @@ ep_free(sc)
 
 int
 ep_isa_probe(is)
-#ifdef PC98
-    struct pc98_device *is;
-#else
     struct isa_device *is;
-#endif
 {
     struct ep_softc *sc;
     struct ep_board *epb;
@@ -636,11 +604,7 @@ ep_isa_probe(is)
 
 static int
 ep_isa_attach(is)
-#ifdef PC98
-    struct pc98_device *is;
-#else
     struct isa_device *is;
-#endif
 {
     struct ep_softc *sc = ep_softc[is->id_unit];
     u_short config;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
+ *	$Id: pcaudio.c,v 1.2 1996/07/23 07:46:29 asami Exp $
  */
 
 #include "pca.h"
@@ -98,19 +98,10 @@ static int pca_sleep = 0;
 static int pca_initialized = 0;
 
 void pcaintr(struct clockframe *frame);
-#ifdef PC98
-static int pcaprobe(struct pc98_device *dvp);
-static int pcaattach(struct pc98_device *dvp);
-#else
 static int pcaprobe(struct isa_device *dvp);
 static int pcaattach(struct isa_device *dvp);
-#endif
 
-#ifdef PC98
-struct	pc98_driver pcadriver = {
-#else
 struct	isa_driver pcadriver = {
-#endif
 	pcaprobe, pcaattach, "pca",
 };
 
@@ -299,11 +290,7 @@ pca_wait(void)
 
 
 static int
-#ifdef PC98
-pcaprobe(struct pc98_device *dvp)
-#else
 pcaprobe(struct isa_device *dvp)
-#endif
 {
 	return(-1);
 }
@@ -327,11 +314,7 @@ static struct kern_devconf kdc_pca[NPCA] = { {
 
 
 static inline void
-#ifdef PC98
-pca_registerdev(struct pc98_device *id)
-#else
 pca_registerdev(struct isa_device *id)
-#endif
 {
 	if(id->id_unit)
 		kdc_pca[id->id_unit] = kdc_pca[0];
@@ -346,11 +329,7 @@ pca_registerdev(struct isa_device *id)
 
 
 static int
-#ifdef PC98
-pcaattach(struct pc98_device *dvp)
-#else
 pcaattach(struct isa_device *dvp)
-#endif
 {
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();

@@ -36,7 +36,7 @@
 #error Why you include if_ed98.h?
 #endif
 
-static void pc98_set_register __P((struct pc98_device *dev,
+static void pc98_set_register __P((struct isa_device *dev,
 								   int unit, int type));
 
 /*
@@ -315,7 +315,7 @@ static unsigned int edp_nec108[16] = {
 	0x1000, 0x1002, 0x1004, 0x1006, 0x1008, 0x100a, 0x100c, 0x100e
 };
 
-static void pc98_set_register(struct pc98_device *dev, int unit, int type)
+static void pc98_set_register(struct isa_device *dev, int unit, int type)
 {
 	int adj;
 

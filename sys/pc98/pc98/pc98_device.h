@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.29 1996/04/08 19:38:57 smpatel Exp $
+ *	$Id: pc98_device.h,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 #ifndef _PC98_PC98_PC98_DEVICE_H_
@@ -76,9 +76,9 @@ typedef void inthand2_t __P((int unit));
  * more powerful mechanism for detecting and dealing with multiple types
  * of non-fatal conflict.  -jkh XXX
  */
-struct pc98_device {
+struct isa_device {
 	int	id_id;		/* device id */
-	struct	pc98_driver *id_driver;
+	struct	isa_driver *id_driver;
 	int	id_iobase;	/* base i/o address */
 	u_short	id_irq;		/* interrupt request */
 	short	id_drq;		/* DMA request */
@@ -94,7 +94,7 @@ struct pc98_device {
 	int	id_reconfig;	/* hot eject device support (such as PCMCIA) */
 	int	id_enabled;	/* is device enabled */
 	int	id_conflicts;	/* we're allowed to conflict with things */
-	struct pc98_device *id_next; /* used in isa_devlist in userconfig() */
+	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
 };
 
 /*
@@ -104,16 +104,16 @@ struct pc98_device {
  * as well as an array of types which are acceptable to it.
  * These are used at boot time by the configuration program.
  */
-struct pc98_driver {
-	int	(*probe) __P((struct pc98_device *idp));
+struct isa_driver {
+	int	(*probe) __P((struct isa_device *idp));
 					/* test whether device is present */
-	int	(*attach) __P((struct pc98_device *idp));
+	int	(*attach) __P((struct isa_device *idp));
 					/* setup driver for a device */
 	char	*name;			/* device name */
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
-#define PC98_EXTERNALLEN (sizeof(struct pc98_device))
+#define PC98_EXTERNALLEN (sizeof(struct isa_device))
 
 #ifdef KERNEL
 
@@ -125,12 +125,12 @@ extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
 extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
 extern int intr_unit[];		/* cookies to pass to intr handlers */
 
-extern struct pc98_device pc98_biotab_fdc[];
-extern struct pc98_device pc98_biotab_wdc[];
-extern struct pc98_device pc98_devtab_bio[];
-extern struct pc98_device pc98_devtab_net[];
-extern struct pc98_device pc98_devtab_null[];
-extern struct pc98_device pc98_devtab_tty[];
+extern struct isa_device pc98_biotab_fdc[];
+extern struct isa_device pc98_biotab_wdc[];
+extern struct isa_device pc98_devtab_bio[];
+extern struct isa_device pc98_devtab_net[];
+extern struct isa_device pc98_devtab_null[];
+extern struct isa_device pc98_devtab_tty[];
 extern struct kern_devconf kdc_nec0;
 
 struct kern_devconf;
@@ -151,12 +151,12 @@ inthand_t
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
-struct pc98_device *
+struct isa_device *
 	find_display __P((void));
-struct pc98_device *
-	find_pc98dev __P((struct pc98_device *table, struct pc98_driver *driverp,
+struct isa_device *
+	find_pc98dev __P((struct isa_device *table, struct isa_driver *driverp,
 			 int unit));
-int	haveseen_pc98dev __P((struct pc98_device *dvp, u_int checkbits));
+int	haveseen_pc98dev __P((struct isa_device *dvp, u_int checkbits));
 void	pc98_configure __P((void));
 void	pc98_defaultirq __P((void));
 void	pc98_dmacascade __P((int chan));
@@ -165,13 +165,13 @@ void	pc98_dmainit __P((int chan, u_int bouncebufsize));
 void	pc98_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
 int	pc98_dma_acquire __P((int chan));
 void	pc98_dma_release __P((int chan));
-int	pc98_externalize __P((struct pc98_device *id, struct sysctl_req *req));
+int	pc98_externalize __P((struct isa_device *id, struct sysctl_req *req));
 int	pc98_generic_externalize __P((struct kern_devconf *kdc,
 				     struct sysctl_req *req));
-int	pc98_internalize __P((struct pc98_device *id, struct sysctl_req *req));
-int	pc98_irq_pending __P((struct pc98_device *dvp));
+int	pc98_internalize __P((struct isa_device *id, struct sysctl_req *req));
+int	pc98_irq_pending __P((struct isa_device *dvp));
 int	pc98_nmi __P((int cd));
-void	reconfig_pc98dev __P((struct pc98_device *isdp, u_int *mp));
+void	reconfig_pc98dev __P((struct isa_device *isdp, u_int *mp));
 int	register_intr __P((int intr, int device_id, u_int flags,
 			   inthand2_t *handler, u_int *maskptr, int unit));
 int	unregister_intr __P((int intr, inthand2_t *handler));
