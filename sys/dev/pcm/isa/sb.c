@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <dev/pcm/sound.h>
@@ -47,6 +47,17 @@ static int sbchan_trigger(void *data, int go);
 static int sbchan_getptr(void *data);
 static pcmchan_caps *sbchan_getcaps(void *data);
 
+/* channel interface for ESS */
+#ifdef notyet
+static void *esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+#endif
+static int esschan_setdir(void *data, int dir);
+static int esschan_setformat(void *data, u_int32_t format);
+static int esschan_setspeed(void *data, u_int32_t speed);
+static int esschan_setblocksize(void *data, u_int32_t blocksize);
+static int esschan_trigger(void *data, int go);
+static int esschan_getptr(void *data);
+static pcmchan_caps *esschan_getcaps(void *data);
 static pcmchan_caps sb_playcaps = {
 	4000, 22050,
 	AFMT_U8,
@@ -106,6 +117,16 @@ static pcm_channel sb_chantemplate = {
 	sbchan_getcaps,
 };
 
+static pcm_channel ess_chantemplate = {
+	sbchan_init,
+	esschan_setdir,
+	esschan_setformat,
+	esschan_setspeed,
+	esschan_setblocksize,
+	esschan_trigger,
+	esschan_getptr,
+	esschan_getcaps,
+};
 #define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
 
 struct sb_info;
@@ -116,6 +137,7 @@ struct sb_chinfo {
 	snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt;
+	int ess_dma_started;
 };
 
 struct sb_info {
@@ -153,6 +175,7 @@ static void sb_setmixer(struct sb_info *sb, u_int port, u_int value);
 static int sb_getmixer(struct sb_info *sb, u_int port);
 
 static void sb_intr(void *arg);
+static void ess_intr(void *arg);
 static int sb_init(device_t dev, struct sb_info *sb);
 static int sb_reset_dsp(struct sb_info *sb);
 
@@ -161,6 +184,11 @@ static int sb_speed(struct sb_chinfo *ch, int speed);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
 
+static int ess_format(struct sb_chinfo *ch, u_int32_t format);
+static int ess_speed(struct sb_chinfo *ch, int speed);
+static int ess_start(struct sb_chinfo *ch);
+static int ess_stop(struct sb_chinfo *ch);
+static int ess_abort(struct sb_chinfo *ch);
 static int sbmix_init(snd_mixer *m);
 static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
@@ -411,6 +439,7 @@ sb_identify_board(device_t dev, struct sb_info *sb)
 {
     	char *fmt = NULL;
     	static char buf[64];
+	int essver = 0;
 
     	sb_cmd(sb, DSP_CMD_GETVER);	/* Get version */
     	sb->bd_id = (sb_get_byte(sb) << 8) | sb_get_byte(sb);
@@ -424,40 +453,39 @@ sb_identify_board(device_t dev, struct sb_info *sb)
     	case 3:
 		fmt = "SoundBlaster Pro %d.%d";
 		if (sb->bd_id == 0x301) {
-	    	int essver, rev;
+	    		int rev;
 
-	    	/* Try to detect ESS chips. */
-	    	sb_cmd(sb, DSP_CMD_GETID);	/* Return ident. bytes. */
-	    	essver = (sb_get_byte(sb) << 8) | sb_get_byte(sb);
-	    	rev = essver & 0x000f;
-	    	essver &= 0xfff0;
-	    	if (essver == 0x4880) {
-			/* the ESS488 can be treated as an SBPRO */
-			fmt = "SoundBlaster Pro (ESS488 rev %d)";
-	    	} else if (essver == 0x6880) {
-			if (rev < 8) fmt = "SoundBlaster Pro (ESS688 rev %d)";
-			else fmt = "SoundBlaster Pro (ESS1868 rev %d)";
-	        	sb->bd_flags |= BD_F_ESS;
-	    	} else return ENXIO;
-	    	sb->bd_id &= 0xff00;
-	    	sb->bd_id |= ((essver & 0xf000) >> 8) | rev;
+	    		/* Try to detect ESS chips. */
+	    		sb_cmd(sb, DSP_CMD_GETID); /* Return ident. bytes. */
+	    		essver = (sb_get_byte(sb) << 8) | sb_get_byte(sb);
+	    		rev = essver & 0x000f;
+	    		essver &= 0xfff0;
+	    		if (essver == 0x4880) {
+				/* the ESS488 can be treated as an SBPRO */
+				fmt = "SoundBlaster Pro (ESS488 rev %d)";
+	    		} else if (essver == 0x6880) {
+				if (rev < 8) fmt = "ESS688 rev %d";
+				else fmt = "ESS1868 rev %d";
+	        		sb->bd_flags |= BD_F_ESS;
+	    		} else return ENXIO;
+	    		sb->bd_id &= 0xff00;
+	    		sb->bd_id |= ((essver & 0xf000) >> 8) | rev;
 		}
 		break;
 
     	case 4:
 		sb->bd_flags |= BD_F_SB16;
-        	fmt = "SoundBlaster 16 %d.%d";
+		if (sb->bd_flags & BD_F_SB16X) fmt = "SB16 ViBRA16X %d.%d";
+        	else fmt = "SoundBlaster 16 %d.%d";
 		break;
 
     	default:
 		device_printf(dev, "failed to get SB version (%x)\n",
 			      sb->bd_id);
 		return ENXIO;
-
     	}
-    	if ((sb->bd_id >> 8) <= 4) snprintf(buf, sizeof buf, fmt,
-					    sb->bd_id >> 8, sb->bd_id & 0xff);
-    	else snprintf(buf, sizeof buf, fmt, sb->bd_id & 0x000f);
+    	if (essver) snprintf(buf, sizeof buf, fmt, sb->bd_id & 0x000f);
+	else snprintf(buf, sizeof buf, fmt, sb->bd_id >> 8, sb->bd_id & 0xff);
     	device_set_desc_copy(dev, buf);
     	return sb_reset_dsp(sb);
 }
@@ -569,7 +597,10 @@ sb_doattach(device_t dev, struct sb_info *sb)
 
     	sb_init(dev, sb);
     	mixer_init(d, &sb_mixer, sb);
-    	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
+	if (sb->bd_flags & BD_F_ESS)
+		bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, ess_intr, sb, &ih);
+	else
+		bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
 
     	if (sb->bd_flags & BD_F_SB16)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_EVILSB16);
@@ -593,8 +624,13 @@ sb_doattach(device_t dev, struct sb_info *sb)
     		SND_STATUSLEN - strlen(status), ":%d", sb->dma16);
 
     	if (pcm_register(dev, sb, 1, 1)) goto no;
-    	pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
-    	pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
+	if (sb->bd_flags & BD_F_ESS) {
+		pcm_addchan(dev, PCMDIR_REC, &ess_chantemplate, sb);
+		pcm_addchan(dev, PCMDIR_PLAY, &ess_chantemplate, sb);
+	} else {
+		pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
+		pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
+	}
     	pcm_setstatus(dev, status);
 
     	return 0;
@@ -694,32 +730,35 @@ sb_intr(void *arg)
     	if (c & 2) sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
 }
 
+static void
+ess_intr(void *arg)
+{
+    struct sb_info *sb = (struct sb_info *)arg;
+    sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
+#ifdef notyet
+    /*
+     * XXX
+     * for full-duplex mode:
+     * should read port 0x6 to identify where interrupt came from.
+     */
+#endif
+    /*
+     * We are transferring data in DSP normal mode,
+     * so clear the dl to indicate the DMA is stopped.
+     */
+    if (sb->pch.buffer->dl > 0) {
+	sb->pch.buffer->dl = -1;
+	chn_intr(sb->pch.channel);
+    }
+    if (sb->rch.buffer->dl > 0) {
+	sb->rch.buffer->dl = -1;
+	chn_intr(sb->rch.channel);
+    }
+}
 static int
 sb_format(struct sb_chinfo *ch, u_int32_t format)
 {
-	struct sb_info *sb = ch->parent;
 	ch->fmt = format;
-	if (sb->bd_flags & BD_F_ESS) {
-		int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-		int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
-		int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
-
-	       	/* autoinit DMA mode */
-		ess_write(sb, 0xb8, 0x04 | play? 0x00 : 0x0a);
-		/* mono/stereo */
-		ess_write(sb, 0xa8,
-			  (ess_read(sb, 0xa8) & ~0x03) | stereo? 0x01 : 0x02);
-		/* demand mode, 4 bytes/xfer */
-		ess_write(sb, 0xb9, 2);
-		/* setup dac/adc */
-		if (play) ess_write(sb, 0xb6, b16? 0x00 : 0x80);
-		ess_write(sb, 0xb7, 0x51 | (b16? 0x20 : 0x00));
-		ess_write(sb, 0xb7,
-			  0x98 + (b16? 0x24 : 0x00) + (stereo? 0x00 : 0x38));
-		/* irq/drq control */
-		ess_write(sb, 0xb1, ess_read(sb, 0xb1) | 0x50);
-		ess_write(sb, 0xb2, ess_read(sb, 0xb1) | 0x50);
-	}
 	return 0;
 }
 
@@ -735,21 +774,6 @@ sb_speed(struct sb_chinfo *ch, int speed)
 		sb_cmd(sb, 0x42 - play);
     		sb_cmd(sb, speed >> 8);
 		sb_cmd(sb, speed & 0xff);
-    	} else if (sb->bd_flags & BD_F_ESS) {
-		int t;
-		RANGE(speed, 5000, 49000);
-		if (speed > 22000) {
-	    		t = (795500 + speed / 2) / speed;
-	    		speed = (795500 + t / 2) / t;
-	    		t = (256 - t) | 0x80;
-		} else {
-	    		t = (397700 + speed / 2) / speed;
-	    		speed = (397700 + t / 2) / t;
-	    		t = 128 - t;
-		}
-		ess_write(sb, 0xa1, t); /* set time constant */
-		t = 256 - 7160000 / (((speed * 9) / 20) * 82);
-		ess_write(sb, 0xa2, t);
     	} else {
 		u_char tconst;
 		int max_speed = 45000, tmp;
@@ -815,10 +839,6 @@ sb_start(struct sb_chinfo *ch)
 	    i2 = (stereo? DSP_F16_STEREO : 0) | (b16? DSP_F16_SIGNED : 0);
 	    sb_cmd(sb, i1);
 	    sb_cmd2(sb, i2, l);
-	} else if (sb->bd_flags & BD_F_ESS) {
-		ess_write(sb, 0xa4, l);
-		ess_write(sb, 0xa5, l >> 8);
-		ess_write(sb, 0xb8, ess_read(sb, 0xb8) | (play? 0x05 : 0x0f));
 	} else {
 	    if (sb->bd_flags & BD_F_HISPEED) i1 = play? 0x90 : 0x98;
 	    else i1 = play? 0x1c : 0x2c;
@@ -852,6 +872,116 @@ sb_stop(struct sb_chinfo *ch)
 	}
 	if (play) sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
 	sb->bd_flags &= ~(BD_F_DMARUN << b16);
+	return 0;
+}
+
+/* utility functions for ESS */
+static int
+ess_format(struct sb_chinfo *ch, u_int32_t format)
+{
+	struct sb_info *sb = ch->parent;
+	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
+	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	u_char c;
+	ch->fmt = format;
+	sb_reset_dsp(sb);
+	/* normal DMA mode */
+	ess_write(sb, 0xb8, play ? 0x00 : 0x0a);
+	/* mono/stereo */
+	c = (ess_read(sb, 0xa8) & ~0x03) | 1;
+	if (!stereo) c++;
+	ess_write(sb, 0xa8, c);
+	/* demand mode, 4 bytes/xfer */
+	ess_write(sb, 0xb9, 2);
+	/* setup dac/adc */
+	if (play) ess_write(sb, 0xb6, b16? 0x00 : 0x80);
+	ess_write(sb, 0xb7, 0x51 | (b16? 0x20 : 0x00));
+	ess_write(sb, 0xb7, 0x98 + (b16? 0x24 : 0x00) + (stereo? 0x00 : 0x38));
+	/* irq/drq control */
+	ess_write(sb, 0xb1, (ess_read(sb, 0xb1) & 0x0f) | 0x50);
+	ess_write(sb, 0xb2, (ess_read(sb, 0xb2) & 0x0f) | 0x50);
+	return 0;
+}
+
+static int
+ess_speed(struct sb_chinfo *ch, int speed)
+{
+	struct sb_info *sb = ch->parent;
+	int t;
+	RANGE (speed, 5000, 49000);
+	if (speed > 22000) {
+		t = (795500 + speed / 2) / speed;
+		speed = (795500 + t / 2) / t;
+	t = (256 - t ) | 0x80;
+	} else {
+		t = (397700 + speed / 2) / speed;
+		speed = (397700 + t / 2) / t;
+		t = 128 - t;
+	}
+	ess_write(sb, 0xa1, t); /* set time constant */
+#if 0
+	d->play_speed = d->rec_speed = speed;
+	speed = (speed * 9 ) / 20;
+#endif
+	t = 256 - 7160000 / ((speed * 9 / 20) * 82);
+	ess_write(sb, 0xa2, t);
+	return speed;
+}
+
+static int
+ess_start(struct sb_chinfo *ch)
+{
+	struct sb_info *sb = ch->parent;
+    	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+	short c = - ch->buffer->dl;
+	u_char c1;
+	/*
+	 * clear bit 0 of register B8h
+	 */
+#if 1
+	c1 = play ? 0x00 : 0x0a;
+	ess_write(sb, 0xb8, c1++);
+#else
+	c1 = ess_read(sb, 0xb8) & 0xfe;
+	ess_write(sb, 0xb8, c1++);
+#endif
+	/*
+	 * update ESS Transfer Count Register
+	 */
+	ess_write(sb, 0xa4, (u_char)((u_short)c & 0xff));
+	ess_write(sb, 0xa5, (u_char)(((u_short)c >> 8) & 0xff));
+	/*
+	 * set bit 0 of register B8h
+	 */
+	ess_write(sb, 0xb8, c1);
+	if (play)
+		sb_cmd(sb, DSP_CMD_SPKON);
+	return 0;
+}
+
+static int
+ess_stop(struct sb_chinfo *ch)
+{
+	struct sb_info *sb = ch->parent;
+	/*
+	 * no need to send a stop command if the DMA has already stopped.
+	 */
+	if (ch->buffer->dl > 0) {
+		sb_cmd(sb, DSP_CMD_DMAPAUSE_8); /* pause dma. */
+	}
+	return 0;
+}
+
+static int
+ess_abort(struct sb_chinfo *ch)
+{
+	struct sb_info *sb = ch->parent;
+    	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+	if (play) sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
+	sb_reset_dsp(sb);
+	ess_format(ch, ch->fmt);
+	ess_speed(ch, ch->channel->speed);
 	return 0;
 }
 
@@ -921,14 +1051,91 @@ sbchan_getcaps(void *data)
 {
 	struct sb_chinfo *ch = data;
 	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	if (ch->parent->bd_flags & BD_F_ESS)
-		return p? &ess_playcaps : &ess_reccaps;
-	else if (ch->parent->bd_id <= 0x200)
+	if (ch->parent->bd_id <= 0x200)
 		return p? &sb_playcaps : &sb_reccaps;
 	else if (ch->parent->bd_id >= 0x400)
 		return p? &sb16_playcaps : &sb16_reccaps;
 	else
 		return p? &sbpro_playcaps : &sbpro_reccaps;
+}
+/* channel interface for ESS18xx */
+#ifdef notyet
+static void *
+esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	/* the same as sbchan_init()? */
+}
+#endif
+
+static int
+esschan_setdir(void *data, int dir)
+{
+	struct sb_chinfo *ch = data;
+	ch->dir = dir;
+	return 0;
+}
+
+static int
+esschan_setformat(void *data, u_int32_t format)
+{
+	struct sb_chinfo *ch = data;
+	ess_format(ch, format);
+	return 0;
+}
+
+static int
+esschan_setspeed(void *data, u_int32_t speed)
+{
+	struct sb_chinfo *ch = data;
+	return ess_speed(ch, speed);
+}
+
+static int
+esschan_setblocksize(void *data, u_int32_t blocksize)
+{
+	return blocksize;
+}
+
+static int
+esschan_trigger(void *data, int go)
+{
+	struct sb_chinfo *ch = data;
+	switch (go) {
+	case PCMTRIG_START:
+		if (!ch->ess_dma_started)
+			buf_isadma(ch->buffer, go);
+		ch->ess_dma_started = 1;
+		ess_start(ch);
+		break;
+	case PCMTRIG_STOP:
+		if (ch->buffer->dl >= 0) {
+			buf_isadma(ch->buffer, go);
+			ch->ess_dma_started = 0;
+			ess_stop(ch);
+		}
+		break;
+	case PCMTRIG_ABORT:
+	default:
+		ch->ess_dma_started = 0;
+		ess_abort(ch);
+		buf_isadma(ch->buffer, go);
+		break;
+	}
+	return 0;
+}
+
+static int
+esschan_getptr(void *data)
+{
+	struct sb_chinfo *ch = data;
+	return buf_isadmaptr(ch->buffer);
+}
+
+static pcmchan_caps *
+esschan_getcaps(void *data)
+{
+	struct sb_chinfo *ch = data;
+	return (ch->dir == PCMDIR_PLAY)? &ess_playcaps : &ess_reccaps;
 }
 
 /************************************************************/
