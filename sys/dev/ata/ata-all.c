@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *  $Id: ata-all.c,v 1.5 1999/03/28 18:57:18 sos Exp $
  */
 
 #include "ata.h"
@@ -74,7 +74,7 @@ static void promise_intr(int32_t);
 static int32_t ata_probe(int32_t, int32_t, int32_t, pcici_t, int32_t *);
 static void ataintr(int32_t);
 
-static int32_t atanlun = 0, sysctrl = 0;
+static int32_t atanlun = 0;
 struct ata_softc *atadevices[MAXATA];
 struct isa_driver atadriver = { ata_isaprobe, ata_isaattach, "ata" };
 
@@ -151,7 +151,7 @@ ata_pciattach(pcici_t tag, int32_t unit)
 {
     pcidi_t type, class, cmd;
     int32_t iobase_1, iobase_2, altiobase_1, altiobase_2; 
-    int32_t bmaddr_1 = 0, bmaddr_2 = 0, irq1, irq2;
+    int32_t bmaddr_1 = 0, bmaddr_2 = 0, sysctrl = 0, irq1, irq2;
     int32_t lun;
 
     /* set up vendor-specific stuff */
@@ -163,7 +163,7 @@ ata_pciattach(pcici_t tag, int32_t unit)
     printf("ata%d: type=%08x class=%08x cmd=%08x\n", unit, type, class, cmd);
 #endif
 
-    /* if this is at Promise controller handle it specially */
+    /* if this is a Promise controller handle it specially */
     if (type == 0x4d33105a) { 
 	iobase_1 = pci_conf_read(tag, 0x10) & 0xfffc;
 	altiobase_1 = pci_conf_read(tag, 0x14) & 0xfffc;
@@ -173,6 +173,7 @@ ata_pciattach(pcici_t tag, int32_t unit)
     	bmaddr_1 = pci_conf_read(tag, 0x20) & 0xfffc;
 	bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
 	sysctrl = (pci_conf_read(tag, 0x20) & 0xfffc) + 0x1c;
+	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	printf("ata-pci%d: Busmastering DMA supported\n", unit);
     }
     /* everybody else seems to do it this way */
@@ -250,15 +251,19 @@ ata_pciattach(pcici_t tag, int32_t unit)
 static void
 promise_intr(int32_t unit)
 {
-    if (inl(sysctrl) & 0x00000400)
+    struct ata_softc *scp = atadevices[unit];
+    int32_t channel = inl((pci_conf_read(scp->tag, 0x20) & 0xfffc) + 0x1c);
+
+    if (channel & 0x00000400)
 	ataintr(unit);
-    if (inl(sysctrl) & 0x00004000)
+
+    if (channel & 0x00004000)
 	ataintr(unit+1);
 }
 #endif
 
 static int32_t
-ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr, 
+ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 	  pcici_t tag, int32_t *unit)
 {
     struct ata_softc *scp = atadevices[atanlun];
@@ -422,7 +427,8 @@ ataintr(int32_t unit)
     struct ata_softc *scp;
     struct atapi_request *atapi_request;
     struct buf *ata_request; 
-    static int32_t intcount = 0;
+    u_int8_t status;
+    static int32_t intr_count = 0;
 
     if (unit < 0 || unit > atanlun) {
 	printf("ataintr: unit %d unusable\n", unit);
@@ -455,9 +461,10 @@ ataintr(int32_t unit)
 
     default:
     case ATA_IDLE:
-	if (intcount++ < 10)
-	    printf("ata%d: unwanted interrupt %d\n", unit, intcount);
-        inb(scp->ioaddr + ATA_STATUS);
+        status = inb(scp->ioaddr + ATA_STATUS);
+	if (intr_count++ < 10)
+	    printf("ata%d: unwanted interrupt %d status = %02x\n", 
+		   unit, intr_count, status);
 	return;
     }
     scp->active = ATA_IDLE;

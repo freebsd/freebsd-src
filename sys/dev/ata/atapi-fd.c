@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.3 1999/03/07 21:49:14 sos Exp $
+ *	$Id: atapi-fd.c,v 1.4 1999/03/28 18:57:19 sos Exp $
  */
 
 #include "ata.h"
@@ -431,7 +431,7 @@ afd_eject(struct afd_softc *fdp, int32_t close)
 static void
 afd_drvinit(void *unused)
 {
-    static afd_devsw_installed = 0;
+    static int32_t afd_devsw_installed = 0;
 
     if (!afd_devsw_installed) {
 	cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &afd_cdevsw);
