@@ -241,6 +241,7 @@ static void ParseUnreadc(int);
 static void ParseHasCommands(void *);
 static void ParseDoInclude(char *);
 static void ParseDoError(char *);
+static void ParseDoWarning(char *);
 #ifdef SYSVINCLUDE
 static void ParseTraditionalInclude(char *);
 #endif
@@ -1571,10 +1572,36 @@ ParseDoError(char *errmsg)
 	
 	errmsg = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
 
-	/* use fprintf/exit instead of Parse_Error to terminate immediately */
-	fprintf(stderr, "\"%s\", line %d: %s\n",
-	    curFile.fname, curFile.lineno, errmsg);
+	Parse_Error(PARSE_FATAL, "%s", errmsg);
+	/* Terminate immediately. */
 	exit(1);
+}
+
+/*---------------------------------------------------------------------
+ * ParseDoWarning  --
+ *	Handle warning directive
+ *
+ *	The input is the line minus the ".warning".  We substitute variables
+ *	and print the message or just print a warning if the ".warning"
+ *	directive is malformed.
+ *
+ *---------------------------------------------------------------------
+ */
+static void
+ParseDoWarning(char *warnmsg)
+{
+	if (!isspace((unsigned char) *warnmsg)) {
+		Parse_Error(PARSE_WARNING, "invalid syntax: .warning%s",
+		    warnmsg);
+		return;
+	}
+	
+	while (isspace((unsigned char) *warnmsg))
+		warnmsg++;
+	
+	warnmsg = Var_Subst(NULL, warnmsg, VAR_GLOBAL, FALSE);
+
+	Parse_Error(PARSE_WARNING, "%s", warnmsg);
 }
 
 /*-
@@ -2367,6 +2394,9 @@ Parse_File(char *name, FILE *stream)
 		    goto nextLine;
 		} else if (strncmp (cp, "error", 5) == 0) {
 		    ParseDoError(cp + 5);
+	            goto nextLine;	    
+		} else if (strncmp (cp, "warning", 7) == 0) {
+		    ParseDoWarning(cp + 7);
 	            goto nextLine;	    
 		} else if (strncmp(cp, "undef", 5) == 0) {
 		    char *cp2;
