@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.16 1999/07/20 15:37:28 green Exp $";
+	"$Id: apm.c,v 1.17 1999/07/30 16:15:11 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/file.h>
@@ -168,7 +168,6 @@ print_all_info(int fd, apm_info_t aip)
 	/*
 	 * try to get the suspend timer
 	 */
-#if 0
 	bzero(&args, sizeof(args));
 	args.eax = (APM_BIOS) << 8 | APM_RESUMETIMER;
 	args.ebx = PMDV_APMBIOS;
@@ -224,7 +223,6 @@ print_all_info(int fd, apm_info_t aip)
 		printf("Resume on ring indicator: %sabled\n",
 			args.ecx ? "en" : "dis");
 	}
-#endif
 	if (aip->ai_infoversion >= 1) {
 		printf("APM Capacities:\n", aip->ai_capabilities);
 		if (aip->ai_capabilities == 0xff00)
@@ -284,13 +282,9 @@ apm_set_timer(int fd, int delta)
 	} else {
 		args.ecx = 0x0000;
 	}
-#if 0
 	if (ioctl(fd, APMIO_BIOS, &args)) {
 		err(1,"Set resume timer");
 	}
-#else
-	errx(1,"set resume timer not supported");
-#endif
 }
 
 int 
