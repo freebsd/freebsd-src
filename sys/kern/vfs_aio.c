@@ -502,15 +502,11 @@ restart4:
 			if ((lj->lioj_buffer_count == 0) && (lj->lioj_queue_count == 0)) {
 				TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
 				zfree(aiolio_zone, lj);
+			} else {
+				printf("LIO job not cleaned up: B:%d, BF:%d, Q:%d, QF:%d\n",
+					lj->lioj_buffer_count, lj->lioj_buffer_finished_count,
+					lj->lioj_queue_count, lj->lioj_queue_finished_count);
 			}
-	}
-
-	for ( lj = TAILQ_FIRST(&ki->kaio_liojoblist);
-			lj;
-			lj = ljn) {
-		printf("LIO job not cleaned up: B:%d, BF:%d, Q:%d, QF:%d\n",
-			lj->lioj_buffer_count, lj->lioj_buffer_finished_count,
-			lj->lioj_queue_count, lj->lioj_queue_finished_count);
 	}
 
 	zfree(kaio_zone, ki);
