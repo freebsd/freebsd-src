@@ -1418,6 +1418,8 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
 	td2->td_flags  = TDF_UPCALLING;
+	if (td->td_proc->p_sflag & PS_NEEDSIGCHK)
+		td2->td_flags |= TDF_ASTPENDING;
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
