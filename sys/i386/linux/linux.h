@@ -335,22 +335,21 @@ struct linux_fpstate {
  * It is appended to the frame to not interfere with the rest of it.
  */
 struct linux_sigframe {
-	int	sf_sig;
-	struct	linux_sigcontext sf_sc;
-	struct  linux_fpstate fpstate;
-	u_int	extramask[LINUX_NSIG_WORDS-1];
-	linux_handler_t sf_handler;
+	int			sf_sig;
+	struct linux_sigcontext sf_sc;
+	struct linux_fpstate	sf_fpstate;
+	u_int			sf_extramask[LINUX_NSIG_WORDS-1];
+	linux_handler_t		sf_handler;
 };
 
 struct linux_rt_sigframe {
 	int			sf_sig;
-	linux_siginfo_t 	*sf_siginfo;;
-	struct linux_ucontext	*sf_ucontext;	
-	linux_siginfo_t sf_si;
-	struct linux_ucontext 	sf_sc;          
+	linux_siginfo_t 	*sf_siginfo;
+	struct linux_ucontext	*sf_ucontext;
+	linux_siginfo_t		sf_si;
+	struct linux_ucontext 	sf_sc;
 	linux_handler_t 	sf_handler;
 };
-
 
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
