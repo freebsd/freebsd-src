@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.3 1999/01/09 18:08:24 nsouch Exp $
+ *	$Id: iiconf.h,v 1.3.2.1 1999/01/26 23:21:01 roger Exp $
  */
 #ifndef __IICONF_H
 #define __IICONF_H
@@ -106,8 +106,6 @@ extern void iicbus_intr(device_t, int, char *);
 extern int iicbus_null_repeated_start(device_t, u_char);
 extern int iicbus_null_callback(device_t, int, caddr_t);
 
-#define iicbus_repeated_start(bus,slave,timeout) \
-	(IICBUS_REPEATED_START(device_get_parent(bus), slave, timeout))
 #define iicbus_reset(bus,speed,addr,oldaddr) \
 	(IICBUS_RESET(device_get_parent(bus), speed, addr, oldaddr))
 
@@ -115,6 +113,7 @@ extern int iicbus_null_callback(device_t, int, caddr_t);
 extern int iicbus_started(device_t);
 extern int iicbus_start(device_t, u_char, int);
 extern int iicbus_stop(device_t);
+extern int iicbus_repeated_start(device_t, u_char, int);
 extern int iicbus_write(device_t, char *, int, int *, int);
 extern int iicbus_read(device_t, char *, int, int *, int, int);
 
