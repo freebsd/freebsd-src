@@ -6,15 +6,15 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "4.10-STABLE">
+<!ENTITY release.current "4.11-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "4.10-RELEASE">
+<!ENTITY release.prev "4.11-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "4.11-RELEASE">
+<!ENTITY release.next "4.12-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "4-STABLE">
@@ -31,10 +31,10 @@
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xfree86       "4.4.0">
-<!ENTITY release.manpath.xorg          "6.7.0">
-<!ENTITY release.manpath.netbsd        "1.6.2">
+<!ENTITY release.manpath.xorg          "6.8.1">
+<!ENTITY release.manpath.netbsd        "2.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "4.10-stable">
+<!ENTITY release.manpath.freebsd       "4.11-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 
