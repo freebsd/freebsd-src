@@ -74,8 +74,6 @@ SUBDIR=	IPXrouted \
 	pciconf \
 	periodic \
 	pkg_install \
-	ppp \
-	pppd \
 	pppstats \
 	procctl \
 	pstat \
@@ -133,6 +131,11 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
+
+.if ${MACHINE_ARCH} != "amd64"
+SUBDIR+=ppp \
+	pppd
+.endif
 
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipftest \
