@@ -248,8 +248,6 @@ vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
 	vm_object_t ret;
 	struct pagerops *ops;
 
-	GIANT_REQUIRED;
-
 	ops = pagertab[type];
 	if (ops)
 		ret = (*ops->pgo_alloc) (handle, size, prot, off);
@@ -262,7 +260,6 @@ void
 vm_pager_deallocate(object)
 	vm_object_t object;
 {
-	GIANT_REQUIRED;
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
