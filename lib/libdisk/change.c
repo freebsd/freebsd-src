@@ -86,7 +86,7 @@ All_FreeBSD(struct disk *d, int force_all)
 	int type;
 
 #ifdef PC98
-	type = 0x494;
+	type = 0xc494;
 #else
 	type = 0xa5;
 #endif
