@@ -194,6 +194,7 @@ dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
+dev/sio/sio.c			optional	sio
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
@@ -209,7 +210,6 @@ isa/atkbdc_isa.c		optional	atkbdc
 isa/fd.c			optional	fdc
 isa/ppc.c                       optional        ppc
 isa/psm.c			optional	psm
-isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/subr_diskmbr.c		standard

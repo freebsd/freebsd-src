@@ -85,7 +85,7 @@
 #include <machine/clock.h>
 #include <machine/resource.h>
 
-#include <isa/sioreg.h>
+#include <dev/sio/sioreg.h>
 
 #ifdef COM_ESP
 #include <dev/ic/esp.h>
