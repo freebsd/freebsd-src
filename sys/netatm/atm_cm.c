@@ -2779,8 +2779,7 @@ atm_cm_cpcs_data(cop, m)
 			 * We have to allocate another buffer and tack it
 			 * onto the front of the packet
 			 */
-			KB_ALLOCPKT(n, llcp->v.llc_len, KB_F_NOWAIT,
-					KB_T_HEADER);
+			MGETHDR(n, KB_F_NOWAIT, KB_T_HEADER);
 			if (n == 0) {
 				err = ENOMEM;
 				goto done;
