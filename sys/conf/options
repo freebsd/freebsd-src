@@ -269,10 +269,11 @@ XBONEHACK
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel
 # or loaded dynamically. To get the former, include the corresponding
-# option below. Each type has its own man page, e.g. ng_async(8).
+# option below. Each type has its own man page, e.g. ng_async(4).
 NETGRAPH
 NETGRAPH_ASYNC		opt_netgraph.h
 NETGRAPH_BPF		opt_netgraph.h
+NETGRAPH_BRIDGE		opt_netgraph.h
 NETGRAPH_CISCO		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_ETHER		opt_netgraph.h
