@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: skey.3,v 1.1 1996/12/22 13:33:56 davidn Exp $
 .\"
 .Dd December 22, 1996
 .Dt SKEY 3
@@ -97,7 +97,7 @@ If this function returns 0, the verify was successful and
 the database was updated.
 If 1 is returned, the verify failed and the database remains
 unchanged.
-If -1 is returned, some sort of error occured with the database,
+If -1 is returned, some sort of error occurred with the database,
 and the database is left unchanged.
 The s/key database is always closed by this call.
 .Pp
@@ -117,7 +117,7 @@ The
 .Fn skey_crypt
 is a wrapper function for the standard library
 .Xr crypt 3 ,
-which returns the encrypted unix password if either the given
+which returns the encrypted UNIX password if either the given
 s/key or regular passwords are ok.
 .Fn skey_crypt
 first attempts verification of the given password via the skey
