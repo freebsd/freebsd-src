@@ -153,6 +153,7 @@ Ollivier Robert <roberto@FreeBSD.org>
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Paul Traina <pst@cisco.com>
+Paul Richards <paul@FreeBSD.org>
 Peter Dufault <dufault@hda.com>
 Peter Wemm <peter@haywire.DIALix.COM>
 Philippe Charnier <charnier@lirmm.fr>
@@ -274,4 +275,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.21 1995/08/30 09:44:45 davidg Exp $
+$Id: CONTRIB.FreeBSD,v 1.22 1995/08/31 15:08:39 jkh Exp $
