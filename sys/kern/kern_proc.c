@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.19 1996/06/06 17:19:21 phk Exp $
+ * $Id: kern_proc.c,v 1.20 1996/06/12 05:07:30 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,9 @@ LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
 static void	orphanpg __P((struct pgrp *pg));
+#ifdef DEBUG
 static void	DDB_pgrpdump __P((void));
+#endif
 
 /*
  * Other process lists

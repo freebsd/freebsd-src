@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.37 1996/01/19 03:59:28 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.38 1996/03/29 12:30:30 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -222,7 +222,10 @@ ufs_access(ap)
 	struct ucred *cred = ap->a_cred;
 	mode_t mask, mode = ap->a_mode;
 	register gid_t *gp;
-	int i, error;
+	int i;
+#ifdef QUOTA
+	int error;
+#endif
 
 	/*
 	 * Disallow write attempts on read-only file systems;
