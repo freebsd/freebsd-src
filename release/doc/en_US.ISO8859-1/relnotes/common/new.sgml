@@ -269,6 +269,12 @@
       force creation of a GPT even when there is an MBR record on a
       disk.</para>
 
+    <para>The <filename>libarchive</filename> library (as well as the
+      &man.tar.1; command that uses it) now has support for reading ISO
+      images (with optional RockRidge extensions) and ZIP archives
+      (with <literal>deflate</literal> and <literal>none</literal>
+      compression).</para>
+
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
       <filename>Makefile</filename> variable will cause NIS support to
