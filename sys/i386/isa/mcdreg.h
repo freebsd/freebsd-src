@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.4 1994/09/03 16:48:13 ache Exp $
+ *	$Id: mcdreg.h,v 1.5 1994/11/12 13:26:13 ache Exp $
  */
 
 #ifndef MCD_H
@@ -66,7 +66,6 @@ typedef unsigned char	bcd_t;
 #define	mcd_rdata	0
 
 #define	mcd_reset	1
-#define	mcd_xfer	1
 #define	mcd_ctl2	2 /* XXX Is this right? */
 #define	mcd_config	3
 
@@ -78,12 +77,8 @@ typedef unsigned char	bcd_t;
 				/* 100 = int 10 */
 				/* 101 = int 11 */
 /* flags */
-#define	STATUS_AVAIL	0xB
-#define	DATA_AVAIL	0xF
-
-/* New Flags */
-#define M_STATUS_AVAIL	0xFB 
-#define M_DATA_AVAIL	0xFD
+#define MFL_DATA_NOT_AVAIL      0x02
+#define MFL_STATUS_NOT_AVAIL    0x04
 
 /* New Commands */
 #define M_RESET		0x00
