@@ -131,6 +131,8 @@ typedef struct ohci_softc {
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif
 
+	usb_callout_t sc_tmo_rhsc;
+
 	device_ptr_t sc_child;
 	char sc_dying;
 } ohci_softc_t;
