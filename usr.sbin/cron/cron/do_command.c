@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 1.10 1997/02/22 16:04:43 peter Exp $";
+static char rcsid[] = "$Id: do_command.c,v 1.11 1997/03/14 13:48:04 peter Exp $";
 #endif
 
 
@@ -82,7 +82,6 @@ child_process(e, u)
 	int		children = 0;
 # if defined(LOGIN_CAP)
 	struct passwd	*pwd;
-	login_cap_t	*lc;
 # endif
 
 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
@@ -224,16 +223,13 @@ child_process(e, u)
 		 * as cron provides a separate interface for this
 		 */
 		pwd = getpwuid(e->uid);
-		if (pwd)
-			lc = login_getclass(pwd);
-		else
-			lc = NULL;
-		if (lc && pwd) {
-			setusercontext(lc, pwd, e->uid,
-				LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV));
-			login_close(lc);
-		} else {
+		if (pwd &&
+		    setusercontext(NULL, pwd, e->uid,
+			    LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV)) == 0)
+			(void) endpwent();
+		else {
 			/* fall back to the old method */
+			(void) endpwent();
 # endif
 			/* set our directory, uid and gid.  Set gid first,
 			 * since once we set uid, we've lost root privledges.
