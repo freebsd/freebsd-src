@@ -45,47 +45,79 @@
 
 /* Node type name and magic cookie */
 #define NG_PPP_NODE_TYPE	"ppp"
-#define NGM_PPP_COOKIE		860635544
+#define NGM_PPP_COOKIE		940897792
+
+/* Maximum number of supported links */
+#define NG_PPP_MAX_LINKS	16
+
+/* Pseudo-link number representing the multi-link bundle */
+#define NG_PPP_BUNDLE_LINKNUM	0xffff
+
+/* Max allowable link latency (miliseconds) and bandwidth (bytes/second/10) */
+#define NG_PPP_MAX_LATENCY	1000		/* 1 second */
+#define NG_PPP_MAX_BANDWIDTH	125000		/* 10 Mbits / second */
 
 /* Hook names */
-#define NG_PPP_HOOK_DOWNLINK	"downlink"	/* downstream hook */
-#define NG_PPP_HOOK_BYPASS	"bypass"	/* any unhooked protocol */
+#define NG_PPP_HOOK_BYPASS	"bypass"	/* unknown protocols */
+#define NG_PPP_HOOK_COMPRESS	"compress"	/* outgoing compression */
+#define NG_PPP_HOOK_DECOMPRESS	"decompress"	/* incoming decompression */
+#define NG_PPP_HOOK_ENCRYPT	"encrypt"	/* outgoing encryption */
+#define NG_PPP_HOOK_DECRYPT	"decrypt"	/* incoming decryption */
+#define NG_PPP_HOOK_VJC_IP	"vjc_ip"	/* VJC raw IP */
+#define NG_PPP_HOOK_VJC_COMP	"vjc_vjcomp"	/* VJC compressed TCP */
+#define NG_PPP_HOOK_VJC_UNCOMP	"vjc_vjuncomp"	/* VJC uncompressed TCP */
+#define NG_PPP_HOOK_VJC_VJIP	"vjc_vjip"	/* VJC uncompressed IP */
+#define NG_PPP_HOOK_INET	"inet"		/* IP packet data */
+#define NG_PPP_HOOK_ATALK	"atalk"		/* AppleTalk packet data */
+#define NG_PPP_HOOK_IPX		"ipx"		/* IPX packet data */
+
+#define NG_PPP_HOOK_LINK_PREFIX	"link"		/* append decimal link number */
 
 /* Netgraph commands */
 enum {
-	NGM_PPP_SET_PROTOCOMP = 1,	/* takes an integer 0 or 1 */
-	NGM_PPP_GET_STATS,		/* returns struct ng_ppp_stat */
-	NGM_PPP_CLR_STATS,		/* clear stats */
+	NGM_PPP_SET_CONFIG = 1,		/* takes struct ng_ppp_bundle_config */
+	NGM_PPP_GET_CONFIG,		/* returns ng_ppp_bundle_config */
+	NGM_PPP_GET_LINK_STATS,		/* takes link #, returns stats struct */
+	NGM_PPP_CLR_LINK_STATS,		/* takes link #, clears link stats */
 };
 
-/* Statistics struct */
-struct ng_ppp_stat {
-	u_int32_t xmitFrames;		/* xmit frames on "downstream" */
-	u_int32_t xmitOctets;		/* xmit octets on "downstream" */
-	u_int32_t recvFrames;		/* recv frames on "downstream" */
-	u_int32_t recvOctets;		/* recv octets on "downstream" */
-	u_int32_t badProto;		/* frames with invalid protocol */
-	u_int32_t unknownProto;		/* frames sent to "unhooked" */
+/* Per-link config structure */
+struct ng_ppp_link_config {
+	u_char		enableLink;	/* enable this link */
+	u_char		enableProtoComp;/* enable protocol field compression */
+	u_int16_t	mru;		/* peer MRU */
+	u_int32_t	latency;	/* link latency (in milliseconds) */
+	u_int32_t	bandwidth;	/* link bandwidth (in bytes/second) */
 };
 
-/*
- * We recognize these hook names for some various PPP protocols. But we
- * always recognize the hook name "0xNNNN" for any protocol, including these.
- * So these are really just alias hook names.
- */
-#define NG_PPP_HOOK_LCP		"lcp"		/* 0xc021 */
-#define NG_PPP_HOOK_IPCP	"ipcp"		/* 0x8021 */
-#define NG_PPP_HOOK_ATCP	"atcp"		/* 0x8029 */
-#define NG_PPP_HOOK_CCP		"ccp"		/* 0x80fd */
-#define NG_PPP_HOOK_ECP		"ecp"		/* 0x8053 */
-#define NG_PPP_HOOK_IP		"ip"		/* 0x0021 */
-#define NG_PPP_HOOK_VJCOMP	"vjcomp"	/* 0x002d */
-#define NG_PPP_HOOK_VJUNCOMP	"vjuncomp"	/* 0x002f */
-#define NG_PPP_HOOK_MP		"mp"		/* 0x003d */
-#define NG_PPP_HOOK_COMPD	"compd"		/* 0x00fd */
-#define NG_PPP_HOOK_CRYPTD	"cryptd"	/* 0x0053 */
-#define NG_PPP_HOOK_PAP		"pap"		/* 0xc023 */
-#define NG_PPP_HOOK_CHAP	"chap"		/* 0xc223 */
-#define NG_PPP_HOOK_LQR		"lqr"		/* 0xc025 */
+/* Node config structure */
+struct ng_ppp_node_config {
+	u_int16_t	mrru;			/* multilink peer MRRU */
+	u_char		enableMultilink;	/* enable multilink */
+	u_char		recvShortSeq;		/* recv multilink short seq # */
+	u_char		xmitShortSeq;		/* xmit multilink short seq # */
+	u_char		enableRoundRobin;	/* xmit whole packets */
+	u_char		enableIP;		/* enable IP data flow */
+	u_char		enableAtalk;		/* enable AppleTalk data flow */
+	u_char		enableIPX;		/* enable IPX data flow */
+	u_char		enableCompression;	/* enable PPP compression */
+	u_char		enableDecompression;	/* enable PPP decompression */
+	u_char		enableEncryption;	/* enable PPP encryption */
+	u_char		enableDecryption;	/* enable PPP decryption */
+	u_char		enableVJCompression;	/* enable VJ compression */
+	u_char		enableVJDecompression;	/* enable VJ decompression */
+	struct ng_ppp_link_config		/* per link config params */
+			links[NG_PPP_MAX_LINKS];
+};
+
+/* Statistics struct for a link (or the bundle if NG_PPP_BUNDLE_LINKNUM) */
+struct ng_ppp_link_stat {
+	u_int32_t xmitFrames;		/* xmit frames on link */
+	u_int32_t xmitOctets;		/* xmit octets on link */
+	u_int32_t recvFrames;		/* recv frames on link */
+	u_int32_t recvOctets;		/* recv octets on link */
+	u_int32_t badProtos;		/* frames rec'd with bogus protocol */
+	u_int32_t dupFragments;		/* MP frames with duplicate seq # */
+};
 
 #endif /* _NETGRAPH_PPP_H_ */
