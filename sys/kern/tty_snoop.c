@@ -317,7 +317,7 @@ snpopen(dev, flag, mode, p)
 	 * snp_tty == NULL  is for inactive snoop devices.
 	 */
 	snp->snp_tty = NULL;
-	snp->snp_target = -1;
+	snp->snp_target = NODEV;
 	return (0);
 }
 
@@ -349,7 +349,7 @@ snp_detach(snp)
 		printf("Snoop: bad attached tty data.\n");
 
 	snp->snp_tty = NULL;
-	snp->snp_target = -1;
+	snp->snp_target = NODEV;
 
 detach_notty:
 	selwakeup(&snp->snp_sel);
@@ -404,7 +404,7 @@ snpioctl(dev, cmd, data, flags, p)
 	switch (cmd) {
 	case SNPSTTY:
 		tdev = *((dev_t *) data);
-		if (tdev == -1)
+		if (tdev == NODEV)
 			return (snpdown(snp));
 
 		tp = snpdevtotty(tdev);
@@ -419,7 +419,7 @@ snpioctl(dev, cmd, data, flags, p)
 
 		s = spltty();
 
-		if (snp->snp_target == -1) {
+		if (snp->snp_target == NODEV) {
 			tpo = snp->snp_tty;
 			if (tpo)
 				tpo->t_state &= ~TS_SNOOP;
