@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.56 1999/04/27 11:14:31 phk Exp $
+ *	$Id: mem.c,v 1.57 1999/04/30 22:09:39 msmith Exp $
  */
 
 /*
@@ -530,7 +530,8 @@ mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
 void
 mem_range_AP_init(void)
 {
-	return(mem_range_softc.mr_op->initAP(&mem_range_softc));
+	if (mem_range_softc.mr_op->initAP)
+		return(mem_range_softc.mr_op->initAP(&mem_range_softc));
 }
 
 static int 
