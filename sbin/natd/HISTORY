@@ -111,3 +111,9 @@
 	  fixed. Natd now waits with select(2) for buffer space
 	  to become available if write fails.
 	- Packet aliasing library upgraded to 2.2.
+
+* Version 1.10
+
+	- Ignored incoming packets are now dropped when
+	  deny_incoming option is set to yes.
+	- Packet aliasing library upgraded to 2.4.
