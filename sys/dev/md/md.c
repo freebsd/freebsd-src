@@ -81,9 +81,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#ifndef NO_GEOM
 #include <geom/geom.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -162,10 +160,8 @@ struct md_s {
 	unsigned flags;
 	char name[20];
 	struct proc *procp;
-#ifndef NO_GEOM
 	struct g_geom *gp;
 	struct g_provider *pp;
-#endif
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
@@ -346,7 +342,6 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 	return (0);
 }
 
-#ifndef NO_GEOM
 
 struct g_class g_md_class = {
 	"MD",
@@ -397,95 +392,7 @@ g_md_start(struct bio *bp)
 }
 
 DECLARE_GEOM_CLASS(g_md_class, g_md);
-#endif
 
-#ifdef NO_GEOM
-
-static d_strategy_t mdstrategy;
-static d_open_t mdopen;
-static d_close_t mdclose;
-static d_ioctl_t mdioctl;
-
-static struct cdevsw md_cdevsw = {
-        /* open */      mdopen,
-        /* close */     mdclose,
-        /* read */      physread,
-        /* write */     physwrite,
-        /* ioctl */     mdioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  mdstrategy,
-        /* name */      MD_NAME,
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     D_DISK | D_CANFREE | D_MEMDISK,
-};
-
-static struct cdevsw mddisk_cdevsw;
-
-static int
-mdopen(dev_t dev, int flag, int fmt, struct thread *td)
-{
-	struct md_s *sc;
-
-	if (md_debug)
-		printf("mdopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, td);
-
-	sc = dev->si_drv1;
-
-	sc->disk.d_sectorsize = sc->secsize;
-	sc->disk.d_mediasize = (off_t)sc->nsect * sc->secsize;
-	sc->disk.d_fwsectors = sc->nsect > 63 ? 63 : sc->nsect;
-	sc->disk.d_fwheads = 1;
-	sc->opencount++;
-	return (0);
-}
-
-static int
-mdclose(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct md_s *sc = dev->si_drv1;
-
-	sc->opencount--;
-	return (0);
-}
-
-static int
-mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
-{
-
-	if (md_debug)
-		printf("mdioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, td);
-
-	return (ENOIOCTL);
-}
-
-static void
-mdstrategy(struct bio *bp)
-{
-	struct md_s *sc;
-
-	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %x, %jd, %jd %ld, %p)\n",
-		    (void *)bp, devtoname(bp->bio_dev), bp->bio_flags,
-		    (intmax_t)bp->bio_blkno,
-		    (intmax_t)bp->bio_pblkno,
-		    bp->bio_bcount / DEV_BSIZE,
-		    (void *)bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
-
-	mtx_lock(&sc->queue_mtx);
-	bioqdisksort(&sc->bio_queue, bp);
-	mtx_unlock(&sc->queue_mtx);
-
-	wakeup(sc);
-}
-
-#endif /* NO_GEOM */
 
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
@@ -618,7 +525,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	return (error);
 }
 
-#ifndef NO_GEOM
 static void
 mddone_swap(struct bio *bp)
 {
@@ -626,12 +532,10 @@ mddone_swap(struct bio *bp)
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 	g_std_done(bp);
 }
-#endif
 
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
-#ifndef NO_GEOM
 	{
 	struct bio *bp2;
 
@@ -642,7 +546,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	bp2->bio_bcount = bp2->bio_length;
 	bp = bp2;
 	}
-#endif
 
 	bp->bio_resid = 0;
 	if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE))
@@ -716,12 +619,8 @@ md_kthread(void *arg)
 		}
 
 		if (error != -1) {
-#ifdef NO_GEOM
-			biofinish(bp, &sc->stats, error);
-#else /* !NO_GEOM */
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, error);
-#endif
 		}
 	}
 }
@@ -782,10 +681,6 @@ mdinit(struct md_s *sc)
 		DEVSTAT_NO_ORDERED_TAGS,
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
-#ifdef NO_GEOM
-	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
-	sc->dev->si_drv1 = sc;
-#else /* !NO_GEOM */
 	{
 	struct g_geom *gp;
 	struct g_provider *pp;
@@ -805,7 +700,6 @@ mdinit(struct md_s *sc)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	}
-#endif /* NO_GEOM */
 }
 
 /*
@@ -1012,10 +906,6 @@ mddestroy(struct md_s *sc, struct thread *td)
 
 	mtx_destroy(&sc->queue_mtx);
 	devstat_remove_entry(&sc->stats);
-#ifdef NO_GEOM
-	if (sc->dev != NULL)
-		disk_destroy(sc->dev);
-#else /* !NO_GEOM */
 	{
 	if (sc->gp) {
 		sc->gp->flags |= G_GEOM_WITHER;
@@ -1024,7 +914,6 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->pp)
 		g_orphan_provider(sc->pp, ENXIO);
 	}
-#endif
 	sc->flags |= MD_SHUTDOWN;
 	wakeup(sc);
 	while (sc->procp != NULL)

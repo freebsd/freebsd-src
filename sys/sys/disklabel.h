@@ -298,10 +298,6 @@ static const char *fstypenames[] = {
 #define DIOCGDINFO	_IOR('d', 101, struct disklabel)/* get */
 #define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
-#ifdef NO_GEOM
-
-#define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
-#endif
 #define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
 
 #ifdef _KERNEL
@@ -332,28 +328,6 @@ static const char *fstypenames[] = {
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
 				(((unit) & 0x1f) << 3) | (part))
-#ifdef NO_GEOM
-#define	dkpart(dev)		(minor(dev) & 7)
-#define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
-#define	dksparebits(dev)       	((minor(dev) >> 25) & 0x7f)
-
-struct	bio;
-struct	bio_queue_head;
-
-int	bounds_check_with_label(struct bio *bp, struct disklabel *lp,
-	    int wlabel);
-dev_t	dkmodpart(dev_t dev, int part);
-dev_t	dkmodslice(dev_t dev, int slice);
-u_int	dkunit(dev_t dev);
-char	*readdisklabel(dev_t dev, struct disklabel *lp);
-int	setdisklabel(struct disklabel *olp, struct disklabel *nlp,
-	    u_long openmask);
-int	writedisklabel(dev_t dev, struct disklabel *lp);
-#ifdef __alpha__
-struct	buf;			
-void	alpha_fix_srm_checksum(struct buf *bp);
-#endif /* NO_GEOM */
-#endif
 
 #endif /* _KERNEL */
 
