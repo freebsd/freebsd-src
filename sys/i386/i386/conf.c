@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.52 1995/01/20 08:35:02 sos Exp $
+ *	$Id: conf.c,v 1.53 1995/01/23 02:36:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -52,22 +52,6 @@
 #include <sys/vnode.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
-
-/*
- * XXX move these to conf.h as in 1.1.5.
- * d_strategy_t has already been moved (and fixed).
- */
-typedef int d_open_t __P((dev_t, int, int, struct proc *));
-typedef int d_close_t __P((dev_t, int, int, struct proc *));
-typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
-typedef int d_dump_t __P(());
-typedef int d_psize_t __P((dev_t));
-
-typedef int d_rdwr_t __P((dev_t, struct uio *, int));
-typedef int d_stop_t __P((struct tty *, int));
-typedef int d_reset_t __P((int));
-typedef int d_select_t __P((dev_t, int, struct proc *));
-typedef int d_mmap_t __P((/* XXX */));
 
 d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
