@@ -95,7 +95,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para>The Ports Collection may be installed like any other
 	distribution and requires about 190MB unpacked.  More
 	information on the ports collection may be obtained from
-	<ulink url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink> or locally from
+	<ulink url="&url.base;/ports/">http://www.FreeBSD.org/ports/</ulink> or locally from
 	<filename>/usr/share/doc/handbook</filename> if you've installed the <filename>doc</filename>
 	distribution.</para>
       </listitem>

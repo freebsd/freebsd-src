@@ -21,8 +21,8 @@
     drivers that already function correctly on other 64-bit platforms
     should work.</para>
 
-  <para>&os;/&arch; is a very young platform on FreeBSD.  While the
-    core FreeBSD kernel and base system components are generally
+  <para>&os;/&arch; is a very young platform on &os;.  While the
+    core &os; kernel and base system components are generally
     fairly robust, there are likely to still be rough edges,
     particularly with third party packages.</para>
 
