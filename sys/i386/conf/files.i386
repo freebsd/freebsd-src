@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.52 1994/10/01 17:59:27 davidg Exp $
+#	$Id: files.i386,v 1.53 1994/10/12 03:56:49 se Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -39,6 +39,7 @@ i386/ibcs2/ibcs2_stats.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysi86.c	optional 	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional 	ibcs2
+i386/ibcs2/ibcs2_socksys.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 #i386/ibcs2/imgact_xout.c	optional	ibcs2
 #i386/ibcs2/imgact_elf.c	optional	svr4
