@@ -213,16 +213,17 @@ _kse_single_thread(struct pthread *curthread)
 	kse_critical_t crit;
 	int i;
 
-
-	/*
-	 * Disable upcalls and clear the threaded flag.
-	 * XXX - I don't think we need to disable upcalls after a fork().
-	 *       but it doesn't hurt.
-	 */
-	crit = _kse_critical_enter();
+	if (__isthreaded) {
+		_thr_rtld_fini();
+		_thr_signal_deinit();
+	}
 	__isthreaded = 0;
+	/*
+	 * Restore signal mask early, so any memory problems could
+	 * dump core.
+	 */ 
+	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	active_threads = 1;
-	_thr_signal_deinit();
 
 	/*
 	 * Enter a loop to remove and free all threads other than
@@ -359,11 +360,18 @@ _kse_single_thread(struct pthread *curthread)
 	_kse_initial = NULL;
 	_libpthread_init(curthread);
 #else
-	if (__isthreaded)
+	if (__isthreaded) {
+		_thr_rtld_fini();
 		_thr_signal_deinit();
+	}
+	__isthreaded = 0;
+	/*
+	 * Restore signal mask early, so any memory problems could
+	 * dump core.
+	 */ 
+	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
-	__isthreaded   = 0;
-	active_threads = 0;
+	active_threads = 1;
 #endif
 }
 
@@ -410,18 +418,13 @@ _kse_isthreaded(void)
 int
 _kse_setthreaded(int threaded)
 {
-	if ((threaded != 0) && (__isthreaded == 0)) {
-		/*
-		 * Locking functions in libc are required when there are
-		 * threads other than the initial thread.
-		 */
-		__isthreaded = 1;
+	sigset_t sigset;
 
+	if ((threaded != 0) && (__isthreaded == 0)) {
 		/*
 		 * Tell the kernel to create a KSE for the initial thread
 		 * and enable upcalls in it.
 		 */
-		_thr_signal_init();
 		_kse_initial->k_flags |= KF_STARTED;
 
 #ifdef SYSTEM_SCOPE_ONLY
@@ -433,7 +436,17 @@ _kse_setthreaded(int threaded)
 		KSE_SET_MBOX(_kse_initial, _thr_initial);
 		_kse_initial->k_kcb->kcb_kmbx.km_flags |= KMF_BOUND;
 #endif
+		SIGFILLSET(sigset);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
+		_thr_signal_init();
 
+		/*
+		 * Locking functions in libc are required when there are
+		 * threads other than the initial thread.
+		 */
+		_thr_rtld_init();
+
+		__isthreaded = 1;
 		if (kse_create(&_kse_initial->k_kcb->kcb_kmbx, 0) != 0) {
 			_kse_initial->k_flags &= ~KF_STARTED;
 			__isthreaded = 0;
@@ -447,8 +460,9 @@ _kse_setthreaded(int threaded)
 		KSE_SET_MBOX(_kse_initial, _thr_initial);
 		_thr_start_sig_daemon();
 		_thr_setmaxconcurrency();
+#else
+		__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
 #endif
-
 	}
 	return (0);
 }
