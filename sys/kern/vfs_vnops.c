@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.20 1995/12/07 12:47:07 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.21 1995/12/11 04:56:13 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,17 @@
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vnode_pager.h>
+
+static int vn_closefile __P((struct file *fp, struct proc *p));
+static int vn_ioctl __P((struct file *fp, int com, caddr_t data, 
+		struct proc *p));
+static int vn_read __P((struct file *fp, struct uio *uio, 
+		struct ucred *cred));
+static int vn_select __P((struct file *fp, int which, struct proc *p));
+static int vn_vmio_open __P((struct vnode *vp, struct proc *p, 
+		struct ucred *cred));
+static int vn_write __P((struct file *fp, struct uio *uio, 
+		struct ucred *cred));
 
 struct 	fileops vnops =
 	{ vn_read, vn_write, vn_ioctl, vn_select, vn_closefile };
@@ -255,7 +266,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
 /*
  * File table vnode read routine.
  */
-int
+static int
 vn_read(fp, uio, cred)
 	struct file *fp;
 	struct uio *uio;
@@ -278,7 +289,7 @@ vn_read(fp, uio, cred)
 /*
  * File table vnode write routine.
  */
-int
+static int
 vn_write(fp, uio, cred)
 	struct file *fp;
 	struct uio *uio;
@@ -377,7 +388,7 @@ vn_stat(vp, sb, p)
 /*
  * File table vnode ioctl routine.
  */
-int
+static int
 vn_ioctl(fp, com, data, p)
 	struct file *fp;
 	int com;
@@ -430,7 +441,7 @@ vn_ioctl(fp, com, data, p)
 /*
  * File table vnode select routine.
  */
-int
+static int
 vn_select(fp, which, p)
 	struct file *fp;
 	int which;
@@ -444,7 +455,7 @@ vn_select(fp, which, p)
 /*
  * File table vnode close routine.
  */
-int
+static int
 vn_closefile(fp, p)
 	struct file *fp;
 	struct proc *p;
@@ -454,7 +465,7 @@ vn_closefile(fp, p)
 		fp->f_cred, p));
 }
 
-int
+static int
 vn_vmio_open(vp, p, cred)
 	struct vnode *vp;
 	struct proc *p;

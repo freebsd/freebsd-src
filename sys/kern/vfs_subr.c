@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.47 1995/12/07 12:47:04 davidg Exp $
+ * $Id: vfs_subr.c,v 1.48 1995/12/11 04:56:09 dyson Exp $
  */
 
 /*
@@ -887,7 +887,7 @@ holdrele(vp)
  * that are found.
  */
 #ifdef DIAGNOSTIC
-int busyprt = 0;		/* print out busy vnodes */
+static int busyprt = 0;		/* print out busy vnodes */
 SYSCTL_INT(_debug, 1, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
