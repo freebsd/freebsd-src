@@ -111,6 +111,7 @@ Static struct aue_type aue_devs[] = {
 	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX_PNA },
 	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB },
 	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB100TX },
+	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB10TA },
 	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TX },
 	{ 0, 0 }
 };
@@ -480,6 +481,8 @@ Static void aue_miibus_statchg(dev)
 	 */
 	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
 	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
+	    (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB10TA) ||
 	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
 	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX)) {
 		u_int16_t		auxmode;
@@ -571,6 +574,8 @@ Static void aue_reset(sc)
 	/* Grrr. LinkSys has to be different from everyone else. */
 	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
 	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
+	    (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB10TA) ||
 	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
 	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX)) {
 		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
@@ -754,6 +759,7 @@ Static int aue_detach(dev)
 
 	sc->aue_gone = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	bpfdetach(ifp);
 	if_detach(ifp);
 
 	if (sc->aue_ep[AUE_ENDPT_TX] != NULL)
@@ -1233,7 +1239,6 @@ Static void aue_init(xsc)
 	csr_write_1(sc, AUE_CTL0, AUE_CTL0_RXSTAT_APPEND|AUE_CTL0_RX_ENB);
 	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_TX_ENB);
 	AUE_SETBIT(sc, AUE_CTL2, AUE_CTL2_EP3_CLR);
-
 	mii_mediachg(mii);
 
 	/* Open RX and TX pipes. */
@@ -1245,7 +1250,7 @@ Static void aue_init(xsc)
 		splx(s);
 		return;
 	}
-	usbd_open_pipe(sc->aue_iface, sc->aue_ed[AUE_ENDPT_TX],
+	err = usbd_open_pipe(sc->aue_iface, sc->aue_ed[AUE_ENDPT_TX],
 	    USBD_EXCLUSIVE_USE, &sc->aue_ep[AUE_ENDPT_TX]);
 	if (err) {
 		printf("aue%d: open tx pipe failed: %s\n",
