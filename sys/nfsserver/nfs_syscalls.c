@@ -103,7 +103,7 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
 static int	nfssvc_addsock(struct file *, struct sockaddr *,
 		    struct thread *);
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
-static int	nfssvc_nfsd(caddr_t, struct thread *);
+static int	nfssvc_nfsd(struct thread *);
 
 /*
  * NFS server system calls
@@ -171,7 +171,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 		error = nfssvc_addsock(fp, nam, td);
 		fdrop(fp, td);
 	} else if (uap->flag & NFSSVC_NFSD) {
-		error = nfssvc_nfsd(uap->argp, td);
+		error = nfssvc_nfsd(td);
 	} else {
 		error = ENXIO;
 	}
@@ -278,7 +278,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
  * until it is killed by a signal.
  */
 static int
-nfssvc_nfsd(caddr_t argp, struct thread *td)
+nfssvc_nfsd(struct thread *td)
 {
 	int siz;
 	struct nfssvc_sock *slp;
