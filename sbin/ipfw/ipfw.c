@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.7 1997/08/21 01:30:21 alex Exp $
+ * $Id: ipfw.c,v 1.34.2.8 1998/01/03 05:21:50 jdp Exp $
  *
  */
 
@@ -713,6 +713,7 @@ delete(ac,av)
 {
 	struct ip_fw rule;
 	int i;
+	int failed = 0;
 	
 	memset(&rule, 0, sizeof rule);
 
@@ -722,9 +723,13 @@ delete(ac,av)
 	while (ac && isdigit(**av)) {
 		rule.fw_number = atoi(*av); av++; ac--;
 		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
-		if (i)
-			warn("setsockopt(%s)", "IP_FW_DEL");
+		if (i) {
+			failed = 1;
+			warn("rule %u: setsockopt(%s)", rule.fw_number, "IP_FW_DEL");
+		}
 	}
+	if (failed)
+		exit(1);
 }
 
 static void
@@ -1064,6 +1069,7 @@ zero (ac, av)
 			printf("Accounting cleared.\n");
 	} else {
 		struct ip_fw rule;
+		int failed = 0;
 
 		memset(&rule, 0, sizeof rule);
 		while (ac) {
@@ -1071,14 +1077,19 @@ zero (ac, av)
 			if (isdigit(**av)) {
 				rule.fw_number = atoi(*av); av++; ac--;
 				if (setsockopt(s, IPPROTO_IP,
-				    IP_FW_ZERO, &rule, sizeof rule))
-					warn("setsockopt(%s)", "IP_FW_ZERO");
+				    IP_FW_ZERO, &rule, sizeof rule)) {
+					warn("rule %u: setsockopt(%s)", rule.fw_number,
+						 "IP_FW_ZERO");
+					failed = 1;
+				}
 				else
 					printf("Entry %d cleared\n",
 					    rule.fw_number);
 			} else
 				show_usage("invalid rule number ``%s''", *av);
 		}
+		if (failed)
+			exit(1);
 	}
 }
 
