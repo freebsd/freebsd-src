@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.21 1996/04/08 07:54:49 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.22 1996/06/12 03:37:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -375,7 +375,7 @@ mfs_mount(mp, path, data, ndp, p)
 	 */
 	MALLOC(mfsp, struct mfsnode *, sizeof *mfsp, M_MFSNODE, M_WAITOK);
 
-	err = getnewvnode(VT_MFS, (struct mount *)0, mfs_vnodeop_p, &devvp);
+	err = getnewvnode(VT_MFS, mp, mfs_vnodeop_p, &devvp);
 	if (err) {
 		FREE(mfsp, M_MFSNODE);
 		goto error_1;
