@@ -90,7 +90,7 @@ warp_update(video_adapter_t *adp)
 static int
 warp_saver(video_adapter_t *adp, int blank)
 {
-	int i, pl;
+	int pl;
 	
 	if (blank) {
 		/* switch to graphics mode */
@@ -104,10 +104,7 @@ warp_saver(video_adapter_t *adp, int blank)
 			banksize = adp->va_window_size;
 			bpsl = adp->va_line_width;
 			splx(pl);
-			for (i = 0; i < bpsl * scrh; i += banksize) {
-				set_origin(adp, i);
-				bzero(vid, banksize);
-			}
+			(*vidsw[adp->va_index]->clear)(adp);
 		}
 		/* update display */
 		warp_update(adp);
