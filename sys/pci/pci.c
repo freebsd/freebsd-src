@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57 1996/10/22 20:20:11 se Exp $
+**  $Id: pci.c,v 1.57.2.1 1996/11/25 07:19:04 phk Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1384,7 +1384,7 @@ int pci_unmap_int (pcici_t tag)
 	*/
 
 	irq = getirq (tag);
-	if (irq >= PCI_MAX_IRQ) {
+	if ((irq == 0) || (irq >= PCI_MAX_IRQ)) {
 		printf ("\tillegal irq %d.\n", irq);
 		return (0);
 	};
