@@ -100,6 +100,8 @@ static uma_zone_t slabzone;
  */
 static uma_zone_t hashzone;
 
+static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
+
 /*
  * Are we allowed to allocate buckets?
  */
@@ -430,9 +432,8 @@ hash_alloc(struct uma_hash *hash)
 	if (oldsize)  {
 		hash->uh_hashsize = oldsize * 2;
 		alloc = sizeof(hash->uh_slab_hash[0]) * hash->uh_hashsize;
-		/* XXX Shouldn't be abusing DEVBUF here */
 		hash->uh_slab_hash = (struct slabhead *)malloc(alloc,
-		    M_DEVBUF, M_NOWAIT);
+		    M_UMAHASH, M_NOWAIT);
 	} else {
 		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
 		hash->uh_slab_hash = uma_zalloc_internal(hashzone, NULL,
@@ -511,7 +512,7 @@ hash_free(struct uma_hash *hash)
 		uma_zfree_internal(hashzone,
 		    hash->uh_slab_hash, NULL, 0);
 	else
-		free(hash->uh_slab_hash, M_DEVBUF);
+		free(hash->uh_slab_hash, M_UMAHASH);
 }
 
 /*
