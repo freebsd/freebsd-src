@@ -1,4 +1,32 @@
 /*
+ * Copyright (C) 2001 WIDE Project.  All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -55,6 +83,8 @@ static void in_len2mask(struct in_addr *, int);
 static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *);
 
+static int	in_addprefix(struct in_ifaddr *, int);
+static int	in_scrubprefix(struct in_ifaddr *);
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
@@ -654,14 +684,7 @@ in_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct in_ifaddr *ia;
 {
-
-	if ((ia->ia_flags & IFA_ROUTE) == 0)
-		return;
-	if (ifp->if_flags & (IFF_LOOPBACK|IFF_POINTOPOINT))
-		rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST);
-	else
-		rtinit(&(ia->ia_ifa), (int)RTM_DELETE, 0);
-	ia->ia_flags &= ~IFA_ROUTE;
+	in_scrubprefix(ia);
 }
 
 /*
@@ -743,25 +766,8 @@ in_ifinit(ifp, ia, sin, scrub)
 			return (0);
 		flags |= RTF_HOST;
 	}
-
-	/*-
-	 * Don't add host routes for interface addresses of
-	 * 0.0.0.0 --> 0.255.255.255 netmask 255.0.0.0.  This makes it
-	 * possible to assign several such address pairs with consistent
-	 * results (no host route) and is required by BOOTP.
-	 *
-	 * XXX: This is ugly !  There should be a way for the caller to
-	 *      say that they don't want a host route.
-	 */
-	if (ia->ia_addr.sin_addr.s_addr != INADDR_ANY ||
-	    ia->ia_netmask != IN_CLASSA_NET ||
-	    ia->ia_dstaddr.sin_addr.s_addr != htonl(IN_CLASSA_HOST)) {
-		if ((error = rtinit(&ia->ia_ifa, (int)RTM_ADD, flags)) != 0) {
-			ia->ia_addr = oldaddr;
-			return (error);
-		}
-		ia->ia_flags |= IFA_ROUTE;
-	}
+	if ((error = in_addprefix(ia, flags)) != 0)
+		return (error);
 
 	/*
 	 * If the interface supports multicast, join the "all hosts"
@@ -776,6 +782,120 @@ in_ifinit(ifp, ia, sin, scrub)
 	return (error);
 }
 
+#define rtinitflags(x) \
+	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
+	    ? RTF_HOST : 0)
+/*
+ * Check if we have a route for the given prefix already or add a one
+ * accordingly.
+ */
+static int
+in_addprefix(target, flags)
+	struct in_ifaddr *target;
+	int flags;
+{
+	struct in_ifaddr *ia;
+	struct in_addr prefix, mask, p;
+	int error;
+
+	if ((flags & RTF_HOST) != 0)
+		prefix = target->ia_dstaddr.sin_addr;
+	else {
+		prefix = target->ia_addr.sin_addr;
+		mask = target->ia_sockmask.sin_addr;
+		prefix.s_addr &= mask.s_addr;
+	}
+
+	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+		if (rtinitflags(ia))
+			p = ia->ia_dstaddr.sin_addr;
+		else {
+			p = ia->ia_addr.sin_addr;
+			p.s_addr &= ia->ia_sockmask.sin_addr.s_addr;
+		}
+
+		if (prefix.s_addr != p.s_addr)
+			continue;
+
+		/*
+		 * If we got a matching prefix route inserted by other
+		 * interface address, we are done here.
+		 */
+		if (ia->ia_flags & IFA_ROUTE)
+			return 0;
+	}
+
+	/*
+	 * No-one seem to have this prefix route, so we try to insert it.
+	 */
+	error = rtinit(&target->ia_ifa, (int)RTM_ADD, flags);
+	if (!error)
+		target->ia_flags |= IFA_ROUTE;
+	return error;
+}
+
+/*
+ * If there is no other address in the system that can serve a route to the
+ * same prefix, remove the route.  Hand over the route to the new address
+ * otherwise.
+ */
+static int
+in_scrubprefix(target)
+	struct in_ifaddr *target;
+{
+	struct in_ifaddr *ia;
+	struct in_addr prefix, mask, p;
+	int error;
+
+	if ((target->ia_flags & IFA_ROUTE) == 0)
+		return 0;
+
+	if (rtinitflags(target))
+		prefix = target->ia_dstaddr.sin_addr;
+	else {
+		prefix = target->ia_addr.sin_addr;
+		mask = target->ia_sockmask.sin_addr;
+		prefix.s_addr &= mask.s_addr;
+	}
+
+	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+		if (rtinitflags(ia))
+			p = ia->ia_dstaddr.sin_addr;
+		else {
+			p = ia->ia_addr.sin_addr;
+			p.s_addr &= ia->ia_sockmask.sin_addr.s_addr;
+		}
+
+		if (prefix.s_addr != p.s_addr)
+			continue;
+
+		/*
+		 * If we got a matching prefix address, move IFA_ROUTE and
+		 * the route itself to it.  Make sure that routing daemons
+		 * get a heads-up.
+		 */
+		if ((ia->ia_flags & IFA_ROUTE) == 0) {
+			rtinit(&(target->ia_ifa), (int)RTM_DELETE,
+			    rtinitflags(target));
+			target->ia_flags &= ~IFA_ROUTE;
+
+			error = rtinit(&ia->ia_ifa, (int)RTM_ADD,
+			    rtinitflags(ia) | RTF_UP);
+			if (error == 0)
+				ia->ia_flags |= IFA_ROUTE;
+			return error;
+		}
+	}
+
+	/*
+	 * As no-one seem to have this prefix, we can remove the route.
+	 */
+	rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
+	target->ia_flags &= ~IFA_ROUTE;
+	return 0;
+}
+
+#undef rtinitflags
 
 /*
  * Return 1 if the address might be a local broadcast address.
