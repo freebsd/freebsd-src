@@ -12,31 +12,15 @@
 #
 #
 
-# XXX MD crud should be in separate makefiles
-.if ${MACHINE_ARCH} == "alpha"
-ARCH_SRCS = s_copysign.S s_copysignf.S
-# XXX Comment from NetBSD/Alpha:
-# XXX LINT SIGFPEs in e_exp.c's strtod().  FP underflow/denorm software
-# handling is broken (doesn't exist!) on the Alpha port.
-# Stock gcc 2.7.2.1 doesn't understand these options.
-#CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
-.elif ${MACHINE_ARCH} == "amd64"
-ARCH_SRCS = e_sqrt.S s_lrint.S s_llrint.S
-.elif ${MACHINE_ARCH} == "ia64"
-ARCH_SRCS = s_fma.S s_fmaf.S
-.elif ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR= i387
-ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
-	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
-	    s_cos.S s_finite.S s_floor.S s_llrint.S s_logb.S s_lrint.S \
-	    s_rint.S s_scalbn.S s_significand.S s_sin.S s_tan.S
-# float counterparts
-ARCH_SRCS+= e_atan2f.S e_log10f.S e_logf.S e_remainderf.S e_scalbf.S \
-	    e_sqrtf.S s_ceilf.S s_copysignf.S s_cosf.S s_floorf.S s_logbf.S \
-	    s_rintf.S s_scalbnf.S s_significandf.S s_sinf.S s_tanf.S
+.else
+ARCH_SUBDIR= ${MACHINE_ARCH}
 .endif
 
-ARCH_SUBDIR?= ${MACHINE_ARCH}
+.if exists(${ARCH_SUBDIR}/Makefile.inc)
+.include "${ARCH_SUBDIR}/Makefile.inc"
+.endif
 
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
