@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.6 1995/04/13 13:35:09 ache Exp $
+ *	$Id: rm.c,v 1.7 1996/02/18 19:00:59 wosch Exp $
  */
 
 #ifndef lint
@@ -81,9 +81,9 @@ main(argc, argv)
 {
 	int ch, rflag;
 
-	dflag = fflag = iflag = Pflag = rflag = 0;
-	stdin_ok = 0;
-	while ((ch = getopt(argc, argv, "dfiPRr?")) != EOF)
+	rflag = 0;
+
+	while ((ch = getopt(argc, argv, "dfiPRr")) != EOF)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -103,7 +103,6 @@ main(argc, argv)
 		case 'r':			/* Compatibility. */
 			rflag = 1;
 			break;
-		case '?':
 		default:
 			usage();
 		}
