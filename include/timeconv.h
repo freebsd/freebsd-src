@@ -46,11 +46,11 @@
 #define	_TIMECONV_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-#ifdef	_BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
 #endif
 
 time_t _time32_to_time(__int32_t t32);

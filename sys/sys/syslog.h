@@ -186,17 +186,17 @@ CODE facilitynames[] = {
  * places (<machine/varargs.h> and <machine/stdarg.h>), so if we include one
  * of them here we may collide with the utility's includes.  It's unreasonable
  * for utilities to have to include one of them to include syslog.h, so we get
- * _BSD_VA_LIST_ from <machine/ansi.h> and use it.
+ * __va_list from <sys/_types.h> and use it.
  */
-#include <machine/ansi.h>
 #include <sys/cdefs.h>
+#include <sys/_types.h>
 
 __BEGIN_DECLS
 void	closelog(void);
 void	openlog(const char *, int, int);
 int	setlogmask(int);
 void	syslog(int, const char *, ...) __printflike(2, 3);
-void	vsyslog(int, const char *, _BSD_VA_LIST_) __printflike(2, 0);
+void	vsyslog(int, const char *, __va_list) __printflike(2, 0);
 __END_DECLS
 
 #endif /* !_KERNEL */

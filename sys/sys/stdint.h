@@ -30,8 +30,8 @@
 #define _SYS_STDINT_H_
 
 #include <sys/cdefs.h>
+#include <sys/_types.h>
 
-#include <machine/ansi.h>
 #include <machine/_stdint.h>
 
 #ifndef _INT8_T_DECLARED

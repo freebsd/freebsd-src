@@ -616,9 +616,9 @@ void	in6_sin_2_v4mapsin6_in_sock __P((struct sockaddr **nam));
 extern int	(*faithprefix_p)(struct in6_addr *);
 #endif /* _KERNEL */
 
-#ifdef _BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef _BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 __BEGIN_DECLS

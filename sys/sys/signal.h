@@ -215,9 +215,9 @@ typedef void __siginfohandler_t(int, struct __siginfo *, void *);
 
 typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 /*

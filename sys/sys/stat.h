@@ -43,11 +43,11 @@
 #define	_SYS_STAT_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-#ifdef _BSD_FFLAGS_T_
-typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
-#undef _BSD_FFLAGS_T_
+#ifndef _FFLAGS_T_DECLARED
+typedef	__fflags_t	fflags_t;	/* file flags */
+#define	_FFLAGS_T_DECLARED
 #endif
 
 #if !defined(_KERNEL) && !defined(_POSIX_SOURCE)

@@ -39,7 +39,7 @@ int
 vasprintf(str, fmt, ap)
 	char **str;
 	const char *fmt;
-	_BSD_VA_LIST_ ap;
+	__va_list ap;
 {
 	int ret;
 	FILE f;

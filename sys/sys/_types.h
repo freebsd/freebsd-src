@@ -30,12 +30,12 @@
 #define _SYS__TYPES_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <machine/_types.h>
 
-#define	_BSD_FSBLKCNT_T_	__uint64_t
-#define	_BSD_FSFILCNT_T_	__uint64_t
-#define	_BSD_GID_T_	__uint32_t
-#define	_BSD_SA_FAMILY_T_	__uint8_t
-#define	_BSD_UID_T_	__uint32_t
+typedef	__uint64_t	__fsblkcnt_t;
+typedef	__uint64_t	__fsfilcnt_t;
+typedef	__uint32_t	__gid_t;
+typedef	__uint8_t	__sa_family_t;
+typedef	__uint32_t	__uid_t;
 
 #endif /* !_SYS__TYPES_H_ */

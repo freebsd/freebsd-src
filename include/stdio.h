@@ -41,18 +41,18 @@
 #define	_STDIO_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 #ifndef NULL
 #define	NULL	0
 #endif
 
-typedef	_BSD_OFF_T_	fpos_t;
+typedef	__off_t		fpos_t;
 
 #define	_FSTDIO			/* Define for new stdio with functions. */
 
@@ -251,16 +251,16 @@ FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
 int	 vfprintf(FILE *__restrict, const char *__restrict,
-	    _BSD_VA_LIST_);
-int	 vprintf(const char *__restrict, _BSD_VA_LIST_);
+	    __va_list);
+int	 vprintf(const char *__restrict, __va_list);
 int	 vsprintf(char *__restrict, const char *__restrict,
-	    _BSD_VA_LIST_);
+	    __va_list);
 
 #if __ISO_C_VISIBLE >= 1999
 int	 snprintf(char *__restrict, size_t, const char *__restrict,
 	    ...) __printflike(3, 4);
 int	 vsnprintf(char *__restrict, size_t, const char *__restrict,
-	    _BSD_VA_LIST_) __printflike(3, 0);
+	    __va_list) __printflike(3, 0);
 #endif
 
 /*
@@ -298,8 +298,8 @@ int	 putchar_unlocked(int);
 #endif
 
 #if __POSIX_VISIBLE >= 200112
-int	 fseeko(FILE *, _BSD_OFF_T_, int);
-_BSD_OFF_T_ ftello(FILE *);
+int	 fseeko(FILE *, __off_t, int);
+__off_t	 ftello(FILE *);
 #endif
 
 #if __BSD_VISIBLE || __XSI_VISIBLE > 0 && __XSI_VISIBLE < 600
@@ -327,10 +327,10 @@ __const char *fmtcheck(const char *, const char *) __ATTR_FORMAT_ARG;
 int	 fpurge(FILE *);
 void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
-int	 vasprintf(char **, const char *, _BSD_VA_LIST_)
+int	 vasprintf(char **, const char *, __va_list)
 	    __printflike(2, 0);
-int	 vscanf(const char *, _BSD_VA_LIST_) __scanflike(1, 0);
-int	 vsscanf(const char *, const char *, _BSD_VA_LIST_)
+int	 vscanf(const char *, __va_list) __scanflike(1, 0);
+int	 vsscanf(const char *, const char *, __va_list)
 	    __scanflike(2, 0);
 
 /*
@@ -364,19 +364,19 @@ FILE	*funopen(const void *,
  */
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
-int	 ftruncate(int, _BSD_OFF_T_);
+int	 ftruncate(int, __off_t);
 #endif
 #ifndef _LSEEK_DECLARED
 #define	_LSEEK_DECLARED
-_BSD_OFF_T_ lseek(int, _BSD_OFF_T_, int);
+__off_t	 lseek(int, __off_t, int);
 #endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
-void	*mmap(void *, size_t, int, int, int, _BSD_OFF_T_);
+void	*mmap(void *, size_t, int, int, int, __off_t);
 #endif
 #ifndef _TRUNCATE_DECLARED
 #define	_TRUNCATE_DECLARED
-int	 truncate(const char *, _BSD_OFF_T_);
+int	 truncate(const char *, __off_t);
 #endif
 #endif /* __BSD_VISIBLE */
 
@@ -384,8 +384,8 @@ int	 truncate(const char *, _BSD_OFF_T_);
  * Functions internal to the implementation.
  */
 int	__srget(FILE *);
-int	__vfscanf(FILE *, const char *, _BSD_VA_LIST_);
-int	__svfscanf(FILE *, const char *, _BSD_VA_LIST_);
+int	__vfscanf(FILE *, const char *, __va_list);
+int	__svfscanf(FILE *, const char *, __va_list);
 int	__swbuf(int, FILE *);
 
 /*

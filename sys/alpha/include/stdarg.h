@@ -39,9 +39,9 @@
 #ifndef _ALPHA_STDARG_H_
 #define	_ALPHA_STDARG_H_
 
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-typedef _BSD_VA_LIST_	va_list;
+typedef __va_list	va_list;
 
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 

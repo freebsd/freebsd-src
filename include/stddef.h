@@ -39,26 +39,26 @@
 #define _STDDEF_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-typedef	_BSD_PTRDIFF_T_	ptrdiff_t;
+typedef	__ptrdiff_t	ptrdiff_t;
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-#ifdef	_BSD_RUNE_T_
-typedef	_BSD_RUNE_T_	rune_t;
-#undef	_BSD_RUNE_T_
+#ifndef _RUNE_T_DECLARED
+typedef	__rune_t	rune_t;
+#define	_RUNE_T_DECLARED
 #endif
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 #ifndef	__cplusplus
-#ifdef	_BSD_WCHAR_T_
-typedef	_BSD_WCHAR_T_	wchar_t;
-#undef	_BSD_WCHAR_T_
+#ifndef _WCHAR_T_DECLARED
+typedef	__wchar_t	wchar_t;
+#define	_WCHAR_T_DECLARED
 #endif
 #endif
 

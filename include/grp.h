@@ -49,9 +49,9 @@
 #define	_PATH_GROUP		"/etc/group"
 #endif
 
-#ifdef _BSD_GID_T_
-typedef	_BSD_GID_T_		gid_t;
-#undef _BSD_GID_T_
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
 #endif
 
 struct group {

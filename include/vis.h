@@ -37,11 +37,11 @@
 #ifndef _VIS_H_
 #define	_VIS_H_
 
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 /*

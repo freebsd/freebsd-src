@@ -43,8 +43,8 @@
  * a quality implementation should.)
  */
 #ifndef _FSBLKCNT_T_DECLARED		/* always declared together */
-typedef _BSD_FSBLKCNT_T_ fsblkcnt_t;
-typedef _BSD_FSFILCNT_T_ fsfilcnt_t;
+typedef	__fsblkcnt_t	fsblkcnt_t;
+typedef	__fsfilcnt_t	fsfilcnt_t;
 #define _FSBLKCNT_T_DECLARED
 #endif
 
