@@ -125,53 +125,10 @@ void DRM(mem_init)(void)
 	DRM(ram_used)	   = 0;
 }
 
-/* drm_mem_info is called whenever a process reads /dev/drm/mem. */
-#ifdef __linux__
-static int DRM(_mem_info)(char *buf, char **start, off_t offset,
-			  int request, int *eof, void *data)
-{
-	drm_mem_stats_t *pt;
-	int             len = 0;
-
-	if (offset > DRM_PROC_LIMIT) {
-		*eof = 1;
-		return 0;
-	}
-
-	*eof   = 0;
-	*start = &buf[offset];
-
-	DRM_PROC_PRINT("		  total counts			"
-		       " |    outstanding  \n");
-	DRM_PROC_PRINT("type	   alloc freed fail	bytes	   freed"
-		       " | allocs      bytes\n\n");
-	DRM_PROC_PRINT("%-9.9s %5d %5d %4d %10lu kB         |\n",
-		       "system", 0, 0, 0,
-		       DRM(ram_available) << (PAGE_SHIFT - 10));
-	DRM_PROC_PRINT("%-9.9s %5d %5d %4d %10lu kB         |\n",
-		       "locked", 0, 0, 0, DRM(ram_used) >> 10);
-	DRM_PROC_PRINT("\n");
-	for (pt = DRM(mem_stats); pt->name; pt++) {
-		DRM_PROC_PRINT("%-9.9s %5d %5d %4d %10lu %10lu | %6d %10ld\n",
-			       pt->name,
-			       pt->succeed_count,
-			       pt->free_count,
-			       pt->fail_count,
-			       pt->bytes_allocated,
-			       pt->bytes_freed,
-			       pt->succeed_count - pt->free_count,
-			       (long)pt->bytes_allocated
-			       - (long)pt->bytes_freed);
-	}
-
-	if (len > request + offset) return request;
-	*eof = 1;
-	return len - offset;
-}
-#endif /* __linux__ */
-
 #ifdef __FreeBSD__
-static int DRM(_mem_info) DRM_SYSCTL_HANDLER_ARGS
+static int 
+DRM(_mem_info)(drm_mem_stats_t *stats, struct sysctl_oid *oidp, void *arg1, 
+    int arg2, struct sysctl_req *req)
 {
 	drm_mem_stats_t *pt;
 	char buf[128];
@@ -186,7 +143,7 @@ static int DRM(_mem_info) DRM_SYSCTL_HANDLER_ARGS
 	DRM_SYSCTL_PRINT("%-9.9s %5d %5d %4d %10lu	    |\n",
 		       "locked", 0, 0, 0, DRM(ram_used));
 	DRM_SYSCTL_PRINT("\n");
-	for (pt = DRM(mem_stats); pt->name; pt++) {
+	for (pt = stats; pt->name; pt++) {
 		DRM_SYSCTL_PRINT("%-9.9s %5d %5d %4d %10lu %10lu | %6d %10ld\n",
 			       pt->name,
 			       pt->succeed_count,
@@ -202,28 +159,26 @@ static int DRM(_mem_info) DRM_SYSCTL_HANDLER_ARGS
 	
 	return 0;
 }
-#endif /* __FreeBSD__ */
 
-#ifdef __linux__
-int DRM(mem_info)(char *buf, char **start, off_t offset,
-		  int len, int *eof, void *data)
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 int DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS
-#endif /* __FreeBSD__ */
 {
-	int ret;
-
+	int ret, i;
+	drm_mem_stats_t *stats;
+	
+	stats = malloc(sizeof(DRM(mem_stats)), DRM(M_DRM), M_NOWAIT);
+	if (stats == NULL)
+		return ENOMEM;
+	
 	DRM_OS_SPINLOCK(&DRM(mem_lock));
-#ifdef __linux__
-	ret = DRM(_mem_info)(buf, start, offset, len, eof, data);
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-	ret = DRM(_mem_info)(oidp, arg1, arg2, req);
-#endif /* __FreeBSD__ */
+	bcopy(DRM(mem_stats), stats, sizeof(DRM(mem_stats)));
 	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	
+	ret = DRM(_mem_info)(stats, oidp, arg1, arg2, req);
+	
+	free(stats, DRM(M_DRM));
 	return ret;
 }
+#endif /* __FreeBSD__ */
 
 void *DRM(alloc)(size_t size, int area)
 {
