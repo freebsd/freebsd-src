@@ -65,6 +65,7 @@ int
 		do_compact,		/* show rules in compact mode */
 		show_sets,		/* display rule sets */
 		test_only,		/* only check syntax */
+		comment_only,		/* only print action and comment */
 		verbose;
 
 #define	IP_MASK_ALL	0xffffffff
@@ -850,6 +851,8 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 static void
 show_prerequisites(int *flags, int want, int cmd)
 {
+	if (comment_only)
+		return;
 	if ( (*flags & HAVE_IP) == HAVE_IP)
 		*flags |= HAVE_OPTIONS;
 
@@ -1030,10 +1033,20 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		flags |= HAVE_IP | HAVE_OPTIONS;
 	}
 
+	if (comment_only)
+		comment = "...";
+
         for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
+
+		if (comment_only) {
+			if (cmd->opcode != O_NOP)
+				continue;
+			printf(" // %s\n", (char *)(cmd + 1));
+			return;
+		}
 
 		show_prerequisites(&flags, 0, cmd->opcode);
 
@@ -1840,7 +1853,7 @@ help(void)
 {
 	fprintf(stderr,
 "ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
-"ipfw [-acdeftTnNpqS] <command> where <command> is one of:\n"
+"ipfw [-abcdefhnNqStTv] <command> where <command> is one of:\n"
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
@@ -3672,10 +3685,15 @@ ipfw_main(int oldac, char **oldav)
 	save_av = av;
 
 	optind = optreset = 0;
-	while ((ch = getopt(ac, av, "acdefhnNqs:STtv")) != -1)
+	while ((ch = getopt(ac, av, "abcdefhnNqs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
 			do_acct = 1;
+			break;
+
+		case 'b':
+			comment_only = 1;
+			do_compact = 1;
 			break;
 
 		case 'c':
