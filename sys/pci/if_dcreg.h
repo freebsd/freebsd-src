@@ -868,9 +868,9 @@ struct dc_softc {
 #define DC_CFCS_IOSPACE		0x00000001 /* I/O space enable */
 #define DC_CFCS_MEMSPACE	0x00000002 /* memory space enable */
 #define DC_CFCS_BUSMASTER	0x00000004 /* bus master enable */
-#define DC_CFCS_MWI_ENB		0x00000008 /* mem write and inval enable */
-#define DC_CFCS_PARITYERR_ENB	0x00000020 /* parity error enable */
-#define DC_CFCS_SYSERR_ENB	0x00000080 /* system error enable */
+#define DC_CFCS_MWI_ENB		0x00000010 /* mem write and inval enable */
+#define DC_CFCS_PARITYERR_ENB	0x00000040 /* parity error enable */
+#define DC_CFCS_SYSERR_ENB	0x00000100 /* system error enable */
 #define DC_CFCS_NEWCAPS		0x00100000 /* new capabilities */
 #define DC_CFCS_FAST_B2B	0x00800000 /* fast back-to-back capable */
 #define DC_CFCS_DATAPARITY	0x01000000 /* Parity error report */
