@@ -1618,10 +1618,12 @@ posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard
 posix4/posix4_mib.c	standard
 kern/uipc_sem.c		optional p1003_1b_semaphores
+security/mac/mac_inet.c		optional mac inet
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
 security/mac/mac_pipe.c		optional mac
 security/mac/mac_process.c	optional mac
+security/mac/mac_socket.c	optional mac
 security/mac/mac_system.c	optional mac
 security/mac/mac_vfs.c		optional mac
 security/mac_biba/mac_biba.c	optional mac_biba
