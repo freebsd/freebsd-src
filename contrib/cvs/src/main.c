@@ -210,6 +210,7 @@ static const char *const cmd_usage[] =
     "        history      Shows status of files and users\n",
     "        import       Import sources into CVS, using vendor branches\n",
     "        export       Export sources from CVS, similar to checkout\n",
+    "        init         Initialize a new CVS repository\n",
     "        log          Prints out 'rlog' information for files\n",
 #ifdef AUTH_CLIENT_SUPPORT
     "        login        Prompt for password for authenticating server.\n",
