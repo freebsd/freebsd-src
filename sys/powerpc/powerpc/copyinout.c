@@ -221,7 +221,7 @@ subyte(void *addr, int byte)
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
-		return (EFAULT);
+		return (-1);
 	}
 
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
@@ -246,7 +246,7 @@ suword(void *addr, long word)
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
-		return (EFAULT);
+		return (-1);
 	}
 
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
@@ -270,21 +270,21 @@ fubyte(const void *addr)
 	struct		thread *td;
 	pmap_t		pm;
 	faultbuf	env;
-	char		*p;
+	u_char		*p;
 	int		val;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (char *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
+	p = (u_char *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
-		return (EFAULT);
+		return (-1);
 	}
 
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
-	val = (int)*p;
+	val = *p;
 
 	td->td_pcb->pcb_onfault = NULL;
 	return (val);
@@ -304,7 +304,7 @@ fuword(const void *addr)
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
-		return (EFAULT);
+		return (-1);
 	}
 
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
