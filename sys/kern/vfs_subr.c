@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.64 1996/10/28 11:34:57 phk Exp $
+ * $Id: vfs_subr.c,v 1.65 1996/11/12 09:24:31 bde Exp $
  */
 
 /*
@@ -393,8 +393,6 @@ retry:
 #endif
 		vp->v_flag = 0;
 		vp->v_lastr = 0;
-		vp->v_ralen = 0;
-		vp->v_maxra = 0;
 		vp->v_lastw = 0;
 		vp->v_lasta = 0;
 		vp->v_cstart = 0;

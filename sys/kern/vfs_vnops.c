@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.25 1996/03/09 06:42:15 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.26 1996/08/21 21:55:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -273,14 +273,46 @@ vn_read(fp, uio, cred)
 {
 	register struct vnode *vp = (struct vnode *)fp->f_data;
 	int count, error;
+	int flag, seq;
 
 	LEASE_CHECK(vp, uio->uio_procp, cred, LEASE_READ);
 	VOP_LOCK(vp);
 	uio->uio_offset = fp->f_offset;
 	count = uio->uio_resid;
-	error = VOP_READ(vp, uio, (fp->f_flag & FNONBLOCK) ? IO_NDELAY : 0,
-		cred);
+	flag = 0;
+	if (fp->f_flag & FNONBLOCK)
+		flag |= IO_NDELAY;
+
+	/*
+	 * Sequential read heuristic.
+	 * If we have been doing sequential input,
+	 * a rewind operation doesn't turn off
+	 * sequential input mode.
+	 */
+	if (((fp->f_offset == 0) && (fp->f_seqcount > 0)) ||
+		(fp->f_offset == fp->f_nextread)) {
+		int tmpseq = fp->f_seqcount;
+		/*
+		 * XXX we assume that the filesystem block size is
+		 * the default.  Not true, but still gives us a pretty
+		 * good indicator of how sequential the read operations
+		 * are.
+		 */
+		tmpseq += ((count + BKVASIZE - 1) / BKVASIZE);
+		if (tmpseq >= CHAR_MAX)
+			tmpseq = CHAR_MAX;
+		fp->f_seqcount = tmpseq;
+		flag |= (fp->f_seqcount << 16);
+	} else {
+		if (fp->f_seqcount > 1)
+			fp->f_seqcount = 1;
+		else
+			fp->f_seqcount = 0;
+	}
+
+	error = VOP_READ(vp, uio, flag, cred);
 	fp->f_offset += count - uio->uio_resid;
+	fp->f_nextread = fp->f_offset;
 	VOP_UNLOCK(vp);
 	return (error);
 }
