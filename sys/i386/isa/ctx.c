@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.19 1996/06/25 20:29:52 bde Exp $
+ *	$Id: ctx.c,v 1.20 1996/09/06 23:07:14 phk Exp $
  */
 
 /*
@@ -129,7 +129,7 @@
 #include <machine/ioctl_ctx.h>
 #include <machine/md_var.h>
 
-static int     waitvb(short);
+static int     waitvb(int port);
 
 /* state flags */
 #define   OPEN        (0x01)	/* device is open */
@@ -165,7 +165,7 @@ static struct ctx_soft_registers {
 	u_char  cp0;
 	u_char  cp1;
 	u_char  flag;
-	short   iobase;
+	int     iobase;
 	caddr_t maddr;
 	int     msize;
 	void	*devfs_token;
@@ -424,7 +424,7 @@ ctxioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 }
 
 static int
-waitvb(short port)
+waitvb(int port)
 {				/* wait for a vertical blank,  */
 	if (inb(port) == 0xff)	/* 0xff means no board present */
 		return (1);
