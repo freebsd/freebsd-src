@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66 1995/05/15 19:50:59 rgrimes Exp $
+#	$Id: rc,v 1.66.4.1 1995/08/25 03:37:21 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -209,7 +209,12 @@ if [ "X${rwhod}" = X"YES" ]; then
 fi
 
 if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
-	echo -n ' mountd';		mountd
+	echo -n ' mountd'
+	if [ "X${pcnfsd}" = X"YES" ]; then
+		mountd -n
+	else
+		mountd
+	fi
 	echo -n ' nfsd';		nfsd -u -t 4
 fi
 
@@ -219,6 +224,16 @@ fi
 
 if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd';			amd ${amdflags}
+fi
+
+# These should go elsewhere but netstart is too early and I don't
+# want to touch rc.local, so...
+if [ "X${pcnfsd}" = X"YES" -a -x /usr/local/libexec/rpc.pcnfsd ]; then
+	echo -n ' rpc.pcnfsd'; /usr/local/libexec/rpc.pcnfsd &
+fi
+
+if [ "X${apache_httpd}" = X"YES" -a -x /usr/local/www/server/httpd ]; then
+	echo -n ' apache httpd'; /usr/local/www/server/httpd &
 fi
 
 # Kerberos runs ONLY on the Kerberos server machine
