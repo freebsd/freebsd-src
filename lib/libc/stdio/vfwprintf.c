@@ -589,7 +589,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	fmt = (wchar_t *)fmt0;
 	argtable = NULL;
 	nextarg = 1;
-	orgap = ap;
+	va_copy(orgap, ap);
 	ret = 0;
 
 	/*
