@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#24 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#26 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -120,10 +120,10 @@ pam_vprompt(pam_handle_t *_pamh,
 
 /*
  * Read cooked lines.
- * Checking for FOPEN_MAX is a fairly reliable way to detect the presence
- * of <stdio.h>
+ * Checking for _IOFBF is a fairly reliable way to detect the presence
+ * of <stdio.h>, as SUSv3 requires it to be defined there.
  */
-#ifdef FOPEN_MAX
+#ifdef _IOFBF
 char *
 openpam_readline(FILE *_f,
 	int *_lineno,
@@ -177,6 +177,8 @@ int openpam_ttyconv(int _n,
 	const struct pam_message **_msg,
 	struct pam_response **_resp,
 	void *_data);
+
+extern int openpam_ttyconv_timeout;
 
 /*
  * Null conversation function

@@ -1,3 +1,24 @@
+OpenPAM Dogwood							2003-07-15
+
+ - ENHANCE: Use the GNU autotools.
+
+ - ENHANCE: Constify the msg field in struct pam_message.
+
+ - BUGFIX: Remove left-over debugging output
+
+ - BUGFIX: Avoid side effects in arguments to the FREE() macro
+
+ - ENHANCE: Make openpam_ttyconv(3) use read(2) rather than fgets(3).
+
+ - BUGFIX: Staticize some variables which shouldn't be global.
+
+ - BUGFIX: Correcly anticipate a NULL user in pam_get_user(3).
+
+ - ENHANCE: Various minor documentation improvements.
+
+Thanks to Dmitry V. Levin <ldv@altlinux.org> for considerable
+assistance with this release.
+============================================================================
 OpenPAM Digitalis						2003-06-01
 
  - ENHANCE: Completely rewrite the configuration parser and add
@@ -242,4 +263,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#19 $
+$P4: //depot/projects/openpam/HISTORY#21 $

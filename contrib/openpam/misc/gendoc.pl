@@ -32,13 +32,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#25 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#27 $
 #
 
 use strict;
+use locale;
 use Fcntl;
 use Getopt::Std;
-use POSIX qw(strftime);
+use POSIX qw(locale_h strftime);
 use vars qw($COPYRIGHT $TODAY %FUNCTIONS %PAMERR);
 
 $COPYRIGHT = ".\\\"-
@@ -360,7 +361,7 @@ sub gendoc($) {
     if ($func->{'name'} =~ m/openpam/) {
 	$mdoc .= ".In security/openpam.h\n"
     }
-    $mdoc .= ".Ft $func->{'type'}
+    $mdoc .= ".Ft \"$func->{'type'}\"
 .Fn $func->{'name'} $func->{'args'}
 .Sh DESCRIPTION
 $func->{'man'}
@@ -411,10 +412,11 @@ function is an OpenPAM extension.
     $mdoc .= ".Sh AUTHORS
 The
 .Nm
-function and this manual page were developed for the FreeBSD Project
-by ThinkSec AS and Network Associates Laboratories, the Security
-Research Division of Network Associates, Inc.  under DARPA/SPAWAR
-contract N66001-01-C-8035
+function and this manual page were developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.  under
+DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 ";
@@ -511,7 +513,7 @@ The following return codes are defined by
     }
     print FILE ".Sh SEE ALSO
 ";
-    print FILE ".Xr openpam 3\n"
+    print FILE ".Xr openpam 3 ,\n"
 	if ($page eq 'pam');
     foreach $func (keys(%FUNCTIONS)) {
 	$xref{$func} = 3;
@@ -530,8 +532,9 @@ The following return codes are defined by
 .Re
 .Sh AUTHORS
 The OpenPAM library and this manual page were developed for the
-FreeBSD Project by ThinkSec AS and Network Associates Laboratories,
-the Security Research Division of Network Associates, Inc.  under
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.  under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
@@ -550,6 +553,7 @@ MAIN:{
 
     usage()
 	unless (@ARGV && getopts("op", \%opts));
+    setlocale(LC_ALL, "en_US.ISO8859-1");
     $TODAY = strftime("%B %e, %Y", localtime(time()));
     $TODAY =~ s,\s+, ,g;
     if ($opts{'o'} || $opts{'p'}) {

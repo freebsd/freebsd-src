@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#25 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#26 $
  */
 
 #include <sys/param.h>
@@ -44,9 +44,9 @@
 
 #include "openpam_impl.h"
 
-const char authtok_prompt[] = "Password:";
-const char oldauthtok_prompt[] = "Old Password:";
-const char newauthtok_prompt[] = "New Password:";
+static const char authtok_prompt[] = "Password:";
+static const char oldauthtok_prompt[] = "Old Password:";
+static const char newauthtok_prompt[] = "New Password:";
 
 /*
  * OpenPAM extension
