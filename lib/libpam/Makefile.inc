@@ -27,5 +27,5 @@
 SHLIB_MAJOR=	2
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION+=	crypto
+DISTRIBUTION=	crypto
 .endif
