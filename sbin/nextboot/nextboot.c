@@ -45,15 +45,15 @@ static int	eflag;
 static int	dflag;
 static int	nameblock = NAMEBLOCK;
 
-char * myname;
 #define BOOT_MAGIC 0xAA55
 
+extern char	*__progname;
+
 static void usage(void) {
-	printf (" usage: %s [-b] device bootstring [bootstring] ...\n"
-			,myname);
-	printf ("  or:   %s {-e,-d} device \n"
-			,myname);
-	printf (" flags are mutually exclusive\n");
+	fprintf (stderr, " usage: %s [-b] device bootstring [bootstring] ...\n"
+			, __progname);
+	fprintf (stderr, "    or: %s {-e,-d} device \n" , __progname);
+	fprintf (stderr, "The -e and -d flags are mutually exclusive\n");
 	exit(1);
 }
 
@@ -66,7 +66,6 @@ main (int argc, char** argv)
 	int	part;
 
 	bflag = 0;
-	myname = argv[0];
 	while ((ch = getopt(argc, argv, "bde")) != EOF) {
         	switch(ch) {
         	case 'b':
