@@ -13,7 +13,7 @@ _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 EMS+=		ld_elf64alpha_emulation
 LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
 		elf64alpha.xs elf64alpha.xu alpha.x alpha.xbn \
-		alpha.xn alpha.xr alpha.xu
+		alpha.xn alpha.xr alpha.xu elf64alpha.xc elf64alpha.xsc
 SRCS+=	eelf64alpha.c ealpha.c
 CLEANFILES+=	eelf64alpha.c ealpha.c
 
