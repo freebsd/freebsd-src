@@ -52,7 +52,7 @@
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/dpt/dpt.h>
-#include <pci/dpt_pci.h>
+#include <dev/dpt/dpt_pci.h>
 
 #define PCI_BASEADR0  PCI_MAP_REG_START      /* I/O Address */
 #define PCI_BASEADR1  PCI_MAP_REG_START + 4  /* Mem I/O Address */
