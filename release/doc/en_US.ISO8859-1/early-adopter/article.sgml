@@ -45,7 +45,7 @@
       <para>This article describes major differences between &os;
 	&release.4x; and &os; &release.current;, from the
 	viewpoint of a user or administrator upgrading an existing
-	system.	 It provides a brief overview of &os; release
+	system.  It provides a brief overview of &os; release
 	engineering.  It then describes some of the new features in
 	&os; &release.5x;, as well as some changes that might be of
 	particular interest to users accustomed to working with the
@@ -108,13 +108,13 @@
       (their branchpoints were 3.1 and 4.0, respectively).  In hindsight, this
       practice did not give sufficient time for either CURRENT
       to stabilize before the new branches were
-      created.	This in turn resulted in wasted effort porting bug
+      created.  This in turn resulted in wasted effort porting bug
       fixes between branches, as well as creating some architectural changes
       that could not be ported between branches at all.</para>
 
     <para>The &release.5x; releases have been handled slightly
       differently.
-      &os; 5.0, 5.1, and 5.2 were based on the CURRENT branch.	The
+      &os; 5.0, 5.1, and 5.2 were based on the CURRENT branch.  The
       first of these releases was made after over two years of development
       (prior to these, the
       last release from HEAD was &os; 4.0, in March 2000).</para>
@@ -138,7 +138,7 @@
       except as a last-resort solution to a critical problem.</para>
 
     <para>The next release from CURRENT will likely be 6.0-RELEASE,
-      created from CVS <literal>HEAD</literal>.	 There is no firm date for 6.0,
+      created from CVS <literal>HEAD</literal>.  There is no firm date for 6.0,
       as of this writing, although it is
       expected sometime in the third quarter of 2005.  Future release
       engineering plans call for new major releases approximately
@@ -151,7 +151,7 @@
       this time, and any future work will likely be limited to bug
       fixes and security patches.  For especially
       conservative users, it may be reasonable to continue using the
-      &release.4x; releases for a time.	 The
+      &release.4x; releases for a time.  The
       &a.security-officer; will continue to support releases made from
       the 4-STABLE branch in accordance with their published policies,
       which can be found on the <ulink
@@ -185,7 +185,7 @@
 	  Symmetric MultiProcessor (SMP) machines.
 	  Ongoing work aims to perform fine-grained locking of various
 	  kernel subsystems to increase the number of threads of
-	  execution that can be running in the kernel.	Particular
+	  execution that can be running in the kernel.  Particular
 	  attention has been paid to the performance of the network
 	  stack and storage drivers.  More
 	  information can be found on the
@@ -196,7 +196,7 @@
       <listitem>
 	<para>KSE:  Kernel Scheduled Entities allow a single process
 	  to have multiple kernel-level threads, similar to Scheduler
-	  Activations.	The <filename>libpthread</filename>
+	  Activations.  The <filename>libpthread</filename>
 	  and <filename>libthr</filename> threading libraries make this
 	  feature available to multi-threaded userland programs,
 	  using the &man.pthread.3; API.
@@ -224,7 +224,7 @@
 
       <listitem>
 	<para>GEOM:  A flexible, modular framework for transformation of disk
-	  I/O requests.	 This system supports a number of features
+	  I/O requests.  This system supports a number of features
 	  related to disks and volumes, such as:  recognition of disk
 	  partitions, the &man.gbde.4; disk encryption facility,
 	  various levels of RAID functionality, network export of disk
@@ -248,7 +248,7 @@
       </listitem>
 
       <listitem>
-	<para>New networking features:	A number of new networking
+	<para>New networking features:  A number of new networking
 	  features have made their debut in &release.5x; releases,
 	  including support for TCP SACK (selective acknowledgements),
 	  the &man.pf.4; packet filter from OpenBSD, and the
@@ -258,7 +258,7 @@
       <listitem>
 	<para>New hardware support: Support for more hardware devices,
 	  such as Cardbus, Bluetooth devices, and IEEE 802.11a/b/g
-	  network interfaces based on Atheros chipsets.	 Also,
+	  network interfaces based on Atheros chipsets.  Also,
 	  on the i386 architecture, some network devices not
 	  explicitly supported by &os; drivers may be supported using
 	  vendor drivers for &microsoft; &windows; and the
@@ -277,7 +277,7 @@
     <para>Some of the differences between &os; &release.4x; and
       &release.5x; deserve special mention because they involve
       major architectural changes, or break backwards compatibility in
-      some way.	 While these changes are unlikely to cause a loss of
+      some way.  While these changes are unlikely to cause a loss of
       data, they could cause some confusion for the unwary.  Some
       notable examples are:</para>
 
@@ -333,7 +333,7 @@
 	      <para>Note that execution of <filename>a.out</filename>
 		executables on the i386 and pc98 is still supported
 		with the <literal>COMPAT_AOUT</literal> kernel
-		option.	 Some of the compilers in the Ports Collection
+		option.  Some of the compilers in the Ports Collection
 		(for example,
 		<filename role="package">lang/gcc28</filename>) are
 		still capable of generating <filename>a.out</filename>
@@ -374,7 +374,7 @@
 
       <listitem>
 	<para>UFS2 is the default on-disk format for file systems
-	  created using &man.newfs.8;.	For all platforms except pc98,
+	  created using &man.newfs.8;.  For all platforms except pc98,
 	  it is also the default for file systems created using the
 	  disk labeling screen within &man.sysinstall.8;.  Because
 	  &os; &release.4x; only understands UFS1 (not UFS2), disk
@@ -384,7 +384,7 @@
 	  &man.newfs.8;, or on the disk labeling screen in
 	  &man.sysinstall.8;.  This situation most often arises with a
 	  a single machine that dual-boots &os; &release.4x; and &os;
-	  &release.5x;.	 Note that there is no way to convert file
+	  &release.5x;.  Note that there is no way to convert file
 	  systems between the two on-disk formats (other than backing
 	  up, re-creating the file system, and restoring).</para>
       </listitem>
@@ -394,7 +394,7 @@
       <listitem>
 	<para>Due to the upgraded <application>GCC</application>
 	  compiler, C++ programs generally need to be recompiled and
-	  reinstalled.	This requirement comes from changes in the C++
+	  reinstalled.  This requirement comes from changes in the C++
 	  ABI.</para>
       </listitem>
 
@@ -406,7 +406,7 @@
 	  package/port).  However, if any of the ports or packages on
 	  a system require upgrading, rebuilding and reinstalling
 	  <emphasis>all</emphasis> of the installed ports on a system
-	  is generally advised.	 This will prevent problems that can
+	  is generally advised.  This will prevent problems that can
 	  occur with programs being linked against some combination of
 	  old and new libraries.  The
 	  <filename role="package">sysutils/portupgrade</filename>
@@ -431,7 +431,7 @@
       <listitem>
 	<para><application>BIND</application> has been updated from
 	  version 8 to version 9.  There are numerous differences
-	  between BIND 8 and 9.	 Users with critical &man.named.8;
+	  between BIND 8 and 9.  Users with critical &man.named.8;
 	  installations should read the migration documentation in
 	  <filename>/usr/share/doc/bind9/misc/migration</filename>.
 	  There is also a new instruction manual in
@@ -538,11 +538,11 @@
 	CDROMs should be able to boot the &os; &release.5x; CDROMs.</para>
 
       <para>The layout of CDROMs has changed from the &release.4x;
-	series.	 Beginning with 5.4-RELEASE, the installation image
+	series.  Beginning with 5.4-RELEASE, the installation image
 	and the <quote>live filesystem</quote> are now contained on
 	the first disk on all architectures except for ia64 (ia64
 	releases use separate installation and live filesystem disks
-	due to disk space constraints).	 Common packages are now
+	due to disk space constraints).  Common packages are now
 	contained on the second and succeeding disks of a release.</para>
 
     </sect2>
@@ -569,11 +569,11 @@
 
       <para>A source-based upgrade procedure builds and
 	installs a set of binaries compiled from source on the
-	local machine.	It is based on the
+	local machine.  It is based on the
 	<literal>buildworld</literal>/<literal>installworld</literal>
 	procedure often used by advanced &os; users to track changes
 	along a development branch (such as &os.stable; or
-	&os.current;).	In general, this procedure involves more
+	&os.current;).  In general, this procedure involves more
 	effort than the binary upgrade procedure,
 	but may be useful when a system's
 	configuration files are complex or have been highly
@@ -636,11 +636,11 @@
 	<listitem>
 	  <para>Using &man.cvs.1; or other means,
 	    obtain a copy of the &os; base system sources (the
-	    <filename>src/</filename> module).	To check out 5.4-RELEASE
+	    <filename>src/</filename> module).  To check out 5.4-RELEASE
 	    from the &os; CVS repository, use the
 	    <literal>RELENG_5_4_0_RELEASE</literal> tag.  For the 5.4
 	    release and errata branch, use the
-	    <literal>RELENG_5_4</literal> tag.	To track the &os;
+	    <literal>RELENG_5_4</literal> tag.  To track the &os;
 	    5-STABLE development branch, use the <literal>RELENG_5</literal> branch tag.
 	    When using CVS to
 	    check out the source tree, it is important to pass the
@@ -857,7 +857,7 @@
 
 	  <para>After invoking &man.mergemaster.8;, it is a good idea
 	    to inspect (and possibly modify)
-	    <filename>/etc/rc.conf</filename>.	A number of default
+	    <filename>/etc/rc.conf</filename>.  A number of default
 	    values for the variables defined in this file have
 	    changed; in particular, some services that were enabled by
 	    default in &release.4x; are now disabled by default in
@@ -881,7 +881,7 @@
 
       <para>After upgrading the base system,
 	upgrades to some non-base-system components are generally
-	needed to restore normal functionality.	 <application>Perl</application> is no longer a part
+	needed to restore normal functionality.  <application>Perl</application> is no longer a part
 	of the base system and should be installed from the Ports
 	Collection (specifically, the <filename
 	role="package">lang/perl5.8</filename> port) or from a
@@ -896,7 +896,7 @@
 
       <para>As mentioned in a prior section,
 	<application>&xorg;</application> is the default
-	implementation of the X Window System.	The Ports Collection
+	implementation of the X Window System.  The Ports Collection
 	(as well as packages) rely on this change to satisfy dependencies.
 	To convert the installed windowing
 	system from <application>&xfree86;</application> to
