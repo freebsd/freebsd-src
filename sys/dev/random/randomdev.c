@@ -141,17 +141,27 @@ SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, interrupt,
 static int
 random_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	if ((flags & FWRITE) && (securelevel > 0 || suser(td->td_proc)))
-		return EPERM;
-	else
-		return 0;
+	int error;
+
+	if (flags & FWRITE) {
+		error = suser(td->td_proc);
+		if (error)
+			return (error);
+		error = securelevel_gt(td->td_proc->p_ucred, 0);
+		if (error)
+			return (error);
+	}
+	return 0;
 }
 
 static int
 random_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	if ((flags & FWRITE) && !(securelevel > 0 || suser(td->td_proc)))
-		random_reseed();
+	if (flags & FWRITE) {
+		if (!(suser(td->td_proc) ||
+		    securelevel_gt(td->td_proc->p_ucred, 0)))
+			random_reseed();
+	}
 	return 0;
 }
 
