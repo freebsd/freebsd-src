@@ -145,7 +145,8 @@ To prevent some forms of DOS attacks, glob(3) allows specification of
 a limit on the number of pathname matches it will return.  ftpd(8) now
 uses this feature.
 
-A remotely-exploitable vulnerability in ntpd(8) has been closed.
+A remotely-exploitable vulnerability in ntpd(8) has been closed (see
+security advisory FreeBSD-SA-01:31).
 
 Many other small but meaningful changes, too many to list.  See CVS
 repository for more details.  Suffice it to say from a user
