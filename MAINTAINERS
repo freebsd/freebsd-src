@@ -39,6 +39,7 @@ camcontrol(8)	ken	Pre-commit review requested.
 libcam		ken	Pre-commit review requested.
 libdevstat	ken	Pre-commit review requested.
 iostat(8)	ken	Pre-commit review requested.
+da(4)		njl	Pre-commit review requested. send to scsi@freebsd.org
 cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
