@@ -6,7 +6,7 @@ This program strips off the FreeBSD a.out header!
 
 ************************************************************************/
 #include <stdio.h>
-#include <fcntl.h>
+#include <sys/fcntl.h>
 
 unsigned char rom[ROMSIZE];
 unsigned int sum;
