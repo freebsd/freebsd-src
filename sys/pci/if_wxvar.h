@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 /*                  
- * Copyright (c) 1999, Traakan Software
+ * Principal Author: Matthew Jacob
+ * Copyright (c) 1999, 2001 by Traakan Software
  * All rights reserved.
  *              
  * Redistribution and use in source and binary forms, with or without
@@ -25,6 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Additional Copyright (c) 2001 by Parag Patel
+ * under same licence for MII PHY code.
  */
 
 /*
@@ -89,6 +92,8 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
 #include <dev/pci/if_wxreg.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 struct wxmdvar {
 	struct device 		dev;		/* generic device structures */
@@ -126,6 +131,7 @@ struct wxmdvar {
 #define	WX_UNLOCK(_sc)			splx(_sc->w.spl)
 #define	WX_ILOCK(_sc)
 #define	WX_IUNLK(_sc)
+#define	WX_SOFTC_FROM_MII_ARG(x)	(wx_softc_t *) x
 
 #define	vm_offset_t		vaddr_t
 #ifndef	IFM_1000_SX
@@ -168,6 +174,12 @@ struct wxmdvar {
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/if_wxreg.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
+
+#define	NBPFILTER	1
+
+#include "miibus_if.h"
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -187,6 +199,7 @@ struct wxmdvar {
 	bus_space_tag_t		st;	/* bus space tag */
 	bus_space_handle_t	sh;	/* bus space handle */
 	struct ifmedia 		ifm;
+	device_t		miibus;
 	struct wx_softc *	next;
 #ifdef	SMPNG
 	struct mtx		wxmtx;
@@ -224,6 +237,7 @@ struct wxmdvar {
 #define	WX_ILOCK(_sc)
 #define	WX_IUNLK(_sc)
 #endif
+#define	WX_SOFTC_FROM_MII_ARG(x)	device_get_softc(x)
 
 
 #define	READ_CSR(sc, reg)						\
@@ -276,6 +290,8 @@ struct wxmdvar {
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcidevs.h>
 #include <dev/pci/if_wxreg.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 struct wxmdvar {
 	struct device 		dev;		/* generic device structures */
@@ -288,6 +304,7 @@ struct wxmdvar {
 	bus_space_handle_t	sh;		/* bus space handle */
 	struct ifmedia 		ifm;
 	struct wx_softc *	next;
+	int			locked;
 	int			spl;
 };
 #define	wx_dev		w.dev
@@ -308,10 +325,14 @@ struct wxmdvar {
 #define	VTIMEOUT(sc, func, arg, time)	timeout(func, arg, time)
 #define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg)
 #define	INLINE				inline
-#define	WX_LOCK(_sc)			_sc->w.spl = splimp()
-#define	WX_UNLOCK(_sc)			splx(_sc->w.spl)
+#define	WX_LOCK(wx)	if (wx->w.locked++ == 0) wx->w.spl = splimp()
+#define	WX_UNLOCK(wx)	if (wx->w.locked) {				\
+				if (--wx->w.locked == 0)		\
+					splx(wx->w.spl);		\
+			}
 #define	WX_ILOCK(_sc)
 #define	WX_IUNLK(_sc)
+#define	WX_SOFTC_FROM_MII_ARG(x)	(wx_softc_t *) x
 
 #define	vm_offset_t		vaddr_t
 #define	READ_CSR	_read_csr
@@ -349,10 +370,11 @@ typedef struct wx_softc {
 	/*
 	 * misc goodies
 	 */
-	u_int32_t		:	25,
+	u_int32_t		:	24,
 		wx_no_flow 	:	1,
 		wx_ilos		:	1,
 		wx_no_ilos	:	1,
+		wx_verbose	:	1,
 		wx_debug	:	1,
 		ane_failed	:	1,
 		linkup		:	1,
@@ -363,6 +385,8 @@ typedef struct wx_softc {
 	u_int32_t wx_ienable;		/* current ienable to use */
 	u_int32_t wx_dcr;		/* dcr used */
 	u_int32_t wx_icr;		/* last icr */
+
+	mii_data_t	*wx_mii;	/* non-NULL if we have a PHY */
 
 	/*
 	 * Statistics, soft && hard
