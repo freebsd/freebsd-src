@@ -39,35 +39,90 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+
+
+int
+strerror_r(int errnum, char *strerrbuf, size_t buflen)
+{
+#define	UPREFIX	"Unknown error: "
+	unsigned int uerr;
+	char *p, *t;
+	char tmp[40];				/* 64-bit number + slop */
+	int len;
+
+	uerr = errnum;				/* convert to unsigned */
+	if (uerr < sys_nerr) {
+		len = strlcpy(strerrbuf, (char *)sys_errlist[uerr], buflen);
+		return (len <= buflen) ? 0 : ERANGE;
+	}
+
+	/* Print unknown errno by hand so we don't link to stdio(3). */
+	t = tmp;
+	if (errnum < 0)
+		uerr = -uerr;
+	do {
+		*t++ = "0123456789"[uerr % 10];
+	} while (uerr /= 10);
+
+	if (errnum < 0)
+		*t++ = '-';
+
+	strlcpy(strerrbuf, UPREFIX, buflen);
+	for (p = strerrbuf + sizeof(UPREFIX) - 1; p < strerrbuf + buflen; ) {
+		*p++ = *--t;
+		if (t <= tmp)
+			break;
+	}
+
+	if (p < strerrbuf + buflen) {
+		*p = '\0';
+		return 0;
+	}
+
+	return ERANGE;
+}
+
+
+/*
+ * NOTE: the following length should be enough to hold the longest defined
+ * error message in sys_errlist, defined in ../gen/errlst.c.  This is a WAG
+ * that is better than the previous value.
+ */
+#define ERR_LEN 64
 
 char *
 strerror(num)
 	int num;
 {
-#define	UPREFIX	"Unknown error: "
-	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
-	register unsigned int errnum;
-	register char *p, *t;
-	char tmp[40];
+	unsigned int uerr;
+	static char ebuf[ERR_LEN];
 
-	errnum = num;				/* convert to unsigned */
-	if (errnum < sys_nerr)
-		return ((char *)sys_errlist[errnum]);
+	uerr = num;				/* convert to unsigned */
+	if (uerr < sys_nerr)
+		return (char *)sys_errlist[uerr];
 
-	/* Do this by hand, so we don't link to stdio(3). */
-	t = tmp;
-	if (num < 0)
-		errnum = -errnum;
-	do {
-		*t++ = "0123456789"[errnum % 10];
-	} while (errnum /= 10);
-	if (num < 0)
-		*t++ = '-';
-	for (p = ebuf + sizeof(UPREFIX) - 1;;) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-	*p = '\0';
-	return (ebuf);
+	/* strerror can't fail so handle truncation semi-elegantly */
+	if (strerror_r(num, ebuf, (size_t) ERR_LEN) != 0)
+	    ebuf[ERR_LEN - 1] = '\0';
+
+	return ebuf;
 }
+
+
+#ifdef STANDALONE_TEST
+main()
+{
+	char mybuf[64];
+	int ret;
+
+	printf("strerror(47) yeilds: %s\n", strerror(47));
+	strerror_r(11, mybuf, 64);
+	printf("strerror_r(11) yeilds: %s\n", mybuf);
+	strerror_r(1234, mybuf, 64);
+	printf("strerror_r(1234) yeilds: %s\n", mybuf);
+	memset(mybuf, '*', 63);
+	ret = strerror_r(4321, mybuf, 16);
+	printf("strerror_r on short buffer returns %d (%s)\n", ret, mybuf);
+}
+#endif
