@@ -37,7 +37,7 @@
  */
 
 /*
- *	athstats [-i interface]
+ * 80211stats [-i interface]
  * (default interface is ath0).
  */
 #include <sys/types.h>
