@@ -342,9 +342,9 @@ setrunqueue(struct thread *td, int flags)
 		 * Totally ignore the ksegrp run queue.
 		 */
 		if (kg->kg_avail_opennings != 1) {
-			if (limitcount < 100) {
+			if (limitcount < 1) {
 				limitcount++;
-				printf("pid %d: bad slot count (%d)\n",
+				printf("pid %d: corrected slot count (%d->1)\n",
 				    td->td_proc->p_pid, kg->kg_avail_opennings);
 
 			}
