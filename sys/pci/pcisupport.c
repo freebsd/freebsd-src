@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.102 1999/05/07 04:04:42 julian Exp $
+**  $Id: pcisupport.c,v 1.103 1999/05/07 18:03:27 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -76,38 +76,6 @@ struct condmsg {
     char		flags;
     const char		*text;
 };
-
-static char*
-generic_pci_bridge (pcici_t tag)
-{
-    char *descr, tmpbuf[120];
-    unsigned classreg = pci_conf_read (tag, PCI_CLASS_REG);
-
-    if ((classreg & PCI_CLASS_MASK) == PCI_CLASS_BRIDGE) {
-
-	unsigned id = pci_conf_read (tag, PCI_ID_REG);
-
-	switch (classreg >> 16 & 0xff) {
-		case 0:	strcpy(tmpbuf, "Host to PCI"); break;
-		case 1:	strcpy(tmpbuf, "PCI to ISA"); break;
-		case 2:	strcpy(tmpbuf, "PCI to EISA"); break;
-		case 4:	strcpy(tmpbuf, "PCI to PCI"); break;
-		case 5:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
-		case 7:	strcpy(tmpbuf, "PCI to CardBus"); break;
-		default: 
-			snprintf(tmpbuf, sizeof(tmpbuf),
-			    "PCI to 0x%x", classreg>>16 & 0xff); 
-			break;
-	}
-	snprintf(tmpbuf+strlen(tmpbuf), sizeof(tmpbuf)-strlen(tmpbuf),
-	    " bridge (vendor=%04x device=%04x)",
-	    id & 0xffff, (id >> 16) & 0xffff);
-	descr = malloc (strlen(tmpbuf) +1, M_DEVBUF, M_WAITOK);
-	strcpy(descr, tmpbuf);
-	return descr;
-    }
-    return 0;
-}
 
 /*
  * XXX Both fixbushigh_orion() and fixbushigh_i1225() are bogus in that way,
@@ -1157,6 +1125,17 @@ chip_match(device_t dev)
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x154110b9:
 		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+	case 0x710110b9:
+#if NALPM > 0
+		return NULL;
+#else
+		return ("AcerLabs M15x3 Power Management Unit");
+#endif
+
+	/* Ross (?) -- vendor 0x1166 */
+	case 0x00051166:
+		fixbushigh_Ross(tag);
+		return ("Ross (?) host to PCI bridge");
 
 	/* NEC -- vendor 0x1033 */
 
