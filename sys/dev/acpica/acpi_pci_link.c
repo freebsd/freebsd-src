@@ -573,6 +573,7 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	ACPI_RESOURCE		resbuf;
 	ACPI_BUFFER		crsbuf;
 
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(pci_link);
 
 	/* Make sure the new IRQ is valid before routing. */
