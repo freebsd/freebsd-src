@@ -620,7 +620,8 @@ ia64_init(void)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 	/* Get FPSWA interface */
-	fpswa_interface = (FPSWA_INTERFACE*)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
+	fpswa_interface = (bootinfo.bi_fpswa == 0) ? NULL :
+	    (FPSWA_INTERFACE *)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param1();
