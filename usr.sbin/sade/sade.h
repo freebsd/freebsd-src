@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.46 1996/03/18 15:28:06 jkh Exp $
+ * $Id: sysinstall.h,v 1.47 1996/03/21 09:30:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,6 +108,7 @@
 #define VAR_DISK			"disk"
 #define VAR_DISKSPACE			"diskSpace"
 #define VAR_DOMAINNAME			"domainname"
+#define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
 #define VAR_FTP_ONERROR			"ftpOnError"
 #define VAR_FTP_PASS			"ftpPass"

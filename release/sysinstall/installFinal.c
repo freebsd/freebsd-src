@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.22 1996/03/18 15:27:56 jkh Exp $
+ * $Id: installFinal.c,v 1.23 1996/03/23 07:11:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -197,15 +197,15 @@ configSamba(char *unused)
 int
 configNFSServer(char *unused)
 {
+    char cmd[256];
+
     /* If we're an NFS server, we need an exports file */
     if (!file_readable("/etc/exports")) {
 	dialog_clear();
 	msgConfirm("Operating as an NFS server means that you must first configure\n"
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
-		   "Press [ENTER] now to invoke an editor on /etc/exports (the editor\n"
-		   "may take a little while to uncompress the first time - please be\n"
-		   "patient!)");
+		   "Press [ENTER] now to invoke an editor on /etc/exports\n");
 	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
 	vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
 	vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
@@ -216,7 +216,8 @@ configNFSServer(char *unused)
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
 	dialog_clear();
-	systemExecute("/stand/ee /etc/exports");
+	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	systemExecute(cmd);
     }
     variable_set2("nfs_server", "YES");
     return RET_SUCCESS;
