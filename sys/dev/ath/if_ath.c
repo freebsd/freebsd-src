@@ -226,8 +226,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		if_printf(ifp, "failed to allocate descriptors: %d\n", error);
 		goto bad;
 	}
-	callout_init(&sc->sc_scan_ch, 0);
-	callout_init(&sc->sc_cal_ch, 0);
+	callout_init(&sc->sc_scan_ch, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_cal_ch, CALLOUT_MPSAFE);
 
 	mtx_init(&sc->sc_txbuflock,
 		device_get_nameunit(sc->sc_dev), "xmit buf q", MTX_DEF);
