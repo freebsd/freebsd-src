@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.32 1996/05/03 20:56:09 phk Exp $
+ * $Id: buf.h,v 1.33 1996/09/06 05:35:00 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -108,11 +108,7 @@ struct buf {
 };
 
 /* Device driver compatibility definitions. */
-#define	b_active b_bcount		/* Driver queue head: drive active. */
 #define	b_data	 b_un.b_addr		/* b_un.b_addr is not changeable. */
-#define	b_errcnt b_resid		/* Retry count while I/O in progress. */
-#define	iodone	 biodone		/* Old name for biodone. */
-#define	iowait	 biowait		/* Old name for biowait. */
 
 /*
  * These flags are kept in b_flags.
