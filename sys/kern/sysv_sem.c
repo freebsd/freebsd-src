@@ -1040,12 +1040,7 @@ semop(td, uap)
 		error = msleep(semaptr, sema_mtxp, (PZERO - 4) | PCATCH,
 		    "semwait", 0);
 		DPRINTF(("semop:  good morning (error=%d)!\n", error));
-
-		if (error != 0) {
-			error = EINTR;
-			goto done2;
-		}
-		DPRINTF(("semop:  good morning!\n"));
+		/* return code is checked below, after sem[nz]cnt-- */
 
 		/*
 		 * Make sure that the semaphore still exists
@@ -1064,6 +1059,17 @@ semop(td, uap)
 			semptr->semzcnt--;
 		else
 			semptr->semncnt--;
+
+		/*
+		 * Is it really morning, or was our sleep interrupted?
+		 * (Delayed check of msleep() return code because we
+		 * need to decrement sem[nz]cnt either way.)
+		 */
+		if (error != 0) {
+			error = EINTR;
+			goto done2;
+		}
+		DPRINTF(("semop:  good morning!\n"));
 	}
 
 done:
