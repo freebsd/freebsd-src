@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.66 1994/06/15 21:21:50 jkh Exp $
+#	$Id: Makefile,v 1.67 1994/06/20 03:39:59 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -243,7 +243,7 @@ kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERICAH ${.CURDIR}/../sys/i386/conf
 kcopy-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
-	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
+	newfs -b 4096 -c 80 -f 512 -i 8192 -m 0 -o space \
 		r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
@@ -262,7 +262,7 @@ kcopy-floppy:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/kc.profile ${MOUNT}/.profile
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${RELEASEDIR}/distbin/kcopy ${MOUNT}/bin/kcopy
+	    kcopy ${MOUNT}/bin/kcopy
 	(cd ${MOUNT}/; \
 	    for i in ${KC_LINKS}; do \
 		ln bin/kcopy $$i; \
@@ -356,7 +356,7 @@ filesyst.flp:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/inst1.install ${MOUNT}/install
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${RELEASEDIR}/distbin/filesystem ${MOUNT}/bin/filesystem
+	    filesystem ${MOUNT}/bin/filesystem
 	(cd ${MOUNT}/; \
 	    for i in ${FILESYSTEM_LINKS}; do \
 		ln bin/filesystem $$i; \
