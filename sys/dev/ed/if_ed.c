@@ -1011,10 +1011,10 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	 * probably isn't any memory at 8k - which likely means that the board
 	 * is an NE2000.
 	 */
-	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
 	ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
 	ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
 
+	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
 	/* could be either an NE1000 or a Linksys ethernet controller */
 		linksys = ed_get_Linksys(sc);
 		if (linksys) {
