@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
  * I/O functions for decoding chunked streams
  */
 
-struct cookie
+struct httpio
 {
 	conn_t		*conn;		/* connection */
 	char		*buf;		/* chunk buffer */
@@ -123,93 +123,93 @@ struct cookie
  * Get next chunk header
  */
 static int
-_http_new_chunk(struct cookie *c)
+_http_new_chunk(struct httpio *io)
 {
 	char *p;
 
-	if (_fetch_getln(c->conn) == -1)
+	if (_fetch_getln(io->conn) == -1)
 		return (-1);
 
-	if (c->conn->buflen < 2 || !ishexnumber(*c->conn->buf))
+	if (io->conn->buflen < 2 || !ishexnumber(*io->conn->buf))
 		return (-1);
 
-	for (p = c->conn->buf; *p && !isspace(*p); ++p) {
+	for (p = io->conn->buf; *p && !isspace(*p); ++p) {
 		if (*p == ';')
 			break;
 		if (!ishexnumber(*p))
 			return (-1);
 		if (isdigit(*p)) {
-			c->chunksize = c->chunksize * 16 +
+			io->chunksize = io->chunksize * 16 +
 			    *p - '0';
 		} else {
-			c->chunksize = c->chunksize * 16 +
+			io->chunksize = io->chunksize * 16 +
 			    10 + tolower(*p) - 'a';
 		}
 	}
 
 #ifndef NDEBUG
 	if (fetchDebug) {
-		c->total += c->chunksize;
-		if (c->chunksize == 0)
+		io->total += io->chunksize;
+		if (io->chunksize == 0)
 			fprintf(stderr, "_http_fillbuf(): "
 			    "end of last chunk\n");
 		else
 			fprintf(stderr, "_http_fillbuf(): "
 			    "new chunk: %lu (%lu)\n",
-			    (unsigned long)c->chunksize, (unsigned long)c->total);
+			    (unsigned long)io->chunksize, (unsigned long)io->total);
 	}
 #endif
 
-	return (c->chunksize);
+	return (io->chunksize);
 }
 
 /*
  * Fill the input buffer, do chunk decoding on the fly
  */
 static int
-_http_fillbuf(struct cookie *c)
+_http_fillbuf(struct httpio *io)
 {
-	if (c->error)
+	if (io->error)
 		return (-1);
-	if (c->eof)
+	if (io->eof)
 		return (0);
 
-	if (c->chunksize == 0) {
-		switch (_http_new_chunk(c)) {
+	if (io->chunksize == 0) {
+		switch (_http_new_chunk(io)) {
 		case -1:
-			c->error = 1;
+			io->error = 1;
 			return (-1);
 		case 0:
-			c->eof = 1;
+			io->eof = 1;
 			return (0);
 		}
 	}
 
-	if (c->b_size < c->chunksize) {
+	if (io->b_size < io->chunksize) {
 		char *tmp;
 
-		if ((tmp = realloc(c->buf, c->chunksize)) == NULL)
+		if ((tmp = realloc(io->buf, io->chunksize)) == NULL)
 			return (-1);
-		c->buf = tmp;
-		c->b_size = c->chunksize;
+		io->buf = tmp;
+		io->b_size = io->chunksize;
 	}
 
-	if ((c->b_len = read(c->conn->sd, c->buf, c->chunksize)) == -1)
+	if ((io->b_len = read(io->conn->sd, io->buf, io->chunksize)) == -1)
 		return (-1);
-	c->chunksize -= c->b_len;
+	io->chunksize -= io->b_len;
 
-	if (c->chunksize == 0) {
+	if (io->chunksize == 0) {
 		char endl[2];
 
-		if (read(c->conn->sd, &endl[0], 1) == -1 ||
-		    read(c->conn->sd, &endl[1], 1) == -1 ||
+		if (read(io->conn->sd, &endl[0], 1) == -1 ||
+		    read(io->conn->sd, &endl[1], 1) == -1 ||
 		    endl[0] != '\r' || endl[1] != '\n')
 			return (-1);
 	}
 
-	c->b_pos = 0;
+	io->b_pos = 0;
 
-	return (c->b_len);
+	return (io->b_len);
 }
 
 /*
@@ -218,27 +218,27 @@ _http_fillbuf(struct cookie *c)
 static int
 _http_readfn(void *v, char *buf, int len)
 {
-	struct cookie *c = (struct cookie *)v;
+	struct httpio *io = (struct httpio *)v;
 	int l, pos;
 
-	if (c->error)
+	if (io->error)
 		return (-1);
-	if (c->eof)
+	if (io->eof)
 		return (0);
 
 	for (pos = 0; len > 0; pos += l, len -= l) {
 		/* empty buffer */
-		if (!c->buf || c->b_pos == c->b_len)
-			if (_http_fillbuf(c) < 1)
+		if (!io->buf || io->b_pos == io->b_len)
+			if (_http_fillbuf(io) < 1)
 				break;
-		l = c->b_len - c->b_pos;
+		l = io->b_len - io->b_pos;
 		if (len < l)
 			l = len;
-		bcopy(c->buf + c->b_pos, buf + pos, l);
-		c->b_pos += l;
+		bcopy(io->buf + io->b_pos, buf + pos, l);
+		io->b_pos += l;
 	}
 
-	if (!pos && c->error)
+	if (!pos && io->error)
 		return (-1);
 	return (pos);
 }
@@ -249,9 +249,9 @@ _http_readfn(void *v, char *buf, int len)
 static int
 _http_writefn(void *v, const char *buf, int len)
 {
-	struct cookie *c = (struct cookie *)v;
+	struct httpio *io = (struct httpio *)v;
 
-	return (write(c->conn->sd, buf, len));
+	return (write(io->conn->sd, buf, len));
 }
 
 /*
@@ -260,13 +260,13 @@ _http_writefn(void *v, const char *buf, int len)
 static int
 _http_closefn(void *v)
 {
-	struct cookie *c = (struct cookie *)v;
+	struct httpio *io = (struct httpio *)v;
 	int r;
 
-	r = _fetch_close(c->conn);
-	if (c->buf)
-		free(c->buf);
-	free(c);
+	r = _fetch_close(io->conn);
+	if (io->buf)
+		free(io->buf);
+	free(io);
 	return (r);
 }
 
@@ -276,18 +276,18 @@ _http_closefn(void *v)
 static FILE *
 _http_funopen(conn_t *conn)
 {
-	struct cookie *c;
+	struct httpio *io;
 	FILE *f;
 
-	if ((c = calloc(1, sizeof *c)) == NULL) {
+	if ((io = calloc(1, sizeof *io)) == NULL) {
 		_fetch_syserr();
 		return (NULL);
 	}
-	c->conn = conn;
-	f = funopen(c, _http_readfn, _http_writefn, NULL, _http_closefn);
+	io->conn = conn;
+	f = funopen(io, _http_readfn, _http_writefn, NULL, _http_closefn);
 	if (f == NULL) {
 		_fetch_syserr();
-		free(c);
+		free(io);
 		return (NULL);
 	}
 	return (f);
