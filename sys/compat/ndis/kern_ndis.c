@@ -352,10 +352,9 @@ ndis_return_packet(buf, arg)
 	sc = p->np_softc;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (returnfunc == NULL)
-		ndis_free_packet(p);
-	else
+	if (returnfunc != NULL)
 		returnfunc(adapter, p);
+
 	return;
 }
 
@@ -654,11 +653,36 @@ ndis_send_packets(arg, packets, cnt)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	__stdcall ndis_sendmulti_handler	sendfunc;
+	int			i, idx;
+	struct ifnet		*ifp;
+	struct mbuf		*m;
+	ndis_packet		*p;
 
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	sendfunc = sc->ndis_chars.nmc_sendmulti_func;
 	sendfunc(adapter, packets, cnt);
+
+	for (i = 0; i < cnt; i++) {
+		p = packets[i];
+		if (p->np_oob.npo_status == NDIS_STATUS_PENDING)
+			continue;
+		idx = p->np_txidx;
+		m = p->np_m0;
+		ifp = &sc->arpcom.ac_if;
+		if (sc->ndis_sc)
+			bus_dmamap_unload(sc->ndis_ttag, sc->ndis_tmaps[idx]);
+		sc->ndis_txarray[idx] = NULL;
+		sc->ndis_txpending++;
+		m_freem(m);
+		ndis_free_packet(p);
+		if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
+			ifp->if_opackets++;
+		else
+			ifp->if_oerrors++;
+		ifp->if_timer = 0;
+		ifp->if_flags &= ~IFF_OACTIVE;
+	}
 
 	return(0);
 }
