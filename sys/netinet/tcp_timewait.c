@@ -183,23 +183,27 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
  * 1024 exists only for debugging.  A good production default would be 
  * something like 6100.
  */
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
+    "TCP inflight data limiting");
+
 static int	tcp_inflight_enable = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, enable, CTLFLAG_RW,
     &tcp_inflight_enable, 0, "Enable automatic TCP inflight data limiting");
 
 static int	tcp_inflight_debug = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_debug, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
 static int	tcp_inflight_min = 6144;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_min, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
     &tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
 
 static int	tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_max, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, max, CTLFLAG_RW,
     &tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
+
 static int	tcp_inflight_stab = 20;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_stab, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
     &tcp_inflight_stab, 0, "Inflight Algorithm Stabilization 20 = 2 packets");
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");

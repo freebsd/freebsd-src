@@ -382,7 +382,7 @@ code.
 For this reason, we use 200ms of slop and a near-0
 minimum, which gives us an effective minimum of 200ms (similar to
 .Tn Linux ) .
-.It Va inflight_enable
+.It Va inflight.enable
 Enable
 .Tn TCP
 bandwidth-delay product limiting.
@@ -406,20 +406,20 @@ Note that bandwidth-delay product limiting only effects
 the transmit side of a
 .Tn TCP
 connection.
-.It Va inflight_debug
+.It Va inflight.debug
 Enable debugging for the bandwidth-delay product algorithm.
 This may
 default to on (1), so if you enable the algorithm,
 you should probably also
 disable debugging by setting this variable to 0.
-.It Va inflight_min
+.It Va inflight.min
 This puts a lower bound on the bandwidth-delay product window, in bytes.
 A value of 1024 is typically used for debugging.
 6000-16000 is more typical in a production installation.
 Setting this value too low may result in
 slow ramp-up times for bursty connections.
 Setting this value too high effectively disables the algorithm.
-.It Va inflight_max
+.It Va inflight.max
 This puts an upper bound on the bandwidth-delay product window, in bytes.
 This value should not generally be modified, but may be used to set a
 global per-connection limit on queued data, potentially allowing you to
@@ -427,7 +427,7 @@ intentionally set a less than optimum limit, to smooth data flow over a
 network while still being able to specify huge internal
 .Tn TCP
 buffers.
-.It Va inflight_stab
+.It Va inflight.stab
 The bandwidth-delay product algorithm requires a slightly larger window
 than it otherwise calculates for stability.
 This parameter determines the extra window in maximal packets / 10.
@@ -438,17 +438,17 @@ come across a situation with very slow links where the
 time
 reduction of the default inflight code is not sufficient.
 If this case occurs, you should first try reducing
-.Va inflight_min
+.Va inflight.min
 and, if that does not
 work, reduce both
-.Va inflight_min
+.Va inflight.min
 and
-.Va inflight_stab ,
+.Va inflight.stab ,
 trying values of
 15, 10, or 5 for the latter.
 Never use a value less than 5.
 Reducing
-.Va inflight_stab
+.Va inflight.stab
 can lead to upwards of a 20% underutilization of the link
 as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
