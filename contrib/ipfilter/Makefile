@@ -1,13 +1,11 @@
 #
-# (C)opyright 1993, 1994, 1995 by Darren Reed.
+# Copyright (C) 1993-1997 by Darren Reed.
 #
-# This code may be freely distributed as long as it retains this notice
-# and is not changed in any way.  The author accepts no responsibility
-# for the use of this software.  I hate legaleese, don't you ?
+# Redistribution and use in source and binary forms are permitted
+# provided that this notice is preserved and due credit is given
+# to the original author and the contributors.
 #
-# $Id: Makefile,v 2.0.2.12 1997/05/24 08:13:34 darrenr Exp $
-#
-# where to put things.
+# $Id: Makefile,v 2.0.2.26.2.1 1997/11/12 10:40:21 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -18,6 +16,7 @@ CC=gcc
 DEBUG=-g
 CFLAGS=-I$$(TOP)
 CPU=`uname -m`
+CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
 #
 # To enable this to work as a Loadable Kernel Module...
 #
@@ -40,9 +39,12 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 POLICY=-DIPF_DEFAULT_PASS=FR_PASS
 #
 MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
-	"CC=$(CC)" 'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
+	'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
-	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)"
+	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
+	"CPUDIR=$(CPUDIR)"
+#
+SHELL=/bin/sh
 #
 ########## ########## ########## ########## ########## ########## ##########
 #
@@ -51,14 +53,18 @@ RM=/bin/rm
 CHMOD=/bin/chmod
 INSTALL=install
 #
-DFLAGS=$(IPFLKM) $(IPFLOG) $(DEF)
 
 all:
 	@echo "Chose one of the following targets for making IP filter:"
 	@echo ""
-	@echo "solaris	- auto-selects SunOS4.1.x/Solaris 2.[45]/Soalris2.[45]-x86"
-	@echo "bsd	- compile for 4.4BSD based Unixes (FreeBSD/NetBSD/OpenBSD)"
+	@echo "solaris	- auto-selects SunOS4.1.x/Solaris 2.[45]/Solaris2.[45]-x86"
+	@echo "netbsd	- compile for NetBSD"
+	@echo "openbsd	- compile for OpenBSD"
+	@echo "freebsd	- compile for FreeBSD 2.0, 2.1 or earlier"
+	@echo "freebsd22	- compile for FreeBSD-2.2 or greater"
+	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
+	@echo "irix	- compile for SGI IRIX"
 	@echo ""
 
 tests:
@@ -66,17 +72,21 @@ tests:
 	else echo test directory not present, sorry; fi
 
 include:
-	mkdir -p netinet
-	(cd netinet; /bin/rm -f *; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .)
+	if [ ! -d netinet -o ! -f netinet/done ] ; then \
+		mkdir -p netinet; \
+		(cd netinet; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .); \
+		(cd netinet; ln -s ../ipsend/tcpip.h tcpip.h); \
+		touch netinet/done; \
+	fi
 
 sunos solaris: include
 	./buildsunos
 
 freebsd22 freebsd30: include
-	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	-rm -f BSD/$(CPU)/ioconf.h
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	-rm -f BSD/$(CPUDIR)/ioconf.h
 	@if [ -n $(IPFILKERN) ] ; then \
-		ln -s /sys/$(IPFILKERN)/ioconf.h BSD/$(CPU); \
+		ln -s /sys/$(IPFILKERN)/ioconf.h BSD/$(CPUDIR); \
 	elif [ ! -f `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h ] ; then \
 		echo -n "Can't find ioconf.h in "; \
 		echo `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`; \
@@ -87,43 +97,58 @@ freebsd22 freebsd30: include
 	make freebsd
 
 netbsd: include
-	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
-	-ln -s ../Makefile BSD/$(CPU)/Makefile
-	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
-	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS) "ML=mln_ipl.c"; cd ..)
-	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c"; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+openbsd openbsd21: include
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c"; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
 
 freebsd freebsd20 freebsd21: include
-	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
-	-ln -s ../Makefile BSD/$(CPU)/Makefile
-	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
-	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS) "ML=mlf_ipl.c"; cd ..)
-	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS) "ML=mlf_ipl.c"; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
 
 bsd: include
-	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
-	-ln -s ../Makefile BSD/$(CPU)/Makefile
-	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
-	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS); cd ..)
-	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS); cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
 
 bsdi bsdos: include
-	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
-	-ln -s ../Makefile BSD/$(CPU)/Makefile
-	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
-	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS) LKM= ; cd ..)
-	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS) LKM= ; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+irix IRIX: include
+	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"
+	(cd IRIX/$(CPUDIR); smake build "TOP=../.." $(MFLAGS); cd ..)
+	(cd IRIX/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+linux: include
+	make setup "TARGOS=Linux" "CPUDIR=$(CPUDIR)"
+	./buildlinux
+
+linuxrev:
+	(cd Linux/$(CPUDIR); make build "TOP=../.." $(MFLAGS) LKM= ; cd ..)
+	(cd Linux/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+setup:
+	-if [ ! -d $(TARGOS)/$(CPUDIR) ] ; then mkdir $(TARGOS)/$(CPUDIR); fi
+	-rm -f $(TARGOS)/$(CPUDIR)/Makefile $(TARGOS)/$(CPUDIR)/Makefile.ipsend
+	-ln -s ../Makefile $(TARGOS)/$(CPUDIR)/Makefile
+	-ln -s ../Makefile.ipsend $(TARGOS)/$(CPUDIR)/Makefile.ipsend
 
 clean:
+	${RM} -rf netinet
 	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
 	vnode_if.h $(LKM)
 	(cd SunOS4; make clean)
 	(cd SunOS5; make clean)
 	(cd BSD; make clean)
+	(cd Linux; make clean)
+	if [ "`uname -s`" = "IRIX" ]; then (cd IRIX; make clean); fi
 	[ -d test ] && (cd test; make clean)
 	(cd ipsend; make clean)
 
@@ -135,6 +160,12 @@ clean-sunos4:
 
 clean-sunos5:
 	(cd SunOS5; make clean)
+
+clean-irix:
+	(cd IRIX; make clean)
+
+clean-linux:
+	(cd Linux; make clean)
 
 get:
 	-@for i in ipf.c ipt.h solaris.c ipf.h kmem.c ipft_ef.c linux.h \
@@ -150,26 +181,29 @@ get:
 	done
 
 sunos4 solaris1:
-	(cd SunOS4; make build TOP=.. $(MFLAGS); cd ..)
-	(cd SunOS4; make -f Makefile.ipsend TOP=.. $(MFLAGS); cd ..)
+	(cd SunOS4; make build TOP=.. "CC=$(CC)" $(MFLAGS); cd ..)
+	(cd SunOS4; make -f Makefile.ipsend "CC=$(CC)" TOP=.. $(MFLAGS); cd ..)
 
 sunos5 solaris2:
-	(cd SunOS5/$(CPU); make build TOP=../.. $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
-	(cd SunOS5/$(CPU); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
+	(cd SunOS5/$(CPU); make build TOP=../.. "CC=$(CC)" $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
+	(cd SunOS5/$(CPU); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(MFLAGS); cd ..)
 
 sunos5x86 solaris2x86:
-	(cd SunOS5/$(CPU); make build TOP=../.. $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
-	(cd SunOS5/$(CPU); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
+	(cd SunOS5/$(CPU); make build TOP=../.. "CC=$(CC)" $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
+	(cd SunOS5/$(CPU); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(MFLAGS); cd ..)
 
-install-bsd: bsd
-	(cd BSD/$(CPU); make install "TOP=../.." $(MFLAGS); cd ..)
-	(cd BSD/$(CPU); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
+install-bsd:
+	(cd BSD/$(CPUDIR); make install "TOP=../.." $(MFLAGS); cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
 
 install-sunos4: solaris
 	(cd SunOS4; $(MAKE) "CPU=$(CPU) TOP=.." install)
 
 install-sunos5: solaris
 	(cd SunOS5; $(MAKE) "CPU=$(CPU) TOP=.." install)
+
+install-irix: irix
+	(cd IRIX; smake install "CPU=$(CPU) TOP=.." $(MFLAGS))
 
 rcsget:
 	-@for i in ipf.c ipt.h solaris.c ipf.h kmem.c ipft_ef.c linux.h \

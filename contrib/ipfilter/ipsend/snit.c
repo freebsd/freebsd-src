@@ -1,12 +1,9 @@
 /*
- * (C)opyright October 1992 Darren Reed. (from tcplog)
+ * (C)opyright 1992-1997 Darren Reed. (from tcplog)
  *
- *   This software may be freely distributed as long as it is not altered
- * in any way and that this messagge always accompanies it.
- *
- *   The author of this software makes no garuntee about the
- * performance of this package or its suitability to fulfill any purpose.
- *
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
 
 #include <stdio.h>
@@ -41,8 +38,9 @@
 
 #include "ipsend.h"
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	snitid[] = "@(#)snit.c	1.5 1/11/96 (C)1995 Darren Reed";
+#if !defined(lint)
+static const char sccsid[] = "@(#)snit.c	1.5 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: snit.c,v 2.0.2.4 1997/09/28 07:13:36 darrenr Exp $";
 #endif
 
 #define	CHUNKSIZE	8192

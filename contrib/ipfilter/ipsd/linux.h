@@ -1,9 +1,9 @@
 /*
- * (C)opyright 1995 by Darren Reed.
+ * Copyright (C) 1997 by Darren Reed.
  *
- * This code may be freely distributed as long as it retains this notice
- * and is not changed in any way.  The author accepts no responsibility
- * for the use of this software.  I hate legaleese, don't you ?
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  *
  * @(#)linux.h	1.1 8/19/95
  */
