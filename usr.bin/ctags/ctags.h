@@ -46,14 +46,17 @@
 #define	SETLINE		{++lineno;lineftell = ftell(inf);}
 #define	GETC(op,exp)	((c = getc(inf)) op (int)exp)
 
-#define	_egrd(idx, array)	\
-	(((int)idx < 0)? NO : array [ (int) idx ])
+/*
+ * Assumes that the last element is always 'NO',
+ * as the EOF return from stdio get overlaid to
+ * that entry.
+ */
 
-#define	iswhite(arg)	_egrd(arg, _wht)	/* T if char is white */
-#define	begtoken(arg)	_egrd(arg, _btk)	/* T if char can start token */
-#define	intoken(arg)	_egrd(arg, _itk)	/* T if char can be in token */
-#define	endtoken(arg)	_egrd(arg, _etk)	/* T if char ends tokens */
-#define	isgood(arg)	_egrd(arg, _gd)	/* T if char can be after ')' */
+#define	iswhite(arg)	_wht[arg & 0xff]	/* T if char is white */
+#define	begtoken(arg)	_btk[arg & 0xff]	/* T if char can start token */
+#define	intoken(arg)	_itk[arg & 0xff]	/* T if char can be in token */
+#define	endtoken(arg)	_etk[arg & 0xff]	/* T if char ends tokens */
+#define	isgood(arg)	_gd[arg & 0xff]	/* T if char can be after ')' */
 
 typedef struct nd_st {			/* sorting structure */
 	struct nd_st	*left,
