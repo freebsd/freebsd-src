@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_param.h,v 1.8 1997/02/22 09:48:37 peter Exp $
  */
 
 /*
@@ -149,10 +149,6 @@ extern int page_shift;
 #define	KERN_NO_ACCESS		8
 
 #ifndef ASSEMBLER
-/*
- *	Convert addresses to pages and vice versa.
- *	No rounding is used.
- */
 #ifdef KERNEL
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
