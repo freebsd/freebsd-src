@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.54 1998/07/29 08:24:23 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.55 1998/07/29 11:15:48 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -507,8 +507,8 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		error = dsopen(dname, dev,
 			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
 			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
-			       sspp, lp, strat, setgeom, ssp->dss_bdevsw,
-			       ssp->dss_cdevsw);
+			       ssp->dss_oflags, sspp, lp, strat, setgeom,
+			       ssp->dss_bdevsw, ssp->dss_cdevsw);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
@@ -528,8 +528,9 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 				error = dsopen(dname,
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
-					       S_IFBLK, sspp, lp, strat,
-					       setgeom, ssp->dss_bdevsw,
+					       S_IFBLK, ssp->dss_oflags, sspp,
+					       lp, strat, setgeom,
+					       ssp->dss_bdevsw,
 					       ssp->dss_cdevsw);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
@@ -546,8 +547,9 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 				error = dsopen(dname,
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
-					       S_IFCHR, sspp, lp, strat,
-					       setgeom, ssp->dss_bdevsw,
+					       S_IFCHR, ssp->dss_oflags, sspp,
+					       lp, strat, setgeom,
+					       ssp->dss_bdevsw,
 					       ssp->dss_cdevsw);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
@@ -652,6 +654,7 @@ dsmakeslicestruct(nslices, lp)
 	ssp->dss_cdevsw = NULL;
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
 	ssp->dss_nslices = nslices;
+	ssp->dss_oflags = 0;
 	ssp->dss_secmult = lp->d_secsize / DEV_BSIZE;
 	if (ssp->dss_secmult & (ssp->dss_secmult - 1))
 		ssp->dss_secshift = -1;
@@ -693,10 +696,11 @@ dsname(dname, unit, slice, part, partname)
  * strategy routine must be special to allow activity.
  */
 int
-dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
+dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	char	*dname;
 	dev_t	dev;
 	int	mode;
+	u_int	flags;
 	struct diskslices **sspp;
 	struct disklabel *lp;
 	d_strategy_t *strat;
@@ -741,13 +745,16 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 		 */
 		*sspp = dsmakeslicestruct(BASE_SLICE, lp);
 
-		TRACE(("dsinit\n"));
-		error = dsinit(dname, dev, strat, lp, sspp);
-		if (error != 0) {
-			dsgone(sspp);
-			return (error);
+		if (!(flags & DSO_ONESLICE)) {
+			TRACE(("dsinit\n"));
+			error = dsinit(dname, dev, strat, lp, sspp);
+			if (error != 0) {
+				dsgone(sspp);
+				return (error);
+			}
 		}
 		ssp = *sspp;
+		ssp->dss_oflags = flags;
 #ifdef DEVFS
 		ssp->dss_bdevsw = bdevsw;
 		ssp->dss_cdevsw = cdevsw;
@@ -820,7 +827,10 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
 		lp1 = clone_label(lp);
 		TRACE(("readdisklabel\n"));
-		msg = readdisklabel(dev1, strat, lp1);
+		if (flags & DSO_NOLABELS)
+			msg = NULL;
+		else
+			msg = readdisklabel(dev1, strat, lp1);
 #if 0 /* XXX */
 		if (msg == NULL && setgeom != NULL && setgeom(lp1) != 0)
 			msg = "setgeom failed";
