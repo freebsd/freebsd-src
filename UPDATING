@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030825:	p14	FreeBSD-SA-03:11.sendmail
+	Sendmail DNS map problem corrected.
+
 20030810:	p13	FreeBSD-SA-03:10.iBCS2
 	iBCS2 system call translator for statfs leaked information.
 
