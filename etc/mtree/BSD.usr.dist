@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.68 1996/09/05 20:01:09 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.69 1996/09/08 02:41:51 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -228,6 +228,8 @@
             devkoi8-r
             ..
             devlatin1
+            ..
+            devlj4
             ..
             devps
                 generate
