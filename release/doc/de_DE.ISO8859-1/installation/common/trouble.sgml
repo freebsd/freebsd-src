@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.6 2002/10/12 10:41:53 mheinen Exp $
-  basiert auf: 1.5
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.7 2002/10/16 09:51:38 ue Exp $
+  basiert auf: 1.6
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -273,38 +273,6 @@
             was immer wieder Probleme macht (besonders, wenn Sie eine
             VGA-Karte haben, die IRQ 2 benutzt!) Wenn m&ouml;glich,
             sollten Sie IRQ 9 und IRQ 2 nicht benutzen.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Ich habe ein CDROM von Matsushita/Panasonic, das nicht
-            erkannt wird.</para>
-        </question>
-
-        <answer>
-          <para>Pr&uuml;fen Sie, ob der &man.matcd.4; Treiber auf den
-            f&uuml;r Ihre Adapterkarte richtigen I/O-Port eingestellt
-            ist.  Einige DOS-Treiber f&uuml;r den Soundblaster melden
-            einen 0x10 zu kleinen Wert f&uuml;r den I/O-Port des
-            CDROMs.</para>
-
-          <para>Wenn Sie weder auf der Karte noch in der Dokumentation
-            den richtigen Wert finden, sollten Sie in UserConfig bei
-            Port den Wert angeben und das System starten.  Der Treiber
-            versucht nun der Reihe nach verschiedene I/O-Ports, die
-            von den diversen Herstellern f&uuml;r den
-            Matsushita/Panasonic/Creative CDROM Anschlu&szlig; benutzt
-            wurden.  Sobald der Treiber die richtige Adresse gefunden
-            hat, sollten Sie diese in UserConfig eintragen.  Wenn Sie
-            weiterhin den Wert -1 f&uuml;r den Port verwenden, sucht
-            der Treiber bei jedem Start des Systems erneut, was die
-            Dinge unn&ouml;tig in L&auml;nge zieht.  Au&szlig;erdem
-            kann es dadurch zu Problemen mit anderen Ger&auml;ten
-            kommen.</para>
-
-          <para>Der Treiber unterst&uuml;tzt nur die beiden Laufwerke
-            Matsushita CR-562 und CR-563.</para>
         </answer>
       </qandaentry>
 
