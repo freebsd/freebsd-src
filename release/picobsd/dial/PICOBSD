@@ -1,5 +1,9 @@
 #
 # $FreeBSD$
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker                def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD       1600    init    4096            32768
+
 #
 machine		i386
 cpu		I386_CPU
@@ -26,25 +30,21 @@ options		INTRO_USERCONFIG		#imply -c and parse info area
 options		PCI_QUIET
 options		NO_SWAPPING
 
-controller	isa0
-controller	pci0
+device	isa0
+device	pci0
 
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
 
-controller	wdc0	at isa? port IO_WD1 irq 14
-device		wd0	at wdc0 drive 0
-device		wd1	at wdc0 drive 1
-
-controller	wdc1	at isa? port IO_WD2 irq 15
-device		wd2	at wdc1 drive 0
-device		wd3	at wdc1 drive 1
-
-device		wcd0	#IDE CD-ROM
+device	ata0	at isa? port IO_WD1 irq 14
+device	ata1	at isa? port IO_WD2 irq 15
+device		atadisk
+device		atapicd
+options		ATA_STATIC_ID		#Static device numbering
 
 # atkbdc0 controlls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD
+device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
