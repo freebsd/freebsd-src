@@ -545,6 +545,7 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		nfsrv_init(0);		/* Init server data structures */
 		nfsrv_initcache();	/* Init the server request cache */
 
+		callout_init(&nfsrv_callout, 0);
 		nfsrv_timer(0);
 
 		nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
@@ -555,7 +556,7 @@ nfsrv_modevent(module_t mod, int type, void *data)
 
 		case MOD_UNLOAD:
 
-		untimeout(nfsrv_timer, (void *)NULL, nfsrv_timer_handle);
+		callout_stop(&nfsrv_callout);
 		sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
 		sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
 		break;
