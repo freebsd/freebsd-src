@@ -765,7 +765,10 @@ spec_getpages(ap)
 	pmap_qremove(kva, pcount);
 
 	gotreqpage = 0;
-	VM_OBJECT_LOCK(vp->v_object);
+	/*
+	 * While the page is busy, its object field is immutable.
+	 */
+	VM_OBJECT_LOCK(ap->a_m[ap->a_reqpage]->object);
 	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < pcount; i++, toff = nextoff) {
 		nextoff = toff + PAGE_SIZE;
@@ -818,7 +821,7 @@ spec_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(vp->v_object);
+	VM_OBJECT_UNLOCK(ap->a_m[ap->a_reqpage]->object);
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
 		printf(
