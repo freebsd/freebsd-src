@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ns.c,v 1.3 1998/09/02 13:11:23 abial Exp $
+ * $Id: ns.c,v 1.4 1998/09/07 06:41:14 abial Exp $
  */
 
 
@@ -99,10 +99,13 @@ sock_ntop(const struct sockaddr *sa, size_t salen)
 	switch (sa->sa_family) {
 	case 255: {
 		struct sockaddr_in	*sin = (struct sockaddr_in *) sa;
+		u_long mask;
 		int i;
 
 		i=0;
-		while(sin->sin_addr.s_addr & (0x800000>>i)) i++;
+		mask=ntohl(sin->sin_addr.s_addr);
+		
+		while(mask & (0x80000000>>i)) i++;
 		sprintf(str,"/%d",i);
 		return(str);
 	}
