@@ -151,7 +151,7 @@ static unsigned char unpack_getchar (unpack_t *t)
 			outb (bcr1_port, bcr1); \
 			dclk_tick (b); }
 
-#define DEBUG(x)	/*trace_str x*/
+#define CTAU_DEBUG(x)	/*trace_str x*/
 
 int ct_download2 (port_t port, const unsigned char *fwaddr)
 {
@@ -177,7 +177,7 @@ int ct_download2 (port_t port, const unsigned char *fwaddr)
 	for (val=0; val<2*3; ++val)
 		nconfig_clr(port);
 	if (nstatus(port)) {
-		DEBUG (("Bad nstatus, downloading aborted (bsr3=0x%x).\n", inb(BSR3(port))));
+		CTAU_DEBUG (("Bad nstatus, downloading aborted (bsr3=0x%x).\n", inb(BSR3(port))));
 		nconfig_set(port);
 		return 0;
 	}
@@ -199,7 +199,7 @@ int ct_download2 (port_t port, const unsigned char *fwaddr)
 		val = unpack_getchar (&t);
 
 		if (nstatus(port) == 0) {
-			DEBUG (("Bad nstatus, %d bytes remaining.\n", bytes));
+			CTAU_DEBUG (("Bad nstatus, %d bytes remaining.\n", bytes));
 			goto failed;
 		}
 
@@ -209,13 +209,13 @@ int ct_download2 (port_t port, const unsigned char *fwaddr)
 				dclk_tick (port);
 
 			if (nstatus(port) == 0) {
-				DEBUG (("Bad nstatus after confdone, %d bytes remaining (%d).\n",
+				CTAU_DEBUG (("Bad nstatus after confdone, %d bytes remaining (%d).\n",
 					bytes, t.ptr - fwaddr));
 				goto failed;
 			}
 
 			/* Succeeded. */
-			/*DEBUG (("Download succeeded.\n"));*/
+			/*CTAU_DEBUG (("Download succeeded.\n"));*/
 			return 1;
 		}
 
@@ -231,9 +231,9 @@ int ct_download2 (port_t port, const unsigned char *fwaddr)
 		/* if ((bytes & 1023) == 0) putch ('.'); */
 	}
 
-	DEBUG (("Bad confdone.\n"));
+	CTAU_DEBUG (("Bad confdone.\n"));
 failed:
-	DEBUG (("Downloading aborted.\n"));
+	CTAU_DEBUG (("Downloading aborted.\n"));
 	return 0;
 }
 
