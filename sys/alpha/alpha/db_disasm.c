@@ -1032,7 +1032,7 @@ loadstore:
 		        register_name(i.mem_format.rd));
 		signed_immediate = (long)i.mem_format.displacement;
 loadstore_address:
-		db_printf("%+#lx(%s)", signed_immediate,
+		db_printf("%#lx(%s)", signed_immediate,
 			register_name(i.mem_format.rs));
 		/*
 		 * For convenience, do the address computation
