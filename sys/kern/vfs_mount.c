@@ -75,6 +75,7 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/filedesc.h>
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 #include <sys/sx.h>
