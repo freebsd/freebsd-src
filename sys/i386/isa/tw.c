@@ -254,7 +254,7 @@ static void twdelayn(int n);
 static void twsetuptimes(int *a);
 static int wait_for_zero(struct tw_sc *sc);
 static int twgetbytes(struct tw_sc *sc, u_char *p, int cnt);
-static void twabortrcv(struct tw_sc *sc);
+static timeout_t twabortrcv;
 static int twsend(struct tw_sc *sc, int h, int k, int cnt);
 static int next_zero(struct tw_sc *sc);
 static int twputpkt(struct tw_sc *sc, u_char *p);
@@ -805,9 +805,10 @@ int cnt;
  */
 
 static void
-twabortrcv(sc)
-	struct tw_sc *sc;
+twabortrcv(arg)
+	void *arg;
 {
+  struct tw_sc *sc = arg;
   int s;
   u_char pkt[3];
 
@@ -861,7 +862,7 @@ int unit;
     else sc->sc_flags = 0;
     sc->sc_bits = 0;
     sc->sc_rphase = newphase;
-    timeout((timeout_func_t)twabortrcv, (caddr_t)sc, hz/4);
+    timeout(twabortrcv, (caddr_t)sc, hz/4);
     return;
   }
   /*
@@ -888,7 +889,7 @@ int unit;
       twputpkt(sc, pkt);
       wakeup((caddr_t)sc);
  */
-      untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
+      untimeout(twabortrcv, (caddr_t)sc);
       log(LOG_ERR, "TWRCV: Invalid start code\n");
       return;
     }
@@ -961,7 +962,7 @@ int unit;
     }
     sc->sc_state &= ~TWS_RCVING;
     twputpkt(sc, pkt);
-    untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
+    untimeout(twabortrcv, (caddr_t)sc);
     if(sc->sc_flags & TW_RCV_ERROR)
       log(LOG_ERR, "TWRCV: invalid packet: (%d, %x)\n",
 	  sc->sc_rcount, sc->sc_bits);

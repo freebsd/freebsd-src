@@ -1,6 +1,6 @@
 
 #ifdef _NETINET_IF_ETHER_H_
-extern void	aarpprobe	__P((struct arpcom *));
+extern timeout_t	aarpprobe;
 extern int	aarpresolve	__P((struct arpcom *,
 					struct mbuf *,
 					struct sockaddr_at *,
