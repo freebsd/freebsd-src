@@ -37,7 +37,8 @@ options 	KTRACE		# ktrace(1) syscall trace support
 options 	MD_ROOT		# MD usable as root device
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
-options 	SCHED_ULE	# ULE scheduler
+options 	SCHED_4BSD	# 4BSD scheduler
+#options 	SCHED_ULE	# ULE scheduler
 options 	SKI		# Include SKI support code
 options 	SOFTUPDATES	# Enable FFS soft updates support
 options 	SYSVMSG		# SYSV-style message queues
