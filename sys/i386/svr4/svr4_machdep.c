@@ -78,7 +78,6 @@ extern char svr4_sigcode[];
 extern int _udatasel, _ucodesel;
 
 static void svr4_getsiginfo __P((union svr4_siginfo *, int, u_long, caddr_t));
-extern int bsd_to_svr4_sig[];
 
 #if !defined(__NetBSD__)
   /* taken from /sys/arch/i386/include/psl.h on NetBSD-1.3 */
@@ -105,7 +104,8 @@ void
 svr4_getcontext(p, uc, mask, oonstack)
 	struct proc *p;
 	struct svr4_ucontext *uc;
-	int mask, oonstack;
+	sigset_t *mask;
+	int oonstack;
 {
 	struct trapframe *tf = p->p_md.md_regs;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
@@ -171,7 +171,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the signal mask
 	 */
-	bsd_to_svr4_sigset(&mask, &uc->uc_sigmask);
+	bsd_to_svr4_sigset(mask, &uc->uc_sigmask);
 
 	/*
 	 * Set the flags
@@ -200,7 +200,7 @@ svr4_setcontext(p, uc)
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 	struct sigaltstack *sf = &psp->ps_sigstk;
-	int mask;
+	sigset_t mask;
 
 	/*
 	 * XXX:
@@ -276,7 +276,8 @@ svr4_setcontext(p, uc)
 	 */
 	if (uc->uc_flags & SVR4_UC_SIGMASK) {
 		svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
-		p->p_sigmask = mask & ~sigcantmask;
+		p->p_sigmask = mask;
+		SIG_CANTMASK(p->p_sigmask);
 	}
 
 	return 0; /*EJUSTRETURN;*/
@@ -389,7 +390,8 @@ svr4_getsiginfo(si, sig, code, addr)
 void
 svr4_sendsig(catcher, sig, mask, code)
 	sig_t catcher;
-	int sig, mask;
+	int sig;
+	sigset_t *mask;
 	u_long code;
 {
 	register struct proc *p = curproc;
@@ -405,7 +407,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	 * Allocate space for the signal handler context.
 	 */
 	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
-	    (psp->ps_sigonstack & sigmask(sig))) {
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct svr4_sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - sizeof(struct svr4_sigframe));
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
