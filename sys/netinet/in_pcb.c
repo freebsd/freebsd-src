@@ -221,6 +221,7 @@ in_pcbbind(inp, nam, td)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
+			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
 			if (ifa_ifwithaddr((struct sockaddr *)sin) == 0)
 				return (EADDRNOTAVAIL);
 		}
