@@ -375,7 +375,7 @@ hid_report_size(void *buf, int len, enum hid_kind k, u_int8_t *idp)
 
 	id = 0;
 	for (d = hid_start_parse(buf, len, 1<<k); hid_get_item(d, &h); )
-		if (h.report_ID != 0)
+		if (h.report_ID != 0 && !id)
 			id = h.report_ID;
 	hid_end_parse(d);
 	size = h.loc.pos;
