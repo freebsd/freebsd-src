@@ -1,0 +1,103 @@
+.Dd December 26 1996
+.Os
+.Dt WLCONFIG 8
+.Sh NAME
+.Nm wlconfig
+.Nd read/write wavelan config parameters
+.Sh SYNOPSIS
+.Nm wlconfig 
+.Ar ifname
+.Op Ar param value ...
+.Sh DESCRIPTION
+The 
+.Nm wlconfig 
+command can be used to read and set parameters for the NCR/AT&T Wavelan 
+radio LAN card.  Various parameters stored in the nonvolatile Parameter
+Storage Area (PSA) on the card can be modified with this program, which
+obviates the need for the DOS-based
+.Nm instconf.exe
+program.
+.Pp
+The
+.Ar ifname
+parameter specifies the wavelan interface name (eg. 
+.Pa wl0
+).  If no other arguments are supplied, the current contents of the PSA
+are interpreted and displayed.
+.Pp
+The
+.Ar param
+and 
+.Ar value
+arguments can be used to change the value of several of the parameters.
+Any number of 
+.Ar param value
+pairs may be supplied.
+.Bl -tag -width 15n -compat -offset indent
+.It Va param
+.Va value
+.It irq
+IRQ value (used at next reset), may be one of 3,4,5,6,10,11,12,15
+.It mac
+Local MAC value (ethernet address)
+.It macsel
+.Sq soft
+(as set by the 
+.Sq mac
+parameter) or
+.Sq default
+(as set at the factory).
+.It nwid
+The NWID is a 2-byte parameter passed to the card's radio modem.
+NWIDs allow multiple logically discrete networks to operate 
+independantly whilse occupying the same airspace.
+Packets with a different NWID are simply ignored by the modem.
+In the hardware, NWIDs are stored long-term in non-volative memory
+(called the PSA or programmable storage area), and are loaded by 
+software into the radio modem when the driver is 
+initialized.  This sets the default NWID loaded at startup.
+.It curnwid
+This sets the current operating NWID (but does not save it to the
+PSA).
+.El
+.Pp
+Note that if the IRQ on the Wavelan card is incorrect, the interface
+will be configured, but will not function.  The
+.Nm wlconfig
+program should then be used to reconfigure the card to a sensible
+value.
+.Sh EXAMPLES
+Set the NWID to 0x1234 :
+.Bd -literal -offset
+# wlconfig wl0 nwid 0x1234
+.Ed
+.Pp
+Show the current settings :
+.Bd -literal -offset
+# wlconfig wl0
+Board type            : ISA
+Base address options  : 0x300, 0x390, 0x3c0, 0x3e0
+Waitstates            : 0
+Bus mode              : ISA
+IRQ                   : 10
+Default MAC address   : 08:00:0e:20:3d:4b
+Soft MAC address      : 00:00:00:00:00:00
+Current MAC address   : Default
+Adapter compatability : PC-AT 2.4GHz
+Threshold preset      : 1
+Call code required    : NO
+Subband               : 2425MHz
+Quality threshold     : 3
+Hardware version      : 0 (Rel1/Rel2)
+Network ID enable     : YES
+NWID                  : 0xdead
+Datalink security     : NO
+Databus width         : 16 (variable)
+Configuration state   : unconfigured
+CRC-16                : 0x3c26
+CRC status            : OK
+.Ed
+.Sh HISTORY
+This implementation of the
+.Nm wlconfig
+command is completely new, written for Hilink Internet by Michael Smith.
