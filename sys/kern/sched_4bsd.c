@@ -81,18 +81,10 @@ struct ke_sched {
 
 /*
  * KSE_CAN_MIGRATE macro returns true if the kse can migrate between
- * cpus.  Currently ithread cpu binding is disabled on x86 due to a
- * bug in the Xeon round-robin interrupt delivery that delivers all
- * interrupts to cpu 0.
+ * cpus.
  */
-#ifdef __i386__
 #define KSE_CAN_MIGRATE(ke)						\
     ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
-#else
-#define KSE_CAN_MIGRATE(ke)						\
-     PRI_BASE((ke)->ke_ksegrp->kg_pri_class) != PRI_ITHD &&		\
-    ((ke)->ke_thread->td_pinned == 0 &&((ke)->ke_flags & KEF_BOUND) == 0)
-#endif
 static struct ke_sched ke_sched;
 
 struct ke_sched *kse0_sched = &ke_sched;
@@ -564,7 +556,7 @@ sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
-	if (td->td_ithd == NULL)
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
 }
 
@@ -651,7 +643,7 @@ sched_switch(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_state == KES_THREAD), ("sched_switch: kse state?"));
 
-	if ((td->td_flags & TDF_IDLETD) == 0 && td->td_ithd == NULL)
+	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
@@ -724,7 +716,7 @@ sched_add(struct thread *td)
 #else
 	ke->ke_runq = &runq;
 #endif
-	if (td->td_ithd == NULL)
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);
 }
@@ -741,7 +733,7 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	if (td->td_ithd == NULL)
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
 	runq_remove(ke->ke_sched->ske_runq, ke);
 
