@@ -48,3 +48,4 @@
 #define	com_mcr		4	/* modem control register (R/W) */
 #define	com_lsr		5	/* line status register (R/W) */
 #define	com_msr		6	/* modem status register (R/W) */
+#define	com_scr		7	/* scratch register for 16450 up (R/W) */
