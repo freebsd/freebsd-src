@@ -114,14 +114,14 @@ i80321_attach(struct i80321_softc *sc)
 	    sc->sc_iwin[0].iwin_xlate);
 	if (sc->sc_is_host) {
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS, sc->sc_iwin[0].iwin_base_lo);
+		    PCIR_BARS, sc->sc_iwin[0].iwin_base_lo);
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS + 0x04, sc->sc_iwin[0].iwin_base_hi);
+		    PCIR_BARS + 0x04, sc->sc_iwin[0].iwin_base_hi);
 	} else {
 		sc->sc_iwin[0].iwin_base_lo = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS);
+		    sc->sc_atu_sh, PCIR_BARS);
 		sc->sc_iwin[0].iwin_base_hi = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS + 0x04);
+		    sc->sc_atu_sh, PCIR_BARS + 0x04);
 		sc->sc_iwin[0].iwin_base_lo =
 		    PCI_MAPREG_MEM_ADDR(sc->sc_iwin[0].iwin_base_lo);
 	}
@@ -132,14 +132,14 @@ i80321_attach(struct i80321_softc *sc)
 	/* no xlate for window 1 */
 	if (sc->sc_is_host) {
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS + 0x08, sc->sc_iwin[1].iwin_base_lo);
+		    PCIR_BARS + 0x08, sc->sc_iwin[1].iwin_base_lo);
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS + 0x0c, sc->sc_iwin[1].iwin_base_hi);
+		    PCIR_BARS + 0x0c, sc->sc_iwin[1].iwin_base_hi);
 	} else {
 		sc->sc_iwin[1].iwin_base_lo = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS + 0x08);
+		    sc->sc_atu_sh, PCIR_BARS + 0x08);
 		sc->sc_iwin[1].iwin_base_hi = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS + 0x0c);
+		    sc->sc_atu_sh, PCIR_BARS + 0x0c);
 		sc->sc_iwin[1].iwin_base_lo =
 		    PCI_MAPREG_MEM_ADDR(sc->sc_iwin[1].iwin_base_lo);
 	}
@@ -151,14 +151,14 @@ i80321_attach(struct i80321_softc *sc)
 
 	if (sc->sc_is_host) {
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS + 0x10, sc->sc_iwin[2].iwin_base_lo);
+		    PCIR_BARS + 0x10, sc->sc_iwin[2].iwin_base_lo);
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_MAPS + 0x14, sc->sc_iwin[2].iwin_base_hi);
+		    PCIR_BARS + 0x14, sc->sc_iwin[2].iwin_base_hi);
 	} else {
 		sc->sc_iwin[2].iwin_base_lo = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS + 0x10);
+		    sc->sc_atu_sh, PCIR_BARS + 0x10);
 		sc->sc_iwin[2].iwin_base_hi = bus_space_read_4(sc->sc_st,
-		    sc->sc_atu_sh, PCIR_MAPS + 0x14);
+		    sc->sc_atu_sh, PCIR_BARS + 0x14);
 		sc->sc_iwin[2].iwin_base_lo =
 		    PCI_MAPREG_MEM_ADDR(sc->sc_iwin[2].iwin_base_lo);
 	}
