@@ -49,8 +49,9 @@
 .Ar
 .Ar directory
 .Sh DESCRIPTION
-.Nm Rcp
-copies files between machines.  Each
+The
+.Nm
+utility copies files between machines.  Each
 .Ar file
 or
 .Ar directory
@@ -113,14 +114,16 @@ A
 on a remote host may be quoted (using \e, ", or \(aa)
 so that the metacharacters are interpreted remotely.
 .Pp
-.Nm Rcp
-does not prompt for passwords; it performs remote execution
+The
+.Nm
+utility does not prompt for passwords; it performs remote execution
 via
 .Xr rsh  1  ,
 and requires the same authorization.
 .Pp
-.Nm Rcp
-handles third party copies, where neither source nor target files
+The
+.Nm
+utility handles third party copies, where neither source nor target files
 are on the current machine.
 .Sh FILES
 .Bl -tag -width /etc/auth.conf -compact
