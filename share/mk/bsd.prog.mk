@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.33 1996/06/22 06:01:57 phk Exp $
+#	$Id: bsd.prog.mk,v 1.34 1996/06/24 04:24:13 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -140,7 +140,7 @@ all: ${PROG} all-man _SUBDIR
 .if !target(clean)
 clean: _SUBDIR
 	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
-.if defined(CLEANDIRS)
+.if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
 .endif
