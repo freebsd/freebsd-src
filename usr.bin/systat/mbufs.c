@@ -50,16 +50,14 @@ static const char rcsid[] =
 #include "extern.h"
 
 static struct mbpstat **mbpstat;
+static struct mbstat *mbstat;
 static int num_objs;
+static long *m_mbtypes;
+static short nmbtypes;
 #define	GENLST	(num_objs - 1)
 
-/* XXX: mbtypes stats temporarily disabled. */
-#if 0
-static u_long *m_mbtypes;
-static int nmbtypes;
-
 static struct mtnames {
-	int mt_type;
+	short mt_type;
 	char *mt_name;
 } mtnames[] = {
 	{ MT_DATA, 	"data"},
@@ -69,9 +67,7 @@ static struct mtnames {
 	{ MT_CONTROL,	"control"},
 	{ MT_OOBDATA,	"oobdata"}
 };
-
 #define	NNAMES	(sizeof (mtnames) / sizeof (mtnames[0]))
-#endif
 
 WINDOW *
 openmbufs()
@@ -106,12 +102,24 @@ showmbufs()
 	char buf[10];
 	char *mtname;
 
-/* XXX: mbtypes stats temporarily disabled (will be back soon!) */
-#if 0
+	totfree = mbpstat[GENLST]->mb_mbfree; 
+	for (i = 1; i < nmbtypes; i++)
+		m_mbtypes[i] += mbpstat[GENLST]->mb_mbtypes[i];
+	for (i = 0; i < GENLST; i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
+		totfree += mbpstat[i]->mb_mbfree;
+		for (j = 1; j < nmbtypes; j++)
+			m_mbtypes[j] += mbpstat[i]->mb_mbtypes[j];
+	}
+
+	/*
+	 * Print totals for different mbuf types.
+	 */
 	for (j = 0; j < wnd->_maxy; j++) {
 		max = 0, index = -1;
 		for (i = 0; i < wnd->_maxy; i++) {
-			if (i == MT_FREE)
+			if (i == MT_NOTMBUF)
 				continue;
 			if (i >= nmbtypes)
 				break;
@@ -144,18 +152,10 @@ showmbufs()
 		wclrtoeol(wnd);
 		m_mbtypes[index] = 0;
 	}
-#endif
 
 	/*
 	 * Print total number of free mbufs.
 	 */
-	totfree = mbpstat[GENLST]->mb_mbfree; 
-	for (i = 0; i < (num_objs - 1); i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		totfree += mbpstat[i]->mb_mbfree;
-	}
-	j = 0;	/* XXX */
 	if (totfree > 0) {
 		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
 		if (totfree > 60) {
@@ -179,19 +179,22 @@ initmbufs()
 {
 	int i;
 	size_t len;
-#if 0
-	size_t mbtypeslen;
 
-	if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
-		error("sysctl getting mbtypes size failed");
+	len = sizeof *mbstat;
+	if ((mbstat = malloc(len)) == NULL) {
+		error("malloc mbstat failed");
 		return 0;
 	}
-	if ((m_mbtypes = calloc(1, mbtypeslen)) == NULL) {
-		error("calloc mbtypes failed");
+	if (sysctlbyname("kern.ipc.mbstat", mbstat, &len, NULL, 0) < 0) {
+		error("sysctl retrieving mbstat");
 		return 0;
 	}
-	nmbtypes = mbtypeslen / sizeof(*m_mbtypes);
-#endif
+	nmbtypes = mbstat->m_numtypes;
+	if ((m_mbtypes = calloc(nmbtypes, sizeof(long *))) == NULL) {
+		error("calloc m_mbtypes failed");
+		return 0;
+	}
+
 	if (sysctlbyname("kern.ipc.mb_statpcpu", NULL, &len, NULL, 0) < 0) {
 		error("sysctl getting mbpstat total size failed");
 		return 0;
@@ -205,6 +208,7 @@ initmbufs()
 		error("calloc mbpstat structures failed");
 		return 0;
 	}
+
 	for (i = 0; i < num_objs; i++)
 		mbpstat[i] = mbpstat[0] + i;
 
@@ -219,9 +223,4 @@ fetchmbufs()
 	len = num_objs * sizeof(struct mbpstat);
 	if (sysctlbyname("kern.ipc.mb_statpcpu", mbpstat[0], &len, NULL, 0) < 0)
 		printw("sysctl: mbpstat: %s", strerror(errno));
-#if 0
-	len = nmbtypes * sizeof *m_mbtypes;
-	if (sysctlbyname("kern.ipc.mbtypes", m_mbtypes, &len, 0, 0) < 0)
-		printw("sysctl: mbtypes: %s", strerror(errno));
-#endif
 }

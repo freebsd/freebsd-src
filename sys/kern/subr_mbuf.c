@@ -104,6 +104,7 @@ struct mb_container {
 	struct	mtx				*mc_lock;
 	int					mc_numowner;
 	u_int					mc_starved;
+	long					*mc_types;
 	u_long					*mc_objcount;
 	u_long					*mc_numpgs;
 };
@@ -234,6 +235,14 @@ struct	mtx		mbuf_gen, mbuf_pcpu[NCPU];
 	(mb_bckt)->mb_numfree++;					\
 	(*((mb_lst)->mb_cont.mc_objcount))++;
 
+#define	MB_MBTYPES_INC(mb_cnt, mb_type, mb_num)				\
+	if ((mb_type) != MT_NOTMBUF)					\
+	    (*((mb_cnt)->mb_cont.mc_types + (mb_type))) += (mb_num)
+
+#define	MB_MBTYPES_DEC(mb_cnt, mb_type, mb_num)				\
+	if ((mb_type) != MT_NOTMBUF)					\
+	    (*((mb_cnt)->mb_cont.mc_types + (mb_type))) -= (mb_num)
+
 /*
  * Ownership of buckets/containers is represented by integers. The PCPU
  * lists range from 0 to NCPU-1. We need a free numerical id for the general
@@ -276,9 +285,9 @@ SYSCTL_OPAQUE(_kern_ipc, OID_AUTO, mb_statpcpu, CTLFLAG_RD, mb_statpcpu,
 /*
  * Prototypes of local allocator routines.
  */
-static __inline	void	*mb_alloc(struct mb_lstmngr *, int);
-void			*mb_alloc_wait(struct mb_lstmngr *);
-static __inline	void	 mb_free(struct mb_lstmngr *, void *);
+static __inline	void	*mb_alloc(struct mb_lstmngr *, int, short);
+void			*mb_alloc_wait(struct mb_lstmngr *, short);
+static __inline	void	 mb_free(struct mb_lstmngr *, void *, short);
 static	void		 mbuf_init(void *);
 struct	mb_bucket	*mb_pop_cont(struct mb_lstmngr *, int,
 			    struct mb_pcpu_list *);
@@ -379,6 +388,9 @@ mbuf_init(void *dummy)
 	    &(mb_statpcpu[MB_GENLIST_OWNER].mb_mbpgs);
 	mb_list_clust.ml_genlist->mb_cont.mc_numpgs =
 	    &(mb_statpcpu[MB_GENLIST_OWNER].mb_clpgs);
+	mb_list_mbuf.ml_genlist->mb_cont.mc_types =
+	    &(mb_statpcpu[MB_GENLIST_OWNER].mb_mbtypes[0]);
+	mb_list_clust.ml_genlist->mb_cont.mc_types = NULL;
 	SLIST_INIT(&(mb_list_mbuf.ml_genlist->mb_cont.mc_bhead));
 	SLIST_INIT(&(mb_list_clust.ml_genlist->mb_cont.mc_bhead));
 
@@ -390,6 +402,7 @@ mbuf_init(void *dummy)
 	mbstat.m_minclsize = MINCLSIZE;
 	mbstat.m_mlen = MLEN;
 	mbstat.m_mhlen = MHLEN;
+	mbstat.m_numtypes = MT_NTYPES;
 
 	/*
 	 * Allocate and initialize PCPU containers.
@@ -423,6 +436,9 @@ mbuf_init(void *dummy)
 		    &(mb_statpcpu[i].mb_mbpgs);
 		mb_list_clust.ml_cntlst[i]->mb_cont.mc_numpgs =
 		    &(mb_statpcpu[i].mb_clpgs);
+		mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_types =
+		    &(mb_statpcpu[i].mb_mbtypes[0]);
+		mb_list_clust.ml_cntlst[i]->mb_cont.mc_types = NULL;
 
 		SLIST_INIT(&(mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_bhead));
 		SLIST_INIT(&(mb_list_clust.ml_cntlst[i]->mb_cont.mc_bhead));
@@ -520,7 +536,7 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
  */
 static __inline
 void *
-mb_alloc(struct mb_lstmngr *mb_list, int how)
+mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 {
 	struct	mb_pcpu_list	*cnt_lst;
 	struct	mb_bucket 	*bucket;
@@ -538,6 +554,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how)
 		 * from the container.
 		 */
 		MB_GET_OBJECT(m, bucket, cnt_lst);
+		MB_MBTYPES_INC(cnt_lst, type, 1); 
 		MB_UNLOCK_CONT(cnt_lst);
 	} else {
 		struct	mb_gen_list *gen_list;
@@ -580,6 +597,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how)
 				    bucket->mb_numfree;
 			}
 			MB_UNLOCK_CONT(gen_list);
+			MB_MBTYPES_INC(cnt_lst, type, 1);
 			MB_UNLOCK_CONT(cnt_lst);
 		} else {
 			/*
@@ -591,6 +609,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how)
 				bucket->mb_numfree--;
 				m = bucket->mb_free[(bucket->mb_numfree)];
 				(*(cnt_lst->mb_cont.mc_objcount))--;
+				MB_MBTYPES_INC(cnt_lst, type, 1);
 				MB_UNLOCK_CONT(cnt_lst);
 			} else {
 				if (how == M_TRYWAIT) {
@@ -600,7 +619,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how)
 				   * steal from other lists.
 				   */
 					mb_list->ml_mapfull = 1;
-					m = mb_alloc_wait(mb_list);
+					m = mb_alloc_wait(mb_list, type);
 				} else
 					/* XXX: No consistency. */
 					mbstat.m_drops++;
@@ -619,7 +638,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how)
  * starved cv.
  */
 void *
-mb_alloc_wait(struct mb_lstmngr *mb_list)
+mb_alloc_wait(struct mb_lstmngr *mb_list, short type)
 {
 	struct	mb_pcpu_list	*cnt_lst;
 	struct	mb_gen_list 	*gen_list;
@@ -649,6 +668,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
 		if ((bucket = SLIST_FIRST(&(cnt_lst->mb_cont.mc_bhead))) !=
 		    NULL) {
 			MB_GET_OBJECT(m, bucket, cnt_lst);
+			MB_MBTYPES_INC(cnt_lst, type, 1);
 			MB_UNLOCK_CONT(cnt_lst);
 			mbstat.m_wait++;	/* XXX: No consistency. */
 			return (m);
@@ -667,6 +687,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
 	MB_LOCK_CONT(gen_list);
 	if ((bucket = SLIST_FIRST(&(gen_list->mb_cont.mc_bhead))) != NULL) {
 		MB_GET_OBJECT(m, bucket, gen_list);
+		MB_MBTYPES_INC(gen_list, type, 1);
 		MB_UNLOCK_CONT(gen_list);
 		mbstat.m_wait++;	/* XXX: No consistency. */
 		return (m);
@@ -680,6 +701,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
 	if ((cv_ret == 0) &&
 	    ((bucket = SLIST_FIRST(&(gen_list->mb_cont.mc_bhead))) != NULL)) {
 		MB_GET_OBJECT(m, bucket, gen_list);
+		MB_MBTYPES_INC(gen_list, type, 1);
 		mbstat.m_wait++;	/* XXX: No consistency. */
 	} else {
 		mbstat.m_drops++;	/* XXX: No consistency. */
@@ -706,7 +728,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list)
  */
 static __inline
 void
-mb_free(struct mb_lstmngr *mb_list, void *m)
+mb_free(struct mb_lstmngr *mb_list, void *m, short type)
 {
 	struct	mb_pcpu_list	*cnt_lst;
 	struct	mb_gen_list 	*gen_list;
@@ -737,6 +759,7 @@ retry_lock:
 		 * dealing with the general list, but this is expected.
 		 */
 		MB_PUT_OBJECT(m, bucket, gen_list);
+		MB_MBTYPES_DEC(gen_list, type, 1);
 		if (gen_list->mb_cont.mc_starved > 0)
 			cv_signal(&(gen_list->mgl_mstarved));
 		MB_UNLOCK_CONT(gen_list);
@@ -751,6 +774,7 @@ retry_lock:
 		}
 
 		MB_PUT_OBJECT(m, bucket, cnt_lst);
+		MB_MBTYPES_DEC(cnt_lst, type, 1);
 
 		if (cnt_lst->mb_cont.mc_starved > 0) {
 			/*
@@ -823,6 +847,22 @@ retry_lock:
 			(*(cnt_lst->mb_cont.mc_numpgs))--;
 			(*(gen_list->mb_cont.mc_numpgs))++;
 
+			/*
+			 * While we're at it, transfer some of the mbtypes
+			 * "count load" onto the general list's mbtypes
+			 * array, seeing as how we're moving the bucket
+			 * there now, meaning that the freeing of objects
+			 * there will now decrement the _general list's_
+			 * mbtypes counters, and no longer our PCPU list's
+			 * mbtypes counters. We do this for the type presently
+			 * being freed in an effort to keep the mbtypes
+			 * counters approximately balanced across all lists.
+			 */ 
+			MB_MBTYPES_DEC(cnt_lst, type, (PAGE_SIZE /
+			    mb_list->ml_objsize) - bucket->mb_numfree);
+			MB_MBTYPES_INC(gen_list, type, (PAGE_SIZE /
+			    mb_list->ml_objsize) - bucket->mb_numfree);
+ 
 			MB_UNLOCK_CONT(gen_list);
 			MB_UNLOCK_CONT(cnt_lst);
 			break;
@@ -883,7 +923,7 @@ void	_mext_free(struct mbuf *);
 void	_mclfree(struct mbuf *);
 
 #define	_m_get(m, how, type) do {					\
-	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how));		\
+	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how), (type));	\
 	if ((m) != NULL) {						\
 		(m)->m_type = (type);					\
 		(m)->m_next = NULL;					\
@@ -894,7 +934,7 @@ void	_mclfree(struct mbuf *);
 } while (0)
 
 #define	_m_gethdr(m, how, type) do {					\
-	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how));		\
+	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how), (type));	\
 	if ((m) != NULL) {						\
 		(m)->m_type = (type);					\
 		(m)->m_next = NULL;					\
@@ -916,7 +956,7 @@ void	_mclfree(struct mbuf *);
 		m_freem((m)->m_pkthdr.aux);				\
 		(m)->m_pkthdr.aux = NULL;				\
 	}								\
-	mb_free(&mb_list_mbuf, (m));					\
+	mb_free(&mb_list_mbuf, (m), (m)->m_type);			\
 } while (0)
 
 #define	_mext_init_ref(m) do {						\
@@ -935,7 +975,7 @@ _mext_free(struct mbuf *mb)
 {
 
 	if (mb->m_ext.ext_type == EXT_CLUSTER)
-		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf);
+		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
 	else
 		(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf, mb->m_ext.ext_args);
 
@@ -949,7 +989,7 @@ void
 _mclfree(struct mbuf *mb)
 {
 
-	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf);
+	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
 	mb->m_ext.ext_buf = NULL;
 	return;
 }
@@ -1014,7 +1054,7 @@ void
 m_clget(struct mbuf *mb, int how)
 {
 
-	mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust, how);
+	mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust, how, MT_NOTMBUF);
 	if (mb->m_ext.ext_buf != NULL) {
 		_mext_init_ref(mb);
 		if (mb->m_ext.ref_cnt == NULL)
@@ -1046,5 +1086,23 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 		mb->m_ext.ext_args = args;
 		mb->m_ext.ext_type = type;
 	}
+	return;
+}
+
+/*
+ * Change type for mbuf `mb'; this is a relatively expensive operation and
+ * should be avoided.
+ */
+void
+m_chtype(struct mbuf *mb, short new_type)
+{
+	struct	mb_gen_list *gen_list;
+
+	gen_list = MB_GET_GEN_LIST(&mb_list_mbuf);
+	MB_LOCK_CONT(gen_list);
+	MB_MBTYPES_DEC(gen_list, mb->m_type, 1);
+	MB_MBTYPES_INC(gen_list, new_type, 1);
+	MB_UNLOCK_CONT(gen_list);
+	mb->m_type = new_type;
 	return;
 }
