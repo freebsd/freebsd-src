@@ -50,10 +50,11 @@ static const char rcsid[] = "$Id: yp_server.c,v 1.22 1997/04/28 14:18:38 wpaul E
 
 int forked = 0;
 int children = 0;
-static char *master_string = "YP_MASTER_NAME";
-static char *order_string = "YP_LAST_MODIFIED";
-static int master_sz = sizeof("YP_MASTER_NAME") - 1;
-static int order_sz = sizeof("YP_LAST_MODIFIED") - 1;
+
+#define	MASTER_STRING	"YP_MASTER_NAME"
+#define	MASTER_SZ	sizeof(MASTER_STRING) - 1
+#define	ORDER_STRING	"YP_LAST_MODIFIED"
+#define	ORDER_SZ	sizeof(ORDER_STRING) - 1
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -533,7 +534,7 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
 	static char ypvalbuf[YPMAXRECORD];
-	keydat key = { master_sz, master_string };
+	keydat key = { MASTER_SZ, MASTER_STRING };
 	valdat val;
 
 	result.peer = "";
@@ -581,7 +582,7 @@ ypresp_order *
 ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_order  result;
-	keydat key = { order_sz, order_string };
+	keydat key = { ORDER_SZ, ORDER_STRING };
 	valdat val;
 
 	result.ordernum = 0;
