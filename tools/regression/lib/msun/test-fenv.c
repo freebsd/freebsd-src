@@ -69,7 +69,7 @@ static void init_exceptsets(void);
 static void test_dfl_env(void);
 static void test_fegsetenv(void);
 static void test_fegsetexceptflag(void);
-static void test_fegsetmask(void);
+static void test_masking(void);
 static void test_fegsetround(void);
 static void test_feholdupdate(void);
 static void test_feraiseexcept(void);
@@ -85,18 +85,25 @@ int
 main(int argc, char *argv[])
 {
 
-	printf("1..1\n");
+	printf("1..8\n");
 	init_exceptsets();
 	test_dfl_env();
-	test_fetestclearexcept();
-	test_fegsetexceptflag();
-	test_feraiseexcept();
-	test_fegsetround();
-	test_fegsetenv();
-	test_fegsetmask();
-	test_feholdupdate();
-
 	printf("ok 1 - fenv\n");
+	test_fetestclearexcept();
+	printf("ok 2 - fenv\n");
+	test_fegsetexceptflag();
+	printf("ok 3 - fenv\n");
+	test_feraiseexcept();
+	printf("ok 4 - fenv\n");
+	test_fegsetround();
+	printf("ok 5 - fenv\n");
+	test_fegsetenv();
+	printf("ok 6 - fenv\n");
+	test_masking();
+	printf("ok 7 - fenv\n");
+	test_feholdupdate();
+	printf("ok 8 - fenv\n");
+
 	return (0);
 }
 
@@ -305,15 +312,26 @@ test_fegsetenv(void)
 }
 
 /*
- * Test fegetmask() and fesetmask().
+ * Test fegetexcept(), fedisableexcept(), and feenableexcept().
  *
  * Prerequisites: fetestexcept(), feraiseexcept()
  */
 static void
-test_fegsetmask(void)
+test_masking(void)
 {
 	struct sigaction act;
 	int except, i, pass, raise, status;
+
+	assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
+	assert((feenableexcept(FE_INVALID|FE_OVERFLOW) & ALL_STD_EXCEPT) == 0);
+	assert((feenableexcept(FE_UNDERFLOW) & ALL_STD_EXCEPT) ==
+	    (FE_INVALID | FE_OVERFLOW));
+	assert((fedisableexcept(FE_OVERFLOW) & ALL_STD_EXCEPT) ==
+	    (FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW));
+	assert((fegetexcept() & ALL_STD_EXCEPT) == (FE_INVALID | FE_UNDERFLOW));
+	assert((fedisableexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT) ==
+	    (FE_INVALID | FE_UNDERFLOW));
+	assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
 
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
@@ -334,10 +352,10 @@ test_fegsetmask(void)
 			 */
 			switch(fork()) {
 			case 0:		/* child */
-				assert((fegetmask() & ALL_STD_EXCEPT) == 0);
-				assert((fesetmask(except) & ALL_STD_EXCEPT) ==
-				    0);
-				assert(fegetmask() == except);
+				assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
+				assert((feenableexcept(except)
+					   & ALL_STD_EXCEPT) == 0);
+				assert(fegetexcept() == except);
 				raiseexcept(raise);
 				assert(feraiseexcept(raise) == 0);
 				assert(fetestexcept(ALL_STD_EXCEPT) == raise);
@@ -373,7 +391,8 @@ test_fegsetmask(void)
 /*
  * Test feholdexcept() and feupdateenv().
  *
- * Prerequisites: fetestexcept(), fegetround(), fesetround(), fesetmask()
+ * Prerequisites: fetestexcept(), fegetround(), fesetround(),
+ *	fedisableexcept(), feenableexcept()
  */
 static void
 test_feholdupdate(void)
@@ -408,7 +427,7 @@ test_feholdupdate(void)
 				 * check other properties of feupdateenv().
 				 */				
 				if (pass == 1)
-					assert((fesetmask(except) &
+					assert((feenableexcept(except) &
 						   ALL_STD_EXCEPT) == 0);
 				raiseexcept(raise);
 				assert(fesetround(FE_DOWNWARD) == 0);
