@@ -136,6 +136,7 @@ field and sets its value to
 recalculates the length of an mbuf chain and updates the
 .Va m_pkthdr.len
 field of the first mbuf in the chain.
+It returns the calculated length.
 .Pp
 .Fn mb_reserve
 ensures that the object of the length specified by the
@@ -191,8 +192,9 @@ field
 .Sh RETURN VALUES
 All
 .Ft int
-functions return zero if successful,
-otherwise error code is returned.
+functions except
+.Fn mb_fixhdr
+return zero if successful and an error code otherwise.
 .Pp
 .Em Note :
 after failure of any function, an mbuf chain is left in the broken state,
