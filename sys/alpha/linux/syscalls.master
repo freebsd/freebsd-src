@@ -96,7 +96,8 @@
 59	STD	LINUX	{ int linux_olduname(void); }
 60	NOPROTO	LINUX	{ int umask(int newmask); }
 61	NOPROTO	LINUX	{ int chroot(char *path); }
-62	STD	LINUX	{ int linux_ustat(void); }
+62	STD	LINUX	{ int linux_ustat(linux_dev_t dev, \
+				struct linux_ustat *ubuf); }
 63	NOPROTO	LINUX	{ int dup2(u_int from, u_int to); }
 64	NOPROTO	LINUX	{ int getppid(void); }
 65	NOPROTO	LINUX	{ int getpgrp(void); }
