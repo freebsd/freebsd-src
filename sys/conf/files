@@ -93,6 +93,8 @@ dev/amr/amr.c		optional amr
 dev/aha/aha.c		optional aha
 dev/aha/aha_isa.c	optional aha isa
 dev/aha/aha_mca.c	optional aha mca
+dev/aic/aic.c		optional aic
+dev/aic/aic_isa.c	optional aic isa
 dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc
