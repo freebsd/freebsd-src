@@ -197,12 +197,14 @@ ata_detach(device_t dev)
     if (ch->device[MASTER].param) {
 	if (ch->device[MASTER].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	    ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(&ch->device[MASTER], ATA_SLEEP, 0, 0, 0);
 	free(ch->device[MASTER].param, M_ATA);
 	ch->device[MASTER].param = NULL;
     }
     if (ch->device[SLAVE].param) {
 	if (ch->device[SLAVE].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	    ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(&ch->device[SLAVE], ATA_SLEEP, 0, 0, 0);
 	free(ch->device[SLAVE].param, M_ATA);
 	ch->device[SLAVE].param = NULL;
     }
