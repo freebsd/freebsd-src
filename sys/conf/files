@@ -1033,6 +1033,7 @@ dev/usb/ums.c		optional ums
 dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
 dev/usb/umass.c		optional umass
+dev/usb/umodem.c	optional umodem 
 dev/usb/uhub.c		optional usb
 dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
