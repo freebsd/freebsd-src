@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 1005 Diomidis Spinellis. All rights reserved.
+ * Copyright (C) 2005 Diomidis Spinellis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,10 +64,7 @@ int *fdp;
 	int i;
 	char **argv;
 	int argc;
-	/* Variables used to save the the caller's credentials. */
-	uid_t old_uid;
-	int ngroups;
-	gid_t old_groups[NGROUPS_MAX];
+	struct portal_cred save_area;
 
 	/* Validate open mode, and assign roles. */
 	if ((pcr->pcr_flag & FWRITE) && (pcr->pcr_flag & FREAD))
@@ -100,12 +97,7 @@ int *fdp;
 		return (ENOENT);
 
 	/* Swap priviledges. */
-	old_uid = geteuid();
-	if ((ngroups = getgroups(NGROUPS_MAX, old_groups)) < 0)
-		return (errno);
-	if (setgroups(pcr->pcr_ngroups, pcr->pcr_groups) < 0)
-		return (errno);
-	if (seteuid(pcr->pcr_uid) < 0)
+	if (set_user_credentials(pcr, &save_area) < 0)
 		return (errno);
 
 	/* Redirect and spawn the specified process. */
@@ -150,14 +142,8 @@ int *fdp;
 
 done:
 	/* Re-establish our priviledges. */
-	if (seteuid(old_uid) < 0) {
+	if (restore_credentials(&save_area) < 0)
 		error = errno;
-		syslog(LOG_ERR, "seteuid: %m");
-	}
-	if (setgroups(ngroups, old_groups) < 0) {
-		error = errno;
-		syslog(LOG_ERR, "setgroups: %m");
-	}
 
 	/* Set return fd value. */
 	if (error == 0)
