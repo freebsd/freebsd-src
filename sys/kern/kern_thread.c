@@ -90,7 +90,7 @@ thread_ctor(void *mem, int size, void *arg)
 	struct thread	*td;
 
 	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, sizeof(struct thread)));
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
 	bzero(&td->td_startzero,
@@ -110,7 +110,7 @@ thread_dtor(void *mem, int size, void *arg)
 	struct thread	*td;
 
 	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, sizeof(struct thread)));
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
 
@@ -151,7 +151,7 @@ thread_init(void *mem, int size)
 	struct thread	*td;
 
 	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, sizeof(struct thread)));
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
 	pmap_new_thread(td);
@@ -169,7 +169,7 @@ thread_fini(void *mem, int size)
 	struct thread	*td;
 
 	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, sizeof(struct thread)));
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
 	pmap_dispose_thread(td);
