@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.33 1995/10/10 21:11:06 ache Exp $
+#	$Id: Makefile,v 1.34 1996/01/05 19:28:55 ache Exp $
 #
 
 PROG=	boot
@@ -13,8 +13,13 @@ CFLAGS=         -O2 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 
-# force usage of serial console instead of keyboard probing
+# Force usage of serial console instead of keyboard probing.
 #CFLAGS+=	-DFORCE_COMCONSOLE
+
+# Assume hd(*,a) instead of wd(*,a) if the boot seems to happen from
+# a hard disk.
+# This can be useful for people booting in a mixed IDE/SCSI environment.
+#CFLAGS+=	-DBOOT_HD
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
 DPADD=		${LIBC}
