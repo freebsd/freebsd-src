@@ -71,14 +71,16 @@
 #define VID_ASUSCOM_IPAC	0x90167506	/* Asuscom (with IPAC)	*/	
 #define VID_EICON_DIVA_20	0x7100891c	/* Eicon DIVA 2.0 ISAC/HSCX */
 #define VID_EICON_DIVA_202	0xa100891c      /* Eicon DIVA 2.02 IPAC	*/
+#define VID_COMPAQ_M610		0x0210110e	/* Compaq Microcom 610	*/
 
 static struct isic_pnp_ids {
 	u_long vend_id;
 	char *id_str;
 } isic_pnp_ids[] = {
-#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P)
+#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P) || defined(COMPAQ_M610)
 	{ VID_TEL163PNP,	"Teles S0/16.3 PnP"		},
 	{ VID_CREATIXPP,	"Creatix S0/16 PnP"		},
+	{ VID_COMPAQ_M610,	"Compaq Microcom 610"		},
 #endif
 #ifdef DYNALINK
 	{ VID_DYNALINK,		"Dynalink IS64PH"		},
@@ -223,7 +225,7 @@ isic_pnp_attach(device_t dev)
 	
 	switch(vend_id)
 	{
-#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P)
+#if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P) || defined(COMPAQ_M610)
 		case VID_TEL163PNP:
 			sc->sc_cardtyp = CARD_TYPEP_163P;
 			ret = isic_attach_Cs0P(dev);
@@ -231,6 +233,11 @@ isic_pnp_attach(device_t dev)
 
 		case VID_CREATIXPP:
 			sc->sc_cardtyp = CARD_TYPEP_CS0P;
+			ret = isic_attach_Cs0P(dev);
+			break;
+
+		case VID_COMPAQ_M610:
+			sc->sc_cardtyp = CARD_TYPEP_COMPAQ_M610;
 			ret = isic_attach_Cs0P(dev);
 			break;
 #endif
