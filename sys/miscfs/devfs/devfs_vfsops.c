@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.4 1995/09/03 05:43:42 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.5 1995/09/06 09:29:17 julian Exp $
  *
  *
  */
@@ -105,7 +105,7 @@ int mountdevfs( struct mount *mp, struct proc *p) /*proto*/
 	mp->mnt_stat.f_fsid.val[1] = MOUNT_DEVFS;
 	mp->mnt_flag |= MNT_LOCAL;
 
-	if(error = devfs_make_plane(devfs_mp_p))
+	if(error = dev_dup_plane(devfs_mp_p))
 	{
 		mp->mnt_data = (qaddr_t)0;
 		free((caddr_t)devfs_mp_p, M_DEVFSMNT);

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.9 1995/09/06 09:29:18 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.10 1995/09/06 23:15:54 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -683,7 +683,8 @@ DBPRINT(("read\n"));
 	case VREG:
 		return(EINVAL);
 	case VDIR:
-		return VOP_READDIR(ap->a_vp,ap->a_uio,ap->a_cred);
+		return VOP_READDIR(ap->a_vp,ap->a_uio,ap->a_cred,
+					NULL,NULL,NULL);
 	case VCHR:
 	case VBLK:
 		error = spec_read(ap);
@@ -887,6 +888,9 @@ int devfs_readdir(struct vop_readdir_args *ap) /*proto*/
                 struct vnode *a_vp;
                 struct uio *a_uio;
                 struct ucred *a_cred;
+        	int *eofflag;
+        	int *ncookies;
+        	u_int **cookies;
         } */
 {
 	struct vnode *vp = ap->a_vp;
@@ -1196,15 +1200,13 @@ void	devfs_dropvnode(dn_p dnp) /*proto*/
 {
 	struct vnode *vn_p;
 
+#ifdef PARANOID
 	if(!dnp)
 	{
 		printf("devfs: dn count dropped too early\n");
 	}
+#endif
 	vn_p = dnp->vn;
-	if(!vn_p)
-	{
-		printf("devfs: vn count dropped too early\n");
-	}
 	/*
 	 * check if we have a vnode.......
 	 */
