@@ -211,6 +211,11 @@ minimum2:ty=mfs:se#512:nt#1:rm#300:\
 	:pa#5760:oa#0:ba#4096:fa#512:\
 	:pc#5760:oc#0:bc#4096:fc#512:
 
+minimum3:ty=mfs:se#512:nt#1:rm#300:\
+	:ns#8640:nc#1:\
+	:pa#8640:oa#0:ba#4096:fa#512:\
+	:pc#8640:oc#0:bc#4096:fc#512:
+
 zip100|zip 100:\
 	:ty=removable:se#512:nc#96:nt#64:ns#32:\
 	:pa#196608:oa#0:ba#4096:fa#512:\
