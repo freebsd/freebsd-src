@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.4 1997/01/31 11:25:54 kato Exp $
+#	$Id: options.pc98,v 1.8.2.5 1997/03/01 11:10:34 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -62,3 +62,5 @@ ATAPI_STATIC		opt_atapi.h
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
 USERCONFIG_BOOT		opt_userconfig.h
+
+EISA_SLOTS		opt_eisa.h
