@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.3 1998/11/10 06:44:50 gibbs Exp $
+ *      $Id: btreg.h,v 1.4 1999/03/08 21:36:34 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -683,7 +683,7 @@ void			bt_find_probe_range(int ioport,
 
 int			bt_iop_from_bio(isa_compat_io_t bio_index);
 
-#define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
+#define DEFAULT_CMD_TIMEOUT 100000	/* 10 sec */
 int			bt_cmd(struct bt_softc *bt, bt_op_t opcode,
 			       u_int8_t *params, u_int param_len,
 			       u_int8_t *reply_data, u_int reply_len,
