@@ -3,13 +3,11 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.16 1996/08/02 21:16:13 bde Exp $
+ *	$Id: clock.h,v 1.17 1996/10/09 19:47:26 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
-
-#include "opt_cpu.h"
 
 #if defined(I586_CPU) || defined(I686_CPU)
 
