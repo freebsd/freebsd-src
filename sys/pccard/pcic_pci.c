@@ -1067,9 +1067,13 @@ pcic_pci_probe(device_t dev)
 static void
 pcic_pci_shutdown(device_t dev)
 {
+/*
+ * More reports of things working w/o this code than with it.
+ */
+#if 0
 	struct pcic_softc *sc;
 	struct pcic_slot *sp;
-		
+
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sp = &sc->slots[0];
 
@@ -1109,6 +1113,7 @@ pcic_pci_shutdown(device_t dev)
 	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, 0);
 	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_EVENT, 0xffffffff);
 	sp->getb(sp, PCIC_STAT_CHG);
+#endif
 }
 
 /*
