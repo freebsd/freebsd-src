@@ -15,13 +15,4 @@ CFLAGS+= -DVNPRINT
 opt_ncp.h:
 	echo "#define NCP	1"  > ${.TARGET}
 
-load: nwfs.ko
-	kldload ./nwfs.ko
-
-unload:
-	@(if kldunload nwfs; then true; else true; fi)
-
-deinstall:
-	rm -f /modules/nwfs.ko
-
 .include <bsd.kmod.mk>
