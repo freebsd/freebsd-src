@@ -17,7 +17,8 @@ MAN9=	MD5.9 \
 	make_dev.9 microseq.9 mi_switch.9 namei.9 panic.9 physio.9 posix4.9 \
 	psignal.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
-	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
+	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
+	microtime.9 microuptime.9 tvtohz.9
 
 MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_children.9 \
@@ -98,5 +99,10 @@ MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
 MLINKS+=devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
+
+MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
+MLINKS+=microtime.9 getnanotime.9
+MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
+MLINKS+=microuptime.9 getnanouptime.9
 
 .include <bsd.prog.mk>
