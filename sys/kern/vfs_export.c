@@ -53,6 +53,7 @@
 #include <sys/dirent.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
+#include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -2745,6 +2746,9 @@ vn_pollevent(vp, events)
 	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 }
 
+#define VN_KNOTE(vp, b) \
+	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
+
 /*
  * Wake up anyone polling on vp because it is being revoked.
  * This depends on dead_poll() returning POLLHUP for correct
@@ -2755,6 +2759,7 @@ vn_pollgone(vp)
 	struct vnode *vp;
 {
 	mtx_lock(&vp->v_pollinfo.vpi_lock);
+        VN_KNOTE(vp, NOTE_REVOKE);
 	if (vp->v_pollinfo.vpi_events) {
 		vp->v_pollinfo.vpi_events = 0;
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
