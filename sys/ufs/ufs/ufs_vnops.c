@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.5 1994/09/22 19:38:41 wollman Exp $
+ * $Id: ufs_vnops.c,v 1.6 1994/09/27 20:33:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1353,11 +1353,21 @@ ufs_readdir(ap)
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		struct ucred *a_cred;
+		int *a_ncookies;
+		u_int **cookies;
 	} */ *ap;
 {
 	register struct uio *uio = ap->a_uio;
+	off_t off;
 	int count, lost, error;
 
+	if (ap->a_ncookies != NULL)
+		/*
+		 * Ensure that the block is aligned.  The caller can use
+		 * the cookies to determine where in the block to start.
+		 */
+		uio->uio_offset &= ~(DIRBLKSIZ - 1);
+	off = uio->uio_offset;
 	count = uio->uio_resid;
 	count &= ~(DIRBLKSIZ - 1);
 	lost = uio->uio_resid - count;
@@ -1407,6 +1417,36 @@ ufs_readdir(ap)
 #	else
 		error = VOP_READ(ap->a_vp, uio, 0, ap->a_cred);
 #	endif
+	if (!error && ap->a_ncookies != NULL) {
+		struct dirent* dpStart;
+		struct dirent* dpEnd;
+		struct dirent* dp;
+		int ncookies;
+		u_int *cookies;
+		u_int *cookiep;
+
+		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
+			panic("ufs_readdir: unexpected uio from NFS server");
+		dpStart = (struct dirent *)
+		     (uio->uio_iov->iov_base - (uio->uio_offset - off));
+		dpEnd = (struct dirent *) uio->uio_iov->iov_base;
+		for (dp = dpStart, ncookies = 0;
+		     dp < dpEnd;
+		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen))
+			ncookies++;
+		MALLOC(cookies, u_int *, ncookies * sizeof(u_int),
+		       M_TEMP, M_WAITOK);
+		for (dp = dpStart, cookiep = cookies;
+		     dp < dpEnd;
+		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
+			off += dp->d_reclen;
+			*cookiep++ = (u_int) off;
+		}
+		*ap->a_ncookies = ncookies;
+		*ap->a_cookies = cookies;
+	}
+	if (ap->a_eofflag)
+	    *ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
 	uio->uio_resid += lost;
 	return (error);
 }
