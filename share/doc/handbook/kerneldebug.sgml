@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.4 1995/09/27 00:46:22 jmz Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.5 1995/10/22 00:42:10 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -64,8 +64,8 @@
   <tt>kgdb</tt>.  From <tt>kgdb</tt> do:
 <tscreen><verb>
   symbol-file kernel.debug
-  exec-file /var/crash/system.0
-  core-file /var/crash/ram.0
+  exec-file /var/crash/kernel.0
+  core-file /var/crash/vmcore.0
 </verb></tscreen>
   and voila, you can debug the crash dump using the kernel sources
   just like you can for any other program.
