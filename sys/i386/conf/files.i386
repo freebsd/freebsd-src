@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.165 1997/06/02 08:18:58 dfr Exp $
+#	$Id: files.i386,v 1.1 1997/07/24 19:05:09 smp Exp smp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -67,6 +67,7 @@ i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
+i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
