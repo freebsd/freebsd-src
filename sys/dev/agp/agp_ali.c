@@ -65,6 +65,8 @@ agp_ali_match(device_t dev)
 		return NULL;
 
 	switch (pci_get_devid(dev)) {
+	case 0x167110b9:
+		return ("Ali M1671 host to AGP bridge");
 	case 0x154110b9:
 		return ("Ali M1541 host to AGP bridge");
 	case 0x162110b9:
