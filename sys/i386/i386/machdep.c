@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.48 1994/08/10 03:51:07 wollman Exp $
+ *	$Id: machdep.c,v 1.49 1994/08/10 03:53:33 wollman Exp $
  */
 
 #include "npx.h"
@@ -179,6 +179,7 @@ cpu_startup()
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
+	startrtclock();
 	identifycpu();
 	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
 	if (badpages)
@@ -387,6 +388,14 @@ identifycpu()
 		printf("unknown");	/* will panic below... */
 	}
 	printf("-class CPU)");
+#ifdef I586_CPU
+	if(cpu_class == CPUCLASS_586) {
+		extern void calibrate_cyclecounter();
+		extern int pentium_mhz;
+		calibrate_cyclecounter();
+		printf(" %d MHz", pentium_mhz);
+	}
+#endif
 	if(cpu_id)
 		printf("  Id = 0x%x",cpu_id);
 	if(*cpu_vendor)

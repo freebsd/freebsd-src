@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.6 1994/02/06 22:48:13 davidg Exp $
+ *	$Id: clock.c,v 1.10 1994/05/25 08:58:32 rgrimes Exp $
  */
 
 /*
@@ -181,6 +181,28 @@ getit()
 	return ((high << 8) | low);
 }
 
+#ifdef I586_CPU
+int pentium_mhz = 0;
+static long long cycles_per_sec = 0;
+
+void
+calibrate_cyclecounter(void)
+{
+	volatile long edx, eax, lasteax, lastedx;
+
+	__asm __volatile(".byte 0x0f, 0x31" : "=a"(lasteax), "=d"(lastedx) : );
+	DELAY(1000000);
+	__asm __volatile(".byte 0x0f, 0x31" : "=a"(eax), "=d"(edx) : );
+
+	/*
+	 * This assumes that you will never have a clock rate higher
+	 * than 4GHz, probably a good assumption.
+	 */
+	cycles_per_sec = (long long)edx + eax;
+	cycles_per_sec -= (long long)lastedx + lasteax;
+	pentium_mhz = ((long)cycles_per_sec + 500000) / 1000000; /* round up */
+}
+#endif
 
 /*
  * Wait "n" microseconds.
@@ -432,7 +454,6 @@ spinwait(int millisecs)
 void
 cpu_initclocks()
 {
-	startrtclock();
 	enablertclock();
 }
 
