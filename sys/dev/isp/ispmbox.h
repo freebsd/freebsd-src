@@ -114,6 +114,7 @@
 #define		FW_FEATURE_FAST_POST	0x1
 
 #define	MBOX_ENABLE_TARGET_MODE		0x55
+#define		ENABLE_TARGET_FLAG	0x8000
 
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
@@ -232,7 +233,7 @@ typedef struct {
 #define	RQSTYPE_MARKER		0x04
 #define	RQSTYPE_CMDONLY		0x05
 #define	RQSTYPE_ATIO		0x06	/* Target Mode */
-#define	RQSTYPE_CTIO0		0x07	/* Target Mode */
+#define	RQSTYPE_CTIO		0x07	/* Target Mode */
 #define	RQSTYPE_SCAM		0x08
 #define	RQSTYPE_A64		0x09
 #define	RQSTYPE_A64_CONT	0x0a
