@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.47 1997/09/16 18:57:09 jkh Exp $
+ * $Id: main.c,v 1.48 1998/02/22 09:54:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,7 +67,9 @@ main(int argc, char **argv)
 
     /* Set default flag and variable values */
     installVarDefaults(NULL);
-    installEnvironment();
+    /* only when multi-user is it reasonable to do this here */
+    if (!RunningAsInit)
+	installEnvironment();
 
     if (argc > 1 && !strcmp(argv[1], "-fake")) {
 	variable_set2(VAR_DEBUG, "YES");
