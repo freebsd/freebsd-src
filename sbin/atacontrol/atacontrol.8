@@ -55,6 +55,9 @@
 .Ic rebuild
 .Ar raid
 .Nm
+.Ic status
+.Ar raid
+.Nm
 .Ic mode
 .Ar channel
 .Op Ar mastermode slavemode
@@ -124,6 +127,8 @@ reside on the first disk in the SPAN.
 Deletes a RAID array on a RAID capable ATA controller.
 .It Ic rebuild
 Rebuild a RAID1 array on a RAID capable ATA controller.
+.It Ic status
+Get the status of an ATA RAID.
 .It Ic mode
 Without the two mode arguments the current transfer modes of both
 devices are printed.

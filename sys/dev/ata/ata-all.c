@@ -424,6 +424,9 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
 	case ATARAIDDELETE:
 	    return ata_raid_delete(iocmd->channel);
+
+	case ATARAIDSTATUS:
+	    return ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
 	case ATAPICMD: {
