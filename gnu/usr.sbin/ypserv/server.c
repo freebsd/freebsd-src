@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces 
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id$
+**	$Id: server.c,v 1.1 1995/01/31 08:58:53 wpaul Exp $
 **
 */
 
@@ -68,7 +68,7 @@ HASHINFO openinfo = {
 };
 
 #if TCP_WRAPPER
-#include "log_tcp.h"
+#include "tcpd.h"
 int allow_severity=LOG_INFO;
 int deny_severity=LOG_WARNING;
 #endif
@@ -139,6 +139,10 @@ static int is_valid_host(struct sockaddr_in *sin)
 		       sizeof (sin->sin_addr.s_addr), AF_INET);
 
     h = (hp && hp->h_name) ? hp->h_name : NULL;
+#endif
+
+#ifndef FROM_UNKNOWN
+#define FROM_UNKNOWN STRING_UNKNOWN
 #endif
 
     status = hosts_ctl(progname,
