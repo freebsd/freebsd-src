@@ -3069,7 +3069,7 @@ list will still be maintained.
 Default: Enabled.
 This option tells
 .Nm
-to adjust outgoing TCP SYN packets so that the maximum receive segment
+to adjust TCP SYN packets so that the maximum receive segment
 size is not greater than the amount allowed by the interface MTU.
 .It throughput
 Default: Enabled.
