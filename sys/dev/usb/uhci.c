@@ -159,8 +159,6 @@ LIST_HEAD(, uhci_intr_info) uhci_ii_free;
 
 Static void		uhci_busreset(uhci_softc_t *);
 Static void		uhci_reset(uhci_softc_t *);
-Static void		uhci_shutdown(void *v);
-Static void		uhci_power(int, void *);
 Static usbd_status	uhci_run(uhci_softc_t *, int run);
 Static uhci_soft_td_t  *uhci_alloc_std(uhci_softc_t *);
 Static void		uhci_free_std(uhci_softc_t *, uhci_soft_td_t *);
