@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.9 1995/10/30 08:04:43 jkh Exp $
+ * $Id: apache.c,v 1.10 1995/11/03 12:02:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -396,15 +396,20 @@ apacheOpenDialog()
 int
 configApache(char *unused)
 {
-    int i,maxcon;
+    int i, maxcon;
     char company[64], file[128];
     char *tptr;
     FILE *fptr;
 
+    /* Be optimistic */
+    i = RET_SUCCESS;
+
+    dialog_clear();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
     if (i != RET_SUCCESS) {
+	dialog_clear();
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
 		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
@@ -414,6 +419,7 @@ configApache(char *unused)
     
     i = apacheOpenDialog();
     if (i != RET_SUCCESS) {
+	dialog_clear();
 	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"
 		   "user request.");
 	return i;
@@ -487,16 +493,19 @@ configApache(char *unused)
 		if (file_readable(FREEBSD_GIF))
 		    vsystem("cp %s %s", FREEBSD_GIF, tconf.docroot);
 	    }
-	    else
+	    else {
 		msgConfirm("Unable to create sample Web Page.");
+		i = RET_FAIL;
+	    }
 	}
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Unable to create Document Root Directory.");
-    
+	i = RET_FAIL;
+    }
     
     msgNotify("Writing configuration files....");
-    sleep(1);
 
     (void)vsystem("mkdir -p %s/config", APACHE_BASE);
     sprintf(file, "%s/%s/access.conf", APACHE_BASE,CONFIG_SUBDIR);
@@ -513,8 +522,11 @@ configApache(char *unused)
 	fprintf(fptr,"</Directory>\n\n");
 	fclose(fptr);
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Could not create %s",file);
+	i = RET_FAIL;
+    }
     
     sprintf(file, "%s/%s/httpd.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
@@ -537,8 +549,11 @@ configApache(char *unused)
 	
 	fclose(fptr);
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Could not create %s",file);
+	i = RET_FAIL;
+    }
     
     sprintf(file, "%s/%s/srm.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
@@ -578,8 +593,12 @@ configApache(char *unused)
 	
 	fclose(fptr);
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Could not create %s",file);
-    
+	i = RET_FAIL;
+    }
+    if (i != RET_FAIL)
+	variable_set2("apache_httpd", "YES");
     return i;
 }
