@@ -25,7 +25,8 @@ MAN+=	btowc.3 \
 	mbsrtowcs.3 multibyte.3 \
 	nl_langinfo.3 \
 	rune.3 \
-	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 wcsftime.3 \
+	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 towupper.3 \
+	wcsftime.3 \
 	wcrtomb.3 \
 	wcsrtombs.3 wcstod.3 wcstol.3 \
 	wctrans.3 wctype.3 wcwidth.3
@@ -48,7 +49,6 @@ MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
 	rune.3 sputrune.3
 MLINKS+=setlocale.3 localeconv.3
-MLINKS+=towlower.3 towupper.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
 	wcstol.3 wcstoimax.3 wcstol.3 wcstoumax.3
 MLINKS+=wctrans.3 towctrans.3
