@@ -1034,7 +1034,7 @@ pmap_dispose_thread(struct thread *td)
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
-			panic("pmap_dispose_proc: kstack already missing?");
+			panic("pmap_dispose_thread: kstack already missing?");
 		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
@@ -1088,7 +1088,7 @@ pmap_swapin_thread(struct thread *td)
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
-				panic("pmap_swapin_proc: cannot get kstack");
+				panic("pmap_swapin_thread: cannot get kstack");
 			m = vm_page_lookup(ksobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
