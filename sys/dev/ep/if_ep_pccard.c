@@ -28,9 +28,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Pccard support for 3C589 by:
  *		HAMADA Naoki
@@ -119,7 +116,8 @@ ep_pccard_probe(device_t dev)
 	device_set_desc(dev, desc);
 
 	/*
-	 * For some reason the 3c574 needs this.
+	 * Newer cards supported by this device need to have their
+	 * MAC address set.
 	 */
 	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
 
@@ -132,7 +130,7 @@ ep_pccard_identify(u_short id)
 {
 	/* Determine device type and associated MII capabilities  */
 	switch (id) {
-		case 0x6055:	/* 3C556 */
+	case 0x6055:	/* 3C556 */
 		return ("3Com 3C556");
 	case 0x4057:		/* 3C574 */
 		return ("3Com 3C574");
@@ -147,7 +145,10 @@ ep_pccard_identify(u_short id)
 		return ("3Com 3C562D/3C563D");
 	case 0x0010:		/* 3C1 */
 		return ("3Com Megahertz C1");
+	case 0x0035:
+		return ("3Com 3CCEM556");
 	default:
+		printf("Unknown ID: 0x%x\n", id);
 		return (NULL);
 	}
 }
@@ -166,6 +167,7 @@ ep_pccard_card_attach(struct ep_board * epb)
 	case 0x2056:		/* 3C562D/3C563D */
 	case 0x9058:		/* 3C589 */
 	case 0x0010:		/* 3C1 */
+	case 0x0035:		/* 3C[XC]EM556 */
 		epb->mii_trans = 0;
 		return (1);
 	default:
@@ -208,7 +210,13 @@ ep_pccard_attach(device_t dev)
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
 	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
-	/* Fake IRQ must be 3 */
+
+	/* 
+	 * Fake IRQ must be 3 for 3C589 and 3C589B.  3C589D and newer
+	 * ignore this value.  3C589C is unknown, as are the other
+	 * cards supported by this driver, but it appears to never hurt
+	 * and always helps.
+	 */
 	SET_IRQ(sc, 3);
 	CSR_WRITE_2(sc, EP_W0_PRODUCT_ID, sc->epb.prod_id);
 
