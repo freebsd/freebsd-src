@@ -57,7 +57,6 @@ static int udf_read(struct vop_read_args *);
 static int udf_readdir(struct vop_readdir_args *);
 static int udf_readlink(struct vop_readlink_args *ap);
 static int udf_strategy(struct vop_strategy_args *);
-static int udf_print(struct vop_print_args *);
 static int udf_bmap(struct vop_bmap_args *);
 static int udf_lookup(struct vop_cachedlookup_args *);
 static int udf_reclaim(struct vop_reclaim_args *);
@@ -75,7 +74,6 @@ static struct vnodeopv_entry_desc udf_vnodeop_entries[] = {
 	{ &vop_ioctl_desc,		(vop_t *) udf_ioctl },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) udf_pathconf },
-	{ &vop_print_desc,		(vop_t *) udf_print },
 	{ &vop_read_desc,		(vop_t *) udf_read },
 	{ &vop_readdir_desc,		(vop_t *) udf_readdir },
 	{ &vop_readlink_desc,		(vop_t *) udf_readlink },
@@ -830,13 +828,6 @@ udf_strategy(struct vop_strategy_args *a)
 	bp->b_dev = vp->v_rdev;
 	VOP_SPECSTRATEGY(vp, bp);
 	return (0);
-}
-
-static int
-udf_print(struct vop_print_args *a)
-{
-	printf("%s called\n", __FUNCTION__);
-	return (EOPNOTSUPP);
 }
 
 static int

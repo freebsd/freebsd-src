@@ -561,7 +561,6 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
 	{ &vop_open_desc,		(vop_t *) portal_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },

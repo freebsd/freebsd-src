@@ -761,7 +761,6 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_getattr_desc, (vop_t *)ntfs_getattr },
 	{ &vop_inactive_desc, (vop_t *)ntfs_inactive },
 	{ &vop_reclaim_desc, (vop_t *)ntfs_reclaim },
-	{ &vop_print_desc, (vop_t *)vop_null },
 	{ &vop_pathconf_desc, ntfs_pathconf },
 
 	{ &vop_cachedlookup_desc, (vop_t *)ntfs_lookup },
