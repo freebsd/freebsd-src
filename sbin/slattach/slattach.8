@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.4 1995/03/12 15:04:16 joerg Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.5 1995/09/18 13:33:28 ache Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -54,7 +54,7 @@
 .Op Fl z
 .Op Fl K Ar keepalive
 .Op Fl O Ar outfill
-.Op Fl U Ar unit
+.Op Fl S Ar unit
 .Ar ttyname 
 .Sh DESCRIPTION
 .Nm Slattach
@@ -114,7 +114,7 @@ Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
 will be sended during this timeout.
 Needed for "keep alive" timeout on other side.
 Default value is no timeout.
-.It Fl U Ar unit
+.It Fl S Ar unit
 Set SLIP unit number directly. Use with caution, no check for two
 interfaces with same number made.
 Default is dynamic assignment.
