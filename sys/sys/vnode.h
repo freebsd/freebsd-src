@@ -244,6 +244,7 @@ struct xvnode {
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_OBJDIRTY	0x0400	/* object might be dirty */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
+#define	VI_OWEINACT	0x1000	/* Need to call inactive */
 
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
