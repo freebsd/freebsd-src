@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
- * $Id: lfs_extern.h,v 1.14 1997/02/22 09:47:20 peter Exp $
+ * $Id: lfs_extern.h,v 1.15 1997/03/23 00:45:15 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -57,7 +57,6 @@ int	 lfs_makeinode __P((int, struct nameidata *, struct inode **));
 int	 lfs_mountroot __P((void));
 struct buf *
 	 lfs_newbuf __P((struct vnode *, ufs_daddr_t, size_t));
-int	 lfs_reclaim __P((struct vop_reclaim_args *));
 void	 lfs_seglock __P((struct lfs *, unsigned long flags));
 void	 lfs_segunlock __P((struct lfs *));
 int	 lfs_segwrite __P((struct mount *, int));
