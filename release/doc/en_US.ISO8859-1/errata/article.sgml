@@ -145,6 +145,11 @@
       eliminated.  For more information, including workarounds and
       bugfixes, see security advisory 
       <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink>.</para>
+
+    <para>A bug in &man.k5su.8; could have allowed a process that had
+      given up superuser privileges to regain them.  This bug has been
+      fixed.  (See security advisory <ulink 
+      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink>.)</para>
 ]]>
   </sect1>
 
