@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.20 1997/09/27 19:48:13 brian Exp $
+ * $Id: lcp.c,v 1.10.2.21 1997/10/15 22:53:02 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -126,7 +126,7 @@ NewPhase(int new)
     CcpUp();
     CcpOpen();
     break;
-  case PHASE_DEAD:
+  case PHASE_TERMINATE:
     if (mode & MODE_DIRECT)
       Cleanup(EX_DEAD);
     if (mode & MODE_BACKGROUND && reconnectState != RECON_TRUE)
@@ -348,6 +348,11 @@ LcpLayerFinish(struct fsm * fp)
   NewPhase(PHASE_DEAD);
   StopAllTimers();
   (void) OsInterfaceDown(0);
+  /* We're down at last.  Lets tell background and direct mode to get out */
+  NewPhase(PHASE_TERMINATE);
+  LcpInit();
+  IpcpInit();
+  CcpInit();
   Prompt();
 }
 
@@ -374,7 +379,10 @@ LcpLayerDown(struct fsm * fp)
   StopAllTimers();
   OsLinkdown();
   LogPrintf(LogLCP, "LcpLayerDown\n");
-  NewPhase(PHASE_TERMINATE);
+  /*
+   * OsLinkdown() brings CCP & IPCP down, then waits 'till we go from
+   * STOPPING to STOPPED.  At this point, the FSM gives us a LayerFinish
+   */
 }
 
 void
@@ -391,6 +399,10 @@ LcpDown()
   NewPhase(PHASE_DEAD);
   StopAllTimers();
   FsmDown(&LcpFsm);
+  /*
+   * We now wait for the FsmDown() to result in a LcpLayerDown() (if we're
+   * open).
+   */
 }
 
 void
