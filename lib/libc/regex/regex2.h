@@ -113,29 +113,16 @@ typedef long sopno;
  * The individual set therefore has both a pointer to the byte vector
  * and a mask to pick out the relevant bit of each byte.  A hash code
  * simplifies testing whether two sets could be identical.
- *
- * This will get trickier for multicharacter collating elements.  As
- * preliminary hooks for dealing with such things, we also carry along
- * a string of multi-character elements, and decide the size of the
- * vectors at run time.
  */
 typedef struct {
 	uch *ptr;		/* -> uch [csetsize] */
 	uch mask;		/* bit within array */
 	short hash;             /* hash code */
-	size_t smultis;
-	char *multis;		/* -> char[smulti]  ab\0cd\0ef\0\0 */
 } cset;
 /* note that CHadd and CHsub are unsafe, and CHIN doesn't yield 0/1 */
 #define CHadd(cs, c)    ((cs)->ptr[(uch)(c)] |= (cs)->mask, (cs)->hash += (uch)(c))
 #define CHsub(cs, c)    ((cs)->ptr[(uch)(c)] &= ~(cs)->mask, (cs)->hash -= (uch)(c))
 #define	CHIN(cs, c)	((cs)->ptr[(uch)(c)] & (cs)->mask)
-#define	MCadd(p, cs, cp)	mcadd(p, cs, cp)	/* regcomp() internal fns */
-#define	MCsub(p, cs, cp)	mcsub(p, cs, cp)
-#define	MCin(p, cs, cp)	mcin(p, cs, cp)
-
-/* stuff for character categories */
-typedef unsigned char cat_t;
 
 /*
  * main compiled-expression structure
@@ -158,8 +145,6 @@ struct re_guts {
 #		define	BAD	04	/* something wrong */
 	int nbol;		/* number of ^ used */
 	int neol;		/* number of $ used */
-	int ncategories;	/* how many character categories */
-	cat_t *categories;	/* ->catspace[-CHAR_MIN] */
 	char *must;		/* match must contain this string */
 	int moffset;		/* latest point at which must may be located */
 	int *charjump;		/* Boyer-Moore char jump table */
@@ -168,8 +153,6 @@ struct re_guts {
 	size_t nsub;		/* copy of re_nsub */
 	int backrefs;		/* does it use back references? */
 	sopno nplus;		/* how deep does it nest +s? */
-	/* catspace must be last */
-	cat_t catspace[1];	/* actually [NC] */
 };
 
 /* misc utilities */

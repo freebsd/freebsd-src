@@ -106,17 +106,6 @@ static void freeset(struct parse *p, cset *cs);
 static int freezeset(struct parse *p, cset *cs);
 static int firstch(struct parse *p, cset *cs);
 static int nch(struct parse *p, cset *cs);
-static void mcadd(struct parse *p, cset *cs, char *cp) __unused;
-#if used
-static void mcsub(cset *cs, char *cp);
-static int mcin(cset *cs, char *cp);
-static char *mcfind(cset *cs, char *cp);
-#endif
-static void mcinvert(struct parse *p, cset *cs);
-static void mccase(struct parse *p, cset *cs);
-static int isinsets(struct re_guts *g, int c);
-static int samesets(struct re_guts *g, int c1, int c2);
-static void categorize(struct parse *p, struct re_guts *g);
 static sopno dupl(struct parse *p, sopno start, sopno finish);
 static void doemit(struct parse *p, sop op, size_t opnd);
 static void doinsert(struct parse *p, sop op, size_t opnd, sopno pos);
@@ -124,7 +113,7 @@ static void dofwd(struct parse *p, sopno pos, sop value);
 static void enlarge(struct parse *p, sopno size);
 static void stripsnug(struct parse *p, struct re_guts *g);
 static void findmust(struct parse *p, struct re_guts *g);
-static int altoffset(sop *scan, int offset, int mccs);
+static int altoffset(sop *scan, int offset);
 static void computejumps(struct parse *p, struct re_guts *g);
 static void computematchjumps(struct parse *p, struct re_guts *g);
 static sopno pluscount(struct parse *p, struct re_guts *g);
@@ -216,8 +205,7 @@ int cflags;
 		len = strlen((char *)pattern);
 
 	/* do the mallocs early so failure handling is easy */
-	g = (struct re_guts *)malloc(sizeof(struct re_guts) +
-							(NC-1)*sizeof(cat_t));
+	g = (struct re_guts *)malloc(sizeof(struct re_guts));
 	if (g == NULL)
 		return(REG_ESPACE);
 	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
@@ -252,9 +240,6 @@ int cflags;
 	g->matchjump = NULL;
 	g->mlen = 0;
 	g->nsub = 0;
-	g->ncategories = 1;	/* category 0 is "everything else" */
-	g->categories = &g->catspace[-(CHAR_MIN)];
-	(void) memset((char *)g->catspace, 0, NC*sizeof(cat_t));
 	g->backrefs = 0;
 
 	/* do it */
@@ -270,7 +255,6 @@ int cflags;
 	g->laststate = THERE();
 
 	/* tidy up loose ends and fill things in */
-	categorize(p, g);
 	stripsnug(p, g);
 	findmust(p, g);
 	/* only use Boyer-Moore algorithm if the pattern is bigger
@@ -516,9 +500,7 @@ struct parse *p;
  * Giving end1 as OUT essentially eliminates the end1/end2 check.
  *
  * This implementation is a bit of a kludge, in that a trailing $ is first
- * taken as an ordinary character and then revised to be an anchor.  The
- * only undesirable side effect is that '$' gets included as a character
- * category in such cases.  This is fairly harmless; not worth fixing.
+ * taken as an ordinary character and then revised to be an anchor.
  * The amount of lookahead needed to avoid this kludge is excessive.
  */
 static void
@@ -739,8 +721,6 @@ struct parse *p;
 				if (ci != i)
 					CHadd(cs, ci);
 			}
-		if (cs->multis != NULL)
-			mccase(p, cs);
 	}
 	if (invert) {
 		int i;
@@ -752,11 +732,7 @@ struct parse *p;
 				CHadd(cs, i);
 		if (p->g->cflags&REG_NEWLINE)
 			CHsub(cs, '\n');
-		if (cs->multis != NULL)
-			mcinvert(p, cs);
 	}
-
-	assert(cs->multis == NULL);		/* xxx */
 
 	if (nch(p, cs) == 1) {		/* optimize singleton sets */
 		ordinary(p, firstch(p, cs));
@@ -812,7 +788,6 @@ cset *cs;
 		(void)REQUIRE(EATTWO('=', ']'), REG_ECOLLATE);
 		break;
 	default:		/* symbol, ordinary character, or range */
-/* xxx revision needed for multichar stuff */
 		start = p_b_symbol(p);
 		if (SEE('-') && MORE2() && PEEK2() != ']') {
 			/* range */
@@ -932,10 +907,6 @@ cset *cs;
 				CHadd(cs, c);
 		break;
 	}
-#if 0
-	for (u = cp->multis; *u != '\0'; u += strlen(u) + 1)
-		MCadd(p, cs, u);
-#endif
 }
 
 /*
@@ -1059,15 +1030,11 @@ ordinary(p, ch)
 struct parse *p;
 int ch;
 {
-	cat_t *cap = p->g->categories;
 
 	if ((p->g->cflags&REG_ICASE) && isalpha((uch)ch) && othercase(ch) != ch)
 		bothcases(p, ch);
-	else {
+	else
 		EMIT(OCHAR, (uch)ch);
-		if (cap[ch] == 0)
-			cap[ch] = p->g->ncategories++;
-	}
 }
 
 /*
@@ -1233,8 +1200,6 @@ struct parse *p;
 	cs->ptr = p->g->setbits + css*((no)/CHAR_BIT);
 	cs->mask = 1 << ((no) % CHAR_BIT);
 	cs->hash = 0;
-	cs->smultis = 0;
-	cs->multis = NULL;
 
 	return(cs);
 }
@@ -1334,193 +1299,6 @@ cset *cs;
 		if (CHIN(cs, i))
 			n++;
 	return(n);
-}
-
-/*
- - mcadd - add a collating element to a cset
- == static void mcadd(struct parse *p, cset *cs, \
- ==	char *cp);
- */
-static void
-mcadd(p, cs, cp)
-struct parse *p;
-cset *cs;
-char *cp;
-{
-	size_t oldend = cs->smultis;
-
-	cs->smultis += strlen(cp) + 1;
-	if (cs->multis == NULL)
-		cs->multis = malloc(cs->smultis);
-	else
-		cs->multis = reallocf(cs->multis, cs->smultis);
-	if (cs->multis == NULL) {
-		SETERROR(REG_ESPACE);
-		return;
-	}
-
-	(void) strcpy(cs->multis + oldend - 1, cp);
-	cs->multis[cs->smultis - 1] = '\0';
-}
-
-#if used
-/*
- - mcsub - subtract a collating element from a cset
- == static void mcsub(cset *cs, char *cp);
- */
-static void
-mcsub(cs, cp)
-cset *cs;
-char *cp;
-{
-	char *fp = mcfind(cs, cp);
-	size_t len = strlen(fp);
-
-	assert(fp != NULL);
-	(void) memmove(fp, fp + len + 1,
-				cs->smultis - (fp + len + 1 - cs->multis));
-	cs->smultis -= len;
-
-	if (cs->smultis == 0) {
-		free(cs->multis);
-		cs->multis = NULL;
-		return;
-	}
-
-	cs->multis = reallocf(cs->multis, cs->smultis);
-	assert(cs->multis != NULL);
-}
-
-/*
- - mcin - is a collating element in a cset?
- == static int mcin(cset *cs, char *cp);
- */
-static int
-mcin(cs, cp)
-cset *cs;
-char *cp;
-{
-	return(mcfind(cs, cp) != NULL);
-}
-
-/*
- - mcfind - find a collating element in a cset
- == static char *mcfind(cset *cs, char *cp);
- */
-static char *
-mcfind(cs, cp)
-cset *cs;
-char *cp;
-{
-	char *p;
-
-	if (cs->multis == NULL)
-		return(NULL);
-	for (p = cs->multis; *p != '\0'; p += strlen(p) + 1)
-		if (strcmp(cp, p) == 0)
-			return(p);
-	return(NULL);
-}
-#endif
-
-/*
- - mcinvert - invert the list of collating elements in a cset
- == static void mcinvert(struct parse *p, cset *cs);
- *
- * This would have to know the set of possibilities.  Implementation
- * is deferred.
- */
-static void
-mcinvert(p, cs)
-struct parse *p;
-cset *cs;
-{
-	assert(cs->multis == NULL);	/* xxx */
-}
-
-/*
- - mccase - add case counterparts of the list of collating elements in a cset
- == static void mccase(struct parse *p, cset *cs);
- *
- * This would have to know the set of possibilities.  Implementation
- * is deferred.
- */
-static void
-mccase(p, cs)
-struct parse *p;
-cset *cs;
-{
-	assert(cs->multis == NULL);	/* xxx */
-}
-
-/*
- - isinsets - is this character in any sets?
- == static int isinsets(struct re_guts *g, int c);
- */
-static int			/* predicate */
-isinsets(g, c)
-struct re_guts *g;
-int c;
-{
-	uch *col;
-	int i;
-	int ncols = (g->ncsets+(CHAR_BIT-1)) / CHAR_BIT;
-	unsigned uc = (uch)c;
-
-	for (i = 0, col = g->setbits; i < ncols; i++, col += g->csetsize)
-		if (col[uc] != 0)
-			return(1);
-	return(0);
-}
-
-/*
- - samesets - are these two characters in exactly the same sets?
- == static int samesets(struct re_guts *g, int c1, int c2);
- */
-static int			/* predicate */
-samesets(g, c1, c2)
-struct re_guts *g;
-int c1;
-int c2;
-{
-	uch *col;
-	int i;
-	int ncols = (g->ncsets+(CHAR_BIT-1)) / CHAR_BIT;
-	unsigned uc1 = (uch)c1;
-	unsigned uc2 = (uch)c2;
-
-	for (i = 0, col = g->setbits; i < ncols; i++, col += g->csetsize)
-		if (col[uc1] != col[uc2])
-			return(0);
-	return(1);
-}
-
-/*
- - categorize - sort out character categories
- == static void categorize(struct parse *p, struct re_guts *g);
- */
-static void
-categorize(p, g)
-struct parse *p;
-struct re_guts *g;
-{
-	cat_t *cats = g->categories;
-	int c;
-	int c2;
-	cat_t cat;
-
-	/* avoid making error situations worse */
-	if (p->error != 0)
-		return;
-
-	for (c = CHAR_MIN; c <= CHAR_MAX; c++)
-		if (cats[c] == 0 && isinsets(g, c)) {
-			cat = g->ncategories++;
-			cats[c] = cat;
-			for (c2 = c+1; c2 <= CHAR_MAX; c2++)
-				if (cats[c2] == 0 && samesets(g, c, c2))
-					cats[c2] = cat;
-		}
 }
 
 /*
@@ -1698,17 +1476,10 @@ struct re_guts *g;
 	char *cp;
 	sopno i;
 	int offset;
-	int cs, mccs;
 
 	/* avoid making error situations worse */
 	if (p->error != 0)
 		return;
-
-	/* Find out if we can handle OANYOF or not */
-	mccs = 0;
-	for (cs = 0; cs < g->ncsets; cs++)
-		if (g->sets[cs].multis != NULL)
-			mccs = 1;
 
 	/* find the longest OCHAR sequence in strip */
 	newlen = 0;
@@ -1729,7 +1500,7 @@ struct re_guts *g;
 			break;
 		case OQUEST_:		/* things that must be skipped */
 		case OCH_:
-			offset = altoffset(scan, offset, mccs);
+			offset = altoffset(scan, offset);
 			scan--;
 			do {
 				scan += OPND(s);
@@ -1797,11 +1568,6 @@ struct re_guts *g;
 			if (offset > -1)
 				offset++;
 			newlen = 0;
-			/* And, now, if we found out we can't deal with
-			 * it, make offset = -1.
-			 */
-			if (mccs)
-				offset = -1;
 			break;
 		default:
 			/* Anything here makes it impossible or too hard
@@ -1849,16 +1615,15 @@ struct re_guts *g;
 
 /*
  - altoffset - choose biggest offset among multiple choices
- == static int altoffset(sop *scan, int offset, int mccs);
+ == static int altoffset(sop *scan, int offset);
  *
  * Compute, recursively if necessary, the largest offset among multiple
  * re paths.
  */
 static int
-altoffset(scan, offset, mccs)
+altoffset(scan, offset)
 sop *scan;
 int offset;
-int mccs;
 {
 	int largest;
 	int try;
@@ -1880,7 +1645,7 @@ int mccs;
 			break;
 		case OQUEST_:
 		case OCH_:
-			try = altoffset(scan, try, mccs);
+			try = altoffset(scan, try);
 			if (try == -1)
 				return -1;
 			scan--;
@@ -1897,8 +1662,6 @@ int mccs;
 			scan++;
 			break;
 		case OANYOF:
-			if (mccs)
-				return -1;
 		case OCHAR:
 		case OANY:
 			try++;
