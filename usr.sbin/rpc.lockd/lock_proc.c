@@ -61,9 +61,9 @@ __RCSID("$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $");
 #define	CLIENT_CACHE_SIZE	64	/* No. of client sockets cached */
 #define	CLIENT_CACHE_LIFETIME	120	/* In seconds */
 
-static void	log_from_addr __P((char *, struct svc_req *));
-static void	log_netobj __P((netobj *obj));
-static int	addrcmp __P((struct sockaddr *, struct sockaddr *));
+static void	log_from_addr(char *, struct svc_req *);
+static void	log_netobj(netobj *obj);
+static int	addrcmp(struct sockaddr *, struct sockaddr *);
 
 /* log_from_addr ----------------------------------------------------------- */
 /*
@@ -361,7 +361,7 @@ transmit4_result(opcode, result, addr)
 /*
  * converts a struct nlm_lock to struct nlm4_lock
  */
-static void nlmtonlm4 __P((struct nlm_lock *, struct nlm4_lock *));
+static void nlmtonlm4(struct nlm_lock *, struct nlm4_lock *);
 static void
 nlmtonlm4(arg, arg4)
 	struct nlm_lock *arg;
