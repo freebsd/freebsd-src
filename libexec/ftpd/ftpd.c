@@ -164,7 +164,7 @@ int	epsvall = 0;
 
 static struct ftphost {
 	struct ftphost	*next;
-	union sockunion	hostaddr;
+	struct addrinfo *hostinfo;
 	char		*hostname;
 	char		*anonuser;
 	char		*statfile;
@@ -628,22 +628,20 @@ inithosts()
 	if ((hrp = malloc(sizeof(struct ftphost))) == NULL ||
 	    (hrp->hostname = strdup(line)) == NULL)
 		fatal("Ran out of memory.");
-	memset(&hrp->hostaddr, 0, sizeof(hrp->hostaddr));
+	hrp->hostinfo = NULL;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
 	hints.ai_family = AF_UNSPEC;
 	getaddrinfo(hrp->hostname, NULL, &hints, &res);
 	if (res)
-		memcpy(&hrp->hostaddr, res->ai_addr, res->ai_addrlen);
+		hrp->hostinfo = res;
 	hrp->statfile = _PATH_FTPDSTATFILE;
 	hrp->welcome  = _PATH_FTPWELCOME;
 	hrp->loginmsg = _PATH_FTPLOGINMESG;
 	hrp->anonuser = "ftp";
 	hrp->next = NULL;
 	thishost = firsthost = lhrp = hrp;
-	if (res)
-		freeaddrinfo(res);
 	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
 		int addrsize, error;
 		void *addr;
@@ -676,10 +674,15 @@ inithosts()
 		      {
 
 			for (hrp = firsthost; hrp != NULL; hrp = hrp->next) {
-				if (memcmp(&hrp->hostaddr,
-					   ai->ai_addr,
-					   ai->ai_addr->sa_len) == 0)
-					break;
+				struct addrinfo *hi;
+
+				for (hi = hrp->hostinfo; hi != NULL;
+				     hi = hi->ai_next)
+					if (hi->ai_addrlen == ai->ai_addrlen &&
+					    memcmp(hi->ai_addr,
+						   ai->ai_addr,
+						   ai->ai_addr->sa_len) == 0)
+						break;
 			}
 			if (hrp == NULL) {
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
@@ -693,32 +696,33 @@ inithosts()
 				lhrp->next = hrp;
 				lhrp = hrp;
 			}
-			(void) memcpy(&hrp->hostaddr,
-				      ai->ai_addr,
-				      ai->ai_addr->sa_len);
+			hrp->hostinfo = res;
+
 			/*
 			 * determine hostname to use.
 			 * force defined name if there is a valid alias
 			 * otherwise fallback to primary hostname
 			 */
 			/* XXX: getaddrinfo() can't do alias check */
-			switch(hrp->hostaddr.su_family) {
+			switch(hrp->hostinfo->ai_family) {
 			case AF_INET:
-				addr = &((struct sockaddr_in *)&hrp->hostaddr)->sin_addr;
+				addr = &((struct sockaddr_in *)&hrp->hostinfo->ai_addr)->sin_addr;
 				addrsize = sizeof(struct sockaddr_in);
 				break;
 			case AF_INET6:
-				addr = &((struct sockaddr_in6 *)&hrp->hostaddr)->sin6_addr;
+				addr = &((struct sockaddr_in6 *)&hrp->hostinfo->ai_addr)->sin6_addr;
 				addrsize = sizeof(struct sockaddr_in6);
 				break;
 			default:
 				/* should not reach here */
+				if (hrp->hostinfo != NULL)
+					freeaddrinfo(hrp->hostinfo);
 				free(hrp);
 				continue;
 				/* NOTREACHED */
 			}
 			if ((hp = getipnodebyaddr((char*)addr, addrsize,
-						  hrp->hostaddr.su_family,
+						  hrp->hostinfo->ai_family,
 						  &hp_error)) != NULL) {
 				if (strcmp(cp, hp->h_name) != 0) {
 					if (hp->h_aliases == NULL)
@@ -773,6 +777,7 @@ selecthost(su)
 #ifdef INET6
 	struct in6_addr *mapped_in6 = NULL;
 #endif
+	struct addrinfo *hi;
 
 #ifdef INET6
 	/*
@@ -788,20 +793,23 @@ selecthost(su)
 	port = su->su_port;
 	su->su_port = 0;
 	while (hrp != NULL) {
-		if (memcmp(su, &hrp->hostaddr, sizeof(hrp->hostaddr)) == 0) {
+		for (hi = hrp->hostinfo; hi != NULL; hi = hi->ai_next)
+	      {
+		if (memcmp(su, hi->ai_addr, hi->ai_addrlen) == 0) {
 			thishost = hrp;
 			break;
 		}
 #ifdef INET6
 		/* XXX IPv4 mapped IPv6 addr consideraton */
-		if (hrp->hostaddr.su_family == AF_INET && mapped_in6 != NULL &&
+		if (hi->ai_addr->sa_family == AF_INET && mapped_in6 != NULL &&
 		    (memcmp(&mapped_in6->s6_addr[12],
-			    &hrp->hostaddr.su_sin.sin_addr,
+			    &((struct sockaddr_in *)hi->ai_addr)->sin_addr,
 			    sizeof(struct in_addr)) == 0)) {
 			thishost = hrp;
 			break;
 		}
 #endif
+	      }
 		hrp = hrp->next;
 	}
 	su->su_port = port;
