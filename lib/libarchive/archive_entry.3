@@ -28,27 +28,41 @@
 .Dt archive_entry 3
 .Os
 .Sh NAME
+.Nm archive_entry_acl_add_entry
+.Nm archive_entry_acl_add_entry_w
+.Nm archive_entry_acl_clear
+.Nm archive_entry_acl_count
+.Nm archive_entry_acl_next
+.Nm archive_entry_acl_next_w
+.Nm archive_entry_acl_reset
+.Nm archive_entry_acl_text_w
 .Nm archive_entry_clear
 .Nm archive_entry_clone
 .Nm archive_entry_copy_fflags_text_w
 .Nm archive_entry_copy_gname_w
+.Nm archive_entry_copy_hardlink
 .Nm archive_entry_copy_hardlink_w
 .Nm archive_entry_copy_pathname_w
 .Nm archive_entry_copy_stat
 .Nm archive_entry_copy_symlink_w
 .Nm archive_entry_copy_uname_w
+.Nm archive_entry_dev
 .Nm archive_entry_fflags
 .Nm archive_entry_fflags_text
 .Nm archive_entry_free
+.Nm archive_entry_gid
 .Nm archive_entry_gname
-.Nm archive_entry_gname_w
 .Nm archive_entry_hardlink
-.Nm archive_entry_hardlink_w
+.Nm archive_entry_ino
+.Nm archive_entry_mode
+.Nm archive_entry_mtime
+.Nm archive_entry_mtime_nsec
 .Nm archive_entry_new
 .Nm archive_entry_pathname
 .Nm archive_entry_pathname_w
-.Nm archive_entry_set_devmajor
-.Nm archive_entry_set_devminor
+.Nm archive_entry_rdev
+.Nm archive_entry_rdevmajor
+.Nm archive_entry_rdevminor
 .Nm archive_entry_set_fflags
 .Nm archive_entry_set_gid
 .Nm archive_entry_set_gname
@@ -56,18 +70,36 @@
 .Nm archive_entry_set_link
 .Nm archive_entry_set_mode
 .Nm archive_entry_set_pathname
+.Nm archive_entry_set_rdevmajor
+.Nm archive_entry_set_rdevminor
+.Nm archive_entry_set_size
 .Nm archive_entry_set_symlink
 .Nm archive_entry_set_uid
 .Nm archive_entry_set_uname
 .Nm archive_entry_size
 .Nm archive_entry_stat
 .Nm archive_entry_symlink
-.Nm archive_entry_symlink_w
+.Nm archive_entry_uid
 .Nm archive_entry_uname
-.Nm archive_entry_uname_w
 .Nd functions for manipulating archive entry descriptions
 .Sh SYNOPSIS
 .In archive_entry.h
+.Ft void
+.Fn archive_entry_acl_add_entry "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const char *name"
+.Ft void
+.Fn archive_entry_acl_add_entry_w "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const wchar_t *name"
+.Ft void
+.Fn archive_entry_acl_clear "struct archive_entry *"
+.Ft int
+.Fn archive_entry_acl_count "struct archive_entry *" "int type"
+.Ft int
+.Fn archive_entry_acl_next "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const char **name"
+.Ft int
+.Fn archive_entry_acl_next_w "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const wchar_t **name"
+.Ft void
+.Fn archive_entry_acl_reset "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_acl_text_w "struct archive_entry *" "int flags"
 .Ft void
 .Fn archive_entry_clear "struct archive_entry *"
 .Ft struct archive_entry *
@@ -76,6 +108,8 @@
 .Fn archive_entry_copy_fflags_text_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_gname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_hardlink "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_copy_hardlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void
@@ -86,6 +120,8 @@
 .Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_uname_w "struct archive_entry *" "const wchar_t *"
+.Ft dev_t
+.Fn archive_entry_dev "struct archive_entry *"
 .Ft void
 .Fn archive_entry_fflags "struct archive_entry *" "unsigned long *set" "unsigned long *clear"
 .Ft const char *
@@ -94,22 +130,28 @@
 .Fn archive_entry_free "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_gname "struct archive_entry *"
-.Ft const wchar_t *
-.Fn archive_entry_gname_w "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_hardlink "struct archive_entry *"
-.Ft const wchar_t *
-.Fn archive_entry_hardlink_w "struct archive_entry *"
+.Ft ino_t
+.Fn archive_entry_ino "struct archive_entry *"
+.Ft mode_t
+.Fn archive_entry_mode "struct archive_entry *"
+.Ft time_t
+.Fn archive_entry_mtime "struct archive_entry *"
+.Ft long
+.Fn archive_entry_mtime_nsec "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_new "void"
 .Ft const char *
 .Fn archive_entry_pathname "struct archive_entry *"
 .Ft const wchar_t *
 .Fn archive_entry_pathname_w "struct archive_entry *"
-.Ft void
-.Fn archive_entry_set_devmajor "struct archive_entry *" "dev_t"
-.Ft void
-.Fn archive_entry_set_devminor "struct archive_entry *" "dev_t"
+.Ft dev_t
+.Fn archive_entry_rdev "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_rdevmajor "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_rdevminor "struct archive_entry *"
 .Ft void
 .Fn archive_entry_set_fflags "struct archive_entry *" "unsigned long set" "unsigned long clear"
 .Ft void
@@ -119,9 +161,17 @@
 .Ft void
 .Fn archive_entry_set_hardlink "struct archive_entry *" "const char *"
 .Ft void
+.Fn archive_entry_set_link "struct archive_entry *" "const char *"
+.Ft void
 .Fn archive_entry_set_mode "struct archive_entry *" "mode_t"
 .Ft void
 .Fn archive_entry_set_pathname "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_rdevmajor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_rdevminor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_size "struct archive_entry *" "int64_t"
 .Ft void
 .Fn archive_entry_set_symlink "struct archive_entry *" "const char *"
 .Ft void
@@ -134,12 +184,8 @@
 .Fn archive_entry_stat "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_symlink "struct archive_entry *"
-.Ft const wchar_t *
-.Fn archive_entry_symlink_w "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_uname "struct archive_entry *"
-.Ft const wchar_t *
-.Fn archive_entry_uname_w "struct archive_entry *"
 .Sh DESCRIPTION
 These functions create and manipulate data objects that
 represent entries within an archive.
