@@ -900,7 +900,7 @@ ext2_direnter(ip, dvp, cnp)
 		ep = (struct ext2_dir_entry_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
-	error = BUF_WRITE(bp);
+	error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = ext2_truncate(dvp, (off_t)dp->i_endoff, IO_SYNC,
@@ -940,7 +940,7 @@ ext2_dirremove(dvp, cnp)
 		    &bp)) != 0)
 			return (error);
 		ep->inode = 0;
-		error = BUF_WRITE(bp);
+		error = bwrite(bp);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (error);
 	}
@@ -951,7 +951,7 @@ ext2_dirremove(dvp, cnp)
 	    (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->rec_len += dp->i_reclen;
-	error = BUF_WRITE(bp);
+	error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -980,7 +980,7 @@ ext2_dirrewrite(dp, ip, cnp)
 		ep->file_type = DTTOFT(IFTODT(ip->i_mode));
 	else
 		ep->file_type = EXT2_FT_UNKNOWN;
-	error = BUF_WRITE(bp);
+	error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }

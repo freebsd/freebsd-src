@@ -2849,7 +2849,7 @@ loop:
 		else
 		    bp->b_flags |= B_ASYNC | B_WRITEINPROG;
 		splx(s);
-		BUF_WRITE(bp);
+		bwrite(bp);
 		goto loop;
 	}
 	splx(s);

@@ -1028,7 +1028,7 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 		 * believe there is a slight chance that a delayed
 		 * write will occur while sleeping just above, so
 		 * check for it.  Note that vfs_bio_awrite expects
-		 * buffers to reside on a queue, while BUF_WRITE and
+		 * buffers to reside on a queue, while bwrite and
 		 * brelse do not.
 		 */
 		if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
@@ -1040,11 +1040,11 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 				} else {
 					bremfree(bp);
 					bp->b_flags |= B_ASYNC;
-					BUF_WRITE(bp);
+					bwrite(bp);
 				}
 			} else {
 				bremfree(bp);
-				(void) BUF_WRITE(bp);
+				(void) bwrite(bp);
 			}
 			goto done;
 		}
