@@ -17,7 +17,7 @@ MAN+=	config.5 des_modes.7
 
 # base sources
 SRCS=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_clr.c \
-	mem_dbg.c o_time.c tmdiff.c uid.c
+	mem_dbg.c o_time.c o_str.c tmdiff.c uid.c
 INCS=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h tmdiff.h \
 	../e_os.h ../e_os2.h
 
@@ -147,13 +147,17 @@ INCS+=	err.h
 # evp
 SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 	digest.c e_aes.c e_bf.c e_cast.c e_des.c e_des3.c e_idea.c \
-	e_null.c e_rc2.c e_rc4.c e_rc5.c e_xcbc_d.c encode.c evp_acnf.c \
+	e_null.c e_old.c e_rc2.c e_rc4.c e_rc5.c e_xcbc_d.c encode.c \
+	evp_acnf.c \
 	evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c evp_pkey.c \
 	m_dss.c m_dss1.c m_md2.c m_md4.c m_md5.c m_mdc2.c m_null.c \
 	m_ripemd.c m_sha.c m_sha1.c names.c openbsd_hw.c p5_crpt.c \
 	p5_crpt2.c p_dec.c p_enc.c p_lib.c p_open.c p_seal.c p_sign.c \
 	p_verify.c
 INCS+=	evp.h
+
+# fips
+INCS+=	fips.h fips_rand.h
 
 # hmac
 SRCS+=	hmac.c
@@ -314,6 +318,13 @@ evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 .else
 	cp ${.ALLSRC} ${.TARGET}
 .endif
+
+# No FIPS support for now
+fips.h:
+	echo '/* dummy fips.h */' > ${.TARGET}
+
+fips_rand.h:
+	echo '/* dummy fips_rand.h */' > ${.TARGET}
 
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:

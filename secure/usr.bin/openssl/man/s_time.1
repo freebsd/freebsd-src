@@ -128,60 +128,54 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2005-02-25" "0.9.7d" "OpenSSL"
+.IX Title "S_TIME 1"
+.TH S_TIME 1 "2005-02-25" "0.9.7d" "OpenSSL"
 .SH "NAME"
-s_client \- SSL/TLS client program
+s_time \- SSL/TLS performance timing program
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-\&\fBopenssl\fR \fBs_client\fR
+\&\fBopenssl\fR \fBs_time\fR
 [\fB\-connect host:port\fR]
-[\fB\-verify depth\fR]
+[\fB\-www page\fR]
 [\fB\-cert filename\fR]
 [\fB\-key filename\fR]
 [\fB\-CApath directory\fR]
 [\fB\-CAfile filename\fR]
-[\fB\-reconnect\fR]
-[\fB\-pause\fR]
-[\fB\-showcerts\fR]
-[\fB\-debug\fR]
-[\fB\-msg\fR]
-[\fB\-nbio_test\fR]
-[\fB\-state\fR]
+[\fB\-reuse\fR]
+[\fB\-new\fR]
+[\fB\-verify depth\fR]
 [\fB\-nbio\fR]
-[\fB\-crlf\fR]
-[\fB\-ign_eof\fR]
-[\fB\-quiet\fR]
+[\fB\-time seconds\fR]
 [\fB\-ssl2\fR]
 [\fB\-ssl3\fR]
-[\fB\-tls1\fR]
-[\fB\-no_ssl2\fR]
-[\fB\-no_ssl3\fR]
-[\fB\-no_tls1\fR]
 [\fB\-bugs\fR]
 [\fB\-cipher cipherlist\fR]
-[\fB\-starttls protocol\fR]
-[\fB\-engine id\fR]
-[\fB\-rand file(s)\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBs_client\fR command implements a generic \s-1SSL/TLS\s0 client which connects
-to a remote host using \s-1SSL/TLS\s0. It is a \fIvery\fR useful diagnostic tool for
-\&\s-1SSL\s0 servers.
+The \fBs_client\fR command implements a generic \s-1SSL/TLS\s0 client which connects to a
+remote host using \s-1SSL/TLS\s0. It can request a page from the server and includes
+the time to transfer the payload data in its timing measurements. It measures
+the number of connections within a given timeframe, the amount of data
+transferred (if any), and calculates the average time spent for one connection.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
 .IP "\fB\-connect host:port\fR" 4
 .IX Item "-connect host:port"
-This specifies the host and optional port to connect to. If not specified
-then an attempt is made to connect to the local host on port 4433.
+This specifies the host and optional port to connect to.
+.IP "\fB\-www page\fR" 4
+.IX Item "-www page"
+This specifies the page to \s-1GET\s0 from the server. A value of '/' gets the
+index.htm[l] page. If this parameter is not specified, then \fBs_time\fR will only
+perform the handshake to establish \s-1SSL\s0 connections but not transfer any
+payload data.
 .IP "\fB\-cert certname\fR" 4
 .IX Item "-cert certname"
 The certificate to use, if one is requested by the server. The default is
-not to use a certificate.
+not to use a certificate. The file is in \s-1PEM\s0 format.
 .IP "\fB\-key keyfile\fR" 4
 .IX Item "-key keyfile"
 The private key to use. If not specified then the certificate file will
-be used.
+be used. The file is in \s-1PEM\s0 format.
 .IP "\fB\-verify depth\fR" 4
 .IX Item "-verify depth"
 The verify depth to use. This specifies the maximum length of the
@@ -198,64 +192,31 @@ also used when building the client certificate chain.
 .IX Item "-CAfile file"
 A file containing trusted certificates to use during server authentication
 and to use when attempting to build the client certificate chain.
-.IP "\fB\-reconnect\fR" 4
-.IX Item "-reconnect"
-reconnects to the same server 5 times using the same session \s-1ID\s0, this can
-be used as a test that session caching is working.
-.IP "\fB\-pause\fR" 4
-.IX Item "-pause"
-pauses 1 second between each read and write call.
-.IP "\fB\-showcerts\fR" 4
-.IX Item "-showcerts"
-display the whole server certificate chain: normally only the server
-certificate itself is displayed.
-.IP "\fB\-prexit\fR" 4
-.IX Item "-prexit"
-print session information when the program exits. This will always attempt
-to print out information even if the connection fails. Normally information
-will only be printed out once if the connection succeeds. This option is useful
-because the cipher in use may be renegotiated or the connection may fail
-because a client certificate is required or is requested only after an
-attempt is made to access a certain \s-1URL\s0. Note: the output produced by this
-option is not always accurate because a connection might never have been
-established.
-.IP "\fB\-state\fR" 4
-.IX Item "-state"
-prints out the \s-1SSL\s0 session states.
-.IP "\fB\-debug\fR" 4
-.IX Item "-debug"
-print extensive debugging information including a hex dump of all traffic.
-.IP "\fB\-msg\fR" 4
-.IX Item "-msg"
-show all protocol messages with hex dump.
-.IP "\fB\-nbio_test\fR" 4
-.IX Item "-nbio_test"
-tests non-blocking I/O
+.IP "\fB\-new\fR" 4
+.IX Item "-new"
+performs the timing test using a new session \s-1ID\s0 for each connection.
+If neither \fB\-new\fR nor \fB\-reuse\fR are specified, they are both on by default
+and executed in sequence.
+.IP "\fB\-reuse\fR" 4
+.IX Item "-reuse"
+performs the timing test using the same session \s-1ID\s0; this can be used as a test
+that session caching is working. If neither \fB\-new\fR nor \fB\-reuse\fR are
+specified, they are both on by default and executed in sequence.
 .IP "\fB\-nbio\fR" 4
 .IX Item "-nbio"
-turns on non-blocking I/O
-.IP "\fB\-crlf\fR" 4
-.IX Item "-crlf"
-this option translated a line feed from the terminal into \s-1CR+LF\s0 as required
-by some servers.
-.IP "\fB\-ign_eof\fR" 4
-.IX Item "-ign_eof"
-inhibit shutting down the connection when end of file is reached in the
-input.
-.IP "\fB\-quiet\fR" 4
-.IX Item "-quiet"
-inhibit printing of session and certificate information.  This implicitly
-turns on \fB\-ign_eof\fR as well.
-.IP "\fB\-ssl2\fR, \fB\-ssl3\fR, \fB\-tls1\fR, \fB\-no_ssl2\fR, \fB\-no_ssl3\fR, \fB\-no_tls1\fR" 4
-.IX Item "-ssl2, -ssl3, -tls1, -no_ssl2, -no_ssl3, -no_tls1"
+turns on non-blocking I/O.
+.IP "\fB\-ssl2\fR, \fB\-ssl3\fR" 4
+.IX Item "-ssl2, -ssl3"
 these options disable the use of certain \s-1SSL\s0 or \s-1TLS\s0 protocols. By default
 the initial handshake uses a method which should be compatible with all
 servers and permit them to use \s-1SSL\s0 v3, \s-1SSL\s0 v2 or \s-1TLS\s0 as appropriate.
+The timing program is not as rich in options to turn protocols on and off as
+the \fIs_client\fR\|(1) program and may not connect to all servers.
 .Sp
 Unfortunately there are a lot of ancient and broken servers in use which
 cannot handle this technique and will fail to connect. Some servers only
-work if \s-1TLS\s0 is turned off with the \fB\-no_tls\fR option others will only
-support \s-1SSL\s0 v2 and may need the \fB\-ssl2\fR option.
+work if \s-1TLS\s0 is turned off with the \fB\-ssl3\fR option; others
+will only support \s-1SSL\s0 v2 and may need the \fB\-ssl2\fR option.
 .IP "\fB\-bugs\fR" 4
 .IX Item "-bugs"
 there are several known bug in \s-1SSL\s0 and \s-1TLS\s0 implementations. Adding this
@@ -264,49 +225,29 @@ option enables various workarounds.
 .IX Item "-cipher cipherlist"
 this allows the cipher list sent by the client to be modified. Although
 the server determines which cipher suite is used it should take the first
-supported cipher in the list sent by the client. See the \fBciphers\fR
-command for more information.
-.IP "\fB\-starttls protocol\fR" 4
-.IX Item "-starttls protocol"
-send the protocol-specific message(s) to switch to \s-1TLS\s0 for communication.
-\&\fBprotocol\fR is a keyword for the intended protocol.  Currently, the only
-supported keywords are \*(L"smtp\*(R" and \*(L"pop3\*(R".
-.IP "\fB\-engine id\fR" 4
-.IX Item "-engine id"
-specifying an engine (by it's unique \fBid\fR string) will cause \fBs_client\fR
-to attempt to obtain a functional reference to the specified engine,
-thus initialising it if needed. The engine will then be set as the default
-for all available algorithms.
-.IP "\fB\-rand file(s)\fR" 4
-.IX Item "-rand file(s)"
-a file or files containing random data used to seed the random number
-generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
-Multiple files can be specified separated by a OS-dependent character.
-The separator is \fB;\fR for MS\-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
-all others.
-.SH "CONNECTED COMMANDS"
-.IX Header "CONNECTED COMMANDS"
-If a connection is established with an \s-1SSL\s0 server then any data received
-from the server is displayed and any key presses will be sent to the
-server. When used interactively (which means neither \fB\-quiet\fR nor \fB\-ign_eof\fR
-have been given), the session will be renegotiated if the line begins with an
-\&\fBR\fR, and if the line begins with a \fBQ\fR or if end of file is reached, the
-connection will be closed down.
+supported cipher in the list sent by the client.
+See the \fIciphers\fR\|(1) command for more information.
+.IP "\fB\-time length\fR" 4
+.IX Item "-time length"
+specifies how long (in seconds) \fBs_time\fR should establish connections and
+optionally transfer payload data from a server. Server and client performance
+and the link speed determine how many connections \fBs_time\fR can establish.
 .SH "NOTES"
 .IX Header "NOTES"
-\&\fBs_client\fR can be used to debug \s-1SSL\s0 servers. To connect to an \s-1SSL\s0 \s-1HTTP\s0
-server the command:
+\&\fBs_client\fR can be used to measure the performance of an \s-1SSL\s0 connection.
+To connect to an \s-1SSL\s0 \s-1HTTP\s0 server and get the default page the command
 .PP
 .Vb 1
-\& openssl s_client -connect servername:443
+\& openssl s_time -connect servername:443 -www / -CApath yourdir -CAfile yourfile.pem -cipher commoncipher [-ssl3]
 .Ve
 .PP
-would typically be used (https uses port 443). If the connection succeeds
-then an \s-1HTTP\s0 command can be given such as \*(L"\s-1GET\s0 /\*(R" to retrieve a web page.
+would typically be used (https uses port 443). 'commoncipher' is a cipher to
+which both client and server can agree, see the \fIciphers\fR\|(1) command
+for details.
 .PP
 If the handshake fails then there are several possible causes, if it is
 nothing obvious like no client certificate then the \fB\-bugs\fR, \fB\-ssl2\fR,
-\&\fB\-ssl3\fR, \fB\-tls1\fR, \fB\-no_ssl2\fR, \fB\-no_ssl3\fR, \fB\-no_tls1\fR options can be tried
+\&\fB\-ssl3\fR options can be tried
 in case it is a buggy server. In particular you should play with these
 options \fBbefore\fR submitting a bug report to an OpenSSL mailing list.
 .PP
@@ -314,31 +255,24 @@ A frequent problem when attempting to get client certificates working
 is that a web client complains it has no certificates or gives an empty
 list to choose from. This is normally because the server is not sending
 the clients certificate authority in its \*(L"acceptable \s-1CA\s0 list\*(R" when it
-requests a certificate. By using \fBs_client\fR the \s-1CA\s0 list can be viewed
-and checked. However some servers only request client authentication
+requests a certificate. By using \fIs_client\fR\|(1) the \s-1CA\s0 list can be
+viewed and checked. However some servers only request client authentication
 after a specific \s-1URL\s0 is requested. To obtain the list in this case it
-is necessary to use the \fB\-prexit\fR option and send an \s-1HTTP\s0 request
-for an appropriate page.
+is necessary to use the \fB\-prexit\fR option of \fIs_client\fR\|(1) and
+send an \s-1HTTP\s0 request for an appropriate page.
 .PP
 If a certificate is specified on the command line using the \fB\-cert\fR
 option it will not be used unless the server specifically requests
 a client certificate. Therefor merely including a client certificate
 on the command line is no guarantee that the certificate works.
-.PP
-If there are problems verifying a server certificate then the
-\&\fB\-showcerts\fR option can be used to show the whole chain.
 .SH "BUGS"
 .IX Header "BUGS"
-Because this program has a lot of options and also because some of
-the techniques used are rather old, the C source of s_client is rather
-hard to read and not a model of how things should be done. A typical
-\&\s-1SSL\s0 client program would be much simpler.
+Because this program does not have all the options of the
+\&\fIs_client\fR\|(1) program to turn protocols on and off, you may not be
+able to measure the performance of all protocols with all servers.
 .PP
 The \fB\-verify\fR option should really exit if the server verification
 fails.
-.PP
-The \fB\-prexit\fR option is a bit of a hack. We should really report
-information whenever a session is renegotiated.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIsess_id\fR\|(1), \fIs_server\fR\|(1), \fIciphers\fR\|(1)
+\&\fIs_client\fR\|(1), \fIs_server\fR\|(1), \fIciphers\fR\|(1)
