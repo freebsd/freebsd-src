@@ -47,6 +47,9 @@
 #include <stdlib.h>
 #include "crtbrand.c"
 
+struct Struct_Obj_Entry;
+struct ps_strings;
+
 #pragma weak _DYNAMIC
 extern int _DYNAMIC;
 
@@ -65,18 +68,19 @@ extern int etext;
  * First 5 arguments are specified by the PowerPC SVR4 ABI.
  * The last argument, ps_strings, is a BSD extension.
  */
-void _start __P((int, char **, char **, const Obj_Entry *,
+void _start __P((int, char **, char **, const struct Struct_Obj_Entry *,
 		void (*) __P((void)), struct ps_strings *));
 
 char **environ;
 char *__progname = "";
+struct ps_strings *__ps_strings;
 
 /* The entry function. */
 void
 _start(argc, argv, envp, obj, cleanup, ps_strings)
 	int argc;
 	char **argv, **envp;
-	const Obj_Entry *obj;			/* from shared loader */
+	const struct Struct_Obj_Entry *obj;	/* from shared loader */
 	void (*cleanup) __P((void));		/* from shared loader */
 	struct ps_strings *ps_strings;		/* BSD extension */
 {
@@ -106,7 +110,7 @@ _start(argc, argv, envp, obj, cleanup, ps_strings)
 	monstartup(&eprol, &etext);
 #endif
 	_init();
-	exit( main(argc, argv, env) );
+	exit( main(argc, argv, envp) );
 }
 
 #ifdef GCRT
