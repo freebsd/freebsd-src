@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: endian.h,v 1.2 1998/01/10 22:09:53 jb Exp $ */
 /* From: NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp */
 
 /*
@@ -57,6 +57,7 @@
 #define	BYTE_ORDER	LITTLE_ENDIAN
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 
 typedef u_int32_t in_addr_t;
 typedef u_int16_t in_port_t;
