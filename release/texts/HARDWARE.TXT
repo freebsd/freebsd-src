@@ -59,15 +59,17 @@ fdc0    3f0     6       2       n/a     Floppy disk controller
 wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
 wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 
-adv0    n/a     n/a     n/a     n/a     AdvanSys ADP-9xx SCSI controller
+adv0    n/a     n/a     n/a     n/a     AdvanSys Narrow SCSI controllers
+adw0    n/a     n/a     n/a     n/a     AdvanSys Wide SCSI controllers
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
-uha0    330     dyn     6       dyn     Ultrastore 14f
+uha0*   330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0*   340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
+isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 2100 SCSI/FC controllers
 dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
@@ -326,44 +328,36 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
-controllers.
-Adaptec AIC7850/AIC7895 on-board SCSI controllers.
+Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
+EISA/VLB/PCI SCSI controllers.
+Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 
-Support for the following controllers is rather weak:
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
+AdvanSys SCSI controllers (all models).
 
-** Note: You cannot boot from the SoundBlaster cards as they have no
-   on-board BIOS, such being necessary for mapping the boot device into the
-   system BIOS I/O vectors.  They're perfectly usable for external tapes,
-   CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
-   without a boot ROM.  Some systems DO have a boot ROM, which is generally
-   indicated by some sort of message when the system is first powered up
-   or reset, and in such cases you *will* also be able to boot from them.
-   Check your system/board documentation for more details.
+BusLogic MultiMaster controllers:
 
+[ Please note that BusLogic/Mylex "Flashpoint" adapters are NOT yet supported ]
 
-AdvanSys (Advanced Systems) ABP510/542/5150 ISA and ABP5140/5142 ISA PnP
-cards, ABP842/852 VLB cards, and ABP920/930/930U/930UA/950/960/960U/970/970U
-PCI cards.
+BusLogic MultiMaster "W" Series Host Adapters:
+    BT-948, BT-958, BT-958D
+BusLogic MultiMaster "C" Series Host Adapters:
+    BT-946C, BT-956C, BT-956CD, BT-445C, BT-747C, BT-757C, BT-757CD, BT-545C,
+    BT-540CF
+BusLogic MultiMaster "S" Series Host Adapters:
+    BT-445S, BT-747S, BT-747D, BT-757S, BT-757D, BT-545S, BT-542D, BT-742A,
+    BT-542B
+BusLogic MultiMaster "A" Series Host Adapters:
+    BT-742A, BT-542B
 
-** Note:  The ADP510/5140/5150 boards were shipped by HP with the 4020i
-   CD-R drive but with NO BIOS, so these models cannot control boot devices
-   though they can be used for any secondary SCSI device.  Also note that the
-   ABP5140/5142 boards were rebadged by SIIG as the "SpeedMaster i540/i542"
+AMI FastDisk controllers that are true BusLogic MultiMaster clones are also
+supported.
 
+DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
+SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
+is not yet supported.
 
-Buslogic 545S & 545c
-Buslogic 445S/445c VLB SCSI controller
-Buslogic 742A, 747S, 747c EISA SCSI controller.
-Buslogic 946c PCI SCSI controller
-Buslogic 956c PCI SCSI controller
-
-SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
-controllers:
+SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
+53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
         Data Technology DTC3130 (all variants)
         NCR cards (all)
@@ -371,34 +365,56 @@ controllers:
         Tekram DC390W, 390U and 390F
         Tyan S1365
 
-Tekram DC390 and DC390T controllers (maybe other cards based on the
-AMD 53c974 as well).
 
-NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-UltraStor 14F, 24F and 34F SCSI controllers.
-
-Seagate ST01/02 SCSI controllers.
-
-Future Domain 8xx/950 series SCSI controllers.
-
-WD7000 SCSI controller.
-
 With all supported SCSI controllers, full support is provided for
-SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT and 8mm Exabyte) and CD ROM drives.
+SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
+tape drives (including DAT and 8mm Exabyte), medium changers, processor
+target devices and CDROM drives.  WORM devices that support CDROM commands
+are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
+writing support is provided by cdrecord, which is in the ports tree.
 
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
         SoundBlaster SCSI)
-(mcd)   Mitsumi proprietary interface (all models, driver is rather stale)
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface.
+(wcd)   ATAPI IDE interface
 
+The following drivers were supported under the old SCSI subsystem, but are
+NOT YET supported under the new CAM SCSI subsystem:
+
+  Tekram DC390 and DC390T controllers (maybe other cards based on the
+  AMD 53c974 as well).
+
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+
+  UltraStor 14F, 24F and 34F SCSI controllers.
+
+  Seagate ST01/02 SCSI controllers.
+
+  Future Domain 8xx/950 series SCSI controllers.
+
+  WD7000 SCSI controller.
+
+  Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+  Adaptec 152x series ISA SCSI controllers
+  Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+  and SoundBlaster SCSI cards.
+
+  [ Note:  There is work-in-progress to port the AIC-6260/6360 and
+    UltraStor drivers to the new CAM SCSI framework, but no estimates on
+    when or if they will be completed. ]
+
+Unmaintained drivers, they might or might not work for your hardware:
+
+  Floppy tape interface (Colorado/Mountain/Insight)
+
+  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 4.2.    Network cards
 ----    -------------
