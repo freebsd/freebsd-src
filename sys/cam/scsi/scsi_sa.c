@@ -301,6 +301,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 		  "C15*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_NO_CPAGE, 0,
 	},
 #endif
+ 	{
+ 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
+		  "C56*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
+	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
 		  "T20*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
