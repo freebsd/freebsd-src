@@ -45,7 +45,7 @@ ENTRY(ffs, 1)
 	 */
 	sub	r15=r0,r14
 	mov	ret0=1 ;;
-	and	r15=r14,r15
+	and	r15=r14,r15 ;;
 
 	extr.u	r16=r15,0,8 ;;
 	cmp.ne	p6,p0=r0,r16
@@ -58,7 +58,7 @@ ENTRY(ffs, 1)
 	cmp.ne	p6,p0=r0,r16
 (p6)	br.dptk.few Ldo16
 	extr.u	r15=r15,16,16
-	add	ret0=16,ret0
+	add	ret0=16,ret0 ;;
 	
 Ldo16:
 	/*
@@ -68,7 +68,7 @@ Ldo16:
 	cmp.ne	p6,p0=r0,r16
 (p6)	br.dptk.few Ldo8
 	extr.u	r15=r15,8,24
-	add	ret0=8,ret0
+	add	ret0=8,ret0 ;;
 
 Ldo8:
 	and	r16=0x0f,r15		/* lower 4 of 8 empty? */
@@ -80,11 +80,11 @@ Ldo8:
 
 	/* If lower 4 bits empty, add 4 to result. */
 (p6)	br.dptk.few Ldo4
-	add	ret0=4,ret0
+	add	ret0=4,ret0 ;;
 
 Ldo4:	/* If lower 2 bits of each 4 empty, add 2 to result. */
 (p7)	br.dptk.few Ldo2
-	add	ret0=2,ret0
+	add	ret0=2,ret0 ;;
 
 Ldo2:	/* If lower bit of each 2 empty, add 1 to result. */
 (p8)	br.dptk.few Ldone
