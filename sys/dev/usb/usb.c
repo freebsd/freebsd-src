@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.59 2001/11/26 20:16:55 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.61 2001/12/31 15:55:51 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -379,6 +379,13 @@ usb_event_thread(void *arg)
 #endif
 
 	DPRINTF(("usb_event_thread: start\n"));
+
+	/*
+	 * In case this controller is a companion controller to an
+	 * EHCI controller we need to wait until the
+	 * EHCI controller has grabbed the port.
+	 */
+	usb_delay_ms(sc->sc_bus, 500);
 
 	/* Make sure first discover does something. */
 	sc->sc_bus->needs_explore = 1;
