@@ -190,7 +190,7 @@ __ieee754_pow(double x, double y)
 	    if(ix>0x3ff00000) return (hy>0)? huge*huge:tiny*tiny;
 	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
-	    t = x-1;		/* t has 20 trailing zeros */
+	    t = ax-1;		/* t has 20 trailing zeros */
 	    w = (t*t)*(0.5-t*(0.3333333333333333333333-t*0.25));
 	    u = ivln2_h*t;	/* ivln2_h has 21 sig. bits */
 	    v = t*ivln2_l-w*ivln2;
