@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.6 1999/04/18 15:50:33 peter Exp $
+ *	$Id: ahc_eisa.c,v 1.7 1999/04/23 23:29:00 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -465,7 +465,6 @@ static device_method_t ahc_eisa_methods[] = {
 static driver_t ahc_eisa_driver = {
 	"ahc",
 	ahc_eisa_methods,
-	DRIVER_TYPE_CAM,
 	1,			/* unused */
 };
 

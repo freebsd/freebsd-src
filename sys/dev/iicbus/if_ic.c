@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ic.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: if_ic.c,v 1.3 1998/12/07 21:58:16 archie Exp $
  */
 
 /*
@@ -114,7 +114,6 @@ static device_method_t ic_methods[] = {
 static driver_t ic_driver = {
 	"ic",
 	ic_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct ic_softc),
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.7 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: dwlpx.c,v 1.8 1999/04/16 21:21:42 peter Exp $
  */
 
 #include "opt_simos.h"
@@ -268,7 +268,6 @@ static device_method_t dwlpx_methods[] = {
 static driver_t dwlpx_driver = {
 	"dwlpx",
 	dwlpx_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct dwlpx_softc),
 };
 
@@ -303,7 +302,7 @@ dwlpx_attach(device_t dev)
 
 	*(u_int32_t*) (regs + PCIA_CTL(0)) = 1;	/* Type1 config cycles */
 
-	return BUS_SETUP_INTR(parent, dev, NULL, dwlpx_intr, 0, &intr);
+	return BUS_SETUP_INTR(parent, dev, NULL, INTR_TYPE_MISC, dwlpx_intr, 0, &intr);
 
 	return 0;
 }

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: if_le_ioasic.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: if_le_ioasic.c,v 1.10 1998/01/19 02:49:48 thorpej Exp $	*/
 
 /*
@@ -79,7 +79,6 @@ static device_method_t le_ioasic_methods[] = {
 static driver_t le_ioasic_driver = {
 	"le",
 	le_ioasic_methods,
-	DRIVER_TYPE_NET,
 	sizeof(struct le_softc),
 };
 

@@ -161,7 +161,8 @@ ohci_pci_attach(device_t dev)
 		return ENOMEM;
 	}
 
-	error = bus_setup_intr(dev, res, (driver_intr_t *) ohci_intr, sc, &ih);
+	error = bus_setup_intr(dev, res, INTR_TYPE_BIO,
+			       (driver_intr_t *) ohci_intr, sc, &ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		return error;
@@ -231,7 +232,6 @@ static device_method_t ohci_methods[] = {
 static driver_t ohci_driver = {
 	"ohci",
 	ohci_methods,
-	DRIVER_TYPE_BIO,
 	sizeof(ohci_softc_t),
 };
 

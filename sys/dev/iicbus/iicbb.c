@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbb.c,v 1.2 1998/11/04 22:07:24 nsouch Exp $
+ *	$Id: iicbb.c,v 1.3 1999/01/28 15:50:24 roger Exp $
  *
  */
 
@@ -102,7 +102,6 @@ static device_method_t iicbb_methods[] = {
 static driver_t iicbb_driver = {
 	"iicbb",
 	iicbb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct iicbb_softc),
 };
 

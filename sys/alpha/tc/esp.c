@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: esp.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: esp.c,v 1.8.4.2 1996/09/10 17:28:16 cgd Exp $	*/
 
 /*
@@ -107,7 +107,6 @@ static device_method_t esp_methods[] = {
 static driver_t esp_driver = {
 	"esp",
 	esp_methods,
-	DRIVER_TYPE_BIO,
 	sizeof(struct esp_softc),
 };
 

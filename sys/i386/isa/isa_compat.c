@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.7 1999/04/26 12:49:39 peter Exp $
+ *	$Id: isa_compat.c,v 1.8 1999/05/08 18:20:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -139,13 +139,15 @@ isa_compat_probe(device_t dev)
 {
 	struct isa_device *dvp = device_get_softc(dev);
 	struct isa_compat_resources res;
+	struct old_isa_driver *op;
 
 	bzero(&res, sizeof(res));
 	/*
 	 * Fill in the isa_device fields.
 	 */
+	op = device_get_driver(dev)->priv;
 	dvp->id_id = isa_compat_nextid();
-	dvp->id_driver = device_get_driver(dev)->priv;
+	dvp->id_driver = op->driver;
 	dvp->id_iobase = isa_get_port(dev);
 	dvp->id_irq = irqmask(isa_get_irq(dev));
 	dvp->id_drq = isa_get_drq(dev);
@@ -207,10 +209,12 @@ isa_compat_attach(device_t dev)
 	if (dvp->id_driver->attach)
 		dvp->id_driver->attach(dvp);
 	if (res.irq && dvp->id_irq && dvp->id_intr) {
+		struct old_isa_driver *op;
 		void *ih;
 
+		op = device_get_driver(dev)->priv;
 		error = BUS_SETUP_INTR(device_get_parent(dev), dev,
-				       res.irq,
+				       res.irq, op->type,
 				       dvp->id_intr,
 				       (void *)(uintptr_t)dvp->id_unit,
 				       &ih);
@@ -247,9 +251,8 @@ isa_wrap_old_drivers(void)
 		bzero(driver, sizeof(driver_t));
 		driver->name = op->driver->name;
 		driver->methods = isa_compat_methods;
-		driver->type = op->type;
 		driver->softc = sizeof(struct isa_device);
-		driver->priv = op->driver;
+		driver->priv = op;
 		if (op->driver->sensitive_hw)
 			resource_set_int(op->driver->name, -1, "sensitive", 1);
 		devclass_add_driver(isa_devclass, driver);

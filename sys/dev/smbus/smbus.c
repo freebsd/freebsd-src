@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.7 1999/01/09 18:08:24 nsouch Exp $
+ *	$Id: smbus.c,v 1.8 1999/02/13 17:57:19 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -88,7 +88,6 @@ static device_method_t smbus_methods[] = {
 static driver_t smbus_driver = {
         "smbus",
         smbus_methods,
-        DRIVER_TYPE_MISC,
         sizeof(struct smbus_softc),
 };
 

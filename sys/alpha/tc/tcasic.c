@@ -1,4 +1,4 @@
-/* $Id: tcasic.c,v 1.1 1998/08/20 08:27:11 dfr Exp $ */
+/* $Id: tcasic.c,v 1.2 1999/04/16 21:21:41 peter Exp $ */
 /* from $NetBSD: tcasic.c,v 1.23 1998/05/14 00:01:31 thorpej Exp $ */
 
 /*
@@ -69,7 +69,6 @@ static device_method_t tcasic_methods[] = {
 static driver_t tcasic_driver = {
 	"tcasic",
 	tcasic_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct tcasic_softc),
 };
 

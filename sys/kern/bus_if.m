@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.6 1999/03/29 08:54:19 dfr Exp $
+#	$Id: bus_if.m,v 1.7 1999/04/16 21:22:37 peter Exp $
 #
 
 INTERFACE bus;
@@ -147,6 +147,7 @@ METHOD int setup_intr {
 	device_t	dev;
 	device_t	child;
 	struct resource *irq;
+	int		flags;
 	driver_intr_t	*intr;
 	void		*arg;
 	void		**cookiep;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.5 1998/12/04 22:54:42 archie Exp $
+ *	$Id: lca.c,v 1.6 1999/04/16 21:21:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -360,7 +360,6 @@ static device_method_t lca_methods[] = {
 static driver_t lca_driver = {
 	"lca",
 	lca_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct lca_softc),
 };
 

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: mcclock_ioasic.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /* $NetBSD: mcclock_ioasic.c,v 1.8 1997/09/02 13:20:14 thorpej Exp $ */
 
 /*
@@ -90,7 +90,6 @@ static device_method_t mcclock_ioasic_methods[] = {
 static driver_t mcclock_ioasic_driver = {
 	"mcclock",
 	mcclock_ioasic_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct mcclock_ioasic_softc),
 };
 

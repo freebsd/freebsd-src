@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.10 1999/04/21 10:58:07 peter Exp $
+ *  $Id: ata-all.c,v 1.11 1999/04/22 08:07:44 sos Exp $
  */
 
 #include "ata.h"
@@ -141,7 +141,7 @@ ata_isaattach(device_t dev)
 	return (ENOMEM);
     }
     scp = device_get_softc(dev);
-    return bus_setup_intr(dev, irq, ataintr, scp, &ih);
+    return bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 }
 
 static device_method_t ata_isa_methods[] = {
@@ -154,7 +154,6 @@ static device_method_t ata_isa_methods[] = {
 static driver_t ata_isa_driver = {
     "ata-isa",
     ata_isa_methods,
-    DRIVER_TYPE_BIO,
     sizeof(int),
 };
 
@@ -314,9 +313,11 @@ ata_pciattach(device_t dev)
 
 	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (sysctrl)
-		bus_setup_intr(dev, irq, promise_intr, scp, &ih);
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO,
+			       promise_intr, scp, &ih);
 	    else
-		bus_setup_intr(dev, irq, ataintr, scp, &ih);
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO,
+			       ataintr, scp, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
@@ -339,7 +340,7 @@ ata_pciattach(device_t dev)
 
 	    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,1,RF_ACTIVE);
 	    if (!sysctrl)
-		bus_setup_intr(dev, irq, ataintr, scp, &ih);
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
@@ -357,7 +358,6 @@ static device_method_t ata_pci_methods[] = {
 static driver_t ata_pci_driver = {
     "ata-pci",
     ata_pci_methods,
-    DRIVER_TYPE_BIO,
     sizeof(int),
 };
 

@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.6 1999/04/16 21:22:53 peter Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.7 1999/05/01 23:30:06 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -158,7 +158,8 @@ uhci_pci_attach(device_t dev)
 		return ENOMEM;
 	}
 		
-	error = bus_setup_intr(dev, res, (driver_intr_t *) uhci_intr, sc, &ih);
+	error = bus_setup_intr(dev, res, INTR_TYPE_BIO,
+			       (driver_intr_t *) uhci_intr, sc, &ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		return error;
@@ -245,7 +246,6 @@ static device_method_t uhci_methods[] = {
 static driver_t uhci_driver = {
 	"uhci",
 	uhci_methods,
-	DRIVER_TYPE_BIO,
 	sizeof(uhci_softc_t),
 };
 

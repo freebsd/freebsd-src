@@ -164,7 +164,7 @@ vx_eisa_attach(device_t dev)
 
     vxattach(sc);
 
-    if (bus_setup_intr(dev, irq, vxintr, sc, &ih)) {
+    if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih)) {
 	vxfree(sc);
 	goto bad;
     }
@@ -192,7 +192,6 @@ static device_method_t vx_eisa_methods[] = {
 static driver_t vx_eisa_driver = {
 	"vx",
 	vx_eisa_methods,
-	DRIVER_TYPE_NET,
 	1,			/* unused */
 };
 

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.2 1999/04/16 23:39:15 peter Exp $
+ * $Id: atkbdc_isa.c,v 1.3 1999/05/08 20:25:38 peter Exp $
  */
 
 #include "atkbdc.h"
@@ -82,7 +82,6 @@ static device_method_t atkbdc_methods[] = {
 static driver_t atkbdc_driver = {
 	ATKBDC_DRIVER_NAME,
 	atkbdc_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(atkbdc_softc_t *),
 };
 

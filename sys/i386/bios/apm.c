@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.81 1999/05/06 01:07:03 luoqi Exp $
+ *	$Id: apm.c,v 1.82 1999/05/07 10:10:17 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -1059,7 +1059,6 @@ static device_method_t apm_methods[] = {
 static driver_t apm_driver = {
 	"apm",
 	apm_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc (XXX) */
 };
 

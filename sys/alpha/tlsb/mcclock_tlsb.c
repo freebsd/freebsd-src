@@ -1,4 +1,4 @@
-/* $Id: mcclock_tlsb.c,v 1.2 1998/06/14 13:45:26 dfr Exp $ */
+/* $Id: mcclock_tlsb.c,v 1.3 1998/07/31 09:20:01 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -81,7 +81,6 @@ static device_method_t mcclock_tlsb_methods[] = {
 static driver_t mcclock_tlsb_driver = {
 	"mcclock",
 	mcclock_tlsb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct mcclock_tlsb_softc),
 };
 

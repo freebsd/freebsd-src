@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.5 1999/01/18 20:15:07 gallatin Exp $
+ *	$Id: apecs.c,v 1.6 1999/04/16 21:21:38 peter Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -450,8 +450,9 @@ static struct resource *apecs_alloc_resource(device_t bus, device_t child,
 					     u_int flags);
 static int apecs_release_resource(device_t bus, device_t child,
 				  int type, int rid, struct resource *r);
-static int apecs_setup_intr(device_t dev, device_t child, struct resource *irq,
-			  driver_intr_t *intr, void *arg, void **cookiep);
+static int apecs_setup_intr(device_t dev, device_t child,
+			    struct resource *irq, int flags,
+			    driver_intr_t *intr, void *arg, void **cookiep);
 static int apecs_teardown_intr(device_t dev, device_t child,
 			     struct resource *irq, void *cookie);
 
@@ -474,7 +475,6 @@ static device_method_t apecs_methods[] = {
 static driver_t apecs_driver = {
 	"apecs",
 	apecs_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct apecs_softc),
 };
 
@@ -563,7 +563,7 @@ apecs_release_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 apecs_setup_intr(device_t dev, device_t child,
-	       struct resource *irq,
+	       struct resource *irq, int flags,
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error;
@@ -573,7 +573,8 @@ apecs_setup_intr(device_t dev, device_t child,
 	 *  controller, so we need to special case it 
 	 */
 	if(hwrpb->rpb_type == ST_DEC_2100_A50)
-		return isa_setup_intr(dev, child, irq, intr, arg, cookiep);
+		return isa_setup_intr(dev, child, irq, flags,
+				      intr, arg, cookiep);
 
 	error = rman_activate_resource(irq);
 	if (error)

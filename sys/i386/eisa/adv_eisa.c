@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_eisa.c,v 1.2 1998/12/22 18:14:09 gibbs Exp $
+ *	$Id: adv_eisa.c,v 1.3 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -316,7 +316,7 @@ adveisaattach(device_t dev)
 	/*
 	 * Enable our interrupt handler.
 	 */
-	bus_setup_intr(dev, irq, adv_intr, adv, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_CAM, adv_intr, adv, &ih);
 
 	/* Attach sub-devices - always succeeds */
 	adv_attach(adv);
@@ -342,7 +342,6 @@ static device_method_t adv_eisa_methods[] = {
 static driver_t adv_eisa_driver = {
 	"adv",
 	adv_eisa_methods,
-	DRIVER_TYPE_CAM,
 	1,			/* unused */
 };
 
