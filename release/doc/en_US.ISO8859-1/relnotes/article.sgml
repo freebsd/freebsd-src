@@ -280,6 +280,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para>The <application>ACPI-CA</application> code has been updated
+      from the 20030228 snapshot to the 20030619 snapshot.</para>
+
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.6.</para>
 
