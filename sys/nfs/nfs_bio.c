@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.20 1995/12/07 12:47:23 davidg Exp $
+ * $Id: nfs_bio.c,v 1.21 1995/12/17 21:12:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -211,7 +211,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 */
 		if (nfs_numasync > 0 && nmp->nm_readahead > 0) {
 		    for (nra = 0; nra < nmp->nm_readahead &&
-			(lbn + 1 + nra) * biosize < np->n_size; nra++) {
+			(off_t)(lbn + 1 + nra) * biosize < np->n_size; nra++) {
 			rabn = lbn + 1 + nra;
 			if (!incore(vp, rabn)) {
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, p);
@@ -240,7 +240,8 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 */
 again:
 		bufsize = biosize;
-		if ((lbn + 1) * biosize > np->n_size) {
+		if ((off_t)(lbn + 1) * biosize > np->n_size && 
+		    (off_t)(lbn + 1) * biosize - np->n_size < biosize) {
 			bufsize = np->n_size - lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
