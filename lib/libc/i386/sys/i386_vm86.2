@@ -77,6 +77,10 @@ vm86 mode is entered by calling
 with the correct machine context for vm86, and with the
 .Em PSL_VM
 bit set.  Control returns to the process upon delivery of a signal.
+.Pp
+Note that you must have
+.Dq options VM86
+in your kernel configuration file to use this function.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn i386_vm86
