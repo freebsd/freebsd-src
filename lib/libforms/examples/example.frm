@@ -1,9 +1,14 @@
-field1 { attributes = 0 text = "This text is bold and flashy" }
+Colours example_colors {
+	pair = red, yellow
+	pair = blue, white
+}
+
+field1 { attributes = 0 text = "\standout This text is \bold bold and \blink flashy" }
 
 field2 {
 	height = 2
 	width = 22
-	text = "This is an input field with a default"
+	text = "This is an input fieldwith a default"
 }
 
 field3 {

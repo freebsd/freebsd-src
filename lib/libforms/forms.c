@@ -32,6 +32,7 @@
  *
  */
 
+#include <hash.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <forms.h>
@@ -42,8 +43,7 @@
 
 extern FILE *yyin;
 
-struct Tuple *fbind_first;
-struct Tuple *fbind_last;
+hash_table *global_bindings;
 
 unsigned int f_keymap[] = {
 	KEY_UP,         /* F_UP */
@@ -65,6 +65,11 @@ form_load(const char *filename)
 {
 	FILE *fd;
 
+	global_bindings = hash_create(0);
+
+	if (!global_bindings)
+		return (FS_ERROR);
+
 	if (!(fd = fopen(filename, "r"))) {
 		warn("Couldn't open forms file %s", filename);
 		return (FS_ERROR);
@@ -78,17 +83,40 @@ form_load(const char *filename)
 		return (FS_ERROR);
 	}
 
+	hash_stats(global_bindings, 1);
+
 	return (FS_OK);
 }
 
+int
+find_editable(char *key, void *data, void *arg)
+{
+	struct Tuple *tuple = (struct Tuple *)data;
+	struct Field *field;
+
+	if (tuple->type != FT_FIELD_INST)
+		return (1);
+
+	field = (struct Field *)tuple->addr;
+
+	if ((field->type == FF_INPUT) ||
+		(field->type == FF_MENU) ||
+		(field->type == FF_ACTION)) {
+		arg = field;
+		return (0);
+	} else
+		return (1);
+}
+
 struct Form *
-form_start(const char *formname)
+form_start(char *formname)
 {
 	struct Tuple *tuple;
 	struct Form *form;
-	struct Field *field;
+	struct Field *field = 0;
+	struct Field *start = 0;
 
-	tuple = form_get_tuple(formname, FT_FORM);
+	tuple = form_get_tuple(global_bindings, formname, FT_FORM);
 
 	if (!tuple) {
 		warnx("No such form");
@@ -109,22 +137,24 @@ form_start(const char *formname)
 		return (0);
 	}
 
-	tuple = form_get_tuple(form->startfield, FT_FIELD_INST);
+	/* Initialise the field instances */
+
+	hash_traverse(form->bindings, init_field, field);
+
+	tuple = form_get_tuple(form->bindings, form->startfield, FT_FIELD_INST);
 
 	if (!tuple) {
 		warnx("No start field specified");
-		/* XXX should search for better default start */
-		form->current_field = form->fieldlist;
+		/* Search for an editable field */
+		hash_traverse(form->bindings, &find_editable, start);
+		form->current_field = start;
 	} else	
 		form->current_field = (struct Field *)tuple->addr;
 
+	if (!form->current_field)
+		errx(1, "No suitable start field found, aborting");
+
 	form->prev_field = form->current_field;
-
-	/* Initialise the field instances */
-
-	for (field = form->fieldlist; field; field = field->next) {
-		init_field(field);
-	}
 
 	form->status = FS_RUNNING;
 
@@ -132,7 +162,7 @@ form_start(const char *formname)
 }
 
 int
-form_bind_tuple(char *name, TupleType type, void *addr)
+form_bind_tuple(hash_table *htable, char *name, TupleType type, void *addr)
 {
 	struct Tuple *tuple;
 
@@ -147,54 +177,71 @@ form_bind_tuple(char *name, TupleType type, void *addr)
 	tuple->addr = addr;
 	tuple->next = 0;
 
-
-	if (!fbind_first) {
-		fbind_first = tuple;
-		fbind_last = tuple;
-	} else {
+	if (!htable)
+		return (FS_ERROR);
+	else {
 		/* Check there isn't already a tuple of this type with this name */
-		if (form_get_tuple(name, type)) {
+		if (form_get_tuple(htable, name, type)) {
 			warn("Duplicate tuple name, %s, skipping", name);
 			return (FS_ERROR);
-		}
-		fbind_last->next = tuple;
-		fbind_last = tuple;
-	}
-
-	return (0);
-}
-
-struct Tuple *
-form_get_tuple(const char *name, TupleType type)
-{
-	return (form_next_tuple(name, type, fbind_first));
-}
-
-struct Tuple *
-form_next_tuple(const char *name, TupleType type, struct Tuple *tuple)
-{
-	for (; tuple; tuple = tuple->next) {
-		if (type != FT_ANY)
-			if (tuple->type != type)
-				continue;
-		if (name)
-			if (strcmp(name, tuple->name))
-				continue;
-		return (tuple);
+		} else
+			hash_search(htable, tuple->name, tuple, NULL);
 	}
 
 	return (0);
 }
 
 int
-form_show(const char *formname)
+tuple_match_any(char *key, struct Tuple *tuple, TupleType *type)
+{
+	if (tuple->type != *type) {
+		type = 0;
+		return (1);
+	} else {
+		type = (TupleType *)tuple;
+		return (0);
+	}
+}
+
+struct Tuple *
+form_get_tuple(hash_table *htable, char *key, TupleType type)
+{
+	void *arg = &type;
+
+	/*
+	 * If a key is specified then search for that key,
+	 * otherwise, search the whole table for the first
+	 * tuple of the required type.
+	 */
+
+	if (key)
+		return(hash_search(htable, key, NULL, NULL));
+	else {
+		hash_traverse(htable, &tuple_match_any, arg);
+		return (arg);
+	}
+}
+
+int
+show_field(char *key, void *data, void *arg)
+{
+	struct Tuple *tuple = (struct Tuple *)data;
+	struct Field *field = (struct Field *)tuple->addr;
+
+	display_field(arg, field);
+
+	return (1);
+
+}
+
+int
+form_show(char *formname)
 {
 	struct Tuple *tuple;
 	struct Form *form;
-	struct Field *field;
 	int x, y;
 
-	tuple = form_get_tuple(formname, FT_FORM);
+	tuple = form_get_tuple(global_bindings, formname, FT_FORM);
 	if (!tuple)
 		return (FS_NOBIND);
 
@@ -206,9 +253,7 @@ form_show(const char *formname)
 		for (x=0; x < form->width; x++)
 			mvwaddch(form->window, y, x, ' ');
 
-	for (field = form->fieldlist; field; field = field->next) {
-		display_field(form->window, field);
-	}
+	hash_traverse(form->bindings, show_field, form->window);
 
 	return (FS_OK);
 }
@@ -223,35 +268,35 @@ do_key_bind(struct Form *form, unsigned int ch)
 
 	if (ch == FK_UP) {
 		if (field->fup) {
-			tuple = form_get_tuple(field->fup, FT_FIELD_INST);
+			tuple = form_get_tuple(form->bindings, field->fup, FT_FIELD_INST);
 			if (!tuple)
 				print_status("Field to move up to does not exist");
 		} else
 			print_status("Can't move up from this field");
 	} else if (ch == FK_DOWN) {
 		if (field->fdown) {
-			tuple = form_get_tuple(field->fdown, FT_FIELD_INST);
+			tuple = form_get_tuple(form->bindings, field->fdown, FT_FIELD_INST);
 			if (!tuple)
 				print_status("Field to move down to does not exist");
 		} else
 			print_status("Can't move down from this field");
 	} else if (ch == FK_LEFT) {
 		if (field->fleft) {
-			tuple = form_get_tuple(field->fleft, FT_FIELD_INST);
+			tuple = form_get_tuple(form->bindings, field->fleft, FT_FIELD_INST);
 			if (!tuple)
 				print_status("Field to move left to does not exist");
 		} else
 			print_status("Can't move left from this field");
 	} else if (ch == FK_RIGHT) {
 		if (field->fright) {
-			tuple = form_get_tuple(field->fright, FT_FIELD_INST);
+			tuple = form_get_tuple(form->bindings, field->fright, FT_FIELD_INST);
 			if (!tuple)
 				print_status("Field to move right to does not exist");
 		} else
 			print_status("Can't move right from this field");
 	} else if (ch == FK_NEXT) {
 		if (field->fnext) {
-			tuple = form_get_tuple(field->fnext, FT_FIELD_INST);
+			tuple = form_get_tuple(form->bindings, field->fnext, FT_FIELD_INST);
 			if (!tuple)
 				print_status("Field to move to next does not exist");
 		} else
@@ -270,12 +315,13 @@ do_key_bind(struct Form *form, unsigned int ch)
 	}
 }
 
+#ifdef DEBUG_NOT_YET
 void
-debug_dump_bindings()
+debug_dump_bindings(hash_table *htable)
 {
 	struct Tuple *binds;
 
-	binds = form_get_tuple(0, FT_ANY);
+	binds = form_get_tuple(htable, 0, FT_ANY);
 	while (binds) {
 		printf("%s, %d, %x\n", binds->name, binds->type, (int)binds->addr);
 		binds = form_next_tuple(0, FT_ANY, binds->next);
@@ -292,3 +338,4 @@ void debug_dump_form(struct Form *form)
 		printf("%s, %x, next = %x\n", field->defname, (int)field, (int)field->next);
 	}
 }
+#endif

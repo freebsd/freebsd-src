@@ -58,8 +58,9 @@ unsigned int do_key_bind(struct Form *, unsigned int);
 int do_action(struct Form *);
 int do_menu(struct Form *);
 int do_input(struct Form *);
-int init_field(struct Field *);
-
+int init_field(char *, void *, void *);
+int calc_string_width(char *);
+void calc_field_height(struct Field *, char *);
 
 #ifdef not
 static void show_form(struct form *);

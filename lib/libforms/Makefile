@@ -2,7 +2,7 @@ LIB = forms
 
 SRCS = forms.c parser.y lex.l menu.c fields.c
 
-CFLAGS += -I. -I${.CURDIR} -Wall -g
+CFLAGS += -I. -I${.CURDIR} -Wall -g -DHASH_STATS
 LDFLAGS += -ll
 
 beforeinstall:
