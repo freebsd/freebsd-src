@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.68 1995/07/20 16:26:25 wollman Exp $
+#	$Id: rc,v 1.69 1995/09/14 02:44:47 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -302,10 +302,14 @@ if [ -f /etc/rc.$arch ]; then
 	. /etc/rc.$arch
 fi
 
-# Do traditional (but rather obsolete) rc.local file if it exists.
-if [ -f /etc/rc.local ]; then
-	sh /etc/rc.local
+if [ -d /etc/rc.local.d ]; then
+	for script in /etc/rc.local.d/*.sh; do
+		[ -x $script ] && $script start
+	done
 fi
+
+# Do traditional (but rather obsolete) rc.local file if it exists.
+[ -x /etc/rc.local ] && /etc/rc.local
 
 date
 exit 0
