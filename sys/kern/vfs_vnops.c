@@ -473,9 +473,7 @@ vn_stat(vp, sb, p)
 
 	if (vap->va_type == VREG) {
 		sb->st_blksize = vap->va_blocksize;
-	} else if ((vp->v_type == VBLK || vp->v_type == VCHR) &&
-	    devsw(vp->v_rdev) && (devsw(vp->v_rdev)->d_flags & D_DISK)) {
-		/* XXX use vn_isdisk() above once VCHR is also disk */
+	} else if (vn_isdisk(vp, NULL)) {
 		sb->st_blksize = vp->v_rdev->si_bsize_best;
 		if (sb->st_blksize < vp->v_rdev->si_bsize_phys)
 			sb->st_blksize = vp->v_rdev->si_bsize_phys;

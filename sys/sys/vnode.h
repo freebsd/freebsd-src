@@ -569,7 +569,7 @@ int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
 	    struct proc *p));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
-int	vn_isdisk __P((struct vnode *vp));
+int	vn_isdisk __P((struct vnode *vp, int *errp));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
 #ifdef	DEBUG_LOCKS
 int	debug_vn_lock __P((struct vnode *vp, int flags, struct proc *p,

@@ -1603,10 +1603,8 @@ ccdlookup(path, p, vpp)
 		goto bad;
 	}
 
-	if (!vn_isdisk(vp)) {
-		error = ENOTBLK;
+	if (!vn_isdisk(vp, &error)) 
 		goto bad;
-	}
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_VNODE)

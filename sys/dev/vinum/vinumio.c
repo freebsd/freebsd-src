@@ -77,16 +77,15 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		drive->devicename,
 		drive->vp->v_usecount);
     }
-    if (!vn_isdisk(drive->vp)) {			    /* only consider disks */
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+    if (!vn_isdisk(drive->vp, &drive->lasterror)) {	    /* only consider disks */
+    	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VOP_UNLOCK(drive->vp, 0, drive->p);
 	close_drive(drive);
-	drive->lasterror = ENOTBLK;
 	if (verbose)
 	    log(LOG_WARNING,
 		"vinum open_drive %s: Not a block device\n",
 		drive->devicename);
-	return ENOTBLK;
+	return drive->lasterror;
     }
     drive->vp->v_numoutput = 0;
     VOP_UNLOCK(drive->vp, 0, drive->p);
