@@ -1378,6 +1378,14 @@ contrib/ngatm/netnatm/msg/traffic.c		optional ngatm_atmbase
 contrib/ngatm/netnatm/msg/uni_ie.c		optional ngatm_atmbase
 contrib/ngatm/netnatm/msg/uni_msg.c		optional ngatm_atmbase
 netgraph/atm/ng_atm.c		optional ngatm_atm
+netgraph/atm/ccatm/ng_ccatm.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_conn.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_data.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_dump.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_port.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_sig.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/cc_user.c		optional ngatm_ccatm
+contrib/ngatm/netnatm/api/unisap.c		optional ngatm_ccatm
 netgraph/atm/sscfu/ng_sscfu.c		optional ngatm_sscfu
 contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
 netgraph/atm/sscop/ng_sscop.c		optional ngatm_sscop
