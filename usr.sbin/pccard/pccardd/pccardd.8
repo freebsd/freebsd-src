@@ -119,6 +119,10 @@ parameters.
 This will change significantly when loadable kernel
 modules are supported.
 .Pp
+SIGHUP causes
+.Nm
+to reload the configuration files.
+.Pp
 The start options understood by
 .Nm
 are:
@@ -150,7 +154,12 @@ interface to the card.
 .Sh FILES
 .Bl -tag -width /etc/defaults/pccard.conf -compact
 .It Pa /etc/defaults/pccard.conf
+default configuration file
 .It Pa /etc/pccard.conf
+user configuration file
+.It Pa /var/run/pccardd.pid
+process id of of the currently running
+.Nm
 .El
 .Sh SEE ALSO
 .Xr pccard.conf 5 ,

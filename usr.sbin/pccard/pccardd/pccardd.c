@@ -29,6 +29,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,86 @@ static const char rcsid[] =
 #include "cardd.h"
 
 char   *config_file = "/etc/defaults/pccard.conf";
+static char *pid_file = "/var/run/pccardd.pid";
+
+/* SIGHUP signal handler */
+static void
+restart(void)
+{
+	bitstr_t bit_decl(io_inuse, IOPORTS);
+	bitstr_t bit_decl(mem_inuse, MEMBLKS);
+	int	irq_inuse[16];
+	int	i;
+
+	bit_nclear(io_inuse, 0, IOPORTS-1);
+	bit_nclear(mem_inuse, 0, MEMBLKS-1);
+	bzero(irq_inuse, sizeof(irq_inuse));
+
+	/* compare the initial and current state of resource pool */
+	for (i = 0; i < IOPORTS; i++) {
+		if (bit_test(io_init, i) == 1 && bit_test(io_avail, i) == 0) {
+			if (debug_level >= 1) {
+				logmsg("io 0x%x seems to be in use\n", i);
+			}
+			bit_set(io_inuse, i);
+		}
+	}
+	for (i = 0; i < MEMBLKS; i++) {
+		if (bit_test(mem_init, i) == 1 && bit_test(mem_avail, i) == 0) {
+			if (debug_level >= 1) {
+				logmsg("mem 0x%x seems to be in use\n", i);
+			}
+			bit_set(mem_inuse, i);
+		}
+	}
+	for (i = 0; i < 16; i++) {
+		if (irq_init[i] == 1 && pool_irq[i] == 0) {
+			if (debug_level >= 1) {
+				logmsg("irq %d seems to be in use\n", i);
+			}
+			irq_inuse[i] = 1;
+		}
+	}
+
+	readfile(config_file);
+
+	/* reflect used resources to managed resource pool */
+	for (i = 0; i < IOPORTS; i++) {
+		if (bit_test(io_inuse, i) == 1) {
+			bit_clear(io_avail, i);
+		}
+	}
+	for (i = 0; i < MEMBLKS; i++) {
+		if (bit_test(mem_inuse, i) == 1) {
+			bit_clear(mem_avail, i);
+		}
+	}
+	for (i = 0; i < 16; i++) {
+		if (irq_inuse[i] == 1) {
+			pool_irq[i] = 0;
+		}
+	}
+}
+
+/* SIGTERM/SIGINT signal handler */
+static void
+term(int sig)
+{
+	logmsg("pccardd terminated: signal %d received", sig);
+	(void)unlink(pid_file);
+	exit(0);
+}
+
+static void
+write_pid()
+{
+	FILE *fp = fopen(pid_file, "w");
+
+	if (fp) {
+		fprintf(fp, "%d\n", getpid());
+		fclose(fp);
+	}
+}
 
 /*
  *	mainline code for cardd
@@ -90,9 +171,11 @@ main(int argc, char *argv[])
 	dodebug = 1;
 #endif
 	io_avail = bit_alloc(IOPORTS);	/* Only supports ISA ports */
+	io_init  = bit_alloc(IOPORTS);
 
 	/* Mem allocation done in MEMUNIT units. */
 	mem_avail = bit_alloc(MEMBLKS);
+	mem_init  = bit_alloc(MEMBLKS);
 	readfile(config_file);
 	if (doverbose)
 		dump_config_file();
@@ -107,6 +190,12 @@ main(int argc, char *argv[])
 		if (daemon(0, 0))
 			die("fork failed");
 	logmsg("pccardd started", NULL);
+	write_pid();
+
+	(void)signal(SIGINT, dodebug ? term : SIG_IGN);
+	(void)signal(SIGTERM, term);
+	(void)signal(SIGHUP, (void (*)(int))restart);
+
 	for (;;) {
 		fd_set  mask;
 		FD_ZERO(&mask);
