@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.23 1994/01/31 06:12:18 davidg Exp $
+ *	$Id: sio.c,v 1.24 1994/01/31 08:52:12 ache Exp $
  */
 
 #include "sio.h"
@@ -1575,7 +1575,11 @@ sioselect(dev, rw, p)
 	int		rw;
 	struct proc	*p;
 {
+#ifdef COM_BIDIR
 	return ttselect(dev & ~COM_CALLOUTMASK, rw, p);
+#else
+	return ttselect(dev, rw, p);
+#endif
 }
 
 static void
