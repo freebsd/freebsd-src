@@ -86,8 +86,8 @@ SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	&freebsd_brand_info);
 
 /* Process one elf relocation with addend. */
-int
-elf_reloc(linker_file_t lf, const void *data, int type)
+static int
+elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
@@ -114,6 +114,15 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 		break;
 	default:
 		panic("unknown reloc type %d\n", type);
+	}
+
+	if (local) {
+		if (rtype == R_386_RELATIVE) {	/* A + B */
+			addr = relocbase + addend;
+			if (*where != addr)
+				*where = addr;
+		}
+		return (0);
 	}
 
 	switch (rtype) {
@@ -156,10 +165,7 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 				*where = addr;
 			break;
 
-		case R_386_RELATIVE:	/* B + A */
-			addr = relocbase + addend;
-			if (*where != addr)
-				*where = addr;
+		case R_386_RELATIVE:
 			break;
 
 		default:
@@ -168,6 +174,20 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 			return -1;
 	}
 	return(0);
+}
+
+int
+elf_reloc(linker_file_t lf, const void *data, int type)
+{
+
+	return (elf_reloc_internal(lf, data, type, 0));
+}
+
+int
+elf_reloc_local(linker_file_t lf, const void *data, int type)
+{
+
+	return (elf_reloc_internal(lf, data, type, 1));
 }
 
 int
