@@ -27,7 +27,6 @@ static const char rcsid[] =
 #endif
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
