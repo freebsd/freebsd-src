@@ -5,11 +5,12 @@
  * created from	Id: syscalls.master,v 1.44 1997/10/26 20:27:51 phk Exp 
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
-#include "opt_compat.h"
 #ifdef COMPAT_43
 #define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)
 #else
