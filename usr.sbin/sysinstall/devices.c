@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.91 1999/05/21 04:37:48 wpaul Exp $
+ * $Id: devices.c,v 1.92 1999/05/27 10:32:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,8 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"en",		"Efficient Networks ATM PCI card"				},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"		},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"		},
-    { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"					},
+    { DEVICE_TYPE_NETWORK,	"ed",		"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"		},
+    { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card/3C589 PCMCIA"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"ex",		"Intel EtherExpress Pro/10 ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"			},
@@ -253,19 +253,19 @@ deviceGetAll(void)
 
 	/* If it's not a link entry, forget it */
 	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
-	    continue;
+	    goto loopend;
 
 	/* Eliminate network devices that don't make sense */
 	if (!strncmp(ifptr->ifr_name, "lo", 2))
-	    continue;
+	    goto loopend;
 
 	/* If we have a slip device, don't register it */
 	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
-	    continue;
+	    goto loopend;
 	}
 	/* And the same for ppp */
 	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
-	    continue;
+	    goto loopend;
 	}
 	/* Try and find its description */
 	for (i = 0, descr = NULL; device_names[i].name; i++) {
@@ -288,6 +288,7 @@ deviceGetAll(void)
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	    continue;
 
+loopend:
 	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
 	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
     }
