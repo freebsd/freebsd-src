@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.23 1996/05/29 16:32:27 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.24 1996/05/31 02:36:41 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -76,28 +76,6 @@ constitutes an endorsement of a given hardware vendor or product by
 service and merely catalogs some of the experiences that various individuals
 have had with different hardware combinations.  Your mileage may vary.
 Slippery when wet.  Beware of dog.
-
- <sect1><heading>FreeBSD on Laptop computers</heading>
-
-    <p>Because laptop computers operate under a unique set of constraints,
-    they often behave differently or require more specialized knowledge
-    than their desktop and deskside PC siblings.  This section attempts to
-    list the most useful (and current) laptop specific information on the
-    net.
-
-  <sect2><heading><htmlurl url="mailto:hosokawa@mt.cs.keio.ac.jp"
-    name="Tatsumi Hosokawa's"><htmlurl
-    url="http://www.mt.cs.keio.ac.jp/person/hosokawa/freebsd-pcmcia/"
-    name="PCCARD driver"> page.</heading></sect2>
-
-  <sect2><heading>FreeBSD on the <htmlurl
-    url="http://www.cs.ruu.nl/people/edwin/FreeBSD/"
-    name="Toshiba Satellite Pro 410CDT Notebook"></heading></sect2>
-
-  <sect2><heading>FreeBSD on the <htmlurl
-    url="http://www.kfu.com/~nsayer/zenith/"
-    name="Zenith Z-NoteFlex Laptop"></heading></sect2>
- </sect1>
 
  <sect1><heading>Jordan's Picks</heading>
     <p>I have had fairly good luck building workstation and server
