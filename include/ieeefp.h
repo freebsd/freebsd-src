@@ -11,15 +11,15 @@
 #include <sys/cdefs.h>
 #include <machine/ieeefp.h>
 
-#ifdef	i386
+#ifdef __i386__
 #include <machine/floatingpoint.h>
-#else
+#else /* !__i386__ */
 extern fp_rnd    fpgetround __P((void));
 extern fp_rnd    fpsetround __P((fp_rnd));
 extern fp_except fpgetmask __P((void));
 extern fp_except fpsetmask __P((fp_except));
 extern fp_except fpgetsticky __P((void));
 extern fp_except fpsetsticky __P((fp_except));
-#endif /* i386 */
+#endif /* __i386__ */
 
 #endif /* _IEEEFP_H_ */
