@@ -196,6 +196,7 @@ options 	PERFMON
 # potential increase in response times.
 # It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
 # to achieve smoother behaviour.
+# DEVICE_POLLING does not work with SMP.
 # Additionally, you can enable/disable polling at runtime with the
 # sysctl variable kern.polling.enable (defaults off), and select
 # the CPU fraction reserved to userland with the sysctl variable
