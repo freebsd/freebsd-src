@@ -1977,13 +1977,17 @@ set_regs(td, regs)
 }
 
 int
-get_mcontext(struct thread *td, mcontext_t *mcp)
+get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	/*
 	 * Use a trapframe for getsetcontext, so just copy the
 	 * threads trapframe.
 	 */
-	bcopy(&td->td_frame, &mcp->mc_regs, sizeof(td->td_frame));
+	bcopy(td->td_frame, &mcp->mc_regs, sizeof(struct trapframe));
+	if (clear_ret != 0) {
+		mcp->mc_regs[FRAME_V0] = 0;
+		mcp->mc_regs[FRAME_A4] = 0;
+	}
 
 	/*
 	 * When the thread is the current thread, the user stack pointer
@@ -2029,7 +2033,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		 * The context is a trapframe, so just copy it over the
 		 * threads frame.
 		 */
-		bcopy(&mcp->mc_regs, &td->td_frame, sizeof(td->td_frame));
+		bcopy(&mcp->mc_regs, td->td_frame, sizeof(struct trapframe));
 	}
 	return (0);
 }

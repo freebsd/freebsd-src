@@ -2359,7 +2359,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
  * Get machine context.
  */
 int
-get_mcontext(struct thread *td, mcontext_t *mcp)
+get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tp;
 
@@ -2376,10 +2376,15 @@ get_mcontext(struct thread *td, mcontext_t *mcp)
 	mcp->mc_esi = tp->tf_esi;
 	mcp->mc_ebp = tp->tf_ebp;
 	mcp->mc_isp = tp->tf_isp;
+	if (clear_ret != 0) {
+		mcp->mc_eax = 0;
+		mcp->mc_edx = 0;
+	} else {
+		mcp->mc_eax = tp->tf_eax;
+		mcp->mc_edx = tp->tf_edx;
+	}
 	mcp->mc_ebx = tp->tf_ebx;
-	mcp->mc_edx = tp->tf_edx;
 	mcp->mc_ecx = tp->tf_ecx;
-	mcp->mc_eax = tp->tf_eax;
 	mcp->mc_eip = tp->tf_eip;
 	mcp->mc_cs = tp->tf_cs;
 	mcp->mc_eflags = tp->tf_eflags;
