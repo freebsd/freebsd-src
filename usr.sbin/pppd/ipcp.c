@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: ipcp.c,v 1.9 1997/08/19 17:52:38 peter Exp $";
 #endif
 
 /*
@@ -1085,10 +1085,12 @@ ip_check_options()
 	option_error("remote IP address required for demand-dialling\n");
 	exit(1);
     }
+#if 0
     if (demand && wo->accept_remote) {
 	option_error("ipcp-accept-remote is incompatible with demand\n");
 	exit(1);
     }
+#endif
 }
 
 
