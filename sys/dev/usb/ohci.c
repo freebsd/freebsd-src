@@ -1036,6 +1036,8 @@ ohci_intr1(sc)
 
 	if (intrs == 0) {
 		/* nothing to be done ?! */
+		printf("%s: interrupt, but not for us\n",
+		       USBDEVNAME(sc->sc_bus.bdev));
 		return (0);
 	}
 
