@@ -439,7 +439,10 @@ loop:
 			continue;
 
 		nfound++;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SZOMB) {
+			mtx_exit(&sched_lock, MTX_SPIN);
+
 			/* charge childs scheduling cpu usage to parent */
 			if (curproc->p_pid != 1) {
 				curproc->p_estcpu =
@@ -542,6 +545,7 @@ loop:
 		}
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			p->p_flag |= P_WAITED;
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
@@ -558,6 +562,7 @@ loop:
 				error = 0;
 			return (error);
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 	if (nfound == 0)
 		return (ECHILD);
