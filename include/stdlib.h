@@ -222,7 +222,6 @@ extern const char *_malloc_options;
 extern void (*_malloc_message)(const char *, const char *, const char *,
 	    const char *);
 
-#ifndef alloca
 /*
  * The alloca() function can't be implemented in C, and on some
  * platforms it can't be implemented at all as a callable function.
@@ -232,11 +231,13 @@ extern void (*_malloc_message)(const char *, const char *, const char *,
  * programs which use it will fail to link when compiled with non-GNU
  * compilers.
  */
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
+#undef  alloca	/* some GNU bits try to get cute and define this on their own */
 #define alloca(sz) __builtin_alloca(sz)
-#else
+#elif defined(lint)
 void	*alloca(size_t);
-#endif
+#error Please add alloca support on all FreeBSD architectures for this compiler.
+#else
 #endif
 
 __uint32_t
