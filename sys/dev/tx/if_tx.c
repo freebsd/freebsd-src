@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.29 1999/07/06 19:23:30 des Exp $ */
+/*	$Id: if_tx.c,v 1.30 1999/08/21 06:24:35 msmith Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -125,6 +125,7 @@
 
 #include <dev/pci/if_txvar.h>
 #else /* __FreeBSD__ */
+#include <sys/eventhandler.h>
 #include <net/if_mib.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>

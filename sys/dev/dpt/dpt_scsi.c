@@ -43,13 +43,14 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.24 1999/08/16 01:49:35 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.25 1999/08/21 06:24:02 msmith Exp $"
 
 #define _DPT_C_
 
 #include "opt_dpt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>

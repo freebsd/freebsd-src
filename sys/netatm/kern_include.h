@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: kern_include.h,v 1.7 1998/07/23 21:44:40 root Exp $
+ *	@(#) $Id: kern_include.h,v 1.1 1998/09/15 08:22:59 phk Exp $
  *
  */
 
@@ -69,6 +69,7 @@
 #endif
 
 #ifdef __FreeBSD__
+#include <sys/eventhandler.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>

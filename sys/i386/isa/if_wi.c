@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.8 1999/07/06 19:22:53 des Exp $
+ *	$Id: if_wi.c,v 1.9 1999/08/21 06:24:15 msmith Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -116,7 +117,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.8 1999/07/06 19:22:53 des Exp $";
+	"$Id: if_wi.c,v 1.9 1999/08/21 06:24:15 msmith Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
