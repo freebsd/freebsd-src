@@ -35,6 +35,7 @@ options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
+options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCLIENT		#Network Filesystem Client
@@ -53,6 +54,10 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
+options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~215k to driver.
 
 # Debugging for use in -current
 options 	DDB			#Enable the kernel debugger
@@ -83,12 +88,13 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		ahd		# AHA39320 and onboard AIC79xx devices
+device		ahd		# AHA39320/29320 and onboard AIC79xx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		trm		# Tekram DC395U/UW/F DC315U adapters
 
 device		adv		# Advansys SCSI adapters
 device		adw		# Advansys wide SCSI adapters
@@ -122,6 +128,7 @@ device		aacp		# SCSI passthrough for aac (requires CAM)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
+device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware ATA RAID
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
@@ -178,7 +185,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		pcn		# AMD Am79C97x PCI 10/100 NICs
+device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'lnc')
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
@@ -188,6 +195,7 @@ device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
 
 # ISA Ethernet NICs.  pccard nics included.
 device		cs		# Crystal Semiconductor CS89x0 NIC
