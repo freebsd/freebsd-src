@@ -1,5 +1,5 @@
 # Makefile for uuname
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 15:28:43 peter Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
@@ -12,7 +12,6 @@ DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
 		-DVERSION=\"$(VERSION)\"
 
-NOMAN=		noman
 
 .include <bsd.prog.mk>
 .PATH: $(.CURDIR)/../common_sources
