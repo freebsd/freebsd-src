@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.73 1998/02/04 22:32:16 eivind Exp $
+ *      $Id: aha1542.c,v 1.74 1998/02/06 12:13:14 eivind Exp $
  */
 
 /*
@@ -20,6 +20,7 @@
  */
 
 #include "aha.h"
+#include "opt_tune_1542.h"
 
 #include <sys/param.h>
 #include <sys/buf.h>
