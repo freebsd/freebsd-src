@@ -1115,8 +1115,9 @@ aac_alloc_commands(struct aac_softc *sc)
 
 	/* allocate the FIBs in DMAable memory and load them */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&sc->aac_fibs,
-			 BUS_DMA_NOWAIT, &sc->aac_fibmap)) {
-		return(ENOMEM);
+			     BUS_DMA_NOWAIT, &sc->aac_fibmap)) {
+		printf("Not enough contiguous memory available.\n");
+		return (ENOMEM);
 	}
 	bus_dmamap_load(sc->aac_fib_dmat, sc->aac_fibmap, sc->aac_fibs, 
 			AAC_FIB_COUNT * sizeof(struct aac_fib),
@@ -1132,7 +1133,7 @@ aac_alloc_commands(struct aac_softc *sc)
 		if (!bus_dmamap_create(sc->aac_buffer_dmat, 0, &cm->cm_datamap))
 			aac_release_command(cm);
 	}
-	return(0);
+	return (0);
 }
 
 /*
