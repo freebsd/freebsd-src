@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.11 1995/05/23 18:06:16 jkh Exp $
+ * $Id: tcpip.c,v 1.12 1995/05/24 01:27:15 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -578,7 +578,7 @@ tcpStartPPP(void)
     fd = open("/dev/ttyv2", O_RDWR);
     if (fd == -1)
 	return FALSE;
-
+    Mkdir("/var/log", NULL);
     if (!fork()) {
 	dup2(fd, 0);
 	dup2(fd, 1);
