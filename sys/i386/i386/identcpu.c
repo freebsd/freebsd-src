@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.29 1997/10/03 14:23:47 kato Exp $
+ *	$Id: identcpu.c,v 1.30 1997/10/28 11:43:43 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -638,7 +638,7 @@ finishidentcpu(void)
 				cpu = CPU_CY486DX;
 				break;
 			case 0x20:
-				if ((cyrix_did & 0x00f0) < 8)
+				if ((cyrix_did & 0x000f) < 8)
 					cpu = CPU_M1;
 				else
 					cpu = CPU_M1SC;
