@@ -180,6 +180,24 @@ again:
 				sblock.fs_maxbpg = i;
 				continue;
 
+			case 'f':
+				name = "average file size";
+				if (argc < 1)
+					errx(10, "-a: missing %s", name);
+				argc--, argv++;
+				i = atoi(*argv);
+				if (i < 1)
+					errx(10, "%s must be >= 1 (was %s)", name, *argv);
+				if (sblock.fs_avgfilesize == i) {
+					warnx("%s remains unchanged as %d",
+						name, i);
+				} else {
+					warnx("%s changes from %d to %d",
+						name, sblock.fs_avgfilesize, i);
+					sblock.fs_avgfilesize = i;
+				}
+				break;
+
 			case 'm':
 				name = "minimum percentage of free space";
 				if (argc < 1)
@@ -247,6 +265,24 @@ again:
 					warnx(OPTWARN, "space", "<", MINFREE);
 				continue;
 
+			case 's':
+				name = "expected number of files per directory";
+				if (argc < 1)
+					errx(10, "-a: missing %s", name);
+				argc--, argv++;
+				i = atoi(*argv);
+				if (i < 1)
+					errx(10, "%s must be >= 1 (was %s)", name, *argv);
+				if (sblock.fs_avgfpdir == i) {
+					warnx("%s remains unchanged as %d",
+						name, i);
+				} else {
+					warnx("%s changes from %d to %d",
+						name, sblock.fs_avgfpdir, i);
+					sblock.fs_avgfpdir = i;
+				}
+				break;
+
 			default:
 				usage();
 			}
@@ -268,9 +304,9 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-m minfree]",
-"              [-p] [-n enable | disable] [-o optimize_preference]",
-"              [special | filesystem]");
+"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-f avgfilesize]",
+"              [-m minfree] [-p] [-n enable | disable] [-o space | time]",
+"              [-s filesperdir] [special | filesystem]");
 	exit(2);
 }
 
@@ -327,6 +363,10 @@ printfs()
 	      sblock.fs_rotdelay);
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
+	warnx("average file size: (-f)                            %d",
+	      sblock.fs_avgfilesize);
+	warnx("average number of files in a directory: (-s)       %d",
+	      sblock.fs_avgfpdir);
 	warnx("minimum percentage of free space: (-m)             %d%%",
 	      sblock.fs_minfree);
 	warnx("optimization preference: (-o)                      %s",

@@ -162,9 +162,7 @@ void	fatal();
  * The number of sectors are used to determine the size of a cyl-group.
  * Kirk suggested one or two meg per "cylinder" so we say two.
  */
-
 #define NTRACKS		1	/* number of heads */
-
 #define NSECTORS	4096	/* number of sectors */
 
 int	mfs;			/* run as the memory based filesystem */
@@ -198,6 +196,8 @@ int	maxcontig = 0;		/* max contiguous blocks to allocate */
 int	rotdelay = ROTDELAY;	/* rotational delay between blocks */
 int	maxbpg;			/* maximum blocks per file in a cyl group */
 int	nrpos = NRPOS;		/* # of distinguished rotational positions */
+int	avgfilesize = AVFILESIZ;/* expected average file size */
+int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
 int	mntflags = MNT_ASYNC;	/* flags to be passed to mount */
@@ -249,8 +249,8 @@ main(argc, argv)
 	}
 
 	opstring = mfs ?
-	    "NF:T:Ua:b:c:d:e:f:i:m:o:s:" :
-	    "NOS:T:Ua:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:vx:";
+	    "NF:T:Ua:b:c:d:e:f:g:h:i:m:o:s:" :
+	    "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
 		case 'N':
@@ -300,6 +300,14 @@ main(argc, argv)
 		case 'f':
 			if ((fsize = atoi(optarg)) <= 0)
 				fatal("%s: bad fragment size", optarg);
+			break;
+		case 'g':
+			if ((avgfilesize = atoi(optarg)) <= 0)
+				fatal("%s: bad average file size", optarg);
+			break;
+		case 'h':
+			if ((avgfilesperdir = atoi(optarg)) <= 0)
+				fatal("%s: bad average files per dir", optarg);
 			break;
 		case 'i':
 			if ((density = atoi(optarg)) <= 0)
@@ -761,6 +769,8 @@ usage()
 	fprintf(stderr, "\t-d rotational delay between contiguous blocks\n");
 	fprintf(stderr, "\t-e maximum blocks per file in a cylinder group\n");
 	fprintf(stderr, "\t-f frag size\n");
+	fprintf(stderr, "\t-g average file size\n");
+	fprintf(stderr, "\t-h average files per directory\n");
 	fprintf(stderr, "\t-i number of bytes per inode\n");
 	fprintf(stderr, "\t-k sector 0 skew, per track\n");
 	fprintf(stderr, "\t-l hardware sector interleave\n");

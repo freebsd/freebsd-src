@@ -119,6 +119,8 @@ extern int	maxbpg;		/* maximum blocks per file in a cyl group */
 extern int	nrpos;		/* # of distinguished rotational positions */
 extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
+extern int	avgfilesize;	/* expected average file size */
+extern int	avgfilesperdir;	/* expected number of files per directory */
 extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
 extern char *	filename;
@@ -273,6 +275,17 @@ mkfs(pp, fsys, fi, fo)
 		printf("preposterous ntrak %d\n", sblock.fs_ntrak), exit(14);
 	if (sblock.fs_nsect <= 0)
 		printf("preposterous nsect %d\n", sblock.fs_nsect), exit(15);
+	/*
+	 * collect and verify the filesystem density info
+	 */
+	sblock.fs_avgfilesize = avgfilesize;
+	sblock.fs_avgfpdir = avgfilesperdir;
+	if (sblock.fs_avgfilesize <= 0)
+		printf("illegal expected average file size %d\n",
+		    sblock.fs_avgfilesize), exit(14);
+	if (sblock.fs_avgfpdir <= 0)
+		printf("illegal expected number of files per directory %d\n",
+		    sblock.fs_avgfpdir), exit(15);
 	/*
 	 * collect and verify the block and fragment sizes
 	 */
