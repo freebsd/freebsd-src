@@ -273,6 +273,7 @@ deviceGetAll(void)
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0)
 	goto skipif;	/* Jump over network iface probing */
 
+    close(s);
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
     for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
@@ -319,6 +320,7 @@ deviceGetAll(void)
 loopend:
 	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
 	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
+	close(s);
     }
 
 skipif:

@@ -56,8 +56,13 @@ intr_reboot(dialogMenuItem *self)
 static int
 intr_restart(dialogMenuItem *self)
 {
-    int ret;
+    int ret, fd, fdmax;
+
+    mediaClose();
     free_variables();
+    fdmax = getdtablesize();
+    for (fd = 3; fd < fdmax; fd++)
+	close(fd);
     ret = execl(StartName, StartName, (char *)NULL);
     msgDebug("execl failed (%s)\n", strerror(errno));
     /* NOTREACHED */
