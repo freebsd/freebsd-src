@@ -19,9 +19,10 @@
  *    conditions are met.
  *
  * Login period parsing and comparison functions.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
