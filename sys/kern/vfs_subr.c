@@ -1912,32 +1912,29 @@ vrele(vp)
 
 		return;
 	}
-
-	if (vp->v_usecount == 1) {
-		v_incr_usecount(vp, -1);
-		/*
-		 * We must call VOP_INACTIVE with the node locked. Mark
-		 * as VI_DOINGINACT to avoid recursion.
-		 */
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
-			VI_LOCK(vp);
-			vinactive(vp, td);
-			VOP_UNLOCK(vp, 0, td);
-		} else
-			VI_LOCK(vp);
-		if (VSHOULDFREE(vp))
-			vfree(vp);
-		else
-			vlruvp(vp);
-		VI_UNLOCK(vp);
-
-	} else {
+	if (vp->v_usecount != 1) {
 #ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
 #endif
 		VI_UNLOCK(vp);
 		panic("vrele: negative ref cnt");
 	}
+	v_incr_usecount(vp, -1);
+	/*
+	 * We must call VOP_INACTIVE with the node locked. Mark
+	 * as VI_DOINGINACT to avoid recursion.
+	 */
+	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
+		VI_LOCK(vp);
+		vinactive(vp, td);
+		VOP_UNLOCK(vp, 0, td);
+	} else
+		VI_LOCK(vp);
+	if (VSHOULDFREE(vp))
+		vfree(vp);
+	else
+		vlruvp(vp);
+	VI_UNLOCK(vp);
 }
 
 /*
