@@ -40,18 +40,16 @@
 .\"
 .\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
 .\"
-.Dd Oct 10, 2002
+.Dd October 10, 2002
 .Dt FACTOR 6
 .Os
 .Sh NAME
-.Nm factor ,
-.Nm primes
+.Nm factor , primes
 .Nd factor a number, generate primes
 .Sh SYNOPSIS
 .Nm
 .Op Fl h
 .Op Ar number ...
-.br
 .Nm primes
 .Op Fl h
 .Op Ar start Op Ar stop
@@ -60,7 +58,7 @@ The
 .Nm
 utility will factor positive integers.
 When a number is factored, it is printed, followed by a
-.Dq \&: ,
+.Ql \&: ,
 and the list of factors on a single line.
 Factors are listed in ascending order, and are preceded by a space.
 If a factor divides a value more than once, it will be printed more than once.
@@ -75,7 +73,8 @@ is invoked with no arguments,
 .Nm
 reads numbers, one per line, from standard input, until end of file or error.
 Leading white-space and empty lines are ignored.
-Numbers may be preceded by a single +.
+Numbers may be preceded by a single
+.Ql + .
 Numbers are terminated by a non-digit character (such as a newline).
 After a number is read, it is factored.
 .Pp
@@ -106,25 +105,22 @@ is read from standard input and
 is taken to be the maximum.
 The
 .Ar start
-value may be preceded by a single +.
+value may be preceded by a single
+.Ql + .
 The
 .Ar start
 value is terminated by a non-digit character (such as a newline).
 .Sh DIAGNOSTICS
-.Bl -item
-.It
-negative numbers aren't permitted
-.It
-illegal numeric format
-.It
-start value must be less than stop value
-.It
-Result too large
+.Bl -diag
+.It "negative numbers aren't permitted"
+.It "illegal numeric format"
+.It "start value must be less than stop value"
+.It "Result too large"
 .El
 .Sh BUGS
 .Nm
 cannot handle the
-.Dq 10 most wanted
+.Dq "10 most wanted"
 factor list,
 .Nm primes
-won't get you a world record.
+will not get you a world record.
