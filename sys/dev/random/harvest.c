@@ -50,12 +50,14 @@ struct harvest_select harvest = { 0, 0, 0 };
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
  */
-static void (*reap_func)(u_int64_t, void *, u_int, u_int, u_int, u_int) = NULL;
+static void (*reap_func)(u_int64_t, void *, u_int, u_int, u_int, enum esource)
+    = NULL;
 static u_int (*read_func)(void *, u_int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
-random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int, u_int), u_int (*reader)(void *, u_int))
+random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int,
+    enum esource), u_int (*reader)(void *, u_int))
 {
 	reap_func = reaper;
 	read_func = reader;
@@ -75,10 +77,12 @@ random_deinit_harvester(void)
  * the entropy device.
  */
 void
-random_harvest(void *entropy, u_int count, u_int bits, u_int frac, u_int origin)
+random_harvest(void *entropy, u_int count, u_int bits, u_int frac,
+    enum esource origin)
 {
 	if (reap_func)
-		(*reap_func)(get_cyclecount(), entropy, count, bits, frac, origin);
+		(*reap_func)(get_cyclecount(), entropy, count, bits, frac,
+		    origin);
 }
 
 /* Userland-visible version of read_random */
