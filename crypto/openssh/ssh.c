@@ -489,6 +489,9 @@ main(int ac, char **av)
 	pwcopy.pw_gid = pw->pw_gid;
 	pwcopy.pw_dir = xstrdup(pw->pw_dir);
 	pwcopy.pw_shell = xstrdup(pw->pw_shell);
+	pwcopy.pw_class = xstrdup(pw->pw_class);
+	pwcopy.pw_expire = pw->pw_expire;
+	pwcopy.pw_change = pw->pw_change;
 	pw = &pwcopy;
 
 	/* Initialize "log" output.  Since we are the client all output
