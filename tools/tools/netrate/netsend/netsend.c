@@ -47,6 +47,8 @@ usage(void)
 	exit(-1);
 }
 
+#define	MAX_RATE	100000000
+
 static __inline void
 timespec_add(struct timespec *tsa, struct timespec *tsb)
 {
@@ -178,8 +180,8 @@ main(int argc, char *argv[])
 	rate = strtoul(argv[4], &dummy, 10);
 	if (rate < 1 || *dummy != '\0')
 		usage();
-	if (rate > 1000000) {
-		fprintf(stderr, "rate > 100000\n");
+	if (rate > MAX_RATE) {
+		fprintf(stderr, "rate > %d\n", MAX_RATE);
 		return (-1);
 	}
 
