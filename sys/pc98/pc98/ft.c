@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.6 1996/11/02 10:39:25 asami Exp $
+ *  $Id: ft.c,v 1.7 1996/12/04 04:20:45 asami Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -2118,6 +2118,8 @@ ftopen(dev_t dev, int arg2) {
 
   /* check bounds */
   if (ftu >= NFT)
+	return(ENXIO);
+  if (!ft_data[ftu])
 	return(ENXIO);
   fdc = ft_data[ftu]->fdc;
   if ((fdc == NULL) || (ft_data[ftu]->type == NO_TYPE))
