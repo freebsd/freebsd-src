@@ -96,100 +96,31 @@
 
 #include <ddb/ddb.h>
 
-#include <ofw/openfirm.h>
-#include <sparc64/sbus/sbusvar.h>
-
 #include <dev/zs/z8530reg.h>
+#include <dev/zs/z8530var.h>
 
 #define	CDEV_MAJOR	182
 
 #define	ZS_READ(sc, r) \
-	bus_space_read_1((sc)->sc_bt, (sc)->sc_bh, (r))
+	bus_space_read_1((sc)->sc_bt, (r), 0)
 #define	ZS_WRITE(sc, r, v) \
-	bus_space_write_1((sc)->sc_bt, (sc)->sc_bh, (r), (v))
+	bus_space_write_1((sc)->sc_bt, (r), 0, (v))
 
 #define	ZS_READ_REG(sc, r) ({ \
-	ZS_WRITE((sc), ZS_CSR, (r)); \
-	ZS_READ((sc), ZS_CSR); \
+	ZS_WRITE((sc), (sc)->sc_csr, (r)); \
+	ZS_READ((sc), (sc)->sc_csr); \
 })
 
 #define	ZS_WRITE_REG(sc, r, v) ({ \
-	ZS_WRITE((sc), ZS_CSR, (r)); \
-	ZS_WRITE((sc), ZS_CSR, (v)); \
+	ZS_WRITE((sc), (sc)->sc_csr, (r)); \
+	ZS_WRITE((sc), (sc)->sc_csr, (v)); \
 })
 
 #define	ZSTTY_LOCK(sz)		mtx_lock_spin(&(sc)->sc_mtx)
 #define	ZSTTY_UNLOCK(sz)	mtx_unlock_spin(&(sc)->sc_mtx)
 
-struct zstty_softc {
-	device_t		sc_dev;
-	struct zs_softc		*sc_parent;
-	bus_space_tag_t		sc_bt;
-	bus_space_handle_t	sc_bh;
-	dev_t			sc_si;
-	struct tty		*sc_tty;
-	int			sc_channel;
-	int			sc_icnt;
-	uint8_t			*sc_iput;
-	uint8_t			*sc_iget;
-	int			sc_ocnt;
-	uint8_t			*sc_oget;
-	int			sc_brg_clk;
-	int			sc_alt_break_state;
-	struct mtx		sc_mtx;
-	uint8_t			sc_console;
-	uint8_t			sc_tx_busy;
-	uint8_t			sc_tx_done;
-	uint8_t			sc_preg_held;
-	uint8_t			sc_creg[16];
-	uint8_t			sc_preg[16];
-	uint8_t			sc_ibuf[CBLOCK];
-	uint8_t			sc_obuf[CBLOCK];
-};
-
-struct zs_softc {
-	device_t		sc_dev;
-	bus_space_tag_t		sc_bt;
-	bus_space_handle_t	sc_bh;
-	struct zstty_softc	*sc_child[ZS_NCHAN];
-	void			*sc_ih;
-	void			*sc_softih;
-	struct resource		*sc_irqres;
-	int			sc_irqrid;
-	struct resource		*sc_memres;
-	int			sc_memrid;
-};
-
-static uint8_t zs_init_reg[16] = {
-	0,	/* 0: CMD (reset, etc.) */
-	0,	/* 1: No interrupts yet. */
-	0,	/* 2: IVECT */
-	ZSWR3_RX_8 | ZSWR3_RX_ENABLE,
-	ZSWR4_CLK_X16 | ZSWR4_ONESB | ZSWR4_EVENP,
-	ZSWR5_TX_8 | ZSWR5_TX_ENABLE,
-	0,	/* 6: TXSYNC/SYNCLO */
-	0,	/* 7: RXSYNC/SYNCHI */
-	0,	/* 8: alias for data port */
-	ZSWR9_MASTER_IE | ZSWR9_NO_VECTOR,
-	0,	/* 10: Misc. TX/RX control bits */
-	ZSWR11_TXCLK_BAUD | ZSWR11_RXCLK_BAUD,
-	((ZS_CLOCK/32)/9600)-2,
-	0,
-	ZSWR14_BAUD_ENA | ZSWR14_BAUD_FROM_PCLK,
-	ZSWR15_BREAK_IE,
-};
-
-static int zs_probe(device_t dev);
-static int zs_attach(device_t dev);
-static int zs_detach(device_t dev);
-
-static void zs_intr(void *v);
 static void zs_softintr(void *v);
 static void zs_shutdown(void *v);
-
-static int zstty_probe(device_t dev);
-static int zstty_attach(device_t dev);
-static int zstty_detach(device_t dev);
 
 static int zstty_intr(struct zstty_softc *sc, uint8_t rr3);
 static void zstty_softintr(struct zstty_softc *sc) __unused;
@@ -199,8 +130,6 @@ static int zstty_param(struct zstty_softc *sc, struct tty *tp,
 static void zstty_flush(struct zstty_softc *sc) __unused;
 static int zstty_speed(struct zstty_softc *sc, int rate);
 static void zstty_load_regs(struct zstty_softc *sc);
-static int zstty_console(device_t dev, char *mode, int len);
-static int zstty_keyboard(device_t dev);
 
 static cn_probe_t zs_cnprobe;
 static cn_init_t zs_cninit;
@@ -239,92 +168,28 @@ static struct cdevsw zstty_cdevsw = {
 	/* kqfilter */	ttykqfilter,
 };
 
-static device_method_t zs_methods[] = {
-	DEVMETHOD(device_probe,		zs_probe),
-	DEVMETHOD(device_attach,	zs_attach),
-	DEVMETHOD(device_detach,	zs_detach),
-
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-
-	{ 0, 0 }
-};
-
-static device_method_t zstty_methods[] = {
-	DEVMETHOD(device_probe,		zstty_probe),
-	DEVMETHOD(device_attach,	zstty_attach),
-	DEVMETHOD(device_detach,	zstty_detach),
-
-	{ 0, 0 }
-};
-
-static driver_t zs_driver = {
-	"zs",
-	zs_methods,
-	sizeof(struct zs_softc),
-};
-
-static driver_t zstty_driver = {
-	"zstty",
-	zstty_methods,
-	sizeof(struct zstty_softc),
-};
-
-static devclass_t zs_devclass;
-static devclass_t zstty_devclass;
-
 static struct zstty_softc *zstty_cons;
-
-DRIVER_MODULE(zs, sbus, zs_driver, zs_devclass, 0, 0);
-DRIVER_MODULE(zstty, zs, zstty_driver, zstty_devclass, 0, 0);
 
 CONS_DRIVER(zs, zs_cnprobe, zs_cninit, zs_cnterm, zs_cngetc, zs_cncheckc,
     zs_cnputc, zs_cndbctl);
 
-static int
+int
 zs_probe(device_t dev)
 {
 
-	if (strcmp(sbus_get_name(dev), "zs") != 0 ||
-	    device_get_unit(dev) != 0)
-		return (ENXIO);
 	device_set_desc(dev, "Zilog Z8530");
 	return (0);
 }
 
-static int
+int
 zs_attach(device_t dev)
 {
 	struct device *child[ZS_NCHAN];
-	struct resource *irqres;
-	struct resource *memres;
 	struct zs_softc *sc;
-	int irqrid;
-	int memrid;
 	int i;
 
-	irqrid = 0;
-	irqres = NULL;
-	memres = NULL;
-	memrid = 0;
 	sc = device_get_softc(dev);
-	memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &memrid, 0, ~0, 1,
-	    RF_ACTIVE);
-	if (memres == NULL)
-		goto error;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqrid, 0, ~0, 1,
-	    RF_ACTIVE);
-	if (irqres == NULL)
-		goto error;
-	if (bus_setup_intr(dev, irqres, INTR_TYPE_TTY | INTR_FAST, zs_intr,
-	    sc, &sc->sc_ih) != 0)
-		goto error;
 	sc->sc_dev = dev;
-	sc->sc_irqres = irqres;
-	sc->sc_irqrid = irqrid;
-	sc->sc_memres = memres;
-	sc->sc_memrid = memrid;
-	sc->sc_bt = rman_get_bustag(memres);
-	sc->sc_bh = rman_get_bushandle(memres);
 
 	for (i = 0; i < ZS_NCHAN; i++)
 		child[i] = device_add_child(dev, "zstty", -1);
@@ -335,8 +200,8 @@ zs_attach(device_t dev)
 	swi_add(&tty_ithd, "tty:zs", zs_softintr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
-	ZS_WRITE_REG(sc->sc_child[0], 2, zs_init_reg[2]);
-	ZS_WRITE_REG(sc->sc_child[0], 9, zs_init_reg[9]);
+	ZS_WRITE_REG(sc->sc_child[0], 2, sc->sc_child[0]->sc_creg[2]);
+	ZS_WRITE_REG(sc->sc_child[0], 9, sc->sc_child[0]->sc_creg[9]);
 
 	if (zstty_cons != NULL) {
 		DELAY(50000);
@@ -347,23 +212,9 @@ zs_attach(device_t dev)
 	    SHUTDOWN_PRI_DEFAULT);
 
 	return (0);
-
-error:
-	if (irqres != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, irqrid, irqres);
-	if (memres != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, memrid, memres);
-	return (ENXIO);
 }
 
-static int
-zs_detach(device_t dev)
-{
-
-	return (bus_generic_detach(dev));
-}
-
-static void
+void
 zs_intr(void *v)
 {
 	struct zs_softc *sc = v;
@@ -378,14 +229,10 @@ zs_intr(void *v)
 	 */
 	needsoft = 0;
 	rr3 = ZS_READ_REG(sc->sc_child[0], 3);
-	if ((rr3 & (ZSRR3_IP_A_RX | ZSRR3_IP_A_TX | ZSRR3_IP_A_STAT)) != 0) {
-		ZS_WRITE(sc->sc_child[0], ZS_CSR, ZSWR0_CLR_INTR);
+	if ((rr3 & (ZSRR3_IP_A_RX | ZSRR3_IP_A_TX | ZSRR3_IP_A_STAT)) != 0)
 		needsoft |= zstty_intr(sc->sc_child[0], rr3 >> 3);
-	}
-	if ((rr3 & (ZSRR3_IP_B_RX | ZSRR3_IP_B_TX | ZSRR3_IP_B_STAT)) != 0) {
-		ZS_WRITE(sc->sc_child[1], ZS_CSR, ZSWR0_CLR_INTR);
+	if ((rr3 & (ZSRR3_IP_B_RX | ZSRR3_IP_B_TX | ZSRR3_IP_B_STAT)) != 0)
 		needsoft |= zstty_intr(sc->sc_child[1], rr3);
-	}
 	if (needsoft)
 		swi_sched(sc->sc_softih, 0);
 }
@@ -404,25 +251,13 @@ zs_shutdown(void *v)
 {
 }
 
-static int
+int
 zstty_probe(device_t dev)
 {
-
-	if (zstty_keyboard(dev)) {
-		if ((device_get_unit(dev) & 1) == 0)
-			device_set_desc(dev, "keyboard");
-		else
-			device_set_desc(dev, "mouse");
-	} else {
-		if ((device_get_unit(dev) & 1) == 0)
-			device_set_desc(dev, "ttya");
-		else
-			device_set_desc(dev, "ttyb");
-	}
 	return (0);
 }
 
-static int
+int
 zstty_attach(device_t dev)
 {
 	struct zstty_softc *sc;
@@ -437,23 +272,8 @@ zstty_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->sc_mtx, "zstty", NULL, MTX_SPIN);
 	sc->sc_dev = dev;
-	sc->sc_parent = device_get_softc(device_get_parent(dev));
-	sc->sc_bt = sc->sc_parent->sc_bt;
-	sc->sc_channel = device_get_unit(dev) & 1;
-	sc->sc_brg_clk = ZS_CLOCK / ZS_CLOCK_DIV;
 	sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
 	sc->sc_oget = sc->sc_obuf;
-
-	switch (sc->sc_channel) {
-	case 0:
-		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
-		    ZS_CHAN_A, ZS_CHANLEN, &sc->sc_bh);
-		break;
-	case 1:
-		bus_space_subregion(sc->sc_bt, sc->sc_parent->sc_bh,
-		    ZS_CHAN_B, ZS_CHANLEN, &sc->sc_bh);
-		break;
-	}
 
 	tp = ttymalloc(NULL);
 	sc->sc_si = make_dev(&zstty_cdevsw, device_get_unit(dev),
@@ -473,11 +293,9 @@ zstty_attach(device_t dev)
 	tp->t_ospeed = TTYDEF_SPEED;
 	tp->t_ispeed = TTYDEF_SPEED;
 
-	bcopy(zs_init_reg, sc->sc_creg, 16);
-	bcopy(zs_init_reg, sc->sc_preg, 16);
-
 	if (zstty_console(dev, mode, sizeof(mode))) {
 		ttychars(tp);
+		/* format: 9600,8,n,1,- */
 		if (sscanf(mode, "%d,%d,%c,%d,%c", &baud, &clen, &parity,
 		    &stop, &c) == 5) {
 			tp->t_ospeed = baud;
@@ -515,13 +333,6 @@ zstty_attach(device_t dev)
 	return (0);
 }
 
-static int
-zstty_detach(device_t dev)
-{
-
-	return (bus_generic_detach(dev));
-}
-
 /*
  * Note that the rr3 value is shifted so the channel a status bits are in the
  * channel b bit positions, which makes the bit positions uniform for both
@@ -538,6 +349,8 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 
 	ZSTTY_LOCK(sc);
 
+	ZS_WRITE(sc, sc->sc_csr, ZSWR0_CLR_INTR);
+
 	brk = 0;
 	needsoft = 0;
 	if ((rr3 & ZSRR3_IP_B_RX) != 0) {
@@ -548,10 +361,10 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 			 * char destroys the status of this char.
 			 */
 			rr1 = ZS_READ_REG(sc, 1);
-			c = ZS_READ(sc, ZS_DATA);
+			c = ZS_READ(sc, sc->sc_data);
 
 			if ((rr1 & (ZSRR1_FE | ZSRR1_DO | ZSRR1_PE)) != 0)
-				ZS_WRITE(sc, ZS_CSR, ZSWR0_RESET_ERRORS);
+				ZS_WRITE(sc, sc->sc_csr, ZSWR0_RESET_ERRORS);
 #if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
 			if (sc->sc_console != 0)
 				brk = db_alt_break(c, &sc->sc_alt_break_state);
@@ -560,12 +373,12 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 			*sc->sc_iput++ = rr1;
 			if (sc->sc_iput == sc->sc_ibuf + sizeof(sc->sc_ibuf))
 				sc->sc_iput = sc->sc_ibuf;
-		} while ((ZS_READ(sc, ZS_CSR) & ZSRR0_RX_READY) != 0);
+		} while ((ZS_READ(sc, sc->sc_csr) & ZSRR0_RX_READY) != 0);
 	}
 
 	if ((rr3 & ZSRR3_IP_B_STAT) != 0) {
-		rr0 = ZS_READ(sc, ZS_CSR);
-		ZS_WRITE(sc, ZS_CSR, ZSWR0_RESET_STATUS);
+		rr0 = ZS_READ(sc, sc->sc_csr);
+		ZS_WRITE(sc, sc->sc_csr, ZSWR0_RESET_STATUS);
 #if defined(DDB) && defined(BREAK_TO_DEBUGGER)
 		if (sc->sc_console != 0 && (rr0 & ZSRR0_BREAK) != 0)
 			brk = 1;
@@ -582,7 +395,7 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 			zstty_load_regs(sc);
 		}
 		if (sc->sc_ocnt > 0) {
-			ZS_WRITE(sc, ZS_DATA, *sc->sc_oget++);
+			ZS_WRITE(sc, sc->sc_data, *sc->sc_oget++);
 			sc->sc_ocnt--;
 		} else {
 			/*
@@ -815,7 +628,7 @@ zsttystart(struct tty *tp)
 		sc->sc_creg[1] = sc->sc_preg[1];
 		ZS_WRITE_REG(sc, 1, sc->sc_creg[1]);
 	}
-	ZS_WRITE(sc, ZS_DATA, c);
+	ZS_WRITE(sc, sc->sc_data, c);
 
 	ttwwakeup(tp);
 }
@@ -928,8 +741,8 @@ zstty_param(struct zstty_softc *sc, struct tty *tp, struct termios *t)
 	sc->sc_preg[3] = wr3;
 	sc->sc_preg[4] = wr4;
 	sc->sc_preg[5] = wr5;
-	sc->sc_preg[12] = ospeed;
-	sc->sc_preg[13] = ospeed >> 8;
+
+	zstty_set_speed(sc, ospeed);
 
 	if (cflag & CRTSCTS)
 		sc->sc_preg[15] |= ZSWR15_CTS_IE;
@@ -951,15 +764,15 @@ zstty_flush(struct zstty_softc *sc)
 	uint8_t c;
 
 	for (;;) {
-		rr0 = ZS_READ(sc, ZS_CSR);
+		rr0 = ZS_READ(sc, sc->sc_csr);
 		if ((rr0 & ZSRR0_RX_READY) == 0)
 			break;
 
 		rr1 = ZS_READ_REG(sc, 1);
-		c = ZS_READ(sc, ZS_DATA);
+		c = ZS_READ(sc, sc->sc_data);
 
 		if (rr1 & (ZSRR1_FE | ZSRR1_DO | ZSRR1_PE))
-			ZS_WRITE(sc, ZS_CSR, ZSWR0_RESET_ERRORS);
+			ZS_WRITE(sc, sc->sc_data, ZSWR0_RESET_ERRORS);
 	}
 }
 
@@ -984,7 +797,7 @@ zstty_load_regs(struct zstty_softc *sc)
 	bcopy(sc->sc_preg, sc->sc_creg, 16);
 
 	/* XXX: reset error condition */
-	ZS_WRITE(sc, ZS_CSR, ZSM_RESET_ERR);
+	ZS_WRITE(sc, sc->sc_csr, ZSM_RESET_ERR);
 
 	/* disable interrupts */
 	ZS_WRITE_REG(sc, 1, sc->sc_creg[1] & ~ZSWR1_IMASK);
@@ -1021,8 +834,8 @@ zstty_load_regs(struct zstty_softc *sc)
 	 * interrupt clear might unlatch them to new values, generating
 	 * a second interrupt request.
 	 */
-	ZS_WRITE(sc, ZS_CSR, ZSM_RESET_STINT);
-	ZS_WRITE(sc, ZS_CSR, ZSM_RESET_STINT);
+	ZS_WRITE(sc, sc->sc_csr, ZSM_RESET_STINT);
+	ZS_WRITE(sc, sc->sc_csr, ZSM_RESET_STINT);
 
 	/* char size, enable (RX/TX)*/
 	ZS_WRITE_REG(sc, 3, sc->sc_creg[3]);
@@ -1120,9 +933,9 @@ zstty_cngetc(struct zstty_softc *sc)
 	uint8_t c;
 
 	zstty_cnopen(sc);
-	while ((ZS_READ(sc, ZS_CSR) & ZSRR0_RX_READY) == 0)
+	while ((ZS_READ(sc, sc->sc_csr) & ZSRR0_RX_READY) == 0)
 		;
-	c = ZS_READ(sc, ZS_DATA);
+	c = ZS_READ(sc, sc->sc_data);
 	zstty_cnclose(sc);
 	return (c);
 }
@@ -1134,8 +947,8 @@ zstty_cncheckc(struct zstty_softc *sc)
 
 	c = -1;
 	zstty_cnopen(sc);
-	if ((ZS_READ(sc, ZS_CSR) & ZSRR0_RX_READY) != 0)
-		c = ZS_READ(sc, ZS_DATA);
+	if ((ZS_READ(sc, sc->sc_csr) & ZSRR0_RX_READY) != 0)
+		c = ZS_READ(sc, sc->sc_data);
 	zstty_cnclose(sc);
 	return (c);
 }
@@ -1145,50 +958,8 @@ zstty_cnputc(struct zstty_softc *sc, int c)
 {
 
 	zstty_cnopen(sc);
-	while ((ZS_READ(sc, ZS_CSR) & ZSRR0_TX_READY) == 0)
+	while ((ZS_READ(sc, sc->sc_csr) & ZSRR0_TX_READY) == 0)
 		;
-	ZS_WRITE(sc, ZS_DATA, c);
+	ZS_WRITE(sc, sc->sc_data, c);
 	zstty_cnclose(sc);
-}
-
-static int
-zstty_console(device_t dev, char *mode, int len)
-{
-	device_t parent;
-	phandle_t chosen;
-	phandle_t options;
-	ihandle_t stdin;
-	ihandle_t stdout;
-	char output[32];
-	char input[32];
-	char name[32];
-
-	parent = device_get_parent(dev);
-	chosen = OF_finddevice("/chosen");
-	options = OF_finddevice("/options");
-	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1 ||
-	    OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1 ||
-	    OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
-	    OF_getprop(options, "output-device", output, sizeof(output)) == -1)
-		return (0);
-	if (sbus_get_node(parent) == OF_instance_to_package(stdin) &&
-	    sbus_get_node(parent) == OF_instance_to_package(stdout) &&
-	    strcmp(input, device_get_desc(dev)) == 0 &&
-	    strcmp(output, device_get_desc(dev)) == 0) {
-		if (mode != NULL) {
-			sprintf(name, "%s-mode", input);
-			return (OF_getprop(options, name, mode, len) != -1);
-		} else
-			return (1);
-	}
-	return (0);
-}
-
-static int
-zstty_keyboard(device_t dev)
-{
-	device_t parent;
-
-	parent = device_get_parent(dev);
-	return (OF_getproplen(sbus_get_node(parent), "keyboard") == 0);
 }
