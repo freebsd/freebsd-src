@@ -1,5 +1,3 @@
-/*	$NetBSD: wchar.h,v 1.8 2000/12/22 05:31:42 itojun Exp $	*/
-
 /*-
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
@@ -62,6 +60,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$NetBSD: wchar.h,v 1.8 2000/12/22 05:31:42 itojun Exp $
  */
 
 #ifndef _WCHAR_H_
