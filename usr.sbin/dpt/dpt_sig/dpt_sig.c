@@ -30,7 +30,7 @@
 
 /* dpt_sig.c:  Dunp a DPT Signature */
 
-#ident "$Id: dpt_sig.c,v 1.6 1998/01/22 22:06:30 ShimonR Exp ShimonR $"
+#ident "$Id: dpt_sig.c,v 1.1 1998/01/26 06:20:45 julian Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -164,8 +164,9 @@ main(int argc, char **argv, char **argp)
     sp2 = "Unknown";
     
     if ( (fd = open(argv[1], O_RDWR, S_IRUSR | S_IWUSR)) == -1 ) {
-		(void)fprintf(stderr, "%s ERROR:  Failed to open \"%s\" - %s\n",
-					  argv[0], argv[1], strerror(errno));
+		(void)fprintf(stderr, "%s ERROR:  Failed to open \"%s\" "
+			      "- %s\n",
+			      argv[0], argv[1], strerror(errno));
 		exit(1);
     }
 
@@ -177,9 +178,10 @@ main(int argc, char **argv, char **argp)
     pass_thru.command_buffer = (u_int8_t *)&signature;
 
     if ( (result = ioctl(fd, DPT_IOCTL_SEND, &pass_thru)) != 0 ) {
-		(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL %x - %s\n",
-					  argv[0], DPT_IOCTL_SEND,
-					  strerror(errno));
+		(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL "
+			      "%lx - %s\n",
+			      argv[0], DPT_IOCTL_SEND,
+			      strerror(errno));
 		exit(1);
     }
 
