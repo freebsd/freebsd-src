@@ -274,8 +274,11 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 		if (chn_reset(rdch, fmt)) {
 			pcm_lock(d);
 			pcm_chnrelease(rdch);
-			if (wrch && (flags & FWRITE))
+			i_dev->si_drv1 = NULL;
+			if (wrch && (flags & FWRITE)) {
 				pcm_chnrelease(wrch);
+				i_dev->si_drv2 = NULL;
+			}
 			pcm_unlock(d);
 			splx(s);
 			return ENODEV;
@@ -289,10 +292,12 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 		if (chn_reset(wrch, fmt)) {
 			pcm_lock(d);
 			pcm_chnrelease(wrch);
+			i_dev->si_drv2 = NULL;
 			if (flags & FREAD) {
 				CHN_LOCK(rdch);
 				pcm_chnref(rdch, -1);
 				pcm_chnrelease(rdch);
+				i_dev->si_drv1 = NULL;
 			}
 			pcm_unlock(d);
 			splx(s);
