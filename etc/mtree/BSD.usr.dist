@@ -245,6 +245,8 @@
             ..
             perfmon
             ..
+            pf
+            ..
             portal
             ..
             ppi
