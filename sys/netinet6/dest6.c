@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: dest6.c,v 1.34 2002/01/08 02:40:55 k-sugyou Exp $	*/
+/*	$KAME: dest6.c,v 1.59 2003/07/11 13:21:16 t-momose Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -65,9 +65,6 @@ dest6_input(mp, offp, proto)
 	int off = *offp, dstoptlen, optlen;
 	struct ip6_dest *dstopts;
 	u_int8_t *opt;
-	struct ip6_hdr *ip6;
-
-	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
