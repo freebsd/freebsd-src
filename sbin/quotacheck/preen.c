@@ -71,10 +71,8 @@ char	hotroot;
 
 static void addpart __P((char *name, char *fsname, long auxdata));
 static struct disk *finddisk __P((char *name));
-static char *rawname __P((char *name));
 static int startdisk __P((struct disk *dk,
 		int (*checkit)(char *, char *, long, int)));
-static char *unrawname __P((char *name));
 
 int
 checkfstab(preen, maxrun, docheck, chkit)
@@ -311,10 +309,11 @@ retry:
 		printf("Can't stat %s: %s\n", newname, strerror(errno));
 		return (origname);
 	}
-	if ((stblock.st_mode & S_IFMT) == S_IFBLK) {
+	if ((stblock.st_mode & S_IFMT) == S_IFBLK ||
+	    (stblock.st_mode & S_IFMT) == S_IFCHR) {
 		if (stslash.st_dev == stblock.st_rdev)
 			hotroot++;
-		raw = rawname(newname);
+		raw = newname;
 		if (stat(raw, &stchar) < 0) {
 			printf("Can't stat %s: %s\n", raw, strerror(errno));
 			return (origname);
@@ -327,10 +326,6 @@ retry:
 			printf("%s is not a character device\n", raw);
 			return (origname);
 		}
-	} else if ((stblock.st_mode & S_IFMT) == S_IFCHR && !retried) {
-		newname = unrawname(newname);
-		retried++;
-		goto retry;
 	} else if ((stblock.st_mode & S_IFMT) == S_IFDIR && !retried) {
 		len = strlen(origname) - 1;
 		if (len > 0 && origname[len] == '/')
@@ -350,40 +345,4 @@ retry:
 	 * let the user decide whether to use it.
 	 */
 	return (origname);
-}
-
-static char *
-unrawname(name)
-	char *name;
-{
-	char *dp;
-	struct stat stb;
-
-	if ((dp = strrchr(name, '/')) == 0)
-		return (name);
-	if (stat(name, &stb) < 0)
-		return (name);
-	if ((stb.st_mode & S_IFMT) != S_IFCHR)
-		return (name);
-	if (dp[1] != 'r')
-		return (name);
-	(void)strcpy(&dp[1], &dp[2]);
-	return (name);
-}
-
-static char *
-rawname(name)
-	char *name;
-{
-	static char rawbuf[32];
-	char *dp;
-
-	if ((dp = strrchr(name, '/')) == 0)
-		return (0);
-	*dp = 0;
-	(void)strcpy(rawbuf, name);
-	*dp = '/';
-	(void)strcat(rawbuf, "/r");
-	(void)strcat(rawbuf, &dp[1]);
-	return (rawbuf);
 }
