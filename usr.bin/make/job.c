@@ -2762,11 +2762,6 @@ Job_ParseShell(line)
 	}
     }
 
-    /*
-     * Do not free up the words themselves, since they might be in use by the
-     * shell specification...
-     */
-    free(words);
     return SUCCESS;
 }
 
