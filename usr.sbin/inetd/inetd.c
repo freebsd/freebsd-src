@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.46.2.2 1999/05/12 07:02:02 des Exp $";
+	"$Id: inetd.c,v 1.46.2.3 1999/06/22 18:06:35 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -340,7 +340,7 @@ main(argc, argv, envp)
 	struct servtab *sep;
 	struct passwd *pwd;
 	struct group *grp;
-	struct sigaction sa, sapipe;
+	struct sigaction sa, saalrm, sachld, sahup, sapipe;
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
@@ -442,12 +442,12 @@ main(argc, argv, envp)
 	sigaddset(&sa.sa_mask, SIGCHLD);
 	sigaddset(&sa.sa_mask, SIGHUP);
 	sa.sa_handler = flag_retry;
-	sigaction(SIGALRM, &sa, (struct sigaction *)0);
+	sigaction(SIGALRM, &sa, &saalrm);
 	config();
 	sa.sa_handler = flag_config;
-	sigaction(SIGHUP, &sa, (struct sigaction *)0);
+	sigaction(SIGHUP, &sa, &sahup);
 	sa.sa_handler = flag_reapchild;
-	sigaction(SIGCHLD, &sa, (struct sigaction *)0);
+	sigaction(SIGCHLD, &sa, &sachld);
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, &sapipe);
 
@@ -613,6 +613,10 @@ main(argc, argv, envp)
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
 						(void) close(tmpint);
+				sigaction(SIGALRM, &saalrm, (struct sigaction *)0);
+				sigaction(SIGCHLD, &sachld, (struct sigaction *)0);
+				sigaction(SIGHUP, &sahup, (struct sigaction *)0);
+				/* SIGPIPE reset before exec */
 			    }
 			    /*
 			     * Call tcpmux to find the real service to exec.
