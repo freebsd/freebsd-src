@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: scsiio.h,v 1.8 1997/02/22 09:45:49 peter Exp $
  */
 #ifndef	_SYS_SCSIIO_H_
 #define	_SYS_SCSIIO_H_
@@ -66,5 +66,13 @@ struct	scsi_addr {
 #define SCIOCTHAW	_IO('Q', 10) /* Thaw SCSI */
 #define SCIOCFREEZETHAW	_IOW('Q', 11, int) /* Freeze SCSI for some seconds */
 #define SCIOCWAITTHAW	_IO('Q', 12) /* Wait for SCSI to thaw */
+
+struct	scsi_getdevinfo {
+	struct	scsi_addr addr;
+	dev_t	dev;
+};
+
+#define	SCIOCGETDEVINFO	_IOWR('Q', 13, struct scsi_getdevinfo)
+
 
 #endif /* !_SYS_SCSIIO_H_ */
