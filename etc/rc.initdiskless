@@ -26,10 +26,10 @@
 #
 # $FreeBSD$
 #
-# REQUIRE: preseedrandom
 # PROVIDE: initdiskless
+# REQUIRE: preseedrandom
+# BEFORE: rcconf
 # KEYWORD: nojail
-# BEFORE: ipfw
 
 
 # On entry to this script the entire system consists of a read-only root
