@@ -1,7 +1,7 @@
 # ex:ts=8
 $FreeBSD$
 
-ISC DHCP client 3.0.1rc8
+ISC DHCP client 3.0.1rc11
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
@@ -14,7 +14,7 @@ For the import of ISC-dhclient the following files were removed:
 	nextstep		solaris			openbsd
 
 	contrib/
-	dhcp.spec		solaris.init
+	dhcp.spec		solaris.init		ms2isc/
 
 	include/cf/
 	aix.h			alphaosf.h		bsdos.h
@@ -24,12 +24,12 @@ For the import of ISC-dhclient the following files were removed:
 	sample.h		sco.h			sunos4.h
 	sunos5-5.h		ultrix.h
 
-	`find . -name '.cvsignore'`
+	`find . -name '.cvsignore' -delete`
 
 Imported by:
 
-	cvs import -m 'Import ISC DHCP 3.0.1 RC8 client.' \
-		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc8
+	cvs import -m 'Import ISC DHCP 3.0.1 RC11 client.' \
+		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc11
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main
@@ -60,4 +60,4 @@ Local Changes:
 
 murray@FreeBSD.org
 obrien@NUXI.com
-01-Apr-2002
+15-Jan-2003
