@@ -253,6 +253,7 @@ gv_volume_destroy_geom(struct gctl_req *req, struct g_class *mp,
 
 static struct g_class g_vinum_volume_class = {
 	.name = VINUMVOLUME_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = gv_volume_taste,
 	.destroy_geom = gv_volume_destroy_geom,
 };

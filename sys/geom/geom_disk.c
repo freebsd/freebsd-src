@@ -67,6 +67,7 @@ static g_dumpconf_t g_disk_dumpconf;
 
 struct g_class g_disk_class = {
 	.name = "DISK",
+	.version = G_VERSION,
 	.init = g_disk_init,
 	.fini = g_disk_fini,
 	.start = g_disk_start,

@@ -281,6 +281,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 static struct g_class g_pc98_class = {
 	.name = PC98_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_pc98_taste,
 	.dumpconf = g_pc98_dumpconf,
 	.ioctl = g_pc98_ioctl,

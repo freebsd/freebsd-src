@@ -58,6 +58,7 @@ static g_fini_t g_stripe_fini;
 
 struct g_class g_stripe_class = {
 	.name = G_STRIPE_CLASS_NAME,
+	.version = G_VERSION,
 	.ctlreq = g_stripe_config,
 	.taste = g_stripe_taste,
 	.destroy_geom = g_stripe_destroy_geom,
