@@ -195,12 +195,12 @@ filt_procattach(struct knote *kn)
 
 	immediate = 0;
 	p = pfind(kn->kn_id);
-	if (p == NULL)
-		return (ESRCH);
 	if (p == NULL && (kn->kn_sfflags & NOTE_EXIT)) {
 		p = zpfind(kn->kn_id);
 		immediate = 1;
 	}
+	if (p == NULL)
+		return (ESRCH);
 	if ((error = p_cansee(curthread, p))) {
 		PROC_UNLOCK(p);
 		return (error);
