@@ -47,6 +47,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/vnioctl.h>
+#include <ufs/ufs/ufsmount.h>
 
 #define MAXVNDISK	16
 #define LINESIZE	1024
