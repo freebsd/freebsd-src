@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/31/94
 
-# XXX missing: chess ching
+# XXX missing: chess ching monop [copyright]
 SUBDIR=	adventure arithmetic atc backgammon battlestar bcd boggle caesar \
 	canfield cribbage dm factor fish fortune hack hangman \
-	larn mille monop morse number phantasia pig pom ppt primes quiz \
+	larn mille morse number phantasia pig pom ppt primes quiz \
 	rain random robots rogue sail snake tetris trek wargames worm worms \
 	wump
 
