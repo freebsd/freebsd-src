@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.64 1998/05/03 08:35:05 phk Exp $
+**  $Id: pcisupport.c,v 1.65 1998/05/04 01:39:48 kato Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -279,6 +279,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("NEC 0016 PCI to PC-98 local bus bridge");
 	case 0x002c1033:
 		return ("NEC 002C PCI to PC-98 C-bus bridge");
+	case 0x003b1033:
+		return ("NEC 003B PCI to PC-98 C-bus bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
