@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.8 1997/02/22 09:48:37 peter Exp $
+ * $Id: vm_param.h,v 1.9 1998/07/22 06:21:55 phk Exp $
  */
 
 /*
@@ -73,13 +73,13 @@
 
 #include <machine/vmparam.h>
 
+#if 0
+
 /*
  *	The machine independent pages are refered to as PAGES.  A page
  *	is some number of hardware pages, depending on the target machine.
  */
 #define DEFAULT_PAGE_SIZE	4096
-
-#if 0
 
 /*
  *	All references to the size of a page should be done with PAGE_SIZE
