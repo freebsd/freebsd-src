@@ -17,7 +17,7 @@ SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	symtab.c target.c thread.c top.c \
 	typeprint.c utils.c valarith.c valops.c \
 	valprint.c values.c version.c serial.c ser-unix.c mdebugread.c\
-	c-exp.tab.c ch-exp.tab.c m2-exp.tab.c
+	c-exp.tab.c ch-exp.tab.c m2-exp.tab.c compat_que.c
 
 c-exp.tab.c: $(.CURDIR)/c-exp.y
 	yacc -d -p c_ $(.CURDIR)/c-exp.y
@@ -71,8 +71,5 @@ DPADD+=   ${.CURDIR}/../mmalloc/obj/libmmalloc.a
 LDADD+=   -L${.CURDIR}/../mmalloc/ -lmmalloc
 DPADD+=   ${.CURDIR}/../mmalloc/libmmalloc.a
 .endif
-
-LDADD+=   -lcompat
-DPADD+=   ${LIBCOMPAT}
 
 .include <bsd.prog.mk>
