@@ -83,7 +83,7 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
-static void	vclean(struct vnode *vp, int flags, struct thread *td);
+static void	vclean(struct vnode *vp, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo);
@@ -2214,10 +2214,7 @@ vx_unlock(struct vnode *vp)
  * Disassociate the underlying filesystem from a vnode.
  */
 static void
-vclean(vp, flags, td)
-	struct vnode *vp;
-	int flags;
-	struct thread *td;
+vclean(struct vnode *vp, struct thread *td)
 {
 	int active;
 
@@ -2243,14 +2240,10 @@ vclean(vp, flags, td)
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
 	 */
-	if (flags & DOCLOSE) {
-		struct buf *bp;
-		bp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
-		if (bp != NULL)
-			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
-		if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
-			vinvalbuf(vp, 0, td, 0, 0);
-	}
+	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd));
+		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
+		vinvalbuf(vp, 0, td, 0, 0);
 
 	VOP_DESTROYVOBJECT(vp);
 
@@ -2266,8 +2259,7 @@ vclean(vp, flags, td)
 	 * VOP_INACTIVE will unlock the vnode.
 	 */
 	if (active) {
-		if (flags & DOCLOSE)
-			VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
+		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_DOINGINACT) == 0) {
 			KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
@@ -2389,7 +2381,7 @@ vgonel(vp, td)
 	/*
 	 * Clean out the filesystem specific data.
 	 */
-	vclean(vp, DOCLOSE, td);
+	vclean(vp, td);
 	VI_UNLOCK(vp);
 
 	/*
