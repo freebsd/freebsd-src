@@ -92,7 +92,7 @@ int	get_tuner_status( bktr_ptr_t bktr );
 int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
 #endif /* TUNER_AFC */
 
-int TDA9887_init(bktr_ptr_t bktr, int output2_enable);
+int mt2032_init(bktr_ptr_t bktr);
 
 /* 
  * This is for start-up convenience only, NOT mandatory.
