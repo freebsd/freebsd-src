@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/termios.h>
 #include <sys/bus.h>
 
-#include <machine/rpb.h>
 #include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>
 
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/gbusreg.h>

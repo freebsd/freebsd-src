@@ -69,13 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/utsname.h>
 #include <sys/vnode.h>
 
-#include <alpha/osf1/exec_ecoff.h>
-#include <alpha/osf1/osf1_signal.h>
-#include <alpha/osf1/osf1_proto.h>
-#include <alpha/osf1/osf1_syscall.h>
-#include <alpha/osf1/osf1_util.h>
-#include <alpha/osf1/osf1.h>
-
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
@@ -86,7 +79,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpuconf.h>
 #include <machine/fpu.h>
+#include <machine/md_var.h>
 #include <machine/rpb.h>
+
+#include <alpha/osf1/exec_ecoff.h>
+#include <alpha/osf1/osf1_signal.h>
+#include <alpha/osf1/osf1_proto.h>
+#include <alpha/osf1/osf1_syscall.h>
+#include <alpha/osf1/osf1_util.h>
+#include <alpha/osf1/osf1.h>
 
 static void cvtstat2osf1(struct stat *, struct osf1_stat *);
 static int  osf2bsd_pathconf(int *);

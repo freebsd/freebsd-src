@@ -39,10 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
 #include <alpha/isa/isavar.h>
-#include <machine/intr.h>
+
 #include <machine/cpuconf.h>
-#include <machine/swiz.h>
+#include <machine/intr.h>
+#include <machine/md_var.h>
 #include <machine/sgmap.h>
+#include <machine/swiz.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
