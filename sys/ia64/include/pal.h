@@ -82,6 +82,12 @@
 #define PAL_CACHE_WRITE		260
 #define PAL_VM_TR_READ		261
 
+/*
+ * Default physical address of the Processor Interrupt Block (PIB).
+ * See also: IA-64 SDM, rev 1.1, volume 2, page 5-31.
+ */
+#define	PAL_PIB_DEFAULT_ADDR	0x00000000FEE00000L
+
 struct ia64_pal_result {
 	int64_t		pal_status;
 	u_int64_t	pal_result[3];
@@ -99,6 +105,5 @@ extern struct ia64_pal_result
 extern struct ia64_pal_result
 	ia64_call_pal_stacked_physical(u_int64_t proc, u_int64_t arg1,
 				       u_int64_t arg2, u_int64_t arg3);
-
 
 #endif /* _MACHINE_PAL_H_ */
