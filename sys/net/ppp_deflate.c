@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.7 1998/03/21 20:56:14 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.8 1998/03/22 06:51:57 peter Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression
@@ -606,7 +606,7 @@ z_decompress(arg, mi, mop)
     }
     olen += (mo->m_len = ospace - state->strm.avail_out);
 #if DEFLATE_DEBUG
-    if (olen > state->mru + PPP_HDRLEN)
+    if (state->debug && olen > state->mru + PPP_HDRLEN)
 	printf("ppp_deflate%d: exceeded mru (%d > %d)\n",
 	       state->unit, olen, state->mru + PPP_HDRLEN);
 #endif
