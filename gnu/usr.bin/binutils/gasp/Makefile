@@ -16,6 +16,6 @@ LDADD=	${DPADD}
 CLEANFILES=	xregex.h
 
 xregex.h:
-	@echo '#include <gnu/regex.h>' >${.TARGET}
+	@echo '#include <regex.h>' >${.TARGET}
 
 .include <bsd.prog.mk>
