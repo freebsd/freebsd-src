@@ -33,7 +33,6 @@
 #ifndef _SYS_KSE_H_
 #define _SYS_KSE_H_
 
-#include <machine/kse.h>
 #include <sys/ucontext.h>
 #include <sys/time.h>
 #include <sys/signal.h>
