@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.25 1999/02/06 02:54:47 brian Exp $
+ * $Id: vjcomp.c,v 1.26 1999/03/29 08:21:28 brian Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,7 @@
 #include <sys/un.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #include "mbuf.h"
 #include "log.h"
