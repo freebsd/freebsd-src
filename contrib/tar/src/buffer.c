@@ -106,6 +106,7 @@ static int volno = 1;		/* which volume of a multi-volume tape we're
 				   on */
 static int global_volno = 1;	/* volume number to print in external
 				   messages */
+static pid_t grandchild_pid;
 
 /* The pointer save_name, which is set in function dump_file() of module
    create.c, points to the original long filename instead of the new,
@@ -318,7 +319,6 @@ child_open_for_compress (void)
 {
   int parent_pipe[2];
   int child_pipe[2];
-  pid_t grandchild_pid;
   int wait_status;
 
   xpipe (parent_pipe);
@@ -480,13 +480,19 @@ child_open_for_compress (void)
   exit (exit_status);
 }
 
+static void
+sig_propagate(int sig)
+{
+  kill (grandchild_pid, sig);
+  exit (TAREXIT_FAILURE);
+}
+
 /* Set ARCHIVE for uncompressing, then reading an archive.  */
 static void
 child_open_for_uncompress (void)
 {
   int parent_pipe[2];
   int child_pipe[2];
-  pid_t grandchild_pid;
   int wait_status;
 
   xpipe (parent_pipe);
@@ -549,6 +555,7 @@ child_open_for_uncompress (void)
     }
 
   /* The child tar is still here!  */
+  signal (SIGTERM, sig_propagate);
 
   /* Prepare for unblocking the data from the archive into the
      uncompressor.  */
@@ -1332,6 +1339,9 @@ close_archive (void)
      might become clever enough to just stop working, once there is no more
      work to do, we might have to revise this area in such time.  */
 
+  if (fast_read_option && namelist_freed && child_pid > 0)
+    kill(child_pid, SIGTERM);
+
   if (access_mode == ACCESS_READ
       && ! _isrmt (archive)
       && (S_ISFIFO (archive_stat.st_mode) || S_ISSOCK (archive_stat.st_mode)))
@@ -1358,12 +1368,13 @@ close_archive (void)
 	    break;
 	  }
 
-      if (WIFSIGNALED (wait_status))
-	ERROR ((0, 0, _("Child died with signal %d"),
-		WTERMSIG (wait_status)));
-      else if (WEXITSTATUS (wait_status) != 0)
-	ERROR ((0, 0, _("Child returned status %d"),
-		WEXITSTATUS (wait_status)));
+      if (!fast_read_option || !namelist_freed)
+        if (WIFSIGNALED (wait_status))
+	  ERROR ((0, 0, _("Child died with signal %d"),
+		  WTERMSIG (wait_status)));
+        else if (WEXITSTATUS (wait_status) != 0)
+	  ERROR ((0, 0, _("Child returned status %d"),
+		  WEXITSTATUS (wait_status)));
     }
 #endif /* !MSDOS */
 
