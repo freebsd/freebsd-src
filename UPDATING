@@ -15,7 +15,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	related kernel options, INVARIANTS, malloc debugging flags
 	in userland, and various verbose features in the kernel.  Many
 	developers choose to disable these features on build machines
-	to maximize performance.
+
+20030819:
+	The OFW_NEWPCI option has been turned on in the Sparc64 GENERIC kernel.
+	Among other things, this changes the device enumeration to be
+	closer to Solaris.  Be aware that, this can even cause the machine
+	to not boot without manual intervention before the fstab is adjusted.
 
 20030728:
 	All current USB and Firewire quirks in da(4) have been deprecated
