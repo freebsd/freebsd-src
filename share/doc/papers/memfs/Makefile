@@ -1,22 +1,22 @@
-#	@(#)Makefile	1.8 (Berkeley) 6/8/93
+#	From: @(#)Makefile	1.8 (Berkeley) 6/8/93
+#	$Id$
 
-DIR=	papers/memfs
-SRCS=	0.t 1.t
+VOLUME=	papers
+DOC=	memfs
+SRCS=	tmac.srefs paper.t
 MACROS=	-ms
-REFER=	refer -n -e -l -s -p ref.bib
+REFER=	refer -n -e -l -s -p ${.CURDIR}/ref.bib
 EXTRA=	ref.bib A.t tmac.srefs
 CLEANFILES=ref.bib.i A.gt paper.t
+SRCDIR=	${.OBJDIR}	# ack!
 
-paper.ps: paper.t
-	${ROFF} tmac.srefs paper.t > ${.TARGET}
+paper.t: 0.t 1.t ${.OBJDIR}/ref.bib.i ${.OBJDIR}/A.gt
+	${REFER} ${.CURDIR}/0.t ${.CURDIR}/1.t A.gt > ${.TARGET}
 
-paper.t: ${SRCS} ref.bib.i A.gt
-	${REFER} ${SRCS} A.gt > ${.TARGET}
+${.OBJDIR}/ref.bib.i ref.bib.i: ${.CURDIR}/ref.bib
+	${INDXBIB} ${.CURDIR}/ref.bib
 
-ref.bib.i: ref.bib
-	${INDXBIB} ref.bib
-
-A.gt: A.t
-	${GRIND} < A.t > A.gt
+${.OBJDIR}/A.gt A.gt: ${.CURDIR}/A.t
+	${GRIND} < ${.CURDIR}/A.t > A.gt
 
 .include <bsd.doc.mk>

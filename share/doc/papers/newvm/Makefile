@@ -1,10 +1,10 @@
-#	@(#)Makefile	1.4 (Berkeley) 6/8/93
+#	From: @(#)Makefile	1.4 (Berkeley) 6/8/93
+#	$Id$
 
-DIR=	papers/newvm
+VOLUME=	papers
+DOC=	newvm
 SRCS=	0.t 1.t a.t
 MACROS=	-ms
-
-paper.ps: ${SRCS}
-	${TBL} ${SRCS} | ${ROFF} > ${.TARGET}
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
