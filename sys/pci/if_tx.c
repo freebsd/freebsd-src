@@ -780,7 +780,7 @@ epic_common_attach(sc)
 
 	/* Align pool on PAGE_SIZE */
 	pool = (caddr_t)sc->pool;
-	pool = (caddr_t)((u_int32_t)(pool + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+	pool = (caddr_t)((uintptr_t)(pool + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
 	/* Distribute memory */
 	sc->tx_flist = (void *)pool;
