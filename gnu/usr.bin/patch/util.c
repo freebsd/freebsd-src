@@ -80,9 +80,9 @@ char *from, *to;
 	while (stat(bakname, &filestat) == 0 &&
 		to_device == filestat.st_dev && to_inode == filestat.st_ino) {
 	    /* Skip initial non-lowercase chars.  */
-	    for (s=simplename; *s && !islower(*s); s++) ;
+	    for (s=simplename; *s && !islower((unsigned char)*s); s++) ;
 	    if (*s)
-		*s = toupper(*s);
+		*s = toupper((unsigned char)*s);
 	    else
 		Strcpy(simplename, simplename+1);
 	}
@@ -376,7 +376,7 @@ int assume_exists;
 
     if (!at)
 	return Nullch;
-    while (isspace(*at))
+    while (isspace((unsigned char)*at))
 	at++;
 #ifdef DEBUGGING
     if (debug & 128)
@@ -387,7 +387,7 @@ int assume_exists;
     name = fullname = t = savestr(at);
 
     /* Strip off up to `sleading' leading slashes and null terminate.  */
-    for (; *t && !isspace(*t); t++)
+    for (; *t && !isspace((unsigned char)*t); t++)
 	if (*t == '/')
 	    if (--sleading >= 0)
 		name = t+1;

@@ -1,4 +1,4 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.3 1995/05/30 05:02:31 rgrimes Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.3.6.1 1997/03/17 22:32:26 jmg Exp $
  *
  * Log: inp.c,v
  *
@@ -364,11 +364,11 @@ char *string;
     if (revision == Nullch)
 	return TRUE;
     patlen = strlen(revision);
-    if (strnEQ(string,revision,patlen) && isspace(string[patlen]))
+    if (strnEQ(string,revision,patlen) && isspace((unsigned char)string[patlen]))
 	return TRUE;
     for (s = string; *s; s++) {
-	if (isspace(*s) && strnEQ(s+1, revision, patlen) &&
-		isspace(s[patlen+1] )) {
+	if (isspace((unsigned char)*s) && strnEQ(s+1, revision, patlen) &&
+		isspace((unsigned char)s[patlen+1] )) {
 	    return TRUE;
 	}
     }
