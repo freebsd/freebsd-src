@@ -364,16 +364,20 @@ is not a directly-reachable address, the route as found in
 the local routing table for that IP is used instead.
 If
 .Ar ipaddr
-is a local address, then on a packet entering the system
-from a remote host it will be diverted to
+is a local address, then on a packet matching a
+.Cm fwd
+rule,
+it will be diverted to
 .Ar port
 on the local machine, keeping the local address of the socket
 set to the original IP address the packet was destined for.
-This is intended for use with transparent proxy servers.
+This makes the 
+.Xr netstat 1
+entry look rather wierd but is intended for
+use with transparent proxy servers.
 If the IP is not a local address then the port number
-(if specified) is ignored and the rule only applies to packets
-leaving the system.
-This will also map addresses to local ports when packets are
+(if specified) is ignored.
+This will also map addresses when packets are
 generated locally.
 The search terminates if this rule matches.
 If the port number is not given then the port number in the
@@ -382,6 +386,17 @@ Y would be forwarded to local port Y.
 The kernel must have been compiled with the
 .Dv IPFIREWALL_FORWARD
 option.
+Bridging interferes with forwarding of packets not destined
+to the local system as they bypass
+.Fn ip_input
+and
+.Fn ip_output
+where forwarding is implemented.
+The
+.Cm fwd
+action does not change the contents of the packet at all so
+packets forwarded to another system will usually be rejected by that system
+unless there is a matching rule on that system to capture them.
 .It Cm pipe Ar pipe_nr
 Pass packet to a
 .Xr dummynet 4
