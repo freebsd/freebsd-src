@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.3 1998/09/14 18:27:00 msmith Exp $ */
+/* $Id: elf_freebsd.c,v 1.4 1998/10/11 03:53:35 dima Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -90,193 +90,12 @@
 
 #define _KERNEL
 
-static int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 static int	elf_exec(struct loaded_module *amp);
-static int	elf_load(int fd, Elf_Ehdr *elf, vm_offset_t dest);
+int		bi_load(struct bootinfo_v1 *, vm_offset_t *);
 
 struct module_format alpha_elf = { elf_loadmodule, elf_exec };
 
 vm_offset_t ffp_save, ptbr_save;
-vm_offset_t ssym, esym;
-
-static int
-elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
-{
-    struct loaded_module	*mp;
-    Elf_Ehdr hdr;
-    ssize_t nr;
-    int fd, rval;
-
-    /* Open the file. */
-    rval = 1;
-    if ((fd = open(filename, 0)) < 0) {
-	(void)printf("open %s: %s\n", filename, strerror(errno));
-	goto err;
-    }
-
-    /* Read the exec header. */
-    if ((nr = read(fd, &hdr, sizeof(hdr))) != sizeof(hdr)) {
-	(void)printf("read header: %s\n", strerror(errno));
-	goto err;
-    }
-
-    if (!(hdr.e_ident[0] == ELFMAG0
-	  && hdr.e_ident[1] == ELFMAG1
-	  && hdr.e_ident[2] == ELFMAG2
-	  && hdr.e_ident[3] == ELFMAG3)) {
-	(void)printf("%s: unknown executable format\n", filename);
-	goto err;
-    }
-		
-    /* 
-     * Ok, we think this is for us.
-     */
-    mp = mod_allocmodule();
-    mp->m_name = strdup(filename);	/* XXX should we prune the name? */
-    mp->m_type = strdup("elf kernel");	/* XXX only if that's what we really are */
-
-    dest = (vm_offset_t) hdr.e_entry;
-    mp->m_addr = dest;
-    if (mod_findmodule(NULL, NULL) != NULL) {
-	printf("elf_loadmodule: kernel already loaded\n");
-	rval = EPERM;
-	goto err;
-    }
-    rval = elf_load(fd, &hdr, (vm_offset_t) dest);
-
-    /* save ELF header as metadata */
-    mod_addmetadata(mp, MODINFOMD_ELFHDR, sizeof(Elf_Ehdr), &hdr);
-
-    *result = (struct loaded_module *)mp;
-
- err:
-    if (fd >= 0)
-	(void)close(fd);
-    return (rval);
-}
-
-static int
-elf_load(int fd, Elf_Ehdr *elf, vm_offset_t dest)
-{
-	Elf_Shdr *shp;
-	Elf_Off off;
-	int i;
-	int first = 1;
-	int havesyms;
-
-	for (i = 0; i < elf->e_phnum; i++) {
-		Elf_Phdr phdr;
-		if (lseek(fd, elf->e_phoff + sizeof(phdr) * i, SEEK_SET)
-		    == -1)  {
-			(void)printf("lseek phdr: %s\n", strerror(errno));
-			return (1);
-		}
-		if (read(fd, (void *)&phdr, sizeof(phdr)) != sizeof(phdr)) {
-			(void)printf("read phdr: %s\n", strerror(errno));
-			return (1);
-		}
-		if (phdr.p_type != PT_LOAD ||
-		    (phdr.p_flags & (PF_W|PF_X)) == 0)
-			continue;
-
-		/* Read in segment. */
-		(void)printf("%s%lu", first ? "" : "+", phdr.p_filesz);
-		if (lseek(fd, phdr.p_offset, SEEK_SET) == -1)  {
-		    (void)printf("lseek text: %s\n", strerror(errno));
-		    return (1);
-		}
-		if (read(fd, (void *)phdr.p_vaddr, phdr.p_filesz) !=
-		    phdr.p_filesz) {
-			(void)printf("read text: %s\n", strerror(errno));
-			return (1);
-		}
-		if (first || ffp_save < phdr.p_vaddr + phdr.p_memsz)
-			ffp_save = phdr.p_vaddr + phdr.p_memsz;
-
-		/* Zero out bss. */
-		if (phdr.p_filesz < phdr.p_memsz) {
-			(void)printf("+%lu", phdr.p_memsz - phdr.p_filesz);
-			bzero((void *)(phdr.p_vaddr + phdr.p_filesz),
-			    phdr.p_memsz - phdr.p_filesz);
-		}
-		first = 0;
-	}
-	/*
-	 * Copy the ELF and section headers.
-	 */
-	ffp_save = roundup(ffp_save, sizeof(long));
-	ssym = ffp_save;
-	bcopy(elf, (void *)ffp_save, sizeof(Elf_Ehdr));
-	ffp_save += sizeof(Elf_Ehdr);
-	if (lseek(fd, elf->e_shoff, SEEK_SET) == -1)  {
-		printf("lseek section headers: %s\n", strerror(errno));
-		return (1);
-	}
-	if (read(fd, (void *)ffp_save, elf->e_shnum * sizeof(Elf_Shdr)) !=
-	    elf->e_shnum * sizeof(Elf_Shdr)) {
-		printf("read section headers: %s\n", strerror(errno));
-		return (1);
-	}
-	shp = (Elf_Shdr *)ffp_save;
-	ffp_save += roundup((elf->e_shnum * sizeof(Elf_Shdr)), sizeof(long));
-
-	/*
-	 * Now load the symbol sections themselves.  Make sure the
-	 * sections are aligned. Don't bother with string tables if
-	 * there are no symbol sections.
-	 */
-	off = roundup((sizeof(Elf_Ehdr) + (elf->e_shnum * sizeof(Elf_Shdr))),
-	    sizeof(long));
-	for (havesyms = i = 0; i < elf->e_shnum; i++)
-		if (shp[i].sh_type == SHT_SYMTAB)
-			havesyms = 1;
-	for (first = 1, i = 0; i < elf->e_shnum; i++) {
-		if (shp[i].sh_type == SHT_SYMTAB ||
-		    shp[i].sh_type == SHT_STRTAB) {
-			printf("%s%ld", first ? " [" : "+", shp[i].sh_size);
-			if (havesyms) {
-				if (lseek(fd, shp[i].sh_offset, SEEK_SET)
-					== -1) {
-					printf("\nlseek symbols: %s\n",
-					    strerror(errno));
-					return (1);
-				}
-				if (read(fd, (void *)ffp_save, shp[i].sh_size)
-					!= shp[i].sh_size) {
-					printf("\nread symbols: %s\n",
-					    strerror(errno));
-					return (1);
-				}
-			}
-			ffp_save += roundup(shp[i].sh_size, sizeof(long));
-			shp[i].sh_offset = off;
-			off += roundup(shp[i].sh_size, sizeof(long));
-			first = 0;
-		}
-	}
-	esym = ffp_save;
-
-	if (first == 0)
-		printf("]");
-
-	ffp_save = ALPHA_K0SEG_TO_PHYS((ffp_save + PAGE_MASK) & ~PAGE_MASK)
-	    >> PAGE_SHIFT;
-	ffp_save += 2;		/* XXX OSF/1 does this, no idea why. */
-
-	(void)printf("\n");
-
-	/*
-	 * Frob the copied ELF header to give information relative
-	 * to ssym.
-	 */
-	elf = (Elf_Ehdr *)ssym;
-	elf->e_phoff = 0;
-	elf->e_shoff = sizeof(Elf_Ehdr);
-	elf->e_phentsize = 0;
-	elf->e_phnum = 0;
-
-	return (0);
-}
 
 static int
 elf_exec(struct loaded_module *mp)
@@ -284,10 +103,17 @@ elf_exec(struct loaded_module *mp)
     static struct bootinfo_v1	bootinfo_v1;
     struct module_metadata	*md;
     Elf_Ehdr			*hdr;
+    int				err;
+    vm_offset_t			ssym, esym;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     hdr = (Elf_Ehdr *)&(md->md_data);
+
+    /* XXX ffp_save does not appear to be used in the kernel.. */
+    err = bi_load(&bootinfo_v1, &ffp_save);
+    if (err)
+	return(err);
 
     /*
      * Fill in the bootinfo for the kernel.
