@@ -107,6 +107,14 @@ and Toshiba CDROM drives, but could affect other brands as well. Workaround
 is to leave a CD in the drive during boot or 'camcontrol rescan'. 
 CDROM drives attached to other non-isp adapters are not affected.
 
+AlphaServer 8[24]00 'TurboLaser' support might be problematic. This depends
+on your specific hardware configuration. The problem originates in the
+support for multi-hose machines which is currently not always working.
+Typically the problem manifests itself as: "panic: hose encoding hack 
+would clobber base address" during boot. You might try to work around
+it by reconfiguring your machine. There is no clear recipe for this, as the
+problem is triggered by the way the SRM console sets up the machine.
+
 1.2. SECURITY FIXES
 -------------------
 
