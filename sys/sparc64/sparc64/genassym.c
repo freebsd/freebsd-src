@@ -35,7 +35,10 @@
 #include <sys/user.h>
 
 #include <vm/vm.h>
-#include <vm/pmap.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
 
 #include <machine/asi.h>
 #include <machine/vmparam.h>
@@ -82,17 +85,15 @@ ASSYM(FPRS_DL, FPRS_DL);
 ASSYM(FPRS_DU, FPRS_DU);
 ASSYM(FPRS_FEF, FPRS_FEF);
 
-ASSYM(TTE_SHIFT, TTE_SHIFT);
-ASSYM(STTE_SHIFT, STTE_SHIFT);
+ASSYM(TLB_DAR_TSB_USER_PRIMARY, TLB_DAR_SLOT(TLB_SLOT_TSB_USER_PRIMARY));
+ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
+
+ASSYM(TSB_USER_MIN_ADDRESS, TSB_USER_MIN_ADDRESS);
 ASSYM(TSB_PRIMARY_BUCKET_SHIFT, TSB_PRIMARY_BUCKET_SHIFT);
 ASSYM(TSB_KERNEL_MIN_ADDRESS, TSB_KERNEL_MIN_ADDRESS);
-ASSYM(TSB_MASK_WIDTH, TSB_MASK_WIDTH);
-ASSYM(TSB_SECONDARY_BUCKET_SHIFT, TSB_SECONDARY_BUCKET_SHIFT);
-ASSYM(TSB_BUCKET_SPREAD_SHIFT, TSB_BUCKET_SPREAD_SHIFT);
-ASSYM(TSB_SECONDARY_STTE_MASK, TSB_SECONDARY_STTE_MASK);
-ASSYM(TSB_SECONDARY_STTE_SHIFT, TSB_SECONDARY_STTE_SHIFT);
-ASSYM(TSB_LEVEL1_BUCKET_MASK, TSB_LEVEL1_BUCKET_MASK);
-ASSYM(TSB_LEVEL1_BUCKET_SHIFT, TSB_LEVEL1_BUCKET_SHIFT);
+ASSYM(TSB_PRIMARY_MASK_WIDTH, TSB_MASK_WIDTH);
+ASSYM(TSB_PRIMARY_STTE_MASK, TSB_PRIMARY_STTE_MASK);
+ASSYM(TSB_PRIMARY_STTE_SHIFT, TSB_PRIMARY_STTE_SHIFT);
 ASSYM(TSB_1M_STTE_SHIFT, TSB_1M_STTE_SHIFT);
 ASSYM(TSB_KERNEL_MASK, TSB_KERNEL_MASK);
 
@@ -101,11 +102,14 @@ ASSYM(PAGE_MASK, PAGE_MASK);
 
 ASSYM(TTE_DATA, offsetof(struct tte, tte_data));
 ASSYM(TTE_TAG, offsetof(struct tte, tte_tag));
+ASSYM(TTE_SHIFT, TTE_SHIFT);
 ASSYM(ST_TTE, offsetof(struct stte, st_tte));
+ASSYM(STTE_SHIFT, STTE_SHIFT);
 ASSYM(STTE_SIZEOF, sizeof(struct stte));
 
 ASSYM(TD_VA_LOW_MASK, TD_VA_LOW_MASK);
 ASSYM(TD_VA_LOW_SHIFT, TD_VA_LOW_SHIFT);
+ASSYM(TD_INIT, TD_INIT);
 ASSYM(TD_MOD, TD_MOD);
 ASSYM(TD_REF, TD_REF);
 ASSYM(TD_W, TD_W);
@@ -129,6 +133,12 @@ ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
 ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+
+ASSYM(U_PCB, offsetof(struct user, u_pcb));
+
+ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
+ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));
+ASSYM(PM_STTE, offsetof(struct pmap, pm_stte));
 
 ASSYM(FP_FB0, offsetof(struct fpstate, fp_fb[0]));
 ASSYM(FP_FB1, offsetof(struct fpstate, fp_fb[1]));
@@ -186,5 +196,3 @@ ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
 ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
 ASSYM(TF_ARG, offsetof(struct trapframe, tf_arg));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
-
-ASSYM(U_PCB, offsetof(struct user, u_pcb));
