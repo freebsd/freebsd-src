@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.28 1994/10/17 21:16:35 phk Exp $
+ *      $Id: bt742a.c,v 1.29 1994/10/23 21:27:10 wollman Exp $
  */
 
 /*
@@ -1147,13 +1147,12 @@ bt_init(unit)
 	}
 	if ( binfo.id[0] == '5' ) {
 		printf("bt%d: This driver is designed for using 32 bit addressing\n",unit);
-		printf("bt%d: mode firmware and EISA/PCI/VLB bus architecture bus\n",unit);
-		printf("bt%d: WITHOUT any software trick/overhead (i.e.bounce buffer).\n",unit);
-		printf("bt%d: If you have more than 16MBytes memory\n",unit);
-		printf("bt%d: your filesystem will get a serious damage.\n",unit);
+		printf("bt%d: mode firmware and EISA/PCI/VLB bus architectures\n",unit);
+		printf("bt%d: Bounce-buffering will be used (and is necessary)\n", unit); 
+		printf("bt%d: if you have more than 16MBytes memory.\n",unit);
 	} else if ( info.bus_type == BT_BUS_TYPE_24bit ) {
 		printf("bt%d: Your board should report a 32bit bus architecture type..\n",unit);
-		printf("bt%d: A firmware on your board may have a problem with over\n",unit);
+		printf("bt%d: The firmware on your board may have a problem with over\n",unit);
 		printf("bt%d: 16MBytes memory handling with this driver.\n",unit);
 	}
 
