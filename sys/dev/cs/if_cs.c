@@ -699,10 +699,6 @@ cs_init(void *xsc)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int i, s, rx_cfg;
 
-	/* address not known */
-	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
-		return;
-
 	/*
 	 * reset whatchdog timer
 	 */

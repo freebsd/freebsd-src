@@ -1007,14 +1007,6 @@ fe_init (void * xsc)
 	struct fe_softc *sc = xsc;
 	int s;
 
-	/* We need an address. */
-	if (TAILQ_EMPTY(&sc->sc_if.if_addrhead)) { /* XXX unlikely */
-#ifdef DIAGNOSTIC
-		printf("%s: init() without any address\n", sc->sc_xname);
-#endif
-		return;
-	}
-
 	/* Start initializing 86960.  */
 	s = splimp();
 

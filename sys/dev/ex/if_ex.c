@@ -305,9 +305,6 @@ ex_init(void *xsc)
 
 	DODEBUG(Start_End, printf("%s: ex_init: start\n", ifp->if_xname););
 
-	if (TAILQ_FIRST(&ifp->if_addrhead) == NULL) {
-		return;
-	}
 	s = splimp();
 	ifp->if_timer = 0;
 

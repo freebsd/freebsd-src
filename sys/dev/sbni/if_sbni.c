@@ -264,10 +264,6 @@ sbni_init(void *xsc)
 	sc = (struct sbni_softc *)xsc;
 	ifp = &sc->arpcom.ac_if;
 
-	/* address not known */
-	if (TAILQ_EMPTY(&ifp->if_addrhead))
-		return;
-
 	/*
 	 * kludge to avoid multiple initialization when more than once
 	 * protocols configured

@@ -1884,10 +1884,6 @@ ed_init(xsc)
 	if (sc->gone)
 		return;
 
-	/* address not known */
-	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
-		return;
-
 	/*
 	 * Initialize the NIC in the exact order outlined in the NS manual.
 	 * This init procedure is "mandatory"...don't change what or when
