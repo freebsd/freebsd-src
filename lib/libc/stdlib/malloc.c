@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.38 1998/06/09 08:30:32 jb Exp $
+ * $Id: malloc.c,v 1.39 1998/06/18 09:13:16 peter Exp $
  *
  */
 
@@ -1059,8 +1059,8 @@ malloc(size_t size)
 {
     register void *r;
 
-    malloc_func = " in malloc():";
     THREAD_LOCK();
+    malloc_func = " in malloc():";
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
         malloc_active--;
@@ -1083,15 +1083,14 @@ malloc(size_t size)
 void
 free(void *ptr)
 {
-    malloc_func = " in free():";
     THREAD_LOCK();
+    malloc_func = " in free():";
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
-        malloc_active--;
-	return;
+    } else {
+	ifree(ptr);
+	UTRACE(ptr, 0, 0);
     }
-    ifree(ptr);
-    UTRACE(ptr, 0, 0);
     malloc_active--;
     THREAD_UNLOCK();
     return;
@@ -1102,8 +1101,8 @@ realloc(void *ptr, size_t size)
 {
     register void *r;
 
-    malloc_func = " in realloc():";
     THREAD_LOCK();
+    malloc_func = " in realloc():";
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
         malloc_active--;
