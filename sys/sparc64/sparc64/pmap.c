@@ -1073,37 +1073,39 @@ pmap_pinit0(pmap_t pm)
 void
 pmap_pinit(pmap_t pm)
 {
+	vm_page_t ma[TSB_PAGES];
 	vm_page_t m;
+	int i;
 
 	/*
 	 * Allocate kva space for the tsb.
 	 */
 	if (pm->pm_tsb == NULL) {
 		pm->pm_tsb = (struct tte *)kmem_alloc_pageable(kernel_map,
-		    PAGE_SIZE_8K);
+		    TSB_BSIZE);
 	}
 
 	/*
 	 * Allocate an object for it.
 	 */
 	if (pm->pm_tsb_obj == NULL)
-		pm->pm_tsb_obj = vm_object_allocate(OBJT_DEFAULT, 1);
+		pm->pm_tsb_obj = vm_object_allocate(OBJT_DEFAULT, TSB_PAGES);
 
-	/*
-	 * Allocate the tsb page.
-	 */
-	m = vm_page_grab(pm->pm_tsb_obj, 0, VM_ALLOC_RETRY | VM_ALLOC_ZERO);
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(VM_PAGE_TO_PHYS(m));
+	for (i = 0; i < TSB_PAGES; i++) {
+		m = vm_page_grab(pm->pm_tsb_obj, i,
+		    VM_ALLOC_RETRY | VM_ALLOC_ZERO);
+		if ((m->flags & PG_ZERO) == 0)
+			pmap_zero_page(VM_PAGE_TO_PHYS(m));
 
-	m->wire_count++;
-	cnt.v_wire_count++;
+		m->wire_count++;
+		cnt.v_wire_count++;
 
-	vm_page_flag_clear(m, PG_MAPPED | PG_BUSY);
-	m->valid = VM_PAGE_BITS_ALL;
+		vm_page_flag_clear(m, PG_MAPPED | PG_BUSY);
+		m->valid = VM_PAGE_BITS_ALL;
 
-	pmap_kenter((vm_offset_t)pm->pm_tsb, VM_PAGE_TO_PHYS(m));
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, (vm_offset_t)pm->pm_tsb);
+		ma[i] = m;
+	}
+	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	pm->pm_active = 0;
 	pm->pm_context = pmap_context_alloc();
@@ -1138,17 +1140,17 @@ pmap_release(pmap_t pm)
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
-	m = TAILQ_FIRST(&obj->memq);
-	pmap_context_destroy(pm->pm_context);
-	if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
-		return;
-	vm_page_busy(m);
-	KASSERT(m->hold_count == 0, ("pmap_release: freeing held tsb page"));
-	pmap_kremove((vm_offset_t)pm->pm_tsb);
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, (vm_offset_t)pm->pm_tsb);
-	m->wire_count--;
-	cnt.v_wire_count--;
-	vm_page_free_zero(m);
+	TAILQ_FOREACH(m, &obj->memq, listq) {
+		if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
+			continue;
+		vm_page_busy(m);
+		KASSERT(m->hold_count == 0,
+		    ("pmap_release: freeing held tsb page"));
+		m->wire_count--;
+		cnt.v_wire_count--;
+		vm_page_free_zero(m);
+	}
+	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 }
 
 /*
