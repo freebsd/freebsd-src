@@ -122,6 +122,11 @@ ncv_release_resource(DEVPORT_PDEVICE dev)
 				     sc->port_rid, sc->port_res);
 	}
 
+	if (sc->port_res_dmy) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+				     sc->port_rid_dmy, sc->port_res_dmy);
+	}
+
 	if (sc->irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ,
 				     sc->irq_rid, sc->irq_res);
@@ -138,20 +143,39 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 	u_int32_t		flags = DEVPORT_PDEVFLAGS(dev);
-	u_int			iobase = DEVPORT_PDEVIOBASE(dev);
-	u_long			maddr, msize;
+	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
 
 	if(flags & KME_KXLC004_01)
 		offset = OFFSET_KME_KXLC004_01;
 
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
+	if (error || (iosize < (offset + NCVIOSZ))) {
+		return(ENOMEM);
+	}
+
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  iobase+offset, ~0, NCVIOSZ, RF_ACTIVE);
+					  ioaddr+offset, ioaddr+iosize-offset,
+					  iosize-offset, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		ncv_release_resource(dev);
 		return(ENOMEM);
+	}
+
+	if (offset != 0) {
+		sc->port_rid_dmy = 0;
+		sc->port_res_dmy = bus_alloc_resource(dev, SYS_RES_IOPORT, 
+						&sc->port_rid_dmy,
+						ioaddr, ioaddr+offset, offset, 
+						RF_ACTIVE);
+		if (sc->port_res_dmy == NULL) {
+			printf("Warning: cannot allocate IOPORT partially.\n");
+		}
+	} else {
+		sc->port_rid_dmy = 0;
+		sc->port_res_dmy = NULL;
 	}
 
 	sc->irq_rid = 0;

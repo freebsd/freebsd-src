@@ -55,9 +55,11 @@ struct ncv_softc {
 	struct ncv_hw sc_hw;		/* hardware register images */
 #if defined (__FreeBSD__) && __FreeBSD_version >= 400001
 	int port_rid;
+	int port_rid_dmy;
 	int irq_rid;
 	int mem_rid;
 	struct resource *port_res;
+	struct resource *port_res_dmy;
 	struct resource *irq_res;
 	struct resource *mem_res;
 	void *ncv_intrhand;
