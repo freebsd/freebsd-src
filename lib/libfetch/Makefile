@@ -1,5 +1,5 @@
 LIB=		fetch
-CFLAGS+=	-I${.CURDIR} -Wall
+CFLAGS+=	-I${.CURDIR} -Wall -pedantic -DNDEBUG
 SRCS=		fetch.c ftp.c http.c file.c
 MAN3=		fetch.3
 CLEANFILES+=	ftperr.c httperr.c
@@ -11,8 +11,9 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
 
-ftperr.c:	ftp.errors
-	@echo "struct ftperr {" \ >>  ${.TARGET}
+ftp.c: ftperr.c
+ftperr.c: ftp.errors
+	@echo "struct ftperr {" \ >  ${.TARGET}
 	@echo "    const int num;" \ >>  ${.TARGET}
 	@echo "    const char *string;" \ >>  ${.TARGET}
 	@echo "};" \ >>  ${.TARGET}
@@ -26,8 +27,9 @@ ftperr.c:	ftp.errors
 	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-httperr.c:	http.errors
-	@echo "struct httperr {" \ >>  ${.TARGET}
+http.c:	httperr.c
+httperr.c: http.errors
+	@echo "struct httperr {" \ >  ${.TARGET}
 	@echo "    const int num;" \ >>  ${.TARGET}
 	@echo "    const char *string;" \ >>  ${.TARGET}
 	@echo "};" \ >>  ${.TARGET}
