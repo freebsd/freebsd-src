@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.17 1995/03/20 21:30:18 wollman Exp $
+ *	$Id: route.c,v 1.18 1995/03/20 23:00:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -166,6 +166,9 @@ rtfree(rt)
 		}
 		ifa = rt->rt_ifa;
 		IFAFREE(ifa);
+		if (rt->rt_parent) {
+			RTFREE(rt->rt_parent);
+		}
 		Free(rt_key(rt));
 		Free(rt);
 	}
@@ -445,10 +448,14 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		ifa->ifa_refcnt++;
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
+		rt->rt_parent = 0;
+
 		if (req == RTM_RESOLVE) {
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
-			if ((*ret_nrt)->rt_flags & RTF_PRCLONING)
+			if ((*ret_nrt)->rt_flags & RTF_PRCLONING) {
 				rt->rt_parent = (*ret_nrt);
+				(*ret_nrt)->rt_refcnt++;
+			}
 		}
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
