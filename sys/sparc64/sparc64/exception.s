@@ -2642,7 +2642,7 @@ tl0_ret_fill_end:
 	mov	%o1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 	b	%xcc, .Ltl0_trap_reenter
-	 mov	T_FILL, %o0
+	 mov	T_FILL_RET, %o0
 END(tl0_ret)
 
 /*
