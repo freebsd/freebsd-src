@@ -34,10 +34,8 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.31 1996/01/04 20:28:29 wollman Exp $
+ *	$Id: genassym.c,v 1.32 1996/03/12 15:37:44 davidg Exp $
  */
-
-#include "opt_sysvipc.h"
 
 #include <stdio.h>
 #include <sys/param.h>
@@ -119,9 +117,6 @@ main()
 	printf("#define\tAPTDPTDI 0x%x\n", APTDPTDI);
 	printf("#define\tPGSHIFT %d\n", PGSHIFT);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
-#ifdef SYSVSHM
-	printf("#define\tSHMMAXPGS %d\n", SHMMAXPGS);
-#endif
 	printf("#define\tUSRSTACK 0x%lx\n", USRSTACK);
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);
 	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
