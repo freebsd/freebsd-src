@@ -123,6 +123,12 @@
 #define RAD_PORT_LIMIT			62	/* Integer */
 #define RAD_LOGIN_LAT_PORT		63	/* Integer */
 #define RAD_CONNECT_INFO		77	/* String */
+#define RAD_NAS_IPV6_ADDRESS		95	/* IPv6 address */
+#define RAD_FRAMED_INTERFACE_ID		96	/* 8 octets */
+#define RAD_FRAMED_IPV6_PREFIX		97	/* Octets */
+#define RAD_LOGIN_IPV6_HOST		98	/* IPv6 address */
+#define RAD_FRAMED_IPV6_ROUTE		99	/* String */
+#define RAD_FRAMED_IPV6_POOL		100	/* String */
 
 /* Accounting attribute types and values */
 #define RAD_ACCT_STATUS_TYPE		40	/* Integer */
