@@ -253,11 +253,10 @@ ForExec(void *namep, void *argp)
 {
     char *name = namep;
     For *arg = argp;
-    size_t len;
 
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
-    Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, &len),
+    Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, NULL),
 			       VAR_GLOBAL, FALSE), arg->lineno);
     Var_Delete(arg->var, VAR_GLOBAL);
 
