@@ -154,6 +154,14 @@ struct yenta_chipinfo {
 	{PCIC_ID_TI4451, "TI4451 PCI-CardBus Bridge", CB_TI12XX},
 	{PCIC_ID_TI4510, "TI4510 PCI-CardBus Bridge", CB_TI12XX},
 
+	/* ENE */
+	{PCIC_ID_ENE_CB710, "ENE CB720 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_ENE_CB720, "ENE CB720 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_ENE_CB1211, "ENE CB1211 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_ENE_CB1225, "ENE CB1225 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_ENE_CB1410, "ENE CB1410 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_ENE_CB1420, "ENE CB1420 PCI-CardBus Bridge", CB_TI12XX},
+
 	/* Ricoh chips */
 	{PCIC_ID_RICOH_RL5C465, "RF5C465 PCI-CardBus Bridge", CB_RF5C46X},
 	{PCIC_ID_RICOH_RL5C466, "RF5C466 PCI-CardBus Bridge", CB_RF5C46X},
@@ -180,6 +188,7 @@ struct yenta_chipinfo {
 	{PCIC_ID_OZ6912, "O2Micro OZ6912/6972 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_O2MICRO},
+	/* 711E1 */
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
