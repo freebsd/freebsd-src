@@ -470,6 +470,8 @@ ieee80211_alloc_node(struct ieee80211com *ic, u_int8_t *macaddr)
 	struct ieee80211_node *ni = (*ic->ic_node_alloc)(ic);
 	if (ni != NULL)
 		ieee80211_setup_node(ic, ni, macaddr);
+	else
+		ic->ic_stats.is_rx_nodealloc++;
 	return ni;
 }
 
