@@ -91,21 +91,21 @@ acpi_print_gas(struct ACPIgas *gas)
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_IO:
-		printf("0x%08lx:%u[%u] (IO)", (u_long)gas->address,
+		printf("0x%02lx:%u[%u] (IO)", (u_long)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_PCI:
-		printf("%x:%x+%#x (PCI)", (uint16_t)(gas->address >> 32),
+		printf("%x:%x+0x%x (PCI)", (uint16_t)(gas->address >> 32),
 		       (uint16_t)((gas->address >> 16) & 0xffff),
 		       (uint16_t)gas->address);
 		break;
 	/* XXX How to handle these below? */
 	case ACPI_GAS_EMBEDDED:
-		printf("0x%#x:%u[%u] (EC)", (uint16_t)gas->address,
+		printf("0x%x:%u[%u] (EC)", (uint16_t)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_SMBUS:
-		printf("0x%#x:%u[%u] (SMBus)", (uint16_t)gas->address,
+		printf("0x%x:%u[%u] (SMBus)", (uint16_t)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_FIXED:
