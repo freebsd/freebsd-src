@@ -74,36 +74,41 @@ static const char rcsid[] =
 #include <security/pam_appl.h>
 #include <security/openpam.h>
 
-#define PAM_END() do {						\
-	int local_ret;						\
-	if (pamh != NULL && creds_set) {			\
-		local_ret = pam_setcred(pamh, PAM_DELETE_CRED);	\
-		if (local_ret != PAM_SUCCESS)			\
-			syslog(LOG_ERR, "pam_setcred: %s",	\
-				pam_strerror(pamh, local_ret));	\
-		local_ret = pam_end(pamh, local_ret);		\
-		if (local_ret != PAM_SUCCESS)			\
-			syslog(LOG_ERR, "pam_end: %s",		\
-				pam_strerror(pamh, local_ret));	\
-	}							\
+#define PAM_END() do {							\
+	int local_ret;							\
+	if (pamh != NULL) {						\
+		local_ret = pam_setcred(pamh, PAM_DELETE_CRED);		\
+		if (local_ret != PAM_SUCCESS)				\
+			syslog(LOG_ERR, "pam_setcred: %s",		\
+				pam_strerror(pamh, local_ret));		\
+		if (asthem) {						\
+			local_ret = pam_close_session(pamh, 0);		\
+			if (local_ret != PAM_SUCCESS)			\
+				syslog(LOG_ERR, "pam_close_session: %s",\
+					pam_strerror(pamh, local_ret));	\
+		}							\
+		local_ret = pam_end(pamh, local_ret);			\
+		if (local_ret != PAM_SUCCESS)				\
+			syslog(LOG_ERR, "pam_end: %s",			\
+				pam_strerror(pamh, local_ret));		\
+	}								\
 } while (0)
 
 
-#define PAM_SET_ITEM(what, item) do {				\
-	int local_ret;						\
-	local_ret = pam_set_item(pamh, what, item);		\
-	if (local_ret != PAM_SUCCESS) {				\
-		syslog(LOG_ERR, "pam_set_item(" #what "): %s",	\
-			pam_strerror(pamh, local_ret));		\
-		errx(1, "pam_set_item(" #what "): %s",		\
-			pam_strerror(pamh, local_ret));		\
-	}							\
+#define PAM_SET_ITEM(what, item) do {					\
+	int local_ret;							\
+	local_ret = pam_set_item(pamh, what, item);			\
+	if (local_ret != PAM_SUCCESS) {					\
+		syslog(LOG_ERR, "pam_set_item(" #what "): %s",		\
+			pam_strerror(pamh, local_ret));			\
+		errx(1, "pam_set_item(" #what "): %s",			\
+			pam_strerror(pamh, local_ret));			\
+	}								\
 } while (0)
 
 enum tristate { UNSET, YES, NO };
 
 static pam_handle_t *pamh = NULL;
-static int	creds_set = 0;
 static char	**environ_pam;
 
 static char	*ontty(void);
@@ -126,8 +131,9 @@ main(int argc, char *argv[])
 		char		* const *b;
 	}		np;
 	uid_t		ruid;
+	pid_t		child_pid, child_pgrp, pid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
-			statusp, child_pid, child_pgrp, ret_pid, setmaclabel;
+			statusp, setmaclabel;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 	struct sigaction sa, sa_int, sa_quit, sa_pipe;
@@ -304,6 +310,12 @@ main(int argc, char *argv[])
 	}
 	setpriority(PRIO_PROCESS, 0, prio);
 
+	/* Switch to home directory */
+	if (asthem) {
+		if (chdir(pwd->pw_dir) < 0)
+			errx(1, "no directory");
+	}
+
 	/*
 	 * PAM modules might add supplementary groups in pam_setcred(), so
 	 * initialize them first.
@@ -312,11 +324,19 @@ main(int argc, char *argv[])
 		err(1, "setusercontext");
 
 	retcode = pam_setcred(pamh, PAM_ESTABLISH_CRED);
-	if (retcode != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_setcred(pamh, PAM_ESTABLISH_CRED): %s",
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_setcred: %s",
 		    pam_strerror(pamh, retcode));
-	else
-		creds_set = 1;
+		errx(1, "failed to establish credentials.");
+	}
+	if (asthem) {
+		retcode = pam_open_session(pamh, 0);
+		if (retcode != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_open_session: %s",
+			    pam_strerror(pamh, retcode));
+			errx(1, "failed to open session.");
+		}
+	}
 
 	/*
 	 * We must fork() before setuid() because we need to call
@@ -344,8 +364,7 @@ main(int argc, char *argv[])
 		tcsetpgrp(1, child_pid);
 		close(fds[1]);
 		sigaction(SIGPIPE, &sa_pipe, NULL);
-		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) !=
-		        -1) {
+		while ((pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
 				kill(getpid(), SIGSTOP);
 				child_pgrp = getpgid(child_pid);
@@ -356,7 +375,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
-		if (ret_pid == -1)
+		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
 		exit(statusp);
@@ -397,7 +416,14 @@ main(int argc, char *argv[])
 			if (asthem) {
 				p = getenv("TERM");
 				environ = &cleanenv;
+			}
 
+			if (asthem || pwd->pw_uid)
+				setenv("USER", pwd->pw_name, 1);
+			setenv("HOME", pwd->pw_dir, 1);
+			setenv("SHELL", shell, 1);
+
+			if (asthem) {
 				/*
 				 * Add any environmental variables that the
 				 * PAM modules may have set.
@@ -412,13 +438,7 @@ main(int argc, char *argv[])
 					LOGIN_SETENV);
 				if (p)
 					setenv("TERM", p, 1);
-				if (chdir(pwd->pw_dir) < 0)
-					errx(1, "no directory");
 			}
-			if (asthem || pwd->pw_uid)
-				setenv("USER", pwd->pw_name, 1);
-			setenv("HOME", pwd->pw_dir, 1);
-			setenv("SHELL", shell, 1);
 		}
 		login_close(lc);
 
@@ -459,12 +479,14 @@ export_pam_environment(void)
  * - Make sure the string doesn't run on too long.
  * - Do not export certain variables.  This list was taken from the
  *   Solaris pam_putenv(3) man page.
+ * Note that if the user is chrooted, PAM may have a better idea than we
+ * do of where her home directory is.
  */
 static int
 ok_to_export(const char *s)
 {
 	static const char *noexport[] = {
-		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
+		"SHELL", /* "HOME", */ "LOGNAME", "MAIL", "CDPATH",
 		"IFS", "PATH", NULL
 	};
 	const char **pp;
