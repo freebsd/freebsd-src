@@ -7,7 +7,12 @@
 **
 *******************************************************************/
 
+#ifdef TESTMAIN
+#include <stdio.h>
+#include <stdlib.h>
+#else
 #include <stand.h>
+#endif
 #include "ficl.h"
 
 /*

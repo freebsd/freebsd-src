@@ -17,7 +17,13 @@
 ** 29 jun 1998 (sadler) added variable sized hash table support
 */
 
+#ifdef TESTMAIN
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#else
 #include <stand.h>
+#endif
 #include <string.h>
 #include "ficl.h"
 
