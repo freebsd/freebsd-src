@@ -20,12 +20,10 @@ Assuming that you'd copied fdimage.exe and kern.flp into a directory
 somewhere.  You would do the same for mfsroot.flp, of course.
 
 If you're creating the boot floppy from a UNIX machine, you may find
-that:
+that one of the following:
 
+        dd if=floppies/kern.flp of=/dev/fd0
         dd if=floppies/kern.flp of=/dev/rfd0
-
-or
-
         dd if=floppies/kern.flp of=/dev/floppy
 
 work well, depending on your hardware and operating system environment
