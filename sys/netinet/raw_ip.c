@@ -581,7 +581,9 @@ static int
 rip_abort(struct socket *so)
 {
 	soisdisconnected(so);
-	return rip_detach(so);
+	if (so->so_state & SS_NOFDREF)
+		return rip_detach(so);
+	return 0;
 }
 
 static int
