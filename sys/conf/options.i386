@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.86 1998/09/15 10:01:14 gibbs Exp $
+#	$Id: options.i386,v 1.87 1998/09/15 18:16:37 sos Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -75,7 +75,7 @@ STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
-SC_BAD_FLICKER		opt_syscons.h
+SC_ALT_SEQACCESS	opt_syscons.h
 
 VESA			opt_vesa.h
 
