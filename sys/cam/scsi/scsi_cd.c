@@ -143,7 +143,7 @@ struct cd_softc {
 	struct cd_params	params;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
-	struct devstat		device_stats;
+	struct devstat		*device_stats;
 	STAILQ_ENTRY(cd_softc)	changer_links;
 	struct cdchanger	*changer;
 	int			bufs_left;
@@ -524,7 +524,7 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
-	devstat_remove_entry(&softc->device_stats);
+	devstat_remove_entry(softc->device_stats);
 	destroy_dev(softc->dev);
 	EVENTHANDLER_DEREGISTER(dev_clone, softc->clonetag);
 	free(softc, M_DEVBUF);
@@ -736,7 +736,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	devstat_add_entry(&softc->device_stats, "cd", 
+	softc->device_stats = devstat_new_entry("cd", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
@@ -1057,7 +1057,7 @@ cdclose(dev_t dev, int flag, int fmt, struct thread *td)
 	 * Since we're closing this CD, mark the blocksize as unavailable.
 	 * It will be marked as available when the CD is opened again.
 	 */
-	softc->device_stats.flags |= DEVSTAT_BS_UNAVAILABLE;
+	softc->device_stats->flags |= DEVSTAT_BS_UNAVAILABLE;
 
 	/*
 	 * We'll check the media and toc again at the next open().
@@ -1088,7 +1088,7 @@ cdshorttimeout(void *arg)
 	 * this device.  If not, move it out of the active slot.
 	 */
 	if ((bioq_first(&changer->cur_device->bio_queue) == NULL)
-	 && (changer->cur_device->device_stats.busy_count == 0)) {
+	 && (changer->cur_device->device_stats->busy_count == 0)) {
 		changer->flags |= CHANGER_MANUAL_CALL;
 		cdrunchangerqueue(changer);
 	}
@@ -1187,10 +1187,10 @@ cdrunchangerqueue(void *arg)
 	 */
 	if (changer->devq.qfrozen_cnt > 0) {
 
-		if (changer->cur_device->device_stats.busy_count > 0) {
+		if (changer->cur_device->device_stats->busy_count > 0) {
 			changer->cur_device->flags |= CD_FLAG_SCHED_ON_COMP;
 			changer->cur_device->bufs_left = 
-				changer->cur_device->device_stats.busy_count;
+				changer->cur_device->device_stats->busy_count;
 			if (called_from_timeout) {
 				changer->long_handle =
 					timeout(cdrunchangerqueue, changer,
@@ -1297,7 +1297,7 @@ cdchangerschedule(struct cd_softc *softc)
 				cdrunchangerqueue(softc->changer);
 			}
 		} else if ((bioq_first(&softc->bio_queue) == NULL)
-		        && (softc->device_stats.busy_count == 0)) {
+		        && (softc->device_stats->busy_count == 0)) {
 			softc->changer->flags |= CHANGER_MANUAL_CALL;
 			cdrunchangerqueue(softc->changer);
 		}
@@ -1351,7 +1351,7 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	softc = (struct cd_softc *)periph->softc;
 
 	error = cam_periph_runccb(ccb, error_routine, cam_flags, sense_flags,
-				  &softc->device_stats);
+				  softc->device_stats);
 
 	if (softc->flags & CD_FLAG_CHANGER)
 		cdchangerschedule(softc);
@@ -1507,7 +1507,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction(&softc->device_stats);
+			devstat_start_transaction(softc->device_stats);
 
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/4,
@@ -1666,7 +1666,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
 
-		biofinish(bp, &softc->device_stats, 0);
+		biofinish(bp, softc->device_stats, 0);
 		break;
 	}
 	case CD_CCB_PROBE:
@@ -2828,9 +2828,9 @@ bailout:
 	 * XXX problems here if some slice or partition is still
 	 * open with the old size?
 	 */
-	if ((softc->device_stats.flags & DEVSTAT_BS_UNAVAILABLE) != 0)
-		softc->device_stats.flags &= ~DEVSTAT_BS_UNAVAILABLE;
-	softc->device_stats.block_size = softc->params.blksize;
+	if ((softc->device_stats->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
+		softc->device_stats->flags &= ~DEVSTAT_BS_UNAVAILABLE;
+	softc->device_stats->block_size = softc->params.blksize;
 
 	return (error);
 }
