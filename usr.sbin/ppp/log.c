@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.27 1998/05/21 21:46:25 brian Exp $
+ *	$Id: log.c,v 1.28 1998/05/23 22:24:40 brian Exp $
  */
 
 #include <sys/types.h>
@@ -39,6 +39,7 @@
 #include "log.h"
 #include "descriptor.h"
 #include "prompt.h"
+#include "defs.h"
 
 static const char *LogNames[] = {
   "Async",
@@ -293,7 +294,7 @@ log_Printf(int lev, const char *fmt,...)
 
     if ((log_IsKept(lev) & LOG_KEPT_LOCAL) && promptlist) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
-        snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
+        snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
@@ -306,7 +307,7 @@ log_Printf(int lev, const char *fmt,...)
     if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) &&
         (lev != LogWARN || !promptlist)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
-        snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
+        snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);

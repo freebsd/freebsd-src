@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.45 1998/05/21 21:44:37 brian Exp $
+ *	$Id: chat.c,v 1.46 1998/05/23 22:24:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -727,8 +727,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     return;
   }
   if ((pid = fork()) == 0) {
+    close(fids[0]);
     timer_TermService();
-
     fids[1] = fcntl(fids[1], F_DUPFD, 4);
     dup2(physical_GetFD(physical), STDIN_FILENO);
     dup2(STDIN_FILENO, STDOUT_FILENO);
