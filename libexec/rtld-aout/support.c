@@ -49,7 +49,7 @@ concat(s1, s2, s3)
 		len += strlen(s2);
 	if (s3)
 		len += strlen(s3);
-	s = malloc(len);
+	s = xmalloc(len);
 	s[0] = '\0';
 	if (s1)
 		strcat(s, s1);
