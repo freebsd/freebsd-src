@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.26 1998/02/27 19:58:29 guido Exp $
+ * $Id: param.c,v 1.27 1998/05/15 20:10:54 wollman Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -70,7 +70,7 @@
 #endif
 int	hz = HZ;
 int	tick = 1000000 / HZ;
-int	tickadj = 30000 / (60 * HZ);		/* can adjust 30ms in 60s */
+int	tickadj = howmany(30000, 60 * HZ);	/* can adjust 30ms in 60s */
 #define	NPROC (20 + 16 * MAXUSERS)
 #define MAXFILES (NPROC*2)
 int	maxproc = NPROC;			/* maximum # of processes */
