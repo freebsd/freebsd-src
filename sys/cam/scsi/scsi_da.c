@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.14 1998/12/04 22:54:43 archie Exp $
+ *      $Id: scsi_da.c,v 1.15 1998/12/11 03:54:43 gibbs Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -438,7 +438,8 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 		/* Ignore any errors */
 		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+				  /*sense_flags*/SF_RETRY_UA,
+				  &softc->device_stats);
 
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb->ccb_h.path,
