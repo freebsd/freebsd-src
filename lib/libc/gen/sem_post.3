@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd February 15, 2000
 .Dt SEM_POST 3
 .Os
@@ -60,7 +61,9 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa sem
+argument
 points to an invalid semaphore.
 .El
 .Sh SEE ALSO
