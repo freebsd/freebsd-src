@@ -129,7 +129,8 @@ struct knote;
  * gives.
  *
  * Users of struct thread/struct proc that aren't device drivers should
- * not use d_thread_t.
+ * not use d_thread_t.  It is used here only as a shorthand to prevent
+ * lines from wrapping.
  */
 
 typedef struct thread d_thread_t;
