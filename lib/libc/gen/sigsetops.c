@@ -31,21 +31,46 @@
  * SUCH DAMAGE.
  *
  *	@(#)sigsetops.c	8.1 (Berkeley) 6/4/93
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)sigsetops.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <errno.h>
 #include <signal.h>
 
-#undef sigemptyset
-#undef sigfillset
-#undef sigaddset
-#undef sigdelset
-#undef sigismember
+int
+sigaddset(set, signo)
+	sigset_t *set;
+	int signo;
+{
+
+	if (signo <= 0 || signo > _SIG_MAXSIG) {
+		errno = EINVAL;
+		return (-1);
+	}
+	set->__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo);
+	return (0);
+}
+
+int
+sigdelset(set, signo)
+	sigset_t *set;
+	int signo;
+{
+
+	if (signo <= 0 || signo > _SIG_MAXSIG) {
+		errno = EINVAL;
+		return (-1);
+	}
+	set->__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo);
+	return (0);
+}
 
 int
 sigemptyset(set)
@@ -65,35 +90,7 @@ sigfillset(set)
 	int i;
 
 	for (i = 0; i < _SIG_WORDS; i++)
-		set->__bits[i] = ~(unsigned int)0;
-	return (0);
-}
-
-int
-sigaddset(set, signo)
-	sigset_t *set;
-	int signo;
-{
-
-	if (signo <= 0 || signo > _SIG_MAXSIG) {
-		/* errno = EINVAL; */
-		return (-1);
-	}
-	set->__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo);
-	return (0);
-}
-
-int
-sigdelset(set, signo)
-	sigset_t *set;
-	int signo;
-{
-
-	if (signo <= 0 || signo > _SIG_MAXSIG) {
-		/* errno = EINVAL; */
-		return (-1);
-	}
-	set->__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo);
+		set->__bits[i] = ~0U;
 	return (0);
 }
 
@@ -104,7 +101,7 @@ sigismember(set, signo)
 {
 
 	if (signo <= 0 || signo > _SIG_MAXSIG) {
-		/* errno = EINVAL; */
+		errno = EINVAL;
 		return (-1);
 	}
 	return ((set->__bits[_SIG_WORD(signo)] & _SIG_BIT(signo)) ? 1 : 0);
