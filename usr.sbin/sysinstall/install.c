@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.194 1997/07/16 15:21:57 jkh Exp $
+ * $Id: install.c,v 1.195 1997/07/23 15:13:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -604,14 +604,17 @@ installNovice(dialogMenuItem *self)
 		  "This is where your registration can really help us, and you can also\n"
 		  "sign up for the new FreeBSD newsletter (its free!) at the same time.\n"))
 	configRegister(NULL);
-    else
+    else {
+	dialog_clear_norefresh();
 	msgConfirm("OK, but if you should change your mind then you always can register\n"
 		   "later by typing ``/stand/sysinstall register'' or by simply visiting our\n"
 		   "web site at http://www.freebsd.org/register.html");
 
+    }
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Give user the option of one last configuration spree */
+    dialog_clear_norefresh();
     installConfigure();
 
     return DITEM_LEAVE_MENU | DITEM_RESTORE;
