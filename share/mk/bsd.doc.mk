@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id$
+#	$Id: bsd.doc.mk,v 1.26.2.2 1997/03/15 21:17:22 bde Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -39,7 +39,7 @@ TRFLAGS+=	-p
 TRFLAGS+=	-s
 .endif
 .if defined(USE_REFER)
-TRFALGS+=	-R
+TRFLAGS+=	-R
 .endif
 
 .if defined(NODOCCOMPRESS)
