@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.10 2002/04/06 22:09:23 ue Exp $
-  basiert auf: 1.39
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.11 2002/04/15 05:04:50 ue Exp $
+  basiert auf: 1.40
 -->
 
 <sect1>
@@ -3834,10 +3834,12 @@ cpu     EV5</programlisting>
     </sect3>
 
     <sect3>
-      <title>Alpha Processor Inc. CS20</title>
+      <title>Alpha Processor Inc. CS20, Compaq DS20L</title>
 
       <para>Der CS20 ist ein 19&quot; breiter, 1HE hoher Server mit
-        einer oder zwei 21264[ab] CPUs.</para>
+	einer oder zwei 21264[ab] CPUs.  Dieser Rechner wird von
+	Compaq unter dem Namen Alphaserver DS20L verkauft.  Der DS20L
+	enth&auml;lt zwei 833 MHz CPUs.</para>
 
       <para>Eigenschaften:</para>
 
