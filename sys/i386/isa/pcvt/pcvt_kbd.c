@@ -426,7 +426,7 @@ set_keyboard_param(int command, int data)
     if ((c == -1) 
 	|| !set_controller_command_byte(kbdc, 
             kbdc_get_device_mask(kbdc),
-            KBD_DISBLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
                 | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR */
         kbdc_lock(kbdc, FALSE);
