@@ -32,7 +32,7 @@ LDADD+=	${OBJCLIBS}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 ${PROG}: ${OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 
 .else !defined(SRCS)
 
@@ -47,7 +47,7 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 ${PROG}: ${OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 
 .endif
@@ -74,7 +74,7 @@ CLEANFILES+= ${PROG} ${OBJS}
 .if defined(PROG)
 _EXTRADEPEND:
 .if ${OBJFORMAT} == aout
-	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
+	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}

@@ -144,7 +144,7 @@ checkdpadd:
 		echo "LDADD -> $$ldadd1" ; \
 	fi
 .else
-	@dpadd=`echo \`ld -Bstatic -f ${LDDESTDIR} ${LDADD}\`` ; \
+	@dpadd=`echo \`ld -Bstatic -f ${LDADD}\`` ; \
 	if [ "$$dpadd" != "${DPADD}" ] ; then \
 		echo ${.CURDIR} ; \
 		echo "LDADD -> $$dpadd" ; \
