@@ -244,6 +244,17 @@ sn_attach(device_t dev)
 }
 
 
+int
+sn_detach(device_t dev)
+{
+	struct sn_softc *sc = device_get_softc(dev);
+
+	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	sn_deactivate(dev);
+	return 0;
+}
+
 /*
  * Reset and initialize the chip
  */

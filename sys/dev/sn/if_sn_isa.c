@@ -40,9 +40,9 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <net/ethernet.h> 
 #include <net/if.h>
 #include <net/if_arp.h>
-
 
 #include <isa/isavar.h>
 
@@ -64,20 +64,17 @@ sn_isa_probe (device_t dev)
 static int
 sn_isa_attach (device_t dev)
 {
-#if 0	/* currently not tested */
-	struct sn_softc *sc = device_get_softc(dev);
-#endif
+ 	struct sn_softc *sc = device_get_softc(dev);
 
-#if 0	/* currently not tested */
-	sc->pccard_enaddr = 0;
-#endif
-	return (0);
+ 	sc->pccard_enaddr = 0;
+	return (sn_attach(dev));
 }
 
 static device_method_t sn_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sn_isa_probe),
 	DEVMETHOD(device_attach,	sn_isa_attach),
+	DEVMETHOD(device_detach,	sn_detach),
 
 	{ 0, 0 }
 };
