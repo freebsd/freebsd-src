@@ -878,6 +878,7 @@ product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 product PALM SERIAL		0x0080	USB Serial Adaptor
 product PALM M500		0x0001	Palm m500
 product PALM M505		0x0002	Palm m505
+product PALM M515		0x0003	Palm m515
 product PALM M125		0x0040	Palm m125
 
 /* Panasonic products */
