@@ -230,6 +230,7 @@ vendor PROLIFIC		0x067b	Prolific Technology
 vendor SIEMENS		0x067c	Siemens
 vendor ADVANCELOGIC	0x0680	Avance Logic
 vendor HAGIWARA		0x0693  Hagiwara Sys-Com
+vendor MINOLTA		0x0686	Minolta
 vendor CTX		0x0698	Chuntex
 vendor ASKEY		0x069a	Askey Computer
 vendor SAITEK		0x06a3	Saitek
@@ -811,6 +812,11 @@ product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
 
 /* Mitsumi products */
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
+
+/* Minolta Co., Ltd. */
+product MINOLTA 2300		0x4001	Dimage 2300
+product MINOLTA S304		0x4007	Dimage S304
+product MINOLTA X		0x4009	Dimage X
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
