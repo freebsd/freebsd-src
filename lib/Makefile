@@ -35,7 +35,7 @@ _csu=csu/${MACHINE_ARCH}
 _libc_r=	libc_r
 .endif
 
-.if !defined(NO_BIND) && 0
+.if !defined(NO_BIND)
 _libbind=	libbind
 .endif
 
