@@ -197,21 +197,6 @@
 #define PMAP_INLINE
 #endif
 
-#if 0
-
-static void
-pmap_break(void)
-{
-}
-
-/* #define PMAP_DEBUG_VA(va) if ((va) == 0x120058000) pmap_break(); else */
-
-#endif
-
-#ifndef PMAP_DEBUG_VA
-#define PMAP_DEBUG_VA(va) do {} while(0)
-#endif
-
 /*
  * Some macros for manipulating virtual addresses
  */
@@ -824,7 +809,6 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		pt_entry_t opte;
 		pte = vtopte(tva);
 		opte = *pte;
-		PMAP_DEBUG_VA(va);
 		*pte = npte;
 		if (opte)
 			pmap_invalidate_page(kernel_pmap, tva);
@@ -845,7 +829,6 @@ pmap_qremove(va, count)
 
 	for (i = 0; i < count; i++) {
 		pte = vtopte(va);
-		PMAP_DEBUG_VA(va);
 		*pte = 0;
 		pmap_invalidate_page(kernel_pmap, va);
 		va += PAGE_SIZE;
@@ -866,7 +849,6 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	npte = pmap_phys_to_pte(pa) | PG_ASM | PG_KRE | PG_KWE | PG_V;
 	pte = vtopte(va);
 	opte = *pte;
-	PMAP_DEBUG_VA(va);
 	*pte = npte;
 	if (opte)
 		pmap_invalidate_page(kernel_pmap, va);
@@ -881,7 +863,6 @@ pmap_kremove(vm_offset_t va)
 	register pt_entry_t *pte;
 
 	pte = vtopte(va);
-	PMAP_DEBUG_VA(va);
 	*pte = 0;
 	pmap_invalidate_page(kernel_pmap, va);
 }
@@ -1942,7 +1923,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t va)
 	vm_page_t m;
 
 	oldpte = *ptq;
-	PMAP_DEBUG_VA(va);
 	*ptq = 0;
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
@@ -2075,7 +2055,6 @@ pmap_remove_all(vm_page_t m)
 
 		tpte = *pte;
 
-		PMAP_DEBUG_VA(pv->pv_va);
 		*pte = 0;
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
@@ -2328,7 +2307,6 @@ validate:
 	 * to update the pte.
 	 */
 	if (origpte != newpte) {
-		PMAP_DEBUG_VA(va);
 		*pte = newpte;
 		if (origpte)
 			pmap_invalidate_page(pmap, va);
@@ -2417,7 +2395,6 @@ retry:
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	PMAP_DEBUG_VA(va);
 	pmap_insert_entry(pmap, va, mpte, m);
 
 	/*
@@ -2847,7 +2824,6 @@ pmap_remove_pages(pmap, sva, eva)
 			npv = TAILQ_NEXT(pv, pv_plist);
 			continue;
 		}
-		PMAP_DEBUG_VA(pv->pv_va);
 		*pte = 0;
 
 		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&tpte));
