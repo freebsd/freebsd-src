@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -901,12 +901,17 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	}
 	/*
 	 * Backward compatibility:
-	 * There was no md_provider field in earlier versions of metadata.
 	 */
+	/* There was no md_provider field in earlier versions of metadata. */
 	if (md.md_version < 2)
 		bzero(md.md_provider, sizeof(md.md_provider));
+	/* There was no md_provsize field in earlier versions of metadata. */
+	if (md.md_version < 3)
+		md.md_provsize = pp->mediasize;
 
 	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
+	if (md.md_provsize != pp->mediasize)
 		return (NULL);
 
 	/*
@@ -999,6 +1004,8 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 	}
 	md.md_stripesize = *stripesize;
 	bzero(md.md_provider, sizeof(md.md_provider));
+	/* This field is not important here. */
+	md.md_provsize = 0;
 
 	/* Check all providers are valid */
 	for (no = 1; no < *nargs; no++) {

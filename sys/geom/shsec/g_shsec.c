@@ -660,7 +660,16 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->name);
 		return (NULL);
 	}
+	/*
+	 * Backward compatibility:
+	 */
+	/* There was no md_provsize field in earlier versions of metadata. */
+	if (md.md_version < 1)
+		md.md_provsize = pp->mediasize;
+
 	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
+	if (md.md_provsize != pp->mediasize)
 		return (NULL);
 
 	/*

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,9 @@
  * 1 - Initial version number.
  * 2 - Added 'stop' command to gconcat(8).
  * 3 - Added md_provider field to metadata and '-h' option to gconcat(8).
+ * 4 - Added md_provsize field to metadata.
  */
-#define	G_CONCAT_VERSION	3
+#define	G_CONCAT_VERSION	4
 
 #ifdef _KERNEL
 #define	G_CONCAT_TYPE_MANUAL	0
@@ -93,6 +94,7 @@ struct g_concat_metadata {
 	uint16_t	md_no;		/* Disk number. */
 	uint16_t	md_all;		/* Number of all disks. */
 	char		md_provider[16]; /* Hardcoded provider. */
+	uint64_t	md_provsize;	/* Provider's size. */
 };
 static __inline void
 concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
@@ -105,6 +107,7 @@ concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 	le16enc(data + 40, md->md_no);
 	le16enc(data + 42, md->md_all);
 	bcopy(md->md_provider, data + 44, sizeof(md->md_provider));
+	le64enc(data + 60, md->md_provsize);
 }
 static __inline void
 concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
@@ -117,5 +120,6 @@ concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 	md->md_no = le16dec(data + 40);
 	md->md_all = le16dec(data + 42);
 	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
+	md->md_provsize = le64dec(data + 60);
 }
 #endif	/* _G_CONCAT_H_ */
