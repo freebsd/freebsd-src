@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.18 1997/08/25 00:29:10 brian Exp $
+ * $Id: defs.h,v 1.19 1997/09/10 02:20:28 brian Exp $
  *
  *	TODO:
  */
@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <machine/endian.h>
 #include <unistd.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -102,6 +103,13 @@ char *dstsystem;
 #endif
 #ifndef FALSE
 #define	FALSE 	(0)
+#endif
+
+#ifdef SIGALRM
+#define sleep nointr_sleep
+#define usleep nointr_usleep
+u_int sleep(u_int sec);
+void usleep(u_int usec);
 #endif
 
 #endif				/* _DEFS_H_ */

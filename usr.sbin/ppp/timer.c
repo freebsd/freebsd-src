@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.18 1997/08/25 00:29:30 brian Exp $
+ * $Id: timer.c,v 1.19 1997/10/23 20:11:01 ache Exp $
  *
  *  TODO:
  */
@@ -197,6 +197,68 @@ ShowTimers()
 }
 
 #ifdef SIGALRM
+u_int
+sleep(u_int sec)
+{
+  struct timeval to, st, et;
+  long sld, nwd, std;
+
+  gettimeofday(&st, NULL);
+  to.tv_sec = sec;
+  to.tv_usec = 0;
+  std = st.tv_sec * 1000000 + st.tv_usec;
+  for (;;) {
+    if (select(0, NULL, NULL, NULL, &to) == 0 ||
+	errno != EINTR) {
+      break;
+    } else {
+      gettimeofday(&et, NULL);
+      sld = to.tv_sec * 1000000 + to.tv_sec;
+      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+      if (sld > nwd)
+	sld -= nwd;
+      else
+	sld = 1;		/* Avoid both tv_sec/usec is 0 */
+
+      /* Calculate timeout value for select */
+      to.tv_sec = sld / 1000000;
+      to.tv_usec = sld % 1000000;
+    }
+  }
+  return (0L);
+}
+
+void
+usleep(u_int usec)
+{
+  struct timeval to, st, et;
+  long sld, nwd, std;
+
+  gettimeofday(&st, NULL);
+  to.tv_sec = 0;
+  to.tv_usec = usec;
+  std = st.tv_sec * 1000000 + st.tv_usec;
+  for (;;) {
+    if (select(0, NULL, NULL, NULL, &to) == 0 ||
+	errno != EINTR) {
+      break;
+    } else {
+      gettimeofday(&et, NULL);
+      sld = to.tv_sec * 1000000 + to.tv_sec;
+      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+      if (sld > nwd)
+	sld -= nwd;
+      else
+	sld = 1;		/* Avoid both tv_sec/usec is 0 */
+
+      /* Calculate timeout value for select */
+      to.tv_sec = sld / 1000000;
+      to.tv_usec = sld % 1000000;
+
+    }
+  }
+}
+
 void 
 InitTimerService(void)
 {
