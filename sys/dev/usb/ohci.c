@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.23 1999/01/07 02:06:05 augustss Exp $	*/
-/*	FreeBSD $Id: ohci.c,v 1.8 1999/01/10 18:42:51 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -158,9 +158,9 @@ void		ohci_dump_ed __P((ohci_soft_ed_t *));
 #define OREAD4(sc, r) bus_space_read_4((sc)->iot, (sc)->ioh, (r))
 #define OREAD2(sc, r) bus_space_read_2((sc)->iot, (sc)->ioh, (r))
 #elif defined(__FreeBSD__)
-#define OWRITE4(sc, r, x) *(unsigned int *) ((sc)->sc_iobase + (r)) = x
-#define OREAD4(sc, r) (*(unsigned int *) ((sc)->sc_iobase + (r)))
-#define OREAD2(sc, r) (*(unsigned short *) ((sc)->sc_iobase + (r)))
+#define OWRITE4(sc, r, x) *(u_int32_t *) ((sc)->sc_iobase + (r)) = x
+#define OREAD4(sc, r) (*(u_int32_t *) ((sc)->sc_iobase + (r)))
+#define OREAD2(sc, r) (*(u_int16_t *) ((sc)->sc_iobase + (r)))
 #endif
 
 /* Reverse the bits in a value 0 .. 31 */
@@ -565,7 +565,7 @@ ohci_intr(p)
 	void *p;
 {
 	ohci_softc_t *sc = p;
-	u_int32_t intrs, eintrs;
+	u_int32_t intrs = 0, eintrs;
 	ohci_physaddr_t done;
 
 	/* In case the interrupt occurs before initialization has completed. */
@@ -578,7 +578,9 @@ ohci_intr(p)
 
 	done = LE(sc->sc_hcca->hcca_done_head);
 	if (done != 0) {
-		intrs = OHCI_WDH;
+		sc->sc_hcca->hcca_done_head = 0;
+		if (done & ~OHCI_DONE_INTRS)
+			intrs = OHCI_WDH;
 		if (done & OHCI_DONE_INTRS)
 			intrs |= OREAD4(sc, OHCI_INTERRUPT_STATUS);
 	} else
@@ -603,7 +605,6 @@ ohci_intr(p)
 	}
 	if (eintrs & OHCI_WDH) {
 		ohci_process_done(sc, done &~ OHCI_DONE_INTRS);
-		sc->sc_hcca->hcca_done_head = 0;
 		intrs &= ~OHCI_WDH;
 	}
 	if (eintrs & OHCI_RD) {
@@ -671,7 +672,7 @@ ohci_process_done(sc, done)
 	ohci_softc_t *sc;
 	ohci_physaddr_t done;
 {
-	ohci_soft_td_t *std, *sdone;
+	ohci_soft_td_t *std = NULL, *sdone;
 	usbd_request_handle reqh;
 	int len, cc;
 
@@ -693,7 +694,8 @@ ohci_process_done(sc, done)
 
 	for (std = sdone; std; std = std->dnext) {
 		reqh = std->reqh;
-		DPRINTFN(10, ("ohci_process_done: std=%p reqh=%p\n",std,reqh));
+		DPRINTFN(10, ("ohci_process_done: std=%p reqh=%p hcpriv=%p\n",
+				std, reqh, reqh->hcpriv));
 		cc = OHCI_TD_GET_CC(LE(std->td->td_flags));
 		if (cc == OHCI_CC_NO_ERROR) {
 			if (std->td->td_cbp == 0)
@@ -843,6 +845,8 @@ ohci_intr_done(sc, reqh)
 		xfer->len = reqh->length;
 		xfer->reqh = reqh;
 
+		reqh->hcpriv = xfer;
+
 		ohci_hash_add_td(sc, xfer);
 		sed->ed->ed_tailp = LE(tail->physaddr);
 		opipe->tail = tail;
@@ -931,7 +935,7 @@ ohci_waitintr(sc, reqh)
 	for (usecs = timo * 1000000 / hz; usecs > 0; usecs -= 1000) {
 		usb_delay_ms(&sc->sc_bus, 1);
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS) & sc->sc_eintrs;
-		DPRINTFN(10,("ohci_waitintr: 0x%04x\n", intrs));
+		DPRINTFN(15,("ohci_waitintr: 0x%04x\n", intrs));
 #ifdef USB_DEBUG
 		if (ohcidebug > 15)
 			ohci_dumpregs(sc);
@@ -1237,7 +1241,7 @@ ohci_dump_ed(sed)
 	       OHCI_ED_GET_EN(LE(sed->ed->ed_flags)),
 	       OHCI_ED_GET_MAXP(LE(sed->ed->ed_flags)),
 	       (int)LE(sed->ed->ed_flags),
-	       "\20\14OUT\15IN\16LOWSPEED\17SKIP\18ISO",
+	       "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
 	       (u_long)LE(sed->ed->ed_tailp),
 	       (int)LE(sed->ed->ed_headp), "\20\1HALT\2CARRY",
 	       (u_long)LE(sed->ed->ed_nexted));
@@ -2086,7 +2090,6 @@ ohci_device_intr_start(reqh)
 	}
 #endif
 	sed->ed->ed_flags &= LE(~OHCI_ED_SKIP);
-	splx(s);
 
 #ifdef USB_DEBUG
 	if (ohcidebug > 5) {
@@ -2097,6 +2100,8 @@ ohci_device_intr_start(reqh)
 		ohci_dump_tds(xfer);
 	}
 #endif
+	/* moved splx(s) because of indefinite printing of TD's */
+	splx(s);
 
 	return (USBD_IN_PROGRESS);
 
