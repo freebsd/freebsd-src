@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.85 1998/12/23 14:28:37 foxfair Exp $
+**  $Id: pcisupport.c,v 1.86 1998/12/27 07:59:25 foxfair Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -273,7 +273,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
 	case 0x71138086:
-		return ("Intel 82371AB Power management controller");
+	        return NULL;
 	case 0x71908086:
 		return ("Intel 82443BX host to PCI bridge");
 	case 0x71918086:
@@ -362,7 +362,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
-
+	case 0x710110b9:
+		return("AcerLabs M15x3 Power Management Unit");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00011033:
