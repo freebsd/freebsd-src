@@ -52,7 +52,7 @@
  * UMA_SLAB_SIZE is defined to be too large I will have to switch to 16bit
  * values.  Currently on alpha you can get 250 or so 32 byte items and on x86
  * you can get 250 or so 16byte items.  For item sizes that would yield more
- * than 10% memory waste we potentially allocate a seperate uma_slab_t if this
+ * than 10% memory waste we potentially allocate a separate uma_slab_t if this
  * will improve the number of items per slab that will fit.  
  *
  * Other potential space optimizations are storing the 8bit of linkage in space
