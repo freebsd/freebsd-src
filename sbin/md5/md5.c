@@ -169,22 +169,46 @@ MDTimeTrial(void)
 /*
  * Digests a reference suite of strings and prints the results.
  */
+
+#define MD5TESTCOUNT 8
+
+char *MDTestInput[] = {
+	"", 
+	"a",
+	"abc",
+	"message digest",
+	"abcdefghijklmnopqrstuvwxyz",
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+	"12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+	"MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been made that its security is in some doubt"
+};
+
+char *MDTestOutput[MD5TESTCOUNT] = {
+	"d41d8cd98f00b204e9800998ecf8427e",
+	"0cc175b9c0f1b6a831c399e269772661",
+	"900150983cd24fb0d6963f7d28e17f72",
+	"f96b697d7cb7938d525a2f31aaf161d0",
+	"c3fcd3d76192e4007dfb496cca67e13b",
+	"d174ab98d277d9f5a5611c2c9f419d9f",
+	"57edf4a22be3c955ac49da2e2107b67a",
+	"b50663f41d44d92171cb9976bc118538"
+};
+
 static void
 MDTestSuite(void)
 {
+	int i;
+	char buffer[33];
 
 	printf("MD5 test suite:\n");
-
-	MDString("");
-	MDString("a");
-	MDString("abc");
-	MDString("message digest");
-	MDString("abcdefghijklmnopqrstuvwxyz");
-	MDString
-	    ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-	MDString
-	    ("1234567890123456789012345678901234567890\
-1234567890123456789012345678901234567890");
+	for (i = 0; i < MD5TESTCOUNT; i++) {
+		MD5Data(MDTestInput[i], strlen(MDTestInput[i]), buffer);
+		printf("MD5 (\"%s\") = %s", MDTestInput[i], buffer);
+		if (strcmp(buffer, MDTestOutput[i]) == 0)
+			printf(" - verified correct\n");
+		else
+			printf(" - INCORRECT RESULT!\n");
+	}
 }
 
 /*
