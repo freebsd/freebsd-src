@@ -292,7 +292,6 @@ bktr_attach( device_t dev )
 	unsigned int	rev;
 	unsigned int	unit;
 	int		error = 0;
-	int		rid;
 #ifdef BROOKTREE_IRQ
 	u_long		old_irq, new_irq;
 #endif 
@@ -314,9 +313,10 @@ bktr_attach( device_t dev )
 	/*
 	 * Map control/status registers.
 	 */
-	rid = PCIR_MAPS;
-	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-                                  0, ~0, 1, RF_ACTIVE);
+	bktr->mem_rid = PCIR_MAPS;
+	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &bktr->mem_rid,
+					0, ~0, 1, RF_ACTIVE);
+
 
 	if (!bktr->res_mem) {
 		device_printf(dev, "could not map memory\n");
@@ -345,9 +345,9 @@ bktr_attach( device_t dev )
 	/*
 	 * Allocate our interrupt.
 	 */
-	rid = 0;
-	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-                                 RF_SHAREABLE | RF_ACTIVE);
+	bktr->irq_rid = 0;
+	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &bktr->irq_rid,
+				0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
 	if (bktr->res_irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
 		error = ENXIO;
@@ -426,6 +426,10 @@ bktr_attach( device_t dev )
 	return 0;
 
 fail:
+	if (bktr->res_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, bktr->irq_rid, bktr->res_irq);
+	if (bktr->res_mem)
+		bus_release_resource(dev, SYS_RES_IRQ, bktr->mem_rid, bktr->res_mem);
 	return error;
 
 }
@@ -448,9 +452,9 @@ bktr_detach( device_t dev )
 	 * Deallocate resources.
 	 */
 	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_MAPS, bktr->res_mem);
-
+	bus_release_resource(dev, SYS_RES_IRQ, bktr->irq_rid, bktr->res_irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, bktr->mem_rid, bktr->res_mem);
+	 
 	return 0;
 }
 
