@@ -167,6 +167,7 @@ typedef struct mouse_info mouse_info_t;
 #define CONS_IDLE	_IOR('c', 11, int)
 
 /* set the screen saver mode */
+#define CONS_NO_SAVER	(-1)
 #define CONS_LKM_SAVER	0
 #define CONS_USR_SAVER	1
 #define CONS_SAVERMODE	_IOW('c', 12, int)
