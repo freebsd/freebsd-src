@@ -44,7 +44,6 @@ fcntl(int fd, int cmd,...)
 	int		nonblock;
 	int             oldfd;
 	int             ret;
-	int             status;
 	va_list         ap;
 
 	/* Lock the file descriptor: */
