@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sbrk.c,v 1.1 1993/12/11 21:06:36 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -55,7 +55,7 @@
 #include <varargs.h>
 #endif
 
-#include "ld.h"
+#include <machine/param.h>
 
 #ifndef BSD		/* Need do better than this */
 #define NEED_DEV_ZERO	1
@@ -69,7 +69,7 @@ int incr;
 	caddr_t curbrk;
 
 	/* Round-up increment to page size */
-	incr = ((incr + PAGSIZ - 1) & ~(PAGSIZ - 1));
+	incr = ((incr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
 #if DEBUG
 xprintf("sbrk: incr = %#x\n", incr);
