@@ -185,8 +185,14 @@ static int	sloutput(struct ifnet *,
 static int	slstart(struct tty *);
 
 static struct linesw slipdisc = {
-	slopen,		slclose,	l_noread,	l_nowrite,
-	sltioctl,	slinput,	slstart,	ttymodem
+	.l_open =	slopen,
+	.l_close =	slclose,
+	.l_read =	l_noread,
+	.l_write =	l_nowrite,
+	.l_ioctl =	sltioctl,
+	.l_rint =	slinput,
+	.l_start =	slstart,
+	.l_modem =	ttymodem
 };
 
 /*
