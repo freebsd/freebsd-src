@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.5 1999/03/14 05:17:49 ken Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.6 1999/04/07 23:08:55 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -755,9 +755,14 @@ xpt_schedule_dev_allocq(struct cam_eb *bus, struct cam_ed *dev)
 					+ dev->ccbq.dev_active);
 			dev->flags &= ~CAM_DEV_RESIZE_QUEUE_NEEDED;
 		}
+		/*
+		 * The priority of a device waiting for CCB resources
+		 * is that of the the highest priority peripheral driver
+		 * enqueued.
+		 */
 		retval = xpt_schedule_dev(&bus->sim->devq->alloc_queue,
 					  &dev->alloc_ccb_entry.pinfo,
-					  dev->drvq.queue_array[0]->priority);	
+					  CAMQ_GET_HEAD(&dev->drvq)->priority);	
 	} else {
 		retval = 0;
 	}
@@ -771,9 +776,15 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 	int	retval;
 
 	if (dev->ccbq.dev_openings > 0) {
-		retval = xpt_schedule_dev(&bus->sim->devq->send_queue,
-					  &dev->send_ccb_entry.pinfo,
-					  dev->ccbq.queue.queue_array[0]->priority);
+		/*
+		 * The priority of a device waiting for controller
+		 * resources is that of the the highest priority CCB
+		 * enqueued.
+		 */
+		retval =
+		    xpt_schedule_dev(&bus->sim->devq->send_queue,
+				     &dev->send_ccb_entry.pinfo,
+				     CAMQ_GET_HEAD(&dev->ccbq.queue)->priority);
 	} else {
 		retval = 0;
 	}
@@ -2334,7 +2345,7 @@ xptperiphlistmatch(struct ccb_dev_match *cdm)
 	if ((cdm->pos.position_type & CAM_DEV_POS_PDPTR)
 	 && (cdm->pos.cookie.pdrv != NULL))
 		ret = xptpdrvtraverse(
-			        (struct periph_driver **)cdm->pos.cookie.pdrv,
+				(struct periph_driver **)cdm->pos.cookie.pdrv,
 				xptplistpdrvfunc, cdm);
 	else
 		ret = xptpdrvtraverse(NULL, xptplistpdrvfunc, cdm);
@@ -3382,7 +3393,7 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 		struct	camq *drvq;
 		
 		qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->alloc_queue,
-							   /*position*/0);
+							   CAMQ_HEAD);
 		device = qinfo->device;
 
 		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
@@ -3399,14 +3410,7 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 		if ((work_ccb = xpt_get_ccb(device)) != NULL) {
 			devq->alloc_openings--;
 			devq->alloc_active++;
-			drv = (struct cam_periph*)camq_remove(drvq,
-							      /*pos*/0);
-			/* Update priority */
-			if (drvq->entries > 0) {
-				qinfo->pinfo.priority = drvq->queue_array[0]->priority;				
-			} else {
-				qinfo->pinfo.priority = CAM_PRIORITY_NONE;
-			}
+			drv = (struct cam_periph*)camq_remove(drvq, CAMQ_HEAD);
 			splx(s);
 			xpt_setup_ccb(&work_ccb->ccb_h, drv->path,
 				      drv->pinfo.priority);
@@ -3467,7 +3471,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		}
 
 		qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->send_queue,
-							   /*position*/0);
+							   CAMQ_HEAD);
 		device = qinfo->device;
 
 		/*
@@ -3482,7 +3486,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("running device %p\n", device));
 
-		work_ccb = cam_ccbq_peek_ccb(&device->ccbq, 0);
+		work_ccb = cam_ccbq_peek_ccb(&device->ccbq, CAMQ_HEAD);
 		if (work_ccb == NULL) {
 			printf("device on run queue with no ccbs???");
 			splx(ospl);
@@ -3522,13 +3526,8 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		devq->send_openings--;
 		devq->send_active++;		
 		
-		if (device->ccbq.queue.entries > 0) {
-			qinfo->pinfo.priority =
-			    device->ccbq.queue.queue_array[0]->priority;
+		if (device->ccbq.queue.entries > 0)
 			xpt_schedule_dev_sendq(bus, device);
-		} else {
-			qinfo->pinfo.priority = CAM_PRIORITY_NONE;
-		}		
 
 		if (work_ccb && (work_ccb->ccb_h.flags & CAM_DEV_QFREEZE) != 0){
 			/*
