@@ -55,14 +55,16 @@ COMMON ITEMS:
 	make buildworld
 	cd sbin/mknod
 	make install
-	cd sys/modules
+	cd ../../sys/modules
 	make install
 	<follow directions to build/install a kernel>
 	<follow rebuild disk /dev entries above>	[*]
 	reboot
 	<in single user>
 	cd /usr/src
-	make -DNOINFO installworld
+	cd gnu/usr.bin/texinfo/install-info
+	make install
+	cd ../../../..
 	make installworld
 	mergemaster [****]
 	reboot
@@ -79,7 +81,7 @@ COMMON ITEMS:
 	couple of months, be sure they have all the components listed
 	in /usr/share/examples/cvsup.  Crypto and secure are now
 	required.
-	[***] This step is optional, but is generally a good idea.  If
+	[****] This step is optional, but is generally a good idea.  If
 	you wish to use many of the new features in 4.0, you must do
 	this anyway.
 
