@@ -40,7 +40,7 @@
 .Nd remote shell
 .Sh SYNOPSIS
 .Nm
-.Op Fl Kdnx
+.Op Fl 46Kdnx
 .Op Fl t Ar timeout
 .Op Fl k Ar realm
 .Op Fl l Ar username
@@ -63,6 +63,10 @@ command;
 normally terminates when the remote command does.
 The options are as follows:
 .Bl -tag -width flag
+.It Fl 4
+Use IPv4 addresses only.
+.It Fl 6
+Use IPv6 addresses only.
 .It Fl K
 Turn off all Kerberos authentication.
 .It Fl d
