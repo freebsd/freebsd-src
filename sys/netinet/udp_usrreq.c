@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.25 1996/05/02 05:54:14 fenner Exp $
+ *	$Id: udp_usrreq.c,v 1.26 1996/05/09 20:15:26 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -276,6 +276,7 @@ udp_input(m, iphlen)
 	 * ...and if that fails, do a wildcard search.
 	 */
 	if (inp == NULL) {
+		udpstat.udpps_pcbhashmiss++;
 		inp = in_pcblookup(&udb, ip->ip_src, uh->uh_sport, ip->ip_dst,
 		    uh->uh_dport, INPLOOKUP_WILDCARD);
 	}
