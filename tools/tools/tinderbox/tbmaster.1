@@ -1,0 +1,185 @@
+.\"-
+.\" Copyright (c) 2003 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 16, 2003
+.Dt TBMASTER 1
+.Os
+.Sh NAME
+.Nm tbmaster
+.Nd manage tinderbox runs
+.Sh SYNOPSIS
+.Nm
+.Oo
+.Ar setup
+.Oo
+.Ar arch Ns Op Ns : Ns Ar mach
+.Ar ...
+.Oc
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+script manages
+.Xr tinderbox 1
+runs, generates log summaries, and mails out failure reports.
+The first argument is the name of the setup to run (see
+.Sx Configuration
+below).
+Further arguments are target architectures or architecture / machine
+pairs to build for.
+If no arguments are specified, the setup corresponding to the hostname
+minus the domain part is run in full.
+.Ss Configuration
+The configuration, which is contained in the script itself in the form
+of a Perl hash, consists of a list of setups which by convention are
+named for the hosts that they run on.
+.Pp
+Each setup defines one or more of the following fields:
+.Bl -tag -width 12n
+.It COMMENT
+.Pq Vt scalar
+A terse comment describing the setup.
+.It BRANCHES
+.Pq Vt array
+A list of source branches to build.
+.It ARCHES
+.Pq Vt hash
+Which architectures and machines to build for.
+Each hash entry maps an architecture to a list of machines.
+.It SANDBOX
+.Pq Vt scalar
+The location of the sandbox directory.
+.It LOGDIR
+.Pq Vt scalar
+The location of the log directory.
+.It TARGETS
+.Pq Vt array
+A list of targets (commands) to specify to the tinderbox script.
+.It OPTIONS
+.Pq Vt array
+A list of additional options to pass to the tinderbox script.
+.It ENV
+.Pq Vt hash
+Additional environment variables to pass to the tinderbox script.
+Each hash entry maps a variable's name to its value.
+.It SENDER
+.Pq Vt scalar
+The envelope sender to use when mailing out failure reports.
+This should be a single email address.
+It is subject to variable substitution as described below.
+.It RECIPIENT
+.Pq Vt scalar
+The address to which failure reports should be mailed.
+It is subject to variable substitution as described below.
+.It SUBJECT
+.Pq Vt scalar
+The subject to use on failure reports.
+It is subject to variable substitution as described below.
+.El
+.Pp
+Fields which are left undefined are filled in from the
+.Dq global
+setup.
+.Ss Variable Substitution
+As noted above, certain configuration fields are subject to variable
+substitution.
+Recognized variable names include all the scalar configuration
+variables, plus
+.Va BRANCH ,
+.Va ARCH
+and
+.Va MACHINE
+which correspond to the source branch, target architecture and target
+machine of the failed build.
+.Pp
+Variables are specified by enclosing their name in double percentage
+signs.
+If the variable's name is spelled in lowercase, its value is converted
+to lowercase before substitution.
+For instance,
+.Dq %%BRANCH%%
+might expand to
+.Dq RELENG_4
+while
+.Dq %%branch%%
+would expand to
+.Dq releng_4 .
+.Sh EXAMPLES
+The following configuration includes two setups which build world,
+LINT and a release for
+.Fx
+Tier 1 and 2 platforms.
+.Bd -literal
+my %SETUPS      = (
+    'global' => {
+        'SANDBOX'       => '/home/bob/tinderbox',
+        'LOGDIR'        => '/home/bob/public_html',
+        'TARGETS'       => [ 'update', 'world', 'lint', 'release' ],
+        'OPTIONS'       => [ '--verbose' ],
+        'RECIPIENT'     => 'bob+%%arch%%-%%branch%%@example.com',
+        'SUBJECT'       => '[%%COMMENT%%] failure on %%arch%%/%%machine%%',
+        'ENV'           => {
+            'NOPROFILE' => 'YES',
+        },
+    },
+
+    'tier1' => {
+        'COMMENT'       => "Tier 1",
+        'BRANCHES'      => [ 'CURRENT' ],
+        'ARCHES'        => {
+            'alpha'     => [ 'alpha' ],
+            'i386       => [ 'i386', 'pc98' ],
+            'sparc64'   => [ 'sparc64' ],
+        },
+    },
+
+    'tier2' => {
+        'COMMENT'       => "Tier 2",
+        'BRANCHES'      => [ 'CURRENT' ],
+        'ARCHES'        => {
+            'ia64'      => [ 'ia64' ],
+            'powerpc'   => [ 'powerpc' ],
+        },
+    },
+);
+.Ed
+.Sh SEE ALSO
+.Xr perl 1 ,
+.Xr tinderbox 1
+.Sh AUTHORS
+.Nm
+was written by
+.An Dag-Erling Smørgrav Aq des@FreeBSD.org .
+.Sh BUGS
+- part of a complete breakfast!
+.Pp
+The
+.Nm
+script should read its configuration from a file rather than have it
+hardcoded.
