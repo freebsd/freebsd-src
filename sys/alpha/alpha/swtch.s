@@ -206,18 +206,16 @@ Lcs7:
  *
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
- * Invokes the function specified by the s0 register with the return
- * address specified by the s1 register and with one argument, a
- * pointer to the executing process's proc structure.
+ * Invokes fork_exit() passing in three arguments: a callout function,
+ * a pointer to the executing process's proc structure, and a trapframe
+ * pointer.
  */
 LEAF(switch_trampoline, 0)
-	MTX_EXIT(sched_lock)
-	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
-	call_pal PAL_OSF1_swpipl
-	mov	s0, pv
 	mov	s1, ra
-	mov	s2, a0
-	jmp	zero, (pv)
+	mov	s0, a0
+	mov	s2, a1
+	mov	sp, a2
+	jmp	zero, fork_exit
 	END(switch_trampoline)
 
 	
