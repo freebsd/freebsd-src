@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.34 1997/02/22 12:58:01 peter Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.35 1997/03/12 19:04:07 joerg Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/02/22 12:58:01 $
+<date>$Date: 1997/03/12 19:04:07 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1431,42 +1431,6 @@ quit
 	  at the prompt, and install your system as usual.  While it's
 	  recommendable to compile and install a custom kernel anyway,
 	  <tt/dset(8)/ now also understands to save this value.
-
-	  Hopefully, future version will have a proper fix for this problem.
-
-      <sect1>
-        <heading>FreeBSD does not recognise my on-board AIC-7xxx EISA SCSI in an HP Netserver</heading>
-        <p>
-	  This is basically a known problem.  The EISA on-board SCSI controller
-	  in the HP Netserver machines occupies EISA slot number 11, so all
-	  the ``true'' EISA slots are in front of it.  Alas, the address space
-	  for EISA slots >= 10 collides with the address space assigned to PCI,
-	  and FreeBSD's auto-configuration currently cannot handle this
-	  situation very well.
-
-	  So now, the best you can do is to pretend there were no address
-	  range clash :), go right ahead and edit the file
-	  <tt>/sys/i386/eisa/eisaconf.h</tt>.  Look for a line defining the
-	  macro <tt/EISA_SLOTS/, and bump the number it's defining to 12.
-	  Configure and compile a kernel, as described in the
-	  <url url="../handbook/kernelconfig.html"
-	  name="Handbook entry on configuring the kernel">.
-
-	  Of course, this does present you a chicken-and-egg problem when
-	  installing on such a machine.  In order to work around this
-	  problem, a special hack is available inside <em>UserConfig</em>.
-	  Do not use the ``visual'' interface, but the plain command-line
-	  interface there.  Simply type
-<verb>
-eisa 12
-quit
-</verb>
-
-	  at the prompt, and install your system as usual.  Don't forget
-	  to install the kernel source distribution, since you need to
-	  build a custom kernel, or otherwise you would have to repeat the
-	  described procedure at each boot!  <tt/dset(8)/ doesn't save this
-	  change for you.
 
 	  Hopefully, future version will have a proper fix for this problem.
 
