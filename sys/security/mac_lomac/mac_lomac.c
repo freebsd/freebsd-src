@@ -599,12 +599,6 @@ try_relabel(struct mac_lomac *from, struct mac_lomac *to)
  * Policy module operations.
  */
 static void
-mac_lomac_destroy(struct mac_policy_conf *conf)
-{
-
-}
-
-static void
 mac_lomac_init(struct mac_policy_conf *conf)
 {
 
@@ -2585,7 +2579,6 @@ mac_lomac_thread_userret(struct thread *td)
 
 static struct mac_policy_ops mac_lomac_ops =
 {
-	.mpo_destroy = mac_lomac_destroy,
 	.mpo_init = mac_lomac_init,
 	.mpo_init_bpfdesc_label = mac_lomac_init_label,
 	.mpo_init_cred_label = mac_lomac_init_label,

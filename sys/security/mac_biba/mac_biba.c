@@ -488,12 +488,6 @@ mac_biba_copy(struct mac_biba *source, struct mac_biba *dest)
  * Policy module operations.
  */
 static void
-mac_biba_destroy(struct mac_policy_conf *conf)
-{
-
-}
-
-static void
 mac_biba_init(struct mac_policy_conf *conf)
 {
 
@@ -2607,7 +2601,6 @@ mac_biba_check_vnode_write(struct ucred *active_cred,
 
 static struct mac_policy_ops mac_biba_ops =
 {
-	.mpo_destroy = mac_biba_destroy,
 	.mpo_init = mac_biba_init,
 	.mpo_init_bpfdesc_label = mac_biba_init_label,
 	.mpo_init_cred_label = mac_biba_init_label,
