@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.22 1998/05/06 05:29:36 msmith Exp $
+ * $Id: umap_vfsops.c,v 1.23 1998/09/07 13:17:01 bde Exp $
  */
 
 /*
@@ -94,6 +94,12 @@ umapfs_mount(mp, path, data, ndp, p)
 #ifdef UMAP_DIAGNOSTIC
 	int	i;
 #endif
+
+	/*
+	 * Only for root
+	 */
+	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return (error);
 
 #ifdef UMAPFS_DIAGNOSTIC
 	printf("umapfs_mount(mp = %x)\n", mp);
