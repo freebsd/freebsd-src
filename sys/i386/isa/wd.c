@@ -1187,7 +1187,7 @@ wdformat(struct buf *bp)
 int
 wdsize(dev_t dev)
 {
-	int unit = wdunit(dev), part = wdpart(dev), val;
+	int unit = wdunit(dev), part = wdpart(dev), val = 0;
 	struct disk *du;
 
 	if (unit >= _NWD)	/* 31 Jul 92*/
