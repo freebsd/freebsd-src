@@ -168,7 +168,7 @@ struct devfs_dirent {
 };
 
 struct devfs_mount {
-	struct vnode	*dm_root;	/* Root node */
+	struct mount	*dm_mount;
 	struct devfs_dirent *dm_rootdir;
 	struct devfs_dirent *dm_basedir;
 	unsigned	dm_generation;

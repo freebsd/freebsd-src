@@ -88,6 +88,7 @@ devfs_nmount(mp, ndp, td)
 #ifdef MAC
 	mp->mnt_flag |= MNT_MULTILABEL;
 #endif
+	fmp->dm_mount = mp;
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
@@ -96,7 +97,7 @@ devfs_nmount(mp, ndp, td)
 	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
 	fmp->dm_rootdir->de_inode = 2;
 #ifdef MAC
-	mac_create_devfs_directory("", 0, fmp->dm_rootdir);
+	mac_create_devfs_directory(mp, "", 0, fmp->dm_rootdir);
 #endif
 	fmp->dm_basedir = fmp->dm_rootdir;
 	devfs_rules_newmount(fmp, td);

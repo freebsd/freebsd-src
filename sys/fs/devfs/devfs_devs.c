@@ -334,8 +334,8 @@ devfs_populate(struct devfs_mount *dm)
 				if (de == NULL) {
 					de = devfs_vmkdir(s, q - s, dd);
 #ifdef MAC
-					mac_create_devfs_directory(s, q - s,
-					    de);
+					mac_create_devfs_directory(
+					    dm->dm_mount, s, q - s, de);
 #endif
 					de->de_inode = dm->dm_inode++;
 					TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
@@ -363,7 +363,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_dirent->d_type = DT_CHR;
 			}
 #ifdef MAC
-			mac_create_devfs_device(dev, de);
+			mac_create_devfs_device(dm->dm_mount, dev, de);
 #endif
 			*dep = de;
 			de->de_dir = dd;

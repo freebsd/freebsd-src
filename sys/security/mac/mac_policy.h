@@ -142,13 +142,15 @@ struct mac_policy_ops {
 	void	(*mpo_associate_vnode_singlelabel)(struct mount *mp,
 		    struct label *fslabel, struct vnode *vp,
 		    struct label *vlabel);
-	void	(*mpo_create_devfs_device)(dev_t dev, struct devfs_dirent *de,
-		    struct label *label);
-	void	(*mpo_create_devfs_directory)(char *dirname, int dirnamelen,
+	void	(*mpo_create_devfs_device)(struct mount *mp, dev_t dev,
 		    struct devfs_dirent *de, struct label *label);
+	void	(*mpo_create_devfs_directory)(struct mount *mp, char *dirname,
+		    int dirnamelen, struct devfs_dirent *de,
+		    struct label *label);
 	void	(*mpo_create_devfs_symlink)(struct ucred *cred,
-		    struct devfs_dirent *dd, struct label *ddlabel,
-		    struct devfs_dirent *de, struct label *delabel);
+		    struct mount *mp, struct devfs_dirent *dd,
+		    struct label *ddlabel, struct devfs_dirent *de,
+		    struct label *delabel);
 	int	(*mpo_create_vnode_extattr)(struct ucred *cred,
 		    struct mount *mp, struct label *fslabel,
 		    struct vnode *dvp, struct label *dlabel,
@@ -163,7 +165,8 @@ struct mac_policy_ops {
 	int	(*mpo_setlabel_vnode_extattr)(struct ucred *cred,
 		    struct vnode *vp, struct label *vlabel,
 		    struct label *intlabel);
-	void	(*mpo_update_devfsdirent)(struct devfs_dirent *devfs_dirent,
+	void	(*mpo_update_devfsdirent)(struct mount *mp,
+		    struct devfs_dirent *devfs_dirent,
 		    struct label *direntlabel, struct vnode *vp,
 		    struct label *vnodelabel);
 
