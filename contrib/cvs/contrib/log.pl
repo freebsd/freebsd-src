@@ -1,8 +1,6 @@
 #! xPERL_PATHx
 # -*-Perl-*-
 #
-#ident	"$CVSid$"
-#
 # XXX: FIXME: handle multiple '-f logfile' arguments
 #
 # XXX -- I HATE Perl!  This *will* be re-written in shell/awk/sed soon!

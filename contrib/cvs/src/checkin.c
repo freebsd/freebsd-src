@@ -20,34 +20,30 @@
 #include "edit.h"
 
 int
-Checkin (type, file, update_dir, repository,
-	 rcs, rev, tag, options, message, entries)
+Checkin (type, finfo, rcs, rev, tag, options, message)
     int type;
-    char *file;
-    char *update_dir;
-    char *repository;
+    struct file_info *finfo;
     char *rcs;
     char *rev;
     char *tag;
     char *options;
     char *message;
-    List *entries;
 {
-    char fname[PATH_MAX];
+    char *fname;
     Vers_TS *vers;
     int set_time;
-    char *fullname;
-
     char *tocvsPath = NULL;
 
-    fullname = xmalloc (strlen (update_dir) + strlen (file) + 10);
-    if (update_dir[0] == '\0')
-	strcpy (fullname, file);
-    else
-	sprintf (fullname, "%s/%s", update_dir, file);
+    /* Hmm.  This message goes to stdout and the "foo,v  <--  foo"
+       message from "ci" goes to stderr.  This doesn't make a whole
+       lot of sense, but making everything go to stdout can only be
+       gracefully achieved once RCS_checkin is librarified.  */
+    cvs_output ("Checking in ", 0);
+    cvs_output (finfo->fullname, 0);
+    cvs_output (";\n", 0);
 
-    (void) printf ("Checking in %s;\n", fullname);
-    (void) sprintf (fname, "%s/%s%s", CVSADM, CVSPREFIX, file);
+    fname = xmalloc (strlen (finfo->file) + 80);
+    (void) sprintf (fname, "%s/%s%s", CVSADM, CVSPREFIX, finfo->file);
 
     /*
      * Move the user file to a backup file, so as to preserve its
@@ -55,25 +51,25 @@ Checkin (type, file, update_dir, repository,
      * for the checkin and checkout.
      */
 
-    tocvsPath = wrap_tocvs_process_file (fullname);
+    tocvsPath = wrap_tocvs_process_file (finfo->file);
 
     if (!noexec)
     {
         if (tocvsPath)
 	{
             copy_file (tocvsPath, fname);
-	    if (unlink_file_dir (file) < 0)
+	    if (unlink_file_dir (finfo->file) < 0)
 		if (! existence_error (errno))
-		    error (1, errno, "cannot remove %s", file);
-	    copy_file (tocvsPath, file);
+		    error (1, errno, "cannot remove %s", finfo->fullname);
+	    copy_file (tocvsPath, finfo->file);
 	}
 	else
 	{
-	    copy_file (file, fname);
+	    copy_file (finfo->file, fname);
 	}
     }
 
-    switch (RCS_checkin (rcs, NULL, message, rev, 0, 0))
+    switch (RCS_checkin (rcs, NULL, message, rev, 0))
     {
 	case 0:			/* everything normal */
 
@@ -89,13 +85,21 @@ Checkin (type, file, update_dir, repository,
 	    if (strcmp (options, "-V4") == 0) /* upgrade to V5 now */
 		options[0] = '\0';
 
-	    /* FIXME: should be checking for errors.  */
-	    (void) RCS_checkout (rcs, "", rev, options, RUN_TTY, 0, 0);
+	    /* Reparse the RCS file, so that we can safely call
+               RCS_checkout.  FIXME: We could probably calculate
+               all the changes.  */
+	    freercsnode (&finfo->rcs);
+	    finfo->rcs = RCS_parse (finfo->file, finfo->repository);
 
-	    xchmod (file, 1);
-	    if (xcmp (file, fname) == 0)
+	    /* FIXME: should be checking for errors.  */
+	    (void) RCS_checkout (finfo->rcs, finfo->file, rev,
+				 (char *) NULL, options, RUN_TTY,
+				 (RCSCHECKOUTPROC) NULL, (void *) NULL);
+
+	    xchmod (finfo->file, 1);
+	    if (xcmp (finfo->file, fname) == 0)
 	    {
-		rename_file (fname, file);
+		rename_file (fname, finfo->file);
 		/* the time was correct, so leave it alone */
 		set_time = 0;
 	    }
@@ -107,24 +111,23 @@ Checkin (type, file, update_dir, repository,
 		set_time = 1;
 	    }
 
-	    wrap_fromcvs_process_file (file);
+	    wrap_fromcvs_process_file (finfo->file);
 
 	    /*
 	     * If we want read-only files, muck the permissions here, before
 	     * getting the file time-stamp.
 	     */
-	    if (cvswrite == FALSE || fileattr_get (file, "_watched"))
-		xchmod (file, 0);
+	    if (cvswrite == FALSE || fileattr_get (finfo->file, "_watched"))
+		xchmod (finfo->file, 0);
 
-	    /* re-register with the new data */
-	    vers = Version_TS (repository, (char *) NULL, tag, (char *) NULL,
-			       file, 1, set_time, entries, (RCSNode *) NULL);
+	    /* Re-register with the new data.  */
+	    vers = Version_TS (finfo, NULL, tag, NULL, 1, set_time);
 	    if (strcmp (vers->options, "-V4") == 0)
 		vers->options[0] = '\0';
-	    Register (entries, file, vers->vn_rcs, vers->ts_user,
+	    Register (finfo->entries, finfo->file, vers->vn_rcs, vers->ts_user,
 		      vers->options, vers->tag, vers->date, (char *) 0);
-	    history_write (type, (char *) 0, vers->vn_rcs, file, repository);
-	    freevers_ts (&vers);
+	    history_write (type, NULL, vers->vn_rcs,
+			   finfo->file, finfo->repository);
 
 	    if (tocvsPath)
 		if (unlink_file_dir (tocvsPath) < 0)
@@ -139,7 +142,8 @@ Checkin (type, file, update_dir, repository,
 
 	    if (!noexec)
 		error (1, errno, "could not check in %s -- fork failed",
-		       fullname);
+		       finfo->fullname);
+	    free (fname);
 	    return (1);
 
 	default:			/* ci failed */
@@ -154,9 +158,10 @@ Checkin (type, file, update_dir, repository,
 
 	    if (!noexec)
 	    {
-		rename_file (fname, file);
-		error (0, 0, "could not check in %s", fullname);
+		rename_file (fname, finfo->file);
+		error (0, 0, "could not check in %s", finfo->fullname);
 	    }
+	    free (fname);
 	    return (1);
     }
 
@@ -167,7 +172,7 @@ Checkin (type, file, update_dir, repository,
      */
     if (rev)
     {
-	(void) RCS_unlock (rcs, NULL, 1);
+	(void) RCS_unlock (finfo->rcs, NULL, 1);
     }
 
 #ifdef SERVER_SUPPORT
@@ -175,14 +180,16 @@ Checkin (type, file, update_dir, repository,
     {
 	if (set_time)
 	    /* Need to update the checked out file on the client side.  */
-	    server_updated (file, update_dir, repository, SERVER_UPDATED,
+	    server_updated (finfo, vers, SERVER_UPDATED,
 			    NULL, NULL);
 	else
-	    server_checked_in (file, update_dir, repository);
+	    server_checked_in (finfo->file, finfo->update_dir, finfo->repository);
     }
     else
 #endif
-	mark_up_to_date (file);
+	mark_up_to_date (finfo->file);
 
+    freevers_ts (&vers);
+    free (fname);
     return (0);
 }

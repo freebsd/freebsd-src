@@ -1,3 +1,51 @@
+Wed Feb 12 14:20:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (install): Depend on installdirs.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, cvsbug.8: Remove "675" paragraph;
+	see ../ChangeLog for rationale.
+
+Sat Nov 30 14:49:32 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.1: Add note at beginning about how cvs.texinfo is more
+	complete than this document.  Without some such indication, users
+	have no way of knowing which document to consult.
+
+Tue Oct  1 14:01:28 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.1: Revert all changes by Greg Woods since CVS 1.8.86.  They
+	are for new features which are not appropriate at this stage of
+	the release process.
+
+Mon Sep 30 18:21:05 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* cvs.1: document -D, -g, DIFFBIN, and GREPBIN.
+
+Mon Sep 16 23:22:16 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsbug.8: Remove references to cvsbug.el (or other aspects of
+	emacs interface) and cvsbug.info (or other aspects of texinfo
+	documentation).  Neither one has ever existed.
+
+Wed Jul 24 19:01:35 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvs.1: Document -x.
+
+Fri Sep 13 11:01:59 1996  Greg A. Woods  <woods@clapton.seachange.com>
+
+	* cvs.1: add description of -k and -K for rdiff.  Mention that
+	import allows '-b 1' to import to the trunk.
+
+Tue May 14 10:23:59 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.1: Add cvs.texinfo to the SEE ALSO section.  Replace an out
+	of date list of default ignore patterns with a reference to
+	cvs.texinfo (if someone wants to undo this change that is OK with
+	me but I did it this way because it isn't clear people would
+	actually keep cvs.1 up to date).
+
 Wed Mar 13 17:06:39 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvsinit.8: Removed.

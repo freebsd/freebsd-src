@@ -9,7 +9,7 @@
 #include "cvs.h"
 
 #ifdef SERVER_SUPPORT
-static void time_stamp_server PROTO((char *, Vers_TS *));
+static void time_stamp_server PROTO((char *, Vers_TS *, Entnode *));
 #endif
 
 /*
@@ -18,22 +18,19 @@ static void time_stamp_server PROTO((char *, Vers_TS *));
  * the current source control file - preparsed for our pleasure.
  */
 Vers_TS *
-Version_TS (repository, options, tag, date, user, force_tag_match,
-	    set_time, entries, rcs)
-    char *repository;
+Version_TS (finfo, options, tag, date, force_tag_match, set_time)
+    struct file_info *finfo;
     char *options;
     char *tag;
     char *date;
-    char *user;
     int force_tag_match;
     int set_time;
-    List *entries;
-    RCSNode *rcs;
 {
     Node *p;
     RCSNode *rcsdata;
     Vers_TS *vers_ts;
     struct stickydirtag *sdtp;
+    Entnode *entdata;
 
     /* get a new Vers_TS struct */
     vers_ts = (Vers_TS *) xmalloc (sizeof (Vers_TS));
@@ -44,40 +41,51 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
      * if entries is NULL, there is no entries file so don't bother trying to
      * look it up (used by checkout -P)
      */
-    if (entries == NULL)
+    if (finfo->entries == NULL)
     {
 	sdtp = NULL;
 	p = NULL;
     }
     else
     {
-	p = findnode_fn (entries, user);
-	sdtp = (struct stickydirtag *) entries->list->data; /* list-private */
+	p = findnode_fn (finfo->entries, finfo->file);
+	sdtp = (struct stickydirtag *) finfo->entries->list->data; /* list-private */
     }
 
+    entdata = NULL;
     if (p != NULL)
     {
-	Entnode *entdata = (Entnode *) p->data;
+	entdata = (Entnode *) p->data;
 
-	vers_ts->vn_user = xstrdup (entdata->version);
-	vers_ts->ts_rcs = xstrdup (entdata->timestamp);
-	vers_ts->ts_conflict = xstrdup (entdata->conflict);
-	if (!tag)
+#ifdef SERVER_SUPPORT
+	/* An entries line with "D" in the timestamp indicates that the
+	   client sent Is-modified without sending Entry.  So we want to
+	   use the entries line for the sole purpose of telling
+	   time_stamp_server what is up; we don't want the rest of CVS
+	   to think there is an entries line.  */
+	if (strcmp (entdata->timestamp, "D") != 0)
+#endif
 	{
-	    if (!(sdtp && sdtp->aflag))
-		vers_ts->tag = xstrdup (entdata->tag);
+	    vers_ts->vn_user = xstrdup (entdata->version);
+	    vers_ts->ts_rcs = xstrdup (entdata->timestamp);
+	    vers_ts->ts_conflict = xstrdup (entdata->conflict);
+	    if (!tag)
+	    {
+		if (!(sdtp && sdtp->aflag))
+		    vers_ts->tag = xstrdup (entdata->tag);
+	    }
+	    if (!date)
+	    {
+		if (!(sdtp && sdtp->aflag))
+		    vers_ts->date = xstrdup (entdata->date);
+	    }
+	    if (!options || (options && *options == '\0'))
+	    {
+		if (!(sdtp && sdtp->aflag))
+		    vers_ts->options = xstrdup (entdata->options);
+	    }
+	    vers_ts->entdata = entdata;
 	}
-	if (!date)
-	{
-	    if (!(sdtp && sdtp->aflag))
-		vers_ts->date = xstrdup (entdata->date);
-	}
-	if (!options || (options && *options == '\0'))
-	{
-	    if (!(sdtp && sdtp->aflag))
-		vers_ts->options = xstrdup (entdata->options);
-	}
-	vers_ts->entdata = entdata;
     }
 
     /*
@@ -88,15 +96,13 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	vers_ts->options = xstrdup (options);
     else if (!vers_ts->options)
     {
-	if (sdtp && sdtp->aflag == 0)
-	    vers_ts->options = xstrdup (sdtp->options);
-	else if (rcs != NULL)
+	if (finfo->rcs != NULL)
 	{
 	    /* If no keyword expansion was specified on command line,
 	       use whatever was in the rcs file (if there is one).  This
 	       is how we, if we are the server, tell the client whether
 	       a file is binary.  */
-	    char *rcsexpand = RCS_getexpand (rcs);
+	    char *rcsexpand = RCS_getexpand (finfo->rcs);
 	    if (rcsexpand != NULL)
 	    {
 		vers_ts->options = xmalloc (strlen (rcsexpand) + 3);
@@ -120,19 +126,22 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
     else if (!vers_ts->entdata && (sdtp && sdtp->aflag == 0))
     {
 	if (!vers_ts->tag)
+	{
 	    vers_ts->tag = xstrdup (sdtp->tag);
+	    vers_ts->nonbranch = sdtp->nonbranch;
+	}
 	if (!vers_ts->date)
 	    vers_ts->date = xstrdup (sdtp->date);
     }
 
     /* Now look up the info on the source controlled file */
-    if (rcs != NULL)
+    if (finfo->rcs != NULL)
     {
-	rcsdata = rcs;
+	rcsdata = finfo->rcs;
 	rcsdata->refcount++;
     }
-    else if (repository != NULL)
-	rcsdata = RCS_parse (user, repository);
+    else if (finfo->repository != NULL)
+	rcsdata = RCS_parse (finfo->file, finfo->repository);
     else
 	rcsdata = NULL;
 
@@ -148,21 +157,17 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	}
 	else
 	{
+	    int simple;
+
 	    vers_ts->vn_rcs = RCS_getversion (rcsdata, vers_ts->tag,
-					vers_ts->date, force_tag_match, 1);
+					      vers_ts->date, force_tag_match,
+					      &simple);
 	    if (vers_ts->vn_rcs == NULL)
 		vers_ts->vn_tag = NULL;
+	    else if (simple)
+		vers_ts->vn_tag = xstrdup (vers_ts->tag);
 	    else
-	    {
-		char *colon = strchr (vers_ts->vn_rcs, ':');
-		if (colon)
-		{
-		    vers_ts->vn_tag = xstrdup (colon+1);
-		    *colon = '\0';
-		}
-		else
-		    vers_ts->vn_tag = xstrdup (vers_ts->vn_rcs);
-	    }
+		vers_ts->vn_tag = xstrdup (vers_ts->vn_rcs);
 	}
 
 	/*
@@ -178,19 +183,19 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	    if (vers_ts->vn_rcs &&
 		(t.actime = t.modtime = RCS_getrevtime (rcsdata,
 		 vers_ts->vn_rcs, (char *) 0, 0)) != -1)
-		(void) utime (user, &t);
+		(void) utime (finfo->file, &t);
 	}
     }
 
     /* get user file time-stamp in ts_user */
-    if (entries != (List *) NULL)
+    if (finfo->entries != (List *) NULL)
     {
 #ifdef SERVER_SUPPORT
 	if (server_active)
-	    time_stamp_server (user, vers_ts);
+	    time_stamp_server (finfo->file, vers_ts, entdata);
 	else
 #endif
-	    vers_ts->ts_user = time_stamp (user);
+	    vers_ts->ts_user = time_stamp (finfo->file);
     }
 
     return (vers_ts);
@@ -205,50 +210,44 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 #define mark_unchanged(V)	((V)->ts_user = xstrdup ((V)->ts_rcs))
 
 static void
-time_stamp_server (file, vers_ts)
+time_stamp_server (file, vers_ts, entdata)
     char *file;
     Vers_TS *vers_ts;
+    Entnode *entdata;
 {
     struct stat sb;
     char *cp;
 
-    if (stat (file, &sb) < 0)
+    if ( CVS_STAT (file, &sb) < 0)
     {
 	if (! existence_error (errno))
 	    error (1, errno, "cannot stat temp file");
-	if (use_unchanged)
-	  {
-	    /* Missing file means lost or unmodified; check entries
-	       file to see which.
 
-	       XXX FIXME - If there's no entries file line, we
-	       wouldn't be getting the file at all, so consider it
-	       lost.  I don't know that that's right, but it's not
-	       clear to me that either choice is.  Besides, would we
-	       have an RCS string in that case anyways?  */
-	    if (vers_ts->entdata == NULL)
-	      mark_lost (vers_ts);
-	    else if (vers_ts->entdata->timestamp
-		     && vers_ts->entdata->timestamp[0] == '=')
-	      mark_unchanged (vers_ts);
-	    else
-	      mark_lost (vers_ts);
-	  }
-	else
-	  {
-	    /* Missing file in the temp directory means that the file
-	       was not modified.  */
+	/* Missing file means lost or unmodified; check entries
+	   file to see which.
+
+	   XXX FIXME - If there's no entries file line, we
+	   wouldn't be getting the file at all, so consider it
+	   lost.  I don't know that that's right, but it's not
+	   clear to me that either choice is.  Besides, would we
+	   have an RCS string in that case anyways?  */
+	if (entdata == NULL)
+	    mark_lost (vers_ts);
+	else if (entdata->timestamp
+		 && entdata->timestamp[0] == '=')
 	    mark_unchanged (vers_ts);
-	  }
+	else if (entdata->timestamp != NULL
+		 && (entdata->timestamp[0] == 'M'
+		     || entdata->timestamp[0] == 'D')
+		 && entdata->timestamp[1] == '\0')
+	    vers_ts->ts_user = xstrdup ("Is-modified");
+	else
+	    mark_lost (vers_ts);
     }
     else if (sb.st_mtime == 0)
     {
-	if (use_unchanged)
-	  /* We shouldn't reach this case any more!  */
-	  abort ();
-
-	/* Special code used by server.c to indicate the file was lost.  */
-	mark_lost (vers_ts);
+	/* We shouldn't reach this case any more!  */
+	abort ();
     }
     else
     {
@@ -290,7 +289,7 @@ time_stamp (file)
     char *cp;
     char *ts;
 
-    if (stat (file, &sb) < 0)
+    if ( CVS_STAT (file, &sb) < 0)
     {
 	ts = NULL;
     }

@@ -1,5 +1,3 @@
-$CVSid: @(#)README 1.32 94/10/22 $
-
 				CVS Kit
 
 		Copyright (c) 1993-1994 Brian Berliner
@@ -17,37 +15,22 @@ $CVSid: @(#)README 1.32 94/10/22 $
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 -------------------------------------------------------------------------------
 
 Welcome to CVS!
 
-Bug reports are accepted, however note that someone may or may not
-feel like taking care of your bug report.  Support contracts are
-available from Cyclic Software (http://www.cyclic.com or
-info@cyclic.com).
+If you have problems or think you have found a bug in CVS, see the
+section BUGS in the CVS manual (also known as Version Management with
+CVS by Per Cederqvist et al, or cvs.texinfo--see below for details).
 
-To report bugs send mail to bug-cvs@prep.ai.mit.edu, or run the "cvsbug"
-program and fill out the template:
-
-	$ cvsbug
-
-The "cvsbug" program is installed in the same location as the "cvs"
-program.  If your installation failed, you may need to run "cvsbug"
-directly out of the "src" directory as "src/cvsbug.sh".  This is also
-the procedure for submitting suggested changes to CVS (see the file
-HACKING for more details).  Note that all submitted changes may be
-distributed under the terms of the GNU Public License, so if you don't
-like this, don't submit them.
+If you are thinking of submitting changes to CVS, see the
+file HACKING.
 
 Please consult the INSTALL file for information on tested
 configurations.  If you have a comment about an already tested
-configuration, or have tried CVS on a new configuration, please write
-to the above address and let us know!  Free software only works if we
-all help out.
+configuration, or have tried CVS on a new configuration, please let us
+know as described in INSTALL.  Free software only works if we all help
+out.
 
 Finally, we cannot guarantee that this release will not completely wipe out
 all of your work from your system.  We do some simple testing before each
@@ -61,24 +44,19 @@ Thanks for your support!
 
 -------------------------------------------------------------------------------
 
-CVS is a freely available collection of programs that provide for software
-release and revision control functions in a UNIX environment.  It is
-designed to work on top of the RCS distribution, V4 and later.  CVS does
-understand how to parse older RCS formats, but cannot do any of the fancier
-features (like vendor branch support) without RCS branch support.
+What Is CVS?
 
-Short blurb from the manual page (larger blurb is included there):
-     cvs is a front end to the  rcs(1)  revision  control  system
-     which  extends the notion of revision control from a collec-
-     tion of files in a single directory to a  hierarchical  col-
-     lection  of  directories  consisting  of revision controlled
-     files.  These directories and files can be combined together
-     to  form  a  software  release.   cvs provides the functions
-     necessary to manage these software releases and  to  control
-     the  concurrent  editing  of  source  files  among  multiple
-     software developers.
+CVS is a version control system, which allows you to keep old versions
+of files (usually source code), keep a log of who, when, and why
+changes occurred, etc., like RCS or SCCS.  It handles multiple
+developers, multiple directories, triggers to enable/log/control
+various operations, and can work over a wide area network.  The
+following tasks are not included; they can be done in conjunction with
+CVS but will tend to require some script-writing and software other
+than CVS: bug-tracking, build management (that is, make and make-like
+tools), and automated testing.
 
-And a whole lot more.  See the doc/cvs.texinfo file for more information.
+And a whole lot more.  See the manual for more information.
 
 -------------------------------------------------------------------------------
 
@@ -86,23 +64,10 @@ Notes to people upgrading from a previous release of CVS:
 
 See the NEWS file for a description of features new in this version.
 
-The repository format is compatible going back to CVS 1.3.  But see
-the "Watches compatibility" section of doc/cvs.texinfo if you have
-copies of CVS 1.6 or older and you want to use the optional developer
-communication features.
-
-The working directory format is compatible going back to CVS 1.5.  It
-did change between CVS 1.3 and CVS 1.5.  If you run CVS 1.5 or newer
-on a working directory checked out with CVS 1.3, CVS will convert it,
-but to go back to CVS 1.3 you need to check out a new working
-directory with CVS 1.3.
-
-The remote protocol is interoperable going back to CVS 1.5.  Using a
-client or server older than 1.5 is deprecated and may fail to work at
-some point in the future (1.5 was the first official release with the
-remote protocol, but some older versions might still be floating
-around).  In many cases you need to upgrade both the client and the
-server to take advantage of new features and bugfixes, however.
+See the Compatibility section of the manual for information on
+compatibility between CVS versions.  The quick summary is that as long
+as you not using the optional watch features, there are no
+compatibility problems with CVS 1.5 or later.
 
 -------------------------------------------------------------------------------
 
@@ -112,15 +77,18 @@ Please read the INSTALL file for installation instructions.  Brief summary:
 
 	$ ./configure
 	$ make
-	$ make check	# optional, long-running, step
+	(run the regression tests if desired)
 	$ make install
-	$ cvsinit
+	(create a repository if you don't already have one)
 
 The documentation is in the doc subdirectory.  cvs.texinfo is the main
 manual; cvs.info* and cvs.ps are the info and postscript versions,
 respectively, generated from cvs.texinfo.  The postscript version is
-for A4 paper; if you want US letter size, you need to remove the line
-@afourpaper from cvs.texinfo and re-generate cvs.ps using TeX.
+for US letter size paper; we do this not because we consider this size
+"better" than A4, but because we believe that the US letter version
+will print better on A4 paper than the other way around. If you want a
+version formatted for A4, add the line @afourpaper near the start of
+cvs.texinfo and re-generate cvs.ps using TeX.
 
 -------------------------------------------------------------------------------
 
@@ -159,7 +127,7 @@ D.C., is included in the "doc" directory.
 Jeff Polk from BSDI <polk@bsdi.com> converted the CVS 1.2
 sources into much more readable and maintainable C code.  He also added a
 whole lot of functionality and modularity to the code in the process.
-See the ChangeLog file.
+See the bottom of the NEWS file (from about 1992).
 
 david d `zoo' zuhn <zoo@armadillo.com> contributed the working base code
 for CVS 1.4 Alpha.  His work carries on from work done by K. Richard Pixley
@@ -179,9 +147,9 @@ K. Richard Pixley, Cygnus Support <rich@cygnus.com> contributed many bug
 fixes/enhancement as well as completing early reviews of the CVS 1.3 manual
 pages.
 
-Roland Pesch, then of Cygnus Support <roland@wrs.com> contributed brand new
-cvs(1) and cvs(5) manual pages.  We should all thank him for saving us from
-my poor use of our language!
+Roland Pesch, then of Cygnus Support <roland@wrs.com> contributed
+brand new cvs(1) and cvs(5) manual pages.  Thanks to him for saving us
+from poor use of our language!
 
 Paul Sander, HaL Computer Systems, Inc. <paul@hal.com> wrote and
 contributed the code in lib/sighandle.c.  I added support for POSIX, BSD,
@@ -190,13 +158,17 @@ and non-POSIX/non-BSD systems.
 Jim Kingdon and others at Cygnus Support <info@cygnus.com> wrote the
 remote repository access code.
 
-In addition to the above contributors, the following Beta testers deserve
-special mention for their support.  If I have left off your name, I
-apologize.  Just write to me and let me know!
+There have been many, many contributions not listed here.  Consult the
+ChangeLog files in each directory for a more complete idea.
+
+In addition to the above contributors, the following Beta testers
+deserve special mention for their support.  This is only a partial
+list; if you have helped in this way and would like to be listed, let
+bug-cvs know (as described elsewhere in this file).
 
 	Mark D. Baushke <mdb@cisco.com>
 	Per Cederqvist <ceder@signum.se>
-	J.T. Conklin (jtc@cygnus.com>
+	J.T. Conklin <jtc@cygnus.com>
 	Vince DeMarco <vdemarco@fdcsrvr.cs.mci.com>
 	Paul Eggert <eggert@twinsun.com>
 	Lal George <george@research.att.com>
@@ -219,4 +191,4 @@ apologize.  Just write to me and let me know!
 
 Many contributors have added code to the "contrib" directory.  See the
 README file there for a list of what is available.  There is also a
-contributed GNU Emacs CVS-mode in contrib/pcl-cvs.
+contributed GNU Emacs CVS-mode in tools/pcl-cvs.
