@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.73.2.4 1997/08/17 14:13:08 joerg Exp $
+ *      $Id: cd.c,v 1.73.2.5 1998/04/27 11:39:03 des Exp $
  */
 
 #include "opt_bounce.h"
@@ -183,7 +183,7 @@ cdattach(struct scsi_link *sc_link)
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
 
-	TAILQ_INIT(&cd->buf_queue);
+	bufq_init(&cd->buf_queue);
 	if (sc_link->opennings > CDOUTSTANDING)
 		sc_link->opennings = CDOUTSTANDING;
 	/*
@@ -432,7 +432,7 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	TAILQ_INSERT_TAIL(&cd->buf_queue, bp, b_act);
+	bufq_insert_tail(&cd->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -494,11 +494,11 @@ cdstart(unit, flags)
 		return;		/* give the special that's waiting a chance to run */
 	}
 
-	bp = cd->buf_queue.tqh_first;
+	bp = bufq_first(&cd->buf_queue);
 	if (bp == NULL) {	/* yes, an assign */
 		return;
 	}
-	TAILQ_REMOVE( &cd->buf_queue, bp, b_act);
+	bufq_remove(&cd->buf_queue, bp);
 
 	/*
 	 * Should reject all queued entries if SDEV_MEDIA_LOADED is not true.
