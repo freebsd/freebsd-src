@@ -92,6 +92,10 @@ static const char rcsid[] =
 #include <netinet/ip_var.h>
 #include <arpa/inet.h>
 
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif /*IPSEC*/
+
 #define	PHDR_LEN	sizeof(struct timeval)
 #define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
@@ -124,6 +128,11 @@ int options;
 #define	F_MTTL		0x0800
 #define	F_MIF		0x1000
 #define	F_AUDIBLE	0x2000
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+#define F_POLICY	0x4000
+#endif /*IPSEC_POLICY_IPSEC*/
+#endif /*IPSEC*/
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -204,6 +213,10 @@ main(argc, argv)
 	struct msghdr msg;
 	struct sockaddr_in from;
 	char ctrl[sizeof(struct cmsghdr) + sizeof(struct timeval)];
+#ifdef IPSEC_POLICY_IPSEC
+	char *policy_in = NULL;
+	char *policy_out = NULL;
+#endif
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -219,7 +232,14 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + PHDR_LEN];
-	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:v")) != -1) {
+#ifndef IPSEC
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1)
+#else
+#ifdef IPSEC_POLICY_IPSEC
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:vP:")) != -1)
+#endif /*IPSEC_POLICY_IPSEC*/
+#endif
+	{
 		switch(ch) {
 		case 'a':
 			options |= F_AUDIBLE;
@@ -331,6 +351,19 @@ main(argc, argv)
 		case 'v':
 			options |= F_VERBOSE;
 			break;
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+		case 'P':
+			options |= F_POLICY;
+			if (!strncmp("in", optarg, 2))
+				policy_in = strdup(optarg);
+			else if (!strncmp("out", optarg, 3))
+				policy_out = strdup(optarg);
+			else
+				errx(1, "invalid security policy");
+			break;
+#endif /*IPSEC_POLICY_IPSEC*/
+#endif /*IPSEC*/
 		default:
 			usage();
 		}
@@ -419,6 +452,32 @@ main(argc, argv)
 	if (options & F_SO_DONTROUTE)
 		(void)setsockopt(s, SOL_SOCKET, SO_DONTROUTE, (char *)&hold,
 		    sizeof(hold));
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+	if (options & F_POLICY) {
+		char *buf;
+		if (policy_in != NULL) {
+			buf = ipsec_set_policy(policy_in, strlen(policy_in));
+			if (buf == NULL)
+				errx(EX_CONFIG, ipsec_strerror());
+			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
+					buf, ipsec_get_policylen(buf)) < 0)
+				err(EX_CONFIG, "ipsec policy cannot be configured");
+			free(buf);
+		}
+
+		if (policy_out != NULL) {
+			buf = ipsec_set_policy(policy_out, strlen(policy_out));
+			if (buf == NULL)
+				errx(EX_CONFIG, ipsec_strerror());
+			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
+					buf, ipsec_get_policylen(buf)) < 0)
+				err(EX_CONFIG, "ipsec policy cannot be configured");
+			free(buf);
+		}
+	}
+#endif /*IPSEC_POLICY_IPSEC*/
+#endif /*IPSEC*/
 
 	/* record route option */
 	if (options & F_RROUTE) {
@@ -1326,7 +1385,13 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-p pattern]",
-"            [-s packetsize] [-S src_addr]",
-"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
+"            "
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+"[-P policy] "
+#endif
+#endif
+"[-s packetsize] [-S src_addr]",
+		"[host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }

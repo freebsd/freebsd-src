@@ -47,6 +47,7 @@ packets to network hosts
 .Op Fl i Ar wait
 .Op Fl l Ar preload
 .Op Fl p Ar pattern
+.Op Fl P Ar policy
 .Op Fl s Ar packetsize
 .Op Fl S Ar src_addr
 .Bo
@@ -147,6 +148,13 @@ For example,
 .Dq Li \-p ff
 will cause the sent packet to be filled with all
 ones.
+.It Fl P Ar policy
+.Ar policy
+specifies IPsec policy for the ping session.
+For details please refer to
+.Xr ipsec 4
+and
+.Xr ipsec_set_policy 3 .
 .It Fl Q
 Somewhat quiet output.
 .No Don Ap t
