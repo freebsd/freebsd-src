@@ -1,4 +1,5 @@
 # ex:ts=8
+$FreeBSD$
 
 ISC DHCP client 2.0
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
