@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.98 1996/11/29 23:52:20 jkh Exp $
+ * $Id: menus.c,v 1.100 1996/12/09 06:02:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -207,8 +207,7 @@ DMenu MenuIndex = {
     "Leave the index page by selecting Cancel [TAB-ENTER].",
     "Use PageUp or PageDown to move through this menu faster!",
     NULL,
-    { { "Add User",		"Add users to the system.",		NULL, dmenuSystemCommand, NULL, "adduser -config_create ; adduser -s" },
-      { "Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
+    { { "Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
       { "Commit",		"Commit any pending actions (dangerous!)", NULL, installCustomCommit },
       { "Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
@@ -269,6 +268,7 @@ DMenu MenuIndex = {
       { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
+      { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "WEB Server",		"Configure host as a WWW server.",	dmenuVarCheck, configApache, NULL, "apache_httpd" },
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
@@ -1008,8 +1008,8 @@ DMenu MenuConfigure = {
     "software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
-    { { "1 Add User",	"Add users to the system",
-	NULL,	dmenuSystemCommand, NULL, "adduser -config_create ; adduser -s" },
+    { { "1 User Management",	"Add user and group information",
+	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "2 Console",	"Customize system console behavior",
 	NULL,	dmenuSubmenu, NULL, &MenuSyscons },
       { "3 Time Zone",	"Set which time zone you're in",
@@ -1266,5 +1266,18 @@ DMenu MenuSysconsFont = {
 	"font8x8=iso-8x8,font8x14=iso-8x14,font8x16=iso-8x16" },
       { "KOI8-R", "Russian, KOI8-R encoding",	dmenuVarCheck,	dmenuSetVariables, NULL,
 	"font8x8=koi8-r-8x8,font8x14=koi8-r-8x14,font8x16=koi8-r-8x16" },
+      { NULL } },
+};
+
+DMenu MenuUsermgmt = {
+    DMENU_NORMAL_TYPE,
+    "User and group management",
+    "The submenus here allow to manipulate user groups and\n"
+    "login accounts.\n",
+    "Configure your user groups and users",
+    NULL,
+    { { "Add group",	"Add a new user group to the system.",	NULL, userAddGroup },
+      { "Add user",	"Add a new user to the system.",	NULL, userAddUser },
+      { "Exit",		"Exit this menu (returning to previous)", NULL, dmenuExit },
       { NULL } },
 };
