@@ -591,7 +591,16 @@ ffs_mountfs(devvp, mp, td, malloctype)
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	/*
+	 * XXX: We don't re-VOP_OPEN in FREAD|FWRITE mode if the filesystem
+	 * XXX: is subsequently remounted, so open it FREAD|FWRITE from the
+	 * XXX: start to avoid getting trashed later on.
+	 */
+#ifdef notyet
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+#else
+	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td);
+#endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
@@ -785,7 +794,12 @@ out:
 	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
+	/* XXX: see comment above VOP_OPEN */
+#ifdef notyet
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, cred, td);
+#else
+	(void)VOP_CLOSE(devvp, FREAD|FWRITE, cred, td);
+#endif
 	if (ump) {
 		free(ump->um_fs, M_UFSMNT);
 		free(ump, M_UFSMNT);
