@@ -33,8 +33,7 @@ use 5.006_001;
 use strict;
 use POSIX qw(strftime);
 
-my %BRANCHES;
-
+my %CONFIGS;
 my %ARCHES;
 
 my $DIR = ".";
@@ -55,45 +54,13 @@ sub success($) {
     return undef;
 }
 
-MAIN:{
-    if ($ENV{'GATEWAY_INTERFACE'}) {
-	$| = 1;
-	print "Content-Type: text/html\n\n";
-    } else {
-	if ($0 =~ m|^(/[\w/._-]+)/[^/]+$|) {
-	    $DIR = $1;
-	}
-	open(STDOUT, ">", "$DIR/index.html")
-	    or die("index.html: $!\n");
-    }
+sub do_config($) {
+    my $config = shift;
 
-    local *DIR;
-    opendir(DIR, $DIR)
-	or die("$DIR: $!\n");
-    foreach (readdir(DIR)) {
-	next unless m/^tinderbox-(\w+)-(\w+)-(\w+)\.(brief|full)$/;
-	$BRANCHES{$1} = $ARCHES{$2}->{$3} = 1;
-    }
-    closedir(DIR);
+    my %branches = %{$CONFIGS{$config}};
 
-    print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
-<!DOCTYPE html
-     PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
-     \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">
-<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">
-  <head>
-    <title>FreeBSD tinderbox logs</title>
-    <meta name=\"robots\" content=\"nofollow\" />
-    <meta http-equiv=\"refresh\" content=\"600\" />
-    <link rel=\"stylesheet\" type=\"text/css\" media=\"screen\" href=\"tb.css\" />
-    <link rel=\"shortcut icon\" type=\"image/png\" href=\"daemon.png\" />
-  </head>
-  <body>
-    <h1>FreeBSD tinderbox logs</h1>
-
-    <table border=\"1\" cellpadding=\"3\">
-      <tr>
-        <th />
+    print "      <tr>
+        <th>$config</th>
 ";
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
@@ -108,13 +75,13 @@ MAIN:{
 
     my $now = time();
 
-    foreach my $branch (sort(keys(%BRANCHES))) {
+    foreach my $branch (sort(keys(%branches))) {
 	my $html =  "      <tr>
 	<th>$branch</th>
 ";
 	foreach my $arch (sort(keys(%ARCHES))) {
 	    foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
-		my $log = "tinderbox-$branch-$arch-$machine";
+		my $log = "tinderbox-$config-$branch-$arch-$machine";
 		my $links = "";
 		if (-f "$DIR/$log.brief") {
 		    my @stat = stat("$DIR/$log.brief");
@@ -148,8 +115,53 @@ MAIN:{
 	$html .= "      </tr>\n";
 	print $html;
     }
+}
+
+MAIN:{
+    if ($ENV{'GATEWAY_INTERFACE'}) {
+	$| = 1;
+	print "Content-Type: text/html\n\n";
+    } else {
+	if ($0 =~ m|^(/[\w/._-]+)/[^/]+$|) {
+	    $DIR = $1;
+	}
+	open(STDOUT, ">", "$DIR/index.html")
+	    or die("index.html: $!\n");
+    }
+
+    local *DIR;
+    opendir(DIR, $DIR)
+	or die("$DIR: $!\n");
+    foreach (readdir(DIR)) {
+	next unless m/^tinderbox-(\w+)-(\w+)-(\w+)-(\w+)\.(brief|full)$/;
+	$CONFIGS{$1}->{$2} = $ARCHES{$3}->{$4} = 1;
+    }
+    closedir(DIR);
+
+    print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
+<!DOCTYPE html
+     PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
+     \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">
+<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">
+  <head>
+    <title>FreeBSD tinderbox logs</title>
+    <meta name=\"robots\" content=\"nofollow\" />
+    <meta http-equiv=\"refresh\" content=\"600\" />
+    <link rel=\"stylesheet\" type=\"text/css\" media=\"screen\" href=\"tb.css\" />
+    <link rel=\"shortcut icon\" type=\"image/png\" href=\"daemon.png\" />
+  </head>
+  <body>
+    <h1>FreeBSD tinderbox logs</h1>
+
+    <table border=\"1\" cellpadding=\"3\">
+";
+    foreach my $config (sort(keys(%CONFIGS))) {
+	next if $config =~ m/^update_/;
+	do_config($config);
+    }
     my $date = strftime("%Y-%m-%d %H:%M UTC", gmtime());
-    print "    </table>
+    print "
+    </table>
     <p class=\"update\">Last updated: $date</p>
     <p>
       <a href=\"http://validator.w3.org/check/referer\"><img
