@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.9 1998/11/22 23:44:46 ken Exp $
+ *      $Id: scsi_cd.c,v 1.10 1998/12/04 22:54:43 archie Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -306,7 +306,7 @@ struct cdchanger {
 	STAILQ_HEAD(chdevlist, cd_softc) chluns;
 };
 
-STAILQ_HEAD(changerlist, cdchanger) changerq;
+static STAILQ_HEAD(changerlist, cdchanger) changerq;
 
 void
 cdinit(void)
@@ -1330,7 +1330,7 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	return(error);
 }
 
-union ccb *
+static union ccb *
 cdgetccb(struct cam_periph *periph, u_int32_t priority)
 {
 	struct cd_softc *softc;

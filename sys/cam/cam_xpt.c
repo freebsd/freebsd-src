@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.29 1998/12/10 04:05:49 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.30 1998/12/15 08:13:10 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -80,7 +80,7 @@ struct async_node {
 
 SLIST_HEAD(async_list, async_node);
 SLIST_HEAD(periph_list, cam_periph);
-STAILQ_HEAD(highpowerlist, ccb_hdr) highpowerq;
+static STAILQ_HEAD(highpowerlist, ccb_hdr) highpowerq;
 
 /*
  * This is the maximum number of high powered commands (e.g. start unit)
@@ -428,7 +428,7 @@ static cam_isrq_t cam_bioq;
 static cam_isrq_t cam_netq;
 
 /* "Pool" of inactive ccbs managed by xpt_alloc_ccb and xpt_free_ccb */
-SLIST_HEAD(,ccb_hdr) ccb_freeq;
+static SLIST_HEAD(,ccb_hdr) ccb_freeq;
 static u_int xpt_max_ccbs;	/*
 				 * Maximum size of ccb pool.  Modified as
 				 * devices are added/removed or have their
@@ -489,7 +489,7 @@ static struct cdevsw xpt_cdevsw =
 static struct intr_config_hook *xpt_config_hook;
 
 /* Registered busses */
-TAILQ_HEAD(,cam_eb) xpt_busses;
+static TAILQ_HEAD(,cam_eb) xpt_busses;
 static u_int bus_generation;
 
 /* Storage for debugging datastructures */
@@ -5787,13 +5787,13 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
  * XXX we should really have a way to dynamically register SWI handlers.
  */
 
-void
+static void
 swi_camnet()
 {
 	camisr(&cam_netq);
 }
 
-void
+static void
 swi_cambio()
 {
 	camisr(&cam_bioq);
