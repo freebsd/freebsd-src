@@ -233,7 +233,6 @@ chooseproc(void)
 	} else {
 		CTR1(KTR_PROC, "chooseproc: idleproc, schedlock %lx",
 			(long)sched_lock.mtx_lock);
-		idleproc->p_stat = SRUN;
 		return idleproc;
 	}
 	p = TAILQ_FIRST(q);
