@@ -59,6 +59,7 @@ struct reg {
 struct fpreg {
 	u_int	fr_regs[64];
 	u_long	fr_fsr;
+	u_long	fr_fprs;
 };
 
 /*
