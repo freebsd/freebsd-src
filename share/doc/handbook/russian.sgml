@@ -1,0 +1,140 @@
+<!-- $Id: pgpkeys.sgml,v 1.20 1997/04/25 22:58:22 ache Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>Russian Language<label id="russian"></heading>
+<p><em>Contributed by &a.ache;<newline>
+1 May 1997</em>.
+
+<sect1><heading>Console Setup<label id="russian:console"></heading>
+<p>
+Russian console entry in <tt>/etc/rc.conf</tt> should looks like
+<tscreen><verb>
+keymap=ru.koi8-r
+keychange="61 ^[[K"
+scrnmap=koi8-r2cp866
+font8x16=cp866b-8x16
+font8x14=cp866-8x14
+font8x8=cp866-8x8
+</verb></tscreen>
+<p>
+NOTE: ^[ means that real ESC character must be entered into
+<tt>/etc/rc.conf</tt>,
+not just ^[ string.
+<p>
+This tuning means koi8-r keyboard with Alternative codeset
+screen font mapped to koi8-r character set to
+preserve pseudographics, <it>Gray Delete</it> key remapped to match Russian
+termcap entry for console.
+See <tt>rc.conf(5)</tt> for details.
+<p>
+For each <tt>ttyv?</tt> entry in <tt>/etc/ttys</tt>
+change terminal type from <bf>cons25</bf> to
+<bf>cons25r</bf>, i.e. each entry should looks like
+<tscreen><verb>
+ttyv0	"/usr/libexec/getty Pc"		cons25r	on  secure
+</verb></tscreen>
+
+<sect1><heading>Locale Setup<label id="russian:locale"></heading>
+<p>
+There is two environment variables for locale setup: <tt>LANG</tt>
+and <tt>MM_CHARSET</tt>.
+The best way is using <tt>/etc/login.conf</tt>
+<bf>russian</bf> user's login class
+in <tt>passwd(5)</tt> entry login class position.
+See <tt>login.conf(5)</tt> for details.
+<sect2><heading>Login Class Method<label id="russian:class"></heading>
+<p>
+As first step check your <tt>/etc/login.conf</tt> have
+<bf>russian</bf> login class, this entry may looks like:
+<tscreen><verb>
+russian:Russian Users Accounts:\
+	:charset=KOI8-R:\
+	:lang=ru_RU.KOI8-R:\
+	:tc=default:
+</verb></tscreen>
+
+<sect3><heading>How to do it with vipw(8)</heading>
+<p>
+If you use <tt>vipw(8)</tt> for adding new users,
+<tt>/etc/master.passwd</tt>
+entry should looks like:
+<tscreen><verb>
+user:password:1111:11:russian:0:0:User Name:/home/user:/bin/csh
+</verb></tscreen>
+
+<sect3><heading>How to do it with adduser(8)</heading>
+<p>
+If you use <tt>adduser(8)</tt> for adding new users, set
+<tscreen><verb>
+defaultclass = russian
+</verb></tscreen>
+in <tt>/etc/adduser.conf</tt>
+(you must enter <bf>default</bf> class for all non-Russian
+users in this case).
+<p>
+Alternative variant will be answer <bf>russian</bf> each time when you see
+<tscreen><verb>
+Enter login class: default []:
+</verb></tscreen>
+prompt from <tt>adduser(8)</tt>, or call
+<tscreen><verb>
+# adduser -class russian
+</verb></tscreen>
+for each Russian user you want to add.
+
+<sect3><heading>How to do it with pw(8)</heading>
+<p>
+If you use <tt>pw(8)</tt> for adding new users, call it in this form:
+<tscreen><verb>
+# pw useradd user_name -L russian
+</verb></tscreen>
+
+<sect2><heading>Shell Startup Files Method</heading>
+<p>
+If you don't want to use
+<ref id="russian:class" name="login class method">
+for some reasons, just set
+this two environment variables in <tt>/etc/profile</tt>:
+<tscreen><verb>
+LANG=ru_RU.KOI8-R; export LANG
+MM_CHARSET=KOI8-R; export MM_CHARSET
+</verb></tscreen>
+and <tt>/etc/csh.login</tt>:
+<tscreen><verb>
+setenv LANG ru_RU.KOI8-R
+setenv MM_CHARSET KOI8-R
+</verb></tscreen>
+<p>
+Alternatively you can add this instructions to
+<tt>/usr/share/skel/dot.profile</tt>
+(similar to <tt>/etc/profile</tt>) and
+<tt>/usr/share/skel/dot.login</tt> (similar to
+<tt>/etc/csh.login</tt>).
+
+<sect1><heading>X Window Setup<label id="russian:xwindow"></heading>
+<p>
+First off all do
+<ref id="russian:locale" name="locale setup"> as described.
+<p>
+Then go to <tt>/usr/ports/russian/X.language</tt> directory and say
+<tscreen><verb>
+# make all install
+</verb></tscreen>
+there. This port install latest version of KOI8-R fonts.
+<p>
+Check find <tt>"Files"</tt> section in your <tt>/etc/XF86Config</tt>,
+following lines must be before any other <tt>FontPath</tt> entries:
+<tscreen><verb>
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/misc"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/75dpi"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/100dpi"
+</verb></tscreen>
+<p>If you use high resolution video mode, swap 75 dpi and
+100 dpi lines.
+<p>To activate Russian keyboard add
+<tscreen><verb>
+    XkbKeymap   "xfree86(ru)"
+</verb></tscreen>
+line into <tt>"Keyboard"</tt> section in your <tt>/etc/XF86Config</tt>,
+also make sure that <tt>XkbDisable</tt> is turned off (commented out)
+there.
