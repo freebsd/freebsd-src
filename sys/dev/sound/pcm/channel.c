@@ -1021,7 +1021,8 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 	c->feeder = &feeder_root;
 	c->buffer.chan = -1;
 	c->devinfo = c->init(devinfo, &c->buffer, c, dir);
-	if (c->devinfo == NULL) panic("c->init() failed");
+	if (c->devinfo == NULL)
+		return 1;
 	chn_setdir(c, dir);
 
 	/* And the secondary buffer. */
