@@ -231,7 +231,7 @@ universe:
 	@echo ">> ${mach} buildworld completed on `LC_ALL=C date`"
 .if exists(${.CURDIR}/sys/${mach}/conf/NOTES)
 	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
-	    > _.${mach}.makeLINT 2>&1
+	    > ${.CURDIR}/_.${mach}.makeLINT 2>&1
 .endif
 	cd ${.CURDIR} && ${MAKE} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
 	@echo ">> ${mach} completed on `LC_ALL=C date`"
