@@ -1152,6 +1152,9 @@ typedef struct ndis_packet ndis_packet;
 /* mbuf ext type for NDIS */
 #define EXT_NDIS		0x999
 
+/* mtx type for NDIS */
+#define MTX_NDIS_LOCK "NDIS lock"
+
 struct ndis_filterdbs {
 	union {
 		void			*nf_ethdb;
@@ -1513,6 +1516,8 @@ extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
 extern int ndis_sched(void (*)(void *), void *, int);
 extern int ndis_unsched(void (*)(void *), void *, int);
+extern int ndis_thsuspend(struct proc *, int);
+extern void ndis_thresume(struct proc *);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
