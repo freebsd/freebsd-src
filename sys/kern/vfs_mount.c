@@ -810,14 +810,11 @@ mount(td, uap)
 	 * `path' now, so extract them.
 	 */
 	error = copyinstr(SCARG(uap, type), fstype, MFSNAMELEN, NULL);
-	if (error)
-		goto finish;
-	error = copyinstr(SCARG(uap, path), fspath, MNAMELEN, NULL);
-	if (error)
-		goto finish;
-	error = vfs_mount(td, fstype, fspath, SCARG(uap, flags),
-	    SCARG(uap, data));
-finish:
+	if (error == 0)
+		error = copyinstr(SCARG(uap, path), fspath, MNAMELEN, NULL);
+	if (error == 0)
+		error = vfs_mount(td, fstype, fspath, SCARG(uap, flags),
+		    SCARG(uap, data));
 	free(fstype, M_TEMP);
 	free(fspath, M_TEMP);
 	return (error);
@@ -1479,6 +1476,7 @@ vfs_mountroot_try(char *mountfrom)
 {
         struct mount	*mp;
 	char		*vfsname, *path;
+	const char	*devname;
 	int		error;
 	char		patt[32];
 	int		s;
@@ -1518,9 +1516,11 @@ vfs_mountroot_try(char *mountfrom)
 		printf("setrootbyname failed\n");
 
 	/* If the root device is a type "memory disk", mount RW */
-	if (rootdev != NODEV && devsw(rootdev) &&
-	    (devsw(rootdev)->d_flags & D_MEMDISK))
-		mp->mnt_flag &= ~MNT_RDONLY;
+	if (rootdev != NODEV && devsw(rootdev) != NULL) {
+		devname = devtoname(rootdev);
+		if (devname[0] == 'm' && devname[1] == 'd')
+			mp->mnt_flag &= ~MNT_RDONLY;
+	}
 
 	/* 
 	 * Set the mount path to be something useful, because the
