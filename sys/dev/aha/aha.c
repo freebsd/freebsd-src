@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.19.2.2 1999/05/13 07:00:34 imp Exp $
+ *      $Id: aha.c,v 1.19.2.3 1999/05/15 05:02:49 imp Exp $
  */
 
 #include "pnp.h"
@@ -99,6 +99,10 @@ struct aha_softc *aha_softcs[NAHATOT];
  * did for the CF and CP.
  */
 #define PROBABLY_NEW_BOARD(REV) (REV > 0x43 && REV < 0x56)
+
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
 
 /* MailBox Management functions */
 static __inline void	ahanextinbox(struct aha_softc *aha);
@@ -1048,9 +1052,12 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 			if ((aha->disc_permitted & target_mask) != 0)
 				cts->flags |= CCB_TRANS_DISC_ENB;
 			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-			if ((aha->sync_permitted & target_mask) != 0)
-				cts->sync_period = 50;
-			else
+			if ((aha->sync_permitted & target_mask) != 0) {
+				if (aha->boardid >= BOARD_1542CF)
+					cts->sync_period = 25;
+				else
+					cts->sync_period = 50;
+			} else
 				cts->sync_period = 0;
 
 			if (cts->sync_period != 0)
@@ -1570,34 +1577,67 @@ ahareset(struct aha_softc* aha, int hard_reset)
  */
 int
 aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params, 
-      u_int param_len, u_int8_t *reply_data, u_int reply_len, 
-      u_int cmd_timeout)
+	u_int param_len, u_int8_t *reply_data, u_int reply_len, 
+	u_int cmd_timeout)
 {
 	u_int	timeout;
 	u_int	status;
+	u_int	saved_status;
 	u_int	intstat;
 	u_int	reply_buf_size;
 	int	s;
 	int	cmd_complete;
+	int	error;
 
 	/* No data returned to start */
 	reply_buf_size = reply_len;
 	reply_len = 0;
 	intstat = 0;
 	cmd_complete = 0;
+	saved_status = 0;
+	error = 0;
 
+	/*
+	 * All commands except for the "start mailbox" and the "enable
+	 * outgoing mailbox read interrupt" commands cannot be issued
+	 * while there are pending transactions.  Freeze our SIMQ
+	 * and wait for all completions to occur if necessary.
+	 */
+	timeout = 100000;
+	s = splcam();
+	while (LIST_FIRST(&aha->pending_ccbs) != NULL && --timeout) {
+		/* Fire the interrupt handler in case interrupts are blocked */
+		aha_intr(aha);
+		splx(s);
+		DELAY(100);
+		s = splcam();
+	}
+	splx(s);
+
+	if (timeout == 0) {
+		printf("%s: aha_cmd: Timeout waiting for adapter idle\n",
+		       aha_name(aha));
+		return (ETIMEDOUT);
+	}
 	aha->command_cmp = 0;
 	/*
-	 * Wait up to 1 sec. for the adapter to become
+	 * Wait up to 10 sec. for the adapter to become
 	 * ready to accept commands.
 	 */
-	timeout = 10000;
+	timeout = 100000;
 	while (--timeout) {
 
 		status = aha_inb(aha, STATUS_REG);
 		if ((status & HA_READY) != 0
 		 && (status & CMD_REG_BUSY) == 0)
 			break;
+		/*
+		 * Throw away any pending data which may be
+		 * left over from earlier commands that we
+		 * timedout on.
+		 */
+		if ((status & DATAIN_REG_READY) != 0)
+			(void)aha_inb(aha, DATAIN_REG);
 		DELAY(100);
 	}
 	if (timeout == 0) {
@@ -1617,15 +1657,20 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	timeout = 10000;
 	while (param_len && --timeout) {
 		DELAY(100);
+		s = splcam();
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
+		splx(s);
+
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
 		 == (INTR_PENDING|CMD_COMPLETE)) {
+			saved_status = status;
 			cmd_complete = 1;
 			break;
 		}
+
 		if (aha->command_cmp != 0) {
-			status = aha->latched_status;
+			saved_status = aha->latched_status;
 			cmd_complete = 1;
 			break;
 		}
@@ -1634,12 +1679,13 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 		if ((status & CMD_REG_BUSY) == 0) {
 			aha_outb(aha, COMMAND_REG, *params++);
 			param_len--;
+			timeout = 10000;
 		}
 	}
 	if (timeout == 0) {
 		printf("%s: aha_cmd: Timeout sending parameters, "
 		       "status = 0x%x\n", aha_name(aha), status);
-		return (ETIMEDOUT);
+		error = ETIMEDOUT;
 	}
 
 	/*
@@ -1648,34 +1694,43 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	 */
 	while (cmd_complete == 0 && --cmd_timeout) {
 
+		s = splcam();
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
-		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
-		 == (INTR_PENDING|CMD_COMPLETE))
-			break;
+		splx(s);
 
 		if (aha->command_cmp != 0) {
-			status = aha->latched_status;
-			break;
-		}
-
-		if ((status & DATAIN_REG_READY) != 0) {
+			cmd_complete = 1;
+			saved_status = aha->latched_status;
+		} else if ((intstat & (INTR_PENDING|CMD_COMPLETE))
+			== (INTR_PENDING|CMD_COMPLETE)) {
+			/*
+			 * Our poll (in case interrupts are blocked)
+			 * saw the CMD_COMPLETE interrupt.
+			 */
+			cmd_complete = 1;
+			saved_status = status;
+		} else if ((status & DATAIN_REG_READY) != 0) {
 			u_int8_t data;
 
 			data = aha_inb(aha, DATAIN_REG);
 			if (reply_len < reply_buf_size) {
 				*reply_data++ = data;
 			} else {
-				printf("%s: aha_cmd - Discarded reply data byte "
-				       "for opcode 0x%x\n", aha_name(aha),
+				printf("%s: aha_cmd - Discarded reply data "
+				       "byte for opcode 0x%x\n", aha_name(aha),
 				       opcode);
 			}
+			/*
+			 * Reset timeout to ensure at least a second
+			 * between response bytes.
+			 */
+			cmd_timeout = MAX(cmd_timeout, 10000);
 			reply_len++;
 		}
-
 		DELAY(100);
 	}
-	if (timeout == 0) {
+	if (cmd_timeout == 0) {
 		printf("%s: aha_cmd: Timeout waiting for reply data and "
 		       "command complete.\n%s: status = 0x%x, intstat = 0x%x, "
 		       "reply_len = %d\n", aha_name(aha), aha_name(aha), status,
@@ -1691,10 +1746,13 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	aha_intr(aha);
 	splx(s);
 	
+	if (error != 0)
+		return (error);
+
 	/*
 	 * If the command was rejected by the controller, tell the caller.
 	 */
-	if ((status & CMD_INVALID) != 0) {
+	if ((saved_status & CMD_INVALID) != 0) {
 		PRVERB(("%s: Invalid Command 0x%x\n", aha_name(aha), opcode));
 		/*
 		 * Some early adapters may not recover properly from
@@ -1713,7 +1771,6 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 		return (EINVAL);
 	}
 
-	
 	if (param_len > 0) {
 		/* The controller did not accept the full argument list */
 	 	return (E2BIG);
@@ -1773,19 +1830,16 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 
 	/*
 	 * Inquire Setup Information.  This command retreives
-	 * the sync info for older models.  We put a small delay here
-	 * because that seems to help the stability.  10mS is known
-	 * to work, but other values might also work.
+	 * the sync info for older models.
 	 */
-	DELAY(10000);
 	param = sizeof(setup_info);
 	error = aha_cmd(aha, AOP_INQUIRE_SETUP_INFO, &param, /*paramlen*/1,
 		       (u_int8_t*)&setup_info, sizeof(setup_info),
 		       DEFAULT_CMD_TIMEOUT);
 
 	if (error != 0) {
-		printf("%s: ahafetchtransinfo - Inquire Setup Info Failed\n",
-		       aha_name(aha));
+		printf("%s: ahafetchtransinfo - Inquire Setup Info Failed %d\n",
+		       aha_name(aha), error);
 		return;
 	}
 
@@ -1798,7 +1852,11 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 
 	cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 
-	sync_period = 2000 + (500 * sync_info.period);
+	if (aha->boardid >= BOARD_1542CF)
+		sync_period = 1000;
+	else
+		sync_period = 2000;
+	sync_period += 500 * sync_info.period;
 
 	/* Convert ns value to standard SCSI sync rate */
 	if (cts->sync_offset != 0)
