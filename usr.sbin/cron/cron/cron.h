@@ -93,7 +93,7 @@
 #define	PPC_NULL	((char **)NULL)
 
 #ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 64
+#define MAXHOSTNAMELEN 256
 #endif
 
 #define	Skip_Blanks(c, f) \
