@@ -23,10 +23,10 @@ DPADD=		${LIBGCC} ${LIBC}
 XLIBDIR=	${DESTDIR}${X11BASE}/lib
 .endif
 
-BINGRP=		kmem
-EXEGRP=		bin
+EXEGRP:=	${BINGRP}
+EXEMODE=	${NOBINMODE}
+#BINGRP=		kmem
 #BINMODE=	2555
-EXEMODE=	444
 
 .if !defined(NO_X) && exists(${XINCDIR}/X11/X.h) && exists(${XLIBDIR}/libX11.a)
 CFLAGS+=	-I${XINCDIR}
