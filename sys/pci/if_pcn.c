@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 
 #include <pci/if_pcnreg.h>
 
+MODULE_DEPEND(pcn, pci, 1, 1, 1);
+MODULE_DEPEND(pcn, ether, 1, 1, 1);
 MODULE_DEPEND(pcn, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -174,7 +176,7 @@ static driver_t pcn_driver = {
 
 static devclass_t pcn_devclass;
 
-DRIVER_MODULE(if_pcn, pci, pcn_driver, pcn_devclass, 0, 0);
+DRIVER_MODULE(pcn, pci, pcn_driver, pcn_devclass, 0, 0);
 DRIVER_MODULE(miibus, pcn, miibus_driver, miibus_devclass, 0, 0);
 
 #define PCN_CSR_SETBIT(sc, reg, x)			\

@@ -279,7 +279,9 @@ static driver_t ti_driver = {
 
 static devclass_t ti_devclass;
 
-DRIVER_MODULE(if_ti, pci, ti_driver, ti_devclass, 0, 0);
+DRIVER_MODULE(ti, pci, ti_driver, ti_devclass, 0, 0);
+MODULE_DEPEND(ti, pci, 1, 1, 1);
+MODULE_DEPEND(ti, ether, 1, 1, 1);
 
 /* List of Tigon softcs */
 static STAILQ_HEAD(ti_softc_list, ti_softc) ti_sc_list;

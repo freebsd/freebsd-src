@@ -81,6 +81,8 @@
 #include <dev/tx/if_txreg.h>
 #include <dev/tx/if_txvar.h>
 
+MODULE_DEPEND(tx, pci, 1, 1, 1);
+MODULE_DEPEND(tx, ether, 1, 1, 1);
 MODULE_DEPEND(tx, miibus, 1, 1, 1);
 
 static int epic_ifioctl(register struct ifnet *, u_long, caddr_t);
@@ -151,7 +153,7 @@ static driver_t epic_driver = {
 
 static devclass_t epic_devclass;
 
-DRIVER_MODULE(if_tx, pci, epic_driver, epic_devclass, 0, 0);
+DRIVER_MODULE(tx, pci, epic_driver, epic_devclass, 0, 0);
 DRIVER_MODULE(miibus, tx, miibus_driver, miibus_devclass, 0, 0);
 
 static struct epic_type epic_devs[] = {

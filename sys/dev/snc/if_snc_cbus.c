@@ -216,4 +216,6 @@ static driver_t snc_isa_driver = {
 	sizeof(struct snc_softc)
 };
 
-DRIVER_MODULE(if_snc, isa, snc_isa_driver, snc_devclass, 0, 0);
+DRIVER_MODULE(snc, isa, snc_isa_driver, snc_devclass, 0, 0);
+MODULE_DEPEND(snc, isa, 1, 1, 1);
+MODULE_DEPEND(snc, ether, 1, 1, 1);

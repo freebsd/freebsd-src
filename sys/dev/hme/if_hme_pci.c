@@ -109,7 +109,9 @@ static driver_t hme_pci_driver = {
 	sizeof(struct hme_pci_softc)
 };
 
-DRIVER_MODULE(if_hme, pci, hme_pci_driver, hme_devclass, 0, 0);
+DRIVER_MODULE(hme, pci, hme_pci_driver, hme_devclass, 0, 0);
+MODULE_DEPEND(hme, pci, 1, 1, 1);
+MODULE_DEPEND(hme, ether, 1, 1, 1);
 
 int
 hme_pci_probe(device_t dev)

@@ -231,6 +231,6 @@ static driver_t pdq_pci_driver = {
     sizeof(pdq_softc_t),
 };
 
-DRIVER_MODULE(if_fpa, pci, pdq_pci_driver, pdq_devclass, 0, 0);
-/* MODULE_DEPEND(if_fpa, pci, 1, 1, 1); */
-MODULE_DEPEND(if_fpa, fddi, 1, 1, 1);
+DRIVER_MODULE(fpa, pci, pdq_pci_driver, pdq_devclass, 0, 0);
+MODULE_DEPEND(fpa, pci, 1, 1, 1);
+MODULE_DEPEND(fpa, fddi, 1, 1, 1);

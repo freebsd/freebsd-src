@@ -69,7 +69,8 @@ static driver_t sr_pci_driver = {
 	sizeof(struct sr_hardc),
 };
 
-DRIVER_MODULE(if_sr, pci, sr_pci_driver, sr_devclass, 0, 0);
+DRIVER_MODULE(sr, pci, sr_pci_driver, sr_devclass, 0, 0);
+MODULE_DEPEND(sr, pci, 1, 1, 1);
 
 static u_int	src_get8_mem(u_int base, u_int off);
 static u_int	src_get16_mem(u_int base, u_int off);

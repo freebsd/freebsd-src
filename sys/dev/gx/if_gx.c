@@ -72,6 +72,8 @@
 #include <dev/gx/if_gxreg.h>
 #include <dev/gx/if_gxvar.h>
 
+MODULE_DEPEND(gx, pci, 1, 1, 1);
+MODULE_DEPEND(gx, ether, 1, 1, 1);
 MODULE_DEPEND(gx, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
@@ -196,7 +198,7 @@ static driver_t gx_driver = {
 
 static devclass_t gx_devclass;
 
-DRIVER_MODULE(if_gx, pci, gx_driver, gx_devclass, 0, 0);
+DRIVER_MODULE(gx, pci, gx_driver, gx_devclass, 0, 0);
 DRIVER_MODULE(miibus, gx, miibus_driver, miibus_devclass, 0, 0);
 
 static struct gx_device *

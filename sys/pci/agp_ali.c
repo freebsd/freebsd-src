@@ -264,3 +264,5 @@ static driver_t agp_ali_driver = {
 static devclass_t agp_devclass;
 
 DRIVER_MODULE(agp_ali, pci, agp_ali_driver, agp_devclass, 0, 0);
+MODULE_DEPEND(agp_ali, agp, 1, 1, 1);
+MODULE_DEPEND(agp_ali, pci, 1, 1, 1);

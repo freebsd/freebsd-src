@@ -312,4 +312,6 @@ static driver_t lnc_isa_driver = {
 	sizeof(struct lnc_softc),
 };
 
-DRIVER_MODULE(if_lnc, isa, lnc_isa_driver, lnc_devclass, 0, 0);
+DRIVER_MODULE(lnc, isa, lnc_isa_driver, lnc_devclass, 0, 0);
+MODULE_DEPEND(lnc, isa, 1, 1, 1);
+MODULE_DEPEND(lnc, ether, 1, 1, 1);

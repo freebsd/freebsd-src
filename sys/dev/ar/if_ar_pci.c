@@ -71,7 +71,8 @@ static driver_t ar_pci_driver = {
 	sizeof(struct ar_hardc),
 };
 
-DRIVER_MODULE(if_ar, pci, ar_pci_driver, ar_devclass, 0, 0);
+DRIVER_MODULE(ar, pci, ar_pci_driver, ar_devclass, 0, 0);
+MODULE_DEPEND(ar, pci, 1, 1, 1);
 
 static int
 ar_pci_probe(device_t device)

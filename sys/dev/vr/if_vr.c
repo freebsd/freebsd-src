@@ -95,6 +95,8 @@ __FBSDID("$FreeBSD$");
 
 #include <pci/if_vrreg.h>
 
+MODULE_DEPEND(vr, pci, 1, 1, 1);
+MODULE_DEPEND(vr, ether, 1, 1, 1);
 MODULE_DEPEND(vr, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
@@ -200,7 +202,7 @@ static driver_t vr_driver = {
 
 static devclass_t vr_devclass;
 
-DRIVER_MODULE(if_vr, pci, vr_driver, vr_devclass, 0, 0);
+DRIVER_MODULE(vr, pci, vr_driver, vr_devclass, 0, 0);
 DRIVER_MODULE(miibus, vr, miibus_driver, miibus_devclass, 0, 0);
 
 #define VR_SETBIT(sc, reg, x)				\

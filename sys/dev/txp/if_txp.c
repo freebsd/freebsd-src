@@ -182,7 +182,9 @@ static driver_t txp_driver = {
 
 static devclass_t txp_devclass;
 
-DRIVER_MODULE(if_txp, pci, txp_driver, txp_devclass, 0, 0);
+DRIVER_MODULE(txp, pci, txp_driver, txp_devclass, 0, 0);
+MODULE_DEPEND(txp, pci, 1, 1, 1);
+MODULE_DEPEND(txp, ether, 1, 1, 1);
 
 static int
 txp_probe(dev)

@@ -93,7 +93,8 @@ static driver_t sr_isa_driver = {
 	sizeof (struct sr_hardc)
 };
 
-DRIVER_MODULE(if_sr, isa, sr_isa_driver, sr_devclass, 0, 0);
+DRIVER_MODULE(sr, isa, sr_isa_driver, sr_devclass, 0, 0);
+MODULE_DEPEND(sr, isa, 1, 1, 1);
 
 static u_int	src_get8_io(u_int base, u_int off);
 static u_int	src_get16_io(u_int base, u_int off);

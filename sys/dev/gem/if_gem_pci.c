@@ -110,7 +110,9 @@ static driver_t gem_pci_driver = {
 };
 
 
-DRIVER_MODULE(if_gem, pci, gem_pci_driver, gem_devclass, 0, 0);
+DRIVER_MODULE(gem, pci, gem_pci_driver, gem_devclass, 0, 0);
+MODULE_DEPEND(gem, pci, 1, 1, 1);
+MODULE_DEPEND(gem, ether, 1, 1, 1);
 
 struct gem_pci_dev {
 	u_int32_t	gpd_devid;

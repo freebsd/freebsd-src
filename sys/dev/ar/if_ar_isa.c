@@ -90,7 +90,8 @@ static driver_t ar_isa_driver = {
 	sizeof (struct ar_hardc)
 };
 
-DRIVER_MODULE(if_ar, isa, ar_isa_driver, ar_devclass, 0, 0);
+DRIVER_MODULE(ar, isa, ar_isa_driver, ar_devclass, 0, 0);
+MODULE_DEPEND(ar, isa, 1, 1, 1);
 
 /*
  * Probe to see if it is there.
