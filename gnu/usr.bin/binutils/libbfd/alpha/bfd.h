@@ -35,9 +35,6 @@
 extern "C" {
 #endif
 
-/* FreeBSD does not adhere to the System V 64-bit ABI.  */
-#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
-
 #include "ansidecl.h"
 #include "symcat.h"
 #if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
@@ -52,9 +49,9 @@ extern "C" {
 #endif
 #endif
 
-/* #define BFD_VERSION 213000000 */
-/* #define BFD_VERSION_DATE 20021010 */
-/* #define BFD_VERSION_STRING "2.13 20021010" */
+/* #define BFD_VERSION 213010000 */
+/* #define BFD_VERSION_DATE 20021127 */
+/* #define BFD_VERSION_STRING "2.13.2 20021127" */
 
 /* The word size used by BFD on the host.  This may be 64 with a 32
    bit target if the host is 64 bit, or if other 64 bit targets have
@@ -361,7 +358,7 @@ typedef struct sec *sec_ptr;
 
 #define bfd_is_com_section(ptr) (((ptr)->flags & SEC_IS_COMMON) != 0)
 
-#define bfd_set_section_vma(bfd, ptr, val) (((ptr)->vma = (ptr)->lma = (val)), ((ptr)->user_set_vma = (boolean)true), true)
+#define bfd_set_section_vma(bfd, ptr, val) (((ptr)->vma = (ptr)->lma = (val)), ((ptr)->user_set_vma = (unsigned int)true), true)
 #define bfd_set_section_alignment(bfd, ptr, val) (((ptr)->alignment_power = (val)),true)
 #define bfd_set_section_userdata(bfd, ptr, val) (((ptr)->userdata = (val)),true)
 
@@ -3643,7 +3640,7 @@ extern bfd_byte *bfd_get_relocated_section_contents
                  boolean, asymbol **));
 
 boolean
-bfd_alt_mach_code PARAMS ((bfd *abfd, int _index));
+bfd_alt_mach_code PARAMS ((bfd *abfd, int alternative));
 
 /* Extracted from archive.c.  */
 symindex
