@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.37 1995/03/22 12:24:10 davidg Exp $
+ * $Id: vm_object.c,v 1.38 1995/03/23 05:19:44 davidg Exp $
  */
 
 /*
@@ -151,7 +151,6 @@ _vm_object_allocate(size, object)
 	simple_lock(&vm_object_list_lock);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
 	vm_object_count++;
-	cnt.v_nzfod += atop(size);
 	simple_unlock(&vm_object_list_lock);
 }
 
