@@ -47,7 +47,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 # BOOT_HD_BIAS=1 makes da(0,a) correspond to 1:da(0,a) instead of 0:da(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot.ldr boot1 boot2 sizetest
-LDFLAGS+=	-N -Ttext 0 -nostdlib -e start
+LDFLAGS+=	-N -Ttext 0 -e start
 NOSHARED=	YES
 NOMAN=
 STRIP=
