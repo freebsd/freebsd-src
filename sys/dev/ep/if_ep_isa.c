@@ -55,11 +55,11 @@
 #include <dev/ep/if_epvar.h>
 #include <i386/isa/elink.h>
 
-static int	get_eeprom_data	(int, int);
+static u_int16_t	get_eeprom_data	(int, int);
 
-static void	ep_isa_identify	(driver_t *, device_t);
-static int	ep_isa_probe	(device_t);
-static int	ep_isa_attach	(device_t);
+static void		ep_isa_identify	(driver_t *, device_t);
+static int		ep_isa_probe	(device_t);
+static int		ep_isa_attach	(device_t);
 
 struct isa_ident {
 	u_int32_t	id;
