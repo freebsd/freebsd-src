@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.20 1997/06/24 07:48:02 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.4 1997/06/25 20:44:00 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -958,106 +958,80 @@ apic_int_is_bus_type(int intr, int bus_type)
 
 
 /*
- * determine which APIC pin an ISA INT is attached to.
+ * Given a traditional ISA INT mask, return an APIC mask.
+ */
+u_int
+isa_apic_mask(u_int isa_mask)
+{
+	int isa_irq;
+	int apic_pin;
+
+	isa_irq = ffs(isa_mask);		/* find its bit position */
+	if (isa_irq == 0)			/* doesn't exist */
+		return 0;
+	--isa_irq;				/* make it zero based */
+
+	apic_pin = isa_apic_pin(isa_irq);	/* look for APIC connection */
+	if (apic_pin == -1)
+		return 0;
+
+	return (1 << apic_pin);			/* convert pin# to a mask */
+}
+
+
+/*
+ * Determine which APIC pin an ISA/EISA INT is attached to.
  */
 #define INTTYPE(I)	(io_apic_ints[(I)].int_type)
 #define INTPIN(I)	(io_apic_ints[(I)].dst_apic_int)
 
 #define SRCBUSIRQ(I)	(io_apic_ints[(I)].src_bus_irq)
 int
-get_isa_apic_irq(int isaIRQ)
+isa_apic_pin(int isa_irq)
 {
 	int     intr;
 
 #if defined(SMP_TIMER_NC)
-	if (isaIRQ == 0)
+	if (isa_irq == 0)
 		return -1;
-#endif				/* SMP_TIMER_NC */
+#endif	/* SMP_TIMER_NC */
 
-	for (intr = 0; intr < nintrs; ++intr)	/* search each INT record */
-		if ((INTTYPE(intr) == 0)
-		    && (SRCBUSIRQ(intr) == isaIRQ))	/* a candidate IRQ */
-			if (apic_int_is_bus_type(intr, ISA))	/* check bus match */
-				return INTPIN(intr);	/* exact match */
-
-	return -1;		/* NOT found */
-}
-#undef SRCBUSIRQ
-
-
-/*
- * 
- */
-u_int
-get_isa_apic_mask(u_int isaMASK)
-{
-	int apicpin, isairq;
-
-	isairq = ffs(isaMASK);
-	if (isairq == 0) {
-		return 0;
-	}
-	--isairq;
-
-	apicpin = get_isa_apic_irq(isairq);
-	if (apicpin == -1) {
-		apicpin = get_eisa_apic_irq(isairq);
-		if (apicpin == -1) {
-			return 0;
+	for (intr = 0; intr < nintrs; ++intr) {		/* check each record */
+		if (INTTYPE(intr) == 0) {		/* standard INT */
+			if (SRCBUSIRQ(intr) == isa_irq) {
+				if (apic_int_is_bus_type(intr, ISA) ||
+			            apic_int_is_bus_type(intr, EISA))
+					return INTPIN(intr);	/* found */
+			}
 		}
 	}
-
-	return (1 << apicpin);
-}
-
-
-/*
- * determine which APIC pin an EISA INT is attached to.
- */
-#define SRCBUSIRQ(I)	(io_apic_ints[(I)].src_bus_irq)
-int
-get_eisa_apic_irq(int eisaIRQ)
-{
-	int     intr;
-
-#if defined(SMP_TIMER_NC)
-	if (eisaIRQ == 0)
-		return -1;
-#endif				/* SMP_TIMER_NC */
-
-	for (intr = 0; intr < nintrs; ++intr)	/* search each INT record */
-		if ((INTTYPE(intr) == 0)
-		    && (SRCBUSIRQ(intr) == eisaIRQ))	/* a candidate IRQ */
-			if (apic_int_is_bus_type(intr, EISA))	/* check bus match */
-				return INTPIN(intr);	/* exact match */
-
-	return -1;		/* NOT found */
+	return -1;					/* NOT found */
 }
 #undef SRCBUSIRQ
 
 
 /*
- * determine which APIC pin a PCI INT is attached to.
+ * Determine which APIC pin a PCI INT is attached to.
  */
 #define SRCBUSID(I)	(io_apic_ints[(I)].src_bus_id)
 #define SRCBUSDEVICE(I)	((io_apic_ints[(I)].src_bus_irq >> 2) & 0x1f)
 #define SRCBUSLINE(I)	(io_apic_ints[(I)].src_bus_irq & 0x03)
 int
-get_pci_apic_irq(int pciBus, int pciDevice, int pciInt)
+pci_apic_pin(int pciBus, int pciDevice, int pciInt)
 {
 	int     intr;
 
-	--pciInt;		/* zero based */
+	--pciInt;					/* zero based */
 
-	for (intr = 0; intr < nintrs; ++intr)	/* search each record */
-		if ((INTTYPE(intr) == 0)
+	for (intr = 0; intr < nintrs; ++intr)		/* check each record */
+		if ((INTTYPE(intr) == 0)		/* standard INT */
 		    && (SRCBUSID(intr) == pciBus)
 		    && (SRCBUSDEVICE(intr) == pciDevice)
 		    && (SRCBUSLINE(intr) == pciInt))	/* a candidate IRQ */
-			if (apic_int_is_bus_type(intr, PCI))	/* check bus match */
+			if (apic_int_is_bus_type(intr, PCI))
 				return INTPIN(intr);	/* exact match */
 
-	return -1;		/* NOT found */
+	return -1;					/* NOT found */
 }
 #undef SRCBUSLINE
 #undef SRCBUSDEVICE
@@ -1065,27 +1039,6 @@ get_pci_apic_irq(int pciBus, int pciDevice, int pciInt)
 
 #undef INTPIN
 #undef INTTYPE
-
-
-/*
- * Reprogram the MB chipset to NOT redirect a PCI INTerrupt
- */
-int
-undirect_pci_irq(int rirq)
-{
-#if defined(READY)
-	if (bootverbose)
-		printf("Freeing redirected PCI irq %d.\n", rirq);
-
-	/** FIXME: tickle the MB redirector chip */
-	return ???;
-#else
-	if (bootverbose)
-		printf("Freeing (NOT implemented) redirected PCI irq %d.\n",
-		       rirq);
-	return 0;
-#endif  /* READY */
-}
 
 
 /*
@@ -1107,6 +1060,27 @@ undirect_isa_irq(int rirq)
 	return ???;
 #else
 	printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
+	return 0;
+#endif  /* READY */
+}
+
+
+/*
+ * Reprogram the MB chipset to NOT redirect a PCI INTerrupt
+ */
+int
+undirect_pci_irq(int rirq)
+{
+#if defined(READY)
+	if (bootverbose)
+		printf("Freeing redirected PCI irq %d.\n", rirq);
+
+	/** FIXME: tickle the MB redirector chip */
+	return ???;
+#else
+	if (bootverbose)
+		printf("Freeing (NOT implemented) redirected PCI irq %d.\n",
+		       rirq);
 	return 0;
 #endif  /* READY */
 }
