@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id$
+ * $Id: umap_vnops.c,v 1.16 1997/02/22 09:40:38 peter Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <miscfs/umapfs/umap.h>
+#include <miscfs/nullfs/null.h>
 
 static int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,
@@ -279,7 +280,7 @@ umap_getattr(ap)
 	struct vnode **vp1p;
 	struct vnodeop_desc *descp = ap->a_desc;
 
-	error = umap_bypass(ap);
+	error = umap_bypass((struct vop_generic_args *)ap);
 	if (error)
 		return (error);
 	/* Requires that arguments be restored. */
@@ -356,7 +357,7 @@ umap_lock(ap)
 	if ((ap->a_flags & LK_TYPE_MASK) == LK_DRAIN)
 		return (0);
 	ap->a_flags &= ~LK_INTERLOCK;
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 /*
@@ -376,7 +377,7 @@ umap_unlock(ap)
 
 	vop_nounlock(ap);
 	ap->a_flags &= ~LK_INTERLOCK;
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 static int
@@ -509,7 +510,7 @@ umap_rename(ap)
 		printf("umap_rename: rename component credit user now %ld, group %ld\n",
 		    compcredp->cr_uid, compcredp->cr_gid);
 
-	error = umap_bypass(ap);
+	error = umap_bypass((struct vop_generic_args *)ap);
 
 	/* Restore the additional mapped componentname cred structure. */
 
