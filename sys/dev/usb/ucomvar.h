@@ -163,7 +163,6 @@ struct ucom_softc {
 	int			sc_state;
 
 	int			sc_poll;
-	u_char			hotchar;
 
 	u_char			sc_lsr;
 	u_char			sc_msr;

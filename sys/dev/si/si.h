@@ -334,7 +334,6 @@ struct si_port {
 	int		sp_dtr_wait;	/* DTR holddown in hz */
 	int		sp_delta_overflows;
 	u_int		sp_wopeners;	/* # procs waiting DCD */
-	u_char		sp_hotchar;	/* ldisc specific ASAP char */
 	/* Initial state. */
 	struct termios	sp_iin;
 	struct termios	sp_iout;

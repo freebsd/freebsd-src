@@ -742,7 +742,7 @@ open_top:
 	}
 
 	error = ttyld_open(tp, dev);
-	pp->sp_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
 
@@ -1024,7 +1024,7 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	}
 
 	error = ttyioctl(dev, cmd, data, flag, td);
-	pp->sp_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (error != ENOTTY)
 		goto out;
 
