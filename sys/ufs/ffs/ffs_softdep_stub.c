@@ -164,9 +164,10 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 }
 
 void
-softdep_setup_freeblocks(ip, length)
+softdep_setup_freeblocks(ip, length, flags)
 	struct inode *ip;
 	off_t length;
+	int flags;
 {
 	
 	panic("softdep_setup_freeblocks called");
