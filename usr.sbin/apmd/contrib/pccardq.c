@@ -164,7 +164,7 @@ get_slot_info(int so, int slot, char **manuf, char **version, char
     char           *_version;
     char           *_device;
 
-    if ((slen = snprintf(buf, sizeof buf, "N%d", slot)) == -1) {
+    if ((slen = snprintf(buf, sizeof buf, "N%d", slot)) < 0) {
 	warnc(0, "write");
 	goto err;
     }
