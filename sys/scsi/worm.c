@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.42 1997/07/01 00:22:51 bde Exp $
+ *      $Id: worm.c,v 1.43 1997/07/26 15:07:42 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -552,6 +552,7 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 				sc_link->flags &= ~SDEV_OPEN;
 			}
+			worm->blk_size = 2048;
 		}
 	} else
 		worm->worm_flags |= WORMFL_IOCTL_ONLY;
