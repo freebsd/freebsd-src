@@ -99,7 +99,9 @@ getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 	struct rtprio rtp;
 	int e = 0;
 
+	mtx_lock_spin(&sched_lock);
 	pri_to_rtp(&p->p_pri, &rtp);
+	mtx_unlock_spin(&sched_lock);
 	switch (rtp.type)
 	{
 		case RTP_PRIO_FIFO:
@@ -142,7 +144,9 @@ int ksched_getparam(register_t *ret, struct ksched *ksched,
 {
 	struct rtprio rtp;
 
+	mtx_lock_spin(&sched_lock);
 	pri_to_rtp(&p->p_pri, &rtp);
+	mtx_unlock_spin(&sched_lock);
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
 
