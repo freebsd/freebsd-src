@@ -1,5 +1,4 @@
 /*
- * 
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
  * 
@@ -27,10 +26,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- * $FreeBSD$
- * 
  */
-
 /* 
  * Mach Operating System
  * Copyright (c) 1989 Carnegie-Mellon University
@@ -51,6 +47,10 @@
  */
 
 /* These routines are the device entry points for Venus. */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
