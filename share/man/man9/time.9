@@ -31,113 +31,91 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 1997
+.Dd September 17, 2004
 .Dt TIME 9
 .Os
 .Sh NAME
+.In sys/time.h
 .Nm boottime ,
-.Nm mono_time ,
-.Nm runtime ,
-.Nm time
+.Nm time_second ,
+.Nm time_uptime
 .Nd system time variables
 .Sh SYNOPSIS
 .Bl -item -compact
 .It
 .Va extern struct timeval boottime ;
 .It
-.Va extern volatile struct timeval mono_time ;
+.Va extern struct time_t time_second ;
 .It
-.Va extern struct timeval runtime ;
-.It
-.Va extern struct timeval time ;
+.Va extern struct timeval time_uptime ;
 .El
 .Sh DESCRIPTION
 The
-.Va time
-variable is the system's
-.Dq wall time
-clock.
-It is set at boot by
-.Xr inittodr 9 ,
-and is updated by the
-.Xr settimeofday 2
-system call and by periodic clock interrupts.
-.Pp
-The
 .Va boottime
 variable holds the system boot time.
-It is set from
-.Va time
-at system boot, and is updated when the system time is adjusted
-with
-.Xr settimeofday 2 .
 .Pp
 The
-.Va runtime
-variable holds the time that the system switched to the
-current process.
-It is set after each context switch,
-and is updated when the system time is adjusted with
-.Xr settimeofday 2 .
-Because
-.Va runtime
-is used for system accounting, it is set with the high-resolution
-.Xr microtime 9
-function, rather than being copied from
-.Va time .
+.Va time_second
+variable is the system's
+.Dq wall time
+clock to the second.
 .Pp
 The
-.Va mono_time
-variable is a monotonically increasing system clock.
-It is set
-from
-.Va time
-at boot, and is updated by the periodic timer interrupt.
-(It is
-not updated by
-.Xr settimeofday 2 . )
+.Va time_uptime variable is the number of seconds since boot.
 .Pp
-All of these variables contain times
-expressed in seconds and microseconds since midnight (0 hour),
-January 1, 1970.
-.Pp
-Clock interrupts should be blocked
-when reading or writing
-.Va time
-or
-.Va mono_time ,
-because those variables are updated by
-.Fn hardclock .
 The
-.Xr gettime 9
-function can be used to read the
-.Va time
-variable in an atomic manner.
-There is no equivalent function for accessing
-.Va mono_time .
+.Xr bintime 9,
+.Xr getbintime 9 ,
+.Xr microtime 9 ,
+.Xr getmicrotime 9 ,
+.Xr nanotime 9 ,
+and
+.Xr getnanotime 9 ,
+functions can be used to get the current time more accurately and in an
+atomic manner.
+Similarly, the
+The
+.Xr binuptime 9,
+.Xr getbinuptime 9 ,
+.Xr microuptime 9 ,
+.Xr getmicrouptime 9 ,
+.Xr nanouptime 9 ,
+and
+.Xr getnanouptime 9 ,
+functions can be used to get the time elapse since boot more accurately
+and in an atomic manner.
 The
 .Va boottime
-and
-.Va runtime
-variables may be read and written without special precautions.
+variable may be read and written without special precautions.
 .Pp
-It should be noted that due to the differences in how the time values
-returned by
-.Xr gettime 9
-and
-.Xr microtime 9
-are updated, comparing the results of the two routines
-may result in a time value that appears to go backwards.
-This can be avoided by consistently using one function or the other
-for use in any given context.
 .Sh SEE ALSO
+.Xr clock_settime 2 ,
+.Xr ntp_adjtime 2 ,
 .Xr settimeofday 2 ,
-.Xr gettime 9 ,
-.\" .Xr hardclock 9 ,
-.\" .Xr hz 9 ,
-.Xr inittodr 9 ,
-.Xr microtime 9
-.Sh BUGS
-The notion of having a single
-.Va runtime
-variable obviously would not be appropriate in multiprocessor systems.
+.Xr getbintime 9 ,
+.Xr getbinuptime 9 ,
+.Xr getmicrotime 9 ,
+.Xr getmicrouptime 9 ,
+.Xr getnanotime 9 ,
+.Xr getnanouptime 9 ,
+.Xr bintime 9 ,
+.Xr binuptime 9 ,
+.Xr microtime 9 ,
+.Xr microuptime 9 ,
+.Xr nanotime 9,
+.Xr nanouptime 9
+.Rs
+.%A "Poul-Henning Kamp"
+.%T "Timecounters: Efficient and precise timekeeping in SMP kernels"
+.%J "Proceedings of EuroBSDCon 2002"
+.%C "Amsterdam"
+.%O /usr/share/doc/papers/timecounter.ascii.gz
+.Re
+.Rs
+.%A "Marshall Kirk McKusick"
+.%A "George V. Neville-Neil"
+.%B "The Design and Implementation of the FreeBSD Operating System"
+.%D "July 2004"
+.%I "Addison-Wesley"
+.%P "57-61,65-66"
+.Re
