@@ -920,6 +920,7 @@ spd_done:
 				tag.mh_flags = PACKET_TAG_IPFORWARD;
 				tag.mh_data = (caddr_t)args.next_hop;
 				tag.mh_next = m;
+				tag.mh_nextpkt = NULL;
 
 				if (m->m_pkthdr.rcvif == NULL)
 					m->m_pkthdr.rcvif = ifunit("lo0");

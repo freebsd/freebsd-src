@@ -360,11 +360,12 @@ ip_forward_cacheinval(void)
 void
 ip_input(struct mbuf *m)
 {
-	struct ip *ip;
+	struct ip *ip = NULL;
 	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
-	int    i, hlen, checkif;
+	int    i, checkif, hlen = 0;
+	int    ours = 0;
 	u_short sum;
 	struct in_addr pkt_dst;
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
@@ -387,8 +388,18 @@ ip_input(struct mbuf *m)
 	args.divert_rule = 0;			/* divert cookie */
 	args.next_hop = NULL;
 
-	/* Grab info from MT_TAG mbufs prepended to the chain.	*/
-	for (; m && m->m_type == MT_TAG; m = m->m_next) {
+	/*
+	 * Grab info from MT_TAG mbufs prepended to the chain.
+	 *
+	 * XXX: This is ugly. These pseudo mbuf prepend tags should really
+	 * be real m_tags.  Before these have always been allocated on the
+	 * callers stack, so we didn't have to free them.  Now with
+	 * ip_fastforward they are true mbufs and we have to free them
+	 * otherwise we have a leak.  Must rewrite ipfw to use m_tags.
+	 */
+	for (; m && m->m_type == MT_TAG;) {
+		struct mbuf *m0;
+
 		switch(m->_m_tag_id) {
 		default:
 			printf("ip_input: unrecognised MT_TAG tag %d\n",
@@ -406,10 +417,23 @@ ip_input(struct mbuf *m)
 		case PACKET_TAG_IPFORWARD:
 			args.next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
 			break;
+
+		case PACKET_TAG_IPFASTFWD_OURS:
+			ours = 1;
+			break;
 		}
+
+		m0 = m;
+		m = m->m_next;
+		/* XXX: This is set by ip_fastforward */
+		if (m0->m_nextpkt == (struct mbuf *)1)
+			m_free(m0);
 	}
 
 	M_ASSERTPKTHDR(m);
+
+	if (ours)		/* ip_fastforward firewall changed dest to local */
+		goto ours;
 
 	if (args.rule) {	/* dummynet already filtered us */
 		ip = mtod(m, struct ip *);
@@ -1350,7 +1374,6 @@ ip_slowtimo()
 		}
 	}
 	IPQ_UNLOCK();
-	ipflow_slowtimo();
 	splx(s);
 }
 
@@ -1980,10 +2003,8 @@ ip_forward(struct mbuf *m, struct route *ro,
 		if (type)
 			ipstat.ips_redirectsent++;
 		else {
-			if (mcopy) {
-				ipflow_create(ro, mcopy);
+			if (mcopy)
 				m_freem(mcopy);
-			}
 			return;
 		}
 	}

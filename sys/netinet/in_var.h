@@ -230,9 +230,7 @@ void	in_rtqdrain(void);
 void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
-int	ipflow_fastforward(struct mbuf *);
-void	ipflow_create(const struct route *, struct mbuf *);
-void	ipflow_slowtimo(void);
+int	ip_fastforward(struct mbuf *);
 
 #endif /* _KERNEL */
 
