@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.83 1996/11/08 23:46:04 se Exp $
+**  $Id: ncr.c,v 1.84 1996/12/13 07:55:11 jkh Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -292,9 +292,9 @@
 #define INW(r) (np->reg->r)
 #define INL(r) (np->reg->r)
 
-#define OUTB(r, val) np->reg->r = val
-#define OUTW(r, val) np->reg->r = val
-#define OUTL(r, val) np->reg->r = val
+#define OUTB(r, val) np->reg->r = (val)
+#define OUTW(r, val) np->reg->r = (val)
+#define OUTL(r, val) np->reg->r = (val)
 
 #endif
 
@@ -988,14 +988,22 @@ struct ncb {
 	/*
 	**	The SCSI address of the host adapter.
 	*/
-	u_char	  myaddr;
+	u_char		myaddr;
 
 	/*
 	**	timing parameters
 	*/
-	u_char		ns_async;
 	u_char		ns_sync;
+	u_char		maxoffs;
+
+	/*
+	**	BIOS supplied PCI bus options
+	*/
 	u_char		rv_scntl3;
+	u_char		rv_dcntl;
+	u_char		rv_dmode;
+	u_char		rv_ctest3;
+	u_char		rv_ctest5;
 
 	/*-----------------------------------------------
 	**	Link to the generic SCSI driver
@@ -1252,7 +1260,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.83 1996/11/08 23:46:04 se Exp $\n";
+	"\n$Id: ncr.c,v 1.84 1996/12/13 07:55:11 jkh Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1279,7 +1287,6 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 */
 
 #define	NCR_810_ID	(0x00011000ul)
-#define	NCR_810AP_ID	(0x00051000ul)
 #define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
 #define	NCR_860_ID	(0x00061000ul)
@@ -3160,7 +3167,6 @@ ncr_probe(parent, match, aux)
 		return 0;
 #endif
 	if (pa->pa_id != NCR_810_ID &&
-	    pa->pa_id != NCR_810AP_ID &&
 	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID &&
 	    pa->pa_id != NCR_860_ID &&
@@ -3175,19 +3181,21 @@ ncr_probe(parent, match, aux)
 
 static	char* ncr_probe (pcici_t tag, pcidi_t type)
 {
+	u_char rev = pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 	switch (type) {
 
 	case NCR_810_ID:
-		return ("ncr 53c810 scsi");
-
-	case NCR_810AP_ID:
-		return ("ncr 53c810ap scsi");
+		return (rev & 0xf0) == 0x00
+			? ("ncr 53c810 scsi") 
+			: ("ncr 53c810a scsi");
 
 	case NCR_815_ID:
 		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
-		return ("ncr 53c825 wide scsi");
+		return (rev & 0xf0) == 0x00
+			? ("ncr 53c825 wide scsi")
+			: ("ncr 53c825a wide scsi");
 
 	case NCR_860_ID:
 		return ("ncr 53c860 scsi");
@@ -3308,13 +3316,22 @@ static	void ncr_attach (pcici_t config_id, int unit)
 #endif /* !__NetBSD__ */
 
 	/*
+	**	Save some controller register default values
+	*/
+
+	np->rv_dmode  = INB (nc_dmode);
+	np->rv_dcntl  = INB (nc_dcntl) | CLSE | PFEN | NOCOM;
+	np->rv_ctest3 = INB (nc_ctest3);
+	np->rv_ctest5 = 0;
+	np->rv_scntl3 = 0x13;	/* default: 40MHz clock */
+
+	/*
 	**	Do chip dependent initialization.
 	*/
 
-	np->maxwide = 0;
-	np->rv_scntl3 = 0x13;	/* default: 40MHz clock */
-	np->ns_sync   = 25;	/* XXX no support for Fast-20, yet */
-	np->ns_async  = 50;
+	np->maxwide   = 0;
+	np->ns_sync   = 25;	/* in units of 4ns */
+	np->maxoffs   = 8;
 
 	/*
 	**	Get the frequency of the chip's clock.
@@ -3327,13 +3344,32 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 #endif /* __NetBSD__ */
 	case NCR_825_ID:
+	    {
+#ifndef __NetBSD__
+		u_char rev = pci_conf_read (config_id, PCI_CLASS_REG) & 0xff;
+		if ((rev & 0xf0) == 0x10)
+			np->maxoffs = 16;
+#endif /* !__NetBSD__ */
 		np->maxwide = 1;
 		break;
+	    }
 	case NCR_860_ID:
 		np->rv_scntl3 = 0x35;	/* always assume 80MHz clock for 860 */
+		/*np->ns_sync   = 12;*/	/* in units of 4ns */
 		break;
 	case NCR_875_ID:
 		np->maxwide = 1;
+		/*np->ns_sync   = 12;*/	/* in units of 4ns */
+		np->maxoffs = 16;
+#ifdef NCR_TEKRAM_EEPROM
+		if (bootverbose) 
+		{
+			printf ("%s: Tekram EEPROM read %s\n",
+				ncr_name(np),
+				read_tekram_eeprom (np, NULL) ?
+				"succeeded" : "failed");
+		}
+#endif /* NCR_TEKRAM_EEPROM */
 		ncr_getclock(np);
 		break;
 	}
@@ -3360,14 +3396,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->myaddr = INB(nc_scid) & 0x07;
 	if (!np->myaddr) np->myaddr = SCSI_NCR_MYADDR;
 
-	/*
-	**	Reset chip.
-	*/
-
-	OUTB (nc_istat,  SRST);
-	DELAY (1000);
-	OUTB (nc_istat,  0   );
-
 #ifdef NCR_DUMP_REG
 	/*
 	**	Log the initial register contents
@@ -3383,16 +3411,16 @@ static	void ncr_attach (pcici_t config_id, int unit)
 			if (reg%16==12) printf ("\n");
 		}
 	}
+#endif /* NCR_DUMP_REG */
 
 	/*
-	**	Reset chip, once again.
+	**	Reset chip.
 	*/
 
 	OUTB (nc_istat,  SRST);
 	DELAY (1000);
 	OUTB (nc_istat,  0   );
 
-#endif /* NCR_DUMP_REG */
 
 	/*
 	**	Now check the cache handling of the pci chipset.
@@ -4417,28 +4445,33 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	**	Init chip.
 	*/
 
-#ifndef __NetBSD__
-	if (pci_max_burst_len < 4) {
-		static u_char tbl[4]={0,0,0x40,0x80};
-		burstlen = tbl[pci_max_burst_len];
-	} else burstlen = 0xc0;
-#else /* !__NetBSD__ */
-	burstlen = 0xc0;
-#endif /* __NetBSD__ */
+	burstlen = 0xc0;		/* XXX 53c875 needs code change to   */
+					/*     be able to use larger bursts  */
 
-	OUTB (nc_istat,  0      );      /*  Remove Reset, abort ...	     */
+	OUTB (nc_istat,  0x00   );      /*  Remove Reset, abort ...	     */
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
 	OUTB (nc_scntl1, 0x00	);	/*  odd parity, and remove CRST!!    */
 	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler		     */
 	OUTB (nc_scid  , RRE|np->myaddr);/*  host adapter SCSI address       */
 	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to		     */
 	OUTB (nc_istat , SIGP	);	/*  Signal Process		     */
-	OUTB (nc_dmode , burstlen);	/*  Burst length = 2 .. 16 transfers */
-	OUTB (nc_dcntl , NOCOM  );      /*  no single step mode, protect SFBR*/
-	OUTB (nc_ctest4, 0x08	);	/*  enable master parity checking    */
+	OUTB (nc_dmode , np->rv_dmode);	/* XXX modify burstlen ??? */
+	OUTB (nc_dcntl , np->rv_dcntl);
+	OUTB (nc_ctest3, np->rv_ctest3);
+	OUTB (nc_ctest5, np->rv_ctest5);
+	OUTB (nc_ctest4, MPEE	);	/*  enable master parity checking    */
 	OUTB (nc_stest2, EXT    );	/*  Extended Sreq/Sack filtering     */
 	OUTB (nc_stest3, TE     );	/*  TolerANT enable		     */
 	OUTB (nc_stime0, 0x0b	);	/*  HTH = disabled, STO = 0.1 sec.   */
+
+	if (bootverbose) {
+	  printf ("\tBIOS values: dmode: %02x, dcntl: %02x, ctest3: %02x\n",
+		np->rv_dmode, np->rv_dcntl, np->rv_ctest3);
+	  printf ("\tdmode: %02x/%02x, dcntl: %02x/%02x, ctest3: %02x/%02x\n",
+		burstlen | ERL | ERMP | BOF, INB (nc_dmode),
+		CLSE | PFEN | NOCOM, INB (nc_dcntl),
+		WRIE, INB (nc_ctest3));
+	}
 
 	/*
 	**	Reinitialize usrsync.
@@ -4517,8 +4550,6 @@ static void ncr_negotiate (struct ncb* np, struct tcb* tp)
 
 	u_long minsync = tp->usrsync;
 
-	if (minsync < 25) minsync=25;
-
 	/*
 	**	if not scsi 2
 	**	don't believe FAST!
@@ -4542,7 +4573,7 @@ static void ncr_negotiate (struct ncb* np, struct tcb* tp)
 		minsync = 255;
 
 	tp->minsync = minsync;
-	tp->maxoffs = (minsync<255 ? 8 : 0);
+	tp->maxoffs = (minsync<255 ? np->maxoffs : 0);
 
 	/*
 	**	period=0: has to negotiate sync transfer
@@ -4578,7 +4609,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	assert (target == (xp->sc_link->target & 0x0f));
 
 	tp = &np->target[target];
-	tp->period= sxfer&0xf ? ((sxfer>>5)+4) * np->ns_sync : 0xffff;
+	tp->period= sxfer&0x1f ? ((sxfer>>5)+4) * np->ns_sync : 0xffff;
 
 	if (tp->sval == sxfer) return;
 	tp->sval = sxfer;
@@ -4587,15 +4618,15 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	**	Bells and whistles   ;-)
 	*/
 	PRINT_ADDR(xp);
-	if (sxfer & 0x0f) {
+	if (sxfer & 0x1f) {
 		/*
 		**  Disable extended Sreq/Sack filtering
 		*/
 		if (tp->period <= 200) OUTB (nc_stest2, 0);
-		printf ("%s%dns (%d Mb/sec) offset %d.\n",
+		printf ("%s%dns (%d MHz) offset %d.\n",
 			tp->period<200 ? "FAST SCSI-2 ":"",
 			tp->period, (1000+tp->period/2)/tp->period,
-			sxfer & 0x0f);
+			sxfer & 0x1f);
 	} else  printf ("asynchronous.\n");
 
 	/*
@@ -4844,30 +4875,11 @@ static void ncr_timeout (ncb_p np)
 			**      If there are no requests, the script
 			**      processor will sleep on SEL_WAIT_RESEL.
 			**      But we have to check whether it died.
-			**      Let's wake it up.
+			**      Let's try to wake it up.
 			*/
 			OUTB (nc_istat, SIGP);
 		};
 
-#ifdef undef
-		if (np->latetime>4) {
-			/*
-			**	Although we tried to wake it up,
-			**	the script processor didn't respond.
-			**
-			**	May be a target is hanging,
-			**	or another initator lets a tape device
-			**	rewind with disconnect disabled :-(
-			**
-			**	We won't accept that.
-			*/
-			if (INB (nc_sbcl) & CBSY)
-				OUTB (nc_scntl1, CRST);
-			DELAY (1000);
-			ncr_init (np, "ncr dead ?", HS_TIMEOUT);
-			np->heartbeat = thistime;
-		};
-#endif
 		/*----------------------------------------------------
 		**
 		**	handle ccb timeouts
@@ -4971,8 +4983,8 @@ void ncr_exception (ncb_p np)
 	**	Never test for an error condition you don't know how to handle.
 	*/
 
-	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
 	sist  = (istat & SIP) ? INW (nc_sist)  : 0;
+	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
 	np->profile.num_int++;
 
 	if (DEBUG_FLAGS & DEBUG_TINY)
@@ -5133,7 +5145,8 @@ void ncr_exception (ncb_p np)
 	     !(dstat & DFE)) {
 		printf ("%s: have to clear fifos.\n", ncr_name (np));
 		OUTB (nc_stest3, TE|CSF);	/* clear scsi fifo */
-		OUTB (nc_ctest3, CLF);		/* clear dma fifo  */
+		OUTB (nc_ctest3, np->rv_ctest3 | CLF);
+						/* clear dma fifo  */
 	}
 
 	/*----------------------------------------
@@ -5181,7 +5194,7 @@ void ncr_exception (ncb_p np)
 			**	It's an early reconnect.
 			**	Let's continue ...
 			*/
-			OUTB (nc_dcntl, (STD|NOCOM));
+			OUTB (nc_dcntl, np->rv_dcntl | STD);
 			/*
 			**	info message
 			*/
@@ -5206,7 +5219,7 @@ void ncr_exception (ncb_p np)
 	if ((dstat & SSI) &&
 		!(sist  & (STO|GEN|HTH|MA|SGE|UDC|RST|PAR)) &&
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
-		OUTB (nc_dcntl, (STD|NOCOM));
+		OUTB (nc_dcntl, np->rv_dcntl | STD);
 		return;
 	};
 
@@ -5219,7 +5232,8 @@ void ncr_exception (ncb_p np)
 */
 
 	if (sist & SGE) {
-		OUTB (nc_ctest3, CLF);		/* clear scsi offsets */
+		/* clear scsi offsets */
+		OUTB (nc_ctest3, np->rv_ctest3 | CLF);
 	}
 
 	/*
@@ -5378,8 +5392,8 @@ static void ncr_int_ma (ncb_p np)
 		if (ss2 & OLF1) rest++;
 		if (ss2 & ORF1) rest++;
 	};
-	OUTB (nc_ctest3, CLF   );	/* clear dma fifo  */
-	OUTB (nc_stest3, TE|CSF);	/* clear scsi fifo */
+	OUTB (nc_ctest3, np->rv_ctest3 | CLF);	/* clear dma fifo  */
+	OUTB (nc_stest3, TE|CSF);		/* clear scsi fifo */
 
 	/*
 	**	locate matching cp
@@ -5471,7 +5485,7 @@ static void ncr_int_ma (ncb_p np)
 			cmd&7, sbcl&7, (unsigned)olen,
 			(unsigned)oadr, (unsigned)rest);
 
-		OUTB (nc_dcntl, (STD|NOCOM));
+		OUTB (nc_dcntl, np->rv_dcntl | STD);
 		return;
 	};
 
@@ -6114,7 +6128,7 @@ void ncr_int_sir (ncb_p np)
 	};
 
 out:
-	OUTB (nc_dcntl, (STD|NOCOM));
+	OUTB (nc_dcntl, np->rv_dcntl | STD);
 }
 
 /*==========================================================
@@ -6131,7 +6145,9 @@ static	ccb_p ncr_get_ccb
 {
 	lcb_p lp;
 	ccb_p cp = (ccb_p) 0;
+	int oldspl;
 
+	oldspl = splhigh();
 	/*
 	**	Lun structure available ?
 	*/
@@ -6144,7 +6160,9 @@ static	ccb_p ncr_get_ccb
 		**	Look for free CCB
 		*/
 
-		while (cp && cp->magic) cp = cp->next_ccb;
+		while (cp && cp->magic) {
+			cp = cp->next_ccb;
+		}
 	}
 
 	/*
@@ -6163,10 +6181,13 @@ static	ccb_p ncr_get_ccb
 			break;
 	};
 
-	if (cp->magic)
+	if (cp->magic) {
+		splx(oldspl);
 		return ((ccb_p) 0);
+	}
 
 	cp->magic = 1;
+	splx(oldspl);
 	return (cp);
 }
 
@@ -6608,6 +6629,9 @@ static int ncr_snooptest (struct ncb* np)
 	*/
 	if (pc != NCB_SCRIPT_PHYS (np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
+		printf ("\tstart=%08x, pc=%08x, end=%08x\n", 
+			NCB_SCRIPT_PHYS (np, snooptest), pc,
+			NCB_SCRIPT_PHYS (np, snoopend) +8);
 		return (0x40);
 	};
 	/*
@@ -6865,6 +6889,117 @@ static void ncr_getclock (ncb_p np)
 			scntl3, np->rv_scntl3);
 	}
 }
+
+/*=========================================================================*/
+
+#ifdef NCR_TEKRAM_EEPROM
+
+struct tekram_eeprom_dev {
+  u_char	devmode;
+#define	TKR_PARCHK	0x01
+#define	TKR_TRYSYNC	0x02
+#define	TKR_ENDISC	0x04
+#define	TKR_STARTUNIT	0x08
+#define	TKR_USETAGS	0x10
+#define	TKR_TRYWIDE	0x20
+  u_char	syncparam;	/* max. sync transfer rate (table ?) */
+  u_char	filler1;
+  u_char	filler2;
+};
+
+
+struct tekram_eeprom {
+  struct tekram_eeprom_dev 
+		dev[16];
+  u_char	adaptid;
+  u_char	adaptmode;
+#define	TKR_ADPT_GT2DRV	0x01
+#define	TKR_ADPT_GT1GB	0x02
+#define	TKR_ADPT_RSTBUS	0x04
+#define	TKR_ADPT_ACTNEG	0x08
+#define	TKR_ADPT_NOSEEK	0x10
+#define	TKR_ADPT_MORLUN	0x20
+  u_char	delay;		/* unit ? (table ???) */
+  u_char	tags;		/* use 4 times as many ... */
+  u_char	filler[60];
+};
+
+static void
+tekram_write_bit (ncb_p np, int bit)
+{
+	u_char val = 0x10 + ((bit & 1) << 1);
+
+	DELAY(10);
+	OUTB (nc_gpreg, val);
+	DELAY(10);
+	OUTB (nc_gpreg, val | 0x04);
+	DELAY(10);
+	OUTB (nc_gpreg, val);
+	DELAY(10);
+}
+
+static int
+tekram_read_bit (ncb_p np)
+{
+	OUTB (nc_gpreg, 0x10);
+	DELAY(10);
+	OUTB (nc_gpreg, 0x14);
+	DELAY(10);
+	return INB (nc_gpreg) & 1;
+}
+
+static u_short
+read_tekram_eeprom_reg (ncb_p np, int reg)
+{
+	int bit;
+	u_short result = 0;
+	int cmd = 0x80 | reg;
+
+	OUTB (nc_gpreg, 0x10);
+
+	tekram_write_bit (np, 1);
+	for (bit = 7; bit >= 0; bit--)
+	{
+		tekram_write_bit (np, cmd >> bit);
+	}
+
+	for (bit = 0; bit < 16; bit++)
+	{
+		result <<= 1;
+		result |= tekram_read_bit (np);
+	}
+
+	OUTB (nc_gpreg, 0x00);
+	return result;
+}
+
+static int 
+read_tekram_eeprom(ncb_p np, struct tekram_eeprom *buffer)
+{
+	u_short *p = (u_short *) buffer;
+	u_short sum = 0;
+	int i;
+
+	if (INB (nc_gpcntl) != 0x09)
+	{
+		return 0;
+        }
+	for (i = 0; i < 64; i++)
+	{
+		u_short val;
+if((i&0x0f) == 0) printf ("%02x:", i*2);
+		val = read_tekram_eeprom_reg (np, i);
+		if (p)
+			*p++ = val;
+		sum += val;
+if((i&0x01) == 0x00) printf (" ");
+		printf ("%02x%02x", val & 0xff, (val >> 8) & 0xff);
+if((i&0x0f) == 0x0f) printf ("\n");
+	}
+printf ("Sum = %04x\n", sum);
+	return sum == 0x1234;
+}
+#endif /* NCR_TEKRAM_EEPROM */
 
 /*=========================================================================*/
 #endif /* KERNEL */
