@@ -1101,8 +1101,11 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
 			ret = vslock(req->oldptr, wiredlen);
-			if (ret != 0 && ret != ENOMEM)
-				return (ret);
+			if (ret != 0) {
+				if (ret != ENOMEM)
+					return (ret);
+				wiredlen = 0;
+			}
 		}
 		req->lock = REQ_WIRED;
 		req->validlen = wiredlen;
