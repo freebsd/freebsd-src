@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.32 1995/05/25 01:22:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.33 1995/05/25 18:48:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,6 +144,7 @@ typedef enum {
     DEVICE_TYPE_NONE,
     DEVICE_TYPE_DISK,
     DEVICE_TYPE_FLOPPY,
+    DEVICE_TYPE_FTP,
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
     DEVICE_TYPE_TAPE,
@@ -159,7 +160,7 @@ typedef struct _device {
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *);
-    int (*get)(char *fname);
+    int (*get)(char *fname, char *dir);
     Boolean (*close)(struct _device *, int fd);
     void (*shutdown)(struct _device *);
     void *private;
@@ -187,7 +188,6 @@ typedef int (*commandFunc)(char *key, void *data);
 
 
 /*** Externs ***/
-extern int		RootFD;			/* The file descriptor for our root floppy	*/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
 extern Boolean		OnSerial;		/* Are we on a serial console?			*/
@@ -260,7 +260,7 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), int (*get)(char *distname),
+				Boolean (*init)(Device *mediadev), int (*get)(char *distname, char *path),
 				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
 				void *private);
 
@@ -331,6 +331,7 @@ extern Boolean	mediaExtractDist(char *distname, char *dir, int fd);
 extern Boolean	mediaVerify(void);
 
 /* media_strategy.c */
+extern int	genericGetDist(char *path, void *dist_attrib, Boolean prompt);
 extern Boolean	mediaInitCDROM(Device *dev);
 extern Boolean	mediaInitDOS(Device *dev);
 extern Boolean	mediaInitFloppy(Device *dev);
@@ -338,12 +339,12 @@ extern Boolean	mediaInitFTP(Device *dev);
 extern Boolean	mediaInitNetwork(Device *dev);
 extern Boolean	mediaInitTape(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetCDROM(char *dist);
-extern int	mediaGetDOS(char *dist);
-extern int	mediaGetFloppy(char *dist);
-extern int	mediaGetFTP(char *dist);
-extern int	mediaGetTape(char *dist);
-extern int	mediaGetUFS(char *dist);
+extern int	mediaGetCDROM(char *dist, char *path);
+extern int	mediaGetDOS(char *dist, char *path);
+extern int	mediaGetFloppy(char *dist, char *path);
+extern int	mediaGetFTP(char *dist, char *path);
+extern int	mediaGetTape(char *dist, char *path);
+extern int	mediaGetUFS(char *dist, char *path);
 extern void	mediaShutdownCDROM(Device *dev);
 extern void	mediaShutdownDOS(Device *dev);
 extern void	mediaShutdownFTP(Device *dev);
@@ -397,8 +398,8 @@ extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 
 /* tcpip.c */
-extern int	tcpOpenDialog(char *);
-extern Device	*tcpDeviceSelect(void);
+extern int	tcpOpenDialog(Device *);
+extern int	tcpDeviceSelect(char *str);
 extern Boolean	tcpStartPPP(void);
 
 /* termcap.c */
