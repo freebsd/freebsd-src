@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcpy.c,v 1.4 1997/02/22 09:40:02 peter Exp $
+ * $Id: strcpy.c,v 1.5 1997/08/02 14:31:50 bde Exp $
  */
 
 #include <string.h>
@@ -42,6 +42,6 @@ strcpy(to, from)
 {
 	char *save = to;
 
-	for (; *to = *from; ++from, ++to);
+	for (; (*to = *from) != 0; ++from, ++to);
 	return(save);
 }
