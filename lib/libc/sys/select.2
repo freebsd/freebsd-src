@@ -32,7 +32,7 @@
 .\"     @(#)select.2	8.2 (Berkeley) 3/25/94
 .\" $FreeBSD$
 .\"
-.Dd March 25, 1994
+.Dd November 17, 2002
 .Dt SELECT 2
 .Os
 .Sh NAME
@@ -41,9 +41,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
-.In sys/time.h
-.In unistd.h
+.In sys/select.h
 .Ft int
 .Fn select "int nfds" "fd_set *readfds" "fd_set *writefds" "fd_set *exceptfds" "struct timeval *timeout"
 .Fn FD_SET fd &fdset
@@ -192,6 +190,17 @@ Thus, it is unwise to assume that the timeout value will be unmodified
 by the
 .Fn select
 call.
+.Sh STANDARDS
+The
+.Fn select
+function and
+.Fn FD_CLR ,
+.Fn FD_ISSET ,
+.Fn FD_SET ,
+and
+.Fn FD_ZERO
+macros conform with
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn select
