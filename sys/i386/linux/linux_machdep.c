@@ -314,6 +314,9 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 #define CLONE_FILES	0x400
 #define CLONE_SIGHAND	0x800
 #define CLONE_PID	0x1000
+#define CLONE_THREAD	0x10000
+
+#define THREADING_FLAGS	(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
 
 int
 linux_clone(struct thread *td, struct linux_clone_args *args)
@@ -348,6 +351,22 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		ff |= RFSIGSHARE;
 	if (!(args->flags & CLONE_FILES))
 		ff |= RFFDG;
+
+	/*
+	 * Attempt to detect when linux_clone(2) is used for creating
+	 * kernel threads. Unfortunately despite the existence of the
+	 * CLONE_THREAD flag, version of linuxthreads package used in
+	 * most popular distros as of beginning of 2005 doesn't make
+	 * any use of it. Therefore, this detection relay fully on
+	 * empirical observation that linuxthreads sets certain
+	 * combination of flags, so that we can make more or less
+	 * precise detection and notify the FreeBSD kernel that several
+	 * processes are in fact part of the same threading group, so
+	 * that special treatment is necessary for signal delivery
+	 * between those processes and fd locking.
+	 */
+	if ((args->flags & 0xffffff00) == THREADING_FLAGS)
+		ff |= RFTHREAD;
 
 	error = fork1(td, ff, 0, &p2);
 	if (error)
