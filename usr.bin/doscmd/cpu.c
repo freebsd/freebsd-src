@@ -368,7 +368,7 @@ reg8(u_int8_t c, regcontext_t *REGS)
 		      &R_AH, &R_CH, &R_DH, &R_BH};
 
     /* select 'rrr' bits in ModR/M */
-    return r8[(c & 0x34) >> 3];
+    return r8[(c & 0x38) >> 3];
 }
 
 static u_int16_t *
@@ -377,7 +377,7 @@ reg16(u_int8_t c, regcontext_t *REGS)
     u_int16_t *r16[] = {&R_AX, &R_CX, &R_DX, &R_BX,
 			&R_SP, &R_BP, &R_SI, &R_DI};
 
-    return r16[(c & 0x34) >> 3];
+    return r16[(c & 0x38) >> 3];
 }
 
 #if 0
@@ -388,7 +388,7 @@ reg32(u_int8_t c, regcontext_t *REGS)
     u_int32_t *r32[] = {&R_EAX, &R_ECX, &R_EDX, &R_EBX,
 			&R_ESP, &R_EBP, &R_ESI, &R_EDI};
 
-    return r32[(c & 0x34) >> 3];
+    return r32[(c & 0x38) >> 3];
 }
 #endif
 
