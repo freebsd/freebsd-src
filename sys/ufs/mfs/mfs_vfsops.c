@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.14 1995/11/09 08:14:26 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.15 1995/11/28 02:15:29 peter Exp $
  */
 
 #include <sys/param.h>
@@ -88,32 +88,12 @@ struct vfsops mfs_vfsops = {
 
 VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
-/*
- * This is called early in boot to set the base address and size
- * of the mini-root.
- *
- * XXX THIS IS A DESIGN ERROR; THIS CODE SHOULD BE MOVED INTO
- * XXX THE ROOT MOUNT CODE IN "mfs_mount"!!!
- */
-int
-mfs_initminiroot(base)
-	caddr_t base;
-{
-	struct fs *fs = (struct fs *)(base + SBOFF);
+#ifdef MFS_ROOT
 
-	/* check for valid super block */
-	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
-	    fs->fs_bsize < sizeof(struct fs))
-		return (0);
-	mountroot = vfs_mountroot;	/* XXX goes away*/
-	mountrootvfsops = &mfs_vfsops;
-	mfs_rootbase = base;
-	mfs_rootsize = fs->fs_fsize * fs->fs_size;
-	rootdev = makedev(255, mfs_minor++);
-	printf("rootfs is %ld Kbyte compiled in MFS\n",mfs_rootsize/1024);
-	return (mfs_rootsize);
-}
+u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
+u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 
+#endif	/* MFS_ROOT */
 
 /*
  * mfs_mount
@@ -179,6 +159,23 @@ mfs_mount(mp, path, data, ndp, p)
 		 ***
 		 */
 
+#ifdef MFS_ROOT
+		/* Location of MFS/FFS superblock */
+		fs = (struct fs *)(mfs_root + SBOFF);
+
+		/* recheck for valid super block */
+		if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
+		    fs->fs_bsize < sizeof(struct fs)) {
+			panic("MFS image is invalid!!");
+		}
+
+		mfs_rootbase = mfs_root;
+		mfs_rootsize = fs->fs_fsize * fs->fs_size;
+		rootdev = makedev(255, mfs_minor++);
+		printf("rootfs is %ld Kbyte compiled in MFS\n",
+		       mfs_rootsize/1024);
+
+
 		/* Get vnode for root device*/
 		if( bdevvp( rootdev, &rootvp))
 			panic("mfs_mountroot: can't setup bdevvp for rootdev");
@@ -207,6 +204,10 @@ mfs_mount(mp, path, data, ndp, p)
 		}
 
 		goto dostatfs;		/* success*/
+#else
+		/* you loose */
+		panic("mfs_mount: mount MFS as root: not configured!");
+#endif /* MFS_ROOT */
 	}
 
 	/*
