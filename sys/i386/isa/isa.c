@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.122 1999/04/24 18:24:43 kato Exp $
+ *	$Id: isa.c,v 1.123 1999/05/08 18:15:49 peter Exp $
  */
 
 /*
@@ -530,14 +530,6 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	}
 
 	rv = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
-
-#if 0
-	if (rv) {
-		/* Kludge, isa as a child of pci doesn't have mapping regs */
-		printf("WARNING: isa_release_resource: BUS_RELEASE_RESOURCE() failed: %d\n", rv);
-		rv = 0;
-	}
-#endif
 
 	if (rv == 0) {
 		switch (type) {
