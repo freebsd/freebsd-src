@@ -759,7 +759,8 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 void
 in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
 	struct inpcbhead *head;
-	struct sockaddr *dst, *src;
+	struct sockaddr *dst;
+	const struct sockaddr *src;
 	u_int fport_arg, lport_arg;
 	int cmd;
 	void (*notify) __P((struct inpcb *, int));
@@ -780,7 +781,7 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
 	/*
 	 * note that src can be NULL when we get notify by local fragmentation.
 	 */
-	sa6_src = (src == NULL) ? sa6_any : *(struct sockaddr_in6 *)src;
+	sa6_src = (src == NULL) ? sa6_any : *(const struct sockaddr_in6 *)src;
 	flowinfo = sa6_src.sin6_flowinfo;
 
 	/*
