@@ -163,6 +163,10 @@ for
 .Nm
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
+.Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr miibus 4 ,
+.Xr ifconfig 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
 .Pp
@@ -174,7 +178,3 @@ interface will be sent through
 only if the parent interface uses
 .Xr miibus 4
 for link state notification.
-.Sh SEE ALSO
-.Xr kqueue 2 ,
-.Xr miibus 4 ,
-.Xr ifconfig 8
