@@ -160,6 +160,13 @@ case ${moused_enable} in
 [Yy][Ee][Ss])
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
+	case ${mousechar_start} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' mousechar_start';  vidcontrol < ${viddev} -M ${mousechar_start}
+		;;
+	esac
 	vidcontrol < ${viddev} -m on
 	;;
 esac
