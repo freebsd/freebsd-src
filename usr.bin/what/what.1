@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)what.1	8.1 (Berkeley) 6/6/93
 .\"
-.\" $Id: what.1,v 1.7 1997/08/26 07:04:20 charnier Exp $
+.\" $Id: what.1,v 1.8 1998/04/14 06:31:23 phk Exp $
 .\"
 .Dd June 6, 1993
 .Dt WHAT 1
@@ -40,30 +40,34 @@
 .Nm what
 .Nd "show what versions of object modules were used to construct a file"
 .Sh SYNOPSIS
-.Nm what
-.Ar name Ar ...
+.Nm
+.Op Fl s
+.Ar file Ar ...
 .Sh DESCRIPTION
-.Nm What
-reads each file
-.Ar name
-and searches for sequences of the form
+The
+.Nm
+utility searches each specified
+.Ar file
+for sequences of the form
 .Dq \&@(#)
 as inserted by the source code control system.  It prints the remainder
-of the string following this marker, up to a null character, newline, double
-quote, or
+of the string following this marker, up to a NUL character, newline, double
+quote,
 .Dq \&>
-character.
+character, or backslash.
+.Pp
+The following option is available:
+.Bl -tag -width Ds
+.It Fl s
+Stop searching each file after the first match.
+.El
+.Pp
+Exit status is 0 if any matches were found, otherwise 1.
 .Sh BUGS
-As
-.Bx
-is not licensed to distribute
+This is a rewrite of the
 .Tn SCCS
-this is a rewrite of the
-.Nm
-command which is part of
-.Tn SCCS ,
-and may not behave exactly the same as that
-command does.
+command of the same name,
+and behavior may not be identical.
 .Sh SEE ALSO
 .Xr ident 1 ,
 .Xr strings 1
