@@ -33,21 +33,19 @@
 
 #include "acpi.h"
 
-INT32
+void
 AcpiOsPrintf (const NATIVE_CHAR *Format, ...)
 {
     va_list	ap;
-    int		retval;
 
     va_start(ap, Format);
-    retval = vprintf(Format, ap);
+    vprintf(Format, ap);
     va_end(ap);
-    return(retval);
 }
 
-INT32
+void
 AcpiOsVprintf (const NATIVE_CHAR *Format, va_list Args)
 {
-    return(vprintf(Format, Args));
+    vprintf(Format, Args);
 }
 
