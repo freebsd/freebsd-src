@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.84 1997/11/22 06:41:21 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.85 1997/12/02 10:32:21 bde Exp $
  */
+
+/* For 4.3 integer FS ID compatibility */
+#include "opt_compat.h"
 
 /*
  * XXX - The following is required because of some magic done 

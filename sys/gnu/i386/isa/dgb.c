@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.28 1997/09/14 03:19:00 peter Exp $
+ *  dgb.c $Id: dgb.c,v 1.29 1997/12/06 13:22:03 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -26,6 +26,8 @@
  *  Sysctl debug flag is now a bitflag, to filter noise during debugging.
  *	David L. Nugent <davidn@blaze.net.au>
  */
+
+#include "opt_compat.h"
 
 #include "dgb.h"
 

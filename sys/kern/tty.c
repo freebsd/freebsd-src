@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.98 1997/11/07 08:53:01 phk Exp $
+ * $Id: tty.c,v 1.99 1997/12/06 13:23:52 bde Exp $
  */
 
 /*-
@@ -68,6 +68,7 @@
  */
 
 #include "snp.h"
+#include "opt_compat.h"
 #include "opt_uconsole.h"
 
 #include <sys/param.h>

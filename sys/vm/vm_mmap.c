@@ -38,13 +38,14 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.68 1997/09/01 03:17:20 bde Exp $
+ * $Id: vm_mmap.c,v 1.69 1997/11/06 19:29:54 phk Exp $
  */
 
 /*
  * Mapped file (mmap) interface to VM
  */
 
+#include "opt_compat.h"
 #include "opt_rlimit.h"
 
 #include <sys/param.h>

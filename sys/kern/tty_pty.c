@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.47 1997/09/16 11:43:32 bde Exp $
+ * $Id: tty_pty.c,v 1.48 1997/12/06 13:24:10 bde Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
  * (Actually two drivers, requiring two entries in 'cdevsw')
  */
 #include "pty.h"		/* XXX */
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
