@@ -209,7 +209,7 @@ usage(void)
 	fprintf(stderr,
 "Usage: sdpcontrol options command\n" \
 "Where options are:\n"
-"	-a bdaddr	specify bdaddr\n" \
+"	-a address	address to connect to\n" \
 "	-c path		path to the control socket (default is %s)\n" \
 "	-h		display usage and quit\n" \
 "	-l		connect to the local SDP server via control socket\n" \
