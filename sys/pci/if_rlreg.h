@@ -142,6 +142,7 @@
 
 #define RL_LOOPTEST_OFF		0x00000000
 #define RL_LOOPTEST_ON		0x00020000
+#define RL_LOOPTEST_ON_CPLUS	0x00060000
 
 #define RL_HWREV_8169		0x00000000
 #define RL_HWREV_8169S		0x04000000
@@ -530,7 +531,7 @@ struct rl_desc {
 
 #define RL_RDESC_CMD_EOR	0x40000000
 #define RL_RDESC_CMD_OWN	0x80000000
-#define RL_RDESC_CMD_BUFLEN	0x00003FFF
+#define RL_RDESC_CMD_BUFLEN	0x00001FFF
 
 #define RL_RDESC_STAT_OWN	0x80000000
 #define RL_RDESC_STAT_EOR	0x40000000
@@ -550,7 +551,8 @@ struct rl_desc {
 #define RL_RDESC_STAT_IPSUMBAD	0x00008000	/* IP header checksum bad */
 #define RL_RDESC_STAT_UDPSUMBAD	0x00004000	/* UDP checksum bad */
 #define RL_RDESC_STAT_TCPSUMBAD	0x00002000	/* TCP checksum bad */
-#define RL_RDESC_STAT_FRAGLEN	0x00003FFF	/* RX'ed frame/frag len */
+#define RL_RDESC_STAT_FRAGLEN	0x00001FFF	/* RX'ed frame/frag len */
+#define RL_RDESC_STAT_GFRAGLEN	0x00003FFF	/* RX'ed frame/frag len */
 
 #define RL_RDESC_VLANCTL_TAG	0x00010000	/* VLAN tag available
 						   (rl_vlandata valid)*/
@@ -595,8 +597,7 @@ struct rl_stats {
 #define RL_IFQ_MAXLEN		512
 #define RL_DESC_INC(x)		(x = (x + 1) % RL_TX_DESC_CNT)
 #define RL_OWN(x)		(le32toh((x)->rl_cmdstat) & RL_RDESC_STAT_OWN)
-#define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) &	\
-				 RL_RDESC_STAT_FRAGLEN)
+#define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) & sc->rl_rxlenmask)
 #define RL_PKTSZ(x)		((x)/* >> 3*/)
 
 #define RL_ADDR_LO(y)	((u_int64_t) (y) & 0xFFFFFFFF)
@@ -669,6 +670,7 @@ struct rl_softc {
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
 	u_int32_t		rl_hwrev;
+	u_int32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING

@@ -740,14 +740,17 @@ re_diag(sc)
 	/* Queue the packet, start transmission */
 
 	IF_HANDOFF(&ifp->if_snd, m0, ifp);
+	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
 	re_start(ifp);
 	m0 = NULL;
 
 	/* Wait for it to propagate through the chip */
 
+	DELAY(100000);
 	for (i = 0; i < RL_TIMEOUT; i++) {
 		status = CSR_READ_2(sc, RL_ISR);
-		if (status & RL_ISR_RX_OK)
+		if ((status & (RL_ISR_TIMEOUT_EXPIRED|RL_ISR_RX_OK)) ==
+		    (RL_ISR_TIMEOUT_EXPIRED|RL_ISR_RX_OK))
 			break;
 		DELAY(10);
 	}
@@ -1155,30 +1158,6 @@ re_attach(dev)
 
 	/* Reset the adapter. */
 	re_reset(sc);
-	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_PROGRAM);
-	sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
-	re_read_eeprom(sc, (caddr_t)&re_did, 0, 1, 0);
-	if (re_did != 0x8129)
-		sc->rl_eecmd_read = RL_EECMD_READ_8BIT;
-
-	/*
-	 * Get station address from the EEPROM.
-	 */
-	re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3, 0);
-	for (i = 0; i < 3; i++) {
-		eaddr[(i * 2) + 0] = as[i] & 0xff;
-		eaddr[(i * 2) + 1] = as[i] >> 8;
-	}
-
-	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
-	/*
-	 * A RealTek chip was detected. Inform the world.
-	 */
-	printf("re%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
-	sc->rl_unit = unit;
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	hw_rev = re_hwrevs;
 	hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
@@ -1189,6 +1168,54 @@ re_attach(dev)
 		}
 		hw_rev++;
 	}
+
+	if (sc->rl_type == RL_8169) {
+
+		/* Set RX length mask */
+
+		sc->rl_rxlenmask = RL_RDESC_STAT_GFRAGLEN;
+
+		/* Force station address autoload from the EEPROM */
+
+		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_AUTOLOAD);
+		for (i = 0; i < RL_TIMEOUT; i++) {
+			if (!(CSR_READ_1(sc, RL_EECMD) & RL_EEMODE_AUTOLOAD))
+				break;
+			DELAY(100);
+		}
+		if (i == RL_TIMEOUT)
+			printf ("re%d: eeprom autoload timed out\n", unit);
+
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
+	} else {
+
+		/* Set RX length mask */
+
+		sc->rl_rxlenmask = RL_RDESC_STAT_FRAGLEN;
+
+		sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
+		re_read_eeprom(sc, (caddr_t)&re_did, 0, 1, 0);
+		if (re_did != 0x8129)
+			sc->rl_eecmd_read = RL_EECMD_READ_8BIT;
+
+		/*
+		 * Get station address from the EEPROM.
+		 */
+		re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3, 0);
+		for (i = 0; i < 3; i++) {
+			eaddr[(i * 2) + 0] = as[i] & 0xff;
+			eaddr[(i * 2) + 1] = as[i] >> 8;
+		}
+	}
+
+	/*
+	 * A RealTek chip was detected. Inform the world.
+	 */
+	printf("re%d: Ethernet address: %6D\n", unit, eaddr, ":");
+
+	sc->rl_unit = unit;
+	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -2071,9 +2098,14 @@ re_init(xsc)
 	/*
 	 * Set the initial TX and RX configuration.
 	 */
-	if (sc->rl_testmode)
-		CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG|RL_LOOPTEST_ON);
-	else
+	if (sc->rl_testmode) {
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TXCFG,
+			    RL_TXCFG_CONFIG|RL_LOOPTEST_ON);
+		else
+			CSR_WRITE_4(sc, RL_TXCFG,
+			    RL_TXCFG_CONFIG|RL_LOOPTEST_ON_CPLUS);
+	} else
 		CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
 	CSR_WRITE_4(sc, RL_RXCFG, RL_RXCFG_CONFIG);
 
