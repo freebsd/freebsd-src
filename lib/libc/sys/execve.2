@@ -66,11 +66,9 @@ An interpreter file begins with a line of the form:
 .Ed
 .Pp
 When an interpreter file is
-.\" was .Fn execve Ap d ,
-\fBexecve\fP'd,
+.Sy execve Ap d ,
 the system
-.\" was .Fn execve Ap s
-\fBexecve\fP's
+.Sy execve Ap s
 runs the specified
 .Em interpreter .
 If the optional
@@ -78,16 +76,13 @@ If the optional
 is specified, it becomes the first argument to the
 .Em interpreter ,
 and the name of the originally
-.\" was .Fn execve Ap d
-\fBexecve\fP'd
+.Sy execve Ap d
 file becomes the second argument;
 otherwise, the name of the originally
-.\" was .Fn execve Ap d
-\fBexecve\fP'd
+.Sy execve Ap d
 file becomes the first argument.  The original arguments are shifted over to
 become the subsequent arguments.  The zeroth argument, normally the name of the
-.\" was .Fn execve Ap d
-\fBexecve\fP'd
+.Sy execve Ap d
 file, is left unchanged.
 .Pp
 The argument
