@@ -6,13 +6,13 @@
 
   <p><em>Contributed by &a.jkh;.</em>
 
-  <p>The rapid pace of FreeBSD progress makes print media
-    impractical as a means for following the latest
-    developments.  Electronic resources are the best, if not often the
-    only way stay informed of the latest advances.  Since
-    FreeBSD is a volunteer effort, the user community itself also generally
-    serves as a `technical support department' of sorts, with electronic mail
-    and  Usenet news being the most effective way of reaching that community.
+  <p>The rapid pace of FreeBSD progress makes print media impractical as a
+    means of following the latest developments.  Electronic resources are
+    the best, if not often the only, way stay informed of the latest advances.
+    Since FreeBSD is a volunteer effort, the user community itself also
+    generally serves as a `technical support department' of sorts, with
+    electronic mail and  USENET news being the most effective way of reaching
+    that community.
 
     The most important points of contact with the FreeBSD
     user community are outlined below.  If you are aware of other
@@ -30,9 +30,12 @@ you will reach both us and a concentrated FreeBSD audience, invariably
 assuring a better (or at least faster) response.
 
 <p>The charters for the various lists are given at the bottom of this
-document.  Please read the charter before joining a list since we must
-strive to keep the signal to noise ratio of the lists high, especially
-in the technical ones.
+document.  <bf>Please read the charter before joining or sending
+mail to any list</bf>.  Most of our list subscribers now receive many hundreds
+of FreeBSD related messages every day, and by setting down charters
+and rules for proper use we are striving to keep the signal-to-noise ratio
+of the lists high.  To do less would see the mailing lists ultimately fail
+as an effective communications medium for the project.
 
 Archives are kept for all of the mailing lists and can be searched
 using the <url url="http://www.FreeBSD.ORG/search.html"
@@ -40,7 +43,7 @@ name="FreeBSD World Wide Web server">.  The keyword searchable archive
 offers an excellent way of finding answers to frequently asked
 questions and should be consulted before posting a question.
 
-<sect1><heading>List summary</heading>
+<sect1><heading>List summary<label id="eresources:summary"></heading>
 
 <p><bf>General lists:</bf> The following are general lists which
 anyone is free to join:
@@ -57,8 +60,10 @@ freebsd-questions        User questions
 </verb>
 
 <bf>Technical lists:</bf> The following lists are for technical discussion.
-You should read the charter carefully before joining one, keeping any
-messages sent to a list within the scope of the guidelines.
+You should read the <url
+url="http://www.freebsd.org/handbook/eresources:charter" name="charter">
+for each list carefully before joining or sending mail to one as there are firm
+guidelines for their use and content.
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
@@ -78,10 +83,11 @@ freebsd-scsi             The SCSI subsystem
 freebsd-smp              Design discussions for [A]Symmetric MultiProcessing
 </verb>
 
-<bf>Limited lists:</bf> The following lists require approval to join,
-though anyone is free to send suggestions and comments to them.  It is a
-good idea establish a presence in the technical lists before asking
-to join one of these limited lists.
+<bf>Limited lists:</bf> The following lists require approval from
+<url url="mailto:core@freebsd.org" name="core@FreeBSD.ORG"> to join,
+though anyone is free to send messages to them which fall within the
+scope of their charters.  It is also a good idea establish a presence
+in the technical lists before asking to join one of these limited lists.
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
@@ -95,6 +101,8 @@ freebsd-user-groups      User group coordination
 
 <bf>CVS lists:</bf> The following lists are for people interested in
 seeing the log messages for changes to various areas of the source tree.
+They are <bf>Read-Only</bf> lists and should not have mail sent to them.
+
 <verb>
 List name       Source area          Area Description (source for)
 ----------------------------------------------------------------------
@@ -116,7 +124,7 @@ cvs-usrbin      /usr/src/usr.bin     Use binaries
 cvs-usrsbin     /usr/src/usr.sbin    System binaries
 </verb>
 
-<sect1><heading>How to subscribe</heading>
+<sect1><heading>How to subscribe<label id="eresources:subscribe"></heading>
 
 <p>All mailing lists live on <tt>FreeBSD.ORG</tt>, so to post to a
 given list you simply mail to <em>listname</em><tt>@FreeBSD.ORG</tt>.  It
@@ -156,19 +164,66 @@ lists on a technical track.  If you are only interested in the "high points"
 then it is suggested that you join freebsd-announce, which is intended only
 for infrequent traffic.
 
-<sect1><heading>List charters</heading>
+<sect1><heading>List charters<label id="eresources:charters"></heading>
 
 <p>
 <descrip>
 <tag/FREEBSD-ADMIN/ <em>Administrative issues</em><newline>
-<!-- XXX -->
+
+<p><bf>All</bf>FreeBSD mailing lists have certain basic rules
+which must be adhered to by anyone using them.  Failure to adhere
+to these rules will result in two (2) written warnings from the
+FreeBSD <url url="mailto:postmaster@freebsd.org" name="Postmaster">,
+after which, on a third offense, the poster will removed from all
+FreeBSD mailing lists and filtered against further posting to them.
+We regret that such rules and measures are necessary at all, but
+today's Internet is a pretty harsh environment, it would seem.
+
+<p>Rules of the road:
+<itemize>
+<item>The topic of any posting should adhere to the basic charter of the list
+      it is posted to, e.g. if the list is about technical issues then your
+      posting should contain technical discussion.  Ongoing irrelevant chatter
+      or flaming only detracts from the value of the mailing list for everyone
+      on it and will not be tolerated.  For free-form discussion on no
+      particular topic, the <url url="mailto:freebsd-chat@freebsd.org"
+      name="freebsd-chat"> mailing list is freely available and should
+      be used instead.</item>
+
+<item>No posting should be made to more than 2 mailing lists, and only
+      to 2 when a clear and obvious need to post to both lists exists.
+      In most cases, there is already a great deal of subscriber overlap
+      and except for the most esoteric mixes (say "-stable & -scsi"), there
+      really is no reason to post to more than one mailing list at a time.
+      If a message is sent to you in such a way that multiple mailing lists
+      appear on the Cc line then the cc line should also be trimmed before
+      sending it out again.
+      <em>You are <bf>still</bf> responsible for your own cross-postings, no
+      matter who the originator might have been.</em></item>
+
+<item>Personal attacks and profanity (in the context of an argument) are
+      not allowed, and that includes users and developers alike.  Gross
+      breaches of netiquette, like excerpting or reposting private mail
+      when permission to do so was not and would not be forthcoming, 
+      is frowned upon but not specifically enforced.  <bf>However</bf>,
+      there are also very few cases where such content would fit within the
+      charter of a list and it would therefore probably rate a warning
+      (or ban) on that basis alone.</item>
+
+<item>Advertising of non-FreeBSD related products or services are
+      strictly prohibited and will result in an immediate ban if it
+      is clear that the offender is advertising by spam.</item>
+
+</itemize>
+
+<p><bf>Individual list charters:</bf>
 
 <tag/FREEBSD-ANNOUNCE/ <em>Important events / milestones</em><newline>
 This is the mailing list for people interested only in occasional
 announcements of significant freebsd events.  This includes
 announcements about snapshots and other releases.  It contains
 announcements of new FreeBSD capabilities.  It may contain calls
-for volunteers etc.  This is a low volume list.
+for volunteers etc.  This is a low volume, strictly moderated mailing list.
 
 <tag/FREEBSD-ARCH/ <em>Architecture and design discussions</em><newline>
 This is the mailing list for people discussing FreeBSD architectural
@@ -176,11 +231,12 @@ issues.  It is a closed list, and not for general subscription.
 
 <tag/FREEBSD-BUGS/ <em>Bug reports</em><newline>
 This is the mailing list for reporting bugs in FreeBSD
-Whenever possible, bugs should be
-submitted using "send-pr".
+Whenever possible, bugs should be submitted using the "send-pr(1)"
+command or the <url url="http://www.freebsd.org/send-pr.html"
+name="WEB interface"> to it.
 
 <tag/FREEBSD-CHAT/ <em>Non technical items related to the
-                              community</em><newline>
+                   FreeBSD community</em><newline>
 This list contains the overflow from the other lists about
 non-technical, social information.  It includes discussion about
 whether Jordan looks like a toon ferret or not, whether or not to
@@ -193,6 +249,8 @@ technical lists, but the follow ups should be directed to this
 
 <tag/FREEBSD-CORE/ <em>FreeBSD core team</em><newline>
 This is an internal mailing list for use by the core members.
+Messages can be sent to it when a serious FreeBSD-related matter
+requires arbitration or high-level scrutiny.
 
 <tag/FREEBSD-CURRENT/ <em>Discussions about the use of
 FreeBSD-current</em><newline> This is the mailing list for users
@@ -200,12 +258,15 @@ of freebsd-current.  It includes warnings about new features
 coming out in -current that will affect the users, and
 instructions on steps that must be taken to remain -current.
 Anyone running "current" must subscribe to this list.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-CURRENT-DIGEST/ <em>Discussions about the use of
 FreeBSD-current</em><newline> This is the digest version of the
 freebsd-current mailing list.  The digest consists of all
 messages sent to freebsd-current bundled together and mailed out
 as a single message.  The average digest size is about 40kB.
+This list is <bf>Read-Only</bf> and should not be posted to.
 
 <tag/FREEBSD-STABLE/ <em>Discussions about the use of
 FreeBSD-stable</em><newline> This is the mailing list for users
@@ -213,6 +274,8 @@ of freebsd-stable.  It includes warnings about new features
 coming out in -stable that will affect the users, and
 instructions on steps that must be taken to remain -stable.
 Anyone running ``stable'' should subscribe to this list.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-DOC/ <em>Documentation project</em><newline> 
 This mailing list belongs to the FreeBSD Doc Project and is for
@@ -220,6 +283,8 @@ the discussion of documentation related issues and projects.
 
 <tag/FREEBSD-FS/ <em>Filesystems</em><newline> 
 Discussions concerning FreeBSD filesystems.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-HACKERS/ <em>Technical discussions</em><newline> 
 This is a forum for technical discussions related to FreeBSD.  This
@@ -227,12 +292,15 @@ is the primary technical mailing list.  It
 is for individuals actively working on FreeBSD, to bring up problems
 or discuss alternative solutions.  Individuals interested in
 following the technical discussion are also welcome.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-HACKERS-DIGEST/ <em>Technical
 discussions</em><newline> This is the digest version of the
 freebsd-hackers mailing list.  The digest consists of all
 messages sent to freebsd-hackers bundled together and mailed out
 as a single message.  The average digest size is about 40kB.
+This list is <bf>Read-Only</bf> and should not be posted to.
 
 <tag/FREEBSD-HARDWARE/ <em>General discussion of FreeBSD
 hardware</em><newline> General discussion about the types of
@@ -241,25 +309,33 @@ concerning what to buy or avoid.
 
 <tag/FREEBSD-INSTALL/ <em>Installation discussion</em><newline> 
 This mailing list is for discussing FreeBSD installation
-development for the future releases.
+development for the future releases and is closed.
 
 <tag/FREEBSD-ISP/ <em>Issues for Internet Service Providers</em><newline>
 This mailing list is for discussing topics relevant to Internet
 Service Providers (ISPs) using FreeBSD.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-MULTIMEDIA/ <em>Multimedia discussions</em><newline>
 This is a forum about multimedia applications using FreeBSD.
 Discussion center around multimedia applications, their installation, their
 development and their support within FreeBSD
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-PLATFORMS/ <em>Porting to Non-Intel
 platforms</em><newline> Cross-platform freebsd issues, general
 discussion and proposals for non-Intel FreeBSD ports.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-PORTS/ <em>Discussion of "ports"</em><newline> 
 Discussions concerning FreeBSD's "ports collection" (/usr/ports), proposed
 ports, modifications to ports collection infrastructure and general
 coordination efforts.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-QUESTIONS/ <em>User questions</em><newline> 
 This is the mailing list for questions about FreeBSD.  You should not
@@ -275,10 +351,14 @@ digest size is about 40kB.
 <tag/FREEBSD-SCSI/ <em>SCSI subsystem</em><newline> 
 This is the mailing list for people working on the scsi subsystem
 for FreeBSD.
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-SECURITY/ <em>Security issues</em><newline> 
 FreeBSD computer security issues (DES, Kerberos, known security holes and
 fixes, etc).
+This is a technical mailing list for which strictly technical
+content is expected.
 
 <tag/FREEBSD-SECURITY-NOTIFICATIONS/ <em>Security Notifications</em><newline>
 Notifications of FreeBSD security problems and fixes.  This is not
@@ -289,7 +369,7 @@ This is the mailing list for the coordinators from each of the
 local area Users Groups to discuss matters with each other and a 
 designated individual from the Core Team.  This mail list should
 be limited to meeting synopsis and coordination of projects that span
-User Groups.
+User Groups.  It is a closed list.
 
 </descrip>
 
