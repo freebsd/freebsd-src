@@ -251,27 +251,31 @@ sc_remove_cutmarking(scr_stat *scp)
 void
 sc_remove_all_cutmarkings(sc_softc_t *sc)
 {
+    scr_stat *scp;
     int i;
 
     /* delete cut markings in all vtys */
     for (i = 0; i < sc->vtys; ++i) {
-	if (sc->console[i] == NULL)
+	scp = SC_STAT(sc->dev[i]);
+	if (scp == NULL)
 	    continue;
-	sc_remove_cutmarking(sc->console[i]);
+	sc_remove_cutmarking(scp);
     }
 }
 
 void
 sc_remove_all_mouse(sc_softc_t *sc)
 {
+    scr_stat *scp;
     int i;
 
     for (i = 0; i < sc->vtys; ++i) {
-	if (sc->console[i] == NULL)
+	scp = SC_STAT(sc->dev[i]);
+	if (scp == NULL)
 	    continue;
-	if (sc->console[i]->status & MOUSE_VISIBLE) {
-	    sc->console[i]->status &= ~MOUSE_VISIBLE;
-	    mark_all(sc->console[i]);
+	if (scp->status & MOUSE_VISIBLE) {
+	    scp->status &= ~MOUSE_VISIBLE;
+	    mark_all(scp);
 	}
     }
 }
@@ -605,7 +609,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
     int i;
 
     /* scp == NULL, if tp == sc_get_mouse_tty() (/dev/sysmouse) */
-    scp = sc_get_scr_stat(tp->t_dev);
+    scp = SC_STAT(tp->t_dev);
 
     switch (cmd) {
 
@@ -695,21 +699,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		return EINVAL;
 	    }
 	    break;
-#if 0
-	    if (!(scp->status & MOUSE_ENABLED)) {
-		scp->mouse_oldpos = scp->mouse_pos;
-		scp->status |= MOUSE_ENABLED;
-		if (!ISGRAPHSC(scp))
-		    scp->status |= MOUSE_VISIBLE;
-		splx(s);
-		mark_all(scp);
-		return 0;
-	    } else {
-		splx(s);
-		return EINVAL;
-	    }
-	    break;
-#endif
 
 	case MOUSE_HIDE:
 	    s = spltty();
@@ -723,18 +712,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		return EINVAL;
 	    }
 	    break;
-#if 0
-	    if (scp->status & MOUSE_ENABLED) {
-		scp->status &= ~(MOUSE_ENABLED | MOUSE_VISIBLE);
-		mark_all(scp);
-		splx(s);
-		return 0;
-	    } else {
-		splx(s);
-		return EINVAL;
-	    }
-	    break;
-#endif
 
 	case MOUSE_MOVEABS:
 	    s = spltty();

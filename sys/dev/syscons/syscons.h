@@ -64,6 +64,8 @@
 
 #define SC_DRIVER_NAME	"sc"
 #define SC_VTY(dev)	minor(dev)
+#define SC_DEV(sc, vty)	((sc)->dev[(vty) - (sc)->first_vty])
+#define SC_STAT(dev)	((scr_stat *)(dev)->si_drv1)
 
 /* printable chars */
 #ifndef PRINTABLE
@@ -200,8 +202,7 @@ typedef struct sc_softc {
 
 	int		first_vty;
 	int		vtys;
-	struct tty	*tty;
-	struct scr_stat	**console;
+	dev_t		*dev;
 	struct scr_stat	*cur_scp;
 	struct scr_stat	*new_scp;
 	struct scr_stat	*old_scp;
@@ -407,7 +408,6 @@ int		sc_attach_unit(int unit, int flags);
 int		sc_resume_unit(int unit);
 
 int		set_mode(scr_stat *scp);
-scr_stat	*sc_get_scr_stat(dev_t dev);
 
 void		copy_font(scr_stat *scp, int operation, int font_size,
 			  u_char *font_image);
