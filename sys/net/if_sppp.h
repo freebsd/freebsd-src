@@ -16,7 +16,7 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.10 1998/12/11 21:40:13 phk Exp $
+ * $Id: if_sppp.h,v 1.11 1998/12/11 21:42:57 phk Exp $
  */
 
 #ifndef _NET_IF_SPPP_H_
@@ -116,6 +116,10 @@ struct sppp {
 	 */
 	void	(*pp_tls)(struct sppp *sp);
 	void	(*pp_tlf)(struct sppp *sp);
+
+	/* These two fields are for use by the lower layer */
+	void    *pp_lowerp;
+	int     pp_loweri;
 };
 
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
