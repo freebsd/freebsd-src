@@ -202,7 +202,6 @@ IDTVEC(fast_syscall)
 	#swapgs
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	common_tss+COMMON_TSS_RSP0,%rsp
-	sti
 	/* Now emulate a trapframe. Ugh. */
 	subq	$TF_SIZE,%rsp
 	movq	$KUDSEL,TF_SS(%rsp)
@@ -226,6 +225,7 @@ IDTVEC(fast_syscall)
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	movq	PCPU(SCRATCH_RSP),%r12	/* %r12 already saved */
 	movq	%r12,TF_RSP(%rsp)	/* user stack pointer */
+	sti
 	call	syscall
 	movq	PCPU(CURPCB),%rax
 	testq	$PCB_FULLCTX,PCB_FLAGS(%rax)
