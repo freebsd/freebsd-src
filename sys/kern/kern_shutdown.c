@@ -610,6 +610,7 @@ panic(const char *fmt, ...)
 #if defined(DDB)
 	if (debugger_on_panic)
 		Debugger ("panic");
+#ifdef RESTARTABLE_PANICS
 	/* See if the user aborted the panic, in which case we continue. */
 	if (panicstr == NULL) {
 #ifdef SMP
@@ -617,6 +618,7 @@ panic(const char *fmt, ...)
 #endif
 		return;
 	}
+#endif
 #endif
 	boot(bootopt);
 }
