@@ -351,8 +351,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	gh = mtod(m, struct greip *);
 	if (sc->g_proto == IPPROTO_GRE) {
 		/* we don't have any GRE flags for now */
-
-		memset((void *)&gh->gi_g, 0, sizeof(struct gre_h));
+		memset((void *)gh, 0, sizeof(struct greip));
 		gh->gi_ptype = htons(etype);
 	}
 
@@ -364,7 +363,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
 		((struct ip*)gh)->ip_tos = ip->ip_tos;
 		((struct ip*)gh)->ip_id = ip->ip_id;
-		gh->gi_len = htons(m->m_pkthdr.len);
+		gh->gi_len = m->m_pkthdr.len;
 	}
 
 	ifp->if_opackets++;
