@@ -120,7 +120,7 @@ g_bde_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static int
-g_bde_create(struct g_createargs *ga)
+g_bde_config(struct g_configargs *ga)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -131,10 +131,10 @@ g_bde_create(struct g_createargs *ga)
 	off_t mediasize;
 	struct g_bde_softc *sc;
 
-	g_trace(G_T_TOPOLOGY, "g_bde_create(%d)", ga->flag);
+	g_trace(G_T_TOPOLOGY, "g_bde_config(%d)", ga->flag);
 	g_topology_assert();
 	gp = NULL;
-	if (ga->flag == 1) {
+	if (ga->flag == GCFG_DISMANTLE) {
 		/*
 		 * Orderly dettachment.
 		 */
@@ -185,7 +185,7 @@ g_bde_create(struct g_createargs *ga)
 		return (0);
 	}
 
-	if (ga->flag != 0)
+	if (ga->flag != GCFG_CREATE)
 		return (EOPNOTSUPP);
 
 	if (ga->provider == NULL)
@@ -271,7 +271,7 @@ g_bde_create(struct g_createargs *ga)
 static struct g_class g_bde_class	= {
 	BDE_CLASS_NAME,
 	NULL,
-	g_bde_create,
+	g_bde_config,
 	G_CLASS_INITIALIZER
 };
 

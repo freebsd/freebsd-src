@@ -152,31 +152,10 @@ g_ctl_start(struct bio *bp)
  */
 
 static int
-g_ctl_ioctl_getconf(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
-{
-	struct geomgetconf *gcp;
-	struct sbuf *sb;
-	int error;
-	u_int l;
-
-	gcp = (struct geomgetconf *)data;
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_clear(sb);
-	g_confxml(sb);
-	l = sbuf_len(sb) + 1;
-	if (l > gcp->len)
-		error = ENOMEM;
-	else
-		error = copyout(sbuf_data(sb), gcp->ptr, l);
-	sbuf_delete(sb);
-	return(error);
-}
-
-static int
 g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct geomconfiggeom *gcp;
-	struct g_createargs ga;
+	struct g_configargs ga;
 	int error;
 
 	error = 0;
@@ -185,7 +164,7 @@ g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct th
 	ga.class = g_idclass(&gcp->class);
 	if (ga.class == NULL)
 		return (EINVAL);
-	if (ga.class->create_geom == NULL)
+	if (ga.class->config == NULL)
 		return (EOPNOTSUPP);
 	ga.geom = g_idgeom(&gcp->geom);
 	ga.provider = g_idprovider(&gcp->provider);
@@ -196,10 +175,16 @@ g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct th
 		ga.ptr = NULL;
 	} else {
 		ga.ptr = g_malloc(gcp->len, M_WAITOK);
-		copyin(gcp->ptr, ga.ptr, gcp->len);
+		error = copyin(gcp->ptr, ga.ptr, gcp->len);
+		if (error) {
+			g_free(ga.ptr);
+			return (error);
+		}
 	}
 	ga.flag = gcp->flag;
-	error = ga.class->create_geom(&ga);
+	error = ga.class->config(&ga);
+	if (gcp->len != 0)
+		copyout(ga.ptr, gcp->ptr, gcp->len);	/* Ignore error */
 	gcp->class.u.id = (uintptr_t)ga.class;
 	gcp->class.len = 0;
 	gcp->geom.u.id = (uintptr_t)ga.geom;
@@ -217,9 +202,6 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	DROP_GIANT();
 	g_topology_lock();
 	switch(cmd) {
-	case GEOMGETCONF:
-		error = g_ctl_ioctl_getconf(dev, cmd, data, fflag, td);
-		break;
 	case GEOMCONFIGGEOM:
 		error = g_ctl_ioctl_configgeom(dev, cmd, data, fflag, td);
 		break;
