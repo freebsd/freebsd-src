@@ -610,7 +610,7 @@ pmap_uses_prom_console()
 	int cputype;
 
 	cputype = hwrpb->rpb_type;
-	return (cputype == ST_DEC_21000
+	return (cputype == ST_DEC_21000 || ST_DEC_4100
 	     || cputype == ST_DEC_3000_300
 	     || cputype == ST_DEC_3000_500);
 
