@@ -37,7 +37,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_sup.c, 3.20, Last Edit-Date: [Sun Feb 19 19:59:38 1995]
+ * @(#)pcvt_sup.c, 3.20, Last Edit-Date: [Thu Apr  6 10:49:44 1995]
  *
  */
 
@@ -57,6 +57,7 @@
  *	-hm	getting PCVT_BURST reported correctly for FreeBSD 2.0
  *	-hm	applying patch from Joerg fixing Crtat bug
  *	-hm	moving ega/vga coldinit support code to mda2egaorvga()
+ *	-hm	patch from Thomas Eberhardt fixing force 24 lines fkey update
  *
  *---------------------------------------------------------------------------*/
 
@@ -262,10 +263,7 @@ vgapcvtid(struct pcvtid *data)
 static void
 vgapcvtinfo(struct pcvtinfo *data)
 {
-#if PCVT_386BSD
-	data->opsys	= CONF_386BSD;
-	data->opsysrel	= PCVT_386BSD;	
-#elif PCVT_NETBSD
+#if PCVT_NETBSD
 	data->opsys	= CONF_NETBSD;
 	data->opsysrel	= PCVT_NETBSD;
 #elif PCVT_FREEBSD
@@ -335,9 +333,6 @@ vgapcvtinfo(struct pcvtinfo *data)
 #if PCVT_SW0CNOUTP	/* was FORCE8BIT */
 	| CONF_SW0CNOUTP
 #endif
-#if PCVT_NEEDPG
-	| CONF_NEEDPG
-#endif
 #if PCVT_SETCOLOR
 	| CONF_SETCOLOR
 #endif
@@ -355,6 +350,9 @@ vgapcvtinfo(struct pcvtinfo *data)
 #endif
 #if PCVT_USL_VT_COMPAT
 	| CONF_USL_VT_COMPAT
+#endif
+#if PCVT_PORTIO_DELAY
+	| CONF_PORTIO_DELAY
 #endif
 #if PCVT_INHIBIT_NUMLOCK
 	| CONF_INHIBIT_NUMLOCK
@@ -677,7 +675,20 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 				vgacs[(vs[screen].vga_charset)].screen_size;
 			
 		if(data->force_24lines != -1)
+		{
 			vs[screen].force24 = data->force_24lines;
+
+			if(vs[screen].force24)
+			{
+				swritefkl(2,(u_char *)"FORCE24 ENABLE *",
+					  &vs[screen]);
+			}
+			else
+			{
+				swritefkl(2,(u_char *)"FORCE24 ENABLE  ",
+					  &vs[screen]);
+			}
+		}
 			
 		if((data->screen_size == SIZ_25ROWS) ||
 		   (data->screen_size == SIZ_28ROWS) ||

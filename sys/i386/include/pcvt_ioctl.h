@@ -44,7 +44,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Thu Mar 30 10:38:23 1995]
+ * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Fri Apr  7 10:17:13 1995]
  *
  */
 
@@ -57,15 +57,16 @@
  *	-hm	version definitions moved to begin of file
  *	-hm	removed PCVT_FAKE_SYSCONS10
  *	-hm	accept KERNEL or _KERNEL
+ *	-hm	changed _IOCTL_PCVT_H_ to _MACHINE_PCVT_IOCTL_H_ (bde)
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef	_IOCTL_PCVT_H_
-#define	_IOCTL_PCVT_H_
+#ifndef	_MACHINE_PCVT_IOCTL_H_
+#define	_MACHINE_PCVT_IOCTL_H_
 
 /* pcvt version information for VGAPCVTID ioctl */
 
-#define PCVTIDNAME    "pcvt-b23"	/* driver id - string		*/
+#define PCVTIDNAME    "pcvt-b24"	/* driver id - string		*/
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
 #define PCVTIDMINOR   20		/* driver id - minor release	*/
 
@@ -413,7 +414,7 @@ struct pcvtid {				/* THIS STRUCTURE IS NOW FROZEN !!! */
 struct pcvtinfo {			/* compile time option values */
 	u_int opsys;			/* PCVT_xxx(x)BSD */
 #define CONF_UNKNOWNOPSYS	0
-#define CONF_386BSD		1
+#define CONF_386BSD		1	/* unsupported */
 #define CONF_NETBSD		2
 #define CONF_FREEBSD		3
 	u_int opsysrel;			/* Release */
@@ -442,14 +443,14 @@ struct pcvtinfo {			/* compile time option values */
 #define CONF_NULLCHARS		0x00000400
 #define CONF_BACKUP_FONTS	0x00000800
 #define CONF_SW0CNOUTP		0x00001000	/* was FORCE8BIT */
-#define CONF_NEEDPG		0x00002000
+				                /* 0x00002000 was NEEDPG */
 #define CONF_SETCOLOR		0x00004000
 #define CONF_132GENERIC		0x00008000
 #define CONF_PALFLICKER		0x00010000
 #define CONF_WAITRETRACE	0x00020000
 #define CONF_XSERVER		0x00040000
 #define CONF_USL_VT_COMPAT	0x00080000
-				/* 0x00100000 was FAKE_SYSCONS10 */
+#define CONF_PORTIO_DELAY	0x00100000 	/* was FAKE_SYSCONS10 */
 #define CONF_INHIBIT_NUMLOCK	0x00200000
 #define CONF_META_ESC		0x00400000
 #define CONF_NOFASTSCROLL	0x00800000
@@ -579,4 +580,4 @@ typedef struct keymap keymap_t;
 
 /* end of USL VT compatibility stuff */
 
-#endif	/* _IOCTL_PC_H_ */
+#endif	/* ! _MACHINE_PCVT_IOCTL_H_ */

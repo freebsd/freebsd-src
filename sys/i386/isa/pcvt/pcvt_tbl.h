@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_tbl.h, 3.20, Last Edit-Date: [Thu Jan  5 15:56:17 1995]
+ * @(#)pcvt_tbl.h, 3.20, Last Edit-Date: [Sun Apr  2 18:59:19 1995]
  *
  */
 

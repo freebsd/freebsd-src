@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Wed Feb 22 12:53:51 1995]
+ * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Sun Apr  2 18:59:08 1995]
  *
  */
 
