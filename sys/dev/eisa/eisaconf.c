@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.40 1999/04/19 07:58:34 peter Exp $
+ *	$Id: eisaconf.c,v 1.41 1999/04/19 13:34:25 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -376,9 +376,7 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-eisa_add_intr(dev, irq)
-	device_t dev;
-	int irq;
+eisa_add_intr(device_t dev, int irq)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 	struct	irq_node *irq_info;
@@ -395,12 +393,8 @@ eisa_add_intr(dev, irq)
 }
 
 static int
-eisa_add_resvaddr(e_dev, head, base, size, flags)
-	struct eisa_device *e_dev;
-	struct resvlist *head;
-	u_long	base;
-	u_long	size;
-	int	flags;
+eisa_add_resvaddr(struct eisa_device *e_dev, struct resvlist *head, u_long base,
+		  u_long size, int flags)
 {
 	resvaddr_t *reservation;
 
@@ -448,25 +442,19 @@ eisa_add_resvaddr(e_dev, head, base, size, flags)
 }
 
 int
-eisa_add_mspace(dev, mbase, msize, flags)
-	device_t dev;
-	u_long	mbase;
-	u_long	msize;
-	int	flags;
+eisa_add_mspace(device_t dev, u_long mbase, u_long msize, int flags)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
+
 	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.maddrs), mbase, msize,
 				  flags);
 }
 
 int
-eisa_add_iospace(dev, iobase, iosize, flags)
-	device_t dev;
-	u_long	iobase;
-	u_long	iosize;
-	int	flags;
+eisa_add_iospace(device_t dev, u_long iobase, u_long iosize, int flags)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
+
 	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), iobase,
 				  iosize, flags);
 }
