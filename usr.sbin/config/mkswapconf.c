@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkswapconf.c,v 1.13 1997/09/15 06:37:10 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -156,7 +156,8 @@ nametodev(name, defunit, defslice, defpartition)
 		cp++;
 	unit = *cp ? atoi(cp) : defunit;
 	if (unit < 0 || unit > 31) {
-		warnx("%s: invalid device specification, unit out of range", name);
+		warnx(
+		"%s: invalid device specification, unit out of range", name);
 		unit = defunit;			/* carry on more checking */
 	}
 	if (*cp) {
@@ -170,7 +171,8 @@ nametodev(name, defunit, defslice, defpartition)
 		if (*cp) {
 			slice = atoi(cp);
 			if (slice < 0 || slice >= MAX_SLICES - 1) {
-				warnx("%s: invalid device specification, slice out of range",
+				warnx(
+			"%s: invalid device specification, slice out of range",
 					cp);
 				slice = defslice;
 			}
