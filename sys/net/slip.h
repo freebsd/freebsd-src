@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $Id: slip.h,v 1.4 1995/03/30 20:43:32 ache Exp $
+ * $Id: slip.h,v 1.5 1995/04/28 18:47:29 ache Exp $
  */
 
 #ifndef _NET_SLIP_H_
-#define _NET_SLIP_H_
+#define	_NET_SLIP_H_
 
 /* Ioctls operating on SLIP ttys. */
-#define	SLIOCGUNIT	_IOR('t', 88, int)	/* get slip unit number	*/
+#define	SLIOCGUNIT	_IOR('t', 88, int)	/* get slip unit number */
 #define	SLIOCSKEEPAL	_IOW('t', 84, int)	/* set keepalive */
-#define	SLIOCSOUTFILL	_IOW('t', 83, int)	/* set out fill	time */
+#define	SLIOCSOUTFILL	_IOW('t', 83, int)	/* set out fill time */
 #define	SLIOCGKEEPAL	_IOR('t', 82, int)	/* get keepalive time */
-#define	SLIOCGOUTFILL	_IOR('t', 81, int)	/* get out fill	time */
-#define	SLIOCSUNIT	_IOW('t', 80, int)	/* set slip unit number	*/
+#define	SLIOCGOUTFILL	_IOR('t', 81, int)	/* get out fill time */
+#define	SLIOCSUNIT	_IOW('t', 80, int)	/* set slip unit number */
 
 /*
  * Definitions of the pseudo-link-level header attached to slip
@@ -57,6 +57,6 @@
 #define	CHDR_LEN	15		/* length of compressed header data */
 
 #define	SLIPDIR_IN	0		/* incoming */
-
-#endif
 #define	SLIPDIR_OUT	1		/* outgoing */
+
+#endif /* !_NET_SLIP_H */
