@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudioio.h,v 1.4 1995/05/30 08:00:44 rgrimes Exp $
+ *	$Id: pcaudioio.h,v 1.5 1996/01/30 22:54:42 mpp Exp $
  */
 
 #ifndef _PCAUDIOIO_H_
@@ -72,5 +72,9 @@ typedef struct audio_info {
 #define	AUDIO_SETINFO		_IOWR('A', 2, audio_info_t)
 #define	AUDIO_DRAIN		_IO('A', 3)
 #define	AUDIO_FLUSH		_IO('A', 4)
+
+/* compatibility to /dev/audio */
+#define AUDIO_COMPAT_DRAIN	_IO('P', 1)
+#define AUDIO_COMPAT_FLUSH	_IO('P', 0)
 
 #endif /*!_PCAUDIOIO_H*/
