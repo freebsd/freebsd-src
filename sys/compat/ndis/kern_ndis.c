@@ -83,6 +83,7 @@ __stdcall static void ndis_statusdone_func(ndis_handle);
 __stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
+__stdcall static void ndis_sendrsrcavail_func(ndis_handle);
 
 static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
 
@@ -121,6 +122,13 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
 
+
+__stdcall static void
+ndis_sendrsrcavail_func(adapter)
+	ndis_handle		adapter;
+{
+	return;
+}
 
 __stdcall static void
 ndis_status_func(adapter, status, sbuf, slen)
@@ -1162,6 +1170,7 @@ ndis_load_driver(img, arg)
 	block->nmb_status_func = ndis_status_func;
 	block->nmb_statusdone_func = ndis_statusdone_func;
 	block->nmb_resetdone_func = ndis_resetdone_func;
+	block->nmb_sendrsrc_func = ndis_sendrsrcavail_func;
 
 	block->nmb_ifp = &sc->arpcom.ac_if;
 	block->nmb_dev = sc->ndis_dev;

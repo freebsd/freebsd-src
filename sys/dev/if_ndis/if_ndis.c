@@ -222,7 +222,7 @@ ndis_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc		*sc;
-	struct ifnet		*ifp;
+	struct ifnet		*ifp = NULL;
 	int			unit, error = 0, rid, len;
 	void			*img;
 	struct ndis_type	*t;
@@ -588,7 +588,9 @@ fail:
 		ndis_detach(dev);
 
 	/* We're done talking to the NIC for now; halt it. */
+	ifp->if_flags |= IFF_UP;
 	ndis_halt_nic(sc);
+	ifp->if_flags &= ~IFF_UP;
 
 	return(error);
 }
