@@ -36,7 +36,6 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 
-
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -88,8 +87,8 @@ static vm_offset_t	 acpi_pmap_vtp(vm_offset_t va);
 static void		 acpi_free(struct acpi_softc *sc);
 
 /*
- * These data cannot be in acpi_softc because they should be initialized
- * before probing device.
+ * These items cannot be in acpi_softc because they are be initialized
+ * before probing for the device.
  */
 
 static struct	ACPIaddr acpi_addr;
@@ -97,42 +96,45 @@ struct		ACPIrsdp *acpi_rsdp;
 static int	acpi_port;
 static int	acpi_irq;
 
-/* Character device stuff */
+/* Character device */
 
 static d_open_t		acpiopen;
 static d_close_t	acpiclose;
 static d_ioctl_t	acpiioctl;
 static d_mmap_t		acpimmap;
+
 #define CDEV_MAJOR 152
 static struct cdevsw acpi_cdevsw = {
-	 /* open */	acpiopen,
-	 /* close */	acpiclose,
-	 /* read */	noread,
-	 /* write */	nowrite,
-	 /* ioctl */	acpiioctl,
-	 /* poll */	nopoll,
-	 /* mmap */	acpimmap,
-	 /* strategy */	nostrategy,
-	 /* name */	"acpi",
-	 /* maj */	CDEV_MAJOR,
-	 /* dump */	nodump,
-	 /* psize */	nopsize,
-	 /* flags */	0,
-	 /* bmaj */	 -1
+	acpiopen,
+	acpiclose,
+	noread,
+	nowrite,
+	acpiioctl,
+	nopoll,
+	acpimmap,
+	nostrategy,
+	"acpi",
+	CDEV_MAJOR,
+	nodump,
+	nopsize,
+	0,
+	-1
 };
 
-/* ACPI registers stuff */
-#define	ACPI_REGISTERS_INPUT	0
-#define	ACPI_REGISTERS_OUTPUT	1
+/* 
+ * ACPI register I/O 
+ */
+#define	ACPI_REGISTER_INPUT	0
+#define	ACPI_REGISTER_OUTPUT	1
 static void acpi_register_input(u_int32_t ioaddr,
-				 u_int32_t *value, u_int32_t size);
+				u_int32_t *value, u_int32_t size);
 static void acpi_register_output(u_int32_t ioaddr,
 				 u_int32_t *value, u_int32_t size);
 static void acpi_enable_disable(acpi_softc_t *sc, boolean_t enable);
 static void acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io,
-				u_int32_t *a, u_int32_t *b);
+			       u_int32_t *a, u_int32_t *b);
 static void acpi_io_pm1_enable(acpi_softc_t *sc, boolean_t io,
-				u_int32_t *a, u_int32_t *b);
+			       u_int32_t *a, u_int32_t *b);
 static void acpi_io_pm1_control(acpi_softc_t *sc, boolean_t io,
 				u_int32_t *a, u_int32_t *b);
 static void acpi_io_pm2_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
@@ -142,20 +144,26 @@ static void acpi_io_gpe0_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
 static void acpi_io_gpe1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
 static void acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val);
 
-/* Miscellous utility functions */
+/* 
+ * Miscellous utility functions 
+ */
 static int  acpi_sdt_checksum(struct ACPIsdt * sdt);
 static void acpi_handle_dsdt(acpi_softc_t *sc);
 static void acpi_handle_facp(acpi_softc_t *sc, struct ACPIsdt *facp);
 static int  acpi_handle_rsdt(acpi_softc_t *sc);
 
-/* System sleeping state stuff */
+/* 
+ * System sleeping state
+ */
 static void acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state);
 static void acpi_soft_off(void *data, int howto);
 static void acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state);
 static void acpi_execute_pts(acpi_softc_t *sc, u_int8_t state);
 static void acpi_execute_wak(acpi_softc_t *sc, u_int8_t state);
 
-/* ACPI event stuff */
+/* 
+ * ACPI events
+ */
 static void acpi_process_event(acpi_softc_t *sc,
 			       u_int32_t status_a, u_int32_t status_b,
 			       u_int32_t status_0, u_int32_t status_1);
@@ -163,13 +171,17 @@ static void acpi_intr(void *data);
 static void acpi_enable_events(acpi_softc_t *sc);
 static void acpi_clear_ignore_events(void *arg);
 
-/* New-bus dependent code */
+/*
+ * Bus interface 
+ */
 static int  acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state);
 static void acpi_identify(driver_t *driver, device_t parent);
 static int  acpi_probe(device_t dev);
 static int  acpi_attach(device_t dev);
 
-/*Thread stuff*/
+/*
+ * Event thread
+ */
 static void acpi_event_thread(void *);
 static void acpi_start_threads(void *);
 
@@ -179,15 +191,8 @@ static	int	acpi_debug = 1;
 #else	/* !ACPI_DEBUG */
 static	int	acpi_debug = 0;
 #endif	/* ACPI_DEBUG */
+
 SYSCTL_INT(_debug, OID_AUTO, acpi_debug, CTLFLAG_RW, &acpi_debug, 1, "");
-
-#define ACPI_DEVPRINTF(args...)		printf("acpi0: " args)
-#define ACPI_DEBUGPRINT(args...) do {					\
-	if (acpi_debug) {						\
-		ACPI_DEVPRINTF(args);					\
-	}								\
-} while(0)
-
 
 /*
  * ACPI pmap subsystem
@@ -196,7 +201,6 @@ SYSCTL_INT(_debug, OID_AUTO, acpi_debug, CTLFLAG_RW, &acpi_debug, 1, "");
 void
 acpi_init_addr_range()
 {
-
 	acpi_addr.entries = 0;
 }
 
@@ -242,10 +246,10 @@ acpi_pmap_init()
 
 	for (i = 0; i < acpi_addr.entries; i++) {
 		va = (vm_offset_t) pmap_mapdev(acpi_addr.t[i].pa_base,
-		    acpi_addr.t[i].size);
+					       acpi_addr.t[i].size);
 		acpi_addr.t[i].va_base = va;
 		ACPI_DEBUGPRINT("ADDR RANGE %x %x (mapped 0x%x)\n",
-		    acpi_addr.t[i].pa_base, acpi_addr.t[i].size, va);
+				acpi_addr.t[i].pa_base, acpi_addr.t[i].size, va);
 	}
 }
 
@@ -301,15 +305,15 @@ acpi_pmap_vtp(vm_offset_t va)
 /*
  * ACPI Register I/O
  */
-
 void
 acpi_gpe_enable_bit(acpi_softc_t *sc, u_int32_t bit, boolean_t on_off)
 {
 	int		x;
 	u_int32_t	pos, value;
 	void		(*GPEx_EN[])(acpi_softc_t *, boolean_t, u_int32_t *) = {
-				acpi_io_gpe0_enable, acpi_io_gpe0_enable
-			};
+		acpi_io_gpe0_enable, 
+		acpi_io_gpe0_enable
+	};
 
 	x = -1;
 	pos = bit;
@@ -325,9 +329,9 @@ acpi_gpe_enable_bit(acpi_softc_t *sc, u_int32_t bit, boolean_t on_off)
 		return;
 	}
 
-	GPEx_EN[x](sc, ACPI_REGISTERS_INPUT, &value);
+	GPEx_EN[x](sc, ACPI_REGISTER_INPUT, &value);
 	value = (value & (~(1 << pos))) | (on_off << pos);
-	GPEx_EN[x](sc, ACPI_REGISTERS_OUTPUT, &value);
+	GPEx_EN[x](sc, ACPI_REGISTER_OUTPUT, &value);
 }
 
 static __inline void
@@ -348,14 +352,8 @@ acpi_register_input(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 		val = bus_space_read_2(bst, bsh, 0);
 		break;
 	case 3:
-#if 0
-		val  = bus_space_read_2(bst, bsh, 0);
-		val |= bus_space_read_1(bst, bsh, 2) << 16;
-#else
-		/* or can we do this? */
 		val = bus_space_read_4(bst, bsh, 0);
 		val &= 0x00ffffff;
-#endif
 		break;
 	case 4:
 		val = bus_space_read_4(bst, bsh, 0);
@@ -426,15 +424,15 @@ acpi_enable_disable(acpi_softc_t *sc, boolean_t enable)
 
 static void
 acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *status_a,
-    u_int32_t *status_b)
+		   u_int32_t *status_b)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = facp->pm1_evt_len / 2;
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->pm1a_evt_blk, status_a, size);
 
 		*status_b = 0;
@@ -450,55 +448,55 @@ acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *status_a,
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_pm1_status(%d) = (%x, %x)\n",
-	    io, *status_a, *status_b);
+			io, *status_a, *status_b);
 
 	return;
 }
 
 static void
 acpi_io_pm1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *status_a,
-    u_int32_t *status_b)
+		   u_int32_t *status_b)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody *facp;
 
 	facp = sc->facp_body;
 	size = facp->pm1_evt_len / 2;
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->pm1a_evt_blk + size, status_a, size);
 
 		*status_b = 0;
 		if (facp->pm1b_evt_blk) {
 			acpi_register_input(facp->pm1b_evt_blk + size,
-			    status_b, size);
+					    status_b, size);
 		}
 	} else {
 		acpi_register_output(facp->pm1a_evt_blk + size, status_a, size);
 
 		if (facp->pm1b_evt_blk) {
 			acpi_register_output(facp->pm1b_evt_blk + size,
-			    status_b, size);
+					     status_b, size);
 		}
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_pm1_enable(%d) = (%x, %x)\n",
-	    io, *status_a, *status_b);
+			io, *status_a, *status_b);
 
 	return;
 }
 
 static void
 acpi_io_pm1_control(acpi_softc_t *sc, boolean_t io, u_int32_t *value_a,
-    u_int32_t *value_b)
+		    u_int32_t *value_b)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = facp->pm1_cnt_len;
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->pm1a_cnt_blk, value_a, size);
 
 		*value_b = 0;
@@ -514,7 +512,7 @@ acpi_io_pm1_control(acpi_softc_t *sc, boolean_t io, u_int32_t *value_a,
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_pm1_control(%d) = (%x, %x)\n",
-	    io, *value_a, *value_b);
+			io, *value_a, *value_b);
 
 	return;
 }
@@ -523,7 +521,7 @@ static void
 acpi_io_pm2_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = facp->pm2_cnt_len;
@@ -532,7 +530,7 @@ acpi_io_pm2_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 		return;	/* optional */
 	}
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->pm2_cnt_blk, val, size);
 	} else {
 		acpi_register_output(facp->pm2_cnt_blk, val, size);
@@ -547,12 +545,12 @@ static void
 acpi_io_pm_timer(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = 0x4;	/* 32-bits */
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->pm_tmr_blk, val, size);
 	} else {
 		return;	/* XXX read-only */
@@ -567,7 +565,7 @@ static void
 acpi_io_gpe0_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct	FACPbody *facp;
 
 	facp = sc->facp_body;
 	size = facp->gpe0_len / 2;
@@ -576,7 +574,7 @@ acpi_io_gpe0_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 		return;	/* optional */
 	}
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->gpe0_blk, val, size);
 	} else {
 		acpi_register_output(facp->gpe0_blk, val, size);
@@ -591,7 +589,7 @@ static void
 acpi_io_gpe0_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct	FACPbody *facp;
 
 	facp = sc->facp_body;
 	size = facp->gpe0_len / 2;
@@ -600,7 +598,7 @@ acpi_io_gpe0_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 		return;	/* optional */
 	}
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->gpe0_blk + size, val, size);
 	} else {
 		acpi_register_output(facp->gpe0_blk + size, val, size);
@@ -615,7 +613,7 @@ static void
 acpi_io_gpe1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = facp->gpe1_len / 2;
@@ -624,7 +622,7 @@ acpi_io_gpe1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 		return;	/* optional */
 	}
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->gpe1_blk, val, size);
 	} else {
 		acpi_register_output(facp->gpe1_blk, val, size);
@@ -639,7 +637,7 @@ static void
 acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 {
 	int		size;
-	struct		FACPbody *facp;
+	struct FACPbody	*facp;
 
 	facp = sc->facp_body;
 	size = facp->gpe1_len / 2;
@@ -648,7 +646,7 @@ acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 		return;	/* optional */
 	}
 
-	if (io == ACPI_REGISTERS_INPUT) {
+	if (io == ACPI_REGISTER_INPUT) {
 		acpi_register_input(facp->gpe1_blk + size, val, size);
 	} else {
 		acpi_register_output(facp->gpe1_blk + size, val, size);
@@ -666,8 +664,8 @@ acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 static int
 acpi_sdt_checksum(struct ACPIsdt *sdt)
 {
-	u_char		cksm, *ckbf;
-	int		i;
+	u_char	cksm, *ckbf;
+	int	i;
 
 	cksm = 0;
 	ckbf = (u_char *) sdt;
@@ -681,19 +679,19 @@ acpi_sdt_checksum(struct ACPIsdt *sdt)
 static void
 acpi_handle_dsdt(acpi_softc_t *sc)
 {
-	int		i;
-	int		debug;
-	struct		aml_name *newname, *sname;
-	union		aml_object *spkg;
-	struct		aml_name_group *newgrp;
-	struct		ACPIsdt *dsdp;
-	char		namestr[5];
-	struct		aml_environ env;
-	struct		acpi_system_state_package ssp;
+	int					i;
+	int					debug;
+	struct aml_name				*newname, *sname;
+	union aml_object			*spkg;
+	struct aml_name_group			*newgrp;
+	struct ACPIsdt				*dsdp;
+	char					namestr[5];
+	struct aml_environ			env;
+	struct acpi_system_state_package	ssp;
 
 	/*
-	 * XXX IBM TP laptops are expecting "Microsoft Windows*" as
-	 * \_OS_ string, so we create it anyway :-(
+	 * Some systems (eg. IBM laptops) expect "Microsoft Windows*" as
+	 * \_OS_ string, so we create it anyway.
 	 */
 	aml_new_name_group(AML_NAME_GROUP_OS_DEFINED);
 	env.curname = aml_get_rootname();
@@ -702,7 +700,9 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 	newname->property->str.needfree = 0;
 	newname->property->str.string = "Microsoft Windows NG";
 
-	/* make namespace up */
+	/* 
+	 * Create namespace. 
+	 */
 	dsdp = sc->dsdt;
 	newgrp = aml_new_name_group((int)dsdp->body);
 
@@ -711,7 +711,9 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 	env.end = (u_int8_t *)dsdp + dsdp->len;
 	env.curname = aml_get_rootname();
 
-	/* shut up during the parsing */
+	/* 
+	 * Suppress debugging during AML parsing.
+	 */
 	debug = aml_debug;
 	aml_debug = 0;
 
@@ -725,7 +727,9 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 		aml_showtree(aml_get_rootname(), 0);
 	}
 
-	/* get sleeping type values from ACPI namespace */
+	/* 
+	 * Get sleeping type values from ACPI namespace.
+	 */
 	sc->system_state = ACPI_S_STATE_S0;
 	sc->system_state_initialized = 1;
 	for (i = ACPI_S_STATE_S0; i <= ACPI_S_STATE_S5; i++) {
@@ -750,7 +754,7 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 		ssp.mode[i].slp_typ_a = spkg->package.objects[0]->num.number;
 		ssp.mode[i].slp_typ_b = spkg->package.objects[1]->num.number;
 		ACPI_DEBUGPRINT("%s : [%d, %d]\n", namestr,
-		    ssp.mode[i].slp_typ_a, ssp.mode[i].slp_typ_b);
+				ssp.mode[i].slp_typ_a, ssp.mode[i].slp_typ_b);
 	}
 	sc->system_state_package = ssp;
 
@@ -773,9 +777,9 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 static void
 acpi_handle_facp(acpi_softc_t *sc, struct ACPIsdt *facp)
 {
-	struct		ACPIsdt *dsdt;
-	struct		FACPbody *body;
-	struct		FACS *facs;
+	struct ACPIsdt	*dsdt;
+	struct FACPbody	*body;
+	struct FACS	*facs;
 
 	body = (struct FACPbody *)facp->body;
 
@@ -810,7 +814,7 @@ acpi_handle_facp(acpi_softc_t *sc, struct ACPIsdt *facp)
 
 	/*
 	 * FACS has no checksum (modified by both OS and BIOS) and in many
-	 * cases,It is in NVS area.
+	 * cases, it is in nonvolatile storage.
 	 */
 	if (strncmp(facs->signature, "FACS", 4) == 0) {
 		sc->facs = facs;
@@ -830,7 +834,7 @@ acpi_handle_rsdt(acpi_softc_t *sc)
 	u_int32_t	*ptrs;
 	int		entries;
 	int		i;
-	struct		ACPIsdt *rsdt, *sdt;
+	struct ACPIsdt	*rsdt, *sdt;
 	char		sigstring[5];
 
 	rsdt = (struct ACPIsdt *) acpi_pmap_ptv(acpi_rsdp->addr);
@@ -844,7 +848,7 @@ acpi_handle_rsdt(acpi_softc_t *sc)
 		return (-1);
 	}
 	if (sc != NULL)
-	    sc->rsdt = rsdt;
+		sc->rsdt = rsdt;
 	entries = (rsdt->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
 	ACPI_DEBUGPRINT("RSDT have %d entries\n", entries);
 	ptrs = (u_int32_t *) & rsdt->body;
@@ -877,12 +881,13 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	u_long		ef;
 
 	/* XXX should be MI */
+	/* XXX should always be called with interrupts enabled! */
 	ef = read_eflags();
 	disable_intr();
 
 	if (state > ACPI_S_STATE_S0) {
 		/* clear WAK_STS bit by writing a one */
-		acpi_io_pm1_status(sc, ACPI_REGISTERS_INPUT, &val_a, &val_b);
+		acpi_io_pm1_status(sc, ACPI_REGISTER_INPUT, &val_a, &val_b);
 		if ((val_a | val_b) & ACPI_PM1_WAK_STS) {
 			sc->broken_wakeuplogic = 0;
 		} else {
@@ -893,21 +898,21 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 		val_a = val_b = 0;
 		val_a = ACPI_PM1_WAK_STS;
 		val_b = ACPI_PM1_WAK_STS;
-		acpi_io_pm1_status(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
+		acpi_io_pm1_status(sc, ACPI_REGISTER_OUTPUT, &val_a, &val_b);
 
 		/* ignore power button and sleep button events for 5 sec. */
 		sc->ignore_events = ACPI_PM1_PWRBTN_EN | ACPI_PM1_SLPBTN_EN;
 		timeout(acpi_clear_ignore_events, (caddr_t)sc, hz * 5);
 	}
 
-	acpi_io_pm1_control(sc, ACPI_REGISTERS_INPUT, &val_a, &val_b);
+	acpi_io_pm1_control(sc, ACPI_REGISTER_INPUT, &val_a, &val_b);
 	val_a  &= ~(ACPI_CNT_SLP_TYPX);
 	val_b  &= ~(ACPI_CNT_SLP_TYPX);
 	slp_typx = sc->system_state_package.mode[state].slp_typ_a;
 	val_a  |= ACPI_CNT_SET_SLP_TYP(slp_typx) | ACPI_CNT_SLP_EN;
 	slp_typx = sc->system_state_package.mode[state].slp_typ_b;
 	val_b  |= ACPI_CNT_SET_SLP_TYP(slp_typx) | ACPI_CNT_SLP_EN;
-	acpi_io_pm1_control(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
+	acpi_io_pm1_control(sc, ACPI_REGISTER_OUTPUT, &val_a, &val_b);
 
 	if (state == ACPI_S_STATE_S0) {
 		goto sleep_done;
@@ -921,7 +926,7 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 
 	count = 0;
 	for (;;) {
-		acpi_io_pm1_status(sc, ACPI_REGISTERS_INPUT, &val_a, &val_b);
+		acpi_io_pm1_status(sc, ACPI_REGISTER_INPUT, &val_a, &val_b);
 		if ((val_a | val_b) & ACPI_PM1_WAK_STS) {
 			break;
 		}
@@ -947,16 +952,17 @@ static void
 acpi_soft_off(void *data, int howto)
 {
 	acpi_softc_t	*sc;
-	u_int32_t vala=0;
+	u_int32_t	vala = 0;
+
 	if (!(howto & RB_POWEROFF)) {
 		return;
 	}
 	sc = (acpi_softc_t *) data;
 	acpi_execute_pts(sc, ACPI_S_STATE_S5);
 
-	/*XXX Disable GPE intrrupt,or power on again in some machine*/
-	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &vala);
-	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &vala);
+	/* XXX Disable GPE intrrupt,or power on again in some machine */
+	acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT, &vala);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT, &vala);
 
 	acpi_trans_sleeping_state(sc, ACPI_S_STATE_S5);
 }
@@ -999,7 +1005,7 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	}
 
 	/*
-	 * XXX currently supported S1 and S5 only.
+	 * XXX currently support S1 and S5 only.
 	 */
 	switch (state) {
 	case ACPI_S_STATE_S0:
@@ -1029,7 +1035,7 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 static void
 acpi_execute_pts(acpi_softc_t *sc, u_int8_t state)
 {
-	union		aml_object argv[1], *retval;
+	union aml_object	argv[1], *retval;
 
 	argv[0].type = aml_t_num;
 	argv[0].num.number = state;
@@ -1041,7 +1047,7 @@ acpi_execute_pts(acpi_softc_t *sc, u_int8_t state)
 static void
 acpi_execute_wak(acpi_softc_t *sc, u_int8_t state)
 {
-	union		aml_object argv[1], *retval;
+	union aml_object	argv[1], *retval;
 
 	argv[0].type = aml_t_num;
 	argv[0].num.number = state;
@@ -1049,7 +1055,8 @@ acpi_execute_wak(acpi_softc_t *sc, u_int8_t state)
 	retval = aml_invoke_method_by_name("_WAK", 1, argv);
 	aml_local_stack_delete(aml_local_stack_pop());
 
-	/* XXX These shouldn't be here, but tentatively implemented.
+	/* 
+	 * XXX These shouldn't be here, but tentatively implemented.
 	 * Sample application of aml_apply_foreach_found_objects().
 	 * We try to find and evaluate all of objects which have specified
 	 * string. As the result, Battery Information, Battery Status and
@@ -1061,14 +1068,13 @@ acpi_execute_wak(acpi_softc_t *sc, u_int8_t state)
 }
 
 /*
- * ACPI event stuff
+ * ACPI events
  */
 
 static void
 acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
-    u_int32_t status_0, u_int32_t status_1)
+		   u_int32_t status_0, u_int32_t status_1)
 {
-
 	int i;
 	
 	if (status_a & ACPI_PM1_PWRBTN_EN || status_b & ACPI_PM1_PWRBTN_EN) {
@@ -1078,14 +1084,13 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
 #if 1
 			acpi_set_sleeping_state(sc, ACPI_S_STATE_S5);
 #else
-			/*If there is ACPI userland daemon,
-			  this event should be
-			  passed to it,so that user can determine power policy
-			  and process some on userland (Not yet)*/
+			/*
+			 * If there is ACPI userland daemon,
+			 * this event should be passed to it
+			 * so that the user can determine power policy.
+			 */
 			acpi_queue_event(sc, ACPI_EVENT_TYPE_FIXEDREG, 0);
 #endif
-
-
 		}
 	}
 
@@ -1105,9 +1110,8 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
 			acpi_queue_event(sc, ACPI_EVENT_TYPE_GPEREG, i);
 	for(i = 0; i < sc->facp_body->gpe1_len * 4 ; i++)
 		if((status_1 & (1 << i)) && (sc->gpe1_mask & (1 << i)))
-				acpi_queue_event(sc, ACPI_EVENT_TYPE_GPEREG,
-				    i + sc->facp_body->gpe1_base);
-
+			acpi_queue_event(sc, ACPI_EVENT_TYPE_GPEREG,
+					 i + sc->facp_body->gpe1_base);
 }
 
 static void
@@ -1119,18 +1123,24 @@ acpi_intr(void *data)
 	int		debug;
 	acpi_softc_t	*sc;
 
-	sc = (acpi_softc_t *) data;
+	sc = (acpi_softc_t *)data;
 	debug = acpi_debug;	/* Save debug level */
 	acpi_debug = 0;		/* Shut up */
 
-	/* Power Management 1 Status Registers */
+	/* 
+	 * Power Management 1 Status Registers 
+	 */
 	status_a = status_b = enable_a = enable_b = 0;
-	acpi_io_pm1_status(sc, ACPI_REGISTERS_INPUT, &status_a, &status_b);
+	acpi_io_pm1_status(sc, ACPI_REGISTER_INPUT, &status_a, &status_b);
 
-	/* Get Current Interrupt Mask */
-	acpi_io_pm1_enable(sc, ACPI_REGISTERS_INPUT, &enable_a, &enable_b);
+	/* 
+	 * Get current interrupt mask
+	 */
+	acpi_io_pm1_enable(sc, ACPI_REGISTER_INPUT, &enable_a, &enable_b);
 
-	/* Disable events and re-enable again */
+	/* 
+	 * Disable events and re-enable again
+	 */
 	if ((status_a & enable_a) != 0 || (status_b & enable_b) != 0) {
 		acpi_debug = debug;	/* OK, you can speak */
 
@@ -1139,28 +1149,34 @@ acpi_intr(void *data)
 		/* Disable all interrupt generation */
 		val_a = enable_a & (~ACPI_PM1_ALL_ENABLE_BITS);
 		val_b = enable_b & (~ACPI_PM1_ALL_ENABLE_BITS);
-		acpi_io_pm1_enable(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
+		acpi_io_pm1_enable(sc, ACPI_REGISTER_OUTPUT, &val_a, &val_b);
 
 		/* Clear interrupt status */
 		val_a = enable_a & ACPI_PM1_ALL_ENABLE_BITS;
 		val_b = enable_b & ACPI_PM1_ALL_ENABLE_BITS;
-		acpi_io_pm1_status(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
+		acpi_io_pm1_status(sc, ACPI_REGISTER_OUTPUT, &val_a, &val_b);
 
 		/* Re-enable interrupt */
-		acpi_io_pm1_enable(sc, ACPI_REGISTERS_OUTPUT,
-		    &enable_a, &enable_b);
+		acpi_io_pm1_enable(sc, ACPI_REGISTER_OUTPUT,
+				   &enable_a, &enable_b);
 
 		acpi_debug = 0;		/* Shut up again */
 	}
 
-	/* General-Purpose Events 0 Status Registers */
+	/* 
+	 * General-Purpose Events 0 Status Registers
+	 */
 	status_0 = enable_0 = 0;
-	acpi_io_gpe0_status(sc, ACPI_REGISTERS_INPUT, &status_0);
+	acpi_io_gpe0_status(sc, ACPI_REGISTER_INPUT, &status_0);
 
-	/* Get Current Interrupt Mask */
-	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_INPUT, &enable_0);
+	/* 
+	 * Get current interrupt mask 
+	 */
+	acpi_io_gpe0_enable(sc, ACPI_REGISTER_INPUT, &enable_0);
 
-	/* Disable events and re-enable again */
+	/* 
+	 * Disable events and re-enable again 
+	 */
 	if ((status_0 & enable_0) != 0) {
 		acpi_debug = debug;	/* OK, you can speak */
 
@@ -1172,27 +1188,33 @@ acpi_intr(void *data)
 		/* or should we disable all? */
 		val_a = 0x0;
 #endif
-		acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &val_a);
+		acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT, &val_a);
 #if 0
 		/* Clear interrupt status */
 		val_a = enable_0;	/* XXX */
-		acpi_io_gpe0_status(sc, ACPI_REGISTERS_OUTPUT, &val_a);
+		acpi_io_gpe0_status(sc, ACPI_REGISTER_OUTPUT, &val_a);
 
 		/* Re-enable interrupt */
-		acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &enable_0);
+		acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT, &enable_0);
 
 		acpi_debug = 0;		/* Shut up again */
 #endif
 	}
 
-	/* General-Purpose Events 1 Status Registers */
+	/*
+	 * General-Purpose Events 1 Status Registers
+	 */
 	status_1 = enable_1 = 0;
-	acpi_io_gpe1_status(sc, ACPI_REGISTERS_INPUT, &status_1);
+	acpi_io_gpe1_status(sc, ACPI_REGISTER_INPUT, &status_1);
 
-	/* Get Current Interrupt Mask */
-	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_INPUT, &enable_1);
+	/*
+	  Get current interrupt mask
+	*/
+	acpi_io_gpe1_enable(sc, ACPI_REGISTER_INPUT, &enable_1);
 
-	/* Disable events and re-enable again */
+	/*
+	 * Disable events and re-enable again
+	 */
 	if ((status_1 & enable_1) != 0) {
 		acpi_debug = debug;	/* OK, you can speak */
 
@@ -1204,14 +1226,14 @@ acpi_intr(void *data)
 		/* or should we disable all? */
 		val_a = 0x0;
 #endif
-		acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &val_a);
+		acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT, &val_a);
 
 		/* Clear interrupt status */
 		val_a = enable_1;	/* XXX */
-		acpi_io_gpe1_status(sc, ACPI_REGISTERS_OUTPUT, &val_a);
+		acpi_io_gpe1_status(sc, ACPI_REGISTER_OUTPUT, &val_a);
 
 		/* Re-enable interrupt */
-		acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &enable_1);
+		acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT, &enable_1);
 
 		acpi_debug = 0;		/* Shut up again */
 	}
@@ -1222,21 +1244,22 @@ acpi_intr(void *data)
 	acpi_process_event(sc, status_a, status_b, status_0, status_1);
 }
 
-static int acpi_set_gpe_bits(struct aml_name *name,va_list ap)
+static int acpi_set_gpe_bits(struct aml_name *name, va_list ap)
 {
-	struct acpi_softc *sc=va_arg(ap, struct acpi_softc *);
-	int *gpemask0 = va_arg(ap, int *);
-	int *gpemask1 = va_arg(ap, int *);
-	int gpenum;
+	struct acpi_softc	*sc = va_arg(ap, struct acpi_softc *);
+	int			*gpemask0 = va_arg(ap, int *);
+	int			*gpemask1 = va_arg(ap, int *);
+	int			gpenum;
+
 #define XDIGITTONUM(c) ((isdigit(c)) ? ((c) - '0') : ('A' <= (c)&& (c) <= 'F') ? ((c) - 'A' + 10) : 0)
-	if(isxdigit(name->name[2]) && isxdigit(name->name[3])){
+
+	if (isxdigit(name->name[2]) && isxdigit(name->name[3])) {
  		gpenum = XDIGITTONUM(name->name[2]) * 16 + 
-		  XDIGITTONUM(name->name[3]);
-		ACPI_DEBUGPRINT("GPENUM %d %d \n", gpenum, 
-			       sc->facp_body->gpe0_len * 4);
-		if(gpenum < (sc->facp_body->gpe0_len * 4)){
+			XDIGITTONUM(name->name[3]);
+		ACPI_DEBUGPRINT("GPENUM %d %d \n", gpenum, sc->facp_body->gpe0_len * 4);
+		if (gpenum < (sc->facp_body->gpe0_len * 4)) {
 			*gpemask0 |= (1 << gpenum);
-		}else{
+		} else {
 			*gpemask1 |= (1 << (gpenum - sc->facp_body->gpe1_base));
 		}
 	}
@@ -1254,7 +1277,7 @@ acpi_enable_events(acpi_softc_t *sc)
 	 * Setup PM1 Enable Registers Fixed Feature Enable Bits (4.7.3.1.2)
 	 * based on flags field of Fixed ACPI Description Table (5.2.5).
 	 */
-	acpi_io_pm1_enable(sc, ACPI_REGISTERS_INPUT, &status_a, &status_b);
+	acpi_io_pm1_enable(sc, ACPI_REGISTER_INPUT, &status_a, &status_b);
 	flags = sc->facp_body->flags;
 	if ((flags & ACPI_FACP_FLAG_PWR_BUTTON) == 0) {
 		status_a |= ACPI_PM1_PWRBTN_EN;
@@ -1264,7 +1287,7 @@ acpi_enable_events(acpi_softc_t *sc)
 		status_a |= ACPI_PM1_SLPBTN_EN;
 		status_b |= ACPI_PM1_SLPBTN_EN;
 	}
-	acpi_io_pm1_enable(sc, ACPI_REGISTERS_OUTPUT, &status_a, &status_b);
+	acpi_io_pm1_enable(sc, ACPI_REGISTER_OUTPUT, &status_a, &status_b);
 
 #if 1
 	/*
@@ -1279,45 +1302,42 @@ acpi_enable_events(acpi_softc_t *sc)
 	sc->gpe0_mask = status_a;
 	sc->gpe1_mask = status_b;
 
-	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT, &status_a);
-	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT, &status_b);
+	acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT, &status_a);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT, &status_b);
 #endif
 
 	/* print all event status for debugging */
-	acpi_io_pm1_status(sc, ACPI_REGISTERS_INPUT, &status_a, &status_b);
-	acpi_io_pm1_enable(sc, ACPI_REGISTERS_INPUT,  &status_a, &status_b);
-	acpi_io_gpe0_status(sc, ACPI_REGISTERS_INPUT, &status_a);
-	acpi_io_gpe0_enable(sc, ACPI_REGISTERS_INPUT, &status_a);
-	acpi_io_gpe1_status(sc, ACPI_REGISTERS_INPUT, &status_a);
-	acpi_io_gpe1_enable(sc, ACPI_REGISTERS_INPUT, &status_a);
-	acpi_io_pm1_control(sc, ACPI_REGISTERS_INPUT,  &status_a, &status_b);
-	acpi_io_pm2_control(sc, ACPI_REGISTERS_INPUT,  &status_a);
-	acpi_io_pm_timer(sc, ACPI_REGISTERS_INPUT,  &status_a);
+	acpi_io_pm1_status(sc, ACPI_REGISTER_INPUT, &status_a, &status_b);
+	acpi_io_pm1_enable(sc, ACPI_REGISTER_INPUT,  &status_a, &status_b);
+	acpi_io_gpe0_status(sc, ACPI_REGISTER_INPUT, &status_a);
+	acpi_io_gpe0_enable(sc, ACPI_REGISTER_INPUT, &status_a);
+	acpi_io_gpe1_status(sc, ACPI_REGISTER_INPUT, &status_a);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTER_INPUT, &status_a);
+	acpi_io_pm1_control(sc, ACPI_REGISTER_INPUT,  &status_a, &status_b);
+	acpi_io_pm2_control(sc, ACPI_REGISTER_INPUT,  &status_a);
+	acpi_io_pm_timer(sc, ACPI_REGISTER_INPUT,  &status_a);
 }
 
 static void
 acpi_clear_ignore_events(void *arg)
 {
-
 	((acpi_softc_t *)arg)->ignore_events = 0;
 	ACPI_DEBUGPRINT("ignore events cleared\n");
 }
 
 /*
- * Character device stuff
+ * Character device
  */
 
 static int
 acpiopen(dev_t dev, int flag, int fmt, struct proc * p)
 {
-
 	return (0);
 }
 
 static int
 acpiclose(dev_t dev, int flag, int fmt, struct proc * p)
 {
-
 	return (0);
 }
 
@@ -1364,7 +1384,7 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc * p)
 static int
 acpimmap(dev_t dev, vm_offset_t offset, int nprot)
 {
-	acpi_softc_t *sc = (struct acpi_softc *)dev->si_drv1;
+	acpi_softc_t	*sc = (struct acpi_softc *)dev->si_drv1;
 
 	if (sc == NULL) {
 		return (EINVAL);
@@ -1374,7 +1394,7 @@ acpimmap(dev_t dev, vm_offset_t offset, int nprot)
 }
 
 /*
- * New-bus dependent code
+ * Bus interface
  */
 
 static devclass_t acpi_devclass;
@@ -1532,7 +1552,7 @@ acpi_attach(device_t dev)
 static int
 acpi_detach(device_t dev)
 {
-	struct acpi_softc *sc = device_get_softc(dev);
+	acpi_softc_t	*sc = device_get_softc(dev);
 	
 	/* acpi_disable_events(sc); */
 	acpi_enable_disable(sc, 0);
@@ -1596,8 +1616,8 @@ DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, 0, 0);
 
 void acpi_queue_event(acpi_softc_t *sc, int type, int arg)
 {
-	struct acpi_event *ae;
-	int s;
+	struct acpi_event	*ae;
+	int			s;
 
 	ae = malloc(sizeof(*ae), M_TEMP, M_NOWAIT);
 	if(ae == NULL)
@@ -1613,19 +1633,20 @@ void acpi_queue_event(acpi_softc_t *sc, int type, int arg)
 
 void acpi_event_thread(void *arg)
 {
-	acpi_softc_t *sc = arg;
-	int s,gpe1_base = sc->facp_body->gpe1_base;
-	u_int32_t status,bit;
-	struct acpi_event *ae;
-	const char numconv[] = {'0','1','2','3','4','5','6','7','8','9',
-			     'A','B','C','D','E','F',-1};
-	char gpemethod[] = "\\_GPE._LXX";
-	union aml_object argv;/* Dummy*/
-	while(1){
+	acpi_softc_t		*sc = arg;
+	int			s , gpe1_base = sc->facp_body->gpe1_base;
+	u_int32_t		status,bit;
+	struct acpi_event	*ae;
+	const char		numconv[] = {'0','1','2','3','4','5','6','7',
+					     '8','9','A','B','C','D','E','F',-1};
+	char			gpemethod[] = "\\_GPE._LXX";
+	union aml_object	argv;	/* Dummy*/
+
+	while(1) {
 		s = splhigh();
-		if((ae = STAILQ_FIRST(&sc->event)) == NULL){
+		if ((ae = STAILQ_FIRST(&sc->event)) == NULL) {
 			splx(s);
-			tsleep(&sc->event, PWAIT, "acpiev",0);
+			tsleep(&sc->event, PWAIT, "acpiev", 0);
 			continue;
 		} else {
 			splx(s);
@@ -1633,38 +1654,37 @@ void acpi_event_thread(void *arg)
 		s = splhigh();
 		STAILQ_REMOVE_HEAD_UNTIL(&sc->event, ae, ae_q);
 		splx(s);
-		switch(ae->ae_type){
+		switch(ae->ae_type) {
 		case ACPI_EVENT_TYPE_GPEREG:
 			sprintf(gpemethod, "\\_GPE._L%c%c",
-			    numconv[(ae->ae_arg/0x10)&0xf],
-			    numconv[ae->ae_arg&0xf]);
+				numconv[(ae->ae_arg / 0x10) & 0xf],
+				numconv[ae->ae_arg & 0xf]);
 			aml_invoke_method_by_name(gpemethod, 0, &argv);
 			sprintf(gpemethod, "\\_GPE._E%c%c",
-			    numconv[(ae->ae_arg/0x10)&0xf],
-			    numconv[ae->ae_arg&0xf]);
+				numconv[(ae->ae_arg / 0x10) & 0xf],
+				numconv[ae->ae_arg & 0xf]);
 			aml_invoke_method_by_name(gpemethod, 0, &argv);
 			s=splhigh();
 			if((ae->ae_arg < gpe1_base) || (gpe1_base == 0)){
 				bit = 1 << ae->ae_arg;
 				ACPI_DEBUGPRINT("GPE0%x\n", bit);
-				acpi_io_gpe0_status(sc, ACPI_REGISTERS_OUTPUT,
-				    &bit);
-				acpi_io_gpe0_enable(sc, ACPI_REGISTERS_INPUT,
-				    &status);
+				acpi_io_gpe0_status(sc, ACPI_REGISTER_OUTPUT,
+						    &bit);
+				acpi_io_gpe0_enable(sc, ACPI_REGISTER_INPUT,
+						    &status);
 				ACPI_DEBUGPRINT("GPE0%x\n", status);
 				status |= bit;
-				acpi_io_gpe0_enable(sc, ACPI_REGISTERS_OUTPUT,
-				    &status);
-			}else{
-				bit = 1 << (ae->ae_arg - 
-					    sc->facp_body->gpe1_base);
-				acpi_io_gpe1_status(sc, ACPI_REGISTERS_OUTPUT,
-				    &bit);
-				acpi_io_gpe1_enable(sc, ACPI_REGISTERS_INPUT,
-				    &status);
+				acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT,
+						    &status);
+			} else {
+				bit = 1 << (ae->ae_arg - sc->facp_body->gpe1_base);
+				acpi_io_gpe1_status(sc, ACPI_REGISTER_OUTPUT,
+						    &bit);
+				acpi_io_gpe1_enable(sc, ACPI_REGISTER_INPUT,
+						    &status);
 				status |= bit;
-				acpi_io_gpe1_enable(sc, ACPI_REGISTERS_OUTPUT,
-				    &status);
+				acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT,
+						    &status);
 			}
 			splx(s);
 			break;
@@ -1673,15 +1693,18 @@ void acpi_event_thread(void *arg)
 	}
 	ACPI_DEVPRINTF("????\n");
 }
+
 void acpi_start_threads(void *arg)
 {
-	acpi_softc_t *sc = devclass_get_softc(acpi_devclass, 0);
-	device_t dev = devclass_get_device(acpi_devclass, 0);
+	acpi_softc_t	*sc = devclass_get_softc(acpi_devclass, 0);
+	device_t	dev = devclass_get_device(acpi_devclass, 0);
+
 	ACPI_DEBUGPRINT("start thread\n");
-	if(kthread_create(acpi_event_thread, sc, &sc->acpi_thread, 0, "acpi")){
+	if (kthread_create(acpi_event_thread, sc, &sc->acpi_thread, 0, "acpi")) {
 		ACPI_DEVPRINTF("CANNOT CREATE THREAD\n");
 	}
 }
+
 SYSINIT(acpi, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, acpi_start_threads, 0);
 
 

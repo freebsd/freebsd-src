@@ -61,10 +61,10 @@ static char	*powerres_statestr[2] = {"_OFF", "_ON"};
 u_int8_t
 acpi_get_current_device_state(struct aml_name *name)
 {
-	u_int8_t	dstate;
-	struct		aml_name *method;
-	union		aml_object *ret;
-	struct		aml_environ env;
+	u_int8_t		dstate;
+	struct aml_name		*method;
+	union aml_object	*ret;
+	struct aml_environ	env;
 
 	dstate = ACPI_D_STATE_D0;
 	method = aml_find_from_namespace(name, "_PSC");
@@ -83,7 +83,7 @@ acpi_get_current_device_state(struct aml_name *name)
 static __inline struct acpi_powerres_device *
 acpi_powerres_get_powerres_device(acpi_softc_t *sc, struct aml_name *name)
 {
-	struct	acpi_powerres_device *device;
+	struct acpi_powerres_device	*device;
 
 	LIST_FOREACH(device, &sc->acpi_powerres_devlist, links) {
 		if (device->name == name) {
@@ -100,12 +100,12 @@ acpi_powerres_get_powerres_device(acpi_softc_t *sc, struct aml_name *name)
 void
 acpi_set_device_state(acpi_softc_t *sc, struct aml_name *name, u_int8_t dstate)
 {
-	char	psx[5];	/* "_PSx" */
-	struct	acpi_powerres_info *powerres;
-	struct	acpi_powerres_device_ref *device_ref;
-	struct	acpi_powerres_device *device;
-	struct	aml_name *method;
-	struct	aml_environ env;
+	char				psx[5];	/* "_PSx" */
+	struct acpi_powerres_info	*powerres;
+	struct acpi_powerres_device_ref	*device_ref;
+	struct acpi_powerres_device	*device;
+	struct aml_name			*method;
+	struct aml_environ		env;
 
 	if (dstate > ACPI_D_STATE_D3) {
 		return;
@@ -168,11 +168,11 @@ method_execution:
 void
 acpi_set_device_wakecap(acpi_softc_t *sc, struct aml_name *name, u_int8_t cap)
 {
-	struct	acpi_powerres_info *powerres;
-	struct	acpi_powerres_device_ref *device_ref;
-	struct	acpi_powerres_device *device;
-	struct	aml_name *method;
-	union	aml_object argv[1];
+	struct acpi_powerres_info	*powerres;
+	struct acpi_powerres_device_ref	*device_ref;
+	struct acpi_powerres_device	*device;
+	struct aml_name			*method;
+	union aml_object		argv[1];
 
 	if (cap != ACPI_D_WAKECAP_ENABLE && cap != ACPI_D_WAKECAP_DISABLE ) {
 		return;
@@ -233,10 +233,10 @@ method_execution:
 u_int8_t
 acpi_get_current_powerres_state(struct aml_name *name)
 {
-	u_int8_t	pstate;
-	struct		aml_name *method;
-	union		aml_object *ret;
-	struct		aml_environ env;
+	u_int8_t		pstate;
+	struct aml_name		*method;
+	union aml_object	*ret;
+	struct aml_environ	env;
 
 	pstate = ACPI_POWER_RESOURCE_ON;
 	method = aml_find_from_namespace(name, "_STA");
@@ -255,7 +255,7 @@ acpi_get_current_powerres_state(struct aml_name *name)
 static __inline struct acpi_powerres_info *
 acpi_powerres_get_powerres(acpi_softc_t *sc, struct aml_name *name)
 {
-	struct	acpi_powerres_info *powerres;
+	struct acpi_powerres_info	*powerres;
 
 	LIST_FOREACH(powerres, &sc->acpi_powerres_inflist, links) {
 		if (powerres->name == name) {
@@ -271,11 +271,11 @@ acpi_powerres_get_powerres(acpi_softc_t *sc, struct aml_name *name)
  */
 void
 acpi_set_powerres_state(acpi_softc_t *sc, struct aml_name *name,
-    u_int8_t pstate)
+			u_int8_t pstate)
 {
-	struct	acpi_powerres_info *powerres;
-	struct	aml_name *method;
-	struct	aml_environ env;
+	struct acpi_powerres_info	*powerres;
+	struct aml_name			*method;
+	struct aml_environ		env;
 
 	if (pstate != ACPI_POWER_RESOURCE_ON &&
 	    pstate != ACPI_POWER_RESOURCE_OFF) {
@@ -305,10 +305,10 @@ acpi_set_powerres_state(acpi_softc_t *sc, struct aml_name *name,
 void
 acpi_powerres_init(acpi_softc_t *sc)
 {
-	struct	acpi_powerres_info *powerres;
-	struct	acpi_powerres_device_ref *device_ref;
-	struct	acpi_powerres_device *device;
-	int	i;
+	struct acpi_powerres_info	*powerres;
+	struct acpi_powerres_device_ref	*device_ref;
+	struct acpi_powerres_device	*device;
+	int				i;
 
 	while ((powerres = LIST_FIRST(&sc->acpi_powerres_inflist))) {
 		for (i = 0; i < ACPI_PR_MAX; i++) {
@@ -358,10 +358,10 @@ acpi_powerres_device_prw_print(struct acpi_powerres_device *device)
 void
 acpi_powerres_debug(acpi_softc_t *sc)
 {
-	struct	acpi_powerres_info *powerres;
-	struct	acpi_powerres_device_ref *device_ref;
-	struct	acpi_powerres_device *device;
-	int	i;
+	struct acpi_powerres_info	*powerres;
+	struct acpi_powerres_device_ref	*device_ref;
+	struct acpi_powerres_device	*device;
+	int				i;
 
 	LIST_FOREACH(powerres, &sc->acpi_powerres_inflist, links) {
 		printf("acpi_powerres_debug[powerres]:");
@@ -413,9 +413,9 @@ acpi_powerres_debug(acpi_softc_t *sc)
 static int
 acpi_powerres_register(struct aml_name *name, va_list ap)
 {
-	int	i, order;
-	acpi_softc_t *sc;
-	struct	acpi_powerres_info *powerres, *other_pr, *last_pr;
+	int				i, order;
+	acpi_softc_t			*sc;
+	struct acpi_powerres_info	*powerres, *other_pr, *last_pr;
 
 	sc = va_arg(ap, acpi_softc_t *);
 
@@ -465,19 +465,20 @@ acpi_powerres_register(struct aml_name *name, va_list ap)
 static int
 acpi_powerres_add_device(struct aml_name *name, va_list ap)
 {
-	int	i, offset, objtype;
-	int	prnum;
-	int	dev_found;
-	acpi_softc_t *sc;
-	struct	acpi_powerres_device *device;
-	struct	acpi_powerres_device_ref *device_ref;
-	struct	acpi_powerres_info *powerres;
-	struct	aml_name *powerres_name;
-	struct	aml_environ env;
-	union	aml_object **objects;
+	int				i, offset, objtype;
+	int				prnum;
+	int				dev_found;
+	acpi_softc_t			*sc;
+	struct acpi_powerres_device	*device;
+	struct acpi_powerres_device_ref	*device_ref;
+	struct acpi_powerres_info	*powerres;
+	struct aml_name			*powerres_name;
+	struct aml_environ		env;
+	union aml_object		**objects;
 
 	sc = va_arg(ap, acpi_softc_t *);
 	objtype = prnum = 0;
+
 	/* should be _PR[0-2] or _PRW */
 	switch (name->name[3]) {
 	case '0' ... '2':
@@ -610,7 +611,7 @@ acpi_powerres_add_device(struct aml_name *name, va_list ap)
 
 static __inline void
 acpi_set_device_prw_gpe(acpi_softc_t *sc, struct acpi_powerres_device *device,
-    boolean_t on_off)
+			boolean_t on_off)
 {
 	u_long		ef;
 
@@ -632,9 +633,8 @@ acpi_set_device_prw_gpe(acpi_softc_t *sc, struct acpi_powerres_device *device,
 }
 
 static void
-acpi_set_device_next_state(acpi_softc_t *sc,
-    struct acpi_powerres_device *device, u_int8_t sleeping_state,
-    u_int8_t def_dstate)
+acpi_set_device_next_state(acpi_softc_t *sc, struct acpi_powerres_device *device,
+			   u_int8_t sleeping_state, u_int8_t def_dstate)
 {
 
 	/* set given default device state */
@@ -669,10 +669,10 @@ out:
 void
 acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 {
-	int	i;
-	struct	acpi_powerres_info *powerres;
-	struct	acpi_powerres_device *device;
-	struct	acpi_powerres_device_ref *device_ref;
+	int				i;
+	struct acpi_powerres_info	*powerres;
+	struct acpi_powerres_device	*device;
+	struct acpi_powerres_device_ref	*device_ref;
 
 	if (state > ACPI_S_STATE_S4) {
 		return;
