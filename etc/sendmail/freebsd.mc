@@ -53,7 +53,9 @@ FEATURE(blacklist_recipients)dnl
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')dnl
 dnl Uncomment to activate Realtime Blackhole List (recommended!)
 dnl information available at http://maps.vix.com/rbl/
-dnl FEATURE(dnsbl)dnl
+dnl FEATURE(dnsbl,`blackholes.mail-abuse.org',` Mail from $&{client_addr} rejected, see http://mail-abuse.org/cgi-bin/lookup?$&{client_addr}')dnl
+dnl FEATURE(dnsbl,`relays.mail-abuse.org',` Mail from $&{client_addr} rejected; see http://mail-abuse.org/cgi-bin/nph-rss?$&{client_addr}')dnl
+dnl FEATURE(dnsbl,`dialups.mail-abuse.org',` Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm')
 dnl Many sites reject email connections from dialup ip addresses
 dnl by using the MAPS Dial-up User List (DUL).  http://maps.vix.com/dul/
 dnl Dialup users should uncomment and define this appropriately
