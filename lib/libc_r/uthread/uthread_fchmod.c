@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fchmod=_fchmod
+__weak_reference(_fchmod, fchmod);
 
 int
 _fchmod(int fd, mode_t mode)

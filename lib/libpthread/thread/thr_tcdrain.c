@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	tcdrain=_tcdrain
+__weak_reference(_tcdrain, tcdrain);
 
 int
 _tcdrain(int fd)

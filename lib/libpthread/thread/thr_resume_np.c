@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_resume_np=_pthread_resume_np
+__weak_reference(_pthread_resume_np, pthread_resume_np);
 
 /* Resume a thread: */
 int

@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_condattr_destroy=_pthread_condattr_destroy
+__weak_reference(_pthread_condattr_destroy, pthread_condattr_destroy);
 
 int
 _pthread_condattr_destroy(pthread_condattr_t *attr)

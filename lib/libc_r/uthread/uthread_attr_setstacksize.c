@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setstacksize=_pthread_attr_setstacksize
+__weak_reference(_pthread_attr_setstacksize, pthread_attr_setstacksize);
 
 int
 _pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)

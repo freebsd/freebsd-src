@@ -42,7 +42,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	writev=_writev
+__weak_reference(_writev, writev);
 
 ssize_t
 _writev(int fd, const struct iovec * iov, int iovcnt)

@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	ioctl=_ioctl
+__weak_reference(_ioctl, ioctl);
 
 int
 _ioctl(int fd, unsigned long request,...)

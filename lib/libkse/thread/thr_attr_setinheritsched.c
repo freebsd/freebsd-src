@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setinheritsched=_pthread_attr_setinheritsched
+__weak_reference(_pthread_attr_setinheritsched, pthread_attr_setinheritsched);
 
 int
 _pthread_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)

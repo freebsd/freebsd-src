@@ -36,13 +36,13 @@
 /* maximum number of times a read lock may be obtained */
 #define	MAX_READ_LOCKS		(INT_MAX - 1)
 
-#pragma weak	pthread_rwlock_destroy=_pthread_rwlock_destroy
-#pragma weak	pthread_rwlock_init=_pthread_rwlock_init
-#pragma weak	pthread_rwlock_rdlock=_pthread_rwlock_rdlock
-#pragma weak	pthread_rwlock_tryrdlock=_pthread_rwlock_tryrdlock
-#pragma weak	pthread_rwlock_trywrlock=_pthread_rwlock_trywrlock
-#pragma weak	pthread_rwlock_unlock=_pthread_rwlock_unlock
-#pragma weak	pthread_rwlock_wrlock=_pthread_rwlock_wrlock
+__weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
+__weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
+__weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);
+__weak_reference(_pthread_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
+__weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
+__weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
+__weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 
 static int init_static (pthread_rwlock_t *rwlock);
 

@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_self=_pthread_self
+__weak_reference(_pthread_self, pthread_self);
 
 pthread_t
 _pthread_self(void)

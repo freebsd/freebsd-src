@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak __acl_aclcheck_fd=___acl_aclcheck_fd
+__weak_reference(___acl_aclcheck_fd, __acl_aclcheck_fd);
 
 int
 ___acl_aclcheck_fd(int fd, acl_type_t tp, acl_t acl)

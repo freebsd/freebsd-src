@@ -41,7 +41,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	poll=_poll
+__weak_reference(_poll, poll);
 
 int 
 _poll(struct pollfd *fds, unsigned int nfds, int timeout)

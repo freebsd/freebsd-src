@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	shutdown=_shutdown
+__weak_reference(_shutdown, shutdown);
 
 int
 _shutdown(int fd, int how)

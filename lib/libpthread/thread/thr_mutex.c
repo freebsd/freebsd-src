@@ -79,13 +79,13 @@ static struct pthread_mutex_attr	static_mutex_attr =
 static pthread_mutexattr_t		static_mattr = &static_mutex_attr;
 
 /* Single underscore versions provided for libc internal usage: */
-#pragma weak	pthread_mutex_trylock=__pthread_mutex_trylock
-#pragma weak	pthread_mutex_lock=__pthread_mutex_lock
+__weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
+__weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
 
 /* No difference between libc and application usage of these: */
-#pragma weak	pthread_mutex_init=_pthread_mutex_init
-#pragma weak	pthread_mutex_destroy=_pthread_mutex_destroy
-#pragma weak	pthread_mutex_unlock=_pthread_mutex_unlock
+__weak_reference(_pthread_mutex_init, pthread_mutex_init);
+__weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
+__weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
 
 
 /* Reinitialize a mutex to defaults. */

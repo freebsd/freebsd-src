@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setcreatesuspend_np=_pthread_attr_setcreatesuspend_np
+__weak_reference(_pthread_attr_setcreatesuspend_np, pthread_attr_setcreatesuspend_np);
 
 int
 _pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)

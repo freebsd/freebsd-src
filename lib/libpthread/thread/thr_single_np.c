@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_single_np=_pthread_single_np
+__weak_reference(_pthread_single_np, pthread_single_np);
 
 int _pthread_single_np()
 {

@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_equal=_pthread_equal
+__weak_reference(_pthread_equal, pthread_equal);
 
 int
 _pthread_equal(pthread_t t1, pthread_t t2)

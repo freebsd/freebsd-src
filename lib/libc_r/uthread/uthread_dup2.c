@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	dup2=_dup2
+__weak_reference(_dup2, dup2);
 
 int
 _dup2(int fd, int newfd)

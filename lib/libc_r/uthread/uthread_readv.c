@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	readv=_readv
+__weak_reference(_readv, readv);
 
 ssize_t
 _readv(int fd, const struct iovec * iov, int iovcnt)

@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	nanosleep=__nanosleep
+__weak_reference(__nanosleep, nanosleep);
 
 int
 _nanosleep(const struct timespec * time_to_sleep,

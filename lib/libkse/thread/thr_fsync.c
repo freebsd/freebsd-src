@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fsync=__fsync
+__weak_reference(__fsync, fsync);
 
 int
 _fsync(int fd)

@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak __acl_get_fd=___acl_get_fd
+__weak_reference(___acl_get_fd, __acl_get_fd);
 
 int
 ___acl_get_fd(int fd, acl_type_t tp, struct acl *acl_p)

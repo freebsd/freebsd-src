@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	recvfrom=_recvfrom
+__weak_reference(_recvfrom, recvfrom);
 
 ssize_t
 _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,

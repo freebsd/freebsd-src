@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sigaction=_sigaction
+__weak_reference(_sigaction, sigaction);
 
 int
 _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
