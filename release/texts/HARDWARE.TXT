@@ -875,6 +875,8 @@ Boca IOAT66 6-Port serial card (Modems supported)
 Boca BB1008 8-Port serial card (Modems NOT supported)
 Boca BB2016 16-Port serial card (Modems supported)
 
+Comtrol Rocketport card.
+
 Cyclades Cyclom-y Serial Board.
 
 STB 4 port card using shared IRQ.
