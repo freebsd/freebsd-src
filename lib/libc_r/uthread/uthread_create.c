@@ -73,6 +73,9 @@ _pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	pthread_t       new_thread;
 	pthread_attr_t	pattr;
 	void           *stack;
+#if !defined(__ia64__)
+	u_long 		stackp;
+#endif
 
 	if (thread == NULL)
 		return(EINVAL);
@@ -145,10 +148,12 @@ _pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 			SET_RETURN_ADDR_JB(new_thread->ctx.jb, _thread_start);
 
 #if !defined(__ia64__)
+			stackp = (long)new_thread->stack + pattr->stacksize_attr - sizeof(double);
+#if defined(__amd64__)
+			stackp &= ~0xFUL;
+#endif
 			/* The stack starts high and builds down: */
-			SET_STACK_JB(new_thread->ctx.jb,
-			    (long)new_thread->stack + pattr->stacksize_attr
-			    - sizeof(double));
+			SET_STACK_JB(new_thread->ctx.jb, stackp);
 #else
 			SET_STACK_JB(new_thread->ctx.jb,
 			    (long)new_thread->stack, pattr->stacksize_attr);
