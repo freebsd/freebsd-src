@@ -1033,6 +1033,7 @@ hpt_timing(struct ata_softc *scp, int devno, int mode)
 void *
 ata_dmaalloc(struct ata_softc *scp, int device)
 {
+    return 0;
 }
 
 void
