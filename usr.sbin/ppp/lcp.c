@@ -17,13 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.18 1997/09/23 00:01:24 brian Exp $
+ * $Id: lcp.c,v 1.10.2.19 1997/09/23 19:53:53 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
 #include <sys/time.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
