@@ -33,11 +33,11 @@
  * 
  *	@(#)ipx_if.h
  *
- * $Id: ipx_if.h,v 1.3 1995/10/31 23:36:25 julian Exp $
+ * $Id: ipx_if.h,v 1.4 1995/11/04 09:02:51 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_IF_H_
-#define _NETIPX_IPX_IF_H_
+#define	_NETIPX_IPX_IF_H_
 
 /*
  * Interface address.  One of these structures
@@ -88,18 +88,14 @@ struct ipxip_req {
 #endif
 
 #ifdef	KERNEL
-
 extern struct	ifqueue	ipxintrq;	/* IPX input packet queue */
 extern struct	ipx_ifaddr *ipx_ifaddr;
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int ipx_ifinit __P((struct ifnet *ifp, struct ipx_ifaddr *ia, struct sockaddr_ipx *sipx, int scrub));
-void ipx_ifscrub __P((struct ifnet *ifp, struct ipx_ifaddr *ia));
-struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
-__END_DECLS
-
+struct ipx_ifaddr *
+	ipx_iaonnetof __P((struct ipx_addr *dst));
+int	ipx_ifinit __P((struct ifnet *ifp, struct ipx_ifaddr *ia,
+			struct sockaddr_ipx *sipx, int scrub));
+void	ipx_ifscrub __P((struct ifnet *ifp, struct ipx_ifaddr *ia));
 #endif
 
-#endif
+#endif /* !_NETIPX_IPX_IF_H_ */
