@@ -137,3 +137,17 @@ The
 .Nm
 utility conforms to
 .St -p1003.2-92 .
+.Sh BUGS
+The
+.Fl c
+option is a synonym for the
+.Fl b
+option, which causes incorrect behaviour in locales that support
+multibyte characters.
+.Pp
+When operating on fields
+.Pq Fl f No option is specified ,
+.Nm
+does not recognise multibyte characters, and the
+.Ar delim
+character is recognised in the middle of multibyte sequences.
