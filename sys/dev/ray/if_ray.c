@@ -254,6 +254,8 @@
  * reset in ray_init_user? - done
  *	no as I don't want to remove it (people can always cycle power
  *	from the command line)
+ * check RECERRs and make sure that some are RAY_PRINTF not RAY_DPRINTF - done
+ * _reset - check where needed - done
  *
  * ***PCATCH tsleeps and have something that will clean the runq
  * ***priorities for each tsleep 
@@ -263,8 +265,6 @@
  * write up driver structure in comments above
  * UPDATE_PARAMS seems to return via an interrupt - maybe the timeout
  *	is needed for wrong values?
- *	remember it must be serialised as it uses the HCF-ECF area
- * check all RECERRs and make sure that some are RAY_PRINTF not RAY_DPRINTF
  * could do with selectively calling ray_mcast in ray_init but can't figure
  * 	out a way that doesn't violate the runq or introduce a state var.
  *	otoh we do have a state var for promisc
@@ -274,13 +274,13 @@
  * havenet needs checking again
  * error handling of ECF command completions
  * proper setting of mib_hop_seq_len with country code for v4 firmware
- * _reset - check where needed
  * splimp or splnet?
  * tidy #includes - we cant need all of these
  * differeniate between parameters set in attach and init
  * more translations
  * spinning in ray_com_ecf
  * make RAY_DEBUG a knob somehow - either sysctl or IFF_DEBUG
+ *	use IFF_DEBUG for RECERRs?
  * fragmentation when rx level drops?
  *
  * infra mode stuff
@@ -558,7 +558,7 @@ ray_attach(device_t dev)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return (ENXIO);
 
 	/*
@@ -722,7 +722,7 @@ ray_detach(device_t dev)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STOP, "");
 
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return (0);
 
 	/*
@@ -778,9 +778,8 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	int s, error, error2;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
-	RAY_MAP_CM(sc);
 
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return (ENXIO);
 
 	error = error2 = 0;
@@ -984,7 +983,6 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
-	RAY_MAP_CM(sc);
 
 	/*
 	 * If card already running we don't need to download.
@@ -1315,7 +1313,6 @@ ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
-	RAY_MAP_CM(sc);
 
 	/*
 	 * If card already running we don't need to associate.
@@ -1422,7 +1419,7 @@ ray_watchdog(struct ifnet *ifp)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return;
 
 	RAY_PRINTF(sc, "watchdog timeout");
@@ -1509,7 +1506,7 @@ ray_tx(struct ifnet *ifp)
 	/*
 	 * Some simple checks first - some are overkill
 	 */
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		RAY_PRINTF(sc, "not running");
@@ -1743,7 +1740,6 @@ ray_tx_best_antenna(struct ray_softc *sc, u_int8_t *dst)
 	u_int8_t antenna;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
-	RAY_MAP_CM(sc);
 
 	if (sc->sc_version == RAY_ECFS_BUILD_4) 
 		return (0);
@@ -1758,7 +1754,7 @@ ray_tx_best_antenna(struct ray_softc *sc, u_int8_t *dst)
 	return (0);
 
 found:
-    	/* This is a simple thresholding scheme which takes the mean
+    	/* This is a simple thresholding scheme that takes the mean
 	 * of the best antenna history. This is okay but as it is a
 	 * filter, it adds a bit of lag in situations where the
 	 * best antenna swaps from one side to the other slowly. Don't know
@@ -2197,6 +2193,7 @@ ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
 	    
 	case IEEE80211_AUTH_OPENSYSTEM:
 		if (IEEE80211_AUTH_TRANSACTION(auth) == 1) {
+
 			/* XXX see sys/dev/awi/awk.c:awi_{recv|send}_auth */
 
 			/*
@@ -2372,7 +2369,7 @@ ray_intr(void *xsc)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	if (sc->gone)
+	if ((sc == NULL) || (sc->gone))
 		return;
 
 	/*
@@ -2453,9 +2450,7 @@ static void
 ray_intr_ccs(struct ray_softc *sc, u_int8_t cmd, size_t ccs)
 {
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-	RAY_MAP_CM(sc);
 
-	/* XXX replace this with a jump table? */
 	switch (cmd) {
 
 	case RAY_CMD_DOWNLOAD_PARAMS:
@@ -2527,9 +2522,7 @@ static void
 ray_intr_rcs(struct ray_softc *sc, u_int8_t cmd, size_t rcs)
 {
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-	RAY_MAP_CM(sc);
 
-	/* XXX replace this with a jump table? */
 	switch (cmd) {
 
 	case RAY_ECMD_RX_DONE:
@@ -3327,7 +3320,6 @@ ray_com_ecf_check(struct ray_softc *sc, size_t ccs, char *mesg)
     	struct ray_comq_entry *com;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "%s", mesg);
-	RAY_MAP_CM(sc);
 
 	com = TAILQ_FIRST(&sc->sc_comq);
 
@@ -3370,9 +3362,8 @@ ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, char *wmesg)
 		if (i > RAY_CCS_CMD_LAST) {
 			RAY_DPRINTF(sc, RAY_DBG_CCS, "sleeping");
 			error = tsleep(ray_ccs_alloc, PCATCH, wmesg, 0);
-			/* XXX broken: see runq_add */
-			if (sc->gone)
-				error = ENXIO;
+			if ((sc == NULL) || (sc->gone))
+				return (ENXIO);
 			RAY_DPRINTF(sc, RAY_DBG_CCS,
 			    "awakened, tsleep returned 0x%x", error);
 			if (error)
