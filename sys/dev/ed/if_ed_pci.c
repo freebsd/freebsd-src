@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id:$
+ *	$Id: if_ed_p.c,v 1.1 1996/05/18 17:56:40 se Exp $
  */
 
 #include <pci.h>
@@ -35,21 +35,19 @@
 
 #define PCI_DEVICE_ID_NE2000	0x802910ec
 
+extern void *ed_attach_NE2000_pci __P((int, int));
+
 static char* ed_pci_probe __P((pcici_t tag, pcidi_t type));
 static void ed_pci_attach __P((pcici_t config_id, int unit));
 
 static u_long ed_pci_count = NED;
-
-static void ed_pci_shutdown(void *arg)
-{
-}
 
 static struct pci_device ed_pci_driver = {
 	"ed",
 	ed_pci_probe,
 	ed_pci_attach,
 	&ed_pci_count,
-	ed_pci_shutdown,
+	NULL
 };
 
 DATA_SET (pcidevice_set, ed_pci_driver);
