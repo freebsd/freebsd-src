@@ -2870,7 +2870,7 @@ xterm-sun|xterm with Sun functionkeys:\
 	:tc=xterm-basic:
 #
 # vi may work better with this entry, because vi doesn't use insert mode much.
-# |xterm-ic|xterm-vi|xterm with insert character instead of insert mode:\
+# |xterm-ic|xterm-vi|xterm with insert character instead of insert mode:
 xterm-ic|xterm-vi|xterm with insert char:\
 	:im@:ei@:mi@:ic=\E[@:IC=\E[%d@:tc=xterm:
 #
