@@ -41,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.8 1993/09/10 16:59:16 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.9 1993/09/28 00:01:10 jkh Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -1430,8 +1430,10 @@ comstart(tp)
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	}
 	else {
-		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater)
+		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater) {
+			tp->t_state &= ~TS_RTSBLOCK;
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+		}
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP))
