@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.5 1994/12/05 01:34:54 jkh Exp $
+ * $Id: conf.h,v 1.6 1994/12/11 23:05:53 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -53,18 +53,26 @@ struct uio;
 struct vnode;
 
 typedef void d_strategy_t __P((struct buf *));
+typedef int d_open_t __P((dev_t, int, int, struct proc *));
+typedef int d_close_t __P((dev_t, int, int, struct proc *));
+typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *)); 
+typedef int d_dump_t __P(());
+typedef int d_psize_t __P((dev_t));
+ 
+typedef int d_rdwr_t __P((dev_t, struct uio *, int));
+typedef int d_stop_t __P((struct tty *, int));
+typedef int d_reset_t __P((int));
+typedef int d_select_t __P((dev_t, int, struct proc *));
+typedef int d_mmap_t __P((/* XXX */));
 
 struct bdevsw {
-	int	(*d_open)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p));
-	int	(*d_close)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *p));
+	d_open_t	*d_open;
+	d_close_t	*d_close;
 	d_strategy_t	*d_strategy;
-	int	(*d_ioctl)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p));
-	int	(*d_dump)	();	/* parameters vary by architecture */
-	int	(*d_psize)	__P((dev_t dev));
-	int	d_flags;
+	d_ioctl_t	*d_ioctl;
+	d_dump_t	*d_dump;
+	d_psize_t	*d_psize;
+	int		d_flags;
 };
 
 #ifdef KERNEL
@@ -72,19 +80,16 @@ extern struct bdevsw bdevsw[];
 #endif
 
 struct cdevsw {
-	int	(*d_open)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p));
-	int	(*d_close)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *));
-	int	(*d_read)	__P((dev_t dev, struct uio *uio, int ioflag));
-	int	(*d_write)	__P((dev_t dev, struct uio *uio, int ioflag));
-	int	(*d_ioctl)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p));
-	int	(*d_stop)	__P((struct tty *tp, int rw));
-	int	(*d_reset)	__P((int uban));	/* XXX */
-	struct	tty *d_ttys;
-	int	(*d_select)	__P((dev_t dev, int which, struct proc *p));
-	int	(*d_mmap)	__P(());
+	d_open_t	*d_open;
+	d_close_t	*d_close;
+	d_rdwr_t	*d_read;
+	d_rdwr_t	*d_write;
+	d_ioctl_t	*d_ioctl;
+	d_stop_t	*d_stop;
+	d_reset_t	*d_reset;
+	struct	tty 	*d_ttys;
+	d_select_t	*d_select;
+	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
 };
 
