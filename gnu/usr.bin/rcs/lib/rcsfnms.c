@@ -177,7 +177,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 1.3 1995/10/28 21:49:39 peter Exp $")
+libId(fnmsId, "$Id: rcsfnms.c,v 1.4 1995/10/29 22:06:18 peter Exp $")
 
 static char const *bindex P((char const*,int));
 static int fin2open P((char const*, size_t, char const*, size_t, char const*, size_t, RILE*(*)P((struct buf*,struct stat*,int)), int));
@@ -865,6 +865,47 @@ getfullRCSname()
 #	    endif
 	    return rcsbuf.string;
         }
+}
+
+/* Derived from code from the XFree86 project */
+	char const *
+getfullCVSname()
+/* Function: returns a pointer to the path name of the RCS file with the
+ * CVSROOT part stripped off, and with 'Attic/' stripped off (if present).
+ */
+{
+
+#define ATTICDIR "/Attic"
+
+	char const *namebuf = getfullRCSname();
+	char *cvsroot = cgetenv("CVSROOT");
+	int cvsrootlen;
+	char *c = NULL;
+	int alen = strlen(ATTICDIR);
+
+	if ((c = strrchr(namebuf, '/')) != NULL) {
+	    if (alen >= namebuf - c) {
+		if (!strncmp(c - alen, ATTICDIR, alen)) {
+		    while(*c != '\0') {
+			*(c - alen) = *c;
+			c++;
+		    }
+		    *(c - alen) = '\0';
+		}
+	    }
+	}
+	
+	if (!cvsroot)
+	    return(namebuf);
+	else
+	{
+	    cvsrootlen = strlen(cvsroot);
+	    if (!strncmp(namebuf, cvsroot, cvsrootlen) &&
+	        namebuf[cvsrootlen] == '/')
+		return(namebuf + cvsrootlen + 1);
+	    else
+		return(namebuf);
+	}
 }
 
 	static size_t

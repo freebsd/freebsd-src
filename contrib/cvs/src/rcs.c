@@ -41,7 +41,7 @@ enum rcs_delta_op {RCS_ANNOTATE, RCS_FETCH};
 static void RCS_deltas PROTO ((RCSNode *, FILE *, char *, enum rcs_delta_op,
 			       char **, size_t *, char **, size_t *));
 
-static char * getfullCVSname PROTO ((char *));
+static char * getfullCVSname PROTO ((char *, char **));
 
 /*
  * We don't want to use isspace() from the C library because:
@@ -2487,7 +2487,9 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 		    char *path;
 		    int free_path;
 		    char *date;
+		    char *old_path;
 
+		    old_path = NULL;
 		    if (kw == KEYWORD_HEADER ||
 			    (kw == KEYWORD_LOCALID &&
 			     keyword_local == KEYWORD_HEADER))
@@ -2495,7 +2497,7 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 		    else if (kw == KEYWORD_CVSHEADER ||
 			     (kw == KEYWORD_LOCALID &&
 			      keyword_local == KEYWORD_CVSHEADER))
-			path = getfullCVSname(rcs->path);
+			path = getfullCVSname(rcs->path, &old_path);
 		    else
 			path = last_component (rcs->path);
 		    path = escape_keyword_value (path, &free_path);
@@ -2515,6 +2517,8 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 			     locker != NULL ? locker : "");
 		    if (free_path)
 			free (path);
+		    if (old_path)
+			free (old_path);
 		    free (date);
 		    free_value = 1;
 		}
@@ -4373,28 +4377,35 @@ RCS_setincexc (arg)
     return;
 }
 
+#define ATTIC "/" CVSATTIC
 static char *
-getfullCVSname(CVSname)
-    char *CVSname;
+getfullCVSname(CVSname, pathstore)
+    char *CVSname, **pathstore;
 {
-    int rootlen;
-
     if (CVSroot_directory) {
+	int rootlen;
+	char *c = NULL;
+	int alen = sizeof(ATTIC) - 1;
+
+	*pathstore = xstrdup(CVSname);
+	if ((c = strrchr(*pathstore, '/')) != NULL) {
+	    if (alen >= *pathstore - c) {
+		if (!strncmp(c - alen, ATTIC, alen)) {
+		    while (*c != '\0') {
+			*(c - alen) = *c;
+			c++;
+		    }
+		    *(c - alen) = '\0';
+		}
+	    }
+	}
+
 	rootlen = strlen(CVSroot_directory);
-	/* ignore trailing '/' chars from $CVSROOT */
-	while (rootlen > 0) {
-	    if (CVSroot_directory[rootlen - 1] == '/')
-		rootlen--;
-	    else
-		break;
-	}
-	if (strncmp(CVSname, CVSroot_directory, rootlen) == 0) {
-	    CVSname += rootlen;
-	    /* skip any leading '/' chars */
-	    while (*CVSname == '/')
-		CVSname++;
-	    return CVSname;
-	}
+	if (!strncmp(*pathstore, CVSroot_directory, rootlen) &&
+	    (*pathstore)[rootlen] == '/')
+	    CVSname = (*pathstore + rootlen + 1);
+	else
+	    CVSname = (*pathstore);
     }
     return CVSname;
 }
