@@ -257,16 +257,211 @@ ia64_vector_table:
 
 /* 0x2000:	Dirty-Bit vector */
 
-	TRAP(8)
+	mov	r16=cr.ifa
+	mov	r17=pr
+	mov	r20=12<<2		// XXX get page size from VHPT
+	;;
+	ptc.l	r16,r20			// purge TLB
+	thash	r18=r16
+	ttag	r19=r16
+	;;
+	srlz.d
+	add	r20=24,r18		// collision chain
+	;; 
+	ld8	r20=[r20]		// first entry
+	;; 
+	rsm	psr.dt			// turn off data translations
+	;;
+	srlz.d				// serialize
+	;;
+1:	cmp.eq	p1,p2=r0,r20		// done?
+(p1)	br.cond.spnt.few 9f		// bail if done
+	;;
+	add	r21=16,r20		// tag location
+	;;
+	ld8	r21=[r21]		// read tag
+	;;
+	cmp.eq	p1,p2=r21,r19		// compare tags
+(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	;;
+	ld8	r21=[r20]		// read pte
+	mov	r22=PTE_D
+	;;
+	or	r21=r22,r21		// set dirty bit
+	;;
+	st8	[r20]=r21		// store back
+	;; 
+	ld8	r22=[r20]		// read rest of pte
+	;;
+	dep	r18=0,r18,61,3		// convert vhpt ptr to physical
+	;;
+	add	r20=16,r18		// address of tag
+	;;
+	ld8.acq	r23=[r20]		// read old tag
+	movl	r24=(1<<63)		// ti bit
+	;;
+	or	r23=r23,r24		// set ti bit
+	;;
+	st8.rel	[r20]=r23		// store old tag + ti
+	;;
+	mf				// make sure everyone sees
+	;;
+	st8	[r18]=r21,8		// store pte
+	;;
+	st8	[r18]=r22,8
+	;;
+	st8.rel	[r18]=r19		// store new tag
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	rfi				// walker will retry the access
+	
+2:	add	r20=24,r20		// next in chain
+	;;
+	ld8	r20=[r20]		// read chain
+	br.cond.sptk.few 1b		// loop
+
+9:	mov	pr=r17,0x1ffff		// restore predicates
+	TRAP(8)				// die horribly
 	.align	1024
 
 /* 0x2400:	Instruction Access-Bit vector */
 
+	mov	r16=cr.ifa
+	mov	r17=pr
+	mov	r20=12<<2		// XXX get page size from VHPT
+	;;
+	ptc.l	r16,r20			// purge TLB
+	thash	r18=r16
+	ttag	r19=r16
+	;;
+	srlz.d
+	add	r20=24,r18		// collision chain
+	;; 
+	ld8	r20=[r20]		// first entry
+	;; 
+	rsm	psr.dt			// turn off data translations
+	;;
+	srlz.d				// serialize
+	;;
+1:	cmp.eq	p1,p2=r0,r20		// done?
+(p1)	br.cond.spnt.few 9f		// bail if done
+	;;
+	add	r21=16,r20		// tag location
+	;;
+	ld8	r21=[r21]		// read tag
+	;;
+	cmp.eq	p1,p2=r21,r19		// compare tags
+(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	;;
+	ld8	r21=[r20]		// read pte
+	mov	r22=PTE_A
+	;;
+	or	r21=r22,r21		// set accessed bit
+	;;
+	st8	[r20]=r21		// store back
+	;; 
+	ld8	r22=[r20]		// read rest of pte
+	;;
+	dep	r18=0,r18,61,3		// convert vhpt ptr to physical
+	;;
+	add	r20=16,r18		// address of tag
+	;;
+	ld8.acq	r23=[r20]		// read old tag
+	movl	r24=(1<<63)		// ti bit
+	;;
+	or	r23=r23,r24		// set ti bit
+	;;
+	st8.rel	[r20]=r23		// store old tag + ti
+	;;
+	mf				// make sure everyone sees
+	;;
+	st8	[r18]=r21,8		// store pte
+	;;
+	st8	[r18]=r22,8
+	;;
+	st8.rel	[r18]=r19		// store new tag
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	rfi				// walker will retry the access
+	
+2:	add	r20=24,r20		// next in chain
+	;;
+	ld8	r20=[r20]		// read chain
+	br.cond.sptk.few 1b		// loop
+
+9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(9)
 	.align	1024
 
 /* 0x2800:	Data Access-Bit vector */
 
+	mov	r16=cr.ifa
+	mov	r17=pr
+	mov	r20=12<<2		// XXX get page size from VHPT
+	;;
+	ptc.l	r16,r20			// purge TLB
+	thash	r18=r16
+	ttag	r19=r16
+	;;
+	srlz.d
+	add	r20=24,r18		// collision chain
+	;; 
+	ld8	r20=[r20]		// first entry
+	;; 
+	rsm	psr.dt			// turn off data translations
+	;;
+	srlz.d				// serialize
+	;;
+1:	cmp.eq	p1,p2=r0,r20		// done?
+(p1)	br.cond.spnt.few 9f		// bail if done
+	;;
+	add	r21=16,r20		// tag location
+	;;
+	ld8	r21=[r21]		// read tag
+	;;
+	cmp.eq	p1,p2=r21,r19		// compare tags
+(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	;;
+	ld8	r21=[r20]		// read pte
+	mov	r22=PTE_A
+	;;
+	or	r21=r22,r21		// set accessed bit
+	;;
+	st8	[r20]=r21		// store back
+	;; 
+	ld8	r22=[r20]		// read rest of pte
+	;;
+	dep	r18=0,r18,61,3		// convert vhpt ptr to physical
+	;;
+	add	r20=16,r18		// address of tag
+	;;
+	ld8.acq	r23=[r20]		// read old tag
+	movl	r24=(1<<63)		// ti bit
+	;;
+	or	r23=r23,r24		// set ti bit
+	;;
+	st8.rel	[r20]=r23		// store old tag + ti
+	;;
+	mf				// make sure everyone sees
+	;;
+	st8	[r18]=r21,8		// store pte
+	;;
+	st8	[r18]=r22,8
+	;;
+	st8.rel	[r18]=r19		// store new tag
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	rfi				// walker will retry the access
+	
+2:	add	r20=24,r20		// next in chain
+	;;
+	ld8	r20=[r20]		// read chain
+	br.cond.sptk.few 1b		// loop
+
+9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(10)
 	.align	1024
 
