@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.160 1999/04/16 16:17:05 n_hibma Exp $
+#	$Id: GENERIC,v 1.161 1999/04/16 18:27:18 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -53,10 +53,10 @@ config		kernel	root on wd0
 #options	NAPIC=1			# number of IO APICs
 #options	NINTR=24		# number of INTs
 
-controller	isa0
-controller	pnp0			# PnP support for ISA
-controller	eisa0
-controller	pci0
+controller	isa0	at nexus?
+#controller	pnp0			# PnP support for ISA
+#controller	eisa0
+controller	pci0	at nexus?
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
 disk		fd0	at fdc0 drive 0
@@ -108,9 +108,9 @@ controller	matcd0	at isa? port 0x230 bio
 device		scd0	at isa? port 0x230 bio
 
 # atkbdc0 controlls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD tty
-device		atkbd0	at isa? tty irq 1
-device		psm0	at isa? tty irq 12
+controller	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? tty irq 1
+device		psm0	at atkbdc? tty irq 12
 
 device		vga0	at isa? port ? conflicts
 
@@ -126,12 +126,12 @@ device		sc0	at isa? tty
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
-device		npx0	at isa? port IO_NPX irq 13
+device		npx0	at nexus? port IO_NPX irq 13
 
 #
 # Laptop support (see LINT for more options)
 #
-device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
+device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
@@ -178,8 +178,8 @@ device ex0 at isa? port? net irq?
 device fe0 at isa? port 0x300 net irq ?
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
 device lnc0 at isa? port 0x280 net irq 10 drq 0
-device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000
-device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
+#device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000
+#device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
 device cs0 at isa? port 0x300 net irq ?
 
 pseudo-device	loop

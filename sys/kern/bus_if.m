@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.5 1998/11/14 21:58:51 wollman Exp $
+#	$Id: bus_if.m,v 1.6 1999/03/29 08:54:19 dfr Exp $
 #
 
 INTERFACE bus;
@@ -78,6 +78,16 @@ METHOD void child_detached {
 	device_t dev;
 	device_t child;
 };
+
+#
+# Called when a new driver is added to the devclass which owns this
+# bus. The generic implementation of this method attempts to probe and
+# attach any un-matched children of the bus.
+#
+METHOD void driver_added {
+	device_t dev;
+	driver_t *driver;
+}
 
 #
 # Allocate a system resource attached to `dev' on behalf of `child'.

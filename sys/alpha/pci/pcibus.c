@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.7 1998/11/18 23:53:12 dfr Exp $
+ * $Id: pcibus.c,v 1.8 1998/12/27 18:03:29 dfr Exp $
  *
  */
 
@@ -32,6 +32,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/interrupt.h>
 #include <sys/sysctl.h>
 #include <sys/rman.h>
@@ -40,6 +41,7 @@
 #include <machine/chipset.h>
 #include <machine/cpuconf.h>
 #include <machine/resource.h>
+#include <alpha/pci/pcibus.h>
 
 char chipset_type[10];
 int chipset_bwx = 0;
@@ -129,6 +131,8 @@ pci_cvt_to_bwx(vm_offset_t sparse)
 		return NULL;
 }
 
+#if 0
+
 /*
  * These can disappear when I update the pci code to use the new
  * device framework.
@@ -160,11 +164,27 @@ intr_connect(struct intrec *idesc)
 	return 0;
 }
 
+#endif
+
 void
 alpha_platform_assign_pciintr(pcicfgregs *cfg)
 {
 	if(platform.pci_intr_map)
 		platform.pci_intr_map((void *)cfg);
+}
+
+int
+alpha_platform_setup_ide_intr(int chan, driver_intr_t *fn, void *arg)
+{
+	if (platform.pci_setup_ide_intr)
+		return platform.pci_setup_ide_intr(chan, fn, arg);
+	else {
+		int irqs[2] = { 14, 15 };
+		void *junk;
+		struct resource *res;
+		res = isa_alloc_intr(0, 0, irqs[chan]);
+		return isa_setup_intr(0, 0, res, fn, arg, &junk);
+	}
 }
 
 static struct rman irq_rman, port_rman, mem_rman;
@@ -177,23 +197,23 @@ void pci_init_resources()
 	irq_rman.rm_descr = "PCI Interrupt request lines";
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman, 0, 31))
-		panic("cia_probe irq_rman");
+		panic("pci_init_resources irq_rman");
 
 	port_rman.rm_start = 0;
-	port_rman.rm_end = 0xffff;
+	port_rman.rm_end = ~0u;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
-	    || rman_manage_region(&port_rman, 0, 0xffff))
-		panic("cia_probe port_rman");
+	    || rman_manage_region(&port_rman, 0x0, (1L << 32)))
+		panic("pci_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
 	mem_rman.rm_end = ~0u;
 	mem_rman.rm_type = RMAN_ARRAY;
-	mem_rman.rm_descr = "I/O memory addresses";
+	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
 	    || rman_manage_region(&mem_rman, 0x0, (1L << 32)))
-		panic("cia_probe mem_rman");
+		panic("pci_init_resources mem_rman");
 }
 
 /*
@@ -205,6 +225,7 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
 	struct	rman *rm;
+	struct	resource *rv;
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -223,7 +244,20 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return 0;
 	}
 
-	return rman_reserve_resource(rm, start, end, count, flags, child);
+	rv = rman_reserve_resource(rm, start, end, count, flags, child);
+	if (rv == 0)
+		return 0;
+
+	if (type == SYS_RES_MEMORY) {
+		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
+		rman_set_bushandle(rv, rv->r_start);
+		rman_set_virtual(rv, (void *) rv->r_start); /* XXX */
+	} else if (type == SYS_RES_IOPORT) {
+		rman_set_bustag(rv, ALPHA_BUS_SPACE_IO);
+		rman_set_bushandle(rv, rv->r_start);
+	}
+
+	return rv;
 }
 
 int
@@ -266,10 +300,35 @@ memcpy_toio(u_int32_t d, void *s, size_t size)
 }
 
 void
+memcpy_io(u_int32_t d, u_int32_t s, size_t size)
+{
+    while (size--)
+	writeb(d++, readb(s++));
+}
+
+void
 memset_io(u_int32_t d, int val, size_t size)
 {
     while (size--)
 	writeb(d++, val);
+}
+
+void
+memsetw(void *d, int val, size_t size)
+{
+    u_int16_t *sp = d;
+
+    while (size--)
+	*sp++ = val;
+}
+
+void
+memsetw_io(u_int32_t d, int val, size_t size)
+{
+    while (size--) {
+	writew(d, val);
+	d += sizeof(u_int16_t);
+    }
 }
 
 #include "opt_ddb.h"
@@ -280,7 +339,6 @@ DB_COMMAND(in, db_in)
 {
     int c;
     int size;
-    u_int32_t val;
 
     if (!have_addr)
 	return;
@@ -307,7 +365,7 @@ DB_COMMAND(in, db_in)
 
     if (count <= 0) count = 1;
     while (--count >= 0) {
-	db_printf("%08x:\t", addr);
+	db_printf("%08lx:\t", addr);
 	switch (size) {
 	case 1:
 	    db_printf("%02x\n", inb(addr));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.192 1999/04/13 19:38:11 peter Exp $
+ *	$Id: wd.c,v 1.193 1999/04/13 20:22:30 peter Exp $
  */
 
 /* TODO:
@@ -73,6 +73,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/bus.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/buf.h>
@@ -400,10 +401,10 @@ wdattach(struct isa_device *dvp)
 #if defined(DEVFS)
 	int	mynor;
 #endif
-	u_int	unit, lunit;
-	struct isa_device *wdup;
+	int	unit, lunit, flags, i;
 	struct disk *du;
 	struct wdparams *wp;
+	static char buf[] = "wdcXXX";
 
 	dvp->id_intr = wdintr;
 
@@ -418,14 +419,22 @@ wdattach(struct isa_device *dvp)
 	} else
 		bufq_init(&wdtab[dvp->id_unit].controller_queue);
 
-	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
-		if (wdup->id_iobase != dvp->id_iobase)
+	sprintf(buf, "wdc%d", dvp->id_unit);
+	for (i = resource_query_string(-1, "at", buf);
+	     i != -1;
+	     i = resource_query_string(i, "at", buf)) {
+		if (strcmp(resource_query_name(i), "wd"))
+			/* Avoid a bit of foot shooting. */
 			continue;
-		lunit = wdup->id_unit;
+
+		lunit = resource_query_unit(i);
 		if (lunit >= NWD)
 			continue;
 
-		unit = wdup->id_physid;
+		if (resource_int_value("wd", lunit, "drive", &unit) != 0)
+			continue;
+		if (resource_int_value("wd", lunit, "flags", &flags) != 0)
+			flags = 0;
 
 		du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
 		if (du == NULL)
@@ -450,7 +459,7 @@ wdattach(struct isa_device *dvp)
 		 * Use the individual device flags or the controller
 		 * flags.
 		 */
-		du->cfg_flags = wdup->id_flags |
+		du->cfg_flags = flags |
 			((dvp->id_flags) >> (16 * unit));
 
 		if (wdgetctlr(du) == 0) {

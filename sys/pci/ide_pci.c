@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.30 1999/04/13 19:38:12 peter Exp $
+ *	$Id: ide_pci.c,v 1.31 1999/04/13 20:22:33 peter Exp $
  */
 
 #include "pci.h"
@@ -1514,6 +1514,7 @@ ide_pci_attach(pcici_t tag, int unit)
 	wddma[unit].wdd_iobase = ide_pci_iobase;
 	wddma[unit].wdd_altiobase = ide_pci_altiobase;
 
+#if 0
 	/*
 	 * This code below is mighty bogus.  The config entries for the
 	 * isa_devtab_bio are plugged in before the standard ISA bios scan.
@@ -1582,7 +1583,7 @@ ide_pci_attach(pcici_t tag, int unit)
 				}
 	    }
 	}
-
+#endif
 
 	bmista_1 = inb(iobase_bm_1 + BMISTA_PORT);
 	bmista_2 = inb(iobase_bm_2 + BMISTA_PORT);

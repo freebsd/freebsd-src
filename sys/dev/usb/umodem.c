@@ -125,13 +125,8 @@ USB_ATTACH(umodem)
 static int
 umodem_detach(device_t self)
 {
-	const char *devinfo = device_get_desc(self);
-
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free((void *)devinfo, M_USB);
-	}
+	device_set_desc(self, NULL);
 
 	return 0;
 }

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tcasic.c,v 1.1 1998/08/20 08:27:11 dfr Exp $ */
 /* from $NetBSD: tcasic.c,v 1.23 1998/05/14 00:01:31 thorpej Exp $ */
 
 /*
@@ -97,7 +97,6 @@ tcasic_attach(device_t dev)
 	tcasic0 = dev;
 
 /*	chipset = tcasic_chipset;*/
-	chipset.intrdev = dev;
 	device_probe_and_attach(tc0);
 	return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.4 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: lca.c,v 1.5 1998/12/04 22:54:42 archie Exp $
  */
 
 #include <sys/param.h>
@@ -35,15 +35,16 @@
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
 #include <alpha/pci/pcibus.h>
-#include <machine/swiz.h>
+#include <alpha/isa/isavar.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 #include <machine/cpuconf.h>
+#include <machine/swiz.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
 static devclass_t	lca_devclass;
 static device_t		lca0;		/* XXX only one for now */
-static device_t		isa0;
 
 struct lca_softc {
 	int		junk;
@@ -333,8 +334,12 @@ lca_write_hae(u_int64_t hae)
 
 static int lca_probe(device_t dev);
 static int lca_attach(device_t dev);
-static void *lca_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
-static int lca_connect_intr(device_t dev, void* ih);
+static struct resource *lca_alloc_resource(device_t bus, device_t child,
+					   int type, int *rid, u_long start,
+					   u_long end, u_long count,
+					   u_int flags);
+static int lca_release_resource(device_t bus, device_t child,
+				int type, int rid, struct resource *r);
 
 static device_method_t lca_methods[] = {
 	/* Device interface */
@@ -342,10 +347,12 @@ static device_method_t lca_methods[] = {
 	DEVMETHOD(device_attach,	lca_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_alloc_resource,	lca_alloc_resource),
+	DEVMETHOD(bus_release_resource,	lca_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -380,9 +387,12 @@ lca_probe(device_t dev)
 	if (lca0)
 		return ENXIO;
 	lca0 = dev;
-	device_set_desc(dev, "21066 PCI adapter"); /* XXX */
+	device_set_desc(dev, "21066 Core Logic chipset"); /* XXX */
 
-	isa0 = device_add_child(dev, "isa", 0, 0);
+	pci_init_resources();
+	isa_init_intr();
+
+	device_add_child(dev, "pcib", 0, 0);
 
 	return 0;
 }
@@ -393,7 +403,6 @@ lca_attach(device_t dev)
 	struct lca_softc* sc = LCA_SOFTC(dev);
 
 	lca_init();
-	chipset.intrdev = isa0;
 
 	set_iointr(alpha_dispatch_intr);
 
@@ -406,6 +415,27 @@ lca_attach(device_t dev)
 
 	bus_generic_attach(dev);
 	return 0;
+}
+
+static struct resource *
+lca_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		   u_long start, u_long end, u_long count, u_int flags)
+{
+	if (type == SYS_RES_IRQ)
+		return isa_alloc_intr(bus, child, start);
+	else
+		return pci_alloc_resource(bus, child, type, rid,
+					  start, end, count, flags);
+}
+
+static int
+lca_release_resource(device_t bus, device_t child, int type, int rid,
+		     struct resource *r)
+{
+	if (type == SYS_RES_IRQ)
+		return isa_release_intr(bus, child, r);
+	else
+		return pci_release_resource(bus, child, type, rid, r);
 }
 
 DRIVER_MODULE(lca, root, lca_driver, lca_devclass, 0, 0);

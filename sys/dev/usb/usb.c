@@ -408,5 +408,6 @@ usb_detach(device_t self)
 	return (1);
 }
 
-DRIVER_MODULE(usb, root, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
 #endif

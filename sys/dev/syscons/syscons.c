@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.298 1999/02/05 11:52:11 yokota Exp $
+ *	$Id: syscons.c,v 1.299 1999/03/10 10:36:53 yokota Exp $
  */
 
 #include "sc.h"
@@ -1869,6 +1869,7 @@ extern struct isa_driver scdriver;
 static void
 sccnprobe(struct consdev *cp)
 {
+#if 0
     struct isa_device *dvp;
 
     /*
@@ -1885,6 +1886,13 @@ sccnprobe(struct consdev *cp)
 	return;
     }
     sckbdprobe(dvp->id_unit, dvp->id_flags, TRUE);
+#else
+    if (!scvidprobe(0, 0, TRUE)) {
+	cp->cn_pri = CN_DEAD;
+	return;
+    }
+    sckbdprobe(0, 0, TRUE);
+#endif
 
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLE);

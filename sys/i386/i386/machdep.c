@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.327 1999/03/06 04:46:18 wollman Exp $
+ *	$Id: machdep.c,v 1.328 1999/04/03 22:19:58 jdp Exp $
  */
 
 #include "apm.h"
@@ -71,6 +71,7 @@
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -125,7 +126,9 @@
 #include <machine/perfmon.h>
 #endif
 
+#ifdef OLD_BUS_ARCH
 #include <i386/isa/isa_device.h>
+#endif
 #include <i386/isa/intr_machdep.h>
 #ifndef VM86
 #include <i386/isa/rtc.h>
@@ -1164,8 +1167,10 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+#if NNPX > 0
+	int msize;
+#endif
 
-	struct isa_device *idp;
 #ifndef SMP
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
@@ -1454,10 +1459,11 @@ init386(first)
 #endif
 
 #if NNPX > 0
-	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
-	if (idp != NULL && idp->id_msize != 0) {
-		Maxmem = idp->id_msize / 4;
-		speculative_mprobe = FALSE;
+	if (resource_int_value("npx", 0, "msize", &msize) == 0) {
+		if (msize != 0) {
+			Maxmem = msize / 4;
+			speculative_mprobe = FALSE;
+		}
 	}
 #endif
 

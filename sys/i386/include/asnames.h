@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.29 1999/02/22 15:13:34 bde Exp $
+ * $Id: asnames.h,v 1.30 1999/02/25 12:53:34 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -291,7 +291,7 @@
 #define _normalize_nuo			normalize_nuo
 #define _npx_intrs_while_probing	npx_intrs_while_probing
 #define _npx_traps_while_probing	npx_traps_while_probing
-#define _npxintr			npxintr
+#define _npx_intr			npx_intr
 #define _npxproc			npxproc
 #define _npxsave			npxsave
 #define _other_cpus			other_cpus
