@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_kern.c,v 1.5 1997/04/01 22:51:48 jb Exp $
  *
  */
 #include <errno.h>
@@ -947,6 +947,58 @@ _thread_signal(pthread_t pthread, int sig)
 			 * detected and a core dump should occur: 
 			 */
 			_thread_sys_sigreturn(&pthread->saved_sigcontext);
+			break;
+
+		/*
+		 * The following signals should terminate the
+		 * process. Do this by clearing the signal action
+		 * and then re-throwing the signal.
+		 */
+		case SIGHUP:
+		case SIGINT:
+		case SIGPIPE:
+		case SIGALRM:
+		case SIGTERM:
+		case SIGXCPU:
+		case SIGXFSZ:
+		case SIGVTALRM:
+		case SIGUSR1:
+		case SIGUSR2:
+		/* These signals stop the process. Also re-throw them. */
+		case SIGTSTP:
+		case SIGTTIN:
+		case SIGTTOU:
+                        /* Clear the signal action: */
+                        sigfillset(&act.sa_mask);
+                        act.sa_handler = SIG_DFL;
+                        act.sa_flags = SA_RESTART;
+                        _thread_sys_sigaction(sig, &act, NULL);
+			/* Re-throw to ourselves. */
+                        kill(getpid(), sig);
+			break;
+
+		case SIGCONT:
+			/*
+			 * If we get this it means that we were
+			 * probably stopped and then continued.
+			 * Reset the handler for the SIGTSTP, SIGTTIN
+			 * and SIGTTOU signals.
+			 */
+
+                	sigfillset(&act.sa_mask);
+	                act.sa_handler = (void (*) ()) _thread_sig_handler;
+			act.sa_flags = SA_RESTART;
+
+                        /* Initialise the signals for default handling: */
+                        if (_thread_sys_sigaction(SIGTSTP, &act, NULL) != 0) {
+                                PANIC("Cannot initialise SIGTSTP signal handler");
+                        }
+                        if (_thread_sys_sigaction(SIGTTIN, &act, NULL) != 0) {
+                                PANIC("Cannot initialise SIGTTIN signal handler");
+                        }
+                        if (_thread_sys_sigaction(SIGTTOU, &act, NULL) != 0) {
+                                PANIC("Cannot initialise SIGTTOU signal handler");
+                        }
 			break;
 
 		/* Default processing for other signals: */

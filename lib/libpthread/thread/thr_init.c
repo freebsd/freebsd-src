@@ -46,6 +46,31 @@
 #include "pthread_private.h"
 extern int _thread_autoinit_dummy_decl;
 
+#ifdef GCC_2_8_MADE_THREAD_AWARE
+typedef void *** (*dynamic_handler_allocator)();
+extern void __set_dynamic_handler_allocator(dynamic_handler_allocator);
+
+static pthread_key_t except_head_key;
+
+typedef struct {
+  void **__dynamic_handler_chain;
+  void *top_elt[2];
+} except_struct;
+
+static void ***dynamic_allocator_handler_fn()
+{
+	except_struct *dh = (except_struct *)pthread_getspecific(except_head_key);
+
+	if(dh == NULL) {
+		dh = (except_struct *)malloc( sizeof(except_struct) );
+		memset(dh, '\0', sizeof(except_struct));
+		dh->__dynamic_handler_chain= dh->top_elt;
+		pthread_setspecific(except_head_key, (void *)dh);
+	}
+	return &dh->__dynamic_handler_chain;
+}
+#endif /* GCC_2_8_MADE_THREAD_AWARE */
+
 /*
  * Threaded process initialization
  */
@@ -55,7 +80,6 @@ _thread_init(void)
 	int             flags;
 	int             i;
 	struct sigaction act;
-
 	/* Ensure that the auto-initialization routine is linked in: */
 	_thread_autoinit_dummy_decl = 1;
 
@@ -200,6 +224,16 @@ _thread_init(void)
 			}
 		}
 	}
+
+#ifdef GCC_2_8_MADE_THREAD_AWARE
+	/* Create the thread-specific data for the exception linked list. */
+	if(pthread_key_create(&except_head_key, NULL) != 0)
+        	PANIC("Failed to create thread specific execption head");
+
+	/* Setup the gcc exception handler per thread. */
+	__set_dynamic_handler_allocator( dynamic_allocator_handler_fn );
+#endif /* GCC_2_8_MADE_THREAD_AWARE */
+
 	return;
 }
 
