@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fingerd.c,v 1.10 1997/11/20 07:26:04 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -100,11 +100,13 @@ main(argc, argv)
 	 * Enable server-side Transaction TCP.
 	 */
 	{
+#if	!defined(__alpha__) /* XXX FIXME */
 		int one = 1;
 		if (setsockopt(STDOUT_FILENO, IPPROTO_TCP, TCP_NOPUSH, &one, 
 			       sizeof one) < 0) {
 			logerr("setsockopt(TCP_NOPUSH) failed: %m");
 		}
+#endif
 	}
 
 	if (!fgets(line, sizeof(line), stdin))
