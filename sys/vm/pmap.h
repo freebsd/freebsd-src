@@ -106,6 +106,7 @@ void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
 vm_page_t	 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_page_t mpte);
 vm_paddr_t	 pmap_extract(pmap_t pmap, vm_offset_t va);
+vm_page_t	 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va);
 void		 pmap_growkernel(vm_offset_t);
 void		 pmap_init(vm_paddr_t, vm_paddr_t);
 boolean_t	 pmap_is_modified(vm_page_t m);
