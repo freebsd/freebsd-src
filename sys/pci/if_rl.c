@@ -1087,6 +1087,13 @@ static void rl_rxeof(sc)
 		max_bytes = limit - cur_rx;
 
 	while((CSR_READ_1(sc, RL_COMMAND) & RL_CMD_EMPTY_RXBUF) == 0) {
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		rxbufpos = sc->rl_cdata.rl_rx_buf + cur_rx;
 		rxstat = *(u_int32_t *)rxbufpos;
 
@@ -1260,6 +1267,44 @@ static void rl_tick(xsc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t rl_poll;
+
+static void
+rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct rl_softc *sc = ifp->if_softc;
+
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_4(sc, RL_IMR, RL_INTRS);
+		return;
+	}
+
+	sc->rxcycles = count;
+	rl_rxeof(sc);
+	rl_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+                rl_start(ifp);
+
+        if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
+                u_int16_t       status;
+ 
+                status = CSR_READ_2(sc, RL_ISR);
+		if (status)
+			CSR_WRITE_2(sc, RL_ISR, status);
+                 
+		/*
+		 * XXX check behaviour on receiver stalls.
+		 */
+
+		if (status & RL_ISR_SYSTEM_ERR) {
+			rl_reset(sc);
+			rl_init(sc);
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void rl_intr(arg)
 	void			*arg;
 {
@@ -1274,9 +1319,15 @@ static void rl_intr(arg)
 	}
 
 	ifp = &sc->arpcom.ac_if;
-
-	/* Disable interrupts. */
-	CSR_WRITE_2(sc, RL_IMR, 0x0000);
+#ifdef DEVICE_POLLING
+        if  (ifp->if_ipending & IFF_POLLING)
+                return;
+        if (ether_poll_register(rl_poll, ifp)) { /* ok, disable interrupts */
+                CSR_WRITE_2(sc, RL_IMR, 0x0000);
+                rl_poll(ifp, 0, 1);
+                return;
+        }
+#endif /* DEVICE_POLLING */
 
 	for (;;) {
 
@@ -1302,10 +1353,6 @@ static void rl_intr(arg)
 		}
 
 	}
-
-	/* Re-enable interrupts. */
-	CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
-
 	if (ifp->if_snd.ifq_head != NULL)
 		rl_start(ifp);
 
@@ -1490,6 +1537,14 @@ static void rl_init(xsc)
 	 */
 	rl_setmulti(sc);
 
+#ifdef DEVICE_POLLING
+	/*
+	 * Only enable interrupts if we are polling, keep them off otherwise.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_2(sc, RL_IMR, 0);
+	else
+#endif /* DEVICE_POLLING */
 	/*
 	 * Enable interrupts.
 	 */
@@ -1632,6 +1687,10 @@ static void rl_stop(sc)
 	ifp->if_timer = 0;
 
 	untimeout(rl_tick, sc, sc->rl_stat_ch);
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
@@ -1647,7 +1706,6 @@ static void rl_stop(sc)
 		}
 	}
 
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
 }
