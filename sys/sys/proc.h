@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.80 1999/04/28 01:04:33 luoqi Exp $
+ * $Id: proc.h,v 1.81 1999/04/28 11:38:04 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -290,6 +290,11 @@ struct	pcred {
 	int	p_refcnt;		/* Number of references. */
 };
 
+struct	prochd {
+	struct	proc *ph_link;		/* Linked list of running processes. */
+	struct	proc *ph_rlink;
+};
+
 #ifdef KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -366,10 +371,6 @@ extern struct prochd idqs[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
-struct	prochd {
-	struct	proc *ph_link;		/* Linked list of running processes. */
-	struct	proc *ph_rlink;
-};
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
