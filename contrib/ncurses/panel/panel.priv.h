@@ -1,4 +1,4 @@
-/* $Id: panel.priv.h,v 1.8 1997/10/21 10:19:37 juergen Exp $ */
+/* $Id: panel.priv.h,v 1.10 1999/09/29 15:21:58 juergen Exp $ */
 
 #ifndef _PANEL_PRIV_H
 #define _PANEL_PRIV_H
@@ -28,20 +28,12 @@
 #  define INLINE
 #endif
 
-typedef struct panelcons
-{
-  struct panelcons *above;
-  struct panel *pan;
-} PANELCONS;
-
 #ifdef USE_RCS_IDS
 #  define MODULE_ID(id) static const char Ident[] = id;
 #else
 #  define MODULE_ID(id) /*nothing*/
 #endif
 
-#define P_TOUCH  (0)
-#define P_UPDATE (1)
 
 #ifdef TRACE
    extern const char *_nc_my_visbuf(const void *);
@@ -76,10 +68,47 @@ typedef struct panelcons
 #define _nc_top_panel _nc_panelhook()->top_panel
 #define _nc_bottom_panel _nc_panelhook()->bottom_panel
 
-extern void _nc_panel_link_bottom(PANEL*);
-extern bool _nc_panel_is_linked(const PANEL*);
-extern void _nc_calculate_obscure(void);
-extern void _nc_free_obscure(PANEL*);
-extern void _nc_override(const PANEL*,int);
+#define EMPTY_STACK() (_nc_top_panel==_nc_bottom_panel)
+#define Is_Bottom(p)  (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above==(p))) 
+#define Is_Top(p) (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_top_panel==(p)))
+#define Is_Pseudo(p) ((p) && ((p)==_nc_bottom_panel))
 
+/*+-------------------------------------------------------------------------
+	_nc_panel_is_linked(pan) - check to see if panel is in the stack
+--------------------------------------------------------------------------*/
+/* This works! The only case where it would fail is, when the list has
+   only one element. But this could only be the pseudo panel at the bottom */
+#define _nc_panel_is_linked(p) ((((p)->above!=(PANEL*)0)||((p)->below!=(PANEL*)0)||((p)==_nc_bottom_panel)) ? TRUE : FALSE)
+
+#define PSTARTX(pan) ((pan)->win->_begx)
+#define PENDX(pan)   ((pan)->win->_begx + getmaxx((pan)->win))
+#define PSTARTY(pan) ((pan)->win->_begy)
+#define PENDY(pan)   ((pan)->win->_begy + getmaxy((pan)->win))
+
+/*+-------------------------------------------------------------------------
+	PANELS_OVERLAPPED(pan1,pan2) - check panel overlapped
+---------------------------------------------------------------------------*/
+#define PANELS_OVERLAPPED(pan1,pan2) \
+(( !(pan1) || !(pan2) || \
+       PSTARTY(pan1) >= PENDY(pan2) || PENDY(pan1) <= PSTARTY(pan2) ||\
+       PSTARTX(pan1) >= PENDX(pan2) || PENDX(pan1) <= PSTARTX(pan2) ) \
+     ? FALSE : TRUE)
+
+
+#define PANEL_UPDATE(pan,panstart) { int y; PANEL* pan2 = panstart;\
+   if (!pan2) {\
+      Touchpan(pan);\
+      pan2 = _nc_bottom_panel;\
+   }\
+   while(pan2) {\
+      if ((pan2 != pan) && PANELS_OVERLAPPED(pan,pan2)) {\
+	for(y = PSTARTY(pan); y < PENDY(pan); y++) {\
+	  if( (y >= PSTARTY(pan2)) && (y < PENDY(pan2)) &&\
+	      ((is_linetouched(pan->win,y - PSTARTY(pan)) == TRUE)) )\
+	    Touchline(pan2,y - PSTARTY(pan2),1);\
+	}\
+      }\
+      pan2 = pan2->above;\
+    }\
+}
 #endif /* _PANEL_PRIV_H */

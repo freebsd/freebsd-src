@@ -46,9 +46,7 @@
 #include <termcap.h>	/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.39 1999/02/25 10:44:29 tom Exp $")
-
-#define OUTPUT ((SP != 0) ? SP->_ofp : stdout)
+MODULE_ID("$Id: lib_tputs.c,v 1.41 1999/10/22 23:31:24 tom Exp $")
 
 char PC;		/* used by termcap library */
 speed_t ospeed;		/* used by termcap library */
@@ -70,7 +68,7 @@ int delay_output(int ms)
 		for (_nc_nulls_sent += nullcount; nullcount > 0; nullcount--)
 			my_outch(PC);
 		if (my_outch == _nc_outch)
-			(void) fflush(OUTPUT);
+			_nc_flush();
 	}
 
 	returnCode(OK);
@@ -82,7 +80,17 @@ int _nc_outch(int ch)
     	_nc_outchars++;
 #endif /* TRACE */
 
-	putc(ch, OUTPUT);
+	if (SP != 0
+	 && SP->_cleanup) {
+		char tmp = ch;
+		/*
+		 * POSIX says write() is safe in a signal handler, but the
+		 * buffered I/O is not.
+		 */
+		write(fileno(NC_OUTPUT), &tmp, 1);
+	} else {
+		putc(ch, NC_OUTPUT);
+	}
 	return OK;
 }
 

@@ -1,4 +1,4 @@
--- $Id: README,v 1.17 1998/02/15 01:26:47 tom Exp $
+-- $Id: README,v 1.19 1999/10/23 20:39:24 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -18,7 +18,7 @@ You should be reading this file in a directory called:  ncurses-d.d, where d.d
 is the current version number (see the dist.mk file in this directory for
 that).  There should be a number of subdirectories, including `c++', `form',
 `man', `menu', `misc', `ncurses', `panel', `progs', `test', 'tack' and `Ada95'. 
-(The 'tack' program is distributed separately).
+(The 'tack' program may be distributed separately).
 
 A full build/install of this package typically installs several libraries, a
 handful of utilities, and a database hierarchy.  Here is an inventory of the
@@ -114,7 +114,7 @@ Pavel Curtis:
 Zeyd M. Ben-Halim:
 	port of original to Linux and many enhancements.
 
-Thomas Dickey (maintainer since 1.9.9e):
+Thomas Dickey (maintainer for 1.9.9g through 4.1, resuming with FSF's 5.0):
 	configuration scripts, porting, mods to adhere to XSI Curses in the
 	areas of background color, terminal modes.  Also memory leak testing,
 	the wresize, default colors and key definition extensions and numerous

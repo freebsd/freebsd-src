@@ -19,13 +19,13 @@
   modified by Ulrich Drepper  (drepper@karlsruhe.gmd.de)
           and Anatoly Ivasyuk (anatoly@nick.csh.rit.edu)
 
-  modified by Juergen Pfeifer (juergen.pfeifer@gmx.net)	  
+  modified by Juergen Pfeifer (juergen.pfeifer@gmx.net)
 */
 
 #include "cursesw.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.13 1999/07/31 09:46:30 juergen Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.15 1999/09/11 23:26:29 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -51,7 +51,7 @@ NCursesWindow::scanw(const char* fmt, ...)
     char buf[BUFSIZ];
     int result = wgetstr(w, buf);
     if (result == OK) {
-	strstreambuf ss(buf, BUFSIZ);
+	strstreambuf ss(buf, sizeof(buf));
 	result = ss.vscan(fmt, (_IO_va_list)args);
     }
     va_end(args);
@@ -73,7 +73,7 @@ NCursesWindow::scanw(int y, int x, const char* fmt, ...)
     if (result == OK) {
 	result = wgetstr(w, buf);
 	if (result == OK) {
-	    strstreambuf ss(buf, BUFSIZ);
+	    strstreambuf ss(buf, sizeof(buf));
 	    result = ss.vscan(fmt, (_IO_va_list)args);
 	}
     }
@@ -144,7 +144,7 @@ NCursesWindow::initialize() {
 NCursesWindow::NCursesWindow() {
   if (!b_initialized)
     initialize();
-  
+
   w = (WINDOW *)0;
   init();
   alloced = FALSE;
@@ -172,7 +172,7 @@ NCursesWindow::NCursesWindow(WINDOW* &window)
 {
     if (!b_initialized)
       initialize();
-    
+
     w = window;
     init();
     alloced = FALSE;
@@ -183,7 +183,7 @@ NCursesWindow::NCursesWindow(WINDOW* &window)
 NCursesWindow::NCursesWindow(NCursesWindow& win, int l, int c,
 			     int begin_y, int begin_x, char absrel)
 {
-    if (absrel == 'a') { // absolute origin 
+    if (absrel == 'a') { // absolute origin
 	begin_y -= win.begy();
 	begin_x -= win.begx();
     }
@@ -205,7 +205,8 @@ NCursesWindow::NCursesWindow(NCursesWindow& win, int l, int c,
     count++;
 }
 
-NCursesWindow::NCursesWindow(NCursesWindow& win, bool do_box = TRUE)
+NCursesWindow::NCursesWindow(NCursesWindow& win,
+				bool do_box NCURSES_PARAM_INIT(TRUE))
 {
   w = :: derwin(win.w,win.height()-2,win.width()-2,1,1);
   if (w == 0) {
@@ -224,7 +225,7 @@ NCursesWindow::NCursesWindow(NCursesWindow& win, bool do_box = TRUE)
     win.touchwin();
   }
 }
-  
+
 NCursesWindow NCursesWindow::Clone() {
   WINDOW *d = ::dupwin(w);
   NCursesWindow W(d);
@@ -343,7 +344,7 @@ int NCursesWindow::colorInitialized = COLORS_NOT_INITIALIZED;
 void
 NCursesWindow::useColors(void)
 {
-    if (colorInitialized == COLORS_NOT_INITIALIZED) {        
+    if (colorInitialized == COLORS_NOT_INITIALIZED) {
       if (b_initialized) {
 	if (::has_colors()) {
 	  ::start_color();
@@ -358,12 +359,12 @@ NCursesWindow::useColors(void)
 }
 
 short
-NCursesWindow::getcolor(int getback) const 
+NCursesWindow::getcolor(int getback) const
 {
     short fore, back;
 
     if (colorInitialized==COLORS_ARE_REALLY_THERE) {
-      if (pair_content(PAIR_NUMBER(w->_attrs), &fore, &back))
+      if (pair_content((short)PAIR_NUMBER(w->_attrs), &fore, &back))
 	err_handler("Can't get color pair");
     }
     else {
@@ -383,7 +384,7 @@ int NCursesWindow::NumberOfColors()
 }
 
 short
-NCursesWindow::getcolor() const 
+NCursesWindow::getcolor() const
 {
   if (colorInitialized==COLORS_ARE_REALLY_THERE)
     return PAIR_NUMBER(w->_attrs);
@@ -404,7 +405,7 @@ int
 NCursesWindow::setpalette(short fore, short back)
 {
   if (colorInitialized==COLORS_ARE_REALLY_THERE)
-    return setpalette(fore, back, PAIR_NUMBER(w->_attrs));
+    return setpalette(fore, back, (short)PAIR_NUMBER(w->_attrs));
   else
     return OK;
 }
@@ -416,7 +417,7 @@ NCursesWindow::setcolor(short pair)
   if (colorInitialized==COLORS_ARE_REALLY_THERE) {
     if ((pair < 1) || (pair > COLOR_PAIRS))
       err_handler("Can't set color pair");
-    
+
     attroff(A_COLOR);
     attrset(COLOR_PAIR(pair));
   }
@@ -426,6 +427,6 @@ NCursesWindow::setcolor(short pair)
 extern "C" int _nc_has_mouse(void);
 
 bool NCursesWindow::has_mouse() const {
-  return ((::has_key(KEY_MOUSE) || ::_nc_has_mouse()) 
+  return ((::has_key(KEY_MOUSE) || ::_nc_has_mouse())
 	  ? TRUE : FALSE);
 }

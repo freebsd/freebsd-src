@@ -159,6 +159,7 @@ libncurses-routines	= \
 			base/safe_sprintf \
 			base/sigaction \
 			base/tries \
+			base/version \
 			base/vsscanf \
 			base/wresize \
 			codes \

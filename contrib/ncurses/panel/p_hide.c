@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hide.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_hide.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
 
 /*+-------------------------------------------------------------------------
 	__panel_unlink(pan) - unlink panel from stack
@@ -53,8 +53,7 @@ __panel_unlink(PANEL *pan)
     return;
 #endif
 
-  _nc_override(pan,P_TOUCH);
-  _nc_free_obscure(pan);
+  PANEL_UPDATE(pan,(PANEL*)0);
 
   prev = pan->below;
   next = pan->above;
@@ -71,8 +70,6 @@ __panel_unlink(PANEL *pan)
     _nc_bottom_panel = next;
   if(pan == _nc_top_panel)
     _nc_top_panel = prev;
-
-  _nc_calculate_obscure();
 
   pan->above = (PANEL *)0;
   pan->below = (PANEL *)0;

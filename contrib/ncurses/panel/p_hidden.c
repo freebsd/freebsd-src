@@ -36,12 +36,12 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hidden.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_hidden.c,v 1.3 1999/09/18 11:04:19 juergen Exp $")
 
 int
 panel_hidden(const PANEL *pan)
 {
   if(!pan)
     return(ERR);
-  return(_nc_panel_is_linked(pan) ? TRUE : FALSE);
+  return(_nc_panel_is_linked(pan) ? FALSE : TRUE);
 } 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.10 1999/02/27 19:56:37 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.11 1999/09/11 18:03:27 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -112,7 +112,6 @@ _nc_printf_length(const char *fmt, va_list ap)
 					case 'Z': /* FALLTHRU */
 					case 'h': /* FALLTHRU */
 					case 'l': /* FALLTHRU */
-					case 'L': /* FALLTHRU */
 						done = FALSE;
 						type = *fmt;
 						break;
@@ -134,10 +133,7 @@ _nc_printf_length(const char *fmt, va_list ap)
 					case 'E': /* FALLTHRU */
 					case 'g': /* FALLTHRU */
 					case 'G': /* FALLTHRU */
-						if (type == 'L')
-							VA_FLOAT(long double);
-						else
-							VA_FLOAT(double);
+						VA_FLOAT(double);
 						used = 'f';
 						break;
 					case 'c':

@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_replace.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_replace.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
 
 int
 replace_panel(PANEL *pan, WINDOW *win)
@@ -44,9 +44,7 @@ replace_panel(PANEL *pan, WINDOW *win)
   if(!pan)
     return(ERR);
   if(_nc_panel_is_linked(pan))
-    _nc_override(pan,P_TOUCH);
+    PANEL_UPDATE(pan,(PANEL*)0);
   pan->win = win;
-  if(_nc_panel_is_linked(pan))
-    _nc_calculate_obscure();
   return(OK);
 }

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.51 1999/04/10 21:31:59 tom Exp $
+# $Id: Makefile.in,v 1.54 1999/10/23 20:01:19 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -55,7 +55,7 @@ CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 CFLAGS_NORMAL	= $(CCFLAGS)
 CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
 CFLAGS_PROFILE	= $(CCFLAGS) -pg
-CFLAGS_SHARED	= $(CCFLAGS) # @CC_SHARED_OPTS@
+CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
@@ -85,6 +85,7 @@ TESTS = \
 	bs$x \
 	cardfile$x \
 	ditto$x \
+	dots$x \
 	filter$x \
 	firework$x \
 	firstlast$x \
@@ -120,6 +121,9 @@ cardfile$x: $(MODEL)/cardfile.o $(LOCAL_LIBS)
 
 ditto$x: $(MODEL)/ditto.o $(LOCAL_LIBS)
 	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/ditto.o $(LDFLAGS_DEFAULT)
+
+dots$x: $(MODEL)/dots.o $(LOCAL_LIBS)
+	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/dots.o $(LDFLAGS_DEFAULT)
 
 filter$x: $(MODEL)/filter.o $(LOCAL_LIBS)
 	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/filter.o $(LDFLAGS_DEFAULT)
