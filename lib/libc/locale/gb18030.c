@@ -1,8 +1,6 @@
-/*
- * Copyright (c) 2003
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is contributed to Robin Hu <huxw@knight.6test.edu.cn>
+/*-
+ * Copyright (c) 2002-2004 Tim J. Robbins
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,18 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -32,135 +23,158 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * PRC National Standard GB 18030-2000 encoding of Chinese text.
+ *
+ * See gb18030(5) for details.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <rune.h>
-#include <stddef.h>
-#include <stdio.h>
+#include <errno.h>
+#include <runetype.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <wchar.h>
 
-rune_t	_GB18030_sgetrune(const char *, size_t, char const **);
-int	_GB18030_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+int	_GB18030_init(_RuneLocale *);
+size_t  _GB18030_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t  _GB18030_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
-_GB18030_init(rl)
-	_RuneLocale *rl;
+_GB18030_init(_RuneLocale *rl)
 {
-	rl->sgetrune = _GB18030_sgetrune;
-	rl->sputrune = _GB18030_sputrune;
+
+	__mbrtowc = _GB18030_mbrtowc;
+	__wcrtomb = _GB18030_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 4;
+
 	return (0);
 }
 
-static inline int
-_gb18030_check_string(s_, n)
-     const char* s_;
-     int n;
-{  
-  const unsigned char* s = s_;
-  if ((s[0]>=0x81&&s[0]<=0xfe)) {
-    if (n<2) goto bad_string;
-    if ((s[1]>=0x40&&s[1]<=0x7e)||(s[1]>=0x80&&s[1]<=0xfe))
-      return 2;
-    if ((s[1]>=0x30&&s[1]<=0x39)) {
-      if (n<4) goto bad_string;
-      if ((s[2]>=0x81&&s[2]<=0xfe) && (s[3]>=0x30&&s[3]<=0x39))
-        return 4;
-      else
-        goto bad_string;
-    }
-  } else {
-    return 1;
-  }
- bad_string:
-  return -1;
+size_t
+_GB18030_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps __unused)
+{
+	wchar_t wch;
+	int ch, len;
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (0);
+	if (n == 0)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
+
+	/*
+	 * Single byte:		[00-7f]
+	 * Two byte:		[81-fe][40-7e,80-fe]
+	 * Four byte:		[81-fe][30-39][81-fe][30-39]
+	 */
+	ch = (unsigned char)*s++;
+	if (ch <= 0x7f) {
+		len = 1;
+		wch = ch;
+	} else if (ch >= 0x81 && ch <= 0xfe) {
+		wch = ch;
+		if (n < 2)
+			return ((size_t)-2);
+		ch = (unsigned char)*s++;
+		if ((ch >= 0x40 && ch <= 0x7e) || (ch >= 0x80 && ch <= 0xfe)) {
+			wch = (wch << 8) | ch;
+			len = 2;
+		} else if (ch >= 0x30 && ch <= 0x39) {
+			/*
+			 * Strip high bit off the wide character we will
+			 * eventually output so that it is positive when
+			 * cast to wint_t on 32-bit twos-complement machines.
+			 */
+			wch = ((wch & 0x7f) << 8) | ch;
+			if (n < 3)
+				return ((size_t)-2);
+			ch = (unsigned char)*s++;
+			if (ch < 0x81 || ch > 0xfe)
+				goto ilseq;
+			wch = (wch << 8) | ch;
+			if (n < 4)
+				return ((size_t)-2);
+			ch = (unsigned char)*s++;
+			if (ch < 0x30 || ch > 0x39)
+				goto ilseq;
+			wch = (wch << 8) | ch;
+			len = 4;
+		} else
+			goto ilseq;
+	} else
+		goto ilseq;
+
+	if (pwc != NULL)
+		*pwc = wch;
+	return (wch == L'\0' ? 0 : len);
+ilseq:
+	errno = EILSEQ;
+	return ((size_t)-1);
 }
 
-static inline int
-_gb18030_check_rune(r)
-     rune_t r;
+size_t
+_GB18030_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
-  if (r&0xff000000) {
-      return 4;
-  }
-  if (r&0xff00) {
-      return 2;
-  }
-  return 1;
-}
+	size_t len;
+	int c;
 
-rune_t
-_GB18030_sgetrune(string, n, result)
-	const char *string;
-	size_t n;
-	char const **result;
-{
-  rune_t rune = 0;
-  int len;
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (1);
 
-  len = _gb18030_check_string(string, n);
+	if ((wc & ~0x7fffffff) != 0)
+		goto ilseq;
+	if (wc & 0x7f000000) {
+		/* Replace high bit that mbrtowc() removed. */
+		wc |= 0x80000000;
+		c = (wc >> 24) & 0xff;
+		if (c < 0x81 || c > 0xfe)
+			goto ilseq;
+		*s++ = c;
+		c = (wc >> 16) & 0xff;
+		if (c < 0x30 || c > 0x39)
+			goto ilseq;
+		*s++ = c;
+		c = (wc >> 8) & 0xff;
+		if (c < 0x81 || c > 0xfe)
+			goto ilseq;
+		*s++ = c;
+		c = wc & 0xff;
+		if (c < 0x30 || c > 0x39)
+			goto ilseq;
+		*s++ = c;
+		len = 4;
+	} else if (wc & 0x00ff0000)
+		goto ilseq;
+	else if (wc & 0x0000ff00) {
+		c = (wc >> 8) & 0xff;
+		if (c < 0x81 || c > 0xfe)
+			goto ilseq;
+		*s++ = c;
+		c = wc & 0xff;
+		if (c < 0x40 || c == 0x7f || c == 0xff)
+			goto ilseq;
+		*s++ = c;
+		len = 2;
+	} else if (wc <= 0x7f) {
+		*s++ = wc;
+		len = 1;
+	} else
+		goto ilseq;
 
-  if (len == -1) {
-    if (result)
-      *result = string;
-    return (_INVALID_RUNE);
-  }
-  
-  while (--len >= 0)
-    rune = (rune << 8) | ((u_int)(*string++) & 0xff);
-
-  rune &= 0x7fffffff;
-  if (result)
-    *result = string;
-  return rune;
-}
-
-int
-_GB18030_sputrune(c, string, n, result)
-	rune_t c;
-	char *string, **result;
-	size_t n;
-{
-  int len;
-  len = _gb18030_check_rune(c);
-
-  switch (len) {
-  case 1:
-    if (n >= 1) {  
-      *string = c & 0xff;
-      if (result)
-        *result = string + 1;
-      return (1);
-    }
-    break;
-  case 2:
-    if (n >= 2) {
-      string[0] = (c >> 8) & 0xff;
-      string[1] = c & 0xff;
-      if (result)
-        *result = string + 2;
-      return (2);
-    }
-    break;
-  case 4:
-    if (n >= 4) {
-      string[0] = ((c >>24) & 0xff) | 0x80;
-      string[1] = (c >>16) & 0xff;
-      string[2] = (c >>8)  & 0xff;
-      string[3] = c & 0xff;
-      if (result)
-        *result = string + 4;
-      return (4);
-    }
-    break;
-  default:
-    break;
-  }
-  if (result)
-    *result = string;
-  return (0);
+	return (len);
+ilseq:
+	errno = EILSEQ;
+	return ((size_t)-1);
 }
