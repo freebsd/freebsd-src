@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mkdir.c,v 1.8 1997/02/22 14:04:08 peter Exp $
  */
 
 #ifndef lint
@@ -67,7 +67,7 @@ main(argc, argv)
 
 	omode = pflag = 0;
 	mode = NULL;
-	while ((ch = getopt(argc, argv, "m:p")) != EOF)
+	while ((ch = getopt(argc, argv, "m:p")) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;

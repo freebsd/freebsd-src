@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ls.c,v 1.13 1997/02/22 14:03:59 peter Exp $
  */
 
 #ifndef lint
@@ -135,9 +135,9 @@ main(argc, argv)
 
 	fts_options = FTS_PHYSICAL;
 #ifdef BSD4_4_LITE
-	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != EOF) {
+	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != -1) {
 #else
-	while ((ch = getopt(argc, argv, "1ACFLRTWacdfgikloqrstu")) != EOF) {
+	while ((ch = getopt(argc, argv, "1ACFLRTWacdfgikloqrstu")) != -1) {
 #endif
 		switch (ch) {
 		/*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pwd.c,v 1.5 1997/02/22 14:05:16 peter Exp $
  */
 
 #ifndef lint
@@ -65,7 +65,7 @@ main(argc, argv)
 	 * there's no way to display a logical path after forking.  We don't
 	 * document either flag, only adding -P for future portability.
 	 */
-	while ((ch = getopt(argc, argv, "P")) != EOF)
+	while ((ch = getopt(argc, argv, "P")) != -1)
 		switch (ch) {
 		case 'P':
 			break;
