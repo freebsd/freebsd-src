@@ -53,6 +53,7 @@ static void random_harvest_internal(struct timespec *nanotime, u_int64_t entropy
 struct random_state random_state;
 
 /* When enough entropy has been harvested, asynchronously "stir" it in */
+/* The regate task is run at splsofttq()                               */
 static struct task regate_task[2];
 
 struct context {
@@ -215,6 +216,10 @@ read_random(char *buf, u_int count)
 	u_int i;
 	u_int retval;
 	u_int64_t genval;
+	intrmask_t mask;
+
+	/* The reseed task must not be jumped on */
+	mask = splsofttq();
 
 	if (gate) {
 		generator_gate();
@@ -262,6 +267,7 @@ read_random(char *buf, u_int count)
 			cur -= retval;
 		}
 	}
+	splx(mask);
 	return retval;
 }
 
@@ -270,10 +276,15 @@ generator_gate(void)
 {
 	int i;
 	unsigned char temp[KEYSIZE];
+	intrmask_t mask;
 
 #ifdef DEBUG
-	/* printf("Generator gate\n"); */
+	printf("Generator gate\n");
 #endif
+
+	/* The reseed task must not be jumped on */
+	mask = splsofttq();
+
 	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
 		random_state.counter++;
 		BF_cbc_encrypt((unsigned char *)&random_state.counter,
@@ -283,6 +294,8 @@ generator_gate(void)
 
 	BF_set_key(&random_state.key, KEYSIZE, temp);
 	bzero((void *)temp, KEYSIZE);
+
+	splx(mask);
 }
 
 /* Entropy harvesting routine. This is supposed to be fast; do */
