@@ -83,12 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
 
-#ifndef MAX_PAGEOUT_CLUSTER
-#define MAX_PAGEOUT_CLUSTER 16
-#endif
-
-#define SWB_NPAGES	MAX_PAGEOUT_CLUSTER
-
 #include "opt_swap.h"
 #include <vm/vm.h>
 #include <vm/pmap.h>

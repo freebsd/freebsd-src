@@ -70,8 +70,12 @@ struct swdevt {
  * pages per allocation.  We recommend you stick with the default of 8.
  * The 16-page limit is due to the radix code (kern/subr_blist.c).
  */
+#ifndef MAX_PAGEOUT_CLUSTER
+#define MAX_PAGEOUT_CLUSTER 16
+#endif
+
 #if !defined(SWB_NPAGES)
-#define SWB_NPAGES 8
+#define SWB_NPAGES	MAX_PAGEOUT_CLUSTER
 #endif
 
 /*
