@@ -151,8 +151,8 @@ Tue Nov 28 10:42:36 1995  Ken Raeburn  <raeburn@cygnus.com>
 	(fix_new_internal): Increment it.
 	* read.c (read_print_statistics): New function.
 	* read.h (read_print_statistics): Declare.
-	* symbol.c (symbol_print_statistics): New function.
-	* symbol.h (symbol_print_statistics): Declare.
+	* symbols.c (symbol_print_statistics): New function.
+	* symbols.h (symbol_print_statistics): Declare.
 	* hash.c (hash_print_statistics): New function.
 	* hash.h (hash_print_statistics): Declare.
 	* config/tc-i386.c (i386_print_statistics): New function.
@@ -458,8 +458,8 @@ Thu Oct 26 19:18:27 1995  Ken Raeburn  <raeburn@cygnus.com>
 
 Thu Oct 26 11:45:03 1995  Richard Earnshaw (rearnsha@armltd.co.uk)
 
-	* tc-arm.c (do_ldst): Assemble ldr/str r0, [r1] as a pre-increment
-	instruction.
+	* config/tc-arm.c (do_ldst): Assemble ldr/str r0, [r1] as a
+	pre-increment instruction.
 
 Wed Oct 25 11:59:24 1995  Per Bothner  <bothner@kalessin.cygnus.com>
 
@@ -1930,8 +1930,8 @@ Tue Aug  1 17:35:26 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Aug  1 11:35:18 1995  steve chamberlain  <sac@slash.cygnus.com>
 
-	* tc-sh.c (md_convert_frag): Make some error messages more
-	explict.
+	* config/tc-sh.c (md_convert_frag): Make some error messages
+	more explict.
 
 Mon Jul 31 21:40:47 1995  Ken Raeburn  <raeburn@cygnus.com>
 
@@ -2392,7 +2392,7 @@ Wed Jul  5 12:01:49 1995  Ian Lance Taylor  <ian@cygnus.com>
 	(s_stringer, s_mips_space): Remove unneeded declarations.
 	(md_parse_option): In case 'g', set mips_debug to debugging level.
 	(mips_local_label): New function.
-	* tc-mips.h (LOCAL_LABEL): Call mips_local_label.
+	* config/tc-mips.h (LOCAL_LABEL): Call mips_local_label. 
 	(mips_local_label): Declare.
 
 Wed Jul  5 00:59:22 1995  Fred Fish  (fnf@cygnus.com)
@@ -3143,10 +3143,10 @@ Thu Apr 13 18:18:08 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 Thu Apr 13 14:34:36 1995  Torbjorn Granlund  <tege@adder.cygnus.com>
 
-	* tc-m68k.c (m68k_init_after_args): Test for m68360.
+	* config/tc-m68k.c (m68k_init_after_args): Test for m68360.
 	(md_parse_option): Likewise.
 	(md_show_usage): Mention m68360.
-	* tc-m68k.h (TARGET_WORD_SIZE): Define.
+	* config/tc-m68k.h (TARGET_WORD_SIZE): Define.
 	(TARGET_ARCH): Define.
 
 	* expr.c (integer_constant): If TARGET_WORD_SIZE is defined,
@@ -3714,7 +3714,8 @@ Thu Jan 26 11:35:33 1995  Michael Meissner  <meissner@cygnus.com>
 
 Wed Jan 25 16:23:13 1995  Jim Wilson  <wilson@chestnut.cygnus.com>
 
-	* tc-sh.c (little): Add argument IGNORE to avoid compiler warnings.
+	* config/tc-sh.c (little): Add argument IGNORE to avoid
+	compiler warnings.
 	(md_pseudo_table): Add space for consistent formatting.
 	(COND8_RANGE, COND12_RANGE): Delete unused macros.
 	(COND8_F, COND8_M, COND12_F, COND12_M, UNCOND12_F, UNCOND12_M):
@@ -3878,7 +3879,7 @@ Wed Jan 18 12:16:07 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 	(clever_message): Remove unused variable scan.
 	(md_assemble): Remove unused variable i.
 	(tc_coff_sizemachdep): Remove unused function.
-	* tc-h8300.h (tc_reloc_mangle): Declare.
+	* config/tc-h8300.h (tc_reloc_mangle): Declare.
 
 Tue Jan 17 10:58:06 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 
@@ -7482,7 +7483,7 @@ Mon Jan 24 19:18:23 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	of unused functions.
 	(obj_frob_symbol): Define if ECOFF_DEBUGGING.
 
-	* tc-mips.c (g_switch_seen): New static variable.
+	* config/tc-mips.c (g_switch_seen): New static variable.
 	(md_parse_option): Set g_switch_seen for -G option.
 	(s_option): If creating PIC code, force the GP size to be 0.  Warn
 	if -G switch used with a non-zero value.
@@ -7515,7 +7516,7 @@ Tue Jan 18 16:19:58 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
 
 	* config/tc-hppa.c: Disable multiple $CODE$ subspace code.  It
 	confuses GDB for some unknown reason.
-	* cofnig/obj-som.c: Likewise.
+	* config/obj-som.c: Likewise.
 
 Tue Jan 18 19:05:32 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
@@ -7758,7 +7759,7 @@ Wed Dec 29 14:37:26 1993  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 Sun Dec 26 14:31:47 1993  Torbjorn Granlund  (tege@adder.cygnus.com)
 
-	* tc-hppa.c (pre_defined_registers): Convert to lower case.
+	* config/tc-hppa.c (pre_defined_registers): Convert to lower case.
 	Delete spurious register names "%r4L", etc.
 	(selector_table): Sort and convert to lower case.
 	(cons_fix_new_hppa): `reloc_type' => `rel_type'.
@@ -7953,7 +7954,7 @@ Fri Dec  3 10:56:40 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
 
 	Fri Dec  3 09:47:30 1993  Pete Hoogenboom  (hoogen@cs.utah.edu)
 
-	* tc-hppa.c: (tc_gen_reloc): Addend for a plabel relocation should
+	* config/tc-hppa.c: (tc_gen_reloc): Addend for a plabel relocation should
 	be either 0 or 2 (no static link or static link required).  Always
 	assume no static link.
 
@@ -8480,7 +8481,7 @@ Tue Nov  2 18:04:11 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 Tue Nov  2 15:07:07 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
 
-	* tc-hppa.c: Add %dp and %rp as synonyms for %r27 and %r2 in the
+	* config/tc-hppa.c: Add %dp and %rp as synonyms for %r27 and %r2 in the
 	predefined register table.
 	(pa_parse_number): Handle %rp in common register shortcut code.
 	Consistently set return value to -1 for an error.  Clean up error
@@ -8849,7 +8850,7 @@ Mon Oct 25 10:20:31 1993  Ken Raeburn  (raeburn@rover.cygnus.com)
 
 Sun Oct 24 16:49:00 1993  Jim Wilson  (wilson@x1.cygnus.com)
 
-	* tc-mips.c (md_pseudo_table): Add dword pseudo op.
+	* config/tc-mips.c (md_pseudo_table): Add dword pseudo op.
 
 Fri Oct 22 20:40:56 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
 
@@ -8946,7 +8947,7 @@ Thu Oct 21 12:52:01 1993  Ken Raeburn  (raeburn@cygnus.com)
 
 	* write.c (adjust_reloc_syms): Provide a hook so that a target
 	cpu configuration can reject certain relocation reductions.
-	* tc-hppa.h (tc_fix_adjustable): New macro.  Only accept relocations
+	* config/tc-hppa.h (tc_fix_adjustable): New macro.  Only accept relocations
 	which do not involve function symbols.
 
 	* config/tc-hppa.h: Reindent with GNU-indent.  Delete references
@@ -9701,7 +9702,7 @@ Wed Aug 25 13:37:46 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 	mirror that of pa_parse_nonneg_cmpsub_cmpltr.
 	(pa_parse_nonneg_add_cmpltr): Likewise.
 	(pa_parse_neg_add_cmpltr): Likewise.
-	* tc-hppa.h (pa_param): Declare.
+	* config/tc-hppa.h (pa_param): Declare.
 
 Tue Aug 24 15:41:35 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
@@ -10200,7 +10201,7 @@ Mon Jul 19 15:21:20 1993  Ken Raeburn  (raeburn@rtl.cygnus.com)
 	* config/obj-elf.h: Don't include struc-symbol.h.
 	(obj_elf_frob_symbol): Declare arg as struct symbol *.
 
-	* tc-sparc.h (LOCAL_LABEL) [OBJ_ELF]: Local labels can start with
+	* config/tc-sparc.h (LOCAL_LABEL) [OBJ_ELF]: Local labels can start with
 	"L" or "_.L_".
 
 	* write.c (write_relocs): New function, split off from
@@ -11126,7 +11127,7 @@ Wed Apr 28 13:40:29 1993  Ian Lance Taylor  (ian@rtl.cygnus.com)
 
 Mon Apr 26 18:29:05 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* config/tc-sh.ch, config/tc-sh.h: New files supporting Hitachi
+	* config/tc-sh.c, config/tc-sh.h: New files supporting Hitachi
 	SH.
 
 Mon Apr 26 12:28:27 1993  Ian Lance Taylor  (ian@cygnus.com)
@@ -11620,7 +11621,7 @@ Mon Mar  8 14:57:10 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 Fri Mar  5 09:05:55 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 	* read.h: Define stringer here.
-	read.c, config/obj-ieee.c, config/obj-tcm88k.c: Not any of these
+	* read.c, config/obj-ieee.c, config/obj-tcm88k.c: Not any of these
 	places.
 
 Thu Mar  4 11:52:23 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
@@ -11847,8 +11848,8 @@ Mon Feb  8 13:56:17 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 Thu Feb  4 12:45:16 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* config/{h8500.mt, tc-h8500.c, tc-h8500.h, obj-coffbfd.c,
-	obj-coffbfd.h}: support for the H8/500
+	* config/{h8500.mt, config/tc-h8500.c, config/tc-h8500.h,
+	config/obj-coffbfd.c, obj-coffbfd.h}: support for the H8/500.
 
 Wed Feb  3 19:28:18 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
@@ -11994,25 +11995,25 @@ Tue Jan  5 08:42:16 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 	* config-gas.com: New file.  Script for VMS systems to set up the
 	  configuration to build gas for VMS, and create config.status.
 	* make-gas.com: Redone to work with new scheme.
-	* obj-vms.c: Patch to fix bug where we were not correctly parsing the
+	* config/obj-vms.c: Patch to fix bug where we were not correctly parsing the
 	  stabs directives.
-	* obj-vms.c:  Define macros COPY_LONG and COPY_SHORT which
+	* config/obj-vms.c:  Define macros COPY_LONG and COPY_SHORT which
 	  will swap bytes if needed on a big endian system.  Use throughout
 	  as needed.
-	* obj-vms.c (obj_aout_stab):  Add code to generate listing file.
-	* obj-vms.c (VMS_typedef_parse): Add alias to correctly handle certain
+	* config/obj-vms.c (obj_aout_stab):  Add code to generate listing file.
+	* config/obj-vms.c (VMS_typedef_parse): Add alias to correctly handle certain
 	  types of malformed stabs.  Change parsing algorithm so that we are
 	  more certain of having all of the information that we need on hand.
-	* obj-vms.c (final_forward_reference):  New function, used to help
+	* config/obj-vms.c (final_forward_reference):  New function, used to help
 	  resolve the data types of as many struct elements as possible
 	  when some part of the struct is not fully defined by the compiler.
-	* obj-vms.c (VMS_LSYM_Parse):  Correctly handle case of continuation
+	* config/obj-vms.c (VMS_LSYM_Parse):  Correctly handle case of continuation
 	  stabs directives.
-	* obj-vms.c (VMS_write_object_file): Define all vtable psects
+	* config/obj-vms.c (VMS_write_object_file): Define all vtable psects
 	  as symbols as well in the object file.  Look for external functions
 	  that start with "__vt.", and turn them into variables, since the
 	  g++ compiler is incapable of doing this.
-	* tc-vax.c: Add '1' option for backward compatibility with older GCC
+	* config/tc-vax.c: Add '1' option for backward compatibility with older GCC
 	  versions.
 	* bignum-copy.c (bignum_copy): Fix bug where we pad with zeroes.
 	* input-scrub.c (as_where): Fix bug where as would crash if we did not
@@ -12148,8 +12149,8 @@ Mon Dec 28 10:32:05 1992  Ken Raeburn  (raeburn@cygnus.com)
 
 Wed Dec 16 12:12:33 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* write.c, obj-ieee.c: don't define SUB_SEGMENT_ALIGN if it is
-	already defined.
+	* write.c, config/obj-ieee.c: don't define SUB_SEGMENT_ALIGN
+	if it is already defined.
 
 Tue Dec 15 12:40:11 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
@@ -12191,9 +12192,9 @@ Sat Dec 12 15:26:34 1992  Ian Lance Taylor  (ian@cygnus.com)
 	used in AT&T i386 syntax.
 	(fixup_segment): Take segment as argument.  On the i386, adjust PC
 	relative addends by the segment vaddr.
-	* tc-i386.h: Define SUB_SEGMENT_ALIGN.
-	* tc-a29k.h: Define ZERO_BASED_SEGMENTS.
-	* tc-i386.c: (i386_operand): If I386COFF, accept any segment type.
+	* config/tc-i386.h: Define SUB_SEGMENT_ALIGN.
+	* config/tc-a29k.h: Define ZERO_BASED_SEGMENTS.
+	* config/tc-i386.c: (i386_operand): If I386COFF, accept any segment type.
 
 Tue Dec  8 00:06:48 1992  Ken Raeburn  (raeburn@rtl.cygnus.com)
 
@@ -12327,9 +12328,9 @@ Mon Nov 23 11:00:16 1992  Ken Raeburn  (raeburn@cygnus.com)
 
 	* configure.in: No te-386bsd.h file exists; don't try to use it.
 
-	* obj-coff.c (obj_coff_endef): Use as_warn, not fprintf.
+	* config/obj-coff.c (obj_coff_endef): Use as_warn, not fprintf.
 
-	* tc-m68k.c (md_assemble): Don't complain about 68000 with 68881;
+	* config/tc-m68k.c (md_assemble): Don't complain about 68000 with 68881;
 	could be doing emulation.
 
 Thu Nov 19 11:47:19 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
@@ -12349,45 +12350,46 @@ Tue Nov 10 09:49:24 1992  Ian Lance Taylor  (ian@cygnus.com)
 	read.c, app.c: removed definitions of comment_chars,
 	line_comment_chars, and line_separator_chars.
 
-	* tc-m68k.c (m68k_reg_parse): If REGISTER_PREFIX isn't defined,
+	* config/tc-m68k.c (m68k_reg_parse): If REGISTER_PREFIX isn't defined,
 	still accept (but don't require) OPTIONAL_REGISTER_PREFIX before
 	the register name.
 	(insert_reg): put REGISTER_PREFIX before register names before
 	putting them in the symbol table.
-	* tc-m68k.h (OPTIONAL_REGISTER_PREFIX): Define to be "%", if not
+	* config/tc-m68k.h (OPTIONAL_REGISTER_PREFIX): Define to be "%", if not
 	M68KCOFF.
 
-	* obj-coffbfd.c (fill_section): set STYP_NOLOAD bit for .bss
+	* config/obj-coffbfd.c (fill_section): set STYP_NOLOAD bit for .bss
 	section.
 
-	* atof-ieee.c, atof-ns32k.c, tc-*.c: made EXP_CHARS, FLT_CHARS,
-	comment_chars, line_comment_chars and line_seperator_chars
-	consistently const, and always initialized them.  Included read.h.
+	* config/atof-ieee.c, config/atof-ns32k.c, config/tc-*.c: made
+	EXP_CHARS, FLT_CHARS, comment_chars, line_comment_chars and
+	line_seperator_chars consistently const, and always
+	initialized them.  Included read.h. 
 
 Thu Nov  5 17:55:41 1992  Jim Wilson  (wilson@sphagnum.cygnus.com)
 
-	* tc-sparc.c (sparc_ip): Add code to flag error if an absolute
+	* config/tc-sparc.c (sparc_ip): Add code to flag error if an absolute
 	constant will not fit in an immediate field.
 	(md_apply_fix, RELOC_BASE13 case): Check for relocation overflow.
 
 Wed Nov  4 07:50:46 1992  Ken Raeburn  (raeburn@cygnus.com)
 
-	* obj-coff.c (callj_table): Delete global variable.
+	* config/obj-coff.c (callj_table): Delete global variable.
 	(obj_emit_relocations): Define it locally here, and only if
 	TC_I960 is defined.
 
-	* tc-m68k.c (m68k_reg_parse): Underscore is part of a symbol name.
+	* config/tc-m68k.c (m68k_reg_parse): Underscore is part of a symbol name.
 	(m68k_ip): Don't warn about bignum used as float bit-pattern.
 
-	* obj-coff.c: Replaced ANSI and non-ANSI function declarations
+	* config/obj-coff.c: Replaced ANSI and non-ANSI function declarations
 	with a single set using PARAMS macro.
 
-	* tc-i960.c (tc_bout_fix_to_chars): Bit-field fixups want a length
+	* config/tc-i960.c (tc_bout_fix_to_chars): Bit-field fixups want a length
 	of 2.
 
-	* tc-i960.c: Missed a couple of 0->NO_RELOC conversions.
+	* config/tc-i960.c: Missed a couple of 0->NO_RELOC conversions.
 
-	* tc-i960.h (N_BALNAME, N_CALLNAME): Define as char-type values,
+	* config/tc-i960.h (N_BALNAME, N_CALLNAME): Define as char-type values,
 	so widening works consistently.
 
 Wed Oct 28 08:52:34 1992  Ken Raeburn  (raeburn@cygnus.com)
@@ -12400,7 +12402,7 @@ Wed Oct 28 08:52:34 1992  Ken Raeburn  (raeburn@cygnus.com)
 
 Fri Oct 23 14:40:38 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* obj-coffbfd.c (write_object_file): check return value of
+	* config/obj-coffbfd.c (write_object_file): check return value of
 	bfd_close_all_done.
 
 Tue Oct 20 12:18:08 1992  Ian Lance Taylor  (ian@cygnus.com)
@@ -12426,11 +12428,11 @@ Sat Oct 10 12:33:45 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 Mon Oct  5 09:28:57 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	 fix i960+non-bfd coff bit rot.
-	* obj-coff.c (c_dot_file_symbol, obj_coff_ln, obj_coff_line):
+	* config/obj-coff.c (c_dot_file_symbol, obj_coff_ln, obj_coff_line):
 	support for C source listings. (obj_coff_endef): look in the right
 	part of the symbol for the symbol name
 
-	* tc-m68k.c (get_num): make it work for all segments, not just the
+	* config/tc-m68k.c (get_num): make it work for all segments, not just the
 	first three.
 
 Mon Oct  5 03:30:36 1992  Mark Eichin  (eichin at tweedledumber.cygnus.com)
@@ -12443,25 +12445,26 @@ Thu Oct  1 23:05:12 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
 Tue Sep 29 12:22:52 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* obj-coffbfd.c (write_object_file): don't fixup for the z8k
-	* tc-z8k.c: lots of bug fixes
+	* config/obj-coffbfd.c (write_object_file): don't fixup for the z8k
+	* config/tc-z8k.c: lots of bug fixes
 
 Tue Sep 29 10:51:55 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* tc-i960.h, tc-i960.c: avoid the ANSI preprocessor addition
-	#elif, since it is not supported by old compilers.
-	ho-rs6000.h, tc-m68k.c: the native RS/6000 compiler miscompiles a
-	couple of expressions in tc-m68k.c.
+	* config/tc-i960.h, config/tc-i960.c: avoid the ANSI
+	preprocessor addition #elif, since it is not supported by old
+	compilers. 
+	config/ho-rs6000.h, config/tc-m68k.c: the native RS/6000
+	compiler miscompiles a couple of expressions in tc-m68k.c.
 
 Mon Sep 28 21:18:24 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 	* read.c (cons): If NO_RELOC is defined, use it.
 
-	* tc-i960.c (get_cdisp): Use NO_RELOC, not 0, in call to fix_new.
+	* config/tc-i960.c (get_cdisp): Use NO_RELOC, not 0, in call to fix_new.
 
 Fri Sep 25 18:18:52 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* tc-m68k.h: if M68KCOFF, define DOT_LABEL_PREFIX (to require
+	* config/tc-m68k.h: if M68KCOFF, define DOT_LABEL_PREFIX (to require
 	local labels to start with a .) and set REGISTER_PREFIX to %.
 	tc-m68k.c (m68k_reg_parse): accept REGISTER_PREFIX if defined.
 
@@ -12481,7 +12484,7 @@ Thu Sep 24 12:42:32 1992  Brendan Kehoe  (brendan@rtl.cygnus.com)
 
 Tue Sep 22 13:02:07 1992  Sean Eric Fagan  (sef@cygnus.com)
 
-	* obj-coffbfd.c (do_relocs_for,fill_section): now allocate all
+	* config/obj-coffbfd.c (do_relocs_for,fill_section): now allocate all
 	sections starting from zero, rather than making them consecutive.
 	This makes subsequent reloc calculations easier, esp if the object
 	format doesn't understand addends. (obj_coff_lcomm): (maybe temporarily)
@@ -12490,17 +12493,17 @@ Tue Sep 22 13:02:07 1992  Sean Eric Fagan  (sef@cygnus.com)
 
 Tue Sep 22 15:10:51 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
-	* tc-m68k.c: Replace "enum m68k_architecture" with "int"
+	* config/tc-m68k.c: Replace "enum m68k_architecture" with "int"
 	throughout.  That enum no longer means what we thought it meant.
 
-	* tc-m68k.c (md_assemble, md_parse_option): Handle new
+	* config/tc-m68k.c (md_assemble, md_parse_option): Handle new
 	"-mno-688[58]1" options.
 
-	* tc-m68k.c: Added CPU32 support.
+	* config/tc-m68k.c: Added CPU32 support.
 
 Fri Sep 18 08:02:18 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* tc-m68k.c (m68k_ip): An(disp) is not pc relative.
+	* config/tc-m68k.c (m68k_ip): An(disp) is not pc relative.
 
 Tue Sep 15 17:25:05 1992  Jim Wilson  (wilson@sphagnum.cygnus.com)
 
@@ -12525,19 +12528,19 @@ Sun Sep 13 20:30:10 1992  Ian Lance Taylor  (ian@cygnus.com)
 	* write.c (fixup_segment): fixed missing parens in expression
 	checking for byte or word overflow.
 
-	* obj-coffbfd.h: define WARN_SIGNED_OVERFLOW_WORD.
+	* config/obj-coffbfd.h: define WARN_SIGNED_OVERFLOW_WORD.
 	obj-coffbfd.c (fixup_segment): check for signed .word overflow if
 	WARN_SIGNED_OVERFLOW_WORD.
 
-	* obj-coffbfd.c (fixup_segment): fixed missing parens in
+	* config/obj-coffbfd.c (fixup_segment): fixed missing parens in
 	expression checking for byte or word overflow.
 
 Fri Sep 11 10:21:04 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	Support for i386 coff
-	* obj-coffbfd.h : added stuff
-	* tc-i386.c (tc_coff_fix2rtype): new function
-	* tc-i386.h : new coff defines
+	* config/obj-coffbfd.h : added stuff
+	* config/tc-i386.c (tc_coff_fix2rtype): new function
+	* config/tc-i386.h : new coff defines
 
 Thu Sep 10 09:23:15 1992  Ian Lance Taylor  (ian@cygnus.com)
 
@@ -12553,21 +12556,23 @@ Wed Sep  9 11:06:25 1992  Ian Lance Taylor  (ian@cygnus.com)
 	Makefile.in: Handle m68*-*-coff*.
 	read.c, read.h: add mult argument to s_space
 
-	* tc-m68k.c (m68k_ip, m68k_ip_op, get_num, try_moto_index): merge
+	* config/tc-m68k.c (m68k_ip, m68k_ip_op, get_num, try_moto_index): merge
 	 Motorola and MIT syntax; gas can now assemble either type of
 	 file.
-	tc-m68kmote.c, tc-m68kmote.h: removed now superfluous files.
+	* config/tc-m68kmote.c, config/tc-m68kmote.h: removed now
+	 superfluous files.
+	 
 	From Steve Chamberlain:
-	m68kcoff.mt: for m68k COFF.
-	obj-coffbfd.c: (fixup_mdeps) added
+	* config/m68kcoff.mt: for m68k COFF.
+	* config/obj-coffbfd.c: (fixup_mdeps) added
 	 (size_section) removed bad sanity check
 	 (fill_section) added rs_machine_dependent case
 	 (write_object_file) call fixup_mdeps
 	 (fixup_segment) set fx_subsy to 0.
-	obj-coffbfd.h: define WORKING_DOT_WORD (too hard to support) and
-	 handle m68k.
-	tc-m68k.c, config/tc-m68k.h: added m68k COFF support and Motorala
-	 pseudo ops.
+	* config/ obj-coffbfd.h: define WORKING_DOT_WORD (too hard to
+	support) and handle m68k.
+	* config/tc-m68k.c, config/tc-m68k.h: added m68k COFF support
+	and Motorala pseudo ops.
 
 Tue Sep  8 17:10:58 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
@@ -12592,9 +12597,11 @@ Sat Aug 29 12:11:12 1992  Jim Wilson  (wilson@sphagnum.cygnus.com)
 
 Fri Aug 28 16:25:22 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* obj-bout.h, obj-bout.c (obj_header_append, obj_symbol_to_chars),
-	tc-i960.c (md_ri_to_chars): Always output bout object file in
-	little endian byte order (used to use endianness of host).
+	* config/obj-bout.h, config/obj-bout.c (obj_header_append,
+	obj_symbol_to_chars).
+	* config/tc-i960.c (md_ri_to_chars): Always output bout object
+	file in little endian byte order (used to use endianness of
+	host).
 
 Tue Aug 25 15:50:48 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
@@ -12623,9 +12630,9 @@ Mon Aug 24 12:45:43 1992  Ian Lance Taylor  (ian@cygnus.com)
 	* Makefile.in: defined TARGET_CPU for C code so that it can choose
 	one element of a family.
 
-	* tc-m68k.c: use TARGET_CPU to choose default cpu type.
+	* config/tc-m68k.c: use TARGET_CPU to choose default cpu type.
 
-	* te-generic.h: default to LOCAL_LABELS_DOLLAR and LOCAL_LABELS_FB
+	* config/te-generic.h: default to LOCAL_LABELS_DOLLAR and LOCAL_LABELS_FB
 	so that we can assemble hand-written libgcc code.
 
 Fri Aug 21 14:38:44 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
@@ -12636,7 +12643,7 @@ Fri Aug 21 14:38:44 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 Wed Aug 19 11:20:59 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* tc-m68k.c, tc-m68kmote.c: the cas2 instruction is supposed to be
+	* config/tc-m68k.c, tc-m68kmote.c: the cas2 instruction is supposed to be
 	written with indirection on the last two operands, which can be
 	either data or address registers.  Added a new operand type 'r'
 	which accepts either register type.  Added '(' to notend stuff in
@@ -12658,16 +12665,16 @@ Wed Aug 19 09:25:09 1992  Ken Raeburn  (raeburn@cygnus.com)
 	defined, call it.  Change segments before calling fixup_segment.
 	(relax_align): If linkrelax, provide extra padding.
 
-	* obj-bout.c (obj_emit_relocations): Emit alignment relocs despite
+	* config/obj-bout.c (obj_emit_relocations): Emit alignment relocs despite
 	their not having symbols associated.
 
-	* tc-i960.c (norelax, instrument_branches): Default initializer is
+	* config/tc-i960.c (norelax, instrument_branches): Default initializer is
 	sufficient.
 	(linkrelax): Delete variable definition.
 	(mem_fmt): Call fix_new with NO_RELOC.
 	(tc_bout_fix_to_chars): Handle alignment relocs.
 	(i960_handle_align): New function.
-	* tc-i960.h (linkrelax): Delete declaration.
+	* config/tc-i960.h (linkrelax): Delete declaration.
 	(HANDLE_ALIGN): New macro; calls i960_handle_align.
 	(NEED_FX_R_TYPE, NO_RELOC): New macros.
 
@@ -12716,7 +12723,7 @@ Tue Aug 11 12:58:14 1992  Ken Raeburn  (raeburn@cygnus.com)
 
 Mon Aug 10 14:37:08 1992  Per Bothner  (bothner@cygnus.com)
 
-	* tc-m68k.c: ".align N" means align to N-byte boundary *only*
+	* config/tc-m68k.c: ".align N" means align to N-byte boundary *only*
 	if TN_SUN3; otherwise align to 2**N-byte bounary.
 
 Thu Aug  6 12:10:39 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
@@ -12734,7 +12741,7 @@ Wed Aug  5 12:02:40 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 Wed Aug  5 01:54:34 1992  John Gilmore  (gnu at cygnus.com)
 
-	* tc-m68k.c (try_index):  Error if index scaling specified and
+	* config/tc-m68k.c (try_index):  Error if index scaling specified and
 	assembling for an older CPU than a 68020.
 
 Sat Aug  1 19:10:13 1992  Ken Raeburn  (raeburn@cygnus.com)
@@ -12785,7 +12792,7 @@ Mon Jul 13 14:11:36 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 Mon Jul  6 17:09:32 1992  Steve Chamberlain  (sac@cygnus.com)
 
-	* obj-coffbfd.c (fill_section): mark .lit sections as STYP_LIT
+	* config/obj-coffbfd.c (fill_section): mark .lit sections as STYP_LIT
 
 Mon Jun  1 16:20:22 1992  Michael Tiemann  (tiemann@cygnus.com)
 
@@ -12814,7 +12821,7 @@ Tue Jun  9 07:54:54 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 	* write.c (write_object_file): various changes to handle data in
 	the BSS segment in much the same was as stuff in the DATA segment.
 
-	* tc-m68k.c (m68kip): Fix typo so that only arch's >=68020 do
+	* config/tc-m68k.c (m68kip): Fix typo so that only arch's >=68020 do
 	pcrel data stuff. (md_estimate_size_before_relax): when relaxing a
 	68010 bxx into a bra+6 jmpxx, put the bytes of the jmp opcode into
 	the right place. (s_bss): Don't put .bss stuff into SEG_DATA, put
@@ -12853,7 +12860,7 @@ Thu May 28 11:22:02 1992  Jim Wilson  (wilson@sphagnum.cygnus.com)
 
 	* configure.in: Recognize sparclite as a sparc variant.
 
-	* tc-sparc.c: Use new ARCHITECTURES_CONFLICT_P macro.  Mention new
+	* config/tc-sparc.c: Use new ARCHITECTURES_CONFLICT_P macro.  Mention new
 	-Asparclite flag.
 
 Tue May 26 16:47:56 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
@@ -12867,9 +12874,9 @@ Thu May 14 17:22:48 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
 
 Mon May  4 18:56:19 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* obj-coffbfd.c: use is a synonym for section, (do_relocs_for):
+	* config/obj-coffbfd.c: use is a synonym for section, (do_relocs_for):
 	calc the base of relocs correctly.
-	* tc-a29k.c (parse_operand): allow expressions to be in any section.
+	* config/tc-a29k.c (parse_operand): allow expressions to be in any section.
 
 Mon Apr 27 13:13:31 1992  K. Richard Pixley  (rich@cygnus.com)
 
@@ -12923,8 +12930,8 @@ Fri Mar 13 08:03:03 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 Thu Mar 12 04:42:38 1992  K. Richard Pixley  (rich@cygnus.com)
 
-	* tc-m68k.h, te-sun3.h: moved LOCAL_LABELS_FB definition from
-	  tc-m68k.h to te-sun3.h.
+	* config/tc-m68k.h, config/te-sun3.h: moved LOCAL_LABELS_FB
+	  definition from tc-m68k.h to te-sun3.h.
 
 Wed Mar 11 23:32:42 1992  K. Richard Pixley  (rich@cygnus.com)
 
@@ -12936,7 +12943,7 @@ Wed Mar 11 23:32:42 1992  K. Richard Pixley  (rich@cygnus.com)
 	* symbols.c: remove local_labels_dollar, replace with a function
 	  interface for a sparse array.  All users adjusted.
 
-	* te-sun3.h: add LOCAL_LABELS_DOLLAR.
+	* config/te-sun3.h: add LOCAL_LABELS_DOLLAR.
 
 Sat Mar  7 00:06:25 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
 
@@ -13024,9 +13031,9 @@ Fri Feb 21 06:21:07 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
 
 	* read.c, write.c subsegs.c: back out the .bss changes.
 
-	* obj-aout.c: do not include stab.gnu.h if NO_LISTING.
+	* config/obj-aout.c: do not include stab.gnu.h if NO_LISTING.
 
-	* tc-i860.c, a.out.gnu.h: move i860 relocs to a proper place.
+	* config/tc-i860.c, a.out.gnu.h: move i860 relocs to a proper place.
 
 	* a.out.h: removed.
 
@@ -13045,11 +13052,11 @@ Fri Feb 21 01:08:48 1992  Minh Tran-Le (TRANLE@INTELLICORP.COM)
 
 	* as.c (perform_an_assembly_pass): zero bss_fix_root, too.
 
-	* tc-i386.c: tc-i386.c: added handling of the following opcodes:
+	* config/tc-i386.c: tc-i386.c: added handling of the following opcodes:
 	  i/o opcodes - inb, inw, outb and outw.  string manipulation with
 	  att syntax - scmp, slod, smov, ssca, ssto.
 
-	* obj-coff.c: (for aix386) Moved the symbols .text, .data and .bss
+	* config/obj-coff.c: (for aix386) Moved the symbols .text, .data and .bss
 	  to just after .file .
 
 	  In obj_crawl_symbol_chain() where it tries to put the external
@@ -13085,18 +13092,18 @@ Tue Feb 18 02:21:25 1992  K. Richard Pixley  (rich at cygnus.com)
 
 	* write.c: comment change only.
 
-	* tc-m88k.[hc]: pulled in from hack's unfinished work.  These
+	* config/tc-m88k.[hc]: pulled in from hack's unfinished work.  These
 	  aren't yet integrated.
 
-	* tc-i860.[hc]: blew off the dust.  Something must still be done
+	* config/tc-i860.[hc]: blew off the dust.  Something must still be done
 	  about conflicting relocation types.
 
-	* tc-ns32k.c: Replaced previous tc_aout_fix_to_chars stub with the
+	* config/tc-ns32k.c: Replaced previous tc_aout_fix_to_chars stub with the
 	  real thing.
 
-	* tc-i960.c, tc-sparc.c: white space and comments only.
+	* config/tc-i960.c, config/tc-sparc.c: white space and comments only.
 
-	* tc-a29k.h: delete duplicate macro definition.
+	* config/tc-a29k.h: delete duplicate macro definition.
 
 	* new file atof-ns32k.c copied from hack's last unreleased gas.
 

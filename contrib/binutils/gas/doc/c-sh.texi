@@ -1,4 +1,5 @@
-@c Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 2001
+@c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @page
@@ -17,10 +18,34 @@
 @node SH Options
 @section Options
 
-@cindex SH options (none)
-@cindex options, SH (none)
-@code{@value{AS}} has no additional command-line options for the Hitachi
+@cindex SH options
+@cindex options, SH
+@code{@value{AS}} has following command-line options for the Hitachi
 SH family.
+
+@table @code
+@kindex -little
+@kindex -big
+@kindex -relax
+@kindex -small
+@kindex -dsp
+
+@item -little
+Generate little endian code.
+
+@item -big
+Generate big endian code.
+
+@item -relax
+Alter jump instructions for long displacements.
+
+@item -small
+Align sections to 4 byte boundaries, not 16.
+
+@item -dsp
+Enable sh-dsp insns, and disable sh3e / sh4 insns.
+
+@end table
 
 @node SH Syntax
 @section Syntax

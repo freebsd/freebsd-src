@@ -1,5 +1,5 @@
 /* BFD backend for core files which use the ptrace_user structure
-   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002
    Free Software Foundation, Inc.
    The structure of this file is based on trad-core.c written by John Gilmore
    of Cygnus Support.
@@ -64,8 +64,9 @@ ptrace_unix_core_file_p (abfd)
   int val;
   struct ptrace_user u;
   struct trad_core_struct *rawptr;
+  bfd_size_type amt;
 
-  val = bfd_read ((void *)&u, 1, sizeof u, abfd);
+  val = bfd_bread ((void *)&u, (bfd_size_type) sizeof u, abfd);
   if (val != sizeof u || u.pt_magic != _BCS_PTRACE_MAGIC
       || u.pt_rev != _BCS_PTRACE_REV)
     {
@@ -78,8 +79,8 @@ ptrace_unix_core_file_p (abfd)
 
   /* Allocate both the upage and the struct core_data at once, so
      a single free() will free them both.  */
-  rawptr = (struct trad_core_struct *)
-		bfd_zalloc (abfd, sizeof (struct trad_core_struct));
+  amt = sizeof (struct trad_core_struct);
+  rawptr = (struct trad_core_struct *) bfd_zalloc (abfd, amt);
 
   if (rawptr == NULL)
     return 0;
@@ -88,22 +89,17 @@ ptrace_unix_core_file_p (abfd)
 
   rawptr->u = u; /*Copy the uarea into the tdata part of the bfd */
 
-  /* Create the sections.  This is raunchy, but bfd_close wants to free
-     them separately.  */
+  /* Create the sections.  */
 
-  core_stacksec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
+  core_stacksec (abfd) = bfd_make_section_anyway (abfd, ".stack");
   if (core_stacksec (abfd) == NULL)
-    return NULL;
-  core_datasec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
+    goto fail;
+  core_datasec (abfd) = bfd_make_section_anyway (abfd, ".data");
   if (core_datasec (abfd) == NULL)
-    return NULL;
-  core_regsec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
+    goto fail;
+  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
   if (core_regsec (abfd) == NULL)
-    return NULL;
-
-  core_stacksec (abfd)->name = ".stack";
-  core_datasec (abfd)->name = ".data";
-  core_regsec (abfd)->name = ".reg";
+    goto fail;
 
   /* FIXME:  Need to worry about shared memory, library data, and library
      text.  I don't think that any of these things are supported on the
@@ -130,12 +126,13 @@ ptrace_unix_core_file_p (abfd)
   core_datasec (abfd)->alignment_power = 2;
   core_regsec (abfd)->alignment_power = 2;
 
-  abfd->sections = core_stacksec (abfd);
-  core_stacksec (abfd)->next = core_datasec (abfd);
-  core_datasec (abfd)->next = core_regsec (abfd);
-  abfd->section_count = 3;
-
   return abfd->xvec;
+
+ fail:
+  bfd_release (abfd, abfd->tdata.any);
+  abfd->tdata.any = NULL;
+  bfd_section_list_clear (abfd);
+  return NULL;
 }
 
 char *

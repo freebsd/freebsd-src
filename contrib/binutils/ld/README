@@ -1,3 +1,5 @@
+		README for LD
+
 This is the GNU linker.  It is distributed with other "binary
 utilities" which should be in ../binutils.  See ../binutils/README for
 more general notes, including where to send bug reports.

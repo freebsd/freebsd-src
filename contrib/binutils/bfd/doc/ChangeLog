@@ -1,7 +1,83 @@
-2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
 
-	* bfdint.texi (BFD target vector miscellaneous): --oformat, not
-	-oformat.
+	* Makefile.in: Regenerate.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* chew.c (WORD): Eliminate.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* Makefile.in: Regenerate.
+
+2002-01-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* chew.c (courierize): Don't modify @command params.
+
+2002-01-30  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* proto.str (ENUMDOC): Place two spaces between the end of
+	the text and the closing comment marker.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* bfdint.texi (BFD target vector miscellaneous): Add
+	bfd_target_mmo_flavour.
+	* bfd.texinfo (BFD back ends): Add entry for mmo.
+	* Makefile.am (DOCFILES): Add mmo.texi.
+	(SRCDOC): Add mmo.c.
+	(s-mmo, mmo.texi): New rules.
+
+2001-10-29  Kazu Hirata  <kazu@hxi.com>
+
+	* bfdsumm.texi: Fix a typo.
+
+2001-10-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* bfd.texinfo: Change footer to refer to FSF.  Change subtitle
+	to refer to original creation date.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.am (install): Depend on install-info.
+	* Makefile.in: Regenerate.
+
+2001-10-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (BFD_H_DEP): Add ../version.h.
+	* Makefile.in: Regenerate.
+
+2001-10-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-10-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* header.sed: New file, adds header to generated files.
+	* Makefile.am: Rewrite rules generating libbfd.h, libcoff.h and
+	bfd.h, using above.  Add missing elf.c dependecy for libbfd.h.
+	* Makefile.in: Regenerate.
+
+2001-09-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdint.texi: Replace reference to bfd_read with bfd_bread.
+	Likewise for bfd_write.
+
+2001-07-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2001-06-21  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdint.texi (BFD relocation functions) <different formats>:
+	Mention that the GNU linker is aware of input-output format
+	restrictions when generating relocatable output.  Make new
+	paragraph for final-link case.
+	(BFD target vector swap): Fix typo.
 
 2001-01-25  Kazu Hirata  <kazu@hxi.com>
 
@@ -129,7 +205,7 @@ Tue Jul 22 14:44:00 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE
 
 	* Makefile.in: Change stamp-* files to s-* files.  Use bfdt.texi
 	rather than bfd.texi.
- 	(DOCFILES): Change bfd.texi to bfdt.texi.
+	(DOCFILES): Change bfd.texi to bfdt.texi.
 	* bfd.texinfo: Include bfdt.texi, not bfd.texi.
 
 Mon Jun 16 15:33:15 1997  Ian Lance Taylor  <ian@cygnus.com>
@@ -172,7 +248,7 @@ Tue Jan 30 14:10:46 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Nov  3 14:46:48 1995  Fred Fish  <fnf@cygnus.com>
 
-	* Makefile.in (SRCDOC, SRCPROT, core.texi, bfd.h):  Use corefile.c, 
+	* Makefile.in (SRCDOC, SRCPROT, core.texi, bfd.h):  Use corefile.c,
 	renamed from core.c.
 
 Wed Nov  1 14:28:23 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
@@ -240,7 +316,7 @@ Fri Sep  2 13:33:44 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 Wed Jan 12 18:37:12 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* bfd.texinfo: Added Linker Functions node.
-	* doc/Makefile.in (DOCFILES): Added linker.texi.
+	* Makefile.in (DOCFILES): Added linker.texi.
 	(SRCDOC): Added linker.c.
 	(linker.texi): New target.
 
@@ -292,7 +368,7 @@ Thu Jun 24 13:48:13 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
 
 Mon Jun 14 12:07:07 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
 
-	* Makefile.in (install-info): remove parentdir cruft, 
+	* Makefile.in (install-info): remove parentdir cruft,
 
 Wed Jun  9 16:00:32 1993  Jim Kingdon  (kingdon@cygnus.com)
 
@@ -355,9 +431,9 @@ Thu Nov  5 03:13:55 1992  John Gilmore  (gnu@cygnus.com)
 
 	Cleanup:  Replace all uses of EXFUN in the BFD sources, with PARAMS.
 
- 	* doc/chew.c (exfunstuff):  Eliminate.
+	* chew.c (exfunstuff):  Eliminate.
 	(paramstuff):  Replace exfunstuff with function to generate PARAMS.
-	* doc/proto.str:  Use paramstuff rather than exfunstuff.
+	* proto.str:  Use paramstuff rather than exfunstuff.
 
 Mon Aug 17 12:40:32 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
@@ -370,7 +446,7 @@ Fri Jun 19 18:59:54 1992  John Gilmore  (gnu at cygnus.com)
 Mon May 11 18:55:59 1992  John Gilmore  (gnu at cygnus.com)
 
 	* chew.c:  exit() should be declared by config files, not by
-	portable source code.  Its type could be int or void function.	
+	portable source code.  Its type could be int or void function.
 
 Mon May  4 13:45:57 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
 

@@ -1,6 +1,6 @@
 /* tc-sparc.h - Macros and type defines for the sparc.
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   1999, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -54,7 +54,7 @@ extern const char *sparc_target_format PARAMS ((void));
 #define md_convert_frag(b,s,f) \
   as_fatal (_("sparc convert_frag\n"))
 #define md_estimate_size_before_relax(f,s) \
-  (as_fatal(_("estimate_size_before_relax called")), 1)
+  (as_fatal (_("estimate_size_before_relax called")), 1)
 
 #define LISTING_HEADER "SPARC GAS "
 
@@ -110,9 +110,6 @@ extern void sparc_handle_align PARAMS ((struct frag *));
 extern int elf32_sparc_force_relocation PARAMS ((struct fix *));
 #endif
 
-#define MD_APPLY_FIX3
-#define TC_HANDLES_FX_DONE
-
 #ifdef OBJ_ELF
 /* Keep relocations against global symbols.  Don't turn them into
    relocations against sections.  This is required for the dynamic
@@ -167,6 +164,11 @@ extern void sparc_elf_final_processing PARAMS ((void));
 extern void sparc_md_end PARAMS ((void));
 #define md_end() sparc_md_end ()
 
+#endif
+
+#ifdef OBJ_ELF
+#define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) sparc_cons (EXP, NBYTES)
+extern void sparc_cons PARAMS ((expressionS *, int));
 #endif
 
 #define TC_CONS_FIX_NEW cons_fix_new_sparc

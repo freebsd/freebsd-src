@@ -31,41 +31,149 @@
 
 @table @code
 
-@cindex @code{-marm} command line option, ARM
-@item -marm@code{[2|250|3|6|60|600|610|620|7|7m|7d|7dm|7di|7dmi|70|700|700i|710|710c|7100|7500|7500fe|7tdmi|8|810|9|9tdmi|920|strongarm|strongarm110|strongarm1100]}
-@itemx -mxscale
+@cindex @code{-mcpu=} command line option, ARM
+@item -mcpu=@var{processor}[+@var{extension}@dots{}]
 This option specifies the target processor.  The assembler will issue an
 error message if an attempt is made to assemble an instruction which
-will not execute on the target processor.
+will not execute on the target processor.  The following processor names are
+recognized: 
+@code{arm1},
+@code{arm2},
+@code{arm250},
+@code{arm3},
+@code{arm6},
+@code{arm60},
+@code{arm600},
+@code{arm610},
+@code{arm620},
+@code{arm7},
+@code{arm7m},
+@code{arm7d},
+@code{arm7dm},
+@code{arm7di},
+@code{arm7dmi},
+@code{arm70},
+@code{arm700},
+@code{arm700i},
+@code{arm710},
+@code{arm710t},
+@code{arm720},
+@code{arm720t},
+@code{arm740t},
+@code{arm710c},
+@code{arm7100},
+@code{arm7500},
+@code{arm7500fe},
+@code{arm7t},
+@code{arm7tdmi},
+@code{arm8},
+@code{arm810},
+@code{strongarm},
+@code{strongarm1},
+@code{strongarm110},
+@code{strongarm1100},
+@code{strongarm1110},
+@code{arm9},
+@code{arm920},
+@code{arm920t},
+@code{arm922t},
+@code{arm940t},
+@code{arm9tdmi},
+@code{arm9e},
+@code{arm946e-r0},
+@code{arm946e},
+@code{arm966e-r0},
+@code{arm966e},
+@code{arm10t},
+@code{arm10e},
+@code{arm1020},
+@code{arm1020t},
+@code{arm1020e}, 
+@code{ep9312} (ARM920 with Cirrus Maverick coprocessor),
+@code{i80200} (Intel XScale processor)
+and
+@code{xscale}.  
+The special name @code{all} may be used to allow the
+assembler to accept instructions valid for any ARM processor.
 
-@cindex @code{-marmv} command line option, ARM
-@item -marmv@code{[2|2a|3|3m|4|4t|5|5t|5te]}
+In addition to the basic instruction set, the assembler can be told to 
+accept various extension mnemonics that extend the processor using the 
+co-processor instruction space.  For example, @code{-mcpu=arm920+maverick}
+is equivalent to specifying @code{-mcpu=ep9312}.  The following extensions
+are currently supported: 
+@code{+maverick}
+and
+@code{+xscale}.
+
+@cindex @code{-march=} command line option, ARM
+@item -march=@var{architecture}[+@var{extension}@dots{}]
 This option specifies the target architecture.  The assembler will issue
 an error message if an attempt is made to assemble an instruction which
-will not execute on the target architecture.
-The option @code{-marmv5te} specifies that v5t architecture should be
-used with the El Segundo extensions enabled.
+will not execute on the target architecture.  The following architecture 
+names are recognized: 
+@code{armv1},
+@code{armv2},
+@code{armv2a},
+@code{armv2s},
+@code{armv3},
+@code{armv3m},
+@code{armv4},
+@code{armv4xm},
+@code{armv4t},
+@code{armv4txm},
+@code{armv5},
+@code{armv5t},
+@code{armv5txm},
+@code{armv5te},
+@code{armv5texp}
+and
+@code{xscale}.
+If both @code{-mcpu} and
+@code{-march} are specified, the assembler will use
+the setting for @code{-mcpu}.
+
+The architecture option can be extended with the same instruction set
+extension options as the @code{-mcpu} option.
+
+@cindex @code{-mfpu=} command line option, ARM
+@item -mfpu=@var{floating-point-format}
+
+This option specifies the floating point format to assemble for.  The
+assembler will issue an error message if an attempt is made to assemble
+an instruction which will not execute on the target floating point unit.  
+The following format options are recognized:
+@code{softfpa},
+@code{fpe},
+@code{fpe2},
+@code{fpe3},
+@code{fpa},
+@code{fpa10},
+@code{fpa11},
+@code{arm7500fe},
+@code{softvfp},
+@code{softvfp+vfp},
+@code{vfp},
+@code{vfp10},
+@code{vfp10-r0},
+@code{vfp9},
+@code{vfpxd},
+@code{arm1020t}
+and
+@code{arm1020e}.
+
+In addition to determining which instructions are assembled, this option
+also affects the way in which the @code{.double} assembler directive behaves
+when assembling little-endian code.
+
+The default is dependent on the processor selected.  For Architecture 5 or 
+later, the default is to assembler for VFP instructions; for earlier 
+architectures the default is to assemble for FPA instructions.
 
 @cindex @code{-mthumb} command line option, ARM
 @item -mthumb
-This option specifies that only Thumb instructions should be assembled.
-
-@cindex @code{-mall} command line option, ARM
-@item -mall
-This option specifies that any Arm or Thumb instruction should be assembled.
-
-@cindex @code{-mfpa} command line option, ARM
-@item -mfpa @code{[10|11]}
-This option specifies the floating point architecture in use on the
-target processor. 
-
-@cindex @code{-mfpe-old} command line option, ARM
-@item -mfpe-old
-Do not allow the assembly of floating point multiple instructions.
-
-@cindex @code{-mno-fpu} command line option, ARM
-@item -mno-fpu
-Do not allow the assembly of any floating point instructions.
+This option specifies that the assembler should start assembling Thumb
+instructions; that is, it should behave as though the file starts with a 
+@code{.code 16} directive.
 
 @cindex @code{-mthumb-interwork} command line option, ARM
 @item -mthumb-interwork

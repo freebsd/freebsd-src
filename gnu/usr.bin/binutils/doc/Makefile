@@ -22,10 +22,13 @@ MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/doc
 MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
 
 CLEANFILES=	gdb-cfg.texi inc-hist.texi inc-hist.texi.orig \
-		gasver.texi ldver.texi
+ 		gasver.texi ldver.texi
 
 as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
-ld.info:	ld.texinfo bfdsumm.texi ldver.texi
+ld.info:	ld.texinfo bfdsumm.texi ldver.texi configdoc.texi
+
+configdoc.texi: gen-doc.texi
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi remote.texi \
 	rluser.texinfo inc-hist.texi
@@ -33,10 +36,10 @@ gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi remote.texi \
 gdb-cfg.texi: all-cfg.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
 
-.PATH: ${SRCDIR}/binutils
+.PATH: ${SRCDIR}/binutils/doc
 binutils.info: binutils.texi config.texi
 
-gasver.texi ldver.texi:
+config.texi gasver.texi ldver.texi:
 	echo "@set VERSION ${VERSION}" > ${.TARGET}
 
 .PATH: ${CONTRIBDIR}/libreadline/doc

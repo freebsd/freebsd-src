@@ -1,4 +1,4 @@
-BFD is a an object file library.  It permits applications to use the
+BFD is an object file library.  It permits applications to use the
 same routines to process object files regardless of their format.
 
 BFD is used by the GNU debugger, assembler, linker, and the binary

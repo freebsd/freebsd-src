@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4-p5 from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -115,7 +115,12 @@ WIN32LDFLAGS = @WIN32LDFLAGS@
 WIN32LIBADD = @WIN32LIBADD@
 all_backends = @all_backends@
 bfd_backends = @bfd_backends@
+bfd_default_target_size = @bfd_default_target_size@
+bfd_libs = @bfd_libs@
 bfd_machines = @bfd_machines@
+bfd_version = @bfd_version@
+bfd_version_date = @bfd_version_date@
+bfd_version_string = @bfd_version_string@
 l = @l@
 tdefaults = @tdefaults@
 wordsize = @wordsize@
@@ -126,7 +131,8 @@ DOCFILES = aoutx.texi  archive.texi archures.texi \
 	bfdt.texi  cache.texi coffcode.texi \
 	core.texi elf.texi elfcode.texi  format.texi  libbfd.texi  \
 	opncls.texi  reloc.texi  section.texi  \
-	syms.texi  targets.texi init.texi hash.texi linker.texi
+	syms.texi  targets.texi init.texi hash.texi linker.texi \
+	mmo.texi
 
 
 PROTOS = archive.p archures.p bfd.p \
@@ -149,7 +155,8 @@ SRCDOC = $(srcdir)/../aoutx.h  $(srcdir)/../archive.c \
 	$(srcdir)/../libbfd.c $(srcdir)/../opncls.c \
 	$(srcdir)/../reloc.c  $(srcdir)/../section.c \
 	$(srcdir)/../syms.c  $(srcdir)/../targets.c \
-	$(srcdir)/../hash.c $(srcdir)/../linker.c
+	$(srcdir)/../hash.c $(srcdir)/../linker.c \
+	$(srcdir)/../mmo.c
 
 
 SRCPROT = $(srcdir)/../archive.c $(srcdir)/../archures.c \
@@ -171,6 +178,47 @@ TEXIDIR = $(srcdir)/../../texinfo/fsf
 info_TEXINFOS = bfd.texinfo
 
 MKDOC = chew$(EXEEXT_FOR_BUILD)
+
+LIBBFD_H_DEP = \
+	$(srcdir)/../libbfd-in.h	\
+	$(srcdir)/../init.c		\
+	$(srcdir)/../libbfd.c		\
+	$(srcdir)/../cache.c		\
+	$(srcdir)/../reloc.c		\
+	$(srcdir)/../archures.c		\
+	$(srcdir)/../elf.c		\
+	$(srcdir)/header.sed		\
+	$(srcdir)/proto.str		\
+	$(MKDOC)
+
+
+LIBCOFF_H_DEP = \
+	$(srcdir)/../libcoff-in.h	\
+	$(srcdir)/../coffcode.h		\
+	$(srcdir)/header.sed		\
+	$(srcdir)/proto.str		\
+	$(MKDOC)
+
+
+BFD_H_DEP = \
+	$(srcdir)/../bfd-in.h 		\
+	$(srcdir)/../init.c 		\
+	$(srcdir)/../opncls.c 		\
+	$(srcdir)/../libbfd.c 		\
+	$(srcdir)/../section.c 		\
+	$(srcdir)/../archures.c		\
+	$(srcdir)/../reloc.c		\
+	$(srcdir)/../syms.c		\
+	$(srcdir)/../bfd.c		\
+	$(srcdir)/../archive.c		\
+	$(srcdir)/../corefile.c		\
+	$(srcdir)/../targets.c		\
+	$(srcdir)/../format.c		\
+	$(srcdir)/header.sed		\
+	$(srcdir)/proto.str		\
+	$(srcdir)/../version.h		\
+	$(MKDOC)
+
 
 noinst_TEXINFOS = bfdint.texi
 
@@ -280,7 +328,7 @@ uninstall-info:
 	else ii=; fi; \
 	list='$(INFO_DEPS)'; \
 	for file in $$list; do \
-	  test -z "$ii" \
+	  test -z "$$ii" \
 	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
 	done
 	@$(NORMAL_UNINSTALL)
@@ -484,6 +532,12 @@ s-elfcode: $(MKDOC) $(srcdir)/../elfcode.h $(srcdir)/doc.str
 	touch s-elfcode
 elfcode.texi: s-elfcode
 
+s-mmo: $(MKDOC) $(srcdir)/../mmo.c $(srcdir)/doc.str
+	./$(MKDOC) -f $(srcdir)/doc.str <$(srcdir)/../mmo.c >mmo.tmp
+	$(srcdir)/../../move-if-change mmo.tmp mmo.texi
+	touch s-mmo
+mmo.texi: s-mmo
+
 s-format: $(MKDOC) $(srcdir)/../format.c $(srcdir)/doc.str
 	./$(MKDOC) -f $(srcdir)/doc.str <$(srcdir)/../format.c >format.tmp
 	$(srcdir)/../../move-if-change format.tmp format.texi
@@ -544,61 +598,43 @@ s-linker: $(MKDOC) $(srcdir)/../linker.c $(srcdir)/doc.str
 	touch s-linker
 linker.texi: s-linker
 
-libbfd.h: $(srcdir)/../libbfd-in.h	\
-	$(srcdir)/../init.c		\
-	$(srcdir)/../libbfd.c		\
-	$(srcdir)/../cache.c		\
-	$(srcdir)/../reloc.c		\
-	$(srcdir)/../archures.c		\
-	$(srcdir)/proto.str		\
-	$(MKDOC)
-	cat $(srcdir)/../libbfd-in.h >libbfd.h 
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../init.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../libbfd.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../cache.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../reloc.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../archures.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../elf.c >>libbfd.h
+libbfd.h: $(LIBBFD_H_DEP)
+	echo "$(LIBBFD_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(LIBBFD_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -i -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
 
-libcoff.h: $(srcdir)/../libcoff-in.h	\
-	$(srcdir)/../coffcode.h		\
-	$(srcdir)/proto.str		\
-	$(MKDOC)
-	cat $(srcdir)/../libcoff-in.h >libcoff.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../coffcode.h >>libcoff.h
+libcoff.h: $(LIBCOFF_H_DEP)
+	echo "$(LIBCOFF_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(LIBCOFF_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -i -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
 
-bfd.h: $(srcdir)/../bfd-in.h 		\
-	$(srcdir)/../init.c 		\
-	$(srcdir)/../opncls.c 		\
-	$(srcdir)/../libbfd.c 		\
-	$(srcdir)/../section.c 		\
-	$(srcdir)/../archures.c		\
-	$(srcdir)/../reloc.c		\
-	$(srcdir)/../syms.c		\
-	$(srcdir)/../bfd.c		\
-	$(srcdir)/../archive.c		\
-	$(srcdir)/../corefile.c		\
-	$(srcdir)/../targets.c		\
-	$(srcdir)/../format.c		\
-	$(srcdir)/proto.str		\
-	$(MKDOC)
-	cat $(srcdir)/../bfd-in.h >bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../init.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../opncls.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../libbfd.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../section.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../archures.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../reloc.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../syms.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../bfd.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../archive.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../corefile.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../targets.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../format.c >>bfd.h	
-	echo "#ifdef __cplusplus" >>bfd.h
-	echo "}" >>bfd.h
-	echo "#endif" >>bfd.h
-	echo "#endif" >>bfd.h
+bfd.h: $(BFD_H_DEP)
+	echo "$(BFD_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(BFD_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
+	echo "#ifdef __cplusplus" >> $@
+	echo "}" >> $@
+	echo "#endif" >> $@
+	echo "#endif" >> $@
+
+# We want install to imply install-info as per GNU standards, despite the
+# cygnus option.
+install: install-info
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

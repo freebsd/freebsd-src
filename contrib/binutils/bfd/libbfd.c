@@ -1,24 +1,24 @@
 /* Assorted BFD support routines, only used internally.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define getpagesize() 2048
 #endif
 
-static int real_read PARAMS ((PTR, size_t, size_t, FILE *));
+static size_t real_read PARAMS ((PTR, size_t, size_t, FILE *));
 
 /*
 SECTION
@@ -153,13 +153,20 @@ _bfd_dummy_target (ignore_abfd)
 
 PTR
 bfd_malloc (size)
-     size_t size;
+     bfd_size_type size;
 {
   PTR ptr;
 
-  ptr = (PTR) malloc (size);
-  if (ptr == NULL && size != 0)
+  if (size != (size_t) size)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
+
+  ptr = (PTR) malloc ((size_t) size);
+  if (ptr == NULL && (size_t) size != 0)
     bfd_set_error (bfd_error_no_memory);
+
   return ptr;
 }
 
@@ -168,16 +175,22 @@ bfd_malloc (size)
 PTR
 bfd_realloc (ptr, size)
      PTR ptr;
-     size_t size;
+     bfd_size_type size;
 {
   PTR ret;
 
-  if (ptr == NULL)
-    ret = malloc (size);
-  else
-    ret = realloc (ptr, size);
+  if (size != (size_t) size)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
 
-  if (ret == NULL)
+  if (ptr == NULL)
+    ret = malloc ((size_t) size);
+  else
+    ret = realloc (ptr, (size_t) size);
+
+  if (ret == NULL && (size_t) size != 0)
     bfd_set_error (bfd_error_no_memory);
 
   return ret;
@@ -187,18 +200,24 @@ bfd_realloc (ptr, size)
 
 PTR
 bfd_zmalloc (size)
-     size_t size;
+     bfd_size_type size;
 {
   PTR ptr;
 
-  ptr = (PTR) malloc (size);
+  if (size != (size_t) size)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
 
-  if (size != 0)
+  ptr = (PTR) malloc ((size_t) size);
+
+  if ((size_t) size != 0)
     {
       if (ptr == NULL)
 	bfd_set_error (bfd_error_no_memory);
       else
-	memset (ptr, 0, size);
+	memset (ptr, 0, (size_t) size);
     }
 
   return ptr;
@@ -213,8 +232,8 @@ bfd_zmalloc (size)
    contents (0 for non-archive elements).  For archive entries this is the
    first octet in the file, NOT the beginning of the archive header.  */
 
-static int
-real_read (where, a,b, file)
+static size_t
+real_read (where, a, b, file)
      PTR where;
      size_t a;
      size_t b;
@@ -242,17 +261,15 @@ real_read (where, a,b, file)
 #endif
 }
 
-/* Return value is amount read (FIXME: how are errors and end of file dealt
-   with?  We never call bfd_set_error, which is probably a mistake).  */
+/* Return value is amount read.  */
 
 bfd_size_type
-bfd_read (ptr, size, nitems, abfd)
+bfd_bread (ptr, size, abfd)
      PTR ptr;
      bfd_size_type size;
-     bfd_size_type nitems;
      bfd *abfd;
 {
-  int nread;
+  size_t nread;
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
@@ -260,7 +277,7 @@ bfd_read (ptr, size, nitems, abfd)
       bfd_size_type get;
 
       bim = (struct bfd_in_memory *) abfd->iostream;
-      get = size * nitems;
+      get = size;
       if (abfd->where + get > bim->size)
 	{
 	  if (bim->size < (bfd_size_type) abfd->where)
@@ -269,13 +286,13 @@ bfd_read (ptr, size, nitems, abfd)
 	    get = bim->size - abfd->where;
 	  bfd_set_error (bfd_error_file_truncated);
 	}
-      memcpy (ptr, bim->buffer + abfd->where, get);
+      memcpy (ptr, bim->buffer + abfd->where, (size_t) get);
       abfd->where += get;
       return get;
     }
 
-  nread = real_read (ptr, 1, (size_t) (size*nitems), bfd_cache_lookup(abfd));
-  if (nread > 0)
+  nread = real_read (ptr, 1, (size_t) size, bfd_cache_lookup (abfd));
+  if (nread != (size_t) -1)
     abfd->where += nread;
 
   /* Set bfd_error if we did not read as much data as we expected.
@@ -285,7 +302,7 @@ bfd_read (ptr, size, nitems, abfd)
 
      A BFD backend may wish to override bfd_error_file_truncated to
      provide something more useful (eg. no_symbols or wrong_format).  */
-  if (nread != (int) (size * nitems))
+  if (nread != size)
     {
       if (ferror (bfd_cache_lookup (abfd)))
 	bfd_set_error (bfd_error_system_call);
@@ -386,7 +403,7 @@ bfd_get_file_window (abfd, offset, size, windowp, writable)
 {
   static size_t pagesize;
   bfd_window_internal *i = windowp->i;
-  size_t size_to_alloc = size;
+  bfd_size_type size_to_alloc = size;
 
   if (debug_windows)
     fprintf (stderr, "bfd_get_file_window (%p, %6ld, %6ld, %p<%p,%lx,%p>, %d)",
@@ -402,7 +419,9 @@ bfd_get_file_window (abfd, offset, size, windowp, writable)
 
   if (i == 0)
     {
-      windowp->i = i = (bfd_window_internal *) bfd_zmalloc (sizeof (bfd_window_internal));
+      i = ((bfd_window_internal *)
+	   bfd_zmalloc ((bfd_size_type) sizeof (bfd_window_internal)));
+      windowp->i = i;
       if (i == 0)
 	return false;
       i->data = 0;
@@ -497,12 +516,11 @@ bfd_get_file_window (abfd, offset, size, windowp, writable)
     {
       if (size_to_alloc == 0)
 	return true;
-      bfd_set_error (bfd_error_no_memory);
       return false;
     }
   if (bfd_seek (abfd, offset, SEEK_SET) != 0)
     return false;
-  i->size = bfd_read (i->data, size, 1, abfd);
+  i->size = bfd_bread (i->data, size, abfd);
   if (i->size != size)
     return false;
   i->mapped = 0;
@@ -523,24 +541,25 @@ bfd_get_file_window (abfd, offset, size, windowp, writable)
 #endif /* USE_MMAP */
 
 bfd_size_type
-bfd_write (ptr, size, nitems, abfd)
-     CONST PTR ptr;
+bfd_bwrite (ptr, size, abfd)
+     const PTR ptr;
      bfd_size_type size;
-     bfd_size_type nitems;
      bfd *abfd;
 {
-  long nwrote;
+  size_t nwrote;
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
       struct bfd_in_memory *bim = (struct bfd_in_memory *) (abfd->iostream);
-      size *= nitems;
+      size = (size_t) size;
       if (abfd->where + size > bim->size)
 	{
-	  long newsize, oldsize = (bim->size + 127) & ~127;
+	  bfd_size_type newsize, oldsize;
+
+	  oldsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	  bim->size = abfd->where + size;
 	  /* Round up to cut down on memory fragmentation */
-	  newsize = (bim->size + 127) & ~127;
+	  newsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	  if (newsize > oldsize)
 	    {
 	      bim->buffer = bfd_realloc (bim->buffer, newsize);
@@ -551,20 +570,18 @@ bfd_write (ptr, size, nitems, abfd)
 		}
 	    }
 	}
-      memcpy (bim->buffer + abfd->where, ptr, size);
+      memcpy (bim->buffer + abfd->where, ptr, (size_t) size);
       abfd->where += size;
       return size;
     }
 
-  nwrote = fwrite (ptr, 1, (size_t) (size * nitems),
-		   bfd_cache_lookup (abfd));
-  if (nwrote > 0)
+  nwrote = fwrite (ptr, 1, (size_t) size, bfd_cache_lookup (abfd));
+  if (nwrote != (size_t) -1)
     abfd->where += nwrote;
-  if ((bfd_size_type) nwrote != size * nitems)
+  if (nwrote != size)
     {
 #ifdef ENOSPC
-      if (nwrote >= 0)
-	errno = ENOSPC;
+      errno = ENOSPC;
 #endif
       bfd_set_error (bfd_error_system_call);
     }
@@ -576,7 +593,7 @@ INTERNAL_FUNCTION
 	bfd_write_bigendian_4byte_int
 
 SYNOPSIS
-	void bfd_write_bigendian_4byte_int(bfd *abfd,  int i);
+	boolean bfd_write_bigendian_4byte_int (bfd *, unsigned int);
 
 DESCRIPTION
 	Write a 4 byte integer @var{i} to the output BFD @var{abfd}, in big
@@ -584,18 +601,17 @@ DESCRIPTION
 	archives.
 
 */
-void
+boolean
 bfd_write_bigendian_4byte_int (abfd, i)
      bfd *abfd;
-     int i;
+     unsigned int i;
 {
   bfd_byte buffer[4];
-  bfd_putb32(i, buffer);
-  if (bfd_write((PTR)buffer, 4, 1, abfd) != 4)
-    abort ();
+  bfd_putb32 ((bfd_vma) i, buffer);
+  return bfd_bwrite ((PTR) buffer, (bfd_size_type) 4, abfd) == 4;
 }
 
-long
+bfd_vma
 bfd_tell (abfd)
      bfd *abfd;
 {
@@ -604,7 +620,7 @@ bfd_tell (abfd)
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     return abfd->where;
 
-  ptr = ftell (bfd_cache_lookup(abfd));
+  ptr = ftell (bfd_cache_lookup (abfd));
 
   if (abfd->my_archive)
     ptr -= abfd->origin;
@@ -657,7 +673,7 @@ bfd_seek (abfd, position, direction)
 {
   int result;
   FILE *f;
-  file_ptr file_position;
+  long file_position;
   /* For the time being, a BFD may not seek to it's end.  The problem
      is that we don't easily have a way to recognize the end of an
      element in an archive.  */
@@ -678,22 +694,22 @@ bfd_seek (abfd, position, direction)
       else
 	abfd->where += position;
 
-      if ((bfd_size_type) abfd->where > bim->size)
+      if (abfd->where > bim->size)
 	{
 	  if ((abfd->direction == write_direction) ||
 	      (abfd->direction == both_direction))
 	    {
-	      long newsize, oldsize = (bim->size + 127) & ~127;
+	      bfd_size_type newsize, oldsize;
+	      oldsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	      bim->size = abfd->where;
 	      /* Round up to cut down on memory fragmentation */
-	      newsize = (bim->size + 127) & ~127;
+	      newsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	      if (newsize > oldsize)
 	        {
 		  bim->buffer = bfd_realloc (bim->buffer, newsize);
 		  if (bim->buffer == 0)
 		    {
 		      bim->size = 0;
-		      bfd_set_error (bfd_error_no_memory);
 		      return -1;
 		    }
 	        }
@@ -724,7 +740,7 @@ bfd_seek (abfd, position, direction)
       if (where_am_i_now != abfd->where)
 	abort ();
 #endif
-      if (direction == SEEK_SET && position == abfd->where)
+      if (direction == SEEK_SET && (bfd_vma) position == abfd->where)
 	return 0;
     }
   else
@@ -819,9 +835,9 @@ DESCRIPTION
 .#define bfd_put_signed_8 \
 .		bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
-.                (*(unsigned char *) (ptr))
+.                (*(unsigned char *) (ptr) & 0xff)
 .#define bfd_get_signed_8(abfd, ptr) \
-.		((*(unsigned char *) (ptr) ^ 0x80) - 0x80)
+.		(((*(unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
 .
 .#define bfd_put_16(abfd, val, ptr) \
 .                BFD_SEND(abfd, bfd_putx16, ((val),(ptr)))
@@ -851,14 +867,14 @@ DESCRIPTION
 .		 BFD_SEND(abfd, bfd_getx_signed_64, (ptr))
 .
 .#define bfd_get(bits, abfd, ptr)				\
-.                ((bits) == 8 ? bfd_get_8 (abfd, ptr)		\
+.                ( (bits) ==  8 ? (bfd_vma) bfd_get_8 (abfd, ptr)	\
 .		 : (bits) == 16 ? bfd_get_16 (abfd, ptr)	\
 .		 : (bits) == 32 ? bfd_get_32 (abfd, ptr)	\
 .		 : (bits) == 64 ? bfd_get_64 (abfd, ptr)	\
 .		 : (abort (), (bfd_vma) - 1))
 .
 .#define bfd_put(bits, abfd, val, ptr)				\
-.                ((bits) == 8 ? bfd_put_8 (abfd, val, ptr)	\
+.                ( (bits) ==  8 ? bfd_put_8  (abfd, val, ptr)	\
 .		 : (bits) == 16 ? bfd_put_16 (abfd, val, ptr)	\
 .		 : (bits) == 32 ? bfd_put_32 (abfd, val, ptr)	\
 .		 : (bits) == 64 ? bfd_put_64 (abfd, val, ptr)	\
@@ -873,7 +889,7 @@ FUNCTION
 
 DESCRIPTION
 	These macros have the same function as their <<bfd_get_x>>
-	bretheren, except that they are used for removing information
+	brethren, except that they are used for removing information
 	for the header records of object files. Believe it or not,
 	some object files keep their header records in big endian
 	order and their data in little endian order.
@@ -881,42 +897,89 @@ DESCRIPTION
 .{* Byte swapping macros for file header data.  *}
 .
 .#define bfd_h_put_8(abfd, val, ptr) \
-.		bfd_put_8 (abfd, val, ptr)
+.  bfd_put_8 (abfd, val, ptr)
 .#define bfd_h_put_signed_8(abfd, val, ptr) \
-.		bfd_put_8 (abfd, val, ptr)
+.  bfd_put_8 (abfd, val, ptr)
 .#define bfd_h_get_8(abfd, ptr) \
-.		bfd_get_8 (abfd, ptr)
+.  bfd_get_8 (abfd, ptr)
 .#define bfd_h_get_signed_8(abfd, ptr) \
-.		bfd_get_signed_8 (abfd, ptr)
+.  bfd_get_signed_8 (abfd, ptr)
 .
 .#define bfd_h_put_16(abfd, val, ptr) \
-.                BFD_SEND(abfd, bfd_h_putx16,(val,ptr))
+.  BFD_SEND (abfd, bfd_h_putx16, (val, ptr))
 .#define bfd_h_put_signed_16 \
-.		 bfd_h_put_16
+.  bfd_h_put_16
 .#define bfd_h_get_16(abfd, ptr) \
-.                BFD_SEND(abfd, bfd_h_getx16,(ptr))
+.  BFD_SEND (abfd, bfd_h_getx16, (ptr))
 .#define bfd_h_get_signed_16(abfd, ptr) \
-.		 BFD_SEND(abfd, bfd_h_getx_signed_16, (ptr))
+.  BFD_SEND (abfd, bfd_h_getx_signed_16, (ptr))
 .
 .#define bfd_h_put_32(abfd, val, ptr) \
-.                BFD_SEND(abfd, bfd_h_putx32,(val,ptr))
+.  BFD_SEND (abfd, bfd_h_putx32, (val, ptr))
 .#define bfd_h_put_signed_32 \
-.		 bfd_h_put_32
+.  bfd_h_put_32
 .#define bfd_h_get_32(abfd, ptr) \
-.                BFD_SEND(abfd, bfd_h_getx32,(ptr))
+.  BFD_SEND (abfd, bfd_h_getx32, (ptr))
 .#define bfd_h_get_signed_32(abfd, ptr) \
-.		 BFD_SEND(abfd, bfd_h_getx_signed_32, (ptr))
+.  BFD_SEND (abfd, bfd_h_getx_signed_32, (ptr))
 .
 .#define bfd_h_put_64(abfd, val, ptr) \
-.                BFD_SEND(abfd, bfd_h_putx64,(val, ptr))
+.  BFD_SEND (abfd, bfd_h_putx64, (val, ptr))
 .#define bfd_h_put_signed_64 \
-.		 bfd_h_put_64
+.  bfd_h_put_64
 .#define bfd_h_get_64(abfd, ptr) \
-.                BFD_SEND(abfd, bfd_h_getx64,(ptr))
+.  BFD_SEND (abfd, bfd_h_getx64, (ptr))
 .#define bfd_h_get_signed_64(abfd, ptr) \
-.		 BFD_SEND(abfd, bfd_h_getx_signed_64, (ptr))
+.  BFD_SEND (abfd, bfd_h_getx_signed_64, (ptr))
 .
-*/
+.{* Refinements on the above, which should eventually go away.  Save
+.   cluttering the source with (bfd_vma) and (bfd_byte *) casts.  *}
+.
+.#define H_PUT_64(abfd, val, where) \
+.  bfd_h_put_64 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_32(abfd, val, where) \
+.  bfd_h_put_32 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_16(abfd, val, where) \
+.  bfd_h_put_16 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_8 bfd_h_put_8
+.
+.#define H_PUT_S64(abfd, val, where) \
+.  bfd_h_put_signed_64 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_S32(abfd, val, where) \
+.  bfd_h_put_signed_32 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_S16(abfd, val, where) \
+.  bfd_h_put_signed_16 ((abfd), (bfd_vma) (val), (bfd_byte *) (where))
+.
+.#define H_PUT_S8 bfd_h_put_signed_8
+.
+.#define H_GET_64(abfd, where) \
+.  bfd_h_get_64 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_32(abfd, where) \
+.  bfd_h_get_32 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_16(abfd, where) \
+.  bfd_h_get_16 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_8 bfd_h_get_8
+.
+.#define H_GET_S64(abfd, where) \
+.  bfd_h_get_signed_64 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_S32(abfd, where) \
+.  bfd_h_get_signed_32 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_S16(abfd, where) \
+.  bfd_h_get_signed_16 ((abfd), (bfd_byte *) (where))
+.
+.#define H_GET_S8 bfd_h_get_signed_8
+.
+.*/
 
 /* Sign extension to bfd_signed_vma.  */
 #define COERCE16(x) (((bfd_signed_vma) (x) ^ 0x8000) - 0x8000)
@@ -1240,14 +1303,14 @@ _bfd_generic_get_section_contents (abfd, section, location, offset, count)
   if (count == 0)
     return true;
 
-  if ((bfd_size_type) (offset + count) > section->_raw_size)
+  if (offset + count > section->_raw_size)
     {
       bfd_set_error (bfd_error_invalid_operation);
       return false;
     }
 
   if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0
-      || bfd_read (location, (bfd_size_type) 1, count, abfd) != count)
+      || bfd_bread (location, count, abfd) != count)
     return false;
 
   return true;
@@ -1272,10 +1335,11 @@ _bfd_generic_get_section_contents_in_window (abfd, section, w, offset, count)
       /* @@ FIXME : If the internal window has a refcount of 1 and was
 	 allocated with malloc instead of mmap, just reuse it.  */
       bfd_free_window (w);
-      w->i = (bfd_window_internal *) bfd_zmalloc (sizeof (bfd_window_internal));
+      w->i = ((bfd_window_internal *)
+	      bfd_zmalloc ((bfd_size_type) sizeof (bfd_window_internal)));
       if (w->i == NULL)
 	return false;
-      w->i->data = (PTR) bfd_malloc ((size_t) count);
+      w->i->data = (PTR) bfd_malloc (count);
       if (w->i->data == NULL)
 	{
 	  free (w->i);
@@ -1288,7 +1352,7 @@ _bfd_generic_get_section_contents_in_window (abfd, section, w, offset, count)
       w->data = w->i->data;
       return bfd_get_section_contents (abfd, section, w->data, offset, count);
     }
-  if ((bfd_size_type) (offset+count) > section->_raw_size
+  if (offset + count > section->_raw_size
       || (bfd_get_file_window (abfd, section->filepos + offset, count, w, true)
 	  == false))
     return false;
@@ -1313,8 +1377,8 @@ _bfd_generic_set_section_contents (abfd, section, location, offset, count)
   if (count == 0)
     return true;
 
-  if (bfd_seek (abfd, (file_ptr) (section->filepos + offset), SEEK_SET) == -1
-      || bfd_write (location, (bfd_size_type) 1, count, abfd) != count)
+  if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0
+      || bfd_bwrite (location, count, abfd) != count)
     return false;
 
   return true;
@@ -1325,11 +1389,11 @@ INTERNAL_FUNCTION
 	bfd_log2
 
 SYNOPSIS
-	unsigned int bfd_log2(bfd_vma x);
+	unsigned int bfd_log2 (bfd_vma x);
 
 DESCRIPTION
 	Return the log base 2 of the value supplied, rounded up.  E.g., an
-	@var{x} of 1025 returns 11.
+	@var{x} of 1025 returns 11.  A @var{x} of 0 returns 0.
 */
 
 unsigned int
@@ -1372,11 +1436,37 @@ _bfd_generic_verify_endian_match (ibfd, obfd)
       else
 	msg = _("%s: compiled for a little endian system and target is big endian");
 
-      (*_bfd_error_handler) (msg, bfd_get_filename (ibfd));
+      (*_bfd_error_handler) (msg, bfd_archive_filename (ibfd));
 
       bfd_set_error (bfd_error_wrong_format);
       return false;
     }
 
   return true;
+}
+
+/* Give a warning at runtime if someone compiles code which calls
+   old routines.  */
+
+void
+warn_deprecated (what, file, line, func)
+     const char *what;
+     const char *file;
+     int line;
+     const char *func;
+{
+  /* Poor man's tracking of functions we've already warned about.  */
+  static size_t mask = 0;
+
+  if (~(size_t) func & ~mask)
+    {
+      /* Note: seperate sentances in order to allow
+	 for translation into other languages.  */
+      if (func)
+	fprintf (stderr, _("Deprecated %s called at %s line %d in %s\n"),
+		 what, file, line, func);
+      else
+	fprintf (stderr, _("Deprecated %s called\n"), what);
+      mask |= ~(size_t) func;
+    }
 }

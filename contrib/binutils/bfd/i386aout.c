@@ -1,5 +1,5 @@
 /* BFD back-end for i386 a.out binaries.
-   Copyright 1990, 1991, 1992, 1994, 1996, 1997
+   Copyright 1990, 1991, 1992, 1994, 1996, 1997, 2001
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
-/* The only 386 aout system we have here is GO32 from DJ. 
+/* The only 386 aout system we have here is GO32 from DJ.
    These numbers make BFD work with that. If your aout 386 system
    doesn't work with these, we'll have to split them into different
    files.  Send me (sac@cygnus.com) the runes to make it work on your
@@ -41,7 +41,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SEGMENT_SIZE 0x400000
 #define DEFAULT_ARCH bfd_arch_i386
 
-#define MY(OP) CAT(i386aout_,OP)
+/* Do not "beautify" the CONCAT* macro args.  Traditional C will not
+   remove whitespace added here, and thus will fail to concatenate
+   the tokens.  */
+#define MY(OP) CONCAT2 (i386aout_,OP)
 #define TARGETNAME "a.out-i386"
 #define NO_WRITE_HEADER_KLUDGE 1
 
@@ -50,6 +53,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libbfd.h"
 #include "aout/aout64.h"
 #include "libaout.h"
+
+static boolean i386aout_write_object_contents PARAMS ((bfd *));
+static boolean MY (set_sizes) PARAMS ((bfd *));
 
 /* Set the machine type correctly.  */
 
@@ -71,9 +77,8 @@ i386aout_write_object_contents (abfd)
 
 #define MY_write_object_contents i386aout_write_object_contents
 
-static boolean MY(set_sizes)();
 #define MY_backend_data &MY(backend_data)
-static CONST struct aout_backend_data MY(backend_data) = {
+static const struct aout_backend_data MY(backend_data) = {
   0,				/* zmagic contiguous */
   1,				/* text incl header */
   0,				/* entry is text address */

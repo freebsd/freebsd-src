@@ -72,6 +72,7 @@ top:  {
       printf("#ifdef SYSROFF_PRINT\n");
       printf("#include <stdio.h>\n");
       printf("#include <stdlib.h>\n");
+      printf("#include <ansidecl.h>\n");
       break;
     }
  } 
@@ -103,6 +104,13 @@ it:
 	  {
 	  case 'd':
 	    printf("\n\n\n#define IT_%s_CODE 0x%x\n", it,code);
+	    printf("struct IT_%s;\n", it);
+	    printf("extern void sysroff_swap_%s_in PARAMS ((struct IT_%s *));\n",
+		   $2, it);
+	    printf("extern void sysroff_swap_%s_out PARAMS ((FILE *, struct IT_%s *));\n",
+		   $2, it);
+	    printf("extern void sysroff_print_%s_out PARAMS ((struct IT_%s *));\n",
+		   $2, it);
 	    printf("struct IT_%s { \n", it);
 	    break;
 	  case 'i':

@@ -220,6 +220,7 @@ mri_draw_tree ()
 	  struct section_name_struct *aptr;
 	  etree_type *align = 0;
 	  etree_type *subalign = 0;
+	  struct wildcard_list *tmp;
 
 	  /* See if an alignment has been specified.  */
 	  for (aptr = alignment; aptr; aptr = aptr->next)
@@ -238,12 +239,24 @@ mri_draw_tree ()
 					       1, align, subalign,
 					       (etree_type *) NULL);
 	  base = 0;
-	  lang_add_wild (p->name, false, (char *) NULL, false, false, NULL);
+	  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
+	  tmp->next = NULL;
+	  tmp->spec.name = p->name;
+	  tmp->spec.exclude_name_list = NULL;
+	  tmp->spec.sorted = false;
+	  lang_add_wild (NULL, tmp, false);
 
 	  /* If there is an alias for this section, add it too.  */
 	  for (aptr = alias; aptr; aptr = aptr->next)
 	    if (strcmp (aptr->alias, p->name) == 0)
-	      lang_add_wild (aptr->name, false, (char *) NULL, false, false, NULL);
+	      {
+		tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
+		tmp->next = NULL;
+		tmp->spec.name = aptr->name;
+		tmp->spec.exclude_name_list = NULL;
+		tmp->spec.sorted = false;
+		lang_add_wild (NULL, tmp, false);
+	      }
 
 	  lang_leave_output_section_statement
 	    (0, "*default*", (struct lang_output_section_phdr_list *) NULL,

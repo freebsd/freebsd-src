@@ -235,7 +235,7 @@ Tue Nov 25 11:26:27 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* Makefile.am (BFD32_BACKENDS): Remove tekhex.lo.
 	(BFD32_BACKENDS_CFILES): Remove tekhex.c.
 	* Makefile.in: Rebuild.
-	* aclocal.m4, configure, src/Makefile.in: Rebuild with current
+	* aclocal.m4, configure, Makefile.in: Rebuild with current
 	automake and autoconf.
 
 	* coff-arm.c (arm_allocate_interworking_sections): Fix typo
@@ -672,7 +672,7 @@ Tue Sep  9 10:21:56 1997  Nick Clifton  <nickc@cygnus.com>
 
 Sun Sep  7 12:25:22 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
 
-	* bfd/elf64-alpha.c (reloc_howto_type): Fix the howto table.
+	* elf64-alpha.c (reloc_howto_type): Fix the howto table.
 
 Thu Sep  4 09:44:10 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -762,7 +762,10 @@ Tue Aug 26 17:26:51 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* acinclude.m4 (BFD_CC_FOR_BUILD): Set EXEEXT_FOR_BUILD.
 	* doc/Makefile.am (MKDOC): Use EXEEXT_FOR_BUILD, not EXEEXT.
-	* aclocal.m4, configure, Makefile.in, doc/Makefile.in: Rebuild.
+	* aclocal.m4: Rebuild.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild.
+	* doc/Makefile.in: Rebuild.
 
 Mon Aug 25 16:14:34 1997  Christopher Provenzano  <proven@cygnus.com>
 
@@ -920,8 +923,10 @@ Sun Aug 10 14:45:56 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* coff-stgo32.c: Rename from coff-stubgo32.c to avoid old System V
 	file system 14 character limit.
-	* Makefile.am, configure.in: Corresponding changes.
-	* Makefile.in, configure: Rebuild.
+	* Makefile.am: Corresponding changes.
+	* configure.in: Corresponding changes.
+	* Makefile.in: Rebuild.
+	* configure: Rebuild.
 
 Fri Aug  8 18:34:36 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -958,7 +963,9 @@ Fri Aug  1 12:58:32 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* acinclude.m4: Move acmacros.m4 in here.  Remove AM_PROG_LIBTOOL
 	copy; use a patches libtool instead.
 	* acmacros.m4: Remove.
-	* Makefile.in, aclocal.m4, configure: Rebuild.
+	* Makefile.in: Rebuild.
+	* aclocal.m4: Rebuild.
+	* configure: Rebuild.
 
 Thu Jul 31 19:55:36 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -2022,7 +2029,7 @@ Thu Mar 20 12:39:02 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* cf-m68klynx.c: Simplify greatly: just define macros to control
 	coff-m68k.c.
 	* coff-aux.c: Likewise.  Just leave add_one_symbol routine.
-	* targets. (m68ksysvcoff_vec): Declare.
+	* targets.c (m68ksysvcoff_vec): Declare.
 	(bfd_target_vector): Add m68ksysvcoff_vec.
 	* config.bfd (m68*-motorola-sysv*): New target.
 	* configure.in (m68ksysvcoff_vec): New vector.
@@ -2478,7 +2485,7 @@ Fri Feb 21 13:55:14 1997  Doug Evans  <dje@seba.cygnus.com>
 	Store lower 16 bits of addend in R_M32R_HI16_[SU]LO insns.
 	Add small data area support (R_M32R_SDA16).
 	* reloc.c: Document BFD_RELOC_M32R_SDA16.
-	* bfd-in2.h,libbfd.h: Regenerated.
+	* bfd-in2.h, libbfd.h: Regenerated.
 
 Thu Feb 20 23:50:31 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -2495,12 +2502,18 @@ Thu Feb 20 23:50:31 1997  Jeffrey A Law  (law@cygnus.com)
 
 Tue Feb 18 17:22:59 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* Makefile.in, archures.c, config.bfd, configure.in, elf.c,
-	reloc.c, targets.c: New target, elf-*-D30V.
-
-	* bfd-in2.h, configure, libbfd.h: Rebuilt.
-
-	* cpu-d30v.c, elf32-d30v.c: New files.
+	* Makefile.in: New target, elf-*-D30V.
+	* archures.c: New target, elf-*-D30V.
+	* config.bfd: New target, elf-*-D30V.
+	* configure.in: New target, elf-*-D30V.
+	* elf.c: New target, elf-*-D30V.
+	* reloc.c: New target, elf-*-D30V.
+	* targets.c: New target, elf-*-D30V.
+	* bfd-in2.h: Rebuilt.
+	* configure: Rebuilt.
+	* libbfd.h: Rebuilt.
+	* cpu-d30v.c: New files.
+	* elf32-d30v.c: New files.
 
 Tue Feb 18 15:31:48 1997  Fred Fish  <fnf@cygnus.com>
 
@@ -3398,8 +3411,8 @@ Wed Oct  2 15:46:45 1996  Klaus Kaempf  <kkaempf@progis.de>
 	* evax-emh.c (get_vms_time_string): Local function now.
 	(_bfd_evax_write_emh): Extract source filename and case_hack flags
 	from symbol table.
-	* evax_write_etir (_bfd_evax_write_etir): Pass all symbol names
-	through _bfd_evax_case_hack_symbol.
+	(_bfd_evax_write_etir): Pass all symbol names through
+	_bfd_evax_case_hack_symbol.
 	* evax-misc.c (hash_string, _bfd_evax_case_hack_symbol): New
 	functions.
 	(_bfd_evax_basename): Removed.
@@ -3521,7 +3534,7 @@ Thu Sep 12 11:45:57 1996  Doug Evans  <dje@seba.cygnus.com>
 
 	* reloc.c: Add m32r relocs.
 	* bfd-in2.h, libbfd.h: Rebuilt.
-	* cpu-m32r.c,elf32-m32r.c: New files.
+	* cpu-m32r.c, elf32-m32r.c: New files.
 
 Thu Sep 12 11:10:05 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -3626,8 +3639,13 @@ Mon Sep  9 22:36:01 1996  Jeffrey A Law  (law@cygnus.com)
 
 Mon Sep  9 12:31:22 1996  Doug Evans  <dje@canuck.cygnus.com>
 
-	* config.bfd,configure.in,configure: Add m32r support.
-	* Makefile.in,archures.c,elf.c,targets.c: Likewise.
+	* config.bfd: Add m32r support.
+	* configure.in: Likewise.
+	* configure: Likewise.
+	* Makefile.in: Likewise.
+	* archures.c: Likewise.
+	* elf.c: Likewise.
+	* targets.c: Likewise.
 	* config.bfd: Keep target list alphabetically sorted.
 
 Mon Sep  9 11:48:41 1996  Jeffrey A Law  (law@cygnus.com)
@@ -4320,7 +4338,7 @@ Tue Jun 25 11:41:24 1996  Richard Henderson  <rth@tamu.edu>
 
 Mon Jun 24 17:15:10 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
 
-        * Makefile.in, (bindir, libdir, datadir, mandir, infodir, includedir):
+        * Makefile.in (bindir, libdir, datadir, mandir, infodir, includedir):
 	Use autoconf-set values.
         * doc/Makefile.in (bindir, libdir, datadir, mandir, infodir,
 	includedir, INSTALL, INSTALL_PROGRAM, INSTALL_DATA): Use autoconf-set
@@ -4699,7 +4717,7 @@ Wed May 29 16:15:29 1996  Ian Lance Taylor  <ian@cygnus.com>
 	* config.bfd (mips*el-*-elf*) Add bfd_elf64_bigmips_vec and
 	bfd_elf64_littlemips_vec to targ_selvecs.
 	(mips*-*-elf*): Likewise.
-	* confingure.in: Add bfd_elf64_bigmips_vec and
+	* configure.in: Add bfd_elf64_bigmips_vec and
 	bfd_elf64_littlemips_vec to vector switch.
 	* configure: Rebuild.
 	* elf32-mips.c (_bfd_mips_elf_section_from_shdr): New function,
@@ -5110,7 +5128,7 @@ Wed Apr 17 12:08:24 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 	* pe{,i}-ppc.c (PPC_PE): Define instead of PPC, so that compiling
 	on Solaris PowerPC systems doesn't get confused.
 
-	* ccffcode.h (coff_write_object_contents): Use #ifdef PPC_PE, not
+	* coffcode.h (coff_write_object_contents): Use #ifdef PPC_PE, not
 	#ifdef PPC.
 
 	* elfcore.h (bfd_prstatus, bfd_fpregset): Add thread argument.

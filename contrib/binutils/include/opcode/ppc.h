@@ -1,5 +1,6 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright 1994, 1995, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -89,7 +90,22 @@ extern const int powerpc_num_opcodes;
 #define PPC_OPCODE_64_BRIDGE (0400)
 
 /* Opcode is supported by Altivec Vector Unit */
-#define PPC_OPCODE_ALTIVEC   (01000)
+#define PPC_OPCODE_ALTIVEC (01000)
+
+/* Opcode is supported by PowerPC 403 processor.  */
+#define PPC_OPCODE_403 (02000)
+
+/* Opcode is supported by PowerPC BookE processor.  */
+#define PPC_OPCODE_BOOKE (04000)
+
+/* Opcode is only supported by 64-bit PowerPC BookE processor.  */
+#define PPC_OPCODE_BOOKE64 (010000)
+
+/* Opcode is only supported by Power4 architecture.  */
+#define PPC_OPCODE_POWER4 (020000)
+
+/* Opcode isn't supported by Power4 architecture.  */
+#define PPC_OPCODE_NOPOWER4 (040000)
 
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
@@ -121,6 +137,7 @@ struct powerpc_operand
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
   unsigned long (*insert) PARAMS ((unsigned long instruction, long op,
+				   int dialect,
 				   const char **errmsg));
 
   /* Extraction function.  This is used by the disassembler.  To
@@ -140,7 +157,8 @@ struct powerpc_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  long (*extract) PARAMS ((unsigned long instruction, int *invalid));
+  long (*extract) PARAMS ((unsigned long instruction, int dialect,
+			   int *invalid));
 
   /* One bit syntax flags.  */
   unsigned long flags;
@@ -229,6 +247,8 @@ extern const struct powerpc_operand powerpc_operands[];
    prints these with a leading 'v'.  */
 #define PPC_OPERAND_VR (010000)
 
+/* This operand is for the DS field in a DS form instruction.  */
+#define PPC_OPERAND_DS (020000)
 
 /* The POWER and PowerPC assemblers use a few macros.  We keep them
    with the operands table for simplicity.  The macro table is an

@@ -122,14 +122,14 @@ struct local_symbol
 
   /* The symbol section.  This also serves as a flag.  If this is
      reg_section, then this symbol has been converted into a regular
-     symbol, and sy_sym points to it.  */
+     symbol, and lsy_sym points to it.  */
   segT lsy_section;
 
   /* The symbol name.  */
   const char *lsy_name;
 
   /* The symbol frag or the real symbol, depending upon the value in
-     sy_section.  If the symbol has been fully resolved, lsy_frag is
+     lsy_section.  If the symbol has been fully resolved, lsy_frag is
      set to NULL.  */
   union
   {
@@ -137,8 +137,12 @@ struct local_symbol
     symbolS *lsy_sym;
   } u;
 
-  /* The offset within the frag.  */
-  valueT lsy_offset;
+  /* The value of the symbol.  */
+  valueT lsy_value;
+
+#ifdef TC_LOCAL_SYMFIELD_TYPE
+  TC_LOCAL_SYMFIELD_TYPE lsy_tc;
+#endif
 };
 
 #define local_symbol_converted_p(l) ((l)->lsy_section == reg_section)

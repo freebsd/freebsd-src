@@ -257,11 +257,11 @@ s_elseif (arg)
 {
   if (current_cframe == NULL)
     {
-      as_bad (_("\".elseif\" without matching \".if\" - ignored"));
+      as_bad (_("\".elseif\" without matching \".if\""));
     }
   else if (current_cframe->else_seen)
     {
-      as_bad (_("\".elseif\" after \".else\" - ignored"));
+      as_bad (_("\".elseif\" after \".else\""));
       as_bad_where (current_cframe->else_file_line.file,
 		    current_cframe->else_file_line.line,
 		    _("here is the previous \"else\""));
@@ -365,11 +365,11 @@ s_else (arg)
 {
   if (current_cframe == NULL)
     {
-      as_bad (_(".else without matching .if - ignored"));
+      as_bad (_("\".else\" without matching \".if\""));
     }
   else if (current_cframe->else_seen)
     {
-      as_bad (_("duplicate \"else\" - ignored"));
+      as_bad (_("duplicate \"else\""));
       as_bad_where (current_cframe->else_file_line.file,
 		    current_cframe->else_file_line.line,
 		    _("here is the previous \"else\""));

@@ -1,30 +1,31 @@
-#
 # $FreeBSD$
-#
 
-.if	${TARGET_ARCH} == "alpha"
-HOST=		alpha-unknown-freebsd
-CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
-CFLAGS+=	-DTARGET=\"alpha-unknown-freebsd\"
+TARGET_TUPLE?=	alpha-unknown-freebsd
+
+.if ${TARGET_ARCH} == "alpha"
+NATIVE_EMULATION=	elf64alpha
+HOST=	${TARGET_TUPLE}
+CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _alpha_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 .endif
-EMS+=		ld_elf64alpha_emulation
-LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
-		elf64alpha.xs elf64alpha.xu alpha.x alpha.xbn \
-		alpha.xn alpha.xr alpha.xu
-SRCS+=		eelf64alpha.c ealpha.c
-CLEANFILES+=	eelf64alpha.c ealpha.c
+EMS+=		${NATIVE_EMULATION}
+LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
+		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu alpha.x alpha.xbn \
+		alpha.xn alpha.xr alpha.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
+SRCS+=	e${NATIVE_EMULATION}.c ealpha.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c ealpha.c
 
-eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
+e${NATIVE_EMULATION}.c:	emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
-	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
-	    elf64alpha ""  elf64alpha alpha-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} ""  ${NATIVE_EMULATION} ${TARGET_TUPLE}
 
-ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh stringify.sed
+ealpha.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
+    genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
-	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
-	    elf64alpha ""  alpha alpha-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} ""  alpha ${TARGET_TUPLE}

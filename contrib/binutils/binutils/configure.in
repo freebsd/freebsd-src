@@ -29,7 +29,7 @@ AC_ARG_ENABLE(commonbfdlib,
   *)   AC_MSG_ERROR([bad value ${enableval} for BFD commonbfdlib option]) ;;
 esac])dnl
 
-build_warnings="-W -Wall"
+build_warnings="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
 AC_ARG_ENABLE(build-warnings,
 [  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
 [case "${enableval}" in
@@ -64,7 +64,7 @@ AC_PROG_CC
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS=
+ALL_LINGUAS="fr tr ja es"
 CY_GNU_GETTEXT
 
 AM_MAINTAINER_MODE
@@ -100,7 +100,29 @@ AC_SUBST(DEMANGLER_NAME)
 AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h)
 AC_HEADER_SYS_WAIT
 AC_FUNC_ALLOCA
-AC_CHECK_FUNCS(sbrk utimes setmode)
+AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked)
+
+# Check whether fopen64 is available and whether _LARGEFILE64_SOURCE
+# needs to be defined for it
+AC_MSG_CHECKING([for fopen64])
+AC_CACHE_VAL(bu_cv_have_fopen64,
+[AC_TRY_LINK([#include <stdio.h>], [FILE *f = fopen64 ("/tmp/foo","r");],
+bu_cv_have_fopen64=yes,
+[saved_CPPFLAGS=$CPPFLAGS
+ CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
+ AC_TRY_LINK([#include <stdio.h>], [FILE *f = fopen64 ("/tmp/foo","r");],
+bu_cv_have_fopen64="need -D_LARGEFILE64_SOURCE",
+bu_cv_have_fopen64=no)
+ CPPFLAGS=$saved_CPPFLAGS])])
+AC_MSG_RESULT($bu_cv_have_fopen64)
+if test $bu_cv_have_fopen64 != no; then
+  AC_DEFINE([HAVE_FOPEN64], 1,
+	    [Is fopen64 available?])
+  if test $bu_cv_have_fopen64 = "need -D_LARGEFILE64_SOURCE"; then
+    AC_DEFINE([_LARGEFILE64_SOURCE], 1,
+	      [Enable LFS])
+  fi
+fi
 
 # Some systems have frexp only in -lm, not in -lc.
 AC_SEARCH_LIBS(frexp, m)
@@ -213,12 +235,12 @@ changequote([,])dnl
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM_EPOC -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	arm-*pe* | arm-*-wince)
+	arm-pe* | arm-*-wince)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	thumb-*pe*)
+	thumb-pe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
@@ -227,7 +249,7 @@ changequote([,])dnl
 	  OBJDUMP_DEFS="-DDISASSEMBLER_NEEDS_RELOCS"
 	  ;;
 changequote(,)dnl
-	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
 changequote([,])dnl
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
@@ -238,22 +260,22 @@ changequote([,])dnl
 	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	  ;;
-	powerpc*-*-*pe* | powerpc*-*-cygwin*)
+	powerpc*-*-pe* | powerpc*-*-cygwin*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_PPC"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	sh*-*-*pe)
+	sh*-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_SH"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	mips*-*-*pe)
+	mips*-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MIPS"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	mcore-*pe)
+	mcore-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MCORE"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
@@ -265,6 +287,10 @@ changequote([,])dnl
 	esac
     fi
 done
+
+if test "${with_windres+set}" = set; then
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+fi
 
 AC_SUBST(NLMCONV_DEFS)
 AC_SUBST(BUILD_NLMCONV)
@@ -287,7 +313,7 @@ else
 fi
 AC_SUBST(UNDERSCORE)
 
-AC_OUTPUT(Makefile po/Makefile.in:po/Make-in,
+AC_OUTPUT(Makefile doc/Makefile po/Makefile.in:po/Make-in,
 [
 case "x$CONFIG_FILES" in
 *) sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile ;;

@@ -1,5 +1,5 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -36,7 +36,6 @@
 #include "getopt.h"
 #include "dyn-string.h"
 
-#include <ctype.h>
 #include <time.h>
 #include <sys/stat.h>
 
@@ -116,14 +115,16 @@ static int delete_exp_file = 1;
 static int delete_def_file = 1;
 
 static int run PARAMS ((const char *, char *));
+static char *mybasename PARAMS ((const char *));
+static int strhash PARAMS ((const char *));
 static void usage PARAMS ((FILE *, int));
 static void display PARAMS ((const char *, va_list));
 static void inform PARAMS ((const char *, ...));
-static void warn PARAMS ((const char *format, ...));
+static void warn PARAMS ((const char *, ...));
 static char *look_for_prog PARAMS ((const char *, const char *, int));
 static char *deduce_name PARAMS ((const char *));
 static void delete_temp_files PARAMS ((void));
-static void cleanup_and_exit PARAMS ((int status));
+static void cleanup_and_exit PARAMS ((int));
 
 /**********************************************************************/
 
@@ -148,58 +149,30 @@ display (message, args)
 }
 
 
-#ifdef __STDC__
 static void
-inform (const char * message, ...)
+inform VPARAMS ((const char *message, ...))
 {
-  va_list args;
+  VA_OPEN (args, message);
+  VA_FIXEDARG (args, const char *, message);
 
   if (!verbose)
     return;
 
-  va_start (args, message);
   display (message, args);
-  va_end (args);
+
+  VA_CLOSE (args);
 }
 
 static void
-warn (const char *format, ...)
+warn VPARAMS ((const char *format, ...))
 {
-  va_list args;
+  VA_OPEN (args, format);
+  VA_FIXEDARG (args, const char *, format);
 
-  va_start (args, format);
   display (format, args);
-  va_end (args);
+
+  VA_CLOSE (args);
 }
-#else
-
-static void
-inform (message, va_alist)
-     const char * message;
-     va_dcl
-{
-  va_list args;
-
-  if (!verbose)
-    return;
-
-  va_start (args);
-  display (message, args);
-  va_end (args);
-}
-
-static void
-warn (format, va_alist)
-     const char *format;
-     va_dcl
-{
-  va_list args;
-
-  va_start (args);
-  display (format, args);
-  va_end (args);
-}
-#endif
 
 /* Look for the program formed by concatenating PROG_NAME and the
    string running from PREFIX to END_PREFIX.  If the concatenated
@@ -376,7 +349,8 @@ delete_temp_files ()
 }
 
 static void 
-cleanup_and_exit (int status)
+cleanup_and_exit (status)
+     int status;
 {
   delete_temp_files ();
   exit (status);
@@ -488,7 +462,8 @@ mybasename (name)
 }
 
 static int 
-strhash (const char *str)
+strhash (str)
+     const char *str;
 {
   const unsigned char *s;
   unsigned long hash;
@@ -517,7 +492,7 @@ usage (file, status)
      FILE *file;
      int status;
 {
-  fprintf (file, _("Usage %s <options> <object-files>\n"), program_name);
+  fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), program_name);
   fprintf (file, _("  Generic options:\n"));
   fprintf (file, _("   --quiet, -q            Work quietly\n"));
   fprintf (file, _("   --verbose, -v          Verbose\n"));
@@ -636,6 +611,8 @@ static const struct option long_options[] =
   {0, 0, 0, 0}
 };
 
+int main PARAMS ((int, char **));
+
 int
 main (argc, argv)
      int argc;
@@ -663,6 +640,15 @@ main (argc, argv)
   char *image_base_str = 0;
 
   program_name = argv[0];
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   saved_argv = (char **) xmalloc (argc * sizeof (char*));
   dlltool_arg_indices = (int *) xmalloc (argc * sizeof (int));
@@ -841,8 +827,8 @@ main (argc, argv)
       delete_def_file = 1;
       free (fileprefix);
       delete_def_file = 1;
-      warn (_("no export definition file provided"));
-      warn (_("creating one, but that may not be what you want"));
+      warn (_("no export definition file provided.\n\
+Creating one, but that may not be what you want"));
     }
   
   /* set the target platform. */

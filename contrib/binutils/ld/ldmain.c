@@ -1,5 +1,6 @@
 /* Main program of GNU linker.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+   2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
@@ -23,7 +24,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "bfd.h"
 #include "sysdep.h"
 #include <stdio.h>
-#include <ctype.h>
+#include "safe-ctype.h"
 #include "libiberty.h"
 #include "progress.h"
 #include "bfdlink.h"
@@ -53,6 +54,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 extern PTR sbrk ();
 #endif
 #endif
+
+int main PARAMS ((int, char **));
 
 static char *get_emulation PARAMS ((int, char **));
 static void set_scripts_dir PARAMS ((void));
@@ -169,6 +172,9 @@ main (argc, argv)
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
 #endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
+#endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
@@ -193,6 +199,13 @@ main (argc, argv)
       xexit (1);
     }
 
+#if YYDEBUG
+  {
+    extern int yydebug;
+    yydebug = 1;
+  }
+#endif
+
   /* Initialize the data about options.  */
   trace_files = trace_file_tries = version_printed = false;
   whole_archive = false;
@@ -202,6 +215,7 @@ main (argc, argv)
   config.split_by_reloc = (unsigned) -1;
   config.split_by_file = (bfd_size_type) -1;
   command_line.force_common_definition = false;
+  command_line.inhibit_common_definition = false;
   command_line.interpreter = NULL;
   command_line.rpath = NULL;
   command_line.warn_mismatch = true;
@@ -219,13 +233,14 @@ main (argc, argv)
   link_info.emitrelocations = false;
   link_info.shared = false;
   link_info.symbolic = false;
+  link_info.export_dynamic = false;
   link_info.static_link = false;
   link_info.traditional_format = false;
   link_info.optimize = false;
   link_info.no_undefined = false;
   link_info.allow_shlib_undefined = false;
   link_info.strip = strip_none;
-  link_info.discard = discard_none;
+  link_info.discard = discard_sec_merge;
   link_info.keep_memory = true;
   link_info.input_bfds = NULL;
   link_info.create_object_symbols_section = NULL;
@@ -240,8 +255,12 @@ main (argc, argv)
   link_info.init_function = "_init";
   link_info.fini_function = "_fini";
   link_info.new_dtags = false;
+  link_info.eh_frame_hdr = false;
   link_info.flags = (bfd_vma) 0;
   link_info.flags_1 = (bfd_vma) 0;
+  link_info.pei386_auto_import = false;
+  link_info.combreloc = false;
+  link_info.spare_dynamic_tags = 5;
 
   ldfile_add_arch ("");
 
@@ -252,7 +271,7 @@ main (argc, argv)
 
   emulation = get_emulation (argc, argv);
   ldemul_choose_mode (emulation);
-  default_target = ldemul_choose_target ();
+  default_target = ldemul_choose_target (argc, argv);
   lang_init ();
   ldemul_before_parse ();
   lang_has_input_file = false;
@@ -272,13 +291,21 @@ main (argc, argv)
 	einfo (_("%P%F: -r and -shared may not be used together\n"));
     }
 
+  if (! link_info.shared)
+    {
+      if (command_line.filter_shlib)
+	einfo (_("%P%F: -F may not be used without -shared\n"));
+      if (command_line.auxiliary_filters)
+	einfo (_("%P%F: -f may not be used without -shared\n"));
+    }
+
   /* Treat ld -r -s as ld -r -S -x (i.e., strip all local symbols).  I
      don't see how else this can be handled, since in this case we
      must preserve all externally visible symbols.  */
   if (link_info.relocateable && link_info.strip == strip_all)
     {
       link_info.strip = strip_debugger;
-      if (link_info.discard == discard_none)
+      if (link_info.discard == discard_sec_merge)
 	link_info.discard = discard_all;
     }
 
@@ -286,29 +313,56 @@ main (argc, argv)
      the -L's in argv have been processed.  */
   set_scripts_dir ();
 
-  if (had_script == false)
+  /* If we have not already opened and parsed a linker script
+     read the emulation's appropriate default script.  */
+  if (saved_script_handle == NULL)
     {
-      /* Read the emulation's appropriate default script.  */
       int isfile;
-      char *s = ldemul_get_script (&isfile);
+      char *s = ldemul_get_script (& isfile);
 
       if (isfile)
 	ldfile_open_command_file (s);
       else
-	{
-	  if (trace_file_tries)
-	    {
-	      info_msg (_("using internal linker script:\n"));
-	      info_msg ("==================================================\n");
-	      info_msg (s);
-	      info_msg ("\n==================================================\n");
-	    }
+	{	
 	  lex_string = s;
 	  lex_redirect (s);
 	}
       parser_input = input_script;
       yyparse ();
       lex_string = NULL;
+    }
+
+  if (trace_file_tries)
+    {
+      if (saved_script_handle)
+	info_msg (_("using external linker script:"));
+      else
+	info_msg (_("using internal linker script:"));
+      info_msg ("\n==================================================\n");
+
+      if (saved_script_handle)
+	{
+	  static const int ld_bufsz = 8193;
+	  size_t n;
+	  char *buf = xmalloc (ld_bufsz);
+
+	  rewind (saved_script_handle);
+	  while ((n = fread (buf, 1, ld_bufsz - 1, saved_script_handle)) > 0)
+	    {
+	      buf [n] = 0;
+	      info_msg (buf);
+	    }
+	  rewind (saved_script_handle);
+	  free (buf);
+	}
+      else
+	{
+	  int isfile;
+
+	  info_msg (ldemul_get_script (& isfile));
+	}
+      
+      info_msg ("\n==================================================\n");
     }
 
   lang_final ();
@@ -349,20 +403,6 @@ main (argc, argv)
 
   /* Print error messages for any missing symbols, for any warning
      symbols, and possibly multiple definitions.  */
-
-  if (! link_info.relocateable)
-    {
-      /* Look for a text section and switch the readonly attribute in it.  */
-      asection *found = bfd_get_section_by_name (output_bfd, ".text");
-
-      if (found != (asection *) NULL)
-	{
-	  if (config.text_read_only)
-	    found->flags |= SEC_READONLY;
-	  else
-	    found->flags &= ~SEC_READONLY;
-	}
-    }
 
   if (link_info.relocateable)
     output_bfd->flags &= ~EXEC_P;
@@ -502,9 +542,12 @@ get_emulation (argc, argv)
 	  else if (strcmp (argv[i], "-mips1") == 0
 		   || strcmp (argv[i], "-mips2") == 0
 		   || strcmp (argv[i], "-mips3") == 0
-		   || strcmp (argv[i], "-mips4") == 0)
+		   || strcmp (argv[i], "-mips32") == 0
+		   || strcmp (argv[i], "-mips64") == 0
+		   || strcmp (argv[i], "-mips4") == 0
+		   || strcmp (argv[i], "-mips5") == 0)
 	    {
-	      /* FIXME: The arguments -mips1, -mips2 and -mips3 are
+	      /* FIXME: The arguments -mips1, -mips2, -mips3, etc. are
 		 passed to the linker by some MIPS compilers.  They
 		 generally tell the linker to use a slightly different
 		 library path.  Perhaps someday these should be
@@ -681,14 +724,14 @@ add_keepsyms_file (filename)
   c = getc (file);
   while (c != EOF)
     {
-      while (isspace (c))
+      while (ISSPACE (c))
 	c = getc (file);
 
       if (c != EOF)
 	{
 	  size_t len = 0;
 
-	  while (! isspace (c) && c != EOF)
+	  while (! ISSPACE (c) && c != EOF)
 	    {
 	      buf[len] = c;
 	      ++len;
@@ -785,8 +828,7 @@ add_archive_element (info, abfd, name)
 	{
 	  char buf[100];
 
-	  sprintf (buf, "%-29s %s\n\n", _("Archive member included"),
-		   _("because of file (symbol)"));
+	  sprintf (buf, _("Archive member included because of file (symbol)\n\n"));
 	  minfo ("%s", buf);
 	  header_printed = true;
 	}

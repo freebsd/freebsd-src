@@ -71,11 +71,9 @@ void md_number_to_chars PARAMS ((char *buf, valueT val, int n));
 void md_operand PARAMS ((expressionS * expressionP));
 #endif
 
-#ifdef MD_APPLY_FIX3
-int md_apply_fix3 PARAMS ((fixS * fixP, valueT *val, segT seg));
-#endif
+void md_apply_fix3 PARAMS ((fixS *, valueT *, segT));
+
 #ifdef BFD_ASSEMBLER
-int md_apply_fix PARAMS ((fixS * fixP, valueT *val));
 #ifndef md_convert_frag
 void md_convert_frag PARAMS ((bfd * headers, segT sec, fragS * fragP));
 #endif
@@ -88,7 +86,6 @@ extern arelent *tc_gen_reloc PARAMS ((asection *, fixS *));
 extern arelent **tc_gen_reloc PARAMS ((asection *, fixS *));
 #endif
 #else /* not BFD_ASSEMBLER */
-void md_apply_fix PARAMS ((fixS * fixP, long val));
 #ifndef md_convert_frag
 void md_convert_frag PARAMS ((object_headers * headers, segT, fragS * fragP));
 #endif

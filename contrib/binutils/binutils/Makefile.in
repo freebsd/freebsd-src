@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4-p5 from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -117,7 +117,7 @@ INTLLIBS = @INTLLIBS@
 
 AUTOMAKE_OPTIONS = cygnus dejagnu
 
-SUBDIRS = po
+SUBDIRS = doc po
 
 tooldir = $(exec_prefix)/$(target_alias)
 
@@ -160,10 +160,6 @@ WINDRES_PROG = windres
 DLLWRAP_PROG = dllwrap
 
 SRCONV_PROG = srconv$(EXEEXT) sysdump$(EXEEXT) coffdump$(EXEEXT) 
-
-man_MANS = ar.1 nm.1 objdump.1 ranlib.1 size.1 strings.1 strip.1 objcopy.1 \
-	addr2line.1 nlmconv.1 $(DEMANGLER_NAME).1
-
 
 PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
 
@@ -243,8 +239,6 @@ CC_FOR_TARGET = ` \
   fi`
 
 
-info_TEXINFOS = binutils.texi
-
 LDADD = $(BFDLIB) $(LIBIBERTY) $(INTLLIBS)
 
 size_SOURCES = size.c $(BULIBS)
@@ -293,7 +287,7 @@ windres_LDADD = $(BFDLIB) $(LIBIBERTY) @LEXLIB@ $(INTLLIBS)
 dllwrap_SOURCES = dllwrap.c version.c
 dllwrap_LDADD = $(LIBIBERTY) $(INTLLIBS)
 
-DISTSTUFF = arparse.c arparse.h arlex.c nlmheader.c sysinfo.c sysinfo.h \
+EXTRA_DIST = arparse.c arparse.h arlex.c nlmheader.c sysinfo.c sysinfo.h \
 	syslex.c deflex.c defparse.h defparse.c rclex.c rcparse.h rcparse.c
 
 
@@ -301,11 +295,9 @@ DISTCLEANFILES = stamp-under sysinfo underscore.c sysroff.c sysroff.h \
 	site.exp site.bak
 
 
-MAINTAINERCLEANFILES = config.texi
+###
 
-MOSTLYCLEANFILES = sysinfo $(DEMANGLER_NAME).1 binutils.log binutils.sum \
-	abcdefgh*
-
+MOSTLYCLEANFILES = sysinfo binutils.log binutils.sum abcdefgh*
 
 CLEANFILES = dep.sed DEP DEPA DEP1 DEP2
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -422,15 +414,6 @@ COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CF
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
-TEXI2DVI = `if test -f $(top_srcdir)/../texinfo/util/texi2dvi; then echo $(top_srcdir)/../texinfo/util/texi2dvi; else echo texi2dvi; fi`
-TEXINFO_TEX = $(top_srcdir)/../texinfo/texinfo.tex
-INFO_DEPS = binutils.info
-DVIS = binutils.dvi
-TEXINFOS = binutils.texi
-man1dir = $(mandir)/man1
-MANS = $(man_MANS)
-
-NROFF = nroff
 DIST_COMMON =  README ./stamp-h.in ChangeLog Makefile.am Makefile.in \
 NEWS acinclude.m4 aclocal.m4 arlex.c arparse.c config.in configure \
 configure.in deflex.c defparse.c nlmheader.c rclex.c rcparse.c
@@ -445,7 +428,7 @@ OBJECTS = $(nlmconv_OBJECTS) $(srconv_OBJECTS) $(sysdump_OBJECTS) $(coffdump_OBJ
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .S .c .dvi .info .l .lo .o .obj .ps .s .texi .texinfo .txi .y
+.SUFFIXES: .S .c .l .lo .o .obj .s .y
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --cygnus Makefile
 
@@ -648,158 +631,6 @@ nlmheader.h: nlmheader.c
 rcparse.h: rcparse.c
 
 
-binutils.info: binutils.texi
-binutils.dvi: binutils.texi
-
-
-DVIPS = dvips
-
-.texi.info:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-
-.texi.dvi:
-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
-
-.texi:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-
-.texinfo.info:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-
-.texinfo:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-
-.texinfo.dvi:
-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
-
-.txi.info:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-
-.txi.dvi:
-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
-
-.txi:
-	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
-	$(MAKEINFO) -I $(srcdir) $<
-.dvi.ps:
-	$(DVIPS) $< -o $@
-
-install-info-am: $(INFO_DEPS)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(infodir)
-	@list='$(INFO_DEPS)'; \
-	for file in $$list; do \
-	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
-	  for ifile in `cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
-	    if test -f $$d/$$ifile; then \
-	      echo " $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile"; \
-	      $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile; \
-	    else : ; fi; \
-	  done; \
-	done
-	@$(POST_INSTALL)
-	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
-	  list='$(INFO_DEPS)'; \
-	  for file in $$list; do \
-	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file";\
-	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file || :;\
-	  done; \
-	else : ; fi
-
-uninstall-info:
-	$(PRE_UNINSTALL)
-	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
-	  ii=yes; \
-	else ii=; fi; \
-	list='$(INFO_DEPS)'; \
-	for file in $$list; do \
-	  test -z "$ii" \
-	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
-	done
-	@$(NORMAL_UNINSTALL)
-	list='$(INFO_DEPS)'; \
-	for file in $$list; do \
-	  (cd $(DESTDIR)$(infodir) && rm -f $$file $$file-[0-9] $$file-[0-9][0-9]); \
-	done
-
-dist-info: $(INFO_DEPS)
-	list='$(INFO_DEPS)'; \
-	for base in $$list; do \
-	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
-	  for file in `cd $$d && eval echo $$base*`; do \
-	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file; \
-	  done; \
-	done
-
-mostlyclean-aminfo:
-	-rm -f binutils.aux binutils.cp binutils.cps binutils.dvi binutils.fn \
-	  binutils.fns binutils.ky binutils.kys binutils.ps \
-	  binutils.log binutils.pg binutils.toc binutils.tp \
-	  binutils.tps binutils.vr binutils.vrs binutils.op binutils.tr \
-	  binutils.cv binutils.cn
-
-clean-aminfo:
-
-distclean-aminfo:
-
-maintainer-clean-aminfo:
-	for i in $(INFO_DEPS); do \
-	  rm -f $$i; \
-	  if test "`echo $$i-[0-9]*`" != "$$i-[0-9]*"; then \
-	    rm -f $$i-[0-9]*; \
-	  fi; \
-	done
-clean-info: mostlyclean-aminfo
-
-install-man1:
-	$(mkinstalldirs) $(DESTDIR)$(man1dir)
-	@list='$(man1_MANS)'; \
-	l2='$(man_MANS)'; for i in $$l2; do \
-	  case "$$i" in \
-	    *.1*) list="$$list $$i" ;; \
-	  esac; \
-	done; \
-	for i in $$list; do \
-	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
-	  else file=$$i; fi; \
-	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
-	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
-	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
-	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
-	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
-	done
-
-uninstall-man1:
-	@list='$(man1_MANS)'; \
-	l2='$(man_MANS)'; for i in $$l2; do \
-	  case "$$i" in \
-	    *.1*) list="$$list $$i" ;; \
-	  esac; \
-	done; \
-	for i in $$list; do \
-	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
-	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
-	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
-	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
-	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
-	done
-install-man: $(MANS)
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-man1
-uninstall-man:
-	@$(NORMAL_UNINSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1
-
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
 # To change the values of `make' variables: instead of editing Makefiles,
@@ -836,7 +667,7 @@ maintainer-clean-recursive:
 	dot_seen=no; \
 	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
 	  rev="$$subdir $$rev"; \
-	  test "$$subdir" = "." && dot_seen=yes; \
+	  test "$$subdir" != "." || dot_seen=yes; \
 	done; \
 	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
@@ -947,7 +778,6 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
-	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-info
 
 RUNTESTFLAGS =
 
@@ -973,9 +803,9 @@ site.exp: Makefile
 	@test ! -f site.exp || sed '1,/^## All variables above are.*##/ d' site.exp >> $@-t
 	@test ! -f site.exp || mv site.exp site.bak
 	@mv $@-t site.exp
-info-am: $(INFO_DEPS)
+info-am:
 info: info-recursive
-dvi-am: $(DVIS)
+dvi-am:
 dvi: dvi-recursive
 check-am:
 	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU
@@ -990,21 +820,21 @@ all-recursive-am: config.h
 install-exec-am: install-binPROGRAMS install-exec-local
 install-exec: install-exec-recursive
 
-install-data-am: install-man
+install-data-am:
 install-data: install-data-recursive
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 install: install-recursive
-uninstall-am: uninstall-binPROGRAMS uninstall-man
+uninstall-am: uninstall-binPROGRAMS
 uninstall: uninstall-recursive
-all-am: Makefile $(PROGRAMS) $(MANS) config.h
+all-am: Makefile $(PROGRAMS) config.h
 all-redirect: all-recursive-am
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
 installdirs: installdirs-recursive
 installdirs-am:
-	$(mkinstalldirs)  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
+	$(mkinstalldirs)  $(DESTDIR)$(bindir)
 
 
 mostlyclean-generic:
@@ -1019,24 +849,24 @@ distclean-generic:
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
-	-test -z "arlexldeflexlrclexlarparseharparsecdefparsehdefparsecnlmheaderhnlmheadercrcparsehrcparsec$(MAINTAINERCLEANFILES)" || rm -f arlexl deflexl rclexl arparseh arparsec defparseh defparsec nlmheaderh nlmheaderc rcparseh rcparsec $(MAINTAINERCLEANFILES)
+	-test -z "arlexldeflexlrclexlarparseharparsecdefparsehdefparsecnlmheaderhnlmheadercrcparsehrcparsec" || rm -f arlexl deflexl rclexl arparseh arparsec defparseh defparsec nlmheaderh nlmheaderc rcparseh rcparsec
 mostlyclean-am:  mostlyclean-hdr mostlyclean-binPROGRAMS \
 		mostlyclean-noinstPROGRAMS mostlyclean-compile \
-		mostlyclean-libtool mostlyclean-aminfo mostlyclean-tags \
+		mostlyclean-libtool mostlyclean-tags \
 		mostlyclean-generic mostlyclean-local
 
 mostlyclean: mostlyclean-recursive
 
 clean-am:  clean-hdr clean-binPROGRAMS clean-noinstPROGRAMS \
-		clean-compile clean-libtool clean-aminfo clean-tags \
-		clean-generic mostlyclean-am
+		clean-compile clean-libtool clean-tags clean-generic \
+		mostlyclean-am
 
 clean: clean-recursive
 
 distclean-am:  distclean-hdr distclean-binPROGRAMS \
 		distclean-noinstPROGRAMS distclean-compile \
-		distclean-libtool distclean-aminfo distclean-tags \
-		distclean-generic clean-am
+		distclean-libtool distclean-tags distclean-generic \
+		clean-am
 	-rm -f libtool
 
 distclean: distclean-recursive
@@ -1045,8 +875,8 @@ distclean: distclean-recursive
 maintainer-clean-am:  maintainer-clean-hdr maintainer-clean-binPROGRAMS \
 		maintainer-clean-noinstPROGRAMS \
 		maintainer-clean-compile maintainer-clean-libtool \
-		maintainer-clean-aminfo maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -1060,14 +890,11 @@ mostlyclean-noinstPROGRAMS distclean-noinstPROGRAMS \
 clean-noinstPROGRAMS maintainer-clean-noinstPROGRAMS \
 mostlyclean-compile distclean-compile clean-compile \
 maintainer-clean-compile mostlyclean-libtool distclean-libtool \
-clean-libtool maintainer-clean-libtool install-info-am uninstall-info \
-mostlyclean-aminfo distclean-aminfo clean-aminfo \
-maintainer-clean-aminfo install-man1 uninstall-man1 install-man \
-uninstall-man install-data-recursive uninstall-data-recursive \
-install-exec-recursive uninstall-exec-recursive installdirs-recursive \
-uninstalldirs-recursive all-recursive check-recursive \
-installcheck-recursive info-recursive dvi-recursive \
-mostlyclean-recursive distclean-recursive clean-recursive \
+clean-libtool maintainer-clean-libtool install-data-recursive \
+uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
 maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
 distclean-tags clean-tags maintainer-clean-tags distdir check-DEJAGNU \
 info-am info dvi-am dvi check check-am installcheck-am installcheck \
@@ -1091,9 +918,9 @@ check-DEJAGNU: site.exp
 	fi; \
 	runtest=$(RUNTEST); \
 	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
-	  $$runtest --tool $(DEJATOOL) --srcdir $${srcdir}/testsuite \
-		CC_FOR_TARGET="$(CC_FOR_TARGET)" \
-		CFLAGS_FOR_TARGET="$(CFLAGS)" $(RUNTESTFLAGS); \
+	  CC_FOR_TARGET="$(CC_FOR_TARGET)" CFLAGS_FOR_TARGET="$(CFLAGS)" \
+		$$runtest --tool $(DEJATOOL) --srcdir $${srcdir}/testsuite \
+			$(RUNTESTFLAGS); \
 	else echo "WARNING: could not find \`runtest'" 1>&2; :;\
 	fi
 
@@ -1111,7 +938,7 @@ stamp-under: Makefile
 	$(SHELL) $(srcdir)/../move-if-change underscore.t underscore.c
 	touch stamp-under
 
-cplus-dem.o: $(BASEDIR)/libiberty/cplus-dem.c $(INCDIR)/getopt.h
+cplus-dem.o: $(BASEDIR)/libiberty/cplus-dem.c $(INCDIR)/getopt.h Makefile
 	$(COMPILE) -c -DMAIN -DVERSION='"$(VERSION)"' $(BASEDIR)/libiberty/cplus-dem.c
 
 # The following is commented out for the conversion to automake.
@@ -1176,7 +1003,9 @@ nlmconv.o: nlmconv.c $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
 	ldname=`echo ld | sed '$(transform)'`; \
 	$(COMPILE) -c -DLD_NAME="\"$${ldname}\"" @NLMCONV_DEFS@ $(srcdir)/nlmconv.c
 
-diststuff: $(DISTSTUFF) info
+diststuff: $(EXTRA_DIST) info
+
+Makefile: $(BFDDIR)/configure.in
 
 # Targets to rebuild dependencies in this Makefile.
 # Have to get rid of DEP1 here so that "$?" later includes all of $(CFILES).
@@ -1203,7 +1032,8 @@ dep.sed: dep-in.sed config.status
 		-e 's!@INCDIR@!$(INCDIR)!'	\
 		-e 's!@BFDDIR@!$(BFDDIR)!'	\
 		-e 's!@SRCDIR@!$(srcdir)!'	\
-		-e "s!@OBJDIR@!$${objdir}!"
+		-e "s!@OBJDIR@!$${objdir}!"	\
+		-e 's!@TOPDIR@!'`echo $(srcdir) | sed -e s,/binutils$$,,`'!'
 
 dep: DEP
 	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < Makefile > tmp-Makefile
@@ -1221,20 +1051,6 @@ dep-am: DEP
 	$(SHELL) $(srcdir)/../move-if-change tmp-Makefile.am $(srcdir)/Makefile.am
 
 .PHONY: dep dep-in dep-am
-
-###
-# DOCUMENTATION TARGETS
-config.texi: Makefile
-	rm -f config.texi
-	echo '@set VERSION $(VERSION)' > config.texi
-
-binutils.dvi: $(srcdir)/binutils.texi config.texi
-
-binutils.info: $(srcdir)/binutils.texi config.texi
-
-$(DEMANGLER_NAME).1: cxxfilt.man Makefile
-	sed -e 's/@PROGRAM@/$(DEMANGLER_NAME)/' < $(srcdir)/cxxfilt.man \
-		> $(DEMANGLER_NAME).1
 mostlyclean-local:
 	-rm -rf tmpdir
 
@@ -1266,150 +1082,179 @@ install-exec-local: install-binPROGRAMS $(bin_PROGRAMS) $(noinst_PROGRAMS)
 # DO NOT DELETE THIS LINE -- mkdep uses it.
 # DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
 addr2line.o: addr2line.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/getopt.h $(INCDIR)/libiberty.h $(INCDIR)/demangle.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
-ar.o: ar.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
-  $(INCDIR)/progress.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/aout/ar.h $(BFDDIR)/libbfd.h \
-  arsup.h $(INCDIR)/filenames.h
+  $(INCDIR)/symcat.h $(INCDIR)/getopt.h $(INCDIR)/libiberty.h \
+  $(INCDIR)/demangle.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h
+ar.o: ar.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h \
+  $(INCDIR)/libiberty.h $(INCDIR)/progress.h bucomm.h \
+  config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/aout/ar.h $(BFDDIR)/libbfd.h arsup.h $(INCDIR)/filenames.h
 arsup.o: arsup.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  arsup.h $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/filenames.h
+  $(INCDIR)/symcat.h arsup.h $(INCDIR)/libiberty.h bucomm.h \
+  config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/filenames.h
 bucomm.o: bucomm.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/filenames.h
-coffdump.o: coffdump.c coffgrok.h bucomm.h config.h \
-  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
-coffgrok.o: coffgrok.c bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h \
-  $(INCDIR)/bfdlink.h coffgrok.h
-debug.o: debug.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h
-dlltool.o: dlltool.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/demangle.h \
-  $(INCDIR)/dyn-string.h dlltool.h
-filemode.o: filemode.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/filenames.h
+coffdump.o: coffdump.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h coffgrok.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
-ieee.o: ieee.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/ieee.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h budbg.h $(INCDIR)/filenames.h
+coffgrok.o: coffgrok.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/coff/internal.h \
+  $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h coffgrok.h
+debug.o: debug.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h debug.h
+dlltool.o: dlltool.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/demangle.h \
+  $(INCDIR)/dyn-string.h dlltool.h $(INCDIR)/safe-ctype.h
+filemode.o: filemode.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h
+ieee.o: ieee.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h \
+  $(INCDIR)/ieee.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h debug.h \
+  budbg.h $(INCDIR)/filenames.h
 is-ranlib.o: is-ranlib.c
 is-strip.o: is-strip.c
 maybe-ranlib.o: maybe-ranlib.c
 maybe-strip.o: maybe-strip.c
 nlmconv.o: nlmconv.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(BFDDIR)/libnlm.h $(INCDIR)/nlm/common.h \
-  $(INCDIR)/nlm/internal.h $(INCDIR)/nlm/external.h nlmconv.h
-nm.o: nm.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/progress.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/getopt.h $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def \
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/safe-ctype.h \
+  $(BFDDIR)/libnlm.h $(INCDIR)/nlm/common.h $(INCDIR)/nlm/internal.h \
+  $(INCDIR)/nlm/external.h nlmconv.h
+nm.o: nm.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h \
+  $(INCDIR)/progress.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def \
   $(INCDIR)/aout/ranlib.h $(INCDIR)/demangle.h $(INCDIR)/libiberty.h
 not-ranlib.o: not-ranlib.c
 not-strip.o: not-strip.c
 objcopy.o: objcopy.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/progress.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/libiberty.h \
+  $(INCDIR)/symcat.h $(INCDIR)/progress.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h \
   budbg.h $(INCDIR)/filenames.h
 objdump.o: objdump.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/getopt.h $(INCDIR)/progress.h bucomm.h config.h \
-  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/dis-asm.h \
-  $(INCDIR)/libiberty.h $(INCDIR)/demangle.h debug.h \
-  budbg.h $(INCDIR)/aout/aout64.h
+  $(INCDIR)/symcat.h $(INCDIR)/progress.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/safe-ctype.h \
+  $(INCDIR)/dis-asm.h $(INCDIR)/libiberty.h $(INCDIR)/demangle.h \
+  debug.h budbg.h $(INCDIR)/aout/aout64.h
 prdbg.o: prdbg.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h budbg.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h debug.h \
+  budbg.h
 rdcoff.o: rdcoff.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/coff/internal.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/demangle.h \
-  debug.h budbg.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
-rddbg.o: rddbg.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h budbg.h
-size.o: size.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/getopt.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h
-srconv.o: srconv.c bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h sysroff.h coffgrok.h $(INCDIR)/coff/internal.h \
-  $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h sysroff.c
-stabs.o: stabs.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/symcat.h $(INCDIR)/coff/internal.h bucomm.h \
+  config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
   $(INCDIR)/libiberty.h $(INCDIR)/demangle.h debug.h \
-  budbg.h $(INCDIR)/aout/aout64.h $(INCDIR)/aout/stab_gnu.h \
-  $(INCDIR)/aout/stab.def
-strings.o: strings.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  budbg.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+rddbg.o: rddbg.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h debug.h \
+  budbg.h
+size.o: size.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
   $(INCDIR)/libiberty.h
+srconv.o: srconv.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h sysroff.h coffgrok.h $(INCDIR)/libiberty.h \
+  $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+  sysroff.c
+stabs.o: stabs.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
+  $(INCDIR)/demangle.h debug.h budbg.h $(INCDIR)/filenames.h \
+  $(INCDIR)/aout/aout64.h $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def
+strings.o: strings.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/getopt.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h \
+  $(INCDIR)/safe-ctype.h
 sysdump.o: sysdump.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/safe-ctype.h $(INCDIR)/libiberty.h \
   sysroff.h sysroff.c
 version.o: version.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h
 wrstabs.o: wrstabs.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h budbg.h $(INCDIR)/aout/aout64.h \
-  $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
+  debug.h budbg.h $(INCDIR)/aout/aout64.h $(INCDIR)/aout/stab_gnu.h \
+  $(INCDIR)/aout/stab.def
 windres.o: windres.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/getopt.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/obstack.h \
-  windres.h winduni.h
-resrc.o: resrc.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h
-rescoff.o: rescoff.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h $(INCDIR)/coff/internal.h \
-  $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
-resbin.o: resbin.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h
-winduni.o: winduni.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
+  $(INCDIR)/symcat.h $(INCDIR)/getopt.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h \
+  $(INCDIR)/safe-ctype.h $(INCDIR)/obstack.h windres.h \
   winduni.h
+resrc.o: resrc.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
+  windres.h winduni.h
+rescoff.o: rescoff.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h windres.h \
+  winduni.h $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h \
+  $(INCDIR)/bfdlink.h
+resbin.o: resbin.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h windres.h \
+  winduni.h
+winduni.o: winduni.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h winduni.h $(INCDIR)/safe-ctype.h
 readelf.o: readelf.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/elf/common.h $(INCDIR)/elf/external.h $(INCDIR)/elf/internal.h \
-  $(INCDIR)/elf/dwarf2.h $(INCDIR)/elf/i386.h $(INCDIR)/elf/reloc-macros.h \
-  $(INCDIR)/elf/v850.h $(INCDIR)/elf/ppc.h $(INCDIR)/elf/mips.h \
-  $(INCDIR)/elf/alpha.h $(INCDIR)/elf/arm.h $(INCDIR)/elf/m68k.h \
-  $(INCDIR)/elf/sparc.h $(INCDIR)/elf/m32r.h $(INCDIR)/elf/d10v.h \
-  $(INCDIR)/elf/d30v.h $(INCDIR)/elf/sh.h $(INCDIR)/elf/mn10200.h \
-  $(INCDIR)/elf/mn10300.h $(INCDIR)/elf/hppa.h $(INCDIR)/elf/arc.h \
-  $(INCDIR)/elf/fr30.h $(INCDIR)/elf/mcore.h $(INCDIR)/elf/i960.h \
-  $(INCDIR)/elf/pj.h $(INCDIR)/elf/avr.h $(INCDIR)/elf/ia64.h \
-  $(INCDIR)/elf/cris.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h
-resres.o: resres.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h $(INCDIR)/elf/common.h $(INCDIR)/elf/external.h \
+  $(INCDIR)/elf/internal.h $(INCDIR)/elf/dwarf2.h $(INCDIR)/elf/alpha.h \
+  $(INCDIR)/elf/reloc-macros.h $(INCDIR)/elf/arc.h $(INCDIR)/elf/arm.h \
+  $(INCDIR)/elf/avr.h $(INCDIR)/elf/cris.h $(INCDIR)/elf/d10v.h \
+  $(INCDIR)/elf/d30v.h $(INCDIR)/elf/fr30.h $(INCDIR)/elf/h8.h \
+  $(INCDIR)/elf/hppa.h $(INCDIR)/elf/i386.h $(INCDIR)/elf/i860.h \
+  $(INCDIR)/elf/i960.h $(INCDIR)/elf/ia64.h $(INCDIR)/elf/m32r.h \
+  $(INCDIR)/elf/m68k.h $(INCDIR)/elf/mcore.h $(INCDIR)/elf/mips.h \
+  $(INCDIR)/elf/mmix.h $(INCDIR)/elf/mn10200.h $(INCDIR)/elf/mn10300.h \
+  $(INCDIR)/elf/or32.h $(INCDIR)/elf/pj.h $(INCDIR)/elf/ppc.h \
+  $(INCDIR)/elf/s390.h $(INCDIR)/elf/sh.h $(INCDIR)/elf/sparc.h \
+  $(INCDIR)/elf/v850.h $(INCDIR)/elf/x86-64.h $(INCDIR)/elf/xstormy16.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h
+  unwind-ia64.h
+resres.o: resres.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h windres.h \
+  winduni.h
 dllwrap.o: dllwrap.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/dyn-string.h
+  $(INCDIR)/symcat.h $(INCDIR)/libiberty.h bucomm.h config.h \
+  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/dyn-string.h
 rename.o: rename.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h
 underscore.o: underscore.c
 arparse.o: arparse.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  arsup.h
-arlex.o: arlex.c $(INCDIR)/libiberty.h arparse.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h arsup.h
+arlex.o: arlex.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+  arparse.h
 sysroff.o: sysroff.c
 sysinfo.o: sysinfo.c
 syslex.o: syslex.c sysinfo.h
 defparse.o: defparse.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  dlltool.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h dlltool.h
 deflex.o: deflex.c $(INCDIR)/libiberty.h $(INCDIR)/ansidecl.h \
   defparse.h dlltool.h
-nlmheader.o: nlmheader.c ../bfd/bfd.h bucomm.h config.h \
-  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/nlm/common.h \
-  $(INCDIR)/nlm/internal.h nlmconv.h
+nlmheader.o: nlmheader.c $(INCDIR)/ansidecl.h $(INCDIR)/safe-ctype.h \
+  ../bfd/bfd.h $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/nlm/common.h $(INCDIR)/nlm/internal.h \
+  nlmconv.h
 rcparse.o: rcparse.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h windres.h \
+  winduni.h $(INCDIR)/safe-ctype.h
 rclex.o: rclex.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
-  bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h windres.h winduni.h rcparse.h
+  $(INCDIR)/symcat.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h \
+  windres.h winduni.h rcparse.h
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

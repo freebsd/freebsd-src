@@ -1,5 +1,6 @@
 /* A.out "format 1" file handling code for BFD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
+   2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -75,7 +76,7 @@ The name put into the target vector.
 #endif
 
 static boolean sunos_merge_private_bfd_data PARAMS ((bfd *, bfd *));
-static void sunos_set_arch_mach PARAMS ((bfd *, int));
+static void sunos_set_arch_mach PARAMS ((bfd *, enum machine_type));
 static void choose_reloc_size PARAMS ((bfd *));
 static boolean sunos_write_object_contents PARAMS ((bfd *));
 static const bfd_target *sunos4_core_file_p PARAMS ((bfd *));
@@ -113,11 +114,11 @@ sunos_merge_private_bfd_data (ibfd, obfd)
 static void
 sunos_set_arch_mach (abfd, machtype)
      bfd *abfd;
-     int machtype;
+     enum machine_type machtype;
 {
   /* Determine the architecture and machine type of the object file.  */
   enum bfd_architecture arch;
-  long machine;
+  unsigned long machine;
   switch (machtype)
     {
 
@@ -259,7 +260,7 @@ sunos_write_object_contents (abfd)
 
   N_SET_FLAGS (*execp, aout_backend_info (abfd)->exec_hdr_flags);
 
-  N_SET_DYNAMIC (*execp, bfd_get_file_flags (abfd) & DYNAMIC);
+  N_SET_DYNAMIC (*execp, (long)(bfd_get_file_flags (abfd) & DYNAMIC));
 
   WRITE_HEADERS (abfd, execp);
 
@@ -422,8 +423,8 @@ swapcore_sun3 (abfd, ext, intcore)
 {
   struct external_sun3_core *extcore = (struct external_sun3_core *) ext;
 
-  intcore->c_magic = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_magic);
-  intcore->c_len = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_len);
+  intcore->c_magic = H_GET_32 (abfd, &extcore->c_magic);
+  intcore->c_len = H_GET_32 (abfd, &extcore->c_len);
   intcore->c_regs_pos = (long) (((struct external_sun3_core *) 0)->c_regs);
   intcore->c_regs_size = sizeof (extcore->c_regs);
 #if ARCH_SIZE == 64
@@ -432,20 +433,21 @@ swapcore_sun3 (abfd, ext, intcore)
   aout_32_swap_exec_header_in
 #endif
     (abfd, &extcore->c_aouthdr, &intcore->c_aouthdr);
-  intcore->c_signo = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_signo);
-  intcore->c_tsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_tsize);
-  intcore->c_dsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_dsize);
+  intcore->c_signo = H_GET_32 (abfd, &extcore->c_signo);
+  intcore->c_tsize = H_GET_32 (abfd, &extcore->c_tsize);
+  intcore->c_dsize = H_GET_32 (abfd, &extcore->c_dsize);
   intcore->c_data_addr = N_DATADDR (intcore->c_aouthdr);
-  intcore->c_ssize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_ssize);
+  intcore->c_ssize = H_GET_32 (abfd, &extcore->c_ssize);
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos = (long) (((struct external_sun3_core *) 0)->fp_stuff);
   /* FP stuff takes up whole rest of struct, except c_ucode.  */
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_sun3_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
-  intcore->c_ucode =
-    bfd_h_get_32 (abfd,
-    intcore->c_len - sizeof (extcore->c_ucode) + (unsigned char *) extcore);
+  intcore->c_ucode = H_GET_32 (abfd,
+			       (intcore->c_len
+				- sizeof (extcore->c_ucode)
+				+ (unsigned char *) extcore));
   intcore->c_stacktop = 0x0E000000;	/* By experimentation */
 }
 
@@ -458,8 +460,8 @@ swapcore_sparc (abfd, ext, intcore)
 {
   struct external_sparc_core *extcore = (struct external_sparc_core *) ext;
 
-  intcore->c_magic = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_magic);
-  intcore->c_len = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_len);
+  intcore->c_magic = H_GET_32 (abfd, &extcore->c_magic);
+  intcore->c_len = H_GET_32 (abfd, &extcore->c_len);
   intcore->c_regs_pos = (long) (((struct external_sparc_core *) 0)->c_regs);
   intcore->c_regs_size = sizeof (extcore->c_regs);
 #if ARCH_SIZE == 64
@@ -468,20 +470,21 @@ swapcore_sparc (abfd, ext, intcore)
   aout_32_swap_exec_header_in
 #endif
     (abfd, &extcore->c_aouthdr, &intcore->c_aouthdr);
-  intcore->c_signo = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_signo);
-  intcore->c_tsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_tsize);
-  intcore->c_dsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_dsize);
+  intcore->c_signo = H_GET_32 (abfd, &extcore->c_signo);
+  intcore->c_tsize = H_GET_32 (abfd, &extcore->c_tsize);
+  intcore->c_dsize = H_GET_32 (abfd, &extcore->c_dsize);
   intcore->c_data_addr = N_DATADDR (intcore->c_aouthdr);
-  intcore->c_ssize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_ssize);
+  intcore->c_ssize = H_GET_32 (abfd, &extcore->c_ssize);
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos = (long) (((struct external_sparc_core *) 0)->fp_stuff);
   /* FP stuff takes up whole rest of struct, except c_ucode.  */
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_sparc_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
-  intcore->c_ucode =
-    bfd_h_get_32 (abfd,
-    intcore->c_len - sizeof (extcore->c_ucode) + (unsigned char *) extcore);
+  intcore->c_ucode = H_GET_32 (abfd,
+			       (intcore->c_len
+				- sizeof (extcore->c_ucode)
+				+ (unsigned char *) extcore));
 
   /* Supposedly the user stack grows downward from the bottom of kernel memory.
      Presuming that this remains true, this definition will work.  */
@@ -499,8 +502,7 @@ swapcore_sparc (abfd, ext, intcore)
 #define SPARC_USRSTACK_SPARC2 ((bfd_vma)0xf8000000)
 #define SPARC_USRSTACK_SPARC10 ((bfd_vma)0xf0000000)
   {
-    bfd_vma sp = bfd_h_get_32
-    (abfd, (unsigned char *) &((struct regs *) &extcore->c_regs[0])->r_o6);
+    bfd_vma sp = H_GET_32 (abfd, &((struct regs *) &extcore->c_regs[0])->r_o6);
     if (sp < SPARC_USRSTACK_SPARC10)
       intcore->c_stacktop = SPARC_USRSTACK_SPARC10;
     else
@@ -518,8 +520,8 @@ swapcore_solaris_bcp (abfd, ext, intcore)
   struct external_solaris_bcp_core *extcore =
     (struct external_solaris_bcp_core *) ext;
 
-  intcore->c_magic = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_magic);
-  intcore->c_len = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_len);
+  intcore->c_magic = H_GET_32 (abfd, &extcore->c_magic);
+  intcore->c_len = H_GET_32 (abfd, &extcore->c_len);
   intcore->c_regs_pos = (long) (((struct external_solaris_bcp_core *) 0)->c_regs);
   intcore->c_regs_size = sizeof (extcore->c_regs);
 
@@ -534,12 +536,11 @@ swapcore_solaris_bcp (abfd, ext, intcore)
      the data section is written from address zero instead of the data
      start address.  */
   memset ((PTR) &intcore->c_aouthdr, 0, sizeof (struct internal_exec));
-  intcore->c_data_addr =
-    bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_exdata_datorg);
-  intcore->c_signo = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_signo);
-  intcore->c_tsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_tsize);
-  intcore->c_dsize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_dsize);
-  intcore->c_ssize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_ssize);
+  intcore->c_data_addr = H_GET_32 (abfd, &extcore->c_exdata_datorg);
+  intcore->c_signo = H_GET_32 (abfd, &extcore->c_signo);
+  intcore->c_tsize = H_GET_32 (abfd, &extcore->c_tsize);
+  intcore->c_dsize = H_GET_32 (abfd, &extcore->c_dsize);
+  intcore->c_ssize = H_GET_32 (abfd, &extcore->c_ssize);
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos =
     (long) (((struct external_solaris_bcp_core *) 0)->fp_stuff);
@@ -547,9 +548,10 @@ swapcore_solaris_bcp (abfd, ext, intcore)
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_solaris_bcp_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
-  intcore->c_ucode =
-    bfd_h_get_32 (abfd,
-    intcore->c_len - sizeof (extcore->c_ucode) + (unsigned char *) extcore);
+  intcore->c_ucode = H_GET_32 (abfd,
+			       (intcore->c_len
+				- sizeof (extcore->c_ucode)
+				+ (unsigned char *) extcore));
 
   /* Supposedly the user stack grows downward from the bottom of kernel memory.
      Presuming that this remains true, this definition will work.  */
@@ -567,8 +569,7 @@ swapcore_solaris_bcp (abfd, ext, intcore)
 #define SPARC_USRSTACK_SPARC2 ((bfd_vma)0xf8000000)
 #define SPARC_USRSTACK_SPARC10 ((bfd_vma)0xf0000000)
   {
-    bfd_vma sp = bfd_h_get_32
-    (abfd, (unsigned char *) &((struct regs *) &extcore->c_regs[0])->r_o6);
+    bfd_vma sp = H_GET_32 (abfd, &((struct regs *) &extcore->c_regs[0])->r_o6);
     if (sp < SPARC_USRSTACK_SPARC10)
       intcore->c_stacktop = SPARC_USRSTACK_SPARC10;
     else
@@ -598,7 +599,7 @@ sunos4_core_file_p (abfd)
      bfd *abfd;
 {
   unsigned char longbuf[4];	/* Raw bytes of various header fields */
-  bfd_size_type core_size;
+  bfd_size_type core_size, amt;
   unsigned long core_mag;
   struct internal_sunos_core *core;
   char *extcore;
@@ -607,38 +608,41 @@ sunos4_core_file_p (abfd)
       struct sun_core_struct suncoredata;
       struct internal_sunos_core internal_sunos_core;
       char external_core[1];
-    }
-   *mergem;
+    } *mergem;
 
-  if (bfd_read ((PTR) longbuf, 1, sizeof (longbuf), abfd) !=
-      sizeof (longbuf))
+  if (bfd_bread ((PTR) longbuf, (bfd_size_type) sizeof (longbuf), abfd)
+      != sizeof (longbuf))
     return 0;
-  core_mag = bfd_h_get_32 (abfd, longbuf);
+  core_mag = H_GET_32 (abfd, longbuf);
 
   if (core_mag != CORE_MAGIC)
     return 0;
 
   /* SunOS core headers can vary in length; second word is size; */
-  if (bfd_read ((PTR) longbuf, 1, sizeof (longbuf), abfd) !=
-      sizeof (longbuf))
+  if (bfd_bread ((PTR) longbuf, (bfd_size_type) sizeof (longbuf), abfd)
+      != sizeof (longbuf))
     return 0;
-  core_size = bfd_h_get_32 (abfd, longbuf);
+  core_size = H_GET_32 (abfd, longbuf);
   /* Sanity check */
   if (core_size > 20000)
     return 0;
 
-  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) < 0)
+  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
     return 0;
 
-  mergem = (struct mergem *) bfd_zalloc (abfd, core_size + sizeof (struct mergem));
+  amt = core_size + sizeof (struct mergem);
+  mergem = (struct mergem *) bfd_zalloc (abfd, amt);
   if (mergem == NULL)
     return 0;
 
   extcore = mergem->external_core;
 
-  if ((bfd_read ((PTR) extcore, 1, core_size, abfd)) != core_size)
+  if ((bfd_bread ((PTR) extcore, core_size, abfd)) != core_size)
     {
+    loser:
       bfd_release (abfd, (char *) mergem);
+      abfd->tdata.any = NULL;
+      bfd_section_list_clear (abfd);
       return 0;
     }
 
@@ -659,47 +663,29 @@ sunos4_core_file_p (abfd)
       break;
     default:
       bfd_set_error (bfd_error_system_call);	/* FIXME */
-      bfd_release (abfd, (char *) mergem);
-      return 0;
+      goto loser;
     }
 
   abfd->tdata.sun_core_data = &mergem->suncoredata;
   abfd->tdata.sun_core_data->hdr = core;
 
-  /* create the sections.  This is raunchy, but bfd_close wants to reclaim
-     them */
-  core_stacksec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
+  /* Create the sections.  */
+  core_stacksec (abfd) = bfd_make_section_anyway (abfd, ".stack");
   if (core_stacksec (abfd) == NULL)
-    {
-    loser:
-      bfd_release (abfd, (char *) mergem);
-      return 0;
-    }
-  core_datasec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
-  if (core_datasec (abfd) == NULL)
-    {
-    loser1:
-      bfd_release (abfd, core_stacksec (abfd));
-      goto loser;
-    }
-  core_regsec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
-  if (core_regsec (abfd) == NULL)
-    {
-    loser2:
-      bfd_release (abfd, core_datasec (abfd));
-      goto loser1;
-    }
-  core_reg2sec (abfd) = (asection *) bfd_zalloc (abfd, sizeof (asection));
-  if (core_reg2sec (abfd) == NULL)
-    {
-      bfd_release (abfd, core_regsec (abfd));
-      goto loser2;
-    }
+    /* bfd_release frees everything allocated after it's arg.  */
+    goto loser;
 
-  core_stacksec (abfd)->name = ".stack";
-  core_datasec (abfd)->name = ".data";
-  core_regsec (abfd)->name = ".reg";
-  core_reg2sec (abfd)->name = ".reg2";
+  core_datasec (abfd) = bfd_make_section_anyway (abfd, ".data");
+  if (core_datasec (abfd) == NULL)
+    goto loser;
+
+  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
+  if (core_regsec (abfd) == NULL)
+    goto loser;
+
+  core_reg2sec (abfd) = bfd_make_section_anyway (abfd, ".reg2");
+  if (core_reg2sec (abfd) == NULL)
+    goto loser;
 
   core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
@@ -727,13 +713,6 @@ sunos4_core_file_p (abfd)
   core_datasec (abfd)->alignment_power = 2;
   core_regsec (abfd)->alignment_power = 2;
   core_reg2sec (abfd)->alignment_power = 2;
-
-  abfd->sections = core_stacksec (abfd);
-  core_stacksec (abfd)->next = core_datasec (abfd);
-  core_datasec (abfd)->next = core_regsec (abfd);
-  core_regsec (abfd)->next = core_reg2sec (abfd);
-
-  abfd->section_count = 4;
 
   return abfd->xvec;
 }
@@ -822,7 +801,7 @@ sunos4_set_sizes (abfd)
 #define MY_finish_dynamic_link 0
 #endif
 
-static CONST struct aout_backend_data sunos4_aout_backend =
+static const struct aout_backend_data sunos4_aout_backend =
 {
   0,				/* zmagic files are not contiguous */
   1,				/* text includes header */

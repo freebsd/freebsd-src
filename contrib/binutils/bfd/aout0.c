@@ -1,5 +1,5 @@
 /* BFD backend for SunOS style a.out with flags set to 0
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -20,7 +20,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define TARGETNAME "a.out-zero-big"
-#define MY(OP) CAT(aout0_big_,OP)
+
+/* Do not "beautify" the CONCAT* macro args.  Traditional C will not
+   remove whitespace added here, and thus will fail to concatenate
+   the tokens.  */
+#define MY(OP) CONCAT2 (aout0_big_,OP)
 
 #include "bfd.h"
 

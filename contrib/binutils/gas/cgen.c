@@ -1,5 +1,6 @@
 /* GAS interface for targets using CGEN: Cpu tools GENerator.
-   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
 
@@ -15,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <setjmp.h>
 #include "ansidecl.h"
@@ -26,6 +27,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "as.h"
 #include "subsegs.h"
 #include "cgen.h"
+#include "dwarf2dbg.h"
+
+static void queue_fixup PARAMS ((int, int, expressionS *));
 
 /* Opcode table descriptor, must be set by md_begin.  */
 
@@ -37,13 +41,13 @@ CGEN_CPU_DESC gas_cgen_cpu_desc;
 
 void
 cgen_asm_record_register (name, number)
-     char * name;
+     char *name;
      int number;
 {
   /* Use symbol_create here instead of symbol_new so we don't try to
      output registers into the object file's symbol table.  */
   symbol_table_insert (symbol_create (name, reg_section,
-				      number, & zero_address_frag));
+				      number, &zero_address_frag));
 }
 
 /* We need to keep a list of fixups.  We can't simply generate them as
@@ -57,14 +61,13 @@ cgen_asm_record_register (name, number)
    OPINDEX is the index in the operand table.
    OPINFO is something the caller chooses to help in reloc determination.  */
 
-struct fixup
-{
+struct fixup {
   int opindex;
   int opinfo;
   expressionS exp;
 };
 
-static struct fixup fixups [GAS_CGEN_MAX_FIXUPS];
+static struct fixup fixups[GAS_CGEN_MAX_FIXUPS];
 static int num_fixups;
 
 /* Prepare to parse an instruction.
@@ -81,72 +84,130 @@ gas_cgen_init_parse ()
 static void
 queue_fixup (opindex, opinfo, expP)
      int           opindex;
+     int           opinfo;
      expressionS * expP;
 {
   /* We need to generate a fixup for this expression.  */
   if (num_fixups >= GAS_CGEN_MAX_FIXUPS)
     as_fatal (_("too many fixups"));
-  fixups[num_fixups].exp     = * expP;
+  fixups[num_fixups].exp     = *expP;
   fixups[num_fixups].opindex = opindex;
   fixups[num_fixups].opinfo  = opinfo;
   ++ num_fixups;
 }
 
-/* The following three functions allow a backup of the fixup chain to be made,
-   and to have this backup be swapped with the current chain.  This allows
-   certain ports, eg the m32r, to swap two instructions and swap their fixups
-   at the same time.  */
-/* ??? I think with cgen_asm_finish_insn (or something else) there is no
-   more need for this.  */
+/* The following functions allow fixup chains to be stored, retrieved,
+   and swapped.  They are a generalization of a pre-existing scheme
+   for storing, restoring and swapping fixup chains that was used by
+   the m32r port.  The functionality is essentially the same, only
+   instead of only being able to store a single fixup chain, an entire
+   array of fixup chains can be stored.  It is the user's responsibility
+   to keep track of how many fixup chains have been stored and which
+   elements of the array they are in.
 
-static struct fixup saved_fixups [GAS_CGEN_MAX_FIXUPS];
-static int saved_num_fixups;
+   The algorithms used are the same as in the old scheme.  Other than the 
+   "array-ness" of the whole thing, the functionality is identical to the 
+   old scheme.
+
+   gas_cgen_initialize_saved_fixups_array():
+      Sets num_fixups_in_chain to 0 for each element. Call this from
+      md_begin() if you plan to use these functions and you want the
+      fixup count in each element to be set to 0 intially.  This is
+      not necessary, but it's included just in case.  It performs
+      the same function for each element in the array of fixup chains
+      that gas_init_parse() performs for the current fixups.
+
+   gas_cgen_save_fixups (element):
+      element - element number of the array you wish to store the fixups
+                to.  No mechanism is built in for tracking what element
+                was last stored to.
+
+   gas_cgen_restore_fixups (element):
+      element - element number of the array you wish to restore the fixups
+                from.
+
+   gas_cgen_swap_fixups(int element):
+       element - swap the current fixups with those in this element number.
+*/
+
+struct saved_fixups {
+  struct fixup fixup_chain[GAS_CGEN_MAX_FIXUPS];
+  int num_fixups_in_chain;
+};
+
+static struct saved_fixups stored_fixups[MAX_SAVED_FIXUP_CHAINS];
 
 void
-gas_cgen_save_fixups ()
+gas_cgen_initialize_saved_fixups_array ()
 {
-  saved_num_fixups = num_fixups;
-  
-  memcpy (saved_fixups, fixups, sizeof (fixups[0]) * num_fixups);
+  int i = 0;
 
+  while (i < MAX_SAVED_FIXUP_CHAINS)
+    stored_fixups[i++].num_fixups_in_chain = 0;
+}
+
+void
+gas_cgen_save_fixups (i)
+     int i;
+{
+  if (i < 0 || i >= MAX_SAVED_FIXUP_CHAINS)
+    {
+      as_fatal ("index into stored_fixups[] out of bounds");
+      return;
+    }
+
+  stored_fixups[i].num_fixups_in_chain = num_fixups;
+  memcpy (stored_fixups[i].fixup_chain, fixups,
+	  sizeof (fixups[0]) * num_fixups);
   num_fixups = 0;
 }
 
 void
-gas_cgen_restore_fixups ()
+gas_cgen_restore_fixups (i)
+     int i;
 {
-  num_fixups = saved_num_fixups;
-  
-  memcpy (fixups, saved_fixups, sizeof (fixups[0]) * num_fixups);
+  if (i < 0 || i >= MAX_SAVED_FIXUP_CHAINS)
+    {
+      as_fatal ("index into stored_fixups[] out of bounds");
+      return;
+    }
 
-  saved_num_fixups = 0;
+  num_fixups = stored_fixups[i].num_fixups_in_chain;
+  memcpy (fixups,stored_fixups[i].fixup_chain,
+	  (sizeof (stored_fixups[i].fixup_chain[0])) * num_fixups);
+  stored_fixups[i].num_fixups_in_chain = 0;
 }
 
 void
-gas_cgen_swap_fixups ()
+gas_cgen_swap_fixups (i)
+     int i;
 {
-  int tmp;
-  struct fixup tmp_fixup;
+  if (i < 0 || i >= MAX_SAVED_FIXUP_CHAINS)
+    {
+      as_fatal ("index into stored_fixups[] out of bounds");
+      return;
+    }
 
   if (num_fixups == 0)
-    {
-      gas_cgen_restore_fixups ();
-    }
-  else if (saved_num_fixups == 0)
-    {
-      gas_cgen_save_fixups ();
-    }
+    gas_cgen_restore_fixups (i);
+
+  else if (stored_fixups[i].num_fixups_in_chain == 0)
+    gas_cgen_save_fixups (i);
+
   else
     {
-      tmp = saved_num_fixups;
-      saved_num_fixups = num_fixups;
+      int tmp;
+      struct fixup tmp_fixup;
+
+      tmp = stored_fixups[i].num_fixups_in_chain;
+      stored_fixups[i].num_fixups_in_chain = num_fixups;
       num_fixups = tmp;
-      
+
       for (tmp = GAS_CGEN_MAX_FIXUPS; tmp--;)
 	{
-	  tmp_fixup          = saved_fixups [tmp];
-	  saved_fixups [tmp] = fixups [tmp];
-	  fixups [tmp]       = tmp_fixup;
+	  tmp_fixup = stored_fixups[i].fixup_chain [tmp];
+	  stored_fixups[i].fixup_chain[tmp] = fixups [tmp];
+	  fixups [tmp] = tmp_fixup;
 	}
     }
 }
@@ -162,7 +223,7 @@ gas_cgen_swap_fixups ()
    At this point we do not use a bfd_reloc_code_real_type for
    operands residing in the insn, but instead just use the
    operand index.  This lets us easily handle fixups for any
-   operand type.  We pick a BFD reloc type in md_apply_fix.  */
+   operand type.  We pick a BFD reloc type in md_apply_fix3.  */
 
 fixS *
 gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offset)
@@ -175,7 +236,7 @@ gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offse
      symbolS *            symbol;
      offsetT              offset;
 {
-  fixS * fixP;
+  fixS *fixP;
 
   /* It may seem strange to use operand->attrs and not insn->attrs here,
      but it is the operand that has a pc relative relocation.  */
@@ -202,7 +263,7 @@ gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offse
    At this point we do not use a bfd_reloc_code_real_type for
    operands residing in the insn, but instead just use the
    operand index.  This lets us easily handle fixups for any
-   operand type.  We pick a BFD reloc type in md_apply_fix.  */
+   operand type.  We pick a BFD reloc type in md_apply_fix3.  */
 
 fixS *
 gas_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
@@ -214,7 +275,7 @@ gas_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
      int                  opinfo;
      expressionS *        exp;
 {
-  fixS * fixP;
+  fixS *fixP;
 
   /* It may seem strange to use operand->attrs and not insn->attrs here,
      but it is the operand that has a pc relative relocation.  */
@@ -232,6 +293,7 @@ gas_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
 
 /* Used for communication between the next two procedures.  */
 static jmp_buf expr_jmp_buf;
+static int expr_jmp_buf_p;
 
 /* Callback for cgen interface.  Parse the expression at *STRP.
    The result is an error message or NULL for success (in which case
@@ -246,23 +308,23 @@ static jmp_buf expr_jmp_buf;
 
 const char *
 gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
-     CGEN_CPU_DESC cd;
+     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
      enum cgen_parse_operand_type want;
-     const char ** strP;
+     const char **strP;
      int opindex;
      int opinfo;
-     enum cgen_parse_operand_result * resultP;
-     bfd_vma * valueP;
+     enum cgen_parse_operand_result *resultP;
+     bfd_vma *valueP;
 {
 #ifdef __STDC__
   /* These are volatile to survive the setjmp.  */
   char * volatile hold;
   enum cgen_parse_operand_result * volatile resultP_1;
 #else
-  static char * hold;
-  static enum cgen_parse_operand_result * resultP_1;
+  static char *hold;
+  static enum cgen_parse_operand_result *resultP_1;
 #endif
-  const char * errmsg = NULL;
+  const char *errmsg;
   expressionS exp;
 
   if (want == CGEN_PARSE_OPERAND_INIT)
@@ -273,46 +335,50 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
 
   resultP_1 = resultP;
   hold = input_line_pointer;
-  input_line_pointer = (char *) * strP;
+  input_line_pointer = (char *) *strP;
 
   /* We rely on md_operand to longjmp back to us.
      This is done via gas_cgen_md_operand.  */
   if (setjmp (expr_jmp_buf) != 0)
     {
+      expr_jmp_buf_p = 0;
       input_line_pointer = (char *) hold;
-      * resultP_1 = CGEN_PARSE_OPERAND_RESULT_ERROR;
-      return "illegal operand";
+      *resultP_1 = CGEN_PARSE_OPERAND_RESULT_ERROR;
+      return _("illegal operand");
     }
 
-  expression (& exp);
+  expr_jmp_buf_p = 1;
+  expression (&exp);
+  expr_jmp_buf_p = 0;
+  errmsg = NULL;
 
-  * strP = input_line_pointer;
+  *strP = input_line_pointer;
   input_line_pointer = hold;
 
   /* FIXME: Need to check `want'.  */
 
   switch (exp.X_op)
     {
-    case O_illegal :
+    case O_illegal:
       errmsg = _("illegal operand");
-      * resultP = CGEN_PARSE_OPERAND_RESULT_ERROR;
+      *resultP = CGEN_PARSE_OPERAND_RESULT_ERROR;
       break;
-    case O_absent :
+    case O_absent:
       errmsg = _("missing operand");
-      * resultP = CGEN_PARSE_OPERAND_RESULT_ERROR;
+      *resultP = CGEN_PARSE_OPERAND_RESULT_ERROR;
       break;
-    case O_constant :
-      * valueP = exp.X_add_number;
-      * resultP = CGEN_PARSE_OPERAND_RESULT_NUMBER;
+    case O_constant:
+      *valueP = exp.X_add_number;
+      *resultP = CGEN_PARSE_OPERAND_RESULT_NUMBER;
       break;
-    case O_register :
-      * valueP = exp.X_add_number;
-      * resultP = CGEN_PARSE_OPERAND_RESULT_REGISTER;
+    case O_register:
+      *valueP = exp.X_add_number;
+      *resultP = CGEN_PARSE_OPERAND_RESULT_REGISTER;
       break;
-    default :
-      queue_fixup (opindex, opinfo, & exp);
-      * valueP = 0;
-      * resultP = CGEN_PARSE_OPERAND_RESULT_QUEUED;
+    default:
+      queue_fixup (opindex, opinfo, &exp);
+      *valueP = 0;
+      *resultP = CGEN_PARSE_OPERAND_RESULT_QUEUED;
       break;
     }
 
@@ -326,9 +392,11 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
 
 void
 gas_cgen_md_operand (expressionP)
-     expressionS * expressionP;
+     expressionS *expressionP ATTRIBUTE_UNUSED;
 {
-  longjmp (expr_jmp_buf, 1);
+  /* Don't longjmp if we're not called from within cgen_parse_operand().  */
+  if (expr_jmp_buf_p)
+    longjmp (expr_jmp_buf, 1);
 }
 
 /* Finish assembling instruction INSN.
@@ -340,15 +408,15 @@ gas_cgen_md_operand (expressionP)
 
 void
 gas_cgen_finish_insn (insn, buf, length, relax_p, result)
-     const CGEN_INSN * insn;
+     const CGEN_INSN *insn;
      CGEN_INSN_BYTES_PTR buf;
      unsigned int length;
      int relax_p;
-     finished_insnS * result;
+     finished_insnS *result;
 {
   int i;
   int relax_operand;
-  char * f;
+  char *f;
   unsigned int byte_len = length / 8;
 
   /* ??? Target foo issues various warnings here, so one might want to provide
@@ -364,7 +432,8 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
      space for the largest insn.  */
 
   if (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAX))
-    abort (); /* These currently shouldn't get here.  */
+    /* These currently shouldn't get here.  */
+    abort ();
 
   /* Is there a relaxable insn with the relaxable operand needing a fixup?  */
 
@@ -374,7 +443,7 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
       /* Scan the fixups for the operand affected by relaxing
 	 (i.e. the branch address).  */
 
-      for (i = 0; i < num_fixups; ++ i)
+      for (i = 0; i < num_fixups; ++i)
 	{
 	  if (CGEN_OPERAND_ATTR_VALUE (cgen_operand_lookup_by_num (gas_cgen_cpu_desc, fixups[i].opindex),
 				       CGEN_OPERAND_RELAX))
@@ -388,7 +457,10 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
   if (relax_operand != -1)
     {
       int max_len;
-      fragS * old_frag;
+      fragS *old_frag;
+      expressionS *exp;
+      symbolS *sym;
+      offsetT off;
 
 #ifdef TC_CGEN_MAX_RELAX
       max_len = TC_CGEN_MAX_RELAX (insn, byte_len);
@@ -405,14 +477,24 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
       /* Create a relaxable fragment for this instruction.  */
       old_frag = frag_now;
 
+      exp = &fixups[relax_operand].exp;
+      sym = exp->X_add_symbol;
+      off = exp->X_add_number;
+      if (exp->X_op != O_constant && exp->X_op != O_symbol)
+	{
+	  /* Handle complex expressions.  */
+	  sym = make_expr_symbol (exp);
+	  off = 0;
+	}
+
       frag_var (rs_machine_dependent,
 		max_len - byte_len /* max chars */,
 		0 /* variable part already allocated */,
 		/* FIXME: When we machine generate the relax table,
 		   machine generate a macro to compute subtype.  */
 		1 /* subtype */,
-		fixups[relax_operand].exp.X_add_symbol,
-		fixups[relax_operand].exp.X_add_number,
+		sym,
+		off,
 		f);
 
       /* Record the operand number with the fragment so md_convert_frag
@@ -438,6 +520,9 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
   memcpy (f, buf, byte_len);
 #endif
 
+  /* Emit DWARF2 debugging information.  */
+  dwarf2_emit_insn (byte_len);
+
   /* Create any fixups.  */
   for (i = 0; i < num_fixups; ++i)
     {
@@ -457,12 +542,12 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
 #define md_cgen_record_fixup_exp gas_cgen_record_fixup_exp
 #endif
 
-	fixP = md_cgen_record_fixup_exp (frag_now, f - frag_now->fr_literal,
-					 insn, length, operand,
-					 fixups[i].opinfo,
-					 & fixups[i].exp);
-	if (result)
-	  result->fixups[i] = fixP;
+      fixP = md_cgen_record_fixup_exp (frag_now, f - frag_now->fr_literal,
+				       insn, length, operand,
+				       fixups[i].opinfo,
+				       &fixups[i].exp);
+      if (result)
+	result->fixups[i] = fixP;
     }
 
   if (result)
@@ -484,17 +569,17 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
    handles the rest.  bfd_install_relocation (or some other bfd function)
    should handle them all.  */
 
-int
-gas_cgen_md_apply_fix3 (fixP, valueP, seg)
+void
+gas_cgen_md_apply_fix3 (fixP, valP, seg)
      fixS *   fixP;
-     valueT * valueP;
-     segT     seg;
+     valueT * valP;
+     segT     seg ATTRIBUTE_UNUSED;
 {
-  char * where = fixP->fx_frag->fr_literal + fixP->fx_where;
-  valueT value;
-  /* canonical name, since used a lot */
+  char *where = fixP->fx_frag->fr_literal + fixP->fx_where;
+  valueT value = * valP;
+  /* Canonical name, since used a lot.  */
   CGEN_CPU_DESC cd = gas_cgen_cpu_desc;
-  
+
   /* FIXME FIXME FIXME: The value we are passed in *valuep includes
      the symbol values.  Since we are using BFD_ASSEMBLER, if we are
      doing this relocation the code in write.c is going to call
@@ -507,15 +592,15 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
      result of md_pcrel_from.  This is confusing.  */
 
   if (fixP->fx_addsy == (symbolS *) NULL)
-    {
-      value = * valueP;
-      fixP->fx_done = 1;
-    }
+    fixP->fx_done = 1;
+
   else if (fixP->fx_pcrel)
-    value = * valueP;
+    ;
+
   else
     {
       value = fixP->fx_offset;
+
       if (fixP->fx_subsy != (symbolS *) NULL)
 	{
 	  if (S_GET_SEGMENT (fixP->fx_subsy) == absolute_section)
@@ -523,7 +608,7 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 	  else
 	    {
 	      /* We don't actually support subtracting a symbol.  */
- 	      as_bad_where (fixP->fx_file, fixP->fx_line,
+	      as_bad_where (fixP->fx_file, fixP->fx_line,
 			    _("expression too complex"));
 	    }
 	}
@@ -553,23 +638,23 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 	    CGEN_INSN_INT insn_value =
 	      cgen_get_insn_value (cd, where, CGEN_INSN_BITSIZE (insn));
 
-	    /* ??? 0 is passed for `pc' */
+	    /* ??? 0 is passed for `pc'.  */
 	    errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields,
 						   &insn_value, (bfd_vma) 0);
 	    cgen_put_insn_value (cd, where, CGEN_INSN_BITSIZE (insn),
 				 insn_value);
 	  }
 #else
-	    /* ??? 0 is passed for `pc' */
-	    errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields, where,
-						   (bfd_vma) 0);
+	  /* ??? 0 is passed for `pc'.  */
+	  errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields, where,
+						 (bfd_vma) 0);
 #endif
 	  if (errmsg)
 	    as_bad_where (fixP->fx_file, fixP->fx_line, "%s", errmsg);
 	}
 
       if (fixP->fx_done)
-	return 1;
+	return;
 
       /* The operand isn't fully resolved.  Determine a BFD reloc value
 	 based on the operand information and leave it to
@@ -577,16 +662,15 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 	 partial_inplace == false.  */
 
       reloc_type = md_cgen_lookup_reloc (insn, operand, fixP);
+
       if (reloc_type != BFD_RELOC_NONE)
-	{
-	  fixP->fx_r_type = reloc_type;
-	}
+	fixP->fx_r_type = reloc_type;
       else
 	{
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("unresolved expression that must be resolved"));
 	  fixP->fx_done = 1;
-	  return 1;
+	  return;
 	}
     }
   else if (fixP->fx_done)
@@ -604,7 +688,9 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 	case BFD_RELOC_32:
 	  md_number_to_chars (where, value, 4);
 	  break;
-	/* FIXME: later add support for 64 bits.  */
+	case BFD_RELOC_64:
+	  md_number_to_chars (where, value, 8);
+	  break;
 	default:
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("internal error: can't install fix for reloc type %d (`%s')"),
@@ -612,17 +698,13 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 	  break;
 	}
     }
-  else
-    {
-      /* bfd_install_relocation will be called to finish things up.  */
-    }
+  /* else
+     bfd_install_relocation will be called to finish things up.  */
 
   /* Tuck `value' away for use by tc_gen_reloc.
      See the comment describing fx_addnumber in write.h.
      This field is misnamed (or misused :-).  */
   fixP->fx_addnumber = value;
-
-  return 1;
 }
 
 /* Translate internal representation of relocation info to BFD target format.
@@ -631,10 +713,10 @@ gas_cgen_md_apply_fix3 (fixP, valueP, seg)
 
 arelent *
 gas_cgen_tc_gen_reloc (section, fixP)
-     asection * section;
+     asection * section ATTRIBUTE_UNUSED;
      fixS *     fixP;
 {
-  arelent * reloc;
+  arelent *reloc;
 
   reloc = (arelent *) xmalloc (sizeof (arelent));
 
@@ -642,8 +724,7 @@ gas_cgen_tc_gen_reloc (section, fixP)
   if (reloc->howto == (reloc_howto_type *) NULL)
     {
       as_bad_where (fixP->fx_file, fixP->fx_line,
-		    _("internal error: can't export reloc type %d (`%s')"),
-		    fixP->fx_r_type, bfd_get_reloc_code_name (fixP->fx_r_type));
+		    _("relocation is not supported"));
       return NULL;
     }
 
@@ -652,12 +733,12 @@ gas_cgen_tc_gen_reloc (section, fixP)
   reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
 
-  /* Use fx_offset for these cases */
-  if (   fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY
+  /* Use fx_offset for these cases.  */
+  if (fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY
       || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT)
-    reloc->addend  = fixP->fx_offset;
+    reloc->addend = fixP->fx_offset;
   else
-    reloc->addend  = fixP->fx_addnumber;
+    reloc->addend = fixP->fx_addnumber;
 
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
   return reloc;

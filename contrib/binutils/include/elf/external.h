@@ -143,6 +143,10 @@ typedef struct {
   unsigned char	st_size[8];		/* Associated symbol size */
 } Elf64_External_Sym;
 
+typedef struct {
+  unsigned char est_shndx[4];		/* Section index */
+} Elf_External_Sym_Shndx;
+
 /* Note segments */
 
 typedef struct {

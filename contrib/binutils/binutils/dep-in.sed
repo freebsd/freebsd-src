@@ -3,7 +3,9 @@
 /\\$/b loop
 
 s!@INCDIR@!$(INCDIR)!g
+s!@TOPDIR@/include!$(INCDIR)!g
 s!@BFDDIR@!$(BFDDIR)!g
+s!@TOPDIR@/bfd!$(BFDDIR)!g
 s!@SRCDIR@/!!g
 s!@OBJDIR@/!!g
 

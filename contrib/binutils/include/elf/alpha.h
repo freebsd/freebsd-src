@@ -80,27 +80,24 @@ START_RELOC_NUMBERS (elf_alpha_reloc_type)
   RELOC_NUMBER (R_ALPHA_SREL32, 10)	/* PC relative 32 bit */
   RELOC_NUMBER (R_ALPHA_SREL64, 11)	/* PC relative 64 bit */
 
-/* Inherited these from ECOFF, but they are not particularly useful
-   and are depreciated.  And not implemented in the BFD, btw.  */
-  RELOC_NUMBER (R_ALPHA_OP_PUSH, 12)	/* OP stack push */
-  RELOC_NUMBER (R_ALPHA_OP_STORE, 13)	/* OP stack pop and store */
-  RELOC_NUMBER (R_ALPHA_OP_PSUB, 14)	/* OP stack subtract */
-  RELOC_NUMBER (R_ALPHA_OP_PRSHIFT, 15)	/* OP stack right shift */
+  /* Skip 12 - 16; deprecated ECOFF relocs.  */
 
-  RELOC_NUMBER (R_ALPHA_GPVALUE, 16)
-  RELOC_NUMBER (R_ALPHA_GPRELHIGH, 17)
-  RELOC_NUMBER (R_ALPHA_GPRELLOW, 18)
-  RELOC_NUMBER (R_ALPHA_IMMED_GP_16, 19)
-  RELOC_NUMBER (R_ALPHA_IMMED_GP_HI32, 20)
-  RELOC_NUMBER (R_ALPHA_IMMED_SCN_HI32, 21)
-  RELOC_NUMBER (R_ALPHA_IMMED_BR_HI32, 22)
-  RELOC_NUMBER (R_ALPHA_IMMED_LO32, 23)
+  RELOC_NUMBER (R_ALPHA_GPRELHIGH, 17)	/* GP relative 32 bit, high 16 bits */
+  RELOC_NUMBER (R_ALPHA_GPRELLOW, 18)	/* GP relative 32 bit, low 16 bits */
+  RELOC_NUMBER (R_ALPHA_GPREL16, 19)	/* GP relative 16 bit */
 
-/* These relocations are specific to shared libraries.  */
+  /* Skip 20 - 23; deprecated ECOFF relocs.  */
+
+  /* These relocations are specific to shared libraries.  */
   RELOC_NUMBER (R_ALPHA_COPY, 24)	/* Copy symbol at runtime */
   RELOC_NUMBER (R_ALPHA_GLOB_DAT, 25)	/* Create GOT entry */
   RELOC_NUMBER (R_ALPHA_JMP_SLOT, 26)	/* Create PLT entry */
   RELOC_NUMBER (R_ALPHA_RELATIVE, 27)	/* Adjust by program base */
+
+  /* Like BRADDR, but assert that the source and target object file
+     share the same GP value, and adjust the target address for 
+     STO_ALPHA_STD_GPLOAD.  */
+  RELOC_NUMBER (R_ALPHA_BRSGP, 28)
 
 END_RELOC_NUMBERS (R_ALPHA_max)
 

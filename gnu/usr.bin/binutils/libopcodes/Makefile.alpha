@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
-SRCS+=		alpha-dis.c alpha-opc.c
-CFLAGS+=	-DARCH_alpha
+SRCS+=	alpha-dis.c alpha-opc.c
+CFLAGS+= -DARCH_alpha

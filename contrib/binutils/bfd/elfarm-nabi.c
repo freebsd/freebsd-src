@@ -42,6 +42,10 @@
 
 static reloc_howto_type * elf32_arm_reloc_type_lookup
   PARAMS ((bfd * abfd, bfd_reloc_code_real_type code));
+static boolean elf32_arm_nabi_grok_prstatus
+  PARAMS ((bfd *abfd, Elf_Internal_Note *note));
+static boolean elf32_arm_nabi_grok_psinfo
+  PARAMS ((bfd *abfd, Elf_Internal_Note *note));
 
 /* Note: code such as elf32_arm_reloc_type_lookup expect to use e.g.
    R_ARM_PC24 as an index into this, and find the R_ARM_PC24 HOWTO
@@ -134,8 +138,8 @@ static reloc_howto_type elf32_arm_howto_table[] =
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_ARM_ABS16",		/* name */
 	 false,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
+	 0x0000ffff,		/* src_mask */
+	 0x0000ffff,		/* dst_mask */
 	 false),		/* pcrel_offset */
 
   /* 12 bit absolute */
@@ -578,6 +582,9 @@ static reloc_howto_type elf32_arm_thm_pc9_howto =
 	 0x000000ff,		/* dst_mask */
 	 true);			/* pcrel_offset */
 
+static void elf32_arm_info_to_howto
+  PARAMS ((bfd *, arelent *, Elf32_Internal_Rel *));
+
 static void
 elf32_arm_info_to_howto (abfd, bfd_reloc, elf_reloc)
      bfd * abfd ATTRIBUTE_UNUSED;
@@ -622,27 +629,27 @@ struct elf32_arm_reloc_map
   };
 
 static const struct elf32_arm_reloc_map elf32_arm_reloc_map[] =
-{
-  {BFD_RELOC_NONE,                 R_ARM_NONE},
-  {BFD_RELOC_ARM_PCREL_BRANCH,     R_ARM_PC24},
-  {BFD_RELOC_ARM_PCREL_BLX,        R_ARM_XPC25},
-  {BFD_RELOC_THUMB_PCREL_BLX,      R_ARM_THM_XPC22},
-  {BFD_RELOC_32,                   R_ARM_ABS32},
-  {BFD_RELOC_32_PCREL,             R_ARM_REL32},
-  {BFD_RELOC_8,                    R_ARM_ABS8},
-  {BFD_RELOC_16,                   R_ARM_ABS16},
-  {BFD_RELOC_ARM_OFFSET_IMM,       R_ARM_ABS12},
-  {BFD_RELOC_ARM_THUMB_OFFSET,     R_ARM_THM_ABS5},
-  {BFD_RELOC_THUMB_PCREL_BRANCH23, R_ARM_THM_PC22},
-  {BFD_RELOC_ARM_COPY,             R_ARM_COPY},
-  {BFD_RELOC_ARM_GLOB_DAT,         R_ARM_GLOB_DAT},
-  {BFD_RELOC_ARM_JUMP_SLOT,        R_ARM_JUMP_SLOT},
-  {BFD_RELOC_ARM_RELATIVE,         R_ARM_RELATIVE},
-  {BFD_RELOC_ARM_GOTOFF,           R_ARM_GOTOFF},
-  {BFD_RELOC_ARM_GOTPC,            R_ARM_GOTPC},
-  {BFD_RELOC_ARM_GOT32,            R_ARM_GOT32},
-  {BFD_RELOC_ARM_PLT32,            R_ARM_PLT32}
-};
+  {
+    {BFD_RELOC_NONE,                 R_ARM_NONE},
+    {BFD_RELOC_ARM_PCREL_BRANCH,     R_ARM_PC24},
+    {BFD_RELOC_ARM_PCREL_BLX,        R_ARM_XPC25},
+    {BFD_RELOC_THUMB_PCREL_BLX,      R_ARM_THM_XPC22},
+    {BFD_RELOC_32,                   R_ARM_ABS32},
+    {BFD_RELOC_32_PCREL,             R_ARM_REL32},
+    {BFD_RELOC_8,                    R_ARM_ABS8},
+    {BFD_RELOC_16,                   R_ARM_ABS16},
+    {BFD_RELOC_ARM_OFFSET_IMM,       R_ARM_ABS12},
+    {BFD_RELOC_ARM_THUMB_OFFSET,     R_ARM_THM_ABS5},
+    {BFD_RELOC_THUMB_PCREL_BRANCH23, R_ARM_THM_PC22},
+    {BFD_RELOC_ARM_COPY,             R_ARM_COPY},
+    {BFD_RELOC_ARM_GLOB_DAT,         R_ARM_GLOB_DAT},
+    {BFD_RELOC_ARM_JUMP_SLOT,        R_ARM_JUMP_SLOT},
+    {BFD_RELOC_ARM_RELATIVE,         R_ARM_RELATIVE},
+    {BFD_RELOC_ARM_GOTOFF,           R_ARM_GOTOFF},
+    {BFD_RELOC_ARM_GOTPC,            R_ARM_GOTPC},
+    {BFD_RELOC_ARM_GOT32,            R_ARM_GOT32},
+    {BFD_RELOC_ARM_PLT32,            R_ARM_PLT32}
+  };
 
 static reloc_howto_type *
 elf32_arm_reloc_type_lookup (abfd, code)
@@ -673,5 +680,73 @@ elf32_arm_reloc_type_lookup (abfd, code)
       return NULL;
    }
 }
+
+/* Support for core dump NOTE sections */
+static boolean
+elf32_arm_nabi_grok_prstatus (abfd, note)
+     bfd *abfd;
+     Elf_Internal_Note *note;
+{
+  int offset;
+  size_t raw_size;
+
+  switch (note->descsz)
+    {
+      default:
+	return false;
+
+      case 148:		/* Linux/ARM 32-bit*/
+	/* pr_cursig */
+	elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
+
+	/* pr_pid */
+	elf_tdata (abfd)->core_pid = bfd_get_32 (abfd, note->descdata + 24);
+
+	/* pr_reg */
+	offset = 72;
+	raw_size = 72;
+
+	break;
+    }
+
+  /* Make a ".reg/999" section.  */
+  return _bfd_elfcore_make_pseudosection (abfd, ".reg",
+					  raw_size, note->descpos + offset);
+}
+
+static boolean
+elf32_arm_nabi_grok_psinfo (abfd, note)
+     bfd *abfd;
+     Elf_Internal_Note *note;
+{
+  switch (note->descsz)
+    {
+      default:
+	return false;
+
+      case 124:		/* Linux/ARM elf_prpsinfo */
+	elf_tdata (abfd)->core_program
+	 = _bfd_elfcore_strndup (abfd, note->descdata + 28, 16);
+	elf_tdata (abfd)->core_command
+	 = _bfd_elfcore_strndup (abfd, note->descdata + 44, 80);
+    }
+
+  /* Note that for some reason, a spurious space is tacked
+     onto the end of the args in some (at least one anyway)
+     implementations, so strip it off if it exists.  */
+
+  {
+    char *command = elf_tdata (abfd)->core_command;
+    int n = strlen (command);
+
+    if (0 < n && command[n - 1] == ' ')
+      command[n - 1] = '\0';
+  }
+
+  return true;
+}
+
+#define elf_backend_grok_prstatus	elf32_arm_nabi_grok_prstatus
+#define elf_backend_grok_psinfo		elf32_arm_nabi_grok_psinfo
 
 #include "elf32-arm.h"

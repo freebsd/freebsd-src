@@ -40,6 +40,13 @@ static reloc_howto_type dummy =
 	 0,			/* dst_mask */
 	 false);		/* pcrel_offset */
 
+static void elf_generic_info_to_howto
+  PARAMS ((bfd *, arelent *, Elf64_Internal_Rela *));
+static void elf_generic_info_to_howto_rel
+  PARAMS ((bfd *, arelent *, Elf64_Internal_Rel *));
+static boolean elf64_generic_link_add_symbols
+  PARAMS ((bfd *, struct bfd_link_info *));
+
 static void
 elf_generic_info_to_howto (abfd, bfd_reloc, elf_reloc)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -72,15 +79,9 @@ elf64_generic_link_add_symbols (abfd, info)
 	Elf_Internal_Ehdr *ehdrp;
 
 	ehdrp = elf_elfheader (abfd);
-	if (abfd->my_archive)
-	  (*_bfd_error_handler) (_("%s(%s): Relocations in generic ELF (EM: %d)"),
-				 bfd_get_filename (abfd->my_archive),
-				 bfd_get_filename (abfd),
-				 ehdrp->e_machine);
-	else
-	  (*_bfd_error_handler) (_("%s: Relocations in generic ELF (EM: %d)"),
-				 bfd_get_filename (abfd),
-				 ehdrp->e_machine);
+	(*_bfd_error_handler) (_("%s: Relocations in generic ELF (EM: %d)"),
+			       bfd_archive_filename (abfd),
+			       ehdrp->e_machine);
 
 	bfd_set_error (bfd_error_wrong_format);
 	return false;

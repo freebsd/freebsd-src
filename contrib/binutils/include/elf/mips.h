@@ -172,12 +172,10 @@ END_RELOC_NUMBERS (R_MIPS_maxext)
    the rest are open. */
 
 #define E_MIPS_MACH_3900	0x00810000
-
 #define E_MIPS_MACH_4010	0x00820000
 #define E_MIPS_MACH_4100	0x00830000
 #define E_MIPS_MACH_4650	0x00850000
 #define E_MIPS_MACH_4111	0x00880000
-#define E_MIPS_MACH_MIPS32_4K	0x00890000
 #define E_MIPS_MACH_SB1         0x008a0000
 
 /* Processor specific section indices.  These sections do not actually

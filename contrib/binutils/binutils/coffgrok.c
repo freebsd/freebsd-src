@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 */
 
 #include <bfd.h>
+#include <libiberty.h>
 #include "bucomm.h"
 
 #include "coff/internal.h"
@@ -53,7 +54,7 @@ static long symcount;
 static struct coff_ptr_struct *rawsyms;
 static int rawcount;
 static bfd *abfd;
-extern char *xcalloc ();
+
 #define PTR_SIZE 	4
 #define SHORT_SIZE 	2
 #define INT_SIZE 	4
@@ -62,6 +63,19 @@ extern char *xcalloc ();
 #define DOUBLE_SIZE 	8
 
 #define INDEXOF(p)  ((struct coff_ptr_struct *)(p)-(rawsyms))
+
+static struct coff_scope *empty_scope PARAMS ((void));
+static struct coff_symbol *empty_symbol PARAMS ((void));
+static void push_scope PARAMS ((int));
+static void pop_scope PARAMS ((void));
+static void do_sections_p1 PARAMS ((struct coff_ofile *));
+static void do_sections_p2 PARAMS ((struct coff_ofile *));
+static struct coff_where *do_where PARAMS ((int));
+static struct coff_line *do_lines PARAMS ((int, char *));
+static struct coff_type *do_type PARAMS ((int));
+static struct coff_visible *do_visible PARAMS ((int));
+static int do_define PARAMS ((int, struct coff_scope *));
+static struct coff_ofile *doit PARAMS ((void));
 
 static struct coff_scope *
 empty_scope ()

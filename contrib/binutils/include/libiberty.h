@@ -1,6 +1,6 @@
 /* Function declarations for libiberty.
 
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2002 Free Software Foundation, Inc.
    
    Note - certain prototypes declared in this header file are for
    functions whoes implementation copyright does not belong to the
@@ -51,7 +51,7 @@ extern "C" {
 /* Build an argument vector from a string.  Allocates memory using
    malloc.  Use freeargv to free the vector.  */
 
-extern char **buildargv PARAMS ((char *)) ATTRIBUTE_MALLOC;
+extern char **buildargv PARAMS ((const char *)) ATTRIBUTE_MALLOC;
 
 /* Free a vector returned by buildargv.  */
 
@@ -83,12 +83,54 @@ extern char *basename ();
 
 /* A well-defined basename () that is always compiled in.  */
 
-extern char *lbasename PARAMS ((const char *));
+extern const char *lbasename PARAMS ((const char *));
 
-/* Concatenate an arbitrary number of strings, up to (char *) NULL.
-   Allocates memory using xmalloc.  */
+/* Concatenate an arbitrary number of strings.  You must pass NULL as
+   the last argument of this function, to terminate the list of
+   strings.  Allocates memory using xmalloc.  */
 
 extern char *concat PARAMS ((const char *, ...)) ATTRIBUTE_MALLOC;
+
+/* Concatenate an arbitrary number of strings.  You must pass NULL as
+   the last argument of this function, to terminate the list of
+   strings.  Allocates memory using xmalloc.  The first argument is
+   not one of the strings to be concatenated, but if not NULL is a
+   pointer to be freed after the new string is created, similar to the
+   way xrealloc works.  */
+
+extern char *reconcat PARAMS ((char *, const char *, ...)) ATTRIBUTE_MALLOC;
+
+/* Determine the length of concatenating an arbitrary number of
+   strings.  You must pass NULL as the last argument of this function,
+   to terminate the list of strings.  */
+
+extern unsigned long concat_length PARAMS ((const char *, ...));
+
+/* Concatenate an arbitrary number of strings into a SUPPLIED area of
+   memory.  You must pass NULL as the last argument of this function,
+   to terminate the list of strings.  The supplied memory is assumed
+   to be large enough.  */
+
+extern char *concat_copy PARAMS ((char *, const char *, ...));
+
+/* Concatenate an arbitrary number of strings into a GLOBAL area of
+   memory.  You must pass NULL as the last argument of this function,
+   to terminate the list of strings.  The supplied memory is assumed
+   to be large enough.  */
+
+extern char *concat_copy2 PARAMS ((const char *, ...));
+
+/* This is the global area used by concat_copy2.  */
+
+extern char *libiberty_concat_ptr;
+
+/* Concatenate an arbitrary number of strings.  You must pass NULL as
+   the last argument of this function, to terminate the list of
+   strings.  Allocates memory using alloca.  The arguments are
+   evaluated twice!  */
+#define ACONCAT(ACONCAT_PARAMS) \
+  (libiberty_concat_ptr = alloca (concat_length ACONCAT_PARAMS + 1), \
+   concat_copy2 ACONCAT_PARAMS)
 
 /* Check whether two file descriptors refer to the same file.  */
 
@@ -198,7 +240,7 @@ extern PTR xmemdup PARAMS ((const PTR, size_t, size_t)) ATTRIBUTE_MALLOC;
 
 #define _hex_array_size 256
 #define _hex_bad	99
-extern char _hex_value[_hex_array_size];
+extern const char _hex_value[_hex_array_size];
 extern void hex_init PARAMS ((void));
 #define hex_p(c)	(hex_value (c) != _hex_bad)
 /* If you change this, note well: Some code relies on side effects in
@@ -234,6 +276,38 @@ extern int vasprintf PARAMS ((char **, const char *, va_list))
   ATTRIBUTE_PRINTF(2,0);
 
 #define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
+
+/* Drastically simplified alloca configurator.  If we're using GCC,
+   we use __builtin_alloca; otherwise we use the C alloca.  The C
+   alloca is always available.  You can override GCC by defining
+   USE_C_ALLOCA yourself.  The canonical autoconf macro C_ALLOCA is
+   also set/unset as it is often used to indicate whether code needs
+   to call alloca(0).  */
+extern PTR C_alloca PARAMS ((size_t)) ATTRIBUTE_MALLOC;
+#undef alloca
+#if GCC_VERSION >= 2000 && !defined USE_C_ALLOCA
+# define alloca(x) __builtin_alloca(x)
+# undef C_ALLOCA
+# define ASTRDUP(X) \
+  (__extension__ ({ const char *const libiberty_optr = (X); \
+   const unsigned long libiberty_len = strlen (libiberty_optr) + 1; \
+   char *const libiberty_nptr = alloca (libiberty_len); \
+   (char *) memcpy (libiberty_nptr, libiberty_optr, libiberty_len); }))
+#else
+# define alloca(x) C_alloca(x)
+# undef USE_C_ALLOCA
+# define USE_C_ALLOCA 1
+# undef C_ALLOCA
+# define C_ALLOCA 1
+extern const char *libiberty_optr;
+extern char *libiberty_nptr;
+extern unsigned long libiberty_len;
+# define ASTRDUP(X) \
+  (libiberty_optr = (X), \
+   libiberty_len = strlen (libiberty_optr) + 1, \
+   libiberty_nptr = alloca (libiberty_len), \
+   (char *) memcpy (libiberty_nptr, libiberty_optr, libiberty_len))
+#endif
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /* v850.h -- Header file for NEC V850 opcode table
-   Copyright 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2001 Free Software Foundation, Inc.
    Written by J.T. Conklin, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -153,7 +153,6 @@ extern const struct v850_operand v850_operands[];
 /* The register specified must not be r0 */
 #define V850_NOT_R0	        0x80
 
-/* CYGNUS LOCAL v850e */
 /* push/pop type instruction, V850E specific.  */
 #define V850E_PUSH_POP		0x100
 

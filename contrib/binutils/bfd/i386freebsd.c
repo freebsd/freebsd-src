@@ -1,5 +1,5 @@
 /* BFD back-end for FreeBSD/386 a.out-ish binaries.
-   Copyright 1990, 1991, 1992, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1996, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -26,7 +26,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define	DEFAULT_ARCH	bfd_arch_i386
 #define MACHTYPE_OK(mtype) ((mtype) == M_386_NETBSD || (mtype) == M_UNKNOWN)
 
-#define MY(OP) CAT(i386freebsd_,OP)
+/* Do not "beautify" the CONCAT* macro args.  Traditional C will not
+   remove whitespace added here, and thus will fail to concatenate
+   the tokens.  */
+#define MY(OP) CONCAT2 (i386freebsd_,OP)
+
 /* This needs to start with a.out so GDB knows it is an a.out variant.  */
 #define TARGETNAME "a.out-i386-freebsd"
 

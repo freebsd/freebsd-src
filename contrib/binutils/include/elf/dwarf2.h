@@ -1,6 +1,6 @@
 /* Declarations and definitions of codes relating to the DWARF2 symbolic
    debugging information format.
-   Copyright 1992, 1993, 1995, 1996, 1999, 2000, 2001
+   Copyright (C) 1992, 1993, 1995, 1996, 1997, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    Written by Gary Funck (gary@intrepid.com) The Ada Joint Program
@@ -10,21 +10,22 @@
    Derived from the DWARF 1 implementation written by Ron Guilmette
    (rfg@netcom.com), November 1990.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /* This file is derived from the DWARF specification (a public document)
    Revision 2.0.0 (July 27, 1993) developed by the UNIX International
@@ -32,8 +33,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
    by UNIX International.  Copies of this specification are available from
    UNIX International, 20 Waterview Boulevard, Parsippany, NJ, 07054.
 
-
-   This file also now contains definitions from the DWARF 2.1 specification.  */
+   This file also now contains definitions from the DWARF 3 specification.  */
 
 /* This file is shared between GCC and GDB, and should not contain
    prototypes.  */
@@ -178,12 +178,21 @@ enum dwarf_tag
     DW_TAG_variant_part = 0x33,
     DW_TAG_variable = 0x34,
     DW_TAG_volatile_type = 0x35,
+    /* DWARF 3.  */
+    DW_TAG_dwarf_procedure = 0x36,
+    DW_TAG_restrict_type = 0x37,
+    DW_TAG_interface_type = 0x38,
+    DW_TAG_namespace = 0x39,
+    DW_TAG_imported_module = 0x3a,
+    DW_TAG_unspecified_type = 0x3b,
+    DW_TAG_partial_unit = 0x3c,
+    DW_TAG_imported_unit = 0x3d,
     /* SGI/MIPS Extensions.  */
     DW_TAG_MIPS_loop = 0x4081,
     /* GNU extensions.  */
     DW_TAG_format_label = 0x4101,	/* For FORTRAN 77 and Fortran 90.  */
-    DW_TAG_function_template = 0x4102,	/* for C++ */
-    DW_TAG_class_template = 0x4103,	/* for C++ */
+    DW_TAG_function_template = 0x4102,	/* For C++.  */
+    DW_TAG_class_template = 0x4103,	/* For C++.  */
     DW_TAG_GNU_BINCL = 0x4104,
     DW_TAG_GNU_EINCL = 0x4105
   };
@@ -287,7 +296,7 @@ enum dwarf_attribute
     DW_AT_variable_parameter = 0x4b,
     DW_AT_virtuality = 0x4c,
     DW_AT_vtable_elem_location = 0x4d,
-    /* DWARF 2.1 values.  */
+    /* DWARF 3 values.  */
     DW_AT_allocated     = 0x4e,
     DW_AT_associated    = 0x4f,
     DW_AT_data_location = 0x50,
@@ -318,7 +327,10 @@ enum dwarf_attribute
     DW_AT_mac_info   = 0x2103,
     DW_AT_src_coords = 0x2104,
     DW_AT_body_begin = 0x2105,
-    DW_AT_body_end   = 0x2106
+    DW_AT_body_end   = 0x2106,
+    DW_AT_GNU_vector = 0x2107,
+    /* VMS Extensions.  */
+    DW_AT_VMS_rtnbeg_pd_address = 0x2201
   };
 
 #define DW_AT_lo_user	0x2000	/* Implementation-defined range start.  */
@@ -472,10 +484,10 @@ enum dwarf_location_atom
     DW_OP_deref_size = 0x94,
     DW_OP_xderef_size = 0x95,
     DW_OP_nop = 0x96,
-    /* DWARF 2.1 extensions.  */
+    /* DWARF 3 extensions.  */
     DW_OP_push_object_address = 0x97,
-    DW_OP_call2 = 0x98, /* 1 2-byte offset of DIE.  */
-    DW_OP_call4 = 0x99, /* 1 4-byte offset of DIE.  */
+    DW_OP_call2 = 0x98,
+    DW_OP_call4 = 0x99,
     DW_OP_calli = 0x9a
   };
 
@@ -493,7 +505,9 @@ enum dwarf_type
     DW_ATE_signed = 0x5,
     DW_ATE_signed_char = 0x6,
     DW_ATE_unsigned = 0x7,
-    DW_ATE_unsigned_char = 0x8
+    DW_ATE_unsigned_char = 0x8,
+    /* DWARF 3.  */
+    DW_ATE_imaginary_float = 0x9
   };
 
 #define	DW_ATE_lo_user 0x80
@@ -559,8 +573,8 @@ enum dwarf_inline_attribute
     DW_INL_declared_inlined = 3
   };
 
-/* Descriminant lists.  */
-enum dwarf_descrim_list
+/* Discriminant lists.  */
+enum dwarf_discrim_list
   {
     DW_DSC_label = 0,
     DW_DSC_range = 1
@@ -578,7 +592,11 @@ enum dwarf_line_number_ops
     DW_LNS_negate_stmt = 6,
     DW_LNS_set_basic_block = 7,
     DW_LNS_const_add_pc = 8,
-    DW_LNS_fixed_advance_pc = 9
+    DW_LNS_fixed_advance_pc = 9,
+    /* DWARF 3.  */
+    DW_LNS_set_prologue_end = 10,
+    DW_LNS_set_epilogue_begin = 11,
+    DW_LNS_set_isa = 12
   };
 
 /* Line number extended opcodes.  */
@@ -610,9 +628,10 @@ enum dwarf_call_frame_info
     DW_CFA_def_cfa = 0x0c,
     DW_CFA_def_cfa_register = 0x0d,
     DW_CFA_def_cfa_offset = 0x0e,
+
+    /* DWARF 3.  */
     DW_CFA_def_cfa_expression = 0x0f,
     DW_CFA_expression = 0x10,
-    /* Dwarf 2.1.  */
     DW_CFA_offset_extended_sf = 0x11,
     DW_CFA_def_cfa_sf = 0x12,
     DW_CFA_def_cfa_offset_sf = 0x13,
@@ -651,7 +670,12 @@ enum dwarf_source_language
     DW_LANG_Fortran90 = 0x0008,
     DW_LANG_Pascal83 = 0x0009,
     DW_LANG_Modula2 = 0x000a,
-    DW_LANG_Java = 0x9af4,
+    DW_LANG_Java = 0x000b,
+    /* DWARF 3.  */
+    DW_LANG_C99 = 0x000c,
+    DW_LANG_Ada95 = 0x000d,
+    DW_LANG_Fortran95 = 0x000e,
+    /* MIPS.  */
     DW_LANG_Mips_Assembler = 0x8001
   };
 
@@ -668,4 +692,28 @@ enum dwarf_macinfo_record_type
     DW_MACINFO_end_file = 4,
     DW_MACINFO_vendor_ext = 255
   };
+
+/* @@@ For use with GNU frame unwind information.  */
+
+#define DW_EH_PE_absptr		0x00
+#define DW_EH_PE_omit		0xff
+
+#define DW_EH_PE_uleb128	0x01
+#define DW_EH_PE_udata2		0x02
+#define DW_EH_PE_udata4		0x03
+#define DW_EH_PE_udata8		0x04
+#define DW_EH_PE_sleb128	0x09
+#define DW_EH_PE_sdata2		0x0A
+#define DW_EH_PE_sdata4		0x0B
+#define DW_EH_PE_sdata8		0x0C
+#define DW_EH_PE_signed		0x08
+
+#define DW_EH_PE_pcrel		0x10
+#define DW_EH_PE_textrel	0x20
+#define DW_EH_PE_datarel	0x30
+#define DW_EH_PE_funcrel	0x40
+#define DW_EH_PE_aligned	0x50
+
+#define DW_EH_PE_indirect	0x80
+
 #endif /* _ELF_DWARF2_H */

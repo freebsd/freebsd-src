@@ -1,5 +1,5 @@
 /* BFD back-end for linux flavored i386 a.out binaries.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -36,7 +36,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libaout.h"           /* BFD a.out internal data structures */
 
 #define DEFAULT_ARCH bfd_arch_i386
-#define MY(OP) CAT(i386linux_,OP)
+
+/* Do not "beautify" the CONCAT* macro args.  Traditional C will not
+   remove whitespace added here, and thus will fail to concatenate
+   the tokens.  */
+#define MY(OP) CONCAT2 (i386linux_,OP)
 #define TARGETNAME "a.out-i386-linux"
 
 extern const bfd_target MY(vec);
@@ -223,9 +227,9 @@ linux_link_hash_table_create (abfd)
      bfd *abfd;
 {
   struct linux_link_hash_table *ret;
+  bfd_size_type amt = sizeof (struct linux_link_hash_table);
 
-  ret = ((struct linux_link_hash_table *)
-	 bfd_alloc (abfd, sizeof (struct linux_link_hash_table)));
+  ret = (struct linux_link_hash_table *) bfd_alloc (abfd, amt);
   if (ret == (struct linux_link_hash_table *) NULL)
     return (struct bfd_link_hash_table *) NULL;
   if (! NAME(aout,link_hash_table_init) (&ret->root, abfd,
@@ -405,7 +409,8 @@ linux_add_one_symbol (info, abfd, name, flags, section, value, string,
 
       if (! (_bfd_generic_link_add_one_symbol
 	     (info, linux_hash_table (info)->dynobj, SHARABLE_CONFLICTS,
-	      BSF_GLOBAL | BSF_CONSTRUCTOR, s, 0, NULL, false, false, NULL)))
+	      BSF_GLOBAL | BSF_CONSTRUCTOR, s, (bfd_vma) 0, NULL,
+	      false, false, NULL)))
 	return false;
     }
 
@@ -433,6 +438,9 @@ linux_tally_symbols (h, data)
   struct linux_link_hash_entry *h1, *h2;
   boolean exists;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct linux_link_hash_entry *) h->root.root.u.i.link;
+
   if (h->root.root.type == bfd_link_hash_undefined
       && strncmp (h->root.root.root.string, NEEDS_SHRLIB,
 		  sizeof NEEDS_SHRLIB - 1) == 0)
@@ -444,7 +452,7 @@ linux_tally_symbols (h, data)
       name = h->root.root.root.string + sizeof NEEDS_SHRLIB - 1;
       p = strrchr (name, '_');
       if (p != NULL)
-	alloc = (char *) bfd_malloc (strlen (name) + 1);
+	alloc = (char *) bfd_malloc ((bfd_size_type) strlen (name) + 1);
 
       if (p == NULL || alloc == NULL)
 	(*_bfd_error_handler) (_("Output file requires shared library `%s'\n"),
@@ -476,7 +484,7 @@ linux_tally_symbols (h, data)
 				    + sizeof PLT_REF_PREFIX - 1),
 				   false, false, true);
       /* h2 does not follow indirect symbols. */
-      h2 = linux_link_hash_lookup (linux_hash_table (info), 
+      h2 = linux_link_hash_lookup (linux_hash_table (info),
 				   (h->root.root.root.string
 				    + sizeof PLT_REF_PREFIX - 1),
 				   false, false, false);
@@ -587,7 +595,8 @@ bfd_i386linux_size_dynamic_sections (output_bfd, info)
 			       ".linux-dynamic");
   if (s != NULL)
     {
-      s->_raw_size = 8 + linux_hash_table (info)->fixup_count * 8;
+      s->_raw_size = linux_hash_table (info)->fixup_count + 1;
+      s->_raw_size *= 8;
       s->contents = (bfd_byte *) bfd_alloc (output_bfd, s->_raw_size);
       if (s->contents == NULL)
 	return false;
@@ -624,13 +633,14 @@ linux_finish_dynamic_link (output_bfd, info)
   fixups_written = 0;
 
 #ifdef LINUX_LINK_DEBUG
-  printf ("Fixup table file offset: %x  VMA: %x\n", 
+  printf ("Fixup table file offset: %x  VMA: %x\n",
 	  os->filepos + s->output_offset,
 	  os->vma + s->output_offset);
 #endif
 
   fixup_table = s->contents;
-  bfd_put_32 (output_bfd, linux_hash_table (info)->fixup_count, fixup_table);
+  bfd_put_32 (output_bfd,
+	      (bfd_vma) linux_hash_table (info)->fixup_count, fixup_table);
   fixup_table += 4;
 
   /* Fill in fixup table.  */
@@ -660,15 +670,15 @@ linux_finish_dynamic_link (output_bfd, info)
       if (f->jump)
 	{
 	  /* Relative address */
-	  new_addr = new_addr - (f->value + 5); 
-	  bfd_put_32 (output_bfd, new_addr, fixup_table);
+	  new_addr = new_addr - (f->value + 5);
+	  bfd_put_32 (output_bfd, (bfd_vma) new_addr, fixup_table);
 	  fixup_table += 4;
 	  bfd_put_32 (output_bfd, f->value + 1, fixup_table);
 	  fixup_table += 4;
 	}
       else
 	{
-	  bfd_put_32 (output_bfd, new_addr, fixup_table);
+	  bfd_put_32 (output_bfd, (bfd_vma) new_addr, fixup_table);
 	  fixup_table += 4;
 	  bfd_put_32 (output_bfd, f->value, fixup_table);
 	  fixup_table += 4;
@@ -679,9 +689,9 @@ linux_finish_dynamic_link (output_bfd, info)
   if (linux_hash_table (info)->local_builtins != 0)
     {
       /* Special marker so we know to switch to the other type of fixup */
-      bfd_put_32 (output_bfd, 0, fixup_table);
+      bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);
       fixup_table += 4;
-      bfd_put_32 (output_bfd, 0, fixup_table);
+      bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);
       fixup_table += 4;
       ++fixups_written;
       for (f = linux_hash_table (info)->fixup_list; f != NULL; f = f->next)
@@ -707,7 +717,7 @@ linux_finish_dynamic_link (output_bfd, info)
 		  new_addr, f->value);
 #endif
 
-	  bfd_put_32 (output_bfd, new_addr, fixup_table);
+	  bfd_put_32 (output_bfd, (bfd_vma) new_addr, fixup_table);
 	  fixup_table += 4;
 	  bfd_put_32 (output_bfd, f->value, fixup_table);
 	  fixup_table += 4;
@@ -720,15 +730,15 @@ linux_finish_dynamic_link (output_bfd, info)
       (*_bfd_error_handler) (_("Warning: fixup count mismatch\n"));
       while (linux_hash_table (info)->fixup_count > fixups_written)
 	{
-	  bfd_put_32 (output_bfd, 0, fixup_table);
+	  bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);
 	  fixup_table += 4;
-	  bfd_put_32 (output_bfd, 0, fixup_table);
+	  bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);
 	  fixup_table += 4;
 	  ++fixups_written;
 	}
     }
 
-  h = linux_link_hash_lookup (linux_hash_table (info), 
+  h = linux_link_hash_lookup (linux_hash_table (info),
 			      "__BUILTIN_FIXUPS__",
 			      false, false, false);
 
@@ -744,16 +754,16 @@ linux_finish_dynamic_link (output_bfd, info)
       printf ("Builtin fixup table at %x\n", new_addr);
 #endif
 
-      bfd_put_32 (output_bfd, new_addr, fixup_table);
+      bfd_put_32 (output_bfd, (bfd_vma) new_addr, fixup_table);
     }
   else
-    bfd_put_32 (output_bfd, 0, fixup_table);
+    bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);
 
-  if (bfd_seek (output_bfd, os->filepos + s->output_offset, SEEK_SET) != 0)
+  if (bfd_seek (output_bfd, (file_ptr) (os->filepos + s->output_offset),
+		SEEK_SET) != 0)
     return false;
 
-  if (bfd_write ((PTR) s->contents, 1, s->_raw_size, output_bfd)
-      != s->_raw_size)
+  if (bfd_bwrite ((PTR) s->contents, s->_raw_size, output_bfd) != s->_raw_size)
     return false;
 
   return true;

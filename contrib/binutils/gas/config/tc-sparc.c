@@ -1,6 +1,6 @@
 /* tc-sparc.c -- Assemble for the SPARC
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001
+   1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -20,9 +20,9 @@
    Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include <ctype.h>
 
 #include "as.h"
+#include "safe-ctype.h"
 #include "subsegs.h"
 
 #include "opcode/sparc.h"
@@ -31,6 +31,12 @@
 #include "elf/sparc.h"
 #include "dwarf2dbg.h"
 #endif
+
+/* Some ancient Sun C compilers would not take such hex constants as
+   unsigned, and would end up sign-extending them to form an offsetT,
+   so use these constants instead.  */
+#define U0xffffffff ((((unsigned long) 1 << 16) << 16) - 1)
+#define U0x80000000 ((((unsigned long) 1 << 16) << 15))
 
 static struct sparc_arch *lookup_arch PARAMS ((char *));
 static void init_default_arch PARAMS ((void));
@@ -632,12 +638,12 @@ md_show_usage (stream)
 	continue;
       if (arch != &sparc_arch_table[0])
 	fprintf (stream, " | ");
-      if (column + strlen(arch->name) > 70)
+      if (column + strlen (arch->name) > 70)
 	{
 	  column = 0;
 	  fputc ('\n', stream);
 	}
-      column += 5 + 2 + strlen(arch->name);
+      column += 5 + 2 + strlen (arch->name);
       fprintf (stream, "-A%s", arch->name);
     }
   for (arch = &sparc_arch_table[0]; arch->name; arch++)
@@ -645,12 +651,12 @@ md_show_usage (stream)
       if (!arch->user_option_p)
 	continue;
       fprintf (stream, " | ");
-      if (column + strlen(arch->name) > 65)
+      if (column + strlen (arch->name) > 65)
 	{
 	  column = 0;
 	  fputc ('\n', stream);
 	}
-      column += 5 + 7 + strlen(arch->name);
+      column += 5 + 7 + strlen (arch->name);
       fprintf (stream, "-xarch=%s", arch->name);
     }
   fprintf (stream, _("\n\
@@ -916,7 +922,7 @@ in_signed_range (val, max)
   if (sparc_arch_size == 32)
     {
       bfd_signed_vma sign = (bfd_signed_vma) 1 << 31;
-      val = ((val & 0xffffffff) ^ sign) - sign;
+      val = ((val & U0xffffffff) ^ sign) - sign;
     }
   if (val > max)
     return 0;
@@ -1019,14 +1025,14 @@ synthetize_setuw (insn)
 	{
 	  if (sizeof (offsetT) > 4
 	      && (the_insn.exp.X_add_number < 0
-		  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+		  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
 	    as_warn (_("set: number not in 0..4294967295 range"));
 	}
       else
 	{
 	  if (sizeof (offsetT) > 4
-	      && (the_insn.exp.X_add_number < -(offsetT) 0x80000000
-		  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+	      && (the_insn.exp.X_add_number < -(offsetT) U0x80000000
+		  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
 	    as_warn (_("set: number not in -2147483648..4294967295 range"));
 	  the_insn.exp.X_add_number = (int) the_insn.exp.X_add_number;
 	}
@@ -1085,8 +1091,8 @@ synthetize_setsw (insn)
     }
 
   if (sizeof (offsetT) > 4
-      && (the_insn.exp.X_add_number < -(offsetT) 0x80000000
-	  || the_insn.exp.X_add_number > (offsetT) 0xffffffff))
+      && (the_insn.exp.X_add_number < -(offsetT) U0x80000000
+	  || the_insn.exp.X_add_number > (offsetT) U0xffffffff))
     as_warn (_("setsw: number not in -2147483648..4294967295 range"));
 
   low32 = the_insn.exp.X_add_number;
@@ -1128,7 +1134,7 @@ synthetize_setx (insn)
   int need_hh22_p = 0, need_hm10_p = 0, need_hi22_p = 0, need_lo10_p = 0;
   int need_xor10_p = 0;
 
-#define SIGNEXT32(x) ((((x) & 0xffffffff) ^ 0x80000000) - 0x80000000)
+#define SIGNEXT32(x) ((((x) & U0xffffffff) ^ U0x80000000) - U0x80000000)
   lower32 = SIGNEXT32 (the_insn.exp.X_add_number);
   upper32 = SIGNEXT32 (BSR (the_insn.exp.X_add_number, 32));
 #undef SIGNEXT32
@@ -1385,11 +1391,11 @@ sparc_ip (str, pinsn)
   int special_case = SPECIAL_CASE_NONE;
 
   s = str;
-  if (islower ((unsigned char) *s))
+  if (ISLOWER (*s))
     {
       do
 	++s;
-      while (islower ((unsigned char) *s) || isdigit ((unsigned char) *s));
+      while (ISLOWER (*s) || ISDIGIT (*s));
     }
 
   switch (*s)
@@ -1617,11 +1623,11 @@ sparc_ip (str, pinsn)
 		{
 		  s += 4;
 
-		  if (isdigit ((unsigned char) *s))
+		  if (ISDIGIT (*s))
 		    {
 		      long num = 0;
 
-		      while (isdigit ((unsigned char) *s))
+		      while (ISDIGIT (*s))
 			{
 			  num = num * 10 + *s - '0';
 			  ++s;
@@ -1825,9 +1831,9 @@ sparc_ip (str, pinsn)
 	      break;
 
 	    case '#':		/* Must be at least one digit.  */
-	      if (isdigit ((unsigned char) *s++))
+	      if (ISDIGIT (*s++))
 		{
-		  while (isdigit ((unsigned char) *s))
+		  while (ISDIGIT (*s))
 		    {
 		      ++s;
 		    }
@@ -1846,10 +1852,10 @@ sparc_ip (str, pinsn)
 	    case 'b':		/* Next operand is a coprocessor register.  */
 	    case 'c':
 	    case 'D':
-	      if (*s++ == '%' && *s++ == 'c' && isdigit ((unsigned char) *s))
+	      if (*s++ == '%' && *s++ == 'c' && ISDIGIT (*s))
 		{
 		  mask = *s++;
-		  if (isdigit ((unsigned char) *s))
+		  if (ISDIGIT (*s))
 		    {
 		      mask = 10 * (mask - '0') + (*s++ - '0');
 		      if (mask >= 32)
@@ -1942,7 +1948,7 @@ sparc_ip (str, pinsn)
 		      goto error;
 
 		    case 'r':	/* any register */
-		      if (!isdigit ((unsigned char) (c = *s++)))
+		      if (!ISDIGIT ((c = *s++)))
 			{
 			  goto error;
 			}
@@ -1957,7 +1963,7 @@ sparc_ip (str, pinsn)
 		    case '7':
 		    case '8':
 		    case '9':
-		      if (isdigit ((unsigned char) *s))
+		      if (ISDIGIT (*s))
 			{
 			  if ((c = 10 * (c - '0') + (*s++ - '0')) >= 32)
 			    {
@@ -2022,9 +2028,9 @@ sparc_ip (str, pinsn)
 
 		if (*s++ == '%'
 		    && ((format = *s) == 'f')
-		    && isdigit ((unsigned char) *++s))
+		    && ISDIGIT (*++s))
 		  {
-		    for (mask = 0; isdigit ((unsigned char) *s); ++s)
+		    for (mask = 0; ISDIGIT (*s); ++s)
 		      {
 			mask = 10 * mask + (*s - '0');
 		      }		/* read the number */
@@ -2240,7 +2246,7 @@ sparc_ip (str, pinsn)
 		for (s1 = s; *s1 && *s1 != ',' && *s1 != ']'; s1++)
 		  ;
 
-		if (s1 != s && isdigit ((unsigned char) s1[-1]))
+		if (s1 != s && ISDIGIT (s1[-1]))
 		  {
 		    if (s1[-2] == '%' && s1[-3] == '+')
 		      s1 -= 3;
@@ -2663,7 +2669,7 @@ parse_keyword_arg (lookup_fn, input_pointerP, valueP)
 
   p = *input_pointerP;
   for (q = p + (*p == '#' || *p == '%');
-       isalnum ((unsigned char) *q) || *q == '_';
+       ISALNUM (*q) || *q == '_';
        ++q)
     continue;
   c = *q;
@@ -2881,17 +2887,15 @@ md_number_to_chars (buf, val, n)
 /* Apply a fixS to the frags, now that we know the value it ought to
    hold.  */
 
-int
-md_apply_fix3 (fixP, value, segment)
+void
+md_apply_fix3 (fixP, valP, segment)
      fixS *fixP;
-     valueT *value;
+     valueT *valP;
      segT segment;
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-  offsetT val;
+  offsetT val = * (offsetT *) valP;
   long insn;
-
-  val = *value;
 
   assert (fixP->fx_r_type < BFD_RELOC_UNUSED);
 
@@ -2905,22 +2909,25 @@ md_apply_fix3 (fixP, value, segment)
      don't want to include the value of an externally visible symbol.  */
   if (fixP->fx_addsy != NULL)
     {
-      if (symbol_used_in_reloc_p (fixP->fx_addsy)
-	  && (S_IS_EXTERNAL (fixP->fx_addsy)
-	      || S_IS_WEAK (fixP->fx_addsy)
+	symbolS * sym = fixP->fx_addsy;
+        segT      seg = S_GET_SEGMENT (sym);
+
+      if (symbol_used_in_reloc_p (sym)
+	  && (S_IS_EXTERNAL (sym)
+	      || S_IS_WEAK (sym)
+	      || (seg->flags & SEC_MERGE)
 	      || (sparc_pic_code && ! fixP->fx_pcrel)
-	      || (S_GET_SEGMENT (fixP->fx_addsy) != segment
-		  && ((bfd_get_section_flags (stdoutput,
-					      S_GET_SEGMENT (fixP->fx_addsy))
-		       & SEC_LINK_ONCE) != 0
-		      || strncmp (segment_name (S_GET_SEGMENT (fixP->fx_addsy)),
-				  ".gnu.linkonce",
-				  sizeof ".gnu.linkonce" - 1) == 0)))
-	  && S_GET_SEGMENT (fixP->fx_addsy) != absolute_section
-	  && S_GET_SEGMENT (fixP->fx_addsy) != undefined_section
-	  && ! bfd_is_com_section (S_GET_SEGMENT (fixP->fx_addsy)))
-	fixP->fx_addnumber -= S_GET_VALUE (fixP->fx_addsy);
-      return 1;
+	      || (seg != segment
+		  && (((bfd_get_section_flags (stdoutput, seg) & SEC_LINK_ONCE) != 0)
+		      || (strncmp (segment_name (seg),
+			 	   ".gnu.linkonce",
+				   sizeof ".gnu.linkonce" - 1) == 0))))
+	  && seg != absolute_section
+	  && seg != undefined_section
+	  && ! bfd_is_com_section (seg))
+	fixP->fx_addnumber -= S_GET_VALUE (sym);
+
+      return;
     }
 #endif
 
@@ -2991,7 +2998,7 @@ md_apply_fix3 (fixP, value, segment)
            || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
     {
       fixP->fx_done = 0;
-      return 1;
+      return;
     }
   else
     {
@@ -3163,14 +3170,10 @@ md_apply_fix3 (fixP, value, segment)
 	case BFD_RELOC_SPARC_LM22:
 	case BFD_RELOC_HI22:
 	  if (!fixP->fx_addsy)
-	    {
-	      insn |= (val >> 10) & 0x3fffff;
-	    }
+	    insn |= (val >> 10) & 0x3fffff;
 	  else
-	    {
-	      /* FIXME: Need comment explaining why we do this.  */
-	      insn &= ~0xffff;
-	    }
+	    /* FIXME: Need comment explaining why we do this.  */
+	    insn &= ~0xffff;
 	  break;
 
 	case BFD_RELOC_SPARC22:
@@ -3186,14 +3189,10 @@ md_apply_fix3 (fixP, value, segment)
 
 	case BFD_RELOC_LO10:
 	  if (!fixP->fx_addsy)
-	    {
-	      insn |= val & 0x3ff;
-	    }
+	    insn |= val & 0x3ff;
 	  else
-	    {
-	      /* FIXME: Need comment explaining why we do this.  */
-	      insn &= ~0xff;
-	    }
+	    /* FIXME: Need comment explaining why we do this.  */
+	    insn &= ~0xff;
 	  break;
 
 	case BFD_RELOC_SPARC_OLO10:
@@ -3264,8 +3263,6 @@ md_apply_fix3 (fixP, value, segment)
   /* Are we finished with this relocation now?  */
   if (fixP->fx_addsy == 0 && !fixP->fx_pcrel)
     fixP->fx_done = 1;
-
-  return 1;
 }
 
 /* Translate internal representation of relocation info to BFD target
@@ -3322,6 +3319,12 @@ tc_gen_reloc (section, fixp)
     case BFD_RELOC_SPARC_UA16:
     case BFD_RELOC_SPARC_UA32:
     case BFD_RELOC_SPARC_UA64:
+    case BFD_RELOC_8_PCREL:
+    case BFD_RELOC_16_PCREL:
+    case BFD_RELOC_32_PCREL:
+    case BFD_RELOC_64_PCREL:
+    case BFD_RELOC_SPARC_PLT32:
+    case BFD_RELOC_SPARC_PLT64:
     case BFD_RELOC_VTABLE_ENTRY:
     case BFD_RELOC_VTABLE_INHERIT:
       code = fixp->fx_r_type;
@@ -3411,9 +3414,11 @@ tc_gen_reloc (section, fixp)
 
 #else /* elf or coff  */
 
-  if (reloc->howto->pc_relative == 0
-      || code == BFD_RELOC_SPARC_PC10
-      || code == BFD_RELOC_SPARC_PC22)
+  if (code != BFD_RELOC_32_PCREL_S2
+      && code != BFD_RELOC_SPARC_WDISP22
+      && code != BFD_RELOC_SPARC_WDISP16
+      && code != BFD_RELOC_SPARC_WDISP19
+      && code != BFD_RELOC_SPARC_WPLT30)
     reloc->addend = fixp->fx_addnumber;
   else if (symbol_section_p (fixp->fx_addsy))
     reloc->addend = (section->vma
@@ -3909,6 +3914,11 @@ s_proc (ignore)
 
 static int sparc_no_align_cons = 0;
 
+/* This static variable is set by sparc_cons to emit requested types
+   of relocations in cons_fix_new_sparc.  */
+
+static const char *sparc_cons_special_reloc;
+
 /* This handles the unaligned space allocation pseudo-ops, such as
    .uaword.  .uaword is just like .word, but the value does not need
    to be aligned.  */
@@ -3920,6 +3930,7 @@ s_uacons (bytes)
   /* Tell sparc_cons_align not to align this value.  */
   sparc_no_align_cons = 1;
   cons (bytes);
+  sparc_no_align_cons = 0;
 }
 
 /* This handles the native word allocation pseudo-op .nword.
@@ -4180,6 +4191,134 @@ sparc_elf_final_processing ()
   else if (current_architecture == SPARC_OPCODE_ARCH_V9B)
     elf_elfheader (stdoutput)->e_flags |= EF_SPARC_SUN_US1|EF_SPARC_SUN_US3;
 }
+
+void
+sparc_cons (exp, size)
+     expressionS *exp;
+     int size;
+{
+  char *save;
+
+  SKIP_WHITESPACE ();
+  sparc_cons_special_reloc = NULL;
+  save = input_line_pointer;
+  if (input_line_pointer[0] == '%'
+      && input_line_pointer[1] == 'r'
+      && input_line_pointer[2] == '_')
+    {
+      if (strncmp (input_line_pointer + 3, "disp", 4) == 0)
+	{
+	  input_line_pointer += 7;
+	  sparc_cons_special_reloc = "disp";
+	}
+      else if (strncmp (input_line_pointer + 3, "plt", 3) == 0)
+	{
+	  if (size != 4 && size != 8)
+	    as_bad (_("Illegal operands: %%r_plt in %d-byte data field"), size);
+	  else
+	    {
+	      input_line_pointer += 6;
+	      sparc_cons_special_reloc = "plt";
+	    }
+	}
+      if (sparc_cons_special_reloc)
+	{
+	  int bad = 0;
+
+	  switch (size)
+	    {
+	    case 1:
+	      if (*input_line_pointer != '8')
+		bad = 1;
+	      input_line_pointer--;
+	      break;
+	    case 2:
+	      if (input_line_pointer[0] != '1' || input_line_pointer[1] != '6')
+		bad = 1;
+	      break;
+	    case 4:
+	      if (input_line_pointer[0] != '3' || input_line_pointer[1] != '2')
+		bad = 1;
+	      break;
+	    case 8:
+	      if (input_line_pointer[0] != '6' || input_line_pointer[1] != '4')
+		bad = 1;
+	      break;
+	    default:
+	      bad = 1;
+	      break;
+	    }
+
+	  if (bad)
+	    {
+	      as_bad (_("Illegal operands: Only %%r_%s%d allowed in %d-byte data fields"),
+		      sparc_cons_special_reloc, size * 8, size);
+	    }
+	  else
+	    {
+	      input_line_pointer += 2;
+	      if (*input_line_pointer != '(')
+		{
+		  as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			  sparc_cons_special_reloc, size * 8);
+		  bad = 1;
+		}
+	    }
+
+	  if (bad)
+	    {
+	      input_line_pointer = save;
+	      sparc_cons_special_reloc = NULL;
+	    }
+	  else
+	    {
+	      int c;
+	      char *end = ++input_line_pointer;
+	      int npar = 0;
+
+	      while (! is_end_of_line[(c = *end)])
+		{
+		  if (c == '(')
+	  	    npar++;
+		  else if (c == ')')
+	  	    {
+		      if (!npar)
+	      		break;
+		      npar--;
+		    }
+	    	  end++;
+		}
+
+	      if (c != ')')
+		as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			sparc_cons_special_reloc, size * 8);
+	      else
+		{
+		  *end = '\0';
+		  expression (exp);
+		  *end = c;
+		  if (input_line_pointer != end)
+		    {
+		      as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			      sparc_cons_special_reloc, size * 8);
+		    }
+		  else
+		    {
+		      input_line_pointer++;
+		      SKIP_WHITESPACE ();
+		      c = *input_line_pointer;
+		      if (! is_end_of_line[c] && c != ',')
+			as_bad (_("Illegal operands: garbage after %%r_%s%d()"),
+			        sparc_cons_special_reloc, size * 8);
+		    }
+		}
+	    }
+	}
+    }
+  if (sparc_cons_special_reloc == NULL)
+    expression (exp);
+}
+
 #endif
 
 /* This is called by emit_expr via TC_CONS_FIX_NEW when creating a
@@ -4204,7 +4343,25 @@ cons_fix_new_sparc (frag, where, nbytes, exp)
       && now_seg->flags & SEC_ALLOC)
     r = BFD_RELOC_SPARC_REV32;
 
-  if (sparc_no_align_cons)
+  if (sparc_cons_special_reloc)
+    {
+      if (*sparc_cons_special_reloc == 'd')
+	switch (nbytes)
+	  {
+	  case 1: r = BFD_RELOC_8_PCREL; break;
+	  case 2: r = BFD_RELOC_16_PCREL; break;
+	  case 4: r = BFD_RELOC_32_PCREL; break;
+	  case 8: r = BFD_RELOC_64_PCREL; break;
+	  default: abort ();
+	  }
+      else
+	switch (nbytes)
+	  {
+	  case 4: r = BFD_RELOC_SPARC_PLT32; break;
+	  case 8: r = BFD_RELOC_SPARC_PLT64; break;
+	  }
+    }
+  else if (sparc_no_align_cons)
     {
       switch (nbytes)
 	{
@@ -4213,8 +4370,7 @@ cons_fix_new_sparc (frag, where, nbytes, exp)
 	case 8: r = BFD_RELOC_SPARC_UA64; break;
 	default: abort ();
 	}
-      sparc_no_align_cons = 0;
-    }
+   }
 
   fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
 }

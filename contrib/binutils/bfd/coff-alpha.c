@@ -76,32 +76,32 @@ static bfd *alpha_ecoff_get_elt_at_index PARAMS ((bfd *, symindex));
    symbol, and lineno ones.  Give them ecoff names.  Define some
    accessor macros for the large sizes used for Alpha ECOFF.  */
 
-#define GET_FILEHDR_SYMPTR bfd_h_get_64
-#define PUT_FILEHDR_SYMPTR bfd_h_put_64
-#define GET_AOUTHDR_TSIZE bfd_h_get_64
-#define PUT_AOUTHDR_TSIZE bfd_h_put_64
-#define GET_AOUTHDR_DSIZE bfd_h_get_64
-#define PUT_AOUTHDR_DSIZE bfd_h_put_64
-#define GET_AOUTHDR_BSIZE bfd_h_get_64
-#define PUT_AOUTHDR_BSIZE bfd_h_put_64
-#define GET_AOUTHDR_ENTRY bfd_h_get_64
-#define PUT_AOUTHDR_ENTRY bfd_h_put_64
-#define GET_AOUTHDR_TEXT_START bfd_h_get_64
-#define PUT_AOUTHDR_TEXT_START bfd_h_put_64
-#define GET_AOUTHDR_DATA_START bfd_h_get_64
-#define PUT_AOUTHDR_DATA_START bfd_h_put_64
-#define GET_SCNHDR_PADDR bfd_h_get_64
-#define PUT_SCNHDR_PADDR bfd_h_put_64
-#define GET_SCNHDR_VADDR bfd_h_get_64
-#define PUT_SCNHDR_VADDR bfd_h_put_64
-#define GET_SCNHDR_SIZE bfd_h_get_64
-#define PUT_SCNHDR_SIZE bfd_h_put_64
-#define GET_SCNHDR_SCNPTR bfd_h_get_64
-#define PUT_SCNHDR_SCNPTR bfd_h_put_64
-#define GET_SCNHDR_RELPTR bfd_h_get_64
-#define PUT_SCNHDR_RELPTR bfd_h_put_64
-#define GET_SCNHDR_LNNOPTR bfd_h_get_64
-#define PUT_SCNHDR_LNNOPTR bfd_h_put_64
+#define GET_FILEHDR_SYMPTR H_GET_64
+#define PUT_FILEHDR_SYMPTR H_PUT_64
+#define GET_AOUTHDR_TSIZE H_GET_64
+#define PUT_AOUTHDR_TSIZE H_PUT_64
+#define GET_AOUTHDR_DSIZE H_GET_64
+#define PUT_AOUTHDR_DSIZE H_PUT_64
+#define GET_AOUTHDR_BSIZE H_GET_64
+#define PUT_AOUTHDR_BSIZE H_PUT_64
+#define GET_AOUTHDR_ENTRY H_GET_64
+#define PUT_AOUTHDR_ENTRY H_PUT_64
+#define GET_AOUTHDR_TEXT_START H_GET_64
+#define PUT_AOUTHDR_TEXT_START H_PUT_64
+#define GET_AOUTHDR_DATA_START H_GET_64
+#define PUT_AOUTHDR_DATA_START H_PUT_64
+#define GET_SCNHDR_PADDR H_GET_64
+#define PUT_SCNHDR_PADDR H_PUT_64
+#define GET_SCNHDR_VADDR H_GET_64
+#define PUT_SCNHDR_VADDR H_PUT_64
+#define GET_SCNHDR_SIZE H_GET_64
+#define PUT_SCNHDR_SIZE H_PUT_64
+#define GET_SCNHDR_SCNPTR H_GET_64
+#define PUT_SCNHDR_SCNPTR H_PUT_64
+#define GET_SCNHDR_RELPTR H_GET_64
+#define PUT_SCNHDR_RELPTR H_PUT_64
+#define GET_SCNHDR_LNNOPTR H_GET_64
+#define PUT_SCNHDR_LNNOPTR H_PUT_64
 
 #define ALPHAECOFF
 
@@ -530,8 +530,8 @@ alpha_ecoff_swap_reloc_in (abfd, ext_ptr, intern)
 {
   const RELOC *ext = (RELOC *) ext_ptr;
 
-  intern->r_vaddr = bfd_h_get_64 (abfd, (bfd_byte *) ext->r_vaddr);
-  intern->r_symndx = bfd_h_get_32 (abfd, (bfd_byte *) ext->r_symndx);
+  intern->r_vaddr = H_GET_64 (abfd, ext->r_vaddr);
+  intern->r_symndx = H_GET_32 (abfd, ext->r_symndx);
 
   BFD_ASSERT (bfd_header_little_endian (abfd));
 
@@ -603,8 +603,8 @@ alpha_ecoff_swap_reloc_out (abfd, intern, dst)
   BFD_ASSERT (intern->r_extern
 	      || (intern->r_symndx >= 0 && intern->r_symndx <= 14));
 
-  bfd_h_put_64 (abfd, intern->r_vaddr, (bfd_byte *) ext->r_vaddr);
-  bfd_h_put_32 (abfd, symndx, (bfd_byte *) ext->r_symndx);
+  H_PUT_64 (abfd, intern->r_vaddr, ext->r_vaddr);
+  H_PUT_32 (abfd, symndx, ext->r_symndx);
 
   BFD_ASSERT (bfd_header_little_endian (abfd));
 
@@ -771,7 +771,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 
   if (reloc_size < 0)
     goto error_return;
-  reloc_vector = (arelent **) bfd_malloc (reloc_size);
+  reloc_vector = (arelent **) bfd_malloc ((bfd_size_type) reloc_size);
   if (reloc_vector == NULL && reloc_size != 0)
     goto error_return;
 
@@ -1277,7 +1277,7 @@ alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
       hsec = h->root.u.def.section;
       name = bfd_get_section_name (output_bfd, hsec->output_section);
 
-      r_symndx = -1;
+      r_symndx = (unsigned long) -1;
       switch (name[1])
 	{
 	case 'A':
@@ -1334,7 +1334,7 @@ alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
 	  break;
 	}
 
-      if (r_symndx == -1)
+      if (r_symndx == (unsigned long) -1)
 	abort ();
 
       /* Add the section VMA and the symbol value.  */
@@ -1347,7 +1347,7 @@ alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
       /* Change the symndx value to the right one for
 	 the output BFD.  */
       r_symndx = h->indx;
-      if (r_symndx == -1)
+      if (r_symndx == (unsigned long) -1)
 	{
 	  /* Caller must give an error.  */
 	  r_symndx = 0;
@@ -1356,8 +1356,7 @@ alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
     }
 
   /* Write out the new r_symndx value.  */
-  bfd_h_put_32 (input_bfd, (bfd_vma) r_symndx,
-		(bfd_byte *) ext_rel->r_symndx);
+  H_PUT_32 (input_bfd, r_symndx, ext_rel->r_symndx);
 
   return relocation;
 }
@@ -1384,6 +1383,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
   int tos = 0;
   struct external_reloc *ext_rel;
   struct external_reloc *ext_rel_end;
+  bfd_size_type amt;
 
   /* We keep a table mapping the symndx found in an internal reloc to
      the appropriate section.  This is faster than looking up the
@@ -1391,10 +1391,8 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
   symndx_to_section = ecoff_data (input_bfd)->symndx_to_section;
   if (symndx_to_section == (asection **) NULL)
     {
-      symndx_to_section = ((asection **)
-			   bfd_alloc (input_bfd,
-				      (NUM_RELOC_SECTIONS
-				       * sizeof (asection *))));
+      amt = NUM_RELOC_SECTIONS * sizeof (asection *);
+      symndx_to_section = (asection **) bfd_alloc (input_bfd, amt);
       if (!symndx_to_section)
 	return false;
 
@@ -1451,9 +1449,9 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
       lita_sec_data = ecoff_section_data (input_bfd, lita_sec);
       if (lita_sec_data == NULL)
 	{
+	  amt = sizeof (struct ecoff_section_tdata);
 	  lita_sec_data = ((struct ecoff_section_tdata *)
-			   bfd_zalloc (input_bfd,
-				       sizeof (struct ecoff_section_tdata)));
+			   bfd_zalloc (input_bfd, amt));
 	  ecoff_section_data (input_bfd, lita_sec) = lita_sec_data;
 	}
 
@@ -1522,8 +1520,8 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
       boolean gp_usedp;
       bfd_vma addend;
 
-      r_vaddr = bfd_h_get_64 (input_bfd, (bfd_byte *) ext_rel->r_vaddr);
-      r_symndx = bfd_h_get_32 (input_bfd, (bfd_byte *) ext_rel->r_symndx);
+      r_vaddr = H_GET_64 (input_bfd, ext_rel->r_vaddr);
+      r_symndx = H_GET_32 (input_bfd, ext_rel->r_symndx);
 
       r_type = ((ext_rel->r_bits[0] & RELOC_BITS0_TYPE_LITTLE)
 		>> RELOC_BITS0_TYPE_SH_LITTLE);
@@ -1552,9 +1550,8 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	     address of the relocation does not appear to include the
 	     section VMA, unlike the other relocation types.  */
 	  if (info->relocateable)
-	    bfd_h_put_64 (input_bfd,
-			  input_section->output_offset + r_vaddr,
-			  (bfd_byte *) ext_rel->r_vaddr);
+	    H_PUT_64 (input_bfd, input_section->output_offset + r_vaddr,
+		      ext_rel->r_vaddr);
 	  adjust_addrp = false;
 	  break;
 
@@ -1751,8 +1748,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	  if (info->relocateable)
 	    {
 	      /* Adjust r_vaddr by the addend.  */
-	      bfd_h_put_64 (input_bfd, addend,
-			    (bfd_byte *) ext_rel->r_vaddr);
+	      H_PUT_64 (input_bfd, addend, ext_rel->r_vaddr);
 	    }
 	  else
 	    {
@@ -1979,18 +1975,18 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
       if (info->relocateable && adjust_addrp)
 	{
 	  /* Change the address of the relocation.  */
-	  bfd_h_put_64 (input_bfd,
-			(input_section->output_section->vma
-			 + input_section->output_offset
-			 - input_section->vma
-			 + r_vaddr),
-			(bfd_byte *) ext_rel->r_vaddr);
+	  H_PUT_64 (input_bfd,
+		    (input_section->output_section->vma
+		     + input_section->output_offset
+		     - input_section->vma
+		     + r_vaddr),
+		    ext_rel->r_vaddr);
 	}
 
       if (gp_usedp && gp_undefined)
 	{
 	  if (! ((*info->callbacks->reloc_dangerous)
-		 (info, _("GP relative relocation when GP not defined"),
+		 (info, _("GP relative relocation used when GP not defined"),
 		  input_bfd, input_section, r_vaddr - input_section->vma)))
 	    return false;
 	  /* Only give the error once per link.  */
@@ -2062,12 +2058,12 @@ alpha_ecoff_read_ar_hdr (abfd)
 
       /* This is a compressed file.  We must set the size correctly.
          The size is the eight bytes after the dummy file header.  */
-      if (bfd_seek (abfd, FILHSZ, SEEK_CUR) != 0
-	  || bfd_read (ab, 1, 8, abfd) != 8
-	  || bfd_seek (abfd, - (FILHSZ + 8), SEEK_CUR) != 0)
+      if (bfd_seek (abfd, (file_ptr) FILHSZ, SEEK_CUR) != 0
+	  || bfd_bread (ab, (bfd_size_type) 8, abfd) != 8
+	  || bfd_seek (abfd, (file_ptr) (- (FILHSZ + 8)), SEEK_CUR) != 0)
 	return NULL;
 
-      ret->parsed_size = bfd_h_get_64 (abfd, ab);
+      ret->parsed_size = H_GET_64 (abfd, ab);
     }
 
   return (PTR) ret;
@@ -2105,20 +2101,20 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
     return nbfd;
 
   /* We must uncompress this element.  We do this by copying it into a
-     memory buffer, and making bfd_read and bfd_seek use that buffer.
+     memory buffer, and making bfd_bread and bfd_seek use that buffer.
      This can use a lot of memory, but it's simpler than getting a
      temporary file, making that work with the file descriptor caching
      code, and making sure that it is deleted at all appropriate
      times.  It can be changed if it ever becomes important.  */
 
   /* The compressed file starts with a dummy ECOFF file header.  */
-  if (bfd_seek (nbfd, FILHSZ, SEEK_SET) != 0)
+  if (bfd_seek (nbfd, (file_ptr) FILHSZ, SEEK_SET) != 0)
     goto error_return;
 
   /* The next eight bytes are the real file size.  */
-  if (bfd_read (ab, 1, 8, nbfd) != 8)
+  if (bfd_bread (ab, (bfd_size_type) 8, nbfd) != 8)
     goto error_return;
-  size = bfd_h_get_64 (nbfd, ab);
+  size = H_GET_64 (nbfd, ab);
 
   if (size == 0)
     buf = NULL;
@@ -2137,7 +2133,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
       left = size;
 
       /* I don't know what the next eight bytes are for.  */
-      if (bfd_read (ab, 1, 8, nbfd) != 8)
+      if (bfd_bread (ab, (bfd_size_type) 8, nbfd) != 8)
 	goto error_return;
 
       /* This is the uncompression algorithm.  It's a simple
@@ -2148,7 +2144,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
 	 next eight bytes in the output stream.  */
       memset (dict, 0, sizeof dict);
       h = 0;
-      while (bfd_read (&b, 1, 1, nbfd) == 1)
+      while (bfd_bread (&b, (bfd_size_type) 1, nbfd) == 1)
 	{
 	  unsigned int i;
 
@@ -2160,7 +2156,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
 		n = dict[h];
 	      else
 		{
-		  if (! bfd_read (&n, 1, 1, nbfd))
+		  if (! bfd_bread (&n, (bfd_size_type) 1, nbfd))
 		    goto error_return;
 		  dict[h] = n;
 		}
@@ -2183,7 +2179,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
 
   /* Now the uncompressed file contents are in buf.  */
   bim = ((struct bfd_in_memory *)
-	 bfd_alloc (nbfd, sizeof (struct bfd_in_memory)));
+	 bfd_alloc (nbfd, (bfd_size_type) sizeof (struct bfd_in_memory)));
   if (bim == NULL)
     goto error_return;
   bim->size = size;
@@ -2359,6 +2355,7 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
 /* Relaxing sections is generic.  */
 #define _bfd_ecoff_bfd_relax_section bfd_generic_relax_section
 #define _bfd_ecoff_bfd_gc_sections bfd_generic_gc_sections
+#define _bfd_ecoff_bfd_merge_sections bfd_generic_merge_sections
 
 const bfd_target ecoffalpha_little_vec =
 {

@@ -9,8 +9,9 @@ SUBDIR=		libiberty libbfd libopcodes libbinutils \
 		size strings strip doc
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-.if !defined(NO_GDB)
-SUBDIR+=	gdb gdbserver gdbreplay
+.if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "i386") \
+    && !defined(NO_GDB)
+SUBDIR+=	gdb gdbreplay
 .endif
 
 .include <bsd.subdir.mk>

@@ -1,5 +1,5 @@
 /* Select disassembly routine for specified architecture.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -44,12 +44,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ARCH_m88k
 #define ARCH_mcore
 #define ARCH_mips
+#define ARCH_mmix
 #define ARCH_mn10200
 #define ARCH_mn10300
 #define ARCH_ns32k
+#define ARCH_openrisc
+#define ARCH_or32
+#define ARCH_pdp11
 #define ARCH_pj
 #define ARCH_powerpc
 #define ARCH_rs6000
+#define ARCH_s390
 #define ARCH_sh
 #define ARCH_sparc
 #define ARCH_tic30
@@ -58,7 +63,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ARCH_v850
 #define ARCH_vax
 #define ARCH_w65
+#define ARCH_xstormy16
 #define ARCH_z8k
+#define INCLUDE_SHMEDIA
 #endif
 
 
@@ -146,11 +153,7 @@ disassembler (abfd)
 #endif
 #ifdef ARCH_i386
     case bfd_arch_i386:
-      if (bfd_get_mach (abfd) == bfd_mach_i386_i386_intel_syntax
-          || bfd_get_mach (abfd) == bfd_mach_x86_64_intel_syntax)
-        disassemble = print_insn_i386_intel;
-      else
-        disassemble = print_insn_i386_att;
+      disassemble = print_insn_i386;
       break;
 #endif
 #ifdef ARCH_i860
@@ -214,6 +217,11 @@ disassembler (abfd)
 	disassemble = print_insn_little_mips;
       break;
 #endif
+#ifdef ARCH_mmix
+    case bfd_arch_mmix:
+      disassemble = print_insn_mmix;
+      break;
+#endif
 #ifdef ARCH_mn10200
     case bfd_arch_mn10200:
       disassemble = print_insn_mn10200;
@@ -222,6 +230,24 @@ disassembler (abfd)
 #ifdef ARCH_mn10300
     case bfd_arch_mn10300:
       disassemble = print_insn_mn10300;
+      break;
+#endif
+#ifdef ARCH_openrisc
+    case bfd_arch_openrisc:
+      disassemble = print_insn_openrisc;
+      break;
+#endif
+#ifdef ARCH_or32
+    case bfd_arch_or32:
+      if (bfd_big_endian (abfd))
+        disassemble = print_insn_big_or32;
+      else
+        disassemble = print_insn_little_or32;
+      break;
+#endif
+#ifdef ARCH_pdp11
+    case bfd_arch_pdp11:
+      disassemble = print_insn_pdp11;
       break;
 #endif
 #ifdef ARCH_pj
@@ -245,8 +271,23 @@ disassembler (abfd)
 	disassemble = print_insn_rs6000;
       break;
 #endif
+#ifdef ARCH_s390
+    case bfd_arch_s390:
+      disassemble = print_insn_s390;
+      break;
+#endif
 #ifdef ARCH_sh
     case bfd_arch_sh:
+#ifdef INCLUDE_SHMEDIA
+      if (bfd_get_mach (abfd) == bfd_mach_sh5)
+	{
+	  if (bfd_big_endian (abfd))
+	    disassemble = print_insn_sh64;
+	  else
+	    disassemble = print_insn_sh64l;
+	  break;
+	}
+#endif
       if (bfd_big_endian (abfd))
 	disassemble = print_insn_sh;
       else
@@ -281,6 +322,11 @@ disassembler (abfd)
 #ifdef ARCH_w65
     case bfd_arch_w65:
       disassemble = print_insn_w65;
+      break;
+#endif
+#ifdef ARCH_xstormy16
+    case bfd_arch_xstormy16:
+      disassemble = print_insn_xstormy16;
       break;
 #endif
 #ifdef ARCH_z8k

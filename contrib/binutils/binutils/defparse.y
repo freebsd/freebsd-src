@@ -149,6 +149,12 @@ opt_ordinal:
 
 opt_equal_name:
           '=' ID	{ $$ = $2; }
+	| '=' ID '.' ID	
+	  { 
+	    char *name = xmalloc (strlen ($2) + 1 + strlen ($4) + 1);
+	    sprintf (name, "%s.%s", $2, $4);
+	    $$ = name;
+	  }
         | 		{ $$ =  0; }			 
 	;
 

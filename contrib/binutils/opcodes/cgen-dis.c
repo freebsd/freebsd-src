@@ -1,6 +1,7 @@
 /* CGEN generic disassembler support code.
 
-   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
 
@@ -26,6 +27,66 @@
 #include "symcat.h"
 #include "opcode/cgen.h"
 
+static CGEN_INSN_LIST *  hash_insn_array      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *, int, int, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
+static CGEN_INSN_LIST *  hash_insn_list       PARAMS ((CGEN_CPU_DESC, const CGEN_INSN_LIST *, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
+static void              build_dis_hash_table PARAMS ((CGEN_CPU_DESC));
+static int		 count_decodable_bits PARAMS ((const CGEN_INSN *));
+static void		 add_insn_to_hash_chain PARAMS ((CGEN_INSN_LIST *,
+							 const CGEN_INSN *,
+							 CGEN_INSN_LIST **,
+							 unsigned int));
+
+/* Return the number of decodable bits in this insn.  */
+static int
+count_decodable_bits (insn)
+  const CGEN_INSN *insn;
+{
+  unsigned mask = CGEN_INSN_BASE_MASK (insn);
+  int bits = 0;
+  int m;
+  for (m = 1; m != 0; m <<= 1)
+    {
+      if (mask & m)
+	++bits;
+    }
+  return bits;
+}
+
+/* Add an instruction to the hash chain.  */     
+static void
+add_insn_to_hash_chain (hentbuf, insn, htable, hash)
+     CGEN_INSN_LIST *hentbuf;
+     const CGEN_INSN *insn;
+     CGEN_INSN_LIST **htable;
+     unsigned int hash;
+{
+  CGEN_INSN_LIST *current_buf;
+  CGEN_INSN_LIST *previous_buf;
+  int insn_decodable_bits;
+
+  /* Add insns sorted by the number of decodable bits, in decreasing order.
+     This ensures that any insn which is a special case of another will be
+     checked first.  */
+  insn_decodable_bits = count_decodable_bits (insn);
+  previous_buf = NULL;
+  for (current_buf = htable[hash]; current_buf != NULL;
+       current_buf = current_buf->next)
+    {
+      int current_decodable_bits = count_decodable_bits (current_buf->insn);
+      if (insn_decodable_bits >= current_decodable_bits)
+	break;
+      previous_buf = current_buf;
+    }
+
+  /* Now insert the new insn.  */
+  hentbuf->insn = insn;
+  hentbuf->next = current_buf;
+  if (previous_buf == NULL)
+    htable[hash] = hentbuf;
+  else
+    previous_buf->next = hentbuf;
+}
+
 /* Subroutine of build_dis_hash_table to add INSNS to the hash table.
 
    COUNT is the number of elements in INSNS.
@@ -43,7 +104,7 @@ hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
      CGEN_CPU_DESC cd;
      const CGEN_INSN * insns;
      int count;
-     int entsize;
+     int entsize ATTRIBUTE_UNUSED;
      CGEN_INSN_LIST ** htable;
      CGEN_INSN_LIST * hentbuf;
 {
@@ -64,31 +125,12 @@ hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
 	 to hash on, so set both up.  */
 
       value = CGEN_INSN_BASE_VALUE (insn);
-      switch (CGEN_INSN_MASK_BITSIZE (insn))
-	{
-	case 8:
-	  buf[0] = value;
-	  break;
-	case 16:
-	  if (big_p)
-	    bfd_putb16 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl16 ((bfd_vma) value, buf);
-	  break;
-	case 32:
-	  if (big_p)
-	    bfd_putb32 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl32 ((bfd_vma) value, buf);
-	  break;
-	default:
-	  abort ();
-	}
-
+      bfd_put_bits ((bfd_vma) value,
+		    buf,
+		    CGEN_INSN_MASK_BITSIZE (insn),
+		    big_p);
       hash = (* cd->dis_hash) (buf, value);
-      hentbuf->next = htable[hash];
-      hentbuf->insn = insn;
-      htable[hash] = hentbuf;
+      add_insn_to_hash_chain (hentbuf, insn, htable, hash);
     }
 
   return hentbuf;
@@ -121,31 +163,12 @@ hash_insn_list (cd, insns, htable, hentbuf)
 	 to hash on, so set both up.  */
 
       value = CGEN_INSN_BASE_VALUE (ilist->insn);
-      switch (CGEN_INSN_MASK_BITSIZE (ilist->insn))
-	{
-	case 8:
-	  buf[0] = value;
-	  break;
-	case 16:
-	  if (big_p)
-	    bfd_putb16 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl16 ((bfd_vma) value, buf);
-	  break;
-	case 32:
-	  if (big_p)
-	    bfd_putb32 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl32 ((bfd_vma) value, buf);
-	  break;
-	default:
-	  abort ();
-	}
-
+      bfd_put_bits((bfd_vma) value,
+		   buf,
+		   CGEN_INSN_MASK_BITSIZE (ilist->insn),
+		   big_p);
       hash = (* cd->dis_hash) (buf, value);
-      hentbuf->next = htable [hash];
-      hentbuf->insn = ilist->insn;
-      htable [hash] = hentbuf;
+      add_insn_to_hash_chain (hentbuf, ilist->insn, htable, hash);
     }
 
   return hentbuf;

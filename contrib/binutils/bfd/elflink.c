@@ -1,5 +1,5 @@
 /* ELF linking support for BFD.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -73,24 +73,27 @@ _bfd_elf_create_got_section (abfd, info)
 	return false;
     }
 
-  /* Define the symbol _GLOBAL_OFFSET_TABLE_ at the start of the .got
-     (or .got.plt) section.  We don't do this in the linker script
-     because we don't want to define the symbol if we are not creating
-     a global offset table.  */
-  h = NULL;
-  if (!(_bfd_generic_link_add_one_symbol
-	(info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL, s,
-	 bed->got_symbol_offset, (const char *) NULL, false,
-	 bed->collect, (struct bfd_link_hash_entry **) &h)))
-    return false;
-  h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
-  h->type = STT_OBJECT;
+  if (bed->want_got_sym)
+    {
+      /* Define the symbol _GLOBAL_OFFSET_TABLE_ at the start of the .got
+	 (or .got.plt) section.  We don't do this in the linker script
+	 because we don't want to define the symbol if we are not creating
+	 a global offset table.  */
+      h = NULL;
+      if (!(_bfd_generic_link_add_one_symbol
+	    (info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL, s,
+	     bed->got_symbol_offset, (const char *) NULL, false,
+	     bed->collect, (struct bfd_link_hash_entry **) &h)))
+	return false;
+      h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
+      h->type = STT_OBJECT;
 
-  if (info->shared
-      && ! _bfd_elf_link_record_dynamic_symbol (info, h))
-    return false;
+      if (info->shared
+	  && ! _bfd_elf_link_record_dynamic_symbol (info, h))
+	return false;
 
-  elf_hash_table (info)->hgot = h;
+      elf_hash_table (info)->hgot = h;
+    }
 
   /* The first bit of the global offset table is the header.  */
   s->_raw_size += bed->got_header_size + bed->got_symbol_offset;
@@ -134,7 +137,7 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   pltflags = flags;
   pltflags |= SEC_CODE;
   if (bed->plt_not_loaded)
-    pltflags &= ~ (SEC_LOAD | SEC_HAS_CONTENTS);
+    pltflags &= ~ (SEC_CODE | SEC_LOAD | SEC_HAS_CONTENTS);
   if (bed->plt_readonly)
     pltflags |= SEC_READONLY;
 
@@ -227,7 +230,7 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
 {
   if (h->dynindx == -1)
     {
-      struct bfd_strtab_hash *dynstr;
+      struct elf_strtab_hash *dynstr;
       char *p, *alc;
       const char *name;
       boolean copy;
@@ -259,7 +262,7 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
       if (dynstr == NULL)
 	{
 	  /* Create a strtab to hold the dynamic symbol names.  */
-	  elf_hash_table (info)->dynstr = dynstr = _bfd_elf_stringtab_init ();
+	  elf_hash_table (info)->dynstr = dynstr = _bfd_elf_strtab_init ();
 	  if (dynstr == NULL)
 	    return false;
 	}
@@ -275,16 +278,16 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
 	}
       else
 	{
-	  alc = bfd_malloc (p - name + 1);
+	  alc = bfd_malloc ((bfd_size_type) (p - name + 1));
 	  if (alc == NULL)
 	    return false;
-	  strncpy (alc, name, p - name);
+	  strncpy (alc, name, (size_t) (p - name));
 	  alc[p - name] = '\0';
 	  name = alc;
 	  copy = true;
 	}
 
-      indx = _bfd_stringtab_add (dynstr, name, true, copy);
+      indx = _bfd_elf_strtab_add (dynstr, name, copy);
 
       if (alc != NULL)
 	free (alc);
@@ -326,6 +329,9 @@ elf_link_renumber_hash_table_dynsyms (h, data)
      PTR data;
 {
   size_t *count = (size_t *) data;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if (h->dynindx != -1)
     h->dynindx = ++(*count);
@@ -394,9 +400,9 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
   if (!lsect)
     {
       asection *s;
+      bfd_size_type amt = sizeof (elf_linker_section_t);
 
-      lsect = (elf_linker_section_t *)
-	bfd_alloc (dynobj, sizeof (elf_linker_section_t));
+      lsect = (elf_linker_section_t *) bfd_alloc (dynobj, amt);
 
       *lsect = *defaults;
       elf_linker_section (dynobj, which) = lsect;
@@ -428,10 +434,10 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 	  s->_raw_size += lsect->hole_size;
 	  if (lsect->hole_offset > lsect->max_hole_offset)
 	    {
-	      (*_bfd_error_handler) (_("%s: Section %s is already to large to put hole of %ld bytes in"),
+	      (*_bfd_error_handler) (_("%s: Section %s is too large to add hole of %ld bytes"),
 				     bfd_get_filename (abfd),
 				     lsect->name,
-				     (long)lsect->hole_size);
+				     (long) lsect->hole_size);
 
 	      bfd_set_error (bfd_error_bad_value);
 	      return (elf_linker_section_t *)0;
@@ -503,7 +509,7 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 elf_linker_section_pointers_t *
 _bfd_elf_find_pointer_linker_section (linker_pointers, addend, which)
      elf_linker_section_pointers_t *linker_pointers;
-     bfd_signed_vma addend;
+     bfd_vma addend;
      elf_linker_section_enum_t which;
 {
   for ( ; linker_pointers != NULL; linker_pointers = linker_pointers->next)

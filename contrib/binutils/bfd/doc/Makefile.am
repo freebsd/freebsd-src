@@ -6,7 +6,8 @@ DOCFILES = aoutx.texi  archive.texi archures.texi \
 	bfdt.texi  cache.texi coffcode.texi \
 	core.texi elf.texi elfcode.texi  format.texi  libbfd.texi  \
 	opncls.texi  reloc.texi  section.texi  \
-	syms.texi  targets.texi init.texi hash.texi linker.texi
+	syms.texi  targets.texi init.texi hash.texi linker.texi \
+	mmo.texi
 
 PROTOS = archive.p archures.p bfd.p \
 	 core.p format.p \
@@ -27,7 +28,8 @@ SRCDOC = $(srcdir)/../aoutx.h  $(srcdir)/../archive.c \
 	$(srcdir)/../libbfd.c $(srcdir)/../opncls.c \
 	$(srcdir)/../reloc.c  $(srcdir)/../section.c \
 	$(srcdir)/../syms.c  $(srcdir)/../targets.c \
-	$(srcdir)/../hash.c $(srcdir)/../linker.c
+	$(srcdir)/../hash.c $(srcdir)/../linker.c \
+	$(srcdir)/../mmo.c
 
 SRCPROT = $(srcdir)/../archive.c $(srcdir)/../archures.c \
 	$(srcdir)/../bfd.c $(srcdir)/../coffcode.h $(srcdir)/../corefile.c \
@@ -123,6 +125,12 @@ s-elfcode: $(MKDOC) $(srcdir)/../elfcode.h $(srcdir)/doc.str
 	touch s-elfcode
 elfcode.texi: s-elfcode
 
+s-mmo: $(MKDOC) $(srcdir)/../mmo.c $(srcdir)/doc.str
+	./$(MKDOC) -f $(srcdir)/doc.str <$(srcdir)/../mmo.c >mmo.tmp
+	$(srcdir)/../../move-if-change mmo.tmp mmo.texi
+	touch s-mmo
+mmo.texi: s-mmo
+
 s-format: $(MKDOC) $(srcdir)/../format.c $(srcdir)/doc.str
 	./$(MKDOC) -f $(srcdir)/doc.str <$(srcdir)/../format.c >format.tmp
 	$(srcdir)/../../move-if-change format.tmp format.texi
@@ -183,30 +191,47 @@ s-linker: $(MKDOC) $(srcdir)/../linker.c $(srcdir)/doc.str
 	touch s-linker
 linker.texi: s-linker
 
-libbfd.h: $(srcdir)/../libbfd-in.h	\
+LIBBFD_H_DEP = \
+	$(srcdir)/../libbfd-in.h	\
 	$(srcdir)/../init.c		\
 	$(srcdir)/../libbfd.c		\
 	$(srcdir)/../cache.c		\
 	$(srcdir)/../reloc.c		\
 	$(srcdir)/../archures.c		\
+	$(srcdir)/../elf.c		\
+	$(srcdir)/header.sed		\
 	$(srcdir)/proto.str		\
 	$(MKDOC)
-	cat $(srcdir)/../libbfd-in.h >libbfd.h 
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../init.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../libbfd.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../cache.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../reloc.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../archures.c >>libbfd.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../elf.c >>libbfd.h
 
-libcoff.h: $(srcdir)/../libcoff-in.h	\
+libbfd.h: $(LIBBFD_H_DEP)
+	echo "$(LIBBFD_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(LIBBFD_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -i -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
+
+LIBCOFF_H_DEP = \
+	$(srcdir)/../libcoff-in.h	\
 	$(srcdir)/../coffcode.h		\
+	$(srcdir)/header.sed		\
 	$(srcdir)/proto.str		\
 	$(MKDOC)
-	cat $(srcdir)/../libcoff-in.h >libcoff.h
-	./$(MKDOC) -i -f $(srcdir)/proto.str  < $(srcdir)/../coffcode.h >>libcoff.h
 
-bfd.h: $(srcdir)/../bfd-in.h 		\
+libcoff.h: $(LIBCOFF_H_DEP)
+	echo "$(LIBCOFF_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(LIBCOFF_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -i -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
+
+BFD_H_DEP = \
+	$(srcdir)/../bfd-in.h 		\
 	$(srcdir)/../init.c 		\
 	$(srcdir)/../opncls.c 		\
 	$(srcdir)/../libbfd.c 		\
@@ -219,25 +244,24 @@ bfd.h: $(srcdir)/../bfd-in.h 		\
 	$(srcdir)/../corefile.c		\
 	$(srcdir)/../targets.c		\
 	$(srcdir)/../format.c		\
+	$(srcdir)/header.sed		\
 	$(srcdir)/proto.str		\
+	$(srcdir)/../version.h		\
 	$(MKDOC)
-	cat $(srcdir)/../bfd-in.h >bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../init.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../opncls.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../libbfd.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../section.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../archures.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../reloc.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../syms.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../bfd.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../archive.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../corefile.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../targets.c >>bfd.h
-	./$(MKDOC) -f $(srcdir)/proto.str<$(srcdir)/../format.c >>bfd.h	
-	echo "#ifdef __cplusplus" >>bfd.h
-	echo "}" >>bfd.h
-	echo "#endif" >>bfd.h
-	echo "#endif" >>bfd.h
+
+bfd.h: $(BFD_H_DEP)
+	echo "$(BFD_H_DEP)" | sed -f $(srcdir)/header.sed > $@
+	for file in $(BFD_H_DEP); do \
+	  case $$file in \
+	    *-in.h) cat $$file >> $@ ;; \
+	    */header.sed) break ;; \
+	    *) ./$(MKDOC) -f $(srcdir)/proto.str < $$file >> $@ ;; \
+	  esac; \
+	done
+	echo "#ifdef __cplusplus" >> $@
+	echo "}" >> $@
+	echo "#endif" >> $@
+	echo "#endif" >> $@
 
 noinst_TEXINFOS = bfdint.texi
 
@@ -248,3 +272,7 @@ CLEANFILES = s-* *.p *.ip
 DISTCLEANFILES = bfd.?? bfd.??? bfd.h libbfd.h libcoff.h texput.log
 
 MAINTAINERCLEANFILES = $(DOCFILES)
+
+# We want install to imply install-info as per GNU standards, despite the
+# cygnus option.
+install: install-info

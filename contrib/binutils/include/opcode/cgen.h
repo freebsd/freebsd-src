@@ -1,6 +1,6 @@
 /* Header file for targets using CGEN: Cpu tools GENerator.
 
-Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GDB, the GNU debugger, and the GNU Binutils.
 
@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
    Perhaps the definition of bfd_vma can be moved outside of bfd.h.
    Or perhaps one could duplicate its definition in another file.
    Until such time, this file conditionally compiles definitions that require
-   bfd_vma using BFD_VERSION.  */
+   bfd_vma using BFD_VERSION_DATE.  */
 
 /* Enums must be defined before they can be used.
    Allow them to be used in struct definitions, even though the enum must
@@ -199,6 +199,8 @@ typedef struct {
   const char *bfd_name;
   /* one of enum mach_attr */
   int num;
+  /* parameter from mach->cpu */
+  unsigned int insn_chunk_bitsize;
 } CGEN_MACH;
 
 /* Parse result (also extraction result).
@@ -274,7 +276,7 @@ typedef const char * (cgen_parse_fn)
    PC is the pc value of the insn.
    The result is an error message or NULL if success.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef const char * (cgen_insert_fn)
      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *insn_,
 	      CGEN_FIELDS *fields_, CGEN_INSN_BYTES_PTR insnp_,
@@ -295,7 +297,7 @@ typedef const char * (cgen_insert_fn) ();
    PC is the pc value of the insn.
    The result is the length of the insn in bits or zero if not recognized.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef int (cgen_extract_fn)
      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *insn_,
 	      CGEN_EXTRACT_INFO *ex_info_, CGEN_INSN_INT base_insn_,
@@ -314,7 +316,7 @@ typedef int (cgen_extract_fn) ();
    PC is the pc value of the insn.
    LEN is the length of the insn, in bits.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef void (cgen_print_fn)
      PARAMS ((CGEN_CPU_DESC, PTR info_, const CGEN_INSN *insn_,
 	      CGEN_FIELDS *fields_, bfd_vma pc_, int len_));
@@ -379,7 +381,7 @@ enum cgen_parse_operand_result
   CGEN_PARSE_OPERAND_RESULT_ERROR
 };
 
-#ifdef BFD_VERSION /* Don't require bfd.h unnecessarily.  */
+#ifdef BFD_VERSION_DATE /* Don't require bfd.h unnecessarily.  */
 typedef const char * (cgen_parse_operand_fn)
      PARAMS ((CGEN_CPU_DESC,
 	      enum cgen_parse_operand_type, const char **, int, int,
@@ -452,7 +454,7 @@ typedef struct {
 extern const CGEN_HW_ENTRY * cgen_hw_lookup_by_name
      PARAMS ((CGEN_CPU_DESC, const char *));
 extern const CGEN_HW_ENTRY * cgen_hw_lookup_by_num
-     PARAMS ((CGEN_CPU_DESC, int));
+     PARAMS ((CGEN_CPU_DESC, unsigned int));
 
 /* This struct is used to describe things like register names, etc.  */
 
@@ -513,6 +515,11 @@ typedef struct cgen_keyword
   
   /* Pointer to null keyword "" entry if present.  */
   const CGEN_KEYWORD_ENTRY *null_entry;
+
+  /* String containing non-alphanumeric characters used
+     in keywords.  
+     At present, the highest number of entries used is 1.  */
+  char nonalpha_chars[8];
 } CGEN_KEYWORD;
 
 /* Structure used for searching.  */
@@ -558,7 +565,7 @@ const CGEN_KEYWORD_ENTRY *cgen_keyword_search_next
 
 extern const char *cgen_parse_keyword
      PARAMS ((CGEN_CPU_DESC, const char **, CGEN_KEYWORD *, long *));
-#ifdef BFD_VERSION /* Don't require bfd.h unnecessarily.  */
+#ifdef BFD_VERSION_DATE /* Don't require bfd.h unnecessarily.  */
 extern const char *cgen_parse_signed_integer
      PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
 extern const char *cgen_parse_unsigned_integer
@@ -602,6 +609,23 @@ enum cgen_operand_type { CGEN_OPERAND_MAX };
 /* "nil" indicator for the operand instance table */
 #define CGEN_OPERAND_NIL CGEN_OPERAND_MAX
 
+/* A tree of these structs represents the multi-ifield
+   structure of an operand's hw-index value, if it exists.  */
+
+struct cgen_ifld;
+
+typedef struct cgen_maybe_multi_ifield
+{
+  int count; /* 0: indexed by single cgen_ifld (possibly null: dead entry);
+		n: indexed by array of more cgen_maybe_multi_ifields.  */
+  union
+  {
+    struct cgen_maybe_multi_ifield * multi;
+    struct cgen_ifld * leaf;
+  } val;
+}
+CGEN_MAYBE_MULTI_IFLD;
+
 /* This struct defines each entry in the operand table.  */
 
 typedef struct
@@ -630,6 +654,11 @@ typedef struct
      May be unused for a modifier.  */
   unsigned char length;
 
+  /* The (possibly-multi) ifield used as an index for this operand, if it
+     is indexed by a field at all. This substitutes / extends the start and
+     length fields above, but unsure at this time whether they are used
+     anywhere.  */
+  CGEN_MAYBE_MULTI_IFLD index_fields;
 #if 0 /* ??? Interesting idea but relocs tend to get too complicated,
 	 and ABI dependent, for simple table lookups to work.  */
   /* Ideally this would be the internal (external?) reloc type.  */
@@ -735,18 +764,27 @@ typedef struct
    into the operand table.  The operand table doesn't exist in C, per se, as
    the data is recorded in the parse/insert/extract/print switch statements. */
 
-#ifndef CGEN_MAX_SYNTAX_BYTES
-#define CGEN_MAX_SYNTAX_BYTES 16
+/* This should be at least as large as necessary for any target. */
+#define CGEN_MAX_SYNTAX_ELEMENTS 48
+
+/* A target may know its own precise maximum.  Assert that it falls below
+   the above limit. */
+#ifdef CGEN_ACTUAL_MAX_SYNTAX_ELEMENTS
+#if CGEN_ACTUAL_MAX_SYNTAX_ELEMENTS > CGEN_MAX_SYNTAX_ELEMENTS
+#error "CGEN_ACTUAL_MAX_SYNTAX_ELEMENTS too high - enlarge CGEN_MAX_SYNTAX_ELEMENTS"
 #endif
+#endif
+
+typedef unsigned short CGEN_SYNTAX_CHAR_TYPE;
 
 typedef struct
 {
-  unsigned char syntax[CGEN_MAX_SYNTAX_BYTES];
+  CGEN_SYNTAX_CHAR_TYPE syntax[CGEN_MAX_SYNTAX_ELEMENTS];
 } CGEN_SYNTAX;
 
 #define CGEN_SYNTAX_STRING(syn) (syn->syntax)
 #define CGEN_SYNTAX_CHAR_P(c) ((c) < 128)
-#define CGEN_SYNTAX_CHAR(c) (c)
+#define CGEN_SYNTAX_CHAR(c) ((unsigned char)c)
 #define CGEN_SYNTAX_FIELD(c) ((c) - 128)
 #define CGEN_SYNTAX_MAKE_FIELD(c) ((c) + 128)
 
@@ -824,9 +862,17 @@ typedef struct {
 #define CGEN_IFMT_IFLD_IFLD(ii) ((ii)->ifld)
 } CGEN_IFMT_IFLD;
 
-#ifndef CGEN_MAX_IFMT_OPERANDS
-#define CGEN_MAX_IFMT_OPERANDS 1
+/* This should be at least as large as necessary for any target. */
+#define CGEN_MAX_IFMT_OPERANDS 16
+
+/* A target may know its own precise maximum.  Assert that it falls below
+   the above limit. */
+#ifdef CGEN_ACTUAL_MAX_IFMT_OPERANDS
+#if CGEN_ACTUAL_MAX_IFMT_OPERANDS > CGEN_MAX_IFMT_OPERANDS
+#error "CGEN_ACTUAL_MAX_IFMT_OPERANDS too high - enlarge CGEN_MAX_IFMT_OPERANDS"
 #endif
+#endif
+
 
 typedef struct
 {
@@ -985,6 +1031,11 @@ struct cgen_insn
   const CGEN_IBASE *base;
   const CGEN_OPCODE *opcode;
   const CGEN_OPINST *opinst;
+
+  /* Regex to disambiguate overloaded opcodes */
+  void *rx;
+#define CGEN_INSN_RX(insn) ((insn)->rx)
+#define CGEN_MAX_RX_ELEMENTS (CGEN_MAX_SYNTAX_ELEMENTS * 5)
 };
 
 /* Instruction lists.
@@ -1144,6 +1195,10 @@ typedef struct cgen_cpu_desc
      lazily fetch the data from there.  */
   unsigned int word_bitsize;
 
+  /* Instruction chunk size (in bits), for purposes of endianness
+     conversion.  */
+  unsigned int insn_chunk_bitsize;
+
   /* Indicator if sizes are unknown.
      This is used by default_insn_bitsize,base_insn_bitsize if there is a
      difference between the selected isa's.  */
@@ -1198,7 +1253,7 @@ typedef struct cgen_cpu_desc
   const char * (*parse_operand)
      PARAMS ((CGEN_CPU_DESC, int opindex_, const char **,
 	      CGEN_FIELDS *fields_));
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
   const char * (*insert_operand)
      PARAMS ((CGEN_CPU_DESC, int opindex_, CGEN_FIELDS *fields_,
 	      CGEN_INSN_BYTES_PTR, bfd_vma pc_));
@@ -1231,7 +1286,7 @@ typedef struct cgen_cpu_desc
        PARAMS ((CGEN_CPU_DESC, int opindex_, const CGEN_FIELDS *fields_));
   void (*set_int_operand)
        PARAMS ((CGEN_CPU_DESC, int opindex_, CGEN_FIELDS *fields_, int value_));
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
   bfd_vma (*get_vma_operand)
        PARAMS ((CGEN_CPU_DESC, int opindex_, const CGEN_FIELDS *fields_));
   void (*set_vma_operand)
@@ -1335,6 +1390,11 @@ extern void CGEN_SYM (cpu_close) PARAMS ((CGEN_CPU_DESC));
    Called by init_asm/init_dis.  */
 
 extern void CGEN_SYM (init_opcode_table) PARAMS ((CGEN_CPU_DESC cd_));
+
+/* build the insn selection regex.
+   called by init_opcode_table */
+
+extern char * CGEN_SYM(build_insn_regex) PARAMS ((CGEN_INSN *insn_));
 
 /* Initialize the ibld table for use.
    Called by init_asm/init_dis.  */

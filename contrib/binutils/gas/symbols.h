@@ -61,7 +61,7 @@ void local_colon PARAMS ((int n));
 void symbol_begin PARAMS ((void));
 void symbol_print_statistics PARAMS ((FILE *));
 void symbol_table_insert PARAMS ((symbolS * symbolP));
-valueT resolve_symbol_value PARAMS ((symbolS *, int));
+valueT resolve_symbol_value PARAMS ((symbolS *));
 void resolve_local_symbol_values PARAMS ((void));
 
 void print_symbol_value PARAMS ((symbolS *));
@@ -185,6 +185,7 @@ extern void symbol_mark_resolved PARAMS ((symbolS *));
 extern int symbol_resolved_p PARAMS ((symbolS *));
 extern int symbol_section_p PARAMS ((symbolS *));
 extern int symbol_equated_p PARAMS ((symbolS *));
+extern int symbol_equated_reloc_p PARAMS ((symbolS *));
 extern int symbol_constant_p PARAMS ((symbolS *));
 
 #ifdef BFD_ASSEMBLER

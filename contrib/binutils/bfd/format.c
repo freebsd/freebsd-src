@@ -119,38 +119,40 @@ bfd_check_format_matches (abfd, format, matching)
      char ***matching;
 {
   extern const bfd_target binary_vec;
-  const bfd_target * const *target, *save_targ, *right_targ;
+  const bfd_target * const *target, *save_targ, *right_targ, *ar_right_targ;
   char **matching_vector = NULL;
   int match_count;
+  int ar_match_index;
 
-  if (!bfd_read_p (abfd) ||
-      ((int)(abfd->format) < (int)bfd_unknown) ||
-      ((int)(abfd->format) >= (int)bfd_type_end))
+  if (!bfd_read_p (abfd)
+      || (unsigned int) abfd->format >= (unsigned int) bfd_type_end)
     {
       bfd_set_error (bfd_error_invalid_operation);
       return false;
     }
 
   if (abfd->format != bfd_unknown)
-    return (abfd->format == format)? true: false;
+    return abfd->format == format;
 
   /* Since the target type was defaulted, check them
      all in the hope that one will be uniquely recognized.  */
   save_targ = abfd->xvec;
   match_count = 0;
+  ar_match_index = _bfd_target_vector_entries;
 
   if (matching)
     {
-      matching_vector =
-	(char **) bfd_malloc (sizeof (char *) *
-			      (_bfd_target_vector_entries + 1));
+      bfd_size_type amt;
+
+      *matching = NULL;
+      amt = sizeof (char *) * 2 * _bfd_target_vector_entries;
+      matching_vector = (char **) bfd_malloc (amt);
       if (!matching_vector)
 	return false;
-      matching_vector[0] = NULL;
-      *matching = matching_vector;
     }
 
   right_targ = 0;
+  ar_right_targ = 0;
 
   /* Presume the answer is yes.  */
   abfd->format = format;
@@ -158,7 +160,7 @@ bfd_check_format_matches (abfd, format, matching)
   /* If the target type was explicitly specified, just check that target.  */
   if (!abfd->target_defaulted)
     {
-      if (bfd_seek (abfd, (file_ptr)0, SEEK_SET) != 0)	/* rewind! */
+      if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)	/* rewind! */
 	return false;
 
       right_targ = BFD_SEND_FMT (abfd, _bfd_check_format, (abfd));
@@ -202,13 +204,14 @@ bfd_check_format_matches (abfd, format, matching)
   for (target = bfd_target_vector; *target != NULL; target++)
     {
       const bfd_target *temp;
+      bfd_error_type err;
 
       if (*target == &binary_vec)
 	continue;
 
       abfd->xvec = *target;	/* Change BFD's target temporarily */
 
-      if (bfd_seek (abfd, (file_ptr)0, SEEK_SET) != 0)
+      if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
 	return false;
 
       /* If _bfd_check_format neglects to set bfd_error, assume
@@ -223,27 +226,20 @@ bfd_check_format_matches (abfd, format, matching)
 	{		/* This format checks out as ok!  */
 	  right_targ = temp;
 
-	  if (matching)
-	    {
-	      matching_vector[match_count] = temp->name;
-	      matching_vector[match_count + 1] = NULL;
-	    }
-
-	  match_count++;
-
 	  /* If this is the default target, accept it, even if other
 	     targets might match.  People who want those other targets
 	     have to set the GNUTARGET variable.  */
 	  if (temp == bfd_default_vector[0])
 	    {
-	      if (matching)
-		{
-		  matching_vector[0] = temp->name;
-		  matching_vector[1] = NULL;
-		}
 	      match_count = 1;
 	      break;
 	    }
+
+	  if (matching)
+	    matching_vector[match_count] = temp->name;
+
+	  match_count++;
+
 #ifdef GNU960
 	  /* Big- and little-endian b.out archives look the same, but it
 	     doesn't matter: there is no difference in their headers, and
@@ -254,16 +250,47 @@ bfd_check_format_matches (abfd, format, matching)
 	  break;
 #endif
 	}
-      else if (bfd_get_error () != bfd_error_wrong_format)
+      else if ((err = bfd_get_error ()) == bfd_error_wrong_object_format
+	       || err == bfd_error_file_ambiguously_recognized)
+	{
+	  /* An archive with objects of the wrong type, or an
+	     ambiguous match.  We want this target to match if we get
+	     no better matches.  */
+	  if (ar_right_targ != bfd_default_vector[0])
+	    ar_right_targ = *target;
+	  if (matching)
+	    matching_vector[ar_match_index] = (*target)->name;
+	  ar_match_index++;
+	}
+      else if (err != bfd_error_wrong_format)
 	{
 	  abfd->xvec = save_targ;
 	  abfd->format = bfd_unknown;
 
-	  if (matching && bfd_get_error ()
-	      != bfd_error_file_ambiguously_recognized)
+	  if (matching)
 	    free (matching_vector);
 
 	  return false;
+	}
+    }
+
+  if (match_count == 0)
+    {
+      /* Try partial matches.  */
+      right_targ = ar_right_targ;
+      if (right_targ == bfd_default_vector[0])
+	{
+	  match_count = 1;
+	}
+      else
+	{
+	  match_count = ar_match_index - _bfd_target_vector_entries;
+	  if (matching && match_count > 1)
+	    {
+	      memcpy (matching_vector,
+		      matching_vector + _bfd_target_vector_entries,
+		      sizeof (char *) * match_count);
+	    }
 	}
     }
 
@@ -288,7 +315,15 @@ bfd_check_format_matches (abfd, format, matching)
 	free (matching_vector);
     }
   else
-    bfd_set_error (bfd_error_file_ambiguously_recognized);
+    {
+      bfd_set_error (bfd_error_file_ambiguously_recognized);
+
+      if (matching)
+	{
+	  *matching = matching_vector;
+	  matching_vector[match_count] = NULL;
+	}
+    }
 
   return false;
 }
@@ -312,9 +347,8 @@ bfd_set_format (abfd, format)
      bfd *abfd;
      bfd_format format;
 {
-  if (bfd_read_p (abfd) ||
-      ((int)abfd->format < (int)bfd_unknown) ||
-      ((int)abfd->format >= (int)bfd_type_end))
+  if (bfd_read_p (abfd)
+      || (unsigned int) abfd->format >= (unsigned int) bfd_type_end)
     {
       bfd_set_error (bfd_error_invalid_operation);
       return false;
@@ -340,7 +374,7 @@ FUNCTION
 	bfd_format_string
 
 SYNOPSIS
-	CONST char *bfd_format_string(bfd_format format);
+	const char *bfd_format_string(bfd_format format);
 
 DESCRIPTION
 	Return a pointer to a const string
@@ -348,7 +382,7 @@ DESCRIPTION
 	depending upon the value of @var{format}.
 */
 
-CONST char *
+const char *
 bfd_format_string (format)
      bfd_format format;
 {

@@ -1,6 +1,6 @@
 /* ELF support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -114,6 +114,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_960         19       /* Intel 80960 */
 #define EM_PPC	       20	/* PowerPC */
 #define EM_PPC64       21	/* 64-bit PowerPC */
+#define EM_S390        22	/* IBM S/390 */
 
 #define EM_V800        36	/* NEC V800 series */
 #define EM_FR20	       37	/* Fujitsu FR20 */
@@ -161,6 +162,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_MMIX	       80	/* Donald Knuth's educational 64-bit processor */
 #define EM_HUANY       81	/* Harvard's machine-independent format */
 #define EM_PRISM       82	/* SiTera Prism */
+#define EM_AVR         83	/* Atmel AVR 8-bit microcontroller */
+#define EM_FR30        84	/* Fujitsu FR30 */
+#define EM_D10V        85	/* Mitsubishi D10V */
+#define EM_D30V        86	/* Mitsubishi D30V */
+#define EM_V850        87	/* NEC v850 */
+#define EM_M32R        88	/* Mitsubishi M32R */
+#define EM_MN10300     89	/* Matsushita MN10300 */
+#define EM_MN10200     90	/* Matsushita MN10200 */
+#define EM_PJ          91	/* picoJava */
+#define EM_OPENRISC    92	/* OpenRISC 32-bit embedded processor */
+#define EM_ARC_A5      93	/* ARC Cores Tangent-A5 */
+#define EM_XTENSA      94	/* Tensilica Xtensa Architecture */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -174,7 +187,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    unofficial e_machine number should eventually ask registry@sco.com for
    an officially blessed number to be added to the list above.  */
 
-#define EM_PJ          99       /* picoJava */
+#define EM_PJ_OLD      99       /* picoJava */
 
 /* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_POWERPC 0x9025
@@ -186,14 +199,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Old version of PowerPC, this should be removed shortly. */
 #define EM_PPC_OLD	17
 
-/* Cygnus ARC ELF backend.  Written in the absence of an ABI.  */
-#define EM_CYGNUS_ARC 0x9040
+/* (Depreciated) Temporary number for the OpenRISC processor.  */
+#define EM_OR32	       0x8472
 
 /* Cygnus M32R ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_M32R 0x9041
 
 /* Alpha backend magic number.  Written in the absence of an ABI.  */
 #define EM_ALPHA	0x9026
+
+/* old S/390 backend magic number. Written in the absence of an ABI.  */
+#define EM_S390_OLD	0xa390
 
 /* D10V backend magic number.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_D10V	0x7650
@@ -214,7 +230,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* AVR magic number
    Written in the absense of an ABI.  */
-#define EM_AVR			0x1057
+#define EM_AVR_OLD		0x1057
+
+/* OpenRISC magic number
+   Written in the absense of an ABI.  */
+#define EM_OPENRISC_OLD		0x3426
+
+#define EM_XSTORMY16	        0xad45
 
 /* See the above comment before you add a new EM_* value here.  */
 
@@ -236,6 +258,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PT_HIOS         0x6fffffff	/* OS-specific */
 #define PT_LOPROC	0x70000000	/* Processor-specific */
 #define PT_HIPROC	0x7FFFFFFF	/* Processor-specific */
+
+#define PT_GNU_EH_FRAME	(PT_LOOS + 0x474e550)
 
 /* Program segment permissions, in program header p_flags field.  */
 
@@ -321,10 +345,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define NT_LWPSINFO	17		/* Has a struct lwpsinfo_t */
 #define NT_WIN32PSTATUS	18		/* Has a struct win32_pstatus */
 
+
+/* Note segments for core files on NetBSD systems.  Note name
+   must start with "NetBSD-CORE".  */
+
+#define NT_NETBSDCORE_PROCINFO	1	/* Has a struct procinfo */
+#define NT_NETBSDCORE_FIRSTMACH	32	/* start of machdep note types */
+
+
 /* Values of note segment descriptor types for object files.  */
-/* (Only for hppa right now.  Should this be moved elsewhere?)  */
 
 #define NT_VERSION	1		/* Contains a version string.  */
+#define NT_ARCH		2		/* Contains an architecture string.  */
 
 /* These three macros disassemble and assemble a symbol table st_info field,
    which contains the symbol binding and symbol type.  The STB_ and STT_
@@ -386,8 +418,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SHN_HIOS        0xFF3F		/* OS specific semantics, hi */
 #define SHN_ABS	        0xFFF1		/* Associated symbol is absolute */
 #define SHN_COMMON      0xFFF2		/* Associated symbol is in common */
-#define SHN_XINDEX      0xFFFF		/* Section index it held elsewhere */
+#define SHN_XINDEX      0xFFFF		/* Section index is held elsewhere */
 #define SHN_HIRESERVE   0xFFFF		/* End range of reserved indices */
+#define SHN_BAD		((unsigned) -1) /* Used internally by bfd */
 
 /* The following constants control how a symbol may be accessed once it has
    become part of an executable or shared library.  */

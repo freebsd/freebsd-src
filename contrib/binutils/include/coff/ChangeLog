@@ -1,17 +1,120 @@
-2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+2002-02-01  Tom Rix  <trix@redhat.com>
 
-	Merge from mainline.
-	2001-02-09  David Mosberger  <davidm@hpl.hp.com>
+	* xcoff.h: Conditionally support <aiaff> for pre AIX 4.3.
+ 
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* or32.h: New file.
+
+2001-12-24  Tom Rix  <trix@redhat.com>
+
+	* xcoff.h (xcoff_big_format_p): Make <bigaf> the default archive 
+	format.
+	(XCOFFARMAG_ELEMENT_SIZE, XCOFFARMAGBIG_ELEMENT_SIZE): Define for 
+	archive header ascii elements.  
+
+2001-12-17  Tom Rix  <trix@redhat.com>
+
+	* xcoff.h :  Add .except and .typchk section string and styp flags.
+	Fix xcoff_big_format_p macro.  
+
+2001-12-16  Tom Rix  <trix@redhat.com>
+
+	* xcoff.h : Clean up formatting. 
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm.h (F_VFP_FLOAT): Define.
+
+2001-11-11  Timothy Wall  <twall@alum.mit.edu>
+
+	* ti.h: Move arch-specific stuff from here...
+	(COFF_ADJUST_SYM_IN/OUT): Optionally put page flag into symbol
+	value. 
+	* tic54x.h: ...to here.
+	
+2001-10-26  Christian Groessler  <cpg@aladdin.de>
+
+	* external.h (GET_LINENO_LNNO): Fix usage of H_GET_32/16.
+	(PUT_LINENO_LNNO): Likewise with H_PUT_32/16.
+
+2001-09-21  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ti.h (GET_SCNHDR_PAGE): Fix compile time warning.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* external.h (GET_LINENO_LNNO): Use H_GET_32/16.
+	(PUT_LINENO_LNNO): Use H_PUT_32/16.
+	* m88k.h (GET_LNSZ_SIZE, GET_LNSZ_LNNO, GET_SCN_NRELOC,
+	GET_SCN_NLINNO): Use H_GET_32.
+	(PUT_LNSZ_LNNO, PUT_LNSZ_SIZE, PUT_SCN_NRELOC, PUT_SCN_NLINNO):
+	Use H_PUT_32.
+	* ti.h: Formatting fixes.  Make use of H_GET_* and H_PUT_* throughout.
+	* xcoff.h: White space changes.
+
+2001-09-05  Tom Rix <trix@redhat.com>
+
+	* xcoff.h : Add XCOFF_SYSCALL32 and XCOFF_SYSCALL64 hash table flags.
+	
+2001-08-27  Andreas Jaeger  <aj@suse.de>
+
+	* xcoff.h (struct __rtinit): Make proper prototype for rtl.
+
+Fri Aug 24 01:18:51 2001  J"orn Rennecke <amylaar@redhat.com>
+
+	* internal.h (R_JMP2, R_JMPL2, R_MOVL2): Comment spelling fix.
+
+2001-04-05  Tom Rix <trix@redhat.com>
+
+	* rs6000.h : move xcoff32 external structures from xcofflink. 
+	* rs6k64.h : move xcoff64 external structures from xcofflink. 
+	* internal.h : promote 32 bit structure elements to 64 bit
+	for xcoff64 support
+	* xcoff.h : New file.
+	
+2001-03-23  Nick Clifton  <nickc@redhat.com>
+
+	* a29k.h: Fix compile time warning.
+	* external.h: Fix compile time warning.
+	* m88k.h: Fix compile time warning.
+
+2001-03-13  Nick Clifton  <nickc@redhat.com>
+
+	* external.h: New file. Common structure definitions found in
+	other COFF header files.
+
+	* a29k.h: Use external.h.
+	* apollo.h: Use external.h.
+	* arm.h: Use external.h.
+	* h8300.h: Use external.h.
+	* h8500.h: Use external.h.
+	* i386.h: Use external.h.
+	* i860.h: Use external.h.
+	* ia64.h: Use external.h.
+	* m68k.h: Use external.h.
+	* m88k.h: Use external.h.
+	* mcore.h: Use external.h.
+	* mips.h: Use external.h.
+	* mipspe.h: Use external.h.
+	* powerpc.h: Use external.h.
+	* rs6000.h: Use external.h.
+	* rs6k64.h: Use external.h.
+	* sh.h: Use external.h.
+	* sparc.h: Use external.h.
+	* tic30.h: Use external.h.
+	* tic80.h: Use external.h.
+	* w65.h: Use external.h.
+	* we32k.h: Use external.h.
+	* z8k.h: Use external.h.
+
+2001-02-09  David Mosberger  <davidm@hpl.hp.com>
+
 	* pe.h (PEPAOUTSZ): Rename from PEP64AOUTSZ.
 	Rename from PEPAOUTHDR.
 
-2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+2001-01-23  H.J. Lu  <hjl@gnu.org>
 
-	* Many files: Update copyright notices.
-
-2001-02-17  Philip Blundell  <philb@gnu.org>
-
-	From 2001-01-23  H.J. Lu  <hjl@gnu.org>
 	* pe.h (struct external_PEI_DOS_hdr): New.
 	(struct external_PEI_IMAGE_hdr): New.
 

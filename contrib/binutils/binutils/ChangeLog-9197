@@ -3342,7 +3342,7 @@ Fri Apr 29 09:50:38 1994  Steve Chamberlain  (sac@cygnus.com)
 Wed Apr 27 11:25:18 1994  Steve Chamberlain  (sac@cygnus.com)
 
 	* Makefile.in (syslex, sysinfo): Use CC_FOR_BUILD.
-	* coffdump.c, coffgroc.c, coffgrog.h, srconv.c, sysdump.c,
+	* coffdump.c, coffgrok.c, coffgrok.h, srconv.c, sysdump.c,
 	sysroff.info: Major changes.
 
 Tue Apr 26 18:18:24 1994  Stan Shebs  (shebs@andros.cygnus.com)
@@ -4347,7 +4347,7 @@ Fri May 28 15:01:24 1993  Per Bothner  (bothner@rtl.cygnus.com)
 
 Thu May 27 16:58:31 1993  Jeffrey Osier  (jeffrey@cygnus.com)
 
-        * biutils.texi:  revised c++filt chapter
+        * binutils.texi:  revised c++filt chapter
 
 Wed May 26 17:24:17 1993  Ian Lance Taylor  (ian@cygnus.com)
 
@@ -4528,7 +4528,7 @@ Mon Feb 22 22:52:10 1993  Per Bothner  (bothner@rtl.cygnus.com)
 
 Mon Feb 22 07:54:03 1993  Mike Werner  (mtw@poseidon.cygnus.com)
 
-	* binutils/testsuite: made modifications to testcases, etc., to allow
+	* testsuite: made modifications to testcases, etc., to allow
         them to work properly  given the reorganization of deja-gnu and the
 	relocation of the testcases from deja-gnu to a "tool" subdirectory.
 
@@ -4539,7 +4539,7 @@ Mon Feb 22 10:27:24 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 Sun Feb 21 10:55:55 1993  Mike Werner  (mtw@poseidon.cygnus.com)
 
-	* binutils/testsuite: Initial creation of binutils/testsuite.
+	* testsuite: Initial creation of binutils/testsuite.
 	Migrated dejagnu testcases and support files for testing nm to
 	binutils/testsuite from deja-gnu.  These files were moved "as is"
 	with no modifications.	This migration is part of a major overhaul
@@ -4642,7 +4642,7 @@ Mon Nov  2 12:42:11 1992  Ian Lance Taylor  (ian@cygnus.com)
 
 Thu Oct 15 13:57:35 1992  Per Bothner  (bothner@cygnus.com)
 
-	* binutils.tex:  Document yesterday's changes to strip and copy.
+	* binutils.texi:  Document yesterday's changes to strip and copy.
 
 Wed Oct 14 13:22:14 1992  Per Bothner  (bothner@cygnus.com)
 
@@ -5130,7 +5130,6 @@ Fri Oct 11 04:12:28 1991  John Gilmore  (gnu at cygnus.com)
 
 	Restructure configuration scheme for bfd, binutils, ld.
 
-	* include/sys/h-*.h:  Move to bfd/hosts/h-*.h.
 	* configure.in:  Revise to symlink sysdep.h to ../bfd/hosts/h-xxx.h.
 	Change some config names to match other dirs.
 	* *.c:  Include bfd.h before sysdep.h, so ansidecl and PROTO()

@@ -130,11 +130,12 @@ Symbol structures contain the following fields:
 @item sy_value
 This is an @code{expressionS} that describes the value of the symbol.  It might
 refer to one or more other symbols; if so, its true value may not be known
-until @code{resolve_symbol_value} is called in @code{write_object_file}.
+until @code{resolve_symbol_value} is called with @var{finalize_syms} non-zero
+in @code{write_object_file}.
 
 The expression is often simply a constant.  Before @code{resolve_symbol_value}
-is called, the value is the offset from the frag (@pxref{Frags}).  Afterward,
-the frag address has been added in.
+is called with @var{finalize_syms} set, the value is the offset from the frag
+(@pxref{Frags}).  Afterward, the frag address has been added in.
 
 @item sy_resolved
 This field is non-zero if the symbol's value has been completely resolved.  It
@@ -208,9 +209,7 @@ Set the symbol's value.
 @item S_GET_VALUE
 @cindex S_GET_VALUE
 Get the symbol's value.  This will cause @code{resolve_symbol_value} to be
-called if necessary, so @code{S_GET_VALUE} should only be called when it is
-safe to resolve symbols (i.e., after the entire input file has been read and
-all symbols have been defined).
+called if necessary.
 
 @item S_SET_SEGMENT
 @cindex S_SET_SEGMENT
@@ -513,7 +512,7 @@ A number which is added into the fixup.
 
 @item fx_addnumber
 Some CPU backends use this field to convey information between
-@code{md_apply_fix} and @code{tc_gen_reloc}.  The machine independent code does
+@code{md_apply_fix3} and @code{tc_gen_reloc}.  The machine independent code does
 not use it.
 
 @item fx_next
@@ -844,11 +843,13 @@ zero if the target is little endian.
 @itemx md_longopts_size
 @itemx md_parse_option
 @itemx md_show_usage
+@itemx md_after_parse_args
 @cindex md_shortopts
 @cindex md_longopts
 @cindex md_longopts_size
 @cindex md_parse_option
 @cindex md_show_usage
+@cindex md_after_parse_args
 GAS uses these variables and functions during option processing.
 @code{md_shortopts} is a @code{const char *} which GAS adds to the machine
 independent string passed to @code{getopt}.  @code{md_longopts} is a
@@ -860,6 +861,9 @@ GAS will call @code{md_parse_option} whenever @code{getopt} returns an
 unrecognized code, presumably indicating a special code value which appears in
 @code{md_longopts}.  GAS will call @code{md_show_usage} when a usage message is
 printed; it should print a description of the machine specific options.
+@code{md_after_pase_args}, if defined, is called after all options are
+processed, to let the backend override settings done by the generic option
+parsing.
 
 @item md_begin
 @cindex md_begin
@@ -1131,6 +1135,22 @@ the MIPS which support options to change the endianness, which function to call
 is a runtime decision.  On other targets, @code{md_number_to_chars} can be a
 simple macro.
 
+@item md_atof (@var{type},@var{litP},@var{sizeP})
+@cindex md_atof
+This function is called to convert an ASCII string into a floating point value
+in format used by the CPU.  It takes three arguments.  The first is @var{type}
+which is a byte describing the type of floating point number to be created.
+Possible values are @var{'f'} or @var{'s'} for single precision, @var{'d'} or
+@var{'r'} for double precision and @var{'x'} or @var{'p'} for extended
+precision.  Either lower or upper case versions of these letters can be used.
+
+The second parameter is @var{litP} which is a pointer to a byte array where the
+converted value should be stored.  The third argument is @var{sizeP}, which is
+a pointer to a integer that should be filled in with the number of
+@var{LITTLENUM}s emitted into the byte array.  (@var{LITTLENUM} is defined in
+gas/bignum.h).  The function should return NULL upon success or an error string
+upon failure.
+
 @item md_reloc_size
 @cindex md_reloc_size
 This variable is only used in the original version of gas (not
@@ -1209,17 +1229,28 @@ The instruction is completed using the data from the relaxation pass.
 It may also create any necessary relocations.
 @xref{Relaxation}.
 
-@item md_apply_fix
-@cindex md_apply_fix
+@item TC_FINALIZE_SYMS_BEFORE_SIZE_SEG
+@cindex TC_FINALIZE_SYMS_BEFORE_SIZE_SEG
+Specifies the value to be assigned to @code{finalize_syms} before the function
+@code{size_segs} is called.  Since @code{size_segs} calls @code{cvt_frag_to_fill}
+which can call @code{md_convert_frag}, this constant governs whether the symbols 
+accessed in @code{md_convert_frag} will be fully resolved.  In particular it
+governs whether local symbols will have been resolved, and had their frag
+information removed.  Depending upon the processing performed by
+@code{md_convert_frag} the frag information may or may not be necessary, as may
+the resolved values of the symbols.  The default value is 1.
+
+@item md_apply_fix3
+@cindex md_apply_fix3
 GAS will call this for each fixup.  It should store the correct value in the
 object file.  @code{fixup_segment} performs a generic overflow check on the
-@code{valueT *val} argument after @code{md_apply_fix} returns.  If the overflow
-check is relevant for the target machine, then @code{md_apply_fix} should
+@code{valueT *val} argument after @code{md_apply_fix3} returns.  If the overflow
+check is relevant for the target machine, then @code{md_apply_fix3} should
 modify @code{valueT *val}, typically to the value stored in the object file.
 
 @item TC_HANDLES_FX_DONE
 @cindex TC_HANDLES_FX_DONE
-If this macro is defined, it means that @code{md_apply_fix} correctly sets the
+If this macro is defined, it means that @code{md_apply_fix3} correctly sets the
 @code{fx_done} field in the fixup.
 
 @item tc_gen_reloc
@@ -1248,12 +1279,14 @@ You may define this macro to indicate whether a fixup against a locally defined
 symbol should be adjusted to be against the section symbol.  It should return a
 non-zero value if the adjustment is acceptable.
 
-@item MD_PCREL_FROM_SECTION
+@item MD_PCREL_FROM_SECTION (@var{fixp}, @var{section})
 @cindex MD_PCREL_FROM_SECTION
-If you define this macro, it should return the offset between the address of a
-PC relative fixup and the position from which the PC relative adjustment should
-be made.  On many processors, the base of a PC relative instruction is the next
-instruction, so this macro would return the length of an instruction.
+If you define this macro, it should return the position from which the PC
+relative adjustment for a PC relative fixup should be made.  On many
+processors, the base of a PC relative instruction is the next instruction,
+so this macro would return the length of an instruction, plus the address of
+the PC relative fixup.  The latter can be calculated as
+@var{fixp}->fx_where + @var{fixp}->fx_frag->fr_address .
 
 @item md_pcrel_from
 @cindex md_pcrel_from

@@ -1,5 +1,5 @@
 /* BFD back-end for PPCbug boot records.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Michael Meissner, Cygnus Support, <meissner@cygnus.com>
 
@@ -32,8 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    the file.  objcopy cooperates by specially setting the start
    address to zero by default.  */
 
-#include <ctype.h>
-
+#include "safe-ctype.h"
 #include "bfd.h"
 #include "sysdep.h"
 #include "libbfd.h"
@@ -97,7 +96,6 @@ static boolean ppcboot_get_section_contents
 static long ppcboot_get_symtab_upper_bound PARAMS ((bfd *));
 static char *mangle_name PARAMS ((bfd *, char *));
 static long ppcboot_get_symtab PARAMS ((bfd *, asymbol **));
-static asymbol *ppcboot_make_empty_symbol PARAMS ((bfd *));
 static void ppcboot_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
 static boolean ppcboot_set_section_contents
   PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
@@ -114,7 +112,10 @@ ppcboot_mkobject (abfd)
      bfd *abfd;
 {
   if (!ppcboot_get_tdata (abfd))
-    ppcboot_set_tdata (abfd, bfd_zalloc (abfd, sizeof (ppcboot_data_t)));
+    {
+      bfd_size_type amt = sizeof (ppcboot_data_t);
+      ppcboot_set_tdata (abfd, bfd_zalloc (abfd, amt));
+    }
 
   return true;
 }
@@ -172,7 +173,8 @@ ppcboot_object_p (abfd)
       return NULL;
     }
 
-  if (bfd_read ((PTR) &hdr, sizeof (hdr), 1, abfd) != sizeof (hdr))
+  if (bfd_bread ((PTR) &hdr, (bfd_size_type) sizeof (hdr), abfd)
+      != sizeof (hdr))
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
@@ -216,7 +218,7 @@ ppcboot_object_p (abfd)
   tdata->sec = sec;
   memcpy ((PTR) &tdata->header, (PTR) &hdr, sizeof (ppcboot_hdr_t));
 
-  ppcboot_set_arch_mach (abfd, bfd_arch_powerpc, 0);
+  ppcboot_set_arch_mach (abfd, bfd_arch_powerpc, 0L);
   return abfd->xvec;
 }
 
@@ -235,8 +237,8 @@ ppcboot_get_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-  if (bfd_seek (abfd, offset + sizeof (ppcboot_hdr_t), SEEK_SET) != 0
-      || bfd_read (location, 1, count, abfd) != count)
+  if (bfd_seek (abfd, offset + (file_ptr) sizeof (ppcboot_hdr_t), SEEK_SET) != 0
+      || bfd_bread (location, count, abfd) != count)
     return false;
   return true;
 }
@@ -259,7 +261,7 @@ mangle_name (abfd, suffix)
      bfd *abfd;
      char *suffix;
 {
-  int size;
+  bfd_size_type size;
   char *buf;
   char *p;
 
@@ -275,7 +277,7 @@ mangle_name (abfd, suffix)
 
   /* Change any non-alphanumeric characters to underscores.  */
   for (p = buf; *p; p++)
-    if (! isalnum ((unsigned char) *p))
+    if (! ISALNUM (*p))
       *p = '_';
 
   return buf;
@@ -292,8 +294,9 @@ ppcboot_get_symtab (abfd, alocation)
   asection *sec = ppcboot_get_tdata (abfd)->sec;
   asymbol *syms;
   unsigned int i;
+  bfd_size_type amt = PPCBOOT_SYMS * sizeof (asymbol);
 
-  syms = (asymbol *) bfd_alloc (abfd, PPCBOOT_SYMS * sizeof (asymbol));
+  syms = (asymbol *) bfd_alloc (abfd, amt);
   if (syms == NULL)
     return false;
 
@@ -328,17 +331,7 @@ ppcboot_get_symtab (abfd, alocation)
   return PPCBOOT_SYMS;
 }
 
-
-/* Make an empty symbol.  */
-
-static asymbol *
-ppcboot_make_empty_symbol (abfd)
-     bfd *abfd;
-{
-  return (asymbol *) bfd_alloc (abfd, sizeof (asymbol));
-}
-
-
+#define ppcboot_make_empty_symbol _bfd_generic_make_empty_symbol
 #define ppcboot_print_symbol _bfd_nosymbols_print_symbol
 
 /* Get information about a symbol.  */
@@ -475,6 +468,7 @@ ppcboot_bfd_print_private_bfd_data (abfd, farg)
   bfd_generic_get_relocated_section_contents
 #define ppcboot_bfd_relax_section bfd_generic_relax_section
 #define ppcboot_bfd_gc_sections bfd_generic_gc_sections
+#define ppcboot_bfd_merge_sections bfd_generic_merge_sections
 #define ppcboot_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
 #define ppcboot_bfd_link_add_symbols _bfd_generic_link_add_symbols
 #define ppcboot_bfd_final_link _bfd_generic_final_link
