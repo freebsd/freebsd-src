@@ -98,7 +98,8 @@ ofw_readin(const int fd, vm_offset_t dest, const size_t len)
 		got = read(fd, buf, get);
 
 		if (got <= 0) {
-			printf("ofw_readin: read failed\n");
+			if (got < 0)
+				printf("ofw_readin: read failed\n");
 			break;
 		}
 
