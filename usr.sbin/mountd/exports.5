@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
-.\"	$Id: exports.5,v 1.5 1997/03/12 15:08:06 mpp Exp $
+.\"	$Id: exports.5,v 1.6 1997/07/16 09:27:50 dfr Exp $
 .\"
 .Dd March 29, 1995
 .Dt EXPORTS 5
@@ -44,7 +44,7 @@ mount requests
 .Nm exports
 .Sh DESCRIPTION
 The
-.Nm exports
+.Nm
 file specifies remote mount points for the
 .Tn NFS
 mount protocol per the
@@ -158,13 +158,16 @@ is a synonym for
 .Fl ro
 in an effort to be backward compatible with older export file formats.
 .Pp
-WebNFS exports strictly according to the spec (RFC 2054 and RFC 2055) can
+.Tn WebNFS
+exports strictly according to the spec (RFC 2054 and RFC 2055) can
 be done with the
 .Fl public
 flag. However, this flag in itself allows r/w access to all files in
 the filesystem, not requiring reserved ports and not remapping uids. It
 is only provided to conform to the spec, and should normally not be used.
-For a WebNFS export,
+For a
+.Tn WebNFS
+export,
 use the
 .Fl webnfs
 flag, which implies
@@ -178,10 +181,11 @@ and
 A
 .Sm off
 .Fl index No = Sy file
-.Sm off
+.Sm on
 option can be used to specify a file whose handle will be returned if
-a directory is looked up using the public filehandle (WebNFS). This
-is to mimic the behavior of URLs. If no
+a directory is looked up using the public filehandle (
+.Tn WebNFS Ns ).
+This is to mimic the behavior of URLs. If no
 .Fl index
 option is specified, a directory filehandle will be returned as usual.
 The
@@ -195,10 +199,10 @@ flags.
 The third component of a line specifies the host set to which the line applies.
 The set may be specified in three ways.
 The first way is to list the host name(s) separated by white space.
-(Standard internet ``dot'' addresses may be used in place of names.)
+(Standard Internet ``dot'' addresses may be used in place of names.)
 The second way is to specify a ``netgroup'' as defined in the netgroup file (see
 .Xr netgroup 5 ).
-The third way is to specify an internet subnetwork using a network and
+The third way is to specify an Internet subnetwork using a network and
 network mask that is defined as the set of all hosts with addresses within
 the subnetwork.
 This latter approach requires less overhead within the
@@ -271,7 +275,7 @@ that is authenticated by a Kerberos ticket.
 .Sh FILES
 .Bl -tag -width /etc/exports -compact
 .It Pa /etc/exports
-The default remote mount-point file.
+the default remote mount-point file
 .El
 .Sh SEE ALSO
 .Xr netgroup 5 ,
