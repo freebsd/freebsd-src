@@ -141,6 +141,16 @@
 #define __unused	__attribute__((__unused__))
 #endif
 
+#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 7
+#define	__printflike(fmtarg, firstvararg)
+#define	__scanflike(fmtarg, firstvararg)
+#else
+#define	__printflike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#define	__scanflike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
+#endif
+
 #ifdef __GNUC__
 #ifdef __STDC__
 #define __weak_reference(sym,alias)	\
