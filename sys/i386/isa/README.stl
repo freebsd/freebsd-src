@@ -2,8 +2,8 @@
 Stallion Multiport Serial Driver Readme
 ---------------------------------------
 
-Version: 0.0.3 alpha
-Date:    05FEB96
+Version: 0.0.4 alpha
+Date:    06FEB96
 Author:  Greg Ungerer (gerg@stallion.oz.au)
 
 
@@ -240,6 +240,7 @@ Having said that, I have used it on at least the following types of "things"
 under FreeBSD:
     a) standard dumb terminals (using getty)
     b) modems (using cu, etc)
+    c) ppp (through pppd, kernel ppp)
 
 
 
