@@ -951,21 +951,6 @@ finishidentcpu(void)
 	}
 }
 
-/*
- * This routine is called specifically to set up cpu_class before
- * startrtclock() uses it.  Probably this should be rearranged so that
- * startrtclock() doesn't need to run until after identifycpu() has been
- * called.  Another alternative formulation would be for this routine
- * to do all the identification work, and make identifycpu() into a
- * printing-only routine.
- */
-void
-earlysetcpuclass(void)
-{
-
-	cpu_class = i386_cpus[cpu].cpu_class;
-}
-
 static void
 print_AMD_assoc(int i)
 {
