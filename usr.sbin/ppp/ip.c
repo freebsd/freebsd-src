@@ -204,8 +204,8 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
 
     ncpaddr_setip6(&srcaddr, &pip6->ip6_src);
     ncpaddr_setip6(&dstaddr, &pip6->ip6_dst);
-    datalen = ntohs(pip6->ip6_plen);		/* XXX: Wrong ? */
-    payload = packet + sizeof *pip6;		/* XXX: Wrong ? */
+    datalen = ntohs(pip6->ip6_plen);
+    payload = packet + sizeof *pip6;
     cproto = pip6->ip6_nxt;
   } else
 #endif
@@ -556,7 +556,7 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
     datalen = ntohs(pip6->ip6_plen);
     payload = packet + sizeof *pip6;
     cproto = pip6->ip6_nxt;
-    tos = 0;					/* XXX: ??? */
+    tos = 0;					/* XXX: pip6->ip6_vfc >> 4 ? */
     frag = 0;					/* XXX: ??? */
   } else
 #endif
