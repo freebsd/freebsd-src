@@ -7,21 +7,18 @@
 
 # If there is a global system configuration file, suck it in.
 #
-if [ -r /etc/defaults/periodic.conf ]
-then
+if [ -r /etc/defaults/periodic.conf ]; then
     . /etc/defaults/periodic.conf
     source_periodic_confs
 fi
 
 case "$daily_clean_hoststat_enable" in
     [Yy][Ee][Ss])
-	if [ -z "$daily_clean_hoststat_days" ]
-	then
+	if [ -z "$daily_clean_hoststat_days" ]; then
 	    echo '$daily_clean_hoststat_enable is enabled but' \
 		'$daily_clean_hoststat_days is not set'
 	    rc=2
-	elif [ ! -d /var/spool/.hoststat ]
-	then
+	elif [ ! -d /var/spool/.hoststat ]; then
 	    echo '$daily_clean_hoststat_enable is enabled but' \
 		"/var/spool/.hoststat doesn't exist"
 	    rc=2
@@ -36,8 +33,8 @@ case "$daily_clean_hoststat_enable" in
 		    print=;;
 	    esac
 
-	    if cd /var/hoststat
-	    then
+	    if [ -d /var/spool/.hoststat ]; then
+		cd /var/spool/.hoststat
 		rc=$(find . ! -name . -mtime +$daily_clean_hoststat_days \
 		    -delete $print | tee /dev/stderr | wc -l)
 		[ -z "$print" ] && rc=0
