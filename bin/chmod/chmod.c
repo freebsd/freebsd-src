@@ -74,11 +74,12 @@ main(argc, argv)
 	int vflag;
 	char *ep, *mode;
 	int newmode;
+	int (*change_mode) __P((const char *, mode_t));
 
 	set = NULL;
 	omode = 0;
 	Hflag = Lflag = Pflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRXfgorstuvwx")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRXfghorstuvwx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -102,9 +103,10 @@ main(argc, argv)
 			/*
 			 * In System V (and probably POSIX.2) the -h option
 			 * causes chmod to change the mode of the symbolic
-			 * link.  4.4BSD's symbolic links don't have modes,
-			 * so it's an undocumented noop.  Do syntax checking,
-			 * though.
+			 * link.  4.4BSD's symbolic links didn't have modes,
+			 * so it was an undocumented noop.  In FreeBSD 3.0,
+			 * lchmod(2) is introduced and this option does real
+			 * work.
 			 */
 			hflag = 1;
 			break;
@@ -148,6 +150,11 @@ done:	argv += optind;
 	} else
 		fts_options = FTS_LOGICAL;
 
+	if (hflag)
+		change_mode = lchmod;
+	else
+		change_mode = chmod;
+
 	mode = *argv;
 	if (*mode >= '0' && *mode <= '7') {
 		errno = 0;
@@ -190,14 +197,17 @@ done:	argv += optind;
 			 * don't point to anything and ones that we found
 			 * doing a physical walk.
 			 */
-			continue;
+			if (!hflag)
+				continue;
+			/* else */
+			/* FALLTHROUGH */
 		default:
 			break;
 		}
 		newmode = oct ? omode : getmode(set, p->fts_statp->st_mode);
 		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 			continue;
-		if (chmod(p->fts_accpath, newmode) && !fflag) {
+		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
 		} else {
@@ -215,6 +225,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: chmod [-fv] [-R [-H | -L | -P]] mode file ...\n");
+	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...\n");
 	exit(1);
 }
