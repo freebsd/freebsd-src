@@ -45,7 +45,6 @@ struct utmp;
 struct in_addr;
 
 __BEGIN_DECLS
-void	setproctitle __P((const char *_fmt, ...)) __printf0like(1, 2);
 void	login __P((struct utmp *_ut));
 int	login_tty __P((int _fd));
 int	logout __P((char *_line));
