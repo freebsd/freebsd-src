@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -53,7 +54,7 @@
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
-#include <sys/filedesc.h>
+#include <sys/uio.h>
 
 #include <sys/event.h>
 #include <sys/file.h>
@@ -61,7 +62,6 @@
 #include <sys/proc.h>
 
 #include <sys/socket.h>
-#include <sys/vnode.h>
 
 #include <net/if.h>
 #include <net/bpf.h>
@@ -458,7 +458,7 @@ bpfread(dev, uio, ioflag)
 			return (ENXIO);
 		}
 
-		if (ioflag & IO_NDELAY) {
+		if (ioflag & O_NONBLOCK) {
 			BPFD_UNLOCK(d);
 			return (EWOULDBLOCK);
 		}
