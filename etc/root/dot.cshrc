@@ -1,3 +1,5 @@
+#	$Id$
+#
 alias mail Mail
 set history=1000
 set savehist=1000

@@ -1,3 +1,5 @@
+#	$Id$
+#
 tset -Q \?$TERM
 stty crt erase ^\?
 umask 2
