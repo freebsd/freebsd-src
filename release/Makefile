@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.432 1998/12/06 00:05:42 jkh Exp $
+#	$Id: Makefile,v 1.433 1998/12/06 04:06:38 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -473,11 +473,11 @@ release.8: write_mfs_in_kernel dumpnlist
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	@cp fs-image fs-image.std
 	@mv fs-image.size fs-image.std.size
-	@gzip fs-image
+	@gzip -c fs-image > mfsroot.gz; rm fs-image
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
-		fs-image.gz ${BOOTINODE} ${BOOTLABEL}
+		mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	mv fs-image ${RD}/floppies/mfsroot.flp
-	@rm -f fs-image.gz fs-image.size
+	@rm -f mfsroot.gz fs-image.size
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/kern.flp
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
