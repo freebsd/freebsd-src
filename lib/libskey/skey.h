@@ -35,7 +35,7 @@ struct mc {
 #define sevenbit        _sk_sevenbit
 
 void f __P((char *x));
-int keycrunch __P((char *result,char *seed,char *passwd));
+int keycrunch __P((char *result,const char *seed,const char *passwd));
 char *btoe __P((char *engout,char *c));
 char *put8 __P((char *out,char *s));
 int atob8 __P((char *out, char *in));
