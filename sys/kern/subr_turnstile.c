@@ -100,8 +100,6 @@ static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
 static int	mtx_cur_cnt;
 static int	mtx_max_cnt;
 
-void	_mtx_enter_giant_def(void);
-void	_mtx_exit_giant_def(void);
 static void propagate_priority(struct proc *);
 
 #define	mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
@@ -110,24 +108,6 @@ static void propagate_priority(struct proc *);
 
 #define RETIP(x)		*(((uintptr_t *)(&x)) - 1)
 #define	SET_PRIO(p, pri)	(p)->p_priority = (pri)
-
-/*
- * XXX Temporary, for use from assembly language
- */
-
-void
-_mtx_enter_giant_def(void)
-{
-
-	mtx_enter(&Giant, MTX_DEF);
-}
-
-void
-_mtx_exit_giant_def(void)
-{
-
-	mtx_exit(&Giant, MTX_DEF);
-}
 
 static void
 propagate_priority(struct proc *p)
