@@ -1,3 +1,5 @@
+$FreeBSD$
+
 To install the device driver, please do the following steps:
 
 1. Install the files by copying them as listed in the following table:
@@ -23,7 +25,7 @@ To install the device driver, please do the following steps:
    Append the following structure at the end of the array that
    contains the *character* device drivers. Remember the major number
    that will be used for the driver, i.e. the number following the
-   number af the preceeding record.
+   number af the preceding record.
 
 	{ ascopen,	ascclose,	ascread,	nowrite, /*<major>*/
 	  ascioctl,	nostop,		nullreset,	nodevtotty, /* asc */
