@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.46 (Berkeley) 12/1/96 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.47 (Berkeley) 12/6/96 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.46 (Berkeley) 12/1/96 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.47 (Berkeley) 12/6/96 (without USERDB)";
 #endif
 #endif
 
@@ -275,7 +275,7 @@ udbexpand(a, sendq, aliaslevel, e)
 					userleft--;
 				}
 				bcopy(info.data, p, info.size);
-				user[info.size] = '\0';
+				p[info.size] = '\0';
 				userleft -= info.size;
 
 				/* get the next record */
