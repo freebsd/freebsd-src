@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /*
  * Older FreeBSD 2.0, 2.1 and 2.2 had different ps_strings structures and
@@ -74,6 +75,7 @@ setproctitle(fmt, va_alist)
 	va_list ap;
 	size_t len;
 	unsigned long ul_ps_strings;
+	int oid[4];
 
 #if defined(__STDC__)
 	va_start(ap, fmt);
@@ -102,6 +104,13 @@ setproctitle(fmt, va_alist)
 	}
 
 	va_end(ap);
+
+	/* Set the title into the kernel cached command line */
+	oid[0] = CTL_KERN;
+	oid[1] = KERN_PROC;
+	oid[2] = KERN_PROC_ARGS;
+	oid[3] = getpid();
+	sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1);
 
 	if (ps_strings == NULL) {
 		len = sizeof(ul_ps_strings);

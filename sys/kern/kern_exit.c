@@ -494,6 +494,12 @@ loop:
 			}
 
 			/*
+			 * Remove unused arguments
+			 */
+			if (p->p_args && --p->p_args->ar_ref == 0)
+				FREE(p->p_args, M_PARGS);
+
+			/*
 			 * Finally finished with old proc entry.
 			 * Unlink it from its process group and free it.
 			 */
