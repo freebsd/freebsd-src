@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 22 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -122,6 +122,9 @@
 #define _COMPONENT          ACPI_HARDWARE
         MODULE_NAME         ("hwsleep")
 
+static UINT8 SleepTypeA;
+static UINT8 SleepTypeB;
+
 
 /******************************************************************************
  *
@@ -214,41 +217,39 @@ AcpiGetFirmwareWakingVector (
     return_ACPI_STATUS (AE_OK);
 }
 
+
 /******************************************************************************
  *
- * FUNCTION:    AcpiEnterSleepState
+ * FUNCTION:    AcpiEnterSleepStatePrep
  *
  * PARAMETERS:  SleepState          - Which sleep state to enter
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enter a system sleep state (see ACPI 2.0 spec p 231)
+ * DESCRIPTION: Prepare to enter a system sleep state (see ACPI 2.0 spec p 231)
+ *              This function must execute with interrupts enabled.
+ *              We break sleeping into 2 stages so that OSPM can handle
+ *              various OS-specific tasks between the two steps.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEnterSleepState (
+AcpiEnterSleepStatePrep (
     UINT8               SleepState)
 {
     ACPI_STATUS         Status;
     ACPI_OBJECT_LIST    ArgList;
     ACPI_OBJECT         Arg;
-    UINT8               TypeA;
-    UINT8               TypeB;
-    UINT16              PM1AControl;
-    UINT16              PM1BControl;
 
-
-    FUNCTION_TRACE ("AcpiEnterSleepState");
-
+    FUNCTION_TRACE ("AcpiEnterSleepStatePrep");
 
     /*
      * _PSW methods could be run here to enable wake-on keyboard, LAN, etc.
      */
-    Status = AcpiHwObtainSleepTypeRegisterData (SleepState, &TypeA, &TypeB);
+    Status = AcpiHwObtainSleepTypeRegisterData (SleepState, &SleepTypeA, &SleepTypeB);
     if (!ACPI_SUCCESS (Status))
     {
-        return Status;
+        return_ACPI_STATUS (Status);
     }
 
     /* run the _PTS and _GTS methods */
@@ -264,11 +265,49 @@ AcpiEnterSleepState (
     AcpiEvaluateObject (NULL, "\\_PTS", &ArgList, NULL);
     AcpiEvaluateObject (NULL, "\\_GTS", &ArgList, NULL);
 
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiEnterSleepState
+ *
+ * PARAMETERS:  SleepState          - Which sleep state to enter
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enter a system sleep state (see ACPI 2.0 spec p 231)
+ *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEnterSleepState (
+    UINT8               SleepState)
+{
+    UINT16              PM1AControl;
+    UINT16              PM1BControl;
+
+
+    FUNCTION_TRACE ("AcpiEnterSleepState");
+
+    if ((SleepTypeA > ACPI_SLEEP_TYPE_MAX) ||
+        (SleepTypeB > ACPI_SLEEP_TYPE_MAX))
+    {
+        REPORT_ERROR (("Sleep values out of range: A=%x B=%x\n",
+            SleepTypeA, SleepTypeB));
+        return_ACPI_STATUS (AE_ERROR);
+    }
+
     /* clear wake status */
 
     AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK, WAK_STS, 1);
 
-    disable ();
+    AcpiHwClearAcpiStatus();
+
+    /* disable arbitration here? */
 
     AcpiHwDisableNonWakeupGpes();
 
@@ -283,8 +322,8 @@ AcpiEnterSleepState (
 
     /* mask in SLP_TYP */
 
-    PM1AControl |= (TypeA << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
-    PM1BControl |= (TypeB << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
+    PM1AControl |= (SleepTypeA << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
+    PM1BControl |= (SleepTypeB << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
 
     /* write #1: fill in SLP_TYP data */
 
@@ -295,10 +334,6 @@ AcpiEnterSleepState (
 
     PM1AControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
     PM1BControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
-
-    /* flush caches */
-
-    wbinvd();
 
     /* write #2: SLP_TYP + SLP_EN */
 
@@ -318,15 +353,10 @@ AcpiEnterSleepState (
 
     /* wait until we enter sleep state */
 
-    do 
+    while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS))
     {
-        AcpiOsStall(10000);
+        /* spin until we wake */ 
     }
-    while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS));
-
-    AcpiHwEnableNonWakeupGpes();
-
-    enable ();
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -353,6 +383,8 @@ AcpiLeaveSleepState (
 
     FUNCTION_TRACE ("AcpiLeaveSleepState");
 
+    /* Ensure EnterSleepStatePrep -> EnterSleepState ordering */
+    SleepTypeA = ACPI_SLEEP_TYPE_INVALID;
 
     MEMSET (&ArgList, 0, sizeof(ArgList));
     ArgList.Count = 1;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 97 $
+ *       $Revision: 100 $
  *
  *****************************************************************************/
 
@@ -321,8 +321,8 @@
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
  */
-#define MASK_BITS_ABOVE(position)       (~(((UINT32)(-1)) << ((UINT32) (position))))
-#define MASK_BITS_BELOW(position)       (((UINT32)(-1)) << ((UINT32) (position)))
+#define MASK_BITS_ABOVE(position)       (~(((ACPI_INTEGER)(-1)) << ((UINT32) (position))))
+#define MASK_BITS_BELOW(position)       (((ACPI_INTEGER)(-1)) << ((UINT32) (position)))
 
 
 /* Macros for GAS addressing */
@@ -348,8 +348,8 @@
 #endif
 
 /*
- * An ACPI_HANDLE (which is actually an ACPI_NAMESPACE_NODE *) can appear in some contexts,
- * such as on apObjStack, where a pointer to an ACPI_OPERAND_OBJECT  can also
+ * An ACPI_NAMESPACE_NODE * can appear in some contexts,
+ * where a pointer to an ACPI_OPERAND_OBJECT  can also
  * appear.  This macro is used to distinguish them.
  *
  * The DataType field is the first field in both structures.
@@ -385,9 +385,9 @@
  * Macros for the master AML opcode table
  */
 #ifdef ACPI_DEBUG
-#define ACPI_OP(Name,PArgs,IArgs,Class,Type,Flags)     {PArgs,IArgs,Flags,Class,Type,Name}
+#define ACPI_OP(Name,PArgs,IArgs,ObjType,Class,Type,Flags)     {Name,PArgs,IArgs,Flags,ObjType,Class,Type}
 #else
-#define ACPI_OP(Name,PArgs,IArgs,Class,Type,Flags)     {PArgs,IArgs,Flags,Class,Type}
+#define ACPI_OP(Name,PArgs,IArgs,ObjType,Class,Type,Flags)     {PArgs,IArgs,Flags,ObjType,Class,Type}
 #endif
 
 #define ARG_TYPE_WIDTH                  5

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 138 $
+ *       $Revision: 145 $
  *
  *****************************************************************************/
 
@@ -140,6 +140,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 #define ACPI_DESC_TYPE_STATE_WSCOPE     0x26
 #define ACPI_DESC_TYPE_STATE_RESULT     0x27
 #define ACPI_DESC_TYPE_STATE_NOTIFY     0x28
+#define ACPI_DESC_TYPE_STATE_THREAD     0x29
 #define ACPI_DESC_TYPE_WALK             0x44
 #define ACPI_DESC_TYPE_PARSER           0x66
 #define ACPI_DESC_TYPE_INTERNAL         0x88
@@ -294,7 +295,7 @@ typedef struct acpi_node
 
 /* Node flags */
 
-#define ANOBJ_AML_ATTACHMENT            0x01
+#define ANOBJ_RESERVED                  0x01
 #define ANOBJ_END_OF_PEER_LIST          0x02
 #define ANOBJ_DATA_WIDTH_32             0x04     /* Parent table is 64-bits */
 #define ANOBJ_METHOD_ARG                0x08
@@ -388,19 +389,11 @@ typedef struct
     UINT32                  FieldBitPosition;
     UINT32                  FieldBitLength;
     UINT8                   FieldFlags;
+    UINT8                   Attribute;
     UINT8                   FieldType;
 
 } ACPI_CREATE_FIELD_INFO;
 
-/*
- * Field flags: Bits 00 - 03 : AccessType (AnyAcc, ByteAcc, etc.)
- *                   04      : LockRule (1 == Lock)
- *                   05 - 06 : UpdateRule
- */
-
-#define FIELD_ACCESS_TYPE_MASK      0x0F
-#define FIELD_LOCK_RULE_MASK        0x10
-#define FIELD_UPDATE_RULE_MASK      0x60
 
 
 /*****************************************************************************
@@ -426,18 +419,6 @@ typedef struct
 #define ACPI_ENABLE_POWER_BUTTON        0x0100
 #define ACPI_ENABLE_SLEEP_BUTTON        0x0200
 #define ACPI_ENABLE_RTC_ALARM           0x0400
-
-
-/*
- * Entry in the AddressSpace (AKA Operation Region) table
- */
-
-typedef struct
-{
-    ACPI_ADR_SPACE_HANDLER  Handler;
-    void                    *Context;
-
-} ACPI_ADR_SPACE_INFO;
 
 
 /* Values and addresses of the GPE registers (both banks) */
@@ -508,7 +489,6 @@ typedef struct
 
 /* Forward declarations */
 struct acpi_walk_state;
-struct acpi_walk_list;
 struct acpi_parse_obj;
 struct acpi_obj_mutex;
 
@@ -562,7 +542,7 @@ typedef struct acpi_control_state
 {
     ACPI_STATE_COMMON
     struct acpi_parse_obj   *PredicateOp;
-    UINT8                   *AmlPredicateStart;   /* Start of if/while predicate */
+    UINT8                   *AmlPredicateStart;     /* Start of if/while predicate */
 
 } ACPI_CONTROL_STATE;
 
@@ -581,13 +561,28 @@ typedef struct acpi_scope_state
 typedef struct acpi_pscope_state
 {
     ACPI_STATE_COMMON
-    struct acpi_parse_obj   *Op;            /* current op being parsed */
-    UINT8                   *ArgEnd;        /* current argument end */
-    UINT8                   *PkgEnd;        /* current package end */
-    UINT32                  ArgList;        /* next argument to parse */
-    UINT32                  ArgCount;       /* Number of fixed arguments */
+    struct acpi_parse_obj   *Op;                    /* current op being parsed */
+    UINT8                   *ArgEnd;                /* current argument end */
+    UINT8                   *PkgEnd;                /* current package end */
+    UINT32                  ArgList;                /* next argument to parse */
+    UINT32                  ArgCount;               /* Number of fixed arguments */
 
 } ACPI_PSCOPE_STATE;
+
+
+/*
+ * Thread state - one per thread across multiple walk states.  Multiple walk 
+ * states are created when there are nested control methods executing.
+ */
+typedef struct acpi_thread_state
+{
+    ACPI_STATE_COMMON
+    struct acpi_walk_state  *WalkStateList;         /* Head of list of WalkStates for this thread */
+    union acpi_operand_obj  *AcquiredMutexList;     /* List of all currently acquired mutexes */
+    UINT32                  ThreadId;               /* Running thread ID */
+    UINT16                  CurrentSyncLevel;       /* Mutex Sync (nested acquire) level */
+
+} ACPI_THREAD_STATE;
 
 
 /*
@@ -637,11 +632,11 @@ typedef union acpi_gen_state
     ACPI_SCOPE_STATE        Scope;
     ACPI_PSCOPE_STATE       ParseScope;
     ACPI_PKG_STATE          Pkg;
+    ACPI_THREAD_STATE       Thread;
     ACPI_RESULT_VALUES      Results;
     ACPI_NOTIFY_INFO        Notify;
 
 } ACPI_GENERIC_STATE;
-
 
 
 /*****************************************************************************
@@ -666,15 +661,16 @@ ACPI_STATUS (*ACPI_EXECUTE_OP) (
  */
 typedef struct acpi_opcode_info
 {
+#ifdef _OPCODE_NAMES
+    NATIVE_CHAR             *Name;          /* Opcode name (debug only) */
+#endif
     UINT32                  ParseArgs;      /* Grammar/Parse time arguments */
     UINT32                  RuntimeArgs;    /* Interpret time arguments */
-    UINT16                  Flags;          /* Misc flags */
+    UINT32                  Flags;          /* Misc flags */
+    UINT8                   ObjectType;     /* Corresponding internal object type */
     UINT8                   Class;          /* Opcode class */
     UINT8                   Type;           /* Opcode type */
 
-#ifdef _OPCODE_NAMES
-    NATIVE_CHAR             *Name;          /* op name (debug only) */
-#endif
 
 } ACPI_OPCODE_INFO;
 
@@ -751,8 +747,6 @@ typedef struct acpi_parse_state
 
 
     struct acpi_parse_obj   *StartScope;
-
-
 
 
 } ACPI_PARSE_STATE;
@@ -889,10 +883,6 @@ typedef struct acpi_parse_state
 
 #define GPE1_STS_MASK
 #define GPE1_EN_MASK
-
-
-#define ACPI_READ                       1
-#define ACPI_WRITE                      2
 
 
 /*****************************************************************************

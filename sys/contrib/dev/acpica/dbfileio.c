@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 53 $
+ *              $Revision: 54 $
  *
  ******************************************************************************/
 
@@ -463,7 +463,7 @@ AcpiDbLoadAcpiTable (
     Status = AeLocalLoadTable (AcpiGbl_DbTablePtr);
     if (ACPI_FAILURE (Status))
     {
-        if (Status == AE_EXIST)
+        if (Status == AE_ALREADY_EXISTS)
         {
             AcpiOsPrintf ("Table %4.4s is already installed\n",
                             &AcpiGbl_DbTablePtr->Signature);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 16 $
+ *              $Revision: 17 $
  *
  ******************************************************************************/
 
@@ -283,8 +283,7 @@ AcpiRsVendorResource (
     if (Temp8 & 0x80)
     {
         /*
-         * Large Item
-         * Point to the length field
+         * Large Item, point to the length field
          */
         Buffer += 1;
 
@@ -300,12 +299,10 @@ AcpiRsVendorResource (
 
         Buffer += 2;
     }
-
     else
     {
         /*
-         * Small Item
-         * Dereference the size
+         * Small Item, dereference the size
          */
         Temp16 = (UINT8)(*Buffer & 0x07);
 
@@ -385,8 +382,7 @@ AcpiRsVendorStream (
     if(LinkedList->Data.VendorSpecific.Length > 7)
     {
         /*
-         * Large Item
-         * Set the descriptor field and length bytes
+         * Large Item, Set the descriptor field and length bytes
          */
         *Buffer = 0x84;
         Buffer += 1;
@@ -396,12 +392,10 @@ AcpiRsVendorStream (
         MOVE_UNALIGNED16_TO_16 (Buffer, &Temp16);
         Buffer += 2;
     }
-
     else
     {
         /*
-         * Small Item
-         * Set the descriptor field
+         * Small Item, Set the descriptor field
          */
         Temp8 = 0x70;
         Temp8 |= LinkedList->Data.VendorSpecific.Length;
@@ -504,7 +498,6 @@ AcpiRsStartDependentFunctionsResource (
             return_ACPI_STATUS (AE_AML_ERROR);
         }
     }
-
     else
     {
         OutputStruct->Data.StartDpf.CompatibilityPriority =

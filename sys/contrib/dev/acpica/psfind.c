@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -138,7 +138,7 @@
  *
  ******************************************************************************/
 
-static ACPI_PARSE_OBJECT*
+ACPI_PARSE_OBJECT*
 AcpiPsGetParent (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -183,7 +183,7 @@ AcpiPsGetParent (
  *
  ******************************************************************************/
 
-static ACPI_PARSE_OBJECT *
+ACPI_PARSE_OBJECT *
 AcpiPsFindName (
     ACPI_PARSE_OBJECT       *Scope,
     UINT32                  Name,
@@ -220,14 +220,12 @@ AcpiPsFindName (
                 Field = Field->Next;
             }
         }
-
         else if (OpInfo->Flags & AML_CREATE)
         {
             if (Op->Opcode == AML_CREATE_FIELD_OP)
             {
                 Field = AcpiPsGetArg (Op, 3);
             }
-
             else
             {
                 /* CreateXXXField, check name */
@@ -242,7 +240,6 @@ AcpiPsFindName (
                 return (Op);
             }
         }
-
         else if ((OpInfo->Flags & AML_NAMED) &&
                  (AcpiPsGetName (Op) == Name) &&
                  (!Opcode || Op->Opcode == Opcode || Opcode == AML_SCOPE_OP))
@@ -296,9 +293,7 @@ AcpiPsFind (
         return_PTR (NULL);
     }
 
-
     AcpiGbl_PsFindCount++;
-
 
     /* Handle all prefixes in the name path */
 
@@ -306,7 +301,6 @@ AcpiPsFind (
     {
         switch (GET8 (Path))
         {
-
         case '\\':
 
             /* Could just use a global for "root scope" here */
@@ -315,12 +309,6 @@ AcpiPsFind (
             {
                 Scope = Scope->Parent;
             }
-
-            /* get first object within the scope */
-            /* TBD: [Investigate] OR - set next in root scope to point to the same value as arg */
-
-            /* Scope = Scope->Value.Arg; */
-
             break;
 
 
@@ -440,14 +428,12 @@ AcpiPsFind (
                     {
                         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Op->Opcode));
                     }
-
                     else
                     {
                         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found in parent=%p\n", (char*)&Name, Scope));
                     }
                 }
             }
-
             else
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Segment [%4.4s] Not Found in scope %p!\n", (char*)&Name, Scope));

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 101 $
+ *              $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -131,118 +131,6 @@
         MODULE_NAME         ("exresolv")
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExGetBufferFieldValue
- *
- * PARAMETERS:  *ObjDesc            - Pointer to a BufferField
- *              *ResultDesc         - Pointer to an empty descriptor which will
- *                                    become an Integer with the field's value
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Retrieve the value from a BufferField
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExGetBufferFieldValue (
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_OPERAND_OBJECT     *ResultDesc)
-{
-    ACPI_STATUS             Status;
-    UINT32                  Mask;
-    UINT8                   *Location;
-
-
-    FUNCTION_TRACE ("ExGetBufferFieldValue");
-
-
-    /*
-     * Parameter validation
-     */
-    if (!ObjDesc)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null field pointer\n"));
-        return_ACPI_STATUS (AE_AML_NO_OPERAND);
-    }
-
-    if (!(ObjDesc->Common.Flags & AOPOBJ_DATA_VALID))
-    {
-        Status = AcpiDsGetBufferFieldArguments (ObjDesc);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-    }
-
-    if (!ObjDesc->BufferField.BufferObj)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null container pointer\n"));
-        return_ACPI_STATUS (AE_AML_INTERNAL);
-    }
-
-    if (ACPI_TYPE_BUFFER != ObjDesc->BufferField.BufferObj->Common.Type)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - container is not a Buffer\n"));
-        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
-    }
-
-    if (!ResultDesc)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null result pointer\n"));
-        return_ACPI_STATUS (AE_AML_INTERNAL);
-    }
-
-
-    /* Field location is (base of buffer) + (byte offset) */
-
-    Location = ObjDesc->BufferField.BufferObj->Buffer.Pointer
-                + ObjDesc->BufferField.BaseByteOffset;
-
-    /*
-     * Construct Mask with as many 1 bits as the field width
-     *
-     * NOTE: Only the bottom 5 bits are valid for a shift operation, so
-     *  special care must be taken for any shift greater than 31 bits.
-     *
-     * TBD: [Unhandled] Fields greater than 32 bits will not work.
-     */
-    if (ObjDesc->BufferField.BitLength < 32)
-    {
-        Mask = ((UINT32) 1 << ObjDesc->BufferField.BitLength) - (UINT32) 1;
-    }
-    else
-    {
-        Mask = ACPI_UINT32_MAX;
-    }
-
-    ResultDesc->Integer.Type = (UINT8) ACPI_TYPE_INTEGER;
-
-    /* Get the 32 bit value at the location */
-
-    MOVE_UNALIGNED32_TO_32 (&ResultDesc->Integer.Value, Location);
-
-    /*
-     * Shift the 32-bit word containing the field, and mask off the
-     * resulting value
-     */
-    ResultDesc->Integer.Value =
-        (ResultDesc->Integer.Value >> ObjDesc->BufferField.StartFieldBitOffset) & Mask;
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "** Read from buffer %p byte %d bit %d width %d addr %p mask %08X val %8.8X%8.8X\n",
-        ObjDesc->BufferField.BufferObj->Buffer.Pointer,
-        ObjDesc->BufferField.BaseByteOffset,
-        ObjDesc->BufferField.StartFieldBitOffset,
-        ObjDesc->BufferField.BitLength,
-        Location, Mask,
-        HIDWORD(ResultDesc->Integer.Value),
-        LODWORD(ResultDesc->Integer.Value)));
-
-    return_ACPI_STATUS (AE_OK);
-}
-
 
 /*******************************************************************************
  *
@@ -276,7 +164,6 @@ AcpiExResolveToValue (
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
-
     /*
      * The entity pointed to by the StackPtr can be either
      * 1) A valid ACPI_OPERAND_OBJECT, or
@@ -304,7 +191,6 @@ AcpiExResolveToValue (
             return_ACPI_STATUS (Status);
         }
     }
-
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Resolved object %p\n", *StackPtr));
     return_ACPI_STATUS (AE_OK);
@@ -347,14 +233,12 @@ AcpiExResolveObjectToValue (
 
     switch (StackDesc->Common.Type)
     {
-
     case INTERNAL_TYPE_REFERENCE:
 
         Opcode = StackDesc->Reference.Opcode;
 
         switch (Opcode)
         {
-
         case AML_NAME_OP:
 
             /*
@@ -398,7 +282,6 @@ AcpiExResolveObjectToValue (
                 StackDesc->Reference.Offset, ObjDesc));
             break;
 
-
         /*
          * For constants, we must change the reference/constant object
          * to a real integer object
@@ -439,7 +322,7 @@ AcpiExResolveObjectToValue (
                 break;
             }
 
-            /* 
+            /*
              * Remove a reference from the original reference object
              * and put the new object in its place
              */
@@ -471,7 +354,6 @@ AcpiExResolveObjectToValue (
                     AcpiUtAddReference (ObjDesc);
                     *StackPtr = ObjDesc;
                 }
-
                 else
                 {
                     /*
@@ -494,7 +376,6 @@ AcpiExResolveObjectToValue (
                 Status = AE_AML_INTERNAL;
                 break;
             }
-
             break;
 
 
@@ -515,55 +396,24 @@ AcpiExResolveObjectToValue (
 
         break; /* case INTERNAL_TYPE_REFERENCE */
 
-
+    /*
+     * These cases may never happen here, but just in case.. 
+     */
     case ACPI_TYPE_BUFFER_FIELD:
-
-        ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_ANY);
-        if (!ObjDesc)
-        {
-            return_ACPI_STATUS (AE_NO_MEMORY);
-        }
-
-        Status = AcpiExGetBufferFieldValue (StackDesc, ObjDesc);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiUtRemoveReference (ObjDesc);
-            ObjDesc = NULL;
-        }
-
-        *StackPtr = (void *) ObjDesc;
-        break;
-
-
+    case INTERNAL_TYPE_REGION_FIELD:
     case INTERNAL_TYPE_BANK_FIELD:
+    case INTERNAL_TYPE_INDEX_FIELD:
 
-        ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_ANY);
-        if (!ObjDesc)
-        {
-            return_ACPI_STATUS (AE_NO_MEMORY);
-        }
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "FieldRead SourceDesc=%p Type=%X\n",
+            StackDesc, StackDesc->Common.Type));
 
-        /* TBD: WRONG! */
-
-        Status = AcpiExGetBufferFieldValue (StackDesc, ObjDesc);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiUtRemoveReference (ObjDesc);
-            ObjDesc = NULL;
-        }
-
+        Status = AcpiExReadDataFromField (StackDesc, &ObjDesc);
         *StackPtr = (void *) ObjDesc;
         break;
-
-
-    /* TBD: [Future] - may need to handle IndexField, and DefField someday */
 
     default:
-
         break;
-
-    }   /* switch (StackDesc->Common.Type) */
-
+    }
 
     return_ACPI_STATUS (Status);
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 54 $
+ *       $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -119,15 +119,15 @@
 #define __ACPARSER_H__
 
 
-#define OP_HAS_RETURN_VALUE         1
+#define OP_HAS_RETURN_VALUE             1
 
 /* variable # arguments */
 
-#define ACPI_VAR_ARGS               ACPI_UINT32_MAX
+#define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
 
 /* maximum virtual address */
 
-#define ACPI_MAX_AML                ((UINT8 *)(~0UL))
+#define ACPI_MAX_AML                    ((UINT8 *)(~0UL))
 
 
 #define ACPI_PARSE_DELETE_TREE          0x0001
@@ -139,7 +139,8 @@
 #define ACPI_PARSE_EXECUTE              0x0030
 #define ACPI_PARSE_MODE_MASK            0x0030
 
-/* psapi - Parser external interfaces */
+
+/* Parser external interfaces */
 
 ACPI_STATUS
 AcpiPsxLoadTable (
@@ -151,6 +152,7 @@ AcpiPsxExecute (
     ACPI_NAMESPACE_NODE     *MethodNode,
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObjDesc);
+
 
 /******************************************************************************
  *
@@ -176,8 +178,8 @@ AcpiPsGetNextNamestring (
 void
 AcpiPsGetNextSimpleArg (
     ACPI_PARSE_STATE        *ParserState,
-    UINT32                  ArgType,        /* type of argument */
-    ACPI_PARSE_OBJECT       *Arg);           /* (OUT) argument data */
+    UINT32                  ArgType,
+    ACPI_PARSE_OBJECT       *Arg);
 
 void
 AcpiPsGetNextNamepath (
@@ -197,6 +199,19 @@ AcpiPsGetNextArg (
     UINT32                  *ArgCount);
 
 
+/* psfind */
+
+ACPI_PARSE_OBJECT *
+AcpiPsFindName (
+    ACPI_PARSE_OBJECT       *Scope,
+    UINT32                  Name,
+    UINT32                  Opcode);
+
+ACPI_PARSE_OBJECT*
+AcpiPsGetParent (
+    ACPI_PARSE_OBJECT       *Op);
+
+
 /* psopcode - AML Opcode information */
 
 const ACPI_OPCODE_INFO *
@@ -209,6 +224,21 @@ AcpiPsGetOpcodeName (
 
 
 /* psparse - top level parsing routines */
+
+UINT32
+AcpiPsGetOpcodeSize (
+    UINT32                  Opcode);
+
+BOOLEAN
+AcpiPsCompleteThisOp (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
+
+ACPI_STATUS
+AcpiPsNextParseState (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_STATUS             CallbackStatus);
 
 ACPI_STATUS
 AcpiPsFindObject (
@@ -323,6 +353,10 @@ AcpiPsGetNextWalkOp (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
     ACPI_PARSE_UPWARDS      AscendingCallback);
+
+ACPI_STATUS
+AcpiPsDeleteCompletedOp (
+    ACPI_WALK_STATE         *WalkState);
 
 
 /* psutils - parser utilities */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 110 $
+ *       $Revision: 115 $
  *
  *****************************************************************************/
 
@@ -137,7 +137,7 @@
 #define ACPI_ROOT_NAME          (UINT32) 0x2F202020     /* Root name is     "/   " */
 #define ACPI_SYS_BUS_NAME       (UINT32) 0x5F53425F     /* Sys bus name is  "_SB_" */
 
-#define NS_ROOT_PATH            "/"
+#define NS_ROOT_PATH            "\\"
 #define NS_SYSTEM_BUS           "_SB_"
 
 
@@ -307,6 +307,11 @@ AcpiNsDumpPathname (
     UINT32                  Component);
 
 void
+AcpiNsPrintPathname (
+    UINT32                  NumSegments,
+    char                    *Pathname);
+
+void
 AcpiNsDumpRootDevices (
     void);
 
@@ -415,6 +420,31 @@ AcpiNsAttachObject (
     ACPI_OPERAND_OBJECT     *Object,
     ACPI_OBJECT_TYPE8       Type);
 
+ACPI_OPERAND_OBJECT *
+AcpiNsGetAttachedObject (
+    ACPI_NAMESPACE_NODE     *Node);
+
+ACPI_OPERAND_OBJECT *
+AcpiNsGetSecondaryObject (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
+
+ACPI_STATUS
+AcpiNsAttachData (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    *Data);
+
+ACPI_STATUS
+AcpiNsDetachData (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OBJECT_HANDLER     Handler);
+
+ACPI_STATUS
+AcpiNsGetAttachedData (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    **Data);
+
 
 /*
  * Namespace searching and entry - nssearch
@@ -459,10 +489,6 @@ AcpiNsValidPathSeparator (
 
 ACPI_OBJECT_TYPE8
 AcpiNsGetType (
-    ACPI_NAMESPACE_NODE     *Node);
-
-void *
-AcpiNsGetAttachedObject (
     ACPI_NAMESPACE_NODE     *Node);
 
 UINT32

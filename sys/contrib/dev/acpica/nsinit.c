@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 33 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -279,7 +279,7 @@ AcpiNsInitOneObject (
     /* And even then, we are only interested in a few object types */
 
     Type = AcpiNsGetType (ObjHandle);
-    ObjDesc = Node->Object;
+    ObjDesc = AcpiNsGetAttachedObject (Node);
     if (!ObjDesc)
     {
         return (AE_OK);
@@ -412,7 +412,7 @@ AcpiNsInitOneDevice (
     if (!Node)
     {
         AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
-        return (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

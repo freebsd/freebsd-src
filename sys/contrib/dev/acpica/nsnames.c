@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  ******************************************************************************/
 
@@ -250,13 +250,6 @@ AcpiNsGetPathnameLength (
         Size += PATH_SEGMENT_LENGTH;
     }
 
-    /* Special case for size still 0 - no parent for "special" nodes */
-
-    if (!Size)
-    {
-        Size = PATH_SEGMENT_LENGTH;
-    }
-
     return (Size + 1);
 }
 
@@ -324,6 +317,13 @@ AcpiNsHandleToPathname (
     if (PathLength > UserBufSize)
     {
         Status = AE_BUFFER_OVERFLOW;
+        goto Exit;
+    }
+
+    if (Size < ACPI_NAME_SIZE)
+    {
+        UserBuffer[0] = '\\';
+        UserBuffer[1] = 0;
         goto Exit;
     }
 
