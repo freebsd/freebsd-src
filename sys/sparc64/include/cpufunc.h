@@ -80,6 +80,10 @@
 	__asm __volatile("flushw" : :);					\
 } while (0)
 
+#define	mov(val, reg) do {						\
+	__asm __volatile("mov %0, %" __XSTRING(reg) : : "r" (val));	\
+} while (0)
+
 /* Generate ld*a/st*a functions for non-constant ASI's. */
 #define LDNC_GEN(tp, o)							\
 	static __inline tp						\
