@@ -737,11 +737,14 @@ static void
 ia64_print_I24(const char *name, u_int64_t ins, db_addr_t loc)
 {
 	union ia64_instruction u;
+	u_int64_t i;
 	u.ins = ins;
+	i = u.I24.s;
+	i = i << 43;
+	i |= u.I24.imm27a << 16;
 	db_printf("%s pr.rot=%lx",
 		  name,
-		  sign_extend(((u_int64_t) u.I24.s << 43)
-			      | (u.I24.imm27a << 16), 44));
+		  sign_extend(i, 44));
 }
 
 static void
