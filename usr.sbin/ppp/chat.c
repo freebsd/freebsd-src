@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id$
+ * $Id: chat.c,v 1.16 1997/02/22 16:10:06 peter Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -34,6 +34,8 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/cdefs.h>
+#include <signal.h>
 #include "sig.h"
 #include <sys/wait.h>
 #include "timeout.h"
