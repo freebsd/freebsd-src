@@ -313,7 +313,7 @@ Int_Open_Disk(const char *name)
 				break;
 			}
 		} else if (!strcmp(t, "BSD"))
-			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, part, ty, 0, 0);
 		else if (!strcmp(t, "PC98")) {
 			switch (ty & 0x7f) {
 			case 0x14:
