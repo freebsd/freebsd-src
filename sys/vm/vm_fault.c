@@ -276,12 +276,13 @@ RetryFault:;
 	fs.vp = vnode_pager_lock(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
+#ifdef ENABLE_VFS_IOOPT
 	if ((fault_type & VM_PROT_WRITE) &&
 		(fs.first_object->type == OBJT_VNODE)) {
 		vm_freeze_copyopts(fs.first_object,
 			fs.first_pindex, fs.first_pindex + 1);
 	}
-
+#endif
 	fs.lookup_still_valid = TRUE;
 
 	if (wired)
