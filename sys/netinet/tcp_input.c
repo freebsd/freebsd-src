@@ -164,38 +164,6 @@ do { \
 #define DELAY_ACK(tp) \
 	(tcp_delack_enabled && !callout_pending(tp->tt_delack))
 
-/*
- * Insert segment which inludes th into reassembly queue of tcp with
- * control block tp.  Return TH_FIN if reassembly now includes
- * a segment with FIN.  The macro form does the common case inline
- * (segment is the next to be received on an established connection,
- * and the queue is empty), avoiding linkage into and removal
- * from the queue and repetition of various conversions.
- * Set DELACK for segments received in order, but ack immediately
- * when segments are out of order (so fast retransmit can work).
- */
-#define	TCP_REASS(tp, th, tlenp, m, so, flags) { \
-	if ((th)->th_seq == (tp)->rcv_nxt && \
-	    LIST_EMPTY(&(tp)->t_segq) && \
-	    (tp)->t_state == TCPS_ESTABLISHED) { \
-		if (DELAY_ACK(tp)) \
-			callout_reset(tp->tt_delack, tcp_delacktime, \
-			    tcp_timer_delack, tp); \
-		else \
-			tp->t_flags |= TF_ACKNOW; \
-		(tp)->rcv_nxt += *(tlenp); \
-		flags = (th)->th_flags & TH_FIN; \
-		tcpstat.tcps_rcvpack++;\
-		tcpstat.tcps_rcvbyte += *(tlenp);\
-		ND6_HINT(tp); \
-		sbappend(&(so)->so_rcv, (m)); \
-		sorwakeup(so); \
-	} else { \
-		(flags) = tcp_reass((tp), (th), (tlenp), (m)); \
-		tp->t_flags |= TF_ACKNOW; \
-	} \
-}
-
 static int
 tcp_reass(tp, th, tlenp, m)
 	register struct tcpcb *tp;
@@ -2154,7 +2122,36 @@ dodata:							/* XXX */
 	if ((tlen || (thflags&TH_FIN)) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
-		TCP_REASS(tp, th, &tlen, m, so, thflags);
+		/*
+		 * Insert segment which inludes th into reassembly queue of tcp with
+		 * control block tp.  Return TH_FIN if reassembly now includes
+		 * a segment with FIN.  This handle the common case inline (segment
+		 * is the next to be received on an established connection, and the
+		 * queue is empty), avoiding linkage into and removal from the queue
+		 * and repetition of various conversions.
+		 * Set DELACK for segments received in order, but ack immediately
+		 * when segments are out of order (so fast retransmit can work).
+		 */
+		if (th->th_seq == tp->rcv_nxt &&
+		    LIST_EMPTY(&tp->t_segq) &&
+		    TCPS_HAVEESTABLISHED(tp->t_state)) {
+			if (DELAY_ACK(tp))
+				callout_reset(tp->tt_delack, tcp_delacktime,
+				    tcp_timer_delack, tp);
+			else
+				tp->t_flags |= TF_ACKNOW;
+			tp->rcv_nxt += tlen;
+			thflags = th->th_flags & TH_FIN;
+			tcpstat.tcps_rcvpack++;
+			tcpstat.tcps_rcvbyte += tlen;
+			ND6_HINT(tp);
+			sbappend(&so->so_rcv, m);
+			sorwakeup(so);
+		} else {
+			thflags = tcp_reass(tp, th, &tlen, m);
+			tp->t_flags |= TF_ACKNOW;
+		}
+
 		/*
 		 * Note the amount of data that peer has sent into
 		 * our window, in order to estimate the sender's
