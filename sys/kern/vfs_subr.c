@@ -979,24 +979,24 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	 */
 	do {
 		bufobj_wwait(bo, 0, 0);
-		VI_UNLOCK(vp);
-		if (vp->v_object != NULL) {
-			VM_OBJECT_LOCK(vp->v_object);
-			vm_object_pip_wait(vp->v_object, "vnvlbx");
-			VM_OBJECT_UNLOCK(vp->v_object);
+		BO_UNLOCK(bo);
+		if (bo->bo_object != NULL) {
+			VM_OBJECT_LOCK(bo->bo_object);
+			vm_object_pip_wait(bo->bo_object, "vnvlbx");
+			VM_OBJECT_UNLOCK(bo->bo_object);
 		}
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 	} while (bo->bo_numoutput > 0);
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
-		vm_object_page_remove(vp->v_object, 0, 0,
+	if (bo->bo_object != NULL) {
+		VM_OBJECT_LOCK(bo->bo_object);
+		vm_object_page_remove(bo->bo_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_UNLOCK(bo->bo_object);
 	}
 
 #ifdef INVARIANTS
