@@ -313,11 +313,28 @@ everything:
 	cd ${.CURDIR}; ${WMAKE} all
 
 #
+# installcheck
+#
+# Checks to be sure system is ready for installworld
+#
+installcheck:
+.if !defined(NO_SENDMAIL)
+	@if ! `grep -q '^smmsp:' /etc/passwd`; then \
+		echo "ERROR: Required smmsp user is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+	@if ! `grep -q '^smmsp:' /etc/group`; then \
+		echo "ERROR: Required smmsp group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endif
+
+#
 # installworld
 #
 # Installs everything compiled by a 'buildworld'.
 #
-installworld:
+installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
 	    ln make makewhatis mkdir mtree mv perl rm sed sh sysctl \
