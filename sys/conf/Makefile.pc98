@@ -30,7 +30,6 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-EXTRA_KERNELDEP=rm -f ./machine ; ln -s $S/$M/include ./machine
 MKMODULESENV+=	MACHINE=pc98
 
 %BEFORE_DEPEND
