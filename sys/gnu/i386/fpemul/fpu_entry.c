@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.18 1998/11/15 15:33:50 bde Exp $
+ *  $Id: fpu_entry.c,v 1.19 1999/01/17 20:28:12 peter Exp $
  *
  */
 
@@ -511,7 +511,7 @@ gnufpu_modevent(module_t mod, int type, void *unused)
 	return 0;
 		
 }
-moduledata_t gnufpumod = {
+static moduledata_t gnufpumod = {
 	"gnufpu",
 	gnufpu_modevent,
 	0
