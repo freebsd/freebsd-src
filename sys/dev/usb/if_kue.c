@@ -187,7 +187,7 @@ kue_do_request(usbd_device_handle dev, usb_device_request_t *req, void *data)
 
 	xfer = usbd_alloc_xfer(dev);
 	usbd_setup_default_xfer(xfer, dev, 0, 500000, req,
-	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK|USBD_NO_TSLEEP, 0);
+	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK, 0);
 	err = usbd_sync_transfer(xfer);
 	usbd_free_xfer(xfer);
 	return(err);
