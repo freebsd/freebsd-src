@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclinux.h - OS specific defines, etc.
- *       $Revision: 7 $
+ *       $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -117,7 +117,6 @@
 #ifndef __ACLINUX_H__
 #define __ACLINUX_H__
 
-
 #define ACPI_OS_NAME                "Linux"
 
 #include <linux/config.h>
@@ -126,6 +125,7 @@
 #include <linux/ctype.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
+#include <asm/div64.h>
 
 /* Linux uses GCC */
 
@@ -134,9 +134,14 @@
 #undef DEBUGGER_THREADING
 #define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED
 
-/* Linux ia32 can't do int64 well */
 #ifndef _IA64
+/* Linux ia32 can't do int64 well */
 #define ACPI_NO_INTEGER64_SUPPORT
+/* And the ia32 kernel doesn't include 64-bit divide support */
+#define ACPI_DIV64(dividend, divisor) do_div(dividend, divisor)
+#else
+#define ACPI_DIV64(dividend, divisor) ACPI_DIVIDE(dividend, divisor)
 #endif
+
 
 #endif /* __ACLINUX_H__ */

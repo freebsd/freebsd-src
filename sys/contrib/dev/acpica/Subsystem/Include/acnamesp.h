@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 101 $
+ *       $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -163,7 +163,7 @@ AcpiNsInitializeObjects (
 
 ACPI_STATUS
 AcpiNsInitializeDevices (
-    UINT32                  Flags);
+    void);
 
 
 /* Namespace init - nsxfinit */
@@ -407,6 +407,11 @@ AcpiNsGetNode (
     NATIVE_CHAR             *Pathname,
     ACPI_NAMESPACE_NODE     *InPrefixNode,
     ACPI_NAMESPACE_NODE     **OutNode);
+
+UINT32
+AcpiNsGetPathnameLength (
+    ACPI_NAMESPACE_NODE     *Node);
+
 
 /*
  * Object management for NTEs - nsobject

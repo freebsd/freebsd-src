@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 39 $
+ *       $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -134,6 +134,7 @@ extern BOOLEAN                  opt_disasm;
 extern BOOLEAN                  opt_stats;
 extern BOOLEAN                  opt_parse_jit;
 extern BOOLEAN                  opt_verbose;
+extern BOOLEAN                  opt_ini_methods;
 
 
 extern NATIVE_CHAR              *Args[DB_MAX_ARGS];
@@ -287,6 +288,10 @@ AcpiDbSetScope (
 
 void
 AcpiDbFindReferences (
+    NATIVE_CHAR             *ObjectArg);
+
+void
+AcpiDbDisplayResources (
     NATIVE_CHAR             *ObjectArg);
 
 

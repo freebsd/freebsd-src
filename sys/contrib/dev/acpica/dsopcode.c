@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -169,6 +169,7 @@ AcpiDsGetFieldUnitArguments (
     ExtraDesc = ObjDesc->FieldUnit.Extra;
     Node = ObjDesc->FieldUnit.Node;
 
+    DEBUG_EXEC(AcpiCmDisplayInitPathname (Node, "  [Field]"));
     DEBUG_PRINT (TRACE_EXEC,
         ("DsGetFieldUnitArguments: [%4.4s] FieldUnit JIT Init\n",
         &Node->Name));
@@ -289,6 +290,8 @@ AcpiDsGetRegionArguments (
     ExtraDesc = ObjDesc->Region.Extra;
     Node = ObjDesc->Region.Node;
 
+    DEBUG_EXEC(AcpiCmDisplayInitPathname (Node, "  [Operation Region]"));
+        
     DEBUG_PRINT (TRACE_EXEC,
         ("DsGetRegionArguments: [%4.4s] OpRegion Init at AML %p[%x]\n",
         &Node->Name, ExtraDesc->Extra.Pcode, *(UINT32*) ExtraDesc->Extra.Pcode));

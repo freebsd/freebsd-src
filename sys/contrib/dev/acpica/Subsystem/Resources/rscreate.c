@@ -3,7 +3,7 @@
  * Module Name: rscreate - AcpiRsCreateResourceList
  *                         AcpiRsCreatePciRoutingTable
  *                         AcpiRsCreateByteStream
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  ******************************************************************************/
 
@@ -121,6 +121,8 @@
 
 #include "acpi.h"
 #include "acresrc.h"
+#include "amlcode.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          RESOURCE_MANAGER
         MODULE_NAME         ("rscreate")
@@ -266,6 +268,7 @@ AcpiRsCreatePciRoutingTable (
     UINT32                  NumberOfElements = 0;
     UINT32                  Index = 0;
     PCI_ROUTING_TABLE       *UserPrt = NULL;
+    ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
 
 
@@ -321,10 +324,10 @@ AcpiRsCreatePciRoutingTable (
             /*
              * Fill in the Length field with the information we
              * have at this point.
-             * The minus one is to subtract the size of the
-             * UINT8 Source[1] member because it is added below.
+             * The minus four is to subtract the size of the
+             * UINT8 Source[4] member because it is added below.
              */
-            UserPrt->Length = (sizeof (PCI_ROUTING_TABLE) - 1);
+            UserPrt->Length = (sizeof (PCI_ROUTING_TABLE) -4);
 
             /*
              * Dereference the sub-package
@@ -339,71 +342,99 @@ AcpiRsCreatePciRoutingTable (
             SubObjectList = PackageElement->Package.Elements;
 
             /*
-             * Dereference the Address
+             * 1) First subobject:  Dereference the Address
              */
             if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
-                UserPrt->Data.Address =
-                        (*SubObjectList)->Integer.Value;
+                UserPrt->Address = (*SubObjectList)->Integer.Value;
             }
 
             else
             {
+                DEBUG_PRINT (ACPI_ERROR, 
+                    ("CreatePciRoutingTable: Need Integer, found %s\n",
+                    AcpiCmGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
 
             /*
-             * Dereference the Pin
+             * 2) Second subobject: Dereference the Pin
              */
             SubObjectList++;
 
             if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
-                UserPrt->Data.Pin =
+                UserPrt->Pin =
                         (UINT32) (*SubObjectList)->Integer.Value;
             }
 
             else
             {
+                DEBUG_PRINT (ACPI_ERROR, 
+                    ("CreatePciRoutingTable: Need Integer, found %s\n",
+                    AcpiCmGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
 
             /*
-             * Dereference the Source Name
+             * 3) Third subobject: Dereference the Source Name
              */
             SubObjectList++;
 
-            if (ACPI_TYPE_STRING == (*SubObjectList)->Common.Type)
+            switch ((*SubObjectList)->Common.Type)
             {
-                STRCPY (UserPrt->Data.Source,
+            case INTERNAL_TYPE_REFERENCE:
+                if ((*SubObjectList)->Reference.OpCode != AML_NAMEPATH_OP)
+                {
+                   DEBUG_PRINT (ACPI_ERROR, 
+                        ("CreatePciRoutingTable: Need name, found reference op %X\n",
+                        (*SubObjectList)->Reference.OpCode));
+                    return_ACPI_STATUS (AE_BAD_DATA);
+                }
+
+                Node = (*SubObjectList)->Reference.Node;
+
+                /* TBD: use *remaining* length of the buffer! */
+
+                Status = AcpiNsHandleToPathname ((ACPI_HANDLE *) Node,
+                            OutputBufferLength, UserPrt->Source);
+
+                UserPrt->Length += STRLEN (UserPrt->Source) + 1; /* include null terminator */
+                break;
+
+
+            case ACPI_TYPE_STRING:
+
+                STRCPY (UserPrt->Source,
                       (*SubObjectList)->String.Pointer);
 
                 /*
                  * Add to the Length field the length of the string
                  */
                 UserPrt->Length += (*SubObjectList)->String.Length;
-            }
+                break;
 
-            else
-            {
+
+            case ACPI_TYPE_INTEGER:
                 /*
                  * If this is a number, then the Source Name
                  * is NULL, since the entire buffer was zeroed
                  * out, we can leave this alone.
                  */
-                if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
-                {
-                    /*
-                     * Add to the Length field the length of
-                     * the UINT32 NULL
-                     */
-                    UserPrt->Length += sizeof (UINT32);
-                }
+                /*
+                 * Add to the Length field the length of
+                 * the UINT32 NULL
+                 */
+                UserPrt->Length += sizeof (UINT32);
+                break;
 
-                else
-                {
-                    return_ACPI_STATUS (AE_BAD_DATA);
-                }
+
+            default:
+               DEBUG_PRINT (ACPI_ERROR, 
+                    ("CreatePciRoutingTable: Need Integer, found %s\n",
+                    AcpiCmGetTypeName ((*SubObjectList)->Common.Type)));
+               return_ACPI_STATUS (AE_BAD_DATA);
+               break;
             }
 
             /* Now align the current length */
@@ -411,18 +442,21 @@ AcpiRsCreatePciRoutingTable (
             UserPrt->Length = ROUND_UP_TO_64BITS (UserPrt->Length);
 
             /*
-             * Dereference the Source Index
+             * 4) Fourth subobject: Dereference the Source Index
              */
             SubObjectList++;
 
             if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
-                UserPrt->Data.SourceIndex =
+                UserPrt->SourceIndex =
                         (UINT32) (*SubObjectList)->Integer.Value;
             }
 
             else
             {
+                DEBUG_PRINT (ACPI_ERROR, 
+                    ("CreatePciRoutingTable: Need Integer, found %s\n",
+                    AcpiCmGetTypeName ((*SubObjectList)->Common.Type)));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
 

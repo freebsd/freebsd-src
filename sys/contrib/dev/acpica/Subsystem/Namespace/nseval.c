@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 81 $
+ *              $Revision: 83 $
  *
  ******************************************************************************/
 
@@ -388,8 +388,8 @@ AcpiNsEvaluateByHandle (
     Node = AcpiNsConvertHandleToEntry (Handle);
     if (!Node)
     {
-        Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
+        AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
 
@@ -456,12 +456,6 @@ AcpiNsEvaluateByHandle (
      * so we just return
      */
     return_ACPI_STATUS (Status);
-
-
-UnlockAndExit:
-
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
-    return_ACPI_STATUS (Status);
 }
 
 
@@ -497,6 +491,16 @@ AcpiNsExecuteControlMethod (
     FUNCTION_TRACE ("NsExecuteControlMethod");
 
 
+    /*
+     * Unlock the namespace before execution.  This allows namespace access
+     * via the external Acpi* interfaces while a method is being executed.
+     * However, any namespace deletion must acquire both the namespace and
+     * interpreter locks to ensure that no thread is using the portion of the
+     * namespace that is being deleted.
+     */
+
+    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+
     /* Verify that there is a method associated with this object */
 
     ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) MethodNode);
@@ -518,19 +522,8 @@ AcpiNsExecuteControlMethod (
     DEBUG_PRINT (TRACE_NAMES,
         ("At offset %8XH\n", ObjDesc->Method.Pcode + 1));
 
-
     /*
-     * Unlock the namespace before execution.  This allows namespace access
-     * via the external Acpi* interfaces while a method is being executed.
-     * However, any namespace deletion must acquire both the namespace and
-     * interpreter locks to ensure that no thread is using the portion of the
-     * namespace that is being deleted.
-     */
-
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
-
-    /*
-     * Excecute the method via the interpreter
+     * Execute the method via the interpreter
      */
     Status = AcpiAmlExecuteMethod (MethodNode, Params, ReturnObjDesc);
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -194,7 +194,10 @@ AcpiDsInitOneObject (
 
         Info->MethodCount++;
 
-        DEBUG_PRINT_RAW (ACPI_OK, ("."));
+        if (!(AcpiDbgLevel & TRACE_INIT))
+        {
+            DEBUG_PRINT_RAW (ACPI_OK, ("."));
+        }
 
         /*
          * Set the execution data width (32 or 64) based upon the
