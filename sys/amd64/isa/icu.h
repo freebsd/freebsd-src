@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.4 1997/07/22 18:36:06 smp Exp smp $
+ *	$Id: icu.h,v 1.15 1997/07/22 20:12:05 fsmp Exp $
  */
 
 /*
@@ -58,6 +58,8 @@
  *	DO NOT access imen directly, use INTREN()/INTRDIS().
  */
 
+void	INTREN			__P((u_int));
+void	INTRDIS			__P((u_int));
 #define	INTRMASK(msk,s)		(msk |= (s))
 #define INTRUNMASK(msk,s)	(msk &= ~(s))
 
