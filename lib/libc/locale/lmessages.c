@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Alexey Zelkin
+ * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,19 +46,21 @@ static const struct lc_messages_T _C_messages_locale = {
 
 static struct lc_messages_T _messages_locale;
 static int	_messages_using_locale;
-static char *	messages_locale_buf;
+static char	*_messages_locale_buf;
 
 int
 __messages_load_locale(const char *name) {
 
-	/* Propose that we can have incomplete locale file (w/o "{yes,no}str").
-	   Initialize them before loading.  In case of complete locale, they'll
-	   be initialized to loaded value, otherwise they'll not be touched. */
+	/*
+	 * Propose that we can have incomplete locale file (w/o "{yes,no}str").
+	 * Initialize them before loading.  In case of complete locale, they'll
+	 * be initialized to loaded value, otherwise they'll not be touched.
+	 */
 	_messages_locale.yesstr = empty;
 	_messages_locale.nostr = empty;
 
 	return __part_load_locale(name, &_messages_using_locale,
-		messages_locale_buf, "LC_MESSAGES",
+		_messages_locale_buf, "LC_MESSAGES",
 		LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
 		(const char **)&_messages_locale);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001 Alexey Zelkin
+ * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
+
 #include "setlocale.h"
 #include "ldpart.h"
 
@@ -73,8 +74,8 @@ __part_load_locale(const char *name,
 		return 0;
 
 	/*
-	** If the locale name is the same as our cache, use the cache.
-	*/
+	 * If the locale name is the same as our cache, use the cache.
+	 */
 	lbuf = locale_buf;
 	if (lbuf != NULL && strcmp(name, lbuf) == 0) {
 		set_from_buf(lbuf, num_lines, dst_localebuf);
@@ -82,8 +83,8 @@ __part_load_locale(const char *name,
 		return 0;
 	}
 	/*
-	** Slurp the locale file into the cache.
-	*/
+	 * Slurp the locale file into the cache.
+	 */
 	namesize = strlen(name) + 1;
 
 	if (!_PathLocale)
@@ -115,8 +116,8 @@ __part_load_locale(const char *name,
 	if (_close(fd) != 0)
 		goto bad_lbuf;
 	/*
-	** Parse the locale file into localebuf.
-	*/
+	 * Parse the locale file into localebuf.
+	 */
 	if (plim[-1] != '\n')
 		goto bad_lbuf;
 	num_lines = split_lines(p, plim);
