@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: kbdmap.1,v 1.10 1997/02/22 16:06:01 peter Exp $
+.\" $Id: kbdmap.1,v 1.6.2.2 1997/03/06 07:59:34 mpp Exp $
 
 .Dd Mar 25, 1995
 .Dt KBDMAP 1
@@ -84,7 +84,7 @@ Print description  of available keymaps or fonts
 to stdout and exit.
 .It Fl r , Fl restore
 Load default font from
-.Pa /etc/sysconfig .
+.Pa /etc/rc.conf .
 .It Fl s , Fl show
 Show currently supported languages and exit.
 .It Fl v , Fl verbose
@@ -99,7 +99,7 @@ Prefered language.
 Database for keymaps.
 .It Pa /usr/share/syscons/fonts/INDEX.fonts
 Database for fonts.
-.It Pa /etc/sysconfig
+.It Pa /etc/rc.conf
 Default font.
 .It Pa /usr/X11/lib/X11/locale/locale.alias
 Describe common LANG values.
@@ -117,7 +117,7 @@ work only on a (virtual) console and not with X11.
 .Xr dialog 1 ,
 .Xr kbdcontrol 1 ,
 .Xr vidcontrol 1 ,
-.Xr sysconfig 5
+.Xr rc.conf 5
 .Sh HISTORY
 The
 .Nm kbdmap
