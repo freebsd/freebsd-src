@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: named,v 1.5 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: named,v 1.10 2002/03/22 04:33:59 thorpej Exp $
 #
 
 # PROVIDE: named
 # REQUIRE: SERVERS
+# BEFORE:  DAEMON
+# KEYWORD: chrootdir
 
 . /etc/rc.subr
 
@@ -12,8 +14,47 @@ name="named"
 rcvar=$name
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
-
+start_precmd="named_precmd"
 extra_commands="reload"
+required_dirs="$named_chrootdir"	# if it is set, it must exist
+
+named_precmd()
+{
+	if [ -z "$named_chrootdir" ]; then
+		return 0;
+	fi
+
+	# If running in a chroot cage, ensure that the appropriate files
+	# exist inside the cage, as well as helper symlinks into the cage 
+	# from outside.
+	#
+	# As this is called after the is_running and required_dir checks
+	# are made in run_rc_command(), we can safely assume ${named_chrootdir}
+	# exists and named isn't running at this point (unless forcestart
+	# is used).
+	#
+
+	if [ ! -x "${named_chrootdir}/usr/libexec/named-xfer" -o \
+	    "${named_chrootdir}/usr/libexec/named-xfer" -ot \
+	    /usr/libexec/named-xfer ]; then
+		rm -f "${named_chrootdir}/usr/libexec/named-xfer"
+		cp -p /usr/libexec/named-xfer "${named_chrootdir}/usr/libexec"
+	fi
+	if [ ! -c "${named_chrootdir}/dev/null" ]; then
+		rm -f "${named_chrootdir}/dev/null"
+		( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
+	fi
+	if [ -f /etc/localtime ]; then
+		cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" || \
+		    cp -p /etc/localtime "${named_chrootdir}/etc/localtime"
+	fi
+	ln -fs "${named_chrootdir}/var/run/named.pid" /var/run/named.pid
+	ln -fs "${named_chrootdir}/var/run/ndc" /var/run/ndc
+
+	#	Change run_rc_commands()'s internal copy of $named_flags
+	#
+	rc_flags="-u named -g named -t ${named_chrootdir} $rc_flags"
+}
 
 load_rc_config $name
 run_rc_command "$1"

@@ -1,7 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: altqd,v 1.2 2002/03/22 04:33:58 thorpej Exp $
-# $FreeBSD$
+# $NetBSD: altqd,v 1.1 2001/04/05 23:55:00 thorpej Exp $
 #
 
 # PROVIDE: altqd

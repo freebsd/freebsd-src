@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: quota,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+# $NetBSD: quota,v 1.2 2000/05/13 08:45:08 lukem Exp $
 #
 
 # PROVIDE: quota
 # REQUIRE: mountall
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 

@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: route6d,v 1.3 2000/05/13 08:45:09 lukem Exp $
+# $NetBSD: route6d,v 1.4 2000/09/19 13:04:39 lukem Exp $
 #
 
 # PROVIDE: route6d
 # REQUIRE: DAEMON
+# BEFORE:  LOGIN
 
 . /etc/rc.subr
 

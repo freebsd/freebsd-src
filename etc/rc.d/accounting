@@ -1,30 +1,35 @@
 #!/bin/sh
 #
-# $NetBSD: accounting,v 1.2 2000/05/13 08:45:06 lukem Exp $
+# $NetBSD: accounting,v 1.6 2001/04/29 23:57:25 lukem Exp $
 #
 
 # PROVIDE: accounting
 # REQUIRE: mountall
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 
 name="accounting"
 rcvar=$name
+accounting_command="/usr/sbin/accton"
+accounting_file="/var/account/acct"
 start_cmd="accounting_start"
 stop_cmd="accounting_stop"
 
 accounting_start()
 {
-	if [ -f /var/account/acct ]; then
-		echo "Turning on accounting."
-		/usr/sbin/accton /var/account/acct
+	if [ ! -f ${accounting_file} ]; then
+		echo "Creating accounting file ${accounting_file}"
+		( umask 022 ; > ${accounting_file} )
 	fi
+	echo "Turning on accounting."
+	${accounting_command} ${accounting_file}
 }
 
 accounting_stop()
 {
 	echo "Turning off accounting."
-	/usr/sbin/accton
+	${accounting_command}
 }
 
 load_rc_config $name
