@@ -75,7 +75,9 @@ struct lconv {
 __BEGIN_DECLS
 struct lconv	*localeconv __P((void));
 char		*setlocale __P((int, const char *));
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 int		collate_range_cmp __P((int, int));
+#endif /* neither ANSI nor POSIX */
 __END_DECLS
 
 #endif /* _LOCALE_H_ */
