@@ -37,7 +37,6 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -54,9 +53,6 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_vlan_var.h>
-#include <net/route.h>
-
-#include <netinet/in.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
