@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # Support for importing a source collection into CVS.
-# Trys to prevent the user from the most common pitfalls (like creating
+# Tries to prevent the user from the most common pitfalls (like creating
 # new top-level repositories or second-level areas accidentally), and
 # cares to do some of the `dirty' work like maintaining the modules
 # database accordingly.
@@ -10,7 +10,21 @@
 #
 
 require "complete.pl";
+require "getopts.pl";
 
+
+sub scan_opts
+{
+    &Getopts("n");
+
+    $dont_do_it = "-n" if $opt_n;
+
+    die "usage: $0 [-n] [moduledir]\n" .
+	"       -n: don't do any commit, show only\n"
+	unless $#ARGV <= 0;
+
+    $moduledir = $ARGV[0] if $#ARGV == 0;
+}
 
 sub lsdir
 {
@@ -165,11 +179,28 @@ sub checktag
 }
 
 
+&scan_opts;
 &term_init;
 &cvs_init;
 
+if(! $moduledir) {
+    @dirs = &lsdir(".");
+    print "${so}Import from which directory?${se}\n";
+    @dirs = (@dirs, ".");
+    &list(@dirs);
+    $moduledir = &Complete("Which? [.]: ", @dirs);
+    $moduledir = "." unless $moduledir ne "";
+}
+
+chdir $moduledir || die "Cannot chdir to $moduledir\n";
+
 print "${so}Available repositories:${se}\n";
 &list(@reps);
+
+# the following kludge prevents the Complete package from starting
+# over with the string just selected; Complete should better provide
+# some reinitialize method
+$Complete'return = "";   $Complete'r = 0;
 
 $selected =
     &Complete("Enter repository (<TAB>=complete, ^D=show): ",
@@ -188,9 +219,6 @@ print "\n${so}Selected repository:${se} ${us}$rep${ue}\n";
 print "${so}Existent areas in this repository:${se}\n";
 &list(@areas);
 
-# the following kludge prevents the Complete package from starting
-# over with the string just selected; Complete should better provide
-# some reinitialize method
 $Complete'return = "";   $Complete'r = 0;
 
 $selected =
@@ -304,21 +332,34 @@ system("cvs co modules") && die "${us}failed.\n${ue}";
 
 print "${so}Inserting new module...${se}\n";
 open(ED, "|ed modules/modules") || die "${us}Cannot start ed${ue}\n";
-print(ED "${cmd}${modname}" . ' ' x (32 - length($modname)) .
+print(ED "${cmd}${modname}" . ' ' x (16 - length($modname)) .
       "$area/${modpath}\n.\nw\nq\n");
 close(ED);
 
 print "${so}Commiting new modules database...${se}\n";
-system("cvs commit -m \"  ${modname} --> $area/${modpath}\" modules")
+system("cvs $dont_do_it commit -m \"  " .
+       "${modname} --> $area/${modpath}\" modules")
     && die "Commit failed\n";
 
-system("cvs release -dQ modules");
+system("cvs $dont_do_it release -dQ modules");
 
 print "${so}Importing source.  Enter a commit message in the editor.${se}\n";
 
-system("cvs import $area/$modpath $vtag $rtag");
+system("cvs $dont_do_it import $area/$modpath $vtag $rtag");
 
 print "${so}You are done now.  Go to a different directory, perform a${se}\n".
     "${us}cvs co ${modname}${ue} ${so}command, and see if your new module" .
     " builds ok.${se}\n";
 
+if($dont_do_it) {
+print <<END
+
+
+${so}Since you did not allow to commit anything, you'll have${se}
+${so}to remove the edited modules' database yourself.${se}
+${so}To do this, perform a${se}
+${us}cd ${moduledir}; cvs release -dQ modules${ue}
+${so}command.${se}
+END
+;
+}
