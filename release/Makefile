@@ -238,7 +238,7 @@ DISKLABEL?=		disklabel
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
 # Things that need to be compiled without crypto support in releases
-.if !defined(FIXCRYPTO)
+.if !defined(FIXCRYPTO) && !make(release) && !make(rerelease)
 FIXCRYPTO!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS; \
 		cd ${.CURDIR}/../secure; ${MAKE} -V SPROGS
 .endif
@@ -295,10 +295,12 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
+.if !make(release) && !make(rerelease)
 BINMAKE!=	cd ${.CURDIR}/..; ${MAKE} -V BINMAKE
 WMAKEENV!=	cd ${.CURDIR}/..; \
 		${BINMAKE} ${CROSSENV} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${BINMAKE}
+.endif
 
 CVS_SRCARGS=	-P
 .if defined(RELEASETAG)
