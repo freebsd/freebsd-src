@@ -88,11 +88,16 @@
 #ifdef WITNESS
 static struct mtx_debug all_mtx_debug = { NULL, {NULL, NULL}, NULL, 0,
 	"All mutexes queue head" };
-static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, &all_mtx_debug,
+static struct mtx all_mtx = { 0, MTX_UNOWNED, 0, 0, {&all_mtx_debug},
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
+/*
+ * Set to 0 once mutexes have been fully initialized so that witness code can be
+ * safely executed.
+ */
+static int witness_cold = 1;
 #else	/* WITNESS */
-static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
+static struct mtx all_mtx = { 0, MTX_UNOWNED, 0, 0, {"All mutexes queue head"},
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
 #endif	/* WITNESS */
@@ -521,6 +526,10 @@ mtx_validate(struct mtx *m, int when)
 	int i;
 	int retval = 0;
 
+#ifdef WITNESS
+	if (witness_cold)
+		return 0;
+#endif
 	if (m == &all_mtx || cold)
 		return 0;
 
@@ -576,39 +585,35 @@ mtx_validate(struct mtx *m, int when)
 void
 mtx_init(struct mtx *m, const char *t, int flag)
 {
-#ifdef WITNESS
-	struct mtx_debug *debug;
-#endif
-
 	if ((flag & MTX_QUIET) == 0)
 		CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
 #ifdef MUTEX_DEBUG
 	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
 		return;
 #endif
-#ifdef WITNESS
-	if (flag & MTX_COLD)
-		debug = m->mtx_debug;
-	else
-		debug = NULL;
-	if (debug == NULL) {
-#ifdef DIAGNOSTIC
-		if(cold && bootverbose)
-			printf("malloc'ing mtx_debug while cold for %s\n", t);
-#endif
 
-		/* XXX - should not use DEVBUF */
-		debug = malloc(sizeof(struct mtx_debug), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
-		MPASS(debug != NULL);
-	}
-#endif
 	bzero((void *)m, sizeof *m);
 	TAILQ_INIT(&m->mtx_blocked);
 #ifdef WITNESS
-	m->mtx_debug = debug;
-#endif
+	if (!witness_cold) {
+		/* XXX - should not use DEVBUF */
+		m->mtx_union.mtxu_debug = malloc(sizeof(struct mtx_debug),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+		MPASS(m->mtx_union.mtxu_debug != NULL);
+
+		m->mtx_description = t;
+	} else {
+		/*
+		 * Save a pointer to the description so that witness_fixup()
+		 * can properly initialize this mutex later on.
+		 */
+		m->mtx_union.mtxu_description = t;
+	}
+#else
 	m->mtx_description = t;
+#endif
+
+	m->mtx_flags = flag;
 	m->mtx_lock = MTX_UNOWNED;
 	/* Put on all mutex queue */
 	mtx_enter(&all_mtx, MTX_DEF);
@@ -619,13 +624,20 @@ mtx_init(struct mtx *m, const char *t, int flag)
 	if (++mtx_cur_cnt > mtx_max_cnt)
 		mtx_max_cnt = mtx_cur_cnt;
 	mtx_exit(&all_mtx, MTX_DEF);
-	witness_init(m, flag);
+#ifdef WITNESS
+	if (!witness_cold)
+		witness_init(m, flag);
+#endif
 }
 
 void
 mtx_destroy(struct mtx *m)
 {
 
+#ifdef WITNESS
+	KASSERT(!witness_cold, ("%s: Cannot destroy while still cold\n",
+	    __FUNCTION__));
+#endif
 	CTR2(KTR_LOCK, "mtx_destroy 0x%p (%s)", m, m->mtx_description);
 #ifdef MUTEX_DEBUG
 	if (m->mtx_next == NULL)
@@ -653,12 +665,39 @@ mtx_destroy(struct mtx *m)
 	m->mtx_next = m->mtx_prev = NULL;
 #endif
 #ifdef WITNESS
-	free(m->mtx_debug, M_DEVBUF);
-	m->mtx_debug = NULL;
+	free(m->mtx_union.mtxu_debug, M_DEVBUF);
+	m->mtx_union.mtxu_debug = NULL;
 #endif
 	mtx_cur_cnt--;
 	mtx_exit(&all_mtx, MTX_DEF);
 }
+
+static void
+witness_fixup(void *dummy __unused)
+{
+#ifdef WITNESS
+	struct mtx *mp;
+	const char *description;
+
+	/* Iterate through all mutexes and finish up mutex initialization. */
+	for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next) {
+		description = mp->mtx_union.mtxu_description;
+
+		/* XXX - should not use DEVBUF */
+		mp->mtx_union.mtxu_debug = malloc(sizeof(struct mtx_debug),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+		MPASS(mp->mtx_union.mtxu_debug != NULL);
+
+		mp->mtx_description = description;
+
+		witness_init(mp, mp->mtx_flags);
+	}
+
+	/* Mark the witness code as being ready for use. */
+	atomic_store_rel_int(&witness_cold, 0);
+#endif
+}
+SYSINIT(wtnsfxup, SI_SUB_MUTEX, SI_ORDER_FIRST, witness_fixup, NULL)
 
 /*
  * The non-inlined versions of the mtx_*() functions are always built (above),
@@ -716,7 +755,7 @@ int	witness_skipspin = 0;
 SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
     "");
 
-MUTEX_DECLARE(static,w_mtx);
+static struct mtx	w_mtx;
 static struct witness	*w_free;
 static struct witness	*w_all;
 static int		 w_inited;
@@ -813,6 +852,8 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	int go_into_ddb = 0;
 #endif /* DDB */
 
+	if (witness_cold)
+		return;
 	if (panicstr)
 		return;
 	w = m->mtx_witness;
@@ -957,6 +998,8 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 {
 	struct witness *w;
 
+	if (witness_cold)
+		return;
 	if (panicstr)
 		return;
 	w = m->mtx_witness;
@@ -1003,6 +1046,8 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 	struct proc *p;
 	struct witness *w = m->mtx_witness;
 
+	if (witness_cold)
+		return;
 	if (panicstr)
 		return;
 	if (flags & MTX_SPIN) {
@@ -1053,6 +1098,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 {
 	struct witness *w, *w1;
 
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	witness_levelall();
 
 	for (w = w_all; w; w = w->w_next) {
@@ -1085,6 +1131,7 @@ witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 	char **sleep;
 	int n = 0;
 
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	p = CURPROC;
 	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
 	    m = LIST_NEXT(m, mtx_held)) {
@@ -1122,7 +1169,7 @@ enroll(const char *description, int flag)
 			return (NULL);
 
 	if (w_inited == 0) {
-		mtx_init(&w_mtx, "witness lock", MTX_COLD | MTX_SPIN);
+		mtx_init(&w_mtx, "witness lock", MTX_SPIN);
 		for (i = 0; i < WITNESS_COUNT; i++) {
 			w = &w_data[i];
 			witness_free(w);
@@ -1401,6 +1448,7 @@ witness_list(struct proc *p)
 	struct mtx *m;
 	int nheld;
 
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	nheld = 0;
 	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
 	    m = LIST_NEXT(m, mtx_held)) {
@@ -1416,6 +1464,8 @@ witness_list(struct proc *p)
 void
 witness_save(struct mtx *m, const char **filep, int *linep)
 {
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	*filep = m->mtx_witness->w_file;
 	*linep = m->mtx_witness->w_line;
 }
@@ -1423,6 +1473,8 @@ witness_save(struct mtx *m, const char **filep, int *linep)
 void
 witness_restore(struct mtx *m, const char *file, int line)
 {
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	m->mtx_witness->w_file = file;
 	m->mtx_witness->w_line = line;
 }

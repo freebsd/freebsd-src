@@ -154,7 +154,7 @@ int	timer0_max_count;
 u_int	tsc_freq;
 int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
-MUTEX_DECLARE(,clock_lock);
+struct mtx clock_lock;
 
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
