@@ -96,19 +96,6 @@ static struct disklabel *getdisklabel(char *s, int fd);
 #define	DESCPG		65536	/* desired fs_cpg ("infinity") */
 
 /*
- * Once upon a time...
- *    ROTDELAY gives the minimum number of milliseconds to initiate
- *    another disk transfer on the same cylinder. It is used in
- *    determining the rotationally optimal layout for disk blocks
- *    within a file; the default of fs_rotdelay is 4ms.
- *
- * ...but now we make this 0 to disable the rotdelay delay because
- * modern drives with read/write-behind achieve higher performance
- * without the delay.
- */
-#define ROTDELAY	0
-
-/*
  * MAXBLKPG determines the maximum number of data blocks which are
  * placed in a single cylinder group. The default is one indirect
  * block worth of data blocks.
@@ -123,47 +110,21 @@ static struct disklabel *getdisklabel(char *s, int fd);
 #define	NFPI		4
 
 /*
- * Once upon a time...
- *    For each cylinder we keep track of the availability of blocks at different
- *    rotational positions, so that we can lay out the data to be picked
- *    up with minimum rotational latency.  NRPOS is the default number of
- *    rotational positions that we distinguish.  With NRPOS of 8 the resolution
- *    of our summary information is 2ms for a typical 3600 rpm drive.
- *
- * ...but now we make this 1 (which essentially disables the rotational
- * position table because modern drives with read-ahead and write-behind do
- * better without the rotational position table.
- */
-#define	NRPOS		1	/* number distinct rotational positions */
-
-/*
  * About the same time as the above, we knew what went where on the disks.
  * no longer so, so kill the code which finds the different platters too...
  * We do this by saying one head, with a lot of sectors on it.
  * The number of sectors are used to determine the size of a cyl-group.
  * Kirk suggested one or two meg per "cylinder" so we say two.
  */
-#define NTRACKS		1	/* number of heads */
 #define NSECTORS	4096	/* number of sectors */
 
 int	Nflag;			/* run without writing file system */
-int	Oflag;			/* format as an 4.3BSD file system */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
-int	fssize;			/* file system size */
-int	ntracks = NTRACKS;	/* # tracks/cylinder */
-int	nsectors = NSECTORS;	/* # sectors/track */
-int	nphyssectors;		/* # sectors/track including spares */
-int	secpercyl;		/* sectors per cylinder */
-int	trackspares = -1;	/* spare sectors per track */
-int	cylspares = -1;		/* spare sectors per cylinder */
+u_int	fssize;			/* file system size */
+u_int	secpercyl = NSECTORS;	/* sectors per cylinder */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
-int	rpm;			/* revolutions/minute of drive */
-int	interleave;		/* hardware sector interleave */
-int	trackskew = -1;		/* sector 0 skew, per track */
-int	headswitch;		/* head switch time, usec */
-int	trackseek;		/* track-to-track seek, usec */
 int	fsize = 0;		/* fragment size */
 int	bsize = 0;		/* block size */
 int	cpg = DESCPG;		/* cylinders/cylinder group */
@@ -172,23 +133,20 @@ int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
 int	density;		/* number of bytes per inode */
 int	maxcontig = 0;		/* max contiguous blocks to allocate */
-int	rotdelay = ROTDELAY;	/* rotational delay between blocks */
 int	maxbpg;			/* maximum blocks per file in a cyl group */
-int	nrpos = NRPOS;		/* # of distinguished rotational positions */
 int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
-int	t_or_u_flag = 0;	/* user has specified -t or -u */
+static int	t_or_u_flag = 0;	/* user has specified -t or -u */
 #ifdef COMPAT
-char	*disktype;
-int	unlabeled;
+static char	*disktype;
+static int	unlabeled;
 #endif
 
-char	device[MAXPATHLEN];
-char	*progname;
+static char	device[MAXPATHLEN];
+static char	*progname;
 
-extern void mkfs (struct partition *, char *, int, int);
 static void rewritelabel (char *s, int fd, register struct disklabel *lp);
 static void usage (void);
 
@@ -210,13 +168,10 @@ main(int argc, char *argv[])
 		progname = *argv;
 
 	while ((ch = getopt(argc, argv,
-	    "NORS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:")) != -1)
+	    "NRS:T:Ua:b:c:e:f:g:h:i:m:o:s:u:v:")) != -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
-			break;
-		case 'O':
-			Oflag = 1;
 			break;
 		case 'R':
 			Rflag = 1;
@@ -247,10 +202,6 @@ main(int argc, char *argv[])
 				fatal("%s: bad cylinders/group", optarg);
 			cpgflg++;
 			break;
-		case 'd':
-			if ((rotdelay = atoi(optarg)) < 0)
-				fatal("%s: bad rotational delay", optarg);
-			break;
 		case 'e':
 			if ((maxbpg = atoi(optarg)) <= 0)
 		fatal("%s: bad blocks per file in a cylinder group",
@@ -272,24 +223,9 @@ main(int argc, char *argv[])
 			if ((density = atoi(optarg)) <= 0)
 				fatal("%s: bad bytes per inode", optarg);
 			break;
-		case 'k':
-			if ((trackskew = atoi(optarg)) < 0)
-				fatal("%s: bad track skew", optarg);
-			break;
-		case 'l':
-			if ((interleave = atoi(optarg)) <= 0)
-				fatal("%s: bad interleave", optarg);
-			break;
 		case 'm':
 			if ((minfree = atoi(optarg)) < 0 || minfree > 99)
 				fatal("%s: bad free space %%", optarg);
-			break;
-		case 'n':
-			if ((nrpos = atoi(optarg)) < 0)
-				fatal("%s: bad rotational layout count",
-				    optarg);
-			if (nrpos == 0)
-				nrpos = 1;
 			break;
 		case 'o':
 			if (strcmp(optarg, "space") == 0)
@@ -301,36 +237,18 @@ main(int argc, char *argv[])
 		"%s: unknown optimization preference: use `space' or `time'",
 				    optarg);
 			break;
-		case 'p':
-			if ((trackspares = atoi(optarg)) < 0)
-				fatal("%s: bad spare sectors per track",
-				    optarg);
-			break;
-		case 'r':
-			if ((rpm = atoi(optarg)) <= 0)
-				fatal("%s: bad revolutions/minute", optarg);
-			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
 				fatal("%s: bad file system size", optarg);
 			break;
-		case 't':
-			t_or_u_flag++;
-			if ((ntracks = atoi(optarg)) < 0)
-				fatal("%s: bad total tracks", optarg);
-			break;
 		case 'u':
 			t_or_u_flag++;
-			if ((nsectors = atoi(optarg)) < 0)
+			if ((n = atoi(optarg)) < 0)
 				fatal("%s: bad sectors/track", optarg);
+			secpercyl = n;
 			break;
 		case 'v':
 			vflag = 1;
-			break;
-		case 'x':
-			if ((cylspares = atoi(optarg)) < 0)
-				fatal("%s: bad spare sectors per cylinder",
-				    optarg);
 			break;
 		case '?':
 		default:
@@ -416,35 +334,15 @@ main(int argc, char *argv[])
 		fatal(
 		    "%s: maximum file system size on the `%c' partition is %d",
 		    argv[0], *cp, pp->p_size);
-	if (rpm == 0) {
-		rpm = lp->d_rpm;
-		if (rpm <= 0)
-			rpm = 3600;
-	}
-	if (ntracks == 0) {
-		ntracks = lp->d_ntracks;
-		if (ntracks <= 0)
-			fatal("%s: no default #tracks", argv[0]);
-	}
-	if (nsectors == 0) {
-		nsectors = lp->d_nsectors;
-		if (nsectors <= 0)
+	if (secpercyl == 0) {
+		secpercyl = lp->d_nsectors;
+		if (secpercyl <= 0)
 			fatal("%s: no default #sectors/track", argv[0]);
 	}
 	if (sectorsize == 0) {
 		sectorsize = lp->d_secsize;
 		if (sectorsize <= 0)
 			fatal("%s: no default sector size", argv[0]);
-	}
-	if (trackskew == -1) {
-		trackskew = lp->d_trackskew;
-		if (trackskew < 0)
-			trackskew = 0;
-	}
-	if (interleave == 0) {
-		interleave = lp->d_interleave;
-		if (interleave <= 0)
-			interleave = 1;
 	}
 	if (fsize == 0) {
 		fsize = pp->p_fsize;
@@ -471,18 +369,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "because minfree is less than %d%%\n", MINFREE);
 		opt = FS_OPTSPACE;
 	}
-	if (trackspares == -1) {
-		trackspares = lp->d_sparespertrack;
-		if (trackspares < 0)
-			trackspares = 0;
-	}
-	nphyssectors = nsectors + trackspares;
-	if (cylspares == -1) {
-		cylspares = lp->d_sparespercyl;
-		if (cylspares < 0)
-			cylspares = 0;
-	}
-	secpercyl = nsectors * ntracks - cylspares;
 	/*
 	 * Only complain if -t or -u have been specified; the default
 	 * case (4096 sectors per cylinder) is intended to disagree
@@ -494,8 +380,6 @@ main(int argc, char *argv[])
 		    "disagrees with disk label", (u_long)lp->d_secpercyl);
 	if (maxbpg == 0)
 		maxbpg = MAXBLKPG(bsize);
-	headswitch = lp->d_headswitch;
-	trackseek = lp->d_trkseek;
 #ifdef notdef /* label may be 0 if faked up by kernel */
 	bbsize = lp->d_bbsize;
 	sbsize = lp->d_sbsize;
@@ -506,8 +390,6 @@ main(int argc, char *argv[])
 		int secperblk = sectorsize / DEV_BSIZE;
 
 		sectorsize = DEV_BSIZE;
-		nsectors *= secperblk;
-		nphyssectors *= secperblk;
 		secpercyl *= secperblk;
 		fssize *= secperblk;
 		pp->p_size *= secperblk;
@@ -599,7 +481,6 @@ usage()
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
-	fprintf(stderr, "\t-O create a 4.3BSD format filesystem\n");
 	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 #ifdef COMPAT
@@ -609,24 +490,16 @@ usage()
 	fprintf(stderr, "\t-a maximum contiguous blocks\n");
 	fprintf(stderr, "\t-b block size\n");
 	fprintf(stderr, "\t-c cylinders/group\n");
-	fprintf(stderr, "\t-d rotational delay between contiguous blocks\n");
 	fprintf(stderr, "\t-e maximum blocks per file in a cylinder group\n");
 	fprintf(stderr, "\t-f frag size\n");
 	fprintf(stderr, "\t-g average file size\n");
 	fprintf(stderr, "\t-h average files per directory\n");
 	fprintf(stderr, "\t-i number of bytes per inode\n");
-	fprintf(stderr, "\t-k sector 0 skew, per track\n");
-	fprintf(stderr, "\t-l hardware sector interleave\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
-	fprintf(stderr, "\t-n number of distinguished rotational positions\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
-	fprintf(stderr, "\t-p spare sectors per track\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
-	fprintf(stderr, "\t-r revolutions/minute\n");
-	fprintf(stderr, "\t-t tracks/cylinder\n");
-	fprintf(stderr, "\t-u sectors/track\n");
+	fprintf(stderr, "\t-u sectors/cylinder\n");
 	fprintf(stderr,
         "\t-v do not attempt to determine partition name from device name\n");
-	fprintf(stderr, "\t-x spare sectors per cylinder\n");
 	exit(1);
 }
