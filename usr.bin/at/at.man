@@ -129,7 +129,9 @@ and to run a job at 1am tomorrow, use
 .Pp
 The
 .Nm at
-utility also supports the \*[Px] time format (see
+utility also supports the
+.Tn POSIX
+time format (see
 .Fl t
 option).
 .Pp
