@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.14 1995/06/02 02:06:43 jkh Exp $
+ * $Id: config.c,v 1.15.2.15 1995/06/02 02:38:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,6 +135,12 @@ configFstab(void)
     int i, cnt;
     Chunk *c1, *c2;
 
+    if (!RunningAsInit) {
+	if (file_readable("/etc/fstab"))
+	    return;
+	else
+	    msgConfirm("Attempting to rebuild your /etc/fstab file.\nWarning: If you had any CD devices in use before running\nsysinstall then they may NOT be found in this run!");
+    }
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
@@ -293,9 +299,12 @@ configResolv(void)
     char *cp;
     static Boolean hostsModified = FALSE;
 
+    if (!RunningAsInit && file_readable("/etc/resolv.conf"))
+	return;
+
     if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
 	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
-	    msgConfirm("Warning:  Missing domain name or name server value - this installation\nmethod may or may not work properly!");
+	    msgConfirm("Warning:  Missing domain name or name server value - network operations\nmay fail as a result!");
 	goto skip;
     }
     Mkdir("/etc", NULL);
@@ -344,11 +353,11 @@ configPackages(char *str)
 	}
     }
     else
-	onCD = FALSE;
+	onCD = file_readable("/cdrom/packages");
 
     if (onCD) {
 	if (!(pid = fork())) {
-	    execl("/stand/sh", "sh", "-c", "pkg_manage /cdrom/packages", (char *)NULL);
+	    execl("/stand/sh", "sh", "-c", "cd /cdrom/packages && pkg_manage -add", (char *)NULL);
 	    exit(1);
 	}
 	else {

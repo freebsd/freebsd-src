@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.7 1995/06/02 19:33:12 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.8 1995/06/03 04:54:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,7 +91,7 @@ get_new_host(void)
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i, retries;
+    int i, retries, max_retries = MAX_FTP_RETRIES;
     char *cp, *hostname, *dir;
     char *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
@@ -146,20 +146,21 @@ mediaInitFTP(Device *dev)
 	login_name = getenv(FTP_USER);
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
-    retries = 0;
+    retries = i = 0;
+    if (OptFlags & OPT_FTP_RESELECT)
+	max_retries = 0;
 retry:
+    if (i && ++retries > max_retries)) {
+	if (!get_new_host())
+	    return FALSE;
+	retries = 0;
+    }
     msgNotify("Logging in as %s..", login_name);
     if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
 	if (OptFlags & OPT_NO_CONFIRM)
-	    msgNotify("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
+	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
-	    msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
-	if ((OptFlags & OPT_FTP_RESELECT) || ++retries > MAX_FTP_RETRIES) {
-	     if (!get_new_host())
-		return FALSE;
-return FALSE;
-	     retries = 0;
-	}
+	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
 	goto retry;
     }
 
@@ -168,7 +169,7 @@ return FALSE;
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
-	if (FtpChdir(ftp, dir) == -2)
+	if ((i = FtpChdir(ftp, dir)) == -2)
 	    goto retry;
     }
     if (isDebug())
@@ -181,15 +182,17 @@ int
 mediaGetFTP(char *file)
 {
     int fd;
-    int nretries = 0;
+    int nretries = 0, max_retries = MAX_FTP_RETRIES;
 
+    if (OptFlags & OPT_FTP_RESELECT)
+	max_retries = 0;
 evil_goto:
     fd = FtpGet(ftp, file);
     if (fd < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2 || (OptFlags & OPT_FTP_RESELECT) || ++nretries > MAX_FTP_RETRIES) {
+	if (fd == -2 || ++nretries > max_retries) {
 	    if (!get_new_host())
-		return -1;
+		return -2;
 	    nretries = 0;
 	}
 	goto evil_goto;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.7 1995/06/02 15:30:56 jkh Exp $
+ * $Id: dist.c,v 1.35.2.8 1995/06/03 02:14:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -260,7 +260,7 @@ distExtract(char *parent, Distribution *me)
 	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	fd = (*mediaDevice->get)(buf);
-	if (fd != -1) {
+	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
 	    if (mediaDevice->close)
@@ -269,6 +269,8 @@ distExtract(char *parent, Distribution *me)
 		close(fd);
 	    goto done;
 	}
+	else if (fd == -2)
+	    return FALSE;
 
 	/* If we couldn't get it as one file then we need to get multiple pieces; get info file telling us how many */
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
@@ -305,15 +307,13 @@ distExtract(char *parent, Distribution *me)
 		strcat(buf,".aa");
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0)
-		status = FALSE;
-	    else {
-		msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-		status = mediaExtractDist(me[i].my_dir, fd);
-		if (mediaDevice->close)
-		    (*mediaDevice->close)(mediaDevice, fd);
-		else
-		    close(fd);
-	    }
+		return FALSE;
+	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
+	    status = mediaExtractDist(me[i].my_dir, fd);
+	    if (mediaDevice->close)
+		(*mediaDevice->close)(mediaDevice, fd);
+	    else
+		close(fd);
 	    goto done;
 	}
 
@@ -322,20 +322,16 @@ distExtract(char *parent, Distribution *me)
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
 	    char prompt[80];
-	    int retries = 0;
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
-retry:
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0) {
-		if (++retries < 5)
-		    goto retry;
 		dialog_clear();
-		msgConfirm("failed to retreive piece file %s after 5 retries!\nAborting the transfer", buf);
+		msgConfirm("failed to retreive piece file %s after retries!\nAborting the transfer", buf);
 		goto punt;
 	    }
 	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    dialog_gauge(" Progress ", prompt, 8, 15, 6, 50, (int) ((float) (chunk + 1) / numchunks * 100));
+	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
 		if (retval != n) {
