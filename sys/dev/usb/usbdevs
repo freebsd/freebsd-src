@@ -339,6 +339,8 @@ vendor LUWEN		0x0c76	Luwen
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
+vendor JRC		0x1145	Japan Radio Company
+vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
 vendor SHARK		0x13d2	Shark
@@ -710,6 +712,9 @@ product	IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
 product IOMEGA ZIP100		0x0001	Zip 100
 product IOMEGA ZIP250		0x0030	Zip 250
 
+/* JRC products */
+product JRC AH_J3001V_J3002V	0x0001	AirH\" PHONE AH-J3001V/J3002V
+
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB ethernet controller engine
 product KLSI DUH3E10BTN		0x0009	USB ethernet controller engine
@@ -734,6 +739,7 @@ product KEYSPAN USA19		0x0103	USA-19 serial adapter
 product KEYSPAN USA18X		0x0105	USA-18X serial adapter
 product KEYSPAN USA19W		0x0106	USA-19W serial adapter
 product KEYSPAN USA49W		0x0109	USA-49W serial adapter
+product KEYSPAN USA19QW		0x0118	USA-19QW serial adapter
 
 /* Kingston products */
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
@@ -990,6 +996,7 @@ product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
+product SANDISK SDDR75		0x0810	ImageMate SDDR-75
 
 /* Sanyo Electric products */
 product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
