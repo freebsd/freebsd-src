@@ -36,9 +36,9 @@
 
 #include "acpi.h"
 
-u_long i386_acpi_root;
+u_long amd64_acpi_root;
 
-SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &i386_acpi_root, 0,
+SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &amd64_acpi_root, 0,
     "The physical address of the RSDP");
 
 ACPI_STATUS
@@ -59,7 +59,7 @@ AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpPhysicalAddress)
 	ACPI_POINTER ptr;
 	ACPI_STATUS status;
 
-	if (i386_acpi_root == 0) {
+	if (amd64_acpi_root == 0) {
 		/*
 		 * The loader passes the physical address at which it found the
 		 * RSDP in a hint.  We could recover this rather than searching
@@ -67,11 +67,11 @@ AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpPhysicalAddress)
 		 */
 		status = AcpiFindRootPointer(Flags, &ptr);
 		if (status == AE_OK)
-			i386_acpi_root = ptr.Pointer.Physical;
+			amd64_acpi_root = ptr.Pointer.Physical;
 	} else
 		status = AE_OK;
 
 	RsdpPhysicalAddress->PointerType = ACPI_PHYSICAL_POINTER;
-	RsdpPhysicalAddress->Pointer.Physical = i386_acpi_root;
+	RsdpPhysicalAddress->Pointer.Physical = amd64_acpi_root;
 	return (status);
 }
