@@ -353,7 +353,7 @@ nat_SetTarget(struct cmdargs const *arg)
   if (arg->argc != arg->argn + 1)
     return -1;
 
-  if (!strncasecmp(arg->argv[arg->argn], "MYADDR")) {
+  if (!strcasecmp(arg->argv[arg->argn], "MYADDR")) {
     addr.s_addr = INADDR_ANY;
     PacketAliasSetTarget(addr);
     return 0;
