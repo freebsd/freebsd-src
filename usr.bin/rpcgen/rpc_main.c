@@ -469,35 +469,41 @@ char rpcgen_table_dcl[] = "struct rpcgen_table {\n\
 char *generate_guard(pathname)
 	char* pathname;
 {
-	char* filename, *guard, *tmp;
+	char* filename, *guard, *tmp, *stopat;
 
 	filename = strrchr(pathname, '/');  /* find last component */
 	filename = ((filename == 0) ? pathname : filename+1);
 	guard = xstrdup(filename);
-	/* convert to a valid C macro name, and upper case
-	 * =~ m,[A-Za-z_][A-Za-z_0-9]*,   else map other chars to '_'.
+	stopat = strrchr(guard, '.');
+
+	/*
+	 * Convert to a valid C macro name and make it upper case.
+	 * Map macro unfriendly characterss to '_'.
 	 */
-	for (tmp = guard; '\000' != *tmp; ++tmp) {
+	for (tmp = guard; *tmp != '\000'; ++tmp) {
 		if (islower(*tmp))
 			*tmp = toupper(*tmp);
-		else if (isupper(*tmp) || '_' == *tmp)
+		else if (isupper(*tmp) || *tmp == '_')
 			/* OK for C */;
 		else if (tmp == guard)
 			*tmp = '_';
 		else if (isdigit(*tmp))
 			/* OK for all but first character */;
-		else if ('.' == *tmp) {
-			*tmp = '\000';
+		else if (tmp == stopat) {
+			*tmp = '\0';
 			break;
 		} else
 			*tmp = '_';
 	}
-	/* When the filename started with "." (wow, the is Poor Form)
-	 * lets put in the word "DOT" so we don't violate ANSI's reservation
-	 * of macros that start with "_" -- rpc at ksb.npcguild.org
+	/*
+	 * Can't have a '_' in front, because it'll end up being "__".
+	 * "__" macros shoudln't be used. So, remove all of the
+	 * '_' characters from the front.
 	 */
-	if ('\000' == *guard) {
-		guard = "DOT";
+	if (*guard == '_') {
+		for (tmp = guard; *tmp == '_'; ++tmp)
+			;
+		strcpy(guard, tmp);
 	}
 	guard = extendfile(guard, "_H_RPCGEN");
 	return (guard);
