@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: sys_generic.c,v 1.23 1997/02/22 09:39:19 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -598,7 +598,7 @@ select(p, uap, retval)
 			goto done;
 		}
 		s = splclock();
-		timevaladd(&atv, (struct timeval *)&time);
+		timevaladd(&atv, &time);
 		timo = hzto(&atv);
 		/*
 		 * Avoid inadvertently sleeping forever.
