@@ -25,10 +25,16 @@ ServerLocalOpen(const char *name, mode_t mask)
 {
   int s;
 
+  if (VarLocalAuth == LOCAL_DENY) {
+    LogPrintf(LogERROR, "Local: Can't open socket %s: No password "
+	      "in ppp.secret\n", name);
+    return 1;
+  }
+
   ifsun.sun_len = strlen(name);
   if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
     LogPrintf(LogERROR, "Local: %s: Path too long\n", name);
-    return 1;
+    return 2;
   }
   ifsun.sun_family = AF_LOCAL;
   strcpy(ifsun.sun_path, name);
@@ -36,7 +42,7 @@ ServerLocalOpen(const char *name, mode_t mask)
   s = socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "Local: socket: %s\n", strerror(errno));
-    return 2;
+    return 3;
   }
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   mask = umask(mask);
@@ -47,14 +53,14 @@ ServerLocalOpen(const char *name, mode_t mask)
       fprintf(VarTerm, "Wait for a while, then try again.\n");
     close(s);
     unlink(name);
-    return 3;
+    return 4;
   }
   umask(mask);
   if (listen(s, 5) != 0) {
     LogPrintf(LogERROR, "Local: Unable to listen to socket - OS overload?\n");
     close(s);
     unlink(name);
-    return 4;
+    return 5;
   }
   ServerClose();
   server = s;
@@ -69,10 +75,15 @@ ServerTcpOpen(int port)
   struct sockaddr_in ifsin;
   int s;
 
+  if (VarLocalAuth == LOCAL_DENY) {
+    LogPrintf(LogERROR, "Tcp: Can't open socket %d: No password "
+	      "in ppp.secret\n", port);
+    return 6;
+  }
   s = socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
-    return 5;
+    return 7;
   }
   ifsin.sin_family = AF_INET;
   ifsin.sin_addr.s_addr = INADDR_ANY;
@@ -83,12 +94,12 @@ ServerTcpOpen(int port)
     if (errno == EADDRINUSE && VarTerm)
       fprintf(VarTerm, "Wait for a while, then try again.\n");
     close(s);
-    return 6;
+    return 8;
   }
   if (listen(s, 5) != 0) {
     LogPrintf(LogERROR, "Tcp: Unable to listen to socket - OS overload?\n");
     close(s);
-    return 7;
+    return 9;
   }
   ServerClose();
   server = s;

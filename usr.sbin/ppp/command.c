@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.33 1997/08/25 00:34:23 brian Exp $
+ * $Id: command.c,v 1.24.2.34 1997/08/31 23:02:07 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -341,7 +341,7 @@ struct cmdtab const Commands[] = {
   {"enable", NULL, EnableCommand, LOCAL_AUTH,
   "Enable option", "enable option .."},
   {"passwd", NULL, LocalAuthCommand, LOCAL_NO_AUTH,
-  "Password for manipulation", "passwd option .."},
+  "Password for manipulation", "passwd LocalPassword"},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
@@ -764,14 +764,14 @@ QuitCommand(struct cmdtab const * list, int argc, char **argv)
   FILE *oVarTerm;
 
   if (mode & (MODE_DIRECT | MODE_DEDICATED | MODE_AUTO)) {
-    if (argc > 0 && (VarLocalAuth & LOCAL_AUTH)) {
-      Cleanup(EX_NORMAL);
+    if (argc > 0 && !strcasecmp(*argv, "all") && (VarLocalAuth & LOCAL_AUTH)) {
       mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
       if (oVarTerm && oVarTerm != stdout)
 	fclose(oVarTerm);
-    } else {
+      Cleanup(EX_NORMAL);
+    } else if (VarTerm) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
       mode &= ~MODE_INTER;

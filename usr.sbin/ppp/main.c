@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.34 1997/08/25 01:53:45 brian Exp $
+ * $Id: main.c,v 1.22.2.35 1997/08/31 23:02:35 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sysexits.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -52,9 +53,6 @@
 #include "sig.h"
 #include "server.h"
 #include "lcpproto.h"
-
-#define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
-#define LAUTH_M2 "Warning: Manipulation is allowed by anyone\n"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -166,7 +164,6 @@ TtyOldMode()
 void
 Cleanup(int excode)
 {
-
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
@@ -239,7 +236,8 @@ SetUpServer(int signo)
   int res;
 
   if ((res = ServerTcpOpen(SERVER_PORT + tunno)) != 0)
-    LogPrintf(LogERROR, "Failed %d to open port %d\n", res, SERVER_PORT + tunno);
+    LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
+	      res, SERVER_PORT + tunno);
 }
 
 static char *
@@ -333,11 +331,18 @@ main(int argc, char **argv)
   netfd = modem = tun_in = -1;
   server = -2;
   ProcessArgs(argc, argv);
-  if (!(mode & MODE_DIRECT))
+  if (!(mode & MODE_DIRECT)) {
+    if (getuid() != 0) {
+      fprintf(stderr, "You may only run ppp in client mode as user id 0\n");
+      LogClose();
+      return EX_NOPERM;
+    }
     VarTerm = stdout;
+  }
   Greetings();
   GetUid();
   IpcpDefAddress();
+  LocalAuthInit();
 
   if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
@@ -399,21 +404,6 @@ main(int argc, char **argv)
       Cleanup(EX_START);
     }
   }
-  if (ServerType() != NO_SERVER)
-    switch (LocalAuthInit()) {
-    case NOT_FOUND:
-      if (VarTerm) {
-	fprintf(VarTerm, LAUTH_M1);
-	fprintf(VarTerm, LAUTH_M2);
-	fflush(VarTerm);
-      }
-      /* Fall down */
-    case VALID:
-      VarLocalAuth = LOCAL_AUTH;
-      break;
-    default:
-      break;
-    }
 
   if (!(mode & MODE_INTER)) {
     if (mode & MODE_BACKGROUND) {
@@ -423,8 +413,8 @@ main(int argc, char **argv)
       }
     }
     /* Create server socket and listen. */
-    if (server == -2 && ServerTcpOpen(SERVER_PORT + tunno) != 0)
-      Cleanup(EX_SOCK);
+    if (server == -2)
+      ServerTcpOpen(SERVER_PORT + tunno);
 
     if (!(mode & MODE_DIRECT)) {
       pid_t bgpid;
@@ -933,20 +923,6 @@ DoLoop()
       VarTerm = fdopen(netfd, "a+");
       mode |= MODE_INTER;
       Greetings();
-      switch (LocalAuthInit()) {
-      case NOT_FOUND:
-	if (VarTerm) {
-	  fprintf(VarTerm, LAUTH_M1);
-	  fprintf(VarTerm, LAUTH_M2);
-	  fflush(VarTerm);
-	}
-	/* Fall down */
-      case VALID:
-	VarLocalAuth = LOCAL_AUTH;
-	break;
-      default:
-	break;
-      }
       (void) IsInteractive();
       Prompt();
     }
