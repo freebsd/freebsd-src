@@ -329,6 +329,9 @@
       crashdump functionality, and &man.ioctl.2; command necessary for
       the management CLI.</para>
 
+      <para>The &man.ata.4; driver now supports a wider variety of
+      chipsets, as listed in the Hardware Notes.</para>
+
       <para arch="i386">The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
       supports the Compaq SmartRAID 5* family of RAID controllers
