@@ -61,7 +61,8 @@
 #include <unistd.h>
 
 
-#define DEFAULT_EXEC_PREFIX "exec /usr/sbin/ppp -direct "
+#define	DEFAULT_EXEC_PREFIX	"exec /usr/sbin/ppp -direct "
+#define	HISMACADDR		"HISMACADDR"
 
 static int ReceivedSignal;
 
@@ -247,15 +248,15 @@ ConfigureNode(const char *prog, const char *iface, const char *provider,
 
 static void
 Spawn(const char *prog, const char *acname, const char *provider,
-	const char *exec,
-      struct ngm_connect ngc, int cs, int ds, void *request, int sz,
-      int debug)
+      const char *exec, struct ngm_connect ngc, int cs, int ds, void *request,
+      int sz, int debug)
 {
   char msgbuf[sizeof(struct ng_mesg) + sizeof(struct ngpppoe_sts)];
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
   struct ngpppoe_init_data *data;
-  char unknown[14], *path;
+  unsigned char *macaddr;
+  char env[sizeof(HISMACADDR)+18], unknown[14], *path;
   const char *msg;
   int ret, slen;
 
@@ -343,6 +344,17 @@ Spawn(const char *prog, const char *acname, const char *provider,
           syslog(LOG_INFO, "%s: Cannot add service on netgraph node: %m", path);
           _exit(EX_OSERR);
         }
+      }
+
+      /* Put the peer's MAC address in the environment */
+      if (sz >= sizeof(struct ether_header)) {
+        
+        macaddr = ((struct ether_header *)request)->ether_shost;
+        snprintf(env, sizeof(env), "%s=%x:%x:%x:%x:%x:%x", HISMACADDR,
+                 macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4],
+                 macaddr[5]);
+        if (putenv(env) != 0)
+          syslog(LOG_INFO, "putenv: cannot set %s: %m", env);
       }
 
       /* And send our request data to the waiting node */
