@@ -627,8 +627,8 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 	if (sc->packets == 0)
 		ng_source_stop(sc);
 	else
-		sc->intr_ch = ng_timeout(node, NULL, 0,
-		    ng_source_intr, sc, NG_SOURCE_INTR_TICKS);
+		sc->intr_ch = ng_timeout(node, NULL, NG_SOURCE_INTR_TICKS,
+		    ng_source_intr, sc, 0);
 }
 
 /*
