@@ -467,7 +467,8 @@ cs_cs89x0_probe(device_t dev)
 	}
 
 	if (!error) {
-                cs_writereg(sc, pp_isaint, irq);
+		if (!(sc->flags & CS_NO_IRQ))
+			cs_writereg(sc, pp_isaint, irq);
 	} else {
 	       	device_printf(dev, "Unknown or invalid irq\n");
                 return (ENXIO);

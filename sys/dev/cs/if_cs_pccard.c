@@ -80,11 +80,13 @@ cs_pccard_match(device_t dev)
 static int
 cs_pccard_probe(device_t dev)
 {
+	struct cs_softc *sc = device_get_softc(dev);
 	int error;
 
+	sc->flags |= CS_NO_IRQ;
 	error = cs_cs89x0_probe(dev);
-        cs_release_resources(dev);
-        return (error);
+	cs_release_resources(dev);
+	return (error);
 }
 
 static int
