@@ -39,10 +39,11 @@
 static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: fvwrite.c,v 1.6 1997/12/24 13:17:13 ache Exp $";
+		"$Id: fvwrite.c,v 1.7 1997/12/24 23:23:18 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "local.h"
 #include "fvwrite.h"
@@ -111,6 +112,22 @@ __sfvwrite(fp, uio)
 		 */
 		do {
 			GETIOV(;);
+			if ((fp->_flags & (__SALC | __SSTR)) ==
+			    (__SALC | __SSTR) && fp->_w < len) {
+				size_t blen = fp->_p - fp->_bf._base;
+
+				/*
+				 * Alloc an extra 128 bytes (+ 1 for NULL)
+				 * so we don't call realloc(3) so often.
+				 */
+				fp->_w = len + 128;
+				fp->_bf._size = blen + len + 128;
+				fp->_bf._base =
+				    realloc(fp->_bf._base, fp->_bf._size + 1);
+				if (fp->_bf._base == NULL)
+					goto err;
+				fp->_p = fp->_bf._base + blen;
+			}
 			w = fp->_w;
 			if (fp->_flags & __SSTR) {
 				if (len < w)

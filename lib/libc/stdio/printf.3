@@ -615,19 +615,15 @@ conform to
 .St -ansiC .
 .Sh HISTORY
 The functions
-.Fn snprintf
-and
-.Fn vsnprintf
-are new to this release.
-.Pp
-The functions
 .Fn asprintf
 and
 .Fn vasprintf
-first appeared in the GNU C library.  This implementation is thought
-to be compatible but is not derived from the GNU code.  This implementation
-was written by Peter Wemm <peter@FreeBSD.org> and first appeared in
-.Fx 2.2 .
+first appeared in the GNU C library.
+These were implemented by Peter Wemm <peter@FreeBSD.org> in
+.Fx 2.2 ,
+but were later replaced with a different implementation
+from Todd C. Miller <Todd.Miller@courtesan.com> for
+.Ox 2.3 .
 .Sh BUGS
 The conversion formats
 .Cm \&%D ,
