@@ -621,6 +621,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				break;
 			case IEEE80211_ELEMID_TIM:
 				break;
+			case IEEE80211_ELEMID_IBSSPARMS:
+				break;
 			case IEEE80211_ELEMID_XRATES:
 				xrates = frm;
 				break;
