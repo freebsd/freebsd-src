@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -165,7 +169,7 @@ lookup(name)
 				nmatches++;
 		}
 	}
-	if (nmatches != 1)
+	if (nmatches > 1)
 		return ((struct cmdtab *)-1);
 	return (found);
 }
