@@ -98,7 +98,7 @@ main(int ac, char **av)
 	int parm;
 	int in;
 	int c;
-	int i;
+	int i = 0;
 
 	/*
 	 * Parse commandline arguments.
