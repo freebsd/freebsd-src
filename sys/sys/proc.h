@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.9 1994/10/02 04:45:58 davidg Exp $
+ * $Id: proc.h,v 1.10 1994/10/02 08:34:47 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -263,10 +263,14 @@ void	mi_switch __P((void));
 void	resetpriority __P((struct proc *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
+void	remrq __P((struct proc *));
+void	cpu_switch __P((struct proc *));
 void	sleep __P((void *chan, int pri));
 int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
+__dead void cpu_exit __P((struct proc *));
+__dead void exit1 __P((struct proc *, int));
 
 #endif	/* KERNEL */
 

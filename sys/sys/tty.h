@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.4 1994/08/21 04:42:05 paul Exp $
+ * $Id: tty.h,v 1.5 1994/09/13 16:03:35 davidg Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -69,7 +69,7 @@ struct tty {
 	long	t_cancc;		/* Canonical queue statistics. */
 	struct	clist t_outq;		/* Device output queue. */
 	long	t_outcc;		/* Output queue statistics. */
-	char	t_line;			/* Interface to device drivers. */
+	int	t_line;			/* Interface to device drivers. */
 	dev_t	t_dev;			/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */

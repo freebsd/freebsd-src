@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.6 1994/08/19 11:45:29 davidg Exp $
+ *	$Id: imgact.h,v 1.7 1994/08/21 04:41:47 paul Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -56,4 +56,8 @@ struct image_params {
 	char interpreter_name[64]; /* name of the interpreter */
 };
 
+#ifdef KERNEL
+int	exec_extract_strings __P((struct image_params *));
+int	exec_new_vmspace __P((struct image_params *));
+#endif
 #endif 

@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
- * $Id: socketvar.h,v 1.3 1994/08/18 22:35:45 wollman Exp $
+ * $Id: socketvar.h,v 1.4 1994/08/21 04:41:58 paul Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
 #define _SYS_SOCKETVAR_H_
 
+#include <sys/stat.h>			/* for struct stat */
+#include <sys/filedesc.h>		/* for struct filedesc */
 #include <sys/select.h>			/* for struct selinfo */
 
 /*
@@ -144,9 +146,9 @@ struct socket {
 
 /* can we write something to so? */
 #define	sowriteable(so) \
-    (sbspace(&(so)->so_snd) >= (so)->so_snd.sb_lowat && \
+    ((sbspace(&(so)->so_snd) >= (so)->so_snd.sb_lowat && \
 	(((so)->so_state&SS_ISCONNECTED) || \
-	  ((so)->so_proto->pr_flags&PR_CONNREQUIRED)==0) || \
+	  ((so)->so_proto->pr_flags&PR_CONNREQUIRED)==0)) || \
      ((so)->so_state & SS_CANTSENDMORE) || \
      (so)->so_error)
 
@@ -208,6 +210,52 @@ int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	soo_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
 int	soo_select __P((struct file *fp, int which, struct proc *p));
 int 	soo_close __P((struct file *fp, struct proc *p));
+int	soo_stat __P((struct socket *, struct stat *));
+
+/*
+ * From uipc_socket and friends
+ */
+void    soqinsque __P((struct socket *, struct socket *, int));
+void    sowakeup __P((struct socket *, struct sockbuf *));
+void    socantrcvmore __P((struct socket *));
+void    socantsendmore __P((struct socket *));
+void    sbrelease __P((struct sockbuf *));
+void    sbappend __P((struct sockbuf *, struct mbuf *));
+void    sbappendrecord __P((struct sockbuf *, struct mbuf *));
+int	sbappendcontrol __P((struct sockbuf *, struct mbuf *, struct mbuf *));
+int	sbappendaddr __P((struct sockbuf *, struct sockaddr *, struct mbuf *, struct mbuf *));
+void    sbdroprecord __P((struct sockbuf *));
+void    sbcompress __P((struct sockbuf *, struct mbuf *, struct mbuf *));
+void    sbflush __P((struct sockbuf *));
+int     sbreserve __P((struct sockbuf *,u_long));
+int     soreserve __P((struct socket *,u_long,u_long));
+int     sb_lock __P((struct sockbuf *));
+int     sbwait __P((struct sockbuf *));
+void    sbdrop __P((struct sockbuf *, int)); 
+void    sofree __P((struct socket *));
+void    sorflush __P((struct socket *));
+int	soqremque __P((struct socket *,int));
+int     soabort __P((struct socket *));
+void    soisdisconnected __P((struct socket *));
+void    soisconnected __P((struct socket *));
+void    soisconnecting __P((struct socket *));
+void    soisdisconnecting __P((struct socket *));
+void    sohasoutofband __P((struct socket *));
+int     sodisconnect __P((struct socket *));
+int	sosend __P((struct socket *,struct mbuf *, struct uio *, struct mbuf *, struct mbuf *, int));
+int	socreate __P((int, struct socket **,int,int));
+int	getsock __P((struct filedesc *,int,struct file **));
+int	sockargs __P((struct mbuf **,caddr_t,int,int));
+int	sobind __P((struct socket *,struct mbuf *));
+int	solisten __P((struct socket *,int));
+int	soaccept __P((struct socket *,struct mbuf *));
+int	soconnect __P((struct socket *,struct mbuf *));
+int	soconnect2 __P((struct socket *,struct socket *));
+int	soclose __P((struct socket *));
+int	soshutdown __P((struct socket *,int));
+int	soreceive __P((struct socket *,struct mbuf **,struct uio *,struct mbuf **,struct mbuf **,int *));
+int	sosetopt __P((struct socket *,int, int, struct mbuf *));
+int	sogetopt __P((struct socket *,int, int, struct mbuf **));
 #endif
 
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.4 1994/08/21 04:41:51 paul Exp $
+ * $Id: mbuf.h,v 1.5 1994/08/21 19:19:39 paul Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -238,7 +238,8 @@ union mcluster {
 	MBUFLOCK( \
 	  if (mclfree == 0) \
 		(void)m_clalloc(1, (how)); \
-	  if ((p) = (caddr_t)mclfree) { \
+	  (p) = (caddr_t)mclfree; \
+	  if ((p)) { \
 		++mclrefcnt[mtocl(p)]; \
 		mbstat.m_clfree--; \
 		mclfree = ((union mcluster *)(p))->mcl_next; \
@@ -395,18 +396,24 @@ int	max_hdr;			/* largest link+protocol header */
 int	max_datalen;			/* MHLEN - max_hdr */
 extern	int mbtypes[];			/* XXX */
 
-struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
-struct	mbuf *m_free __P((struct mbuf *));
-struct	mbuf *m_get __P((int, int));
-struct	mbuf *m_getclr __P((int, int));
-struct	mbuf *m_gethdr __P((int, int));
-struct	mbuf *m_prepend __P((struct mbuf *, int, int));
-struct	mbuf *m_pullup __P((struct mbuf *, int));
+int	m_clalloc __P((int, int));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
-int	m_clalloc __P((int, int));
-void	m_copyback __P((struct mbuf *, int, int, caddr_t));
+void	m_reclaim __P((void));
+struct	mbuf *m_get __P((int, int));
+struct	mbuf *m_gethdr __P((int, int));
+struct	mbuf *m_getclr __P((int, int));
+struct	mbuf *m_free __P((struct mbuf *));
 void	m_freem __P((struct mbuf *));
+struct	mbuf *m_prepend __P((struct mbuf *,int,int));
+struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
+void	m_copydata __P((struct mbuf *,int,int,caddr_t));
+void	m_cat __P((struct mbuf *,struct mbuf *));
+void	m_adj __P((struct mbuf *,int));
+struct	mbuf *m_pullup __P((struct mbuf *, int));
+struct	mbuf *m_split __P((struct mbuf *,int,int));
+struct	mbuf *m_devget __P((char *,int,int,struct ifnet*,void (*copy)()));
+
 
 #ifdef MBTYPES
 int mbtypes[] = {				/* XXX */

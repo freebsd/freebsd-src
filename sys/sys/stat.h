@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.6 (Berkeley) 3/8/94
- * $Id: stat.h,v 1.3 1994/09/09 15:19:40 dfr Exp $
+ * $Id: stat.h,v 1.4 1994/09/20 22:24:26 bde Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -179,7 +179,9 @@ struct stat {
 
 #endif /* !_POSIX_SOURCE */
 
-#ifndef KERNEL
+#ifdef KERNEL
+void    cvtstat __P((struct stat *, struct ostat *)); 
+#else /* KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
