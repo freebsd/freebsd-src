@@ -170,7 +170,7 @@ aml_simulation_regload(const char *dumpfile)
 		return;
 	}
 	if ((fp = fopen(dumpfile, "r")) == NULL) {
-		warn(dumpfile);
+		warn("%s", dumpfile);
 		return;
 	}
 	while (fgets(buf, sizeof buf, fp) != NULL) {
@@ -494,7 +494,7 @@ aml_simulation_regdump(const char *dumpfile)
 		return;
 	}
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
-		warn(dumpfile);
+		warn("%s", dumpfile);
 		return;
 	}
 	while (!TAILQ_EMPTY(&RegionContentList)) {
