@@ -210,13 +210,15 @@ amdsmb_probe(device_t dev)
 {
 	struct amdsmb_softc *amdsmb_sc = (struct amdsmb_softc *)device_get_softc(dev);
 
+	device_set_desc(dev, "AMD 756 SMBus interface");
+	device_printf(dev, "AMD 756 SMBus interface\n");
+
 	/* Allocate a new smbus device */
-	amdsmb_sc->smbus = smbus_alloc_bus(dev);
+	amdsmb_sc->smbus = device_add_child(dev, "smbus", -1);
 	if (!amdsmb_sc->smbus)
 		return (EINVAL);
 
-	device_set_desc(dev, "AMD 756 SMBus interface");
-	device_printf(dev, "AMD 756 SMBus interface\n");
+	bus_generic_attach(dev);
 
 	return (0);
 }
@@ -634,3 +636,5 @@ static driver_t amdsmb_driver = {
 
 DRIVER_MODULE(amdpm, pci, amdpm_driver, amdpm_devclass, 0, 0);
 DRIVER_MODULE(amdsmb, amdpm, amdsmb_driver, amdsmb_devclass, 0, 0);
+MODULE_DEPEND(amdpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_VERSION(amdpm, 1);
