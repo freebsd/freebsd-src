@@ -140,14 +140,22 @@ kernel.
 .SH STATE TOP
 Using the \fB\-t\fP option \fBipfstat\fP will enter the state top mode. In
 this mode the state table is displayed similar to the way \fBtop\fP displays
-the process table. The \fB\-C\fP, \fB\-D\fP, \fB\-P\fP, \fB\-S\fP and\fB\-T\fP 
+the process table. The \fB\-C\fP, \fB\-D\fP, \fB\-P\fP, \fB\-S\fP and \fB\-T\fP 
 commandline options can be used to restrict the state entries that will be 
 shown and to specify the frequency of display updates.
 .PP
 In state top mode, the following keys can be used to influence the displayed
-information. \fBl\fP can be used to redraw the screen. \fBq\fP is used to
-quit the program. \fBs\fP can be used to change the sorting criterion and
-\fBr\fP can be used to reverse the sorting criterion.
+information:
+.TP
+\fBd\fP select information to display.
+.TP
+\fBl\fP redraw the screen.
+.TP
+\fBq\fP quit the program. 
+.TP
+\fBs\fP switch between different sorting criterion.
+.TP
+\fBr\fP reverse the sorting criterion.
 .PP
 States can be sorted by protocol number, by number of IP packets, by number
 of bytes and by time-to-live of the state entry. The default is to sort by

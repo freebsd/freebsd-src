@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_proxy.h,v 2.1.2.1 1999/09/19 12:18:20 darrenr Exp $
+ * $Id: ip_proxy.h,v 2.8.2.4 2000/12/02 00:15:03 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -97,6 +97,7 @@ typedef struct  ftpside {
 	char	*ftps_rptr;
 	char	*ftps_wptr;
 	u_32_t	ftps_seq;
+	u_32_t	ftps_len;
 	int	ftps_junk;
 	char	ftps_buf[FTP_BUFSZ];
 } ftpside_t;
