@@ -53,7 +53,7 @@
 /*
  * cpu_throw()
  *
- * This is the second half of cpu_swtch(). It is used when the current
+ * This is the second half of cpu_switch(). It is used when the current
  * thread is either a dummy or slated to die, and we no longer care
  * about its state.  This is only a slight optimization and is probably
  * not worth it anymore.  Note that we need to clear the pm_active bits so
