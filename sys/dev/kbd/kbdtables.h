@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.25 1995/01/30 21:36:32 sos Exp $
+ *	$Id: kbdtables.h,v 1.26 1995/03/03 08:37:10 sos Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -612,7 +612,7 @@ keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0x02, 0x00,
+/* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0xFF, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63),   F(63),     F(63),     F(63),     F(63),   0xFF, 0x00,
@@ -741,7 +741,7 @@ keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0x02, 0x00,
+/* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0xFF, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63),   F(63),     F(63),     F(63),     F(63),   0xFF, 0x00,
