@@ -2290,6 +2290,13 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 	return (error);
 }
 
+/*
+ * This function currently requires at least 36 bytes, or
+ * SHORT_INQUIRY_LENGTH, worth of data to function properly.  If this
+ * function needs more or less data in the future, another length should be
+ * defined in scsi_all.h to indicate the minimum amount of data necessary
+ * for this routine to function properly.
+ */
 void
 scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 {
