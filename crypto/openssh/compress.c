@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compress.c,v 1.14 2001/04/05 10:39:01 markus Exp $");
+RCSID("$OpenBSD: compress.c,v 1.17 2001/12/29 21:56:01 stevesk Exp $");
 
 #include "log.h"
 #include "buffer.h"
@@ -33,7 +33,7 @@ void
 buffer_compress_init_send(int level)
 {
 	if (compress_init_send_called == 1)
-		deflateEnd(&incoming_stream);
+		deflateEnd(&outgoing_stream);
 	compress_init_send_called = 1;
 	debug("Enabling compression at level %d.", level);
 	if (level < 1 || level > 9)
@@ -55,13 +55,13 @@ void
 buffer_compress_uninit(void)
 {
 	debug("compress outgoing: raw data %lu, compressed %lu, factor %.2f",
-	      outgoing_stream.total_in, outgoing_stream.total_out,
-	      outgoing_stream.total_in == 0 ? 0.0 :
-	      (double) outgoing_stream.total_out / outgoing_stream.total_in);
+	    outgoing_stream.total_in, outgoing_stream.total_out,
+	    outgoing_stream.total_in == 0 ? 0.0 :
+	    (double) outgoing_stream.total_out / outgoing_stream.total_in);
 	debug("compress incoming: raw data %lu, compressed %lu, factor %.2f",
-	      incoming_stream.total_out, incoming_stream.total_in,
-	      incoming_stream.total_out == 0 ? 0.0 :
-	      (double) incoming_stream.total_in / incoming_stream.total_out);
+	    incoming_stream.total_out, incoming_stream.total_in,
+	    incoming_stream.total_out == 0 ? 0.0 :
+	    (double) incoming_stream.total_in / incoming_stream.total_out);
 	if (compress_init_recv_called == 1)
 		inflateEnd(&incoming_stream);
 	if (compress_init_send_called == 1)
@@ -80,7 +80,7 @@ buffer_compress_uninit(void)
 void
 buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 {
-	char buf[4096];
+	u_char buf[4096];
 	int status;
 
 	/* This case is not handled below. */
@@ -88,13 +88,13 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 		return;
 
 	/* Input is the contents of the input buffer. */
-	outgoing_stream.next_in = (u_char *) buffer_ptr(input_buffer);
+	outgoing_stream.next_in = buffer_ptr(input_buffer);
 	outgoing_stream.avail_in = buffer_len(input_buffer);
 
 	/* Loop compressing until deflate() returns with avail_out != 0. */
 	do {
 		/* Set up fixed-size output buffer. */
-		outgoing_stream.next_out = (u_char *)buf;
+		outgoing_stream.next_out = buf;
 		outgoing_stream.avail_out = sizeof(buf);
 
 		/* Compress as much data into the buffer as possible. */
@@ -124,15 +124,15 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 void
 buffer_uncompress(Buffer * input_buffer, Buffer * output_buffer)
 {
-	char buf[4096];
+	u_char buf[4096];
 	int status;
 
-	incoming_stream.next_in = (u_char *) buffer_ptr(input_buffer);
+	incoming_stream.next_in = buffer_ptr(input_buffer);
 	incoming_stream.avail_in = buffer_len(input_buffer);
 
 	for (;;) {
 		/* Set up fixed-size output buffer. */
-		incoming_stream.next_out = (u_char *) buf;
+		incoming_stream.next_out = buf;
 		incoming_stream.avail_out = sizeof(buf);
 
 		status = inflate(&incoming_stream, Z_PARTIAL_FLUSH);

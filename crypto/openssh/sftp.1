@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.17 2001/04/22 13:32:27 markus Exp $
+.\" $OpenBSD: sftp.1,v 1.33 2002/02/26 19:06:43 deraadt Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -30,14 +30,20 @@
 .Nd Secure file transfer program
 .Sh SYNOPSIS
 .Nm sftp
-.Op Fl vC
+.Op Fl vC1
 .Op Fl b Ar batchfile
 .Op Fl o Ar ssh_option
-.Op Ar host
+.Op Fl s Ar subsystem | sftp_server
+.Op Fl B Ar buffer_size
+.Op Fl F Ar ssh_config
+.Op Fl P Ar sftp_server path
+.Op Fl R Ar num_requests
+.Op Fl S Ar program
+.Ar host
 .Nm sftp
 .Op [\fIuser\fR@]\fIhost\fR[:\fIfile\fR [\fIfile\fR]]
 .Nm sftp
-.Op [\fIuser\fR@]\fIhost\fR[:\fIdir\fR[\fI/\fR]] 
+.Op [\fIuser\fR@]\fIhost\fR[:\fIdir\fR[\fI/\fR]]
 .Sh DESCRIPTION
 .Nm
 is an interactive file transfer program, similar to
@@ -49,12 +55,12 @@ It may also use many features of ssh, such as public key authentication and
 compression.
 .Nm
 connects and logs into the specified
-.Ar hostname ,
+.Ar host ,
 then enters an interactive command mode.
 .Pp
-The second usage format will fetch files automaticly if a non-interactive 
-authentication is used, else it do so after an interactive authentication 
-is used.
+The second usage format will retrieve files automatically if a non-interactive
+authentication method is used; otherwise it will do so after
+successful interactive authentication.
 .Pp
 The last usage format allows the sftp client to start in a remote directory.
 .Pp
@@ -68,49 +74,96 @@ instead of
 Since it lacks user interaction it should be used in conjunction with
 non-interactive authentication.
 .Nm
-will abort if any of the following 
-commands fail: 
-.Ic get , put , rename , ln , rm , mkdir , chdir , lchdir
+will abort if any of the following
+commands fail:
+.Ic get , put , rename , ln ,
+.Ic rm , mkdir , chdir , lchdir
 and
 .Ic lmkdir .
-.It Fl C
-Enables compression (via ssh's 
-.Fl C
-flag)
 .It Fl o Ar ssh_option
-Specify an option to be directly passed to
-.Xr ssh 1 .
+Can be used to pass options to
+.Nm ssh
+in the format used in the
+.Xr ssh 1
+configuration file. This is useful for specifying options
+for which there is no separate
+.Nm sftp
+command-line flag.  For example, to specify an alternate
+port use:
+.Ic sftp -oPort=24 .
+.It Fl s Ar subsystem | sftp_server
+Specifies the SSH2 subsystem or the path for an sftp server
+on the remote host.  A path is useful for using sftp over
+protocol version 1, or when the remote
+.Nm sshd
+does not have an sftp subsystem configured.
 .It Fl v
 Raise logging level. This option is also passed to ssh.
+.It Fl B Ar buffer_size
+Specify  the size of the buffer that 
+.Nm
+uses when transferring files. Larger buffers require fewer round trips at
+the cost of higher memory consumption. The default is 32768 bytes.
+.It Fl C
+Enables compression (via ssh's
+.Fl C
+flag).
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Nm ssh .
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl P Ar sftp_server path
+Connect directly to a local 
+.Nm sftp-server 
+(rather than via
+.Nm ssh )
+This option may be useful in debugging the client and server.
+.It Fl R Ar num_requests
+Specify how many requests may be outstanding at any one time. Increasing 
+this may slightly improve file transfer speed but will increase memory
+usage. The default is 16 outstanding requests.
+.It Fl S Ar program
+Name of the
+.Ar program
+to use for the encrypted connection.
+The program must understand
+.Xr ssh 1
+options.
+.It Fl 1
+Specify the use of protocol version 1.
 .El
 .Sh INTERACTIVE COMMANDS
 Once in interactive mode,
 .Nm
-understands a set of commands similar to those of 
+understands a set of commands similar to those of
 .Xr ftp 1 .
 Commands are case insensitive and pathnames may be enclosed in quotes if they
 contain spaces.
 .Bl -tag -width Ds
+.It Ic bye
+Quit sftp.
 .It Ic cd Ar path
-Change remote directory to 
+Change remote directory to
 .Ar path .
 .It Ic lcd Ar path
-Change local directory to 
+Change local directory to
 .Ar path .
 .It Ic chgrp Ar grp Ar path
-Change group of file 
+Change group of file
 .Ar path
 to
 .Ar grp .
 .Ar grp
 must be a numeric GID.
 .It Ic chmod Ar mode Ar path
-Change permissions of file 
+Change permissions of file
 .Ar path
 to
 .Ar mode .
 .It Ic chown Ar own Ar path
-Change owner of file 
+Change owner of file
 .Ar path
 to
 .Ar own .
@@ -127,15 +180,15 @@ Retrieve the
 .Ar remote-path
 and store it on the local machine.
 If the local
-path name is not specified, it is given the same name it has on the 
-remote machine. If the 
+path name is not specified, it is given the same name it has on the
+remote machine. If the
 .Fl P
 flag is specified, then the file's full permission and access time are
 copied too.
 .It Ic help
 Display help text.
 .It Ic lls Op Ar ls-options Op Ar path
-Display local directory listing of either 
+Display local directory listing of either
 .Ar path
 or current directory if
 .Ar path
@@ -144,7 +197,7 @@ is not specified.
 Create local directory specified by
 .Ar path .
 .It Ic ln Ar oldpath Ar newpath
-Create a symbolic link from 
+Create a symbolic link from
 .Ar oldpath
 to
 .Ar newpath .
@@ -157,7 +210,7 @@ or current directory if
 .Ar path
 is not specified.
 .It Ic lumask Ar umask
-Set local umask to 
+Set local umask to
 .Ar umask .
 .It Ic mkdir Ar path
 Create remote directory specified by
@@ -169,8 +222,8 @@ Create remote directory specified by
 .Xc
 Upload
 .Ar local-path
-and store it on the remote machine. If the remote path name is not 
-specified, it is given the same name it has on the local machine. If the 
+and store it on the remote machine. If the remote path name is not
+specified, it is given the same name it has on the local machine. If the
 .Fl P
 flag is specified, then the file's full permission and access time are
 copied too.
@@ -190,12 +243,12 @@ Remove remote directory specified by
 Delete remote file specified by
 .Ar path .
 .It Ic symlink Ar oldpath Ar newpath
-Create a symbolic link from 
+Create a symbolic link from
 .Ar oldpath
 to
 .Ar newpath .
 .It Ic ! Ar command
-Execute 
+Execute
 .Ar command
 in local shell.
 .It Ic !

@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth1.c,v 1.22 2001/03/23 12:02:49 markus Exp $");
+RCSID("$OpenBSD: auth1.c,v 1.35 2002/02/03 17:53:25 markus Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -22,8 +22,10 @@ RCSID("$OpenBSD: auth1.c,v 1.22 2001/03/23 12:02:49 markus Exp $");
 #include "servconf.h"
 #include "compat.h"
 #include "auth.h"
+#include "channels.h"
 #include "session.h"
 #include "misc.h"
+#include "uidswap.h"
 
 /* import */
 extern ServerOptions options;
@@ -31,7 +33,7 @@ extern ServerOptions options;
 /*
  * convert ssh auth msg type into description
  */
-char *
+static char *
 get_authname(int type)
 {
 	static char buf[1024];
@@ -47,7 +49,7 @@ get_authname(int type)
 	case SSH_CMSG_AUTH_TIS:
 	case SSH_CMSG_AUTH_TIS_RESPONSE:
 		return "challenge-response";
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	case SSH_CMSG_AUTH_KERBEROS:
 		return "kerberos";
 #endif
@@ -60,27 +62,26 @@ get_authname(int type)
  * read packets, try to authenticate the user and
  * return only if authentication is successful
  */
-void
+static void
 do_authloop(Authctxt *authctxt)
 {
 	int authenticated = 0;
 	u_int bits;
-	RSA *client_host_key;
+	Key *client_host_key;
 	BIGNUM *n;
 	char *client_user, *password;
 	char info[1024];
 	u_int dlen;
-	int plen, nlen, elen;
 	u_int ulen;
 	int type = 0;
 	struct passwd *pw = authctxt->pw;
 
 	debug("Attempting authentication for %s%.100s.",
-	     authctxt->valid ? "" : "illegal user ", authctxt->user);
+	    authctxt->valid ? "" : "illegal user ", authctxt->user);
 
 	/* If the user has no password, accept authentication immediately. */
 	if (options.password_authentication &&
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
 #endif
 	    auth_password(authctxt, "")) {
@@ -100,65 +101,66 @@ do_authloop(Authctxt *authctxt)
 		info[0] = '\0';
 
 		/* Get a packet from the client. */
-		type = packet_read(&plen);
+		type = packet_read();
 
 		/* Process the packet. */
 		switch (type) {
-#ifdef AFS
-		case SSH_CMSG_HAVE_KERBEROS_TGT:
-			if (!options.kerberos_tgt_passing) {
-				verbose("Kerberos tgt passing disabled.");
-				break;
-			} else {
-				/* Accept Kerberos tgt. */
-				char *tgt = packet_get_string(&dlen);
-				packet_integrity_check(plen, 4 + dlen, type);
-				if (!auth_kerberos_tgt(pw, tgt))
-					verbose("Kerberos tgt REFUSED for %.100s", authctxt->user);
-				xfree(tgt);
-			}
-			continue;
 
-		case SSH_CMSG_HAVE_AFS_TOKEN:
-			if (!options.afs_token_passing || !k_hasafs()) {
-				verbose("AFS token passing disabled.");
-				break;
-			} else {
-				/* Accept AFS token. */
-				char *token_string = packet_get_string(&dlen);
-				packet_integrity_check(plen, 4 + dlen, type);
-				if (!auth_afs_token(pw, token_string))
-					verbose("AFS token REFUSED for %.100s", authctxt->user);
-				xfree(token_string);
-			}
-			continue;
-#endif /* AFS */
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 		case SSH_CMSG_AUTH_KERBEROS:
 			if (!options.kerberos_authentication) {
 				verbose("Kerberos authentication disabled.");
-				break;
 			} else {
-				/* Try Kerberos v4 authentication. */
-				KTEXT_ST auth;
-				char *tkt_user = NULL;
-				char *kdata = packet_get_string((u_int *) &auth.length);
-				packet_integrity_check(plen, 4 + auth.length, type);
+				char *kdata = packet_get_string(&dlen);
+				packet_check_eom();
 
-				if (authctxt->valid) {
-					if (auth.length < MAX_KTXT_LEN)
-						memcpy(auth.dat, kdata, auth.length);
-					authenticated = auth_krb4(pw->pw_name, &auth, &tkt_user);
-					if (authenticated) {
-						snprintf(info, sizeof info,
-						    " tktuser %.100s", tkt_user);
-						xfree(tkt_user);
+				if (kdata[0] == 4) { /* KRB_PROT_VERSION */
+#ifdef KRB4
+					KTEXT_ST tkt;
+
+					tkt.length = dlen;
+					if (tkt.length < MAX_KTXT_LEN)
+						memcpy(tkt.dat, kdata, tkt.length);
+
+					if (auth_krb4(authctxt, &tkt, &client_user)) {
+						authenticated = 1;
+						snprintf(info, sizeof(info),
+						    " tktuser %.100s",
+						    client_user);
+						xfree(client_user);
 					}
+#endif /* KRB4 */
+				} else {
+#ifdef KRB5
+					krb5_data tkt;
+					tkt.length = dlen;
+					tkt.data = kdata;
+
+					if (auth_krb5(authctxt, &tkt, &client_user)) {
+						authenticated = 1;
+						snprintf(info, sizeof(info),
+						    " tktuser %.100s",
+						    client_user);
+						xfree(client_user);
+					}
+#endif /* KRB5 */
 				}
 				xfree(kdata);
 			}
 			break;
-#endif /* KRB4 */
+#endif /* KRB4 || KRB5 */
+
+#if defined(AFS) || defined(KRB5)
+			/* XXX - punt on backward compatibility here. */
+		case SSH_CMSG_HAVE_KERBEROS_TGT:
+			packet_send_debug("Kerberos TGT passing disabled before authentication.");
+			break;
+#ifdef AFS
+		case SSH_CMSG_HAVE_AFS_TOKEN:
+			packet_send_debug("AFS token passing disabled before authentication.");
+			break;
+#endif /* AFS */
+#endif /* AFS || KRB5 */
 
 		case SSH_CMSG_AUTH_RHOSTS:
 			if (!options.rhosts_authentication) {
@@ -172,7 +174,7 @@ do_authloop(Authctxt *authctxt)
 			 * IP-spoofing on a local network.)
 			 */
 			client_user = packet_get_string(&ulen);
-			packet_integrity_check(plen, 4 + ulen, type);
+			packet_check_eom();
 
 			/* Try to authenticate using /etc/hosts.equiv and .rhosts. */
 			authenticated = auth_rhosts(pw, client_user);
@@ -194,24 +196,20 @@ do_authloop(Authctxt *authctxt)
 			client_user = packet_get_string(&ulen);
 
 			/* Get the client host key. */
-			client_host_key = RSA_new();
-			if (client_host_key == NULL)
-				fatal("RSA_new failed");
-			client_host_key->e = BN_new();
-			client_host_key->n = BN_new();
-			if (client_host_key->e == NULL || client_host_key->n == NULL)
-				fatal("BN_new failed");
+			client_host_key = key_new(KEY_RSA1);
 			bits = packet_get_int();
-			packet_get_bignum(client_host_key->e, &elen);
-			packet_get_bignum(client_host_key->n, &nlen);
+			packet_get_bignum(client_host_key->rsa->e);
+			packet_get_bignum(client_host_key->rsa->n);
 
-			if (bits != BN_num_bits(client_host_key->n))
+			if (bits != BN_num_bits(client_host_key->rsa->n))
 				verbose("Warning: keysize mismatch for client_host_key: "
-				    "actual %d, announced %d", BN_num_bits(client_host_key->n), bits);
-			packet_integrity_check(plen, (4 + ulen) + 4 + elen + nlen, type);
+				    "actual %d, announced %d",
+				     BN_num_bits(client_host_key->rsa->n), bits);
+			packet_check_eom();
 
-			authenticated = auth_rhosts_rsa(pw, client_user, client_host_key);
-			RSA_free(client_host_key);
+			authenticated = auth_rhosts_rsa(pw, client_user,
+			    client_host_key);
+			key_free(client_host_key);
 
 			snprintf(info, sizeof info, " ruser %.100s", client_user);
 			xfree(client_user);
@@ -223,9 +221,10 @@ do_authloop(Authctxt *authctxt)
 				break;
 			}
 			/* RSA authentication requested. */
-			n = BN_new();
-			packet_get_bignum(n, &nlen);
-			packet_integrity_check(plen, nlen, type);
+			if ((n = BN_new()) == NULL)
+				fatal("do_authloop: BN_new failed");
+			packet_get_bignum(n);
+			packet_check_eom();
 			authenticated = auth_rsa(pw, n);
 			BN_clear_free(n);
 			break;
@@ -241,7 +240,7 @@ do_authloop(Authctxt *authctxt)
 			 * not visible to an outside observer.
 			 */
 			password = packet_get_string(&dlen);
-			packet_integrity_check(plen, 4 + dlen, type);
+			packet_check_eom();
 
 			/* Try authentication with the password. */
 			authenticated = auth_password(authctxt, password);
@@ -252,12 +251,13 @@ do_authloop(Authctxt *authctxt)
 
 		case SSH_CMSG_AUTH_TIS:
 			debug("rcvd SSH_CMSG_AUTH_TIS");
-			if (options.challenge_reponse_authentication == 1) {
-				char *challenge = get_challenge(authctxt, authctxt->style);
+			if (options.challenge_response_authentication == 1) {
+				char *challenge = get_challenge(authctxt);
 				if (challenge != NULL) {
 					debug("sending challenge '%s'", challenge);
 					packet_start(SSH_SMSG_AUTH_TIS_CHALLENGE);
 					packet_put_cstring(challenge);
+					xfree(challenge);
 					packet_send();
 					packet_write_wait();
 					continue;
@@ -266,10 +266,10 @@ do_authloop(Authctxt *authctxt)
 			break;
 		case SSH_CMSG_AUTH_TIS_RESPONSE:
 			debug("rcvd SSH_CMSG_AUTH_TIS_RESPONSE");
-			if (options.challenge_reponse_authentication == 1) {
+			if (options.challenge_response_authentication == 1) {
 				char *response = packet_get_string(&dlen);
 				debug("got response '%s'", response);
-				packet_integrity_check(plen, 4 + dlen, type);
+				packet_check_eom();
 				authenticated = verify_response(authctxt, response);
 				memset(response, 'r', dlen);
 				xfree(response);
@@ -319,23 +319,26 @@ do_authloop(Authctxt *authctxt)
  * been exchanged and encryption is enabled.
  */
 void
-do_authentication()
+do_authentication(void)
 {
 	Authctxt *authctxt;
 	struct passwd *pw;
-	int plen;
 	u_int ulen;
-	char *user, *style = NULL;
+	char *p, *user, *style = NULL;
 
 	/* Get the name of the user that we wish to log in as. */
-	packet_read_expect(&plen, SSH_CMSG_USER);
+	packet_read_expect(SSH_CMSG_USER);
 
 	/* Get the user name. */
 	user = packet_get_string(&ulen);
-	packet_integrity_check(plen, (4 + ulen), SSH_CMSG_USER);
+	packet_check_eom();
 
 	if ((style = strchr(user, ':')) != NULL)
-		*style++ = 0;
+		*style++ = '\0';
+
+	/* XXX - SSH.com Kerberos v5 braindeath. */
+	if ((p = strchr(user, '@')) != NULL)
+		*p = '\0';
 
 	authctxt = authctxt_new();
 	authctxt->user = user;

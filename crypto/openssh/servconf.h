@@ -1,3 +1,5 @@
+/*	$OpenBSD: servconf.h,v 1.54 2002/03/04 17:27:39 stevesk Exp $	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -10,8 +12,6 @@
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
  */
-
-/* RCSID("$OpenBSD: servconf.h,v 1.41 2001/04/13 22:46:53 beck Exp $"); */
 
 #ifndef SERVCONF_H
 #define SERVCONF_H
@@ -52,10 +52,10 @@ typedef struct {
 						 * for RhostsRsaAuth */
 	int     print_motd;	/* If true, print /etc/motd. */
 	int	print_lastlog;	/* If true, print lastlog */
-	int     check_mail;	/* If true, check for new mail. */
 	int     x11_forwarding;	/* If true, permit inet (spoofing) X11 fwd. */
 	int     x11_display_offset;	/* What DISPLAY number to start
 					 * searching at */
+	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     keepalives;	/* If true, set SO_KEEPALIVE. */
@@ -73,7 +73,7 @@ typedef struct {
 	int     hostbased_uses_name_from_packet_only; /* experimental */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
 	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	int     kerberos_authentication;	/* If true, permit Kerberos
 						 * authentication. */
 	int     kerberos_or_local_passwd;	/* If true, permit kerberos
@@ -84,15 +84,17 @@ typedef struct {
 	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
 						 * file on logout. */
 #endif
-#ifdef AFS
-	int     kerberos_tgt_passing;	/* If true, permit Kerberos tgt
+#if defined(AFS) || defined(KRB5)
+	int     kerberos_tgt_passing;	/* If true, permit Kerberos TGT
 					 * passing. */
+#endif
+#ifdef AFS
 	int     afs_token_passing;	/* If true, permit AFS token passing. */
 #endif
 	int     password_authentication;	/* If true, permit password
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
-	int     challenge_reponse_authentication;
+	int     challenge_response_authentication;
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     use_login;	/* If true, login(1) is used */
@@ -114,31 +116,26 @@ typedef struct {
 	int	max_startups_rate;
 	int	max_startups;
 	char   *banner;			/* SSH-2 banner message */
-	int	reverse_mapping_check;	/* cross-check ip and dns */
+	int	verify_reverse_mapping;	/* cross-check ip and dns */
 	int	client_alive_interval;	/*
-					 * poke the client this often to 
-					 * see if it's still there 
+					 * poke the client this often to
+					 * see if it's still there
 					 */
 	int	client_alive_count_max;	/*
-					 *If the client is unresponsive
-					 * for this many intervals, above
-					 * diconnect the session 
+					 * If the client is unresponsive
+					 * for this many intervals above,
+					 * disconnect the session
 					 */
 
+	char   *authorized_keys_file;	/* File containing public keys */
+	char   *authorized_keys_file2;
+
 }       ServerOptions;
-/*
- * Initializes the server options to special values that indicate that they
- * have not yet been set.
- */
-void    initialize_server_options(ServerOptions * options);
 
-/*
- * Reads the server configuration file.  This only sets the values for those
- * options that have the special value indicating they have not been set.
- */
-void    read_server_config(ServerOptions * options, const char *filename);
+void	 initialize_server_options(ServerOptions *);
+void	 read_server_config(ServerOptions *, const char *);
+void	 fill_default_server_options(ServerOptions *);
+int	 process_server_config_line(ServerOptions *, char *, const char *, int);
 
-/* Sets values for those values that have not yet been set. */
-void    fill_default_server_options(ServerOptions * options);
 
 #endif				/* SERVCONF_H */
