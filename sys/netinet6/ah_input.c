@@ -291,7 +291,6 @@ ah4_input(m, va_alist)
 	 * convert them back to network endian.  VERY stupid.
 	 */
 	ip->ip_len = htons(ip->ip_len + hlen);
-	ip->ip_id = htons(ip->ip_id);
 	ip->ip_off = htons(ip->ip_off);
 #endif
 	if (ah4_calccksum(m, (caddr_t)cksum, siz1, algo, sav)) {
@@ -305,7 +304,6 @@ ah4_input(m, va_alist)
 	 * flip them back.
 	 */
 	ip->ip_len = ntohs(ip->ip_len) - hlen;
-	ip->ip_id = ntohs(ip->ip_id);
 	ip->ip_off = ntohs(ip->ip_off);
 #endif
     }
