@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.117 1996/09/11 03:46:41 dyson Exp $
+ *	$Id: pmap.c,v 1.118 1996/09/12 04:54:55 dyson Exp $
  */
 
 /*
@@ -2977,10 +2977,12 @@ static void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
+	pv_table_t *ppv;
 	register pv_entry_t pv;
 
 	printf("pa %x", pa);
-	for (pv = TAILQ_FIRST(pa_to_pvh(pa));
+	ppv = pa_to_pvh(pa);
+	for (pv = TAILQ_FIRST(&ppv->pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 #ifdef used_to_be
