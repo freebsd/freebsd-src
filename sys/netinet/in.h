@@ -236,12 +236,15 @@ __END_DECLS
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_PGM		113		/* PGM */
 /* 255: Reserved */
-/* BSD Private, local use, namespace incursion */
-#define	IPPROTO_DIVERT		254		/* divert pseudo-protocol */
+/* BSD Private, local use, namespace incursion, no longer used */
+#define	IPPROTO_OLD_DIVERT	254		/* OLD divert pseudo-proto */
 #define	IPPROTO_MAX		256
 
 /* last return value of *_input(), meaning "all job for this pkt is done".  */
 #define	IPPROTO_DONE		257
+
+/* Only used internally, so can be outside the range of valid IP protocols. */
+#define	IPPROTO_DIVERT		258		/* divert pseudo-protocol */
 
 /*
  * Local port number conventions:
