@@ -79,15 +79,15 @@ xntpd - Network Time Protocol daemon
 .I variable
 ]
 .SH DESCRIPTION
-.I xntpd
+.I Xntpd
 is a daemon which sets and maintains a Unix system time\-of\-day in
 agreement with Internet standard time servers.
-.I xntpd
+.I Xntpd
 is a complete implementation of the Network Time Protocol (NTP) version
 3 standard, as defined by RFC 1305, but also retains compatibility with
 version 1 and 2 servers as defined by RFC 1059 and RFC 1119,
 respectively.
-.I xntpd
+.I Xntpd
 does all computations in fixed point arithmetic and requires no floating
 point code. The computations done in the protocol and clock adjustment
 code are carried out with high precision and with attention to the
@@ -165,7 +165,7 @@ add a system variable
 .Ip -V 8
 add a system variable listed by default
 .SH "CONFIGURATION OPTIONS"
-.I xntpd 's
+.I Xntpd 's
 configuration file format is similar to other Unix configuration files.
 Comments begin with a \*(L"#\*(R" character and extend to the end of the
 line. Blank lines are ignored. Configuration commands consist of an
@@ -435,7 +435,7 @@ program included with the distribution.
 .I ...
 ]
 .PP
-.I xntpd
+.I Xntpd
 implements a general purpose address\-and\-mask based restriction list.
 The list is sorted by address and by mask, and the list is searched in
 this order for matches, with the last match found defining the
@@ -729,7 +729,7 @@ One generation file set element is generated per month. The file name
 suffix consists of a dot, a four digit year number, and a two digit
 month.
 .Ip year 10
-One generation file elment is generated per year. The filename suffix
+One generation file element is generated per year. The filename suffix
 consists of a dot and a 4 digit year number.
 .Ip age 10
 This type of file generation sets changes to a new element of the file
@@ -851,7 +851,7 @@ key and key identifier used to authenticate their data, though they must
 each learn the key and key identifer independently. In the case of DES,
 the keys are 56 bits long with, depending on type, a parity check on
 each byte. In the case of MD5, the keys are 64 bits (8 bytes).
-.I xntpd
+.I Xntpd
 reads its keys from a file specified using the
 .B -k
 command line option or the
@@ -911,7 +911,7 @@ program. The latter program obtains the key from the terminal as a
 password, so it is generally appropriate to specify the key chosen to be
 used for this purpose in ASCII format.
 .SH PRIMARY CLOCK SUPPORT
-.I xntpd
+.I Xntpd
 can be optionally compiled to include support for a number of types of
 reference clocks. A reference clock will generally (though not always)
 be a radio timecode receiver which is synchronized to a source of
@@ -1044,7 +1044,7 @@ the driver. The
 option is used for this purpose. Except where noted, these options apply
 to all clock drivers.
 .PP
-.I xntpd
+.I Xntpd
 on Unix machines currently supports several different types of clock
 hardware plus a special pseudo\-clock used for backup or when no other
 clock source is available. In the case of most of the clock drivers,
@@ -1100,7 +1100,7 @@ Written by Dennis Ferguson at the University of Toronto. Text amended by
 David Mills at the University of Delaware.
 .SH BUGS
 .PP
-.I xntpd
+.I Xntpd
 has gotten rather fat. While not huge, it has gotten larger than might
 be desireable for an elevated\-priority daemon running on a workstation,
 particularly since many of the fancy features which consume the space
