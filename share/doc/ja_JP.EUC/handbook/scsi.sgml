@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1 1996/11/15 05:14:41 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.19 -->
 
@@ -907,8 +907,9 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
         2192です.
 
 	X3T10のドラフトの多くは電子的に利用できる形で SCSI
-	BBS (719-574-0424) と ncrinfo.ncr.com の匿名 (anonymous) FTP サ
-	イトから得ることができます.
+	BBS (719-574-0424) と ncrinfo.ncr.com の Anonymous FTP (誰でも
+	ファイルを取ってくることができるFTPサービス) サイトから得るこ
+	とができます. 
 
 	最新の X3T10委員会のドキュメントは:
         <itemize>
