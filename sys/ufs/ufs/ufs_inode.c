@@ -145,10 +145,12 @@ ufs_reclaim(ap)
 	int i;
 #endif
 
-	VI_LOCK(vp);
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_reclaim: pushing active", vp);
-	VI_UNLOCK(vp);
+	/*
+	 * Destroy the vm object and flush associated pages.
+	 */
+	vnode_destroy_vobject(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
 		ip->i_flag |= IN_MODIFIED;
 		UFS_UPDATE(vp, 0);
@@ -169,7 +171,6 @@ ufs_reclaim(ap)
 		}
 	}
 #endif
-	vnode_destroy_vobject(vp);
 #ifdef UFS_DIRHASH
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);
