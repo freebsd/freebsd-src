@@ -126,9 +126,6 @@ struct smbfs_fctx {
 #define f_rq	f_urq.uf_rq
 #define f_t2	f_urq.uf_t2
 
-extern int smbfs_debuglevel;
-
-
 /*
  * smb level
  */
