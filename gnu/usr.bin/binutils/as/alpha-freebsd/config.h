@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 
+#define HAVE_DECL_GETOPT 1
+
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -273,4 +275,3 @@
 
 /* Define if errno is not declared in system header files. */
 /* #undef NEED_DECLARATION_ERRNO */
-
