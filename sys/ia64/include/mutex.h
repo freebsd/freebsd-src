@@ -48,6 +48,7 @@
 			"mpp->mtx_saveintr & IA64_PSR_I")
 
 #define	mtx_legal2block()	(save_intr() & IA64_PSR_I)
+#define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= IA64_PSR_I
 
 #endif	/* _KERNEL */
 
