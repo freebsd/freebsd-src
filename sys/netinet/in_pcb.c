@@ -669,7 +669,7 @@ in_pcbnotifyall(pcbinfo, faddr, errno, notify)
 	struct inpcbinfo *pcbinfo;
 	struct in_addr faddr;
 	int errno;
-	void (*notify)(struct inpcb *, int);
+	struct inpcb *(*notify)(struct inpcb *, int);
 {
 	struct inpcb *inp, *ninp;
 	struct inpcbhead *head;
@@ -777,7 +777,7 @@ in_losing(inp)
  * After a routing change, flush old routing
  * and allocate a (hopefully) better one.
  */
-void
+struct inpcb *
 in_rtchange(inp, errno)
 	register struct inpcb *inp;
 	int errno;
@@ -790,6 +790,7 @@ in_rtchange(inp, errno)
 		 * output is attempted.
 		 */
 	}
+	return inp;
 }
 
 /*
