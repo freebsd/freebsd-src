@@ -376,6 +376,9 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			capinfo = IEEE80211_CAPINFO_ESS;
 		if (ic->ic_flags & IEEE80211_F_WEPON)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
+		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		*(u_int16_t *)frm = htole16(capinfo);
 		frm += 2;
 
@@ -457,7 +460,12 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			capinfo |= IEEE80211_CAPINFO_ESS;
 		if (ic->ic_flags & IEEE80211_F_WEPON)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
-		if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
+		/*
+		 * NB: Some 11a AP's reject the request when
+		 *     short premable is set.
+		 */
+		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		if (ic->ic_flags & IEEE80211_F_SHSLOT)
 			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
@@ -504,6 +512,9 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		capinfo = IEEE80211_CAPINFO_ESS;
 		if (ic->ic_flags & IEEE80211_F_WEPON)
 			capinfo |= IEEE80211_CAPINFO_PRIVACY;
+		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		*(u_int16_t *)frm = htole16(capinfo);
 		frm += 2;
 
