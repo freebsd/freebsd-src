@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -43,10 +44,10 @@
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/kbdtables.h>
 #include <dev/vkbd/vkbd_var.h>
@@ -307,7 +308,7 @@ again:
 
 		error = uiomove(&status, sizeof(status), uio);
 	} else {
-		if (flag & IO_NDELAY) {
+		if (flag & O_NONBLOCK) {
 			error = EWOULDBLOCK;
 			goto done;
 		}
@@ -369,7 +370,7 @@ vkbd_dev_write(struct cdev *dev, struct uio *uio, int flag)
 			avail = q->head - q->tail;
 
 		if (avail == 0) {
-			if (flag & IO_NDELAY) {
+			if (flag & O_NONBLOCK) {
 				error = EWOULDBLOCK;
 				break;
 			}
