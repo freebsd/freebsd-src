@@ -71,7 +71,6 @@ struct ofw_pci_bdesc {
 	struct ofw_pci_bdesc	*obd_super;
 };
 
-u_int32_t ofw_pci_route_intr(phandle_t, u_int32_t);
 obr_callback_t ofw_pci_orb_callback;
 u_int8_t ofw_pci_alloc_busno(phandle_t);
 ofw_pci_binit_t ofw_pci_binit;

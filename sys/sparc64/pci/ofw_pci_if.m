@@ -26,6 +26,8 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#include <dev/ofw/openfirm.h>
+
 INTERFACE sparcbus;
 
 HEADER {
@@ -37,15 +39,20 @@ HEADER {
 };
 
 CODE {
-	static int sparcbus_default_intr_pending(device_t, int);
-	static bus_space_handle_t sparcbus_default_get_bus_handle(device_t,
-	    enum sbbt_id, bus_space_handle_t childhdl, bus_space_tag_t *tag);
-
 	static int
 	sparcbus_default_intr_pending(device_t dev, int intr)
 	{
 
 		return (SPARCBUS_INTR_PENDING(device_get_parent(dev), intr));
+	}
+
+	static u_int32_t
+	sparcbus_default_guess_ino(device_t dev, phandle_t node, u_int slot,
+	    u_int pin)
+	{
+
+		return (SPARCBUS_GUESS_INO(device_get_parent(dev), node, slot,
+		    pin));
 	}
 
 	static bus_space_handle_t
@@ -63,6 +70,17 @@ METHOD int intr_pending {
 	device_t dev;
 	int intr;
 } DEFAULT sparcbus_default_intr_pending;
+
+# Let the bus driver guess the INO of the device at the given slot and intpin
+# on the bus described by the node if it could not be determined from the
+# firmware properties. Returns 255 if no INO could be found (mapping will
+# continue at the parent), or the desired INO.
+METHOD u_int32_t guess_ino {
+	device_t dev;
+	phandle_t node;
+	u_int slot;
+	u_int pin;
+} DEFAULT sparcbus_default_guess_ino;
 
 # Get the bustag for the root bus. This is needed for ISA old-stlye
 # in[bwl]()/out[bwl]() support, where no tag retrieved from a resource is
