@@ -331,6 +331,10 @@ esac
 
 echo '.'
 
+# Build devices database
+#
+dev_mkdb
+
 # Enable dumpdev so that savecore can see it.
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
@@ -372,10 +376,6 @@ esac
 if [ -n "${network_pass2_done}" ]; then
 	network_pass3
 fi
-
-# Build ps databases
-#
-dev_mkdb
 
 # Check the password temp/lock file
 #
