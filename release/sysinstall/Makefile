@@ -78,11 +78,15 @@ rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
 
+.if ${MACHINE} == "pc98"
+KEYMAPS= jp.pc98 jp.pc98.iso
+.else
 KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
 	german.iso hr.iso hu.iso2.101keys it.iso icelandic.iso jp.106 \
 	norwegian.iso pl_PL.ISO_8859-2 pt.iso ru.koi8-r si.iso \
 	spanish.iso swedish.iso swissfrench.iso swissgerman.iso ua.koi8-u \
 	ua.koi8-u.shift.alt uk.iso us.dvorak us.iso
+.endif
 
 keymap.h:
 	rm -f keymap.tmp
