@@ -21,7 +21,16 @@ FSPROTO=$1 ; shift
 FSINODE=$1 ; shift
 FSLABEL=$1 ; shift
 
-BOOT1="-b ${RD}/trees/base/boot/boot1"
+#
+# We don't have any bootblocks on ia64. Note that -B implies -r,
+# so we have to specifically specify -r when we don't have -B.
+# disklabel fails otherwise.
+#
+if [ -f "${RD}/trees/base/boot/boot1" ]; then
+	BOOT1="-B -b ${RD}/trees/base/boot/boot1"
+else
+	BOOT1="-r"
+fi
 if [ -f "${RD}/trees/base/boot/boot2" ]; then
 	BOOT2="-s ${RD}/trees/base/boot/boot2"
 else
@@ -54,7 +63,7 @@ dofs_vn () {
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
-	disklabel -w -B ${BOOT1} ${BOOT2} ${VNDEVICE} ${FSLABEL}
+	disklabel -w ${BOOT1} ${BOOT2} ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 1 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
@@ -105,7 +114,7 @@ dofs_md () {
 			exit 1
 		fi
 	fi
-	disklabel -w -B ${BOOT1} ${BOOT2} ${MDDEVICE} ${FSLABEL}
+	disklabel -w ${BOOT1} ${BOOT2} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
