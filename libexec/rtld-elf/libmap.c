@@ -251,7 +251,7 @@ lml_find (struct lm_list *lmh, const char *f)
 	TAILQ_FOREACH(lm, lmh, lm_link)
 		if (strcmp(f, lm->f) == 0)
 			return (lm->t);
-	return NULL;
+	return (NULL);
 }
 
 /* Given an executable name, return a pointer to the translation list or
@@ -298,10 +298,9 @@ static const char *
 quickbasename (const char *path)
 {
 	const char *p = path;
-	for (; *path; path++)
-	{
+	for (; *path; path++) {
 		if (*path == '/')
 			p = path+1;
 	}
-	return p;
+	return (p);
 }
