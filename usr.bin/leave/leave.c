@@ -32,19 +32,27 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <unistd.h>
+
+void doalarm __P((u_int));
+static void usage __P((void));
 
 /*
  * leave [[+]hhmm]
@@ -53,6 +61,7 @@ static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
  * Leave prompts for input and goes away if you hit return.
  * It nags you like a mother hen.
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -69,7 +78,7 @@ main(argc, argv)
 #define	MSG1	"When do you have to leave? "
 		(void)write(1, MSG1, sizeof(MSG1) - 1);
 		cp = fgets(buf, sizeof(buf), stdin);
-		if (*cp == '\n')
+		if (cp == NULL || *cp == '\n')
 			exit(0);
 	} else
 		cp = argv[1];
@@ -97,7 +106,7 @@ main(argc, argv)
 		secs = hours * 60 * 60 + minutes * 60;
 	else {
 		if (hours > 23 || t->tm_hour > hours ||
-		    t->tm_hour == hours && minutes <= t->tm_min)
+		    (t->tm_hour == hours && minutes <= t->tm_min))
 			usage();
 		secs = (hours - t->tm_hour) * 60 * 60;
 		secs += (minutes - t->tm_min) * 60;
@@ -106,6 +115,7 @@ main(argc, argv)
 	exit(0);
 }
 
+void
 doalarm(secs)
 	u_int secs;
 {
@@ -114,7 +124,7 @@ doalarm(secs)
 	int pid;
 	char *ctime();
 
-	if (pid = fork()) {
+	if ((pid = fork())) {
 		(void)time(&daytime);
 		daytime += secs;
 		printf("Alarm set for %.16s. (pid %d)\n",
@@ -156,6 +166,7 @@ doalarm(secs)
 	exit(0);
 }
 
+static void
 usage()
 {
 	fprintf(stderr, "usage: leave [[+]hhmm]\n");
