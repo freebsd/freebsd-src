@@ -12,6 +12,7 @@ SRCS+=		ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
 CFLAGS+=	-I${SRCDIR}/ld
 CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
+NOSHARED=	yes
 DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 LDADD=		${DPADD}
