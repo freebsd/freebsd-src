@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 /*
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #include "defs.h"
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <search.h>
 #include <stdlib.h>
 #include <unistd.h>
 
