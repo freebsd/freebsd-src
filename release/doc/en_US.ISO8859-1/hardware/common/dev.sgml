@@ -768,10 +768,7 @@
 
     &hwlist.awi;
 
-    <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
-      802.11a/b/g network interfaces (&man.ath.4; driver)
-    </para>
-
+    &hwlist.ath;
   </sect2>
 
   <sect2 id="misc-network">
