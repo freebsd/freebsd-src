@@ -54,39 +54,10 @@ usage(void)
 	    "usage:\n"
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [-p path] [-r [kroa]] [-w [kroa]] "
-	    "[attrsize] [attrfile]\n"
+	    "  extattrctl initattr [-p path] [attrsize] [attrfile]\n"
 	    "  extattrctl enable [path] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrname]\n");
 	exit(-1);
-}
-
-/*
- * Return a level, or -1
- */
-int
-extattr_level_from_string(char *string)
-{
-
-	if (strlen(string) != 1)
-		return (-1);
-
-	switch(string[0]) {
-	case 'k':
-	case 'K':
-		return (UFS_EXTATTR_PERM_KERNEL);
-	case 'r':
-	case 'R':
-		return (UFS_EXTATTR_PERM_ROOT);
-	case 'o':
-	case 'O':
-		return (UFS_EXTATTR_PERM_OWNER);
-	case 'a':
-	case 'A':
-		return (UFS_EXTATTR_PERM_ANYONE);
-	default:
-		return (-1);
-	}
 }
 
 long
@@ -111,8 +82,6 @@ initattr(int argc, char *argv[])
 	char	*fs_path = NULL;
 	char	*zero_buf = NULL;
 	long	loop, num_inodes;
-	int	initattr_rlevel = UFS_EXTATTR_PERM_ROOT;
-	int	initattr_wlevel = UFS_EXTATTR_PERM_ROOT;
 	int	ch, i, error;
 
 	optind = 0;
@@ -120,16 +89,6 @@ initattr(int argc, char *argv[])
 		switch (ch) {
 		case 'p':
 			fs_path = strdup(optarg);
-			break;
-		case 'r':
-			initattr_rlevel = extattr_level_from_string(optarg);
-			if (initattr_rlevel == -1)
-				usage();
-			break;
-		case 'w':
-			initattr_wlevel = extattr_level_from_string(optarg);
-			if (initattr_wlevel == -1)
-				usage();
 			break;
 		case '?':
 		default:
@@ -146,8 +105,6 @@ initattr(int argc, char *argv[])
 	if ((i = open(argv[1], O_CREAT | O_EXCL | O_WRONLY, 0600)) != -1) {
 		uef.uef_magic = UFS_EXTATTR_MAGIC;
 		uef.uef_version = UFS_EXTATTR_VERSION;
-		uef.uef_write_perm = initattr_wlevel;
-		uef.uef_read_perm = initattr_rlevel;
 		uef.uef_size = atoi(argv[0]);
 		if (write(i, &uef, sizeof(uef)) == -1)
 			error = -1;
@@ -170,7 +127,12 @@ initattr(int argc, char *argv[])
 			}
 		}
 	}
-	if (i == -1 || error == -1) {
+	if (i == -1) {
+		/* unable to open file */
+		perror(argv[1]);
+		return (-1);
+	}
+	if (error == -1) {
 		perror(argv[1]);
 		unlink(argv[1]);
 		return (-1);
@@ -191,29 +153,33 @@ main(int argc, char *argv[])
 		if (argc != 3)
 			usage();
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_START, 0, 0);
+		if (error)
+			perror("extattrctl start");
 	} else if (!strcmp(argv[1], "stop")) {
 		if (argc != 3)
 			usage();
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_STOP, 0, 0);
+		if (error)
+			perror("extattrctl stop");
 	} else if (!strcmp(argv[1], "enable")) {
 		if (argc != 5)
 			usage();
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[3],
 		    argv[4]);
+		if (error)
+			perror("extattrctl enable");
 	} else if (!strcmp(argv[1], "disable")) {
 		if (argc != 4)
 			usage();
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, argv[3],
 		    NULL);
+		if (error)
+			perror("extattrctl disable");
 	} else if (!strcmp(argv[1], "initattr")) {
 		argc -= 2;
 		argv += 2;
 		error = initattr(argc, argv);
 	} else
 		usage();
-
-	if (error)
-		perror(argv[1]);
-
 	return(error);
 }

@@ -49,8 +49,10 @@
 
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
-static int	ufs_extattr_credcheck(struct ufs_extattr_list_entry *uele,
-    u_int32_t fowner, struct ucred *cred, struct proc *p, int access);
+static int	ufs_extattr_valid_attrname(const char *attrname);
+static int	ufs_extattr_credcheck(struct vnode *vp,
+    struct ufs_extattr_list_entry *uele, struct ucred *cred, struct proc *p,
+    int access);
 static int	ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
     struct vnode *backing_vnode, struct proc *p);
 static int	ufs_extattr_disable(struct ufsmount *ump, const char *attrname,
@@ -81,6 +83,28 @@ ufs_extattr_uepm_unlock(struct ufsmount *ump, struct proc *p)
 {
 
 	lockmgr(&ump->um_extattr.uepm_lock, LK_RELEASE, 0, p);
+}
+
+/*
+ * Determine whether the name passed is a valid name for an actual
+ * attribute.
+ *
+ * Invalid currently consists of:
+ *         NULL pointer for attrname
+ *         zero-length attrname (used to retrieve application attr list)
+ *         attrname consisting of "$" (used to treive system attr list)
+ */
+static int
+ufs_extattr_valid_attrname(const char *attrname)
+{
+
+	if (attrname == NULL)
+		return (0);
+	if (strlen(attrname) == 0)
+		return (0);
+	if (strlen(attrname) == 1 && attrname[0] == '$')
+		return (0);
+	return (1);
 }
 
 /*
@@ -199,6 +223,8 @@ ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
 	struct uio	auio;
 	int	error = 0;
 
+	if (!ufs_extattr_valid_attrname(attrname))
+		return (EINVAL);
 	if (backing_vnode->v_type != VREG)
 		return (EINVAL);
 
@@ -279,6 +305,9 @@ ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
 {
 	struct ufs_extattr_list_entry	*uele;
 	int	error = 0;
+
+	if (!ufs_extattr_valid_attrname(attrname))
+		return (EINVAL);
 
 	uele = ufs_extattr_find_attr(ump, attrname);
 	if (!uele)
@@ -363,41 +392,27 @@ ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
  * permissions.
  */
 static int
-ufs_extattr_credcheck(struct ufs_extattr_list_entry *uele, u_int32_t fowner,
-		      struct ucred *cred, struct proc *p, int access)
+ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
+    struct ucred *cred, struct proc *p, int access)
 {
-	u_int	uef_perm;
+	int	system_namespace;
 
-	switch(access) {
-	case IREAD:
-		uef_perm = uele->uele_fileheader.uef_read_perm;
-		break;
-	case IWRITE:
-		uef_perm = uele->uele_fileheader.uef_write_perm;
-		break;
-	default:
-		return (EACCES);
-	}
+	system_namespace = (strlen(uele->uele_attrname) >= 1 &&
+	    uele->uele_attrname[0] == '$');
 
-	/* Kernel sponsoring request does so without passing a cred */
-	if (!cred)
+	/*
+	 * Kernel-invoked always succeeds
+	 */
+	if (cred == NULL)
 		return (0);
 
-	/* XXX there might eventually be a capability check here */
-
-	/* If it's set to root-only, check for suser(p) */
-	if (uef_perm == UFS_EXTATTR_PERM_ROOT && !suser(p))
-		return (0);
-
-	/* Allow the owner if appropriate */
-	if (uef_perm == UFS_EXTATTR_PERM_OWNER && cred->cr_uid == fowner)
-		return (0);
-
-	/* Allow anyone if appropriate */
-	if (uef_perm == UFS_EXTATTR_PERM_ANYONE)
-		return (0);
-
-	return (EACCES);
+	/*
+	 * XXX What capability should apply here?
+	 */
+	if (system_namespace)
+		return (suser_xxx(cred, p, PRISON_ROOT));
+	else
+		return (VOP_ACCESS(vp, access, cred, p));
 }
 
 /*
@@ -451,12 +466,16 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
 
+	if (strlen(name) == 0 || (strlen(name) == 1 && name[0] == '$')) {
+		/* XXX retrieve attribute lists */
+		return (EINVAL);
+	}
+
 	attribute = ufs_extattr_find_attr(ump, name);
 	if (!attribute)
 		return (ENOENT);
 
-	if ((error = ufs_extattr_credcheck(attribute, ip->i_uid, cred, p,
-	    IREAD)))
+	if ((error = ufs_extattr_credcheck(vp, attribute, cred, p, IREAD)))
 		return (error);
 
 	/*
@@ -613,16 +632,16 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
-
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
+	if (!ufs_extattr_valid_attrname(name))
+		return (EINVAL);
 
 	attribute = ufs_extattr_find_attr(ump, name);
 	if (!attribute)
 		return (ENOENT);
 
-	if ((error = ufs_extattr_credcheck(attribute, ip->i_uid, cred,
-	    p, IWRITE)))
+	if ((error = ufs_extattr_credcheck(vp, attribute, cred, p, IWRITE)))
 		return (error);
 
 	/*
@@ -718,16 +737,16 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)  
 		return (EROFS);
-
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
+	if (!ufs_extattr_valid_attrname(name))
+		return (EINVAL);
 
 	attribute = ufs_extattr_find_attr(ump, name);
 	if (!attribute)
 		return (ENOENT);
 
-	if ((error = ufs_extattr_credcheck(attribute, ip->i_uid, cred, p,
-	    IWRITE)))
+	if ((error = ufs_extattr_credcheck(vp, attribute, cred, p, IWRITE)))
 		return (error);
 
 	/*
