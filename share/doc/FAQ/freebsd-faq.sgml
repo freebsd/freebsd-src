@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.41 1996/04/13 00:12:41 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.42 1996/04/30 19:07:58 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1080,22 +1080,29 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
       <sect1>
 	<heading>Where can I get Motif for FreeBSD?</heading>
-        <p>
-          Contact the following company:
+        <p>Contact <url url="http://www.xinside.com" name="X Inside, Inc.">
+          for a Motif v2.0 distribution for FreeBSD 2.1 (tested also with
+	  2.2-current as of May 10, 1996).
 
-          Lasermoon Ltd<newline>
-          2a Beaconsfield Road<newline>
-          Fareham, Hants<newline>
-          England. PO16 0QB<newline>
-          Phone: +44 (01) 329 834944<newline>
-          FAX: +44 (0) 329 825936<newline>
-          Email:  <url url="mailto:info@lasermoon.co.uk" name="Info Address">
+	  This distribution includes:
+          <itemize>
+	     <item>OSF/Motif manager, xmbind, panner, wsm.
+	     <item>Development kit with uil, mrm, xm, xmcxx, include and Imake files.
+	     <item>Static and dynamic libraries.
+	     <item>Demonstration applets.
+	     <item>Preformatted man pages.
+	  </itemize>
+
+	  <p>Be sure to specify that you want the FreeBSD version of Motif
+	  when ordering!  Versions for BSDI and Linux are also sold by
+	  <em>X Inside.</em></p>
 
       <sect1>
 	<heading>Are there any commercial X servers for some of the high-end graphics cards like the Matrox or &num;9 I-128, or offering 8/16/24 bit deep pallettes?<label id="xinside"></heading>
         <p>
-          Yes, X Inside Incorporated sells their Accelerated-X product for
-          FreeBSD and other Intel based systems.
+          Yes, <url url="http://www.xinside.com" name="X Inside, Inc.">
+          sells their Accelerated-X product for FreeBSD and other Intel
+          based systems.
 
           This high performance X Server offers easy configuration, support
           for multiple concurrent video boards and is distributed in binary
