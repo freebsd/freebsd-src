@@ -355,7 +355,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	}
 
 	/* Make a node and try attach it to the type */
-	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH, M_WAITOK);
+	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH, M_NOWAIT);
 	if (node == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
@@ -557,7 +557,7 @@ ng_name_node(node_p node, const char *name)
 	}
 
 	/* Allocate space and copy it */
-	MALLOC(node->name, char *, strlen(name) + 1, M_NETGRAPH, M_WAITOK);
+	MALLOC(node->name, char *, strlen(name) + 1, M_NETGRAPH, M_NOWAIT);
 	if (node->name == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
@@ -674,7 +674,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	}
 
 	/* Allocate the hook and link it up */
-	MALLOC(hook, hook_p, sizeof(*hook), M_NETGRAPH, M_WAITOK);
+	MALLOC(hook, hook_p, sizeof(*hook), M_NETGRAPH, M_NOWAIT);
 	if (hook == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
@@ -698,7 +698,7 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	node->numhooks++;
 
 	/* Set hook name */
-	MALLOC(hook->name, char *, strlen(name) + 1, M_NETGRAPH, M_WAITOK);
+	MALLOC(hook->name, char *, strlen(name) + 1, M_NETGRAPH, M_NOWAIT);
 	if (hook->name == NULL) {
 		error = ENOMEM;
 		LIST_REMOVE(hook, hooks);
@@ -1107,7 +1107,7 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
 
 	/* Now compute return address, i.e., the path to the sender */
 	if (rtnp != NULL) {
-		MALLOC(*rtnp, char *, NG_NODELEN + 2, M_NETGRAPH, M_WAITOK);
+		MALLOC(*rtnp, char *, NG_NODELEN + 2, M_NETGRAPH, M_NOWAIT);
 		if (*rtnp == NULL) {
 			TRAP_ERROR;
 			return (ENOMEM);
