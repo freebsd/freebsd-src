@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.12 1997/11/12 04:16:23 jdp Exp $";
+	"$Id: apm.c,v 1.13 1998/02/20 07:17:46 hosokawa Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -26,22 +26,68 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <machine/apm_bios.h>
+#include <time.h>
 
 #define APMDEV	"/dev/apm"
+
+#define xh(a)	(((a) & 0xff00) >> 8)
+#define xl(a)	((a) & 0xff)
+#define APMERR(a) xh(a)
+
+int cmos_wall = 0;	/* True when wall time is in cmos clock, else UTC */
 
 void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: apm [-ablstz] [-d 1|0]",
+		"usage: apm [-ablstzZ] [-d 1|0] [-r delta]",
 		"       zzz");
 	exit(1);
+}
+
+int
+int2bcd(int i)
+{
+	int retval = 0;
+	int base = 0;
+
+	if (i >= 10000)
+		return -1;
+    
+	while (i) {
+		retval |= (i % 10) << base;
+		i /= 10;
+		base += 4;
+	}
+	return retval;
+}
+
+int
+bcd2int(int bcd)
+{
+	int retval = 0;
+
+	if (bcd > 0x9999)
+		return -1;
+
+	while (bcd) {
+		retval = retval * 10 + ((bcd & 0xf000) >> 12);
+		bcd = (bcd & 0xfff) << 4;
+	}
+	return retval;
 }
 
 void 
 apm_suspend(int fd)
 {
 	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1)
+		err(1, NULL);
+}
+
+void 
+apm_standby(int fd)
+{
+	if (ioctl(fd, APMIO_STANDBY, NULL) == -1)
 		err(1, NULL);
 }
 
@@ -53,8 +99,11 @@ apm_getinfo(int fd, apm_info_t aip)
 }
 
 void 
-print_all_info(apm_info_t aip)
+print_all_info(int fd, apm_info_t aip)
 {
+	struct apm_bios_arg args;
+	int apmerr;
+
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
 	printf("APM Managment: %s\n", (aip->ai_status ? "Enabled" : "Disabled"));
 	printf("AC Line status: ");
@@ -100,8 +149,96 @@ print_all_info(apm_info_t aip)
 		printf("%2d:%02d:%02d", h, m, s);
 	}
 	printf("\n");
-}
+	if (aip->ai_infoversion >= 1) {
+		printf("Number of batteries: ");
+		if (aip->ai_batteries == (u_int) -1)
+			printf("unknown\n");
+		else
+			printf("%d\n", aip->ai_batteries);
+	}
 
+	/*
+	 * try to get the suspend timer
+	 */
+	bzero(&args, sizeof(args));
+	args.eax = (APM_BIOS) << 8 | APM_RESUMETIMER;
+	args.ebx = PMDV_APMBIOS;
+	args.ecx = 0x0001;
+	if (ioctl(fd, APMIO_BIOS, &args)) {
+		err(1,"Get resume timer");
+	} else {
+		apmerr = APMERR(args.eax);
+		 if (apmerr == 0x0d || apmerr == 0x86)
+			printf("Resume timer: disabled\n");
+		else if (apmerr)
+			fprintf(stderr, 
+			    "Failed to get the resume timer: APM error0x%x\n",
+			    apmerr);
+		else {
+			/*
+			 * OK.  We have the time (all bcd).
+			 * CH - seconds
+			 * DH - hours
+			 * DL - minutes
+			 * xh(SI) - month (1-12)
+			 * xl(SI) - day of month (1-31)
+			 * DI - year
+			 */
+			struct tm tm;
+			char buf[1024];
+			time_t t;
+
+			tm.tm_sec = bcd2int(xh(args.ecx));
+			tm.tm_min = bcd2int(xl(args.edx));
+			tm.tm_hour = bcd2int(xh(args.edx));
+			tm.tm_mday = bcd2int(xl(args.esi));
+			tm.tm_mon = bcd2int(xh(args.esi)) - 1;
+			tm.tm_year = bcd2int(args.edi) - 1900;
+			if (cmos_wall)
+				t = mktime(&tm);
+			else
+				t = timegm(&tm);
+			tm = *localtime(&t);
+			strftime(buf, sizeof(buf), "%c", &tm);
+			printf("Resume timer: %s\n", buf);
+		}
+	}
+
+	/*
+	 * Get the ring indicator resume state
+	 */
+	bzero(&args, sizeof(args));
+	args.eax  = (APM_BIOS) << 8 | APM_RESUMEONRING;
+	args.ebx = PMDV_APMBIOS;
+	args.ecx = 0x0002;
+	if (ioctl(fd, APMIO_BIOS, &args) == 0) {
+		printf("Resume on ring indicator: %sabled\n",
+			args.ecx ? "en" : "dis");
+	}
+
+	if (aip->ai_infoversion >= 1) {
+		printf("APM Capacities:\n", aip->ai_capabilities);
+		if (aip->ai_capabilities == 0xff00)
+			printf("\tunknown\n");
+		if (aip->ai_capabilities & 0x01)
+			printf("\tglobal standby state\n");
+		if (aip->ai_capabilities & 0x02)
+			printf("\tglobal suspend state\n");
+		if (aip->ai_capabilities & 0x04)
+			printf("\tresume timer from standby\n");
+		if (aip->ai_capabilities & 0x08)
+			printf("\tresume timer from suspend\n");
+		if (aip->ai_capabilities & 0x10)
+			printf("\tRI resume from standby\n");
+		if (aip->ai_capabilities & 0x20)
+			printf("\tRI resume from suspend\n");
+		if (aip->ai_capabilities & 0x40)
+			printf("\tPCMCIA RI resume from standby\n");
+		if (aip->ai_capabilities & 0x80)
+			printf("\tPCMCIA RI resume from suspend\n");
+	}
+
+}
 
 /*
  * currently, it can turn off the display, but the display never comes
@@ -115,13 +252,41 @@ apm_display(int fd, int newstate)
 }
 
 
+void
+apm_set_timer(int fd, int delta)
+{
+	time_t tmr;
+	struct tm *tm;
+	struct apm_bios_arg args;
+
+	tmr = time(NULL) + delta;
+	if (cmos_wall)
+		tm = localtime(&tmr);
+	else
+		tm = gmtime(&tmr);
+	bzero(&args, sizeof(args));
+	args.eax = (APM_BIOS) << 8 | APM_RESUMETIMER;
+	args.ebx = PMDV_APMBIOS;
+	if (delta > 0) {
+		args.ecx = (int2bcd(tm->tm_sec) << 8) | 0x02;
+		args.edx = (int2bcd(tm->tm_hour) << 8) | int2bcd(tm->tm_min);
+		args.esi = (int2bcd(tm->tm_mon + 1) << 8) | int2bcd(tm->tm_mday);
+		args.edi = int2bcd(tm->tm_year + 1900);
+	} else {
+		args.ecx = 0x0000;
+	}
+	if (ioctl(fd, APMIO_BIOS, &args)) {
+		err(1,"Set resume timer");
+	}
+}
+
 int 
 main(int argc, char *argv[])
 {
 	int	c, fd;
 	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
-	int     display = 0, batt_life = 0, ac_status = 0;
-	int	batt_time = 0;
+	int     display = 0, batt_life = 0, ac_status = 0, standby = 0;
+	int	batt_time = 0, delta = 0;
 	char	*cmdname;
 
 
@@ -135,7 +300,7 @@ main(int argc, char *argv[])
 		all_info = 0;
 		goto finish_option;
 	}
-	while ((c = getopt(argc, argv, "ablstzd:")) != -1) {
+	while ((c = getopt(argc, argv, "ablRr:stzd:Z")) != -1) {
 		switch (c) {
 		case 'a':
 			ac_status = 1;
@@ -158,6 +323,12 @@ main(int argc, char *argv[])
 			batt_life = 1;
 			all_info = 0;
 			break;
+		case 'R':
+			delta = -1;
+			break;
+		case 'r':
+			delta = atoi(optarg);
+			break;
 		case 's':
 			apm_status = 1;
 			all_info = 0;
@@ -168,6 +339,10 @@ main(int argc, char *argv[])
 			break;
 		case 'z':
 			sleep = 1;
+			all_info = 0;
+			break;
+		case 'Z':
+			standby = 1;
 			all_info = 0;
 			break;
 		case '?':
@@ -183,14 +358,18 @@ finish_option:
 		warn("can't open %s", APMDEV);
 		return 1;
 	}
+	if (delta)
+		apm_set_timer(fd, delta);
 	if (sleep)
 		apm_suspend(fd);
-	else {
+	else if (standby)
+		apm_standby(fd);
+	else if (delta == 0) {
 		struct apm_info info;
 
 		apm_getinfo(fd, &info);
 		if (all_info)
-			print_all_info(&info);
+			print_all_info(fd, &info);
 		if (ac_status)
 			printf("%d\n", info.ai_acline);
 		if (batt_status)
