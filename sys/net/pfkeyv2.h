@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: pfkeyv2.h,v 1.25 2001/03/12 08:34:06 itojun Exp $	*/
+/*	$KAME: pfkeyv2.h,v 1.26 2001/06/27 10:49:49 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -213,7 +213,7 @@ struct sadb_x_sa2 {
   u_int8_t sadb_x_sa2_mode;
   u_int8_t sadb_x_sa2_reserved1;
   u_int16_t sadb_x_sa2_reserved2;
-  u_int32_t sadb_x_sa2_reserved3;
+  u_int32_t sadb_x_sa2_sequence;
   u_int32_t sadb_x_sa2_reqid;
 };
 
