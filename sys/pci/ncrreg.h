@@ -16,6 +16,7 @@
 **	mycroft@gnu.ai.mit.edu
 **
 **-------------------------------------------------------------------------
+*/
 /*-
 ** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
 **
