@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.11 1995/09/15 20:34:55 ache Exp $
+ * $Id: startslip.c,v 1.12 1995/09/15 22:18:45 ache Exp $
  */
 
 #ifndef lint
@@ -244,30 +244,24 @@ restart:
 	}
 	if (terminate)
 		goto restart;
-	if (diali > 0)
-		dialerstring = dials[dialc++ % diali];
-
-	if (fork() > 0) {
-		if (first)
-			printd("parent exit\n");
-		exit(0);
-	}
-	if (setsid() < 0) {
-		syslog(LOG_ERR, "setsid: %m");
-		down(2);
-	}
-	pid = getpid();
-	printd("restart: pid %ld: ", pid);
-	if ((pfd = fopen(pidfile, "w")) != NULL) {
-		fprintf(pfd, "%ld\n", pid);
-		fclose(pfd);
-	}
 	if (tries > 1) {
 		syslog(LOG_INFO, "sleeping %d seconds (%d tries)",
 			wait_time * (tries - 1), tries);
 		sleep(wait_time * (tries - 1));
 		if (terminate)
 			goto restart;
+	}
+
+	if (daemon(1, debug) < 0) {
+		syslog(LOG_ERR, "daemon: %m");
+		down(2);
+	}
+
+	pid = getpid();
+	printd("restart: pid %ld: ", pid);
+	if ((pfd = fopen(pidfile, "w")) != NULL) {
+		fprintf(pfd, "%ld\n", pid);
+		fclose(pfd);
 	}
 	printd("open");
 	if (uu_lock(dvname)) {
@@ -341,7 +335,10 @@ restart:
 		syslog(LOG_ERR, "can't fdopen %s: %m", devicename);
 		down(2);
 	}
-	setbuf(wfd, (char *)0);
+	setbuf(wfd, NULL);
+
+	if (diali > 0)
+		dialerstring = dials[dialc++ % diali];
 	if (dialerstring) {
 		printd("send dialstring: %s\\r", dialerstring);
 		fprintf(wfd, "%s\r", dialerstring);
@@ -424,14 +421,6 @@ restart:
 		down(2);
 	}
 	sprintf(unitname, "sl%d", unitnum);
-	if (first && debug == 0) {
-		close(0);
-		close(1);
-		close(2);
-		(void) open("/dev/null", O_RDWR);
-		(void) dup2(0, 1);
-		(void) dup2(0, 2);
-	}
 
 	sprintf(buf, "LINE=%d %s %s up &",
 		diali ? (dialc - 1) % diali : 0,
