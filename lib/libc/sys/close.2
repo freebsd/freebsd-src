@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)close.2	8.2 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: close.2,v 1.8 1997/02/22 15:03:47 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt CLOSE 2
@@ -59,6 +59,14 @@ associated naming information and queued data are discarded;
 on the last close of a file holding an advisory lock
 the lock is released (see further
 .Xr flock 2 ) .
+However, the semantics of System V and
+.St -p1003.1-88
+dictate that all
+.Xr fcntl 2
+advisory record locks associated with a file for a given process
+are removed when 
+.Em any
+file descriptor for that file is closed by that process.
 .Pp
 When a process exits,
 all associated file descriptors are freed, but since there is
