@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.16 1995/12/07 12:45:29 davidg Exp $
+ *	$Id: db_interface.c,v 1.17 1995/12/10 13:36:25 phk Exp $
  */
 
 /*
@@ -273,11 +273,7 @@ Debugger(msg)
 	if (!in_Debugger) {
 		in_Debugger = 1;
 		db_printf("Debugger(\"%s\")\n", msg);
-#ifdef __GNUC__
-		__asm __volatile("int $3");
-#else
-		int3();
-#endif
+		breakpoint();
 		in_Debugger = 0;
 	}
 }
