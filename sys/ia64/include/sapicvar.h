@@ -42,6 +42,13 @@ struct sapic {
 #define SAPIC_POLARITY_HIGH	0
 #define SAPIC_POLARITY_LOW	1
 
+#define SAPIC_DELMODE_FIXED	0
+#define SAPIC_DELMODE_LOWPRI	1
+#define SAPIC_DELMODE_PMI	2
+#define SAPIC_DELMODE_NMI	4
+#define SAPIC_DELMODE_INIT	5
+#define SAPIC_DELMODE_EXTINT	7
+
 struct sapic	*sapic_create(int id, int base, u_int64_t address);
 void		sapic_enable(struct sapic *sa, int input, int vector,
 			     int trigger_mode, int polarity);
