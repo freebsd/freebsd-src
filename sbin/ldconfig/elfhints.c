@@ -74,6 +74,10 @@ add_dir(const char *hintsfile, const char *name, int trusted)
 			warnx("%s: ignoring world-writable directory", name);
 			return;
 		}
+		if ((stbuf.st_mode & S_IWGRP) != 0) {
+			warnx("%s: ignoring group-writable directory", name);
+			return;
+		}
 	}
 
 	for (i = 0;  i < ndirs;  i++)
