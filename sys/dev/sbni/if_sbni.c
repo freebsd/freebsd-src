@@ -329,8 +329,8 @@ sbni_intr(void *arg)
 			handle_channel(sc);
 			repeat = 1;
 		}
-		if (sc->slave_sc 	/* second channel present */
-		    && (sbni_inb(sc->slave_sc, CSR0) & (RC_RDY | TR_RDY))) {
+		if (sc->slave_sc && 	/* second channel present */
+		    (sbni_inb(sc->slave_sc, CSR0) & (RC_RDY | TR_RDY))) {
 			handle_channel(sc->slave_sc);
 			repeat = 1;
 		}
@@ -368,9 +368,10 @@ handle_channel(struct sbni_softc *sc)
 		/* if state & FL_NEED_RESEND != 0 then tx_frameno != 0 */
 		if (req_ans || sc->tx_frameno != 0)
 			send_frame(sc);
-		else
+		else {
 			/* send the marker without any data */
 			sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) & ~TR_REQ);
+		}
 	}
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | EN_INT);
@@ -391,9 +392,9 @@ recv_frame(struct sbni_softc *sc)
 
 	crc = CRC32_INITIAL;
 	if (check_fhdr(sc, &framelen, &frameno, &ack, &is_first, &crc)) {
-		frame_ok = framelen > 4
-			   ? upload_data(sc, framelen, frameno, is_first, crc)
-			   : skip_tail(sc, framelen, crc);
+		frame_ok = framelen > 4 ?
+		    upload_data(sc, framelen, frameno, is_first, crc) :
+		    skip_tail(sc, framelen, crc);
 		if (frame_ok)
 			interpret_ack(sc, ack);
 	} else
@@ -498,8 +499,9 @@ do_copy:
 			if (data_len -= slice)
 				data_p += slice;
 			else {
-				do	m = m->m_next;
-				while (m != NULL && m->m_len == 0);
+				do {
+					m = m->m_next;
+				} while (m != NULL && m->m_len == 0);
 
 				if (m) {
 					data_len = m->m_len;
@@ -582,10 +584,10 @@ interpret_ack(struct sbni_softc *sc, u_int ack)
 		if (sc->state & FL_WAIT_ACK) {
 			sc->outpos += sc->framelen;
 
-			if (--sc->tx_frameno)
-				sc->framelen = min(sc->maxframe,
-						   sc->pktlen - sc->outpos);
-			else {
+			if (--sc->tx_frameno) {
+				sc->framelen = min(
+				    sc->maxframe, sc->pktlen - sc->outpos);
+			} else {
 				send_complete(sc);
 				prepare_to_send(sc);
 			}
@@ -1057,8 +1059,8 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-			ether_ioctl(ifp, command, data);
-			break;
+		ether_ioctl(ifp, command, data);
+		break;
 
 	case SIOCSIFFLAGS:
 		/*
