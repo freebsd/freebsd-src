@@ -279,7 +279,7 @@ add_sub(n, string, re, pm)
 	regmatch_t *pm;
 {
 	if (n > re->re_nsub)
-		warnx("No subexpression %u", n);
+		warnx("No subexpression %zu", n);
 	/* Subexpressions that did not match are
 	 * not an error.  */
 	else if (pm[n].rm_so != -1 &&
