@@ -351,72 +351,82 @@ cmd
 			if ($2)
 				long_passive("EPSV", PF_UNSPEC);
 		}
-	| TYPE SP type_code CRLF
+	| TYPE check_login SP type_code CRLF
 		{
-			switch (cmd_type) {
+			if ($2) {
+				switch (cmd_type) {
 
-			case TYPE_A:
-				if (cmd_form == FORM_N) {
-					reply(200, "Type set to A.");
+				case TYPE_A:
+					if (cmd_form == FORM_N) {
+						reply(200, "Type set to A.");
+						type = cmd_type;
+						form = cmd_form;
+					} else
+						reply(504, "Form must be N.");
+					break;
+
+				case TYPE_E:
+					reply(504, "Type E not implemented.");
+					break;
+
+				case TYPE_I:
+					reply(200, "Type set to I.");
 					type = cmd_type;
-					form = cmd_form;
-				} else
-					reply(504, "Form must be N.");
-				break;
+					break;
 
-			case TYPE_E:
-				reply(504, "Type E not implemented.");
-				break;
-
-			case TYPE_I:
-				reply(200, "Type set to I.");
-				type = cmd_type;
-				break;
-
-			case TYPE_L:
+				case TYPE_L:
 #if NBBY == 8
-				if (cmd_bytesz == 8) {
-					reply(200,
-					    "Type set to L (byte size 8).");
-					type = cmd_type;
-				} else
-					reply(504, "Byte size must be 8.");
+					if (cmd_bytesz == 8) {
+						reply(200,
+						    "Type set to L (byte size 8).");
+						type = cmd_type;
+					} else
+						reply(504, "Byte size must be 8.");
 #else /* NBBY == 8 */
-				UNIMPLEMENTED for NBBY != 8
+					UNIMPLEMENTED for NBBY != 8
 #endif /* NBBY == 8 */
+				}
 			}
 		}
-	| STRU SP struct_code CRLF
+	| STRU check_login SP struct_code CRLF
 		{
-			switch ($3) {
+			if ($2) {
+				switch ($4) {
 
-			case STRU_F:
-				reply(200, "STRU F ok.");
-				break;
+				case STRU_F:
+					reply(200, "STRU F ok.");
+					break;
 
-			default:
-				reply(504, "Unimplemented STRU type.");
+				default:
+					reply(504, "Unimplemented STRU type.");
+				}
 			}
 		}
-	| MODE SP mode_code CRLF
+	| MODE check_login SP mode_code CRLF
 		{
-			switch ($3) {
+			if ($2) {
+				switch ($4) {
 
-			case MODE_S:
-				reply(200, "MODE S ok.");
-				break;
-
-			default:
-				reply(502, "Unimplemented MODE type.");
+				case MODE_S:
+					reply(200, "MODE S ok.");
+					break;
+	
+				default:
+					reply(502, "Unimplemented MODE type.");
+				}
 			}
 		}
-	| ALLO SP NUMBER CRLF
+	| ALLO check_login SP NUMBER CRLF
 		{
-			reply(202, "ALLO command ignored.");
+			if ($2) {
+				reply(202, "ALLO command ignored.");
+			}
 		}
-	| ALLO SP NUMBER SP R SP NUMBER CRLF
+	| ALLO check_login SP NUMBER SP R SP NUMBER CRLF
 		{
-			reply(202, "ALLO command ignored.");
+			if ($2) {
+				reply(202, "ALLO command ignored.");
+			}
 		}
 	| RETR check_login SP pathname CRLF
 		{
@@ -470,9 +480,11 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
-	| STAT CRLF
+	| STAT check_login CRLF
 		{
-			statcmd();
+			if ($2) {
+				statcmd();
+			}
 		}
 	| DELE check_login SP pathname CRLF
 		{
@@ -494,9 +506,10 @@ cmd
 			}
 			free($4);
 		}
-	| ABOR CRLF
+	| ABOR check_login CRLF
 		{
-			reply(225, "ABOR command successful.");
+			if ($2)
+				reply(225, "ABOR command successful.");
 		}
 	| CWD check_login CRLF
 		{
@@ -604,24 +617,27 @@ cmd
 			if ($8 != NULL)
 				free($8);
 		}
-	| SITE SP IDLE CRLF
+	| SITE SP check_login IDLE CRLF
 		{
-			reply(200,
-			    "Current IDLE time limit is %d seconds; max %d",
-				timeout, maxtimeout);
-		}
-	| SITE SP IDLE SP NUMBER CRLF
-		{
-			if ($5 < 30 || $5 > maxtimeout) {
-				reply(501,
-			"Maximum IDLE time must be between 30 and %d seconds",
-				    maxtimeout);
-			} else {
-				timeout = $5;
-				(void) alarm((unsigned) timeout);
+			if ($3)
 				reply(200,
-				    "Maximum IDLE time set to %d seconds",
-				    timeout);
+			    	    "Current IDLE time limit is %d seconds; max %d",
+				    timeout, maxtimeout);
+		}
+	| SITE SP check_login IDLE SP NUMBER CRLF
+		{
+			if ($3) {
+				if ($6 < 30 || $6 > maxtimeout) {
+					reply(501,
+					    "Maximum IDLE time must be between 30 and %d seconds",
+					    maxtimeout);
+				} else {
+					timeout = $6;
+					(void) alarm((unsigned) timeout);
+					reply(200,
+					    "Maximum IDLE time set to %d seconds",
+					    timeout);
+				}
 			}
 		}
 	| STOU check_login SP pathname CRLF
@@ -631,8 +647,9 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
-	| SYST CRLF
+	| SYST check_login CRLF
 		{
+			if ($2)
 #ifdef unix
 #ifdef BSD
 			reply(215, "UNIX Type: L%d Version: BSD-%d",
@@ -714,12 +731,15 @@ rcmd
 				}
 			}
 		}
-	| REST SP byte_size CRLF
+	| REST check_login SP byte_size CRLF
 		{
-			fromname = (char *) 0;
-			restart_point = $3;	/* XXX $3 is only "int" */
-			reply(350, "Restarting at %qd. %s", restart_point,
-			    "Send STORE or RETRIEVE to initiate transfer.");
+			if ($2) {
+				fromname = (char *) 0;
+				restart_point = $4;  /* XXX $4 is only "int" */
+				reply(350, "Restarting at %qd. %s",
+				    restart_point,
+				    "Send STORE or RETRIEVE to initiate transfer.");
+			}
 		}
 	;
 
