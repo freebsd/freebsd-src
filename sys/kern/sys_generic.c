@@ -713,8 +713,8 @@ done:
  */
 struct mtx	sellock;
 struct cv	selwait;
-int	nselcoll;	/* Select collisions since boot */
-SYSCTL_INT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
+u_int		nselcoll;	/* Select collisions since boot */
+SYSCTL_UINT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
 
 /*
  * Select system call.
@@ -744,8 +744,8 @@ select(td, uap)
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
-	int ncoll, error, timo;
-	u_int nbufbytes, ncpbytes, nfdbits;
+	int error, timo;
+	u_int ncoll, nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
 		return (EINVAL);
@@ -955,8 +955,8 @@ poll(td, uap)
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
-	int ncoll, error = 0, timo;
-	u_int nfds;
+	int error = 0, timo;
+	u_int ncoll, nfds;
 	size_t ni;
 
 	nfds = SCARG(uap, nfds);
