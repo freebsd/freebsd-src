@@ -17,14 +17,14 @@ EXPORT_SYMS=_linux_mod
 CLEANFILES= linux_assym.h linux_genassym.o
 
 linux_assym.h:	linux_genassym.o
-	genassym -o ${.TARGET} ${.ALLSRC}
+	genassym ${.ALLSRC} > ${.TARGET}
 
 linux_locore.o:	linux_locore.s linux_assym.h
-	${CC} -c -x assembler-with-cpp -DLOCORE -D_KERNEL ${CFLAGS} \
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o:	linux_genassym.c linux.h @ machine
-	${CC} -c ${CFLAGS} -U_KERNEL ${.IMPSRC}
+	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
