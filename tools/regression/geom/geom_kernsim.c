@@ -173,7 +173,7 @@ rattle()
 
 
 void
-new_thread(void *(*func)(void *arg), char *name)
+new_thread(void *(*func)(void *arg), const char *name)
 {
 	struct thread *tp;
 	static int nextt;
@@ -183,7 +183,7 @@ new_thread(void *(*func)(void *arg), char *name)
 	error = pthread_create(&tp->tid, NULL, func, tp);
 	if (error)
 		err(1, "pthread_create(%s)", name);
-	tp->name = name;
+	tp->name = strdup(name);
 	printf("New Thread %d %s %p %d\n", tp - thr, name, tp, tp->pid);
 }
 

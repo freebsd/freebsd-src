@@ -55,7 +55,7 @@
 #include "geom_simdisk.h"
 
 void
-g_simdisk_xml_save(char *name, char *file)
+g_simdisk_xml_save(const char *name, const char *file)
 {
 	struct g_geom *gp;
 	struct simdisk_softc *sc;
@@ -211,7 +211,7 @@ characterData(void *userData, const XML_Char *s, int len)
 }
 
 struct g_geom *
-g_simdisk_xml_load(char *name, char *file)
+g_simdisk_xml_load(const char *name, const char *file)
 {
 	XML_Parser parser = XML_ParserCreate(NULL);
 	struct stat st;

@@ -9,14 +9,13 @@ SRCS=   geom.c geom_aes.c geom_bsd.c geom_simdev.c geom_dump.c \
 	geom_sunlabel.c geom_pc98.c
 
 
-CFLAGS +=	-g -static -W -Wall
-CFLAGS +=	-Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
+CFLAGS +=	-gstabs -static 
 CFLAGS +=	-I/usr/src/sys -I..
 CFLAGS +=	-DKERNELSIM
 NOPIC =		static
 NOPROFILE =	bingo
 NOOBJ =		youbet
-WARNS =		0
+WARNS =		5
 
 .PATH:	/sys/geom .. /sys/kern
 
