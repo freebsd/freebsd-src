@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.64 1996/03/27 18:50:10 bde Exp $
+ * $Id: st.c,v 1.65 1996/03/28 14:33:57 scrappy Exp $
  */
 
 /*
@@ -275,6 +275,9 @@ static	errval
 stattach(struct scsi_link *sc_link)
 {
 	u_int32_t unit;
+#ifdef DEVFS
+	char name[64];
+#endif /*DEVFS*/
 
 	struct scsi_data *st = sc_link->sd;
 
