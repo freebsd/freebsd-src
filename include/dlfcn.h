@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,35 +35,36 @@
 
 #ifndef _DLFCN_H_
 #define	_DLFCN_H_
+
 #include <sys/cdefs.h>
 
 /*
  * Modes and flags for dlopen().
  */
-#define RTLD_LAZY	1	/* Bind function calls lazily */
-#define RTLD_NOW	2	/* Bind function calls immediately */
-#define RTLD_MODEMASK	0x3
-#define RTLD_GLOBAL	0x100	/* Make symbols globally available */
-#define RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default */
-#define RTLD_TRACE	0x200	/* Trace loaded objects and exit */
+#define	RTLD_LAZY	1	/* Bind function calls lazily. */
+#define	RTLD_NOW	2	/* Bind function calls immediately. */
+#define	RTLD_MODEMASK	0x3
+#define	RTLD_GLOBAL	0x100	/* Make symbols globally available. */
+#define	RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default. */
+#define	RTLD_TRACE	0x200	/* Trace loaded objects and exit. */
 
 /*
  * Special handle arguments for dlsym().
  */
-#define RTLD_NEXT	((void *) -1)	/* Search subsequent objects */
-#define RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm */
+#define	RTLD_NEXT	((void *) -1)	/* Search subsequent objects. */
+#define	RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm. */
 
 /*
  * Structure filled in by dladdr().
  */
-typedef struct dl_info {
-	const char	*dli_fname;	/* Pathname of shared object */
-	void		*dli_fbase;	/* Base address of shared object */
-	const char	*dli_sname;	/* Name of nearest symbol */
-	void		*dli_saddr;	/* Address of nearest symbol */
+typedef	struct dl_info {
+	const char	*dli_fname;	/* Pathname of shared object. */
+	void		*dli_fbase;	/* Base address of shared object. */
+	const char	*dli_sname;	/* Name of nearest symbol. */
+	void		*dli_saddr;	/* Address of nearest symbol. */
 } Dl_info;
 
-/*
+/*-
  * The actual type declared by this typedef is immaterial, provided that
  * it is a function pointer.  Its purpose is to provide a return type for
  * dlfunc() which can be cast to a function pointer type without depending
@@ -73,28 +74,29 @@ typedef struct dl_info {
  * appropriately.
  */
 struct __dlfunc_arg {
-	int __dlfunc_dummy;
+	int	__dlfunc_dummy;
 };
 
-typedef void (*dlfunc_t)(struct __dlfunc_arg);
+typedef	void (*dlfunc_t)(struct __dlfunc_arg);
 
 __BEGIN_DECLS
-/* XSI functions first */
-int dlclose(void *);
-const char *dlerror(void);
-void *dlopen(const char *, int);
-void *dlsym(void * /* __restrict */, const char * /* __restrict */);
+/* XSI functions first. */
+int	 dlclose(void *);
+const char *
+	 dlerror(void);
+void	*dlopen(const char *, int);
+void	*dlsym(void * /* __restrict */, const char * /* __restrict */);
 
 #if __BSD_VISIBLE
-int dladdr(const void *, Dl_info *);
+int	 dladdr(const void *, Dl_info *);
 dlfunc_t dlfunc(void * /* __restrict */, const char * /* __restrict */);
-void dllockinit(void *_context,
-		void *(*_lock_create)(void *_context),
-		void (*_rlock_acquire)(void *_lock),
-		void (*_wlock_acquire)(void *_lock),
-		void (*_lock_release)(void *_lock),
-		void (*_lock_destroy)(void *_lock),
-		void (*_context_destroy)(void *_context));
+void	 dllockinit(void *_context,
+	    void *(*_lock_create)(void *_context),
+	    void (*_rlock_acquire)(void *_lock),
+	    void (*_wlock_acquire)(void *_lock),
+	    void (*_lock_release)(void *_lock),
+	    void (*_lock_destroy)(void *_lock),
+	    void (*_context_destroy)(void *_context));
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 
