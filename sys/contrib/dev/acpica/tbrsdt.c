@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbrsdt - ACPI RSDT table utilities
- *              $Revision: 3 $
+ *              $Revision: 4 $
  *
  *****************************************************************************/
 
@@ -206,7 +206,6 @@ AcpiTbVerifyRsdp (
     TableInfo.Pointer      = ACPI_CAST_PTR (ACPI_TABLE_HEADER, Rsdp);
     TableInfo.Length       = sizeof (RSDP_DESCRIPTOR);
     TableInfo.Allocation   = ACPI_MEM_MAPPED;
-    TableInfo.BasePointer  = Rsdp;
 
     /* Save the table pointers and allocation info */
 

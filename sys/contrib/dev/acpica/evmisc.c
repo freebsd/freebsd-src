@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -331,7 +331,8 @@ AcpiEvQueueNotifyRequest (
     {
         /* There is no per-device notify handler for this device */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "No notify handler for node %p \n", Node));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, 
+            "No notify handler for [%4.4s] node %p\n", Node->Name.Ascii, Node));
     }
 
     return (Status);
@@ -547,7 +548,7 @@ AcpiEvInitGlobalLockHandler (void)
 
 ACPI_STATUS
 AcpiEvAcquireGlobalLock (
-    UINT32                  Timeout)
+    UINT16                  Timeout)
 {
     ACPI_STATUS             Status = AE_OK;
     BOOLEAN                 Acquired = FALSE;
@@ -583,7 +584,7 @@ AcpiEvAcquireGlobalLock (
     {
        /* We got the lock */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Acquired the HW Global Lock\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Acquired the HW Global Lock\n"));
 
         AcpiGbl_GlobalLockAcquired = TRUE;
         return_ACPI_STATUS (AE_OK);
@@ -593,7 +594,7 @@ AcpiEvAcquireGlobalLock (
      * Did not get the lock.  The pending bit was set above, and we must now
      * wait until we get the global lock released interrupt.
      */
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Waiting for the HW Global Lock\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Waiting for the HW Global Lock\n"));
 
     /*
      * Acquire the global lock semaphore first.

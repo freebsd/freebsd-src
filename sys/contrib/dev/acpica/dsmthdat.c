@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -722,7 +722,7 @@ AcpiDsStoreObjectToLocal (
              * If we have a valid reference object that came from RefOf(), do the
              * indirect store
              */
-            if ((CurrentObjDesc->Common.Type == INTERNAL_TYPE_REFERENCE) &&
+            if ((CurrentObjDesc->Common.Type == ACPI_TYPE_LOCAL_REFERENCE) &&
                 (CurrentObjDesc->Reference.Opcode == AML_REF_OF_OP))
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -179,7 +179,7 @@ AcpiDbEnumerateObject (
 
     AcpiGbl_NumObjects++;
 
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) > INTERNAL_TYPE_NODE_MAX)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) > ACPI_TYPE_NS_NODE_MAX)
     {
         AcpiGbl_ObjTypeCountMisc++;
     }
@@ -193,6 +193,7 @@ AcpiDbEnumerateObject (
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
     case ACPI_TYPE_PACKAGE:
+
         for (i = 0; i < ObjDesc->Package.Count; i++)
         {
             AcpiDbEnumerateObject (ObjDesc->Package.Elements[i]);
@@ -200,12 +201,14 @@ AcpiDbEnumerateObject (
         break;
 
     case ACPI_TYPE_DEVICE:
+
         AcpiDbEnumerateObject (ObjDesc->Device.SysHandler);
         AcpiDbEnumerateObject (ObjDesc->Device.DrvHandler);
         AcpiDbEnumerateObject (ObjDesc->Device.AddrHandler);
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
+
         if (AcpiNsGetSecondaryObject (ObjDesc))
         {
             AcpiGbl_ObjTypeCount [ACPI_TYPE_BUFFER_FIELD]++;
@@ -213,22 +216,26 @@ AcpiDbEnumerateObject (
         break;
 
     case ACPI_TYPE_REGION:
-        AcpiGbl_ObjTypeCount [INTERNAL_TYPE_REGION_FIELD ]++;
+
+        AcpiGbl_ObjTypeCount [ACPI_TYPE_LOCAL_REGION_FIELD ]++;
         AcpiDbEnumerateObject (ObjDesc->Region.AddrHandler);
         break;
 
     case ACPI_TYPE_POWER:
+
         AcpiDbEnumerateObject (ObjDesc->PowerResource.SysHandler);
         AcpiDbEnumerateObject (ObjDesc->PowerResource.DrvHandler);
         break;
 
     case ACPI_TYPE_PROCESSOR:
+
         AcpiDbEnumerateObject (ObjDesc->Processor.SysHandler);
         AcpiDbEnumerateObject (ObjDesc->Processor.DrvHandler);
         AcpiDbEnumerateObject (ObjDesc->Processor.AddrHandler);
         break;
 
     case ACPI_TYPE_THERMAL:
+
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.SysHandler);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.DrvHandler);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.AddrHandler);
@@ -273,7 +280,7 @@ AcpiDbClassifyOneObject (
     AcpiDbEnumerateObject (ObjDesc);
 
     Type = Node->Type;
-    if (Type > INTERNAL_TYPE_NODE_MAX)
+    if (Type > ACPI_TYPE_NS_NODE_MAX)
     {
         AcpiGbl_NodeTypeCountMisc++;
     }
@@ -334,7 +341,7 @@ AcpiDbCountNamespaceObjects (
     AcpiGbl_NumObjects = 0;
 
     AcpiGbl_ObjTypeCountMisc = 0;
-    for (i = 0; i < (INTERNAL_TYPE_NODE_MAX -1); i++)
+    for (i = 0; i < (ACPI_TYPE_NS_NODE_MAX -1); i++)
     {
         AcpiGbl_ObjTypeCount [i] = 0;
         AcpiGbl_NodeTypeCount [i] = 0;
@@ -414,7 +421,7 @@ AcpiDbDisplayStatistics (
 
         AcpiOsPrintf ("%16.16s %10.10s %10.10s\n", "ACPI_TYPE", "NODES", "OBJECTS");
 
-        for (i = 0; i < INTERNAL_TYPE_NODE_MAX; i++)
+        for (i = 0; i < ACPI_TYPE_NS_NODE_MAX; i++)
         {
             AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", AcpiUtGetTypeName (i),
                 AcpiGbl_NodeTypeCount [i], AcpiGbl_ObjTypeCount [i]);

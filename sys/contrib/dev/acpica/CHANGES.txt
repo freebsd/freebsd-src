@@ -1,4 +1,277 @@
 ----------------------------------------
+15 November 2002.  Summary of changes for version 20021115.
+
+1) ACPI CA Core Subsystem:
+
+Fixed a memory leak problem where an error during resolution
+of method arguments during a method invocation from another
+method failed to cleanup properly by deleting all successfully
+resolved argument objects.
+
+Fixed a problem where the target of the Index() operator was
+not correctly constructed if the source object was a package.
+This problem has not been detected because the use of a target
+operand with Index() is very rare.
+
+Fixed a problem with the Index() operator where an attempt was
+made to delete the operand objects twice.
+
+Fixed a problem where an attempt was made to delete an operand
+twice during execution of the CondRefOf() operator if the
+target did not exist.
+
+Implemented the first of perhaps several internal create
+object functions that create and initialize a specific object
+type.  This consolidates duplicated code wherever the object
+is created, thus shrinking the size of the subsystem.
+
+Implemented improved debug/error messages for errors that
+occur during nested method invocations.  All executing method
+pathnames are displayed (with the error) as the call stack is
+unwound - thus simplifying debug.
+
+Fixed a problem introduced in the 10/02 release that caused
+premature deletion of a buffer object if a buffer was used as
+an ASL operand where an integer operand is required (Thus
+causing an implicit object conversion from Buffer to Integer.)
+The change in the 10/02 release was attempting to fix a memory
+leak (albeit incorrectly.)
+
+Code and Data Size: Current core subsystem library sizes are
+shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler,
+and these values do not include any ACPI driver or OSPM code.
+The debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release
+    Non-Debug Version:  71.9K Code,   9.1K Data,   81.0K Total
+    Debug Version:     153.1K Code,  63.3K Data,  216.4K Total
+  Current Release:
+    Non-Debug Version:  71.3K Code,   9.0K Data,   80.3K Total
+    Debug Version:     152.7K Code,  63.2K Data,  215.5K Total
+
+
+2) Linux
+
+Changed the implementation of the ACPI semaphores to use
+down() instead of down_interruptable().  It is important that
+the execution of ACPI control methods not be interrupted by
+signals.  Methods must run to completion, or the system may be
+left in an unknown/unstable state.
+
+Fixed a compilation error when CONFIG_SOFTWARE_SUSPEND is not
+set. (Shawn Starr)
+
+
+3) iASL Compiler/Disassembler
+
+Changed the default location of output files.  All output
+files are now placed in the current directory by default
+instead of in the directory of the source file.  This change
+may affect some existing makefiles, but it brings the behavior
+of the compiler in line with other similar tools.  The
+location of the output files can be overridden with the -p
+command line switch.
+
+
+----------------------------------------
+11 November 2002.  Summary of changes for version 20021111.
+
+
+0) ACPI Specification 2.0B is released and is now available
+at:  http://www.acpi.info/index.html
+
+
+1) ACPI CA Core Subsystem:
+
+Implemented support for the ACPI 2.0 SMBus Operation Regions.
+This includes the early detection and handoff of the request
+to the SMBus region handler (avoiding all of the complex field
+support code), and support for the bidirectional return packet
+from an SMBus write operation.  This paves the way for the
+development of SMBus drivers in each host operating system.
+
+Fixed a problem where the semaphore WAIT_FOREVER constant was
+defined as 32 bits, but must be 16 bits according to the ACPI
+specification.  This had the side effect of causing ASL
+Mutex/Event timeouts even though the ASL code requested a wait
+forever.  Changed all internal references to the ACPI timeout
+parameter to 16 bits to prevent future problems.  Changed the
+name of WAIT_FOREVER to ACPI_WAIT_FOREVER.
+
+Code and Data Size: Current core subsystem library sizes are
+shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler,
+and these values do not include any ACPI driver or OSPM code.
+The debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release
+    Non-Debug Version:  71.4K Code,   9.0K Data,   80.4K Total
+    Debug Version:     152.3K Code,  63.0K Data,  215.3K Total
+  Current Release:
+    Non-Debug Version:  71.9K Code,   9.1K Data,   81.0K Total
+    Debug Version:     153.1K Code,  63.3K Data,  216.4K Total
+
+
+2) Linux
+
+Module loading/unloading fixes (John Cagle)
+
+
+3) iASL Compiler/Disassembler
+
+Added support for the SMBBlockProcessCall keyword (ACPI 2.0)
+
+Implemented support for the disassembly of all SMBus protocol
+keywords (SMBQuick, SMBWord, etc.)
+
+----------------------------------------
+01 November 2002.  Summary of changes for version 20021101.
+
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem where platforms that have a GPE1 block but no
+GPE0 block were not handled correctly.  This resulted in a
+"GPE overlap" error message.  GPE0 is no longer required.
+
+Removed code added in the previous release that inserted nodes
+into the namespace in alphabetical order.  This caused some
+side-effects on various machines.  The root cause of the
+problem is still under investigation since in theory, the
+internal ordering of the namespace nodes should not matter.
+
+Enhanced error reporting for the case where a named object is
+not found during control method execution.  The full ACPI
+namepath (name reference) of the object that was not found is
+displayed in this case.
+
+Note: as a result of the overhaul of the namespace object
+types in the previous release, the namespace nodes for the
+predefined scopes (_TZ, _PR, etc.) are now of the type
+ACPI_TYPE_LOCAL_SCOPE instead of ACPI_TYPE_ANY.  This
+simplifies the namespace management code but may affect code
+that walks the namespace tree looking for specific object
+types.
+
+Code and Data Size: Current core subsystem library sizes are
+shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler,
+and these values do not include any ACPI driver or OSPM code.
+The debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release
+    Non-Debug Version:  70.7K Code,   8.6K Data,   79.3K Total
+    Debug Version:     151.7K Code,  62.4K Data,  214.1K Total
+  Current Release:
+    Non-Debug Version:  71.4K Code,   9.0K Data,   80.4K Total
+    Debug Version:     152.3K Code,  63.0K Data,  215.3K Total
+
+
+2) Linux
+
+Fixed a problem introduced in the previous release where the
+Processor and Thermal objects were not recognized and
+installed in /proc.  This was related to the scope type change
+described above.
+
+
+3) iASL Compiler/Disassembler
+
+Implemented the -g option to get all of the required ACPI
+tables from the registry and save them to files (Windows
+version of the compiler only.)  The required tables are the
+FADT, FACS, and DSDT.
+
+Added ACPI table checksum validation during table disassembly
+in order to catch corrupted tables.
+
+
+----------------------------------------
+22 October 2002.  Summary of changes for version 20021022.
+
+1) ACPI CA Core Subsystem:
+
+Implemented a restriction on the Scope operator that the
+target must already exist in the namespace at the time the
+operator is encountered (during table load or method
+execution).  In other words, forward references are not
+allowed and Scope() cannot create a new object. This changes
+the previous behavior where the interpreter would create the
+name if not found.  This new behavior correctly enables the
+search-to-root algorithm during namespace lookup of the target
+name.  Because of this upsearch, this fixes the known Compaq
+_SB_.OKEC problem and makes both the AML interpreter and iASL
+compiler compatible with other ACPI implementations.
+
+Completed a major overhaul of the internal ACPI object types
+for the ACPI Namespace and the associated operand objects.
+Many of these types had become obsolete with the introduction
+of the two-pass namespace load.  This cleanup simplifies the
+code and makes the entire namespace load mechanism much
+clearer and easier to understand.
+
+Improved debug output for tracking scope opening/closing to
+help diagnose scoping issues.  The old scope name as well as
+the new scope name are displayed.  Also improved error
+messages for problems with ASL Mutex objects and error
+messages for GPE problems.
+
+Cleaned up the namespace dump code, removed obsolete code.
+
+All string output (for all namespace/object dumps) now uses
+the common ACPI string output procedure which handles escapes
+properly and does not emit non-printable characters.
+
+Fixed some issues with constants in the 64-bit version of the
+local C library (utclib.c)
+
+
+2) Linux
+
+EC Driver:  No longer attempts to acquire the Global Lock at
+interrupt level.
+
+
+3) iASL Compiler/Disassembler
+
+Implemented ACPI 2.0B grammar change that disallows all Type 1
+and 2 opcodes outside of a control method.  This means that
+the "executable" operators (versus the "namespace" operators)
+cannot be used at the table level; they can only be used
+within a control method.
+
+Implemented the restriction on the Scope() operator where the
+target must already exist in the namespace at the time the
+operator is encountered (during ASL compilation). In other
+words, forward references are not allowed and Scope() cannot
+create a new object.  This makes the iASL compiler compatible
+with other ACPI implementations and makes the Scope()
+implementation adhere to the ACPI specification.
+
+Fixed a problem where namepath optimization for the Alias
+operator was optimizing the wrong path (of the two namepaths.)
+This caused a "Missing alias link" error message.
+
+Fixed a problem where an "unknown reserved name" warning could
+be incorrectly generated for names like "_SB" when the
+trailing underscore is not used in the original ASL.
+
+Fixed a problem where the reserved name check did not handle
+NamePaths with multiple NameSegs correctly.  The first nameseg
+of the NamePath was examined instead of the last NameSeg.
+
+
+----------------------------------------
 
 02 October 2002.  Summary of changes for this release.
 

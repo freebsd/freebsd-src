@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 67 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -160,7 +160,7 @@ AcpiExAddTable (
 
     /* Create an object to be the table handle */
 
-    ObjDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
+    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_LOCAL_REFERENCE);
     if (!ObjDesc)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -171,7 +171,6 @@ AcpiExAddTable (
     TableInfo.Pointer      = Table;
     TableInfo.Length       = (ACPI_SIZE) Table->Length;
     TableInfo.Allocation   = ACPI_MEM_ALLOCATED;
-    TableInfo.BasePointer  = Table;
 
     Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
@@ -430,9 +429,9 @@ AcpiExLoadOp (
 
 
     case ACPI_TYPE_BUFFER_FIELD:
-    case INTERNAL_TYPE_REGION_FIELD:
-    case INTERNAL_TYPE_BANK_FIELD:
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Load from Field %p %s\n",
             ObjDesc, AcpiUtGetObjectTypeName (ObjDesc)));
@@ -537,7 +536,7 @@ AcpiExUnloadTable (
      */
     if ((!DdbHandle) ||
         (ACPI_GET_DESCRIPTOR_TYPE (DdbHandle) != ACPI_DESC_TYPE_OPERAND) ||
-        (ACPI_GET_OBJECT_TYPE (DdbHandle) != INTERNAL_TYPE_REFERENCE))
+        (ACPI_GET_OBJECT_TYPE (DdbHandle) != ACPI_TYPE_LOCAL_REFERENCE))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }

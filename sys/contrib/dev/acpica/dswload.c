@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 75 $
+ *              $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -248,54 +248,30 @@ AcpiDsLoad1BeginOp (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "State=%p Op=%p [%s] ", WalkState, Op, AcpiUtGetTypeName (ObjectType)));
 
-    /*
-     * Setup the search flags.
-     *
-     * Since we are entering a name into the namespace, we do not want to 
-     *    enable the search-to-root upsearch.
-     *
-     * There are only two conditions where it is acceptable that the name
-     *    already exists:
-     *    1) the Scope() operator can reopen a scoping object that was 
-     *       previously defined (Scope, Method, Device, etc.)
-     *    2) Whenever we are parsing a deferred opcode (OpRegion, Buffer, 
-     *       BufferField, or Package), the name of the object is already 
-     *       in the namespace.
-     */
-    Flags = ACPI_NS_NO_UPSEARCH;
-    if ((WalkState->Opcode != AML_SCOPE_OP) &&
-        (!(WalkState->ParseFlags & ACPI_PARSE_DEFERRED_OP)))
+    switch (WalkState->Opcode)
     {
-        Flags |= ACPI_NS_ERROR_IF_FOUND;
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Cannot already exist\n"));
-    }
-    else
-    {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Both Find or Create allowed\n"));
-    }
+    case AML_SCOPE_OP:
 
-    /*
-     * Enter the named type into the internal namespace.  We enter the name
-     * as we go downward in the parse tree.  Any necessary subobjects that involve
-     * arguments to the opcode must be created as we go back up the parse tree later.
-     */
-    Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
-                    ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &(Node));
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_REPORT_NSERROR (Path, Status);
-        return (Status);
-    }
+        /*
+         * The target name of the Scope() operator must exist at this point so
+         * that we can actually open the scope to enter new names underneath it.
+         * Allow search-to-root for single namesegs.
+         */
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
+                        ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_REPORT_NSERROR (Path, Status);
+            return (Status);
+        }
 
-    /*
-     * For the scope op, we must check to make sure that the target is
-     * one of the opcodes that actually opens a scope
-     */
-    if (WalkState->Opcode == AML_SCOPE_OP)
-    {
+        /*
+         * Check to make sure that the target is
+         * one of the opcodes that actually opens a scope
+         */
         switch (Node->Type)
         {
-        case ACPI_TYPE_ANY:         /* Scope nodes are untyped (ANY) */
+        case ACPI_TYPE_LOCAL_SCOPE:         /* Scope  */
         case ACPI_TYPE_DEVICE:
         case ACPI_TYPE_POWER:
         case ACPI_TYPE_PROCESSOR:
@@ -325,7 +301,7 @@ AcpiDsLoad1BeginOp (
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
             break;
 
-       default:
+        default:
 
             /* All other types are an error */
 
@@ -334,7 +310,55 @@ AcpiDsLoad1BeginOp (
 
             return (AE_AML_OPERAND_TYPE);
         }
+        break;
+
+
+    default:
+
+        /*
+         * For all other named opcodes, we will enter the name into the namespace.
+         *
+         * Setup the search flags.
+         * Since we are entering a name into the namespace, we do not want to 
+         * enable the search-to-root upsearch.
+         *
+         * There are only two conditions where it is acceptable that the name
+         * already exists:
+         *    1) the Scope() operator can reopen a scoping object that was 
+         *       previously defined (Scope, Method, Device, etc.)
+         *    2) Whenever we are parsing a deferred opcode (OpRegion, Buffer, 
+         *       BufferField, or Package), the name of the object is already 
+         *       in the namespace.
+         */
+        Flags = ACPI_NS_NO_UPSEARCH;
+        if ((WalkState->Opcode != AML_SCOPE_OP) &&
+            (!(WalkState->ParseFlags & ACPI_PARSE_DEFERRED_OP)))
+        {
+            Flags |= ACPI_NS_ERROR_IF_FOUND;
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Cannot already exist\n"));
+        }
+        else
+        {
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Both Find or Create allowed\n"));
+        }
+
+        /*
+         * Enter the named type into the internal namespace.  We enter the name
+         * as we go downward in the parse tree.  Any necessary subobjects that involve
+         * arguments to the opcode must be created as we go back up the parse tree later.
+         */
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
+                        ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &(Node));
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_REPORT_NSERROR (Path, Status);
+            return (Status);
+        }
+        break;
     }
+
+
+    /* Common exit */
 
     if (!Op)
     {
@@ -537,68 +561,46 @@ AcpiDsLoad2BeginOp (
         "State=%p Op=%p Type=%X\n", WalkState, Op, ObjectType));
 
 
-    if (WalkState->Opcode == AML_FIELD_OP          ||
-        WalkState->Opcode == AML_BANK_FIELD_OP     ||
-        WalkState->Opcode == AML_INDEX_FIELD_OP)
+    switch (WalkState->Opcode)
     {
+    case AML_FIELD_OP:
+    case AML_BANK_FIELD_OP:
+    case AML_INDEX_FIELD_OP:
+
         Node = NULL;
         Status = AE_OK;
-    }
-    else if (WalkState->Opcode == AML_INT_NAMEPATH_OP)
-    {
+        break;
+
+    case AML_INT_NAMEPATH_OP:
+
         /*
          * The NamePath is an object reference to an existing object.  Don't enter the
          * name into the namespace, but look it up for use later
          */
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
                         ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
-    }
-    else
-    {
-        /* All other opcodes */
+        break;
 
-        if (Op && Op->Common.Node)
-        {
-            /* This op/node was previously entered into the namespace */
-
-            Node = Op->Common.Node;
-
-            if (AcpiNsOpensScope (ObjectType))
-            {
-                Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
-                if (ACPI_FAILURE (Status))
-                {
-                    return_ACPI_STATUS (Status);
-                }
-
-            }
-            return_ACPI_STATUS (AE_OK);
-        }
+    case AML_SCOPE_OP:
 
         /*
-         * Enter the named type into the internal namespace.  We enter the name
-         * as we go downward in the parse tree.  Any necessary subobjects that involve
-         * arguments to the opcode must be created as we go back up the parse tree later.
+         * The Path is an object reference to an existing object.  Don't enter the
+         * name into the namespace, but look it up for use later
          */
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
-                        ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, WalkState, &(Node));
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_REPORT_NSERROR (BufferPtr, Status);
-        return_ACPI_STATUS (Status);
-    }
-
-    /*
-     * For the scope op, we must check to make sure that the target is
-     * one of the opcodes that actually opens a scope
-     */
-    if (WalkState->Opcode == AML_SCOPE_OP)
-    {
+                        ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_REPORT_NSERROR (BufferPtr, Status);
+            return_ACPI_STATUS (Status);
+        }
+        /*
+         * We must check to make sure that the target is
+         * one of the opcodes that actually opens a scope
+         */
         switch (Node->Type)
         {
-        case ACPI_TYPE_ANY:         /* Scope nodes are untyped (ANY) */
+        case ACPI_TYPE_LOCAL_SCOPE:         /* Scope */
         case ACPI_TYPE_DEVICE:
         case ACPI_TYPE_POWER:
         case ACPI_TYPE_PROCESSOR:
@@ -626,7 +628,7 @@ AcpiDsLoad2BeginOp (
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
             break;
 
-       default:
+        default:
 
             /* All other types are an error */
 
@@ -635,7 +637,46 @@ AcpiDsLoad2BeginOp (
 
             return (AE_AML_OPERAND_TYPE);
         }
+        break;
+
+    default:
+
+        /* All other opcodes */
+
+        if (Op && Op->Common.Node)
+        {
+            /* This op/node was previously entered into the namespace */
+
+            Node = Op->Common.Node;
+
+            if (AcpiNsOpensScope (ObjectType))
+            {
+                Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+
+            }
+            return_ACPI_STATUS (AE_OK);
+        }
+
+        /*
+         * Enter the named type into the internal namespace.  We enter the name
+         * as we go downward in the parse tree.  Any necessary subobjects that involve
+         * arguments to the opcode must be created as we go back up the parse tree later.
+         */
+        Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
+                        ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, WalkState, &(Node));
+        break;
     }
+
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_REPORT_NSERROR (BufferPtr, Status);
+        return_ACPI_STATUS (Status);
+    }
+
 
     if (!Op)
     {

@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 70 $
+ *       $Revision: 71 $
  *
  *****************************************************************************/
 
@@ -553,7 +553,8 @@ typedef enum
     AML_FIELD_ATTRIB_SMB_BYTE       = 0x06,
     AML_FIELD_ATTRIB_SMB_WORD       = 0x08,
     AML_FIELD_ATTRIB_SMB_BLOCK      = 0x0A,
-    AML_FIELD_ATTRIB_SMB_CALL       = 0x0E
+    AML_FIELD_ATTRIB_SMB_WORD_CALL  = 0x0C,
+    AML_FIELD_ATTRIB_SMB_BLOCK_CALL = 0x0D
 
 } AML_ACCESS_ATTRIBUTE;
 
