@@ -209,6 +209,10 @@ SCSI_NCR_MYADDR		opt_ncr.h
 ISP_TARGET_MODE		opt_isp.h
 
 # Options used in the 'ata' ATA/ATAPI driver
+ACD_DEBUG		opt_ata.h
+AST_DEBUG		opt_ata.h
+ATAPI_DEBUG		opt_ata.h
+ATA_DEBUG		opt_ata.h
 ATA_STATIC_ID		opt_ata.h
 ATA_ENABLE_ATAPI_DMA	opt_ata.h
 ATA_ENABLE_TAGS		opt_ata.h
