@@ -1,0 +1,76 @@
+# Makefile for GNU CVS auxiliary tools.
+# Do not use this makefile directly, but only from `../Makefile'.
+# Copyright (C) 1986, 1988-1990 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# $CVSid: @(#)Makefile.in 1.6 94/10/22 $
+
+SHELL = /bin/sh
+
+srcdir     = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH      = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# Where to put the manual pages.
+mandir = $(prefix)/man
+
+# Use cp if you don't have install.
+INSTALL = @INSTALL@
+
+DISTFILES = ChangeLog README .cvsignore Makefile.in
+
+all: Makefile
+.PHONY: all
+
+install: all
+	@echo "pcl-cvs not installed"
+.PHONY: install
+
+tags:
+.PHONY: tags
+
+TAGS:
+.PHONY: TAGS
+
+ls:
+	@echo $(DISTFILES)
+.PHONY: ls
+
+clean:
+	/bin/rm -f *.o core
+.PHONY: clean
+
+distclean: clean
+	rm -f Makefile pcl-cvs/Makefile
+.PHONY: distclean
+
+realclean: distclean
+.PHONY: realclean
+
+dist-dir:
+	mkdir ${DISTDIR}
+	for i in ${DISTFILES}; do \
+	  ln $(srcdir)/$${i} ${DISTDIR}; \
+	done
+	cd pcl-cvs; ${MAKE} dist-dir DISTDIR="../${DISTDIR}/pcl-cvs"
+.PHONY: dist-dir
+
+subdir = tools
+Makefile: ../config.status Makefile.in
+	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status

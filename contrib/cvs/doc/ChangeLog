@@ -1,0 +1,569 @@
+Wed May  1 15:38:26 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Tags): Document un-revision of all-uppercase tag
+	names.
+
+Wed Apr 24 08:41:51 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication security): Rewrite sentence
+	on complex and unknown security bugs to clarify that it is
+	referring to people who have been give access to cvs, not to holes
+	in the authentication method (which is relatively simple).
+
+Tue Apr 23 09:31:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Talk about what -m does (and does not
+	do).  Other minor edits.
+
+Wed Apr 17 15:27:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (rcsinfo): Rewrite paragraph concerning remote CVS.
+	* cvsclient.texi (Responses): Document Template response.
+
+Sun Apr 14 16:01:39 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * .cvsignore: added CVSvn.texi.
+
+Wed Apr 10 16:56:21 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (~/.cvsrc): Mention setting global options with "cvs".
+
+	* cvs.texinfo (release): Change "modules" to "directories".
+	Release does not take module names as arguments.
+
+	* cvs.texinfo (Creating a branch): Add comments about how we
+	should better document tagging the branchpoint.
+
+Tue Apr  9 19:59:45 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Top): Use @value{CVSVN}, not a vague refenece to 1.4.
+
+	* cvs.texinfo (From other version control systems): New node.
+
+Mon Apr  8 15:59:37 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Connection and Authentication): Revise kerberos
+	and pserver sections to reflect the fact that port 2401 is now
+	officially registered.
+
+Thu Mar 28 09:51:13 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (History browsing): Reinstate this node.  Try to get
+	it into some minimally useful state (it still needs a lot of
+	work).
+	(annotate): New node, subnode of History browing.
+
+	* cvsclient.texi (Requests): Add annotate request.
+
+Tue Mar 26 08:46:39 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: In various examples, change tag names to avoid tag
+	names reserved to CVS.
+
+	* cvs.texinfo (Tags): Document what is a valid tag name.
+
+	* cvs.texinfo (Substitution modes): Try to describe how the
+	various keyword expansion settings interract.
+	(Binary files): Suggest cvs update -A, not removing file and then
+	updating it, to get effect of new keyword expansion options.
+
+	* cvs.texinfo (admin options): Mention CVS's use of `dead' state.
+
+Thu Mar 21 08:25:17 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Environment variables): Expand introduction to RCS
+	environment variables.  Expand and correct CVS_SERVER_SLEEP.
+
+	* cvs.texinfo (Environment variables): Remove POSIXLY_CORRECT; cvs
+	requires options to precede arguments regardless of it.
+
+Thu Mar 21 08:18:42 1996  Norbert Kiesel <nk@col.sw-ley.de>
+
+	* cvs.texinfo: Remove paragrahps about a forthcoming CVS
+          newsgroup and about sending patches to think.com.
+          (Environment): Document some more (all?) used environment
+          variables.
+
+Wed Mar 20 09:44:21 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Introduction): New node.
+	* Makefile.in: Add cruft to reflect fact that cvsclient.texi now
+	uses CVSvn.texi.
+
+Mon Mar 18 14:43:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Add Case request.
+
+Wed Mar 13 16:01:47 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Connection and Authentication): New node.
+
+	* cvsclient.texi (Requests): Expand discussion of Root a bit.
+
+	* cvs.texinfo (Setting up): Don't refer to INSTALL file; revise to
+	reflect some information which had been in the INSTALL file.
+
+	* cvs.texinfo (history file): Update to reflect cvsinit -> cvs
+	init.  Adjust discussion of whether history file format is
+	documented.
+	(Setting up): Update to reflect cvsinit -> cvs init.
+
+	* cvsclient.texi (Requests): Document init request.
+
+Thu Feb 29 10:08:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (loginfo example): Adjust example to reflect the way
+	that CVS actually works.  Add comments questioning whether that is
+	the best behavior.
+
+	* cvs.texinfo (cvsignore): Document additions to default ignore list.
+
+Mon Feb 26 13:48:01 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Filenames): New node, documents / vs \, etc.
+
+Wed Feb 24 1996  Marcus Daniels  <marcus@sayre.sysc.pdx.edu>
+
+	* cvs.texinfo (Password authentication server): Mention
+	support for imaginary usernames.
+
+Thu Feb 15 16:34:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Variables): Add new internal variable $USER.
+
+Wed Feb 14 22:52:58 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (export, admin): Document -k option to cvs export.
+
+	* cvs.texinfo (admin options): Mention using -l, -u, -L, and -U in
+	conjunction with rcslock.pl.
+
+Mon Feb 12 16:38:41 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Remove references to mkmodules.
+
+Sun Feb 11 12:31:36 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi: Add Set request.
+
+	* cvs.texinfo (Variables): Rewrite to reflect user variables
+	replacing environment variables; motivate the discussion better.
+	(Global options): Add -s option.
+
+Sat Feb 10 11:18:37 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* cvs.texinfo (Variables): Fix @table commands.
+
+Fri Feb  9 17:31:18 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Variables): New node.
+
+	* Makefile.in (CVSvn.texi): New rule.
+	(OBJDIR_DISTFILES): Add CVSvn.texi.
+	(cvs.dvi,cvs.info): Add cruft to deal with it being in build dir
+	or srcdir.
+	* cvs.texinfo: Include CVSvn.texi and use the version number from
+	it instead of a hardcoded version number and date.
+
+Thu Feb  1 13:28:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Sticky tags): Expand so it really documents the
+	features it is talking about rather than referring to "Appendix
+	A".  Add example of how to restore the old version of a dead
+	file.  In various other parts of the manual refer to this node, in
+	some cases deleting duplicative text.  In the case of cvs admin
+	-b, mention vendor branch usage.
+	(Removing files): Discuss removing files (in user-visible terms,
+	not in terms of the Attic and such).
+	(remove): Remove node; merge contents into Removing files.
+
+Tue Jan 30 17:52:06 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* cvs.texinfo: Tweak @top node, to make file compatible with both
+	makeinfo and texinfo-format-buffer.  Perhaps we should fix the
+	formatters to agree on what constitutes valid texinfo.
+
+Mon Jan 29 16:38:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requirements): New node, to talk about required
+	versus optional parts of the protocol.
+
+Sun Jan 28 09:00:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Modes): Add discussion what what the mode really
+	means (across diverse operating systems).
+
+Tue Jan 23 12:54:57 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Per mail from Per Cederqvist, change author to "Per
+	Cederqvist et al".  Also remove sentence about Signum shipping
+	hardcopy manuals and add information on Cyclic.  Change version
+	number to 1.6.87.
+
+Fri Jan 12 15:29:39 1996  Vince Demarco  <vdemarco@bou.shl.com>
+
+	* cvs.texinfo: Fix the documentation for the com/uncom change
+	to wrap/unwrap. make everything consistant
+
+Wed Jan 10 16:11:54 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Concurrency): Add index entries; minor clarification.
+
+Tue Jan  9 16:03:39 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Getting Notified): Document users file.
+
+	* cvs.texinfo (cvsignore): Add *.obj to list of ignored files.
+
+Wed Jan  3 17:01:58 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (import): Adjust list of ignored files to match
+	recent change to CVS (CVS* -> CVS CVS.adm).  Consolidate
+	discussion of ignored files in one place (with xrefs from others).
+
+	* cvsclient.texi: Remove How To node.  It was out of date
+	(again!), and I am getting sick of trying to update it (internals
+	documentation should be in the comments, where it at least has a
+	fighting chance of staying up to date).
+	(Protocol): Say what \n and \t mean in this document.
+
+Tue Jan  2 23:39:32 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Change comb/uncom to wrap/unwrap.
+
+Mon Jan  2 23:00:00 1996  Vince Demarco  <vdemarco@bou.shl.com>
+
+	* cvs.texinfo: update the Wrappers documentation so it isn't
+	so NEXTSTEP centric. The wrappers code has alot of other
+	general uses. The new version of the documentation tryes
+	to show that to the reader.
+
+Mon Jan  1 13:09:39 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Responses): Clarify that Module-expansion is not
+	suitable for passing to co.
+
+Sun Dec 31 10:53:47 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication server): Suggest specifying
+	-b in inetd.conf.
+
+	* cvs.texinfo (Password authentication): Variety of cleanups and
+	minor fixes, including shorter node names.
+
+Sun Dec 24 02:37:51 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * cvs.texinfo (Using the client with password authentication): 
+        tixed fypos.
+
+Sun Dec 24 00:00:16 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * cvs.texinfo (Remote repositories): use @code{rsh} most places,
+        because it is the name of a program, and because I am a pedant.
+        Refer to new node "Password authenticated". 
+        (Password authenticated): new node.
+        (Setting up the server for password authentication): new node.
+        (Using the client with password authentication): new node.
+        (Security considerations with password authentication): new node.
+
+        These are all really long node names, but it seems necessary that
+        they be descriptive in case they're referenced elsewhere.  If you
+        can think of a way out of this, please change them.
+
+Thu Dec 21 12:09:34 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Add Questionable.  Revise
+	documentation of export and update to explain role of -I option.
+
+Tue Dec 19 16:44:18 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Update binary files info for -kb.
+
+Mon Dec 11 12:20:55 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Responses): Add Notified and Mode.
+	(Requests): Add Notify, noop, watch-on, watch-off, watch-add,
+	watch-remove, watchers, and editors.
+	* cvs.texinfo (Watches): New node, to describe new developer
+	communication features.
+
+Thu Nov 23 08:59:09 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (admin options): In saying that cvs admin -o is not
+	such a good way to undo a change, refer to the section which
+	describes the preferred way.
+
+Thu Nov 13 16:39:03 1995  Fred Fish  <fnf@cygnus.com>
+
+	* Makefile.in: Remove extraneous tab from empty line.
+
+Mon Nov 13 15:00:26 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Concurrency): New node, to describe user-visible
+	behaviors associated with cvs locks.
+
+	* cvs.texinfo (Remote repositories): Add more details of how to
+	set things up (with rsh and kerberos).
+
+Thu Nov  9 11:41:37 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Remove -Q and -q options from command synopses.
+
+Wed Nov  8 09:38:00 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Notes): Revise paragraph on server memory use
+	problem.
+
+Tue Nov  7 16:26:39 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Document merging more than once from a branch;
+	miscellaneous cleanups.
+
+Mon Oct 30 13:12:53 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (modules): Document -e.
+
+Thu Oct 26 11:15:40 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Tags): Update "version" vs. "revision" for CVS 1.5.
+	(Index,BUGS): Change bug reporting address from Per Cederqvist to
+	bug-cvs@prep.ai.mit.edu.
+
+Wed Oct 25 15:37:05 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Miscellaneous minor changes (clean up CVS/Root
+	stuff, don't say release requires a module entry, etc.).
+
+Tue Oct 24 11:01:22 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: More precisely describe scope of document.
+	* cvsclient.texi: Describe scope of document
+
+Thu Oct 12 11:25:40 1995  Karl Fogel  <kfogel@totoro.cyclic.com>
+
+        * cvs.texinfo: cover page now refers to CVS 1.6, and "last
+        updated" date has been upped to today.
+
+Wed Oct 11 22:30:10 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (info): Look for *.info* either in build dir or in
+        srcdir.
+
+Mon Oct  2 17:10:49 1995  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* cvs.texinfo (admin): Describe usage of CVS_ADMIN_GROUP to
+	restrict usage of admin.
+
+Fri Oct  6 21:17:50 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (~/.cvsrc): Document change to command name matching.
+
+Thu Oct  5 18:03:41 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (install-info): Add comment about srcdir.
+
+Wed Sep 13 12:45:53 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Moving files): Rewrite "Outside" node to clarify
+	that history is still there and describe how to get it.  Assorted
+	cleanups.
+
+Tue Sep 12 19:02:47 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Removing files): Remove section on limitations
+	which are gone now that we have death support.
+
+Wed Aug 30 12:32:29 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * cvs.texinfo (Remote Repositories): new node, referred to from
+        `Basics' and `Repository'.
+        (Repository): documented new `-d' vs. `$CVSROOT' vs. `CVS/Root'
+        behavior.
+        (commitinfo): document client/server-case behavior.
+        (editinfo):   document client/server-case behavior.
+        (loginfo):    document client/server-case behavior.
+        (rcsinfo):    document client/server-case behavior.
+
+Mon Aug 21 00:23:45 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (How To): The way to force rsh is to set
+	CVS_CLIENT_PORT to -1, not to some bogus value.
+
+Tue Aug 15 17:12:08 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * cvs.texinfo
+        (Basic concepts): talk about remote repositories.
+        (Repository): same.
+
+Mon Jul 24 19:09:12 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: Remove references to -q and -Q command options.
+
+Fri Jul 21 10:33:07 1995  Vince DeMarco <vdemarco@bou.shl.com>
+
+	* cvs.texinfo: Changes for CVSEDITOR and wrappers.
+
+Thu Jul 13 23:04:12 CDT 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (cvs-paper.ps): *Never* redirect output directly to
+	the target (usu $@) of a rule.  Instead, redirect to a temporary
+	file, and then move that temporary to the target.  I chose to
+	name temporary files $@-t.  Remember to be careful that the length
+	of the temporary file name not exceed the 14-character limit.
+
+Sun Jul  9 19:03:00 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* doc/cvs.texinfo:
+	- document '-q' for 'cvs status'
+	- correction to regexp use in *info files
+	- correction to use of 'cvsinit' script
+	(from previous local changes)
+
+Tue Jun 20 18:57:55 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (dist-dir): Depend on $(OBJDIR_DISTFILES).
+
+Fri Jun 16 21:56:16 1995  Karl Fogel <kfogel@cyclic.com>
+			  and Jim Meyering <meyering@comco.com>
+
+	* update.c (update_file_proc): If noexec, just write 'C', don't merge.
+
+Fri Jun 16 07:56:04 1995  Jim Kingdon  (kingdon@cyclic.com)
+
+	* cvs-paper.ps: Added.
+
+Sat May 27 08:46:00 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (Makefile): Regenerate only Makefile in current
+	directory when Makefile.in is out of date.  Depend on ../config.status.
+
+Sat May 27 08:08:18 1995  Jim Meyering  (meyering@comco.com)
+
+	* doc/Makefile.in (realclean): Remove more postscript and info files.
+
+Fri Apr 28 22:44:06 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* Makefile.in (DISTFILES): Updated.
+	(doc): Depend on cvsclient.ps too.
+	(cvs.aux, cvsclient.aux): Add target.
+	(cvsclient.dvi): Don't nuke the aux file.  They're small and
+	helpful.
+	(cvsclient.ps): New target.
+	(dist-dir): Renamed from dist; changed to work with DISTDIR
+	variable from parent.
+
+Sun Apr 23 22:13:18 1995  Noel Cragg  <noel@vo.com>
+
+	* Makefile: Added more files to the `clean' target.
+	* .cvsignore: Added the same files.
+
+Mon Nov 28 10:22:46 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Notes): Remove item about commit options; now
+	fixed.  Rewrite paragraph about server memory usage.
+
+	* cvsclient.texi (Responses): Add Set-checkin-prog and
+	Set-update-prog.
+	(Requests): Add Checkin-prog and Update-prog.
+	* cvsclient.texi (TODO): Remove last item (it is fixed) and node.
+
+Fri Nov 18 16:51:36 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Requests): Add Max-dotdot.
+
+Thu Nov  3 07:04:24 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Add Directory request.
+	(TODO): Remove item about renaming directories.
+	(Protocol): Change @subheading to @node/@section.
+
+Fri Oct 28 07:51:13 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Add expand-module request and
+	Module-expansion response.
+	(Protocol Notes, TODO): Remove items about cvs co funkiness.
+
+Wed Oct 12 19:49:36 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Add Copy-file response.
+
+	* cvsclient.texi (How To): Correct item about where declaration
+	of cvs commands go.
+
+	* cvsclient.texi (Protocol): Add new commands.  Merge description
+	of how commands work which was duplicated among the various
+	commands.  Formatting cleanups.
+	(TODO): Remove item about bad error message on checking in a
+	nonexistent file; this works now (presumably fixed by the
+	Unchanged stuff).
+	(Notes): Remove thing about trying unsupported commands via NFS,
+	rdist, etc.  Also remove item about some commands not being
+	supported.  There are no unsupported commands anymore.
+
+Tue Sep 13 13:28:52 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Document New-entry response.
+
+Mon Sep 12 06:35:15 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Clarify that checksum is of patched
+	file, not patch itself.  Fix typo (valid-requests -> Valid-requests).
+
+	* cvsclient.texi (Protocol): Document Sticky request and
+	Set-sticky and Clear-sticky responses.
+	(Notes): Remove sticky tags from todo list.
+
+Thu Sep  8 14:23:58 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Document Static-directory requests
+	and Set-static-directory and Clear-static-directory responses.
+	(Notes): Remove Entries.Static support from todo list.
+
+	* cvsclient.texi (Protocol): Document Unchanged and UseUnchanged
+	requests.  Update documentation of Entry and Lost accordingly.
+
+Mon Aug 22 14:08:21 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Goals): Remove mention of rsh.
+	(Protocol Notes, TODO): Remove compression item.
+	(Protocol): Document "status" request.
+	(TODO): Remove suggestion to add "cvs status".
+
+Tue Jul 19 10:02:53 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* Makefile.in (install-info): Do not depend upon installdirs.
+
+Fri Jul 15 12:56:53 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* Makefile.in (all): Do not depend upon info.
+	(install): Do not depend upon install-info.
+
+Thu Jul  7 20:43:12 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* cvsclient.texi (Protocol): Add Checksum response.
+
+Thu Jun 30 15:16:50 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Add Global_option request.
+
+Wed Jun 29 14:09:42 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* cvsclient.texi: Describe sending patches, including the dummy
+	update-patches request and the Patched response.  Mention Kerberos
+	authentication using ``cvs kserver''.  Some other minor changes.
+
+Tue Jun 28 15:21:06 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol Notes): Remove note about sending diffs
+	in Updated; Ian did it.  Remove note about adding encryption to rsh.
+
+Sat May  7 10:44:30 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi (Protocol): Document Modified without Entry.  Add
+	`add' and `remove' and `Remove-entry'.  Formatting cleanups.
+
+Tue Apr 19 01:29:04 1994  John Gilmore  (gnu@cygnus.com)
+
+	* cvsclient.texi:  New node How To; cleanups throughout.
+	* Makefile.in:  Add dependencies on cvsclient.texi.
+
