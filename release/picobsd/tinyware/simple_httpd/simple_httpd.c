@@ -1,8 +1,10 @@
 /*-
- * SimpleHTTPd v1.0 - a very small, barebones HTTP server
+ * Simple_HTTPd v1.1 - a very small, barebones HTTP server
  * 
  * Copyright (c) 1998-1999 Marc Nicholas <marc@netstor.com>
  * All rights reserved.
+ *
+ * Major rewrite by William Lloyd <wlloyd@slap.net>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,32 +27,60 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id:$
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <time.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+
 #include <fcntl.h>
-#include <string.h>
+#include <netdb.h>
 #include <signal.h>
-#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
-int             http_sock, con_sock;
 int             http_port = 80;
-struct sockaddr_in source;
-char           homedir[100];
-char           *adate();
-struct hostent *hst;
+int             daemonize = 1;
+int             verbose = 0;
+int             http_sock, con_sock;
 
+char            fetch_mode[100];
+char            homedir[100];
+char            logfile[80];
+char           *adate();
+
+struct hostent *hst;
+struct sockaddr_in source;
+
+/* HTTP basics */
+static char httpd_server_ident[] = "Server: FreeBSD/PicoBSD simple_httpd 1.1\r";
+
+static char http_200[] = "HTTP/1.0 200 OK\r";
+
+/* Two parts, HTTP Header and then HTML */
+static char *http_404[2] = 
+    {"HTTP/1.0 404 Not found\r\n", 
+"<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 404</H1>\
+Not found - file doesn't exist or you do not have permission.\n</BODY></HTML>\r\n"
+};
+
+static char *http_405[2] = 
+    {"HTTP/1.0 405 Method Not allowed\r\nAllow: GET,HEAD\r\n",
+"<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 405</H1>\
+This server only supports GET and HEAD requests.\n</BODY></HTML>\r\n"
+};
+
+/*
+ * Only called on initial invocation
+ */
 void
 init_servconnection(void)
 {
@@ -69,10 +99,13 @@ init_servconnection(void)
 		perror("bind socket");
 		exit(1);
 	}
-        printf("simpleHTTPd running on %d port\n",http_port);
+        if (verbose) printf("simple_httpd\n",http_port);
 }
 
-attenteconnection(void)
+/*
+ * Wait here until we see an incoming http request
+ */
+wait_connection(void)
 {
 	int lg;
 
@@ -85,7 +118,10 @@ attenteconnection(void)
 	}
 }
 
-outdate()
+/*
+ * Print timestamp for HTTP HEAD and GET
+ */
+http_date()
 {
 	time_t	tl;
 	char	buff[50];
@@ -93,110 +129,114 @@ outdate()
 	tl = time(NULL);
 	strftime(buff, 50, "Date: %a, %d %h %Y %H:%M:%S %Z\r\n", gmtime(&tl));
 	write(con_sock, buff, strlen(buff));
+	//return(buff);
 }
 
-char           *rep_err_nget[2] = {"<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 405</H1>\
-This server is supports only GET and HEAD  requests\n</BODY></HTML>\r\n",
-"HTTP/1.0 405 Method Not allowed\r\nAllow: GET,HEAD\r\nServer: jhttpd\r\n"};
-
-char           *rep_err_acc[2] = {"<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 404</H1>\
-Not found - file doesn't exist or is read protected\n</BODY></HTML>\r\n",
-"HTTP/1.0 404 Not found\r\nServer: jhttpd\r\n"};
-
-outerror(char **rep, int http1) /* Выдыча ошибки клиенту в html- виде */
+/*
+ * Send data to the open socket
+ */
+http_output(char *html)
 {
-
-	if (http1) {
-		write(con_sock, rep[1], strlen(rep[1]));
-		outdate();
-		write(con_sock, "\r\n", 2);
-	}
-	write(con_sock, rep[0], strlen(rep[0]));
+        write(con_sock, html, strlen(html));
+        write(con_sock, "\r\n", 2);
 }
 
-char            rep_head[] = "HTTP/1.0 200 OK\r\nServer: simpleHTTPD\r\n";
 
-traite_req()
+/*
+ * Create and write the log information to file
+ * Log file format is one line per entry
+ */
+log_line(char *req)
 {
-	char            buff[8192];
-	int             fd, lg, cmd, http1, i;
-	char           *filename, *c;
-	struct stat     statres;
-	char            req[1024];
-        char            logfile[80];
+        char            log_buff[256];
         char            msg[1024];
-        char           *p,
-                       *par;
-        long            addr;
-        FILE           *log;
+	char            env_host[80], env_addr[80];
+	long            addr;
+	FILE           *log;
+
+	strcpy(log_buff,inet_ntoa(source.sin_addr));
+	sprintf(env_addr, "REMOTE_ADDR=%s",log_buff);
+
+        addr=inet_addr(log_buff);
+        
+        strcpy(msg,adate());
+        strcat(msg,"    ");                 
+        hst=gethostbyaddr((char*) &addr, 4, AF_INET);
+
+	/* If DNS hostname exists */
+        if (hst) {
+	  strcat(msg,hst->h_name);
+	  sprintf(env_host, "REMOTE_HOST=%s",hst->h_name);
+	}
+        strcat(msg," (");
+        strcat(msg,log_buff);
+        strcat(msg,")   ");
+        strcat(msg,req);
+
+	if (daemonize) {
+	  log=fopen(logfile,"a");
+	  fprintf(log,"%s\n",msg);
+	  fclose(log);
+	} else
+	  printf("%s\n",msg);
+
+	/* This is for CGI scripts */
+	putenv(env_addr);
+	putenv(env_host);
+}
+
+/*
+ * We have a connection.  Identify what type of request GET, HEAD, CGI, etc 
+ * and do what needs to be done
+ */
+http_request()
+{
+	int             fd, lg, ld, i; 
+	int             cmd = 0;
+	int             http1 = 0;
+	char           *p, *par;
+	char           *filename, *c;
+	struct stat     file_status;
+	char            req[1024];
+        char            msg[1024];
+	char            buff[8192];
 
 	lg = read(con_sock, req, 1024);
 
         if (p=strstr(req,"\n")) *p=0;
         if (p=strstr(req,"\r")) *p=0;
 
-       if (geteuid())
-          {
-          strcpy(logfile,getenv("HOME"));
-          strcat(logfile,"/");
-          strcat(logfile,"jhttp.log");
-          }
-       else strcpy(logfile,"/var/log/jhttpd.log");
-
-       if ( access(logfile,W_OK))
-            { 
-            lg=creat (logfile,O_WRONLY);         
-            chmod (logfile,00600);
-            close(lg);
-            }
-
-        strcpy(buff,inet_ntoa(source.sin_addr));
-
-        addr=inet_addr(buff);
-        
-        strcpy(msg,adate());
-        strcat(msg,"    ");                 
-        hst=gethostbyaddr((char*) &addr, 4, AF_INET);
-        if (hst) strcat(msg,hst->h_name);
-        strcat(msg," (");
-        strcat(msg,buff);
-        strcat(msg,")   ");
-        strcat(msg,req);
-
-        log=fopen(logfile,"a");
-        fprintf(log,"%s\n",msg);
-        fclose(log);
+	log_line(req);
 
 	c = strtok(req, " ");
+
+	/* Error msg if request is nothing */
 	if (c == NULL) {
-		outerror(rep_err_nget, 0);
-		goto error;
+	  http_output(http_404[0]);
+	  http_output(http_404[1]);
+	  goto end_request;
 	}
-	cmd = 0;
-	if (strncmp(c, "GET", 3) == 0)
-		cmd = 1;
-	if (strncmp(c, "HEAD", 4) == 0) {
-		cmd = 2;
+
+	if (strncmp(c, "GET", 3) == 0) cmd = 1;
+	if (strncmp(c, "HEAD", 4) == 0) cmd = 2;
+
+	/* Do error msg for any other type of request */
+	if (cmd == 0) {	        
+	  http_output(http_405[0]);
+	  http_output(http_405[1]);
+	  goto end_request;
 	}
 
 	filename = strtok(NULL, " ");
 
-	http1 = 0;
 	c = strtok(NULL, " ");
-	if (c != NULL && strncmp(c, "HTTP", 4) == 0)
-		http1 = 1;
-
-	if (cmd == 0) {
-		outerror(rep_err_nget, http1);
-		goto error;
-	}
-   
+	if (fetch_mode[0] != NULL) strcpy(filename,fetch_mode); 
 	if (filename == NULL || 
             strlen(filename)==1) filename="/index.html"; 
 
-         while (filename[0]== '/') filename++;        
-
-        /**/
+	while (filename[0]== '/') filename++;        
+	
+        /* CGI handling.  Untested */
         if (!strncmp(filename,"cgi-bin/",8))           
            {
            par=0;
@@ -206,152 +246,224 @@ traite_req()
                 par++;      
               } 
            if (access(filename,X_OK)) goto conti;
-           stat (filename,&statres);
-           if (setuid(statres.st_uid)) return(0);
-           if (seteuid(statres.st_uid)) return(0);
+           stat (filename,&file_status);
+           if (setuid(file_status.st_uid)) return(0);
+           if (seteuid(file_status.st_uid)) return(0);
            if (!fork())
               {
                close(1);
                dup(con_sock);
-               printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");
-               execlp (filename,filename,par,0);
+               //printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");
+	       printf("HTTP/1.0 200 OK\r\n");
+               /* Plug in environment variable, others in log_line */
+	       putenv("SERVER_SOFTWARE=FreeBSD/PicoBSD");
+
+	       execlp (filename,filename,par,0);
               } 
             wait(&i);
             return(0);
             }
         conti:
 	if (filename == NULL) {
-		outerror(rep_err_acc, http1);
-		goto error;
+	  http_output(http_405[0]);
+	  http_output(http_405[1]);
+	  goto end_request;
 	}
-	/* interdit les .. dans le path */
+	/* End of CGI handling */
+	
+	/* Reject any request with '..' in it, bad hacker */
 	c = filename;
 	while (*c != '\0')
-		if (c[0] == '.' && c[1] == '.') {
-			outerror(rep_err_acc, http1);
-			goto error;
-		} else
-			c++;
-
+	  if (c[0] == '.' && c[1] == '.') {
+	    http_output(http_404[0]);
+	    http_output(http_404[1]); 
+	    goto end_request;
+	  } else
+	    c++;
+	
+	/* Open filename */
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		outerror(rep_err_acc, http1);
-		goto error;
+	        http_output(http_404[0]);
+	        http_output(http_404[1]);
+		goto end_request;
 	}
-	if (fstat(fd, &statres) < 0) {
-		outerror(rep_err_acc, http1);
-		goto error;
+
+	/* Get file status information */
+	if (fstat(fd, &file_status) < 0) {
+	  http_output(http_404[0]);
+	  http_output(http_404[1]);
+	  goto end_request;
 	}
-	if (!S_ISREG(statres.st_mode))
-	    {
-	    outerror(rep_err_acc, http1);
-            goto error;
-	    }
-	if (http1) {
-		char            buff[50];
-		time_t          tl;
+
+	/* Is it a regular file? */
+	if (!S_ISREG(file_status.st_mode)) {
+	  http_output(http_404[0]);
+	  http_output(http_404[1]);
+	  goto end_request;
+	}
      
-		write(con_sock, rep_head, strlen(rep_head));
-		sprintf(buff, "Content-length: %d\r\n", statres.st_size);
-		write(con_sock, buff, strlen(buff));
-		outdate();
+	/* Past this point we are serving either a GET or HEAD */
+	/* Print all the header info */
+	http_output(http_200);
+	http_output(httpd_server_ident);
+	http_date();
 
-                if (strstr(filename,"."))
-                   {
-                   strcpy(buff,"Content-type: ");
-                   strcat(buff,strstr(filename,".")+1);
-                   strcat(buff,"\r\n");
-                   write(con_sock,buff,strlen(buff));
-                   }
+	sprintf(buff, "Content-length: %d\r\n", file_status.st_size);
 
-                if (strstr(filename,".txt"))
-                   {
-                   strcpy(buff,"Content-type: text/plain\r\n");
-                   write(con_sock, buff, strlen(buff));
-                   }
-
-                if (strstr(filename,".html") ||
-                    strstr(filename,".htm"))
-                   {
-                   strcpy(buff,"Content-type: text/html\r\n");
-                   write(con_sock, buff, strlen(buff));
-                   }
-
-                if (strstr(filename,".gif"))
-                   {
-                   strcpy(buff,"Content-type: image/gif\r\n");
-                   write(con_sock, buff, strlen(buff));
-                   }
-
-                if (strstr(filename,".jpg"))
-                   {
-                   strcpy(buff,"Content-type: image/jpeg\r\n");
-                   write(con_sock, buff, strlen(buff));
-                   } 
-
-		strftime(buff, 50, "Last-Modified: %a, %d %h %Y %H:%M:%S %Z\r\n\r\n", gmtime(&statres.st_mtime));
-		write(con_sock, buff, strlen(buff));
+	if (strstr(filename,".txt")) {
+	  strcpy(buff,"Content-type: text/plain\r\n");
+	} else if (strstr(filename,".html") || strstr(filename,".htm")) {
+	    strcpy(buff,"Content-type: text/html\r\n");
+	} else if (strstr(filename,".gif")) {
+	  strcpy(buff,"Content-type: image/gif\r\n");
+	} else if (strstr(filename,".jpg")) {
+	  strcpy(buff,"Content-type: image/jpeg\r\n");
+	} else {
+	  /* Take a guess at content if we don't have something already */
+	  strcpy(buff,"Content-type: ");
+	  strcat(buff,strstr(filename,".")+1);
+	  strcat(buff,"\r\n");
 	}
+	write(con_sock, buff, strlen(buff));
+	
+	strftime(buff, 50, "Last-Modified: %a, %d %h %Y %H:%M:%S %Z\r\n\r\n", gmtime(&file_status.st_mtime));
+	write(con_sock, buff, strlen(buff));
+
+	/* Send data only if GET request */
 	if (cmd == 1) {
-		while (lg = read(fd, buff, 8192))
-			write(con_sock, buff, lg);
+	  while (lg = read(fd, buff, 8192))
+	    write(con_sock, buff, lg);
 	} 
 
-error:
+end_request:
 	close(fd);
 	close(con_sock);
 
 }
 
-
-main(int argc, char **argv)
+/*
+ * Simple httpd server for use in PicoBSD or other embedded application. 
+ * Should satisfy simple httpd needs.  For more demanding situations
+ * apache is probably a better (but much larger) choice.
+ */
+main(int argc, char *argv[])
 {
-	int             lg;
-        char            hello[100];
-
-        if (argc<2 && geteuid())
-           {
-           printf("Usage: simple_htppd <port>\n");
-           exit(1);
-           }
-
-	if (argc>=2) http_port = atoi(argv[1]);
- 
+        extern char *optarg;
+        extern int optind;
+        int bflag, ch, fd, ld;
+        int             lg;
+	int             httpd_group = 65534;
+        pid_t server_pid;
+  
+	/* Default for html directory */
 	strcpy (homedir,getenv("HOME"));
         if (!geteuid()) strcpy (homedir,"/httphome");
            else         strcat (homedir,"/httphome");
 
-        strcpy(hello,homedir);
-        strcat(hello,"/0hello.html");
+	/* Defaults for log file */
+	if (geteuid()) {
+	    strcpy(logfile,getenv("HOME"));
+	    strcat(logfile,"/");
+	    strcat(logfile,"jhttp.log");
+	} else 
+	  strcpy(logfile,"/var/log/jhttpd.log");
 
-	if (chdir(homedir)) 
-           {
-	   perror("chdir");
-           puts(homedir);
-           exit(1);
-	   }
+	/* Parse command line arguments */
+	while ((ch = getopt(argc, argv, "d:f:g:l:p:vDh")) != -1)
+	  switch (ch) {
+	  case 'd':
+	    strcpy(homedir,optarg);
+	    break;	  
+	  case 'f':
+	    daemonize = 0;
+	    verbose = 1;
+	    strcpy(fetch_mode,optarg);
+	    break;
+	  case 'g':
+	    httpd_group = atoi(optarg);
+	    break;
+	  case 'l':
+	    strcpy(logfile,optarg);
+	    break;
+	  case 'p':
+	    http_port = atoi(optarg);
+	    break;
+	  case 'v':
+	    verbose = 1;
+	    break;
+	  case 'D':
+	    daemonize = 0;
+	    break;
+	  case '?':
+	  case 'h':
+	  default:
+	    printf("usage: simple_httpd [[-d directory][-g grpid][-l logfile][-p port][-vD]]\n");
+	    exit(1);
+	    /* NOTREACHED */
+	  }                           
+
+	/* Not running as root and no port supplied, assume 1080 */
+        if ((http_port == 80) && geteuid()) {
+	  http_port = 1080;
+	}
+
+	/* Do we really have rights in the html directory? */
+	if (fetch_mode[0] == NULL) {
+	  if (chdir(homedir)) {
+	    perror("chdir");
+	    puts(homedir);
+	    exit(1);
+	  }
+	}
+
+	/* Create log file if it doesn't exit */
+	if ((access(logfile,W_OK)) && daemonize) { 
+	  ld = open (logfile,O_WRONLY);         
+	  chmod (logfile,00600);
+	  close(ld);
+	}
+
         init_servconnection();                  
-                
-        if (fork()) exit(0);
 
-        setpgrp(0,65534);
-	signal(SIGQUIT, SIG_IGN);
-	signal(SIGHUP, SIG_IGN);
+        if (verbose) {
+	  printf("Server started with options \n"); 
+	  printf("port: %d\n",http_port);
+	  if (fetch_mode[0] == NULL) printf("html home: %s\n",homedir);
+	  if (daemonize) printf("logfile: %s\n",logfile);
+	}
 
-        if (listen(http_sock,100) < 0) exit(1);
+	/* httpd is spawned */
+        if (daemonize) {
+	  if (server_pid = fork()) {
+	    wait3(0,WNOHANG,0);
+	    if (verbose) printf("pid: %d\n",server_pid);
+	    exit(0);
+	  }
+	  wait3(0,WNOHANG,0);
+	}
+
+	if (fetch_mode[0] == NULL) setpgrp(0,httpd_group);
+
+	/* How many connections do you want? 
+	 * Keep this lower than the available number of processes
+	 */
+        if (listen(http_sock,15) < 0) exit(1);
 
         label:	
-	attenteconnection();
-        if (fork())
-           {
-           close(con_sock);
-           goto label;
-           }
-        alarm(1800);
-	traite_req();
-        exit(0);
-}
+	wait_connection();
+    
+	if (fork()) {
+	  wait3(0,WNOHANG,0);
+	  close(con_sock);
+	  goto label;
+	}
 
+	http_request();
+
+	wait3(0,WNOHANG,0);
+	exit(0);
+}
 
 
 char *adate()
