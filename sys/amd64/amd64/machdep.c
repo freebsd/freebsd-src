@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.344 1999/06/24 20:53:24 jlemon Exp $
+ *	$Id: machdep.c,v 1.345 1999/06/28 15:34:54 luoqi Exp $
  */
 
 #include "apm.h"
@@ -1521,6 +1521,13 @@ init386(first)
 
 	atdevbase = ISA_HOLE_START + KERNBASE;
 
+	if (bootinfo.bi_modulep) {
+		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
+		preload_bootstrap_relocate(KERNBASE);
+	}
+	if (bootinfo.bi_envp)
+		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
+
 	/*
 	 * make gdt memory segments, the code segment goes up to end of the
 	 * page with etext in it, the data segment goes to the end of
@@ -1700,14 +1707,6 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 #endif
 	proc0.p_addr->u_pcb.pcb_ext = 0;
-
-	/* Sigh, relocate physical addresses left from bootstrap */
-	if (bootinfo.bi_modulep) {
-		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
-		preload_bootstrap_relocate(KERNBASE);
-	}
-	if (bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
