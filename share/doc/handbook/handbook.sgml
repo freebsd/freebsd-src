@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.68 1997/02/22 12:58:34 peter Exp $ -->
+<!-- $Id: handbook.sgml,v 1.69 1997/04/08 00:47:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -133,7 +133,6 @@ name="FreeBSD FTP server"> or one of the numerous
       &routing;
       &nfs;
       &diskless;
-      <sect><heading>* Yellow Pages/NIS</heading>
       &isdn;	
 
     &mail;
@@ -145,7 +144,6 @@ name="FreeBSD FTP server"> or one of the numerous
     &stable;
     &synching; 
     &submitters;
-    &troubleshooting;
     &kerneldebug;
     &kernelopts;
     &linuxemu;
