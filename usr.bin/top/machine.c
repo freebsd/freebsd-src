@@ -122,22 +122,22 @@ static struct nlist nlst[] = {
 #ifdef P_IDLEPROC	/* FreeBSD SMP kernel */
 
 static char header[] =
-  "  PID X                PRI NICE SIZE   RES STATE C   TIME   WCPU    CPU COMMAND";
+  "  PID X        PRI NICE SIZE   RES STATE C   TIME   WCPU    CPU COMMAND";
 /* 0123456   -- field to fill in starts at header+6 */
 #define UNAME_START 6
 
 #define Proc_format \
-	"%5d %-16.16s%3d%3d%7s %6s %-6.6s%1x%7s %5.2f%% %5.2f%% %.6s"
+	"%5d %-8.8s%3d%3d%7s %6s %-6.6s%1x%7s %5.2f%% %5.2f%% %.14s"
 
 #else			/* Standard kernel */
 
 static char header[] =
-  "  PID X                PRI NICE SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+  "  PID X        PRI NICE SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 /* 0123456   -- field to fill in starts at header+6 */
 #define UNAME_START 6
 
 #define Proc_format \
-	"%5d %-16.16s%3d %3d%7s %6s %-6.6s%7s %5.2f%% %5.2f%% %.6s"
+	"%5d %-8.8s%3d %3d%7s %6s %-6.6s%7s %5.2f%% %5.2f%% %.14s"
 
 #endif
 
