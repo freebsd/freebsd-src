@@ -1534,7 +1534,6 @@ device		miibus
 #       attach each one as a separate network interface.
 # sn:   Support for ISA and PC Card Ethernet devices using the
 #       SMC91C90/92/94/95 chips.
-# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
 #       the D-Link DFE-550TX.
 # ti:   Support for PCI gigabit ethernet NICs based on the Alteon Networks
@@ -1585,11 +1584,6 @@ device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
 device		fea
-device		sr
-hint.sr.0.at="isa"
-hint.sr.0.port="0x300"
-hint.sr.0.irq="5"
-hint.sr.0.maddr="0xd0000"
 device		sn
 hint.sn.0.at="isa"
 hint.sn.0.port="0x300"
