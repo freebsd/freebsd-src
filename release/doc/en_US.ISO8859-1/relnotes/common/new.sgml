@@ -142,8 +142,9 @@
 
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
 
-      <para arch="i386">&man.rue.4; driver has been merged from -CURRENT.
-	That supports RealTek RTL8150 USB to fast Ethernet controller.</para>
+      <para arch="i386">The &man.rue.4; network driver has been added,
+        providing support for Ethernet adapters based on the RealTek
+        RTL8150 USB to Fast Ethernet controller chip.</para>
 
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.</para>
