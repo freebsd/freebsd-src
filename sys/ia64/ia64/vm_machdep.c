@@ -482,7 +482,7 @@ vm_page_zero_idle()
 	}
 	if (mtx_trylock(&Giant)) {
 		s = splvm();
-		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
+		m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
 		zero_state = 0;
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
 			vm_page_queues[m->queue].lcnt--;
