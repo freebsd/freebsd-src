@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
+#include <nlist.h>
 
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_btsocket_hci_raw.h>
