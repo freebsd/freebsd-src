@@ -142,9 +142,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/sx.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -269,8 +270,7 @@ struct acpi_ec_softc {
 
     int			ec_glk;
     int			ec_glkhandle;
-    struct mtx		ec_mtx;
-    int			ec_polldelay;
+    struct sx		ec_sxlock;
 };
 
 /*
@@ -280,11 +280,8 @@ struct acpi_ec_softc {
  */
 #define EC_LOCK_TIMEOUT	1000
 
-/*
- * Start with an interval of 1 us for status poll loop.  This delay
- * will be dynamically adjusted based on the actual time waited.
- */
-#define EC_POLL_DELAY	1
+/* Default interval in microseconds for the status polling loop. */
+#define EC_POLL_DELAY	10
 
 /* Total time in ms spent in the poll loop waiting for a response. */
 #define EC_POLL_TIMEOUT	100
@@ -304,13 +301,13 @@ EcLock(struct acpi_ec_softc *sc)
     ACPI_STATUS	status = AE_OK;
 
     /* Always acquire this EC's mutex. */
-    mtx_lock(&sc->ec_mtx);
+    sx_xlock(&sc->ec_sxlock);
 
     /* If _GLK is non-zero, also acquire the global lock. */
     if (sc->ec_glk) {
 	status = AcpiAcquireGlobalLock(EC_LOCK_TIMEOUT, &sc->ec_glkhandle);
 	if (ACPI_FAILURE(status))
-	    mtx_unlock(&sc->ec_mtx);
+	    sx_xunlock(&sc->ec_sxlock);
     }
 
     return (status);
@@ -321,7 +318,7 @@ EcUnlock(struct acpi_ec_softc *sc)
 {
     if (sc->ec_glk)
 	AcpiReleaseGlobalLock(sc->ec_glkhandle);
-    mtx_unlock(&sc->ec_mtx);
+    sx_xunlock(&sc->ec_sxlock);
 }
 
 static uint32_t		EcGpeHandler(void *Context);
@@ -553,8 +550,7 @@ acpi_ec_attach(device_t dev)
     params = acpi_get_private(dev);
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
-    sc->ec_polldelay = EC_POLL_DELAY;
-    mtx_init(&sc->ec_mtx, "ACPI embedded controller", NULL, MTX_DEF);
+    sx_init(&sc->ec_sxlock, "ACPI embedded controller");
 
     /* Retrieve previously probed values via device ivars. */
     sc->ec_glk = params->glk;
@@ -637,7 +633,7 @@ error:
     if (sc->ec_data_res)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
-    mtx_destroy(&sc->ec_mtx);
+    sx_destroy(&sc->ec_sxlock);
     return (ENXIO);
 }
 
@@ -823,10 +819,10 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 {
     EC_STATUS	EcStatus;
     ACPI_STATUS	Status;
-    int		i, period, retval;
+    int		count, i, period, retval, slp_ival;
     static int	EcDbgMaxDelay;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
     Status = AE_NO_HARDWARE_RESPONSE;
 
     /* 
@@ -837,44 +833,33 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     AcpiOsStall(1);
 
     /*
-     * If we're up and running, wait up to 1 ms.  Otherwise, burn the entire
-     * timeout value with delays since msleep() is a no-op.
+     * Poll the EC status register for up to 1 ms in chunks of 10 us 
+     * to detect completion of the last command.
      */
-    period = 1000 / sc->ec_polldelay;
-    if (cold)
-	period *= ec_poll_timeout;
-
-    /*
-     * Poll the EC status register to detect completion of the last
-     * command in chunks of ec_polldelay.
-     */
-    for (i = 0; i < period; i++) {
+    for (i = 0; i < 1000 / EC_POLL_DELAY; i++) {
 	EcStatus = EC_GET_CSR(sc);
 	if (EVENT_READY(Event, EcStatus)) {
 	    Status = AE_OK;
 	    break;
 	}
-	AcpiOsStall(sc->ec_polldelay);
+	AcpiOsStall(EC_POLL_DELAY);
     }
-
-    /* Scale poll delay by the amount of time actually waited. */
-    period = i * sc->ec_polldelay;
-    if (period <= 5)
-	sc->ec_polldelay = 1;
-    else if (period <= 20)
-	sc->ec_polldelay = 5;
-    else if (period <= 100)
-	sc->ec_polldelay = 10;
-    else
-	sc->ec_polldelay = 100;
+    period = i * EC_POLL_DELAY;
 
     /*
      * If we still don't have a response and we're up and running, wait up
      * to ec_poll_timeout ms for completion, sleeping for chunks of 10 ms.
      */
-    if (!cold && Status != AE_OK) {
-	retval = -1;
-	for (i = 0; i < ec_poll_timeout / 10; i++) {
+    slp_ival = 0;
+    if (Status != AE_OK) {
+	retval = ENXIO;
+	count = ec_poll_timeout / 10;
+	if (count == 0)
+	    count = 1;
+	slp_ival = hz / 100;
+	if (slp_ival == 0)
+	    slp_ival = 1;
+	for (i = 0; i < count; i++) {
 	    if (retval != 0)
 		EcStatus = EC_GET_CSR(sc);
 	    else
@@ -883,13 +868,15 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 		Status = AE_OK;
 		break;
 	    }
-	    retval = msleep(&sc->ec_csrvalue, &sc->ec_mtx, PZERO, "ecpoll",
-			    10/*ms*/);
+	    if (!cold)
+		retval = tsleep(&sc->ec_csrvalue, PZERO, "ecpoll", slp_ival);
+	    else
+		AcpiOsStall(10000);
 	}
     }
 
     /* Calculate new delay and print it if it exceeds the max. */
-    if (period == 1000)
+    if (slp_ival > 0)
 	period += i * 10000;
     if (period > EcDbgMaxDelay) {
 	EcDbgMaxDelay = period;
@@ -906,7 +893,7 @@ EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd)
     ACPI_STATUS	Status;
     EC_EVENT	Event;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
 
     /* Decide what to wait for based on command type. */
     switch (cmd) {
@@ -941,7 +928,7 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
@@ -978,7 +965,7 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    mtx_assert(&sc->ec_mtx, MA_OWNED);
+    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
