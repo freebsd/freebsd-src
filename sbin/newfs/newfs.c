@@ -217,6 +217,9 @@ main(argc, argv)
 	struct statfs *mp;
 	int fsi, fso, len, n;
 	char *cp, *s1, *s2, *special, *opstring, buf[BUFSIZ];
+#ifdef MFS
+	struct vfsconf *vfc;
+#endif
 
 	if (progname = rindex(*argv, '/'))
 		++progname;
@@ -549,7 +552,18 @@ main(argc, argv)
 			args.export.ex_flags = 0;
 		args.base = membase;
 		args.size = fssize * sectorsize;
-		if (mount(MOUNT_MFS, argv[1], mntflags, &args) < 0)
+
+		vfc = getvfsbyname("mfs");
+		if(!vfc && vfsisloadable("mfs")) {
+			if(vfsload("mfs")) {
+				err(1, "vfsload(mfs)");
+			}
+			endvfsent();	/* flush cache */
+			vfc = getvfsbyname("mfs");
+		}
+
+		if (mount(vfc ? vfc->vfc_index : MOUNT_MFS, argv[1], mntflags,
+				&args) < 0)
 			fatal("%s: %s", argv[1], strerror(errno));
 		if(filename) {
 			munmap(membase,fssize * sectorsize);
