@@ -5,7 +5,6 @@ src-etc release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/us
 src-games release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-gnu release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-include release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
-src-kerberosIV release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-lib release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-libexec release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-sbin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
