@@ -202,7 +202,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 		return;
 
-	if ((!sflag || iflag) && !pflag) {
+	if (!pfunc) {
 		printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
