@@ -59,7 +59,6 @@ SUBDIR=	apply \
 	getopt \
 	gprof \
 	head \
-	help \
 	hesinfo \
 	hexdump \
 	id \
@@ -138,7 +137,6 @@ SUBDIR=	apply \
 	rusers \
 	rwall \
 	rwho \
-	sccs \
 	script \
 	sed \
 	shar \
