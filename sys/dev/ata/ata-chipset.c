@@ -2003,26 +2003,21 @@ static struct ata_chip_id *
 ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
 {
     device_t *children;
-    u_int32_t devid;
-    u_int8_t revid;
     int nchildren, i;
-
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
-    devid = pci_get_devid(dev);
-    revid = pci_get_revid(dev);
-
     while (index->chipid != 0) {
 	for (i = 0; i < nchildren; i++) {
 	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || slot < 0)&&
-		pci_get_devid(children[i]) == devid &&
-		pci_get_revid(children[i]) >= revid) {
+		pci_get_devid(children[i]) == index->chipid &&
+		pci_get_revid(children[i]) >= index->chiprev) {
 		free(children, M_TEMP);
 		return index;
 	    }
 	}
+	index++;
     }
     free(children, M_TEMP);
     return NULL;
