@@ -752,7 +752,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			panic("ufs_direnter: newblk");
 		flags = BA_CLRBUF;
 		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
-			flags |= BA_SYNC;
+			flags |= IO_SYNC;
 		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
@@ -961,7 +961,8 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		if (dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
-		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, td);
+		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
+		    IO_NORMAL | IO_SYNC, cr, td);
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
 	}

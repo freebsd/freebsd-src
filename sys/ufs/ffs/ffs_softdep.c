@@ -157,6 +157,7 @@ static	void clear_inodedeps(struct thread *);
 static	int flush_pagedep_deps(struct vnode *, struct mount *,
 	    struct diraddhd *);
 static	int flush_inodedep_deps(struct fs *, ino_t);
+static	int flush_deplist(struct allocdirectlst *, int, int *);
 static	int handle_written_filepage(struct pagedep *, struct buf *);
 static  void diradd_inode_written(struct diradd *, struct inodedep *);
 static	int handle_written_inodeblock(struct inodedep *, struct buf *);
@@ -181,7 +182,7 @@ static	void free_allocdirect(struct allocdirectlst *,
 static	int check_inode_unwritten(struct inodedep *);
 static	int free_inodedep(struct inodedep *);
 static	void handle_workitem_freeblocks(struct freeblks *, int);
-static	void merge_inode_lists(struct inodedep *);
+static	void merge_inode_lists(struct allocdirectlst *,struct allocdirectlst *);
 static	void setup_allocindir_phase2(struct buf *, struct inode *,
 	    struct allocindir *);
 static	struct allocindir *newallocindir(struct inode *, int, ufs2_daddr_t,
@@ -1041,12 +1042,15 @@ top:
 	inodedep->id_nlinkdelta = 0;
 	inodedep->id_savedino1 = NULL;
 	inodedep->id_savedsize = -1;
+	inodedep->id_savedextsize = -1;
 	inodedep->id_buf = NULL;
 	LIST_INIT(&inodedep->id_pendinghd);
 	LIST_INIT(&inodedep->id_inowait);
 	LIST_INIT(&inodedep->id_bufwait);
 	TAILQ_INIT(&inodedep->id_inoupdt);
 	TAILQ_INIT(&inodedep->id_newinoupdt);
+	TAILQ_INIT(&inodedep->id_extupdt);
+	TAILQ_INIT(&inodedep->id_newextupdt);
 	ACQUIRE_LOCK(&lk);
 	LIST_INSERT_HEAD(inodedephd, inodedep, id_hash);
 	sema_release(&inodedep_in_progress);
@@ -1566,6 +1570,103 @@ handle_workitem_freefrag(freefrag)
 }
 
 /*
+ * Set up a dependency structure for an external attributes data block.
+ * This routine follows much of the structure of softdep_setup_allocdirect.
+ * See the description of softdep_setup_allocdirect above for details.
+ */
+void 
+softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t newblkno;
+	ufs2_daddr_t oldblkno;
+	long newsize;
+	long oldsize;
+	struct buf *bp;
+{
+	struct allocdirect *adp, *oldadp;
+	struct allocdirectlst *adphead;
+	struct bmsafemap *bmsafemap;
+	struct inodedep *inodedep;
+	struct newblk *newblk;
+
+	MALLOC(adp, struct allocdirect *, sizeof(struct allocdirect),
+		M_ALLOCDIRECT, M_SOFTDEP_FLAGS|M_ZERO);
+	adp->ad_list.wk_type = D_ALLOCDIRECT;
+	adp->ad_lbn = lbn;
+	adp->ad_newblkno = newblkno;
+	adp->ad_oldblkno = oldblkno;
+	adp->ad_newsize = newsize;
+	adp->ad_oldsize = oldsize;
+	adp->ad_state = ATTACHED | EXTDATA;
+	LIST_INIT(&adp->ad_newdirblk);
+	if (newblkno == oldblkno)
+		adp->ad_freefrag = NULL;
+	else
+		adp->ad_freefrag = newfreefrag(ip, oldblkno, oldsize);
+
+	if (newblk_lookup(ip->i_fs, newblkno, 0, &newblk) == 0)
+		panic("softdep_setup_allocext: lost block");
+
+	ACQUIRE_LOCK(&lk);
+	inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC | NODELAY, &inodedep);
+	adp->ad_inodedep = inodedep;
+
+	if (newblk->nb_state == DEPCOMPLETE) {
+		adp->ad_state |= DEPCOMPLETE;
+		adp->ad_buf = NULL;
+	} else {
+		bmsafemap = newblk->nb_bmsafemap;
+		adp->ad_buf = bmsafemap->sm_buf;
+		LIST_REMOVE(newblk, nb_deps);
+		LIST_INSERT_HEAD(&bmsafemap->sm_allocdirecthd, adp, ad_deps);
+	}
+	LIST_REMOVE(newblk, nb_hash);
+	FREE(newblk, M_NEWBLK);
+
+	WORKLIST_INSERT(&bp->b_dep, &adp->ad_list);
+	if (lbn >= NXADDR) {
+		FREE_LOCK(&lk);
+		panic("softdep_setup_allocext: lbn %d > NXADDR", lbn);
+	}
+	/*
+	 * The list of allocdirects must be kept in sorted and ascending
+	 * order so that the rollback routines can quickly determine the
+	 * first uncommitted block (the size of the file stored on disk
+	 * ends at the end of the lowest committed fragment, or if there
+	 * are no fragments, at the end of the highest committed block).
+	 * Since files generally grow, the typical case is that the new
+	 * block is to be added at the end of the list. We speed this
+	 * special case by checking against the last allocdirect in the
+	 * list before laboriously traversing the list looking for the
+	 * insertion point.
+	 */
+	adphead = &inodedep->id_newextupdt;
+	oldadp = TAILQ_LAST(adphead, allocdirectlst);
+	if (oldadp == NULL || oldadp->ad_lbn <= lbn) {
+		/* insert at end of list */
+		TAILQ_INSERT_TAIL(adphead, adp, ad_next);
+		if (oldadp != NULL && oldadp->ad_lbn == lbn)
+			allocdirect_merge(adphead, adp, oldadp);
+		FREE_LOCK(&lk);
+		return;
+	}
+	TAILQ_FOREACH(oldadp, adphead, ad_next) {
+		if (oldadp->ad_lbn >= lbn)
+			break;
+	}
+	if (oldadp == NULL) {
+		FREE_LOCK(&lk);
+		panic("softdep_setup_allocext: lost entry");
+	}
+	/* insert in middle of list */
+	TAILQ_INSERT_BEFORE(oldadp, adp, ad_next);
+	if (oldadp->ad_lbn == lbn)
+		allocdirect_merge(adphead, adp, oldadp);
+	FREE_LOCK(&lk);
+}
+
+/*
  * Indirect block allocation dependencies.
  * 
  * The same dependencies that exist for a direct block also exist when
@@ -1769,7 +1870,8 @@ setup_allocindir_phase2(bp, ip, aip)
 		LIST_INIT(&newindirdep->ir_deplisthd);
 		LIST_INIT(&newindirdep->ir_donehd);
 		if (bp->b_blkno == bp->b_lblkno) {
-			ufs_bmaparray(bp->b_vp, bp->b_lblkno, &blkno, NULL, NULL);
+			ufs_bmaparray(bp->b_vp, bp->b_lblkno, &blkno, bp,
+			    NULL, NULL);
 			bp->b_blkno = blkno;
 		}
 		newindirdep->ir_savebp =
@@ -1809,9 +1911,10 @@ setup_allocindir_phase2(bp, ip, aip)
  * can release it.
  */
 void
-softdep_setup_freeblocks(ip, length)
+softdep_setup_freeblocks(ip, length, flags)
 	struct inode *ip;	/* The inode whose length is to be reduced */
 	off_t length;		/* The new length for the file */
+	int flags;		/* IO_EXT and/or IO_NORMAL */
 {
 	struct freeblks *freeblks;
 	struct inodedep *inodedep;
@@ -1819,6 +1922,7 @@ softdep_setup_freeblocks(ip, length)
 	struct vnode *vp;
 	struct buf *bp;
 	struct fs *fs;
+	ufs2_daddr_t extblocks, datablocks;
 	int i, delay, error;
 
 	fs = ip->i_fs;
@@ -1831,27 +1935,46 @@ softdep_setup_freeblocks(ip, length)
 	freeblks->fb_previousinum = ip->i_number;
 	freeblks->fb_devvp = ip->i_devvp;
 	freeblks->fb_mnt = ITOV(ip)->v_mount;
-	freeblks->fb_oldsize = ip->i_size;
-	freeblks->fb_newsize = length;
-	freeblks->fb_chkcnt = DIP(ip, i_blocks);
-	for (i = 0; i < NDADDR; i++) {
-		freeblks->fb_dblks[i] = DIP(ip, i_db[i]);
-		DIP(ip, i_db[i]) = 0;
+	extblocks = 0;
+	if (fs->fs_magic == FS_UFS2_MAGIC)
+		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+	datablocks = DIP(ip, i_blocks) - extblocks;
+	if ((flags & IO_NORMAL) == 0) {
+		freeblks->fb_oldsize = 0;
+		freeblks->fb_chkcnt = 0;
+	} else {
+		freeblks->fb_oldsize = ip->i_size;
+		ip->i_size = 0;
+		DIP(ip, i_size) = 0;
+		freeblks->fb_chkcnt = datablocks;
+		for (i = 0; i < NDADDR; i++) {
+			freeblks->fb_dblks[i] = DIP(ip, i_db[i]);
+			DIP(ip, i_db[i]) = 0;
+		}
+		for (i = 0; i < NIADDR; i++) {
+			freeblks->fb_iblks[i] = DIP(ip, i_ib[i]);
+			DIP(ip, i_ib[i]) = 0;
+		}
+		/*
+		 * If the file was removed, then the space being freed was
+		 * accounted for then (see softdep_filereleased()). If the
+		 * file is merely being truncated, then we account for it now.
+		 */
+		if ((ip->i_flag & IN_SPACECOUNTED) == 0)
+			fs->fs_pendingblocks += datablocks;
 	}
-	for (i = 0; i < NIADDR; i++) {
-		freeblks->fb_iblks[i] = DIP(ip, i_ib[i]);
-		DIP(ip, i_ib[i]) = 0;
+	if ((flags & IO_EXT) == 0) {
+		freeblks->fb_oldextsize = 0;
+	} else {
+		freeblks->fb_oldextsize = ip->i_din2->di_extsize;
+		ip->i_din2->di_extsize = 0;
+		freeblks->fb_chkcnt += extblocks;
+		for (i = 0; i < NXADDR; i++) {
+			freeblks->fb_eblks[i] = ip->i_din2->di_extb[i];
+			ip->i_din2->di_extb[i] = 0;
+		}
 	}
-	DIP(ip, i_blocks) = 0;
-	ip->i_size = 0;
-	DIP(ip, i_size) = 0;
-	/*
-	 * If the file was removed, then the space being freed was
-	 * accounted for then (see softdep_filereleased()). If the
-	 * file is merely being truncated, then we account for it now.
-	 */
-	if ((ip->i_flag & IN_SPACECOUNTED) == 0)
-		fs->fs_pendingblocks += freeblks->fb_chkcnt;
+	DIP(ip, i_blocks) -= freeblks->fb_chkcnt;
 	/*
 	 * Push the zero'ed inode to to its disk buffer so that we are free
 	 * to delete its dependencies below. Once the dependencies are gone
@@ -1897,9 +2020,18 @@ softdep_setup_freeblocks(ip, length)
 	 * If we still have a bitmap dependency, then the inode has never
 	 * been written to disk, so we can free any fragments without delay.
 	 */
-	merge_inode_lists(inodedep);
-	while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
-		free_allocdirect(&inodedep->id_inoupdt, adp, delay);
+	if (flags & IO_NORMAL) {
+		merge_inode_lists(&inodedep->id_newinoupdt,
+		    &inodedep->id_inoupdt);
+		while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
+			free_allocdirect(&inodedep->id_inoupdt, adp, delay);
+	}
+	if (flags & IO_EXT) {
+		merge_inode_lists(&inodedep->id_newextupdt,
+		    &inodedep->id_extupdt);
+		while ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != 0)
+			free_allocdirect(&inodedep->id_extupdt, adp, delay);
+	}
 	FREE_LOCK(&lk);
 	bdwrite(bp);
 	/*
@@ -1911,14 +2043,21 @@ softdep_setup_freeblocks(ip, length)
 	vp = ITOV(ip);
 	ACQUIRE_LOCK(&lk);
 	drain_output(vp, 1);
-	while (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
-		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+restart:
+	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
+		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
+		    ((flags & IO_NORMAL) == 0 &&
+		      (bp->b_xflags & BX_ALTDATA) == 0))
+			continue;
+		if (getdirtybuf(&bp, MNT_WAIT) == 0)
+			goto restart;
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		FREE_LOCK(&lk);
 		brelse(bp);
 		ACQUIRE_LOCK(&lk);
+		goto restart;
 	}
 	if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
@@ -2216,6 +2355,8 @@ check_inode_unwritten(inodedep)
 	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
 	    inodedep->id_nlinkdelta != 0)
 		return (0);
 	inodedep->id_state |= ALLCOMPLETE;
@@ -2249,6 +2390,8 @@ free_inodedep(inodedep)
 	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
 	    inodedep->id_nlinkdelta != 0 || inodedep->id_savedino1 != NULL)
 		return (0);
 	LIST_REMOVE(inodedep, id_hash);
@@ -2288,30 +2431,48 @@ handle_workitem_freeblocks(freeblks, flags)
 	nblocks = btodb(fs->fs_bsize);
 	blocksreleased = 0;
 	/*
-	 * Indirect blocks first.
+	 * Release all extended attribute blocks or frags.
 	 */
-	for (level = (NIADDR - 1); level >= 0; level--) {
-		if ((bn = freeblks->fb_iblks[level]) == 0)
-			continue;
-		if ((error = indir_trunc(freeblks, fsbtodb(fs, bn), level,
-		    baselbns[level], &blocksreleased)) == 0)
-			allerror = error;
-		ffs_blkfree(fs, freeblks->fb_devvp, bn, fs->fs_bsize,
-		    freeblks->fb_previousinum);
-		fs->fs_pendingblocks -= nblocks;
-		blocksreleased += nblocks;
+	if (freeblks->fb_oldextsize > 0) {
+		for (i = (NXADDR - 1); i >= 0; i--) {
+			if ((bn = freeblks->fb_eblks[i]) == 0)
+				continue;
+			bsize = sblksize(fs, freeblks->fb_oldextsize, i);
+			ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
+			    freeblks->fb_previousinum);
+			blocksreleased += btodb(bsize);
+		}
 	}
 	/*
-	 * All direct blocks or frags.
+	 * Release all data blocks or frags.
 	 */
-	for (i = (NDADDR - 1); i >= 0; i--) {
-		if ((bn = freeblks->fb_dblks[i]) == 0)
-			continue;
-		bsize = sblksize(fs, freeblks->fb_oldsize, i);
-		ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
-		    freeblks->fb_previousinum);
-		fs->fs_pendingblocks -= btodb(bsize);
-		blocksreleased += btodb(bsize);
+	if (freeblks->fb_oldsize > 0) {
+		/*
+		 * Indirect blocks first.
+		 */
+		for (level = (NIADDR - 1); level >= 0; level--) {
+			if ((bn = freeblks->fb_iblks[level]) == 0)
+				continue;
+			if ((error = indir_trunc(freeblks, fsbtodb(fs, bn),
+			    level, baselbns[level], &blocksreleased)) == 0)
+				allerror = error;
+			ffs_blkfree(fs, freeblks->fb_devvp, bn, fs->fs_bsize,
+			    freeblks->fb_previousinum);
+			fs->fs_pendingblocks -= nblocks;
+			blocksreleased += nblocks;
+		}
+		/*
+		 * All direct blocks or frags.
+		 */
+		for (i = (NDADDR - 1); i >= 0; i--) {
+			if ((bn = freeblks->fb_dblks[i]) == 0)
+				continue;
+			bsize = sblksize(fs, freeblks->fb_oldsize, i);
+			ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
+			    freeblks->fb_previousinum);
+			fs->fs_pendingblocks -= btodb(bsize);
+			blocksreleased += btodb(bsize);
+		}
 	}
 	/*
 	 * If we still have not finished background cleanup, then check
@@ -3049,6 +3210,8 @@ softdep_releasefile(ip)
 	struct inode *ip;	/* inode with the zero effective link count */
 {
 	struct inodedep *inodedep;
+	struct fs *fs;
+	int extblocks;
 
 	if (ip->i_effnlink > 0)
 		panic("softdep_filerelease: file still referenced");
@@ -3073,7 +3236,11 @@ softdep_releasefile(ip)
 	if ((inodedep_lookup(ip->i_fs, ip->i_number, 0, &inodedep)))
 		inodedep->id_state |= SPACECOUNTED;
 	FREE_LOCK(&lk);
-	ip->i_fs->fs_pendingblocks += DIP(ip, i_blocks);
+	fs = ip->i_fs;
+	extblocks = 0;
+	if (fs->fs_magic == FS_UFS2_MAGIC)
+		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+	ip->i_fs->fs_pendingblocks += DIP(ip, i_blocks) - extblocks;
 	ip->i_fs->fs_pendinginodes += 1;
 	ip->i_flag |= IN_SPACECOUNTED;
 }
@@ -3404,6 +3571,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	 * If no dependencies, then there is nothing to roll back.
 	 */
 	inodedep->id_savedsize = dp->di_size;
+	inodedep->id_savedextsize = 0;
 	if (TAILQ_FIRST(&inodedep->id_inoupdt) == NULL)
 		return;
 	/*
@@ -3556,12 +3724,81 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 * If no dependencies, then there is nothing to roll back.
 	 */
 	inodedep->id_savedsize = dp->di_size;
-	if (TAILQ_FIRST(&inodedep->id_inoupdt) == NULL)
+	inodedep->id_savedextsize = dp->di_extsize;
+	if (TAILQ_FIRST(&inodedep->id_inoupdt) == NULL &&
+	    TAILQ_FIRST(&inodedep->id_extupdt) == NULL)
 		return;
 	/*
-	 * Set the dependencies to busy.
+	 * Set the ext data dependencies to busy.
 	 */
 	ACQUIRE_LOCK(&lk);
+	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_extupdt); adp;
+	     adp = TAILQ_NEXT(adp, ad_next)) {
+#ifdef DIAGNOSTIC
+		if (deplist != 0 && prevlbn >= adp->ad_lbn) {
+			FREE_LOCK(&lk);
+			panic("softdep_write_inodeblock: lbn order");
+		}
+		prevlbn = adp->ad_lbn;
+		if (dp->di_extb[adp->ad_lbn] != adp->ad_newblkno) {
+			FREE_LOCK(&lk);
+			panic("%s: direct pointer #%jd mismatch %jd != %jd",
+			    "softdep_write_inodeblock",
+			    (intmax_t)adp->ad_lbn,
+			    (intmax_t)dp->di_extb[adp->ad_lbn],
+			    (intmax_t)adp->ad_newblkno);
+		}
+		deplist |= 1 << adp->ad_lbn;
+		if ((adp->ad_state & ATTACHED) == 0) {
+			FREE_LOCK(&lk);
+			panic("softdep_write_inodeblock: Unknown state 0x%x",
+			    adp->ad_state);
+		}
+#endif /* DIAGNOSTIC */
+		adp->ad_state &= ~ATTACHED;
+		adp->ad_state |= UNDONE;
+	}
+	/*
+	 * The on-disk inode cannot claim to be any larger than the last
+	 * fragment that has been written. Otherwise, the on-disk inode
+	 * might have fragments that were not the last block in the ext
+	 * data which would corrupt the filesystem.
+	 */
+	for (lastadp = NULL, adp = TAILQ_FIRST(&inodedep->id_extupdt); adp;
+	     lastadp = adp, adp = TAILQ_NEXT(adp, ad_next)) {
+		dp->di_extb[adp->ad_lbn] = adp->ad_oldblkno;
+		/* keep going until hitting a rollback to a frag */
+		if (adp->ad_oldsize == 0 || adp->ad_oldsize == fs->fs_bsize)
+			continue;
+		dp->di_extsize = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
+		for (i = adp->ad_lbn + 1; i < NXADDR; i++) {
+#ifdef DIAGNOSTIC
+			if (dp->di_extb[i] != 0 && (deplist & (1 << i)) == 0) {
+				FREE_LOCK(&lk);
+				panic("softdep_write_inodeblock: lost dep1");
+			}
+#endif /* DIAGNOSTIC */
+			dp->di_extb[i] = 0;
+		}
+		lastadp = NULL;
+		break;
+	}
+	/*
+	 * If we have zero'ed out the last allocated block of the ext
+	 * data, roll back the size to the last currently allocated block.
+	 * We know that this last allocated block is a full-sized as
+	 * we already checked for fragments in the loop above.
+	 */
+	if (lastadp != NULL &&
+	    dp->di_extsize <= (lastadp->ad_lbn + 1) * fs->fs_bsize) {
+		for (i = lastadp->ad_lbn; i >= 0; i--)
+			if (dp->di_extb[i] != 0)
+				break;
+		dp->di_extsize = (i + 1) * fs->fs_bsize;
+	}
+	/*
+	 * Set the file data dependencies to busy.
+	 */
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
 #ifdef DIAGNOSTIC
@@ -3617,7 +3854,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 #ifdef DIAGNOSTIC
 			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0) {
 				FREE_LOCK(&lk);
-				panic("softdep_write_inodeblock: lost dep1");
+				panic("softdep_write_inodeblock: lost dep2");
 			}
 #endif /* DIAGNOSTIC */
 			dp->di_db[i] = 0;
@@ -3627,7 +3864,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 			if (dp->di_ib[i] != 0 &&
 			    (deplist & ((1 << NDADDR) << i)) == 0) {
 				FREE_LOCK(&lk);
-				panic("softdep_write_inodeblock: lost dep2");
+				panic("softdep_write_inodeblock: lost dep3");
 			}
 #endif /* DIAGNOSTIC */
 			dp->di_ib[i] = 0;
@@ -3805,6 +4042,7 @@ static void
 handle_allocdirect_partdone(adp)
 	struct allocdirect *adp;	/* the completed allocdirect */
 {
+	struct allocdirectlst *listhead;
 	struct allocdirect *listadp;
 	struct inodedep *inodedep;
 	long bsize, delay;
@@ -3822,11 +4060,16 @@ handle_allocdirect_partdone(adp)
 	 * which would corrupt the filesystem. Thus, we cannot free any
 	 * allocdirects after one whose ad_oldblkno claims a fragment as
 	 * these blocks must be rolled back to zero before writing the inode.
-	 * We check the currently active set of allocdirects in id_inoupdt.
+	 * We check the currently active set of allocdirects in id_inoupdt
+	 * or id_extupdt as appropriate.
 	 */
 	inodedep = adp->ad_inodedep;
 	bsize = inodedep->id_fs->fs_bsize;
-	TAILQ_FOREACH(listadp, &inodedep->id_inoupdt, ad_next) {
+	if (adp->ad_state & EXTDATA)
+		listhead = &inodedep->id_extupdt;
+	else
+		listhead = &inodedep->id_inoupdt;
+	TAILQ_FOREACH(listadp, listhead, ad_next) {
 		/* found our block */
 		if (listadp == adp)
 			break;
@@ -3845,7 +4088,11 @@ handle_allocdirect_partdone(adp)
 	 */
 	if (listadp == NULL) {
 #ifdef DEBUG
-		TAILQ_FOREACH(listadp, &inodedep->id_newinoupdt, ad_next)
+		if (adp->ad_state & EXTDATA)
+			listhead = &inodedep->id_newextupdt;
+		else
+			listhead = &inodedep->id_newinoupdt;
+		TAILQ_FOREACH(listadp, listhead, ad_next)
 			/* found our block */
 			if (listadp == adp)
 				break;
@@ -3868,7 +4115,7 @@ handle_allocdirect_partdone(adp)
 		listadp = TAILQ_NEXT(adp, ad_next);
 		if ((adp->ad_state & ALLCOMPLETE) != ALLCOMPLETE)
 			return;
-		free_allocdirect(&inodedep->id_inoupdt, adp, delay);
+		free_allocdirect(listhead, adp, delay);
 	}
 }
 
@@ -4023,12 +4270,31 @@ handle_written_inodeblock(inodedep, bp)
 		adp->ad_state |= ATTACHED;
 		hadchanges = 1;
 	}
+	for (adp = TAILQ_FIRST(&inodedep->id_extupdt); adp; adp = nextadp) {
+		nextadp = TAILQ_NEXT(adp, ad_next);
+		if (adp->ad_state & ATTACHED) {
+			lk.lkt_held = NOHOLDER;
+			panic("handle_written_inodeblock: new entry");
+		}
+		if (dp2->di_extb[adp->ad_lbn] != adp->ad_oldblkno) {
+			lk.lkt_held = NOHOLDER;
+			panic("%s: direct pointers #%jd %s %jd != %jd",
+			    "handle_written_inodeblock",
+			    (intmax_t)adp->ad_lbn, "mismatch",
+			    (intmax_t)dp2->di_extb[adp->ad_lbn],
+			    (intmax_t)adp->ad_oldblkno);
+		}
+		dp2->di_extb[adp->ad_lbn] = adp->ad_newblkno;
+		adp->ad_state &= ~UNDONE;
+		adp->ad_state |= ATTACHED;
+		hadchanges = 1;
+	}
 	if (hadchanges && (bp->b_flags & B_DELWRI) == 0)
 		stat_direct_blk_ptrs++;
 	/*
 	 * Reset the file size to its most up-to-date value.
 	 */
-	if (inodedep->id_savedsize == -1) {
+	if (inodedep->id_savedsize == -1 || inodedep->id_savedextsize == -1) {
 		lk.lkt_held = NOHOLDER;
 		panic("handle_written_inodeblock: bad size");
 	}
@@ -4042,8 +4308,13 @@ handle_written_inodeblock(inodedep, bp)
 			dp2->di_size = inodedep->id_savedsize;
 			hadchanges = 1;
 		}
+		if (dp2->di_extsize != inodedep->id_savedextsize) {
+			dp2->di_extsize = inodedep->id_savedextsize;
+			hadchanges = 1;
+		}
 	}
 	inodedep->id_savedsize = -1;
+	inodedep->id_savedextsize = -1;
 	/*
 	 * If there were any rollbacks in the inode block, then it must be
 	 * marked dirty so that its will eventually get written back in
@@ -4055,6 +4326,8 @@ handle_written_inodeblock(inodedep, bp)
 	 * Process any allocdirects that completed during the update.
 	 */
 	if ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != NULL)
+		handle_allocdirect_partdone(adp);
+	if ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != NULL)
 		handle_allocdirect_partdone(adp);
 	/*
 	 * Process deallocations that were held pending until the
@@ -4119,7 +4392,9 @@ handle_written_inodeblock(inodedep, bp)
 	/*
 	 * If no outstanding dependencies, free it.
 	 */
-	if (free_inodedep(inodedep) || TAILQ_FIRST(&inodedep->id_inoupdt) == 0)
+	if (free_inodedep(inodedep) ||
+	    (TAILQ_FIRST(&inodedep->id_inoupdt) == 0 &&
+	     TAILQ_FIRST(&inodedep->id_extupdt) == 0))
 		return (0);
 	return (hadchanges);
 }
@@ -4358,9 +4633,12 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	 * the in-memory copy of the inode. Once merged process any
 	 * allocdirects that are completed by the merger.
 	 */
-	merge_inode_lists(inodedep);
+	merge_inode_lists(&inodedep->id_newinoupdt, &inodedep->id_inoupdt);
 	if (TAILQ_FIRST(&inodedep->id_inoupdt) != NULL)
 		handle_allocdirect_partdone(TAILQ_FIRST(&inodedep->id_inoupdt));
+	merge_inode_lists(&inodedep->id_newextupdt, &inodedep->id_extupdt);
+	if (TAILQ_FIRST(&inodedep->id_extupdt) != NULL)
+		handle_allocdirect_partdone(TAILQ_FIRST(&inodedep->id_extupdt));
 	/*
 	 * Now that the inode has been pushed into the buffer, the
 	 * operations dependent on the inode being written to disk
@@ -4392,34 +4670,35 @@ softdep_update_inodeblock(ip, bp, waitfor)
 }
 
 /*
- * Merge the new inode dependency list (id_newinoupdt) into the old
- * inode dependency list (id_inoupdt). This routine must be called
- * with splbio interrupts blocked.
+ * Merge the a new inode dependency list (such as id_newinoupdt) into an
+ * old inode dependency list (such as id_inoupdt). This routine must be
+ * called with splbio interrupts blocked.
  */
 static void
-merge_inode_lists(inodedep)
-	struct inodedep *inodedep;
+merge_inode_lists(newlisthead, oldlisthead)
+	struct allocdirectlst *newlisthead;
+	struct allocdirectlst *oldlisthead;
 {
 	struct allocdirect *listadp, *newadp;
 
-	newadp = TAILQ_FIRST(&inodedep->id_newinoupdt);
-	for (listadp = TAILQ_FIRST(&inodedep->id_inoupdt); listadp && newadp;) {
+	newadp = TAILQ_FIRST(newlisthead);
+	for (listadp = TAILQ_FIRST(oldlisthead); listadp && newadp;) {
 		if (listadp->ad_lbn < newadp->ad_lbn) {
 			listadp = TAILQ_NEXT(listadp, ad_next);
 			continue;
 		}
-		TAILQ_REMOVE(&inodedep->id_newinoupdt, newadp, ad_next);
+		TAILQ_REMOVE(newlisthead, newadp, ad_next);
 		TAILQ_INSERT_BEFORE(listadp, newadp, ad_next);
 		if (listadp->ad_lbn == newadp->ad_lbn) {
-			allocdirect_merge(&inodedep->id_inoupdt, newadp,
+			allocdirect_merge(oldlisthead, newadp,
 			    listadp);
 			listadp = newadp;
 		}
-		newadp = TAILQ_FIRST(&inodedep->id_newinoupdt);
+		newadp = TAILQ_FIRST(newlisthead);
 	}
-	while ((newadp = TAILQ_FIRST(&inodedep->id_newinoupdt)) != NULL) {
-		TAILQ_REMOVE(&inodedep->id_newinoupdt, newadp, ad_next);
-		TAILQ_INSERT_TAIL(&inodedep->id_inoupdt, newadp, ad_next);
+	while ((newadp = TAILQ_FIRST(newlisthead)) != NULL) {
+		TAILQ_REMOVE(newlisthead, newadp, ad_next);
+		TAILQ_INSERT_TAIL(oldlisthead, newadp, ad_next);
 	}
 }
 
@@ -4454,6 +4733,8 @@ softdep_fsync(vp)
 	}
 	if (LIST_FIRST(&inodedep->id_inowait) != NULL ||
 	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL) {
 		FREE_LOCK(&lk);
@@ -4877,9 +5158,7 @@ flush_inodedep_deps(fs, ino)
 	ino_t ino;
 {
 	struct inodedep *inodedep;
-	struct allocdirect *adp;
 	int error, waitfor;
-	struct buf *bp;
 
 	/*
 	 * This work is done in two passes. The first pass grabs most
@@ -4894,52 +5173,17 @@ flush_inodedep_deps(fs, ino)
 	 * We give a brief window at the top of the loop to allow
 	 * any pending I/O to complete.
 	 */
-	for (waitfor = MNT_NOWAIT; ; ) {
+	for (error = 0, waitfor = MNT_NOWAIT; ; ) {
+		if (error)
+			return (error);
 		FREE_LOCK(&lk);
 		ACQUIRE_LOCK(&lk);
 		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
 			return (0);
-		TAILQ_FOREACH(adp, &inodedep->id_inoupdt, ad_next) {
-			if (adp->ad_state & DEPCOMPLETE)
-				continue;
-			bp = adp->ad_buf;
-			if (getdirtybuf(&bp, waitfor) == 0) {
-				if (waitfor == MNT_NOWAIT)
-					continue;
-				break;
-			}
-			FREE_LOCK(&lk);
-			if (waitfor == MNT_NOWAIT) {
-				bawrite(bp);
-			} else if ((error = BUF_WRITE(bp)) != 0) {
-				ACQUIRE_LOCK(&lk);
-				return (error);
-			}
-			ACQUIRE_LOCK(&lk);
-			break;
-		}
-		if (adp != NULL)
-			continue;
-		TAILQ_FOREACH(adp, &inodedep->id_newinoupdt, ad_next) {
-			if (adp->ad_state & DEPCOMPLETE)
-				continue;
-			bp = adp->ad_buf;
-			if (getdirtybuf(&bp, waitfor) == 0) {
-				if (waitfor == MNT_NOWAIT)
-					continue;
-				break;
-			}
-			FREE_LOCK(&lk);
-			if (waitfor == MNT_NOWAIT) {
-				bawrite(bp);
-			} else if ((error = BUF_WRITE(bp)) != 0) {
-				ACQUIRE_LOCK(&lk);
-				return (error);
-			}
-			ACQUIRE_LOCK(&lk);
-			break;
-		}
-		if (adp != NULL)
+		if (flush_deplist(&inodedep->id_inoupdt, waitfor, &error) ||
+		    flush_deplist(&inodedep->id_newinoupdt, waitfor, &error) ||
+		    flush_deplist(&inodedep->id_extupdt, waitfor, &error) ||
+		    flush_deplist(&inodedep->id_newextupdt, waitfor, &error))
 			continue;
 		/*
 		 * If pass2, we are done, otherwise do pass 2.
@@ -4953,6 +5197,41 @@ flush_inodedep_deps(fs, ino)
 	 */
 	if (inodedep_lookup(fs, ino, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
+	return (0);
+}
+
+/*
+ * Flush an inode dependency list.
+ * Called with splbio blocked.
+ */
+static int
+flush_deplist(listhead, waitfor, errorp)
+	struct allocdirectlst *listhead;
+	int waitfor;
+	int *errorp;
+{
+	struct allocdirect *adp;
+	struct buf *bp;
+
+	TAILQ_FOREACH(adp, listhead, ad_next) {
+		if (adp->ad_state & DEPCOMPLETE)
+			continue;
+		bp = adp->ad_buf;
+		if (getdirtybuf(&bp, waitfor) == 0) {
+			if (waitfor == MNT_NOWAIT)
+				continue;
+			return (1);
+		}
+		FREE_LOCK(&lk);
+		if (waitfor == MNT_NOWAIT) {
+			bawrite(bp);
+		} else if ((*errorp = BUF_WRITE(bp)) != 0) {
+			ACQUIRE_LOCK(&lk);
+			return (1);
+		}
+		ACQUIRE_LOCK(&lk);
+		return (1);
+	}
 	return (0);
 }
 
@@ -5401,6 +5680,12 @@ softdep_count_dependencies(bp, wantcount)
 					goto out;
 			}
 			if (TAILQ_FIRST(&inodedep->id_inoupdt)) {
+				/* direct block pointer dependency */
+				retval += 1;
+				if (!wantcount)
+					goto out;
+			}
+			if (TAILQ_FIRST(&inodedep->id_extupdt)) {
 				/* direct block pointer dependency */
 				retval += 1;
 				if (!wantcount)
