@@ -83,7 +83,10 @@ if the operation fails.
 If the value of the argument
 .Fa c
 character equals
-.Dv EOF ,
+.Dv EOF
+or current
+.Fa stream
+offset equals 0,
 the operation will fail and the stream will remain unchanged.
 .Sh SEE ALSO
 .Xr fseek 3 ,
