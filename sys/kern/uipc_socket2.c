@@ -210,7 +210,7 @@ sonewconn3(head, connstatus, p)
 		so->so_state |= SS_COMP;
 		head->so_qlen++;
 	} else {
-		if (head->so_incqlen >= head->so_qlimit) {
+		if (head->so_incqlen > head->so_qlimit) {
 			struct socket *sp;
 			sp = TAILQ_FIRST(&head->so_incomp);
 			(void) soabort(sp);
