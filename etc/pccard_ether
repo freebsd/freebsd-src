@@ -65,7 +65,7 @@ esac
 
 case ${startstop} in
 [Ss][Tt][Aa][Rr][Tt] | '')
-	if ifconfig ${interface} | grep -s UP,; then
+	if ifconfig ${interface} | grep -s UP, > /dev/null 2>&1; then
 	    # Interface is already up, so ignore it.
 	    exit 0
 	fi
