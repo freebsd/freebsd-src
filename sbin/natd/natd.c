@@ -822,7 +822,7 @@ void Warn (const char* msg)
 	if (background)
 		syslog (LOG_ALERT, "%s (%m)", msg);
 	else
-		warn (msg);
+		warn ("%s", msg);
 }
 
 static void RefreshAddr (int sig)
