@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: show.c,v 1.3 1993/08/26 08:47:07 jkh Exp $";
+static const char *rcsid = "$Id: show.c,v 1.4 1993/09/04 05:06:44 jkh Exp $";
 #endif
 
 /*
@@ -32,7 +32,7 @@ show_file(char *title, char *fname)
     char line[1024];
     int n;
 
-    printf(title);
+    printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
     if (!fp) {
 	whinge("show_file: Can't open '%s' for reading.", fname);
@@ -51,7 +51,7 @@ show_plist(char *title, Package *plist, plist_t type)
     PackingList p;
     Boolean ign = FALSE;
 
-    printf(title);
+    printf("%s%s", InfoPrefix, title);
     p = plist->head;
     while (p) {
 	if (p->type != type && type != -1) {

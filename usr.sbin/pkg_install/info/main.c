@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /usr1/cvs/jkh/pkg_install/info/main.c,v 1.4 1993/08/26 08:47:05 jkh Exp $";
+static char *rcsid = "$Header: /usr1/cvs/jkh/pkg_install/info/main.c,v 1.5 1993/09/04 05:06:41 jkh Exp $";
 #endif
 
 /*
@@ -26,10 +26,11 @@ static char *rcsid = "$Header: /usr1/cvs/jkh/pkg_install/info/main.c,v 1.4 1993/
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acdfikrpIvh";
+static char Options[] = "acdfikrpIvhl:";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
+char *InfoPrefix	= "";
 
 int
 main(int argc, char **argv)
@@ -84,6 +85,10 @@ main(int argc, char **argv)
 	    Flags |= SHOW_REQUIRE;
 	    break;
 
+	case 'l':
+	    InfoPrefix = optarg;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -132,6 +137,7 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-k         show deinstall script\n");
     fprintf(stderr, "-r         show requirements script\n");
     fprintf(stderr, "-p         show prefix\n");
+    fprintf(stderr, "-l <str>   Prefix each info catagory with <str>\n");
     fprintf(stderr, "-v         show all information\n");
     fprintf(stderr, "\n[no args = -c -d]\n");
     exit(1);

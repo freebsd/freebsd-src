@@ -1,6 +1,6 @@
 PROG= pkg_create
 
-CFLAGS+=	-I${.CURDIR}/../lib
+CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
 LDADD+=		-L${.CURDIR}/../lib -linstall
 
 SRCS= main.c perform.c pl.c
