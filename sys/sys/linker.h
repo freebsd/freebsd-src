@@ -231,6 +231,7 @@ extern int kld_debug;
 int	elf_reloc(linker_file_t _lf, const void *_rel, int _type);
 Elf_Addr elf_lookup(linker_file_t, Elf_Word, int);
 const Elf_Sym *elf_get_sym(linker_file_t _lf, Elf_Word _symidx);
+const char *elf_get_symname(linker_file_t _lf, Elf_Word _symidx);
 
 /* values for type */
 #define ELF_RELOC_REL	1
