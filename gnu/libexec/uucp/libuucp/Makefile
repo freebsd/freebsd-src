@@ -1,5 +1,5 @@
 # This is the Makefile for the libuucp subdirectory of Taylor UUCP
-# $FreeBSD$
+# $Id$
 
 LIB=		uucp
 SRCS = buffer.c crc.c debug.c escape.c getopt.c getop1.c parse.c spool.c \

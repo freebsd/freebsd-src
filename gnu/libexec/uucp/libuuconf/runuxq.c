@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_runuxq_rcsid[] = "$FreeBSD$";
+const char _uuconf_runuxq_rcsid[] = "$Id$";
 #endif
 
 /* Return how often to spawn a uuxqt process.  This is either a

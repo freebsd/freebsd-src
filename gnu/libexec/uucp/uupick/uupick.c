@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uupick_rcsid[] = "$FreeBSD$";
+const char uupick_rcsid[] = "$Id$";
 #endif
 
 #include <errno.h>

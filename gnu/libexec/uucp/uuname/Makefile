@@ -1,5 +1,5 @@
 # Makefile for uuname
-# $FreeBSD$
+# $Id$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
