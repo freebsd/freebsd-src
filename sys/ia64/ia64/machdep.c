@@ -149,6 +149,8 @@ vm_offset_t phys_avail[100];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
+void mi_startup(void);		/* XXX should be in a MI header */
+
 static void identifycpu(void);
 
 struct kva_md_info kmi;
@@ -441,7 +443,7 @@ calculate_frequencies(void)
 }
 
 void
-ia64_init(u_int64_t arg1, u_int64_t arg2)
+ia64_init(void)
 {
 	int phys_avail_cnt;
 	vm_offset_t kernstart, kernend;
@@ -762,6 +764,20 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	}
 #endif
 	ia64_set_tpr(0);
+
+	/*
+	 * Save our current context so that we have a known (maybe even
+	 * sane) context as the initial context for new threads that are
+	 * forked from us. If any of those threads (including thread0)
+	 * does something wrong, we may be lucky and return here where
+	 * we're ready for them with a nice panic.
+	 */
+	if (!savectx(thread0.td_pcb))
+		mi_startup();
+
+	/* We should not get here. */
+	panic("ia64_init: Whooaa there!");
+	/* NOTREACHED */
 }
 
 void
