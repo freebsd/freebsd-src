@@ -267,7 +267,7 @@ ip_init()
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
 			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol <= IPPROTO_MAX)
+			if (pr->pr_protocol < IPPROTO_MAX)
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 		}
 
@@ -1210,7 +1210,7 @@ ipproto_register(u_char ipproto)
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol == ipproto) {
 			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol <= IPPROTO_MAX) {
+			if (pr->pr_protocol < IPPROTO_MAX) {
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 				return (0);
 			} else
