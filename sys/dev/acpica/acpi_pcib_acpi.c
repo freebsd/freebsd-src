@@ -62,6 +62,7 @@ struct acpi_hpcib_softc {
 
 static int		acpi_pcib_acpi_probe(device_t bus);
 static int		acpi_pcib_acpi_attach(device_t bus);
+static int		acpi_pcib_acpi_resume(device_t bus);
 static int		acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 static int		acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 static u_int32_t	acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg, int bytes);
@@ -76,7 +77,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(device_attach,		acpi_pcib_acpi_attach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
-    DEVMETHOD(device_resume,		bus_generic_resume),
+    DEVMETHOD(device_resume,		acpi_pcib_acpi_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
@@ -178,6 +179,14 @@ acpi_pcib_acpi_attach(device_t dev)
     }
 
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
+}
+
+static int
+acpi_pcib_acpi_resume(device_t dev)
+{
+    struct acpi_hpcib_softc	*sc = device_get_softc(dev);
+
+    return (acpi_pcib_resume(dev, &sc->ap_prt, sc->ap_bus));
 }
 
 /*
