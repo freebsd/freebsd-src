@@ -1314,7 +1314,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 	}
 	case USB_GET_DEVICEINFO:
 		usbd_fill_deviceinfo(sc->sc_udev,
-		    (struct usb_device_info *)addr);
+		    (struct usb_device_info *)addr, 1);
 		break;
 	default:
 		return (EINVAL);
