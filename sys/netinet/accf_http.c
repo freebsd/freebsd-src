@@ -76,9 +76,9 @@ SYSCTL_INT(_net_inet_accf_http, OID_AUTO, parsehttpversion, CTLFLAG_RW,
 "Parse http version so that non 1.x requests work");
 
 #ifdef ACCF_HTTP_DEBUG
-#define DPRINT(fmt, args...) \
-	do {	\
-		printf("%s:%d: " fmt "\n", __func__, __LINE__ , ##args);	\
+#define DPRINT(fmt, args...)						\
+	do {								\
+		printf("%s:%d: " fmt "\n", __func__, __LINE__, ##args);	\
 	} while (0)
 #else
 #define DPRINT(fmt, args...)
@@ -88,10 +88,11 @@ static int
 sbfull(struct sockbuf *sb)
 {
 
-	DPRINT("sbfull, cc(%ld) >= hiwat(%ld): %d, mbcnt(%ld) >= mbmax(%ld): %d", 
-		sb->sb_cc, sb->sb_hiwat, sb->sb_cc >= sb->sb_hiwat,
-		sb->sb_mbcnt, sb->sb_mbmax, sb->sb_mbcnt >= sb->sb_mbmax);
-	return(sb->sb_cc >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax);
+	DPRINT("sbfull, cc(%ld) >= hiwat(%ld): %d, "
+	    "mbcnt(%ld) >= mbmax(%ld): %d",
+	    sb->sb_cc, sb->sb_hiwat, sb->sb_cc >= sb->sb_hiwat,
+	    sb->sb_mbcnt, sb->sb_mbmax, sb->sb_mbcnt >= sb->sb_mbmax);
+	return (sb->sb_cc >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax);
 }
 
 /*
@@ -103,17 +104,16 @@ mbufstrcmp(struct mbuf *m, struct mbuf *npkt, int offset, char *cmp)
 {
 	struct mbuf *n;
 
-	for (;m != NULL; m = n) {
+	for (; m != NULL; m = n) {
 		n = npkt;
 		if (npkt)
 			npkt = npkt->m_nextpkt;
 		for (; m; m = m->m_next) {
 			for (; offset < m->m_len; offset++, cmp++) {
-				if (*cmp == '\0') {
+				if (*cmp == '\0')
 					return (1);
-				} else if (*cmp != *(mtod(m, char *) + offset)) {
+				else if (*cmp != *(mtod(m, char *) + offset))
 					return (0);
-				}
 			}
 			offset = 0;
 		}
@@ -131,17 +131,16 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 {
 	struct mbuf *n;
 
-	for (;m != NULL; m = n) {
+	for (; m != NULL; m = n) {
 		n = npkt;
 		if (npkt)
 			npkt = npkt->m_nextpkt;
 		for (; m; m = m->m_next) {
 			for (; offset < m->m_len; offset++, cmp++, max--) {
-				if (max == 0 || *cmp == '\0') {
+				if (max == 0 || *cmp == '\0')
 					return (1);
-				} else if (*cmp != *(mtod(m, char *) + offset)) {
+				else if (*cmp != *(mtod(m, char *) + offset))
 					return (0);
-				}
 			}
 			offset = 0;
 		}
@@ -149,10 +148,10 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 	return (0);
 }
 
-#define STRSETUP(sptr, slen, str) \
-	do {	\
-		sptr = str;	\
-		slen = sizeof(str) - 1;	\
+#define STRSETUP(sptr, slen, str)					\
+	do {								\
+		sptr = str;						\
+		slen = sizeof(str) - 1;					\
 	} while(0)
 
 static void
@@ -226,6 +225,7 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 			for (i = 0; i < m->m_len; i++, cc--) {
 				switch (*(mtod(m, char *) + i)) {
 				case ' ':
+					/* tabs? '\t' */
 					if (!inspaces) {
 						spaces++;
 						inspaces = 1;
@@ -236,28 +236,37 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 					DPRINT("newline");
 					goto fallout;
 				default:
-					if (spaces == 2) {
-						/* make sure we have enough data left */
-						if (cc < sizeof("HTTP/1.0") - 1) {
-							if (mbufstrncmp(m, n, i, cc, "HTTP/1.") == 1) {
-								DPRINT("mbufstrncmp ok");
-								goto readmore;
-							} else {
-								DPRINT("mbufstrncmp bad");
-								goto fallout;
-							}
-						} else if (mbufstrcmp(m, n, i, "HTTP/1.0") == 1 ||
-									mbufstrcmp(m, n, i, "HTTP/1.1") == 1) {
-								DPRINT("mbufstrcmp ok");
-								soishttpconnected(so, arg, waitflag);
-								return;
+					if (spaces != 2) {
+						inspaces = 0;
+						break;
+					}
+
+					/*
+					 * if we don't have enough characters
+					 * left (cc < sizeof("HTTP/1.0") - 1)
+					 * then see if the remaining ones
+					 * are a request we can parse.
+					 */
+					if (cc < sizeof("HTTP/1.0") - 1) {
+						if (mbufstrncmp(m, n, i, cc,
+							"HTTP/1.") == 1) {
+							DPRINT("ok");
+							goto readmore;
 						} else {
-							DPRINT("mbufstrcmp bad");
+							DPRINT("bad");
 							goto fallout;
 						}
+					} else if (
+					    mbufstrcmp(m, n, i, "HTTP/1.0") ||
+					    mbufstrcmp(m, n, i, "HTTP/1.1")) {
+							DPRINT("ok");
+							soishttpconnected(so,
+							    arg, waitflag);
+							return;
+					} else {
+						DPRINT("bad");
+						goto fallout;
 					}
-					inspaces = 0;
-					break;
 				}
 			}
 		}
