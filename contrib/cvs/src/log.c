@@ -1078,7 +1078,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    free (branch);
 		}
 	    }
-	    if (nr->first == NULL)
+	    if (nr->first == NULL && !really_quiet)
 	    {
 		error (0, 0, "warning: no branch `%s' in `%s'",
 		       r->first, rcs->path);
@@ -1101,7 +1101,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    nr->first = RCS_whatbranch (rcs, r->first);
 		else
 		    nr->first = RCS_gettag (rcs, r->first, 1, (int *) NULL);
-		if (nr->first == NULL)
+		if (nr->first == NULL && !really_quiet)
 		{
 		    error (0, 0, "warning: no revision `%s' in `%s'",
 			   r->first, rcs->path);
@@ -1119,7 +1119,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    nr->last = RCS_whatbranch (rcs, r->last);
 		else
 		    nr->last = RCS_gettag (rcs, r->last, 1, (int *) NULL);
-		if (nr->last == NULL)
+		if (nr->last == NULL && !really_quiet)
 		{
 		    error (0, 0, "warning: no revision `%s' in `%s'",
 			   r->last, rcs->path);

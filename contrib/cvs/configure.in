@@ -1,5 +1,5 @@
 dnl configure.in for cvs
-AC_INIT([Concurrent Versions System (CVS)],[1.11.15],[bug-cvs@gnu.org],[cvs])
+AC_INIT([Concurrent Versions System (CVS)],[1.11.17],[bug-cvs@gnu.org],[cvs])
 AC_CONFIG_SRCDIR(src/cvs.h)
 AM_INIT_AUTOMAKE([gnu 1.7.9 dist-bzip2 no-define])
 AC_PREREQ(2.58)
@@ -191,6 +191,7 @@ AC_REPLACE_FUNCS(\
 dnl
 dnl Begin GNULIB stuff.
 dnl
+gl_XSIZE
 
 dnl We always want to use the GNULIB getpass, so define its name to something
 dnl that won't conflict with system declarations.
@@ -1020,7 +1021,10 @@ AC_CONFIG_FILES(contrib/pvcs2rcs, [chmod +x contrib/pvcs2rcs])
 AC_CONFIG_FILES(contrib/rcs2log:contrib/rcs2log.sh, [chmod +x contrib/rcs2log])
 AC_CONFIG_FILES(contrib/rcslock, [chmod +x contrib/rcslock])
 AC_CONFIG_FILES(contrib/sccs2rcs, [chmod +x contrib/sccs2rcs])
+AC_CONFIG_FILES(doc/mkman, [chmod +x doc/mkman])
 AC_CONFIG_FILES(src/cvsbug, [chmod +x src/cvsbug])
+AC_CONFIG_FILES(windows-NT/fix-msvc-mak:windows-NT/fix-msvc-mak-head.pl:windows-NT/fix-msvc-mak.pl,
+                [chmod +x windows-NT/fix-msvc-mak])
 
 dnl the bulk files
 AC_CONFIG_FILES([Makefile \

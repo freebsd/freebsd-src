@@ -1,3 +1,129 @@
+2004-05-28  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Global options): Remove reference to global -l option.
+	(Report from Kevin Bulgrien <Kevin.Bulgrien@TriPointGlobal.com>.)
+
+2004-05-14  Mark D. Baushke  <mdb@cvshome.org>
+	
+	* cvs.texinfo: Fix makeinfo error.
+
+	* cvs.texinfo (Adding files): Minor cleanup.
+	(Using keywords): Minor cleanup.
+	(annotate): Move into the manual section, split into three nodes.
+	(annotate options): New node.
+	(annotate example): New node.
+	(based on patch from Steve McIntyre <steve@einval.com>.)
+	(Locks, GSSAPI authenticated): Minor cleanup.
+	(Sticky tags): Clarify operation.
+	(Locks): Spelling fix.
+	(Merging adds and removals): Ditto.
+	(Invoking CVS): Ditto
+	(Builds): Grammar fix.
+	(Line group formats): Ditto
+	(Line group formats, Line formats): Ditto
+	(commit files): Ditto.
+	* cvs.1, stamp-vti, version.texi: Regenerated
+	
+2004-05-12  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Clarify status messages.
+
+2004-05-10  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Organize & tidy comments.  Check for unprocessed texinfo
+	commands.  Output better error messages on finding unprocessed texinfo
+	commands.
+	(do_keyword, keyword_mode): Accept $file argument for error messages.
+
+2004-05-06  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Require Perl 5.005.  Add comments.  Remove duplicate s///.
+	Handle @:.
+
+2004-05-06  Derek Price  <derek@ximbiot.com>
+
+	* cvs.man.header: Minor text correction.
+	* mkman.in: Ignore @need keyword.  Restore previous font for nested
+	keywords.
+	(do_keyword): Ditto on fonts.  Move some functionality to...
+	(keyword_mode): ...this new function.
+
+2004-05-06  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Handle keywords that cross multiple lines.
+	(do_keyword): New function.
+
+2004-05-04  Derek Price  <derek@ximbiot.com>
+
+	* cvs.man.header, cvs.man.footer: Reference `info CVS' rather than
+	`info cvs' to send users to the top node.
+
+2004-05-03  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: mkman is built in the build dir, not $(srcdir).
+	(Report from Mark D. Baushke <mdb@cvshome.org>.)
+
+2004-05-03  Derek Price  <derek@ximbiot.com>
+
+	* HACKING.DOCS: Fix spelling error.  Add reference for @strong.
+	(Report from Mark D. Baushke <mdb@cvshome.org>.)
+
+	* HACKING.DOCS: Note dependency on `makeinfo' 3.11 & greater.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Handle single quotes better.  Parse out some redundancy
+	from node and section names.
+	* cvs.man.footer: Replace some quotes with the usual bold font.
+	Reformat links in the SEE ALSO section.
+	* cvs.1: Regenerated.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Handle examples better.  Protect a few more characters.
+	* cvs.1, stamp-vti, version.texi: Regenerated.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* cvs.man.header: Add copyright notice.
+	* cvs.1: Regenerated.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Add copyright and license notice.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Handle @@.
+	* cvs.1: Regenerated.
+
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	First pass at closing issue #3 on cvshome.org.
+	* .cvsignore: Ignore mkman.
+	* cvs.1, mkman.in, cvs.man.header, cvs.man.footer: New files.
+	* cvs.texinfo: Add cut tags for mkman.
+	* Makefile.in (man_MANS): Add cvs.1.
+	(EXTRA_DIST): Add cvs.man.header & cvs.man.footer.
+	(cvs.1, mkman): New targets.
+	* Makefile.in: Regenerated.
+
+2004-04-23  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Update years in Copyright.
+	* stamp-vti, version.texi: Regenerated.
+
+2004-04-21  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Use splitrcskeyword macro consistently in a failed
+	attempt to avoid a warning during PDF generation.
+	* stamp-vti, version.texi: Regenerated.
+
+2004-04-18  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Various spelling, typo, and capitalization fixes.
+	(Patch from Ville Skyttä <scop@cvshome.org>.)
+
 2004-04-06  Larry Jones  <lawrence.jones@ugsplm.com>
 
 	* cvs.texinfo (Assigning revisions): Note that client/server mode

@@ -1,3 +1,10 @@
+2004-04-30  Derek Price  <derek@ximbiot.com>
+
+	First pass at closing issue #3 from cvshome.org.
+	* Makefile.am (man_MANS): Remove cvs.1.
+	* cvs.1: Removed.
+	* Makefile.in: Regenerated.
+
 2004-02-12  Derek Price  <derek@ximbiot.com>
 
 	Close issue #162.
