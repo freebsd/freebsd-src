@@ -1541,6 +1541,25 @@ sooptcopyin(sopt, buf, len, minlen)
 	return 0;
 }
 
+/*
+ * Kernel version of setsockopt(2)/
+ * XXX: optlen is size_t, not socklen_t
+ */
+int
+kern_setsockopt(struct socket *so, int level, int optname, void *optval,
+    size_t optlen)
+{
+	struct sockopt sopt;
+
+	sopt.sopt_level = level;
+	sopt.sopt_name = optname;
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_val = optval;
+	sopt.sopt_valsize = optlen;
+	sopt.sopt_td = NULL;
+	return (sosetopt(so, &sopt));
+}
+
 int
 sosetopt(so, sopt)
 	struct socket *so;
