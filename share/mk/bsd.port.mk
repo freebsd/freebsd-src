@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.221 1996/08/18 10:53:16 asami Exp $
+# $Id: bsd.port.mk,v 1.222 1996/08/20 10:00:33 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -406,15 +406,25 @@ INSTALL_TARGET?=	install
 MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .endif
 
+# Empty declaration to avoid "variable MASTER_SITES recursive" error
+MASTER_SITES?=
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
 MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .else
-MASTER_SITES?=	# to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES:=	${MASTER_SITE_OVERRIDE} ${MASTER_SITES}
 PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
+.endif
+
+# Search CDROM first if mounted, symlink instead of copy if
+# FETCH_SYMLINK_DISTFILES is set
+.if exists(/cdrom/ports/distfiles)
+MASTER_SITES:=	file:/cdrom/ports/distfiles/ ${MASTER_SITES}
+.if defined(FETCH_SYMLINK_DISTFILES)
+FETCH_BEFORE_ARGS+=	-l
+.endif
 .endif
 
 # Derived names so that they're easily overridable.
