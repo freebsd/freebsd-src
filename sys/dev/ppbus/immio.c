@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.5 1999/01/10 12:04:54 nsouch Exp $
+ *	$Id: immio.c,v 1.6 1999/01/30 15:35:39 nsouch Exp $
  *
  */
 
@@ -411,7 +411,8 @@ imm_outstr(struct vpoio_data *vpo, char *buffer, int size)
 	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
 		ppb_reset_epp_timeout(&vpo->vpo_dev);
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_PUT, buffer, size, MS_UNKNOWN, &error);
+	ppb_MS_exec(&vpo->vpo_dev, MS_OP_PUT, (union ppb_insarg)buffer,
+		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 	return (error);
 }
@@ -427,7 +428,8 @@ imm_instr(struct vpoio_data *vpo, char *buffer, int size)
 	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
 		ppb_reset_epp_timeout(&vpo->vpo_dev);
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, buffer, size, MS_UNKNOWN, &error);
+	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, (union ppb_insarg)buffer,
+		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 	return (error);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.5 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: vpoio.c,v 1.6 1999/01/30 15:35:39 nsouch Exp $
  *
  */
 
@@ -98,9 +98,9 @@
 #define INIT_TRIG_MICROSEQ {						\
 	int i;								\
 	for (i=1; i <= 7; i+=2) {					\
-		disconnect_microseq[i].arg[2] = (void *)d_pulse;	\
+		disconnect_microseq[i].arg[2] = (union ppb_insarg)d_pulse; \
 		connect_epp_microseq[i].arg[2] = 			\
-		connect_spp_microseq[i].arg[2] = (void *)c_pulse;	\
+		connect_spp_microseq[i].arg[2] = (union ppb_insarg)c_pulse; \
 	}								\
 }
 
@@ -419,7 +419,8 @@ vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 
 	int error = 0;
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_PUT, buffer, size, MS_UNKNOWN, &error);
+	ppb_MS_exec(&vpo->vpo_dev, MS_OP_PUT, (union ppb_insarg)buffer,
+		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 #if 0
 		/* XXX EPP 1.9 not implemented with microsequences */
@@ -458,7 +459,8 @@ vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 {
 	int error = 0;
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, buffer, size, MS_UNKNOWN, &error);
+	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, (union ppb_insarg)buffer,
+		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 #if 0
 		/* XXX EPP 1.9 not implemented with microsequences */
