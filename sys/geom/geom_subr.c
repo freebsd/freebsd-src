@@ -380,6 +380,23 @@ g_error_provider(struct g_provider *pp, int error)
 	pp->error = error;
 }
 
+struct g_provider *
+g_provider_by_name(char const *arg)
+{
+	struct g_class *cp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	LIST_FOREACH(cp, &g_classes, class) {
+		LIST_FOREACH(gp, &cp->geom, geom) {
+			LIST_FOREACH(pp, &gp->provider, provider) {
+				if (!strcmp(arg, pp->name))
+					return (pp);
+			}
+		}
+	}
+	return (NULL);
+}
 
 void
 g_destroy_provider(struct g_provider *pp)
