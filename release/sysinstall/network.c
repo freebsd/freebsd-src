@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.2 1995/07/21 10:57:33 rgrimes Exp $
+ * $Id: network.c,v 1.7.2.3 1995/09/18 17:00:24 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,6 +58,7 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
     char *cp, ifconfig[64];
+    char ifname[64];
 
     if (!RunningAsInit || networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return TRUE;
@@ -90,17 +91,20 @@ mediaInitNetwork(Device *dev)
 		return FALSE;
 	    }
 	}
+	strcpy(ifname, "sl0");
     }
+    else
+	strcpy(ifname, dev->name);
 
-    snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
+    snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, ifname);
     cp = getenv(ifconfig);
     if (!cp) {
-	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
+	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.", ifname);
 	return FALSE;
     }
-    i = vsystem("ifconfig %s %s", "sl0", cp);
+    i = vsystem("ifconfig %s %s", ifname, cp);
     if (i) {
-	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", dev->name);
+	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", ifname);
 	return FALSE;
     }
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.11 1995/09/20 10:45:14 jkh Exp $
+#	$Id: Makefile,v 1.193.2.12 1995/09/21 11:16:28 davidg Exp $
 #
 # How to roll a release:
 #
@@ -409,7 +409,6 @@ release.10:
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
 		mkdir stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
-	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
@@ -418,13 +417,9 @@ release.10:
 		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/fixitfd/dev )
 	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
-	ln -f ${RD}/fixitfd/stand/sh ${RD}/fixitfd/bin
 	cp ${RD}/trees/bin/usr/mdec/fdboot ${RD}/fixitfd/etc/boot1
 	cp ${RD}/trees/bin/usr/mdec/bootfd ${RD}/fixitfd/etc/boot2
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	echo 'echo /etc/rc'	> ${RD}/fixitfd/etc/rc
-	echo 'exit 1'		>> ${RD}/fixitfd/etc/rc
-	touch ${RD}/fixitfd/etc/spwd.db
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit
 	touch release.10
 

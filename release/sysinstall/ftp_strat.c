@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.25 1995/06/07 09:53:14 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7 1995/06/11 19:29:56 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -150,7 +150,7 @@ mediaInitFTP(Device *dev)
     }
     user = getenv(FTP_USER);
     if (!user || !*user) {
-	snprintf(password, BUFSIZ, "installer@%s", hostname);
+	snprintf(password, BUFSIZ, "installer@%s", getenv(VAR_HOSTNAME));
 	login_name = "anonymous";
     }
     else {
