@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.32 1996/06/08 07:15:48 jkh Exp $
+ * $Id: index.c,v 1.33 1996/06/08 08:01:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -404,7 +404,7 @@ pkg_fire(dialogMenuItem *self)
 	sp = index_search(plist, kp->name, NULL);
 	/* Not already selected? */
 	if (!sp) {
-	    if (!RunningAsInit && !package_exists(kp->name)) {
+	    if (RunningAsInit || !package_exists(kp->name)) {
 		PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
 
 		*np = *kp;

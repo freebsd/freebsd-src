@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.56 1996/05/29 03:27:31 jkh Exp $
+ * $Id: dist.c,v 1.57 1996/06/12 07:03:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,6 +159,8 @@ static Distribution XF86FontDistTable[] = {
 { NULL },
 };
 
+static int	distMaybeSetDES(dialogMenuItem *self);
+
 int
 distReset(dialogMenuItem *self)
 {
@@ -177,7 +179,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return distMaybeSetDES(self);
 }
 
 int
@@ -189,7 +191,7 @@ distSetXDeveloper(dialogMenuItem *self)
     XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    return distSetXF86(NULL);
+    return distSetXF86(NULL) | distMaybeSetDES(self);
 }
 
 int
@@ -198,7 +200,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return distMaybeSetDES(self);
 }
 
 int
@@ -206,7 +208,7 @@ distSetUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return distMaybeSetDES(self);
 }
 
 int
@@ -217,7 +219,7 @@ distSetXUser(dialogMenuItem *self)
     XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    return distSetXF86(NULL);
+    return distSetXF86(NULL) | distMaybeSetDES(self);
 }
 
 int
@@ -236,7 +238,7 @@ distSetEverything(dialogMenuItem *self)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return distMaybeSetDES(self);
 }
 
 int
@@ -254,6 +256,37 @@ distSetDES(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
+    return i | DITEM_RECREATE | DITEM_RESTORE;
+}
+
+static int
+distMaybeSetDES(dialogMenuItem *self)
+{
+    int i = DITEM_SUCCESS;
+
+    dialog_clear();
+    if (!msgYesNo("Do wish to install DES cryptographic software?\n\n"
+		  "FreeBSD will otherwise use an MD5 based password scheme which,\n"
+		  "while perhaps more secure, is not inter-operable with traditional\n"
+		  "UNIX password file formats.\n\n"
+		  "Please do NOT choose Yes at this point if you are outside the\n"
+		  "United States and Canada yet are installing from a U.S. FTP server\n"
+		  "as this will violate U.S. export restrictions and possibly get the\n"
+		  "server site into trouble.  In such cases, install everything but DES\n"
+		  "software from the U.S. server then change your media type to point to\n"
+		  "an international FTP server, then using the Custom menu to selected and\n"
+		  "extract the DES distribution(s) in a second pass.")) {
+	if (dmenuOpenSimple(&MenuDESDistributions)) {
+	    if (DESDists) {
+		if (DESDists & DIST_DES_KERBEROS)
+		    DESDists |= DIST_DES_DES;
+		Dists |= DIST_DES;
+		msgDebug("SetDES Masks: DES: %0x, Dists: %0x\n", DESDists, Dists);
+	    }
+	}
+	else
+	    i = DITEM_FAILURE;
+    }
     return i | DITEM_RECREATE | DITEM_RESTORE;
 }
 

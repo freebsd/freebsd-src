@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.18 1996/04/25 17:31:17 jkh Exp $
+ * $Id: dmenu.c,v 1.19 1996/04/28 00:37:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -89,6 +89,16 @@ int
 dmenuSetVariable(dialogMenuItem *tmp)
 {
     variable_set((char *)tmp->data);
+    return DITEM_SUCCESS;
+}
+
+int
+dmenuToggleVariable(dialogMenuItem *tmp)
+{
+    if (!variable_get((char *)tmp->data))
+	variable_set((char *)tmp->data);
+    else
+	variable_unset((char *)tmp->data);
     return DITEM_SUCCESS;
 }
 
