@@ -213,7 +213,7 @@ umountall(char **typelist)
 		    strcmp(fs->fs_type, FSTAB_RO) &&
 		    strcmp(fs->fs_type, FSTAB_RQ))
 			continue;
-		/* If an unknown file system type, complain. */
+		/* Ignore unknown file system types. */
 		if (getvfsbyname(fs->fs_vfstype, &vfc) == -1)
 			continue;
 		if (checkvfsname(fs->fs_vfstype, typelist))
