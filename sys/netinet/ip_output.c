@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44.2.6 1997/06/20 23:05:38 julian Exp $
+ *	$Id$
  */
 
 #define _IP_VHL
@@ -331,7 +331,7 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 sendit:
-        /*
+	/*
 	 * IpHack's section.
 	 * - Xlate: translate packet's addr/port (NAT).
 	 * - Firewall: deny/allow/etc.

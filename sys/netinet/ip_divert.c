@@ -30,8 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.6 1998/05/28 06:17:57 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.7 1998/05/28 06:28:49 julian Exp $
  */
+
+#include "opt_ipfw.h"
+
+#ifndef INET
+#error "IPDIVERT requires INET."
+#endif
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -74,11 +80,29 @@
 u_short ip_divert_port;
 
 /*
+ * #ifndef IPFW_DIVERT_RESTART
  * We set this value to a non-zero port number when we want the call to
  * ip_fw_chk() in ip_input() or ip_output() to ignore ``divert <port>''
  * chain entries. This is stored in host order.
+ * #else
+ * A 16 bit cookie is passed to the user process.
+ * The user process can send it back to help the caller know something
+ * about where the packet came from.
+ *
+ * If IPFW is the caller then the IN cookie is the rule that sent
+ * us here and the OUT cookie is the rule after which processing
+ * should continue. Leaving it the same will make processing start
+ * at the rule number after that which sent it here. Setting it to
+ * 0 will restart processing at the beginning. 
+ * #endif 
  */
+#ifndef IPFW_DIVERT_RESTART
 u_short ip_divert_ignore;
+#else
+
+u_short ip_divert_in_cookie;
+u_short ip_divert_out_cookie;
+#endif /* IPFW_DIVERT_RESTART */
 
 /* Internal variables */
 
@@ -139,7 +163,12 @@ div_input(struct mbuf *m, int hlen)
 	ip = mtod(m, struct ip *);
 
 	/* Record divert port */
+#ifndef IPFW_DIVERT_RESTART
 	divsrc.sin_port = htons(ip_divert_port);
+#else
+	divsrc.sin_port = ip_divert_in_cookie;
+	ip_divert_in_cookie = 0;
+#endif /* IPFW_DIVERT_RESTART */
 
 	/* Restore packet header fields */
 	ip->ip_len += hlen;
@@ -240,12 +269,20 @@ div_output(so, m, addr, control)
 	if (addr)
 		sin = mtod(addr, struct sockaddr_in *);
 
-	/* Loopback avoidance option */
+	/* Loopback avoidance */
+#ifndef IPFW_DIVERT_RESTART
 	if (sin) {
 		ip_divert_ignore = ntohs(sin->sin_port);
 	} else {
 		ip_divert_ignore = 0;
 	}
+#else
+	if (sin) {
+		ip_divert_out_cookie = sin->sin_port;
+	} else {
+		ip_divert_out_cookie = 0;
+	}
+#endif /* IPFW_DIVERT_RESTART */
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
@@ -273,6 +310,7 @@ div_output(so, m, addr, control)
 		char	*c = sin->sin_zero;
 
 		sin->sin_port = 0;
+
 		/*
 		 * Find receive interface with the given name or IP address.
 		 * The name is user supplied data so don't trust it's size or 
@@ -302,11 +340,19 @@ div_output(so, m, addr, control)
 	}
 
 	/* Reset for next time (and other packets) */
+#ifndef IPFW_DIVERT_RESTART
 	ip_divert_ignore = 0;
+#else
+	ip_divert_out_cookie = 0;
+#endif /* IPFW_DIVERT_RESTART */
 	return error;
 
 cantsend:
+#ifndef IPFW_DIVERT_RESTART
 	ip_divert_ignore = 0;
+#else
+	ip_divert_out_cookie = 0;
+#endif /* IPFW_DIVERT_RESTART */
 	m_freem(m);
 	return error;
 }
