@@ -48,10 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
 
-#ifdef APIC_IO
-#include <machine/smp.h>
-#endif /* APIC_IO */
-
 #include "pcib_if.h"
 
 #define PRVERB(a) do {							\
@@ -201,49 +197,7 @@ u_int32_t
 pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
 	uint32_t line;
-#ifdef APIC_IO
-	uint32_t pin;
 
-	/*
-	 * If we are using the APIC, the contents of the intline
-	 * register will probably be wrong (since they are set up for
-	 * use with the PIC.  Rather than rewrite these registers
-	 * (maybe that would be smarter) we trap attempts to read them
-	 * and translate to our private vector numbers.
-	 */
-	if ((reg == PCIR_INTLINE) && (bytes == 1)) {
-
-		pin = pcireg_cfgread(bus, slot, func, PCIR_INTPIN, 1);
-		line = pcireg_cfgread(bus, slot, func, PCIR_INTLINE, 1);
-
-		if (pin != 0) {
-			int airq;
-
-			airq = pci_apic_irq(bus, slot, pin);
-			if (airq >= 0) {
-				/* PCI specific entry found in MP table */
-				if (airq != line)
-					undirect_pci_irq(line);
-				return(airq);
-			} else {
-				/* 
-				 * PCI interrupts might be redirected
-				 * to the ISA bus according to some MP
-				 * tables. Use the same methods as
-				 * used by the ISA devices devices to
-				 * find the proper IOAPIC int pin.
-				 */
-				airq = isa_apic_irq(line);
-				if ((airq >= 0) && (airq != line)) {
-					/* XXX: undirect_pci_irq() ? */
-					undirect_isa_irq(line);
-					return(airq);
-				}
-			}
-		}
-		return(line);
-	}
-#else
 	/*
 	 * Some BIOS writers seem to want to ignore the spec and put
 	 * 0 in the intline rather than 255 to indicate none.  The rest of
@@ -251,10 +205,9 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
 		line = pcireg_cfgread(bus, slot, func, PCIR_INTLINE, 1);
-		return pci_i386_map_intline(line);
+		return (pci_i386_map_intline(line));
 	}
-#endif /* APIC_IO */
-	return(pcireg_cfgread(bus, slot, func, reg, bytes));
+	return (pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
 /* 
