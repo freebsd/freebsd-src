@@ -41,7 +41,11 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#ifdef __sparc64__
+#include <machine/sc_machdep.h>
+#else
 #include <machine/pc/display.h>
+#endif
 
 #include <dev/syscons/syscons.h>
 
