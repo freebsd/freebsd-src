@@ -38,11 +38,12 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.91 1997/11/18 09:27:23 bde Exp $
+ *	$Id: vm_machdep.c,v 1.92 1997/11/20 19:41:20 bde Exp $
  */
 
 #include "npx.h"
 #include "opt_bounce.h"
+#include "opt_user_ldt.h"
 #include "opt_vm86.h"
 
 #include <sys/param.h>
