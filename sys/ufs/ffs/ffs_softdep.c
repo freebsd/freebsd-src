@@ -1891,7 +1891,8 @@ check_inode_unwritten(inodedep)
 	inodedep->id_state |= ALLCOMPLETE;
 	LIST_REMOVE(inodedep, id_deps);
 	inodedep->id_buf = NULL;
-	WORKLIST_REMOVE(&inodedep->id_list);
+	if (inodedep->id_state & ONWORKLIST)
+		WORKLIST_REMOVE(&inodedep->id_list);
 	if (inodedep->id_savedino != NULL) {
 		FREE(inodedep->id_savedino, M_INODEDEP);
 		inodedep->id_savedino = NULL;
