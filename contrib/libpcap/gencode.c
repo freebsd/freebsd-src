@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.88 96/07/23 01:30:41 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: gencode.c,v 1.91 96/12/11 19:10:23 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -416,7 +416,8 @@ gen_bcmp(offset, size, v)
 	b = NULL;
 	while (size >= 4) {
 		register const u_char *p = &v[size - 4];
-		bpf_int32 w = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+		bpf_int32 w = ((bpf_int32)p[0] << 24) |
+		    ((bpf_int32)p[1] << 16) | ((bpf_int32)p[2] << 8) | p[3];
 
 		tmp = gen_cmp(offset + size - 4, BPF_W, w);
 		if (b != NULL)
@@ -426,7 +427,7 @@ gen_bcmp(offset, size, v)
 	}
 	while (size >= 2) {
 		register const u_char *p = &v[size - 2];
-		bpf_int32 w = (p[0] << 8) | p[1];
+		bpf_int32 w = ((bpf_int32)p[0] << 8) | p[1];
 
 		tmp = gen_cmp(offset + size - 2, BPF_H, w);
 		if (b != NULL)
@@ -513,6 +514,11 @@ init_linktype(type)
 		off_linktype = 6;
 		off_nl = 8;
 		return;
+
+	case DLT_RAW:
+		off_linktype = -1;
+		off_nl = 0;
+		return;
 	}
 	bpf_error("unknown data link type 0x%x", linktype);
 	/* NOTREACHED */
@@ -549,12 +555,14 @@ static struct block *
 gen_linktype(proto)
 	int proto;
 {
+	/* If we're not using encapsulation and checking for IP, we're done */
+	if (off_linktype == -1 && proto == ETHERTYPE_IP)
+		return gen_true();
+
 	switch (linktype) {
+
 	case DLT_SLIP:
-		if (proto == ETHERTYPE_IP)
-			return gen_true();
-		else
-			return gen_false();
+		return gen_false();
 
 	case DLT_PPP:
 		if (proto == ETHERTYPE_IP)
@@ -1235,6 +1243,7 @@ gen_scode(name, q)
 {
 	int proto = q.proto;
 	int dir = q.dir;
+	int tproto;
 	u_char *eaddr;
 	bpf_u_int32 mask, addr, **alist;
 	struct block *b, *tmp;
@@ -1289,10 +1298,13 @@ gen_scode(name, q)
 			alist = pcap_nametoaddr(name);
 			if (alist == NULL || *alist == NULL)
 				bpf_error("unknown host '%s'", name);
-			b = gen_host(**alist++, 0xffffffff, proto, dir);
+			tproto = proto;
+			if (off_linktype == -1 && tproto == Q_DEFAULT)
+				tproto = Q_IP;
+			b = gen_host(**alist++, 0xffffffff, tproto, dir);
 			while (*alist) {
 				tmp = gen_host(**alist++, 0xffffffff,
-					       proto, dir);
+					       tproto, dir);
 				gen_or(b, tmp);
 				b = tmp;
 			}
