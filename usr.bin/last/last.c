@@ -91,6 +91,7 @@ static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int      d_first;
+static int	snapfound = 0;			/* found snapshot entry? */
 static time_t	snaptime;			/* if != 0, we will only
 						 * report users logged in
 						 * at this snapshot time
@@ -236,7 +237,6 @@ doentry(bp)
 	struct utmp *bp;
 {
 	struct ttytab	*tt, *ttx;		/* ttylist entry */
-	int	 snapfound = 0;			/* found snapshot entry? */
 
 	/*
 	 * if the terminal line is '~', the machine stopped.
@@ -263,11 +263,8 @@ doentry(bp)
 		/*
 		 * don't print shutdown/reboot entries unless flagged for
 		 */
-		if (!snaptime && want(bp)) {
+		if (!snaptime && want(bp))
 			printentry(bp, NULL);
-			if (maxrec != -1 && !--maxrec)
-				exit(0);
-		}
 		return;
 	}
 	/*
@@ -276,11 +273,8 @@ doentry(bp)
 	 */
 	if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|') &&
 	    !bp->ut_line[1]) {
-		if (want(bp) && !snaptime) {
+		if (want(bp) && !snaptime)
 			printentry(bp, NULL);
-			if (maxrec && !--maxrec)
-				exit(0);
-		}
 		return;
 	}
 	/* find associated tty */
@@ -315,8 +309,6 @@ doentry(bp)
 		else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
 			bp->ut_line[4] = '\0';
 		printentry(bp, tt);
-		if (maxrec != -1 && !--maxrec)
-			return;
 	}
 	tt->logout = bp->ut_time;
 }
@@ -338,6 +330,8 @@ printentry(bp, tt)
 	time_t	delta;				/* time difference */
 	time_t	t;
 
+	if (maxrec != -1 && !maxrec--)
+		exit(0);
 	t = _int_to_time(bp->ut_time);
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), d_first ? "%a %e %b %R" :
