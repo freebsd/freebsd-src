@@ -98,6 +98,8 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 
+#ifdef RANDOM_IP_ID
+
 #ifndef INT32_MAX
 #define INT32_MAX	0x7fffffffU
 #endif
@@ -245,3 +247,5 @@ ip6_randomid(void)
 
 	return randomid(&randomtab_32);
 }
+
+#endif /* RANDOM_IP_ID */
