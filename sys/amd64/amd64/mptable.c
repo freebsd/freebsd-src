@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.26 1997/08/09 22:12:14 smp Exp $
+ *	$Id: mp_machdep.c,v 1.40 1997/08/09 23:01:03 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -724,12 +724,18 @@ mptable_pass1(void)
 
 	/* qualify the numbers */
 	if (mp_naps > NCPU)
+#if 0 /* XXX FIXME: kern/4255 */
 		printf("Warning: only using %d of %d available CPUs!\n",
 			NCPU, mp_naps);
-#if 0
-		/** XXX we consider this legal now (but should we?) */
+#else
+	{
+		printf("NCPU cannot be different than actual CPU count.\n");
+		printf(" add 'options NCPU=%d' to your kernel config file,\n",
+			mp_naps);
+		printf(" then rerun config & rebuild your SMP kernel\n");
 		mustpanic = 1;
-#endif
+	}
+#endif /* XXX FIXME: kern/4255 */
 	if (mp_nbusses > NBUS) {
 		printf("found %d busses, increase NBUS\n", mp_nbusses);
 		mustpanic = 1;
