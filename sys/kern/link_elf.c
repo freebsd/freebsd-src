@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.15 1999/01/28 00:57:47 dillon Exp $
+ *	$Id: link_elf.c,v 1.16 1999/01/29 09:04:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -156,12 +156,7 @@ link_elf_init(void* arg)
 	if (linker_kernel_file == NULL)
 	    panic("link_elf_init: Can't create linker structures for kernel");
 	parse_dynamic(linker_kernel_file);
-	/* Sigh, magic constants. */
-#ifdef __alpha__
-	linker_kernel_file->address = (caddr_t) 0xfffffc0000300000;
-#else
-	linker_kernel_file->address = (caddr_t) 0xf0100000;
-#endif
+	linker_kernel_file->address = (caddr_t) KERNBASE;
 	linker_kernel_file->size = -(long)linker_kernel_file->address;
 
 	if (modptr) {
