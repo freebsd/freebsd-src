@@ -2,9 +2,6 @@
 
 SUN4U			opt_global.h
 
-SHOW_BUSYBUFS
-PANIC_REBOOT_WAIT_TIME	opt_panic.h
-
 EBUS_DEBUG		opt_ebus.h
 PSYCHO_DEBUG		opt_psycho.h
 PSYCHO_STRAY		opt_psycho.h
