@@ -1,0 +1,1290 @@
+Sat May 11 15:11:15 1996  Richard Stallman  <rms@delasyd.gnu.ai.mit.edu>
+
+	* Version 1.25 released.
+
+	* Makefile.in (dist): Don't use $(srcdir).
+
+	* bison.simple (__yy_memcpy): Really reorder the args, as was
+	supposedly done on Feb 14 1995.
+	(yyparse): Calls changed accordingly.
+
+Wed Jan 24 22:56:29 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* output.c (output_rule_data): Test YYERROR_VERBOSE in the conditional
+	around the definition of ttyname.
+
+Thu Dec 28 23:27:32 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* bison.simple: Fix line numbers in #line commands.
+
+Sun Dec 24 16:59:44 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* bison.simple (YYPARSE_PARAM_DECL): In C++, make it always null.
+	(YYPARSE_PARAM_ARG): New macro.
+	(yyparse): Use YYPARSE_PARAM_ARG.
+
+Sun Oct 15 12:44:09 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* version.c: Version now 1.25.
+
+	* main.c (warn): Set `failure'.
+
+Tue Aug  1 12:30:38 EDT 1995   Wilfred J. Hansen  <wjh+@cmu.edu>
+
+	* bison.cld, getargs.c, vmsgetargs.c: Added -n, -k, and -raw switches.
+	(noparserflag, toknumflag, rawtoknumflag): New variables.
+	
+	* conflicts.c (resolve_sr_conflict): Remove use of alloca.
+
+	* files.c (openfiles, open_extra_files, done):  Add faction flag 
+	and actfile file.  Handle noparserflag.  Both for -n switch.
+
+	* lex.c: Include getopt.h.  Add some extern decls.
+	(safegetc): New function to deal with EOF gracefully.  
+	(literalchar); new function to deal with reading \ escapes.
+	(lex): Use literalchar.
+	(lex): Implemented "..." tokens.
+	(literalchar, lex, parse_percent_token): Made tokenbuffer 
+	always contain the token.  This includes growing the token 
+	buffer while reading an integer.
+	(parse_percent_token): Replaced if-else statement with percent_table.
+	(parse_percent_token): Added % declarations as another  
+	way to specify the flags -n, -l, and -r.  Also added hooks for 
+	-d, -k, -y, -v, -t, -p, -b, -o, but implementation requires
+	major changes to files.c.
+	(lex) Retain in the incoming stream a character following 
+	an incorrect '/'.
+	(skip_white_space, lex):  Revised most error messages 
+	and changed fatal to warn to avoid aborting.
+	(percent_table):  Added %thong declarations.
+
+	* lex.h: Added THONG and NOOP for alias processing.
+	Added SETOPT for the new code that allows setting options with %flags.
+
+	* main.c (main):  If reader sees an error, don't process the grammar.
+	(fatals): Updated to not use VARARGS1.
+	(printable_version, int_to_string, warn, warni, warns, warnss)
+	(warnsss): New error reporting functions.  Avoid abort for error.
+
+	* output.c (output_headers, output_trailers, output, output_gram)
+	(output_rule_data): Implement noparserflag variable.
+	Implement toknumflag variable.
+	(output): Call reader_output_yylsp to output LTYPESTR.
+
+	* reader.c (reader_output_yylsp): New function.
+	(readgram): Use `#if 0' around code that accepted %command 
+	inside grammar rules:  The documentation doesn't allow it, 
+	and it will fail since the %command processors scan for the next %.
+	(parse_token_decl):  Extended the %token 
+	declaration to allow a multi-character symbol as an alias.
+	(parse_thong_decl): New function.
+	(read_declarations): Added %thong declarations.
+	(read_declarations): Handle NOOP to deal with allowing
+	% declarations as another means to specify the flags.
+	(readgram): Allow %prec prior to semantics embedded in a rule.
+	(skip_to_char, read_declarations, copy_definition)
+	(parse_token_decl, parse_start_decl, parse_type_decl)
+	(parse_assoc_decl, parse_union_decl, parse_expect_decl)
+	(get_type_name, copy_guard, copy_action, readgram)
+	(get_type, packsymbols):  Revised most error messages.
+	Changed `fatal' to `warnxxx' to avoid aborting for error.
+	Revised and use multiple warnxxx functions to avoid using VARARGS1.
+	(read_declarations): Improve the error message for 
+	an invalid character.  Do not abort.
+	(read_declarations, copy_guard, copy_action): Use 
+	printable_version to avoid unprintable characters in printed output.
+	(parse_expect_decl): Error if argument to %expect exceeds 10 digits.
+	(parse_token_decl, parse_assoc_decl, parse_type_decl, get_type):  
+	Allow the type of a non-terminal can be given
+	more than once, as long as all specifications give the same type.
+
+	* reduce.c (reduce_grammar): Revise an error message.
+	(print_notices): Remove final `.' from error message.
+
+	* symtab.h (SALIAS): New #define for adding aliases to %token.
+	(struct bucket): Added `alias' field.
+
+Wed May  3 03:12:28 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* bison.simple: Change distribution terms.
+
+	* version.c: Version now 1.23.  No, 1.24.
+
+Thu Feb 23 02:43:21 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* files.c: Test __VMS_POSIX as well as VMS.
+
+Tue Feb 14 11:53:05 1995  Jim Meyering (meyering@comco.com)
+
+	* bison.simple (__yy_memcpy): Renamed from __yy_bcopy to avoid
+	confusion.  Reverse FROM and TO arguments to be consistent with
+	those of memcpy.
+
+Thu Nov 10 16:33:41 1994  David J. MacKenzie  <djm@duality.gnu.ai.mit.edu>
+
+	* Makefile.in (DISTFILES): Include install-sh, not install.sh.
+	Include NEWS.
+
+	* configure.in: Update to Autoconf v2 macro names.
+
+Tue Oct  4 22:25:43 1994  David J. MacKenzie  (djm@duality.gnu.ai.mit.edu)
+
+	* Makefile.in (prefix, exec_prefix): Let configure set them.
+
+Wed Sep 28 09:55:28 1994  David J. MacKenzie  (djm@duality.gnu.ai.mit.edu)
+
+	* Makefile.in: Set datadir to $(prefix)/share.
+
+Tue Jul 12 16:42:43 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* reader.c (reader): Rename undefined-token token to `$undefined.'.
+
+Thu May  5 14:41:02 1994  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* Makefile.in (DISTFILES): Add install.sh.
+	(install): Remove chmod commands.
+
+Sat Mar 26 15:33:07 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple: Fix #line commands.
+
+Thu Mar 24 23:09:07 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c (print_reductions): Increment both fp1 and fp2
+	while printing reductions in multi-rule case.
+
+Sun Jan  2 15:51:52 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (LDFLAGS): Make it empty by default.
+	(bison): Use CFLAGS.
+
+Sun Nov 21 05:24:30 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (YYLEX): Take notice of YYLEX_PARAM.
+
+Mon Oct 18 23:52:33 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (YYPARSE_PARAM_DECL): Always define this.
+
+Thu Oct 14 12:19:13 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (yyparse): Support YYPARSE_PARAM.
+
+Mon Sep 13 18:17:14 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * Makefile.in (check): New target.
+
+Fri Sep 10 08:10:18 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c (alloca): #undef before defining.
+
+	* system.h (bcopy): Don't define if already defined.
+
+Mon Sep  6 15:32:32 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * Version 1.22 released.
+
+        * mkinstalldirs: New file.
+
+        * Makefile.in (dist): Use .gz for extension, not .z. 
+        (DISTFILES): New variable.
+        (dist): Use it instead of explicit file list. 
+        Try to link each file separately, then copy file if ln fails.
+        (installdirs): Use mkinstalldirs script.
+
+Thu Jul 29 20:35:02 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (config.status): Run config.status --recheck, not
+	configure, to get the right args passed.
+
+Sat Jul 24 04:00:52 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (yyparse): Init yychar1 to avoid warning.
+
+Sun Jul  4 16:05:58 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (yyparse): Don't set yyval when yylen is 0.
+
+Sat Jun 26 15:54:04 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* getargs.c (getargs): Exit after printing the version number.
+	Add --help and -h options.
+	(usage): New function.
+
+Fri Jun 25 15:11:25 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getargs.c (longopts): Allow `output' as an alternative.
+
+Wed Jun 16 17:02:37 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (yyparse): Conditionalize the entire call to yyoverflow,
+	not just two arguments in it.
+
+Thu Jun  3 13:07:19 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple [__hpux] (alloca): Don't specify arg types.
+
+Fri May  7 05:53:17 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * Makefile.in (install): Depend on `uninstall' and `installdirs'.
+	(installdirs): New target. 
+
+Wed Apr 28 15:15:15 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * reader.c:  Remove declaration of atoi. 
+
+Fri Apr 23 12:29:20 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * new.h [!__STDC__] (FREE): Check x != 0.
+        Make expr to call `free' evaluate to 0.
+
+Tue Apr 20 01:43:44 1993  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* files.c [MSDOS]: Use xmalloc, not malloc.
+	* allocate.c (xmalloc): Renamed from mallocate.  Remove old wrapper.
+	* conflicts.c, symtab.c, files.c, LR0.c, new.h: Change callers.
+	* allocate.c (xrealloc): New function.
+	* new.h: Declare it.
+	* lex.c, reader.c: Use it.
+
+Sun Apr 18 00:45:56 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * Version 1.21 released.
+
+        * reader.c : Don't declare `realloc'.
+
+        * Makefile.in (bison.s1): use `rm -f' since it's quieter.
+        (dist): make gzipped tar file.
+
+Fri Apr 16 21:24:10 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * Makefile.in (Makefile, config.status, configure): New targets.
+
+Thu Apr 15 15:37:28 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* main.c: Don't declare `abort'.
+
+	* files.c: Don't declare `exit'.
+
+Thu Apr 15 02:42:38 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * configure.in: Add AC_CONST.
+
+Wed Apr 14 00:51:17 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (all): Depend on bison.s1.
+
+Tue Apr 13 14:52:32 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Version 1.20 released.
+
+Wed Mar 24 21:45:47 1993  Richard Stallman  (rms@wookumz.gnu.ai.mit.edu)
+
+	* output.c (output_headers): Rename yynerrs if -p.
+
+Thu Mar 18 00:02:17 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * system.h: Don't try to include stdlib.h unless HAVE_STDLIB_H is
+          defined.
+
+        * configure.in: Check for stdlib.h.
+
+Wed Mar 17 14:44:27 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple [__hpux, not __GNUC__]: Declare alloca.
+	(yyparse): When printing the expected token types for an error,
+	Avoid negative indexes in yycheck and yytname.
+
+Sat Mar 13 23:31:25 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (files.o, .c.o): Put CPPFLAGS and CFLAGS last.
+
+Mon Mar  1 17:49:08 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple: Test __sgi like __sparc.
+
+Wed Feb 17 00:04:13 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c (resolve_sr_conflict): Add extra parens in alloca call.
+
+	* bison.simple [__GNUC__] (yyparse): Declare with prototype.
+
+Fri Jan 15 13:15:17 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c (print_reduction): Near end, increment fp2 when mask
+	recycles.
+
+Wed Jan 13 04:15:03 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (bison.s1): New target.  Modifies bison.simple.
+	(install): Install bison.s1, without changing it.
+	(clean): Delete bison.s1.
+
+Mon Jan  4 20:35:58 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* reader.c (reader): Put Bison version in comment in output file.
+
+Tue Dec 22 19:00:58 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* files.c (openfiles): Use .output, not .out, for outfile,
+	regardless of spec_name_prefix.
+
+Tue Dec 15 19:22:11 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* output.c (output_gram): Include yyrhs in the same #if as yyprhs.
+
+Tue Dec 15 18:29:16 1992  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+        * output.c (output): output directives checking for __cplusplus as
+          well as __STDC__ to determine when to define "const" as an empty
+          token.  (Patch from Wolfgang Glunz <wogl@sun11a.zfe.siemens.de>)
+
+Tue Dec  8 21:51:23 1992  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* system.h, conflicts.c: Replace USG with HAVE_STRING_H and
+	HAVE_MEMORY_H.
+
+Sat Nov 21 00:37:16 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in: Set and use $(MAKEINFO).
+
+Fri Nov 20 20:45:57 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* files.c (done) [MSDOS]: Delete the tmpdefsfile with the rest.
+
+Thu Oct  8 21:55:52 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (dist): Put configure.bat in the distribution.
+
+Thu Oct  1 09:16:24 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in (install): cd to $(srcdir) before installing info files.
+
+Wed Sep 30 17:18:39 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (files.o): Supply $(DEFS), and $(CPPFLAGS).
+
+Fri Sep 25 18:06:28 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Version 1.19 released.
+
+	* reader.c (parse_union_decl): Fix ending of C++ comment;
+	don't lose the char after the newline.
+
+	* configure.bat: New file.
+
+Thu Sep 24 16:23:15 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c: Check for using alloca.h as getopt.c does.
+
+Sun Sep  6 08:01:53 1992  Karl Berry  (karl@hayley)
+
+        * files.c (openfiles): open `fdefines' after we have assigned a name
+          to `tmpdefsfile', and only if `definesflag' is set.
+        (done): only create the real .tab.h file if `definesflag' is set.
+        * reader.c (packsymbols): don't close `fdefines' here.
+
+Sat Sep  5 15:02:11 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* files.c (openfiles): Open fdefines as temp file, like ftable.
+	(done): Copy temp defines file to real one, like main output file.
+
+Fri Aug 21 12:47:48 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (dist): Don't release mergedir.awk
+	(install): Use sed, not awk.  Don't depend on mergedir.awk.
+	* mergedir.awk: File effectively deleted.
+
+Wed Jul 29 00:53:25 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple: Test __sparc along with __sparc__.
+
+Sat Jul 11 14:08:33 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* lex.c (skip_white_space): Count \n just once at end of c++ comment.
+
+Fri Jun 26 00:00:30 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple: Comment fix; #line command updated.
+
+Wed Jun 24 15:12:42 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (install): Specify full new file name for the executable.
+
+Mon Jun 22 16:38:24 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (dist): Include bison.rnh in distribution.
+
+Sun Jun 21 22:42:13 1992 Eric Youngdale (youngdale@v6550c.nrl.navy.mil)
+
+    Clean up rough edges in VMS port of bison, add support for remaining
+    command line options.
+
+	* bison.cld: Add /version, /yacc, /file_prefix, and /name_prefix
+	switches.
+
+	* build.com: General cleanup:  add logic to automatically sense
+	which C compiler is present; add code to cwd to the directory
+	that contains bison sources; do not define XPFILE, XPFILE1
+	(correct defaults are applied in file.c).
+
+	* files.c: Append _tab, not .tab when using /file_prefix under VMS.
+
+	* system.h: Include string.h instead of strings.h (a la USG).
+
+	* vmsgetargs.c: Add support for all switches added to bison.cld.
+
+Sun Jun 21 15:53:26 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (install): Always specify new file name for install.
+	Redirect awk output to temp file and install that.
+
+Wed May 27 22:27:50 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (yyparse): Make yybackup and yyerrlab1 always be used.
+
+Fri May 22 14:58:42 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (dist): Depend on bison.info
+	(bison.info): Delete spurious <.
+
+Sun May 17 21:48:55 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (.c.o): New rule.  Use $(DEFS) directly.
+	(CFLAGS): Use just -g by default.
+	(CDEBUG): Variable deleted.
+
+Thu May  7 00:03:37 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* reader.c (copy_guard): Fix typo skipping comment.
+
+Mon May  4 01:23:21 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Version 1.18.
+
+	* getargs.c (getargs): Change '0' to 0 in case for long options.
+
+Sun Apr 19 10:17:52 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* reader.c (packsymbols): Handle -p when declaring yylval.
+
+Sat Apr 18 18:18:48 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* output.c (output_gram): Output #endif properly at end of decl.
+
+Mon Mar 30 01:13:41 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Version 1.17.
+
+	* Makefile.in (clean): Don't delete configuration files or TAGS.
+	(distclean): New target; do delete those.
+
+Sat Mar 28 17:18:50 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* output.c (output_gram): Conditionalize yyprhs on YYDEBUG.
+
+	* LR0.c (augment_automaton): If copying sp->shifts to insert new
+	shift, handle case of inserting at end.
+
+Sat Mar 21 23:25:47 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* lex.c (skip_white_space): Handle C++ comments.
+	* reader.c (copy_definition, parse_union_decl, copy_guard):
+	(copy_action): Likewise.
+
+Sun Mar  8 01:22:21 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple (YYPOPSTACK): Fix typo.
+
+Sat Feb 29 03:53:06 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (install): Install bison.info* files one by one.
+
+Fri Feb 28 19:55:30 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* bison.1: Document long options as starting with `--', not `+'.
+
+Sat Feb  1 00:08:09 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getargs.c (getargs): Accept value 0 from getopt_long.
+
+Thu Jan 30 23:39:15 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (mostlyclean): Renamed from `clean'.
+	(clean): Renamed from 'distclean'.  Dep on mostlyclean, not realclean.
+	(realclean): Dep on clean.
+
+Mon Jan 27 21:59:19 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* bison.simple: Use malloc, not xmalloc, and handle failure explicitly.
+
+Sun Jan 26 22:40:04 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* conflicts.c (total_conflicts): Delete unused arg to fprintf.
+
+Tue Jan 21 23:17:44 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Version 1.16.
+
+Mon Jan  6 16:50:11 1992  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* Makefile (distclean): Depend on clean, not realclean.  Don't rm TAGS.
+	(realclean): rm TAGS here.
+
+	* symtab.c (free_symtab): Don't free the type names.
+
+Sun Dec 29 22:25:40 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* machine.h: MSDOS has 32-bit ints if __GO32__.
+
+Wed Dec 25 22:09:07 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* bison.simple [_AIX]: Indent `#pragma alloca', so old C compilers
+	don't choke on it.
+
+Mon Dec 23 02:10:16 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* getopt.c, getopt1.c, getopt.h: Link them to standard source location.
+	* alloca.c: Likewise.
+	* Makefile.in (dist): Copy those files from current dir.
+
+	* getargs.c: Update usage message.
+
+	* LR0.c (augment_automaton): Put new shift in proper order.
+
+Fri Dec 20 18:39:20 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* conflicts.c: Use memcpy if ANSI C library.
+
+	* closure.c (set_fderives): Delete redundant assignment to vrow.
+
+	* closure.c (print_firsts): Fix bounds and offset checking tags.
+
+	* closure.c (tags): Declare just once at start of file.
+
+	* LR0.c (allocate_itemsets): Eliminate unused var max.
+	(augment_automaton): Test sp is non-null.
+
+	* lalr.c (initialize_LA): Make the vectors at least 1 element long.
+
+	* reader.c (readgram): Remove separate YYSTYPE default for MSDOS.
+
+Wed Dec 18 02:40:32 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* print.c (print_grammar): Don't print disabled rules.
+
+Tue Dec 17 03:48:07 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* lex.c (lex): Parse hex escapes properly.
+	Handle \v when filling token_buffer.
+
+	* lex.c: Include new.h.
+	(token_buffer): Change to a pointer.
+	(init_lex): Allocate initial buffer.
+	(grow_token_buffer): New function.
+	(lex, parse_percent_token): Use that.
+
+	* reader.c (read_declarations): Call open_extra_files just once.
+	(parse_token_decl): Don't free previous typename value.
+	Don't increment nvars if symbol is already a nonterminal.
+	(parse_union_decl): Catch unmatched close-brace.
+	(parse_expect_decl): Null-terminate buffer.
+	(copy_guard): Set brace_flag for {, not for }.
+
+	* reader.c: Fix %% in calls to fatal.
+
+	* reader.c (token_buffer): Just one extern decl, at top level.
+	Declare as pointer.
+
+	* symtab.c (free_symtab): Free type_name fields.  Free symtab itself.
+
+Mon Nov 25 23:04:31 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* bison.simple: Handle alloca for AIX.
+
+	* Makefile.in (mandir): Compute default using manext.
+
+Sat Nov  2 21:39:32 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* Update all files to GPL version 2.
+
+Fri Sep  6 01:51:36 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* bison.simple (__yy_bcopy): Use builtin if GCC version 2.
+
+Mon Aug 26 22:09:12 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* reader.c (parse_assoc_decl): Error if same symbol gets two precs.
+
+Mon Aug 26 16:42:09 1991  David J. MacKenzie  (djm at pogo.gnu.ai.mit.edu)
+
+	* Makefile.in, configure: Only put $< in Makefile if using VPATH,
+	because older makes don't understand it.
+
+Fri Aug 23 00:05:54 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* conflicts.c [_AIX]: #pragma alloca.
+	* reduce.c: Don't define TRUE and FALSE if already defined.
+
+Mon Aug 12 22:49:58 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* Makefile.in: Add deps on system.h.
+	(install): Add some deps.
+
+Fri Aug  2 12:19:20 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* Makefile.in (dist): Include texinfo.tex.
+
+	* configure: Create config.status.  Remove it and Makefile if
+	interrupted while creating them.
+
+Thu Aug  1 23:14:01 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* configure: Check for +srcdir etc. arg and look for
+	Makefile.in in that directory.  Set VPATH if srcdir is not `.'.
+	* Makefile.in (prefix): Renamed from DESTDIR. 
+
+Wed Jul 31 21:29:47 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* print.c (print_grammar): Make output prettier.  Break lines.
+
+Tue Jul 30 22:38:01 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* print.c (print_grammar): New function.
+	(verbose): Call it instead of printing token names here.
+
+Mon Jul 22 16:39:54 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* vmsgetargs.c (spec_name_prefix, spec_file_prefix): Define variables.
+
+Wed Jul 10 01:38:25 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* configure, Makefile.in: $(INSTALLPROG) -> $(INSTALL),
+	$(INSTALLTEXT) -> $(INSTALLDATA).
+
+Tue Jul  9 00:53:58 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* bison.simple: Don't include malloc.h if __TURBOC__.
+
+Sat Jul  6 15:18:12 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* Replace Makefile with configure and Makefile.in.
+	Update README with current compilation instructions.
+
+Mon Jul  1 23:12:20 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* reader.c (reader): Make the output define YYBISON.
+
+Thu Jun 20 16:52:51 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* Makefile (MANDIR, MANEXT): Install man page in
+	/usr/local/man/man1/bison.1 by default, instead of
+	/usr/man/manl/bison.l, for consistency with other GNU programs.
+	* Makefile: Rename BINDIR et al. to lowercase to conform to
+	GNU coding standards.
+	(install): Make man page non-executable.
+
+Fri May 31 23:22:13 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* Makefile (bison.info): New target.
+	(realclean): New target.
+
+Thu May  2 16:36:19 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* bison.simple: Use YYPRINT to print a token, if it's defined.
+
+Mon Apr 29 12:22:55 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* lalr.c (transpose): Rename R to R_arg.
+	(initialize_LA): Avoid shadowing variable j.
+
+	* reader.c (packsymbols): Avoid shadowing variable i.
+
+	* files.c: Declare exit and perror.
+
+	* machine.h: Define MAXSHORT and MINSHORT for the eta-10.
+
+Tue Apr  2 20:49:12 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* allocate.c (mallocate): Always allocate at least one byte.
+
+Tue Mar 19 22:17:19 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* Makefile (dist): Put alloca.c into distribution.
+
+Wed Mar  6 17:45:42 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* print.c (print_actions): Nicer output for final states.
+
+Thu Feb 21 20:39:53 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* output.c (output_rule_data): Break lines in yytline based on hpos.
+
+Thu Feb  7 12:54:36 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* bison.simple (yyparse): Move decl of yylsa before use.
+
+Tue Jan 15 23:41:33 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* Version 1.14.
+
+	* output.c (output_rule_data): Handle NULL in tags[i].
+
+Fri Jan 11 17:27:24 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* bison.simple: On MSDOS, include malloc.h.
+
+Sat Dec 29 19:59:55 1990  David J. MacKenzie  (djm at wookumz.ai.mit.edu)
+
+	* files.c: Use `mallocate' instead of `xmalloc' so no extra decl is
+	needed. 
+
+Wed Dec 19 18:31:21 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* reader.c (readgram): Alternate YYSTYPE defn for MSDOS.
+	* files.c [MSDOS]: Declare xmalloc.
+
+Thu Dec 13 12:45:54 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* output.c (output_rule_data): Put all symbols in yytname.
+
+	* bison.simple (yyparse): Delete extra fprintf arg
+	when printing a result of reduction.
+
+Mon Dec 10 13:55:15 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* reader.c (packsymbols): Don't declare yylval if pure_parser.
+
+Tue Oct 30 23:38:09 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* Version 1.12.
+
+	* LR0.c (augment_automaton): Fix bugs adding sp2 to chain of shifts.
+
+Tue Oct 23 17:41:49 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* bison.simple: Don't define alloca if already defined.
+
+Sun Oct 21 22:10:53 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* getopt.c: On VMS, use string.h.
+
+	* main.c (main): Return type int.
+
+Mon Sep 10 16:59:01 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* output.c (output_headers): Output macro defs for -p.
+
+	* reader.c (readgram): Handle consecutive actions.
+
+	* getargs.c (getargs): Rename -a to -p.
+	* files.c (openfiles): Change names used for -b.
+
+Mon Aug 27 00:30:15 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* reduce.c (reduce_grammar_tables): Don't map rlhs of disabled rule.
+
+Sun Aug 26 13:43:32 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* closure.c (print_firsts, print_fderives): Use BITISSET to test bits.
+
+Thu Aug 23 22:13:40 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* closure.c (print_firsts): vrowsize => varsetsize.
+	(print_fderives): rrowsize => rulesetsize.
+
+Fri Aug 10 15:32:11 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple (alloca): Don't define if already defined.
+	(__yy_bcopy): Alternate definition for C++.
+
+Wed Jul 11 00:46:03 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* getargs.c (getargs): Mention +yacc in usage message.
+
+Tue Jul 10 17:29:08 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (parse_token_decl, copy_action):
+	Set value_components_used if appropriate.
+	(readgram): Inhibit output of YYSTYPE definition in that case.
+
+Sat Jun 30 13:47:57 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* output.c (output_parser): Define YYPURE if pure, and not otherwise.
+	Don't define YYIMPURE.
+	* bison.simple: Adjust conditionals accordingly.
+	* bison.simple (YYLEX): If locations not in use, don't pass &yylloc.
+
+Thu Jun 28 12:32:21 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getargs.c (longopts): Add `yacc'.
+
+Thu Jun 28 00:40:21 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* getargs.c (getargs): Add long options.
+	* Makefile: Link with getopt1.o and add getopt1.c and getopt.h to
+	dist. 
+
+	* Move version number and description back into version.c from
+	Makefile and getargs.c.
+	* Makefile (dist): Extract version number from version.c.
+
+Tue Jun 26 13:16:35 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* output.c (output): Always call output_gram.
+	* bison.simple (yyparse): Print rhs and lhs symbols of reduction rule.
+
+Thu Jun 21 00:15:40 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* main.c: New global var `program_name' to hold argv[0] for error
+	messages.
+	* allocate.c, files.c, getargs.c, reader.c: Use `program_name'
+	in messages instead of hardcoded "bison".
+
+Wed Jun 20 23:38:34 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* Makefile: Specify Bison version here.  Add rule to pass it to
+	version.c.  Encode it in distribution directory and tar file names.
+	* version.c: Use version number from Makefile.
+	* getargs.c (getargs): Print additional text that used to be part of
+	version_string in version.c.  Use -V instead of -version to print
+	Bison version info.  Print a usage message and exit if given an
+	invalid option.
+
+Tue Jun 19 01:15:18 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple: Fix a #line.
+
+	* Makefile (INSTALL): New parameter.
+	(install): Use that.
+	(CFLAGS): Move definition to top.
+
+Sun Jun 17 17:10:21 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (parse_type_decl): Ignore semicolon.
+	Remove excess % from error messages.
+
+Sat Jun 16 19:15:48 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.11.
+
+	* Makefile (install): Ensure installed files readable.
+
+Tue Jun 12 12:50:56 EDT 1990 Jay Fenlason (hack@ai.mit.edu)
+
+	* getargs.c: Declare spec_file_prefix
+
+	* lex.c (lex): \a is '\007' instead of '007'
+
+	* reader.c: include machine.h
+
+	* files.h: Declare extern spec_name_prefix.
+
+	Trivial patch from Thorsten Ohl (td12@ddagsi3.bitnet)
+
+Thu May 31 22:00:16 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.10.
+ 
+	* bison.simple (YYBACKUP, YYRECOVERING): New macros.
+	(YYINITDEPTH): This is what used to be YYMAXDEPTH.
+	(YYMAXDEPTH): This is what used to be YYMAXLIMIT.
+	If the value is 0, use the default instead.
+	(yyparse): Return 2 on stack overflow.
+
+Wed May 30 21:09:07 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple (YYERROR): Jump to new label; don't print error message.
+	(yyparse): Define label yyerrlab1.
+
+Wed May 16 13:23:58 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* files.c (openfiles): Support -b.
+	* getargs.c (getargs): Likewise.
+
+	* reader.c (readgram): Error if too many symbols.
+
+	* lex.c (lex): Handle \a.  Make error msgs more reliable.
+	* reader.c (read_declarations): Make error msgs more reliable.
+
+Sun May 13 15:03:37 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.09.
+
+	* reduce.c (reduce_grammar_tables): Fix backward test.
+
+Sat May 12 21:05:34 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile (bison-dist.*): Rename targets and files to bison.*.
+	(bison.tar): Make tar file to unpack into subdirectory named `bison'.
+
+Mon Apr 30 03:46:58 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reduce.c (reduce_grammar_tables): Set rlhs to -1 for useless rules.
+	* nullable.c (set_nullable): Ignore those rules.
+	* derives.c (set_derives): Likewise.
+
+Mon Apr 23 15:16:09 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple (yyparse): Mention rule number as well as line number.
+
+Thu Mar 29 00:00:43 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple (__yy_bcopy): New function.
+	(yyparse): Use that, not bcopy.
+
+Wed Mar 28 15:23:51 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* print.c (print_actions): Don't alter i and j spuriously when errp==0.
+
+Mon Mar 12 16:22:18 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* bison.simple [__GNUC__]: Use builtin_alloca.
+
+Wed Mar  7 21:11:36 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile (install): Use mergedir.awk to process bison.simple
+	for installation.
+
+	* bison.simple (yyparse): New feature to include possible valid
+	tokens in parse error message.
+
+Sat Mar  3 14:10:56 1990  Richard Stallman  (rms at geech)
+
+	* Version 1.08.
+
+Mon Feb 26 16:32:21 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* print.c (print_actions)
+	conflicts.c (print_reductions): Change "shift %d" to
+	"shift, and go to state %d" and "reduce %d" to "reduce using rule %d"
+	and "goto %d" to "go to state %d".
+	print.c (print_core): Change "(%d)" to "(rule %d)".
+
+Tue Feb 20 14:22:47 EST 1990	Jay Fenlason (hack @ wookumz.ai.mit.edu)
+
+	* bison.simple:  Comment out unused yyresume: label.
+
+Fri Feb  9 16:14:34 EST 1990	Jay Fenlason (hack @ wookumz.ai.mit.edu)
+
+	* bison.simple :  surround all declarations and (remaining) uses of
+	yyls* and yylloc with #ifdef YYLSP_NEEDED  This will significantly
+	cut down on stack usage, and gets rid of unused-variable msgs from
+	GCC.
+
+Wed Jan 31 13:06:08 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* files.c (done) [VMS]: Don't delete files that weren't used.
+	[VMS]: Let user override XPFILE and XPFILE1.
+
+Wed Jan  3 15:52:28 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.07.
+
+Sat Dec 16 15:50:21 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* gram.c (dummy): New function.
+
+	* reader.c (readgram): Detect error if two consec actions.
+
+Wed Nov 15 02:06:08 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reduce.c (reduce_grammar_tables): Update rline like other tables.
+
+	* Makefile (install): Install the man page.
+
+Sat Nov 11 03:21:58 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* output.c (output_rule_data): Write #if YYDEBUG around yyrline.
+
+Wed Oct 18 13:07:55 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.06.
+
+	* vmsgetargs.c (getargs): Downcase specified output file name.
+
+Fri Oct 13 17:48:14 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (readgram): Warn if there is no default to use for $$
+	and one is needed.
+
+Fri Sep 29 12:51:53 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.05.
+
+	* vmsgetargs.h (getargs): Process outfile option.
+
+Fri Sep  8 03:05:14 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Version 1.04.
+
+	* reader.c (parse_union_decl): Count newlines even in comments.
+
+Wed Sep  6 22:03:19 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* files.c (openfiles): short_base_length was always == base_length.
+
+Thu Aug 24 16:55:06 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* Version 1.03.
+
+	* files.c (openfiles): Write output into same dir as input, by default.
+
+Wed Aug 23 15:03:07 1989  Jay Fenlason  (hack at gnu)
+
+	* Makefile: Include system.h in bison-dist.tar
+
+Tue Aug 15 22:30:42 1989  Richard Stallman  (rms at hobbes.ai.mit.edu)
+
+	* version 1.03.
+
+	* reader.c (reader): Output LTYPESTR to fdefines
+	only after reading the grammar.
+
+Sun Aug  6 16:55:23 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (read_declarations): Put space before comment
+	to avoid bug in Green Hills C compiler.
+
+Mon Jun 19 20:14:01 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* allocate.c (xmalloc): New function.
+
+Fri Jun 16 23:59:40 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* build.com: Compile and link reduce.c.
+
+Fri Jun  9 23:00:54 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reduce.c (reduce_grammar_tables): Adjust start_symbol when #s change.
+
+Sat May 27 17:57:29 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (copy_definition, copy_guard): Don't object to \-newline
+	inside strings.
+
+Mon May 22 12:30:59 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* files.c (openfiles): Alternate file names for MSDOS.
+	(open_extra_files): Likewise.
+	(done): On MSDOS, unlink temp files here, not in openfiles.
+
+	* machine.h (BITS_PER_WORD): 16 on MSDOS.
+	(MAXTABLE): Now defined in this file.
+
+	* system.h: New file includes system-dependent headers.
+	All relevant .c files include it.
+
+Thu Apr 27 17:00:47 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* version.c: Version 1.01.
+
+Tue Apr 18 12:46:05 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* conflicts.c (total_conflicts): Fixed typo in yacc style output;
+	mention conflicts if > 0.
+
+Sat Apr 15 17:36:18 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (packsymbols): Start new symbols after 256.
+
+Wed Apr 12 14:09:09 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (reader): Always assign code 256 to `error' token.
+	Always set `translations' to 1 so this code gets handled.
+	* bison.simple (YYERRCODE): Define it.
+
+Tue Apr 11 19:26:32 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* conflicts.c: If GNU C, use builtin alloca.
+
+	* Makefile (install): Delete parser files before copying them.
+
+Thu Mar 30 13:51:17 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getargs.c (getargs): Turn off checking of name Bison was invoked by.
+
+	* Makefile (dist): Include ChangeLog in distrib.
+
+Thu Mar 23 15:19:41 1989  Jay Fenlason  (hack at apple-gunkies.ai.mit.edu)
+
+	* LR0.c closure.c conflicts.c derives.c files.c getargs.c lalr.c
+	lex.c main.c nullable.c output.c print.c reader.c reduce.c
+	symtab.c warshall.c:  A first pass at getting gcc -Wall to shut up.
+	Mostly declared	functions as void, etc.
+
+	* reduce.c moved 'extern int fixed_outfiles;' into print_notices
+	where it belongs.
+
+Wed Mar  1 12:33:28 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* types.h, symtab.h, state.h, new.h, machine.h, lex.h, gram.h,
+	files.h, closure.c, vmsgetargs.c, warshall.c, symtab.c, reduce.c,
+	reader.c, print.c, output.c, nullable.c, main.c, lex.c, lalr.c,
+	gram.c, getargs.c, files.c, derives.c, conflicts.c, allocate.c,
+	LR0.c, Makefile, bison.simple: Changed copyright notices to be in
+	accord with the new General Public License.
+	* COPYING: Made a link to the new copying file.
+
+Wed Feb 22 06:18:20 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* new.h (FREE): Alternate definition for __STDC__ avoids error
+	if `free' returns void.
+
+Tue Feb 21 15:03:34 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (read_declarations): Double a `%' in a format string.
+	(copy_definition, parse_start_decl, parse_token_decl): Likewise.
+	(parse_type_decl, parse_union_decl, copy_guard, readgram, get_type).
+	(copy_action): change a `fatal' to `fatals'.
+
+	* lalr.c (map_goto): Initial high-end of binary search was off by 1.
+
+Sat Feb 18 08:49:57 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple [sparc]: Include alloca.h.
+
+Wed Feb 15 06:24:36 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (packsymbols): Write decl of yylval into .tab.h file.
+
+Sat Jan 28 18:19:05 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple: Avoid comments on `#line' lines.
+
+	* reader.c (LTYPESTR): Rearrange to avoid whitespace after \-newline.
+
+Mon Jan  9 18:43:08 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* conflicts.c (total_conflicts): if -y, use output syntax POSIX wants.
+	* reduce.c (print_notices): likewise.
+
+	* lex.c (lex): Handle \v, and \x hex escapes.
+
+	* reader.c (reader): Merge output_ltype into here.
+	Don't output YYLTYPE definition to .tab.h file
+	unless the @ construct is used.
+
+	* bison.simple: Define YYERROR, YYABORT, YYACCEPT here.
+	* reader.c (output_ltype): Don't output them here.
+
+	* bison.simple: YYDEBUG now should be 0 or 1.
+	* output.c (output): For YYDEBUG, output conditional to define it
+	only if not previously defined.
+
+Mon Jan  2 11:29:55 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple (yyparse) [YYPURE]: Add local yynerrs.
+	(yydebug): Declare global, but don't initialize, regardless of YYPURE.
+	(yyparse): Don't declare yydebug here.
+
+Thu Dec 22 22:01:22 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reduce.c (print_notices): Typo in message.
+
+Sun Dec 11 11:32:07 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* output.c (pack_table): Free only nonzero the elts of froms & tos.
+
+Thu Dec  8 16:26:46 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* gram.c (rprecsym): New vector indicates the %prec symbol for a rule.
+	* reader.c (packgram): Allocate it and fill it in.
+	* reduce.c (inaccessable_symbols): Use it to set V1.
+	* reduce.c (print_results): Don't complain about useless token
+	if it's in V1.
+
+Mon Dec  5 14:33:17 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* machine.h (RESETBIT, BITISSET): New macros.
+	(SETBIT, WORDSIZE): Change to use BITS_PER_WORD.
+
+	* reduce.c: New file, by David Bakin.  Reduces the grammar.
+	* Makefile: Compile it, link it, put it in dist.
+
+	* main.c (main): Call reduce_grammar (in reduce.c).
+
+Thu Nov 17 18:33:04 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* conflicts.c: Don't declare alloca if including alloca.h.
+
+	* bison.cld: Define qualifiers `nolines', `debug'.
+	* vmsgetargs.c (getargs): Handle them.
+
+	* output.c (output_program): Notice `nolinesflag'.
+
+	* output.c (output_parser): Simplify logic for -l and #line.
+	Avoid writing EOF char into output.
+
+Wed Oct 12 18:00:03 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Implement `-l' option.
+	* getopt.c: Set flag `nolinesflag'.
+	* reader.c (copy_definition, parse_union_decl, copy_guard, copy_action)
+	Obey that flag; don't generate #line.
+	* output.c (output_parser): Discard #line's when copying the parser.
+
+Mon Sep 12 16:33:17 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (copy_guard): Fix brace-counting for brace-surrounded guard.
+
+Thu Sep  8 20:09:53 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* bison.simple: Correct number in #line command.
+	(yyparse): Call YYABORT instead of YYERROR, due to last change in
+	output_ltype.
+
+Mon Sep  5 14:55:30 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile: New variable LIBS.  Alternatives for USG.
+	* conflicts.c [USG]: Define bcopy.
+	* symtab.c [USG]: Include string.h instead of strings.h.
+
+	* conflicts.c [sparc]: Include alloca.h.
+
+Tue Aug  2 08:38:38 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (parse_token_decl): Ignore commas.
+
+Sat Jun 25 10:29:20 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* reader.c (output_ltype): Make YYERROR yacc-compatible (like YYFAIL).
+
+Fri Jun 24 11:25:11 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getargs.c (getargs): -t sets debugflag.
+	Eliminate upper case duplicate options.
+	* output.c (output): If debugflag, output `#define YYDEBUG'.
+
+Thu May 26 06:04:21 1988  Richard Stallman  (rms at frosted-flakes.ai.mit.edu)
+
+	* allocate.c (mallocate): New name for `allocate' (which loses in VMS).
+	Calls changed in LR0.c, conflicts.c, symtab.c, new.h.
+
+	* getargs.c (getargs): If argv[0] is "yacc", set fixed_outfiles.
+
+Tue May 17 12:15:30 1988  Richard Stallman  (rms at frosted-flakes.ai.mit.edu)
+
+	* conflicts.c: Declare alloca.
+	* reader.c: Declare realloc.
+	* warshall.c (TC): Fix one arithmetic op that was omitted last time.
+
+Thu May  5 14:36:03 1988  Richard Stallman  (rms at frosted-flakes.ai.mit.edu)
+
+	* bison.simple: Conditionalize most refs to yylsp on YYLSP_NEEDED.
+	* reader.c (copy_guard, copy_action): Notice if `@' is used.
+	(reader): If it was, output `#define YYLSP_NEEDED'.
+
+Mon Apr 18 04:54:32 1988  Richard Stallman  (rms at rice-krispies.ai.mit.edu)
+
+	* bison.simple: New variable yynerr counts calls to yyerror.
+
+	* lex.c (lex, case '='): Update lineno when skipping a newline.
+
+	* reader.c (parse_expect_decl): ungetc the char that ends the number;
+	don't read any further.  This handles multi-line comments right
+	and avoids incorrect lineno.
+
+	* reader.c: Delete duplicate decl of symval.
+
+	* warshall.c (RTC, TC): Cast ptrs to char *, not unsigned, for arith.
