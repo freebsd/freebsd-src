@@ -1,4 +1,8 @@
-awk '
+# XXX should we use an ANSI cpp?
+# XXX does -I$DESTDIR/usr/include actually work?
+(echo "#include <sys/ioctl.h>"
+ echo "#include <sys/ioctl_compat.h>"
+) | cpp -I$DESTDIR/usr/include -dM | awk '
 BEGIN {
 	print "#include <sys/param.h>"
 	print "#include <sys/queue.h>"
@@ -6,6 +10,8 @@ BEGIN {
 	print "#include <sys/socketvar.h>"
 	print "#include <net/route.h>"
 	print "#include <net/if.h>"
+	print "#include <netinet/in.h>"
+	print "#include <netinet/ip_mroute.h>"
 	print "#include <sys/termios.h>"
 	print "#define COMPAT_43"
 	print "#include <sys/ioctl.h>"
@@ -31,4 +37,4 @@ END {
 	print "\n\treturn(NULL);"
 	print "}"
 }
-' $DESTDIR/usr/include/sys/ioctl.h $DESTDIR/usr/include/sys/ioctl_compat.h
+'
