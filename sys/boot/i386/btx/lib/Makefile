@@ -3,7 +3,7 @@
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf
 LDFLAGS+=	-elf
-CLEANFILES+=	crt0.o
+CLEANFILES+=	crt0.o ${OBJS}
 
 all: crt0.o
 
