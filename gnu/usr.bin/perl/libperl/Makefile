@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1998/09/09 07:20:25 markm Exp $
+# $Id: Makefile,v 1.2 1998/09/12 15:45:29 markm Exp $
 #
 
 LIB=	perl
@@ -11,7 +11,7 @@ SRCS=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c byterun.c \
 	doop.c doio.c regexec.c taint.c deb.c universal.c globals.c perlio.c \
 	config.h
 
-NOPIC=	true
+# NOPIC=	true
 
 beforeinstall beforedepend all: config.h config.sh
 
@@ -21,7 +21,7 @@ CLEANFILES+=	config.h config.sh config_h.sh
 
 .SUFFIXES:
 
-.SUFFIXES: .a .c .h .o .po .sh
+.SUFFIXES: .o .po .so .s .S .c
 
 .PATH:	${PERL5SRC}
 

@@ -6,6 +6,7 @@ PROG=	miniperl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	miniperlmain.c config.h
+NOSHARED=true
 DPADD=	${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	-lperl -lm -lcrypt
 

@@ -38,13 +38,13 @@ config.h: config_h.sh config.sh
 	sh config_h.sh
 
 config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}
-	cp -p ${.OODATE} ${.TARGET}
+	cp ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH
-	cp -p ${.OODATE} ${.TARGET}
+	cp ${.OODATE} ${.TARGET}
 
 cflags.sh: cflags.SH
-	cp -p ${.OODATE} ${.TARGET}
+	cp ${.OODATE} ${.TARGET}
 
 cflags: cflags.sh
 	sh ${.OODATE}
