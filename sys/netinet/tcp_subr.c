@@ -752,14 +752,16 @@ tcp_drain()
  * Notify a tcp user of an asynchronous error;
  * store error as soft error, but wake up user
  * (for now, won't do anything until can select for soft error).
+ *
+ * Do not wake up user since there currently is no mechanism for
+ * reporting soft errors (yet - a kqueue filter may be added).
  */
 static void
 tcp_notify(inp, error)
 	struct inpcb *inp;
 	int error;
 {
-	register struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
-	register struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
 
 	/*
 	 * Ignore some errors if we are hooked up.
@@ -774,12 +776,14 @@ tcp_notify(inp, error)
 		return;
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror)
-		so->so_error = error;
+		tcp_drop(tp, error);
 	else
 		tp->t_softerror = error;
+#if 0
 	wakeup((caddr_t) &so->so_timeo);
 	sorwakeup(so);
 	sowwakeup(so);
+#endif
 }
 
 static int
