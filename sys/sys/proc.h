@@ -629,6 +629,7 @@ struct proc {
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_THREADED	0x08000	/* Process is using threads. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
+#define	P_PROTECTED	0x20000	/* Do not kill on memory overcommit. */
 
 /* flags that control how threads may be suspended for some reason */
 #define	P_STOPPED_SIG		0x20000	/* Stopped due to SIGSTOP/SIGTSTP */

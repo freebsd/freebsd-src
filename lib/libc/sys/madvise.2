@@ -117,6 +117,12 @@ system calls.
 Region is not included in a core file.
 .It Dv MADV_CORE
 Include region in a core file.
+.It Dv MADV_PROTECT
+Informs the VM system this process should not be killed when the
+swap space is exhausted.
+The process must have superuser privileges.
+This should be used judiciously in processes that must remain running
+for the system to properly function.
 .El
 .Sh RETURN VALUES
 .Rv -std madvise
@@ -131,6 +137,9 @@ The virtual address range specified by the
 and
 .Fa len
 arguments is not valid.
+.It Bq Er EPERM
+.Dv MADV_PROTECT
+was specified and the process does not have superuser privileges.
 .El
 .Sh SEE ALSO
 .Xr mincore 2 ,

@@ -1184,9 +1184,10 @@ rescan0:
 			if (PROC_TRYLOCK(p) == 0)
 				continue;
 			/*
-			 * if this is a system process, skip it
+			 * If this is a system or protected process, skip it.
 			 */
 			if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
+			    (p->p_flag & P_PROTECTED) ||
 			    ((p->p_pid < 48) && (vm_swap_size != 0))) {
 				PROC_UNLOCK(p);
 				continue;

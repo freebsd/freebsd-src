@@ -752,7 +752,22 @@ madvise(td, uap)
 {
 	vm_offset_t start, end;
 	vm_map_t map;
+	struct proc *p;
+	int error;
 
+	/*
+	 * Check for our special case, advising the swap pager we are
+	 * "immortal."
+	 */
+	if (uap->behav == MADV_PROTECT) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		error = suser(td);
+		if (error == 0)
+			p->p_flag |= P_PROTECTED;
+		PROC_UNLOCK(p);
+		return (error);
+	}
 	/*
 	 * Check for illegal behavior
 	 */
