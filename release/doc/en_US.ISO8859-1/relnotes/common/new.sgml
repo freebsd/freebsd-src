@@ -353,7 +353,8 @@
     security facility, has been added as a kernel module.  It provides
     a drop-in security mechanism in addition to the traditional
     UID-based security facilities, requiring no additional
-    configuration from the administrator.</para>
+    configuration from the administrator.  Work on this feature was
+    sponsored by DARPA and NAI Labs.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
