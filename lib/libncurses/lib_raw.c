@@ -21,6 +21,10 @@
 #include "curses.priv.h"
 #include "terminfo.h"
 
+#ifdef TERMIOS
+static tcflag_t iexten = 0;
+#endif
+
 int raw()
 {
 	T(("raw() called"));
@@ -30,7 +34,9 @@ int raw()
 	SP->_nlmapping = TRUE;
 
 #ifdef TERMIOS
-	cur_term->Nttyb.c_lflag &= ~(ICANON|ISIG);
+	if(iexten == 0)
+		iexten = cur_term->Nttyb.c_lflag & IEXTEN;
+	cur_term->Nttyb.c_lflag &= ~(ICANON|ISIG|iexten);
 	cur_term->Nttyb.c_iflag &= ~(INPCK|ISTRIP|IXON);
 	cur_term->Nttyb.c_oflag &= ~(OPOST);
 	cur_term->Nttyb.c_cc[VMIN] = 1;
@@ -119,7 +125,7 @@ int noraw()
 	SP->_nlmapping = SP->_nl;
 
 #ifdef TERMIOS
-	cur_term->Nttyb.c_lflag |= ISIG|ICANON;
+	cur_term->Nttyb.c_lflag |= ISIG|ICANON|iexten;
 	cur_term->Nttyb.c_iflag |= IXON;
 	cur_term->Nttyb.c_oflag |= OPOST;
 	if((tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Nttyb)) == -1)
