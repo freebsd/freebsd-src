@@ -88,7 +88,7 @@ MOD_MISC( misc);
  *
  * The stat information is basically common to all modules, so there
  * is no real issue involved with stat; we will leave it lkm_nullcmd(),
- * cince we don't have to do anything about it.
+ * since we don't have to do anything about it.
  */
 static int
 misc_load( lkmtp, cmd)
