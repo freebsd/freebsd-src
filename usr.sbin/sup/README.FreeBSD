@@ -1,4 +1,0 @@
-This is the current CMU sup, modified to support on-the-fly compression.
-It is the same sup used with NetBSD, and thus we've converged on the
-configuration parameters (in other words, don't be alarmed - it works
-fine with FreeBSD!).
