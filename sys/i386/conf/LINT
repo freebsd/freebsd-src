@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.23 1996/07/16 08:45:52 davidg Exp $
+#	$Id: LINT,v 1.184.4.24 1996/07/16 08:53:06 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -114,6 +114,9 @@ options		DIAGNOSTIC
 # Allow ordinary users to take the console - this is useful for X.
 options		UCONSOLE
 
+# XXX - this doesn't belong here either
+options		USERCONFIG		#boot -c editor
+options		VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -157,6 +160,7 @@ options		NS			#Xerox NS communications protocols
 pseudo-device	ether			#Generic Ethernet
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
+options		USERCONFIG_BOOT		#imply -c and parse info area
 pseudo-device	loop			#Network loopback device
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
