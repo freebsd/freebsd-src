@@ -36,10 +36,11 @@
 #include <sysexits.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
 
-#define BLOCKS	32
+#define BLOCKS	16
 
 static int fd, saved_block_size;
 void cleanup(int);
@@ -142,8 +143,13 @@ main(int argc, char **argv)
         		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
 
 		if (!quiet) {
+			struct stat stat;
+
+			if (fstat(file, &stat) < 0)
+				err(EX_IOERR, "fstat(%s)", argv[arg]);
 			fprintf(stderr, "next writeable LBA %d\n", addr);
-			fprintf(stderr, "writing from file %s\n", argv[arg]);
+			fprintf(stderr, "writing from file %s size %d KB\n",
+				argv[arg], stat.st_size / 1024);
 		}
 		lseek(fd, 0, SEEK_SET);
 		size = 0;
