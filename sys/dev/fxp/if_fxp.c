@@ -1288,15 +1288,22 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 	 * Process receiver interrupts. If a no-resource (RNR)
 	 * condition exists, get whatever packets we can and
 	 * re-start the receiver.
+	 */
+
+#ifdef DEVICE_POLLING
+	/*
 	 * When using polling, we do not process the list to completion,
 	 * so when we get an RNR interrupt we must defer the restart
 	 * until we hit the last buffer with the C bit set.
 	 * If we run out of cycles and rfa_headm has the C bit set,
 	 * record the pending RNR in an unused status bit, so that the
 	 * info will be used in the subsequent polling cycle.
+	 *
+	 * XXX there is absolutely no guarantee that this reserved bit
+	 * will be ignored by the hardware!
 	 */
-
 #define	FXP_RFA_RNRMARK		0x4000	/* used to mark a pending RNR intr */
+#endif
 
 	for (;;) {
 		m = sc->rfa_headm;
@@ -1311,8 +1318,10 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 		if ( (rfa->rfa_status & FXP_RFA_STATUS_C) == 0)
 			break;
 
+#ifdef DEVICE_POLLING
 		if (rfa->rfa_status & FXP_RFA_RNRMARK)
 			rnr = 1;
+#endif
 		/*
 		 * Remove first packet from the chain.
 		 */
@@ -1347,15 +1356,19 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 		}
 	}
 	if (rnr) {
+#ifdef DEVICE_POLLING
 		if (rfa->rfa_status & FXP_RFA_STATUS_C)
 			rfa->rfa_status |= FXP_RFA_RNRMARK;
 		else {
+#endif
 			fxp_scb_wait(sc);
 			CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
 			    vtophys(sc->rfa_headm->m_ext.ext_buf) +
 				RFA_ALIGNMENT_FUDGE);
 			fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
+#ifdef DEVICE_POLLING
 		}
+#endif
 	}
 }
 
