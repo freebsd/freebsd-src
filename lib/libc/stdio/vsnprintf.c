@@ -50,7 +50,7 @@ vsnprintf(char * __restrict str, size_t n, const char * __restrict fmt,
 {
 	size_t on;
 	int ret;
-	char dummy;
+	char dummy[2];
 	FILE f;
 	struct __sFILEX ext;
 
@@ -61,8 +61,10 @@ vsnprintf(char * __restrict str, size_t n, const char * __restrict fmt,
 		n = INT_MAX;
 	/* Stdio internals do not deal correctly with zero length buffer */
 	if (n == 0) {
-                str = &dummy;
-                n = 1;
+		if (on > 0)
+	  		*str = '\0';
+		str = dummy;
+		n = 1;
 	}
 	f._file = -1;
 	f._flags = __SWR | __SSTR;
