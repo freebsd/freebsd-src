@@ -37,7 +37,6 @@
 .Nd Generic address formatting routines
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/inet.h>
 .Ft "char *"
@@ -130,6 +129,7 @@ and
 .Fn inet_aton
 could be implemented thusly:
 .Bd -literal -offset indent
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

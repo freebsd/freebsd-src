@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.26 1997/02/22 15:06:35 peter Exp $
+* $Id: libdisk.h,v 1.27 1997/03/19 01:54:04 bde Exp $
 *
 */
 
@@ -166,7 +166,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *bootmgr);
  */
 
 void
-Set_Boot_Blocks(struct disk *d, const u_char *boot1, const u_char *boot2);
+Set_Boot_Blocks(struct disk *d, const u_char *_boot1, const u_char *_boot2);
 /* Use these boot-blocks on this disk.  Gets written when Write_Disk()
  * is called
  */
