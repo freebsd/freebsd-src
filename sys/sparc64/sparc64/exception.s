@@ -361,6 +361,18 @@
 	.endr
 	.endm
 
+	.macro	tl0_fp_restore
+	wr	%g0, FPRS_FEF, %fprs
+	wr	%g0, ASI_BLK_S, %asi
+	ldda	[PCB_REG + PCB_FPSTATE + FP_FB0] %asi, %f0
+	ldda	[PCB_REG + PCB_FPSTATE + FP_FB1] %asi, %f16
+	ldda	[PCB_REG + PCB_FPSTATE + FP_FB2] %asi, %f32
+	ldda	[PCB_REG + PCB_FPSTATE + FP_FB3] %asi, %f48
+	membar	#Sync
+	done
+	.align	32
+	.endm
+
 	.macro	tl0_insn_excptn
 	wr	%g0, ASI_IMMU, %asi
 	rdpr	%tpc, %g3
