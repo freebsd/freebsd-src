@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.12 1994/12/11 01:36:53 davidg Exp $
+ * $Id: vm_object.c,v 1.13 1994/12/23 05:00:19 davidg Exp $
  */
 
 /*
@@ -251,8 +251,13 @@ vm_object_deallocate(object)
 		 */
 		vm_object_lock(object);
 		if (--(object->ref_count) != 0) {
-			if( object->ref_count == 1)
-				vm_object_rcollapse(object->reverse_shadow_head.tqh_first, object);
+			if( object->ref_count == 1) {
+				if( object->reverse_shadow_head.tqh_first) {
+					++object->reverse_shadow_head.tqh_first->ref_count;
+					vm_object_rcollapse(object->reverse_shadow_head.tqh_first, object);
+					vm_object_deallocate(object->reverse_shadow_head.tqh_first);
+				}
+			}
 
 			vm_object_unlock(object);
 			/*
@@ -1162,6 +1167,7 @@ vm_object_rcollapse(object, sobject)
 	if (backing_object->ref_count != 1)
 		return;
 
+	backing_object->ref_count += 2;
 	s = splbio();
 	while( backing_object->paging_in_progress) {
 		tsleep( backing_object, PVM, "rcolow", 0);
@@ -1201,6 +1207,7 @@ vm_object_rcollapse(object, sobject)
 		}
 		p = next;
 	}
+	backing_object->ref_count -= 2;
 }
 
 /*
@@ -1227,6 +1234,8 @@ vm_object_qcollapse(object)
 		return;
 	if (backing_object->ref_count != 1)
 		return;
+
+	backing_object->ref_count += 2;
 
 	backing_offset = object->shadow_offset;
 	size = object->size;
@@ -1266,6 +1275,7 @@ vm_object_qcollapse(object)
 		}
 		p = next;
 	}
+	backing_object->ref_count -= 2;
 }
 
 boolean_t	vm_object_collapse_allowed = TRUE;
