@@ -611,9 +611,7 @@ as the first piece of data in the TCP stream in the format
 Only packets with the destination port
 .Ar portnum
 are proxied.
-.It Cm server Ar host Ns Xo
-.Op : Ns Ar portnum
-.Xc
+.It Cm server Ar host Ns Op : Ns Ar portnum
 This specifies the
 .Ar host
 and
@@ -648,9 +646,7 @@ When used, all existing rules with the given
 are deleted.
 .It Cm proto tcp | udp
 If specified, only packets of the given protocol type are matched.
-.It Cm src Ar IP Ns Xo
-.Op / Ns Ar bits
-.Xc
+.It Cm src Ar IP Ns Op / Ns Ar bits
 If specified, only packets with a source address matching the given
 .Ar IP
 are matched.
@@ -662,9 +658,7 @@ bits of
 .Ar IP
 are taken as a network specification, and all IP addresses from that
 network will be matched.
-.It Cm dst Ar IP Ns Xo
-.Op / Ns Ar bits
-.Xc
+.It Cm dst Ar IP Ns Op / Ns Ar bits
 If specified, only packets with a destination address matching the given
 .Ar IP
 are matched.
