@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.28 1995/07/31 21:01:36 bde Exp $
+ * $Id: if_sl.c,v 1.29 1995/08/30 00:33:20 bde Exp $
  */
 
 /*
@@ -110,7 +110,7 @@ Huh? Slip without inet?
 #include <net/bpf.h>
 #endif
 
-static void slattach __P((caddr_t));
+static void slattach __P((void *));
 PSEUDO_SET(slattach, if_sl);
 
 /*
@@ -200,7 +200,7 @@ static struct linesw slipdisc =
  */
 static void
 slattach(udata)
-	caddr_t udata;
+	void *udata;
 {
 	register struct sl_softc *sc;
 	register int i = 0;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.7 1995/08/28 09:18:46 julian Exp $
+ * $Id: subr_prof.c,v 1.8 1995/08/29 03:09:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/gmon.h>
 
-static void kmstartup __P((caddr_t));
+static void kmstartup __P((void *));
 SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
@@ -58,7 +58,7 @@ extern char etext[];
 
 static void
 kmstartup(udata)
-	caddr_t udata;
+	void *udata;
 {
 	char *cp;
 	struct gmonparam *p = &_gmonparam;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.28 1995/08/29 23:59:22 bde Exp $
+ * $Id: init_main.c,v 1.29 1995/09/03 05:43:35 julian Exp $
  */
 
 #include <sys/param.h>
@@ -222,8 +222,8 @@ main(framep)
  */
 /* ARGSUSED*/
 void
-kproc_start( udata)
-caddr_t		udata;	/* pointer to a 'kproc_desc' ? */
+kproc_start(udata)
+	void *udata;	/* pointer to a 'kproc_desc' ? */
 {
 	struct kproc_desc	*kp = (struct kproc_desc *)udata;
 	struct proc		*p = curproc;
@@ -272,15 +272,15 @@ char	copyright[] =
 char	copyright[] =
 "Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
 #endif
-static void print_caddr_t __P((caddr_t data));
+static void print_caddr_t __P((void *data));
 static void
 print_caddr_t(data)
-	caddr_t data;
+	void *data;
 {
 	printf("%s", (char *)data);
 }
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
-	(caddr_t)copyright)
+	copyright)
 
 
 /*
@@ -297,10 +297,10 @@ SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
  ***************************************************************************
  */
 /* ARGSUSED*/
-void proc0_init __P((caddr_t udata));
+void proc0_init __P((void *udata));
 void
-proc0_init( udata)
-caddr_t		udata;		/* not used*/
+proc0_init(udata)
+	void *udata;		/* not used*/
 {
 	register struct proc		*p;
 	register struct filedesc0	*fdp;
@@ -400,10 +400,10 @@ caddr_t		udata;		/* not used*/
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
 /* ARGSUSED*/
-void proc0_post __P((caddr_t udata));
+void proc0_post __P((void *udata));
 void
-proc0_post( udata)
-caddr_t		udata;		/* not used*/
+proc0_post(udata)
+	void *udata;		/* not used*/
 {
 	/*
 	 * Now can look at time, having had a chance to verify the time
@@ -430,10 +430,10 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 /* ARGSUSED*/
-void sched_setup __P((caddr_t udata));
+void sched_setup __P((void *udata));
 void
-sched_setup( udata)
-caddr_t		udata;		/* not used*/
+sched_setup(udata)
+	void *udata;		/* not used*/
 {
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
@@ -442,22 +442,22 @@ caddr_t		udata;		/* not used*/
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_mountroot __P((caddr_t udata));
+void xxx_vfs_mountroot __P((void *udata));
 void
-xxx_vfs_mountroot( udata)
-caddr_t		udata;		/* not used*/
+xxx_vfs_mountroot(udata)
+	void *udata;		/* not used*/
 {
 	/* Mount the root file system. */
-	if ((*mountroot)( (caddr_t)mountrootvfsops))
+	if ((*mountroot)(mountrootvfsops))
 		panic("cannot mount root");
 }
 SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_root_fdtab __P((caddr_t udata));
+void xxx_vfs_root_fdtab __P((void *udata));
 void
-xxx_vfs_root_fdtab( udata)
-caddr_t		udata;		/* not used*/
+xxx_vfs_root_fdtab(udata)
+	void *udata;		/* not used*/
 {
 	register struct filedesc0	*fdp = &filedesc0;
 
@@ -485,7 +485,7 @@ SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
  ***************************************************************************
  */
 
-static void kthread_init __P(( caddr_t udata));
+static void kthread_init __P((void *udata));
 SYSINIT_KT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
 
 
@@ -493,8 +493,8 @@ static void start_init __P((struct proc *p, void *framep));
 
 /* ARGSUSED*/
 static void
-kthread_init( udata)
-caddr_t		udata;		/* not used*/
+kthread_init(udata)
+	void *udata;		/* not used*/
 {
 
 	/* Create process 1 (init(8)). */

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.15 1995/09/03 05:43:31 julian Exp $
+ *    $Id: spkr.c,v 1.16 1995/09/08 11:07:59 bde Exp $
  */
 
 #include "speaker.h"
@@ -28,7 +28,7 @@
 #include "sys/kernel.h"
 int spkropen();
 
-void spkrdev_init(caddr_t data) /* data not used */
+void spkrdev_init(void *data) /* data not used */
 {
   void * x;
 /*            path	name		devsw   minor	type   uid gid perm*/

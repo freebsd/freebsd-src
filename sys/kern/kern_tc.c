@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.14 1995/07/29 11:40:12 bde Exp $
+ * $Id: kern_clock.c,v 1.15 1995/08/28 09:18:43 julian Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -79,7 +79,7 @@
  * System initialization
  */
 
-static void initclocks __P(( caddr_t udata));
+static void initclocks __P((void *udata));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
 
@@ -393,8 +393,8 @@ hardupdate(offset)
  */
 /* ARGSUSED*/
 static void
-initclocks( udata)
-caddr_t		udata;		/* not used*/
+initclocks(udata)
+	void *udata;		/* not used*/
 {
 	register int i;
 

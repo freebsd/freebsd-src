@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.17 1995/06/28 05:31:03 davidg Exp $
+ * $Id: if.c,v 1.18 1995/08/28 09:19:00 julian Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,7 @@
  * System initialization
  */
 
-static void ifinit __P((caddr_t));
+static void ifinit __P((void *));
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
 
 
@@ -72,8 +72,8 @@ struct	ifnet *ifnet;
  */
 /* ARGSUSED*/
 void
-ifinit( udata)
-caddr_t		udata;		/* not used*/
+ifinit(udata)
+	void *udata;		/* not used*/
 {
 	register struct ifnet *ifp;
 
