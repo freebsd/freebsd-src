@@ -37,14 +37,14 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/new_curse.c,v 1.43 1996/03/21 04:27:06 hugh Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/doc/new_curse.c,v 1.1.1.1 1995/08/30 07:28:06 jkh Exp $
  |
  */
 
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-char * new_curse_name= "@(#) new_curse.c $Revision: 1.43 $";
+char * new_curse_name= "@(#) new_curse.c $Revision: 1.1.1.1 $";
 
 #include "new_curse.h"
 #include <signal.h>
@@ -557,7 +557,7 @@ static char nc_scrolling_ability = FALSE;
 
 #ifdef CAP
 
-#if defined(__STDC__) || defined(__cplusplus)
+#if __STDC__ || defined(__cplusplus)
 #define P_(s) s
 #else
 #define P_(s) ()
@@ -1362,17 +1362,12 @@ int start_l, start_c;	/* starting line and column to be inwindow	*/
 	Ntemp->Attrib = FALSE;
 	Ntemp->first_line = temp_screen = Screenalloc(cols);
 	Ntemp->first_line->number = 0;
-	Ntemp->line_array = (struct _line **) malloc(LINES * sizeof(struct _line *));
-	
-	Ntemp->line_array[0] = Ntemp->first_line;
-
 	for (i = 1; i < lines; i++)
 	{
 		temp_screen->next_screen = Screenalloc(cols);
 		temp_screen->next_screen->number = i;
 		temp_screen->next_screen->prev_screen = temp_screen;
 		temp_screen = temp_screen->next_screen;
-		Ntemp->line_array[i] = temp_screen;
 	}
 	Ntemp->first_line->prev_screen = NULL;
 	temp_screen->next_screen = NULL;
@@ -1897,17 +1892,16 @@ int cols;
 	int j;
 
 	if (column > line->last_char)
-	{
-		for (j = line->last_char; j < column; j++)
-		{
-			line->row[j] = ' ';
-			line->attributes[j] = (char) NULL;
-		}
-	}
+		line->row[line->last_char] = ' ';
 	line->last_char = column;
 	line->row[column] = (char) NULL;
 	line->attributes[column] = (char) NULL;
 	line->changed = TRUE;
+	for (j = column + 1; j < cols; j++)
+	{
+		line->row[j] = ' ';
+		line->attributes[j] = (char) NULL;
+	}
 }
 
 void 
@@ -2025,20 +2019,11 @@ WINDOW *window;
 		{
 			for (user_col = 0, virt_col = window->SC; 
 				(virt_col < virtual_scr->Num_cols) 
-				  && (user_col < user_line->last_char); 
+				  && (user_col < window->Num_cols); 
 				  	virt_col++, user_col++)
 			{
 				virtual_line->row[virt_col] = user_line->row[user_col];
 				virtual_line->attributes[virt_col] = user_line->attributes[user_col];
-			}
-			for (user_col = user_line->last_char, 
-			     virt_col = window->SC + user_line->last_char; 
-				(virt_col < virtual_scr->Num_cols) 
-				  && (user_col < window->Num_cols); 
-				  	virt_col++, user_col++)
-			{
-				virtual_line->row[virt_col] = ' ';
-				virtual_line->attributes[virt_col] = (char) NULL;
 			}
 		}
 		if (virtual_scr->Num_cols != window->Num_cols)
@@ -2050,6 +2035,11 @@ WINDOW *window;
 				virtual_line->last_char = 
 					min(virtual_scr->Num_cols, 
 					  (user_line->last_char + window->SC));
+			}
+			else if (virtual_line->last_char > (user_line->last_char + window->SC))
+			{
+				virtual_line->row[min(virtual_scr->Num_cols, 
+					  (user_line->last_char + window->SC))] = ' ';
 			}
 		}
 		else
@@ -2271,13 +2261,14 @@ waddch(window, c)	/* output the character in the specified window	*/
 WINDOW *window;
 int c;
 {
-	int column, j;
+	int row, column;
 	int shift;	/* number of spaces to shift if a tab		*/
 	struct _line *tmpline;
 
 #ifdef DIAG
 /*printf("starting waddch \n");fflush(stdout);*/
 #endif
+	row = window->LY;
 	column = window->LX;
 	if (c == '\t')
 	{
@@ -2292,25 +2283,27 @@ int c;
 			waddch(window, ' ');
 		}
 	}
-	else if ((column < window->Num_cols) && (window->LY < window->Num_lines))
+	else if ((column < window->Num_cols) && (row < window->Num_lines))
 	{
 		if ((c == '~') && (Booleans[hz__]))
 			c = '@';
 
 		if (( c != '\b') && (c != '\n') && (c != '\r'))
 		{
-			tmpline = window->line_array[window->LY];
+			row = 0;
+			tmpline = window->first_line; 
+			while (row < window->LY)
+			{
+				row++;
+				tmpline = tmpline->next_screen;
+			}
 			tmpline->row[column] = c;
 			tmpline->attributes[column] = window->Attrib;
 			tmpline->changed = TRUE;
 			if (column >= tmpline->last_char)
 			{
 				if (column > tmpline->last_char)
-					for (j = tmpline->last_char; j < column; j++)
-					{
-						tmpline->row[j] = ' ';
-						tmpline->attributes[j] = (char) NULL;
-					}
+					tmpline->row[tmpline->last_char] = ' ';
 				tmpline->row[column + 1] = (char) NULL;
 				tmpline->attributes[column + 1] = (char) NULL;
 				tmpline->last_char = column + 1;
@@ -2384,13 +2377,6 @@ WINDOW *window;
 	}
 	if (window->LY == 0)
 		window->first_line = tmp1;
-
-	for (row = 0, tmp1 = window->first_line; 
-		row < window->Num_lines; row++)
-	{
-		window->line_array[row] = tmp1;
-		tmp1 = tmp1->next_screen;
-	}
 }
 
 void 
@@ -2434,12 +2420,6 @@ WINDOW *window;
 		else
 			tmp = tmpline;
 		tmp->next_screen = NULL;
-
-		for (row = 0, tmp = window->first_line; row < window->Num_lines; row++)
-		{
-			window->line_array[row] = tmp;
-			tmp = tmp->next_screen;
-		}
 	}
 	else
 	{
@@ -2800,28 +2780,35 @@ Comp_line(line1, line2)		/* compare lines	*/
 struct _line *line1;
 struct _line *line2;
 {
-	int count1;
+	int count1, count2;
 	int i;
 	char *att1, *att2;
 	char *c1, *c2;
-
-	if (line1->last_char != line2->last_char)
-		return(2);
 
 	c1 = line1->row;
 	c2 = line2->row;
 	att1 = line1->attributes;
 	att2 = line2->attributes;
+	count2 = strlen(c1) + 1;
+	count1 = strlen(c2) + 1;
+	if (count1 > count2)
+	{
+		i = count2;
+		count2 = count1;
+		count1 = i;
+	}
+	if (count2 > (count1 + count1))
+		return(2);
 	i = 0;
 	while ((c1[i] != (char) NULL) && (c2[i] != (char) NULL) && (c1[i] == c2[i]) && (att1[i] == att2[i]))
 		i++;
 	count1 = i + 1;
-	if ((count1 == 1) && (c1[i] == (char) NULL) && (c2[i] == (char) NULL))
+	if ((count1 == 1) && (count2 == 1))
 		count1 = 0;			/* both lines blank	*/
-	else if ((c1[i] == (char) NULL) && (c2[i] == (char) NULL))
+	else if (count2 == count1)
 		count1 = -1;			/* equal		*/
 	else
-		count1 = 1;			/* lines unequal	*/
+		count1 = count2 / count1;	/* lines unequal	*/
 	return(count1);
 }
 
@@ -3122,15 +3109,12 @@ doupdate()
 	int first_same;
 	int last_same;
 	int list[10];
-	int bottom;
 
 	struct _line *curr;
 	struct _line *virt;
 	struct _line *old;
 
 	struct _line *new;
-
-	struct _line *old1, *new1;
 
 	char *cur_lin;
 	char *vrt_lin;
@@ -3210,6 +3194,7 @@ doupdate()
 		    (first_same > from_top) && (virtual_lines[first_same - 1]);
 		     first_same--)
 			;
+		count1 = first_same - 1;
 		for (last_same = 0;
 		    (last_same < window->Num_lines) && (virtual_lines[last_same]== FALSE);
 		     last_same++)
@@ -3217,6 +3202,7 @@ doupdate()
 		while ((from_top < first_same) && nc_scrolling_ability)
 					/* check entire lines for diffs	*/
 		{
+
 
 			if (from_top >= last_same)
 			{
@@ -3240,55 +3226,39 @@ doupdate()
 				{
 					if ((Comp_line(old, virt) == -1) && (!virtual_lines[from_top]))
 					{
-						/*
-						 |	Find the bottom of the 
-						 |	area that should be 
-						 |	scrolled.
-						 */
-						for (bottom = tmp_ft, old1 = old, 
-						     new1 = virt, count1 = 0;
-							(bottom < window->Num_lines) && 
-								(Comp_line(old1, new1) <= 0);
-								bottom++, old1 = old1->next_screen, 
-								new1 = new1->next_screen, 
-								count1++)
-							;
-						if (count1 > 3)
+						if (String_table[cs__]) /* scrolling region */
 						{
-							if (String_table[cs__]) /* scrolling region */
-							{
-								list[1] = from_top;
-								list[0] = min((bottom - 1), (window->Num_lines - 1));
-								String_Out(String_table[cs__], list, 2);
-								Curr_y = Curr_x = -1;
-							}
+							list[1] = from_top;
+							list[0] = min((last_same - 1), (window->Num_lines - 1));
+							String_Out(String_table[cs__], list, 2);
+							Curr_y = Curr_x = -1;
+						}
 
-							for (offset = (tmp_ft - from_top); (offset > 0); offset--)
-							{
-								old = Delete_line(from_top, min((bottom - 1), (window->Num_lines - 1)), window);
-								diff = FALSE;
-							}
+						for (offset = (tmp_ft - from_top); (offset > 0); offset--)
+						{
+							old = Delete_line(from_top, min((last_same - 1), (window->Num_lines - 1)), window);
+							diff = FALSE;
+						}
 
-							if (String_table[cs__]) /* scrolling region */
-							{
-								list[1] = 0;
-								list[0] = LINES;
-								String_Out(String_table[cs__], list, 2);
-								Curr_y = Curr_x = -1;
-							}
+						if (String_table[cs__]) /* scrolling region */
+						{
+							list[1] = 0;
+							list[0] = LINES;
+							String_Out(String_table[cs__], list, 2);
+							Curr_y = Curr_x = -1;
+						}
 
-							top_of_win = curscr->first_line;
-							curr = top_of_win;
-							for (offset = 0; offset < from_top; offset++)
-								curr = curr->next_screen;
-							for (offset = from_top, old=curr, new=virt; 
-							   offset < window->Num_lines; 
-							   old=old->next_screen, new=new->next_screen,
-							   offset++)
-							{
-								similar = Comp_line(old, new);
-								virtual_lines[offset] = (similar > 0 ? FALSE : TRUE);
-							}
+						top_of_win = curscr->first_line;
+						curr = top_of_win;
+						for (offset = 0; offset < from_top; offset++)
+							curr = curr->next_screen;
+						for (offset = from_top, old=curr, new=virt; 
+						   offset < window->Num_lines; 
+						   old=old->next_screen, new=new->next_screen,
+						   offset++)
+						{
+							similar = Comp_line(old, new);
+							virtual_lines[offset] = (similar > 0 ? FALSE : TRUE);
 						}
 					}
 					else
@@ -3305,55 +3275,39 @@ doupdate()
 				{
 					if (Comp_line(old, virt) == -1)
 					{
-						/*
-						 |	Find the bottom of the 
-						 |	area that should be 
-						 |	scrolled.
-						 */
-						for (bottom = from_top, old1 = old, 
-						     new1 = virt, count1 = 0;
-							(bottom < window->Num_lines) && 
-								(Comp_line(old1, new1) <= 0);
-								bottom++, old1 = old1->next_screen, 
-								new1 = new1->next_screen, 
-								count1++)
-							;
-						if (count1 > 3)
+						if (String_table[cs__]) /* scrolling region */
 						{
-							if (String_table[cs__]) /* scrolling region */
-							{
-								list[1] = tmp_ft;
-								list[0] = min((bottom - 1), (window->Num_lines - 1));
-								String_Out(String_table[cs__], list, 2);
-								Curr_y = Curr_x = -1;
-							}
+							list[1] = tmp_ft;
+							list[0] = min((last_same - 1), (window->Num_lines - 1));
+							String_Out(String_table[cs__], list, 2);
+							Curr_y = Curr_x = -1;
+						}
 
-							for (offset = (from_top - tmp_ft); (offset > 0); offset--)
-							{
-								old = Insert_line(tmp_ft, min((bottom - 1), (window->Num_lines -1)), window);
-								diff = FALSE;
-							}
+						for (offset = (from_top - tmp_ft); (offset > 0); offset--)
+						{
+							old = Insert_line(tmp_ft, min((last_same - 1), (window->Num_lines -1)), window);
+							diff = FALSE;
+						}
 
-							if (String_table[cs__]) /* scrolling region */
-							{
-								list[1] = 0;
-								list[0] = LINES;
-								String_Out(String_table[cs__], list, 2);
-								Curr_y = Curr_x = -1;
-							}
+						if (String_table[cs__]) /* scrolling region */
+						{
+							list[1] = 0;
+							list[0] = LINES;
+							String_Out(String_table[cs__], list, 2);
+							Curr_y = Curr_x = -1;
+						}
 
-							top_of_win = curscr->first_line;
-							curr = top_of_win;
-							for (offset = 0; offset < from_top; offset++)
-								curr = curr->next_screen;
-							for (offset = from_top, old=curr, new=virt; 
-							   offset < window->Num_lines; 
-							   old=old->next_screen, new=new->next_screen,
-							   offset++)
-							{
-								similar = Comp_line(old, new);
-								virtual_lines[offset] = (similar > 0 ? FALSE : TRUE);
-							}
+						top_of_win = curscr->first_line;
+						curr = top_of_win;
+						for (offset = 0; offset < from_top; offset++)
+							curr = curr->next_screen;
+						for (offset = from_top, old=curr, new=virt; 
+						   offset < window->Num_lines; 
+						   old=old->next_screen, new=new->next_screen,
+						   offset++)
+						{
+							similar = Comp_line(old, new);
+							virtual_lines[offset] = (similar > 0 ? FALSE : TRUE);
 						}
 					}
 					else

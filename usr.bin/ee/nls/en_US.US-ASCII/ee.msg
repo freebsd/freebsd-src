@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/en_US.ISO_8859-1/ee.msg,v 1.1 1995/08/30 13:25:55 jkh Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/en_US.ISO_8859-1/ee.msg,v 1.2 1996/05/27 21:00:00 joerg Exp $
 $ 
 $set 1
 $quote "
@@ -168,3 +168,15 @@ $quote "
 159 "EMACS"
 160 "NOEMACS"
 161 "       +#   put cursor at line #\n"
+162 "unable to open .init.ee for writing, no configuration saved!"
+163 "ee configuration saved in file %s"
+164 "save editor configuration"
+165 "save ee configuration"
+166 "save in current directory"
+167 "save in home directory"
+168 "ee configuration not saved"
+169 "must specify a file when invoking ree"
+170 "press Esc to cancel"
+180 "menu too large for window"
+181 "^^more^^"
+182 "VVmoreVV"
