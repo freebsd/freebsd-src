@@ -133,8 +133,9 @@ which causes the output of
 to be evaluated and set by the current shell.
 .El
 .Pp
-The value of limitflags specified in the above contains one or more of the
-following options:
+The value of
+.Ar limitflags
+specified in the above contains one or more of the following options:
 .Pp
 .Bl -tag -width "-d [limit]"
 .It Fl C Ar class
@@ -239,6 +240,7 @@ and is inclusive of text, data, bss, stack,
 and
 .Xr mmap 2 Ns 'd
 space.
+.El
 .Pp
 Valid values for
 .Ar limit
@@ -286,7 +288,7 @@ weeks.
 .It y
 365 day years.
 .El
-.Pp
+.Bl -tag -width indent
 .It Fl E
 The option
 .Sq Fl E
