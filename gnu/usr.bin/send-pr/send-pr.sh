@@ -350,7 +350,7 @@ X-send-pr-version: $VERSION
 	$HOW_TO_REPEAT_C
 
 >Fix: 
-	
+
 	$FIX_C
 
 __EOF__
