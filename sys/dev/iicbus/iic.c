@@ -35,6 +35,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 
 #include <machine/clock.h>
 
