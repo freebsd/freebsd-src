@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -610,4 +611,94 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 	(++tmp)->name[0] = 0;
 
 	return (0);
+}
+
+
+/*** Authentication-related utility functions ********************************/
+
+static const char *
+_fetch_read_word(FILE *f)
+{
+	static char word[1024];
+
+	if (fscanf(f, " %1024s ", word) != 1)
+		return (NULL);
+	return (word);
+}
+
+/*
+ * Get authentication data for a URL from .netrc
+ */
+int
+_fetch_netrc_auth(struct url *url)
+{
+	char fn[PATH_MAX];
+	const char *word;
+	char *p;
+	FILE *f;
+
+	if ((p = getenv("NETRC")) != NULL) {
+		if (snprintf(fn, sizeof fn, "%s", p) >= sizeof fn) {
+			_fetch_info("$NETRC specifies a file name "
+			    "longer than PATH_MAX");
+			return (-1);
+		}
+	} else {
+		if ((p = getenv("HOME")) != NULL) {
+			struct passwd *pwd;
+
+			if ((pwd = getpwuid(getuid())) == NULL ||
+			    (p = pwd->pw_dir) == NULL)
+				return (-1);
+		}
+		if (snprintf(fn, sizeof fn, "%s/.netrc", p) >= sizeof fn)
+			return (-1);
+	}
+
+	if ((f = fopen(fn, "r")) == NULL)
+		return (-1);
+	while ((word = _fetch_read_word(f)) != NULL) {
+		if (strcmp(word, "default") == 0) {
+			DEBUG(_fetch_info("Using default .netrc settings"));
+			break;
+		}
+		if (strcmp(word, "machine") == 0 &&
+		    (word = _fetch_read_word(f)) != NULL &&
+		    strcasecmp(word, url->host) == 0) {
+			DEBUG(_fetch_info("Using .netrc settings for %s", word));
+			break;
+		}
+	}
+	if (word == NULL)
+		goto ferr;
+	while ((word = _fetch_read_word(f)) != NULL) {
+		if (strcmp(word, "login") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			if (snprintf(url->user, sizeof url->user,
+				"%s", word) > sizeof url->user) {
+				_fetch_info("login name in .netrc is too long");
+				url->user[0] = '\0';
+			}
+		} else if (strcmp(word, "password") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			if (snprintf(url->pwd, sizeof url->pwd,
+				"%s", word) > sizeof url->pwd) {
+				_fetch_info("password in .netrc is too long");
+				url->pwd[0] = '\0';
+			}
+		} else if (strcmp(word, "account") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			/* XXX not supported! */
+		} else {
+			break;
+		}
+	}
+	fclose(f);
+	return (0);
+ ferr:
+	fclose(f);
+	return (-1);
 }
