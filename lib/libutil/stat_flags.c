@@ -94,7 +94,7 @@ flags_to_string(flags, def)
 			setflags &= ~mapping[i].flag;
 		}
 	}
-	*dp++ = '\0';
+	*dp = '\0';
 	return (dp == string && def != NULL ? def : string);
 }
 
