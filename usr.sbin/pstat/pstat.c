@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pstat.c,v 1.25.2.3 1997/10/10 06:18:43 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -256,8 +256,12 @@ main(argc, argv)
 			break;
 		case 'v':
 		case 'i':		/* Backward compatibility. */
+			fprintf(stderr, "vnode mode not supported\n");
+			exit(1);
+#if 0
 			vnodeflag = 1;
 			break;
+#endif
 		default:
 			usage();
 		}
@@ -288,7 +292,7 @@ main(argc, argv)
 		usage();
 	if (fileflag || totalflag)
 		filemode();
-	if (vnodeflag || totalflag)
+	if (vnodeflag)
 		vnodemode();
 	if (ttyflag)
 		ttymode();
