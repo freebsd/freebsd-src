@@ -94,7 +94,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0, "");
 /*
  * Set the maximum number of vm_map_entry structures per process.  Roughly
  * speaking vm_map_entry structures are tiny, so allowing them to eat 1/100
- * of our KVM malloc space still results in generous limits.  We want a 
+ * of our KVM malloc space still results in generous limits.  We want a
  * default that is good enough to prevent the kernel running out of resources
  * if attacked from compromised user account but generous enough such that
  * multi-threaded processes are not unduly inconvenienced.
@@ -166,7 +166,7 @@ ogetpagesize(td, uap)
 #endif				/* COMPAT_43 || COMPAT_SUNOS */
 
 
-/* 
+/*
  * Memory Map (mmap) system call.  Note that the file offset
  * and address are allowed to be NOT page aligned, though if
  * the MAP_FIXED flag it set, both must have the same remainder
@@ -341,7 +341,7 @@ mmap(td, uap)
 		 * XXX hack to handle use of /dev/zero to map anon memory (ala
 		 * SunOS).
 		 */
-		if ((vp->v_type == VCHR) && 
+		if ((vp->v_type == VCHR) &&
 		    (vp->v_rdev->si_devsw->d_flags & D_MMAP_ANON)) {
 			handle = NULL;
 			maxprot = VM_PROT_ALL;
@@ -427,7 +427,7 @@ mmap(td, uap)
 	 * per process.  Scale with the number of rforks sharing the map
 	 * to make the limit reasonable for threads.
 	 */
-	if (max_proc_mmap && 
+	if (max_proc_mmap &&
 	    vms->vm_map.nentries >= max_proc_mmap * vms->vm_refcnt) {
 		error = ENOMEM;
 		goto done;
@@ -761,7 +761,7 @@ madvise(td, uap)
 	 */
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
-	
+
 	if (vm_map_madvise(map, start, end, uap->behav))
 		return (EINVAL);
 	return (0);
@@ -836,7 +836,7 @@ RestartScan:
 		if ((current->eflags & MAP_ENTRY_IS_SUB_MAP) ||
 			current->object.vm_object == NULL)
 			continue;
-		
+
 		/*
 		 * limit this scan to the current map entry and the
 		 * limits for the mincore call
@@ -955,7 +955,7 @@ RestartScan:
 		}
 		++lastvecindex;
 	}
-	
+
 	/*
 	 * If the map has changed, due to the subyte, the previous
 	 * output may be invalid.
