@@ -107,10 +107,11 @@ __FBSDID("$FreeBSD$");
 struct httpio
 {
 	conn_t		*conn;		/* connection */
+	int		 chunked;	/* chunked mode */
 	char		*buf;		/* chunk buffer */
-	size_t		 b_size;	/* size of chunk buffer */
-	ssize_t		 b_len;		/* amount of data currently in buffer */
-	int		 b_pos;		/* current read offset in buffer */
+	size_t		 bufsize;	/* size of chunk buffer */
+	ssize_t		 buflen;	/* amount of data currently in buffer */
+	int		 bufpos;	/* current read offset in buffer */
 	int		 eof;		/* end-of-file flag */
 	int		 error;		/* error flag */
 	size_t		 chunksize;	/* remaining size of current chunk */
@@ -164,15 +165,41 @@ _http_new_chunk(struct httpio *io)
 }
 
 /*
+ * Grow the input buffer to at least len bytes
+ */
+static inline int
+_http_growbuf(struct httpio *io, size_t len)
+{
+	char *tmp;
+
+	if (io->bufsize >= len)
+		return (0);
+
+	if ((tmp = realloc(io->buf, len)) == NULL)
+		return (-1);
+	io->buf = tmp;
+	io->bufsize = len;
+}
+
+/*
  * Fill the input buffer, do chunk decoding on the fly
  */
 static int
-_http_fillbuf(struct httpio *io)
+_http_fillbuf(struct httpio *io, size_t len)
 {
 	if (io->error)
 		return (-1);
 	if (io->eof)
 		return (0);
+
+	if (io->chunked == 0) {
+		if (_http_growbuf(io, len) == -1)
+			return (-1);
+		if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1)
+			return (-1);
+		io->bufpos = 0;
+		return (io->buflen);
+	}
 
 	if (io->chunksize == 0) {
 		switch (_http_new_chunk(io)) {
@@ -185,31 +212,25 @@ _http_fillbuf(struct httpio *io)
 		}
 	}
 
-	if (io->b_size < io->chunksize) {
-		char *tmp;
-
-		if ((tmp = realloc(io->buf, io->chunksize)) == NULL)
-			return (-1);
-		io->buf = tmp;
-		io->b_size = io->chunksize;
-	}
-
-	if ((io->b_len = read(io->conn->sd, io->buf, io->chunksize)) == -1)
+	if (len > io->chunksize)
+		len = io->chunksize;
+	if (_http_growbuf(io, len) == -1)
 		return (-1);
-	io->chunksize -= io->b_len;
+	if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1)
+		return (-1);
+	io->chunksize -= io->buflen;
 
 	if (io->chunksize == 0) {
 		char endl[2];
 
-		if (read(io->conn->sd, &endl[0], 1) == -1 ||
-		    read(io->conn->sd, &endl[1], 1) == -1 ||
+		if (_fetch_read(io->conn, endl, 2) != 2 ||
 		    endl[0] != '\r' || endl[1] != '\n')
 			return (-1);
 	}
 
-	io->b_pos = 0;
+	io->bufpos = 0;
 
-	return (io->b_len);
+	return (io->buflen);
 }
 
 /*
@@ -228,14 +249,14 @@ _http_readfn(void *v, char *buf, int len)
 
 	for (pos = 0; len > 0; pos += l, len -= l) {
 		/* empty buffer */
-		if (!io->buf || io->b_pos == io->b_len)
-			if (_http_fillbuf(io) < 1)
+		if (!io->buf || io->bufpos == io->buflen)
+			if (_http_fillbuf(io, len) < 1)
 				break;
-		l = io->b_len - io->b_pos;
+		l = io->buflen - io->bufpos;
 		if (len < l)
 			l = len;
-		bcopy(io->buf + io->b_pos, buf + pos, l);
-		io->b_pos += l;
+		bcopy(io->buf + io->bufpos, buf + pos, l);
+		io->bufpos += l;
 	}
 
 	if (!pos && io->error)
@@ -251,7 +272,7 @@ _http_writefn(void *v, const char *buf, int len)
 {
 	struct httpio *io = (struct httpio *)v;
 
-	return (write(io->conn->sd, buf, len));
+	return (_fetch_write(io->conn, buf, len));
 }
 
 /*
@@ -274,7 +295,7 @@ _http_closefn(void *v)
  * Wrap a file descriptor up
  */
 static FILE *
-_http_funopen(conn_t *conn)
+_http_funopen(conn_t *conn, int chunked)
 {
 	struct httpio *io;
 	FILE *f;
@@ -284,6 +305,7 @@ _http_funopen(conn_t *conn)
 		return (NULL);
 	}
 	io->conn = conn;
+	io->chunked = chunked;
 	f = funopen(io, _http_readfn, _http_writefn, NULL, _http_closefn);
 	if (f == NULL) {
 		_fetch_syserr();
@@ -725,6 +747,9 @@ _http_print_html(FILE *out, FILE *in)
 
 /*
  * Send a request and process the reply
+ *
+ * XXX This function is way too long, the do..while loop should be split
+ * XXX off into a separate function.
  */
 FILE *
 _http_request(struct url *URL, const char *op, struct url_stat *us,
@@ -1020,13 +1045,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	URL->length = clength;
 
 	/* wrap it up in a FILE */
-	if (chunked) {
-		f = _http_funopen(conn);
-	} else {
-		f = fdopen(dup(conn->sd), "r");
-		_fetch_close(conn);
-	}
-	if (f == NULL) {
+	if ((f = _http_funopen(conn, chunked)) == NULL) {
 		_fetch_syserr();
 		goto ouch;
 	}

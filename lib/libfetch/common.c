@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <netinet/in.h>
 
+#include <ctype.h> /* XXX */
 #include <errno.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -196,6 +197,22 @@ _fetch_default_proxy_port(const char *scheme)
 }
 
 /*
+ * Create a connection for an existing descriptor.
+ */
+conn_t *
+_fetch_reopen(int sd)
+{
+	conn_t *conn;
+
+	/* allocate and fill connection structure */
+	if ((conn = calloc(1, sizeof *conn)) == NULL)
+		return (NULL);
+	conn->sd = sd;
+	return (conn);
+}
+
+
+/*
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
@@ -241,34 +258,78 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 		return (NULL);
 	}
 
-	/* allocate and fill connection structure */
-	if ((conn = calloc(1, sizeof *conn)) == NULL) {
+	if ((conn = _fetch_reopen(sd)) == NULL)
 		close(sd);
-		return (NULL);
-	}
-	if ((conn->host = strdup(host)) == NULL) {
-		free(conn);
-		close(sd);
-		return (NULL);
-	}
-	conn->port = port;
-	conn->af = af;
-	conn->sd = sd;
 	return (conn);
 }
 
 
 /*
- * Read a line of text from a socket w/ timeout
+ * Read a character from a connection w/ timeout
+ */
+ssize_t
+_fetch_read(conn_t *conn, char *buf, size_t len)
+{
+	struct timeval now, timeout, wait;
+	fd_set readfds;
+	ssize_t rlen, total;
+	int r;
+
+	if (fetchTimeout) {
+		FD_ZERO(&readfds);
+		gettimeofday(&timeout, NULL);
+		timeout.tv_sec += fetchTimeout;
+	}
+
+	total = 0;
+	while (len > 0) {
+		while (fetchTimeout && !FD_ISSET(conn->sd, &readfds)) {
+			FD_SET(conn->sd, &readfds);
+			gettimeofday(&now, NULL);
+			wait.tv_sec = timeout.tv_sec - now.tv_sec;
+			wait.tv_usec = timeout.tv_usec - now.tv_usec;
+			if (wait.tv_usec < 0) {
+				wait.tv_usec += 1000000;
+				wait.tv_sec--;
+			}
+			if (wait.tv_sec < 0)
+				return (rlen);
+			errno = 0;
+			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
+			if (r == -1) {
+				if (errno == EINTR && fetchRestartCalls)
+					continue;
+				return (-1);
+			}
+		}
+		if (conn->ssl != NULL)
+			rlen = SSL_read(conn->ssl, buf, len);
+		else
+			rlen = read(conn->sd, buf, len);
+		if (rlen == 0)
+			break;
+		if (rlen < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			return (-1);
+		}
+		len -= rlen;
+		buf += rlen;
+		total += rlen;
+	}
+	return (total);
+}
+
+/*
+ * Read a line of text from a connection w/ timeout
  */
 #define MIN_BUF_SIZE 1024
 
 int
 _fetch_getln(conn_t *conn)
 {
-	struct timeval now, timeout, wait;
-	fd_set readfds;
-	int r;
+	char *tmp;
+	size_t tmpsize;
 	char c;
 
 	if (conn->buf == NULL) {
@@ -282,50 +343,11 @@ _fetch_getln(conn_t *conn)
 	conn->buf[0] = '\0';
 	conn->buflen = 0;
 
-	if (fetchTimeout) {
-		gettimeofday(&timeout, NULL);
-		timeout.tv_sec += fetchTimeout;
-		FD_ZERO(&readfds);
-	}
-
 	do {
-		if (fetchTimeout) {
-			FD_SET(conn->sd, &readfds);
-			gettimeofday(&now, NULL);
-			wait.tv_sec = timeout.tv_sec - now.tv_sec;
-			wait.tv_usec = timeout.tv_usec - now.tv_usec;
-			if (wait.tv_usec < 0) {
-				wait.tv_usec += 1000000;
-				wait.tv_sec--;
-			}
-			if (wait.tv_sec < 0) {
-				errno = ETIMEDOUT;
-				return (-1);
-			}
-			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
-			if (r == -1) {
-				if (errno == EINTR && fetchRestartCalls)
-					continue;
-				/* EBADF or EINVAL: shouldn't happen */
-				return (-1);
-			}
-			if (!FD_ISSET(conn->sd, &readfds))
-				continue;
-		}
-		r = read(conn->sd, &c, 1);
-		if (r == 0)
-			break;
-		if (r == -1) {
-			if (errno == EINTR && fetchRestartCalls)
-				continue;
-			/* any other error is bad news */
+		if (_fetch_read(conn, &c, 1) == -1)
 			return (-1);
-		}
 		conn->buf[conn->buflen++] = c;
 		if (conn->buflen == conn->bufsize) {
-			char *tmp;
-			size_t tmpsize;
-
 			tmp = conn->buf;
 			tmpsize = conn->bufsize * 2 + 1;
 			if ((tmp = realloc(tmp, tmpsize)) == NULL) {
@@ -344,25 +366,73 @@ _fetch_getln(conn_t *conn)
 
 
 /*
- * Write a line of text to a socket w/ timeout
- * XXX currently does not enforce timeout
+ * Write to a connection w/ timeout
+ */
+ssize_t
+_fetch_write(conn_t *conn, const char *buf, size_t len)
+{
+	struct timeval now, timeout, wait;
+	fd_set writefds;
+	ssize_t wlen, total;
+	int r;
+
+	if (fetchTimeout) {
+		FD_ZERO(&writefds);
+		gettimeofday(&timeout, NULL);
+		timeout.tv_sec += fetchTimeout;
+	}
+
+	while (len > 0) {
+		while (fetchTimeout && !FD_ISSET(conn->sd, &writefds)) {
+			FD_SET(conn->sd, &writefds);
+			gettimeofday(&now, NULL);
+			wait.tv_sec = timeout.tv_sec - now.tv_sec;
+			wait.tv_usec = timeout.tv_usec - now.tv_usec;
+			if (wait.tv_usec < 0) {
+				wait.tv_usec += 1000000;
+				wait.tv_sec--;
+			}
+			if (wait.tv_sec < 0) {
+				errno = ETIMEDOUT;
+				return (-1);
+			}
+			errno = 0;
+			r = select(conn->sd + 1, NULL, &writefds, NULL, &wait);
+			if (r == -1) {
+				if (errno == EINTR && fetchRestartCalls)
+					continue;
+				return (-1);
+			}
+		}
+		errno = 0;
+		if (conn->ssl != NULL)
+			wlen = SSL_write(conn->ssl, buf, len);
+		else
+			wlen = write(conn->sd, buf, len);
+		if (wlen == 0)
+			/* we consider a short write a failure */
+			return (-1);
+		if (wlen < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			return (-1);
+		}
+		len -= wlen;
+		buf += wlen;
+		total += wlen;
+	}
+	return (total);
+}
+
+/*
+ * Write a line of text to a connection w/ timeout
  */
 int
 _fetch_putln(conn_t *conn, const char *str, size_t len)
 {
-	struct iovec iov[2];
-	ssize_t wlen;
-
-	/* XXX should enforce timeout */
-	iov[0].iov_base = (char *)str;
-	iov[0].iov_len = len;
-	iov[1].iov_base = (char *)ENDL;
-	iov[1].iov_len = sizeof ENDL;
-	len += sizeof ENDL;
-	wlen = writev(conn->sd, iov, 2);
-	if (wlen < 0 || (size_t)wlen != len)
+	if (_fetch_write(conn, str, len) == -1 ||
+	    _fetch_write(conn, ENDL, sizeof ENDL) == -1)
 		return (-1);
-	DEBUG(fprintf(stderr, ">>> %.*s\n", (int)len, str));
 	return (0);
 }
 
@@ -376,7 +446,6 @@ _fetch_close(conn_t *conn)
 	int ret;
 
 	ret = close(conn->sd);
-	free(conn->host);
 	free(conn);
 	return (ret);
 }
