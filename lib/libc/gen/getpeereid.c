@@ -43,7 +43,7 @@ getpeereid(int s, uid_t *euid, gid_t *egid)
 	int error;
 
 	xuclen = sizeof(xuc);
-	error = getsockopt(s, LOCAL_PEERCRED, 1, &xuc, &xuclen);
+	error = getsockopt(s, SOCK_STREAM, LOCAL_PEERCRED, &xuc, &xuclen);
 	if (error != 0)
 		return (error);
 	if (xuc.cr_version != XUCRED_VERSION)
