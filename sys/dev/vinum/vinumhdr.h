@@ -45,8 +45,11 @@
 #include "opt_vinum.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#endif
 #include <sys/proc.h>
+#include <sys/conf.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+#endif
 #include <sys/errno.h>
 #include <sys/dkstat.h>
 #include <sys/bio.h>
@@ -54,14 +57,11 @@
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
-#include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h>
-#include <sys/mount.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
-#include <sys/vnode.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
 #include <machine/setjmp.h>
