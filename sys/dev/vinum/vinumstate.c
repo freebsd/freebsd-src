@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumstate.c,v 2.13 1999/10/12 04:38:48 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -856,15 +857,20 @@ start_object(struct vinum_ioctl_msg *data)
 
     case sd_object:
 	if (SD[objindex].state == sd_reviving) {	    /* reviving, */
+	    if (data->blocksize)
+		SD[objindex].revive_blocksize = data->blocksize;
 	    ioctl_reply->error = revive_block(objindex);    /* revive another block */
+	    ioctl_reply->msg[0] = '\0';			    /* no comment */
+	    return;
+	} else if (SD[objindex].state == sd_initializing) { /* initializing, */
+	    if (data->blocksize)
+		SD[objindex].init_blocksize = data->blocksize;
+	    ioctl_reply->error = initsd(objindex, data->verify); /* initialize another block */
 	    ioctl_reply->msg[0] = '\0';			    /* no comment */
 	    return;
 	}
 	status = set_sd_state(objindex, sd_up, flags);	    /* set state */
-	if (status == EAGAIN) {				    /* first revive, */
-	    ioctl_reply->error = revive_block(objindex);    /* revive the first block */
-	    ioctl_reply->error = EAGAIN;
-	} else {
+	if (status != EAGAIN) {				    /* not first revive or initialize, */
 	    if (SD[objindex].state != sd_up)		    /* set status on whether we really did it */
 		ioctl_reply->error = EBUSY;
 	    else
