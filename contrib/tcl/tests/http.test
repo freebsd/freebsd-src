@@ -1,0 +1,367 @@
+# Commands covered:  http_config, http_get, http_wait, http_reset
+#
+# This file contains a collection of tests for the http script library.
+# Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) http.test 1.9 97/06/24 17:32:56
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+
+if [catch {package require http 1.0}] {
+    catch {puts stderr "Cannot find http package"}
+    return
+}
+
+############### The httpd_ procedures implement a stub http server. ########
+proc httpd_init {{port 8015}} {
+    socket -server httpdAccept $port
+}
+proc httpd_log {args} {
+    global httpLog
+    if {[info exists httpLog] && $httpLog} {
+	puts stderr "httpd: [join $args { }]"
+    }
+}
+array set httpdErrors {
+    204 {No Content}
+    400 {Bad Request}
+    404 {Not Found}
+    503 {Service Unavailable}
+    504 {Service Temporarily Unavailable}
+    }
+
+proc httpdError {sock code args} {
+    global httpdErrors
+    puts $sock "$code $httpdErrors($code)"
+    httpd_log "error: [join $args { }]"
+}
+proc httpdAccept {newsock ipaddr port} {
+    global httpd
+    upvar #0 httpd$newsock data
+
+    fconfigure $newsock -blocking 0 -translation {auto crlf}
+    httpd_log $newsock Connect $ipaddr $port
+    set data(ipaddr) $ipaddr
+    fileevent $newsock readable [list httpdRead $newsock]
+}
+
+# read data from a client request
+
+proc httpdRead { sock } {
+    upvar #0 httpd$sock data
+
+    set readCount [gets $sock line]
+    if {![info exists data(state)]} {
+	if [regexp {(POST|GET|HEAD) ([^?]+)\??([^ ]*) HTTP/1.0} \
+		$line x data(proto) data(url) data(query)] {
+	    set data(state) mime
+	    httpd_log $sock Query $line
+	} else {
+	    httpdError $sock 400
+	    httpd_log $sock Error "bad first line:$line"
+	    httpdSockDone $sock
+	}
+	return
+    }
+
+    # string compare $readCount 0 maps -1 to -1, 0 to 0, and > 0 to 1
+
+    set state [string compare $readCount 0],$data(state),$data(proto)
+    httpd_log $sock $state
+    switch -- $state {
+	-1,mime,HEAD	-
+	-1,mime,GET	-
+	-1,mime,POST	{
+	    # gets would block
+	    return
+	}
+	0,mime,HEAD	-
+	0,mime,GET	-
+	0,query,POST	{ httpdRespond $sock }
+	0,mime,POST	{ set data(state) query }
+	1,mime,HEAD	-
+	1,mime,POST	-
+	1,mime,GET	{
+	    if [regexp {([^:]+):[ 	]*(.*)}  $line dummy key value] {
+		set data(mime,[string tolower $key]) $value
+	    }
+	}
+	1,query,POST	{
+	    append data(query) $line
+	    httpdRespond $sock
+	}
+	default {
+	    if [eof $sock] {
+		httpd_log $sock Error "unexpected eof on <$data(url)> request"
+	    } else {
+		httpd_log $sock Error "unhandled state <$state> fetching <$data(url)>"
+	    }
+	    httpdError $sock 404
+	    httpdSockDone $sock
+	}
+    }
+}
+proc httpdSockDone { sock } {
+upvar #0 httpd$sock data
+    unset data
+    close $sock
+}
+
+# Respond to the query.
+
+proc httpdRespond { sock } {
+    global httpd
+    upvar #0 httpd$sock data
+
+    set html "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>$data(proto) $data(url)</h2>
+"
+    if {[info exists data(query)] && [string length $data(query)]} {
+	append html "<h2>Query</h2>\n<dl>\n"
+	foreach {key value} [split $data(query) &=] {
+	    append html "<dt>$key<dd>$value\n"
+	}
+	append html </dl>\n
+    }
+    append html </body></html>
+
+    if {$data(proto) == "HEAD"} {
+	puts $sock "HTTP/1.0 200 OK"
+    } else {
+	puts $sock "HTTP/1.0 200 Data follows"
+    }
+    puts $sock "Date: [clock format [clock clicks]]"
+    puts $sock "Content-Type: text/html"
+    puts $sock "Content-Length: [string length $html]"
+    puts $sock ""
+    if {$data(proto) != "HEAD"} {
+	fconfigure $sock -translation binary
+	puts -nonewline $sock $html
+    }
+    httpd_log $sock Done ""
+    httpdSockDone $sock
+}
+##################### end server ###########################33
+
+set port 8010
+if [catch {httpd_init $port} listen] {
+    puts stderr "Cannot start http server, http test skipped"
+    unset port
+    return
+}
+
+test http-1.1 {http_config} {
+    http_config
+} {-accept */* -proxyfilter httpProxyRequired -proxyhost {} -proxyport {} -useragent {Tcl http client package 1.0}}
+
+test http-1.2 {http_config} {
+    http_config -proxyfilter
+} httpProxyRequired
+
+test http-1.3 {http_config} {
+    catch {http_config -junk}
+} 1
+
+test http-1.4 {http_config} {
+    http_config -proxyhost nowhere.come -proxyport 8080 -proxyfilter myFilter -useragent "Tcl Test Suite"
+    set x [http_config]
+    http_config -proxyhost {} -proxyport {} -proxyfilter httpProxyRequired
+    set x
+} {-accept */* -proxyfilter myFilter -proxyhost nowhere.come -proxyport 8080 -useragent {Tcl Test Suite}}
+
+test http-1.5 {http_config} {
+    catch {http_config -proxyhost {} -junk 8080}
+} 1
+
+test http-2.1 {http_reset} {
+    catch {http_reset http#1}
+} 0
+
+test http-3.1 {http_get} {
+    catch {http_get -bogus flag}
+} 1
+test http-3.2 {http_get} {
+    catch {http_get junk} err
+    set err
+} {Unsupported URL: junk}
+
+set tail /a/b/c
+set url [info hostname]:$port/a/b/c
+test http-3.3 {http_get} {
+    set token [http_get $url]
+    http_data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET $tail</h2>
+</body></html>"
+
+proc selfproxy {host} {
+    global port
+    return [list [info hostname] $port]
+}
+test http-3.4 {http_get} {
+    http_config -proxyfilter selfproxy
+    set token [http_get $url]
+    http_config -proxyfilter httpProxyRequired
+    http_data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET http://$url</h2>
+</body></html>"
+
+test http-3.5 {http_get} {
+    http_config -proxyfilter bogus
+    set token [http_get $url]
+    http_config -proxyfilter httpProxyRequired
+    http_data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET $tail</h2>
+</body></html>"
+
+test http-3.6 {http_get} {
+    set token [http_get $url -headers {Pragma no-cache}]
+    http_data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET $tail</h2>
+</body></html>"
+
+test http-3.7 {http_get} {
+    set token [http_get $url -query Name=Value&Foo=Bar]
+    http_data $token
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>POST $tail</h2>
+<h2>Query</h2>
+<dl>
+<dt>Name<dd>Value
+<dt>Foo<dd>Bar
+</dl>
+</body></html>"
+
+test http-3.8 {http_get} {
+    set token [http_get $url -validate 1]
+    http_code $token
+} "HTTP/1.0 200 OK"
+
+test http-4.1 {httpEvent} {
+    set token [http_get $url]
+    upvar #0 $token data
+    array set meta $data(meta)
+    expr ($data(totalsize) == $meta(Content-Length))
+} 1
+
+test http-4.2 {httpEvent} {
+    set token [http_get $url]
+    upvar #0 $token data
+    array set meta $data(meta)
+    string compare $data(type) [string trim $meta(Content-Type)]
+} 0
+
+test http-4.3 {httpEvent} {
+    set token [http_get $url]
+    http_code $token
+} {HTTP/1.0 200 Data follows}
+
+test http-4.4 {httpEvent} {
+    set out [open testfile w]
+    set token [http_get $url -channel $out]
+    close $out
+    set in [open testfile]
+    set x [read $in]
+    close $in
+    file delete testfile
+    set x
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET $tail</h2>
+</body></html>"
+
+test http-4.5 {httpEvent} {
+    set out [open testfile w]
+    set token [http_get $url -channel $out]
+    close $out
+    upvar #0 $token data
+    file delete testfile
+    expr $data(currentsize) == $data(totalsize)
+} 1
+
+proc myProgress {token total current} {
+    global progress httpLog
+    if {[info exists httpLog] && $httpLog} {
+	puts "progress $total $current"
+    }
+    set progress [list $total $current]
+}
+if 0 {
+    # This test hangs on Windows95 because the client never gets EOF
+    set httpLog 1
+    test http-4.6 {httpEvent} {
+	set token [http_get $url -blocksize 50 -progress myProgress]
+	set progress
+    } {111 111}
+}
+test http-4.7 {httpEvent} {
+    set token [http_get $url -progress myProgress]
+    set progress
+} {111 111}
+test http-4.8 {httpEvent} {
+    set token [http_get $url]
+    http_status $token
+} {ok}
+test http-4.9 {httpEvent} {
+    set token [http_get $url -progress myProgress]
+    http_code $token
+} {HTTP/1.0 200 Data follows}
+test http-4.10 {httpEvent} {
+    set token [http_get $url -progress myProgress]
+    http_size $token
+} {111}
+test http-4.11 {httpEvent} {
+    set token [http_get $url -timeout 1 -command {#}]
+    http_reset $token
+    http_status $token
+} {reset}
+test http-4.12 {httpEvent} {
+    set token [http_get $url -timeout 1 -command {#}]
+    update
+    http_status $token
+} {timeout}
+
+test http-5.1 {http_formatQuery} {
+    http_formatQuery name1 value1 name2 "value two"
+} {name1=value1&name2=value+two}
+
+test http-5.2 {http_formatQuery} {
+    http_formatQuery name1 ~bwelch name2 \xa1\xa2\xa2
+} {name1=%7ebwelch&name2=%a1%a2%a2}
+
+test http-5.3 {http_formatQuery} {
+    http_formatQuery lines "line1\nline2\nline3"
+} {lines=line1%0d%0aline2%0d%0aline3}
+
+test http-6.1 {httpProxyRequired} {
+    http_config -proxyhost [info hostname] -proxyport $port
+    set token [http_get $url]
+    http_wait $token
+    http_config -proxyhost {} -proxyport {}
+    upvar #0 $token data
+    set data(body)
+} "<html><head><title>HTTP/1.0 TEST</title></head><body>
+<h1>Hello, World!</h1>
+<h2>GET http://$url</h2>
+</body></html>"
+
+unset url
+unset port
+close $listen

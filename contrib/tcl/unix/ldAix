@@ -10,7 +10,7 @@
 # symbols exported by those files, and then invokes "ldCmd" to
 # perform the real link.
 #
-# SCCS: @(#) ldAix 1.7 96/03/27 09:45:03
+# SCCS: @(#) ldAix 1.8 97/02/21 14:50:27
 
 # Extract from the arguments the names of all of the object files.
 
@@ -43,7 +43,7 @@ done
 # 8. Eliminate everything after the first field in a line, so that we're
 #    left with just the symbol name.
 
-nmopts="-g"
+nmopts="-g -C"
 osver=`uname -v`
 if test $osver -eq 3; then
   nmopts="-e"

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) CrtMathFnc.3 1.8 96/03/25 19:59:55
+'\" SCCS: @(#) CrtMathFnc.3 1.9 96/08/26 12:59:43
 '\" 
 .so man.macros
 .TH Tcl_CreateMathFunc 3 7.0 Tcl "Tcl Library Procedures"
@@ -66,8 +66,6 @@ which describe the actual arguments to the function:
 .CS
 typedef struct Tcl_Value {
 	Tcl_ValueType \fItype\fR;
-.VS
-.VE
 	long \fIintValue\fR;
 	double \fIdoubleValue\fR;
 } Tcl_Value;

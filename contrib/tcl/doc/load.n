@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) load.n 1.5 96/03/25 20:19:39
+'\" SCCS: @(#) load.n 1.8 96/12/20 09:23:23
 '\" 
 .so man.macros
 .TH load n 7.5 Tcl "Tcl Built-In Commands"
@@ -52,6 +52,10 @@ be \fBFoo_Init\fR.
 If the target interpreter is a safe interpreter, then the name
 of the initialization procedure will be \fIpkg\fB_SafeInit\fR
 instead of \fIpkg\fB_Init\fR.
+The \fIpkg\fB_SafeInit\fR function should be written carefully, so that it
+initializes the safe interpreter only with partial functionality provided
+by the package that is safe for use by untrusted code. For more information
+on Safe\-Tcl, see the \fBsafe\fR manual entry.
 .PP
 The initialization procedure must match the following prototype:
 .CS
@@ -75,10 +79,7 @@ The \fBload\fR command also supports packages that are statically
 linked with the application, if those packages have been registered
 by calling the \fBTcl_StaticPackage\fR procedure.
 If \fIfileName\fR is an empty string, then \fIpackageName\fR must
-be specified and it must give the name of a statically loaded
-package.
-The appropriate initialization procedure for that package will then
-be invoked to incorporate the package into the target interpreter.
+be specified.
 .PP
 If \fIpackageName\fR is omitted or specified as an empty string,
 Tcl tries to guess the name of the package.
@@ -86,10 +87,24 @@ This may be done differently on different platforms.
 The default guess, which is used on most UNIX platforms, is to
 take the last element of \fIfileName\fR, strip off the first
 three characters if they are \fBlib\fR, and use any following
-alphabetic characters as the module name.
+.VS
+alphabetic and underline characters as the module name.
+.VE
 For example, the command \fBload libxyz4.2.so\fR uses the module
 name \fBxyz\fR and the command \fBload bin/last.so {}\fR uses the
 module name \fBlast\fR.
+.VS br
+.PP
+If \fIfileName\fR is an empty string, then \fIpackageName\fR must
+be specified.
+The \fBload\fR command first searches for a statically loaded package
+(one that has been registered by calling the \fBTcl_StaticPackage\fR
+procedure) by that name; if one is found, it is used.
+Otherwise, the \fBload\fR command searches for a dynamically loaded
+package by that name, and uses it if it is found.  If several
+different files have been \fBload\fRed with different versions of
+the package, Tcl picks the file that was loaded first.
+.VE
 
 .SH BUGS
 .PP
@@ -99,7 +114,7 @@ behavior of this varies from system to system (some systems may
 detect the redundant loads, others may not).
 
 .SH "SEE ALSO"
-\fBinfo sharedlibextension\fR, Tcl_StaticPackage
+\fBinfo sharedlibextension\fR, Tcl_StaticPackage, safe(n)
 
 .SH KEYWORDS
-binary code, loading, shared library
+binary code, loading, safe interpreter, shared library

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lrange.test 1.6 96/07/10 17:16:47
+# SCCS: @(#) lrange.test 1.12 97/06/23 18:19:25
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -43,7 +43,7 @@ test lrange-1.9 {range of list elements} {
 } {a b c d e}
 test lrange-1.10 {range of list elements} {
     lrange "a b\{c d" 1 2
-} "b\{c d"
+} "b\\{c d"
 test lrange-1.11 {range of list elements} {
     lrange "a b c d" end end
 } d
@@ -56,9 +56,12 @@ test lrange-1.13 {range of list elements} {
 test lrange-1.14 {range of list elements} {
     lrange "a b c d" end 2
 } {}
-test lrange-1.14 {range of list elements} {
+test lrange-1.15 {range of list elements} {
     concat \"[lrange {a b \{\   	} 0 2]"
 } {"a b \{\ "}
+test lrange-1.16 {list element quoting} {
+    lrange {[append a .b]} 0 end    
+} {{[append} a .b\]}
 
 test lrange-2.1 {error conditions} {
     list [catch {lrange a b} msg] $msg
@@ -68,10 +71,10 @@ test lrange-2.2 {error conditions} {
 } {1 {wrong # args: should be "lrange list first last"}}
 test lrange-2.3 {error conditions} {
     list [catch {lrange a b 6} msg] $msg
-} {1 {expected integer but got "b"}}
+} {1 {bad index "b": must be integer or "end"}}
 test lrange-2.4 {error conditions} {
     list [catch {lrange a 0 enigma} msg] $msg
-} {1 {expected integer or "end" but got "enigma"}}
+} {1 {bad index "enigma": must be integer or "end"}}
 test lrange-2.5 {error conditions} {
     list [catch {lrange "a \{b c" 3 4} msg] $msg
 } {1 {unmatched open brace in list}}

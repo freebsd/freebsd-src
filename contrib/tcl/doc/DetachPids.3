@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) DetachPids.3 1.14 96/03/25 20:01:48
+'\" SCCS: @(#) DetachPids.3 1.15 96/08/26 12:59:44
 '\" 
 .so man.macros
 .TH Tcl_DetachPids 3 "" Tcl "Tcl Library Procedures"
@@ -18,9 +18,7 @@ Tcl_DetachPids, Tcl_ReapDetachedProcs \- manage child processes in background
 .sp
 \fBTcl_DetachPids\fR(\fInumPids, pidPtr\fR)
 .sp
-.VS
 \fBTcl_ReapDetachedProcs\fR()
-.VE
 .SH ARGUMENTS
 .AS int *statusPtr
 .AP int numPids in
@@ -31,7 +29,6 @@ Address of array containing \fInumPids\fR process ids.
 
 .SH DESCRIPTION
 .PP
-.VS
 \fBTcl_DetachPids\fR and \fBTcl_ReapDetachedProcs\fR provide a
 mechanism for managing subprocesses that are running in background.
 These procedures are needed because the parent of a process must
@@ -60,7 +57,6 @@ However, if you call \fBTcl_DetachPids\fR in situations where the
 \fBexec\fR command may never get executed, you may wish to call
 \fBTcl_ReapDetachedProcs\fR from time to time so that background
 processes can be cleaned up.
-.VE
 
 .SH KEYWORDS
 background, child, detach, process, wait

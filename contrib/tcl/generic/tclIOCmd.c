@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIOCmd.c 1.96 96/05/10 15:20:56
+ * SCCS: @(#) tclIOCmd.c 1.117 97/06/23 18:57:17
  */
 
 #include	"tclInt.h"
@@ -46,7 +46,7 @@ static void	UnregisterTcpServerInterpCleanupProc _ANSI_ARGS_((
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_PutsCmd --
+ * Tcl_PutsObjCmd --
  *
  *	This procedure is invoked to process the "puts" Tcl command.
  *	See the user documentation for details on what it does.
@@ -62,11 +62,11 @@ static void	UnregisterTcpServerInterpCleanupProc _ANSI_ARGS_((
 
 	/* ARGSUSED */
 int
-Tcl_PutsCmd(clientData, interp, argc, argv)
-    ClientData clientData;		/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_PutsObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     Tcl_Channel chan;			/* The channel to puts on. */
     int i;				/* Counter. */
@@ -74,16 +74,19 @@ Tcl_PutsCmd(clientData, interp, argc, argv)
     char *channelId;			/* Name of channel for puts. */
     int result;				/* Result of puts operation. */
     int mode;				/* Mode in which channel is opened. */
+    char *arg;
+    int length;
+    Tcl_Obj *resultPtr;
 
     i = 1;
     newline = 1;
-    if ((argc >= 2) && (strcmp(argv[1], "-nonewline") == 0)) {
+    if ((objc >= 2) && (strcmp(Tcl_GetStringFromObj(objv[1], NULL),
+	    "-nonewline") == 0)) {
 	newline = 0;
 	i++;
     }
-    if ((i < (argc-3)) || (i >= argc)) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" ?-nonewline? ?channelId? string\"", (char *) NULL);
+    if ((i < (objc-3)) || (i >= objc)) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?-nonewline? ?channelId? string");
 	return TCL_ERROR;
     }
 
@@ -92,31 +95,37 @@ Tcl_PutsCmd(clientData, interp, argc, argv)
      * form of the command that is no longer recommended or documented.
      */
 
-    if (i == (argc-3)) {
-	if (strncmp(argv[i+2], "nonewline", strlen(argv[i+2])) != 0) {
-	    Tcl_AppendResult(interp, "bad argument \"", argv[i+2],
+    resultPtr = Tcl_NewObj();
+    if (i == (objc-3)) {
+	arg = Tcl_GetStringFromObj(objv[i+2], &length);
+	if (strncmp(arg, "nonewline", (size_t) length) != 0) {
+	    Tcl_AppendStringsToObj(resultPtr, "bad argument \"", arg,
 		    "\": should be \"nonewline\"", (char *) NULL);
+            Tcl_SetObjResult(interp, resultPtr);
 	    return TCL_ERROR;
 	}
 	newline = 0;
     }
-    if (i == (argc-1)) {
+    if (i == (objc-1)) {
 	channelId = "stdout";
     } else {
-	channelId = argv[i];
+	channelId = Tcl_GetStringFromObj(objv[i], NULL);
 	i++;
     }
     chan = Tcl_GetChannel(interp, channelId, &mode);
     if (chan == (Tcl_Channel) NULL) {
+        Tcl_DecrRefCount(resultPtr);
         return TCL_ERROR;
     }
     if ((mode & TCL_WRITABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", channelId,
+	Tcl_AppendStringsToObj(resultPtr, "channel \"", channelId,
                 "\" wasn't opened for writing", (char *) NULL);
+        Tcl_SetObjResult(interp, resultPtr);
         return TCL_ERROR;
     }
-    
-    result = Tcl_Write(chan, argv[i], -1);
+
+    arg = Tcl_GetStringFromObj(objv[i], &length);
+    result = Tcl_Write(chan, arg, length);
     if (result < 0) {
         goto error;
     }
@@ -126,17 +135,20 @@ Tcl_PutsCmd(clientData, interp, argc, argv)
             goto error;
         }
     }
+    Tcl_SetObjResult(interp, resultPtr);
     return TCL_OK;
 error:
-    Tcl_AppendResult(interp, "error writing \"", Tcl_GetChannelName(chan),
-	    "\": ", Tcl_PosixError(interp), (char *) NULL);
+    Tcl_AppendStringsToObj(resultPtr, "error writing \"",
+	    Tcl_GetChannelName(chan), "\": ", Tcl_PosixError(interp),
+	    (char *) NULL);
+    Tcl_SetObjResult(interp, resultPtr);
     return TCL_ERROR;
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_FlushCmd --
+ * Tcl_FlushObjCmd --
  *
  *	This procedure is called to process the Tcl "flush" command.
  *	See the user documentation for details on what it does.
@@ -152,44 +164,47 @@ error:
 
 	/* ARGSUSED */
 int
-Tcl_FlushCmd(clientData, interp, argc, argv)
-    ClientData clientData;		/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_FlushObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     Tcl_Channel chan;			/* The channel to flush on. */
-    int result;				/* Result of call to channel
-                                         * level function. */
-    int mode;				/* Mode in which channel is opened. */
+    char *arg;
+    Tcl_Obj *resultPtr;
+    int mode;
 
-    if (argc != 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" channelId\"", (char *) NULL);
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "channelId");
 	return TCL_ERROR;
     }
-    chan = Tcl_GetChannel(interp, argv[1], &mode);
+    arg = Tcl_GetStringFromObj(objv[1], NULL);
+    chan = Tcl_GetChannel(interp, arg, &mode);
     if (chan == (Tcl_Channel) NULL) {
 	return TCL_ERROR;
     }
+    resultPtr = Tcl_GetObjResult(interp);
     if ((mode & TCL_WRITABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[1],
+	Tcl_AppendStringsToObj(resultPtr, "channel \"",
+		Tcl_GetStringFromObj(objv[1], NULL), 
                 "\" wasn't opened for writing", (char *) NULL);
         return TCL_ERROR;
     }
     
-    result = Tcl_Flush(chan);
-    if (result != TCL_OK) {
-        Tcl_AppendResult(interp, "error flushing \"", Tcl_GetChannelName(chan),
-		"\": ", Tcl_PosixError(interp), (char *) NULL);
+    if (Tcl_Flush(chan) != TCL_OK) {
+	Tcl_AppendStringsToObj(resultPtr, "error flushing \"",
+		Tcl_GetChannelName(chan), "\": ", Tcl_PosixError(interp),
+		(char *) NULL);
+	return TCL_ERROR;
     }
-    return result;
+    return TCL_OK;
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_GetsCmd --
+ * Tcl_GetsObjCmd --
  *
  *	This procedure is called to process the Tcl "gets" command.
  *	See the user documentation for details on what it does.
@@ -205,75 +220,67 @@ Tcl_FlushCmd(clientData, interp, argc, argv)
 
 	/* ARGSUSED */
 int
-Tcl_GetsCmd(clientData, interp, argc, argv)
-    ClientData clientData;		/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_GetsObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     Tcl_Channel chan;			/* The channel to read from. */
-    char *varName;			/* Assign to this variable? */
-    char buf[128];			/* Buffer to store string
-                                         * representation of how long
-                                         * a line was read. */
-    Tcl_DString ds;			/* Dynamic string to hold the
-                                         * buffer for the line just read. */
     int lineLen;			/* Length of line just read. */
     int mode;				/* Mode in which channel is opened. */
+    char *arg;
+    Tcl_Obj *resultPtr, *objPtr;
 
-    if ((argc != 2) && (argc != 3)) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" channelId ?varName?\"", (char *) NULL);
+    if ((objc != 2) && (objc != 3)) {
+	Tcl_WrongNumArgs(interp, 1, objv, "channelId ?varName?");
 	return TCL_ERROR;
     }
-    chan = Tcl_GetChannel(interp, argv[1], &mode);
+    arg = Tcl_GetStringFromObj(objv[1], NULL);
+    chan = Tcl_GetChannel(interp, arg, &mode);
     if (chan == (Tcl_Channel) NULL) {
 	return TCL_ERROR;
     }
+    resultPtr = Tcl_NewObj();
     if ((mode & TCL_READABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[1],
+	Tcl_AppendStringsToObj(resultPtr, "channel \"", arg,
                 "\" wasn't opened for reading", (char *) NULL);
+        Tcl_SetObjResult(interp, resultPtr);
         return TCL_ERROR;
     }
-    
-    if (argc != 3) {
-        varName = (char *) NULL;
-    } else {
-        varName = argv[2];
-    }
-    Tcl_DStringInit(&ds);
-    lineLen = Tcl_Gets(chan, &ds);
+
+    lineLen = Tcl_GetsObj(chan, resultPtr);
     if (lineLen < 0) {
         if (!Tcl_Eof(chan) && !Tcl_InputBlocked(chan)) {
-            Tcl_DStringFree(&ds);
-            Tcl_AppendResult(interp, "error reading \"",
+	    Tcl_SetObjLength(resultPtr, 0);
+	    Tcl_AppendStringsToObj(resultPtr, "error reading \"",
 		    Tcl_GetChannelName(chan), "\": ", Tcl_PosixError(interp),
 		    (char *) NULL);
+            Tcl_SetObjResult(interp, resultPtr);
             return TCL_ERROR;
         }
         lineLen = -1;
     }
-    if (varName == (char *) NULL) {
-        Tcl_DStringResult(interp, &ds);
-    } else {
-        if (Tcl_SetVar(interp, varName, Tcl_DStringValue(&ds),
-                TCL_LEAVE_ERR_MSG) == NULL) {
-            Tcl_DStringFree(&ds);
+    if (objc == 3) {
+	Tcl_ResetResult(interp);
+	objPtr = Tcl_ObjSetVar2(interp, objv[2], NULL,
+		resultPtr, TCL_LEAVE_ERR_MSG | TCL_PARSE_PART1);
+	if (objPtr == NULL) {
+            Tcl_DecrRefCount(resultPtr);
             return TCL_ERROR;
         }
         Tcl_ResetResult(interp);
-        sprintf(buf, "%d", lineLen);
-        Tcl_AppendResult(interp, buf, (char *) NULL);
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), lineLen);
+        return TCL_OK;
     }
-    Tcl_DStringFree(&ds);
-
+    Tcl_SetObjResult(interp, resultPtr);
     return TCL_OK;
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_ReadCmd --
+ * Tcl_ReadObjCmd --
  *
  *	This procedure is invoked to process the Tcl "read" command.
  *	See the user documentation for details on what it does.
@@ -289,11 +296,11 @@ Tcl_GetsCmd(clientData, interp, argc, argv)
 
 	/* ARGSUSED */
 int
-Tcl_ReadCmd(clientData, interp, argc, argv)
-    ClientData clientData;		/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_ReadObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     Tcl_Channel chan;			/* The channel to read from. */
     int newline, i;			/* Discard newline at end? */
@@ -304,36 +311,39 @@ Tcl_ReadCmd(clientData, interp, argc, argv)
     int charactersReadNow;		/* How many characters were read
                                          * in this iteration? */
     int mode;				/* Mode in which channel is opened. */
-    Tcl_DString ds;			/* Used to accumulate the data
-                                         * read by Tcl_Read. */
     int bufSize;			/* Channel buffer size; used to decide
                                          * in what chunk sizes to read from
                                          * the channel. */
+    char *arg;
+    Tcl_Obj *resultPtr;
 
-    if ((argc != 2) && (argc != 3)) {
+    if ((objc != 2) && (objc != 3)) {
 argerror:
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" channelId ?numBytes?\" or \"", argv[0],
+	Tcl_WrongNumArgs(interp, 1, objv, "channelId ?numBytes?");
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), " or \"",
+		Tcl_GetStringFromObj(objv[0], NULL),
 		" ?-nonewline? channelId\"", (char *) NULL);
 	return TCL_ERROR;
     }
     i = 1;
     newline = 0;
-    if (strcmp(argv[i], "-nonewline") == 0) {
+    if (strcmp(Tcl_GetStringFromObj(objv[1], NULL), "-nonewline") == 0) {
 	newline = 1;
 	i++;
     }
 
-    if (i == argc) {
+    if (i == objc) {
         goto argerror;
     }
 
-    chan = Tcl_GetChannel(interp, argv[i], &mode);
+    arg =  Tcl_GetStringFromObj(objv[i], NULL);
+    chan = Tcl_GetChannel(interp, arg, &mode);
     if (chan == (Tcl_Channel) NULL) {
 	return TCL_ERROR;
     }
     if ((mode & TCL_READABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[i],
+	resultPtr = Tcl_GetObjResult(interp);
+	Tcl_AppendStringsToObj(resultPtr, "channel \"", arg,
                 "\" wasn't opened for reading", (char *) NULL);
         return TCL_ERROR;
     }
@@ -346,35 +356,68 @@ argerror:
      */
 
     toRead = INT_MAX;
-    if (i < argc) {
-        if (isdigit((unsigned char) (argv[i][0]))) {
-            if (Tcl_GetInt(interp, argv[i], &toRead) != TCL_OK) {
+    if (i < objc) {
+	arg = Tcl_GetStringFromObj(objv[i], NULL);
+	if (isdigit((unsigned char) (arg[0]))) {
+	    if (Tcl_GetIntFromObj(interp, objv[i], &toRead) != TCL_OK) {
                 return TCL_ERROR;
-            }
-        } else if (strcmp(argv[i], "nonewline") == 0) {
-            newline = 1;
-        } else {
-            Tcl_AppendResult(interp, "bad argument \"", argv[i],
-                    "\": should be \"nonewline\"", (char *) NULL);
-            return TCL_ERROR;
+	    }
+	    Tcl_ResetResult(interp);
+	} else if (strcmp(arg, "nonewline") == 0) {
+	    newline = 1;
+	} else {
+	    resultPtr = Tcl_GetObjResult(interp);
+	    Tcl_AppendStringsToObj(resultPtr, "bad argument \"", arg,
+		    "\": should be \"nonewline\"", (char *) NULL);
+	    return TCL_ERROR;
         }
     }
 
+    /*
+     * Create a new object and use that instead of the interpreter
+     * result. We cannot use the interpreter's result object because
+     * it may get smashed at any time by recursive calls.
+     */
+    
+    resultPtr = Tcl_NewObj();
+    
     bufSize = Tcl_GetChannelBufferSize(chan);
-    Tcl_DStringInit(&ds);
+
+    /*
+     * If the caller specified a maximum length to read, then that is
+     * a good size to preallocate.
+     */
+    
+    if ((toRead != INT_MAX) && (toRead > bufSize)) {
+        Tcl_SetObjLength(resultPtr, toRead);
+    }
+    
     for (charactersRead = 0; charactersRead < toRead; ) {
         toReadNow = toRead - charactersRead;
         if (toReadNow > bufSize) {
             toReadNow = bufSize;
         }
-        Tcl_DStringSetLength(&ds, charactersRead + toReadNow);
+
+        /*
+         * NOTE: This is a NOOP if we set the size (above) to the
+         * number of bytes we expect to read. In the degenerate
+         * case, however, it will grow the buffer by the channel
+         * buffersize, which is 4K in most cases. This will result
+         * in inefficient copying for large files. This will be
+         * fixed in a future release.
+         */
+        
+	Tcl_SetObjLength(resultPtr, charactersRead + toReadNow);
         charactersReadNow =
-            Tcl_Read(chan, Tcl_DStringValue(&ds) + charactersRead, toReadNow);
+            Tcl_Read(chan, Tcl_GetStringFromObj(resultPtr, NULL)
+		    + charactersRead, toReadNow);
         if (charactersReadNow < 0) {
-            Tcl_DStringFree(&ds);
-            Tcl_AppendResult(interp, "error reading \"",
+	    Tcl_SetObjLength(resultPtr, 0);
+            Tcl_AppendStringsToObj(resultPtr, "error reading \"",
 		    Tcl_GetChannelName(chan), "\": ",
 		    Tcl_PosixError(interp), (char *) NULL);
+            Tcl_SetObjResult(interp, resultPtr);
+
             return TCL_ERROR;
         }
 
@@ -384,131 +427,33 @@ argerror:
          */
         
         charactersRead += charactersReadNow;
+
+        /*
+         * Do not call the driver again if we got a short read
+         */
+        
         if (charactersReadNow < toReadNow) {
             break;	/* Out of "for" loop. */
         }
     }
-
-    /*
-     * Tcl_Read does not put a NULL at the end of the string, so we must
-     * do it here.
-     */
     
-    Tcl_DStringSetLength(&ds, charactersRead);
-    Tcl_DStringResult(interp, &ds);
-    Tcl_DStringFree(&ds);
-
     /*
      * If requested, remove the last newline in the channel if at EOF.
      */
     
     if ((charactersRead > 0) && (newline) &&
-            (interp->result[charactersRead-1] == '\n')) {
-        interp->result[charactersRead-1] = '\0';
+          (Tcl_GetStringFromObj(resultPtr, NULL)[charactersRead-1] == '\n')) {
+	charactersRead--;
     }
-    return TCL_OK;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclUnsupported0Cmd --
- *
- *	This procedure is invoked to process the Tcl "unsupported0" command.
- *	See the user documentation for details on what it does.
- *
- * Results:
- *	A standard Tcl result.
- *
- * Side effects:
- *	May copy a chunk from one channel to another.
- *
- *----------------------------------------------------------------------
- */
+    Tcl_SetObjLength(resultPtr, charactersRead);
 
-int
-TclUnsupported0Cmd(clientData, interp, argc, argv)
-    ClientData clientData;		/* Not used. */
-    Tcl_Interp *interp;			/* Interpreter in which both channels
-                                         * are defined. */
-    int argc;				/* How many arguments? */
-    char **argv;			/* The argument strings. */
-{
-    Tcl_Channel inChan, outChan;
-    int requested;
-    char *bufPtr;
-    int actuallyRead, actuallyWritten, totalRead, toReadNow, mode;
-    
     /*
-     * Assume we want to copy the entire channel.
+     * Now set the object into the interpreter result and release our
+     * hold on it by decrrefing it.
      */
-    
-    requested = INT_MAX;
 
-    if ((argc < 3) || (argc > 4)) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " inChanId outChanId ?chunkSize?\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-    inChan = Tcl_GetChannel(interp, argv[1], &mode);
-    if (inChan == (Tcl_Channel) NULL) {
-        return TCL_ERROR;
-    }
-    if ((mode & TCL_READABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[1],
-                "\" wasn't opened for reading", (char *) NULL);
-        return TCL_ERROR;
-    }
-    outChan = Tcl_GetChannel(interp, argv[2], &mode);
-    if (outChan == (Tcl_Channel) NULL) {
-        return TCL_ERROR;
-    }
-    if ((mode & TCL_WRITABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[2],
-                "\" wasn't opened for writing", (char *) NULL);
-        return TCL_ERROR;
-    }
+    Tcl_SetObjResult(interp, resultPtr);
     
-    if (argc == 4) {
-	if (Tcl_GetInt(interp, argv[3], &requested) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-        if (requested < 0) {
-            requested = INT_MAX;
-        }
-    }
-
-    bufPtr = ckalloc((unsigned) TCL_READ_CHUNK_SIZE);
-    for (totalRead = 0;
-            requested > 0;
-            totalRead += actuallyRead, requested -= actuallyRead) {
-        toReadNow = requested;
-        if (toReadNow > TCL_READ_CHUNK_SIZE) {
-            toReadNow = TCL_READ_CHUNK_SIZE;
-        }
-        actuallyRead = Tcl_Read(inChan, bufPtr, toReadNow);
-        if (actuallyRead < 0) {
-            ckfree(bufPtr);
-	    Tcl_AppendResult(interp, argv[0], ": ", Tcl_GetChannelName(inChan),
-		Tcl_PosixError(interp), (char *) NULL);
-            return TCL_ERROR;
-        }
-        if (actuallyRead == 0) {
-            ckfree(bufPtr);
-            sprintf(interp->result, "%d", totalRead);
-            return TCL_OK;
-        }
-        actuallyWritten = Tcl_Write(outChan, bufPtr, actuallyRead);
-        if (actuallyWritten < 0) {
-            ckfree(bufPtr);
-	    Tcl_AppendResult(interp, argv[0], ": ", Tcl_GetChannelName(outChan),
-		Tcl_PosixError(interp), (char *) NULL);
-            return TCL_ERROR;
-        }
-    }
-    ckfree(bufPtr);
-    
-    sprintf(interp->result, "%d", totalRead);
     return TCL_OK;
 }
 
@@ -575,7 +520,7 @@ Tcl_SeekCmd(clientData, interp, argc, argv)
     }
 
     result = Tcl_Seek(chan, offset, mode);
-    if (result < 0) {
+    if (result == -1) {
         Tcl_AppendResult(interp, "error during seek on \"", 
 		Tcl_GetChannelName(chan), "\": ",
                 Tcl_PosixError(interp), (char *) NULL);
@@ -610,6 +555,7 @@ Tcl_TellCmd(clientData, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     Tcl_Channel chan;			/* The channel to tell on. */
+    char buf[40];
 
     if (argc != 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -625,8 +571,8 @@ Tcl_TellCmd(clientData, interp, argc, argv)
     if (chan == (Tcl_Channel) NULL) {
 	return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", Tcl_Tell(chan));
-
+    TclFormatInt(buf, Tcl_Tell(chan));
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -716,7 +662,6 @@ Tcl_FconfigureCmd(clientData, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     Tcl_Channel chan;			/* The channel to set a mode on. */
-    int result;				/* Of Tcl_Set/GetChannelOption. */
     int i;				/* Iterate over arg-value pairs. */
     Tcl_DString ds;			/* DString to hold result of
                                          * calling Tcl_GetChannelOption. */
@@ -733,33 +678,25 @@ Tcl_FconfigureCmd(clientData, interp, argc, argv)
     }
     if (argc == 2) {
         Tcl_DStringInit(&ds);
-        if (Tcl_GetChannelOption(chan, (char *) NULL, &ds) != TCL_OK) {
-            Tcl_AppendResult(interp, "option retrieval failed",
-                    (char *) NULL);
-            return TCL_ERROR;
+        if (Tcl_GetChannelOption(interp, chan, (char *) NULL, &ds) != TCL_OK) {
+	    Tcl_DStringFree(&ds);
+	    return TCL_ERROR;
         }
         Tcl_DStringResult(interp, &ds);
-        Tcl_DStringFree(&ds);
         return TCL_OK;
     }
     if (argc == 3) {
         Tcl_DStringInit(&ds);
-        if (Tcl_GetChannelOption(chan, argv[2], &ds) != TCL_OK) {
+        if (Tcl_GetChannelOption(interp, chan, argv[2], &ds) != TCL_OK) {
             Tcl_DStringFree(&ds);
-            Tcl_AppendResult(interp, "bad option \"", argv[2],
-		    "\": must be -blocking, -buffering, -buffersize, ",
-                    "-eofchar, -translation, ",
-                    "or a channel type specific option", (char *) NULL);
             return TCL_ERROR;
         }
         Tcl_DStringResult(interp, &ds);
-        Tcl_DStringFree(&ds);
         return TCL_OK;
     }
     for (i = 3; i < argc; i += 2) {
-        result = Tcl_SetChannelOption(interp, chan, argv[i-1], argv[i]);
-        if (result != TCL_OK) {
-            return result;
+        if (Tcl_SetChannelOption(interp, chan, argv[i-1], argv[i]) != TCL_OK) {
+            return TCL_ERROR;
         }
     }
     return TCL_OK;
@@ -793,6 +730,7 @@ Tcl_EofCmd(unused, interp, argc, argv)
 {
     Tcl_Channel chan;			/* The channel to query for EOF. */
     int mode;				/* Mode in which channel is opened. */
+    char buf[40];
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -803,7 +741,9 @@ Tcl_EofCmd(unused, interp, argc, argv)
     if (chan == (Tcl_Channel) NULL) {
 	return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", Tcl_Eof(chan) ? 1 : 0);
+
+    TclFormatInt(buf, Tcl_Eof(chan) ? 1 : 0);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -901,7 +841,7 @@ Tcl_ExecCmd(dummy, interp, argc, argv)
         return TCL_OK;
     }
 
-    if (Tcl_GetChannelFile(chan, TCL_READABLE) != NULL) {
+    if (Tcl_GetChannelHandle(chan, TCL_READABLE, NULL) == TCL_OK) {
 #define	EXEC_BUFFER_SIZE 4096
 
         Tcl_DStringInit(&ds);
@@ -925,7 +865,6 @@ Tcl_ExecCmd(dummy, interp, argc, argv)
         }
         Tcl_DStringSetLength(&ds, readSoFar);
         Tcl_DStringResult(interp, &ds);
-        Tcl_DStringFree(&ds);
     }
 
     result = Tcl_Close(interp, chan);
@@ -977,6 +916,7 @@ Tcl_FblockedCmd(unused, interp, argc, argv)
 {
     Tcl_Channel chan;			/* The channel to query for blocked. */
     int mode;				/* Mode in which channel was opened. */
+    char buf[40];
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -993,7 +933,8 @@ Tcl_FblockedCmd(unused, interp, argc, argv)
         return TCL_ERROR;
     }
         
-    sprintf(interp->result, "%d", Tcl_InputBlocked(chan) ? 1 : 0);
+    TclFormatInt(buf, Tcl_InputBlocked(chan) ? 1 : 0);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -1055,6 +996,12 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
     if (!pipeline) {
         chan = Tcl_OpenFileChannel(interp, argv[1], modeString, prot);
     } else {
+#ifdef MAC_TCL
+	Tcl_AppendResult(interp,
+		"command pipelines not supported on Macintosh OS",
+		(char *)NULL);
+	return TCL_ERROR;
+#else
 	int mode, seekFlag, cmdArgc;
 	char **cmdArgv;
 
@@ -1084,6 +1031,7 @@ Tcl_OpenCmd(notUsed, interp, argc, argv)
 	    chan = Tcl_OpenCommandChannel(interp, cmdArgc, cmdArgv, flags);
 	}
         ckfree((char *) cmdArgv);
+#endif
     }
     if (chan == (Tcl_Channel) NULL) {
         return TCL_ERROR;
@@ -1280,7 +1228,7 @@ AcceptCallbackProc(callbackData, chan, address, port)
         Tcl_Preserve((ClientData) script);
         Tcl_Preserve((ClientData) interp);
 
-	sprintf(portBuf, "%d", port);
+	TclFormatInt(portBuf, port);
         Tcl_RegisterChannel(interp, chan);
         result = Tcl_VarEval(interp, script, " ", Tcl_GetChannelName(chan),
                 " ", address, " ", portBuf, (char *) NULL);
@@ -1507,4 +1455,91 @@ wrongNumArgs:
     Tcl_AppendResult(interp, Tcl_GetChannelName(chan), (char *) NULL);
     
     return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_FcopyObjCmd --
+ *
+ *	This procedure is invoked to process the "fcopy" Tcl command.
+ *	See the user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	Moves data between two channels and possibly sets up a
+ *	background copy handler.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_FcopyObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
+{
+    Tcl_Channel inChan, outChan;
+    char *arg;
+    int mode, i;
+    int toRead;
+    Tcl_Obj *cmdPtr;
+    static char* switches[] = { "-size", "-command", NULL };
+    enum { FcopySize, FcopyCommand } index;
+
+    if ((objc < 3) || (objc > 7) || (objc == 4) || (objc == 6)) {
+	Tcl_WrongNumArgs(interp, 1, objv, "input output ?-size size? ?-command callback?");
+	return TCL_ERROR;
+    }
+
+    /*
+     * Parse the channel arguments and verify that they are readable
+     * or writable, as appropriate.
+     */
+
+    arg = Tcl_GetStringFromObj(objv[1], NULL);
+    inChan = Tcl_GetChannel(interp, arg, &mode);
+    if (inChan == (Tcl_Channel) NULL) {
+	return TCL_ERROR;
+    }
+    if ((mode & TCL_READABLE) == 0) {
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "channel \"",
+		Tcl_GetStringFromObj(objv[1], NULL), 
+                "\" wasn't opened for reading", (char *) NULL);
+        return TCL_ERROR;
+    }
+    arg = Tcl_GetStringFromObj(objv[2], NULL);
+    outChan = Tcl_GetChannel(interp, arg, &mode);
+    if (outChan == (Tcl_Channel) NULL) {
+	return TCL_ERROR;
+    }
+    if ((mode & TCL_WRITABLE) == 0) {
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "channel \"",
+		Tcl_GetStringFromObj(objv[1], NULL), 
+                "\" wasn't opened for writing", (char *) NULL);
+        return TCL_ERROR;
+    }
+
+    toRead = -1;
+    cmdPtr = NULL;
+    for (i = 3; i < objc; i += 2) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "switch", 0,
+		(int *) &index) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	switch (index) {
+	    case FcopySize:
+		if (Tcl_GetIntFromObj(interp, objv[i+1], &toRead) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		break;
+	    case FcopyCommand:
+		cmdPtr = objv[i+1];
+		break;
+	}
+    }
+    return TclCopyChannel(interp, inChan, outChan, toRead, cmdPtr);
 }

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) format.test 1.23 96/07/31 16:54:50
+# SCCS: @(#) format.test 1.24 96/10/08 17:40:55
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -181,13 +181,13 @@ test format-4.16 {g-format} {
 test format-4.17 {g-format} {
     format "%.3g" .001
 } {0.001}
-test format-4.19 {g-format} {
+test format-4.18 {g-format} {
     format "%.3g" .00001
 } {1e-05}
-test format-4.20 {g-format} {
+test format-4.19 {g-format} {
     format "%#.3g" 1234.0
 } {1.23e+03}
-test format-4.21 {g-format} {
+test format-4.20 {g-format} {
     format "%#.3G" 9999.5
 } {1.00E+04}
 

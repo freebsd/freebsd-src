@@ -8,12 +8,12 @@
  *	him.
  *
  * Copyright (c) 1993 The Regents of the University of California.
- * Copyright (c) 1994 Sun Microsystems, Inc.
+ * Copyright (c) 1994-1996 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLink.c 1.12 96/02/15 11:50:26
+ * SCCS: @(#) tclLink.c 1.15 97/01/21 21:51:42
  */
 
 #include "tclInt.h"
@@ -32,13 +32,27 @@ typedef struct Link {
 				 * that time via upvar. */
     char *addr;			/* Location of C variable. */
     int type;			/* Type of link (TCL_LINK_INT, etc.). */
-    int writable;		/* Zero means Tcl variable is read-only. */
     union {
 	int i;
 	double d;
     } lastValue;		/* Last known value of C variable;  used to
 				 * avoid string conversions. */
+    int flags;			/* Miscellaneous one-bit values;  see below
+				 * for definitions. */
 } Link;
+
+/*
+ * Definitions for flag bits:
+ * LINK_READ_ONLY -		1 means errors should be generated if Tcl
+ *				script attempts to write variable.
+ * LINK_BEING_UPDATED -		1 means that a call to Tcl_UpdateLinkedVar
+ *				is in progress for this variable, so
+ *				trace callbacks on the variable should
+ *				be ignored.
+ */
+
+#define LINK_READ_ONLY		1
+#define LINK_BEING_UPDATED	2
 
 /*
  * Forward references to procedures defined later in this file:
@@ -90,7 +104,11 @@ Tcl_LinkVar(interp, varName, addr, type)
     strcpy(linkPtr->varName, varName);
     linkPtr->addr = addr;
     linkPtr->type = type & ~TCL_LINK_READ_ONLY;
-    linkPtr->writable = (type & TCL_LINK_READ_ONLY) == 0;
+    if (type & TCL_LINK_READ_ONLY) {
+	linkPtr->flags = LINK_READ_ONLY;
+    } else {
+	linkPtr->flags = 0;
+    }
     if (Tcl_SetVar(interp, varName, StringValue(linkPtr, buffer),
 	    TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG) == NULL) {
 	ckfree(linkPtr->varName);
@@ -170,14 +188,18 @@ Tcl_UpdateLinkedVar(interp, varName)
 {
     Link *linkPtr;
     char buffer[TCL_DOUBLE_SPACE];
+    int savedFlag;
 
     linkPtr = (Link *) Tcl_VarTraceInfo(interp, varName, TCL_GLOBAL_ONLY,
 	    LinkTraceProc, (ClientData) NULL);
     if (linkPtr == NULL) {
 	return;
     }
+    savedFlag = linkPtr->flags & LINK_BEING_UPDATED;
+    linkPtr->flags |= LINK_BEING_UPDATED;
     Tcl_SetVar(interp, linkPtr->varName, StringValue(linkPtr, buffer),
 	    TCL_GLOBAL_ONLY);
+    linkPtr->flags = (linkPtr->flags & ~LINK_BEING_UPDATED) | savedFlag;
 }
 
 /*
@@ -235,6 +257,17 @@ LinkTraceProc(clientData, interp, name1, name2, flags)
     }
 
     /*
+     * If we were invoked because of a call to Tcl_UpdateLinkedVar, then
+     * don't do anything at all.  In particular, we don't want to get
+     * upset that the variable is being modified, even if it is
+     * supposed to be read-only.
+     */
+
+    if (linkPtr->flags & LINK_BEING_UPDATED) {
+	return NULL;
+    }
+
+    /*
      * For read accesses, update the Tcl variable if the C variable
      * has changed since the last time we updated the Tcl variable.
      */
@@ -270,7 +303,7 @@ LinkTraceProc(clientData, interp, name1, name2, flags)
      * could occur when the result has been partially set.
      */
 
-    if (!linkPtr->writable) {
+    if (linkPtr->flags & LINK_READ_ONLY) {
 	Tcl_SetVar(interp, linkPtr->varName, StringValue(linkPtr, buffer),
 		TCL_GLOBAL_ONLY);
 	return "linked variable is read-only";
@@ -361,11 +394,11 @@ StringValue(linkPtr, buffer)
     switch (linkPtr->type) {
 	case TCL_LINK_INT:
 	    linkPtr->lastValue.i = *(int *)(linkPtr->addr);
-	    sprintf(buffer, "%d", linkPtr->lastValue.i);
+	    TclFormatInt(buffer, linkPtr->lastValue.i);
 	    return buffer;
 	case TCL_LINK_DOUBLE:
 	    linkPtr->lastValue.d = *(double *)(linkPtr->addr);
-	    Tcl_PrintDouble(linkPtr->interp, linkPtr->lastValue.d, buffer);
+	    Tcl_PrintDouble((Tcl_Interp *) NULL, linkPtr->lastValue.d, buffer);
 	    return buffer;
 	case TCL_LINK_BOOLEAN:
 	    linkPtr->lastValue.i = *(int *)(linkPtr->addr);

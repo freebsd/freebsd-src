@@ -26,7 +26,7 @@ and Tk to compile.  You can also add new entries to that database
 when you install Tcl and Tk on a new platform.  The Web database is
 likely to be more up-to-date than this file.
 
-sccsid = SCCS: @(#) porting.notes 1.17 96/05/18 16:49:24
+sccsid = SCCS: @(#) porting.notes 1.18 96/12/31 14:50:27
 
 --------------------------------------------
 Solaris, various versions
@@ -345,7 +345,7 @@ permission to edit /usr/include/stdarg.h in place, copy it to the tcl unix
 directory and change it there.
  
 Contact me directly if you have problems on SCO systems.
-Mark Diekhans <markd@sco.com>
+Mark Diekhans <markd@grizzly.com>
  
 --------------------------------------------
 SCO Unix 3.2.5 (ODT 5.0)
@@ -354,7 +354,7 @@ SCO Unix 3.2.5 (ODT 5.0)
 Expect failures from socket tests 2.9 and 3.1.
 
 Contact me directly if you have problems on SCO systems.
-Mark Diekhans <markd@sco.com>
+Mark Diekhans <markd@grizzly.com>
  
 --------------------------------------------
 Linux 1.2.13 (gcc 2.7.0, libc.so.5.0.9)

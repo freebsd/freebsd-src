@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) regsub.n 1.8 96/03/25 20:22:01
+'\" SCCS: @(#) regsub.n 1.9 96/08/26 13:00:11
 '\" 
 .so man.macros
 .TH regsub n 7.4 Tcl "Tcl Built-In Commands"
@@ -21,12 +21,10 @@ regsub \- Perform substitutions based on regular expression pattern matching
 .PP
 This command matches the regular expression \fIexp\fR against
 \fIstring\fR,
-.VS
 and it copies \fIstring\fR to the variable whose name is
 given by \fIvarName\fR.
 If there is a match, then while copying \fIstring\fR to \fIvarName\fR
 the portion of \fIstring\fR that
-.VE
 matched \fIexp\fR is replaced with \fIsubSpec\fR.
 If \fIsubSpec\fR contains a ``&'' or ``\e0'', then it is replaced
 in the substitution with the portion of \fIstring\fR that
@@ -44,7 +42,6 @@ safest to enclose \fIsubSpec\fR in braces if it includes
 backslashes.
 .LP
 If the initial arguments to \fBregexp\fR start with \fB\-\fR then
-.VS
 they are treated as switches.  The following switches are
 currently supported:
 .TP 10
@@ -65,12 +62,9 @@ by \fIsubSpec\fR use the original unconverted form of \fIstring\fR.
 \fB\-\|\-\fR
 Marks the end of switches.  The argument following this one will
 be treated as \fIexp\fR even if it starts with a \fB\-\fR.
-.VE
 .PP
-.VS
 The command returns a count of the number of matching ranges that
 were found and replaced.
-.VE
 See the manual entry for \fBregexp\fR for details on the interpretation
 of regular expressions.
 

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lsearch.test 1.5 96/02/16 08:56:15
+# SCCS: @(#) lsearch.test 1.7 97/04/30 13:23:53
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -35,18 +35,27 @@ test lsearch-2.2 {search modes} {
     lsearch -exact {b.x ^bc xy bcx} ^bc
 } 1
 test lsearch-2.3 {search modes} {
-    list [catch {lsearch -regexp {xyz bbcc *bc*} *bc*} msg] $msg
-} {1 {couldn't compile regular expression pattern: ?+* follows nothing}}
+    lsearch -exact {foo bar cat} ba
+} -1
 test lsearch-2.4 {search modes} {
-    lsearch -regexp {b.x ^bc xy bcx} ^bc
-} 3
+    lsearch -exact {foo bar cat} bart
+} -1
 test lsearch-2.5 {search modes} {
-    lsearch -glob {xyz bbcc *bc*} *bc*
+    lsearch -exact {foo bar cat} bar
 } 1
 test lsearch-2.6 {search modes} {
+    list [catch {lsearch -regexp {xyz bbcc *bc*} *bc*} msg] $msg
+} {1 {couldn't compile regular expression pattern: ?+* follows nothing}}
+test lsearch-2.7 {search modes} {
+    lsearch -regexp {b.x ^bc xy bcx} ^bc
+} 3
+test lsearch-2.8 {search modes} {
+    lsearch -glob {xyz bbcc *bc*} *bc*
+} 1
+test lsearch-2.9 {search modes} {
     lsearch -glob {b.x ^bc xy bcx} ^bc
 } 1
-test lsearch-2.7 {search modes} {
+test lsearch-2.10 {search modes} {
     list [catch {lsearch -glib {b.x bx xy bcx} b.x} msg] $msg
 } {1 {bad search mode "-glib": must be -exact, -glob, or -regexp}}
 
@@ -65,3 +74,13 @@ test lsearch-3.4 {lsearch errors} {
 test lsearch-3.5 {lsearch errors} {
     list [catch {lsearch "\{" b} msg] $msg
 } {1 {unmatched open brace in list}}
+
+test lsearch-4.1 {binary data} {
+    lsearch -exact [list foo one\000two bar] bar
+} 2
+test lsearch-4.2 {binary data} {
+    set x one
+    append x \x00
+    append x two
+    lsearch -exact [list foo one\000two bar] $x
+} 1

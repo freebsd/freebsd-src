@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) DString.3 1.19 96/03/25 20:01:32
+'\" SCCS: @(#) DString.3 1.20 96/08/26 12:59:44
 '\" 
 .so man.macros
 .TH Tcl_DString 3 7.4 Tcl "Tcl Library Procedures"
@@ -34,17 +34,13 @@ int
 char *
 \fBTcl_DStringValue\fR(\fIdsPtr\fR)
 .sp
-.VS
 \fBTcl_DStringSetLength\fR(\fIdsPtr, newLength\fR)
-.VE
 .sp
 \fBTcl_DStringFree\fR(\fIdsPtr\fR)
 .sp
 \fBTcl_DStringResult\fR(\fIinterp, dsPtr\fR)
 .sp
-.VS
 \fBTcl_DStringGetResult\fR(\fIinterp, dsPtr\fR)
-.VE
 .SH ARGUMENTS
 .AS Tcl_DString newLength
 .AP Tcl_DString *dsPtr in/out
@@ -114,7 +110,6 @@ of a dynamic string (not including the terminating null character).
 \fBTcl_DStringValue\fR is a  macro that returns a pointer to the
 current contents of a dynamic string.
 .PP
-.VS
 .PP
 \fBTcl_DStringSetLength\fR changes the length of a dynamic string.
 If \fInewLength\fR is less than the string's current length, then
@@ -128,7 +123,6 @@ caller to fill in the new space.
 \fBTcl_DStringSetLength\fR does not free up the string's storage space
 even if the string is truncated to zero length, so \fBTcl_DStringFree\fR
 will still need to be called.
-.VE
 .PP
 \fBTcl_DStringFree\fR should be called when you're finished using
 the string.  It frees up any memory that was allocated for the string
@@ -141,13 +135,11 @@ This saves the cost of allocating new memory and copying the string.
 \fBTcl_DStringResult\fR also reinitializes the dynamic string to
 an empty string.
 .PP
-.VS
 \fBTcl_DStringGetResult\fR does the opposite of \fBTcl_DStringResult\fR.
 It sets the value of \fIdsPtr\fR to the result of \fIinterp\fR and
 it clears \fIinterp\fR's result.
 If possible it does this by moving a pointer rather than by copying
 the string.
-.VE
 
 .SH KEYWORDS
 append, dynamic string, free, result

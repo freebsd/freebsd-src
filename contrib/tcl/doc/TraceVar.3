@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) TraceVar.3 1.25 96/03/25 20:08:44
+'\" SCCS: @(#) TraceVar.3 1.26 96/08/26 12:59:52
 '\" 
 .so man.macros
 .TH Tcl_TraceVar 3 7.4 Tcl "Tcl Library Procedures"
@@ -39,11 +39,9 @@ Interpreter containing variable.
 Name of variable.  May refer to a scalar variable, to
 an array variable with no index, or to an array variable
 with a parenthesized index.
-.VS
 If the name references an element of an array, then it
 must be in writable memory:  Tcl will make temporary modifications 
 to it while looking up the name.
-.VE
 .AP int flags in
 OR-ed combination of the values TCL_TRACE_READS, TCL_TRACE_WRITES, and
 TCL_TRACE_UNSETS, and TCL_GLOBAL_ONLY.  Not all flags are used by all
@@ -195,10 +193,8 @@ for the variable, so that calls to \fBTcl_GetVar2\fR and
 to be invoked again.
 Disabling only occurs for the variable whose trace procedure
 is active;  accesses to other variables will still be traced.
-.VS
 However, if a variable is unset during a read or write trace then unset
 traces will be invoked.
-.VE
 .PP
 During unset traces the variable has already been completely
 expunged.
@@ -222,10 +218,8 @@ and \fBTcl_GetVar2\fR procedures.
 returned.
 It may modify the value of the variable to affect what
 is returned by the traced access.
-.VS
 If it unsets the variable then the access will return an error
 just as if the variable never existed.
-.VE
 .PP
 When write tracing has been specified for a variable, the
 trace procedure will be invoked whenever the variable's value
@@ -239,10 +233,8 @@ returned.
 It may modify the value of the variable to override the change
 and to determine the value actually returned by the traced
 access.
-.VS
 If it deletes the variable then the traced access will return
 an empty string.
-.VE
 .PP
 When unset tracing has been specified, the trace procedure
 will be invoked whenever the variable is destroyed.
@@ -270,11 +262,9 @@ access, in order from most-recently-created to least-recently-created.
 When there exist whole-array traces for an array as well as
 traces on individual elements, the whole-array traces are invoked
 before the individual-element traces.
-.VS
 If a read or write trace unsets the variable then all of the unset
 traces will be invoked but the remainder of the read and write traces
 will be skipped.
-.VE
 
 .SH "ERROR RETURNS"
 .PP

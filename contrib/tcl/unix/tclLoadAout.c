@@ -14,7 +14,7 @@
  * and Design Engineering (MADE) Initiative through ARPA contract
  * F33615-94-C-4400.
  *
- * SCCS: @(#) tclLoadAout.c 1.7 96/02/15 11:58:53
+ * SCCS: @(#) tclLoadAout.c 1.9 97/02/22 14:05:01
  */
 
 #include "tclInt.h"
@@ -183,6 +183,8 @@ TclLoadFile(interp, fileName, sym1, sym2, proc1Ptr, proc2Ptr)
 #if defined(__mips) || defined(mips)
   Tcl_DStringAppend (&linkCommandBuf, " -G 0 ", -1);
 #endif
+  Tcl_DStringAppend (&linkCommandBuf, " -u TclLoadDictionary_", -1);
+  TclGuessPackageName(fileName, &linkCommandBuf);
   Tcl_DStringAppend (&linkCommandBuf, " -A ", -1);
   Tcl_DStringAppend (&linkCommandBuf, inputSymbolTable, -1);
   Tcl_DStringAppend (&linkCommandBuf, " -N -T XXXXXXXX ", -1);
@@ -429,5 +431,40 @@ TclGuessPackageName(fileName, bufPtr)
     Tcl_DString *bufPtr;	/* Initialized empty dstring.  Append
 				 * package name to this if possible. */
 {
-    return 0;
+    char *p, *q, *r;
+
+    if (q = strrchr(fileName,'/')) {
+	q++;
+    } else {
+	q = fileName;
+    }
+    if (!strncmp(q,"lib",3)) {
+	q+=3;
+    }
+    p = q;
+    while ((*p) && (*p != '.') && ((*p<'0') || (*p>'9'))) {
+	p++;
+    }
+    if ((p>q+2) && !strncmp(p-2,"_G0.",4)) {
+	p-=2;
+    }
+    if (p<q) {
+	return 0;
+    }
+
+    Tcl_DStringAppend(bufPtr,q, p-q);
+
+    r = Tcl_DStringValue(bufPtr);
+    r += strlen(r) - (p-q);
+
+    if (islower(UCHAR(*r))) {
+	*r = (char) toupper(UCHAR(*r));
+    }
+    while (*(++r)) {
+	if (isupper(UCHAR(*r))) {
+	    *r = (char) tolower(UCHAR(*r));
+	}
+    }
+
+    return 1;
 }

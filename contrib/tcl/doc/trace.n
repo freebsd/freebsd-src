@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) trace.n 1.11 96/03/25 20:25:42
+'\" SCCS: @(#) trace.n 1.12 96/08/26 13:00:18
 '\" 
 .so man.macros
 .TH trace n "" Tcl "Tcl Built-In Commands"
@@ -92,9 +92,7 @@ result of the traced operation.
 The return value from  \fIcommand\fR is ignored except that
 if it returns an error of any sort then the traced operation
 also returns an error with
-.VS
 the same error message returned by the trace command
-.VE
 (this mechanism can be used to implement read-only variables, for
 example).
 For write traces, \fIcommand\fR is invoked after the variable's
@@ -108,10 +106,8 @@ on the variable are temporarily disabled.
 This means that reads and writes invoked by
 \fIcommand\fR will occur directly, without invoking \fIcommand\fR
 (or any other traces) again.
-.VS
 However, if \fIcommand\fR unsets the variable then unset traces
 will be invoked.
-.VE
 .PP
 When an unset trace is invoked, the variable has already been
 deleted:  it will appear to be undefined with no traces.
@@ -122,9 +118,7 @@ will no longer exist.
 Traces are not disabled during unset traces, so if an unset trace
 command creates a new trace and accesses the variable, the
 trace will be invoked.
-.VS
 Any errors in unset traces are ignored.
-.VE
 .PP
 If there are multiple traces on a variable they are invoked
 in order of creation, most-recent first.
