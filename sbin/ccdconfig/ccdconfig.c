@@ -177,7 +177,7 @@ do_single(int argc, char **argv, int action)
 	if (action == CCD_UNCONFIG || action == CCD_UNCONFIGALL) {
 		for (i = 0; argc != 0; ) {
 			cp = *argv++; --argc;
-			if ((ccd = resolve_ccdname(cp)) == NULL) {
+			if ((ccd = resolve_ccdname(cp)) < 0) {
 				warnx("invalid ccd name: %s", cp);
 				i = 1;
 				continue;
@@ -208,7 +208,7 @@ do_single(int argc, char **argv, int action)
 
 	/* First argument is the ccd to configure. */
 	cp = *argv++; --argc;
-	if ((ccd = resolve_ccdname(cp)) == NULL) {
+	if ((ccd = resolve_ccdname(cp)) < 0) {
 		warnx("invalid ccd name: %s", cp);
 		return (1);
 	}
