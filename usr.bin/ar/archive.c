@@ -36,6 +36,8 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)archive.c	8.3 (Berkeley) 4/2/94";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,6 +48,7 @@ static const char sccsid[] = "@(#)archive.c	8.3 (Berkeley) 4/2/94";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -210,7 +213,7 @@ put_arobj(cfp, sb)
 	 * the last header read.
 	 */
 	if (sb) {
-		name = rname(cfp->rname);
+		name = basename(cfp->rname);
 		(void)fstat(cfp->rfd, sb);
 
 		/*
