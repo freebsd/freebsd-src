@@ -135,7 +135,6 @@ struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 
 /* A mutex to protect the association between a proc and filedesc. */
 struct mtx	fdesc_mtx;
-MTX_SYSINIT(fdesc, &fdesc_mtx, "fdesc", MTX_DEF);
 
 /*
  * Find the first zero bit in the given bitmap, starting at low and not
@@ -2423,12 +2422,62 @@ SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     &openfiles, 0, "System-wide number of open files");
 
 
-static fo_rdwr_t	badfo_readwrite;
-static fo_ioctl_t	badfo_ioctl;
-static fo_poll_t	badfo_poll;
-static fo_kqfilter_t	badfo_kqfilter;
-static fo_stat_t	badfo_stat;
-static fo_close_t	badfo_close;
+/* ARGSUSED*/
+static void
+filelistinit(void *dummy)
+{
+
+	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	sx_init(&filelist_lock, "filelist lock");
+	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
+	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
+}
+SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL)
+
+/*-------------------------------------------------------------------*/
+
+static int
+badfo_readwrite(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags, struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred, struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_poll(struct file *fp, int events, struct ucred *active_cred, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+badfo_kqfilter(struct file *fp, struct knote *kn)
+{
+
+	return (0);
+}
+
+static int
+badfo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred, struct thread *td)
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_close(struct file *fp, struct thread *td)
+{
+
+	return (EBADF);
+}
 
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
@@ -2440,84 +2489,6 @@ struct fileops badfileops = {
 	.fo_close = badfo_close,
 };
 
-static int
-badfo_readwrite(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	struct thread *td;
-	int flags;
-{
-
-	return (EBADF);
-}
-
-static int
-badfo_ioctl(fp, com, data, active_cred, td)
-	struct file *fp;
-	u_long com;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
-{
-
-	return (EBADF);
-}
-
-static int
-badfo_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
-{
-
-	return (0);
-}
-
-static int
-badfo_kqfilter(fp, kn)
-	struct file *fp;
-	struct knote *kn;
-{
-
-	return (0);
-}
-
-static int
-badfo_stat(fp, sb, active_cred, td)
-	struct file *fp;
-	struct stat *sb;
-	struct ucred *active_cred;
-	struct thread *td;
-{
-
-	return (EBADF);
-}
-
-static int
-badfo_close(fp, td)
-	struct file *fp;
-	struct thread *td;
-{
-
-	return (EBADF);
-}
-
-static void filelistinit(void *);
-SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL)
-
-/* ARGSUSED*/
-static void
-filelistinit(dummy)
-	void *dummy;
-{
-
-	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
-	sx_init(&filelist_lock, "filelist lock");
-	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
-}
 
 /*-------------------------------------------------------------------*/
 
