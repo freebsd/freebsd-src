@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd October 8, 2004
-.Dt AUXIO 4
+.Dt AUXIO 4 sparc64
 .Os
 .Sh NAME
 .Nm auxio
@@ -40,16 +40,16 @@ The
 .Nm
 device provides auxiliary I/O functions required by Sun
 .Tn UltraSPARC
-workstation and server models. The front panel LED is also
-controlled by the deivce.
+workstation and server models.
+The front panel LED is also controlled by the deivce.
 This LED can be made to blink by writing
 .Tn ASCII
 strings to the
-.Pa /dev/led/auxio
+.Pa /dev/led/auxioled
 device.
 .Sh FILES
-.Bl -tag -width "/dev/led/auxio"
-.It Pa /dev/led/auxio
+.Bl -tag -width ".Pa /dev/led/auxioled"
+.It Pa /dev/led/auxioled
 Auxiliary I/O device node
 .El
 .Sh SEE ALSO
@@ -57,14 +57,16 @@ Auxiliary I/O device node
 .Sh HISTORY
 The
 .Nm
-driver was written for
-.Nx
-by
-.An Matthew R. Green .
+driver appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
 The
 .Nm
-driver was then ported to
-.Fx 5.3
-by
+driver was ported by
 .An Pyun YongHyeon
-.Aq yongari@FreeBSD.org .
+.Aq yongari@FreeBSD.org
+from the
+.Nx
+driver written by
+.An Matthew R. Green .
