@@ -1,8 +1,8 @@
 /* cmds.c */
 
 /*  $RCSfile: cmds.c,v $
- *  $Revision: 14020.14 $
- *  $Date: 93/07/09 11:31:53 $
+ *  $Revision: 1.1.1.1 $
+ *  $Date: 1994/09/22 23:45:33 $
  */
 
 #include "sys.h"
@@ -37,7 +37,7 @@
 
 /* cmds.c globals */
 #ifdef PASSIVEMODE
-int					passivemode = 1;
+int					passivemode = 0;
 #endif
 int					curtype;			/* file transfer type */
 char				*typeabbrs = "abiet";
