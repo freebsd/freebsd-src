@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.15 1998/04/30 11:39:08 ache Exp $ */
+/*	$Id: msgcat.c,v 1.16 1998/04/30 12:25:05 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -273,7 +273,7 @@ nl_catd catd;
     MCSetT	*set;
     int		i;
 
-    if (!cat) return -1;
+    if (catd == NULL || catd == NLERR) return -1;
 
     if (cat->loadType != MCLoadAll) close(cat->fd);
     for (i = 0; i < cat->numSets; ++i) {
