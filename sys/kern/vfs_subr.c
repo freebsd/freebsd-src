@@ -83,7 +83,6 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
-static void	vclean(struct vnode *vp, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo);
@@ -2193,7 +2192,7 @@ vx_lock(struct vnode *vp)
 	 * clean it out.
 	 */
 	if (vp->v_iflag & VI_XLOCK)
-		panic("vclean: deadlock");
+		panic("vx_lock: deadlock");
 	vp->v_iflag |= VI_XLOCK;
 	vp->v_vxthread = curthread;
 }
@@ -2209,16 +2208,62 @@ vx_unlock(struct vnode *vp)
 		wakeup(vp);
 	}
 }
+/*
+ * Recycle an unused vnode to the front of the free list.
+ * Release the passed interlock if the vnode will be recycled.
+ */
+int
+vrecycle(vp, inter_lkp, td)
+	struct vnode *vp;
+	struct mtx *inter_lkp;
+	struct thread *td;
+{
+
+	VI_LOCK(vp);
+	if (vp->v_usecount == 0) {
+		if (inter_lkp) {
+			mtx_unlock(inter_lkp);
+		}
+		vgonel(vp, td);
+		return (1);
+	}
+	VI_UNLOCK(vp);
+	return (0);
+}
 
 /*
- * Disassociate the underlying filesystem from a vnode.
+ * Eliminate all activity associated with a vnode
+ * in preparation for reuse.
  */
-static void
-vclean(struct vnode *vp, struct thread *td)
+void
+vgone(struct vnode *vp)
+{
+	struct thread *td = curthread;	/* XXX */
+
+	VI_LOCK(vp);
+	vgonel(vp, td);
+}
+
+/*
+ * vgone, with the vp interlock held.
+ */
+void
+vgonel(struct vnode *vp, struct thread *td)
 {
 	int active;
 
-	ASSERT_VI_LOCKED(vp, "vclean");
+	/*
+	 * If a vgone (or vclean) is already in progress,
+	 * wait until it is done and return.
+	 */
+	ASSERT_VI_LOCKED(vp, "vgonel");
+	if (vp->v_iflag & VI_XLOCK) {
+		vp->v_iflag |= VI_XWANT;
+		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
+		return;
+	}
+	vx_lock(vp);
+
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
 	 * before we clean it out so that its count cannot fall to zero and
@@ -2319,69 +2364,7 @@ vclean(struct vnode *vp, struct thread *td)
 	if (vp->v_pollinfo != NULL)
 		vn_pollgone(vp);
 	vp->v_tag = "none";
-}
 
-/*
- * Recycle an unused vnode to the front of the free list.
- * Release the passed interlock if the vnode will be recycled.
- */
-int
-vrecycle(vp, inter_lkp, td)
-	struct vnode *vp;
-	struct mtx *inter_lkp;
-	struct thread *td;
-{
-
-	VI_LOCK(vp);
-	if (vp->v_usecount == 0) {
-		if (inter_lkp) {
-			mtx_unlock(inter_lkp);
-		}
-		vgonel(vp, td);
-		return (1);
-	}
-	VI_UNLOCK(vp);
-	return (0);
-}
-
-/*
- * Eliminate all activity associated with a vnode
- * in preparation for reuse.
- */
-void
-vgone(vp)
-	struct vnode *vp;
-{
-	struct thread *td = curthread;	/* XXX */
-
-	VI_LOCK(vp);
-	vgonel(vp, td);
-}
-
-/*
- * vgone, with the vp interlock held.
- */
-void
-vgonel(vp, td)
-	struct vnode *vp;
-	struct thread *td;
-{
-	/*
-	 * If a vgone (or vclean) is already in progress,
-	 * wait until it is done and return.
-	 */
-	ASSERT_VI_LOCKED(vp, "vgonel");
-	if (vp->v_iflag & VI_XLOCK) {
-		vp->v_iflag |= VI_XWANT;
-		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
-		return;
-	}
-	vx_lock(vp);
-
-	/*
-	 * Clean out the filesystem specific data.
-	 */
-	vclean(vp, td);
 	VI_UNLOCK(vp);
 
 	/*
