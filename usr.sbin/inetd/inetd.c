@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.58 1999/07/09 11:18:59 sheldonh Exp $";
+	"$Id: inetd.c,v 1.59 1999/07/09 11:46:45 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -110,6 +110,8 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
+#include <sys/ucred.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -117,6 +119,7 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -255,6 +258,7 @@ void		endconfig __P((void));
 struct servtab *enter __P((struct servtab *));
 void		freeconfig __P((struct servtab *));
 struct servtab *getconfigent __P((void));
+void		iderror __P((int, int, FILE *, int));
 void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
@@ -1617,9 +1621,21 @@ inetd_setproctitle(a, s)
 /*
  * Internet services provided internally by inetd:
  */
-#define	BUFSIZE	8192
+#define		BUFSIZE 8192
 
-#define IDENT_RESPONSE ":ERROR:HIDDEN-USER\r\n"
+/* ARGSUSED */
+void
+iderror(lport, fport, fp, er)
+	int lport, fport, er;
+	FILE *fp;
+{
+	fprintf(fp, "%d , %d : ERROR : %s\r\n", lport, fport, 
+	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
+	fflush(fp);
+	fclose(fp);
+
+	exit(0);
+}
 
 /* ARGSUSED */
 void
@@ -1627,25 +1643,90 @@ ident_stream(s, sep)		/* Ident service */
 	int s;
 	struct servtab *sep;
 {
-	char buffer[BUFSIZE];
-	int i, j;
+	struct sockaddr_in sin[2];
+#ifdef REAL_IDENT
+	struct ucred uc;
+	struct passwd *pw;
+#endif
+	FILE *fp;
+#ifdef FAKEID
+	FILE *fakeid = NULL;
+	char fakeid_path[PATH_MAX];
+	struct stat sb;
+#endif
+	char buf[BUFSIZE];
+	char *cp;
+	int len;
+	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
-	j = 0;
-	while ((i = read(s, buffer + j, sizeof(buffer) - j)) > 0) {
-		j += i;
-		buffer[j] = '\0';
-		if (strchr(buffer, '\n'))
-			break;
-		if (strchr(buffer, '\r'))
-			break;
-	}
-	while (j > 0 && (buffer[j-1] == '\n' || buffer[j-1] == '\r'))
-		j--;
-	write(s, buffer, j);
-	write(s, IDENT_RESPONSE, strlen(IDENT_RESPONSE));
+	fp = fdopen(s, "r+");
+	len = sizeof(sin[0]);
+	if (getsockname(s, (struct sockaddr *)&sin[0], &len) == -1)
+		iderror(0, 0, fp, errno);
+	len = sizeof(sin[1]);
+	if (getpeername(s, (struct sockaddr *)&sin[1], &len) == -1)
+		iderror(0, 0, fp, errno);
+	errno = 0;
+	if (fgets(buf, sizeof(buf), fp) == NULL)
+		iderror(0, 0, fp, errno);
+	buf[BUFSIZE - 1] = '\0';
+	strtok(buf, "\r\n");
+	cp = strtok(buf, ",");
+	if (cp == NULL || sscanf(cp, "%hu", &lport) != 1)
+		iderror(0, 0, fp, 0);
+	cp = strtok(NULL, ",");
+	if (cp == NULL || sscanf(cp, "%hu", &fport) != 1)
+		iderror(0, 0, fp, 0);
+#ifndef REAL_IDENT
+	iderror(lport, fport, fp, -1);
+#else
+	sin[0].sin_port = htons(lport);
+	sin[1].sin_port = htons(fport);
+	len = sizeof(uc);
+	if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
+	    sizeof(sin)) == -1)
+		iderror(lport, fport, fp, errno);
+	pw = getpwuid(uc.cr_uid);
+	if (pw == NULL)
+		iderror(lport, fport, fp, errno);
+#ifdef FAKEID
+	seteuid(pw->pw_uid);
+	setegid(pw->pw_gid);
+	snprintf(fakeid_path, sizeof(fakeid_path), "%s/.fakeid", pw->pw_dir);
+	if ((fakeid = fopen(fakeid_path, "r")) != NULL &&
+	    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
+		buf[sizeof(buf) - 1] = '\0';
+		if (fgets(buf, sizeof(buf), fakeid) == NULL) {
+			cp = pw->pw_name;
+			goto printit;
+		}
+		strtok(buf, "\r\n");
+		if (strlen(buf) > 16)
+			buf[16] = '\0';
+		cp = buf;
+		while (isspace(*cp))
+			cp++;
+		strtok(cp, " \t");
+		if (!*cp || getpwnam(cp))
+			cp = getpwuid(uc.cr_uid)->pw_name;
+	} else
+#endif
+	cp = pw->pw_name;
+#ifdef FAKEID
+	if (fakeid)
+		fclose(fakeid);
+printit:
+#endif
+	fprintf(fp, "%d , %d : USERID : FreeBSD :%s\r\n", lport, fport,
+	    cp);
+	fflush(fp);
+	fclose(fp);
+	
 	exit(0);
+#endif
 }
+
 /* ARGSUSED */
 void
 echo_stream(s, sep)		/* Echo service -- echo data back */
