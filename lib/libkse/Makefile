@@ -30,8 +30,9 @@ CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
-.include "${.CURDIR}/thread/Makefile.inc"
-.include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 .include "${.CURDIR}/support/Makefile.inc"
+.include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/thread/Makefile.inc"
 
 .include <bsd.lib.mk>
