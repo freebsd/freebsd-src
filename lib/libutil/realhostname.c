@@ -122,8 +122,10 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				port = ((struct sockinet *)addr)->si_port;
 				((struct sockinet *)addr)->si_port = 0;
 				if (!memcmp(sa, addr, sa->sa_len)) {
-					strncpy(host, res->ai_canonname,
-						hsize);
+					if (res->ai_canonname != 0)
+						strncpy(host,
+							res->ai_canonname,
+							hsize);
 					result = HOSTNAME_FOUND;
 					((struct sockinet *)addr)->si_port =
 						port;
@@ -146,8 +148,10 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				if (IN6_IS_ADDR_V4MAPPED(in6) &&
 				    !memcmp(&in6->s6_addr[12], in,
 					    sizeof(*in))) {
-					strncpy(host, res->ai_canonname,
-						hsize);
+					if (res->ai_canonname != 0)
+						strncpy(host,
+							res->ai_canonname,
+							hsize);
 					result = HOSTNAME_FOUND;
 					break;
 				}
