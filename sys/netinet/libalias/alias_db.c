@@ -2641,20 +2641,11 @@ PacketAliasCheckNewLink(void)
 #include <string.h>
 #include <err.h>
 
-#define NEW_IPFW	1	/* use new ipfw code */
-#ifdef NEW_IPFW
-/*
- * A function to fill simple commands of size 1.
- * Existing flags are preserved.
- */
-static void
-fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, u_int16_t arg)
-{
-        cmd->opcode = opcode;
-        cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) | 1;
-        cmd->arg1 = arg;
-}
+#ifndef IPFW2
+#define IPFW2	1	/* use new ipfw code */
+#endif
 
+#if IPFW2		/* support for new firewall code */
 /*
  * helper function, updates the pointer to cmd with the length
  * of the current command, and also cleans up the first word of
@@ -2663,31 +2654,48 @@ fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, u_int16_t arg)
 static ipfw_insn *
 next_cmd(ipfw_insn *cmd)
 {
-        cmd += F_LEN(cmd);
-        bzero(cmd, sizeof(*cmd));
-        return cmd;
+	cmd += F_LEN(cmd);
+	bzero(cmd, sizeof(*cmd));
+	return cmd;
 }
 
-static void
-fill_ip(ipfw_insn_ip *cmd, enum ipfw_opcodes opcode, u_int32_t addr)
+/*
+ * A function to fill simple commands of size 1.
+ * Existing flags are preserved.
+ */
+static ipfw_insn *
+fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int size,
+	 int flags, u_int16_t arg)
 {
-	cmd->o.opcode = opcode;
-	cmd->o.len = F_INSN_SIZE(ipfw_insn_u32);
+	cmd->opcode = opcode;
+	cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) |
+		(size & F_LEN_MASK);
+	cmd->arg1 = arg;
+	return next_cmd(cmd);
+}
+
+static ipfw_insn *
+fill_ip(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int32_t addr)
+{
+	ipfw_insn_ip *cmd = (ipfw_insn_ip *)cmd1;
+
 	cmd->addr.s_addr = addr;
+	return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u32), 0, 0);
 }
 
-static void
-fill_one_port(ipfw_insn_u16 *cmd, enum ipfw_opcodes opcode, u_int16_t port)
+static ipfw_insn *
+fill_one_port(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int16_t port)
 {
-	cmd->o.opcode = opcode;
-	cmd->o.len = F_INSN_SIZE(ipfw_insn_u16);
+	ipfw_insn_u16 *cmd = (ipfw_insn_u16 *)cmd1;
+
 	cmd->ports[0] = cmd->ports[1] = port;
+	return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u16), 0, 0);
 }
 
 static int
 fill_rule(void *buf, int bufsize, int rulenum,
 	enum ipfw_opcodes action, int proto,
-	struct in_addr sa, u_int16_t sp, struct in_addr da, u_int32_t dp)
+	struct in_addr sa, u_int16_t sp, struct in_addr da, u_int16_t dp)
 {
 	struct ip_fw *rule = (struct ip_fw *)buf;
 	ipfw_insn *cmd = (ipfw_insn *)rule->cmd;
@@ -2695,27 +2703,20 @@ fill_rule(void *buf, int bufsize, int rulenum,
 	bzero(buf, bufsize);
 	rule->rulenum = rulenum;
 
-	fill_cmd(cmd, O_PROTO, 0, proto);
-	cmd = next_cmd(cmd);
+	cmd = fill_cmd(cmd, O_PROTO, F_INSN_SIZE(ipfw_insn), 0, proto);
+	cmd = fill_ip(cmd, O_IP_SRC, sa.s_addr);
+	cmd = fill_one_port(cmd, O_IP_SRCPORT, sp);
+	cmd = fill_ip(cmd, O_IP_DST, da.s_addr);
+	cmd = fill_one_port(cmd, O_IP_DSTPORT, dp);
 
-	fill_ip((ipfw_insn_ip *)cmd, O_IP_SRC, sa.s_addr);
-	cmd = next_cmd(cmd);
+	rule->act_ofs = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
+	cmd = fill_cmd(cmd, action, F_INSN_SIZE(ipfw_insn), 0, 0);
 
-	fill_one_port((ipfw_insn_u16 *)cmd, O_IP_SRCPORT, sp);
-	cmd = next_cmd(cmd);
-
-	fill_ip((ipfw_insn_ip *)cmd, O_IP_DST, da.s_addr);
-	cmd = next_cmd(cmd);
-
-	fill_one_port((ipfw_insn_u16 *)cmd, O_IP_DSTPORT, dp);
-	cmd = next_cmd(cmd);
-
-	fill_cmd(cmd, O_ACCEPT, 0, 0);
-	cmd = next_cmd(cmd);
+	rule->cmd_len = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
 
 	return ((void *)cmd - buf);
 }
-#endif /* NEW_IPFW */
+#endif /* IPFW2 */
 
 static void ClearAllFWHoles(void);
 
@@ -2800,14 +2801,14 @@ PunchFWHole(struct alias_link *link) {
     /* Start next search at next position */
     fireWallActiveNum = fwhole+1;
 
-#ifdef NEW_IPFW
+    /*
+     * generate two rules of the form
+     *
+     *	add fwhole accept tcp from OAddr OPort to DAddr DPort
+     *	add fwhole accept tcp from DAddr DPort to OAddr OPort
+     */
+#if IPFW2
     if (GetOriginalPort(link) != 0 && GetDestPort(link) != 0) {
-	/*
-	 * generate two rules of the form
-	 *
-	 *	add fwhole accept tcp from OAddr OPort to DAddr DPort
-	 *	add fwhole accept tcp from DAddr DPort to OAddr OPort
-	 */
 	u_int32_t rulebuf[255];
 	int i;
 
@@ -2827,7 +2828,7 @@ PunchFWHole(struct alias_link *link) {
 	if (r)
 		err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
     }
-#else	/* !NEW_IPFW old code to generate ipfw rule */
+#else	/* !IPFW2, old code to generate ipfw rule */
 
     /* Build generic part of the two rules */
     rule.fw_number = fwhole;
@@ -2864,7 +2865,7 @@ PunchFWHole(struct alias_link *link) {
             err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
 #endif
     }
-#endif /* !NEW_IPFW */
+#endif /* !IPFW2 */
 /* Indicate hole applied */
     link->data.tcp->fwhole = fwhole;
     fw_setfield(fireWallField, fwhole);
@@ -2876,20 +2877,22 @@ static void
 ClearFWHole(struct alias_link *link) {
     if (link->link_type == LINK_TCP) {
         int fwhole =  link->data.tcp->fwhole; /* Where is the firewall hole? */
-#ifdef NEW_IPFW
-	while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &fwhole, sizeof fwhole))
-	    ;
-#else /* !NEW_IPFW */
         struct ip_fw rule;
 
-        if (fwhole < 0)
-            return;
+	if (fwhole < 0)
+	    return;
 
-        memset(&rule, 0, sizeof rule);
+        memset(&rule, 0, sizeof rule); /* useless for ipfw2 */
+#if IPFW2
+	while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL,
+		    &fwhole, sizeof fwhole))
+	    ;
+#else /* !IPFW2 */
         rule.fw_number = fwhole;
-        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
+        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL,
+		    &rule, sizeof rule))
             ;
-#endif /* !NEW_IPFW */
+#endif /* !IPFW2 */
         fw_clrfield(fireWallField, fwhole);
 
         link->data.tcp->fwhole = -1;
@@ -2907,15 +2910,15 @@ ClearAllFWHoles(void) {
 
     memset(&rule, 0, sizeof rule);
     for (i = fireWallBaseNum; i < fireWallBaseNum + fireWallNumNums; i++) {
-#ifdef NEW_IPFW
+#if IPFW2
 	int r = i;
 	while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &r, sizeof r))
 	    ;
-#else /* !NEW_IPFW */
+#else /* !IPFW2 */
         rule.fw_number = i;
         while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
             ;
-#endif /* NEW_IPFW */
+#endif /* !IPFW2 */
     }
     memset(fireWallField, 0, fireWallNumNums);
 }
