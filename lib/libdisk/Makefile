@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11.4.6 1996/06/05 02:52:27 jkh Exp $
+#	$Id: Makefile,v 1.11.4.7 1996/07/09 12:18:58 jkh Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
@@ -37,7 +37,8 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 		libdisk.3 MakeDev.3 \
 		libdisk.3 MakeDevDisk.3 \
 		libdisk.3 ShowChunkFlags.3 \
-		libdisk.3 ChunkCanBeRoot.3
+		libdisk.3 ChunkCanBeRoot.3 \
+		libdisk.3 slice_type_name.3
 
 .include <bsd.lib.mk>
 
