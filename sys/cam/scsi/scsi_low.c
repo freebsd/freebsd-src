@@ -115,7 +115,7 @@
 
 #include <cam/scsi/scsi_low.h>
 
-#if !defined(__FreeBSD__) || __FreeBSD_version < 400001
+#if !defined(__FreeBSD__)
 #include <i386/i386/cons.h>
 #else
 #include <sys/cons.h>
@@ -958,9 +958,6 @@ scsi_low_cam_rescan_callback(periph, ccb)
 
 	xpt_free_path(ccb->ccb_h.path);
 	free(ccb, M_DEVBUF);
-#if __FreeBSD_version < 400001
-	free(periph, M_DEVBUF);
-#endif
 }
 
 static void
@@ -969,10 +966,6 @@ scsi_low_rescan_bus_cam(slp)
 {
   	struct cam_path *path;
 	union ccb *ccb = malloc(sizeof(union ccb), M_DEVBUF, M_WAITOK);
-#if __FreeBSD_version < 400001
-	struct cam_periph *xpt_periph = malloc(sizeof(struct cam_periph),
-					       M_DEVBUF, M_WAITOK);
-#endif
 	cam_status status;
 
 	bzero(ccb, sizeof(union ccb));

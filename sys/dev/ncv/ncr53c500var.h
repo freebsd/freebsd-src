@@ -55,7 +55,6 @@ struct ncv_softc {
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_ioh;
 
-#if __FreeBSD_version >= 400001
 	int port_rid;
 	int port_rid_dmy;
 	int irq_rid;
@@ -66,7 +65,6 @@ struct ncv_softc {
 	struct resource *mem_res;
 
 	void *ncv_intrhand;
-#endif	/* __FreeBSD_version__ */
 #endif	/* __FreeBSD__ */
 
 	int sc_tmaxcnt;
