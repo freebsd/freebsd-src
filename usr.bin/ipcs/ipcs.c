@@ -23,18 +23,21 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: ipcs.c,v 1.8 1997/02/22 19:55:18 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <nlist.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <paths.h>
-#include <nlist.h>
-#include <kvm.h>
-#include <err.h>
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -200,7 +203,7 @@ main(argc, argv)
 	case 0:
 		break;
 	case -1:
-		errx(1, "unable to read kernel symbol table.");
+		errx(1, "unable to read kernel symbol table");
 	default:
 #ifdef notdef		/* they'll be told more civilly later */
 		warnx("nlist failed");
@@ -439,8 +442,6 @@ main(argc, argv)
 				if ((xsema[i].sem_perm.mode & SEM_ALLOC) != 0) {
 					char    ctime_buf[100], otime_buf[100];
 					struct semid_ds *semaptr = &xsema[i];
-					int     j, value;
-					union semun junk;
 
 					cvt_time(semaptr->sem_otime, otime_buf);
 					cvt_time(semaptr->sem_ctime, ctime_buf);
