@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)inet.3	8.1 (Berkeley) 6/4/93
-.\"	$Id: inet.3,v 1.3 1996/12/23 23:09:18 wosch Exp $
+.\"	$Id: inet.3,v 1.6 1997/03/19 19:41:20 bde Exp $
 .\"
 .Dd June 17, 1996
 .Dt INET 3
@@ -45,19 +45,20 @@
 .Nm inet_netof
 .Nd Internet address manipulation routines
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/inet.h>
 .Ft int 
-.Fn inet_aton "char *cp" "struct in_addr *pin"
+.Fn inet_aton "const char *cp" "struct in_addr *pin"
 .Ft unsigned long 
-.Fn inet_addr "char *cp"
+.Fn inet_addr "const char *cp"
 .Ft unsigned long 
-.Fn inet_network "char *cp"
+.Fn inet_network "const char *cp"
 .Ft char *
 .Fn inet_ntoa "struct in_addr in"
 .Ft struct in_addr 
-.Fn inet_makeaddr "int net" "int lna"
+.Fn inet_makeaddr "unsigned long net" "unsigned long lna"
 .Ft unsigned long 
 .Fn inet_lnaof "struct in_addr in"
 .Ft unsigned long 

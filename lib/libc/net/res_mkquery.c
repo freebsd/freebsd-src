@@ -55,7 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_mkquery.c,v 8.4 1996/08/05 08:31:35 vixie Exp $";
+static char orig_rcsid[] = "From: Id: res_mkquery.c,v 8.5 1996/08/27 08:33:28 vixie Exp ";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.12 1997/02/22 15:00:33 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -89,9 +90,6 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	register HEADER *hp;
 	register u_char *cp;
 	register int n;
-#ifdef ALLOW_UPDATES
-	struct rrec *newrr = (struct rrec *) newrr_in;
-#endif
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
@@ -181,63 +179,6 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 		hp->ancount = htons(1);
 		break;
 
-#ifdef ALLOW_UPDATES
-	/*
-	 * For UPDATEM/UPDATEMA, do UPDATED/UPDATEDA followed by UPDATEA
-	 * (Record to be modified is followed by its replacement in msg.)
-	 */
-	case UPDATEM:
-	case UPDATEMA:
-
-	case UPDATED:
-		/*
-		 * The res code for UPDATED and UPDATEDA is the same; user
-		 * calls them differently: specifies data for UPDATED; server
-		 * ignores data if specified for UPDATEDA.
-		 */
-	case UPDATEDA:
-		buflen -= RRFIXEDSZ + datalen;
-		if ((n = dn_comp(dname, cp, buflen, dnptrs, lastdnptr)) < 0)
-			return (-1);
-		cp += n;
-		__putshort(type, cp);
-		cp += INT16SZ;
-		__putshort(class, cp);
-		cp += INT16SZ;
-		__putlong(0, cp);
-		cp += INT32SZ;
-		__putshort(datalen, cp);
-		cp += INT16SZ;
-		if (datalen) {
-			bcopy(data, cp, datalen);
-			cp += datalen;
-		}
-		if ( (op == UPDATED) || (op == UPDATEDA) ) {
-			hp->ancount = htons(0);
-			break;
-		}
-		/* Else UPDATEM/UPDATEMA, so drop into code for UPDATEA */
-
-	case UPDATEA:	/* Add new resource record */
-		buflen -= RRFIXEDSZ + datalen;
-		if ((n = dn_comp(dname, cp, buflen, dnptrs, lastdnptr)) < 0)
-			return (-1);
-		cp += n;
-		__putshort(newrr->r_type, cp);
-		cp += INT16SZ;
-		__putshort(newrr->r_class, cp);
-		cp += INT16SZ;
-		__putlong(0, cp);
-		cp += INT32SZ;
-		__putshort(newrr->r_size, cp);
-		cp += INT16SZ;
-		if (newrr->r_size) {
-			bcopy(newrr->r_data, cp, newrr->r_size);
-			cp += newrr->r_size;
-		}
-		hp->ancount = htons(0);
-		break;
-#endif /* ALLOW_UPDATES */
 	default:
 		return (-1);
 	}

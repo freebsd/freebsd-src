@@ -48,6 +48,7 @@
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/nameser.h>
 .Fd #include <resolv.h>
+.Ft int
 .Fo res_query
 .Fa "const char *dname"
 .Fa "int class"
@@ -55,6 +56,7 @@
 .Fa "u_char *answer"
 .Fa "int anslen"
 .Fc
+.Ft int
 .Fo res_search
 .Fa "const char *dname"
 .Fa "int class"
@@ -62,23 +64,26 @@
 .Fa "u_char *answer"
 .Fa "int anslen"
 .Fc
+.Ft int
 .Fo res_mkquery
 .Fa "int op"
 .Fa "const char *dname"
 .Fa "int class"
 .Fa "int type"
-.Fa "const char *data"
+.Fa "const u_char *data"
 .Fa "int datalen"
-.Fa "struct rrec *newrr"
-.Fa "char *buf"
+.Fa "const u_char *newrr_in"
+.Fa "u_char *buf"
 .Fa "int buflen"
 .Fc
+.Ft int
 .Fo res_send
 .Fa "const char *msg"
 .Fa "int msglen"
 .Fa "char *answer"
 .Fa "int anslen"
 .Fc
+.Ft int
 .Fn res_init 
 .Fo dn_comp
 .Fa "const char *exp_dn"
@@ -87,11 +92,12 @@
 .Fa "char **dnptrs"
 .Fa "char **lastdnptr"
 .Fc
+.Ft int
 .Fo dn_expand
 .Fa "const u_char *msg"
 .Fa "const u_char *eomorig"
 .Fa "const u_char *comp_dn"
-.Fa "u_char *exp_dn"
+.Fa "char *exp_dn"
 .Fa "int length"
 .Fc
 .Sh DESCRIPTION

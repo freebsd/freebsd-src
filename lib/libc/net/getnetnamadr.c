@@ -24,8 +24,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.5 1996/07/12 18:54:40 jkh Exp $";
-static char rcsid[] = "$Id: getnetnamadr.c,v 1.5 1996/07/12 18:54:40 jkh Exp $";
+static char rcsid[] = "$Id: getnetnamadr.c,v 1.10 1997/06/27 08:22:02 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -147,7 +146,7 @@ getnetbyname(const char *name)
 
 struct netent *
 getnetbyaddr(addr, af)
-	long addr;
+	u_long addr;
 	int af;
 {
 	struct netent *hp = 0;

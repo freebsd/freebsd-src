@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: res_stubs.c,v 1.6 1997/06/27 08:35:13 peter Exp $
  */
 
 /*
- * This file is for FreeBSD-2.2 and early 3.0 that have a 4.9.4-P1 derived
- * resolver in the libc.  It provides aliases for functions that have moved
- * when 4.9.5-P1 is imported in 3.0.
+ * This file is for FreeBSD > 2.2.2 that has a bind-4.9.6 derived
+ * resolver in the libc.  It provides aliases for functions that
+ * have moved since 4.9.4-P1 and 4.9.5-P1.
  *
  * I'll save everybody the trouble and say it now:  *THIS IS A HACK*!
  *
@@ -41,22 +41,24 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
-__weak_reference(sym_ston, __sym_ston);
-__weak_reference(sym_ntos, __sym_ntos);
-__weak_reference(sym_ntop, __sym_ntop);
-__weak_reference(b64_ntop, __b64_ntop);
-__weak_reference(b64_pton, __b64_pton);
-__weak_reference(p_fqnname, __p_fqnname);
-__weak_reference(p_secstodate, __p_secstodate);
-__weak_reference(dn_count_labels, __dn_count_labels);
-__weak_reference(dn_comp, __dn_comp);
+__weak_reference(__sym_ston, sym_ston);
+__weak_reference(__sym_ntos, sym_ntos);
+__weak_reference(__sym_ntop, sym_ntop);
+__weak_reference(__fp_resstat, fp_resstat);
+__weak_reference(__p_query, p_query);
+__weak_reference(__p_fqnname, p_fqnname);
+__weak_reference(__p_secstodate, p_secstodate);
+__weak_reference(__dn_count_labels, dn_count_labels);
+__weak_reference(__dn_comp, dn_comp);
+__weak_reference(__res_close, _res_close);
+#ifdef BIND_RES_POSIX3
+__weak_reference(__dn_expand, dn_expand);
+__weak_reference(__res_init, res_init);
+__weak_reference(__res_query, res_query);
+__weak_reference(__res_search, res_search);
+__weak_reference(__res_querydomain, res_querydomain);
+__weak_reference(__res_mkquery, res_mkquery);
+__weak_reference(__res_send, res_send);
+#else
 __weak_reference(res_send, __res_send);
-__weak_reference(_res_close, __res_close);
-#ifdef BIND_RES_POSIX3		/* Last minute change between 4.9.5 and -P1 */
-__weak_reference(dn_expand, __dn_expand);
-__weak_reference(res_init, __res_init);
-__weak_reference(res_query, __res_query);
-__weak_reference(res_search, __res_search);
-__weak_reference(res_querydomain, __res_querydomain);
-__weak_reference(res_mkquery, __res_mkquery);
 #endif
