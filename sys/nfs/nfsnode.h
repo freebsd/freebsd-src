@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.9 1995/03/16 18:15:42 bde Exp $
+ * $Id: nfsnode.h,v 1.9.4.1 1996/03/21 20:30:09 phk Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -121,10 +121,10 @@ int	nfs_unlock __P((struct vop_unlock_args *));
 int	nfs_islocked __P((struct vop_islocked_args *));
 
 /* other stuff */
-int	nfs_removeit __P((struct sillyrename *));
-int	nfs_nget __P((struct mount *,nfsv2fh_t *,struct nfsnode **));
-int	nfs_lookitup __P((struct sillyrename *,nfsv2fh_t *,struct proc *));
-int	nfs_sillyrename __P((struct vnode *,struct vnode *,struct componentname *));
+int		nfs_removeit __P((struct sillyrename *));
+int		nfs_nget __P((struct mount *,nfsv2fh_t *,struct nfsnode **));
+static int	nfs_lookitup __P((struct sillyrename *,nfsv2fh_t *,struct proc *));
+static int	nfs_sillyrename __P((struct vnode *,struct vnode *,struct componentname *));
 
 #endif /* KERNEL */
 
