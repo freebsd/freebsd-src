@@ -312,7 +312,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, CLOSE_NORMAL);
+      datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
   } else if (fp->proto == PROTO_LCP) {
     int others_active;
