@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.152 1999/02/26 21:28:14 brian Exp $
+.\" $Id: ppp.8,v 1.153 1999/03/03 23:00:40 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -835,42 +835,82 @@ to be down.
 If the connect fails, the default behaviour is to wait 30 seconds
 and then attempt to connect when another outgoing packet is detected.
 This behaviour can be changed with
-.Bd -literal -offset indent
-set redial seconds|random[.nseconds|random] [dial_attempts]
-.Ed
 .Pp
-.Sq Seconds
+.Dl set redial Ar secs[+inc[-max]][.next] Op Ar attempts
+.Pp
+.Bl -tag -width XXXXXXXX -compact
+.It Ar secs
 is the number of seconds to wait before attempting
-to connect again. If the argument is
-.Sq random ,
+to connect again. If the argument is the literal string
+.Sq Li random ,
 the delay period is a random value between 1 and 30 seconds inclusive.
-.Sq Nseconds
+.It Ar inc
+is the number of seconds that
+.Ar secs
+should be incremented each time a new dial attempt is made.  The timeout
+reverts to
+.Ar secs
+only after a successful connection is established.  The default value for
+.Ar inc
+is zero.
+.It Ar maxinc
+is the maximun number of times
+.Nm
+should increment
+.Ar secs .
+The default value for
+.Ar maxinc
+is 10.
+.It Ar next
 is the number of seconds to wait before attempting
 to dial the next number in a list of numbers (see the
 .Dq set phone
-command).  The default is 3 seconds.  Again, if the argument is
-.Sq random ,
+command).  The default is 3 seconds.  Again, if the argument is the literal
+string
+.Sq Li random ,
 the delay period is a random value between 1 and 30 seconds.
-.Sq dial_attempts
-is the number of times to try to connect for each outgoing packet
-that is received. The previous value is unchanged if this parameter
+.It Ar attempts
+is the maximum number of times to try to connect for each outgoing packet
+that triggers a dial.  The previous value is unchanged if this parameter
 is omitted.  If a value of zero is specified for
-.Sq dial_attempts ,
+.Ar attempts ,
 .Nm
 will keep trying until a connection is made.
+.El
+.Pp
+So, for example;
 .Bd -literal -offset indent
 set redial 10.3 4
 .Ed
 .Pp
-will attempt to connect 4 times for each outgoing packet that is
-detected with a 3 second delay between each number and a 10 second
+will attempt to connect 4 times for each outgoing packet that causes
+a dial attempt with a 3 second delay between each number and a 10 second
 delay after all numbers have been tried.  If multiple phone numbers
 are specified, the total number of attempts is still 4 (it does not
 attempt each number 4 times).
+.Pp
+Alternatively,
+.Pp
+.Bd -literal -offset indent
+set redial 10+10-5.3 20
+.Ed
+.Pp
+tells
+.Nm
+to attempt to connect 20 times.  After the first attempt,
+.Nm
+pauses for 10 seconds.  After the next attempt it pauses for 20 seconds
+and so on until after the sixth attempt it pauses for 1 minute.  The next
+14 pauses will also have a duration of one minute.  If
+.Nm
+connects, disconnects and fails to connect again, the timeout starts again
+at 10 seconds.
+.Pp
 Modifying the dial delay is very useful when running
 .Nm
-in demand
-dial mode on both ends of the link. If each end has the same timeout,
+in
+.Fl auto
+mode on both ends of the link. If each end has the same timeout,
 both ends wind up calling each other at the same time if the link
 drops and both ends have packets queued.
 At some locations, the serial link may not be reliable, and carrier
@@ -1566,7 +1606,10 @@ The following steps should be taken when connecting to your ISP:
 Describe your providers phone number(s) in the dial script using the
 .Dq set phone
 command.  This command allows you to set multiple phone numbers for
-dialing and redialing separated by either a pipe (|) or a colon (:)
+dialing and redialing separated by either a pipe
+.Pq Dq \&|
+or a colon
+.Pq Dq \&: :
 .Bd -literal -offset indent
 set phone "111[|222]...[:333[|444]...]...
 .Ed
@@ -3873,25 +3916,41 @@ This sets the routing table RECVPIPE value.  The optimum value is
 just over twice the MTU value.  If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
-.It set redial Ar seconds[.nseconds] [attempts]
+.It set redial Ar secs[+inc[-max]][.next] [attempts]
 .Nm
 can be instructed to attempt to redial
 .Ar attempts
 times.  If more than one phone number is specified (see
 .Dq set phone
 above), a pause of
-.Ar nseconds
+.Ar next
 is taken before dialing each number.  A pause of
-.Ar seconds
-is taken before starting at the first number again.  A value of
-.Ar random
+.Ar secs
+is taken before starting at the first number again.  A literal value of
+.Dq Li random
 may be used here in place of
-.Ar seconds
+.Ar secs
 and
-.Ar nseconds ,
+.Ar next ,
 causing a random delay of between 1 and 30 seconds.
 .Pp
-Note, this delay will be effective, even after
+If
+.Ar inc
+is specified, its value is added onto
+.Ar secs
+each time
+.Nm
+tries a new number.
+.Ar secs
+will only be incremented at most
+.Ar maxinc
+times.
+.Ar maxinc
+defaults to 10.
+.Pp
+Note, the
+.Ar secs
+delay will be effective, even after
 .Ar attempts
 has been exceeded, so an immediate manual dial may appear to have
 done nothing.  If an immediate dial is required, a

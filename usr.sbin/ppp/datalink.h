@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.5 1998/08/07 18:42:48 brian Exp $
+ *	$Id: datalink.h,v 1.6 1999/02/06 02:54:45 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -62,8 +62,6 @@ struct datalink {
     unsigned packetmode : 1;	/* Go into packet mode after login ? */
   } script;
 
-  struct pppTimer dial_timer;	/* For timing between close & open */
-
   struct {
     struct {
       char dial[SCRIPT_LEN];	/* dial */
@@ -76,6 +74,8 @@ struct datalink {
     struct {
       int max;			/* initially try again this number of times */
       int next_timeout;		/* Redial next timeout value */
+      int inc;			/* Increment timeout by `inc' each time read */
+      int maxinc;		/* Maximum number of increments */
       int timeout;		/* Redial timeout value (end of phone list) */
     } dial;
     struct {
@@ -89,13 +89,18 @@ struct datalink {
   struct {
     char list[SCRIPT_LEN];	/* copy of cfg.list for strsep() */
     char *next;			/* Next phone from the list */
-    char *alt;			/* Next phone from the list */
+    char *alt;			/* Alternate (after fail) phone from the list */
     const char *chosen;		/* Chosen phone number after DIAL */
   } phone;
 
   struct cbcp cbcp;
 
-  int dial_tries;		/* currently try again this number of times */
+  struct {
+    struct pppTimer timer;	/* For timing between close & open */
+    int tries;			/* currently try again this number of times */
+    int incs;			/* # times our timeout has been incremented */
+  } dial;
+
   unsigned reconnect_tries;	/* currently try again this number of times */
 
   char *name;			/* Our name */
@@ -143,3 +148,4 @@ extern char *datalink_NextName(struct datalink *);
 extern int datalink_RemoveFromSet(struct datalink *, fd_set *, fd_set *,
                                   fd_set *);
 extern int datalink_SetMode(struct datalink *, int);
+extern int datalink_GetDialTimeout(struct datalink *);
