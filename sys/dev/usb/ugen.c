@@ -414,6 +414,7 @@ ugenclose(dev, flag, mode, p)
 		if (sce->ibuf != NULL) {
 			free(sce->ibuf, M_USBDEV);
 			sce->ibuf = NULL;
+			ndflush(&sce->q, sce->q.c_cc);
 			clfree(&sce->q);
 
 		}
