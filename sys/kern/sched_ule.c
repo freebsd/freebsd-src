@@ -182,7 +182,9 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    (ke->ke_thread->td_priority < PRI_MIN_TIMESHARE || SCHED_INTERACTIVE(kg))
+    (ke->ke_thread->td_priority < PRI_MIN_TIMESHARE ||			\
+    SCHED_INTERACTIVE(kg) ||						\
+    mtx_ownedby(&Giant, (ke)->ke_thread))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -925,13 +927,10 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 	child->ke_cpu = ke->ke_cpu; /* sched_pickcpu(); */
 	child->ke_runq = NULL;
 
-	/*
-	 * Claim that we've been running for one second for statistical
-	 * purposes.
-	 */
-	child->ke_ticks = 0;
-	child->ke_ltick = ticks;
-	child->ke_ftick = ticks - hz;
+	/* Grab our parents cpu estimation information. */
+	child->ke_ticks = ke->ke_ticks;
+	child->ke_ltick = ke->ke_ltick;
+	child->ke_ftick = ke->ke_ftick;
 }
 
 void
