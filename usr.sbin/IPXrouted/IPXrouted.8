@@ -50,15 +50,22 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is invoked at boot time to manage the IPX routing tables.
-The IPX routing daemon uses the Novell IPX Routing
-Information Protocol in maintaining up to date kernel routing
+utility is invoked at boot time to manage the
+.Tn IPX
+routing tables.
+The
+.Tn IPX
+routing daemon uses the Novell
+.Tn IPX
+Routing Information Protocol in maintaining up to date kernel routing
 table entries.
 .Pp
 Available options:
 .Bl -tag -width logfile
 .It Fl N
-Do not reply on GetNearestServer SAP request.
+Do not reply on GetNearestServer
+.Tn SAP
+request.
 .It Fl q
 Do not supply routing information (opposite of
 .Fl s
@@ -70,21 +77,23 @@ to supply routing information whether it is acting as an internetwork
 router or not.
 .It Fl S
 Do not supply Service Advertising Protocol
-(SAP)
+.Tn SAP
 information.
 The default is to supply
-SAP
+.Tn SAP
 information.
 .It Fl t
 All packets sent or received are
-printed on the standard output.  In addition,
+printed on the standard output.
+In addition,
 .Nm
 will not divorce itself from the controlling terminal
 so that interrupts from the keyboard will kill the process.
 .It Ar logfile
 Name of file in which
 .Nm Ns 's
-actions should be logged.  This log contains information
+actions should be logged.
+This log contains information
 about any changes to the routing tables and a history of
 recent messages sent and received which are related to
 the changed route.
@@ -93,8 +102,11 @@ the changed route.
 In normal operation
 .Nm
 listens
-for routing information packets.  If the host is connected to
-multiple IPX networks, it periodically supplies copies
+for routing information packets.
+If the host is connected to
+multiple
+.Tn IPX
+networks, it periodically supplies copies
 of its routing tables to any directly connected hosts
 and networks.
 .Pp
@@ -107,8 +119,8 @@ to find those
 directly connected interfaces configured into the
 system and marked
 .Dq up
-(the software loopback interface
-is ignored).  If multiple interfaces
+(the software loopback interface is ignored).
+If multiple interfaces
 are present, it is assumed the host will forward packets
 between networks.
 The
@@ -128,7 +140,8 @@ When a
 packet is received,
 .Nm
 formulates a reply based on the information maintained in its
-internal tables.  The
+internal tables.
+The
 .Em response
 packet generated contains a list of known routes, each marked
 with a
@@ -148,11 +161,13 @@ conditions is satisfied:
 .Bl -bullet
 .It
 No routing table entry exists for the destination network
-or host, and the metric indicates the destination is ``reachable''
+or host, and the metric indicates the destination is
+.Dq reachable
 (i.e. the hop count is not infinite).
 .It
 The source host of the packet is the same as the router in the
-existing routing table entry.  That is, updated information is
+existing routing table entry.
+That is, updated information is
 being received from the very internetwork router through which
 packets for the destination are being routed.
 .It
@@ -181,7 +196,8 @@ In addition to processing incoming packets,
 .Nm
 also periodically checks the routing table entries.
 If an entry has not been updated for 3 minutes, the entry's metric
-is set to infinity and marked for deletion.  Deletions are delayed
+is set to infinity and marked for deletion.
+Deletions are delayed
 an additional 60 seconds to insure the invalidation is propagated
 to other routers.
 .Pp
@@ -191,8 +207,16 @@ and networks.
 .Pp
 If
 .Nm
-receives a SIGINFO signal the current contents of the RIP and SAP
-tables are appended to the file /var/log/ipxrouted.dmp.
+receives a SIGINFO signal the current contents of the
+.Tn RIP
+and
+.Tn SAP
+tables are appended to the file
+.Pa /var/log/ipxrouted.dmp .
 .Sh SEE ALSO
 .Xr ipx 3
 .Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.2 .
