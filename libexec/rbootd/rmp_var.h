@@ -127,7 +127,7 @@ typedef char	restofpkt;
  *	COPYWORD(w1,w2)	Copy u_word `w1' to `w2'.
  *	GETWORD(w,i)	Copy u_word `w' into int `i'.
  *	PUTWORD(i,w)	Copy int `i' into u_word `w'.
- * 
+ *
  * N.B. Endianness is handled by use of ntohl/htonl
  */
 #if defined(__vax__) || defined(__tahoe__) || defined(__m68k__)
