@@ -4,6 +4,7 @@
 .PATH: ${.CURDIR}/thread
 
 SRCS+= \
+	thr_atfork.c \
 	thr_attr.c \
 	thr_autoinit.c \
 	thr_barrier.c \
