@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWZabcdfghiklnoqrstu1
+.Op Fl ABCFGHLPRTWZabcdfghiklnoqrstuw1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -196,6 +196,9 @@ of the file for sorting
 .Pq Fl t
 or printing
 .Pq Fl l .
+.It Fl w
+Force raw printing of non-printable characters.  This is the default
+when output is not to a terminal.
 .It Fl \&1
 (The numeric digit ``one.'')  Force output to be
 one entry per line.
@@ -220,7 +223,8 @@ the file time used.
 .Pp
 The
 .Fl B ,
-.Fl b
+.Fl b ,
+.Fl w ,
 and
 .Fl q
 options all override each other; the last one specified determines
