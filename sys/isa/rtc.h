@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id: rtc.h,v 1.4 1993/12/18 01:12:47 ache Exp $
+ *	$Id: rtc.h,v 1.5 1994/08/15 03:15:20 wollman Exp $
  */
 
 #ifndef _I386_ISA_RTC_H_
@@ -73,9 +73,14 @@
 #define  RTCSA_32        0x0b
 
 #define RTC_STATUSB	0x0b	/* status register B */
+#define	 RTCSB_DST	 0x01	/* Daylight Savings Time enable	*/
+#define	 RTCSB_24HR	 0x02	/* 0 = 12 hours, 1 = 24	hours */
+#define	 RTCSB_BCD	 0x04	/* 0 = BCD, 1 =	Binary coded time */
+#define	 RTCSB_SQWE	 0x08	/* 1 = output sqare wave at SQW	pin */
+#define	 RTCSB_UINTR	 0x10	/* 1 = enable update-ended interrupt */
+#define	 RTCSB_AINTR	 0x20	/* 1 = enable alarm interrupt */
+#define	 RTCSB_PINTR	 0x40	/* 1 = enable periodic clock interrupt */
 #define  RTCSB_HALT      0x80	/* stop clock updates */
-#define  RTCSB_PINTR     0x40	/* periodic clock interrupt */
-#define  RTCSB_24HR      0x02	/* 24-hour mode */
 
 #define RTC_INTR	0x0c	/* status register C (R) interrupt source */
 #define  RTCIR_UPDATE	 0x10	/* update intr */
@@ -105,5 +110,5 @@
 #define RTC_EXTLO	0x17	/* low byte of extended mem size */
 #define RTC_EXTHI	0x18	/* low byte of extended mem size */
 
-#define RTC_CENTURY	0x32	/* current century - please increment in Dec99*/
+#define	RTC_CENTURY	0x32	/* current century */
 #endif /* _I386_ISA_RTC_H_ */
