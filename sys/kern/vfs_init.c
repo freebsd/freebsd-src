@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/mount.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
@@ -123,6 +125,41 @@ vfs_byname(const char *name)
 			return (vfsp);
 	return (NULL);
 }
+
+struct vfsconf *
+vfs_byname_kld(const char *fstype, struct thread *td, int *error)
+{
+	struct vfsconf *vfsp;
+	linker_file_t lf;
+
+	vfsp = vfs_byname(fstype);
+	if (vfsp != NULL)
+		return (vfsp);
+
+	/* Only load modules for root (very important!). */
+	*error = suser(td);
+	if (*error)
+		return (NULL);
+	*error = securelevel_gt(td->td_ucred, 0);
+	if (*error) 
+		return (NULL);
+	*error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
+	if (lf == NULL)
+		*error = ENODEV;
+	if (*error)
+		return (NULL);
+	lf->userrefs++;
+	/* Look up again to see if the VFS was loaded. */
+	vfsp = vfs_byname(fstype);
+	if (vfsp == NULL) {
+		lf->userrefs--;
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		*error = ENODEV;
+		return (NULL);
+	}
+	return (vfsp);
+}
+
 
 /* Register a new filesystem type in the global table */
 int
