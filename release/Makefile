@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1994/11/06 01:19:48 jkh Exp $
+#	$Id: Makefile,v 1.17 1994/11/06 02:37:25 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -59,12 +59,13 @@ boot.flp:
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
-	gzip -9 -c ${.CURDIR}/../COPYRIGHT > ${MNT}/COPYRIGHT.gz
-	gzip -9 -c ${.CURDIR}/../README > ${MNT}/README.gz
-	gzip -9 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ > \
-		${MNT}/DISKSPACE.FAQ.gz
-	gzip -9 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD > \
-		${MNT}/RELNOTES.FreeBSD.gz
+	install -m 500 -c ${.CURDIR}/bininst ${MNT}/stand/bininst
+	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
+	install -m 400 -c ${.CURDIR}/../README ${MNT}/README
+	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
+		${MNT}/DISKSPACE.FAQ
+	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
+		${MNT}/RELNOTES.FreeBSD
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
