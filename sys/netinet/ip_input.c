@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.18 1998/07/06 09:05:32 julian Exp $
+ * $Id: ip_input.c,v 1.50.2.19 1998/07/08 08:51:38 dg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -75,6 +75,9 @@
 #include <netinet/ip_fw.h>
 #endif
 
+#ifdef DUMMYNET
+#include <netinet/ip_dummynet.h>
+#endif
 int rsvp_on = 0;
 static int ip_rsvp_on;
 struct socket *ip_rsvpd;
@@ -114,6 +117,8 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
 	&ipintrq.ifq_drops, 0, "");
 
 struct ipstat ipstat;
+SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
+	&ipstat , ipstat, "");
 
 /* Packet reassembly stuff */
 #define IPREASS_NHASH_LOG2      6
@@ -140,12 +145,17 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 
 #ifdef COMPAT_IPFW
 /* Firewall hooks */
-ip_fw_chk_t *ip_fw_chk_ptr;
-ip_fw_ctl_t *ip_fw_ctl_ptr;
+ip_fw_chk_t *ip_fw_chk_ptr = NULL ;
+ip_fw_ctl_t *ip_fw_ctl_ptr = NULL ;
+
+#ifdef DUMMYNET
+ip_dn_ctl_t *ip_dn_ctl_ptr;
+#endif
 
 /* IP Network Address Translation (NAT) hooks */ 
-ip_nat_t *ip_nat_ptr;
-ip_nat_ctl_t *ip_nat_ctl_ptr;
+/* there is no kernel nat in 2.2... */
+ip_nat_t *ip_nat_ptr = NULL;
+ip_nat_ctl_t *ip_nat_ctl_ptr = NULL;
 #endif
 
 /*
@@ -217,6 +227,9 @@ ip_init()
 #ifdef IPNAT
         ip_nat_init(); 
 #endif
+#ifdef DUMMYNET
+	ip_dn_init();
+#endif
 
 }
 
@@ -235,7 +248,30 @@ ip_input(struct mbuf *m)
 	struct in_ifaddr *ia;
 	int    i, hlen;
 	u_short sum;
+#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
+	u_short ip_divert_cookie = 0 ;
+#endif
+#ifdef COMPAT_IPFW
+	struct ip_fw_chain *rule ;
+#endif
 
+#if defined(IPFIREWALL) && defined(DUMMYNET)
+	/*
+	 * dummynet packet are prepended a vestigial mbuf with
+	 * m_type = MT_DUMMYNET and m_data pointing to the matching
+	 * rule.
+	 */
+	if (m->m_type == MT_DUMMYNET) {
+	    struct mbuf *m0 = m ;
+	    rule = (struct ip_fw_chain *)(m->m_data) ;
+	    m = m->m_next ;
+	    FREE(m0, M_IPFW);
+	    ip = mtod(m, struct ip *);
+	    hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+	    goto iphack ;
+	} else
+	    rule = NULL ;
+#endif
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ip_input no HDR");
@@ -326,31 +362,36 @@ tooshort:
 	 * deals with it.
 	 * - Firewall: deny/allow/divert
 	 * - Xlate: translate packet's addr/port (NAT).
+	 * - Pipe: pass pkt through dummynet.
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
+iphack:
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
-		u_short port;
-
-#ifdef IPDIVERT
-		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie, &m);
-		if (port) {			/* Divert packet */
-			frag_divert_port = port;
-			goto ours;
-		}
-#else
-		/* If ipfw says divert, we have to just drop packet */
-		/* use port as a dummy argument */
-		port = 0;
-		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &port, &m)) {
-			m_freem(m);
-			m = NULL;
+	    i = (*ip_fw_chk_ptr)(&ip,hlen,NULL, &ip_divert_cookie, &m, &rule);
+	    if (!m) /* packet discarded by firewall */
+		return;
+	    if (i) { /* divert, dummynet, and other hacks... */
+#ifdef DUMMYNET
+		if (i & 0x10000) {
+		    /* send packet to the appropriate pipe */
+		    dummynet_io(i&0xffff, DN_TO_IP_IN, m, NULL, NULL,0, rule);
+		    return ;
 		}
 #endif
-		if (!m)
-			return;
+#ifdef IPDIVERT
+		if (i <= 0xffff) {		/* Divert packet */
+		    frag_divert_port = i;
+		    goto ours;
+		}
+#endif
+		/* no match above, we have to just drop packet */
+		m_freem(m);
+		m = NULL;
+		return ;
+	    }
 	}
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))

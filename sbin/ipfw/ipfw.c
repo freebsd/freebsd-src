@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.17 1998/08/04 13:55:45 thepish Exp $
+ * $Id: ipfw.c,v 1.34.2.18 1998/08/12 06:17:23 charnier Exp $
  *
  */
 
@@ -44,6 +44,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
+#include <net/route.h> /* def. of struct route */
+#include <sys/param.h>
+#include <sys/mbuf.h>
+#include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
@@ -55,6 +59,7 @@ int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
 int		do_quiet=0;			/* Be quiet in add and flush  */
 int		do_force=0;			/* Don't ask for confirmation */
+int		do_pipe=0;			/* this cmd refers to a pipe */
 
 struct icmpcode {
 	int	code;
@@ -215,6 +220,9 @@ show_ipfw(struct ip_fw *chain)
 		case IP_FW_F_SKIPTO:
 			printf("skipto %u", chain->fw_skipto_rule);
 			break;
+                case IP_FW_F_PIPE:
+                        printf("pipe %u", chain->fw_skipto_rule);
+                        break ;
 		case IP_FW_F_REJECT:
 			if (chain->fw_reject_code == IP_FW_REJECT_RST)
 				printf("reset");
@@ -405,11 +413,63 @@ list(ac, av)
 {
 	struct ip_fw *r;
 	struct ip_fw rules[1024];
+	struct dn_pipe *p;
+	struct dn_pipe pipes[1024];
 	int l,i;
 	unsigned long rulenum;
 	int bytes;
 
 	/* extract rules from kernel */
+        if (do_pipe) {
+            memset(rules,0,sizeof pipes);
+            bytes = sizeof pipes;
+            i = getsockopt(s, IPPROTO_IP, IP_DUMMYNET_GET, pipes, &bytes);
+            if (i < 0)
+                    err(2,"getsockopt(IP_DUMMYNET_GET)");
+            /* display requested pipes */
+            if (ac > 0)
+                rulenum = strtoul(*av++, NULL, 10);
+            else
+                rulenum = 0 ;
+            for (p = pipes, l = bytes; l >= sizeof pipes[0]; 
+                             p++, l-=sizeof pipes[0]) {
+                if (rulenum == 0 || rulenum == p->pipe_nr) {
+                    double b = p->bandwidth ;
+                    int l ;
+                    char buf[30] ;
+                    char qs[30] ;
+                    char plr[30] ;
+ 
+                    if (b == 0)
+                        sprintf(buf, "unlimited");
+                    else if (b >= 1000000)
+                        sprintf(buf, "%7.3f Mbit/s", b/1000000 );
+                    else if (b >= 1000)
+                        sprintf(buf, "%7.3f Kbit/s", b/1000 );
+                    else
+                        sprintf(buf, "%7.3f bit/s ", b );
+ 
+                    if ( (l = p->queue_size_bytes) ) {
+                        if (l >= 8192)
+                            sprintf(qs,"%d KB", l / 1024);
+                        else
+                            sprintf(qs,"%d B", l);
+                    } else
+                            sprintf(qs,"%3d sl.", p->queue_size);
+                    if (p->plr)
+                        sprintf(plr,"plr %f", 1.0 * p->plr/(double)(0x7fffffff) );
+                    else
+                        plr[0]='\0';
+                        
+                    printf("%05d: %s %4d ms %s %s -- %d pkts (%d B) %d drops\n",
+                        p->pipe_nr, buf, p->delay, qs, plr,
+                        p->r_len, p->r_len_bytes, p->r_drops);
+                }
+            }
+        
+            return ;
+        }
+
 	memset(rules,0,sizeof rules);
 	bytes = sizeof rules;
 	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &bytes);
@@ -752,21 +812,33 @@ delete(ac,av)
 	char **av;
 {
 	struct ip_fw rule;
+	struct dn_pipe pipe;
 	int i;
 	int exitval = 0;
 
 	memset(&rule, 0, sizeof rule);
+	memset(&pipe, 0, sizeof pipe);
 
 	av++; ac--;
 
 	/* Rule number */
 	while (ac && isdigit(**av)) {
+            if (do_pipe) {
+                pipe.pipe_nr = atoi(*av); av++; ac--;
+                i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_DEL,
+                    &pipe, sizeof pipe);
+                if (i) {
+                    exitval = 1;
+                    warn("rule %u: setsockopt(%s)", pipe.pipe_nr, "IP_DUMMYNET_DEL");
+                }
+            } else {
 		rule.fw_number = atoi(*av); av++; ac--;
 		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
 		if (i) {
 			exitval = 1;
 			warn("rule %u: setsockopt(%s)", rule.fw_number, "IP_FW_DEL");
 		}
+	    }
 	}
 	if (exitval != 0)
 		exit(exitval);
@@ -818,6 +890,69 @@ fill_iface(char *which, union ip_fw_if *ifu, int *byname, int ac, char *arg)
 }
 
 static void
+config_pipe(int ac, char **av)
+{
+	struct dn_pipe pipe;
+        int i ;
+        char *end ;
+ 
+        memset(&pipe, 0, sizeof pipe);
+ 
+        av++; ac--;
+        /* Pipe number */
+        if (ac && isdigit(**av)) {
+                pipe.pipe_nr = atoi(*av); av++; ac--;
+        }
+        while (ac > 1) {
+            if (!strncmp(*av,"bw",strlen(*av)) ||
+                ! strncmp(*av,"bandwidth",strlen(*av))) {
+                pipe.bandwidth = strtoul(av[1], &end, 0);
+                if (*end == 'K')
+                        end++, pipe.bandwidth *= 1000 ;
+                else if (*end == 'M')
+                        end++, pipe.bandwidth *= 1000000 ;
+                if (*end == 'B')
+                        pipe.bandwidth *= 8 ;
+                av+=2; ac-=2;
+            } else if (!strncmp(*av,"delay",strlen(*av)) ) {
+                pipe.delay = strtoul(av[1], NULL, 0);
+                av+=2; ac-=2;
+            } else if (!strncmp(*av,"plr",strlen(*av)) ) {
+                
+                double d = strtod(av[1], NULL);
+                pipe.plr = (int)(d*0x7fffffff) ;
+                av+=2; ac-=2;
+            } else if (!strncmp(*av,"queue",strlen(*av)) ) {
+                end = NULL ;
+                pipe.queue_size = strtoul(av[1], &end, 0);
+                if (*end == 'K') {
+                    pipe.queue_size_bytes = pipe.queue_size*1024 ;
+                    pipe.queue_size = 0 ;
+                } else if (*end == 'B') {
+                    pipe.queue_size_bytes = pipe.queue_size ;
+                    pipe.queue_size = 0 ;
+                }
+                av+=2; ac-=2;
+            } else
+                show_usage("unrecognised option ``%s''", *av);
+        }
+        if (pipe.pipe_nr == 0 )
+            show_usage("pipe_nr %d be > 0", pipe.pipe_nr);
+        if (pipe.queue_size > 100 )
+            show_usage("queue size %d must be 2 <= x <= 100", pipe.queue_size);
+        if (pipe.delay > 10000 )
+            show_usage("delay %d must be < 10000", pipe.delay);
+#if 0
+        printf("configuring pipe %d bw %d delay %d size %d\n",
+                pipe.pipe_nr, pipe.bandwidth, pipe.delay, pipe.queue_size);
+#endif
+        i = setsockopt(s,IPPROTO_IP, IP_DUMMYNET_CONFIGURE, &pipe, sizeof pipe);
+        if (i)
+                err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
+                
+}
+
+static void
 add(ac,av)
 	int ac;
 	char **av;
@@ -847,6 +982,11 @@ add(ac,av)
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (!strncmp(*av,"count",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_COUNT; av++; ac--;
+        } else if (!strncmp(*av,"pipe",strlen(*av))) {
+                rule.fw_flg |= IP_FW_F_PIPE; av++; ac--;
+                if (!ac)
+                        show_usage("missing pipe number");
+                rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 	} else if (!strncmp(*av,"divert",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
 		if (!ac)
@@ -1185,8 +1325,21 @@ ipfw_main(ac,av)
 		 show_usage("bad arguments");
 	}
 
+        if (!strncmp(*av, "pipe", strlen(*av))) {
+                do_pipe = 1 ;
+                ac-- ;
+                av++ ;
+        }
+        /* allow argument swapping */
+        if (ac > 1 && *av[0]>='0' && *av[0]<'9') {
+                char *p = av[0] ;
+                av[0] = av[1] ;
+                av[1] = p ;
+        }
 	if (!strncmp(*av, "add", strlen(*av))) {
 		add(ac,av);
+        } else if (do_pipe && !strncmp(*av, "config", strlen(*av))) {
+                config_pipe(ac,av);
 	} else if (!strncmp(*av, "delete", strlen(*av))) {
 		delete(ac,av);
 	} else if (!strncmp(*av, "flush", strlen(*av))) {

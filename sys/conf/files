@@ -161,6 +161,7 @@ msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
+net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 net/if.c		standard
 net/if_disc.c		optional disc
@@ -220,6 +221,7 @@ netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
 netinet/ip_divert.c	optional ipdivert
+netinet/ip_dummynet.c	optional dummynet
 netinet/ip_fw.c		optional ipfirewall
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet

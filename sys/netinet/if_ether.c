@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.34.2.1 1996/11/16 21:17:49 phk Exp $
+ * $Id: if_ether.c,v 1.34.2.2 1997/05/14 16:43:56 tegge Exp $
  */
 
 /*
@@ -451,7 +451,16 @@ in_arpinput(m)
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
 	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
 	for (ia = in_ifaddr; ia; ia = ia->ia_next)
+#ifdef BRIDGE
+		/*
+		 * For a bridge, we want to check the address irrespective
+		 * of the receive interface. (This will change slightly
+		 * when we have clusters of interfaces).
+		 */
+		{
+#else
 		if (ia->ia_ifp == &ac->ac_if) {
+#endif
 			maybe_ia = ia;
 			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
 			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))

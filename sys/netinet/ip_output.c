@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id$
+ *      $Id: ip_output.c,v 1.44.2.9 1998/07/01 01:38:37 julian Exp $
  */
 
 #define _IP_VHL
+
+#include "opt_ipfw.h"
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -66,6 +68,14 @@
 #define COMPAT_IPFW 1
 #else
 #undef COMPAT_IPFW
+#endif
+
+#ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
+
+#ifdef DUMMYNET
+#include <netinet/ip_dummynet.h>
 #endif
 
 u_short ip_id;
@@ -105,6 +115,40 @@ ip_output(m0, opt, ro, flags, imo)
 	struct in_ifaddr *ia;
 	int isbroadcast;
 
+#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
+	u_short ip_divert_cookie = 0 ;
+#endif
+#ifdef COMPAT_IPFW
+	struct ip_fw_chain *rule;
+#endif
+
+#if defined(IPFIREWALL) && defined (DUMMYNET)
+	/*
+	 * dummynet packet are prepended a vestigial mbuf with
+	 * m_type = MT_DUMMYNET and m_data pointing to the matching
+	 * rule.
+	 */
+	if (m->m_type == MT_DUMMYNET) {
+	    struct mbuf *m0 = m ;
+	    /*
+	     * the packet was already tagged, so part of the
+	     * processing was already done, and we need to go down.
+	     * opt, flags and imo have already been used, and now
+	     * they are used to hold ifp and hlen and NULL, respectively.
+	     */
+	    rule = (struct ip_fw_chain *)(m->m_data) ;
+	    m = m->m_next ;
+	    FREE(m0, M_IPFW);
+	    ip = mtod(m, struct ip *);
+	    dst = (struct sockaddr_in *)&ro->ro_dst;
+	    ifp = (struct ifnet *)opt;
+	    hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+	    opt = NULL ;
+	    flags = 0 ; /* XXX is this correct ? */
+	    goto sendit;
+	} else
+	    rule = NULL ;
+#endif
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ip_output no HDR");
@@ -349,25 +393,39 @@ sendit:
 	 * Check with the firewall...
 	 */
 	if (ip_fw_chk_ptr) {
-#ifdef IPDIVERT
-		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
-		    hlen, ifp, &ip_divert_cookie, &m);
-		if (ip_divert_port) {		/* Divert packet */
-			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
-			goto done;
-		}
-#else
-		u_int16_t	dummy = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m)) {
-			m_freem(m);
-			goto done;
+	    off=(*ip_fw_chk_ptr)(&ip,hlen,ifp,&ip_divert_cookie,&m,&rule);
+	    if (!m) {	/* pkt discarded by firewall */
+		error = EACCES;
+		goto done;
+	    }
+	    if (off) { /* divert, dummynet, etc. */
+#ifdef DUMMYNET
+		if (off & 0x10000) {
+		    /*
+		     * pass the pkt to dummynet. Need to include
+		     * pipe number, m, ifp, ro, hlen because these are
+		     * not recomputed in the next pass.
+		     * All other parameters have been already used and
+		     * so they are not needed anymore.
+		     * XXX note: if the ifp or ro entry are deleted
+		     * while a pkt is in dummynet, we are in trouble!
+		     */
+		    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,hlen,rule);
+		    goto done ;
 		}
 #endif
-		if (!m) {
-			error = EACCES;
-			goto done;
+#ifdef IPDIVERT
+		ip_divert_port = off & 0xffff ;
+		if (ip_divert_port) {		/* Divert packet */
+		    (*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
+		    goto done;
 		}
+#endif
+		/* if none of the above matches, we have to drop the pkt */
+		m_freem(m);
+		error = EACCES;
+		goto done;
+	    }
 	}
 #endif /* COMPAT_IPFW */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.22.2.4 1998/02/25 02:34:30 julian Exp $
+ * $Id: in.h,v 1.22.2.5 1998/07/01 01:38:33 julian Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -311,6 +311,11 @@ struct ip_opts {
 #define IP_FW_GET     		54   /* get entire firewall rule chain */
 #define IP_NAT			55   /* set/get NAT opts */
 
+#define IP_DUMMYNET_CONFIGURE   60   /* add/configure a dummynet pipe */
+#define IP_DUMMYNET_DEL    	61   /* delete a dummynet pipe from chain */
+#define IP_DUMMYNET_FLUSH   	62   /* flush dummynet */
+#define IP_DUMMYNET_GET     	64   /* get entire dummynet pipes */
+
 /*
  * Defaults and limits for options
  */
@@ -384,6 +389,7 @@ struct ip_mreq {
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
 #define IPCTL_INTRQDROPS	11	/* number of netisr q drops */
+#define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
 #define	IPCTL_MAXID		13
 
@@ -400,6 +406,7 @@ struct ip_mreq {
  	{ "directed-broadcast", CTLTYPE_INT }, \
 	{ "intr-queue-maxlen", CTLTYPE_INT }, \
 	{ "intr-queue-drops", CTLTYPE_INT }, \
+	{ "stats", CTLTYPE_STRUCT }, \
 	{ "accept_sourceroute", CTLTYPE_INT }, \
 }
 
@@ -415,11 +422,16 @@ char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 
 /* Firewall hooks */
 struct ip;
+struct ip_fw_chain;
 typedef	int ip_fw_chk_t __P((struct ip**, int, struct ifnet*,
-				u_int16_t *, struct mbuf**));
+			u_int16_t *, struct mbuf**, struct ip_fw_chain **));
 typedef	int ip_fw_ctl_t __P((int, struct mbuf**));
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
+
+/* dummynet hooks */
+typedef	int ip_dn_ctl_t __P((int, struct mbuf**));
+extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
 
 /* IP NAT hooks */
 typedef	int ip_nat_t __P((struct ip**, struct mbuf**, struct ifnet*, int));
