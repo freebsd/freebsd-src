@@ -50,7 +50,7 @@
  * Initialize raw connection block q.
  */
 void
-raw_init()
+raw_init(void)
 {
 	LIST_INIT(&rawcb_list);
 }
@@ -65,17 +65,15 @@ raw_init()
  * Raw protocol interface.
  */
 void
-raw_input(m0, proto, src, dst)
-	struct mbuf *m0;
-	register struct sockproto *proto;
-	struct sockaddr *src, *dst;
+raw_input(struct mbuf *m0, struct sockproto *proto,
+	struct sockaddr *src, struct sockaddr *dst)
 {
-	register struct rawcb *rp;
-	register struct mbuf *m = m0;
-	register int sockets = 0;
+	struct rawcb *rp;
+	struct mbuf *m = m0;
+	int sockets = 0;
 	struct socket *last;
 
-	last = 0;
+	last = NULL;
 	LIST_FOREACH(rp, &rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != proto->sp_family)
 			continue;
@@ -90,18 +88,18 @@ raw_input(m0, proto, src, dst)
 		 * Note that if the lengths are not the same
 		 * the comparison will fail at the first byte.
 		 */
-#define	equal(a1, a2) \
-  (bcmp((caddr_t)(a1), (caddr_t)(a2), a1->sa_len) == 0)
+#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), a1->sa_len) == 0)
+
 		if (rp->rcb_laddr && !equal(rp->rcb_laddr, dst))
 			continue;
 		if (rp->rcb_faddr && !equal(rp->rcb_faddr, src))
 			continue;
 		if (last) {
-			struct mbuf *n;
-			n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n = m_copypacket(m, M_DONTWAIT);
+
 			if (n) {
 				if (sbappendaddr(&last->so_rcv, src,
-				    n, (struct mbuf *)0) == 0)
+				    n, NULL) == 0)
 					/* should notify about lost packet */
 					m_freem(n);
 				else {
@@ -113,8 +111,7 @@ raw_input(m0, proto, src, dst)
 		last = rp->rcb_socket;
 	}
 	if (last) {
-		if (sbappendaddr(&last->so_rcv, src,
-		    m, (struct mbuf *)0) == 0)
+		if (sbappendaddr(&last->so_rcv, src, m, NULL) == 0)
 			m_freem(m);
 		else {
 			sorwakeup(last);
@@ -126,10 +123,7 @@ raw_input(m0, proto, src, dst)
 
 /*ARGSUSED*/
 void
-raw_ctlinput(cmd, arg, dummy)
-	int cmd;
-	struct sockaddr *arg;
-	void *dummy;
+raw_ctlinput(int cmd, struct sockaddr *arg, void *dummy)
 {
 
 	if (cmd < 0 || cmd > PRC_NCMDS)
@@ -199,9 +193,8 @@ raw_udisconnect(struct socket *so)
 
 	if (rp == 0)
 		return EINVAL;
-	if (rp->rcb_faddr == 0) {
+	if (rp->rcb_faddr == 0)
 		return ENOTCONN;
-	}
 	raw_disconnect(rp);
 	soisdisconnected(so);
 	return 0;
@@ -216,9 +209,8 @@ raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 
 	if (rp == 0)
 		return EINVAL;
-	if (rp->rcb_faddr == 0) {
+	if (rp->rcb_faddr == 0)
 		return ENOTCONN;
-	}
 	*nam = dup_sockaddr(rp->rcb_faddr, 1);
 	return 0;
 }
