@@ -190,8 +190,8 @@ kcopy-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space \
-		r${FLOPPY}a ${FLOPPY_TYPE}
-	mount /dev/${FLOPPY}a ${MOUNT}
+		r${FLOPPY} ${FLOPPY_TYPE}
+	mount /dev/${FLOPPY} ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
@@ -210,9 +210,9 @@ kcopy-ah-floppy:
 	(cd ../sys/compile/GENERICAH; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}a
-	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/kcopy-ah-floppy \
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy-ah-floppy \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-ah-floppy \
 		>${RELEASEDIR}/floppies/kcopy-ah-floppy.gz
@@ -222,9 +222,9 @@ kcopy-bt-floppy:
 	(cd ../sys/compile/GENERICBT; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}a
-	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/kcopy-bt-floppy \
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy-bt-floppy \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-bt-floppy \
 		>${RELEASEDIR}/floppies/kcopy-bt-floppy.gz
@@ -233,8 +233,8 @@ filesystem-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
-		r${FLOPPY}a ${FLOPPY_TYPE}
-	mount /dev/${FLOPPY}a ${MOUNT}
+		r${FLOPPY}  ${FLOPPY_TYPE}
+	mount /dev/${FLOPPY}  ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
@@ -257,9 +257,9 @@ filesystem-floppy:
 	    sort -u /tmp/filelist >filelist; \
 	    rm /tmp/filelist)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}a
-	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/filesystem-floppy \
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/filesystem-floppy \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesystem-floppy \
 		>${RELEASEDIR}/floppies/filesystem-floppy.gz
@@ -268,8 +268,8 @@ cpio-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
-			r${FLOPPY}a ${FLOPPY_TYPE}
-	mount /dev/${FLOPPY}a ${MOUNT}
+			r${FLOPPY}  ${FLOPPY_TYPE}
+	mount /dev/${FLOPPY} ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
@@ -282,9 +282,9 @@ cpio-floppy:
 	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
 	    ${MOUNT}/install
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}a
-	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/cpio-floppy \
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cpio-floppy \
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio-floppy \
 		>${RELEASEDIR}/floppies/cpio-floppy.gz
