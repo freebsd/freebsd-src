@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#define KTR_ULE	KTR_NFS
-
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 /* XXX This is bogus compatability crap for ps */
 static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
@@ -415,17 +413,13 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
 	kseq->ksq_load++;
+	CTR1(KTR_SCHED, "load: %d", kseq->ksq_load);
 	if (class != PRI_ITHD && (ke->ke_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
 		kseq->ksq_group->ksg_load++;
 #else
 		kseq->ksq_sysload++;
 #endif
-	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
-		CTR6(KTR_ULE,
-		    "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
-		    ke, ke->ke_runq, ke->ke_slice, ke->ke_thread->td_priority,
-		    ke->ke_proc->p_nice, kseq->ksq_nicemin);
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		kseq_nice_add(kseq, ke->ke_proc->p_nice);
 }
@@ -445,6 +439,7 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 		kseq->ksq_sysload--;
 #endif
 	kseq->ksq_load--;
+	CTR1(KTR_SCHED, "load: %d", kseq->ksq_load);
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		kseq_nice_rem(kseq, ke->ke_proc->p_nice);
@@ -1083,11 +1078,6 @@ sched_slice(struct kse *ke)
 	} else
 		ke->ke_slice = SCHED_SLICE_INTERACTIVE;
 
-	CTR6(KTR_ULE,
-	    "Sliced %p(%d) (nice: %d, nicemin: %d, load: %d, interactive: %d)",
-	    ke, ke->ke_slice, kg->kg_proc->p_nice, kseq->ksq_nicemin,
-	    kseq->ksq_load_timeshare, SCHED_INTERACTIVE(kg));
-
 	return;
 }
 
@@ -1212,6 +1202,9 @@ sched_prio(struct thread *td, u_char prio)
 {
 	struct kse *ke;
 
+	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, prio, curthread,
+	    curthread->td_proc->p_comm);
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (TD_ON_RUNQ(td)) {
@@ -1350,9 +1343,6 @@ sched_sleep(struct thread *td)
 
 	td->td_slptime = ticks;
 	td->td_base_pri = td->td_priority;
-
-	CTR2(KTR_ULE, "sleep thread %p (tick: %d)",
-	    td, td->td_slptime);
 }
 
 void
@@ -1379,7 +1369,6 @@ sched_wakeup(struct thread *td)
 		}
 		sched_priority(kg);
 		sched_slice(td->td_kse);
-		CTR2(KTR_ULE, "wakeup thread %p (%d ticks)", td, hzticks);
 		td->td_slptime = 0;
 	}
 	setrunqueue(td, SRQ_BORING);
@@ -1411,10 +1400,6 @@ sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 	sched_interact_fork(child);
 	kg->kg_runtime += tickincr << 10;
 	sched_interact_update(kg);
-
-	CTR6(KTR_ULE, "sched_fork_ksegrp: %d(%d, %d) - %d(%d, %d)",
-	    kg->kg_proc->p_pid, kg->kg_slptime, kg->kg_runtime, 
-	    child->kg_proc->p_pid, child->kg_slptime, child->kg_runtime);
 }
 
 void
@@ -1490,15 +1475,13 @@ sched_class(struct ksegrp *kg, int class)
 
 /*
  * Return some of the child's priority and interactivity to the parent.
- * Avoid using sched_exit_thread to avoid having to decide which
- * thread in the parent gets the honour since it isn't used.
  */
 void
 sched_exit(struct proc *p, struct thread *childtd)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), childtd);
-	kseq_load_rem(KSEQ_CPU(childtd->td_kse->ke_cpu), childtd->td_kse);
+	sched_exit_thread(NULL, childtd);
 }
 
 void
@@ -1512,6 +1495,8 @@ sched_exit_ksegrp(struct ksegrp *kg, struct thread *td)
 void
 sched_exit_thread(struct thread *td, struct thread *childtd)
 {
+	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
+	    childtd, childtd->td_proc->p_comm, childtd->td_priority);
 	kseq_load_rem(KSEQ_CPU(childtd->td_kse->ke_cpu), childtd->td_kse);
 }
 
@@ -1565,9 +1550,6 @@ sched_clock(struct thread *td)
 
 	if (td->td_flags & TDF_IDLETD)
 		return;
-
-	CTR4(KTR_ULE, "Tick thread %p (slice: %d, slptime: %d, runtime: %d)",
-	    td, ke->ke_slice, kg->kg_slptime >> 10, kg->kg_runtime >> 10);
 	/*
 	 * We only do slicing code for TIMESHARE ksegrps.
 	 */
@@ -1671,12 +1653,6 @@ restart:
 #endif
 		kseq_runq_rem(kseq, ke);
 		ke->ke_state = KES_THREAD;
-
-		if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
-			CTR4(KTR_ULE, "Run thread %p from %p (slice: %d, pri: %d)",
-			    ke->ke_thread, ke->ke_runq, ke->ke_slice,
-			    ke->ke_thread->td_priority);
-		}
 		return (ke);
 	}
 #ifdef SMP
@@ -1713,6 +1689,9 @@ sched_add_internal(struct thread *td, int preemptive)
 #endif
 	int class;
 
+	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
@@ -1823,6 +1802,9 @@ sched_rem(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
+	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
 	/*
 	 * It is safe to just return here because sched_rem() is only ever
 	 * used in places where we're immediately going to add the
