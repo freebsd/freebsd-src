@@ -996,13 +996,13 @@ swapmode(void)
 
 	header = getbsize(&hlen, &blocksize);
 	if (totalflag == 0) {
-		(void)printf("%-11s %*s %8s %8s %8s  %s\n",
+		(void)printf("%-15s %*s %8s %8s %8s  %s\n",
 		    "Device", hlen, header,
 		    "Used", "Avail", "Capacity", "Type");
 
 		for (i = 0; i < n; ++i) {
 			(void)printf(
-			    "%-11s %*d ",
+			    "%-15s %*d ",
 			    kswap[i].ksw_devname,
 			    hlen,
 			    CONVERT(kswap[i].ksw_total)
@@ -1029,7 +1029,7 @@ swapmode(void)
 		);
 	} else if (n > 1) {
 		(void)printf(
-		    "%-11s %*d %8d %8d %5.0f%%\n",
+		    "%-15s %*d %8d %8d %5.0f%%\n",
 		    "Total",
 		    hlen, 
 		    CONVERT(kswap[n].ksw_total),
