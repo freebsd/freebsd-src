@@ -36,7 +36,7 @@
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2002
+.Dd October 17, 2004
 .Dt SIO 4
 .Os
 .Sh NAME
@@ -342,22 +342,22 @@ The CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
 .Sh FILES
-.Bl -tag -width /dev/ttyid? -compact
+.Bl -tag -width /dev/ttyd?.init -compact
 .It Pa /dev/ttyd?
 for callin ports
-.It Pa /dev/ttyid?
-.It Pa /dev/ttyld?
+.It Pa /dev/ttyd?.init
+.It Pa /dev/ttyd?.lock
 corresponding callin initial-state and lock-state devices
 .Pp
-.It Pa /dev/cuaa?
+.It Pa /dev/cuad?
 for callout ports
-.It Pa /dev/cuaia?
-.It Pa /dev/cuala?
+.It Pa /dev/cuad?.init
+.It Pa /dev/cuad?.lock
 corresponding callout initial-state and lock-state devices
 .El
 .Pp
-.Bl -tag -width /etc/rc.serial -compact
-.It Pa /etc/rc.serial
+.Bl -tag -width /etc/rc.d/serial -compact
+.It Pa /etc/rc.d/serial
 examples of setting the initial-state and lock-state devices
 .El
 .Pp
