@@ -40,7 +40,8 @@
 # arguments to the .It command, only the argument will be printed.
 
 # Usage:
-# mdoc2sgml [-l] [-d 0-6] [-a <archlist file>] [-o <outputfile>] <manualpage> [<manualpage> ...]
+# man2hwnotes.pl [-l] [-d 0-6] [-a <archlist file>] [-o <outputfile>]
+#                <manualpage> [<manualpage> ...]
 
 use strict;
 use Getopt::Std;
@@ -172,11 +173,12 @@ sub parse {
 		dlog(3, "Setting Nm to $1");
 		$mdocvars{Nm} = $1;
 		# "_" cannot be used for an entity name.
-		$mdocvars{Nm} =~ s,_,.,g;
+		$mdocvars{EntNm} = $1;
+		$mdocvars{EntNm} =~ s,_,.,g;
 
 	    } elsif (/^Nm$/) {
 		if (defined($mdocvars{Nm}) && $mdocvars{Nm} ne "") {
-		    parabuf_addline(\%mdocvars, "&man.".$mdocvars{Nm}.".$cur_mansection;");
+		    parabuf_addline(\%mdocvars, "&man.".$mdocvars{EntNm}.".$cur_mansection;");
 		} else {
 		    dlog(2, "Warning: Bad Nm call in $manpage");
 		}
@@ -194,7 +196,7 @@ sub parse {
 		    add_sgmltag(\%mdocvars, "<!ENTITY hwlist.".$mdocvars{cur_manname}." '");
 		    if ($only_list_out) {
 			add_sgmltag("<para>&hwlist.preamble.pre; " .
-				    "&man.".$mdocvars{Nm}.".$cur_mansection; " .
+				    "&man.".$mdocvars{EntNm}.".$cur_mansection; " .
 				    "&hwlist.preamble.post;</para>");
 		    }
 		} elsif ($mdocvars{isin_hwlist}) {
