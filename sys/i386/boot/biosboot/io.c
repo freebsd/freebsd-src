@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.13 1995/04/14 21:26:51 joerg Exp $
+ *	$Id: io.c,v 1.14 1995/05/30 07:58:33 rgrimes Exp $
  */
 
 #include "boot.h"
@@ -68,13 +68,14 @@ gateA20(void)
 
 /* printf - only handles %d as decimal, %c as char, %s as string */
 
+void
 printf(const char *format, ...)
 {
 	int *dataptr = (int *)&format;
 	char c;
 
 	dataptr++;
-	while (c = *format++)
+	while ((c = *format++))
 		if (c != '%')
 			putchar(c);
 		else
@@ -110,7 +111,7 @@ printf(const char *format, ...)
 			      case 'c': putchar((*dataptr++)&0xff); break;
 			      case 's': {
 				      char *ptr = (char *)*dataptr++;
-				      while (c = *ptr++)
+				      while ((c = *ptr++))
 					      putchar(c);
 				      break;
 			      }
