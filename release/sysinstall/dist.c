@@ -273,7 +273,7 @@ static int
 distSetX(void)
 {
     Dists |= DIST_XF86;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC| DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
 #ifndef X_AS_PKG
@@ -644,8 +644,8 @@ distExtract(char *parent, Distribution *me)
 	    /* Try to get the distribution as a single file */
 	    snprintf(buf, sizeof buf, "%s/%s.tgz", path, dist);
 	    /*
-	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
-	     * are not considered too significant.
+	     * Passing TRUE as 3rd parm to get routine makes this a "probing"
+	     * get, for which errors are not considered too significant.
 	     */
 	getsingle:
 	    fp = DEVICE_GET(mediaDevice, buf, TRUE);
