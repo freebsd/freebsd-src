@@ -1029,6 +1029,8 @@ netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_echo.c	optional netgraph_echo
 netgraph/ng_ether.c	optional netgraph_ether
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
+netgraph/ng_gif.c	optional netgraph_gif
+netgraph/ng_gif_demux.c	optional netgraph_gif_demux
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
 netgraph/ng_ksocket.c	optional netgraph_ksocket

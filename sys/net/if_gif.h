@@ -47,6 +47,14 @@
 
 struct encaptab;
 
+extern	void (*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp,
+		int af);
+extern	void (*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m,
+		int af);
+extern	int  (*ng_gif_output_p)(struct ifnet *ifp, struct mbuf **mp);
+extern	void (*ng_gif_attach_p)(struct ifnet *ifp);
+extern	void (*ng_gif_detach_p)(struct ifnet *ifp);
+
 struct gif_softc {
 	struct ifnet	gif_if;	   /* common area - must be at the top */
 	struct sockaddr	*gif_psrc; /* Physical src addr */
@@ -61,6 +69,7 @@ struct gif_softc {
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
 	struct resource *r_unit;	/* resource allocated for this unit */
+	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
 	LIST_ENTRY(gif_softc) gif_link; /* all gif's are linked */
 };
 
