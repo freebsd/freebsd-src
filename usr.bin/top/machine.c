@@ -241,7 +241,9 @@ struct statics *statics;
     }
     if (namelength < 8)
 	namelength = 8;
-    if (namelength > 15)
+    if (smpmode && namelength > 13)
+	namelength = 13;
+    else if (namelength > 15)
 	namelength = 15;
 
     if ((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
