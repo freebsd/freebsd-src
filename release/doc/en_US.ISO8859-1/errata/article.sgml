@@ -214,6 +214,12 @@ boot</screen>
       which can be used to enable the SMP support has been added.
       More details on building the custom kernel can be found in
       <ulink url="&url.books.handbook;/kernelconfig.html"></ulink>.</para>
+
+    <para>(4 Nov 2004) The &man.tar.1; (also known as &man.bsdtar.1;) utility
+      does not detect the end of a recording medium such as a tape
+      and a floppy disk properly when it is specified in the <option>-f</option>
+      option.  As an alternative &man.gtar.1; (<application>GNU tar</application>)
+      can be used.</para>
   </sect1>
 
   <sect1 id="late-news">
