@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.109 1996/06/08 10:03:35 bde Exp $
+ *	$Id: wd.c,v 1.110 1996/06/12 05:03:51 gpalmer Exp $
  */
 
 /* TODO:
@@ -109,6 +109,7 @@ extern void wdstart(int ctrlr);
 				/* can't handle that in all cases */
 #define WDOPT_32BIT	0x8000
 #define WDOPT_SLEEPHACK	0x4000
+#define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
 
 
@@ -1632,6 +1633,13 @@ failed:
 	du->dk_dd.d_nsectors = wp->wdp_sectors;
 	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
 	du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	if (WDOPT_FORCEHD(du->cfg_flags)) {
+		du->dk_dd.d_ntracks = WDOPT_FORCEHD(du->cfg_flags);
+		du->dk_dd.d_secpercyl = 
+		    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
+		du->dk_dd.d_ncylinders =
+		    du->dk_dd.d_secperunit / du->dk_dd.d_secpercyl;
+	}
 #if 0
 	du->dk_dd.d_partitions[RAW_PART].p_size = du->dk_dd.d_secperunit;
 	/* dubious ... */
