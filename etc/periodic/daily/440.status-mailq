@@ -1,10 +1,16 @@
 #!/bin/sh
 #
-# $Id: 440.status-mailq,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 440.status-mailq,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
 #
 if [ -x /usr/sbin/mailq -a -d /var/spool/mqueue ] ; then
     echo ""
     echo "Mail in local queue:"
 
     mailq
+
+    # If you run a busy mail server or mail relay, you may prefer
+    # a shorter and better formatted message.
+    #
+    # mailq | perl -ne  'print if /^\s+\S+@/' |
+    #         sort | uniq -c | sort -nr | awk '$1 > 1 {print $1, $2}'
 fi
