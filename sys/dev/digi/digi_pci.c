@@ -91,7 +91,7 @@ digi_pci_probe(device_t dev)
 	case PCI_DEVICE_920_4:
 	case PCI_DEVICE_920_8:
 	case PCI_DEVICE_920_2:
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);

@@ -224,7 +224,7 @@ static int cp_probe (device_t dev)
 	if ((pci_get_vendor (dev) == cp_vendor_id) &&
 	    (pci_get_device (dev) == cp_device_id)) {
 		device_set_desc (dev, "Cronyx-Tau-PCI serial adapter");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

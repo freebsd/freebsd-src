@@ -231,7 +231,7 @@ TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
  *  em_probe determines if the driver should be loaded on
  *  adapter based on PCI vendor/device id of the adapter.
  *
- *  return 0 on success, positive on failure
+ *  return BUS_PROBE_DEFAULT on success, positive on failure
  *********************************************************************/
 
 static int
@@ -269,7 +269,7 @@ em_probe(device_t dev)
 				em_strings[ent->index], 
 				em_driver_version);
 			device_set_desc_copy(dev, adapter_name);
-			return(0);
+			return(BUS_PROBE_DEFAULT);
 		}
 		ent++;
 	}

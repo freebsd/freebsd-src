@@ -69,11 +69,10 @@ ed_pci_probe(device_t dev)
 
 	while (ep->type && ep->type != type)
 		++ep;
-	if (ep->desc) {
-		device_set_desc(dev, ep->desc);
-		return (0);
-	}
-	return (ENXIO);
+	if (ep->desc == NULL)
+		return (ENXIO);
+	device_set_desc(dev, ep->desc);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

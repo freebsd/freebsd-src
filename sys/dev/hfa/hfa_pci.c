@@ -110,7 +110,7 @@ hfa_pci_probe (dev)
 	if ((pci_get_vendor(dev) == FORE_VENDOR_ID) &&
 	    (pci_get_device(dev) == FORE_PCA200EPC_ID)) {
 		device_set_desc(dev, "FORE Systems PCA-200EPC ATM");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
