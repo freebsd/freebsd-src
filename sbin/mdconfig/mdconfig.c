@@ -204,50 +204,16 @@ SLIST_HEAD(, dl) dlist = SLIST_HEAD_INITIALIZER(&dlist);
 int
 list(const int fd)
 {
-	char *disklist, *p, *p2, *p3;
 	int unit;
-	size_t dll;
-	struct dl *dp, *di, *dn;
 
-	if (sysctlbyname("kern.disks", NULL, &dll, NULL, 0) == -1)
-		err(1, "sysctlbyname: kern.disks");
-	if ( (disklist = malloc(dll + 1)) == NULL)
-		err(1, "malloc");
-	bzero(disklist, dll + 1);
-	if (sysctlbyname("kern.disks", disklist, &dll, NULL, 0) == -1)
-		err(1, "sysctlbyname: kern.disks");
-
-	for (p = disklist;
-	     (p2 = strsep(&p, " ")) != NULL;) {
-		if (strncmp(p2, MD_NAME, sizeof(MD_NAME) - 1) != 0)
-			continue;
-		p2 += sizeof(MD_NAME) - 1;
-		unit = strtoul(p2, &p3, 10);
-		if (p2 == p3)
-			continue;
-		dp = calloc(sizeof *dp, 1);
-		dp->unit = unit;
-		dn = SLIST_FIRST(&dlist);
-		if (dn == NULL || dn->unit > unit) {
-			SLIST_INSERT_HEAD(&dlist, dp, slist);
-		} else {
-			SLIST_FOREACH(di, &dlist, slist) {
-				dn = SLIST_NEXT(di, slist);
-				if (dn == NULL || dn->unit > unit) {
-					SLIST_INSERT_AFTER(di, dp, slist);
-					break;
-				} 
-			} 
-		}
+	if (ioctl(fd, MDIOCLIST, &mdio) < 0)
+		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
+	for (unit = 0; unit < mdio.md_pad[0] && unit < MDNPAD - 1; unit++) {
+		printf("%smd%d", unit > 0 ? " " : "", mdio.md_pad[unit + 1]);
 	}
-	SLIST_FOREACH(di, &dlist, slist) 
-		query(fd, di->unit);
-	while (!SLIST_EMPTY(&dlist)) {
-		di = SLIST_FIRST(&dlist);
-		SLIST_REMOVE_HEAD(&dlist, slist);
-		free(di);
-	}
-	free(disklist);
+	if (mdio.md_pad[0] - unit > 0)
+		printf(" ... %d more", mdio.md_pad[0] - unit);
+	printf("\n");
 	return (0);
 }
 
