@@ -463,7 +463,6 @@ JobPrintCommand(void *cmdp, void *jobp)
     LstNode	*cmdNode;	/* Node for replacing the command */
     char	*cmd = cmdp;
     Job		*job = jobp;
-    Buffer	*buf;
 
     noSpecials = (noExecute && !(job->node->type & OP_MAKE));
 
@@ -489,9 +488,7 @@ JobPrintCommand(void *cmdp, void *jobp)
      */
     cmdNode = Lst_Member(&job->node->commands, cmd);
 
-    buf = Var_Subst(NULL, cmd, job->node, FALSE);
-    cmd = Buf_GetAll(buf, NULL);
-    Buf_Destroy(buf, FALSE);
+    cmd = Buf_Peel(Var_Subst(NULL, cmd, job->node, FALSE));
     cmdStart = cmd;
 
     Lst_Replace(cmdNode, cmdStart);

@@ -1237,8 +1237,6 @@ Parse_DoVar(char *line, GNode *ctxt)
     }	    	    type;   	/* Type of assignment */
     char            *opc;	/* ptr to operator character to
 				 * null-terminate the variable name */
-    Buffer	    *buf;
-
     /*
      * Avoid clobbered variable warnings by forcing the compiler
      * to ``unregister'' variables
@@ -1344,9 +1342,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 	if (!Var_Exists(line, ctxt))
 	    Var_Set(line, "", ctxt);
 
-	buf = Var_Subst(NULL, cp, ctxt, FALSE);
-	cp = Buf_GetAll(buf, NULL);
-	Buf_Destroy(buf, FALSE);
+	cp = Buf_Peel(Var_Subst(NULL, cp, ctxt, FALSE));
 
 	oldVars = oldOldVars;
 
@@ -1364,14 +1360,12 @@ Parse_DoVar(char *line, GNode *ctxt)
 	     * expansion on the whole thing. The resulting string will need
 	     * freeing when we're done, so set freeCmd to TRUE.
 	     */
-	    buf = Var_Subst(NULL, cp, VAR_CMD, TRUE);
-	    cp = Buf_GetAll(buf, NULL);
-	    Buf_Destroy(buf, FALSE);
+	    cp = Buf_Peel(Var_Subst(NULL, cp, VAR_CMD, TRUE));
 	    freeCmd = TRUE;
 	}
 
 	buf = Cmd_Exec(cp, &error);
-	Var_Set(line, Buf_GetAll(buf, NULL), ctxt);
+	Var_Set(line, Buf_Data(buf), ctxt);
 	Buf_Destroy(buf, TRUE);
 
 	if (error)
@@ -1458,9 +1452,7 @@ ParseDoError(char *errmsg)
 		errmsg++;
 
 	buf = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
-	errmsg = Buf_GetAll(buf, NULL);
-
-	Parse_Error(PARSE_FATAL, "%s", errmsg);
+	Parse_Error(PARSE_FATAL, "%s", Buf_Data(buf));
 	Buf_Destroy(buf, TRUE);
 
 	/* Terminate immediately. */
@@ -1492,9 +1484,7 @@ ParseDoWarning(char *warnmsg)
 		warnmsg++;
 
 	buf = Var_Subst(NULL, warnmsg, VAR_GLOBAL, FALSE);
-	warnmsg = Buf_GetAll(buf, NULL);
-
-	Parse_Error(PARSE_WARNING, "%s", warnmsg);
+	Parse_Error(PARSE_WARNING, "%s", Buf_Data(buf));
 	Buf_Destroy(buf, TRUE);
 }
 
@@ -1572,8 +1562,7 @@ ParseDoInclude(char *file)
      * find the thing.
      */
     buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
-    file = Buf_GetAll(buf, NULL);
-    Buf_Destroy(buf, FALSE);
+    file = Buf_Peel(buf);
 
     /*
      * Now we know the file's name and its search path, we attempt to
@@ -1764,8 +1753,7 @@ ParseTraditionalInclude(char *file)
      * find the thing.
      */
     buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
-    file = Buf_GetAll(buf, NULL);
-    Buf_Destroy(buf, FALSE);
+    file = Buf_Peel(buf);
 
     /*
      * Now we know the file's name, we attempt to find the durn thing.
@@ -1971,7 +1959,7 @@ ParseSkipLine(int skip, int keep_newline)
 
         curFile.lineno++;
         Buf_AddByte(buf, (Byte)'\0');
-        line = (char *)Buf_GetAll(buf, NULL);
+        line = Buf_Data(buf);
     } while (skip == 1 && line[0] != '.');
 
     Buf_Destroy(buf, FALSE);
@@ -2167,8 +2155,7 @@ test_char:
 	    Buf_AddByte(buf, (Byte)lastc);
 	}
 	Buf_AddByte(buf, (Byte)'\0');
-	line = (char *)Buf_GetAll(buf, NULL);
-	Buf_Destroy(buf, FALSE);
+	line = Buf_Peel(buf);
 
 	/*
 	 * Strip trailing blanks and tabs from the line.
@@ -2336,8 +2323,7 @@ Parse_File(char *name, FILE *stream)
 		    *cp2 = '\0';
 
 		    buf = Var_Subst(NULL, cp, VAR_CMD, FALSE);
-		    cp = Buf_GetAll(buf, NULL);
-		    Buf_Destroy(buf, FALSE);
+		    cp = Buf_Peel(buf);
 
 		    Var_Delete(cp, VAR_GLOBAL);
 		    goto nextLine;
@@ -2420,8 +2406,7 @@ Parse_File(char *name, FILE *stream)
 		ParseFinishLine();
 
 		buf = Var_Subst(NULL, line, VAR_CMD, TRUE);
-		cp = Buf_GetAll(buf, NULL);
-		Buf_Destroy(buf, FALSE);
+		cp = Buf_Peel(buf);
 
 		free(line);
 		line = cp;

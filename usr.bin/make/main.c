@@ -824,7 +824,7 @@ main(int argc, char **argv)
 
 		buf = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
 
-		vpath = Buf_GetAll(buf, NULL);
+		vpath = Buf_Data(buf);
 		do {
 			/* skip to end of directory */
 			for (ptr = vpath; *ptr != ':' && *ptr != '\0'; ptr++)
