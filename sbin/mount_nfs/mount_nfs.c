@@ -532,7 +532,7 @@ getnfsargs(spec, nfsargsp)
 			if ((clp = clntudp_create(&saddr, RPCPROG_MNT,
 			    RPCMNT_VER1, pertry, &so)) == NULL) {
 				if ((opflags & ISBGRND) == 0)
-					clnt_pcreateerror("Cannot MNT PRC");
+					clnt_pcreateerror("Cannot MNT RPC");
 			} else {
 				clp->cl_auth = authunix_create_default();
 				try.tv_sec = 10;
