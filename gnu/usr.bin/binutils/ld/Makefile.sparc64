@@ -1,0 +1,24 @@
+#
+# $FreeBSD$
+#
+
+.if	${TARGET_ARCH} == "sparc64"
+HOST=		sparc64-unknown-freebsd
+CFLAGS+=	-DDEFAULT_EMULATION=\"elf64_sparc\"
+CFLAGS+=	-DTARGET=\"sparc64-unknown-freebsd\"
+_sparc_path=	\"/usr/lib\"
+.else
+_sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
+.endif
+EMS+=		ld_elf64_sparc_emulation
+LDSCRIPTS+=	elf64_sparc.x elf64_sparc.xbn elf64_sparc.xn elf64_sparc.xr \
+		elf64_sparc.xs elf64_sparc.xu
+SRCS+=		eelf64_sparc.c
+CLEANFILES+=	eelf64_sparc.c
+
+eelf64_sparc.c:	emulparams/elf64_sparc.sh emultempl/elf32.em \
+		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
+	    ${HOST} sparc64-unknown-freebsd sparc64-unknown-freebsd \
+	    elf64_sparc "" elf64_sparc sparc64-unknown-freebsd
+
