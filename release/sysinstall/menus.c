@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.33 1997/03/25 02:45:52 jkh Exp $
+ * $Id: menus.c,v 1.89.2.34 1997/03/27 00:41:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,6 +90,7 @@ clearX11Misc(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+#ifndef USE_XIG_SERVER
 static int
 setX11Servers(dialogMenuItem *self)
 {
@@ -105,6 +106,7 @@ clearX11Servers(dialogMenuItem *self)
     XF86ServerDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
+#endif	/* !USE_XIG_SERVER */
 
 static int
 setX11Fonts(dialogMenuItem *self)
@@ -226,7 +228,11 @@ DMenu MenuIndex = {
       { "Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { "Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
+#ifdef USE_XIG_SERVER
+      { "Distributions, XFree86 + XiG","XFree86 distribution menu.",		NULL, distSetXF86 },
+#else
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
+#endif
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
       { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
@@ -279,8 +285,10 @@ DMenu MenuIndex = {
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "WEB Server",		"Configure host as a WWW server.",	dmenuVarCheck, configApache, NULL, "apache_httpd" },
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+#ifndef USE_XIG_SERVER
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
       { "XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
+#endif
       { NULL } },
 };
 
@@ -386,6 +394,7 @@ DMenu MenuMouse = {
       { NULL } },
 };
 
+#ifndef USE_XIG_SERVER
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
@@ -404,6 +413,7 @@ DMenu MenuXF86Config = {
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { NULL } },
 };
+#endif
 
 DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -658,19 +668,19 @@ DMenu MenuDistributions = {
     "distributions",
     { { "1 Developer",		"Full sources, binaries and doc but no games", 
 	checkDistDeveloper,	distSetDeveloper },
-      { "2 X-Developer",	"Same as above, but includes XFree86",
+      { "2 X-Developer",	"Same as above, but includes the X Window System",
 	checkDistXDeveloper,	distSetXDeveloper },
       { "3 Kern-Developer",	"Full binaries and doc, kernel sources only",
 	checkDistKernDeveloper, distSetKernDeveloper },
       { "4 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "5 X-User",		"Same as above, but includes XFree86",
+      { "5 X-User",		"Same as above, but includes the X Window System",
 	checkDistXUser,		distSetXUser },
       { "6 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
       { "7 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
-      { "8 All",		"All sources, binaries and XFree86 binaries",
+      { "8 All",		"All sources and binaries (incl X Window System)",
 	checkDistEverything,	distSetEverything },
       { "9 Clear",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
@@ -715,9 +725,13 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
+#ifdef USE_XIG_SERVER
+      { "XFree86",	"The XFree86 3.2 + AcceleratedX distribution",
+#else
       { "XFree86",	"The XFree86 3.2 distribution",
+#endif
 	x11FlagCheck,	distSetXF86 },
-      { "All",		"All sources, binaries and XFree86 binaries",
+      { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above",
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
@@ -800,16 +814,21 @@ DMenu MenuSrcDistributions = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
+#ifdef USE_XIG_SERVER
+    "XFree86 3.2 + AcceleratedX 3.1 Distribution",
+#else
     "XFree86 3.2 Distribution",
+#endif
     "Please select the components you need from the XFree86 3.2\n"
-    "distribution.  We recommend that you select what you need from the basic\n"
-    "component set and at least one entry from the Server and Font set menus.",
+    "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
+#ifndef USE_XIG_SERVER
       { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+#endif
       { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
-      { "All",		"Select the entire XFree86 distribution", NULL, setX11All },
+      { "All",		"Select all XFree86 distribution sets", NULL, setX11All },
       { "Clear",	"Reset XFree86 distribution list",	NULL, clearX11All },
       { "Exit",		"Exit this menu (returning to previous)", checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
@@ -832,18 +851,22 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
       { "lib",		"Data files needed at runtime",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
+#ifndef USE_XIG_SERVER
       { "lk98",		"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
       { "lkit",		"Server link kit for all other machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
+#endif
       { "man",		"Manual pages",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
       { "prog",		"Programmer's header and library files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { "ps",		"Postscript documentation",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PS },
+#ifndef USE_XIG_SERVER
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
+#endif
       { "sources",	"XFree86 3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.2 contrib sources",
@@ -887,6 +910,7 @@ install.  At the minimum, you should install the standard\n\
       { NULL } },
 };
 
+#ifndef USE_XIG_SERVER
 DMenu MenuXF86SelectServer = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "X Server selection.",
@@ -974,7 +998,7 @@ Mono servers are particularly well-suited to most LCD displays).",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } }
 };
-
+#endif	/* !USE_XIG_SERVER */
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,

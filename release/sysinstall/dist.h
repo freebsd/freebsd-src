@@ -17,6 +17,11 @@
 #define DIST_DES		0x1000
 #define DIST_CATPAGES		0x2000
 #define DIST_PORTS		0x4000
+#ifdef USE_XIG_SERVER
+#define DIST_XIG_SERVER		0x8000
+#else
+#define DIST_USR1		0x8000
+#endif
 #define DIST_ALL		0x7FFF
 
 /* Canned distribution sets */
