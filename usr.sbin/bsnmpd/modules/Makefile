@@ -2,7 +2,12 @@
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 
-SUBDIR=	snmp_mibII \
+.if !defined(NOATM)
+_snmp_atm= snmp_atm
+.endif
+
+SUBDIR=	${_snmp_atm} \
+	snmp_mibII \
 	snmp_netgraph
 
 INCS=	snmpmod.h
