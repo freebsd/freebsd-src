@@ -179,12 +179,6 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if (!(flag & FWRITE) && cmd != PCIOCGETCONF)
 		return EPERM;
 
-	/* make sure register is in bounds and aligned */
-	if (cmd == PCIOCREAD || cmd == PCIOCWRITE)
-		if (io->pi_reg < 0 || io->pi_reg + io->pi_width > PCI_REGMAX ||
-		    io->pi_reg & (io->pi_width - 1))
-			error = EINVAL;
-
 	switch(cmd) {
 	case PCIOCGETCONF:
 		{
@@ -376,46 +370,21 @@ getconfexit:
 
 		break;
 		}
-	case PCIOCREAD:
-		io = (struct pci_io *)data;
-		switch(io->pi_width) {
-		case 4:
-		case 2:
-		case 1:
-			/*
-			 * Assume that the user-level bus number is
-			 * actually the pciN instance number. We map
-			 * from that to the real pcib+bus combination.
-			 */
-			pci = devclass_get_device(devclass_find("pci"),
-						  io->pi_sel.pc_bus);
-			if (pci) {
-				int b = pcib_get_bus(pci);
-				pcib = device_get_parent(pci);
-				io->pi_data =
-					PCIB_READ_CONFIG(pcib,
-							 b,
-							 io->pi_sel.pc_dev,
-							 io->pi_sel.pc_func,
-							 io->pi_reg,
-							 io->pi_width);
-				error = 0;
-			} else {
-				error = ENODEV;
-			}
-			break;
-		default:
-			error = EINVAL;
-			break;
-		}
-		break;
 
+	case PCIOCREAD:
 	case PCIOCWRITE:
 		io = (struct pci_io *)data;
 		switch(io->pi_width) {
 		case 4:
 		case 2:
 		case 1:
+			/* make sure register is in bounds and aligned */
+			if (cmd == PCIOCREAD || cmd == PCIOCWRITE)
+				if (io->pi_reg < 0 ||
+				    io->pi_reg + io->pi_width > PCI_REGMAX ||
+				    io->pi_reg & (io->pi_width - 1))
+					error = EINVAL;
+
 			/*
 			 * Assume that the user-level bus number is
 			 * actually the pciN instance number. We map
@@ -426,13 +395,22 @@ getconfexit:
 			if (pci) {
 				int b = pcib_get_bus(pci);
 				pcib = device_get_parent(pci);
-				PCIB_WRITE_CONFIG(pcib,
-						  b,
-						  io->pi_sel.pc_dev,
-						  io->pi_sel.pc_func,
-						  io->pi_reg,
-						  io->pi_data,
-						  io->pi_width);
+				if (cmd == PCIOCWRITE)
+					PCIB_WRITE_CONFIG(pcib,
+							  b,
+							  io->pi_sel.pc_dev,
+							  io->pi_sel.pc_func,
+							  io->pi_reg,
+							  io->pi_data,
+							  io->pi_width);
+				else
+					io->pi_data =
+						PCIB_READ_CONFIG(pcib,
+							  b,
+							  io->pi_sel.pc_dev,
+							  io->pi_sel.pc_func,
+							  io->pi_reg,
+							  io->pi_width);
 				error = 0;
 			} else {
 				error = ENODEV;
