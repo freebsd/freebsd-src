@@ -93,15 +93,18 @@ static volatile u_int	cpu_reset_proxy_active;
 /*
  * quick version of vm_fault
  */
-void
+int
 vm_fault_quick(v, prot)
 	caddr_t v;
 	int prot;
 {
+	int r;
+
 	if (prot & VM_PROT_WRITE)
-		subyte(v, fubyte(v));
+		r = subyte(v, fubyte(v));
 	else
-		fubyte(v);
+		r = fubyte(v);
+	return(r);
 }
 
 /*
