@@ -1087,7 +1087,9 @@ thread_statclock(int user)
 		return (-1);
 	if (user) {
 		/* Current always do via ast() */
+		mtx_lock_spin(&sched_lock);
 		td->td_flags |= (TDF_USTATCLOCK|TDF_ASTPENDING);
+		mtx_unlock_spin(&sched_lock);
 		td->td_uuticks++;
 	} else {
 		if (td->td_mailbox != NULL)
