@@ -77,12 +77,12 @@ static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __unused; \
 static void _mcount
 
 #ifdef	__GNUC__
-#define	MCOUNT __asm ("			\n\
+#define	MCOUNT __asm("			\n\
 	.globl	.mcount			\n\
 	.type	.mcount @function	\n\
 .mcount:				\n\
 	pushq	%rbp			\n\
-	movq	%rsp, %rbp		\n\
+	movq	%rsp,%rbp		\n\
 	pushq	%rdi			\n\
 	pushq	%rsi			\n\
 	pushq	%rdx			\n\
@@ -123,7 +123,7 @@ mcount()								\
 	__asm("movq 8(%%rbp),%0" : "=r" (selfpc));			\
 	/*								\
 	 * frompc = pc pushed by call to mcount's caller.		\
-	 * The caller's stack frame has already been built, so %ebp is	\
+	 * The caller's stack frame has already been built, so %rbp is	\
 	 * the caller's frame pointer.  The caller's raddr is in the	\
 	 * caller's frame following the caller's caller's frame pointer.\
 	 */								\
@@ -132,15 +132,15 @@ mcount()								\
 	_mcount(frompc, selfpc);					\
 }
 #endif
-#else	/* __GNUC__ */
-#define	MCOUNT		\
-void			\
-mcount()		\
-{			\
+#else /* !__GNUC__ */
+#define	MCOUNT								\
+void									\
+mcount()								\
+{									\
 }
-#endif	/* __GNUC__ */
+#endif /* __GNUC__ */
 
-typedef	unsigned long	uintfptr_t;
+typedef	u_long	uintfptr_t;
 
 #endif /* _KERNEL */
 

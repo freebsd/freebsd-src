@@ -93,19 +93,19 @@ mcount()								\
 	 * the caller's frame pointer.  The caller's raddr is in the	\
 	 * caller's frame following the caller's caller's frame pointer.\
 	 */								\
-	__asm("movl (%%ebp),%0" : "=r" (frompc));				\
+	__asm("movl (%%ebp),%0" : "=r" (frompc));			\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
 }
-#else	/* !(__GNUC__ || __INTEL_COMPILER) */
-#define	MCOUNT		\
-void			\
-mcount()		\
-{			\
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
+void									\
+#define	MCOUNT								\
+mcount()								\
+{									\
 }
-#endif	/* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 
-typedef	unsigned int	uintfptr_t;
+typedef	u_int	uintfptr_t;
 
 #endif /* _KERNEL */
 
