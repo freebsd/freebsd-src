@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)termcap.5	8.3 (Berkeley) 4/16/94
-.\"	$Id$
+.\"	$Id: termcap.5,v 1.5 1997/02/22 13:56:39 peter Exp $
 .\"
 .Dd April 16, 1994
 .Dt TERMCAP 5
@@ -39,10 +39,10 @@
 .Nm termcap
 .Nd terminal capability data base
 .Sh SYNOPSIS
-.Nm termcap
+.Nm
 .Sh DESCRIPTION
 The
-.Nm Termcap
+.Nm
 file
 is a data base describing terminals,
 used,
@@ -52,15 +52,15 @@ by
 and
 .Xr curses 3 .
 Terminals are described in
-.Nm termcap
+.Nm
 by giving a set of capabilities that they have and by describing
 how operations are performed.
 Padding requirements and initialization sequences
 are included in
-.Nm termcap .
+.Nm Ns .
 .Pp
 Entries in
-.Nm termcap
+.Nm
 consist of a number of `:'-separated fields.
 The first entry for each terminal gives the names that are known for the
 terminal, separated by `|' characters.
@@ -120,11 +120,15 @@ since they were considered useless,
 or are subsumed by other capabilities.
 New software should not rely on them at all.
 .Pp
+The following section is not complete, to get a more complete listing
+look in
+.Pa /usr/src/share/termcap/terminfo_extensions.doc .
+.Pp
 .Bl -column indent indent indent
 .Sy Name	Type	Notes	Description
 functions
 .It "ae	str	(P)	End alternate character set."
-.It AL	str	(NP*)	Add"
+.It AL	str	(NP*)	Add
 .Em n
 new blank lines
 .It "al	str	(P*)	Add new blank line."
@@ -249,7 +253,7 @@ mode.
 key (shift, sets parity bit).
 .It "kN	str		Sent by next-page key."
 .It "kn	num	(o)	Number of function"
-.Pq Sy \&k\&0 Ns \- Sy \&k\&9
+.Pq Sy \&k\&0 Ns \- Ns Sy \&k\&9
 keys (default 0).
 .It "ko	str	(o)	Termcap entries for other non-function keys."
 .It "kP	str		Sent by previous-page key."
@@ -301,14 +305,17 @@ version 2 only).
 .It "NL	bool	(o)" Ta Sy \&\en No "is newline, not line feed."
 .It "nl	str	(o)	Newline character if not" Sy \en .
 .It "ns	bool	(o)	Terminal is a" Tn CRT No "but doesn't scroll."
-.It "nw	str	(P)	Newline (behaves like"
+.It "nw	str	(P)	Newline"
+.Po behaves like \&
 .Sy \&cr
 followed by
-.Sy \&do ).
+.Sy \&do
+.Pc .
 .It "OP	bool	(o)	Odd parity."
 .It "os	bool		Terminal overstrikes."
 .It "pb	num		Lowest baud where delays are required."
-.It "pc	str		Pad character (default" Tn NUL ).
+.It "pc	str		Pad character
+.Pq default Tn NUL .
 .It "pf	str		Turn off the printer."
 .It "pk	str		Program function key"
 .Em n
@@ -327,8 +334,8 @@ only).
 bytes.
 .It "po	str		Turn on the printer."
 .It "ps	str		Print contents of the screen."
-.It "pt	bool	(o)	Has hardware tabs (may need to be set with"
-.Sy \&is ).
+.It "pt	bool	(o)	Has hardware tabs"
+.Pq may need to be set with Sy \&is .
 .It "px	str		Program function key"
 .Em n
 to transmit string
@@ -371,9 +378,9 @@ lines.
 .It "ta	str	(P)	Tab to next 8-position hardware tab stop."
 .It "tc	str		Entry of similar terminal \- must be last."
 .It "te	str		String to end programs that use"
-.Nm termcap .
+.Nm Ns .
 .It "ti	str		String to begin programs that use"
-.Nm termcap .
+.Nm Ns .
 .It "ts	str	(N)	Go to status line, column"
 .Em n .
 .It "UC	bool	(o)	Upper-case only."
@@ -392,14 +399,14 @@ lines.
 .It "us	str		Start underscore mode."
 .It "vb	str		Visible bell (must not move cursor)."
 .It "ve	str		Make cursor appear normal (undo"
-.Sy \&vs Ns / Sy \&vi ) .
+.Sy \&vs Ns / Ns Sy \&vi ) .
 .It "vi	str		Make cursor invisible."
 .It "vs	str		Make cursor very visible."
 .It "vt	num		Virtual terminal number (not supported on all systems)."
 .It "wi	str	(N)	Set current window."
 .It "ws	num		Number of columns in status line."
 .It "xb	bool		Beehive"
-.Pf ( "f1=" Dv ESC ,
+.Pf ( "f1=" Ns Dv ESC ,
 .Pf "f2=" Sy \&^C ) .
 .It "xn	bool		Newline ignored after 80 cols (Concept)."
 .It "xo	bool		Terminal uses xoff/xon"
@@ -417,7 +424,7 @@ char (Teleray 1061).
 .Ss A Sample Entry
 The following entry, which describes the Concept\-100, is among the more
 complex entries in the
-.Nm termcap
+.Nm
 file as of this writing.
 .Pp
 .Bd -literal
@@ -443,7 +450,7 @@ Comments may be included on lines beginning with
 .Dq # .
 .Ss Types of Capabilities
 Capabilities in
-.Nm termcap
+.Nm
 are of three types: Boolean capabilities,
 which indicate particular features that the terminal has;
 numeric capabilities,
@@ -531,7 +538,7 @@ character in a string capability it
 must be encoded as
 .Sy \&\e200 .
 (The routines that deal with
-.Nm termcap
+.Nm
 use C strings and strip the high bits of the output very late, so that
 a
 .Sy \&\e200
@@ -549,14 +556,14 @@ in the example above.
 .Ss Preparing Descriptions
 The most effective way to prepare a terminal description is by imitating
 the description of a similar terminal in
-.Nm termcap
+.Nm
 and to build up a description gradually, using partial descriptions
 with
 .Xr \&vi
 to check that they are correct.
 Be aware that a very unusual terminal may expose deficiencies in
 the ability of the
-.Nm termcap
+.Nm
 file to describe it
 or bugs in
 .Xr \&vi .
@@ -575,7 +582,7 @@ See
 The
 .Ev TERMCAP
 environment variable is usually set to the
-.Nm termcap
+.Nm
 entry itself
 to avoid reading files when starting up a program.
 .Pp
@@ -658,7 +665,7 @@ because the space would erase the character moved over.
 .Pp
 A very important point here is that the local cursor motions encoded
 in
-.Nm termcap
+.Nm
 have undefined behavior at the left and top edges of a
 .Tn CRT
 display.
@@ -711,7 +718,7 @@ This is useful for drawing a box around the edge of the screen,
 for example.
 If the terminal has switch-selectable automatic margins,
 the
-.Nm termcap
+.Nm
 description usually assumes that this feature is on,
 .Em i.e . ,
 .Sy \&am .
@@ -827,7 +834,7 @@ and
 .Sy \&\er ,
 as the system may change or discard them.
 (Programs using
-.Nm termcap
+.Nm
 must set terminal modes so that tabs are not expanded, so
 .Sy \&\et
 is safe to send.
@@ -951,7 +958,7 @@ and the starting and ending columns in memory, in that order.
 .Xr terminfo
 capability is described for completeness.
 It is unlikely that any
-.Nm termcap Ns \- using
+.Nm Ns \- Ns using
 program will support it.)
 .Pp
 If the terminal can retain display memory above the screen, then the
@@ -969,7 +976,7 @@ may bring down non-blank lines.
 .Ss Insert/Delete Character
 There are two basic kinds of intelligent terminals with respect to
 insert/delete character that can be described using
-.Nm termcap .
+.Nm Ns .
 The most common insert/delete character operations affect only the characters
 on the current line and shift characters off the end of the line rigidly.
 Other terminals, such as the Concept\-100 and the Perkin Elmer Owl, make
@@ -1011,8 +1018,9 @@ and special treatment of untyped spaces),
 we have seen no terminals whose insert
 mode cannot be described with the single attribute.
 .Pp
-.Nm Termcap
-can describe both terminals that have an insert mode and terminals
+The
+.Nm
+entries can describe both terminals that have an insert mode and terminals
 that send a simple sequence to open a blank position on the current line.
 Give as
 .Sy \&im
@@ -1167,7 +1175,7 @@ Not all modes need be supported by
 .Sy \&sa ,
 only those for which corresponding attribute commands exist.
 (It is unlikely that a
-.Nm termcap Ns \-using
+.Nm Ns \-using
 program will support this capability, which is defined for compatibility
 with
 .Xr terminfo . )
@@ -1369,7 +1377,7 @@ the display for cursor addressing to work properly.
 This is also used for the Tektronix 4025, where
 .Sy \&ti
 sets the command character to be the one used by
-.Nm termcap .
+.Nm Ns .
 .Pp
 Other capabilities
 include
@@ -1380,7 +1388,7 @@ and
 the name of a file containing long initialization strings.
 These strings are expected to set the terminal into modes
 consistent with the rest of the
-.Nm termcap
+.Nm
 description.
 They are normally sent to the terminal by the
 .Xr tset
@@ -1457,7 +1465,7 @@ This is normally used by the
 command to determine whether to set the driver mode for hardware tab
 expansion, and whether to set the tab stops.
 If the terminal has tab stops that can be saved in nonvolatile memory, the
-.Nm termcap
+.Nm
 description can assume that they are properly set.
 .Pp
 If there are commands to set and clear tab stops, they can be given as
@@ -1583,7 +1591,7 @@ the number of times to repeat it.
 (This is a
 .Xr terminfo
 feature that is unlikely to be supported by a program that uses
-.Nm termcap . )
+.Nm Ns . )
 .Pp
 If the terminal has a settable command character, such as the
 Tektronix 4025, this can be indicated with
@@ -1698,7 +1706,7 @@ and
 .Sy \&px
 causes the string to be transmitted to the computer.
 Unfortunately, due to lack of a definition for string parameters in
-.Nm termcap ,
+.Nm ,
 only
 .Xr terminfo
 supports these capabilities.
@@ -1798,6 +1806,8 @@ File containing terminal descriptions.
 .It Pa /usr/share/misc/termcap.db
 Hash database file containing terminal descriptions (see 
 .Xr cap_mkdb 1 ) .
+.It Pa /usr/src/share/termcap/terminfo_extensions.doc
+A more complete list of entries for both termcap and terminfo.
 .El
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
@@ -1813,7 +1823,7 @@ Hash database file containing terminal descriptions (see
 .Sh CAVEATS AND BUGS
 The
 .Em Note :
-.Nm termcap
+.Nm
 functions
 were replaced by
 .Xr terminfo
@@ -1829,8 +1839,9 @@ entry.
 Most programs now use the kernel information primarily; the information
 in this file is used only if the kernel does not have any information.
 .Pp
-.Xr \&Vi
-allows only 256 characters for string capabilities, and the routines
+The
+.Xr \&vi 1
+program allows only 256 characters for string capabilities, and the routines
 in
 .Xr termlib 3
 do not check for overflow of this buffer.
