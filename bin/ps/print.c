@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.11 1995/10/28 20:11:18 phk Exp $
+ *	$Id: print.c,v 1.12 1996/05/02 08:37:16 phk Exp $
  */
 
 #ifndef lint
@@ -575,7 +575,7 @@ getpmem(k)
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	szptudot = UPAGES;
 	/* XXX don't have info about shared */
-	fracmem = ((float)e->e_vm.vm_rssize + szptudot)/CLSIZE/mempages;
+	fracmem = ((float)e->e_vm.vm_rssize + szptudot)/getpagesize()/mempages;
 #endif
 	return (100.0 * fracmem);
 }
