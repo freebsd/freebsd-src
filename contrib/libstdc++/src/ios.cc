@@ -159,11 +159,12 @@ namespace std
   void
   ios_base::Init::_S_ios_create(bool __sync)
   {
-    int __out_size = __sync ? 0 : static_cast<int>(BUFSIZ);
+    size_t __out_size = __sync ? 0 : static_cast<size_t>(BUFSIZ);
 #ifdef _GLIBCPP_HAVE_ISATTY
-    int __in_size = (__sync || isatty (0)) ? 1 : static_cast<int>(BUFSIZ);
+    size_t __in_size =
+      (__sync || isatty (0)) ? 1 : static_cast<size_t>(BUFSIZ);
 #else
-    int __in_size = 1;
+    size_t __in_size = 1;
 #endif
 
     // NB: The file globals.cc creates the four standard files
@@ -172,10 +173,15 @@ namespace std
     new (&buf_cout) stdio_filebuf<char>(stdout, ios_base::out, __out_size);
     new (&buf_cin) stdio_filebuf<char>(stdin, ios_base::in, __in_size);
     new (&buf_cerr) stdio_filebuf<char>(stderr, ios_base::out, __out_size);
+
     new (&cout) ostream(&buf_cout);
     new (&cin) istream(&buf_cin);
     new (&cerr) ostream(&buf_cerr);
     new (&clog) ostream(&buf_cerr);
+    cout.init(&buf_cout);
+    cin.init(&buf_cin);
+    cerr.init(&buf_cerr);
+    clog.init(&buf_cerr);
     cin.tie(&cout);
     cerr.flags(ios_base::unitbuf);
     
@@ -187,6 +193,10 @@ namespace std
     new (&wcin) wistream(&buf_wcin);
     new (&wcerr) wostream(&buf_wcerr);
     new (&wclog) wostream(&buf_wcerr);
+    wcout.init(&buf_wcout);
+    wcin.init(&buf_wcin);
+    wcerr.init(&buf_wcerr);
+    wclog.init(&buf_wcerr);
     wcin.tie(&wcout);
     wcerr.flags(ios_base::unitbuf);
 #endif
@@ -252,8 +262,6 @@ namespace std
 	      { words = new _Words[newsize]; }
 	    catch (...)
 	      {
-		delete [] _M_word;
-		_M_word = 0;
 		_M_streambuf_state |= badbit;
 		if (_M_streambuf_state & _M_exception)
 		  __throw_ios_failure("ios_base::_M_grow_words failure");
@@ -270,6 +278,8 @@ namespace std
 	else
 	  {
 	    _M_streambuf_state |= badbit;
+	    if (_M_streambuf_state & _M_exception)
+	      __throw_ios_failure("ios_base::_M_grow_words failure");
 	    return _M_word_zero;
 	  }
       }
@@ -286,8 +296,6 @@ namespace std
     _M_precision = 6;
     _M_width = 0;
     _M_flags = skipws | dec;
-    _M_callbacks = 0;
-    _M_word_size = 0;
     _M_ios_locale = locale();
   }  
   
@@ -301,7 +309,8 @@ namespace std
     return __old;
   }
 
-  ios_base::ios_base() : _M_callbacks(0), _M_word(0)
+  ios_base::ios_base() : _M_callbacks(0), _M_word_size(_S_local_word_size),
+			 _M_word(_M_local_word)
   {
     // Do nothing: basic_ios::init() does it.  
     // NB: _M_callbacks and _M_word must be zero for non-initialized
@@ -313,7 +322,7 @@ namespace std
   {
     _M_call_callbacks(erase_event);
     _M_dispose_callbacks();
-    if (_M_word && _M_word != _M_local_word) 
+    if (_M_word != _M_local_word) 
       {
 	delete [] _M_word;
 	_M_word = 0;

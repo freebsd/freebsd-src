@@ -91,13 +91,6 @@ public:
   void flip() { *_M_p ^= _M_mask; }
 };
 
-inline void swap(_Bit_reference __x, _Bit_reference __y)
-{
-  bool __tmp = __x;
-  __x = __y;
-  __y = __tmp;
-}
-
 struct _Bit_iterator_base : public iterator<random_access_iterator_tag, bool>
 {
   _Bit_type * _M_p;
@@ -363,8 +356,8 @@ template <typename _Alloc>
     typedef _Bit_iterator                iterator;
     typedef _Bit_const_iterator          const_iterator;
   
-    typedef reverse_iterator<const_iterator> const_reverse_iterator;
-    typedef reverse_iterator<iterator> reverse_iterator;
+    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+    typedef std::reverse_iterator<iterator> reverse_iterator;
   
     typedef typename _Bvector_base<_Alloc>::allocator_type allocator_type;
     allocator_type get_allocator() const {
@@ -637,6 +630,14 @@ template <typename _Alloc>
       std::swap(_M_finish, __x._M_finish);
       std::swap(_M_end_of_storage, __x._M_end_of_storage);
     }
+
+    // [23.2.5]/1, third-to-last entry in synopsis listing
+    static void swap(reference __x, reference __y) {
+      bool __tmp = __x;
+      __x = __y;
+      __y = __tmp;
+    }
+
     iterator insert(iterator __position, bool __x = bool()) {
       difference_type __n = __position - begin();
       if (_M_finish._M_p != _M_end_of_storage && __position == end())
