@@ -83,4 +83,4 @@ void ad_start(struct ata_device *);
 int ad_transfer(struct ad_request *);
 int ad_interrupt(struct ad_request *);
 int ad_service(struct ad_softc *, int);
-void ad_print(struct ad_softc *, char *);
+void ad_print(struct ad_softc *);

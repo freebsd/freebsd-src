@@ -210,10 +210,10 @@ ad_attach(struct ata_device *atadev)
     atadev->flags = 0;
 
     /* if this disk belongs to an ATA RAID dont print the probe */
-    if (!ata_raid_probe(adp))
+    if (ata_raiddisk_attach(adp))
 	adp->flags |= AD_F_RAID_SUBDISK;
     else
-	ad_print(adp, "");
+	ad_print(adp);
 }
 
 void
@@ -244,6 +244,8 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
 	    ata_prtdev(atadev, "flushing cache on detach failed\n");
     }
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	ata_raiddisk_detach(adp);
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
     atadev->driver = NULL;
@@ -426,7 +428,7 @@ ad_transfer(struct ad_request *request)
 	    request->timeout_handle = 
 		timeout((timeout_t*)ad_timeout, request, 10 * hz);
 
-	/* setup transfer parameters !! 65536 for 48bit SOS XXX */
+	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
 	max_count = adp->device->param->support.address48 ? 65536 : 256;
 	if (count > max_count) {
@@ -900,9 +902,8 @@ ad_reinit(struct ata_device *atadev)
 }
 
 void
-ad_print(struct ad_softc *adp, char *prepend) 
+ad_print(struct ad_softc *adp) 
 {
-    if (prepend) printf("%s", prepend);
     if (bootverbose) {
 	ata_prtdev(adp->device, "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
 		   adp->device->param->model, adp->device->param->revision,
@@ -910,7 +911,6 @@ ad_print(struct ad_softc *adp, char *prepend)
 		   device_get_unit(adp->device->channel->dev),
 		   (adp->device->unit == ATA_MASTER) ? "master" : "slave");
 
-	if (prepend) printf("%s", prepend);
 	ata_prtdev(adp->device,
 		   "%lluMB (%llu sectors), %llu C, %u H, %u S, %u B\n",
 		   (unsigned long long)(adp->total_secs /
@@ -920,13 +920,11 @@ ad_print(struct ad_softc *adp, char *prepend)
 		    (adp->heads * adp->sectors)),
 		   adp->heads, adp->sectors, DEV_BSIZE);
 
-	if (prepend) printf("%s", prepend);
 	ata_prtdev(adp->device, "%d secs/int, %d depth queue, %s%s\n", 
 		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
 		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 		   ata_mode2str(adp->device->mode));
 
-	if (prepend) printf("%s", prepend);
 	ata_prtdev(adp->device, "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
 		   ata_pmode(adp->device->param), ata_wmode(adp->device->param),
 		   ata_umode(adp->device->param), 

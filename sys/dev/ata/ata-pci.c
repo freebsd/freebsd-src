@@ -291,7 +291,7 @@ ata_pci_match(device_t dev)
 	return NULL;
 
     case 0x000116ca:
-    	return "Cenatek Rocket Drive controller";
+	return "Cenatek Rocket Drive controller";
 
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
@@ -696,7 +696,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    /* primary and secondary channels share interrupt, keep track */
 	    if (--controller->irqcnt)
 		return 0;
-	    controller->irq = 0;
+	    controller->irq = NULL;
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					SYS_RES_IRQ, rid, r);
 	}
