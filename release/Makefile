@@ -13,6 +13,10 @@
 # or available as a kld(4)-style kernel module,
 # otherwise the target 'release.8' and possibly others will fail.
 #
+# Note:  "/some/dir" cannot reside on a filesystem mounted with
+# the "nodev" option, otherwise the chrooted "buildworld" will likely
+# fail.
+#
 # Set these, release builder!
 #
 # Fixed version:
