@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.76 1998/08/08 13:11:44 peter Exp $
+#	$Id: bsd.lib.mk,v 1.77 1998/08/08 13:22:06 peter Exp $
 #
 
 .if !target(__initialized__)
@@ -11,19 +11,19 @@ __initialized__:
 
 # Default executable format
 .if ${MACHINE} == "alpha"
-BINFORMAT?=	elf
+OBJFORMAT?=	elf
 .else
-BINFORMAT?=	aout
+OBJFORMAT?=	aout
 .endif
 
 .if exists(${.CURDIR}/shlib_version)
 SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
 .endif
 .endif
 
-.if !defined(NOPIC) && ${BINFORMAT} == elf
+.if !defined(NOPIC) && ${OBJFORMAT} == elf
 SONAME?=	lib${LIB}.so.${SHLIB_MAJOR}
 .endif
 
@@ -40,7 +40,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 STRIP?=	-s
 .endif
 
-.if ${BINFORMAT} != aout || make(checkdpadd)
+.if ${OBJFORMAT} != aout || make(checkdpadd)
 .include <bsd.libnames.mk>
 .endif
 
@@ -153,7 +153,7 @@ _LIBS=lib${LIB}.a
 .endif
 
 .if !defined(NOPIC)
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 .if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
 _LIBS+=lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .endif
@@ -197,7 +197,7 @@ LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
 SOBJS+= ${OBJS:.o=.so}
 
 .if !defined(NOPIC)
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
@@ -240,7 +240,7 @@ _EXTRADEPEND:
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NOEXTRADEPEND) && !defined(NOPIC)
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
 	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
 	    >> ${DEPENDFILE}
@@ -271,7 +271,7 @@ realinstall: beforeinstall
 .endif
 .endif
 .if !defined(NOPIC)
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 .if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
