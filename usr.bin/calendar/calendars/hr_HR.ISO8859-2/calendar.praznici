@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _hr_HR_ISO_8859_2_praznici
-#define _hr_HR_ISO_8859_2_praznici
+#ifndef _hr_HR_ISO8859_2_praznici
+#define _hr_HR_ISO8859_2_praznici
 
-LANG=hr_HR.ISO_8859-2
+LANG=hr_HR.ISO8859-2
 
 /* slobodni dr¾avni praznici */
 01/01	Nova godina
@@ -34,4 +34,4 @@ Easter+39	Uza¹a¹æe
 03/NedjeljaLast	Poèetak ljetnog vremena
 10/NedjeljaLast	Kraj ljetnog vremena
 
-#endif /* !_hr_HR_ISO_8859_2_praznici */
+#endif /* !_hr_HR_ISO8859_2_praznici */

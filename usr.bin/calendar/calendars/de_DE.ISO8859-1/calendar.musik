@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _de_DE_ISO_8859_1_musik_
-#define _de_DE_ISO_8859_1_musik_
+#ifndef _de_DE_ISO8859_1_musik_
+#define _de_DE_ISO8859_1_musik_
 
-LANG=de_DE.ISO_8859-1
+LANG=de_DE.ISO8859-1
 
 /* Klassik */
 02/23   Händel geboren, 1685
@@ -22,4 +22,4 @@ LANG=de_DE.ISO_8859-1
 /* Pop */
 09/18   Jimi Hendrix gestorben
 
-#endif /* !_de_DE_ISO_8859_1_musik_ */
+#endif /* !_de_DE_ISO8859_1_musik_ */
