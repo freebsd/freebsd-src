@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -249,7 +251,7 @@ auth_disable_name(name)
 {
 	int x;
 	for (x = 0; x < AUTHTYPE_CNT; ++x) {
-		if (!strcasecmp(name, AUTHTYPE_NAME(x))) {
+		if (AUTHTYPE_NAME(x) && !strcasecmp(name, AUTHTYPE_NAME(x))) {
 			i_wont_support |= typemask(x);
 			break;
 		}
