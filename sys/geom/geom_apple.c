@@ -273,9 +273,8 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 
 static struct g_class g_apple_class	= {
-	APPLE_CLASS_NAME,
-	g_apple_taste,
-	NULL,
+	.name = APPLE_CLASS_NAME,
+	.taste = g_apple_taste,
 	G_CLASS_INITIALIZER
 };
 

@@ -928,9 +928,8 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 /* Finally, register with GEOM infrastructure. */
 static struct g_class g_bsd_class = {
-	BSD_CLASS_NAME,
-	g_bsd_taste,
-	NULL,
+	.name = BSD_CLASS_NAME,
+	.taste = g_bsd_taste,
 	G_CLASS_INITIALIZER
 };
 

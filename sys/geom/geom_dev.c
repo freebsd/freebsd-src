@@ -72,9 +72,8 @@ static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
 
 static struct g_class g_dev_class	= {
-	"DEV",
-	g_dev_taste,
-	NULL,
+	.name = "DEV",
+	.taste = g_dev_taste,
 	G_CLASS_INITIALIZER
 };
 

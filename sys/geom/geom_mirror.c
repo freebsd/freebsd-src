@@ -241,9 +241,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 #define MIRROR_CLASS_NAME "MIRROR"
 
 static struct g_class g_mirror_class	= {
-	MIRROR_CLASS_NAME,
-	g_mirror_taste,
-	NULL,
+	.name = MIRROR_CLASS_NAME,
+	.taste = g_mirror_taste,
 	G_CLASS_INITIALIZER
 };
 
