@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.73 1996/01/19 03:57:40 dyson Exp $
+ *	$Id: pmap.c,v 1.74 1996/01/19 14:19:56 peter Exp $
  */
 
 /*
@@ -367,15 +367,6 @@ pmap_unuse_pt(pmap, va)
 		vm_page_deactivate(m);
 #endif
 	}
-}
-
-/* [ macro again?, should I force kstack into user map here? -wfj ] */
-void
-pmap_activate(pmap, pcbp)
-	register pmap_t pmap;
-	struct pcb *pcbp;
-{
-	PMAP_ACTIVATE(pmap, pcbp);
 }
 
 /*
