@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.61 1997/06/11 03:57:48 brian Exp $
+ * $Id: main.c,v 1.62 1997/06/16 13:24:59 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -370,7 +370,7 @@ char **argv;
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     fprintf(VarTerm, "Interactive mode\n");
-    netfd = STDIN_FILENO;
+    netfd = STDOUT_FILENO;
   } else if (mode & MODE_AUTO) {
     fprintf(VarTerm, "Automatic Dialer mode\n");
     if (dstsystem == NULL) {
