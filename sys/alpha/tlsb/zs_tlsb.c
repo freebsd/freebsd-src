@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.3 1998/07/05 12:16:54 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.4 1998/07/12 16:23:19 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -516,4 +516,4 @@ zsc_tlsb_intr(void* arg)
 	}
 }
 
-DRIVER_MODULE(zsc_tlsb, gbus, zsc_tlsb_driver, zsc_devclass, 0, 0);
+DRIVER_MODULE(zsc, gbus, zsc_tlsb_driver, zsc_devclass, 0, 0);
