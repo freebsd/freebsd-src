@@ -13,7 +13,10 @@ LDADD =  -ldialog -lncurses -lmytinfo
 DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
 makedevs.c:	dev2c.sh
-	sh ${.CURDIR}/dev2c.sh ${DESTDIR}/dev > makedevs.c ; \
+	mkdir -p /tmp/dev
+	cp ${.CURDIR}/../etc/etc.i386/MAKEDEV /tmp/dev
+	( cd /tmp/dev; ./MAKEDEV all)
+	sh ${.CURDIR}/dev2c.sh /tmp/dev > makedevs.c ; \
 
 .include <bsd.prog.mk>
 
