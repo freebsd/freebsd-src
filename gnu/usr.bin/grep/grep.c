@@ -98,6 +98,7 @@ static struct option long_options[] =
   {"mmap", no_argument, &mmap_option, 1},
   {"no-filename", no_argument, NULL, 'h'},
   {"no-messages", no_argument, NULL, 's'},
+  {"bz2decompress", no_argument, NULL, 'J'},
 #if HAVE_LIBZ > 0
   {"decompress", no_argument, NULL, 'Z'},
   {"null", no_argument, &filename_mask, 0},
@@ -248,6 +249,9 @@ static int bufmapped;		/* True if buffer is memory-mapped.  */
 static off_t initial_bufoffset;	/* Initial value of bufoffset. */
 #endif
 
+#include <bzlib.h>
+static BZFILE* bzbufdesc;	/* libbz2 file handle. */
+static int BZflag;		/* uncompress before searching. */
 #if HAVE_LIBZ > 0
 #include <zlib.h>
 static gzFile gzbufdesc;	/* zlib file descriptor. */
@@ -310,6 +314,12 @@ reset (int fd, char const *file, struct stats *stats)
 	  || ! (buffer = page_alloc (bufalloc + 1, &ubuffer)))
 	fatal (_("memory exhausted"), 0);
     }
+  if (BZflag)
+    {
+    bzbufdesc = BZ2_bzdopen(fd, "r");
+    if (bzbufdesc == NULL)
+      fatal(_("memory exhausted"), 0);
+    }
 #if HAVE_LIBZ > 0
   if (Zflag)
     {
@@ -330,6 +340,7 @@ reset (int fd, char const *file, struct stats *stats)
   if (directories == SKIP_DIRECTORIES && S_ISDIR (stats->stat.st_mode))
     return 0;
   if (
+      BZflag ||
 #if HAVE_LIBZ > 0
       Zflag ||
 #endif
@@ -479,6 +490,16 @@ fillbuf (size_t save, struct stats *stats)
     {
       ssize_t bytesread;
       do
+	if (BZflag)
+	  {
+	    bytesread = BZ2_bzread (bzbufdesc, buffer + bufsalloc, readsize);
+	    /* gzread() will return "non-error" when given input that isn't
+	       its type of compression.  So we need to mimic that behavor
+	       for the bzgrep case.  */
+	    if (bytesread == -1)
+	      bytesread = 0;
+	  }
+	else
 #if HAVE_LIBZ > 0
 	if (Zflag)
 	  bytesread = gzread (gzbufdesc, buffer + bufsalloc, readsize);
@@ -726,6 +747,9 @@ grep (int fd, char const *file, struct stats *stats)
     {
       /* Close fd now, so that we don't open a lot of file descriptors
 	 when we recurse deeply.  */
+      if (BZflag)
+	BZ2_bzclose(bzbufdesc);
+      else
 #if HAVE_LIBZ > 0
       if (Zflag)
 	gzclose(gzbufdesc);
@@ -899,6 +923,9 @@ grepfile (char const *file, struct stats *stats)
       if (list_files == 1 - 2 * status)
 	printf ("%s%c", filename, '\n' & filename_mask);
 
+      if (BZflag)
+	BZ2_bzclose(bzbufdesc);
+      else
 #if HAVE_LIBZ > 0
       if (Zflag)
 	gzclose(gzbufdesc);
@@ -1008,6 +1035,7 @@ Miscellaneous:\n\
   -v, --invert-match        select non-matching lines\n\
   -V, --version             print version information and exit\n\
       --help                display this help and exit\n\
+  -J, --bz2decompress       decompress bzip2'ed input before searching\n\
   -Z, --decompress          decompress input before searching (HAVE_LIBZ=1)\n\
       --mmap                use memory-mapped input if possible\n"));
       printf (_("\
@@ -1180,6 +1208,10 @@ main (int argc, char **argv)
     ++prog;
   }
 #endif
+  if (prog[0] == 'b') {
+    BZflag = 1;
+    ++prog;
+  }
 
 #if defined(__MSDOS__) || defined(_WIN32)
   /* DOS and MS-Windows use backslashes as directory separators, and usually
@@ -1287,6 +1319,9 @@ main (int argc, char **argv)
 	break;
       case 'I':
 	binary_files = WITHOUT_MATCH_BINARY_FILES;
+	break;
+      case 'J':
+	BZflag = 1;
 	break;
       case 'U':
 #if O_BINARY

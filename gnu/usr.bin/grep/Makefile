@@ -13,7 +13,14 @@ LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 
 DPADD+=	${LIBGNUREGEX}
+DPADD+=	${LIBBZ2}
 LDADD+=	-lgnuregex
+LDADD+=	-lbz2
+
+LINKS+=	${BINDIR}/grep ${BINDIR}/bzgrep \
+	${BINDIR}/grep ${BINDIR}/bzegrep \
+	${BINDIR}/grep ${BINDIR}/bzfgrep
+MLINKS+=grep.1 bzgrep.1 grep.1 bzegrep.1 grep.1 bzfgrep.1
 
 .if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
 LDADD+=	-lz
