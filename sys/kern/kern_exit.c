@@ -670,23 +670,3 @@ rm_at_exit(function)
 	}	
 	return (0);
 }
-
-void check_sigacts (void)
-{
-	struct proc *p = curproc;
-	struct sigacts *pss;
-	int s;
-
-	PROC_LOCK(p);
-	if (p->p_procsig->ps_refcnt == 1 &&
-	    p->p_sigacts != &p->p_addr->u_sigacts) {
-		pss = p->p_sigacts;
-		s = splhigh();
-		p->p_addr->u_sigacts = *pss;
-		p->p_sigacts = &p->p_addr->u_sigacts;
-		splx(s);
-		FREE(pss, M_SUBPROC);
-	}
-	PROC_UNLOCK(p);
-}
-
