@@ -1,24 +1,24 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha w/ELF.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Richard Henderson (rth@tamu.edu).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.    */
+Boston, MA 02111-1307, USA.  */
 
 /* $FreeBSD$ */
 
@@ -37,35 +37,19 @@ Boston, MA 02111-1307, USA.    */
 
 #undef ASM_FINAL_SPEC
 
-#undef  CPP_SUBTARGET_SPEC
-#define CPP_SUBTARGET_SPEC "-D__ELF__"
+/* alpha/ doesn't use elfos.h for some reason.  */
+#define TARGET_OBJFMT_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define ("__ELF__");		\
+    }						\
+  while (0)
 
 #undef  CC1_SPEC
 #define CC1_SPEC  "%{G*}"
 
 #undef  ASM_SPEC
 #define ASM_SPEC  "%{G*} %{relax:-relax} %{!gstabs*:-no-mdebug}%{gstabs*:-mdebug}"
-
-/* Output at beginning of assembler file.  */
-#undef  ASM_FILE_START
-#define ASM_FILE_START(FILE)					\
-do {								\
-  if (write_symbols == DBX_DEBUG)				\
-    {								\
-      alpha_write_verstamp (FILE);				\
-      output_file_directive (FILE, main_input_filename);	\
-    }								\
-  fprintf (FILE, "\t.set noat\n");				\
-  fprintf (FILE, "\t.set noreorder\n");				\
-  if (TARGET_EXPLICIT_RELOCS)					\
-    fprintf (FILE, "\t.set nomacro\n");				\
-  if (TARGET_BWX | TARGET_MAX | TARGET_FIX | TARGET_CIX)	\
-    {								\
-      fprintf (FILE, "\t.arch %s\n",				\
-               (TARGET_CPU_EV6 ? "ev6"				\
-                : TARGET_MAX ? "pca56" : "ev56"));		\
-    }								\
-} while (0)
 
 #undef  IDENT_ASM_OP
 #define IDENT_ASM_OP "\t.ident\t"
@@ -83,7 +67,7 @@ do {								\
 
 #undef  ASM_OUTPUT_SKIP
 #define ASM_OUTPUT_SKIP(FILE, SIZE) \
-  fprintf (FILE, "%s%u\n", SKIP_ASM_OP, (SIZE))
+  fprintf (FILE, "%s"HOST_WIDE_INT_PRINT_UNSIGNED"\n", SKIP_ASM_OP, (SIZE))
 
 /* Output the label which precedes a jumptable.  Note that for all svr4
    systems where we actually generate jumptables (which is to say every
@@ -105,7 +89,7 @@ do {								\
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, JUMPTABLE)		\
   do {									\
     ASM_OUTPUT_BEFORE_CASE_LABEL (FILE, PREFIX, NUM, JUMPTABLE)		\
-    ASM_OUTPUT_INTERNAL_LABEL (FILE, PREFIX, NUM);			\
+    (*targetm.asm_out.internal_label) (FILE, PREFIX, NUM);			\
   } while (0)
 
 /* The standard SVR4 assembler seems to require that certain builtin
@@ -129,7 +113,7 @@ do {								\
 do {									\
   fprintf ((FILE), "%s", COMMON_ASM_OP);				\
   assemble_name ((FILE), (NAME));					\
-  fprintf ((FILE), ",%u,%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
+  fprintf ((FILE), "," HOST_WIDE_INT_PRINT_UNSIGNED ",%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
 } while (0)
 
 /* This says how to output assembler code to declare an
@@ -158,7 +142,6 @@ do {									\
 #undef  ASM_OUTPUT_ALIGNED_BSS
 #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN)		\
 do {									\
-  (*targetm.asm_out.globalize_label) (FILE, NAME);	       		\
   ASM_OUTPUT_ALIGNED_LOCAL (FILE, NAME, SIZE, ALIGN);			\
 } while (0)
 
@@ -168,7 +151,7 @@ do {									\
    not defined, the default value is `BIGGEST_ALIGNMENT'. 
 
    This value is really 2^63.  Since gcc figures the alignment in bits,
-   we could only potentially get to 2^60 on suitible hosts.  Due to other
+   we could only potentially get to 2^60 on suitable hosts.  Due to other
    considerations in varasm, we must restrict this to what fits in an int.  */
 
 #undef  MAX_OFILE_ALIGNMENT
@@ -229,12 +212,12 @@ do {									\
   SECTION_FUNCTION_TEMPLATE(sbss_section, in_sbss, SBSS_SECTION_ASM_OP)	\
   SECTION_FUNCTION_TEMPLATE(sdata_section, in_sdata, SDATA_SECTION_ASM_OP)
 
-extern void sbss_section		PARAMS ((void));
-extern void sdata_section		PARAMS ((void));
+extern void sbss_section (void);
+extern void sdata_section (void);
 
 #undef  SECTION_FUNCTION_TEMPLATE
 #define SECTION_FUNCTION_TEMPLATE(FN, ENUM, OP)	\
-void FN ()					\
+void FN (void)					\
 {						\
   if (in_section != ENUM)			\
     {						\
@@ -408,14 +391,18 @@ void FN ()					\
 /* Provide a STARTFILE_SPEC appropriate for ELF.  Here we add the
    (even more) magical crtbegin.o file which provides part of the
    support for getting C++ file-scope static object constructed
-   before entering `main'.   */
+   before entering `main'.  */
 
 #undef	STARTFILE_SPEC
+#ifdef HAVE_LD_PIE
 #define STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{static:crtbeginT.o%s}\
-   %{!static:%{shared:crtbeginS.o%s}%{!shared:crtbegin.o%s}}"
+  "%{!shared: %{pg|p:gcrt1.o%s;pie:Scrt1.o%s;:crt1.o%s}}\
+   crti.o%s %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
+#else
+#define STARTFILE_SPEC \
+  "%{!shared: %{pg|p:gcrt1.o%s;:crt1.o%s}}\
+   crti.o%s %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
+#endif
 
 /* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
    magical crtend.o file which provides part of the support for
@@ -425,7 +412,7 @@ void FN ()					\
 #undef	ENDFILE_SPEC
 #define ENDFILE_SPEC \
   "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
-   %{shared:crtendS.o%s}%{!shared:crtend.o%s} crtn.o%s"
+   %{shared|pie:crtendS.o%s;:crtend.o%s} crtn.o%s"
 
 /* We support #pragma.  */
 #define HANDLE_SYSV_PRAGMA 1
