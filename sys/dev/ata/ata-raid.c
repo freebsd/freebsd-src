@@ -814,8 +814,11 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 	if ((rdp->disks[disk].flags & (AR_DF_PRESENT | AR_DF_ONLINE)) ==
 	    (AR_DF_PRESENT | AR_DF_ONLINE))
 	    config->magic = HPT_MAGIC_OK;
-	if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
+	if (rdp->disks[disk].flags & AR_DF_ASSIGNED) {
 	    config->magic_0 = rdp->magic_0;
+	    config->magic_2 = HPT_MAGIC_2;
+	    strcpy(config->name_1, "FreeBSD ATARAID");
+	}
 	config->disk_number = disk;
 
 	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
@@ -825,44 +828,36 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 		config->order = HPT_O_READY;
 	    else
 		config->order = HPT_O_DOWN;
+		strcpy(config->name_2, "RAID 0");
 	    break;
 
 	case AR_F_RAID1:
 	    config->type = HPT_T_RAID1;
 	    config->disk_number = (disk < rdp->width) ? disk : disk + 10;
+	    strcpy(config->name_2, "RAID 1");
 	    break;
 
 	case AR_F_RAID0 | AR_F_RAID1:
 	    config->magic_1 = rdp->magic_1;
 	    config->type = HPT_T_RAID01_RAID0;
-#if 0
-	    if ((rdp->flags & (AR_F_READY | AR_F_DEGRADED)) == AR_F_READY)
-		if (disk < rdp->width)
-		    config->order = HPT_O_RAID01SRC;
-		else
-		    config->order = HPT_O_RAID01DST;
-	    else 
-		if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		    config->order = HPT_O_RAID01DEGRADED;
-		else
-		    config->order = HPT_O_DOWN;
-#else
 	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		if (disk < rdp->width)
+		if (disk < rdp->width) {
 		    config->order = HPT_O_RAID01SRC;
-		else
+		    config->magic_0 = rdp->magic_0 - 1;
+		    strcpy(config->name_2, "RAID 0+1 SRC");
+		}
+		else {
 		    config->order = HPT_O_RAID01DST;
+		    config->disk_number -= rdp->width;
+		    strcpy(config->name_2, "RAID 0+1 DST");
+		}
 	    else 
 		config->order = HPT_O_DOWN;
-#endif
-	    if (disk >= rdp->width) {
-		config->magic_0 = rdp->magic_0 + 1;
-		config->disk_number -= rdp->width;
-	    }
 	    break;
 
 	case AR_F_SPAN:
 	    config->type = HPT_T_SPAN;
+	    strcpy(config->name_2, "SPAN");
 	    break;
 	}
 
@@ -1174,7 +1169,7 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
     if (flags & AR_WAIT)
 	bp->bio_done = (void *)wakeup;
     else
-        bp->bio_done = ar_rw_done;
+	bp->bio_done = ar_rw_done;
     AR_STRATEGY(bp);
     if (flags & AR_WAIT) {
 	error = tsleep(bp, PRIBIO, "arrw", 0);
