@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libdisk.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
