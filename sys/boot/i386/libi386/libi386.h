@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.5 1998/09/17 23:52:10 msmith Exp $
+ *	$Id: libi386.h,v 1.6 1998/09/26 10:51:38 dfr Exp $
  */
 
 
@@ -63,21 +63,13 @@ extern struct devdesc	currdev;	/* our current device */
 /* exported devices XXX rename? */
 extern struct devsw biosdisk;
 
-/* from crt module */
-#if 0 /* BTX */
-extern void		vpbcopy(void *src, vm_offset_t dest, size_t size);
-extern void		pvbcopy(vm_offset_t src, void *dest, size_t size);
-extern void		pbzero(vm_offset_t dest, size_t size);
-extern vm_offset_t	vtophys(void *addr);
-#endif
+extern int		bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
+extern int		bd_unit2bios(int unit);			/* xlate biosdisk unit -> BIOS device */
+extern int		bd_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
 
 extern int		i386_copyin(void *src, vm_offset_t dest, size_t len);
 extern int		i386_copyout(vm_offset_t src, void *dest, size_t len);
 extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
-
-#if 0 /* BTX */
-extern void		startprog(vm_offset_t entry, int argc, u_int32_t *argv, vm_offset_t stack);
-#endif 
 
 extern int		getbasemem(void);
 extern int		getextmem(void);
