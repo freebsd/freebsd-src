@@ -235,15 +235,15 @@ signotify(struct thread *td)
 int
 sigonstack(size_t sp)
 {
-	struct proc *p = curthread->td_proc;
+	struct thread *td = curthread;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	return ((p->p_flag & P_ALTSTACK) ?
+	return ((td->td_pflags & TDP_ALTSTACK) ?
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	    ((p->p_sigstk.ss_size == 0) ? (p->p_sigstk.ss_flags & SS_ONSTACK) :
-		((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size))
+	    ((td->td_sigstk.ss_size == 0) ?
+		(td->td_sigstk.ss_flags & SS_ONSTACK) :
+		((sp - (size_t)td->td_sigstk.ss_sp) < td->td_sigstk.ss_size))
 #else
-	    ((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size)
+	    ((sp - (size_t)td->td_sigstk.ss_sp) < td->td_sigstk.ss_size)
 #endif
 	    : 0);
 }
@@ -582,11 +582,11 @@ siginit(p)
  * Reset signals for an exec of the specified process.
  */
 void
-execsigs(p)
-	register struct proc *p;
+execsigs(struct proc *p)
 {
-	register struct sigacts *ps;
-	register int sig;
+	struct sigacts *ps;
+	int sig;
+	struct thread *td;
 
 	/*
 	 * Reset caught signals.  Held signals remain held
@@ -594,6 +594,7 @@ execsigs(p)
 	 * and are now ignored by default).
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	td = FIRST_THREAD_IN_PROC(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	while (SIGNOTEMPTY(ps->ps_sigcatch)) {
@@ -606,7 +607,7 @@ execsigs(p)
 			/*
 			 * There is only one thread at this point.
 			 */
-			SIGDELSET(FIRST_THREAD_IN_PROC(p)->td_siglist, sig);
+			SIGDELSET(td->td_siglist, sig);
 		}
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
@@ -614,10 +615,10 @@ execsigs(p)
 	 * Reset stack state to the user stack.
 	 * Clear set of signals caught on the signal stack.
 	 */
-	p->p_sigstk.ss_flags = SS_DISABLE;
-	p->p_sigstk.ss_size = 0;
-	p->p_sigstk.ss_sp = 0;
-	p->p_flag &= ~P_ALTSTACK;
+	td->td_sigstk.ss_flags = SS_DISABLE;
+	td->td_sigstk.ss_size = 0;
+	td->td_sigstk.ss_sp = 0;
+	td->td_pflags &= ~TDP_ALTSTACK;
 	/*
 	 * Reset no zombies if child dies flag as Solaris does.
 	 */
@@ -1208,7 +1209,6 @@ osigstack(td, uap)
 	struct thread *td;
 	register struct osigstack_args *uap;
 {
-	struct proc *p = td->td_proc;
 	struct sigstack nss, oss;
 	int error = 0;
 
@@ -1217,16 +1217,14 @@ osigstack(td, uap)
 		if (error)
 			return (error);
 	}
-	PROC_LOCK(p);
-	oss.ss_sp = p->p_sigstk.ss_sp;
+	oss.ss_sp = td->td_sigstk.ss_sp;
 	oss.ss_onstack = sigonstack(cpu_getstack(td));
 	if (uap->nss != NULL) {
-		p->p_sigstk.ss_sp = nss.ss_sp;
-		p->p_sigstk.ss_size = 0;
-		p->p_sigstk.ss_flags |= nss.ss_onstack & SS_ONSTACK;
-		p->p_flag |= P_ALTSTACK;
+		td->td_sigstk.ss_sp = nss.ss_sp;
+		td->td_sigstk.ss_size = 0;
+		td->td_sigstk.ss_flags |= nss.ss_onstack & SS_ONSTACK;
+		td->td_pflags |= TDP_ALTSTACK;
 	}
-	PROC_UNLOCK(p);
 	if (uap->oss != NULL)
 		error = copyout(&oss, uap->oss, sizeof(oss));
 
@@ -1272,36 +1270,29 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 	struct proc *p = td->td_proc;
 	int oonstack;
 
-	PROC_LOCK(p);
 	oonstack = sigonstack(cpu_getstack(td));
 
 	if (oss != NULL) {
-		*oss = p->p_sigstk;
-		oss->ss_flags = (p->p_flag & P_ALTSTACK)
+		*oss = td->td_sigstk;
+		oss->ss_flags = (td->td_pflags & TDP_ALTSTACK)
 		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	}
 
 	if (ss != NULL) {
-		if (oonstack) {
-			PROC_UNLOCK(p);
+		if (oonstack)
 			return (EPERM);
-		}
-		if ((ss->ss_flags & ~SS_DISABLE) != 0) {
-			PROC_UNLOCK(p);
+		if ((ss->ss_flags & ~SS_DISABLE) != 0)
 			return (EINVAL);
-		}
 		if (!(ss->ss_flags & SS_DISABLE)) {
 			if (ss->ss_size < p->p_sysent->sv_minsigstksz) {
-				PROC_UNLOCK(p);
 				return (ENOMEM);
 			}
-			p->p_sigstk = *ss;
-			p->p_flag |= P_ALTSTACK;
+			td->td_sigstk = *ss;
+			td->td_pflags |= TDP_ALTSTACK;
 		} else {
-			p->p_flag &= ~P_ALTSTACK;
+			td->td_pflags &= ~TDP_ALTSTACK;
 		}
 	}
-	PROC_UNLOCK(p);
 	return (0);
 }
 
