@@ -1850,9 +1850,10 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	{
 		int target;
 		struct lportdb *lp;
-		sns_scrsp_t *resp = (sns_scrsp_t *) arg;
+		char *pt;
+		sns_ganrsp_t *resp = (sns_ganrsp_t *) arg;
 		u_int32_t portid;
-		u_int64_t wwn;
+		u_int64_t wwpn, wwnn;
 		fcparam *fcp = isp->isp_param;
 
 		rv = -1;
@@ -1861,7 +1862,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (((u_int32_t) resp->snscb_port_id[0]) << 16) |
 		    (((u_int32_t) resp->snscb_port_id[1]) << 8) |
 		    (((u_int32_t) resp->snscb_port_id[2]));
-		wwn =
+
+		wwpn =
 		    (((u_int64_t)resp->snscb_portname[0]) << 56) |
 		    (((u_int64_t)resp->snscb_portname[1]) << 48) |
 		    (((u_int64_t)resp->snscb_portname[2]) << 40) |
@@ -1870,16 +1872,63 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (((u_int64_t)resp->snscb_portname[5]) << 16) |
 		    (((u_int64_t)resp->snscb_portname[6]) <<  8) |
 		    (((u_int64_t)resp->snscb_portname[7]));
-		printf("%s: type 0x%x@portid 0x%x 0x%08x%08x\n", isp->isp_name,
-		    resp->snscb_port_type, portid,
-		    ((u_int32_t) (wwn >> 32)), ((u_int32_t) wwn));
-		if (resp->snscb_port_type != 2) {
+
+		wwnn =
+		    (((u_int64_t)resp->snscb_nodename[0]) << 56) |
+		    (((u_int64_t)resp->snscb_nodename[1]) << 48) |
+		    (((u_int64_t)resp->snscb_nodename[2]) << 40) |
+		    (((u_int64_t)resp->snscb_nodename[3]) << 32) |
+		    (((u_int64_t)resp->snscb_nodename[4]) << 24) |
+		    (((u_int64_t)resp->snscb_nodename[5]) << 16) |
+		    (((u_int64_t)resp->snscb_nodename[6]) <<  8) |
+		    (((u_int64_t)resp->snscb_nodename[7]));
+		if (portid == 0 || wwpn == 0) {
 			rv = 0;
 			break;
 		}
+
+		switch (resp->snscb_port_type) {
+		case 1:
+			pt = "   N_Port";
+			break;
+		case 2:
+			pt = "  NL_Port";
+			break;
+		case 3:
+			pt = "F/NL_Port";
+			break;
+		case 0x7f:
+			pt = "  Nx_Port";
+			break;
+		case 0x81:
+			pt = "  F_port";
+			break;
+		case 0x82:
+			pt = "  FL_Port";
+			break;
+		case 0x84:
+			pt = "   E_port";
+			break;
+		default:
+			pt = "?";
+			break;
+		}
+		CFGPRINTF("%s: %s @ 0x%x, Node 0x%08x%08x Port %08x%08x\n",
+		    isp->isp_name, pt, portid,
+		    ((u_int32_t) (wwnn >> 32)), ((u_int32_t) wwnn),
+		    ((u_int32_t) (wwpn >> 32)), ((u_int32_t) wwpn));
+#if	0
+		if ((resp->snscb_fc4_types[1] & 0x1) == 0) {
+			rv = 0;
+			printf("Types 0..3: 0x%x 0x%x 0x%x 0x%x\n",
+			    resp->snscb_fc4_types[0], resp->snscb_fc4_types[1],
+			    resp->snscb_fc4_types[3], resp->snscb_fc4_types[3]);
+			break;
+		}
+#endif
 		for (target = FC_SNS_ID+1; target < MAX_FC_TARG; target++) {
 			lp = &fcp->portdb[target];
-			if (lp->port_wwn == wwn)
+			if (lp->port_wwn == wwpn && lp->node_wwn == wwnn)
 				break;
 		}
 		if (target < MAX_FC_TARG) {
@@ -1896,7 +1945,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			    isp->isp_name);
 			break;
 		}
-		lp->port_wwn = lp->node_wwn = wwn;
+		lp->node_wwn = wwnn;
+		lp->port_wwn = wwpn;
 		lp->portid = portid;
 		rv = 0;
 		break;
