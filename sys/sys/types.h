@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.21 1997/05/08 13:50:36 peter Exp $
+ * $Id: types.h,v 1.22 1997/12/31 01:22:01 alex Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -122,6 +122,21 @@ typedef	_BSD_CLOCKID_T_	clockid_t;
 #ifdef	_BSD_TIMER_T_
 typedef	_BSD_TIMER_T_	timer_t;
 #undef	_BSD_TIMER_T_
+#endif
+
+#ifdef	_BSD_UINT8_T_
+typedef	_BSD_UINT8_T_	uint8_t;
+#undef	_BSD_UINT8_T_
+#endif
+
+#ifdef	_BSD_UINT16_T_
+typedef	_BSD_UINT16_T_	uint16_t;
+#undef	_BSD_UINT16_T_
+#endif
+
+#ifdef	_BSD_UINT32_T_
+typedef	_BSD_UINT32_T_	uint32_t;
+#undef	_BSD_UINT32_T_
 #endif
 
 #ifndef _POSIX_SOURCE
