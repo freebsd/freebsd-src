@@ -524,5 +524,5 @@ Str_SYSVSubst(Buffer *buf, const char *pat, const char *src, int len)
     Buf_AddBytes(buf, len, (const Byte *)src);
 
     /* append the rest */
-    Buf_AddBytes(buf, strlen(pat), (const Byte *)pat);
+    Buf_Append(buf, pat);
 }

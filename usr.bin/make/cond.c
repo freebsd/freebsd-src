@@ -239,7 +239,7 @@ CondGetArg(char **linePtr, char **argPtr, const char *func, Boolean parens)
 
 	    cp2 = Var_Parse(cp, VAR_CMD, TRUE, &len, &doFree);
 
-	    Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
+	    Buf_Append(buf, cp2);
 	    if (doFree) {
 		free(cp2);
 	    }
@@ -540,12 +540,10 @@ CondToken(Boolean doEval)
 		if (!isspace((unsigned char)*condExpr) &&
 		    strchr("!=><", *condExpr) == NULL) {
 		    Buffer *buf;
-		    char *cp;
 
 		    buf = Buf_Init(0);
 
-		    for (cp = lhs; *cp; cp++)
-			Buf_AddByte(buf, (Byte)*cp);
+		    Buf_Append(buf, lhs);
 
 		    if (doFree)
 			free(lhs);
@@ -637,7 +635,7 @@ do_string_compare:
 
 			    cp2 = Var_Parse(cp, VAR_CMD, doEval, &len, &freeIt);
 			    if (cp2 != var_Error) {
-				Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
+				Buf_Append(buf, cp2);
 				if (freeIt) {
 				    free(cp2);
 				}
