@@ -140,7 +140,7 @@ The default value is 16.
 .It Fl d Ar rotdelay
 This specifies the expected time (in milliseconds) to service a transfer
 completion interrupt and initiate a new transfer on the same disk.
-The default is 4 milliseconds.
+The default is 0 milliseconds.
 See
 .Xr tunefs 8
 for more details on how to set this option.
@@ -166,6 +166,9 @@ The default value used is 10%.
 See
 .Xr tunefs 8
 for more details on how to set this option.
+.It Fl n Ar number of distinguished rotational positions
+Determines how many rotational time slots there are in one revolution of
+the disk.  Defaults to 0, which disables the rotational position table.
 .It Fl o Ar optimization\ preference
 .Pq ``space'' or ``time''
 The file system can either be instructed to try to minimize the time spent
