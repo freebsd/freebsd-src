@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15.2.1 1998/01/30 10:55:44 yokota Exp $
+# $Id: Makefile,v 1.15.2.2 1998/02/13 03:48:13 yokota Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd
@@ -20,15 +20,12 @@ KEYMAPS+= swissgerman.iso.kbd
 KEYMAPS+= uk.iso.kbd uk.cp850.kbd
 KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd
 
-MAPSDIR = /usr/share/syscons/keymaps
+MAPSDIR = ${SHAREDIR}/syscons/keymaps
 NOMAN = noman
-
-all clean:
-	@echo -n
+NOOBJ = noobj
 
 install:
-	cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
-			${DESTDIR}${MAPSDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${KEYMAPS} \
+	    ${DESTDIR}${MAPSDIR}
 
 .include <bsd.prog.mk>
