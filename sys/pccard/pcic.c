@@ -223,14 +223,25 @@ pcic_memory(struct slot *slt, int win)
 	}
 	if (mp->flags & MDF_ACTIVE) {
 		unsigned long sys_addr = (uintptr_t)(void *)mp->start >> 12;
+		if ((sys_addr >> 12) != 0 && 
+		    (sp->sc->flags & PCIC_YENTA_HIGH_MEMORY) == 0) {
+			printf("This pcic does not support mapping > 24M\n");
+			return (ENXIO);
+		}
 		/*
 		 * Write the addresses, card offsets and length.
 		 * The values are all stored as the upper 12 bits of the
 		 * 24 bit address i.e everything is allocated as 4 Kb chunks.
+		 * Memory mapped cardbus bridges extend this slightly to allow
+		 * one to set the upper 8 bits of the 32bit address as well.
+		 * If the chip supports it, then go ahead and write those
+		 * upper 8 bits.
 		 */
 		pcic_putw(sp, reg, sys_addr & 0xFFF);
 		pcic_putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
 		pcic_putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
+		if (sp->sc->flags & PCIC_YENTA_HIGH_MEMORY)
+		    sp->putb(sp, PCIC_MEMORY_HIGH0 + win, sys_addr >> 12);
 		/*
 		 *	Each 16 bit register has some flags in the upper bits.
 		 */
