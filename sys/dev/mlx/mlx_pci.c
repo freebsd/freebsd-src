@@ -185,7 +185,7 @@ mlx_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG_NEW,	/* maxsize, nsegments */
+			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       &sc->mlx_parent_dmat);
