@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.124 1997/08/21 21:23:21 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.125 1997/09/21 21:43:52 gibbs Exp $
  */
 /*
  * TODO:
@@ -274,8 +274,8 @@ static void	ahc_loadseq __P((struct ahc_softc *ahc));
 static struct patch *
 		ahc_next_patch __P((struct patch *cur_patch, int options,
 				    int instrptr));
-static void	ahc_download_instr __P((struct ahc_softc *ahc, int options,
-					int instrptr));
+static void	ahc_download_instr(struct ahc_softc *ahc, int options,
+				   int instrptr, u_int8_t *dconsts);
 static int	ahc_match_scb __P((struct scb *scb, int target, char channel,
 				   int lun, u_int8_t tag));
 static int	ahc_poll __P((struct ahc_softc *ahc, int wait));
@@ -953,7 +953,7 @@ ahc_handle_seqint(ahc, intstat)
 	}
 	case SEND_REJECT: 
 	{
-		u_int8_t rejbyte = ahc_inb(ahc, REJBYTE);
+		u_int8_t rejbyte = ahc_inb(ahc, ACCUM);
 		printf("%s:%c:%d: Warning - unknown message received from "
 		       "target (0x%x).  SEQ_FLAGS == 0x%x.  Rejecting\n", 
 		       ahc_name(ahc), channel, target, rejbyte,
@@ -2227,17 +2227,6 @@ ahc_init(ahc)
 			ahc->needwdtr, ahc->discenable);
 #endif
 	/*
-	 * Set the number of available hardware SCBs
-	 */
-	ahc_outb(ahc, SCBCOUNT, ahc->scb_data->maxhscbs);
-
-	/*
-	 * 2's compliment of maximum tag value
-	 */
-	i = ahc->scb_data->maxscbs;
-	ahc_outb(ahc, COMP_SCBCOUNT, -i & 0xff);
-
-	/*
 	 * Allocate enough "hardware scbs" to handle
 	 * the maximum number of concurrent transactions
 	 * we can have active.  We have to use contigmalloc
@@ -2296,14 +2285,6 @@ ahc_init(ahc)
 		ahc->qcntmask = 0x1f;
 	}
 
-	/*
-	 * QCount mask to deal with broken aic7850s that
-	 * sporadically get garbage in the upper bits of
-	 * their QCount registers.
-	 */
-	ahc_outb(ahc, QCNTMASK, ahc->qcntmask);
-
-	ahc_outb(ahc, FIFODEPTH, ahc->qfullcount);
 	ahc_outb(ahc, CMDOUTCNT, 0);
 
 	/* We don't have any waiting selections */
@@ -2724,13 +2705,13 @@ ahc_alloc_scb(ahc)
 }
 
 static void
-ahc_loadseq(ahc)
-	struct ahc_softc *ahc;
+ahc_loadseq(struct ahc_softc *ahc)
 {
 	int options;
 	struct patch *cur_patch;
 	int i;
 	int downloaded;
+	u_int8_t download_consts[4];
 
 	options = 1;	/* Code for all options */
 	downloaded = 0;
@@ -2740,6 +2721,12 @@ ahc_loadseq(ahc)
 		options |= TWIN_CHANNEL;
 	if (ahc->scb_data->maxscbs > ahc->scb_data->maxhscbs)
 		options |= SCB_PAGING;
+
+	/* Setup downloadable constant table */
+	download_consts[SCBCOUNT] = ahc->scb_data->maxhscbs;
+	download_consts[COMP_SCBCOUNT] = -ahc->scb_data->maxscbs & 0xFF;
+	download_consts[FIFODEPTH] = ahc->qfullcount;
+	download_consts[QCNTMASK] = ahc->qcntmask;
 
 	cur_patch = patches;
 	ahc_outb(ahc, SEQCTL, PERRORDIS|LOADRAM);
@@ -2752,7 +2739,7 @@ ahc_loadseq(ahc)
 		if (cur_patch && cur_patch->begin <= i && cur_patch->end > i)
 			/* Skip this instruction for this configuration */
 			continue;
-		ahc_download_instr(ahc, options, i);
+		ahc_download_instr(ahc, options, i, download_consts);
 		downloaded++;
 	}
 
@@ -2793,17 +2780,17 @@ ahc_next_patch(cur_patch, options, instrptr)
 }
 
 static void
-ahc_download_instr(ahc, options, instrptr)
-	struct ahc_softc *ahc;
-	int options;
-	int instrptr;
+ahc_download_instr(struct ahc_softc *ahc, int options,
+		   int instrptr, u_int8_t *dconsts)
 {
 	u_int8_t opcode;
-	struct	 ins_format3 *instr;
+	struct	 ins_format3 instr;
 
-	instr = (struct ins_format3 *)&seqprog[instrptr * 4];
+	/* Structure copy */
+	instr = *(struct ins_format3 *)&seqprog[instrptr * 4];
+
 	/* Pull the opcode */
-	opcode = instr->opcode_addr >> 1;
+	opcode = (instr.opcode_addr & ~DOWNLOAD_CONST_IMMEDIATE) >> 1;
 	switch (opcode) {
 	case AIC_OP_JMP:
 	case AIC_OP_JC:
@@ -2815,15 +2802,13 @@ ahc_download_instr(ahc, options, instrptr)
 	case AIC_OP_JZ:
 	{
 		int address_offset;
-		struct ins_format3 new_instr;
 		u_int address;
 		struct patch *patch;
 		int i;
 
 		address_offset = 0;
-		new_instr = *instr; /* structure copy */
-		address = new_instr.address;
-		address |= (new_instr.opcode_addr & ADDR_HIGH_BIT) << 8;
+		address = instr.address;
+		address |= (instr.opcode_addr & ADDR_HIGH_BIT) << 8;
 		for (i = 0; i < sizeof(patches)/sizeof(patches[0]); i++) {
 			patch = &patches[i];
 			if (((patch->options & options) == 0
@@ -2836,19 +2821,23 @@ ahc_download_instr(ahc, options, instrptr)
 			}
 		}
 		address -= address_offset;
-		new_instr.address = address & 0xFF;
-		new_instr.opcode_addr &= ~ADDR_HIGH_BIT;
-		new_instr.opcode_addr |= (address >> 8) & ADDR_HIGH_BIT;
-		ahc_outsb(ahc, SEQRAM, &new_instr.immediate, 4);
-		break;
+		instr.address = address & 0xFF;
+		instr.opcode_addr &= ~ADDR_HIGH_BIT;
+		instr.opcode_addr |= (address >> 8) & ADDR_HIGH_BIT;
+		/* FALLTHROUGH */
 	}
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
 	case AIC_OP_ADD:
 	case AIC_OP_ADC:
+		if ((instr.opcode_addr & DOWNLOAD_CONST_IMMEDIATE) != 0) {
+			instr.immediate = dconsts[instr.immediate];
+		}
+		instr.opcode_addr &= ~DOWNLOAD_CONST_IMMEDIATE;
+		/* FALLTHROUGH */
 	case AIC_OP_ROL:
-		ahc_outsb(ahc, SEQRAM, &instr->immediate, 4);
+		ahc_outsb(ahc, SEQRAM, &instr.immediate, 4);
 		break;
 	default:
 		panic("Unknown opcode encountered in seq program");
