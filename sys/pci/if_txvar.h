@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
+/*	$OpenBSD: if_txvar.h,v 1.7 1999/11/17 05:21:19 jason Exp $	*/
 /* $FreeBSD$ */
 
 /*-
@@ -25,13 +25,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *
  */
 
 /*
  * Configuration
  */
+/*#define	EPIC_DEBUG	1*/
+/*#define	EPIC_USEIOSPACE	1*/
+#define	EARLY_RX	1
+
 #ifndef ETHER_MAX_LEN
 #define ETHER_MAX_LEN		1518
 #endif
@@ -46,33 +48,20 @@
 						/* confuse RX(TX)_RING_MASK */
 #define TX_RING_MASK		(TX_RING_SIZE - 1)
 #define RX_RING_MASK		(RX_RING_SIZE - 1)
-#define EPIC_FULL_DUPLEX	1
-#define EPIC_HALF_DUPLEX	0
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
-#define	EPIC_LINK_DOWN		0x00000001
+
+/* PCI aux configuration registers */
+#if defined(__FreeBSD__)
+#define	PCIR_BASEIO	(PCIR_MAPS + 0x0)	/* Base IO Address */
+#define	PCIR_BASEMEM	(PCIR_MAPS + 0x4)	/* Base Memory Address */
+#else /* __OpenBSD__ */
+#define	PCI_BASEIO	(PCI_MAPS + 0x0)	/* Base IO Address */
+#define	PCI_BASEMEM	(PCI_MAPS + 0x4)	/* Base Memory Address */
+#endif /* __FreeBSD__ */
 
 /* PCI identification */
 #define SMC_VENDORID		0x10B8
-#define CHIPID_83C170		0x0005
-#define	PCI_VENDORID(x)		((x) & 0xFFFF)
-#define	PCI_CHIPID(x)		(((x) >> 16) & 0xFFFF)
-
-/* PCI configuration */
-#define	PCI_CFID	0x00	/* Configuration ID */
-#define	PCI_CFCS	0x04	/* Configurtion Command/Status */
-#define	PCI_CFRV	0x08	/* Configuration Revision */
-#define	PCI_CFLT	0x0c	/* Configuration Latency Timer */
-#define	PCI_CBIO	0x10	/* Configuration Base IO Address */
-#define	PCI_CBMA	0x14	/* Configuration Base Memory Address */
-#define	PCI_CFIT	0x3c	/* Configuration Interrupt */
-#define	PCI_CFDA	0x40	/* Configuration Driver Area */
-
-#define	PCI_CFCS_IOEN	0x0001	/* IO Sapce Enable */
-#define	PCI_CFCS_MAEN	0x0002	/* Memory Space Enable */
-#define	PCI_CFCS_BMEN	0x0004	/* Bus Master Enable */
-
-#define	PCI_CONF_WRITE(r, v)	pci_conf_write(config_id, (r), (v))
-#define	PCI_CONF_READ(r)	pci_conf_read(config_id, (r))
+#define SMC_DEVICEID_83C170	0x0005
 
 /* EPIC's registers */
 #define	COMMAND		0x0000
@@ -114,9 +103,6 @@
 #define	COMMAND_STOP_TDMA	0x20
 #define	COMMAND_STOP_RDMA	0x40
 #define	COMMAND_TXUGO		0x80
-
-/* Tx threshold */
-#define TX_FIFO_THRESH	0x80		/* 0x40 or 0x10 */
 
 /* Interrupt register bits */
 #define INTSTAT_RCC	0x00000001
@@ -196,84 +182,30 @@
 #define TXCON_FULL_DUPLEX		0x00000006
 #define TXCON_SLOT_TIME			0x00000078
 
+#define	MIICFG_SERIAL_ENABLE		0x00000001
+#define	MIICFG_694_ENABLE		0x00000002
+#define	MIICFG_694_STATUS		0x00000004
+#define	MIICFG_PHY_PRESENT		0x00000008
 #define	MIICFG_SMI_ENABLE		0x00000010
 
 #define	TEST1_CLOCK_TEST		0x00000008
 
+/*
+ * Some default values
+ */
 #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
-#define TRANSMIT_THRESHOLD	0x80
+#define TRANSMIT_THRESHOLD	0x300
 
 #if defined(EARLY_RX)
- #define RXCON_DEFAULT		(RXCON_EARLY_RECEIVE_ENABLE | RXCON_SAVE_ERRORED_PACKETS)
+#define RXCON_EARLY		(RXCON_EARLY_RECEIVE_ENABLE | \
+				 RXCON_SAVE_ERRORED_PACKETS)
 #else
- #define RXCON_DEFAULT		(0)
+#define RXCON_EARLY		(0)
 #endif
-/*
- * National Semiconductor's DP83840A Registers and bits
- */
-#define	DP83840_OUI	0x080017
-#define DP83840_BMCR	0x00	/* Control register */
-#define DP83840_BMSR	0x01	/* Status rgister */
-#define	DP83840_ANAR	0x04	/* Autonegotiation advertising register */
-#define	DP83840_LPAR	0x05	/* Link Partner Ability register */
-#define DP83840_ANER	0x06	/* Auto-Negotiation Expansion Register */
-#define DP83840_PAR	0x19	/* PHY Address Register */
-#define	DP83840_PHYIDR1	0x02
-#define	DP83840_PHYIDR2	0x03
 
-#define BMCR_RESET		0x8000
-#define	BMCR_LOOPBACK		0x4000
-#define BMCR_100MBPS		0x2000	/* 10/100 Mbps */
-#define BMCR_AUTONEGOTIATION	0x1000	/* ON/OFF */
-#define	BMCR_POWERDOWN		0x0800
-#define	BMCR_ISOLATE		0x0400
-#define BMCR_RESTART_AUTONEG	0x0200
-#define	BMCR_FULL_DUPLEX	0x0100
-#define	BMCR_COL_TEST		0x0080
-
-#define	BMSR_100BASE_T4		0x8000
-#define	BMSR_100BASE_TX_FD	0x4000
-#define	BMSR_100BASE_TX		0x2000
-#define	BMSR_10BASE_T_FD	0x1000
-#define	BMSR_10BASE_T		0x0800
-#define	BMSR_AUTONEG_COMPLETE	0x0020
-#define BMSR_AUTONEG_ABLE	0x0008
-#define	BMSR_LINK_STATUS	0x0004
-
-#define PAR_FULL_DUPLEX		0x0400
-
-#define ANER_MULTIPLE_LINK_FAULT	0x10
-
-/* ANAR and LPAR have the same bits, define them only once */
-#define	ANAR_10			0x0020
-#define	ANAR_10_FD		0x0040
-#define	ANAR_100_TX		0x0080
-#define	ANAR_100_TX_FD		0x0100
-#define	ANAR_100_T4		0x0200
-
-/*
- * Quality Semiconductor's QS6612 registers and bits
- */
-#define	QS6612_OUI		0x006051
-#define	QS6612_MCTL		17
-#define	QS6612_INTSTAT		29
-#define	QS6612_INTMASK		30
-#define	QS6612_BPCR		31
-
-#define	MCTL_T4_PRESENT		0x1000	/* External T4 Enabled, ignored */
-					/* if AutoNeg is enabled */
-#define	MCTL_BTEXT		0x0800	/* Reduces 10baset squelch level */
-					/* for extended cable length */
-
-#define	INTSTAT_AN_COMPLETE	0x40	/* Autonegotiation complete */
-#define	INTSTAT_RF_DETECTED	0x20	/* Remote Fault detected */
-#define	INTSTAT_LINK_STATUS	0x10	/* Link status changed */
-#define	INTSTAT_AN_LP_ACK	0x08	/* Autoneg. LP Acknoledge */
-#define	INTSTAT_PD_FAULT	0x04	/* Parallel Detection Fault */
-#define	INTSTAT_AN_PAGE		0x04	/* Autoneg. Page Received */
-#define	INTSTAT_RE_CNT_FULL	0x01	/* Receive Error Counter Full */
-
-#define	INTMASK_THUNDERLAN	0x8000	/* Enable interrupts */
+#define	RXCON_DEFAULT		(RXCON_EARLY | \
+				 RXCON_RECEIVE_MULTICAST_FRAMES | \
+				 RXCON_RECEIVE_BROADCAST_FRAMES)
 
 /*
  * Structures definition and Functions prototypes
@@ -329,21 +261,22 @@ struct epic_tx_buffer {
 typedef struct {
 	struct arpcom		arpcom;
 #if defined(__OpenBSD__)
-	struct device		sc_dev;
+	mii_data_t		sc_mii;
+	struct device		dev;
+#else /* __FreeBSD__ */
+	struct resource		*res;
+	struct resource		*irq;
+
+	device_t		miibus;
+	device_t		dev;
+	struct callout_handle	stat_ch;
+
+	u_int32_t		unit;
+#endif
 	void			*sc_ih;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
-#else /* __FreeBSD__ */
-#if defined(EPIC_USEIOSPACE)
-	u_int32_t		iobase;
-#else
-	caddr_t			csr;
-#endif
-#endif
-#if !defined(EPIC_NOIFMEDIA)
-	struct ifmedia 		ifmedia;
-#endif
-	u_int32_t		unit;
+
 	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
 	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
 
@@ -363,43 +296,31 @@ typedef struct {
 	void 			*pool;
 } epic_softc_t;
 
+struct epic_type {
+	u_int16_t	ven_id;
+	u_int16_t	dev_id;
+	char		*name;
+};
+
+#if defined(EPIC_DEBUG)
+#define dprintf(a) printf a
+#else
+#define dprintf(a)
+#endif
+
 #if defined(__FreeBSD__)
 #define EPIC_FORMAT	"tx%d"
 #define EPIC_ARGS(sc)	(sc->unit)
-#define sc_if arpcom.ac_if
-#define sc_macaddr arpcom.ac_enaddr
-#if defined(EPIC_USEIOSPACE)
-#define CSR_WRITE_4(sc,reg,val) 					\
-	outl( (sc)->iobase + (u_int32_t)(reg), (val) )
-#define CSR_WRITE_2(sc,reg,val) 					\
-	outw( (sc)->iobase + (u_int32_t)(reg), (val) )
-#define CSR_WRITE_1(sc,reg,val) 					\
-	outb( (sc)->iobase + (u_int32_t)(reg), (val) )
-#define CSR_READ_4(sc,reg) 						\
-	inl( (sc)->iobase + (u_int32_t)(reg) )
-#define CSR_READ_2(sc,reg) 						\
-	inw( (sc)->iobase + (u_int32_t)(reg) )
-#define CSR_READ_1(sc,reg) 						\
-	inb( (sc)->iobase + (u_int32_t)(reg) )
-#else
-#define CSR_WRITE_1(sc,reg,val) 					\
-	((*(volatile u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
-#define CSR_WRITE_2(sc,reg,val) 					\
-	((*(volatile u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
-#define CSR_WRITE_4(sc,reg,val) 					\
-	((*(volatile u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
-#define CSR_READ_1(sc,reg) 						\
-	(*(volatile u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_2(sc,reg) 						\
-	(*(volatile u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_4(sc,reg) 						\
-	(*(volatile u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
-#endif
+#define EPIC_BPFTAP_ARG(ifp)    ifp
 #else /* __OpenBSD__ */
 #define EPIC_FORMAT	"%s"
 #define EPIC_ARGS(sc)	(sc->sc_dev.dv_xname)
-#define sc_if	arpcom.ac_if
+#define EPIC_BPFTAP_ARG(ifp)	(ifp)->if_bpf
+#endif
+
+#define sc_if arpcom.ac_if
 #define sc_macaddr arpcom.ac_enaddr
+
 #define CSR_WRITE_4(sc,reg,val) 					\
 	bus_space_write_4( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
 #define CSR_WRITE_2(sc,reg,val) 					\
@@ -412,8 +333,21 @@ typedef struct {
 	bus_space_read_2( (sc)->sc_st, (sc)->sc_sh, (reg) )
 #define CSR_READ_1(sc,reg) 						\
 	bus_space_read_1( (sc)->sc_st, (sc)->sc_sh, (reg) )
-#endif
 
-#define	PHY_READ_2(sc,reg)	epic_read_phy_register(sc,reg)
-#define PHY_WRITE_2(sc,reg,val)	epic_write_phy_register(sc,reg,val)
+#define	PHY_READ_2(sc,phy,reg)						\
+	epic_read_phy_reg((sc),(phy),(reg))
+#define	PHY_WRITE_2(sc,phy,reg,val)					\
+	epic_write_phy_reg((sc),(phy),(reg),(val))
+
+/* Macro to get either mbuf cluster or nothing */
+#define EPIC_MGETCLUSTER(m)						\
+	{ MGETHDR((m),M_DONTWAIT,MT_DATA);				\
+	  if (m) {							\
+	    MCLGET((m),M_DONTWAIT);					\
+	    if( 0 == ((m)->m_flags & M_EXT) ) {				\
+	      m_freem(m);						\
+	      (m) = NULL;						\
+	    }								\
+	  }								\
+	}
 
