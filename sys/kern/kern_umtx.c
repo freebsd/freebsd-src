@@ -30,41 +30,131 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/sx.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
+
+struct umtx_q {
+	LIST_ENTRY(umtx_q)	uq_next;	/* Linked list for the hash. */
+	TAILQ_HEAD(, thread) uq_tdq;	/* List of threads blocked here. */
+	struct umtx	*uq_umtx;	/* Pointer key component. */
+	pid_t		uq_pid;		/* Pid key component. */
+};
+
+#define	UMTX_QUEUES	128
+#define	UMTX_HASH(pid, umtx)						\
+    (((uintptr_t)pid + ((uintptr_t)umtx & ~65535)) % UMTX_QUEUES)
+
+LIST_HEAD(umtx_head, umtx_q);
+static struct umtx_head queues[UMTX_QUEUES];
+static MALLOC_DEFINE(M_UMTX, "umtx", "UMTX queue memory");
+
+static struct mtx umtx_lock;
+MTX_SYSINIT(umtx, &umtx_lock, "umtx", MTX_DEF);
 
 #define	UMTX_LOCK()	mtx_lock(&umtx_lock);
 #define	UMTX_UNLOCK()	mtx_unlock(&umtx_lock);
 
-struct mtx umtx_lock;
 
-MTX_SYSINIT(umtx, &umtx_lock, "User-land mutex lock", MTX_DEF);
+static struct umtx_q *umtx_lookup(struct thread *, struct umtx *umtx);
+static struct umtx_q *umtx_insert(struct thread *, struct umtx *umtx);
+
+static struct umtx_q *
+umtx_lookup(struct thread *td, struct umtx *umtx)
+{
+	struct umtx_head *head;
+	struct umtx_q *uq;
+	pid_t pid;
+
+	pid = td->td_proc->p_pid;
+
+	head = &queues[UMTX_HASH(td->td_proc->p_pid, umtx)];
+
+	LIST_FOREACH(uq, head, uq_next) {
+		if (uq->uq_pid == pid && uq->uq_umtx == umtx)
+			return (uq);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Insert a thread onto the umtx queue.
+ */
+static struct umtx_q *
+umtx_insert(struct thread *td, struct umtx *umtx)
+{
+	struct umtx_head *head;
+	struct umtx_q *uq;
+	pid_t pid;
+
+	pid = td->td_proc->p_pid;
+
+	if ((uq = umtx_lookup(td, umtx)) == NULL) {
+		struct umtx_q *ins;
+
+		UMTX_UNLOCK();
+		ins = malloc(sizeof(*uq), M_UMTX, M_ZERO | M_WAITOK);
+		UMTX_LOCK();
+
+		/*
+		 * Some one else could have succeeded while we were blocked
+		 * waiting on memory.
+		 */
+		if ((uq = umtx_lookup(td, umtx)) == NULL) {
+			head = &queues[UMTX_HASH(pid, umtx)];
+			uq = ins;
+			uq->uq_pid = pid;
+			uq->uq_umtx = umtx;
+			LIST_INSERT_HEAD(head, uq, uq_next);
+			TAILQ_INIT(&uq->uq_tdq);
+		} else
+			free(ins, M_UMTX);
+	}
+
+	/*
+	 * Insert us onto the end of the TAILQ.
+	 */
+	TAILQ_INSERT_TAIL(&uq->uq_tdq, td, td_umtx);
+
+	return (uq);
+}
+
+static void
+umtx_remove(struct umtx_q *uq, struct thread *td)
+{
+	TAILQ_REMOVE(&uq->uq_tdq, td, td_umtx);
+
+	if (TAILQ_EMPTY(&uq->uq_tdq)) {
+		LIST_REMOVE(uq, uq_next);
+		free(uq, M_UMTX);
+	}
+}
 
 int
 _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
 {
+	struct umtx_q *uq;
 	struct umtx *umtx;
-	struct thread *blocked;
 	intptr_t owner;
 	intptr_t old;
 	int error;
 
-	error = 0;
+	uq = NULL;
 
 	/*
 	 * Care must be exercised when dealing with this structure.  It
 	 * can fault on any access.
 	 */
 	umtx = uap->umtx;	
-
-	UMTX_LOCK();
 
 	for (;;) {
 		/*
@@ -73,20 +163,34 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		owner = casuptr((intptr_t *)&umtx->u_owner,
 		    UMTX_UNOWNED, (intptr_t)td);
 
-		/* The acquire succeeded. */
-		if (owner == UMTX_UNOWNED) {
-			error = 0;
-			goto out;
-		}
-
 		/* The address was invalid. */
-		if (owner == -1) {
-			error = EFAULT;
-			goto out;
+		if (owner == -1)
+			return (EFAULT);
+
+		/* The acquire succeeded. */
+		if (owner == UMTX_UNOWNED)
+			return (0);
+
+		/* If no one owns it but it is contested try to acquire it. */
+		if (owner == UMTX_CONTESTED) {
+			owner = casuptr((intptr_t *)&umtx->u_owner,
+			    UMTX_CONTESTED, ((intptr_t)td | UMTX_CONTESTED));
+
+			/* The address was invalid. */
+			if (owner == -1)
+				return (EFAULT);
+
+			if (owner == MTX_CONTESTED);
+				return (0);
+
+			/* If this failed the lock has changed, restart. */
+			continue;
 		}
 
-		if (owner & UMTX_CONTESTED)
-			break;
+
+		UMTX_LOCK();
+		uq = umtx_insert(td, umtx);
+		UMTX_UNLOCK();
 
 		/*
 		 * Set the contested bit so that a release in user space
@@ -97,107 +201,50 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		old = casuptr((intptr_t *)&umtx->u_owner, owner,
 		    owner | UMTX_CONTESTED);
 
-		/* We set the contested bit. */
-		if (old == owner)
-			break;
-
 		/* The address was invalid. */
 		if (old == -1) {
-			error = EFAULT;
-			goto out;
+			UMTX_LOCK();
+			umtx_remove(uq, td);
+			UMTX_UNLOCK();
+			return (EFAULT);
 		}
-		/* We didn't set the contested bit, try again. */
-	}
-
-	/*
-	 * We are now protected from further races via umtx_lock.
-	 * If userland messes with their mutex without using cmpset
-	 * they will deadlock themselves but they will still be
-	 * killable via signals.
-	 */
-
-	if ((owner = fuword(&umtx->u_blocked)) == -1) {
-		error = EFAULT;
-		goto out;
-	}
-
-	if (owner == UMTX_UNOWNED) {
-		if (suword(&umtx->u_blocked, (long)td) == -1) {
-			error = EFAULT;
-			goto out;
-		}
-		/*
-		 * Other blocked threads will reside here.
-		 */
-		STAILQ_INIT(&td->td_umtxq);
-	} else {
-		FOREACH_THREAD_IN_PROC(td->td_proc, blocked)
-			if (blocked == (struct thread *)(owner))
-				break;
-
-		if (blocked == NULL) {
-			error = EINVAL;
-			goto out;
-		}
-		/*
-		 * Insert us onto the end of the TAILQ.
-		 */
-		STAILQ_INSERT_TAIL(&blocked->td_umtxq, td, td_umtx);
-	}
-
-	for (;;) {
-		/*
-		 * Sleep until we can acquire the lock.  We must still deliver
-		 * signals so that they are not deferred until we acquire the
-		 * lock which may be never.  The threads actual priority is
-		 * used to maintain proper ordering.
-		 */
-
-		error = msleep(&td->td_umtx, &umtx_lock,
-		    td->td_priority | PCATCH, "umtx", 0);
 
 		/*
-		 * When we are woken up we need to see if we now own the lock
-		 * even if a signal was delivered.
+		 * We set the contested bit, sleep. Otherwise the lock changed
+		 * and we need to retry.
 		 */
-		if ((owner = fuword(&umtx->u_owner)) == -1) {
-			error = EFAULT;
-			break;
-		}
-		owner &= ~UMTX_CONTESTED;
-		if ((struct thread *)owner == td) {
+		UMTX_LOCK();
+		if (old == owner)
+			error = msleep(td, &umtx_lock,
+			    td->td_priority | PCATCH, "umtx", 0);
+		else
 			error = 0;
-			break;
-		}
+
+		umtx_remove(uq, td);
+		UMTX_UNLOCK();
 
 		/*
-		 * We may have signals to deliver.
+		 * If we caught a signal we might have to retry or exit 
+		 * immediately.
 		 */
 		if (error)
-			break;
+			return (error);
 	}
 
-out:
-	UMTX_UNLOCK();
-
-	return (error);
+	return (0);
 }
 
 int
 _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
     /* struct umtx *umtx */
 {
-	struct thread *td0;
+	struct thread *blocked;
 	struct umtx *umtx;
+	struct umtx_q *uq;
 	intptr_t owner;
-	intptr_t blocked;
 	intptr_t old;
-	int error;
 
-	error = 0;
 	umtx = uap->umtx;
-
-	UMTX_LOCK();
 
 	/*
 	 * Make sure we own this mtx.
@@ -205,14 +252,11 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	 * XXX Need a {fu,su}ptr this is not correct on arch where
 	 * sizeof(intptr_t) != sizeof(long).
 	 */
-	if ((owner = fuword(&umtx->u_owner)) == -1) {
-		error = EFAULT;
-		goto out;
-	}
-	if ((struct thread *)(owner & ~UMTX_CONTESTED) != td) {
-		error = EPERM;
-		goto out;
-	}
+	if ((owner = fuword(&umtx->u_owner)) == -1)
+		return (EFAULT);
+
+	if ((struct thread *)(owner & ~UMTX_CONTESTED) != td)
+		return (EPERM);
 	/*
 	 * If we own it but it isn't contested then we can just release and
 	 * return.
@@ -222,92 +266,40 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 		    (intptr_t)td, UMTX_UNOWNED);
 
 		if (owner == -1)
-			error = EFAULT;
+			return (EFAULT);
 		/*
 		 * If this failed someone modified the memory without going
 		 * through this api.
 		 */
-		else if (owner != (intptr_t)td)
-			error = EINVAL;
-		else
-			error = 0;
+		if (owner != (intptr_t)td)
+			return (EINVAL);
 
-		goto out;
+		return (0);
 	}
 
-	/*
-	 * Since we own the mutex and the proc lock we are free to inspect
-	 * the blocked queue.  It must have one valid entry since the
-	 * CONTESTED bit was set.
-	 */
-	blocked = fuword(&umtx->u_blocked);
-	if (blocked == -1) { 
-		error = EFAULT;
-		goto out;
-	}
-	if (blocked == 0) {
-		error = EINVAL;
-		goto out;
-	}
+	old = casuptr((intptr_t *)&umtx->u_owner, owner, UMTX_CONTESTED);
 
-	FOREACH_THREAD_IN_PROC(td->td_proc, td0)
-		if (td0 == (struct thread *)blocked)
-			break;
-
-	if (td0 == NULL) {
-		error = EINVAL;
-		goto out;
-	}
-
-	if (!STAILQ_EMPTY(&td0->td_umtxq)) {
-		struct thread *next;
-
-		blocked |= UMTX_CONTESTED;
-		next = STAILQ_FIRST(&td0->td_umtxq);
-		if (suword(&umtx->u_blocked, (long)next) == -1) {
-			error = EFAULT;
-			goto out;
-		}
-		STAILQ_REMOVE_HEAD(&td0->td_umtxq, td_umtx);
-
-		/*
-		 * Switch the queue over to the next blocked thread.
-		 */
-		if (!STAILQ_EMPTY(&td0->td_umtxq)) {
-			next->td_umtxq = td0->td_umtxq;
-			STAILQ_INIT(&td0->td_umtxq);
-		} else
-			STAILQ_INIT(&next->td_umtxq);
-	} else {
-		if (suword(&umtx->u_blocked, UMTX_UNOWNED) == -1) {
-			error = EFAULT;
-			goto out;
-		}
-	}
-	/*
-	 * Now directly assign this mutex to the first thread that was
-	 * blocked on it.
-	 */
-	old = casuptr((intptr_t *)&umtx->u_owner, owner, blocked);
+	if (old == -1)
+		return (EFAULT);
 
 	/*
 	 * This will only happen if someone modifies the lock without going
 	 * through this api.
 	 */
-	if (old != owner) {
-		error = EINVAL;
-		goto out;
-	}
-	if (old == -1) {
-		error = EFAULT;
-		goto out;
-	}
-	/* Success. */
-	error = 0;
-	wakeup(&td0->td_umtx);
+	if (old != owner)
+		return (EINVAL);
 
-out:
+	/*
+	 * We have to wake up one of the blocked threads.
+	 */
+	UMTX_LOCK();
+	uq = umtx_lookup(td, umtx);
+	if (uq != NULL) {
+		blocked = TAILQ_FIRST(&uq->uq_tdq);
+		wakeup(blocked);
+	}
+
 	UMTX_UNLOCK();
 
-	return (error);
+	return (0);
 }
