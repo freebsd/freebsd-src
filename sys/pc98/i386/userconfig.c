@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.4 1996/12/22 15:01:42 joerg Exp $
+ **      $Id: userconfig.c,v 1.10.2.5 1997/01/04 16:32:38 kato Exp $
  **/
 
 /**
@@ -224,15 +224,7 @@ static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
 #ifdef PC98
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
-{"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
-{"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
-{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
-{"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
-{"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
-{"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
-{"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
-{"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
-#else
+#endif
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
@@ -249,7 +241,6 @@ static DEV_INFO device_info[] = {
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
-#endif
 {"amd",		"Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
 #ifdef PC98
@@ -273,7 +264,6 @@ static DEV_INFO device_info[] = {
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
-#ifndef PC98
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
@@ -282,18 +272,11 @@ static DEV_INFO device_info[] = {
 {"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
-#endif
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
-#ifndef PC98
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
-#endif
 
-#ifdef PC98
-{"mse",         "Bus Mouse",			0,		CLS_INPUT},
-#else
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
 {"psm",         "PS/2 Mouse",				0,		CLS_INPUT},
-#endif
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
 {"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
@@ -2254,7 +2237,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.4 1996/12/22 15:01:42 joerg Exp $
+ *      $Id: userconfig.c,v 1.10.2.5 1997/01/04 16:32:38 kato Exp $
  */
 
 #include "scbus.h"
