@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	caesar
-MAN6=	caesar.6
 DPADD=	${LIBM}
 LDADD=	-lm
 MLINKS=	caesar.6 rot13.6
