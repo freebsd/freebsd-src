@@ -1,4 +1,5 @@
 /*
+ * Copyright 2004 Robert N. M. Watson
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -81,6 +82,26 @@ static	struct unp_head unp_shead, unp_dhead;
 static const struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 static ino_t	unp_ino;		/* prototype for fake inode numbers */
 
+/*
+ * Currently, UNIX domain sockets are protected by a single subsystem lock,
+ * which covers global data structures and variables, the contents of each
+ * per-socket unpcb structure, and the so_pcb field in sockets attached to
+ * the UNIX domain.  This provides for a moderate degree of paralellism, as
+ * receive operations on UNIX domain sockets do not need to acquire the
+ * subsystem lock.  Finer grained locking to permit send() without acquiring
+ * a global lock would be a logical next step.
+ *
+ * The UNIX domain socket lock preceds all socket layer locks, including the
+ * socket lock and socket buffer lock, permitting UNIX domain socket code to
+ * call into socket support routines without releasing its locks.
+ *
+ * Some caution is required in areas where the UNIX domain socket code enters
+ * VFS in order to create or find rendezvous points.  This results in
+ * dropping of the UNIX domain socket subsystem lock, acquisition of the
+ * Giant lock, and potential sleeping.  This increases the chances of races,
+ * and exposes weaknesses in the socket->protocol API by offering poor
+ * failure modes.
+ */
 static struct mtx unp_mtx;
 #define	UNP_LOCK_INIT() \
 	mtx_init(&unp_mtx, "unp", NULL, MTX_DEF)
