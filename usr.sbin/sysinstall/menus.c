@@ -77,26 +77,6 @@ clearDES(dialogMenuItem *self)
 }
 
 static int
-setX11All(dialogMenuItem *self)
-{
-    XF86Dists = DIST_XF86_ALL;
-    XF86ServerDists = DIST_XF86_SERVER_ALL;
-    XF86FontDists = DIST_XF86_FONTS_ALL;
-    Dists |= DIST_XF86;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearX11All(dialogMenuItem *self)
-{
-    XF86Dists = 0;
-    XF86ServerDists = 0;
-    XF86FontDists = 0;
-    Dists &= ~DIST_XF86;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
 setX11Misc(dialogMenuItem *self)
 {
     XF86Dists |= DIST_XF86_MISC_ALL;
@@ -359,13 +339,13 @@ DMenu MenuDocumentation = {
     "Confused?  Press F1 for help.",
     "usage",
     { { "X Exit",	"Exit this menu (returning to previous)",	NULL, dmenuExit },
-      { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "README" },
-      { "2 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
-      { "3 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
-      { "4 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
-      { "6 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
-      { "7 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
+      { "2 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "README" },
+      { "3 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
+      { "4 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
+      { "5 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
+      { "6 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
+      { "7 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
+      { "8 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
       { NULL } },
 };
 
@@ -443,10 +423,10 @@ DMenu MenuMouse = {
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "1 Enable",	"Test and run the mouse daemon", NULL, mousedTest, NULL, NULL },
-      { "2 Type",	"Select mouse protocol type", NULL, dmenuSubmenu, NULL, &MenuMouseType },
-      { "3 Port",	"Select mouse port", NULL, dmenuSubmenu, NULL, &MenuMousePort },
-      { "4 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
+      { "2 Enable",	"Test and run the mouse daemon", NULL, mousedTest, NULL, NULL },
+      { "3 Type",	"Select mouse protocol type", NULL, dmenuSubmenu, NULL, &MenuMouseType },
+      { "4 Port",	"Select mouse port", NULL, dmenuSubmenu, NULL, &MenuMousePort },
+      { "5 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
       { NULL } },
 };
 
@@ -470,17 +450,17 @@ DMenu MenuXF86Config = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	NULL, dmenuExit },
 #ifdef __alpha__
-      { "xf86config",	"Shell-script based XFree86 configuration tool.",
+      { "2 xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
 #else
-      { "XF86Setup",	"Fully graphical XFree86 configuration tool.",
+      { "2 XF86Setup",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
-      { "xf86config",	"Shell-script based XFree86 configuration tool.",
+      { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-      { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
+      { "4 XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
 #endif
-      { "XDesktop",	"X already set up, just do desktop configuration.",
+      { "D XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
 };
@@ -499,17 +479,17 @@ DMenu MenuXDesktops = {
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
 	NULL, dmenuExit },
-      { "1 KDE",		"The K Desktop Environment.",
+      { "2 KDE",		"The K Desktop Environment.",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
-      { "2 GNOME + Afterstep",	"GNOME + Afterstep window manager.",
+      { "3 GNOME + Afterstep",	"GNOME + Afterstep window manager.",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
-      { "3 GNOME + Enlightenment","GNOME + The E window manager",
+      { "4 GNOME + Enlightenment","GNOME + The E window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
-      { "4 Afterstep",	"The Afterstep window manager",
+      { "5 Afterstep",	"The Afterstep window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
-      { "5 Windowmaker",	"The Windowmaker window manager",
+      { "6 Windowmaker",	"The Windowmaker window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
-      { "6 fvwm2",		"The fvwm2 window manager",
+      { "7 fvwm2",		"The fvwm2 window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
       { NULL } },
 };
@@ -780,7 +760,7 @@ DMenu MenuMedia = {
       { "6 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
       { "7 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
       { "8 Tape",		"Install from SCSI or QIC tape",	NULL, mediaSetTape },
-      { "Options",		"Go to the Options screen",		NULL, optionsEditor },
+      { "9 Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
 
@@ -800,24 +780,24 @@ DMenu MenuDistributions = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",			"All system sources, binaries and X Window System)",
-	checkDistEverything,	distSetEverything },
+	checkDistEverything,	distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
-      { "1 Developer",		"Full sources, binaries and doc but no games", 
+      { "4 Developer",		"Full sources, binaries and doc but no games", 
 	checkDistDeveloper,	distSetDeveloper },
-      { "2 X-Developer",	"Same as above + X Window System",
+      { "5 X-Developer",	"Same as above + X Window System",
 	checkDistXDeveloper,	distSetXDeveloper },
-      { "3 Kern-Developer",	"Full binaries and doc, kernel sources only",
+      { "6 Kern-Developer",	"Full binaries and doc, kernel sources only",
 	checkDistKernDeveloper, distSetKernDeveloper },
-      { "4 X-Kern-Developer",	"Same as above + X Window System",
+      { "7 X-Kern-Developer",	"Same as above + X Window System",
 	checkDistXKernDeveloper, distSetXKernDeveloper },
-      { "5 User",		"Average user - binaries and doc only",
+      { "8 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "6 X-User",		"Same as above + X Window System",
+      { "9 X-User",		"Same as above + X Window System",
 	checkDistXUser,		distSetXUser },
-      { "7 Minimal",		"The smallest configuration possible",
+      { "A Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "8 Custom",		"Specify your own distribution set",
+      { "B Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
       { NULL } },
 };
@@ -833,7 +813,7 @@ DMenu MenuSubDistributions = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"All system sources, binaries and X Window System",
-	NULL, distSetEverything },
+	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
       { " bin",		"Binary base distribution (required)",
@@ -895,7 +875,7 @@ DMenu MenuDESDistributions = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"Select all of the below",
-	NULL,		setDES },
+	NULL,		setDES, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
 	NULL,		clearDES, NULL, NULL, ' ', ' ', ' ' },
       { " des",		"Basic DES encryption services",
@@ -926,7 +906,7 @@ DMenu MenuSrcDistributions = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"Select all of the below",
-	NULL,		setSrc },
+	NULL,		setSrc, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
 	NULL,		clearSrc, NULL, NULL, ' ', ' ', ' ' },
       { " base",	"top-level files in /usr/src",
@@ -972,8 +952,6 @@ DMenu MenuXF86Select = {
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "All",		"Select all XFree86 distribution sets", NULL, setX11All },
-      { "Reset",	"Reset XFree86 distribution sets",	NULL, clearX11All },
       { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
       { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
       { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
@@ -990,7 +968,7 @@ DMenu MenuXF86SelectCore = {
     { { "X Exit",	"Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"Select all below",
-	NULL,		setX11Misc },
+	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all below",
 	NULL,		clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
       { " bin",		"Client applications and shared libs",
@@ -1032,7 +1010,7 @@ install.  At the minimum, you should install the standard\n\
     { { "X Exit",	"Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"All fonts",
-	NULL,		setX11Fonts },
+	NULL,		setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset font selections",
 	NULL,		clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
       { " fnts",	"Standard 75 DPI and miscellaneous fonts",
@@ -1062,7 +1040,7 @@ DMenu MenuXF86SelectServer = {
     { { "X Exit",	"Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"Select all of the above",
-	NULL,		setX11Servers },
+	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the above",
 	NULL,		clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
       { " SVGA",	"Standard VGA or Super VGA card",
@@ -1169,10 +1147,10 @@ DMenu MenuHTMLDoc = {
     "Press F1 for more help on what you see here.",
     "html",
     { { "X Exit",	"Exit this menu (returning to previous)", NULL,	dmenuExit },
-      { "1 Handbook",	"The FreeBSD Handbook.",				NULL, docShowDocument },
-      { "2 FAQ",	"The Frequently Asked Questions guide.",		NULL, docShowDocument },
-      { "3 Home",	"The Home Pages for the FreeBSD Project (requires net)", NULL, docShowDocument },
-      { "4 Other",	"Enter a URL.",						NULL, docShowDocument },
+      { "2 Handbook",	"The FreeBSD Handbook.",				NULL, docShowDocument },
+      { "3 FAQ",	"The Frequently Asked Questions guide.",		NULL, docShowDocument },
+      { "4 Home",	"The Home Pages for the FreeBSD Project (requires net)", NULL, docShowDocument },
+      { "5 Other",	"Enter a URL.",						NULL, docShowDocument },
       { NULL } },
 };
 
@@ -1186,18 +1164,18 @@ DMenu MenuInstallCustom = {
     "Press F1 to read the installation guide",
     "install",
     { { "X Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
-      { "1 Options",		"View/Set various installation options", NULL, optionsEditor },
+      { "2 Options",		"View/Set various installation options", NULL, optionsEditor },
 #ifdef __alpha__
-      { "2 Label",		"Label disk partitions",		NULL, diskLabelEditor },
-      { "3 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
-      { "4 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-      { "5 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
-#else
-      { "2 Partition",		"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
-      { "3 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
+      { "3 Label",		"Label disk partitions",		NULL, diskLabelEditor },
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
+#else
+      { "3 Partition",		"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
+      { "4 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
+      { "5 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
+      { "6 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
+      { "7 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
 #endif
       { NULL } },
 };
@@ -1443,11 +1421,11 @@ DMenu MenuSyscons = {
     "Configure your system console settings",
     NULL,
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "1 Font",	"Choose an alternate screen font",	NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
-      { "2 Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
-      { "3 Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
-      { "4 Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
-      { "5 Screenmap",	"Choose an alternate screenmap",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
+      { "2 Font",	"Choose an alternate screen font",	NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
+      { "3 Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { "4 Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
+      { "5 Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+      { "6 Screenmap",	"Choose an alternate screenmap",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
       { NULL } },
 };
 
@@ -1638,8 +1616,8 @@ DMenu MenuFixit = {
     "Press F1 for more detailed repair instructions",
     "fixit",
 { { "X Exit",	"Exit this menu (returning to previous)",		NULL, dmenuExit },
-  { "1 CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
-  { "2 Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
-  { "3 Shell",	"Start an Emergency Holographic Shell",			NULL, installFixitHoloShell },
+  { "2 CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
+  { "3 Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
+  { "4 Shell",	"Start an Emergency Holographic Shell",			NULL, installFixitHoloShell },
   { NULL } },
 };
