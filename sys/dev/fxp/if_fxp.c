@@ -174,6 +174,7 @@ static int		fxp_resume(device_t dev);
 static void		fxp_intr(void *xsc);
 static void 		fxp_init(void *xsc);
 static void 		fxp_tick(void *xsc);
+static void		fxp_powerstate_d0(device_t dev);
 static void 		fxp_start(struct ifnet *ifp);
 static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
@@ -310,6 +311,32 @@ fxp_probe(device_t dev)
 	return (ENXIO);
 }
 
+static void
+fxp_powerstate_d0(device_t dev)
+{
+#if __FreeBSD_version >= 430002
+	u_int32_t iobase, membase, irq;
+
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		/* Save important PCI config data. */
+		iobase = pci_read_config(dev, FXP_PCI_IOBA, 4);
+		membase = pci_read_config(dev, FXP_PCI_MMBA, 4);
+		irq = pci_read_config(dev, PCIR_INTLINE, 4);
+
+		/* Reset the power state. */
+		device_printf(dev, "chip is in D%d power mode "
+		    "-- setting to D0\n", pci_get_powerstate(dev));
+
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+
+		/* Restore PCI config data. */
+		pci_write_config(dev, FXP_PCI_IOBA, iobase, 4);
+		pci_write_config(dev, FXP_PCI_MMBA, membase, 4);
+		pci_write_config(dev, PCIR_INTLINE, irq, 4);
+	}
+#endif
+}
+
 static int
 fxp_attach(device_t dev)
 {
@@ -337,27 +364,7 @@ fxp_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, val, 2);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
 
-#if __FreeBSD_version >= 500000
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
-
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, FXP_PCI_IOBA, 4);
-		membase = pci_read_config(dev, FXP_PCI_MMBA, 4);
-		irq = pci_read_config(dev, PCIR_INTLINE, 4);
-
-		/* Reset the power state. */
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, FXP_PCI_IOBA, iobase, 4);
-		pci_write_config(dev, FXP_PCI_MMBA, membase, 4);
-		pci_write_config(dev, PCIR_INTLINE, irq, 4);
-	}
-#endif
+	fxp_powerstate_d0(dev);
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
@@ -676,8 +683,8 @@ fxp_suspend(device_t dev)
 
 	fxp_stop(sc);
 	
-	for (i=0; i<5; i++)
-		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i*4, 4);
+	for (i = 0; i < 5; i++)
+		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
 	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
 	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
 	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
@@ -704,9 +711,11 @@ fxp_resume(device_t dev)
 
 	s = splimp();
 
+	fxp_powerstate_d0(dev);
+
 	/* better way to do this? */
-	for (i=0; i<5; i++)
-		pci_write_config(dev, PCIR_MAPS + i*4, sc->saved_maps[i], 4);
+	for (i = 0; i < 5; i++)
+		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
 	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
 	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
 	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
