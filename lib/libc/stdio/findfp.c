@@ -48,6 +48,10 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <libc_private.h>
+#include <spinlock.h>
+
 #include "local.h"
 #include "glue.h"
 
@@ -71,6 +75,10 @@ FILE __sF[3] = {
 struct glue __sglue = { &uglue, 3, __sF };
 
 static struct glue *	moreglue __P((int));
+
+static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
+#define THREAD_LOCK()	if (__isthreaded) _SPINLOCK(&thread_lock)
+#define THREAD_UNLOCK()	if (__isthreaded) _SPINUNLOCK(&thread_lock)
 
 static struct glue *
 moreglue(n)
@@ -104,6 +112,7 @@ __sfp()
 
 	if (!__sdidinit)
 		__sinit();
+	THREAD_LOCK();
 	for (g = &__sglue;; g = g->next) {
 		for (fp = g->iobs, n = g->niobs; --n >= 0; fp++)
 			if (fp->_flags == 0)
@@ -111,9 +120,11 @@ __sfp()
 		if (g->next == NULL && (g->next = moreglue(NDYNAMIC)) == NULL)
 			break;
 	}
+	THREAD_UNLOCK();
 	return (NULL);
 found:
 	fp->_flags = 1;		/* reserve this slot; caller sets real flags */
+	THREAD_UNLOCK();
 	fp->_p = NULL;		/* no current pointer */
 	fp->_w = 0;		/* nothing to read or write */
 	fp->_r = 0;
