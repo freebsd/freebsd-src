@@ -163,21 +163,21 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	mreq->m_len = 6 * NFSX_UNSIGNED;
 	bpos = ((caddr_t)tl) + mreq->m_len;
 	*tl++ = txdr_unsigned(nd->nd_retxid);
-	*tl++ = rpc_reply;
+	*tl++ = nfsrv_rpc_reply;
 	if (err == ERPCMISMATCH || (err & NFSERR_AUTHERR)) {
-		*tl++ = rpc_msgdenied;
+		*tl++ = nfsrv_rpc_msgdenied;
 		if (err & NFSERR_AUTHERR) {
-			*tl++ = rpc_autherr;
+			*tl++ = nfsrv_rpc_autherr;
 			*tl = txdr_unsigned(err & ~NFSERR_AUTHERR);
 			mreq->m_len -= NFSX_UNSIGNED;
 			bpos -= NFSX_UNSIGNED;
 		} else {
-			*tl++ = rpc_mismatch;
+			*tl++ = nfsrv_rpc_mismatch;
 			*tl++ = txdr_unsigned(RPC_VER2);
 			*tl = txdr_unsigned(RPC_VER2);
 		}
 	} else {
-		*tl++ = rpc_msgaccepted;
+		*tl++ = nfsrv_rpc_msgaccepted;
 		/*
 		 * Send a RPCAUTH_NULL verifier - no Kerberos.
 		 */
@@ -292,7 +292,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 	if (has_header) {
 		tl = nfsm_dissect(u_int32_t *, 10 * NFSX_UNSIGNED);
 		nd->nd_retxid = fxdr_unsigned(u_int32_t, *tl++);
-		if (*tl++ != rpc_call) {
+		if (*tl++ != nfsrv_rpc_call) {
 			m_freem(mrep);
 			return (EBADRPC);
 		}
@@ -300,12 +300,12 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		tl = nfsm_dissect(u_int32_t *, 8 * NFSX_UNSIGNED);
 	nd->nd_repstat = 0;
 	nd->nd_flag = 0;
-	if (*tl++ != rpc_vers) {
+	if (*tl++ != nfsrv_rpc_vers) {
 		nd->nd_repstat = ERPCMISMATCH;
 		nd->nd_procnum = NFSPROC_NOOP;
 		return (0);
 	}
-	if (*tl != nfs_prog) {
+	if (*tl != nfsrv_nfs_prog) {
 		nd->nd_repstat = EPROGUNAVAIL;
 		nd->nd_procnum = NFSPROC_NOOP;
 		return (0);
@@ -334,7 +334,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			return (0);
 		}
 		/* Map the v2 procedure numbers into v3 ones */
-		nd->nd_procnum = nfsv3_procid[nd->nd_procnum];
+		nd->nd_procnum = nfsrv_nfsv3_procid[nd->nd_procnum];
 	}
 	auth_type = *tl++;
 	len = fxdr_unsigned(int, *tl++);
@@ -346,7 +346,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 	/*
 	 * Handle auth_unix;
 	 */
-	if (auth_type == rpc_auth_unix) {
+	if (auth_type == nfsrv_rpc_auth_unix) {
 		len = fxdr_unsigned(int, *++tl);
 		if (len < 0 || len > NFS_MAXNAMLEN) {
 			m_freem(mrep);
@@ -763,5 +763,5 @@ nfsrv_timer(void *arg)
 			nfsrv_wakenfsd(slp);
 	}
 	splx(s);
-	nfsrv_timer_handle = timeout(nfsrv_timer, (void *)0, nfs_ticks);
+	nfsrv_timer_handle = timeout(nfsrv_timer, (void *)0, nfsrv_ticks);
 }

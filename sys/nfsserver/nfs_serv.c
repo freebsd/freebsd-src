@@ -336,13 +336,13 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		 */
 		if ((fxdr_unsigned(int, sp->sa_mode) & 0xffff) != 0xffff)
 			vap->va_mode = nfstov_mode(sp->sa_mode);
-		if (sp->sa_uid != nfs_xdrneg1)
+		if (sp->sa_uid != nfsrv_nfs_xdrneg1)
 			vap->va_uid = fxdr_unsigned(uid_t, sp->sa_uid);
-		if (sp->sa_gid != nfs_xdrneg1)
+		if (sp->sa_gid != nfsrv_nfs_xdrneg1)
 			vap->va_gid = fxdr_unsigned(gid_t, sp->sa_gid);
-		if (sp->sa_size != nfs_xdrneg1)
+		if (sp->sa_size != nfsrv_nfs_xdrneg1)
 			vap->va_size = fxdr_unsigned(u_quad_t, sp->sa_size);
-		if (sp->sa_atime.nfsv2_sec != nfs_xdrneg1) {
+		if (sp->sa_atime.nfsv2_sec != nfsrv_nfs_xdrneg1) {
 #ifdef notyet
 			fxdr_nfsv2time(&sp->sa_atime, &vap->va_atime);
 #else
@@ -351,7 +351,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			vap->va_atime.tv_nsec = 0;
 #endif
 		}
-		if (sp->sa_mtime.nfsv2_sec != nfs_xdrneg1)
+		if (sp->sa_mtime.nfsv2_sec != nfsrv_nfs_xdrneg1)
 			fxdr_nfsv2time(&sp->sa_mtime, &vap->va_mtime);
 
 	}
@@ -878,7 +878,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
 	if (v3) {
 		tl = nfsm_build(u_int32_t *, NFSX_V3FATTR + 4 * NFSX_UNSIGNED);
-		*tl++ = nfs_true;
+		*tl++ = nfsrv_nfs_true;
 		fp = (struct nfs_fattr *)tl;
 		tl += (NFSX_V3FATTR / sizeof (u_int32_t));
 	} else {
@@ -962,9 +962,9 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (v3) {
 		*tl++ = txdr_unsigned(cnt);
 		if (len < reqlen)
-			*tl++ = nfs_true;
+			*tl++ = nfsrv_nfs_true;
 		else
-			*tl++ = nfs_false;
+			*tl++ = nfsrv_nfs_false;
 	}
 	*tl = txdr_unsigned(cnt);
 nfsmout:
@@ -3113,8 +3113,8 @@ again:
 				tl += 2;
 			} else
 				tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = nfs_false;
-			*tl = nfs_true;
+			*tl++ = nfsrv_nfs_false;
+			*tl = nfsrv_nfs_true;
 			FREE((caddr_t)rbuf, M_TEMP);
 			FREE((caddr_t)cookies, M_TEMP);
 			error = 0;
@@ -3179,7 +3179,7 @@ again:
 			 * the dirent entry.
 			 */
 			nfsm_clget;
-			*tl = nfs_true;
+			*tl = nfsrv_nfs_true;
 			bp += NFSX_UNSIGNED;
 			if (v3) {
 				nfsm_clget;
@@ -3230,13 +3230,13 @@ again:
 	vrele(vp);
 	vp = NULL;
 	nfsm_clget;
-	*tl = nfs_false;
+	*tl = nfsrv_nfs_false;
 	bp += NFSX_UNSIGNED;
 	nfsm_clget;
 	if (eofflag)
-		*tl = nfs_true;
+		*tl = nfsrv_nfs_true;
 	else
-		*tl = nfs_false;
+		*tl = nfsrv_nfs_false;
 	bp += NFSX_UNSIGNED;
 	if (mp != mb) {
 		if (bp < be)
@@ -3383,8 +3383,8 @@ again:
 			tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 			txdr_hyper(at.va_filerev, tl);
 			tl += 2;
-			*tl++ = nfs_false;
-			*tl = nfs_true;
+			*tl++ = nfsrv_nfs_false;
+			*tl = nfsrv_nfs_true;
 			FREE((caddr_t)cookies, M_TEMP);
 			FREE((caddr_t)rbuf, M_TEMP);
 			error = 0;
@@ -3498,13 +3498,13 @@ again:
 			fp = (struct nfs_fattr *)&fl.fl_fattr;
 			nfsm_srvfillattr(vap, fp);
 			fl.fl_fhsize = txdr_unsigned(NFSX_V3FH);
-			fl.fl_fhok = nfs_true;
-			fl.fl_postopok = nfs_true;
+			fl.fl_fhok = nfsrv_nfs_true;
+			fl.fl_postopok = nfsrv_nfs_true;
 			fl.fl_off.nfsuquad[0] = 0;
 			fl.fl_off.nfsuquad[1] = txdr_unsigned(*cookiep);
 
 			nfsm_clget;
-			*tl = nfs_true;
+			*tl = nfsrv_nfs_true;
 			bp += NFSX_UNSIGNED;
 			nfsm_clget;
 			*tl = 0;
@@ -3562,13 +3562,13 @@ invalid:
 	vrele(vp);
 	vp = NULL;
 	nfsm_clget;
-	*tl = nfs_false;
+	*tl = nfsrv_nfs_false;
 	bp += NFSX_UNSIGNED;
 	nfsm_clget;
 	if (eofflag)
-		*tl = nfs_true;
+		*tl = nfsrv_nfs_true;
 	else
-		*tl = nfs_false;
+		*tl = nfsrv_nfs_false;
 	bp += NFSX_UNSIGNED;
 	if (mp != mb) {
 		if (bp < be)
@@ -3943,8 +3943,8 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * until msdosfs is exportable (why would you want to?), the
 	 * Unix defaults should be ok.
 	 */
-	pc->pc_caseinsensitive = nfs_false;
-	pc->pc_casepreserving = nfs_true;
+	pc->pc_caseinsensitive = nfsrv_nfs_false;
+	pc->pc_casepreserving = nfsrv_nfs_true;
 nfsmout:
 	if (vp)
 		vput(vp);
