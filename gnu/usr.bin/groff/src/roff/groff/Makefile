@@ -9,7 +9,7 @@ CLEANFILES=	${MAN}
 .if ${MACHINE_ARCH} == "alpha"
 #XXXX ld produces only one PT_LOAD segment when this binary
 #XXXX is linked dynamically, which confuses the rtld
-LDFLAGS+= 	-static
+NOSHARED?=	yes
 .endif
 
 .include <bsd.prog.mk>
