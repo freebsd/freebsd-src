@@ -491,7 +491,17 @@ findpcb:
 			m->m_len -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
-			tp->t_flags |= TF_DELACK;
+			/*
+			 * If this is a small packet, then ACK now - with Nagel
+			 *	congestion avoidance sender won't send more until
+			 *	he gets an ACK.
+			 */
+			if ((unsigned)ti->ti_len < tp->t_maxseg) {
+				tp->t_flags |= TF_ACKNOW;
+				tcp_output(tp);
+			} else {
+				tp->t_flags |= TF_DELACK;
+			}
 			return;
 		}
 	}
@@ -1262,6 +1272,14 @@ dodata:							/* XXX */
 	}
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, &tcp_saveti, 0);
+
+	/*
+	 * If this is a small packet, then ACK now - with Nagel
+	 *      congestion avoidance sender won't send more until
+	 *      he gets an ACK.
+	 */
+	if (ti->ti_len && ((unsigned)ti->ti_len < tp->t_maxseg))
+		tp->t_flags |= TF_ACKNOW;
 
 	/*
 	 * Return any desired output.
