@@ -1,5 +1,5 @@
 .\"	@(#) $OpenBSD: m4.1,v 1.24 2002/04/18 18:57:23 espie Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd April 17, 2002
 .Dt M4 1
@@ -8,106 +8,112 @@
 .Nm m4
 .Nd macro language processor
 .Sh SYNOPSIS
-.Nm m4
+.Nm
 .Op Fl d Ar flags
 .Op Fl t Ar name
 .Op Fl gs
-.Oo
-.Fl D Ns Ar name Ns Op Ar =value
-.Oc
-.Op Fl U Ns Ar name
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Op Fl U Ar name
 .Op Fl I Ar dirname
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm m4
+.Nm
 utility is a macro processor that can be used as a front end to any
 language (e.g., C, ratfor, fortran, lex, and yacc).
-.Nm m4
+.Nm
 reads from the standard input and writes
 the processed text to the standard output.
 .Pp
-Macro calls have the form name(argument1[, argument2, ..., argumentN]).
+Macro calls have the form
+.Ic name Ns Pq Ar argument1 Ns Op , Ar argument2 , ... , argumentN .
 .Pp
 There cannot be any space following the macro name and the open
 parenthesis
-.Pq Ql ( .
+.Pq Ql \&( .
 If the macro name is not followed by an open
 parenthesis it is processed with no arguments.
 .Pp
 Macro names consist of a leading alphabetic or underscore
 possibly followed by alphanumeric or underscore characters, e.g.,
 valid macro names match the pattern
-.Dq [a-zA-Z_][a-zA-Z0-9_]* .
+.Dq Li [a-zA-Z_][a-zA-Z0-9_]* .
 .Pp
 In arguments to macros, leading unquoted space, tab, and newline
 .Pq Ql \en
 characters are ignored.
 To quote strings, use left and right single
 quotes (e.g.,
-.Sq \ this is a string with a leading space ) .
+.Sq "\ this is a string with a leading space" ) .
 You can change the quote characters with the
 .Ic changequote
 built-in macro.
 .Pp
-Most built-ins don't make any sense without arguments, and hence are not
+Most built-ins do not make any sense without arguments, and hence are not
 recognized as special when not followed by an open parenthesis.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl s
 Emit
-.Em #line
+.Ic #line
 directives for
 .Xr cpp 1 .
-.It Fl D Ns Ar name Ns Oo
-.Ar =value
-.Oc
+.It Fl D Ar name Ns Op = Ns Ar value
 Define the symbol
 .Ar name
 to have some value (or
 .Dv NULL ) .
-.It Fl "U" Ns Ar "name"
+.It Fl U Ar name
 Undefine the symbol
 .Ar name .
-.It Fl I Ar "dirname"
+.It Fl I Ar dirname
 Add directory
 .Ar dirname
 to the include path.
-.It Fl d Ar "flags"
+.It Fl d Ar flags
 Set trace flags.
-.Ar flags 
-may hold the following:
-.Bl -tag -width Ds
-.It Ar a
-print macro arguments.
-.It Ar c
-print macro expansion over several lines.
-.It Ar e
-print result of macro expansion.
-.It Ar f
-print filename location.
-.It Ar l
-print line number.
-.It Ar q
-quote arguments and expansion with the current quotes.
-.It Ar t
-start with all macros traced.
-.It Ar x
-number macro expansions.
-.It Ar V
-turn on all options.
+The
+.Ar flags
+argument may hold the following:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm a
+print macro arguments
+.It Cm c
+print macro expansion over several lines
+.It Cm e
+print result of macro expansion
+.It Cm f
+print filename location
+.It Cm l
+print line number
+.It Cm q
+quote arguments and expansion with the current quotes
+.It Cm t
+start with all macros traced
+.It Cm x
+number macro expansions
+.It Cm V
+turn on all options
 .El
 .Pp
-By default, trace is set to 
-.Qq eq .
+By default, trace is set to
+.Cm eq .
 .It Fl t Ar macro
-Turn tracing on for 
+Turn tracing on for
 .Ar macro .
 .It Fl g
 Activate GNU-m4 compatibility mode.
-In this mode, changequote with
-two empty parameters deactivates quotes, translit handles simple character
-ranges (e.g., a-z), regular expressions mimic emacs behavior,
+In this mode,
+.Ic changequote
+with two empty parameters deactivates quotes,
+.Ic translit
+handles simple character ranges (e.g.,
+.Li a-z ) ,
+regular expressions mimic
+.Xr emacs 1
+behavior,
 and the number of diversions is unlimited.
 .El
 .Sh SYNTAX
@@ -116,11 +122,11 @@ The
 utility provides the following built-in macros.
 They may be redefined, losing their original meaning.
 Return values are null unless otherwise stated.
-.Bl -tag -width changequotexxx
+.Bl -tag -width ".Ic changequote"
 .It Ic builtin
 Calls a built-in by its name, overriding possible redefinitions.
 .It Ic changecom
-Change the start and end comment sequences.
+Changes the start and end comment sequences.
 The default is the pound sign
 .Pq Ql #
 and the newline character.
@@ -138,7 +144,7 @@ The argument must be a valid numeric string.
 Define a new macro named by the first argument to have the
 value of the second argument.
 Each occurrence of
-.Ql $n
+.Sq Li $ Ns Ar n
 (where
 .Ar n
 is 0 through 9) is replaced by the
@@ -162,26 +168,29 @@ macro definitions (even for built-in macros).
 .It Ic divert
 There are 10 output queues (numbered 0-9).
 At the end of processing
-.Nm m4
+.Nm
 concatenates all the queues in numerical order to produce the
 final output.
 Initially the output queue is 0.
-The divert
+The
+.Ic divert
 macro allows you to select a new output queue (an invalid argument
-passed to divert causes output to be discarded).
+passed to
+.Ic divert
+causes output to be discarded).
 .It Ic divnum
 Returns the current output queue number.
 .It Ic dnl
-Discard input characters up to and including the next newline.
+Discards input characters up to and including the next newline.
 .It Ic dumpdef
 Prints the names and definitions for the named items, or for everything
 if no arguments are passed.
 .It Ic errprint
 Prints the first argument on the standard error output stream.
 .It Ic esyscmd
-Pass its first argument to a shell and returns the shell's standard output.
+Passes its first argument to a shell and returns the shell's standard output.
 Note that the shell shares its standard input and standard error with
-.Nm
+.Nm .
 .It Ic eval
 Computes the first argument as an arithmetic expression using 32-bit
 arithmetic.
@@ -190,7 +199,7 @@ shift, relational, bitwise, and parentheses operators.
 You can specify
 octal, decimal, and hexadecimal numbers as in C.
 The second argument (if any)
-specifies the radix for the result and the third argument (if any)
+specifies the radix for the result, and the third argument (if any)
 specifies the minimum number of digits in the result.
 .It Ic expr
 This is an alias for
@@ -201,14 +210,14 @@ argument, otherwise the third.
 If there is no third argument, the value is
 .Dv NULL .
 The word
-.Qq unix
+.Ic unix
 is predefined.
 .It Ic ifelse
 If the first argument matches the second argument then
 .Ic ifelse
 returns
 the third argument.
-If the match fails the three arguments are
+If the match fails, the three arguments are
 discarded and the next three arguments are used until there is
 zero or one arguments left, either this last argument or
 .Dv NULL
@@ -221,19 +230,21 @@ first the directories specified with
 on the command line, then the environment variable
 .Ev M4PATH ,
 as a colon-separated list of directories.
-Include aborts with an error message if the file cannot be included.
+Aborts with an error message if the file cannot be included.
 .It Ic incr
 Increments the argument by 1.
 The argument must be a valid numeric string.
 .It Ic index
 Returns the index of the second argument in the first argument (e.g.,
-.Ic index(the quick brown fox jumped, fox)
+.Fn index "the quick brown fox jumped" fox
 returns 16).
 If the second
-argument is not found index returns \-1.
+argument is not found,
+.Ic index
+returns \-1.
 .It Ic indir
 Indirectly calls the macro whose name is passed as the first arguments,
-with the remaining arguments passed as first, ... arguments.
+with the remaining arguments passed as first, etc. arguments.
 .It Ic len
 Returns the number of characters in the first argument.
 Extra arguments
@@ -245,12 +256,14 @@ Immediately exits with the return value specified by the first argument,
 Allows you to define what happens at the final
 .Dv EOF ,
 usually for cleanup purposes (e.g.,
-.Ic m4wrap("cleanup(tempfile)")
-causes the macro cleanup to be
+.Fn m4wrap cleanup(tempfile)
+causes the macro
+.Ic cleanup
+to be
 invoked after all other processing is done).
 .It Ic maketemp
 Translates the string
-.Dq XXXXX
+.Dq Li XXXXX
 in the first argument with the current process
 ID leaving other characters alone.
 This can be used to create unique
@@ -266,9 +279,9 @@ Usual substitution patterns apply: an ampersand
 .Pq Ql &
 is replaced by the string matching the regular expression.
 The string
-.Ql \e# ,
+.Sq \e Ns Ar # ,
 where
-.Ql #
+.Ar #
 is a digit, is replaced by the corresponding back-reference.
 .It Ic popdef
 Restores the
@@ -342,22 +355,20 @@ macro may be used to change the exit status from the input file.
 .Sh COMPATIBILITY
 .Nm
 follows the Single Unix 2 specification, along with a few extensions taken
-from 
-.Nm gnu-m4 .
+from GNU-m4.
 Flags
-.Fl I ,
-.Fl d ,
+.Fl I , d ,
+and
 .Fl t
 are non-standard.
 .Pp
-The output format of tracing and of 
-.Ic dumpdef 
-are not specified in any standard, 
+The output format of tracing and of
+.Ic dumpdef
+are not specified in any standard,
 are likely to change and should not be relied upon.
-The current format of tracing is closely modelled on 
-.Nm gnu-m4 , 
+The current format of tracing is closely modelled on GNU-m4,
 to allow
-.Nm autoconf 
+.Nm autoconf
 to work.
 .Pp
 For portability, one should not use the macros
@@ -371,14 +382,16 @@ For portability, one should not use the macros
 .Ic spaste ,
 .Ic unix ,
 .Ic __line__ ,
+and
 .Ic __file__ .
 .Pp
-All builtins do expand without arguments in many other 
-.Nm m4 .
+All built-ins do expand without arguments in many other
+.Nm
+implementations.
 .Pp
 Many other
 .Nm
-have dire size limitations with respect to buffer sizes.
+implementations have dire size limitations with respect to buffer sizes.
 .Sh STANDARDS
 The
 .Nm
@@ -391,5 +404,9 @@ An
 command appeared in
 .At v7 .
 .Sh AUTHORS
-Ozan Yigit <oz@sis.yorku.ca> and Richard A. O'Keefe (ok@goanna.cs.rmit.OZ.AU).
-GNU-m4 compatibility extensions by Marc Espie <espie@cvs.openbsd.org>.
+.An -nosplit
+.An Ozan Yigit Aq oz@sis.yorku.ca
+and
+.An Richard A. O'Keefe Aq ok@goanna.cs.rmit.OZ.AU .
+GNU-m4 compatibility extensions by
+.An Marc Espie Aq espie@cvs.openbsd.org .
