@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -83,6 +85,7 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 # endif /* vax */
 #endif /* !defined(CRAY) && !defined(sysV88) */
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 
 
 #ifndef	MAXHOSTNAMELEN
@@ -2270,27 +2273,76 @@ ayt_status()
 }
 #endif
 
-unsigned long inet_addr();
+static const char *
+sockaddr_ntop(sa)
+    struct sockaddr *sa;
+{
+    void *addr;
+    static char addrbuf[INET6_ADDRSTRLEN];
+
+    switch (sa->sa_family) {
+    case AF_INET:
+	addr = &((struct sockaddr_in *)sa)->sin_addr;
+	break;
+#ifdef INET6
+    case AF_INET6:
+	addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+	break;
+#endif
+    default:
+	return NULL;
+    }
+    inet_ntop(sa->sa_family, addr, addrbuf, sizeof(addrbuf));
+    return addrbuf;
+}
+
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+static int
+setpolicy(net, res, policy)
+	int net;
+	struct addrinfo *res;
+	char *policy;
+{
+	char *buf;
+	int level;
+	int optname;
+
+	if (policy == NULL)
+		return 0;
+
+	buf = ipsec_set_policy(policy, strlen(policy));
+	if (buf == NULL) {
+		printf("%s\n", ipsec_strerror());
+		return -1;
+	}
+	level = res->ai_family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
+	optname = res->ai_family == AF_INET ? IP_IPSEC_POLICY : IPV6_IPSEC_POLICY;
+	if (setsockopt(net, level, optname, buf, ipsec_get_policylen(buf)) < 0){
+		perror("setsockopt");
+		return -1;
+	}
+
+	free(buf);
+}
+#endif
 
     int
 tn(argc, argv)
     int argc;
     char *argv[];
 {
-    register struct hostent *host = 0;
-    struct sockaddr_in sin, src_sin;
-    struct servent *sp = 0;
-    unsigned long temp;
-    extern char *inet_ntoa();
-#if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
+    struct sockaddr_storage ss, src_ss;
     char *srp = 0, *strrchr();
-    unsigned long sourceroute(), srlen;
-#endif
+    int proto, opt;
+    int sourceroute(), srlen;
+    int srcroute = 0, result;
     char *cmd, *hostp = 0, *portp = 0, *user = 0;
     char *src_addr = NULL;
+    struct addrinfo hints, *res;
+    int error = 0;
 
     /* clear the socket address prior to use */
-    memset((char *)&sin, 0, sizeof(sin));
+    memset((char *)&ss, 0, sizeof(ss));
 
     if (connected) {
 	printf("?Already connected to %s\n", hostname);
@@ -2350,126 +2402,106 @@ tn(argc, argv)
 	goto usage;
 
     if (src_addr != NULL) {
-	bzero((char *)&src_sin, sizeof(src_sin));
-	src_sin.sin_family = AF_INET;
-	if (!inet_aton(src_addr, &src_sin.sin_addr)) {
-	    host = gethostbyname2(src_addr, AF_INET);
-	    if (host == NULL) {
-		herror(src_addr);
-		return 0;
-	    }
-	    if (host->h_length != sizeof(src_sin.sin_addr)) {
-		fprintf(stderr, "telnet: gethostbyname2: invalid address\n");
-		return 0;
-	    }
-	    memcpy((void *)&src_sin.sin_addr, (void *)host->h_addr_list[0],
-			sizeof(src_sin.sin_addr));
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_NUMERICHOST;
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(src_addr, 0, &hints, &res);
+	if (error == EAI_NONAME) {
+		hints.ai_flags = 0;
+		error = getaddrinfo(src_addr, 0, &hints, &res);
 	}
+	if (error != 0) {
+		fprintf(stderr, "%s: %s\n", src_addr, gai_strerror(error));
+		if (error == EAI_SYSTEM)
+			fprintf(stderr, "%s: %s\n", src_addr, strerror(errno));
+		return 0;
+	}
+	memcpy((void *)&src_ss, (void *)res->ai_addr, res->ai_addrlen);
+	freeaddrinfo(res);
     }
-
-#if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
     if (hostp[0] == '@' || hostp[0] == '!') {
-	if ((hostname = strrchr(hostp, ':')) == NULL)
+	if (
+#ifdef INET6
+	    family == AF_INET6 ||
+#endif
+	    (hostname = strrchr(hostp, ':')) == NULL)
 	    hostname = strrchr(hostp, '@');
 	hostname++;
-	srp = 0;
-	temp = sourceroute(hostp, &srp, &srlen);
-	if (temp == 0) {
-	    herror(srp);
+	srcroute = 1;
+    } else
+        hostname = hostp;
+    if (!portp) {
+      telnetport = 1;
+      portp = "telnet";
+    } else if (*portp == '-') {
+      portp++;
+      telnetport = 1;
+    } else
+      telnetport = 0;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_flags = AI_NUMERICHOST;
+    hints.ai_family = family;
+    hints.ai_socktype = SOCK_STREAM;
+    error = getaddrinfo(hostname, portp, &hints, &res);
+    if (error == 0) {
+        int gni_err = 1;
+
+	if (doaddrlookup)
+	    gni_err = getnameinfo(res->ai_addr, res->ai_addr->sa_len,
+				  _hostname, sizeof(_hostname) - 1, NULL, 0,
+				  0);
+	if (gni_err != 0)
+	        (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
+	_hostname[sizeof(_hostname)-1] = '\0';
+	hostname = _hostname;
+    } else if (error == EAI_NONAME) {
+        hints.ai_flags = AI_CANONNAME;
+	error = getaddrinfo(hostname, portp, &hints, &res);
+	if (error != 0) {
+	    fprintf(stderr, "%s: %s\n", hostname, gai_strerror(error));
+	    if (error == EAI_SYSTEM)
+	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
 	    setuid(getuid());
 	    return 0;
-	} else if (temp == -1) {
+	}
+	memcpy((void *)&ss, (void *)res->ai_addr, res->ai_addrlen);
+	if (srcroute != 0)
+	    (void) strncpy(_hostname, hostname, sizeof(_hostname) - 1);
+	else if (res->ai_canonname != NULL)
+	  strcpy(_hostname, res->ai_canonname);
+	else
+	  (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
+	_hostname[sizeof(_hostname)-1] = '\0';
+	hostname = _hostname;
+    }
+    if (srcroute != 0) {
+	srp = 0;
+	result = sourceroute(res, hostp, &srp, &srlen, &proto, &opt);
+	if (result == 0) {
+	    setuid(getuid());
+	    freeaddrinfo(res);
+	    return 0;
+	} else if (result == -1) {
 	    printf("Bad source route option: %s\n", hostp);
 	    setuid(getuid());
+	    freeaddrinfo(res);
 	    return 0;
-	} else {
-	    sin.sin_addr.s_addr = temp;
-	    sin.sin_family = AF_INET;
 	}
-    } else {
-#endif
-	temp = inet_addr(hostp);
- 	if (temp != INADDR_NONE) {
-	    sin.sin_addr.s_addr = temp;
-	    sin.sin_family = AF_INET;
-	    if (doaddrlookup)
-		host = gethostbyaddr((char *)&temp, sizeof(temp), AF_INET);
- 	    if (host)
- 	        (void) strncpy(_hostname, host->h_name, sizeof(_hostname));
- 	    else
- 		(void) strncpy(_hostname, hostp, sizeof(_hostname));
- 	    _hostname[sizeof(_hostname)-1] = '\0';
-	    hostname = _hostname;
-	} else {
-	    host = gethostbyname(hostp);
-	    if (host) {
-		sin.sin_family = host->h_addrtype;
-#if	defined(h_addr)		/* In 4.3, this is a #define */
-		memmove((caddr_t)&sin.sin_addr,
-				host->h_addr_list[0], host->h_length);
-#else	/* defined(h_addr) */
-		memmove((caddr_t)&sin.sin_addr, host->h_addr, host->h_length);
-#endif	/* defined(h_addr) */
-		strncpy(_hostname, host->h_name, sizeof(_hostname));
-		_hostname[sizeof(_hostname)-1] = '\0';
-		hostname = _hostname;
-	    } else {
-		herror(hostp);
-		setuid(getuid());
-		return 0;
-	    }
-	}
-#if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
     }
-#endif
-    if (portp) {
-	if (*portp == '-') {
-	    portp++;
-	    telnetport = 1;
-	} else
-	    telnetport = 0;
-	sin.sin_port = atoi(portp);
-	if (sin.sin_port == 0) {
-	    sp = getservbyname(portp, "tcp");
-	    if (sp)
-		sin.sin_port = sp->s_port;
-	    else {
-		printf("%s: bad port number\n", portp);
-		setuid(getuid());
-		return 0;
-	    }
-	} else {
-#if	!defined(htons)
-	    u_short htons P((unsigned short));
-#endif	/* !defined(htons) */
-	    sin.sin_port = htons(sin.sin_port);
-	}
-    } else {
-	if (sp == 0) {
-	    sp = getservbyname("telnet", "tcp");
-	    if (sp == 0) {
-		fprintf(stderr, "telnet: tcp/telnet: unknown service\n");
-		setuid(getuid());
-		return 0;
-	    }
-	    sin.sin_port = sp->s_port;
-	}
-	telnetport = 1;
-    }
-    printf("Trying %s...\n", inet_ntoa(sin.sin_addr));
+    printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
     do {
-	net = socket(AF_INET, SOCK_STREAM, 0);
+	net = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	setuid(getuid());
 	if (net < 0) {
 	    perror("telnet: socket");
 	    return 0;
 	}
-#if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
-	if (srp && setsockopt(net, IPPROTO_IP, IP_OPTIONS, (char *)srp, srlen) < 0)
-		perror("setsockopt (IP_OPTIONS)");
-#endif
+	if (srp && setsockopt(net, proto, opt, (char *)srp, srlen) < 0)
+		perror("setsockopt (source route)");
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
-	{
+	if (res->ai_family == PF_INET) {
 # if	defined(HAS_GETTOS)
 	    struct tosent *tp;
 	    if (tos < 0 && (tp = gettosbyname("telnet", "tcp")))
@@ -2490,28 +2522,31 @@ tn(argc, argv)
 	}
 
 	if (src_addr != NULL) {
-	    if (bind(net, (struct sockaddr *)&src_sin, sizeof(src_sin)) == -1) {
+	    if (bind(net, (struct sockaddr *)&src_ss,
+		     ((struct sockaddr *)&src_ss)->sa_len) == -1) {
 		perror("bind");
 		return 0;
 	    }
 	}
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	if (setpolicy(net, res, ipsec_policy_in) < 0)
+		return 0;
+	if (setpolicy(net, res, ipsec_policy_out) < 0)
+		return 0;
+#endif
 
-	if (connect(net, (struct sockaddr *)&sin, sizeof (sin)) < 0) {
-#if	defined(h_addr)		/* In 4.3, this is a #define */
-	    if (host && host->h_addr_list[1]) {
+	if (connect(net, res->ai_addr, res->ai_addrlen) < 0) {
+	    if (res->ai_next) {
 		int oerrno = errno;
 
 		fprintf(stderr, "telnet: connect to address %s: ",
-						inet_ntoa(sin.sin_addr));
+						sockaddr_ntop(res->ai_addr));
 		errno = oerrno;
 		perror((char *)0);
-		host->h_addr_list++;
-		memmove((caddr_t)&sin.sin_addr,
-			host->h_addr_list[0], host->h_length);
+		res = res->ai_next;
 		(void) NetClose(net);
 		continue;
 	    }
-#endif	/* defined(h_addr) */
 	    perror("telnet: Unable to connect to remote host");
 	    return 0;
 	}
@@ -2520,6 +2555,7 @@ tn(argc, argv)
 	auth_encrypt_connect(connected);
 #endif	/* defined(AUTHENTICATION) || defined(ENCRYPTION) */
     } while (connected == 0);
+    freeaddrinfo(res);
     cmdrc(hostp, hostname);
     if (autologin && user == NULL) {
 	struct passwd *pw;
@@ -2861,8 +2897,6 @@ cmdrc(m1, m2)
     fclose(rcfile);
 }
 
-#if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
-
 /*
  * Source route is handed in as
  *	[!]@hop1@hop2...[@|:]dst
@@ -2876,6 +2910,10 @@ cmdrc(m1, m2)
  * be the address to connect() to.
  *
  * Arguments:
+ *
+ *	res:	ponter to addrinfo structure which contains sockaddr to
+ *		the host to connect to.
+ *
  *	arg:	pointer to route list to decipher
  *
  *	cpp: 	If *cpp is not equal to NULL, this is a
@@ -2885,9 +2923,18 @@ cmdrc(m1, m2)
  *	lenp:	pointer to an integer that contains the
  *		length of *cpp if *cpp != NULL.
  *
+ *	protop:	pointer to an integer that should be filled in with
+ *		appropriate protocol for setsockopt, as socket 
+ *		protocol family.
+ *
+ *	optp:	pointer to an integer that should be filled in with
+ *		appropriate option for setsockopt, as socket protocol
+ *		family.
+ *
  * Return values:
  *
- *	Returns the address of the host to connect to.  If the
+ *	If the return value is 1, then all operations are
+ *	successful. If the
  *	return value is -1, there was a syntax error in the
  *	option, either unknown characters, or too many hosts.
  *	If the return value is 0, one of the hostnames in the
@@ -2901,21 +2948,32 @@ cmdrc(m1, m2)
  *	*lenp:	This will be filled in with how long the option
  *		pointed to by *cpp is.
  *
+ *	*protop: This will be filled in with appropriate protocol for
+ *		 setsockopt, as socket protocol family.
+ *
+ *	*optp:	This will be filled in with appropriate option for
+ *		setsockopt, as socket protocol family.
  */
-	unsigned long
-sourceroute(arg, cpp, lenp)
+int
+sourceroute(ai, arg, cpp, lenp, protop, optp)
+	struct addrinfo *ai;
 	char	*arg;
 	char	**cpp;
 	int	*lenp;
+	int	*protop;
+	int	*optp;
 {
-	static char lsr[44];
+	static char buf[1024];	/*XXX*/
+	struct cmsghdr *cmsg;
 #ifdef	sysV88
 	static IOPTN ipopt;
 #endif
-	char *cp, *cp2, *lsrp, *lsrep;
+	char *cp, *cp2, *lsrp, *ep;
 	register int tmp;
-	struct in_addr sin_addr;
-	register struct hostent *host = 0;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
+	struct addrinfo hints, *res;
+	int error;
 	register char c;
 
 	/*
@@ -2924,22 +2982,46 @@ sourceroute(arg, cpp, lenp)
 	 */
 	if (cpp == NULL || lenp == NULL)
 		return((unsigned long)-1);
-	if (*cpp != NULL && *lenp < 7)
-		return((unsigned long)-1);
+	if (*cpp != NULL) {
+		switch (res->ai_family) {
+		case AF_INET:
+			if (*lenp < 7)
+				return((unsigned long)-1);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			if (*lenp < (sizeof(struct cmsghdr) +
+				     sizeof(struct ip6_rthdr) +
+				     sizeof(struct in6_addr)))
+				return((unsigned long)-1);
+			break;
+#endif
+		}
+	}
 	/*
 	 * Decide whether we have a buffer passed to us,
 	 * or if we need to use our own static buffer.
 	 */
 	if (*cpp) {
 		lsrp = *cpp;
-		lsrep = lsrp + *lenp;
+		ep = lsrp + *lenp;
 	} else {
-		*cpp = lsrp = lsr;
-		lsrep = lsrp + 44;
+		*cpp = lsrp = buf;
+		ep = lsrp + 1024;
 	}
 
 	cp = arg;
 
+#ifdef INET6
+	if (ai->ai_family == AF_INET6) {
+		cmsg = inet6_rthdr_init(*cpp, IPV6_RTHDR_TYPE_0);
+		if (*cp != '@')
+			return -1;
+		*protop = IPPROTO_IPV6;
+		*optp = IPV6_PKTOPTIONS;
+	} else
+#endif
+      {
 	/*
 	 * Next, decide whether we have a loose source
 	 * route or a strict source route, and fill in
@@ -2966,13 +3048,20 @@ sourceroute(arg, cpp, lenp)
 	lsrp++;		/* skip over length, we'll fill it in later */
 	*lsrp++ = 4;
 #endif
+	*protop = IPPROTO_IP;
+	*optp = IP_OPTIONS;
+      }
 
 	cp++;
-
-	sin_addr.s_addr = 0;
-
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = ai->ai_family;
+	hints.ai_socktype = SOCK_STREAM;
 	for (c = 0;;) {
-		if (c == ':')
+		if (
+#ifdef INET6
+		    ai->ai_family != AF_INET6 &&
+#endif
+		    c == ':')
 			cp2 = 0;
 		else for (cp2 = cp; (c = *cp2); cp2++) {
 			if (c == ',') {
@@ -2981,7 +3070,11 @@ sourceroute(arg, cpp, lenp)
 					cp2++;
 			} else if (c == '@') {
 				*cp2++ = '\0';
-			} else if (c == ':') {
+			} else if (
+#ifdef INET6
+				   ai->ai_family != AF_INET6 &&
+#endif
+				   c == ':') {
 				*cp2++ = '\0';
 			} else
 				continue;
@@ -2990,21 +3083,32 @@ sourceroute(arg, cpp, lenp)
 		if (!c)
 			cp2 = 0;
 
-		if ((tmp = inet_addr(cp)) != -1) {
-			sin_addr.s_addr = tmp;
-		} else if ((host = gethostbyname(cp))) {
-#if	defined(h_addr)
-			memmove((caddr_t)&sin_addr,
-				host->h_addr_list[0], host->h_length);
-#else
-			memmove((caddr_t)&sin_addr, host->h_addr, host->h_length);
-#endif
-		} else {
+		hints.ai_flags = AI_NUMERICHOST;
+ 		error = getaddrinfo(cp, NULL, &hints, &res);
+		if (error == EAI_NONAME) {
+			hints.ai_flags = 0;
+			error = getaddrinfo(cp, NULL, &hints, &res);
+		}
+		if (error != 0) {
+			fprintf(stderr, "%s: %s\n", cp, gai_strerror(error));
+			if (error == EAI_SYSTEM)
+				fprintf(stderr, "%s: %s\n", cp,
+					strerror(errno));
 			*cpp = cp;
 			return(0);
 		}
-		memmove(lsrp, (char *)&sin_addr, 4);
+#ifdef INET6
+		if (res->ai_family == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)res->ai_addr;
+			inet6_rthdr_add(cmsg, &sin6->sin6_addr,
+					IPV6_RTHDR_LOOSE);
+		} else
+#endif
+	      {
+		sin = (struct sockaddr_in *)res->ai_addr;
+		memcpy(lsrp, (char *)&sin->sin_addr, 4);
 		lsrp += 4;
+	      }
 		if (cp2)
 			cp = cp2;
 		else
@@ -3012,9 +3116,27 @@ sourceroute(arg, cpp, lenp)
 		/*
 		 * Check to make sure there is space for next address
 		 */
-		if (lsrp + 4 > lsrep)
+#ifdef INET6
+		if (res->ai_family == AF_INET6) {
+			if (((char *)cmsg +
+			     sizeof(struct cmsghdr) +
+			     sizeof(struct ip6_rthdr) +
+			     ((inet6_rthdr_segments(cmsg) + 1) *
+			      sizeof(struct in6_addr))) > ep)
 			return((unsigned long)-1);
+		} else
+#endif
+		if (lsrp + 4 > ep)
+			return((unsigned long)-1);
+		freeaddrinfo(res);
 	}
+#ifdef INET6
+	if (res->ai_family == AF_INET6) {
+		inet6_rthdr_lasthop(cmsg, IPV6_RTHDR_LOOSE);
+		*lenp = cmsg->cmsg_len;
+	} else
+#endif
+      {
 #ifndef	sysV88
 	if ((*(*cpp+IPOPT_OLEN) = lsrp - *cpp) <= 7) {
 		*cpp = 0;
@@ -3033,6 +3155,10 @@ sourceroute(arg, cpp, lenp)
 	*lenp = sizeof(ipopt);
 	*cpp = (char *) &ipopt;
 #endif
-	return(sin_addr.s_addr);
+      }
+	freeaddrinfo(res);
+	return 1;
 }
-#endif
+
+
+

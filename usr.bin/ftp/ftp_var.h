@@ -41,6 +41,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <setjmp.h>
 #include <stringlist.h>
 #include <netinet/in.h>
@@ -96,7 +97,7 @@ int	preserve;		/* preserve modification time on files */
 int	progress;		/* display transfer progress bar */
 int	code;			/* return/reply code for ftp command */
 int	crflag;			/* if 1, strip car. rets. on ascii gets */
-char	pasv[64];		/* passive port for proxy data connection */
+char	pasv[BUFSIZ];		/* passive port for proxy data connection */
 int	passivemode;		/* passive mode enabled */
 int	restricted_data_ports;	/* enable quarantine FTP area */
 char   *altarg;			/* argv[1] with no shell-like preprocessing  */
@@ -138,12 +139,12 @@ char   *hostname;		/* name of host connected to */
 int	unix_server;		/* server is unix, can use binary for ascii */
 int	unix_proxy;		/* proxy is unix, can use binary for ascii */
 
-u_int16_t	ftpport;	/* port number to use for ftp connections */
-u_int16_t	httpport;	/* port number to use for http connections */
-u_int16_t	gateport;	/* port number to use for gateftp connections */
+char *ftpport;			/* port number to use for ftp connections */
+char *httpport;			/* port number to use for http connections */
+char *gateport;			/* port number to use for gateftp connections */
 
 int	dobind;			/* bind to specific address */
-struct sockaddr_in bindto;	/* address to bind to */
+struct sockaddr_storage bindto;	/* address to bind to */
 
 jmp_buf	toplevel;		/* non-local goto stuff for cmd scanner */
 

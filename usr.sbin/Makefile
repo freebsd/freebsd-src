@@ -24,6 +24,7 @@ SUBDIR=	IPXrouted \
 	dev_mkdb \
 	diskpart \
 	edquota \
+	faithd \
 	fdcontrol \
 	fdformat \
 	fdwrite \

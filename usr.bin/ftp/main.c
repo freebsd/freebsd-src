@@ -58,6 +58,7 @@ __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <locale.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -86,33 +87,14 @@ main(argc, argv)
 
 	(void) setlocale(LC_ALL, "");
 
-	sp = getservbyname("ftp", "tcp");
-	if (sp == 0)
-		ftpport = htons(FTP_PORT);	/* good fallback */
-	else
-		ftpport = sp->s_port;
-	sp = getservbyname("http", "tcp");
-	if (sp == 0)
-		httpport = htons(HTTP_PORT);	/* good fallback */
-	else
-		httpport = sp->s_port;
-	gateport = 0;
+	ftpport = "ftp";
+	httpport = "http";
+	gateport = NULL;
 	cp = getenv("FTPSERVERPORT");
-	if (cp != NULL) {
-		port = strtol(cp, &ep, 10);
-		if (port < 1 || port > 0xffff || *ep != '\0')
-			warnx("bad FTPSERVERPORT port number: %s (ignored)",
-			    cp);
-		else
-			gateport = htons(port);
-	}
-	if (gateport == 0) {
-		sp = getservbyname("ftpgate", "tcp");
-		if (sp == 0)
-			gateport = htons(GATE_PORT);
-		else
-			gateport = sp->s_port;
-	}
+	if (cp != NULL)
+		gateport = cp;
+	if (!gateport)
+		gateport = "ftpgate";
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
@@ -203,11 +185,7 @@ main(argc, argv)
 			break;
 
 		case 'P':
-			port = strtol(optarg, &ep, 10);
-			if (port < 1 || port > 0xffff || *ep != '\0')
-				warnx("bad port number: %s (ignored)", optarg);
-			else
-				ftpport = htons(port);
+			ftpport = optarg;
 			break;
 
 		case 's':
@@ -244,17 +222,24 @@ main(argc, argv)
 	sendport = -1;	/* not using ports */
 
 	if (dobind) {
-		memset((void *)&bindto, 0, sizeof(bindto));
-		if (inet_aton(src_addr, &bindto.sin_addr) == 1)
-			bindto.sin_family = AF_INET;
-		else {
-			struct hostent *hp = gethostbyname(src_addr);
-			if (hp == NULL)
-				errx(1, "%s: %s", src_addr, hstrerror(h_errno));
-			bindto.sin_family = hp->h_addrtype;
-			memcpy(&bindto.sin_addr, hp->h_addr_list[0],
-				MIN(hp->h_length,sizeof(bindto.sin_addr)));
+		struct addrinfo hints;
+		struct addrinfo *res;
+		char *ftpdataport = "ftp-data";
+		int error;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		error = getaddrinfo(src_addr, NULL, &hints, &res);
+		if (error) {
+			fprintf(stderr, "%s: %s", src_addr,
+				gai_strerror(error));
+			if (error == EAI_SYSTEM)
+				errx(1, "%s", strerror(errno));
+			exit(1);
 		}
+		memcpy(&bindto, res->ai_addr, res->ai_addrlen);
+		freeaddrinfo(res);
 	}
 
 	/*
@@ -280,7 +265,7 @@ main(argc, argv)
 #endif
 
 	if (argc > 0) {
-		if (strchr(argv[0], ':') != NULL) {
+		if (isurl(argv[0])) {
 			anonftp = 1;	/* Handle "automatic" transfers. */
 			rval = auto_fetch(argc, argv);
 			if (rval >= 0)		/* -1 == connected and cd-ed */

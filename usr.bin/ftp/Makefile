@@ -10,6 +10,7 @@ PROG=	ftp
 SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c ruserpass.c \
 	util.c
 
+CFLAGS+=-DINET6 -g
 LDADD+=	-ledit -ltermcap
 DPADD+=	${LIBEDIT} ${LIBTERMCAP}
 

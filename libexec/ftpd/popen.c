@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 
 #include <errno.h>
 #include <glob.h>

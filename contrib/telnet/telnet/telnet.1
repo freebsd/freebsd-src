@@ -30,8 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
+.\" $FreeBSD$
 .\"
-.Dd June 1, 1994
+.Dd January 27, 2000
 .Dt TELNET 1
 .Os BSD 4.2
 .Sh NAME
@@ -549,9 +550,10 @@ will attempt to contact a
 .Tn TELNET
 server at the default port.
 The host specification may be either a host name (see
-.Xr hosts  5  )
-or an Internet address specified in the \*(Lqdot notation\*(Rq (see
-.Xr inet 3 ) .
+.Xr hosts  5  ) ,
+an Internet address specified in the \*(Lqdot notation\*(Rq (see
+.Xr inet 3 ) ,
+or IPv6 host name or IPv6 coloned-hexadecimal addreess.
 The
 .Op Fl l
 option may be used to specify the user name
@@ -1367,6 +1369,8 @@ The
 .Nm Telnet
 command appeared in
 .Bx 4.2 .
+.Pp
+IPv6 support was added by WIDE/KAME project.
 .Sh NOTES
 .Pp
 On some remote systems, echo has to be turned off manually when in

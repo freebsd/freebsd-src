@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
  */
 
 #ifndef lint
@@ -42,6 +44,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/socket.h>
 
 #include "ring.h"
 #include "externs.h"
@@ -55,6 +58,13 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
 #if 0
 #define FORWARD
 #endif
+
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+char *ipsec_policy_in = NULL;
+char *ipsec_policy_out = NULL;
+#endif
+
+int family = AF_UNSPEC;
 
 /*
  * Initialize variables.
@@ -81,10 +91,10 @@ usage()
 	fprintf(stderr, "Usage: %s %s%s%s%s\n",
 	    prompt,
 #ifdef	AUTHENTICATION
-	    "[-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
+	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
 	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
 #else
-	    "[-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
+	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
 	    "\n\t[-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
@@ -97,6 +107,9 @@ usage()
 # endif
 #else
 	    "[-r] [-s src_addr] ",
+#endif
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	    "[-P policy]"
 #endif
 	    "[host-name [port]]"
 	);
@@ -138,8 +151,25 @@ main(argc, argv)
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
 	autologin = -1;
 
-	while ((ch = getopt(argc, argv, "8EKLNS:X:acde:fFk:l:n:rs:t:x")) != -1) {
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+#define IPSECOPT	"P:"
+#else
+#define IPSECOPT
+#endif
+	while ((ch = getopt(argc, argv,
+			    "468EKLNS:X:acde:fFk:l:n:rs:t:x" IPSECOPT)) != -1)
+#undef IPSECOPT
+	{
+
 		switch(ch) {
+		case '4':
+			family = AF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
 		case '8':
 			eight = 3;	/* binary output and input */
 			break;
@@ -276,6 +306,16 @@ main(argc, argv)
 			    "%s: Warning: -x ignored, no ENCRYPT support.\n",
 								prompt);
 			break;
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+		case 'P':
+			if (!strncmp("in", optarg, 2))
+				ipsec_policy_in = strdup(optarg);
+			else if (!strncmp("out", optarg, 3))
+				ipsec_policy_out = strdup(optarg);
+			else
+				usage();
+			break;
+#endif
 		case '?':
 		default:
 			usage();
