@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.2 1995/12/23 21:35:30 wpaul Exp $
+ *	$Id: yp_extern.h,v 1.2 1996/04/21 21:34:02 wpaul Exp wpaul $
  */
 #include <stdio.h>
 #include <string.h>
@@ -65,11 +65,14 @@ extern char	*yp_dir;
 extern int	yp_errno;
 extern void	yp_error __P((const char *, ...));
 extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, int));
-extern int	yp_first_record __P((const DB *, DBT *, DBT *));
-extern int	yp_next_record __P((const DB *, DBT *, DBT *, int));
+extern int	yp_first_record __P((const DB *, DBT *, DBT *, int));
+extern int	yp_next_record __P((const DB *, DBT *, DBT *, int, int));
 extern char	*yp_dnsname __P(( char * ));
 extern char	*yp_dnsaddr __P(( const char * ));
 extern int	yp_access __P((const char *, const struct svc_req * ));
 extern int	yp_validdomain __P((const char * ));
 extern DB	*yp_open_db __P(( const char *, const char *));
+extern DB	*yp_open_db_cache __P(( const char *, const char *, const char *, int ));
+extern void	yp_flush_all __P(( void ));
+extern void	yp_init_dbs __P(( void ));
 extern void	load_securenets __P(( void ));
