@@ -647,9 +647,9 @@ au_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
 		 (type[0] == SYS_RES_IOPORT)? "io" : "memory",
-		 rman_get_start(reg[0]), rman_get_start(irq));
+		 rman_get_start(reg[0]), rman_get_start(irq),PCM_KLDSTRING(snd_aureal));
 
 	if (pcm_register(dev, au, 1, 1)) goto bad;
 	/* pcm_addchan(dev, PCMDIR_REC, &au_chantemplate, au); */
