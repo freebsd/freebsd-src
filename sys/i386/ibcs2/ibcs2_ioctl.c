@@ -28,41 +28,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/dir.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/ioctl_compat.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/mman.h>
-#include <sys/mount.h>
-#include <sys/reboot.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
-#include <sys/signal.h>
-#include <sys/signalvar.h>
-#include <sys/socket.h>
-#include <sys/termios.h>
-#include <sys/time.h>
-#include <sys/times.h>
 #include <sys/tty.h>
-#include <sys/vnode.h>
-#include <sys/uio.h>
-#include <sys/wait.h>
-#include <sys/utsname.h>
-#include <sys/unistd.h>
 #include <machine/console.h>
 
-#include <net/if.h>
 #include <sys/sysproto.h>
 
-#include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_socksys.h>
 #include <i386/ibcs2/ibcs2_stropts.h>
