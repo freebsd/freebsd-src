@@ -2839,7 +2839,7 @@ bge_intr(xsc)
 	 * Process link state changes.
 	 * Grrr. The link status word in the status block does
 	 * not work correctly on the BCM5700 rev AX and BX chips,
-	 * according to all avaibable information. Hence, we have
+	 * according to all available information. Hence, we have
 	 * to enable MII interrupts in order to properly obtain
 	 * async link changes. Unfortunately, this also means that
 	 * we have to read the MAC status register to detect link
