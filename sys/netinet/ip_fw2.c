@@ -73,6 +73,10 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif
+
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
@@ -1820,6 +1824,17 @@ check_body:
 				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
 				break;
 
+			case O_IPSEC:
+#ifdef FAST_IPSEC
+				match = (m_tag_find(m,
+				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
+#endif
+#ifdef IPSEC
+				match = (ipsec_gethist(m, NULL) != NULL);
+#endif
+				/* otherwise no match */
+				break;
+
 			/*
 			 * The second set of opcodes represents 'actions',
 			 * i.e. the terminal part of a rule once the packet
@@ -2392,6 +2407,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_TCPOPTS:
 		case O_ESTAB:
 		case O_VERREVPATH:
+		case O_IPSEC:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
