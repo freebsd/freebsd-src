@@ -739,8 +739,8 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
-	struct mbuf	*top, **mp, *m;
-	int		error=0, tlen, mlen;
+	struct mbuf	*m;
+	int		error = 0;
 	uint32_t	family;
 	int 		isr;
 
@@ -757,58 +757,32 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		TUNDEBUG(ifp, "len=%d!\n", uio->uio_resid);
 		return (EIO);
 	}
-	tlen = uio->uio_resid;
 
-	/* get a header mbuf */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL)
-		return (ENOBUFS);
-	mlen = MHLEN;
-
-	top = 0;
-	mp = &top;
-	while (error == 0 && uio->uio_resid > 0) {
-		m->m_len = min(mlen, uio->uio_resid);
-		error = uiomove(mtod(m, void *), m->m_len, uio);
-		*mp = m;
-		mp = &m->m_next;
-		if (uio->uio_resid > 0) {
-			MGET (m, M_DONTWAIT, MT_DATA);
-			if (m == 0) {
-				error = ENOBUFS;
-				break;
-			}
-			mlen = MLEN;
-		}
-	}
-	if (error) {
-		if (top)
-			m_freem (top);
+	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0)) == NULL) {
 		ifp->if_ierrors++;
 		return (error);
 	}
 
-	top->m_pkthdr.len = tlen;
-	top->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.rcvif = ifp;
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, top);
+	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
 
 	/* Could be unlocked read? */
 	mtx_lock(&tp->tun_mtx);
 	if (tp->tun_flags & TUN_IFHEAD) {
 		mtx_unlock(&tp->tun_mtx);
-		if (top->m_len < sizeof(family) &&
-		    (top = m_pullup(top, sizeof(family))) == NULL)
+		if (m->m_len < sizeof(family) &&
+		    (m = m_pullup(m, sizeof(family))) == NULL)
 			return (ENOBUFS);
-		family = ntohl(*mtod(top, u_int32_t *));
-		m_adj(top, sizeof(family));
+		family = ntohl(*mtod(m, u_int32_t *));
+		m_adj(m, sizeof(family));
 	} else {
 		mtx_unlock(&tp->tun_mtx);
 		family = AF_INET;
 	}
 
-	BPF_MTAP2(ifp, &family, sizeof(family), top);
+	BPF_MTAP2(ifp, &family, sizeof(family), m);
 
 	switch (family) {
 #ifdef INET
@@ -838,9 +812,9 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
-	ifp->if_ibytes += top->m_pkthdr.len;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
-	netisr_dispatch(isr, top);
+	netisr_dispatch(isr, m);
 	return (0);
 }
 
