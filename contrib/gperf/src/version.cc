@@ -1,6 +1,6 @@
 /* Current program version number.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -19,4 +19,4 @@ You should have received a copy of the GNU General Public License
 along with GNU GPERF; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 
-const char *version_string = "2.7";
+const char *version_string = "2.7.2";

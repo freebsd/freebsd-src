@@ -1,5 +1,5 @@
 /* Hash table for checking keyword links.  Implemented using double hashing.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -26,8 +26,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 #include "options.h"
 #include "trace.h"
 
-#define NIL(TYPE) (TYPE *)0
-
 /* The size of the hash table is always the smallest power of 2 >= the size
    indicated by the user.  This allows several optimizations, including
    the use of double hashing and elimination of the mod instruction.
@@ -37,8 +35,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
    This compromises information hiding somewhat, but greatly reduces
    memory fragmentation, since we can now use alloca! */
 
-Hash_Table::Hash_Table (List_Node **table_ptr, int s):
-     table (table_ptr), size (s), collisions (0)
+Hash_Table::Hash_Table (List_Node **table_ptr, int s, int ignore_len):
+     table (table_ptr), size (s), collisions (0), ignore_length (ignore_len)
 {
   T (Trace t ("Hash_Table::Hash_Table");)
   memset ((char *) table, 0, size * sizeof (*table));
@@ -60,8 +58,10 @@ Hash_Table::~Hash_Table (void)
 
       for (int i = size - 1; i >= 0; i--)
         if (table[i])
-          fprintf (stderr, "%8d, %*s, %s\n",
-                   i, field_width, table[i]->char_set, table[i]->key);
+          fprintf (stderr, "%8d, %*.*s, %.*s\n",
+                   i,
+                   field_width, table[i]->char_set_length, table[i]->char_set,
+                   table[i]->key_length, table[i]->key);
 
       fprintf (stderr, "\nend dumping hash table\n\n");
     }
@@ -72,20 +72,24 @@ Hash_Table::~Hash_Table (void)
    Uses double hashing. */
 
 List_Node *
-Hash_Table::operator() (List_Node *item, int ignore_length)
+Hash_Table::insert (List_Node *item)
 {
   T (Trace t ("Hash_Table::operator()");)
-  unsigned hash_val  = hashpjw (item->char_set);
-  int      probe     = hash_val & size - 1;
-  int      increment = (hash_val ^ item->length | 1) & size - 1;
+  unsigned hash_val  = hashpjw (item->char_set, item->char_set_length);
+  int      probe     = hash_val & (size - 1);
+  int      increment = ((hash_val ^ item->key_length) | 1) & (size - 1);
 
-  while (table[probe]
-         && (strcmp (table[probe]->char_set, item->char_set)
-             || (!ignore_length && table[probe]->length != item->length)))
+  while (table[probe])
     {
+      if (table[probe]->char_set_length == item->char_set_length
+          && memcmp (table[probe]->char_set, item->char_set, item->char_set_length) == 0
+          && (ignore_length || table[probe]->key_length == item->key_length))
+        return table[probe];
+
       collisions++;
-      probe = probe + increment & size - 1;
+      probe = (probe + increment) & (size - 1);
     }
 
-  return table[probe] ? table[probe] : (table[probe] = item, NIL (List_Node));
+  table[probe] = item;
+  return (List_Node *) 0;
 }
