@@ -335,7 +335,7 @@ mi_switch(int flags, struct thread *newtd)
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %p (kse %p, pid %ld, %s)",
 	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
-	if (td->td_proc->p_flag & P_SA)
+	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
 		newtd = thread_switchout(td, flags, newtd);
 	sched_switch(td, newtd, flags);
 
