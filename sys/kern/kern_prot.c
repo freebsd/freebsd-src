@@ -52,8 +52,8 @@
 #include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
