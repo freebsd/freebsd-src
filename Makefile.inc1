@@ -121,6 +121,7 @@ SUPFLAGS+=	-h ${SUPHOST}
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET?=	${MACHINE}
 .if make(buildworld)
 BUILD_ARCH!=	sysctl -n hw.machine_arch
 .if ${MACHINE_ARCH} != ${BUILD_ARCH}
@@ -166,6 +167,7 @@ INSTALLTMP=	${TMPDIR}/install.${TMPPID}
 # Common environment for world related stages
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
+		MACHINE=${TARGET} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
@@ -359,13 +361,13 @@ distribworld:
 #
 # Which kernels to build and/or install is specified by setting
 # KERNCONF. If not defined a GENERIC kernel is built/installed.
-# Only the existing (depending MACHINE) config files are used
+# Only the existing (depending TARGET) config files are used
 # for building kernels and only the first of these is designated
 # as the one being installed.
 #
-# Note that we have to use MACHINE instead of TARGET_ARCH when
+# Note that we have to use TARGET instead of TARGET_ARCH when
 # we're in kernel-land. Since only TARGET_ARCH is (expected) to
-# be set to cross-build, we have to make sure MACHINE is set
+# be set to cross-build, we have to make sure TARGET is set
 # properly.
 
 .if !defined(KERNCONF) && defined(KERNEL)
@@ -376,15 +378,15 @@ KERNCONF?=	GENERIC
 .endif
 INSTKERNNAME?=	kernel
 
-# The only exotic TARGET_ARCH/MACHINE combination valid at this
-# time is i386/pc98. In all other cases set MACHINE equal to
+# The only exotic TARGET_ARCH/TARGET combination valid at this
+# time is i386/pc98. In all other cases set TARGET equal to
 # TARGET_ARCH.
-.if ${TARGET_ARCH} != "i386" || ${MACHINE} != "pc98"
-MACHINE=	${TARGET_ARCH}
+.if ${TARGET_ARCH} != "i386" || ${TARGET} != "pc98"
+TARGET=		${TARGET_ARCH}
 .endif
 
 KRNLSRCDIR=	${.CURDIR}/sys
-KRNLCONFDIR=	${KRNLSRCDIR}/${MACHINE}/conf
+KRNLCONFDIR=	${KRNLSRCDIR}/${TARGET}/conf
 KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
 KERNCONFDIR?=	${KRNLCONFDIR}
 
@@ -430,17 +432,17 @@ buildkernel:
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} all
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -453,10 +455,10 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} install
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} install
 reinstallkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
 
 #
 # kernel
