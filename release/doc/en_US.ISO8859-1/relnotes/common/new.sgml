@@ -177,10 +177,6 @@
         ProSum's ProATM (IDT77252-based) interfaces.  This driver is
         analogous to the patm driver in &os;-CURRENT.</para>
 
-      <para>The &man.rl.4; driver now has support for the RealTek
-	8139C+ Fast Ethernet chip and the RealTek 8169 Gigabit
-	Ethernet chip.</para>
-
       <para arch="i386">The &man.rue.4; network driver has been added,
         providing support for Ethernet adapters based on the RealTek
         RTL8150 USB to Fast Ethernet controller chip.</para>
@@ -213,6 +209,10 @@
         by the <command>ipfw flush</command> command.
         This implements a flexible form of <quote>persistent
           rules</quote>.  More details can be found in &man.ipfw.8;.</para>
+
+      <para>Kernel support has been added for Protocol Independent
+	Multicast routing.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -309,6 +309,10 @@
 
     <para><application>groff</application> has been updated from
       1.18.1 to 1.19.</para>
+
+    <para><application>lukemftpd</application> (not built by default)
+      has been updated from a 1.2beta1 to a 5 January 2003 snapshot
+      from the NetBSD CVS repository.</para>
 
     <para><application>sendmail</application> has been updated to
       version 8.12.9.</para>
