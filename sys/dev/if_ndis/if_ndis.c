@@ -1032,8 +1032,6 @@ ndis_ticktask(xsc)
 	ndis_media_state	linkstate;
 	int			error, len;
 
-	mtx_unlock(&Giant);
-
 	sc = xsc;
 
 	hangfunc = sc->ndis_chars.nmc_checkhang_func;
@@ -1067,8 +1065,6 @@ ndis_ticktask(xsc)
 	}
 
 	NDIS_UNLOCK(sc);
-
-	mtx_lock(&Giant);
 
 	return;
 }
