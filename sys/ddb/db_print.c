@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.14 1997/06/14 11:52:36 bde Exp $
+ *	$Id: db_print.c,v 1.15 1998/05/19 11:02:23 phk Exp $
  */
 
 /*
@@ -35,6 +35,7 @@
  * Miscellaneous printing.
  */
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/msgbuf.h>
 
 #include <ddb/ddb.h>
@@ -67,12 +68,7 @@ db_show_regs(dummy1, dummy2, dummy3, dummy4)
 }
 
 
-void
-db_show_msgbuf(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 {
 	int i,j;
 
