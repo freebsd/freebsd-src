@@ -18,6 +18,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* Common FreeBSD configuration. 
    All FreeBSD architectures should include this file, which will specify
    their commonalities.
@@ -48,6 +50,10 @@ Boston, MA 02111-1307, USA.  */
    || !strcmp ((STR), "soname") || !strcmp ((STR), "defsym") 		\
    || !strcmp ((STR), "assert") || !strcmp ((STR), "dynamic-linker"))
 
+
+#ifndef FREEBSD_NATIVE	/* these bits are here to reduce merge diffs, but I don't want to acutally use the bits right now */
+
+
 #if FBSD_MAJOR == 6
 #define FBSD_CPP_PREDEFINES \
   "-D__FreeBSD__=6 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
@@ -73,11 +79,24 @@ Boston, MA 02111-1307, USA.  */
   "-D__FreeBSD__   -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
 #endif
 
+
+#else	/* FREEBSD_NATIVE */
+/* Place spaces around this string.  We depend on string splicing to produce
+   the final CPP_PREDEFINES value.  */
+
+#define FBSD_CPP_PREDEFINES \
+  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500003 -Dunix -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
+#endif	/* ! FREEBSD_NATIVE */
+
+
 /* Provide a CPP_SPEC appropriate for FreeBSD.  We just deal with the GCC 
    option `-posix', and PIC issues.  */
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
+  %{!maout: -D__ELF__}							\
+  %{munderscores: -D__UNDERSCORES__}					\
+  %{maout: %{!mno-underscores: -D__UNDERSCORES__}}			\
   %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
   %{posix:-D_POSIX_SOURCE}"
 
@@ -129,7 +148,8 @@ is built with the --enable-threads configure-time option.}		\
     %{pg:  -lc_p}							\
   }"
 #else
-#if FBSD_MAJOR >= 5
+#include <sys/param.h>
+#if __FreeBSD_version >= 500016
 #define FBSD_LIB_SPEC "							\
   %{!shared:								\
     %{!pg: %{pthread:-lc_r} -lc}					\
