@@ -77,6 +77,9 @@ static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <utmp.h>
 #include <vis.h>
 
+#include <arpa/nameser.h>
+#include <resolv.h>
+
 #include "extern.h"
 
 struct timeval	boottime;
@@ -168,6 +171,11 @@ main(argc, argv)
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (!(_res.options & RES_INIT))
+		res_init();
+	_res.retrans = 2;	/* resolver timeout to 2 seconds per try */
+	_res.retry = 1;		/* only try once.. */
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == NULL)
 		errx(1, "%s", errbuf);
