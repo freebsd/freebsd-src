@@ -37,8 +37,8 @@
 
 #include <dev/acpica/acpiio.h>
 
-#include <contrib/dev/acpica/Subsystem/Include/acgcc.h>
-#include <contrib/dev/acpica/Subsystem/Include/actypes.h>
+#include <contrib/dev/acpica/acgcc.h>
+#include <contrib/dev/acpica//actypes.h>
 
 #define ACPIDEV	"/dev/acpi"
 
