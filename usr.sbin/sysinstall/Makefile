@@ -39,10 +39,6 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 	file2c 'const unsigned char boot0[] = {' '};' \
 		< bteasy17 >> makedevs.tmp
 	rm -rf bteasy17
-	file2c 'const unsigned char boot1[] = {' '};' \
-		< ${BOOTS}/boot1 >> makedevs.tmp
-	file2c 'const unsigned char boot2[] = {' '};' \
-		< ${BOOTS}/boot2 >> makedevs.tmp
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp
