@@ -100,13 +100,6 @@ Interface  VPI   VCI     PDUs    Bytes   Errs    PDUs    Bytes   Errs\n"
 Interface     PDUs    Bytes   Errs    PDUs    Bytes   Errs   Errs\n"
 
 /*
- * External references
- */
-extern struct proto	protos[];
-extern struct aal	aals[];
-extern struct encaps	encaps[];
-
-/*
  * Local variables
  */
 static int	arp_hdr = 0;
@@ -122,7 +115,7 @@ static int	version_hdr = 0;
 /*
  * SIGPVC state definitions
  */
-struct state	sigpvc_states[] = {
+static const struct state sigpvc_states[] = {
 	{ "ACTIVE",	SIGPVC_ACTIVE },
 	{ "DETACH",	SIGPVC_DETACH },
 	{ 0,		0 }
@@ -131,7 +124,7 @@ struct state	sigpvc_states[] = {
 /*
  * SPANS state definitions
  */
-struct state	spans_states[] = {
+static const struct state spans_states[] = {
 	{ "ACTIVE",	SPANS_ACTIVE },
 	{ "DETACH",	SPANS_DETACH },
 	{ "INIT",	SPANS_INIT },
@@ -142,7 +135,7 @@ struct state	spans_states[] = {
 /*
  * UNISIG state definitions
  */
-struct state    unisig_states[] = {
+static const struct state unisig_states[] = {
 	{ "NULL",	UNISIG_NULL },
 	{ "ADR_WAIT",	UNISIG_ADDR_WAIT },
 	{ "INIT",	UNISIG_INIT },
@@ -154,7 +147,7 @@ struct state    unisig_states[] = {
 /*
  * SIGPVC VCC state definitions
  */
-struct state	sigpvc_vcc_states[] = {
+static const struct state sigpvc_vcc_states[] = {
 	{ "NULL",	VCCS_NULL },
 	{ "ACTIVE",	VCCS_ACTIVE },
 	{ "FREE",	VCCS_FREE },
@@ -164,7 +157,7 @@ struct state	sigpvc_vcc_states[] = {
 /*
  * SPANS VCC state definitions
  */
-struct state	spans_vcc_states[] = {
+static const struct state spans_vcc_states[] = {
 	{ "NULL",	SPANS_VC_NULL },
 	{ "ACTIVE",	SPANS_VC_ACTIVE },
 	{ "ACT_DOWN",	SPANS_VC_ACT_DOWN },
@@ -180,7 +173,7 @@ struct state	spans_vcc_states[] = {
 /*
  * UNISIG VCC state definitions
  */
-struct state	unisig_vcc_states[] = {
+static const struct state unisig_vcc_states[] = {
 	{ "NULL",	UNI_NULL },
 	{ "C_INIT",	UNI_CALL_INITIATED },
 	{ "C_OUT_PR",	UNI_CALL_OUT_PROC },
@@ -202,7 +195,7 @@ struct state	unisig_vcc_states[] = {
 /*
  * IP VCC state definitions
  */
-struct state	ip_vcc_states[] = {
+static const struct state ip_vcc_states[] = {
 	{ "FREE",	IPVCC_FREE },
 	{ "PMAP",	IPVCC_PMAP },
 	{ "POPEN",	IPVCC_POPEN },
@@ -216,7 +209,7 @@ struct state	ip_vcc_states[] = {
 /*
  * ARP server state definitions
  */
-struct state	arpserver_states[] = {
+static const struct state arpserver_states[] = {
 	{ "NOT_CONF",	UIAS_NOTCONF },
 	{ "SERVER",	UIAS_SERVER_ACTIVE },
 	{ "PEND_ADR",	UIAS_CLIENT_PADDR },
@@ -229,7 +222,7 @@ struct state	arpserver_states[] = {
 /*
  * Supported signalling managers
  */
-struct proto_state	proto_states[] = {
+static const struct proto_state	proto_states[] = {
 	{ "SIGPVC",  sigpvc_states, sigpvc_vcc_states, ATM_SIG_PVC },
 	{ "SPANS",   spans_states,  spans_vcc_states,  ATM_SIG_SPANS },
 	{ "UNI 3.0", unisig_states, unisig_vcc_states, ATM_SIG_UNI30 },
@@ -241,7 +234,7 @@ struct proto_state	proto_states[] = {
 /*
  * ATMARP origin values
  */
-struct state	arp_origins[] = {
+static const struct state	arp_origins[] = {
 	{ "LOCAL",	UAO_LOCAL },
 	{ "PERM",	UAO_PERM },
 	{ "REG",	UAO_REGISTER },
@@ -268,9 +261,9 @@ print_arp_info(ai)
 	struct air_arp_rsp	*ai;
 {
 	int	i;
-	char	*atm_addr, *ip_addr, *origin;
+	const char	*atm_addr, *ip_addr, *origin;
 	char	age[8], flags[32];
-	struct sockaddr_in	*sin;
+	struct sockaddr_in	*sain;
 
 	/*
 	 * Print a header if it hasn't been done yet.
@@ -284,8 +277,8 @@ print_arp_info(ai)
 	 * Format the addresses
 	 */
 	atm_addr = format_atm_addr(&ai->aap_addr);
-	sin = (struct sockaddr_in *)&ai->aap_arp_addr;
-	ip_addr = format_ip_addr(&sin->sin_addr);
+	sain = (struct sockaddr_in *)(void *)&ai->aap_arp_addr;
+	ip_addr = format_ip_addr(&sain->sin_addr);
 
 	/*
 	 * Decode the flags
@@ -348,7 +341,7 @@ print_asrv_info(si)
 	struct air_asrv_rsp	*si;
 {
 	int		i;
-	char		*atm_addr, *state;
+	const char	*atm_addr, *state;
 	struct in_addr	*addr;
 
 	/*
@@ -418,7 +411,7 @@ void
 print_cfg_info(si)
 	struct air_cfg_rsp	*si;
 {
-	char	*adapter, *bus, *media, *vendor;
+	const char *adapter, *bus, *media, *vendor;
 
 	/*
 	 * Print a header if it hasn't been done yet.
@@ -474,8 +467,9 @@ print_intf_info(ni)
 	int	i;
 	char	nif_names[(IFNAMSIZ *2)+4];
 	char	*atm_addr;
-	char	*sigmgr = "-", *state_name = "-";
-	struct state		*s_t;
+	const char *sigmgr = "-";
+	const char *state_name = "-";
+	const struct state *s_t;
 
 	/*
 	 * Print a header
@@ -553,9 +547,9 @@ print_ip_vcc_info(ai)
 	struct air_ip_vcc_rsp	*ai;
 {
 	int	i;
-	char	*ip_addr, *state;
+	const char	*ip_addr, *state;
 	char	flags[32], vpi_vci[16];
-	struct sockaddr_in	*sin;
+	struct sockaddr_in	*sain;
 
 	/*
 	 * Print a header if it hasn't been done yet.
@@ -568,8 +562,8 @@ print_ip_vcc_info(ai)
 	/*
 	 * Format the IP address
 	 */
-	sin = (struct sockaddr_in *)&ai->aip_dst_addr;
-	ip_addr = format_ip_addr(&sin->sin_addr);
+	sain = (struct sockaddr_in *)(void *)&ai->aip_dst_addr;
+	ip_addr = format_ip_addr(&sain->sin_addr);
 
 	/*
 	 * Format the VPI/VCI
@@ -638,8 +632,8 @@ void
 print_netif_info(ni)
 	struct air_netif_rsp	*ni;
 {
-	char			*ip_addr;
-	struct sockaddr_in	*sin;
+	const char		*ip_addr;
+	struct sockaddr_in	*sain;
 
 	/*
 	 * Print a header
@@ -652,8 +646,8 @@ print_netif_info(ni)
 	/*
 	 * Format the protocol address
 	 */
-	sin = (struct sockaddr_in *)&ni->anp_proto_addr;
-	ip_addr = format_ip_addr(&sin->sin_addr);
+	sain = (struct sockaddr_in *)(void *)&ni->anp_proto_addr;
+	ip_addr = format_ip_addr(&sain->sin_addr);
 
 	/*
 	 * Print the network interface information
@@ -691,14 +685,14 @@ print_intf_stats(pi)
 	 * Print the interface statistics
 	 */
 	printf("%-9s  %7lld %8lld  %5lld %7lld %8lld  %5lld  %5lld\n",
-			pi->app_intf,
-			pi->app_ipdus,
-			pi->app_ibytes,
-			pi->app_ierrors,
-			pi->app_opdus,
-			pi->app_obytes,
-			pi->app_oerrors,
-			pi->app_cmderrors);
+	    pi->app_intf,
+	    (unsigned long long)pi->app_ipdus,
+	    (unsigned long long)pi->app_ibytes,
+	    (unsigned long long)pi->app_ierrors,
+	    (unsigned long long)pi->app_opdus,
+	    (unsigned long long)pi->app_obytes,
+	    (unsigned long long)pi->app_oerrors,
+	    (unsigned long long)pi->app_cmderrors);
 }
 
 
@@ -765,10 +759,10 @@ print_vcc_info(vi)
 	struct air_vcc_rsp	*vi;
 {
 	int	i;
-	char	*aal_name = "-" , *encaps_name = "-", *owner_name = "-";
-	char	*state_name = "-", *type_name = "-";
+	const char *aal_name = "-" , *encaps_name = "-", *owner_name = "-";
+	const char *state_name = "-", *type_name = "-";
 	char	dir_name[10];
-	struct state	*s_t;
+	const struct state *s_t;
 
 	/*
 	 * Print a header if it hasn't already been done

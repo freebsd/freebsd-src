@@ -104,6 +104,11 @@ Section     Path    Line      Line     Path     Corr   Uncorr\n\
 BIP8        BIP8    BIP24     FEBE     FEBE     HCS    HCS\n\
 Errs        Errs    Errs      Errs     Errs     Errs   Errs\n"
 
+static void	print_eni_oc3(struct air_vinfo_rsp *);
+static void	print_eni_atm(struct air_vinfo_rsp *);
+static void	print_eni_aal0(struct air_vinfo_rsp *);
+static void	print_eni_aal5(struct air_vinfo_rsp *);
+static void	print_eni_driver(struct air_vinfo_rsp *);
 
 /*
  * Process show ENI statistics command
@@ -177,12 +182,12 @@ show_eni_stats(intf, argc, argv)
 		}
 		exit(1);
 	}
-	stats = (struct air_vinfo_rsp *) air.air_buf_addr;
+	stats = (struct air_vinfo_rsp *)(void *)air.air_buf_addr;
 
 	/*
 	 * Print the statistics
 	 */
-	if (buf_len < sizeof(struct air_vinfo_rsp) +
+	if ((size_t)buf_len < sizeof(struct air_vinfo_rsp) +
 			sizeof(Eni_stats)) {
 		free(stats);
 		return;

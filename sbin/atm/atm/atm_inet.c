@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 #include "atm.h"
 
@@ -79,21 +80,18 @@ __RCSID("@(#) $FreeBSD$");
  *
  */
 void
-ip_pvcadd(argc, argv, cmdp, app, intp)
-	int			argc;
-	char			**argv;
-	struct cmd		*cmdp;
-	struct atmaddreq	*app;
-	struct air_int_rsp	*intp;
+ip_pvcadd(int argc, char **argv, const struct cmd *cmdp,
+    struct atmaddreq *app, struct air_int_rsp *intp)
 {
 	char	*cp;
 	char	nhelp[128];
-	int	i, netif_pref_len, netif_no;
+	int	netif_no;
+	u_int	i, netif_pref_len;
 
 	/*
 	 * Yet more validation
 	 */
-	if (argc != 2) {
+	if (argc < 2) {
 		strcpy(nhelp, cmdp->help);
 		cp = strstr(nhelp, "<netif>");
 		if (cp)
@@ -112,7 +110,7 @@ ip_pvcadd(argc, argv, cmdp, app, intp)
 	netif_pref_len = strlen(intp->anp_nif_pref);
 	cp = &argv[0][netif_pref_len];
 	netif_no = atoi(cp);
-	for (i=0; i<strlen(cp); i++) {
+	for (i = 0; i < strlen(cp); i++) {
 		if (cp[i] < '0' || cp[i] > '9') {
 			netif_no = -1;
 			break;
@@ -152,11 +150,13 @@ ip_pvcadd(argc, argv, cmdp, app, intp)
 		/*
 		 * Get destination IP address
 		 */
-		struct sockaddr_in	*sin;
+		struct sockaddr_in *sain, *ret;
 
-		sin = (struct sockaddr_in *) &app->aar_pvc_dst;
-		sin->sin_addr.s_addr =
-				get_ip_addr(argv[0])->sin_addr.s_addr;
+		sain = (struct sockaddr_in *)(void *)&app->aar_pvc_dst;
+		ret = get_ip_addr(argv[0]);
+		if (ret == NULL)
+			errx(1, "%s: bad ip address '%s'", argv[-1], argv[0]);
+		sain->sin_addr.s_addr = ret->sin_addr.s_addr;
 	}
 	argc--; argv++;
 }
