@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.6 1996/03/03 08:42:28 peter Exp $
+ * $Id: if_ar.c,v 1.7 1996/03/17 00:29:32 peter Exp $
  */
 
 /*
@@ -38,7 +38,7 @@
  *
  * The buffers of a transmit DMA channel will fit in a 16K memory window.
  *
- * Only the ISA bus and V.35 is tested.
+ * Only the ISA bus cards with X.21 and V.35 is tested.
  *
  * When interface is going up, handshaking is set and it is only cleared
  * when the interface is down'ed.
@@ -208,7 +208,7 @@ static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
 static void arwatchdog(struct ifnet *ifp);
 static int ar_packet_avail(struct ar_softc *sc, int *len, u_char *rxstat);
 static void ar_copy_rxbuf(struct mbuf *m, struct ar_softc *sc, int len);
-static void ar_eat_packet(struct ar_softc *sc);
+static void ar_eat_packet(struct ar_softc *sc, int single);
 static void ar_get_packets(struct ar_softc *sc);
 
 static void ar_up(struct ar_softc *sc);
@@ -883,16 +883,24 @@ arc_init(struct isa_device *id)
 	outb(hc->iobase + AR_INT_SEL, isr | AR_INTS_CEN);
 
 	/*
-	 * Make TX clock output and enable TX.
+	 * Set the TX clock direction and enable TX.
 	 */
-	hc->txc_dtr[0] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1 |
-			  AR_TXC_DTR_TXCS0 | AR_TXC_DTR_TXCS1;
-	outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
-	if(hc->numports > NCHAN) {
+	switch(hc->interface) {
+	case AR_IFACE_V_35:
+		hc->txc_dtr[0] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1 |
+				  AR_TXC_DTR_TXCS0 | AR_TXC_DTR_TXCS1;
 		hc->txc_dtr[1] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1 |
 				  AR_TXC_DTR_TXCS0 | AR_TXC_DTR_TXCS1;
-		outb(hc->iobase + AR_TXC_DTR2, hc->txc_dtr[1]);
+		break;
+	case AR_IFACE_EIA_530:
+	case AR_IFACE_COMBO:
+	case AR_IFACE_X_21:
+		hc->txc_dtr[0] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1;
+		hc->txc_dtr[1] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1;
 	}
+	outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
+	if(hc->numports > NCHAN)
+		outb(hc->iobase + AR_TXC_DTR2, hc->txc_dtr[1]);
 
 	chanmem = hc->memsize / hc->numports;
 	next = 0;
@@ -1022,6 +1030,9 @@ ar_init_msci(struct ar_softc *sc)
 	 */
 	switch(sc->hc->interface) {
 	case AR_IFACE_V_35:
+		msci->rxs = SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1;
+		msci->txs = SCA_TXS_CLK_TXC | SCA_TXS_DIV1;
+		break;
 	case AR_IFACE_X_21:
 	case AR_IFACE_EIA_530:
 	case AR_IFACE_COMBO:
@@ -1171,6 +1182,10 @@ ar_init_tx_dmac(struct ar_softc *sc)
  *
  * Return the length and status of the packet.
  * Return nonzero if there is a packet available.
+ *
+ * NOTE:
+ * It seems that we get the interrupt a bit early. The updateing of
+ * descriptor values is not always completed when this is called.
  */
 static int
 ar_packet_avail(struct ar_softc *sc,
@@ -1179,6 +1194,11 @@ ar_packet_avail(struct ar_softc *sc,
 {
 	sca_descriptor *rxdesc;
 	sca_descriptor *endp;
+	sca_descriptor *cda;
+
+	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	cda = (sca_descriptor *)(sc->hc->mem_start +
+	      (sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda &  ARC_WIN_MSK));
 
 	ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
 	rxdesc = (sca_descriptor *)
@@ -1189,7 +1209,7 @@ ar_packet_avail(struct ar_softc *sc,
 
 	*len = 0;
 
-	while(rxdesc->stat != 0xff) {
+	while(rxdesc != cda) {
 		*len += rxdesc->len;
 
 		if(rxdesc->stat & SCA_DESC_EOM) {
@@ -1198,10 +1218,11 @@ ar_packet_avail(struct ar_softc *sc,
 				sc->unit, *len, *rxstat, x));
 			return 1;
 		}
+
 		rxdesc++;
 		if(rxdesc == endp)
 			rxdesc = (sca_descriptor *)
-				(sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+			       (sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
 	}
 
 	*len = 0;
@@ -1258,13 +1279,21 @@ ar_copy_rxbuf(struct mbuf *m,
 }
 
 /*
- * Just eat a packet. Update pointers to point to the next packet.
+ * If single is set, just eat a packet. Otherwise eat everything up to
+ * where cda points. Update pointers to point to the next packet.
  */
 static void
-ar_eat_packet(struct ar_softc *sc)
+ar_eat_packet(struct ar_softc *sc, int single)
 {
 	sca_descriptor *rxdesc;
 	sca_descriptor *endp;
+	sca_descriptor *cda;
+	int loopcnt = 0;
+	u_char stat;
+
+	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	cda = (sca_descriptor *)(sc->hc->mem_start +
+	      (sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda &  ARC_WIN_MSK));
 
 	/*
 	 * Loop until desc->stat == (0xff || EOM)
@@ -1278,9 +1307,20 @@ ar_eat_packet(struct ar_softc *sc)
 	rxdesc = &rxdesc[sc->rxhind];
 	endp = &endp[sc->rxmax];
 
-	while(rxdesc->stat != 0xff) {
-		if((rxdesc->stat & ~SCA_DESC_EOM) == 0)
+	while(rxdesc != cda) {
+		loopcnt++;
+		if(loopcnt > sc->rxmax) {
+			printf("ar%d: eat pkt %d loop, cda %x, "
+			       "rxdesc %x, stat %x.\n",
+			       sc->unit,
+			       loopcnt,
+			       cda,
+			       rxdesc,
+			       rxdesc->stat);
 			break;
+		}
+
+		stat = rxdesc->stat;
 
 		rxdesc->len = 0;
 		rxdesc->stat = 0xff;
@@ -1292,7 +1332,21 @@ ar_eat_packet(struct ar_softc *sc)
 			       (sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
 			sc->rxhind = 0;
 		}
+
+		if(single && (stat == SCA_DESC_EOM))
+			break;
 	}
+
+	/*
+	 * Update the eda to the previous descriptor.
+	 */
+	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+
+	rxdesc = (sca_descriptor *)sc->rxdesc;
+	rxdesc = &rxdesc[(sc->rxhind + sc->rxmax - 2 ) % sc->rxmax];
+
+	sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
+			(u_short)((u_int)rxdesc & 0xffff);
 }
 
 
@@ -1314,8 +1368,8 @@ ar_get_packets(struct ar_softc *sc)
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if(m == NULL) {
 				/* eat packet if get mbuf fail!! */
-				ar_eat_packet(sc);
-				goto update_eda;
+				ar_eat_packet(sc, 1);
+				continue;
 			}
 			m->m_pkthdr.rcvif = &sc->ifsppp.pp_if;
 			m->m_pkthdr.len = m->m_len = len;
@@ -1323,8 +1377,8 @@ ar_get_packets(struct ar_softc *sc)
 				MCLGET(m, M_DONTWAIT);
 				if((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
-					ar_eat_packet(sc);
-					goto update_eda;
+					ar_eat_packet(sc, 1);
+					continue;
 				}
 			}
 			ar_copy_rxbuf(m, sc, len);
@@ -1334,52 +1388,44 @@ ar_get_packets(struct ar_softc *sc)
 #endif
 			sppp_input(&sc->ifsppp.pp_if, m);
 			sc->ifsppp.pp_if.if_ipackets++;
+
+			/*
+			 * Update the eda to the previous descriptor.
+			 */
+			i = (len + AR_BUF_SIZ - 1) / AR_BUF_SIZ;
+			sc->rxhind = (sc->rxhind + i) % sc->rxmax;
+
+			ARC_SET_SCA(sc->hc->iobase, sc->scano);
+
+			rxdesc = (sca_descriptor *)sc->rxdesc;
+			rxdesc =
+			     &rxdesc[(sc->rxhind + sc->rxmax - 2 ) % sc->rxmax];
+
+			sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
+				(u_short)((u_int)rxdesc & 0xffff);
 		} else {
 			msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
 
-			ar_eat_packet(sc);
+			ar_eat_packet(sc, 1);
 
 			sc->ifsppp.pp_if.if_ierrors++;
 
 			ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 			TRCL(printf("ar%d: Receive error chan %d, "
-					"stat %x, msci st3 %x.\n",
+					"stat %x, msci st3 %x,"
+					"rxhind %d, cda %x, eda %x.\n",
 					sc->unit,
 					sc->scachan, 
 					rxstat,
-					msci->st3));
-#ifdef notanymore
-			/*
-			 * Reset the rx unit.
-			 *
-			 * XXX Maybe it should only be done when certain
-			 * errors occured. ie not for CRC errors?
-			 */
-			msci->cmd = SCA_CMD_RXRESET;
-			msci->cmd = SCA_CMD_RXENABLE;
-
-			TRCL(printf("RX%d After reset: ST2 %x.\n",
-					sc->scachan, msci->st2));
-#endif
-		} /* else */
-
-update_eda:
-		i = (len + AR_BUF_SIZ - 1) / AR_BUF_SIZ;
-		sc->rxhind = (sc->rxhind + i) % sc->rxmax;
-
-		/*
-		 * Update the eda to the previous descriptor.
-		 */
-		ARC_SET_SCA(sc->hc->iobase, sc->scano);
-
-		rxdesc = (sca_descriptor *)sc->rxdesc;
-		rxdesc = &rxdesc[(sc->rxhind + sc->rxmax -1 ) % sc->rxmax];
-
-		sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
-			(u_short)((u_int)&rxdesc & 0xffff);
-
-	} /* while */
+					msci->st3,
+					sc->rxhind,
+					sc->hc->sca->dmac[
+						DMAC_RXCH(sc->scachan)].cda,
+					sc->hc->sca->dmac[
+						DMAC_RXCH(sc->scachan)].eda));
+		}
+	}
 }
 
 
@@ -1479,7 +1525,45 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 
 			/* End of frame */
 			if(dsr & SCA_DSR_EOM) {
+				TRC(int tt = sc->ifsppp.pp_if.if_ipackets;)
+				TRC(int ind = sc->rxhind;)
+
 				ar_get_packets(sc);
+				TRC(
+				if(tt == sc->ifsppp.pp_if.if_ipackets) {
+					sca_descriptor *rxdesc;
+					int i;
+
+					ARC_SET_SCA(hc->iobase, scano);
+					printf("AR: RXINTR isr1 %x, dsr %x, "
+					       "no data %d pkts, orxhind %d.\n",
+					       dotxstart,
+					       dsr,
+					       tt,
+					       ind);
+					printf("AR: rxdesc %x, rxstart %x, "
+					       "rxend %x, rxhind %d, "
+					       "rxmax %d.\n",
+					       sc->rxdesc,
+					       sc->rxstart,
+					       sc->rxend,
+					       sc->rxhind,
+					       sc->rxmax);
+					printf("AR: cda %x, eda %x.\n",
+					       dmac->cda,
+					       dmac->eda);
+
+					ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+					rxdesc = (sca_descriptor *)
+						 (sc->hc->mem_start +
+						  (sc->rxdesc & ARC_WIN_MSK));
+					rxdesc = &rxdesc[sc->rxhind];
+					for(i=0;i<3;i++,rxdesc++)
+						printf("AR: rxdesc->stat %x, "
+							"len %d.\n",
+							rxdesc->stat,
+							rxdesc->len);
+				})
 			}
 
 			/* Counter overflow */
@@ -1493,12 +1577,35 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 
 			/* Buffer overflow */
 			if(dsr & SCA_DSR_BOF) {
+				ARC_SET_SCA(hc->iobase, scano);
 				printf("ar%d: RX DMA Buffer overflow, "
-					"rxpkts %lu.\n",
+					"rxpkts %lu, rxind %d, "
+					"cda %x, eda %x, dsr %x.\n",
 					sc->unit,
-					sc->ifsppp.pp_if.if_ipackets);
+					sc->ifsppp.pp_if.if_ipackets,
+					sc->rxhind,
+					dmac->cda,
+					dmac->eda,
+					dsr);
+				/*
+				 * Make sure we eat as many as possible.
+				 * Then get the system running again.
+				 */
+				ar_eat_packet(sc, 0);
 				sc->ifsppp.pp_if.if_ierrors++;
+				ARC_SET_SCA(hc->iobase, scano);
+				sca->msci[mch].cmd = SCA_CMD_RXMSGREJ;
 				dmac->dsr = SCA_DSR_DE;
+
+				TRC(printf("ar%d: RX DMA Buffer overflow, "
+					"rxpkts %lu, rxind %d, "
+					"cda %x, eda %x, dsr %x. After\n",
+					sc->unit,
+					sc->ifsppp.pp_if.if_ipackets,
+					sc->rxhind,
+					dmac->cda,
+					dmac->eda,
+					dmac->dsr);)
 			}
 
 			/* End of Transfer */
