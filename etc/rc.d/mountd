@@ -19,7 +19,7 @@ extra_commands="reload"
 
 mountd_precmd()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		if ! checkyesno rpcbind_enable  && \
 		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1

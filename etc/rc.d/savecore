@@ -16,7 +16,7 @@ start_cmd="savecore_start"
 start_precmd="savecore_prestart"
 stop_cmd=":"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 NetBSD)
 	rcvar=$name
 	;;
@@ -29,7 +29,7 @@ savecore_prestart()
 	#
 	DUMPDIR="${dumpdir:-/var/crash}"
 
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# Quit if we have no dump device
 		case ${dumpdev} in

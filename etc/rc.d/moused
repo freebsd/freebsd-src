@@ -13,7 +13,7 @@
 name=moused
 rcvar=`set_rcvar`
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_cmd="moused_start"
 	;;

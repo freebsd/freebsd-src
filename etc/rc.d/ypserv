@@ -14,7 +14,7 @@ name="ypserv"
 command="/usr/sbin/${name}"
 start_precmd="ypserv_precmd"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	rcvar="nis_server_enable"
 	command_args="${nis_server_flags}"
@@ -27,7 +27,7 @@ esac
 
 ypserv_precmd()
 {
-        case `${CMD_OSTYPE}` in
+        case ${OSTYPE} in
         FreeBSD)
 		if ! checkyesno rpcbind_enable  && \
 		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1

@@ -20,7 +20,7 @@ extra_commands="reload"
 
 _sockfile="/var/run/syslogd.sockets"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	pidfile="/var/run/syslog.pid"
 	evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""

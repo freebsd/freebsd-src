@@ -18,7 +18,7 @@ stop_cmd=":"
 
 ldconfig_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		ldconfig=${ldconfig_command}
 		checkyesno ldconfig_insecure && ldconfig="${ldconfig} -i"
