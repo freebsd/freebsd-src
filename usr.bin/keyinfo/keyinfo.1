@@ -1,9 +1,10 @@
 .ll 6i
 .pl 10.5i
-.\"	@(#)keyinfo.1	1.1 (Bellcore) 7/20/93
+.\"	from: @(#)keyinfo.1	1.1 (Bellcore) 7/20/93
+.\"	$Id$
 .\"
 .lt 6.0i
-.TH KEYINFO 1 "20 July 1993"
+.TH KEYINFO 1 "26 April 1996"
 .AT 3
 .SH NAME
 keyinfo \-  display current S/Key sequence number and seed
@@ -19,12 +20,12 @@ on a field trip, by combining with the command
 .I key
 in the form:
 .sp
-    >key \-n  <number of passwords to print> `keyinfo`|lpr
+    > key \-n  <number of passwords> `keyinfo`|lpr
 .SH EXAMPLE
 .sh
 Usage example:
 .sp 0
-    >keyinfo
+    > keyinfo
 .sp 0
     0098 ws91340
 .LP
@@ -33,8 +34,17 @@ Usage example:
 .B username
 The S/key user to display the information for.  The default is 
 to display S/Key information on the user who invokes the command.
+.SH DIAGNOSTICS
+.I keyinfo
+exits with status 0 if a key for the requested user has been found,
+else with status 1.
 .SH SEE ALSO
 .BR keyinit(1),
 .BR key(1)
 .SH AUTHOR
-Command by Phil Karn, Neil M. Haller, John S. Walden
+Original command by Phil Karn, Neil M. Haller, John S. Walden.
+Rewritten in Perl by
+.ie t J\(:org \%Wunsch
+.el Joerg Wunsch
+so it can be made setuid, and the S/Key keys file can be read-protected
+from the users.
