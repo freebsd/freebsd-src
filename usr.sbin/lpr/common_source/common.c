@@ -304,6 +304,7 @@ checkremote()
 	char name[MAXHOSTNAMELEN];
 	register struct hostent *hp;
 	static char errbuf[128];
+	char *rp,*rp_b;
 
 	remote = 0;	/* assume printer is local */
 	if (RM != NULL) {
@@ -330,9 +331,25 @@ checkremote()
 		/*
 		 * if the two hosts are not the same,
 		 * then the printer must be remote.
+		 * otherwise check if the remote printer name
+		 * and the current printer name match.
+		 * (Can't trust RP, it may have been set to default).
 		 */
 		if (strcasecmp(name, hp->h_name) != 0)
 			remote = 1;
+		else if (cgetstr(bp, "rp", &rp) > 0) {
+			if (cgetent(&rp_b, printcapdb, rp) == 0) {
+				if (cgetmatch(rp_b, printer) != 0)
+					remote = 1;
+				free(rp_b);
+			} else {
+			    	(void) snprintf(errbuf, sizeof(errbuf),
+				    "can't find (local) remote printer %s",
+				    rp);
+		    		return errbuf;
+			}
+			free(rp);
+		}
 	}
 	return NULL;
 }
