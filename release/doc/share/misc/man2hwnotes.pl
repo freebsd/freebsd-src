@@ -163,6 +163,8 @@ sub parse {
 	    if (/^Nm "?(\w+)"?/ && !defined($mdocvars{Nm})) {
 		dlog(3, "Setting Nm to $1");
 		$mdocvars{Nm} = $1;
+		# "_" cannot be used for an entity name.
+		$mdocvars{Nm} =~ s,_,.,g;
 
 	    } elsif (/^Nm$/) {
 		if (defined($mdocvars{Nm}) && $mdocvars{Nm} ne "") {
@@ -197,6 +199,9 @@ sub parse {
 		dlog(4, "Setting mansection to $2");
 		$mdocvars{cur_manname} = lc($1);
 		$cur_mansection = $2;
+
+		# "_" cannot be used for an entity name.
+		$mdocvars{cur_manname} =~ s,_,.,g;
 
 	    } elsif (/^It ?(.*)$/) {
 		my $txt = $1;
