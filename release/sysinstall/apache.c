@@ -53,15 +53,25 @@
 #include "colors.h"
 #include "sysinstall.h"
 
+
 #define APACHE_HELPFILE "apache"
-#define APACHE_PACKAGE  "apache-0.8.14"
+#define APACHE_PACKAGE  "apache-1.0.0"
 #define FREEBSD_GIF	"/stand/power.gif"
 
 /* These change if the package uses different defaults */
 
+#define DEFAULT_USER	"guest"
+#define DEFAULT_GROUP	"guest"
+#define WELCOME_FILE	"index.html"
+#define USER_HOMEDIR	"public_html"
+
 #define APACHE_BASE	"/usr/local/www"
 #define DATA_SUBDIR	"data"
-#define CONFIG_SUBDIR	"config"
+#define CONFIG_SUBDIR	"server/conf"
+
+#define LOGS_SUBDIR	"/var/log"
+#define ACCESS_LOGNAME	"httpd.access"
+#define ERROR_LOGNAME	"httpd.error"
 
 /* Set up the structure to hold configuration information */
 /* Note that this is only what we could fit onto the one screen */
@@ -73,9 +83,11 @@ typedef struct
     char welcome[32];              /* Welcome Doc */
     char email[64];                /* ServerAdmin */
     char hostname[64];             /* ServerName */
-    char user[32];                 /* User */
-    char group[32];                /* Group */
-    char maxcon[8];                /* Max Connections */
+    char logdir[64];		   /* Where to put Logs */
+    char accesslog[32];	   	   /* access_log */
+    char errorlog[32];		   /* error_log */
+    char defuser[16];		   /* default user id */
+    char defgroup[16];		   /* default group id */
 } ApacheConf;
 
 static ApacheConf tconf;
@@ -85,16 +97,18 @@ static ApacheConf tconf;
 #define APACHE_WELCOME_LEN       32
 #define APACHE_EMAIL_LEN         64
 #define APACHE_HOSTNAME_LEN      64
-#define APACHE_USER_LEN          32
-#define APACHE_GROUP_LEN         32
-#define APACHE_MAXCON_LEN        8
+#define APACHE_LOGDIR_LEN        64
+#define APACHE_ACCESSLOG_LEN     32
+#define APACHE_ERRORLOG_LEN      32
+#define APACHE_DEFUSER_LEN       16
+#define APACHE_DEFGROUP_LEN      16
 
 static int      okbutton, cancelbutton;
 
 /* What the screen size is meant to be */
 #define APACHE_DIALOG_Y         0
-#define APACHE_DIALOG_X         8
-#define APACHE_DIALOG_WIDTH     COLS - 16
+#define APACHE_DIALOG_X         0
+#define APACHE_DIALOG_WIDTH     COLS
 #define APACHE_DIALOG_HEIGHT    LINES - 2
 
 /* The screen layout structure */
@@ -111,60 +125,70 @@ typedef struct _layout {
 } Layout;
 
 static Layout layout[] = {
-{ 1, 2, 24, HOSTNAME_FIELD_LEN - 1,
+{ 1, 2, 30, HOSTNAME_FIELD_LEN - 1,
       "Host Name:",
       "What name to report this host as to client browsers",
       tconf.hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME 0
 
-{ 1, 30, 30, APACHE_EMAIL_LEN - 1,
+{ 1, 40, 32, APACHE_EMAIL_LEN - 1,
       "Email Address:",
       "The email address of the site maintainer, e.g. webmaster@bar.com",
       tconf.email, STRINGOBJ, NULL },
 #define LAYOUT_EMAIL    1
 
-{ 5, 3, 15, APACHE_USER_LEN - 1,
-      "Default User:", "Default username for access to web pages",
-      tconf.user, STRINGOBJ, NULL },
-#define LAYOUT_USER             2
+{ 5, 5, 20, APACHE_WELCOME_LEN - 1,
+      "Default Document:",
+      "The name of the default document found in each directory",
+      tconf.welcome, STRINGOBJ, NULL },
+#define LAYOUT_WELCOME           2
 
-{ 5, 22, 15, APACHE_GROUP_LEN - 1,
-      "Default Group:",  "Default group name for access to web pages",
-      tconf.group, STRINGOBJ, NULL },
-#define LAYOUT_GROUP    3
+{ 5, 40, 14, APACHE_DEFUSER_LEN - 1,
+      "Default UserID:", "Default UID for access to web pages",
+      tconf.defuser, STRINGOBJ, NULL },
+#define LAYOUT_DEFUSER          3
 
-{ 5, 46, 13, APACHE_MAXCON_LEN - 1,
-      "Max Connect:",  "Maximum number of concurrent http connections",
-      tconf.maxcon, STRINGOBJ, NULL },
-#define LAYOUT_MAXCON   4
+{ 5, 60, 14, APACHE_DEFGROUP_LEN - 1,
+      "Default Group ID:", "Default GID for access to web pages",
+      tconf.defgroup, STRINGOBJ, NULL },
+#define LAYOUT_DEFGROUP          4
 
-{ 10, 10, 43, APACHE_DOCROOT_LEN - 1,
+{ 10, 4, 36, APACHE_DOCROOT_LEN - 1,
       "Root Document Path:",
       "The top directory that holds the system web pages",
       tconf.docroot, STRINGOBJ, NULL },
 #define LAYOUT_DOCROOT          5
 
-{ 14, 10, 18, APACHE_USERDIR_LEN - 1,
+{ 10, 50, 14, APACHE_USERDIR_LEN - 1,
       "User Directory:",
       "Personal sub-directory that holds users' web pages (eg. ~/Web)",
       tconf.userdir, STRINGOBJ, NULL },
 #define LAYOUT_USERDIR          6
 
-{ 14, 35, 18, APACHE_WELCOME_LEN - 1,
-      "Default Document:",
-      "The name of the default document found in each directory",
-      tconf.welcome, STRINGOBJ, NULL },
-#define LAYOUT_WELCOME           7
+{ 14, 4, 28, APACHE_LOGDIR_LEN - 1,
+      "Log Dir:", "Directory to put httpd log files",
+      tconf.logdir, STRINGOBJ, NULL },
+#define LAYOUT_LOGDIR           7
+
+{ 14, 38, 16, APACHE_ACCESSLOG_LEN - 1,
+      "Access Log:",  "Name of log file to report access",
+      tconf.accesslog, STRINGOBJ, NULL },
+#define LAYOUT_ACCESSLOG    8
+
+{ 14, 60, 16, APACHE_ERRORLOG_LEN - 1,
+      "Error Log:",  "Name of log file to report errors",
+      tconf.errorlog, STRINGOBJ, NULL },
+#define LAYOUT_ERRORLOG   9
 
 { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON         8
+#define LAYOUT_OKBUTTON         10
 
-{ 19, 35, 0, 0,
+{ 19, 45, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON     9
+#define LAYOUT_CANCELBUTTON     11
 { NULL },
 };
 
@@ -219,7 +243,7 @@ apacheOpenDialog()
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, APACHE_DIALOG_Y, APACHE_DIALOG_X + 20, " Apache HTTPD Configuration ");
     
-    draw_box(ds_win, APACHE_DIALOG_Y + 9, APACHE_DIALOG_X + 8, APACHE_DIALOG_HEIGHT - 13, APACHE_DIALOG_WIDTH - 17,
+    draw_box(ds_win, APACHE_DIALOG_Y + 9, APACHE_DIALOG_X + 1, APACHE_DIALOG_HEIGHT - 13, APACHE_DIALOG_WIDTH - 2,
              dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     sprintf(title, " Path Configuration ");
@@ -236,30 +260,36 @@ apacheOpenDialog()
         sprintf(tconf.hostname, "www.%s", tmp);
     }
     
-    strcpy(tconf.user, "guest");
-    strcpy(tconf.group, "guest");
-    strcpy(tconf.userdir, "public_html");
-    strcpy(tconf.welcome, "index.html");
-    strcpy(tconf.maxcon, "150");
-    sprintf(tconf.docroot, "%s/%s", APACHE_BASE, DATA_SUBDIR);
+    strcpy(tconf.defuser, DEFAULT_USER);
+    strcpy(tconf.defgroup, DEFAULT_GROUP);
+
+    strcpy(tconf.userdir, USER_HOMEDIR);
+    strcpy(tconf.welcome, WELCOME_FILE);
+
+    strcpy(tconf.logdir, LOGS_SUBDIR);
+    strcpy(tconf.accesslog, ACCESS_LOGNAME);
+    strcpy(tconf.errorlog, ERROR_LOGNAME);
+
+    sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
     
     /* Loop over the layout list, create the objects, and add them
        onto the chain of objects that dialog uses for traversal*/
     
     n = 0;
+
 #define lt layout[n]
     
     while (lt.help != NULL) {
         switch (lt.type) {
         case STRINGOBJ:
             lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X,
-				  lt.len, lt.maxlen);
+			  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X,
+			  lt.len, lt.maxlen);
             break;
 	    
         case BUTTONOBJ:
             lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X);
+			  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X);
             break;
 	    
         default:
@@ -396,7 +426,7 @@ apacheOpenDialog()
 int
 configApache(char *unused)
 {
-    int i, maxcon;
+    int i;
     char company[64], file[128];
     char *tptr;
     FILE *fptr;
@@ -425,27 +455,30 @@ configApache(char *unused)
 	return i;
     }
     /*** Fix defaults for invalid value ***/
-    maxcon = atoi(tconf.maxcon);
-    if (maxcon <= 0)
-	maxcon = 150;
-    
-    if (! tconf.group[0])
-	strcpy(tconf.group, "guest");
-    if (! tconf.user[0])
-	strcpy(tconf.user, "nobody");
+    if (! tconf.logdir[0])
+	strcpy(tconf.logdir, LOGS_SUBDIR);
+    if (! tconf.accesslog[0])
+	strcpy(tconf.accesslog, ACCESS_LOGNAME);
+    if (! tconf.errorlog[0])
+	strcpy(tconf.errorlog, ERROR_LOGNAME);
     
     if (! tconf.welcome[0])
-	strcpy(tconf.welcome, "index.html");
+	strcpy(tconf.welcome, WELCOME_FILE);
     if (! tconf.userdir[0])
-	strcpy(tconf.userdir, "public_html");
+	strcpy(tconf.userdir, USER_HOMEDIR);
     
+    if (! tconf.defuser[0])
+	strcpy(tconf.defuser, DEFAULT_USER);
+    if (! tconf.defgroup[0])
+	strcpy(tconf.defgroup, DEFAULT_GROUP);
+
     /*** If the user did not specify a directory, use default ***/
     
     if (tconf.docroot[strlen(tconf.docroot)-1] == '/')
 	tconf.docroot[strlen(tconf.docroot)-1] = '\0';
     
     if (!tconf.docroot[0])
-	sprintf(tconf.docroot,"%s/%s",APACHE_BASE, DATA_SUBDIR);
+	sprintf(tconf.docroot,"%s/%s",APACHE_BASE,DATA_SUBDIR);
     
     /*** If DocRoot does not exist, create it ***/
     
@@ -454,13 +487,13 @@ configApache(char *unused)
     
     if (directoryExists(tconf.docroot))
     {
-	sprintf(file,"%s/index.html", tconf.docroot);
+	sprintf(file,"%s/%s", tconf.docroot, tconf.welcome);
 	if (!file_readable(file))
 	{
 	    dialog_clear();
 	    tptr = msgGetInput(NULL,
 			       "What is your company name?");
-	    if (tptr && strlen(tptr))
+	    if (tptr && tptr[0])
 		strcpy(company, tptr);
 	    else
 		strcpy(company, "our Web Page");
@@ -507,7 +540,7 @@ configApache(char *unused)
     
     msgNotify("Writing configuration files....");
 
-    (void)vsystem("mkdir -p %s/config", APACHE_BASE);
+    (void)vsystem("mkdir -p %s/%s", APACHE_BASE,CONFIG_SUBDIR);
     sprintf(file, "%s/%s/access.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
@@ -516,10 +549,14 @@ configApache(char *unused)
     if (fptr)
     {
 	fprintf(fptr,"<Directory %s/cgi-bin>\n", APACHE_BASE);
-	fprintf(fptr,"Options Indexes FollowSymLinks\n</Directory>\n\n");
+	fprintf(fptr,"Options Indexes FollowSymLinks\n");
+	fprintf(fptr,"</Directory>\n");
+	fprintf(fptr,"\n");
 	fprintf(fptr,"<Directory %s>\n", tconf.docroot);
-	fprintf(fptr,"Options Indexes FollowSymLinks\nAllowOverride All\n");
-	fprintf(fptr,"</Directory>\n\n");
+	fprintf(fptr,"Options Indexes FollowSymLinks\n");
+	fprintf(fptr,"AllowOverride All\n");
+	fprintf(fptr,"</Directory>\n");
+	fprintf(fptr,"\n");
 	fclose(fptr);
     }
     else {
@@ -535,12 +572,23 @@ configApache(char *unused)
     fptr = fopen(file,"w");
     if (fptr)
     {
-	fprintf(fptr,"ServerType standalone\nPort 80\nTimeOut 400\n");
-	fprintf(fptr,"ErrorLog logs/error_log\nTransferLog logs/access_log\n");
-	fprintf(fptr,"PidFile /var/run/httpd.pid\n\nStartServers 5\n");
-	fprintf(fptr,"MinSpareServers 5\nMaxSpareServers 10\n");
-	fprintf(fptr,"MaxRequestsPerChild 30\nMaxClients %d\n\n",maxcon);
-	fprintf(fptr,"User %s\nGroup %s\n\n",tconf.user,tconf.group);
+	fprintf(fptr,"ServerType standalone\n");
+	fprintf(fptr,"Port 80\n");
+	fprintf(fptr,"TimeOut 400\n");
+	fprintf(fptr,"\n");
+	fprintf(fptr,"ErrorLog %s/%s\n", LOGS_SUBDIR, ERROR_LOGNAME);
+	fprintf(fptr,"TransferLog %s/%s\n", LOGS_SUBDIR, ACCESS_LOGNAME);
+	fprintf(fptr,"PidFile /var/run/httpd.pid\n");
+	fprintf(fptr,"\n");
+	fprintf(fptr,"StartServers 5\n");
+	fprintf(fptr,"MinSpareServers 5\n");
+	fprintf(fptr,"MaxSpareServers 10\n");
+	fprintf(fptr,"MaxRequestsPerChild 30\n");
+	fprintf(fptr,"MaxClients 150\n");
+	fprintf(fptr,"\n");
+	fprintf(fptr,"User %s\n",tconf.defuser);
+	fprintf(fptr,"Group %s\n",tconf.defgroup);
+	fprintf(fptr,"\n");
 	
 	if (tconf.email[0])
 	    fprintf(fptr,"ServerAdmin %s\n",tconf.email);
@@ -561,18 +609,24 @@ configApache(char *unused)
     fptr = fopen(file,"w");
     if (fptr)
     {
-	fprintf(fptr,"FancyIndexing on\nDefaultType text/plain\n");
+	fprintf(fptr,"FancyIndexing on\n");
+	fprintf(fptr,"DefaultType text/plain\n");
 	fprintf(fptr,"IndexIgnore */.??* *~ *# */HEADER* */README* */RCS\n");
-	fprintf(fptr,"HeaderName HEADER\nReadmeName README\n");
-	fprintf(fptr,"AccessFileName .htaccess\n\n");
-	fprintf(fptr,"AddEncoding x-compress Z\nAddEncoding x-gzip gz\n");
-	fprintf(fptr,"DefaultIcon /icons/unknown.gif\n\n");
+	fprintf(fptr,"HeaderName HEADER\n");
+	fprintf(fptr,"ReadmeName README\n");
+	fprintf(fptr,"AccessFileName .htaccess\n");
+	fprintf(fptr,"\n");
+	fprintf(fptr,"AddEncoding x-compress Z\n");
+	fprintf(fptr,"AddEncoding x-gzip gz\n");
+	fprintf(fptr,"DefaultIcon /icons/unknown.gif\n");
+	fprintf(fptr,"\n");
 	fprintf(fptr,
 		"AddIconByEncoding (CMP,/icons/compressed.gif) x-compress x-gzip\n");
 	fprintf(fptr,"AddIconByType (TXT,/icons/text.gif) text/*\n");
 	fprintf(fptr,"AddIconByType (IMG,/icons/image2.gif) image/*\n");
 	fprintf(fptr,"AddIconByType (SND,/icons/sound2.gif) audio/*\n");
-	fprintf(fptr,"AddIconByType (VID,/icons/movie.gif) video/*\n\n");
+	fprintf(fptr,"AddIconByType (VID,/icons/movie.gif) video/*\n");
+	fprintf(fptr,"\n");
 	
 	fprintf(fptr,"AddIcon /icons/text.gif .ps .shtml\n");
 	fprintf(fptr,"AddIcon /icons/movie.gif .mpg .qt\n");
@@ -583,13 +637,15 @@ configApache(char *unused)
 	fprintf(fptr,"AddIcon /icons/tar.gif .tar\n");
 	fprintf(fptr,"AddIcon /icons/back.gif ..\n");
 	fprintf(fptr,"AddIcon /icons/dir.gif ^^DIRECTORY^^\n");
-	fprintf(fptr,"AddIcon /icons/blank.gif ^^BLANKICON^^\n\n");
+	fprintf(fptr,"AddIcon /icons/blank.gif ^^BLANKICON^^\n");
+	fprintf(fptr,"\n");
 	
 	fprintf(fptr,"ScriptAlias /cgi_bin/ %s/cgi_bin/\n",APACHE_BASE);
 	fprintf(fptr,"Alias /icons/ %s/icons/\n",APACHE_BASE);
 	fprintf(fptr,"DocumentRoot %s\n",tconf.docroot);
-	fprintf(fptr,"UserDir %s\nDirectoryIndex %s\n\n", tconf.userdir,
-			tconf.welcome);
+	fprintf(fptr,"UserDir %s\n", tconf.userdir);
+	fprintf(fptr,"DirectoryIndex %s\n", tconf.welcome);
+	fprintf(fptr,"\n");
 	
 	fclose(fptr);
     }
