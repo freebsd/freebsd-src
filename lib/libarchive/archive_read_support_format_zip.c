@@ -336,6 +336,7 @@ zip_read_data_none(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
+	ssize_t bytes_read;
 
 	zip = *(a->pformat_data);
 
@@ -346,16 +347,17 @@ zip_read_data_none(struct archive *a, const void **buff,
 		return (ARCHIVE_EOF);
 	}
 
-	*size = (a->compression_read_ahead)(a, buff,
+	bytes_read = (a->compression_read_ahead)(a, buff,
 	    zip->entry_bytes_remaining);
-	if (*size <= 0) {
+	if (bytes_read <= 0) {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file data");
 		return (ARCHIVE_FATAL);
 	}
-	if (*size > zip->entry_bytes_remaining)
-		*size = zip->entry_bytes_remaining;
-	(a->compression_read_consume)(a, *size);
+	if (bytes_read > zip->entry_bytes_remaining)
+		bytes_read = zip->entry_bytes_remaining;
+	(a->compression_read_consume)(a, bytes_read);
+	*size = bytes_read;
 	*offset = zip->entry_offset;
 	zip->entry_offset += *size;
 	zip->entry_bytes_remaining -= *size;
@@ -469,6 +471,7 @@ zip_read_data_skip(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
+	ssize_t bytes_read;
 
 	zip = *(a->pformat_data);
 
@@ -480,18 +483,17 @@ zip_read_data_skip(struct archive *a, const void **buff,
 
 	/* Skip body of entry. */
 	while (zip->entry_bytes_remaining > 0) {
-		*size = (a->compression_read_ahead)(a, buff,
+		bytes_read = (a->compression_read_ahead)(a, buff,
 		    zip->entry_bytes_remaining);
-		if (*size <= 0) {
+		if (bytes_read <= 0) {
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (*size > zip->entry_bytes_remaining)
-			*size = zip->entry_bytes_remaining;
-		(a->compression_read_consume)(a, *size);
-		zip->entry_bytes_remaining -= *size;
-		zip->entry_offset += *size;
+		if (bytes_read > zip->entry_bytes_remaining)
+			bytes_read = zip->entry_bytes_remaining;
+		(a->compression_read_consume)(a, bytes_read);
+		zip->entry_bytes_remaining -= bytes_read;
 	}
 	return (ARCHIVE_OK);
 }
