@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.35
+     Original revision: 1.761.2.36
 -->
 
 <articleinfo>
@@ -245,6 +245,13 @@
 
       <para>MTU feedback в IPv6 выключается при отправке данных,
 	которые должны быть фрагментированы.</para>
+
+      <para>Был реализован Common Address Redundancy Protocol (CARP).
+	CARP был взят из OpenBSD и позволяет нескольким хостам
+	совместно использовать один IP адрес, чтобы обеспечивать
+	высокую доступность и распределение нагрузки.
+	За дальнейшей информацией обращайтесь к странице справочника
+	&man.carp.4;.</para>
 
       <para>Система &man.ipfw.4; может работать с
 	<varname>debug.mpsafenet</varname>=<literal>1</literal>
