@@ -451,7 +451,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	}
 
 	_thread_leave_cancellation_point();
-	
+
 	/* Return the completion status: */
 	return (rval);
 }
