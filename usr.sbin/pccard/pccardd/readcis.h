@@ -119,6 +119,7 @@ struct cis {
 	unsigned char last_config;
 	unsigned char ccrs;
 	unsigned long reg_addr;
+	unsigned char func_id1, func_id2;
 	struct dev_mem attr_mem;
 	struct dev_mem common_mem;
 	struct cis_config *def_config;

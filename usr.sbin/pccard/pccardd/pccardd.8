@@ -46,7 +46,10 @@ and removal of PC-CARD cards.
 When started,
 .Nm
 will read the configuration file (default name
-.Pa /etc/pccard.conf )
+.Pa /etc/defaults/pccard.conf
+which includes
+.Pa /etc/pccard.conf
+as the user configuration file)
 and scans the available PC-CARD slots for cards.
 .Nm Pccardd
 then waits for
@@ -116,6 +119,10 @@ parameters.
 This will change significantly when loadable kernel
 modules are supported.
 .Pp
+SIGHUP causes
+.Nm
+to reload the configuration files.
+.Pp
 The start options understood by
 .Nm
 are:
@@ -130,11 +137,13 @@ of it.
 Delays running as a daemon until after the cards have been probed and attached.
 .It Fl i Ar IRQ
 Configures an available IRQ.  It overrides the "irq" line in
+.Pa /etc/defaults/pccard.conf
+and
 .Pa /etc/pccard.conf .
 .It Fl f Ar configfile
 Specifies a different configuration file to be used
 in placed of the default file
-.Pa /etc/pccard.conf .
+.Pa /etc/defaults/pccard.conf .
 The file format is detailed in
 .Xr pccard.conf 5 ,
 and lists the PC-CARD cards recognized by
@@ -143,8 +152,14 @@ and the kernel drivers and devices that are used to
 interface to the card.
 .Pp
 .Sh FILES
-.Bl -tag -width /etc/pccard.conf -compact
+.Bl -tag -width /etc/defaults/pccard.conf -compact
+.It Pa /etc/defaults/pccard.conf
+default configuration file
 .It Pa /etc/pccard.conf
+user configuration file
+.It Pa /var/run/pccardd.pid
+process id of of the currently running
+.Nm
 .El
 .Sh SEE ALSO
 .Xr pccard.conf 5 ,
