@@ -138,7 +138,7 @@ mmopen(dev, flags, fmt, p)
 	switch (minor(dev)) {
 	case 0:
 	case 1:
-		if (securelevel >= 1)
+		if ((flags & FWRITE) && securelevel > 0)
 			return (EPERM);
 		break;
 	case 32:
