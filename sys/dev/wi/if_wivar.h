@@ -139,7 +139,6 @@ struct wi_softc	{
 	u_int16_t		wi_supprates;
 	u_int16_t		wi_authtype;
 	u_int16_t		wi_roaming;
-
 	char			wi_node_name[32];
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
