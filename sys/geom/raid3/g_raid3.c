@@ -3030,6 +3030,7 @@ g_raid3_shutdown(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 
 	mp = arg;
+	DROP_GIANT();
 	g_topology_lock();
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if (gp->softc == NULL)
@@ -3037,6 +3038,7 @@ g_raid3_shutdown(void *arg, int howto)
 		g_raid3_destroy(gp->softc, 1);
 	}
 	g_topology_unlock();
+	PICKUP_GIANT();
 #if 0
 	tsleep(&gp, PRIBIO, "r3:shutdown", hz * 20);
 #endif
