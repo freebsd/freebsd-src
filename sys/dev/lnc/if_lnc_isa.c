@@ -49,7 +49,8 @@
 
 #include <isa/isavar.h>
 
-#include <dev/lnc/if_lnc.h>
+#include <dev/lnc/if_lncvar.h>
+#include <dev/lnc/if_lncreg.h>
 
 static struct isa_pnp_id lnc_pnp_ids[] = {
 	{0,	NULL}

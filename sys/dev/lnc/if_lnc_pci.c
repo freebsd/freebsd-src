@@ -50,7 +50,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <dev/lnc/if_lnc.h>
+#include <dev/lnc/if_lncvar.h>
 
 #define AMD_VENDOR_ID 0x1022
 #define PCI_DEVICE_ID_PCNet_PCI	0x2000
