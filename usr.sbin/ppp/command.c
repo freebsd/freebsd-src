@@ -2437,11 +2437,14 @@ NegotiateSet(struct cmdargs const *arg)
 }
 
 static struct cmdtab const NegotiateCommands[] = {
+  {"filter-decapsulation", NULL, OptSet, LOCAL_AUTH,
+  "filter on PPPoUDP payloads", "disable|enable",
+  (const void *)OPT_FILTERDECAP},
   {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check FSM reply ids",
   "disable|enable", (const void *)OPT_IDCHECK},
   {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
-   "retain interface addresses", "disable|enable",
-   (const void *)OPT_IFACEALIAS},
+  "retain interface addresses", "disable|enable",
+  (const void *)OPT_IFACEALIAS},
   {"keep-session", NULL, OptSet, LOCAL_AUTH, "Retain device session leader",
   "disable|enable", (const void *)OPT_KEEPSESSION},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",

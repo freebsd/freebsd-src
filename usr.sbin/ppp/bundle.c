@@ -570,7 +570,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         bundle->ncp.ipcp.my_ip.s_addr) {
       /* we've been asked to send something addressed *to* us :( */
       if (Enabled(bundle, OPT_LOOPBACK)) {
-        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
+        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in, NULL);
         if (pri >= 0) {
           n += sz - sizeof tun.data;
           write(bundle->dev.fd, data, n);
@@ -591,7 +591,8 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
        * Note, we must be in AUTO mode :-/ otherwise our interface should
        * *not* be UP and we can't receive data
        */
-      if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
+      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL);
+      if (pri > 0)
         bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
         /*
@@ -604,7 +605,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         return;
     }
 
-    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
+    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out, NULL);
     if (pri >= 0)
       ip_Enqueue(&bundle->ncp.ipcp, pri, tun.data, n);
   }
@@ -1206,21 +1207,23 @@ bundle_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, " Sticky Routes: %-20.20s",
                 optval(arg->bundle, OPT_SROUTES));
-  prompt_Printf(arg->prompt, " ID check:      %s\n",
+  prompt_Printf(arg->prompt, " Filter Decap:  %s\n",
+                optval(arg->bundle, OPT_FILTERDECAP));
+  prompt_Printf(arg->prompt, " ID check:      %-20.20s",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Keep-Session:  %-20.20s",
+  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
                 optval(arg->bundle, OPT_KEEPSESSION));
-  prompt_Printf(arg->prompt, " Loopback:      %s\n",
+  prompt_Printf(arg->prompt, " Loopback:      %-20.20s",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth:    %-20.20s",
+  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
-  prompt_Printf(arg->prompt, " Proxy:         %s\n",
+  prompt_Printf(arg->prompt, " Proxy:         %-20.20s",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Proxyall:      %-20.20s",
+  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " Throughput:    %s\n",
+  prompt_Printf(arg->prompt, " Throughput:    %-20.20s",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
+  prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
                 optval(arg->bundle, OPT_UTMP));
   prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));

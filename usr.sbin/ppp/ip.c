@@ -430,7 +430,8 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
  *  For debugging aid.
  */
 int
-PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
+PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
+            struct filter *filter, const char *prefix)
 {
   static const char *const TcpFlags[] = {
     "FIN", "SYN", "RST", "PSH", "ACK", "URG"
@@ -439,7 +440,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *icmph;
-  char *ptop;
+  unsigned char *ptop;
   int mask, len, n, pri, logit, loglen, result;
   char logbuf[200];
 
@@ -452,7 +453,9 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   uh = NULL;
 
   if (logit && loglen < sizeof logbuf) {
-    if (filter)
+    if (prefix)
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s", prefix);
+    else if (filter)
       snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
     else
       snprintf(logbuf + loglen, sizeof logbuf - loglen, "  ");
@@ -463,12 +466,14 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   switch (pip->ip_p) {
   case IPPROTO_ICMP:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - sizeof *icmph;
       icmph = (struct icmp *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
 	     "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), icmph->icmp_type);
+	       "%s:%d (%d/%d)", inet_ntoa(pip->ip_dst), icmph->icmp_type,
+               len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -484,23 +489,65 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       pri++;
 
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - sizeof *uh;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
 	   "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+	       "%s:%d (%d/%d)", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport),
+	       len, nb);
       loglen += strlen(logbuf + loglen);
     }
+
+    if (Enabled(bundle, OPT_FILTERDECAP) &&
+        ptop[sizeof *uh] == HDLC_ADDR && ptop[sizeof *uh + 1] == HDLC_UI) {
+      u_short proto;
+      const char *type;
+
+      memcpy(&proto, ptop + sizeof *uh + 2, sizeof proto);
+      type = NULL;
+
+      switch (ntohs(proto)) {
+        case PROTO_IP:
+          snprintf(logbuf + loglen, sizeof logbuf - loglen, " contains ");
+          result = PacketCheck(bundle, ptop + sizeof *uh + 4,
+                               nb - (ptop - cp) - sizeof *uh - 4, filter,
+                               logbuf);
+          if (result != -2)
+              return result;
+          type = "IP";
+          break;
+
+        case PROTO_VJUNCOMP: type = "compressed VJ";   break;
+        case PROTO_VJCOMP:   type = "uncompressed VJ"; break;
+        case PROTO_MP:       type = "Multi-link"; break;
+        case PROTO_ICOMPD:   type = "Individual link CCP"; break;
+        case PROTO_COMPD:    type = "CCP"; break;
+        case PROTO_IPCP:     type = "IPCP"; break;
+        case PROTO_LCP:      type = "LCP"; break;
+        case PROTO_PAP:      type = "PAP"; break;
+        case PROTO_CBCP:     type = "CBCP"; break;
+        case PROTO_LQR:      type = "LQR"; break;
+        case PROTO_CHAP:     type = "CHAP"; break;
+      }
+      if (type) {
+        snprintf(logbuf + loglen, sizeof logbuf - loglen,
+                 " - %s data", type);
+        loglen += strlen(logbuf + loglen);
+      }
+    }
+
     break;
 
 #ifdef IPPROTO_GRE
   case IPPROTO_GRE:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
           "GRE: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-              "%s", inet_ntoa(pip->ip_dst));
+              "%s (%d/%d)", inet_ntoa(pip->ip_dst), len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -509,11 +556,12 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 #ifdef IPPROTO_OSPFIGP
   case IPPROTO_OSPFIGP:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
 	   "OSPF: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s", inet_ntoa(pip->ip_dst));
+	       "%s (%d/%d)", inet_ntoa(pip->ip_dst), len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -586,6 +634,10 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       }
     }
     break;
+
+  default:
+    if (prefix)
+      return -2;
   }
 
   if (filter && FilterCheck(pip, filter)) {
@@ -637,7 +689,7 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   }
   mbuf_Read(bp, tun.data, nb);
 
-  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0)
+  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in, NULL) < 0)
     return NULL;
 
   pip = (struct ip *)tun.data;
