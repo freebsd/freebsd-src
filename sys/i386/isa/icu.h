@@ -45,38 +45,6 @@
 #ifndef _I386_ISA_ICU_H_
 #define	_I386_ISA_ICU_H_
 
-#ifndef	LOCORE
-
-/*
- * Note:
- *	Most of the SMP equivilants of the icu macros are coded
- *	elsewhere in an MP-safe fashion.
- *	In particular note that the 'imen' variable is opaque.
- *	DO NOT access imen directly, use INTREN()/INTRDIS().
- */
-
-void	INTREN(u_int);
-void	INTRDIS(u_int);
-
-#ifdef APIC_IO
-extern	unsigned apic_imen;	/* APIC interrupt mask enable */
-#else
-extern	unsigned imen;		/* interrupt mask enable */
-#endif
-
-#endif /* LOCORE */
-
-
-#ifdef APIC_IO
-/*
- * Note: The APIC uses different values for IRQxxx.
- *	 Unfortunately many drivers use the 8259 values as indexes
- *	 into tables, etc.  The APIC equivilants are kept as APIC_IRQxxx.
- *	 The 8259 versions have to be used in SMP for legacy operation
- *	 of the drivers.
- */
-#endif /* APIC_IO */
-
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
  */
@@ -122,6 +90,7 @@ extern	unsigned imen;		/* interrupt mask enable */
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
+#define	ICU_LEN		16		/* 32-47 are ISA interrupts */
 
 #ifdef PC98
 #define	ICU_IMR_OFFSET	2
@@ -130,23 +99,13 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	ICU_IMR_OFFSET	1
 #define	ICU_SLAVEID	2
 #endif
+
 #define	ICU_EOI		0x20
-
-#ifdef APIC_IO
-
-/* 32-47: ISA IRQ0-IRQ15, 48-63: IO APIC IRQ16-IRQ31 */
-#define	ICU_LEN		32
-#define	HWI_MASK	0xffffffff	/* bits for h/w interrupts */
-#define	NHWI		32
-
-#else
-
-#define	ICU_LEN		16		/* 32-47 are ISA interrupts */
 #define	HWI_MASK	0xffff		/* bits for h/w interrupts */
-#define	NHWI		16
 
-#endif /* APIC_IO */
-
-#define	INTRCNT_COUNT	(1 + ICU_LEN + 2 * ICU_LEN)
+#ifndef LOCORE
+void	atpic_sched_ithd(struct intrframe iframe);
+void	atpic_startup(void);
+#endif
 
 #endif /* !_I386_ISA_ICU_H_ */
