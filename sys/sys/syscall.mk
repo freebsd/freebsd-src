@@ -256,4 +256,13 @@ MIASM =  \
 	lchflags.o \
 	uuidgen.o \
 	sendfile.o \
-	mac_syscall.o
+	mac_syscall.o \
+	ksem_close.o \
+	ksem_post.o \
+	ksem_wait.o \
+	ksem_trywait.o \
+	ksem_init.o \
+	ksem_open.o \
+	ksem_unlink.o \
+	ksem_getvalue.o \
+	ksem_destroy.o
