@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.42 1994/12/05 00:40:23 jkh Exp $
+# $Id: instdist.sh,v 1.43 1994/12/17 06:57:45 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -98,29 +98,29 @@ every possible distribution!  Distributions other than the basic\n\
 binary set are only guaranteed to be available from the Primary site.\n\
 Please use arrow keys to scroll through all items." \
 -1 -1 6 \
-  "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
-  "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
-  "Finland" "ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" \
-  "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
-  "Germany" "ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/${DISTNAME}" \
-  "Israel" "ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" \
-  "Japan" "ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" \
-  "Japan-2" "ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" \
-  "Japan-3" "ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" \
-  "Japan-4" "ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" \
-  "Japan-5" "ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" \
-  "Japan-6" "ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-${DISTNAME}" \
-  "Japan-7" "ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-${DISTNAME}" \
-  "Netherlands" "ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" \
-  "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
-  "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
-  "UK" "ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/${DISTNAME}" \
-  "UK-2" "ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/${DISTNAME}" \
-  "UK-3" "ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/${DISTNAME}" \
-  "USA" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
-  "USA-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
-  "USA-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
-  "USA-4" "ftp://ftp.neosoft.com/systems/FreeBSD/${DISTNAME}" \
+  "Primary" "ftp.freebsd.org" \
+  "Australia" ftp.physics.usyd.edu.au" \
+  "Finland" "nic.funet.fi" \
+  "France" "ftp.ibp.fr" \
+  "Germany" "ftp.uni-duisburg.de" \
+  "Israel" "orgchem.weizmann.ac.il" \
+  "Japan" "ftp.sra.co.jp" \
+  "Japan-2" "ftp.mei.co.jp" \
+  "Japan-3" "ftp.waseda.ac.jp" \
+  "Japan-4" "ftp.pu-toyama.ac.jp" \
+  "Japan-5" "ftpsv1.u-aizu.ac.jp" \
+  "Japan-6" "tutserver.tutcc.tut.ac.jp" \
+  "Japan-7" "ftp.ee.uec.ac.jp" \
+  "Netherlands" "ftp.nl.net" \
+  "Russia" "ftp.kiae.su" \
+  "Taiwan" "netbsd.csie.nctu.edu.tw" \
+  "UK" "ftp.demon.co.uk" \
+  "UK-2" "src.doc.ic.ac.uk" \
+  "UK-3" "unix.hensa.ac.uk" \
+  "USA" "ref.tfs.com" \
+  "USA-2" "ftp.dataplex.net" \
+  "USA-3" "kryten.atinc.com" \
+  "USA-4" "ftp.neosoft.com" \
   "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
@@ -193,6 +193,13 @@ media_extract_dist()
 
 media_install_set()
 {
+	# check to see if we already have it
+	if [ -f ${TMPDIR}/${MEDIA_DISTRIBUTION}/extract.sh ]; then
+		cd ${TMPDIR}/${MEDIA_DISTRIBUTION}
+		media_extract_dist
+		cd /
+		return
+	fi
 	case ${MEDIA_TYPE} in
 	cdrom|nfs|ufs|doshd)
 		if ! cd ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION} > /dev/ttyv1 2>&1; then
@@ -301,15 +308,15 @@ illegally, thanks!  When finished, select <Cancel>." \
 	MEDIA_DISTRIBUTIONS=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval ${RETVAL}; then return 1; fi
-	for DIST in ${MEDIA_DISTRIBUTIONS}; do 
-		if [ "${DIST}" = "?diskfree" ]; then
-			if df -k > ${TMP}/df.out; then
-			   dialog --title "How much free space do I have?" \
-				--textbox ${TMP}/df.out 15 76
+	if [ "${MEDIA_DISTRIBUTIONS}" = "?diskfree" ]; then
+		if df -k > ${TMP}/df.out; then
+		   dialog --title "How much free space do I have?" \
+			--textbox ${TMP}/df.out 15 76
 		else
 			error "Couldn't get disk usage information! :-("
 		fi
-	done
+		MEDIA_DISTRIBUTIONS=""
+	fi
   done
 }
 
@@ -343,7 +350,7 @@ media_chose()
 "Before installing a distribution, you need to chose and/or configure\n\
 a method of installation.  Please pick from one of the following options.\n\
 If none of the listed options works for you, then your best bet may be to\n\
-simply hit ESC twice to get a subshell and proceed manually on your own.\n\
+simply press ESC twice to get a subshell and proceed manually on your own.\n\
 If you are already finished with the installation process, select cancel\n\
 to proceed." -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
@@ -382,11 +389,23 @@ system?  FreeBSD supports the following types:\n" -1 -1 3 \
 		MEDIA_TYPE=tape;
 		case ${CHOICE} in
 			SCSI)
-				MEDIA_DEVICE=/dev/rst0
+				DEFAULT_VALUE="/dev/rst0"
+				TITLE="SCSI Tape Device"
+				if input \
+"If you only have one tape drive, simply press return - the
+default value should be correct.  Otherwise, enter the
+correct value and press return."; then
+				MEDIA_DEVICE=${ANSWER}
 			;;
 
 			QIC-02)
-				MEDIA_DEVICE=/dev/rwt0
+				DEFAULT_VALUE="/dev/rwt0"
+				TITLE="QIC-02 Tape Device"
+				if input \
+"If you only have one tape drive, simply press return - the
+default value should be correct.  Otherwise, enter the
+correct value and press return."; then
+				MEDIA_DEVICE=${ANSWER}
 			;;
 
 			floppy)
@@ -411,6 +430,7 @@ system?  FreeBSD supports the following types:\n" -1 -1 2 \
 			SCSI)
 				MEDIA_DEVICE=/dev/cd0a
 			;;
+
 			Mitsumi)
 				MEDIA_DEVICE=/dev/mcd0a
 			;;
