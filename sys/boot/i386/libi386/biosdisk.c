@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.10 1998/10/04 09:12:15 msmith Exp $
+ *	$Id: biosdisk.c,v 1.11 1998/10/06 07:27:05 msmith Exp $
  */
 
 /*
@@ -62,7 +62,6 @@
 #else
 # define DEBUG(fmt, args...)
 #endif
-
 
 struct open_disk {
     int			od_dkunit;		/* disk unit number */
@@ -117,6 +116,7 @@ struct devsw biosdisk = {
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
 static void	bd_closedisk(struct open_disk *od);
+static int	bd_bestslice(struct dos_partition *dptr);
 
 /*
  * Translate between BIOS device numbers and our private unit numbers.
@@ -234,6 +234,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     int				sector, slice, i;
     int				error;
     u_char			buf[BUFSIZE];
+    daddr_t			pref_slice[4];
 
     if (dev->d_kind.biosdisk.unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -295,36 +296,34 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     dptr = &od->od_parttab[0];
     od->od_flags |= BD_PARTTABOK;
 
-    /* 
-     * XXX No support here for 'extended' slices
-     */
-    if (dev->d_kind.biosdisk.slice < 1) {
-	/*
-	 * Looking for an unsliced disk, check for the historically
-	 * bogus MBR.
-	 */
-	if ((dptr[3].dp_typ != DOSPTYP_386BSD) ||
-	    (dptr[3].dp_start != 0) ||
-	    (dptr[3].dp_size != 50000)) {
-	    error = ENOENT;
-	    goto out;
-	}
-	sector = 0;
-	DEBUG("disk is dedicated");
+    /* Try to auto-detect the best slice; this should always give a slice number */
+    if (dev->d_kind.biosdisk.slice < 1)
+	dev->d_kind.biosdisk.slice = bd_bestslice(dptr);
 
-    } else {
-	/*
-	 * Accept the supplied slice number unequivocally (we may be looking
-	 * for a DOS partition) if we can handle it.
-	 */
-	if (dev->d_kind.biosdisk.slice > NDOSPART) {
-	    error = ENOENT;
-	    goto out;
-	}
-	dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
-	sector = dptr->dp_start;
-	DEBUG("slice entry %d at %d, %d sectors", dev->d_kind.biosdisk.slice - 1, sector, dptr->dp_size);
+    switch (dev->d_kind.biosdisk.slice) {
+    case -1:
+	error = ENOENT;
+	goto out;
+    case 0:
+	goto unsliced;
+    default:
+	break;
     }
+
+    /*
+     * Accept the supplied slice number unequivocally (we may be looking
+     * at a DOS partition).
+     */
+    dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
+    sector = dptr->dp_start;
+    DEBUG("slice entry %d at %d, %d sectors", dev->d_kind.biosdisk.slice - 1, sector, dptr->dp_size);
+
+    /*
+     * If we are looking at a BSD slice, and the partition is < 0, assume the 'a' partition
+     */
+    if ((dptr->dp_typ == DOSPTYP_386BSD) && (dev->d_kind.biosdisk.partition < 0))
+	dev->d_kind.biosdisk.partition = 0;
+
  unsliced:
     /* 
      * Now we have the slice offset, look for the partition in the disklabel if we have
@@ -377,6 +376,73 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     return(error);
 }
 
+
+/*
+ * Search for a slice with the following preferences:
+ *
+ * 1: Active FreeBSD slice
+ * 2: Non-active FreeBSD slice
+ * 3: Active FAT/FAT32 slice
+ * 4: non-active FAT/FAT32 slice
+ */
+#define PREF_FBSD_ACT	0
+#define PREF_FBSD	1
+#define PREF_DOS_ACT	2
+#define PREF_DOS	3
+#define PREF_NONE	4
+
+static int
+bd_bestslice(struct dos_partition *dptr)
+{
+    int		i;
+    int		preflevel, pref;
+
+	
+    /*
+     * Check for the historically bogus MBR found on true dedicated disks
+     */
+    if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
+	(dptr[3].dp_start == 0) &&
+	(dptr[3].dp_size == 50000)) 
+	return(0);
+
+    preflevel = PREF_NONE;
+    pref = -1;
+    
+    /* 
+     * XXX No support here for 'extended' slices
+     */
+    for (i = 0; i < NDOSPART; i++) {
+	switch(dptr[i].dp_typ) {
+	case DOSPTYP_386BSD:			/* FreeBSD */
+	    if ((dptr[i].dp_flag & 0x80) && (preflevel > PREF_FBSD_ACT)) {
+		pref = i;
+		preflevel = PREF_FBSD_ACT;
+	    } else if (preflevel > PREF_FBSD) {
+		pref = i;
+		preflevel = PREF_FBSD;
+	    }
+	    break;
+	    
+	    case 0x04:				/* DOS/Windows */
+	    case 0x06:
+	    case 0x0b:
+	    case 0x0c:
+	    case 0x0e:
+	    case 0x63:
+	    if ((dptr[i].dp_flag & 0x80) && (preflevel > PREF_DOS_ACT)) {
+		pref = i;
+		preflevel = PREF_DOS_ACT;
+	    } else if (preflevel > PREF_DOS) {
+		pref = i;
+		preflevel = PREF_DOS;
+	    }
+	    break;
+	}
+    }
+    return(pref + 1);	/* slices numbered 1-4 */
+}
+ 
 
 static int 
 bd_close(struct open_file *f)
@@ -576,8 +642,10 @@ bd_getdev(struct i386_devdesc *dev)
     struct open_disk		*od;
     int				biosdev;
     int 			major;
+    int				rootdev;
 
     biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
+    DEBUG("unit %d BIOS device %d", dev->d_kind.biosdisk.unit, biosdev);
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (bd_opendisk(&od, dev) != 0)		/* oops, not a viable device */
@@ -602,9 +670,28 @@ bd_getdev(struct i386_devdesc *dev)
 	    major = WDMAJOR;
 	}
     }
-    return(MAKEBOOTDEV(major,
-		       (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
-		       (dev->d_kind.biosdisk.slice + 1) & 0xf, 
-		       biosdev & 0x7f,				/* XXX allow/compute shift for da when wd present */
-		       dev->d_kind.biosdisk.partition));
+    rootdev = MAKEBOOTDEV(major,
+			  (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
+			  (dev->d_kind.biosdisk.slice + 1) & 0xf, 
+			  biosdev & 0x7f,				/* XXX allow/compute shift for da when wd present */
+			  dev->d_kind.biosdisk.partition);
+    DEBUG("dev is 0x%x\n", rootdev);
+    return(rootdev);
+}
+
+/*
+ * Fix (dev) so that it refers to the 'real' disk/slice/partition that it implies.
+ */
+int
+bd_fixupdev(struct i386_devdesc *dev)
+{
+    struct open_disk *od;
+    
+    /*
+     * Open the disk.  This will fix up the slice and partition fields.
+     */
+    if (bd_opendisk(&od, dev) != 0)
+	return(ENOENT);
+    
+    bd_closedisk(od);
 }
