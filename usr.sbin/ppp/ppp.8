@@ -243,7 +243,7 @@ In direct mode,
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
-.It Supports PAP and CHAP (rfc 1994) authentication.
+.It Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
 procedure, and use the
@@ -353,6 +353,14 @@ It is possible to configure
 .Nm
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
+.It Supports MPPE (draft-ietf-pppext-mppe)
+MPPE is Microsoft Point to Point Encryption scheme. It is possible to configure
+.Nm
+to participate in Microsoft's Windows VPN. For now, 
+.Nm
+can only get encryption keys from CHAP 81 authentication.
+.Nm
+must be compiled with DES for MPPE to operate.
 .El
 .Sh PERMISSIONS
 .Nm
@@ -2654,8 +2662,20 @@ level, and any appropriate
 .Dq reconnect
 values are honoured as if the peer were responsible for dropping the
 connection.
+.It mppe
+Default: Disabled and Denied.
+This is Microsoft Point to Point Encryption scheme. MPPE key size can be 
+40-, 56- and 128-bits. Refer to
+.Dq set mppe
+command.
+.It MSChapV2|chap81
+Default: Disabled and Denied.
+It is very similar to standard CHAP (type 0x05)
+except that it issues challenges of a fixed 16 bytes in length and uses a
+combination of MD4, SHA-1 and DES to encrypt the challenge rather than using the
+standard MD5 mechanism.
 .It MSChap|chap80nt
-Default: Disabled and Accepted.
+Default: Disabled and Denied.
 The use of this authentication protocol
 is discouraged as it partially violates the authentication protocol by
 implementing two different mechanisms (LANMan & NT) under the guise of
@@ -4738,6 +4758,8 @@ This will allow
 to do the necessary address translations to enable the process that
 triggers the connection to connect once the link is up despite the
 peer assigning us a new (dynamic) IP address.
+.It set mppe {40|56|128}
+This option selects particular key length. Default is 128.
 .It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.
