@@ -47,7 +47,7 @@
 .Op Fl
 .Op Fl i
 .Op Ar name Ns = Ns Ar value ...
-.Op Ar command
+.Op Ar utility Oo Ar argument ... Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,7 +68,7 @@ manual page.
 The
 .Nm env
 utility executes
-.Ar command
+.Ar utility
 after modifying the environment as
 specified on the command line.
 The option
@@ -83,7 +83,7 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl i
 Execute the
-.Ar command
+.Ar utility
 with only those environment values specified.
 The environment inherited
 by
@@ -95,7 +95,7 @@ Identical to the
 option, available for backward compatibility.
 .El
 .Pp
-If no command is specified,
+If no utility is specified,
 .Nm env
 prints out the names and values
 of the variables in the environment, with one name/value pair per line.
@@ -124,10 +124,10 @@ as well as set up the environment as desired.
 .Pp
 .Ex -std env
 An exit status of 126 indicates
-.Ar command
+.Ar utility
 was found, but could not be executed.
 An exit status of 127 indicates
-.Ar command
+.Ar utility
 could not be found.
 .Sh SEE ALSO
 .Xr csh 1 ,
@@ -147,5 +147,5 @@ command appeared in
 .Sh BUGS
 The
 .Nm env
-utility doesn't handle commands with equal (``='') signs in their
+utility doesn't handle utility arguments with equal (``='') signs in their
 names, for obvious reasons.
