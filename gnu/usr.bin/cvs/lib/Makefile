@@ -12,8 +12,7 @@ LIB=		cvs
 INTERNALLIB=	YES
 
 # gnu must be before lib to pick correct regex.h
-CFLAGS+= -I. -I${CVSDIR}/src \
-	 -I${.CURDIR}/../../../../../include/gnu \
+CFLAGS+= -I. -I${CVSDIR}/src -I${DESTDIR}/usr/include/gnu \
 	 -I${CVSDIR}/lib
 CFLAGS+= -DHAVE_CONFIG_H
 YFLAGS=

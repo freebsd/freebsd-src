@@ -26,7 +26,7 @@ SRCS=	add.c admin.c annotate.c buffer.c \
 
 # gnu must be before lib to pick correct regex.h
 CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H -I${CVSDIR}/src \
-	 -I${.CURDIR}/../../../../../include/gnu \
+	 -I${DESTDIR}/usr/include/gnu \
 	 -I${CVSDIR}/lib -I${CVSDIR}/diff -I.
 
 DPADD=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
