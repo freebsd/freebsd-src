@@ -21,21 +21,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <dev/led/led.h>
 #include <sys/uio.h>
+#include <sys/sx.h>
 
 struct ledsc {
 	LIST_ENTRY(ledsc)	list;
 	void			*private;
+	int			unit;
 	led_t			*func;
 	struct cdev *dev;
 	struct sbuf		*spec;
 	char			*str;
 	char			*ptr;
 	int			count;
+	time_t			last_second;
 };
 
-static unsigned next_minor;
+static struct unrhdr *led_unit;
 static struct mtx led_mtx;
+static struct sx led_sx;
 static LIST_HEAD(, ledsc) led_list = LIST_HEAD_INITIALIZER(&led_list);
+static struct callout led_ch;
 
 MALLOC_DEFINE(M_LED, "LED", "LED driver");
 
@@ -55,20 +60,54 @@ led_timeout(void *p)
 		if (*sc->ptr == '.') {
 			sc->ptr = NULL;
 			continue;
+		} else if (*sc->ptr == 'U' || *sc->ptr == 'u') {
+			if (sc->last_second == time_second)
+				continue;
+			sc->last_second = time_second;
+			sc->func(sc->private, *sc->ptr == 'U');
 		} else if (*sc->ptr >= 'a' && *sc->ptr <= 'j') {
 			sc->func(sc->private, 0);
+			sc->count = (*sc->ptr & 0xf) - 1;
 		} else if (*sc->ptr >= 'A' && *sc->ptr <= 'J') {
 			sc->func(sc->private, 1);
+			sc->count = (*sc->ptr & 0xf) - 1;
 		}
-		sc->count = *sc->ptr & 0xf;
-		sc->count--;
 		sc->ptr++;
 		if (*sc->ptr == '\0')
 			sc->ptr = sc->str;
 	}
 	mtx_unlock(&led_mtx);
-	timeout(led_timeout, p, hz / 10);
+	callout_reset(&led_ch, hz / 10, led_timeout, p);
 	return;
+}
+
+static int
+led_state(struct cdev *dev, struct sbuf *sb, int state)
+{
+	struct sbuf *sb2 = NULL;
+	struct ledsc *sc;
+
+	mtx_lock(&led_mtx);
+	sc = dev->si_drv1;
+	if (sc != NULL) {
+		sb2 = sc->spec;
+		sc->spec = sb;
+		if (sb != NULL) {
+			sc->str = sbuf_data(sb);
+			sc->ptr = sc->str;
+		} else {
+			sc->str = NULL;
+			sc->ptr = NULL;
+			sc->func(sc->private, state);
+		}
+		sc->count = 0;
+	}
+	mtx_unlock(&led_mtx);
+	if (sb2 != NULL)
+		sbuf_delete(sb2);
+	if (sc == NULL)
+		return (ENXIO);
+	return(0);
 }
 
 static int
@@ -76,12 +115,11 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
 	char *s, *s2;
-	struct ledsc *sc;
-	struct sbuf *sb;
-	struct sbuf *sb2;
+	struct sbuf *sb = NULL;
 	int i;
 
-	sc = dev->si_drv1;
+	if (dev->si_drv1 == NULL)
+		return (ENXIO);
 
 	if (uio->uio_resid > 512)
 		return (EINVAL);
@@ -98,18 +136,9 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 	 * fast from userland if they want to
 	 */
 	if (*s == '0' || *s == '1') {
-		mtx_lock(&led_mtx);
-		sb2 = sc->spec;
-		sc->spec = NULL;
-		sc->str = NULL;
-		sc->ptr = NULL;
-		sc->count = 0;
-		sc->func(sc->private, *s & 1);
-		mtx_unlock(&led_mtx);
-		if (sb2 != NULL)
-			sbuf_delete(sb2);
+		error = led_state(dev, NULL, *s & 1);
 		free(s2, M_DEVBUF);
-		return(0);
+		return(error);
 	}
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
@@ -158,6 +187,7 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 			for(s++; *s; s++) {
 				if ((*s >= 'a' && *s <= 'j') ||
 				    (*s >= 'A' && *s <= 'J') ||
+				    *s == 'U' || *s <= 'u' ||
 					*s == '.')
 					sbuf_bcat(sb, s, 1);
 			}
@@ -200,21 +230,11 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (0);
 	}
 
-	mtx_lock(&led_mtx);
-	sb2 = sc->spec;
-	sc->spec = sb;
-	sc->str = sbuf_data(sb);
-	sc->ptr = sc->str;
-	sc->count = 0;
-	mtx_unlock(&led_mtx);
-	if (sb2 != NULL)
-		sbuf_delete(sb2);
-	return(0);
+	return (led_state(dev, sb, 0));
 }
 
 static struct cdevsw led_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_write =	led_write,
 	.d_name =	"LED",
 };
@@ -223,36 +243,25 @@ struct cdev *
 led_create(led_t *func, void *priv, char const *name)
 {
 	struct ledsc	*sc;
-	struct sbuf *sb;
 
-	if (next_minor == 0) {
-		mtx_init(&led_mtx, "LED mtx", NULL, MTX_DEF);
-		timeout(led_timeout, NULL, hz / 10);
-	}
-
-	sb = sbuf_new(NULL, NULL, SPECNAMELEN, SBUF_FIXEDLEN);
-	if (sb == NULL)
-		return (NULL);
-	sbuf_cpy(sb, "led/");
-	sbuf_cat(sb, name);
-	sbuf_finish(sb);
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		return (NULL);
-	}
-		
 	sc = malloc(sizeof *sc, M_LED, M_WAITOK | M_ZERO);
+
+	sx_xlock(&led_sx);
+	sc->unit = alloc_unr(led_unit);
 	sc->private = priv;
 	sc->func = func;
-	sc->dev = make_dev(&led_cdevsw, unit2minor(next_minor),
-	    UID_ROOT, GID_WHEEL, 0600, sbuf_data(sb));
-	sc->dev->si_drv1 = sc;
-	next_minor++;
-	sbuf_delete(sb);
+	sc->dev = make_dev(&led_cdevsw, unit2minor(sc->unit),
+	    UID_ROOT, GID_WHEEL, 0600, "led/%s", name);
+	sx_xunlock(&led_sx);
+
 	mtx_lock(&led_mtx);
+	sc->dev->si_drv1 = sc;
+	if (LIST_EMPTY(&led_list))
+		callout_reset(&led_ch, hz / 10, led_timeout, NULL);
 	LIST_INSERT_HEAD(&led_list, sc, list);
 	sc->func(sc->private, 0);
 	mtx_unlock(&led_mtx);
+
 	return (sc->dev);
 }
 
@@ -261,12 +270,32 @@ led_destroy(struct cdev *dev)
 {
 	struct ledsc *sc;
 
-	sc = dev->si_drv1;
 	mtx_lock(&led_mtx);
+	sc = dev->si_drv1;
+	dev->si_drv1 = NULL;
+
 	LIST_REMOVE(sc, list);
+	if (LIST_EMPTY(&led_list))
+		callout_stop(&led_ch);
 	mtx_unlock(&led_mtx);
+
+	sx_xlock(&led_sx);
+	free_unr(led_unit, sc->unit);
+	destroy_dev(dev);
 	if (sc->spec != NULL)
 		sbuf_delete(sc->spec);
-	destroy_dev(dev);
 	free(sc, M_LED);
+	sx_xunlock(&led_sx);
 }
+
+static void
+led_drvinit(void *unused)
+{
+
+	led_unit = new_unrhdr(0, minor2unit(MAXMINOR));
+	mtx_init(&led_mtx, "LED mtx", NULL, MTX_DEF);
+	sx_init(&led_sx, "LED sx");
+	callout_init(&led_ch, CALLOUT_MPSAFE);
+}
+
+SYSINIT(leddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, led_drvinit, NULL);
