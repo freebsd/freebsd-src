@@ -312,34 +312,32 @@ cm_attach(sc, unit)
 	 */
 	cm_stop(sc);
 
-	if (!ifp->if_name) {
-		ifp->if_softc = sc;
-		ifp->if_unit = unit;
-		ifp->if_name = "cm";
-		ifp->if_output = arc_output;
-		ifp->if_start = cm_start;
-		ifp->if_ioctl = cm_ioctl;
-		ifp->if_watchdog  = cm_watchdog;
-		ifp->if_init = cm_init;
-		/* XXX IFQ_SET_READY(&ifp->if_snd); */
-		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-		ifp->if_timer = 0;
-		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	ifp->if_softc = sc;
+	ifp->if_unit = unit;
+	ifp->if_name = "cm";
+	ifp->if_output = arc_output;
+	ifp->if_start = cm_start;
+	ifp->if_ioctl = cm_ioctl;
+	ifp->if_watchdog  = cm_watchdog;
+	ifp->if_init = cm_init;
+	/* XXX IFQ_SET_READY(&ifp->if_snd); */
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_timer = 0;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 
-		arc_ifattach(ifp, linkaddress);
+	arc_ifattach(ifp, linkaddress);
 
 #ifdef CMSOFTCOPY
-		sc->sc_rxcookie = softintr_establish(IPL_SOFTNET, cm_srint, sc);
-		sc->sc_txcookie = softintr_establish(IPL_SOFTNET,
-			(void (*)(void *))cm_start, ifp);
+	sc->sc_rxcookie = softintr_establish(IPL_SOFTNET, cm_srint, sc);
+	sc->sc_txcookie = softintr_establish(IPL_SOFTNET,
+		(void (*)(void *))cm_start, ifp);
 #endif
 
 #if __FreeBSD_version < 500000
-		callout_init(&sc->sc_recon_ch);
+	callout_init(&sc->sc_recon_ch);
 #else
-		callout_init(&sc->sc_recon_ch, 0);
+	callout_init(&sc->sc_recon_ch, 0);
 #endif
-	}
 
 	if_printf(ifp, "link addr 0x%02x (%d)\n", linkaddress, linkaddress);
 	return 0;

@@ -591,25 +591,23 @@ rdp_attach(struct isa_device *isa_dev)
 	 */
 	rdp_stop(sc);
 
-	if (!ifp->if_name) {
-		/*
-		 * Initialize ifnet structure
-		 */
-		ifp->if_softc = sc;
-		ifp->if_unit = unit;
-		ifp->if_name = "rdp";
-		ifp->if_start = rdp_start;
-		ifp->if_ioctl = rdp_ioctl;
-		ifp->if_watchdog = rdp_watchdog;
-		ifp->if_init = rdp_init;
-		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	/*
+	 * Initialize ifnet structure
+	 */
+	ifp->if_softc = sc;
+	ifp->if_unit = unit;
+	ifp->if_name = "rdp";
+	ifp->if_start = rdp_start;
+	ifp->if_ioctl = rdp_ioctl;
+	ifp->if_watchdog = rdp_watchdog;
+	ifp->if_init = rdp_init;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 
-		/*
-		 * Attach the interface
-		 */
-		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	}
+	/*
+	 * Attach the interface
+	 */
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
 	 * Print additional info when attached
