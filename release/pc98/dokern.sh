@@ -11,48 +11,51 @@ fi
 
 if [ "${FDSIZE}" = "SMALL" ]; then
 
-sed	-e '/	pty	/d' \
-	-e '/	pass	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
-	-e '/	ppp	/d' \
-	-e '/	gif	/d' \
-	-e '/	faith	/d' \
-	-e '/	random	/d' \
-	-e '/	splash	/d' \
+sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
+	-e '/maxusers/d' \
+	-e '/DEBUG/d' \
+	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
+	-e '/NFSSERVER/d' \
+	-e '/NFS_ROOT/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
-	-e '/SOFTUPDATES/d' \
-	-e '/UFS_DIRHASH/d' \
-	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
-	-e '/NFS_ROOT/d' \
-	-e '/DEBUG/d' \
 	-e '/DDB/d' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/WITNESS/d' \
-	-e '/AHC_REG_PRETTY_PRINT/d' \
-	-e '/AHD_REG_PRETTY_PRINT/d' \
+	-e '/	ch	/d' \
+	-e '/	sa	/d' \
+	-e '/	pass	/d' \
+	-e '/	ses	/d' \
+	-e '/	splash	/d' \
+	-e '/	apm$/d' \
+	-e '/	pmtimer$/d' \
+	-e '/	ppc$/d' \
+	-e '/	ppbus	/d' \
+	-e '/	lpt	/d' \
+	-e '/	plip	/d' \
+	-e '/	ppi	/d' \
+	-e '/	an	/d' \
+	-e '/	awi	/d' \
+	-e '/	wi	/d' \
+	-e '/	random	/d' \
+	-e '/	sl	/d' \
+	-e '/	ppp	/d' \
+	-e '/	pty	/d' \
+	-e '/	gif	/d' \
+	-e '/	faith	/d' \
 	-e '/	pci$/d' \
 	-e '/	adv	/d' \
 	-e '/	ahc	/d' \
 	-e '/	amd	/d' \
 	-e '/	isp	/d' \
 	-e '/	sym	/d' \
-	-e '/	ncr	/d' \
-	-e '/	ch	/d' \
-	-e '/	sa	/d' \
-	-e '/	ses	/d' \
-	-e '/	pcm/d' \
-	-e '/	atapist	/d' \
 	-e '/	ppc$/d' \
 	-e '/	ppbus	/d' \
-	-e '/	lpt	/d' \
 	-e '/	plip	/d' \
-	-e '/	ppi	/d' \
 	-e '/	de	/d' \
 	-e '/	em	/d' \
 	-e '/	txp	/d' \
@@ -68,60 +71,46 @@ sed	-e '/	pty	/d' \
 	-e '/	tx	/d' \
 	-e '/	vr	/d' \
 	-e '/	wb	/d' \
-	-e '/	xl	/d' \
-	-e '/	ugen	/d' \
-	-e '/	uhid	/d' \
-	-e '/	ulpt	/d' \
-	-e '/	urio	/d' \
-	-e '/	uscanner	/d' \
-	-e '/maxusers/d' \
-	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+	-e '/	xl	/d'
 
 else
 
-sed	-e '/	pty	/d' \
-	-e '/	pass	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
-	-e '/	ppp	/d' \
-	-e '/	gif	/d' \
-	-e '/	faith	/d' \
-	-e '/	random	/d' \
-	-e '/	splash	/d' \
+sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
+	-e '/maxusers/d' \
+	-e '/DEBUG/d' \
+	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
+	-e '/NFSSERVER/d' \
+	-e '/NFS_ROOT/d' \
 	-e '/PROCFS/d' \
 	-e '/PSEUDOFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
-	-e '/SOFTUPDATES/d' \
-	-e '/UFS_DIRHASH/d' \
-	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
-	-e '/NFS_ROOT/d' \
- 	-e '/DEBUG/d' \
- 	-e '/DDB/d' \
- 	-e '/INVARIANTS/d' \
- 	-e '/INVARIANT_SUPPORT/d' \
- 	-e '/WITNESS/d' \
-	-e '/AHC_REG_PRETTY_PRINT/d' \
-	-e '/AHD_REG_PRETTY_PRINT/d' \
-	-e '/	ncr	/d' \
+	-e '/DDB/d' \
+	-e '/INVARIANTS/d' \
+	-e '/INVARIANT_SUPPORT/d' \
+	-e '/WITNESS/d' \
 	-e '/	ch	/d' \
 	-e '/	sa	/d' \
-	-e '/	pcm/d' \
-	-e '/	atapist	/d' \
-	-e '/	lpt	/d' \
-	-e '/	ppi	/d' \
-	-e '/	txp	/d' \
-	-e '/	sf	/d' \
-	-e '/	ste	/d' \
-	-e '/	ugen	/d' \
-	-e '/	uhid	/d' \
-	-e '/	ulpt	/d' \
-	-e '/	urio	/d' \
-	-e '/	uscanner	/d' \
+	-e '/	pass	/d' \
 	-e '/	ses	/d' \
-	-e '/maxusers/d' \
-	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+	-e '/	splash	/d' \
+	-e '/	apm$/d' \
+	-e '/	pmtimer$/d' \
+	-e '/	ppc$/d' \
+	-e '/	ppbus	/d' \
+	-e '/	lpt	/d' \
+	-e '/	plip	/d' \
+	-e '/	ppi	/d' \
+	-e '/	an	/d' \
+	-e '/	awi	/d' \
+	-e '/	wi	/d' \
+	-e '/	random	/d' \
+	-e '/	sl	/d' \
+	-e '/	ppp	/d' \
+	-e '/	pty	/d' \
+	-e '/	gif	/d' \
+	-e '/	faith	/d'
 
 fi
 
