@@ -732,9 +732,7 @@ do_dup(td, type, old, new, retval)
 	if (delfp != NULL) {
 		knote_fdclose(td, new);
 		FILEDESC_UNLOCK(fdp);
-		mtx_lock(&Giant);
 		(void) closef(delfp, td);
-		mtx_unlock(&Giant);
 		if (holdleaders) {
 			FILEDESC_LOCK_FAST(fdp);
 			fdp->fd_holdleaderscount--;
@@ -1000,12 +998,10 @@ close(td, uap)
 	error = 0;
 	holdleaders = 0;
 	fdp = td->td_proc->p_fd;
-	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
 		FILEDESC_UNLOCK(fdp);
-		mtx_unlock(&Giant);
 		return (EBADF);
 	}
 	fdp->fd_ofiles[fd] = NULL;
@@ -1031,7 +1027,6 @@ close(td, uap)
 	FILEDESC_UNLOCK(fdp);
 
 	error = closef(fp, td);
-	mtx_unlock(&Giant);
 	if (holdleaders) {
 		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_holdleaderscount--;
@@ -1862,8 +1857,11 @@ fdcheckstd(td)
 /*
  * Internal form of close.
  * Decrement reference count on file structure.
- * Note: td may be NULL when closing a file
- * that was being passed in a message.
+ * Note: td may be NULL when closing a file that was being passed in a
+ * message.
+ *
+ * XXXRW: Giant is not required for the caller, but often will be held; this
+ * makes it moderately likely the Giant will be recursed in the VFS case.
  */
 int
 closef(fp, td)
@@ -1884,6 +1882,7 @@ closef(fp, td)
 	 * aren't passed with the descriptor.
 	 */
 	if (fp->f_type == DTYPE_VNODE) {
+		mtx_lock(&Giant);
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
@@ -1927,6 +1926,7 @@ closef(fp, td)
 			}
 			FILEDESC_UNLOCK(fdp);
 		}
+		mtx_unlock(&Giant);
 	}
 	return (fdrop(fp, td));
 }
