@@ -46,6 +46,7 @@ MAN=	aac.4 \
 	fwohci.4 \
 	fxp.4 \
 	gif.4 \
+	gre.4 \
 	gusc.4 \
 	gx.4 \
 	ichsmb.4 \

@@ -58,6 +58,8 @@ struct gre_softc {
 	const struct encaptab *encap;	/* encapsulation cookie */
 
 	int called;		/* infinite recursion preventer */
+
+	struct resource *r_unit;/* resource allocated for this unit */
 };	
 
 
@@ -84,12 +86,12 @@ struct gre_h {
 	struct gre_sre[] routing Routing fileds (see below)
 				Present if (rt_pres == 1)
  */
-} __packed;
+} __attribute__((__packed__));
 
 struct greip {
 	struct ip gi_i;
 	struct gre_h  gi_g;
-} __packed;
+} __attribute__((__packed__));
 
 #define gi_pr		gi_i.ip_p
 #define gi_len		gi_i.ip_len
@@ -103,6 +105,13 @@ struct greip {
 #define GRE_KP		0x2000  /* Key Present */
 #define GRE_SP		0x1000  /* Sequence Present */
 #define GRE_SS		0x0800	/* Strict Source Route */
+
+/*
+ * CISCO uses special type for GRE tunnel created as part of WCCP
+ * connection, while in fact those packets are just IPv4 encapsulated
+ * into GRE.
+ */
+#define WCCP_PROTOCOL_TYPE	0x883E
 
 /*
  * gre_sre defines a Source route Entry. These are needed if packets
@@ -128,12 +137,12 @@ struct mobile_h {
 	u_int16_t hcrc;			/* header checksum */
 	u_int32_t odst;			/* original destination address */
 	u_int32_t osrc;			/* original source addr, if S-bit set */
-} __packed;
+} __attribute__((__packed__));
 
 struct mobip_h {
 	struct ip	mi;
 	struct mobile_h	mh;
-} __packed;
+} __attribute__((__packed__));
 
 
 #define MOB_H_SIZ_S		(sizeof(struct mobile_h) - sizeof(u_int32_t))

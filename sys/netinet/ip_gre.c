@@ -130,7 +130,7 @@ gre_input(m, va_alist)
 	 * we inject it to raw ip socket to see if anyone picks it up.
 	 */
 	if (ret == 0)
-		rip_input(m, off);
+		rip_input(m, off, proto);
 }
 
 /*
@@ -179,7 +179,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 		switch (ntohs(gip->gi_ptype)) { /* ethertypes */
 		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
-			ifq = &ipintrq;          /* we are in ip_input */
+		case WCCP_PROTOCOL_TYPE: /* we are in ip_input */
+			ifq = &ipintrq;
 			break;
 #ifdef NS
 		case ETHERTYPE_NS:
@@ -216,14 +217,14 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		BPF_MTAP(&(sc->sc_if), &m0);
+		bpf_mtap(&(sc->sc_if), &m0);
 	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
 
 	s = splnet();		/* possible */
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
+		IF_DROP(ifq);
 		m_freem(m);
 	} else {
 		IF_ENQUEUE(ifq,m);
@@ -311,7 +312,7 @@ gre_mobile_input(m, va_alist)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		BPF_MTAP(&(sc->sc_if), &m0);
+		bpf_mtap(&(sc->sc_if), &m0);
 	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
@@ -319,7 +320,7 @@ gre_mobile_input(m, va_alist)
 	ifq = &ipintrq;
 	s = splnet();       /* possible */
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
+		IF_DROP(ifq);
 		m_freem(m);
 	} else {
 		IF_ENQUEUE(ifq,m);
