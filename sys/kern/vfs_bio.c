@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.57 1995/08/06 12:10:39 davidg Exp $
+ * $Id: vfs_bio.c,v 1.58 1995/08/24 13:28:16 davidg Exp $
  */
 
 /*
@@ -697,9 +697,9 @@ incore(struct vnode * vp, daddr_t blkno)
 	bp = bh->lh_first;
 
 	/* Search hash chain */
-	while (bp) {
+	while (bp != NULL) {
 		/* hit */
-		if (bp->b_lblkno == blkno && bp->b_vp == vp &&
+		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
 		    (bp->b_flags & B_INVAL) == 0) {
 			splx(s);
 			return (bp);
@@ -708,7 +708,7 @@ incore(struct vnode * vp, daddr_t blkno)
 	}
 	splx(s);
 
-	return (0);
+	return (NULL);
 }
 
 /*
@@ -726,9 +726,9 @@ inmem(struct vnode * vp, daddr_t blkno)
 
 	if (incore(vp, blkno))
 		return 1;
-	if (vp->v_mount == 0)
+	if (vp->v_mount == NULL)
 		return 0;
-	if ((vp->v_object == 0) || (vp->v_flag & VVMIO) == 0)
+	if ((vp->v_object == NULL) || (vp->v_flag & VVMIO) == 0)
 		return 0;
 
 	obj = vp->v_object;
