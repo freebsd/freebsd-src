@@ -103,7 +103,7 @@ toggle_press(WINDOW *window, struct field field)
 			field.spare++;
 			if (!field.misc[field.spare])
 				field.spare = 0;
-			sprintf(field.field, "%", field.misc[field.spare]);
+			sprintf(field.field, "%s", field.misc[field.spare]);
 			return (key);
 			break;
 		case '\n':
