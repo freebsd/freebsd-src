@@ -26,7 +26,7 @@ static const char copyright[] =
     "Copyright 1987,1988 by MIT Student Information Processing Board";
 
 static const char rcsid_compile_et_c[] =
-    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.3 1996/07/12 19:05:17 jkh Exp $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.4 1997/06/30 06:42:41 charnier Exp $";
 #endif
 
 extern char *gensym();
@@ -252,8 +252,8 @@ int main (argc, argv) int argc; char **argv; {
     fputs("}\n", cfile);
     fclose(cfile);
 
-    fprintf (hfile, "extern void initialize_%s_error_table ();\n",
-	     table_name);
+    fprintf (hfile, "extern void initialize_%s_error_table (%s);\n",
+	     table_name, (language == lang_C) ? "void" : "");
     fprintf (hfile, "#define ERROR_TABLE_BASE_%s (%dL)\n",
 	     table_name, table_number);
     /* compatibility... */
