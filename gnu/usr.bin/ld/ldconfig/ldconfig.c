@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.14 1996/10/01 01:31:51 peter Exp $
+ *	$Id: ldconfig.c,v 1.16 1996/11/08 02:12:40 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -136,8 +136,15 @@ char	*argv[];
 	if (!nostd && !merge)
 		std_search_path();
 
-	for (i = optind; i < argc; i++)
-		add_search_path(argv[i]);
+	if (!justread) {  /* Add any directories from the command line */
+		for (i = optind; i < argc; i++) {
+			if (access(argv[i], F_OK) == -1) {  /* Doesn't exist */
+				warn("%s", argv[i]);
+				rval = -1;
+			} else
+				add_search_path(argv[i]);
+		}
+	}
 
 	for (i = 0; i < n_search_dirs; i++) {
 		char *cp = concat(dir_list, *dir_list?":":"", search_dirs[i]);
@@ -169,8 +176,9 @@ int	silent;
 	int		dewey[MAXDEWEY], ndewey;
 
 	if ((dd = opendir(dir)) == NULL) {
-		if (!silent || errno != ENOENT)
-			warn("%s", dir);
+		if (silent && errno == ENOENT)	/* Ignore the error */
+			return 0;
+		warn("%s", dir);
 		return -1;
 	}
 
