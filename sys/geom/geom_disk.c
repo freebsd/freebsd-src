@@ -45,7 +45,6 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/diskslice.h>
 #include <sys/disklabel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
@@ -256,7 +255,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	dp->d_devsw = cdevsw;
 	dev->si_devsw = cdevsw;
 	dev->si_disk = dp;
-	dev->si_udev = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+	dev->si_udev = dkmakeminor(unit, 1, RAW_PART);
 	sprintf(dev->si_name, "%s%d", cdevsw->d_name, unit);
 	g_call_me(g_disk_create, dev);
 	return (dev);
