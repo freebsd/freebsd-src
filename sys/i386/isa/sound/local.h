@@ -18,6 +18,9 @@
 
 #include "snd.h"
 #if NSND > 0
+
+#include "opt_sound.h"
+
 #define CONFIGURE_SOUNDCARD
 
 #define CONFIG_SEQUENCER
