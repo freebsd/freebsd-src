@@ -1,7 +1,8 @@
 /* Process TeX index dribble output into an actual index.
-   $Id: texindex.c,v 1.34 1999/08/06 17:03:14 karl Exp $
+   $Id: texindex.c,v 1.37 2002/01/19 01:12:54 karl Exp $
 
-   Copyright (C) 1987, 91, 92, 96, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91, 92, 96, 97, 98, 99, 2000, 01, 02
+   Free Software Foundation, Inc. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -337,7 +338,7 @@ decode_command (argc, argv)
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the files named COPYING.\n"),
-                  "1999");
+                  "2002");
               xexit (0);
             }
           else if ((strcmp (arg, "--keep") == 0) ||

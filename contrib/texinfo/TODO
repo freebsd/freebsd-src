@@ -1,21 +1,26 @@
+Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01
+Free Software Foundation.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.  
+
+
 If you are interested in working on any of these, email bug-texinfo@gnu.org.
 
 * Makeinfo:
-  - Support output of Docbook format and SGML-Tools format.
-  - Support output of true 8-bit characters from accent commands, etc.
+  - Try directory of main source file.
+  - Support @`{@dotless{i}} et al. in HTML.
   - A detexinfo program, like detex or delatex.  This command would
     strip all the texinfo commands out, and would be used as a filter on
     the way to a speller.  An option would be to NOT strip comments out.
     makeinfo --no-headers comes close.
   - If node name contains an @ command, complain explicitly.
-  - Better ASCII output: convert menus to single table of contents,
-    enumerate chapters and sections, convert cross-refs and indices to
-    chapter/section references.  See:
-       ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2/faq201s.zip
-  - Call Ghostscript to get ASCII output for the @image command.
+  - Call Ghostscript to get ASCII/jpg output for the @image command.
   - Better HTML output: allow settable background color, table colors
     and spacing, <head> meta tags, back link from footnote marker, etc.
-  - Could warn if @sc{TEXT} for all-caps TEXT, since it's a no-op.
+  - Rewrite completely to simplify generation of different formats.
 
 * TeX:
   - Use @ as the escape character, and Texinfo syntax generally, in the
@@ -23,16 +28,16 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
     multiple redefinitions of every Texinfo command in different contexts.
   - Handle @hsep and @vsep in @multitables.
   - Introduce new command to change \bindingoffset.
+  - Reasonable way to change fonts from the default (some work has been done).
   - How about using latex2html to produce HTML?
+  - Support 8-bit input characters, perhaps via the ec fonts.
+  - Repeat table headings if a @multitable is multiple pages long.
 
 * General:
-  - Better i18n support, including support for 8-bit input characters,
-    and 8-bit output in info.  Perhaps have to use the ec fonts.
-  - Support compressed image files, automatic generation of .txt
-    or .jpg from .eps by Ghostscript.
+  - @xindexterm [def] primary [,secondary [,tertiary]]  or some such?
+  - Support compressed image files.
   - Handle reference card creation, perhaps by only paying attention to
     sectioning and @def... commands.
-  - Allow : in node names for info files, for names like `class::method'.
   - Allow @end (and other?) commands to be indented in the source.
   - Get Info declared as a MIME Content-Type.
 
@@ -45,29 +50,31 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
 @caption ... @end caption
 <arbitrary Texinfo commands>
 @end figure
+  - multicolumn * width to take up `the rest'.
+  - another table command to take N succeeding items and split them
+    into M columns (see eplain).
   - support bibliographies with BibTeX (see web2c/doc for kludge prototype).
   - @flushboth to combine @flushleft and @flushright, for RFC's.
   - @part sectioning command.
   - Allow subitems and `see' and `see also' in indices.
-  - @verbatim ... @end verbatim.
   - @exercise/@answer command for, e.g., gawk.
   - Allow @hsep/@vsep at @item, instead of just in template.
-  - The dark corner symbol for the gawk manual.
   - Support automatic line numbering of examples.
+  - Better macro syntax.
+  - Allow : in node names for info files, for names like `class::method'.
   - Change bars.  This is difficult or impossible in TeX,
     unfortunately.  To do it right requires device driver support.
-    wdiff or ediff may be better in some cases, anyway.
+    wdiff or ediff may be all we can do.
 
 * Doc:
   - Include a complete functional summary, as in a reference card, in
     the manual.
-  - Improve the manuals for makeinfo, standalone info, etc.
-  - Page 39, need a new section on doing dedication pages. See gawk.texi
+  - Improve the manuals, especially for makeinfo, standalone info, etc.
+  - new section on doing dedication pages. See gawk.texi
     for an example of doing it in both the tex and info versions.
 
 * Info:
   - Regular expression search.
-  - Allow key rebinding, perhaps through the readline library.
   - Full-text search across all info files installed on the system.
   - Support character sets other than ISO Latin 1.
   - Perhaps comply with LANGUAGE setting on a per-node basis, to allow
@@ -75,21 +82,32 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
   - Search all nodes of dir file at startup, then can have
     INFO-DIR-SEPARATE-GROUPS and other such.
   - Better dir file merging.
-  - Steal interface ideas from Lynx: TAB for navigating to next link
-    within a page, number links, use color, etc.  Perhaps code from the pinfo
-    viewer can be reused: http://zeus.polsl.gliwice.pl/~pborys/.
+  - Steal interface ideas from Lynx: number links, use color, etc.
+    Perhaps code from the pinfo viewer can be reused:
+    http://zeus.polsl.gliwice.pl/~pborys/.
+  - More sample .infokey files, so people can choose without writing their own.
   - q within help should quit help like C-x 0.
   - Incorporate an X-based viewer, perhaps tkinfo
       http://www.math.ucsb.edu/~boldt/tkinfo/
     or saxinfo.
-  - Perhaps process Texinfo files directly instead of converting to Info:
-    ftp://ftp.cs.berkeley.edu/ucb/people/phelps/tcltk/tkman.tar.Z
-    + ftp://ftp.cs.berkeley.edu/ucb/people/phelps/tcltk/rman.tar.Z
-    + Tcl/Tk 8.0 from ftp.smli.com in the /pub/tcl directory.
-    From: phelps@ecstasy.CS.Berkeley.EDU (Tom Phelps)
-    (But this has the disadvantage of needing to be updated when the
-    Texinfo language changes, so don't.)
 
-* Install-info:
+* PDF:
+  - make each letter of the index (A, B, ...) a section in the TOC.
+    From Carsten Dominik <dominik@astro.uva.nl>.
+
+  
+* install-info:
   - be able to copy the info file to compile-time $(infodir), to
     simplify by-hand installation.
+
+
+Ideas that will not be implemented:
+- Process Texinfo files directly instead of converting to Info:
+  ftp://ftp.cs.berkeley.edu/ucb/people/phelps/tcltk/tkman.tar.Z, which
+  uses Tcl/Tk 8.0 from ftp.smli.com in the /pub/tcl directory.
+  From: phelps@ecstasy.CS.Berkeley.EDU (Tom Phelps)
+  [This has the disadvantage of needing to be updated when the
+  Texinfo language changes, so don't.]
+
+- Split HTML output by chapter.
+  [Then cross-references in HTML cannot be generated consistently.]

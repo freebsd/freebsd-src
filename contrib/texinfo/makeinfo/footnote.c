@@ -1,7 +1,7 @@
 /* footnote.c -- footnotes for Texinfo.
-   $Id: footnote.c,v 1.10 1999/09/20 12:20:52 karl Exp $
+   $Id: footnote.c,v 1.13 2002/03/02 15:05:21 karl Exp $
 
-   Copyright (C) 1998, 99 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "footnote.h"
 #include "macro.h"
 #include "makeinfo.h"
+#include "xml.h"
 
 /* Nonzero means that the footnote style for this document was set on
    the command line, which overrides any other settings. */
@@ -200,6 +201,18 @@ cm_footnote ()
       return;
     }
 
+  /* output_pending_notes is non-reentrant (it uses a global data
+     structure pending_notes, which it frees before it returns), and
+     TeX doesn't grok footnotes inside footnotes anyway.  Disallow
+     that.  */
+  if (already_outputting_pending_notes)
+    {
+      line_error (_("Footnotes inside footnotes are not allowed"));
+      free (marker);
+      free (note);
+      return;
+    }
+
   if (!*marker)
     {
       free (marker);
@@ -213,14 +226,21 @@ cm_footnote ()
         marker = xstrdup ("*");
     }
 
+  if (xml)
+    xml_insert_footnote (note);
+  else 
+    {
   remember_note (marker, note);
 
   /* fixme: html: footnote processing needs work; we currently ignore
      the style requested; we could clash with a node name of the form
      `fn-<n>', though that's unlikely. */
   if (html)
-    add_word_args ("<a rel=footnote href=\"#fn-%d\"><sup>%s</sup></a>",
-                   current_footnote_number, marker);
+    {
+      add_html_elt ("<a rel=footnote href=");
+      add_word_args ("\"#fn-%d\"><sup>%s</sup></a>",
+		     current_footnote_number, marker);
+    }
   else
     /* Your method should at least insert MARKER. */
     switch (footnote_style)
@@ -255,7 +275,7 @@ cm_footnote ()
         break;
       }
   current_footnote_number++;
-
+    }
   free (marker);
   free (note);
 }
@@ -328,7 +348,9 @@ output_pending_notes ()
 	    /* Make the text of every footnote begin a separate paragraph.  */
             add_word_args ("<li><a name=\"fn-%d\"></a>\n<p>",
 			   footnote->number);
+            already_outputting_pending_notes++;
             execute_string ("%s", footnote->note);
+            already_outputting_pending_notes--;
             add_word ("</p>\n");
           }
         else

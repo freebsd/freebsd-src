@@ -1,31 +1,42 @@
+Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
+Free Software Foundation.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.  
+
+
 This is the README file for the GNU Texinfo distribution.
-The primary distribution point is ftp://ftp.gnu.org/gnu/texinfo/.
+The primary distribution point is ftp://ftp.gnu.org/gnu/texinfo/
+and the primary home page is http://www.gnu.org/software/texinfo/,
+secondary home page at http://texinfo.org/.
 
 Mailing lists:
 - bug-texinfo@gnu.org for bug reports or enhancement suggestions,
-  archived at ftp://ftp-mailing-list-archives.gnu.org/.
+  archived at ftp://ftp-mailing-list-archives.gnu.org/bug-texinfo/.
 - help-texinfo@gnu.org for authoring questions and general discussion.
-  archived at the same place.
-- texinfo-pretest@tug.org for pretests of new releases,
-  archived at http://tug.org/archives/texinfo-pretest/.
+  archived at ftp://ftp-mailing-list-archives.gnu.org/help-texinfo/.
+- texinfo-pretest@texinfo.org for pretests of new releases,
+  archived at ftp://ftp.texinfo.org/texinfo/texinfo-pretest-archive/.
 There are as yet no corresponding newsgroups.
 
 For bug reports, please include enough information for the maintainers
 to reproduce the problem.  Generally speaking, that means:
+- the contents of any input files necessary to reproduce the bug (crucial!).
+- a description of the problem and any samples of the erroneous output.
 - the version number of Texinfo and the program(s) involved (use --version).
 - hardware, operating system, and compiler versions (uname -a).
 - any unusual options you gave to configure (see config.status).
-- the contents of any input files necessary to reproduce the bug (crucial!).
-- a description of the problem and any samples of the erroneous output.
 - anything else that you think would be helpful.
 
 Patches are most welcome; if possible, please make them with diff -c and
 include ChangeLog entries.
 
 When sending email, please do not encode or split the messages in any
-way if at all possible; it's much easier to deal with one large message
-than many small ones.  GNU shar is a convenient way of packaging
-multiple and/or binary files for email.
+way if at all possible; it's easier to deal with one large message than
+many small ones.  GNU shar is a convenient way of packaging multiple
+and/or binary files for email.
 
 
 For generic installation instructions on compiling and installing this
@@ -47,7 +58,7 @@ Installation notes specific to Texinfo:
   to config.h after running configure.
 
 * For instructions on compiling this distribution with DJGPP tools
-  for MS-DOS and MS-Windows, please see the file djgpp/README.
+  for MS-DOS and MS-Windows, see the file djgpp/README.
 
 
 If you would like to contribute to the GNU project by implementing
@@ -56,11 +67,14 @@ great.  But please do not write a separate translator texi2foo for your
 favorite format foo!  That is the hard way to do the job, and makes
 extra work in subsequent maintenance, since the Texinfo language is
 continually being enhanced and updated.  Instead, the best approach is
-modify Makeinfo to generate the new format, as it does now for Info and HTML.
+modify Makeinfo to generate the new format, as it does now for Info,
+HTML, XML, and DocBook.
+
+If you want to convert from DocBook to Texinfo, please see 
+http://docbook2X.sourceforge.net/.
 
 
 This distribution includes the following files, among others:
-
     README                      This file.
 
     NEWS                        Summary of new features by release.
@@ -70,7 +84,6 @@ This distribution includes the following files, among others:
                                 Texinfo source files in this distribution.
 
 Texinfo source files (in ./doc):
-
     texinfo.txi                 Describes the Texinfo language and many
                                 of the associated tools.  It tells how
                                 to use Texinfo to write documentation,
@@ -93,7 +106,6 @@ Texinfo source files (in ./doc):
                                 source (./info).
 
 Printing related files:
-
     doc/texinfo.tex             This TeX definitions file tells
                                 the TeX program how to typeset a
                                 Texinfo file into a DVI file ready for
@@ -121,7 +133,6 @@ Source files for standalone C programs (./lib, ./makeinfo, ./info):
                                 view Info files on an ASCII terminal.
 
 Installation files:
-
     configure                   This file creates creates a Makefile 
                                 which in turn creates an `info' or
                                 `makeinfo' executable, or a C sources
@@ -139,7 +150,6 @@ Installation files:
                                
 
 Other files:
-
     fixfonts                    This is a shell script to install the 
                                 `lcircle10' TeX fonts as an alias for
                                 the `circle10' fonts.  In some older
