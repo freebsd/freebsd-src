@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -41,7 +42,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include "cardd.h"
 
-static struct card_config *assign_driver(struct card *);
+static struct card_config *assign_driver(struct slot *, struct card *);
 static int		 assign_io(struct slot *);
 static int		 setup_slot(struct slot *);
 static void		 card_inserted(struct slot *);
@@ -361,7 +362,7 @@ escape:
 			break;
 		}
 	}
-	if ((sp->config = assign_driver(cp)) == NULL) 
+	if ((sp->config = assign_driver(sp, cp)) == NULL) 
 		return;
 	if ((err = assign_io(sp))) {
 		char *reason;
@@ -474,10 +475,12 @@ read_ether_attr2(struct slot *sp)
  *	First, see if an existing driver is already setup.
  */
 static struct card_config *
-assign_driver(struct card *cp)
+assign_driver(struct slot *sp, struct card *cp)
 {
 	struct driver *drvp;
 	struct card_config *conf;
+	struct pccard_resource res;
+	int i;
 
 	for (conf = cp->config; conf; conf = conf->next)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
@@ -515,35 +518,51 @@ assign_driver(struct card *cp)
 		return (NULL);
 	}
 	/* Allocate a free IRQ if none has been specified */
+	res.type = SYS_RES_IRQ;
+	res.size = 1;
 	if (conf->irq == 0) {
-		struct pccard_resource res;
-		char name[128];
-		int i, fd;
-
-		sprintf(name, CARD_DEVICE, 0); /* XXX */
-		fd = open(name, O_RDWR);
- 
-		res.type = SYS_RES_IRQ;
-		res.size = 1;
-		for (i = 1; i < 16; i++) {
-			res.min = i;
-			res.max = i;
-			if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
-				perror("ioctl (PIOCSRESOURCE)");
-				exit(1);
-			}
-			if (pool_irq[i]
-			    && (res.resource_addr == i || !use_kern_irq)) {
-				conf->irq = i;
-				pool_irq[i] = 0;
-				break;
+		res.min = 0;
+		res.max = 0;
+		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+			err(1, "ioctl (PIOCSRESOURCE)");
+		if (res.resource_addr != ~0ul) {
+			conf->irq = res.resource_addr;
+			pool_irq[conf->irq] = 0;
+		} else {
+			for (i = 1; i < 16; i++) {
+				if (!use_kern_irq && pool_irq[i]) {
+					conf->irq = i;
+					pool_irq[i] = 0;
+					break;
+				}
+				res.min = i;
+				res.max = i;
+				if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+					err(1, "ioctl (PIOCSRESOURCE)");
+				if (res.resource_addr == ~0ul)
+					continue;
+				conf->irq = res.resource_addr;
+				pool_irq[conf->irq] = 0;
 			}
 		}
-		close(fd);
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
 			return (NULL);
 		}
+	} else {
+		res.min = res.max = conf->irq;
+		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+			err(1, "ioctl (PIOCSRESOURCE)");
+		if (res.resource_addr == ~0ul) {
+			logmsg("Failed to verify IRQ for %s\n", cp->manuf);
+			return (NULL);
+		}
+		if (res.resource_addr != conf->irq) {
+			logmsg("Kernel changed irq from %d to %d for %s\n",
+			    conf->irq, res.resource_addr, cp->manuf);
+			conf->irq = res.resource_addr;
+		}
+			
 	}
 	drvp->card = cp;
 	drvp->config = conf;
@@ -556,16 +575,12 @@ assign_driver(struct card *cp)
  *	Auto select config index
  */
 static struct cis_config *
-assign_card_index(struct cis * cis)
+assign_card_index(struct slot *sp, struct cis * cis)
 {
 	struct cis_config *cp;
 	struct cis_ioblk *cio;
 	struct pccard_resource res;
-	char name[128];
-	int i, fd;
-
-	sprintf(name, CARD_DEVICE, 0); /* XXX */
-	fd = open(name, O_RDWR);
+	int i;
 
 	res.type = SYS_RES_IOPORT;
 	for (cp = cis->conf; cp; cp = cp->next) {
@@ -575,21 +590,17 @@ assign_card_index(struct cis * cis)
 			res.size = cio->size;
 			res.min = cio->addr;
 			res.max = res.min + cio->size - 1;
-			if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
-				perror("ioctl (PIOCSRESOURCE)");
-			       exit(1);
-			}
+			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+				err(1, "ioctl (PIOCSRESOURCE)");
 			if (res.resource_addr != cio->addr)
-					goto next;
+				goto next;
 			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
 				if (!bit_test(io_avail, i))
 					goto next;
 		}
-		close(fd);
 		return cp;	/* found */
 	next:
 	}
-	close(fd);
 	return cis->def_config;
 }
 
@@ -611,7 +622,7 @@ assign_io(struct slot *sp)
 		sp->config->index = cisconf->id;
 		break;
 	case AUTO_INDEX:	/* auto */
-		cisconf = assign_card_index(cis);
+		cisconf = assign_card_index(sp, cis);
 		sp->config->index = cisconf->id;
 		break;
 	default:		/* normal, use index value */
@@ -739,24 +750,20 @@ memskip:
 			}
 			if (sio->addr == 0) {
 				struct pccard_resource res;
-				char name[128];
-				int i, j, fd;
+				int i, j;
 
-				sprintf(name, CARD_DEVICE, 0); /* XXX */
-				fd = open(name, O_RDWR);
- 
 				res.type = SYS_RES_IOPORT;
 				res.size = sio->size;
 
 				for (i = 0; i < IOPORTS; i++) {
 					j = bit_fns(io_avail, IOPORTS, i,
 							sio->size, sio->size);
+					if ((j & (sio->size - 1)) != 0)
+						continue;
 					res.min = j;
 					res.max = j + sio->size - 1;
-					if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
-						perror("ioctl (PIOCSRESOURCE)");
-						exit(1);
-					}
+					if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+						err(1, "ioctl (PIOCSRESOURCE)");
 					if (res.resource_addr == j)
 						break;
 				}
@@ -765,7 +772,6 @@ memskip:
 				} else {
 					sio->addr = j;
 				}
-				close(fd);
 			}
 			bit_nclear(io_avail, sio->addr,
 				   sio->addr + sio->size - 1);
