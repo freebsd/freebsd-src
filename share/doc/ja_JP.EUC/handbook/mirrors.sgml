@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.45 -->
+<!-- Original revision: 1.46 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -352,6 +352,12 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
 	name="ftp://ftp.kiae.su/FreeBSD"><newline>
 	連絡先: <url url="mailto:ftp@ftp.kiae.su"
 	name="ftp@ftp.kiae.su">.
+
+<item>
+<url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:ivt@ftp3.ru.freebsd.org"
+	name="ivt@ftp3.ru.freebsd.org">.
 
 </itemize>
 
