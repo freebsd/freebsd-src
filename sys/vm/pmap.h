@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.10 1996/05/19 07:36:44 dyson Exp $
+ * $Id: pmap.h,v 1.11 1996/06/17 03:35:34 dyson Exp $
  */
 
 /*
@@ -109,7 +109,7 @@ void		 pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size,
 		    int pagelimit));
 boolean_t	 pmap_page_exists __P((pmap_t, vm_offset_t));
-void		 pmap_page_protect __P((vm_offset_t, vm_prot_t));
+void		 pmap_page_protect __P((vm_page_t, vm_prot_t));
 void		 pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t,
 		    boolean_t));
 vm_offset_t	 pmap_phys_address __P((int));
