@@ -685,6 +685,10 @@ pcib_match(device_t dev)
 		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
+	case 0x24188086:
+		return ("Intel 82801AA (ICH) Hub to PCI bridge");
+	case 0x24288086:
+		return ("Intel 82801AB (ICH0) Hub to PCI bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x01021004:
@@ -840,6 +844,10 @@ isab_match(device_t dev)
 		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
+	case 0x24108086:
+		return ("Intel 82801AA (ICH) PCI to LPC bridge");
+	case 0x24208086:
+		return ("Intel 82801AB (ICH0) PCI to LPC bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00061004:
@@ -963,7 +971,6 @@ DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
 const char *
 pci_usb_match(device_t dev)
 {
-
 	switch (pci_get_devid(dev)) {
 
 	/* Intel -- vendor 0x8086 */
@@ -971,6 +978,10 @@ pci_usb_match(device_t dev)
 		return ("Intel 82371SB (PIIX3) USB controller");
 	case 0x71128086:
 		return ("Intel 82371AB/EB (PIIX4) USB controller");
+	case 0x24128086:
+		return ("Intel 82801AA (ICH) USB controller");
+	case 0x24228086:
+		return ("Intel 82801AB (ICH0) USB controller");
 
 	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
 	case 0x30381106:
@@ -1139,6 +1150,16 @@ chip_match(device_t dev)
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
+	case 0x71208086:
+		return ("Intel 82810 (i810 GMCH) Host To Hub bridge");
+	case 0x71228086:
+	return ("Intel 82810-DC100 (i810-DC100 GMCH) Host To Hub bridge");
+	case 0x71248086:
+	return ("Intel 82810E (i810E GMCH) Host To Hub bridge");
+	case 0x24158086:
+		return ("Intel 82801AA (ICH) AC'97 Audio Controller");
+	case 0x24258086:
+		return ("Intel 82801AB (ICH0) AC'97 Audio Controller");
 
 	/* Sony -- vendor 0x104d */
 	case 0x8009104d:
@@ -1712,8 +1733,16 @@ static const char* vga_match(device_t dev)
 		break;
 	case 0x8086:
 		vendor = "Intel";
-		if ((id >> 16) == 0x7800)
-			chip = "i740 AGP";
+		switch (id >> 16) {
+		case 0x7121:
+			chip = "82810 (i810 GMCH)"; break;
+		case 0x7123:
+			chip = "82810-DC100 (i810-DC100 GMCH)"; break;
+		case 0x7125:
+			chip = "82810E (i810E GMCH)"; break;
+		case 0x7800:
+			chip = "i740 AGP"; break;
+		}
 		break;
 	case 0x10ea:
 		vendor = "Intergraphics";
