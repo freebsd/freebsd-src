@@ -1,6 +1,6 @@
 # -*- text -*-
 
-			  AM-UTILS-6.0 MIRRORS
+			  AM-UTILS-6.x MIRRORS
 
 Note: in case of any problems accessing the individual FTP sites, please
 contact their respective maintainers.  If you wish to be added to the
@@ -21,6 +21,9 @@ U.S.A:
 	Ohio (Kent State University):
 		ftp://info.mcs.kent.edu/pub/am-utils
 		Maintainer: root@mcs.kent.edu
+	Florida (University of Florida)
+		ftp://ftp.cise.ufl.edu/pub/am-utils
+		Maintainer: mirror@cise.ufl.edu
 
 Europe:
 	Germany:
@@ -43,6 +46,12 @@ Asia:
 	Japan:
 		ftp://ftp.u-aizu.ac.jp/pub/net/amd/am-utils
 		Maintainer: ftp-admin@u-aizu.ac.jp
+	Japan:
+		ftp://core.ring.gr.jp/pub/net/am-utils/
+		Maintainer: ftpadmin@ring.gr.jp
+	Japan:
+		ftp://ftp.ring.gr.jp/pub/net/am-utils/
+		Maintainer: ftpadmin@ring.gr.jp
 
 Australia:
 	Melbourne:

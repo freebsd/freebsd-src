@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: rpc_fwd.c,v 1.2 1999/01/10 21:53:52 ezk Exp $
+ * $Id: rpc_fwd.c,v 1.3.2.2 2001/04/14 21:08:23 ezk Exp $
  *
  */
 
@@ -187,7 +187,7 @@ fwd_init(void)
    * Some things we talk to require a priv port - so make one here
    */
   if (bind_resv_port(fwd_sock, (u_short *) 0) < 0)
-    plog(XLOG_ERROR, "can't bind privileged port");
+    plog(XLOG_ERROR, "can't bind privileged port (rpc_fwd)");
 
   if (fcntl(fwd_sock, F_SETFL, FNDELAY) < 0
 #ifdef FIONBIO

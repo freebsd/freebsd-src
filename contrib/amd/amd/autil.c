@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: autil.c,v 1.3 1999/01/10 21:53:44 ezk Exp $
+ * $Id: autil.c,v 1.4.2.2 2001/04/29 05:08:35 ib42 Exp $
  *
  */
 
@@ -219,7 +219,9 @@ forcibly_timeout_mp(am_node *mp)
    */
   if (mf && ((mp->am_flags & AMF_ROOT) ||
 	     (mf->mf_flags & (MFF_MOUNTING | MFF_UNMOUNTING)))) {
-    if (!(mf->mf_flags & MFF_UNMOUNTING))
+    if (mf->mf_flags & MFF_UNMOUNTING)
+      plog(XLOG_WARNING, "node %s is currently being unmounted, ignoring timeout request", mp->am_path);
+    else
       plog(XLOG_WARNING, "ignoring timeout request for active node %s", mp->am_path);
   } else {
     plog(XLOG_INFO, "\"%s\" forcibly timed out", mp->am_path);

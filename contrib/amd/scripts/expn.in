@@ -15,7 +15,7 @@ $SOCK_STREAM = &SOCK_STREAM;
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /src/cvsroot/am-utils-6.0/scripts/expn.in,v 1.2 1999/09/18 08:38:07 ezk Exp $
+# $Header: /proj/bank/cvsroot/am-utils/scripts/expn.in,v 1.2.2.1 2000/06/14 01:58:48 ionut Exp $
 
 # TODO:
 #	less magic should apply to command-line addresses
@@ -114,7 +114,7 @@ $0 = "$av0 - lookup host FQDN and IP addr";
 ($hostname,$aliases,$type,$len,$thisaddr) = gethostbyname($name);
 
 $0 = "$av0 - parsing args";
-$usage = "Usage: $av0 [-1avwd] user[\@host] [user2[host2] ...]";
+$usage = "Usage: $av0 [-1avwd] user[\@host] [user2[\@host2] ...]";
 for $a (@ARGV) {
 	die $usage if $a eq "-";
 	while ($a =~ s/^(-.*)([1avwd])/$1/) {

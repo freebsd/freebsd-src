@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xdr_func.c,v 1.2 1999/01/10 21:54:39 ezk Exp $
+ * $Id: xdr_func.c,v 1.4.2.4 2001/02/02 18:28:27 ezk Exp $
  *
  */
 
@@ -50,6 +50,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amu.h>
+
 
 /*
  * MACROS:
@@ -77,7 +78,7 @@ bool_t
 xdr_attrstat(XDR *xdrs, nfsattrstat *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_attrstat:");
 #endif /* DEBUG */
 
@@ -103,7 +104,7 @@ bool_t
 xdr_createargs(XDR *xdrs, nfscreateargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_createargs:");
 #endif /* DEBUG */
 
@@ -123,7 +124,7 @@ bool_t
 xdr_dirlist(XDR *xdrs, nfsdirlist *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_dirlist:");
 #endif /* DEBUG */
 
@@ -143,7 +144,7 @@ bool_t
 xdr_diropargs(XDR *xdrs, nfsdiropargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_diropargs:");
 #endif /* DEBUG */
 
@@ -163,7 +164,7 @@ bool_t
 xdr_diropokres(XDR *xdrs, nfsdiropokres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_diropokres:");
 #endif /* DEBUG */
 
@@ -183,7 +184,7 @@ bool_t
 xdr_diropres(XDR *xdrs, nfsdiropres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_diropres:");
 #endif /* DEBUG */
 
@@ -209,7 +210,7 @@ bool_t
 xdr_dirpath(XDR *xdrs, dirpath *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_dirpath:");
 #endif /* DEBUG */
 
@@ -226,7 +227,7 @@ bool_t
 xdr_entry(XDR *xdrs, nfsentry *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_entry:");
 #endif /* DEBUG */
 
@@ -252,18 +253,14 @@ bool_t
 xdr_exportnode(XDR *xdrs, exportnode *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_exportnode:");
 #endif /* DEBUG */
 
   if (!xdr_dirpath(xdrs, &objp->ex_dir)) {
     return (FALSE);
   }
-  /*
-   * This cast to (groups) is needed for Irix6.  If you change it, it
-   * may produce a warning/error on other systems.
-   */
-  if (!xdr_groups(xdrs, (groups) &objp->ex_groups)) {
+  if (!xdr_groups(xdrs, &objp->ex_groups)) {
     return (FALSE);
   }
   if (!xdr_exports(xdrs, &objp->ex_next)) {
@@ -279,7 +276,7 @@ bool_t
 xdr_exports(XDR *xdrs, exports *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_exports:");
 #endif /* DEBUG */
 
@@ -296,7 +293,7 @@ bool_t
 xdr_fattr(XDR *xdrs, nfsfattr *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_fattr:");
 #endif /* DEBUG */
 
@@ -352,7 +349,7 @@ bool_t
 xdr_fhandle(XDR *xdrs, fhandle objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_fhandle:");
 #endif /* DEBUG */
 
@@ -369,7 +366,7 @@ bool_t
 xdr_fhstatus(XDR *xdrs, fhstatus *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_fhstatus:");
 #endif /* DEBUG */
 
@@ -389,7 +386,7 @@ bool_t
 xdr_filename(XDR *xdrs, filename *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_filename:");
 #endif /* DEBUG */
 
@@ -406,7 +403,7 @@ bool_t
 xdr_ftype(XDR *xdrs, nfsftype *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_ftype:");
 #endif /* DEBUG */
 
@@ -423,18 +420,14 @@ bool_t
 xdr_groupnode(XDR *xdrs, groupnode *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_groupnode:");
 #endif /* DEBUG */
 
   if (!xdr_name(xdrs, &objp->gr_name)) {
     return (FALSE);
   }
-  /*
-   * This cast to (groups) is needed for Irix6.  If you change it, it
-   * may produce a warning/error on other systems.
-   */
-  if (!xdr_groups(xdrs, (groups) &objp->gr_next)) {
+  if (!xdr_groups(xdrs, &objp->gr_next)) {
     return (FALSE);
   }
   return (TRUE);
@@ -444,10 +437,10 @@ xdr_groupnode(XDR *xdrs, groupnode *objp)
 
 #ifndef HAVE_XDR_GROUPS
 bool_t
-xdr_groups(XDR *xdrs, groups objp)
+xdr_groups(XDR *xdrs, groups *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_groups:");
 #endif /* DEBUG */
 
@@ -464,7 +457,7 @@ bool_t
 xdr_linkargs(XDR *xdrs, nfslinkargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_linkargs:");
 #endif /* DEBUG */
 
@@ -484,7 +477,7 @@ bool_t
 xdr_mountbody(XDR *xdrs, mountbody *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mountbody:");
 #endif /* DEBUG */
 
@@ -507,7 +500,7 @@ bool_t
 xdr_mountlist(XDR *xdrs, mountlist *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mountlist:");
 #endif /* DEBUG */
 
@@ -531,7 +524,7 @@ bool_t
 xdr_fhandle3(XDR *xdrs, fhandle3 *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_fhandle3:");
 #endif /* DEBUG */
 
@@ -548,7 +541,7 @@ bool_t
 xdr_mountstat3(XDR *xdrs, mountstat3 *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mountstat3:");
 #endif /* DEBUG */
 
@@ -562,7 +555,7 @@ bool_t
 xdr_mountres3_ok(XDR *xdrs, mountres3_ok *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mountres3_ok:");
 #endif /* DEBUG */
 
@@ -583,7 +576,7 @@ bool_t
 xdr_mountres3(XDR *xdrs, mountres3 *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mountres3:");
 #endif /* DEBUG */
 
@@ -604,7 +597,7 @@ bool_t
 xdr_name(XDR *xdrs, name *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_name:");
 #endif /* DEBUG */
 
@@ -621,7 +614,7 @@ bool_t
 xdr_nfs_fh(XDR *xdrs, am_nfs_fh *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_nfs_fh:");
 #endif /* DEBUG */
 
@@ -638,7 +631,7 @@ bool_t
 xdr_nfscookie(XDR *xdrs, nfscookie objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_nfscookie:");
 #endif /* DEBUG */
 
@@ -655,7 +648,7 @@ bool_t
 xdr_nfspath(XDR *xdrs, nfspath *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_nfspath:");
 #endif /* DEBUG */
 
@@ -672,7 +665,7 @@ bool_t
 xdr_nfsstat(XDR *xdrs, nfsstat *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_nfsstat:");
 #endif /* DEBUG */
 
@@ -689,7 +682,7 @@ bool_t
 xdr_nfstime(XDR *xdrs, nfstime *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_nfstime:");
 #endif /* DEBUG */
 
@@ -709,7 +702,7 @@ bool_t
 xdr_pointer(register XDR *xdrs, char **objpp, u_int obj_size, XDRPROC_T_TYPE xdr_obj)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_pointer:");
 #endif /* DEBUG */
 
@@ -735,7 +728,7 @@ bool_t
 xdr_readargs(XDR *xdrs, nfsreadargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readargs:");
 #endif /* DEBUG */
 
@@ -761,7 +754,7 @@ bool_t
 xdr_readdirargs(XDR *xdrs, nfsreaddirargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readdirargs:");
 #endif /* DEBUG */
 
@@ -784,7 +777,7 @@ bool_t
 xdr_readdirres(XDR *xdrs, nfsreaddirres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readdirres:");
 #endif /* DEBUG */
 
@@ -810,7 +803,7 @@ bool_t
 xdr_readlinkres(XDR *xdrs, nfsreadlinkres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readlinkres:");
 #endif /* DEBUG */
 
@@ -836,7 +829,7 @@ bool_t
 xdr_readokres(XDR *xdrs, nfsreadokres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readokres:");
 #endif /* DEBUG */
 
@@ -859,7 +852,7 @@ bool_t
 xdr_readres(XDR *xdrs, nfsreadres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_readres:");
 #endif /* DEBUG */
 
@@ -885,7 +878,7 @@ bool_t
 xdr_renameargs(XDR *xdrs, nfsrenameargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_renameargs:");
 #endif /* DEBUG */
 
@@ -905,7 +898,7 @@ bool_t
 xdr_sattr(XDR *xdrs, nfssattr *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_sattr:");
 #endif /* DEBUG */
 
@@ -937,7 +930,7 @@ bool_t
 xdr_sattrargs(XDR *xdrs, nfssattrargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_sattrargs:");
 #endif /* DEBUG */
 
@@ -957,7 +950,7 @@ bool_t
 xdr_statfsokres(XDR *xdrs, nfsstatfsokres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_statfsokres:");
 #endif /* DEBUG */
 
@@ -986,7 +979,7 @@ bool_t
 xdr_statfsres(XDR *xdrs, nfsstatfsres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_statfsres:");
 #endif /* DEBUG */
 
@@ -1012,7 +1005,7 @@ bool_t
 xdr_symlinkargs(XDR *xdrs, nfssymlinkargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_symlinkargs:");
 #endif /* DEBUG */
 
@@ -1035,7 +1028,7 @@ bool_t
 xdr_writeargs(XDR *xdrs, nfswriteargs *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_writeargs:");
 #endif /* DEBUG */
 
@@ -1071,7 +1064,7 @@ bool_t
 xdr_mntrequest(XDR *xdrs, mntrequest *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mntrequest:");
 #endif /* DEBUG */
 
@@ -1097,7 +1090,7 @@ bool_t
 xdr_mntres(XDR *xdrs, mntres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mntres:");
 #endif /* DEBUG */
 
@@ -1114,7 +1107,7 @@ bool_t
 xdr_umntrequest(XDR *xdrs, umntrequest *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_umntrequest:");
 #endif /* DEBUG */
 
@@ -1142,7 +1135,7 @@ bool_t
 xdr_umntres(XDR *xdrs, umntres *objp)
 {
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_XDRTRACE)
     plog(XLOG_DEBUG, "xdr_mntres:");
 #endif /* DEBUG */
 

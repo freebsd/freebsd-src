@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_error.c,v 1.2 1999/01/10 21:53:41 ezk Exp $
+ * $Id: amfs_error.c,v 1.3.2.2 2001/01/12 23:28:56 ro Exp $
  *
  */
 
@@ -56,7 +56,7 @@
 #include <am_defs.h>
 #include <amd.h>
 
-static char * amfs_error_match(am_opts *fo);
+static char *amfs_error_match(am_opts *fo);
 static int amfs_error_fmount(mntfs *mf);
 static int amfs_error_fumount(mntfs *mf);
 static void amfs_error_umounted(am_node *mp);

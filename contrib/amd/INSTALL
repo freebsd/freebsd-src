@@ -9,11 +9,15 @@ SYSTEM				AUTOCONF  COMPILE    RUN      SHLIB
 =========================	========  =========  =======  =====
 alpha-dec-osf2.1		ezk       ezk        ezk     !ezk
 alpha-dec-osf4.0		ezk       ezk        dsr[3]   ezk
+alpha-dec-osf4.0f		ezk       ezk        dsr[3]   ezk
+alpha-dec-osf5.1		ro        ro         ro       ro
 alphaev5-unknown-linux-gnu	ezk       ezk        finkel   ezk
 alphaev5-unknown-linux-gnu-rh5.2 ezk      ezk        ezk      ezk
-hppa1.0-hp-hpux11.00		ezk       ezk        ezk
+alphaev6-dec-osf5.0		ezk       ezk        dsr[3]   ezk
+hppa1.0-hp-hpux11.00		ezk       ezk        ezk      ezk
 hppa1.1-hp-hpux10.10		ezk       ezk        ezk      ezk
 hppa1.1-hp-hpux10.20		ezk       ezk        ezk      ezk
+hppa1.1-hp-hpux11.00		ezk       ezk        ezk      ezk
 hppa1.1-hp-hpux9.01		ezk[4]    ezk[4]     nrh/ezk  ezk
 hppa1.1-hp-hpux9.05		ezk[4]    ezk[4]     nrh/ezk  ezk
 hppa1.1-hp-hpux9.07		ezk[4]    ezk[4]     nrh/ezk  ezk
@@ -23,6 +27,7 @@ i386-pc-bsdi3.0			ezk       ezk        ezk     !ezk
 i386-pc-bsdi3.1			ezk       ezk        ezk     !ezk
 i386-pc-bsdi4.0			ezk       ezk        ezk      ezk
 i386-pc-bsdi4.0.1		ezk       ezk        ezk      ezk
+i386-pc-bsdi4.1			ezk       ezk        ezk      ezk
 i386-pc-solaris2.5.1		ezk       ezk        ezk      ezk
 i386-pc-solaris2.6		ezk       ezk        ezk      ezk
 i386-pc-solaris2.7		ezk       ezk        ezk      ezk
@@ -32,10 +37,13 @@ i386-unknown-freebsd2.2.6	ezk       ezk        ezk      ezk
 i386-unknown-freebsd2.2.7	ezk       ezk        ezk      ezk
 i386-unknown-freebsd2.2.8	ezk       ezk        ezk      ezk
 i386-unknown-freebsd3.0		ezk       ezk        ezk      ezk
+i386-unknown-freebsd4.2		ezk       ezk        ezk      ezk
+i386-unknown-freebsd5.0		ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.0	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.1	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.2	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.3	ezk       ezk        ezk      ezk
+i386-unknown-freebsdelf3.4	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf4.0	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.2.1	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.3		ezk       ezk        ezk      ezk
@@ -43,6 +51,7 @@ i386-unknown-netbsd1.3.1	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.3.2	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.3.3	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.4		ezk       ezk        ezk      ezk
+i386-unknown-netbsd1.4.1	ezk       ezk        ezk      ezk
 i386-unknown-openbsd2.1		ezk       ezk        ezk      ezk
 i386-unknown-openbsd2.2		ezk       ezk        ezk      ezk
 i386-unknown-openbsd2.3		ezk       ezk        ezk      ezk
@@ -57,11 +66,13 @@ i586-pc-linux-gnu		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu-rh5.2		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu-rh6.1		ezk       ezk        ezk      ezk
+i586-pc-linux-gnu-rh6.2		ezk       ezk        ezk      ezk
 i586-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
 i586-pc-linux-gnulibc1-rh4.2	ezk       ezk        ezk      ezk
 i686-pc-linux-gnu		ezk       ezk        ezk      ezk
 i686-pc-linux-gnu-rh5.2		ezk       ezk        ezk      ezk
 i686-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
+i686-pc-linux-gnu-rh6.2		ezk       ezk        ezk      ezk
 i686-pc-linux-gnulibc		ezk       ezk        ezk      ezk
 i686-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
 m68k-hp-hpux9.00		ezk[4]    ezk[4]     nrh/ezk
@@ -87,6 +98,7 @@ sparc-sun-solaris2.5		ezk       ezk        ezk     ezk
 sparc-sun-solaris2.5.1		ezk       ezk        ezk     ezk
 sparc-sun-solaris2.6		ezk       ezk[2]     ezk     ezk
 sparc-sun-solaris2.7		ezk       ezk[2]     ezk     ezk
+sparc-sun-solaris2.8		ro        ro         ro      ro
 sparc-sun-sunos4.1.1		ezk       ezk        ezk     ezk
 sparc-sun-sunos4.1.3		ezk       ezk        ezk     ezk
 sparc-sun-sunos4.1.3C		ezk       ezk        ezk     ezk
