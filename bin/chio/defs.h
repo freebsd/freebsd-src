@@ -33,18 +33,18 @@
  */
 
 struct element_type {
-	char	*et_name;	/* name; i.e. "picker, "slot", etc. */
+	const	char *et_name;	/* name; i.e. "picker, "slot", etc. */
 	int	et_type;	/* type number */
 };
 
 struct changer_command {
-	char	*cc_name;	/* command name */
+	const	char *cc_name;	/* command name */
 				/* command handler */
-	int	(*cc_handler) __P((char *, int, char **));
+	int	(*cc_handler) __P((const char *, int, char **));
 };
 
 struct special_word {
-	char	*sw_name;	/* special word */
+	const	char *sw_name;	/* special word */
 	int	sw_value;	/* token value */
 };
 
