@@ -35,7 +35,7 @@
  */
 
 #if !defined(lint) && !defined(SCCSID)
-static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #endif /* not lint && not SCCSID */
 
 /*
@@ -880,18 +880,22 @@ term_init_arrow(el)
     fkey_t *arrow = el->el_term.t_fkey;
 
     arrow[A_K_DN].name    = "down";
+    arrow[A_K_DN].key	  = T_kd;
     arrow[A_K_DN].fun.cmd = ED_NEXT_HISTORY;
     arrow[A_K_DN].type    = XK_CMD;
 
     arrow[A_K_UP].name    = "up";
+    arrow[A_K_UP].key	  = T_ku;
     arrow[A_K_UP].fun.cmd = ED_PREV_HISTORY;
     arrow[A_K_UP].type    = XK_CMD;
 
     arrow[A_K_LT].name    = "left";
+    arrow[A_K_LT].key	  = T_kl;
     arrow[A_K_LT].fun.cmd = ED_PREV_CHAR;
     arrow[A_K_LT].type    = XK_CMD;
 
     arrow[A_K_RT].name    = "right";
+    arrow[A_K_RT].key	  = T_kr;
     arrow[A_K_RT].fun.cmd = ED_NEXT_CHAR;
     arrow[A_K_RT].type    = XK_CMD;
 
