@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_eg.c,v 1.1 1995/04/08 09:39:34 phk Exp $
  */
 
 /* To do:
@@ -146,7 +146,6 @@ static void egrecv(struct eg_softc *);
 static void egstart(struct ifnet *);
 static void egreset(int);
 static inline void egread __P((struct eg_softc *, caddr_t, int));
-static struct mbuf *egget __P((caddr_t, int, struct ifnet *));
 static void egstop __P((struct eg_softc *));
 
 /*
@@ -419,7 +418,6 @@ egattach (struct isa_device *id)
 	
 	/* Now we can attach the interface. */
 	if_attach(ifp);
-	ether_ifattach(ifp);
 
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 	sc->kdc.kdc_state = DC_IDLE;
@@ -656,9 +654,9 @@ egread(sc, buf, len)
 
 	/* Pull packet off interface. */
 	ifp = &sc->sc_arpcom.ac_if;
-	m = egget(buf, len, ifp);
+	m = m_devget(buf,len,0,ifp,0);
 	if (m == 0) {
-		dprintf(("eg#: egget returned 0\n"));
+		dprintf(("eg#: m_devget returned 0\n"));
 		sc->sc_arpcom.ac_if.if_ierrors++;
 		return;
 	}
@@ -697,54 +695,6 @@ egread(sc, buf, len)
 	ether_input(ifp, eh, m);
 }
 
-/*
- * convert buf into mbufs
- */
-static struct mbuf *
-egget(buf, totlen, ifp)
-	caddr_t buf;
-	int totlen;
-	struct ifnet *ifp;
-{
-	struct mbuf *top, **mp, *m;
-	int len;
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == 0) {
-		dprintf(("eg#: MGETHDR returns 0\n"));
-		return 0;
-	}
-	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.len = totlen;
-	len = MHLEN;
-	top = 0;
-	mp = &top;
-
-	while (totlen > 0) {
-		if (top) {
-			MGET(m, M_DONTWAIT, MT_DATA);
-			if (m == 0) {
-				m_freem(top);
-				dprintf(("eg#: MGET returns 0\n"));
-				return 0;
-			}
-			len = MLEN;
-		}
-		if (totlen >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
-			if (m->m_flags & M_EXT)
-				len = MCLBYTES;
-		}
-		m->m_len = len = min(totlen, len);
-		bcopy((caddr_t)buf, mtod(m, caddr_t), len);
-		buf += len;
-		totlen -= len;
-		*mp = m;
-		mp = &m->m_next;
-	}
-
-	return top;
-}
 
 static int
 egioctl(ifp, command, data)
