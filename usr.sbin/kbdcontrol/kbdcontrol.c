@@ -43,6 +43,14 @@ static const char rcsid[] =
 #include "path.h"
 #include "lex.h"
 
+/*
+ * PASTE isn't defined in 4.x, but we need it to bridge to 5.0-current
+ * so define it here as a stop gap transition measure.
+ */
+#ifndef PASTE
+#define PASTE		0xa3		/* paste from cut-paste buffer */
+#endif
+
 char ctrl_names[32][4] = {
 	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
@@ -755,12 +763,13 @@ load_keymap(char *opt, int dumponly)
 	if (cp != NULL)
 		asprintf(&(prefix[0]), "%s/", cp);
 
-	for (i=0; prefix[i]; i++)
-		for (j=0; postfix[j]; j++) {
+	fd = NULL;
+	for (i=0; prefix[i] && fd == NULL; i++) {
+		for (j=0; postfix[j] && fd == NULL; j++) {
 			name = mkfullname(prefix[i], opt, postfix[j]);
-			if ((fd = fopen(name, "r")))
-				prefix[i + 1] = postfix[j + 1] = NULL;
+			fd = fopen(name, "r");
 		}
+	}
 	if (fd == NULL) {
 		warn("keymap file not found");
 		return;
@@ -1128,5 +1137,3 @@ main(int argc, char **argv)
 		usage();
 	exit(0);
 }
-
-
