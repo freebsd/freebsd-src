@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.13 1996/06/30 19:35:20 alex Exp $
+#	$Id: security,v 1.14 1996/07/31 06:47:05 pst Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -65,6 +65,22 @@ if ipfw -a l 2>/dev/null | egrep "deny|reject" > $TMP; then
 	        diff -b $LOG/ipfw.today $TMP | egrep "^>"
 	        mv $LOG/ipfw.today $LOG/ipfw.yesterday
 	        mv $TMP $LOG/ipfw.today
+	fi
+fi
+
+# show denied packets
+if dmesg 2>/dev/null > $TMP; then
+	if [ ! -f $LOG/dmesg.today ] ; then
+		separator
+		echo "no $LOG/dmesg.today"
+		cp $TMP $LOG/dmesg.today
+	fi
+	if cmp $LOG/dmesg.today $TMP >/dev/null; then :; else
+		separator
+	        echo "$host kernel log messages:"
+	        diff -b $LOG/dmesg.today $TMP | egrep "^>"
+	        mv $LOG/dmesg.today $LOG/dmesg.yesterday
+	        mv $TMP $LOG/dmesg.today
 	fi
 fi
 
