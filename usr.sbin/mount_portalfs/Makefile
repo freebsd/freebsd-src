@@ -1,4 +1,5 @@
-#	@(#)Makefile	8.3 (Berkeley) 3/27/94
+#	From: @(#)Makefile	8.3 (Berkeley) 3/27/94
+#	$Id$
 
 PROG=	mount_portal
 SRCS=	mount_portal.c activate.c conf.c getmntopts.c pt_conf.c \
@@ -8,8 +9,5 @@ MAN8=	mount_portal.8
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
 .PATH:	${MOUNT}
-
-DPADD=	$(LIBCOMPAT)
-LDADD=	-lcompat
 
 .include <bsd.prog.mk>
