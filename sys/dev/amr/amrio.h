@@ -26,3 +26,11 @@
  *	$FreeBSD$
  */
 
+/*
+ * Drive status
+ */
+
+#define AMRD_OFFLINE	0x0
+#define AMRD_DEGRADED	0x1
+#define AMRD_OPTIMAL	0x2
+#define AMRD_DELETED	0x3
