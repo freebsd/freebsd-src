@@ -3,7 +3,7 @@ CVS
 .cvsignore
 ABOUT*NLS
 ChangeLog.lib
-FSFChangeLog*
+FSFChangeLog.*
 README.ACORN
 README.ALTOS
 README.APOLLO
@@ -82,3 +82,4 @@ objc/objc-parse.[cy]
 gthr-win32*
 po
 testsuite
+tradcif.c
