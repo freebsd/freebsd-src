@@ -74,6 +74,16 @@
 #define SIS_TIMEUNIT		0xA4
 #define SIS_GPIO		0xB8
 
+/* NS DP83815 registers */
+#define NS_BMCR			0x80
+#define NS_BMSR			0x84
+#define NS_PHYIDR1		0x88
+#define NS_PHYIDR2		0x8C
+#define NS_ANAR			0x90
+#define NS_ANLPAR		0x94
+#define NS_ANER			0x98
+#define NS_ANNPTR		0x9C
+
 #define SIS_CSR_TX_ENABLE	0x00000001
 #define SIS_CSR_TX_DISABLE	0x00000002
 #define SIS_CSR_RX_ENABLE	0x00000004
@@ -100,6 +110,7 @@
 #define SIS_EECMD_ERASE		0x1c0
 
 #define SIS_EE_NODEADDR		0x8
+#define NS_EE_NODEADDR		0x6
 
 #define SIS_PCICTL_SRAMADDR	0x0000001F
 #define SIS_PCICTL_RAMTSTENB	0x00000020
@@ -220,6 +231,9 @@
 	(SIS_RXCFG_DRAIN(64)|SIS_RXDMA_256BYTES)
 
 #define SIS_RXFILTCTL_ADDR	0x000F0000
+#define NS_RXFILTCTL_MCHASH	0x00200000
+#define NS_RXFILTCTL_ARP	0x00400000
+#define NS_RXFILTCTL_PERFECT	0x08000000
 #define SIS_RXFILTCTL_ALLPHYS	0x10000000
 #define SIS_RXFILTCTL_ALLMULTI	0x20000000
 #define SIS_RXFILTCTL_BROAD	0x40000000
@@ -236,6 +250,13 @@
 #define SIS_FILTADDR_MAR5	0x00090000
 #define SIS_FILTADDR_MAR6	0x000A0000
 #define SIS_FILTADDR_MAR7	0x000B0000
+
+#define NS_FILTADDR_PAR0	0x00000000
+#define NS_FILTADDR_PAR1	0x00000002
+#define NS_FILTADDR_PAR2	0x00000004
+
+#define NS_FILTADDR_FMEM_LO	0x00000200
+#define NS_FILTADDR_FMEM_HI	0x000003FE
 
 /*
  * DMA descriptor structures. The first part of the descriptor
@@ -322,6 +343,16 @@ struct sis_ring_data {
 #define SIS_DEVICEID_900	0x0900
 #define SIS_DEVICEID_7016	0x7016
 
+/*
+ * NatSemi vendor ID
+ */
+#define NS_VENDORID		0x100B
+
+/*
+ * DP83815 device ID
+ */
+#define NS_DEVICEID_DP83815	0x0020
+
 struct sis_type {
 	u_int16_t		sis_vid;
 	u_int16_t		sis_did;
@@ -330,6 +361,7 @@ struct sis_type {
 
 #define SIS_TYPE_900	1
 #define SIS_TYPE_7016	2
+#define SIS_TYPE_83815	3
 
 struct sis_softc {
 	struct arpcom		arpcom;		/* interface info */
