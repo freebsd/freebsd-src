@@ -27,6 +27,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ed.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -50,14 +52,18 @@
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
+#ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#endif
 
 #include "card_if.h"
+#ifndef ED_NO_MIIBUS
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
+#endif
 
 /*
  *      PC-Card (PCMCIA) specific code.
@@ -72,10 +78,12 @@ static int	ed_pccard_ax88190(device_t dev);
 
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
+#ifndef ED_NO_MIIBUS
 static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
+#endif
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
@@ -561,6 +569,7 @@ ed_pccard_attach(device_t dev)
 	}
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
+#ifndef ED_NO_MIIBUS
 	if (error == 0 && sc->vendor == ED_VENDOR_LINKSYS) {
 		/* Probe for an MII bus, but ignore errors. */
 		ed_pccard_dlink_mii_reset(sc);
@@ -569,6 +578,7 @@ ed_pccard_attach(device_t dev)
 		mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
 		    ed_ifmedia_sts);
 	}
+#endif
 
 	return (error);
 }
@@ -712,6 +722,7 @@ ed_pccard_ax88190(device_t dev)
 	return (error);
 }
 
+#ifndef ED_NO_MIIBUS
 /* MII bit-twiddling routines for cards using Dlink chipset */
 #define DLINK_MIISET(sc, x) ed_asic_outb(sc, ED_DLINK_MIIBUS, \
     ed_asic_inb(sc, ED_DLINK_MIIBUS) | (x))
@@ -779,6 +790,7 @@ ed_pccard_dlink_mii_readbits(sc, nbits)
 
 	return val;
 }
+#endif
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -786,12 +798,14 @@ static device_method_t ed_pccard_methods[] = {
 	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	ed_pccard_detach),
 
+#ifndef ED_NO_MIIBUS
 	/* Bus interface */
 	DEVMETHOD(bus_child_detached,	ed_child_detached),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	ed_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
+#endif
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	ed_pccard_match),
@@ -807,4 +821,6 @@ static driver_t ed_pccard_driver = {
 };
 
 DRIVER_MODULE(if_ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
+#ifndef ED_NO_MIIBUS
 DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, 0);
+#endif

@@ -209,11 +209,13 @@ void	ed_pio_readmem		__P((struct ed_softc *, int, unsigned char *,
 				     unsigned short));
 void	ed_pio_writemem		__P((struct ed_softc *, char *,
 				     unsigned short, unsigned short));
+#ifndef ED_NO_MIIBUS
 int	ed_miibus_readreg	__P((device_t, int, int));
 void	ed_miibus_writereg	__P((device_t, int, int, int));
 int	ed_ifmedia_upd		__P((struct ifnet *));
 void	ed_ifmedia_sts		__P((struct ifnet *, struct ifmediareq *));
 void	ed_child_detached	__P((device_t, device_t));
+#endif
 
 driver_intr_t	edintr;
 
