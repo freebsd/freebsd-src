@@ -139,8 +139,8 @@ device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
-#device		pcic0	at card?
-#device		pcic1	at card?
+#device		pcic0	at isa?
+#device		pcic1	at isa?
 
 # Serial (COM) ports
 device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
