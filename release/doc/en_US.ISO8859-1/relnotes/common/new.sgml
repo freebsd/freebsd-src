@@ -207,6 +207,9 @@
     an attacker to execute arbitrary code in the context of a setuid
     binary.  This flaw has been corrected (see security advisory
     FreeBSD-SA-01:42).</para>
+
+    <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
+    (see security advisory FreeBSD-SA-01:48).</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -325,6 +328,9 @@
     been added.  &man.ffsinfo.8;, a utility for dump all the
     meta-information of an existing filesystem, has also been
     added.</para>
+
+    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
+    sending messages with empty bodies. &merged;</para>
 
     <sect3>
       <title>Contributed Software</title>
