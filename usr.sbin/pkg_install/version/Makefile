@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-MAINTAINER=	billf@FreeBSD.org
-MAINTAINER+=	bmah@CA.Sandia.GOV
+MAINTAINER=	bmah@FreeBSD.org
 MAN1=		pkg_version.1
 
 beforeinstall:
