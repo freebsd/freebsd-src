@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.13.2.1 1995/06/04 16:58:44 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.14 1995/06/11 19:31:33 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -193,6 +193,10 @@ exec_aout_imgact(iparams)
 	iparams->entry_addr = a_out->a_entry;
 
 	iparams->proc->p_sysent = &aout_sysvec;
+
+	/* Indicate that this file should not be modified */
+	iparams->vnodep->v_flag |= VTEXT;
+
 	return (0);
 }
 
