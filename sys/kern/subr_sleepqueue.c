@@ -252,7 +252,7 @@ sleepq_release(void *wchan)
 }
 
 /*
- * Places the current thread on the sleepqueue for the specified wait
+ * Places the current thread on the sleep queue for the specified wait
  * channel.  If INVARIANTS is enabled, then it associates the passed in
  * lock with the sleepq to make sure it is held when that sleep queue is
  * woken up.
@@ -262,7 +262,7 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
-	struct thread *td, *td1;
+	struct thread *td;
 
 	td = curthread;
 	sc = SC_LOOKUP(wchan);
@@ -299,20 +299,13 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 		sq->sq_lock = lock;
 		sq->sq_type = flags & SLEEPQ_TYPE;
 #endif
-		TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 	} else {
 		MPASS(wchan == sq->sq_wchan);
 		MPASS(lock == sq->sq_lock);
 		MPASS((flags & SLEEPQ_TYPE) == sq->sq_type);
-		TAILQ_FOREACH(td1, &sq->sq_blocked, td_slpq)
-			if (td1->td_priority > td->td_priority)
-				break;
-		if (td1 != NULL)
-			TAILQ_INSERT_BEFORE(td1, td, td_slpq);
-		else
-			TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 		LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_hash);
 	}
+	TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 	td->td_sleepqueue = NULL;
 	mtx_lock_spin(&sched_lock);
 	td->td_wchan = wchan;
@@ -404,7 +397,7 @@ sleepq_catch_signals(void *wchan)
 
 /*
  * Switches to another thread if we are still asleep on a sleep queue and
- * drop the lock on the sleepqueue chain.  Returns with sched_lock held.
+ * drop the lock on the sleep queue chain.  Returns with sched_lock held.
  */
 static void
 sleepq_switch(void *wchan)
@@ -675,7 +668,7 @@ void
 sleepq_signal(void *wchan, int flags, int pri)
 {
 	struct sleepqueue *sq;
-	struct thread *td;
+	struct thread *td, *besttd;
 
 	CTR2(KTR_PROC, "sleepq_signal(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
@@ -687,11 +680,21 @@ sleepq_signal(void *wchan, int flags, int pri)
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
-	/* Remove first thread from queue and awaken it. */
-	td = TAILQ_FIRST(&sq->sq_blocked);
-	sleepq_remove_thread(sq, td);
+	/*
+	 * Find the highest priority thread on the queue.  If there is a
+	 * tie, use the thread that first appears in the queue as it has
+	 * been sleeping the longest since threads are always added to
+	 * the tail of sleep queues.
+	 */
+	besttd = NULL;
+	TAILQ_FOREACH(td, &sq->sq_blocked, td_slpq) {
+		if (besttd == NULL || td->td_priority < besttd->td_priority)
+			besttd = td;
+	}
+	MPASS(besttd != NULL);
+	sleepq_remove_thread(sq, besttd);
 	sleepq_release(wchan);
-	sleepq_resume_thread(td, pri);
+	sleepq_resume_thread(besttd, pri);
 }
 
 /*
