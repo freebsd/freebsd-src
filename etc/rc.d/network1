@@ -146,12 +146,6 @@ network_start()
 
 	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
-		_up=`ifconfig ${ifn} | head -1 | grep -v LOOPBACK | grep UP,`
-		if [ "$_up" != "" ]; then
-			# Interface is already up, so ignore it.
-			continue;
-		fi
-
 		if [ -r /etc/start_if.${ifn} ]; then
 			. /etc/start_if.${ifn}
 			eval showstat_$ifn=1
