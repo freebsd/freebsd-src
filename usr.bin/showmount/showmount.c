@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
+static const char copyright[] =
+"@(#) Copyright (c) 1989, 1993, 1995\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif not lint
 
 #ifndef lint
-static char sccsid[] = "@(#)showmount.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "@(#)showmount.c	8.3 (Berkeley) 3/29/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif not lint
 
 #include <sys/types.h>
@@ -49,13 +53,18 @@ static char sccsid[] = "@(#)showmount.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+
+#include <err.h>
 #include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 #include <nfs/rpcv2.h>
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Constant defs */
 #define	ALL	1
@@ -85,7 +94,11 @@ struct exportslist {
 static struct mountlist *mntdump;
 static struct exportslist *exports;
 static int type = 0;
-int xdr_mntdump(), xdr_exports();
+
+void print_dump __P((struct mountlist *));
+static void usage __P((void));
+int xdr_mntdump __P((XDR *, struct mountlist **));
+int xdr_exports __P((XDR *, struct exportslist **));
 
 /*
  * This command queries the NFS mount daemon for it's mount list and/or
@@ -94,15 +107,13 @@ int xdr_mntdump(), xdr_exports();
  * and the "Network File System Protocol XXX.."
  * for detailed information on the protocol.
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register struct mountlist *mntp;
 	register struct exportslist *exp;
 	register struct grouplist *grp;
-	extern char *optarg;
-	extern int optind;
 	register int rpcs = 0, mntvers = 1;
 	char ch;
 	char *host;
@@ -150,16 +161,14 @@ main(argc, argv)
 			RPCMNT_DUMP, xdr_void, (char *)0,
 			xdr_mntdump, (char *)&mntdump)) != 0) {
 			clnt_perrno(estat);
-			fprintf(stderr, "Can't do Mountdump rpc\n");
-			exit(1);
+			errx(1, "can't do mountdump rpc");
 		}
 	if (rpcs & DOEXPORTS)
 		if ((estat = callrpc(host, RPCPROG_MNT, mntvers,
 			RPCMNT_EXPORT, xdr_void, (char *)0,
 			xdr_exports, (char *)&exports)) != 0) {
 			clnt_perrno(estat);
-			fprintf(stderr, "Can't do Exports rpc\n");
-			exit(1);
+			errx(1, "can't do exports rpc");
 		}
 
 	/* Now just print out the results */
@@ -195,11 +204,13 @@ main(argc, argv)
 			exp = exp->ex_next;
 		}
 	}
+	exit(0);
 }
 
 /*
  * Xdr routine for retrieving the mount dump list
  */
+int
 xdr_mntdump(xdrsp, mlp)
 	XDR *xdrsp;
 	struct mountlist **mlp;
@@ -281,6 +292,7 @@ next:
 /*
  * Xdr routine to retrieve exports list
  */
+int
 xdr_exports(xdrsp, exp)
 	XDR *xdrsp;
 	struct exportslist **exp;
@@ -323,6 +335,7 @@ xdr_exports(xdrsp, exp)
 	return (1);
 }
 
+static void
 usage()
 {
 	fprintf(stderr, "usage: showmount [-ade3] host\n");
@@ -332,6 +345,7 @@ usage()
 /*
  * Print the binary tree in inorder so that output is sorted.
  */
+void
 print_dump(mp)
 	struct mountlist *mp;
 {
