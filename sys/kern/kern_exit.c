@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.58 1997/10/12 20:23:47 phk Exp $
+ * $Id: kern_exit.c,v 1.59 1997/11/06 19:29:08 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -72,7 +72,7 @@
 
 static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
-static int wait1 __P((struct proc *, struct wait_args *, int [], int));
+static int wait1 __P((struct proc *, struct wait_args *, int));
 
 /*
  * callout list for things to do at exit time
@@ -377,7 +377,7 @@ owait(p, uap)
 #endif
 	w.pid = WAIT_ANY;
 	w.status = NULL;
-	return (wait1(p, &w, p->p_retval, 1));
+	return (wait1(p, &w, 1));
 }
 #endif /* COMPAT_43 */
 
@@ -387,11 +387,11 @@ wait4(p, uap)
 	struct wait_args *uap;
 {
 
-	return (wait1(p, uap, p->p_retval, 0));
+	return (wait1(p, uap, 0));
 }
 
 static int
-wait1(q, uap, retval, compat)
+wait1(q, uap, compat)
 	register struct proc *q;
 	register struct wait_args /* {
 		int pid;
@@ -399,7 +399,6 @@ wait1(q, uap, retval, compat)
 		int options;
 		struct rusage *rusage;
 	} */ *uap;
-	int retval[];
 	int compat;
 {
 	register int nfound;
@@ -408,10 +407,8 @@ wait1(q, uap, retval, compat)
 
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
-#ifdef notyet
 	if (uap->options &~ (WUNTRACED|WNOHANG))
 		return (EINVAL);
-#endif
 loop:
 	nfound = 0;
 	for (p = q->p_children.lh_first; p != 0; p = p->p_sibling.le_next) {
@@ -426,10 +423,10 @@ loop:
 				    p->p_estcpu, UCHAR_MAX);
 			}
 
-			retval[0] = p->p_pid;
+			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat)
-				retval[1] = p->p_xstat;
+				q->p_retval[1] = p->p_xstat;
 			else
 #endif
 			if (uap->status) {
@@ -498,10 +495,10 @@ loop:
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
-			retval[0] = p->p_pid;
+			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat) {
-				retval[1] = W_STOPCODE(p->p_xstat);
+				q->p_retval[1] = W_STOPCODE(p->p_xstat);
 				error = 0;
 			} else
 #endif
@@ -517,7 +514,7 @@ loop:
 	if (nfound == 0)
 		return (ECHILD);
 	if (uap->options & WNOHANG) {
-		retval[0] = 0;
+		q->p_retval[0] = 0;
 		return (0);
 	}
 	if ((error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0)))
