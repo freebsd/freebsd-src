@@ -52,6 +52,8 @@
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
+#include <ufs/ufs/dir.h>	/* XXX only for DIRBLKSIZ */
+#include <sys/dirent.h>
 
 /*
  * This structure describes the elements in the cache of recent
@@ -701,6 +703,9 @@ struct  __getcwd_args {
 static int disablecwd;
 SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
    "Disable the getcwd syscall");
+static int disable_cached_getcwd;
+SYSCTL_INT (_debug, OID_AUTO, disable_cached_getcwd, CTLFLAG_RW,
+	    &disable_cached_getcwd, 0, "Disable getcwd using vfs vnode cache");
 
 /* Various statistics for the getcwd syscall */
 static u_long numcwdcalls; STATNODE(CTLFLAG_RD, numcwdcalls, &numcwdcalls);
@@ -708,7 +713,22 @@ static u_long numcwdfail1; STATNODE(CTLFLAG_RD, numcwdfail1, &numcwdfail1);
 static u_long numcwdfail2; STATNODE(CTLFLAG_RD, numcwdfail2, &numcwdfail2);
 static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
 static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
+static u_long numcwdtraverse; STATNODE(CTLFLAG_RD, numcwdtraverse, &numcwdtraverse);
 static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
+
+#define GETCWD_CHECK_ACCESS 0x0001
+
+#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
+
+static int
+kern___getcwd_cached(struct thread *td, u_char *buf, enum uio_seg bufseg,
+	u_int buflen);
+static int
+kern___getcwd_traverse(struct vnode *lvp, struct vnode *rvp, char **bpp,
+	char *bufp, int limit, int flags, struct thread *td);
+static int
+kern___getcwd_scandir(struct vnode **lvpp, struct vnode **uvpp,
+	char **bpp, char *bufp, struct thread *td);
 
 /* Implementation of the getcwd syscall */
 int
@@ -716,12 +736,45 @@ __getcwd(td, uap)
 	struct thread *td;
 	struct __getcwd_args *uap;
 {
-
 	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen));
 }
 
+/*
+ * this part mostly from linux_getcwd.  use the original kern___getcwd()
+ * routine first, which uses the vfs vnode-to-name reverse cache.  If
+ * that fails, use the routines originally from linux_getcwd.c to
+ * traverse the directory contents (much slower!)
+ */
 int
-kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
+kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
+	u_int buflen)
+{
+	int error;
+	char *bp, *bend;
+
+	if (disablecwd)
+		return (ENODEV);
+
+	if (kern___getcwd_cached (td, buf, bufseg, buflen) == 0)
+		return 0;
+
+	bp = &buf[buflen];
+	bend = bp;
+	*(--bp) = '\0';
+	error = kern___getcwd_traverse (td->td_proc->p_fd->fd_cdir, NULL, &bp,
+	    buf, buflen / 2, GETCWD_CHECK_ACCESS, td);
+	if (!error) {
+		if (bufseg == UIO_USERSPACE)
+			error = copyout (bp, buf, bend - bp);
+		/* linux_getcwd has this -- needed? */
+		td->td_retval[0] = bend - bp;
+	}
+	return error;
+}
+
+int
+kern___getcwd_cached (struct thread *td, u_char *buf, enum uio_seg bufseg,
+	u_int buflen)
 {
 	char *bp, *tmpbuf;
 	int error, i, slash_prefixed;
@@ -730,7 +783,7 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	struct vnode *vp;
 
 	numcwdcalls++;
-	if (disablecwd)
+	if (disable_cached_getcwd)
 		return (ENODEV);
 	if (buflen < 2)
 		return (EINVAL);
@@ -808,6 +861,325 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 		error = copyout(bp, buf, strlen(bp) + 1);
 	free(tmpbuf, M_TEMP);
 	return (error);
+}
+
+/*
+ * Vnode variable naming conventions in this file:
+ *
+ * rvp: the current root we're aiming towards.
+ * lvp, *lvpp: the "lower" vnode
+ * uvp, *uvpp: the "upper" vnode.
+ *
+ * Since all the vnodes we're dealing with are directories, and the
+ * lookups are going *up* in the filesystem rather than *down*, the
+ * usual "pvp" (parent) or "dvp" (directory) naming conventions are
+ * too confusing.
+ */
+
+/*
+ * XXX Will infinite loop in certain cases if a directory read reliably
+ *	returns EINVAL on last block.
+ * XXX is EINVAL the right thing to return if a directory is malformed?
+ */
+
+/*
+ * XXX Untested vs. mount -o union; probably does the wrong thing.
+ */
+
+int
+kern___getcwd_traverse (struct vnode *lvp, struct vnode *rvp, char **bpp,
+	char *bufp, int limit, int flags, struct thread *td)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+	struct vnode *uvp = NULL;
+	char *bp = NULL;
+	int error;
+	int perms = VEXEC;
+
+	numcwdtraverse++;
+
+	if (rvp == NULL) {
+		rvp = fdp->fd_rdir;
+		if (rvp == NULL)
+			rvp = rootvnode;
+	}
+	
+	VREF(rvp);
+	VREF(lvp);
+
+	/*
+	 * Error handling invariant:
+	 * Before a `goto out':
+	 *	lvp is either NULL, or locked and held.
+	 *	uvp is either NULL, or locked and held.
+	 */
+
+	error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (error) {
+		vrele(lvp);
+		lvp = NULL;
+		goto out;
+	}
+	if (bufp)
+		bp = *bpp;
+	/*
+	 * this loop will terminate when one of the following happens:
+	 *	- we hit the root
+	 *	- getdirentries or lookup fails
+	 *	- we run out of space in the buffer.
+	 */
+	if (lvp == rvp) {
+		if (bp)
+			*(--bp) = '/';
+		goto out;
+	}
+	do {
+		if (lvp->v_type != VDIR) {
+			error = ENOTDIR;
+			goto out;
+		}
+		
+		/*
+		 * access check here is optional, depending on
+		 * whether or not caller cares.
+		 */
+		if (flags & GETCWD_CHECK_ACCESS) {
+			error = VOP_ACCESS(lvp, perms, td->td_ucred, td);
+			if (error)
+				goto out;
+			perms = VEXEC|VREAD;
+		}
+		
+		/*
+		 * step up if we're a covered vnode..
+		 */
+		while (lvp->v_vflag & VV_ROOT) {
+			struct vnode *tvp;
+
+			if (lvp == rvp)
+				goto out;
+			
+			tvp = lvp;
+			lvp = lvp->v_mount->mnt_vnodecovered;
+			vput(tvp);
+			/*
+			 * hodie natus est radici frater
+			 */
+			if (lvp == NULL) {
+				error = ENOENT;
+				goto out;
+			}
+			VREF(lvp);
+			error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
+			if (error != 0) {
+				vrele(lvp);
+				lvp = NULL;
+				goto out;
+			}
+		}
+		error = kern___getcwd_scandir(&lvp, &uvp, &bp, bufp, td);
+		if (error)
+			goto out;
+#if DIAGNOSTIC		
+		if (lvp != NULL)
+			panic("getcwd: oops, forgot to null lvp");
+		if (bufp && (bp <= bufp)) {
+			panic("getcwd: oops, went back too far");
+		}
+#endif		
+		if (bp) 
+			*(--bp) = '/';
+		lvp = uvp;
+		uvp = NULL;
+		limit--;
+	} while ((lvp != rvp) && (limit > 0)); 
+
+out:
+	if (bpp)
+		*bpp = bp;
+	if (uvp)
+		vput(uvp);
+	if (lvp)
+		vput(lvp);
+	vrele(rvp);
+	return error;
+}
+
+
+/*
+ * Find parent vnode of *lvpp, return in *uvpp
+ *
+ * If we care about the name, scan it looking for name of directory
+ * entry pointing at lvp.
+ *
+ * Place the name in the buffer which starts at bufp, immediately
+ * before *bpp, and move bpp backwards to point at the start of it.
+ *
+ * On entry, *lvpp is a locked vnode reference; on exit, it is vput and NULL'ed
+ * On exit, *uvpp is either NULL or is a locked vnode reference.
+ */
+static int
+kern___getcwd_scandir (struct vnode **lvpp, struct vnode **uvpp,
+	char **bpp, char *bufp, struct thread *td)
+{
+	int     error = 0;
+	int     eofflag;
+	off_t   off;
+	int     tries;
+	struct uio uio;
+	struct iovec iov;
+	char   *dirbuf = NULL;
+	int	dirbuflen;
+	ino_t   fileno;
+	struct vattr va;
+	struct vnode *uvp = NULL;
+	struct vnode *lvp = *lvpp;	
+	struct componentname cn;
+	int len, reclen;
+	tries = 0;
+
+	/*
+	 * If we want the filename, get some info we need while the
+	 * current directory is still locked.
+	 */
+	if (bufp != NULL) {
+		error = VOP_GETATTR(lvp, &va, td->td_ucred, td);
+		if (error) {
+			vput(lvp);
+			*lvpp = NULL;
+			*uvpp = NULL;
+			return error;
+		}
+	}
+
+	/*
+	 * Ok, we have to do it the hard way..
+	 * Next, get parent vnode using lookup of ..
+	 */
+	cn.cn_nameiop = LOOKUP;
+	cn.cn_flags = ISLASTCN | ISDOTDOT | RDONLY;
+	cn.cn_thread = td;
+	cn.cn_cred = td->td_ucred;
+	cn.cn_pnbuf = NULL;
+	cn.cn_nameptr = "..";
+	cn.cn_namelen = 2;
+	cn.cn_consume = 0;
+	
+	/*
+	 * At this point, lvp is locked and will be unlocked by the lookup.
+	 * On successful return, *uvpp will be locked
+	 */
+	error = VOP_LOOKUP(lvp, uvpp, &cn);
+	if (error) {
+		vput(lvp);
+		*lvpp = NULL;
+		*uvpp = NULL;
+		return error;
+	}
+	uvp = *uvpp;
+
+	/* If we don't care about the pathname, we're done */
+	if (bufp == NULL) {
+		vrele(lvp);
+		*lvpp = NULL;
+		return 0;
+	}
+	
+	fileno = va.va_fileid;
+
+	dirbuflen = DIRBLKSIZ;
+	if (dirbuflen < va.va_blocksize)
+		dirbuflen = va.va_blocksize;
+	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+#if 0
+unionread:
+#endif
+	off = 0;
+	do {
+		/* call VOP_READDIR of parent */
+		iov.iov_base = dirbuf;
+		iov.iov_len = dirbuflen;
+
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = off;
+		uio.uio_resid = dirbuflen;
+		uio.uio_segflg = UIO_SYSSPACE;
+		uio.uio_rw = UIO_READ;
+		uio.uio_td = td;
+
+		eofflag = 0;
+
+#ifdef MAC
+		error = mac_check_vnode_readdir(td->td_ucred, uvp);
+		if (error == 0)
+#endif /* MAC */
+			error = VOP_READDIR(uvp, &uio, td->td_ucred, &eofflag,
+			    0, 0);
+
+		off = uio.uio_offset;
+
+		/*
+		 * Try again if NFS tosses its cookies.
+		 * XXX this can still loop forever if the directory is busted
+		 * such that the second or subsequent page of it always
+		 * returns EINVAL
+		 */
+		if ((error == EINVAL) && (tries < 3)) {
+			off = 0;
+			tries++;
+			continue;	/* once more, with feeling */
+		}
+
+		if (!error) {
+			char   *cpos;
+			struct dirent *dp;
+			
+			cpos = dirbuf;
+			tries = 0;
+				
+			/* scan directory page looking for matching vnode */ 
+			for (len = (dirbuflen - uio.uio_resid); len > 0; len -= reclen) {
+				dp = (struct dirent *) cpos;
+				reclen = dp->d_reclen;
+
+				/* check for malformed directory.. */
+				if (reclen < DIRENT_MINSIZE) {
+					error = EINVAL;
+					goto out;
+				}
+				/*
+				 * XXX should perhaps do VOP_LOOKUP to
+				 * check that we got back to the right place,
+				 * but getting the locking games for that
+				 * right would be heinous.
+				 */
+				if ((dp->d_type != DT_WHT) &&
+				    (dp->d_fileno == fileno)) {
+					char *bp = *bpp;
+					bp -= dp->d_namlen;
+					
+					if (bp <= bufp) {
+						error = ERANGE;
+						goto out;
+					}
+					bcopy(dp->d_name, bp, dp->d_namlen);
+					error = 0;
+					*bpp = bp;
+					goto out;
+				}
+				cpos += reclen;
+			}
+		}
+	} while (!eofflag);
+	error = ENOENT;
+		
+out:
+	vrele(lvp);
+	*lvpp = NULL;
+	free(dirbuf, M_TEMP);
+	return error;
 }
 
 /*
