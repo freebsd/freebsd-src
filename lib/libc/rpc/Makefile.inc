@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
 
-.PATH: ${.CURDIR}/rpc ${.CURDIR}/.
+.PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/../libc/.
 SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 	clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c clnt_tcp.c \
 	clnt_udp.c rpc_dtablesize.c get_myaddress.c getrpcent.c getrpcport.c \
@@ -16,6 +16,8 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 # Paul.
 #
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 # MAN1+= rpc/rstat.1
 MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
 MAN5+= rpc/rpc.5
@@ -90,3 +92,4 @@ MLINKS+=	getrpcent.3 getrpcbyname.3 \
 		rpc.3 xprt_unregister.3 \
 
 MLINKS+=getrpcent.3 getrpcbyname.3 getrpcent.3 getrpcbynumber.3
+.endif

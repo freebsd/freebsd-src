@@ -1,8 +1,8 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.20.2.1 1997/05/03 11:22:34 peter Exp $
+#	$Id: Makefile.inc,v 1.20.2.2 1997/05/23 08:30:36 asami Exp $
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
 
 # modules with non-default implementations on at least one architecture:
 SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
@@ -41,44 +41,46 @@ PSEUDO=	_exit.o _getlogin.o
 
 OBJS+=	${ASM} ${PSEUDO}
 
-${ASM}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${ASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
 
 PASM=	${ASM:.o=.po}
-${PASM}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${PASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
 
 SASM=	${ASM:.o=.so}
-${SASM}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${SASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
-${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${PSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
 
 PPSEUDO=${PSEUDO:.o=.po}
-${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${PPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
 
 SPSEUDO=${PSEUDO:.o=.so}
-${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
+${SPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/brk.2 sys/chdir.2 sys/chflags.2 sys/chmod.2 sys/chown.2 \
 	sys/chroot.2 sys/close.2 sys/connect.2 sys/dup.2 sys/execve.2 \
@@ -139,3 +141,4 @@ MLINKS+=syscall.2 __syscall.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
 MLINKS+=write.2 writev.2
+.endif
