@@ -440,6 +440,8 @@ static int softdep_worklist_busy;
 static int max_softdeps;	/* maximum number of structs before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
+static int *stat_countp;	/* statistic to count in proc_waiting timeout */
+static struct callout_handle handle; /* handle on posted proc_waiting timeout */
 static struct proc *filesys_syncer; /* proc of filesystem syncer process */
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 #define FLUSH_INODES	1
@@ -531,13 +533,13 @@ softdep_process_worklist(matchmnt)
 	 */
 	if (req_clear_inodedeps) {
 		clear_inodedeps(p);
-		req_clear_inodedeps = 0;
-		wakeup(&proc_waiting);
+		req_clear_inodedeps -= 1;
+		wakeup_one(&proc_waiting);
 	}
 	if (req_clear_remove) {
 		clear_remove(p);
-		req_clear_remove = 0;
-		wakeup(&proc_waiting);
+		req_clear_remove -= 1;
+		wakeup_one(&proc_waiting);
 	}
 	ACQUIRE_LOCK(&lk);
 	loopcount = 1;
@@ -602,13 +604,13 @@ softdep_process_worklist(matchmnt)
 		 */
 		if (req_clear_inodedeps) {
 			clear_inodedeps(p);
-			req_clear_inodedeps = 0;
-			wakeup(&proc_waiting);
+			req_clear_inodedeps -= 1;
+			wakeup_one(&proc_waiting);
 		}
 		if (req_clear_remove) {
 			clear_remove(p);
-			req_clear_remove = 0;
-			wakeup(&proc_waiting);
+			req_clear_remove -= 1;
+			wakeup_one(&proc_waiting);
 		}
 		/*
 		 * We do not generally want to stop for buffer space, but if
@@ -1683,7 +1685,6 @@ softdep_setup_freeblocks(ip, length)
 	 * been written to disk, so we can free any fragments without delay.
 	 */
 	merge_inode_lists(inodedep);
-	delay = (inodedep->id_state & DEPCOMPLETE);
 	while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
 		free_allocdirect(&inodedep->id_inoupdt, adp, delay);
 	FREE_LOCK(&lk);
@@ -4347,7 +4348,6 @@ request_cleanup(resource, islocked)
 	int resource;
 	int islocked;
 {
-	struct callout_handle handle;
 	struct proc *p = CURPROC;
 
 	/*
@@ -4369,12 +4369,14 @@ request_cleanup(resource, islocked)
 
 	case FLUSH_INODES:
 		stat_ino_limit_push += 1;
-		req_clear_inodedeps = 1;
+		req_clear_inodedeps += 1;
+		stat_countp = &stat_ino_limit_hit;
 		break;
 
 	case FLUSH_REMOVE:
 		stat_blk_limit_push += 1;
-		req_clear_remove = 1;
+		req_clear_remove += 1;
+		stat_countp = &stat_blk_limit_hit;
 		break;
 
 	default:
@@ -4386,29 +4388,14 @@ request_cleanup(resource, islocked)
 	 */
 	if (islocked == 0)
 		ACQUIRE_LOCK(&lk);
-	if (proc_waiting == 0) {
-		proc_waiting = 1;
-		handle = timeout(pause_timer, NULL,
-		    tickdelay > 2 ? tickdelay : 2);
+	if (proc_waiting++ == 0) {
+		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
 	}
 	FREE_LOCK_INTERLOCKED(&lk);
 	(void) tsleep((caddr_t)&proc_waiting, PPAUSE, "softupdate", 0);
 	ACQUIRE_LOCK_INTERLOCKED(&lk);
-	if (proc_waiting) {
-		untimeout(pause_timer, NULL, handle);
-		proc_waiting = 0;
-	} else {
-		switch (resource) {
-
-		case FLUSH_INODES:
-			stat_ino_limit_hit += 1;
-			break;
-
-		case FLUSH_REMOVE:
-			stat_blk_limit_hit += 1;
-			break;
-		}
-	}
+	if (--proc_waiting == 0)
+		untimeout(pause_timer, 0, handle);
 	if (islocked == 0)
 		FREE_LOCK(&lk);
 	return (1);
@@ -4423,8 +4410,9 @@ pause_timer(arg)
 	void *arg;
 {
 
-	proc_waiting = 0;
-	wakeup(&proc_waiting);
+	*stat_countp += 1;
+	handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
+	wakeup_one(&proc_waiting);
 }
 
 /*
