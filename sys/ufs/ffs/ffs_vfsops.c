@@ -157,10 +157,6 @@ ffs_mount( mp, path, data, ndp, p)
 			return (err);
 		}
 
-		if (devsw(rootdev)->d_flags & D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (devsw(rootdev)->d_flags & D_NOCLUSTERW)
-			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
 			goto error_1;
@@ -184,8 +180,6 @@ ffs_mount( mp, path, data, ndp, p)
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
-	 * Disallow clearing MNT_NOCLUSTERR and MNT_NOCLUSTERW flags,
-	 * if block device requests.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
@@ -193,10 +187,6 @@ ffs_mount( mp, path, data, ndp, p)
 		devvp = ump->um_devvp;
 		err = 0;
 		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
-		if (devsw(ump->um_dev)->d_flags & D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (devsw(ump->um_dev)->d_flags & D_NOCLUSTERW)
-			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
@@ -340,11 +330,6 @@ ffs_mount( mp, path, data, ndp, p)
 		 * NEW MOUNT
 		 ********************
 		 */
-
-		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERW)
-			mp->mnt_flag |= MNT_NOCLUSTERW;
 
 		/*
 		 * Since this is a new mount, we want the names for
