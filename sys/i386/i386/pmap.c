@@ -2536,7 +2536,7 @@ pmap_remove_pages(pmap, sva, eva)
 	pv_entry_t pv, npv;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))) {
+	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
