@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.54 1998/05/07 08:37:27 kato Exp $
+ *	$Id: wd.c,v 1.55 1998/05/12 09:32:19 kato Exp $
  */
 
 /* TODO:
@@ -2339,7 +2339,7 @@ wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
+wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
 	int	lunit = dkunit(dev);
 	register struct disk *du;
@@ -3038,7 +3038,7 @@ wdsclose(void *private, int flags, int mode, struct proc *p)
 #endif /* 0 */
 
 static int
-wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+wdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	register struct disk *du = private;
 #ifdef notyet

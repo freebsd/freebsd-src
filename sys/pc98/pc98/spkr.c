@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.11 1998/02/09 15:05:44 kato Exp $
+ *    $Id: spkr.c,v 1.12 1998/02/21 15:51:51 kato Exp $
  */
 
 /*
@@ -573,7 +573,7 @@ spkrclose(dev, flags, fmt, p)
 int
 spkrioctl(dev, cmd, cmdarg, flags, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		cmdarg;
 	int		flags;
 	struct proc	*p;

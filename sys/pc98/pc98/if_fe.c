@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.29 1998/01/08 23:42:10 eivind Exp $
+ * $Id: if_fe.c,v 1.30 1998/02/27 15:23:37 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -245,7 +245,7 @@ static struct fe_softc {
 static int		fe_probe	( struct isa_device * );
 static int		fe_attach	( struct isa_device * );
 static void		fe_init		( int );
-static int		fe_ioctl	( struct ifnet *, int, caddr_t );
+static int		fe_ioctl	( struct ifnet *, u_long, caddr_t );
 static void		fe_start	( struct ifnet * );
 static void		fe_reset	( int );
 static void		fe_watchdog	( struct ifnet * );
@@ -3150,7 +3150,7 @@ feintr ( int unit )
  * pretty ugly.
  */
 static int
-fe_ioctl ( struct ifnet * ifp, int command, caddr_t data )
+fe_ioctl ( struct ifnet * ifp, u_long command, caddr_t data )
 {
 	struct fe_softc *sc = ifp->if_softc;
 	int s, error = 0;
