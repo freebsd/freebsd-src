@@ -317,7 +317,9 @@ By default, it is not possible to write to the disk label area at the beginning
 of a disk.  The disk driver arranges for
 .Xr write 2
 and similar system calls
-to return EROFS on any attempt to do so.  If you need
+to return
+.Er EROFS
+on any attempt to do so.  If you need
 to write to this area (for example, to obliterate the label), use the form
 .Pp
 .Nm
@@ -468,7 +470,7 @@ as the partition table in DOS.
 Here you will define disk slices for your system.
 .It
 Use
-.Xr disklabel 8
+.Nm
 to define and write partitions and mount points.
 You are not required to define the mount points here though,
 they can be defined later using
