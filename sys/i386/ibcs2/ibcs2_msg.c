@@ -93,7 +93,7 @@ ibcs2_poll(td, uap)
 				   &conv, sizeof(conv))) != 0)
 			return error;
 		conv.revents = 0;
-		if (conv.fd < 0 || conv.fd > FD_SETSIZE)
+		if (conv.fd < 0 || conv.fd >= FD_SETSIZE)
 			continue;
 		if (conv.fd >= nfds)
 			nfds = conv.fd + 1;
