@@ -163,6 +163,20 @@ main(int argc, char **argv)
 		    srcdir, machinename);
 	(void) unlink(path("machine"));
 	(void) symlink(xxx, path("machine"));
+	if (strcmp(machinename, machinearch) != 0) {
+		/*
+		 * make symbolic links in compilation directory for
+		 * machinearch, if it is different than machinename.
+		 */
+		if (*srcdir == '\0')
+			(void)snprintf(xxx, sizeof(xxx), "../../../%s/include",
+			    machinearch);
+		else
+			(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
+			    srcdir, machinearch);
+		(void) unlink(path(machinearch));
+		(void) symlink(xxx, path(machinearch));
+	}
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */

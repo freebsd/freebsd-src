@@ -91,9 +91,11 @@ struct config {
  * being used.  It uses the name of the machine in choosing
  * files and directories.  Thus if the name of the machine is ``i386'',
  * it will build from ``Makefile.i386'' and use ``../i386/inline''
- * in the makerules, etc.
+ * in the makerules, etc.  machinearch is the global notion of the
+ * MACHINE_ARCH for this MACHINE.
  */
 char	*machinename;
+char	*machinearch;
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
