@@ -719,7 +719,9 @@ so desired, must utilize a filter to reject foreign packets.
 .Pp
 Data link protocols with variable length headers are not currently supported.
 .Pp
-The SEESENT flag has been observed to work incorrectly on some interface
+The
+.Dv SEESENT
+flag has been observed to work incorrectly on some interface
 types, including those with hardware loopback rather than software loopback,
 and point-to-point interfaces.  It appears to function correctly on a
 broad range of ethernet-style interfaces.
