@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#34 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#37 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -673,6 +673,8 @@ register STACK {
 	access_mode RO
 }
 
+const	STACK_SIZE	4
+
 /*
  * Board Control (p. 3-43)
  */
@@ -804,7 +806,7 @@ register INTSTAT {
 	field	SEQINT    0x01
 	mask	BAD_PHASE	SEQINT		/* unknown scsi bus phase */
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
-	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
+	mask	PROTO_VIOLATION	0x20|SEQINT	/* SCSI protocol violation */ 
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
 	mask	PDATA_REINIT	0x50|SEQINT	/*
@@ -1062,6 +1064,7 @@ scb {
 	SCB_CONTROL {
 		size	1
 		field	TARGET_SCB			0x80
+		field	STATUS_RCVD			0x80
 		field	DISCENB				0x40
 		field	TAG_ENB				0x20
 		field	MK_MESSAGE			0x10
@@ -1335,7 +1338,8 @@ scratch_ram {
 	}
 	SEQ_FLAGS {
 		size		1
-		field	IDENTIFY_SEEN		0x80
+		field	NOT_IDENTIFIED		0x80
+		field	NO_CDB_SENT		0x40
 		field	TARGET_CMD_IS_TAGGED	0x40
 		field	DPHASE			0x20
 		/* Target flags */
@@ -1576,6 +1580,7 @@ const BUS_32_BIT		0x02
 const MAX_OFFSET_8BIT		0x0f
 const MAX_OFFSET_16BIT		0x08
 const MAX_OFFSET_ULTRA2		0x7f
+const MAX_OFFSET		0xff
 const HOST_MSG			0xff
 
 /* Target mode command processing constants */
