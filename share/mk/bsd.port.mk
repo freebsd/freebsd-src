@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.28 1997/11/12 10:42:26 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.29 1997/11/20 05:34:32 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -56,6 +56,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
+# AUTOCONF		- Set to path of GNU autoconf if not in $PATH (default: autoconf).
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
 # MAINTAINER	- The e-mail address of the contact person for this port
 #				  (default: ports@FreeBSD.ORG).
@@ -122,8 +123,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # BROKEN		- Port is broken.  Set this string to the reason why.
 # RESTRICTED	- Port is restricted.  Set this string to the reason why.
 # USE_GMAKE		- Says that the port uses gmake.
+# USE_AUTOCONF	- Says that the port uses autoconf.  Implies GNU_CONFIGURE.
 # USE_PERL5		- Says that the port uses perl5 for building and running.
-# USE_IMAKE		- Says that the port uses imake.
+# USE_IMAKE		- Says that the port uses imake.  Implies USE_X11.
 # USE_X11		- Says that the port uses X11 (i.e., installs in ${X11BASE}).
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
 #						target.
@@ -240,6 +242,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # install		- Install the results of a build.
 # reinstall		- Install the results of a build, ignoring "already installed"
 #				  flag.
+# deinstall		- Remove the installation.
 # package		- Create a package from an _installed_ port.
 # describe		- Try to generate a one-line description for each port for
 #				  use in INDEX files and the like.
@@ -342,7 +345,11 @@ PKGDIR?=		${.CURDIR}/pkg.${ARCH}
 PKGDIR?=		${.CURDIR}/pkg
 .endif
 
-.if defined(USE_IMAKE) || defined(USE_X11)
+.if defined(USE_IMAKE)
+USE_X11=		yes
+.endif
+
+.if defined(USE_X11)
 PREFIX?=		${X11BASE}
 .else
 PREFIX?=		${LOCALBASE}
@@ -354,6 +361,10 @@ RUN_DEPENDS+=	${EXEC_DEPENDS}
 .endif
 .if defined(USE_GMAKE)
 BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
+.endif
+.if defined(USE_AUTOCONF)
+GNU_CONFIGURE=	yes
+BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .endif
 .if defined(USE_PERL5)
 BUILD_DEPENDS+=		perl5.00404:${PORTSDIR}/lang/perl5
@@ -379,6 +390,7 @@ DO_NADA?=		/usr/bin/true
 
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
+AUTOCONF?=		autoconf
 XMKMF?=			xmkmf -a
 .if exists(/sbin/md5)
 MD5?=			/sbin/md5
@@ -441,7 +453,7 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 
 # Figure out where the local mtree file is
 .if !defined(MTREE_FILE)
-.if defined(USE_IMAKE) || defined(USE_X11)
+.if defined(USE_X11)
 MTREE_FILE=	/etc/mtree/BSD.x11.dist
 .else
 MTREE_FILE=	/etc/mtree/BSD.local.dist
@@ -521,6 +533,7 @@ GZCAT?=		/usr/bin/gzcat
 GZIP?=		-9
 GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
 LDCONFIG?=	/sbin/ldconfig
+LN?=		/bin/ln
 MKDIR?=		/bin/mkdir -p
 MV?=		/bin/mv
 RM?=		/bin/rm
@@ -560,6 +573,14 @@ MASTER_SITE_SUNSITE+=	\
 	ftp://sunsite.unc.edu/pub/Linux/%SUBDIR%/ \
 	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/%SUBDIR%/ \
 	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/%SUBDIR%/
+
+MASTER_SITE_KDE+=	\
+	ftp://ftp.kde.org/pub/kde/%SUBDIR%/ \
+	ftp://ftp.tuniv.szczecin.pl/pub/kde/%SUBDIR%/ \
+	ftp://ftp.fu-berlin.de/pub/unix/X11/gui/kde/%SUBDIR%/ \
+	ftp://ftp.blaze.net.au/pub/kde/%SUBDIR%/ \
+	ftp://ftp.dataplus.se/pub/linux/kde/%SUBDIR%/ \
+	ftp://ftp.caldera.com/pub/mirrors/kde/%SUBDIR%/
 
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
@@ -655,11 +676,12 @@ MAINTAINER?=	ports@FreeBSD.ORG
 #  shouldn't match "[a-z]*"), see the target "delete-package-links" below.
 PKGREPOSITORYSUBDIR?=	All
 PKGREPOSITORY?=		${PACKAGES}/${PKGREPOSITORYSUBDIR}
-.if exists(${PACKAGES})
 PKGFILE?=		${PKGREPOSITORY}/${PKGNAME}${PKG_SUFX}
-.else
-PKGFILE?=		${PKGNAME}${PKG_SUFX}
-.endif
+
+# The "latest version" link -- ${PKGNAME} minus everthing after the last '-'
+PKGLATESTREPOSITORY?=	${PACKAGES}/Latest
+PKGBASE!=	${ECHO} ${PKGNAME} | ${SED} -e 's/-[^-]*$$//'
+PKGLATESTFILE?=		${PKGLATESTREPOSITORY}/${PKGBASE}${PKG_SUFX}
 
 CONFIGURE_SCRIPT?=	configure
 
@@ -747,8 +769,14 @@ IGNORE=	"does not require Motif"
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
-.elif ((defined(USE_IMAKE) || defined(USE_X11)) && !exists(${X11BASE}))
+.elif (defined(USE_X11) && !exists(${X11BASE}))
 IGNORE=	"uses X11, but ${X11BASE} not found"
+.elif exists(/usr/include/tcl.h)
+IGNORE=	": You have an old tcl installation on your machine.  Remove everything that matches '/usr/*/*tcl*' first"
+.elif exists(${LOCALBASE}/include/tcl.h) || exists(${LOCALBASE}/lib/tclConfig.sh)
+IGNORE=	": You have an old tcl installation on your machine.  Remove everything that matches '${PREFIX}/*/*tcl*' first"
+.elif exists(${LOCALBASE}/include/tk.h) || exists(${LOCALBASE}/lib/tkConfig.sh)
+IGNORE=	": You have an old tk installation on your machine.  Remove everything that matches '${PREFIX}/*/*tk*' first"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
@@ -780,6 +808,8 @@ all:
 build:
 	@${IGNORECMD}
 install:
+	@${IGNORECMD}
+deinstall:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
@@ -999,6 +1029,9 @@ do-patch:
 
 .if !target(do-configure)
 do-configure:
+.if defined(USE_AUTOCONF)
+	@(cd ${WRKSRC} && ${AUTOCONF})
+.endif
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
 		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 		  ${SCRIPTDIR}/configure; \
@@ -1006,7 +1039,9 @@ do-configure:
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
+	    INSTALL_DATA="${INSTALL_DATA}" \
 	    INSTALL_PROGRAM="${INSTALL_PROGRAM}" \
+	    INSTALL_SCRIPT="${INSTALL_SCRIPT}" \
 	    ${CONFIGURE_ENV} ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
@@ -1079,13 +1114,20 @@ package-links:
 				exit 1; \
 			fi; \
 		fi; \
-		ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
-	done;
+		${LN} -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
+	done
+	@if [ ! -d ${PKGLATESTREPOSITORY} ]; then \
+		if ! ${MKDIR} ${PKGLATESTREPOSITORY}; then \
+			${ECHO_MSG} ">> Can't create directory ${PKGLATESTREPOSITORY}."; \
+			exit 1; \
+		fi; \
+	fi
+	@${LN} -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PKGLATESTFILE}
 .endif
 
 .if !target(delete-package-links)
 delete-package-links:
-	@${RM} -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
+	@${RM} -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX} ${PKGLATESTFILE}
 .endif
 
 .if !target(delete-package)
@@ -1276,6 +1318,17 @@ reinstall:
 	@DEPENDS_TARGET=${DEPENDS_TARGET} ${MAKE} install
 .endif
 
+# Deinstall
+#
+# Special target to remove installation
+
+.if !target(deinstall)
+deinstall:
+	@${ECHO_MSG} "===> Deinstalling for ${PKGNAME}"
+	@pkg_delete -f `make package-name`
+	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
+.endif
+
 ################################################################
 # Some more targets supplied for users' convenience
 ################################################################
@@ -1383,7 +1436,7 @@ checksum: fetch
 				${ECHO_MSG} ">> Checksum for $$file is set to IGNORE in md5 file even though"; \
 				${ECHO_MSG} "   the file is not in the "'$$'"{IGNOREFILES} list."; \
 				OK="false"; \
-			elif [ "$$CKSUM" = "$$CKSUM2" ]; then \
+			elif expr "$$CKSUM2" : ".*$$CKSUM" > /dev/null; then \
 				${ECHO_MSG} ">> Checksum OK for $$file."; \
 			else \
 				${ECHO_MSG} ">> Checksum mismatch for $$file."; \
