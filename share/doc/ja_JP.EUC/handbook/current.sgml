@@ -1,8 +1,8 @@
-<!-- $Id: current.sgml,v 1.5 1997/02/22 13:00:47 peter Exp $ -->
+<!-- $Id: current.sgml,v 1.6 1997/02/25 04:54:41 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.19 -->
+<!-- Original revision: 1.21 -->
 
-<chapt><heading>最新のFreeBSDを追いかける<label id="current"></heading>
+<sect><heading>最新のFreeBSDを追いかける<label id="current"></heading>
 
 <p><em>原作: &a.jkh;.</em>
 
@@ -12,7 +12,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1997/02/22 13:00:47 $
+Last updated: $Date: 1997/02/25 04:54:41 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -20,7 +20,7 @@ and states some prerequisites for making sure the process goes as
 smoothly as possible.
 -->
 
-<sect><heading>FreeBSD-currentってなに?</heading>
+<sect1><heading>FreeBSD-currentってなに?</heading>
 
 <p>FreeBSD-currentとは，文字通りに，日々変更されているFreeBSDのソース
 のスナップショット以外の何ものでもありません．中には現在開発途上の
@@ -39,7 +39,7 @@ FreeBSD-currentをソースからほとんど毎日コンパイルしている人はたくさん
 我々が提供していないならば, 要求しないで下さい!
 これは普段から行なうにはあまりにも時間がかかり過ぎるのです．
 
-<sect><heading>誰がFreeBSD-currentを必要としてるの?</heading>
+<sect1><heading>誰がFreeBSD-currentを必要としてるの?</heading>
 
 <p>FreeBSD-currentは次の3つのどれかにあてはまる人のために一般に公開してい
 ます.
@@ -59,7 +59,7 @@ FreeBSD-currentをソースからほとんど毎日コンパイルしている人はたくさん
         ントをしたりコードを寄稿したりします．
 </enum>
 
-<sect><heading>FreeBSD-currentに期待しては<em>いけない</em>ことは?</heading>
+<sect1><heading>FreeBSD-currentに期待しては<em>いけない</em>ことは?</heading>
 
 <p><enum>
     <item>  あなたが何か新しいカッコイイモノがあると聞き, あなたの
@@ -81,7 +81,7 @@ FreeBSD-currentをソースからほとんど毎日コンパイルしている人はたくさん
         あなた方のほとんどは後者を支持する, と私は確信しています.
 </enum>
 
-<sect><heading>FreeBSD-currentを使う</heading>
+<sect1><heading>FreeBSD-currentを使う</heading>
 
 <p><enum> <item> &a.current;と&a.cvsall;に加わって下さい.
     これは単に良い考えであるというだけでなく, <em>必須の</em>ことなのです.
@@ -113,12 +113,12 @@ subscribe cvs-all
             均一なレートの, 良質の TCP/IP 接続を持っていない人には,
 	    これが一番いい方法でしょう.
 
-        <item>  CMUの<ref id="sup" name="sup">プログラム(Software Update
-            Protocol)を用いる.
-            これも後で述べられています.
-            これは2番目に推薦される方法です. なぜなら, supによって一度全体
+        <item> <ref id="cvsup" name="cvsup"> を
+            <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/standard-supfile" name="この supfile">
+            を用いて使用する.
+            これは2番目に推薦される方法です. なぜなら, cvssupによって一度全体
             を入手し, 後は変更されたところだけを入手することが出来るからです.
-	    たくさんの人がsupをcronから起動し, 自動的にソースを最新のもの
+	    たくさんの人がvsupをcronから起動し, 自動的にソースを最新のもの
             に保っています.
 
         <item>  ftpを使う. FreeBSD-currentのソースツリーは常に
@@ -140,7 +140,7 @@ subscribe cvs-all
     </enum>
 
     <item> 以上のことをまとめると, 必要に応じて迅速なアクセスをする必要があり,
-    接続のバンド幅が問題ではなければsupかftpを使いましょう. そうではなければ
+    接続のバンド幅が問題ではなければcvsupかftpを使いましょう. そうではなければ
     CTMを使いましょう.
 
     <item>  もしソースを, 眺めるだけでなく走らせるために入手しているので
