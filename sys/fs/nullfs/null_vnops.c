@@ -37,7 +37,7 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.11.2000.1 1996/09/17 14:32:31 peter Exp $
+ *	$Id: null_vnops.c,v 1.13 1997/02/10 02:13:30 dyson Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
@@ -192,13 +192,18 @@ static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
 	&null_bug_bypass, 0, "");
 
+static int	null_access __P((struct vop_access_args *ap));
 int		null_bypass __P((struct vop_generic_args *ap));
 static int	null_bwrite __P((struct vop_bwrite_args *ap));
 static int	null_getattr __P((struct vop_getattr_args *ap));
 static int	null_inactive __P((struct vop_inactive_args *ap));
+static int	null_lock __P((struct vop_lock_args *ap));
+static int	null_lookup __P((struct vop_lookup_args *ap));
 static int	null_print __P((struct vop_print_args *ap));
 static int	null_reclaim __P((struct vop_reclaim_args *ap));
+static int	null_setattr __P((struct vop_setattr_args *ap));
 static int	null_strategy __P((struct vop_strategy_args *ap));
+static int	null_unlock __P((struct vop_unlock_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.
@@ -405,8 +410,8 @@ null_setattr(ap)
 	struct vattr *vap = ap->a_vap;
 
   	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
-	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
-	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
 	    (vp->v_mount->mnt_flag & MNT_RDONLY))
 		return (EROFS);
 	if (vap->va_size != VNOVAL) {
@@ -488,7 +493,7 @@ null_access(ap)
  * interlock flag as it applies only to our vnode, not the
  * vnodes below us on the stack.
  */
-int
+static int
 null_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -509,7 +514,7 @@ null_lock(ap)
  * interlock flag as it applies only to our vnode, not the
  * vnodes below us on the stack.
  */
-int
+static int
 null_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -524,7 +529,7 @@ null_unlock(ap)
 	return (null_bypass(ap));
 }
 
-int
+static int
 null_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
