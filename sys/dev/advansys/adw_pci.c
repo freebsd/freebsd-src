@@ -256,16 +256,19 @@ adw_pci_attach(device_t dev)
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
-				   /*boundary*/0,
-				   /*lowaddr*/ADW_PCI_MAX_DMA_ADDR,
-				   /*highaddr*/BUS_SPACE_MAXADDR,
-				   /*filter*/NULL, /*filterarg*/NULL,
-				   /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-				   /*nsegments*/~0,
-				   /*maxsegsz*/ADW_PCI_MAX_DMA_COUNT,
-				   /*flags*/0,
-				   &adw->parent_dmat);
+	error = bus_dma_tag_create(
+			/* parent	*/ NULL,
+			/* alignment	*/ 1,
+			/* boundary	*/ 0,
+			/* lowaddr	*/ ADW_PCI_MAX_DMA_ADDR,
+			/* highaddr	*/ BUS_SPACE_MAXADDR,
+			/* filter	*/ NULL,
+			/* filterarg	*/ NULL,
+			/* maxsize	*/ BUS_SPACE_MAXSIZE_32BIT,
+			/* nsegments	*/ ~0,
+			/* maxsegsz	*/ ADW_PCI_MAX_DMA_COUNT,
+			/* flags	*/ 0,
+			&adw->parent_dmat);
 
 	adw->init_level++;
  

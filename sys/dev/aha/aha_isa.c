@@ -244,13 +244,18 @@ aha_isa_attach(device_t dev)
 	filter_arg = NULL;
 	lowaddr = BUS_SPACE_MAXADDR_24BIT;
 
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
-	    lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
-	    filter, filter_arg,
-	    /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,
-	    /*nsegments*/~0,
-	    /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-	    /*flags*/0, &aha->parent_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ NULL,
+				/* alignemnt	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ lowaddr,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ filter,
+				/* filterarg	*/ filter_arg,
+				/* maxsize	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* nsegments	*/ ~0,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* flags	*/ 0,
+				&aha->parent_dmat) != 0) {
                 aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);

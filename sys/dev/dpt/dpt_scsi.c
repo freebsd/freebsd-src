@@ -1318,13 +1318,18 @@ dpt_init(struct dpt_softc *dpt)
 	/* XXX Shouldn't we poll a status register or something??? */
 #endif
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       PAGE_SIZE, /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &dpt->sg_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ dpt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ PAGE_SIZE,
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&dpt->sg_dmat) != 0) {
 		goto error_exit;
         }
 
@@ -1440,14 +1445,18 @@ dpt_init(struct dpt_softc *dpt)
 		dpt->sgsize = dpt_max_segs;
 	
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/dpt->sgsize,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &dpt->buffer_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ dpt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ MAXBSIZE,
+				/* nsegments	*/ dpt->sgsize,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ BUS_DMA_ALLOCNOW,
+				&dpt->buffer_dmat) != 0) {
 		printf("dpt: bus_dma_tag_create(...,dpt->buffer_dmat) failed\n");
 		goto error_exit;
 	}
@@ -1455,15 +1464,20 @@ dpt_init(struct dpt_softc *dpt)
 	dpt->init_level++;
 
 	/* DMA tag for our ccb structures and interrupt status packet */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       (dpt->max_dccbs * sizeof(struct dpt_ccb))
-			       + sizeof(dpt_sp_t),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &dpt->dccb_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ dpt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ (dpt->max_dccbs *
+						    sizeof(struct dpt_ccb)) +
+						    sizeof(dpt_sp_t),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&dpt->dccb_dmat) != 0) {
 		printf("dpt: bus_dma_tag_create(...,dpt->dccb_dmat) failed\n");
 		goto error_exit;
         }
