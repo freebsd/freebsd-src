@@ -1,26 +1,26 @@
 /*
- ******************************  trlld.h  ***********************************
+ *	$Id$
  *
- *                          Copyright (c) 1997
- *                          OLICOM A/S
- *                          Denmark
+ *	Copyright (c) 1997
+ *	OLICOM A/S
+ *	Denmark
  *
- *                          All Rights Reserved
+ *	All Rights Reserved
  *
- *      This source file is subject to the terms and conditions of the
- *      OLICOM Software License Agreement which restricts the manner
- *      in which it may be used.
+ *	This source file is subject to the terms and conditions of the
+ *	OLICOM Software License Agreement which restricts the manner
+ *	in which it may be used.
  *
  *---------------------------------------------------------------------------
  *
- * Description: Olicom TMS-380 adapter microcode
+ *	Description: Olicom TMS-380 adapter micro-code
  *
  *---------------------------------------------------------------------------
  */
 
 #include "opt_oltr.h"
 
-#ifndef OLTR_NO_TMS_MAC
+#ifndef OLTR_NO_TMS_MAC    
 
 unsigned char TRlldMacCode[] = { 0x52, 0x94, 0x02, 0x00, 0xba, 0x7a, 0x00, 0x00, 0xa0, 0x00, 0x01, 0xc8, 0xe2, 0x28, 0xd4, 0xdb, 
                                  0x80, 0x00, 0x40, 0x00, 0x20, 0x00, 0x10, 0x00, 0x08, 0x00, 0x04, 0x00, 0x02, 0x00, 0x01, 0x00, 
