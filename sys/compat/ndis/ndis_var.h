@@ -1478,7 +1478,7 @@ typedef void (*ndis_allocdone_handler)(ndis_handle, void *,
 		ndis_physaddr *, uint32_t, void *);
 typedef uint8_t (*ndis_checkforhang_handler)(ndis_handle);
 
-typedef ndis_status (*driver_entry)(void *, ndis_unicode_string *);
+typedef __stdcall ndis_status (*driver_entry)(void *, ndis_unicode_string *);
 
 extern image_patch_table ndis_functbl[];
 

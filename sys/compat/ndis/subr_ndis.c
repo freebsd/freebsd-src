@@ -2564,10 +2564,19 @@ ndis_find_sym(lf, filename, suffix, sym)
 	caddr_t			*sym;
 {
 	char			fullsym[MAXPATHLEN];
+	char			*suf;
 	int			i;
 
 	bzero(fullsym, sizeof(fullsym));
 	strcpy(fullsym, filename);
+	if (strlen(filename) < 4)
+		return(EINVAL);
+
+	/* If the filename has a .ko suffix, strip if off. */
+	suf = fullsym + (strlen(filename) - 3);
+	if (strcmp(suf, ".ko") == 0)
+		*suf = '\0';
+
 	for (i = 0; i < strlen(fullsym); i++) {
 		if (fullsym[i] == '.')
 			fullsym[i] = '_';
@@ -2645,7 +2654,6 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 			continue;
 		fh->nf_vp = lf;
 		fh->nf_type = NDIS_FH_TYPE_MODULE;
-		fh->nf_map = kldstart;
 		*filelength = fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
 		*filehandle = fh;
 		free(afilename, M_DEVBUF);
@@ -2713,6 +2721,8 @@ ndis_map_file(status, mappedbuffer, filehandle)
 {
 	ndis_fh			*fh;
 	struct thread		*td = curthread;
+	linker_file_t		lf;
+	caddr_t			kldstart;
 	int			error, resid;
 
 	if (filehandle == NULL) {
@@ -2733,7 +2743,12 @@ ndis_map_file(status, mappedbuffer, filehandle)
 	}
 
 	if (fh->nf_type == NDIS_FH_TYPE_MODULE) {
-		/* Already found the mapping address during the open. */
+		lf = fh->nf_vp;
+		if (ndis_find_sym(lf, lf->filename, "_start", &kldstart)) {
+			*status = NDIS_STATUS_FAILURE;
+			return;
+		}
+		fh->nf_map = kldstart;
 		*status = NDIS_STATUS_SUCCESS;
 		*mappedbuffer = fh->nf_map;
 		return;
