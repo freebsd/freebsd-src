@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.31 1998/02/09 06:09:51 eivind Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.32 1998/02/18 09:28:33 jkh Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -470,13 +470,6 @@ detrunc(dep, length, flags, cred, p)
 			    NOCRED, &bp);
 		} else {
 			bn = de_blk(pmp, length);
-#ifdef	PC98
-			/*
-			 * 1024 byte/sector support
-			 */
-			if (pmp->pm_BytesPerSec == 1024)
-				DETOV(dep)->v_flag |= 0x10000;
-#endif
 			error = bread(DETOV(dep), bn, pmp->pm_bpcluster,
 			    NOCRED, &bp);
 		}
