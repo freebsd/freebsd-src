@@ -1,3 +1,5 @@
+#include "opt_geom.h"
+#ifndef GEOM
 /*-
  * Copyright (c) 1995 Mikael Hybsch
  * All rights reserved.
@@ -1546,3 +1548,4 @@ scd_toc_entry (int unit, struct ioc_read_toc_single_entry *te)
 
 	return 0;
 }
+#endif
