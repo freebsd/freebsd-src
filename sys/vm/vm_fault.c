@@ -97,7 +97,19 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
+#define PFBAK 4
+#define PFFOR 4
+#define PAGEORDER_SIZE (PFBAK+PFFOR)
+
+static int prefault_pageorder[] = {
+	-1 * PAGE_SIZE, 1 * PAGE_SIZE,
+	-2 * PAGE_SIZE, 2 * PAGE_SIZE,
+	-3 * PAGE_SIZE, 3 * PAGE_SIZE,
+	-4 * PAGE_SIZE, 4 * PAGE_SIZE
+};
+
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
+static void vm_fault_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
 
 #define VM_FAULT_READ_AHEAD 8
 #define VM_FAULT_READ_BEHIND 7
@@ -889,7 +901,7 @@ readrest:
 	}
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
-		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
+		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
 	vm_page_lock_queues();
 	vm_page_flag_clear(fs.m, PG_ZERO);
@@ -926,6 +938,84 @@ readrest:
 	vm_object_deallocate(fs.first_object);
 	mtx_unlock(&Giant);
 	return (KERN_SUCCESS);
+}
+
+/*
+ * vm_fault_prefault provides a quick way of clustering
+ * pagefaults into a processes address space.  It is a "cousin"
+ * of vm_map_pmap_enter, except it runs at page fault time instead
+ * of mmap time.
+ */
+static void
+vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
+{
+	int i;
+	vm_offset_t addr, starta;
+	vm_pindex_t pindex;
+	vm_page_t m, mpte;
+	vm_object_t object;
+
+	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)))
+		return;
+
+	object = entry->object.vm_object;
+
+	starta = addra - PFBAK * PAGE_SIZE;
+	if (starta < entry->start) {
+		starta = entry->start;
+	} else if (starta > addra) {
+		starta = 0;
+	}
+
+	mpte = NULL;
+	for (i = 0; i < PAGEORDER_SIZE; i++) {
+		vm_object_t backing_object, lobject;
+
+		addr = addra + prefault_pageorder[i];
+		if (addr > addra + (PFFOR * PAGE_SIZE))
+			addr = 0;
+
+		if (addr < starta || addr >= entry->end)
+			continue;
+
+		if (!pmap_is_prefaultable(pmap, addr))
+			continue;
+
+		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
+		lobject = object;
+		VM_OBJECT_LOCK(lobject);
+		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
+		    lobject->type == OBJT_DEFAULT &&
+		    (backing_object = lobject->backing_object) != NULL) {
+			if (lobject->backing_object_offset & PAGE_MASK)
+				break;
+			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
+			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_UNLOCK(lobject);
+			lobject = backing_object;
+		}
+		VM_OBJECT_UNLOCK(lobject);
+		/*
+		 * give-up when a page is not in memory
+		 */
+		if (m == NULL)
+			break;
+		vm_page_lock_queues();
+		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			(m->busy == 0) &&
+		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+
+			if ((m->queue - m->pc) == PQ_CACHE) {
+				vm_page_deactivate(m);
+			}
+			vm_page_busy(m);
+			vm_page_unlock_queues();
+			mpte = pmap_enter_quick(pmap, addr, m, mpte);
+			vm_page_lock_queues();
+			vm_page_wakeup(m);
+		}
+		vm_page_unlock_queues();
+	}
 }
 
 /*

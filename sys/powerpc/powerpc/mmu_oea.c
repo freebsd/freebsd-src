@@ -1117,6 +1117,19 @@ pmap_is_modified(vm_page_t m)
 	return (pmap_query_bit(m, PTE_CHG));
 }
 
+/*
+ *	pmap_is_prefaultable:
+ *
+ *	Return whether or not the specified virtual address is elgible
+ *	for prefault.
+ */
+boolean_t
+pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
+{
+
+	return (FALSE);
+}
+
 void
 pmap_clear_reference(vm_page_t m)
 {
@@ -1422,14 +1435,6 @@ void
 pmap_pinit2(pmap_t pmap)
 {
 	/* XXX: Remove this stub when no longer called */
-}
-
-void
-pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
-{
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_prefault: non current pmap"));
-	/* XXX */
 }
 
 /*

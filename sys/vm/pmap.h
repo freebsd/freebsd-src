@@ -111,6 +111,7 @@ vm_page_t	 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va,
 void		 pmap_growkernel(vm_offset_t);
 void		 pmap_init(vm_paddr_t, vm_paddr_t);
 boolean_t	 pmap_is_modified(vm_page_t m);
+boolean_t	 pmap_is_prefaultable(pmap_t pmap, vm_offset_t va);
 boolean_t	 pmap_ts_referenced(vm_page_t m);
 vm_offset_t	 pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
@@ -130,7 +131,6 @@ void		 pmap_remove_pages(pmap_t, vm_offset_t, vm_offset_t);
 void		 pmap_zero_page(vm_page_t);
 void		 pmap_zero_page_area(vm_page_t, int off, int size);
 void		 pmap_zero_page_idle(vm_page_t);
-void		 pmap_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
 int		 pmap_mincore(pmap_t pmap, vm_offset_t addr);
 void		 pmap_activate(struct thread *td);
 vm_offset_t	 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size);
