@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.24 1995/09/04 00:20:50 dyson Exp $
+ * $Id: nfs_vnops.c,v 1.25 1995/10/22 09:32:42 davidg Exp $
  */
 
 /*
@@ -2832,8 +2832,8 @@ again:
 			bp = bvec[i];
 			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG);
 			if (retv) {
-			    brelse(bp);
 			    vfs_unbusy_pages(bp);
+			    brelse(bp);
 			} else {
 			    vp->v_numoutput++;
 			    bp->b_flags |= B_ASYNC;
