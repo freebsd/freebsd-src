@@ -717,7 +717,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	    && reg <= PCI_REGMAX
 	    && bytes != 3
 	    && (unsigned) bytes <= 4
-	    && (reg & (bytes -1)) == 0) {
+	    && (reg & (bytes - 1)) == 0) {
 		switch (cfgmech) {
 		case 1:
 			outl(CONF1_ADDR_PORT, (1 << 31)
