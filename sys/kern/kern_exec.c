@@ -708,6 +708,7 @@ exec_copyout_strings(imgp)
 
 /*
  * Check permissions of file to execute.
+ *	Called with imgp->vp locked.
  *	Return 0 for success or error code on failure.
  */
 int
