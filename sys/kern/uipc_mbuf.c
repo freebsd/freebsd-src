@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.20 1996/05/08 19:38:14 wollman Exp $
+ * $Id: uipc_mbuf.c,v 1.21 1996/05/10 19:28:48 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -65,19 +65,15 @@ int	max_datalen;
 
 static void	m_reclaim __P((void));
 
+/* "number of clusters of pages" */
+#define NCL_INIT	1
+
 /* ARGSUSED*/
 static void
 mbinit(dummy)
 	void *dummy;
 {
 	int s;
-
-#define NMB_INIT	16
-#if MCLBYTES < 4096
-#define NCL_INIT	(4096/MCLBYTES)
-#else
-#define NCL_INIT	1
-#endif
 
 	mmbfree = NULL; mclfree = NULL;
 	s = splimp();
