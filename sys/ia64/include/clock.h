@@ -15,6 +15,9 @@ extern	int	disable_rtc_set;
 extern	int	wall_cmos_clock;
 extern	int	adjkerntz;
 
+exterin u_int64_t	itc_frequency;
+exterin u_int64_t	itm_reload;
+
 int	sysbeep(int pitch, int period);
 int	acquire_timer2(int mode);
 int	release_timer2(void);
