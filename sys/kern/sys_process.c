@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.13 1995/05/12 21:39:48 davidg Exp $
+ *	$Id: sys_process.c,v 1.14 1995/05/30 08:05:58 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -243,6 +243,10 @@ ptrace(curp, uap, retval)
 			curp->p_ucred->cr_uid != p->p_ucred->cr_uid ||
 			curp->p_ucred->cr_uid != p->p_cred->p_svuid))
 			return EACCES;
+
+		/* can't trace init when securelevel > 0 */
+		if (securelevel > 0 && p->p_pid == 1)
+			return EPERM;
 
 		p->p_tptr = curp;
 		p->p_flag |= P_TRACED;
