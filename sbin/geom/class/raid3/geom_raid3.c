@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -265,14 +265,16 @@ raid3_label(struct gctl_req *req)
 		snprintf(param, sizeof(param), "arg%u", i);
 		str = gctl_get_asciiparam(req, param);
 
-		msize = g_get_mediasize(str) - g_get_sectorsize(str);
-		if (mediasize < msize) {
+		msize = g_get_mediasize(str);
+		ssize = g_get_sectorsize(str);
+		if (mediasize < msize - ssize) {
 			fprintf(stderr,
 			    "warning: %s: only %jd bytes from %jd bytes used.\n",
-			    str, (intmax_t)mediasize, (intmax_t)msize);
+			    str, (intmax_t)mediasize, (intmax_t)(msize - ssize));
 		}
 
 		md.md_no = i - 1;
+		md.md_provsize = msize;
 		if (!*hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {

@@ -41,8 +41,9 @@
  * 1 - Added 'round-robin reading' algorithm.
  * 2 - Added 'verify reading' algorithm.
  * 3 - Added md_genid field to metadata.
+ * 4 - Added md_provsize field to metadata.
  */
-#define	G_RAID3_VERSION		3
+#define	G_RAID3_VERSION		4
 
 #define	G_RAID3_DISK_FLAG_DIRTY		0x0000000000000001ULL
 #define	G_RAID3_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
@@ -235,6 +236,7 @@ struct g_raid3_metadata {
 	uint64_t	md_mflags;	/* Additional device flags. */
 	uint64_t	md_dflags;	/* Additional disk flags. */
 	char		md_provider[16]; /* Hardcoded provider. */
+	uint64_t	md_provsize;	/* Provider's size. */
 	u_char		md_hash[16];	/* MD5 hash. */
 };
 static __inline void
@@ -256,10 +258,11 @@ raid3_metadata_encode(struct g_raid3_metadata *md, u_char *data)
 	le64enc(data + 72, md->md_mflags);
 	le64enc(data + 80, md->md_dflags);
 	bcopy(md->md_provider, data + 88, 16);
+	le64enc(data + 104, md->md_provsize);
 	MD5Init(&ctx);
-	MD5Update(&ctx, data, 104);
+	MD5Update(&ctx, data, 112);
 	MD5Final(md->md_hash, &ctx);
-	bcopy(md->md_hash, data + 104, 16);
+	bcopy(md->md_hash, data + 112, 16);
 }
 static __inline int
 raid3_metadata_decode_v0v1v2(const u_char *data, struct g_raid3_metadata *md)
@@ -283,6 +286,11 @@ raid3_metadata_decode_v0v1v2(const u_char *data, struct g_raid3_metadata *md)
 	MD5Final(md->md_hash, &ctx);
 	if (bcmp(md->md_hash, data + 100, 16) != 0)
 		return (EINVAL);
+
+	/* New fields. */
+	md->md_genid = 0;
+	md->md_provsize = 0;
+
 	return (0);
 }
 static __inline int
@@ -308,6 +316,36 @@ raid3_metadata_decode_v3(const u_char *data, struct g_raid3_metadata *md)
 	MD5Final(md->md_hash, &ctx);
 	if (bcmp(md->md_hash, data + 104, 16) != 0)
 		return (EINVAL);
+
+	/* New fields. */
+	md->md_provsize = 0;
+
+	return (0);
+}
+static __inline int
+raid3_metadata_decode_v4(const u_char *data, struct g_raid3_metadata *md)
+{
+	MD5_CTX ctx;
+
+	bcopy(data + 20, md->md_name, 16);
+	md->md_id = le32dec(data + 36);
+	md->md_no = le16dec(data + 40);
+	md->md_all = le16dec(data + 42);
+	md->md_genid = le32dec(data + 44);
+	md->md_syncid = le32dec(data + 48);
+	md->md_mediasize = le64dec(data + 52);
+	md->md_sectorsize = le32dec(data + 60);
+	md->md_sync_offset = le64dec(data + 64);
+	md->md_mflags = le64dec(data + 72);
+	md->md_dflags = le64dec(data + 80);
+	bcopy(data + 88, md->md_provider, 16);
+	md->md_provsize = le64dec(data + 104);
+	bcopy(data + 112, md->md_hash, 16);
+	MD5Init(&ctx);
+	MD5Update(&ctx, data, 112);
+	MD5Final(md->md_hash, &ctx);
+	if (bcmp(md->md_hash, data + 112, 16) != 0)
+		return (EINVAL);
 	return (0);
 }
 static __inline int
@@ -325,6 +363,9 @@ raid3_metadata_decode(const u_char *data, struct g_raid3_metadata *md)
 		break;
 	case 3:
 		error = raid3_metadata_decode_v3(data, md);
+		break;
+	case 4:
+		error = raid3_metadata_decode_v4(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -376,6 +417,7 @@ raid3_metadata_dump(const struct g_raid3_metadata *md)
 	}
 	printf("\n");
 	printf("hcprovider: %s\n", md->md_provider);
+	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
 	bzero(hash, sizeof(hash));
 	for (i = 0; i < 16; i++) {
 		hash[i * 2] = hex[md->md_hash[i] >> 4];

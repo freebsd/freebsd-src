@@ -37,8 +37,9 @@
 /*
  * Version history:
  * 0 - Initial version number.
+ * 1 - Added md_provsize field to metadata.
  */
-#define	G_SHSEC_VERSION	0
+#define	G_SHSEC_VERSION	1
 
 #ifdef _KERNEL
 #define	G_SHSEC_BFLAG_FIRST	0x1
@@ -85,6 +86,7 @@ struct g_shsec_metadata {
 	uint16_t	md_no;		/* Disk number. */
 	uint16_t	md_all;		/* Number of all disks. */
 	char		md_provider[16]; /* Hardcoded provider. */
+	uint64_t	md_provsize;	/* Provider's size. */
 };
 static __inline void
 shsec_metadata_encode(const struct g_shsec_metadata *md, u_char *data)
@@ -97,6 +99,7 @@ shsec_metadata_encode(const struct g_shsec_metadata *md, u_char *data)
 	le16enc(data + 40, md->md_no);
 	le16enc(data + 42, md->md_all);
 	bcopy(md->md_provider, data + 44, sizeof(md->md_provider));
+	le64enc(data + 60, md->md_provsize);
 }
 static __inline void
 shsec_metadata_decode(const u_char *data, struct g_shsec_metadata *md)
@@ -109,5 +112,6 @@ shsec_metadata_decode(const u_char *data, struct g_shsec_metadata *md)
 	md->md_no = le16dec(data + 40);
 	md->md_all = le16dec(data + 42);
 	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
+	md->md_provsize = le64dec(data + 60);
 }
 #endif	/* _G_SHSEC_H_ */
