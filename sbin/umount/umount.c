@@ -187,13 +187,17 @@ main(int argc, char *argv[])
 int
 umountall(char **typelist)
 {
+	struct vfsconf vfc;
 	struct fstab *fs;
 	int rval;
 	char *cp;
-	struct vfsconf vfc;
+	static int firstcall = 1;
 
-	if ((fs = getfsent()) != NULL)
-		errx(1, "fstab reading failure");
+	if ((fs = getfsent()) != NULL) {
+		if (firstcall)
+			errx(1, "fstab reading failure");
+		firstcall = 0;
+	}
 	do {
 		/* Ignore the root. */
 		if (strcmp(fs->fs_file, "/") == 0)
@@ -223,9 +227,10 @@ umountall(char **typelist)
 			err(1, "malloc failed");
 		(void)strcpy(cp, fs->fs_file);
 		rval = umountall(typelist);
-		return (umountfs(cp, typelist) || rval);
+		rval = umountfs(cp, typelist) || rval;
+		free(cp);
+		return (rval);
 	} while ((fs = getfsent()) != NULL);
-	free(cp);
 	return (0);
 }
 
@@ -240,11 +245,12 @@ umountfs(char *name, char **typelist)
 	size_t len;
 	int so, speclen;
 	char *mntonname, *mntfromname;
-	char *mntfromnamerev, *mntonnamerev;
+	char *mntfromnamerev;
 	char *nfsdirname, *orignfsdirname;
 	char *resolved, realname[MAXPATHLEN + 1];
 	char *type, *delimp, *hostp, *origname;
 
+	len = 0;
 	mntfromname = mntonname = delimp = hostp = orignfsdirname = NULL;
 
 	/*
@@ -352,16 +358,12 @@ umountfs(char *name, char **typelist)
 	 * same as the normal ones.
 	 */
 	if ((mntfromnamerev = strdup(getmntname(getmntname(mntfromname,
-	    NULL, MNTON, &type, NAME), NULL,
-	    MNTFROM, &type, NAME))) == NULL)
-		err(1, "strdup");
-	if ((mntonnamerev = strdup(getmntname(mntfromnamerev, NULL,
-	    MNTON, &type, NAME))) == NULL)
+	    NULL, MNTON, &type, NAME), NULL, MNTFROM, &type, NAME))) == NULL)
 		err(1, "strdup");
 	/*
 	 * Mark the uppermost mount as unmounted.
 	 */
-	(void)getmntname(mntfromnamerev, mntonnamerev, NOTHING, &type, MARK);
+	(void)getmntname(mntfromname, mntonname, NOTHING, &type, MARK);
 	/*
 	 * If several equal mounts are in the mounttable, check the order
 	 * and warn the user if necessary.
@@ -373,11 +375,10 @@ umountfs(char *name, char **typelist)
 		    mntonname, mntfromnamerev);
 
 		/* call getmntname again to set mntcheck[i] to 0 */
-		(void)getmntname(mntfromnamerev, mntonnamerev,
+		(void)getmntname(mntfromname, mntonname,
 		    NOTHING, &type, UNMARK);
 		return (1);
 	}
-	free(mntonnamerev);
 	free(mntfromnamerev);
 	/*
 	 * Check if we have to start the rpc-call later.
@@ -390,9 +391,9 @@ umountfs(char *name, char **typelist)
 		if (getmntname(mntfromname, NULL, NOTHING,
 		    &type, COUNT) == NULL)
 			count = 1;
+		else
+			count = 0;
 	}
-	else
-		count = 0;
 	if (!namematch(hp))
 		return (1);
 	if (unmount(mntonname, fflag) != 0 ) {
@@ -514,7 +515,7 @@ getmntname(const char *fromname, const char *onname,
 				count++;
 		}
 		/* Mark the already unmounted mounts and return
-		 * mntfromname if count == 1. Else return NULL.
+		 * mntfromname if count <= 1. Else return NULL.
 		 */
 		for (i = mntsize - 1; i >= 0; i--) {
 			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0) {
@@ -522,13 +523,12 @@ getmntname(const char *fromname, const char *onname,
 					count--;
 				else
 					mntcount[i] = 1;
-				if (count == 1)
-					return (mntbuf[i].f_mntonname);
-				else
-					return (NULL);
 			}
 		}
-		return (NULL);
+		if (count <= 1)
+			return (mntbuf[i].f_mntonname);
+		else
+			return (NULL);
 	case FREE:
 		free(mntbuf);
 		free(mntcheck);
