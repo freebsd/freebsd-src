@@ -288,7 +288,8 @@ printf("errx=%d\n",error);
 	 * try to load it. We need to do this now, in syscall thread, because if
 	 * message gets queued and applied later we will get panic.
 	 */
-	if (msg->header.cmd == NGM_MKPEER) {
+	if (msg->header.typecookie == NGM_GENERIC_COOKIE &&
+	    msg->header.cmd == NGM_MKPEER) {
 		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) msg->data;
 		struct ng_type *type;
 
