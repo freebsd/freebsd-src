@@ -966,7 +966,7 @@ Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 Toshiba Mobile HDD MEHDD20A (Type II)
 
 FAX-Modem/PC-Card
-Melco IGM-PCM56K
+Melco IGM-PCM56K/IGM-PCM56KH
 
 Digital Cellular/PC-Card
 Panasonic KX-PH405
