@@ -157,6 +157,9 @@ struct linux_new_utsname {
 #define	LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
 #define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
 
+/* sigaltstack */
+#define LINUX_MINSIGSTKSZ	2048
+
 typedef void	(*linux_handler_t)(int);
 typedef u_long	linux_osigset_t;
 
