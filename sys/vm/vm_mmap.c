@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.54 1996/12/14 17:54:17 dyson Exp $
+ * $Id: vm_mmap.c,v 1.55 1996/12/22 23:17:09 joerg Exp $
  */
 
 /*
@@ -905,9 +905,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			type = OBJT_VNODE;
 		}
 	}
-	object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
-	if (object == NULL)
-		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+
+	if (handle == NULL) {
+		object = NULL;
+	} else {
+		object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
+		if (object == NULL)
+			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+	}
 
 	/*
 	 * Force device mappings to be shared.
@@ -939,7 +944,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
+	if ((type == OBJT_VNODE) && (map->pmap != NULL) && (object != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
 			object, (vm_pindex_t) OFF_TO_IDX(foff), size, 1);
 	}
