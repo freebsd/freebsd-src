@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,12 +28,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	locatestring.h				16-Oct-97
+ *	locatestring.h				25-Jul-98
  *
  */
 
 #ifndef _LOCATESTRING_H_
 #define _LOCATESTRING_H_
+
+#define MATCH_FIRST	0
+#define MATCH_AT_FIRST	1
+#define MATCH_LAST	2
+#define MATCH_AT_LAST	3
 
 #ifndef __P
 #if defined(__STDC__)
@@ -43,6 +48,6 @@
 #endif
 #endif
 
-char	*locatestring __P((char *, char *, int));
+char	*locatestring __P((const char *, const char *, int));
 
 #endif /* ! _LOCATESTRING_H_ */

@@ -1,15 +1,17 @@
 
-           @@@@@@@=
-	 @=       @=
-	@=                                          @=
-	@=            @=    @@@@@= @@@@@@=     @@=  @=
-	@=  F o r   a l l   h a c k e r s.    @=@=  @=
-	@=     @@@@@@=@=   @=    @= @@@@@=   @= @=  @=
-	@=        @=  @=   @=    @= @=   @= @@@@@=  @=
-	 @=       @=  @=   @=    @= @=   @=@=   @=  @=
-	  @@@@@@@@=   @@@@= @@@@@= @@@@@@=@@@= @@@@= @@@@@@=
+           @@@@@@@=)))
+         @=)))    @=)))                             @=)))
+        @=)))                                       @=)))
+        @=)))         @=))) @@@@@=)@@@@@@=)))  @@=) @=)))
+        @=))F o r   a l l)) h a c k e r s.))) @=@=))@=)))
+        @=)))  @@@@@@=@=)))@=))) @=)@@@@@=)))@= @=))@=)))
+        @=)))     @=))@=)))@=))) @=)@=)))@=)@@@@@=))@=)))
+         @=)))    @=))@=)))@=))) @=)@=)))@=@=)))@=))@=)))
+          @@@@@@@@=)))@@@@=)@@@@@=)@@@@@@=@@@=)@@@@=)@@@@@@=)))
 
-This software is covered by the following:
+
+
+This software is covered by the followings:
 
      Copyright (c) 1996, 1997, 1998  Shigio Yamaguchi. All rights reserved.
      
@@ -40,7 +42,8 @@ This software is covered by the following:
      OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
      SUCH DAMAGE.
 
-Portions of gozilla(1) are covered by the following:
+
+Portions of gozilla(1):
 
      Copyright 1996 Netscape Communications Corporation, all rights reserved.
      Created: Jamie Zawinski <jwz@netscape.com>, 24-Dec-94.
