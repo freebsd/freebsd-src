@@ -1,23 +1,26 @@
 #
-#	$Id: Makefile,v 1.20 1994/09/23 08:36:37 rgrimes Exp $
+#	$Id: Makefile,v 1.21 1994/09/23 09:00:35 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
+# XXX1	-DMAKE_KERBEROS to build KerberosIV
+#	-DMAKE_EBONES to build eBones (KerberosIV)
+#
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCRYPT will prevent building of crypt versions
-# XXX2	-DNOKERBEROS do not build Kerberos
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
-#	-DNOEBONES do not make eBones (kerberosIV)
 #
-# XXX2	Mandatory, and Kerberos will not build sucessfully yet
+#
+# XXX1	The kerberos IV off the 4.4-Lite tape (src/kerberosIV)
+#	will not build successfully yet.  MAKE_KERBEROS should not be
+#	defined.
 
 # Put initial settings here.
-NOKERBEROS=	yes
 SUBDIR=
 
 .if exists(bin)
@@ -42,11 +45,10 @@ SUBDIR+= include
 .if exists(lib)
 SUBDIR+= lib
 .endif
-.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
 SUBDIR+= kerberosIV
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) \
-			&& !defined(NOEBONES)
+.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 SUBDIR+= eBones
 .endif
 .if exists(libexec)
@@ -170,18 +172,17 @@ includes:
 	cd ${.CURDIR}/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
-.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
 	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
+.endif
+.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
+	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
-.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) && \
-			!defined(NOEBONES)
-	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
-.endif
 
 libraries:
 	@echo "--------------------------------------------------------------"
@@ -206,7 +207,7 @@ libraries:
 .endif
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
 	cd ${.CURDIR}/kerberosIV/acl && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/kerberosIV/des && \
@@ -216,8 +217,7 @@ libraries:
 	cd ${.CURDIR}/kerberosIV/krb && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) && \
-			!defined(NOEBONES)
+.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/des && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/eBones/acl && \

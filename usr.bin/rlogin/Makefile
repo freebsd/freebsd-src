@@ -2,10 +2,15 @@
 
 PROG=	rlogin
 SRCS=	rlogin.c
-#krcmd.c kcmd.c 
-#DPADD=	${LIBKRB} ${LIBDES}
-#CFLAGS+=-DKERBEROS -DCRYPT
-#LDADD=	-lkrb -ldes
+
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
+	|| defined(MAKE_EBONES))
+SRCS+=	krcmd.c kcmd.c 
+DPADD=	${LIBKRB} ${LIBDES}
+CFLAGS+=-DKERBEROS -DCRYPT
+LDADD=	-lkrb -ldes
+.endif
+
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
