@@ -219,8 +219,6 @@ tcpOpenDialog(Device *devp)
 
 	/* First try a DHCP scan if such behavior is desired */
 	if (!variable_cmp(VAR_TRY_DHCP, "YES") || !msgYesNo("Do you want to try DHCP configuration of the interface?")) {
-	    int k;
-
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
