@@ -48,37 +48,37 @@ struct pnphandler biospnphandler =
 
 struct pnp_ICstructure
 {
-    u_int8_t	pnp_signature[4]	 __attribute__ ((packed));
-    u_int8_t	pnp_version		 __attribute__ ((packed));
-    u_int8_t	pnp_length		 __attribute__ ((packed));
-    u_int16_t	pnp_BIOScontrol		 __attribute__ ((packed));
-    u_int8_t	pnp_checksum		 __attribute__ ((packed));
-    u_int32_t	pnp_eventflag		 __attribute__ ((packed));
-    u_int16_t	pnp_rmip		 __attribute__ ((packed));
-    u_int16_t	pnp_rmcs		 __attribute__ ((packed));
-    u_int16_t	pnp_pmip		 __attribute__ ((packed));
-    u_int32_t	pnp_pmcs		 __attribute__ ((packed));
-    u_int8_t	pnp_OEMdev[4]		 __attribute__ ((packed));
-    u_int16_t	pnp_rmds		 __attribute__ ((packed));
-    u_int32_t	pnp_pmds		 __attribute__ ((packed));
+    u_int8_t	pnp_signature[4]	 __packed;
+    u_int8_t	pnp_version		 __packed;
+    u_int8_t	pnp_length		 __packed;
+    u_int16_t	pnp_BIOScontrol		 __packed;
+    u_int8_t	pnp_checksum		 __packed;
+    u_int32_t	pnp_eventflag		 __packed;
+    u_int16_t	pnp_rmip		 __packed;
+    u_int16_t	pnp_rmcs		 __packed;
+    u_int16_t	pnp_pmip		 __packed;
+    u_int32_t	pnp_pmcs		 __packed;
+    u_int8_t	pnp_OEMdev[4]		 __packed;
+    u_int16_t	pnp_rmds		 __packed;
+    u_int32_t	pnp_pmds		 __packed;
 };
 
 struct pnp_devNode 
 {
-    u_int16_t	dn_size		__attribute__ ((packed));
-    u_int8_t	dn_handle	__attribute__ ((packed));
-    u_int8_t	dn_id[4]	__attribute__ ((packed));
-    u_int8_t	dn_type[3]	__attribute__ ((packed));
-    u_int16_t	dn_attrib	__attribute__ ((packed));
-    u_int8_t	dn_data[1]	__attribute__ ((packed));
+    u_int16_t	dn_size		__packed;
+    u_int8_t	dn_handle	__packed;
+    u_int8_t	dn_id[4]	__packed;
+    u_int8_t	dn_type[3]	__packed;
+    u_int16_t	dn_attrib	__packed;
+    u_int8_t	dn_data[1]	__packed;
 };
 
 struct pnp_isaConfiguration
 {
-    u_int8_t	ic_revision	__attribute__ ((packed));
-    u_int8_t	ic_nCSN		__attribute__ ((packed));
-    u_int16_t	ic_rdport	__attribute__ ((packed));
-    u_int16_t	ic_reserved	__attribute__ ((packed));
+    u_int8_t	ic_revision	__packed;
+    u_int8_t	ic_nCSN		__packed;
+    u_int16_t	ic_rdport	__packed;
+    u_int16_t	ic_reserved	__packed;
 };
 
 static struct pnp_ICstructure	*pnp_Icheck = NULL;

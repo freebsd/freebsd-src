@@ -197,7 +197,7 @@ struct pppoe_tag {
 	u_int16_t tag_type;
 	u_int16_t tag_len;
 	char tag_data[0];
-}__attribute ((packed));
+}__packed;
 
 struct pppoe_hdr{
 	u_int8_t ver:4;
@@ -206,13 +206,13 @@ struct pppoe_hdr{
 	u_int16_t sid;
 	u_int16_t length;
 	struct pppoe_tag tag[0];
-}__attribute__ ((packed));
+}__packed;
 
 
 struct pppoe_full_hdr {
 	struct  ether_header eh;
 	struct pppoe_hdr ph;
-}__attribute__ ((packed));
+}__packed;
 
 union	packet {
 	struct pppoe_full_hdr	pkt_header;

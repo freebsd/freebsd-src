@@ -592,7 +592,7 @@ struct an_rxframe {
 	u_int16_t		an_seq_ctl;		/* 0x2A */
 	u_int8_t		an_addr4[6];		/* 0x2C */
 	u_int8_t		an_gaplen;		/* 0x32 */
-} __attribute__((packed));
+} __packed;
 
 
 /* Do not modify this unless you are modifying LEAP itself */

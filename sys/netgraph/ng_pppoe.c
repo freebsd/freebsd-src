@@ -870,7 +870,7 @@ pppoe_start(sessp sp)
 	struct {
 		struct pppoe_tag hdr;
 		union	uniq	data;
-	} __attribute ((packed)) uniqtag;
+	} __packed uniqtag;
 
 	/* 
 	 * kick the state machine into starting up
@@ -950,7 +950,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 	struct {
 		struct pppoe_tag hdr;
 		union	uniq	data;
-	} __attribute ((packed)) uniqtag;
+	} __packed uniqtag;
 	negp			neg = NULL;
 	struct mbuf		*m;
 

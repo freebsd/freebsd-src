@@ -83,7 +83,7 @@ struct PnPBIOS_table
     u_int32_t	oemdevid;		/* motherboard EISA ID */
     u_int16_t	rmbiosseg;		/* real-mode BIOS segment */
     u_int32_t	pmdataseg;		/* protected-mode data segment */
-} __attribute__ ((packed));
+} __packed;
 
 
 /* 
@@ -243,13 +243,13 @@ struct PIR_header
     u_int32_t	ph_miniport;
     u_int8_t	ph_res[11];
     u_int8_t	ph_checksum;
-} __attribute__ ((packed));
+} __packed;
 
 struct PIR_intpin 
 {
     u_int8_t	link;
     u_int16_t	irqs;
-} __attribute__ ((packed));
+} __packed;
 
 struct PIR_entry
 {
@@ -259,13 +259,13 @@ struct PIR_entry
     struct PIR_intpin	pe_intpin[4];
     u_int8_t	pe_slot;
     u_int8_t	pe_res3;
-} __attribute__ ((packed));
+} __packed;
 
 struct PIR_table 
 {
     struct PIR_header	pt_header;
     struct PIR_entry	pt_entry[0];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Int 15:E820 'SMAP' structure
@@ -277,4 +277,4 @@ struct bios_smap {
     u_int64_t	base;
     u_int64_t	length;
     u_int32_t	type;
-} __attribute__ ((packed));
+} __packed;

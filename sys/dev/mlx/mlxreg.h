@@ -199,7 +199,7 @@ struct mlx_sgentry
 {
     u_int32_t	sg_addr;
     u_int32_t	sg_count;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Command result buffers, as placed in system memory by the controller.
@@ -229,8 +229,8 @@ struct mlx_enquiry_old	/* MLX_CMD_ENQUIRY_OLD */
     {
 	u_int8_t	dd_targ;
 	u_int8_t	dd_chan;
-    } __attribute__ ((packed)) me_dead[20];
-} __attribute__ ((packed));
+    } __packed me_dead[20];
+} __packed;
 
 struct mlx_enquiry	/* MLX_CMD_ENQUIRY */
 {
@@ -260,8 +260,8 @@ struct mlx_enquiry	/* MLX_CMD_ENQUIRY */
     {
 	u_int8_t	dd_targ;
 	u_int8_t	dd_chan;
-    } __attribute__ ((packed)) me_dead[20];
-} __attribute__ ((packed));
+    } __packed me_dead[20];
+} __packed;
 
 struct mlx_enquiry2	/* MLX_CMD_ENQUIRY2 */
 {
@@ -311,7 +311,7 @@ struct mlx_enquiry2	/* MLX_CMD_ENQUIRY2 */
     u_int8_t		res10;
     u_int32_t		me_firmware_features;
     u_int8_t		res11[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_enq_sys_drive /* MLX_CMD_ENQSYSDRIVE returns an array of 32 of these */
 {
@@ -319,7 +319,7 @@ struct mlx_enq_sys_drive /* MLX_CMD_ENQSYSDRIVE returns an array of 32 of these 
     u_int8_t		sd_state;
     u_int8_t		sd_raidlevel;
     u_int16_t		res1;
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_eventlog_entry	/* MLX_CMD_LOGOP/MLX_LOGOP_GET */
 {
@@ -344,7 +344,7 @@ struct mlx_eventlog_entry	/* MLX_CMD_LOGOP/MLX_LOGOP_GET */
     u_int8_t		el_asc;
     u_int8_t		el_asq;
     u_int8_t		res3[12];
-} __attribute__ ((packed));
+} __packed;
 
 #define MLX_LOGOP_GET		0x00	/* operation codes for MLX_CMD_LOGOP */
 #define MLX_LOGMSG_SENSE	0x00	/* log message contents codes */
@@ -354,7 +354,7 @@ struct mlx_rebuild_stat	/* MLX_CMD_REBUILDSTAT */
     u_int32_t	rb_drive;
     u_int32_t	rb_size;
     u_int32_t	rb_remaining;
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_config2
 {
@@ -395,14 +395,14 @@ struct mlx_config2
     u_int8_t	cf_delay_between_spinups;
     u_int8_t	cf_res3;
     u_int16_t	cf_checksum;
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_sys_drv_span
 {
     u_int32_t	sp_start_lba;
     u_int32_t	sp_nblks;
     u_int8_t	sp_arm[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_sys_drv
 {
@@ -423,7 +423,7 @@ struct mlx_sys_drv
     u_int8_t	sd_init_state;
 #define MLX_SYS_DRV_INITTED	0x81;
     struct mlx_sys_drv_span sd_span[4];
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_phys_drv
 {
@@ -448,7 +448,7 @@ struct mlx_phys_drv
     u_int8_t	pd_period;
     u_int8_t	pd_offset;
     u_int32_t	pd_config_size;
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_core_cfg
 {
@@ -456,7 +456,7 @@ struct mlx_core_cfg
     u_int8_t	cc_res1[3];
     struct mlx_sys_drv	cc_sys_drives[32];
     struct mlx_phys_drv cc_phys_drives[5 * 16];
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_dcdb
 {
@@ -482,7 +482,7 @@ struct mlx_dcdb
     u_int8_t	dcdb_sense[64];
     u_int8_t	dcdb_status;
     u_int8_t	res1;
-} __attribute__ ((packed));
+} __packed;
 
 struct mlx_bbtable_entry 
 {
@@ -492,7 +492,7 @@ struct mlx_bbtable_entry
     u_int8_t	bbt_entry_type;
     u_int8_t	bbt_system_drive:5;
     u_int8_t	res2:3;
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef _KERNEL
 /*

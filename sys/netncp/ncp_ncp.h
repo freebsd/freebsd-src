@@ -62,7 +62,7 @@ struct ncp_rqhdr {
 	u_int8_t  conn_high;
 	u_int8_t  fn;
 	u_int8_t  data[0];
-} __attribute__((packed));
+} __packed;
 
 
 struct ncp_rphdr {
@@ -74,7 +74,7 @@ struct ncp_rphdr {
 	u_int8_t	completion_code;
 	u_int8_t	connection_state;
 	u_int8_t	data[0];
-}__attribute__((packed));
+}__packed;
 
 #define	BFL_ABT		0x04
 #define	BFL_EOB		0x10
@@ -103,7 +103,7 @@ struct ncp_bursthdr {
 	u_long	bh_dofs;		/* HL */
 	u_short	bh_dlen;		/* HL */
 	u_short	bh_misfrags;		/* HL */
-} __attribute__((packed));
+} __packed;
 
 struct ncp_conn;
 struct ncp_conn_args;

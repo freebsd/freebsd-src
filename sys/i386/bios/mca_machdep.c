@@ -59,7 +59,7 @@ struct sys_config {
 #define FEATURE_IC2	0x40	/* Second interrupt chip present	*/
 #define FEATURE_DMA3	0x80	/* DMA channel 3 used by hard disk BIOS	*/
 	u_int8_t	pad[3];
-} __attribute__ ((packed));
+} __packed;
 
 /* Function Prototypes */
 static void bios_mcabus_present	(void *);

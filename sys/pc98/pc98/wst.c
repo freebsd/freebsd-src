@@ -160,7 +160,7 @@ struct wst_reqsense {
     u_int   ili			:1;	/* Incorrect Length Indicator */
     u_int   eom			:1;	/* End Of Medium */
     u_int   filemark		:1;	/* Filemark */
-    u_int   info __attribute__((packed)); /* Cmd specific info */
+    u_int   info __packed; /* Cmd specific info */
     u_char  asl;			/* Additional sense length (n-7) */
     u_int   command_specific;		/* Additional cmd specific info */
     u_char  asc;			/* Additional Sense Code */

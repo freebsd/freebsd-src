@@ -58,7 +58,7 @@ typedef struct {
    nuint32  deletedDateAndTime;
    nuint32  deletorID;
    nuint8   reserved3 [16];
-} __attribute__((packed)) NWDELETED_INFO;
+} __packed NWDELETED_INFO;
 
 __BEGIN_DECLS
 

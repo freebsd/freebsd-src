@@ -341,7 +341,7 @@ struct write_param {
     u_int8_t	vendor_specific_byte1;
     u_int8_t	vendor_specific_byte2;
     u_int8_t	vendor_specific_byte3;
-} __attribute__((packed));
+} __packed;
 
 /* CDROM Read Track Information structure */
 struct acd_track_info {
