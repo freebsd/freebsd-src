@@ -1,5 +1,22 @@
 ============================================================================
-OpenPAM	Celandine						2002-03-05
+OpenPAM	Centaury						2002-03-14
+
+ - BUGFIX: Add missing #include <string.h> to openpam_log.c.
+
+ - BUGFIX: s/PAM_REINITIALISE_CRED/PAM_REINITIALIZE_CRED/.  XSSO uses
+   the former, but Solaris and Linux-PAM use the latter.
+
+ - BUGFIX: The dynamic loader and the module cache contained a number
+   of bugs which would cause a segmentation fault if pam_start(3) was
+   called again after pam_end(3), as happens in login(1), xdm(1) etc.
+   after a failed login.
+
+ - BUGFIX: Refer to a module by the name used in the policy file, even
+   if the module that was actually loaded was versioned.
+
+ - ENHANCE: Suppress debugging logs, unless compiled with -DDEBUG.
+============================================================================
+OpenPAM Celandine 2002-03-05
 
  - BUGFIX: PAM_TRY_AGAIN is a valid return value for pam_chauthtok().
 
@@ -20,7 +37,6 @@ OpenPAM	Celandine						2002-03-05
  - ENHANCE: Add support for module versioning.  OpenPAM will prefer a
    module with the same version number as the library itself to one
    with no version number at all.
-
 ============================================================================
 OpenPAM	Cantaloupe						2002-02-22
 
@@ -67,4 +83,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#5 $
+$P4: //depot/projects/openpam/HISTORY#6 $
