@@ -270,6 +270,7 @@ wi_attach(device_t dev)
 	    MTX_DEF | MTX_RECURSE);
 #endif
 
+	sc->wi_cmd_count = 500;
 	/* Reset the NIC. */
 	if (wi_reset(sc) != 0)
 		return ENXIO;		/* XXX */
@@ -383,6 +384,11 @@ wi_attach(device_t dev)
 		sc->sc_flags |= WI_FLAGS_HAS_FRAGTHR;
 		sc->sc_flags |= WI_FLAGS_HAS_ROAMING;
 		sc->sc_flags |= WI_FLAGS_HAS_SYSSCALE;
+		/*
+		 * Old firmware are slow, so give peace a chance.
+		 */
+		if (sc->sc_sta_firmware_ver < 10000)
+			sc->wi_cmd_count = 5000;
 		if (sc->sc_sta_firmware_ver > 10101)
 			sc->sc_flags |= WI_FLAGS_HAS_DBMADJUST;
 		if (sc->sc_sta_firmware_ver >= 800) {
@@ -2390,7 +2396,7 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 	count++;
 
 	/* wait for the busy bit to clear */
-	for (i = 500; i > 0; i--) {	/* 500ms */
+	for (i = sc->wi_cmd_count; i > 0; i--) {	/* 500ms */
 		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
 			break;
 		DELAY(1*1000);	/* 1ms */
