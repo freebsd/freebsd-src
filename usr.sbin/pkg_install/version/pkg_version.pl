@@ -47,6 +47,7 @@ $ShowCommandsFlag = 0;
 $DebugFlag = 0;
 $VerboseFlag = 0;
 $CommentChar = "#";
+$LimitFlag = "";
 
 #
 # CompareVersions
@@ -124,6 +125,7 @@ Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
 -c              Show commands to update installed packages
 -d debug	Debugging output (debug controls level of output)
 -h		Help (this message)
+-l limchar	Limit output
 -v		Verbose output
 index		URL or filename of index file
 		(Default is $IndexFile)
@@ -133,7 +135,7 @@ EOF
 #
 # Parse command-line arguments, deal with them
 #
-if (!getopts('cdhv') || ($opt_h)) {
+if (!getopts('cdhl:v') || ($opt_h)) {
     &PrintHelp();
     exit;
 }
@@ -142,6 +144,9 @@ if ($opt_c) {
 }
 if ($opt_d) {
     $DebugFlag = $opt_d;
+}
+if ($opt_l) {
+    $LimitFlag = $opt_l;
 }
 if ($opt_v) {
     $VerboseFlag = 1;
@@ -258,7 +263,11 @@ foreach $packageName (sort keys %currentPackages) {
 	$Comment = "unknown in index";
     }
 
-    write;
+    if ($LimitFlag) {
+	write if $versionCode =~ m/[$LimitFlag]/o;
+    } else {
+	write;
+    }
 }
 
 exit 0;
