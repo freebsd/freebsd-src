@@ -70,8 +70,10 @@ OBJCOPY?=	objcopy
 .if ${CC} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .else
+. if ${CFLAGS:M-O[23s]} != ""
+CFLAGS+= -fno-strict-aliasing
+. endif
 WERROR?=	-Werror
-CFLAGS:=	${CFLAGS:C/-O2/-O2 -fno-strict-aliasing/}
 .endif
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
