@@ -37,7 +37,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* -------------------------------------------------------------------- */
 
 #define EMU10K1_PCI_ID 	0x00021102
-#define EMU_BUFFSIZE	4096
+#define EMU10K2_PCI_ID 	0x00041102
+#define EMU_DEFAULT_BUFSZ	4096
 #define EMU_CHANS	4
 #undef EMUDEBUG
 
@@ -94,10 +95,10 @@ struct sc_info {
 	bus_dma_tag_t parent_dmat;
 
 	struct resource *reg, *irq;
-	int		regtype, regid, irqid;
 	void		*ih;
 	void		*lock;
 
+	unsigned int bufsz;
 	int timer, timerinterval;
 	int pnum, rnum;
 	struct emu_mem mem;
@@ -280,16 +281,20 @@ emu_settimer(struct sc_info *sc)
 	rate = 0;
 	for (i = 0; i < EMU_CHANS; i++) {
 		pch = &sc->pch[i];
-		tmp = (pch->spd * sndbuf_getbps(pch->buffer)) / pch->blksz;
-		if (tmp > rate)
-			rate = tmp;
+		if (pch->buffer) {
+			tmp = (pch->spd * sndbuf_getbps(pch->buffer)) / pch->blksz;
+			if (tmp > rate)
+				rate = tmp;
+		}
 	}
 
 	for (i = 0; i < 3; i++) {
 		rch = &sc->rch[i];
-		tmp = (rch->spd * sndbuf_getbps(rch->buffer)) / rch->blksz;
-		if (tmp > rate)
-			rate = tmp;
+		if (rch->buffer) {
+			tmp = (rch->spd * sndbuf_getbps(rch->buffer)) / rch->blksz;
+			if (tmp > rate)
+				rate = tmp;
+		}
 	}
 	RANGE(rate, 48, 9600);
 	sc->timerinterval = 48000 / rate;
@@ -625,13 +630,13 @@ emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
-	ch->blksz = EMU_BUFFSIZE / 2;
+	ch->blksz = sc->bufsz / 2;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	snd_mtxlock(sc->lock);
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
-	r = (emu_vinit(sc, ch->master, ch->slave, EMU_BUFFSIZE, ch->buffer))? NULL : ch;
+	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer))? NULL : ch;
 	snd_mtxunlock(sc->lock);
 
 	return r;
@@ -760,7 +765,7 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
-	ch->blksz = EMU_BUFFSIZE / 2;
+	ch->blksz = sc->bufsz / 2;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->num = sc->rnum;
@@ -774,23 +779,23 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 		break;
 
 	case 1:
-		ch->idxreg = MICIDX;
-		ch->basereg = MICBA;
-		ch->sizereg = MICBS;
-		ch->setupreg = 0;
-		ch->irqmask = INTE_MICBUFENABLE;
-		break;
-
-	case 2:
 		ch->idxreg = FXIDX;
 		ch->basereg = FXBA;
 		ch->sizereg = FXBS;
 		ch->setupreg = FXWC;
 		ch->irqmask = INTE_EFXBUFENABLE;
 		break;
+
+	case 2:
+		ch->idxreg = MICIDX;
+		ch->basereg = MICBA;
+		ch->sizereg = MICBS;
+		ch->setupreg = 0;
+		ch->irqmask = INTE_MICBUFENABLE;
+		break;
 	}
 	sc->rnum++;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, EMU_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1)
 		return NULL;
 	else {
 		snd_mtxlock(sc->lock);
@@ -818,9 +823,9 @@ emurchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	if (ch->num == 0)
 		speed = adcspeed[emu_recval(speed)];
 	if (ch->num == 1)
-		speed = 8000;
-	if (ch->num == 2)
 		speed = 48000;
+	if (ch->num == 2)
+		speed = 8000;
 	ch->spd = speed;
 	return ch->spd;
 }
@@ -847,18 +852,44 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-	u_int32_t val;
+	u_int32_t val, sz;
+
+	switch(sc->bufsz) {
+	case 4096:
+		sz = ADCBS_BUFSIZE_4096;
+		break;
+
+	case 8192:
+		sz = ADCBS_BUFSIZE_8192;
+		break;
+
+	case 16384:
+		sz = ADCBS_BUFSIZE_16384;
+		break;
+
+	case 32768:
+		sz = ADCBS_BUFSIZE_32768;
+		break;
+
+	case 65536:
+		sz = ADCBS_BUFSIZE_65536;
+		break;
+
+	default:
+		sz = ADCBS_BUFSIZE_4096;
+	}
 
 	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		ch->run = 1;
-		emu_wrptr(sc, 0, ch->sizereg, ADCBS_BUFSIZE_4096);
+		emu_wrptr(sc, 0, ch->sizereg, sz);
 		if (ch->num == 0) {
 			val = ADCCR_LCHANENABLE;
 			if (ch->fmt & AFMT_STEREO)
 				val |= ADCCR_RCHANENABLE;
 			val |= emu_recval(ch->spd);
+			emu_wrptr(sc, 0, ch->setupreg, 0);
 			emu_wrptr(sc, 0, ch->setupreg, val);
 		}
 		val = emu_rd(sc, INTE, 4);
@@ -909,6 +940,19 @@ emurchan_getcaps(kobj_t obj, void *data)
 	return &emu_reccaps[ch->num];
 }
 
+static kobj_method_t emurchan_methods[] = {
+    	KOBJMETHOD(channel_init,		emurchan_init),
+    	KOBJMETHOD(channel_setformat,		emurchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		emurchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	emurchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		emurchan_trigger),
+    	KOBJMETHOD(channel_getptr,		emurchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(emurchan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
 emu_intr(void *p)
@@ -942,13 +986,13 @@ emu_intr(void *p)
 			if (sc->rch[0].channel)
 				chn_intr(sc->rch[0].channel);
 		}
-		if (stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL)) {
-			ack |= stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL);
+		if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
+			ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
 			if (sc->rch[1].channel)
 				chn_intr(sc->rch[1].channel);
 		}
-		if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
-			ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
+		if (stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL)) {
+			ack |= stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL);
 			if (sc->rch[2].channel)
 				chn_intr(sc->rch[2].channel);
 		}
@@ -959,7 +1003,7 @@ emu_intr(void *p)
 		}
 		if (stat & IPR_SAMPLERATETRACKER) {
 			ack |= IPR_SAMPLERATETRACKER;
-			device_printf(sc->dev, "sample rate tracker lock status change\n");
+			/* device_printf(sc->dev, "sample rate tracker lock status change\n"); */
 		}
 
 		if (stat & ~ack)
@@ -968,18 +1012,6 @@ emu_intr(void *p)
 		emu_wr(sc, IPR, stat, 4);
 	}
 }
-
-static kobj_method_t emurchan_methods[] = {
-    	KOBJMETHOD(channel_init,		emurchan_init),
-    	KOBJMETHOD(channel_setformat,		emurchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		emurchan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	emurchan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		emurchan_trigger),
-    	KOBJMETHOD(channel_getptr,		emurchan_getptr),
-    	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
-	{ 0, 0 }
-};
-CHANNEL_DECLARE(emurchan);
 
 /* -------------------------------------------------------------------- */
 
@@ -1401,20 +1433,27 @@ emu_pci_probe(device_t dev)
 	case EMU10K1_PCI_ID:
 		s = "Creative EMU10K1";
 		break;
+/*
+	case EMU10K2_PCI_ID:
+		s = "Creative EMU10K2";
+		break;
+*/
+	default:
+		return ENXIO;
 	}
 
-	if (s) device_set_desc(dev, s);
-	return s? 0 : ENXIO;
+	device_set_desc(dev, s);
+	return 0;
 }
 
 static int
 emu_pci_attach(device_t dev)
 {
-	u_int32_t	data;
-	struct sc_info *sc;
 	struct ac97_info *codec = NULL;
-	int		i, mapped;
-	char 		status[SND_STATUSLEN];
+	struct sc_info *sc;
+	u_int32_t data;
+	int i, gotmic;
+	char status[SND_STATUSLEN];
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -1427,39 +1466,26 @@ emu_pci_attach(device_t dev)
 	sc->rev = pci_get_revid(dev);
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	mapped = 0;
-	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
-		sc->regid = PCIR_MAPS + i*4;
-		sc->regtype = SYS_RES_MEMORY;
-		sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
-					     0, ~0, 1, RF_ACTIVE);
-		if (!sc->reg) {
-			sc->regtype = SYS_RES_IOPORT;
-			sc->reg = bus_alloc_resource(dev, sc->regtype,
-						     &sc->regid, 0, ~0, 1,
-						     RF_ACTIVE);
-		}
-		if (sc->reg) {
-			sc->st = rman_get_bustag(sc->reg);
-			sc->sh = rman_get_bushandle(sc->reg);
-			mapped++;
-		}
-	}
-
-	if (mapped == 0) {
+	i = PCIR_MAPS;
+	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &i, 0, ~0, 1, RF_ACTIVE);
+	if (sc->reg == NULL) {
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
 	}
+	sc->st = rman_get_bustag(sc->reg);
+	sc->sh = rman_get_bushandle(sc->reg);
+
+	sc->bufsz = pcm_getbuffersize(dev, 4096, EMU_DEFAULT_BUFSZ, 65536);
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 		/*lowaddr*/1 << 31, /* can only access 0-2gb */
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/262144, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
@@ -1472,24 +1498,22 @@ emu_pci_attach(device_t dev)
 
 	codec = AC97_CREATE(dev, sc, emu_ac97);
 	if (codec == NULL) goto bad;
+	gotmic = (ac97_getcaps(codec) & AC97_CAP_MICCHANNEL)? 1 : 0;
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
-	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	i = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &i, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld",
-		 (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
-		 rman_get_start(sc->reg), rman_get_start(sc->irq));
+	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld", rman_get_start(sc->reg), rman_get_start(sc->irq));
 
-	if (pcm_register(dev, sc, EMU_CHANS, 3)) goto bad;
+	if (pcm_register(dev, sc, EMU_CHANS, gotmic? 3 : 2)) goto bad;
 	for (i = 0; i < EMU_CHANS; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < (gotmic? 3 : 2); i++)
 		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 
 	pcm_setstatus(dev, status);
@@ -1498,9 +1522,9 @@ emu_pci_attach(device_t dev)
 
 bad:
 	if (codec) ac97_destroy(codec);
-	if (sc->reg) bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
+	if (sc->reg) bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, sc->reg);
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
-	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->parent_dmat) bus_dma_tag_destroy(sc->parent_dmat);
 	if (sc->lock) snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
@@ -1521,9 +1545,9 @@ emu_pci_detach(device_t dev)
 	/* shutdown chip */
 	emu_uninit(sc);
 
-	bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, sc->reg);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
-	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	bus_dma_tag_destroy(sc->parent_dmat);
 	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
@@ -1562,10 +1586,14 @@ emujoy_pci_probe(device_t dev)
 		s = "Creative EMU10K1 Joystick";
 		device_quiet(dev);
 		break;
+	case 0x70031102:
+		s = "Creative EMU10K2 Joystick";
+		device_quiet(dev);
+		break;
 	}
 
 	if (s) device_set_desc(dev, s);
-	return s? 0 : ENXIO;
+	return s? -1000 : ENXIO;
 }
 
 static int
