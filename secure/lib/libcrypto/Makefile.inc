@@ -15,8 +15,8 @@ CFLAGS+= -DL_ENDIAN
 
 WITH_RSA?= YES
 
-SRCS+=		buildinf.h openssl/opensslconf.h
-CLEANFILES+=	buildinf.h openssl/opensslconf.h
+SRCS+=		buildinf.h openssl/opensslconf.h openssl/evp.h
+CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/evp.h
 CLEANDIRS+=	openssl
 
 buildinf.h:
@@ -35,3 +35,6 @@ openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 	${INSTALL} ${COPY} -m 444 ${CRYPTO_HDRS} ${EXTRA_HDRS} openssl
+
+openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
+	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
