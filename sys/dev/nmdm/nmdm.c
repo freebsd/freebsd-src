@@ -571,8 +571,8 @@ static void
 nmdm_drvinit(unused)
 	void *unused;
 {
-	cdevsw_add(&nmdm_cdevsw);
 	/* XXX: Gross hack for DEVFS */
+	/* XXX: Yes, very gross.  Should be a _clone methind instead */
 	nmdminit(0);
 }
 
