@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.2 1994/08/02 07:45:21 davidg Exp $
+ *	$Id: procfs_subr.c,v 1.3 1994/10/06 21:06:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,8 @@ loop:
 		break;
 
 	case Pmem:
-		pfs->pfs_mode = (VREAD|VWRITE);
+		pfs->pfs_mode = (VREAD|VWRITE) |
+				(VREAD) >> 3;;
 		break;
 
 	case Pregs:

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.7 1994/10/10 07:55:40 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.8 1995/02/03 06:46:20 davidg Exp $
  */
 
 /*
@@ -429,7 +429,7 @@ procfs_getattr(ap)
 				    procp->p_vmspace->vm_dsize +
 				    procp->p_vmspace->vm_ssize);
 		vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = procp->p_ucred->cr_gid;
+		vap->va_gid = KMEM_GROUP;
 		break;
 
 	case Pregs:
