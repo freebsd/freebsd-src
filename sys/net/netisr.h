@@ -52,6 +52,7 @@
  * interrupt used for scheduling the network code to calls
  * on the lowest level routine of each protocol.
  */
+#define	NETISR_POLL	1		/* polling callback */
 #define	NETISR_IP	2		/* same as AF_INET */
 #define	NETISR_NS	6		/* same as AF_NS */
 #define	NETISR_ATALK    16              /* same as AF_APPLETALK */

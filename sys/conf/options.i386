@@ -208,5 +208,10 @@ NETSMBCRYPTO		opt_netsmb.h
 SMBFS
 
 # -------------------------------
+# Polling device handling
+# -------------------------------
+DEVICE_POLLING		opt_global.h
+
+# -------------------------------
 # EOF
 # -------------------------------

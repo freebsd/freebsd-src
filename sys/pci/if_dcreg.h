@@ -429,7 +429,11 @@ struct dc_desc {
 #define DC_FILTER_HASHONLY	0x10400000
 
 #define DC_MAXFRAGS		16
+#ifdef DEVICE_POLLING
+#define DC_RX_LIST_CNT		192 /* was 64 */
+#else
 #define DC_RX_LIST_CNT		64
+#endif
 #define DC_TX_LIST_CNT		256
 #define DC_MIN_FRAMELEN		60
 #define DC_RXLEN		1536
@@ -681,6 +685,9 @@ struct dc_softc {
 	struct callout_handle	dc_stat_ch;
 #ifdef __alpha__
 	int			dc_srm_media;
+#endif
+#ifdef	DEVICE_POLLING
+	int			rxcycles;	/* ... when polling */
 #endif
 };
 
