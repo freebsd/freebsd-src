@@ -517,5 +517,4 @@ pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_RETURN(PAM_SUCCESS);
 }
 
-
-PAM_MODULE_ENTRY(MODULE_NAME);
+PAM_MODULE_ENTRY("pam_ssh");
