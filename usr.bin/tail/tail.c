@@ -223,7 +223,7 @@ static void
 obsolete(argv)
 	char *argv[];
 {
-	register char *ap, *p, *t;
+	char *ap, *p, *t;
 	size_t len;
 	char *start;
 
