@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -143,7 +144,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	JOB_BUFSIZE	1024
 typedef struct Job {
-	int		pid;	/* The child's process ID */
+	pid_t		pid;	/* The child's process ID */
 
 	struct GNode	*node;	/* The target the child is making */
 
@@ -481,8 +482,8 @@ JobCondPassSig(int signo)
 	Job	*job;
 
 	TAILQ_FOREACH(job, &jobs, link) {
-		DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %d.\n",
-		    signo, job->pid));
+		DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %jd.\n",
+		    signo, (intmax_t)job->pid));
 		KILL(job->pid, signo);
 	}
 }
@@ -853,7 +854,8 @@ JobFinish(Job *job, int *status)
 		}
 
 		if (WIFEXITED(*status)) {
-			DEBUGF(JOB, ("Process %d exited.\n", job->pid));
+			DEBUGF(JOB, ("Process %jd exited.\n",
+			    (intmax_t)job->pid));
 			if (WEXITSTATUS(*status) != 0) {
 				if (usePipes && job->node != lastNode) {
 					MESSAGE(out, job->node);
@@ -876,7 +878,8 @@ JobFinish(Job *job, int *status)
 			}
 
 		} else if (WIFSTOPPED(*status)) {
-			DEBUGF(JOB, ("Process %d stopped.\n", job->pid));
+			DEBUGF(JOB, ("Process %jd stopped.\n",
+			    (intmax_t)job->pid));
 			if (usePipes && job->node != lastNode) {
 				MESSAGE(out, job->node);
 				lastNode = job->node;
@@ -903,8 +906,8 @@ JobFinish(Job *job, int *status)
 				fprintf(out, "*** Continued\n");
 			}
 			if (!(job->flags & JOB_CONTINUING)) {
-				DEBUGF(JOB, ("Warning: process %d was not "
-				    "continuing.\n", job->pid));
+				DEBUGF(JOB, ("Warning: process %jd was not "
+				    "continuing.\n", (intmax_t)job->pid));
 #ifdef notdef
 				/*
 				 * We don't really want to restart a job from
@@ -919,8 +922,8 @@ JobFinish(Job *job, int *status)
 			job->flags &= ~JOB_CONTINUING;
 			TAILQ_INSERT_TAIL(&jobs, job, link);
 			nJobs += 1;
-			DEBUGF(JOB, ("Process %d is continuing locally.\n",
-			    job->pid));
+			DEBUGF(JOB, ("Process %jd is continuing locally.\n",
+			    (intmax_t)job->pid));
 			if (nJobs == maxJobs) {
 				jobFull = TRUE;
 				DEBUGF(JOB, ("Job queue is full.\n"));
@@ -1167,7 +1170,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 static void
 JobExec(Job *job, char **argv)
 {
-	int	    	  cpid;	    	/* ID of new child */
+	pid_t	    	  cpid;	    	/* ID of new child */
 
 	if (DEBUG(JOB)) {
 		int 	  i;
@@ -1192,10 +1195,13 @@ JobExec(Job *job, char **argv)
 		lastNode = job->node;
 	}
 
-	if ((cpid = vfork()) == -1) {
+	if ((cpid = vfork()) == -1)
 		Punt("Cannot fork");
 
-	} else if (cpid == 0) {
+	if (cpid == 0) {
+		/*
+		 * Child
+		 */
 		if (fifoFd >= 0)
 			close(fifoFd);
 
@@ -1254,44 +1260,44 @@ JobExec(Job *job, char **argv)
 		write(STDERR_FILENO, "Could not execute shell\n",
 		    sizeof("Could not execute shell"));
 		_exit(1);
+	}
 
-	} else {
-		job->pid = cpid;
+	/*
+	 * Parent
+	 */
+	job->pid = cpid;
 
-		if (usePipes && (job->flags & JOB_FIRST)) {
-			/*
-			 * The first time a job is run for a node, we set the
-			 * current position in the buffer to the beginning and
-			 * mark another stream to watch in the outputs mask.
-			 */
+	if (usePipes && (job->flags & JOB_FIRST)) {
+		/*
+		 * The first time a job is run for a node, we set the
+		 * current position in the buffer to the beginning and
+		 * mark another stream to watch in the outputs mask.
+		 */
 #ifdef USE_KQUEUE
-			struct kevent	kev[2];
+		struct kevent	kev[2];
 #endif
-			job->curPos = 0;
+		job->curPos = 0;
 
 #if defined(USE_KQUEUE)
-			EV_SET(&kev[0], job->inPipe, EVFILT_READ,
-			    EV_ADD, 0, 0, job);
-			EV_SET(&kev[1], job->pid, EVFILT_PROC,
-			    EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL);
-			if (kevent(kqfd, kev, 2, NULL, 0, NULL) != 0) {
-				/*
-				 * kevent() will fail if the job is already
-				 * finished
-				 */
-				if (errno != EINTR && errno != EBADF &&
-				    errno != ESRCH)
-					Punt("kevent: %s", strerror(errno));
-			}
+		EV_SET(&kev[0], job->inPipe, EVFILT_READ, EV_ADD, 0, 0, job);
+		EV_SET(&kev[1], job->pid, EVFILT_PROC,
+		    EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL);
+		if (kevent(kqfd, kev, 2, NULL, 0, NULL) != 0) {
+			/*
+			 * kevent() will fail if the job is already
+			 * finished
+			 */
+			if (errno != EINTR && errno != EBADF && errno != ESRCH)
+				Punt("kevent: %s", strerror(errno));
+		}
 #else
-			FD_SET(job->inPipe, &outputs);
+		FD_SET(job->inPipe, &outputs);
 #endif /* USE_KQUEUE */
-		}
+	}
 
-		if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
-			fclose(job->cmdFILE);
-			job->cmdFILE = NULL;
-		}
+	if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
+		fclose(job->cmdFILE);
+		job->cmdFILE = NULL;
 	}
 
 	/*
@@ -2005,7 +2011,7 @@ JobDoOutput(Job *job, Boolean finish)
 void
 Job_CatchChildren(Boolean block)
 {
-	int	pid;	/* pid of dead child */
+	pid_t	pid;	/* pid of dead child */
 	Job	*job;	/* job descriptor for dead child */
 	int	status;	/* Exit/termination status */
 
@@ -2022,7 +2028,8 @@ Job_CatchChildren(Boolean block)
 		if (pid <= 0)
 			break;
 
-		DEBUGF(JOB, ("Process %d exited or stopped.\n", pid));
+		DEBUGF(JOB, ("Process %jd exited or stopped.\n",
+		    (intmax_t)pid));
 
 		TAILQ_FOREACH(job, &jobs, link) {
 			if (job->pid == pid)
@@ -2037,13 +2044,14 @@ Job_CatchChildren(Boolean block)
 						break;
 				}
 				if (job == NULL) {
-					Error("Resumed child (%d) not in table",
-					    pid);
+					Error("Resumed child (%jd) "
+					    "not in table", (intmax_t)pid);
 					continue;
 				}
 				TAILQ_REMOVE(&stoppedJobs, job, link);
 			} else {
-				Error("Child (%d) not in table?", pid);
+				Error("Child (%jd) not in table?",
+				    (intmax_t)pid);
 				continue;
 			}
 		} else {
@@ -2706,7 +2714,7 @@ JobInterrupt(int runINTERRUPT, int signo)
 		}
 		if (job->pid) {
 			DEBUGF(JOB, ("JobInterrupt passing signal to child "
-			    "%d.\n", job->pid));
+			    "%jd.\n", (intmax_t)job->pid));
 			KILL(job->pid, signo);
 		}
 	}
@@ -2816,7 +2824,7 @@ Job_AbortAll(void)
 	 * Catch as many children as want to report in at first, then give up
 	 */
 	while (waitpid((pid_t)-1, &foo, WNOHANG) > 0)
-		continue;
+		;
 }
 
 /**
