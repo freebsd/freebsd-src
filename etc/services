@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.24 1996/07/11 21:24:03 pst Exp $
+#	$Id: services,v 1.25 1996/08/22 10:29:28 asami Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1493,6 +1493,9 @@ dlsrpn		2065/tcp   #Data Link Switch Read Port Number
 dlsrpn		2065/udp   #Data Link Switch Read Port Number
 dlswpn		2067/tcp   #Data Link Switch Write Port Number
 dlswpn		2067/udp   #Data Link Switch Write Port Number
+zephyr-clt      2103/udp   #Zephyr serv-hm connection
+zephyr-hm       2104/udp   #Zephyr hostmanager
+zephyr-hm-srv	2105/udp   #Zephyr hm-serv connection
 eklogin		2105/tcp   #Kerberos (v4) encrypted rlogin
 rkinit		2108/tcp   #Kerberos (v4) remote initialization
 ats		2201/tcp   #Advanced Training System Program
