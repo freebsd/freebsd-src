@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.109 1994/11/24 20:35:21 se Exp $
+#	$Id: LINT,v 1.110 1994/11/27 14:59:54 ats Exp $
 #
 
 #
@@ -128,6 +128,8 @@ options		TPCONS			#ISO TP class 0 over X.25
 #  The `ether' pseudo-device provides generic code to handle
 #  Ethernets; it is mandatory when a Ethernet device driver is
 #  configured.
+#  The `sppp' pseudo-device serves a similar role for certain types
+#  of synchronous PPP links (like `cx').
 #  The `sl' pseudo-device implements the Serial Line IP (SLIP) service.
 #  The `ppp' pseudo-device implements the Point-to-Point Protocol.
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
@@ -136,6 +138,7 @@ options		TPCONS			#ISO TP class 0 over X.25
 #  simultaneous BPF clients programs runnable.
 #
 pseudo-device	ether			#Generic Ethernet
+pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loop back device
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
@@ -399,8 +402,9 @@ device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
 
 #
-# Network interfaces: `ed', `el', `ep', `ie', `is', `le', `lnc'
+# Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
 #
+# cx: Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
@@ -412,6 +416,7 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 # ze: PCMCIA ethernet controller.
 #
 
+device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
