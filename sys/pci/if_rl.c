@@ -1093,10 +1093,10 @@ rl_attach(dev)
 	}
 
 	callout_handle_init(&sc->rl_stat_ch);
-	return(0);
 fail:
-	mtx_destroy(&sc->rl_mtx);
-	return(error);
+	if (error != 0)
+		mtx_destroy(&sc->rl_mtx);
+	return (error);
 }
 
 static int
