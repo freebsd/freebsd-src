@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.121 1997/03/09 22:25:46 jkh Exp $
+ * $Id: menus.c,v 1.122 1997/03/10 19:38:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,8 +122,10 @@ clearX11Fonts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
-#define IS_DEVELOPER(dist, extra) (((dist) == (_DIST_DEVELOPER | (extra))) || ((dist) == (_DIST_DEVELOPER | DIST_DES | (extra))))
-#define IS_USER(dist, extra) (((dist) == (_DIST_USER | (extra))) || ((dist) == (_DIST_USER | DIST_DES | (extra))))
+#define IS_DEVELOPER(dist, extra) ((((dist) & (_DIST_DEVELOPER | (extra))) == (_DIST_DEVELOPER | (extra))) || \
+				   (((dist) & (_DIST_DEVELOPER | DIST_DES | (extra))) == (_DIST_DEVELOPER | DIST_DES | (extra))))
+#define IS_USER(dist, extra) ((((dist) & (_DIST_USER | (extra))) == (_DIST_USER | (extra))) || \
+			      (((dist) & (_DIST_USER | DIST_DES | (extra))) == (_DIST_USER | DIST_DES | (extra))))
 
 static int
 checkDistDeveloper(dialogMenuItem *self)
