@@ -41,19 +41,14 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)nfsstat.c	8.1 (Berkeley) 6/6/93";
+/*static char sccsid[] = "From: @(#)nfsstat.c	8.1 (Berkeley) 6/6/93";*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#if BSD >= 199103
-#define NEWVM
-#endif
-#ifndef NEWVM
-#include <sys/vmmac.h>
-#include <sys/ucred.h>
-#include <machine/pte.h>
-#endif
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <nfs/nfsv2.h>
 #include <nfs/nfs.h>
 #include <signal.h>
@@ -67,6 +62,7 @@ static char sccsid[] = "@(#)nfsstat.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+#include <err.h>
 
 struct nlist nl[] = {
 #define	N_NFSSTAT	0
@@ -75,7 +71,9 @@ struct nlist nl[] = {
 };
 kvm_t *kd;
 
-void intpr(), printhdr(), sidewaysintpr(), usage();
+static int deadkernel = 0;
+
+void intpr(void), printhdr(void), sidewaysintpr(u_int), usage(void);
 
 main(argc, argv)
 	int argc;
@@ -123,38 +121,62 @@ main(argc, argv)
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (nlistf != NULL || memf != NULL)
+	if (nlistf != NULL || memf != NULL) {
 		setgid(getgid());
+		deadkernel = 1;
 
-	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == 0) {
-		fprintf(stderr, "nfsstat: kvm_openfiles: %s\n", errbuf);
-		exit(1);
-	}
-	if (kvm_nlist(kd, nl) != 0) {
-		fprintf(stderr, "nfsstat: kvm_nlist: can't get names\n");
-		exit(1);
+		if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY,
+					errbuf)) == 0) {
+			errx(1, "kvm_openfiles: %s", errbuf);
+		}
+		if (kvm_nlist(kd, nl) != 0) {
+			errx(1, "kvm_nlist: can't get names");
+		}
 	}
 
 	if (interval)
-		sidewaysintpr(interval, nl[N_NFSSTAT].n_value);
+		sidewaysintpr(interval);
 	else
-		intpr(nl[N_NFSSTAT].n_value);
+		intpr();
 	exit(0);
+}
+
+/*
+ * Read the nfs stats using sysctl(3) for live kernels, or kvm_read
+ * for dead ones.
+ */
+void
+readstats(struct nfsstats *stp)
+{
+	if(deadkernel) {
+		if(kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, stp,
+			    sizeof *stp) < 0) {
+			err(1, "kvm_read");
+		}
+	} else {
+		int name[3];
+		size_t buflen = sizeof *stp;
+
+		name[0] = CTL_FS;
+		name[1] = MOUNT_NFS;
+		name[2] = NFS_NFSSTATS;
+
+		if(sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
+			err(1, "sysctl");
+		}
+	}
 }
 
 /*
  * Print a description of the nfs stats.
  */
 void
-intpr(nfsstataddr)
-	u_long nfsstataddr;
+intpr(void)
 {
 	struct nfsstats nfsstats;
 
-	if (kvm_read(kd, (u_long)nfsstataddr, (char *)&nfsstats, sizeof(struct nfsstats)) < 0) {
-		fprintf(stderr, "nfsstat: kvm_read failed\n");
-		exit(1);
-	}
+	readstats(&nfsstats);
+
 	printf("Client Info:\n");
 	printf("Rpc Counts:\n");
 	printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
@@ -280,9 +302,8 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * First line printed at top of screen is always cumulative.
  */
 void
-sidewaysintpr(interval, off)
+sidewaysintpr(interval)
 	u_int interval;
-	u_long off;
 {
 	struct nfsstats nfsstats, lastst;
 	int hdrcnt, oldmask;
@@ -298,10 +319,7 @@ sidewaysintpr(interval, off)
 			printhdr();
 			hdrcnt = 20;
 		}
-		if (kvm_read(kd, off, (char *)&nfsstats, sizeof nfsstats) < 0) {
-			fprintf(stderr, "nfsstat: kvm_read failed\n");
-			exit(1);
-		}
+		readstats(&nfsstats);
 		printf("Client: %8d %8d %8d %8d %8d %8d %8d %8d\n",
 		    nfsstats.rpccnt[1]-lastst.rpccnt[1],
 		    nfsstats.rpccnt[4]-lastst.rpccnt[4],
