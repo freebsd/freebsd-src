@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.111 1997/12/24 09:29:06 brian Exp $
+ * $Id: main.c,v 1.112 1997/12/27 13:45:53 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -1098,20 +1098,10 @@ DoLoop(void)
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO)) {
-	pri = PacketCheck(rbuff, n, FL_DIAL);
-	if (pri >= 0) {
-#ifndef NOALIAS
-	  if (mode & MODE_ALIAS) {
-	    VarPacketAliasOut(rbuff, sizeof rbuff);
-	    n = ntohs(((struct ip *) rbuff)->ip_len);
-	  }
-#endif
-	  IpEnqueue(pri, rbuff, n);
-	  dial_up = 1;	/* XXX */
-	}
-	continue;
-      }
+      if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
+	  (pri = PacketCheck(rbuff, n, FL_DIAL)) >= 0)
+        dial_up = 1;
+
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
 #ifndef NOALIAS
