@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.274 1997/11/24 18:35:11 bde Exp $
+ *	$Id: machdep.c,v 1.275 1997/12/03 02:45:46 sef Exp $
  */
 
 #include "apm.h"
@@ -868,7 +868,7 @@ u_int my_tr;				/* which task register setting */
 
 #ifndef NO_F00F_HACK
 struct gate_descriptor *t_idt;
-int has_f00f_bug;
+extern int has_f00f_bug;
 #endif
 
 static struct i386tss dblfault_tss;
@@ -1548,8 +1548,6 @@ f00f_hack(void) {
 	struct region_descriptor r_idt;
 	unsigned char *tmp;
 	int i;
-	vm_offset_t vp;
-	unsigned *pte;
 
 	if (!has_f00f_bug)
 		return;
@@ -1568,7 +1566,6 @@ f00f_hack(void) {
 	bcopy(idt, t_idt, sizeof(idt));
 	r_idt.rd_base = (int)t_idt;
 	lidt(&r_idt);
-	vp = trunc_page(t_idt);
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
