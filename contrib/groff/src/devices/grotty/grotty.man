@@ -40,7 +40,7 @@ translates the output of GNU
 into a form suitable for typewriter-like devices.
 Normally
 .B grotty
-should invoked by using the
+should be invoked by using the
 .B groff
 command
 with a
@@ -122,9 +122,9 @@ escape sequence in
 .SH OPTIONS
 .TP
 .BI \-F dir
-Search the directory
+Prepend directory
 .IB dir /dev name
-for font and device description files;
+to the search path for font and device description files;
 .I name
 is the name of the device, usually
 .BR ascii ,
@@ -239,12 +239,12 @@ of
 .B cp1047
 device.
 .TP
-.B @MACRODIR@/tmac.tty
+.B @MACRODIR@/tty.tmac
 Macros for use with
 .BR grotty .
 .TP
-.B @MACRODIR@/tmac.tty-char
-Additional klugey character definitions for use with
+.B @MACRODIR@/tty-char.tmac
+Additional klugdey character definitions for use with
 .BR grotty .
 .LP
 Note that on EBCDIC hosts, only files for the

@@ -33,6 +33,7 @@ the original English.
 .ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
+.OP \-v
 .OP \-h
 .OP \-i
 .OP \-m name
@@ -60,7 +61,9 @@ option with an argument other than
 .BR utf8 ,
 or
 .B cp1047
-will be ignored.
+will be ignored (and
+.B \-Tascii
+will be used).
 The
 .B \-h
 option
@@ -85,8 +88,10 @@ silently ignores options of
 or
 .BR \-s .
 Options 
-.BR \-p ,
-.BR \-t ,
+.B \-p
+(pic),
+.B \-t
+(tbl),
 .B \-S
 (safer) and
 .B \-U
@@ -94,11 +99,20 @@ Options
 .BR groff . 
 .B \-S
 is passed by default.
+.B \-v
+shows the version number.
+.SH ENVIRONMENT
+.TP
+.SM
+.B GROFF_BIN_PATH
+A colon separated list of directories in which to search for the
+.B groff
+executable.  If unset, `@BINDIR@' is used.
 .SH NOTES
 This shell script is basically intended for use with
 .BR man (1),
 so warnings are suppressed.
-nroff-style character definitions (in the file tmac.tty-char) are also
+nroff-style character definitions (in the file tty-char.tmac) are also
 loaded to emulate unrepresentable glyphs.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),

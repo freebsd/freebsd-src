@@ -81,7 +81,7 @@ For PostScript printers and previewers
 For TeX dvi format.
 .TP
 .B X75
-For a 75 dpi X11 previewer.
+For a 75dpi X11 previewer.
 .TP
 .B X100
 For a 100dpi X11 previewer.
@@ -217,10 +217,12 @@ to
 before passing it to the postprocessor.
 .TP
 .B \-l
-Send the output to a printer.
+Send the output to a spooler for printing.
 The command used for this is specified by the
 .B print
-command in the device description file.
+command in the device description file (if not present,
+.B \-l
+has no effect).
 .TP
 .BI \-L arg
 Pass
@@ -236,6 +238,11 @@ does not prepend
 to
 .I arg
 before passing it to the postprocessor.
+If there is no
+.B print
+command in the device description file,
+.B \-L
+is ignored.
 .TP
 .BI \-T dev
 Prepare output for device
@@ -274,11 +281,16 @@ Safer mode.  Pass the
 .B \-S
 option to
 .B @g@pic
-and use the
-.B \%\-msafer
-macros with
+and disable the following
 .B @g@troff
-(enabled by default).
+requests:
+.BR .open ,
+.BR .opena ,
+.BR .pso ,
+.BR .sy ,
+and
+.BR .pi .
+For security reasons, safer mode is enabled by default.
 .TP
 .B \-U
 Unsafe mode.  Reverts to the old unsafe behaviour.
@@ -347,7 +359,10 @@ and
 .SM
 .B GROFF_TMAC_PATH
 A colon separated list of directories in which to search for
-macro files.
+macro files in addition to the default directories.
+See
+.BR troff (1)
+for more details.
 .TP
 .SM
 .B GROFF_TYPESETTER
@@ -357,12 +372,19 @@ Default device.
 .B GROFF_FONT_PATH
 A colon separated list of directories in which to search for the
 .BI dev name
-directory.
+directory in addition to the default one.
+See
+.BR troff (1)
+for more details.
 .TP
 .SM
-.B PATH
-The search path for commands executed by
+.B GROFF_BIN_PATH
+This search path, followed by
+.BR PATH ,
+will be used for commands executed by
 .BR groff .
+If not set, `@BINDIR@' is prepended to
+.BR PATH .
 .TP
 .SM
 .B GROFF_TMPDIR
@@ -467,5 +489,4 @@ The actual version can be found at
 .BR groff_man (@MAN7EXT@),
 .BR groff_ms (@MAN7EXT@),
 .BR groff_me (@MAN7EXT@),
-.BR groff_char (@MAN7EXT@),
-.BR groff_msafer (@MAN7EXT@)
+.BR groff_char (@MAN7EXT@)
