@@ -32,7 +32,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2001
+.Dd March 10, 2002
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -120,7 +120,9 @@ few bytes.
 .Pp
 The information available from
 .Nm
-consists of integers, strings, and opaques.
+consists of integers, strings, devices
+.Pq Vt dev_t ,
+and opaque types.
 .Nm Sysctl
 only knows about a couple of opaque types, and will resort to hexdumps
 for the rest.
@@ -136,6 +138,17 @@ For a detailed description of these variable see
 .Pp
 The changeable column indicates whether a process with appropriate
 privilege can change the value.
+String, integer, and devices values can be set using
+.Nm .
+For device values,
+.Ar value
+can be specified as a character device special file name.
+Special values
+.Ar off
+and
+.Ar none
+denote
+.Dq no device .
 .Bl -column security.bsd.unprivileged_read_msgbuf integerxxx
 .It Sy "Name	Type	Changeable
 .It "kern.ostype	string	no
@@ -164,6 +177,7 @@ privilege can change the value.
 .It "kern.osreldate	string	no
 .It "kern.bootfile	string	yes
 .It "kern.corefile	string	yes
+.It "kern.dumpdev	dev_t	yes
 .It "kern.logsigexit	integer	yes
 .It "security.bsd.suser_enabled	integer	yes
 .It "security.bsd.see_other_uids	integer	yes
@@ -213,6 +227,14 @@ To set the maximum number of processes allowed
 per uid to 1000, one would use the following request:
 .Pp
 .Dl "sysctl kern.maxprocperuid=1000"
+.Pp
+The device used for crash dumps can be specified using:
+.Pp
+.Dl "sysctl kern.dumpdev=/dev/somedev"
+.Pp
+which is equivalent to
+.Pp
+.Dl "dumpon /dev/somedev"
 .Pp
 Information about the system clock rate may be obtained with:
 .Pp
