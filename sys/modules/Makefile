@@ -233,7 +233,6 @@ SUBDIR+=3dfx \
 
 .if ${MACHINE} == "i386"
 SUBDIR+=aac \
-	acpi \
 	asr \
 	bios \
 	cardbus \
