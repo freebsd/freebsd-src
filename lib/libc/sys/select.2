@@ -162,8 +162,13 @@ The default size
 the current kernel limit to the number of open files.
 However, in order to accommodate programs which might potentially
 use a larger number of open files with select, it is possible
-to increase this size within a program by providing
+to increase this size within a kernel by providing
 a larger definition of
+.Dv FD_SETSIZE
+in kernel configuration file and rebuilding a kernel.
+To increase default limit user program must define its own
+.Dv FD_SETSIZE
+which is less or equal new kernel
 .Dv FD_SETSIZE
 before the inclusion of
 .Aq Pa sys/types.h .
