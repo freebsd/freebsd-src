@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.7 1996/10/20 09:27:45 markm Exp $
 #
 
 LIB=	gmp
@@ -66,12 +66,14 @@ SRCS=	memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c mp_bpl.c \
 	extract-double.c insert-double.c \
 	${MPN_SRCS} ${MPZ_SRCS} ${MPF_SRCS} ${MPQ_SRCS}
 
-.ifmake all || depend
-.BEGIN:
-	cp -f ${GMPDIR}/mpn/bsd.h sysdep.h
+sysdep.h: ${GMPDIR}/mpn/bsd.h
+	cp ${GMPDIR}/mpn/bsd.h sysdep.h
+
+asm-syntax.h:
 	(echo "#define BSD_SYNTAX" ; \
 		echo "#include \"syntax.h\"") > asm-syntax.h
-.endif
+
+beforedepend all: mpz mpf mpq sysdep.h asm-syntax.h
 
 CLEANFILES+=	sysdep.h asm-syntax.h
 
@@ -79,16 +81,11 @@ CLEANFILES+=	sysdep.h asm-syntax.h
 # same name. Nasty hack to keep them from being found by being in
 # .PATH:s
 #
+mpz mpf mpq:
 .if exists(${.OBJDIR})
-beforedepend:
-	test -d ${.OBJDIR}/mpz || mkdir ${.OBJDIR}/mpz
-	test -d ${.OBJDIR}/mpf || mkdir ${.OBJDIR}/mpf
-	test -d ${.OBJDIR}/mpq || mkdir ${.OBJDIR}/mpq
+	mkdir ${.OBJDIR}/$@
 .else
-beforedepend:
-	test -d ${.CURDIR}/mpz || mkdir ${.CURDIR}/mpz
-	test -d ${.OBJDIR}/mpf || mkdir ${.OBJDIR}/mpf
-	test -d ${.OBJDIR}/mpq || mkdir ${.OBJDIR}/mpq
+	mkdir ${.CURDIR}/$@
 .endif
 
 CLEANDIRS+=	${.OBJDIR}/mpz ${.CURDIR}/mpz \
