@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.10 1998/01/05 00:14:54 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.11 1998/02/07 00:28:25 alex Exp $
  */
 
 /*
@@ -454,8 +454,18 @@ ip_fw_chk(struct ip **pip, int hlen,
 
 			if (offset == 1)	/* cf. RFC 1858 */
 				goto bogusfrag;
-			if (offset != 0)	/* Flags, ports aren't valid */
+			if (offset != 0) {
+				/*
+				 * TCP flags and ports aren't available in this
+				 * packet -- if this rule specified either one,
+				 * we consider the rule a non-match.
+				 */
+				if (f->fw_nports != 0 ||
+				    f->fw_tcpf != f->fw_tcpnf)
+					continue;
+
 				break;
+			}
 			PULLUP_TO(hlen + 14);
 			tcp = (struct tcphdr *) ((u_long *)ip + ip->ip_hl);
 			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
@@ -469,8 +479,17 @@ ip_fw_chk(struct ip **pip, int hlen,
 		    {
 			struct udphdr *udp;
 
-			if (offset != 0)	/* Ports aren't valid */
+			if (offset != 0) {
+				/*
+				 * Port specification is unavailable -- if this
+				 * rule specifies a port, we consider the rule
+				 * a non-match.
+				 */
+				if (f->fw_nports != 0)
+					continue;
+
 				break;
+			}
 			PULLUP_TO(hlen + 4);
 			udp = (struct udphdr *) ((u_long *)ip + ip->ip_hl);
 			src_port = ntohs(udp->uh_sport);
@@ -836,6 +855,19 @@ check_ipfw_struct(struct ip_fw *frwl)
 		(frwl->fw_dst.s_addr & (~frwl->fw_dmsk.s_addr))) {
 		dprintf(("%s rule never matches\n", err_prefix));
 		return(NULL);
+	}
+
+	if ((frwl->fw_flg & IP_FW_F_FRAG) &&
+		(frwl->fw_prot == IPPROTO_UDP || frwl->fw_prot == IPPROTO_TCP)) {
+		if (frwl->fw_nports) {
+			dprintf(("%s cannot mix 'frag' and ports\n", err_prefix));
+			return(NULL);
+		}
+		if (frwl->fw_prot == IPPROTO_TCP &&
+			frwl->fw_tcpf != frwl->fw_tcpnf) {
+			dprintf(("%s cannot mix 'frag' with TCP flags\n", err_prefix));
+			return(NULL);
+		}
 	}
 
 	/* Check command specific stuff */

@@ -275,6 +275,12 @@ and the length of the port list is limited to
 .Pa /usr/src/sys/netinet/ip_fw.h )
 ports.
 .Pp
+Fragmented packets which have a non-zero offset (i.e. not the first
+fragment) will never match a rule which has one or more port
+specifications.  See the
+.Ar frag
+option for details on matching fragmented packets.
+.Pp
 Rules can apply to packets when they are incoming, or outgoing, or both.
 The
 .Ar in
@@ -346,6 +352,10 @@ Additional
 .It frag
 Matches if the packet is a fragment and this is not the first fragment
 of the datagram.
+.Ar frag
+may not be used in conjunction with either
+.Ar tcpflags
+or TCP/UDP port specifications.
 .It in
 Matches if this packet was on the way in.
 .It out
@@ -385,6 +395,12 @@ and
 .Ar urg .
 The absence of a particular flag may be denoted
 with a ``!''.
+A rule which contains a
+.Ar tcpflags
+specification can never match a fragmented packet which has
+a non-zero offset.  See the
+.Ar frag
+option for details on matching fragmented packets.
 .It icmptypes Ar types
 Matches if the ICMP type is in the list
 .Ar types .
