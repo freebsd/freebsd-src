@@ -3885,7 +3885,10 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	if (nstate == IEEE80211_S_INIT) {
 		sc->sc_imask &= ~(HAL_INT_SWBA | HAL_INT_BMISS);
-		ath_hal_intrset(ah, sc->sc_imask);
+		/*
+		 * NB: disable interrupts so we don't rx frames.
+		 */
+		ath_hal_intrset(ah, sc->sc_imask &~ ~HAL_INT_GLOBAL);
 		/*
 		 * Notify the rate control algorithm.
 		 */
