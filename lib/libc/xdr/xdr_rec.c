@@ -489,15 +489,6 @@ xdrrec_eof(xdrs)
 	XDR *xdrs;
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
-	enum xprt_stat xstat;
-
-	if (rstrm->nonblock) {
-		if (__xdrrec_getrec(xdrs, &xstat, FALSE))
-			return FALSE;
-		if (!rstrm->in_haveheader && xstat == XPRT_IDLE)
-			return TRUE;
-		return FALSE;
-	}
 
 	while (rstrm->fbtbc > 0 || (! rstrm->last_frag)) {
 		if (! skip_input_bytes(rstrm, rstrm->fbtbc))
@@ -719,6 +710,8 @@ set_input_fragment(rstrm)
 {
 	u_int32_t header;
 
+	if (rstrm->nonblock)
+		return FALSE;
 	if (! get_input_bytes(rstrm, (char *)(void *)&header, sizeof(header)))
 		return (FALSE);
 	header = ntohl(header);
