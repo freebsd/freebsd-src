@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.58 1998/10/25 17:44:51 phk Exp $
+ * $Id: kern_lkm.c,v 1.59 1998/11/10 09:12:40 peter Exp $
  */
 
 #include "opt_devfs.h"
-#include "opt_no_lkm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,16 +77,6 @@ static int	lkm_state = LKMS_IDLE;
 
 static struct lkm_table	lkmods[MAXLKMS];	/* table of loaded modules */
 static struct lkm_table	*curp;			/* global for in-progress ops */
-
-/*
- * XXX this bloat just exands the sysctl__vfs linker set a little so that
- * we can attach sysctls for VFS LKMs without expanding the linker set.
- * Currently (1998/09/06), only one VFS uses sysctls, so 2 extra linker
- * set slots are more than sufficient.
- */
-extern struct linker_set sysctl__vfs;
-SYSCTL_INT(_vfs, OID_AUTO, lkm0, CTLFLAG_RD, &lkm_v, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lkm1, CTLFLAG_RD, &lkm_v, 0, "");
 
 static int	_lkm_dev __P((struct lkm_table *lkmtp, int cmd));
 static int	_lkm_exec __P((struct lkm_table *lkmtp, int cmd));
@@ -491,21 +480,6 @@ lkmcioctl(dev, cmd, data, flag, p)
 	return (err);
 }
 
-/*
- * Acts like "nosys" but can be identified in sysent for dynamic call
- * number assignment for a limited number of calls.
- *
- * Place holder for system call slots reserved for loadable modules.
- */
-int
-lkmnosys(p, args)
-	struct proc *p;
-	struct nosys_args *args;
-{
-
-	return(nosys(p, args));
-}
-
 int
 lkmexists(lkmtp)
 	struct lkm_table *lkmtp;
@@ -548,35 +522,16 @@ _lkm_syscall(lkmtp, cmd)
 		/* don't load twice! */
 		if (lkmexists(lkmtp))
 			return(EEXIST);
-		if ((i = args->lkm_offset) == LKM_ANON) {	/* auto */
-			/*
-			 * Search the table looking for a slot...
-			 */
-			for (i = 0; i < aout_sysvec.sv_size; i++)
-				if (aout_sysvec.sv_table[i].sy_call ==
-				    (sy_call_t *)lkmnosys)
-					break;		/* found it! */
-			/* out of allocable slots? */
-			if (i == aout_sysvec.sv_size) {
-				err = ENFILE;
-				break;
-			}
-		} else {				/* assign */
-			if (i < 0 || i >= aout_sysvec.sv_size) {
-				err = EINVAL;
-				break;
-			}
-		}
 
-		/* save old */
-		bcopy(&aout_sysvec.sv_table[i],
-		      &(args->lkm_oldent),
-		      sizeof(struct sysent));
+		if (args->lkm_offset == LKM_ANON)
+			i = NO_SYSCALL;
+		else
+			i = args->lkm_offset;
 
-		/* replace with new */
-		bcopy(args->lkm_sysent,
-		      &aout_sysvec.sv_table[i],
-		      sizeof(struct sysent));
+		err = syscall_register(&i, args->lkm_sysent,
+			&(args->lkm_oldent));
+		if (err)
+			return(err);
 
 		/* done! */
 		args->lkm_offset = i;	/* slot in sysent[] */
@@ -587,11 +542,9 @@ _lkm_syscall(lkmtp, cmd)
 		/* current slot... */
 		i = args->lkm_offset;
 
-		/* replace current slot contents with old contents */
-		bcopy(&(args->lkm_oldent),
-		      &aout_sysvec.sv_table[i],
-		      sizeof(struct sysent));
-
+		err = syscall_deregister(&i, &(args->lkm_oldent));
+		if (err)
+			return(err);
 		break;
 
 	case LKM_E_STAT:	/* no special handling... */
@@ -611,11 +564,8 @@ _lkm_vfs(lkmtp, cmd)
 	int cmd;
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
-	struct linker_set *l;
-	struct sysctl_oid **oidpp;
 	struct vfsconf *vfc = args->lkm_vfsconf;
-	struct vfsconf *vfsp, *prev_vfsp;
-	int error, i, maxtypenum;
+	int error, i;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -623,38 +573,13 @@ _lkm_vfs(lkmtp, cmd)
 		if (lkmexists(lkmtp))
 			return(EEXIST);
 
-		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next) {
-			if (!strcmp(vfc->vfc_name, vfsp->vfc_name)) {
-				return EEXIST;
-			}
-		}
-
-		args->lkm_offset = vfc->vfc_typenum = maxvfsconf++;
-		if (vfc->vfc_vfsops->vfs_oid != NULL) {
-			l = &sysctl__vfs;
-			for (i = l->ls_length,
-			    oidpp = (struct sysctl_oid **)l->ls_items;
-			    i--; oidpp++) {
-				if (!*oidpp || *oidpp == &sysctl___vfs_lkm0 ||
-				    *oidpp == &sysctl___vfs_lkm1) {
-					*oidpp = vfc->vfc_vfsops->vfs_oid;
-					(*oidpp)->oid_number = vfc->vfc_typenum;
-					sysctl_order_all();
-					break;
-				}
-			}
-		}
-
-		vfsp->vfc_next = vfc;
-		vfc->vfc_next = NULL;
-
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
 			vfs_add_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
+		error = vfs_register(vfc);
+		if (error)
+			return(error);
 
-		/*
-		 * Call init function for this VFS...
-		 */
-	 	(*(vfc->vfc_vfsops->vfs_init))(vfc);
+		args->lkm_offset = vfc->vfc_typenum;
 
 		/* done! */
 		break;
@@ -663,52 +588,12 @@ _lkm_vfs(lkmtp, cmd)
 		/* current slot... */
 		i = args->lkm_offset;
 
-		prev_vfsp = NULL;
-		for (vfsp = vfsconf; vfsp;
-				prev_vfsp = vfsp, vfsp = vfsp->vfc_next) {
-			if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
-				break;
-		}
-		if (vfsp == NULL) {
-			return EINVAL;
-		}
-
-		if (vfsp->vfc_refcount) {
-			return EBUSY;
-		}
-
-		if (vfc->vfc_vfsops->vfs_uninit != NULL) {
-			error = (*vfc->vfc_vfsops->vfs_uninit)(vfsp);
-			if (error)
-				return (error);
-		}
-
-		prev_vfsp->vfc_next = vfsp->vfc_next;
+		error = vfs_unregister(vfc);
+		if (error)
+			return(error);
 
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
 			vfs_rm_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
-
-		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
-			l = &sysctl__vfs;
-			for (i = l->ls_length,
-			    oidpp = (struct sysctl_oid **)l->ls_items;
-			    i--; oidpp++) {
-				if (*oidpp == vfsp->vfc_vfsops->vfs_oid) {
-					*oidpp = NULL;
-					sysctl_order_all();
-					break;
-				}
-			}
-		}
-
-		/*
-		 * Maintain maxvfsconf.
-		 */
-		maxtypenum = 0;
-		for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
-			if (maxtypenum < vfsp->vfc_typenum)
-				maxtypenum = vfsp->vfc_typenum;
-		maxvfsconf = maxtypenum + 1;
 
 		break;
 
@@ -914,27 +799,40 @@ lkm_nullcmd(lkmtp, cmd)
 	return (0);
 }
 
-static lkm_devsw_installed = 0;
 #ifdef DEVFS
 static void	*lkmc_devfs_token;
 #endif
 
-static void 	lkm_drvinit(void *unused)
+static int
+lkm_modevent(module_t mod, int type, void *data)
 {
 	dev_t dev;
+	static struct cdevsw *oldcdevsw;
 
-	if( ! lkm_devsw_installed ) {
+	switch (type) {
+	case MOD_LOAD:
 		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&lkmc_cdevsw, NULL);
-		lkm_devsw_installed = 1;
+		cdevsw_add(&dev, &lkmc_cdevsw, &oldcdevsw);
 #ifdef DEVFS
 		lkmc_devfs_token = devfs_add_devswf(&lkmc_cdevsw, 0, DV_CHR,
 						    UID_ROOT, GID_WHEEL, 0644,
 						    "lkm");
 #endif
-    	}
-}
-
-#ifndef NO_LKM
-SYSINIT(lkmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lkm_drvinit,NULL)
+		break;
+	case MOD_UNLOAD:
+#ifdef DEVFS
+		devfs_remove_dev(lkmc_devfs_token);
 #endif
+		cdevsw_add(&dev, oldcdevsw, NULL);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+static moduledata_t lkm_mod = {
+	"lkm",
+	lkm_modevent,
+	NULL
+};
+DECLARE_MODULE(lkm, lkm_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
