@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2001
+.Dd March 28, 2005
 .Os
 .Dt MAKE_DEV 9
 .Sh NAME
@@ -33,24 +33,24 @@
 .Nm destroy_dev ,
 .Nm dev_depends
 .Nd manage
-.Vt dev_t Ns 's
+.Vt cdev Ns 's
 and DEVFS registration for devices
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/conf.h
-.Ft dev_t
+.Ft struct cdev
 .Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
-.Ft dev_t
-.Fn make_dev_alias "dev_t pdev" "const char *fmt" ...
+.Ft struct cdev
+.Fn make_dev_alias "struct cdev pdev" "const char *fmt" ...
 .Ft void
-.Fn destroy_dev "dev_t dev"
+.Fn destroy_dev "struct cdev dev"
 .Ft void
-.Fn dev_depends "dev_t pdev" "dev_t cdev"
+.Fn dev_depends "struct cdev pdev" "struct cdev cdev"
 .Sh DESCRIPTION
 The
 .Fn make_dev
 function creates a
-.Fa dev_t
+.Fa cdev
 structure for a new device.
 If DEVFS is available, it is also notified of
 the presence of the new device.
@@ -92,7 +92,7 @@ are defined in
 The
 .Fn make_dev_alias
 function takes the returned
-.Ft dev_t
+.Ft cdev
 from
 .Fn make_dev
 and makes another (aliased) name for this device.
@@ -104,7 +104,7 @@ prior to calling
 The
 .Fn destroy_dev
 function takes the returned
-.Fa dev_t
+.Fa cdev
 from
 .Fn make_dev
 and destroys the registration for that device.
