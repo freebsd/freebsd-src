@@ -175,12 +175,13 @@ rman_fini(struct rman *rm)
 }
 
 struct resource *
-rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
-		      u_int flags, struct device *dev)
+rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
+		      u_long count, u_long bound,  u_int flags,
+		      struct device *dev)
 {
 	u_int	want_activate;
 	struct	resource *r, *s, *rv;
-	u_long	rstart, rend;
+	u_long	rstart, rend, amask, bmask;
 
 	rv = 0;
 
@@ -202,6 +203,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 		goto out;
 	}
 
+	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
+	/* If bound is 0, bmask will also be 0 */
+	bmask = ~(bound - 1);
 	/*
 	 * First try to find an acceptable totally-unshared region.
 	 */
@@ -215,10 +219,19 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			DPRINTF(("region is allocated\n"));
 			continue;
 		}
-		rstart = max(s->r_start, start);
-		rstart = (rstart + ((1ul << RF_ALIGNMENT(flags))) - 1) &
-		    ~((1ul << RF_ALIGNMENT(flags)) - 1);
-		rend = min(s->r_end, max(rstart + count, end));
+		rstart = ulmax(s->r_start, start);
+		/*
+		 * Try to find a region by adjusting to boundary and alignment
+		 * until both conditions are satisfied. This is not an optimal
+		 * algorithm, but in most cases it isn't really bad, either.
+		 */
+		do {
+			rstart = (rstart + amask) & ~amask;
+			if (((rstart ^ (rstart + count)) & bmask) != 0)
+				rstart += bound - (rstart & ~bmask);
+		} while ((rstart & amask) != 0 && rstart < end &&
+		    rstart < s->r_end);
+		rend = ulmin(s->r_end, ulmax(rstart + count, end));
 		DPRINTF(("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
 		       rstart, rend, (rend - rstart + 1), count));
 
@@ -313,10 +326,12 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			break;
 		if ((s->r_flags & flags) != flags)
 			continue;
-		rstart = max(s->r_start, start);
-		rend = min(s->r_end, max(start + count, end));
+		rstart = ulmax(s->r_start, start);
+		rend = ulmin(s->r_end, ulmax(start + count, end));
 		if (s->r_start >= start && s->r_end <= end
-		    && (s->r_end - s->r_start + 1) == count) {
+		    && (s->r_end - s->r_start + 1) == count &&
+		    (s->r_start & amask) == 0 &&
+		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
 			if (rv == 0)
 				goto out;
@@ -366,6 +381,15 @@ out:
 			
 	mtx_unlock(rm->rm_mtx);
 	return (rv);
+}
+
+struct resource *
+rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
+		      u_int flags, struct device *dev)
+{
+
+	return (rman_reserve_resource_bound(rm, start, end, count, 0, flags,
+	    dev));
 }
 
 static int
@@ -575,7 +599,7 @@ rman_make_alignment_flags(uint32_t size)
 	 * Find the hightest bit set, and add one if more than one bit
 	 * set.  We're effectively computing the ceil(log2(size)) here.
 	 */
-	for (i = 32; i > 0; i--)
+	for (i = 31; i > 0; i--)
 		if ((1 << i) & size)
 			break;
 	if (~(1 << i) & size)
