@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.56 1999/04/27 11:16:19 phk Exp $
+ * $Id: tty_pty.c,v 1.57 1999/05/08 06:39:43 phk Exp $
  */
 
 /*
@@ -674,8 +674,7 @@ ptyioctl(dev, cmd, data, flag, p)
 			tp->t_lflag &= ~EXTPROC;
 		}
 		return(0);
-	} else
-	if (devsw(dev)->d_open == ptcopen)
+	} else if (devsw(dev)->d_open == ptcopen) {
 		switch (cmd) {
 
 		case TIOCGPGRP:
@@ -711,7 +710,16 @@ ptyioctl(dev, cmd, data, flag, p)
 				pti->pt_flags &= ~PF_REMOTE;
 			ttyflush(tp, FREAD|FWRITE);
 			return (0);
+		}
 
+		/*
+		 * The rest of the ioctls shouldn't be called until 
+		 * the slave is open. (Should we return an error?)
+		 */
+		if ((tp->t_state & TS_ISOPEN) == 0)
+			return (0);
+
+		switch (cmd) {
 #ifdef COMPAT_43
 		case TIOCSETP:
 		case TIOCSETN:
@@ -735,6 +743,7 @@ ptyioctl(dev, cmd, data, flag, p)
 				ttyinfo(tp);
 			return(0);
 		}
+	}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error == ENOIOCTL)
 		 error = ttioctl(tp, cmd, data, flag);
