@@ -35,6 +35,8 @@
 /* ksched: Soft real time scheduling based on "rtprio".
  */
 
+#include "opt_posix.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>

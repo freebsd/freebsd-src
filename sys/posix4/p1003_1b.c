@@ -35,6 +35,8 @@
 /* p1003_1b: Real Time common code.
  */
 
+#include "opt_posix.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
