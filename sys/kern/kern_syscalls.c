@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $Id: kern_syscalls.c,v 1.1 1999/01/03 06:00:55 root Exp root $
+ *     $Id: kern_syscalls.c,v 1.1 1999/01/09 14:15:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -72,6 +72,7 @@ int
 syscall_module_handler(struct module *mod, int what, void *arg)
 {
        struct syscall_module_data *data = (struct syscall_module_data*)arg;
+       modspecific_t ms;
        int error;
 
        switch (what) {
@@ -80,6 +81,8 @@ syscall_module_handler(struct module *mod, int what, void *arg)
                                         &data->old_sysent);
                if (error)
                        return error;
+	       ms.intval = *data->offset;
+	       module_setspecific(mod, &ms);
                break;
        case MOD_UNLOAD :
                error = syscall_deregister(data->offset, &data->old_sysent);
