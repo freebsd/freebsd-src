@@ -39,6 +39,10 @@
 "void (*lock_release)(void *lock)" "void (*lock_destroy)(void *lock)" \
 "void (*context_destroy)(void *context)"
 .Sh DESCRIPTION
+.Bf Sy
+This interface is subject to change and should not be used yet.
+.Ef
+.Pp
 Threads packages can call
 .Nm
 at initialization time to register locking functions for the dynamic

@@ -51,8 +51,11 @@ void
 lockdflt_acquire(void *lock)
 {
     LockDflt *l = (LockDflt *)lock;
-    sigprocmask(SIG_BLOCK, &l->lock_mask, &l->old_mask);
-    assert(l->depth == 0);
+    sigset_t old_mask;
+
+    sigprocmask(SIG_BLOCK, &l->lock_mask, &old_mask);
+    if (l->depth == 0)
+	l->old_mask = old_mask;
     l->depth++;
 }
 
@@ -81,9 +84,10 @@ void
 lockdflt_release(void *lock)
 {
     LockDflt *l = (LockDflt *)lock;
-    assert(l->depth == 1);
     l->depth--;
-    sigprocmask(SIG_SETMASK, &l->old_mask, NULL);
+    assert(l->depth >= 0);
+    if (l->depth == 0)
+	sigprocmask(SIG_SETMASK, &l->old_mask, NULL);
 }
 
 void
