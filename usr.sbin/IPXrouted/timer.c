@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: timer.c,v 1.3 1997/02/22 16:01:03 peter Exp $
  */
 
 #ifndef lint
@@ -60,11 +60,10 @@ timer()
 {
 	register struct rthash *rh;
 	register struct rt_entry *rt;
-	struct rthash *base = hosthash;
 	register struct sap_hash *sh;
 	register struct sap_entry *sap;
 	struct sap_hash *sap_base = sap_head;
-	int doinghost = 1, timetobroadcast, ripbroadcast, sapbroadcast;
+	int timetobroadcast, ripbroadcast, sapbroadcast;
 
 	timeval += TIMER_RATE;
 	if (lookforinterfaces && (timeval % CHECK_INTERVAL) == 0)
@@ -74,8 +73,7 @@ timer()
 			(timeval % RIP_INTERVAL) == 0;
 	sapbroadcast = timetobroadcast && dosap && !ripbroadcast;
 
-again:
-	for (rh = base; rh < &base[ROUTEHASHSIZ]; rh++) {
+	for (rh = nethash; rh < &nethash[ROUTEHASHSIZ]; rh++) {
 		rt = rh->rt_forw;
 		for (; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 			if (rt->rt_clone) {
@@ -112,8 +110,10 @@ again:
 			if (!(rt->rt_state & RTS_PASSIVE) &&
 			    !(rt->rt_state & RTS_INTERFACE))
 				rt->rt_timer += TIMER_RATE;
-			if (rt->rt_timer >= EXPIRE_TIME)
+			if (rt->rt_timer >= EXPIRE_TIME) {
 				rt->rt_metric = HOPCNT_INFINITY;
+				rt->rt_state |= RTS_CHANGED;
+			}
 			if (rt->rt_timer >= GARBAGE_TIME) {
 				rt = rt->rt_back;
 				/* Perhaps we should send a REQUEST for this route? */
@@ -125,6 +125,8 @@ again:
 				/* don't send extraneous packets */
 				if (!supplier || ripbroadcast)
 					continue;
+				if ((rt->rt_metric + 1) == HOPCNT_INFINITY)
+					continue;
 				msg->rip_cmd = htons(RIPCMD_RESPONSE);
 				msg->rip_nets[0].rip_dst =
 					(satoipx_addr(rt->rt_dst)).x_net;
@@ -132,17 +134,12 @@ again:
 				   	htons(min(rt->rt_metric+1, HOPCNT_INFINITY));
 				msg->rip_nets[0].rip_ticks = 
 					htons(rt->rt_ticks + 1);
-				toall(sndmsg, rt);
+				toall(sndmsg, rt, 0);
 			}
 		}
 	}
-	if (doinghost) {
-		doinghost = 0;
-		base = nethash;
-		goto again;
-	}
 	if (ripbroadcast)
-		toall(supply, NULL);
+		toall(supply, NULL, 0);
 
 	/* 
 	 * Now do the SAP stuff.
@@ -172,8 +169,10 @@ again:
 				}
 			}
 			sap->timer += TIMER_RATE;
-			if (sap->timer >= EXPIRE_TIME)
-				sap->metric = HOPCNT_INFINITY;
+			if (sap->timer >= EXPIRE_TIME) {
+				sap->sap.hops = htons(HOPCNT_INFINITY);
+				sap->state |= RTS_CHANGED;
+			}
 			if (sap->timer >= GARBAGE_TIME) {
 				sap = sap->back;
 				/* Perhaps we should send a REQUEST for this route? */
@@ -183,13 +182,27 @@ again:
 			/*
 			 * XXX sap_sndmsg on RTS_CHANGED
 			 */
+			if (sap->state & RTS_CHANGED) {
+				sap->state &= ~RTS_CHANGED;
+#ifdef notyet
+				/* don't send extraneous packets */
+				if (!supplier || sapbroadcast)
+					continue;
+				if ((ntohs(sap->sap.hops) + 1) == HOPCNT_INFINITY)
+					continue;
+				sap_msg->sap_cmd = htons(SAP_RESP);
+				sap_msg->sap[0] = sap->sap;
+				sap_msg->sap[0].hops =
+				    htons(min(sap->sap.hops+1, HOPCNT_INFINITY));
+				toall(sapsndmsg, rt, 0);
+#endif
+			}
 		}
 	}
 	if (sapbroadcast)
-		sap_supply_toall();
+		sap_supply_toall(0);
 	if (ftrace && sapbroadcast)
 		dumpsaptable(ftrace, sap_head);
-	alarm(TIMER_RATE);
 }
 
 /*
@@ -200,24 +213,16 @@ hup()
 {
 	register struct rthash *rh;
 	register struct rt_entry *rt;
-	struct rthash *base = hosthash;
 	register struct sap_hash *sh;
 	register struct sap_entry *sap;
-	int doinghost = 1;
 
 	if (supplier) {
-again:
-		for (rh = base; rh < &base[ROUTEHASHSIZ]; rh++) {
+		for (rh = nethash; rh < &nethash[ROUTEHASHSIZ]; rh++) {
 			rt = rh->rt_forw;
 			for (; rt != (struct rt_entry *)rh; rt = rt->rt_forw)
 				rt->rt_metric = HOPCNT_INFINITY;
 		}
-		if (doinghost) {
-			doinghost = 0;
-			base = nethash;
-			goto again;
-		}
-		toall(supply, NULL);
+		toall(supply, NULL, 0);
 
 		/*
 		 * Now for SAP.
@@ -228,7 +233,7 @@ again:
 				sap->sap.hops = htons(HOPCNT_INFINITY);
 		}
 		if (dosap)
-			sap_supply_toall();
+			sap_supply_toall(0);
 	}
 	exit(1);
 }
