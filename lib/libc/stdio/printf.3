@@ -118,7 +118,18 @@ These functions return
 the number of characters printed
 (not including the trailing
 .Ql \e0
-used to end output to strings).
+used to end output to strings),
+except for
+.Fn snprintf
+and
+.Fn vsnprintf ,
+which return the number of characters that would have been printed if the
+.Fa size
+were unlimited
+.Po
+again, not including the final
+.Ql \e0
+.Pc .
 .Pp
 .Fn Asprintf
 and
