@@ -446,7 +446,7 @@ main(int argc, char *argv[])
 			SecureMode++;
 			break;
 		case 'u':		/* only log specified priority */
-		        UniquePriority++;
+			UniquePriority++;
 			break;
 		case 'v':		/* log facility and priority */
 		  	LogFacPri++;
@@ -685,9 +685,9 @@ usage(void)
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: syslogd [-46Acdknosuv] [-a allowed_peer]",
-		"               [-b bind address] [-f config_file]",
-		"               [-l log_socket] [-m mark_interval]",
-		"               [-P pid_file] [-p log_socket]");
+		"	       [-b bind address] [-f config_file]",
+		"	       [-l log_socket] [-m mark_interval]",
+		"	       [-P pid_file] [-p log_socket]");
 	exit(1);
 }
 
@@ -783,7 +783,7 @@ readklog(void)
 			printsys(p);
 			len = 0;
 		}
-		if (len > 0) 
+		if (len > 0)
 			memmove(line, p, len + 1);
 	}
 	if (len > 0)
@@ -1103,7 +1103,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_base = fp_buf;
 		v->iov_len = strlen(fp_buf);
 	} else {
-	        v->iov_base = nul;
+		v->iov_base = nul;
 		v->iov_len = 0;
 	}
 	v++;
@@ -1161,20 +1161,20 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		if (finet) {
 			for (r = f->f_un.f_forw.f_addr; r; r = r->ai_next) {
 				for (i = 0; i < *finet; i++) {
-#if 0 
+#if 0
 					/*
 					 * should we check AF first, or just
 					 * trial and error? FWD
 					 */
 					if (r->ai_family ==
-					    address_family_of(finet[i+1])) 
+					    address_family_of(finet[i+1]))
 #endif
 					lsent = sendto(finet[i+1], line, l, 0,
 					    r->ai_addr, r->ai_addrlen);
-					if (lsent == l) 
+					if (lsent == l)
 						break;
 				}
-				if (lsent == l && !send_to_all) 
+				if (lsent == l && !send_to_all)
 					break;
 			}
 			dprintf("lsent/l: %d/%d\n", lsent, l);
@@ -1593,7 +1593,7 @@ init(int signo)
 				p = LocalHostName;
 			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
 				if (!isalnum(*p) && *p != '.' && *p != '-'
-                                    && *p != ',')
+				    && *p != ',')
 					break;
 				host[i] = *p++;
 			}
