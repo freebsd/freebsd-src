@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.19 1994/02/21 11:28:45 rgrimes Exp $
+#	$Id: rc,v 1.20 1994/02/27 15:32:09 phk Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -211,6 +211,7 @@ mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
 # add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
 	_LDC=/usr/lib
+	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
 	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
 	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
