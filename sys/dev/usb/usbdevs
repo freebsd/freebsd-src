@@ -375,6 +375,7 @@ vendor DLINK		0x2001	D-Link
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor DAISY		0x3579	Daisy Technology
 vendor DELL		0x413c	Dell
+vendor SITECOM		0x6189	Sitecom
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
 
@@ -1210,6 +1211,9 @@ product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
 
 /* Sirius Technologies products */
 product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
+
+/* Sitecom products */
+product SITECOM LN029		0x182d	USB 2.0 Ethernet
 
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
