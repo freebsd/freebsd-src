@@ -332,6 +332,8 @@ main(argc, argv)
 				syslog(LOG_WARNING, "select: %m");
 			continue;
 		}
+		domain = 0;			/* avoid compile-time warning */
+		s = 0;				/* avoid compile-time warning */
 		if (FD_ISSET(funix, &readfds)) {
 			domain = AF_UNIX, fromlen = sizeof(fromunix);
 			s = accept(funix,
