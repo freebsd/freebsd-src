@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.45 1997/12/16 17:40:39 eivind Exp $
+ *	$Id: sio.c,v 1.46 1997/12/29 16:08:48 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -221,6 +221,10 @@
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 #define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
 #define COM_ST16650A(dev)	((dev)->id_flags & 0x20000)
+#define COM_C_NOPROBE     (0x40000)
+#define COM_NOPROBE(dev)  ((dev)->id_flags & COM_C_NOPROBE)
+#define COM_C_IIR_TXRDYBUG    (0x80000)
+#define COM_IIR_TXRDYBUG(dev) ((dev)->id_flags & COM_C_IIR_TXRDYBUG)
 #define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
 #ifndef PC98
@@ -291,6 +295,7 @@ struct lbq {
 
 /* com device structure */
 struct com_s {
+	u_int	id_flags;	/* Copy isa device falgas */
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
@@ -356,6 +361,7 @@ struct com_s {
 	Port_t	modem_ctl_port;
 	Port_t	line_status_port;
 	Port_t	modem_status_port;
+	Port_t	intr_ctl_port;	/* Ports of IIR register */
 
 	struct tty	*tp;	/* cross reference */
 
@@ -736,6 +742,10 @@ sioinit(struct pccard_devinfo *devi)
 	/* Make sure it isn't already probed. */
 	if (com_addr(devi->isahd.id_unit))
 		return(EBUSY);
+
+	/* It's already probed as serial by Upper */
+	devi->isahd.id_flags |= COM_C_NOPROBE; 
+
 	/*
 	 * Probe the device. If a value is returned, the
 	 * device was found at the location.
@@ -1011,6 +1021,37 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 
+    /*
+	 * It's a definitly Serial PCMCIA(16550A), but still be required
+	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
+	 */
+	if ( COM_NOPROBE(dev) ) {
+		/* Reading IIR register twice */
+		for ( fn = 0; fn < 2; fn ++ ) {
+			DELAY(10000);
+			failures[6] = inb(iobase + com_iir);
+		}
+		/* Check IIR_TXRDY clear ? */
+		result = IO_COMSIZE;
+		if ( failures[6] & IIR_TXRDY ) {
+			/* Nop, Double check with clearing IER */
+			outb(iobase + com_ier, 0);
+			if ( inb(iobase + com_iir) & IIR_NOPEND ) {
+				/* Ok. we're familia this gang */
+				dev->id_flags |= COM_C_IIR_TXRDYBUG; /* Set IIR_TXRDYBUG */
+			} else {
+				/* Unknow, Just omit this chip.. XXX*/
+				result = 0;
+			}
+		} else {
+			/* OK. this is well-known guys */
+			dev->id_flags &= ~COM_C_IIR_TXRDYBUG; /*Clear IIR_TXRDYBUG*/
+		}
+		outb(iobase + com_cfcr, CFCR_8BITS);
+		enable_intr();
+		return( result );
+	}
+
 	/*
 	 * Check that
 	 *	o the CFCR, IER and MCR in UART hold the values written to them
@@ -1185,6 +1226,7 @@ sioattach(isdp)
 			com->mcr_image = inb(com->modem_ctl_port);
 			com->line_status_port = iobase + com_lsr;
 			com->modem_status_port = iobase + com_msr;
+			com->intr_ctl_port = iobase + com_ier;
 		}
 #else /* not PC98 */
 	com->data_port = iobase + com_data;
@@ -1193,6 +1235,7 @@ sioattach(isdp)
 	com->mcr_image = inb(com->modem_ctl_port);
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
+	com->intr_ctl_port = iobase + com_ier;
 #endif
 
 	/*
@@ -1235,7 +1278,9 @@ sioattach(isdp)
 
 #ifndef PC98
 #ifdef COM_MULTIPORT
-	if (!COM_ISMULTIPORT(isdp))
+	if (!COM_ISMULTIPORT(isdp) && !COM_IIR_TXRDYBUG(isdp))
+#else
+	if (!COM_IIR_TXRDYBUG(isdp))
 #endif
 	{
 		u_char	scr;
@@ -1372,6 +1417,8 @@ determined_type: ;
 #endif
 	if (unit == comconsole)
 		printf(", console");
+	if ( COM_IIR_TXRDYBUG(isdp) )
+		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
 
 	s = spltty();
@@ -1400,6 +1447,7 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%n", unit);
 #endif
+	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
 }
 
@@ -1556,8 +1604,13 @@ open_top:
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
-		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
-				       | IER_EMSC);
+		if (COM_IIR_TXRDYBUG(com)) {
+			outb(com->intr_ctl_port, IER_ERXRDY | IER_ERLS
+						| IER_EMSC);
+		} else {
+			outb(com->intr_ctl_port, IER_ERXRDY | IER_ETXRDY
+						| IER_ERLS | IER_EMSC);
+		}
 #ifdef PC98
 		}
 #endif
@@ -1892,10 +1945,17 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
+	u_char	int_ident;
+	u_char	int_ctl;
+	u_char	int_ctl_new;
+
 #ifdef PC98
 	u_char	tmp=0;
 recv_data=0;
 #endif /* PC98 */
+
+	int_ctl = inb(com->intr_ctl_port);
+	int_ctl_new = int_ctl;
 
 	while (TRUE) {
 #ifdef PC98
@@ -2071,6 +2131,9 @@ cont:
 					com_int_Tx_enable(com);
 #endif
 			com->obufq.l_head = ioptr;
+			if (COM_IIR_TXRDYBUG(com)) {
+				int_ctl_new = int_ctl | IER_ETXRDY;
+			}
 			if (ioptr >= com->obufq.l_tail) {
 				struct lbq	*qp;
 
@@ -2083,6 +2146,9 @@ cont:
 					com->obufq.l_next = qp;
 				} else {
 					/* output just completed */
+					if ( COM_IIR_TXRDYBUG(com) ) {
+						int_ctl_new = int_ctl & ~IER_ETXRDY;
+					}
 					com->state &= ~CS_BUSY;
 #if defined(PC98)
 					if(IS_8251(com->pc98_if_type))
@@ -2095,6 +2161,9 @@ cont:
 					com->state |= CS_ODONE;
 					setsofttty();	/* handle at high level ASAP */
 				}
+			}
+			if ( COM_IIR_TXRDYBUG(com) && (int_ctl != int_ctl_new)) {
+				outb(com->intr_ctl_port, int_ctl_new);
 			}
 		}
 #ifdef PC98
