@@ -1647,6 +1647,8 @@ acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
 	ai->reg_type = (d.data[0] >> 6);
 	ai->vend_rsts = (d.data[0] >> 3) & 0x7;
 	ai->user_rsts = d.data[0] & 0x7;
+	ai->region = d.data[1];
+	ai->rpc_scheme = d.data[2];
 	break;
     
     case DVD_INVALIDATE_AGID:
@@ -1684,6 +1686,7 @@ acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     
     case DVD_SEND_RPC:
 	length = 8;
+	d.data[0] = ai.region;
 	break;
 
     default:
