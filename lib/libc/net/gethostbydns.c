@@ -518,7 +518,7 @@ _gethostbydnsname(name, af)
 	 * disallow names consisting only of digits/dots, unless
 	 * they end in a dot.
 	 */
-	if (isdigit(name[0]))
+	if (isdigit((unsigned char)name[0]))
 		for (cp = name;; ++cp) {
 			if (!*cp) {
 				if (*--cp == '.')
@@ -547,10 +547,10 @@ _gethostbydnsname(name, af)
 				h_errno = NETDB_SUCCESS;
 				return (&host);
 			}
-			if (!isdigit(*cp) && *cp != '.') 
+			if (!isdigit((unsigned char)*cp) && *cp != '.')
 				break;
 		}
-	if ((isxdigit(name[0]) && strchr(name, ':') != NULL) ||
+	if ((isxdigit((unsigned char)name[0]) && strchr(name, ':') != NULL) ||
 	    name[0] == ':')
 		for (cp = name;; ++cp) {
 			if (!*cp) {
@@ -578,7 +578,7 @@ _gethostbydnsname(name, af)
 				h_errno = NETDB_SUCCESS;
 				return (&host);
 			}
-			if (!isxdigit(*cp) && *cp != ':' && *cp != '.') 
+			if (!isxdigit((unsigned char)*cp) && *cp != ':' && *cp != '.')
 				break;
 		}
 

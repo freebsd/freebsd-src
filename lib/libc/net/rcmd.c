@@ -503,7 +503,7 @@ __icheckhost(raddr, lhost)
 	register char **pp;
 
 	/* Try for raw ip address first. */
-	if (isdigit(*lhost) && (u_int32_t)(laddr = inet_addr(lhost)) != -1)
+	if (isdigit((unsigned char)*lhost) && (u_int32_t)(laddr = inet_addr(lhost)) != -1)
 		return (raddr == laddr);
 
 	/* Better be a hostname. */
