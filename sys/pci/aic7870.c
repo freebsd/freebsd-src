@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.17 1995/11/04 14:43:20 bde Exp $
+ *	$Id: aic7870.c,v 1.18 1995/11/05 04:51:58 gibbs Exp $
  */
 
 #include <pci.h>
@@ -188,7 +188,6 @@ aic7870_attach(config_id, unit)
 		splx(opri);
 		return; /* XXX PCI code should take return status */
 	}
-	ahc_unit++;
 
 	ahc_attach(unit);
 	splx(opri);
