@@ -646,6 +646,9 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		error = ENOEXEC;
 		goto out;
 	    }
+	    /*
+	     * XXX: We just trust they come in right order ??
+	     */
 	    segs[nsegs] = phdr;
 	    ++nsegs;
 	    break;
@@ -668,6 +671,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     }
     if (phdyn == NULL) {
 	link_elf_error("Object is not dynamically-linked");
+	error = ENOEXEC;
+	goto out;
+    }
+    if (nsegs != 2) {
+	link_elf_error("Too few sections");
 	error = ENOEXEC;
 	goto out;
     }
