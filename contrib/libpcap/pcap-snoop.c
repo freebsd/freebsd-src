@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-snoop.c,v 1.30 2000/10/28 00:01:30 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snoop.c,v 1.33 2001/12/10 07:14:21 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -115,10 +115,28 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 		return (-1);
 	}
 
+	/*
+	 * "ifdrops" are those dropped by the network interface
+	 * due to resource shortages or hardware errors.
+	 *
+	 * "sbdrops" are those dropped due to socket buffer limits.
+	 *
+	 * As filter is done in userland, "sbdrops" counts packets
+	 * regardless of whether they would've passed the filter.
+	 *
+	 * XXX - does this count *all* Snoop or Drain sockets,
+	 * rather than just this socket?  If not, why does it have
+	 * both Snoop and Drain statistics?
+	 */
 	p->md.stat.ps_drop =
 	    rs->rs_snoop.ss_ifdrops + rs->rs_snoop.ss_sbdrops +
 	    rs->rs_drain.ds_ifdrops + rs->rs_drain.ds_sbdrops;
 
+	/*
+	 * "ps_recv" counts only packets that passed the filter.
+	 * As filtering is done in userland, this does not include
+	 * packets dropped because we ran out of buffer space.
+	 */
 	*ps = p->md.stat;
 	return (0);
 }
@@ -179,6 +197,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	    strncmp("vfe", device, 3) == 0 ||	/* Challenge VME 100Mbit */
 	    strncmp("fa", device, 2) == 0 ||
 	    strncmp("qaa", device, 3) == 0 ||
+	    strncmp("cip", device, 3) == 0 ||
 	    strncmp("el", device, 2) == 0) {
 		p->linktype = DLT_EN10MB;
 		p->offset = RAW_HDRPAD(sizeof(struct ether_header));

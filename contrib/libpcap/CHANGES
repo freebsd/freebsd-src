@@ -1,4 +1,11 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.55 2001/01/10 04:10:33 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.56 2001/10/23 04:37:31 mcr Exp $ (LBL)
+
+Monday October 23, 2001. mcr@sandelman.ottawa.on.ca. Summary for 0.7 release
+
+	Added pcap_findalldevs() call to get list of interfaces in a MI way.
+
+	pcap_stats() has been documented as to what its counters mean on 
+	each platform.
 
 Tuesday January 9, 2001. guy@alum.mit.edu. Summary for 0.6 release
 
