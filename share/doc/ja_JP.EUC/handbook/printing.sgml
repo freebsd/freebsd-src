@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.16 -->
+<!-- Original revision: 1.17 -->
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
@@ -2329,7 +2329,7 @@ fi
 <code>
 #!/bin/sh
 #
-#  ifhp - Print Ghostscript-simulated PostScript on a DesJet 500
+#  ifhp - Print Ghostscript-simulated PostScript on a DeskJet 500
 #  Installed in /usr/local/libexec/hpif
 
 #
