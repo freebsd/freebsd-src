@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.32 1998/10/17 01:21:35 peter Exp $
+#	$Id: BSD.root.dist,v 1.33 1998/12/01 21:36:33 dillon Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -31,8 +31,10 @@
         mtree
         ..
         namedb
-		s	uname=bind gname=bind mode=0750
-		..
+# leave commented out until buildworld/installworld can
+# handle new user ids
+#		s	uname=bind gname=bind mode=0750
+#		..
         ..
         ppp
         ..
