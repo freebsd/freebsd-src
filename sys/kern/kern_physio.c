@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.28 1998/08/19 10:50:32 sos Exp $
+ * $Id: kern_physio.c,v 1.29 1998/10/25 17:44:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -147,7 +147,7 @@ physio(strategy, bp, dev, rw, minp, uio)
 
 
 doerror:
-	relpbuf(bpa);
+	relpbuf(bpa, NULL);
 	if (!bp_alloc) {
 		bp->b_flags &= ~(B_BUSY|B_PHYS);
 		if( bp->b_flags & B_WANTED) {
@@ -197,13 +197,13 @@ phygetvpbuf(dev_t dev, int resid)
 
 	bdsw = cdevsw[major(dev)];
 	if ((bdsw == NULL) || (bdsw->d_bmaj == -1))
-		return getpbuf();
+		return getpbuf(NULL);
 
 	maxio = bdsw->d_maxio;
 	if (resid > maxio)
 		resid = maxio;
 
-	return getpbuf();
+	return getpbuf(NULL);
 }
 
 static void

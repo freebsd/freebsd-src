@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.85 1998/12/09 20:22:21 dt Exp $
+ * $Id: vm_mmap.c,v 1.86 1999/01/06 23:05:42 julian Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.60 1998/10/31 14:05:11 peter Exp $
+ * $Id: buf.h,v 1.61 1998/11/13 01:01:44 dg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -116,7 +116,10 @@ struct buf {
 	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
-	void	*b_spc;
+	union	pager_info {
+		void	*pg_spc;
+		int	pg_reqpage;
+	} b_pager;
 	union	cluster_info {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
@@ -126,9 +129,29 @@ struct buf {
 	struct	workhead b_dep;		/* List of filesystem dependencies. */
 };
 
+#define b_spc	b_pager.pg_spc
+
 /*
  * These flags are kept in b_flags.
+ *
+ * Notes:
+ *
+ *	B_ASYNC		VOP calls on bp's are usually async whether or not
+ *			B_ASYNC is set, but some subsystems, such as NFS, like 
+ *			to know what is best for the caller so they can
+ *			optimize the I/O.
+ *
+ *	B_PAGING	Indicates that bp is being used by the paging system or
+ *			some paging system and that the bp is not linked into
+ *			the b_vp's clean/dirty linked lists or ref counts.
+ *			Buffer vp reassignments are illegal in this case.
+ *
+ *	B_CACHE		This may only be set if the buffer is entirely valid.
+ *			The situation where B_DELWRI is set and B_CACHE gets
+ *			cleared MUST be committed to disk so B_DELWRI can
+ *			also be cleared.
  */
+
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
@@ -312,13 +335,12 @@ int	bowrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	bqrelse __P((struct buf *));
 int	vfs_bio_awrite __P((struct buf *));
-struct buf *     getpbuf __P((void));
+struct buf *     getpbuf __P((int *));
 struct buf *incore __P((struct vnode *, daddr_t));
 struct buf *gbincore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
-int	allocbuf __P((struct buf *, int));
 int	biowait __P((struct buf *));
 void	biodone __P((struct buf *));
 
@@ -336,13 +358,15 @@ void	vfs_unbusy_pages __P((struct buf *));
 void	vwakeup __P((struct buf *));
 void	vmapbuf __P((struct buf *));
 void	vunmapbuf __P((struct buf *));
-void	relpbuf __P((struct buf *));
+void	relpbuf __P((struct buf *, int *));
 void	brelvp __P((struct buf *));
 void	bgetvp __P((struct vnode *, struct buf *));
 void	pbgetvp __P((struct vnode *, struct buf *));
 void	pbrelvp __P((struct buf *));
+int	allocbuf __P((struct buf *bp, int size));
 void	reassignbuf __P((struct buf *, struct vnode *));
-struct	buf *trypbuf __P((void));
+void	bpreassignbuf __P((struct buf *, struct vnode *));
+struct	buf *trypbuf __P((int *));
 void	vfs_bio_need_satisfy __P((void));
 #endif /* KERNEL */
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.48 1998/10/28 13:37:02 dg Exp $
+ * $Id: vm_page.h,v 1.49 1999/01/08 17:31:28 eivind Exp $
  */
 
 /*
@@ -105,10 +105,10 @@ TAILQ_HEAD(pglist, vm_page);
 
 struct vm_page {
 	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (P) */
-	TAILQ_ENTRY(vm_page) hashq;	/* hash table links (O) */
-	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
+	struct vm_page	*hnext;		/* hash table link (O,P)	*/
+	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
 
-	vm_object_t object;		/* which object am I in (O,P) */
+	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_offset_t phys_addr;		/* physical address of page */
 	u_short	queue;			/* page queue index */
@@ -128,6 +128,13 @@ struct vm_page {
 	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
 };
+
+/*
+ * note SWAPBLK_NONE is a flag, basically the high bit.
+ */
+
+#define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
+#define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
 
 /*
  * Page coloring parameters
@@ -201,14 +208,15 @@ extern struct vpgqueues {
  *
  * Note: PG_FILLED and PG_DIRTY are added for the filesystems.
  */
-#define	PG_BUSY		0x01		/* page is in transit (O) */
-#define	PG_WANTED	0x02		/* someone is waiting for page (O) */
-#define	PG_FICTITIOUS	0x08		/* physical page doesn't exist (O) */
-#define	PG_WRITEABLE	0x10		/* page is mapped writeable */
-#define PG_MAPPED	0x20		/* page is mapped */
-#define	PG_ZERO		0x40		/* page is zeroed */
-#define PG_REFERENCED	0x80		/* page has been referenced */
-#define PG_CLEANCHK	0x100		/* page will be checked for cleaning */
+#define	PG_BUSY		0x0001		/* page is in transit (O) */
+#define	PG_WANTED	0x0002		/* someone is waiting for page (O) */
+#define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
+#define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
+#define PG_MAPPED	0x0020		/* page is mapped */
+#define	PG_ZERO		0x0040		/* page is zeroed */
+#define PG_REFERENCED	0x0080		/* page has been referenced */
+#define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
+#define PG_SWAPINPROG	0x0200		/* swap I/O in progress on page	     */
 
 /*
  * Misc constants.
@@ -307,14 +315,34 @@ vm_page_busy(vm_page_t m)
 	vm_page_flag_set(m, PG_BUSY);
 }
 
+/*
+ *	vm_page_flash:
+ *
+ *	wakeup anyone waiting for the page.
+ */
+
 static __inline void
-vm_page_wakeup(vm_page_t m)
+vm_page_flash(vm_page_t m)
 {
-	vm_page_flag_clear(m, PG_BUSY);
 	if (m->flags & PG_WANTED) {
 		vm_page_flag_clear(m, PG_WANTED);
 		wakeup(m);
 	}
+}
+
+/*
+ *	vm_page_wakeup:
+ *
+ *	clear the PG_BUSY flag and wakeup anyone waiting for the
+ *	page.
+ *
+ */
+
+static __inline void
+vm_page_wakeup(vm_page_t m)
+{
+	vm_page_flag_clear(m, PG_BUSY);
+	vm_page_flash(m);
 }
 
 static __inline void
@@ -327,10 +355,8 @@ static __inline void
 vm_page_io_finish(vm_page_t m)
 {
 	atomic_subtract_char(&m->busy, 1);
-	if ((m->flags & PG_WANTED) && m->busy == 0) {
-		vm_page_flag_clear(m, PG_WANTED);
-		wakeup(m);
-	}
+	if (m->busy == 0)
+		vm_page_flash(m);
 }
 
 
@@ -353,12 +379,13 @@ vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
+static __inline void vm_page_free __P((vm_page_t));
+static __inline void vm_page_free_zero __P((vm_page_t));
+void vm_page_destroy __P((vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
-void vm_page_free __P((vm_page_t));
-void vm_page_free_zero __P((vm_page_t));
 void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
-void vm_page_remove __P((vm_page_t));
+vm_object_t vm_page_remove __P((vm_page_t));
 void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_page_unwire __P((vm_page_t, int));
@@ -374,7 +401,11 @@ int vm_page_bits __P((int, int));
 vm_page_t vm_page_list_find __P((int, int));
 int vm_page_queue_index __P((vm_offset_t, int));
 vm_page_t vm_page_select __P((vm_object_t, vm_pindex_t, int));
+#if 0
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
+int vm_page_asleep(vm_page_t m, char *msg, char *busy);
+#endif
+void vm_page_free_toq(vm_page_t m, int queue);
 
 /*
  * Keep page from being freed by the page daemon
@@ -436,6 +467,65 @@ vm_page_copy(src_m, dest_m)
 {
 	pmap_copy_page(VM_PAGE_TO_PHYS(src_m), VM_PAGE_TO_PHYS(dest_m));
 	dest_m->valid = VM_PAGE_BITS_ALL;
+}
+
+/*
+ *	vm_page_free:
+ *
+ *	Free a page
+ */
+static __inline void
+vm_page_free(m)
+	vm_page_t m;
+{
+	vm_page_free_toq(m, PQ_FREE);
+}
+
+/*
+ *	vm_page_free_zero:
+ *
+ *	Free a page to the zerod-pages queue
+ */
+static __inline void
+vm_page_free_zero(m)
+	vm_page_t m;
+{
+	vm_page_free_toq(m, PQ_ZERO);
+}
+
+/*
+ *	vm_page_sleep_busy:
+ *
+ *	Wait until page is no longer PG_BUSY or (if also_m_busy is TRUE)
+ *	m->busy is zero.  Returns TRUE if it had to sleep ( including if 
+ *	it almost had to sleep and made temporary spl*() mods), FALSE 
+ *	otherwise.
+ *
+ *	This routine assumes that interrupts can only remove the busy
+ *	status from a page, not set the busy status or change it from
+ *	PG_BUSY to m->busy or vise versa (which would create a timing
+ *	window).
+ *
+ *	Note that being an inline, this code will be well optimized.
+ */
+
+static __inline int
+vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
+{
+	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy))  {
+		int s = splvm();
+		if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
+			/*
+			 * Page is busy. Wait and retry.
+			 */
+			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			tsleep(m, PVM, msg, 0);
+		}
+		splx(s);
+		return(TRUE);
+		/* not reached */
+	}
+	return(FALSE);
 }
 
 #endif				/* KERNEL */

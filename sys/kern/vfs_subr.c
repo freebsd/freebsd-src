@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.181 1999/01/08 17:31:17 eivind Exp $
+ * $Id: vfs_subr.c,v 1.182 1999/01/10 01:58:26 eivind Exp $
  */
 
 /*
@@ -63,10 +63,13 @@
 #include <machine/limits.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <vm/vm_zone.h>
@@ -985,6 +988,10 @@ sched_sync(void)
 
 /*
  * Associate a p-buffer with a vnode.
+ *
+ * Also sets B_PAGING flag to indicate that vnode is not fully associated
+ * with the buffer.  i.e. the bp has not been linked into the vnode or
+ * ref-counted.
  */
 void
 pbgetvp(vp, bp)
@@ -995,6 +1002,7 @@ pbgetvp(vp, bp)
 	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
 
 	bp->b_vp = vp;
+	bp->b_flags |= B_PAGING;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		bp->b_dev = vp->v_rdev;
 	else
@@ -1011,7 +1019,34 @@ pbrelvp(bp)
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 
+#if !defined(MAX_PERF)
+	/* XXX REMOVE ME */
+	if (bp->b_vnbufs.tqe_next != NULL) {
+		panic(
+		    "relpbuf(): b_vp was probably reassignbuf()d %p %x", 
+		    bp,
+		    (int)bp->b_flags
+		);
+	}
+#endif
 	bp->b_vp = (struct vnode *) 0;
+	bp->b_flags &= ~B_PAGING;
+}
+
+void
+pbreassignbuf(bp, newvp)
+	struct buf *bp;
+	struct vnode *newvp;
+{
+#if !defined(MAX_PERF)
+	if ((bp->b_flags & B_PAGING) == 0) {
+		panic(
+		    "pbreassignbuf() on non phys bp %p", 
+		    bp
+		);
+	}
+#endif
+	bp->b_vp = newvp;
 }
 
 /*
@@ -1033,6 +1068,15 @@ reassignbuf(bp, newvp)
 		printf("reassignbuf: NULL");
 		return;
 	}
+
+#if !defined(MAX_PERF)
+	/*
+	 * B_PAGING flagged buffers cannot be reassigned because their vp
+	 * is not fully linked in.
+	 */
+	if (bp->b_flags & B_PAGING)
+		panic("cannot reassign paging buffer");
+#endif
 
 	s = splbio();
 	/*

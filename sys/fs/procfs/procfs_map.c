@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.17 1998/04/29 04:28:22 dyson Exp $
+ *	$Id: procfs_map.c,v 1.18 1998/12/04 22:54:51 archie Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ procfs_domap(curp, p, pfs, uio)
 		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
-		int ref_count, shadow_count, id, flags;
+		int ref_count, shadow_count, flags;
 		vm_offset_t addr;
 		int resident, privateresident;
 		char *type;
@@ -139,13 +139,11 @@ case OBJT_DEVICE:
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			id = obj->id;
 		} else {
 			type = "none";
 			flags = 0;
 			ref_count = 0;
 			shadow_count = 0;
-			id = 0;
 		}
 			
 
@@ -154,9 +152,9 @@ case OBJT_DEVICE:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
 		snprintf(mebuffer, sizeof(mebuffer),
-		    "0x%x 0x%x %d %d %d %s%s%s %d %d 0x%x %s %s %s\n",
+		    "0x%x 0x%x %d %d %p %s%s%s %d %d 0x%x %s %s %s\n",
 			entry->start, entry->end,
-			resident, privateresident, id,
+			resident, privateresident, obj,
 			(entry->protection & VM_PROT_READ)?"r":"-",
 			(entry->protection & VM_PROT_WRITE)?"w":"-",
 			(entry->protection & VM_PROT_EXECUTE)?"x":"-",

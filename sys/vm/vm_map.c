@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.138 1998/10/25 17:44:58 phk Exp $
+ * $Id: vm_map.c,v 1.139 1999/01/06 23:05:41 julian Exp $
  */
 
 /*
@@ -440,7 +440,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t new_entry;
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
+#if 0
 	vm_object_t prev_object;
+#endif
 	u_char protoeflags;
 
 	if ((object != NULL) && (cow & MAP_NOFAULT)) {
@@ -514,10 +516,15 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
+#if 0
+				/*
+				 * (no longer applies)
+				 */
 				if ((cow & MAP_NOFAULT) == 0) {
 					prev_object = prev_entry->object.vm_object;
 					default_pager_convert_to_swapq(prev_object);
 				}
+#endif
 				return (KERN_SUCCESS);
 			}
 			else {
@@ -573,7 +580,12 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
+#if 0
+	/*
+	 * (no longer applies)
+	 */
 	default_pager_convert_to_swapq(object);
+#endif
 	return (KERN_SUCCESS);
 }
 
@@ -1504,7 +1516,12 @@ vm_map_user_pageable(map, start, end, new_pageable)
 					entry->offset = (vm_offset_t) 0;
 
 				}
+#if 0
+				/*
+				 * (no longer applies)
+				 */
 				default_pager_convert_to_swapq(entry->object.vm_object);
+#endif
 			}
 
 			vm_map_clip_start(map, entry, start);
@@ -1695,7 +1712,12 @@ vm_map_pageable(map, start, end, new_pageable)
 							atop(entry->end - entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
+#if 0
+					/*
+					 * (no longer applies)
+					 */
 					default_pager_convert_to_swapq(entry->object.vm_object);
+#endif
 				}
 			}
 			vm_map_clip_start(map, entry, start);
@@ -2192,16 +2214,18 @@ vm_map_split(entry)
 		m = vm_page_lookup(orig_object, offidxstart + idx);
 		if (m == NULL)
 			continue;
-		if (m->flags & PG_BUSY) {
-			vm_page_flag_set(m, PG_WANTED);
-			tsleep(m, PVM, "spltwt", 0);
+
+		/*
+		 * We must wait for pending I/O to complete before we can
+		 * rename the page.
+		 */
+		if (vm_page_sleep_busy(m, TRUE, "spltwt"))
 			goto retry;
-		}
 			
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
-		m->dirty = VM_PAGE_BITS_ALL;
+		/* page automatically made dirty by rename */
 		vm_page_busy(m);
 	}
 
@@ -2212,9 +2236,7 @@ vm_map_split(entry)
 		 * and destroy unneeded pages in
 		 * shadow object.
 		 */
-		swap_pager_copy(orig_object, OFF_TO_IDX(orig_object->paging_offset),
-		    new_object, OFF_TO_IDX(new_object->paging_offset),
-			offidxstart, 0);
+		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		vm_object_pip_wakeup(orig_object);
 	}
 
@@ -2670,8 +2692,13 @@ RetryLookup:;
 		vm_map_lock_downgrade(share_map);
 	}
 
+#if 0
+	/*
+	 * (no longer applies)
+	 */
 	if (entry->object.vm_object->type == OBJT_DEFAULT)
 		default_pager_convert_to_swapq(entry->object.vm_object);
+#endif
 	/*
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
@@ -2781,6 +2808,10 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 					vm_map_lookup_done(map, entry);
 					return 0;
 				}
+				/*
+				 * disallow busy or invalid pages, but allow
+				 * m->busy pages if they are entirely valid.
+				 */
 				if ((m->flags & PG_BUSY) ||
 					((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
 					vm_map_lookup_done(map, entry);
@@ -2856,7 +2887,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 				 */
 				if (first_object->type == OBJT_SWAP) {
 					swap_pager_freespace(first_object,
-						OFF_TO_IDX(first_object->paging_offset),
+						0,
 						first_object->size);
 				}
 

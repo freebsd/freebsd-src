@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.54 1998/12/15 03:29:52 julian Exp $
+ * $Id: ufs_readwrite.c,v 1.55 1999/01/07 16:14:19 bde Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -392,7 +392,10 @@ WRITE(ap)
 			panic("%s: nonsync dir write", WRITE_S);
 		break;
 	default:
-		panic("%s: type", WRITE_S);
+		panic("%s: type %p %d (%d,%d)", WRITE_S, vp, (int)vp->v_type,
+			(int)uio->uio_offset,
+			(int)uio->uio_resid
+		);
 	}
 
 	fs = ip->I_FS;
@@ -598,9 +601,8 @@ ffs_getpages(ap)
 				vm_page_busy(m);
 				vm_page_free(m);
 			} else if (m == mreq) {
-				while (m->flags & PG_BUSY) {
-					vm_page_sleep(m, "ffspwt", NULL);
-				}
+				while (vm_page_sleep_busy(m, FALSE, "ffspwt"))
+					;
 				vm_page_busy(m);
 				vp->v_lastr = m->pindex + 1;
 			} else {

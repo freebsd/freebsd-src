@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.64 1998/12/15 23:46:59 eivind Exp $
+ *	$Id: devfs_vnops.c,v 1.65 1999/01/12 11:49:29 eivind Exp $
  */
 
 
@@ -1933,7 +1933,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 		blksiz = DEV_BSIZE;
 	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
 
-	bp = getpbuf();
+	bp = getpbuf(NULL);
 	kva = (vm_offset_t)bp->b_data;
 
 	/*
@@ -2042,13 +2042,13 @@ devfs_getpages(struct vop_getpages_args *ap)
 		/*
 		 * Free the buffer header back to the swap buffer pool.
 		 */
-		relpbuf(bp);
+		relpbuf(bp, NULL);
 		return VM_PAGER_ERROR;
 	}
 	/*
 	 * Free the buffer header back to the swap buffer pool.
 	 */
-	relpbuf(bp);
+	relpbuf(bp, NULL);
 	return VM_PAGER_OK;
 }
 

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.35 1998/11/27 01:14:21 tegge Exp $
+ * $Id: vfs_aio.c,v 1.36 1998/12/15 17:38:33 des Exp $
  */
 
 /*
@@ -386,7 +386,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 		splx(s);
 		if (aiocbe->bp) {
 			vunmapbuf(aiocbe->bp);
-			relpbuf(aiocbe->bp);
+			relpbuf(aiocbe->bp, NULL);
 			aiocbe->bp = NULL;
 		}
 	}
@@ -1035,7 +1035,7 @@ aio_qphysio(p, aiocbe)
 	}
 
 	/* create and build a buffer header for a transfer */
-	bp = (struct buf *)getpbuf();
+	bp = (struct buf *)getpbuf(NULL);
 
 	/*
 	 * get a copy of the kva from the physical buffer
@@ -1122,7 +1122,7 @@ doerror:
 		lj->lioj_buffer_count--;
 	}
 	aiocbe->bp = NULL;
-	relpbuf(bp);
+	relpbuf(bp, NULL);
 	return error;
 }
 
@@ -1172,7 +1172,7 @@ aio_fphysio(p, iocb, flgwait)
 		error = bp->b_error;
 	}
 
-	relpbuf(bp);
+	relpbuf(bp, NULL);
 	return (error);
 }
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.137 1999/01/08 17:31:26 eivind Exp $
+ * $Id: vm_object.c,v 1.138 1999/01/10 01:58:28 eivind Exp $
  */
 
 /*
@@ -134,9 +134,12 @@ static long object_bypasses;
 static int next_index;
 static vm_zone_t obj_zone;
 static struct vm_zone obj_zone_store;
+static int object_hash_rand;
 #define VM_OBJECTS_INIT 256
 static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
+#if 0
 static int objidnumber;
+#endif
 
 void
 _vm_object_allocate(type, size, object)
@@ -152,7 +155,9 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
+#if 0
 	object->id = ++objidnumber;
+#endif
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
 	object->behavior = OBJ_NORMAL;
@@ -168,16 +173,25 @@ _vm_object_allocate(type, size, object)
 		incr = size;
 	next_index = (next_index + incr) & PQ_L2_MASK;
 	object->handle = NULL;
-	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
+#if 0
 	object->page_hint = NULL;
+#endif
+	/*
+	 * Try to generate a number that will spread objects out in the
+	 * hash table.  We 'wipe' new objects across the hash in 128 page
+	 * increments plus 1 more to offset it a little more by the time
+	 * it wraps around.
+	 */
+	object->hash_rand = object_hash_rand - 129;
 
 	object->last_read = 0;
 	object->generation++;
 
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
 	vm_object_count++;
+	object_hash_rand = object->hash_rand;
 }
 
 /*
@@ -336,25 +350,15 @@ vm_object_deallocate(object)
 
 					robject->ref_count++;
 
-			retry:
-					if (robject->paging_in_progress ||
-							object->paging_in_progress) {
+					while (
+						robject->paging_in_progress ||
+						object->paging_in_progress
+					) {
 						vm_object_pip_sleep(robject, "objde1");
-						if (robject->paging_in_progress &&
-							robject->type == OBJT_SWAP) {
-							swap_pager_sync();
-							goto retry;
-						}
-
 						vm_object_pip_sleep(object, "objde2");
-						if (object->paging_in_progress &&
-							object->type == OBJT_SWAP) {
-							swap_pager_sync();
-						}
-						goto retry;
 					}
 
-					if( robject->ref_count == 1) {
+					if (robject->ref_count == 1) {
 						robject->ref_count--;
 						object = robject;
 						goto doterm;
@@ -396,6 +400,7 @@ doterm:
  *	up all previously used resources.
  *
  *	The object must be locked.
+ *	This routine may block.
  */
 void
 vm_object_terminate(object)
@@ -444,13 +449,13 @@ vm_object_terminate(object)
 	/*
 	 * Now free any remaining pages. For internal objects, this also
 	 * removes them from paging queues. Don't free wired pages, just
-	 * remove them from the object.
+	 * remove them from the object. 
 	 */
 	s = splvm();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 #if !defined(MAX_PERF)
 		if (p->busy || (p->flags & PG_BUSY))
-			printf("vm_object_terminate: freeing busy page\n");
+			panic("vm_object_terminate: freeing busy page %p\n", p);
 #endif
 		if (p->wire_count == 0) {
 			vm_page_busy(p);
@@ -566,9 +571,7 @@ rescan:
 		}
 
 		s = splvm();
-		while ((p->flags & PG_BUSY) || p->busy) {
-			vm_page_flag_set(p, PG_WANTED | PG_REFERENCED);
-			tsleep(p, PVM, "vpcwai", 0);
+		while (vm_page_sleep_busy(p, TRUE, "vpcwai")) {
 			if (object->generation != curgeneration) {
 				splx(s);
 				goto rescan;
@@ -763,6 +766,12 @@ vm_object_pmap_remove(object, start, end)
  *	vm_object_madvise:
  *
  *	Implements the madvise function at the object/page level.
+ *
+ *	Currently, madvise() functions are limited to the default and
+ *	swap object types only, and also limited to only the unshared portions 
+ *	of a process's address space.  MADV_FREE, certainly, could never be
+ *	run on anything else.  The others are more flexible and the code could
+ *	be adjusted in the future to handle expanded cases for them.
  */
 void
 vm_object_madvise(object, pindex, count, advise)
@@ -780,22 +789,59 @@ vm_object_madvise(object, pindex, count, advise)
 
 	end = pindex + count;
 
-	for (; pindex < end; pindex += 1) {
+	/*
+	 * MADV_FREE special case - free any swap backing store (as well
+	 * as resident pages later on).
+	 */
 
+	if (advise == MADV_FREE) {
+		tobject = object;
+		tpindex = pindex;
+
+		while (
+		    (tobject->type == OBJT_DEFAULT || 
+		     tobject->type == OBJT_SWAP) &&
+		    (tobject->flags & OBJ_ONEMAPPING)
+		) {
+			if (tobject->type == OBJT_SWAP) {
+				swap_pager_freespace(tobject, tpindex, count);
+			}
+			if ((tobject = tobject->backing_object) == NULL)
+				break;
+			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
+		}
+	}
+
+	/*
+	 * Locate and adjust resident pages
+	 */
+
+	for (; pindex < end; pindex += 1) {
 relookup:
 		tobject = object;
 		tpindex = pindex;
 shadowlookup:
+
+		if (tobject->type != OBJT_DEFAULT &&
+		    tobject->type != OBJT_SWAP
+		) {
+			continue;
+		}
+
+		if ((tobject->flags & OBJ_ONEMAPPING) == 0)
+			continue;
+
 		m = vm_page_lookup(tobject, tpindex);
+
 		if (m == NULL) {
-			if (tobject->type != OBJT_DEFAULT) {
-				continue;
-			}
-				
 			tobject = tobject->backing_object;
+			if (tobject == NULL)
+				continue;
+#if 0
 			if ((tobject == NULL) || (tobject->ref_count != 1)) {
 				continue;
 			}
+#endif
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
@@ -805,12 +851,15 @@ shadowlookup:
 		 * we skip it.  Things can break if we mess with pages
 		 * in any of the below states.
 		 */
-		if (m->hold_count || m->wire_count ||
-			m->valid != VM_PAGE_BITS_ALL) {
+		if (
+		    m->hold_count ||
+		    m->wire_count ||
+		    m->valid != VM_PAGE_BITS_ALL
+		) {
 			continue;
 		}
 
- 		if (vm_page_sleep(m, "madvpo", &m->busy))
+ 		if (vm_page_sleep_busy(m, TRUE, "madvpo"))
   			goto relookup;
 
 		if (advise == MADV_WILLNEED) {
@@ -818,15 +867,25 @@ shadowlookup:
 		} else if (advise == MADV_DONTNEED) {
 			vm_page_deactivate(m);
 		} else if (advise == MADV_FREE) {
+			/*
+			 * If MADV_FREE_FORCE_FREE is defined, we attempt to
+			 * immediately free the page.  Otherwise we just 
+			 * destroy any swap backing store, mark it clean,
+			 * and stuff it into the cache.
+			 */
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 			m->dirty = 0;
-			/*
-			 * Force a demand zero if attempt to read from swap.
-			 * We currently don't handle vnode files correctly,
-			 * and will reread stale contents unnecessarily.
-			 */
-			if (object->type == OBJT_SWAP)
-				swap_pager_dmzspace(tobject, m->pindex, 1);
+
+#ifdef MADV_FREE_FORCE_FREE
+			if (tobject->resident_page_count > 1) {
+				vm_page_busy(m);
+				vm_page_protect(m, VM_PROT_NONE);
+				vm_page_free(m);
+			} else
+#endif
+			{
+				vm_page_cache(m);
+			}
 		}
 	}	
 }
@@ -900,8 +959,7 @@ vm_object_qcollapse(object)
 	register vm_object_t object;
 {
 	register vm_object_t backing_object;
-	register vm_pindex_t backing_offset_index, paging_offset_index;
-	vm_pindex_t backing_object_paging_offset_index;
+	register vm_pindex_t backing_offset_index;
 	vm_pindex_t new_pindex;
 	register vm_page_t p, pp;
 	register vm_size_t size;
@@ -913,12 +971,16 @@ vm_object_qcollapse(object)
 	backing_object->ref_count += 2;
 
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
-	backing_object_paging_offset_index = OFF_TO_IDX(backing_object->paging_offset);
-	paging_offset_index = OFF_TO_IDX(object->paging_offset);
 	size = object->size;
+
 	p = TAILQ_FIRST(&backing_object->memq);
 	while (p) {
 		vm_page_t next;
+
+		/*
+		 * setup for loop.
+		 * loop if the page isn't trivial.
+		 */
 
 		next = TAILQ_NEXT(p, listq);
 		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
@@ -926,14 +988,22 @@ vm_object_qcollapse(object)
 			p = next;
 			continue;
 		}
+
+		/*
+		 * busy the page and move it from the backing store to the
+		 * parent object.
+		 */
+
 		vm_page_busy(p);
+
+		KASSERT(p->object == object, ("vm_object_qcollapse(): object mismatch"));
 
 		new_pindex = p->pindex - backing_offset_index;
 		if (p->pindex < backing_offset_index ||
 		    new_pindex >= size) {
 			if (backing_object->type == OBJT_SWAP)
 				swap_pager_freespace(backing_object,
-				    backing_object_paging_offset_index+p->pindex,
+				    p->pindex,
 				    1);
 			vm_page_protect(p, VM_PROT_NONE);
 			vm_page_free(p);
@@ -941,16 +1011,16 @@ vm_object_qcollapse(object)
 			pp = vm_page_lookup(object, new_pindex);
 			if (pp != NULL ||
 				(object->type == OBJT_SWAP && vm_pager_has_page(object,
-				    paging_offset_index + new_pindex, NULL, NULL))) {
+				    new_pindex, NULL, NULL))) {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
-					    backing_object_paging_offset_index + p->pindex, 1);
+					    p->pindex, 1);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			} else {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
-					    backing_object_paging_offset_index + p->pindex, 1);
+					    p->pindex, 1);
 
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
@@ -958,7 +1028,7 @@ vm_object_qcollapse(object)
 					vm_page_protect(p, VM_PROT_NONE);
 
 				vm_page_rename(p, object, new_pindex);
-				p->dirty = VM_PAGE_BITS_ALL;
+				/* page automatically made dirty by rename */
 			}
 		}
 		p = next;
@@ -1049,9 +1119,10 @@ vm_object_collapse(object)
 			 */
 
 			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
-
-				new_pindex = p->pindex - backing_offset_index;
+				if (vm_page_sleep_busy(p, TRUE, "vmocol"))
+					continue;
 				vm_page_busy(p);
+				new_pindex = p->pindex - backing_offset_index;
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1068,7 +1139,7 @@ vm_object_collapse(object)
 				} else {
 					pp = vm_page_lookup(object, new_pindex);
 					if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
-					    OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL))) {
+					    new_pindex, NULL, NULL))) {
 						vm_page_protect(p, VM_PROT_NONE);
 						vm_page_free(p);
 					} else {
@@ -1077,7 +1148,7 @@ vm_object_collapse(object)
 						else
 							vm_page_protect(p, VM_PROT_NONE);
 						vm_page_rename(p, object, new_pindex);
-						p->dirty = VM_PAGE_BITS_ALL;
+						/* page automatically made dirty by rename */
 					}
 				}
 			}
@@ -1088,52 +1159,22 @@ vm_object_collapse(object)
 
 			if (backing_object->type == OBJT_SWAP) {
 				vm_object_pip_add(backing_object, 1);
-				if (object->type == OBJT_SWAP) {
-					vm_object_pip_add(object, 1);
-					/*
-					 * copy shadow object pages into ours
-					 * and destroy unneeded pages in
-					 * shadow object.
-					 */
-					swap_pager_copy(
-					    backing_object,
-					    OFF_TO_IDX(backing_object->paging_offset),
-					    object,
-					    OFF_TO_IDX(object->paging_offset),
-					    OFF_TO_IDX(object->backing_object_offset), TRUE);
-					vm_object_pip_wakeup(object);
-				} else {
-					vm_object_pip_add(object, 1);
-					/*
-					 * move the shadow backing_object's pager data to
-					 * "object" and convert "object" type to OBJT_SWAP.
-					 */
-					object->type = OBJT_SWAP;
-					object->un_pager.swp.swp_nblocks =
-					    backing_object->un_pager.swp.swp_nblocks;
-					object->un_pager.swp.swp_allocsize =
-					    backing_object->un_pager.swp.swp_allocsize;
-					object->un_pager.swp.swp_blocks =
-					    backing_object->un_pager.swp.swp_blocks;
-					object->un_pager.swp.swp_poip =		/* XXX */
-					    backing_object->un_pager.swp.swp_poip;
-					object->paging_offset = backing_object->paging_offset + backing_offset;
-					TAILQ_INSERT_TAIL(&swap_pager_un_object_list, object, pager_object_list);
 
-					/*
-					 * Convert backing object from OBJT_SWAP to
-					 * OBJT_DEFAULT. XXX - only the TAILQ_REMOVE is
-					 * actually necessary.
-					 */
-					backing_object->type = OBJT_DEFAULT;
-					TAILQ_REMOVE(&swap_pager_un_object_list, backing_object, pager_object_list);
-					/*
-					 * free unnecessary blocks
-					 */
-					swap_pager_freespace(object, 0,
-						OFF_TO_IDX(object->paging_offset));
-					vm_object_pip_wakeup(object);
-				}
+				/*
+				 * scrap the paging_offset junk and do a 
+				 * discrete copy.  This also removes major 
+				 * assumptions about how the swap-pager 
+				 * works from where it doesn't belong.  The
+				 * new swapper is able to optimize the
+				 * destroy-source case.
+				 */
+
+				vm_object_pip_add(object, 1);
+				swap_pager_copy(
+				    backing_object,
+				    object,
+				    OFF_TO_IDX(object->backing_object_offset), TRUE);
+				vm_object_pip_wakeup(object);
 
 				vm_object_pip_wakeup(backing_object);
 			}
@@ -1223,7 +1264,7 @@ vm_object_collapse(object)
 
 					vm_page_busy(pp);
 					if ((pp->valid == 0) &&
-				   	    !vm_pager_has_page(object, OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL)) {
+				   	    !vm_pager_has_page(object, new_pindex, NULL, NULL)) {
 						/*
 						 * Page still needed. Can't go any
 						 * further.
@@ -1318,7 +1359,7 @@ again:
 				 * interrupt -- minimize the spl transitions
 				 */
 
- 				if (vm_page_sleep(p, "vmopar", &p->busy))
+ 				if (vm_page_sleep_busy(p, TRUE, "vmopar"))
  					goto again;
 
 				if (clean_only && p->valid) {
@@ -1349,7 +1390,7 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
- 				if (vm_page_sleep(p, "vmopar", &p->busy))
+ 				if (vm_page_sleep_busy(p, TRUE, "vmopar"))
 					goto again;
 
 				if (clean_only && p->valid) {
@@ -1589,11 +1630,10 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	    object, (int)object->type, (u_long)object->size,
 	    object->resident_page_count, object->ref_count, object->flags);
 	/*
-	 * XXX no %qd in kernel.  Truncate object->paging_offset and
-	 * object->backing_object_offset.
+	 * XXX no %qd in kernel.  Truncate object->backing_object_offset.
 	 */
-	db_iprintf(" sref=%d, offset=0x%lx, backing_object(%d)=(%p)+0x%lx\n",
-	    object->shadow_count, (long)object->paging_offset,
+	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%lx\n",
+	    object->shadow_count, 
 	    object->backing_object ? object->backing_object->ref_count : 0,
 	    object->backing_object, (long)object->backing_object_offset);
 

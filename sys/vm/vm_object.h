@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.50 1998/08/06 08:33:19 dfr Exp $
+ * $Id: vm_object.h,v 1.51 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -81,6 +81,7 @@ typedef enum obj_type objtype_t;
  *	Types defined:
  *
  *	vm_object_t		Virtual memory object.
+ *
  */
 
 struct vm_object {
@@ -94,32 +95,49 @@ struct vm_object {
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	int pg_color;			/* color of first page in obj */
-	int	id;					/* ID for no purpose, other than info */
+#if 0
+	int id;				/* ID for no purpose, other than info */
+#endif
+	int hash_rand;			/* vm hash table randomizer	*/
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
-	int cache_count;			/* number of cached pages */
-	int	wire_count;			/* number of wired pages */
-	vm_ooffset_t paging_offset;	/* Offset into paging space */
+	int cache_count;		/* number of cached pages */
+	int	wire_count;		/* number of wired pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
-	vm_page_t page_hint;		/* hint for last looked-up or allocated page */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
 	union {
+		/*
+		 * VNode pager
+		 *
+		 *	vnp_size - current size of file
+		 */
 		struct {
-			off_t vnp_size; /* Current size of file */
+			off_t vnp_size;
 		} vnp;
+
+		/*
+		 * Device pager
+		 *
+		 *	devp_pglist - list of allocated pages
+		 */
 		struct {
-			TAILQ_HEAD(, vm_page) devp_pglist; /* list of pages allocated */
+			TAILQ_HEAD(, vm_page) devp_pglist;
 		} devp;
+
+		/*
+		 * Swap pager
+		 *
+		 *	swp_bcount - number of swap 'swblock' metablocks, each
+		 *		     contains up to 16 swapblk assignments.
+		 *		     see vm/swap_pager.h
+		 */
 		struct {
-			int swp_nblocks;
-			int swp_allocsize;
-			struct swblock *swp_blocks;
-			short swp_poip;
+			int swp_bcount;
 		} swp;
 	} un_pager;
 };
@@ -132,7 +150,7 @@ struct vm_object {
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
-#define OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
+#define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty */
 #define OBJ_CLEANING	0x0200
 #define OBJ_OPT		0x1000		/* I/O optimization */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
@@ -197,12 +215,21 @@ vm_object_pip_wakeup(vm_object_t object)
 }
 
 static __inline void
+vm_object_pip_wakeupn(vm_object_t object, int i)
+{
+	if (i)
+		atomic_subtract_short(&object->paging_in_progress, i);
+	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
+		vm_object_clear_flag(object, OBJ_PIPWNT);
+		wakeup(object);
+	}
+}
+
+static __inline void
 vm_object_pip_sleep(vm_object_t object, char *waitid)
 {
-	int s;
-
 	if (object->paging_in_progress) {
-		s = splvm();
+		int s = splvm();
 		if (object->paging_in_progress) {
 			vm_object_set_flag(object, OBJ_PIPWNT);
 			tsleep(object, PVM, waitid, 0);
