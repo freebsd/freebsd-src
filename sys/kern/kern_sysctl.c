@@ -848,7 +848,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	bzero(&req, sizeof req);
 
-	req.p = td->td_proc;
+	req.td = td;
 
 	if (oldlenp) {
 		req.oldlen = *oldlenp;
@@ -1037,12 +1037,12 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
-		if (req->p == NULL) {
+		if (req->td == NULL) {
 			error = securelevel_gt(NULL, 0);	/* XXX */
 			if (error)
 				return (error);
 		} else {
-			error = securelevel_gt(req->p->p_ucred, 0);
+			error = securelevel_gt(req->td->td_proc->p_ucred, 0);
 			if (error)
 				return (error);
 		}
@@ -1050,14 +1050,14 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	/* Is this sysctl writable by only privileged users? */
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
-		if (req->p != NULL) {
+		if (req->td != NULL) {
 			int flags;
 
 			if (oid->oid_kind & CTLFLAG_PRISON)
 				flags = PRISON_ROOT;
 			else
 				flags = 0;
-			error = suser_xxx(NULL, req->p, flags);
+			error = suser_xxx(NULL, req->td->td_proc, flags);
 			if (error)
 				return (error);
 		}
@@ -1132,7 +1132,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	bzero(&req, sizeof req);
 
-	req.p = td->td_proc;
+	req.td = td;
 
 	if (oldlenp) {
 		if (inkernel) {

@@ -583,7 +583,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt) {
-			if (cr_cansee(req->p->p_ucred,
+			if (cr_cansee(req->td->td_proc->p_ucred,
 			    inp->inp_socket->so_cred))
 				continue;
 			inp_list[i++] = inp;
@@ -635,7 +635,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, s;
 
-	error = suser_xxx(0, req->p, PRISON_ROOT);
+	error = suser_xxx(0, req->td->td_proc, PRISON_ROOT);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
@@ -648,7 +648,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = cr_cansee(req->p->p_ucred, inp->inp_socket->so_cred);
+	error = cr_cansee(req->td->td_proc->p_ucred, inp->inp_socket->so_cred);
 	if (error)
 		goto out;
 	bzero(&xuc, sizeof(xuc));

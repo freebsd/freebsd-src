@@ -56,11 +56,11 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 	char osname[LINUX_MAX_UTSNAME];
 	int error;
 
-	strcpy(osname, linux_get_osname(req->p));
+	strcpy(osname, linux_get_osname(req->td->td_proc));
 	error = sysctl_handle_string(oidp, osname, LINUX_MAX_UTSNAME, req);
 	if (error || req->newptr == NULL)
 		return (error);
-	error = linux_set_osname(req->p, osname);
+	error = linux_set_osname(req->td->td_proc, osname);
 	return (error);
 }
 
@@ -77,11 +77,11 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 	char osrelease[LINUX_MAX_UTSNAME];
 	int error;
 
-	strcpy(osrelease, linux_get_osrelease(req->p));
+	strcpy(osrelease, linux_get_osrelease(req->td->td_proc));
 	error = sysctl_handle_string(oidp, osrelease, LINUX_MAX_UTSNAME, req);
 	if (error || req->newptr == NULL)
 		return (error);
-	error = linux_set_osrelease(req->p, osrelease);
+	error = linux_set_osrelease(req->td->td_proc, osrelease);
 	return (error);
 }
 
@@ -98,11 +98,11 @@ linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 	int oss_version;
 	int error;
 
-	oss_version = linux_get_oss_version(req->p);
+	oss_version = linux_get_oss_version(req->td->td_proc);
 	error = sysctl_handle_int(oidp, &oss_version, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
-	error = linux_set_oss_version(req->p, oss_version);
+	error = linux_set_oss_version(req->td->td_proc, oss_version);
 	return (error);
 }
 
