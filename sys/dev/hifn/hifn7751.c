@@ -42,7 +42,6 @@
  */
 
 #define HIFN_DEBUG
-#define HIFN_NO_RNG
 
 /*
  * Driver for the Hifn 7751 encryption processor.
@@ -613,6 +612,7 @@ hifn_resume(device_t dev)
 static int
 hifn_init_pubrng(struct hifn_softc *sc)
 {
+	u_int32_t r;
 	int i;
 
 	if ((sc->sc_flags & HIFN_IS_7811) == 0) {
@@ -701,8 +701,10 @@ hifn_rng(void *vsc)
 			/* NB: discard first data read */
 			if (sc->sc_rngfirst)
 				sc->sc_rngfirst = 0;
-			else
-				random_harvest(num, RANDOM_BITS(2), RANDOM_PURE);
+			else {
+				add_true_randomness(num[0]);
+				add_true_randomness(num[1]);
+			}
 		}
 	} else {
 		num[0] = READ_REG_1(sc, HIFN_1_RNG_DATA);
@@ -711,7 +713,7 @@ hifn_rng(void *vsc)
 		if (sc->sc_rngfirst)
 			sc->sc_rngfirst = 0;
 		else
-			random_harvest(num, RANDOM_BITS(1), RANDOM_PURE);
+			add_true_randomness(num[0]);
 	}
 
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);

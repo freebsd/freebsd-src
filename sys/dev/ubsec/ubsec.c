@@ -41,7 +41,6 @@
  */
 
 #define UBSEC_DEBUG
-#define UBSEC_NO_RNG
 
 /*
  * uBsec 5[56]01, 58xx hardware crypto accelerator
@@ -134,7 +133,7 @@ static	int ubsec_feed(struct ubsec_softc *);
 static	void ubsec_mcopy(struct mbuf *, struct mbuf *, int, int);
 static	void ubsec_callback2(struct ubsec_softc *, struct ubsec_q2 *);
 static	int ubsec_feed2(struct ubsec_softc *);
-/*static	void ubsec_rng(void *);*/
+static	void ubsec_rng(void *);
 static	int ubsec_dma_malloc(struct ubsec_softc *, bus_size_t,
 			     struct ubsec_dma_alloc *, int);
 static	void ubsec_dma_free(struct ubsec_softc *, struct ubsec_dma_alloc *);
@@ -1594,13 +1593,14 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 #ifndef UBSEC_NO_RNG
 	case UBS_CTXOP_RNGBYPASS: {
 		struct ubsec_q2_rng *rng = (struct ubsec_q2_rng *)q;
+		u_int32_t *p;
+		int i;
 
 		bus_dmamap_sync(sc->sc_dmat, rng->rng_buf.dma_map,
 		    BUS_DMASYNC_POSTREAD);
-		random_harvest(rng->rng_buf.dma_vaddr,
-			UBSEC_RNG_BUFSIZ*sizeof (u_int32_t),
-			UBSEC_RNG_BUFSIZ*sizeof (u_int32_t)*NBBY, 0,
-			RANDOM_PURE);
+		p = (u_int32_t *)rng->rng_buf.dma_vaddr;
+		for (i = 0; i < UBSEC_RNG_BUFSIZ; p++, i++)
+			add_true_randomness(*p);
 		rng->rng_used = 0;
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 		break;
