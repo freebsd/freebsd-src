@@ -153,7 +153,7 @@ is run as root.
 This flag is deprecated.
 Use
 .Xr ifconfig 8
-.Dq mediaopt
+.Cm mediaopt
 instead.
 .Pp
 Set the transmit rate of the specified interface.
@@ -184,9 +184,9 @@ The numbers vary from card to card.
 This flag is deprecated.
 Use
 .Xr ifconfig 8
-.Dq ssid
+.Cm ssid
 or
-.Dq nwid
+.Cm nwid
 instead.
 .Pp
 Set the name of the service set (IBSS) that this station wishes to
@@ -213,9 +213,9 @@ string works as well.
 This flag is deprecated.
 Use
 .Xr ifconfig 8
-.Dq stationname
+.Cm stationname
 or
-.Dq station
+.Cm station
 instead.
 .Pp
 Sets the
@@ -245,7 +245,9 @@ The default is
 Only newer versions of the Lucent firmware support this.
 .It Oo Fl i Oc Ar iface Fl q Ar SSID
 This flag is deprecated.
-The ssid setting from
+The
+.Cm ssid
+setting from
 .Xr ifconfig 8
 is the current preferred way of setting this parameter.
 .Pp
@@ -267,9 +269,9 @@ Danger.
 Do not use.
 Instead, use the
 .Xr ifconfig 8
-.Dq media
+.Cm media
 and
-.Dq mediaopt
+.Cm mediaopt
 commands.
 .Pp
 Set the
@@ -326,7 +328,7 @@ The default is 2304.
 This flag is deprecated.
 It has been replaced by the
 .Xr ifconfig 8
-.Dq wepmode
+.Cm wepmode
 option.
 .Pp
 Enable or disable WEP encryption.
@@ -345,7 +347,7 @@ section for details.
 This flag is obsolete.
 The
 .Xr ifconfig 8
-.Dq wepkey
+.Cm wepkey
 should be used instead.
 .Pp
 Set WEP encryption keys.
@@ -386,7 +388,7 @@ section for details.
 This flag is obsolete.
 The
 .Xr ifconfig 8
-.Dq weptxkey
+.Cm weptxkey
 should be used instead.
 .Pp
 Specify which of the four WEP encryption keys will be used to
@@ -408,7 +410,7 @@ The default is 2347.
 This flag is deprecated.
 Use
 .Xr ifconfig 8
-.Dq channel
+.Cm channel
 instead.
 .Pp
 Set the radio frequency of a given interface.
@@ -456,7 +458,7 @@ communicate.
 This flag is obsolete.
 The
 .Xr ifconfig 8
-.Dq powersave
+.Cm powersave
 should be used instead.
 .Pp
 Enable or disable power management on a given interface.
@@ -483,7 +485,7 @@ values for this parameter are
 This flag is obsolete.
 The
 .Xr ifconfig 8
-.Dq powersleep
+.Cm powersleep
 should be used instead.
 .Pp
 Specify the sleep interval to use when power management is enabled.
@@ -508,13 +510,13 @@ from the signal strength (i.e. less noise and better signal yields
 better signal quality).
 .El
 .Sh SEE ALSO
-.Xr ipsec 4 ,
 .Xr awi 4 ,
+.Xr ipsec 4 ,
 .Xr wi 4 ,
 .Xr ifconfig 8
 .Sh BUGS
 There are deprecated flags here that duplicate functionality of
-ifconfig.
+.Xr ifconfig 8 .
 These flags will be deprecated in
 .Fx 5.1
 and removed in a future release.
@@ -549,9 +551,13 @@ for details of the attack.
 Many programs to assist in cracking WEP keys are widely available.
 .Pp
 If you must use WEP, you are strongly encouraged to pick keys whose
-bytes are random and not confined to ASCII characters.
+bytes are random and not confined to
+.Tn ASCII
+characters.
 Brute force attacks on WEP keys are also possible.
-Experience has showns that ASCII keys can be cracked in less than a day.
+Experience has showns that
+.Tn ASCII
+keys can be cracked in less than a day.
 Even random bytes can be cracked in less than two weeks.
 .Pp
 Signal cache is broken right now.
