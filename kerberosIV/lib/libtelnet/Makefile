@@ -8,6 +8,8 @@ CFLAGS+=	-DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
 		-DKRB4 -I${TELNETDIR} \
 		-I${KRB4DIR}/lib/krb
 
+NOPIC=		yes
+
 INCLUDES=	${TELNETDIR}/arpa/telnet.h 
 
 .include <bsd.lib.mk>
