@@ -655,12 +655,14 @@ ccdiodone(struct bio *cbp)
 			return;
 		}
 		g_std_done(cbp);
+		return;
 	}
 	if (mbp != NULL) {
 		mbp->bio_caller1 = NULL;
 		pbp->bio_inbed++;
 		if (cbp->bio_error != 0 && pbp->bio_error == 0)
 			pbp->bio_error = cbp->bio_error;
+		g_destroy_bio(cbp);
 		return;
 	}
 	g_std_done(cbp);
