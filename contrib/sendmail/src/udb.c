@@ -14,18 +14,15 @@
 #include <sendmail.h>
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.153 2001/09/11 04:05:17 gshapiro Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.153.4.4 2002/12/03 17:57:41 gshapiro Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.153 2001/09/11 04:05:17 gshapiro Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.153.4.4 2002/12/03 17:57:41 gshapiro Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
 
 # if NEWDB
-#  include <db.h>
-#  ifndef DB_VERSION_MAJOR
-#   define DB_VERSION_MAJOR 1
-#  endif /* ! DB_VERSION_MAJOR */
+#  include "sm/bdb.h"
 # else /* NEWDB */
 #  define DBT	struct _data_base_thang_
 DBT
@@ -190,9 +187,9 @@ udbexpand(a, sendq, aliaslevel, e)
 		int usersize;
 		int userleft;
 		char userbuf[MEMCHUNKSIZE];
-# if defined(HESIOD) && defined(HES_GETMAILHOST)
+# if HESIOD && HES_GETMAILHOST
 		char pobuf[MAXNAME];
-# endif /* defined(HESIOD) && defined(HES_GETMAILHOST) */
+# endif /* HESIOD && HES_GETMAILHOST */
 # if defined(NEWDB) && DB_VERSION_MAJOR > 1
 		DBC *dbc = NULL;
 # endif /* defined(NEWDB) && DB_VERSION_MAJOR > 1 */
@@ -996,12 +993,8 @@ _udbx_init(e)
 				int ret;
 #  endif /* DB_VERSION_MAJOR > 2 */
 
-#  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
-				flags |= DB_FCNTL_LOCKING;
-#  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
-
+				SM_DB_FLAG_ADD(flags);
 				up->udb_dbp = NULL;
-
 #  if DB_VERSION_MAJOR > 2
 				ret = db_create(&up->udb_dbp, NULL, 0);
 				if (ret != 0)
@@ -1013,6 +1006,7 @@ _udbx_init(e)
 				else
 				{
 					ret = up->udb_dbp->open(up->udb_dbp,
+								DBTXN
 								up->udb_dbname,
 								NULL,
 								DB_BTREE,

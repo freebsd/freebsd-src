@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.2 2002/08/19 21:50:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.7 2002/11/10 19:13:11 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -2045,9 +2045,9 @@ static struct optioninfo
 #define O_CLTKEYFILE	0xb7
 	{ "ClientKeyFile",		O_CLTKEYFILE,	OI_NONE	},
 #define O_CACERTFILE	0xb8
-	{ "CACERTFile",			O_CACERTFILE,	OI_NONE	},
+	{ "CACertFile",			O_CACERTFILE,	OI_NONE	},
 #define O_CACERTPATH	0xb9
-	{ "CACERTPath",			O_CACERTPATH,	OI_NONE	},
+	{ "CACertPath",			O_CACERTPATH,	OI_NONE	},
 #define O_DHPARAMS	0xba
 	{ "DHParameters",		O_DHPARAMS,	OI_NONE	},
 #define O_INPUTMILTER	0xbb
@@ -2100,6 +2100,14 @@ static struct optioninfo
 # define O_SHMKEYFILE	0xd0
 	{ "SharedMemoryKeyFile",	O_SHMKEYFILE,	OI_NONE	},
 #endif /* _FFR_SELECT_SHM */
+#if _FFR_REJECT_LOG
+# define O_REJECTLOGINTERVAL	0xd1
+	{ "RejectLogInterval",	O_REJECTLOGINTERVAL,	OI_NONE	},
+#endif /* _FFR_REJECT_LOG */
+#if _FFR_REQ_DIR_FSYNC_OPT
+# define O_REQUIRES_DIR_FSYNC	0xd2
+	{ "RequiresDirfsync",	O_REQUIRES_DIR_FSYNC,	OI_NONE	},
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 	{ NULL,				'\0',		OI_NONE	}
 };
 
@@ -3337,18 +3345,23 @@ setoption(opt, val, safe, sticky, e)
 			  case 'A':
 				SASLOpts |= SASL_AUTH_AUTH;
 				break;
+
 			  case 'a':
 				SASLOpts |= SASL_SEC_NOACTIVE;
 				break;
+
 			  case 'c':
 				SASLOpts |= SASL_SEC_PASS_CREDENTIALS;
 				break;
+
 			  case 'd':
 				SASLOpts |= SASL_SEC_NODICTIONARY;
 				break;
+
 			  case 'f':
 				SASLOpts |= SASL_SEC_FORWARD_SECRECY;
 				break;
+
 # if _FFR_SASL_OPT_M
 /* to be activated in 8.13 */
 #  if SASL >= 20101
@@ -3357,16 +3370,20 @@ setoption(opt, val, safe, sticky, e)
 				break;
 #  endif /* SASL >= 20101 */
 # endif /* _FFR_SASL_OPT_M */
+
 			  case 'p':
 				SASLOpts |= SASL_SEC_NOPLAINTEXT;
 				break;
+
 			  case 'y':
 				SASLOpts |= SASL_SEC_NOANONYMOUS;
 				break;
+
 			  case ' ':	/* ignore */
 			  case '\t':	/* ignore */
 			  case ',':	/* ignore */
 				break;
+
 			  default:
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "Warning: Option: %s unknown parameter '%c'\n",
@@ -3382,6 +3399,7 @@ setoption(opt, val, safe, sticky, e)
 				++val;
 		}
 		break;
+
 	  case O_SASLBITS:
 		MaxSLBits = atoi(val);
 		break;
@@ -3399,17 +3417,17 @@ setoption(opt, val, safe, sticky, e)
 
 #if STARTTLS
 	  case O_SRVCERTFILE:
-		SET_STRING_EXP(SrvCERTfile);
+		SET_STRING_EXP(SrvCertFile);
 	  case O_SRVKEYFILE:
-		SET_STRING_EXP(Srvkeyfile);
+		SET_STRING_EXP(SrvKeyFile);
 	  case O_CLTCERTFILE:
-		SET_STRING_EXP(CltCERTfile);
+		SET_STRING_EXP(CltCertFile);
 	  case O_CLTKEYFILE:
-		SET_STRING_EXP(Cltkeyfile);
+		SET_STRING_EXP(CltKeyFile);
 	  case O_CACERTFILE:
-		SET_STRING_EXP(CACERTfile);
+		SET_STRING_EXP(CACertFile);
 	  case O_CACERTPATH:
-		SET_STRING_EXP(CACERTpath);
+		SET_STRING_EXP(CACertPath);
 	  case O_DHPARAMS:
 		SET_STRING_EXP(DHParams);
 # if _FFR_TLS_1
@@ -3573,6 +3591,22 @@ setoption(opt, val, safe, sticky, e)
 		SoftBounce = atobool(val);
 		break;
 #endif /* _FFR_SOFT_BOUNCE */
+
+#if _FFR_REJECT_LOG
+	  case O_REJECTLOGINTERVAL:	/* time btwn log msgs while refusing */
+		RejectLogInterval = convtime(val, 'h');
+		break;
+#endif /* _FFR_REJECT_LOG */
+
+#if _FFR_REQ_DIR_FSYNC_OPT
+	  case O_REQUIRES_DIR_FSYNC:
+# if REQUIRES_DIR_FSYNC
+		RequiresDirfsync = atobool(val);
+# else /* REQUIRES_DIR_FSYNC */
+		/* silently ignored... required for cf file option */
+# endif /* REQUIRES_DIR_FSYNC */
+		break;
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 
 	  default:
 		if (tTd(37, 1))

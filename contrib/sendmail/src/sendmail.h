@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.4 2002/08/16 14:56:01 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.15 2002/12/12 22:46:35 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -392,6 +392,9 @@ struct mailer
 #define M_ESMTP		'a'	/* run Extended SMTP */
 #define M_ALIASABLE	'A'	/* user can be LHS of an alias */
 #define M_BLANKEND	'b'	/* ensure blank line at end of message */
+#if _FFR_STRIPBACKSL
+# define M_STRIPBACKSL	'B'	/* strip leading backslash from user */
+#endif /* _FFR_STRIPBACKSL */
 #define M_NOCOMMENT	'c'	/* don't include comment part of address */
 #define M_CANONICAL	'C'	/* make addresses canonical "u@dom" */
 #define M_NOBRACKET	'd'	/* never angle bracket envelope route-addrs */
@@ -581,7 +584,7 @@ extern bool	filesys_free __P((long));
 ERROR: change SASL_SEC_MASK_ notify sendmail.org!
 #  endif /* SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 ... */
 # endif /* SASL >= 20101 */
-# define MAXOUTLEN 1024			/* length of output buffer */
+# define MAXOUTLEN 8192			/* length of output buffer */
 
 /* functions */
 extern char	*intersect __P((char *, char *, SM_RPOOL_T *));
@@ -690,6 +693,7 @@ MCI
 #define MCIF_AUTHACT	0x00010000	/* SASL (AUTH) active */
 #define MCIF_ENHSTAT	0x00020000	/* ENHANCEDSTATUSCODES supported */
 #define MCIF_PIPELINED	0x00040000	/* PIPELINING supported */
+#define MCIF_VERB	0x00080000	/* VERB supported */
 #if STARTTLS
 #define MCIF_TLS	0x00100000	/* STARTTLS supported */
 #define MCIF_TLSACT	0x00200000	/* STARTTLS active */
@@ -955,6 +959,7 @@ extern ENVELOPE	BlankEnvelope;
 extern void	clearenvelope __P((ENVELOPE *, bool, SM_RPOOL_T *));
 extern void	dropenvelope __P((ENVELOPE *, bool, bool));
 extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *, SM_RPOOL_T *));
+extern void	clrsessenvelope __P((ENVELOPE *));
 extern void	printenvflags __P((ENVELOPE *));
 extern void	putbody __P((MCI *, ENVELOPE *, char *));
 extern void	putheader __P((MCI *, HDR *, ENVELOPE *, int));
@@ -1567,7 +1572,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 **  Flags passed to rscheck
 */
 
-#define RSF_RMCOMM		0x0001	/* strip comments */ 
+#define RSF_RMCOMM		0x0001	/* strip comments */
 #define RSF_UNSTRUCTURED	0x0002	/* unstructured, ignore syntax errors */
 #define RSF_COUNT		0x0004	/* count rejections (statistics)? */
 
@@ -1769,14 +1774,14 @@ struct termescape
 
 /* what to do in the TLS initialization */
 #define TLS_I_NONE	0x00000000	/* no requirements... */
-#define TLS_I_CERT_EX	0x00000001	/* CERT must exist */
-#define TLS_I_CERT_UNR	0x00000002	/* CERT must be g/o unreadable */
-#define TLS_I_KEY_EX	0x00000004	/* KEY must exist */
-#define TLS_I_KEY_UNR	0x00000008	/* KEY must be g/o unreadable */
-#define TLS_I_CERTP_EX	0x00000010	/* CA CERT PATH must exist */
-#define TLS_I_CERTP_UNR	0x00000020	/* CA CERT PATH must be g/o unreadable */
-#define TLS_I_CERTF_EX	0x00000040	/* CA CERT FILE must exist */
-#define TLS_I_CERTF_UNR	0x00000080	/* CA CERT FILE must be g/o unreadable */
+#define TLS_I_CERT_EX	0x00000001	/* cert must exist */
+#define TLS_I_CERT_UNR	0x00000002	/* cert must be g/o unreadable */
+#define TLS_I_KEY_EX	0x00000004	/* key must exist */
+#define TLS_I_KEY_UNR	0x00000008	/* key must be g/o unreadable */
+#define TLS_I_CERTP_EX	0x00000010	/* CA cert path must exist */
+#define TLS_I_CERTP_UNR	0x00000020	/* CA cert path must be g/o unreadable */
+#define TLS_I_CERTF_EX	0x00000040	/* CA cert file must exist */
+#define TLS_I_CERTF_UNR	0x00000080	/* CA cert file must be g/o unreadable */
 #define TLS_I_RSA_TMP	0x00000100	/* RSA TMP must be generated */
 #define TLS_I_USE_KEY	0x00000200	/* private key must usable */
 #define TLS_I_USE_CERT	0x00000400	/* certificate must be usable */
@@ -1791,7 +1796,7 @@ struct termescape
 #define TLS_I_DH1024	0x00080000	/* generate 1024bit DH param */
 #define TLS_I_DH2048	0x00100000	/* generate 2048bit DH param */
 #define TLS_I_NO_VRFY	0x00200000	/* do not require authentication */
-#define TLS_I_KEY_OUNR	0x00400000	/* KEY must be o unreadable */
+#define TLS_I_KEY_OUNR	0x00400000	/* Key must be other unreadable */
 
 /* require server cert */
 #define TLS_I_SRV_CERT	 (TLS_I_CERT_EX | TLS_I_KEY_EX | \
@@ -1821,18 +1826,18 @@ extern int	endtls __P((SSL *, char *));
 extern void	tlslogerr __P((char *));
 
 
-EXTERN char	*CACERTpath;	/* path to CA certificates (dir. with hashes) */
-EXTERN char	*CACERTfile;	/* file with CA certificate */
-EXTERN char	*CltCERTfile;	/* file with client certificate */
-EXTERN char	*Cltkeyfile;	/* file with client private key */
+EXTERN char	*CACertPath;	/* path to CA certificates (dir. with hashes) */
+EXTERN char	*CACertFile;	/* file with CA certificate */
+EXTERN char	*CltCertFile;	/* file with client certificate */
+EXTERN char	*CltKeyFile;	/* file with client private key */
 # if _FFR_TLS_1
 EXTERN char	*CipherList;	/* list of ciphers */
 EXTERN char	*DHParams5;	/* file with DH parameters (512) */
 # endif /* _FFR_TLS_1 */
 EXTERN char	*DHParams;	/* file with DH parameters */
 EXTERN char	*RandFile;	/* source of random data */
-EXTERN char	*SrvCERTfile;	/* file with server certificate */
-EXTERN char	*Srvkeyfile;	/* file with server private key */
+EXTERN char	*SrvCertFile;	/* file with server certificate */
+EXTERN char	*SrvKeyFile;	/* file with server private key */
 EXTERN unsigned long	TLS_Srv_Opts;	/* TLS server options */
 #endif /* STARTTLS */
 
@@ -1904,6 +1909,14 @@ struct queue_char
 	struct queue_char	*queue_next;
 };
 
+/* run_work_group() flags */
+#define RWG_NONE		0x0000
+#define RWG_FORK		0x0001
+#define RWG_VERBOSE		0x0002
+#define RWG_PERSISTENT		0x0004
+#define RWG_FORCE		0x0008
+#define RWG_RUNALL		0x0010
+
 typedef struct queue_char	QUEUE_CHAR;
 
 EXTERN int	volatile CurRunners;	/* current number of runner children */
@@ -1949,7 +1962,7 @@ extern void	quarantine_queue __P((char *, int));
 extern char	*queuename __P((ENVELOPE *, int));
 extern void	queueup __P((ENVELOPE *, bool, bool));
 extern bool	runqueue __P((bool, bool, bool, bool));
-extern int	run_work_group __P((int, bool, bool, bool, bool));
+extern int	run_work_group __P((int, int));
 extern void	set_def_queueval __P((QUEUEGRP *, bool));
 extern void	setup_queues __P((bool));
 extern bool	setnewqueue __P((ENVELOPE *));
@@ -2134,6 +2147,9 @@ EXTERN bool	NoAlias;	/* suppress aliasing */
 EXTERN bool	NoConnect;	/* don't connect to non-local mailers */
 EXTERN bool	OnlyOneError;	/*  .... or only want to give one SMTP reply */
 EXTERN bool	QuickAbort;	/*  .... but only if we want a quick abort */
+#if _FFR_REQ_DIR_FSYNC_OPT
+EXTERN bool	RequiresDirfsync;	/* requires fsync() for directory */
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 EXTERN bool	ResNoAliases;	/* don't use $HOSTALIASES */
 EXTERN bool	volatile RestartWorkGroup; /* daemon needs to restart some work groups */
 EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
@@ -2194,6 +2210,9 @@ EXTERN int	NumFileSys;	/* number of queue file systems */
 
 EXTERN int	QueueLA;	/* load average starting forced queueing */
 EXTERN int	RefuseLA;	/* load average refusing connections */
+#if _FFR_REJECT_LOG
+EXTERN time_t	RejectLogInterval;	/* time btwn log msgs while refusing */
+#endif /* _FFR_REJECT_LOG */
 EXTERN int	SuperSafe;	/* be extra careful, even if expensive */
 EXTERN int	VendorCode;	/* vendor-specific operation enhancements */
 EXTERN int	Verbose;	/* set if blow-by-blow desired */
@@ -2459,7 +2478,9 @@ extern void	makeworkgroups __P((void));
 extern void	mark_work_group_restart __P((int, int));
 extern char *	munchstring __P((char *, char **, int));
 extern struct hostent	*myhostname __P((char *, int));
+#if NISPLUS
 extern char	*nisplus_default_domain __P((void));	/* extern for Sun */
+#endif /* NISPLUS */
 extern bool	path_is_dir __P((char *, bool));
 extern int	pickqdir __P((QUEUEGRP *qg, long fsize, ENVELOPE *e));
 extern char	*pintvl __P((time_t, bool));
@@ -2508,6 +2529,9 @@ extern pid_t	sm_wait __P((int *));
 extern bool	split_by_recipient __P((ENVELOPE *e));
 extern void	stop_sendmail __P((void));
 extern char	*str2prt __P((char *));
+#if _FFR_STRIPBACKSL
+extern void	stripbackslash __P((char *));
+#endif /* _FFR_STRIPBACKSL */
 extern bool	strreplnonprt __P((char *, int));
 extern bool	strcontainedin __P((bool, char *, char *));
 extern int	switch_map_find __P((char *, char *[], short []));

@@ -15,7 +15,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266.4.1 2002/08/16 14:56:01 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.2 2002/09/23 23:42:02 ca Exp $")
 
 static size_t	fix_mime_header __P((char *));
 static int	priencode __P((char *));
@@ -930,7 +930,7 @@ logsender(e, msgid)
 				", daemon=%.20s", p);
 		sbp += strlen(sbp);
 	}
-	sm_syslog(LOG_INFO, e->e_id, "%.850s, relay=%.100s", sbuf, name);
+	sm_syslog(LOG_INFO, e->e_id, "%.850s, relay=%s", sbuf, name);
 
 #else /* (SYSLOG_BUFSIZE) >= 256 */
 
@@ -962,7 +962,7 @@ logsender(e, msgid)
 		sbp += strlen(sbp);
 	}
 	sm_syslog(LOG_INFO, e->e_id,
-		  "%.400srelay=%.100s", sbuf, name);
+		  "%.400srelay=%s", sbuf, name);
 #endif /* (SYSLOG_BUFSIZE) >= 256 */
 }
 /*

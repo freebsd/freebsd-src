@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mbdb.c,v 1.38 2002/04/05 22:59:56 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mbdb.c,v 1.38.2.1 2002/11/20 22:59:06 gshapiro Exp $")
 
 #include <sys/param.h>
 
@@ -17,6 +17,7 @@ SM_RCSID("@(#)$Id: mbdb.c,v 1.38 2002/04/05 22:59:56 gshapiro Exp $")
 #include <pwd.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <unistd.h>
 
 #include <sm/limits.h>
 #include <sm/conf.h>
@@ -466,10 +467,6 @@ mbdb_ldap_initialize(arg)
 		}
 		LDAPLMAP.ldap_base = new;
 	}
-
-	/* No connection yet, connect */
-	if (!sm_ldap_start(MBDB_LDAP_LABEL, &LDAPLMAP))
-		return EX_UNAVAILABLE;
 	return EX_OK;
 }
 
@@ -516,6 +513,12 @@ mbdb_ldap_lookup(name, user)
 		/* map not initialized, but don't have arg here */
 		errno = EFAULT;
 		return EX_TEMPFAIL;
+	}
+
+	if (LDAPLMAP.ldap_pid != getpid())
+	{
+		/* re-open map in this child process */
+		LDAPLMAP.ldap_ld = NULL;
 	}
 
 	if (LDAPLMAP.ldap_ld == NULL)

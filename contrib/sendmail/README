@@ -177,16 +177,31 @@ There are other files you should read.  Rooted in this directory are:
   cf/README
 	Details on configuring sendmail.
   doc/op/op.me
-	The sendmail Installation & Operations Guide.  Be warned: if
-	you are running this off on SunOS or some other system with an
-	old version of -me, you need to add the following macro to the
-	macros:
+	The sendmail Installation & Operations Guide.  In addition
+	to the shipped PostScript version, plain text and PDF versions
+	can be generating using (assuming the required conversion software
+	is installed on your system, see doc/op/Makefile):
+
+	cd doc/op && make op.txt op.pdf
+
+	Be warned: on some systems calling make in doc/op/ will cause
+	errors due to nroff/groff problems.  Known problems are:
+	- running this off on systems with an old version of -me, you
+	need to add the following macro to the macros:
 
 		.de sm
 		\s-1\\$1\\s0\\$2
 		..
 
 	This sets a word in a smaller pointsize.
+
+	- with new groff versions (1.18 seems affected)
+
+	GROFF_NO_SGR=1
+
+	needs to be set, e.g., in doc/op/Makefile:
+
+	ROFF_CMD=	GROFF_NO_SGR=1 groff
 
 
 +--------------+
@@ -448,4 +463,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.90 $, Last updated $Date: 2002/05/25 02:55:59 $
+$Revision: 8.90.2.1 $, Last updated $Date: 2002/11/09 23:32:28 $

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: handler.c,v 8.30 2002/04/29 15:06:48 ca Exp $")
+SM_RCSID("@(#)$Id: handler.c,v 8.30.2.2 2002/12/18 23:15:35 ca Exp $")
 
 #include "libmilter.h"
 
@@ -35,8 +35,8 @@ mi_handle_session(ctx)
 	ctx->ctx_id = (sthread_t) sthread_get_id();
 
 	/*
-	**  detach so resources are free when the thread returns
-	**  if we ever "wait" for threads, this call must be removed
+	**  Detach so resources are free when the thread returns.
+	**  If we ever "wait" for threads, this call must be removed.
 	*/
 
 	if (pthread_detach(ctx->ctx_id) != 0)

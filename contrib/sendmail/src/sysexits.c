@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: sysexits.c,v 8.33 2001/09/11 04:05:17 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sysexits.c,v 8.33.4.1 2002/09/09 02:42:37 gshapiro Exp $")
 
 /*
 **  DSNTOEXITSTAT -- convert DSN-style error code to EX_ style.
@@ -36,6 +36,10 @@ dsntoexitstat(dsncode)
 		return EX_OK;
 	if (*dsncode == '4')
 		return EX_TEMPFAIL;
+
+	/* reject other illegal values */
+	if (*dsncode != '5')
+		return EX_CONFIG;
 
 	/* now decode the other two field parts */
 	if (*++dsncode == '.')
@@ -75,7 +79,8 @@ dsntoexitstat(dsncode)
 			return EX_UNAVAILABLE;
 
 		  case 5:	/* Destination address valid */
-			return EX_OK;
+			/* According to RFC1893, this can't happen */
+			return EX_CONFIG;
 		}
 		break;
 
@@ -130,7 +135,7 @@ dsntoexitstat(dsncode)
 	  case 7:	/* Security Status */
 		return EX_DATAERR;
 	}
-	return EX_CONFIG;
+	return EX_UNAVAILABLE;
 }
 /*
 **  EXITSTAT -- convert EX_ value to error text.
