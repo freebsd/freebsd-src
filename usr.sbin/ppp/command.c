@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.114 1997/12/18 01:10:13 brian Exp $
+ * $Id: command.c,v 1.115 1997/12/19 18:11:05 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1349,10 +1349,8 @@ SetVariable(struct cmdargs const *arg)
       LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
                 argp, VarDevice);
     else {
-      strncpy(VarDevice, argp, sizeof(VarDevice) - 1);
-      VarDevice[sizeof(VarDevice) - 1] = '\0';
-      VarBaseDevice = strrchr(VarDevice, '/');
-      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
+      strncpy(VarDeviceList, argp, sizeof(VarDeviceList) - 1);
+      VarDeviceList[sizeof(VarDeviceList) - 1] = '\0';
     }
     break;
   case VAR_ACCMAP:
@@ -1423,7 +1421,7 @@ static struct cmdtab const SetCommands[] = {
   {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH,
   "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
   {"device", "line", SetVariable, LOCAL_AUTH, "Set modem device name",
-  "set device|line device-name", (const void *) VAR_DEVICE},
+  "set device|line device-name[,device-name]", (const void *) VAR_DEVICE},
   {"dfilter", NULL, SetDfilter, LOCAL_AUTH,
   "Set demand filter", "set dfilter ..."},
   {"dial", NULL, SetVariable, LOCAL_AUTH,

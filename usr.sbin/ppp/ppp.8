@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.88 1997/12/21 01:07:13 brian Exp $
+.\" $Id: ppp.8,v 1.89 1997/12/21 02:34:27 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1847,8 +1847,8 @@ for security reasons.
 This sets the authentication id used in client mode PAP or CHAP negotiation.
 .It set ctsrts
 This sets hardware flow control and is the default.
-.It set device|line value
-This sets the device to which
+.It set device|line value[,value...]
+This sets the device(s) to which
 .Nm
 will talk to the given
 .Dq value .
@@ -1868,7 +1868,12 @@ on the given
 .Dq port .
 Refer to the section on
 .Em PPP OVER TCP
-above for further details.
+above for further details.  If multiple
+.Dq values
+are specified,
+.Nm
+will attempt to open each one in turn until it succeeds or runs out of
+devices.
 .It set dial chat-script
 This specifies the chat script that will be used to dial the other
 side.  See also the
