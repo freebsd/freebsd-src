@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.63 1999/08/18 06:11:59 mdodd Exp $
+ * $Id: if_lnc.c,v 1.64 1999/08/18 22:14:23 mdodd Exp $
  */
 
 /*
@@ -180,7 +180,7 @@ static int lance_probe __P((struct lnc_softc *sc));
 static int pcnet_probe __P((struct lnc_softc *sc));
 static int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
 static int lnc_attach __P((struct isa_device *isa_dev));
-static void lnc_init __P((struct lnc_softc *sc));
+static void lnc_init __P((void *));
 static ointhand2_t lncintr;
 static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
@@ -1278,6 +1278,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	sc->arpcom.ac_if.if_start = lnc_start;
 	sc->arpcom.ac_if.if_ioctl = lnc_ioctl;
 	sc->arpcom.ac_if.if_watchdog = lnc_watchdog;
+	sc->arpcom.ac_if.if_init = lnc_init;
 	sc->arpcom.ac_if.if_type = IFT_ETHER;
 	sc->arpcom.ac_if.if_addrlen = ETHER_ADDR_LEN;
 	sc->arpcom.ac_if.if_hdrlen = ETHER_HDR_LEN;
@@ -1372,8 +1373,10 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 #endif
 
 static void
-lnc_init(struct lnc_softc *sc)
+lnc_init(xsc)
+	void *xsc;
 {
+	struct lnc_softc *sc = xsc;
 	int s, i;
 	char *lnc_mem;
 
