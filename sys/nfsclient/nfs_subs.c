@@ -527,10 +527,10 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	if (vp->v_type != vtyp) {
 		vp->v_type = vtyp;
 		if (vp->v_type == VFIFO) {
-			vp->v_op = fifo_nfsv2nodeop_p;
+			vp->v_op = fifo_nfsnodeop_p;
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
-			vp->v_op = spec_nfsv2nodeop_p;
+			vp->v_op = spec_nfsnodeop_p;
 			vp = addaliasu(vp, rdev);
 			np->n_vnode = vp;
 		}
