@@ -608,53 +608,22 @@ do_unlock(struct thread *td, struct umtx *umtx, long id)
 }
 
 static int
-do_unlock_and_wait(struct thread *td, struct umtx *umtx, long id, void *uaddr,
-	struct timespec *abstime)
+do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *abstime)
 {
 	struct umtx_q uq;
-	intptr_t owner;
-	intptr_t old;
 	struct timespec ts1, ts2;
 	struct timeval tv;
+	long tmp;
 	int timo, error = 0;
 
-	if (umtx == uaddr)
-		return (EINVAL);
-
-	/*
-	 * Make sure we own this mtx.
-	 *
-	 * XXX Need a {fu,su}ptr this is not correct on arch where
-	 * sizeof(intptr_t) != sizeof(long).
-	 */
-	if ((owner = fuword(&umtx->u_owner)) == -1)
-		return (EFAULT);
-
-	if ((owner & ~UMTX_CONTESTED) != id)
-		return (EPERM);
-
-	if ((error = umtxq_queue_me(td, uaddr, &uq)) != 0)
+	if ((error = umtxq_queue_me(td, umtx, &uq)) != 0)
 		return (error);
-
-	old = casuptr((intptr_t *)&umtx->u_owner, id, UMTX_UNOWNED);
-	if (old == -1) {
+	tmp = fuword(&umtx->u_owner);
+	if (tmp != id) {
 		umtxq_lock(&uq.uq_key);
 		umtxq_remove(&uq);
 		umtxq_unlock(&uq.uq_key);
-		umtx_key_release(&uq.uq_key);
-		return (EFAULT);
-	}
-	if (old != id) {
-		error = do_unlock(td, umtx, id);
-		if (error) {
-			umtxq_lock(&uq.uq_key);
-			umtxq_remove(&uq);
-			umtxq_unlock(&uq.uq_key);
-			umtx_key_release(&uq.uq_key);
-			return (error);
-		}
-	}
-	if (abstime == NULL) {
+	} else if (abstime == NULL) {
 		umtxq_lock(&uq.uq_key);
 		if (td->td_flags & TDF_UMTXQ)
 			error = umtxq_sleep(td, &uq.uq_key,
@@ -750,7 +719,7 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		return do_lock(td, uap->umtx, uap->id, ts);
 	case UMTX_OP_UNLOCK:
 		return do_unlock(td, uap->umtx, uap->id);
-	case UMTX_OP_UNLOCK_AND_WAIT:
+	case UMTX_OP_WAIT:
 		/* Allow a null timespec (wait forever). */
 		if (uap->uaddr2 == NULL)
 			ts = NULL;
@@ -763,10 +732,9 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 				return (EINVAL);
 			ts = &abstime;
 		}
-		return do_unlock_and_wait(td, uap->umtx, uap->id,
-					  uap->uaddr, ts);
+		return do_wait(td, uap->umtx, uap->id, ts);
 	case UMTX_OP_WAKE:
-		return do_wake(td, uap->uaddr, uap->id);
+		return do_wake(td, uap->umtx, uap->id);
 	default:
 		return (EINVAL);
 	}
