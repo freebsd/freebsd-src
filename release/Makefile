@@ -758,7 +758,7 @@ floppies.1:
 	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
 	    MFSROOTFILE="${MFSROOTFLOPPYSET}.split ${MFSROOTFLOPPYSET}.boot"
 .if defined(SMALLFLOPPYSIZE)
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot-small" \
 	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
 	    MFSROOTFILE="${SMALLMFSROOTFLOPPYSET}.split ${SMALLMFSROOTFLOPPYSET}.boot" \
 	    FDSIZE="SMALL"
@@ -768,7 +768,7 @@ floppies.1:
 	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
 	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz
 .if defined(SMALLFLOPPYSIZE)
-	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot-small" \
 	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
 	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz \
 	    FDSIZE="SMALL"
