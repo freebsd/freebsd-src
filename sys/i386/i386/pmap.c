@@ -2240,6 +2240,17 @@ retry:
 	return mpte;
 }
 
+/*
+ * Make temporary mapping for a physical address using CADDR1. This is
+ * called during dump.
+ */
+vm_offset_t
+pmap_enter_temporary(vm_offset_t pa, vm_prot_t prot)
+{
+	pmap_enter(kernel_pmap, (vm_offset_t) CADDR1, pa, prot, TRUE);
+	return (vm_offset_t) CADDR1;
+}
+
 #define MAX_INIT_PT (96)
 /*
  * pmap_object_init_pt preloads the ptes for a given object

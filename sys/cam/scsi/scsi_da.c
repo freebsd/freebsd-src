@@ -631,11 +631,14 @@ dadump(dev_t dev)
 	blkcnt = howmany(PAGE_SIZE, secsize);
 
 	while (num > 0) {
+		vm_offset_t va;
 
 		if (is_physical_memory(addr)) {
-			pmap_kenter((vm_offset_t)CADDR1, trunc_page(addr));
+			va = pmap_enter_temporary(trunc_page(addr),
+						  VM_PROT_READ);
 		} else {
-			pmap_kenter((vm_offset_t)CADDR1, trunc_page(0));
+			va = pmap_enter_temporary(trunc_page(0),
+						  VM_PROT_READ);
 		}
 
 		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
@@ -649,7 +652,7 @@ dadump(dev_t dev)
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				blknum,
 				blkcnt,
-				/*data_ptr*/CADDR1,
+				/*data_ptr*/(u_int8_t *) va,
 				/*dxfer_len*/blkcnt * secsize,
 				/*sense_len*/SSD_FULL_SIZE,
 				DA_DEFAULT_TIMEOUT * 1000);		
