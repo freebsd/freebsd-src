@@ -10,11 +10,6 @@ WARNS?=	2
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-LDADD+=	-lssl -lcrypto
-.endif
-
 test:
 	./test-pkg_version.sh
 
