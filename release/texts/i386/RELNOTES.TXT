@@ -443,7 +443,7 @@ ADMtek Inc. AN985-based PCI Fast Ethernet NICs
 ADMtek Inc. AN986-based USB Ethernet NICs including the following:
   LinkSys USB100TX
   Billionton USB100
-  Melco Inc. LU-ATX
+  Melco Inc. LUA-TX
   D-Link DSB-650TX
   SMC 2202USB
 
