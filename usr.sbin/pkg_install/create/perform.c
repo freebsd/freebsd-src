@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26 1995/05/10 20:46:06 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.27.4.1 1995/10/14 19:11:22 jkh Exp $";
 #endif
 
 /*
@@ -31,11 +31,13 @@ static const char *rcsid = "$Id: perform.c,v 1.26 1995/05/10 20:46:06 jkh Exp $"
 static void sanity_check(void);
 static void make_dist(char *, char *, char *, Package *);
 
+static char *home;
+
 int
 pkg_perform(char **pkgs)
 {
     char *pkg = *pkgs;		/* Only one arg to create */
-    char *home, *cp;
+    char *cp;
     FILE *pkg_in, *fp;
     Package plist;
     char *suffix;  /* What we tack on to the end of the finished package */
@@ -268,5 +270,5 @@ sanity_check()
 void
 cleanup(int sig)
 {
-    leave_playpen();
+    leave_playpen(home);
 }
