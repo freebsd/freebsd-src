@@ -84,17 +84,15 @@ char	name[100], *np;
 
 void copystr(void);
 int fgetNUL(char *, int, FILE *);
-unsigned hashit(char *, char, unsigned);
+unsigned hashit(char *, int, unsigned);
 void inithash(void);
 int match(const char *);
 int octdigit(char);
 void process(void);
-static void usage(void);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char addon = 0;
 
@@ -126,15 +124,15 @@ main(argc, argv)
 	exit(0);
 }
 
-static void
-usage()
+void
+usage(void)
 {
 	fprintf(stderr, "usage: mkstr [-] mesgfile prefix file ...\n");
 	exit(1);
 }
 
 void
-process()
+process(void)
 {
 	int c;
 
@@ -158,8 +156,7 @@ process()
 }
 
 int
-match(ocp)
-	const char *ocp;
+match(const char *ocp)
 {
 	const char *cp;
 	int c;
@@ -177,11 +174,11 @@ match(ocp)
 }
 
 void
-copystr()
+copystr(void)
 {
 	int c, ch;
 	char buf[512];
-	register char *cp = buf;
+	char *cp = buf;
 
 	for (;;) {
 		c = getchar();
@@ -241,15 +238,14 @@ out:
 }
 
 int
-octdigit(c)
-	char c;
+octdigit(char c)
 {
 
 	return (c >= '0' && c <= '7');
 }
 
 void
-inithash()
+inithash(void)
 {
 	char buf[512];
 	int mesgpt = 0;
@@ -270,16 +266,13 @@ struct	hash {
 } *bucket[NBUCKETS];
 
 unsigned
-hashit(str, really, fakept)
-	char *str;
-	char really;
-	unsigned fakept;
+hashit(char *str, int really, unsigned fakept)
 {
 	int i;
-	register struct hash *hp;
+	struct hash *hp;
 	char buf[512];
 	long hashval = 0;
-	register char *cp;
+	char *cp;
 
 	if (really)
 		fflush(mesgwrite);
@@ -318,17 +311,11 @@ hashit(str, really, fakept)
 	return (hp->hpt);
 }
 
-#include <sys/types.h>
-#include <sys/stat.h>
-
 int
-fgetNUL(obuf, rmdr, file)
-	char *obuf;
-	register int rmdr;
-	FILE *file;
+fgetNUL(char *obuf, int rmdr, FILE *file)
 {
 	int c;
-	register char *buf = obuf;
+	char *buf = obuf;
 
 	while (--rmdr > 0 && (c = getc(file)) != 0 && c != EOF)
 		*buf++ = c;
