@@ -87,8 +87,8 @@ SRCS+=	kpasswd_standalone.c
 
 CFLAGS+=	-DKERBEROS
 # XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
-DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
-LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err -lutil
+DPADD=	${LIBKADM} ${LIBKRB} ${LIBCRYPTO} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
+LDADD=	-lkadm -lkrb -lcrypto -lcrypt -lrpcsvc -lcom_err -lutil
 DISTRIBUTION=	krb4
 .endif
 
