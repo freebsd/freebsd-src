@@ -1,17 +1,22 @@
 #!/bin/sh
 #
-# $NetBSD: ipsec,v 1.5 2000/07/21 01:16:07 lukem Exp $
+# $NetBSD: ipsec,v 1.7 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: ipsec
 # REQUIRE: root beforenetlkm mountcritlocal tty
+# BEFORE:  DAEMON
+# KEYWORD: FreeBSD NetBSD
 
 #	it does not really require beforenetlkm.
 
 . /etc/rc.subr
 
 name="ipsec"
-rcvar=$name
+rcvar=`set_rcvar`
+# This will be overiden from rc.conf on FreeBSD.
+ipsec_file="/etc/ipsec.conf"
 start_precmd="ipsec_prestart"
 start_cmd="ipsec_start"
 stop_precmd="test -f /etc/ipsec.conf"
@@ -21,8 +26,8 @@ extra_commands="reload"
 
 ipsec_prestart()
 {
-	if [ ! -f /etc/ipsec.conf ]; then
-		warn "/etc/ipsec.conf not readable; ipsec start aborted."
+	if [ ! -f "$ipsec_file" ]; then
+		warn "$ipsec_file not readable; ipsec start aborted."
 			#
 			# If booting directly to multiuser, send SIGTERM to
 			# the parent (/etc/rc) to abort the boot
@@ -40,7 +45,7 @@ ipsec_prestart()
 ipsec_start()
 {
 	echo "Installing ipsec manual keys/policies."
-	/sbin/setkey -f /etc/ipsec.conf
+	/sbin/setkey -f $ipsec_file
 }
 
 ipsec_stop()
@@ -60,7 +65,7 @@ ipsec_reload()
 	echo "Reloading ipsec manual keys/policies."
 	/sbin/setkey -F
 	/sbin/setkey -FP
-	/sbin/setkey -f /etc/ipsec.conf
+	/sbin/setkey -f "$ipsec_file"
 }
 
 load_rc_config $name

@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypset
+# REQUIRE: ypbind
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="ypset"
+rcvar="nis_ypset_enable"
+command="/usr/sbin/${name}"
+command_args="${nis_ypset_flags}"
+required_vars="portmap_enable nis_client_enable"
+start_precmd="ypset_precmd"
+
+ypset_precmd()
+{
+        _domain=`domainname`
+        if [ -z "$_domain" ]; then
+                warn "domainname(1) is not set."
+                return 1
+        fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypxfrd
+# REQUIRE: rpcbind
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="ypxfrd"
+rcvar="nis_ypxfrd_enable"
+command="/usr/sbin/rpc.${name}"
+command_args="${nis_ypxfrd_flags}"
+required_vars="portmap_enable nis_server_enable"
+start_precmd="ypxfrd_precmd"
+
+ypxfrd_precmd()
+{
+        _domain=`domainname`
+        if [ -z "$_domain" ]; then
+                warn "domainname(1) is not set."
+                return 1
+        fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

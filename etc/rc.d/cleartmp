@@ -1,15 +1,18 @@
 #!/bin/sh
 #
-# $NetBSD: cleartmp,v 1.2 2000/05/13 08:45:06 lukem Exp $
+# $NetBSD: cleartmp,v 1.4 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: cleartmp
 # REQUIRE: mountall
+# BEFORE: DAEMON
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="cleartmp"
-rcvar="clear_tmp"
+rcvar=`set_rcvar clear_tmp`
 start_cmd="cleartmp_start"
 stop_cmd=":"
 
@@ -24,6 +27,19 @@ cleartmp_start()
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -x . ! -name . ! -name lost+found ! -name quota.user \
 		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
+	
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		# Remove X lock files, since they will prevent you from
+		# restarting X
+		#
+		rm -f /tmp/.X*-lock
+		rm -fr /tmp/.X11-unix
+		mkdir -m 1777 /tmp/.X11-unix
+		;;
+	NetBSD)
+		;;
+	esac
 }
 
 load_rc_config $name

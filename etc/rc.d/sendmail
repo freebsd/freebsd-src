@@ -1,19 +1,22 @@
 #!/bin/sh
 #
-# $NetBSD: sendmail,v 1.12 2000/10/09 06:11:38 nisimura Exp $
+# $NetBSD: sendmail,v 1.14 2002/02/12 01:26:36 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: mail
 # REQUIRE: LOGIN
+# KEYWORD: FreeBSD NetBSD
+#	we make mail start late, so that things like .forward's are not
+#	processed until the system is fully operational
 
-#	we could do this, but make mail start late, so that things like
-#	.forward's are not processed until the system is fully operational
-## REQUIRE: DAEMON
-
+# XXX - Get together with sendmail mantainer to figure out how to
+#	better handle SENDMAIL_ENABLE and 3rd party MTAs.
+#
 . /etc/rc.subr
 
 name="sendmail"
-rcvar=$name
+rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/mail/${name}.cf"
@@ -24,7 +27,7 @@ sendmail_precmd()
 	# Die if there's pre-8.10 custom configuration file.  This check is
 	# mandatory for smooth upgrade.  See NetBSD PR 10100 for details.
 	#
-	if checkyesno sendmail && [ -f "/etc/${name}.cf" ]; then
+	if checkyesno ${rcvar} && [ -f "/etc/${name}.cf" ]; then
 		if ! cmp -s "/etc/mail/${name}.cf" "/etc/${name}.cf"; then
 			warn \
     "${name} was not started; you have multiple copies of sendmail.cf."
@@ -47,8 +50,8 @@ sendmail_precmd()
 
 	# check couple of common db files, too
 	for f in genericstable virtusertable domaintable mailertable; do
-		if [ -r "/etc/mail/$f" ] && [ "/etc/mail/$f" -nt "/etc/mail/$f.db" ];
-		then
+		if [ -r "/etc/mail/$f" -a \
+		    "/etc/mail/$f" -nt "/etc/mail/$f.db" ]; then
 			echo \
     "${name}: /etc/mail/$f newer than /etc/mail/$f.db, regenerating"
 			/usr/sbin/makemap hash /etc/mail/$f < /etc/mail/$f
@@ -58,3 +61,42 @@ sendmail_precmd()
 
 load_rc_config $name
 run_rc_command "$1"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	case $SENDMAIL_ENABLE in
+	NONE)
+		exit
+		;;
+	esac
+	pid_file=
+	required_files=
+	start_precmd=
+
+	name="sendmail_outbound"
+	rcvar=`set_rcvar`
+	start_cmd="/usr/sbin/sendmail $sendmail_outbound_flags"
+	#command="/usr/sbin/sendmail"
+
+	load_rc_config $name
+	run_rc_command "$1"
+
+	name="sendmail_submit"
+	rcvar=`set_rcvar`
+	start_cmd="/usr/sbin/sendmail $sendmail_submit_flags"
+	#command="/usr/sbin/sendmail"
+
+	load_rc_config $name
+	run_rc_command "$1"
+
+	name="sendmail_clientmqueue"
+	rcvar="sendmail_msp_queue_enable"
+	start_cmd="/usr/sbin/sendmail $sendmail_msp_queue_flags"
+	#command="/usr/sbin/sendmail"
+	#command_args="${sendmail_msp_queue_flags}"
+	required_files="/etc/mail/submit.cf"
+
+	load_rc_config $name
+	run_rc_command "$1"
+	;;
+esac

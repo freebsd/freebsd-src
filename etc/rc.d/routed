@@ -1,17 +1,37 @@
 #!/bin/sh
 #
-# $NetBSD: routed,v 1.4 2000/05/13 08:45:09 lukem Exp $
+# $NetBSD: routed,v 1.7 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: routed
-# REQUIRE: DAEMON gated
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="routed"
-rcvar=$name
-command="/sbin/${name}"
-start_precmd="routed_precmd"
+
+# XXX - Executable may be in a different location. The $name variable
+#       is different from the variable in rc.conf(5) so the
+#       subroutines in rc.subr won't catch it.
+#
+load_rc_config $name
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	rcvar="router_enable"
+	command="${router:-/sbin/${name}}"
+	eval ${name}_flags=${router_flags}
+	start_precmd=
+	;;
+NetBSD)
+	rcvar=${name}
+	command="/sbin/${name}"
+	start_precmd="routed_precmd"
+	;;
+esac
 
 routed_precmd()
 {
@@ -21,5 +41,4 @@ routed_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"

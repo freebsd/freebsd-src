@@ -1,18 +1,28 @@
 #!/bin/sh
 #
-# $NetBSD: lpd,v 1.3 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: lpd,v 1.5 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: lpd
 # REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="lpd"
-rcvar=$name
+rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
-pidfile="/var/run/${name}.pid"
 required_files="/etc/printcap"
+
+case `${CMD_OSTYPE}` in
+NetBSD)
+	pidfile="/var/run/${name}.pid"
+	;;
+*)
+	;;
+esac
 
 load_rc_config $name
 run_rc_command "$1"

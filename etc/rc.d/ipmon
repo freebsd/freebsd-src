@@ -1,17 +1,37 @@
 #!/bin/sh
 #
-# $NetBSD: ipmon,v 1.2 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: ipmon,v 2002/04/18 05:02:01 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: ipmon
 # REQUIRE: syslogd
+# BEFORE:  SERVERS
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="ipmon"
-rcvar=$name
-command="/usr/sbin/${name}"
-command_args="&"
+rcvar=`set_rcvar`
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	command="/sbin/ipmon"
+	start_precmd="ipmon_precmd"
+	;;
+NetBSD)
+	command="/usr/sbin/${name}"
+	command_args="-D"
+esac
+
+ipmon_precmd()
+{
+        # Make sure ipfilter is loaded before continuing
+        if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1 ; then
+                return 1
+        fi
+	return 0
+}
 
 load_rc_config $name
 run_rc_command "$1"

@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: root,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+# $NetBSD: root,v 1.2 2000/05/13 08:45:09 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: root
 # REQUIRE: fsck
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
@@ -14,9 +16,35 @@ stop_cmd=":"
 
 root_start()
 {
-	umount -a >/dev/null 2>&1
-	mount /
-	rm -f /fastboot
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		# root normally must be read/write, but if this is a BOOTP NFS
+		# diskless boot it does not have to be.
+		#
+		case ${root_rw_mount} in
+		[Nn][Oo] | '')
+			;;
+		*)
+			if ! mount -u -o rw / ; then
+				echo 'Mounting root filesystem rw failed, startup aborted'
+				exit 1
+			fi
+			;;
+		esac
+
+		umount -a >/dev/null 2>&1
+		mount /
+
+		# If we booted a special kernel remove the record
+		# so we will boot the default kernel next time.
+		[ -e /boot/nextkernel ] && rm -f /boot/nextkernel
+		;;
+	NetBSD)
+		umount -a >/dev/null 2>&1
+		mount /
+		rm -f /fastboot
+		;;
+	esac
 }
 
 load_rc_config $name
