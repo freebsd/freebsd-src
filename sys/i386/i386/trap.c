@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.70 1996/01/04 21:11:03 wollman Exp $
+ *	$Id: trap.c,v 1.71 1996/01/19 03:57:42 dyson Exp $
  */
 
 /*
@@ -486,7 +486,7 @@ trap_pfault(frame, usermode)
 
 	if (va < VM_MIN_KERNEL_ADDRESS) {
 		vm_offset_t v;
-		vm_page_t ptepg;
+		vm_page_t mpte;
 
 		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
@@ -534,12 +534,12 @@ trap_pfault(frame, usermode)
 		if (*((int *)vtopte(v)) == 0)
 			(void) vm_fault(map, trunc_page(v), VM_PROT_WRITE, FALSE);
 
-		pmap_use_pt( vm_map_pmap(map), va);
+		mpte = pmap_use_pt( vm_map_pmap(map), va);
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype, FALSE);
 
-		pmap_unuse_pt( vm_map_pmap(map), va);
+		pmap_unuse_pt( vm_map_pmap(map), va, mpte);
 
 		--p->p_lock;
 	} else {
@@ -622,6 +622,7 @@ trap_pfault(frame, usermode)
 
 	if (map != kernel_map) {
 		vm_offset_t v;
+		vm_page_t mpte;
 
 		/*
 		 * Keep swapout from messing with us during this
@@ -652,12 +653,12 @@ trap_pfault(frame, usermode)
 			(void) vm_fault(map,
 				trunc_page(v), VM_PROT_WRITE, FALSE);
 
-		pmap_use_pt( vm_map_pmap(map), va);
+		mpte = pmap_use_pt( vm_map_pmap(map), va);
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype, FALSE);
 
-		pmap_unuse_pt( vm_map_pmap(map), va);
+		pmap_unuse_pt( vm_map_pmap(map), va, mpte);
 
 		--p->p_lock;
 	} else {

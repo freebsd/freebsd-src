@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.32 1996/01/30 22:54:48 mpp Exp $
+ * 	$Id: pmap.h,v 1.33 1996/02/04 21:20:53 davidg Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -166,6 +166,7 @@ typedef struct pv_entry {
 	struct pv_entry	*pv_next;	/* next pv_entry */
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
+	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
 #define	PV_ENTRY_NULL	((pv_entry_t) 0)
@@ -195,8 +196,8 @@ void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
 pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
 pt_entry_t * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-void	pmap_unuse_pt __P((pmap_t, vm_offset_t));
-void	pmap_use_pt __P((pmap_t, vm_offset_t));
+void	pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 
 #endif /* KERNEL */
 
