@@ -993,7 +993,7 @@ static void
 cbb_removal(struct cbb_softc *sc)
 {
 	if (sc->flags & CBB_16BIT_CARD && sc->pccarddev != NULL)
-		CARD_DETACH_CARD(sc->cbdev);
+		CARD_DETACH_CARD(sc->pccarddev);
 	else if ((!(sc->flags & CBB_16BIT_CARD)) && sc->cbdev != NULL)
 		CARD_DETACH_CARD(sc->cbdev);
 	cbb_destroy_res(sc);
