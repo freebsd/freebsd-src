@@ -63,6 +63,7 @@ struct vx_softc {
     short rx_latency;
     short rx_avg_pkt;
     short cur_len;
+    caddr_t bpf;		/* BPF  "magic cookie"		 */
     u_short vx_connectors;	/* Connectors on this card.	 */
     int stat;			/* some flags */
 #define         F_RX_FIRST   0x1
