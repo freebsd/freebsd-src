@@ -98,7 +98,7 @@ device		amd0		# AMD 53C974 (Teckram DC-390(T))
 device		dpt0		# DPT Smartcache - See LINT for options!
 device		isp0		# Qlogic family
 device		ncr0		# NCR/Symbios Logic
-#device		sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
+device		sym0		# NCR/Symbios Logic (newer chipsets)
 
 device		adv0	at isa? port ? irq ?
 device		adw0
