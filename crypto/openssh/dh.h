@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,35 +20,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $OpenBSD: auth.h,v 1.7 2000/10/16 09:38:44 djm Exp $
  */
-#ifndef AUTH_H
-#define AUTH_H
+#ifndef DH_H
+#define DH_H
 
-typedef struct Authctxt Authctxt;
-struct Authctxt {
-	int success;
-	int valid;
-	int attempt;
-	char *user;
-	char *service;
-	struct passwd *pw;
+struct dhgroup {
+	int size;
+	BIGNUM *g;
+	BIGNUM *p;
 };
 
-void	do_authentication(void);
-void	do_authentication2(void);
-
-void	userauth_log(Authctxt *authctxt, int authenticated, char *method);
-void	userauth_reply(Authctxt *authctxt, int authenticated);
-
-int	auth2_skey(Authctxt *authctxt);
-
-int	allowed_user(struct passwd * pw);
-struct passwd * auth_get_user(void);
-
-#define AUTH_FAIL_MAX 6
-#define AUTH_FAIL_LOG (AUTH_FAIL_MAX/2)
-#define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
+DH *choose_dh(int minbits);
 
 #endif

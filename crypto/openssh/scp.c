@@ -75,11 +75,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: scp.c,v 1.39 2000/09/07 20:53:00 markus Exp $");
+RCSID("$OpenBSD: scp.c,v 1.43 2000/10/18 18:23:02 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
-#include <utime.h>
 
 #define _PATH_CP "cp"
 
@@ -93,6 +92,9 @@ void progressmeter(int);
 int getttywidth(void);
 int do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc);
 
+/* setup arguments for the call to ssh */
+void addargs(char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 /* Time a transfer started. */
 static struct timeval start;
 
@@ -105,12 +107,6 @@ off_t totalbytes = 0;
 /* Name of current file being transferred. */
 char *curfile;
 
-/* This is set to non-zero if IPv4 is desired. */
-int IPv4 = 0;
-
-/* This is set to non-zero if IPv6 is desired. */
-int IPv6 = 0;
-
 /* This is set to non-zero to enable verbose mode. */
 int verbose_mode = 0;
 
@@ -120,22 +116,15 @@ int compress = 0;
 /* This is set to zero if the progressmeter is not desired. */
 int showprogress = 1;
 
-/* This is set to non-zero if running in batch mode (that is, password
-   and passphrase queries are not allowed). */
-int batchmode = 0;
-
-/* This is set to the cipher type string if given on the command line. */
-char *cipher = NULL;
-
-/* This is set to the RSA authentication identity file name if given on
-   the command line. */
-char *identity = NULL;
-
-/* This is the port to use in contacting the remote site (is non-NULL). */
-char *port = NULL;
-
 /* This is the program to execute for the secured connection. ("ssh" or -S) */
 char *ssh_program = SSH_PROGRAM;
+
+/* This is the list of arguments that scp passes to ssh */
+struct {
+	char	**list;
+	int	num;
+	int	nalloc;
+} args;
 
 /*
  * This function executes the given command as the specified user on the
@@ -149,8 +138,8 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 	int pin[2], pout[2], reserved[2];
 
 	if (verbose_mode)
-		fprintf(stderr, "Executing: host %s, user %s, command %s\n",
-		    host, remuser ? remuser : "(unspecified)", cmd);
+		fprintf(stderr, "Executing: program %s host %s, user %s, command %s\n",
+		    ssh_program, host, remuser ? remuser : "(unspecified)", cmd);
 
 	/*
 	 * Reserve two descriptors so that the real pipes won't get
@@ -169,10 +158,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 	close(reserved[1]);
 
 	/* For a child to execute the command on the remote host using ssh. */
-	if (fork() == 0) {
-		char *args[100];	/* XXX careful */
-		unsigned int i;
-
+	if (fork() == 0)  {
 		/* Child. */
 		close(pin[1]);
 		close(pout[0]);
@@ -181,41 +167,13 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 		close(pin[0]);
 		close(pout[1]);
 
-		i = 0;
-		args[i++] = ssh_program;
-		args[i++] = "-x";
-		args[i++] = "-oFallBackToRsh no";
-		if (IPv4)
-			args[i++] = "-4";
-		if (IPv6)
-			args[i++] = "-6";
-		if (verbose_mode)
-			args[i++] = "-v";
-		if (compress)
-			args[i++] = "-C";
-		if (batchmode)
-			args[i++] = "-oBatchMode yes";
-		if (cipher != NULL) {
-			args[i++] = "-c";
-			args[i++] = cipher;
-		}
-		if (identity != NULL) {
-			args[i++] = "-i";
-			args[i++] = identity;
-		}
-		if (port != NULL) {
-			args[i++] = "-p";
-			args[i++] = port;
-		}
-		if (remuser != NULL) {
-			args[i++] = "-l";
-			args[i++] = remuser;
-		}
-		args[i++] = host;
-		args[i++] = cmd;
-		args[i++] = NULL;
+		args.list[0] = ssh_program;
+		if (remuser != NULL)
+			addargs("-l%s", remuser);
+		addargs("%s", host);
+		addargs("%s", cmd);
 
-		execvp(ssh_program, args);
+		execvp(ssh_program, args.list);
 		perror(ssh_program);
 		exit(1);
 	}
@@ -281,27 +239,45 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 
+	args.list = NULL;
+	addargs("ssh");	 	/* overwritten with ssh_program */
+	addargs("-x");
+	addargs("-oFallBackToRsh no");
+
 	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, "dfprtvBCc:i:P:q46S:")) != EOF)
+	while ((ch = getopt(argc, argv, "dfprtvBCc:i:P:q46S:o:")) != EOF)
 		switch (ch) {
 		/* User-visible flags. */
 		case '4':
-			IPv4 = 1;
-			break;
 		case '6':
-			IPv6 = 1;
+		case 'C':
+			addargs("-%c", ch);
+			break;
+		case 'o':
+		case 'c':
+		case 'i':
+			addargs("-%c%s", ch, optarg);
+			break;
+		case 'P':
+			addargs("-p%s", optarg);
+			break;
+		case 'B':
+			addargs("-oBatchmode yes");
 			break;
 		case 'p':
 			pflag = 1;
-			break;
-		case 'P':
-			port = optarg;
 			break;
 		case 'r':
 			iamrecursive = 1;
 			break;
 		case 'S':
-			ssh_program = optarg;
+			ssh_program = xstrdup(optarg);
+			break;
+		case 'v':
+			verbose_mode = 1;
+			break;
+		case 'q':
+			showprogress = 0;
 			break;
 
 		/* Server options. */
@@ -315,24 +291,6 @@ main(argc, argv)
 		case 't':	/* "to" */
 			iamremote = 1;
 			tflag = 1;
-			break;
-		case 'c':
-			cipher = optarg;
-			break;
-		case 'i':
-			identity = optarg;
-			break;
-		case 'v':
-			verbose_mode = 1;
-			break;
-		case 'B':
-			batchmode = 1;
-			break;
-		case 'C':
-			compress = 1;
-			break;
-		case 'q':
-			showprogress = 0;
 			break;
 		case '?':
 		default:
@@ -703,8 +661,8 @@ sink(argc, argv)
 	off_t size;
 	int setimes, targisdir, wrerrno = 0;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[2048];
-	struct utimbuf ut;
 	int dummy_usec;
+	struct timeval tv[2];
 
 #define	SCREWUP(str)	{ why = str; goto screwup; }
 
@@ -758,16 +716,18 @@ sink(argc, argv)
 		if (*cp == 'T') {
 			setimes++;
 			cp++;
-			getnum(ut.modtime);
+			getnum(tv[1].tv_sec);
 			if (*cp++ != ' ')
 				SCREWUP("mtime.sec not delimited");
 			getnum(dummy_usec);
+			tv[1].tv_usec = 0;
 			if (*cp++ != ' ')
 				SCREWUP("mtime.usec not delimited");
-			getnum(ut.actime);
+			getnum(tv[0].tv_sec);
 			if (*cp++ != ' ')
 				SCREWUP("atime.sec not delimited");
 			getnum(dummy_usec);
+			tv[0].tv_usec = 0;
 			if (*cp++ != '\0')
 				SCREWUP("atime.usec not delimited");
 			(void) atomicio(write, remout, "", 1);
@@ -835,7 +795,7 @@ sink(argc, argv)
 			sink(1, vect);
 			if (setimes) {
 				setimes = 0;
-				if (utime(np, &ut) < 0)
+				if (utimes(np, tv) < 0)
 					run_err("%s: set times: %s",
 						np, strerror(errno));
 			}
@@ -868,8 +828,10 @@ bad:			run_err("%s: %s", np, strerror(errno));
 				amt = size - i;
 			count += amt;
 			do {
-				j = atomicio(read, remin, cp, amt);
-				if (j <= 0) {
+				j = read(remin, cp, amt);
+				if (j == -1 && (errno == EINTR || errno == EAGAIN)) {
+					continue;
+				} else if (j <= 0) {
 					run_err("%s", j ? strerror(errno) :
 						"dropped connection");
 					exit(1);
@@ -922,7 +884,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 		(void) response();
 		if (setimes && wrerr == NO) {
 			setimes = 0;
-			if (utime(np, &ut) < 0) {
+			if (utimes(np, tv) < 0) {
 				run_err("%s: set times: %s",
 					np, strerror(errno));
 				wrerr = DISPLAYED;
@@ -1248,4 +1210,26 @@ getttywidth(void)
 		return (winsize.ws_col ? winsize.ws_col : 80);
 	else
 		return (80);
+}
+
+void
+addargs(char *fmt, ...)
+{
+	va_list ap;
+	char buf[1024];
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	if (args.list == NULL) {
+		args.nalloc = 32;
+		args.num = 0;
+		args.list = xmalloc(args.nalloc * sizeof(char *));
+	} else if (args.num+2 >= args.nalloc) {
+		args.nalloc *= 2;
+		args.list = xrealloc(args.list, args.nalloc * sizeof(char *));
+	}
+	args.list[args.num++] = xstrdup(buf);
+	args.list[args.num] = NULL;
 }

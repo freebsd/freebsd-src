@@ -32,88 +32,24 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readpass.c,v 1.11 2000/06/20 01:39:44 markus Exp $");
+RCSID("$OpenBSD: readpass.c,v 1.12 2000/10/11 20:14:39 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
-
-volatile int intr;
-
-void
-intcatch()
-{
-	intr = 1;
-}
+#include "cli.h"
 
 /*
  * Reads a passphrase from /dev/tty with echo turned off.  Returns the
  * passphrase (allocated with xmalloc), being very careful to ensure that
  * no other userland buffer is storing the password.
  */
+/*
+ * Note:  the funcationallity of this routing has been moved to
+ * cli_read_passphrase().  This routing remains to maintain
+ * compatibility with existing code.
+ */
 char *
-read_passphrase(const char *prompt, int from_stdin)
+read_passphrase(char *prompt, int from_stdin)
 {
-	char buf[1024], *p, ch;
-	struct termios tio, saved_tio;
-	sigset_t oset, nset;
-	struct sigaction sa, osa;
-	int input, output, echo = 0;
-
-	if (from_stdin) {
-		input = STDIN_FILENO;
-		output = STDERR_FILENO;
-	} else
-		input = output = open("/dev/tty", O_RDWR);
-
-	if (input == -1)
-		fatal("You have no controlling tty.  Cannot read passphrase.\n");
-
-	/* block signals, get terminal modes and turn off echo */
-	sigemptyset(&nset);
-	sigaddset(&nset, SIGTSTP);
-	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = intcatch;
-	(void) sigaction(SIGINT, &sa, &osa);
-
-	intr = 0;
-
-	if (tcgetattr(input, &saved_tio) == 0 && (saved_tio.c_lflag & ECHO)) {
-		echo = 1;
-		tio = saved_tio;
-		tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
-		(void) tcsetattr(input, TCSANOW, &tio);
-	}
-
-	fflush(stdout);
-
-	(void)write(output, prompt, strlen(prompt));
-	for (p = buf; read(input, &ch, 1) == 1 && ch != '\n';) {
-		if (intr)
-			break;
-		if (p < buf + sizeof(buf) - 1)
-			*p++ = ch;
-	}
-	*p = '\0';
-	if (!intr)
-		(void)write(output, "\n", 1);
-
-	/* restore terminal modes and allow signals */
-	if (echo)
-		tcsetattr(input, TCSANOW, &saved_tio);
-	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
-	(void) sigaction(SIGINT, &osa, NULL);
-
-	if (intr) {
-		kill(getpid(), SIGINT);
-		sigemptyset(&nset);
-		/* XXX tty has not neccessarily drained by now? */
-		sigsuspend(&nset);
-	}
-
-	if (!from_stdin)
-		(void)close(input);
-	p = xstrdup(buf);
-	memset(buf, 0, sizeof(buf));
-	return (p);
+	return cli_read_passphrase(prompt, from_stdin, 0);
 }
