@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)def.h	8.2 (Berkeley) 3/21/94
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -94,7 +96,7 @@ struct message {
  * Given a file address, determine the block number it represents.
  */
 #define blockof(off)			((int) ((off) / 4096))
-#define offsetof(off)			((int) ((off) % 4096))
+#define boffsetof(off)			((int) ((off) % 4096))
 #define positionof(block, offset)	((off_t)(block) * 4096 + (offset))
 
 /*
