@@ -96,7 +96,7 @@ int main (int argc, char **argv)
 	if (irq_status == IRQ_UNSPECIFIED || argc != 0)
 		usage();
 
-	if ((fd = open(device, O_WRONLY, 0660)) < 0)
+	if ((fd = open(device, O_WRONLY)) < 0)
 		err(1, "open");
 	if (ioctl(fd, LPT_IRQ, &irq_status) < 0)
 		err(1, "ioctl");
