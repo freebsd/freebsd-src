@@ -208,6 +208,12 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a1 */
 		up->u_pcb.pcb_context[7] =
 		    (u_int64_t)fork_trampoline;	/* ra: assembly magic */
+#ifdef SMP
+		/*
+		 * We start off at a nesting level of 1 within the kernel.
+		 */
+		p2->p_md.md_kernnest = 1;
+#endif
 	}
 }
 
