@@ -244,11 +244,11 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
 	char	*dst;
 
-	unsigned	*ptep0 = NULL;
-	unsigned	oldmap0 = 0;
+	pt_entry_t	*ptep0 = NULL;
+	pt_entry_t	oldmap0 = 0;
 	vm_offset_t	addr1;
-	unsigned	*ptep1 = NULL;
-	unsigned	oldmap1 = 0;
+	pt_entry_t	*ptep1 = NULL;
+	pt_entry_t	oldmap1 = 0;
 
 	db_nofault = &db_jmpbuf;
 
