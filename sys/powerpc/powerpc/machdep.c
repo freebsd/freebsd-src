@@ -150,6 +150,8 @@ void		install_extint(void (*)(void));
 
 int             setfault(faultbuf);             /* defined in locore.S */
 
+static int	grab_mcontext(struct thread *, mcontext_t *, int);
+
 void		asm_panic(char *);
 
 long		Maxmem = 0;
@@ -265,6 +267,33 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	}
 
 	/*
+	 * Init params/tunables that can be overridden by the loader
+	 */
+	init_param1();
+
+	/*
+	 * Start initializing proc0 and thread0.
+	 */
+	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
+	proc0.p_uarea = (struct user *)uarea0;
+	proc0.p_stats = &proc0.p_uarea->u_stats;
+	thread0.td_frame = &frame0;
+
+	/*
+	 * Set up per-cpu data.
+	 */
+	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	pc->pc_curpcb = thread0.td_pcb;
+	pc->pc_cpuid = 0;
+	/* pc->pc_mid = mid; */
+
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
+
+	mutex_init();
+
+	/*
 	 * Initialize the console before printing anything.
 	 */
 	cninit();
@@ -304,28 +333,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
-	 * Start initializing proc0 and thread0.
-	 */
-	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
-	proc0.p_uarea = (struct user *)uarea0;
-	proc0.p_stats = &proc0.p_uarea->u_stats;
-	thread0.td_frame = &frame0;
-
-	/*
-	 * Set up per-cpu data.
-	 */
-	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
-	pc->pc_curpcb = thread0.td_pcb;
-	pc->pc_cpuid = 0;
-	/* pc->pc_mid = mid; */
-
-	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
-
-	mutex_init();
-
-	/*
 	 * Make sure translation has been enabled
 	 */
 	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
@@ -336,9 +343,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	pmap_bootstrap(startkernel, endkernel);
 
 	/*
-	 * Initialize tunables.
+	 * Initialize params/tunables that are derived from memsize
 	 */
-	init_param1();
 	init_param2(physmem);
 
 	/*
@@ -421,16 +427,16 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Save user context
 	 */
 	memset(&sf, 0, sizeof(sf));
+	grab_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = td->td_sigstk;
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	memcpy(&sf.sf_uc.uc_mcontext.mc_frame, tf, sizeof(struct trapframe));
 
 	/*
-	 * Allocate and validate space for the signal handler context. 
+	 * Allocate and validate space for the signal handler context.
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
@@ -440,14 +446,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
 	}
 
-	/* 
+	/*
 	 * Translate the signal if appropriate (Linux emu ?)
 	 */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];       
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/*
-	 * Save the floating-point state, if necessary, then copy it. 
+	 * Save the floating-point state, if necessary, then copy it.
 	 */
 	/* XXX */
 
@@ -466,7 +472,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	tf->fixreg[FIRSTARG] = sig;
 	tf->fixreg[FIRSTARG+2] = (register_t)&sfp->sf_uc;
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
-		/* 
+		/*
 		 * Signal handler installed with SA_SIGINFO.
 		 */
 		tf->fixreg[FIRSTARG+1] = (register_t)&sfp->sf_si;
@@ -498,7 +504,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sigexit(td, SIGILL);
 	}
 
-	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, 
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td,
 	     tf->srr0, tf->fixreg[1]);
 
 	PROC_LOCK(p);
@@ -527,9 +533,9 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct trapframe *tf;
 	struct proc *p;
 	ucontext_t uc;
+	int error;
 
 	CTR2(KTR_SIG, "sigreturn: td=%p ucp=%p", td, uap->sigcntxp);
 
@@ -538,19 +544,9 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 		return (EFAULT);
 	}
 
-	/*
-	 * Don't let the user set privileged MSR bits
-	 */
-	tf = td->td_frame;
-	if ((uc.uc_mcontext.mc_frame.srr1 & PSL_USERSTATIC) != 
-	    (tf->srr1 & PSL_USERSTATIC)) {
-		return (EINVAL);
-	}
-
-	/*
-	 * Restore the user-supplied context
-	 */
-	memcpy(tf, &uc.uc_mcontext.mc_frame, sizeof(struct trapframe));
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
 	p = td->td_proc;
 	PROC_LOCK(p);
@@ -559,13 +555,8 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	signotify(td);
 	PROC_UNLOCK(p);
 
-	/*
-	 * Restore FP state
-	 */
-	/* XXX */
-
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
-	     td, tf->srr0, tf->fixreg[1]);
+	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
 
 	return (EJUSTRETURN);
 }
@@ -579,18 +570,101 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 }
 #endif
 
+/*
+ * get_mcontext/sendsig helper routine that doesn't touch the
+ * proc lock
+ */
+static int
+grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+
+	memset(mcp, 0, sizeof(mcontext_t));
+
+	mcp->mc_vers = _MC_VERSION;
+	mcp->mc_flags = 0;
+	memcpy(&mcp->mc_frame, td->td_frame, sizeof(struct trapframe));
+	if (flags & GET_MC_CLEAR_RET) {
+		mcp->mc_gpr[3] = 0;
+		mcp->mc_gpr[4] = 0;
+	}
+
+	/*
+	 * This assumes that floating-point context is *not* lazy,
+	 * so if the thread has used FP there would have been a
+	 * FP-unavailable exception that would have set things up
+	 * correctly.
+	 */
+	if (pcb->pcb_flags & PCB_FPU) {
+		KASSERT(td == curthread,
+			("get_mcontext: fp save not curthread"));
+		critical_enter();
+		save_fpu(td);
+		critical_exit();
+		mcp->mc_flags |= _MC_FP_VALID;
+		memcpy(&mcp->mc_fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
+		memcpy(mcp->mc_fpreg, pcb->pcb_fpu.fpr, 32*sizeof(double));
+	}
+
+	/* XXX Altivec context ? */
+
+	mcp->mc_len = sizeof(*mcp);
+
+	return (0);
+}
+
 int
 get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 {
+	int error;
 
-	return (ENOSYS);
+	error = grab_mcontext(td, mcp, flags);
+	if (error == 0) {
+		PROC_LOCK(curthread->td_proc);
+		mcp->mc_onstack = sigonstack(td->td_frame->fixreg[1]);
+		PROC_UNLOCK(curthread->td_proc);
+	}
+
+	return (error);
 }
 
 int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
+	struct pcb *pcb;
+	struct trapframe *tf;
 
-	return (ENOSYS);
+	pcb = td->td_pcb;
+	tf = td->td_frame;
+
+	if (mcp->mc_vers != _MC_VERSION ||
+	    mcp->mc_len != sizeof(*mcp))
+		return (EINVAL);
+
+	/*
+	 * Don't let the user set privileged MSR bits
+	 */
+	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
+		return (EINVAL);
+	}
+
+	memcpy(tf, mcp->mc_frame, sizeof(mcp->mc_frame));
+
+	if (mcp->mc_flags & _MC_FP_VALID) {
+		if ((pcb->pcb_flags & PCB_FPU) != PCB_FPU) {
+			critical_enter();
+			enable_fpu(td);
+			critical_exit();
+		}
+		memcpy(&pcb->pcb_fpu.fpscr, &mcp->mc_fpscr, sizeof(double));
+		memcpy(pcb->pcb_fpu.fpr, mcp->mc_fpreg, 32*sizeof(double));
+	}
+
+	/* XXX Altivec context? */
+
+	return (0);
 }
 
 void
@@ -772,13 +846,6 @@ kcopy(const void *src, void *dst, size_t len)
 
 	td->td_pcb->pcb_onfault = oldfault;
 	return (0);
-}
-
-
-intptr_t
-casuptr(intptr_t *p, intptr_t old, intptr_t new)
-{
-	return (-1);
 }
 
 void
