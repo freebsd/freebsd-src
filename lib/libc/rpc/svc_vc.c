@@ -487,6 +487,8 @@ read_vc(xprtp, buf, len)
 
 	cfp = (struct cf_conn *)xprt->xp_p1;
 
+	cm = NULL;
+	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (cfp->nonblock) {
 		if (sa->sa_family == AF_LOCAL) {
 			cm = (struct cmessage *)xprt->xp_verf.oa_base;
@@ -522,8 +524,6 @@ read_vc(xprtp, buf, len)
 		}
 	} while ((pollfd.revents & POLLIN) == 0);
 
-	cm = NULL;
-	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (sa->sa_family == AF_LOCAL) {
 		cm = (struct cmessage *)xprt->xp_verf.oa_base;
 		if ((len = __msgread_withcred(sock, buf, len, cm)) > 0) {
