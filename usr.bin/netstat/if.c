@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)if.c	8.2 (Berkeley) 2/21/94";
+static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -179,7 +179,7 @@ intpr(interval, ifnetaddr)
 				    cp = (char *)LLADDR(sdl);
 				    n = sdl->sdl_alen;
 				}
-				m = printf("<Link>");
+				m = printf("%-11.11s ", "<Link>");
 				goto hexprint;
 			default:
 				m = printf("(%d)", sa->sa_family);
