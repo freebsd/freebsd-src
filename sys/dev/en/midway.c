@@ -1028,6 +1028,11 @@ en_start(struct ifnet *ifp)
 		    (int)M_TRAILINGSPACE(lastm)));
 
 		/*
+		 * From here on we need access to sc
+		 */
+		EN_LOCK(sc);
+
+		/*
 		 * Allocate a map. We do this here rather then in en_txdma,
 		 * because en_txdma is also called from the interrupt handler
 		 * and we are going to have a locking problem then. We must
@@ -1040,14 +1045,11 @@ en_start(struct ifnet *ifp)
 			EN_COUNT(sc->stats.txnomap);
 			if (map != NULL)
 				uma_zfree(sc->map_zone, map);
+			EN_UNLOCK(sc);
 			m_freem(m);
 			continue;
 		}
 
-		/*
-		 * From here on we need access to sc
-		 */
-		EN_LOCK(sc);
 		if ((ifp->if_flags & IFF_RUNNING) == 0) {
 			EN_UNLOCK(sc);
 			uma_zfree(sc->map_zone, map);
