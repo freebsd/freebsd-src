@@ -379,6 +379,8 @@ int	devclass_get_maxunit(devclass_t dc);
 int	devclass_find_free_unit(devclass_t dc, int unit);
 void	devclass_set_parent(devclass_t dc, devclass_t pdc);
 devclass_t	devclass_get_parent(devclass_t dc);
+struct sysctl_ctx_list *devclass_get_sysctl_ctx(devclass_t dc);
+struct sysctl_oid *devclass_get_sysctl_tree(devclass_t dc);
 
 /*
  * Access functions for device resources.
