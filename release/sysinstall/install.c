@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.56 1995/05/26 08:41:40 jkh Exp $
+ * $Id: install.c,v 1.57 1995/05/26 08:58:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -211,7 +211,7 @@ installInitial(void)
 	exit(1);
     }
     root_extract();
-    vsystem("(cd /stand; find etc) | cpio -pdmv /");
+    vsystem("(cd /stand; find etc | cpio -o) | (cd /; cpio -idmv)");
     alreadyDone = TRUE;
     return TRUE;
 }
@@ -397,7 +397,7 @@ root_extract(void)
 		    break;
 	    fd = (*mediaDevice->get)("root.flp", "floppies/");
 	    if (fd != -1) {
-		msgNotify("Loading root floppy over %s", mediaDevice->name);
+		msgNotify("Loading root floppy from %s", mediaDevice->name);
 		status = mediaExtractDist("root.flp", "/", fd);
 		if (mediaDevice->close)
 		    (*mediaDevice->close)(mediaDevice, fd);
@@ -421,6 +421,7 @@ loop_on_root_floppy(void)
 {
     int fd;
 
+    mediaDevice = NULL;
     fd = genericGetDist("root.flp", NULL, TRUE);
     if (fd == -1)
 	return;
