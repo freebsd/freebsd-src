@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.5 1998/09/16 08:23:21 dfr Exp $
+ *	$Id: ipl.h,v 1.6 1998/09/19 09:29:40 dfr Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -38,6 +38,8 @@
 #define SWI_CAMBIO	3
 #define SWI_VM		4
 #define SWI_CLOCK	5
+#define NSWI		32
+#define NHWI		0
 
 extern int splsoft(void);
 extern int splsoftclock(void);
