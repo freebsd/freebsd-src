@@ -60,7 +60,7 @@ static	void	ex_pnp_wakeup	(void *);
 SYSINIT(ex_pnpwakeup, SI_SUB_CPU, SI_ORDER_ANY, ex_pnp_wakeup, NULL);
 #endif
 
-static device_method_t ex_methods[] = {
+static device_method_t ex_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	ex_isa_identify),
 	DEVMETHOD(device_probe,		ex_isa_probe),
@@ -70,15 +70,13 @@ static device_method_t ex_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t ex_driver = {
+static driver_t ex_isa_driver = {
 	"ex",
-	ex_methods,
+	ex_isa_methods,
 	sizeof(struct ex_softc),
 };
 
-devclass_t ex_devclass;
-
-DRIVER_MODULE(ex, isa, ex_driver, ex_devclass, 0, 0);
+DRIVER_MODULE(ex, isa, ex_isa_driver, ex_devclass, 0, 0);
 
 static struct isa_pnp_id ex_ids[] = {
 	{ 0x3110d425,	NULL },	/* INT1031 */
