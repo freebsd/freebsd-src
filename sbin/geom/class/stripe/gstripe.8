@@ -59,6 +59,7 @@
 .Op Ar dev2 Op Ar ...
 .Nm
 .Cm list
+.Op Ar prov Op Ar ...
 .Nm
 .Cm load
 .Op Fl v
@@ -111,7 +112,7 @@ Turn off existing striped device by its
 .It Cm clear
 Clear metadata on the given devices.
 .It Cm list
-List currently configured devices.
+List all or the given currently configured devices.
 .It Cm load
 Load
 .Pa geom_stripe.ko

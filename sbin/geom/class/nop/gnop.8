@@ -50,6 +50,7 @@
 .Op Ar prov2 Op Ar ...
 .Nm
 .Cm list
+.Op Ar prov Op Ar ...
 .Nm
 .Cm load
 .Op Fl v
@@ -84,7 +85,7 @@ will be loaded if it is not loaded already.
 .It Cm destroy
 Turn off the given transparent providers.
 .It Cm list
-List currently configured providers.
+List all or the given currently configured providers.
 .It Cm load
 Load
 .Pa geom_nop.ko
