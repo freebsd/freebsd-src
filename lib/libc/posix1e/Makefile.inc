@@ -20,6 +20,7 @@ SRCS+=	acl_calc_mask.c			\
 	acl_valid.c			\
 	extattr.c			\
 	mac.c				\
+	mac_exec.c			\
 	mac_get.c			\
 	mac_set.c
 
