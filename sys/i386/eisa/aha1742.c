@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.23 1994/10/19 01:58:51 wollman Exp $
+ *      $Id: aha1742.c,v 1.24 1994/10/23 21:27:05 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -30,6 +30,8 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <i386/isa/isa_device.h>
+#else
+#define	NAHB	1
 #endif /*KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -37,15 +39,9 @@
 
 /* */
 
-#ifdef	KERNEL
-# ifdef DDB
-int     Debugger();
-# else	/* DDB */
-#define Debugger(x) panic("should call debugger here (adaptec.c)")
-# endif /* DDB */
-#else /* KERNEL */
-#define NAHB 1
-#endif /* kernel */
+#if defined(KERNEL) && !defined(DDB)
+#define	fatal_if_no_DDB() panic("panic for historical reasons")
+#endif
 
 typedef unsigned long int physaddr;
 #include <sys/kernel.h>
@@ -368,6 +364,7 @@ ahb_send_mbox(int unit, int opcode, int target, struct ecb *ecb)
 	if (wait == 0) {
 		printf("ahb%d: board not responding\n", unit);
 		Debugger("aha1742");
+		fatal_if_no_DDB();
 	}
 	outl(port + MBOXOUT0, KVTOPHYS(ecb));	/* don't know this will work */
 	outb(port + ATTN, opcode | target);
@@ -424,6 +421,7 @@ ahb_send_immed(int unit, int target, u_long cmd)
 	} if (wait == 0) {
 		printf("ahb%d: board not responding\n", unit);
 		Debugger("aha1742");
+		fatal_if_no_DDB();
 	}
 	outl(port + MBOXOUT0, cmd);	/* don't know this will work */
 	outb(port + G2CNTRL, G2CNTRL_SET_HOST_READY);
