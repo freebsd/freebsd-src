@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: keysock.h,v 1.8 2000/03/27 05:11:06 sumikawa Exp $	*/
+/*	$KAME: keysock.h,v 1.9 2002/03/21 14:00:14 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -35,7 +35,7 @@
 
 /* statistics for pfkey socket */
 struct pfkeystat {
-	/* kernel -> userland */
+	/* userland -> kernel */
 	u_quad_t out_total;		/* # of total calls */
 	u_quad_t out_bytes;		/* total bytecount */
 	u_quad_t out_msgtype[256];	/* message type histogram */
@@ -48,7 +48,7 @@ struct pfkeystat {
 	u_quad_t out_invexttype;	/* invalid extension type */
 	u_quad_t out_invsatype;		/* invalid sa type */
 	u_quad_t out_invaddr;		/* invalid address extension */
-	/* userland -> kernel */
+	/* kernel -> userland */
 	u_quad_t in_total;		/* # of total calls */
 	u_quad_t in_bytes;		/* total bytecount */
 	u_quad_t in_msgtype[256];	/* message type histogram */
@@ -75,7 +75,6 @@ extern int key_output(struct mbuf *, ...);
 extern int key_usrreq(struct socket *,
 	int, struct mbuf *, struct mbuf *, struct mbuf *);
 
-extern int key_sendup(struct socket *, struct sadb_msg *, u_int, int);
 extern int key_sendup_mbuf(struct socket *, struct mbuf *, int);
 #endif /* _KERNEL */
 
