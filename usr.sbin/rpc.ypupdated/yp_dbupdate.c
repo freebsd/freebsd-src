@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_dbupdate.c,v 1.1 1996/12/26 06:00:13 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/fcntl.h>
 
@@ -45,10 +48,6 @@ struct dom_binding {};
 #include <rpcsvc/ypupdate_prot.h>
 #include "ypxfr_extern.h"
 #include "ypupdated_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yp_dbupdate.c,v 1.1 1996/12/26 06:00:13 wpaul Exp $";
-#endif
 
 static int yp_domake(map, domain)
 	char *map;

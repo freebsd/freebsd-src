@@ -34,9 +34,12 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- *      $Id: ypupdated_server.c,v 1.3 1996/12/26 06:06:05 wpaul Exp wpaul $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <rpc/rpc.h>
@@ -49,10 +52,6 @@
 #include "ypupdated_extern.h"
 #include "yp_extern.h"
 #include "ypxfr_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: ypupdated_server.c,v 1.3 1996/12/26 06:06:05 wpaul Exp wpaul $";
-#endif
 
 int children = 0;
 int forked = 0;
