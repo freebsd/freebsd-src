@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.19 1999/08/14 07:33:15 chris Exp $
+.\"     $Id: malloc.3,v 1.17.2.2 1999/08/14 07:34:38 chris Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
@@ -274,7 +274,7 @@ is still available and intact.
 The
 .Fn free
 function returns no value.
-.Sh "DEBUGGING MALLOC PROBLEMS"
+.Sh DEBUGGING MALLOC PROBLEMS
 .Pp
 The major difference between this implementation and other allocation
 implementations is that the free pages are not accessed unless allocated,
@@ -333,7 +333,7 @@ would be prohibitive.
 There are a number of allocation implementations available on the 'Net
 which focus on detecting and pinpointing problems by trading performance
 for extra sanity checks and detailed diagnostics.
-.Sh "DIAGNOSTIC MESSAGES
+.Sh DIAGNOSTIC MESSAGES
 If 
 .Fn malloc ,
 .Fn calloc ,
