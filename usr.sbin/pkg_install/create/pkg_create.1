@@ -157,11 +157,56 @@ Execute
 .I command
 as part of the unpacking process.  If
 .I command
-contains a `%s/%s' sequence somewhere in it, it will be expanded to
-the name of the current directory and last filename extracted.  In
-practice, such weird things should be unnecessary in all but the most
-extenuating circumstances, but it's there should you need it
-nonetheless.
+contains a any of the following sequences somewhere in it, they will
+be expanded inline.  For the following examples, assume that
+.B @cwd
+is set to
+.B /usr/local
+and the last extracted file was
+.B bin/emacs.
+.TP
+.I "%F"
+Expands to the last filename extracted (as specified), in the example case
+.B bin/emacs
+.TP
+.I "%D"
+Expands to the current directory prefix, as set with
+.B @cwd,
+in the example case
+.B /usr/local.
+.TP
+.I "%B"
+Expands to the "basename" of the fully qualified filename, that
+is the current directory prefix, plus the last filespec, minus
+the trailing filename.  In the example case, that would be
+.B /usr/local/bin.
+.TP
+.I "%f"
+Expands to the "filename" part of the fully qualified name, or
+the converse of
+.B %B
+, being in the example case,
+.B emacs.
+.TP
+.BI "@unexec\ " command
+Execute
+.I command
+as part of the deinstallation process.  Expansion of special
+.B %
+sequences is the same as for
+.B @exec.
+This command is not executed during the package add, as
+.B @exec
+is, but rather when the package is deleted.  This is useful
+for creating links and other ancillary files that were created
+as a result of adding the package, but not directly known to
+the package's table of contents (and hence not automatically
+removable).  The advantage of using
+.B @unexec
+over a deinstallation script is that you can use the "special
+sequence expansion" to get at files regardless of where they've
+been potentially redirected (see
+.B -p)
 .TP
 .BI "@mode\ " mode
 Sets default permission for all subsequently extracted files to
