@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.15 1998/08/14 06:36:41 grog Exp grog $
+ * $Id: vinumvar.h,v 1.16 1998/10/26 05:50:43 grog Exp grog $
  */
 
 /* XXX gdb can't find our global pointers, so use this kludge to
@@ -45,8 +45,7 @@
 /* Some configuration maxima.  They're an enum because
  * we can't define global constants.  Sorry about that.
  *
- * These aren't as bad as they look: most of them
- * are soft limits.  Only the MAXCONFIG parameter is set in stone
+ * These aren't as bad as they look: most of them are soft limits.
  */
 
 enum constants {
@@ -76,6 +75,14 @@ enum constants {
     VINUM_PLEX_WIDTH = 3,
     VINUM_SD_WIDTH = 8,
     MAJORDEV_SHIFT = 8,
+
+    MAXPLEX = 8,					    /* maximum number of plexes in a volume */
+    MAXSD = 256,					    /* maximum number of subdisks in a plex */
+    MAXDRIVENAME = 32,					    /* maximum length of a device name */
+    MAXSDNAME = 64,					    /* maximum length of a subdisk name */
+    MAXPLEXNAME = 64,					    /* maximum length of a plex name */
+    MAXVOLNAME = 64,					    /* maximum length of a volume name */
+    MAXNAME = 64,					    /* maximum length of any name */
 
 
 /* Create a block device number */
@@ -126,6 +133,7 @@ enum constants {
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
     INITIAL_LOCKS = 8,					    /* number of locks to allocate to a volume */
     DEFAULT_REVIVE_BLOCKSIZE = 32768,			    /* size of block to transfer in one op */
+    VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
 
 /* device numbers */
@@ -159,12 +167,6 @@ struct devcode {
 #define VINUM_DIR   "/dev/vinum"
 #define VINUM_RDIR   "/dev/rvinum"
 #define VINUM_SUPERDEV_NAME VINUM_DIR"/control"
-#define MAXDRIVENAME   32				    /* maximum length of a device name */
-#define MAXSDNAME      64				    /* maximum length of a subdisk name */
-#define MAXPLEXNAME    64				    /* maximum length of a plex name */
-#define MAXVOLNAME     64				    /* maximum length of a volume name */
-#define MAXNAME        64				    /* maximum length of any name */
-#define MAXVOLPLEX      8				    /* maximum number of plexes in a volume */
 
 /* Flags for all objects.  Most of them only apply to
  * specific objects, but we have space for all in any
@@ -260,7 +262,6 @@ enum {
  * multiple copies in vinum.  We use the host name just
  * to identify this system, and 32 bytes should be ample
  * for that purpose */
-#define VINUMHOSTNAMELEN 32
 
 struct vinum_label {
     char sysname[VINUMHOSTNAMELEN];			    /* system name at time of creation */
@@ -400,8 +401,6 @@ struct plex {
 };
 
 /*** Volume definitions ***/
-
-#define MAXPLEX		8				    /* maximum number of plexes */
 
 
 struct volume {
