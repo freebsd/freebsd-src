@@ -95,6 +95,8 @@ dev/buslogic/bt.c	optional bt
 dev/ccd/ccd.c		optional ccd
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
+dev/ed/if_ed.c		optional ed
+dev/ed/if_ed_pci.c	optional ed pci
 dev/en/midway.c		optional en
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
@@ -630,7 +632,6 @@ pci/if_al.c		optional al
 pci/if_ax.c		optional ax
 pci/if_de.c		optional de
 pci/if_dm.c		optional dm
-pci/if_ed_p.c		optional ed pci
 pci/if_en_pci.c		optional en pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
