@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.12 1997/10/28 10:50:02 kato Exp $
+ *  $Id: linux_ipc.c,v 1.13 1997/11/06 19:28:57 phk Exp $
  */
 
 
@@ -430,14 +430,18 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args)
     case LINUX_IPC_RMID:
 	bsd_args.shmid = args->arg1;
 	bsd_args.cmd = IPC_RMID;
-	if ((error = copyin(args->ptr, (caddr_t)&linux_shmid, 
-		    	    sizeof(linux_shmid))))
-	    return error;
-	linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
-	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
-	if ((error = copyout((caddr_t)&bsd_shmid, (caddr_t)bsd_args.buf,
-		     	     sizeof(struct shmid_ds))))
-	    return error;
+	if (NULL == args->ptr)
+	    bsd_args.buf = NULL;
+	else {
+	    if ((error = copyin(args->ptr, (caddr_t)&linux_shmid, 
+		    		sizeof(linux_shmid))))
+		return error;
+	    linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
+	    bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
+	    if ((error = copyout((caddr_t)&bsd_shmid, (caddr_t)bsd_args.buf,
+		     		 sizeof(struct shmid_ds))))
+		return error;
+	}
 	return shmctl(p, &bsd_args);
 
     case LINUX_IPC_INFO:
