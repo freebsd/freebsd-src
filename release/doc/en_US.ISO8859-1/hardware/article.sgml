@@ -399,7 +399,7 @@
 
       <note>
 	<para arch="i386">Booting from these controllers is supported.  EISA
-        adapters are not supported.</para>
+	adapters are not supported.</para>
 
 	<para arch="alpha">Booting from these controllers is not
 	supported due to SRM limitations.</para>
@@ -547,7 +547,7 @@
 	  <para>New Media Corporation BASICS SCSI</para>
         </listitem>
 	<listitem>
-	  <para>QLogic Fast SCSI</para>
+	  <para>Qlogic Fast SCSI</para>
         </listitem>
 	<listitem>
 	  <para>RATOC REX-9530, REX-5572 (as SCSI only)</para>
@@ -577,28 +577,28 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">QLogic controllers and variants (&man.isp.4; driver)
+    <para arch="i386,alpha,ia64">Qlogic controllers and variants (&man.isp.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>QLogic 1020, 1040 SCSI and Ultra SCSI host
+	  <para>Qlogic 1020, 1040 SCSI and Ultra SCSI host
 	  adapters</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 1240 dual Ultra SCSI controllers</para>
+	  <para>Qlogic 1240 dual Ultra SCSI controllers</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
+	  <para>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
 	  controllers</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 12160 Ultra3 LVD controllers</para>
+	  <para>Qlogic 12160 Ultra3 LVD controllers</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 2100 and QLogic 2200 Fibre Channel SCSI
+	  <para>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
 	<listitem>
-	  <para>QLogic 2300 and QLogic 2312 2-Gigabit Fibre Channel SCSI
+	  <para>Qlogic 2300 and Qlogic 2312 2-Gigabit Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
 	<listitem>
@@ -664,7 +664,7 @@
     devices and CD-ROM drives.  WORM devices that support CD-ROM
     commands are supported for read-only access by the CD-ROM drivers
     (such as &man.cd.4;).  WORM/CD-R/CD-RW writing support is provided
-    by &man.cdrecord.1;, which is a part of the 
+    by &man.cdrecord.1;, which is a part of the
     <port>sysutils/cdrtools</port> port in the Ports Collection.</para>
 
     <para>The following CD-ROM type systems are supported at this
@@ -2059,8 +2059,8 @@
 	  <para>Maestro-3/Allegro</para>
 	  <note>
 	    <para>The Maestro-3/Allegro cannot be compiled into the
-	    &os; kernel due to licensing restrictions.  To use this driver, add
-	    the following line to
+	    &os; kernel due to licensing restrictions.  To use this
+	    driver, add the following line to
 	    <filename>/boot/loader.conf</filename>:</para>
 
             <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
