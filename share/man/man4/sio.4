@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.8 1994/02/19 15:50:38 ache Exp $
+.\"	$Id: sio.4,v 1.9 1994/03/18 13:40:01 ache Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -52,10 +52,10 @@ For standard ports:
 .sp
 For multiport cards:
 .Cd "options" \&"COM_MULTIPORT\&"
-.Cd "device sio4 at isa? port 0x2a0 tty irq 12 flags 0x401 vector siointr"
-.Cd "device sio5 at isa? port 0x2a8 tty flags 0x401 vector siointr"
-.Cd "device sio6 at isa? port 0x2b0 tty flags 0x401 vector siointr"
-.Cd "device sio7 at isa? port 0x2b8 tty flags 0x401 vector siointr"
+.Cd "device sio4 at isa? port 0x2a0 tty irq 12 flags 0x701 vector siointr"
+.Cd "device sio5 at isa? port 0x2a8 tty flags 0x701 vector siointr"
+.Cd "device sio6 at isa? port 0x2b0 tty flags 0x701 vector siointr"
+.Cd "device sio7 at isa? port 0x2b8 tty flags 0x701 vector siointr"
 .sp
 For bidirectional use of ports:
 .Cd "options" \&"COM_BIDIR\&"
@@ -114,8 +114,8 @@ imply that more than one port group (or card) can share
 the same physical interrupt line!
 .Pp
 In the synopsis the 
-.Nm flags 0x401
-means that the 5th port (sio4) is the master
+.Nm flags 0x701
+means that the 8th port (sio7) is the master
 device (so the MSB of the flags), and that the ports are part of a 
 multiport card (the LSB of the flags, actually only the LS 
 .Nm bit
@@ -124,9 +124,9 @@ F.e. if you have only two standard ports in addition to multiport
 card, this
 .Nm flags
 will be
-.Nm 0x201 
+.Nm 0x501
 (assuming the control port is 
-.Nm sio2
+.Nm sio5
 ).
 .Pp
 Which port is the master device depends on the card type. Consult
