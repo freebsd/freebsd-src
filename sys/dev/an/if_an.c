@@ -2848,7 +2848,7 @@ flashcard(ifp, l_ioctl)
 		break;
 	case AIROFLPUTBUF:	/* Send 32k to card */
 		if (l_ioctl->len > sizeof(flashbuffer)) {
-			printf("an%d: Buffer to big, %x %x\n", sc->an_unit,
+			printf("an%d: Buffer to big, %x %zx\n", sc->an_unit,
 			       l_ioctl->len, sizeof(flashbuffer));
 			return -EINVAL;
 		}
