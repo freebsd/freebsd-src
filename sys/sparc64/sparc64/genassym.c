@@ -258,9 +258,6 @@ ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));
 ASSYM(PM_TSB, offsetof(struct pmap, pm_tsb));
 
-ASSYM(CCFSZ, sizeof(struct frame));
-ASSYM(SPOFF, SPOFF);
-
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(_JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
