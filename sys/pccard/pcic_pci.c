@@ -259,7 +259,7 @@ pcic_pci_pd67xx_init(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
 
-	if (sc->csc_intr == pcic_iw_pci || sc->func_intr == pcic_iw_pci)
+	if (sc->csc_route == pcic_iw_pci || sc->func_route == pcic_iw_pci)
 		device_printf(dev, "CL-PD67xx broken for PCI routing.\n");
 }
 
