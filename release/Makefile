@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.369 1998/08/23 00:52:18 gpalmer Exp $
+#	$Id: Makefile,v 1.370 1998/08/30 02:50:44 jb Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -686,7 +686,6 @@ doMFSKERN:
 	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/pty/d' \
 		-e '/PROCFS/d' \
-		-e '/MSDOSFS/d' \
 		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
 		-e '/MATH_EMULATE/d' \
