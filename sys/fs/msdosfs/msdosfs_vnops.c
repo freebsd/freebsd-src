@@ -830,7 +830,7 @@ loop:
 		goto loop;
 	}
 	while (vp->v_numoutput) {
-		vp->v_vflag |= VI_BWAIT;
+		vp->v_iflag |= VI_BWAIT;
 		(void) msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
 		    PRIBIO + 1, "msdosfsn", 0);
 	}
