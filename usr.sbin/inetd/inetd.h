@@ -35,6 +35,7 @@
 
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 
@@ -80,11 +81,16 @@ struct	servtab {
 		struct	sockaddr se_un_ctrladdr;
 		struct	sockaddr_in se_un_ctrladdr4;
 		struct	sockaddr_in6 se_un_ctrladdr6;
+	        struct  sockaddr_un se_un_ctrladdr_un;
 	} se_un;
 #define se_ctrladdr	se_un.se_un_ctrladdr
 #define se_ctrladdr4	se_un.se_un_ctrladdr4
 #define se_ctrladdr6	se_un.se_un_ctrladdr6
+#define se_ctrladdr_un   se_un.se_un_ctrladdr_un
   	socklen_t	se_ctrladdr_size;
+	uid_t	se_sockuid;		/* Owner for unix domain socket */
+	gid_t	se_sockgid;		/* Group for unix domain socket */
+	mode_t	se_sockmode;		/* Mode for unix domain socket */
 	u_char	se_type;		/* type: normal, mux, or mux+ */
 	u_char	se_checked;		/* looked at during merge */
 	u_char	se_accept;		/* i.e., wait/nowait mode */

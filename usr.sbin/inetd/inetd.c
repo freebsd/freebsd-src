@@ -68,10 +68,11 @@ static const char rcsid[] =
  * order shown below.  Continuation lines for an entry must begin with
  * a space or tab.  All fields must be present in each entry.
  *
- *	service name			must be in /etc/services or must
- *					name a tcpmux service
+ *	service name			must be in /etc/services
+ *					or name a tcpmux service 
+ *					or specify a unix domain socket
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			tcp[4][6][/faith,ttcp], udp[4][6]
+ *	protocol			tcp[4][6][/faith,ttcp], udp[4][6], unix
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
@@ -115,6 +116,8 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -169,6 +172,7 @@ static const char rcsid[] =
 
 #define ISWRAP(sep)	\
 	   ( ((wrap_ex && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
+	&& (sep->se_family == AF_INET || sep->se_family == AF_INET6) \
 	&& ( ((sep)->se_accept && (sep)->se_socktype == SOCK_STREAM) \
 	    || (sep)->se_socktype == SOCK_DGRAM))
 
@@ -226,6 +230,9 @@ int	signalpipe[2];
 #ifdef SANITY_CHECK
 int	nsock;
 #endif
+uid_t	euid;
+gid_t	egid;
+mode_t	mask;
 
 struct	servtab *servtab;
 
@@ -402,6 +409,10 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "-a %s: unknown address family", hostname);
 		exit(EX_USAGE);
 	}
+
+	euid = geteuid();
+	egid = getegid();
+	umask(mask = umask(0777));
 
 	argc -= optind;
 	argv += optind;
@@ -898,6 +909,7 @@ void config()
 		for (sep = servtab; sep; sep = sep->se_next)
 			if (strcmp(sep->se_service, new->se_service) == 0 &&
 			    strcmp(sep->se_proto, new->se_proto) == 0 &&
+			    sep->se_socktype == new->se_socktype &&
 			    sep->se_family == new->se_family)
 				break;
 		if (sep != 0) {
@@ -978,12 +990,14 @@ void config()
 #endif
 		}
 		if (!sep->se_rpc) {
-			sp = getservbyname(sep->se_service, sep->se_proto);
-			if (sp == 0) {
-				syslog(LOG_ERR, "%s/%s: unknown service",
-				sep->se_service, sep->se_proto);
-				sep->se_checked = 0;
-				continue;
+			if (sep->se_family != AF_UNIX) {
+				sp = getservbyname(sep->se_service, sep->se_proto);
+				if (sp == 0) {
+					syslog(LOG_ERR, "%s/%s: unknown service",
+					sep->se_service, sep->se_proto);
+					sep->se_checked = 0;
+					continue;
+				}
 			}
 			switch (sep->se_family) {
 			case AF_INET:
@@ -1154,6 +1168,10 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 #ifdef IPSEC
 	ipsecsetup(sep);
 #endif
+	if (sep->se_family == AF_UNIX) {
+		(void) unlink(sep->se_ctrladdr_un.sun_path);
+		umask(0777); /* Make socket with conservative permissions */
+	}
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sep->se_ctrladdr_size) < 0) {
 		if (debug)
@@ -1167,7 +1185,17 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 			timingout = 1;
 			alarm(RETRYTIME);
 		}
+		if (sep->se_family == AF_UNIX)
+			umask(mask);
 		return;
+	}
+	if (sep->se_family == AF_UNIX) {
+		/* Ick - fch{own,mod} don't work on Unix domain sockets */
+		if (chown(sep->se_service, sep->se_sockuid, sep->se_sockgid) < 0)
+			syslog(LOG_ERR, "chown socket: %m");
+		if (chmod(sep->se_service, sep->se_sockmode) < 0)
+			syslog(LOG_ERR, "chmod socket: %m");
+		umask(mask);
 	}
         if (sep->se_rpc) {
 		int i;
@@ -1301,9 +1329,15 @@ int
 matchservent(name1, name2, proto)
 	char *name1, *name2, *proto;
 {
-	char **alias;
+	char **alias, *p;
 	struct servent *se;
 
+	if (strcmp(proto, "unix") == 0) {
+		if ((p = strrchr(name1, '/')) != NULL)
+			name1 = p + 1;
+		if ((p = strrchr(name2, '/')) != NULL)
+			name2 = p + 1;
+	}
 	if (strcmp(name1, name2) == 0)
 		return(1);
 	if ((se = getservbyname(name1, proto)) != NULL) {
@@ -1483,6 +1517,42 @@ more:
 		/* got an empty line containing just blanks/tabs. */
 		goto more;
 	}
+	if (arg[0] == ':') { /* :user:group:perm: */
+		char *user, *group, *perm;
+		struct passwd *pw;
+		struct group *gr;
+		user = arg+1;
+		if ((group = strchr(user, ':')) == NULL) {
+			syslog(LOG_ERR, "no group after user '%s'", user);
+			goto more;
+		}
+		*group++ = '\0';
+		if ((perm = strchr(group, ':')) == NULL) {
+			syslog(LOG_ERR, "no mode after group '%s'", group);
+			goto more;
+		}
+		*perm++ = '\0';
+		if ((pw = getpwnam(user)) == NULL) {
+			syslog(LOG_ERR, "no such user '%s'", user);
+			goto more;
+		}
+		sep->se_sockuid = pw->pw_uid;
+		if ((gr = getgrnam(group)) == NULL) {
+			syslog(LOG_ERR, "no such user '%s'", group);
+			goto more;
+		}
+		sep->se_sockgid = gr->gr_gid;
+		sep->se_sockmode = strtol(perm, &arg, 8);
+		if (*arg != ':') {
+			syslog(LOG_ERR, "bad mode '%s'", perm);
+			goto more;
+		}
+		*arg++ = '\0';
+	} else {
+		sep->se_sockuid = euid;
+		sep->se_sockgid = egid;
+		sep->se_sockmode = 0200;
+	}
 	if (strncmp(arg, TCPMUX_TOKEN, MUX_LEN) == 0) {
 		char *c = arg + MUX_LEN;
 		if (*c == '+') {
@@ -1589,6 +1659,9 @@ more:
 		freeconfig(sep);
 		goto more;
 	}
+	if (strcmp(sep->se_proto, "unix") == 0) {
+	        sep->se_family = AF_UNIX;
+	} else
 #ifdef INET6
 	if (v6bind != 0) {
 		sep->se_family = AF_INET6;
@@ -1619,6 +1692,18 @@ more:
 		sep->se_ctrladdr_size =	sizeof(sep->se_ctrladdr6);
 		break;
 #endif
+	case AF_UNIX:
+		if (strlen(sep->se_service) >= sizeof(sep->se_ctrladdr_un.sun_path)) {
+			syslog(LOG_ERR, 
+			    "domain socket pathname too long for service %s",
+			    sep->se_service);
+			goto more;
+		}
+		memset(&sep->se_ctrladdr, 0, sizeof(sep->se_ctrladdr));
+		sep->se_ctrladdr_un.sun_family = sep->se_family;
+		sep->se_ctrladdr_un.sun_len = strlen(sep->se_service);
+		strcpy(sep->se_ctrladdr_un.sun_path, sep->se_service);
+		sep->se_ctrladdr_size = SUN_LEN(&sep->se_ctrladdr_un);
 	}
 	arg = sskip(&cp);
 	if (!strncmp(arg, "wait", 4))
