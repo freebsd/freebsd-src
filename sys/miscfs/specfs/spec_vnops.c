@@ -288,8 +288,8 @@ if (bdev_access) {
 			return (EINVAL);
 
 		bsize = dev->si_bsize_phys;
-		while (bsize < dev->si_bsize_max && bsize < uio->uio_resid)
-			bsize <<= 1;
+		if (bsize < BLKDEV_IOSIZE)
+			bsize = BLKDEV_IOSIZE;
 
 		if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
@@ -372,8 +372,8 @@ if (bdev_access) {
 			return (EINVAL);
 
 		bsize = dev->si_bsize_phys;
-		while (bsize < dev->si_bsize_max && bsize < uio->uio_resid)
-			bsize <<= 1;
+		if (bsize < BLKDEV_IOSIZE)
+			bsize = BLKDEV_IOSIZE;
 
 		if ((*devsw(dev)->d_ioctl)(dev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
