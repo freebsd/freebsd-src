@@ -142,26 +142,26 @@ If one or more
 options are specified,
 .Nm
 will non-interactively set quotas defined by
-.Ar bslim , bhlim , islim
+.Ar bslim , bhlim , islim ,
 and
 .Ar ihlim
 on each particular file system referenced by
 .Ar fspath .
 Here
 .Ar bslim
-is soft limit on number of blocks,
+is the soft limit on the number of blocks,
 .Ar bslim
-is hard limit on number of blocks,
+is the hard limit on the number of blocks,
 .Ar islim
-is soft limit on number of files and
+is the soft limit on the number of files, and
 .Ar ihlim
-is hard limit on number of files.
+is the hard limit on the number of files.
 If any of the
-.Ar bslim , bhlim , islim
+.Ar bslim , bhlim , islim ,
 and
 .Ar ihlim
-values are omitted, it is assumed to be zero, therefore
-indicating that no quota should be imposed.
+values is omitted, it is assumed to be zero, therefore
+indicating that no particular quota should be imposed.
 .Pp
 If invoked with the
 .Fl f
