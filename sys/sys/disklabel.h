@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.37 1999/03/23 04:08:42 grog Exp $
+ * $Id: disklabel.h,v 1.36.2.1 1999/04/06 09:03:19 grog Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -205,6 +205,7 @@ struct disklabel {
 #define	DTYPE_FLOPPY		10		/* floppy */
 #define	DTYPE_CCD		11		/* concatenated disk */
 #define DTYPE_VINUM		12		/* vinum volume */
+#define DTYPE_DOC2K		13		/* M systems Disk on Chip */
 
 #ifdef PC98
 #define DSTYPE_SEC256		0x80		/* physical sector size=256*/
@@ -225,6 +226,7 @@ static char *dktypenames[] = {
 	"floppy",
 	"CCD",
 	"Vinum",
+	"DOC2K",
 	NULL
 };
 #define DKMAXTYPES	(sizeof(dktypenames) / sizeof(dktypenames[0]) - 1)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.20.2.4 1999/03/16 14:58:25 dcs Exp $
+ *	$Id: biosdisk.c,v 1.20.2.5 1999/07/02 21:40:04 rnordier Exp $
  */
 
 /*
@@ -58,6 +58,7 @@
 #define WFDMAJOR		1
 #define FDMAJOR			2
 #define DAMAJOR			4
+#define FLAMAJOR		28
 
 #ifdef DISK_DEBUG
 # define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
@@ -819,6 +820,9 @@ bd_getdev(struct i386_devdesc *dev)
 		if ((cp != nip) && (*cp == 0))
 		    unitofs = i;
 	    }
+	} else if ((od->od_flags & BD_LABELOK) && 
+	  (od->od_disklabel.d_type == DTYPE_DOC2K)) {
+	    major = FLAMAJOR;
 	} else {
 	    /* assume an IDE disk */
 	    major = WDMAJOR;
