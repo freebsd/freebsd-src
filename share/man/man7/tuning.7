@@ -411,7 +411,7 @@ Turning on this option will generally not reduce performance even with the
 wasted memory but you should experiment to find out.
 .Pp
 There are various buffer-cache and VM page cache related sysctls.
-We do not recommend messing around with these at all.
+We do not recommend modifying those values.
 As of
 .Fx 4.3 ,
 the VM system does an extremely good job tuning itself.
@@ -444,6 +444,7 @@ Note that the routing table (see
 .Xr route 8 )
 can be used to introduce route-specific send and receive buffer size
 defaults.
+.Pp
 As an additional management tool you can use pipes in your
 firewall rules (see
 .Xr ipfw 8 )
@@ -602,7 +603,7 @@ is allowed to use to perform its work.
 This parameter nominally scales
 with
 .Va kern.maxusers
-so you should not need to mess with this parameter except under extreme
+so you should not need to modify this parameter except under extreme
 circumstances.
 .Sh KERNEL CONFIG TUNING
 There are a number of kernel options that you may have to fiddle with in
