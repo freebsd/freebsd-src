@@ -101,6 +101,7 @@ device		acd0		#IDE CD-ROM
 # sufficient for any number of installed devices.
 controller	ncr0		# NCR/Symbios Logic
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+controller	amd0		# AMD 53C974 (Teckram DC-390(T))
 controller	isp0		# Qlogic family
 controller	adv0
 
