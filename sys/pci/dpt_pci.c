@@ -34,8 +34,9 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.10 1998/01/21 04:38:47 ShimonR Exp $"
+#ident "$Id: dpt_pci.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
 
+#include "opt_devfs.h"
 #include "opt_dpt.h"
 #include <pci.h>
 
