@@ -55,6 +55,9 @@
 
   <abstract>
     <para>This document lists errata items for &os; 
+<![ %release.type.current [
+      &release.prev;,
+]]>
 <![ %release.type.snapshot [
       &release.prev;,
 ]]>
@@ -77,6 +80,9 @@
       and &release.bugfix;.</para>
 
     <para>This errata document for &os; 
+<![ %release.type.current [
+      &release.prev;
+]]>
 <![ %release.type.snapshot [
       &release.prev;
 ]]>
@@ -91,6 +97,9 @@
 
     <para>This errata document contains <quote>late-breaking news</quote>
       about &os;
+<![ %release.type.current [
+      &release.prev;.
+]]>
 <![ %release.type.snapshot [
       &release.prev;.
 ]]>
@@ -124,6 +133,10 @@
     <title>Security Advisories</title>
 
 <![ %release.type.release [
+    <para>No advisories.</para>
+]]>
+
+<![ %release.type.current [
     <para>No advisories.</para>
 ]]>
 
@@ -215,6 +228,10 @@
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
+
+<![ %release.type.current [
+    <para>No open issues.</para>
+]]>
 
 <![ %release.type.release [
     <para>No open issues.</para>
@@ -347,6 +364,10 @@
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
+
+<![ %release.type.current [
+    <para>No news.</para>
+]]>
 
 <![ %release.type.release [
     <para>No news.</para>
