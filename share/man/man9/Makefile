@@ -110,6 +110,7 @@ MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
 MLINKS+=microuptime.9 getnanouptime.9
 
 MLINKS+=kobj.9 kobj_class_compile.9
+MLINKS+=kobj.9 kobj_class_compile_static.9
 MLINKS+=kobj.9 kobj_class_free.9
 MLINKS+=kobj.9 kobj_create.9
 MLINKS+=kobj.9 kobj_init.9
