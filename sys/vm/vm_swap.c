@@ -81,7 +81,7 @@ static struct cdevsw sw_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	0,
+	/* flags */	D_DISK,
 	/* bmaj */	BDEV_MAJOR
 };
 
