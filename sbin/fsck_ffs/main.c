@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
+#if 0
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -198,13 +202,11 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		return (0);
 	case -1:
 		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
-			sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
-		printf("(%ld frags, %ld blocks, %.1f%% fragmentation)\n",
-			sblock.fs_cstotal.cs_nffree,
-			sblock.fs_cstotal.cs_nbfree,
-			(float)(sblock.fs_cstotal.cs_nffree * 100) /
-			sblock.fs_dsize);
-		return(0);
+		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
+		printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
+		    sblock.fs_cstotal.cs_nffree, sblock.fs_cstotal.cs_nbfree,
+		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
+		return (0);
 	}
 
 	/*
@@ -263,29 +265,28 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
 	pwarn("%ld files, %ld used, %ld free ",
 	    n_files, n_blks, n_ffree + sblock.fs_frag * n_bfree);
-	printf("(%ld frags, %ld blocks, %ld.%ld%% fragmentation)\n",
-	    n_ffree, n_bfree, (n_ffree * 100) / sblock.fs_dsize,
-	    ((n_ffree * 1000 + sblock.fs_dsize / 2) / sblock.fs_dsize) % 10);
+	printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
+	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug &&
 	    (n_files -= maxino - ROOTINO - sblock.fs_cstotal.cs_nifree))
-		printf("%ld files missing\n", n_files);
+		printf("%d files missing\n", n_files);
 	if (debug) {
 		n_blks += sblock.fs_ncg *
 			(cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
 		n_blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
 		n_blks += howmany(sblock.fs_cssize, sblock.fs_fsize);
 		if (n_blks -= maxfsblock - (n_ffree + sblock.fs_frag * n_bfree))
-			printf("%ld blocks missing\n", n_blks);
+			printf("%d blocks missing\n", n_blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
-				printf(" %ld,", dp->dup);
+				printf(" %d,", dp->dup);
 			printf("\n");
 		}
 		if (zlnhead != NULL) {
 			printf("The following zero link count inodes remain:");
 			for (zlnp = zlnhead; zlnp; zlnp = zlnp->next)
-				printf(" %lu,", zlnp->zlncnt);
+				printf(" %u,", zlnp->zlncnt);
 			printf("\n");
 		}
 	}
