@@ -1,9 +1,9 @@
 /* $FreeBSD$ */
 
 #include "linux_assym.h"			/* system definitions */
-#include <machine/asmacros.h>		/* miscellaneous asm macros */
+#include <machine/asmacros.h>			/* miscellaneous asm macros */
 
-#include <i386/linux/linux_syscall.h>		/* system call numbers */
+#include <linux_syscall.h>			/* system call numbers */
 
 NON_GPROF_ENTRY(linux_sigcode)
 	call	*LINUX_SIGF_HANDLER(%esp)
