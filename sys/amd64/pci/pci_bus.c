@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.10 1995/06/30 16:11:42 se Exp $
+**  $Id: pcibus.c,v 1.11 1995/09/13 17:03:47 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -83,6 +83,9 @@
 **-----------------------------------------------------------------
 */
 
+static int
+pcibus_check (void);
+
 static void
 pcibus_setup (void);
 
@@ -150,6 +153,18 @@ DATA_SET (pcibus_set, i386pci);
 #define CONF2_FORWARD_PORT 0x0cfa
 
 
+static int
+pcibus_check (void)
+{
+	u_char device;
+
+	for (device = 0; device < pci_maxdevice; device++) {
+		if (pcibus_read (pcibus_tag (0,device,0), 0) != 0xfffffffful)
+			return 1;
+	}
+	return 0;
+}
+
 static void
 pcibus_setup (void)
 {
@@ -169,7 +184,7 @@ pcibus_setup (void)
 	if (result & CONF1_ENABLE) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
-		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+		if (pcibus_check()) 
 			return;
 	};
 
@@ -183,7 +198,7 @@ pcibus_setup (void)
 	if (!inb (CONF2_ENABLE_PORT) && !inb (CONF2_FORWARD_PORT)) {
 		pci_mechanism = 2;
 		pci_maxdevice = 16;
-		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+		if (pcibus_check()) 
 			return;
 	};
 
@@ -201,7 +216,7 @@ pcibus_setup (void)
 	if (result == CONF1_ENABLE_RES2) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
-		if (pcibus_read (pcibus_tag (0,0,0), 0) != 0xfffffffful)
+		if (pcibus_check()) 
 			return;
 	}
 	if (result != 0xfffffffful)
