@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
@@ -112,7 +113,7 @@ mmclose(dev, flags, fmt, p)
 {
 	switch (minor(dev)) {
 	case 14:
-		curproc->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
+		p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 		break;
 	default:
 		break;
@@ -132,7 +133,7 @@ mmopen(dev, flags, fmt, p)
 	switch (minor(dev)) {
 	case 0:
 	case 1:
-		if (securelevel >= 1)
+		if ((flags & FWRITE) && securelevel > 0)
 			return (EPERM);
 		break;
 	case 14:
@@ -141,7 +142,7 @@ mmopen(dev, flags, fmt, p)
 			return (error);
 		if (securelevel > 0)
 			return (EPERM);
-		curproc->p_md.md_regs->tf_eflags |= PSL_IOPL;
+		p->p_md.md_regs->tf_eflags |= PSL_IOPL;
 		break;
 	default:
 		break;
