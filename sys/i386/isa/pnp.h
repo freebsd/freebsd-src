@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpcfg.h,v 1.2 1996/01/12 21:35:10 smpatel Exp smpatel $
+ *      $Id: pnp.h,v 1.1 1997/09/09 12:31:58 jmg Exp $
  */
 
 #include <i386/isa/isa_device.h>
@@ -256,8 +256,6 @@ struct pnp_cinfo {
 	} mem[4];
 };
 
-void pnp_configure __P((void));
-
 struct pnp_device {
     char *pd_name;
     char * (*pd_probe ) (u_long csn, u_long vendor_id);
@@ -274,6 +272,8 @@ struct _pnp_id {
     u_char checksum;
 } ;
 
+#ifdef KERNEL
+
 typedef struct _pnp_id pnp_id;
 extern pnp_id pnp_devices[MAX_PNP_CARDS];
 extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
@@ -287,5 +287,12 @@ extern struct linker_set pnpdevice_set;
 int read_pnp_parms(struct pnp_cinfo *d, int ldn);
 int write_pnp_parms(struct pnp_cinfo *d, int ldn);
 int enable_pnp_card(void);
+
+/*
+ * used by autoconfigure to actually probe and attach drivers
+ */
+void pnp_configure __P((void));
+
+#endif /* KERNEL */
 
 #endif /* !_I386_ISA_PNP_H_ */
