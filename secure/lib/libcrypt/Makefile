@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.13 1997/09/05 12:21:22 peter Exp $
+# $Id$
 #
 
 LCRYPTBASE=     libcrypt
