@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: splash_bmp.c,v 1.1 1999/01/11 03:34:56 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -382,7 +382,7 @@ bmp_DecodeLine(BMP_INFO *info, int line)
     case BI_RGB:
 	for (x = 0; x < info->width; x++, info->index++)
 	    bmp_SetPix(info, x, line, *info->index);
-	info->index += 4 - (x % 4);
+	info->index += 3 - (--x % 4);
 	break;
     case BI_RLE4:
 	bmp_DecodeRLE4(info, line);
