@@ -247,7 +247,8 @@ madt_probe(void)
 		return (ENXIO);
 	}
 	if (bootverbose)
-		printf("MADT: Found table at %p\n", (void *)madt_physaddr);
+		printf("MADT: Found table at 0x%jx\n",
+		    (uintmax_t)madt_physaddr);
 
 	return (0);
 }
@@ -263,13 +264,13 @@ madt_probe_table(vm_paddr_t address)
 	table = madt_map(address, 0, sizeof(ACPI_TABLE_HEADER));
 	if (table == NULL) {
 		if (bootverbose)
-			printf("MADT: Failed to map table at %p\n",
-			    (void *)address);
+			printf("MADT: Failed to map table at 0x%jx\n",
+			    (uintmax_t)address);
 		return (0);
 	}
 	if (bootverbose)
-		printf("Table '%.4s' at %p\n", table->Signature,
-		    (void *)address);
+		printf("Table '%.4s' at 0x%jx\n", table->Signature,
+		    (uintmax_t)address);
 
 	/* XXX: Verify checksum? */
 	if (strncmp(table->Signature, APIC_SIG, 4) != 0) {
