@@ -75,6 +75,8 @@ static driver_t pckbd_driver = {
 
 DRIVER_MODULE(pckbd, isa, pckbd_driver, pckbd_devclass, 0, 0);
 
+static bus_addr_t pckbd_iat[] = {0, 2};
+
 static int		pckbd_probe_unit(int unit, int port, int irq,
 					 int flags);
 static int		pckbd_attach_unit(int unit, keyboard_t **kbd,
@@ -85,14 +87,30 @@ static timeout_t	pckbd_timeout;
 static int
 pckbdprobe(device_t dev)
 {
+	struct resource *res;
+	int error, rid;
+
 	/* Check isapnp ids */
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "PC-98 Keyboard");
 
-	return pckbd_probe_unit(device_get_unit(dev), isa_get_port(dev),
-				(1 << isa_get_irq(dev)), device_get_flags(dev));
+	rid = 0;
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, pckbd_iat, 2,
+				  RF_ACTIVE);
+	if (res == NULL)
+		return ENXIO;
+	isa_load_resourcev(res, pckbd_iat, 2);
+
+	error = pckbd_probe_unit(device_get_unit(dev),
+				 isa_get_port(dev),
+				 (1 << isa_get_irq(dev)),
+				 device_get_flags(dev));
+
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+
+	return (error);
 }
 
 static int
@@ -101,15 +119,26 @@ pckbdattach(device_t dev)
 	keyboard_t	*kbd;
 	void		*ih;
 	struct resource	*res;
-	int		zero = 0;
+	int		error, rid;
 
-	pckbd_attach_unit(device_get_unit(dev), &kbd, isa_get_port(dev),
-			  (1 << isa_get_irq(dev)), device_get_flags(dev));
+	rid = 0;
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, pckbd_iat, 2,
+				  RF_ACTIVE);
+	if (res == NULL)
+		return ENXIO;
+	isa_load_resourcev(res, pckbd_iat, 2);
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
-				 RF_SHAREABLE | RF_ACTIVE);
+	error = pckbd_attach_unit(device_get_unit(dev), &kbd,
+				  isa_get_port(dev),
+				  (1 << isa_get_irq(dev)),
+				  device_get_flags(dev));
+
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (res == NULL)
+		return ENXIO;
 	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
-				   pckbd_isa_intr, kbd, &ih);
+		       pckbd_isa_intr, kbd, &ih);
 
 	return (0);
 }
