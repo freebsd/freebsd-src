@@ -59,7 +59,7 @@
 9:	sub	r2, 1, r3 ; \
 	casa	[r1] ASI_N, r2, r3 ; \
 	cmp	r2, r3 ; \
-	bne,pn	%xcc, 9b ; \
+	bne,pn	%icc, 9b ; \
 	 mov	r3, r2
 
 /*
@@ -70,7 +70,18 @@
 9:	add	r2, 1, r3 ; \
 	casa	[r1] ASI_N, r2, r3 ; \
 	cmp	r2, r3 ; \
-	bne,pn	%xcc, 9b ; \
+	bne,pn	%icc, 9b ; \
+	 mov	r3, r2
+
+/*
+ * Atomically clear a number of bits of an integer in memory.
+ */
+#define	ATOMIC_CLEAR_INT(r1, r2, r3, bits) \
+	lduw	[r1], r2 ; \
+9:	andn	r2, bits, r3 ; \
+	casa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%icc, 9b ; \
 	 mov	r3, r2
 
 #define	PCPU(member)	%g7 + PC_ ## member
