@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.66 1996/02/02 20:50:03 ache Exp $
+ *	$Id: mcd.c,v 1.67 1996/02/02 21:18:02 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -200,6 +200,7 @@ static	int	mcd_read_toc(int unit);
 static  int     mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
 static	int	mcd_stop(int unit);
 static  int     mcd_eject(int unit);
+static  int     mcd_inject(int unit);
 static	int	mcd_playtracks(int unit, struct ioc_play_track *pt);
 static	int	mcd_play(int unit, struct mcd_read2 *pb);
 static  int     mcd_playmsf(int unit, struct ioc_play_msf *pt);
@@ -649,6 +650,10 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 		return mcd_hard_reset(unit);
 	case CDIOCALLOW:
 		return mcd_lock_door(unit, MCD_LK_UNLOCK);
+	case CDIOCPREVENT:
+		return mcd_lock_door(unit, MCD_LK_LOCK);
+	case CDIOCCLOSE:
+		return mcd_inject(unit);
 	default:
 		return ENOTTY;
 	}
@@ -1272,12 +1277,24 @@ mcd_eject(int unit)
 	if (mcd_getstat(unit,1) == -1)    /* detect disk change too */
 		return EIO;
 	if (cd->status & MCDDOOROPEN)
-		return mcd_close_tray(unit);
+		return 0;
 	if ((r = mcd_stop(unit)) == EIO)
 		return r;
 	outb(port+mcd_command, MCD_CMDEJECTDISK);
 	if (mcd_getstat(unit,0) == -1)
 		return EIO;
+	return 0;
+}
+
+static int
+mcd_inject(int unit)
+{
+	struct mcd_data *cd = mcd_data + unit;
+
+	if (mcd_getstat(unit,1) == -1)    /* detect disk change too */
+		return EIO;
+	if (cd->status & MCDDOOROPEN)
+		return mcd_close_tray(unit);
 	return 0;
 }
 
