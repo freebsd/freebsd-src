@@ -443,7 +443,7 @@ void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*)(void *, void *), void *, int, int);
-void		 m_copyback(struct mbuf *, int, int, caddr_t);
+void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
