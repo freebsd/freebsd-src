@@ -50,7 +50,17 @@ static const char rcsid[] =
 
 char *_mktemp __P((char *));
 
-static int _gettemp __P((char *, int *, int));
+static int _gettemp __P((char *, int *, int, int));
+
+int
+mkstemps(path, slen)
+	char *path;
+	int slen;
+{
+	int fd;
+
+	return (_gettemp(path, &fd, 0, slen) ? fd : -1);
+}
 
 int
 mkstemp(path)
@@ -58,27 +68,25 @@ mkstemp(path)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0) ? fd : -1);
+	return (_gettemp(path, &fd, 0, 0) ? fd : -1);
 }
 
 char *
 mkdtemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
+	return(_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
 }
 
 char *
 _mktemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 0) ? path : (char *)NULL);
+	return(_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
 }
 
-#ifdef UNSAFE_WARN
 __warn_references(mktemp,
     "warning: mktemp() possibly used unsafely; consider using mkstemp()");
-#endif
 
 char *
 mktemp(path)
@@ -88,12 +96,13 @@ mktemp(path)
 }
 
 static int
-_gettemp(path, doopen, domkdir)
+_gettemp(path, doopen, domkdir, slen)
 	char *path;
 	register int *doopen;
 	int domkdir;
+	int slen;
 {
-	register char *start, *trv;
+	register char *start, *trv, *suffp;
 	struct stat sbuf;
 	int pid, rval;
 
@@ -105,7 +114,13 @@ _gettemp(path, doopen, domkdir)
 	pid = getpid();
 	for (trv = path; *trv; ++trv)
 		;
+	trv -= slen;
+	suffp = trv;
 	--trv;
+	if (trv < path) {
+		errno = EINVAL;
+		return (0);
+	}
 	while (*trv == 'X' && pid != 0) {
 		*trv-- = (pid % 10) + '0';
 		pid /= 10;
@@ -167,7 +182,7 @@ _gettemp(path, doopen, domkdir)
 			if (*trv == 'Z')
 				*trv++ = 'a';
 			else {
-				if (isdigit(*trv))
+				if (isdigit((unsigned char)*trv))
 					*trv = 'a';
 				else if (*trv == 'z')	/* inc from z to A */
 					*trv = 'A';
