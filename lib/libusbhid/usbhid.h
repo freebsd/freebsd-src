@@ -87,11 +87,11 @@ report_desc_t hid_use_report_desc(unsigned char *data, unsigned int size);
 void hid_dispose_report_desc(report_desc_t);
 
 /* Parsing of a HID report descriptor, parse.c: */
-hid_data_t hid_start_parse(report_desc_t d, int kindset);
+hid_data_t hid_start_parse(report_desc_t d, int kindset, int id);
 void hid_end_parse(hid_data_t s);
 int hid_get_item(hid_data_t s, hid_item_t *h);
-int hid_report_size(report_desc_t d, unsigned int id, enum hid_kind k);
-int hid_locate(report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h);
+int hid_report_size(report_desc_t d, enum hid_kind k, int id);
+int hid_locate(report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h, int id);
 
 /* Conversion to/from usage names, usage.c: */
 const char *hid_usage_page(int i);
