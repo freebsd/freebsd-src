@@ -100,7 +100,7 @@ typedef	__uid_t		uid_t;
 #include <sys/time.h>
 #endif
 
-#ifndef __BSD_VISIBLE
+#if !__BSD_VISIBLE
 #include <sys/_timespec.h>
 #endif
 
