@@ -590,8 +590,14 @@ bwrite(struct buf * bp)
 	 * If this buffer is marked for background writing and we
 	 * do not have to wait for it, make a copy and write the
 	 * copy so as to leave this buffer ready for further use.
+	 *
+	 * This optimization eats a lot of memory.  If we have a page
+	 * or buffer shortfull we can't do it.
 	 */
-	if ((bp->b_xflags & BX_BKGRDWRITE) && (bp->b_flags & B_ASYNC)) {
+	if ((bp->b_xflags & BX_BKGRDWRITE) &&
+	    (bp->b_flags & B_ASYNC) &&
+	    !vm_page_count_severe() &&
+	    !buf_dirty_count_severe()) {
 		if (bp->b_flags & B_CALL)
 			panic("bwrite: need chained iodone");
 
@@ -892,6 +898,15 @@ bwillwrite(void)
 }
 
 /*
+ * Return true if we have too many dirty buffers.
+ */
+int
+buf_dirty_count_severe(void)
+{
+	return(numdirtybuffers >= hidirtybuffers);
+}
+
+/*
  *	brelse:
  *
  *	Release a busy buffer and, if requested, free its resources.  The
@@ -950,10 +965,14 @@ brelse(struct buf * bp)
 	 * 
 	 * We still allow the B_INVAL case to call vfs_vmio_release(), even
 	 * if B_DELWRI is set.
+	 *
+	 * If B_DELWRI is not set we may have to set B_RELBUF if we are low
+	 * on pages to return pages to the VM page queues.
 	 */
-
 	if (bp->b_flags & B_DELWRI)
 		bp->b_flags &= ~B_RELBUF;
+	else if (vm_page_count_severe() && !(bp->b_xflags & BX_BKGRDINPROG))
+		bp->b_flags |= B_RELBUF;
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
@@ -1162,7 +1181,7 @@ brelse(struct buf * bp)
 
 /*
  * Release a buffer back to the appropriate queue but do not try to free
- * it.
+ * it.  The buffer is expected to be used again soon.
  *
  * bqrelse() is used by bdwrite() to requeue a delayed write, and used by
  * biodone() to requeue an async I/O on completion.  It is also used when
@@ -1195,6 +1214,15 @@ bqrelse(struct buf * bp)
 	} else if (bp->b_flags & B_DELWRI) {
 		bp->b_qindex = QUEUE_DIRTY;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
+	} else if (vm_page_count_severe()) {
+		/*
+		 * We are too low on memory, we have to try to free the
+		 * buffer (most importantly: the wired pages making up its
+		 * backing store) *now*.
+		 */
+		splx(s);
+		brelse(bp);
+		return;
 	} else {
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
@@ -1253,6 +1281,8 @@ vfs_vmio_release(bp)
 				vm_page_busy(m);
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_free(m);
+			} else if (vm_page_count_severe()) {
+				vm_page_try_to_cache(m);
 			}
 		}
 	}
@@ -1408,13 +1438,14 @@ getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
 	struct buf *nbp;
 	int defrag = 0;
 	int nqindex;
-	int isspecial;
 	static int flushingbufs;
 
-	if (curproc && (curproc->p_flag & P_BUFEXHAUST) == 0)
-		isspecial = 0;
-	else
-		isspecial = 1;
+	/*
+	 * We can't afford to block since we might be holding a vnode lock,
+	 * which may prevent system daemons from running.  We deal with
+	 * low-memory situations by proactively returning memory and running
+	 * async I/O rather then sync I/O.
+	 */
 	
 	++getnewbufcalls;
 	--getnewbufrestarts;
@@ -1433,42 +1464,28 @@ restart:
 	 * However, there are a number of cases (defragging, reusing, ...)
 	 * where we cannot backup.
 	 */
+	nqindex = QUEUE_EMPTYKVA;
+	nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
 
-	if (isspecial == 0 && numfreebuffers < lofreebuffers) {
+	if (nbp == NULL) {
 		/*
-		 * This will cause an immediate failure
+		 * If no EMPTYKVA buffers and we are either
+		 * defragging or reusing, locate a CLEAN buffer
+		 * to free or reuse.  If bufspace useage is low
+		 * skip this step so we can allocate a new buffer.
 		 */
-		nqindex = QUEUE_CLEAN;
-		nbp = NULL;
-	} else {
+		if (defrag || bufspace >= lobufspace) {
+			nqindex = QUEUE_CLEAN;
+			nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
+		}
+
 		/*
-		 * Locate a buffer which already has KVA assigned.  First
-		 * try EMPTYKVA buffers.
+		 * Nada.  If we are allowed to allocate an EMPTY 
+		 * buffer, go get one.
 		 */
-		nqindex = QUEUE_EMPTYKVA;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
-
-		if (nbp == NULL) {
-			/*
-			 * If no EMPTYKVA buffers and we are either
-			 * defragging or reusing, locate a CLEAN buffer
-			 * to free or reuse.  If bufspace useage is low
-			 * skip this step so we can allocate a new buffer.
-			 */
-			if (defrag || bufspace >= lobufspace) {
-				nqindex = QUEUE_CLEAN;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
-			}
-
-			/*
-			 * Nada.  If we are allowed to allocate an EMPTY 
-			 * buffer, go get one.
-			 */
-			if (nbp == NULL && defrag == 0 && 
-			    (isspecial || bufspace < hibufspace)) {
-				nqindex = QUEUE_EMPTY;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
-			}
+		if (nbp == NULL && defrag == 0 && bufspace < hibufspace) {
+			nqindex = QUEUE_EMPTY;
+			nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
 		}
 	}
 
@@ -1597,26 +1614,16 @@ restart:
 			goto restart;
 		}
 
-		/*
-		 * If we are a normal process then deal with bufspace
-		 * hysteresis.  A normal process tries to keep bufspace
-		 * between lobufspace and hibufspace.  Note: if we encounter
-		 * a buffer with b_kvasize == 0 then it means we started
-		 * our scan on the EMPTY list and should allocate a new
-		 * buffer.
-		 */
-		if (isspecial == 0) {
-			if (bufspace > hibufspace)
-				flushingbufs = 1;
-			if (flushingbufs && bp->b_kvasize != 0) {
-				bp->b_flags |= B_INVAL;
-				bfreekva(bp);
-				brelse(bp);
-				goto restart;
-			}
-			if (bufspace < lobufspace)
-				flushingbufs = 0;
+		if (bufspace >= hibufspace)
+			flushingbufs = 1;
+		if (flushingbufs && bp->b_kvasize != 0) {
+			bp->b_flags |= B_INVAL;
+			bfreekva(bp);
+			brelse(bp);
+			goto restart;
 		}
+		if (bufspace < lobufspace)
+			flushingbufs = 0;
 		break;
 	}
 
@@ -1692,6 +1699,7 @@ restart:
 	return(bp);
 }
 
+#if 0
 /*
  *	waitfreebuffers:
  *
@@ -1709,6 +1717,8 @@ waitfreebuffers(int slpflag, int slptimeo)
 			break;
 	}
 }
+
+#endif
 
 /*
  *	buf_daemon:
@@ -2060,8 +2070,13 @@ loop:
          * If this check ever becomes a bottleneck it may be better to
          * move it into the else, when gbincore() fails.  At the moment
          * it isn't a problem.
+	 *
+	 * XXX remove, we cannot afford to block anywhere if holding a vnode
+	 * lock in low-memory situation, so take it to the max.
          */
+#if 0
 	if (!curproc || (curproc->p_flag & P_BUFEXHAUST)) {
+#endif
 		if (numfreebuffers == 0) {
 			if (!curproc)
 				return NULL;
@@ -2069,9 +2084,11 @@ loop:
 			tsleep(&needsbuffer, (PRIBIO + 4) | slpflag, "newbuf",
 			    slptimeo);
 		}
+#if 0
 	} else if (numfreebuffers < lofreebuffers) {
 		waitfreebuffers(slpflag, slptimeo);
 	}
+#endif
 
 	if ((bp = gbincore(vp, blkno))) {
 		/*
@@ -2455,7 +2472,13 @@ allocbuf(struct buf *bp, int size)
 
 				pi = OFF_TO_IDX(bp->b_offset) + bp->b_npages;
 				if ((m = vm_page_lookup(obj, pi)) == NULL) {
-					m = vm_page_alloc(obj, pi, VM_ALLOC_NORMAL);
+					/*
+					 * note: must allocate system pages
+					 * since blocking here could intefere
+					 * with paging I/O, no matter which
+					 * process we are.
+					 */
+					m = vm_page_alloc(obj, pi, VM_ALLOC_SYSTEM);
 					if (m == NULL) {
 						VM_WAIT;
 						vm_pageout_deficit += desiredpages - bp->b_npages;
@@ -2713,13 +2736,15 @@ biodone(register struct buf * bp)
 				bogusflag = 1;
 				m = vm_page_lookup(obj, OFF_TO_IDX(foff));
 				if (!m) {
-					printf("biodone: page disappeared\n");
+					panic("biodone: page disappeared");
+#if 0
 					vm_object_pip_subtract(obj, 1);
 					bp->b_flags &= ~B_CACHE;
 					foff = (foff + PAGE_SIZE) & 
 					    ~(off_t)PAGE_MASK;
 					iosize -= resid;
 					continue;
+#endif
 				}
 				bp->b_pages[i] = m;
 				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
@@ -3084,9 +3109,14 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 
 tryagain:
 
+		/*
+		 * note: must allocate system pages since blocking here
+		 * could intefere with paging I/O, no matter which
+		 * process we are.
+		 */
 		p = vm_page_alloc(kernel_object,
 			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
-		    VM_ALLOC_NORMAL);
+		    VM_ALLOC_SYSTEM);
 		if (!p) {
 			vm_pageout_deficit += (to - from) >> PAGE_SHIFT;
 			VM_WAIT;

@@ -251,6 +251,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 #define PG_SWAPINPROG	0x0200		/* swap I/O in progress on page	     */
 #define PG_NOSYNC	0x0400		/* do not collect for syncer */
 #define PG_UNMANAGED	0x0800		/* No PV management for page */
+#define PG_MARKER	0x1000		/* special queue marker page */
 
 /*
  * Misc constants.
@@ -403,6 +404,7 @@ void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
+int vm_page_try_to_cache __P((vm_page_t));
 void vm_page_dontneed __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 static __inline void vm_page_free __P((vm_page_t));

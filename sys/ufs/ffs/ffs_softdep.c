@@ -89,6 +89,8 @@ MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
 MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
 MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
 
+#define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
+
 #define	D_PAGEDEP	0
 #define	D_INODEDEP	1
 #define	D_NEWBLK	2
@@ -777,7 +779,7 @@ top:
 		goto top;
 	}
 	MALLOC(pagedep, struct pagedep *, sizeof(struct pagedep), M_PAGEDEP,
-		M_WAITOK);
+		M_SOFTDEP_FLAGS);
 	bzero(pagedep, sizeof(struct pagedep));
 	pagedep->pd_list.wk_type = D_PAGEDEP;
 	pagedep->pd_mnt = mp;
@@ -854,7 +856,7 @@ top:
 	}
 	num_inodedep += 1;
 	MALLOC(inodedep, struct inodedep *, sizeof(struct inodedep),
-		M_INODEDEP, M_WAITOK);
+		M_INODEDEP, M_SOFTDEP_FLAGS);
 	inodedep->id_list.wk_type = D_INODEDEP;
 	inodedep->id_fs = fs;
 	inodedep->id_ino = inum;
@@ -916,7 +918,7 @@ top:
 	if (sema_get(&newblk_in_progress, 0) == 0)
 		goto top;
 	MALLOC(newblk, struct newblk *, sizeof(struct newblk),
-		M_NEWBLK, M_WAITOK);
+		M_NEWBLK, M_SOFTDEP_FLAGS);
 	newblk->nb_state = 0;
 	newblk->nb_fs = fs;
 	newblk->nb_newblkno = newblkno;
@@ -1102,7 +1104,7 @@ bmsafemap_lookup(bp)
 			return (WK_BMSAFEMAP(wk));
 	FREE_LOCK(&lk);
 	MALLOC(bmsafemap, struct bmsafemap *, sizeof(struct bmsafemap),
-		M_BMSAFEMAP, M_WAITOK);
+		M_BMSAFEMAP, M_SOFTDEP_FLAGS);
 	bmsafemap->sm_list.wk_type = D_BMSAFEMAP;
 	bmsafemap->sm_list.wk_state = 0;
 	bmsafemap->sm_buf = bp;
@@ -1162,7 +1164,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct newblk *newblk;
 
 	MALLOC(adp, struct allocdirect *, sizeof(struct allocdirect),
-		M_ALLOCDIRECT, M_WAITOK);
+		M_ALLOCDIRECT, M_SOFTDEP_FLAGS);
 	bzero(adp, sizeof(struct allocdirect));
 	adp->ad_list.wk_type = D_ALLOCDIRECT;
 	adp->ad_lbn = lbn;
@@ -1314,7 +1316,7 @@ newfreefrag(ip, blkno, size)
 	if (fragnum(fs, blkno) + numfrags(fs, size) > fs->fs_frag)
 		panic("newfreefrag: frag size");
 	MALLOC(freefrag, struct freefrag *, sizeof(struct freefrag),
-		M_FREEFRAG, M_WAITOK);
+		M_FREEFRAG, M_SOFTDEP_FLAGS);
 	freefrag->ff_list.wk_type = D_FREEFRAG;
 	freefrag->ff_state = ip->i_uid & ~ONWORKLIST;	/* XXX - used below */
 	freefrag->ff_inum = ip->i_number;
@@ -1382,7 +1384,7 @@ newallocindir(ip, ptrno, newblkno, oldblkno)
 	struct allocindir *aip;
 
 	MALLOC(aip, struct allocindir *, sizeof(struct allocindir),
-		M_ALLOCINDIR, M_WAITOK);
+		M_ALLOCINDIR, M_SOFTDEP_FLAGS);
 	bzero(aip, sizeof(struct allocindir));
 	aip->ai_list.wk_type = D_ALLOCINDIR;
 	aip->ai_state = ATTACHED;
@@ -1532,7 +1534,7 @@ setup_allocindir_phase2(bp, ip, aip)
 		if (indirdep)
 			break;
 		MALLOC(newindirdep, struct indirdep *, sizeof(struct indirdep),
-			M_INDIRDEP, M_WAITOK);
+			M_INDIRDEP, M_SOFTDEP_FLAGS);
 		newindirdep->ir_list.wk_type = D_INDIRDEP;
 		newindirdep->ir_state = ATTACHED;
 		LIST_INIT(&newindirdep->ir_deplisthd);
@@ -1595,7 +1597,7 @@ softdep_setup_freeblocks(ip, length)
 	if (length != 0)
 		panic("softde_setup_freeblocks: non-zero length");
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
-		M_FREEBLKS, M_WAITOK);
+		M_FREEBLKS, M_SOFTDEP_FLAGS);
 	bzero(freeblks, sizeof(struct freeblks));
 	freeblks->fb_list.wk_type = D_FREEBLKS;
 	freeblks->fb_uid = ip->i_uid;
@@ -1839,7 +1841,7 @@ softdep_freefile(pvp, ino, mode)
 	 * This sets up the inode de-allocation dependency.
 	 */
 	MALLOC(freefile, struct freefile *, sizeof(struct freefile),
-		M_FREEFILE, M_WAITOK);
+		M_FREEFILE, M_SOFTDEP_FLAGS);
 	freefile->fx_list.wk_type = D_FREEFILE;
 	freefile->fx_list.wk_state = 0;
 	freefile->fx_mode = mode;
@@ -2155,7 +2157,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 	fs = dp->i_fs;
 	lbn = lblkno(fs, diroffset);
 	offset = blkoff(fs, diroffset);
-	MALLOC(dap, struct diradd *, sizeof(struct diradd), M_DIRADD, M_WAITOK);
+	MALLOC(dap, struct diradd *, sizeof(struct diradd), M_DIRADD, M_SOFTDEP_FLAGS);
 	bzero(dap, sizeof(struct diradd));
 	dap->da_list.wk_type = D_DIRADD;
 	dap->da_offset = offset;
@@ -2167,12 +2169,12 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 	} else {
 		dap->da_state |= MKDIR_BODY | MKDIR_PARENT;
 		MALLOC(mkdir1, struct mkdir *, sizeof(struct mkdir), M_MKDIR,
-		    M_WAITOK);
+		    M_SOFTDEP_FLAGS);
 		mkdir1->md_list.wk_type = D_MKDIR;
 		mkdir1->md_state = MKDIR_BODY;
 		mkdir1->md_diradd = dap;
 		MALLOC(mkdir2, struct mkdir *, sizeof(struct mkdir), M_MKDIR,
-		    M_WAITOK);
+		    M_SOFTDEP_FLAGS);
 		mkdir2->md_list.wk_type = D_MKDIR;
 		mkdir2->md_state = MKDIR_PARENT;
 		mkdir2->md_diradd = dap;
@@ -2407,7 +2409,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 		(void) request_cleanup(FLUSH_REMOVE, 0);
 	num_dirrem += 1;
 	MALLOC(dirrem, struct dirrem *, sizeof(struct dirrem),
-		M_DIRREM, M_WAITOK);
+		M_DIRREM, M_SOFTDEP_FLAGS);
 	bzero(dirrem, sizeof(struct dirrem));
 	dirrem->dm_list.wk_type = D_DIRREM;
 	dirrem->dm_state = isrmdir ? RMDIR : 0;
@@ -2504,7 +2506,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 */
 	if (newinum != WINO) {
 		MALLOC(dap, struct diradd *, sizeof(struct diradd),
-		    M_DIRADD, M_WAITOK);
+		    M_DIRADD, M_SOFTDEP_FLAGS);
 		bzero(dap, sizeof(struct diradd));
 		dap->da_list.wk_type = D_DIRADD;
 		dap->da_state = DIRCHG | ATTACHED | DEPCOMPLETE;
@@ -2807,7 +2809,7 @@ softdep_disk_io_initiation(bp)
 			 * Replace up-to-date version with safe version.
 			 */
 			MALLOC(indirdep->ir_saveddata, caddr_t, bp->b_bcount,
-			    M_INDIRDEP, M_WAITOK);
+			    M_INDIRDEP, M_SOFTDEP_FLAGS);
 			ACQUIRE_LOCK(&lk);
 			indirdep->ir_state &= ~ATTACHED;
 			indirdep->ir_state |= UNDONE;
@@ -2908,7 +2910,7 @@ initiate_write_inodeblock(inodedep, bp)
 		if (inodedep->id_savedino != NULL)
 			panic("initiate_write_inodeblock: already doing I/O");
 		MALLOC(inodedep->id_savedino, struct dinode *,
-		    sizeof(struct dinode), M_INODEDEP, M_WAITOK);
+		    sizeof(struct dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
 		*inodedep->id_savedino = *dp;
 		bzero((caddr_t)dp, sizeof(struct dinode));
 		return;
