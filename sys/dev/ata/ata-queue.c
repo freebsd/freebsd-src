@@ -182,15 +182,13 @@ ata_start(struct ata_channel *ch)
 	    /* check for the right state */
 	    mtx_lock(&ch->state_mtx);
 	    if (ch->state == ATA_IDLE) {
+		ATA_DEBUG_RQ(request, "starting");
 		TAILQ_REMOVE(&ch->ata_queue, request, chain);
 		ch->running = request;
-
-		ATA_DEBUG_RQ(request, "starting");
-
+		ch->state = ATA_ACTIVE;
 		if (!dumping)
 		    callout_reset(&request->callout, request->timeout * hz,
 				  (timeout_t*)ata_timeout, request);
-
 		if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
 		    ch->running = NULL;
 		    ch->state = ATA_IDLE;
@@ -200,8 +198,6 @@ ata_start(struct ata_channel *ch)
 		    ata_finish(request);
 		    return;
 		}
-		else
-		    ch->state = ATA_ACTIVE;
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
