@@ -149,6 +149,32 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
+	struct ia64_fdesc *fd;
+	struct trapframe *tf;
+	uint64_t stack;
+
+	tf = td->td_frame;
+	KASSERT(tf->tf_flags & FRAME_SYSCALL, ("foo"));
+	bzero(&tf->tf_special, sizeof(tf->tf_special));
+	/*
+	 * ku->ku_func of course points to a function descriptor. Fetch the
+	 * code address and GP value from userland.
+	 */
+	fd = ku->ku_func;
+	tf->tf_special.rp = fuword(&fd->func);
+	tf->tf_special.gp = fuword(&fd->gp);
+	tf->tf_special.pfs = (3UL<<62) | (1UL<<7) | 1UL;
+	stack = (uint64_t)ku->ku_stack.ss_sp;
+	tf->tf_special.bspstore = stack + 8;
+	tf->tf_special.sp = (stack + ku->ku_stack.ss_size - 16) & ~15;
+	tf->tf_special.rsc = 0xf;
+	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;
+	tf->tf_special.psr = IA64_PSR_IC | IA64_PSR_I | IA64_PSR_IT |
+	    IA64_PSR_DT | IA64_PSR_RT | IA64_PSR_DFH | IA64_PSR_BN |
+	    IA64_PSR_CPL_USER;
+
+	/* XXX assumes that (bspstore & 0x1f8) < 0x1e0. */
+	suword((caddr_t)tf->tf_special.bspstore - 8, (uint64_t)ku->ku_mailbox);
 }
 
 /*
