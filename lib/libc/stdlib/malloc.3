@@ -36,7 +36,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 27, 1996
+.Dd August 19, 2004
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -120,13 +120,12 @@ is valid and unchanged.
 If memory can be allocated, the memory referenced by
 .Fa ptr
 is freed and a pointer to the newly allocated memory is returned.
-Note that the return value may differ from the
-.Fa ptr
-argument, that is
+Note that
 .Fn realloc
 and
 .Fn reallocf
-may move the memory.
+may move the memory allocation resulting in a different return value than
+.Fa ptr .
 If
 .Fa ptr
 is
