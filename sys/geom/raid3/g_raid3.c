@@ -465,6 +465,7 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_resync = -1;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
 		*errorp = 0;
@@ -1318,6 +1319,9 @@ g_raid3_sync_request(struct bio *bp)
 		return;
 	    }
 	case BIO_WRITE:
+	    {
+		struct g_raid3_disk_sync *sync;
+
 		if (bp->bio_error != 0) {
 			G_RAID3_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
@@ -1330,9 +1334,12 @@ g_raid3_sync_request(struct bio *bp)
 			return;
 		}
 		G_RAID3_LOGREQ(3, bp, "Synchronization request finished.");
-		disk->d_sync.ds_offset_done = bp->bio_offset + bp->bio_length;
+		sync = &disk->d_sync;
+		sync->ds_offset_done = bp->bio_offset + bp->bio_length;
 		g_destroy_bio(bp);
-		if (disk->d_sync.ds_offset_done ==
+		if (sync->ds_resync != -1)
+			return;
+		if (sync->ds_offset_done ==
 		    sc->sc_mediasize / (sc->sc_ndisks - 1)) {
 			/*
 			 * Disk up-to-date, activate it.
@@ -1340,8 +1347,8 @@ g_raid3_sync_request(struct bio *bp)
 			g_raid3_event_send(disk, G_RAID3_DISK_STATE_ACTIVE,
 			    G_RAID3_EVENT_DONTWAIT);
 			return;
-		} else if ((disk->d_sync.ds_offset_done %
-		    (G_RAID3_MAX_IO_SIZE * 100)) == 0) {
+		} else if (sync->ds_offset_done %
+		    (G_RAID3_MAX_IO_SIZE * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1351,6 +1358,7 @@ g_raid3_sync_request(struct bio *bp)
 			g_topology_unlock();
 		}
 		return;
+	    }
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
 		    bp->bio_cmd, sc->sc_name));
@@ -1403,8 +1411,23 @@ g_raid3_register_request(struct bio *pbp)
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
+	    {
+		struct g_raid3_disk_sync *sync;
+
 		ndisks = sc->sc_ndisks;
+
+		if (sc->sc_syncdisk == NULL)
+			break;
+		sync = &sc->sc_syncdisk->d_sync;
+		if (offset >= sync->ds_offset)
+			break;
+		if (offset + length <= sync->ds_offset_done)
+			break;
+		if (offset >= sync->ds_resync && sync->ds_resync != -1)
+			break;
+		sync->ds_resync = offset - (offset % G_RAID3_MAX_IO_SIZE);
 		break;
+	    }
 	}
 	for (n = 0; n < ndisks; n++) {
 		disk = &sc->sc_disks[n];
@@ -1572,6 +1595,7 @@ g_raid3_worker(void *arg)
 {
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
+	struct g_raid3_disk_sync *sync;
 	struct g_raid3_event *ep;
 	struct bio *bp;
 	u_int nreqs;
@@ -1649,10 +1673,15 @@ g_raid3_worker(void *arg)
 			 */
 			nreqs = 0;
 			disk = sc->sc_syncdisk;
-			if (disk->d_sync.ds_offset <
+			sync = &disk->d_sync;
+			if (sync->ds_offset <
 			    sc->sc_mediasize / (sc->sc_ndisks - 1) &&
-			    disk->d_sync.ds_offset ==
-			    disk->d_sync.ds_offset_done) {
+			    sync->ds_offset == sync->ds_offset_done) {
+				if (sync->ds_resync != -1) {
+					sync->ds_offset = sync->ds_resync;
+					sync->ds_offset_done = sync->ds_resync;
+					sync->ds_resync = -1;
+				}
 				g_raid3_sync_one(sc);
 			}
 			G_RAID3_DEBUG(5, "%s: I'm here 2.", __func__);
