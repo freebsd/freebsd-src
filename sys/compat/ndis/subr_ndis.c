@@ -161,6 +161,8 @@ __stdcall static void NdisInitializeTimer(ndis_timer *,
 __stdcall static void NdisSetTimer(ndis_timer *, uint32_t);
 __stdcall static void NdisMSetPeriodicTimer(ndis_miniport_timer *, uint32_t);
 __stdcall static void NdisMCancelTimer(ndis_timer *, uint8_t *);
+__stdcall static void ndis_timercall(kdpc *, ndis_miniport_timer *,
+	void *, void *);
 __stdcall static void NdisMQueryAdapterResources(ndis_status *, ndis_handle,
 	ndis_resource_list *, uint32_t *);
 __stdcall static ndis_status NdisMRegisterIoPortRange(void **,
@@ -341,7 +343,7 @@ ndis_ascii_to_unicode(ascii, unicode)
 	int			i;
 
 	if (*unicode == NULL)
-		*unicode = malloc(strlen(ascii) * 2, M_DEVBUF, M_WAITOK);
+		*unicode = malloc(strlen(ascii) * 2, M_DEVBUF, M_NOWAIT);
 
 	if (*unicode == NULL)
 		return(ENOMEM);
@@ -364,7 +366,7 @@ ndis_unicode_to_ascii(unicode, ulen, ascii)
 	int			i;
 
 	if (*ascii == NULL)
-		*ascii = malloc((ulen / 2) + 1, M_DEVBUF, M_WAITOK|M_ZERO);
+		*ascii = malloc((ulen / 2) + 1, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (*ascii == NULL)
 		return(ENOMEM);
 	astr = *ascii;
@@ -888,7 +890,7 @@ __stdcall static void
 NdisDprAcquireSpinLock(lock)
 	ndis_spin_lock		*lock;
 {
-	FASTCALL1(KefAcquireSpinLockAtDpcLevel, &lock->nsl_spinlock);
+	KeAcquireSpinLockAtDpcLevel(&lock->nsl_spinlock);
 	return;
 }
 
@@ -899,7 +901,7 @@ __stdcall static void
 NdisDprReleaseSpinLock(lock)
 	ndis_spin_lock		*lock;
 {
-	FASTCALL1(KefReleaseSpinLockFromDpcLevel, &lock->nsl_spinlock);
+	KeReleaseSpinLockFromDpcLevel(&lock->nsl_spinlock);
 	return;
 }
 
@@ -922,8 +924,26 @@ NdisReadPciSlotInformation(adapter, slot, offset, buf, len)
 		return(0);
 
 	dev = block->nmb_physdeviceobj->do_devext;
-	for (i = 0; i < len; i++)
+
+	/*
+	 * I have a test system consisting of a Sun w2100z
+	 * dual 2.4Ghz Opteron machine and an Atheros 802.11a/b/g
+	 * "Aries" miniPCI NIC. (The NIC is installed in the
+	 * machine using a miniPCI to PCI bus adapter card.)
+	 * When running in SMP mode, I found that
+	 * performing a large number of consecutive calls to
+	 * NdisReadPciSlotInformation() would result in a
+	 * sudden system reset (or in some cases a freeze).
+	 * My suspicion is that the multiple reads are somehow
+	 * triggering a fatal PCI bus error that leads to a
+	 * machine check. The 1us delay in the loop below
+	 * seems to prevent this problem.
+	 */
+
+	for (i = 0; i < len; i++) {
+		DELAY(1);
 		dest[i] = pci_read_config(dev, i + offset, 1);
+	}
 
 	return(len);
 }
@@ -948,8 +968,10 @@ NdisWritePciSlotInformation(adapter, slot, offset, buf, len)
 		return(0);
 
 	dev = block->nmb_physdeviceobj->do_devext;
-	for (i = 0; i < len; i++)
+	for (i = 0; i < len; i++) {
+		DELAY(1);
 		pci_write_config(dev, i + offset, dest[i], 1);
+	}
 
 	return(len);
 }
@@ -1094,15 +1116,9 @@ NdisMCompleteBufferPhysicalMapping(adapter, buf, mapreg)
 }
 
 /*
- * This is an older pre-miniport timer init routine which doesn't
- * accept a miniport context handle. The function context (ctx)
- * is supposed to be a pointer to the adapter handle, which should
- * have been handed to us via NdisSetAttributesEx(). We use this
- * function context to track down the corresponding ndis_miniport_block
- * structure. It's vital that we track down the miniport block structure,
- * so if we can't do it, we panic. Note that we also play some games
- * here by treating ndis_timer and ndis_miniport_timer as the same
- * thing.
+ * This is an older (?) timer init routine which doesn't
+ * accept a miniport context handle. Serialized miniports should
+ * never call this function.
  */
 
 __stdcall static void
@@ -1118,20 +1134,64 @@ NdisInitializeTimer(timer, func, ctx)
 }
 
 __stdcall static void
+ndis_timercall(dpc, timer, sysarg1, sysarg2)
+	kdpc			*dpc;
+	ndis_miniport_timer	*timer;
+	void			*sysarg1;
+	void			*sysarg2;
+{
+	/*
+	 * Since we're called as a DPC, we should be running
+	 * at DISPATCH_LEVEL here. This means to acquire the
+	 * spinlock, we can use KeAcquireSpinLockAtDpcLevel()
+	 * rather than KeAcquireSpinLock().
+	 */
+	if (NDIS_SERIALIZED(timer->nmt_block))
+		KeAcquireSpinLockAtDpcLevel(&timer->nmt_block->nmb_lock);
+
+	MSCALL4(timer->nmt_timerfunc, dpc, timer->nmt_timerctx,
+	    sysarg1, sysarg2);
+
+	if (NDIS_SERIALIZED(timer->nmt_block))
+		KeReleaseSpinLockFromDpcLevel(&timer->nmt_block->nmb_lock);
+
+	return;
+}
+
+/*
+ * For a long time I wondered why there were two NDIS timer initialization
+ * routines, and why this one needed an NDIS_MINIPORT_TIMER and the
+ * MiniportAdapterHandle. The NDIS_MINIPORT_TIMER has its own callout
+ * function and context pointers separate from those in the DPC, which
+ * allows for another level of indirection: when the timer fires, we
+ * can have our own timer function invoked, and from there we can call
+ * the driver's function. But why go to all that trouble? Then it hit
+ * me: for serialized miniports, the timer callouts are not re-entrant.
+ * By trapping the callouts and having access to the MiniportAdapterHandle,
+ * we can protect the driver callouts by acquiring the NDIS serialization
+ * lock. This is essential for allowing serialized miniports to work
+ * correctly on SMP systems. On UP hosts, setting IRQL to DISPATCH_LEVEL
+ * is enough to prevent other threads from pre-empting you, but with
+ * SMP, you must acquire a lock as well, otherwise the other CPU is
+ * free to clobber you.
+ */
+__stdcall static void
 NdisMInitializeTimer(timer, handle, func, ctx)
 	ndis_miniport_timer	*timer;
 	ndis_handle		handle;
 	ndis_timer_function	func;
 	void			*ctx;
 {
-	/* Save the funcptr and context */
+	/* Save the driver's funcptr and context */
 
 	timer->nmt_timerfunc = func;
 	timer->nmt_timerctx = ctx;
 	timer->nmt_block = handle;
 
+	/* Set up the timer so it will call our intermediate DPC. */
+
 	KeInitializeTimer(&timer->nmt_ktimer);
-	KeInitializeDpc(&timer->nmt_kdpc, func, ctx);
+	KeInitializeDpc(&timer->nmt_kdpc, ndis_timercall, timer);
 
 	return;
 }
@@ -1170,7 +1230,7 @@ NdisMSetPeriodicTimer(timer, msecs)
  * Technically, this is really NdisCancelTimer(), but we also
  * (ab)use it for NdisMCancelTimer(), since in our implementation
  * we don't need the extra info in the ndis_miniport_timer
- * structure.
+ * structure just to cancel a timer.
  */
 
 __stdcall static void
@@ -1781,6 +1841,7 @@ NdisAllocatePacket(status, packet, pool)
          * correctly.
 	 */
 	pkt->np_private.npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
+	pkt->np_private.npp_validcounts = 0;
 
 	*packet = pkt;
 
@@ -2261,7 +2322,7 @@ NdisMSleep(usecs)
 	tv.tv_sec = 0;
 	tv.tv_usec = usecs;
 
-	ndis_thsuspend(curthread->td_proc, tvtohz(&tv));
+	ndis_thsuspend(curthread->td_proc, NULL, tvtohz(&tv));
 
 	return;
 }
@@ -2427,10 +2488,7 @@ __stdcall static void
 NdisGetSystemUpTime(tval)
 	uint32_t		*tval;
 {
-	struct timespec		ts;
-
-	nanouptime(&ts);
-	*tval = ts.tv_nsec / 1000000 + ts.tv_sec * 1000;
+	*tval = (ticks * hz) / 1000;
 
 	return;
 }
