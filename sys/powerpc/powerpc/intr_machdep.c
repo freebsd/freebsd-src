@@ -308,7 +308,7 @@ sched_ithd(void *cookie)
 
 	ih = (struct intr_handler *)cookie;
 
-	error = ithread_schedule(ih->ih_ithd, 0);
+	error = ithread_schedule(ih->ih_ithd);
 
 	if (error == EINVAL)
 		intr_stray_handler(ih);

@@ -88,6 +88,8 @@ reassigned to keep this true.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_full_preemption.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -423,10 +425,10 @@ setrunqueue(struct thread *td)
 	}
 }
 
-/************************************************************************
- * Critical section marker functions					*
- ************************************************************************/
-/* Critical sections that prevent preemption. */
+/*
+ * Kernel thread preemption implementation.  Critical sections mark
+ * regions of code in which preemptions are not allowed.
+ */
 void
 critical_enter(void)
 {
@@ -447,6 +449,13 @@ critical_exit(void)
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
 	if (td->td_critnest == 1) {
+#ifdef PREEMPTION
+		if (td->td_flags & TDF_OWEPREEMPT) {
+			mtx_lock_spin(&sched_lock);
+			mi_switch(SW_INVOL, NULL);
+			mtx_unlock_spin(&sched_lock);
+		}
+#endif
 		td->td_critnest = 0;
 		cpu_critical_exit();
 	} else {
@@ -454,6 +463,86 @@ critical_exit(void)
 	}
 }
 
+/*
+ * This function is called when a thread is about to be put on run queue
+ * because it has been made runnable or its priority has been adjusted.  It
+ * determines if the new thread should be immediately preempted to.  If so,
+ * it switches to it and eventually returns true.  If not, it returns false
+ * so that the caller may place the thread on an appropriate run queue.
+ */
+int
+maybe_preempt(struct thread *td)
+{
+	struct thread *ctd;
+	int cpri, pri;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef PREEMPTION
+	/*
+	 * The new thread should not preempt the current thread if any of the
+	 * following conditions are true:
+	 *
+	 *  - The current thread has a higher (numerically lower) priority.
+	 *  - It is too early in the boot for context switches (cold is set).
+	 *  - The current thread has an inhibitor set or is in the process of
+	 *    exiting.  In this case, the current thread is about to switch
+	 *    out anyways, so there's no point in preempting.  If we did,
+	 *    the current thread would not be properly resumed as well, so
+	 *    just avoid that whole landmine.
+	 *  - If the new thread's priority is not a realtime priority and
+	 *    the current thread's priority is not an idle priority and
+	 *    FULL_PREEMPTION is disabled.
+	 *
+	 * If all of these conditions are false, but the current thread is in
+	 * a nested critical section, then we have to defer the preemption
+	 * until we exit the critical section.  Otherwise, switch immediately
+	 * to the new thread.
+	 */
+	ctd = curthread;
+	pri = td->td_priority;
+	cpri = ctd->td_priority;
+	if (pri >= cpri || cold /* || dumping */ || TD_IS_INHIBITED(ctd) ||
+	    td->td_kse->ke_state != KES_THREAD)
+		return (0);
+#ifndef FULL_PREEMPTION
+	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD) &&
+	    !(cpri >= PRI_MIN_IDLE))
+		return (0);
+#endif
+	if (ctd->td_critnest > 1) {
+		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
+		    ctd->td_critnest);
+		ctd->td_flags |= TDF_OWEPREEMPT;
+		return (0);
+	}
+
+	/*
+	 * Our thread state says that we are already on a run queue, so
+	 * update our state as if we had been dequeued by choosethread().
+	 */
+	MPASS(TD_ON_RUNQ(td));
+	TD_SET_RUNNING(td);
+	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm);
+	mi_switch(SW_INVOL, td);
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+#ifndef PREEMPTION
+/* XXX: There should be a non-static version of this. */
+static void
+printf_caddr_t(void *data)
+{
+	printf("%s", (char *)data);
+}
+static char preempt_warning[] =
+    "WARNING: Kernel preemption is disabled, expect reduced performance.\n";
+SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
+    preempt_warning)
+#endif
 
 /************************************************************************
  * SYSTEM RUN QUEUE manipulations and tests				*

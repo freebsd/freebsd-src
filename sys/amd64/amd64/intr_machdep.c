@@ -215,7 +215,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		if (ih == NULL)
 			error = EINVAL;
 		else
-			error = ithread_schedule(it, !cold);
+			error = ithread_schedule(it);
 	}
 	if (error == EINVAL) {
 		atomic_add_long(isrc->is_straycount, 1);

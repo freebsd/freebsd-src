@@ -455,7 +455,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * thread to the current CPU until we return from the interrupt.
 	 */
 	sched_pin();
-	error = ithread_schedule(ithd, !cold);
+	error = ithread_schedule(ithd);
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
 	sched_unpin();
 }

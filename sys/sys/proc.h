@@ -346,6 +346,7 @@ struct thread {
 #define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_TSNOBLOCK	0x000100 /* Don't block on a turnstile due to race. */
+#define	TDF_OWEPREEMPT	0x000200 /* Thread has a pending preemption. */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
@@ -850,6 +851,7 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 int	leavepgrp(struct proc *p);
+int	maybe_preempt(struct thread *td);
 void	mi_switch(int flags, struct thread *newtd);
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
