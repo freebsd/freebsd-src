@@ -300,6 +300,36 @@ no reseeding will occur.
 Reseeding should not be necessary, and will break
 .Dv TIME_WAIT
 recycling for a few minutes.
+.It tcp.inflight_enable
+Enable
+.Tn TCP
+bandwidth delay product limiting.  An attempt will be made to calculate
+the bandwidth delay product for each individual TCP connection and limit
+the amount of inflight data being transmitted to avoid building up 
+unnecessary packets in the network.  This option is recommended if you
+are serving a lot of data over connections with high bandwidth-delay
+products, such as modems, GigE links, and fast long-haul WANs, and/or
+you have configured your machine to accomodate large TCP windows.  In such
+situations, without this option, you may experience high interactive
+latencies or packet loss due to the overloading of intermediate routers
+and switches.  Note that bandwidth delay product limiting only effects
+the transmit side of a TCP connection.
+.It tcp.inflight_debug
+Enable debugging for the bandwidth delay product algorithm.  This may
+default to on (1) so if you enable the algorithm you should probably also
+disable debugging by setting this variable to 0.
+.It tcp.inflight_min
+This puts an lower bound on the bandwidth delay product window, in bytes.
+A value of 1024 is typically used for debugging.  6000-16000 is more typical
+in a production installation.  Setting this value too low may result in
+slow ramp-up times for bursty connections.  Setting this value too high
+effectively disables the algorithm.
+.It tcp.inflight_max
+This puts an upper bound on the bandwidth delay product window, in bytes.
+This value should not generally be modified but may be used to set a
+global per-connection limit on queued data, potentially allowing you to
+intentionally set a less then optimum limit to smooth data flow over a
+network while still being able to specify huge internal TCP buffers.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

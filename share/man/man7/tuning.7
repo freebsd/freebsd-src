@@ -522,6 +522,29 @@ In such environments, setting the sysctl to 0 may reduce the occurrence of
 TCP session disconnections.
 .Pp
 The
+.Va net.inet.tcp.inflight_enable
+sysctl turns on bandwidth delay product limiting for all TCP connections.
+The system will attempt to calculate the bandwidth delay product for each
+connection and limit the amount of data queued to the network to just the
+amount required to maintain optimum throughput.  This feature is useful
+if you are serving data over modems, GigE, or high speed WAN links (or
+any other link with a high bandwidth*delay product), especially if you are
+also using window scaling or have configured a large send window.  If
+you enable this option you should also be sure to set
+.Va net.inet.tcp.inflight_debug
+to 0 (disable debugging), and for production use setting
+.Va net.inet.tcp.inflight_min
+to at least 6144 may be beneficial.  Note, however, that setting high
+minimums may effectively disable bandwidth limiting depending on the link.
+The limiting feature reduces the amount of data built up in intermediate
+router and switch packet queues as well as reduces the amount of data built
+up in the local host's interface queue.  With fewer packets queued up,
+interactive connections, especially over slow modems, will also be able
+to operate with lower round trip times.  However, note that this feature
+only effects data transmission (uploading / server-side).  It does not
+effect data reception (downloading).
+.Pp
+The
 .Va kern.ipc.somaxconn
 sysctl limits the size of the listen queue for accepting new TCP connections.
 The default value of 128 is typically too low for robust handling of new
