@@ -38,7 +38,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumraid5.c,v 1.21 2001/01/09 04:21:27 grog Exp grog $
+ * $Id: vinumraid5.c,v 1.23 2003/02/08 03:32:45 grog Exp $
  * $FreeBSD$
  */
 #include <dev/vinum/vinumhdr.h>
@@ -625,7 +625,7 @@ bre5(struct request *rq,
  * block.  In this case, the bounds defined by
  * mp->writeoffset and mp->writelen also play a
  * rôle.  Select this case by setting the
- * parameter forparity != 0
+ * parameter forparity != 0.
  */
 void
 setrqebounds(struct rqelement *rqe, struct metrics *mp)
