@@ -372,6 +372,14 @@ slot_suspend(void *arg)
 {
 	struct slot *slt = arg;
 
+	/* This code stolen from pccard_event:card_removed */
+	if (slt->state == filled) {
+		int s = splhigh();
+		disable_slot(slt);
+		slt->state = suspend;
+		splx(s);
+		printf("Card disabled, slot %d\n", slt->slotnum);
+	}
 	slt->ctrl->disable(slt);
 	return (0);
 }
@@ -383,16 +391,11 @@ slot_resume(void *arg)
 
 	if (pcic_resume_reset)
 		slt->ctrl->resume(slt);
-	/* Fake card removal/insertion events */
-	if (slt->state == filled) {
-		int s;
-
-		s = splhigh();
-		disable_slot(slt);
+	/* This code stolen from pccard_event:card_inserted */
+	if (slt->state == suspend) {
 		slt->state = empty;
-		splx(s);
 		slt->insert_seq = 1;
-		slt->insert_ch = timeout(inserted, (void *)slt, hz);
+		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
 		selwakeup(&slt->selp);
 	}
 	return (0);
