@@ -713,4 +713,19 @@ dev/usb/ulpt.c		optional ulpt device-driver
 dev/usb/ukbd.c		optional ukbd device-driver
 dev/usb/umass.c		optional umass device-driver
 dev/usb/uhub.c		optional usb device-driver
+isa_if.o		optional isa					\
+	dependency	"isa_if.c isa_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+isa_if.c		optional isa					\ 
+	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/isa/isa_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"isa_if.c"
+isa_if.h		optional isa					\ 
+	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/isa/isa_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"isa_if.h"
+isa/isa_common.c	optional isa device-driver
 isa/isahint.c		optional isa device-driver

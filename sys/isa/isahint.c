@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isahint.c,v 1.1 1999/05/14 11:22:33 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -32,12 +32,13 @@
 #include <sys/bus.h>
 #include <sys/module.h>
 #include <isa/isavar.h>
+#include <machine/resource.h>
 
 static void
 isahint_add_device(device_t parent, const char *name, int unit)
 {
 	device_t	child;
-	int		sensitive, t;
+	int		sensitive, start, count, t;
 	static	device_t last_sensitive;
 
 	/* device-specific flag overrides any wildcard */
@@ -54,26 +55,28 @@ isahint_add_device(device_t parent, const char *name, int unit)
 	else if (sensitive)
 		last_sensitive = child;
 
-	if (resource_int_value(name, unit, "port", &t) == 0)
-		isa_set_port(child, t);
+	start = 0;
+	count = 0;
+	if (resource_int_value(name, unit, "port", &start) == 0
+	    || resource_int_value(name, unit, "portsize", &count) == 0)
+		ISA_SET_RESOURCE(parent, child, SYS_RES_IOPORT, 0,
+				 start, count);
 
-	if (resource_int_value(name, unit, "portsize", &t) == 0)
-		isa_set_portsize(child, t);
+	start = 0;
+	count = 0;
+	if (resource_int_value(name, unit, "maddr", &start) == 0
+	    || resource_int_value(name, unit, "msize", &count) == 0)
+		ISA_SET_RESOURCE(parent, child, SYS_RES_MEMORY, 0,
+				 start, count);
 
-	if (resource_int_value(name, unit, "maddr", &t) == 0)
-		isa_set_maddr(child, t);
+	if (resource_int_value(name, unit, "irq", &start) == 0)
+		ISA_SET_RESOURCE(parent, child, SYS_RES_IRQ, 0, start, 1);
 
-	if (resource_int_value(name, unit, "msize", &t) == 0)
-		isa_set_msize(child, t);
+	if (resource_int_value(name, unit, "drq", &start) == 0)
+		ISA_SET_RESOURCE(parent, child, SYS_RES_DRQ, 0, start, 1);
 
 	if (resource_int_value(name, unit, "flags", &t) == 0)
 		isa_set_flags(child, t);
-
-	if (resource_int_value(name, unit, "irq", &t) == 0)
-		isa_set_irq(child, t);
-
-	if (resource_int_value(name, unit, "drq", &t) == 0)
-		isa_set_drq(child, t);
 
 	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
 		device_disable(child);
