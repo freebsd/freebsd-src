@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.24 1995/08/28 09:19:07 julian Exp $
+ * $Id: systm.h,v 1.26 1995/10/08 00:06:22 swallace Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -106,9 +106,6 @@ extern int boothowto;		/* reboot flags, from console subsystem */
  * General function declarations.
  */
 int	nullop __P((void));
-int	enodev __P((void));
-int	enoioctl __P((void));
-int	enxio __P((void));
 int	eopnotsupp __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
 int	ureadc __P((int, struct uio *));
