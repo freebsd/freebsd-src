@@ -837,19 +837,19 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -I (show NIC capabilities)\n", p);
 	fprintf(stderr, "\t%s -i iface -T (show stats counters)\n", p);
 	fprintf(stderr, "\t%s -i iface -C (show current config)\n", p);
-	fprintf(stderr, "\t%s -i iface -t 0|1|2|3|4 (set TX speed)\n", p);
-	fprintf(stderr, "\t%s -i iface -s 0|1|2|3 (set power save mode)\n", p);
-	fprintf(stderr, "\t%s -i iface [-v 1|2|3|4] -a AP (specify AP)\n", p);
+	fprintf(stderr, "\t%s -i iface -t 0-4 (set TX speed)\n", p);
+	fprintf(stderr, "\t%s -i iface -s 0-3 (set power save mode)\n", p);
+	fprintf(stderr, "\t%s -i iface [-v 1-4] -a AP (specify AP)\n", p);
 	fprintf(stderr, "\t%s -i iface -b val (set beacon period)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 0|1] -d val (set diversity)\n", p);
 	fprintf(stderr, "\t%s -i iface -j val (set netjoin timeout)\n", p);
-	fprintf(stderr, "\t%s -i iface -e 0|1|2|3 (enable transmit key)\n", p);
-	fprintf(stderr, "\t%s -i iface [-v 0|1|2|3|4|5|6|7] -k key (set key)\n", p);
-	fprintf(stderr, "\t%s -i iface -K 0|1|2 (no auth/open/shared secret)\n", p);
-	fprintf(stderr, "\t%s -i iface -W 0|1|2 (no WEP/full WEP/mixed cell)\n", p);
+	fprintf(stderr, "\t%s -i iface -e 0-4 (enable transmit key)\n", p);
+	fprintf(stderr, "\t%s -i iface [-v 0-8] -k key (set key)\n", p);
+	fprintf(stderr, "\t%s -i iface -K 0-2 (no auth/open/shared secret)\n", p);
+	fprintf(stderr, "\t%s -i iface -W 0-2 (no WEP/full WEP/mixed cell)\n", p);
 	fprintf(stderr, "\t%s -i iface -l val (set station name)\n", p);
 	fprintf(stderr, "\t%s -i iface -m val (set MAC address)\n", p);
-	fprintf(stderr, "\t%s -i iface [-v 1|2|3] -n SSID "
+	fprintf(stderr, "\t%s -i iface [-v 1-3] -n SSID "
 	    "(specify SSID)\n", p);
 	fprintf(stderr, "\t%s -i iface -o 0|1 (set operating mode)\n", p);
 	fprintf(stderr, "\t%s -i iface -c val (set ad-hoc channel)\n", p);
@@ -1298,8 +1298,19 @@ static void an_readkeyinfo(iface)
 	const char		*iface;
 {
 	struct an_req		areq;
+	struct an_ltv_genconfig	*cfg;
 	struct an_ltv_key	*k;
 	int i;
+	int home;
+
+	areq.an_len = sizeof(areq);
+	areq.an_type = AN_RID_ACTUALCFG;
+	an_getval(iface, &areq);
+	cfg = (struct an_ltv_genconfig *)&areq;
+	if (cfg->an_home_product & AN_HOME_NETWORK)
+		home = 1;
+	else
+		home = 0;
 
 	bzero((char *)&areq, sizeof(areq));
 	k = (struct an_ltv_key *)&areq;
@@ -1331,7 +1342,7 @@ static void an_readkeyinfo(iface)
 	k->kindex = 0xffff;
 	areq.an_len = sizeof(struct an_ltv_key);
       	an_getval(iface, &areq);
-	printf("\tThe active transmit key is %d\n", k->mac[0]);
+	printf("\tThe active transmit key is %d\n", 4 * home + k->mac[0]);
 
 	return;
 }
