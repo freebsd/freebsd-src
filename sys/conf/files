@@ -182,19 +182,6 @@ dev/aac/aac.c		optional aac
 #dev/aac/aac_debug.c	optional aac
 dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
-dev/acpi/acpi.c		optional acpi
-dev/acpi/acpi_io.c	optional acpi
-dev/acpi/acpi_event.c	optional acpi
-dev/acpi/acpi_powerres.c	optional acpi
-dev/acpi/aml/aml_amlmem.c	optional acpi
-dev/acpi/aml/aml_common.c	optional acpi
-dev/acpi/aml/aml_evalobj.c	optional acpi
-dev/acpi/aml/aml_memman.c	optional acpi
-dev/acpi/aml/aml_name.c		optional acpi
-dev/acpi/aml/aml_obj.c		optional acpi
-dev/acpi/aml/aml_parse.c	optional acpi
-dev/acpi/aml/aml_store.c	optional acpi
-dev/acpi/aml/aml_region.c	optional acpi
 dev/acpica/acpi.c		optional acpica
 dev/acpica/acpi_apic.c		optional acpica
 dev/acpica/acpi_button.c	optional acpica
