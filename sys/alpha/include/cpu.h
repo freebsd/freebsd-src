@@ -1,4 +1,4 @@
-/* $Id: cpu.h,v 1.2 1998/06/10 10:54:45 dfr Exp $ */
+/* $Id: cpu.h,v 1.3 1998/07/12 16:32:06 dfr Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*
@@ -107,7 +107,10 @@ u_int32_t want_resched;		/* resched() was called */
 #define	CPU_UNALIGNED_FIX	4	/* int: fix unaligned accesses */
 #define	CPU_UNALIGNED_SIGBUS	5	/* int: SIGBUS unaligned accesses */
 #define	CPU_BOOTED_KERNEL	6	/* string: booted kernel name */
-#define	CPU_MAXID		7	/* 6 valid machdep IDs */
+#define	CPU_ADJKERNTZ		7	/* int:	timezone offset	(seconds) */
+#define	CPU_DISRTCSET		8	/* int: disable resettodr() call */
+#define	CPU_WALLCLOCK		9	/* int:	indicates wall CMOS clock */
+#define	CPU_MAXID		9	/* 9 valid machdep IDs */
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
@@ -117,6 +120,9 @@ u_int32_t want_resched;		/* resched() was called */
 	{ "unaligned_fix", CTLTYPE_INT }, \
 	{ "unaligned_sigbus", CTLTYPE_INT }, \
 	{ "booted_kernel", CTLTYPE_STRING }, \
+	{ "adjkerntz", CTLTYPE_INT }, \
+	{ "disable_rtc_set", CTLTYPE_INT }, \
+	{ "wall_cmos_clock", CTLTYPE_INT }, \
 }
 
 #ifdef KERNEL

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.13 1998/09/14 22:43:19 jdp Exp $
+ *	$Id: machdep.c,v 1.14 1998/09/17 09:35:31 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -154,7 +154,6 @@ struct pcb* curpcb;
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
 int whichqs, whichrtqs, whichidqs;
-int adjkerntz;
 int cold = 1;
 struct platform platform;
 alpha_chipset_t chipset;
@@ -1828,3 +1827,23 @@ bad:
         return(-1);
 
 }
+
+static int
+sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
+{
+	int error;
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
+		req);
+	if (!error && req->newptr)
+		resettodr();
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
+
+SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
+	CTLFLAG_RW, &disable_rtc_set, 0, "");
+
+SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+	CTLFLAG_RW, &wall_cmos_clock, 0, "");
