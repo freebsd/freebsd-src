@@ -41,7 +41,7 @@ static struct lm_list *	lmp_init	(char *);
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
 
-void
+int
 lm_init (void)
 {
 	FILE	*fp;
@@ -55,7 +55,7 @@ lm_init (void)
 	TAILQ_INIT(&lmp_head);
 
 	if ((fp = fopen(_PATH_LIBMAP_CONF, "r")) == NULL)
-		return;
+		return (1);
 
 	p = NULL;
 	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
@@ -128,7 +128,7 @@ lm_init (void)
 		lm_add(p, f, t);
 	}
 	fclose(fp);
-	return;
+	return (0);
 }
 
 static void

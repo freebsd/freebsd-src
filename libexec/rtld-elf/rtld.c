@@ -342,7 +342,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 #ifdef WITH_LIBMAP
     if (!libmap_disable)
-        lm_init();
+        libmap_disable = (bool)lm_init();
 #endif
 
     dbg("loading LD_PRELOAD libraries");
