@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 
     drivertype = getenv("LCD_TYPE");
     
-    while ((ch = getopt(argc, argv, "Dd:f:o:v")) != EOF) {
+    while ((ch = getopt(argc, argv, "Dd:f:o:v")) != -1) {
 	switch(ch) {
 	case 'D':
 	    debuglevel++;
