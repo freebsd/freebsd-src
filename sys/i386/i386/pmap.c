@@ -1501,7 +1501,7 @@ pmap_growkernel(vm_offset_t addr)
 			nkpt++;
 		}
 	}
-	addr = (addr + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
 	while (kernel_vm_end < addr) {
 		if (pdir_pde(PTD, kernel_vm_end)) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
