@@ -85,6 +85,7 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 #define	MOUNTMAGIC	0xc7c46e47
 #define	SOCKETMAGIC	0x9199c6cd
 #define	PIPEMAGIC	0xdc6c9919
+#define	PROCMAGIC	0x3b4be98f
 #define	CREDMAGIC	0x9a5a4987
 #define	VNODEMAGIC	0x1a67a45c
 #define	EXMAGIC		0x849ba1fd
@@ -128,6 +129,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_socket_peerlabel,
 static int	init_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_pipe, CTLFLAG_RD,
     &init_count_pipe, 0, "pipe init calls");
+static int	init_count_proc;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_proc, CTLFLAG_RD,
+    &init_count_proc, 0, "proc init calls");
 static int	init_count_vnode;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_vnode, CTLFLAG_RD,
     &init_count_vnode, 0, "vnode init calls");
@@ -167,6 +171,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_socket_peerlabel,
 static int      destroy_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_pipe, CTLFLAG_RD,
     &destroy_count_pipe, 0, "pipe destroy calls");
+static int      destroy_count_proc;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_proc, CTLFLAG_RD,
+    &destroy_count_proc, 0, "proc destroy calls");
 static int      destroy_count_vnode;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_vnode, CTLFLAG_RD,
     &destroy_count_vnode, 0, "vnode destroy calls");
@@ -292,6 +299,14 @@ mac_test_init_pipe_label(struct label *label)
 
 	SLOT(label) = PIPEMAGIC;
 	atomic_add_int(&init_count_pipe, 1);
+}
+
+static void
+mac_test_init_proc_label(struct label *label)
+{
+
+	SLOT(label) = PROCMAGIC;
+	atomic_add_int(&init_count_proc, 1);
 }
 
 static void
@@ -453,6 +468,20 @@ mac_test_destroy_pipe_label(struct label *label)
 		Debugger("mac_test_destroy_pipe: dup destroy");
 	} else {
 		Debugger("mac_test_destroy_pipe: corrupted label");
+	}
+}
+
+static void
+mac_test_destroy_proc_label(struct label *label)
+{
+
+	if ((SLOT(label) == PROCMAGIC || SLOT(label) == 0)) {
+		atomic_add_int(&destroy_count_proc, 1);
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
+		Debugger("mac_test_destroy_proc: dup destroy");
+	} else {
+		Debugger("mac_test_destroy_proc: corrupted label");
 	}
 }
 
@@ -795,6 +824,12 @@ mac_test_relabel_cred(struct ucred *cred, struct label *newlabel)
 
 }
 
+static void
+mac_test_thread_userret(struct thread *td)
+{
+
+}
+
 /*
  * Access control checks.
  */
@@ -831,6 +866,56 @@ mac_test_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 static int
 mac_test_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kenv_dump(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kenv_get(struct ucred *cred, char *name)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kenv_set(struct ucred *cred, char *name, char *value)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kenv_unset(struct ucred *cred, char *name)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kld_load(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kld_stat(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_kld_unload(struct ucred *cred)
 {
 
 	return (0);
@@ -956,6 +1041,59 @@ mac_test_check_socket_visible(struct ucred *cred, struct socket *socket,
 static int
 mac_test_check_socket_relabel(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct label *newlabel)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_sysarch_ioperm(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_reboot(struct ucred *cred, int how)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_settime(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
+    void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
 {
 
 	return (0);
@@ -1220,6 +1358,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_mount_label = mac_test_init_mount_label,
 	.mpo_init_mount_fs_label = mac_test_init_mount_fs_label,
 	.mpo_init_pipe_label = mac_test_init_pipe_label,
+	.mpo_init_proc_label = mac_test_init_proc_label,
 	.mpo_init_socket_label = mac_test_init_socket_label,
 	.mpo_init_socket_peer_label = mac_test_init_socket_peer_label,
 	.mpo_init_vnode_label = mac_test_init_vnode_label,
@@ -1232,6 +1371,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_mount_label = mac_test_destroy_mount_label,
 	.mpo_destroy_mount_fs_label = mac_test_destroy_mount_fs_label,
 	.mpo_destroy_pipe_label = mac_test_destroy_pipe_label,
+	.mpo_destroy_proc_label = mac_test_destroy_proc_label,
 	.mpo_destroy_socket_label = mac_test_destroy_socket_label,
 	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
 	.mpo_destroy_vnode_label = mac_test_destroy_vnode_label,
@@ -1286,11 +1426,19 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_create_proc0 = mac_test_create_proc0,
 	.mpo_create_proc1 = mac_test_create_proc1,
 	.mpo_relabel_cred = mac_test_relabel_cred,
+	.mpo_thread_userret = mac_test_thread_userret,
 	.mpo_check_bpfdesc_receive = mac_test_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = mac_test_check_cred_relabel,
 	.mpo_check_cred_visible = mac_test_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_test_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_test_check_ifnet_transmit,
+	.mpo_check_kenv_dump = mac_test_check_kenv_dump,
+	.mpo_check_kenv_get = mac_test_check_kenv_get,
+	.mpo_check_kenv_set = mac_test_check_kenv_set,
+	.mpo_check_kenv_unset = mac_test_check_kenv_unset,
+	.mpo_check_kld_load = mac_test_check_kld_load,
+	.mpo_check_kld_stat = mac_test_check_kld_stat,
+	.mpo_check_kld_unload = mac_test_check_kld_unload,
 	.mpo_check_mount_stat = mac_test_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_test_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_test_check_pipe_poll,
@@ -1307,6 +1455,13 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_socket_listen = mac_test_check_socket_listen,
 	.mpo_check_socket_relabel = mac_test_check_socket_relabel,
 	.mpo_check_socket_visible = mac_test_check_socket_visible,
+	.mpo_check_sysarch_ioperm = mac_test_check_sysarch_ioperm,
+	.mpo_check_system_acct = mac_test_check_system_acct,
+	.mpo_check_system_reboot = mac_test_check_system_reboot,
+	.mpo_check_system_settime = mac_test_check_system_settime,
+	.mpo_check_system_swapon = mac_test_check_system_swapon,
+	.mpo_check_system_swapoff = mac_test_check_system_swapoff,
+	.mpo_check_system_sysctl = mac_test_check_system_sysctl,
 	.mpo_check_vnode_access = mac_test_check_vnode_access,
 	.mpo_check_vnode_chdir = mac_test_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_test_check_vnode_chroot,
