@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.21 1996/12/17 20:19:35 jkh Exp $
+ * $Id: ftpio.c,v 1.15.2.2 1996/12/17 20:28:06 jkh Exp $
  *
  */
 
@@ -180,6 +180,8 @@ ftpErrString(int errno)
 {
     int	k;
 
+    if (errno == -1)
+	return("connection in wrong state");
     for (k = 0; k < ftpErrListLength; k++)
       if (ftpErrList[k].num == errno)
 	return(ftpErrList[k].string);
@@ -276,8 +278,24 @@ ftpLogin(char *host, char *user, char *passwd, int port, int verbose, int *retco
 	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
 	fp->_file = n->fd_ctrl;
     }
-    if (n && retcode)
-	*retcode = n->errno;
+    if (retcode) {
+	if (!n)
+	    *retcode = (FtpTimedOut ? FTP_TIMED_OUT : -1);
+	/* Poor attempt at mapping real errnos to FTP error codes */
+	else switch(n->errno) {
+	    case EADDRNOTAVAIL:
+		*retcode = FTP_TIMED_OUT;	/* Actually no such host, but we have no way of saying that. :-( */
+		break;
+
+            case ETIMEDOUT:
+		*retcode = FTP_TIMED_OUT;
+		break;
+
+	    default:
+		*retcode = n->errno;
+		break;
+	}
+    }
     return fp;
 }
 
@@ -486,6 +504,8 @@ ftp_timeout(int sig)
     /* Debug("ftp_pkg: ftp_timeout called - operation timed out"); */
 }
 
+static struct sigaction new;
+
 static void
 ftp_set_timeout(void)
 {
@@ -493,8 +513,9 @@ ftp_set_timeout(void)
     int ival;
 
     FtpTimedOut = FALSE;
-    signal(SIGALRM, ftp_timeout);
-    cp = getenv("FTP_TIMEOUT_INTERVAL");
+    new.sa_handler = ftp_timeout;
+    sigaction(SIGALRM, &new, NULL);
+    cp = getenv("FTP_TIMEOUT");
     if (!cp || !(ival = atoi(cp)))
 	ival = 120;
     alarm(ival);
@@ -504,7 +525,8 @@ static void
 ftp_clear_timeout(void)
 {
     alarm(0);
-    signal(SIGALRM, SIG_DFL);
+    new.sa_handler = SIG_DFL;
+    sigaction(SIGALRM, &new, NULL);
 }
 
 static int
@@ -589,8 +611,11 @@ ftp_close(FTP_t ftp)
 
     if (ftp->con_state == isopen) {
 	ftp->con_state = quit;
-	/* Debug("ftp_pkg: in ftp_close(), sending QUIT"); */
-	i = cmd(ftp, "QUIT");
+	/* If last operation timed out, don't try to quit - just close */
+	if (ftp->errno != FTP_TIMED_OUT)
+	    i = cmd(ftp, "QUIT");
+	else
+	    i = FTP_QUIT_HAPPY;
 	close(ftp->fd_ctrl);
 	ftp->fd_ctrl = -1;
 	if (check_code(ftp, i, FTP_QUIT_HAPPY)) {
@@ -651,6 +676,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
 
     if (ftp->con_state != init) {
 	ftp_close(ftp);
+	ftp->errno = -1;
 	return FAILURE;
     }
 
@@ -670,19 +696,24 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
     }
     else {
 	he = gethostbyname(host);
-	if (!he)
+	if (!he) {
+	    ftp->errno = 0;
 	    return FAILURE;
+	}
 	ftp->addrtype = sin.sin_family = he->h_addrtype;
 	bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
     }
 
     sin.sin_port = htons(port);
 
-    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
+    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0) {
+	ftp->errno = -1;
 	return FAILURE;
+    }
 
     if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 	(void)close(s);
+	ftp->errno = errno;
 	return FAILURE;
     }
 
@@ -718,15 +749,19 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
     if (ftp->con_state != isopen)
 	return botch("ftp_file_op", "open");
 
-    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
+    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0) {
+	ftp->errno = errno;
 	return FAILURE;
+    }
 
     if (ftp->is_passive) {
         if (ftp->is_verbose)
 	    fprintf(stderr, "Sending PASV\n");
 	if (writes(ftp->fd_ctrl, "PASV\r\n")) {
 	    ftp_close(ftp);
-	    return FAILURE;
+	    if (FtpTimedOut)
+		ftp->errno = FTP_TIMED_OUT;
+	    return FTP_TIMED_OUT;
 	}
 	i = get_a_number(ftp, &q);
 	if (check_code(ftp, i, FTP_PASSIVE_HAPPY)) {
