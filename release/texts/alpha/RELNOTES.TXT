@@ -227,6 +227,17 @@ modified by raycontrol(8).  [MERGED]
 FDDI networking using Digital Equipment DEFPA PCI FDDI adapters is now
 supported.
 
+A new API has been added for sound cards with hardware volume
+control.
+
+A new sysctl 'net.link.ether.inet.log_arp_wrong_iface' to controls the
+supression of logging when ARP replies arrive on the wrong
+interface. [MERGED]
+
+A bug in the NFS client that caused bogus access times with
+O_EXCL|O_CREAT opens was fixed.  [MERGED]
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -316,9 +327,12 @@ new feature to limit the number of outstanding unauthenticated ssh
 connections in sshd has been added. [MERGED]
 
 OpenSSH has been upgraded to 2.3.0.  This version adds support for the
-Rijndael encryption algorithm.
+Rijndael encryption algorithm. [MERGED]
 
 PAM support for OpenSSH has been added.
+
+A long-standing bug in SSH, which sometimes resulted in a dropped
+session when an X11-forwarded client was closed, was fixed.
 
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
@@ -391,7 +405,7 @@ they started.
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file. [MERGED]
 
-finger(1) now has support for a .publickey file.
+finger(1) now has support for a .pubkey file.
 
 nsswitch support has been merged from NetBSD.  By creating an 
 nsswitch.conf(5) file, FreeBSD can be configured so that various 
@@ -566,6 +580,32 @@ are provided unless the des hash is specifically compiled out.
 
 passwd(1) and pw(8) now select the passwd hash algorithm at run time.  See
 the "passwd_format" attribute in /etc/login.conf.
+
+In preparation for meeting SUSv2/POSIX <sys/select.h> requirements,
+'struct selinfo' and related functions have been moved to
+<sys/selinfo.h>.
+
+Changes were made to force strong references to several pthread_*
+functions which are weakly referenced to by libgcc.a. [MERGED]
+
+gcc now uses a unified libgcc rather than a separate one fro threaded
+and non-threaded programs.  This provides threaded programs with the
+needed exception frame symbols. [MERGED]
+
+syslogd(8) now supports a "LOG_CONSOLE" facility. [MERGED]
+
+rpcgen now uses /usr/bin/cpp (as on NetBSD), not /usr/libexec/cpp.
+
+Boot-time syscons configuration was moved to a machine-independent
+rc.syscons.
+
+burncd(8) now supports a -m option for multisession mode (the default
+behavior now is to close disks as single-session).  A -l option to
+take a list of image files from a filename was also added; '-' can be
+used as a filename for stdin.
+
+dmesg(8) now has a -a option to show the entire message buffer,
+including syslog records and /dev/console output. [MERGED]
 
 
 2. Supported Configurations
