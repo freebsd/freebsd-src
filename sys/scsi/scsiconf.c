@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.36 1995/10/31 17:21:00 joerg Exp $
+ *      $Id: scsiconf.c,v 1.37 1995/11/20 12:42:29 phk Exp $
  */
 
 #include <sys/types.h>
@@ -46,6 +46,10 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
+extern struct extend_array *extend_new __P((void));
+extern void extend_release __P((struct extend_array *ea, int index));
+extern void *extend_set __P((struct extend_array *ea, int index, void *value));
+
 /*
  * XXX SCSI_DEVICE_ENTRIES() generates extern switches but it should
  * generate static switches except for this.  Separate macros are
@@ -63,6 +67,8 @@ struct extend_array
 	void **ps;
 };
 
+static void make_readable __P((char *to, char *from, size_t n));
+static int scsi_bus_conf __P((struct scsi_link *sc_link_proto));
 
 static void *
 extend_alloc(size_t s)
@@ -397,8 +403,11 @@ static struct scsidevs knowndevs[] =
 /*
  * Declarations
  */
-struct scsidevs *scsi_probedev();
-struct scsidevs *scsi_selectdev();
+struct scsidevs *scsi_probedev __P((struct scsi_link *sc_link,
+				    boolean *maybe_more, int *type_p));
+struct scsidevs *scsi_selectdev __P((u_int32 qualifier, u_int32 type,
+				     boolean remov, char *manu, char *model,
+				     char *rev));
 
 /* XXX dufault@hda.com
  * This scsi_device doesn't have the scsi_data_size.
@@ -437,8 +446,6 @@ struct kern_devconf kdc_scbus0 = {
 };
 
 static int free_bus;			/* First bus not wired down */
-
-extern void ukinit();
 
 static struct scsi_device *device_list;
 static int next_free_type = T_NTYPES;
@@ -1279,7 +1286,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
  */
 dev_t
 scsi_dev_lookup(d_open)
-	int (*d_open)();
+	d_open_t *d_open;
 {
 	int i;
 
