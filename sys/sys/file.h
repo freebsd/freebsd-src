@@ -131,22 +131,8 @@ int fdrop __P((struct file *fp, struct thread *td));
 int fdrop_locked __P((struct file *fp, struct thread *td));
 
 /* Lock a file. */
-/*#define FILE_LOCK_DEBUG*/
-#ifdef FILE_LOCK_DEBUG
-#define FILE_LOCK(f)						\
-	do {							\
-		printf("FLCK: %p %s %d\n", &(f)->f_mtx, __FILE__, __LINE__);	\
-		mtx_lock(&(f)->f_mtx);				\
-	} while (0)
-#define FILE_UNLOCK(f)						\
-	do {							\
-		printf("FREL: %p %s %d\n", &(f)->f_mtx, __FILE__, __LINE__);	\
-		mtx_unlock(&(f)->f_mtx);			\
-	} while (0)
-#else
 #define FILE_LOCK(f)	mtx_lock(&(f)->f_mtx)
 #define FILE_UNLOCK(f)	mtx_unlock(&(f)->f_mtx)
-#endif
 #define	FILE_LOCKED(f)	mtx_owned(&(f)->f_mtx)
 #define	FILE_LOCK_ASSERT(f, type)	mtx_assert(&(f)->f_mtx, (type))
 
