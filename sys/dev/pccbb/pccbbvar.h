@@ -85,8 +85,6 @@ struct cbb_softc {
 	STAILQ_HEAD(, cbb_intrhand) intr_handlers;
 
 	device_t	cbdev;
-	device_t	pccarddev;
-
 	struct proc	*event_thread;
 };
 
