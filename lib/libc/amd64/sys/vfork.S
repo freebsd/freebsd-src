@@ -47,12 +47,11 @@ __FBSDID("$FreeBSD$");
 	.weak	vfork
 	.set	vfork,__sys_vfork
 ENTRY(__sys_vfork)
-	popl	%ecx		/* my rta into ecx */
-	mov	$SYS_vfork,%eax
+	popq	%rsi		/* fetch return address (%rsi preserved) */
+	mov	$SYS_vfork,%rax
 	KERNCALL
 	jb	1f
-	jmp	*%ecx
+	jmp	*%rsi
 1:
-	pushl	%ecx
-	PIC_PROLOGUE
+	pushq	%rcx
 	jmp     PIC_PLT(HIDENAME(cerror))
