@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: fetch.3,v 1.1.1.1 1998/07/09 16:52:43 des Exp $
+.\"	$Id: fetch.3,v 1.2 1998/09/26 20:42:44 des Exp $
 .\"
 .Dd July 1, 1998
 .Dt FETCH 3
@@ -31,7 +31,6 @@
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
 .Nm fetchParseURL ,
-.Nm fetchFreeURL ,
 .Nm fetchGet ,
 .Nm fetchPut ,
 .Nm fetchGetFile ,
@@ -49,8 +48,6 @@
 .Fn fetchPutURL "char *URL" "char *flags"
 .Ft url_t *
 .Fn fetchParseURL "char *URL" "char *flags"
-.Ft void
-.Fn fetchFreeURL "url_t *u"
 .Ft FILE *
 .Fn fetchGet "url_t *URL" "char *flags"
 .Ft FILE *
@@ -67,6 +64,8 @@
 .Fn fetchGetFTP "url_t *u" "char *flags"
 .Ft FILE *
 .Fn fetchPutFTP "url_t *u" "char *flags"
+.Vt extern int         fetchLastErrCode;
+.Vt extern const char *fetchLastErrText;
 .Sh DESCRIPTION
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
@@ -100,7 +99,7 @@ and <document> components.
 The pointer returned by
 .Fn fetchParseURL
 should be freed using
-.Fn fetchFreeURL .
+.Fn free .
 .Pp
 .Fn fetchGet
 and
@@ -182,12 +181,13 @@ unable to allocate memory, or the URL is syntactically incorrect,
 .Fn fetchParseURL
 returns a NULL pointer.
 .Pp
-.Fn fetchFreeURL
-does not return any value.
-.Pp
 All other functions return a stream pointer which may be used to
-access the requested document. Upon failure of any kind, they return a
-NULL pointer.
+access the requested document, or NULL if an error occurred. In the
+latter case, the variables
+.Va fetchLastErrCode
+and
+.Va fetchLastErrText
+are set to appropriately descriptive values.
 .Sh ENVIRONMENT
 The FTP and HTTP related functions use the
 .Ev HTTP_PROXY
@@ -259,6 +259,21 @@ code; as far as I can determine,
 .Nm libfetch
 handles HTTP/1.1 basic authentication correctly as outlined in
 RFC2068, but I haven't been able to find an HTTP server that honors
-the Authentication: header field.
+the Authentication: header field. Also,
+.Nm libfetch
+does not attempt to interpret and respond to authentication requests
+from the HTTP server.
+.Pp
+No attempt is made to encode spaces etc. within URLs. Spaces in the
+document part of an URLshould be replaced with "%20" in HTTP URLs and
+"\\ " in FTP URLs.
+.Pp
+Error numbers are unique only within a certain context; the error
+codes used for FTP and HTTP overlap, as do those used for resolver and
+system errors. For instance, error code 202 means "Command not
+implemented, superfluous at this site" in an FTP context and
+"Accepted" in an HTTP context.
+.Pp
+The man page is poorly written and produces badly formatted text.
 .Pp
 Tons of other stuff.
