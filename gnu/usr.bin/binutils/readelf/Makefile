@@ -12,10 +12,9 @@ SRCS=	${PROG}.c
 WARNS=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils -I${SRCDIR}/binutils
 
-DPADD:=	${RELTOP}/libbinutils/libbinutils.a \
-	${RELTOP}/libbfd/libbfd.a \
-	${RELTOP}/libiberty/libiberty.a \
-	${DPADD}
+DPADD=	${RELTOP}/libbinutils/libbinutils.a
+DPADD+=	${RELTOP}/libbfd/libbfd.a
+DPADD+=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 
 .include <bsd.prog.mk>

@@ -20,10 +20,9 @@ CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR} -I${.CURDIR}/..
 CFLAGS+= -DVERSION=\"${VERSION:C/[ ]?${VERSION_DATE}[ ]?//g}\" 
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 NOSHARED?=	yes
-DPADD:=	${RELTOP}/libbfd/libbfd.a \
-	${RELTOP}/libiberty/libiberty.a \
-	${RELTOP}/libopcodes/libopcodes.a \
-	${DPADD}
+DPADD=	${RELTOP}/libbfd/libbfd.a
+DPADD+=	${RELTOP}/libiberty/libiberty.a
+DPADD+=	${RELTOP}/libopcodes/libopcodes.a
 LDADD=	${DPADD}
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
