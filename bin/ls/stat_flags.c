@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: stat_flags.c,v 1.2 1994/09/24 02:55:57 davidg Exp $
  */
 
 #ifndef lint
@@ -69,6 +69,8 @@ flags_to_string(flags, def)
 		SAPPEND("uappnd");
 	if (flags & UF_IMMUTABLE)
 		SAPPEND("uchg");
+	if (flags & UF_NOUNLINK)
+		SAPPEND("uunlnk");
 	if (flags & UF_NODUMP)
 		SAPPEND("nodump");
 	if (flags & SF_APPEND)
@@ -77,6 +79,8 @@ flags_to_string(flags, def)
 		SAPPEND("arch");
 	if (flags & SF_IMMUTABLE)
 		SAPPEND("schg");
+	if (flags & SF_NOUNLINK)
+		SAPPEND("sunlnk");
 	return (prefix == NULL && def != NULL ? def : string);
 }
 
@@ -134,6 +138,8 @@ string_to_flags(stringp, setp, clrp)
 			TEST(p, "schg", SF_IMMUTABLE);
 			TEST(p, "schange", SF_IMMUTABLE);
 			TEST(p, "simmutable", SF_IMMUTABLE);
+			TEST(p, "sunlnk", SF_NOUNLINK);
+			TEST(p, "sunlink", SF_NOUNLINK);
 			return (1);
 		case 'u':
 			TEST(p, "uappnd", UF_APPEND);
@@ -141,6 +147,8 @@ string_to_flags(stringp, setp, clrp)
 			TEST(p, "uchg", UF_IMMUTABLE);
 			TEST(p, "uchange", UF_IMMUTABLE);
 			TEST(p, "uimmutable", UF_IMMUTABLE);
+			TEST(p, "uunlnk", UF_NOUNLINK);
+			TEST(p, "uunlink", UF_NOUNLINK);
 			/* FALLTHROUGH */
 		default:
 			return (1);

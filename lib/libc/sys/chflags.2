@@ -65,24 +65,32 @@ Do not dump the file.
 The file may not be changed.
 .It UF_APPEND
 The file may only be appended to.
+.It UF_NOUNLINK
+The file may not be renamed or deleted.
 .\".It ARCHIVED
 .\"File is archived.
 .It SF_IMMUTABLE
 The file may not be changed.
 .It SF_APPEND
 The file may only be appended to.
+.It SF_NOUNLINK
+The file may not be renamed or deleted.
 .El
 .Pp
 The
 .Dq UF_IMMUTABLE
-and
+,
 .Dq UF_APPEND
+and
+.Dq UF_NOUNLINK
 flags may be set or unset by either the owner of a file or the super-user.
 .Pp
 The
 .Dq SF_IMMUTABLE
-and
+,
 .Dq SF_APPEND
+and
+.Dq SF_NOUNLINK
 flags may only be set or unset by the super-user.
 They may be set at any time, but normally may only be unset when
 the system is in single-user mode.
