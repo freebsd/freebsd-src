@@ -79,7 +79,7 @@
 #ifdef RPCCLNT_DEBUG
 #define RPCDEBUG(args...) do{	\
 	if(rpcdebugon != 0){	\
-		printf("%s(): ", __FUNCTION__);\
+		printf("%s(): ", __func__);\
 		printf(args);	\
 		printf("\n");	\
 	}}while(0)
