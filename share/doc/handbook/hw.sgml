@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.15 1996/02/06 10:48:50 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.16 1996/02/16 13:28:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -109,7 +109,7 @@ Slippery when wet.  Beware of dog.
    8mm tape.
 
   <sect2><heading>Video Cards</heading>
-    <p>If you can also afford to buy a commercial X server for $99 from
+    <p>If you can also afford to buy a commercial X server for US&dollar;99 from
     <htmlurl url="http://www.xinside.com/" name="X Inside"> then I
     can heartily recommend the <htmlurl url="http://www.matrox.com/"
     name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
@@ -123,7 +123,7 @@ Slippery when wet.  Beware of dog.
     name="Sony Multiscan 17SE monitors">, as have I with 
     the Viewsonic offering in the same (trinitron) tube.  For larger than
     17", all I can recommend at the time of this writing is to not spend
-    any less than U.S. $2,500 for a 21" monitor if that's what you really
+    any less than U.S. &dollar;2,500 for a 21" monitor if that's what you really
     need.  There are good monitors available in the >=20" range and there
     are also cheap monitors in the >=20" range.  Unfortunately, none are
     both cheap and good!
