@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.4 1996/06/02 17:06:40 phk Exp $
+ *	$Id: arith_lex.l,v 1.5 1996/09/01 10:19:41 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <unistd.h>
@@ -50,6 +50,7 @@ extern char *arith_buf, *arith_startbuf;
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
+#define YY_NO_UNPUT
 %}
 
 %%
@@ -73,12 +74,13 @@ extern char *arith_buf, *arith_startbuf;
 "*"	{ return(ARITH_MUL); }
 "/"	{ return(ARITH_DIV); }
 "%"	{ return(ARITH_REM); }
-"+"	{ return(ARITH_ADD); } 
+"+"	{ return(ARITH_ADD); }
 "-"	{ return(ARITH_SUB); }
 "~"	{ return(ARITH_BNOT); }
 "!"	{ return(ARITH_NOT); }
 .	{ error("arith: syntax error: \"%s\"\n", arith_startbuf); }
 %%
+#undef yyunput
 
 void
 arith_lex_reset() {

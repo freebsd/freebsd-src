@@ -1,4 +1,4 @@
-%token ARITH_NUM ARITH_LPAREN ARITH_RPAREN 
+%token ARITH_NUM ARITH_LPAREN ARITH_RPAREN
 
 %left ARITH_OR
 %left ARITH_AND
@@ -39,12 +39,12 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
 	| expr ARITH_DIV expr	= {
 			if ($3 == 0)
 				yyerror("division by zero");
-			$$ = $1 / $3; 
+			$$ = $1 / $3;
 			}
 	| expr ARITH_REM expr   = {
 			if ($3 == 0)
 				yyerror("division by zero");
-			$$ = $1 % $3; 
+			$$ = $1 % $3;
 			}
 	| ARITH_NOT expr	= { $$ = !($2); }
 	| ARITH_BNOT expr	= { $$ = ~($2); }
@@ -88,11 +88,11 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith.y,v 1.2 1994/09/24 02:57:21 davidg Exp $
+ *	$Id: arith.y,v 1.3 1996/09/01 10:19:38 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include "shell.h"
@@ -101,10 +101,11 @@ static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #include "memalloc.h"
 
 char *arith_buf, *arith_startbuf;
+extern void arith_lex_reset();
 
 int
 arith(s)
-	char *s; 
+	char *s;
 {
 	long result;
 

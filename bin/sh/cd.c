@@ -33,16 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.5 1995/11/14 01:04:52 peter Exp $
+ *	$Id: cd.c,v 1.6 1996/09/01 10:19:47 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -58,29 +59,29 @@ static char sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
+#include "exec.h"
 #include "redir.h"
 #include "mystring.h"
 #include "show.h"
+#include "cd.h"
 
 STATIC int docd __P((char *, int));
 STATIC char *getcomponent __P((void));
 STATIC void updatepwd __P((char *));
-STATIC void getpwd __P((void));
 
-char *curdir;			/* current working directory */
+char *curdir = NULL;		/* current working directory */
 char *prevdir;			/* previous working directory */
 STATIC char *cdcomppath;
 
 int
 cdcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	char *dest;
 	char *path;
 	char *p;
 	struct stat statb;
-	char *padvance();
 	int print = 0;
 
 	nextopt(nullstr);
@@ -133,7 +134,9 @@ STATIC int
 docd(dest, print)
 	char *dest;
 	int print;
-	{
+{
+
+	TRACE(("docd(\"%s\", %d) called\n", dest, print));
 	INTOFF;
 	if (chdir(dest) < 0) {
 		INTON;
@@ -319,7 +322,7 @@ updatepwd(dir)
 int
 pwdcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	getpwd();
 	out1str(curdir);
@@ -329,17 +332,18 @@ pwdcmd(argc, argv)
 
 
 
+
+#define MAXPWD 256
+
 /*
  * Run /bin/pwd to find out what the current directory is.  We suppress
  * interrupts throughout most of this, but the user can still break out
  * of it by killing the pwd program.  If we already know the current
  * directory, this routine returns immediately.
  */
-
-#define MAXPWD 256
-
-STATIC void
-getpwd() {
+void
+getpwd()
+{
 	char buf[MAXPWD];
 	char *p;
 	int i;
@@ -364,10 +368,10 @@ getpwd() {
 			copyfd(pip[1], 1);
 			close(pip[1]);
 		}
-		execl(pwd_bin, "pwd", (char *)0);
+		(void) execl(pwd_bin, "pwd", (char *)0);
 		error("Cannot exec %s", pwd_bin);
 	}
-	close(pip[1]);
+	(void) close(pip[1]);
 	pip[1] = -1;
 	p = buf;
 	while ((i = read(pip[0], p, buf + MAXPWD - p)) > 0
@@ -375,7 +379,7 @@ getpwd() {
 		if (i > 0)
 			p += i;
 	}
-	close(pip[0]);
+	(void) close(pip[0]);
 	pip[0] = -1;
 	status = waitforjob(jp);
 	if (status != 0)

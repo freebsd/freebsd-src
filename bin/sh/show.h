@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)show.h	1.1 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: show.h,v 1.2 1996/09/01 10:21:45 peter Exp $
  */
 
 void showtree __P((union node *));
+#ifdef DEBUG
 void trputc __P((int));
-void shtrace __P((const char *, ...));
+void trace __P((const char *, ...));
 void trputs __P((char *));
 void trargs __P((char **));
 void opentrace __P((void));
+#endif

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.3 1995/05/30 00:07:23 rgrimes Exp $
+ *	$Id: trap.c,v 1.4 1996/09/01 10:21:47 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
+static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif /* not lint */
 
 #include <signal.h>
@@ -88,7 +88,7 @@ static int getsigaction __P((int, sig_t *));
 int
 trapcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	char *action;
 	char **ap;
@@ -153,7 +153,7 @@ clear_traps() {
  */
 
 long
-setsignal(signo) 
+setsignal(signo)
 	int signo;
 {
 	int action;
@@ -235,7 +235,7 @@ setsignal(signo)
  * Return the current setting for sig w/o changing it.
  */
 static int
-getsigaction(signo, sigact) 
+getsigaction(signo, sigact)
 	int signo;
 	sig_t *sigact;
 {
@@ -252,7 +252,7 @@ getsigaction(signo, sigact)
  */
 
 void
-ignoresig(signo) 
+ignoresig(signo)
 	int signo;
 {
 	if (sigmode[signo - 1] != S_IGN && sigmode[signo - 1] != S_HARD_IGN) {
@@ -284,7 +284,7 @@ SHELLPROC {
  */
 
 void
-onsig(signo) 
+onsig(signo)
 	int signo;
 {
 	signal(signo, onsig);
@@ -335,7 +335,7 @@ void
 setinteractive(on)
 	int on;
 {
-	static int is_interactive;
+	static int is_interactive = 0;
 
 	if (on == is_interactive)
 		return;
@@ -352,7 +352,7 @@ setinteractive(on)
  */
 
 void
-exitshell(status) 
+exitshell(status)
 	int status;
 {
 	struct jmploc loc1, loc2;

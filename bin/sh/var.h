@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
- *	$Id: var.h,v 1.2 1994/09/24 02:58:23 davidg Exp $
+ *	$Id: var.h,v 1.3 1996/09/01 10:21:54 peter Exp $
  */
 
 /*
@@ -42,26 +42,30 @@
  */
 
 /* flags */
-#define VEXPORT		01	/* variable is exported */
-#define VREADONLY	02	/* variable cannot be modified */
-#define VSTRFIXED	04	/* variable struct is staticly allocated */
-#define VTEXTFIXED	010	/* text is staticly allocated */
-#define VSTACK		020	/* text is allocated on the stack */
-#define VUNSET		040	/* the variable is not set */
+#define VEXPORT		0x01	/* variable is exported */
+#define VREADONLY	0x02	/* variable cannot be modified */
+#define VSTRFIXED	0x04	/* variable struct is staticly allocated */
+#define VTEXTFIXED	0x08	/* text is staticly allocated */
+#define VSTACK		0x10	/* text is allocated on the stack */
+#define VUNSET		0x20	/* the variable is not set */
+#define VNOFUNC		0x40	/* don't call the callback function */
 
 
 struct var {
 	struct var *next;		/* next entry in hash list */
-	int flags;		/* flags are defined above */
-	char *text;		/* name=value */
+	int flags;			/* flags are defined above */
+	char *text;			/* name=value */
+	void (*func) __P((const char *));
+					/* function to be called when  */
+					/* the variable gets set/unset */
 };
 
 
 struct localvar {
-	struct localvar *next;	/* next local variable in list */
-	struct var *vp;		/* the variable that was made local */
-	int flags;		/* saved flags */
-	char *text;		/* saved text */
+	struct localvar *next;		/* next local variable in list */
+	struct var *vp;			/* the variable that was made local */
+	int flags;			/* saved flags */
+	char *text;			/* saved text */
 };
 
 
@@ -79,6 +83,9 @@ extern struct var vps2;
 #if ATTY
 extern struct var vterm;
 #endif
+#ifndef NO_HISTORY
+extern struct var vhistsize;
+#endif
 
 /*
  * The following macros access the values of the above variables.
@@ -95,6 +102,10 @@ extern struct var vterm;
 #if ATTY
 #define termval()	(vterm.text + 5)
 #endif
+#define optindval()	(voptind.text + 7)
+#ifndef NO_HISTORY
+#define histsizeval()	(vhistsize.text + 9)
+#endif
 
 #if ATTY
 #define attyset()	((vatty.flags & VUNSET) == 0)
@@ -105,7 +116,7 @@ void initvar __P((void));
 void setvar __P((char *, char *, int));
 void setvareq __P((char *, int));
 struct strlist;
-void listsetvar __P((struct strlist *)); 
+void listsetvar __P((struct strlist *));
 char *lookupvar __P((char *));
 char *bltinlookup __P((char *, int));
 char **environment __P((void));
@@ -113,7 +124,9 @@ void shprocvar __P((void));
 int showvarscmd __P((int, char **));
 int exportcmd __P((int, char **));
 int localcmd __P((int, char **));
-void mklocal __P((char *));   
+void mklocal __P((char *));
 void poplocalvars __P((void));
 int setvarcmd __P((int, char **));
 int unsetcmd __P((int, char **));
+int unsetvar __P((char *));
+int setvarsafe __P((char *, char *, int));

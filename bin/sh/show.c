@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: show.c,v 1.3 1996/09/01 10:21:43 peter Exp $
+ *	$Id: show.c,v 1.4 1996/09/03 14:16:00 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -269,8 +269,6 @@ indent(amount, pfx, fp)
 		putc('\t', fp);
 	}
 }
-#endif
-
 
 
 /*
@@ -288,27 +286,25 @@ int debug = 0;
 
 
 void
-trputc(c) 
+trputc(c)
 	int c;
 {
-#ifdef DEBUG
 	if (tracefile == NULL)
 		return;
 	putc(c, tracefile);
 	if (c == '\n')
 		fflush(tracefile);
-#endif
 }
+
 
 void
 #if __STDC__
-shtrace(const char *fmt, ...)
+trace(const char *fmt, ...)
 #else
-shtrace(va_alist)
+trace(va_alist)
 	va_dcl
 #endif
 {
-#ifdef DEBUG
 	va_list va;
 #if __STDC__
 	va_start(va, fmt);
@@ -323,7 +319,6 @@ shtrace(va_alist)
 			(void) fflush(tracefile);
 	}
 	va_end(va);
-#endif
 }
 
 
@@ -331,17 +326,14 @@ void
 trputs(s)
 	char *s;
 {
-#ifdef DEBUG
 	if (tracefile == NULL)
 		return;
 	fputs(s, tracefile);
 	if (strchr(s, '\n'))
 		fflush(tracefile);
-#endif
 }
 
 
-#ifdef DEBUG
 static void
 trstring(s)
 	char *s;
@@ -381,14 +373,12 @@ backslash:	  putc('\\', tracefile);
 	}
 	putc('"', tracefile);
 }
-#endif
 
 
 void
 trargs(ap)
 	char **ap;
 {
-#ifdef DEBUG
 	if (tracefile == NULL)
 		return;
 	while (*ap) {
@@ -399,13 +389,11 @@ trargs(ap)
 			putc('\n', tracefile);
 	}
 	fflush(tracefile);
-#endif
 }
 
 
 void
 opentrace() {
-#ifdef DEBUG
 	char s[100];
 	char *getenv();
 #ifdef O_APPEND
@@ -439,5 +427,5 @@ opentrace() {
 #endif
 	fputs("\nTracing started.\n", tracefile);
 	fflush(tracefile);
-#endif /* DEBUG */
 }
+#endif /* DEBUG */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)output.h	8.2 (Berkeley) 5/4/95
- *	$Id: output.h,v 1.2 1994/09/24 02:58:08 davidg Exp $
+ *	$Id: output.h,v 1.3 1996/09/01 10:21:29 peter Exp $
  */
 
 #ifndef OUTPUT_INCL
@@ -69,7 +69,7 @@ void flushall __P((void));
 void flushout __P((struct output *));
 void freestdout __P((void));
 void outfmt __P((struct output *, char *, ...));
-void out1fmt __P((char *, ...)); 
+void out1fmt __P((char *, ...));
 void dprintf __P((char *, ...));
 void fmtstr __P((char *, int, char *, ...));
 void doformat __P((struct output *, char *, va_list));

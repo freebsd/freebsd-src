@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)parser.h	8.3 (Berkeley) 5/4/95
- *	$Id: parser.h,v 1.2 1994/09/24 02:58:09 davidg Exp $
+ *	$Id: parser.h,v 1.3 1996/09/01 10:21:34 peter Exp $
  */
 
 /* control characters in argument strings */
@@ -78,4 +78,4 @@ extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
 union node *parsecmd __P((int));
 void fixredir __P((union node *, const char *, int));
 int goodname __P((char *));
-char *getprompt __P((void *));  
+char *getprompt __P((void *));
