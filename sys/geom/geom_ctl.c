@@ -91,6 +91,8 @@ gctl_error(struct gctl_req *req, const char *errtxt)
 {
 	int error;
 
+	if (g_debugflags & G_F_CTLDUMP)
+		printf("gctl %p error \"%s\"\n", req, errtxt);
 	error = copyout(errtxt, req->error,
 	    imin(req->lerror, strlen(errtxt) + 1));
 	if (!error)
@@ -345,50 +347,46 @@ gctl_get_provider(struct gctl_req *req)
 	return (NULL);
 }
 
-static void
+static int
 gctl_create_geom(struct gctl_req *req)
 {
 	struct g_class *mp;
 	struct g_provider *pp;
+	int error;
 
 	g_topology_assert();
 	mp = gctl_get_class(req);
 	if (mp == NULL)
-		return;
-	if (mp->create_geom == NULL) {
-		gctl_error(req, "Class has no create_geom method");
-		return;
-	}
+		return (gctl_error(req, "Class not found"));
+	if (mp->create_geom == NULL)
+		return (gctl_error(req, "Class has no create_geom method"));
 	pp = gctl_get_provider(req);
-	mp->create_geom(req, mp, pp);
+	error = mp->create_geom(req, mp, pp);
 	g_topology_assert();
+	return (error);
 }
 
-static void
+static int
 gctl_destroy_geom(struct gctl_req *req)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
+	int error;
 
 	g_topology_assert();
 	mp = gctl_get_class(req);
 	if (mp == NULL)
-		return;
-	if (mp->destroy_geom == NULL) {
-		gctl_error(req, "Class has no destroy_geom method");
-		return;
-	}
+		return (gctl_error(req, "Class not found"));
+	if (mp->destroy_geom == NULL)
+		return (gctl_error(req, "Class has no destroy_geom method"));
 	gp = gctl_get_geom(req, mp);
-	if (gp == NULL) {
-		gctl_error(req, "Geom not specified");
-		return;
-	}
-	if (gp->class != mp) {
-		gctl_error(req, "Geom not of specificed class");
-		return;
-	}
-	mp->destroy_geom(req, mp, gp);
+	if (gp == NULL)
+		return (gctl_error(req, "Geom not specified"));
+	if (gp->class != mp)
+		return (gctl_error(req, "Geom not of specificed class"));
+	error = mp->destroy_geom(req, mp, gp);
 	g_topology_assert();
+	return (error);
 }
 
 /*
@@ -428,26 +426,20 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 
 	if (g_debugflags & G_F_CTLDUMP)
 		gctl_dump(req);
-#if 0
-	g_stall_events();
-#endif
 	g_topology_lock();
 	switch (req->request) {
 	case GCTL_CREATE_GEOM:
-		gctl_create_geom(req);
+		error = gctl_create_geom(req);
 		break;
 	case GCTL_DESTROY_GEOM:
-		gctl_destroy_geom(req);
+		error = gctl_destroy_geom(req);
 		break;
 	default:
-		gctl_error(req, "XXX: TBD");
+		error = gctl_error(req, "XXX: TBD");
 		break;
 	}
 	g_topology_unlock();
-#if 0
-	g_release_events();
-#endif
-	return (0);
+	return (error);
 }
 
 static int
