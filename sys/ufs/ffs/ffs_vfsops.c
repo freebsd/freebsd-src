@@ -804,6 +804,7 @@ out:
 	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
+	vinvalbuf(devvp, V_SAVE, NOCRED, td, 0, 0);
 	/* XXX: see comment above VOP_OPEN. */
 #ifdef notyet
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, cred, td);
