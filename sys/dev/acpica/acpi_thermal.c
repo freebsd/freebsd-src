@@ -30,9 +30,12 @@
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/bus.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include "acpi.h"
 
@@ -42,7 +45,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_THERMAL
-MODULE_NAME("THERMAL")
+ACPI_MODULE_NAME("THERMAL")
 
 #define TZ_ZEROC	2732
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
@@ -71,7 +74,6 @@ struct acpi_tz_zone {
 struct acpi_tz_softc {
     device_t			tz_dev;			/* device handle */
     ACPI_HANDLE			tz_handle;		/* thermal zone handle */
-    struct callout_handle	tz_timeout;		/* poll routine handle */
     int				tz_temperature;		/* current temperature */
     int				tz_active;		/* current active cooling */
 #define TZ_ACTIVE_NONE		-1
@@ -90,7 +92,6 @@ struct acpi_tz_softc {
     struct sysctl_oid		*tz_sysctl_tree;
     
     struct acpi_tz_zone 	tz_zone;		/* thermal zone parameters */
-    ACPI_BUFFER			tz_tmp_buffer;
     int				tz_tmp_updating;
 };
 
@@ -105,8 +106,11 @@ static void	acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data);
 static void	acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what);
 static int	acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context);
-static void	acpi_tz_timeout(void *arg);
+static void	acpi_tz_timeout(struct acpi_tz_softc *sc);
 static void	acpi_tz_powerprofile(void *arg);
+
+static void	acpi_tz_thread(void *arg);
+static struct proc *acpi_tz_proc;
 
 static device_method_t acpi_tz_methods[] = {
     /* Device interface */
@@ -165,7 +169,7 @@ acpi_tz_attach(device_t dev)
     int				error;
     char			oidname[8];
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_LOCK;
 
@@ -173,7 +177,6 @@ acpi_tz_attach(device_t dev)
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
     sc->tz_requested = TZ_ACTIVE_NONE;
-    bzero(&sc->tz_tmp_buffer, sizeof(sc->tz_tmp_buffer));
     sc->tz_tmp_updating = 0;
 
     /*
@@ -251,15 +254,22 @@ acpi_tz_attach(device_t dev)
      * on many systems it'll be bogus until the EC is running.
      */
 
+    /*
+     * Create our thread; we only need one, it will service all of the
+     * thermal zones.
+     */
+    if (acpi_tz_proc == NULL) {
+	    error = kthread_create(acpi_tz_thread, NULL, &acpi_tz_proc,
+				   RFHIGHPID, "acpi_thermal");
+	    if (error != 0) {
+		    device_printf(sc->tz_dev, "could not create thread - %d", error);
+		    goto out;
+	    }
+    }
+	
  out:
     ACPI_UNLOCK;
 
-    /*
-     * Start the timeout routine, with enough delay for the rest of the
-     * subsystem to come up.
-     */
-    sc->tz_timeout = timeout(acpi_tz_timeout, sc, acpi_tz_polling_rate * hz);
-	
     return_VALUE(error);
 }
 
@@ -275,7 +285,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     int		i;
     char	nbuf[8];
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -297,8 +307,9 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
 	sprintf(nbuf, "_AC%d", i);
 	acpi_tz_getparam(sc, nbuf, &sc->tz_zone.ac[i]);
 	sprintf(nbuf, "_AL%d", i);
-	bzero(&sc->tz_zone.al[i], sizeof(sc->tz_zone.al[i]));
-	acpi_EvaluateIntoBuffer(sc->tz_handle, nbuf, NULL, &sc->tz_zone.al[i]);
+	sc->tz_zone.al[i].Length = ACPI_ALLOCATE_BUFFER;
+	sc->tz_zone.al[i].Pointer = NULL;
+	AcpiEvaluateObject(sc->tz_handle, nbuf, NULL, &sc->tz_zone.al[i]);
 	obj = (ACPI_OBJECT *)sc->tz_zone.al[i].Pointer;
 	if (obj != NULL) {
 	    /* should be a package containing a list of power objects */
@@ -311,8 +322,9 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     }
     acpi_tz_getparam(sc, "_CRT", &sc->tz_zone.crt);
     acpi_tz_getparam(sc, "_HOT", &sc->tz_zone.hot);
-    bzero(&sc->tz_zone.psl, sizeof(sc->tz_zone.psl));
-    acpi_EvaluateIntoBuffer(sc->tz_handle, "_PSL", NULL, &sc->tz_zone.psl);
+    sc->tz_zone.psl.Length = ACPI_ALLOCATE_BUFFER;
+    sc->tz_zone.psl.Pointer = NULL;
+    AcpiEvaluateObject(sc->tz_handle, "_PSL", NULL, &sc->tz_zone.psl);
     acpi_tz_getparam(sc, "_PSV", &sc->tz_zone.psv);
     acpi_tz_getparam(sc, "_TC1", &sc->tz_zone.tc1);
     acpi_tz_getparam(sc, "_TC2", &sc->tz_zone.tc2);
@@ -365,7 +377,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     struct	timespec curtime;
     ACPI_STATUS	status;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -377,14 +389,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     /*
      * Get the current temperature.
      */
-    if ((status = acpi_EvaluateIntoBuffer(sc->tz_handle, "_TMP", NULL, &sc->tz_tmp_buffer)) != AE_OK) {
-	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
-	    "error fetching current temperature -- %s\n",
-	     AcpiFormatException(status));
-	/* XXX disable zone? go to max cooling? */
-	goto out;
-    }
-    if ((status = acpi_ConvertBufferToInteger(&sc->tz_tmp_buffer, &temp)) != AE_OK) {
+    if (ACPI_FAILURE(status = acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp))) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 	    "error fetching current temperature -- %s\n",
 	     AcpiFormatException(status));
@@ -491,7 +496,7 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
 {
     int		i;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
     
@@ -523,7 +528,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 {
     ACPI_HANDLE		cooler;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -538,7 +543,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 	 *
 	 * XXX This may not always be the case.
 	 */
-	if (AcpiGetHandle(NULL, obj->String.Pointer, &cooler) == AE_OK)
+	if (ACPI_SUCCESS(AcpiGetHandle(NULL, obj->String.Pointer, &cooler)))
 	    acpi_pwr_switch_consumer(cooler, ACPI_STATE_D3);
 	break;
 	
@@ -563,7 +568,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
     ACPI_HANDLE			cooler;
     ACPI_STATUS			status;
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -578,7 +583,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 	 *
 	 * XXX This may not always be the case.
 	 */
-	if (AcpiGetHandle(NULL, obj->String.Pointer, &cooler) == AE_OK) {
+	if (ACPI_SUCCESS(AcpiGetHandle(NULL, obj->String.Pointer, &cooler))) {
 	    if (ACPI_FAILURE(status = acpi_pwr_switch_consumer(cooler, ACPI_STATE_D0))) {
 		ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 		    "failed to activate %s - %s\n",
@@ -605,11 +610,11 @@ static void
 acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 {
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
-    if (acpi_EvaluateInteger(sc->tz_handle, node, data) != AE_OK) {
+    if (ACPI_FAILURE(acpi_EvaluateInteger(sc->tz_handle, node, data))) {
 	*data = -1;
     } else {
 	ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "%s.%s = %d\n", acpi_name(sc->tz_handle),
@@ -675,7 +680,7 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
@@ -701,27 +706,21 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
  * Poll the thermal zone.
  */
 static void
-acpi_tz_timeout(void *arg)
+acpi_tz_timeout(struct acpi_tz_softc *sc)
 {
-    struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
 
     /* do we need to get the power profile settings? */
     if (sc->tz_flags & TZ_FLAG_GETPROFILE) {
-	acpi_tz_powerprofile(arg);
+	acpi_tz_powerprofile((void *)sc);
 	sc->tz_flags &= ~TZ_FLAG_GETPROFILE;
     }
 
-    ACPI_LOCK;
-    
-    /* check temperature, take action */
-    AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_monitor, sc);
+    ACPI_ASSERTLOCK;
+
+    /* check the current temperature and take action based on it */
+    acpi_tz_monitor(sc);
 
     /* XXX passive cooling actions? */
-
-    /* re-register ourself */
-    sc->tz_timeout = timeout(acpi_tz_timeout, sc, acpi_tz_polling_rate * hz);
-
-    ACPI_UNLOCK;
 }
 
 /*
@@ -763,3 +762,30 @@ acpi_tz_powerprofile(void *arg)
     ACPI_UNLOCK;
 }
 
+/*
+ * Thermal zone monitor thread.
+ */
+static void
+acpi_tz_thread(void *arg)
+{
+    device_t	*devs;
+    int		devcount, i;
+
+    ACPI_FUNCTION_TRACE(__func__);
+
+
+    devs = NULL;
+    devcount = 0;
+
+    for (;;) {
+	tsleep(&acpi_tz_proc, PZERO, "nothing", hz * acpi_tz_polling_rate);
+
+	if (devcount == 0)
+	    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
+
+	ACPI_LOCK;
+	for (i = 0; i < devcount; i++)
+	    acpi_tz_timeout(device_get_softc(devs[i]));
+	ACPI_UNLOCK;
+    }
+}
