@@ -775,7 +775,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 	struct thread *td;
-	critical_t s;
+	register_t s;
 	int i, j;
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
@@ -825,7 +825,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					instance->li_flags--;
 					return;
 				}
-				s = cpu_critical_enter();
+				s = intr_disable();
 				CTR4(KTR_WITNESS,
 				    "%s: pid %d removed %s from lle[%d]", __func__,
 				    td->td_proc->p_pid,
@@ -835,7 +835,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				for (j = i; j < (*lock_list)->ll_count; j++)
 					(*lock_list)->ll_children[j] =
 					    (*lock_list)->ll_children[j + 1];
-				cpu_critical_exit(s);
+				intr_restore(s);
 				if ((*lock_list)->ll_count == 0) {
 					lle = *lock_list;
 					*lock_list = lle->ll_next;
