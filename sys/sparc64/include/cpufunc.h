@@ -117,31 +117,28 @@
 static __inline void
 breakpoint(void)
 {
-	__asm __volatile("ta 1");
+	__asm __volatile("ta %%xcc, 1" : :);
 }
 
-/*
- * XXX use %pil for these.
- */
 static __inline critical_t
 critical_enter(void)
 {
-	critical_t ie;
+	critical_t pil;
 
-	ie = rdpr(pstate);
-	if (ie & PSTATE_IE)
-		wrpr(pstate, ie, PSTATE_IE);
-	return (ie);
+	pil = rdpr(pil);
+	wrpr(pil, 0, 14);
+	return (pil);
 }
 
 static __inline void
-critical_exit(critical_t ie)
+critical_exit(critical_t pil)
 {
-
-	if (ie & PSTATE_IE)
-		wrpr(pstate, ie, 0);
+	wrpr(pil, pil, 0);
 }
 
+/*
+ * Ultrasparc II doesn't implement popc in hardware.  Suck.
+ */
 #if 0
 #define	HAVE_INLINE_FFS
 /*
