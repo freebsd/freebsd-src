@@ -100,6 +100,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
     u_long cpusaddr __unused, u_long pgsaddr, u_long mbpaddr)
 {
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
+	int nsfbufs, nsfbufspeak, nsfbufsused;
 	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
 	unsigned long long totspace[2];
 	u_long totused[2];
@@ -111,7 +112,6 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	struct mbpstat **mbpstat = NULL;
 	struct mbtypenames *mp;
 	bool *seen = NULL;
-	long nsfbufs, nsfbufspeak, nsfbufsused;
 
 	mlen = sizeof *mbstat;
 	if ((mbstat = malloc(mlen)) == NULL) {
@@ -335,17 +335,15 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	if (cflag)
 		printf("\t%llu%% of cluster map consumed\n",
 		    ((totspace[1] * 100) / (nmbclusters * MCLBYTES)));
-
 	mlen = sizeof(nsfbufs);
 	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, NULL) &&
 	    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen, NULL,
-			  NULL) &&
+	    NULL) &&
 	    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak, &mlen, NULL,
-			  NULL)) {
-		printf("%i/%i/%i sfbufs in use (current/peak/max)\n",
-			nsfbufsused, nsfbufspeak, nsfbufs);
+	    NULL)) {
+		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
+		    nsfbufsused, nsfbufspeak, nsfbufs);
 	}
-
 	printf("%llu KBytes allocated to network "
 	    "(%lluK mbuf, %lluK mbuf cluster)\n",
 	    (totspace[0] + totspace[1]) / 1024,
