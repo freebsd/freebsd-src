@@ -35,22 +35,22 @@
 .Nd
 Generic printer device driver
 .Sh SYNOPSIS
-.Cd "controller ppbus0"
+.Cd "device ppbus0"
 .Cd "device lpt0 at ppbus?"
 .Pp
-.Cd "controller	ppc0	at isa? port" \&"IO_LPT1\&" tty irq 7
-.Cd "controller	ppc1	at isa? port" \&"IO_LPT2\&" tty irq 7
-.Cd "controller	ppc2	at isa? port" \&"IO_LPT3\&" tty irq 7
+.Cd "device	ppc0	at isa? port" \&"IO_LPT1\&" tty irq 7
+.Cd "device	ppc1	at isa? port" \&"IO_LPT2\&" tty irq 7
+.Cd "device	ppc2	at isa? port" \&"IO_LPT3\&" tty irq 7
 .Pp
 For BIOS-probed ports:
-.Cd "controller ppc0 at isa? port? tty irq 7"
+.Cd "device ppc0 at isa? port? tty irq 7"
 .Pp
 For polled ports:
-.Cd "controller ppc0 at isa? port? tty"
-.Cd "controller ppc1 at isa? port" \&"IO_LPT2\&" tty
+.Cd "device ppc0 at isa? port? tty"
+.Cd "device ppc1 at isa? port" \&"IO_LPT2\&" tty
 .Pp
 For DMA capable parallel port:
-.Cd "controller ppc0 at isa? port? tty irq 7 drq 1"
+.Cd "device ppc0 at isa? port? tty irq 7 drq 1"
 .Sh DESCRIPTION
 The current
 .Em lpt
