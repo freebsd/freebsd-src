@@ -52,12 +52,12 @@
 .Ar \&3
 .Xc
 .Oc
-.Op Ar file ...
+.Op Ar
 .Nm sum
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm cksum
+.Nm
 utility writes to the standard output three whitespace separated
 fields for each input file.
 These fields are a checksum
@@ -69,7 +69,7 @@ is written.
 The
 .Nm sum
 utility is identical to the
-.Nm cksum
+.Nm
 utility, except that it defaults to using historic algorithm 1, as
 described below.
 It is provided for compatibility only.
@@ -86,7 +86,7 @@ systems as the
 algorithm and by historic
 .At V
 systems as the
-.Xr sum
+.Xr sum 1
 algorithm when using the
 .Fl r
 option.
@@ -97,7 +97,7 @@ Algorithm 2 is the algorithm used by historic
 .At V
 systems as the
 default
-.Xr sum
+.Xr sum 1
 algorithm.
 This is a 32-bit checksum, and is defined as follows:
 .Bd -unfilled -offset indent
@@ -125,7 +125,7 @@ used is based on the polynomial used for
 .Tn CRC
 error checking
 in the networking standard
-.St -iso8802-3
+.St -iso8802-3 .
 The
 .Tn CRC
 checksum encoding is defined by the generating polynomial:
@@ -162,9 +162,9 @@ The coefficients of R(x) are considered to be a 32-bit sequence.
 .Pp
 The bit sequence is complemented and the result is the CRC.
 .Ed
-.Pp
+.Sh DIAGNOSTICS
 The
-.Nm cksum
+.Nm
 and
 .Nm sum
 utilities exit 0 on success, and >0 if an error occurs.
@@ -183,11 +183,11 @@ article.
 .Re
 .Sh STANDARDS
 The
-.Nm cksum
+.Nm
 utility is expected to conform to
 .St -p1003.2-92 .
 .Sh HISTORY
 The
-.Nm cksum
+.Nm
 utility appeared in
 .Bx 4.4 .

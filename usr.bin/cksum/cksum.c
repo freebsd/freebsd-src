@@ -48,14 +48,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -95,7 +92,7 @@ main(argc, argv)
 				} else if (!strcmp(optarg, "2")) {
 					cfncn = csum2;
 					pfncn = psum2;
-				} else if (*optarg == '3') {
+				} else if (!strcmp(optarg, "3")) {
 					cfncn = crc32;
 					pfncn = pcrc;
 				} else {
@@ -136,7 +133,7 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: cksum [-o 1 | 2] [file ...]\n");
+	(void)fprintf(stderr, "usage: cksum [-o 1 | 2 | 3] [file ...]\n");
 	(void)fprintf(stderr, "       sum [file ...]\n");
 	exit(1);
 }
