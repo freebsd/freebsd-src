@@ -1,6 +1,6 @@
 /* 25 May 93*/
 /*
- * Makefile for miscmod
+ * miscmod.c
  *
  * 05 Jun 93	Terry Lambert		Split mycall.c out
  * 25 May 93	Terry Lambert		Original
@@ -38,10 +38,12 @@
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/exec.h>
+#include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <a.out.h>
 #include <sys/file.h>
@@ -63,7 +65,12 @@ static struct sysent newent = {
  */
 static struct sysent	oldent;		/* save are for old callslot entry*/
 
-MOD_MISC( "miscmod")
+/*
+ * Number of syscall entries for a.out executables
+ */
+#define nsysent (aout_sysvec.sv_size)
+
+MOD_MISC( "misc_mod")
 
 
 /*
@@ -90,7 +97,6 @@ int			cmd;
 	int			i;
 	struct lkm_misc		*args = lkmtp->private.lkm_misc;
 	int			err = 0;	/* default = success*/
-	extern int		nsysent;	/* init_sysent.c*/
 	extern int		lkmnosys();	/* allocable slot*/
 
 	switch( cmd) {
@@ -175,7 +181,7 @@ int			cmd;
  * The entry point should return 0 unless it is refusing load (in which
  * case it should return an errno from errno.h).
  */
-miscmod( lkmtp, cmd, ver)
+misc_mod( lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
