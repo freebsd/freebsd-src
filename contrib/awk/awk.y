@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -385,9 +385,30 @@ statement
 		{ $$ = node($6, Node_K_do, $3); }
 	| LEX_FOR '(' NAME LEX_IN NAME r_paren opt_nls statement
 	  {
-		$$ = node($8, Node_K_arrayfor,
-			make_for_loop(variable($3, CAN_FREE, Node_var),
-			(NODE *) NULL, variable($5, CAN_FREE, Node_var_array)));
+		/*
+		 * Efficiency hack.  Recognize the special case of
+		 *
+		 * 	for (iggy in foo)
+		 * 		delete foo[iggy]
+		 *
+		 * and treat it as if it were
+		 *
+		 * 	delete foo
+		 *
+		 * Check that the body is a `delete a[i]' statement,
+		 * and that both the loop var and array names match.
+		 */
+		if ($8->type == Node_K_delete
+		    && $8->rnode != NULL
+		    && strcmp($3, $8->rnode->var_value->vname) == 0
+		    && strcmp($5, $8->lnode->vname) == 0) {
+			$8->type = Node_K_delete_loop;
+			$$ = $8;
+		} else {
+			$$ = node($8, Node_K_arrayfor,
+				make_for_loop(variable($3, CAN_FREE, Node_var),
+				(NODE *) NULL, variable($5, CAN_FREE, Node_var_array)));
+		}
 	  }
 	| LEX_FOR '(' opt_exp semi exp semi opt_exp r_paren opt_nls statement
 	  {
@@ -883,20 +904,16 @@ struct token {
 	NODE *(*ptr)();		/* function that implements this keyword */
 };
 
-extern NODE
-	*do_exp(),	*do_getline(),	*do_index(),	*do_length(),
-	*do_sqrt(),	*do_log(),	*do_sprintf(),	*do_substr(),
-	*do_split(),	*do_system(),	*do_int(),	*do_close(),
-	*do_atan2(),	*do_sin(),	*do_cos(),	*do_rand(),
-	*do_srand(),	*do_match(),	*do_tolower(),	*do_toupper(),
-	*do_sub(),	*do_gsub(),	*do_strftime(),	*do_systime(),
-	*do_fflush();
 
 /* Tokentab is sorted ascii ascending order, so it can be binary searched. */
+/* Function pointers come from declarations in awk.h. */
 
 static struct token tokentab[] = {
 {"BEGIN",	Node_illegal,	 LEX_BEGIN,	0,		0},
 {"END",		Node_illegal,	 LEX_END,	0,		0},
+#ifdef ARRAYDEBUG
+{"adump",	Node_builtin,    LEX_BUILTIN,	GAWKX|A(1),	do_adump},
+#endif
 #ifdef BITOPS
 {"and",		Node_builtin,    LEX_BUILTIN,	GAWKX|A(2),	do_and},
 #endif /* BITOPS */
@@ -947,6 +964,9 @@ static struct token tokentab[] = {
 {"sprintf",	Node_builtin,	 LEX_BUILTIN,	0,		do_sprintf},
 {"sqrt",	Node_builtin,	 LEX_BUILTIN,	A(1),		do_sqrt},
 {"srand",	Node_builtin,	 LEX_BUILTIN,	NOT_OLD|A(0)|A(1), do_srand},
+#ifdef ARRAYDEBUG
+{"stopme",	Node_builtin,    LEX_BUILTIN,	GAWKX|A(0),	stopme},
+#endif
 {"strftime",	Node_builtin,	 LEX_BUILTIN,	GAWKX|A(0)|A(1)|A(2), do_strftime},
 #ifdef BITOPS
 {"strtonum",	Node_builtin,    LEX_BUILTIN,	GAWKX|A(1),	do_strtonum},
@@ -1217,9 +1237,9 @@ nextc()
 	int c;
 
 	if (lexptr && lexptr < lexend)
-		c = *lexptr++;
+		c = (int) (unsigned char) *lexptr++;
 	else if (get_src_buf())
-		c = *lexptr++;
+		c = (int) (unsigned char) *lexptr++;
 	else
 		c = EOF;
 
@@ -1227,8 +1247,8 @@ nextc()
 }
 #else
 #define	nextc()	((lexptr && lexptr < lexend) ? \
-			*lexptr++ : \
-			(get_src_buf() ? *lexptr++ : EOF) \
+		    ((int) (unsigned char) *lexptr++) : \
+		    (get_src_buf() ? ((int) (unsigned char) *lexptr++) : EOF) \
 		)
 #endif
 
@@ -1457,7 +1477,6 @@ retry:
 		return lasttok = c;
 
 	case ')':
-	case ']':
 	case '(':	
 	case ';':
 	case '{':
@@ -1465,6 +1484,7 @@ retry:
 		want_assign = FALSE;
 		/* fall through */
 	case '[':
+	case ']':
 		return lasttok = c;
 
 	case '*':
@@ -2143,6 +2163,14 @@ NODE *params;
 NODE *def;
 {
 	NODE *r;
+	NODE *n;
+
+	/* check for function foo(foo) { ... }.  bleh. */
+	for (n = params->rnode; n != NULL; n = n->rnode) {
+		if (strcmp(n->param, params->param) == 0)
+			fatal("function `%s': can't use function name as parameter name",
+					params->param); 
+	}
 
 	pop_params(params->rnode);
 	pop_var(params, FALSE);
@@ -2440,4 +2468,12 @@ register NODE *n;
 		break;	/* keeps gcc -Wall happy */
 	}
 	return FALSE;
+}
+
+/* for debugging */
+NODE *
+stopme(tree)
+NODE *tree;
+{
+	return tmp_number((AWKNUM) 0.0);
 }
