@@ -9,12 +9,12 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.4 1995/02/10 04:53:01 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.5 1995/02/10 05:02:33 jkh Exp $
 
 PATH=/usr/X11R6/bin:/usr/X386/bin:.:$PATH
 
-X11PREFIX=	/usr/X11R6
-XRELEASE=	"XFree86 3.1.1"
+X11PREFIX=/usr/X11R6
+XRELEASE="XFree86 3.1.1"
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
@@ -93,6 +93,7 @@ Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
       2> ${TMP}/X-selections.$$
 	RETVAL=$?
 	SELECTIONS=`cat ${TMP}/X-selections.$$`
+	return ${RETVAL}
 }
 
 INSTALLING=yes
@@ -118,7 +119,7 @@ recommended that choices be followed in order on this menu," \
    COPYRIGHT) dialog --title "COPYRIGHT NOTICE" --textbox COPYRIGHT 20 78 ;;
    README) dialog --title "${XRELEASE} README" --textbox README 20 78 ;;
    FreeBSD) dialog --title "XFree86 and FreeBSD" --textbox README.FreeBSD 20 78 ;;
-   Install) do_select_menu; do_selected_install ;;
+   Install) if do_select_menu; then do_selected_install; fi ;;
    Configure) do_configure ;;
    startx)
 	if [ -x ${X11PREFIX}/bin/startx ]; then
