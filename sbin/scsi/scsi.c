@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.11 1996/04/06 11:00:28 joerg Exp $
+ *	$Id: scsi.c,v 1.12 1996/10/05 17:40:20 joerg Exp $
  */
 
 #include <stdio.h>
@@ -52,6 +52,7 @@
 #include <scsi.h>
 #include <ctype.h>
 #include <signal.h>
+#include <err.h>
 
 int	fd;
 int	debuglevel;
@@ -73,26 +74,15 @@ int seconds = 2;
 
 void usage(void)
 {
-	printf(
-
-"Usage:\n"
-"\n"
-"  scsi -f device -d debug_level                    # To set debug level\n"
-"  scsi -f device [-v] -z seconds                   # To freeze bus\n"
-"  scsi -f device -m page [-P pc]                   # To read mode pages\n"
-"  scsi -f device -p [-b bus] [-l lun]              # To probe all devices\n"
-"  scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device\n"
-"  scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn] # A command...\n"
-"                 -o count out_fmt [arg0 ... argn]  #   EITHER (data out)\n"
-"                 -i count in_fmt                   #   OR     (data in)\n"
-"\n"
-"\"out_fmt\" can be \"-\" to read output data from stdin;\n"
-"\"in_fmt\" can be \"-\" to write input data to stdout;\n"
-"\n"
-"If debugging is not compiled in the kernel, \"-d\" will have no effect\n"
-
-);
-
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	"usage: scsi -f device -d debug_level",
+	"       scsi -f device [-v] -z seconds",
+	"       scsi -f device -m page [-P pc] [-e]",
+	"       scsi -f device -p [-b bus] [-l lun]",
+	"       scsi -f device -r [-b bus] [-t targ] [-l lun]",
+	"       scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn]",
+	"                      -o count out_fmt [arg0 ... argn]",
+	"                      -i count in_fmt");
 	exit (1);
 }
 
@@ -126,12 +116,8 @@ void procargs(int *argc_p, char ***argv_p)
 			editflag = 1;
 			break;
 		case 'f':
-			if ((fd = scsi_open(optarg, O_RDWR)) < 0) {
-				(void) fprintf(stderr,
-					  "%s: unable to open device %s: %s\n",
-					       argv[0], optarg, strerror(errno));
-				exit(errno);
-			}
+			if ((fd = scsi_open(optarg, O_RDWR)) < 0)
+				err(errno, "unable to open device %s", optarg);
 			fflag = 1;
 			break;
 		case 'd':
@@ -697,7 +683,6 @@ edit_report(void *hook, int letter, void *arg, int count, char *name)
 static int
 edit_get(void *hook, char *name)
 {
-	struct get_hook *h = (struct get_hook *)hook;
 	int arg = editinfo[editind].default_value;
 
 	if (editinfo[editind].can_edit) {
@@ -952,7 +937,6 @@ void main(int argc, char **argv)
 			exit(1);
 		}
 	} else if (commandflag) {
-		int i;
 		char *fmt;
 
 		if (argc < 1) {
