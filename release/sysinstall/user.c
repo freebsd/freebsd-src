@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.3 1996/12/10 02:15:54 joerg Exp $
+ * $Id: user.c,v 1.1.2.1 1996/12/10 07:53:07 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <utmp.h>
 #include <sys/param.h>
 #include <string.h>
 #include <sysexits.h>
@@ -54,20 +55,21 @@
 #define GID_FIELD_LEN 10
 #define GMEMB_FIELD_LEN 64
 
-#define UNAME_FIELD_LEN 32
 #define UID_FIELD_LEN 10
 #define UGROUP_FIELD_LEN GNAME_FIELD_LEN
 #define GECOS_FIELD_LEN 64
 #define UMEMB_FIELD_LEN GMEMB_FIELD_LEN
 #define HOMEDIR_FIELD_LEN 48
 #define SHELL_FIELD_LEN 48
+#define PASSWD_FIELD_LEN 32
 
 /* These are nasty, but they make the layout structure a lot easier ... */
 
 static char gname[GNAME_FIELD_LEN],
 	gid[GID_FIELD_LEN],
 	gmemb[GMEMB_FIELD_LEN],
-	uname[UNAME_FIELD_LEN],
+	uname[UT_NAMESIZE + 1],
+        passwd[PASSWD_FIELD_LEN],
 	uid[UID_FIELD_LEN],
 	ugroup[UGROUP_FIELD_LEN],
 	gecos[GECOS_FIELD_LEN],
@@ -100,69 +102,71 @@ typedef struct _layout {
 
 /* The group configuration menu. */
 static Layout groupLayout[] = {
+#define LAYOUT_GNAME		0
 { 4, 10, 20, GNAME_FIELD_LEN - 1,
 	"Group name:", "The alphanumeric name of the new group (mandatory)",
 	gname, STRINGOBJ, NULL },
-#define LAYOUT_GNAME		0
+#define LAYOUT_GID		1
 { 4, 38, 10, GID_FIELD_LEN - 1,
 	"GID:", "The numerical ID for this group (leave blank for automatic choice)",
 	gid, STRINGOBJ, NULL },
-#define LAYOUT_GID		1
+#define LAYOUT_GMEMB		2
 { 11, 10, 40, GMEMB_FIELD_LEN - 1,
 	"Group members:", "Who belongs to this group (i.e., gets access rights for it)",
 	gmemb, STRINGOBJ, NULL },
-#define LAYOUT_GMEMB		2
+#define LAYOUT_OKBUTTON		3
 { 18, 15, 0, 0,
 	"OK", "Select this if you are happy with these settings",
 	&okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON		3
+#define LAYOUT_CANCELBUTTON	4
 { 18, 35, 0, 0,
 	"CANCEL", "Select this if you wish to cancel this screen",
 	&cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON	4
-
 { NULL },
 };
 
 /* The user configuration menu. */
 static Layout userLayout[] = {
-{ 3, 6, 20, UNAME_FIELD_LEN - 1,
+#define LAYOUT_UNAME		0
+{ 3, 6, UT_NAMESIZE, UT_NAMESIZE,
 	"Login ID:", "The login name of the new user (mandatory)",
 	uname, STRINGOBJ, NULL },
-#define LAYOUT_UNAME		0
-{ 3, 29, 10, UID_FIELD_LEN - 1,
+#define LAYOUT_UID		1
+{ 3, 23, 8, UID_FIELD_LEN - 1,
 	"UID:", "The numerical ID for this user (leave blank for automatic choice)",
 	uid, STRINGOBJ, NULL },
-#define LAYOUT_UID		1
-{ 3, 43, 15, UGROUP_FIELD_LEN - 1,
+#define LAYOUT_UGROUP		2
+{ 3, 33, 8, UGROUP_FIELD_LEN - 1,
 	"Group:", "The login group name for this user (leave blank for automatic choice)",
 	ugroup, STRINGOBJ, NULL },
-#define LAYOUT_UGROUP		2
+#define LAYOUT_PASSWD		3
+{ 3, 43, 15, PASSWD_FIELD_LEN - 1,
+	"Password:", "The password for this user (enter this field with care!)",
+	passwd, STRINGOBJ, NULL },
+#define LAYOUT_GECOS		4
 { 8, 6, 33, GECOS_FIELD_LEN - 1,
 	"Full name:", "The user's full name (comment)",
 	gecos, STRINGOBJ, NULL },
-#define LAYOUT_GECOS		3
+#define LAYOUT_UMEMB		5
 { 8, 43, 15, UMEMB_FIELD_LEN - 1,
 	"Member groups:", "The groups this user belongs to (i.e. gets access rights for)",
 	umemb, STRINGOBJ, NULL },
-#define LAYOUT_UMEMB		4
+#define LAYOUT_HOMEDIR		6
 { 13, 6, 20, HOMEDIR_FIELD_LEN - 1,
 	"Home directory:", "The user's home directory (leave blank for default)",
 	homedir, STRINGOBJ, NULL },
-#define LAYOUT_HOMEDIR		5
+#define LAYOUT_SHELL		7
 { 13, 29, 29, SHELL_FIELD_LEN - 1,
 	"Login shell:", "The user's login shell (leave blank for default)",
 	shell, STRINGOBJ, NULL },
-#define LAYOUT_SHELL		6
+#define LAYOUT_U_OKBUTTON	8
 { 18, 15, 0, 0,
 	"OK", "Select this if you are happy with these settings",
 	&okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_U_OKBUTTON	7
+#define LAYOUT_U_CANCELBUTTON	9
 { 18, 35, 0, 0,
 	"CANCEL", "Select this if you wish to cancel this screen",
 	&cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_U_CANCELBUTTON	8
-
 { NULL },
 };
 
@@ -661,7 +665,7 @@ static void
 addUser(WINDOW *ds_win)
 {
     char tmp[256], *msg;
-    int pfd[2], i, j;
+    int pfd[2], ipfd[2], i, j;
     ssize_t l;
     size_t amnt;
     pid_t pid;
@@ -678,9 +682,11 @@ addUser(WINDOW *ds_win)
     msgNotify("Adding user \"%s\"...", uname);
 
     pipe (pfd);
+    pipe (ipfd);
     if ((pid = fork()) == 0)
     {
 	/* The kiddy. */
+	dup2(ipfd[0], 0);
 	dup2(pfd[1], 1);
 	dup2(pfd[1], 2);
 	for (i = getdtablesize(); i > 2; i--)
@@ -695,6 +701,10 @@ addUser(WINDOW *ds_win)
 	ADDVEC(homedir, "-d");
 	ADDVEC(shell, "-s");
 	ADDVEC(umemb, "-G");
+	if (passwd[0]) {
+	    vec[i++] = "-h";
+	    vec[i++] = "0";
+	}
 	vec[i] = 0;
 
 	chroot(variable_get(VAR_INSTALL_ROOT));
@@ -706,6 +716,11 @@ addUser(WINDOW *ds_win)
     {
 	/* The oldie. */
 	close(pfd[1]);
+	close(ipfd[0]);
+
+	if (passwd[0])
+	    write(ipfd[1], passwd, strlen(passwd));
+	close(ipfd[1]);
 	amnt = sizeof tmp;
 	i = 0;
 	while((l = read(pfd[0], &tmp[i], amnt)) > 0)
@@ -746,7 +761,7 @@ addUser(WINDOW *ds_win)
 		msgConfirm(msg, j);
 	    }
 	}
-	else
+	else if (!passwd[0])
 	    msgConfirm("You will need to enter a password for this user\n"
 		       "later, using the passwd(1) command from the shell.\n\n"
 		       "The account for `%s' is currently still disabled.",
@@ -795,6 +810,7 @@ userAddUser(dialogMenuItem *self)
     CLEAR(uid);
     CLEAR(ugroup);
     CLEAR(gecos);
+    CLEAR(passwd);
     CLEAR(umemb);
     CLEAR(homedir);
     CLEAR(shell);
@@ -804,6 +820,8 @@ userAddUser(dialogMenuItem *self)
     n = 0;
 #define lt userLayout[n]
     while (lt.help != NULL) {
+	if (n == LAYOUT_PASSWD)
+	    DialogInputAttrs = DITEM_NO_ECHO;	/* This will affect the new string object if set */
 	switch (lt.type) {
 	case STRINGOBJ:
 	    lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
@@ -820,6 +838,7 @@ userAddUser(dialogMenuItem *self)
 	    msgFatal("Don't support this object yet!");
 	}
 	AddObj(&obj, lt.type, (void *) lt.obj);
+	DialogInputAttrs = 0;
 	n++;
     }
     max = n - 1;
