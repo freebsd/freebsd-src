@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.198 1999/06/05 21:35:48 brian Exp $
+ * $Id: command.c,v 1.199 1999/06/08 20:11:57 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,7 +143,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.22";
-const char VersionDate[] = "$Date: 1999/06/05 21:35:48 $";
+const char VersionDate[] = "$Date: 1999/06/08 20:11:57 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -395,10 +395,10 @@ subst(char *tgt, const char *oldstr, const char *newstr)
 
 void
 command_Expand(char **nargv, int argc, char const *const *oargv,
-               struct bundle *bundle, int inc0)
+               struct bundle *bundle, int inc0, pid_t pid)
 {
   int arg;
-  char pid[12];
+  char pidstr[12];
 
   if (inc0)
     arg = 0;		/* Start at arg 0 */
@@ -406,7 +406,7 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[0] = strdup(oargv[0]);
     arg = 1;
   }
-  snprintf(pid, sizeof pid, "%d", getpid());
+  snprintf(pidstr, sizeof pidstr, "%d", (int)pid);
   for (; arg < argc; arg++) {
     nargv[arg] = strdup(oargv[arg]);
     nargv[arg] = subst(nargv[arg], "HISADDR",
@@ -423,7 +423,7 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                        mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
                                   bundle->ncp.mp.cfg.enddisc.address,
                                   bundle->ncp.mp.cfg.enddisc.len));
-    nargv[arg] = subst(nargv[arg], "PROCESSID", pid);
+    nargv[arg] = subst(nargv[arg], "PROCESSID", pidstr);
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
   }
   nargv[arg] = NULL;
@@ -433,7 +433,7 @@ static int
 ShellCommand(struct cmdargs const *arg, int bg)
 {
   const char *shell;
-  pid_t shpid;
+  pid_t shpid, pid;
 
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
@@ -459,6 +459,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
   }
 
+  pid = getpid();
   if ((shpid = fork()) == 0) {
     int i, fd;
 
@@ -489,7 +490,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
         argc = sizeof argv / sizeof argv[0] - 1;
         log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
-      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
+      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0, pid);
       if (bg) {
 	pid_t p;
 
@@ -2537,7 +2538,7 @@ SetProcTitle(struct cmdargs const *arg)
     argc = sizeof argv / sizeof argv[0] - 1;
     log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
   }
-  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
+  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1, getpid());
 
   ptr = title;
   remaining = sizeof title - 1;

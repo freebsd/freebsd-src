@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.55 1999/05/08 11:06:18 brian Exp $
+ *	$Id: chat.c,v 1.56 1999/05/27 09:50:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -683,7 +683,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   log_Printf(LogCHAT, "Exec: %s\n", command);
   argc = MakeArgs(command, vector, VECSIZE(vector));
   command_Expand(argv, argc, (char const *const *)vector,
-                 physical->dl->bundle, 0);
+                 physical->dl->bundle, 0, getpid());
 
   if (pipe(fids) < 0) {
     log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",

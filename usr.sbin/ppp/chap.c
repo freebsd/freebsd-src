@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.50 1999/05/08 11:06:15 brian Exp $
+ * $Id: chap.c,v 1.51 1999/06/02 15:58:55 brian Exp $
  *
  *	TODO:
  */
@@ -197,6 +197,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
   char *argv[MAXARGS], *nargv[MAXARGS];
   int argc, fd;
   int in[2], out[2];
+  pid_t pid;
 
   if (chap->child.fd != -1) {
     log_Printf(LogWARN, "Chap: %s: Program already running\n", prog);
@@ -215,6 +216,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
     return;
   }
 
+  pid = getpid();
   switch ((chap->child.pid = fork())) {
     case -1:
       log_Printf(LogERROR, "Chap: fork: %s\n", strerror(errno));
@@ -247,7 +249,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       setuid(geteuid());
       argc = command_Interpret(prog, strlen(prog), argv);
       command_Expand(nargv, argc, (char const *const *)argv,
-                     chap->auth.physical->dl->bundle, 0);
+                     chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);
 
       log_Printf(LogWARN, "exec() of %s failed: %s\n",
