@@ -28,6 +28,9 @@ static char rcsid[] = "$FreeBSD$";
 #if defined(SYSLOG)
 # include <syslog.h>
 #endif
+#if defined(LOGIN_CAP)
+# include <login_cap.h>
+#endif
 
 
 static void		child_process __P((entry *, user *)),
@@ -77,6 +80,10 @@ child_process(e, u)
 	register char	*input_data;
 	char		*usernm, *mailto;
 	int		children = 0;
+# if defined(LOGIN_CAP)
+	struct passwd	*pwd = getpwuid(e->uid);
+	login_cap_t	*lc = login_getclass(pwd);
+# endif
 
 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
 
@@ -212,6 +219,13 @@ child_process(e, u)
 		 */
 		do_univ(u);
 
+# if defined(LOGIN_CAP)
+		/* Set user's entire context, but skip the environment
+		 * as cron provides a separate interface for this
+		 */
+		setusercontext(lc, pwd, e->uid, LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV));
+		login_close(lc);
+# else
 		/* set our directory, uid and gid.  Set gid first, since once
 		 * we set uid, we've lost root privledges.
 		 */
@@ -221,6 +235,7 @@ child_process(e, u)
 # endif
 		setlogin(usernm);
 		setuid(e->uid);		/* we aren't root after this... */
+#endif
 		chdir(env_get("HOME", e->envp));
 
 		/* exec the command.
