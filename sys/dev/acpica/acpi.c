@@ -43,6 +43,7 @@
 #include <sys/ctype.h>
 #include <sys/linker.h>
 #include <sys/power.h>
+#include <sys/sbuf.h>
 
 #include <machine/clock.h>
 #include <machine/resource.h>
@@ -2263,14 +2264,12 @@ SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging,
 static int
 acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    char	*options;
-    int		 error, len, *dbg;
+    int		 error, *dbg;
     struct	 debugtag *tag;
+    struct	 sbuf sb;
 
-    len = 512;
-    MALLOC(options, char *, len, M_TEMP, M_WAITOK);
-    options[0] = '\0';
-
+    if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL)
+	return (ENOMEM);
     if (strcmp(oidp->oid_arg1, "debug.acpi.layer") == 0) {
 	tag = &dbg_layer[0];
 	dbg = &AcpiDbgLayer;
@@ -2281,17 +2280,18 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 
     /* Get old values if this is a get request. */
     if (*dbg == 0) {
-	strlcpy(options, "NONE", sizeof(options));
+	sbuf_cpy(&sb, "NONE");
     } else if (req->newptr == NULL) {
 	for (; tag->name != NULL; tag++) {
-	    if ((*dbg & tag->value) == tag->value) {
-		strlcat(options, tag->name, len);
-		strlcat(options, " ", len); /* XXX */
-	    }
+	    if ((*dbg & tag->value) == tag->value)
+		sbuf_printf(&sb, "%s ", tag->name);
 	}
     }
+    sbuf_trim(&sb);
+    sbuf_finish(&sb);
 
-    error = sysctl_handle_string(oidp, options, len, req);
+    error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+    sbuf_delete(&sb);
 
     /* If the user is setting a string, parse it. */
     if (error == 0 && req->newptr != NULL) {
@@ -2299,7 +2299,6 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 	setenv((char *)oidp->oid_arg1, (char *)req->newptr);
 	acpi_set_debugging(NULL);
     }
-    FREE(options, M_TEMP);
 
     return (error);
 }
