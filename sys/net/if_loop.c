@@ -322,7 +322,7 @@ if_simloop(ifp, m, af, hlen)
 	/* Strip away media header */
 	if (hlen > 0) {
 		m_adj(m, hlen);
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__ia64__)
 		/* The alpha doesn't like unaligned data.
 		 * We move data down in the first mbuf */
 		if (mtod(m, vm_offset_t) & 3) {
