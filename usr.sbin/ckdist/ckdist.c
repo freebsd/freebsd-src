@@ -32,17 +32,19 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
 #include <md5.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-extern int crc(int fd, u_long * cval, u_long * clen);
+extern int crc(int fd, uint32_t *cval, off_t *clen);
 
 #define DISTMD5     1		/* MD5 format */
 #define DISTINF     2		/* .inf format */
@@ -267,7 +269,10 @@ chkinf(FILE * fp, const char *path)
     char ext[3];
     struct stat sb;
     const char *dname;
-    u_long sum, len, chk;
+    off_t len;
+    u_long sum;
+    intmax_t sumlen;
+    uint32_t chk;
     int rval, error, c, pieces, cnt, fd;
     char ch;
 
@@ -280,8 +285,8 @@ chkinf(FILE * fp, const char *path)
 	    if ((c = sscanf(buf, "Pieces =  %d%c", &pieces, &ch)) != 2 ||
 		ch != '\n' || pieces < 1)
 		error = E_BADINF;
-	} else if (((c = sscanf(buf, "cksum.%2s = %lu %lu%c", ext, &sum,
-			        &len, &ch)) != 4 &&
+	} else if (((c = sscanf(buf, "cksum.%2s = %lu %jd%c", ext, &sum,
+			        &sumlen, &ch)) != 4 &&
 		    (!feof(fp) || c != 3)) || (c == 4 && ch != '\n') ||
 		   ext[0] != 'a' + cnt / 26 || ext[1] != 'a' + cnt % 26)
 	    error = E_BADINF;
@@ -292,7 +297,7 @@ chkinf(FILE * fp, const char *path)
 	    error = E_ERRNO;
 	else if (fstat(fd, &sb))
 	    error = E_ERRNO;
-	else if (sb.st_size != (off_t)len)
+	else if (sb.st_size != (off_t)sumlen)
 	    error = E_LENGTH;
 	else if (!opt_exist) {
 	    if (crc(fd, &chk, &len))
