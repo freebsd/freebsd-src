@@ -730,6 +730,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para>The <application>ACPI-CA</application> code has been updated
+      from the 20021118 snapshot to the 20030228 snapshot.</para>
+
     <para><application>awk</application> from Bell Labs has been
       updated to a 14 March 2003 snapshot.</para>
 
@@ -753,6 +756,9 @@
     <para>The <application>gdtoa</application> library, for
       conversions between strings and floating point, has been imported.  These sources
       were dated 24 March 2003.</para>
+
+    <para><application>groff</application> (and related utilities)
+      have been updated from 1.18.1 to 1.19.</para>
 
     <para><application>IPFilter</application> has been updated to
       3.4.31. &merged;</para>
@@ -800,6 +806,10 @@
       link types available on an interface and a <option>-y</option>
       option to specify the data link type to use while capturing
       packets.</para>
+
+    <para>The timezone database has been updated from
+      <filename>tzdata2002d</filename> to
+      <filename>tzdata2003a</filename>. &merged;</para>
 
   </sect2>
 
