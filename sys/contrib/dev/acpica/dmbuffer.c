@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmbuffer - AML disassembler, buffer and string support
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  ******************************************************************************/
 
@@ -123,7 +123,7 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmbuffer")
 
 
@@ -513,7 +513,7 @@ AcpiDmUnicode (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiIsEisaId 
+ * FUNCTION:    AcpiIsEisaId
  *
  * PARAMETERS:  Op              - Op to be examined
  *
@@ -541,7 +541,7 @@ AcpiIsEisaId (
     {
         return;
     }
-    
+
     /* We are looking for _HID */
 
     if (ACPI_STRNCMP ((char *) &Name, "_HID", 4))
@@ -587,7 +587,7 @@ AcpiIsEisaId (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmEisaId 
+ * FUNCTION:    AcpiDmEisaId
  *
  * PARAMETERS:  EncodedId       - Raw encoded EISA ID.
  *

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 168 $
+ *              $Revision: 169 $
  *
  *****************************************************************************/
 
@@ -186,7 +186,7 @@ AcpiExStore (
     /* Destination object must be a Reference or a Constant object */
 
     switch (ACPI_GET_OBJECT_TYPE (DestDesc))
-    {  
+    {
     case INTERNAL_TYPE_REFERENCE:
         break;
 

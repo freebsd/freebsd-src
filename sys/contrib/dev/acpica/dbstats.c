@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 60 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -119,9 +119,9 @@
 #include <acdebug.h>
 #include <acnamesp.h>
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbstats")
 
 /*
@@ -240,8 +240,6 @@ AcpiDbEnumerateObject (
 }
 
 
-#ifndef PARSER_ONLY
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbClassifyOneObject
@@ -346,8 +344,6 @@ AcpiDbCountNamespaceObjects (
                         FALSE, AcpiDbClassifyOneObject, NULL, NULL);
 }
 
-#endif
-
 
 /*******************************************************************************
  *
@@ -395,13 +391,11 @@ AcpiDbDisplayStatistics (
 
     switch (Type)
     {
-#ifndef PARSER_ONLY
     case CMD_STAT_ALLOCATIONS:
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
         AcpiUtDumpAllocationInfo ();
 #endif
         break;
-#endif
 
     case CMD_STAT_TABLES:
 
@@ -413,8 +407,6 @@ AcpiDbDisplayStatistics (
         break;
 
     case CMD_STAT_OBJECTS:
-
-#ifndef PARSER_ONLY
 
         AcpiDbCountNamespaceObjects ();
 
@@ -432,8 +424,6 @@ AcpiDbDisplayStatistics (
 
         AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", "TOTALS:",
             AcpiGbl_NumNodes, AcpiGbl_NumObjects);
-
-#endif
         break;
 
     case CMD_STAT_MEMORY:
@@ -537,7 +527,7 @@ AcpiDbDisplayStatistics (
 
 
     case CMD_STAT_STACK:
-#if defined(ACPI_DEBUG)
+#if defined(ACPI_DEBUG_OUTPUT)
 
         Size = (UINT32) (AcpiGbl_EntryStackPointer - AcpiGbl_LowestStackPointer);
 
@@ -558,4 +548,4 @@ AcpiDbDisplayStatistics (
 }
 
 
-#endif /* ENABLE_DEBUGGER  */
+#endif /* ACPI_DEBUGGER  */

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  ******************************************************************************/
 
@@ -124,7 +124,7 @@
         ACPI_MODULE_NAME    ("rsdump")
 
 
-#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 /*******************************************************************************
  *

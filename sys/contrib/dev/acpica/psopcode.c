@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser/Interpreter opcode information table
- *              $Revision: 71 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -649,17 +649,17 @@ const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[AML_NUM_OPCODES] =
 /* 60 */ ACPI_OP ("LNotEqual",          ARGP_LNOTEQUAL_OP,         ARGI_LNOTEQUAL_OP,          ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           AML_HAS_ARGS | AML_CONSTANT),
 /* 61 */ ACPI_OP ("LLessEqual",         ARGP_LLESSEQUAL_OP,        ARGI_LLESSEQUAL_OP,         ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           AML_HAS_ARGS | AML_CONSTANT),
 /* 62 */ ACPI_OP ("LGreaterEqual",      ARGP_LGREATEREQUAL_OP,     ARGI_LGREATEREQUAL_OP,      ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           AML_HAS_ARGS | AML_CONSTANT),
-/* 63 */ ACPI_OP ("[NamePath]",         ARGP_NAMEPATH_OP,          ARGI_NAMEPATH_OP,           INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         AML_NSOBJECT | AML_NSNODE ),
-/* 64 */ ACPI_OP ("[MethodCall]",       ARGP_METHODCALL_OP,        ARGI_METHODCALL_OP,         ACPI_TYPE_METHOD,        AML_CLASS_METHOD_CALL,     AML_TYPE_METHOD_CALL,     AML_HAS_ARGS | AML_NSOBJECT | AML_NSNODE),
-/* 65 */ ACPI_OP ("[ByteList]",         ARGP_BYTELIST_OP,          ARGI_BYTELIST_OP,           ACPI_TYPE_ANY,           AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         0),
-/* 66 */ ACPI_OP ("[ReservedField]",    ARGP_RESERVEDFIELD_OP,     ARGI_RESERVEDFIELD_OP,      ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
-/* 67 */ ACPI_OP ("[NamedField]",       ARGP_NAMEDFIELD_OP,        ARGI_NAMEDFIELD_OP,         ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED ),
-/* 68 */ ACPI_OP ("[AccessField]",      ARGP_ACCESSFIELD_OP,       ARGI_ACCESSFIELD_OP,        ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
-/* 69 */ ACPI_OP ("[StaticString",      ARGP_STATICSTRING_OP,      ARGI_STATICSTRING_OP,       ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
-/* 6A */ ACPI_OP ("[Return Value]",     ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_RETURN_VALUE,    AML_TYPE_RETURN,          AML_HAS_ARGS | AML_HAS_RETVAL),
-/* 6B */ ACPI_OP ("UNKNOWN_OP!",        ARG_NONE,                  ARG_NONE,                   INTERNAL_TYPE_INVALID,   AML_CLASS_UNKNOWN,         AML_TYPE_BOGUS,           AML_HAS_ARGS),
-/* 6C */ ACPI_OP ("ASCII_ONLY!",        ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_ASCII,           AML_TYPE_BOGUS,           AML_HAS_ARGS),
-/* 6D */ ACPI_OP ("PREFIX_ONLY!",       ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_PREFIX,          AML_TYPE_BOGUS,           AML_HAS_ARGS),
+/* 63 */ ACPI_OP ("-NamePath-",         ARGP_NAMEPATH_OP,          ARGI_NAMEPATH_OP,           INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         AML_NSOBJECT | AML_NSNODE ),
+/* 64 */ ACPI_OP ("-MethodCall-",       ARGP_METHODCALL_OP,        ARGI_METHODCALL_OP,         ACPI_TYPE_METHOD,        AML_CLASS_METHOD_CALL,     AML_TYPE_METHOD_CALL,     AML_HAS_ARGS | AML_NSOBJECT | AML_NSNODE),
+/* 65 */ ACPI_OP ("-ByteList-",         ARGP_BYTELIST_OP,          ARGI_BYTELIST_OP,           ACPI_TYPE_ANY,           AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         0),
+/* 66 */ ACPI_OP ("-ReservedField-",    ARGP_RESERVEDFIELD_OP,     ARGI_RESERVEDFIELD_OP,      ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
+/* 67 */ ACPI_OP ("-NamedField-",       ARGP_NAMEDFIELD_OP,        ARGI_NAMEDFIELD_OP,         ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED ),
+/* 68 */ ACPI_OP ("-AccessField-",      ARGP_ACCESSFIELD_OP,       ARGI_ACCESSFIELD_OP,        ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
+/* 69 */ ACPI_OP ("-StaticString",      ARGP_STATICSTRING_OP,      ARGI_STATICSTRING_OP,       ACPI_TYPE_ANY,           AML_CLASS_INTERNAL,        AML_TYPE_BOGUS,           0),
+/* 6A */ ACPI_OP ("-Return Value-",     ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_RETURN_VALUE,    AML_TYPE_RETURN,          AML_HAS_ARGS | AML_HAS_RETVAL),
+/* 6B */ ACPI_OP ("-UNKNOWN_OP-",       ARG_NONE,                  ARG_NONE,                   INTERNAL_TYPE_INVALID,   AML_CLASS_UNKNOWN,         AML_TYPE_BOGUS,           AML_HAS_ARGS),
+/* 6C */ ACPI_OP ("-ASCII_ONLY-",       ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_ASCII,           AML_TYPE_BOGUS,           AML_HAS_ARGS),
+/* 6D */ ACPI_OP ("-PREFIX_ONLY-",      ARG_NONE,                  ARG_NONE,                   ACPI_TYPE_ANY,           AML_CLASS_PREFIX,          AML_TYPE_BOGUS,           AML_HAS_ARGS),
 
 
 /* ACPI 2.0 opcodes */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 105 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -267,7 +267,7 @@ AcpiDsInitOneObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any 
+ * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any
  *              necessary initialization on the objects found therein
  *
  ******************************************************************************/
@@ -300,7 +300,7 @@ AcpiDsInitializeObjects (
                     AcpiDsInitOneObject, &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "WalkNamespace failed, %s\n", 
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "WalkNamespace failed, %s\n",
             AcpiFormatException (Status)));
     }
 
@@ -461,7 +461,7 @@ AcpiDsBuildInternalBufferObj (
 
     /*
      * Second arg is the buffer data (optional) ByteList can be either
-     * individual bytes or a string initializer.  In either case, a 
+     * individual bytes or a string initializer.  In either case, a
      * ByteList appears in the AML.
      */
     Arg = Op->Common.Value.Arg;         /* skip first arg */
@@ -471,7 +471,7 @@ AcpiDsBuildInternalBufferObj (
     {
         if (ByteList->Common.AmlOpcode != AML_INT_BYTELIST_OP)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Expecting bytelist, got AML opcode %X in op %p\n",
                 ByteList->Common.AmlOpcode, ByteList));
 
@@ -484,7 +484,7 @@ AcpiDsBuildInternalBufferObj (
 
     /*
      * The buffer length (number of bytes) will be the larger of:
-     * 1) The specified buffer length and 
+     * 1) The specified buffer length and
      * 2) The length of the initializer byte list
      */
     ObjDesc->Buffer.Length = BufferLength;
@@ -507,7 +507,7 @@ AcpiDsBuildInternalBufferObj (
     if (!ObjDesc->Buffer.Pointer)
     {
         AcpiUtDeleteObjectDesc (ObjDesc);
-        return_ACPI_STATUS (AE_NO_MEMORY);        
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     /* Initialize buffer from the ByteList (if present) */
@@ -789,7 +789,7 @@ AcpiDsInitObjectFromOp (
         break;
 
 
-    case ACPI_TYPE_INTEGER: 
+    case ACPI_TYPE_INTEGER:
 
         switch (OpInfo->Type)
         {
@@ -882,7 +882,7 @@ AcpiDsInitObjectFromOp (
             ObjDesc->Reference.Opcode = AML_LOCAL_OP;
             ObjDesc->Reference.Offset = Opcode - AML_LOCAL_OP;
 #ifndef ACPI_NO_METHOD_EXECUTION
-            AcpiDsMethodDataGetNode (AML_LOCAL_OP, ObjDesc->Reference.Offset, 
+            AcpiDsMethodDataGetNode (AML_LOCAL_OP, ObjDesc->Reference.Offset,
                 WalkState, (ACPI_NAMESPACE_NODE **) &ObjDesc->Reference.Object);
 #endif
             break;
@@ -922,6 +922,5 @@ AcpiDsInitObjectFromOp (
 
     return_ACPI_STATUS (Status);
 }
-
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbgetall - Get all required ACPI tables
- *              $Revision: 1 $
+ *              $Revision: 2 $
  *
  *****************************************************************************/
 
@@ -122,7 +122,6 @@
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbgetall")
-
 
 
 /*******************************************************************************
@@ -291,12 +290,12 @@ AcpiTbGetRequiredTables (
     ACPI_STATUS             Status = AE_OK;
     UINT32                  i;
     ACPI_TABLE_DESC         TableInfo;
-    ACPI_POINTER            Address;     
+    ACPI_POINTER            Address;
 
 
     ACPI_FUNCTION_TRACE ("TbGetRequiredTables");
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%d ACPI tables in RSDT\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%d ACPI tables in RSDT\n",
         AcpiGbl_RsdtTableCount));
 
 
@@ -316,7 +315,7 @@ AcpiTbGetRequiredTables (
 
         Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_XSDT->TableOffsetEntry[i]);
 
-        /* 
+        /*
          * Get the tables needed by this subsystem (FADT and any SSDTs).
          * NOTE: All other tables are completely ignored at this time.
          */

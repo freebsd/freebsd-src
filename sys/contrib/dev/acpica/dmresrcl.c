@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrcl.c - "Large" Resource Descriptor disassembly
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  ******************************************************************************/
 
@@ -121,7 +121,7 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrcl")
 
 
@@ -286,19 +286,19 @@ AcpiDmDwordDescriptor (
 
     AcpiOsPrintf ("\n");
     AcpiDmIndent (Level + 1);
-    AcpiOsPrintf ("0x%8.8X,\n", 
+    AcpiOsPrintf ("0x%8.8X,\n",
         Resource->Granularity);
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X,\n",
         Resource->AddressMin);
     AcpiDmIndent (Level + 1);
-    AcpiOsPrintf ("0x%8.8X,\n", 
+    AcpiOsPrintf ("0x%8.8X,\n",
         Resource->AddressMax);
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X,\n",
         Resource->TranslationOffset);
     AcpiDmIndent (Level + 1);
-    AcpiOsPrintf ("0x%8.8X", 
+    AcpiOsPrintf ("0x%8.8X",
         Resource->AddressLength);
 
     /* Optional fields */
@@ -512,9 +512,9 @@ AcpiDmGenericRegisterDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Register (");
-    
+
     AcpiDmAddressSpace (Resource->AddressSpaceId);
-    
+
     AcpiOsPrintf ("0x%2.2X, 0x%2.2X, 0x%8.8X%8.8X)\n",
         (UINT32) Resource->BitWidth,
         (UINT32) Resource->BitOffset,

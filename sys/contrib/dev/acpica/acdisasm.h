@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 2 $
+ *       $Revision: 3 $
  *
  *****************************************************************************/
 
@@ -161,7 +161,6 @@ ACPI_STATUS (*ASL_WALK_CALLBACK) (
     void                        *Context);
 
 
-
 /*
  * dmwalk
  */
@@ -224,7 +223,7 @@ AcpiDmDisplayPath (
 void
 AcpiDmDisassembleOneOp (
     ACPI_WALK_STATE         *WalkState,
-    ACPI_OP_WALK_INFO       *Info,    
+    ACPI_OP_WALK_INFO       *Info,
     ACPI_PARSE_OBJECT       *Op);
 
 void
@@ -276,12 +275,12 @@ BOOLEAN
 AcpiDmCommaIfListMember (
     ACPI_PARSE_OBJECT       *Op);
 
-void 
+void
 AcpiDmCommaIfFieldMember (
     ACPI_PARSE_OBJECT       *Op);
 
 
-/* 
+/*
  * dmbuffer
  */
 
@@ -314,12 +313,12 @@ AcpiDmDisasmByteList (
 
 void
 AcpiDmByteList (
-    ACPI_OP_WALK_INFO       *Info,    
+    ACPI_OP_WALK_INFO       *Info,
     ACPI_PARSE_OBJECT       *Op);
 
 void
 AcpiDmResourceDescriptor (
-    ACPI_OP_WALK_INFO       *Info,    
+    ACPI_OP_WALK_INFO       *Info,
     UINT8                   *ByteData,
     UINT32                  ByteCount);
 
