@@ -37,16 +37,16 @@
 .Nm cpio
 .Nd copy file archives in and out
 .Sh SYNOPSIS
-.Nm cpio
+.Nm
 .Fl o
 .Op Fl aABcLvzZ
 .Op Fl C Ar bytes
 .Op Fl F Ar archive
 .Op Fl H Ar format
 .Op Fl O Ar archive
-.Ar "< name-list"
-.Op Ar "> archive"
-.Nm cpio
+.No < Ar name-list
+.Op No > Ar archive
+.Nm
 .Fl i
 .Op Fl bBcdfmrsStuvzZ6
 .Op Fl C Ar bytes
@@ -54,13 +54,13 @@
 .Op Fl F Ar archive
 .Op Fl H Ar format
 .Op Fl I Ar archive
-.Op Ar "pattern ..."
-.Op Ar "< archive"
-.Nm cpio
+.Op Ar pattern ...
+.Op No < Ar archive
+.Nm
 .Fl p
 .Op Fl adlLmuv
 .Ar destination-directory
-.Ar "< name-list"
+.No < Ar name-list
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,13 +69,13 @@ command copies files to and from a
 archive.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl o
 Create an archive.
 Reads the list of files to store in the
 archive from standard input, and writes the archive on standard
 output.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Reset the access times on files that have been copied to the
 archive.
@@ -84,7 +84,9 @@ Append to the specified archive.
 .It Fl B
 Set block size of output to 5120 bytes.
 .It Fl c
-Use ASCII format for
+Use
+.Tn ASCII
+format for
 .Nm
 header for portability.
 .It Fl C Ar bytes
@@ -98,22 +100,24 @@ Write the archive in the specified format.
 Recognized formats are:
 .Pp
 .Bl -tag -width sv4cpio -compact
-.It Ar bcpio
+.It Cm bcpio
 Old binary
 .Nm
 format.
-.It Ar cpio
+.It Cm cpio
 Old octal character
 .Nm
 format.
-.It Ar sv4cpio
-SVR4 hex
+.It Cm sv4cpio
+.Tn SVR4
+hex
 .Nm
 format.
-.It Ar tar
+.It Cm tar
 Old tar format.
-.It Ar ustar
-POSIX ustar format.
+.It Cm ustar
+.Tn POSIX
+ustar format.
 .El
 .It Fl L
 Follow symbolic links.
@@ -135,7 +139,7 @@ Reads the archive file from
 standard input and extracts files matching the
 .Ar patterns
 that were specified on the command line.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b
 Do byte and word swapping after reading in data from the
 archive, for restoring archives created on systems with
@@ -143,7 +147,9 @@ a different byte order.
 .It Fl B
 Set the block size of the archive being read to 5120 bytes.
 .It Fl c
-Expect the archive headers to be in ASCII format.
+Expect the archive headers to be in
+.Tn ASCII
+format.
 .It Fl C Ar bytes
 Read archive written with a block size of
 .Ar bytes .
@@ -157,30 +163,31 @@ Read list of file name patterns to extract or list from
 Restore all files except those matching the
 .Ar patterns
 given on the command line.
-.It Fl F Ar archive
-.It Fl I Ar archive
+.It Fl F Ar archive , Fl I Ar archive
 Use the specified file as the input for the archive.
 .It Fl H Ar format
 Read an archive of the specified format.
 Recognized formats are:
 .Pp
 .Bl -tag -width sv4cpio -compact
-.It Ar bcpio
+.It Cm bcpio
 Old binary
 .Nm
 format.
-.It Ar cpio
+.It Cm cpio
 Old octal character
 .Nm
 format.
-.It Ar sv4cpio
-SVR4 hex
+.It Cm sv4cpio
+.Tn SVR4
+hex
 .Nm
 format.
-.It Ar tar
+.It Cm tar
 Old tar format.
-.It Ar ustar
-POSIX ustar format.
+.It Cm ustar
+.Tn POSIX
+ustar format.
 .El
 .It Fl m
 Restore modification times on files.
@@ -218,7 +225,7 @@ The list of files to copy are read from standard input and
 written out to a directory relative to the specified
 .Ar directory
 argument.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Reset the access times on files that have been copied.
 .It Fl d
@@ -239,7 +246,12 @@ Be verbose about operations.
 List filenames as they are copied.
 .El
 .El
-.Sh ERRORS
+.Sh ENVIRONMENT
+.Bl -tag -width TMPDIR
+.It Ev TMPDIR
+Path in which to store temporary files.
+.El
+.Sh DIAGNOSTICS
 .Nm
 will exit with one of the following values:
 .Bl -tag -width 2n
@@ -277,16 +289,12 @@ or error,
 .Nm
 may have only partially created the archive which may violate the
 specific archive format specification.
-.Sh ENVIRONMENT
-.Bl -tag -width Fl
-.It Ev TMPDIR
-Path in which to store temporary files.
-.El
 .Sh SEE ALSO
 .Xr pax 1 ,
 .Xr tar 1
 .Sh AUTHORS
-Keith Muller at the University of California, San Diego.
+.An Keith Muller
+at the University of California, San Diego.
 .Sh BUGS
 The
 .Fl s
