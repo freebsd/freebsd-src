@@ -56,15 +56,15 @@ PT2:
 
 gdtdesc:
 	.word	gdtend - gdt
-	.long	VTOP(gdt)		# low
-	.long	0			# high
+	.long	VTOP(gdt)		// low
+	.long	0			// high
 
 gdt:
-	.long	0			# null descriptor
+	.long	0			// null descriptor
 	.long	0
-	.long	0x00000000		# %cs
+	.long	0x00000000		// %cs
 	.long	0x00209800
-	.long	0x00000000		# %ds
+	.long	0x00000000		// %ds
 	.long	0x00008000
 gdtend:
 	
