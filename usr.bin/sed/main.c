@@ -434,20 +434,21 @@ inplace_edit(filename)
 	if (*inplace == '\0') {
 		char template[] = "/tmp/sed.XXXXXXXXXX";
 
-		if (mktemp(template) == NULL)
-			err(1, "mktemp");
+		output = mkstemp(template);
+		if (output == -1)
+			err(1, "mkstemp");
 		strlcpy(backup, template, MAXPATHLEN);
 	} else {
 		strlcpy(backup, *filename, MAXPATHLEN);
 		strlcat(backup, inplace, MAXPATHLEN);
+		output = open(backup, O_WRONLY | O_CREAT | O_EXCL);
+		if (output == -1)
+			err(1, "open(%s)", backup);
 	}
 
 	input = open(*filename, O_RDONLY);
 	if (input == -1)
 		err(1, "open(%s)", *filename);
-	output = open(backup, O_WRONLY|O_CREAT);
-	if (output == -1)
-		err(1, "open(%s)", backup);
 	if (fchmod(output, orig.st_mode & ~S_IFMT) == -1)
 		err(1, "chmod");
 	buffer = malloc(orig.st_size);
