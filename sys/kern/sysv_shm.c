@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.13 1995/12/07 12:46:55 davidg Exp $ */
+/*	$Id: sysv_shm.c,v 1.14 1995/12/14 08:31:54 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -51,6 +51,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
+#ifndef _SYS_SYSPROTO_H_
 struct shmat_args;
 extern int shmat __P((struct proc *p, struct shmat_args *uap, int *retval));
 struct shmctl_args;
@@ -59,6 +60,7 @@ struct shmdt_args;
 extern int shmdt __P((struct proc *p, struct shmdt_args *uap, int *retval));
 struct shmget_args;
 extern int shmget __P((struct proc *p, struct shmget_args *uap, int *retval));
+#endif
 
 static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
@@ -171,9 +173,12 @@ shm_delete_mapping(p, shmmap_s)
 	return 0;
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct shmdt_args {
 	void *shmaddr;
 };
+#endif
+
 int
 shmdt(p, uap, retval)
 	struct proc *p;
@@ -195,11 +200,14 @@ shmdt(p, uap, retval)
 	return shm_delete_mapping(p, shmmap_s);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct shmat_args {
 	int shmid;
 	void *shmaddr;
 	int shmflg;
 };
+#endif
+
 int
 shmat(p, uap, retval)
 	struct proc *p;
@@ -327,11 +335,14 @@ oshmctl(p, uap, retval)
 #endif
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct shmctl_args {
 	int shmid;
 	int cmd;
-	struct shmid_ds *ubuf;
+	struct shmid_ds *buf;
 };
+#endif
+
 int
 shmctl(p, uap, retval)
 	struct proc *p;
@@ -351,7 +362,7 @@ shmctl(p, uap, retval)
 		error = ipcperm(cred, &shmseg->shm_perm, IPC_R);
 		if (error)
 			return error;
-		error = copyout((caddr_t)shmseg, uap->ubuf, sizeof(inbuf));
+		error = copyout((caddr_t)shmseg, uap->buf, sizeof(inbuf));
 		if (error)
 			return error;
 		break;
@@ -359,7 +370,7 @@ shmctl(p, uap, retval)
 		error = ipcperm(cred, &shmseg->shm_perm, IPC_M);
 		if (error)
 			return error;
-		error = copyin(uap->ubuf, (caddr_t)&inbuf, sizeof(inbuf));
+		error = copyin(uap->buf, (caddr_t)&inbuf, sizeof(inbuf));
 		if (error)
 			return error;
 		shmseg->shm_perm.uid = inbuf.shm_perm.uid;
@@ -390,11 +401,14 @@ shmctl(p, uap, retval)
 	return 0;
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct shmget_args {
 	key_t key;
 	size_t size;
 	int shmflg;
 };
+#endif
+
 static int
 shmget_existing(p, uap, mode, segnum, retval)
 	struct proc *p;
