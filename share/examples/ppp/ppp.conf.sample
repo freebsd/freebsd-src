@@ -4,7 +4,7 @@
 #
 #           Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5 1999/05/30 21:31:18 billf Exp $
+# $Id: ppp.conf.sample,v 1.6 1999/07/27 23:44:29 brian Exp $
 #
 #################################################################
 
@@ -486,6 +486,8 @@ loop-in:
 #
 sloop:
  load loop
+ # Passive mode allows ssh plenty of time to establish the connection
+ set openmode passive
  set device "!ssh whatevermachine /usr/sbin/ppp -direct loop-in"
 
 # Example of non-PPP callback.
