@@ -80,6 +80,7 @@ struct mac_policy_ops {
 	int	(*mpo_init_socket_label)(struct label *label, int flag);
 	int	(*mpo_init_socket_peer_label)(struct label *label, int flag);
 	void	(*mpo_init_pipe_label)(struct label *label);
+	void	(*mpo_init_proc_label)(struct label *label);
 	void	(*mpo_init_vnode_label)(struct label *label);
 	void	(*mpo_destroy_bpfdesc_label)(struct label *label);
 	void	(*mpo_destroy_cred_label)(struct label *label);
@@ -92,6 +93,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_socket_label)(struct label *label);
 	void	(*mpo_destroy_socket_peer_label)(struct label *label);
 	void	(*mpo_destroy_pipe_label)(struct label *label);
+	void	(*mpo_destroy_proc_label)(struct label *label);
 	void	(*mpo_destroy_vnode_label)(struct label *label);
 	void	(*mpo_copy_pipe_label)(struct label *src,
 		    struct label *dest);
