@@ -86,6 +86,7 @@ struct eisa_device {
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
 #endif
 int num_eisa_slots = EISA_SLOTS;
+TUNABLE_INT("hw.eisa_slots", &num_eisa_slots);
 
 static devclass_t eisa_devclass;
 
