@@ -3518,13 +3518,8 @@ extattrctl(td, uap)
 		return (error);
 	}
 
-	if (uap->attrname != NULL) {
-		error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp,
-		    uap->attrnamespace, attrname, td);
-	} else {
-		error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp,
-		    uap->attrnamespace, NULL, td);
-	}
+	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
+	    uap->attrname != NULL ? attrname : NULL, td);
 
 	vn_finished_write(mp_writable);
 	/*
