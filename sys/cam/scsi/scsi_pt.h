@@ -1,4 +1,4 @@
-/*
+/*-
  * Structure and function declarations for Processor type devices.
  *
  * Copyright (c) 1998 Justin T. Gibbs
