@@ -48,8 +48,6 @@
 
 #include <i386/eisa/eisaconf.h>
 
-#include <sys/interrupt.h>
-
 typedef struct resvaddr {
         u_long	addr;				/* start address */
         u_long	size;				/* size of reserved area */
