@@ -79,7 +79,7 @@ driver was unable to obtain the
 addresses.
 .It Bq Er ENXIO
 May be returned if the device cannot obtain a valid
-.Tn IO
+.Tn I/O
 port through
 .Fn isa_get_port .
 This error may also be returned if the
@@ -90,8 +90,8 @@ function cannot obtain a valid
 .Sh SEE ALSO
 .Xr tty 1 ,
 .Xr ttyname 3 ,
-.Xr tty 4 ,
 .Xr sio 4 ,
+.Xr tty 4 ,
 .Xr device.hints 5 ,
 .Xr comcontrol 8 ,
 .Xr getty 8 ,
@@ -113,7 +113,7 @@ This manual page was written by
 The
 .Nm
 driver code still uses the
-.Fn splx
+.Xr spl 9
 functions.
 These should be replaced by
 .Xr mutex 9
