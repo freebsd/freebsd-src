@@ -1325,6 +1325,7 @@ static void listWords(FICL_VM *pVM)
     FICL_WORD *wp;
     int nChars = 0;
     int len;
+    int y = 0;
     unsigned i;
     int nWords = 0;
     char *cp;
@@ -1344,6 +1345,13 @@ static void listWords(FICL_VM *pVM)
             {
                 pPad[nChars] = '\0';
                 nChars = 0;
+		y++;
+		if(y>23) {
+			y=0;
+			vmTextOut(pVM, "--- Press Enter to continue ---",0);
+			getchar();
+			vmTextOut(pVM,"\r",0);
+		}
                 vmTextOut(pVM, pPad, 1);
             }
             else
@@ -1357,6 +1365,13 @@ static void listWords(FICL_VM *pVM)
             {
                 pPad[nChars] = '\0';
                 nChars = 0;
+		y++;
+		if(y>23) {
+			y=0;
+			vmTextOut(pVM, "--- Press Enter to continue ---",0);
+			getchar();
+			vmTextOut(pVM,"\r",0);
+		}
                 vmTextOut(pVM, pPad, 1);
             }
         }
@@ -4121,6 +4136,61 @@ static void key(FICL_VM *pVM)
     return;
 }
 
+/*           key? - check for a character from stdin (FACILITY)
+ *
+ * key? ( -- flag )
+ */
+static void keyQuestion(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 0, 1);
+#endif
+#ifdef TESTMAIN
+    /* XXX Since we don't fiddle with termios, let it always succeed... */
+    stackPushINT32(pVM->pStack, FICL_TRUE);
+#else
+    /* But here do the right thing. */
+    stackPushINT32(pVM->pStack, ischar()? FICL_TRUE : FICL_FALSE);
+#endif
+    return;
+}
+
+/* seconds - gives number of seconds since beginning of time
+ *
+ * beginning of time is defined as:
+ *
+ *	BTX	- number of seconds since midnight
+ *	FreeBSD	- number of seconds since Jan 1 1970
+ *
+ * seconds ( -- u )
+ */
+static void pseconds(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM,0,1);
+#endif
+    stackPushUNS32(pVM->pStack, (u_int32_t) time(NULL));
+    return;
+}
+
+/* ms - wait at least that many milliseconds (FACILITY)
+ *
+ * ms ( u -- )
+ *
+ */
+static void ms(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM,1,0);
+#endif
+#ifdef TESTMAIN
+    usleep(stackPopUNS32(pVM->pStack)*1000);
+#else
+    delay(stackPopUNS32(pVM->pStack)*1000);
+#endif
+    return;
+}
+
 /*           fkey - get a character from a file
  *
  * fkey ( file -- char )
@@ -4302,13 +4372,16 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "value",     constant,       FW_DEFAULT);
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
-    /* FreeBSD extention words */
+    /* FreeBSD extension words */
     dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
     dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
     dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
+    dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
+    dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
+    dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
 
     /*
     ** Set CORE environment query values
