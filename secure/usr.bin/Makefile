@@ -7,7 +7,7 @@ SUBDIR+=telnet
 .if !defined(NO_OPENSSL)
 SUBDIR+=openssl
 .if !defined(NO_OPENSSH)
-SUBDIR+=scp ssh ssh-add ssh-agent ssh-keygen
+SUBDIR+=scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan
 .endif
 .endif
 

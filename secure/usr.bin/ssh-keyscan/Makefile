@@ -1,11 +1,11 @@
 # $FreeBSD$
 #
 
-PROG=	ssh-add
-SRCS=	ssh-add.c
+PROG=	ssh-keyscan
+SRCS=	ssh-keyscan.c
 
 LDADD+=	${LIBSSH} -lcrypto
-DPADD+= ${LIBSSH} ${LIBCRYPTO}
+DPADD+=	${LIBSSH} ${LIBCRYPTO}
 
 .include <bsd.prog.mk>
 

@@ -1,8 +1,8 @@
 # $FreeBSD$
 #
 
-PROG=	ssh-keygen
-SRCS=	ssh-keygen.c
+PROG=	sftp
+SRCS=   sftp.c sftp-client.c sftp-int.c sftp-common.c sftp-glob.c scp-common.c
 
 LDADD+=	${LIBSSH} -lcrypto
 DPADD+=	${LIBSSH} ${LIBCRYPTO}
