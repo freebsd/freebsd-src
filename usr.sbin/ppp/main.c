@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.13 1997/05/17 16:12:05 brian Exp $
+ * $Id: main.c,v 1.22.2.14 1997/05/19 02:02:23 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -462,8 +462,9 @@ char **argv;
 	    printf("PPP enabled.\n");
 	    LogPrintf (LOG_PHASE_BIT, "Parent: PPP enabled.\n");
 	  } else {
-	    printf("Child failed %d.\n",(int)c);
-	    LogPrintf (LOG_PHASE_BIT, "Parent: Child failed %d.\n",(int)c);
+	    printf("Child failed (%s).\n",ex_desc((int)c));
+	    LogPrintf(LOG_PHASE_BIT, "Parent: Child failed (%s).\n",
+                      ex_desc((int)c));
           }
           close (BGFiledes[0]);
 	}
