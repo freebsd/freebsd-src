@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id:$
+ * $Id: uucplock.c,v 1.2 1995/02/26 12:18:04 amurai Exp $
  * 
  */
 
@@ -56,6 +56,7 @@ uu_lock(ttyname)
 	extern int errno;
 	int fd, pid;
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
+	char pid_buf[64];
 	off_t lseek();
 
 	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
@@ -70,11 +71,13 @@ uu_lock(ttyname)
 			perror("lock open");
 			return(-1);
 		}
-		if (read(fd, &pid, sizeof(pid)) != sizeof(pid)) {
+		if (read(fd, pid_buf, sizeof(pid_buf)) <= 0) {
 			(void)close(fd);
 			perror("lock read");
 			return(-1);
 		}
+
+		pid = atoi(pid_buf);
 
 		if (kill(pid, 0) == 0 || errno != ESRCH) {
 			(void)close(fd);	/* process is still running */
@@ -92,7 +95,8 @@ uu_lock(ttyname)
 		/* fall out and finish the locking process */
 	}
 	pid = getpid();
-	if (write(fd, (char *)&pid, sizeof(pid)) != sizeof(pid)) {
+	sprintf(pid_buf, "%10u\n", pid);
+	if (write(fd, pid_buf, strlen(pid_buf)) != strlen(pid_buf)) {
 		(void)close(fd);
 		(void)unlink(tbuf);
 		perror("lock write");
