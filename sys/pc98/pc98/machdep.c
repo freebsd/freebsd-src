@@ -2180,7 +2180,6 @@ init386(first)
 
 	/* setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
-	PCPU_SET(prevproc, &proc0);
 
 	/* make ldt memory segments */
 	/*
@@ -2242,6 +2241,11 @@ init386(first)
 	lidt(&r_idt);
 
 	/*
+	 * We need this mutex before the console probe.
+	 */
+	mtx_init(&clock_lock, "clk interrupt lock", MTX_SPIN);
+
+	/*
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
@@ -2252,8 +2256,7 @@ init386(first)
 #endif
 
 	/*
-	 * Giant is used early for at least debugger traps, unexpected traps,
-	 * and vm86bios initialization.
+	 * Giant is used early for at least debugger traps and unexpected traps.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF);
 
