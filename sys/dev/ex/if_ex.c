@@ -271,9 +271,6 @@ ex_attach(device_t dev)
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
-	device_printf(sc->dev, "Ethernet address %6D\n",
-			sc->arpcom.ac_enaddr, ":");
-
 	return(0);
 }
 

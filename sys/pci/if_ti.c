@@ -2122,12 +2122,6 @@ ti_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * A Tigon chip was detected. Inform the world.
-	 */
-	printf("ti%d: Ethernet address: %6D\n", unit,
-				sc->arpcom.ac_enaddr, ":");
-
 	/* Allocate the general information block and ring buffers. */
 	sc->ti_rdata = contigmalloc(sizeof(struct ti_ring_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);

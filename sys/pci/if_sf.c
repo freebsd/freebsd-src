@@ -737,12 +737,6 @@ sf_attach(dev)
 		sc->arpcom.ac_enaddr[i] =
 		    sf_read_eeprom(sc, SF_EE_NODEADDR + ETHER_ADDR_LEN - i);
 
-	/*
-	 * An Adaptec chip was detected. Inform the world.
-	 */
-	printf("sf%d: Ethernet address: %6D\n", unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	sc->sf_unit = unit;
 
 	/* Allocate the descriptor queues. */

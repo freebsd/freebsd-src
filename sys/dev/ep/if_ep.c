@@ -287,9 +287,6 @@ ep_attach(struct ep_softc *sc)
 	for (i = 0; i < 3; i++)
 		CSR_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
 
-	device_printf(sc->dev, "Ethernet address %6D\n",
-	    sc->arpcom.ac_enaddr, ":");
-
 	ifp = &sc->arpcom.ac_if;
 	attached = (ifp->if_softc != 0);
 

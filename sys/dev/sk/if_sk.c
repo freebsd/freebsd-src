@@ -1382,9 +1382,6 @@ sk_attach(dev)
 		sc_if->arpcom.ac_enaddr[i] =
 		    sk_win_read_1(sc, SK_MAC0_0 + (port * 8) + i);
 
-	printf("sk%d: Ethernet address: %6D\n",
-	    sc_if->sk_unit, sc_if->arpcom.ac_enaddr, ":");
-
 	/*
 	 * Set up RAM buffer addresses. The NIC will have a certain
 	 * amount of SRAM on it, somewhere between 512K and 2MB. We

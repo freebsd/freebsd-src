@@ -730,11 +730,6 @@ USB_ATTACH(aue)
 	 */
 	aue_read_eeprom(sc, (caddr_t)&eaddr, 0, 3, 0);
 
-	/*
-	 * A Pegasus chip was detected. Inform the world.
-	 */
-	printf("aue%d: Ethernet address: %6D\n", sc->aue_unit, eaddr, ":");
-
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	ifp = &sc->arpcom.ac_if;

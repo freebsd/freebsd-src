@@ -826,11 +826,6 @@ vr_attach(dev)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		eaddr[i] = CSR_READ_1(sc, VR_PAR0 + i);
 
-	/*
-	 * A Rhine chip was detected. Inform the world.
-	 */
-	printf("vr%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->vr_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

@@ -277,10 +277,6 @@ el_attach(device_t dev)
 	dprintf(("Attaching interface...\n"));
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
-	/* Print out some information for the user */
-	device_printf(dev, "3c501 address %6D\n",
-	  sc->arpcom.ac_enaddr, ":");
-
 	dprintf(("el_attach() finished.\n"));
 	return(0);
 }

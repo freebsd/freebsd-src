@@ -226,8 +226,6 @@ owi_generic_attach(device_t dev)
 	bcopy((char *)&mac.wi_mac_addr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	device_printf(dev, "802.11 address: %6D\n", sc->arpcom.ac_enaddr, ":");
-
 	owi_get_id(sc);
 
 	if_initname(ifp, device_get_name(dev), sc->wi_unit);

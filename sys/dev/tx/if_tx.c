@@ -391,9 +391,6 @@ epic_attach(dev)
 		goto fail;
 	}
 
-	/* Display ethernet address ,... */
-	device_printf(dev, "address %6D,", sc->sc_macaddr, ":");
-
 	/* board type and ... */
 	printf(" type ");
 	for(i = 0x2c; i < 0x32; i++) {

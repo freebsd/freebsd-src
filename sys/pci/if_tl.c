@@ -1258,12 +1258,6 @@ tl_attach(dev)
                 }
         }
 
-	/*
-	 * A ThunderLAN chip was detected. Inform the world.
-	 */
-	device_printf(dev, "Ethernet address: %6D\n",
-				sc->arpcom.ac_enaddr, ":");
-
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
