@@ -73,6 +73,8 @@ char *buf;
 
 static struct termios saved_ttymode;
 
+static void interrupt __P((int));
+
 static void interrupt(sig)
 int sig;
 {
@@ -86,7 +88,7 @@ char *buf;
 int n;
 {
 	struct termios noecho_ttymode;
-	void (*oldsig)();
+	void (*oldsig) __P((int));
 
 	/* Save normal line editing modes */
 	tcgetattr(0, &saved_ttymode);

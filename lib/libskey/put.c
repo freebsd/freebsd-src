@@ -2137,7 +2137,7 @@ char *e;
 		standard(word);
 		if( (v = wsrch(word,low,high)) < 0 )
 			return 0;
-		insert(b,v,p,11);
+		insert(b,v,(int)p,11);
 	}
 
 	/* now check the parity of what we got */

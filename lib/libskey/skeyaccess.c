@@ -45,12 +45,12 @@
   */
 static char *prev_token = 0;		/* push-back buffer */
 static char *line_pointer = NULL;
-static char *first_token();
+static char *first_token __P((char *, int, FILE *));
 static int line_number;
-static void unget_token();
-static char *get_token();
-static char *need_token();
-static char *need_internet_addr();
+static void unget_token __P((char *));
+static char *get_token __P((void));
+static char *need_token __P((void));
+static char *need_internet_addr __P((void));
 
  /*
   * Various forms of token matching.
@@ -58,12 +58,13 @@ static char *need_internet_addr();
 #define match_host_name(l)	match_token((l)->host_name)
 #define match_port(l)		match_token((l)->port)
 #define match_user(l)		match_token((l)->user)
-static int match_internet_addr();
-static int match_group();
-static int match_token();
-static int is_internet_addr();
-static struct in_addr *convert_internet_addr();
-static struct in_addr *lookup_internet_addr();
+struct login_info;
+static int match_internet_addr __P((struct login_info *));
+static int match_group __P((struct login_info *));
+static int match_token __P((char *));
+static int is_internet_addr __P((char *));
+static struct in_addr *convert_internet_addr __P((char *));
+static struct in_addr *lookup_internet_addr __P((char *));
 
 #define MAX_ADDR	32
 #define PERMIT		1
@@ -83,7 +84,8 @@ struct login_info {
     char   *port;			/* login port */
 };
 
-static int _skeyaccess __P(( FILE *, struct login_info * ));
+static int _skeyaccess __P((FILE *, struct login_info *));
+int skeyaccess __P((char *, char *, char *, char *));
 
 /* skeyaccess - find out if UNIX passwords are permitted */
 
@@ -408,7 +410,7 @@ char   *host;
 
     for (i = 0; i < MAX_ADDR && hp->h_addr_list[i]; i++)
 	memcpy((char *) &list[i],
-	       hp->h_addr_list[i], hp->h_length);
+	       hp->h_addr_list[i], (size_t)hp->h_length);
     list[i].s_addr = 0;
 
     strncpy(buf, hp->h_name, MAXHOSTNAMELEN);
@@ -427,12 +429,12 @@ char   *host;
 	if ((hp = gethostbyaddr((char *) &list[i], length, AF_INET)) == 0) {
 	    syslog(LOG_ERR, "address %s not registered for host %s",
 		   inet_ntoa(list[i]), buf);
-	    list[i].s_addr = -1;
+	    list[i].s_addr = (u_int32_t) -1;
 	}
 	if (NEQ(buf, hp->h_name) && NEQ3(buf, "localhost.", 10)) {
 	    syslog(LOG_ERR, "address %s registered for host %s and %s",
 		   inet_ntoa(list[i]), hp->h_name, buf);
-	    list[i].s_addr = -1;
+	    list[i].s_addr = (u_int32_t) -1;
 	}
     }
     return (list);

@@ -3,12 +3,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <pwd.h>
+#include <unistd.h>
 
 #include "skey.h"
 
 /* skey_crypt - return encrypted UNIX passwd if s/key or regular password ok */
 
-char *skey_crypt(pp, salt, pwd, pwok)
+const char *skey_crypt(pp, salt, pwd, pwok)
 char *pp;
 char *salt;
 struct passwd *pwd;
@@ -16,7 +17,6 @@ int     pwok;
 {
     struct skey skey;
     char   *p;
-    char   *crypt();
 
     /* Try s/key authentication even when the UNIX password is permitted. */
 
