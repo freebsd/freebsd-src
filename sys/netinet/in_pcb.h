@@ -141,7 +141,7 @@ struct inpcb {
 	int	inp_flags;		/* generic IP/datagram flags */
 
 	struct	inpcbpolicy *inp_sp; /* for IPSEC */
-	u_char	inp_vflag;
+	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
 	u_char	inp_ip_ttl;		/* time to live proto */
