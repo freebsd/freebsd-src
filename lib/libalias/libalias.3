@@ -700,12 +700,12 @@ any pre-existing aliasing link arrives at the
 host machine, it will be sent to the address
 indicated by a call to PacketAliasSetTarget().
 
-If this function is not called, or is called
+If this function is called
 with a INADDR_NONE address argument, then all new
 incoming packets go to the address set by
 PacketAliasSetAddress.
 
-If this function is called with a INADDR_ANY address
+If this function is not called or is called with a INADDR_ANY address
 argument, then all new incoming packets go to the
 address specified in the packet.
 This allows external machines to talk directly to
