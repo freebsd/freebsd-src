@@ -647,6 +647,10 @@ _yacc=		usr.bin/yacc
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
+.if ${BOOTSTRAPPING} < 501114
+_gensnmptree=	usr.sbin/bsnmpd/gensnmptree
+.endif
+
 .if ${BOOTSTRAPPING} < 500019
 _kbdcontrol=	usr.sbin/kbdcontrol
 .endif
@@ -667,6 +671,7 @@ bootstrap-tools:
     ${_yacc} \
     usr.sbin/config \
     ${_crunchgen} \
+    ${_gensnmptree} \
     ${_kbdcontrol}
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
