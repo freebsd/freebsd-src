@@ -340,7 +340,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
 				m_freem(m);
-				return ENOBUFS;	/* pkt dropped */
+				return EACCES;	/* pkt dropped */
 			} else
 				return 0;	/* consumed e.g. in a pipe */
 		}
