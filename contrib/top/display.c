@@ -30,8 +30,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
 
 #include "screen.h"		/* interface to screen package */
 #include "layout.h"		/* defines for screen position layout */
@@ -243,51 +241,11 @@ double *avenrun;
     }
 }
 
-struct timeval boottime;
-time_t now;
-time_t uptime;
-
 i_timeofday(tod)
 
 time_t *tod;
 
 {
-       int days, hrs, i, mins, secs;
-       int mib[2];
-       size_t size;
-
-       (void)time(&now);
-
-        /*
-         * Print how long system has been up.
-         * (Found by looking getting "boottime" from the kernel)
-         */      
-        mib[0] = CTL_KERN;
-        mib[1] = KERN_BOOTTIME;
-        size = sizeof(boottime);
-        if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
-            boottime.tv_sec != 0) {
-                uptime = now - boottime.tv_sec;
-                uptime += 30;
-                days = uptime / 86400;
-                uptime %= 86400;
-                hrs = uptime / 3600;
-                uptime %= 3600;
-                mins = uptime / 60;
-                secs = uptime % 60;
-
-               if (smart_terminal)
-               {
-                   Move_to((screen_width - 24) - (days > 9 ? 1 : 0), 0);
-               }
-               else
-               {
-                   fputs(" ", stdout);
-               }
-
-               printf(" up %d+%02d:%02d:%02d", days, hrs, mins, secs);
-        }
-
     /*
      *  Display the current time.
      *  "ctime" always returns a string that looks like this:
@@ -1210,4 +1168,39 @@ char *str;
 	ptr++;
     }
     return(str);
+}
+
+i_uptime(bt, tod)
+
+struct timeval* bt;
+time_t *tod;
+
+{
+    time_t uptime;
+    int days, hrs, mins, secs;
+
+    if (bt->tv_sec != -1) {
+	uptime = *tod - bt->tv_sec;
+	uptime += 30;
+	days = uptime / 86400;
+	uptime %= 86400;
+	hrs = uptime / 3600;
+	uptime %= 3600;
+	mins = uptime / 60;
+	secs = uptime % 60;
+
+	/*
+	 *  Display the uptime.
+	 */
+
+	if (smart_terminal)
+	{
+	    Move_to((screen_width - 24) - (days > 9 ? 1 : 0), 0);
+	}
+	else
+	{
+	    fputs(" ", stdout);
+	}
+	printf(" up %d+%02d:%02d:%02d", days, hrs, mins, secs);
+    }
 }
