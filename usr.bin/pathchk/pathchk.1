@@ -34,15 +34,12 @@
 .Nm pathchk
 .Nd check pathnames
 .Sh SYNOPSIS
-.Nm pathchk
+.Nm
 .Op Fl p
-.Bk -words
-.Ar pathname Ns
-\&...
-.Ek
+.Ar pathname ...
 .Sh DESCRIPTION
 The
-.Nm pathchk
+.Nm
 utility checks whether each of the specified
 .Ar pathname
 arguments is valid or portable.
@@ -57,9 +54,9 @@ bytes.
 Contains any component longer than
 .Dv NAME_MAX
 bytes.
-The value of
+(The value of
 .Dv NAME_MAX
-depends on the underlying filesystem.
+depends on the underlying filesystem.)
 .It
 Contains a directory component that is not searchable.
 .El
@@ -93,8 +90,7 @@ alphanumeric characters,
 .Ql \&. ,
 .Ql \&-
 and
-.Ql _ Ns
-).
+.Ql _ ) .
 No component may start with the hyphen
 .Pq Ql \&-
 character.
@@ -105,7 +101,8 @@ Check whether the names of files in the current directory are portable to
 other
 .Tn POSIX
 systems:
-.Dl find \&. -print | xargs pathchk -p
+.Pp
+.Dl "find . -print | xargs pathchk -p"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
@@ -114,7 +111,7 @@ systems:
 .Xr stat 2
 .Sh STANDARDS
 The
-.Nm pathchk
+.Nm
 utility conforms to
 .St -p1003.1-2001 .
 .Sh HISTORY
