@@ -99,11 +99,13 @@ static int faithprefix(struct in6_addr *);
 
 static int faithmodevent(module_t, int, void *);
 
+static struct mtx faith_mtx;
 static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
 static LIST_HEAD(, faith_softc) faith_softc_list;
 
 int	faith_clone_create(struct if_clone *, int);
 void	faith_clone_destroy(struct ifnet *);
+static void	faith_destroy(struct faith_softc *);
 
 struct if_clone faith_cloner = IF_CLONE_INITIALIZER(FAITHNAME,
     faith_clone_create, faith_clone_destroy, 0, IF_MAXUNIT);
@@ -116,9 +118,11 @@ faithmodevent(mod, type, data)
 	int type;
 	void *data;
 {
+	struct faith_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&faith_mtx, "faith_mtx", NULL, MTX_DEF);
 		LIST_INIT(&faith_softc_list);
 		if_clone_attach(&faith_cloner);
 
@@ -134,10 +138,15 @@ faithmodevent(mod, type, data)
 
 		if_clone_detach(&faith_cloner);
 
-		while (!LIST_EMPTY(&faith_softc_list))
-			faith_clone_destroy(
-			    &LIST_FIRST(&faith_softc_list)->sc_if);
-
+		mtx_lock(&faith_mtx);
+		while ((sc = LIST_FIRST(&faith_softc_list)) != NULL) {
+			LIST_REMOVE(sc, sc_list);
+			mtx_unlock(&faith_mtx);
+			faith_destroy(sc);
+			mtx_lock(&faith_mtx);
+		}
+		mtx_unlock(&faith_mtx);
+		mtx_destroy(&faith_mtx);
 		break;
 	}
 	return 0;
@@ -176,8 +185,19 @@ faith_clone_create(ifc, unit)
 	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	mtx_lock(&faith_mtx);
 	LIST_INSERT_HEAD(&faith_softc_list, sc, sc_list);
+	mtx_unlock(&faith_mtx);
 	return (0);
+}
+
+static void
+faith_destroy(struct faith_softc *sc)
+{
+
+	bpfdetach(&sc->sc_if);
+	if_detach(&sc->sc_if);
+	free(sc, M_FAITH);
 }
 
 void
@@ -186,11 +206,11 @@ faith_clone_destroy(ifp)
 {
 	struct faith_softc *sc = (void *) ifp;
 
+	mtx_lock(&faith_mtx);
 	LIST_REMOVE(sc, sc_list);
-	bpfdetach(ifp);
-	if_detach(ifp);
+	mtx_unlock(&faith_mtx);
 
-	free(sc, M_FAITH);
+	faith_destroy(sc);
 }
 
 int
