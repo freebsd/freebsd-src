@@ -39,6 +39,9 @@
 .Nm sx_xunlock
 .Nd kernel shared/exclusive lock.
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/lock.h>
+.Fd #include <sys/mutex.h>
 .Fd #include <sys/sx.h>
 .Ft void
 .Fn sx_init "struct sx *sx" "const char *description"
