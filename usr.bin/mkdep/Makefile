@@ -4,6 +4,6 @@ MAN1=	mkdep.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/mkdep.gcc.sh ${DESTDIR}/usr/bin/mkdep
+	    ${.CURDIR}/mkdep.gcc.sh ${DESTDIR}${BINDIR}/mkdep
 
 .include <bsd.prog.mk>
