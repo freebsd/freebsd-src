@@ -152,7 +152,7 @@
 
 /* bytes to clicks */
 #ifndef btoc
-#define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
+#define btoc(x)	(((vm_offset_t)(x)+PAGE_MASK)>>PAGE_SHIFT)
 #endif
 
 /*
