@@ -11,7 +11,9 @@
 # This file is separated into sections.  Each section is named with
 # a label starting in column 0 and followed directly by a ``:''.  The
 # section continues until the next section.  Blank lines and lines
-# beginning with ``#'' are ignored.
+# beginning with ``#'' are ignored.  All commands inside sections that do
+# not begin with ``!'' (e.g., ``!include'') *must* be indented by at least
+# one space or tab or they will not be recognized!
 #
 # Lines beginning with "!include" will ``include'' another file.  You
 # may want to ``!include ~/.ppp.conf'' for backwards compatibility.
