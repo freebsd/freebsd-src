@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.19 1999/08/24 16:42:08 msmith Exp $
+ *      $Id: bios.c,v 1.20 1999/08/25 06:44:32 peter Exp $
  */
 
 /*
@@ -287,7 +287,7 @@ set_bios_selectors(struct bios_segments *seg, int flags)
 }
 
 extern int vm86pa;
-extern void bios_jmp(void);
+extern void bios16_jmp(void);
 
 /*
  * this routine is really greedy with selectors, and uses 5:
@@ -366,7 +366,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	args->seg.args.limit = 0xffff;
     }
 
-    args->seg.code32.base = (u_int)&bios_jmp & PG_FRAME;
+    args->seg.code32.base = (u_int)&bios16_jmp & PG_FRAME;
     args->seg.code32.limit = 0xffff;	
 
     ptd = (u_int *)rcr3();
