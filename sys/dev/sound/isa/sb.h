@@ -190,7 +190,6 @@
 #define SB16_IMASK_R	0x3e
 #define SB16_OMASK	0x3c
 
-#ifndef SB_NOMIXER
 /*
  * sound/sb_mixer.h
  *
@@ -226,21 +225,9 @@
 #define SBPRO_RECORDING_DEVICES	\
     (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
 
-/* Same as SB Pro, unless I find otherwise */
-#define SGNXPRO_RECORDING_DEVICES SBPRO_RECORDING_DEVICES
-
 #define SBPRO_MIXER_DEVICES	\
     (SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE | SOUND_MASK_MIC | \
      SOUND_MASK_CD | SOUND_MASK_VOLUME)
-
-/*
- * SG NX Pro has treble and bass settings on the mixer. The 'speaker' channel
- * is the COVOX/DisneySoundSource emulation volume control on the mixer. It
- * does NOT control speaker volume. Should have own mask eventually?
- */
-#define SGNXPRO_MIXER_DEVICES	\
-    (SBPRO_MIXER_DEVICES | SOUND_MASK_BASS | \
-     SOUND_MASK_TREBLE | SOUND_MASK_SPEAKER )
 
 #define SB16_RECORDING_DEVICES	\
     (SOUND_MASK_SYNTH | SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
@@ -251,64 +238,25 @@
      SOUND_MASK_IGAIN | SOUND_MASK_OGAIN | \
      SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE)
 
-#ifndef __SB_MIXER_C__
-mixer_tab       sbpro_mix;
-mixer_tab       ess_mix;
-mixer_tab       sb16_mix;
-#ifdef	__SGNXPRO__
-mixer_tab       sgnxpro_mix;
-#endif
-static u_char sb16_recmasks_L[SOUND_MIXER_NRDEVICES];
-static u_char sb16_recmasks_R[SOUND_MIXER_NRDEVICES];
-#else /* __SB_MIXER_C__ defined */
+#ifdef __SB_MIXER_C__
 mixer_tab       sbpro_mix = {
     PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 4, 4, 0x22, 0, 4),
-    PMIX_ENT(SOUND_MIXER_BASS,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_TREBLE,  0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 4, 4, 0x26, 0, 4),
     PMIX_ENT(SOUND_MIXER_PCM,     0x04, 4, 4, 0x04, 0, 4),
-    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
     PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
-    PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0)
 };
 
 mixer_tab       ess_mix = {
     PMIX_ENT(SOUND_MIXER_VOLUME,  0x32, 4, 4, 0x32, 0, 4),
-    PMIX_ENT(SOUND_MIXER_BASS,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_TREBLE,  0x00, 0, 0, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_SYNTH,   0x36, 4, 4, 0x26, 0, 4),
     PMIX_ENT(SOUND_MIXER_PCM,     0x14, 4, 4, 0x04, 0, 4),
     PMIX_ENT(SOUND_MIXER_SPEAKER, 0x3c, 0, 3, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_LINE,    0x3e, 4, 4, 0x2e, 0, 4),
     PMIX_ENT(SOUND_MIXER_MIC,     0x1a, 4, 4, 0x1a, 0, 4),
     PMIX_ENT(SOUND_MIXER_CD,      0x38, 4, 4, 0x28, 0, 4),
-    PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0)
 };
-
-#ifdef	__SGNXPRO__
-mixer_tab       sgnxpro_mix = {
-    PMIX_ENT(SOUND_MIXER_VOLUME,  0x22, 4, 4, 0x22, 0, 4),
-    PMIX_ENT(SOUND_MIXER_BASS,    0x46, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_TREBLE,  0x44, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_SYNTH,   0x26, 4, 4, 0x26, 0, 4),
-    PMIX_ENT(SOUND_MIXER_PCM,     0x04, 4, 4, 0x04, 0, 4),
-    PMIX_ENT(SOUND_MIXER_SPEAKER, 0x42, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_LINE,    0x2e, 4, 4, 0x2e, 0, 4),
-    PMIX_ENT(SOUND_MIXER_MIC,     0x0a, 0, 3, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_CD,      0x28, 4, 4, 0x28, 0, 4),
-    PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_RECLEV,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_IGAIN,   0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_OGAIN,   0x00, 0, 0, 0x00, 0, 0)
-};
-#endif
 
 mixer_tab       sb16_mix = {
     PMIX_ENT(SOUND_MIXER_VOLUME,  0x30, 3, 5, 0x31, 3, 5),
@@ -320,58 +268,9 @@ mixer_tab       sb16_mix = {
     PMIX_ENT(SOUND_MIXER_LINE,    0x38, 3, 5, 0x39, 3, 5),
     PMIX_ENT(SOUND_MIXER_MIC,     0x3a, 3, 5, 0x00, 0, 0),
     PMIX_ENT(SOUND_MIXER_CD,      0x36, 3, 5, 0x37, 3, 5),
-    PMIX_ENT(SOUND_MIXER_IMIX,    0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_ALTPCM,  0x00, 0, 0, 0x00, 0, 0),
-    PMIX_ENT(SOUND_MIXER_RECLEV,  0x3f, 6, 2, 0x40, 6, 2), /* Obsol,Use IGAIN*/
     PMIX_ENT(SOUND_MIXER_IGAIN,   0x3f, 6, 2, 0x40, 6, 2),
     PMIX_ENT(SOUND_MIXER_OGAIN,   0x41, 6, 2, 0x42, 6, 2)
 };
 
-#if 0
-static u_char sb16_recmasks_L[SOUND_MIXER_NRDEVICES] =
-{
-	0x00,			/* SOUND_MIXER_VOLUME	 */
-	0x00,			/* SOUND_MIXER_BASS	 */
-	0x00,			/* SOUND_MIXER_TREBLE	 */
-	0x40,			/* SOUND_MIXER_SYNTH	 */
-	0x00,			/* SOUND_MIXER_PCM	 */
-	0x00,			/* SOUND_MIXER_SPEAKER	 */
-	0x10,			/* SOUND_MIXER_LINE	 */
-	0x01,			/* SOUND_MIXER_MIC	 */
-	0x04,			/* SOUND_MIXER_CD	 */
-	0x00,			/* SOUND_MIXER_IMIX	 */
-	0x00,			/* SOUND_MIXER_ALTPCM	 */
-	0x00,			/* SOUND_MIXER_RECLEV	 */
-	0x00,			/* SOUND_MIXER_IGAIN	 */
-	0x00			/* SOUND_MIXER_OGAIN	 */
-};
-
-static u_char sb16_recmasks_R[SOUND_MIXER_NRDEVICES] =
-{
-	0x00,			/* SOUND_MIXER_VOLUME	 */
-	0x00,			/* SOUND_MIXER_BASS	 */
-	0x00,			/* SOUND_MIXER_TREBLE	 */
-	0x20,			/* SOUND_MIXER_SYNTH	 */
-	0x00,			/* SOUND_MIXER_PCM	 */
-	0x00,			/* SOUND_MIXER_SPEAKER	 */
-	0x08,			/* SOUND_MIXER_LINE	 */
-	0x01,			/* SOUND_MIXER_MIC	 */
-	0x02,			/* SOUND_MIXER_CD	 */
-	0x00,			/* SOUND_MIXER_IMIX	 */
-	0x00,			/* SOUND_MIXER_ALTPCM	 */
-	0x00,			/* SOUND_MIXER_RECLEV	 */
-	0x00,			/* SOUND_MIXER_IGAIN	 */
-	0x00			/* SOUND_MIXER_OGAIN	 */
-};
-#endif
-
-/*
- * Recording sources (SB Pro)
- */
 #endif /* __SB_MIXER_C__ */
 
-#define SRC_MIC         1	/* Select Microphone recording source */
-#define SRC_CD          3	/* Select CD recording source */
-#define SRC_LINE        7	/* Use Line-in for recording source */
-
-#endif
