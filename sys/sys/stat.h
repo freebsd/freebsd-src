@@ -124,8 +124,8 @@ struct stat {
 	 * to cover up to 64 bits on 32-bit machines.  We assume that
 	 * CHAR_BIT is 8...
 	 */
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	unsigned int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	unsigned int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 #else
 	time_t	  st_birthtime;		/* time of file creation */
 	long	  st_birthtimensec;	/* nsec of file creation */
@@ -155,8 +155,8 @@ struct nstat {
 	/*
 	 * See above about the following padding.
 	 */
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	unsigned int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	unsigned int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 };
 #endif
 
