@@ -49,6 +49,7 @@ ENTRY(ffs)
 	/* Standard trick to isolate bottom bit in r0 or 0 if r0 = 0 on entry */
  	rsb     r1, r0, #0
  	ands    r0, r0, r1
+#ifndef __XSCALE__
 	/*
 	 * now r0 has at most one set bit, call this X
 	 * if X = 0, all further instructions are skipped
@@ -74,3 +75,8 @@ ENTRY(ffs)
 	.byte	10,  0,  0, 25,  0,  0, 21, 27  /* 40-47 */
 	.byte	31,  0,  0,  0,  0, 24,  0, 20  /* 48-55 */
 	.byte   30,  0, 23, 19, 29, 18, 17,  0  /* 56-63 */
+#else
+	clzne	r0, r0
+	rsbne	r0, r0, #32
+	mov	pc, lr
+#endif
