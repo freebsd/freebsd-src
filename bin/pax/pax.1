@@ -1049,6 +1049,16 @@ options are specified along with the
 .Fl n
 option, a file is not considered selected unless it is newer
 than the file to which it is compared.
+.Sh EXIT STATUS
+The
+.Nm
+utility will exit with one of the following values:
+.Bl -tag -width 2n
+.It 0
+All files were processed successfully.
+.It 1
+An error occurred.
+.El
 .Sh EXAMPLES
 The command:
 .Dl "pax -w -f /dev/sa0 ."
@@ -1099,59 +1109,7 @@ will update (and list) only those files in the destination directory
 which are older (less recent inode change or file modification times) than
 files with the same name found in the source file tree
 .Pa home .
-.Sh STANDARDS
-The
-.Nm
-utility is a superset of the
-.St -p1003.2
-standard.
-The options
-.Fl z ,
-.Fl B ,
-.Fl D ,
-.Fl E ,
-.Fl G ,
-.Fl H ,
-.Fl L ,
-.Fl P ,
-.Fl T ,
-.Fl U ,
-.Fl Y ,
-.Fl Z ,
-the archive formats
-.Ar bcpio ,
-.Ar sv4cpio ,
-.Ar sv4crc ,
-.Ar tar ,
-and the flawed archive handling during
-.Ar list
-and
-.Ar read
-operations are extensions to the
-.Tn POSIX
-standard.
-.Sh SEE ALSO
-.Xr cpio 1 ,
-.Xr tar 1
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Bx 4.4 .
-.Sh AUTHORS
-.An Keith Muller
-at the University of California, San Diego
 .Sh DIAGNOSTICS
-The
-.Nm
-utility will exit with one of the following values:
-.Bl -tag -width 2n
-.It 0
-All files were processed successfully.
-.It 1
-An error occurred.
-.El
-.Pp
 Whenever
 .Nm
 cannot create a file or a link when reading an archive or cannot
@@ -1187,6 +1145,48 @@ a diagnostic message is written to
 and when
 .Nm
 completes it will exit with a non-zero exit status.
+.Sh SEE ALSO
+.Xr cpio 1 ,
+.Xr tar 1
+.Sh STANDARDS
+The
+.Nm
+utility is a superset of the
+.St -p1003.2
+standard.
+The options
+.Fl z ,
+.Fl B ,
+.Fl D ,
+.Fl E ,
+.Fl G ,
+.Fl H ,
+.Fl L ,
+.Fl P ,
+.Fl T ,
+.Fl U ,
+.Fl Y ,
+.Fl Z ,
+the archive formats
+.Ar bcpio ,
+.Ar sv4cpio ,
+.Ar sv4crc ,
+.Ar tar ,
+and the flawed archive handling during
+.Ar list
+and
+.Ar read
+operations are extensions to the
+.Tn POSIX
+standard.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Keith Muller
+at the University of California, San Diego
 .Sh BUGS
 The
 .Nm

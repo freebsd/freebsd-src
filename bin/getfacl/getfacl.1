@@ -81,6 +81,8 @@ then
 reads a list of pathnames, each terminated by one newline character,
 from the standard input.
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 .Dl getfacl /
 .Pp
@@ -92,8 +94,6 @@ Retrieve ACL for the directory
 Retrieve the default ACL for the directory
 .Pa / ,
 if any.
-.Sh DIAGNOSTICS
-.Ex -std
 .Sh SEE ALSO
 .Xr setfacl 1 ,
 .Xr acl 3 ,
