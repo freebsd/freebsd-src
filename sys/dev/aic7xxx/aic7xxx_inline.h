@@ -309,6 +309,11 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	q_hscb = ahc->next_queued_scb->hscb;
 	saved_tag = q_hscb->tag;
 	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
+	if ((scb->flags & SCB_CDB32_PTR) != 0) {
+		q_hscb->shared_data.cdb_ptr =
+		    ahc_hscb_busaddr(ahc, q_hscb->tag)
+		  + offsetof(struct hardware_scb, cdb32);	
+	}
 	q_hscb->tag = saved_tag;
 	q_hscb->next = scb->hscb->tag;
 
@@ -318,6 +323,11 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 
 	/* Now define the mapping from tag to SCB in the scbindex */
 	ahc->scb_data->scbindex[scb->hscb->tag] = scb;
+
+	if (scb->hscb->tag == SCB_LIST_NULL
+	 || scb->hscb->next == SCB_LIST_NULL)
+		panic("Attempt to queue invalid SCB tag %x:%x\n",
+		      scb->hscb->tag, scb->hscb->next);
 
 	/*
 	 * Keep a history of SCBs we've downloaded in the qinfifo.
@@ -382,7 +392,7 @@ ahc_intr(struct ahc_softc *ahc)
 		ahc_flush_device_writes(ahc);
 		ahc_run_qoutfifo(ahc);
 #ifdef AHC_TARGET_MODE
-		if ((ahc->flags & AHC_TARGETMODE) != 0)
+		if ((ahc->flags & AHC_TARGETROLE) != 0)
 			ahc_run_tqinfifo(ahc, /*paused*/FALSE);
 #endif
 	}

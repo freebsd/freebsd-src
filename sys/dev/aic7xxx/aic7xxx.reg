@@ -382,12 +382,12 @@ register SIMODE1 {
  */
 register SCSIBUSL {
 	address			0x012
-	access_mode RO
+	access_mode RW
 }
 
 register SCSIBUSH {
 	address			0x013
-	access_mode RO
+	access_mode RW
 }
 
 /*
@@ -702,6 +702,7 @@ register BUSSPD {
 	mask	STBOFF		0x38
 	mask	STBON		0x07
 	mask	DFTHRSH_100	0xc0
+	mask	DFTHRSH_75	0x80
 }
 
 /* aic7850/55/60/70/80/95 only */
@@ -779,10 +780,8 @@ register INTSTAT {
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
-	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
-	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
-	mask	TRACEPOINT2	0x90|SEQINT
-	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
+	mask	RESIDUAL	0x50|SEQINT	/* Residual byte count != 0 */
+	mask	HOST_MSG_LOOP	0x60|SEQINT	/*
 						 * The bus is ready for the
 						 * host to perform another
 						 * message transaction.  This
@@ -791,17 +790,41 @@ register INTSTAT {
 						 * that require a kernel based
 						 * message state engine.
 						 */
-	mask	PERR_DETECTED	0xb0|SEQINT	/*
+	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
+	mask	PERR_DETECTED	0x80|SEQINT	/*
 						 * Either the phase_lock
 						 * or inb_next routine has
 						 * noticed a parity error.
 						 */
-	mask	TRACEPOINT	0xd0|SEQINT
-	mask	DATA_OVERRUN	0xf0|SEQINT	/*
+	mask	DATA_OVERRUN	0x90|SEQINT	/*
 						 * Target attempted to write
 						 * beyond the bounds of its
 						 * command.
 						 */
+	mask	BOGUS_TAG	0xa0|SEQINT	/*
+						 * Sequencer given an SCB with
+						 * a Tag value of 0xFF.
+						 */
+	mask	SCBPTR_MISMATCH	0xb0|SEQINT	/*
+						 * In the SCB paging case, our
+						 * SCBPTR is not the same as
+						 * we originally set prior to
+						 * download of a new scb.
+						 */
+	mask	SCB_MISMATCH	0xc0|SEQINT	/*
+						 * Downloaded SCB's tag does
+						 * not match the entry we
+						 * intended to download.
+						 */
+	mask	ABORT_QINSCB	0xd0|SEQINT	/*
+						 * An SCB was aborted
+						 * during download.
+						 * Informational.
+						 */
+	mask	NO_FREE_SCB	0xe0|SEQINT	/*
+						 * get_free_or_disc_scb failed.
+						 */
+	mask	OUT_OF_RANGE	0xf0|SEQINT
 
 	mask	SEQINT_MASK	0xf0|SEQINT	/* SEQINT Status Codes */
 	mask	INT_PEND  (BRKADRINT|SEQINT|SCSIINT|CMDCMPLT)
@@ -1214,7 +1237,29 @@ scratch_ram {
 		size		8
 	}
 	BUSY_TARGETS {
-		size		16
+		size		8
+	}
+	/*
+	 * Bit vector of targets that have ULTRA enabled as set by
+	 * the BIOS.  The Sequencer relies on a per-SCB field to
+	 * control whether to enable Ultra transfers or not.  During
+	 * initialization, we read this field and reuse it for 2
+	 * entries in the busy target table.
+	 */
+	ULTRA_ENB {
+		size		2
+	}
+	/*
+	 * Bit vector of targets that have disconnection disabled as set by
+	 * the BIOS.  The Sequencer relies in a per-SCB field to control the
+	 * disconnect priveldge.  During initialization, we read this field
+	 * and reuse it for 2 entries in the busy target table.
+	 */
+	DISC_DSB {
+		size		2
+	}
+	BUSY_TARGETS_TAIL {
+		size		4
 	}
 	/*
 	 * Partial transfer past cacheline end to be
@@ -1222,25 +1267,12 @@ scratch_ram {
 	 */
 	MWI_RESIDUAL {
 		size		1
-		/*
-		 * Bit vector of targets that have ULTRA enabled as set by			 * the BIOS.  The Sequencer relies on a per-SCB field to
-		 * control whether to enable Ultra transfers or not.
-		 */
-		alias		ULTRA_ENB
 	}
 	/*
 	 * SCBID of the next SCB to be started by the controller.
 	 */
 	NEXT_QUEUED_SCB {
 		size		1
-	}
-	/*
-	 * Bit vector of targets that have disconnection disabled as set by
-	 * the BIOS.  The Sequencer relies in a per-SCB field to control the
-	 * disconnect priveldge.
-	 */
-	DISC_DSB {
-		size		2
 	}
 	/*
 	 * Single byte buffer used to designate the type or message
@@ -1266,7 +1298,6 @@ scratch_ram {
 	SEQ_FLAGS {
 		size		1
 		bit	IDENTIFY_SEEN		0x80
-		bit	SCBPTR_VALID		0x40
 		bit	TARGET_CMD_IS_TAGGED	0x40
 		bit	DPHASE			0x20
 		/* Target flags */
