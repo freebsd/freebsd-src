@@ -1,0 +1,65 @@
+.\" Copyright (c) 2003 M. Warner Losh
+.\" 	<imp@freebsd.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY FREEBSD AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL NICK HIBMA OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.Dd November 7, 2003
+.Dt UFM 4
+.Os
+.Sh NAME
+.Nm ufm
+.Nd USB driver for some FM radio chips
+.Sh SYNOPSIS
+.Cd "device ufm"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the some FM radio chip which attaches to the
+USB port.
+The
+.Nm
+device must be configured in the kernel, along with
+.Em usb
+and one of the
+.Em uhci
+or
+.Em ohci
+controllers.
+.Pp
+Subsequently, the
+.Pa /dev/ufm0
+device can be used by userland applications.
+.Sh FILES
+.Bl -tag -width /dev/ums0 -compact
+.It Pa /dev/ufm0
+blocking device node
+.El
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An M. Warner Losh Aq imp@freebsd.org
+for
+.Fx .
