@@ -1,4 +1,4 @@
-.\"	$Id: divert.4,v 1.10 1998/03/12 07:30:16 charnier Exp $
+.\"	$Id: divert.4,v 1.11 1998/05/25 08:44:28 julian Exp $
 .\"
 .Dd June 18, 1996
 .Dt DIVERT 4
@@ -43,7 +43,8 @@ Diverted packets may be read unaltered via
 or
 .Xr recvfrom 2 .
 In the latter case, the address returned will have its port set to
-the divert port and the IP address set to the (first) address of
+the some tag supplied by the packet diverter, (usually the ipfw rule number) 
+and the IP address set to the (first) address of
 the interface on which the packet was received (if the packet
 was incoming) or
 .Dv INADDR_ANY
@@ -83,23 +84,26 @@ packets, passing the same socket address supplied by
 .Xr recvfrom 2
 unmodified to
 .Xr sendto 2
-simplifies things.
+simplifies things (see below).
+.Pp
+The port part of the socket address passed to the
+.Xr sendto 2 
+contains a tag that should be meaningful to the diversion module. In the
+case of
+.Xr Ipfw 8
+the tag is interpretted as the rule number
+.Em after which
+rule processing should restart.
 .Sh LOOP AVOIDANCE
 Packets written into a divert socket (using
-.Xr sendto 2 )
-are never rediverted back to the same socket.  This means that a
-given packet (either incoming or outgoing) will be diverted to a
-given socket once and once only.
-.Pp
-.Xr Ipfw 8
-rules are executed in order, each time the packet passes through
-the kernel, but only up until a matching
-.Nm
-rule applies.  On the second pass, after the packet has been diverted,
-the divert rule is ignored and any subsequent
-.Xr ipfw 8
-rules are applied.  For this reason, it is normally best to specify your
-divert rules prior to any others.
+.Xr sendto 2
+) Re-enter the packet filter at the rule number
+following the tag given in the port part of the socket address, which
+is usually already set at the rule number that caused the diversion
+(not the next rule if there are several at the same number). If the 'tag'
+is altered to indicate an alternative re-entry point, care should be taken
+to avoid loops, where the same packet is diverted more than once at the
+same rule.
 .Sh DETAILS
 To enable divert sockets, your kernel must be compiled with the option
 .Dv IPDIVERT .
