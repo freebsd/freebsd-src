@@ -40,7 +40,6 @@
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/ucred.h>
 #include <sys/cons.h>
 #include <machine/clock.h>
 
