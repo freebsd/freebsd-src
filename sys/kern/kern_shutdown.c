@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.2 1996/08/19 20:06:59 julian Exp $
+ * $Id: kern_shutdown.c,v 1.3 1996/08/22 03:50:20 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -110,17 +110,6 @@ static sle_p shutdown_list1;
 static sle_p shutdown_list2;
 
 
-
-/* This implements a "TEXT_SET" for cleanup functions */
-static void	dummy_cleanup __P((void));
-static void
-dummy_cleanup() {}
-TEXT_SET(cleanup_set, dummy_cleanup);
-
-typedef void (*cleanup_func_t)(void);
-extern const struct linker_set cleanup_set;
-static const cleanup_func_t *cleanups =
-        (const cleanup_func_t *)&cleanup_set.ls_items[0];
 static void dumpsys(void);
 
 #ifndef _SYS_SYSPROTO_H_
@@ -177,20 +166,6 @@ boot(howto)
 {
 	sle_p ep;
 
-	/*
-	 * eventually the at_shutdown() method will totally replace the
-	 * linker set but for now leave them both (so 3rd partys
-	 * modules that might use it can not break).
-	 * The linker set is no good for LKMs etc.
-	 */
-	if ((howto & RB_NOSYNC) == 0 ) {
-		printf("\ncleaning up... ");
-                while (*cleanups) {
-			printf("Using obsolete shutdown callout..\n");
-			printf("update code to use at_shutdown()\n");
-                        (**cleanups++)();
-                }
-	}
 	ep = shutdown_list1;
 	while (ep) {
 		shutdown_list1 = ep->next;
@@ -441,7 +416,7 @@ rm_at_shutdown(bootlist_fn function, void *arg)
 	epp = &shutdown_list1;
 	ep = *epp;
 	while (ep) {
-		if ((ep->function == function) && (ep->arg = arg)) {
+		if ((ep->function == function) && (ep->arg == arg)) {
 			*epp = ep->next;
 			free(ep, M_TEMP);
 			count++;
@@ -453,7 +428,7 @@ rm_at_shutdown(bootlist_fn function, void *arg)
 	epp = &shutdown_list2;
 	ep = *epp;
 	while (ep) {
-		if ((ep->function == function) && (ep->arg = arg)) {
+		if ((ep->function == function) && (ep->arg == arg)) {
 			*epp = ep->next;
 			free(ep, M_TEMP);
 			count++;
