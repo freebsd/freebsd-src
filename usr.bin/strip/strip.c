@@ -32,38 +32,41 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id: strip.c,v 1.5 1995/05/30 06:34:16 rgrimes Exp $";
+#if 0
+static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] =
+	"$Id: strip.c,v 1.6 1996/03/11 03:36:10 mpp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include <limits.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <a.out.h>
-#include <unistd.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 typedef struct exec EXEC;
 typedef struct nlist NLIST;
 
 #define	strx	n_un.n_strx
 
-void err __P((int, const char *fmt, ...));
 void s_stab __P((const char *, int, EXEC *));
 void s_sym __P((const char *, int, EXEC *));
-void usage __P((void));
+static void usage __P((void));
 
 int xflag = 0;
 int err_val = 0;
@@ -98,20 +101,28 @@ main(argc, argv)
 	while ((fn = *argv++) != NULL) {
 		if ((fd = open(fn, O_RDWR)) < 0 ||
 		    (nb = read(fd, &head, sizeof(EXEC))) == -1) {
-			err(0, "%s: %s", fn, strerror(errno));
-			if (fd >= 0 && close(fd))
-				err(0, "%s: %s", fn, strerror(errno));
+			warn("%s", fn);
+			err_val = 1;
+			if (fd >= 0 && close(fd)) {
+				warn("%s", fn);
+				err_val = 1;
+			}
 			continue;
 		}
 		if (nb != sizeof(EXEC) || N_BADMAG(head)) {
-			err(0, "%s: %s", fn, strerror(EFTYPE));
-			if (close(fd))
-				err(0, "%s: %s", fn, strerror(errno));
+			warnx("%s: %s", fn, strerror(EFTYPE));
+			err_val = 1;
+			if (close(fd)) {
+				warn("%s", fn);
+				err_val = 1;
+			}
 			continue;
 		}
 		sfcn(fn, fd, &head);
-		if (close(fd))
-			err(0, "%s: %s", fn, strerror(errno));
+		if (close(fd)) {
+			warn("%s", fn);
+			err_val = 1;
+		}
 	}
 	exit(err_val);
 }
@@ -139,8 +150,10 @@ s_sym(fn, fd, ep)
 	/* Rewrite the header and truncate the file. */
 	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
 	    write(fd, ep, sizeof(EXEC)) != sizeof(EXEC) ||
-	    ftruncate(fd, fsize))
-		err(0, "%s: %s", fn, strerror(errno));
+	    ftruncate(fd, fsize)) {
+		warn("%s", fn);
+		err_val = 1;
+	}
 }
 
 void
@@ -161,20 +174,23 @@ s_stab(fn, fd, ep)
 
 	/* Stat the file. */
 	if (fstat(fd, &sb) < 0) {
-		err(0, "%s: %s", fn, strerror(errno));
+		warn("%s", fn);
+		err_val = 1;
 		return;
 	}
 
 	/* Check size. */
 	if (sb.st_size > SIZE_T_MAX) {
-		err(0, "%s: %s", fn, strerror(EFBIG));
+		warnx("%s: %s", fn, strerror(EFBIG));
+		err_val = 1;
 		return;
 	}
 
 	/* Map the file. */
 	if ((ep = (EXEC *)mmap(NULL, (size_t)sb.st_size,
 	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)0)) == (EXEC *)-1) {
-		err(0, "%s: %s", fn, strerror(errno));
+		warn("%s", fn);
+		err_val = 1;
 		return;
 	}
 
@@ -192,7 +208,8 @@ s_stab(fn, fd, ep)
 	 */
 	strbase = (char *)ep + N_STROFF(*ep);
 	if ((nstrbase = malloc((size_t)*(u_long *)strbase)) == NULL) {
-		err(0, "%s", strerror(errno));
+		warn(NULL);
+		err_val = 1;
 		munmap((caddr_t)ep, sb.st_size);
 		return;
 	}
@@ -234,45 +251,16 @@ s_stab(fn, fd, ep)
 	bcopy(nstrbase, (void *)nsym, len);
 
 	/* Truncate to the current length. */
-	if (ftruncate(fd, (char *)nsym + len - (char *)ep))
-		err(0, "%s: %s", fn, strerror(errno));
+	if (ftruncate(fd, (char *)nsym + len - (char *)ep)) {
+		warn("%s", fn);
+		err_val = 1;
+	}
 	munmap((caddr_t)ep, (size_t)sb.st_size);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: strip [-dx] file ...\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(int fatal, const char *fmt, ...)
-#else
-err(fatal, fmt, va_alist)
-	int fatal;
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "strip: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (fatal)
-		exit(1);
-	err_val = 1;
 }
