@@ -231,24 +231,24 @@ user(pw)
 {
 	register struct group *gr;
 	register char *fmt, **p;
-	int cnt, id, lastid, ngroups, groups[NGROUPS + 1];
+	int cnt, gid, lastgid, ngroups, groups[NGROUPS + 1];
 
-	id = pw->pw_uid;
-	(void)printf("uid=%u(%s)", id, pw->pw_name);
-	(void)printf(" gid=%u", pw->pw_gid);
-	if (gr = getgrgid(id))
+	(void)printf("uid=%u(%s)", pw->pw_uid, pw->pw_name);
+	gid = pw->pw_gid;
+	(void)printf(" gid=%u", gid);
+	if (gr = getgrgid(gid))
 		(void)printf("(%s)", gr->gr_name);
 	ngroups = NGROUPS + 1;
-	(void) getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);
+	(void) getgrouplist(pw->pw_name, gid, groups, &ngroups);
 	fmt = " groups=%u";
-	for (lastid = -1, cnt = 0; cnt < ngroups; ++cnt) {
-		if (lastid == (id = groups[cnt]))
+	for (lastgid = -1, cnt = 0; cnt < ngroups; ++cnt) {
+		if (lastgid == (gid = groups[cnt]))
 			continue;
-		(void)printf(fmt, id);
+		(void)printf(fmt, gid);
 		fmt = " %u";
-		if (gr = getgrgid(id))
+		if (gr = getgrgid(gid))
 			(void)printf("(%s)", gr->gr_name);
-		lastid = id;
+		lastgid = gid;
 	}
 	(void)printf("\n");
 }
