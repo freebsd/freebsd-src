@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.58 1996/12/31 21:54:13 mpp Exp $ -->
+<!-- $Id: hw.sgml,v 1.59 1997/01/12 09:36:52 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -370,12 +370,21 @@ Slippery when wet.  Beware of dog.
        <p>As can be seen the best parts to be using are the 100, 133, 166
          and 200, with the exception that at a mulitplier of 3 the CPU
          starves for memory.
+       <p>AMD K5 CPU chips are rated based on something AMD calls "PR" -- 
+         Pentium Rating, rather than internal CPU clock speed.  So an AMD
+	 PR133 rated chip, is compairable to an Intel Pentium 133.  In
+	 actuality, this CPU runs internally at 100 MHz, 66 MHz bus speed,
+	 and a 1.5 multiplier.
   <sect2><heading>* 486 class</heading>
   <sect2><heading>* 386 class</heading>
   <sect2><heading>286 class</heading>
     <p>Sorry, but FreeBSD does not run on 80286 machines.  It is nearly
       impossible to run today's large full-featured UNIXes on such
       hardware.
+  <p>
+  In addition to the above, <htmlurl url="http://sysdoc.pair.com/cpu.html"
+    name="Tom's hardware guide"> contains other details on the various CPUs
+    used to run FreeBSD.
 
 <sect1><heading>* Memory</heading>
   <p>The mininum amount of memory you must have to install FreeBSD is 8 MB.
@@ -383,6 +392,9 @@ Slippery when wet.  Beware of dog.
     name="build a custom kernel"> that will use less memory.  For FreeBSD
     2.1, 2.1.5, and 2.1.6 the required mininum amount of memory is 5 MB.
     If you use the boot4.flp you can install with only 4 MB.
+  <p>Details on the various type of memory can be found in
+    <htmlurl url="http://sysdoc.pair.com/ram.html"
+    name="Tom's hardware guide">.
 
 <sect1><heading>* BIOS</heading>
 
