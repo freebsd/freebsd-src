@@ -202,7 +202,7 @@ in_pcbbind(inp, nam, p)
 				return (EACCES);
 			if (p && p->p_prison)
 				prison = 1;
-			if (so->so_cred && so->so_cred->p_ruid != 0 &&
+			if (so->so_cred->cr_uid != 0 &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport, 
@@ -212,9 +212,8 @@ in_pcbbind(inp, nam, p)
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
 				     (t->inp_socket->so_options &
 					 SO_REUSEPORT) == 0) &&
-				    (t->inp_socket->so_cred) && 
-				    (so->so_cred->p_ruid !=
-					t->inp_socket->so_cred->p_ruid))
+				    (so->so_cred->cr_uid !=
+					t->inp_socket->so_cred->cr_uid))
 					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,

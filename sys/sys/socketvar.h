@@ -105,7 +105,7 @@ struct socket {
 
 	void	(*so_upcall) __P((struct socket *, void *, int));
 	void	*so_upcallarg;
-	struct pcred *so_cred;		/* user credentials */
+	struct	ucred *so_cred;		/* user credentials */
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
@@ -349,6 +349,8 @@ struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
+struct socket *
+	sonewconn3 __P((struct socket *head, int connstatus, struct proc *p));
 int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
 			 size_t minlen));
 int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
