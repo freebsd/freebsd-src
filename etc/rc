@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.13 1994/01/04 18:06:18 ache Exp $
+#	$Id: rc,v 1.14 1994/01/08 17:49:47 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -142,7 +142,7 @@ echo clearing /tmp
 # echo 'turning on accounting';	accton /var/account/acct
 
 echo -n standard daemons:
-echo -n ' crond';		/usr/libexec/crond
+echo -n ' cron';		cron
 echo '.'
 
 echo -n starting network daemons:
