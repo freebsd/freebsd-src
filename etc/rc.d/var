@@ -56,7 +56,7 @@ mount_md()
 }
 
 # If there is a global system configuration file, suck it in.
-mount_md ${varsize:=65536} /var 1
+#
 if [ -r /etc/rc.subr ]; then
         . /etc/rc.subr
         load_rc_config $name
@@ -83,7 +83,7 @@ fi
 
 # If /tmp is a symlink, assume it points to somewhere writable, like
 # /var/tmp, otherwise, use a small memory filesystem for /tmp.
-	mount_md ${tmpsize:=20480} /tmp 2
+#
 # XXX: mtree runs too early to create any directories needed in /tmp,
 # so if /var/tmp == /tmp, then you don't get a vi.recover.
 #
