@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.24 1999/06/01 18:20:18 jlemon Exp $
+ * $Id: vesa.c,v 1.25 1999/06/22 14:13:13 yokota Exp $
  */
 
 #include "vga.h"
@@ -80,7 +80,9 @@ static video_adapter_t *vesa_adp = NULL;
 static int vesa_state_buf_size = 0;
 
 /* VESA functions */
+#if 0
 static int			vesa_nop(void);
+#endif
 static int			vesa_error(void);
 static vi_probe_t		vesa_probe;
 static vi_init_t		vesa_init;
@@ -174,8 +176,10 @@ static int vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g,
 				   u_char *b, int bits);
 static int vesa_bios_load_palette(int start, int colors, u_char *palette,
 				  int bits);
+#ifdef notyet
 static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 				   u_char *b, int bits);
+#endif
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
@@ -189,7 +193,9 @@ static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_bios_get_line_length(void);
 static int vesa_bios_set_line_length(int pixel);
+#if 0
 static int vesa_bios_get_start(int *x, int *y);
+#endif
 static int vesa_bios_set_start(int x, int y);
 static int vesa_map_gen_mode_num(int type, int color, int mode);
 static int vesa_translate_flags(u_int16_t vflags);
@@ -201,7 +207,9 @@ static void vesa_clear_modes(video_info_t *info, int color);
 static vm_offset_t vesa_map_buffer(u_int paddr, size_t size);
 static void vesa_unmap_buffer(vm_offset_t vaddr, size_t size);
 
+#if 0
 static int vesa_get_origin(video_adapter_t *adp, off_t *offset);
+#endif
 
 static void
 dump_buffer(u_char *buf, size_t len)
@@ -378,6 +386,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
 }
 
+#ifdef notyet
 static int
 vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 			int bits)
@@ -406,6 +415,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
 }
+#endif
 
 static int
 vesa_bios_state_buf_size(void)
@@ -474,6 +484,7 @@ vesa_bios_set_line_length(int pixel)
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
 }
 
+#if 0
 static int
 vesa_bios_get_start(int *x, int *y)
 {
@@ -490,6 +501,7 @@ vesa_bios_get_start(int *x, int *y)
 	*y = vmf.vmf_dx;
 	return 0;
 }
+#endif
 
 static int
 vesa_bios_set_start(int x, int y)
@@ -864,11 +876,13 @@ vesa_configure(int flags)
 	return 0;
 }
 
+#if 0
 static int
 vesa_nop(void)
 {
 	return 0;
 }
+#endif
 
 static int
 vesa_error(void)
@@ -1167,6 +1181,7 @@ vesa_load_state(video_adapter_t *adp, void *p)
 				      vesa_state_buf_size);
 }
 
+#if 0
 static int
 vesa_get_origin(video_adapter_t *adp, off_t *offset)
 {
@@ -1182,6 +1197,7 @@ vesa_get_origin(video_adapter_t *adp, off_t *offset)
 	*offset = vmf.vmf_dx*adp->va_window_gran;
 	return 0;
 }
+#endif
 
 static int
 vesa_set_origin(video_adapter_t *adp, off_t offset)
@@ -1548,8 +1564,6 @@ vesa_load(void)
 	return error;
 }
 
-#ifdef KLD_MODULE
-
 static int
 vesa_unload(void)
 {
@@ -1588,8 +1602,6 @@ vesa_unload(void)
 	return error;
 }
 
-#endif /* KLD_MODULE */
-
 static int
 vesa_mod_event(module_t mod, int type, void *data)
 {
@@ -1597,11 +1609,7 @@ vesa_mod_event(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		return vesa_load();
 	case MOD_UNLOAD:
-#ifdef KLD_MODULE
 		return vesa_unload();
-#else
-		return EBUSY;
-#endif
 	default:
 		break;
 	}
