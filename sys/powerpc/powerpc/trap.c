@@ -88,54 +88,54 @@ static int trap_pfault __P((struct trapframe *frame, int user));
 static int handle_onfault (struct trapframe *frame);
 
 static const char *ppc_exception_names[] = {
-	"Reserved 0",				/* 0 */
-	"Reset",				/* 1 */
-	"Machine Check",			/* 2 */
-	"Data Storage Interrupt",		/* 3 */
-	"Instruction Storage Interrupt",	/* 4 */
-	"External Interrupt",			/* 5 */
-	"Alignment Interrupt",			/* 6 */
-	"Program Interrupt",			/* 7 */
-	"Floating Point Unavailable",		/* 8 */
-	"Decrementer Interrupt",		/* 9 */
-	"Reserved",				/* 10 */
-	"Reserved",				/* 11 */
-	"System Call",				/* 12 */
-	"Trace",				/* 13 */
-	"Floating Point Assist",		/* 14 */
-	"Performance Monitoring",		/* 15 */
-	"Instruction TLB Miss",			/* 16 */
-	"Data Load TLB Miss",			/* 17 */
-	"Data Store TLB Miss",			/* 18 */
-	"Instruction Breakpoint",		/* 19 */
-	"System Management Interrupt",		/* 20 */
-	"Reserved 21",				/* 21 */
-	"Reserved 22",				/* 22 */
-	"Reserved 23",				/* 23 */
-	"Reserved 24",				/* 24 */
-	"Reserved 25",				/* 25 */
-	"Reserved 26",				/* 26 */
-	"Reserved 27",				/* 27 */
-	"Reserved 28",				/* 28 */
-	"Reserved 29",				/* 29 */
-	"Reserved 30",				/* 30 */
-	"Reserved 31",				/* 31 */
-	"Reserved 32",				/* 32 */
-	"Reserved 33",				/* 33 */
-	"Reserved 34",				/* 34 */
-	"Reserved 35",				/* 35 */
-	"Reserved 36",				/* 36 */
-	"Reserved 37",				/* 37 */
-	"Reserved 38",				/* 38 */
-	"Reserved 39",				/* 39 */
-	"Reserved 40",				/* 40 */
-	"Reserved 41",				/* 41 */
-	"Reserved 42",				/* 42 */
-	"Reserved 43",				/* 43 */
-	"Reserved 44",				/* 44 */
-	"Reserved 45",				/* 45 */
-	"Reserved 46",				/* 46 */
-	"Reserved 47",				/* 47 */
+	"reserved 0",				/* 0 */
+	"reset",				/* 1 */
+	"machine check",			/* 2 */
+	"data storage interrupt",		/* 3 */
+	"instruction storage interrupt",	/* 4 */
+	"external interrupt",			/* 5 */
+	"alignment interrupt",			/* 6 */
+	"program interrupt",			/* 7 */
+	"floating point unavailable",		/* 8 */
+	"decrementer interrupt",		/* 9 */
+	"reserved",				/* 10 */
+	"reserved",				/* 11 */
+	"system call",				/* 12 */
+	"trace",				/* 13 */
+	"floating point assist",		/* 14 */
+	"performance monitoring",		/* 15 */
+	"instruction tlb miss",			/* 16 */
+	"data load tlb miss",			/* 17 */
+	"data store tlb miss",			/* 18 */
+	"instruction breakpoint",		/* 19 */
+	"system management interrupt",		/* 20 */
+	"reserved 21",				/* 21 */
+	"reserved 22",				/* 22 */
+	"reserved 23",				/* 23 */
+	"reserved 24",				/* 24 */
+	"reserved 25",				/* 25 */
+	"reserved 26",				/* 26 */
+	"reserved 27",				/* 27 */
+	"reserved 28",				/* 28 */
+	"reserved 29",				/* 29 */
+	"reserved 30",				/* 30 */
+	"reserved 31",				/* 31 */
+	"reserved 32",				/* 32 */
+	"reserved 33",				/* 33 */
+	"reserved 34",				/* 34 */
+	"reserved 35",				/* 35 */
+	"reserved 36",				/* 36 */
+	"reserved 37",				/* 37 */
+	"reserved 38",				/* 38 */
+	"reserved 39",				/* 39 */
+	"reserved 40",				/* 40 */
+	"reserved 41",				/* 41 */
+	"reserved 42",				/* 42 */
+	"reserved 43",				/* 43 */
+	"reserved 44",				/* 44 */
+	"reserved 45",				/* 45 */
+	"reserved 46",				/* 46 */
+	"reserved 47",				/* 47 */
 };
 
 static void
