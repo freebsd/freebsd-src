@@ -415,22 +415,30 @@ loop:
 		if (xvp->v_mount != mp)
 			goto loop;
 		nvp = TAILQ_NEXT(xvp, v_nmntvnodes);
+		VI_LOCK(xvp);
 		mtx_unlock(&mntvnode_mtx);
-		mp_fixme("Unlocked GETATTR.");
-		if (vrefcnt(xvp) == 0 || xvp->v_type == VNON ||
-		    (VTOI(xvp)->i_flags & SF_SNAPSHOT) ||
-		    (VOP_GETATTR(xvp, &vat, td->td_ucred, td) == 0 &&
-		    vat.va_nlink > 0)) {
+		if (xvp->v_usecount == 0 || xvp->v_type == VNON ||
+		    (VTOI(xvp)->i_flags & SF_SNAPSHOT)) {
+			VI_UNLOCK(xvp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 		if (snapdebug)
 			vprint("ffs_snapshot: busy vnode", xvp);
-		if (vn_lock(xvp, LK_EXCLUSIVE, td) != 0)
+		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0) {
+			mtx_lock(&mntvnode_mtx);
 			goto loop;
+		}
+		if (VOP_GETATTR(xvp, &vat, td->td_ucred, td) == 0 &&
+		    vat.va_nlink > 0) {
+			VOP_UNLOCK(xvp, 0, td);
+			mtx_lock(&mntvnode_mtx);
+			continue;
+		}
 		xp = VTOI(xvp);
 		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
 			VOP_UNLOCK(xvp, 0, td);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 		/*
