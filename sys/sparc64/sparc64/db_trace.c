@@ -148,8 +148,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	fp = (struct frame *)(addr + SPOFF);
 
 	while (count-- && !user) {
-		pc = (db_addr_t)db_get_value((db_addr_t)&fp->f_pc,
-		    sizeof(fp->f_pc), FALSE);
+		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
+		    sizeof(fp->fr_pc), FALSE);
 		if (trap) {
 			pc = npc;
 			trap = 0;
@@ -164,8 +164,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 			db_symbol_values(sym, &name, &value);
 		if (name == NULL)
 			name = "(null)";
-		fp = (struct frame *)(db_get_value((db_addr_t)&fp->f_fp,
-		   sizeof(fp->f_fp), FALSE) + SPOFF);
+		fp = (struct frame *)(db_get_value((db_addr_t)&fp->fr_fp,
+		   sizeof(fp->fr_fp), FALSE) + SPOFF);
 		if (bcmp(name, "tl0_", 4) == 0 ||
 		    bcmp(name, "tl1_", 4) == 0) {
 			tf = (struct trapframe *)(fp + 1);
@@ -296,9 +296,9 @@ db_utrace(struct thread *td, struct trapframe *tf)
 		if (!found) {
 			rsp = sp + SPOFF;
 			sp = NULL;
-			if (copyin((void *)(rsp + offsetof(struct frame, f_fp)),
+			if (copyin((void *)(rsp + offsetof(struct frame, fr_fp)),
 			    &sp, sizeof(sp)) != 0 ||
-			    copyin((void *)(rsp + offsetof(struct frame, f_pc)),
+			    copyin((void *)(rsp + offsetof(struct frame, fr_pc)),
 			    &pc, sizeof(pc)) != 0)
 				break;
 		}
