@@ -436,6 +436,18 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "USB to LAN Converter",
 	},
 	{
+	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U103,
+	    0,
+	    "Belkin Components",
+	    "F5U103 Serial adapter",
+	},
+	{
+	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U120,
+	    0,
+	    "Belkin Components",
+	    "F5U120-PC Hub",
+	},
+	{
 	    USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB100,
 	    0,
 	    "Billionton Systems",
@@ -902,6 +914,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Extended Systems",
 	    "XTNDAccess IrDA",
+	},
+	{
+	    USB_VENDOR_GOHUBS, USB_PRODUCT_GOHUBS_GOCOM232,
+	    0,
+	    "GoHubs",
+	    "GoCOM232 Serial converter",
 	},
 	{
 	    USB_VENDOR_GRAVIS, USB_PRODUCT_GRAVIS_GAMEPADPRO,
@@ -4087,6 +4105,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_ALATION, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Alation Systems",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_GOHUBS, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "GoHubs",
 	    NULL,
 	},
 	{
