@@ -2327,8 +2327,8 @@ struct infile
   char *language;
 };
 
-#if defined(FREEBSD_NATIVE) 
-#if defined(FREEBSD_AOUT)		/* XXX: revisit this */
+#if defined(FREEBSD_NATIVE) && defined(__i386__)
+#if defined(FREEBSD_AOUT)
 static int objformat_aout = 1;		/* set default format in absense of */
 #else					/* any other hints. */
 static int objformat_aout = 0;
@@ -2480,7 +2480,7 @@ process_command (argc, argv)
 	}
     }
 
-#if defined(FREEBSD_NATIVE)
+#if defined(FREEBSD_NATIVE) && defined(__i386__)
   {
     /* first hint is /etc/objectformat */
     FILE *fp = fopen("/etc/objectformat", "r");
@@ -2522,7 +2522,7 @@ process_command (argc, argv)
 
   for (i = 1; i < argc; i++)
     {
-#if defined(FREEBSD_NATIVE)
+#if defined(FREEBSD_NATIVE) && defined(__i386__)
       /* .. and command line args override all */
       if (strcmp (argv[i], "-aout") == 0)
 	{
@@ -2761,11 +2761,13 @@ process_command (argc, argv)
   /* Use 2 as fourth arg meaning try just the machine as a suffix,
      as well as trying the machine and the version.  */
 #ifdef FREEBSD_NATIVE
+#if defined(__i386__)
   if (objformat_aout) {
     n_switches++;		/* add implied -maout */
     add_prefix (&exec_prefixes, "/usr/libexec/aout/", 0, 0, NULL_PTR);
   } else
     add_prefix (&exec_prefixes, "/usr/libexec/elf/", 0, 0, NULL_PTR);
+#endif
   add_prefix (&exec_prefixes, "/usr/libexec/", 0, 0, NULL_PTR);
   add_prefix (&exec_prefixes, "/usr/bin/", 0, 0, NULL_PTR);
   add_prefix (&startfile_prefixes, "/usr/libdata/gcc/", 0, 0, NULL_PTR);
@@ -2838,7 +2840,7 @@ process_command (argc, argv)
      to the copy in the vector of switches.
      Store all the infiles in their vector.  */
 
-#ifdef FREEBSD_NATIVE
+#if defined(FREEBSD_NATIVE) && defined(__i386__)
   if (objformat_aout == 1) {
     switches[n_switches].part1 = "maout";
     switches[n_switches].args = 0;
@@ -2870,7 +2872,7 @@ process_command (argc, argv)
 	;
       else if (! strcmp (argv[i], "-print-multi-directory"))
 	;
-#ifdef FREEBSD_NATIVE
+#if defined(FREEBSD_NATIVE) && defined(__i386__)
       else if (! strcmp (argv[i], "-aout"))
 	;
       else if (! strcmp (argv[i], "-elf"))
