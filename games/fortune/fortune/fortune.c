@@ -401,7 +401,7 @@ register int	file_cnt;
 	register int	i, percent;
 	register char	*sp;
 
-	if (file_cnt == 0)
+	if (file_cnt == 0) {
 		if (Find_files) {
 			Fortunes_only = TRUE;
 			i = add_file(NO_PROB, FORTDIR, NULL, &File_list,
@@ -411,6 +411,7 @@ register int	file_cnt;
 		} else
 			return add_file(NO_PROB, "fortunes", FORTDIR,
 					&File_list, &File_tail, NULL);
+	}
 	for (i = 0; i < file_cnt; i++) {
 		percent = NO_PROB;
 		if (!isdigit((unsigned char)files[i][0]))
@@ -918,7 +919,7 @@ init_prob()
 		exit(1);
 	}
 	percent = 100 - percent;
-	if (Equal_probs)
+	if (Equal_probs) {
 		if (num_noprob != 0) {
 			if (num_noprob > 1) {
 				frac = percent / num_noprob;
@@ -932,7 +933,7 @@ init_prob()
 			last->percent = percent;
 			DPRINTF(1, (stderr, ", residual = %d%%", percent));
 		}
-	else {
+	else
 		DPRINTF(1, (stderr,
 			    ", %d%% distributed over remaining fortunes\n",
 			    percent));
