@@ -305,7 +305,7 @@ nfsm_adv_xx(int s, struct mbuf **md, caddr_t *dpos)
 	int t1;
 
 	t1 = mtod(*md, caddr_t) + (*md)->m_len - *dpos;
-	if (t1 > s) {
+	if (t1 >= s) {
 		*dpos += s;
 		return 0;
 	}
