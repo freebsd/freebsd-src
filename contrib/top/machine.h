@@ -12,6 +12,7 @@ struct statics
     char **procstate_names;
     char **cpustate_names;
     char **memory_names;
+    char **swap_names;
 #ifdef ORDER
     char **order_names;
 #endif
@@ -30,6 +31,7 @@ struct system_info
     int    *procstates;
     int    *cpustates;
     int    *memory;
+    int    *swap;
 };
 
 /* cpu_states is an array of percentages * 10.  For example, 
