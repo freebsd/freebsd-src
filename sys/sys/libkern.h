@@ -77,14 +77,22 @@ void	*bsearch(const void *, const void *, size_t,
 #ifndef	HAVE_INLINE_FFS
 int	 ffs(int);
 #endif
+#if (__UINT_MAX == __ULONG_MAX)
+#define	 ffsl(x) ffs((x))
+#else
 #ifndef	HAVE_INLINE_FFSL
 int	 ffsl(long);
+#endif
 #endif
 #ifndef	HAVE_INLINE_FLS
 int	 fls(int);
 #endif
+#if (__UINT_MAX == __ULONG_MAX)
+#define	 flsl(x) fls((x))
+#else
 #ifndef	HAVE_INLINE_FLSL
 int	 flsl(long);
+#endif
 #endif
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
