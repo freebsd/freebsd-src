@@ -611,8 +611,7 @@ drvread(void *buf, unsigned lba, unsigned nblk)
     v86int();
     v86.ctl = V86_FLAGS;
     if (V86_CY(v86.efl)) {
-	printf("Disk error 0x%x (lba=0x%x)\n", v86.eax >> 8 & 0xff,
-	       lba);
+	printf("Disk error 0x%x lba 0x%x\n", v86.eax >> 8 & 0xff, lba);
 	return -1;
     }
     return 0;
