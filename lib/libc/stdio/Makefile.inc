@@ -28,7 +28,10 @@ MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetws.3 flockfile.3 \
 	printf.3 putc.3 putwc.3 remove.3 scanf.3 setbuf.3 stdio.3 tmpnam.3 \
 	ungetc.3 ungetwc.3 wprintf.3 wscanf.3
 
-MLINKS+=ferror.3 clearerr.3 ferror.3 feof.3 ferror.3 fileno.3
+MLINKS+=ferror.3 ferror_unlocked.3 \
+	ferror.3 clearerr.3 ferror.3 clearerr_unlocked.3 \
+	ferror.3 feof.3 ferror.3 feof_unlocked.3 \
+	ferror.3 fileno.3 ferror.3 fileno_unlocked.3
 MLINKS+=fflush.3 fpurge.3
 MLINKS+=fgets.3 gets.3
 MLINKS+=flockfile.3 ftrylockfile.3 flockfile.3 funlockfile.3
