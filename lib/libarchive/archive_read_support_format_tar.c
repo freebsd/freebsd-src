@@ -55,8 +55,8 @@ struct archive_entry_header_ustar {
 	char	version[2];	/* For POSIX: "00" */
 	char	uname[32];
 	char	gname[32];
-	char	devmajor[8];
-	char	devminor[8];
+	char	rdevmajor[8];
+	char	rdevminor[8];
 	char	prefix[155];
 };
 
@@ -81,8 +81,8 @@ struct archive_entry_header_gnutar {
 	char	magic[8];  /* "ustar  \0" (note blank/blank/null at end) */
 	char	uname[32];
 	char	gname[32];
-	char	devmajor[8];
-	char	devminor[8];
+	char	rdevmajor[8];
+	char	rdevminor[8];
 	char	atime[12];
 	char	ctime[12];
 	char	offset[12];
@@ -313,7 +313,7 @@ archive_read_format_tar_bid(struct archive *a)
 		/* Not a valid mode; bail out here. */
 		return (0);
 	}
-	/* TODO: Sanity test uid/gid/size/mtime/devmajor/devminor fields. */
+	/* TODO: Sanity test uid/gid/size/mtime/rdevmajor/rdevminor fields. */
 
 	return (bid);
 }
@@ -932,8 +932,8 @@ header_ustar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
 		st->st_rdev = makedev(
-		    tar_atol(header->devmajor, sizeof(header->devmajor)),
-		    tar_atol(header->devminor, sizeof(header->devminor)));
+		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)),
+		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
 	}
 
 	tar->entry_bytes_remaining = st->st_size;
@@ -1070,9 +1070,9 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 		else if (wcscmp(key, L"SCHILY.devmajor")==0)
 			st->st_rdev = makedev(tar_atol10(value, wcslen(value)),
-			    minor(st->st_dev));
+			    minor(st->st_rdev));
 		else if (wcscmp(key, L"SCHILY.devminor")==0)
-			st->st_rdev = makedev(major(st->st_dev),
+			st->st_rdev = makedev(major(st->st_rdev),
 			    tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.fflags")==0)
 			archive_entry_copy_fflags_text_w(entry, value);
@@ -1234,8 +1234,8 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4')
 		st->st_rdev = makedev (
-		    tar_atol(header->devmajor, sizeof(header->devmajor)),
-		    tar_atol(header->devminor, sizeof(header->devminor)));
+		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)),
+		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
 	else
 		st->st_rdev = 0;
 
@@ -1333,7 +1333,7 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
  * all of the standard numeric fields.  This is a significant limitation
  * in practice:
  *   = file size is limited to 8GB
- *   = devmajor and devminor are limited to 21 bits
+ *   = rdevmajor and rdevminor are limited to 21 bits
  *   = uid/gid are limited to 21 bits
  *
  * There are two workarounds for this:

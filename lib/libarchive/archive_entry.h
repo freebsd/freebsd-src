@@ -66,18 +66,21 @@ struct archive_entry	*archive_entry_new(void);
  * Retrieve fields from an archive_entry.
  */
 
-dev_t			 archive_entry_devmajor(struct archive_entry *);
-dev_t			 archive_entry_devminor(struct archive_entry *);
+dev_t			 archive_entry_dev(struct archive_entry *);
 const char		*archive_entry_fflags_text(struct archive_entry *);
 void			 archive_entry_fflags(struct archive_entry *,
 			     unsigned long *set, unsigned long *clear);
 const char		*archive_entry_gname(struct archive_entry *);
 const char		*archive_entry_hardlink(struct archive_entry *);
+ino_t			 archive_entry_ino(struct archive_entry *);
 mode_t			 archive_entry_mode(struct archive_entry *);
 time_t			 archive_entry_mtime(struct archive_entry *);
 long			 archive_entry_mtime_nsec(struct archive_entry *);
 const char		*archive_entry_pathname(struct archive_entry *);
 const wchar_t		*archive_entry_pathname_w(struct archive_entry *);
+dev_t			 archive_entry_rdev(struct archive_entry *);
+dev_t			 archive_entry_rdevmajor(struct archive_entry *);
+dev_t			 archive_entry_rdevminor(struct archive_entry *);
 int64_t			 archive_entry_size(struct archive_entry *);
 const struct stat	*archive_entry_stat(struct archive_entry *);
 const char		*archive_entry_symlink(struct archive_entry *);
@@ -91,8 +94,6 @@ const char		*archive_entry_uname(struct archive_entry *);
  */
 
 void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
-void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
-void	archive_entry_set_devminor(struct archive_entry *, dev_t);
 void	archive_entry_set_fflags(struct archive_entry *,
 	    unsigned long set, unsigned long clear);
 /* Returns pointer to start of first invalid token, or NULL if none. */
@@ -109,6 +110,8 @@ void	archive_entry_set_link(struct archive_entry *, const char *);
 void	archive_entry_set_mode(struct archive_entry *, mode_t);
 void	archive_entry_set_pathname(struct archive_entry *, const char *);
 void	archive_entry_copy_pathname_w(struct archive_entry *, const wchar_t *);
+void	archive_entry_set_rdevmajor(struct archive_entry *, dev_t);
+void	archive_entry_set_rdevminor(struct archive_entry *, dev_t);
 void	archive_entry_set_size(struct archive_entry *, int64_t);
 void	archive_entry_set_symlink(struct archive_entry *, const char *);
 void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);

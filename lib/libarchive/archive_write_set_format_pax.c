@@ -446,26 +446,28 @@ archive_write_pax_header(struct archive *a,
 
 	/*
 	 * POSIX/SUSv3 doesn't provide a standard key for large device
-	 * numbers.  I use the same keys here that Joerg Schilling used for
-	 * 'star.'  No doubt, other implementations use other keys.  Note that
-	 * there's no reason we can't write the same information into a number
-	 * of different keys.
+	 * numbers.  I use the same keys here that Joerg Schilling
+	 * used for 'star.'  (Which, somewhat confusingly, are called
+	 * "devXXX" even though they code "rdev" values.)  No doubt,
+	 * other implementations use other keys.  Note that there's no
+	 * reason we can't write the same information into a number of
+	 * different keys.
 	 *
 	 * Of course, this is only needed for block or char device entries.
 	 */
 	if (S_ISBLK(st_main->st_mode) ||
 	    S_ISCHR(st_main->st_mode)) {
 		/*
-		 * If devmajor is too large, add 'SCHILY.devmajor' to
+		 * If rdevmajor is too large, add 'SCHILY.devmajor' to
 		 * extended attributes.
 		 */
-		dev_t devmajor, devminor;
-		devmajor = major(st_main->st_rdev);
-		devminor = minor(st_main->st_rdev);
-		if (devmajor >= (1 << 18)) {
+		dev_t rdevmajor, rdevminor;
+		rdevmajor = major(st_main->st_rdev);
+		rdevminor = minor(st_main->st_rdev);
+		if (rdevmajor >= (1 << 18)) {
 			add_pax_attr_int(&(pax->pax_header), "SCHILY.devmajor",
-			    devmajor);
-			archive_entry_set_devmajor(entry_main, (1 << 18) - 1);
+			    rdevmajor);
+			archive_entry_set_rdevmajor(entry_main, (1 << 18) - 1);
 			need_extension = 1;
 		}
 
@@ -473,10 +475,10 @@ archive_write_pax_header(struct archive *a,
 		 * If devminor is too large, add 'SCHILY.devminor' to
 		 * extended attributes.
 		 */
-		if (devminor >= (1 << 18)) {
+		if (rdevminor >= (1 << 18)) {
 			add_pax_attr_int(&(pax->pax_header), "SCHILY.devminor",
-			    devminor);
-			archive_entry_set_devminor(entry_main, (1 << 18) - 1);
+			    rdevminor);
+			archive_entry_set_rdevminor(entry_main, (1 << 18) - 1);
 			need_extension = 1;
 		}
 	}
@@ -558,6 +560,8 @@ archive_write_pax_header(struct archive *a,
 			    "SCHILY.acl.default", wp);
 
 		/* Include star-compatible metadata info. */
+		/* Note: "SCHILY.dev{major,minor}" are NOT the
+		 * major/minor portions of "SCHILY.dev". */
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.dev",
 		    st_main->st_dev);
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.ino",

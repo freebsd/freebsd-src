@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "archive.h"
+#include "archive_entry.h"
 #include "archive_private.h"
 
 extern char		**environ;
@@ -185,6 +186,12 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 	/* Finish last entry. */
 	if (a->state & ARCHIVE_STATE_DATA)
 		((a->format_finish_entry)(a));
+
+	if (archive_entry_dev(entry) == a->skip_file_dev &&
+	    archive_entry_ino(entry) == a->skip_file_ino) {
+		archive_set_error(a, 0, "Can't add archive to itself.");
+		return (ARCHIVE_WARN);
+	}
 
 	/* Format and write header. */
 	ret = ((a->format_write_header)(a, entry));
