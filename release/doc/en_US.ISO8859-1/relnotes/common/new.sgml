@@ -95,6 +95,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">Execution of &man.a.out.5; format executables now
+      requires the <literal>COMPAT_AOUT</literal> option in the kernel
+      configuration or the loading of the <filename>aout.ko</filename>
+      kernel module.</para>
+
     <para>&man.acct.2; has been changed to open the accounting file in
       append mode, so that &man.accton.8; can be used to enable
       accounting to an append-only file. &merged;</para>
@@ -595,6 +600,10 @@
 
       <para arch="alpha">Support for TurboChannel Alphas has been
         removed.</para>
+
+      <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
+	added; this requires the <literal>CPU_ELAN</literal> option in
+	the kernel configuration file.</para>
 
     </sect3>
 
