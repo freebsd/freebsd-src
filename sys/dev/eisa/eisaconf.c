@@ -621,4 +621,4 @@ static driver_t eisa_driver = {
 };
 
 DRIVER_MODULE(eisa, eisab, eisa_driver, eisa_devclass, 0, 0);
-DRIVER_MODULE(eisa, nexus, eisa_driver, eisa_devclass, 0, 0);
+DRIVER_MODULE(eisa, legacy, eisa_driver, eisa_devclass, 0, 0);
