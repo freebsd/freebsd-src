@@ -1,6 +1,6 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $Id: de_DE.DIS_8859-15.src,v 1.2 1999/02/12 21:14:41 ache Exp $
+# $Id: de_DE.DIS_8859-15.src,v 1.3 1999/02/13 14:15:25 ache Exp $
 #
 charmap map.DIS_8859-15
 substitute <ss> with "ss"
