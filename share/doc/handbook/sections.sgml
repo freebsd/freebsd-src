@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.7 1995/12/07 13:22:17 jkh Exp $ -->
+<!-- $Id: sections.sgml,v 1.8 1996/02/11 00:16:15 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -37,6 +37,7 @@
 <!ENTITY relnotes SYSTEM "relnotes.sgml">
 <!ENTITY routing SYSTEM "routing.sgml">
 <!ENTITY scsi SYSTEM "scsi.sgml">
+<!ENTITY sio SYSTEM "sio.sgml">
 <!ENTITY skey SYSTEM "skey.sgml">
 <!ENTITY slipc SYSTEM "slipc.sgml">
 <!ENTITY slips SYSTEM "slips.sgml">
@@ -44,5 +45,5 @@
 <!ENTITY sup SYSTEM "sup.sgml">
 <!ENTITY synching SYSTEM "synching.sgml">
 <!ENTITY troubleshooting SYSTEM "troubleshooting.sgml">
+<!ENTITY uart SYSTEM "uart.sgml">
 <!ENTITY userppp SYSTEM "userppp.sgml">
-
