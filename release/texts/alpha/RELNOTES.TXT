@@ -177,7 +177,7 @@ The cd(4) driver now has support for write operations.  This allows
 writing to DVD-RAM, PD and similar drives that probe as CD devices.
 Note that change affects only random-access writeable devices, not
 sequential-only writeable devices such as CD-R drives, which are
-supported by cdrecord.
+supported by cdrecord. [MERGED]
 
 Support for threads under Linux emulation has been added.
 
@@ -255,6 +255,9 @@ major releases, across binutil upgrades and when config changes
 version.)
 
 The API UP1100 mainboard has been verified to work OK.
+
+bridge(4) and dummynet(4) have received some enhancements and bugfixes.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -678,6 +681,19 @@ pkg_create(1) and pkg_install(1) can now work with packages that have
 been compressed using bzip2(1).
 
 libc is now thread-safe by default; libc_r contains only thread functions.
+
+find(1) now takes the -empty flag, which returns true if a directory
+is empty. [MERGED]
+
+tftpd(8) now takes the -c and -C options, which allow the server to
+chroot(2) based on the IP address of the connecting client.
+
+vidcontrol(1) now accepts a -g parameter to select custom text
+geometry in the VESA_800x600 raster text mode.
+
+ldconfig(8) now checks directory ownerships and permissions for
+greater security; these checks can be disabled with the -i
+flag. [MERGED]
 
 
 2. Supported Configurations
