@@ -242,6 +242,7 @@ wrapup:
 	if (generic_wrapup) {
 		(*generic_wrapup)(cmdstatus);
 	}
+	free_printer(pp);
 	if (generic_msg)
 		free(generic_msg);
 }
