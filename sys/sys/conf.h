@@ -232,6 +232,7 @@ struct swdevt {
 	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
 	int	sw_flags;
 	int	sw_nblks;
+	int     sw_used;
 	struct	vnode *sw_vp;
 	dev_t	sw_device;
 };
