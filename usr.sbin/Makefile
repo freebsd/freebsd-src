@@ -294,7 +294,7 @@ _ndiscvt=	ndiscvt
 _pccard=	pccard
 _pcvt=		pcvt
 _pnpinfo=	pnpinfo
-.if !defined(NOLIBPTHREAD)
+.if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
@@ -306,7 +306,7 @@ _zzz=		zzz
 .if ${MACHINE_ARCH} == "alpha"
 _elf2exe=	elf2exe
 _pnpinfo=	pnpinfo
-.if !defined(NOLIBC_R)
+.if !defined(NO_LIBC_R)
 _pppctl=	pppctl
 .endif
 .endif
@@ -326,7 +326,7 @@ _lptcontrol=	lptcontrol
 _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
-.if !defined(NOLIBPTHREAD)
+.if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
@@ -339,7 +339,7 @@ _zzz=		zzz
 _acpi=		acpi
 .endif
 _kgmon=		kgmon
-.if !defined(NOLIBPTHREAD)
+.if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
 .endif
 _zzz=		zzz
@@ -348,7 +348,7 @@ _zzz=		zzz
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
-.if !defined(NOLIBC_R)
+.if !defined(NO_LIBC_R)
 _pppctl=	pppctl
 .endif
 .endif
