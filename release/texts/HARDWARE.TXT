@@ -1028,6 +1028,12 @@ Trident 4DWave DX/NX
 VIA Technologies VT82C686A
 Yamaha DS1 and DS1e
 
+NOTE: Due to licensing restrictions, the Maestro3/Allegro driver
+cannot be compiled into the kernel.  To use this driver, add the
+following line to /boot/loader.conf:
+
+	maestro3_load="YES"
+
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
 Cortex1 frame grabber
