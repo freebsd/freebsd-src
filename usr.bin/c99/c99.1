@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" FreeBSD: src/usr.bin/c89/c89.1,v 1.4.2.4 2001/08/02 01:11:13 obrien Exp 
+.\" FreeBSD: src/usr.bin/c89/c89.1,v 1.4.2.4 2001/08/02 01:11:13 obrien Exp
 .\" $FreeBSD$
 .\"
 .Dd October 7, 2002
@@ -58,20 +58,22 @@ object files that are produced.
 .It Fl D Ar name Ns Op = Ns Ar value
 Define name as if by a C-language
 .Ic #define
-directive.  If
-no
+directive.
+If no
 .Dq = Ns Ar value
 is given, a value of 1 will be used.
 Note that in order to request a
 translation as specified by
-.St -p1003.1-2001
+.St -p1003.1-2001 ,
 you need to define
 .Dv _POSIX_C_SOURCE=200112L
-either in the source or using this option.  The
+either in the source or using this option.
+The
 .Fl D
 option has lower precedence than the
 .Fl U
-option.  That is, if
+option.
+That is, if
 .Ar name
 is used in both a
 .Fl U
@@ -79,7 +81,8 @@ and a
 .Fl D
 option,
 .Ar name
-will be undefined regardless of the order of the options.  The
+will be undefined regardless of the order of the options.
+The
 .Fl D
 option may be specified more than once.
 .It Fl E
@@ -91,20 +94,27 @@ Produce symbolic information in the object or executable files.
 Change the algorithm for searching for headers whose names are not
 absolute pathnames to look in the directory named by the
 .Ar directory
-pathname before looking in the usual places.  Thus, headers whose
-names are enclosed in double-quotes ("") will be searched for first
+pathname before looking in the usual places.
+Thus, headers whose
+names are enclosed in double-quotes
+.Pq Qq
+will be searched for first
 in the directory of the file with the
 .Ic #include
 line, then in
 directories named in
 .Fl I
-options, and last in the usual places.  For
-headers whose names are enclosed in angle brackets (<>), the header
+options, and last in the usual places.
+For headers whose names are enclosed in angle brackets
+.Pq Aq ,
+the header
 will be searched for only in directories named in
 .Fl I
-options and then in the usual places.  Directories named in
+options and then in the usual places.
+Directories named in
 .Fl I
-options shall be searched in the order specified.  The
+options shall be searched in the order specified.
+The
 .Fl I
 option may be specified more than once.
 .It Fl L Ar directory
@@ -112,9 +122,11 @@ Change the algorithm of searching for the libraries named in the
 .Fl l
 objects to look in the directory named by the
 .Ar directory
-pathname before looking in the usual places.  Directories named in
+pathname before looking in the usual places.
+Directories named in
 .Fl L
-options will be searched in the order specified.  The
+options will be searched in the order specified.
+The
 .Fl L
 option may be specified more than once.
 .It Fl o Ar outfile
@@ -126,8 +138,8 @@ for the executable file produced.
 .It Fl O Ar optlevel
 If
 .Ar optlevel
-is zero, disable all optimizations. Otherwise, enable optimizations at
-the specified level.
+is zero, disable all optimizations.
+Otherwise, enable optimizations at the specified level.
 .It Fl s
 Produce object and/or executable files from which symbolic and other
 information not required for proper execution has been removed
@@ -142,12 +154,13 @@ option may be specified more than once.
 .Pp
 An operand is either in the form of a pathname or the form
 .Fl l
-library.  At least one operand of the pathname form needs to be
-specified.  Supported operands are of the form:
-.Bl -tag -offset indent -width "-l library"
+library.
+At least one operand of the pathname form needs to be specified.
+Supported operands are of the form:
+.Bl -tag -offset indent -width ".Fl l Ar library"
 .It Ar file Ns Pa .c
-A C-language source file to be compiled and optionally linked.  The
-operand must be of this form if the
+A C-language source file to be compiled and optionally linked.
+The operand must be of this form if the
 .Fl c
 option is used.
 .It Ar file Ns Pa .a
@@ -177,6 +190,10 @@ utility interface conforms to
 .St -p1003.1-2001 .
 Since it is a wrapper around
 .Tn GCC ,
-it is limited to the C99 features that GCC actually implements.
+it is limited to the
+.Tn C99
+features that
+.Tn GCC
+actually implements.
 See
-.Em http://gcc.gnu.org/gcc-3.1/c99status.html .
+.Pa http://gcc.gnu.org/gcc-3.1/c99status.html .
