@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.12 1995/06/15 22:32:03 ache Exp $
+ * $Id: kern_prot.c,v 1.13 1995/10/08 00:06:07 swallace Exp $
  */
 
 /*
@@ -407,7 +407,8 @@ setgroups(p, uap, retval)
 
 	if ((error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
-	if ((ngrp = uap->gidsetsize) > NGROUPS)
+	ngrp = uap->gidsetsize;
+	if (ngrp < 1 || ngrp > NGROUPS)
 		return (EINVAL);
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	if ((error = copyin((caddr_t)uap->gidset,
