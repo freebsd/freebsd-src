@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/acct.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -1245,6 +1246,17 @@ int
 suser(struct thread *td)
 {
 
+#ifdef INVARIANTS
+	if (td != curthread) {
+		printf("suser: thread %p (%d %s) != curthread %p (%d %s)\n",
+		    td, td->td_proc->p_pid, td->td_proc->p_comm,
+		    curthread, curthread->td_proc->p_pid,
+		    curthread->td_proc->p_comm);
+#ifdef KDB
+		kdb_backtrace();
+#endif
+	}
+#endif
 	return (suser_cred(td->td_ucred, 0));
 }
 
