@@ -92,10 +92,10 @@ pm
 Ноември
 Декември
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
-%I:%M:%S %p
-# EOF
+# EF_fmt
+#
+%e %B
