@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.16 1998/02/01 07:03:29 steve Exp $
+.\"	$Id: ifconfig.8,v 1.17 1998/06/08 02:00:45 danny Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -50,28 +50,28 @@
 .Fl a
 .Op Fl d
 .Op Fl u
-.Op Ar protocol_family
+.Op Ar address_family
 .Nm ifconfig
 .Fl l
 .Op Fl d
 .Op Fl u
+.Op Ar address_family 
 .Sh DESCRIPTION
-.Nm
+.Nm Ifconfig
 is used to assign an address
 to a network interface and/or configure
 network interface parameters.
-.Nm
+.Nm Ifconfig
 must be used at boot time to define the network address
 of each interface present on a machine; it may also be used at
 a later time to redefine an interface's address
 or other operating parameters.
 .Pp
-Available operands for
-.Nm ifconfig :
-.Bl -tag -width Ds
-.It Ar Address
+The following options are available:
+.Bl -tag -width indent
+.It Ar address
 For the
-.Tn DARPA-Internet
+.Tn DARPA Ns -Internet
 family,
 the address is either a host name present in the host name data
 base, 
@@ -101,8 +101,8 @@ Internet address expressed in the Internet standard
 .\" byte, and the dots are optional, if the user wishes to (carefully)
 .\" count out long strings of digits in network byte order.
 .It Ar address_family
-Specifies the
-.Ar address family
+Specify the
+.Ar "address family"
 which affects interpretation of the remaining parameters.
 Since an interface can receive transmissions in differing protocols
 with different naming schemes, specifying the address family is recommended.
@@ -115,18 +115,20 @@ and
 .Dq ipx .
 .\" and
 .\" .Dq ns .
-.It Ar Interface
-The
-.Ar interface
+.It Ar dest_address
+Specify the address of the correspondent on the other end
+of a point to point link.
+.It Ar interface
+This
 parameter is a string of the form
 .Dq name unit ,
 for example,
-.Dq en0 
+.Dq en0 .
 .El
 .Pp
 The following parameters may be set with 
 .Nm ifconfig :
-.Bl -tag -width dest_addressxx
+.Bl -tag -width indent
 .It Cm alias
 Establish an additional network address for this interface.
 This is sometimes useful when changing network numbers, and
@@ -157,9 +159,6 @@ was no longer needed.
 If you have incorrectly set an NS address having the side effect
 of specifying the host portion, removing all NS addresses will
 allow you to respecify the host portion.
-.It Cm dest_address
-Specify the address of the correspondent on the other end
-of a point to point link.
 .It Cm down
 Mark an interface ``down''.  When an interface is
 marked ``down'', the system will not attempt to
@@ -194,7 +193,7 @@ available types.
 .It Cm mediaopt Ar opts
 If the driver supports the media selection system, set the specified
 media options on the interface.
-.Ar opts
+.Ar Opts
 is a comma delimited list of options to apply to the interface.
 Refer to the interfaces' driver specific man page for a complete
 list of available options.
@@ -266,7 +265,9 @@ portion.
 Under appletalk, set the interface to respond to a 
 .Em netrange.
 of the form startnet-endnet. Appletalk uses this scheme instead of 
-netmasks though FreeBSD implements it internally as a set of netmasks.
+netmasks though
+.Bx Free
+implements it internally as a set of netmasks.
 .It Cm phase
 The argument following this specifies the version (phase) of the 
 Appletalk network attached to the interface. Values of 1 or 2 are permitted.
@@ -275,23 +276,26 @@ Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
 they are in general used to select special modes of operation. An example
 of this is to enable SLIP compression, or to select the connector type
-for some ethernet cards.  Refer to the man page for the specific driver
+for some Ethernet cards.  Refer to the man page for the specific driver
 for more information.
 .It Fl link[0-2]
 Disable special processing at the link level with the specified interface.
 .It Cm up
-Mark an interface ``up''. 
-This may be used to enable an interface after an ``ifconfig down.''
+Mark an interface
+.Dq up . 
+This may be used to enable an interface after an
+.Dq ifconfig down .
 It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
-.Nm
+.Nm Ifconfig
 displays the current configuration for a network interface
 when no optional parameters are supplied.
 If a protocol family is specified,
-Ifconfig will report only the details specific to that protocol family.
+.Nm
+will report only the details specific to that protocol family.
 .Pp
 If the driver does supports the media selection system, the supported
 media list will be included in the output.
@@ -301,8 +305,9 @@ Optionally, the
 flag may be used instead of an interface name.  This flag instructs
 .Nm
 to display information about all interfaces in the system.
+The
 .Fl d
-limits this to interfaces that are down, and
+flag limits this to interfaces that are down, and
 .Fl u
 limits this to interfaces that are up.
 .Pp
