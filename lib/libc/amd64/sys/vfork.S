@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: Ovfork.S,v 1.7 1998/05/05 22:07:02 jb Exp $
+ *	$Id: Ovfork.S,v 1.8 1998/09/12 22:03:08 dt Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: Ovfork.S,v 1.7 1998/05/05 22:07:02 jb Exp $"
+	.asciz "$Id: Ovfork.S,v 1.8 1998/09/12 22:03:08 dt Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -75,8 +75,8 @@ verror:
 #else
 	call	CNAME(__error)
 #endif
-	popl	%ecx
-	movl	%ecx,(%eax)
+	popl	%edx
+	movl	%edx,(%eax)
 	movl	$-1,%eax
 	movl	$-1,%edx
 	jmp	%ecx
