@@ -714,7 +714,8 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     modulename = rindex(filename, '/');
     if (modulename == NULL)
 	modulename = filename;
-
+    else
+	modulename++;
     lf = linker_find_file_by_name(modulename);
     if (lf)
 	p->p_retval[0] = lf->id;
