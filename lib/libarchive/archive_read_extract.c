@@ -803,7 +803,7 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 
 #ifdef HAVE_CHFLAGS
 	fflags_p = fflags;
-	if (strtofflags(&fflags_p, &set, &clear) != 0  &&
+	if (strtofflags(&fflags_p, &set, &clear) == 0  &&
 	    stat(name, &st) == 0) {
 		st.st_flags &= ~clear;
 		st.st_flags |= set;
