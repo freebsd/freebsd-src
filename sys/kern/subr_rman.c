@@ -223,7 +223,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			continue;
 		}
 		rstart = max(s->r_start, start);
-		rend = min(s->r_end, max(start + count, end));
+		rstart = (rstart + ((1ul << RF_ALIGNMENT(flags))) - 1) &
+		    ~((1ul << RF_ALIGNMENT(flags)) - 1);
+		rend = min(s->r_end, max(rstart + count, end));
 		DPRINTF(("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
 		       rstart, rend, (rend - rstart + 1), count));
 
@@ -591,3 +593,23 @@ rman_release_resource(struct resource *r)
 	simple_unlock(rm->rm_slock);
 	return (rv);
 }
+
+uint32_t
+rman_make_alignment_flags(uint32_t size)
+{
+	int	i;
+	int	count;
+
+	for (i = 0, count = 0; i < 32 && size > 0x01; i++) {
+		count += size & 1;
+		size >>= 1;
+	}
+
+	if (count > 0)
+		i ++;
+
+	if (i > 31)
+		i = 0;
+
+	return(RF_ALIGNMENT_LOG2(i));
+ }
