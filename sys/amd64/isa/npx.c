@@ -35,11 +35,8 @@
  * $FreeBSD$
  */
 
-#include "opt_cpu.h"
 #include "opt_debug_npx.h"
 #include "opt_isa.h"
-#include "opt_math_emulate.h"
-#include "opt_npx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -60,66 +57,34 @@
 #include <sys/signalvar.h>
 #include <sys/user.h>
 
-#ifndef SMP
-#include <machine/asmacros.h>
-#endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
-#ifndef SMP
-#include <machine/clock.h>
-#endif
 #include <machine/resource.h>
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 #include <machine/ucontext.h>
 
-#ifndef SMP
-#include <i386/isa/icu.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#endif
-#include <i386/isa/intr_machdep.h>
+#include <amd64/isa/intr_machdep.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>
-#endif
-
-#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-#if defined(CPU_DISABLE_SSE)
-#undef CPU_ENABLE_SSE
 #endif
 
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
  */
 
-/* Configuration flags. */
-#define	NPX_DISABLE_I586_OPTIMIZED_BCOPY	(1 << 0)
-#define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
-#define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
-#define	NPX_PREFER_EMULATOR			(1 << 3)
-
 #if defined(__GNUC__) && !defined(lint)
 
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
-#define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
-#define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
-#define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
-#ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#endif
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -129,81 +94,31 @@
 void	fldcw(caddr_t addr);
 void	fnclex(void);
 void	fninit(void);
-void	fnsave(caddr_t addr);
 void	fnstcw(caddr_t addr);
 void	fnstsw(caddr_t addr);
-void	fp_divide_by_0(void);
-void	frstor(caddr_t addr);
-#ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
-#endif
 void	start_emulating(void);
 void	stop_emulating(void);
 
 #endif	/* __GNUC__ */
 
-#ifdef CPU_ENABLE_SSE
-#define GET_FPU_CW(thread) \
-	(cpu_fxsr ? \
-		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_cw : \
-		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_cw)
-#define GET_FPU_SW(thread) \
-	(cpu_fxsr ? \
-		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_sw : \
-		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_sw)
-#else /* CPU_ENABLE_SSE */
-#define GET_FPU_CW(thread) \
-	(thread->td_pcb->pcb_save.sv_87.sv_env.en_cw)
-#define GET_FPU_SW(thread) \
-	(thread->td_pcb->pcb_save.sv_87.sv_env.en_sw)
-#endif /* CPU_ENABLE_SSE */
+#define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save.sv_env.en_cw)
+#define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save.sv_env.en_sw)
 
 typedef u_char bool_t;
 
-static	void	fpusave(union savefpu *);
-static	void	fpurstor(union savefpu *);
 static	int	npx_attach(device_t dev);
 static	void	npx_identify(driver_t *driver, device_t parent);
-#ifndef SMP
-static	void	npx_intr(void *);
-#endif
 static	int	npx_probe(device_t dev);
-#ifdef I586_CPU_XXX
-static	long	timezero(const char *funcname,
-		    void (*func)(void *buf, size_t len));
-#endif /* I586_CPU */
 
-int	hw_float;		/* XXX currently just alias for npx_exists */
-
+int	hw_float = 1;
 SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
 	"Floatingpoint instructions executed in hardware");
 
-#ifndef SMP
-static	volatile u_int		npx_intrs_while_probing;
-static	volatile u_int		npx_traps_while_probing;
-#endif
-
-static	union savefpu		npx_cleanstate;
+static	struct savefpu		npx_cleanstate;
 static	bool_t			npx_cleanstate_ready;
-static	bool_t			npx_ex16;
-static	bool_t			npx_exists;
-static	bool_t			npx_irq13;
-
-#ifndef SMP
-alias_for_inthand_t probetrap;
-__asm("								\n\
-	.text							\n\
-	.p2align 2,0x90						\n\
-	.type	" __XSTRING(CNAME(probetrap)) ",@function	\n\
-" __XSTRING(CNAME(probetrap)) ":				\n\
-	ss							\n\
-	incl	" __XSTRING(CNAME(npx_traps_while_probing)) "	\n\
-	fnclex							\n\
-	iret							\n\
-");
-#endif /* SMP */
 
 /*
  * Identify routine.  Create a connection point on our parent for probing.
@@ -220,104 +135,23 @@ npx_identify(driver, parent)
 		panic("npx_identify");
 }
 
-#ifndef SMP
-/*
- * Do minimal handling of npx interrupts to convert them to traps.
- */
-static void
-npx_intr(dummy)
-	void *dummy;
-{
-	struct thread *td;
-
-#ifndef SMP
-	npx_intrs_while_probing++;
-#endif
-
-	/*
-	 * The BUSY# latch must be cleared in all cases so that the next
-	 * unmasked npx exception causes an interrupt.
-	 */
-#ifdef PC98
-	outb(0xf8, 0);
-#else
-	outb(0xf0, 0);
-#endif
-
-	/*
-	 * fpcurthread is normally non-null here.  In that case, schedule an
-	 * AST to finish the exception handling in the correct context
-	 * (this interrupt may occur after the thread has entered the
-	 * kernel via a syscall or an interrupt).  Otherwise, the npx
-	 * state of the thread that caused this interrupt must have been
-	 * pushed to the thread's pcb, and clearing of the busy latch
-	 * above has finished the (essentially null) handling of this
-	 * interrupt.  Control will eventually return to the instruction
-	 * that caused it and it will repeat.  We will eventually (usually
-	 * soon) win the race to handle the interrupt properly.
-	 */
-	td = PCPU_GET(fpcurthread);
-	if (td != NULL) {
-		td->td_pcb->pcb_flags |= PCB_NPXTRAP;
-		mtx_lock_spin(&sched_lock);
-		td->td_flags |= TDF_ASTPENDING;
-		mtx_unlock_spin(&sched_lock);
-	}
-}
-#endif /* !SMP */
-
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
- * whether the device exists or not (XXX should be elsewhere).  Set flags
- * to tell npxattach() what to do.  Modify device struct if npx doesn't
- * need to use interrupts.  Return 0 if device exists.
+ * whether the device exists or not (XXX should be elsewhere).
+ * Modify device struct if npx doesn't need to use interrupts.
+ * Return 0 if device exists.
  */
 static int
 npx_probe(dev)
 	device_t dev;
 {
-#ifndef SMP
-	struct gate_descriptor save_idt_npxtrap;
-	struct resource *ioport_res, *irq_res;
-	void *irq_cookie;
-	int ioport_rid, irq_num, irq_rid;
-	u_short control;
-	u_short status;
-
-	save_idt_npxtrap = idt[16];
-	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	ioport_rid = 0;
-	ioport_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &ioport_rid,
-	    IO_NPX, IO_NPX, IO_NPXSIZE, RF_ACTIVE);
-	if (ioport_res == NULL)
-		panic("npx: can't get ports");
-#ifdef PC98
-	if (resource_int_value("npx", 0, "irq", &irq_num) != 0)
-		irq_num = 8;
-#else
-	if (resource_int_value("npx", 0, "irq", &irq_num) != 0)
-		irq_num = 13;
-#endif
-	irq_rid = 0;
-	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, irq_num,
-	    irq_num, 1, RF_ACTIVE);
-	if (irq_res == NULL)
-		panic("npx: can't get IRQ");
-	if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC | INTR_FAST, npx_intr,
-	    NULL, &irq_cookie) != 0)
-		panic("npx: can't create intr");
-#endif /* !SMP */
 
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
 	 * it after a warm boot.
 	 */
-#ifdef PC98
-	outb(0xf8,0);
-#else
 	outb(0xf1, 0);		/* full reset on some systems, NOP on others */
 	outb(0xf0, 0);		/* clear BUSY# latch */
-#endif
 	/*
 	 * Prepare to trap all ESC (i.e., NPX) instructions and all WAIT
 	 * instructions.  We must set the CR0_MP bit and use the CR0_TS
@@ -338,116 +172,13 @@ npx_probe(dev)
 	 */
 	stop_emulating();
 	/*
-	 * Finish resetting the coprocessor, if any.  If there is an error
-	 * pending, then we may get a bogus IRQ13, but npx_intr() will handle
-	 * it OK.  Bogus halts have never been observed, but we enabled
-	 * IRQ13 and cleared the BUSY# latch early to handle them anyway.
+	 * Finish resetting the coprocessor.
 	 */
 	fninit();
 
 	device_set_desc(dev, "math processor");
 
-#ifdef SMP
-
-	/*
-	 * Exception 16 MUST work for SMP.
-	 */
-	npx_ex16 = hw_float = npx_exists = 1;
 	return (0);
-
-#else /* !SMP */
-
-	/*
-	 * Don't use fwait here because it might hang.
-	 * Don't use fnop here because it usually hangs if there is no FPU.
-	 */
-	DELAY(1000);		/* wait for any IRQ13 */
-#ifdef DIAGNOSTIC
-	if (npx_intrs_while_probing != 0)
-		printf("fninit caused %u bogus npx interrupt(s)\n",
-		       npx_intrs_while_probing);
-	if (npx_traps_while_probing != 0)
-		printf("fninit caused %u bogus npx trap(s)\n",
-		       npx_traps_while_probing);
-#endif
-	/*
-	 * Check for a status of mostly zero.
-	 */
-	status = 0x5a5a;
-	fnstsw(&status);
-	if ((status & 0xb8ff) == 0) {
-		/*
-		 * Good, now check for a proper control word.
-		 */
-		control = 0x5a5a;
-		fnstcw(&control);
-		if ((control & 0x1f3f) == 0x033f) {
-			hw_float = npx_exists = 1;
-			/*
-			 * We have an npx, now divide by 0 to see if exception
-			 * 16 works.
-			 */
-			control &= ~(1 << 2);	/* enable divide by 0 trap */
-			fldcw(&control);
-#ifdef FPU_ERROR_BROKEN
-			/*
-			 * FPU error signal doesn't work on some CPU
-			 * accelerator board.
-			 */
-			npx_ex16 = 1;
-			return (0);
-#endif
-			npx_traps_while_probing = npx_intrs_while_probing = 0;
-			fp_divide_by_0();
-			if (npx_traps_while_probing != 0) {
-				/*
-				 * Good, exception 16 works.
-				 */
-				npx_ex16 = 1;
-				goto no_irq13;
-			}
-			if (npx_intrs_while_probing != 0) {
-				/*
-				 * Bad, we are stuck with IRQ13.
-				 */
-				npx_irq13 = 1;
-				idt[16] = save_idt_npxtrap;
-				return (0);
-			}
-			/*
-			 * Worse, even IRQ13 is broken.  Use emulator.
-			 */
-		}
-	}
-	/*
-	 * Probe failed, but we want to get to npxattach to initialize the
-	 * emulator and say that it has been installed.  XXX handle devices
-	 * that aren't really devices better.
-	 */
-	/* FALLTHROUGH */
-no_irq13:
-	idt[16] = save_idt_npxtrap;
-	bus_teardown_intr(dev, irq_res, irq_cookie);
-
-	/*
-	 * XXX hack around brokenness of bus_teardown_intr().  If we left the
-	 * irq active then we would get it instead of exception 16.
-	 */
-	{
-		register_t crit;
-
-		crit = intr_disable();
-		mtx_lock_spin(&icu_lock);
-		INTRDIS(1 << irq_num);
-		mtx_unlock_spin(&icu_lock);
-		intr_restore(crit);
-	}
-
-	bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
-	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);
-	return (0);
-
-#endif /* SMP */
 }
 
 /*
@@ -457,67 +188,19 @@ static int
 npx_attach(dev)
 	device_t dev;
 {
-	int flags;
 	register_t s;
 
-	if (resource_int_value("npx", 0, "flags", &flags) != 0)
-		flags = 0;
-
-	if (flags)
-		device_printf(dev, "flags 0x%x ", flags);
-	if (npx_irq13) {
-		device_printf(dev, "using IRQ 13 interface\n");
-	} else {
-#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
-		if (npx_ex16) {
-			if (!(flags & NPX_PREFER_EMULATOR))
-				device_printf(dev, "INT 16 interface\n");
-			else {
-				device_printf(dev, "FPU exists, but flags request "
-				    "emulator\n");
-				hw_float = npx_exists = 0;
-			}
-		} else if (npx_exists) {
-			device_printf(dev, "error reporting broken; using 387 emulator\n");
-			hw_float = npx_exists = 0;
-		} else
-			device_printf(dev, "387 emulator\n");
-#else
-		if (npx_ex16) {
-			device_printf(dev, "INT 16 interface\n");
-			if (flags & NPX_PREFER_EMULATOR) {
-				device_printf(dev, "emulator requested, but none compiled "
-				    "into kernel, using FPU\n");
-			}
-		} else
-			device_printf(dev, "no 387 emulator in kernel and no FPU!\n");
-#endif
-	}
+	device_printf(dev, "INT 16 interface\n");
 	npxinit(__INITIAL_NPXCW__);
 
 	if (npx_cleanstate_ready == 0) {
 		s = intr_disable();
 		stop_emulating();
-		fpusave(&npx_cleanstate);
+		fxsave(&npx_cleanstate);
 		start_emulating();
 		npx_cleanstate_ready = 1;
 		intr_restore(s);
 	}
-#ifdef I586_CPU_XXX
-	if (cpu_class == CPUCLASS_586 && npx_ex16 && npx_exists &&
-	    timezero("i586_bzero()", i586_bzero) <
-	    timezero("bzero()", bzero) * 4 / 5) {
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY))
-			bcopy_vector = i586_bcopy;
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
-			bzero_vector = i586_bzero;
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
-			copyin_vector = i586_copyin;
-			copyout_vector = i586_copyout;
-		}
-	}
-#endif
-
 	return (0);		/* XXX unused */
 }
 
@@ -528,11 +211,9 @@ void
 npxinit(control)
 	u_short control;
 {
-	static union savefpu dummy;
+	static struct savefpu dummy;
 	register_t savecrit;
 
-	if (!npx_exists)
-		return;
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
@@ -541,11 +222,8 @@ npxinit(control)
 	savecrit = intr_disable();
 	npxsave(&dummy);
 	stop_emulating();
-#ifdef CPU_ENABLE_SSE
 	/* XXX npxsave() doesn't actually initialize the fpu in the SSE case. */
-	if (cpu_fxsr)
-		fninit();
-#endif
+	fninit();
 	fldcw(&control);
 	start_emulating();
 	intr_restore(savecrit);
@@ -558,6 +236,9 @@ void
 npxexit(td)
 	struct thread *td;
 {
+#ifdef NPX_DEBUG
+	u_int	masked_exceptions;
+#endif
 	register_t savecrit;
 
 	savecrit = intr_disable();
@@ -565,20 +246,16 @@ npxexit(td)
 		npxsave(&PCPU_GET(curpcb)->pcb_save);
 	intr_restore(savecrit);
 #ifdef NPX_DEBUG
-	if (npx_exists) {
-		u_int	masked_exceptions;
-
-		masked_exceptions = GET_FPU_CW(td) & GET_FPU_SW(td) & 0x7f;
-		/*
-		 * Log exceptions that would have trapped with the old
-		 * control word (overflow, divide by 0, and invalid operand).
-		 */
-		if (masked_exceptions & 0x0d)
-			log(LOG_ERR,
-	"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
-			    td->td_proc->p_pid, td->td_proc->p_comm,
-			    masked_exceptions);
-	}
+	masked_exceptions = GET_FPU_CW(td) & GET_FPU_SW(td) & 0x7f;
+	/*
+	 * Log exceptions that would have trapped with the old
+	 * control word (overflow, divide by 0, and invalid operand).
+	 */
+	if (masked_exceptions & 0x0d)
+		log(LOG_ERR,
+"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
+		    td->td_proc->p_pid, td->td_proc->p_comm,
+		    masked_exceptions);
 #endif
 }
 
@@ -586,13 +263,7 @@ int
 npxformat()
 {
 
-	if (!npx_exists)
-		return (_MC_FPFMT_NODEV);
-#ifdef	CPU_ENABLE_SSE
-	if (cpu_fxsr)
-		return (_MC_FPFMT_XMM);
-#endif
-	return (_MC_FPFMT_387);
+	return (_MC_FPFMT_XMM);
 }
 
 /* 
@@ -789,11 +460,6 @@ npxtrap()
 	register_t savecrit;
 	u_short control, status;
 
-	if (!npx_exists) {
-		printf("npxtrap: fpcurthread = %p, curthread = %p, npx_exists = %d\n",
-		       PCPU_GET(fpcurthread), curthread, npx_exists);
-		panic("npxtrap from nowhere");
-	}
 	savecrit = intr_disable();
 
 	/*
@@ -832,8 +498,6 @@ npxdna()
 	register_t s;
 	u_short control;
 
-	if (!npx_exists)
-		return (0);
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("npxdna: fpcurthread == curthread %d times\n",
 		    ++err_count);
@@ -867,20 +531,15 @@ npxdna()
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 	} else {
 		/*
-		 * The following frstor may cause an IRQ13 when the state
+		 * The following frstor may cause a trap when the state
 		 * being restored has a pending error.  The error will
 		 * appear to have been triggered by the current (npx) user
 		 * instruction even when that instruction is a no-wait
 		 * instruction that should not trigger an error (e.g.,
-		 * fnclex).  On at least one 486 system all of the no-wait
 		 * instructions are broken the same as frstor, so our
-		 * treatment does not amplify the breakage.  On at least
-		 * one 386/Cyrix 387 system, fnclex works correctly while
-		 * frstor and fnsave are broken, so our treatment breaks
-		 * fnclex if it is the first FPU instruction after a context
-		 * switch.
+		 * treatment does not amplify the breakage.
 		 */
-		fpurstor(&pcb->pcb_save);
+		fxrstor(&pcb->pcb_save);
 	}
 	intr_restore(s);
 
@@ -912,11 +571,11 @@ npxdna()
  */
 void
 npxsave(addr)
-	union savefpu *addr;
+	struct savefpu *addr;
 {
 
 	stop_emulating();
-	fpusave(addr);
+	fxsave(addr);
 
 	start_emulating();
 	PCPU_SET(fpcurthread, NULL);
@@ -944,12 +603,9 @@ npxdrop()
 int
 npxgetregs(td, addr)
 	struct thread *td;
-	union savefpu *addr;
+	struct savefpu *addr;
 {
 	register_t s;
-
-	if (!npx_exists)
-		return (_MC_FPOWNED_NONE);
 
 	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		if (npx_cleanstate_ready)
@@ -960,16 +616,7 @@ npxgetregs(td, addr)
 	}
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
-		fpusave(addr);
-#ifdef CPU_ENABLE_SSE
-		if (!cpu_fxsr)
-#endif
-			/*
-			 * fnsave initializes the FPU and destroys whatever
-			 * context it contains.  Make sure the FPU owner
-			 * starts with a clean state next time.
-			 */
-			npxdrop();
+		fxsave(addr);
 		intr_restore(s);
 		return (_MC_FPOWNED_FPU);
 	} else {
@@ -985,16 +632,13 @@ npxgetregs(td, addr)
 void
 npxsetregs(td, addr)
 	struct thread *td;
-	union savefpu *addr;
+	struct savefpu *addr;
 {
 	register_t s;
 
-	if (!npx_exists)
-		return;
-
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
-		fpurstor(addr);
+		fxrstor(addr);
 		intr_restore(s);
 	} else {
 		intr_restore(s);
@@ -1002,62 +646,6 @@ npxsetregs(td, addr)
 	}
 	curthread->td_pcb->pcb_flags |= PCB_NPXINITDONE;
 }
-
-static void
-fpusave(addr)
-	union savefpu *addr;
-{
-	
-#ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr)
-		fxsave(addr);
-	else
-#endif
-		fnsave(addr);
-}
-
-static void
-fpurstor(addr)
-	union savefpu *addr;
-{
-
-#ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr)
-		fxrstor(addr);
-	else
-#endif
-		frstor(addr);
-}
-
-#ifdef I586_CPU_XXX
-static long
-timezero(funcname, func)
-	const char *funcname;
-	void (*func)(void *buf, size_t len);
-
-{
-	void *buf;
-#define	BUFSIZE		1048576
-	long usec;
-	struct timeval finish, start;
-
-	buf = malloc(BUFSIZE, M_TEMP, M_NOWAIT);
-	if (buf == NULL)
-		return (BUFSIZE);
-	microtime(&start);
-	(*func)(buf, BUFSIZE);
-	microtime(&finish);
-	usec = 1000000 * (finish.tv_sec - start.tv_sec) +
-	    finish.tv_usec - start.tv_usec;
-	if (usec <= 0)
-		usec = 1;
-	if (bootverbose)
-		printf("%s bandwidth = %u kBps\n", funcname,
-		    (u_int32_t)(((BUFSIZE >> 10) * 1000000) / usec));
-	free(buf, M_TEMP);
-	return (usec);
-}
-#endif /* I586_CPU */
 
 static device_method_t npx_methods[] = {
 	/* Device interface */
@@ -1080,13 +668,13 @@ static driver_t npx_driver = {
 
 static devclass_t npx_devclass;
 
-#ifdef DEV_ISA
 /*
  * We prefer to attach to the root nexus so that the usual case (exception 16)
  * doesn't describe the processor as being `on isa'.
  */
 DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
 
+#ifdef DEV_ISA
 /*
  * This sucks up the legacy ISA support assignments from PNPBIOS/ACPI.
  */
@@ -1132,7 +720,5 @@ static driver_t npxisa_driver = {
 static devclass_t npxisa_devclass;
 
 DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
-#ifndef PC98
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
-#endif
 #endif /* DEV_ISA */

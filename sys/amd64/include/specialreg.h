@@ -75,6 +75,14 @@
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
 
 /*
+ * Bits in AMD64 special registers.  EFER is 64 bits wide.
+ */
+#define	EFER_SCE 0x000000001	/* System Call Extensions (R/W) */
+#define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
+#define	EFER_LMA 0x000000400	/* Long mode active (R) */
+#define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+
+/*
  * CPUID instruction features register
  */
 #define	CPUID_FPU	0x00000001
@@ -132,6 +140,9 @@
 #define MSR_PERFCTR0		0x0c1
 #define MSR_PERFCTR1		0x0c2
 #define MSR_MTRRcap		0x0fe
+#define MSR_SYSENTER_CS		0x174
+#define MSR_SYSENTER_ESP	0x175
+#define MSR_SYSENTER_EIP	0x176
 #define MSR_MCG_CAP		0x179
 #define MSR_MCG_STATUS		0x17a
 #define MSR_MCG_CTL		0x17b
@@ -147,6 +158,7 @@
 #define MSR_MTRR64kBase		0x250
 #define MSR_MTRR16kBase		0x258
 #define MSR_MTRR4kBase		0x268
+#define MSR_PAT			0x277
 #define MSR_MTRRdefType		0x2ff
 #define MSR_MC0_CTL		0x400
 #define MSR_MC0_STATUS		0x401
@@ -175,69 +187,6 @@
 #define MTRR_N64K		8	/* numbers of fixed-size entries */
 #define MTRR_N16K		16
 #define MTRR_N4K		64
-
-/*
- * Cyrix configuration registers, accessible as IO ports.
- */
-#define	CCR0			0xc0	/* Configuration control register 0 */
-#define	CCR0_NC0		0x01	/* First 64K of each 1M memory region is
-								   non-cacheable */
-#define	CCR0_NC1		0x02	/* 640K-1M region is non-cacheable */
-#define	CCR0_A20M		0x04	/* Enables A20M# input pin */
-#define	CCR0_KEN		0x08	/* Enables KEN# input pin */
-#define	CCR0_FLUSH		0x10	/* Enables FLUSH# input pin */
-#define	CCR0_BARB		0x20	/* Flushes internal cache when entering hold
-								   state */
-#define	CCR0_CO			0x40	/* Cache org: 1=direct mapped, 0=2x set
-								   assoc */
-#define	CCR0_SUSPEND	0x80	/* Enables SUSP# and SUSPA# pins */
-
-#define	CCR1			0xc1	/* Configuration control register 1 */
-#define	CCR1_RPL		0x01	/* Enables RPLSET and RPLVAL# pins */
-#define	CCR1_SMI		0x02	/* Enables SMM pins */
-#define	CCR1_SMAC		0x04	/* System management memory access */
-#define	CCR1_MMAC		0x08	/* Main memory access */
-#define	CCR1_NO_LOCK	0x10	/* Negate LOCK# */
-#define	CCR1_SM3		0x80	/* SMM address space address region 3 */
-
-#define	CCR2			0xc2
-#define	CCR2_WB			0x02	/* Enables WB cache interface pins */
-#define	CCR2_SADS		0x02	/* Slow ADS */
-#define	CCR2_LOCK_NW	0x04	/* LOCK NW Bit */
-#define	CCR2_SUSP_HLT	0x08	/* Suspend on HALT */
-#define	CCR2_WT1		0x10	/* WT region 1 */
-#define	CCR2_WPR1		0x10	/* Write-protect region 1 */
-#define CCR2_BARB		0x20	/* Flushes write-back cache when entering
-								   hold state. */
-#define	CCR2_BWRT		0x40	/* Enables burst write cycles */
-#define	CCR2_USE_SUSP	0x80	/* Enables suspend pins */
-
-#define	CCR3			0xc3
-#define	CCR3_SMILOCK	0x01	/* SMM register lock */
-#define	CCR3_NMI		0x02	/* Enables NMI during SMM */
-#define	CCR3_LINBRST	0x04	/* Linear address burst cycles */
-#define	CCR3_SMMMODE	0x08	/* SMM Mode */
-#define	CCR3_MAPEN0		0x10	/* Enables Map0 */
-#define	CCR3_MAPEN1		0x20	/* Enables Map1 */
-#define	CCR3_MAPEN2		0x40	/* Enables Map2 */
-#define	CCR3_MAPEN3		0x80	/* Enables Map3 */
-
-#define	CCR4			0xe8
-#define	CCR4_IOMASK		0x07
-#define	CCR4_MEM		0x08	/* Enables momory bypassing */
-#define	CCR4_DTE		0x10	/* Enables directory table entry cache */
-#define	CCR4_FASTFPE	0x20	/* Fast FPU exception */
-#define	CCR4_CPUID		0x80	/* Enables CPUID instruction */
-
-#define	CCR5			0xe9
-#define	CCR5_WT_ALLOC	0x01	/* Write-through allocate */
-#define	CCR5_SLOP		0x02	/* LOOP instruction slowed down */
-#define	CCR5_LBR1		0x10	/* Local bus region 1 */
-#define	CCR5_ARREN		0x20	/* Enables ARR region */
-
-#define	CCR6			0xea
-
-#define	CCR7			0xeb
 
 /* Performance Control Register (5x86 only). */
 #define	PCR0			0x20
@@ -347,21 +296,31 @@
 #define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
-
-#ifndef LOCORE
-static __inline u_char
-read_cyrix_reg(u_char reg)
-{
-	outb(0x22, reg);
-	return inb(0x23);
-}
-
-static __inline void
-write_cyrix_reg(u_char reg, u_char data)
-{
-	outb(0x22, reg);
-	outb(0x23, data);
-}
-#endif
+/* X86-64 MSR's */
+#define	MSR_EFER	0xc0000080	/* extended features */
+#define	MSR_STAR	0xc0000081	/* legacy mode SYSCALL target/cs/ss */
+#define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
+#define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
+#define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
+#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
+#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
+#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */
+#define	MSR_PERFEVSEL0	0xc0010000
+#define	MSR_PERFEVSEL1	0xc0010001
+#define	MSR_PERFEVSEL2	0xc0010002
+#define	MSR_PERFEVSEL3	0xc0010003
+#undef MSR_PERFCTR0
+#undef MSR_PERFCTR1
+#define	MSR_PERFCTR0	0xc0010004
+#define	MSR_PERFCTR1	0xc0010005
+#define	MSR_PERFCTR2	0xc0010006
+#define	MSR_PERFCTR3	0xc0010007
+#define	MSR_SYSCFG	0xc0010010
+#define	MSR_IORRBASE0	0xc0010016
+#define	MSR_IORRMASK0	0xc0010017
+#define	MSR_IORRBASE1	0xc0010018
+#define	MSR_IORRMASK1	0xc0010019
+#define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
+#define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
 
 #endif /* !_MACHINE_SPECIALREG_H_ */

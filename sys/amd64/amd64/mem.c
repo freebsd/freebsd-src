@@ -98,7 +98,7 @@ mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 	case 14:
-		td->td_frame->tf_eflags &= ~PSL_IOPL;
+		td->td_frame->tf_rflags &= ~PSL_IOPL;
 	}
 	return (0);
 }
@@ -124,7 +124,7 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 		error = securelevel_gt(td->td_ucred, 0);
 		if (error != 0)
 			return (error);
-		td->td_frame->tf_eflags |= PSL_IOPL;
+		td->td_frame->tf_rflags |= PSL_IOPL;
 		break;
 	}
 	return (0);
@@ -135,7 +135,7 @@ static int
 mmrw(dev_t dev, struct uio *uio, int flags)
 {
 	int o;
-	u_int c = 0, v;
+	u_long c = 0, v;
 	struct iovec *iov;
 	int error = 0;
 	vm_offset_t addr, eaddr;
@@ -159,7 +159,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 			v &= ~PAGE_MASK;
 			pmap_kenter((vm_offset_t)ptvmmap, v);
 			o = (int)uio->uio_offset & PAGE_MASK;
-			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
+			c = (u_long)(PAGE_SIZE - ((long)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
@@ -177,17 +177,17 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
 
-			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
+			if (addr < (vm_offset_t)VADDR(0, 0, PTDPTDI, 0))
 				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return (EFAULT);
 
-			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
+			if (!kernacc((caddr_t)(long)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
-			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
+			error = uiomove((caddr_t)(long)uio->uio_offset, (int)c, uio);
 			continue;
 
 		default:
@@ -316,15 +316,6 @@ mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
 
 	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
-
-#ifdef SMP
-void
-mem_range_AP_init(void)
-{
-	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		(mem_range_softc.mr_op->initAP(&mem_range_softc));
-}
-#endif
 
 static int
 mem_modevent(module_t mod, int type, void *data)

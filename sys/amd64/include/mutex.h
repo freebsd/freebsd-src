@@ -56,20 +56,20 @@ extern struct mtx	clock_lock;
  *	locks) in the near future, however.
  */
 #define MTX_LOCK_SPIN(lck, flags)					\
-	pushl $0 ;							\
-	pushl $0 ;							\
-	pushl $flags ;							\
-	pushl $lck ;							\
+	pushq $0 ;							\
+	pushq $0 ;							\
+	pushq $flags ;							\
+	pushq $lck ;							\
 	call _mtx_lock_spin_flags ;					\
-	addl $0x10, %esp ;						\
+	addq $0x20, %rsp ;						\
 
 #define MTX_UNLOCK_SPIN(lck)						\
-	pushl $0 ;							\
-	pushl $0 ;							\
-	pushl $0 ;							\
-	pushl $lck ;							\
+	pushq $0 ;							\
+	pushq $0 ;							\
+	pushq $0 ;							\
+	pushq $lck ;							\
 	call _mtx_unlock_spin_flags ;					\
-	addl $0x10, %esp ;						\
+	addq $0x20, %rsp ;						\
 
 #endif	/* !LOCORE */
 #endif	/* __MACHINE_MUTEX_H */

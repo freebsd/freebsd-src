@@ -58,21 +58,13 @@
 #include <machine/pmap.h>
 
 #include <machine/resource.h>
-#ifdef APIC_IO
-#include <machine/smp.h>
-#include <machine/mpapic.h>
-#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
+#include <amd64/isa/isa.h>
 #endif
-#endif
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
+#include <amd64/isa/icu.h>
+#include <amd64/isa/intr_machdep.h>
 #include <sys/rtprio.h>
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
@@ -165,16 +157,12 @@ nexus_probe(device_t dev)
 	 * APIC interrupts are global though.
 	 *
 	 * XXX We depend on the AT PIC driver correctly claiming IRQ 2
-	 *     to prevent its reuse elsewhere in the !APIC_IO case.
+	 *     to prevent its reuse elsewhere.
 	 */
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
-#ifdef APIC_IO
-	irq_rman.rm_end = APIC_INTMAPSIZE - 1;
-#else
 	irq_rman.rm_end = 15;
-#endif
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
@@ -186,11 +174,7 @@ nexus_probe(device_t dev)
 	 * multiple bridges.  (eg: laptops with docking stations)
 	 */
 	drq_rman.rm_start = 0;
-#ifdef PC98
-	drq_rman.rm_end = 3;
-#else
 	drq_rman.rm_end = 7;
-#endif
 	drq_rman.rm_type = RMAN_ARRAY;
 	drq_rman.rm_descr = "DMA request lines";
 	/* XXX drq 0 not available on some machines */
@@ -342,28 +326,11 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rman_set_bustag(rv, I386_BUS_SPACE_MEM);
 	} else if (type == SYS_RES_IOPORT) {
 		rman_set_bustag(rv, I386_BUS_SPACE_IO);
-#ifndef PC98
 		rman_set_bushandle(rv, rv->r_start);
-#endif
 	}
-
-#ifdef PC98
-	if ((type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) &&
-	    i386_bus_space_handle_alloc(rv->r_bustag, rv->r_start, count,
-					&rv->r_bushandle) != 0) {
-		rman_release_resource(rv);
-		return 0;
-	}
-#endif
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
-#ifdef PC98
-			if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-				i386_bus_space_handle_free(rv->r_bustag,
-				    rv->r_bushandle, rv->r_bushandle->bsh_sz);
-			}
-#endif
 			rman_release_resource(rv);
 			return 0;
 		}
@@ -399,13 +366,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
 		}
 		rman_set_virtual(r, vaddr);
-#ifdef PC98
-		/* PC-98: the type of bus_space_handle_t is the structure. */
-		r->r_bushandle->bsh_base = (bus_addr_t) vaddr;
-#else
-		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
-#endif
 	}
 	return (rman_activate_resource(r));
 }
@@ -437,12 +398,6 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 		if (error)
 			return error;
 	}
-#ifdef PC98
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		i386_bus_space_handle_free(r->r_bustag, r->r_bushandle,
-					   r->r_bushandle->bsh_sz);
-	}
-#endif
 	return (rman_release_resource(r));
 }
 

@@ -36,14 +36,7 @@
 #include <machine/ucontext.h>
 
 union kse_td_ctx {
-#ifdef _KERNEL
-	struct {
-		int		tf_onstack;
-		int		tf_gs;
-		struct trapframe tf_tf;
-	} tfrm;
-#endif
-	mcontext_t	mcontext;
+	int	teh_stuff;
 };
 
 #endif /* MACHINE_KSE_H */

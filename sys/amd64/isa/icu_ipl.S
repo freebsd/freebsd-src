@@ -48,7 +48,7 @@ imen:	.long	HWI_MASK
 	SUPERALIGN_TEXT
 
 ENTRY(INTREN)
-	movl	4(%esp), %eax
+	movq	%rdi, %rax
 	movl	%eax, %ecx
 	notl	%eax
 	andl	%eax, imen
@@ -65,7 +65,7 @@ ENTRY(INTREN)
 	ret
 
 ENTRY(INTRDIS)
-	movl	4(%esp), %eax
+	movq	%rdi, %rax
 	movl	%eax, %ecx
 	orl	%eax, imen
 	movl	imen, %eax

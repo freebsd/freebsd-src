@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
- * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
+ * Copyright (c) 2003 Peter Wemm <peter@freeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +23,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $FreeBSD$
+ * $FreeBSD$
  */
-#include <sys/param.h>
-#include <sys/bus.h>
 
-#include "acpi.h"
-#include <dev/acpica/acpivar.h>
+#include <sys/syscall.h>
 
-int
-acpi_sleep_machdep(struct acpi_softc *sc, int state)
-{
+#include <machine/asmacros.h>
 
-	return (0);
-}
+#include "assym.s"
 
-void
-acpi_install_wakeup_handler(struct acpi_softc *sc)
-{
-}
+	.text
+/**********************************************************************
+ *
+ * Signal trampoline, copied to top of user stack
+ *
+ */
+NON_GPROF_ENTRY(sigcode)
+	call	*SIGF_HANDLER(%rsp)	/* call signal handler */
+	lea	SIGF_UC(%rsp),%rdi	/* get ucontext_t */
+	pushq	$0			/* junk to fake return addr. */
+	movq	$SYS_sigreturn,%rax
+	syscall				/* enter kernel with args */
+0:	hlt				/* trap priviliged instruction */
+	jmp	0b
+
+	ALIGN_TEXT
+esigcode:
+
+	.data
+	.globl	szsigcode
+szsigcode:
+	.long	esigcode-sigcode

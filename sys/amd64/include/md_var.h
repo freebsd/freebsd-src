@@ -36,11 +36,6 @@
  * Miscellaneous machine-dependent declarations.
  */
 
-extern	void	(*bcopy_vector)(const void *from, void *to, size_t len);
-extern	void	(*bzero_vector)(void *buf, size_t len);
-extern	int	(*copyin_vector)(const void *udaddr, void *kaddr, size_t len);
-extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
-
 extern	long	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	int	busdma_swi_pending;
@@ -51,37 +46,10 @@ extern	u_int	cpu_high;
 extern	u_int	cpu_id;
 extern	u_int	cpu_procinfo;
 extern	char	cpu_vendor[];
-extern	u_int	cyrix_did;
 extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
-#ifdef PC98
-extern	int	need_pre_dma_flush;
-extern	int	need_post_dma_flush;
-#endif
 extern	char	sigcode[];
 extern	int	szsigcode;
-#ifdef COMPAT_FREEBSD4
-extern	int	szfreebsd4_sigcode;
-#endif
-#ifdef COMPAT_43
-extern	int	szosigcode;
-#endif
-#ifdef SWTCH_OPTIM_STATS
-extern int stupid_switch;
-extern int swtch_optim_stats;
-extern int tlb_flush_count;
-extern int lazy_flush_count;
-extern int lazy_flush_fixup;
-#ifdef SMP
-extern int lazy_flush_smpfixup;
-extern int lazy_flush_smpipi;
-extern int lazy_flush_smpbadcr3;
-extern int lazy_flush_smpmiss;
-#endif
-#endif
-#ifdef LAZY_SWITCH
-extern int lazy_flush_enable;
-#endif
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;
@@ -94,28 +62,13 @@ void	busdma_swi(void);
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	cpu_setregs(void);
-void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
-void	doreti_popl_ds(void) __asm(__STRING(doreti_popl_ds));
-void	doreti_popl_ds_fault(void) __asm(__STRING(doreti_popl_ds_fault));
-void	doreti_popl_es(void) __asm(__STRING(doreti_popl_es));
-void	doreti_popl_es_fault(void) __asm(__STRING(doreti_popl_es_fault));
-void	doreti_popl_fs(void) __asm(__STRING(doreti_popl_fs));
-void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
 void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
-void	i486_bzero(void *buf, size_t len);
-void	i586_bcopy(const void *from, void *to, size_t len);
-void	i586_bzero(void *buf, size_t len);
-int	i586_copyin(const void *udaddr, void *kaddr, size_t len);
-int	i586_copyout(const void *kaddr, void *udaddr, size_t len);
-void	i686_pagezero(void *addr);
-void	init_AMD_Elan_sc520(void);
+void	pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
-vm_paddr_t kvtop(void *addr);
-void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
+void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
 void	swi_vm(void *);
-int     user_dbreg_trap(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

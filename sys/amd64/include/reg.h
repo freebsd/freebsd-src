@@ -41,66 +41,31 @@
 #define	_MACHINE_REG_H_
 
 /*
- * Indices for registers in `struct trapframe' and `struct regs'.
- *
- * This interface is deprecated.  In the kernel, it is only used in FPU
- * emulators to convert from register numbers encoded in instructions to
- * register values.  Everything else just accesses the relevant struct
- * members.  In userland, debuggers tend to abuse this interface since
- * they don't understand that `struct regs' is a struct.  I hope they have
- * stopped accessing the registers in the trap frame via PT_{READ,WRITE}_U
- * and we can stop supporting the user area soon.
- */
-#define	tFS	(0)
-#define	tES	(1)
-#define	tDS	(2)
-#define	tEDI	(3)
-#define	tESI	(4)
-#define	tEBP	(5)
-#define	tISP	(6)
-#define	tEBX	(7)
-#define	tEDX	(8)
-#define	tECX	(9)
-#define	tEAX	(10)
-#define	tERR	(12)
-#define	tEIP	(13)
-#define	tCS	(14)
-#define	tEFLAGS	(15)
-#define	tESP	(16)
-#define	tSS	(17)
-
-/*
- * Indices for registers in `struct regs' only.
- *
- * Some registers live in the pcb and are only in an "array" with the
- * other registers in application interfaces that copy all the registers
- * to or from a `struct regs'.
- */
-#define	tGS	(18)
-
-/*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
-	unsigned int	r_fs;
-	unsigned int	r_es;
-	unsigned int	r_ds;
-	unsigned int	r_edi;
-	unsigned int	r_esi;
-	unsigned int	r_ebp;
-	unsigned int	r_isp;
-	unsigned int	r_ebx;
-	unsigned int	r_edx;
-	unsigned int	r_ecx;
-	unsigned int	r_eax;
-	unsigned int	r_trapno;
-	unsigned int	r_err;
-	unsigned int	r_eip;
-	unsigned int	r_cs;
-	unsigned int	r_eflags;
-	unsigned int	r_esp;
-	unsigned int	r_ss;
-	unsigned int	r_gs;
+	register_t	r_r15;
+	register_t	r_r14;
+	register_t	r_r13;
+	register_t	r_r12;
+	register_t	r_r11;
+	register_t	r_r10;
+	register_t	r_r9;
+	register_t	r_r8;
+	register_t	r_rdi;
+	register_t	r_rsi;
+	register_t	r_rbp;
+	register_t	r_rbx;
+	register_t	r_rdx;
+	register_t	r_rcx;
+	register_t	r_rax;
+	register_t	r_trapno;
+	register_t	r_err;
+	register_t	r_rip;
+	register_t	r_cs;
+	register_t	r_rflags;
+	register_t	r_rsp;
+	register_t	r_ss;
 };
 
 /*
@@ -112,29 +77,14 @@ struct fpreg {
 	 * simplified struct.  This may be too much detail.  Perhaps
 	 * an array of unsigned longs is best.
 	 */
-	unsigned long	fpr_env[7];
-	unsigned char	fpr_acc[8][10];
-	unsigned long	fpr_ex_sw;
-	unsigned char	fpr_pad[64];
+	unsigned long	fpr_env[4];
+	unsigned char	fpr_acc[8][16];
+	unsigned char	fpr_xacc[16][16];
 };
 
-/*
- * Register set accessible via /proc/$pid/dbregs.
- */
 struct dbreg {
-	unsigned int  dr[8];	/* debug registers */
-				/* Index 0-3: debug address registers */
-				/* Index 4-5: reserved */
-				/* Index 6: debug status */
-				/* Index 7: debug control */
+	unsigned long grrr;
 };
-
-#define DBREG_DR7_EXEC      0x00      /* break on execute       */
-#define DBREG_DR7_WRONLY    0x01      /* break on write         */
-#define DBREG_DR7_RDWR      0x03      /* break on read or write */
-#define DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr7 by
-                                         register number */
-
 
 #ifdef _KERNEL
 /*

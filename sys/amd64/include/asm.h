@@ -43,19 +43,9 @@
 #include <sys/cdefs.h>
 
 #ifdef PIC
-#define	PIC_PROLOGUE	\
-	pushl	%ebx;	\
-	call	1f;	\
-1:			\
-	popl	%ebx;	\
-	addl	$_GLOBAL_OFFSET_TABLE_+[.-1b],%ebx
-#define	PIC_EPILOGUE	\
-	popl	%ebx
 #define	PIC_PLT(x)	x@PLT
-#define	PIC_GOT(x)	x@GOT(%ebx)
+#define	PIC_GOT(x)	x@GOTPCREL(%rip)
 #else
-#define	PIC_PROLOGUE
-#define	PIC_EPILOGUE
 #define	PIC_PLT(x)	x
 #define	PIC_GOT(x)	x
 #endif
@@ -78,14 +68,14 @@
 
 #ifdef PROF
 #define	ALTENTRY(x)	_ENTRY(x); \
-			pushl %ebp; movl %esp,%ebp; \
+			pushl %rbp; movl %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
-			popl %ebp; \
+			popl %rbp; \
 			jmp 9f
 #define	ENTRY(x)	_ENTRY(x); \
-			pushl %ebp; movl %esp,%ebp; \
+			pushl %rbp; movl %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
-			popl %ebp; \
+			popl %rbp; \
 			9:
 #else
 #define	ALTENTRY(x)	_ENTRY(x)
@@ -117,42 +107,38 @@
 #define	ARCH_DISPATCH(x) \
 			_START_ENTRY; \
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
-			PIC_PROLOGUE; \
-			movl PIC_GOT(AVECNAME(x)),%eax; \
-			PIC_EPILOGUE; \
-			jmpl *(%eax)
+			movq PIC_GOT(AVECNAME(x)),%rax; \
+			jmpq *(%rax)
 
 #define	ARCH_SELECT(x)	_START_ENTRY; \
 			.type ASELNAME(x),@function; \
 			ASELNAME(x): \
-			PIC_PROLOGUE; \
 			call PIC_PLT(CNAME(__get_hw_float)); \
-			testl %eax,%eax; \
-			movl PIC_GOT(ANAME(x)),%eax; \
+			testq %rax,%rax; \
+			movq PIC_GOT(ANAME(x)),%rax; \
 			jne 8f; \
-			movl PIC_GOT(GNAME(x)),%eax; \
+			movq PIC_GOT(GNAME(x)),%rax; \
 			8: \
-			movl PIC_GOT(AVECNAME(x)),%edx; \
-			movl %eax,(%edx); \
-			PIC_EPILOGUE; \
-			jmpl *%eax
+			movq PIC_GOT(AVECNAME(x)),%rdx; \
+			movq %rax,(%rdx); \
+			jmpq *%rax
 #else /* !PIC */
 #define	ARCH_DISPATCH(x) \
 			_START_ENTRY; \
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
-			jmpl *AVECNAME(x)
+			jmpw *AVECNAME(x)
 
 #define	ARCH_SELECT(x)	_START_ENTRY; \
 			.type ASELNAME(x),@function; \
 			ASELNAME(x): \
 			call CNAME(__get_hw_float); \
-			testl %eax,%eax; \
-			movl $ANAME(x),%eax; \
+			testw %rax,%rax; \
+			movw $ANAME(x),%rax; \
 			jne 8f; \
-			movl $GNAME(x),%eax; \
+			movw $GNAME(x),%rax; \
 			8: \
-			movl %eax,AVECNAME(x); \
-			jmpl *%eax
+			movw %rax,AVECNAME(x); \
+			jmpw *%rax
 #endif /* PIC */
 
 #define	ARCH_VECTOR(x)	.data; .p2align 2; \
