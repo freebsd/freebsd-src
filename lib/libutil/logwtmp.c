@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id: logwtmp.c,v 1.10 1999/04/07 14:03:31 brian Exp $";
+	"$Id: logwtmp.c,v 1.11 1999/04/08 08:00:06 brian Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -59,7 +59,9 @@ trimdomain(char *fullhost, int hostsize)
 {
     static char domain[MAXHOSTNAMELEN];
     static int first = 1;
-    char *s;
+    static size_t dlen;
+    char *s, *end;
+    int spn, ok;
 
     if (first) {
         first = 0;
@@ -68,17 +70,39 @@ trimdomain(char *fullhost, int hostsize)
             memmove(domain, s + 1, strlen(s + 1) + 1);
         else
             domain[0] = '\0';
+        dlen = strlen(domain);
     }
 
     if (domain[0] != '\0') {
 	s = fullhost;
-        while ((fullhost = strchr(fullhost, '.')) != NULL)
-            if (!strcasecmp(fullhost + 1, domain)) {
-		if (fullhost - s  <= hostsize)
-               		*fullhost = '\0';    /* hit it and acceptable size*/
-                break;
-            } else
-                fullhost++;
+        end = s + hostsize + 1;
+	for (; (s = memchr(s, '.', end - s)) != NULL; s++)
+            if (!strncasecmp(s + 1, domain, dlen)) {
+                if (s[dlen + 1] == '\0') {
+               	    *s = '\0';    /* Found - lose the domain */
+                    break;
+                } else if (s[dlen + 1] == ':') {	/* $DISPLAY ? */
+                    ok = dlen + 2;
+                    spn = strspn(s + ok, "0123456789");
+                    if (spn > 0 && ok + spn - dlen <= end - s) {
+                        ok += spn;
+                        if (s[ok] == '\0') {
+                            /* host.domain:nn */
+                            memmove(s, s + dlen + 1, ok - dlen);
+                            break;
+                        } else if (s[ok] == '.') {
+                            ok++;
+                            spn = strspn(s + ok, "0123456789");
+                            if (spn > 0 && s[ok + spn] == '\0' &&
+                                ok + spn - dlen <= end - s) {
+                                /* host.domain:nn.nn */
+                                memmove(s, s + dlen + 1, ok + spn - dlen);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
     }
 }
 
