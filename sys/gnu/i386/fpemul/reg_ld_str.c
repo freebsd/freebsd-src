@@ -110,7 +110,7 @@ reg_load_extended(void)
 	 * hence re-entrancy problems can arise */
 	sigl = fuword((unsigned long *) s);
 	sigh = fuword(1 + (unsigned long *) s);
-	exp = fusword(4 + (unsigned short *) s);
+	exp = fuword16(4 + (unsigned short *) s);
 	REENTRANT_CHECK(ON);
 
 	FPU_loaded_data.sigl = sigl;
@@ -361,7 +361,7 @@ reg_load_int16(void)
 
 	REENTRANT_CHECK(OFF);
 	/* Cast as short to get the sign extended. */
-	s = (short) fusword((unsigned short *) _s);
+	s = (short) fuword16((unsigned short *) _s);
 	REENTRANT_CHECK(ON);
 
 	if (s == 0) {
@@ -527,7 +527,7 @@ reg_store_extended(void)
 /*	    verify_area(VERIFY_WRITE, d, 10); */
 	suword((unsigned long *) d, ls);
 	suword(1 + (unsigned long *) d, ms);
-	susword(4 + (short *) d, (unsigned short) e | sign);
+	suword16(4 + (short *) d, (unsigned short) e | sign);
 	REENTRANT_CHECK(ON);
 
 	return 1;
@@ -1001,7 +1001,7 @@ reg_store_int16(void)
 			/* Put out the QNaN indefinite */
 			REENTRANT_CHECK(OFF);
 /*			    verify_area(VERIFY_WRITE, d, 2);*/
-			susword((unsigned short *) d, 0x8000);
+			suword16((unsigned short *) d, 0x8000);
 			REENTRANT_CHECK(ON);
 			return 1;
 		} else
@@ -1025,7 +1025,7 @@ reg_store_int16(void)
 
 	REENTRANT_CHECK(OFF);
 /*	    verify_area(VERIFY_WRITE, d, 2); */
-	susword((short *) d, (short) t.sigl);
+	suword16((short *) d, (short) t.sigl);
 	REENTRANT_CHECK(ON);
 
 	return 1;
@@ -1164,9 +1164,9 @@ fldenv(void)
 	int     i;
 
 	REENTRANT_CHECK(OFF);
-	control_word = fusword((unsigned short *) s);
-	status_word = fusword((unsigned short *) (s + 4));
-	tag_word = fusword((unsigned short *) (s + 8));
+	control_word = fuword16((unsigned short *) s);
+	status_word = fuword16((unsigned short *) (s + 4));
+	tag_word = fuword16((unsigned short *) (s + 8));
 	ip_offset = fuword((unsigned long *) (s + 0x0c));
 	cs_selector = fuword((unsigned long *) (s + 0x10));
 	data_operand_offset = fuword((unsigned long *) (s + 0x14));
@@ -1285,9 +1285,9 @@ fstenv(void)
 #endif				/****/
 
 	REENTRANT_CHECK(OFF);
-	susword((unsigned short *) d, control_word);
-	susword((unsigned short *) (d + 4), (status_word & ~SW_Top) | ((top & 7) << SW_Top_Shift));
-	susword((unsigned short *) (d + 8), tag_word());
+	suword16((unsigned short *) d, control_word);
+	suword16((unsigned short *) (d + 4), (status_word & ~SW_Top) | ((top & 7) << SW_Top_Shift));
+	suword16((unsigned short *) (d + 8), tag_word());
 	suword((unsigned long *) (d + 0x0c), ip_offset);
 	suword((unsigned long *) (d + 0x10), cs_selector);
 	suword((unsigned long *) (d + 0x14), data_operand_offset);
@@ -1378,7 +1378,7 @@ fsave(void)
 						}
 		e |= rp->sign == SIGN_POS ? 0 : 0x8000;
 		REENTRANT_CHECK(OFF);
-		susword((unsigned short *) (d + i * 10 + 8), e);
+		suword16((unsigned short *) (d + i * 10 + 8), e);
 		REENTRANT_CHECK(ON);
 	}
 

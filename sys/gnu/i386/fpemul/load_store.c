@@ -201,7 +201,7 @@ load_store_instr(char type)
 		break;
 	case 024:		/* fldcw */
 		REENTRANT_CHECK(OFF);
-		control_word = fusword((unsigned short *) FPU_data_address);
+		control_word = fuword16((unsigned short *) FPU_data_address);
 		REENTRANT_CHECK(ON);
 #ifdef NO_UNDERFLOW_TRAP
 		if (!(control_word & EX_Underflow)) {
@@ -242,7 +242,7 @@ load_store_instr(char type)
 	case 034:		/* fstcw m16int */
 		REENTRANT_CHECK(OFF);
 /*		    verify_area(VERIFY_WRITE, FPU_data_address, 2);*/
-		susword( (short *) FPU_data_address,control_word);
+		suword16( (short *) FPU_data_address,control_word);
 		REENTRANT_CHECK(ON);
 		/* We want no net effect: */
 		FPU_data_address = (void *) (intptr_t ) data_operand_offset;
@@ -258,7 +258,7 @@ load_store_instr(char type)
 		status_word |= (top & 7) << SW_Top_Shift;
 		REENTRANT_CHECK(OFF);
 /*		    verify_area(VERIFY_WRITE, FPU_data_address, 2);*/
-		susword( (short *) FPU_data_address,status_word);
+		suword16( (short *) FPU_data_address,status_word);
 		REENTRANT_CHECK(ON);
 		/* We want no net effect: */
 		FPU_data_address = (void *) (intptr_t) data_operand_offset;
