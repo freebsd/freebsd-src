@@ -1211,6 +1211,15 @@ Features:
 	     6 64-bit PCI slots (3 per hose)
 	     1 ISA slot
 
+Console:
+DS20 needs >>> SET CONSOLE SERIAL before it goes for a serial console. 
+Pulling the keyboard from the machine is not sufficient. Going back to a 
+graphical console needs >>> SET CONSOLE GRAPHICS at the serial console. 
+Confusing is the fact that you will get SRM console output on the graphics
+console with the console set to serial, but when FreeBSD boots it honors
+the CONSOLE variable setting and all the boot messages as well as the
+login prompt will go to the serial port. 
+
 Case:
 DS20 is housed in a fat cube-like enclosure. The enclosure also
 contains a StorageWorks SCSI hot-swap shelf for a maximum of 7 3.5" SCSI
@@ -1769,9 +1778,13 @@ Features:
 - embedded Symbios 53C1000 Ultra160 SCSI controller
 - expansion: 2 64 bit PCI slots (2/3 length)
 
+CPU:
+The CS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
+and will only use the primary CPU.
+
 Console:
 SRM console code comes standard with the CS20. The SRM lives in 2Mbytes of
-flash ROM.
+flash ROM. 
 
 Memory:
 The CS20 needs ECC capable DIMMs. Note that it uses *buffered* DIMMs.
