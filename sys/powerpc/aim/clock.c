@@ -287,7 +287,7 @@ powerpc_get_timecount(struct timecounter *tc)
  * Wait for about n microseconds (at least!).
  */
 void
-delay(unsigned n)
+delay(int n)
 {
 	u_quad_t	tb;
 	u_long		tbh, tbl, scratch;

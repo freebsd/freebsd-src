@@ -50,7 +50,7 @@
 #define	cpu_swapout(p)
 #define	cpu_number()		0
 
-extern void delay __P((unsigned));
+void	delay(int);
 #define	DELAY(n)		delay(n)
 
 extern int want_resched;
@@ -95,5 +95,6 @@ get_cyclecount(void)
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
 
 void	savectx __P((struct pcb *));
+void	fork_trampoline(void);
 
 #endif	/* _MACHINE_CPU_H_ */
