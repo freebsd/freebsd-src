@@ -110,7 +110,7 @@ main(int argc, char **argv)
 	pvariable_set("modulesInitialize=1");
     }
 
-    /* Initialize PC-card, if we haven't already done so. */
+    /* Initialize PC Card, if we haven't already done so. */
 #ifdef PCCARD_ARCH
     if (!variable_cmp(VAR_SKIP_PCCARD, "YES") &&
       variable_get(VAR_SKIP_PCCARD)!=1 &&
