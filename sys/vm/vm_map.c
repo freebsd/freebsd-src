@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.151 1999/02/19 14:25:36 luoqi Exp $
+ * $Id: vm_map.c,v 1.152 1999/02/24 21:26:25 dillon Exp $
  */
 
 /*
@@ -278,7 +278,6 @@ vm_map_init(map, min, max)
 	map->header.next = map->header.prev = &map->header;
 	map->nentries = 0;
 	map->size = 0;
-	map->is_main_map = TRUE;
 	map->system_map = 0;
 	map->min_offset = min;
 	map->max_offset = max;
@@ -556,12 +555,11 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->offset = offset;
 	new_entry->avail_ssize = 0;
 
-	if (map->is_main_map) {
-		new_entry->inheritance = VM_INHERIT_DEFAULT;
-		new_entry->protection = prot;
-		new_entry->max_protection = max;
-		new_entry->wired_count = 0;
-	}
+	new_entry->inheritance = VM_INHERIT_DEFAULT;
+	new_entry->protection = prot;
+	new_entry->max_protection = max;
+	new_entry->wired_count = 0;
+
 	/*
 	 * Insert the new entry into the list
 	 */
@@ -1998,8 +1996,6 @@ vm_map_delete(map, start, end)
 
 		if ((object == kernel_object) || (object == kmem_object)) {
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-		} else if (!map->is_main_map) {
-			vm_object_pmap_remove(object, offidxstart, offidxend);
 		} else {
 			pmap_remove(map->pmap, s, e);
 			if (object &&
@@ -2960,8 +2956,8 @@ DB_SHOW_COMMAND(map, vm_map_print)
 
 	vm_map_entry_t entry;
 
-	db_iprintf("%s map %p: pmap=%p, nentries=%d, version=%u\n",
-	    (map->is_main_map ? "Task" : "Share"), (void *)map,
+	db_iprintf("Task map %p: pmap=%p, nentries=%d, version=%u\n",
+	    (void *)map,
 	    (void *)map->pmap, map->nentries, map->timestamp);
 	nlines++;
 
@@ -2974,7 +2970,7 @@ DB_SHOW_COMMAND(map, vm_map_print)
 		db_iprintf("map entry %p: start=%p, end=%p\n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end);
 		nlines++;
-		if (map->is_main_map) {
+		{
 			static char *inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
 
