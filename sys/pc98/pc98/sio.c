@@ -190,10 +190,6 @@
 #define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
 
-#ifdef PC98
-#define	com_emr		com_msr	/* Extension mode register for RSB-2000/3000 */
-#endif
-
 #define	sio_getreg(com, off) \
 	(bus_space_read_1((com)->bst, (com)->bsh, (off)))
 #define	sio_setreg(com, off, value) \

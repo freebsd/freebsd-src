@@ -107,6 +107,7 @@
 
 #ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
+#define	com_emr		com_msr
 #define	EMR_EXBUFF	0x04
 #define	EMR_CTSFLW	0x08
 #define	EMR_DSRFLW	0x10
