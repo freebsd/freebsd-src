@@ -1589,7 +1589,7 @@ ieee80211_parse_wmeparams(struct ieee80211com *ic, u_int8_t *frm,
 		IEEE80211_DISCARD_IE(ic,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WME,
 		    wh, "WME", "too short, len %u", len);
-		return 0;
+		return -1;
 	}
 	qosinfo = frm[__offsetof(struct ieee80211_wme_param, param_qosInfo)];
 	qosinfo &= WME_QOSINFO_COUNT;
@@ -1868,7 +1868,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				/* XXX statistic */
 			}
 			if (wme != NULL &&
-			    ieee80211_parse_wmeparams(ic, wme, wh))
+			    ieee80211_parse_wmeparams(ic, wme, wh) > 0)
 				ieee80211_wme_updateparams(ic);
 			/* NB: don't need the rest of this */
 			return;
@@ -2356,7 +2356,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 
 		ni->ni_capinfo = capinfo;
 		ni->ni_associd = associd;
-		if (wme != NULL && ieee80211_parse_wmeparams(ic, wme, wh)) {
+		if (wme != NULL &&
+		    ieee80211_parse_wmeparams(ic, wme, wh) >= 0) {
 			ni->ni_flags |= IEEE80211_NODE_QOS;
 			ieee80211_wme_updateparams(ic);
 		} else
