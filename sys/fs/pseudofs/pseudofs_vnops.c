@@ -227,7 +227,7 @@ pfs_read(struct vop_read_args *va)
 	}
 
 	if (pn->pn_flags & PFS_RAWRD) {
-		error = (pn->pn_func)(curproc, proc, pn, NULL, uio);
+		error = (pn->pn_func)(curthread, proc, pn, NULL, uio);
 		if (proc != NULL)
 			PRELE(proc);
 		return (error);
@@ -470,7 +470,7 @@ pfs_write(struct vop_read_args *va)
 	}
 
 	if (pn->pn_flags & PFS_RAWWR) {
-		error = (pn->pn_func)(curproc, proc, pn, NULL, uio);
+		error = (pn->pn_func)(curthread, proc, pn, NULL, uio);
 		if (proc != NULL)
 			PRELE(proc);
 		return (error);
