@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-ip.c,v 1.28 92/05/25 14:29:02 mccanne Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ip.c,v 1.1.1.1 1993/06/12 14:42:08 rgrimes Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -35,9 +35,11 @@ static char rcsid[] =
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
+#include <netinet/igmp.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "dvmrp.h"		/* in mrouted directory */
 
 void
 igmp_print(cp, len, ip)
@@ -46,6 +48,7 @@ igmp_print(cp, len, ip)
 	register struct ip *ip;
 {
 	register u_char *ep = (u_char *)snapend;
+	struct igmp *igmp = (struct igmp *)cp;
 
         (void)printf("%s > %s: ",
 		ipaddr_string(&ip->ip_src),
@@ -55,32 +58,100 @@ igmp_print(cp, len, ip)
 		(void)printf("[|igmp]");
 		return;
 	}
-	switch (cp[0] & 0xf) {
-	case 1:
+	switch (igmp->igmp_type) {
+	case IGMP_HOST_MEMBERSHIP_QUERY:
 		(void)printf("igmp query");
-		if (*(int *)&cp[4])
-			(void)printf(" [gaddr %s]", ipaddr_string(&cp[4]));
-		if (len != 8)
+		if (igmp->igmp_group.s_addr)
+			(void)printf(" [gaddr %s]", 
+				     ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
 			(void)printf(" [len %d]", len);
 		break;
-	case 2:
-		(void)printf("igmp report %s", ipaddr_string(&cp[4]));
-		if (len != 8)
+	case IGMP_HOST_MEMBERSHIP_REPORT:
+		(void)printf("igmp report %s", ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
 			(void)printf(" [len %d]", len);
 		break;
-	case 3:
-		(void)printf("igmp dvmrp", ipaddr_string(&cp[4]));
-		if (len < 8)
+	case IGMP_HOST_NEW_MEMBERSHIP_REPORT:
+		printf("igmp new report %s", ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
+			(void)printf(" [len %d]", len);
+		break;
+
+	case IGMP_HOST_LEAVE_MESSAGE:
+		printf("igmp leave %s", ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
+			(void)printf(" [len %d]", len);
+		break;
+
+	case IGMP_DVMRP:
+		(void)printf("igmp dvmrp");
+		switch(igmp->igmp_code) {
+		      case DVMRP_PROBE:
+			printf(" probe");
+			break;
+		      case DVMRP_REPORT:
+			printf(" report");
+			break;
+		      case DVMRP_ASK_NEIGHBORS:
+			printf(" neighbor list request");
+			break;
+		      case DVMRP_NEIGHBORS:
+			printf(" neighbor list reply");
+			break;
+		      case DVMRP_ASK_NEIGHBORS2:
+			printf(" neighbor list request v2");
+			break;
+		      case DVMRP_NEIGHBORS2:
+			printf(" neighbor list reply v2");
+			break;
+		      case DVMRP_PRUNE:
+			printf(" prune");
+			break;
+		      case DVMRP_GRAFT:
+			printf(" graft");
+			break;
+		      case DVMRP_GRAFT_ACK:
+			printf(" graft ack");
+			break;
+		      default:
+			printf("-%d", igmp->igmp_code);
+			break;
+		}
+
+		if (len != IGMP_MINLEN)
+			(void)printf(" [len %d]", len);
+		break;
+	case IGMP_MTRACE:
+		(void)printf("igmp traceroute %s", 
+			     ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
+			(void)printf(" [len %d]", len);
+		break;
+	case IGMP_MTRACE_RESP:
+		(void)printf("igmp traceroute resp %s", 
+			     ipaddr_string(&igmp->igmp_group));
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
+		if (len != IGMP_MINLEN)
 			(void)printf(" [len %d]", len);
 		break;
 	default:
-		(void)printf("igmp-%d", cp[0] & 0xf);
+		(void)printf("igmp-%x", igmp->igmp_type);
+		if (igmp->igmp_code)
+		  printf(" [code %d]", igmp->igmp_code);
 		break;
 	}
-	if ((cp[0] >> 4) != 1)
-		(void)printf(" [v%d]", cp[0] >> 4);
-	if (cp[1])
-		(void)printf(" [b1=0x%x]", cp[1]);
 }
 
 /*
@@ -214,6 +285,15 @@ ip_print(ip, length)
 		return;
 	}
 	hlen = ip->ip_hl * 4;
+	if (hlen < sizeof (struct ip)) {
+		printf("invalid ip header length %d", hlen);
+		return;
+	}
+
+	if (ip->ip_v != 4) {
+		printf("unknown ip version %d", ip->ip_v);
+		return;
+	}
 
 	NTOHS(ip->ip_len);
 	NTOHS(ip->ip_off);
