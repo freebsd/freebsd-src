@@ -1560,7 +1560,7 @@ ip6_ctloutput(so, sopt)
 				error = (*ip6_fw_ctl_ptr)(optname, mp);
 				if (error == 0)
 					error = soopt_mcopyout(sopt, m); /* XXX */
-				if (m)
+				if (error == 0 && m)
 					m_freem(m);
 			  }
 				break;
