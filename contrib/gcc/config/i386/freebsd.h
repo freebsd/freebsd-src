@@ -397,8 +397,9 @@ Boston, MA 02111-1307, USA.  */
 #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
   do {									\
     if (TARGET_ELF) {							\
-      fprintf ((FILE), "\t.text\n\t.stabs \"\",%d,0,0,%LLetext\n%LLetext:\n", \
-		N_SO);							\
+      asm_fprintf ((FILE),						\
+		   "\t.text\n\t.stabs \"\",%d,0,0,%LLetext\n%LLetext:\n",\
+		   N_SO);						\
     }									\
   } while (0)
 
