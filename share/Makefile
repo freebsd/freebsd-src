@@ -2,6 +2,6 @@
 
 # XXX BROKEN LINKS:	doc
 # XXX BROKEN TEMP:	man mk
-SUBDIR=	dict me misc skel tabset termcap tmac zoneinfo
+SUBDIR=	dict examples me misc skel tabset termcap tmac zoneinfo
 
 .include <bsd.subdir.mk>
