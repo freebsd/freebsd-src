@@ -199,6 +199,9 @@ char *d_line;			/* deleted line				*/
 char in_string[513];		/* buffer for reading a file		*/
 char *print_command = "lpr";	/* string to use for the print command 	*/
 char *start_at_line = NULL;	/* move to this line at start of session*/
+char *count_text;		/* buffer for current position display	*/
+const char *count_text_default = "===============================================================================";
+int count_text_len;		/* length of the line above		*/
 int in;				/* input character			*/
 
 FILE *temp_fp;			/* temporary file pointer		*/
@@ -214,6 +217,7 @@ WINDOW *com_win;
 WINDOW *text_win;
 WINDOW *help_win;
 WINDOW *info_win;
+WINDOW *count_win;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define P_(s) s
@@ -550,6 +554,8 @@ char *argv[];
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
 
+	count_text_len = strlen(count_text_default) + 1;
+	count_text = malloc(count_text_len);
 	d_char = 0;
 	d_word = malloc(150);
 	*d_word = (char) NULL;
@@ -601,6 +607,19 @@ char *argv[];
 
 	while(edit) 
 	{
+		if (info_window)
+		{
+			snprintf(count_text, count_text_len, "L: %d C: %d %s", \
+				curr_line->line_number, position, count_text_default);
+			wmove(count_win, 0, 0);
+			wclrtoeol(count_win);
+			if (!nohighlight)
+				wstandout(count_win);
+			wprintw(count_win, count_text);
+			wstandend(count_win);
+			wrefresh(count_win);
+		}
+
 		wrefresh(text_win);
 		in = wgetch(text_win);
 		if (in == -1)
@@ -3156,9 +3175,13 @@ set_up_term()		/* set up the terminal for operating with ae	*/
 	if (info_window)
 	{
 		info_type = CONTROL_KEYS;
-		info_win = newwin(6, COLS, 0, 0);
+		info_win = newwin(5, COLS, 0, 0);
 		werase(info_win);
 		paint_info_win();
+		count_win = newwin(1, COLS, 5, 0);
+		keypad(count_win, TRUE);
+		idlok(count_win, TRUE);
+		wrefresh(count_win);
 	}
 
 	last_col = COLS - 1;
@@ -3177,6 +3200,7 @@ resize_check()
 	delwin(text_win);
 	delwin(com_win);
 	delwin(help_win);
+	delwin(count_win);
 	set_up_term();
 	redraw();
 	wrefresh(text_win);
@@ -3551,11 +3575,6 @@ paint_info_win()
 		else if (info_type == COMMANDS)
 			waddstr(info_win, command_strings[counter]);
 	}
-	wmove(info_win, 5, 0);
-	if (!nohighlight)
-		wstandout(info_win);
-	waddstr(info_win, "===============================================================================");
-	wstandend(info_win);
 	wrefresh(info_win);
 }
 
