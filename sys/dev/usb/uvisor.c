@@ -322,9 +322,6 @@ USB_ATTACH(uvisor)
 		goto bad;
 	}
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, ucom->sc_udev,
-			   USBDEV(ucom->sc_dev));
-
 	DPRINTF(("uvisor: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
 
@@ -369,9 +366,6 @@ USB_DETACH(uvisor)
 	sc->sc_ucom.sc_dying = 1;
 	rv = ucom_detach(&sc->sc_ucom);
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_ucom.sc_udev,
-			   USBDEV(sc->sc_ucom.sc_dev));
-
 	return (rv);
 }
 
@@ -392,8 +386,7 @@ uvisor_init(struct uvisor_softc *sc)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 	err = usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
-				    USBD_SHORT_XFER_OK, &actlen,
-				    USBD_DEFAULT_TIMEOUT);
+				    USBD_SHORT_XFER_OK, &actlen);
 	if (err)
 		return (err);
 
@@ -481,6 +474,5 @@ uvisor_close(void *addr, int portno)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 	(void)usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
-				    USBD_SHORT_XFER_OK, &actlen,
-				    USBD_DEFAULT_TIMEOUT);
+				    USBD_SHORT_XFER_OK, &actlen);
 }
