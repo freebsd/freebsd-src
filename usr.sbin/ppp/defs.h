@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.10 1998/04/03 19:25:29 brian Exp $
+ * $Id: defs.h,v 1.29.2.11 1998/04/07 23:45:48 brian Exp $
  *
  *	TODO:
  */
@@ -61,8 +61,8 @@
 #define	MODE_DDIAL	16	/* Dedicated dialing line mode */
 #define MODE_BACKGROUND 32	/* Background mode. */
 
-#define MODE_DAEMON (2|4|8|16|64)
-#define MODE_OUTGOING_DAEMON (2|8|16|64)
+#define MODE_DAEMON (2|4|8|16|32)
+#define MODE_OUTGOING_DAEMON (2|8|16|32)
 
 #define	EX_SIG		-1
 #define	EX_NORMAL	0
