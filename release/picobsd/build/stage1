@@ -167,7 +167,7 @@ populate_mfs() {
     cd ${pwd}
     if [ -f ${MFS_MOUNTPOINT}/stand/sshd ] ; then
 	echo "creating host key for sshd"
-	ssh-keygen1 -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
+	ssh-keygen -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
     fi
     cp -Rp ../mfs_tree/stand/update ${MFS_MOUNTPOINT}/stand/update
 
