@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.33 1997/06/01 09:20:30 peter Exp $
+#	$Id: Makefile.inc,v 1.34 1997/06/01 09:47:06 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -18,8 +18,8 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	clock_getres.o clock_gettime.o clock_settime.o \
 	getdtablesize.o getegid.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
-	getpgrp.o getpid.o getppid.o getpriority.o \
-	getrlimit.o getrusage.o gettimeofday.o \
+	getpgrp.o getpgid.o getpid.o getppid.o getpriority.o \
+	getrlimit.o getrusage.o getsid.o gettimeofday.o \
 	getuid.o issetugid.o kill.o ktrace.o lchown.o \
 	lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o lstat.o \
