@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: ispmbox.h,v 1.4 1998/12/28 19:22:26 mjacob Exp $ */
+/* release_01_29_99 */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -109,6 +109,10 @@
 #define	MBOX_RETURN_BIOS_BLOCK_ADDR	0x0040
 #define	MBOX_WRITE_FOUR_RAM_WORDS	0x0041
 #define	MBOX_EXEC_BIOS_IOCB		0x0042
+#define	MBOX_SET_FW_FEATURES		0x004a
+#define	MBOX_GET_FW_FEATURES		0x004b
+#define		FW_FEATURE_LVD_NOTIFY	0x2
+#define		FW_FEATURE_FAST_POST	0x1
 
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
