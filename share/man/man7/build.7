@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2000
+.Dd March 15, 2002
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -54,17 +54,21 @@ installing third party applications.
 The
 .Xr make 1
 command is used in each of these directories to build and install the
-things in that directory. Issuing the make command in any directory or
+things in that directory.
+Issuing the
+.Xr make 1
+command in any directory or
 subdirectory of those directories has the same effect as issuing the
-same command in all subdirectories of that directory. With no target
-specified, the things in that directory are just built. The following
+same command in all subdirectories of that directory.
+With no target specified, the things in that directory are just built.
+The following
 list provides the names and actions for other targets:
-.Bl -tag -width Ar
-.It Ar clean
+.Bl -tag -width indent-two
+.It Cm clean
 Removes any files created during the build process.
-.It Ar install
+.It Cm install
 Installs the results of the build for this directory.
-.It Ar update
+.It Cm update
 Gets updated sources as configured in
 .Pa /etc/make.conf .
 .El
@@ -72,37 +76,57 @@ Gets updated sources as configured in
 The other
 .Pa /usr/src
 make targets are:
-.Bl -tag -width Ar
-.It Ar buildworld
+.Bl -tag -width indent-two
+.It Cm buildworld
 Rebuild everything but the kernel, configure files in
 .Pa /etc ,
 and release.
-.It Ar installworld
+.It Cm installworld
 Install everything built by
-.Dq buildworld .
-.It Ar world
-buildworld + installworld.
-.It Ar buildkernel
-Rebuild the kernel and the kernel-modules.
-.It Ar installkernel
-Install the kernel and the kernel-modules.
-.It Ar reinstallkernel
-Reinstall the kernel and the kernel-modules.
-.It Ar upgrade
-Upgrade a.out (2.2.x/3.0) system to the new ELF way
-.It Ar most
+.Cm buildworld .
+.It Cm world
+.Cm buildworld
++
+.Cm installworld .
+.It Cm buildkernel
+Rebuild the kernel and the kernel modules.
+.It Cm installkernel
+Install the kernel and the kernel modules.
+.It Cm reinstallkernel
+Reinstall the kernel and the kernel modules.
+.It Cm upgrade
+Upgrade
+.Xr a.out 5
+(2.2.x/3.0) system to the new
+.Xr elf 5
+way.
+.It Cm most
 Build user commands, no libraries or include files.
-.It Ar installmost
+.It Cm installmost
 Install user commands, no libraries or include files.
-.It Ar aout-to-elf
-Upgrade an system from a.out to elf format.
-.It Ar aout-to-elf-build
-Build everything required to upgrade a system from a.out to elf format.
-.It Ar aout-to-elf-install
-Install everything built by aout-to-elf-build.
-.It Ar move-aout-libs
-Move the a.out libraries into an aout sub-directory of each elf
-library sub-directory.
+.It Cm aout-to-elf
+Upgrade a system from
+.Xr a.out 5
+to
+.Xr elf 5
+format.
+.It Cm aout-to-elf-build
+Build everything required to upgrade a system from
+.Xr a.out 5
+to
+.Xr elf 5
+format.
+.It Cm aout-to-elf-install
+Install everything built by
+.Cm aout-to-elf-build .
+.It Cm move-aout-libs
+Move the
+.Xr a.out 5
+libraries into an
+.Pa aout
+subdirectory of each
+.Xr elf 5
+library subdirectory.
 .El
 .Pp
 For more information about the ports build process, see
@@ -112,19 +136,19 @@ For more information about the ports build process, see
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
-.Dq "uname -p"
+.Dq Nm uname Fl p
 output.
 Set this to cross-build for a different architecture.
 .It Va TARGET
 The target hardware platform.
 This is analogous to the
-.Dq "uname -m"
+.Dq Nm uname Fl m
 output.
 This is necessary to cross-build some target architectures.
 For example, cross-building for PC98 machines requires
-.Va "TARGET_ARCH=i386"
+.Va TARGET_ARCH Ns = Ns Li i386
 and
-.Va "TARGET=pc98" .
+.Va TARGET Ns = Ns Li pc98 .
 .It Va NO_WERROR
 If defined, warnings will not cause the build to halt, even if the
 makefile says otherwise.
@@ -139,7 +163,7 @@ installed.
 .It Pa /usr/doc/share/mk/doc.project.mk
 .It Pa /usr/ports/Mk/bsd.port.mk
 .It Pa /usr/ports/Mk/bsd.sites.mk
-.It Pa /usr/share/examples/etc//make.conf
+.It Pa /usr/share/examples/etc/make.conf
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .El
@@ -155,7 +179,7 @@ make installworld
 mergemaster
 .Ed
 .Pp
-.Dq FOO
+.Dq Li FOO
 must be replaced with the name of the kernel configuration file from which
 the kernel should be built.
 Alternatively, the
@@ -164,19 +188,19 @@ variable in
 .Pa /etc/make.conf
 can be set to the name of the kernel to build;
 in this case the
-.Dq KERNCONF=FOO
+.Va KERNCONF Ns = Ns Li FOO
 part of the
-.Dq buildkernel
+.Cm buildkernel
 and
-.Dq installkernel
+.Cm installkernel
 commands can be omitted.
 .Pp
 After running these commands a system reboot is required,
 otherwise many programs which have been rebuilt
 (such as
-.Nm ps ,
-.Nm top ,
-etc)
+.Xr ps 1 ,
+.Xr top 1 ,
+etc.\&)
 may not work with the old kernel which is still running.
 .Pp
 The following sequence of commands can be used to cross-build the
