@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <netdb.h>
+#include <paths.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -544,7 +545,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
 	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
-		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
+		sprintf(enamelist, "%s%s%d", _PATH_DEV, stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
 		tokens++;				    /* one more token */
 		enamelist = &enamelist[strlen(enamelist) + 1]; /* and start beyond the end */
@@ -1363,7 +1364,7 @@ vinum_help(int argc, char *argv[], char *argv0[])
 	"printconfig [file]\n"
 	"          Write a copy of the current configuration to file.\n"
 	"makedev\n"
-	"          Remake the device nodes in /dev/vinum.\n"
+	"          Remake the device nodes in " _PATH_DEV "vinum.\n"
 	"move drive [subdisk | plex | drive]\n"
 	"          Move the subdisks of the specified object(s) to drive.\n"
 	"quit\n"
