@@ -284,7 +284,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		return EINVAL;
 	}
 
-	while(uio->uio_resid > 0) {
+	while(uio->uio_resid > 0 && !err) {
 		offset = uio->uio_offset;
 		dst_hi = (offset >> 32) & 0xffff;
 		dst_lo = offset & 0xffffffff;
@@ -292,8 +292,10 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		if (len == 4 && (dst_lo & 3) == 0) {
 			xfer = fwmem_read_quad(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, fw_asy_callback);
-			if (xfer == NULL)
-				return EINVAL;
+			if (xfer == NULL) {
+				err = EINVAL;
+				break;
+			}
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", hz);
 			if (err !=0 || xfer->resp != 0 
 					|| xfer->recv.buf == NULL)
@@ -306,8 +308,10 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 				len = MAXLEN;
 			xfer = fwmem_read_block(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, len, fw_asy_callback);
-			if (xfer == NULL)
-				return EINVAL;
+			if (xfer == NULL) {
+				err = EINVAL;
+				break;
+			}
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", hz);
 			if (err != 0 || xfer->resp != 0
 					|| xfer->recv.buf == NULL)
@@ -317,8 +321,6 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 					+ xfer->recv.off + 4*4, len, uio);
 		}
 		fw_xfer_free(xfer);
-		if (err)
-			return err;
 	}
 	return err;
 }
@@ -348,7 +350,7 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 	if (data == NULL)
 		return ENOMEM;
 
-	while(uio->uio_resid > 0) {
+	while(uio->uio_resid > 0 && !err) {
 		offset = uio->uio_offset;
 		dst_hi = (offset >> 32) & 0xffff;
 		dst_lo = offset & 0xffffffff;
@@ -357,8 +359,10 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 			err = uiomove((char *)&quad, sizeof(quad), uio);
 			xfer = fwmem_write_quad(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, quad, fw_asy_callback);
-			if (xfer == NULL)
-				return EINVAL;
+			if (xfer == NULL) {
+				err = EINVAL;
+				break;
+			}
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", hz);
 			if (err !=0 || xfer->resp != 0)
 				err = EIO;
@@ -367,17 +371,20 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 				len = MAXLEN;
 			err = uiomove(data, len, uio);
 			if (err)
-				return err;
+				break;
 			xfer = fwmem_write_block(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, len, data, fw_asy_callback);
-			if (xfer == NULL)
-				return EINVAL;
+			if (xfer == NULL) {
+				err = EINVAL;
+				break;
+			}
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", hz);
 			if (err != 0 || xfer->resp != 0)
 				err = EIO;
 		}
 		fw_xfer_free(xfer);
 	}
+	free(data, M_FW);
 	return err;
 }
 
