@@ -138,13 +138,13 @@ device          ppi             # Parallel port interface device
  
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		le		# Lance
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
