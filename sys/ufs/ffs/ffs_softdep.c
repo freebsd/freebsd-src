@@ -1672,10 +1672,8 @@ setup_allocindir_phase2(bp, ip, aip)
 		newindirdep->ir_state = ATTACHED;
 		LIST_INIT(&newindirdep->ir_deplisthd);
 		LIST_INIT(&newindirdep->ir_donehd);
-		if (bp->b_blkno == bp->b_lblkno) {
-			VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
-				NULL, NULL);
-		}
+		if (bp->b_blkno == bp->b_lblkno)
+			ufs_bmaparray(bp->b_vp, bp->b_lblkno, &bp->b_blkno, NULL, NULL);
 		newindirdep->ir_savebp =
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
 		BUF_KERNPROC(newindirdep->ir_savebp);
