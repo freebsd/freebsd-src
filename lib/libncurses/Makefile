@@ -272,7 +272,7 @@ codes.c:	 namehdr ${CODESRC} codeftr
 	cat namehdr ${CODESRC} codeftr > $@
 
 lib_gen.c:	MKlib_gen.sh curses.h
-	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c:	keys.list MKkeyname.awk
@@ -297,7 +297,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
 nomacros.h:	MKlib_gen.sh curses.h
-	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h:	keys.list make_keys
@@ -325,7 +325,7 @@ curses.h:	curses.head MKkey_defs.sh Caps
 # Generated intermediate files
 keys.list:	MKkeys_list.sh Caps
 	AWK=${AWK} sh ${NCURSES}/ncurses/tinfo/MKkeys_list.sh \
-	    ${NCURSES}/include/Caps | sort > keys.list
+	    ${NCURSES}/include/Caps | LC_ALL=C sort > keys.list
 
 # Build tools
 build-tools: make_hash make_keys
