@@ -36,7 +36,6 @@
 #define	UFS_EXTATTR_VERSION		0x00000002
 #define	UFS_EXTATTR_FSROOTSUBDIR	".attribute"
 #define	UFS_EXTATTR_MAXEXTATTRNAME	65	/* including null */
-#define	UFS_EXTATTR_MAXEXTATTRSIZE	1024	/* bytes */
 
 #define	UFS_EXTATTR_ATTR_FLAG_INUSE	0x00000001	/* attr has been set */
 #define	UFS_EXTATTR_PERM_KERNEL		0x00000000
