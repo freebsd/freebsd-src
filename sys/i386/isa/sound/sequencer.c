@@ -1691,22 +1691,22 @@ sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
   flags = splhigh();
 
 
-  if (events & (POLLIN | POLLRDNORM))
+  if (events & (POLLIN | POLLRDNORM)) {
     if (!iqlen)
       selrecord(wait, &selinfo[dev]);
     else {
       revents |= events & (POLLIN | POLLRDNORM);
       midi_sleep_flag.mode &= ~WK_SLEEP;
     }
-
-  if (events & (POLLOUT | POLLWRNORM))
+  }
+  if (events & (POLLOUT | POLLWRNORM)) {
     if (qlen >= SEQ_MAX_QUEUE)
       selrecord(wait, &selinfo[dev]);
     else {
       revents |= events & (POLLOUT | POLLWRNORM);
       seq_sleep_flag.mode &= ~WK_SLEEP;
     }
-
+  }
   splx(flags);
 
   return (revents);

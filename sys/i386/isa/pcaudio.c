@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.45 1998/12/27 20:09:31 sos Exp $
+ *	$Id: pcaudio.c,v 1.46 1999/04/28 10:52:45 dt Exp $
  */
 
 #include "pca.h"
@@ -531,7 +531,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
 
  	s = spltty();
 
-	if (events & (POLLOUT | POLLWRNORM))
+	if (events & (POLLOUT | POLLWRNORM)) {
  		if (!pca_status.in_use[0] || !pca_status.in_use[1] ||
  		    !pca_status.in_use[2])
  			revents |= events & (POLLOUT | POLLWRNORM);
@@ -543,7 +543,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
 			else
 				pca_status.wsel.si_pid = p->p_pid;
 		}
-
+	}
 	splx(s);
 	return (revents);
 }

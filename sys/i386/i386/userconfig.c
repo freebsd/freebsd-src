@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.137 1999/04/24 20:20:37 peter Exp $
+ **      $Id: userconfig.c,v 1.138 1999/05/05 09:37:22 jkh Exp $
  **/
 
 /**
@@ -1378,13 +1378,14 @@ drawline(int row, int detail, DEV_LIST *list, int inverse, char *dhelp)
     nb[58] = '\0';
     pad(nb,60);
     if (list->conflicts)			/* device in conflict? */
+    {
 	if (inverse)
 	{
 	    strcpy(nb+54," !nCONF!i ");		/* tag conflict, careful of length */
 	}else{
 	    strcpy(nb+54," !iCONF!n ");		/* tag conflict, careful of length */
 	}
-
+    }
     if (list->comment == DEV_DEVICE)
     {
 	sprintf(db,"%s%d",list->dev,list->unit);
@@ -2522,7 +2523,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.137 1999/04/24 20:20:37 peter Exp $
+ *      $Id: userconfig.c,v 1.138 1999/05/05 09:37:22 jkh Exp $
  */
 
 #include "scbus.h"

@@ -64,14 +64,14 @@ set_format(int dev, int fmt)
 
 	local_conversion[dev] = 0;
 
-	if (!(audio_devs[dev]->format_mask & fmt)) /* Not supported */
+	if (!(audio_devs[dev]->format_mask & fmt)) { /* Not supported */
 	    if (fmt == AFMT_MU_LAW) {
 		fmt = AFMT_U8;
 		local_conversion[dev] = AFMT_MU_LAW;
 	    } else
 		fmt = AFMT_U8;	/* This is always supported */
-
-	    audio_format[dev] = DMAbuf_ioctl(dev, SNDCTL_DSP_SETFMT,
+	}
+	audio_format[dev] = DMAbuf_ioctl(dev, SNDCTL_DSP_SETFMT,
 		    (ioctl_arg) fmt, 1);
     }
     if (local_conversion[dev])	/* This shadows the HW format */

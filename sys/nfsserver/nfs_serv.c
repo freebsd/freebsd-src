@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.74 1999/04/27 11:17:49 phk Exp $
+ * $Id: nfs_serv.c,v 1.75 1999/04/28 11:37:54 phk Exp $
  */
 
 /*
@@ -1921,11 +1921,12 @@ nfsrv_rename(nfsd, slp, procp, mrq)
 			error = ENOTEMPTY;
 		goto out;
 	}
-	if (fvp == tdvp)
+	if (fvp == tdvp) {
 		if (v3)
 			error = EINVAL;
 		else
 			error = ENOTEMPTY;
+	}
 	/*
 	 * If source is the same as the destination (that is the
 	 * same vnode with the same name in the same directory),

@@ -497,12 +497,12 @@ snppoll(dev, events, p)
 	 * Caller should see if we down via FIONREAD ioctl().The last should
 	 * return -1 to indicate down state.
 	 */
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (snp->snp_flags & SNOOP_DOWN || snp->snp_len > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(p, &snp->snp_sel);
-
+	}
 	return (revents);
 }
 
