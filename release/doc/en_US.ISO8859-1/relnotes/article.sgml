@@ -414,6 +414,12 @@
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation. &merged;</para>
 
+      <para>The &man.de.4; driver now performs round-robin arbitration
+      between transmit and receive unit of the 21143, instead of
+      giving priority to the receive unit.  This gives a 10&ndash;15%
+      performance improvement in the forwarding rate under heavy
+      load. &merged;</para>
+
       <para arch="alpha">The &man.ed.4; driver is now supported.</para>
 
       <para arch="i386">Linksys Fast Ethernet PCCARD cards supported by the
@@ -576,6 +582,10 @@
       segments. &merged;</para>
 
       <para>&man.netgraph.4; has received some updates and bugfixes.</para>
+
+      <para>A new &man.ng.eth.4; netgraph node allows Ethernet type
+      packets to be filtered to different hooks depending on
+      ethertype.</para>
 
       <para>The &man.ng.gif.4; and &man.ng.gif.demux.4; netgraph
       nodes, for operating on &man.gif.4; devices, have been
@@ -1918,6 +1928,11 @@
     <option>-ax</option> respectively; the former options are now
     deprecated.  The <option>-w</option> option is deprecated as well; it is
     not needed to determine the user's intentions. &merged;</para>
+
+    <para>&man.sysctl.8; now supports a <option>-e</option> option to
+    separate variable names and values by <literal>=</literal> rather
+    than <literal>:</literal>.  This feature is useful for producing
+    output that can be fed back to &man.sysctl.8;.</para>
 
     <para>&man.sysinstall.8; now properly preserves
     <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
