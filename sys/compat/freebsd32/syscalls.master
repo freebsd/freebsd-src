@@ -51,7 +51,7 @@
 2	MNOPROTO POSIX	{ int fork(void); }
 3	MNOPROTO POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
 4	MNOPROTO POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
-5	STD	POSIX	{ int freebsd32_open(char *path, int flags, int mode); }
+5	NOPROTO	POSIX	{ int open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for `const' or varargs.
 ; XXX man page says `mode_t mode'.
@@ -89,8 +89,8 @@
 30	MNOPROTO BSD	{ int accept(int s, caddr_t name, int *anamelen); }
 31	MNOPROTO BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
 32	MNOPROTO BSD	{ int getsockname(int fdes, caddr_t asa, int *alen); }
-33	STD	POSIX	{ int freebsd32_access(char *path, int flags); }
-34	STD	BSD	{ int freebsd32_chflags(char *path, int flags); }
+33	NOPROTO	POSIX	{ int access(char *path, int flags); }
+34	NOPROTO	BSD	{ int chflags(char *path, int flags); }
 35	NOPROTO	BSD	{ int fchflags(int fd, int flags); }
 36	NOPROTO	BSD	{ int sync(void); }
 37	MNOPROTO POSIX	{ int kill(int pid, int signum); }
