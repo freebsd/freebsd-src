@@ -42,6 +42,11 @@ elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+# Start pccard if necessary
+if [ -r /etc/rc.pccard ]; then
+	. /etc/rc.pccard
+fi
+
 if [ -r /etc/rc.network ]; then
 	. /etc/rc.network
 else
