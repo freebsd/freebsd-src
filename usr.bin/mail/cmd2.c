@@ -345,7 +345,7 @@ delm(msgvec)
  * Undelete the indicated messages.
  */
 int
-undelete(msgvec)
+undelete_messages(msgvec)
 	int *msgvec;
 {
 	register struct message *mp;
