@@ -15,7 +15,7 @@ SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
 
 NOSHARED?=	YES
 
-CFLAGS+=-DMAKE_VERSION=\"5200205240\"
+CFLAGS+=-DMAKE_VERSION=\"5200208240\"
 
 main.o: ${MAKEFILE}
 
