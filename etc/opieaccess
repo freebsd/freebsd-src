@@ -10,4 +10,4 @@
 #       permit address netmask
 #       deny address netmask
 #
-permit 127.0.0.1 255.255.255.255
+#permit 127.0.0.1 255.255.255.255
