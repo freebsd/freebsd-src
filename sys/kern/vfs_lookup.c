@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include "opt_ktrace.h"

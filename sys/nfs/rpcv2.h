@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $Id$
  */
 
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -2,7 +2,7 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $FreeBSD$
+ *      $Id$
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETIPX_IPX_H_

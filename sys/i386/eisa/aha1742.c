@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $FreeBSD$
+ *      $Id$
  */
 
 #include <sys/types.h>

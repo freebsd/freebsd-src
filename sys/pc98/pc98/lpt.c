@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _SYS_VMMETER_H_

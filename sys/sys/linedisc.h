@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _SYS_CONF_H_

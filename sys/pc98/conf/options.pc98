@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

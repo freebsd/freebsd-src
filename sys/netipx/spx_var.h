@@ -33,7 +33,7 @@
  *
  *	@(#)spx_var.h
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETIPX_SPX_VAR_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _SYS_USER_H_

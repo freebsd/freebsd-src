@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $FreeBSD$
+**  $Id$
 **
 **  Names for PCI configuration space registers.
 **

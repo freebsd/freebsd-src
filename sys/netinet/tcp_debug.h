@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_

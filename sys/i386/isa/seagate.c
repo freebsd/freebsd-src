@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /*

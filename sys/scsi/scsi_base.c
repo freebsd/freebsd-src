@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $FreeBSD$
+ *      $Id$
  */
 
 #include "opt_bounce.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ansi.h	7.1 (Berkeley) 3/9/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef	_ANSI_H_

@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$FreeBSD$
+#	$Id$
 #
 wd	0
 dk	1

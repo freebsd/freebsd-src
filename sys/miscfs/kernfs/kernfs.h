@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
- * $FreeBSD$
+ * $Id$
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */

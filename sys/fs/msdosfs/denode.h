@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdio.h	5.17 (Berkeley) 6/3/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 /* generic SCSI header file.  We use the same minor number format

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 
 /*
  * Implementation of SVID semaphores

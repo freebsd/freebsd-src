@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $FreeBSD$
+ *      $Id$
  */
 
 #include <sys/types.h>

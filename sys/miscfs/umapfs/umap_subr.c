@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

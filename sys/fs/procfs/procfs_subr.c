@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

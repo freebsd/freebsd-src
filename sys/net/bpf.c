@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include "bpfilter.h"

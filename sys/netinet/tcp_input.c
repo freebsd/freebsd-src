@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef TUBA_INCLUDE

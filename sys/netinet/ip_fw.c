@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

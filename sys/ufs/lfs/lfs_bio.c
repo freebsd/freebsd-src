@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

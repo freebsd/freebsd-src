@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef NFS_NOSERVER 

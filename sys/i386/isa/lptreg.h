@@ -6,7 +6,7 @@
  * William Jolitz.
  *
  *      form: @(#)lptreg.h	1.1 (Berkeley) 12/19/90
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

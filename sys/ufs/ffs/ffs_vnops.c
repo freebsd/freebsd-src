@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

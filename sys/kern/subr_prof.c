@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

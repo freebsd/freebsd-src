@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /*

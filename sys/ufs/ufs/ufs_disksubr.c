@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

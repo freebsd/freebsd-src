@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $FreeBSD$
+ *      $Id$
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 /*	$NetBSD: bootsect.h,v 1.4 1994/06/29 06:35:28 cgd Exp $	*/
 
 /*

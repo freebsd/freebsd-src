@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_

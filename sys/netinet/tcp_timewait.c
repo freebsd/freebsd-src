@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

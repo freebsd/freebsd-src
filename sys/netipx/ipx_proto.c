@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

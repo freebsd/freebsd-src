@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$FreeBSD$
+ *	$Id$
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
