@@ -1942,16 +1942,13 @@ setfflags(td, vp, flags)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	VATTR_NULL(&vattr);
+	vattr.va_flags = flags;
 #ifdef MAC
 	error = mac_check_vnode_setflags(td->td_ucred, vp, vattr.va_flags);
-	if (error == 0) {
+	if (error == 0)
 #endif
-		VATTR_NULL(&vattr);
-		vattr.va_flags = flags;
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-#ifdef MAC
-	}
-#endif
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
