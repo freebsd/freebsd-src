@@ -13,7 +13,7 @@ INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
-SHLIB_MAJOR=    2
+SHLIB_MAJOR=    3
 SHLIB_MINOR=	0
 
 ftperr.h: ftp.errors
