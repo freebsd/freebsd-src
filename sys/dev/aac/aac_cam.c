@@ -116,11 +116,15 @@ aac_cam_detach(device_t dev)
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
 
+	mtx_lock(&Giant);
+
 	xpt_async(AC_LOST_DEVICE, camsc->path, NULL);
 	xpt_free_path(camsc->path);
 	xpt_bus_deregister(cam_sim_path(camsc->sim));
 	cam_sim_free(camsc->sim, /*free_devq*/TRUE);
-	
+
+	mtx_unlock(&Giant);
+
 	return (0);
 }
 
@@ -491,7 +495,11 @@ aac_cam_complete(struct aac_command *cm)
 
 	aac_release_command(cm);
 
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
+	mtx_lock(&Giant);
 	xpt_done(ccb);
+	mtx_unlock(&Giant);
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 
 	return;
 }
