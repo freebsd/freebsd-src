@@ -209,7 +209,7 @@ isp_fc_runstate(struct ispsoftc *isp, int tval)
 	fcparam *fcp;
 	int *tptr;
 
-	if (IS_SCSI(isp) || isp->isp_role == ISP_ROLE_NONE)
+	if (IS_SCSI(isp))
 		return (0);
 
 	tptr = tval? &tval : NULL;
