@@ -85,7 +85,8 @@ TGTS+=	${BITGTS}
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= env -i PATH=${PATH} MAKEFLAGS="${.MAKEFLAGS}" ${MAKE} \
+_MAKEOBJDIRPREFIX!= /usr/bin/env -i \
+		PATH=${PATH} MAKEFLAGS="${.MAKEFLAGS}" ${MAKE} \
 		-f /dev/null -V MAKEOBJDIRPREFIX dummy
 .if !empty(_MAKEOBJDIRPREFIX)
 .error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
