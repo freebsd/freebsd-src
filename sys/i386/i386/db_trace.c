@@ -104,19 +104,19 @@ struct i386_frame {
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-static void db_nextframe __P((struct i386_frame **, db_addr_t *, struct proc *));
-static int db_numargs __P((struct i386_frame *));
-static void db_print_stack_entry __P((const char *, int, char **, int *, db_addr_t));
-static void decode_syscall __P((int, struct proc *));
+static void db_nextframe(struct i386_frame **, db_addr_t *, struct proc *);
+static int db_numargs(struct i386_frame *);
+static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t);
+static void decode_syscall(int, struct proc *);
 
 
-static char * watchtype_str __P((int type));
-int  i386_set_watch         __P((int watchnum, unsigned int watchaddr, 
-                                 int size, int access, struct dbreg * d));
-int  i386_clr_watch         __P((int watchnum, struct dbreg * d));
-int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
-int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
-void db_md_list_watchpoints __P((void));
+static char * watchtype_str(int type);
+int  i386_set_watch(int watchnum, unsigned int watchaddr, 
+                                 int size, int access, struct dbreg * d);
+int  i386_clr_watch(int watchnum, struct dbreg * d);
+int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
+int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
+void db_md_list_watchpoints(void);
 
 
 /*

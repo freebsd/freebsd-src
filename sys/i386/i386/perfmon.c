@@ -66,7 +66,7 @@ static d_ioctl_t perfmon_ioctl;
  * assure that it is the most lowest priority task which, guarantees the
  * above.
  */
-static void perfmon_init_dev __P((void *));
+static void perfmon_init_dev(void *);
 SYSINIT(cpu, SI_SUB_DRIVERS, SI_ORDER_ANY, perfmon_init_dev, NULL);
 
 #define CDEV_MAJOR 2	/* We're really a minor of mem.c */

@@ -153,25 +153,25 @@ TAILQ_HEAD(cs_tailq, critical_section);
 SLIST_HEAD(scope_list, scope);
 TAILQ_HEAD(scope_tailq, scope);
 
-void	symbol_delete __P((symbol_t *symbol));
+void	symbol_delete(symbol_t *symbol);
 
-void	symtable_open __P((void));
+void	symtable_open(void);
 
-void	symtable_close __P((void));
+void	symtable_close(void);
 
 symbol_t *
-	symtable_get __P((char *name));
+	symtable_get(char *name);
 
 symbol_node_t *
-	symlist_search __P((symlist_t *symlist, char *symname));
+	symlist_search(symlist_t *symlist, char *symname);
 
 void
-	symlist_add __P((symlist_t *symlist, symbol_t *symbol, int how));
+	symlist_add(symlist_t *symlist, symbol_t *symbol, int how);
 #define SYMLIST_INSERT_HEAD	0x00
 #define SYMLIST_SORT		0x01
 
-void	symlist_free __P((symlist_t *symlist));
+void	symlist_free(symlist_t *symlist);
 
-void	symlist_merge __P((symlist_t *symlist_dest, symlist_t *symlist_src1,
-			   symlist_t *symlist_src2));
-void	symtable_dump __P((FILE *ofile));
+void	symlist_merge(symlist_t *symlist_dest, symlist_t *symlist_src1,
+			   symlist_t *symlist_src2);
+void	symtable_dump(FILE *ofile);
