@@ -85,6 +85,7 @@ queue_position;
 /* Exported functions from event-loop.c */
 
 extern void start_event_loop (void);
+extern int gdb_do_one_event (void *data);
 extern void delete_file_handler (int fd);
 extern void add_file_handler (int fd, handler_func * proc, gdb_client_data client_data);
 extern void mark_async_signal_handler (struct async_signal_handler *async_handler_ptr);

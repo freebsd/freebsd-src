@@ -1,7 +1,8 @@
 /* Find a variable's value in memory, for GDB, the GNU debugger.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994,
+   1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -33,6 +34,8 @@
 #include "floatformat.h"
 #include "symfile.h"		/* for overlay functions */
 #include "regcache.h"
+#include "user-regs.h"
+#include "block.h"
 
 /* Basic byte-swapping routines.  GDB has needed these for a long time...
    All extract a target-format integer at ADDR which is LEN bytes long.  */
@@ -46,17 +49,17 @@ you lose
 #endif
 
 LONGEST
-extract_signed_integer (void *addr, int len)
+extract_signed_integer (const void *addr, int len)
 {
   LONGEST retval;
-  unsigned char *p;
-  unsigned char *startaddr = (unsigned char *) addr;
-  unsigned char *endaddr = startaddr + len;
+  const unsigned char *p;
+  const unsigned char *startaddr = addr;
+  const unsigned char *endaddr = startaddr + len;
 
   if (len > (int) sizeof (LONGEST))
     error ("\
 That operation is not available on integers of more than %d bytes.",
-	   sizeof (LONGEST));
+	   (int) sizeof (LONGEST));
 
   /* Start at the most significant end of the integer, and work towards
      the least significant.  */
@@ -80,17 +83,17 @@ That operation is not available on integers of more than %d bytes.",
 }
 
 ULONGEST
-extract_unsigned_integer (void *addr, int len)
+extract_unsigned_integer (const void *addr, int len)
 {
   ULONGEST retval;
-  unsigned char *p;
-  unsigned char *startaddr = (unsigned char *) addr;
-  unsigned char *endaddr = startaddr + len;
+  const unsigned char *p;
+  const unsigned char *startaddr = addr;
+  const unsigned char *endaddr = startaddr + len;
 
   if (len > (int) sizeof (ULONGEST))
     error ("\
 That operation is not available on integers of more than %d bytes.",
-	   sizeof (ULONGEST));
+	   (int) sizeof (ULONGEST));
 
   /* Start at the most significant end of the integer, and work towards
      the least significant.  */
@@ -114,7 +117,7 @@ That operation is not available on integers of more than %d bytes.",
    function returns 1 and sets *PVAL.  Otherwise it returns 0.  */
 
 int
-extract_long_unsigned_integer (void *addr, int orig_len, LONGEST *pval)
+extract_long_unsigned_integer (const void *addr, int orig_len, LONGEST *pval)
 {
   char *p, *first_addr;
   int len;
@@ -158,32 +161,10 @@ extract_long_unsigned_integer (void *addr, int orig_len, LONGEST *pval)
 }
 
 
-/* Treat the LEN bytes at ADDR as a target-format address, and return
-   that address.  ADDR is a buffer in the GDB process, not in the
-   inferior.
-
-   This function should only be used by target-specific code.  It
-   assumes that a pointer has the same representation as that thing's
-   address represented as an integer.  Some machines use word
-   addresses, or similarly munged things, for certain types of
-   pointers, so that assumption doesn't hold everywhere.
-
-   Common code should use extract_typed_address instead, or something
-   else based on POINTER_TO_ADDRESS.  */
-
-CORE_ADDR
-extract_address (void *addr, int len)
-{
-  /* Assume a CORE_ADDR can fit in a LONGEST (for now).  Not sure
-     whether we want this to be true eventually.  */
-  return (CORE_ADDR) extract_unsigned_integer (addr, len);
-}
-
-
 /* Treat the bytes at BUF as a pointer of type TYPE, and return the
    address it represents.  */
 CORE_ADDR
-extract_typed_address (void *buf, struct type *type)
+extract_typed_address (const void *buf, struct type *type)
 {
   if (TYPE_CODE (type) != TYPE_CODE_PTR
       && TYPE_CODE (type) != TYPE_CODE_REF)
@@ -249,24 +230,6 @@ store_unsigned_integer (void *addr, int len, ULONGEST val)
     }
 }
 
-/* Store the address VAL as a LEN-byte value in target byte order at
-   ADDR.  ADDR is a buffer in the GDB process, not in the inferior.
-
-   This function should only be used by target-specific code.  It
-   assumes that a pointer has the same representation as that thing's
-   address represented as an integer.  Some machines use word
-   addresses, or similarly munged things, for certain types of
-   pointers, so that assumption doesn't hold everywhere.
-
-   Common code should use store_typed_address instead, or something else
-   based on ADDRESS_TO_POINTER.  */
-void
-store_address (void *addr, int len, LONGEST val)
-{
-  store_unsigned_integer (addr, len, val);
-}
-
-
 /* Store the address ADDR as a pointer of type TYPE at BUF, in target
    form.  */
 void
@@ -283,47 +246,60 @@ store_typed_address (void *buf, struct type *type, CORE_ADDR addr)
 
 
 
-/* Return a `value' with the contents of register REGNUM
-   in its virtual format, with the type specified by
-   REGISTER_VIRTUAL_TYPE.  
+/* Return a `value' with the contents of (virtual or cooked) register
+   REGNUM as found in the specified FRAME.  The register's type is
+   determined by register_type().
 
-   NOTE: returns NULL if register value is not available.
-   Caller will check return value or die!  */
+   NOTE: returns NULL if register value is not available.  Caller will
+   check return value or die!  */
 
 struct value *
-value_of_register (int regnum)
+value_of_register (int regnum, struct frame_info *frame)
 {
   CORE_ADDR addr;
   int optim;
   struct value *reg_val;
-  char *raw_buffer = (char*) alloca (MAX_REGISTER_RAW_SIZE);
+  int realnum;
+  char raw_buffer[MAX_REGISTER_SIZE];
   enum lval_type lval;
 
-  get_saved_register (raw_buffer, &optim, &addr,
-		      selected_frame, regnum, &lval);
+  /* User registers lie completely outside of the range of normal
+     registers.  Catch them early so that the target never sees them.  */
+  if (regnum >= NUM_REGS + NUM_PSEUDO_REGS)
+    return value_of_user_reg (regnum, frame);
+
+  frame_register (frame, regnum, &optim, &lval, &addr, &realnum, raw_buffer);
+
+  /* FIXME: cagney/2002-05-15: This test is just bogus.
+
+     It indicates that the target failed to supply a value for a
+     register because it was "not available" at this time.  Problem
+     is, the target still has the register and so get saved_register()
+     may be returning a value saved on the stack.  */
 
   if (register_cached (regnum) < 0)
     return NULL;		/* register value not available */
 
-  reg_val = allocate_value (REGISTER_VIRTUAL_TYPE (regnum));
+  reg_val = allocate_value (register_type (current_gdbarch, regnum));
 
   /* Convert raw data to virtual format if necessary.  */
 
-  if (REGISTER_CONVERTIBLE (regnum))
+  if (DEPRECATED_REGISTER_CONVERTIBLE_P ()
+      && DEPRECATED_REGISTER_CONVERTIBLE (regnum))
     {
-      REGISTER_CONVERT_TO_VIRTUAL (regnum, REGISTER_VIRTUAL_TYPE (regnum),
-				   raw_buffer, VALUE_CONTENTS_RAW (reg_val));
+      DEPRECATED_REGISTER_CONVERT_TO_VIRTUAL (regnum, register_type (current_gdbarch, regnum),
+					      raw_buffer, VALUE_CONTENTS_RAW (reg_val));
     }
-  else if (REGISTER_RAW_SIZE (regnum) == REGISTER_VIRTUAL_SIZE (regnum))
+  else if (DEPRECATED_REGISTER_RAW_SIZE (regnum) == DEPRECATED_REGISTER_VIRTUAL_SIZE (regnum))
     memcpy (VALUE_CONTENTS_RAW (reg_val), raw_buffer,
-	    REGISTER_RAW_SIZE (regnum));
+	    DEPRECATED_REGISTER_RAW_SIZE (regnum));
   else
     internal_error (__FILE__, __LINE__,
 		    "Register \"%s\" (%d) has conflicting raw (%d) and virtual (%d) size",
 		    REGISTER_NAME (regnum),
 		    regnum,
-		    REGISTER_RAW_SIZE (regnum),
-		    REGISTER_VIRTUAL_SIZE (regnum));
+		    DEPRECATED_REGISTER_RAW_SIZE (regnum),
+		    DEPRECATED_REGISTER_VIRTUAL_SIZE (regnum));
   VALUE_LVAL (reg_val) = lval;
   VALUE_ADDRESS (reg_val) = addr;
   VALUE_REGNO (reg_val) = regnum;
@@ -334,13 +310,13 @@ value_of_register (int regnum)
 /* Given a pointer of type TYPE in target form in BUF, return the
    address it represents.  */
 CORE_ADDR
-unsigned_pointer_to_address (struct type *type, void *buf)
+unsigned_pointer_to_address (struct type *type, const void *buf)
 {
-  return extract_address (buf, TYPE_LENGTH (type));
+  return extract_unsigned_integer (buf, TYPE_LENGTH (type));
 }
 
 CORE_ADDR
-signed_pointer_to_address (struct type *type, void *buf)
+signed_pointer_to_address (struct type *type, const void *buf)
 {
   return extract_signed_integer (buf, TYPE_LENGTH (type));
 }
@@ -350,7 +326,7 @@ signed_pointer_to_address (struct type *type, void *buf)
 void
 unsigned_address_to_pointer (struct type *type, void *buf, CORE_ADDR addr)
 {
-  store_address (buf, TYPE_LENGTH (type), addr);
+  store_unsigned_integer (buf, TYPE_LENGTH (type), addr);
 }
 
 void
@@ -369,6 +345,15 @@ symbol_read_needs_frame (struct symbol *sym)
     {
       /* All cases listed explicitly so that gcc -Wall will detect it if
          we failed to consider one.  */
+    case LOC_COMPUTED:
+    case LOC_COMPUTED_ARG:
+      /* FIXME: cagney/2004-01-26: It should be possible to
+	 unconditionally call the SYMBOL_OPS method when available.
+	 Unfortunately DWARF 2 stores the frame-base (instead of the
+	 function) location in a function's symbol.  Oops!  For the
+	 moment enable this when/where applicable.  */
+      return SYMBOL_OPS (sym)->read_needs_frame (sym);
+
     case LOC_REGISTER:
     case LOC_ARG:
     case LOC_REF_ARG:
@@ -378,7 +363,7 @@ symbol_read_needs_frame (struct symbol *sym)
     case LOC_LOCAL_ARG:
     case LOC_BASEREG:
     case LOC_BASEREG_ARG:
-    case LOC_THREAD_LOCAL_STATIC:
+    case LOC_HP_THREAD_LOCAL_STATIC:
       return 1;
 
     case LOC_UNDEF:
@@ -405,15 +390,15 @@ symbol_read_needs_frame (struct symbol *sym)
    and a stack frame id, read the value of the variable
    and return a (pointer to a) struct value containing the value. 
    If the variable cannot be found, return a zero pointer.
-   If FRAME is NULL, use the selected_frame.  */
+   If FRAME is NULL, use the deprecated_selected_frame.  */
 
 struct value *
-read_var_value (register struct symbol *var, struct frame_info *frame)
+read_var_value (struct symbol *var, struct frame_info *frame)
 {
-  register struct value *v;
+  struct value *v;
   struct type *type = SYMBOL_TYPE (var);
   CORE_ADDR addr;
-  register int len;
+  int len;
 
   v = allocate_value (type);
   VALUE_LVAL (v) = lval_memory;	/* The most likely possibility.  */
@@ -421,8 +406,11 @@ read_var_value (register struct symbol *var, struct frame_info *frame)
 
   len = TYPE_LENGTH (type);
 
+
+  /* FIXME drow/2003-09-06: this call to the selected frame should be
+     pushed upwards to the callers.  */
   if (frame == NULL)
-    frame = selected_frame;
+    frame = deprecated_safe_get_selected_frame ();
 
   switch (SYMBOL_CLASS (var))
     {
@@ -485,7 +473,7 @@ addresses have not been bound by the dynamic loader. Try again when executable i
     case LOC_ARG:
       if (frame == NULL)
 	return 0;
-      addr = FRAME_ARGS_ADDRESS (frame);
+      addr = get_frame_args_address (frame);
       if (!addr)
 	return 0;
       addr += SYMBOL_VALUE (var);
@@ -497,7 +485,7 @@ addresses have not been bound by the dynamic loader. Try again when executable i
 	CORE_ADDR argref;
 	if (frame == NULL)
 	  return 0;
-	argref = FRAME_ARGS_ADDRESS (frame);
+	argref = get_frame_args_address (frame);
 	if (!argref)
 	  return 0;
 	argref += SYMBOL_VALUE (var);
@@ -510,13 +498,13 @@ addresses have not been bound by the dynamic loader. Try again when executable i
     case LOC_LOCAL_ARG:
       if (frame == NULL)
 	return 0;
-      addr = FRAME_LOCALS_ADDRESS (frame);
+      addr = get_frame_locals_address (frame);
       addr += SYMBOL_VALUE (var);
       break;
 
     case LOC_BASEREG:
     case LOC_BASEREG_ARG:
-    case LOC_THREAD_LOCAL_STATIC:
+    case LOC_HP_THREAD_LOCAL_STATIC:
       {
 	struct value *regval;
 
@@ -551,7 +539,7 @@ addresses have not been bound by the dynamic loader. Try again when executable i
 
 	if (frame == NULL)
 	  return 0;
-	b = get_frame_block (frame);
+	b = get_frame_block (frame, 0);
 
 	if (SYMBOL_CLASS (var) == LOC_REGPARM_ADDR)
 	  {
@@ -576,11 +564,22 @@ addresses have not been bound by the dynamic loader. Try again when executable i
       }
       break;
 
+    case LOC_COMPUTED:
+    case LOC_COMPUTED_ARG:
+      /* FIXME: cagney/2004-01-26: It should be possible to
+	 unconditionally call the SYMBOL_OPS method when available.
+	 Unfortunately DWARF 2 stores the frame-base (instead of the
+	 function) location in a function's symbol.  Oops!  For the
+	 moment enable this when/where applicable.  */
+      if (frame == 0 && SYMBOL_OPS (var)->read_needs_frame (var))
+	return 0;
+      return SYMBOL_OPS (var)->read_variable (var, frame);
+
     case LOC_UNRESOLVED:
       {
 	struct minimal_symbol *msym;
 
-	msym = lookup_minimal_symbol (SYMBOL_NAME (var), NULL, NULL);
+	msym = lookup_minimal_symbol (DEPRECATED_SYMBOL_NAME (var), NULL, NULL);
 	if (msym == NULL)
 	  return 0;
 	if (overlay_debugging)
@@ -615,151 +614,105 @@ addresses have not been bound by the dynamic loader. Try again when executable i
 struct value *
 value_from_register (struct type *type, int regnum, struct frame_info *frame)
 {
-  char *raw_buffer = (char*) alloca (MAX_REGISTER_RAW_SIZE);
-  CORE_ADDR addr;
-  int optim;
+  struct gdbarch *gdbarch = get_frame_arch (frame);
   struct value *v = allocate_value (type);
-  char *value_bytes = 0;
-  int value_bytes_copied = 0;
-  int num_storage_locs;
-  enum lval_type lval;
-  int len;
-
   CHECK_TYPEDEF (type);
-  len = TYPE_LENGTH (type);
 
-  VALUE_REGNO (v) = regnum;
-
-  num_storage_locs = (len > REGISTER_VIRTUAL_SIZE (regnum) ?
-		      ((len - 1) / REGISTER_RAW_SIZE (regnum)) + 1 :
-		      1);
-
-  if (num_storage_locs > 1
-#ifdef GDB_TARGET_IS_H8500
-      || TYPE_CODE (type) == TYPE_CODE_PTR
-#endif
-    )
+  if (TYPE_LENGTH (type) == 0)
     {
-      /* Value spread across multiple storage locations.  */
+      /* It doesn't matter much what we return for this: since the
+         length is zero, it could be anything.  But if allowed to see
+         a zero-length type, the register-finding loop below will set
+         neither mem_stor nor reg_stor, and then report an internal
+         error.  
 
+         Zero-length types can legitimately arise from declarations
+         like 'struct {}' (a GCC extension, not valid ISO C).  GDB may
+         also create them when it finds bogus debugging information;
+         for example, in GCC 2.95.4 and binutils 2.11.93.0.2, the
+         STABS BINCL->EXCL compression process can create bad type
+         numbers.  GDB reads these as TYPE_CODE_UNDEF types, with zero
+         length.  (That bug is actually the only known way to get a
+         zero-length value allocated to a register --- which is what
+         it takes to make it here.)
+
+         We'll just attribute the value to the original register.  */
+      VALUE_LVAL (v) = lval_register;
+      VALUE_ADDRESS (v) = regnum;
+      VALUE_REGNO (v) = regnum;
+    }
+  else if (CONVERT_REGISTER_P (regnum, type))
+    {
+      /* The ISA/ABI need to something weird when obtaining the
+         specified value from this register.  It might need to
+         re-order non-adjacent, starting with REGNUM (see MIPS and
+         i386).  It might need to convert the [float] register into
+         the corresponding [integer] type (see Alpha).  The assumption
+         is that REGISTER_TO_VALUE populates the entire value
+         including the location.  */
+      REGISTER_TO_VALUE (frame, regnum, type, VALUE_CONTENTS_RAW (v));
+      VALUE_LVAL (v) = lval_reg_frame_relative;
+      VALUE_FRAME_ID (v) = get_frame_id (frame);
+      VALUE_FRAME_REGNUM (v) = regnum;
+    }
+  else
+    {
       int local_regnum;
       int mem_stor = 0, reg_stor = 0;
       int mem_tracking = 1;
       CORE_ADDR last_addr = 0;
       CORE_ADDR first_addr = 0;
-
-      value_bytes = (char *) alloca (len + MAX_REGISTER_RAW_SIZE);
+      int first_realnum = regnum;
+      int len = TYPE_LENGTH (type);
+      int value_bytes_copied;
+      int optimized = 0;
+      char *value_bytes = (char *) alloca (len + MAX_REGISTER_SIZE);
 
       /* Copy all of the data out, whereever it may be.  */
-
-#ifdef GDB_TARGET_IS_H8500
-/* This piece of hideosity is required because the H8500 treats registers
-   differently depending upon whether they are used as pointers or not.  As a
-   pointer, a register needs to have a page register tacked onto the front.
-   An alternate way to do this would be to have gcc output different register
-   numbers for the pointer & non-pointer form of the register.  But, it
-   doesn't, so we're stuck with this.  */
-
-      if (TYPE_CODE (type) == TYPE_CODE_PTR
-	  && len > 2)
+      for (local_regnum = regnum, value_bytes_copied = 0;
+	   value_bytes_copied < len;
+	   (value_bytes_copied += DEPRECATED_REGISTER_RAW_SIZE (local_regnum),
+	    ++local_regnum))
 	{
-	  int page_regnum;
-
-	  switch (regnum)
+	  int realnum;
+	  int optim;
+	  enum lval_type lval;
+	  CORE_ADDR addr;
+	  frame_register (frame, local_regnum, &optim, &lval, &addr,
+			  &realnum, value_bytes + value_bytes_copied);
+	  optimized += optim;
+	  if (register_cached (local_regnum) == -1)
+	    return NULL;	/* register value not available */
+	  
+	  if (regnum == local_regnum)
 	    {
-	    case R0_REGNUM:
-	    case R1_REGNUM:
-	    case R2_REGNUM:
-	    case R3_REGNUM:
-	      page_regnum = SEG_D_REGNUM;
-	      break;
-	    case R4_REGNUM:
-	    case R5_REGNUM:
-	      page_regnum = SEG_E_REGNUM;
-	      break;
-	    case R6_REGNUM:
-	    case R7_REGNUM:
-	      page_regnum = SEG_T_REGNUM;
-	      break;
+	      first_addr = addr;
+	      first_realnum = realnum;
 	    }
-
-	  value_bytes[0] = 0;
-	  get_saved_register (value_bytes + 1,
-			      &optim,
-			      &addr,
-			      frame,
-			      page_regnum,
-			      &lval);
-
-	  if (register_cached (page_regnum) == -1)
-	    return NULL;	/* register value not available */
-
-	  if (lval == lval_register)
-	    reg_stor++;
-	  else
-	    mem_stor++;
-	  first_addr = addr;
-	  last_addr = addr;
-
-	  get_saved_register (value_bytes + 2,
-			      &optim,
-			      &addr,
-			      frame,
-			      regnum,
-			      &lval);
-
-	  if (register_cached (regnum) == -1)
-	    return NULL;	/* register value not available */
-
 	  if (lval == lval_register)
 	    reg_stor++;
 	  else
 	    {
 	      mem_stor++;
-	      mem_tracking = mem_tracking && (addr == last_addr);
+	      
+	      mem_tracking = (mem_tracking
+			      && (regnum == local_regnum
+				  || addr == last_addr));
 	    }
 	  last_addr = addr;
 	}
-      else
-#endif /* GDB_TARGET_IS_H8500 */
-	for (local_regnum = regnum;
-	     value_bytes_copied < len;
-	     (value_bytes_copied += REGISTER_RAW_SIZE (local_regnum),
-	      ++local_regnum))
-	  {
-	    get_saved_register (value_bytes + value_bytes_copied,
-				&optim,
-				&addr,
-				frame,
-				local_regnum,
-				&lval);
-
-	    if (register_cached (local_regnum) == -1)
-	      return NULL;	/* register value not available */
-
-	    if (regnum == local_regnum)
-	      first_addr = addr;
-	    if (lval == lval_register)
-	      reg_stor++;
-	    else
-	      {
-		mem_stor++;
-
-		mem_tracking =
-		  (mem_tracking
-		   && (regnum == local_regnum
-		       || addr == last_addr));
-	      }
-	    last_addr = addr;
-	  }
-
+      
+      /* FIXME: cagney/2003-06-04: Shouldn't this always use
+         lval_reg_frame_relative?  If it doesn't and the register's
+         location changes (say after a resume) then this value is
+         going to have wrong information.  */
       if ((reg_stor && mem_stor)
 	  || (mem_stor && !mem_tracking))
 	/* Mixed storage; all of the hassle we just went through was
 	   for some good purpose.  */
 	{
 	  VALUE_LVAL (v) = lval_reg_frame_relative;
-	  VALUE_FRAME (v) = FRAME_FP (frame);
+	  VALUE_FRAME_ID (v) = get_frame_id (frame);
 	  VALUE_FRAME_REGNUM (v) = regnum;
 	}
       else if (mem_stor)
@@ -771,64 +724,29 @@ value_from_register (struct type *type, int regnum, struct frame_info *frame)
 	{
 	  VALUE_LVAL (v) = lval_register;
 	  VALUE_ADDRESS (v) = first_addr;
+	  VALUE_REGNO (v) = first_realnum;
 	}
       else
 	internal_error (__FILE__, __LINE__,
 			"value_from_register: Value not stored anywhere!");
-
-      VALUE_OPTIMIZED_OUT (v) = optim;
-
+      
+      VALUE_OPTIMIZED_OUT (v) = optimized;
+      
       /* Any structure stored in more than one register will always be
-         an integral number of registers.  Otherwise, you'd need to do
+         an integral number of registers.  Otherwise, you need to do
          some fiddling with the last register copied here for little
          endian machines.  */
-
-      /* Copy into the contents section of the value.  */
-      memcpy (VALUE_CONTENTS_RAW (v), value_bytes, len);
-
-      /* Finally do any conversion necessary when extracting this
-         type from more than one register.  */
-#ifdef REGISTER_CONVERT_TO_TYPE
-      REGISTER_CONVERT_TO_TYPE (regnum, type, VALUE_CONTENTS_RAW (v));
-#endif
-      return v;
+      if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG
+	  && len < DEPRECATED_REGISTER_RAW_SIZE (regnum))
+	/* Big-endian, and we want less than full size.  */
+	VALUE_OFFSET (v) = DEPRECATED_REGISTER_RAW_SIZE (regnum) - len;
+      else
+	VALUE_OFFSET (v) = 0;
+      memcpy (VALUE_CONTENTS_RAW (v), value_bytes + VALUE_OFFSET (v), len);
     }
-
-  /* Data is completely contained within a single register.  Locate the
-     register's contents in a real register or in core;
-     read the data in raw format.  */
-
-  get_saved_register (raw_buffer, &optim, &addr, frame, regnum, &lval);
-
-  if (register_cached (regnum) == -1)
-    return NULL;		/* register value not available */
-
-  VALUE_OPTIMIZED_OUT (v) = optim;
-  VALUE_LVAL (v) = lval;
-  VALUE_ADDRESS (v) = addr;
-
-  /* Convert raw data to virtual format if necessary.  */
-
-  if (REGISTER_CONVERTIBLE (regnum))
-    {
-      REGISTER_CONVERT_TO_VIRTUAL (regnum, type,
-				   raw_buffer, VALUE_CONTENTS_RAW (v));
-    }
-  else
-    {
-      /* Raw and virtual formats are the same for this register.  */
-
-      if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG && len < REGISTER_RAW_SIZE (regnum))
-	{
-	  /* Big-endian, and we want less than full size.  */
-	  VALUE_OFFSET (v) = REGISTER_RAW_SIZE (regnum) - len;
-	}
-
-      memcpy (VALUE_CONTENTS_RAW (v), raw_buffer + VALUE_OFFSET (v), len);
-    }
-
   return v;
 }
+
 
 /* Given a struct symbol for a variable or function,
    and a stack frame id, 
@@ -836,7 +754,7 @@ value_from_register (struct type *type, int regnum, struct frame_info *frame)
    address.  */
 
 struct value *
-locate_var_value (register struct symbol *var, struct frame_info *frame)
+locate_var_value (struct symbol *var, struct frame_info *frame)
 {
   CORE_ADDR addr = 0;
   struct type *type = SYMBOL_TYPE (var);
@@ -847,7 +765,7 @@ locate_var_value (register struct symbol *var, struct frame_info *frame)
 
   lazy_value = read_var_value (var, frame);
   if (lazy_value == 0)
-    error ("Address of \"%s\" is unknown.", SYMBOL_SOURCE_NAME (var));
+    error ("Address of \"%s\" is unknown.", SYMBOL_PRINT_NAME (var));
 
   if (VALUE_LAZY (lazy_value)
       || TYPE_CODE (type) == TYPE_CODE_FUNC)
@@ -868,7 +786,7 @@ locate_var_value (register struct symbol *var, struct frame_info *frame)
 	            && *REGISTER_NAME (VALUE_REGNO (lazy_value)) != '\0');
       error("Address requested for identifier "
 	    "\"%s\" which is in register $%s",
-            SYMBOL_SOURCE_NAME (var), 
+            SYMBOL_PRINT_NAME (var), 
 	    REGISTER_NAME (VALUE_REGNO (lazy_value)));
       break;
 
@@ -877,13 +795,13 @@ locate_var_value (register struct symbol *var, struct frame_info *frame)
 	            && *REGISTER_NAME (VALUE_FRAME_REGNUM (lazy_value)) != '\0');
       error("Address requested for identifier "
 	    "\"%s\" which is in frame register $%s",
-            SYMBOL_SOURCE_NAME (var), 
+            SYMBOL_PRINT_NAME (var), 
 	    REGISTER_NAME (VALUE_FRAME_REGNUM (lazy_value)));
       break;
 
     default:
       error ("Can't take address of \"%s\" which isn't an lvalue.",
-	     SYMBOL_SOURCE_NAME (var));
+	     SYMBOL_PRINT_NAME (var));
       break;
     }
   return 0;			/* For lint -- never reached */

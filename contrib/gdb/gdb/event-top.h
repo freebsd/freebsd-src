@@ -1,5 +1,7 @@
-/* Definitions used by GDB event-top.c.
-   Copyright 1999, 2001 Free Software Foundation, Inc.
+/* Definitions used by event-top.c, for GDB, the GNU debugger.
+
+   Copyright 1999, 2001, 2003 Free Software Foundation, Inc.
+
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
    This file is part of GDB.
@@ -18,6 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
+
+#ifndef EVENT_TOP_H
+#define EVENT_TOP_H
+
+struct cmd_list_element;
 
 /* Stack for prompts.  Each prompt is composed as a prefix, a prompt
    and a suffix.  The prompt to be displayed at any given time is the
@@ -71,6 +78,8 @@ struct prompts
    FIXME: these should really go into top.h.  */
 
 extern void display_gdb_prompt (char *new_prompt);
+void gdb_setup_readline (void);
+void gdb_disable_readline (void);
 extern void async_init_signals (void);
 extern void set_async_editing_command (char *args, int from_tty,
 				       struct cmd_list_element *c);
@@ -109,3 +118,7 @@ extern void (*call_readline) (void *);
 extern void (*input_handler) (char *);
 extern int input_fd;
 extern void (*after_char_processing_hook) (void);
+
+extern void cli_command_loop (void);
+
+#endif

@@ -1,6 +1,7 @@
 /* environ.c -- library for manipulating environments for GNU.
-   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 2000
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 2000,
+   2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +31,7 @@
 struct environ *
 make_environ (void)
 {
-  register struct environ *e;
+  struct environ *e;
 
   e = (struct environ *) xmalloc (sizeof (struct environ));
 
@@ -43,9 +44,9 @@ make_environ (void)
 /* Free an environment and all the strings in it.  */
 
 void
-free_environ (register struct environ *e)
+free_environ (struct environ *e)
 {
-  register char **vector = e->vector;
+  char **vector = e->vector;
 
   while (*vector)
     xfree (*vector++);
@@ -58,10 +59,10 @@ free_environ (register struct environ *e)
    that all strings in these environments are safe to free.  */
 
 void
-init_environ (register struct environ *e)
+init_environ (struct environ *e)
 {
   extern char **environ;
-  register int i;
+  int i;
 
   if (environ == NULL)
     return;
@@ -79,8 +80,8 @@ init_environ (register struct environ *e)
 
   while (--i >= 0)
     {
-      register int len = strlen (e->vector[i]);
-      register char *new = (char *) xmalloc (len + 1);
+      int len = strlen (e->vector[i]);
+      char *new = (char *) xmalloc (len + 1);
       memcpy (new, e->vector[i], len + 1);
       e->vector[i] = new;
     }
@@ -100,12 +101,12 @@ environ_vector (struct environ *e)
 char *
 get_in_environ (const struct environ *e, const char *var)
 {
-  register int len = strlen (var);
-  register char **vector = e->vector;
-  register char *s;
+  int len = strlen (var);
+  char **vector = e->vector;
+  char *s;
 
   for (; (s = *vector) != NULL; vector++)
-    if (STREQN (s, var, len) && s[len] == '=')
+    if (strncmp (s, var, len) == 0 && s[len] == '=')
       return &s[len + 1];
 
   return 0;
@@ -116,13 +117,13 @@ get_in_environ (const struct environ *e, const char *var)
 void
 set_in_environ (struct environ *e, const char *var, const char *value)
 {
-  register int i;
-  register int len = strlen (var);
-  register char **vector = e->vector;
-  register char *s;
+  int i;
+  int len = strlen (var);
+  char **vector = e->vector;
+  char *s;
 
   for (i = 0; (s = vector[i]) != NULL; i++)
-    if (STREQN (s, var, len) && s[len] == '=')
+    if (strncmp (s, var, len) == 0 && s[len] == '=')
       break;
 
   if (s == 0)
@@ -163,13 +164,13 @@ set_in_environ (struct environ *e, const char *var, const char *value)
 void
 unset_in_environ (struct environ *e, char *var)
 {
-  register int len = strlen (var);
-  register char **vector = e->vector;
-  register char *s;
+  int len = strlen (var);
+  char **vector = e->vector;
+  char *s;
 
   for (; (s = *vector) != NULL; vector++)
     {
-      if (STREQN (s, var, len) && s[len] == '=')
+      if (DEPRECATED_STREQN (s, var, len) && s[len] == '=')
 	{
 	  xfree (s);
 	  /* Walk through the vector, shuffling args down by one, including

@@ -87,11 +87,13 @@ gdb_kod_display (char *arg)
 static void
 gdb_kod_query (char *arg, char *result, int *maxsiz)
 {
-  int bufsiz = 0;
+  LONGEST bufsiz = 0;
 
-  /* Check if current target has remote_query capabilities.
-     If not, it does not have kod either.  */
-  if (! current_target.to_query)
+  /* Check if current target has remote_query capabilities.  If not,
+     it does not have kod either.  */
+  bufsiz = target_read_partial (&current_target, TARGET_OBJECT_KOD,
+				NULL, NULL, 0, 0);
+  if (bufsiz < 0)
     {
       strcpy (result,
               "ERR: Kernel Object Display not supported by current target\n");
@@ -99,7 +101,6 @@ gdb_kod_query (char *arg, char *result, int *maxsiz)
     }
 
   /* Just get the maximum buffer size.  */
-  target_query ((int) 'K', 0, 0, &bufsiz);
 
   /* Check if *we* were called just for getting the buffer size.  */
   if (*maxsiz == 0)
@@ -119,7 +120,8 @@ gdb_kod_query (char *arg, char *result, int *maxsiz)
     error ("kod: query argument too long");
 
   /* Send actual request.  */
-  if (target_query ((int) 'K', arg, result, &bufsiz))
+  if (target_read_partial (&current_target, TARGET_OBJECT_KOD,
+			   arg, result, 0, bufsiz) < 0)
     strcpy (result, "ERR: remote query failed");
 }
 
@@ -132,7 +134,16 @@ kod_set_os (char *arg, int from_tty, struct cmd_list_element *command)
 {
   char *p;
 
-  if (command->type != set_cmd)
+  /* NOTE: cagney/2002-03-17: The add_show_from_set() function clones
+     the set command passed as a parameter.  The clone operation will
+     include (BUG?) any ``set'' command callback, if present.
+     Commands like ``info set'' call all the ``show'' command
+     callbacks.  Unfortunately, for ``show'' commands cloned from
+     ``set'', this includes callbacks belonging to ``set'' commands.
+     Making this worse, this only occures if add_show_from_set() is
+     called after add_cmd_sfunc() (BUG?).  */
+
+  if (cmd_type (command) != set_cmd)
     return;
 
   /* If we had already had an open OS, close it.  */
@@ -145,7 +156,6 @@ kod_set_os (char *arg, int from_tty, struct cmd_list_element *command)
       delete_cmd (old_operating_system, &infolist);
       xfree (old_operating_system);
     }
-  old_operating_system = xstrdup (operating_system);
 
   if (! operating_system || ! *operating_system)
     {
@@ -159,6 +169,8 @@ kod_set_os (char *arg, int from_tty, struct cmd_list_element *command)
   else
     {
       char *kodlib;
+
+      old_operating_system = xstrdup (operating_system);
 
       load_kod_library (operating_system);
 

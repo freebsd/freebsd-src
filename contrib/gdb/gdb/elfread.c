@@ -1,7 +1,8 @@
 /* Read ELF (Executable and Linking Format) object files for GDB.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002
-   Free Software Foundation, Inc.
+
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+
    Written by Fred Fish at Cygnus Support.
 
    This file is part of GDB.
@@ -52,20 +53,6 @@ struct elfinfo
     asection *mdebugsect;	/* Section pointer for .mdebug section */
   };
 
-/* Various things we might complain about... */
-
-struct complaint section_info_complaint =
-{"elf/stab section information %s without a preceding file symbol", 0, 0};
-
-struct complaint section_info_dup_complaint =
-{"duplicated elf/stab section information for %s", 0, 0};
-
-struct complaint stab_info_mismatch_complaint =
-{"elf/stab section information missing for %s", 0, 0};
-
-struct complaint stab_info_questionable_complaint =
-{"elf/stab section information questionable for %s", 0, 0};
-
 static void free_elfinfo (void *);
 
 /* We are called once per section from elf_symfile_read.  We
@@ -90,72 +77,43 @@ static void free_elfinfo (void *);
 static void
 elf_locate_sections (bfd *ignore_abfd, asection *sectp, void *eip)
 {
-  register struct elfinfo *ei;
+  struct elfinfo *ei;
 
   ei = (struct elfinfo *) eip;
-  if (STREQ (sectp->name, ".debug"))
+  if (strcmp (sectp->name, ".debug") == 0)
     {
       ei->dboffset = sectp->filepos;
       ei->dbsize = bfd_get_section_size_before_reloc (sectp);
     }
-  else if (STREQ (sectp->name, ".line"))
+  else if (strcmp (sectp->name, ".line") == 0)
     {
       ei->lnoffset = sectp->filepos;
       ei->lnsize = bfd_get_section_size_before_reloc (sectp);
     }
-  else if (STREQ (sectp->name, ".stab"))
+  else if (strcmp (sectp->name, ".stab") == 0)
     {
       ei->stabsect = sectp;
     }
-  else if (STREQ (sectp->name, ".stab.index"))
+  else if (strcmp (sectp->name, ".stab.index") == 0)
     {
       ei->stabindexsect = sectp;
     }
-  else if (STREQ (sectp->name, ".mdebug"))
+  else if (strcmp (sectp->name, ".mdebug") == 0)
     {
       ei->mdebugsect = sectp;
     }
 }
 
-#if 0				/* Currently unused */
-
-char *
-elf_interpreter (bfd *abfd)
-{
-  sec_ptr interp_sec;
-  unsigned size;
-  char *interp = NULL;
-
-  interp_sec = bfd_get_section_by_name (abfd, ".interp");
-  if (interp_sec)
-    {
-      size = bfd_section_size (abfd, interp_sec);
-      interp = alloca (size);
-      if (bfd_get_section_contents (abfd, interp_sec, interp, (file_ptr) 0,
-				    size))
-	{
-	  interp = savestring (interp, size - 1);
-	}
-      else
-	{
-	  interp = NULL;
-	}
-    }
-  return (interp);
-}
-
-#endif
-
 static struct minimal_symbol *
-record_minimal_symbol_and_info (char *name, CORE_ADDR address,
-				enum minimal_symbol_type ms_type, char *info,	/* FIXME, is this really char *? */
-				asection *bfd_section, struct objfile *objfile)
+record_minimal_symbol (char *name, CORE_ADDR address,
+		       enum minimal_symbol_type ms_type,
+		       asection *bfd_section, struct objfile *objfile)
 {
   if (ms_type == mst_text || ms_type == mst_file_text)
     address = SMASH_TEXT_ADDRESS (address);
 
   return prim_record_minimal_symbol_and_info
-    (name, address, ms_type, info, bfd_section->index, bfd_section, objfile);
+    (name, address, ms_type, NULL, bfd_section->index, bfd_section, objfile);
 }
 
 /*
@@ -190,7 +148,6 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
   asymbol **symbol_table;
   long number_of_symbols;
   long i;
-  int index;
   struct cleanup *back_to;
   CORE_ADDR symaddr;
   CORE_ADDR offset;
@@ -202,11 +159,10 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
      seen any section info for it yet.  */
   asymbol *filesym = 0;
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
-  /* Name of filesym, as saved on the symbol_obstack.  */
-  char *filesymname = obsavestring ("", 0, &objfile->symbol_obstack);
+  /* Name of filesym, as saved on the objfile_obstack.  */
+  char *filesymname = obsavestring ("", 0, &objfile->objfile_obstack);
 #endif
   struct dbx_symfile_info *dbx = objfile->sym_stab_info;
-  unsigned long size;
   int stripped = (bfd_get_symcount (objfile->obfd) == 0);
 
   if (dynamic)
@@ -266,9 +222,9 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 	      if (symaddr == 0)
 		continue;
 	      symaddr += offset;
-	      msym = record_minimal_symbol_and_info
+	      msym = record_minimal_symbol
 		((char *) sym->name, symaddr,
-		 mst_solib_trampoline, NULL, sym->section, objfile);
+		 mst_solib_trampoline, sym->section, objfile);
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
 	      if (msym != NULL)
 		msym->filename = filesymname;
@@ -295,7 +251,7 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
 	      filesymname =
 		obsavestring ((char *) filesym->name, strlen (filesym->name),
-			      &objfile->symbol_obstack);
+			      &objfile->objfile_obstack);
 #endif
 	    }
 	  else if (sym->flags & (BSF_GLOBAL | BSF_LOCAL | BSF_WEAK))
@@ -357,24 +313,14 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 			   || ((sym->flags & BSF_LOCAL)
 			       && sym->name[0] == '$'
 			       && sym->name[1] == 'L'))
-		    /* Looks like a compiler-generated label.  Skip it.
-		       The assembler should be skipping these (to keep
-		       executables small), but apparently with gcc on the
-		       delta m88k SVR4, it loses.  So to have us check too
-		       should be harmless (but I encourage people to fix this
-		       in the assembler instead of adding checks here).  */
+		    /* Looks like a compiler-generated label.  Skip
+		       it.  The assembler should be skipping these (to
+		       keep executables small), but apparently with
+		       gcc on the (deleted) delta m88k SVR4, it loses.
+		       So to have us check too should be harmless (but
+		       I encourage people to fix this in the assembler
+		       instead of adding checks here).  */
 		    continue;
-#ifdef HARRIS_TARGET
-		  else if (sym->name[0] == '.' && sym->name[1] == '.')
-		    {
-		      /* Looks like a Harris compiler generated label for the
-		         purpose of marking instructions that are relevant to
-		         DWARF dies.  The assembler can't get rid of these 
-		         because they are relocatable addresses that the
-		         linker needs to resolve. */
-		      continue;
-		    }
-#endif
 		  else
 		    {
 		      ms_type = mst_file_text;
@@ -395,38 +341,50 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 		    }
 		  else if (sym->flags & BSF_LOCAL)
 		    {
-		      /* Named Local variable in a Data section.  Check its
-		         name for stabs-in-elf.  The STREQ macro checks the
-		         first character inline, so we only actually do a
-		         strcmp function call on names that start with 'B'
-		         or 'D' */
-		      index = SECT_OFF_MAX;
-		      if (STREQ ("Bbss.bss", sym->name))
-			{
-			  index = SECT_OFF_BSS (objfile);
-			}
-		      else if (STREQ ("Ddata.data", sym->name))
-			{
-			  index = SECT_OFF_DATA (objfile);
-			}
-		      else if (STREQ ("Drodata.rodata", sym->name))
-			{
-			  index = SECT_OFF_RODATA (objfile);
-			}
-		      if (index != SECT_OFF_MAX)
+		      /* Named Local variable in a Data section.
+		         Check its name for stabs-in-elf.  */
+		      int special_local_sect;
+		      if (strcmp ("Bbss.bss", sym->name) == 0)
+			special_local_sect = SECT_OFF_BSS (objfile);
+		      else if (strcmp ("Ddata.data", sym->name) == 0)
+			special_local_sect = SECT_OFF_DATA (objfile);
+		      else if (strcmp ("Drodata.rodata", sym->name) == 0)
+			special_local_sect = SECT_OFF_RODATA (objfile);
+		      else
+			special_local_sect = -1;
+		      if (special_local_sect >= 0)
 			{
 			  /* Found a special local symbol.  Allocate a
 			     sectinfo, if needed, and fill it in.  */
 			  if (sectinfo == NULL)
 			    {
+			      int max_index;
+			      size_t size;
+
+			      max_index 
+				= max (SECT_OFF_BSS (objfile),
+				       max (SECT_OFF_DATA (objfile),
+					    SECT_OFF_RODATA (objfile)));
+
+                              /* max_index is the largest index we'll
+                                 use into this array, so we must
+                                 allocate max_index+1 elements for it.
+                                 However, 'struct stab_section_info'
+                                 already includes one element, so we
+                                 need to allocate max_index aadditional
+                                 elements.  */
+			      size = (sizeof (struct stab_section_info) 
+				      + (sizeof (CORE_ADDR)
+					 * max_index));
 			      sectinfo = (struct stab_section_info *)
-				xmmalloc (objfile->md, sizeof (*sectinfo));
-			      memset (sectinfo, 0,
-				      sizeof (*sectinfo));
+				xmmalloc (objfile->md, size);
+			      memset (sectinfo, 0, size);
+			      sectinfo->num_sections = max_index;
 			      if (filesym == NULL)
 				{
-				  complain (&section_info_complaint,
-					    sym->name);
+				  complaint (&symfile_complaints,
+					     "elf/stab section information %s without a preceding file symbol",
+					     sym->name);
 				}
 			      else
 				{
@@ -434,35 +392,23 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 				    (char *) filesym->name;
 				}
 			    }
-			  if (index != -1)
-			    { 
-			      if (sectinfo->sections[index] != 0)
-				{
-				  complain (&section_info_dup_complaint,
-					    sectinfo->filename);
-				}
-			    }
-			  else
-			    internal_error (__FILE__, __LINE__,
-					    "Section index uninitialized.");
-			  /* Bfd symbols are section relative. */
+			  if (sectinfo->sections[special_local_sect] != 0)
+			    complaint (&symfile_complaints,
+				       "duplicated elf/stab section information for %s",
+				       sectinfo->filename);
+			  /* BFD symbols are section relative.  */
 			  symaddr = sym->value + sym->section->vma;
-			  /* Relocate non-absolute symbols by the section offset. */
+			  /* Relocate non-absolute symbols by the
+                             section offset.  */
 			  if (sym->section != &bfd_abs_section)
-			    {
-			      symaddr += offset;
-			    }
-			  if (index != -1)
-			    sectinfo->sections[index] = symaddr;
-			  else
-			    internal_error (__FILE__, __LINE__,
-					    "Section index uninitialized.");
+			    symaddr += offset;
+			  sectinfo->sections[special_local_sect] = symaddr;
 			  /* The special local symbols don't go in the
-			     minimal symbol table, so ignore this one. */
+			     minimal symbol table, so ignore this one.  */
 			  continue;
 			}
 		      /* Not a special stabs-in-elf symbol, do regular
-		         symbol processing. */
+		         symbol processing.  */
 		      if (sym->section->flags & SEC_LOAD)
 			{
 			  ms_type = mst_file_data;
@@ -486,11 +432,15 @@ elf_symtab_read (struct objfile *objfile, int dynamic)
 		  /* ms_type = mst_unknown; */
 		  continue;	/* Skip this symbol. */
 		}
-	      /* Pass symbol size field in via BFD.  FIXME!!!  */
-	      size = ((elf_symbol_type *) sym)->internal_elf_sym.st_size;
-	      msym = record_minimal_symbol_and_info
+	      msym = record_minimal_symbol
 		((char *) sym->name, symaddr,
-		 ms_type, (void *) size, sym->section, objfile);
+		 ms_type, sym->section, objfile);
+	      if (msym)
+	      {
+		/* Pass symbol size field in via BFD.  FIXME!!!  */
+		unsigned long size = ((elf_symbol_type *) sym)->internal_elf_sym.st_size;
+		MSYMBOL_SIZE(msym) = size;
+	      }
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
 	      if (msym != NULL)
 		msym->filename = filesymname;
@@ -563,6 +513,15 @@ elf_symfile_read (struct objfile *objfile, int mainline)
 
   elf_symtab_read (objfile, 1);
 
+  /* Install any minimal symbols that have been collected as the current
+     minimal symbols for this objfile.  The debug readers below this point
+     should not generate new minimal symbols; if they do it's their
+     responsibility to install them.  "mdebug" appears to be the only one
+     which will do this.  */
+
+  install_minimal_symbols (objfile);
+  do_cleanups (back_to);
+
   /* Now process debugging information, which is contained in
      special ELF sections. */
 
@@ -612,8 +571,7 @@ elf_symfile_read (struct objfile *objfile, int mainline)
       if (str_sect)
 	elfstab_build_psymtabs (objfile,
 				mainline,
-				ei.stabsect->filepos,
-				bfd_section_size (abfd, ei.stabsect),
+				ei.stabsect,
 				str_sect->filepos,
 				bfd_section_size (abfd, str_sect));
     }
@@ -631,15 +589,9 @@ elf_symfile_read (struct objfile *objfile, int mainline)
 			    ei.lnoffset, ei.lnsize);
     }
 
-  if (DWARF2_BUILD_FRAME_INFO_P ())
-    DWARF2_BUILD_FRAME_INFO(objfile);
-
-  /* Install any minimal symbols that have been collected as the current
-     minimal symbols for this objfile. */
-
-  install_minimal_symbols (objfile);
-
-  do_cleanups (back_to);
+  /* FIXME: kettenis/20030504: This still needs to be integrated with
+     dwarf2read.c in a better way.  */
+  dwarf2_build_frame_info (objfile);
 }
 
 /* This cleans up the objfile's sym_stab_info pointer, and the chain of
@@ -738,7 +690,7 @@ elfstab_offset_sections (struct objfile *objfile, struct partial_symtab *pst)
   for (; maybe; maybe = maybe->next)
     {
       if (filename[0] == maybe->filename[0]
-	  && STREQ (filename, maybe->filename))
+	  && strcmp (filename, maybe->filename) == 0)
 	{
 	  /* We found a match.  But there might be several source files
 	     (from different directories) with the same name.  */
@@ -750,7 +702,8 @@ elfstab_offset_sections (struct objfile *objfile, struct partial_symtab *pst)
 
   if (maybe == 0 && questionable != 0)
     {
-      complain (&stab_info_questionable_complaint, filename);
+      complaint (&symfile_complaints,
+		 "elf/stab section information questionable for %s", filename);
       maybe = questionable;
     }
 
@@ -759,15 +712,17 @@ elfstab_offset_sections (struct objfile *objfile, struct partial_symtab *pst)
       /* Found it!  Allocate a new psymtab struct, and fill it in.  */
       maybe->found++;
       pst->section_offsets = (struct section_offsets *)
-	obstack_alloc (&objfile->psymbol_obstack, SIZEOF_SECTION_OFFSETS);
-      for (i = 0; i < SECT_OFF_MAX; i++)
+	obstack_alloc (&objfile->objfile_obstack, 
+		       SIZEOF_N_SECTION_OFFSETS (objfile->num_sections));
+      for (i = 0; i < maybe->num_sections; i++)
 	(pst->section_offsets)->offsets[i] = maybe->sections[i];
       return;
     }
 
   /* We were unable to find any offsets for this file.  Complain.  */
   if (dbx->stab_section_info)	/* If there *is* any info, */
-    complain (&stab_info_mismatch_complaint, filename);
+    complaint (&symfile_complaints,
+	       "elf/stab section information missing for %s", filename);
 }
 
 /* Register that we are able to handle ELF object file formats.  */

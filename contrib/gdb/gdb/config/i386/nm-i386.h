@@ -1,5 +1,5 @@
 /* Native macro definitions for GDB on an Intel i[3456]86.
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -93,7 +93,7 @@ extern int  i386_remove_hw_breakpoint (CORE_ADDR addr, void *shadow);
    one that caused the trap.  Therefore we don't need to step over it.
    But we do need to reset the status register to avoid another trap.  */
 
-#define HAVE_CONTINUABLE_WATCHPOINT
+#define HAVE_CONTINUABLE_WATCHPOINT 1
 
 #define STOPPED_BY_WATCHPOINT(W)       (i386_stopped_data_address () != 0)
 
@@ -112,8 +112,6 @@ extern int  i386_remove_hw_breakpoint (CORE_ADDR addr, void *shadow);
 
 #define target_remove_hw_breakpoint(addr, shadow) \
   i386_remove_hw_breakpoint (addr, shadow)
-
-#define DECR_PC_AFTER_HW_BREAK 0
 
 /* child_post_startup_inferior used to
    reset all debug registers by calling i386_cleanup_dregs ().  */ 

@@ -1,3 +1,3 @@
 # Host: PowerPC, running NetBSD
-NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o ppcnbsd-nat.o solib.o solib-svr4.o solib-legacy.o
+NATDEPFILES= fork-child.o infptrace.o inftarg.o ppcnbsd-nat.o
 NAT_FILE= nm-nbsd.h

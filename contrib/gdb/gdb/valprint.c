@@ -1,7 +1,8 @@
 /* Print values for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+   1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -28,7 +29,6 @@
 #include "gdbcore.h"
 #include "gdbcmd.h"
 #include "target.h"
-#include "obstack.h"
 #include "language.h"
 #include "annotate.h"
 #include "valprint.h"
@@ -41,9 +41,6 @@
 
 static int partial_memory_read (CORE_ADDR memaddr, char *myaddr,
 				int len, int *errnoptr);
-
-static void print_hex_chars (struct ui_file *, unsigned char *,
-			     unsigned int);
 
 static void show_print (char *, int);
 
@@ -205,12 +202,8 @@ val_print_type_code_int (struct type *type, char *valaddr,
     }
   else
     {
-#ifdef PRINT_TYPELESS_INTEGER
-      PRINT_TYPELESS_INTEGER (stream, type, unpack_long (type, valaddr));
-#else
       print_longest (stream, TYPE_UNSIGNED (type) ? 'u' : 'd', 0,
 		     unpack_long (type, valaddr));
-#endif
     }
 }
 
@@ -332,22 +325,22 @@ print_longest (struct ui_file *stream, int format, int use_local,
       fprintf_filtered (stream,
 			use_local ? local_decimal_format_custom ("ll")
 			: "%lld",
-			val_long);
+			(long long) val_long);
       break;
     case 'u':
-      fprintf_filtered (stream, "%llu", val_long);
+      fprintf_filtered (stream, "%llu", (long long) val_long);
       break;
     case 'x':
       fprintf_filtered (stream,
 			use_local ? local_hex_format_custom ("ll")
 			: "%llx",
-			val_long);
+			(unsigned long long) val_long);
       break;
     case 'o':
       fprintf_filtered (stream,
 			use_local ? local_octal_format_custom ("ll")
 			: "%llo",
-			val_long);
+			(unsigned long long) val_long);
       break;
     case 'b':
       fprintf_filtered (stream, local_hex_format_custom ("02ll"), val_long);
@@ -414,109 +407,6 @@ print_longest (struct ui_file *stream, int format, int use_local,
 #endif /* CC_HAS_LONG_LONG || PRINTF_HAS_LONG_LONG */
 }
 
-#if 0
-void
-strcat_longest (int format, int use_local, LONGEST val_long, char *buf,
-		int buflen)
-{
-/* FIXME: Use buflen to avoid buffer overflow.  */
-#if defined (CC_HAS_LONG_LONG) && !defined (PRINTF_HAS_LONG_LONG)
-  long vtop, vbot;
-
-  vtop = val_long >> (sizeof (long) * HOST_CHAR_BIT);
-  vbot = (long) val_long;
-
-  if ((format == 'd' && (val_long < INT_MIN || val_long > INT_MAX))
-      || ((format == 'u' || format == 'x') && (unsigned long long) val_long > UINT_MAX))
-    {
-      sprintf (buf, "0x%lx%08lx", vtop, vbot);
-      return;
-    }
-#endif
-
-#ifdef PRINTF_HAS_LONG_LONG
-  switch (format)
-    {
-    case 'd':
-      sprintf (buf,
-	       (use_local ? local_decimal_format_custom ("ll") : "%lld"),
-	       val_long);
-      break;
-    case 'u':
-      sprintf (buf, "%llu", val_long);
-      break;
-    case 'x':
-      sprintf (buf,
-	       (use_local ? local_hex_format_custom ("ll") : "%llx"),
-
-	       val_long);
-      break;
-    case 'o':
-      sprintf (buf,
-	       (use_local ? local_octal_format_custom ("ll") : "%llo"),
-	       val_long);
-      break;
-    case 'b':
-      sprintf (buf, local_hex_format_custom ("02ll"), val_long);
-      break;
-    case 'h':
-      sprintf (buf, local_hex_format_custom ("04ll"), val_long);
-      break;
-    case 'w':
-      sprintf (buf, local_hex_format_custom ("08ll"), val_long);
-      break;
-    case 'g':
-      sprintf (buf, local_hex_format_custom ("016ll"), val_long);
-      break;
-    default:
-      internal_error (__FILE__, __LINE__, "failed internal consistency check");
-    }
-#else /* !PRINTF_HAS_LONG_LONG */
-  /* In the following it is important to coerce (val_long) to a long. It does
-     nothing if !LONG_LONG, but it will chop off the top half (which we know
-     we can ignore) if the host supports long longs.  */
-
-  switch (format)
-    {
-    case 'd':
-      sprintf (buf, (use_local ? local_decimal_format_custom ("l") : "%ld"),
-	       ((long) val_long));
-      break;
-    case 'u':
-      sprintf (buf, "%lu", ((unsigned long) val_long));
-      break;
-    case 'x':
-      sprintf (buf, (use_local ? local_hex_format_custom ("l") : "%lx"),
-	       ((long) val_long));
-      break;
-    case 'o':
-      sprintf (buf, (use_local ? local_octal_format_custom ("l") : "%lo"),
-	       ((long) val_long));
-      break;
-    case 'b':
-      sprintf (buf, local_hex_format_custom ("02l"),
-	       ((long) val_long));
-      break;
-    case 'h':
-      sprintf (buf, local_hex_format_custom ("04l"),
-	       ((long) val_long));
-      break;
-    case 'w':
-      sprintf (buf, local_hex_format_custom ("08l"),
-	       ((long) val_long));
-      break;
-    case 'g':
-      sprintf (buf, local_hex_format_custom ("016l"),
-	       ((long) val_long));
-      break;
-    default:
-      internal_error (__FILE__, __LINE__, "failed internal consistency check");
-    }
-
-#endif /* !PRINTF_HAS_LONG_LONG */
-}
-#endif
-
 /* This used to be a macro, but I don't think it is called often enough
    to merit such treatment.  */
 /* Convert a LONGEST to an int.  This is used in contexts (e.g. number of
@@ -559,9 +449,9 @@ print_floating (char *valaddr, struct type *type, struct ui_file *stream)
       if (floatformat_is_negative (fmt, valaddr))
 	fprintf_filtered (stream, "-");
       fprintf_filtered (stream, "nan(");
-      fprintf_filtered (stream, local_hex_format_prefix ());
-      fprintf_filtered (stream, floatformat_mantissa (fmt, valaddr));
-      fprintf_filtered (stream, local_hex_format_suffix ());
+      fputs_filtered (local_hex_format_prefix (), stream);
+      fputs_filtered (floatformat_mantissa (fmt, valaddr), stream);
+      fputs_filtered (local_hex_format_suffix (), stream);
       fprintf_filtered (stream, ")");
       return;
     }
@@ -622,7 +512,7 @@ print_binary_chars (struct ui_file *stream, unsigned char *valaddr,
 
   /* FIXME: We should be not printing leading zeroes in most cases.  */
 
-  fprintf_filtered (stream, local_binary_format_prefix ());
+  fputs_filtered (local_binary_format_prefix (), stream);
   if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
     {
       for (p = valaddr;
@@ -660,7 +550,7 @@ print_binary_chars (struct ui_file *stream, unsigned char *valaddr,
 	    }
 	}
     }
-  fprintf_filtered (stream, local_binary_format_suffix ());
+  fputs_filtered (local_binary_format_suffix (), stream);
 }
 
 /* VALADDR points to an integer of LEN bytes.
@@ -709,7 +599,7 @@ print_octal_chars (struct ui_file *stream, unsigned char *valaddr, unsigned len)
   cycle = (len * BITS_IN_BYTES) % BITS_IN_OCTAL;
   carry = 0;
 
-  fprintf_filtered (stream, local_octal_format_prefix ());
+  fputs_filtered (local_octal_format_prefix (), stream);
   if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
     {
       for (p = valaddr;
@@ -808,7 +698,7 @@ print_octal_chars (struct ui_file *stream, unsigned char *valaddr, unsigned len)
 	}
     }
 
-  fprintf_filtered (stream, local_octal_format_suffix ());
+  fputs_filtered (local_octal_format_suffix (), stream);
 }
 
 /* VALADDR points to an integer of LEN bytes.
@@ -851,7 +741,7 @@ print_decimal_chars (struct ui_file *stream, unsigned char *valaddr,
       digits[i] = 0;
     }
 
-  fprintf_filtered (stream, local_decimal_format_prefix ());
+  fputs_filtered (local_decimal_format_prefix (), stream);
 
   /* Ok, we have an unknown number of bytes of data to be printed in
    * decimal.
@@ -948,19 +838,19 @@ print_decimal_chars (struct ui_file *stream, unsigned char *valaddr,
     }
   xfree (digits);
 
-  fprintf_filtered (stream, local_decimal_format_suffix ());
+  fputs_filtered (local_decimal_format_suffix (), stream);
 }
 
 /* VALADDR points to an integer of LEN bytes.  Print it in hex on stream.  */
 
-static void
+void
 print_hex_chars (struct ui_file *stream, unsigned char *valaddr, unsigned len)
 {
   unsigned char *p;
 
   /* FIXME: We should be not printing leading zeroes in most cases.  */
 
-  fprintf_filtered (stream, local_hex_format_prefix ());
+  fputs_filtered (local_hex_format_prefix (), stream);
   if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
     {
       for (p = valaddr;
@@ -979,7 +869,41 @@ print_hex_chars (struct ui_file *stream, unsigned char *valaddr, unsigned len)
 	  fprintf_filtered (stream, "%02x", *p);
 	}
     }
-  fprintf_filtered (stream, local_hex_format_suffix ());
+  fputs_filtered (local_hex_format_suffix (), stream);
+}
+
+/* VALADDR points to a char integer of LEN bytes.  Print it out in appropriate language form on stream.  
+   Omit any leading zero chars.  */
+
+void
+print_char_chars (struct ui_file *stream, unsigned char *valaddr, unsigned len)
+{
+  unsigned char *p;
+
+  if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
+    {
+      p = valaddr;
+      while (p < valaddr + len - 1 && *p == 0)
+	++p;
+
+      while (p < valaddr + len)
+	{
+	  LA_EMIT_CHAR (*p, stream, '\'');
+	  ++p;
+	}
+    }
+  else
+    {
+      p = valaddr + len - 1;
+      while (p > valaddr && *p == 0)
+	--p;
+
+      while (p >= valaddr)
+	{
+	  LA_EMIT_CHAR (*p, stream, '\'');
+	  --p;
+	}
+    }
 }
 
 /*  Called by various <lang>_val_print routines to print elements of an
@@ -1290,14 +1214,12 @@ val_print_string (CORE_ADDR addr, int len, int width, struct ui_file *stream)
    knows what they really did here.  Radix setting is confusing, e.g.
    setting the input radix to "10" never changes it!  */
 
-/* ARGSUSED */
 static void
 set_input_radix (char *args, int from_tty, struct cmd_list_element *c)
 {
-  set_input_radix_1 (from_tty, *(unsigned *) c->var);
+  set_input_radix_1 (from_tty, input_radix);
 }
 
-/* ARGSUSED */
 static void
 set_input_radix_1 (int from_tty, unsigned radix)
 {
@@ -1310,6 +1232,8 @@ set_input_radix_1 (int from_tty, unsigned radix)
 
   if (radix < 2)
     {
+      /* FIXME: cagney/2002-03-17: This needs to revert the bad radix
+         value.  */
       error ("Nonsense input radix ``decimal %u''; input radix unchanged.",
 	     radix);
     }
@@ -1321,11 +1245,10 @@ set_input_radix_1 (int from_tty, unsigned radix)
     }
 }
 
-/* ARGSUSED */
 static void
 set_output_radix (char *args, int from_tty, struct cmd_list_element *c)
 {
-  set_output_radix_1 (from_tty, *(unsigned *) c->var);
+  set_output_radix_1 (from_tty, output_radix);
 }
 
 static void
@@ -1345,6 +1268,8 @@ set_output_radix_1 (int from_tty, unsigned radix)
       output_format = 'o';	/* octal */
       break;
     default:
+      /* FIXME: cagney/2002-03-17: This needs to revert the bad radix
+         value.  */
       error ("Unsupported output radix ``decimal %u''; output radix unchanged.",
 	     radix);
     }
@@ -1381,7 +1306,6 @@ set_radix (char *arg, int from_tty)
 
 /* Show both the input and output radices. */
 
-/*ARGSUSED */
 static void
 show_radix (char *arg, int from_tty)
 {
@@ -1403,7 +1327,6 @@ show_radix (char *arg, int from_tty)
 }
 
 
-/*ARGSUSED */
 static void
 set_print (char *arg, int from_tty)
 {
@@ -1412,7 +1335,6 @@ set_print (char *arg, int from_tty)
   help_list (setprintlist, "set print ", -1, gdb_stdout);
 }
 
-/*ARGSUSED */
 static void
 show_print (char *args, int from_tty)
 {

@@ -25,9 +25,6 @@
 #define USE_PROC_FS
 #define HAVE_OPTIONAL_PROC_FS
 
-/* OSF/1 doesn't provide the standard fault definitions, so don't use them.  */
-#define FAULTED_USE_SIGINFO
-
 /* Don't trace faults under OSF/1, rely on the posting of the appropriate
    signal if fault tracing is disabled.
    Tracing T_IFAULT under Alpha OSF/1 causes a `floating point enable'

@@ -23,6 +23,6 @@
 #define TM_VXWORKS_H
 
 #include "powerpc/tm-ppc-eabi.h"
-#include "tm-vxworks.h"
+#include "config/tm-vxworks.h"
 
 #endif /* ifndef TM_VXWORKS_H */

@@ -25,4 +25,4 @@
 
 /* Pick up more stuff from the generic SVR4 host include file. */
 
-#include "xm-sysv4.h"
+#include "config/xm-sysv4.h"

@@ -309,6 +309,7 @@ init_hpacc_ops (void)
   hpacc_abi_ops.baseclass_offset = gnuv2_baseclass_offset;
 }
 
+extern initialize_file_ftype _initialize_hpacc_abi; /* -Wmissing-prototypes */
 
 void
 _initialize_hpacc_abi (void)
@@ -324,5 +325,5 @@ _initialize_hpacc_abi (void)
   regcomp (&operator_pattern,
 	   "^This will never match anything, please fill it in$", REG_NOSUB);
 
-  register_cp_abi (hpacc_abi_ops);
+  register_cp_abi (&hpacc_abi_ops);
 }

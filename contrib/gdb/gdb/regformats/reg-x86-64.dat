@@ -1,9 +1,9 @@
 name:x86_64
 expedite:rbp,rsp,rip
 64:rax
-64:rdx
-64:rcx
 64:rbx
+64:rcx
+64:rdx
 64:rsi
 64:rdi
 64:rbp
@@ -18,6 +18,12 @@ expedite:rbp,rsp,rip
 64:r15
 64:rip
 32:eflags
+32:cs
+32:ss
+32:ds
+32:es
+32:fs
+32:gs
 80:st0
 80:st1
 80:st2

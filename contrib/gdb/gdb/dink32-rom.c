@@ -96,19 +96,6 @@ dink32_supply_register (char *regname, int regnamelen, char *val, int vallen)
   monitor_supply_register (regno, val);
 }
 
-static void
-dink32_load (struct monitor_ops *monops, char *filename, int from_tty)
-{
-  generic_load (filename, from_tty);
-
-  /* Finally, make the PC point at the start address */
-  if (exec_bfd)
-    write_pc (bfd_get_start_address (exec_bfd));
-
-  inferior_ptid = null_ptid;		/* No process now */
-}
-
-
 /* This array of registers needs to match the indexes used by GDB. The
    whole reason this exists is because the various ROM monitors use
    different names than GDB does, and don't support all the registers
@@ -142,6 +129,8 @@ dink32_open (char *args, int from_tty)
   monitor_open (args, &dink32_cmds, from_tty);
 }
 
+extern initialize_file_ftype _initialize_dink32_rom; /* -Wmissing-prototypes */
+
 void
 _initialize_dink32_rom (void)
 {
@@ -170,9 +159,6 @@ _initialize_dink32_rom (void)
   /* S-record download, via "keyboard port".  */
   dink32_cmds.load = "dl -k\r";
   dink32_cmds.loadresp = "Set Input Port : set to Keyboard Port\r";
-#if 0				/* slow load routine not needed if S-records work... */
-  dink32_cmds.load_routine = dink32_load;
-#endif
   dink32_cmds.prompt = "DINK32_603 >>";
   dink32_cmds.line_term = "\r";
   dink32_cmds.target = &dink32_ops;

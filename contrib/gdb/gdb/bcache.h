@@ -1,7 +1,8 @@
 /* Include file cached obstack implementation.
    Written by Fred Fish <fnf@cygnus.com>
    Rewritten by Jim Blandy <jimb@cygnus.com>
-   Copyright 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -47,84 +48,123 @@
    You shouldn't modify the strings you get from a bcache, because:
 
    - You don't necessarily know who you're sharing space with.  If I
-     stick eight bytes of text in a bcache, and then stick an
-     eight-byte structure in the same bcache, there's no guarantee
-     those two objects don't actually comprise the same sequence of
-     bytes.  If they happen to, the bcache will use a single byte
-     string for both of them.  Then, modifying the structure will
-     change the string.  In bizarre ways.
+   stick eight bytes of text in a bcache, and then stick an eight-byte
+   structure in the same bcache, there's no guarantee those two
+   objects don't actually comprise the same sequence of bytes.  If
+   they happen to, the bcache will use a single byte string for both
+   of them.  Then, modifying the structure will change the string.  In
+   bizarre ways.
 
    - Even if you know for some other reason that all that's okay,
-     there's another problem.  A bcache stores all its strings in a
-     hash table.  If you modify a string's contents, you will probably
-     change its hash value.  This means that the modified string is
-     now in the wrong place in the hash table, and future bcache
-     probes will never find it.  So by mutating a string, you give up
-     any chance of sharing its space with future duplicates.  */
+   there's another problem.  A bcache stores all its strings in a hash
+   table.  If you modify a string's contents, you will probably change
+   its hash value.  This means that the modified string is now in the
+   wrong place in the hash table, and future bcache probes will never
+   find it.  So by mutating a string, you give up any chance of
+   sharing its space with future duplicates.
 
 
-/* The type used to hold a single bcache string.  The user data is
-   stored in d.data.  Since it can be any type, it needs to have the
-   same alignment as the most strict alignment of any type on the host
-   machine.  I don't know of any really correct way to do this in
-   stock ANSI C, so just do it the same way obstack.h does.
+   Size of bcache VS hashtab:
 
-   It would be nicer to have this stuff hidden away in bcache.c, but
-   struct objstack contains a struct bcache directly --- not a pointer
-   to one --- and then the memory-mapped stuff makes this a real pain.
-   We don't strictly need to expose struct bstring, but it's better to
-   have it all in one place.  */
+   For bcache, the most critical cost is size (or more exactly the
+   overhead added by the bcache).  It turns out that the bcache is
+   remarkably efficient.
 
-struct bstring {
-  struct bstring *next;
-  size_t length;
+   Assuming a 32-bit system (the hash table slots are 4 bytes),
+   ignoring alignment, and limit strings to 255 bytes (1 byte length)
+   we get ...
 
-  union
-  {
-    char data[1];
-    double dummy;
-  }
-  d;
-};
+   bcache: This uses a separate linked list to track the hash chain.
+   The numbers show roughly 100% occupancy of the hash table and an
+   average chain length of 4.  Spreading the slot cost over the 4
+   chain elements:
+
+   4 (slot) / 4 (chain length) + 1 (length) + 4 (chain) = 6 bytes
+
+   hashtab: This uses a more traditional re-hash algorithm where the
+   chain is maintained within the hash table.  The table occupancy is
+   kept below 75% but we'll assume its perfect:
+
+   4 (slot) x 4/3 (occupancy) +  1 (length) = 6 1/3 bytes
+
+   So a perfect hashtab has just slightly larger than an average
+   bcache.
+
+   It turns out that an average hashtab is far worse.  Two things
+   hurt:
+
+   - Hashtab's occupancy is more like 50% (it ranges between 38% and
+   75%) giving a per slot cost of 4x2 vs 4x4/3.
+
+   - the string structure needs to be aligned to 8 bytes which for
+   hashtab wastes 7 bytes, while for bcache wastes only 3.
+
+   This gives:
+
+   hashtab: 4 x 2 + 1 + 7 = 16 bytes
+
+   bcache 4 / 4 + 1 + 4 + 3 = 9 bytes
+
+   The numbers of GDB debugging GDB support this.  ~40% vs ~70% overhead.
 
 
-/* The structure for a bcache itself.
-   To initialize a bcache, just fill it with zeros.  */
-struct bcache {
-  /* All the bstrings are allocated here.  */
-  struct obstack cache;
+   Speed of bcache VS hashtab (the half hash hack):
 
-  /* How many hash buckets we're using.  */
-  unsigned int num_buckets;
+   While hashtab has a typical chain length of 1, bcache has a chain
+   length of round 4.  This means that the bcache will require
+   something like double the number of compares after that initial
+   hash.  In both cases the comparison takes the form:
+
+   a.length == b.length && memcmp (a.data, b.data, a.length) == 0
+
+   That is lengths are checked before doing the memcmp.
+
+   For GDB debugging GDB, it turned out that all lengths were 24 bytes
+   (no C++ so only psymbols were cached) and hence, all compares
+   required a call to memcmp.  As a hack, two bytes of padding
+   (mentioned above) are used to store the upper 16 bits of the
+   string's hash value and then that is used in the comparison vis:
+
+   a.half_hash == b.half_hash && a.length == b.length && memcmp
+   (a.data, b.data, a.length)
+
+   The numbers from GDB debugging GDB show this to be a remarkable
+   100% effective (only necessary length and memcmp tests being
+   performed).
+
+   Mind you, looking at the wall clock, the same GDB debugging GDB
+   showed only marginal speed up (0.780 vs 0.773s).  Seems GDB is too
+   busy doing something else :-(
   
-  /* Hash buckets.  This table is allocated using malloc, so when we
-     grow the table we can return the old table to the system.  */
-  struct bstring **bucket;
+*/
 
-  /* Statistics.  */
-  unsigned long unique_count;	/* number of unique strings */
-  long total_count;	/* total number of strings cached, including dups */
-  long unique_size;	/* size of unique strings, in bytes */
-  long total_size;      /* total number of bytes cached, including dups */
-  long structure_size;	/* total size of bcache, including infrastructure */
-};
 
+struct bcache;
 
 /* Find a copy of the LENGTH bytes at ADDR in BCACHE.  If BCACHE has
    never seen those bytes before, add a copy of them to BCACHE.  In
-   either case, return a pointer to BCACHE's copy of that string.  */
-extern void *bcache (const void *addr, int length, struct bcache *bcache);
+   either case, return a pointer to BCACHE's copy of that string.
+   Since the cached value is ment to be read-only, return a const
+   buffer.  */
+extern void *deprecated_bcache (const void *addr, int length,
+				struct bcache *bcache);
+extern const void *bcache (const void *addr, int length,
+			   struct bcache *bcache);
 
-/* Free all the storage that BCACHE refers to.  The result is a valid,
-   but empty, bcache.  This does not free BCACHE itself, since that
-   might be part of some larger object.  */
-extern void free_bcache (struct bcache *bcache);
+/* Free all the storage used by BCACHE.  */
+extern void bcache_xfree (struct bcache *bcache);
+
+/* Create a new bcache object.  */
+extern struct bcache *bcache_xmalloc (void);
 
 /* Print statistics on BCACHE's memory usage and efficacity at
    eliminating duplication.  TYPE should be a string describing the
    kind of data BCACHE holds.  Statistics are printed using
    `printf_filtered' and its ilk.  */
 extern void print_bcache_statistics (struct bcache *bcache, char *type);
+extern int bcache_memory_used (struct bcache *bcache);
+
 /* The hash function */
 extern unsigned long hash(const void *addr, int length);
+
 #endif /* BCACHE_H */

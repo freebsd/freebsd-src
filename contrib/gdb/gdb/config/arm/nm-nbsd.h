@@ -22,12 +22,6 @@
 #define NM_NBSD_H
 
 /* Get generic NetBSD native definitions. */
-#include "nm-nbsd.h"
-
-#define REGISTER_U_ADDR(addr, blockend, regno) \
-	(addr) = arm_register_u_addr ((blockend),(regno));
-
-extern int
-arm_register_u_addr (int, int);
+#include "config/nm-nbsd.h"
 
 #endif /* NM_NBSD_H */

@@ -86,8 +86,8 @@ static void
 java_type_print_base (struct type *type, struct ui_file *stream, int show,
 		      int level)
 {
-  register int i;
-  register int len;
+  int i;
+  int len;
   char *mangled_name;
   char *demangled_name;
   QUIT;
@@ -166,12 +166,12 @@ java_type_print_base (struct type *type, struct ui_file *stream, int show,
 	    {
 	      QUIT;
 	      /* Don't print out virtual function table.  */
-	      if (STREQN (TYPE_FIELD_NAME (type, i), "_vptr", 5)
+	      if (strncmp (TYPE_FIELD_NAME (type, i), "_vptr", 5) == 0
 		  && is_cplus_marker ((TYPE_FIELD_NAME (type, i))[5]))
 		continue;
 
 	      /* Don't print the dummy field "class". */
-	      if (STREQN (TYPE_FIELD_NAME (type, i), "class", 5))
+	      if (strncmp (TYPE_FIELD_NAME (type, i), "class", 5) == 0)
 		continue;
 
 	      print_spaces_filtered (level + 4, stream);
@@ -216,7 +216,7 @@ java_type_print_base (struct type *type, struct ui_file *stream, int show,
 	      n_overloads = TYPE_FN_FIELDLIST_LENGTH (type, i);
 	      method_name = TYPE_FN_FIELDLIST_NAME (type, i);
 	      name = type_name_no_tag (type);
-	      is_constructor = name && STREQ (method_name, name);
+	      is_constructor = name && strcmp (method_name, name) == 0;
 
 	      for (j = 0; j < n_overloads; j++)
 		{

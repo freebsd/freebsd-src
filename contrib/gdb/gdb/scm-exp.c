@@ -1,5 +1,6 @@
 /* Scheme/Guile language support routines for GDB, the GNU debugger.
-   Copyright 1995, 1996, 2000 Free Software Foundation, Inc.
+
+   Copyright 1995, 1996, 2000, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -237,7 +238,7 @@ scm_read_token (int c, int weird)
 static int
 scm_skip_ws (void)
 {
-  register int c;
+  int c;
   while (1)
     switch ((c = *lexptr++))
       {

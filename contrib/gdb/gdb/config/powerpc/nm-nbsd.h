@@ -1,5 +1,5 @@
 /* Native-dependent definitions for PowerPC running NetBSD ELF, for GDB.
-   Copyright 2000 Free Software Foundation, Inc.
+   Copyright 2000, 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,9 +21,7 @@
 #ifndef NM_NBSD_H
 #define NM_NBSD_H
 
-#define SVR4_SHARED_LIBS
-
 /* Get generic NetBSD native definitions. */
-#include "nm-nbsd.h"
+#include "config/nm-nbsd.h"
 
 #endif

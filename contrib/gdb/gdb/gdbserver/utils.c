@@ -1,5 +1,5 @@
 /* General utility routines for the remote server for GDB.
-   Copyright 1986, 1989, 1993, 1995, 1996, 1997, 1999, 2000, 2002
+   Copyright 1986, 1989, 1993, 1995, 1996, 1997, 1999, 2000, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -33,16 +33,13 @@ void
 perror_with_name (char *string)
 {
 #ifndef STDC_HEADERS
-  extern int sys_nerr;
-  extern char *sys_errlist[];
   extern int errno;
 #endif
   const char *err;
   char *combined;
 
-  if (errno < sys_nerr)
-    err = sys_errlist[errno];
-  else
+  err = strerror (errno);
+  if (err == NULL)
     err = "unknown error";
 
   combined = (char *) alloca (strlen (err) + strlen (string) + 3);
@@ -57,7 +54,7 @@ perror_with_name (char *string)
    STRING is the error message, used as a fprintf string,
    and ARG is passed as an argument to it.  */
 
-NORETURN void
+void
 error (const char *string,...)
 {
   extern jmp_buf toplevel;
@@ -74,7 +71,7 @@ error (const char *string,...)
    STRING and ARG are passed to fprintf.  */
 
 /* VARARGS */
-NORETURN void
+void
 fatal (const char *string,...)
 {
   va_list args;

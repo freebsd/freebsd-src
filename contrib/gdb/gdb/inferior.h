@@ -1,7 +1,8 @@
 /* Variables that describe the inferior process running under GDB:
    Where it is, why it stopped, and how to step it.
-   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+   1996, 1998, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,11 +24,21 @@
 #if !defined (INFERIOR_H)
 #define INFERIOR_H 1
 
+struct target_waitstatus;
+struct frame_info;
+struct ui_file;
+struct type;
+struct gdbarch;
+struct regcache;
+
 /* For bpstat.  */
 #include "breakpoint.h"
 
 /* For enum target_signal.  */
 #include "target.h"
+
+/* For struct frame_id.  */
+#include "frame.h"
 
 /* Structure in which to save the status of the inferior.  Create/Save
    through "save_inferior_status", restore through
@@ -149,15 +160,13 @@ extern void kill_inferior (void);
 
 extern void generic_mourn_inferior (void);
 
-extern void terminal_ours (void);
+extern void terminal_save_ours (void);
 
-extern int run_stack_dummy (CORE_ADDR, char *);
+extern void terminal_ours (void);
 
 extern CORE_ADDR read_pc (void);
 
 extern CORE_ADDR read_pc_pid (ptid_t);
-
-extern CORE_ADDR generic_target_read_pc (ptid_t);
 
 extern void write_pc (CORE_ADDR);
 
@@ -167,25 +176,16 @@ extern void generic_target_write_pc (CORE_ADDR, ptid_t);
 
 extern CORE_ADDR read_sp (void);
 
-extern CORE_ADDR generic_target_read_sp (void);
+extern void deprecated_write_sp (CORE_ADDR);
 
-extern void write_sp (CORE_ADDR);
+extern CORE_ADDR deprecated_read_fp (void);
 
-extern void generic_target_write_sp (CORE_ADDR);
-
-extern CORE_ADDR read_fp (void);
-
-extern CORE_ADDR generic_target_read_fp (void);
-
-extern void write_fp (CORE_ADDR);
-
-extern void generic_target_write_fp (CORE_ADDR);
-
-extern CORE_ADDR unsigned_pointer_to_address (struct type *type, void *buf);
+extern CORE_ADDR unsigned_pointer_to_address (struct type *type, const void *buf);
 
 extern void unsigned_address_to_pointer (struct type *type, void *buf,
 					 CORE_ADDR addr);
-extern CORE_ADDR signed_pointer_to_address (struct type *type, void *buf);
+extern CORE_ADDR signed_pointer_to_address (struct type *type,
+					    const void *buf);
 extern void address_to_signed_pointer (struct type *type, void *buf,
 				       CORE_ADDR addr);
 
@@ -206,7 +206,10 @@ extern void resume (int, enum target_signal);
 
 /* From misc files */
 
-extern void do_registers_info (int, int);
+extern void default_print_registers_info (struct gdbarch *gdbarch,
+					  struct ui_file *file,
+					  struct frame_info *frame,
+					  int regnum, int all);
 
 extern void store_inferior_registers (int);
 
@@ -229,14 +232,6 @@ extern void terminal_init_inferior_with_pgrp (int pgrp);
 /* From infptrace.c or infttrace.c */
 
 extern int attach (int);
-
-#if !defined(REQUIRE_ATTACH)
-#define REQUIRE_ATTACH attach
-#endif
-
-#if !defined(REQUIRE_DETACH)
-#define REQUIRE_DETACH(pid,siggnal) detach (siggnal)
-#endif
 
 extern void detach (int);
 
@@ -265,8 +260,6 @@ extern void fork_inferior (char *, char *, char **,
 			   void (*)(void),
 			   void (*)(int), void (*)(void), char *);
 
-
-extern void clone_and_follow_inferior (int, int *);
 
 extern void startup_inferior (int);
 
@@ -299,6 +292,8 @@ extern int signal_pass_update (int, int);
 extern void get_last_target_status(ptid_t *ptid,
                                    struct target_waitstatus *status);
 
+extern void follow_inferior_reset_breakpoints (void);
+
 /* From infcmd.c */
 
 extern void tty_command (char *, int);
@@ -310,6 +305,16 @@ extern char *get_inferior_args (void);
 extern char *set_inferior_args (char *);
 
 extern void set_inferior_args_vector (int, char **);
+
+extern void registers_info (char *, int);
+
+extern void nexti_command (char *, int);
+
+extern void stepi_command (char *, int);
+
+extern void continue_command (char *, int);
+
+extern void interrupt_target_command (char *args, int from_tty);
 
 /* Last signal that the inferior received (why it stopped).  */
 
@@ -357,7 +362,7 @@ extern CORE_ADDR step_range_end;	/* Exclusive */
    This is how we know when we step into a subroutine call,
    and how to set the frame for the breakpoint used to step out.  */
 
-extern CORE_ADDR step_frame_address;
+extern struct frame_id step_frame_id;
 
 /* Our notion of the current stack pointer.  */
 
@@ -381,12 +386,37 @@ extern enum step_over_calls_kind step_over_calls;
 
 extern int step_multi;
 
-/* Nonzero means expecting a trap and caller will handle it themselves.
-   It is used after attach, due to attaching to a process;
-   when running in the shell before the child program has been exec'd;
-   and when running some kinds of remote stuff (FIXME?).  */
+/* Nonzero means expecting a trap and caller will handle it
+   themselves.  It is used when running in the shell before the child
+   program has been exec'd; and when running some kinds of remote
+   stuff (FIXME?).  */
 
-extern int stop_soon_quietly;
+/* It is also used after attach, due to attaching to a process. This
+   is a bit trickier.  When doing an attach, the kernel stops the
+   debuggee with a SIGSTOP.  On newer GNU/Linux kernels (>= 2.5.61)
+   the handling of SIGSTOP for a ptraced process has changed. Earlier
+   versions of the kernel would ignore these SIGSTOPs, while now
+   SIGSTOP is treated like any other signal, i.e. it is not muffled.
+   
+   If the gdb user does a 'continue' after the 'attach', gdb passes
+   the global variable stop_signal (which stores the signal from the
+   attach, SIGSTOP) to the ptrace(PTRACE_CONT,...)  call.  This is
+   problematic, because the kernel doesn't ignore such SIGSTOP
+   now. I.e. it is reported back to gdb, which in turn presents it
+   back to the user.
+ 
+   To avoid the problem, we use STOP_QUIETLY_NO_SIGSTOP, which allows
+   gdb to clear the value of stop_signal after the attach, so that it
+   is not passed back down to the kernel.  */
+
+enum stop_kind
+  {
+    NO_STOP_QUIETLY = 0,
+    STOP_QUIETLY,
+    STOP_QUIETLY_NO_SIGSTOP
+  };
+
+extern enum stop_kind stop_soon;
 
 /* Nonzero if proceed is being used for a "finish" command or a similar
    situation when stop_registers should be saved.  */
@@ -398,96 +428,23 @@ extern int proceed_to_finish;
    Thus this contains the return value from the called function (assuming
    values are returned in a register).  */
 
-extern char *stop_registers;
+extern struct regcache *stop_registers;
 
 /* Nonzero if the child process in inferior_ptid was attached rather
    than forked.  */
 
 extern int attach_flag;
 
-/* Sigtramp is a routine that the kernel calls (which then calls the
-   signal handler).  On most machines it is a library routine that
-   is linked into the executable.
-
-   This macro, given a program counter value and the name of the
-   function in which that PC resides (which can be null if the
-   name is not known), returns nonzero if the PC and name show
-   that we are in sigtramp.
-
-   On most machines just see if the name is sigtramp (and if we have
-   no name, assume we are not in sigtramp).  */
-#if !defined (IN_SIGTRAMP)
-#if defined (SIGTRAMP_START)
-#define IN_SIGTRAMP(pc, name) \
-       ((pc) >= SIGTRAMP_START(pc)   \
-        && (pc) < SIGTRAMP_END(pc) \
-        )
-#else
-#define IN_SIGTRAMP(pc, name) \
-       (name && STREQ ("_sigtramp", name))
-#endif
-#endif
-
 /* Possible values for CALL_DUMMY_LOCATION.  */
 #define ON_STACK 1
-#define BEFORE_TEXT_END 2
-#define AFTER_TEXT_END 3
 #define AT_ENTRY_POINT 4
-
-#if !defined (USE_GENERIC_DUMMY_FRAMES)
-#define USE_GENERIC_DUMMY_FRAMES 0
-#endif
-
-#if !defined (CALL_DUMMY_LOCATION)
-#define CALL_DUMMY_LOCATION ON_STACK
-#endif /* No CALL_DUMMY_LOCATION.  */
-
-#if !defined (CALL_DUMMY_ADDRESS)
-#define CALL_DUMMY_ADDRESS() (internal_error (__FILE__, __LINE__, "CALL_DUMMY_ADDRESS"), 0)
-#endif
-#if !defined (CALL_DUMMY_START_OFFSET)
-#define CALL_DUMMY_START_OFFSET (internal_error (__FILE__, __LINE__, "CALL_DUMMY_START_OFFSET"), 0)
-#endif
-#if !defined (CALL_DUMMY_BREAKPOINT_OFFSET)
-#define CALL_DUMMY_BREAKPOINT_OFFSET_P (0)
-#define CALL_DUMMY_BREAKPOINT_OFFSET (internal_error (__FILE__, __LINE__, "CALL_DUMMY_BREAKPOINT_OFFSET"), 0)
-#endif
-#if !defined CALL_DUMMY_BREAKPOINT_OFFSET_P
-#define CALL_DUMMY_BREAKPOINT_OFFSET_P (1)
-#endif
-#if !defined (CALL_DUMMY_LENGTH)
-#define CALL_DUMMY_LENGTH (internal_error (__FILE__, __LINE__, "CALL_DUMMY_LENGTH"), 0)
-#endif
-
-#if defined (CALL_DUMMY_STACK_ADJUST)
-#if !defined (CALL_DUMMY_STACK_ADJUST_P)
-#define CALL_DUMMY_STACK_ADJUST_P (1)
-#endif
-#endif
-#if !defined (CALL_DUMMY_STACK_ADJUST)
-#define CALL_DUMMY_STACK_ADJUST (internal_error (__FILE__, __LINE__, "CALL_DUMMY_STACK_ADJUST"), 0)
-#endif
-#if !defined (CALL_DUMMY_STACK_ADJUST_P)
-#define CALL_DUMMY_STACK_ADJUST_P (0)
-#endif
+#define AT_SYMBOL 5
 
 /* FIXME: cagney/2000-04-17: gdbarch should manage this.  The default
    shouldn't be necessary. */
 
-#if !defined (CALL_DUMMY_P)
-#if defined (CALL_DUMMY)
-#define CALL_DUMMY_P 1
-#else
-#define CALL_DUMMY_P 0
-#endif
-#endif
-
 #if !defined PUSH_DUMMY_FRAME
 #define PUSH_DUMMY_FRAME (internal_error (__FILE__, __LINE__, "PUSH_DUMMY_FRAME"), 0)
-#endif
-
-#if !defined FIX_CALL_DUMMY
-#define FIX_CALL_DUMMY(a1,a2,a3,a4,a5,a6,a7) (internal_error (__FILE__, __LINE__, "FIX_CALL_DUMMY"), 0)
 #endif
 
 #if !defined STORE_STRUCT_RETURN
@@ -497,59 +454,23 @@ extern int attach_flag;
 
 /* Are we in a call dummy? */
 
-extern int pc_in_call_dummy_before_text_end (CORE_ADDR pc, CORE_ADDR sp,
-					     CORE_ADDR frame_address);
-#if !GDB_MULTI_ARCH
-#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == BEFORE_TEXT_END
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_before_text_end (pc, sp, frame_address)
-#endif /* Before text_end.  */
-#endif
+/* NOTE: cagney/2002-11-24: Targets need to both switch to generic
+   dummy frames, and use generic_pc_in_call_dummy().  The generic
+   version should be able to handle all cases since that code works by
+   saving the address of the dummy's breakpoint (where ever it is).  */
 
-extern int pc_in_call_dummy_after_text_end (CORE_ADDR pc, CORE_ADDR sp,
-					    CORE_ADDR frame_address);
-#if !GDB_MULTI_ARCH
-#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == AFTER_TEXT_END
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_after_text_end (pc, sp, frame_address)
-#endif
-#endif
+extern int deprecated_pc_in_call_dummy_on_stack (CORE_ADDR pc,
+						 CORE_ADDR sp,
+						 CORE_ADDR frame_address);
 
-extern int pc_in_call_dummy_on_stack (CORE_ADDR pc, CORE_ADDR sp,
-				      CORE_ADDR frame_address);
-#if !GDB_MULTI_ARCH
-#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == ON_STACK
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_on_stack (pc, sp, frame_address)
-#endif
-#endif
+/* NOTE: cagney/2002-11-24: Targets need to both switch to generic
+   dummy frames, and use generic_pc_in_call_dummy().  The generic
+   version should be able to handle all cases since that code works by
+   saving the address of the dummy's breakpoint (where ever it is).  */
 
-extern int pc_in_call_dummy_at_entry_point (CORE_ADDR pc, CORE_ADDR sp,
-					    CORE_ADDR frame_address);
-#if !GDB_MULTI_ARCH
-#if !defined (PC_IN_CALL_DUMMY) && CALL_DUMMY_LOCATION == AT_ENTRY_POINT
-#define PC_IN_CALL_DUMMY(pc, sp, frame_address) pc_in_call_dummy_at_entry_point (pc, sp, frame_address)
-#endif
-#endif
-
-/* It's often not enough for our clients to know whether the PC is merely
-   somewhere within the call dummy.  They may need to know whether the
-   call dummy has actually completed.  (For example, wait_for_inferior
-   wants to know when it should truly stop because the call dummy has
-   completed.  If we're single-stepping because of slow watchpoints,
-   then we may find ourselves stopped at the entry of the call dummy,
-   and want to continue stepping until we reach the end.)
-
-   Note that this macro is intended for targets (like HP-UX) which
-   require more than a single breakpoint in their call dummies, and
-   therefore cannot use the CALL_DUMMY_BREAKPOINT_OFFSET mechanism.
-
-   If a target does define CALL_DUMMY_BREAKPOINT_OFFSET, then this
-   default implementation of CALL_DUMMY_HAS_COMPLETED is sufficient.
-   Else, a target may wish to supply an implementation that works in
-   the presense of multiple breakpoints in its call dummy.
- */
-#if !defined(CALL_DUMMY_HAS_COMPLETED)
-#define CALL_DUMMY_HAS_COMPLETED(pc, sp, frame_address) \
-  PC_IN_CALL_DUMMY((pc), (sp), (frame_address))
-#endif
+extern int deprecated_pc_in_call_dummy_at_entry_point (CORE_ADDR pc,
+						       CORE_ADDR sp,
+						       CORE_ADDR frame_address);
 
 /* If STARTUP_WITH_SHELL is set, GDB's "run"
    will attempts to start up the debugee under a shell.

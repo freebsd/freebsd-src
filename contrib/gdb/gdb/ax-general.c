@@ -27,6 +27,7 @@
 #include "ax.h"
 
 #include "value.h"
+#include "gdb_string.h"
 
 static void grow_expr (struct agent_expr *x, int n);
 
