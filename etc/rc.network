@@ -508,6 +508,15 @@ network_pass1() {
 		;;
 	esac
 
+	case ${ike_enable} in
+	[Yy][Ee][Ss])
+		if [ -x ${ike_program} ]; then
+		    echo ' ike daemon: ' ${ike_program} ${ike_flags}
+		    ${ike_program} ${ike_flags}
+		fi
+		;;
+	esac
+
 	echo -n 'Routing daemons:'
 	case ${router_enable} in
 	[Yy][Ee][Ss])

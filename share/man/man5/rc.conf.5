@@ -659,6 +659,45 @@ The name of the user under which ppp should be started.
 By
 default, ppp is started as
 .Dq root .
+.\" ----- ipsec settings ---------------------------------
+.It Va ike_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run an Internet Key Exchange (IKE) daemon of some sort,
+based on the settings of
+.Va ike_program
+and
+.Va ike_flags .
+.It Va ike_program
+.Pq Vt str
+If
+.Va ike_enable
+is set to
+.Dq Li YES ,
+this is the name of the IKE daemon to use.
+The default is
+.Pa /usr/local/sbin/isakmpd .
+.It Va ike_flags
+.Pq Vt str
+If
+.Va ike_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the IKE daemon.
+.It Va ipsec_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to run
+.Xr setkey 8
+on
+.Va ipsec_file
+at boot time.
+.It Va ipsec_file
+.Pq Vt str
+Configuration file for
+.Xr setkey 8 .
 .It Va rc_conf_files
 .Pq Vt str
 This option is used to specify a list of files that will override
@@ -1900,6 +1939,7 @@ Flags for
 .Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
+.Xr setkey 8 ,
 .Xr sshd 8 ,
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
