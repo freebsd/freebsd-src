@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.15 1997/02/22 09:33:54 peter Exp $
+ *	$Id: apm_bios.h,v 1.16 1997/03/09 16:40:13 kato Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -195,6 +195,15 @@ typedef struct apm_info {
 	u_int	ai_status;	/* Status of APM support (enabled/disabled) */
 } *apm_info_t;
 
+struct apm_bios_arg {
+	u_long eax;
+	u_long ebx;
+	u_long ecx;
+	u_long edx;
+	u_long esi;
+	u_long edi;
+};
+
 #define APMIO_SUSPEND		_IO('P', 1)
 #define APMIO_GETINFO		_IOR('P', 2, struct apm_info)
 #define APMIO_ENABLE		_IO('P', 5)
@@ -202,6 +211,7 @@ typedef struct apm_info {
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
 #define APMIO_DISPLAY		_IOW('P', 9, int)
+#define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 
