@@ -170,8 +170,8 @@ revive_block(int sdno)
 	else						    /* it's an unattached plex */
 	    bp->b_dev = VINUM_PLEX(sd->plexno);		    /* create the device number */
 
-	bp->b_flags = 0;				    /* either way, read it */
 	bp->b_iocmd = BIO_READ;				    /* either way, read it */
+	bp->b_flags = 0;
 	vinumstart(bp, 1);
 	biowait(bp);
     }
@@ -182,8 +182,8 @@ revive_block(int sdno)
 	/* Now write to the subdisk */
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
-	bp->b_ioflags = BIO_ORDERED;	 		    /* and make this an ordered write */
-	bp->b_iocmd = BIO_WRITE;				    /* and make this an ordered write */
+	bp->b_ioflags = BIO_ORDERED;			    /* and make this an ordered write */
+	bp->b_iocmd = BIO_WRITE;
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_resid = bp->b_bcount;
@@ -405,8 +405,8 @@ parityrebuild(struct plex *plex,
 		bzero(parity_buf, mysize);
 	}
 	bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	    /* device number */
-	bpp[sdno]->b_flags = 0;			    /* either way, read it */
 	bpp[sdno]->b_iocmd = BIO_READ;			    /* either way, read it */
+	bpp[sdno]->b_flags = 0;
 	bpp[sdno]->b_bcount = bpp[sdno]->b_bufsize;
 	bpp[sdno]->b_resid = bpp[sdno]->b_bcount;
 	bpp[sdno]->b_blkno = pstripe;			    /* read from here */
@@ -445,7 +445,7 @@ parityrebuild(struct plex *plex,
     for (sdno = 0; sdno < plex->subdisks; sdno++) {	    /* for each subdisk */
 	if ((sdno != psd) || check) {
 	    biowait(bpp[sdno]);
-	    if (bpp[sdno]->b_ioflags & BIO_ERROR)		    /* can't read, */
+	    if (bpp[sdno]->b_ioflags & BIO_ERROR)	    /* can't read, */
 		error = bpp[sdno]->b_error;
 	}
     }
@@ -539,6 +539,7 @@ initsd(int sdno, int verify)
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
+	bp->b_iocmd = BIO_WRITE;
 	sdio(bp);					    /* perform the I/O */
 	biowait(bp);
 	if (bp->b_ioflags & BIO_ERROR)
