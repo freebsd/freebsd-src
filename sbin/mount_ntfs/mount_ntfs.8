@@ -98,7 +98,7 @@ foo[[:ATTRTYPE]:ATTRNAME]
 .Ed
 .Pp
 .Sq ATTRTYPE
-is one of identifier listed in $AttrDef file of
+is one of the identifiers listed in $AttrDef file of
 volume.
 Default is $DATA.
 .Sq ATTRNAME
@@ -111,7 +111,7 @@ To mount an ntfs volume located in
 # mount_ntfs /dev/ad1s1 /mnt
 .Ed
 .Pp
-To get volume name (in Unicode):
+To get the volume name (in Unicode):
 .Bd -literal -offset indent
 # cat /mnt/\\$Volume:\\$VOLUME_NAME
 .Ed
@@ -123,8 +123,8 @@ To read directory raw data:
 .Sh WRITING
 There is limited writing ability.
 Limitations: file must be nonresident
-and must not contain any sparces (uninitialized areas), compressed
-files are not supported either.
+and must not contain any sparces (uninitialized areas); compressed
+files are also not supported.
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
@@ -132,17 +132,17 @@ files are not supported either.
 .Xr mount 8 ,
 .Xr mount_msdosfs 8
 .Sh CAVEATS
-This utility gives almost only read-only access to NTFS volume.
-See
+This utility is primarily used for read access to an NTFS volume.
+See the
 .Sx WRITING
-section.
+section for details about writing to an NTFS volume.
 .Sh HISTORY
 The
 .Nm
 first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
-NTFS kernel implementation,
+The NTFS kernel implementation,
 .Nm
-and manual were written by
+utility, and manual were written by
 .An Semen Ustimenko Aq semenu@FreeBSD.org .
