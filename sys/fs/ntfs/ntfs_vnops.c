@@ -91,15 +91,15 @@ ntfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t  a_bn;
-		struct vnode **a_vpp;
+		struct bufobj **a_bop;
 		daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
 	} */ *ap;
 {
 	dprintf(("ntfs_bmap: vn: %p, blk: %d\n", ap->a_vp,(u_int32_t)ap->a_bn));
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
+	if (ap->a_bop != NULL)
+		*ap->a_bop = &ap->a_vp->v_bufobj;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)

@@ -1736,7 +1736,7 @@ msdosfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t a_bn;
-		struct vnode **a_vpp;
+		struct bufobj **a_bop;
 		daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
@@ -1746,8 +1746,8 @@ msdosfs_bmap(ap)
 	daddr_t blkno;
 	int error;
 
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = dep->de_devvp;
+	if (ap->a_bop != NULL)
+		*ap->a_bop = &dep->de_devvp->v_bufobj;
 	if (ap->a_bnp == NULL)
 		return (0);
 	if (ap->a_runp) {

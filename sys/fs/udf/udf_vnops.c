@@ -867,8 +867,8 @@ udf_bmap(struct vop_bmap_args *a)
 
 	node = VTON(a->a_vp);
 
-	if (a->a_vpp != NULL)
-		*a->a_vpp = node->i_devvp;
+	if (a->a_bop != NULL)
+		*a->a_bop = &node->i_devvp->v_bufobj;
 	if (a->a_bnp == NULL)
 		return (0);
 	if (a->a_runb)
