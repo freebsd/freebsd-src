@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.5 1995/07/29 11:40:13 bde Exp $ */
+/*	$Id: sysv_msg.c,v 1.6 1995/08/28 09:18:46 julian Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -26,11 +26,7 @@
 #include <sys/msg.h>
 #include <sys/malloc.h>
 
-/*
- * System initialization
- */
-
-extern void msginit();				/* should be static*/
+static void msginit __P((caddr_t));
 SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 
 #define MSG_DEBUG
@@ -49,7 +45,8 @@ struct msg *msghdrs;		/* MSGTQL msg headers */
 struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 void
-msginit()
+msginit(udata)
+	caddr_t udata;
 {
 	register int i;
 
