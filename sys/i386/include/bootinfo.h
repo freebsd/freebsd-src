@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.8 1997/07/31 08:07:36 phk Exp $
+ *	$Id: bootinfo.h,v 1.9 1998/07/11 04:02:49 bde Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
@@ -61,6 +61,10 @@ struct bootinfo {
 	u_int32_t	bi_extmem;
 	u_int32_t	bi_symtab;		/* struct symtab * */
 	u_int32_t	bi_esymtab;		/* struct symtab * */
+				/* Items below only from advanced bootloader */
+	u_int32_t	bi_kernend;		/* end of kernel space */
+	u_int32_t	bi_envp;		/* environment */
+	u_int32_t	bi_modulep;		/* preloaded modules */
 };
 
 #ifdef KERNEL
