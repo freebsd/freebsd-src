@@ -60,15 +60,18 @@ static void hpt366_timing(struct ata_softc *, int32_t, int32_t);
 
 #if NPCI > 0
 
-int32_t
+void
 ata_dmainit(struct ata_softc *scp, int32_t device, 
 	    int32_t apiomode, int32_t wdmamode, int32_t udmamode)
 {
     int32_t devno = (scp->unit << 1) + ATA_DEV(device);
     int32_t error;
 
+    /* set our most pessimistic default mode */
+    scp->mode[ATA_DEV(device)] = ATA_PIO;
+
     if (!scp->bmaddr)
-	return -1;
+	return;
 
     /* if simplex controller, only allow DMA on primary channel */
     if (scp->unit == 1) {
@@ -76,7 +79,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	     (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
 	if (inb(scp->bmaddr + ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX) {
 	    ata_printf(scp, device, "simplex device, DMA on primary only\n");
-	    return -1;
+	    return;
 	}
     }
 
@@ -84,12 +87,12 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	void *dmatab;
 
 	if (!(dmatab = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT)))
-	    return -1;
+	    return;
 	if (((uintptr_t)dmatab >> PAGE_SHIFT) ^
 	    (((uintptr_t)dmatab + PAGE_SIZE - 1) >> PAGE_SHIFT)) {
 	    ata_printf(scp, device, "dmatab crosses page boundary, no DMA\n");
 	    free(dmatab, M_DEVBUF);
-	    return -1;
+	    return;
 	}
 	scp->dmatab[ATA_DEV(device)] = dmatab;
     }
@@ -117,7 +120,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				 (pci_read_config(scp->dev, 0x48, 4) &
 				 ~mask48) | new48, 4);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	/* FALLTHROUGH */
@@ -176,7 +179,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				 (pci_read_config(scp->dev, 0x44, 4) & ~mask44)|
  				 new44, 4);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */
@@ -202,7 +205,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	break;
@@ -231,7 +234,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				 pci_read_config(scp->dev, 0x53, 1) | 0x03, 1);
 		scp->flags |= ATA_ATAPI_DMA_RO;
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
@@ -246,7 +249,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				 pci_read_config(scp->dev, 0x53, 1) | 0x03, 1);
 		scp->flags |= ATA_ATAPI_DMA_RO;
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */
@@ -266,7 +269,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		if (!error) {
 	            pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		    return 0;
+		    return;
 		}
 	    }
 	    if (udmamode >= 2) {
@@ -279,7 +282,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		if (!error) {
 	            pci_write_config(scp->dev, 0x53 - devno, 0xea, 1);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		    return 0;
+		    return;
 		}
 	    }
 	}
@@ -295,7 +298,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 	        pci_write_config(scp->dev, 0x53 - devno, 0xc3, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		return 0;
+		return;
 	    }
 	}
 
@@ -313,7 +316,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 	        pci_write_config(scp->dev, 0x53 - devno, 0xc0, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
@@ -327,7 +330,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	        pci_write_config(scp->dev, 0x53 - devno, 0x82, 1);
 	        pci_write_config(scp->dev, 0x4b - devno, 0x31, 1);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */
@@ -344,7 +347,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		pci_write_config(scp->dev, 0x40 + (devno << 1), 0xa301, 2);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	if (wdmamode >=2 && apiomode >= 4) {
@@ -357,7 +360,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		pci_write_config(scp->dev, 0x40 + (devno << 1), 0x0301, 2);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */
@@ -382,7 +385,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		outb(scp->bmaddr+0x11, inl(scp->bmaddr+0x11) | scp->unit ? 8:2);
 		promise_timing(scp, devno, ATA_UDMA4);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		return 0;
+		return;
 	    }
 	}
 	if (udmamode >= 2) {
@@ -395,7 +398,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		promise_timing(scp, devno, ATA_UDMA2);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
@@ -408,7 +411,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		promise_timing(scp, devno, ATA_WDMA2);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -421,7 +424,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (apiomode >= 0) ? apiomode : 0);
 	promise_timing(scp, devno, ata_pio2mode(apiomode));
 	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
-	return -1;
+	return;
     
     case 0x00041103:	/* HighPoint HPT366 controller */
 	/* no ATAPI devices for now */
@@ -439,7 +442,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		hpt366_timing(scp, devno, ATA_UDMA4);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		return 0;
+		return;
 	    }
 	}
 	if (udmamode >= 2) {
@@ -452,7 +455,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		hpt366_timing(scp, devno, ATA_UDMA2);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return 0;
+		return;
 	    }
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
@@ -465,7 +468,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		hpt366_timing(scp, devno, ATA_WDMA2);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
 	error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -477,13 +480,23 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (apiomode >= 0) ? apiomode : 0);
 	hpt366_timing(scp, devno, ata_pio2mode(apiomode));
 	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
-	return -1;
+	return;
 
     default:		/* unknown controller chip */
 	/* better not try generic DMA on ATAPI devices it almost never works */
 	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
 	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
 	    break;
+
+	/* if controller says its setup for DMA take the easy way out */
+	/* the downside is we dont know what DMA mode we are in */
+	if ((udmamode >= 0 || wdmamode > 1) &&
+	    (inb(scp->bmaddr + ATA_BMSTAT_PORT) &
+	     ((device==ATA_MASTER) ? 
+	      ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
+	    scp->mode[ATA_DEV(device)] = ATA_DMA;
+	    return;
+	}
 
 	/* well, we have no support for this, but try anyways */
 	if ((wdmamode >= 2 && apiomode >= 4) && scp->bmaddr) {
@@ -495,17 +508,12 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
-		return 0;
+		return;
 	    }
 	}
     }
-    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-			ata_pio2mode(apiomode), ATA_C_F_SETXFER,ATA_WAIT_READY);
     if (bootverbose)
-	ata_printf(scp, device, "%s setting up PIO%d mode on generic chip\n",
-		   (error) ? "failed" : "success",(apiomode>=0) ? apiomode : 0);
-    scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
-    return -1;
+	ata_printf(scp, device, "using PIO mode set by BIOS\n");
 }
 
 int32_t
