@@ -600,25 +600,25 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 static char *
 VarModify(char *str, VarModifyProc *modProc, void *datum)
 {
-    Buffer  	  *buf;	    	    /* Buffer for the new string */
-    Boolean 	  addSpace; 	    /* TRUE if need to add a space to the
-				     * buffer before adding the trimmed
-				     * word */
-    char **av;			    /* word list [first word does not count] */
-    int ac, i;
+	Buffer	*buf;		/* Buffer for the new string */
+	Boolean	addSpace;	/* TRUE if need to add a space to the buffer
+				 * before adding the trimmed word */
+	char	**av;		/* word list [first word does not count] */
+	int	ac;
+	int	i;
 
-    buf = Buf_Init(0);
-    addSpace = FALSE;
+	buf = Buf_Init(0);
+	addSpace = FALSE;
 
-    av = brk_string(str, &ac, FALSE);
+	av = brk_string(str, &ac, FALSE);
 
-    for (i = 1; i < ac; i++)
-	addSpace = (*modProc)(av[i], addSpace, buf, datum);
+	for (i = 1; i < ac; i++)
+		addSpace = (*modProc)(av[i], addSpace, buf, datum);
 
-    Buf_AddByte(buf, '\0');
-    str = (char *)Buf_GetAll(buf, (size_t *)NULL);
-    Buf_Destroy(buf, FALSE);
-    return (str);
+	Buf_AddByte(buf, '\0');
+	str = (char *)Buf_GetAll(buf, (size_t *)NULL);
+	Buf_Destroy(buf, FALSE);
+	return (str);
 }
 
 /*-
