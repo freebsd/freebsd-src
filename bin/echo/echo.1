@@ -59,12 +59,22 @@ Do not print the trailing newline character.  This may also be
 achieved by appending `\ec' to the end of the string, as is done
 by iBCS2 compatible systems.
 .El
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility. Consult
+the
+.Xr builtin 1
+manual page.
 .Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
-.Xr printf 1
+.Xr builtin 1 ,
+.Xr csh 1 ,
+.Xr printf 1 ,
+.Xr sh 1
 .Sh STANDARDS
 The
 .Nm
