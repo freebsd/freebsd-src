@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.8 1995/05/19 16:58:53 jkh Exp $
+ * $Id: dist.c,v 1.9 1995/05/19 17:11:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -218,8 +218,10 @@ distExtract(char *parent, Distribution *me)
 	    if (me[i].my_dist)
 		status = distExtract(me[i].my_name, me[i].my_dist);
 	    else {
+		msgNotify("Attempting to open %s%s distribution", parent ? parent : "", me[i].my_name);
 		fp = mediaOpen(parent, me[i].my_name);
 		if (fp) {
+		    msgNotify("Extracting %s%s distribution", parent ? parent : "", me[i].my_name);
 		    status = mediaExtractDist(fp);
 		    fclose(fp);
 		}
