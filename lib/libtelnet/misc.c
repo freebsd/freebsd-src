@@ -32,6 +32,7 @@
  */
 
 #include <sys/cdefs.h>
+
 __FBSDID("$FreeBSD$");
 
 #ifndef lint
@@ -42,6 +43,8 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "misc.h"
 
 char *RemoteHostName;
@@ -49,12 +52,10 @@ char *LocalHostName;
 char *UserNameRequested = 0;
 int ConnectedCount = 0;
 
-	void
-auth_encrypt_init(local, remote, name, server)
-	char *local;
-	char *remote;
-	char *name;
-	int server;
+#define undef1 __unused
+
+void
+auth_encrypt_init(char *local, char *remote, const char *name undef1, int server undef1)
 {
 	RemoteHostName = remote;
 	LocalHostName = local;
@@ -64,27 +65,9 @@ auth_encrypt_init(local, remote, name, server)
 	}
 }
 
-	void
-auth_encrypt_user(name)
-	char *name;
-{
-	extern char *strdup();
 
-	if (UserNameRequested)
-		free(UserNameRequested);
-	UserNameRequested = name ? strdup(name) : 0;
-}
-
-	void
-auth_encrypt_connect(cnt)
-	int cnt;
-{
-}
-
-	void
-printd(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+printd(const unsigned char *data, int cnt)
 {
 	if (cnt > 16)
 		cnt = 16;
