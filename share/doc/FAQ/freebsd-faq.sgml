@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.29 1996/01/03 14:58:04 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.30 1996/01/27 15:57:07 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1731,7 +1731,7 @@ disk        fd1   at fdc0 drive 1
             options "NMBCLUSTERS=<n>"
           </code>
 
-          ...to your kernel config file, where &lt;n&gt; is a number in the
+          to your kernel config file, where &lt;n&gt; is a number in the
           range 512-4096, depending on the number of concurrent TCP
           connections you need to support. I'd recommend trying 2048 - this
           should get rid of the panic completely. You can monitor the
