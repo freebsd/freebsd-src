@@ -297,6 +297,7 @@ int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
 int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
 int	mac_check_socket_send(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
+int	mac_check_system_reboot(struct ucred *cred, int howto);
 int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
 	    int flags);

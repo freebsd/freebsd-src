@@ -141,6 +141,11 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_process, CTLFLAG_RW,
     &mac_enforce_process, 0, "Enforce MAC policy on inter-process operations");
 TUNABLE_INT("security.mac.enforce_process", &mac_enforce_process);
 
+static int	mac_enforce_reboot = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, enforce_reboot, CTLFLAG_RW,
+    &mac_enforce_reboot, 0, "Enforce MAC policy for reboot operations");
+TUNABLE_INT("security.mac.enforce_reboot", &mac_enforce_reboot);
+
 static int	mac_enforce_socket = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
     &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
@@ -897,6 +902,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			break;
 		case MAC_CHECK_SOCKET_VISIBLE:
 			mpc->mpc_ops->mpo_check_socket_visible =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_SYSTEM_REBOOT:
+			mpc->mpc_ops->mpo_check_system_reboot =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_SYSTEM_SWAPON:
@@ -2993,6 +3002,20 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 
 	MAC_CHECK(check_socket_visible, cred, socket, &socket->so_label);
 
+	return (error);
+}
+
+int
+mac_check_system_reboot(struct ucred *cred, int howto)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_system_reboot");
+
+	if (!mac_enforce_reboot)
+		return (0);
+
+	MAC_CHECK(check_system_reboot, cred, howto);
 	return (error);
 }
 
