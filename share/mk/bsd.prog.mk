@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.60 1998/02/07 17:19:06 helbig Exp $
+#	$Id: bsd.prog.mk,v 1.61 1998/02/19 01:30:23 eivind Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -25,7 +25,6 @@ LDFLAGS+= -static
 .endif
 
 .if defined(PROG)
-.if !target(${PROG})
 .if defined(SRCS)
 
 DPSRCS+= ${SRCS:M*.h}
@@ -36,6 +35,7 @@ ${PROG}: ${DPSRCS} ${OBJS}
 
 .else !defined(SRCS)
 
+.if !target(${PROG})
 SRCS=	${PROG}.c
 
 # Always make an intermediate object file because:
@@ -44,10 +44,11 @@ SRCS=	${PROG}.c
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
+
 ${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
-
 .endif
+
 .endif
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
