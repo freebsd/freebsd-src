@@ -617,6 +617,7 @@ ag_check(naddr	dst,
 }
 
 
+#define NAME0_LEN 14
 static const char *
 rtm_type_name(u_char type)
 {
@@ -636,12 +637,12 @@ rtm_type_name(u_char type)
 		"RTM_DELADDR",
 		"RTM_IFINFO"
 	};
-	static char name0[10];
+	static char name0[NAME0_LEN];
 
 
 	if (type > sizeof(rtm_types)/sizeof(rtm_types[0])
 	    || type == 0) {
-		sprintf(name0, "RTM type %#x", type);
+		snprintf(name0, NAME0_LEN, "RTM type %#x", type);
 		return name0;
 	} else {
 		return rtm_types[type-1];
