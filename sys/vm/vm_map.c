@@ -2358,8 +2358,6 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_size_t      init_ssize;
 	int            rv;
 
-	GIANT_REQUIRED;
-
 	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
 		return (KERN_NO_SPACE);
 
