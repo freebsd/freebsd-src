@@ -111,6 +111,7 @@
 
 void		gdb_handle_exception (db_regs_t *, int);
 
+#if 0
 extern jmp_buf	db_jmpbuf;
 
 /************************************************************************/
@@ -395,6 +396,8 @@ hexToInt(char **ptr, long *intValue)
 #define FP 15
 #define VFP 65
 #define NUM_REGS 66
+
+#endif
 
 /*
  * This function does all command procesing for interfacing to gdb.
