@@ -29,230 +29,226 @@
  * $FreeBSD$
  */
 
-#include <stdlib.h>
-#include <errno.h>
-#include <semaphore.h>
 #include "namespace.h"
+#include <sys/queue.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <pthread.h>
+#include <semaphore.h>
+#include <stdlib.h>
+#include <time.h>
+#include <_semaphore.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 #include "thr_private.h"
 
-#define _SEM_CHECK_VALIDITY(sem)		\
-	if ((*(sem))->magic != SEM_MAGIC) {	\
-		errno = EINVAL;			\
-		retval = -1;			\
-		goto RETURN;			\
-	}
+
+extern int pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+extern int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *,
+		struct timespec *);
 
 __weak_reference(_sem_init, sem_init);
-__weak_reference(_sem_destroy, sem_destroy);
-__weak_reference(_sem_open, sem_open);
-__weak_reference(_sem_close, sem_close);
-__weak_reference(_sem_unlink, sem_unlink);
 __weak_reference(_sem_wait, sem_wait);
-__weak_reference(_sem_trywait, sem_trywait);
+__weak_reference(_sem_timedwait, sem_timedwait);
 __weak_reference(_sem_post, sem_post);
-__weak_reference(_sem_getvalue, sem_getvalue);
 
 
-int
-_sem_init(sem_t *sem, int pshared, unsigned int value)
+static inline int
+sem_check_validity(sem_t *sem)
 {
-	int	retval;
 
-	/*
-	 * Range check the arguments.
-	 */
-	if (pshared != 0) {
-		/*
-		 * The user wants a semaphore that can be shared among
-		 * processes, which this implementation can't do.  Sounds like a
-		 * permissions problem to me (yeah right).
-		 */
-		errno = EPERM;
-		retval = -1;
-		goto RETURN;
+	if ((sem != NULL) && ((*sem)->magic == SEM_MAGIC))
+		return (0);
+	else {
+		errno = EINVAL;
+		return (-1);
 	}
+}
+
+static void
+decrease_nwaiters(void *arg)
+{
+	sem_t *sem = (sem_t *)arg;
+
+	(*sem)->nwaiters--;
+	/*
+	 * this function is called from cancellation point,
+	 * the mutex should already be hold.
+	 */
+	_pthread_mutex_unlock(&(*sem)->lock);
+}
+
+static sem_t
+sem_alloc(unsigned int value, semid_t semid, int system_sem)
+{
+	sem_t sem;
 
 	if (value > SEM_VALUE_MAX) {
 		errno = EINVAL;
-		retval = -1;
-		goto RETURN;
+		return (NULL);
 	}
 
-	*sem = (sem_t)malloc(sizeof(struct sem));
-	if (*sem == NULL) {
+	sem = (sem_t)malloc(sizeof(struct sem));
+	if (sem == NULL) {
 		errno = ENOSPC;
-		retval = -1;
-		goto RETURN;
+		return (NULL);
 	}
 
 	/*
 	 * Initialize the semaphore.
 	 */
-	if (_pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
-		free(*sem);
+	if (_pthread_mutex_init(&sem->lock, NULL) != 0) {
+		free(sem);
 		errno = ENOSPC;
-		retval = -1;
-		goto RETURN;
+		return (NULL);
 	}
 
-	if (_pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
-		_pthread_mutex_destroy(&(*sem)->lock);
-		free(*sem);
+	if (_pthread_cond_init(&sem->gtzero, NULL) != 0) {
+		_pthread_mutex_destroy(&sem->lock);
+		free(sem);
 		errno = ENOSPC;
-		retval = -1;
-		goto RETURN;
+		return (NULL);
 	}
-	
-	(*sem)->count = (u_int32_t)value;
-	(*sem)->nwaiters = 0;
-	(*sem)->magic = SEM_MAGIC;
 
-	retval = 0;
-  RETURN:
-	return (retval);
+	sem->count = (u_int32_t)value;
+	sem->nwaiters = 0;
+	sem->magic = SEM_MAGIC;
+	sem->semid = semid;
+	sem->syssem = system_sem;
+	return (sem);
 }
 
 int
-_sem_destroy(sem_t *sem)
+_sem_init(sem_t *sem, int pshared, unsigned int value)
 {
-	int	retval;
-	
-	_SEM_CHECK_VALIDITY(sem);
+	semid_t semid;
 
-	/* Make sure there are no waiters. */
-	_pthread_mutex_lock(&(*sem)->lock);
-	if ((*sem)->nwaiters > 0) {
-		_pthread_mutex_unlock(&(*sem)->lock);
-		errno = EBUSY;
-		retval = -1;
-		goto RETURN;
+	semid = SEM_USER;
+	if ((pshared != 0) && (ksem_init(&semid, value) != 0))
+		return (-1);
+
+	(*sem) = sem_alloc(value, semid, pshared);
+	if ((*sem) == NULL) {
+		if (pshared != 0)
+			ksem_destroy(semid);
+		return (-1);
 	}
-	_pthread_mutex_unlock(&(*sem)->lock);
-	
-	_pthread_mutex_destroy(&(*sem)->lock);
-	_pthread_cond_destroy(&(*sem)->gtzero);
-	(*sem)->magic = 0;
-
-	free(*sem);
-
-	retval = 0;
-  RETURN:
-	return (retval);
-}
-
-sem_t *
-_sem_open(const char *name, int oflag, ...)
-{
-	errno = ENOSYS;
-	return (SEM_FAILED);
-}
-
-int
-_sem_close(sem_t *sem)
-{
-	errno = ENOSYS;
-	return (-1);
-}
-
-int
-_sem_unlink(const char *name)
-{
-	errno = ENOSYS;
-	return (-1);
+	return (0);
 }
 
 int
 _sem_wait(sem_t *sem)
 {
-	struct pthread *curthread = _get_curthread();
-	int		retval;
+	int retval;
 
-	_thr_cancel_enter(curthread);
-	
-	_SEM_CHECK_VALIDITY(sem);
+	if (sem_check_validity(sem) != 0)
+		return (-1);
 
-	_pthread_mutex_lock(&(*sem)->lock);
+	pthread_testcancel();
 
-	while ((*sem)->count == 0) {
-		(*sem)->nwaiters++;
-		_pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
-		(*sem)->nwaiters--;
+	if ((*sem)->syssem != 0)
+		retval = ksem_wait((*sem)->semid);
+	else {
+		_pthread_mutex_lock(&(*sem)->lock);
+
+		while ((*sem)->count == 0) {
+			(*sem)->nwaiters++;
+			pthread_cleanup_push(decrease_nwaiters, sem);
+			pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
+			pthread_cleanup_pop(0);
+			(*sem)->nwaiters--;
+		}
+		(*sem)->count--;
+
+		_pthread_mutex_unlock(&(*sem)->lock);
+
+		retval = 0;
 	}
-	(*sem)->count--;
-
-	_pthread_mutex_unlock(&(*sem)->lock);
-
-	retval = 0;
-  RETURN:
-	_thr_cancel_leave(curthread, 1);
-	return (retval);
+ 	return (retval);
 }
 
 int
-_sem_trywait(sem_t *sem)
+_sem_timedwait(sem_t * __restrict sem,
+    struct timespec * __restrict abs_timeout)
 {
-	int	retval;
+	int retval;
+	int timeout_invalid;
 
-	_SEM_CHECK_VALIDITY(sem);
+	if (sem_check_validity(sem) != 0)
+		return (-1);
 
-	_pthread_mutex_lock(&(*sem)->lock);
+	pthread_testcancel();
 
-	if ((*sem)->count > 0) {
-		(*sem)->count--;
-		retval = 0;
-	} else {
-		errno = EAGAIN;
-		retval = -1;
+	if ((*sem)->syssem != 0)
+		retval = ksem_timedwait((*sem)->semid, abs_timeout);
+	else {
+		/*
+		 * The timeout argument is only supposed to
+		 * be checked if the thread would have blocked.
+		 * This is checked outside of the lock so a
+		 * segfault on an invalid address doesn't end
+		 * up leaving the mutex locked.
+		 */
+		timeout_invalid = (abs_timeout->tv_nsec >= 1000000000) ||
+		    (abs_timeout->tv_nsec < 0);
+		_pthread_mutex_lock(&(*sem)->lock);
+
+		if ((*sem)->count == 0) {
+			if (timeout_invalid) {
+				_pthread_mutex_unlock(&(*sem)->lock);
+				errno = EINVAL;
+				return (-1);
+			}
+			(*sem)->nwaiters++;
+			pthread_cleanup_push(decrease_nwaiters, sem);
+			pthread_cond_timedwait(&(*sem)->gtzero,
+			    &(*sem)->lock, abs_timeout);
+			pthread_cleanup_pop(0);
+			(*sem)->nwaiters--;
+		}
+		if ((*sem)->count == 0) {
+			errno = ETIMEDOUT;
+			retval = -1;
+		}
+		else {
+			(*sem)->count--;
+			retval = 0;
+		}	
+
+		_pthread_mutex_unlock(&(*sem)->lock);
 	}
-	
-	_pthread_mutex_unlock(&(*sem)->lock);
 
-  RETURN:
-	return (retval);
+ 	return (retval);
 }
 
 int
 _sem_post(sem_t *sem)
 {
-	kse_critical_t crit;
+	struct pthread *curthread;
 	int retval;
+	
+	if (sem_check_validity(sem) != 0)
+		return (-1);
 
-	_SEM_CHECK_VALIDITY(sem);
+	if ((*sem)->syssem != 0)
+		retval = ksem_post((*sem)->semid);
+	else {
+		/*
+		 * sem_post() is required to be safe to call from within
+		 * signal handlers.  Thus, we must enter a critical region.
+		 */
+		curthread = _get_curthread();
+		_thr_critical_enter(curthread);
+		_pthread_mutex_lock(&(*sem)->lock);
 
-	/*
-	 * sem_post() is required to be safe to call from within signal
-	 * handlers.  Thus, we must enter a critical region.
-	 */
-	crit = _kse_critical_enter();
+		(*sem)->count++;
+		if ((*sem)->nwaiters > 0)
+			_pthread_cond_signal(&(*sem)->gtzero);
 
-	_pthread_mutex_lock(&(*sem)->lock);
+		_pthread_mutex_unlock(&(*sem)->lock);
+		_thr_critical_leave(curthread);
+		retval = 0;
+	}
 
-	(*sem)->count++;
-	if ((*sem)->nwaiters > 0)
-		_pthread_cond_signal(&(*sem)->gtzero);
-
-	_pthread_mutex_unlock(&(*sem)->lock);
-
-	_kse_critical_leave(crit);
-	retval = 0;
-  RETURN:
-	return (retval);
-}
-
-int
-_sem_getvalue(sem_t *sem, int *sval)
-{
-	int	retval;
-
-	_SEM_CHECK_VALIDITY(sem);
-
-	_pthread_mutex_lock(&(*sem)->lock);
-	*sval = (int)(*sem)->count;
-	_pthread_mutex_unlock(&(*sem)->lock);
-
-	retval = 0;
-  RETURN:
 	return (retval);
 }
