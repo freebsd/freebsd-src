@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: rand_key.c,v 1.2 1994/07/19 19:22:04 g89r4222 Exp $
+ *	$Id: rand_key.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
  */
 
 #include "des_locl.h"
@@ -36,6 +36,7 @@ des_cblock ret;
 	des_set_odd_parity((des_cblock *)key);
 	des_cbc_cksum((des_cblock *)key,(des_cblock *)key,
 		(long)sizeof(key),ks,(des_cblock *)data);
+	des_set_odd_parity((des_cblock *)key);
 
 	bcopy(key,ret,sizeof(key));
 	bzero(key,sizeof(key));
