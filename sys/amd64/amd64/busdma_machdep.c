@@ -476,7 +476,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	else
 		pmap = NULL;
 
-	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)) {
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+	    map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
