@@ -45,7 +45,6 @@
 /*
  * TODO:
  *	- Improve memory usage for large allocations
- *	- Improve INVARIANTS (0xdeadc0de write out)
  *	- Investigate cache size adjustments
  */
 
@@ -81,6 +80,7 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/uma_dbg.h>
 
 /*
  * This is the zone from which all zones are spawned.  The idea is that even 
@@ -1321,6 +1321,9 @@ zalloc_start:
 			    ("uma_zalloc: Bucket pointer mangled."));
 			cache->uc_allocs++;
 			CPU_UNLOCK(zone, cpu);
+#ifdef INVARIANTS
+			uma_dbg_alloc(zone, NULL, item);
+#endif
 			if (zone->uz_ctor)
 				zone->uz_ctor(item, zone->uz_size, udata);
 			if (flags & M_ZERO)
@@ -1540,13 +1543,14 @@ new_slab:
 	while (slab->us_freecount) {
 		freei = slab->us_firstfree;
 		slab->us_firstfree = slab->us_freelist[freei];
-#ifdef INVARIANTS
-		slab->us_freelist[freei] = 255;
-#endif
-		slab->us_freecount--;
-		zone->uz_free--;
+
 		item = slab->us_data + (zone->uz_rsize * freei);
 
+		slab->us_freecount--;
+		zone->uz_free--;
+#ifdef INVARIANTS
+		uma_dbg_alloc(zone, slab, item);
+#endif
 		if (bucket == NULL) {
 			zone->uz_allocs++;
 			break;
@@ -1615,6 +1619,13 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 
 	if (zone->uz_flags & UMA_ZFLAG_FULL)
 		goto zfree_internal;
+
+#ifdef INVARIANTS
+	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+		uma_dbg_free(zone, udata, item);
+	else
+		uma_dbg_free(zone, NULL, item);
+#endif
 
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
@@ -1768,21 +1779,12 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 	/* Slab management stuff */	
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
 		/ zone->uz_rsize;
-#ifdef INVARIANTS
-	if (((freei * zone->uz_rsize) + slab->us_data) != item)
-		panic("zone: %s(%p) slab %p freed address %p unaligned.\n", 
-		    zone->uz_name, zone, slab, item);
-	if (freei >= zone->uz_ipers)
-		panic("zone: %s(%p) slab %p freelist %i out of range 0-%d\n",
-		    zone->uz_name, zone, slab, freei, zone->uz_ipers-1);
 
-	if (slab->us_freelist[freei] != 255) {
-		printf("Slab at %p, freei %d = %d.\n",
-		    slab, freei, slab->us_freelist[freei]);
-		panic("Duplicate free of item %p from zone %p(%s)\n",
-		    item, zone, zone->uz_name);
-	}
+#ifdef INVARIANTS
+	if (!skip)
+		uma_dbg_free(zone, slab, item);
 #endif
+
 	slab->us_freelist[freei] = slab->us_firstfree;
 	slab->us_firstfree = freei;
 	slab->us_freecount++;
