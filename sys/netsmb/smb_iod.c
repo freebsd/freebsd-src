@@ -557,6 +557,7 @@ smb_iod_sendall(struct smbiod *iod)
 			}
 			break;
 		    default:
+			break;
 		}
 		if (herror)
 			break;
