@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.27 1995/12/16 00:01:40 bde Exp $
+ * $Id: kern_lkm.c,v 1.28 1996/03/27 19:42:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -906,7 +906,9 @@ lkm_nullcmd(lkmtp, cmd)
 }
 
 static lkm_devsw_installed = 0;
+#ifdef DEVFS
 static void	*lkmc_devfs_token;
+#endif
 
 static void 	lkm_drvinit(void *unused)
 {

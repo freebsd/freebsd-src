@@ -509,15 +509,18 @@ snpselect(dev, rw, p)
 	return 0;
 }
 
+#ifdef DEVFS
 static	void	*snp_devfs_token[NSNP];
+#endif
 static snp_devsw_installed = 0;
 
 static void
 snp_drvinit(void *unused)
 {
 	dev_t dev;
-	char	name[32];
+#ifdef DEVFS
 	int	i;
+#endif
 
 	if( ! snp_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
@@ -525,10 +528,9 @@ snp_drvinit(void *unused)
 		snp_devsw_installed = 1;
 #ifdef DEVFS
 		for ( i = 0 ; i < NSNP ; i++) {
-			sprintf(name,"snp%d",i);
 			snp_devfs_token[i] =
-				devfs_add_devsw( "/", name, &snp_cdevsw, i,
-							DV_CHR, 0, 0, 0600);
+				devfs_add_devswf(&snp_cdevsw, i, DV_CHR, 0, 0, 
+						0600, "snp%d", i);
 		}
 #endif
     	}
