@@ -46,6 +46,7 @@
 #include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -246,6 +247,11 @@ static int
 mac_test_init_ipq_label(struct label *label, int flag)
 {
 
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "mac_test_init_ipq_label() at %s:%d", __FILE__,
+		    __LINE__);
+
 	SLOT(label) = IPQMAGIC;
 	atomic_add_int(&init_count_ipq, 1);
 	return (0);
@@ -254,6 +260,11 @@ mac_test_init_ipq_label(struct label *label, int flag)
 static int
 mac_test_init_mbuf_label(struct label *label, int flag)
 {
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "mac_test_init_mbuf_label() at %s:%d", __FILE__,
+		    __LINE__);
 
 	SLOT(label) = MBUFMAGIC;
 	atomic_add_int(&init_count_mbuf, 1);
@@ -280,6 +291,11 @@ static int
 mac_test_init_socket_label(struct label *label, int flag)
 {
 
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "mac_test_init_socket_label() at %s:%d", __FILE__,
+		    __LINE__);
+
 	SLOT(label) = SOCKETMAGIC;
 	atomic_add_int(&init_count_socket, 1);
 	return (0);
@@ -288,6 +304,11 @@ mac_test_init_socket_label(struct label *label, int flag)
 static int
 mac_test_init_socket_peer_label(struct label *label, int flag)
 {
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "mac_test_init_socket_peer_label() at %s:%d", __FILE__,
+		    __LINE__);
 
 	SLOT(label) = SOCKETMAGIC;
 	atomic_add_int(&init_count_socket_peerlabel, 1);
@@ -391,6 +412,14 @@ mac_test_destroy_ipq_label(struct label *label)
 static void
 mac_test_destroy_mbuf_label(struct label *label)
 {
+
+	/*
+	 * If we're loaded dynamically, there may be mbufs in flight that
+	 * didn't have label storage allocated for them.  Handle this
+	 * gracefully.
+	 */
+	if (label == NULL)
+		return;
 
 	if (SLOT(label) == MBUFMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_mbuf, 1);
