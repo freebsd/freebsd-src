@@ -495,6 +495,7 @@ avma1pp_attach_avma1pp(device_t dev)
 	void *ih = 0;
 	bus_space_handle_t bhandle;
 	bus_space_tag_t btag; 
+	l1_bchan_state_t *chan;
 
 	s = splimp();
 
@@ -646,6 +647,14 @@ avma1pp_attach_avma1pp(device_t dev)
 
 	/* init the ISAC */
 	ifpi_isac_init(sc);
+
+	/* Init the channel mutexes */
+	chan = &sc->sc_chan[HSCX_CH_A];
+	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", MTX_DEF);
+	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", MTX_DEF);
+	chan = &sc->sc_chan[HSCX_CH_B];
+	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", MTX_DEF);
+	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", MTX_DEF);
 
 	/* init the "HSCX" */
 	avma1pp_bchannel_setup(sc->sc_unit, HSCX_CH_A, BPROT_NONE, 0);
@@ -1118,7 +1127,6 @@ avma1pp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	/* receiver part */
 
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
-	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", MTX_DEF);
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -1133,7 +1141,6 @@ avma1pp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	/* transmitter part */
 
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
-	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", MTX_DEF);
 	
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 
