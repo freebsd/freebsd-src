@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.85 1998/08/13 19:12:20 gibbs Exp $
+ * $Id: pci.c,v 1.86 1998/09/06 22:41:41 tegge Exp $
  *
  */
 
@@ -39,12 +39,16 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/buf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -53,6 +57,10 @@
 #ifdef APIC_IO
 #include <machine/smp.h>
 #endif /* APIC_IO */
+
+STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
+u_int32_t pci_numdevs = 0;
+u_int32_t pci_generation = 0;
 
 /* return highest PCI bus number known to be used, or -1 if none */
 
@@ -305,23 +313,30 @@ pci_hdrtypedata(pcicfgregs *cfg)
 
 /* read configuration header into pcicfgrect structure */
 
-static pcicfgregs *
+static struct pci_devinfo *
 pci_readcfg(pcicfgregs *probe)
 {
 	pcicfgregs *cfg = NULL;
+	struct pci_devinfo *devlist_entry;
+	struct devlist *devlist_head;
+
+	devlist_head = &pci_devq;
+
+	devlist_entry = NULL;
 
 	if (pci_cfgread(probe, PCIR_DEVVENDOR, 4) != -1) {
-		cfg = malloc(sizeof (pcicfgregs), M_DEVBUF, M_WAITOK);
-		if (cfg == NULL)
-			return (cfg);
+		devlist_entry = malloc(sizeof(struct pci_devinfo),
+				       M_DEVBUF, M_WAITOK);
+		if (devlist_entry == NULL)
+			return (NULL);
+
+		cfg = &devlist_entry->cfg;
 
 		bzero(cfg, sizeof *cfg);
 
 		cfg->bus		= probe->bus;
 		cfg->slot		= probe->slot;
 		cfg->func		= probe->func;
-		cfg->parent		= probe->parent;
-
 		cfg->vendor		= pci_cfgread(cfg, PCIR_VENDOR, 2);
 		cfg->device		= pci_cfgread(cfg, PCIR_DEVICE, 2);
 		cfg->cmdreg		= pci_cfgread(cfg, PCIR_COMMAND, 2);
@@ -375,30 +390,64 @@ pci_readcfg(pcicfgregs *probe)
 
 		pci_fixancient(cfg);
 		pci_hdrtypedata(cfg);
+
+		STAILQ_INSERT_TAIL(devlist_head, devlist_entry, pci_links);
+
+		devlist_entry->conf.pc_sel.pc_bus = cfg->bus;
+		devlist_entry->conf.pc_sel.pc_dev = cfg->slot;
+		devlist_entry->conf.pc_sel.pc_func = cfg->func;
+		devlist_entry->conf.pc_hdr = cfg->hdrtype;
+
+		devlist_entry->conf.pc_subvendor = cfg->subvendor;
+		devlist_entry->conf.pc_subdevice = cfg->subdevice;
+		devlist_entry->conf.pc_vendor = cfg->vendor;
+		devlist_entry->conf.pc_device = cfg->device;
+
+		devlist_entry->conf.pc_class = cfg->baseclass;
+		devlist_entry->conf.pc_subclass = cfg->subclass;
+		devlist_entry->conf.pc_progif = cfg->progif;
+		devlist_entry->conf.pc_revid = cfg->revid;
+
+		pci_numdevs++;
+		pci_generation++;
 	}
-	return (cfg);
+	return (devlist_entry);
 }
 
 #if 0
 /* free pcicfgregs structure and all depending data structures */
 
 static int
-pci_freecfg(pcicfgregs *cfg)
+pci_freecfg(struct pci_devinfo *dinfo)
 {
-	if (cfg->hdrspec != NULL)
-		free(cfg->hdrspec, M_DEVBUF);
-	if (cfg->map != NULL)
-		free(cfg->map, M_DEVBUF);
-	free(cfg, M_DEVBUF);
+	struct devlist *devlist_head;
+
+	devlist_head = &pci_devq;
+
+	if (dinfo->cfg.hdrspec != NULL)
+		free(dinfo->cfg.hdrspec, M_DEVBUF);
+	if (dinfo->cfg.map != NULL)
+		free(dinfo->cfg.map, M_DEVBUF);
+	/* XXX this hasn't been tested */
+	STAILQ_REMOVE(devlist_head, dinfo, pci_devinfo, pci_links);
+	free(dinfo, M_DEVBUF);
+
+	/* increment the generation count */
+	pci_generation++;
+
+	/* we're losing one device */
+	pci_numdevs--;
 	return (0);
 }
 #endif
 
 static void
-pci_addcfg(pcicfgregs *cfg)
+pci_addcfg(struct pci_devinfo *dinfo)
 {
 	if (bootverbose) {
 		int i;
+		pcicfgregs *cfg = &dinfo->cfg;
+
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
 		       cfg->vendor, cfg->device, cfg->revid);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
@@ -420,7 +469,7 @@ pci_addcfg(pcicfgregs *cfg)
 			       i, m->type, m->ln2range, m->base, m->ln2size);
 		}
 	}
-	pci_drvattach(cfg); /* XXX currently defined in pci_compat.c */
+	pci_drvattach(dinfo); /* XXX currently defined in pci_compat.c */
 }
 
 /* return pointer to device that is a bridge to this bus */
@@ -445,14 +494,15 @@ pci_probebus(int bus)
 #endif
 
 	bzero(&probe, sizeof probe);
-	probe.parent = pci_bridgeto(bus);
+	/* XXX KDM */
+	/* probe.parent = pci_bridgeto(bus); */
 	probe.bus = bus;
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		int pcifunchigh = 0;
 		for (probe.func = 0; probe.func <= pcifunchigh; probe.func++) {
-			pcicfgregs *cfg = pci_readcfg(&probe);
-			if (cfg != NULL) {
-				if (cfg->mfdev)
+			struct pci_devinfo *dinfo = pci_readcfg(&probe);
+			if (dinfo != NULL) {
+				if (dinfo->cfg.mfdev)
 					pcifunchigh = 7;
 				/*
 				 * XXX: Temporarily move pci_addcfg() up before
@@ -465,12 +515,13 @@ pci_probebus(int bus)
 				 * pci_addcfg() will then be moved back down
 				 * below the conditional statement ...
 				 */
-				pci_addcfg(cfg);
+				pci_addcfg(dinfo);
 
-				if (bushigh < cfg->subordinatebus)
-					bushigh = cfg->subordinatebus;
+				if (bushigh < dinfo->cfg.subordinatebus)
+					bushigh = dinfo->cfg.subordinatebus;
 
-				cfg = NULL; /* we don't own this anymore ... */
+				/* XXX KDM */
+				/* cfg = NULL; we don't own this anymore ... */
 			}
 		}
 	}
@@ -484,6 +535,8 @@ pci_probe(pciattach *parent)
 {
 	int bushigh;
 	int bus = 0;
+
+	STAILQ_INIT(&pci_devq);
 
 	bushigh = pci_bushigh();
 	while (bus <= bushigh) {
@@ -518,33 +571,301 @@ pci_close(dev_t dev, int flag, int devtype, struct proc *p)
 	return 0;
 }
 
+/*
+ * Match a single pci_conf structure against an array of pci_match_conf
+ * structures.  The first argument, 'matches', is an array of num_matches
+ * pci_match_conf structures.  match_buf is a pointer to the pci_conf
+ * structure that will be compared to every entry in the matches array.
+ * This function returns 1 on failure, 0 on success.
+ */
+static int
+pci_conf_match(struct pci_match_conf *matches, int num_matches, 
+	       struct pci_conf *match_buf)
+{
+	int i;
+
+	if ((matches == NULL) || (match_buf == NULL) || (num_matches <= 0))
+		return(1);
+
+	for (i = 0; i < num_matches; i++) {
+		/*
+		 * I'm not sure why someone would do this...but...
+		 */
+		if (matches[i].flags == PCI_GETCONF_NO_MATCH)
+			continue;
+
+		/*
+		 * Look at each of the match flags.  If it's set, do the
+		 * comparison.  If the comparison fails, we don't have a
+		 * match, go on to the next item if there is one.
+		 */
+		if (((matches[i].flags & PCI_GETCONF_MATCH_BUS) != 0)
+		 && (match_buf->pc_sel.pc_bus != matches[i].pc_sel.pc_bus))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_DEV) != 0)
+		 && (match_buf->pc_sel.pc_dev != matches[i].pc_sel.pc_dev))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_FUNC) != 0)
+		 && (match_buf->pc_sel.pc_func != matches[i].pc_sel.pc_func))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_VENDOR) != 0) 
+		 && (match_buf->pc_vendor != matches[i].pc_vendor))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_DEVICE) != 0)
+		 && (match_buf->pc_device != matches[i].pc_device))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_CLASS) != 0)
+		 && (match_buf->pc_class != matches[i].pc_class))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_UNIT) != 0)
+		 && (match_buf->pd_unit != matches[i].pd_unit))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_NAME) != 0)
+		 && (strncmp(matches[i].pd_name, match_buf->pd_name,
+			     sizeof(match_buf->pd_name)) != 0))
+			continue;
+
+		return(0);
+	}
+
+	return(1);
+}
+
 static int
 pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct pci_io *io;
 	int error;
 
-	if (cmd != PCIOCGETCONF && !(flag & FWRITE))
+	if (!(flag & FWRITE))
 		return EPERM;
+
 
 	switch(cmd) {
 	case PCIOCGETCONF:
-#ifdef NOTYET
-static struct pci_conf *pci_dev_list;
-static unsigned pci_dev_list_count;
-static unsigned pci_dev_list_size;
+		{
+		struct pci_devinfo *dinfo;
+		struct pci_conf_io *cio;
+		struct devlist *devlist_head;
+		struct pci_match_conf *pattern_buf;
+		int num_patterns;
+		size_t iolen;
+		int ionum, i;
 
 		cio = (struct pci_conf_io *)data;
-		iolen = min(cio->pci_len, 
-			    pci_dev_list_count * sizeof(struct pci_conf));
-		cio->pci_len = pci_dev_list_count * sizeof(struct pci_conf);
 
-		error = copyout(pci_dev_list, cio->pci_buf, iolen);
-#else
-		error = ENODEV;
-#endif
-		break;
+		num_patterns = 0;
+		dinfo = NULL;
+
+		/*
+		 * Hopefully the user won't pass in a null pointer, but it
+		 * can't hurt to check.
+		 */
+		if (cio == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		/*
+		 * If the user specified an offset into the device list,
+		 * but the list has changed since they last called this
+		 * ioctl, tell them that the list has changed.  They will
+		 * have to get the list from the beginning.
+		 */
+		if ((cio->offset != 0)
+		 && (cio->generation != pci_generation)){
+			cio->num_matches = 0;	
+			cio->status = PCI_GETCONF_LIST_CHANGED;
+			error = 0;
+			break;
+		}
+
+		/*
+		 * Check to see whether the user has asked for an offset
+		 * past the end of our list.
+		 */
+		if (cio->offset >= pci_numdevs) {
+			cio->num_matches = 0;
+			cio->status = PCI_GETCONF_LAST_DEVICE;
+			error = 0;
+			break;
+		}
+
+		/* get the head of the device queue */
+		devlist_head = &pci_devq;
+
+		/*
+		 * Determine how much room we have for pci_conf structures.
+		 * Round the user's buffer size down to the nearest
+		 * multiple of sizeof(struct pci_conf) in case the user
+		 * didn't specify a multiple of that size.
+		 */
+		iolen = min(cio->match_buf_len - 
+			    (cio->match_buf_len % sizeof(struct pci_conf)),
+			    pci_numdevs * sizeof(struct pci_conf));
+
+		/*
+		 * Since we know that iolen is a multiple of the size of
+		 * the pciconf union, it's okay to do this.
+		 */
+		ionum = iolen / sizeof(struct pci_conf);
+
+		/*
+		 * If this test is true, the user wants the pci_conf
+		 * structures returned to match the supplied entries.
+		 */
+		if ((cio->num_patterns > 0)
+		 && (cio->pat_buf_len > 0)) {
+			/*
+			 * pat_buf_len needs to be:
+			 * num_patterns * sizeof(struct pci_match_conf)
+			 * While it is certainly possible the user just
+			 * allocated a large buffer, but set the number of
+			 * matches correctly, it is far more likely that
+			 * their kernel doesn't match the userland utility
+			 * they're using.  It's also possible that the user
+			 * forgot to initialize some variables.  Yes, this
+			 * may be overly picky, but I hazard to guess that
+			 * it's far more likely to just catch folks that
+			 * updated their kernel but not their userland.
+			 */
+			if ((cio->num_patterns *
+			    sizeof(struct pci_match_conf)) != cio->pat_buf_len){
+				/* The user made a mistake, return an error*/
+				cio->status = PCI_GETCONF_ERROR;
+				printf("pci_ioctl: pat_buf_len %d != "
+				       "num_patterns (%d) * sizeof(struct "
+				       "pci_match_conf) (%d)\npci_ioctl: "
+				       "pat_buf_len should be = %d\n",
+				       cio->pat_buf_len, cio->num_patterns,
+				       sizeof(struct pci_match_conf),
+				       sizeof(struct pci_match_conf) * 
+				       cio->num_patterns);
+				printf("pci_ioctl: do your headers match your "
+				       "kernel?\n");
+				cio->num_matches = 0;
+				error = EINVAL;
+				break;
+			}
+
+			/*
+			 * Check the user's buffer to make sure it's readable.
+			 */
+			if ((error = useracc((caddr_t)cio->patterns,
+			                     cio->pat_buf_len, B_READ)) != 1){
+				printf("pci_ioctl: pattern buffer %#lx, "
+				       "length %u isn't user accessible for"
+				       " READ\n", cio->patterns,
+				       cio->pat_buf_len);
+				error = EACCES;
+				break;
+			}
+			/*
+			 * Allocate a buffer to hold the patterns.
+			 */
+			pattern_buf = malloc(cio->pat_buf_len, M_TEMP,
+					     M_WAITOK);
+			error = copyin(cio->patterns, pattern_buf,
+				       cio->pat_buf_len);
+			if (error != 0)
+				break;
+			num_patterns = cio->num_patterns;
+
+		} else if ((cio->num_patterns > 0)
+			|| (cio->pat_buf_len > 0)) {
+			/*
+			 * The user made a mistake, spit out an error.
+			 */
+			cio->status = PCI_GETCONF_ERROR;
+			cio->num_matches = 0;
+			printf("pci_ioctl: invalid GETCONF arguments\n");
+			error = EINVAL;
+			break;
+		} else
+			pattern_buf = NULL;
+
+		/*
+		 * Make sure we can write to the match buffer.
+		 */
+		if ((error = useracc((caddr_t)cio->matches, cio->match_buf_len,
+				     B_WRITE)) != 1) {
+			printf("pci_ioctl: match buffer %#lx, length %u "
+			       "isn't user accessible for WRITE\n",
+			       cio->matches, cio->match_buf_len);
+			error = EACCES;
+			break;
+		}
+
+		/*
+		 * Go through the list of devices and copy out the devices
+		 * that match the user's criteria.
+		 */
+		for (cio->num_matches = 0, error = 0, i = 0,
+		     dinfo = STAILQ_FIRST(devlist_head);
+		     (dinfo != NULL) && (cio->num_matches < ionum)
+		     && (error == 0) && (i < pci_numdevs);
+		     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
+
+			if (i < cio->offset)
+				continue;
+
+			if ((pattern_buf == NULL) ||
+			    (pci_conf_match(pattern_buf, num_patterns,
+					    &dinfo->conf) == 0)) {
+
+				/*
+				 * If we've filled up the user's buffer,
+				 * break out at this point.  Since we've
+				 * got a match here, we'll pick right back
+				 * up at the matching entry.  We can also
+				 * tell the user that there are more matches
+				 * left.
+				 */
+				if (cio->num_matches >= ionum)
+					break;
+
+				error = copyout(&dinfo->conf,
+					        &cio->matches[cio->num_matches],
+						sizeof(struct pci_conf));
+				cio->num_matches++;
+			}
+		}
+
+		/*
+		 * Set the pointer into the list, so if the user is getting
+		 * n records at a time, where n < pci_numdevs,
+		 */
+		cio->offset = i;
+
+		/*
+		 * Set the generation, the user will need this if they make
+		 * another ioctl call with offset != 0.
+		 */
+		cio->generation = pci_generation;
 		
+		/*
+		 * If this is the last device, inform the user so he won't
+		 * bother asking for more devices.  If dinfo isn't NULL, we
+		 * know that there are more matches in the list because of
+		 * the way the traversal is done.
+		 */
+		if (dinfo == NULL)
+			cio->status = PCI_GETCONF_LAST_DEVICE;
+		else
+			cio->status = PCI_GETCONF_MORE_DEVS;
+
+		if (pattern_buf != NULL)
+			free(pattern_buf, M_TEMP);
+
+		break;
+		}
 	case PCIOCREAD:
 		io = (struct pci_io *)data;
 		switch(io->pi_width) {

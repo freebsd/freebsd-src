@@ -1,6 +1,3 @@
-#ifndef PCI_COMPAT
-#define PCI_COMPAT
-#endif
 /*
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
@@ -26,9 +23,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.19 1998/07/22 08:39:08 dfr Exp $
+ * $Id: pcivar.h,v 1.20 1998/08/13 19:12:20 gibbs Exp $
  *
  */
+
+#ifndef _PCIVAR_H_
+#define _PCIVAR_H_
+
+#ifndef PCI_COMPAT
+#define PCI_COMPAT
+#endif
+
+#include <pci/pci_ioctl.h> /* XXX KDM */
+#include <sys/queue.h>
 
 /* some PCI bus constants */
 
@@ -65,8 +72,6 @@ typedef struct {
 /* config header information common to all header types */
 
 typedef struct pcicfg {
-    struct pcicfg *parent;
-    struct pcicfg *next;
     pcimap	*map;		/* pointer to array of PCI maps */
     void	*hdrspec;	/* pointer to header type specific data */
 
@@ -153,10 +158,20 @@ typedef struct pciattach {
     struct pciattach *next;
 } pciattach;
 
+struct pci_devinfo {
+    	STAILQ_ENTRY(pci_devinfo) pci_links;
+	struct pci_device	*device;  /* should this be ifdefed? */
+	pcicfgregs		cfg;
+	struct pci_conf		conf;
+};
+
+extern u_int32_t pci_numdevs;
+
+
 /* externally visible functions */
 
 int pci_probe (pciattach *attach);
-void pci_drvattach(pcicfgregs *cfg);
+void pci_drvattach(struct pci_devinfo *dinfo);
 
 /* low level PCI config register functions provided by pcibus.c */
 
@@ -208,3 +223,4 @@ int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
 #endif /* PCI_COMPAT */
+#endif /* _PCIVAR_H_ */
