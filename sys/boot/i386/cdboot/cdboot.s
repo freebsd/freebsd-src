@@ -132,8 +132,6 @@ load_vd:	push %eax			# Save %eax
 		mov $1,%dh			# One sector
 		mov $MEM_VOLDESC,%ebx		# Destination
 		call read			# Read it in
-		mov $16,%cx
-		call hexdump
 		cmpb $VD_PRIMARY,(%bx)		# Primary VD?
 		je have_vd			# Yes
 		pop %eax			# Prepare to
@@ -149,8 +147,6 @@ have_vd:	mov $msg_vd,%si			# Have Primary VD
 #
 		mov $loader_path,%si		# File to lookup
 		call lookup			# Try to find it
-		mov $msg_lookup_done,%si
-		call putstr
 #
 # Load the binary into the buffer.  Due to real mode addressing limitations
 # we have to read it in in 64k chunks.
@@ -263,10 +259,6 @@ pm_end:		sti				# Turn interrupts back on now
 		pop %eax			# Restore saved entry point
 		stosl				#  and add it to the end of
 						#  the arguments
-		mov $msg_entry2,%di
-		call hex32
-		mov $msg_entry,%si
-		call putstr
 #
 # Now we just start up BTX and let it do the rest
 #
@@ -311,13 +303,7 @@ lookup_done:	mov $msg_lookupok,%si		# Success message
 # Returns: CF = 0 (success), BX = pointer to record, SX = next path item
 #          CF = 1 (not found), SI = preserved
 #
-find_file:	push %si
-		mov $msg_startff,%si
-		call putstr
-		pop %si		
-		movzbw DIR_LEN(%bx),%cx
-		call hexdump
-		mov DIR_EXTENT(%bx),%eax	# Load extent
+find_file:	mov DIR_EXTENT(%bx),%eax	# Load extent
 		xor %edx,%edx
 		mov DIR_EA_LEN(%bx),%dl
 		add %edx,%eax			# Skip extended attributes
@@ -334,16 +320,6 @@ ff.namelen:	inc %cl				# Update length
 		jnz ff.namelen			# No, keep going
 ff.namedone:	dec %cl				# Adjust length and save
 		mov %cl,name_len
-		mov %cl,%al
-		mov $msg_fflen,%di
-		call hex8
-		mov $msg_ffpath,%si
-		call putstr
-		pop %si
-		push %si
-		call putstr
-		mov $msg_ffpath2,%si
-		call putstr
 		pop %si				# Restore
 ff.load:	mov rec_lba,%eax		# Load LBA
 		mov $MEM_DIR,%ebx		# Address buffer
@@ -358,17 +334,9 @@ ff.scan:	mov %ebx,%edx			# Check for EOF
 		ret
 ff.scan.1:	cmpb $0,DIR_LEN(%bx)		# Last record in block?
 		je ff.nextblock
-		movzbw DIR_LEN(%bx),%cx
-		call hexdump
 		push %si			# Save
-		mov $msg_ffscan,%si
-		call putstr
 		movzbw DIR_NAMELEN(%bx),%si	# Find end of string
-ff.checkver:	push %bx
-		mov DIR_NAME-1(%bx,%si),%al
-		call putc
-		pop %bx
-		cmpb $'0',DIR_NAME-1(%bx,%si)	# Less than '0'?
+ff.checkver:	cmpb $'0',DIR_NAME-1(%bx,%si)	# Less than '0'?
 		jb ff.checkver.1
 		cmpb $'9',DIR_NAME-1(%bx,%si)	# Greater than '9'?
 		ja ff.checkver.1
@@ -379,39 +347,17 @@ ff.checkver:	push %bx
 ff.checkver.1:	movzbw DIR_NAMELEN(%bx),%cx
 		cmp %cx,%si			# Did we find any digits?
 		je ff.checkdot			# No
-		push %bx
-		mov DIR_NAME-1(%bx,%si),%al
-		call putc
-		pop %bx
 		cmpb $';',DIR_NAME-1(%bx,%si)	# Check for semicolon
 		jne ff.checkver.2
 		dec %si				# Skip semicolon
 		mov %si,%cx
 		mov %cl,DIR_NAMELEN(%bx)	# Adjust length
-		push %bx
-		mov $'-',%al
-		call putc
-		pop %bx
 		jmp ff.checkdot
 ff.checkver.2:	mov %cx,%si			# Restore %si to end of string
 ff.checkdot:	cmpb $'.',DIR_NAME-1(%bx,%si)	# Trailing dot?
 		jne ff.checklen			# No
-		push %bx
-		mov $'-',%al
-		call putc
-		pop %bx
 		decb DIR_NAMELEN(%bx)		# Adjust length
 ff.checklen:	pop %si				# Restore
-		push %si
-		mov $msg_ffscan2,%si
-		call putstr
-		mov $msg_ffcheck,%si
-		call putstr
-		lea DIR_NAMELEN(%bx),%si
-		call putstrl
-		mov $msg_ffcheck2,%si
-		call putstr
-		pop %si
 		movzbw name_len,%cx		# Load length of name
 		cmp %cl,DIR_NAMELEN(%bx)	# Does length match?
 		je ff.checkname			# Yes, check name
@@ -421,11 +367,7 @@ ff.nextrec:	add DIR_LEN(%bx),%bl		# Next record
 ff.nextblock:	subl $SECTOR_SIZE,rec_size	# Adjust size
 		jnc ff.load			# If subtract ok, keep going
 		ret				# End of file, so not found
-ff.checkname:	push %si
-		mov $msg_lenmatch,%si
-		call putstr
-		pop %si
-		lea DIR_NAME(%bx),%di		# Address name in record
+ff.checkname:	lea DIR_NAME(%bx),%di		# Address name in record
 		push %si			# Save
 		repe cmpsb			# Compare name
 		jcxz ff.match			# We have a winner!
@@ -447,24 +389,6 @@ read:		push %si			# Save
 		mov %ax,edd_addr+0x2		#  and store
 read.retry:	#call twiddle			# Entertain the user
 		push %dx			# Save
-		push %di			# DEBUG: dump packet
-		push %bx
-		mov %dh,%al			# Length
-		mov $dump_len,%di
-		call hex8
-		mov edd_addr+0x2,%ax		# Seg
-		mov $dump_seg,%di
-		call hex16
-		mov edd_addr,%ax		# Offset
-		mov $dump_offset,%di
-		call hex16
-		mov edd_lba,%eax		# LBA
-		mov $dump_lba,%di
-		call hex32
-		mov $dump_packet,%si		# Display
-		call putstr
-		pop %bx
-		pop %di
 		mov $edd_packet,%si		# Address Packet
 		mov %dh,edd_len			# Set length
 		mov drive,%dl			# BIOS Device
@@ -489,67 +413,6 @@ halt:		hlt
 		jmp halt			# Spin
 
 #
-# Dump CX bytes from memory at [BX].
-#
-hexdump:	push %ax			# Save
-		push %bx			# Save
-		push %dx			# Save
-		push %si			# Save
-		push %di			# Save
-		mov %bx,%si			# Where to read from
-hd.line:	mov $16,%dx			# Bytes per line
-		push %si			# Save offset
-		push %cx			# Save
-		push %dx			#  counts
-		mov $hex_line,%di
-		mov %si,%ax			# Format hex
-		call hex16			#  offset
-		inc %di
-hd.hexloop:	jcxz hd.hexblank		# Are we done yet?
-		lodsb				# Read
-		call hex8			# Hexify
-		inc %di
-		dec %cx				# Update total count
-		dec %dx				#  and per-line count
-		jnz hd.hexloop			# Next char
-		jmp hd.raw			# Second half of line
-hd.hexblank:	mov $' ',%al			# Put spaces as
-hd.hb.loop:	stosb				#  placeholders
-		stosb
-		inc %di
-		dec %dx				# Just do per-line count
-		jnz hd.hb.loop			# Next blank
-hd.raw:		pop %dx				# Restore
-		pop %cx				#  counts
-		pop %si				# Restart input
-		inc %di				# Skip pipe char
-hd.rawloop:	jcxz hd.rawblank		# Done yet?
-		lodsb				# Read
-		cmp $0x20,%al			# Use '.' for
-		jge hd.rawok			#  special
-		mov $'.',%al			#  characters
-hd.rawok:	stosb
-		dec %cx
-		dec %dx
-		jnz hd.rawloop			# Next char
-		jmp hd.outline			# Next line
-hd.rawblank:	mov $' ',%al			# Space as placeholder
-		mov %dx,%cx			# Fill rest
-		rep stosb			#  of line
-hd.outline:	push %si			# Save
-		mov $hex_line,%si		# Now spit it out
-		call putstr
-		pop %si				# Restore
-		jcxz hd.ret			# Return if done
-		jmp hd.line			# Next line
-hd.ret:		pop %di				# Restore
-		pop %si				# Restore
-		pop %dx				# Restore
-		pop %bx				# Restore
-		pop %ax				# Restore
-		ret
-
-#
 # Display a null-terminated string.
 #
 # Trashes: AX, SI
@@ -562,23 +425,6 @@ putstr.load:	lodsb				# load %al from %ds:(%si)
 		ret				# return when null is hit
 putstr.putc:	call putc			# output char
 		jmp putstr.load			# next char
-
-#
-# Print out length-based string from [SI].
-#
-# Trashes: AX, SI
-#
-putstrl:	push %bx			# Save
-		push %cx			# Save 
-		lodsb
-		movzbw %al,%cx			# Length
-		jcxz putstrl.ret		# Skip if empty
-putstrl.loop:	lodsb				# Read char
-		call putc			# Display
-		loop putstrl.loop		# Loop
-putstrl.ret:	pop %cx				# Restore
-		pop %bx				# Restore
-		ret
 
 #
 # Display a single char.
@@ -630,14 +476,8 @@ seta20.2:	in $0x64,%al			# Get status
 		ret				# To caller
 
 #
-# Convert EAX, AX, or AL to hex, saving the result to [EDI].
+# Convert AL to hex, saving the result to [EDI].
 #
-hex32:		pushl %eax			# Save
-		shrl $0x10,%eax 		# Do upper
-		call hex16			#  16
-		popl %eax			# Restore
-hex16:		call hex16.1			# Do upper 8
-hex16.1:	xchgb %ah,%al			# Save/restore
 hex8:		pushl %eax			# Save
 		shrb $0x4,%al			# Do upper
 		call hex8.1			#  4
@@ -722,29 +562,4 @@ msg_lookupfail:	.asciz  "File not found\r\n"
 msg_load2big:	.asciz  "File too big\r\n"
 loader_path:	.asciz  "/BOOT/LOADER"
 twiddle_chars:	.ascii	"|/-\\"
-
-msg_entry:	.ascii	"Entry point: "
-msg_entry2:	.asciz	"00000000\r\n"
-msg_lookup_done:.asciz	"Lookup returned\r\n"
-msg_startff:	.asciz	"\r\nStarting find_file\r\n"
-msg_ffpath:	.asciz	"Path = \""
-msg_ffpath2:	.ascii	"\"  Length = "
-msg_fflen:	.asciz	"00\r\n"
-msg_lenmatch:	.asciz	"ff: Length matched\r\n"
-msg_ffcheck:	.asciz	"ff: Checking name: "
-msg_ffscan2:
-msg_ffcheck2:	.asciz	"\r\n"
-msg_ffscan:	.asciz	"ff: Scanning name: "
-	
-dump_packet:	.ascii	"Len "
-dump_len:	.ascii	"00  Addr "
-dump_seg:	.ascii	"0000:"
-dump_offset:	.ascii  "0000  LBA "
-dump_lba:	.asciz  "00000000\r\n"
-
-dump_bx:	.ascii	"bx = "
-hex_bx:		.asciz	"0000\r\n"
-
-hex_line:	.ascii	"0000:00 00 00 00 00 00 00 00-00 00 00 00 00 00 00 00 "
-		.asciz	"|................|\r\n"
 
