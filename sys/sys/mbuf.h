@@ -150,7 +150,7 @@ struct mbuf {
 #define	M_PROTO3	0x0040	/* protocol-specific */
 #define	M_PROTO4	0x0080	/* protocol-specific */
 #define	M_PROTO5	0x0100	/* protocol-specific */
-#define M_PROTO6	0x4000	/* protocol-specific (avoid M_BCAST conflict) */
+#define	M_PROTO6	0x4000	/* protocol-specific (avoid M_BCAST conflict) */
 #define	M_FREELIST	0x8000	/* mbuf is on the free list */
 
 /*
@@ -170,7 +170,7 @@ struct mbuf {
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr*/
+#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
 
 /*
  * Flags copied when copying m_pkthdr.
@@ -333,19 +333,15 @@ struct mbstat {
 #define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
 			    & M_EXT) || !MEXT_IS_REF(m)))
 
-/*
- * Check if the supplied mbuf has a packet header, or else panic.
- */
-#define M_ASSERTPKTHDR(m)				\
-	KASSERT(m != NULL && m->m_flags & M_PKTHDR,	\
-		("%s: no mbuf packet header!", __func__))
+/* Check if the supplied mbuf has a packet header, or else panic. */
+#define	M_ASSERTPKTHDR(m)						\
+	KASSERT(m != NULL && m->m_flags & M_PKTHDR,			\
+	    ("%s: no mbuf packet header!", __func__))
 
-/*
- * Ensure that the supplied mbuf is a valid, non-free mbuf.
- */
-#define M_ASSERTVALID(m)					\
-	KASSERT((((struct mbuf *)m)->m_flags & M_FREELIST) == 0,			\
-		("%s: attempted use of a free mbuf!", __func__))
+/* Ensure that the supplied mbuf is a valid, non-free mbuf. */
+#define	M_ASSERTVALID(m)						\
+	KASSERT((((struct mbuf *)m)->m_flags & M_FREELIST) == 0,	\
+	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
@@ -432,12 +428,12 @@ extern	int nmbclusters;		/* Maximum number of clusters */
 extern	int nmbcnt;			/* Scale kmem_map for counter space */
 extern	int nmbufs;			/* Maximum number of mbufs */
 
-struct	uio;
+struct uio;
 
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
-		 int (*)(void *, void *, unsigned int), void *);
+		    int (*)(void *, void *, u_int), void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
@@ -471,10 +467,9 @@ void		 m_print(const struct mbuf *);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf	*m_pullup(struct mbuf *, int);
 struct	mbuf	*m_split(struct mbuf *, int, int);
-struct	mbuf *
-	m_uiotombuf(struct uio *uio, int how, int len);
+struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 
-/*
+/*-
  * Packets may have annotations attached by affixing a list
  * of "packet tags" to the pkthdr structure.  Packet tags are
  * dynamically allocated semi-opaque data structures that have
@@ -529,7 +524,8 @@ struct	mbuf *
 
 #define	PACKET_TAG_NONE				0  /* Nadda */
 
-/* Packet tag for use with PACKET_ABI_COMPAT. */
+/* Packet tags for use with PACKET_ABI_COMPAT. */
+/* XXX excessive indentation for most of these (was: all). */
 #define	PACKET_TAG_IPSEC_IN_DONE		1  /* IPsec applied, in */
 #define	PACKET_TAG_IPSEC_OUT_DONE		2  /* IPsec applied, out */
 #define	PACKET_TAG_IPSEC_IN_CRYPTO_DONE		3  /* NIC IPsec crypto done */
@@ -555,13 +551,16 @@ struct	mbuf *
 #define	PACKET_TAG_PF_TAG			24 /* PF tagged */
 
 /* Packet tag routines. */
-struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);
+/* XXX totally disordered declarations. */
+struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct	m_tag	*m_tag_copy(struct m_tag *, int);
 int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
+
+/* XXX sigh, we had uninlined everything. */
 
 /*
  * Initialize the list of tags associated with an mbuf.
@@ -573,10 +572,10 @@ m_tag_init(struct mbuf *m)
 }
 
 /*
- * Setup the contents of a tag.  Note that this does not
- * fillin the free method; the caller is expected to do that.
+ * Set up the contents of a tag.  Note that this does not
+ * fill in the free method; the caller is expected to do that.
  *
- * XXX probably should be called m_tag_init; but that was
+ * XXX probably should be called m_tag_init, but that was
  * already taken.
  */
 static __inline void
@@ -602,7 +601,7 @@ m_tag_free(struct m_tag *t)
 static __inline struct m_tag *
 m_tag_first(struct mbuf *m)
 {
-	return SLIST_FIRST(&m->m_pkthdr.tags);
+	return (SLIST_FIRST(&m->m_pkthdr.tags));
 }
 
 /*
@@ -611,7 +610,7 @@ m_tag_first(struct mbuf *m)
 static __inline struct m_tag *
 m_tag_next(struct mbuf *m, struct m_tag *t)
 {
-	return SLIST_NEXT(t, m_tag_link);
+	return (SLIST_NEXT(t, m_tag_link));
 }
 
 /*
@@ -638,18 +637,19 @@ m_tag_unlink(struct mbuf *m, struct m_tag *t)
 static __inline struct m_tag *
 m_tag_get(int type, int length, int wait)
 {
-	return m_tag_alloc(MTAG_ABI_COMPAT, type, length, wait);
+	return (m_tag_alloc(MTAG_ABI_COMPAT, type, length, wait));
 }
 
 static __inline struct m_tag *
 m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
-	return SLIST_EMPTY(&m->m_pkthdr.tags) ?
-		NULL : m_tag_locate(m, MTAG_ABI_COMPAT, type, start);
+	return (SLIST_EMPTY(&m->m_pkthdr.tags) ?
+	    NULL : m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
 /*
- * Obtain next_hop information associated with the mbuf; if any.
+ * XXX gross style bugs in this function.
+ * Obtain next_hop information associated with the mbuf, if any.
  * If a tag is present devalidate it also.
  */
 static __inline struct sockaddr_in *
@@ -657,13 +657,12 @@ m_claim_next(struct mbuf *m, int type)
 {
 	struct m_tag *mtag = m_tag_find(m, type, NULL);
 	if (mtag) {
-		struct sockaddr_in *sin = *(struct sockaddr_in **)(mtag+1);
+		struct sockaddr_in *sin = *(struct sockaddr_in **)(mtag + 1);
 		mtag->m_tag_id = PACKET_TAG_NONE;
-		return sin;
-	} else
-		return NULL;
+		return (sin);
+	}
+	return (NULL);
 }
-
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
