@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl filnvx
+.Op Fl Sfilnvx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -105,6 +105,8 @@ which is the kernel image the system has booted from.
 Restrict matches to processes with a parent process ID in the
 comma-separated list
 .Ar ppid .
+.It Fl S
+Search also in system processes (kernel threads).
 .It Fl U Ar uid
 Restrict matches to processes with a real user ID in the comma-separated
 list
