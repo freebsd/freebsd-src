@@ -101,6 +101,7 @@ SUBDIR=	alias \
 	m4 \
 	mail \
 	make \
+	makewhatis \
 	mesg \
 	minigzip \
 	mkdep \
