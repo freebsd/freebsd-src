@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.4 1994/08/18 22:35:44 wollman Exp $
+ * $Id: proc.h,v 1.5 1994/08/24 11:51:46 sos Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -135,8 +135,6 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
-	struct 	sysentvec *p_sysent;	/* syscall entry table pointer */
-
 	long	p_spare[4];		/* pad to 256, avoid shifting eproc. */
 
 
@@ -156,6 +154,8 @@ struct	proc {
 	char	p_comm[MAXCOMLEN+1];
 
 	struct 	pgrp *p_pgrp;	/* Pointer to process group. */
+
+	struct sysentvec *p_sysent; /* system call dispatch information */
 
 /* End area that is copied on creation. */
 #define	p_endcopy	p_thread
