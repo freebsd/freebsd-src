@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.3 1995/10/20 14:24:49 jkh Exp $
+ * $Id: installFinal.c,v 1.5 1995/10/20 21:57:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -56,6 +56,7 @@
 int
 installApache(void)
 {
+    dialog_clear();
     msgConfirm("UNDER CONSTRUCTION\n\n"
 	       "This installation option is not yet implemented.  It will\n"
 	       "hopefully be in the final release.");
@@ -114,6 +115,7 @@ installFinal(char *unused)
 
 	    if (vsystem("adduser -uid %d -home %s -shell date -dotdir no -batch %s %s \"%s\" ",
 			FTP_UID, tbuf, FTP_NAME, FTP_GROUP, FTP_COMMENT)) {
+		dialog_clear();
 		msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
 		i = RET_FAIL;
 	    }
@@ -124,6 +126,7 @@ installFinal(char *unused)
 	    }
 	}
 	else {
+	    dialog_clear();
 	    msgConfirm("Invalid Directory. Anonymous FTP will not be set up.");
 	}
     }
@@ -204,10 +207,12 @@ installFinal(char *unused)
 					fprintf(fptr, "read only = yes\n\n");
 				}
 				else {
+				    dialog_clear();
 				    msgConfirm("Invalid Share Name.");
 				}
 			    }
 			    else {
+				dialog_clear();
 				msgConfirm("Directory does not exist.");
 			    }
 			}	/* end if (tptr)	 */
@@ -218,6 +223,7 @@ installFinal(char *unused)
 		vsystem("mv -f /tmp/smb.conf %s", SMB_CONF);
 	    }
 	    else {
+		dialog_clear();
 		msgConfirm("Unable to open temporary smb.conf file.\nSamba must be configured by hand.");
 	    }
 	}
@@ -230,6 +236,7 @@ installFinal(char *unused)
 
     /* If we're an NFS server, we need an exports file */
     if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
+	dialog_clear();
 	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
 		   "the /etc/exports file.  You must configure this information before\n"
 		   "other hosts will be able to mount file systems from your machine.\n"

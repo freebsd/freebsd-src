@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.2 1995/10/20 14:24:41 jkh Exp $
+ * $Id: doc.c,v 1.3 1995/10/22 01:32:42 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -29,6 +29,7 @@ docBrowser(char *junk)
  
     /* Make sure we were started at a reasonable time */
     if (!strcmp(variable_get(SYSTEM_STATE), "init")) {
+	dialog_clear();
 	msgConfirm("Sorry, it's not possible to invoke the browser until the system\n"
 		   "is installed completely enough to support a copy of %s.", browser);
 	return RET_FAIL;
@@ -38,7 +39,8 @@ docBrowser(char *junk)
 	return RET_FAIL;
 
     /* First, make sure we have whatever browser we've chosen is here */
-    if (package_extract(mediaDevice, browser) != RET_SUCCESS) {
+    if (package_add(browser) != RET_SUCCESS) {
+	dialog_clear();
 	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
 		   "wish to verify that your media is configured correctly and\n"
 		   "try again.", browser);
@@ -67,6 +69,7 @@ docShowDocument(char *str)
     char *browser = variable_get(VAR_BROWSER_BINARY);
 
     if (!file_executable(browser)) {
+	dialog_clear();
 	msgConfirm("Can't find the browser in %s!  Please ensure that it's\n"
 		   "properly set in the Options editor.", browser);
 	return RET_FAIL;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.6 1995/10/22 10:25:20 jkh Exp $
+ * $Id: installPreconfig.c,v 1.8 1995/10/22 12:04:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -173,8 +173,10 @@ installPreconfig(char *str)
 	    Attribs *cattr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    int i, j;
 
-	    if (attr_parse(cattr, fd) == RET_FAIL)
+	    if (attr_parse(cattr, fd) == RET_FAIL) {
+		dialog_clear();
 		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cfg_file);
+	    }
 	    else {
 		i = RET_SUCCESS;
 		for (j = 0; cattr[j].name[0]; j++) {
@@ -190,11 +192,15 @@ installPreconfig(char *str)
 		    else
 			variable_set2(cattr[j].name, cattr[j].value);
 		}
-		if (i == RET_SUCCESS)
+		if (i == RET_SUCCESS) {
+		    dialog_clear();
 		    msgConfirm("Configuration file %s loaded successfully!\n"
 			       "Some parameters may now have new default values.", buf);
-		else if (i == RET_FAIL)
+		}
+		else if (i == RET_FAIL) {
+		    dialog_clear();
 		    msgConfirm("Configuration file %s loaded with some errors.\n", buf);
+		}
 	    }
 	    close(fd);
 	    safe_free(cattr);
