@@ -134,6 +134,7 @@ main(argc, argv)
 	struct stat *stp;
 	FILE *ut;
 	u_long l;
+	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	char *memf, *nlistf, *p, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
@@ -246,7 +247,12 @@ main(argc, argv)
 			(void)sysctl(mib, 2, &ep->tdev, &size, NULL, 0);
 		}
 #endif
-		if ((ep->idle = now - stp->st_atime) < 0)
+		touched = stp->st_atime;
+		if (touched < ep->utmp.ut_time) {
+			/* tty untouched since before login */
+			touched = ep->utmp.ut_time;
+		}
+		if ((ep->idle = now - touched) < 0)
 			ep->idle = 0;
 	}
 	(void)fclose(ut);
@@ -364,7 +370,8 @@ main(argc, argv)
 				p = hp->h_name;
 				p += strlen(hp->h_name);
 				p -= strlen(domain);
-				if (p > hp->h_name && strcmp(p, domain) == 0)
+				if (p > hp->h_name &&
+				    strcasecmp(p, domain) == 0)
 					*p = '\0';
 			}
 			p = hp->h_name;
