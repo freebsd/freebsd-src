@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.91 1994/11/14 14:23:54 bde Exp $
+ *	$Id: machdep.c,v 1.92 1994/11/15 14:12:55 bde Exp $
  */
 
 #include "npx.h"
@@ -1307,8 +1307,7 @@ init386(first)
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
 #ifdef MAXMEM
-	if (MAXMEM/4 < Maxmem)
-		Maxmem = MAXMEM/4;
+	Maxmem = MAXMEM/4;
 #endif
 	/*
 	 * Calculate number of physical pages, but account for Maxmem
@@ -1326,7 +1325,7 @@ init386(first)
 	 */
 	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
 
-	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
+	for (target_page = Maxmem - 2; target_page >= atop(first); target_page--) {
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
