@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.286 2004/07/08 17:57:32 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.287 2004/12/03 18:29:51 ca Exp $")
 
 static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *));
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
@@ -1812,7 +1812,7 @@ put_vanilla_header(h, v, mci)
 	register char *nlp;
 	register char *obp;
 	int putflags;
-	char obuf[MAXLINE];
+	char obuf[MAXLINE + 256];	/* additional length for h_field */
 
 	putflags = PXLF_HEADER;
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
