@@ -67,9 +67,8 @@ TAILQ_HEAD(nch, ndis_cfglist);
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
 
-#define arpcom ic.ic_ac
-
 struct ndis_softc {
+	struct arpcom		arpcom;
 	struct ieee80211com	ic;		/* interface info */
 #ifdef notdef
 	struct ieee80211com	arpcom;		/* interface info */

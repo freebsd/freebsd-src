@@ -323,3 +323,41 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #ifndef RAY_MAP_CM
 #define RAY_MAP_CM(sc)
 #endif /* RAY_MAP_CM */
+
+/*
+ * Management information element payloads
+ */
+union ieee80211_information {
+	char	ssid[IEEE80211_NWID_LEN+1];
+	struct rates {
+		u_int8_t	*p;
+	} rates;
+	struct fh {
+		u_int16_t	dwell;
+		u_int8_t	set;
+		u_int8_t	pattern;
+		u_int8_t	index;
+	} fh;
+	struct ds {
+		u_int8_t	channel;
+	} ds;
+	struct cf {
+		u_int8_t	count;
+		u_int8_t	period;
+		u_int8_t	maxdur[2];
+		u_int8_t	dur[2];
+	} cf;
+	struct tim {
+		u_int8_t	count;
+		u_int8_t	period;
+		u_int8_t	bitctl;
+		/* u_int8_t	pvt[251]; The driver needs to use this. */
+	} tim;
+	struct ibss {
+		u_int16_t	atim;
+	} ibss;
+	struct challenge {
+		u_int8_t	*p;
+		u_int8_t	len;
+	} challenge;
+};
