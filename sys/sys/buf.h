@@ -464,6 +464,7 @@ struct uio;
 caddr_t bufhashinit __P((caddr_t));
 void	bufinit __P((void));
 void	bwillwrite __P((void));
+int	buf_dirty_count_severe __P((void));
 void	bremfree __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
 	    struct ucred *, struct buf **));

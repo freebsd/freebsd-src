@@ -627,12 +627,14 @@ debug_vn_lock(vp, flags, p, filename, line)
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			simple_lock(&vp->v_interlock);
-		if (vp->v_flag & VXLOCK) {
+		if ((vp->v_flag & VXLOCK) && vp->v_vxproc != curproc) {
 			vp->v_flag |= VXWANT;
 			simple_unlock(&vp->v_interlock);
 			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {
+			if (vp->v_vxproc != NULL)
+				printf("VXLOCK interlock avoided in vn_lock\n");
 #ifdef	DEBUG_LOCKS
 			vp->filename = filename;
 			vp->line = line;

@@ -79,6 +79,7 @@
 #include <sys/sysctl.h>
 #include <sys/blist.h>
 #include <sys/lock.h>
+#include <sys/vmmeter.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
 #define MAX_PAGEOUT_CLUSTER 16
@@ -1619,10 +1620,11 @@ swp_pager_async_iodone(bp)
 			 * status, then finish the I/O ( which decrements the 
 			 * busy count and possibly wakes waiter's up ).
 			 */
-			vm_page_protect(m, VM_PROT_READ);
 			pmap_clear_modify(m);
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
+			if (!vm_page_count_severe() || !vm_page_try_to_cache(m))
+				vm_page_protect(m, VM_PROT_READ);
 		}
 	}
 

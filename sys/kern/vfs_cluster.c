@@ -47,6 +47,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -656,6 +657,11 @@ cluster_write(bp, filesize, seqcount)
 			cluster_wbuild_wb(vp, lblocksize, vp->v_cstart, vp->v_clen + 1);
 		vp->v_clen = 0;
 		vp->v_cstart = lbn + 1;
+	} else if (vm_page_count_severe()) {
+		/*
+		 * We are low on memory, get it going NOW
+		 */
+		bawrite(bp);
 	} else {
 		/*
 		 * In the middle of a cluster, so just delay the I/O for now.

@@ -860,7 +860,7 @@ loop:
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
 	 */
-	if (vm_paging_needed() || cnt.v_free_count < cnt.v_pageout_free_min)
+	if (vm_paging_needed())
 		pagedaemon_wakeup();
 
 	splx(s);
@@ -882,10 +882,10 @@ vm_wait()
 	s = splvm();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		tsleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
+		tsleep(&vm_pageout_pages_needed, PSWP, "VMWait", 0);
 	} else {
 		if (!vm_pages_needed) {
-			vm_pages_needed++;
+			vm_pages_needed = 1;
 			wakeup(&vm_pages_needed);
 		}
 		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
@@ -1030,7 +1030,8 @@ vm_page_free_wakeup()
 	 * if pageout daemon needs pages, then tell it that there are
 	 * some free.
 	 */
-	if (vm_pageout_pages_needed) {
+	if (vm_pageout_pages_needed &&
+	    cnt.v_cache_count + cnt.v_free_count >= cnt.v_pageout_free_min) {
 		wakeup(&vm_pageout_pages_needed);
 		vm_pageout_pages_needed = 0;
 	}
@@ -1039,9 +1040,9 @@ vm_page_free_wakeup()
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vm_pages_needed && vm_page_count_min()) {
-		wakeup(&cnt.v_free_count);
+	if (vm_pages_needed && !vm_page_count_min()) {
 		vm_pages_needed = 0;
+		wakeup(&cnt.v_free_count);
 	}
 }
 
@@ -1244,6 +1245,9 @@ vm_page_wire(m)
  *	processes.  This optimization causes one-time-use metadata to be
  *	reused more quickly.
  *
+ *	BUT, if we are in a low-memory situation we have no choice but to
+ *	put clean pages on the cache queue.
+ *
  *	A number of routines use vm_page_unwire() to guarantee that the page
  *	will go into either the inactive or active queues, and will NEVER
  *	be placed in the cache - for example, just after dirtying a page.
@@ -1327,6 +1331,25 @@ void
 vm_page_deactivate(vm_page_t m)
 {
     _vm_page_deactivate(m, 0);
+}
+
+/*
+ * vm_page_try_to_cache:
+ *
+ * Returns 0 on failure, 1 on success
+ */
+int
+vm_page_try_to_cache(vm_page_t m)
+{
+	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
+	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
+		return(0);
+	}
+	vm_page_test_dirty(m);
+	if (m->dirty)
+		return(0);
+	vm_page_cache(m);
+	return(1);
 }
 
 /*

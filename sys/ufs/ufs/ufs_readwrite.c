@@ -48,6 +48,7 @@
 #include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
 #include <sys/event.h>
+#include <sys/vmmeter.h>
 
 #define VN_KNOTE(vp, b) \
 	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
@@ -501,6 +502,9 @@ WRITE(ap)
 			} else {
 				bawrite(bp);
 			}
+		} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
+			bp->b_flags |= B_CLUSTEROK;
+			bawrite(bp);
 		} else {
 			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
