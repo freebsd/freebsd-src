@@ -41,10 +41,10 @@
  *	ftp.cs.uwm.edu://pub/FreeBSD-UWM/spigot/spigot.tar.gz
  *
  * Version 1.7, December 1995.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include	"spigot.h"
 

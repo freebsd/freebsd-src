@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *	From BSDI: intr.c,v 1.6.2.5 1999/07/06 19:16:52 cp Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Interrupt thread code. */
 

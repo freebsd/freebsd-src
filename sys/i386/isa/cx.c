@@ -14,10 +14,11 @@
  * all derivative works or modified versions.
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #undef DEBUG
 
 #include "cx.h"
