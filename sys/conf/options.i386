@@ -32,7 +32,6 @@ DEBUG_SVR4		opt_svr4.h
 
 # i386 SMP options
 APIC_IO			opt_global.h
-HTT
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h

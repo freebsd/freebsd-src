@@ -121,6 +121,7 @@ int	apic_src_bus_irq	__P((int, int));
 int	apic_int_type		__P((int, int));
 int	apic_trigger		__P((int, int));
 int	apic_polarity		__P((int, int));
+int	mp_grab_cpu_hlt		__P((void));
 void	assign_apic_irq		__P((int apic, int intpin, int irq));
 void	revoke_apic_irq		__P((int irq));
 void	bsp_apic_configure	__P((void));

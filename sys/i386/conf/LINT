@@ -122,7 +122,6 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	APIC_IO			# Symmetric (APIC) I/O
-options 	HTT			# HyperThreading Technology
 
 #
 # Rogue SMP hardware:
