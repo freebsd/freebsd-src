@@ -40,7 +40,8 @@
 
 typedef struct {
 	enum { STRING1, STRING2 } which;
-	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE, SET } state;
+	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE,
+	       SET, SET_UPPER, SET_LOWER } state;
 	int	 cnt;			/* character count */
 	int	 lastch;		/* last character */
 	int	equiv[NCHARS];		/* equivalence set */
@@ -49,3 +50,5 @@ typedef struct {
 } STR;
 
 int	 next(STR *);
+int charcoll(const void *, const void *);
+
