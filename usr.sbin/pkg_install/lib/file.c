@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.7 1995/04/22 13:58:42 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.8 1995/04/26 15:08:20 jkh Exp $";
 #endif
 
 /*
@@ -255,20 +255,19 @@ fileFindByPath(char *fname)
     static char tmp[FILENAME_MAX];
     char *cp;
 
+    if (fexists(fname)) {
+	strcpy(tmp, fname);
+	return tmp;
+    }
     cp = getenv("PKG_PATH");
-    if (!cp)
-	whinge("Warning: PKG_PATH environment variable not set.");
-    tmp[0] = '\0';
     while (cp) {
 	char *cp2 = strsep(&cp, ":");
 	
 	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
 	if (fexists(tmp))
-	    break;
-	else
-	    tmp[0] = '\0';
+	    return tmp;
     }
-    return tmp;
+    return NULL;
 }
 
 char *
