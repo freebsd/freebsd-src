@@ -34,8 +34,6 @@
 #include <sys/endian.h>
 #include <sys/malloc.h> 
 #include <sys/bus.h>
-#include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <pci/pcivar.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

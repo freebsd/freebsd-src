@@ -33,12 +33,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
-#include <sys/devicestat.h>
-#include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
