@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_ipc.c,v 1.1 1994/09/13 14:46:55 dfr Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -30,6 +30,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.13 1995/12/27 15:24:19 joerg Exp $ */
+/*	$Id: sysv_sem.c,v 1.14 1995/12/28 01:31:38 jkh Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -7,6 +7,8 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
