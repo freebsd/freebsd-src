@@ -774,7 +774,7 @@ es_pci_attach(device_t dev)
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 		}
-	  	codec = ac97_create(es, es1371_rdcodec, es1371_wrcodec);
+	  	codec = ac97_create(dev, es, es1371_rdcodec, es1371_wrcodec);
 	  	if (codec == NULL) goto bad;
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
