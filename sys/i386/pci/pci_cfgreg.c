@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.1 1995/02/01 23:06:58 se Exp $
+**  $Id: pcibus.c,v 1.2 1995/02/09 20:16:19 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -183,6 +183,7 @@ static int
 pcibus_mode (void)
 {
 #ifdef PCI_CONF_MODE
+	pci_mode = PCI_CONF_MODE;
 	return (PCI_CONF_MODE)
 #else /* PCI_CONF_MODE */
 	u_long result, oldval;
