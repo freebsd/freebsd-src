@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: ftpd.c,v 1.88 1997/06/01 03:13:48 assar Exp $");
+RCSID("$Id$");
 #endif
 
 /*
@@ -135,7 +135,9 @@ RCSID("$Id: ftpd.c,v 1.88 1997/06/01 03:13:48 assar Exp $");
 #include <kafs.h>
 #include "roken.h"
 
+#ifdef OTP
 #include <otp.h>
+#endif
 
 #ifdef SOCKS
 #include <socks.h>
@@ -274,8 +276,10 @@ parse_auth_level(char *str)
 	p = strtok_r(NULL, ",", &foo)) {
 	if(strcmp(p, "user") == 0)
 	    ;
+#ifdef OTP
 	else if(strcmp(p, "otp") == 0)
 	    ret |= AUTH_PLAIN|AUTH_OTP;
+#endif
 	else if(strcmp(p, "ftp") == 0 ||
 		strcmp(p, "safe") == 0)
 	    ret |= AUTH_FTP;
@@ -552,7 +556,9 @@ sgetpwnam(char *name)
 static int login_attempts;	/* number of failed login attempts */
 static int askpasswd;		/* had user command, ask for passwd */
 static char curname[10];	/* current USER name */
+#ifdef OTP
 OtpContext otp_ctx;
+#endif
 
 /*
  * USER command.
@@ -633,6 +639,7 @@ user(char *name)
 		strncpy(curname, name, sizeof(curname)-1);
 	if(auth_ok())
 		ct->userok(name);
+#ifdef OTP
 	else {
 		char ss[256];
 
@@ -654,6 +661,7 @@ user(char *name)
 		}
 
 	}
+#endif
 	/*
 	 * Delay before reading passwd after first failed
 	 * attempt to slow down passwd-guessing programs.
@@ -869,9 +877,11 @@ pass(char *passwd)
 	if (!guest) {		/* "ftp" is only account allowed no password */
 		if (pw == NULL)
 			rval = 1;	/* failure below */
-		else if (otp_verify_user (&otp_ctx, passwd) == 0) {
+#ifdef OTP
+		else if (otp_verify_user (&otp_ctx, passwd) == 0)
 		    rval = 0;
-		} else if((auth_level & AUTH_OTP) == 0) {
+#endif
+		else if((auth_level & AUTH_OTP) == 0) {
 		    char realm[REALM_SZ];
 		    if((rval = krb_get_lrealm(realm, 1)) == KSUCCESS)
 			rval = krb_verify_user(pw->pw_name, "", realm, 
@@ -881,12 +891,15 @@ pass(char *passwd)
 			    k_afsklog(0, 0);
 		    }else 
 			rval = unix_verify_user(pw->pw_name, passwd);
-		} else {
+		}
+#ifdef OTP
+		else {
 		    char *s;
 		    
 		    if (s = otp_error(&otp_ctx))
 			lreply(530, "OTP: %s", s);
 		}
+#endif
 		memset (passwd, 0, strlen(passwd));
 
 		/*
