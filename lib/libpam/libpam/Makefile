@@ -141,19 +141,19 @@ STATIC_MODULES	 = ${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
 STATICOBJS	+= openpam_static_modules.o
 CLEANFILES	+= openpam_static.o
 
-_EXTRADEPEND: openpam_static.c
+# We want to add to _EXTRADEPEND actions, not to override them.
+_EXTRADEPEND: _EXTRADEPEND_openpam_static.c
+_EXTRADEPEND_openpam_static.c: openpam_static.c
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
 	    ${.ALLSRC}
 
-.if ${OBJFORMAT} == elf
-CLEANFILES+=	setdef0.o openpam_static_modules.o setdef1.o \
-		setdef0.c setdef1.c setdefs.h
+CLEANFILES+=	openpam_static_modules.o
 
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
+.if ${OBJFORMAT} == elf
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 .else
-openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
