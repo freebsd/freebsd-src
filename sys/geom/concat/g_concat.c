@@ -537,7 +537,8 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	gp = g_new_geomf(mp, "concat:taste");
 	gp->start = g_concat_start;
-	gp->access= g_concat_access;
+	gp->access = g_concat_access;
+	gp->orphan = g_concat_orphan;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 
