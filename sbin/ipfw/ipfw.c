@@ -1966,11 +1966,11 @@ badviacombo:
 		rule.fw_loghighest = rule.fw_logamount;
 	}
 done:
+	i = sizeof(rule);
+	if (getsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, &i) == -1)
+		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
 	if (!do_quiet)
 		show_ipfw(&rule, 10, 10);
-	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
-	if (i)
-		err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_ADD");
 }
 
 static void
