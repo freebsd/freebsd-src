@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.42 1995/03/28 07:55:22 bde Exp $
+ *      $Id: aha1542.c,v 1.43 1995/04/12 20:47:32 wollman Exp $
  */
 
 /*
@@ -33,6 +33,7 @@
 #include <sys/user.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
+#include <machine/clock.h>
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -150,6 +151,8 @@ struct aha_mbx {
 #define AHA_MBI_ABORT	0x2	/* aborted ccb */
 #define AHA_MBI_UNKNOWN	0x3	/* Tried to abort invalid CCB */
 #define AHA_MBI_ERROR	0x4	/* Completed with error */
+
+#define AHA_MBI_TGT_NO_CCB	0x10	/* Target received, no CCB ready */
 
 /* FOR OLD VERSIONS OF THE !%$@ this may have to be 16 (yuk) */
 #define	AHA_NSEG	17	/* Number of scatter gather segments <= 16 */
@@ -283,9 +286,7 @@ struct	aha_extbios
 #define	AHA_DMA_PAGES	AHA_NSEG
 
 #define PAGESIZ 	4096
-#define INVALIDATE_CACHE {asm volatile( ".byte	0x0F ;.byte 0x08" ); }
 
-u_char  aha_scratch_buf[256];
 #ifdef	AHADEBUG
 int     aha_debug = 1;
 #endif /*AHADEBUG */
@@ -305,6 +306,7 @@ struct aha_data {
 	int     aha_int;	/* irq level        */
 	int     aha_dma;	/* DMA req channel  */
 	int     aha_scsi_dev;	/* scsi bus address  */
+	int     flags;
 
 	/* We use different op codes for different revs of the board
 	 * if we think residual codes will work.
@@ -629,7 +631,7 @@ ahaattach(dev)
 	aha->sc_link.adapter_targ = aha->aha_scsi_dev;
 	aha->sc_link.adapter = &aha_switch;
 	aha->sc_link.device = &aha_dev;
-	aha->sc_link.flags = SDEV_BOUNCE;
+	aha->sc_link.flags = aha->flags;;
 
 	/*
 	 * ask the adapter what subunits are present
@@ -658,7 +660,6 @@ int
 ahaintr(unit)
 	int unit;
 {
-	struct aha_ccb *ccb;
 	unsigned char stat;
 	register i;
 	struct aha_data *aha = ahadata[unit];
@@ -667,7 +668,7 @@ ahaintr(unit)
 	printf("ahaintr ");
 #endif /*AHADEBUG */
 	/*
-	 * First acknowlege the interrupt, Then if it's not telling about
+	 * First acknowledge the interrupt, Then if it's not telling about
 	 * a completed operation just return. 
 	 */
 	stat = inb(AHA_INTR_PORT);
@@ -678,64 +679,95 @@ ahaintr(unit)
 	printf("mbxin ");
 #endif /*AHADEBUG */
 	/*
-	 * If it IS then process the competed operation
+	 * If it IS then process the completed operation
 	 */
 	for (i = 0; i < AHA_MBX_SIZE; i++) {
-		if (aha->aha_mbx.mbi[i].stat != AHA_MBI_FREE) {
-			ccb = (struct aha_ccb *) PHYSTOKV(
-			    (scsi_3btou(aha->aha_mbx.mbi[i].ccb_addr)));
+		struct aha_mbx_in *mbi = aha->aha_mbx.mbi + i;
 
-			if ((stat = aha->aha_mbx.mbi[i].stat) != AHA_MBI_OK) {
-				switch (stat) {
-				case AHA_MBI_ABORT:
+		if (mbi->stat != AHA_MBI_FREE) {
+			struct aha_ccb *ccb =
+			 (struct aha_ccb *)PHYSTOKV(scsi_3btou(mbi->ccb_addr));
+
+			stat = mbi->stat;
+
+			switch (stat) {
+			case AHA_MBI_OK:
+				break;
+
+			case AHA_MBI_ABORT:
 #ifdef	AHADEBUG
-					if (aha_debug)
-						printf("abort");
+				if (aha_debug)
+					printf("abort");
 #endif /*AHADEBUG */
-					ccb->host_stat = AHA_ABORTED;
-					break;
+				ccb->host_stat = AHA_ABORTED;
+				break;
 
-				case AHA_MBI_UNKNOWN:
-					ccb = (struct aha_ccb *) 0;
+			case	AHA_MBI_TGT_NO_CCB:
+				/* We enabled target mode and received a SEND
+				 * or RECEIVE command from the initiator, but
+				 * we don't have any CCB registered to handle the command.
+				 * At this point it would be nice to wakeup a
+				 * process sleeping on this event via an ioctl,
+				 * returning whether it is a SEND or RECEIVE and the
+				 * required length.
+				 * However, I want to look at the CAM documentation before
+				 * I start extending the API at all.
+				 */
+#ifdef NOISE_WHEN_TGT_NO_CDB
+				printf("Target received, but no CCB ready.\n");
+				printf("Initiator & lun: %02x\n", mbi->ccb_addr[0]);
+				printf("Max data length:     %06x\n",
+				(mbi->ccb_addr[1] << 16) | (mbi->ccb_addr[2] << 8)
+				+ 255);
+#endif
 #ifdef	AHADEBUG
-					if (aha_debug)
-						printf("unknown ccb for abort ");
+				if (aha_debug)
+					printf("target-no-ccb");
 #endif /*AHADEBUG */
-					/* may have missed it */
-					/* no such ccb known for abort */
+				ccb = 0;
+				break;
 
-				case AHA_MBI_ERROR:
-					break;
-
-				default:
-					panic("Impossible mbxi status");
-
-				}
+			case AHA_MBI_UNKNOWN:
+				ccb = 0;
 #ifdef	AHADEBUG
-				 if (aha_debug && ccb) {
-					u_char *cp;
-					cp = (u_char *) (&(ccb->scsi_cmd));
-					printf("op=%x %x %x %x %x %x\n",
-					    cp[0], cp[1], cp[2],
-					    cp[3], cp[4], cp[5]);
-					printf("stat %x for mbi[%d]\n"
-					    ,aha->aha_mbx.mbi[i].stat, i);
-					printf("addr = 0x%x\n", ccb);
-				}
+				if (aha_debug)
+					printf("unknown ccb for abort ");
 #endif /*AHADEBUG */
+				/* may have missed it */
+				/* no such ccb known for abort */
+
+			case AHA_MBI_ERROR:
+				/* XXX ccb is still set up? Driver fails without it? */
+				break;
+
+			default:
+				panic("Impossible mbxi status");
+
 			}
+#ifdef	AHADEBUG
+			 if (aha_debug && ccb && stat != AHA_MBI_OK) {
+				u_char *cp;
+				cp = (u_char *) (&(ccb->scsi_cmd));
+				printf("op=%x %x %x %x %x %x\n",
+				    cp[0], cp[1], cp[2],
+				    cp[3], cp[4], cp[5]);
+				printf("stat %x for mbi[%d]\n"
+				    ,mbi->stat, i);
+				printf("addr = 0x%x\n", ccb);
+			}
+#endif /*AHADEBUG */
 			if (ccb) {
 				untimeout(aha_timeout, (caddr_t)ccb);
 				aha_done(unit, ccb);
 			}
-			aha->aha_mbx.mbi[i].stat = AHA_MBI_FREE;
+			mbi->stat = AHA_MBI_FREE;
 		}
 	}
 	return 1;
 }
 
 /*
- * A ccb (and hence a mbx-out is put onto the 
+ * A ccb (and hence a mbx-out) is put onto the 
  * free list.
  */
 void
@@ -794,6 +826,38 @@ aha_get_ccb(unit, flags)
 	return (rc);
 }
 
+static void
+put_host_stat(int host_stat)
+{
+	int i;
+
+	struct { int host_stat; char *text; } tab[] = {
+		{ AHA_OK, "Cmd ok" },
+		{ AHA_LINK_OK, "Link cmd ok" },
+		{ AHA_LINK_IT, "Link cmd ok + int" },
+		{ AHA_SEL_TIMEOUT, "Selection time out" },
+		{ AHA_OVER_UNDER, "Data over/under run" },
+		{ AHA_BUS_FREE, "Bus dropped at unexpected time" },
+		{ AHA_INV_BUS, "Invalid bus phase/sequence" },
+		{ AHA_BAD_MBO, "Incorrect MBO cmd" },
+		{ AHA_BAD_CCB, "Incorrect ccb opcode" },
+		{ AHA_BAD_LINK, "Not same values of LUN for links" },
+		{ AHA_INV_TARGET, "Invalid target direction" },
+		{ AHA_CCB_DUP, "Duplicate CCB received" },
+		{ AHA_INV_CCB, "Invalid CCB or segment list" },
+		{ AHA_ABORTED, "Software abort" },
+	};
+
+	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
+		if (tab[i].host_stat == host_stat) {
+			printf("%s\n", tab[i].text);
+			return;
+		}
+	}
+
+	printf("Unknown host_stat %02x\n", host_stat);
+}
+
 /*
  * We have a ccb which has been processed by the
  * adaptor, now we look to see how the operation
@@ -842,6 +906,7 @@ aha_done(unit, ccb)
 				{
 					case AHA_TARGET_CCB:
 					xs->resid = xs->datalen - scsi_3btoi(ccb->data_length);
+					xs->flags |= SCSI_RESID_VALID;
 					if (xs->resid <= 0)
 						xs->error = XS_LENGTH;
 					break;
@@ -849,11 +914,9 @@ aha_done(unit, ccb)
 					case AHA_INIT_RESID_CCB:
 					case AHA_INIT_SG_RESID_CCB:
 					xs->resid = scsi_3btoi(ccb->data_length);
+					xs->flags |= SCSI_RESID_VALID;
 					if (xs->resid <= 0)
 						xs->error = XS_LENGTH;
-					printf("aha over under: resid %d error %d.\n",
-					xs->resid, xs->error);
-
 					break;
 
 					default:
@@ -863,8 +926,8 @@ aha_done(unit, ccb)
 
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
-				printf("aha%d:host_stat%x\n",
-				    unit, ccb->host_stat);
+				printf("aha%d: ", unit);
+				put_host_stat(ccb->host_stat);
 			}
 		} else {
 			SC_DEBUG(xs->sc_link, SDEV_DB3, ("target err 0x%x\n",
@@ -889,6 +952,21 @@ aha_done(unit, ccb)
 	xs->flags |= ITSDONE;
 	aha_free_ccb(unit, ccb, xs->flags);
 	scsi_done(xs);
+}
+
+static char *board_rev(int type)
+{
+	switch(type)
+	{
+		case 0x20: return "Buslogic 545?";
+		case 0x31: return "AHA-1540";
+		case 0x41: return "AHA-154x[AB]";
+		case 0x42: return "AHA-1640";
+		case 0x43: return "AHA-1542C";
+		case 0x44: return "AHA-1542CF";
+		case 0x45: return "AHA-1542CF BIOS v2.01";
+		default: return "Unknown board";
+	}
 }
 
 /*
@@ -978,6 +1056,8 @@ aha_init(unit)
 		inquire.revision_1, inquire.revision_2);
 #endif	/* AHADEBUG */
 
+	aha->flags = SDEV_BOUNCE;
+
 	/*
 	 * If we are a 1542C or 1542CF disable the extended bios so that the
 	 * mailbox interface is unlocked.
@@ -986,28 +1066,47 @@ aha_init(unit)
 	 * No need to check the extended bios flags as some of the
 	 * extensions that cause us problems are not flagged in that byte.
 	 */
+	printf("aha%d: %s-V%c.%c",
+	unit, board_rev(inquire.boardid), inquire.revision_1,
+	inquire.revision_2);
+
 	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
 		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
 		&& inquire.revision_1 == 0x31 && inquire.revision_2 == 0x34)) {
-		static char *revs[] =
-		{"154xB-3.2", "1640", "154xC", "154xCF", "154xCF-2.01"};
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
 
-		/* Say exactly what we think this is in case we ever get rev
-		 * dependent problems:
-		 */
-		printf("aha%d is a %s-V%c.%c: enabling mailbox and residuals\n",
-		unit, revs[inquire.boardid - 0x41], inquire.revision_1,
-		inquire.revision_2);
+		printf(", enabling mailbox");
+
 		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
 			0, extbios.mailboxlock);
 
+	}
+
+	/* Which boards support residuals?  Some early 1542A's apparently
+	 * don't.  The 1542B with V0.5 of the software does, so I've
+	 * arbitrarily set that as the earliest rev.
+	 */
+	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
+		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
+		&& (inquire.revision_1 > '0' || inquire.revision_2 >= '5'))) {
+		printf(", enabling residuals");
 		aha->init_opcode = AHA_INIT_RESID_CCB;
 		aha->sg_opcode = AHA_INIT_SG_RESID_CCB;
 	}
+
+	/* Which boards support target operations?  The 1542C completely
+	 * locks up the SCSI bus if you enable them.  I'm only sure
+	 * about the B.
+	 */
+	if (inquire.boardid == 0x41) {
+		printf(", target ops");
+		aha->flags |= SDEV_TARGET_OPS;
+	}
+
+	printf("\n");
 
 	/*
 	 * setup dma channel from jumpers and save int
@@ -1015,7 +1114,10 @@ aha_init(unit)
 	 */
 	printf("aha%d: reading board settings, ", unit);
 #define	PRNT(x) printf(x)
-	DELAY(1000);		/* for Bustek 545 */
+	if (inquire.boardid == 0x20) {
+		DELAY(1000);		/* for Bustek 545 */
+	}
+
 	aha_cmd(unit, 0, sizeof(conf), 0, &conf, AHA_CONF_GET);
 	switch (conf.chan) {
 	case CHAN0:
@@ -1136,6 +1238,91 @@ ahaminphys(bp)
 	}
 }
 
+int aha_escape(xs, ccb)
+	struct scsi_xfer *xs;
+	struct aha_ccb *ccb;
+{
+	int ret = 0;
+	int s;
+
+	if (xs->cmd)
+	{
+		switch(xs->cmd->opcode)
+		{
+			case SCSI_OP_RESET:
+			ccb->opcode	=	AHA_RESET_CCB;
+			ret = 0;
+			break;
+
+			case SCSI_OP_TARGET:
+			s= splbio();
+			aha_cmd(xs->sc_link->adapter_unit, 2, 0, 0, 0, AHA_TARGET_EN, 
+			(int)xs->cmd->bytes[0], (int)1);
+			splx(s);
+			ret = COMPLETE;
+			break;
+
+			default:
+			ret = ESCAPE_NOT_SUPPORTED;
+			break;
+		}
+	}
+	else
+	{
+		ccb->opcode	=	AHA_RESET_CCB;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+#define physdb(ARG) (void)(ARG)
+
+/* physcontig: Scan forward from a KV and return length to the
+ * end of physically contiguous addresses.  This belongs in
+ * i386/.../something_or_other.c
+ * XXX: Find the right thing in the kernel.
+ */
+static int physcontig(int kv, int len)
+{
+	int len_was = len;
+	u_long kvl = (u_long)kv;
+
+	int phys_len;
+	u_long phys, prev_phys;
+
+	prev_phys = KVTOPHYS(kvl);
+
+	/* We go at least to the end of this page:
+	 */
+	phys_len = PAGESIZ - (prev_phys & (PAGESIZ - 1));
+	len -= phys_len;
+	kvl += phys_len;
+	prev_phys &= ~(PAGESIZ - 1);
+
+	while (len > 0)
+	{
+		phys = KVTOPHYS(kvl);
+
+		if (phys != prev_phys + PAGESIZ)
+		{
+			physdb(("phys %08x != prev_phys %08x + PAGESIZ\n",
+			phys, prev_phys));
+
+			break;
+		}
+
+		prev_phys = phys;
+		kvl += PAGESIZ;
+		len -= PAGESIZ;
+	}
+
+	phys_len = (len < 0) ? len_was : (len_was - len);
+
+	physdb(("physcontig(%08x, %d) = %d\n", kv, len_was, phys_len));
+
+	return phys_len;
+}
 /*
  * start a scsi operation given the command and
  * the data address. Also needs the unit, target
@@ -1193,16 +1380,87 @@ aha_scsi_cmd(xs)
 	 * fall on the ground if you ask for anything but
 	 * an exact number of sense bytes (wiping out the
 	 * sense data)
+	 * XXX: This was lost at some point in scsi_ioctl.c.
 	 */
 	ccb->req_sense_length = (xs->req_sense_length)
 		? xs->req_sense_length
 		: sizeof(ccb->scsi_sense);
 
-	if ((xs->datalen) && (!(flags & SCSI_RESET))) {
-		/* can use S/G only if not zero length */
-		scsi_uto3b(KVTOPHYS(ccb->scat_gath), ccb->data_addr);
-		sg = ccb->scat_gath;
-		seg = 0;
+	/* XXX: I propose we move the reset handling into the escape
+	 * handling.
+	 */
+	if (flags & SCSI_RESET) {
+		flags |= SCSI_ESCAPE;
+		xs->cmd->opcode = SCSI_OP_RESET;
+	}
+
+	/* Set up the CCB.  For an escape function, the escape hook may
+	 * set it up for us.
+	 */
+
+	if (flags & SCSI_ESCAPE) {
+		int ret;
+		ret = aha_escape(xs, ccb);
+		if (ret)
+			return ret;
+	}
+	else  if (flags & SCSI_TARGET)
+	{
+		ccb->opcode = AHA_TARGET_CCB;
+
+		/* These must be set up for target mode:
+		 */
+		if (flags & SCSI_DATA_IN)
+			ccb->data_in = 1;
+		if (flags & SCSI_DATA_OUT)
+			ccb->data_out = 1;
+	}
+	else
+	{
+		ccb->opcode	=	(xs->datalen?	 /* can't use S/G if zero length */
+					AHA_INIT_SCAT_GATH_CCB
+					:AHA_INITIATOR_CCB);
+	}
+
+	switch(ccb->opcode)
+	{
+		case AHA_TARGET_CCB:
+		if (xs->data)
+			scsi_uto3b(KVTOPHYS((int)xs->data), ccb->data_addr);
+		else
+			scsi_uto3b(0, ccb->data_addr);
+
+		/* For non scatter-gather I/O (and Target mode doesn't do
+		 * scatter-gather) we need to truncate the transfer
+		 * at the first non consecutive physical address.
+		 */
+		scsi_uto3b(physcontig((int)xs->data, xs->datalen), ccb->data_length);
+		break;
+
+		/* This should be folded in with TARGET_CCB once
+		 * physcontig is debugged.
+		 */
+		case AHA_INITIATOR_CCB:
+		case AHA_INIT_RESID_CCB:
+
+		if (xs->data)
+			scsi_uto3b(KVTOPHYS((int)xs->data), ccb->data_addr);
+		else
+			scsi_uto3b(0, ccb->data_addr);
+
+		scsi_uto3b(xs->datalen, ccb->data_length);
+		break;
+
+		case AHA_RESET_CCB:
+		scsi_uto3b(0, ccb->data_addr);
+		scsi_uto3b(0, ccb->data_length);
+		break;
+
+		case AHA_INIT_SCAT_GATH_CCB:
+		case AHA_INIT_SG_RESID_CCB:
+		scsi_uto3b(KVTOPHYS(ccb->scat_gath), ccb->data_addr );
+		sg		=	ccb->scat_gath ;
+		seg 		=	0;
 #ifdef	TFS_ONLY
 		if (flags & SCSI_DATA_UIO) {
 			iovp = ((struct uio *) xs->data)->uio_iov;
@@ -1226,7 +1484,7 @@ aha_scsi_cmd(xs)
 			 */
 
 			SC_DEBUG(xs->sc_link, SDEV_DB4,
-			    ("%d @0x%x:- ", xs->datalen, xs->data));
+			    ("%ld @%p:- ", xs->datalen, xs->data));
 			datalen = xs->datalen;
 			thiskv = (int) xs->data;
 			thisphys = KVTOPHYS(thiskv);
@@ -1293,15 +1551,20 @@ aha_scsi_cmd(xs)
 			aha_free_ccb(unit, ccb, flags);
 			return (HAD_ERROR);
 		}
-	} else {		/* No data xfer, use non S/G values */
-		scsi_uto3b(0, ccb->data_addr);
-		scsi_uto3b(0, ccb->data_length);
+		break;
+
+		default:
+		printf("aha_scsi_cmd%d: Illegal CCB opcode.\n", unit);
+		xs->error = XS_DRIVER_STUFFUP;
+		aha_free_ccb(unit,ccb,flags);
+		return HAD_ERROR;
 	}
+
 	scsi_uto3b(0, ccb->link_addr);
 	/*
 	 * Put the scsi command in the ccb and start it
 	 */
-	if (!(flags & SCSI_RESET))
+	if (!(flags & SCSI_ESCAPE))
 		bcopy(xs->cmd, &ccb->scsi_cmd, ccb->scsi_cmd_length);
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();	/* stop instant timeouts */
@@ -1468,6 +1731,8 @@ aha_set_bus_speed(unit)
  * If there is no such speed return HAD_ERROR.
  */
 static char aha_test_string[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz!@";
+
+u_char  aha_scratch_buf[256];
 
 int 
 aha_bus_speed_check(unit, speed)
