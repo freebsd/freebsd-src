@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2004
+.Dd February 6, 2005
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -46,7 +46,10 @@
 .Nm callout_init ,
 .Nm callout_stop ,
 .Nm callout_drain ,
-.Nm callout_reset
+.Nm callout_reset ,
+.Nm callout_pending ,
+.Nm callout_active ,
+.Nm callout_deactivate
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
 .In sys/types.h
@@ -73,7 +76,11 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_drain "struct callout *c"
 .Ft void
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Ft int
 .Fn callout_pending "struct callout *c"
+.Ft int
+.Fn callout_active "struct callout *c"
+.Fn callout_deactivate "struct callout *c"
 .Sh DESCRIPTION
 The function
 .Fn timeout
@@ -164,8 +171,9 @@ and
 .Fn untimeout .
 Timeouts are executed from
 .Fn softclock
-at
-.Fn splsoftclock .
+with the
+.Va Giant
+lock held.
 Thus they are protected from re-entrancy.
 .Pp
 The functions
@@ -200,8 +208,13 @@ cancels a callout if it is currently pending.
 If the callout is pending, then
 .Fn callout_stop
 will return a non-zero value.
-If the callout has already been serviced or is currently being serviced,
-then zero will be returned.
+If the callout is not set, has already been serviced or is currently
+being serviced, then zero will be returned.
+If the callout is protected by the
+.Va Giant
+mutex, then
+.Va Giant
+must be held when this function is called.
 .Pp
 The function
 .Fn callout_drain
@@ -211,18 +224,248 @@ except that it will wait for the callout to be completed if it is
 already in progress.
 This function MUST NOT be called while holding any
 locks on which the callout might block, or deadlock will result.
+Note that if the callout subsystem has already begun processing this
+callout, then the callout function may be invoked during the execution of
+.Fn callout_drain .
+However, the callout subsystem does guarantee that the callout will be
+fully stopped before
+.Fn callout_drain
+returns.
 .Pp
 The function
 .Fn callout_reset
-first calls
+first performs the equivalent of
 .Fn callout_stop
 to disestablish the callout, and then establishes a new callout in the
 same manner as
 .Fn timeout .
+If the callout is protected by the
+.Va Giant
+mutex, then
+.Va Giant
+must be held when this function is called.
 .Pp
-The macro
+The macros
+.Fn callout_pending ,
+.Fn callout_active
+and
+.Fn callout_deactivate
+provide access to the current state of the callout.
+Careful use of these macros can avoid many of the race conditions
+that are inherent in asynchronous timer facilities; see
+.Sx "Avoiding Race Conditions"
+below for further details.
+The
 .Fn callout_pending
-can be used to check whether callout is pending.
+macro checks whether a callout is
+.Em pending ;
+a callout is considered
+.Em pending
+when a timeout has been set but the time has not yet arrived.
+Note that once the timeout time arrives and the callout subsystem
+starts to process this callout,
+.Fn callout_pending
+will return
+.Dv FALSE
+even though the callout function may not have finished (or even begun)
+executing.
+The
+.Fn callout_active
+macro checks whether a callout is marked as
+.Em active ,
+and the
+.Fn callout_deactivate
+macro clears the callout's
+.Em active
+flag.
+The callout subsystem marks a callout as
+.Em active
+when a timeout is set and it clears the
+.Em active
+flag in
+.Fn callout_stop
+and
+.Fn callout_drain ,
+but it
+.Em does not
+clear it when a callout expires normally via the execution of the
+callout function.
+.Ss "Avoiding Race Conditions"
+The callout subsystem invokes callout functions from its own timer
+context.
+Without some kind of synchronization it is possible that a callout
+function will be invoked concurrently with an attempt to stop or reset
+the callout by another thread.
+In particular, since callout functions typically acquire a mutex as
+their first action, the callout function may have already been invoked,
+but be blocked waiting for that mutex at the time that another thread
+tries to reset or stop the callout.
+.Pp
+The callout subsystem provides a number of mechanisms to address these
+synchronization concerns:
+.Bl -enum -offset indent
+.It
+If the callout is protected by the
+.Va Giant
+mutex (specified using
+.Fn callout_init
+with
+.Fa mpsafe
+set to
+.Dv FALSE ) ,
+then this mutex is used to avoid the race conditions.
+The
+.Va Giant
+mutex must be acquired by the caller before calling
+.Fn callout_stop
+or
+.Fn callout_reset
+and it is guaranteed that the callout will be correctly stopped
+or reset as expected.
+Note that it is still necessary to use
+.Fn callout_drain
+before destroying the callout or its associated mutex.
+.It
+The return value from
+.Fn callout_stop
+indicates whether or not the callout was removed.
+If it is known that the callout was set and the callout function has
+not yet executed, then a return value of
+.Dv FALSE
+indicates that the callout function is about to be called.
+For example:
+.Bd -literal -offset indent
+if (sc->sc_flags & SCFLG_CALLOUT_RUNNING) {
+	if (callout_stop(&sc->sc_callout)) {
+		sc->sc_flags &= ~SCFLG_CALLOUT_RUNNING;
+		/* successfully stopped */
+	} else {
+		/*
+		 * callout has expired and callout
+		 * function is about to be executed
+		 */
+	}
+}
+.Ed
+.Pp
+Note that there is no equivalent mechanism to determine whether or not
+.Fn callout_reset
+stopped the callout.
+.It
+The
+.Fn callout_pending ,
+.Fn callout_active
+and
+.Fn callout_deactivate
+macros can be used together to work around the race conditions.
+When a callout's timeout is set, the callout subsystem marks the
+callout as both
+.Em active
+and
+.Em pending .
+When the timeout time arrives, the callout subsystem begins processing
+the callout by first clearing the
+.Em pending
+flag.
+It then invokes the callout function without changing the
+.Em active
+flag, and does not clear the
+.Em active
+flag even after the callout function returns.
+The mechanism described here requires the callout function itself to
+clear the
+.Em active
+flag using the
+.Fn callout_deactivate
+macro.
+The
+.Fn callout_stop
+and
+.Fn callout_drain
+functions always clear both the
+.Em active
+and
+.Em pending
+flags before returning.
+.Pp
+The callout function should first check the
+.Em pending
+flag and return without action if
+.Fn callout_pending
+returns
+.Dv TRUE .
+This indicates that the callout was rescheduled using
+.Fn callout_reset
+just before the callout function was invoked.
+If
+.Fn callout_active
+returns
+.Dv FALSE
+then the callout function should also return without action.
+This indicates that the callout has been stopped.
+Finally, the callout function should call
+.Fn callout_deactivate
+to clear the
+.Em active
+flag.
+For example:
+.Bd -literal -offset indent
+mtx_lock(&sc->sc_mtx);
+if (callout_pending(&sc->sc_callout)) {
+	/* callout was reset */
+	mtx_unlock(&sc->sc_mtx);
+	return;
+}
+if (!callout_active(&sc->sc_callout)) {
+	/* callout was stopped */
+	mtx_unlock(&sc->sc_mtx);
+	return;
+}
+callout_deactivate(&sc->sc_callout);
+/* rest of callout function */
+.Ed
+.Pp
+Together with appropriate synchronization, such as the mutex used above,
+this approach permits the
+.Fn callout_stop
+and
+.Fn callout_reset
+functions to be used at any time without races.
+For example:
+.Bd -literal -offset indent
+mtx_lock(&sc->sc_mtx);
+callout_stop(&sc->sc_callout);
+/* The callout is effectively stopped now. */
+.Ed
+.Pp
+If the callout is still pending then these functions operate normally,
+but if processing of the callout has already begun then the tests in
+the callout function cause it to return without further action.
+Synchronization between the callout function and other code ensures that
+stopping or resetting the callout will never be attempted while the
+callout function is past the
+.Fn callout_deactivate
+call.
+.Pp
+The above technique additionally ensures that the
+.Em active
+flag always reflects whether the callout is effectively enabled or
+disabled.
+If
+.Fn callout_active
+returns false, then the callout is effectively disabled, since even if
+the callout subsystem is actually just about to invoke the callout
+function, the callout function will return without action.
+.El
+.Pp
+There is one final race condition that must be considered when a
+callout is being stopped for the last time.
+In this case it may not be safe to let the callout function itself
+detect that the callout was stopped, since it may need to access
+data objects that have already been destroyed or recycled.
+To ensure that the callout is completely finished, a call to
+.Fn callout_drain
+should be used.
 .Sh RETURN VALUES
 The
 .Fn timeout

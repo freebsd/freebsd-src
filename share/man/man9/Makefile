@@ -916,9 +916,12 @@ MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
 MLINKS+=timeout.9 callout.9 \
+	timeout.9 callout_active.9 \
+	timeout.9 callout_deactivate.9 \
 	timeout.9 callout_drain.9 \
 	timeout.9 callout_handle_init.9 \
 	timeout.9 callout_init.9 \
+	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9
