@@ -1079,6 +1079,16 @@ xl_reset(sc)
 		    ((sc->xl_flags & XL_FLAG_WEIRDRESET) ?
 		     XL_RESETOPT_DISADVFD:0));
 
+	/*
+	 * If we're using memory mapped register mode, pause briefly
+	 * after issuing the reset command before trying to access any
+	 * other registers. With my 3c575C cardbus card, failing to do
+	 * this results in the system locking up while trying to poll
+	 * the command busy bit in the status register.
+	 */
+	if (sc->xl_flags & XL_FLAG_USE_MMIO)
+		DELAY(100000);
+
 	for (i = 0; i < XL_TIMEOUT; i++) {
 		DELAY(10);
 		if (!(CSR_READ_2(sc, XL_STATUS) & XL_STAT_CMDBUSY))
