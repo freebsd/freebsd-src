@@ -1563,6 +1563,10 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 retry:
 	VI_LOCK(devvp);
 	sn = devvp->v_rdev->si_snapdata;
+	if (sn == NULL) {
+		VI_UNLOCK(devvp);
+		return (0);
+	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
