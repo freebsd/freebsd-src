@@ -43,7 +43,7 @@
 #ifdef SMP
 #include <machine/apic.h>
 #include <machine/smptests.h>			/* CHEAP_TPR, GRAB_LOPRIO */
-#endif /* SMP */
+#endif
 
 #include "assym.s"
 
@@ -73,11 +73,11 @@ ENTRY(cpu_throw)
  * cpu_switch()
  */
 ENTRY(cpu_switch)
-	
-	/* Switch to new process.  First, save context as needed. */
+
+	/* Switch to new thread.  First, save context as needed. */
 	movl	PCPU(CURTHREAD),%ecx
 
-	/* If no process to save, don't save it (XXX shouldn't happen). */
+	/* If no thread to save, don't save it (XXX shouldn't happen). */
 	testl	%ecx,%ecx
 	jz	sw1
 
@@ -116,10 +116,10 @@ ENTRY(cpu_switch)
 	movl    %dr0,%eax
 	movl    %eax,PCB_DR0(%edx)
 1:
- 
+
 #ifdef SMP
 	/* XXX FIXME: we should be saving the local APIC TPR */
-#endif /* SMP */
+#endif
 
 #ifdef DEV_NPX
 	/* have we used fp, and need a save? */
@@ -130,19 +130,21 @@ ENTRY(cpu_switch)
 	call	npxsave				/* do it in a big C function */
 	popl	%eax
 1:
-#endif	/* DEV_NPX */
+#endif
 
 	/* Save is done.  Now choose a new thread. */
 	/* XXX still trashing space above the old "Top Of Stack". */
 sw1:
 
 #ifdef SMP
-	/* Stop scheduling if smp_active goes to zero and we are not the BSP. */
+	/*
+	 * Stop scheduling if smp_active has become zero (for rebooting) and
+	 * we are not the BSP.
+	 */
 	cmpl	$0,smp_active
 	jne	1f
 	cmpl	$0,PCPU(CPUID)
 	je	1f
-	/* Idle thread can run on any kernel context. */
 	movl	PCPU(IDLETHREAD), %eax
 	jmp	sw1b
 1:
@@ -152,8 +154,7 @@ sw1:
 	 * Choose a new thread to schedule.  choosethread() returns idlethread
 	 * if it cannot find another thread to run.
 	 */
-sw1a:
-	call	choosethread			/* trash ecx, edx, ret eax */
+	call	choosethread			/* Trash ecx, edx; ret eax. */
 
 #ifdef INVARIANTS
 	testl	%eax,%eax			/* no thread? */
@@ -184,7 +185,7 @@ sw1b:
 	incl	tlb_flush_count
 #endif
 	movl	PCB_CR3(%edx),%ebx
-	movl	%ebx,%cr3			/* Load new page tables. */
+	movl	%ebx,%cr3
 4:
 
 	movl	PCPU(CPUID), %esi
@@ -194,7 +195,8 @@ sw1b:
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
-	/* update common_tss.tss_esp0 pointer */
+
+	/* Update common_tss.tss_esp0 pointer. */
 	leal	-16(%edx), %ebx			/* leave space for vm86 */
 	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
 
@@ -211,13 +213,13 @@ sw1b:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
-	/* Note in a vmspace that this cpu is using it. */
+	/* Note in vmspace that this cpu is using it. */
 	movl	TD_PROC(%ecx),%eax		/* XXXKSE proc from thread */
 	movl	P_VMSPACE(%eax), %ebx
 	movl	PCPU(CPUID), %eax
 	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
-	/* restore context */
+	/* Restore context. */
 	movl	PCB_EBX(%edx),%ebx
 	movl	PCB_ESP(%edx),%esp
 	movl	PCB_EBP(%edx),%ebp
@@ -226,36 +228,40 @@ sw1b:
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
 
-#ifdef SMP
-#ifdef GRAB_LOPRIO				/* hold LOPRIO for INTs */
+#if defined(SMP) && defined(GRAP_LOPRIO)
+	/* Hold LOPRIO for interrupts. */
 #ifdef CHEAP_TPR
 	movl	$0, lapic+LA_TPR
 #else
 	andl	$~APIC_TPR_PRIO, lapic+LA_TPR
-#endif /** CHEAP_TPR */
-#endif /** GRAB_LOPRIO */
-#endif /* SMP */
+#endif
+#endif
 	movl	%edx, PCPU(CURPCB)
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
 
 #ifdef SMP
 	/* XXX FIXME: we should be restoring the local APIC TPR */
-#endif /* SMP */
+#endif
 
+	/*
+	 * Determine the LDT to use and load it if is the default one and
+	 * that is not the current one.
+	 */
 	movl	TD_PROC(%ecx),%eax
-	cmpl    $0,P_MD+MD_LDT(%eax)		/* Have an LDT? */
-	jnz	1f				/* Yes, use it. */
-	movl	_default_ldt,%eax		/* Otherwise, use default. */
+	cmpl    $0,P_MD+MD_LDT(%eax)
+	jnz	1f
+	movl	_default_ldt,%eax
 	cmpl	PCPU(CURRENTLDT),%eax
 	je	2f
 	lldt	_default_ldt
 	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
-
-1:	pushl	%edx				/* Preserve pointer to pcb. */
+1:
+	/* Load the LDT when it is not the default one. */
+	pushl	%edx				/* Preserve pointer to pcb. */
 	addl	$P_MD,%eax			/* Pointer to mdproc is arg. */
 	pushl	%eax
-	call	set_user_ldt			/* Check and load the ldt. */
+	call	set_user_ldt
 	addl	$4,%esp
 	popl	%edx
 2:
@@ -265,11 +271,16 @@ sw1b:
 cpu_switch_load_gs:
 	movl	PCB_GS(%edx),%gs
 
-	/* test if debug regisers should be restored */
+	/* Test if debug regisers should be restored. */
 	movb    PCB_FLAGS(%edx),%al
 	andb    $PCB_DBREGS,%al
-	jz      1f                              /* no, skip over */
-	movl    PCB_DR6(%edx),%eax              /* yes, do the restore */
+	jz      1f
+
+	/*
+	 * Restore debug registers.  The special code for dr7 is to
+	 * preserve the current values of its reserved bits.
+	 */
+	movl    PCB_DR6(%edx),%eax
 	movl    %eax,%dr6
 	movl    PCB_DR3(%edx),%eax
 	movl    %eax,%dr3
@@ -279,10 +290,10 @@ cpu_switch_load_gs:
 	movl    %eax,%dr1
 	movl    PCB_DR0(%edx),%eax
 	movl    %eax,%dr0
-	movl	%dr7,%eax                	/* load dr7 so as not to */
-	andl    $0x0000fc00,%eax         	/* disturb reserved bits */
+	movl	%dr7,%eax
+	andl    $0x0000fc00,%eax
 	movl    PCB_DR7(%edx),%ecx
-	andl	$~0x0000fc00,%ecx	/* re-enable the restored watchpoints */
+	andl	$~0x0000fc00,%ecx
 	orl     %ecx,%eax
 	movl    %eax,%dr7
 1:
@@ -307,10 +318,10 @@ sw0_3:	.asciz	"cpu_switch: choosethread returned NULL"
  * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
-	/* fetch PCB */
+	/* Fetch PCB. */
 	movl	4(%esp),%ecx
 
-	/* caller's return address - child won't execute this routine */
+	/* Save caller's return address.  Child won't execute this routine. */
 	movl	(%esp),%eax
 	movl	%eax,PCB_EIP(%ecx)
 
