@@ -269,7 +269,7 @@ input(FILE *fp)
 		    NULL)
 			err(1, (char *)NULL);
 	while (fgets(buf, MAXLINELEN, fp)) {
-		for (p = buf; *p && isspace(*p); ++p);
+		for (p = buf; *p && isspace((unsigned char)*p); ++p);
 		if (!*p)
 			continue;
 		if (!(p = strchr(p, '\n'))) {
