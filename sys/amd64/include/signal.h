@@ -100,7 +100,7 @@ struct osigcontext {
 struct sigcontext {
 	struct __sigset sc_mask;	/* signal mask to restore */
 	int	sc_onstack;		/* sigstack state to restore */
-	int	sc_gs;			/* machine state (struct trapframe): */
+	int	sc_gs;			/* machine state (struct trapframe) */
 	int	sc_fs;
 	int	sc_es;
 	int	sc_ds;
@@ -127,7 +127,7 @@ struct sigcontext {
 	int	sc_fpformat;
 	int	sc_ownedfp;
 	int	sc_spare1[1];
-	int	sc_fpstate[128];
+	int	sc_fpstate[128] __aligned(16);
 	int	sc_spare2[8];
 };
 
