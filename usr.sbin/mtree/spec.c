@@ -59,10 +59,10 @@ static void	 set(char *, NODE *);
 static void	 unset(char *, NODE *);
 
 NODE *
-spec()
+spec(void)
 {
-	register NODE *centry, *last;
-	register char *p;
+	NODE *centry, *last;
+	char *p;
 	NODE ginfo, *root;
 	int c_cur, c_next;
 	char buf[2048];
@@ -170,11 +170,9 @@ noparent:		errx(1, "line %d: no parent node", lineno);
 }
 
 static void
-set(t, ip)
-	char *t;
-	NODE *ip;
+set(char *t, NODE *ip)
 {
-	register int type;
+	int type;
 	char *kw, *val = NULL;
 	struct group *gr;
 	struct passwd *pw;
@@ -312,11 +310,9 @@ set(t, ip)
 }
 
 static void
-unset(t, ip)
-	char *t;
-	register NODE *ip;
+unset(char *t, NODE *ip)
 {
-	register char *p;
+	char *p;
 
 	while ((p = strtok(t, "\n\t ")))
 		ip->flags &= ~parsekey(p, NULL);
