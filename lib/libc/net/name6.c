@@ -342,7 +342,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 }
 
 /* getipnodebyname() internal routine for multiple query(PF_UNSPEC) support. */
-struct hostent *
+static struct hostent *
 _getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
