@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.20 1996/10/06 13:32:27 jkh Exp $
+ * $Id: command.c,v 1.21 1996/10/07 10:01:17 sos Exp $
  *
  */
 #include <sys/types.h>
@@ -166,7 +166,7 @@ char **argv;
   if((shell = getenv("SHELL")) == 0) {
     shell = _PATH_BSHELL;
   }
-
+#ifdef SHELL_ONLY_INTERACTIVELY
 #ifndef HAVE_SHELL_CMD_WITH_ANY_MODE
   if( mode != MODE_INTER) {
      fprintf(stdout,
@@ -180,7 +180,7 @@ char **argv;
       return(1);
   }
 #endif /* HAVE_SHELL_CMD_WITH_ANY_MODE */
-
+#endif /* SHELL_ONLY_INTERACTIVELY */
   if((shpid = fork()) == 0) {
      int dtablesize, i ;
 
