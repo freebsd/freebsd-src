@@ -220,7 +220,7 @@
     &os;/alpha run on a 16 Mbyte system but you will not like
     that. Kernel build times halved when going to 32 Mbytes. Note that
     the SRM steals 2Mbyte from the total system memory (and keeps
-    it). For more serious use &gt;= 64Mbyte is recommended.</para>
+    it). For more serious use 64Mbyte or more is recommended.</para>
 
     <para>While on the subject of memory: pay close attention to the
     type of memory your machine uses. There are very different memory
@@ -237,7 +237,8 @@
 
     <para>Below is an overview of the hardware that &os;/alpha runs
     on.  This list will definitely grow, a look in
-    <filename>/sys/alpha/conf/GENERIC</filename> can be enlightening. Alpha machines are
+    <filename>/sys/alpha/conf/GENERIC</filename> can be enlightening. 
+    Alpha machines are
     often best known by their project code name. When known these are
     listed below in parentheses.</para>
 
@@ -1428,8 +1429,7 @@ Case:
 Webbrick is shipped in a desktop-style case similar to the older 21164
 "Maverick" workstations but which offers much better access to        
 components. If you intend to build a farm you can rackmount them in a
-19-inch
-rack; they are 3U high. Slate is 1U high but has only one PCI slot.
+19-inch rack; they are 3U high. Slate is 1U high but has only one PCI slot.
 
 Memory:
 DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note that 
@@ -1608,9 +1608,6 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
       Qlogic and Symbios/NCR adapters.  This unfortunately does not
       include the embedded Adaptec SCSI chips.</para>
 
-      <para>DS20 can have 2 CPUs installed. &os;/alpha is not
-      currently SMP-capable and will only use the primary CPU.</para>
-
       <para>If you are using banks of DIMMs of different sizes the
       biggest DIMMs should be installed in the DIMM slots marked
       <literal>0</literal> on the mainboard. The DIMM slots should be
@@ -1678,9 +1675,6 @@ cpu		EV5</programlisting>
 
       <para>A maximum of 2Gb memory is supported by &os;.</para>
 
-      <para>DP264 can have 2 CPUs installed. &os;/alpha is not
-      currently SMP-capable and will only use the primary CPU.</para>
-
       <para>The on-board Adaptec is not bootable but works with &os;
       4.0 and later as a datadisk-only SCSI bus.</para>
 
@@ -1731,8 +1725,6 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
 CPU:
 The CPUs spec-ed as 200 MHz are in reality running at 190 MHz. Maximum
 number of CPUs is 4. All CPUs must be of the same type/speed. 
-
-Currently &os; only uses one CPU in a multiprocessor machine. 
 
 If any of the processors are ever marked as failed, they will
 remain marked as failed even after they have been replaced (or reseated) 
@@ -1856,9 +1848,6 @@ Features:
 - 1 parallel port
 - PS/2 style keyboard & mouse port
 
-CPU:
-Rawhide is a multiprocessor machine. Currently &os; only uses one CPU.
-
 Memory:
 Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
 and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
@@ -1920,9 +1909,6 @@ Features:
 - 2 serial ports
 - 1 parallel port
 - PS/2 style keyboard & mouse port 
-
-CPU:
-AS1200 is a multiprocessor-capable machine. Currently &os; only uses one CPU.
 
 Memory:
 AS1200 uses 2 memory daughter cards. On each of these cards are 8 DIMM slots. 
@@ -1991,10 +1977,6 @@ Features:
 Memory:
 &os; supports (and has been tested with) up to 2 Gbytes of memory on 
 TurboLaser.
-
-CPU:
-TurboLaser is very much a multiprocessor machine. Currently &os; only
-uses one CPU.
 
 Expansion:
 Only PCI expansion is supported on &os;. XMI or Futurebus+ (which 
@@ -2204,10 +2186,6 @@ Features:
 - embedded dual Intel 82559 10/100Mbit Ethernet
 - embedded Symbios 53C1000 Ultra160 SCSI controller
 - expansion: 2 64 bit PCI slots (2/3 length)
-
-CPU:
-The CS20 can have 2 CPUs installed. &os;/alpha is not currently SMP-capable 
-and will only use the primary CPU.
 
 Console:
 SRM console code comes standard with the CS20. The SRM lives in 2Mbytes of
