@@ -114,7 +114,7 @@
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_private.h>

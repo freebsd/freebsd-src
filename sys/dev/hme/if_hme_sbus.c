@@ -55,7 +55,7 @@
 
 #include <sys/rman.h>
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>

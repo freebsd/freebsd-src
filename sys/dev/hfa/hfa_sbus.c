@@ -73,7 +73,7 @@
 
 #include <sys/rman.h> 
 
-#include <ofw/openfirm.h>
+#include <dev/ofw/openfirm.h>
 
 #include <sparc64/sbus/sbusreg.h>
 #include <sparc64/sbus/sbusvar.h>
