@@ -1,5 +1,5 @@
 /* infomap.c -- keymaps for Info.
-   $Id: infomap.c,v 1.5 2003/01/24 19:04:54 karl Exp $
+   $Id: infomap.c,v 1.7 2003/05/13 16:27:04 karl Exp $
 
    Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002, 2003 Free Software
    Foundation, Inc.
@@ -132,7 +132,7 @@ remove_function_keyseq (function, keyseq, rootmap)
     function->keys = k->next;
 }
 #endif /* INFOKEY */
-     
+
 /* Return a new keymap which is a copy of MAP. */
 Keymap
 keymap_copy_keymap (map, rootmap, newroot)
@@ -1493,7 +1493,7 @@ fetch_user_maps()
 #endif
 	if (filename == NULL || (f = open(filename, O_RDONLY)) == (-1))
 	{
-		if (filename)
+		if (filename && errno != ENOENT)
 		{
 			info_error(filesys_error_string(filename, errno));
 			free(filename);
@@ -1667,7 +1667,6 @@ section_to_keymaps(map, table, len)
 	unsigned char *p;
 	unsigned char *seq;
 	unsigned int seqlen;
-	KEYMAP_ENTRY ke;
 	enum { getseq, gotseq, getaction } state = getseq;
 
 	stop = len > 0 ? table[0] : 0;
@@ -1780,7 +1779,6 @@ initialize_info_keymaps ()
   int i;
   int suppress_info_default_bindings = 0;
   int suppress_ea_default_bindings = 0;
-  Keymap map;
 
   if (!info_keymap)
     {
