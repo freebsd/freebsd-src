@@ -42,7 +42,7 @@
 protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/telnetd
-.Op Fl BUhlkns
+.Op Fl BUhlkn
 .Op Fl D Ar debugmode
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
@@ -243,6 +243,7 @@ have been idle for some period of time to determine
 if the client is still there, so that idle connections
 from machines that have crashed or can no longer
 be reached may be cleaned up.
+.It Fl S Ar tos
 .It Fl u Ar len
 This option is used to specify the size of the field
 in the
