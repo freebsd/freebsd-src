@@ -2092,8 +2092,9 @@ cpu	EV5</programlisting>
       modules</quote>.</para>
 
       <para>SIMM boards are used in sets of eight 72-pin 36 bit FPM 
-      memory of 70ns or faster. SIMM types supported are 1Mb x36 bit 
-      (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board can house 
+      memory of 70ns or faster. SIMM types supported are 1M x36 bit 
+      (4 Mbyte), 2M x36bit (8 Mbyte) and 4M x36 bit (16 Mbyte). 
+      Each memory board can house 
       4 banks of SIMMs. SIMM sizes can not be mixed on a single memory 
       board. The first memory module must be filled with SIMMs before 
       starting to fill the next memory module. Note that the spacing 
