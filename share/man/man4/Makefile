@@ -132,6 +132,7 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	mouse.4 \
+	mpt.4 \
 	mtio.4 \
 	multicast.4 \
 	my.4 \
