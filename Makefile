@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.66 1995/11/05 18:42:23 jfieber Exp $
+#	$Id: Makefile,v 1.67 1995/11/09 09:58:17 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -8,6 +8,7 @@
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
+#	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
@@ -86,18 +87,33 @@ OBJDIR=
 .else
 OBJDIR=		obj
 .endif
+
+.if defined(NOCLEAN)
+CLEANDIR=
+WORLD_CLEANDIST=obj
+.else
+WORLD_CLEANDIST=cleandist
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean
 .else
 CLEANDIR=	cleandir
 .endif
+.endif
 
-world:	hierarchy mk cleandist includes lib-tools libraries build-tools
+world:	hierarchy mk $(WORLD_CLEANDIST) includes lib-tools libraries build-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
 	@echo
 	${MAKE} depend all install
+	cd ${.CURDIR}/share/man &&		${MAKE} makedb
+
+reinstall:	hierarchy mk includes
+	@echo "--------------------------------------------------------------"
+	@echo " Reinstall ${DESTDIR} The whole thing"
+	@echo "--------------------------------------------------------------"
+	@echo
+	${MAKE} install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
 
 hierarchy:
