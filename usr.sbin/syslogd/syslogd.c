@@ -311,7 +311,7 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "a:dl:f:m:p:rsuv")) != -1)
+	while ((ch = getopt(argc, argv, "a:dl:f:m:p:nsuv")) != -1)
 		switch (ch) {
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
