@@ -580,8 +580,10 @@ coda_call(mntinfo, inSize, outSize, buffer)
 #endif
 				}
 				else {
+#ifdef	CODA_VERBOSE
 					printf("coda_call: tsleep returns %d, cnt %d\n",
 					       error, i);
+#endif
 
 #if notyet
 					tempset = td->td_siglist;
