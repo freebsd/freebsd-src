@@ -6,7 +6,7 @@ NOMAN=
 WARNS=5
 
 DDADD=	${LIBGEOM}
-LDADD=	-lgeom
+LDADD=	-lgeom -lbsdxml -lsbuf
 
 .PATH:	${.CURDIR}/../../sys/geom
 
