@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-static int uid_compare __P((const DBT *, const DBT *));
+static int uid_compare(const DBT *, const DBT *);
 
 static DB	*usracct_db;
 
@@ -120,8 +120,7 @@ usracct_destroy()
 }
 
 int
-usracct_add(ci)
-	const struct cmdinfo *ci;
+usracct_add(const struct cmdinfo *ci)
 {
 	DBT key, data;
 	struct userinfo newui;
@@ -269,8 +268,7 @@ usracct_print()
 }
 
 static int
-uid_compare(k1, k2)
-	const DBT *k1, *k2;
+uid_compare(const DBT *k1, const DBT *k2)
 {
 	u_long d1, d2;
 
