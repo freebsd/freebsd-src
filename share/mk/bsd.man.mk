@@ -1,8 +1,7 @@
-#	$Id: bsd.man.mk,v 1.24 1997/07/25 10:43:55 bde Exp $
+#	$Id: bsd.man.mk,v 1.25 1997/07/25 11:17:12 bde Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
-# their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
-# if it exists.
+# their links.
 #
 #
 # +++ variables +++
