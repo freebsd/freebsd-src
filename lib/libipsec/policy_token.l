@@ -47,7 +47,7 @@
 #include <errno.h>
 
 #include "y.tab.h"
-#define	yylval __libyylval	/* XXX */
+#define	yylval __libipsecyylval	/* XXX */
 %}
 
 %option noyywrap
