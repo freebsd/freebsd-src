@@ -206,10 +206,6 @@ int is_attach(isa_dev)
 
 	if_attach(ifp);
 
-#if NBPFILTER > 0
-        bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
-
 /*
          * Search down the ifa address list looking for the AF_LINK type
 entry
@@ -234,7 +230,12 @@ entry
                 bcopy(is->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
         }
 
-	printf (" ethernet address %s", ether_sprintf(is->arpcom.ac_enaddr)) ;
+	printf ("is%d: address %s\n", unit,
+		ether_sprintf(is->arpcom.ac_enaddr)) ;
+
+#if NBPFILTER > 0
+        bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+#endif
 }
 
 int
@@ -366,7 +367,7 @@ is_init(unit)
 		is_start(ifp);
 	}
 	else 
-		printf("Isolink card failed to initialise\n");
+		printf("is%d: card failed to initialise\n", unit);
 	
 	 (void) splx(s);
 }
@@ -518,29 +519,29 @@ isintr(unit)
 	while((isr=isrdcsr(unit,0))&INTR) {
 		if (isr&ERR) {
 			if (isr&BABL){
-				printf("is%d:BABL\n",unit);
+				printf("is%d: BABL\n",unit);
 				is->arpcom.ac_if.if_oerrors++;
 			}
 			if (isr&CERR) {
-				printf("is%d:CERR\n",unit);
+				printf("is%d: CERR\n",unit);
 				is->arpcom.ac_if.if_collisions++;
 			}
 			if (isr&MISS) {
-				printf("is%d:MISS\n",unit);
+				printf("is%d: MISS\n",unit);
 				is->arpcom.ac_if.if_ierrors++;
 			}
 			if (isr&MERR)
-				printf("is%d:MERR\n",unit);
+				printf("is%d: MERR\n",unit);
 			iswrcsr(unit,0,BABL|CERR|MISS|MERR|INEA);
 		}
 		if (!(isr&RXON)) {
-			printf("!(isr&RXON)\n");
+			printf("is%d: !(isr&RXON)\n", unit);
 			is->arpcom.ac_if.if_ierrors++;
 			is_reset(unit);
 			return(1);
 		}
 		if (!(isr&TXON)) {
-			printf("!(isr&TXON)\n");
+			printf("is%d: !(isr&TXON)\n", unit);
 			is->arpcom.ac_if.if_oerrors++;
 			is_reset(unit);
 			return(1);
@@ -601,7 +602,7 @@ static inline void is_rint(int unit)
 	/* Out of sync with hardware, should never happen */
 	
 	if (cdm->flags & OWN) {
-		printf("is%d error: out of sync\n",unit);
+		printf("is%d: error: out of sync\n",unit);
 		iswrcsr(unit,0,RINT|INEA);
 		return;
 	}
@@ -612,13 +613,13 @@ static inline void is_rint(int unit)
 		iswrcsr(unit,0,RINT|INEA);
 		if (cdm->flags&ERR) {
 			if (cdm->flags&FRAM)
-				printf("is%d:FRAM\n",unit);
+				printf("is%d: FRAM\n",unit);
 			if (cdm->flags&OFLO)
-				printf("is%d:OFLO\n",unit);
+				printf("is%d: OFLO\n",unit);
 			if (cdm->flags&CRC)
-				printf("is%d:CRC\n",unit);
+				printf("is%d: CRC\n",unit);
 			if (cdm->flags&RBUFF)
-				printf("is%d:RBUFF\n",unit);
+				printf("is%d: RBUFF\n",unit);
 		}else 
 		if (cdm->flags&(STP|ENP) != (STP|ENP)) {
 			do {
@@ -628,7 +629,7 @@ static inline void is_rint(int unit)
 				NEXTRDS;
 			}while (!(cdm->flags&(OWN|ERR|STP|ENP)));
 			is->last_rd = rmd;
-			printf("is%d:Chained buffer\n",unit);
+			printf("is%d: Chained buffer\n",unit);
 			if ((cdm->flags & (OWN|ERR|STP|ENP)) != ENP) {
 				is_reset(unit);
 				return;
@@ -692,6 +693,7 @@ isread(struct is_softc *is, unsigned char *buf, int len)
          * information to be at the front, but we still have to drop
          * the type and length which are at the front of any trailer data.
          */
+        is->arpcom.ac_if.if_ipackets++;
         m = isget(buf, len, off, &is->arpcom.ac_if);
         if (m == 0) return;
 #if NBPFILTER > 0
@@ -926,15 +928,21 @@ recv_print(unit,no)
 {
 	register struct is_softc *is=&is_softc[unit];
 	struct mds *rmd;
-	int len,i;
+	int len,i,printed=0;
 	
 	rmd = (is->rd+no);
 	len = rmd->mcnt;
 	printf("is%d: Receive buffer %d, len = %d\n",unit,no,len);
 	printf("is%d: Status %x\n",unit,isrdcsr(unit,0));
-	for (i=0; i<len; i++) 
+	for (i=0; i<len; i++) {
+		if (!printed) {
+			printed=1;
+			printf("is%d: data: ", unit);
+		}
 		printf("%x ",*(is->rbuf+(BUFSIZE*no)+i));
-	printf("\n");
+	}
+	if (printed)
+		printf("\n");
 }
 		
 xmit_print(unit,no)
@@ -942,18 +950,24 @@ xmit_print(unit,no)
 {
 	register struct is_softc *is=&is_softc[unit];
 	struct mds *rmd;
-	int i;
+	int i, printed=0;
 	u_short len;
 	
 	rmd = (is->td+no);
 	len = -(rmd->bcnt);
-	printf("is%d:Transmit buffer %d, len = %d\n",unit,no,len);
-	printf("is%d:Status %x\n",unit,isrdcsr(unit,0));
-	printf("addr %x, flags %x, bcnt %x, mcnt %x\n",
-		rmd->addr,rmd->flags,rmd->bcnt,rmd->mcnt);
-	for (i=0; i<len; i++) 
+	printf("is%d: Transmit buffer %d, len = %d\n",unit,no,len);
+	printf("is%d: Status %x\n",unit,isrdcsr(unit,0));
+	printf("is%d: addr %x, flags %x, bcnt %x, mcnt %x\n",
+		unit,rmd->addr,rmd->flags,rmd->bcnt,rmd->mcnt);
+	for (i=0; i<len; i++)  {
+		if (!printed) {
+			printed = 1;
+			printf("is%d: data: ", unit);
+		}
 		printf("%x ",*(is->tbuf+(BUFSIZE*no)+i));
-	printf("\n");
+	}
+	if (printed)
+		printf("\n");
 }
 		
 #endif
