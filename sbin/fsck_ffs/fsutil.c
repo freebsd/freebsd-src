@@ -249,7 +249,7 @@ flush(fd, bp)
 	if (bp != &sblk)
 		return;
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		bwrite(fswritefd, (char *)sblock.fs_csp[j],
+		bwrite(fswritefd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize);
