@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.25 1999/03/23 03:28:11 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.26 1999/06/23 01:53:24 grog Exp grog $
  */
 
 #define STATIC static
@@ -62,10 +62,10 @@
  */
 
 /* These are indices in vinum_conf of the last-mentioned of each kind of object */
-static int current_drive = -1;				    /* note the last drive we mention, for
+static int current_drive;				    /* note the last drive we mention, for
 							    * some defaults */
-static int current_plex = -1;				    /* and the same for the last plex */
-static int current_volume = -1;				    /* and the last volme */
+static int current_plex;				    /* and the same for the last plex */
+static int current_volume;				    /* and the last volme */
 static struct _ioctl_reply *ioctl_reply;		    /* struct to return via ioctl */
 
 
@@ -200,18 +200,6 @@ my_sd(int plexno, int sdno)
     return -1;						    /* not found */
 }
 
-/*
- * Check that this operation is being done from the config
- * saved on disk.
- * longjmp out if not.  op is the name of the operation.
- */
-void 
-checkdiskconfig(char *op)
-{
-    if ((vinum_conf.flags & VF_READING_CONFIG) == 0)
-	throw_rude_remark(EPERM, "Can't perform '%s' from config file", op);
-}
-
 /* Add plex to the volume if possible */
 int 
 give_plex_to_volume(int volno, int plexno)
@@ -343,6 +331,11 @@ give_sd_to_drive(int sdno)
 	update_sd_state(sdno);				    /* that crashes the subdisk */
 	return;
     }
+    if (drive->flags & VF_HOTSPARE)			    /* the drive is a hot spare, */
+	throw_rude_remark(ENOSPC,
+	    "Can't place %s on hot spare drive %s",
+	    sd->name,
+	    drive->label.name);
     if ((drive->sectors_available == 0)			    /* no space left */
     ||(sd->sectors > drive->sectors_available)) {	    /* or too big, */
 	sd->driveoffset = -1;				    /* don't be confusing */
@@ -577,7 +570,8 @@ get_empty_sd(void)
     bzero(sd, sizeof(struct sd));			    /* initialize */
     sd->flags |= VF_NEWBORN;				    /* newly born subdisk */
     sd->plexno = -1;					    /* no plex */
-    sd->driveno = -1;					    /* and no drive */
+    sd->sectors = -1;					    /* no space */
+    sd->driveno = -1;					    /* no drive */
     sd->plexoffset = -1;				    /* and no offsets */
     sd->driveoffset = -1;
     return sdno;					    /* return the index */
@@ -587,7 +581,8 @@ get_empty_sd(void)
 void 
 free_drive(struct drive *drive)
 {
-    if (drive->state > drive_referenced) {		    /* real drive */
+    if ((drive->state > drive_referenced)		    /* real drive */
+    ||(drive->vp)) {					    /* how can it be open without a state? */
 	LOCKDRIVE(drive);
 	if (drive->vp)					    /* it's open, */
 	    close_locked_drive(drive);			    /* close it */
@@ -978,8 +973,13 @@ config_drive(int update)
 	    break;
 
 	case kw_state:
-	    checkdiskconfig(token[++parameter]);	    /* must be reading from disk */
-	    drive->state = DriveState(token[parameter]);    /* set the state */
+	    parameter++;				    /* skip the keyword */
+	    if (vinum_conf.flags & VF_READING_CONFIG)
+		drive->state = DriveState(token[parameter]); /* set the state */
+	    break;
+
+	case kw_hotspare:				    /* this drive is a hot spare */
+	    drive->flags |= VF_HOTSPARE;
 	    break;
 
 	default:
@@ -1019,7 +1019,6 @@ config_subdisk(int update)
 
     sdno = get_empty_sd();				    /* allocate an SD to initialize */
     sd = &SD[sdno];					    /* and get a pointer */
-    sd->sectors = -1;					    /* to distinguish from 0 */
 
     for (parameter = 1; parameter < tokens; parameter++) {  /* look at the other tokens */
 	switch (get_keyword(token[parameter], &keyword_set)) {
@@ -1119,8 +1118,9 @@ config_subdisk(int update)
 	     * because give_sd_to_plex may change it
 	     */
 	case kw_state:
-	    checkdiskconfig(token[++parameter]);	    /* must be reading from disk */
-	    state = SdState(token[parameter]);		    /* set the state */
+	    parameter++;				    /* skip the keyword */
+	    if (vinum_conf.flags & VF_READING_CONFIG)
+		state = SdState(token[parameter]);	    /* set the state */
 	    break;
 
 	default:
@@ -1297,8 +1297,9 @@ config_plex(int update)
 	    }
 
 	case kw_state:
-	    checkdiskconfig(token[++parameter]);	    /* must be a kernel user */
-	    state = PlexState(token[parameter]);	    /* set the state */
+	    parameter++;				    /* skip the keyword */
+	    if (vinum_conf.flags & VF_READING_CONFIG)
+		state = PlexState(token[parameter]);	    /* set the state */
 	    break;
 
 	default:
@@ -1326,6 +1327,12 @@ config_plex(int update)
 	    throw_rude_remark(EINVAL, "Unnamed plex is not associated with a volume");
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
+    }
+    if (plex->organization == plex_raid5) {		    /* RAID-5 plex, */
+	plex->lock = (struct rangelock *)
+	    Malloc(sizeof(struct rangelock) * INITIAL_LOCKS); /* allocate lock table */
+	bzero(plex->lock, sizeof(struct rangelock) * INITIAL_LOCKS); /* zero it */
+	plex->alloclocks = INITIAL_LOCKS;		    /* and note how many there are */
     }
     /* Note the last plex we configured */
     current_plex = plexno;
@@ -1414,8 +1421,9 @@ config_volume(int update)
 	    break;
 
 	case kw_state:
-	    checkdiskconfig(token[++parameter]);	    /* must be on disk */
-	    vol->state = VolState(token[parameter]);	    /* set the state */
+	    parameter++;				    /* skip the keyword */
+	    if (vinum_conf.flags & VF_READING_CONFIG)
+		vol->state = VolState(token[parameter]);    /* set the state */
 	    break;
 
 	    /*
@@ -1745,8 +1753,8 @@ remove_volume_entry(int volno, int force, int recurse)
 	    plexmsg.type = plex_object;
 	    plexmsg.recurse = 1;
 	    plexmsg.force = force;
-	    for (plexno = 0; plexno < vol->plexes; plexno++) {
-		plexmsg.index = vol->plex[plexno];	    /* plex number */
+	    for (plexno = vol->plexes; plexno > 0; plexno--) {
+		plexmsg.index = vol->plex[0];		    /* plex number */
 		remove(&plexmsg);
 	    }
 	    log(LOG_INFO, "vinum: removing %s\n", vol->name);
@@ -1870,7 +1878,11 @@ update_plex_config(int plexno, int diskconfig)
 	if (plex->organization == plex_raid5)
 	    size = size / plex->subdisks * (plex->subdisks - 1); /* less space for RAID-5 */
 	if (plex->length != size)
-	    log(LOG_INFO, "Correcting length of %s: was %lld, is %lld\n", plex->name, plex->length, size);
+	    log(LOG_INFO,
+		"Correcting length of %s: was %lld, is %lld\n",
+		plex->name,
+		plex->length,
+		size);
 	plex->length = size;
     } else {						    /* no subdisks, */
 	plex->length = 0;				    /* no size */
@@ -1945,6 +1957,10 @@ start_config(int force)
 {
     int error;
 
+    current_drive = -1;					    /* note the last drive we mention, for
+							    * some defaults */
+    current_plex = -1;					    /* and the same for the last plex */
+    current_volume = -1;				    /* and the last volme */
     while ((vinum_conf.flags & VF_CONFIGURING) != 0) {
 	vinum_conf.flags |= VF_WILL_CONFIGURE;
 	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
