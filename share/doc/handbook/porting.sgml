@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.19 1996/05/09 23:04:48 mpp Exp $ -->
+<!-- $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.19 1996/05/09 23:04:48 mpp Exp $
+ # $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -890,9 +890,9 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  variables mentioned above, not explicit pathnames.  For instance,
 	  if your port requires a macro <tt>PAGER</tt> to be the full
 	  pathname of <tt>less</tt>, use the compiler flag:
-	  `<tt>-DPAGER=\"&dollar;{PREFIX}/bin/less\"</tt>' (or
-	  `<tt>-DPAGER=\"&dollar;{LOCALBASE}/bin/less\"</tt>' if this is an
-	  X port), instead of `<tt>-DPAGER=\"/usr/local/bin/less\"</tt>'.
+	  <verb>-DPAGER=\"&dollar;{PREFIX}/bin/less\"</verb> or
+	  <verb>-DPAGER=\"&dollar;{LOCALBASE}/bin/less\"</verb> if this is an
+	  X port, instead of <verb>-DPAGER=\"/usr/local/bin/less\"</verb>.
 	  This way it will have a better chance of working if the system
 	  administrator has moved the whole `/usr/local' tree somewhere
 	  else.
@@ -976,7 +976,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.19 1996/05/09 23:04:48 mpp Exp $
+ # $Id: porting.sgml,v 1.20 1996/05/16 23:18:08 mpp Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #
