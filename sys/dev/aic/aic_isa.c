@@ -95,7 +95,7 @@ aic_isa_attach(struct isa_device *dev)
 	aic->tag = I386_BUS_SPACE_IO;
 	aic->bsh = dev->id_iobase;
 
-	return (aic_attach(aic));
+	return (aic_attach(aic) == 0);
 }
 
 static void
