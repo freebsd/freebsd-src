@@ -88,7 +88,7 @@ recompute:
 	    iq[jz-1] -= i<<(8-q0);
 	    ih = iq[jz-1]>>(7-q0);
 	}
-	else if(q0==0) ih = iq[jz-1]>>8;
+	else if(q0==0) ih = iq[jz-1]>>7;
 	else if(z>=(float)0.5) ih=2;
 
 	if(ih>0) {	/* q > 0.5 */
