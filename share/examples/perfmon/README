@@ -18,7 +18,8 @@ The following options are not implemented on Pentium CPUs:
 	-i	invert sense of count mask comparison
 	-U n	use unit mask `n'
 
-There is one mandatory argument, which must be the number of the counter.
-All numbers can be specified in any format acceptable to strtol(3).
+There is one mandatory argument, which is the event number to be
+monitored, defined in <machine/perfmon.h>.  All numbers can be
+specified in any format acceptable to strtol(3).
 
 $FreeBSD$
