@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.25 1996/01/29 03:18:20 gibbs Exp $
+ *	$Id: aic7870.c,v 1.26 1996/03/10 07:12:48 gibbs Exp $
  */
 
 #include <pci.h>
@@ -435,6 +435,7 @@ load_seeprom(ahc)
 	u_short	checksum = 0;
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf;
+	u_char	host_id;
 	int	have_seeprom, retval;
                  
 	if(bootverbose) 
@@ -468,7 +469,8 @@ load_seeprom(ahc)
 		       "using leftover BIOS values\n", ahc->unit);
 		retval = 0;
 
-		scsi_conf = /*host_id*/0x7 | ENSPCHK; /* Assume a default */
+		host_id = 0x7;
+		scsi_conf = host_id | ENSPCHK; /* Assume a default */
 		/*
 		 * If we happen to be an ULTRA card,
 		 * default to non-ultra mode.
@@ -497,7 +499,9 @@ load_seeprom(ahc)
 		outb(DISC_DSB + iobase, ~(ahc->discenable & 0xff));
 		outb(DISC_DSB + iobase + 1, ~((ahc->discenable >> 8) & 0xff));
 
-		scsi_conf = sc.brtime_id & CFSCSIID;
+		host_id = sc.brtime_id & CFSCSIID;
+
+		scsi_conf = (host_id & 0x7);
 		if(sc.adapter_control & CFSPARITY)
 			scsi_conf |= ENSPCHK;
 
