@@ -269,9 +269,9 @@ _thread_init(void)
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
-		len = sizeof (int);
+		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
-			_usrstack = USRSTACK;
+			_usrstack = (void *)USRSTACK;
 		/*
 		 * Create a red zone below the main stack.  All other stacks are
 		 * constrained to a maximum size by the paramters passed to
