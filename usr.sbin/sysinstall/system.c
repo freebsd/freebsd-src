@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.9 1995/05/10 18:59:51 jkh Exp $
+ * $Id: system.c,v 1.10 1995/05/11 09:01:35 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -31,15 +31,8 @@
 static void
 handle_intr(int sig)
 {
-    dialog_clear();
-    clear();
     if (!msgYesNo("Are you sure you want to abort the installation?"))
 	systemShutdown();
-    else {
-	dialog_clear();
-	clear();
-	refresh();
-    }
 }
 
 /* Welcome the user to the system */
@@ -166,22 +159,28 @@ systemDisplayFile(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
+    WINDOW *w;
 
     fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
 	use_helpfile(NULL);
 	use_helpline(NULL);
+	w = dupwin(newscr);
 	dialog_mesgbox("Sorry!", buf, -1, -1);
-	dialog_clear_norefresh();
+	touchwin(w);
+	wrefresh(w);
+	delwin(w);
 	return 1;
     }
     else {
-	dialog_clear_norefresh();
 	use_helpfile(NULL);
 	use_helpline(NULL);
+	w = dupwin(newscr);
 	dialog_textbox(file, fname, LINES, COLS);
-	dialog_clear_norefresh();
+	touchwin(w);
+	wrefresh(w);
+	delwin(w);
     }
     return 0;
 }

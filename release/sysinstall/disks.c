@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.17 1995/05/11 09:01:28 jkh Exp $
+ * $Id: disks.c,v 1.18 1995/05/16 02:53:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,6 +79,7 @@ print_chunks(Disk *d)
     int row;
     int i;
 
+    clear();
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
@@ -108,7 +109,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
+    mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Exit this screen");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse video."); attrset(A_NORMAL);
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
@@ -124,14 +125,12 @@ diskPartition(Disk *d)
     char *msg = NULL;
     char name[40];
 
-    dialog_clear();
     chunking = TRUE;
     strncpy(name, d->name, 40);
     keypad(stdscr, TRUE);
 
     record_chunks(d);
     while (chunking) {
-	clear();
 	print_chunks(d);
 	print_command_summary();
 	if (msg) {
@@ -139,7 +138,6 @@ diskPartition(Disk *d)
 	    beep();
 	    msg = NULL;
 	}
-	refresh();
 
 	key = toupper(getch());
 	switch (key) {
@@ -188,12 +186,14 @@ diskPartition(Disk *d)
 	    if (chunk_info[current_chunk]->type != unused)
 		msg = "Partition in use, delete it first or move to an unused one.";
 	    else {
-		char *val, tmp[20];
+		char *val, tmp[20], *cp;
 		int size;
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
-		val = msgGetInput(tmp, "Please specify size for new FreeBSD partition");
-		if (val && (size = strtol(val, 0, 0)) > 0) {
+		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
+		if (val && (size = strtol(val, &cp, 0)) > 0) {
+		    if (*cp && toupper(*cp) == 'M')
+			size *= 2048;
 		    Create_Chunk(d, chunk_info[current_chunk]->offset,
 				 size,
 				 freebsd,
@@ -282,7 +282,7 @@ diskPartition(Disk *d)
 static int
 partitionHook(char *str)
 {
-    Device *devs;
+    Device **devs = NULL;
 
     /* Clip garbage off the ends */
     string_prune(str);
@@ -306,6 +306,7 @@ partitionHook(char *str)
 	else if (devs[1])
 	    msgConfirm("Bizarre multiple match for %s!", str);
 	devs[0]->private = diskPartition((Disk *)devs[0]->private);
+	devs[0]->enabled = TRUE;
 	str = cp;
     }
     return devs ? 1 : 0;

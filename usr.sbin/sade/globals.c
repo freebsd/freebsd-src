@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.3 1995/05/08 21:39:36 jkh Exp $
+ * $Id: globals.c,v 1.4 1995/05/16 02:53:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,5 @@ globalsInit(void)
     OnVTY = FALSE;
     DialogActive = FALSE;
     VarHead = NULL;
-    MediaType = DEVICE_TYPE_NONE;
-    MediaDevice = NULL;
 }
 

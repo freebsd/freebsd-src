@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.16 1995/05/11 09:01:32 jkh Exp $
+ * $Id: install.c,v 1.17 1995/05/16 02:53:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,32 +76,31 @@ installCommit(char *str)
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
     }
-    if (mediaVerifyStatus()) {
+    if (mediaVerify()) {
 	msgConfirm("Please correct installation media problems and try again!");
 	return 0;
     }
     if (msgYesNo("Last Chance!  Are you SURE you want continue the\ninstallation?  If you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before doing this.\nWe take no responsibility for lost disk contents!"))
 	return 0;
-    dialog_clear();
+
     mbrContents = NULL;
     if (!msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
 	mbrContents = bteasy17;
     else {
-	dialog_clear();
 	if (!msgYesNo("Would you like to remove an existing boot manager?"))
 	    mbrContents = mbr;
     }
-    for (i = 0; Devices[i]; i++) {
-	if (Devices[i]->type != DEVICE_TYPE_DISK)
-	    continue;
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    for (i = 0; devs[i]; i++) {
+	Disk *d = (Disk *)devs[i]->private;
+
 	if (mbrContents) {
-	    Set_Boot_Mgr((Disk *)Devices[i]->private, mbrContents);
+	    Set_Boot_Mgr(d, mbrContents);
 	    mbrContents = NULL;
 	}
-	Set_Boot_Blocks((Disk *)Devices[i]->private, boot1, boot2);
-	msgNotify("Writing partition information to drive %s",
-		  Devices[i]->name);
-	Write_Disk((Disk *)Devices[i]->private);
+	Set_Boot_Blocks(d, boot1, boot2);
+	msgNotify("Writing partition information to drive %s", d->name);
+	Write_Disk(d);
     }
     make_filesystems();
     cpio_extract();
@@ -116,38 +115,73 @@ make_filesystems(void)
 {
     int i;
     Disk *disk;
-    Chunk *c1;
+    Chunk *c1, *c2;
+    Device **devs;
 
     command_clear();
-    for (i = 0; Devices[i]; i++) {
-	if (Devices[i]->type != DEVICE_TYPE_DISK)
-	    continue;
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 
-	disk = (Disk *)Devices[i]->private;
+    /* First look for the root device and mount it */
+    for (i = 0; devs[i]; i++) {
+	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	c1 = disk->chunks->part;
 	while (c1) {
 	    if (c1->type == freebsd) {
-		Chunk *c2 = c1->part;
-
-		while (c2) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part && c2->subtype != FS_SWAP &&
-			c2->private) {
+			c2->private && c2->flags & CHUNK_IS_ROOT) {
+			char dname[40];
+			PartInfo *p = (PartInfo *)c2->private;
+
+			if (strcmp(p->mountpoint, "/"))
+			    continue;
+			sprintf(dname, "/dev/%sa", disk->name);
+			if (p->newfs) {
+			    msgDebug("newfs %s", dname);
+			    if (vsystem("newfs %s", dname)) {
+				msgConfirm("Unable to make new root filesystem!");
+				return;
+			    }
+			}
+			else
+			    msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
+			if (Mount(dname, NULL)) {
+			    msgConfirm("Unable to mount the root file system!  Giving up.");
+			    return;
+			}
+			else
+			    break;
+		    }
+		}
+	    }
+	}
+    }
+
+    /* Now buzz through the rest of the devices and mount them too */
+    for (i = 0; devs[i]; i++) {
+	disk = (Disk *)devs[i]->private;
+	if (!disk->chunks)
+	    msgFatal("No chunk list found for %s!", disk->name);
+	/* Make the proper device mount points in /mnt/dev */
+	MakeDevDisk(disk, "/mnt/dev");
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
 			PartInfo *tmp = (PartInfo *)c2->private;
+
+			if (!strcmp(tmp->mountpoint, "/"))
+			    continue;
 
 			if (tmp->newfs)
 			    command_shell_add(tmp->mountpoint,
-					      "%s %s", tmp->newfs_cmd,
-					      c2->name);
-			if (strcmp(tmp->mountpoint, "/"))
-			    command_func_add(tmp->mountpoint, Mkdir, NULL);
+					      "%s %s", tmp->newfs_cmd, c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
-		    c2 = c2->next;
 		}
 	    }
-	    c1 = c1->next;
 	}
     }
     command_sort();
