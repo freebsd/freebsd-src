@@ -1,0 +1,41 @@
+These are the GNU text file (actually, file contents) processing
+utilities.  Most of these programs have significant advantages over
+their Unix counterparts, such as greater speed, additional options,
+and fewer arbitrary limits.
+
+The programs that can be built with this package are: cat, cksum, comm,
+csplit, cut, expand, fmt, fold, head, join, md5sum, nl, od, paste, pr,
+ptx, sort, split, sum, tac, tail, tr, tsort, unexpand, uniq, and wc.
+
+See the file NEWS for a list of major changes in the current release.
+
+See the file INSTALL for compilation and installation instructions.
+
+I M P O R T A N T:
+
+  Some Cray C compilers lack support for a 32-bit arithmetic type.
+  Since gettext requires such a type, you should use the --disable-nls
+  option when invoking configure on such systems.
+
+The textutils are intended to be POSIX.2 compliant (with BSD and other
+extensions), like the rest of the GNU system.  They are almost there,
+but a few incompatibilities remain.
+
+Note that the man pages are now automatically generated from templates
+and from the --help usage message.  Patches to the template files (man/*.x)
+are welcome.  However, the authoritative documentation is in texinfo form
+in the doc directory.
+
+These programs all recognize the `--version' option.  When reporting
+bugs, please include in the subject line both the package name/version
+and the name of the program for which you found a problem.
+
+For general documentation on the coding and usage standards
+this distribution follows, see the GNU standards document
+http://www.gnu.org/prep/standards.html, and the documentation
+for automake and autoconf:
+http://www.gnu.org/software/autoconf/autoconf.html,
+http://www.gnu.org/software/automake/automake.html.
+
+Mail suggestions and bug reports for these programs to
+bug-textutils@gnu.org.
