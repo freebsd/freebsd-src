@@ -103,3 +103,6 @@ struct sun_disklabel {			/* total size = 512 bytes */
 #ifdef CTASSERT
 CTASSERT(sizeof (struct sun_disklabel) == 512);
 #endif
+
+int sunlabel_dec(void const *pp, struct sun_disklabel *sl);
+void sunlabel_enc(void *pp, struct sun_disklabel *sl);
