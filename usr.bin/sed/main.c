@@ -35,19 +35,18 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
+static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 
@@ -101,7 +100,7 @@ int rflags = 0;
  * Current file and line number; line numbers restart across compilation
  * units, but span across input files.
  */
-char *fname;			/* File name. */
+const char *fname;		/* File name. */
 u_long linenum;
 int lastline;			/* TRUE on the last line of the last file */
 
