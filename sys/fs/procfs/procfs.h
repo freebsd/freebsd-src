@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.24 1999/04/30 13:04:20 phk Exp $
+ *	$Id: procfs.h,v 1.25 1999/05/04 08:00:10 phk Exp $
  */
 
 /*
@@ -77,6 +77,7 @@ struct pfsnode {
 
 #define PROCFS_NOTELEN	64	/* max length of a note (/proc/$pid/note) */
 #define PROCFS_CTLLEN 	8	/* max length of a ctl msg (/proc/$pid/ctl */
+#define PROCFS_NAMELEN 	8	/* max length of a filename component */
 
 /*
  * Kernel stuff follows
@@ -100,19 +101,6 @@ struct pfsnode {
        ((p2)->p_flag & P_SUGID) == 0) || \
        (suser_xxx(0, (p1), PRISON_ROOT) == 0)))
       
-/*
- * Format of a directory entry in /proc, ...
- * This must map onto struct dirent (see <dirent.h>)
- */
-#define PROCFS_NAMELEN 8
-struct pfsdent {
-	u_int32_t d_fileno;
-	u_int16_t d_reclen;
-	u_int8_t  d_type;
-	u_int8_t  d_namlen;
-	char	d_name[PROCFS_NAMELEN];
-};
-#define UIO_MX sizeof(struct pfsdent)
 #define PROCFS_FILENO(pid, type) \
 	(((type) < Pproc) ? \
 			((type) + 2) : \
