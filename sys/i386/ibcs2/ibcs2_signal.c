@@ -33,6 +33,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
@@ -192,47 +193,25 @@ ibcs2_sigaction(td, uap)
 	register struct thread *td;
 	struct ibcs2_sigaction_args *uap;
 {
-	struct ibcs2_sigaction *nisa, *oisa, tmpisa;
-	struct sigaction *nbsa, *obsa, tmpbsa;
-	struct sigaction_args sa;
-	caddr_t sg;
-	int error;
+	struct ibcs2_sigaction isa;
+	struct sigaction nbsa, obsa;
+	struct sigaction *nbsap;
+ 	int error;
 
-	sg = stackgap_init();
-	nisa = uap->act;
-	oisa = uap->oact;
-
-	if (oisa != NULL)
-		obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-	else
-		obsa = NULL;
-
-	if (nisa != NULL) {
-		nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-		if ((error = copyin(nisa, &tmpisa, sizeof(tmpisa))) != 0)
-			return error;
-		ibcs2_to_bsd_sigaction(&tmpisa, &tmpbsa);
-		if ((error = copyout(&tmpbsa, nbsa, sizeof(tmpbsa))) != 0)
-			return error;
+	if (uap->act != NULL) {
+		if ((error = copyin(uap->act, &isa, sizeof(isa))) != 0)
+			return (error);
+		ibcs2_to_bsd_sigaction(&isa, &nbsa);
+		nbsap = &nbsa;
 	} else
-		nbsa = NULL;
-
-	sa.sig = ibcs2_to_bsd_sig[_SIG_IDX(uap->sig)];
-	sa.act = nbsa;
-	sa.oact = obsa;
-
-	if ((error = sigaction(td, &sa)) != 0)
-		return error;
-
-	if (oisa != NULL) {
-		if ((error = copyin(obsa, &tmpbsa, sizeof(tmpbsa))) != 0)
-			return error;
-		bsd_to_ibcs2_sigaction(&tmpbsa, &tmpisa);
-		if ((error = copyout(&tmpisa, oisa, sizeof(tmpisa))) != 0)
-			return error;
+		nbsap = NULL;
+	error = kern_sigaction(td, ibcs2_to_bsd_sig[_SIG_IDX(uap->sig)], &nbsa,
+	    &obsa, 0);
+	if (error == 0 && uap->oact != NULL) {
+		bsd_to_ibcs2_sigaction(&obsa, &isa);
+		error = copyout(&isa, uap->oact, sizeof(isa));
 	}
-
-	return 0;
+	return (error);
 }
 
 int
@@ -244,7 +223,6 @@ ibcs2_sigsys(td, uap)
 	struct sigaction sa;
 	int signum = ibcs2_to_bsd_sig[_SIG_IDX(IBCS2_SIGNO(uap->sig))];
 	int error;
-	caddr_t sg = stackgap_init();
 
 	if (signum <= 0 || signum >= IBCS2_NSIG) {
 		if (IBCS2_SIGCALL(uap->sig) == IBCS2_SIGNAL_MASK ||
@@ -269,20 +247,16 @@ ibcs2_sigsys(td, uap)
 	case IBCS2_SIGHOLD_MASK:
 		{
 			sigset_t mask;
-			struct sigprocmask_args sa;
 
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, signum);
-			sa.how = SIG_BLOCK;
-			sa.set = &mask;
-			sa.oset = NULL;
-			return sigprocmask(td, &sa);
+			return (kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+				    0));
 		}
 		
 	case IBCS2_SIGNAL_MASK:
 		{
-			struct sigaction_args sa_args;
-			struct sigaction *nbsa, *obsa;
+			struct sigaction osa;
 
 			/* do not automatically block signal */
 			sa.sa_flags = SA_NODEFER;
@@ -294,31 +268,20 @@ ibcs2_sigsys(td, uap)
 				sa.sa_flags |= SA_RESETHAND;
 #endif
 		ibcs2_sigset:
-			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			sa_args.sig = signum;
-			sa_args.act = nbsa;
-			sa_args.oact = obsa;
-
 			sa.sa_handler = uap->fp;
 			sigemptyset(&sa.sa_mask);
 #if 0
 			if (signum != SIGALRM)
 				sa.sa_flags |= SA_RESTART;
 #endif
-			td->td_retval[0] = (int)IBCS2_SIG_ERR; /* init error return */
-
-			/* perform native sigaction() */
-			if ((error = copyout(&sa, nbsa, sizeof(sa))) != 0)
-				return error;
-			if ((error = sigaction(td, &sa_args)) != 0) {
+			error = kern_sigaction(td, signum, &sa, &osa, 0);
+			if (error != 0) {
 				DPRINTF(("signal: sigaction failed: %d\n",
 					 error));
-				return error;
+				td->td_retval[0] = (int)IBCS2_SIG_ERR;
+				return (error);
 			}
-			if ((error = copyin(obsa, &sa, sizeof(sa))) != 0)
-				return error;
-			td->td_retval[0] = (int)sa.sa_handler;
+			td->td_retval[0] = (int)osa.sa_handler;
 
 			/* special sigset() check */
                         if(IBCS2_SIGCALL(uap->sig) == IBCS2_SIGSET_MASK) {
@@ -339,49 +302,33 @@ ibcs2_sigsys(td, uap)
 	case IBCS2_SIGRELSE_MASK:
 		{
 			sigset_t mask;
-			struct sigprocmask_args sa;
 
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, signum);
-			sa.how = SIG_UNBLOCK;
-			sa.set = &mask;
-			sa.oset = NULL;
-			return sigprocmask(td, &sa);
+			return (kern_sigprocmask(td, SIG_UNBLOCK, &mask, NULL,
+				    0));
 		}
 		
 	case IBCS2_SIGIGNORE_MASK:
 		{
-			struct sigaction_args sa_args;
-			struct sigaction *bsa;
-
-			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			sa_args.sig = signum;
-			sa_args.act = bsa;
-			sa_args.oact = NULL;
-
 			sa.sa_handler = SIG_IGN;
 			sigemptyset(&sa.sa_mask);
 			sa.sa_flags = 0;
-			if ((error = copyout(&sa, bsa, sizeof(sa))) != 0)
-				return error;
-			if ((error = sigaction(td, &sa_args)) != 0) {
+			error = kern_sigaction(td, signum, &sa, NULL, 0);
+			if (error != 0)
 				DPRINTF(("sigignore: sigaction failed\n"));
-				return error;
-			}
-			return 0;
+			return (error);
 		}
 		
 	case IBCS2_SIGPAUSE_MASK:
 		{
 			sigset_t mask;
-			struct sigsuspend_args sa;
 
 			PROC_LOCK(p);
 			mask = td->td_sigmask;
 			PROC_UNLOCK(p);
 			SIGDELSET(mask, signum);
-			sa.sigmask = &mask;
-			return sigsuspend(td, &sa);
+			return kern_sigsuspend(td, mask);
 		}
 		
 	default:
@@ -394,56 +341,37 @@ ibcs2_sigprocmask(td, uap)
 	register struct thread *td;
 	struct ibcs2_sigprocmask_args *uap;
 {
-	struct proc *p = td->td_proc;
 	ibcs2_sigset_t iss;
-	sigset_t bss;
-	int error = 0;
-
-	if (uap->oset != NULL) {
-		/* Fix the return value first if needed */
-		PROC_LOCK(p);
-		bsd_to_ibcs2_sigset(&td->td_sigmask, &iss);
-		PROC_UNLOCK(p);
-		if ((error = copyout(&iss, uap->oset, sizeof(iss))) != 0)
-			return error;
-	}
-		
-	if (uap->set == NULL)
-		/* Just examine */
-		return 0;
-
-	if ((error = copyin(uap->set, &iss, sizeof(iss))) != 0)
-		return error;
-
-	ibcs2_to_bsd_sigset(&iss, &bss);
-
-	PROC_LOCK(p);
+	sigset_t oss, nss;
+	sigset_t *nssp;
+	int error, how;
 
 	switch (uap->how) {
 	case IBCS2_SIG_BLOCK:
-		SIGSETOR(td->td_sigmask, bss);
-		SIG_CANTMASK(td->td_sigmask);
+		how = SIG_BLOCK;
 		break;
-
 	case IBCS2_SIG_UNBLOCK:
-		SIGSETNAND(td->td_sigmask, bss);
-		signotify(td);
+		how = SIG_UNBLOCK;
 		break;
-
 	case IBCS2_SIG_SETMASK:
-		td->td_sigmask = bss;
-		SIG_CANTMASK(td->td_sigmask);
-		signotify(td);
+		how = SIG_SETMASK;
 		break;
-
 	default:
-		error = EINVAL;
-		break;
+		return (EINVAL);
 	}
-
-	PROC_UNLOCK(p);
-
-	return error;
+	if (uap->set != NULL) {
+		if ((error = copyin(uap->set, &iss, sizeof(iss))) != 0)
+			return error;
+		ibcs2_to_bsd_sigset(&iss, &nss);
+		nssp = &nss;
+	} else
+		nssp = NULL;
+	error = kern_sigprocmask(td, how, nssp, &oss, 0);
+	if (error == 0 && uap->oset != NULL) {
+		bsd_to_ibcs2_sigset(&oss, &iss);
+		error = copyout(&iss, uap->oset, sizeof(iss));
+	}
+	return (error);
 }
 
 int
@@ -472,15 +400,13 @@ ibcs2_sigsuspend(td, uap)
 {
 	ibcs2_sigset_t sss;
 	sigset_t bss;
-	struct sigsuspend_args sa;
 	int error;
 
 	if ((error = copyin(uap->mask, &sss, sizeof(sss))) != 0)
 		return error;
 
 	ibcs2_to_bsd_sigset(&sss, &bss);
-	sa.sigmask = &bss;
-	return sigsuspend(td, &sa);
+	return kern_sigsuspend(td, bss);
 }
 
 int
@@ -488,15 +414,12 @@ ibcs2_pause(td, uap)
 	register struct thread *td;
 	struct ibcs2_pause_args *uap;
 {
-	struct proc *p = td->td_proc;
 	sigset_t mask;
-	struct sigsuspend_args sa;
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 	mask = td->td_sigmask;
-	PROC_UNLOCK(p);
-	sa.sigmask = &mask;
-	return sigsuspend(td, &sa);
+	PROC_UNLOCK(td->td_proc);
+	return kern_sigsuspend(td, mask);
 }
 
 int

@@ -35,6 +35,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
@@ -303,11 +304,7 @@ linux_rt_sigsuspend(td, uap)
 {
 	int error;
 	l_sigset_t lmask;
-	sigset_t *bmask;
-	struct sigsuspend_args bsd;
-	caddr_t sg;
-
-	sg = stackgap_init();
+	sigset_t bmask;
 
 #ifdef DEBUG
 	if (ldebug(rt_sigsuspend))
@@ -321,10 +318,8 @@ linux_rt_sigsuspend(td, uap)
 	if (error)
 		return (error);
 
-	bmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	linux_to_bsd_sigset(&lmask, bmask);
-	bsd.sigmask = bmask;
-	return (sigsuspend(td, &bsd));
+	linux_to_bsd_sigset(&lmask, &bmask);
+	return (kern_sigsuspend(td, bmask));
 }
 
 int
