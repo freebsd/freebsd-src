@@ -57,8 +57,9 @@
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 
+#if NPCM > 0	/* from "pcm.h" via disgusting #include in snd/sound.h */
 
-#if NPCM > 0	/* from "snd.h" */
+extern struct isa_driver pcmdriver;
 
 #define SNDSTAT_BUF_SIZE        4000
 static char status_buf[SNDSTAT_BUF_SIZE] ;
