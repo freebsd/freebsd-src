@@ -248,7 +248,7 @@ rannotate_proc (argc, argv, xwhere, mwhere, mfile, shorten, local, mname, msg)
 
     err = start_recursion (annotate_fileproc, (FILESDONEPROC) NULL,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			   argc - 1, argv + 1, local, which, 0, LOCK_READ,
+			   argc - 1, argv + 1, local, which, 0, CVS_LOCK_READ,
 			   where, 1);
     return err;
 }

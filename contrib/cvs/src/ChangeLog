@@ -1,3 +1,92 @@
+2003-01-15  Karl Fogel  <kfogel@collab.net>
+
+	* server.c (dirswitch): Don't free dir_name until right before
+	allocating it again.  This removes a potential double-free
+	problem, whereby this function could free dir_name and then
+	immediately return due to invalid directory syntax (without ever
+	reassigning dir_name), then reenter and free dir_name again. 
+
+        Thanks to Stefan Esser <s.esser@e-matters.de> for the fix.
+
+2003-01-08  Larry Jones  <lawrence.jones@eds.com>
+
+	* client.c (update_entries): Only "0" is a special version number;
+	other numbers starting with 0 (like 0.1) are normal version numbers.
+	* commit.c (find_fileproc): Ditto.  Also reorganize the code to
+	simplify the conditions.
+	(Reported by Michele Zamparelli <michele.zamparelli@eso.org>.)
+
+2003-01-02  Larry Jones  <lawrence.jones@eds.com>
+
+	* rcs.c (getdelta): Use RCSDEAD rather than literal "dead".
+
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* admin.c: s/LOCK_(NONE|WRITE|READ)/CVS_$&/g; since the definition of
+	LOCK_WRITE clashes with a definition in objidl.h on Windoze platforms.
+	* annotate.c: Ditto.
+	* client.c: Ditto.
+	* commit.c: Ditto.
+	* cvs.h: Ditto.
+	* diff.c: Ditto.
+	* edit.c: Ditto.
+	* lock.c: Ditto.
+	* log.c: Ditto.
+	* patch.c: Ditto.
+	* recurse.c: Ditto.
+	* remove.c: Ditto.
+	* status.c: Ditto.
+	* tag.c: Ditto.
+	* update.c: Ditto.
+	* watch.c: Ditto.
+	* myndbm.c: Ditto & define O_ACCMODE when it isn't defined, as under
+	Windoze.
+	(Thanks to Stephane Rouleau <s.rouleau@videotron.ca>,
+	 Cristopher Seawood <cls@seawood.org>, and
+	 Frederico Costa <frederico.costa@tiscali.no> for all their hints,
+	 tips, and patches for this problem.)
+
+2002-12-20  Derek Price  <derek@ximbiot.com>
+
+	* client.c (send_a_repository): Suppress a warning under Windoze.
+
+2002-12-19  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Remove reference to options.h.
+	* cvs.h: Ditto.
+	* options.h: Remove this obsolete file.
+	* sanity.sh: Remove comment about external diffs causing tests to fail
+	since CVS hasn't used external diffs in years.
+
+	* Makefile.in: Regenerated.
+
+2002-12-16  Derek Price  <derek@ximbiot.com>
+
+	* admin.c: Disable cvsadmin group checking on the client.
+	(Reported by Dan Peterson <dbpete@aol.com>.)
+
+2002-12-06  Derek Price  <derek@ximbiot.com>
+
+	* buffer.c: Replace calls to malloc with calls to xmalloc and calls to
+	realloc with calls to xrealloc.
+	* parseinfo.c: Ditto.
+	* root.c: Ditto.
+	* server.c: Ditto.
+	* zlib.c: Ditto.
+	* scramble.c: Change some comments to refer to xmalloc rather than
+	malloc.
+	(Reported by Dan Peterson <dbpete@aol.com>.)
+
+2002-12-04  Derek Price  <derek@ximbiot.com>
+
+	* options.h: Remove CVS_ADMIN_GROUP.
+
+2002-12-02  Larry Jones  <lawrence.jones@eds.com>
+
+	* commit.c (commit): Strip leading zeros from numeric revision
+	in addition to trailing dots.
+	(Reported by Peter Meszaros <pme@prolan.hu>.)
+
 2002-11-22  Larry Jones  <lawrence.jones@eds.com>
 
 	* sanity.sh: Note that the tests run for a long time.

@@ -13,6 +13,15 @@
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
 #undef CLOSEDIR_VOID
 
+/* The CVS admin command is restricted to the members of the group
+   CVS_ADMIN_GROUP. If this group does not exist, all users are allowed to run
+   CVS admin. To disable the CVS admin command for all users, create an empty
+   CVS_ADMIN_GROUP by running configure with the --with-cvs-admin-group=
+   option. To disable access control for CVS admin, run configure with the
+   --without-cvs-admin-group option in order to comment out the define below.
+   */
+#undef CVS_ADMIN_GROUP
+
 /* When committing a permanent change, CVS and RCS make a log entry of who
    committed the change. If you are committing the change logged in as "root"
    (not under "su" or other root-priv giving program), CVS/RCS cannot
@@ -351,6 +360,12 @@
 
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
+
+/* By default, CVS stores its modules and other such items in flat text files
+   (MY_NDBM enables this). Turning off MY_NDBM causes CVS to look for a
+   system-supplied ndbm database library and use it instead. That may speed
+   things up, but the default setting generally works fine too. */
+#undef MY_NDBM
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
