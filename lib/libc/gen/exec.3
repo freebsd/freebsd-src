@@ -41,7 +41,8 @@
 .Nm execle ,
 .Nm exect ,
 .Nm execv ,
-.Nm execvp
+.Nm execvp ,
+.Nm execvP
 .Nd execute a file
 .Sh LIBRARY
 .Lb libc
@@ -60,6 +61,8 @@
 .Fn execv "const char *path" "char *const argv[]"
 .Ft int
 .Fn execvp "const char *file" "char *const argv[]"
+.Ft int
+.Fn execvP "const char *file" "const char *search_path" "char *const argv[]"
 .Sh DESCRIPTION
 The
 .Nm exec
@@ -99,8 +102,9 @@ pointer.
 The
 .Fn exect ,
 .Fn execv ,
+.Fn execvp ,
 and
-.Fn execvp
+.Fn execvP
 functions provide an array of pointers to null-terminated strings that
 represent the argument list available to the new program.
 The first argument, by convention, should point to the file name associated
@@ -134,14 +138,19 @@ in the current process.
 Some of these functions have special semantics.
 .Pp
 The functions
-.Fn execlp
+.Fn execlp ,
+.Fn execvp ,
 and
-.Fn execvp
+.Fn execvP
 will duplicate the actions of the shell in searching for an executable file
 if the specified file name does not contain a slash
 .Dq Li /
 character.
-The search path is the path specified in the environment by
+For
+.Fn execlp
+and
+.Fn execvp ,
+search path is the path specified in the environment by
 .Dq Ev PATH
 variable.
 If this variable isn't specified,
@@ -151,6 +160,9 @@ definition in
 .Aq paths.h ,
 which is set to
 .Dq Ev /usr/bin:/bin .
+For
+.Fn execvP ,
+the search path is specified as an argument to the function.
 In addition, certain errors are treated specially.
 .Pp
 If an error is ambiguous (for simplicity, we shall consider all
@@ -206,9 +218,10 @@ The shell.
 The
 .Fn execl ,
 .Fn execle ,
-.Fn execlp
-and
+.Fn execlp ,
 .Fn execvp
+and
+.Fn execvP
 functions
 may fail and set
 .Va errno
@@ -300,3 +313,7 @@ and
 functions
 conform to
 .St -p1003.1-88 .
+The
+.Fn execvP
+function first appeared in
+.Fx 5.2 .
