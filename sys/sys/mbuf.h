@@ -475,7 +475,7 @@ union mcluster {
 		_mm->m_len += _mplen;					\
 	} else								\
 		_mm = m_prepend(_mm, _mplen, __mhow);			\
-	if (_mm->m_flags & M_PKTHDR)					\
+	if (_mm != NULL && _mm->m_flags & M_PKTHDR)			\
 		_mm->m_pkthdr.len += _mplen;				\
 	*_mmp = _mm;							\
 } while (0)
