@@ -29,10 +29,8 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+#include <sys/types.h>
 #include <machine/atomic.h>
-
-#define	atomic_incr_int(p)	atomic_add_int((p), 1)
-#define	atomic_decr_int(p)	atomic_subtract_int((p), 1)
 
 #define CACHE_LINE_SIZE	  32
 
@@ -53,7 +51,7 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	(((InitFunc)(target))())
 
 /*
- * Lazy binding entry point, called via PLT. 
+ * Lazy binding entry point, called via PLT.
  */
 void _rtld_bind_start(void);
 

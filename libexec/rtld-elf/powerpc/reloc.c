@@ -55,12 +55,12 @@ do_copy_relocations(Obj_Entry *dstobj)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 
-	/* 
+	/*
 	 * COPY relocs are invalid outside of the main program
 	 */
-	assert(dstobj->mainprog);   
+	assert(dstobj->mainprog);
 
-	relalim = (const Elf_Rela *) ((caddr_t) dstobj->rela + 
+	relalim = (const Elf_Rela *) ((caddr_t) dstobj->rela +
 	    dstobj->relasize);
 	for (rela = dstobj->rela;  rela < relalim;  rela++) {
 		void *dstaddr;
@@ -81,8 +81,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 		name = dstobj->strtab + dstsym->st_name;
 		hash = elf_hash(name);
 		size = dstsym->st_size;
-		
-		for (srcobj = dstobj->next;  srcobj != NULL;  
+
+		for (srcobj = dstobj->next;  srcobj != NULL;
 		     srcobj = srcobj->next) {
 			if ((srcsym = symlook_obj(name, hash, srcobj, false))
 			    != NULL) {
@@ -96,12 +96,12 @@ do_copy_relocations(Obj_Entry *dstobj)
 				    " relocation in %s", name, dstobj->path);
 			return (-1);
 		}
-		
+
 		srcaddr = (const void *) (srcobj->relocbase+srcsym->st_value);
-		memcpy(dstaddr, srcaddr, size);			
+		memcpy(dstaddr, srcaddr, size);
 		dbg("copy_reloc: src=%p,dst=%p,size=%d\n",srcaddr,dstaddr,size);
 	}
-	
+
 	return (0);
 }
 
@@ -131,7 +131,7 @@ reloc_non_plt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	}
 
 	/*
-	 * Relocate these values 
+	 * Relocate these values
 	 */
 	relalim = (const Elf_Rela *)((caddr_t)rela + relasz);
 	for (; rela < relalim; rela++) {
@@ -142,7 +142,7 @@ reloc_non_plt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 
 
 /*
- * Relocate a non-PLT object with addend. 
+ * Relocate a non-PLT object with addend.
  */
 static int
 reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
@@ -154,7 +154,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 	Elf_Addr         tmp;
 
 	switch (ELF_R_TYPE(rela->r_info)) {
-		
+
 	case R_PPC_NONE:
 		break;
 
@@ -177,7 +177,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 
         case R_PPC_RELATIVE:  /* word32 B + A */
 		tmp = (Elf_Addr)(obj->relocbase + rela->r_addend);
-		
+
 		/* As above, don't issue write unnecessarily */
 		if (*where != tmp) {
 			*where = tmp;
@@ -197,7 +197,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 				    " relocation in shared library",
 				    obj->path);
 			return (-1);
-		}		
+		}
 		break;
 
 	case R_PPC_JMP_SLOT:
@@ -209,10 +209,10 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 	default:
 		_rtld_error("%s: Unsupported relocation type %d"
 			    " in non-PLT relocations\n", obj->path,
-			    ELF_R_TYPE(rela->r_info));		
+			    ELF_R_TYPE(rela->r_info));
 		return (-1);
         }
-	return (0);	
+	return (0);
 }
 
 
@@ -238,7 +238,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 
 	/*
 	 * From the SVR4 PPC ABI:
-	 * "The PowerPC family uses only the Elf32_Rela relocation 
+	 * "The PowerPC family uses only the Elf32_Rela relocation
 	 *  entries with explicit addends."
 	 */
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
@@ -276,7 +276,7 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 
 	distance = (Elf_Addr)pltresolve - (Elf_Addr)(where + 1);
 
-	dbg(" reloc_plt_object: where=%p,pltres=%p,reloff=%x,distance=%x", 
+	dbg(" reloc_plt_object: where=%p,pltres=%p,reloff=%x,distance=%x",
 	    (void *)where, (void *)pltresolve, reloff, distance);
 
 	/* li   r11,reloff  */
@@ -304,7 +304,7 @@ reloc_plt(Obj_Entry *obj)
 
 	if (obj->pltrelasize != 0) {
 
-		relalim = (const Elf_Rela *)((char *)obj->pltrela + 
+		relalim = (const Elf_Rela *)((char *)obj->pltrela +
 		    obj->pltrelasize);
 		for (rela = obj->pltrela;  rela < relalim;  rela++) {
 			assert(ELF_R_TYPE(rela->r_info) == R_PPC_JMP_SLOT);
@@ -352,7 +352,7 @@ reloc_jmpslots(Obj_Entry *obj)
 		    (void *)target, basename(defobj->path));
 #endif
 
-		reloc_jmpslot(where, target, defobj, obj, 
+		reloc_jmpslot(where, target, defobj, obj,
 		    (const Elf_Rel *) rela);
 	}
 
@@ -374,7 +374,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	Elf_Addr offset;
 	const Elf_Rela *rela = (const Elf_Rela *) rel;
 
-	dbg(" reloc_jmpslot: where=%p, target=%p", 
+	dbg(" reloc_jmpslot: where=%p, target=%p",
 	    (void *)wherep, (void *)target);
 
 	/*
@@ -444,12 +444,12 @@ init_pltgot(Obj_Entry *obj)
 	 * 'The first 18 words (72 bytes) of the PLT are reserved for
 	 * use by the dynamic linker.
 	 *   ...
-	 * 'If the executable or shared object requires N procedure 
-	 *  linkage table entries, the link editor shall reserve 3*N 
-	 *  words (12*N bytes) following the 18 reserved words. The 
-	 *  first 2*N of these words are the procedure linkage table 
-	 *  entries themselves. The static linker directs calls to bytes 
-	 *  (72 + (i-1)*8), for i between 1 and N inclusive. The remaining 
+	 * 'If the executable or shared object requires N procedure
+	 *  linkage table entries, the link editor shall reserve 3*N
+	 *  words (12*N bytes) following the 18 reserved words. The
+	 *  first 2*N of these words are the procedure linkage table
+	 *  entries themselves. The static linker directs calls to bytes
+	 *  (72 + (i-1)*8), for i between 1 and N inclusive. The remaining
 	 *  N words (4*N bytes) are reserved for use by the dynamic linker.'
 	 */
 

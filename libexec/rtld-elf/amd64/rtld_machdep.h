@@ -29,6 +29,11 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+#include <sys/types.h>
+#include <machine/atomic.h>
+
+#define	CACHE_LINE_SIZE		32
+
 struct Struct_Obj_Entry;
 
 /* Return the address of the .dynamic section in the dynamic linker. */
@@ -52,26 +57,5 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 
 #define call_initfini_pointer(obj, target) \
 	(((InitFunc)(target))())
-
-static inline void
-atomic_decr_int(volatile int *p)
-{
-    __asm __volatile ("lock; decl %0" : "+m"(*p) : : "cc");
-}
-
-static inline void
-atomic_incr_int(volatile int *p)
-{
-    __asm __volatile ("lock; incl %0" : "+m"(*p) : : "cc");
-}
-
-static inline void
-atomic_add_int(volatile int *p, int val)
-{
-    __asm __volatile ("lock; addl %1, %0"
-	: "+m"(*p)
-	: "ri"(val)
-	: "cc");
-}
 
 #endif

@@ -29,6 +29,11 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+#include <sys/types.h>
+#include <machine/atomic.h>
+
+#define	CACHE_LINE_SIZE		128
+
 /*
  * Macros for cracking ia64 function pointers.
  */
@@ -49,11 +54,5 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr, const struct Struct_Obj_Entry *,
 		       const struct Struct_Obj_Entry *, const Elf_Rel *);
 void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
 void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
-
-/* Atomic operations. */
-int cmp0_and_store_int(volatile int *, int);
-void atomic_add_int(volatile int *, int);
-void atomic_incr_int(volatile int *);
-void atomic_decr_int(volatile int *);
 
 #endif
