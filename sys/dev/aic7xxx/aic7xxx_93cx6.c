@@ -67,17 +67,9 @@
  *
  */
 
-#ifdef	__linux__
-#include "aic7xxx_linux.h"
-#include "aic7xxx_inline.h"
-#include "aic7xxx_93cx6.h"
-#endif
-
-#ifdef __FreeBSD__
 #include <dev/aic7xxx/aic7xxx_freebsd.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
-#endif
 
 /*
  * Right now, we only have to read the SEEPROM.  But we make it easier to

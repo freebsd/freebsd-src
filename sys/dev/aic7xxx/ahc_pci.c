@@ -59,6 +59,8 @@ static devclass_t ahc_devclass;
 
 DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
 DRIVER_MODULE(ahc, cardbus, ahc_pci_driver, ahc_devclass, 0, 0);
+MODULE_DEPEND(ahc_pci, ahc, 1, 1, 1);
+MODULE_VERSION(ahc_pci, 1);
 
 static int
 ahc_pci_probe(device_t dev)
