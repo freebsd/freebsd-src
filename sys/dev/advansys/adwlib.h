@@ -342,11 +342,18 @@ typedef enum {
 	QHSTA_M_SXFR_DESELECTED	    = 0x22, /* Deselected */
 	QHSTA_M_SXFR_XFR_PH_ERR	    = 0x24, /* Transfer Phase Error */
 	QHSTA_M_SXFR_UNKNOWN_ERROR  = 0x25, /* SXFR_STATUS Unknown Error */
+	QHSTA_M_SCSI_BUS_RESET	    = 0x30, /* Request aborted from SBR */
+	QHSTA_M_SCSI_BUS_RESET_UNSOL= 0x31, /* Request aborted from unsol. SBR*/
+	QHSTA_M_BUS_DEVICE_RESET    = 0x32, /* Request aborted from BDR */
+	QHSTA_M_DIRECTION_ERR	    = 0x35, /* Data Phase mismatch */
+	QHSTA_M_DIRECTION_ERR_HUNG  = 0x36, /* Data Phase mismatch - bus hang */
 	QHSTA_M_WTM_TIMEOUT	    = 0x41,
 	QHSTA_M_BAD_CMPL_STATUS_IN  = 0x42,
 	QHSTA_M_NO_AUTO_REQ_SENSE   = 0x43,
 	QHSTA_M_AUTO_REQ_SENSE_FAIL = 0x44,
-	QHSTA_M_INVALID_DEVICE	    = 0x45 /* Bad target ID */
+	QHSTA_M_INVALID_DEVICE	    = 0x45, /* Bad target ID */
+	QHSTA_M_FROZEN_TIDQ	    = 0x46, /* TID Queue frozen. */
+	QHSTA_M_SGBACKUP_ERROR	    = 0x47  /* Scatter-Gather backup error */
 } host_status_t;
 
 typedef enum {
@@ -380,6 +387,7 @@ struct adw_scsi_req_q {
 #define		ADW_QSC_NO_SYNC		0x04
 #define		ADW_QSC_NO_WIDE		0x08
 #define		ADW_QSC_REDO_DTR	0x10 /* Renegotiate WDTR/SDTR */
+#define		ADW_QSC_SIMPLE_Q_TAG	0x00
 #define		ADW_QSC_HEAD_OF_Q_TAG	0x40
 #define		ADW_QSC_ORDERED_Q_TAG	0x80
 	u_int8_t  done_status;	  /* Completion status. */
@@ -405,7 +413,8 @@ struct adw_scsi_req_q {
 typedef enum {
 	ACB_FREE		= 0x00,
 	ACB_ACTIVE		= 0x01,
-	ACB_RELEASE_SIMQ	= 0x02
+	ACB_RELEASE_SIMQ	= 0x02,
+	ACB_RECOVERY_ACB	= 0x04
 } acb_state;
 
 struct acb {
@@ -542,6 +551,8 @@ struct adw_eeprom
 #define	ADW_EEP_DVC_CTL_BEGIN	(offsetof(struct adw_eeprom, oem_name)/2)
 #define	ADW_EEP_MAX_WORD_ADDR	(sizeof(struct adw_eeprom)/2)
 
+#define ADW_BUS_RESET_HOLD_DELAY_US 100
+
 typedef enum {
 	ADW_CHIP_NONE,
 	ADW_CHIP_ASC3550,	/* Ultra-Wide IC */
@@ -636,9 +647,6 @@ struct adw_softc
 	char*			  name;
 	cam_status		  last_reset;	/* Last reset type */
 	u_int16_t		  bios_ctrl;
-	adw_idle_cmd_t		  idle_cmd;
-	u_int			  idle_cmd_param;
-	volatile int		  idle_command_cmp;
 	u_int16_t		  user_wdtr;
 	u_int16_t		  user_sdtr[4];	/* A nibble per-device */
 	u_int16_t		  user_tagenb;
@@ -806,6 +814,7 @@ carrierbtov(struct adw_softc *adw, u_int32_t baddr)
 /* Intialization */
 int		adw_find_signature(struct adw_softc *adw);
 void		adw_reset_chip(struct adw_softc *adw);
+int		adw_reset_bus(struct adw_softc *adw);
 u_int16_t	adw_eeprom_read(struct adw_softc *adw, struct adw_eeprom *buf);
 void		adw_eeprom_write(struct adw_softc *adw, struct adw_eeprom *buf);
 int		adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1);
@@ -819,9 +828,8 @@ u_int		adw_find_period(struct adw_softc *adw, u_int mc_sdtr);
 u_int		adw_hshk_cfg_period_factor(u_int tinfo);
 
 /* Idle Commands */
-void			adw_idle_cmd_send(struct adw_softc *adw, u_int cmd,
+adw_idle_cmd_status_t	adw_idle_cmd_send(struct adw_softc *adw, u_int cmd,
 					  u_int parameter);
-adw_idle_cmd_status_t	adw_idle_cmd_wait(struct adw_softc *adw);
 
 /* SCSI Transaction Processing */
 static __inline void	adw_send_acb(struct adw_softc *adw, struct acb *acb,

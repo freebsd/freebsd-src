@@ -4,7 +4,9 @@
  *
  *	ABP[3]940UW - Bus-Master PCI Ultra-Wide (253 CDB)
  *	ABP950UW    - Dual Channel Bus-Master PCI Ultra-Wide (253 CDB/Channel)
+ *	ABP970UW    - Bus-Master PCI Ultra-Wide (253 CDB)
  *	ABP3940U2W  - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
+ *	ABP3950U2W  - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
  *
  * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
