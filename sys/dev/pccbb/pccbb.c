@@ -1378,7 +1378,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int err;
 
-	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
+	if (!CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
 		return (ENODEV);
 
 	err = cbb_do_power(brdev);
