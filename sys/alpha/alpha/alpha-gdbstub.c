@@ -107,7 +107,7 @@
 /* #include "sio.h" */
 #include "opt_ddb.h"
 
-#define NSIO 1
+#include "sio.h"
 
 #if NSIO == 0
 void
@@ -160,14 +160,20 @@ strcpy (char *dst, const char *src)
 static int
 putDebugChar (int c)		/* write a single character      */
 {
+#if NSIO > 0
   siogdbputc (c);
+#endif
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
+#if NSIO > 0
   return siogdbgetc ();
+#else
+  return 0;
+#endif
 }
 
 static const char hexchars[]="0123456789abcdef";
