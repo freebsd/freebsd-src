@@ -45,9 +45,7 @@
 .Nm Badsect
 makes a file to contain a bad sector.  Normally, bad sectors
 are made inaccessible by the standard formatter, which provides
-a forwarding table for bad sectors to the driver; see
-.Xr bad144 8
-for details.
+a forwarding table for bad sectors to the driver.
 If a driver supports the bad blocking standard it is much preferable to
 use that method to isolate bad blocks, since the bad block forwarding
 makes the pack appear perfect, and such packs can then be copied with
@@ -112,7 +110,6 @@ A positive response will cause
 .Xr fsck 8
 to convert the inode to a regular file containing the bad block.
 .Sh SEE ALSO
-.Xr bad144 8 ,
 .Xr fsck 8
 .Sh DIAGNOSTICS
 .Nm Badsect
