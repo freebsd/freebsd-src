@@ -46,10 +46,10 @@
 #include <i386/isa/isa_device.h>
 
 struct isa_compat_resources {
-    struct resource *ports;
-    struct resource *memory;
-    struct resource *drq;
-    struct resource *irq;
+	struct resource *ports;
+	struct resource *memory;
+	struct resource *drq;
+	struct resource *irq;
 };
 
 static void
