@@ -124,14 +124,14 @@ atm_initialize()
 	atmintrq_present = 1;
 
 	atm_attributes_zone = uma_zcreate("atm attributes",
-	    sizeof(Atm_attributes), (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL,
+	    sizeof(Atm_attributes), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	if (atm_attributes_zone == NULL)
 		panic("atm_initialize: unable to create attributes zone");
 	uma_zone_set_max(atm_attributes_zone, 100);
 
 	atm_stackq_zone = uma_zcreate("atm stackq", sizeof(struct stackq_entry),
-	    (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (atm_stackq_zone == NULL)
 		panic("atm_initialize: unable to create stackq zone");
 	uma_zone_set_max(atm_stackq_zone, 10);
@@ -491,16 +491,6 @@ atm_release_pool(sip)
 }
 
 /*
- * Zero fill constructor for our uma_zone's.
- */
-void
-atm_uma_ctor(void *mem, int size)
-{
-
-	bzero(mem, size);
-}
-
-/*
  * Handle timer tick expiration
  * 
  * Decrement tick count in first block on timer queue.  If there
@@ -747,7 +737,7 @@ atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	/*
 	 * Get a new queue entry for this call
 	 */
-	sqp = uma_zalloc(atm_stackq_zone, 0);
+	sqp = uma_zalloc(atm_stackq_zone, M_ZERO);
 	if (sqp == NULL) {
 		(void) splx(s);
 		return (ENOMEM);

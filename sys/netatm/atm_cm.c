@@ -709,7 +709,7 @@ atm_cm_listen(epp, token, ap, copp)
 	/*
 	 * Get an attribute block and save listening attributes
 	 */
-	cop->co_lattr = uma_zalloc(atm_attributes_zone, 0);
+	cop->co_lattr = uma_zalloc(atm_attributes_zone, M_ZERO);
 	if (cop->co_lattr == NULL) {
 		err = ENOMEM;
 		goto done;
