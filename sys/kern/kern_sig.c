@@ -200,7 +200,7 @@ do_sigaction(p, sig, act, oact, old)
 {
 	register struct sigacts *ps = p->p_sigacts;
 
-	if (sig <= 0 || sig >= _SIG_MAXSIG)
+	if (sig <= 0 || sig > _SIG_MAXSIG)
 		return (EINVAL);
 
 	if (oact) {
@@ -869,7 +869,7 @@ kill(cp, uap)
 {
 	register struct proc *p;
 
-	if ((u_int)uap->signum >= _SIG_MAXSIG)
+	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	if (uap->pid > 0) {
 		/* kill single process */
@@ -906,7 +906,7 @@ okillpg(p, uap)
 	register struct okillpg_args *uap;
 {
 
-	if ((u_int)uap->signum >= _SIG_MAXSIG)
+	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	return (killpg1(p, uap->signum, uap->pgid, 0));
 }
@@ -1006,7 +1006,7 @@ psignal(p, sig)
 	register int s, prop;
 	register sig_t action;
 
-	if (sig >= _SIG_MAXSIG || sig <= 0) {
+	if (sig > _SIG_MAXSIG || sig <= 0) {
 		printf("psignal: signal %d\n", sig);
 		panic("psignal signal number");
 	}
