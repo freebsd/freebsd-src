@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -77,6 +79,8 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #include <unistd.h>
 
 #include "collate.h"
+
+#define MAX_GLOBENTRIES	10000		/* limit number of entries */
 
 #define	DOLLAR		'$'
 #define	DOT		'.'
@@ -657,6 +661,9 @@ globextend(path, pglob)
 	u_int newsize;
 	char *copy;
 	const Char *p;
+
+	if (pglob->gl_pathc > MAX_GLOBENTRIES)
+		return (GLOB_ABEND);
 
 	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
 	pathv = pglob->gl_pathv ?
