@@ -94,7 +94,6 @@ ia64_ap_startup(void)
 	ia64_set_k4((intptr_t)pcpup);
 
 	map_pal_code();
-	map_port_space();
 	map_gateway_page();
 
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
