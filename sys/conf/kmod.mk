@@ -261,7 +261,7 @@ KERN=	${.CURDIR}/../../kern
 KERN=	${.CURDIR}/../../sys/kern
 .endif
 
-vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
+vnode_if.c vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 regress:
