@@ -38,7 +38,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn vget "struct vnode *vp" "int lockflag" "struct proc *p"
+.Fn vget "struct vnode *vp" "int lockflag" "struct thread *td"
 .Sh DESCRIPTION
 Get a vnode from the free list and increment its reference count.
 .Bl -tag -width lockflag

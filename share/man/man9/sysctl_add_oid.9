@@ -62,14 +62,14 @@
 .Fc
 .Ft struct sysctl_oid_list *
 .Fo SYSCTL_STATIC_CHILDREN
-.Fa OID_NAME
+.Fa "struct sysctl_oid_list OID_NAME"
 .Fc
 .Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_OID
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int kind"
 .Fa "void *arg1"
 .Fa "int arg2"
@@ -82,7 +82,7 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
 .Fa "const char *descr"
@@ -92,10 +92,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "char *arg"
-.Fa 0
+.Fa "int len"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -103,10 +103,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "int *arg"
-.Fa 0
+.Fa "int len"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -114,10 +114,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "unsigned int *arg"
-.Fa 0
+.Fa "int len"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -125,10 +125,9 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "long *arg"
-.Fa 0
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -136,10 +135,9 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "unsigned long *arg"
-.Fa 0
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -147,10 +145,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
 .Fa "void *arg"
-.Fa "size_t *len"
+.Fa "int len"
 .Fa "const char *format"
 .Fa "const char *descr"
 .Fc
@@ -159,10 +157,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
-.Fa "struct TYPE *arg"
-.Fa TYPE
+.Fa "void *arg"
+.Fa STRUCT_NAME
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -170,10 +168,10 @@
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
 .Fa "int number"
-.Fa NAME
+.Fa "const char *name"
 .Fa "int access"
-.Fa 0
-.Fa 0
+.Fa "void *arg1"
+.Fa "int arg2"
 .Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
 .Fa "const char *format"
 .Fa "const char *descr"

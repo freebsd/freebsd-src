@@ -35,13 +35,14 @@
 .Nm resource_int_value , resource_long_value , resource_string_value
 .Nd get a value from the hints mechanism
 .Sh SYNOPSIS
+.In sys/param.h
 .In sys/bus.h
 .Ft int
 .Fn resource_int_value "const char *name" "int unit" "const char *resname" "int *result"
 .Ft int
 .Fn resource_long_value "const char *name" "int unit" "const char *resname" "long *result"
 .Ft int
-.Fn resource_string_value "const char *name" "int unit" "const char *resname" "char **result"
+.Fn resource_string_value "const char *name" "int unit" "const char *resname" "const char **result"
 .Sh DESCRIPTION
 These functions fetch a value from the
 .Dq hints

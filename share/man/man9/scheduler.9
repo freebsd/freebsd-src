@@ -44,11 +44,11 @@
 .Ft int
 .Fn curpriority_cmp "struct proc *p"
 .Ft void
-.Fn maybe_resched "struct proc *chk"
+.Fn maybe_resched "struct ksegrp *kg"
 .Ft void
 .Fn propagate_priority "struct proc *p"
 .Ft void
-.Fn resetpriority "struct proc *p"
+.Fn resetpriority "struct ksegrp *kg"
 .Ft void
 .Fn roundrobin "void *arg"
 .Ft int
@@ -56,13 +56,13 @@
 .Ft void
 .Fn sched_setup "void *dummy"
 .Ft void
-.Fn schedclock "struct proc *p"
+.Fn schedclock "struct thread *td"
 .Ft void
 .Fn schedcpu "void *arg"
 .Ft void
-.Fn setrunnable "struct proc *p"
+.Fn setrunnable "struct thread *td"
 .Ft void
-.Fn updatepri "struct proc *p"
+.Fn updatepri "struct thread *td"
 .Sh DESCRIPTION
 Each process has three different priorities stored in
 .Vt "struct proc" :

@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_MOUNT "struct mount *mp" "char *path" "caddr_t data" "struct nameidata *ndp" "struct proc *p"
+.Fn VFS_MOUNT "struct mount *mp" "char *path" "caddr_t data" "struct nameidata *ndp" "struct thread *td"
 .Sh DESCRIPTION
 Mount a filesystem into the system's namespace.
 .Pp
@@ -56,8 +56,8 @@ Filesystem specific data.  This should be read into the kernel using
 Contains the result of a
 .Xr namei 9
 call on the pathname of the mountpoint.
-.It Ar p
-Process which is mounting the filesystem.
+.It Ar td
+Thread which is mounting the filesystem.
 .El
 .Pp
 This is called both to mount new filesystems and to change the

@@ -44,6 +44,8 @@
 .Nm cv_wmesg
 .Nd kernel condition variable
 .Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
 .In sys/condvar.h
 .Ft void
 .Fn cv_init "struct cv *cvp" "const char *desc"
@@ -62,7 +64,7 @@
 .Ft void
 .Fn cv_broadcast "struct cv *cvp"
 .Ft void
-.Fn cv_waitq_remove "struct proc *p"
+.Fn cv_waitq_remove "struct thread *td"
 .Ft int
 .Fn cv_waitq_empty "struct cv *cvp"
 .Ft const char *

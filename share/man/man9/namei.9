@@ -40,12 +40,13 @@
 .Nm NDINIT
 .Nd convert pathname to a pointer to a locked vnode
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
+.In sys/proc.h
 .In sys/namei.h
 .Ft int
 .Fn namei "struct nameidata *ndp"
 .Ft void
-.Fn NDINIT "struct nameidata *ndp" "u_long operation" "u_long operflags" "enum uio_seg segflag" "const char *path" "struct proc *proc"
+.Fn NDINIT "struct nameidata *ndp" "u_long operation" "u_long operflags" "enum uio_seg segflag" "const char *path" "struct thread *td"
 .Ft void
 .Fn NDFREE "struct nameidata *ndp" "u_int operflags"
 .Sh DESCRIPTION
@@ -89,8 +90,8 @@ userspace (UIO_USERSPACE) or in the kernel address space (UIO_SYSSPACE).
 .It Ar path
 Pointer to pathname buffer (the file or directory name that will be
 looked up)
-.It Ar proc
-Which process context to use for the
+.It Ar td
+Which thread context to use for the
 .Fn namei
 locks.
 .El
