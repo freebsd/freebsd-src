@@ -96,7 +96,7 @@
  * _NEXT		+	+	+	+	+
  * _PREV		-	-	-	+	+
  * _LAST		-	-	+	+	+
- * _FOREACH		+	+	-	+	+
+ * _FOREACH		+	+	+	+	+
  * _INSERT_HEAD		+	+	+	+	+
  * _INSERT_BEFORE	-	+	-	+	+
  * _INSERT_AFTER	+	+	+	+	+
@@ -191,6 +191,9 @@ struct {								\
 
 #define STAILQ_FIRST(head)	((head)->stqh_first)
 #define STAILQ_LAST(head)	(*(head)->stqh_last)
+
+#define STAILQ_FOREACH(var, head, field)				\
+	for((var) = (head)->stqh_first; (var); (var) = (var)->field.stqe_next)
 
 #define STAILQ_INSERT_HEAD(head, elm, field) do {			\
 	if (((elm)->field.stqe_next = (head)->stqh_first) == NULL)	\
