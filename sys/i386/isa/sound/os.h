@@ -27,12 +27,8 @@
 #include <sys/filio.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <i386/isa/isa_device.h>
-#include <machine/cpufunc.h>
 #include <sys/signalvar.h>
 
 #if NSND > 0
