@@ -1544,7 +1544,7 @@ c_sizeof (type)
      TYPE_IS_SIZETYPE means that certain things (like overflow) will
      never happen.  However, this node should really have type
      `size_t', which is just a typedef for an ordinary integer type.  */
-  size = fold (build1 (NOP_EXPR, c_size_type_node, size));
+  size = fold (build1 (NOP_EXPR, size_type_node, size));
   my_friendly_assert (!TYPE_IS_SIZETYPE (TREE_TYPE (size)), 
 		      20001021);
   return size;
@@ -1613,7 +1613,7 @@ c_sizeof_nowarn (type)
      TYPE_IS_SIZETYPE means that certain things (like overflow) will
      never happen.  However, this node should really have type
      `size_t', which is just a typedef for an ordinary integer type.  */
-  size = fold (build1 (NOP_EXPR, c_size_type_node, size));
+  size = fold (build1 (NOP_EXPR, size_type_node, size));
   my_friendly_assert (!TYPE_IS_SIZETYPE (TREE_TYPE (size)), 
 		      20001021);
   return size;
@@ -6195,8 +6195,16 @@ convert_for_assignment (type, rhs, errtype, fndecl, parmnum)
   /* Simplify the RHS if possible.  */
   if (TREE_CODE (rhs) == CONST_DECL)
     rhs = DECL_INITIAL (rhs);
-  else if (coder != ARRAY_TYPE)
-    rhs = decl_constant_value (rhs);
+  
+  /* We do not use decl_constant_value here because of this case:
+
+       const char* const s = "s";
+ 
+     The conversion rules for a string literal are more lax than for a
+     variable; in particular, a string literal can be converted to a
+     "char *" but the variable "s" cannot be converted in the same
+     way.  If the conversion is allowed, the optimization should be
+     performed while creating the converted expression.  */
 
   /* [expr.ass]
 

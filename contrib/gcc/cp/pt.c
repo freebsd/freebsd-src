@@ -3303,17 +3303,12 @@ convert_template_argument (parm, arg, args, complain, i, in_decl)
 		     && TREE_CODE (DECL_TEMPLATE_RESULT (arg)) == TYPE_DECL)
 		    || TREE_CODE (arg) == TEMPLATE_TEMPLATE_PARM
 		    || TREE_CODE (arg) == UNBOUND_CLASS_TEMPLATE);
-  else if (CLASSTYPE_TEMPLATE_INFO (arg) && !CLASSTYPE_USE_TEMPLATE (arg)
-	   && PRIMARY_TEMPLATE_P (CLASSTYPE_TI_TEMPLATE (arg)))
-    {
-      if (is_base_of_enclosing_class (arg, current_class_type))
-	/* This is a template name used within the scope of the
-	   template. It could be the template, or it could be the
-	   instantiation. Choose whichever makes sense.  */
-	is_tmpl_type = requires_tmpl_type;
-      else
-	is_tmpl_type = 1;
-    }
+  else if (CLASSTYPE_IS_TEMPLATE (arg)
+	   && is_base_of_enclosing_class (arg, current_class_type))
+    /* This is a template name used within the scope of the
+       template. It could be the template, or it could be the
+       instantiation. Choose whichever makes sense.  */
+    is_tmpl_type = requires_tmpl_type;
   else
     /* It is a non-template class, or a specialization of a template
        class, or a non-template member of a template class.  */
@@ -7148,9 +7143,10 @@ tsubst_copy (t, args, complain, in_decl)
 	  {
 	    tree base = tsubst_copy (TREE_OPERAND (name, 0), args,
 				     complain, in_decl);
-	    name = TREE_OPERAND (name, 1);
-	    name = tsubst_copy (TREE_OPERAND (name, 0), args,
-				complain, in_decl);
+	    name = TREE_OPERAND (TREE_OPERAND (name, 1), 0);
+	    if (TREE_CODE (name) == TYPE_DECL)
+	      name = TREE_TYPE (name);
+	    name = tsubst_copy (name, args, complain, in_decl);
 	    name = build1 (BIT_NOT_EXPR, NULL_TREE, name);
 	    name = build_nt (SCOPE_REF, base, name);
 	  }
@@ -8562,9 +8558,7 @@ check_cv_quals_for_unify (strict, arg, parm)
     {
       /* If the cvr quals of parm will not unify with ARG, they'll be
 	 ignored in instantiation, so we have to do the same here.  */
-      if (TREE_CODE (arg) == REFERENCE_TYPE
-	  || TREE_CODE (arg) == FUNCTION_TYPE
-	  || TREE_CODE (arg) == METHOD_TYPE)
+      if (TREE_CODE (arg) == REFERENCE_TYPE)
 	parm_quals &= ~(TYPE_QUAL_CONST | TYPE_QUAL_VOLATILE);
       if (!POINTER_TYPE_P (arg) &&
 	  TREE_CODE (arg) != TEMPLATE_TYPE_PARM)
@@ -8789,21 +8783,17 @@ unify (tparms, targs, parm, arg, strict)
 	    return 0;
 	  else if (targ)
 	    return 1;
-	}
 
-      /* Make sure that ARG is not a variable-sized array.  (Note that
-	 were talking about variable-sized arrays (like `int[n]'),
-	 rather than arrays of unknown size (like `int[]').)  We'll
-	 get very confused by such a type since the bound of the array
-	 will not be computable in an instantiation.  Besides, such
-	 types are not allowed in ISO C++, so we can do as we please
-	 here.  */
-      if (TREE_CODE (arg) == ARRAY_TYPE 
-	  && !uses_template_parms (arg)
-	  && TYPE_DOMAIN (arg)
-	  && (TREE_CODE (TYPE_MAX_VALUE (TYPE_DOMAIN (arg)))
-	      != INTEGER_CST))
-	return 1;
+	  /* Make sure that ARG is not a variable-sized array.  (Note
+	     that were talking about variable-sized arrays (like
+	     `int[n]'), rather than arrays of unknown size (like
+	     `int[]').)  We'll get very confused by such a type since
+	     the bound of the array will not be computable in an
+	     instantiation.  Besides, such types are not allowed in
+	     ISO C++, so we can do as we please here.  */
+	  if (variably_modified_type_p (arg))
+	    return 1;
+	}
 
       TREE_VEC_ELT (targs, idx) = arg;
       return 0;
