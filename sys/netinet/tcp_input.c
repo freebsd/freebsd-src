@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.19 1995/04/09 01:29:24 davidg Exp $
+ *	$Id: tcp_input.c,v 1.20 1995/04/10 17:16:10 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -88,7 +88,10 @@ struct inpcbinfo tcbinfo;
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
 	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
 	    (tp)->t_state == TCPS_ESTABLISHED) { \
-		tp->t_flags |= TF_DELACK; \
+		if (ti->ti_flags & TH_PUSH) \
+			tp->t_flags |= TF_ACKNOW; \
+		else \
+			tp->t_flags |= TF_DELACK; \
 		(tp)->rcv_nxt += (ti)->ti_len; \
 		flags = (ti)->ti_flags & TH_FIN; \
 		tcpstat.tcps_rcvpack++;\
@@ -1555,14 +1558,6 @@ dodata:							/* XXX */
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, &tcp_saveti, 0);
 #endif
-
-	/*
-	 * If this is a short packet, then ACK now - with Nagel
-	 *      congestion avoidance sender won't send more until
-	 *      he gets an ACK.
-	 */
-	if (tiflags & TH_PUSH)
-		tp->t_flags |= TF_ACKNOW;
 
 	/*
 	 * Return any desired output.
