@@ -6,7 +6,7 @@ TAST            FUNKTION
 PIL OP          Flyt til foregående objekt (eller op, i et tekstfelt).
 PIL NED         Flyt til næste objekt (eller ned, i et tekstfelt).
 TAB             Flyt til næste objekt eller gruppe.
-HØJRE PIL    Flyt til næste objekt eller gruppe (det samme som TAB).
+HØJRE PIL       Flyt til næste objekt eller gruppe (det samme som TAB).
 SHIFT-TAB       Flyt til foregående objekt eller gruppe.
 VENSTRE PIL     Flyt til foregående objekt eller gruppe (det samme som
                 SHIFT-TAB).
