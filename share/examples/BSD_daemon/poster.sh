@@ -36,7 +36,7 @@ gsave currentpoint translate sc sc scale beastie grestore
 
 % A box for the bottom text
 gsave
-10 10 moveto
+10 30 moveto
 210 mm 20 sub 0 rlineto
 0 70 rlineto
 210 mm 20 sub neg 0 rlineto
@@ -46,14 +46,14 @@ fill
 grestore
 
 % Bottom text
-center 70 moveto 
-/NRBWelshGillianBold findfont 50 scalefont setfont
+center 90 moveto 
+/FreeBSD findfont 50 scalefont setfont
 
-center 30 moveto 
+center 50 moveto 
 (http://www.FreeBSD.org) cshow
 
 % Do not forget Kirks copyright string.
-10 10 moveto 
+10 105 moveto 
 /Times-Roman findfont 8 scalefont setfont
 (BSD Daemon ) show
 /Symbol findfont 8 scalefont setfont
