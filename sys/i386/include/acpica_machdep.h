@@ -120,4 +120,6 @@
 #define COMPILER_DEPENDENT_UINT64      unsigned long long
 #define ACPI_USE_NATIVE_DIVIDE
 
+void    acpi_SetDefaultIntrModel(int model);
+
 #endif /* __ACPICA_MACHDEP_H__ */
