@@ -92,6 +92,7 @@ struct bus_dmamap {
 	bus_size_t	       buflen;		/* unmapped buffer length */
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	struct mtx	      *callback_mtx;
 	STAILQ_ENTRY(bus_dmamap) links;
 };
 
@@ -869,8 +870,12 @@ busdma_swi(void)
 	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
 		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
 		mtx_unlock(&bounce_lock);
+		if (map->callback_mtx != NULL)
+			mtx_lock(map->callback_mtx);
 		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
 				map->callback, map->callback_arg, /*flags*/0);
+		if (map->callback_mtx != NULL)
+			mtx_unlock(map->callback_mtx);
 		mtx_lock(&bounce_lock);
 	}
 	mtx_unlock(&bounce_lock);
