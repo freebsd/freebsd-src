@@ -538,7 +538,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: burncd [-delmpqtv] [-f device] [-s speed] [command]"
-	    " [command file ...]\n");
+	    "Usage: %s [-delmpqtv] [-f device] [-s speed] [command]"
+	    " [command file ...]\n", getprogname());
 	exit(EX_USAGE);
 }
