@@ -310,11 +310,18 @@ RetryFault:;
 			int queue, s;
 
 			/* 
-			 * check for page-based copy on write
+			 * check for page-based copy on write.
+			 * We check fs.object == fs.first_object so
+			 * as to ensure the legacy COW mechanism is
+			 * used when the page in question is part of
+			 * a shadow object.  Otherwise, vm_page_cowfault()
+			 * removes the page from the backing object, 
+			 * which is not what we want.
 			 */
 			vm_page_lock_queues();
 			if ((fs.m->cow) && 
-			    (fault_type & VM_PROT_WRITE)) {
+			    (fault_type & VM_PROT_WRITE) &&
+			    (fs.object == fs.first_object)) {
 				s = splvm();
 				vm_page_cowfault(fs.m);
 				splx(s);
