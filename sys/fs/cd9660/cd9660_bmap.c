@@ -41,6 +41,8 @@
 
 #include <sys/param.h>
 #include <sys/vnode.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 
 #include <isofs/cd9660/iso.h>
