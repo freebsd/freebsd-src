@@ -90,16 +90,6 @@
  */
 
 #define	ZS_NCHAN	2
-#define	ZS_CHANLEN	4
-
-#define	ZS_CHAN_A	4
-#define	ZS_CHAN_B	0
-
-#define	ZS_CSR		0
-#define	ZS_DATA		2
-
-#define	ZS_CLOCK	(9600 * 512)
-#define	ZS_CLOCK_DIV	(16)
 
 #define	ZSRR_IVEC	2	/* interrupt vector (channel 0) */
 #define	ZSRR_IPEND	3	/* interrupt pending (ch. 0 only) */
