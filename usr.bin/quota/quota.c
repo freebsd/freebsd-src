@@ -112,8 +112,7 @@ main(int argc, char *argv[])
 {
 	int ngroups; 
 	gid_t mygid, gidset[NGROUPS];
-	int i, gflag = 0, uflag = 0;
-	char ch;
+	int i, ch, gflag = 0, uflag = 0;
 
 	while ((ch = getopt(argc, argv, "glquv")) != -1) {
 		switch(ch) {
