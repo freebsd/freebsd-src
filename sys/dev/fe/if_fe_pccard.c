@@ -22,10 +22,6 @@
  * $FreeBSD$
  */
 
-#include "opt_fe.h"
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -49,6 +45,8 @@
 #include <dev/fe/if_fevar.h>
 
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+#include "card_if.h"
 #include <pccard/cardinfo.h>
 
 /*
@@ -57,12 +55,70 @@
 static int fe_pccard_probe(device_t);
 static int fe_pccard_attach(device_t);
 static int fe_pccard_detach(device_t);
+static int fe_pccard_match(device_t);
+
+static const struct fe_pccard_product {
+        struct pccard_product mpp_product;
+        u_int32_t mpp_ioalign;                  /* required alignment */
+        int mpp_enet_maddr;
+} fe_pccard_products[] = {
+        { { PCCARD_STR_TDK_LAK_CD021BX,         PCCARD_VENDOR_TDK,
+            PCCARD_PRODUCT_TDK_LAK_CD021BX,     0 },
+          0, -1 }, 
+
+        { { PCCARD_STR_TDK_LAK_CF010,           PCCARD_VENDOR_TDK,
+            PCCARD_PRODUCT_TDK_LAK_CF010,       0 },
+          0, -1 },
+
+#if 0 /* XXX 86960-based? */
+        { { PCCARD_STR_TDK_LAK_DFL9610,         PCCARD_VENDOR_TDK,
+            PCCARD_PRODUCT_TDK_LAK_DFL9610,     1 },
+          0, -1 },
+#endif
+
+        { { PCCARD_STR_CONTEC_CNETPC,           PCCARD_VENDOR_CONTEC,
+            PCCARD_PRODUCT_CONTEC_CNETPC,       0 },
+          0, -1 },
+
+        { { PCCARD_STR_FUJITSU_LA501,           PCCARD_VENDOR_FUJITSU,
+            PCCARD_PRODUCT_FUJITSU_LA501,       0 },
+          0x20, -1 },
+
+        { { PCCARD_STR_FUJITSU_LA10S,           PCCARD_VENDOR_FUJITSU,
+            PCCARD_PRODUCT_FUJITSU_LA10S,       0 },
+          0, -1 },
+
+        { { PCCARD_STR_RATOC_REX_R280,          PCCARD_VENDOR_RATOC,
+            PCCARD_PRODUCT_RATOC_REX_R280,      0 },
+          0, 0x1fc },
+
+        { { NULL } }
+};
+
+static int
+fe_pccard_match(device_t dev)
+{
+        const struct pccard_product *pp;
+
+        if ((pp = pccard_product_lookup(dev,
+	    (const struct pccard_product *)fe_pccard_products,
+            sizeof(fe_pccard_products[0]), NULL)) != NULL) {
+                device_set_desc(dev, pp->pp_name);
+                return 0;
+        }
+        return EIO;
+}
 
 static device_method_t fe_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		fe_pccard_probe),
-	DEVMETHOD(device_attach,	fe_pccard_attach),
-	DEVMETHOD(device_detach,	fe_pccard_detach),
+        /* Device interface */
+        DEVMETHOD(device_probe,         pccard_compat_probe),
+        DEVMETHOD(device_attach,        pccard_compat_attach),
+        DEVMETHOD(device_detach,        fe_pccard_detach),
+
+        /* Card interface */
+        DEVMETHOD(card_compat_match,    fe_pccard_match),
+        DEVMETHOD(card_compat_probe,    fe_pccard_probe),
+        DEVMETHOD(card_compat_attach,   fe_pccard_attach),
 
 	{ 0, 0 }
 };
