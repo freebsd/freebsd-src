@@ -84,8 +84,8 @@ struct ng_cisco_stats {
 /* Keep this in sync with the above structure definition */
 #define NG_CISCO_STATS_TYPE_INFO	{			\
 	{							\
-	  { "seqRetries",	&ng_parse_int32_type	},	\
-	  { "keepAlivePeriod",	&ng_parse_int32_type	},	\
+	  { "seqRetries",	&ng_parse_uint32_type	},	\
+	  { "keepAlivePeriod",	&ng_parse_uint32_type	},	\
 	  { NULL },						\
 	}							\
 }

@@ -94,10 +94,10 @@ static int	ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp);
 /* Parse type for one struct bfp_insn */
 static const struct ng_parse_struct_info ng_bpf_insn_type_info = {
     {
-	{ "code",	&ng_parse_int16_type	},
-	{ "jt",		&ng_parse_int8_type	},
-	{ "jf",		&ng_parse_int8_type	},
-	{ "k",		&ng_parse_int32_type	},
+	{ "code",	&ng_parse_hint16_type	},
+	{ "jt",		&ng_parse_uint8_type	},
+	{ "jf",		&ng_parse_uint8_type	},
+	{ "k",		&ng_parse_uint32_type	},
 	{ NULL }
     }
 };
