@@ -140,9 +140,9 @@ printf("coda_getp: Internally Opening %p\n", vp);
 		return (error);
 	}
 	if (vp->v_type == VREG) {
-	    error = vfs_object_create(vp, p, cred);
+	    error = VOP_CREATEVOBJECT(vp, cred, p);
 	    if (error != 0) {
-		printf("coda_getpage: vfs_object_create() returns %d\n", error);
+		printf("coda_getpage: VOP_CREATEVOBJECT() returns %d\n", error);
 		vput(vp);
 		return(error);
 	    }

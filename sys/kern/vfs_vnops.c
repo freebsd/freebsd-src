@@ -252,7 +252,7 @@ restart:
 		 * restores the requested locking state.
 		 */
 #endif
-		if ((error = vfs_object_create(vp, td, cred)) != 0) {
+		if ((error = VOP_CREATEVOBJECT(vp, cred, td)) != 0) {
 			VOP_UNLOCK(vp, 0, td);
 			VOP_CLOSE(vp, fmode, cred, td);
 			NDFREE(ndp, NDF_ONLY_PNBUF);

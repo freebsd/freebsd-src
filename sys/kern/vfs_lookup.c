@@ -207,8 +207,8 @@ namei(ndp)
 				(cnp->cn_nameiop != DELETE) &&
 				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) ==
 				 LOCKLEAF))
-				vfs_object_create(ndp->ni_vp, td,
-					ndp->ni_cnd.cn_cred);
+				VOP_CREATEVOBJECT(ndp->ni_vp, 
+				    ndp->ni_cnd.cn_cred, td);
 
 			return (0);
 		}
@@ -771,7 +771,7 @@ relookup(dvp, vpp, cnp)
 
 	if (vn_canvmio(dp) == TRUE &&
 		((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
-		vfs_object_create(dp, td, cnp->cn_cred);
+		VOP_CREATEVOBJECT(dp, cnp->cn_cred, td);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);

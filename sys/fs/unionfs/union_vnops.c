@@ -785,9 +785,8 @@ union_open(ap)
 	/*
 	 * This is absolutely necessary or UFS will blow up.
 	 */
-        if (error == 0 && vn_canvmio(tvp) == TRUE) {
-                error = vfs_object_create(tvp, td, cred);
-        }
+        if (error == 0 && vn_canvmio(tvp) == TRUE)
+                error = VOP_CREATEVOBJECT(tvp, cred, td);
 
 	/*
 	 * Release any locks held.
