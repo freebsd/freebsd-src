@@ -10,13 +10,17 @@ Release.
 
 This is for the 4.4 release branch.  All entries since 4.4 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.4-RELEASE-p15.
+By this count, we're at 4.4-RELEASE-p17.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020730:	p17	FreeBSD-SA-02:23.stdio.v1.2
+	A bug in the previous patch for the vulnerability described
+	in FreeBSD-SA-02:23.stdio was found and corrected.
 
 20020715:	p16
 	Upgrade to BIND 8.3.3
