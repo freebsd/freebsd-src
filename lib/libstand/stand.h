@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.5 1998/09/26 01:42:39 msmith Exp $
+ *	$Id: stand.h,v 1.6 1998/09/26 10:48:50 dfr Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -119,9 +119,7 @@ extern struct fs_ops tftp_fsops;
 extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
 extern struct fs_ops zipfs_fsops;
-#ifdef notyet
 extern struct fs_ops dosfs_fsops;
-#endif
 
 /* where values for lseek(2) */
 #define	SEEK_SET	0	/* set file offset to offset */
