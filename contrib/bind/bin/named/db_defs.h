@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.40 2000/11/29 06:55:46 marka Exp $
+ *	$Id: db_defs.h,v 8.41 2001/02/08 02:05:50 marka Exp $
  */
 
 /*
@@ -119,7 +119,7 @@ struct databuf {
 					 * d_ttl is actually the time when
 					 * the record will expire.
 					 * otherwise (for authoritative
-					 * primary and secondary zones),
+					 * master and slave zones),
 					 * d_ttl is the time to live.
 					 */
 	unsigned	d_zone :ZONE_BITS; /* zone number or 0 for the cache */

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.142 2001/01/15 20:06:25 vixie Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.145 2001/03/16 12:07:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -570,6 +570,31 @@ main(int argc, char *argv[], char *envp[]) {
 	return (0);
 }
 
+static int
+ns_socket(int domain, int type, int protocol) {
+	int fd;
+
+	fd = socket(domain, type, protocol);
+	if (fd == -1)
+		return (-1);
+#ifdef F_DUPFD		/* XXX */
+	/*
+	 * Leave a space for stdio to work in.
+	 */
+	if (fd >= 0 && fd <= 20) {
+		int new, tmp;
+		if ((new = fcntl(fd, F_DUPFD, 20)) == -1)
+			ns_notice(ns_log_default, "fcntl(fd, F_DUPFD, 20): %s",
+				  strerror(errno));
+		tmp = errno;
+		close(fd);
+		errno = tmp;
+		fd = new;
+	}
+#endif
+	return (fd);
+}
+
 #ifndef IP_OPT_BUF_SIZE
 /* arbitrary size */
 #define IP_OPT_BUF_SIZE 50
@@ -594,6 +619,24 @@ stream_accept(evContext lev, void *uap, int rfd,
 	ra = (const struct sockaddr_in *)rav;
 
 	INSIST(ifp != NULL);
+
+#ifdef F_DUPFD
+	/*
+	 * Leave a space for stdio to work in.
+	 */
+	if (rfd >= 0 && rfd <= 20) {
+		int new, tmp;
+		new = fcntl(rfd, F_DUPFD, 20);
+		tmp = errno;
+		if (new == -1)
+			ns_notice(ns_log_default,
+				  "fcntl(rfd, F_DUPFD, 20): %s",
+				  strerror(errno));
+		close(rfd);
+		errno = tmp;
+		rfd = new;
+	}
+#endif
 
 	if (rfd < 0) {
 		switch (errno) {
@@ -751,13 +794,14 @@ stream_accept(evContext lev, void *uap, int rfd,
 int
 tcp_send(struct qinfo *qp) {
 	struct qstream *sp;
+	struct sockaddr_in src;
 	int on = 1, n;
 	
 	ns_debug(ns_log_default, 1, "tcp_send");
 	if ((sp = sq_add()) == NULL) {
 		return (SERVFAIL);
 	}
-	if ((sp->s_rfd = socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1) {
+	if ((sp->s_rfd = ns_socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
@@ -777,8 +821,9 @@ tcp_send(struct qinfo *qp) {
 			"tcp_send: setsockopt(SO_REUSEPORT): %s",
 			strerror(errno));
 #endif
-	if (bind(sp->s_rfd, (struct sockaddr *)&server_options->query_source,
-		 sizeof server_options->query_source) < 0)
+	src = server_options->query_source;
+	src.sin_port = htons(0);
+	if (bind(sp->s_rfd, (struct sockaddr *)&src, sizeof(src)) < 0)
 		ns_info(ns_log_default, "tcp_send: bind(query_source): %s",
 			strerror(errno));
 	if (fcntl(sp->s_rfd, F_SETFD, 1) < 0) {
@@ -1454,7 +1499,7 @@ opensocket_d(interface *ifp) {
 	nsa.sin_addr = ifp->addr;
 	nsa.sin_port = ifp->port;
 
-	if ((ifp->dfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((ifp->dfd = ns_socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		ns_error(ns_log_default, "socket(SOCK_DGRAM): %s",
 			 strerror(errno));
 		return (-1);
@@ -1476,17 +1521,6 @@ opensocket_d(interface *ifp) {
 		(void) close(ifp->dfd);
 		return (-1);
 	}
-#ifdef F_DUPFD		/* XXX */
-	/*
-	 * Leave a space for stdio to work in.
-	 */
-	if ((fd = fcntl(ifp->dfd, F_DUPFD, 20)) != -1) {
-		close(ifp->dfd);
-		ifp->dfd = fd;
-	} else 
-		ns_notice(ns_log_default, "fcntl(dfd, F_DUPFD, 20): %s",
-			  strerror(errno));
-#endif
 	if (fcntl(ifp->dfd, F_SETFD, 1) < 0) {
 		ns_error(ns_log_default, "F_SETFD: %s", strerror(errno));
 		close(ifp->dfd);
@@ -1633,7 +1667,7 @@ opensocket_s(interface *ifp) {
 	 */
 	n = 0;
  again:
-	if ((ifp->sfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((ifp->sfd = ns_socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		ns_error(ns_log_default, "socket(SOCK_STREAM): %s",
 			 strerror(errno));
 		return (-1);
@@ -1643,17 +1677,6 @@ opensocket_s(interface *ifp) {
 		close(ifp->sfd);
 		return (-1);
 	}
-#ifdef F_DUPFD		/* XXX */
-	/*
-	 * Leave a space for stdio to work in.
-	 */
-	if ((fd = fcntl(ifp->sfd, F_DUPFD, 20)) != -1) {
-		close(ifp->sfd);
-		ifp->sfd = fd;
-	} else 
-		ns_notice(ns_log_default, "fcntl(sfd, F_DUPFD, 20): %s",
-			  strerror(errno));
-#endif
 	if (fcntl(ifp->sfd, F_SETFD, 1) < 0) {
 		ns_error(ns_log_default, "F_SETFD: %s", strerror(errno));
 		close(ifp->sfd);

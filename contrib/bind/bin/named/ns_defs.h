@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.102 2000/12/01 05:35:48 vixie Exp $
+ *	$Id: ns_defs.h,v 8.105 2001/04/01 22:41:24 marka Exp $
  */
 
 /*
@@ -113,7 +113,8 @@
  * dies out in a little more than a minute.
  * (sequence RETRYBASE, 2*RETRYBASE, 4*RETRYBASE... for MAXRETRY)
  */
-#define	NEWZONES	64	/* must be a power of two. */
+#define	NEWZONES	64	/* how many zones to grow the zone table by */
+#define	INITIALZONES	NEWZONES /* how many zones are allocated initially */
 #define MINROOTS	2	/* min number of root hints */
 #define NSMAX		16	/* max number of NS addrs to try ([0..255]) */
 #define RETRYBASE	4 	/* base time between retries */
@@ -123,7 +124,7 @@
 #define MAXQUERIES	20	/* max # of queries to be made */
 #define	MAXQSERIAL	4	/* max # of outstanding QSERIAL's */
 				/* (prevent "recursive" loops) */
-#define	INIT_REFRESH	600	/* retry time for initial secondary */
+#define	INIT_REFRESH	600	/* retry time for initial slave */
 				/* contact (10 minutes) */
 #define MIN_REFRESH	2	/* never refresh more frequently than once */
 				/* every MIN_REFRESH seconds */
@@ -420,6 +421,7 @@ enum zonetype { z_nil, z_master, z_slave, z_hint, z_stub, z_forward,
 #define	Z_PARENT_RELOAD	0x00040000	/* we need to reload this as parent */
 #define Z_FORWARD_SET	0x00080000	/* has forwarders been set */
 #define Z_EXPIRED	0x00100000	/* expire timer has gone off */
+#define Z_NEEDREFRESH	0x00200000	/* need to perform a refresh check */
 
 	/* named_xfer exit codes */
 #define	XFER_UPTODATE	0		/* zone is up-to-date */

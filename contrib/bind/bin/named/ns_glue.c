@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_glue.c,v 8.18 2000/11/08 06:16:36 marka Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.20 2001/02/16 04:46:14 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -150,6 +150,17 @@ ns_error(int category, const char *format, ...) {
 }
 
 void
+ns_critical(int category, const char *format, ...) {
+	va_list args;
+
+	if (!log_ctx_valid)
+		return;
+	va_start(args, format);
+	log_vwrite(log_ctx, category, log_critical, format, args);
+	va_end(args);
+}
+
+void
 ns_panic(int category, int dump_core, const char *format, ...) {
 	va_list args;
 
@@ -252,7 +263,6 @@ void
 gettime(struct timeval *ttp) {
 	if (gettimeofday(ttp, NULL) < 0)
 		ns_error(ns_log_default, "gettimeofday: %s", strerror(errno));
-	INSIST(ttp->tv_usec >= 0 && ttp->tv_usec < 1000000);
 }
 
 /*

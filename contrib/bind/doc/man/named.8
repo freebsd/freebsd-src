@@ -54,13 +54,13 @@
 .\"	@(#)named.8	6.6 (Berkeley) 2/14/89
 .\"
 .Dd February 1, 1996
-.Dt @INDOT_U@NAMED @SYS_OPS_EXT_U@ 
+.Dt @INDOT_U@named @SYS_OPS_EXT_U@ 
 .Os BSD 4
 .Sh NAME
 .Nm @INDOT@named 
 .Nd Internet domain name server (DNS)
 .Sh SYNOPSIS
-.Nm @INDOT@NAMED
+.Nm @INDOT@named
 .Op Fl d Ar debuglevel
 .Op Fl p Ar port# 
 .Oo Fl Po 
@@ -114,7 +114,7 @@ is set to
 .Sy NOTE:
 The new debugging framework is considerably more sophisticated than it
 was in older versions of 
-.Nm @INDOT@NAMED .
+.Nm @INDOT@named .
 The configuration file's
 .Dq Li logging
 statement allows for multiple, distinct levels of debugging for each of
@@ -124,7 +124,7 @@ etc.).  Please refer to the configuration file guide included with this
 distribution for further information about these extensive new capabilities.
 .It Fl p Ar port#
 Use the specified remote port number; this is the port number to which 
-.Nm @INDOT@NAMED
+.Nm @INDOT@named
 will send queries.  The default value is the standard port number, i.e.,
 the port number returned by 
 .Xr getservbyname @LIB_NETWORK_EXT@ 
@@ -139,7 +139,7 @@ was supported; the first port was that used when contacting
 servers, and the second one was the service port bound by the 
 .Em local 
 instance of
-.Nm @INDOT_U@NAMED .
+.Nm @INDOT_U@named .
 The current usage is equivalent to the old usage without the 
 .Ar localport#
 specified; this functionality can be specified with the 
@@ -164,7 +164,7 @@ Run this process in the foreground; don't
 and daemonize.  (The default is to daemonize.)
 .It Fl q
 Trace all incoming queries if 
-.Nm @INDOT_U@NAMED 
+.Nm @INDOT_U@named 
 has been compiled with
 .Li QRYLOG 
 defined.  

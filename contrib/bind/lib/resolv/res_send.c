@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 8.41 2000/12/23 08:14:58 vixie Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 8.42 2001/03/07 06:48:03 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -307,15 +307,19 @@ res_nsend(res_state statp,
 		struct sockaddr_in ina;
 		int lastns = statp->nscount - 1;
 		int fd;
+		u_int16_t nstime;
 
 		ina = statp->nsaddr_list[0];
 		fd = EXT(statp).nssocks[0];
+		nstime = EXT(statp).nstimes[ns];
 		for (ns = 0; ns < lastns; ns++) {
 			statp->nsaddr_list[ns] = statp->nsaddr_list[ns + 1];
 			EXT(statp).nssocks[ns] = EXT(statp).nssocks[ns + 1];
+			EXT(statp).nstimes[ns] = EXT(statp).nstimes[ns + 1];
 		}
 		statp->nsaddr_list[lastns] = ina;
 		EXT(statp).nssocks[lastns] = fd;
+		EXT(statp).nstimes[lastns] = nstime;
 	}
 
 	/*

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.42 2000/12/23 08:14:32 vixie Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.43.2.1 2001/04/26 02:56:07 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -115,6 +115,9 @@ static const char copyright[] =
 
 /* Global. */
 
+#ifndef PATH_SEP
+#define PATH_SEP '/'
+#endif
 #define SIG_RDATA_BY_NAME	18
 #define NS_HEADERDATA_SIZE 10
 
@@ -190,7 +193,7 @@ static int		getdomaininfo(const char *name, const char *domain);
 static int		getinfo(const char *name, const char *domain,
 				int type);
 static int		printinfo(const querybuf *answer, const u_char *eom,
-				  int filter, int isls);
+				  int filter, int isls, int isinaddr);
 static const u_char *	pr_rr(const u_char *cp, const u_char *msg, FILE *file,
 			      int filter);
 static const char *	pr_type(int type);
@@ -231,7 +234,7 @@ main(int argc, char **argv) {
 
 	dst_init();
 
-	if ((progname = strrchr(argv[0], '/')) == NULL)
+	if ((progname = strrchr(argv[0], PATH_SEP)) == NULL)
 		progname = argv[0];
 	else
 		progname++;
@@ -630,11 +633,13 @@ getinfo(const char *name, const char *domain, int type) {
 		return (0);
 	}
 	eom = answer.qb2 + n;
-	return (printinfo(&answer, eom, ns_t_any, 0));
+	return (printinfo(&answer, eom, ns_t_any, 0, (type == ns_t_ptr)));
 }
 
 static int
-printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
+printinfo(const querybuf *answer, const u_char *eom, int filter, int isls,
+	  int isinaddr)
+{
 	int n, nmx, ancount, nscount, arcount, qdcount, buflen, savesigchase;
 	const u_char *bp, *cp;
 	const HEADER *hp;
@@ -705,7 +710,7 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
 			 * don't really want to print the address at this
 			 * point.
 			 */
-                        if (cname && ! verbose)
+                        if (cname && (!verbose) && (!isinaddr))
                                 return (1);
                 }
 	}
@@ -1881,7 +1886,7 @@ ListHosts(char *namePtr, int queryType) {
 			break;
 		}
 
-		result = printinfo(&buf, cp, queryType, 1);
+		result = printinfo(&buf, cp, queryType, 1, 0);
 		if (! result) {
 			error = ERR_PRINTING;
 			break;
