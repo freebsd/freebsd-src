@@ -10,8 +10,8 @@ NOPIC=		YES
 
 SRCS=	getobjformat.c mktemp.c
 
-CFLAGS+= -D_libc_open=open
-	
+CFLAGS+= -D_open=open
+
 install:
 	@true
 
