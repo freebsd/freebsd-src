@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.11 1998/12/01 15:55:20 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.12 1998/12/04 21:34:33 wpaul Exp $
  */
 
 /*
@@ -66,7 +66,8 @@
 #define MX_MAGIC_98715		0x0B3C0000
 #define MX_MAGIC_98725		0x0B3C0000
 
-#define MX_REVISION_98713	0x10
+#define MX_REVISION_98713	0x00
+#define MX_REVISION_98713A	0x10
 #define MX_REVISION_98715	0x20
 #define MX_REVISION_98725	0x30
 
@@ -80,7 +81,8 @@
  * numbers we write into CSR16.
  */
 #define MX_TYPE_98713		0x1
-#define MX_TYPE_987x5		0x2
+#define MX_TYPE_98713A		0x2
+#define MX_TYPE_987x5		0x3
 
 /*
  * Bus control bits.

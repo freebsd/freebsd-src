@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.27 1998/12/01 15:55:20 wpaul Exp $
+ *	$Id: if_mx.c,v 1.28 1998/12/04 21:34:33 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_mx.c,v 1.27 1998/12/01 15:55:20 wpaul Exp $";
+	"$Id: if_mx.c,v 1.28 1998/12/04 21:34:33 wpaul Exp $";
 #endif
 
 /*
@@ -1240,9 +1240,11 @@ mx_probe(config_id, device_id)
 		    ((device_id >> 16) & 0xFFFF) == t->mx_did) {
 			/* Check the PCI revision */
 			rev = pci_conf_read(config_id, MX_PCI_REVID) & 0xFF;
-			if (rev > MX_REVISION_98713 && rev < MX_REVISION_98715)
+			if (t->mx_did == MX_DEVICEID_98713 &&
+						rev >= MX_REVISION_98713A)
 				t++;
-			if (rev >= MX_REVISION_98725)
+			if (t->mx_did == MX_DEVICEID_987x5 &&
+						rev >= MX_REVISION_98725)
 				t++;
 			return(t->mx_name);
 		}
@@ -1358,9 +1360,12 @@ mx_attach(config_id, unit)
 	/* Need this info to decide on a chip type. */
 	revision = pci_conf_read(config_id, MX_PCI_REVID) & 0x000000FF;
 	pci_id = pci_conf_read(config_id, MX_PCI_VENDOR_ID) & 0x0000FFFF;
+	pci_id = (pci_conf_read(config_id,MX_PCI_VENDOR_ID) >> 16) & 0x0000FFFF;
 
-	if (pci_id == MX_DEVICEID_98713 && revision == MX_REVISION_98713)
+	if (pci_id == MX_DEVICEID_98713 && revision < MX_REVISION_98713A)
 		sc->mx_type = MX_TYPE_98713;
+	else if (pci_id == MX_DEVICEID_98713 && revision >= MX_REVISION_98713A)
+		sc->mx_type = MX_TYPE_98713A;
 	else
 		sc->mx_type = MX_TYPE_987x5;
 
