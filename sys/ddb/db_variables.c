@@ -38,11 +38,11 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 
-static int	db_find_variable __P((struct db_variable **varp));
-static void	db_write_variable __P((struct db_variable *, db_expr_t *));
+static int	db_find_variable(struct db_variable **varp);
+static void	db_write_variable(struct db_variable *, db_expr_t *);
 
 #ifdef notused
-static int	db_set_variable __P((db_expr_t value));
+static int	db_set_variable(db_expr_t value);
 #endif
 
 static struct db_variable db_vars[] = {

@@ -44,8 +44,8 @@
 
 static char	db_examine_format[TOK_STRING_SIZE] = "x";
 
-static void	db_examine __P((db_addr_t, char *, int));
-static void	db_search __P((db_addr_t, int, db_expr_t, db_expr_t, u_int));
+static void	db_examine(db_addr_t, char *, int);
+static void	db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
 
 /*
  * Examine (print) data.

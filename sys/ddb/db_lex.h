@@ -36,10 +36,10 @@
 /*
  * Lexical analyzer.
  */
-void	db_flush_lex __P((void));
-int	db_read_line __P((void));
-int	db_read_token __P((void));
-void	db_unread_token __P((int t));
+void	db_flush_lex(void);
+int	db_read_line(void);
+int	db_read_token(void);
+void	db_unread_token(int t);
 
 extern db_expr_t	db_tok_number;
 #define	TOK_STRING_SIZE		120

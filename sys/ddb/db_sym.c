@@ -48,11 +48,10 @@ static int db_nsymtab = 0;
 
 static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
-static c_db_sym_t	db_lookup __P(( const char *symstr));
-static char		*db_qualify __P((c_db_sym_t sym, char *symtabname));
-static boolean_t	db_symbol_is_ambiguous __P((c_db_sym_t sym));
-static boolean_t	db_line_at_pc __P((c_db_sym_t, char **, int *, 
-				db_expr_t));
+static c_db_sym_t	db_lookup( const char *symstr);
+static char		*db_qualify(c_db_sym_t sym, char *symtabname);
+static boolean_t	db_symbol_is_ambiguous(c_db_sym_t sym);
+static boolean_t	db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
 
 /*
  * Add symbol table, with given name, to list of symbol tables.

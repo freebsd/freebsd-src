@@ -36,8 +36,7 @@
 /*
  * Data access functions for debugger.
  */
-db_expr_t	db_get_value __P((db_addr_t addr, int size,
-				  boolean_t is_signed));
-void		db_put_value __P((db_addr_t addr, int size, db_expr_t value));
+db_expr_t	db_get_value(db_addr_t addr, int size, boolean_t is_signed);
+void		db_put_value(db_addr_t addr, int size, db_expr_t value);
 
 #endif /* !_DDB_DB_ACCESS_H_ */

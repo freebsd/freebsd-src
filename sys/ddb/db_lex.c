@@ -41,10 +41,10 @@
 static char	db_line[120];
 static char *	db_lp, *db_endlp;
 
-static int	db_lex __P((void));
-static void 	db_flush_line __P((void));
-static int 	db_read_char __P((void));
-static void 	db_unread_char __P((int));
+static int	db_lex(void);
+static void 	db_flush_line(void);
+static int 	db_read_char(void);
+static void 	db_unread_char(int);
 
 int
 db_read_line()

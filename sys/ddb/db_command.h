@@ -37,7 +37,7 @@
  * Command loop declarations.
  */
 
-void	db_command_loop __P((void));
+void	db_command_loop(void);
 
 extern db_addr_t	db_dot;		/* current location */
 extern db_addr_t	db_last_addr;	/* last explicit address typed */

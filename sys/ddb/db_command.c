@@ -101,17 +101,17 @@ db_skip_to_eol()
 #define	CMD_AMBIGUOUS	3
 #define	CMD_HELP	4
 
-static void	db_cmd_list __P((struct command *table,
+static void	db_cmd_list(struct command *table,
 				 struct command **aux_tablep,
-				 struct command **aux_tablep_end));
-static int	db_cmd_search __P((char *name, struct command *table,
+				 struct command **aux_tablep_end);
+static int	db_cmd_search(char *name, struct command *table,
 				   struct command **aux_tablep,
 				   struct command **aux_tablep_end,
-				   struct command **cmdp));
-static void	db_command __P((struct command **last_cmdp,
+				   struct command **cmdp);
+static void	db_command(struct command **last_cmdp,
 				struct command *cmd_table,
 				struct command **aux_cmd_tablep,
-				struct command **aux_cmd_tablep_end));
+				struct command **aux_cmd_tablep_end);
 
 /*
  * Search for command prefix.
@@ -503,10 +503,10 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	args[MAXARGS];
 	int		nargs = 0;
 	db_expr_t	retval;
-	typedef db_expr_t fcn_10args_t __P((db_expr_t, db_expr_t, db_expr_t,
+	typedef db_expr_t fcn_10args_t(db_expr_t, db_expr_t, db_expr_t,
 					    db_expr_t, db_expr_t, db_expr_t,
 					    db_expr_t, db_expr_t, db_expr_t,
-					    db_expr_t));
+					    db_expr_t);
 	fcn_10args_t	*func;
 	int		t;
 
