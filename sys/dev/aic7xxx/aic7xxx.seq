@@ -21,9 +21,8 @@
 # FreeBSD, Twin, Wide, 2 command per target support, tagged queuing and other 
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
-#	$Id: aic7xxx.seq,v 1.8 1995/02/22 01:37:52 gibbs Exp $
 
-VERSION AIC7XXX_SEQ_VERSION 1.8
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.9 1995/03/07 09:00:44 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -726,7 +725,7 @@ p_mesgin5:
 
 	test	A,0x78		jnz p_mesginN	# !DiscPriv|!LUNTAR|!Reserved
 
-	and	A,0x7				# lun in lower three bits
+	and	A,0x07				# lun in lower three bits
 	or      SAVED_TCL,A,SELID          
 	and     SAVED_TCL,0xf7
 	and     A,0x08,SBLKCTL			# B Channel??
@@ -737,8 +736,8 @@ p_mesgin5:
 # If we get one, we use the tag returned to switch to the proper
 # SCB.  Otherwise, we just use the findSCB method.
 p_mesgin5_loop:
-	test	SSTAT1,0x8	jnz use_findSCB	  # BUSFREE
-	test	SSTAT1,0x1	jz p_mesgin5_loop # REQINIT
+	test	SSTAT1,0x08	jnz use_findSCB	  # BUSFREE
+	test	SSTAT1,0x01	jz p_mesgin5_loop # REQINIT
 	and	A,0xe0,SCSISIGI			# CDI|IOI|MSGI
 	cmp	A,0xe0		jne use_findSCB # Still p_mesgin?
 	mvi	A	call inb_first
