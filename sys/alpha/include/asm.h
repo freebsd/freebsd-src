@@ -635,4 +635,4 @@ label:	ASCIZ msg;						\
 #define	__KERNEL_RCSID(_n, _s)		/* nothing */
 #endif
 
-#endif /* _KERNEL */
+#endif /* KERNEL */
