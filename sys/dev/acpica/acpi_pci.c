@@ -79,7 +79,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(device_attach,	acpi_pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pci_print_child),

@@ -89,7 +89,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_attach,	pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pci_print_child),
@@ -1509,3 +1509,35 @@ pci_modevent(module_t mod, int what, void *arg)
 
 	return (0);
 }
+
+int
+pci_resume(device_t dev)
+{
+	int			numdevs;
+	int			i;
+	device_t		*children;
+	device_t		child;
+	struct pci_devinfo	*dinfo;
+	pcicfgregs		*cfg;
+
+	device_get_children(dev, &children, &numdevs);
+
+	for (i = 0; i < numdevs; i++) {
+		child = children[i];
+
+		dinfo = device_get_ivars(child);
+		cfg = &dinfo->cfg;
+		if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
+			cfg->intline = PCI_ASSIGN_INTERRUPT(dev, child);
+			if (PCI_INTERRUPT_VALID(cfg->intline)) {
+				pci_write_config(child, PCIR_INTLINE,
+				    cfg->intline, 1);
+			}
+		}
+	}
+
+	free(children, M_TEMP);
+
+	return (bus_generic_resume(dev));
+}
+
