@@ -1888,5 +1888,10 @@ done:
 		vrele(vp);
 	if (fp)
 		fdrop(fp, p);
+	/*
+	 * sendfile cannot be restarted.
+	 */
+	if (error == ERESTART)
+		error = EINTR;
 	return (error);
 }
