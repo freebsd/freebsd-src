@@ -1,12 +1,5 @@
-<!-- $Id: kerneldebug.sgml,v 1.1 1995/06/14 18:38:55 jfieber Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.2 1995/06/30 17:37:41 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
-
-<!--
-<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
-<!ENTITY % authors SYSTEM "authors.sgml">
-%authors;
-]>
--->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
 
@@ -16,22 +9,27 @@
 
   <p>Here are some instructions for getting kernel debugging
   working on a crash dump, it assumes that you have enough swap
-  space for a crash dump.  If you happen to have multiple swap
-  partitions with the first one being too small to keep the dump,
+  space for a crash dump.  If you have multiple swap
+  partitions and the first one is too small to hold the dump,
   you can configure your kernel to use an alternate dump device
-  (in the <tt>kernel</tt> line).  Dumps to non-swap devices,
+  (in the <tt>config kernel</tt> line), or
+  you can specify an alternate using the dumpon(8) command.  
+  Dumps to non-swap devices,
   tapes for example, are currently not supported.  Config your
-  kernel using <tt>config -g</tt>. 
-<!-- XXX obsolete?
-Remember that you need to
-  specify
-<tscreen><verb>
-options  DODUMP
-</verb></tscreen>
-  in your config file in order to get kernel core dumps. 
--->
+  kernel using <tt>config -g</tt>.
   See <ref id="kernelconfig" name="Kernel Configuration"> for
   details on configuring the FreeBSD kernel.
+
+  Use the <tt>dumpon(8)</tt> command to tell the kernel where to dump
+  to (note that this will have to be done after configuring the
+  partition in question as swap space via <tt>swapon(8)</tt>).  This is
+  normally arranged via <tt>/etc/sysconfig</tt> and <tt>/etc/rc</tt>.  
+  Alternatively, you can
+  hard-code the dump device via the `dump' clause in the `config' line
+  of your kernel config file.  This is deprecated, but might be the
+  only chance to get a crash dump from a kernel that's not booting at
+  all, so that you didn't had the ability to run any command before it
+  used to crash.
 
   <em><bf>Note:</bf> In the following, the term `<tt>kgdb</tt>' refers
   to <tt>gdb</tt> run in `kernel debug mode'.  This can be accomplished by
@@ -43,7 +41,10 @@ options  DODUMP
   <tt>kernel.debug</tt>, and then run <tt>strip -x</tt> on the
   original. Install the original as normal.  You may also install
   the unstripped kernel, but symbol table lookup time for some
-  programs might drastically increase.
+  programs will drastically increase, and since
+  the whole kernel is loaded entirely at boot time and cannot be
+  swapped out later, several megabytes of
+  physical RAM willl be wasted.
 
   If you are testing a new kernel, for example by typing the new
   kernel's name at the boot prompt, but need to boot a different
@@ -200,14 +201,12 @@ options  DODUMP
   it, and it's therefore not compiled using <tt>config -g</tt>?
   Not everything is lost here.  Don't panic!
 
-<!--  XXX obsolete?
-  Of course, you still need to configure all your kernels with the
-  DODUMP option being set, otherwise you won't get a core dump at all.
+  Of course, you still need to enable crash dumps.  See above
+  on the options you've got to do this.
   (This is for safety reasons in the default kernels, to avoid them
   trying to dump e.g. during system installation where there's no
   FreeBSD partition at all and valuable data on the disk could be
   destroyed.)
--->
 
   Go to your kernel compile directory, and edit the line
   containing <tt>COPTFLAGS?=-O</tt>.  Add the <tt>-g</tt> option
@@ -269,8 +268,11 @@ options  DODUMP
 
   The second scenario is a hot-key on the keyboard, usually
   Ctrl-Alt-ESC.  For syscons, this can be remapped, and some of
-  the distributed maps do this, so watch out.  Patches for a
-  COMCONSOLE kernel, are available from &a.joerg;.
+  the distributed maps do this, so watch out.
+  There's an option
+  available for a COMCONSOLE kernel (``options BREAK_TO_DEBUGGER'')
+  that allows the use of a serial line BREAK on the console line to
+  enter DDB.
 
   The third way is that any panic condition will branch to DDB if
   the kernel is configured to use it.  It is not wise to
