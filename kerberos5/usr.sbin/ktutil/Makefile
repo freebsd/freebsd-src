@@ -39,7 +39,7 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBSL} ${LIBASN1} ${LIBKADM5CLNT} \
 		${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE}
-MAN8=		ktutil.8
+MAN=		ktutil.8
 
 .include <bsd.prog.mk>
 
