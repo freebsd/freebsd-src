@@ -1,5 +1,5 @@
 #
-# $Id: mfs.mtree,v 1.1.1.1 1998/07/14 07:30:42 abial Exp $
+# $Id: mfs.mtree,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 /set type=dir uname=root gname=wheel mode=0755
 .              
@@ -17,7 +17,7 @@
     ..
     mnt2           
     ..
-    proc           
+    root           
     ..
     stand          
     ..
