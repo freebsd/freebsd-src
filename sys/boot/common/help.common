@@ -237,6 +237,11 @@
 		set to 0, an interrupt will not be assigned and the
 		controller will operate in polled mode only.
 
+	set net.inet.tcp.tcbhashsize=<value>	TCBHASHSIZE
+
+		Overrides the compile-time set value of TCBHASHSIZE or
+		the preset default of 512.  Must be a power of 2.
+
 ################################################################################
 # Tshow DShow the values of variables
 
