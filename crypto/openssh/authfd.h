@@ -1,19 +1,19 @@
 /*
- * 
+ *
  * authfd.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Mar 29 01:17:41 1995 ylo
- * 
+ *
  * Functions to interface with the SSH_AUTHENTICATION_FD socket.
- * 
+ *
  */
 
-/* RCSID("$Id: authfd.h,v 1.6 1999/11/24 19:53:44 markus Exp $"); */
+/* RCSID("$Id: authfd.h,v 1.7 2000/04/14 10:30:30 markus Exp $"); */
 
 #ifndef AUTHFD_H
 #define AUTHFD_H
@@ -67,7 +67,7 @@ void    ssh_close_authentication_connection(AuthenticationConnection * ac);
  * integers before the call, and free the comment after a successful call
  * (before calling ssh_get_next_identity).
  */
-int 
+int
 ssh_get_first_identity(AuthenticationConnection * connection,
     BIGNUM * e, BIGNUM * n, char **comment);
 
@@ -77,13 +77,13 @@ ssh_get_first_identity(AuthenticationConnection * connection,
  * function.  This returns 0 if there are no more identities.  The caller
  * must free comment after a successful return.
  */
-int 
+int
 ssh_get_next_identity(AuthenticationConnection * connection,
     BIGNUM * e, BIGNUM * n, char **comment);
 
 /* Requests the agent to decrypt the given challenge.  Returns true if
    the agent claims it was able to decrypt it. */
-int 
+int
 ssh_decrypt_challenge(AuthenticationConnection * auth,
     BIGNUM * e, BIGNUM * n, BIGNUM * challenge,
     unsigned char session_id[16],
@@ -95,7 +95,7 @@ ssh_decrypt_challenge(AuthenticationConnection * auth,
  * be used by normal applications.  This returns true if the identity was
  * successfully added.
  */
-int    
+int
 ssh_add_identity(AuthenticationConnection * connection, RSA * key,
     const char *comment);
 

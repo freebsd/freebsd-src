@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * match.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Thu Jun 22 01:17:50 1995 ylo
- * 
+ *
  * Simple pattern matching, with '*' and '?' as wildcards.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: match.c,v 1.5 2000/03/23 22:15:33 markus Exp $");
+RCSID("$Id: match.c,v 1.6 2000/04/14 10:30:31 markus Exp $");
 
 #include "ssh.h"
 
@@ -23,7 +23,7 @@ RCSID("$Id: match.c,v 1.5 2000/03/23 22:15:33 markus Exp $");
  * and * as wildcards), and zero if it does not match.
  */
 
-int 
+int
 match_pattern(const char *s, const char *pattern)
 {
 	for (;;) {

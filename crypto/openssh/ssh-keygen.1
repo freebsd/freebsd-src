@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sat Apr 22 23:55:14 1995 ylo
 .\"
-.\" $Id: ssh-keygen.1,v 1.12 2000/03/23 21:10:10 aaron Exp $
+.\" $Id: ssh-keygen.1,v 1.18 2000/05/08 17:26:04 hugh Exp $
 .\"
 .Dd September 25, 1999
 .Dt SSH-KEYGEN 1
@@ -19,7 +19,7 @@
 .Nd authentication key generation
 .Sh SYNOPSIS
 .Nm ssh-keygen
-.Op Fl q
+.Op Fl dq
 .Op Fl b Ar bits
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
@@ -30,6 +30,15 @@
 .Op Fl N Ar new_passphrase
 .Op Fl f Ar keyfile
 .Nm ssh-keygen
+.Fl x
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl X
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl y
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
 .Fl c
 .Op Fl P Ar passphrase
 .Op Fl C Ar comment
@@ -37,15 +46,27 @@
 .Nm ssh-keygen
 .Fl l
 .Op Fl f Ar keyfile
-.Sh DESCRIPTION 
+.Nm ssh-keygen
+.Fl R
+.Sh DESCRIPTION
 .Nm
-generates and manages authentication keys for 
+generates and manages authentication keys for
 .Xr ssh 1 .
+.Nm
+defaults to generating an RSA key for use by protocols 1.3 and 1.5;
+specifying the
+.Fl d
+flag will create a DSA key instead for use by protocol 2.0.
+.Pp
 Normally each user wishing to use SSH
-with RSA authentication runs this once to create the authentication
+with RSA or DSA authentication runs this once to create the authentication
 key in
-.Pa $HOME/.ssh/identity .
-Additionally, the system administrator may use this to generate host keys.
+.Pa $HOME/.ssh/identity
+or
+.Pa $HOME/.ssh/id_dsa .
+Additionally, the system administrator may use this to generate host keys,
+as seen in
+.Pa /etc/rc .
 .Pp
 Normally this program generates the key and asks for a file in which
 to store the private key.
@@ -69,7 +90,7 @@ If the passphrase is
 lost or forgotten, you will have to generate a new key and copy the
 corresponding public key to other machines.
 .Pp
-There is also a comment field in the key file that is only for
+For RSA, there is also a comment field in the key file that is only for
 convenience to the user to help identify the key.
 The comment can tell what the key is for, or whatever is useful.
 The comment is initialized to
@@ -77,6 +98,9 @@ The comment is initialized to
 when the key is created, but can be changed using the
 .Fl c
 option.
+.Pp
+After a key is generated, instructions below detail where the keys
+should be placed to be activated.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -112,6 +136,19 @@ Provides the new comment.
 Provides the new passphrase.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
+.It Fl R
+If RSA support is functional, immediately exits with code 0.  If RSA
+support is not functional, exits with code 1.  This flag will be
+removed once the RSA patent expires.
+.It Fl x
+This option will read a private
+OpenSSH DSA format file and print a SSH2-compatible public key to stdout.
+.It Fl X
+This option will read a
+SSH2-compatible public key file and print an OpenSSH DSA compatible public key to stdout.
+.It Fl y
+This option will read a private
+OpenSSH DSA format file and print an OpenSSH DSA public key to stdout.
 .El
 .Sh FILES
 .Bl -tag -width Ds
@@ -124,12 +161,32 @@ used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
+.Xr sshd 8
+will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/identity.pub
 Contains the public key for authentication.
 The contents of this file should be added to
 .Pa $HOME/.ssh/authorized_keys
 on all machines
 where you wish to log in using RSA authentication.
+There is no need to keep the contents of this file secret.
+.It Pa $HOME/.ssh/id_dsa
+Contains the DSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 3DES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr sshd 8
+will read this file when a login attempt is made.
+.It Pa $HOME/.ssh/id_dsa.pub
+Contains the public key for authentication.
+The contents of this file should be added to
+.Pa $HOME/.ssh/authorized_keys2
+on all machines
+where you wish to log in using DSA authentication.
 There is no need to keep the contents of this file secret.
 .Sh AUTHOR
 Tatu Ylonen <ylo@cs.hut.fi>
@@ -150,7 +207,7 @@ external libraries.
 .It
 has been updated to support ssh protocol 1.5.
 .It
-contains added support for 
+contains added support for
 .Xr kerberos 8
 authentication and ticket passing.
 .It

@@ -1,13 +1,13 @@
 /*
- * 
+ *
  * scp - secure remote copy.  This is basically patched BSD rcp which uses ssh
  * to do the data transfer (instead of using rcmd).
- * 
+ *
  * NOTE: This version should NOT be suid root.  (This uses ssh to do the transfer
  * and ssh has the necessary privileges.)
- * 
+ *
  * 1995 Timo Rinne <tri@iki.fi>, Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
 */
 
 /*
@@ -45,7 +45,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: scp.c,v 1.26 2000/03/16 20:56:14 markus Exp $");
+RCSID("$Id: scp.c,v 1.30 2000/05/02 18:21:48 deraadt Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -109,7 +109,7 @@ char *port = NULL;
  * assigns the input and output file descriptors on success.
  */
 
-int 
+int
 do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 {
 	int pin[2], pout[2], reserved[2];
@@ -194,7 +194,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 	return 0;
 }
 
-void 
+void
 fatal(const char *fmt,...)
 {
 	va_list ap;
@@ -257,10 +257,10 @@ main(argc, argv)
 		switch (ch) {
 		/* User-visible flags. */
 		case '4':
-	       		IPv4 = 1;
+			IPv4 = 1;
 			break;
 		case '6':
-	       		IPv6 = 1;
+			IPv6 = 1;
 			break;
 		case 'p':
 			pflag = 1;
@@ -543,7 +543,7 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			(void) sprintf(buf, "T%lu 0 %lu 0\n",
 				       (unsigned long) stb.st_mtime,
 				       (unsigned long) stb.st_atime);
-			(void) write(remout, buf, strlen(buf));
+			(void) atomicio(write, remout, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
 		}
@@ -556,7 +556,7 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			fprintf(stderr, "Sending file modes: %s", buf);
 			fflush(stderr);
 		}
-		(void) write(remout, buf, strlen(buf));
+		(void) atomicio(write, remout, buf, strlen(buf));
 		if (response() < 0)
 			goto next;
 		if ((bp = allocbuf(&buffer, fd, 2048)) == NULL) {
@@ -573,14 +573,14 @@ next:			(void) close(fd);
 			if (i + amt > stb.st_size)
 				amt = stb.st_size - i;
 			if (!haderr) {
-				result = read(fd, bp->buf, amt);
+				result = atomicio(read, fd, bp->buf, amt);
 				if (result != amt)
 					haderr = result >= 0 ? EIO : errno;
 			}
 			if (haderr)
-				(void) write(remout, bp->buf, amt);
+				(void) atomicio(write, remout, bp->buf, amt);
 			else {
-				result = write(remout, bp->buf, amt);
+				result = atomicio(write, remout, bp->buf, amt);
 				if (result != amt)
 					haderr = result >= 0 ? EIO : errno;
 				statbytes += result;
@@ -592,7 +592,7 @@ next:			(void) close(fd);
 		if (close(fd) < 0 && !haderr)
 			haderr = errno;
 		if (!haderr)
-			(void) write(remout, "", 1);
+			(void) atomicio(write, remout, "", 1);
 		else
 			run_err("%s: %s", name, strerror(haderr));
 		(void) response();
@@ -621,7 +621,7 @@ rsource(name, statp)
 		(void) sprintf(path, "T%lu 0 %lu 0\n",
 			       (unsigned long) statp->st_mtime,
 			       (unsigned long) statp->st_atime);
-		(void) write(remout, path, strlen(path));
+		(void) atomicio(write, remout, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);
 			return;
@@ -632,7 +632,7 @@ rsource(name, statp)
 		       0, last);
 	if (verbose_mode)
 		fprintf(stderr, "Entering directory: %s", path);
-	(void) write(remout, path, strlen(path));
+	(void) atomicio(write, remout, path, strlen(path));
 	if (response() < 0) {
 		closedir(dirp);
 		return;
@@ -651,7 +651,7 @@ rsource(name, statp)
 		source(1, vect);
 	}
 	(void) closedir(dirp);
-	(void) write(remout, "E\n", 2);
+	(void) atomicio(write, remout, "E\n", 2);
 	(void) response();
 }
 
@@ -687,17 +687,17 @@ sink(argc, argv)
 	if (targetshouldbedirectory)
 		verifydir(targ);
 
-	(void) write(remout, "", 1);
+	(void) atomicio(write, remout, "", 1);
 	if (stat(targ, &stb) == 0 && S_ISDIR(stb.st_mode))
 		targisdir = 1;
 	for (first = 1;; first = 0) {
 		cp = buf;
-		if (read(remin, cp, 1) <= 0)
+		if (atomicio(read, remin, cp, 1) <= 0)
 			return;
 		if (*cp++ == '\n')
 			SCREWUP("unexpected <newline>");
 		do {
-			if (read(remin, &ch, sizeof(ch)) != sizeof(ch))
+			if (atomicio(read, remin, &ch, sizeof(ch)) != sizeof(ch))
 				SCREWUP("lost connection");
 			*cp++ = ch;
 		} while (cp < &buf[sizeof(buf) - 1] && ch != '\n');
@@ -705,7 +705,7 @@ sink(argc, argv)
 
 		if (buf[0] == '\01' || buf[0] == '\02') {
 			if (iamremote == 0)
-				(void) write(STDERR_FILENO,
+				(void) atomicio(write, STDERR_FILENO,
 					     buf + 1, strlen(buf + 1));
 			if (buf[0] == '\02')
 				exit(1);
@@ -713,7 +713,7 @@ sink(argc, argv)
 			continue;
 		}
 		if (buf[0] == 'E') {
-			(void) write(remout, "", 1);
+			(void) atomicio(write, remout, "", 1);
 			return;
 		}
 		if (ch == '\n')
@@ -737,7 +737,7 @@ sink(argc, argv)
 			getnum(dummy_usec);
 			if (*cp++ != '\0')
 				SCREWUP("atime.usec not delimited");
-			(void) write(remout, "", 1);
+			(void) atomicio(write, remout, "", 1);
 			continue;
 		}
 		if (*cp != 'C' && *cp != 'D') {
@@ -816,7 +816,7 @@ sink(argc, argv)
 bad:			run_err("%s: %s", np, strerror(errno));
 			continue;
 		}
-		(void) write(remout, "", 1);
+		(void) atomicio(write, remout, "", 1);
 		if ((bp = allocbuf(&buffer, ofd, 4096)) == NULL) {
 			(void) close(ofd);
 			continue;
@@ -835,7 +835,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 				amt = size - i;
 			count += amt;
 			do {
-				j = read(remin, cp, amt);
+				j = atomicio(read, remin, cp, amt);
 				if (j <= 0) {
 					run_err("%s", j ? strerror(errno) :
 						"dropped connection");
@@ -848,7 +848,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			if (count == bp->cnt) {
 				/* Keep reading so we stay sync'd up. */
 				if (wrerr == NO) {
-					j = write(ofd, bp->buf, count);
+					j = atomicio(write, ofd, bp->buf, count);
 					if (j != count) {
 						wrerr = YES;
 						wrerrno = j >= 0 ? EIO : errno;
@@ -861,7 +861,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 		if (showprogress)
 			progressmeter(1);
 		if (count != 0 && wrerr == NO &&
-		    (j = write(ofd, bp->buf, count)) != count) {
+		    (j = atomicio(write, ofd, bp->buf, count)) != count) {
 			wrerr = YES;
 			wrerrno = j >= 0 ? EIO : errno;
 		}
@@ -897,7 +897,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			run_err("%s: %s", np, strerror(wrerrno));
 			break;
 		case NO:
-			(void) write(remout, "", 1);
+			(void) atomicio(write, remout, "", 1);
 			break;
 		case DISPLAYED:
 			break;
@@ -913,7 +913,7 @@ response()
 {
 	char ch, *cp, resp, rbuf[2048];
 
-	if (read(remin, &resp, sizeof(resp)) != sizeof(resp))
+	if (atomicio(read, remin, &resp, sizeof(resp)) != sizeof(resp))
 		lostconn(0);
 
 	cp = rbuf;
@@ -926,13 +926,13 @@ response()
 	case 1:		/* error, followed by error msg */
 	case 2:		/* fatal error, "" */
 		do {
-			if (read(remin, &ch, sizeof(ch)) != sizeof(ch))
+			if (atomicio(read, remin, &ch, sizeof(ch)) != sizeof(ch))
 				lostconn(0);
 			*cp++ = ch;
 		} while (cp < &rbuf[sizeof(rbuf) - 1] && ch != '\n');
 
 		if (!iamremote)
-			(void) write(STDERR_FILENO, rbuf, cp - rbuf);
+			(void) atomicio(write, STDERR_FILENO, rbuf, cp - rbuf);
 		++errs;
 		if (resp == 1)
 			return (-1);
@@ -1006,7 +1006,7 @@ run_err(const char *fmt,...)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scp.c,v 1.26 2000/03/16 20:56:14 markus Exp $
+ *	$Id: scp.c,v 1.30 2000/05/02 18:21:48 deraadt Exp $
  */
 
 char *
@@ -1209,7 +1209,12 @@ progressmeter(int flag)
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
 			 " - stalled -");
 	} else {
-		remaining = (int) (totalbytes / (statbytes / elapsed) - elapsed);
+		if (flag != 1)
+			remaining =
+			    (int)(totalbytes / (statbytes / elapsed) - elapsed);
+		else
+			remaining = elapsed;
+
 		i = remaining / 3600;
 		if (i)
 			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
@@ -1219,7 +1224,8 @@ progressmeter(int flag)
 				 "   ");
 		i = remaining % 3600;
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-			 "%02d:%02d ETA", i / 60, i % 60);
+			 "%02d:%02d%s", i / 60, i % 60,
+			 (flag != 1) ? " ETA" : "    ");
 	}
 	atomicio(write, fileno(stdout), buf, strlen(buf));
 
@@ -1228,7 +1234,7 @@ progressmeter(int flag)
 		alarmtimer(1);
 	} else if (flag == 1) {
 		alarmtimer(0);
-		write(fileno(stdout), "\n", 1);
+		atomicio(write, fileno(stdout), "\n", 1);
 		statbytes = 0;
 	}
 }
