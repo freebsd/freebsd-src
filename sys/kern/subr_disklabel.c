@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.3 1994/08/02 07:54:53 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.4 1994/10/08 06:57:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -361,11 +361,14 @@ writedisklabel(dev, strat, lp)
 	int error = 0;
 
 	labelpart = dkpart(dev);
+	/* XXX this is wrong. But leaving it in is worse. */
+#ifndef __FREEBSD__
 	if (lp->d_partitions[labelpart].p_offset != 0) {
 		if (lp->d_partitions[0].p_offset != 0)
 			return (EXDEV);			/* not quite right */
 		labelpart = 0;
 	}
+#endif
 	bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), labelpart));
 	bp->b_blkno = LABELSECTOR;
