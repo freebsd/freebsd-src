@@ -72,6 +72,10 @@ static struct {
 	{ "Intel i82365SL-DF",	PCIC_DF_POWER}
 };
 
+static driver_intr_t	pcicintr;
+static int		pcicintr1(void *);
+static timeout_t 	pcictimeout;
+
 /*
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
@@ -274,6 +278,8 @@ pcic_isa_attach(device_t dev)
 	struct pcic_softc *sc;
 	int rid;
 	struct resource *r;
+	int		irq = 0;
+	int error;
 
 	sc = device_get_softc(dev);
 	rid = 0;
@@ -286,7 +292,119 @@ pcic_isa_attach(device_t dev)
 	sc->iores = r;
 	sc->csc_route = isa_parallel;
 	sc->func_route = isa_parallel;
+
+	rid = 0;
+	r = NULL;
+	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (r == NULL) {
+		/* See if the user has requested a specific IRQ */
+		if (getenv_int("machdep.pccard.pcic_irq", &irq))
+			r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+			    irq, irq, 1, RF_ACTIVE);
+	}
+	if (r && ((1 << (rman_get_start(r))) & PCIC_INT_MASK_ALLOWED) == 0) {
+		device_printf(dev,
+		    "Hardware does not support irq %d, trying polling.\n",
+		    irq);
+		bus_release_resource(dev, SYS_RES_IRQ, rid, r);
+		irq = 0;
+		r = NULL;
+	}
+	sc->irqrid = rid;
+	sc->irqres = r;
+	irq = 0;
+	if (r != NULL) {
+		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
+		    pcicintr, (void *) sc, &sc->ih);
+		if (error) {
+			pcic_dealloc(dev);
+			return (error);
+		}
+		irq = rman_get_start(r);
+		device_printf(dev, "management irq %d\n", irq);
+	}
+	sc->irq = irq;
+	if (irq == 0) {
+		sc->slot_poll = pcictimeout;
+		sc->timeout_ch = timeout(sc->slot_poll, (void *) sc, hz/2);
+		device_printf(dev, "Polling mode\n");
+	}
+
 	return (pcic_attach(dev));
+}
+
+/*
+ * Wrapper function for pcicintr so that signatures match.
+ */
+static void
+pcicintr(void *arg)
+{
+	pcicintr1(arg);
+}
+
+/*
+ *	PCIC timer.  If the controller doesn't have a free IRQ to use
+ *	or if interrupt steering doesn't work, poll the controller for
+ *	insertion/removal events.
+ */
+static void
+pcictimeout(void *chan)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) chan;
+
+	if (pcicintr1(chan) != 0) {
+		device_printf(sc->dev, 
+		    "Static bug detected, ignoring hardware.");
+		sc->slot_poll = 0;
+		return;
+	}
+	sc->timeout_ch = timeout(sc->slot_poll, chan, hz/2);
+}
+
+/*
+ *	PCIC Interrupt handler.
+ *	Check each slot in turn, and read the card status change
+ *	register. If this is non-zero, then a change has occurred
+ *	on this card, so send an event to the main code.
+ */
+static int
+pcicintr1(void *arg)
+{
+	int	slot, s;
+	unsigned char chg;
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+
+	s = splhigh();
+	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
+		if (sp->slt == NULL)
+			continue;
+		if ((chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
+			/*
+			 * if chg is 0xff, then we know that we've hit
+			 * the famous "static bug" for some desktop
+			 * pcmcia cards.  This is caused by static
+			 * discharge frying the poor card's mind and
+			 * it starts return 0xff forever.  We return
+			 * an error and stop polling the card.  When
+			 * we're interrupt based, we never see this.
+			 * The card just goes away silently.
+			 */
+			if (chg == 0xff) {
+				splx(s);
+				return (EIO);
+			}
+			if (chg & PCIC_CDTCH) {
+				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
+				    PCIC_CD)
+					pccard_event(sp->slt, card_inserted);
+				else
+					pccard_event(sp->slt, card_removed);
+			}
+		}
+	}
+	splx(s);
+	return (0);
 }
 
 static device_method_t pcic_methods[] = {
