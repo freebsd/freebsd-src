@@ -535,6 +535,8 @@ __getcwd(p, uap)
 	slash_prefixed = 0;
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {
+			if (vp->v_mount == NULL)	/* forced unmount */
+				return (EBADF);
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
