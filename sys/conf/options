@@ -360,6 +360,7 @@ SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_DROP_SYNFIN		opt_tcp_input.h
 XBONEHACK
+MBUF_FRAG_TEST		opt_mbuf_frag_test.h
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel
