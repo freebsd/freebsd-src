@@ -70,14 +70,19 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.24 1997/09/21 22:01:13 gibbs Exp $ */
+/* $Id: ppp_tty.c,v 1.25 1997/10/10 11:57:43 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
 
 #define VJC
 #define PPP_COMPRESS
+
+#include "bpfilter.h"
+#if NBPFILTER > 0
 #define PPP_FILTER
+#endif
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
