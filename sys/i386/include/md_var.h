@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.2 1995/03/28 07:55:08 bde Exp $
+ *	$Id: md_var.h,v 1.3 1995/05/30 08:00:43 rgrimes Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -52,7 +52,6 @@ extern	int	szsigcode;
 struct	proc;
 struct	reg;
 
-void	configure __P((void));
 void	cpu_reset __P((void));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault __P((void)) __asm(__STRING(doreti_iret_fault));

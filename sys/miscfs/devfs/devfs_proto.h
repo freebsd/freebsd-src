@@ -1,4 +1,5 @@
-void  devfs_back_init() /*proto*/;
+/* THIS FILE PRODUCED AUTOMATICALLY */
+void  devfs_sinit() /*proto*/;
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/;
 int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/;
 int	dev_remove(devnm_p devbp) /*proto*/;
@@ -6,7 +7,6 @@ int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/;
 void	devfs_dn_free(dn_p dnp) /*proto*/;
 int get_cdev_major_num(caddr_t addr)	/*proto*/;
 int get_bdev_major_num(caddr_t addr)	/*proto*/;
-devnm_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t uid,gid_t gid, int perms) /*proto*/;
 int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/;
 dn_p dev_findfront(dn_p dir,char *name) /*proto*/;
 int dev_mk_front(dn_p parent,devnm_p back,devnm_p *devnm_pp , struct devfsmount *dvm) /*proto*/;
@@ -29,3 +29,5 @@ int devfs_vget(struct mount *mp, ino_t ino,struct vnode **vpp) /*proto*/;
 int devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam, struct vnode **vpp, int *exflagsp, struct ucred **credanonp) /*proto*/;
 int devfs_vptofh (struct vnode *vp, struct fid *fhp) /*proto*/;
 void	devfs_dropvnode(dn_p dnp) /*proto*/;
+/* THIS FILE PRODUCED AUTOMATICALLY */
+/* DO NOT EDIT (see reproto.sh) */

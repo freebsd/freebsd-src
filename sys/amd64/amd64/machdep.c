@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.136 1995/08/20 04:41:02 davidg Exp $
+ *	$Id: machdep.c,v 1.137 1995/08/28 09:17:46 julian Exp $
  */
 
 #include "npx.h"
@@ -398,19 +398,19 @@ again:
 	vm_pager_bufferinit();
 
 	/*
-	 * Configure the system.
+	 * if we need it, print out the Bios's idea of geometry
 	 */
-	configure();
 	if (bootverbose) {
 		printf("BIOS Geometries:\n");
 		for (i=0; i < N_BIOS_GEOM; i++) {
 			int j = bootinfo.bi_bios_geom[i];
 			if (j == 0x4f010f)
 				continue;
-			printf(" %x:%08x", i, j);
-			printf(" %d cyl, %d heads, %d sects\n",
-				j >> 16, (j >> 8) & 0xff, j & 0xff);
-
+			printf(" %x:%08x ", i, j);
+			printf("0..%d=%d cyl, 0..%d=%d heads, 1..%d=%d sects\n",
+				(j >> 16),(j >> 16)+1,
+				((j >> 8) & 0xff),((j >> 8) & 0xff)+1,
+				(j & 0xff), (j & 0xff));
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}

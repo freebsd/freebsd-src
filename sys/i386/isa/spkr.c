@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.13 1995/05/05 06:15:11 davidg Exp $
+ *    $Id: spkr.c,v 1.14 1995/05/30 08:03:09 rgrimes Exp $
  */
 
 #include "speaker.h"
@@ -22,6 +22,20 @@
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
+
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#include "sys/kernel.h"
+int spkropen();
+
+void spkrdev_init(caddr_t data) /* data not used */
+{
+  void * x;
+/*            path	name		devsw   minor	type   uid gid perm*/
+   x=dev_add("/misc",	"speaker",	spkropen, 0,	DV_CHR, 0,  0, 0600);
+}
+SYSINIT(spkrdev,SI_SUB_DEVFS, SI_ORDER_ANY, spkrdev_init, NULL)
+#endif /*DEVFS*/
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
