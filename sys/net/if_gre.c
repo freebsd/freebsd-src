@@ -63,6 +63,7 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
 
@@ -107,8 +108,7 @@ static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *rt);
 
-static struct if_clone gre_cloner =
-    IF_CLONE_INITIALIZER("gre", gre_clone_create, gre_clone_destroy, 0, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(gre, 0);
 
 static int gre_compute_route(struct gre_softc *sc);
 

@@ -94,6 +94,7 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
@@ -119,6 +120,7 @@
 #include <net/bpf.h>
 
 #define STFNAME		"stf"
+#define STFUNIT		0
 
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
 
@@ -160,6 +162,8 @@ struct protosw in_stf_protosw =
   &rip_usrreqs
 };
 
+static char *stfnames[] = {"stf0", "stf", "6to4", NULL};
+
 static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
@@ -173,30 +177,58 @@ static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
 static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
-static int stf_clone_create(struct if_clone *, int);
-static void stf_clone_destroy(struct ifnet *);
-
-/* only one clone is currently allowed */
-struct if_clone stf_cloner =
-    IF_CLONE_INITIALIZER(STFNAME, stf_clone_create, stf_clone_destroy, 0, 0);
+static int stf_clone_match(struct if_clone *, const char *);
+static int stf_clone_create(struct if_clone *, char *, size_t);
+static int stf_clone_destroy(struct if_clone *, struct ifnet *);
+struct if_clone stf_cloner = IFC_CLONE_INITIALIZER(STFNAME, NULL, 0,
+    NULL, stf_clone_match, stf_clone_create, stf_clone_destroy);
 
 static int
-stf_clone_create(ifc, unit)
-	struct if_clone *ifc;
-	int unit;
+stf_clone_match(struct if_clone *ifc, const char *name)
 {
+	int i;
+
+	for(i = 0; stfnames[i] != NULL; i++) {
+		if (strcmp(stfnames[i], name) == 0)
+			return (1);
+	}
+
+	return (0);
+}
+
+static int
+stf_clone_create(struct if_clone *ifc, char *name, size_t len)
+{
+	int err, unit;
 	struct stf_softc *sc;
 	struct ifnet *ifp;
 
+	/*
+	 * We can only have one unit, but since unit allocation is
+	 * already locked, we use it to keep from allocating extra
+	 * interfaces.
+	 */
+	unit = STFUNIT;
+	err = ifc_alloc_unit(ifc, &unit);
+	if (err != 0)
+		return (err);
+
 	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
 	ifp = &sc->sc_if;
-	if_initname(ifp, ifc->ifc_name, unit);
+	/*
+	 * Set the name manually rather then using if_initname because
+	 * we don't conform to the default naming convention for interfaces.
+	 */
+	strlcpy(ifp->if_xname, name, IFNAMSIZ);
+	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dunit = IF_DUNIT_NONE;
 
 	sc->encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV6,
 	    stf_encapcheck, &in_stf_protosw, sc);
 	if (sc->encap_cookie == NULL) {
 		if_printf(ifp, "attach failed\n");
 		free(sc, M_STF);
+		ifc_free_unit(ifc, unit);
 		return (ENOMEM);
 	}
 
@@ -226,9 +258,8 @@ stf_destroy(struct stf_softc *sc)
 	free(sc, M_STF);
 }
 
-static void
-stf_clone_destroy(ifp)
-	struct ifnet *ifp;
+static int
+stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct stf_softc *sc = (void *) ifp;
 
@@ -237,6 +268,9 @@ stf_clone_destroy(ifp)
 	mtx_unlock(&stf_mtx);
 
 	stf_destroy(sc);
+	ifc_free_unit(ifc, STFUNIT);
+
+	return (0);
 }
 
 static int

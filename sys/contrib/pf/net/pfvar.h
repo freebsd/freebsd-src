@@ -40,6 +40,7 @@
 
 #include <net/radix.h>
 #ifdef __FreeBSD__
+#include <net/if_clone.h>
 #include <vm/uma.h>
 #else
 #include <netinet/ip_ipsp.h>
