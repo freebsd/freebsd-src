@@ -14,9 +14,9 @@ all: tree links
 tree:
 	@echo "--- making tree"
 	@( if [ -f mfs.mtree ] ; then \
-		mtree -deU -f mfs.mtree -p ${DESTDIR}; \
+		mtree -deLU -f mfs.mtree -p ${DESTDIR}; \
 	else \
-		mtree -deU -f ../build/mfs.mtree -p ${DESTDIR} ;  \
+		mtree -deLU -f ../build/mfs.mtree -p ${DESTDIR} ;  \
 	fi )
 
 links: tree
