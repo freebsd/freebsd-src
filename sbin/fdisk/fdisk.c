@@ -183,7 +183,8 @@ static void change_part(int i);
 static void print_params();
 static void change_active(int which);
 static void get_params_to_use();
-static void dos(int sec, unsigned char *c, unsigned char *s, unsigned char *h);
+static void dos(int sec, int size, unsigned char *c, unsigned char *s,
+		unsigned char *h);
 static int open_disk(int u_flag);
 static ssize_t read_disk(off_t sector, void *buf);
 static ssize_t write_disk(off_t sector, void *buf);
@@ -372,8 +373,10 @@ unsigned long size = disksecs - start;
 	partp->dp_start = start;
 	partp->dp_size = size;
 
-	dos(partp->dp_start, &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-	dos(partp->dp_start+partp->dp_size, &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+	dos(partp->dp_start, partp->dp_size, 
+	    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
+	dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
+	    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
 }
 
 static void
@@ -424,10 +427,10 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
 		} else {
-			dos(partp->dp_start,
-				&partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-			dos(partp->dp_start+partp->dp_size - 1,
-				&partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+			dos(partp->dp_start, partp->dp_size,
+			    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
+			dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
+			    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
 		}
 
 		print_part(i);
@@ -491,14 +494,14 @@ get_params_to_use()
 * Change real numbers into strange dos numbers	*
 \***********************************************/
 static void
-dos(sec, c, s, h)
-int sec;
+dos(sec, size, c, s, h)
+int sec, size;
 unsigned char *c, *s, *h;
 {
 int cy;
 int hd;
 
-	if (sec == 0) {
+	if (sec == 0 && size == 0) {
 		*s = *c = *h = 0;
 		return;
 	}
