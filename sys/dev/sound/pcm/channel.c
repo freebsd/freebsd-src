@@ -70,7 +70,7 @@ static int chn_buildfeeder(struct pcm_channel *c);
 static void
 chn_lockinit(struct pcm_channel *c)
 {
-	c->lock = snd_mtxcreate(c->name);
+	c->lock = snd_mtxcreate(c->name, "pcm channel");
 }
 
 static void

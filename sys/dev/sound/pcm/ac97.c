@@ -498,7 +498,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 		return NULL;
 
 	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
-	codec->lock = snd_mtxcreate(codec->name);
+	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
 	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
 	if (codec->methods == NULL) {
 		snd_mtxlock(codec->lock);

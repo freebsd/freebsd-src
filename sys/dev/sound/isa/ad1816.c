@@ -587,7 +587,7 @@ ad1816_attach(device_t dev)
 	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ad1816) return ENXIO;
 
-	ad1816->lock = snd_mtxcreate(device_get_nameunit(dev));
+	ad1816->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	ad1816->io_rid = 2;
 	ad1816->irq_rid = 0;
 	ad1816->drq1_rid = 0;

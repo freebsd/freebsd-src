@@ -1665,7 +1665,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	int pdma, rdma, flags = device_get_flags(dev);
     	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
-	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
+	mss->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	mss->bufsize = pcm_getbuffersize(dev, 4096, MSS_DEFAULT_BUFSZ, 65536);
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
