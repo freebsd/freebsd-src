@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.85 1998/03/30 09:49:52 phk Exp $
+ * $Id: init_main.c,v 1.86 1998/04/04 13:25:08 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -85,9 +85,6 @@ static struct pcred cred0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
 static struct vmspace vmspace0;
-#ifndef SMP	/* per-cpu on smp */
-struct	proc *curproc = &proc0;
-#endif
 struct	proc *initproc;
 
 int cmask = CMASK;
@@ -151,17 +148,6 @@ main(framep)
 	 * all other processes.
 	 */
 	init_framep = framep;
-
-#ifdef SMP
-	/*
-	 * XXX curproc is per-cpu in SMP, and exists in freshly mapped pages,
-	 * so its value must be initialized now before it is used by various
-	 * initialization routines.  proc0_init() isn't soon enough:
-	 * among other things, configure() is called first, and may call
-	 * setdumpdev(), which panics without a valid curproc.
-	 */
-	curproc = &proc0;
-#endif /* SMP */
 
 	/*
 	 * Perform a bubble sort of the system initialization objects by
