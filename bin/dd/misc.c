@@ -56,7 +56,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 void
-summary()
+summary(void)
 {
 	struct timeval tv;
 	double secs;
@@ -89,8 +89,7 @@ summary()
 
 /* ARGSUSED */
 void
-summaryx(notused)
-	int notused __unused;
+summaryx(int notused __unused)
 {
 	int save_errno = errno;
 
@@ -100,8 +99,7 @@ summaryx(notused)
 
 /* ARGSUSED */
 void
-terminate(sig)
-	int sig;
+terminate(int sig)
 {
 
 	summary();
