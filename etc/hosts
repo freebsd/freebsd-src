@@ -1,13 +1,20 @@
+# $Id$
 #
 # Host Database
 # This file should contain the addresses and aliases
 # for local hosts that share this file.
-# It is used only for "ifconfig" and other operations
-# before the nameserver is started.
+# In the presence of the domain name service or NIS, this file may
+# not be consulted at all; see /etc/host.conf for the resolution order.
 #
 #
-127.1		localhost localhost.my.domain
+127.0.0.1		localhost localhost.my.domain
 #
 # Imaginary network.
-0.2		myname.my.domain myname
-0.3		myfriend.my.domain myfriend
+#0.2		myname.my.domain myname
+#0.3		myfriend.my.domain myfriend
+#
+# NB: 0 is not a valid network number.  PLEASE PLEASE PLEASE do not try
+# to invent your own network numbers but instead get one from your
+# network provider (if any) or from the Internet Registry (ftp to
+# rs.internic.net, directory `/templates').
+#
