@@ -31,23 +31,23 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2000
+.Dd September 13, 2004
 .Dt PCN 4
 .Os
 .Sh NAME
 .Nm pcn
-.Nd "AMD PCnet/PCI fast ethernet device driver"
+.Nd "AMD PCnet/PCI Fast Ethernet device driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device pcn"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI ethernet adapters and embedded
+driver provides support for PCI Ethernet adapters and embedded
 controllers based on the AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III,
-PCnet/PRO and PCnet/Home ethernet controller chips.
+PCnet/PRO and PCnet/Home Ethernet controller chips.
 .Pp
-The PCnet/PCI chips include a 100Mbps ethernet MAC and support
+The PCnet/PCI chips include a 100Mbps Ethernet MAC and support
 both a serial and MII-compliant transceiver interface.
 They use a bus master DMA and a scatter/gather descriptor scheme.
 The AMD chips provide a mechanism for zero-copy receive,
@@ -76,7 +76,7 @@ or
 .Sq half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
 .Cm mediaopt
@@ -100,6 +100,34 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports adapters and embedded controllers based on the AMD PCnet/FAST,
+PCnet/FAST+, PCnet/FAST III, PCnet/PRO and PCnet/Home Fast Ethernet chips:
+.Pp
+.Bl -bullet -compact
+.It
+AMD Am53C974/Am79C970/Am79C974 PCnet-PCI
+.It
+AMD Am79C970A PCnet-PCI II
+.It
+AMD Am79C971 PCnet-FAST
+.It
+AMD Am79C972 PCnet-FAST+
+.It
+AMD Am79C973/Am79C975 PCnet-FAST III
+.It
+AMD Am79C976 PCnet-PRO
+.It
+AMD PCnet/Home HomePNA
+.It
+Allied-Telesis LA-PCI
+.It
+Contec C-NET(98)S (PC-98)
+.It
+NEC SV-98/2-B05, B06
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "pcn%d: couldn't map ports/memory"
