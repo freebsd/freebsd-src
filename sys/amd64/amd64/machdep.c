@@ -498,6 +498,10 @@ void
 cpu_idle(void)
 {
 
+#ifdef SMP
+	if (mp_grab_cpu_hlt())
+		return;
+#endif
 	if (cpu_idle_hlt) {
 		disable_intr();
   		if (sched_runnable())
