@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.11 1996/09/06 23:09:01 phk Exp $
+**  $Id: pcivar.h,v 1.12 1996/09/08 10:44:14 phk Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -146,21 +146,6 @@ extern struct linker_set pcidevice_set;
 extern unsigned pci_max_burst_len;  /* log2 of safe burst transfer length */
 extern unsigned pci_mechanism;
 extern unsigned pci_maxdevice;
-
-/*-----------------------------------------------------------------
-**
-**	The pci-devconf interface.
-**
-**-----------------------------------------------------------------
-*/
-
-struct pci_info {
-	u_char pi_bus;
-	u_char pi_device;
-	u_char pi_func;
-	u_char pi_dummy;
-	u_char pi_unit;
-};
 
 /*-----------------------------------------------------------------
 **

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.62 1996/09/06 23:09:15 phk Exp $
+ *      $Id: scsiconf.c,v 1.63 1996/09/08 10:44:16 phk Exp $
  */
 
 #include "opt_scsi.h"
@@ -26,7 +26,6 @@
 #include <sys/systm.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
-#include <sys/sysctl.h>
 #include <sys/conf.h>
 #ifdef PC98
 #include <sys/device.h>
