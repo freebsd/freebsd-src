@@ -1,10 +1,162 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.6.11 (Berkeley) 6/14/97
+	     @(#)RELEASE_NOTES	8.8.7.7 (Berkeley) 8/3/97
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.8.7/8.8.7	97/08/03
+	If using Berkeley DB on systems without O_EXLOCK (open a file with
+		an exclusive lock already set -- i.e., almost all systems
+		except 4.4-BSD derived systems), the initial attempt at
+		rebuilding aliases file if the database didn't already
+		exist would fail.  Patch from Raymund Will of LST Software
+		GmbH.
+	Bogus incoming SMTP commands would reset the SMTP conversation.
+		Problem noted by Fredrik Jönsson of the Royal Institute
+		of Technology, Stockholm.
+	Since TCP Wrappers includes setenv(), unsetenv(), and putenv(),
+		some environments could give "multiple definitions" for these
+		routines during compilation.  If using TCP Wrappers, assume
+		that these routines are included as though they were in the
+		C library.  Patch from Robert La Ferla.
+	When a NEWDB database map was rebuilt at the same time it was being
+		used by a queue run, the maps could be left locked for the
+		duration of the queue run, causing other processes to hang.
+		Problem noted by Kendall Libby of Shore.NET.
+	In some cases, NoRecipientAction=add-bcc was being ignored, so the
+		mail was passed on without any recipient header.  This could
+		cause problems downstream.  Problem noted by Xander Jansen
+		of SURFnet ExpertiseCentrum.
+	Give error when GDBM is used with sendmail.  GDBM's locking and
+		linking of the .dir and .pag files interferes with sendmail's
+		locking and security checks.  Problems noted by Fyodor
+		Yarochkin of the Kyrgyz Republic FreeNet.
+	Don't fsync qf files if SuperSafe option is not set.
+	Avoid extra calls to gethostbyname for addresses for which a
+		gethostbyaddr found no value.  Also, ignore any returns
+		from gethostbyaddr that look like a dotted quad.
+	If PTR lookup fails when looking up an SMTP peer, don't tag it as
+		"may be forged", since at the network level we pretty much
+		have to assume that the information is good.
+	In some cases, errors during an SMTP session could leave files
+		open or locked.
+	Better handling of missing file descriptors (0, 1, 2) on startup.
+	Better handling of non-setuid binaries -- avoids certain obnoxious
+		errors during testing.
+	Errors in file locking of NEWDB maps had the incorrect file name
+		printed in the error message.
+	If the AllowBogusHELO option were set and an EHLO with a bad or
+		missing parameter were issued, the EHLO behaved like a HELO.
+	Load limiting never kicked in for incoming SMTP transactions if the
+		DeliverMode=background and any recipient was an alias or
+		had a .forward file.  From Nik Conwell of Boston University.
+	On some non-Posix systems, the decision of whether chown(2) permits
+		file giveaway was undefined.  From Tetsu Ushijima of the
+		Tokyo Institute of Technology.
+	Fix race condition that could cause the body of a message to be
+		lost (so only the header was delivered).  This only occurs
+		on systems that do not use flock(2), and only when a queue
+		runner runs during a critical section in another message
+		delivery.  Based on a patch from Steve Schweinhart of
+		Results Computing.
+	If a qf file was found in a mail queue directory that had a problem
+		(wrong ownership, bad format, etc.) and the file name was
+		exactly MAXQFNAME bytes long, then instead of being tried
+		once, it would be tried on every queue run.  Problem noted
+		by Bryan Costales of Mercury Mail.
+	If the system supports an st_gen field in the status structure,
+		include it when reporting that a file has changed after open.
+		This adds a new compile flag, HAS_ST_GEN (0/1 option).
+		This out to be checked as well as reported, since it is
+		theoretically possible for an attacker to remove a file after
+		it is opened and replace it with another file that has the
+		same i-number, but some filesystems (notably AFS) return
+		garbage in this field, and hence always look like the file
+		has changed.  As a practical matter this is not a security
+		problem, since the files can be neither hard nor soft links,
+		and on no filesystem (that I am aware of) is it possible to
+		have two files on the same filesystem with the same i-number
+		simultaneously.
+	Delete the root Makefile from the distribution -- it is only for
+		use internally, and does not work at customer sites.
+	Fix botch that caused the second MAIL FROM: command in a single
+		transaction to clear the entire transaction.  Problem
+		noted by John Kennedy of Cal State University, Chico.
+	Work properly on machines that have _PATH_VARTMP defined without
+		a trailing slash.  (And a pox on vendors that decide to
+		ignore the established conventions!)  Problem noted by
+		Gregory Neil Shapiro of WPI.
+	Internal changes to make it easier to add another protocol family
+		(intended for IPv6).  Patches are from John Kennedy of
+		CSU Chico.
+	In certain cases, 7->8 bit MIME decoding of Base64 text could leave
+		an extra space at the beginning of some lines.  Problem
+		noted by Charles Karney of Princeton University; fix based
+		on a patch from Christophe Wolfhugel.
+	Portability:
+		Allow _PATH_VENDOR_CF to be set in Makefile for consistency
+			with the _Sendmail_ book, 2nd edition.  Note that
+			the book is actually wrong: _PATH_SENDMAILCF should
+			be used instead.
+		AIX 3.x: Include <sys/select.h>.  Patch from Gene Rackow
+			of Argonne National Laboratory.
+		OpenBSD from from Paul DuBois of the University of Wisconsin.
+		RISC/os 4.0 from Paul DuBois of the University of Wisconsin.
+		SunOS: Include <memory.h> to fix warning from util.c.  From
+			James Aldridge of EUnet Ltd.
+		Solaris: Change STDIR (location of status file) to /etc/mail
+			in Makefiles.
+		Linux, Dynix, UNICOS: Remove -DNDBM and -lgdbm from
+			Makefiles.  Use NEWDB on Linux instead.
+		NCR MP-RAS 3.x with STREAMware TCP/IP: SIOCGIFNUM ioctl
+			exists but behaves differently than other OSes.
+			Add SIOCGIFNUM_IS_BROKEN compile flag to get
+			around the problem.  Problem noted by Tom Moore of
+			NCR Corp.
+		HP-UX 9.x: fix compile warnings for old select API.  Problem
+			noted by Tom Smith of Digital Equipment Corp.
+		UnixWare 2.x: compile warnings on offsetof macro.  Problem
+			noted by Tom Good of the Community Access Information
+			Resource Network
+		SCO 4.2: compile problems caused by a change in the type of
+			the "length" parameters passed to accept, getpeername,
+			getsockname, and getsockopt.  Adds new compile flags
+			SOCKADDR_SIZE_T and SOCKOPT_SIZE_T.  Problem reported
+			by Tom Good of St. Vincent's North Richmond Community
+			Mental Health Center Residential Services.
+		AIX 4: Use size_t for SOCKADDR_SIZE_T and SOCKOPT_SIZE_T.
+			Suggested by Brett Hogden of Rochester Gas & Electric
+			Corp.
+		Linux: avoid compile problem for versions of <setjmp.h> that
+			#define both setjmp and longjmp.  Problem pointed out
+			by J.R. Oldroyd of TerraNet.
+		CONFIG: SCO UnixWare 2.1: Support for OSTYPE(sco-uw-2.1)
+			from Christopher Durham of SCO.
+		CONFIG: NEXTSTEP: define confCW_FILE to
+			/etc/sendmail/sendmail.cw to match the usual
+			configuration.  Patch from Dennis Glatting of
+			PlainTalk.
+	CONFIG: MAILER(fax) called a program that hasn't existed for a long
+		time.  Convert to use the HylaFAX 4.0 conventions.  Suggested
+		by Harry Styron.
+	CONFIG: Improve sample anti-spam rulesets in cf/cf/knecht.mc.  These
+		are the rulesets in use on sendmail.org.
+	MAKEMAP: give error on GDBM files.
+	MAIL.LOCAL: Make error messages a bit more explicit, for example,
+		telling more details on what actually changed when "file
+		changed after open".
+	CONTRIB: etrn.pl: Ignore comments in Fw files.  Support multiple Fw
+		files.
+	CONTRIB: passwd-to-alias.pl: Handle 8 bit characters and '-'.
+	NEW FILES:
+		src/Makefiles/Makefile.OpenBSD
+		src/Makefiles/Makefile.RISCos.4_0
+		test/t_exclopen.c
+		cf/ostype/sco-uw-2.1.m4
+	DELETED FILES:
+		Makefile
 
 8.8.6/8.8.6	97/06/14
 	    *************************************************************
@@ -303,7 +455,6 @@ summary of the changes in that release.
 		cf/ostype/gnuhurd.m4
 		cf/ostype/irix6.m4
 		contrib/passwd-to-alias.pl
-		test/t_exclopen.c
 		src/Makefiles/Makefile.IRIX64.6.1
 		src/Makefiles/Makefile.IRIX64.6.x
 	RENAMED FILES:

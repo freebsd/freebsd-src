@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.362 (Berkeley) 6/14/97";
+static char sccsid[] = "@(#)conf.c	8.374 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -177,6 +177,10 @@ int	DtableSize =	50;		/* max open files; reset in 4.2bsd */
 #define HOURS		* 60 MINUTES
 #define DAYS		* 24 HOURS
 
+#ifndef _PATH_VARTMP
+# define _PATH_VARTMP	"/usr/tmp/"
+#endif
+
 #ifndef MAXRULERECURSION
 # define MAXRULERECURSION	50	/* max ruleset recursion depth */
 #endif
@@ -186,6 +190,7 @@ setdefaults(e)
 	register ENVELOPE *e;
 {
 	int i;
+	char buf[MAXNAME];
 	extern void inittimeouts();
 	extern void setdefuser();
 	extern void setupmaps();
@@ -233,7 +238,12 @@ setdefaults(e)
 	MaxAliasRecursion = 10;
 	MaxMacroRecursion = 10;
 	ColonOkInAddr = TRUE;
+	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
+	snprintf(buf, sizeof buf, "%s%sdead.letter",
+		_PATH_VARTMP,
+		_PATH_VARTMP[sizeof _PATH_VARTMP - 2] == '/' ? "" : "/");
+	DeadLetterDrop = newstr(buf);
 	setdefuser();
 	setupmaps();
 	setupmailers();
@@ -412,6 +422,13 @@ setupmaps()
 	MAPDEF("null", NULL, MCF_ALIASOK|MCF_OPTFILE,
 		map_parseargs, null_map_open, null_map_close,
 		null_map_lookup, null_map_store);
+
+#if _FFR_SYSLOG_MAP
+	/* syslog map -- logs information to syslog */
+	MAPDEF("syslog", NULL, 0,
+	       syslog_map_parseargs, null_map_open, null_map_close,
+	       syslog_map_lookup, null_map_store);
+#endif
 }
 
 #undef MAPDEF
@@ -3826,8 +3843,8 @@ chownsafe(fd, safedir)
 	int fd;
 	bool safedir;
 {
-#if !defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1
-# if defined(_PC_CHOWN_RESTRICTED)
+#if (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \
+    defined(_PC_CHOWN_RESTRICTED)
 	int rval;
 
 	/* give the system administrator a chance to override */
@@ -3842,11 +3859,10 @@ chownsafe(fd, safedir)
 
 	errno = 0;
 	rval = fpathconf(fd, _PC_CHOWN_RESTRICTED);
-#  if SAFENFSPATHCONF
+# if SAFENFSPATHCONF
 	return errno == 0 && rval IS_SAFE_CHOWN;
-#  else
+# else
 	return safedir && errno == 0 && rval IS_SAFE_CHOWN;
-#  endif
 # endif
 #else
 	return ChownAlwaysSafe;
@@ -3985,7 +4001,7 @@ vendor_pre_defaults(e)
 	/* OTHERUID is defined in shares.h, do not be alarmed */
 	DefShareUid = OTHERUID;
 #endif
-#ifdef SUN_EXTENSIONS
+#if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_pre_defaults(e);
 #endif
 #ifdef apollo
@@ -4000,7 +4016,7 @@ void
 vendor_post_defaults(e)
 	ENVELOPE *e;
 {
-#ifdef SUN_EXTENSIONS
+#if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_post_defaults(e);
 #endif
 }
@@ -4080,12 +4096,22 @@ validate_connection(sap, hostname, e)
 	char *hostname;
 	ENVELOPE *e;
 {
+	if (tTd(48, 3))
+		printf("validate_connection(%s, %s)\n",
+			hostname, anynet_ntoa(sap));
+
 	if (rscheck("check_relay", hostname, anynet_ntoa(sap), e) != EX_OK)
+	{
+		if (tTd(48, 4))
+			printf("  ... validate_connection: BAD (rscheck)\n");
 		return FALSE;
+	}
 
 #if TCPWRAPPERS
 	if (!hosts_ctl("sendmail", hostname, anynet_ntoa(sap), STRING_UNKNOWN))
 	{
+		if (tTd(48, 4))
+			printf("  ... validate_connection: BAD (tcpwrappers)\n");
 		if (LogLevel >= 4)
 			sm_syslog(LOG_NOTICE, NOQID,
 				"tcpwrappers (%s, %s) rejection",
@@ -4093,6 +4119,8 @@ validate_connection(sap, hostname, e)
 		return FALSE;
 	}
 #endif
+	if (tTd(48, 4))
+		printf("  ... validate_connection: OK\n");
 	return TRUE;
 }
 
@@ -4466,7 +4494,7 @@ load_if_names()
 		return;
 
 	/* get the list of known IP address from the kernel */
-# ifdef SIOCGIFNUM
+# if defined(SIOCGIFNUM) && !SIOCGIFNUM_IS_BROKEN
 	if (ioctl(s, SIOCGIFNUM, (char *) &numifs) < 0)
 	{
 		/* can't get number of interfaces -- fall back */
@@ -4971,6 +4999,9 @@ char	*OsCompileOptions[] =
 #if HASSNPRINTF
 	"HASSNPRINTF",
 #endif
+#if HAS_ST_GEN
+	"HAS_ST_GEN",
+#endif
 #if HASSTRERROR
 	"HASSTRERROR",
 #endif
@@ -4992,6 +5023,9 @@ char	*OsCompileOptions[] =
 #if IP_SRCROUTE
 	"IP_SRCROUTE",
 #endif
+#if O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL
+	"LOCK_ON_OPEN",
+#endif
 #if NEEDFSYNC
 	"NEEDFSYNC",
 #endif
@@ -5012,6 +5046,9 @@ char	*OsCompileOptions[] =
 #endif
 #if SIOCGIFCONF_IS_BROKEN
 	"SIOCGIFCONF_IS_BROKEN",
+#endif
+#if SIOCGIFNUM_IS_BROKEN
+	"SIOCGIFNUM_IS_BROKEN",
 #endif
 #if SYS5SETPGRP
 	"SYS5SETPGRP",

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.282 (Berkeley) 6/11/97";
+static char sccsid[] = "@(#)deliver.c	8.285 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -543,7 +543,7 @@ sendall(e, mode)
 		}
 
 		/* be sure to give error messages in child */
-		QuickAbort = OnlyOneError = FALSE;
+		QuickAbort = FALSE;
 
 		/*
 		**  Close any cached connections.
@@ -3105,7 +3105,7 @@ mailfile(filename, ctladdr, sfflags, e)
 {
 	register FILE *f;
 	register pid_t pid = -1;
-	int mode;
+	int mode = ST_MODE_NOFILE;
 	bool suidwarn = geteuid() == 0;
 
 	if (tTd(11, 1))
@@ -3153,19 +3153,20 @@ mailfile(filename, ctladdr, sfflags, e)
 		ExitStat = EX_OK;
 
 #ifdef HASLSTAT
-		if ((SafeFileEnv != NULL ? lstat(filename, &stb)
-					 : stat(filename, &stb)) < 0)
+		if (lstat(filename, &stb) < 0)
 #else
 		if (stat(filename, &stb) < 0)
 #endif
 		{
-			stb.st_mode = FileMode;
+			stb.st_mode = ST_MODE_NOFILE;
+			mode = FileMode;
 			oflags |= O_CREAT|O_EXCL;
 		}
 		else if (bitset(0111, stb.st_mode) || stb.st_nlink != 1 ||
 			 (SafeFileEnv != NULL && !S_ISREG(stb.st_mode)))
 			exit(EX_CANTCREAT);
-		mode = stb.st_mode;
+		if (mode == ST_MODE_NOFILE)
+			mode = stb.st_mode;
 
 		/* limit the errors to those actually caused in the child */
 		errno = 0;
@@ -3273,6 +3274,11 @@ mailfile(filename, ctladdr, sfflags, e)
 		if (f == NULL)
 		{
 			message("554 cannot open: %s", errstring(errno));
+			exit(EX_CANTCREAT);
+		}
+		if (filechanged(filename, fileno(f), &stb, sfflags))
+		{
+			message("554 file changed after open");
 			exit(EX_CANTCREAT);
 		}
 		if (fstat(fileno(f), &stb) < 0)
