@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.11 1996/08/21 07:18:30 asami Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.12 1996/09/09 01:56:55 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -239,8 +239,9 @@
 	      IDG Books Worldwide, Inc., 1994.
 	      <newline>ISBN 1-56884-203-1</item>
 
-	    <item>Don Libes, Sandy Ressler  <em>Life with Unix</em> -
-	      special edition.  Prentice-Hall, Inc., 1989</item>
+	    <item>Don Libes, Sandy Ressler <em>Life with UNIX</em> - special
+	      edition.  Prentice-Hall, Inc., 1989.
+	      <newline>ISBN 0-13-536657-7</item>
 
 	  </itemize>
 
@@ -253,7 +254,7 @@
 	      Inc. ISSN 1075-2838</item>
 
 	    <item><em>Sys Admin - The Journal for UNIX System
-	      Administrators</em>.  Miller Freeman, Inc. ISSN 1061-2688</item>
+	      Administrators</em> Miller Freeman, Inc., ISSN 1061-2688</item>
 
 	  </itemize>
 
