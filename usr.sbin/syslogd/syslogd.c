@@ -190,6 +190,7 @@ int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
+int     created_lsock = 0;      /* Flag if local socket created */
 
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
@@ -258,7 +259,6 @@ main(argc, argv)
 	(void)signal(SIGCHLD, reapchild);
 	(void)signal(SIGALRM, domark);
 	(void)alarm(TIMERINTVL);
-	(void)unlink(LogName);
 
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
@@ -274,7 +274,8 @@ main(argc, argv)
 		logerror(line);
 		dprintf("cannot create %s (%d)\n", LogName, errno);
 		die(0);
-	}
+	} else
+		created_lsock = 1;
 	finet = socket(AF_INET, SOCK_DGRAM, 0);
 	inetm = 0;
 	if (finet >= 0) {
@@ -876,7 +877,8 @@ die(signo)
 		errno = 0;
 		logerror(buf);
 	}
-	(void)unlink(LogName);
+	if (created_lsock)
+		(void)unlink(LogName);
 	exit(0);
 }
 
