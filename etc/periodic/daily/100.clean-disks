@@ -2,10 +2,36 @@
 #
 # $FreeBSD$
 #
+# Remove garbage files more than $daily_clean_disks_days days old
+#
 
-exit 0		# do not run by default
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
 
-find / \( ! -fstype local -o -fstype rdonly \) -a -prune -o \
-	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name '*.core' \
-	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
-		-a -atime +3 -delete
+case "$daily_clean_disks_enable" in
+    [Yy][Ee][Ss])
+	if [ -n "$daily_clean_disks_days" -a -n "$daily_clean_disk_files" ]
+	then
+	    echo ""
+	    echo "Removing old temporary files:"
+	    set -f noglob
+	    args="$args "`echo " ${daily_clean_disks_files% }" |
+		sed 's/[ 	][ 	]*/ -name /g'`
+
+	    case "$daily_clean_tmps_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    find / \( ! -fstype local -o -fstype rdonly \) -a -prune -o \
+		\( $args \) -atime +$daily_clean_disks_days -delete $print
+	    set -f glob
+	fi;;
+esac

@@ -20,11 +20,9 @@ fi
 
 # If possible, check the global system configuration file, 
 # to see if there are additional dirs to check
-if [ -r /etc/defaults/rc.conf ]; then
-    . /etc/defaults/rc.conf
-    source_rc_confs
-elif [ -r /etc/rc.conf ]; then
-    . /etc/rc.conf
+if [ -r /etc/defaults/periodic.conf ]; then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
 
 dir=$1

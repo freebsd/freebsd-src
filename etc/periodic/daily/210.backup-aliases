@@ -2,21 +2,36 @@
 #
 # $FreeBSD$
 #
-bak=/var/backups
 
-if [ -f /etc/aliases ] ; then
-    echo ""
-    echo "Backing up mail aliases:"
-
-    if [ ! -f $bak/aliases.bak ] ; then
-	echo "no $bak/aliases.bak"
-	cp -p /etc/aliases $bak/aliases.bak
-    fi
-
-    if cmp -s $bak/aliases.bak /etc/aliases; then :; else
-	echo "$host aliases diffs:"
-	diff -u $bak/aliases.bak /etc/aliases
-	mv $bak/aliases.bak $bak/aliases.bak2
-	cp -p /etc/aliases $bak/aliases.bak
-    fi
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_backup_aliases_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /etc/aliases ]
+	then
+	    bak=/var/backups
+
+	    echo ""
+	    echo "Backing up mail aliases:"
+
+	    if [ ! -f $bak/aliases.bak ]
+	    then
+		echo "no $bak/aliases.bak"
+		cp -p /etc/aliases $bak/aliases.bak
+	    fi
+
+	    if ! cmp -s $bak/aliases.bak /etc/aliases
+	    then
+		echo "$host aliases diffs:"
+		diff -u $bak/aliases.bak /etc/aliases
+		mv $bak/aliases.bak $bak/aliases.bak2
+		cp -p /etc/aliases $bak/aliases.bak
+	    fi
+	fi;;
+esac

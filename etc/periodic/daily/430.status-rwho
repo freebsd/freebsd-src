@@ -3,13 +3,25 @@
 # $FreeBSD$
 #
 
-if [ -d /var/rwho -a -x /usr/bin/rwho -a $(ls -l /var/rwho | wc -l) -ne 0 ]
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
 then
-    echo ""
-    echo "Local network system status:"
-    ruptime
-else
-    echo ""
-    echo "Local system status:"
-    uptime
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_status_rwho_enable" in
+    [Yy][Ee][Ss])
+	rwho=$(echo /var/rwho/*)
+        if [ -x /usr/bin/rwho -a -f "${rwho%% *}" ]
+        then
+	    echo ""
+	    echo "Local network system status:"
+	    ruptime
+	else
+	    echo ""
+	    echo "Local system status:"
+	    uptime
+	fi;;
+esac
