@@ -33,7 +33,7 @@
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
  *	from: Id: in_cksum.c,v 1.8 1995/12/03 18:35:19 bde Exp
- *	$Id$
+ *	$Id: in_cksum.h,v 1.4 1997/02/22 09:34:42 peter Exp $
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
@@ -63,6 +63,9 @@ in_cksum_hdr(const struct ip *ip)
 	ADDC(12);
 	ADDC(16);
 	MOP;
+#undef ADD
+#undef ADDC
+#undef MOP
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;
@@ -88,5 +91,11 @@ u_int in_cksum_hdr __P((const struct ip *));
 	} while(0)
 
 #endif
+
+typedef	unsigned in_psum_t;
+#ifdef KERNEL
+in_psum_t in_cksum_partial(in_psum_t psum, const u_short *w, int len);
+int	in_cksum_finalize(in_psum_t psum);
+#endif /* KERNEL */
 
 #endif /* _MACHINE_IN_CKSUM_H_ */

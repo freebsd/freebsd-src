@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.20 1997/02/22 09:45:32 peter Exp $
+ * $Id: mbuf.h,v 1.21 1997/02/24 20:32:07 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -135,16 +135,16 @@ struct mbuf {
 #define	MT_FREE		0	/* should be on free list */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	2	/* packet header */
-#define	MT_SOCKET	3	/* socket structure */
-#define	MT_PCB		4	/* protocol control block */
+/*efine	MT_SOCKET	3*/	/* socket structure */
+/*efine	MT_PCB		4*/	/* protocol control block */
 #define	MT_RTABLE	5	/* routing tables */
-#define	MT_HTABLE	6	/* IMP host tables */
-#define	MT_ATABLE	7	/* address resolution tables */
+/*efine	MT_HTABLE	6*/	/* IMP host tables */
+/*efine	MT_ATABLE	7*/	/* address resolution tables */
 #define	MT_SONAME	8	/* socket name */
 #define	MT_SOOPTS	10	/* socket options */
 #define	MT_FTABLE	11	/* fragment reassembly header */
-#define	MT_RIGHTS	12	/* access rights */
-#define	MT_IFADDR	13	/* interface address */
+/*efine	MT_RIGHTS	12*/	/* access rights */
+/*efine	MT_IFADDR	13*/	/* interface address */
 #define MT_CONTROL	14	/* extra-data protocol message */
 #define MT_OOBDATA	15	/* expedited data  */
 
@@ -423,22 +423,19 @@ int mbtypes[] = {				/* XXX */
 	M_FREE,		/* MT_FREE	0	   should be on free list */
 	M_MBUF,		/* MT_DATA	1	   dynamic (data) allocation */
 	M_MBUF,		/* MT_HEADER	2	   packet header */
-	M_SOCKET,	/* MT_SOCKET	3	   socket structure */
-	M_PCB,		/* MT_PCB	4	   protocol control block */
+	0,		/*		3 */
+	0,		/*		4 */
 	M_RTABLE,	/* MT_RTABLE	5	   routing tables */
-	M_HTABLE,	/* MT_HTABLE	6	   IMP host tables */
-	0,		/* MT_ATABLE	7	   address resolution tables */
+	0,		/*		6 */
+	0,		/*		7 */
 	M_MBUF,		/* MT_SONAME	8	   socket name */
 	0,		/* 		9 */
 	M_SOOPTS,	/* MT_SOOPTS	10	   socket options */
 	M_FTABLE,	/* MT_FTABLE	11	   fragment reassembly header */
-	M_MBUF,		/* MT_RIGHTS	12	   access rights */
-	M_IFADDR,	/* MT_IFADDR	13	   interface address */
+	0,		/*		12 */
+	0,		/*		13 */
 	M_MBUF,		/* MT_CONTROL	14	   extra-data protocol message */
 	M_MBUF,		/* MT_OOBDATA	15	   expedited data  */
-#ifdef DATAKIT
-	25, 26, 27, 28, 29, 30, 31, 32		/* datakit ugliness */
-#endif
 };
 #endif
 #endif

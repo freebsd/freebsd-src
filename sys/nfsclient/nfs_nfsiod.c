@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.25 1997/06/25 21:07:26 tegge Exp $
+ * $Id: nfs_syscalls.c,v 1.26 1997/07/16 09:06:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -106,7 +106,7 @@ static int notstarted = 1;
 static int modify_flag = 0;
 static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
-static int	nfssvc_addsock __P((struct file *, struct mbuf *,
+static int	nfssvc_addsock __P((struct file *, struct sockaddr *,
 				    struct proc *));
 static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 
@@ -184,7 +184,7 @@ nfssvc(p, uap, retval)
 #ifndef NFS_NOSERVER
 	struct nameidata nd;
 	struct file *fp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct nfsd_args nfsdarg;
 	struct nfsd_srvargs nfsd_srvargs, *nsd = &nfsd_srvargs;
 	struct nfsd_cargs ncd;
@@ -243,10 +243,10 @@ nfssvc(p, uap, retval)
 		 * Get the client address for connected sockets.
 		 */
 		if (nfsdarg.name == NULL || nfsdarg.namelen == 0)
-			nam = (struct mbuf *)0;
+			nam = (struct sockaddr *)0;
 		else {
-			error = sockargs(&nam, nfsdarg.name, nfsdarg.namelen,
-				MT_SONAME);
+			error = getsockaddr(&nam, nfsdarg.name,
+					    nfsdarg.namelen);
 			if (error)
 				return (error);
 		}
@@ -295,7 +295,7 @@ nfssvc(p, uap, retval)
 				    TAILQ_REMOVE(&slp->ns_uidlruhead, nuidp,
 					nu_lru);
 				    if (nuidp->nu_flag & NU_NAM)
-					m_freem(nuidp->nu_nam);
+					FREE(nuidp->nu_nam, M_SONAME);
 			        }
 				nuidp->nu_flag = 0;
 				nuidp->nu_cr = nsd->nsd_cr;
@@ -312,8 +312,8 @@ nfssvc(p, uap, retval)
 				if (nfsd->nfsd_nd->nd_nam2) {
 				    struct sockaddr_in *saddr;
 
-				    saddr = mtod(nfsd->nfsd_nd->nd_nam2,
-					 struct sockaddr_in *);
+				    saddr = (struct sockaddr_in *)
+					    nfsd->nfsd_nd->nd_nam2;
 				    switch (saddr->sin_family) {
 				    case AF_INET:
 					nuidp->nu_flag |= NU_INETADDR;
@@ -323,9 +323,9 @@ nfssvc(p, uap, retval)
 				    case AF_ISO:
 				    default:
 					nuidp->nu_flag |= NU_NAM;
-					nuidp->nu_nam = m_copym(
-					    nfsd->nfsd_nd->nd_nam2, 0,
-					     M_COPYALL, M_WAIT);
+					nuidp->nu_nam = 
+						dup_sockaddr(nfsd->nfsd_nd->
+							     nd_nam2, 1);
 					break;
 				    };
 				}
@@ -356,7 +356,7 @@ nfssvc(p, uap, retval)
 static int
 nfssvc_addsock(fp, mynam, p)
 	struct file *fp;
-	struct mbuf *mynam;
+	struct sockaddr *mynam;
 	struct proc *p;
 {
 	register struct mbuf *m;
@@ -374,14 +374,14 @@ nfssvc_addsock(fp, mynam, p)
 	if (so->so_proto->pr_protocol == IPPROTO_UDP) {
 		tslp = nfs_udpsock;
 		if (tslp->ns_flag & SLP_VALID) {
-			m_freem(mynam);
+			FREE(mynam, M_SONAME);
 			return (EPERM);
 		}
 #ifdef ISO
 	} else if (so->so_proto->pr_protocol == ISOPROTO_CLTP) {
 		tslp = nfs_cltpsock;
 		if (tslp->ns_flag & SLP_VALID) {
-			m_freem(mynam);
+			FREE(mynam, M_SONAME);
 			return (EPERM);
 		}
 #endif /* ISO */
@@ -392,7 +392,7 @@ nfssvc_addsock(fp, mynam, p)
 		siz = NFS_MAXPACKET;
 	error = soreserve(so, siz, siz);
 	if (error) {
-		m_freem(mynam);
+		FREE(mynam, M_SONAME);
 		return (error);
 	}
 
@@ -564,8 +564,9 @@ nfssvc_nfsd(nsd, argp, p)
 		     */
 		    if (nfsd->nfsd_flag & NFSD_NEEDAUTH) {
 			nfsd->nfsd_flag &= ~NFSD_NEEDAUTH;
-			nsd->nsd_haddr = mtod(nd->nd_nam,
-			    struct sockaddr_in *)->sin_addr.s_addr;
+			nsd->nsd_haddr = 
+				((struct sockaddr_in *)
+				 nd->nd_nam)->sin_addr.s_addr;
 			nsd->nsd_authlen = nfsd->nfsd_authlen;
 			nsd->nsd_verflen = nfsd->nfsd_verflen;
 			if (!copyout(nfsd->nfsd_authstr,nsd->nsd_authstr,
@@ -607,10 +608,10 @@ nfssvc_nfsd(nsd, argp, p)
 			/* Check if source port is privileged */
 			u_short port;
 			u_long  addr;
-			struct mbuf *nam = nd->nd_nam;
+			struct sockaddr *nam = nd->nd_nam;
 			struct sockaddr_in *sin;
 
-			sin = mtod(nam, struct sockaddr_in *);
+			sin = (struct sockaddr_in *)nam;
 			port = ntohs(sin->sin_port);
 			if (port >= IPPORT_RESERVED && 
 			    nd->nd_procnum != NFSPROC_NULL) {
@@ -649,7 +650,7 @@ nfssvc_nfsd(nsd, argp, p)
 					nfsstats.srv_errs++;
 				nfsrv_updatecache(nd, FALSE, mreq);
 				if (nd->nd_nam2)
-					m_freem(nd->nd_nam2);
+					FREE(nd->nd_nam2, M_SONAME);
 				break;
 			}
 			nfsstats.srvrpccnt[nd->nd_procnum]++;
@@ -688,7 +689,7 @@ nfssvc_nfsd(nsd, argp, p)
 			if (nfsrtton)
 				nfsd_rt(sotype, nd, cacherep);
 			if (nd->nd_nam2)
-				MFREE(nd->nd_nam2, m);
+				FREE(nd->nd_nam2, M_SONAME);
 			if (nd->nd_mrep)
 				m_freem(nd->nd_mrep);
 			if (error == EPIPE)
@@ -706,7 +707,7 @@ nfssvc_nfsd(nsd, argp, p)
 			if (nfsrtton)
 				nfsd_rt(sotype, nd, cacherep);
 			m_freem(nd->nd_mrep);
-			m_freem(nd->nd_nam2);
+			FREE(nd->nd_nam2, M_SONAME);
 			break;
 		    };
 		    if (nd) {
@@ -857,12 +858,12 @@ nfsrv_zapsock(slp)
 		soshutdown(so, 2);
 		closef(fp, (struct proc *)0);
 		if (slp->ns_nam)
-			MFREE(slp->ns_nam, m);
+			FREE(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
 		while (rec = STAILQ_FIRST(&slp->ns_rec)) {
 			STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
 			if (rec->nr_address)
-				m_freem(rec->nr_address);
+				FREE(rec->nr_address, M_SONAME);
 			m_freem(rec->nr_packet);
 			free(rec, M_NFSRVDESC);
 		}
@@ -872,7 +873,7 @@ nfsrv_zapsock(slp)
 			LIST_REMOVE(nuidp, nu_hash);
 			TAILQ_REMOVE(&slp->ns_uidlruhead, nuidp, nu_lru);
 			if (nuidp->nu_flag & NU_NAM)
-				m_freem(nuidp->nu_nam);
+				FREE(nuidp->nu_nam, M_SONAME);
 			free((caddr_t)nuidp, M_NFSUID);
 		}
 		s = splsoftclock();
@@ -1182,8 +1183,8 @@ nfsd_rt(sotype, nd, cacherep)
 	else if (nd->nd_flag & ND_NFSV3)
 		rt->flag |= DRT_NFSV3;
 	rt->proc = nd->nd_procnum;
-	if (mtod(nd->nd_nam, struct sockaddr *)->sa_family == AF_INET)
-	    rt->ipadr = mtod(nd->nd_nam, struct sockaddr_in *)->sin_addr.s_addr;
+	if (nd->nd_nam->sa_family == AF_INET)
+	    rt->ipadr = ((struct sockaddr_in *)nd->nd_nam)->sin_addr.s_addr;
 	else
 	    rt->ipadr = INADDR_ANY;
 	rt->resptime = ((time.tv_sec - nd->nd_starttime.tv_sec) * 1000000) +

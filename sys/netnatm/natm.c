@@ -76,18 +76,20 @@ u_long natm0_recvspace = 16*1024;
  */
 static int natm_usr_attach __P((struct socket *, int, struct proc *));
 static int natm_usr_detach __P((struct socket *));
-static int natm_usr_connect __P((struct socket *, struct mbuf *,
+static int natm_usr_connect __P((struct socket *, struct sockaddr *,
 				 struct proc *));
 static int natm_usr_disconnect __P((struct socket *));
 static int natm_usr_shutdown __P((struct socket *));
 static int natm_usr_send __P((struct socket *, int, struct mbuf *,
-			      struct mbuf *, struct mbuf *, struct proc *));
-static int natm_usr_peeraddr __P((struct socket *, struct mbuf *));
+			      struct sockaddr *, struct mbuf *, 
+			      struct proc *));
+static int natm_usr_peeraddr __P((struct socket *, struct sockaddr **));
 static int natm_usr_control __P((struct socket *, int, caddr_t,
 				 struct ifnet *, struct proc *));
 static int natm_usr_abort __P((struct socket *));
-static int natm_usr_bind __P((struct socket *, struct mbuf *, struct proc *));
-static int natm_usr_sockaddr __P((struct socket *, struct mbuf *));
+static int natm_usr_bind __P((struct socket *, struct sockaddr *, 
+			      struct proc *));
+static int natm_usr_sockaddr __P((struct socket *, struct sockaddr **));
 
 static int
 natm_usr_attach(struct socket *so, int proto, struct proc *p)
@@ -144,7 +146,7 @@ natm_usr_detach(struct socket *so)
 }
 
 static int
-natm_usr_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+natm_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm;
@@ -165,11 +167,7 @@ natm_usr_connect(struct socket *so, struct mbuf *nam, struct proc *p)
      * validate nam and npcb
      */
 
-    if (nam->m_len != sizeof(*snatm)) {
-        error = EINVAL;
-	goto out;
-    }
-    snatm = mtod(nam, struct sockaddr_natm *);
+    snatm = (struct sockaddr_natm *)nam;
     if (snatm->snatm_len != sizeof(*snatm) ||
 	(npcb->npcb_flags & NPCB_FREE) == 0) {
 	error = EINVAL;
@@ -285,8 +283,8 @@ natm_usr_shutdown(struct socket *so)
 }
 
 static int
-natm_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
-	     struct mbuf *control, struct proc *p)
+natm_usr_send(struct socket *so, int flags, struct mbuf *m, 
+	      struct sockaddr *nam, struct mbuf *control, struct proc *p)
 {
     struct natmpcb *npcb;
     struct atm_pseudohdr *aph;
@@ -329,10 +327,10 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
 }
 
 static int
-natm_usr_peeraddr(struct socket *so, struct mbuf *nam)
+natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 {
     struct natmpcb *npcb;
-    struct sockaddr_natm *snatm;
+    struct sockaddr_natm *snatm, ssnatm;
     int error = 0;
     int s = SPLSOFTNET();
 
@@ -342,14 +340,15 @@ natm_usr_peeraddr(struct socket *so, struct mbuf *nam)
 	goto out;
     }
 
-    snatm = mtod(nam, struct sockaddr_natm *);
+    snatm = &ssnatm;
     bzero(snatm, sizeof(*snatm));
-    nam->m_len = snatm->snatm_len = sizeof(*snatm);
+    snatm->snatm_len = sizeof(*snatm);
     snatm->snatm_family = AF_NATM;
     sprintf(snatm->snatm_if, "%s%d", npcb->npcb_ifp->if_name,
 	    npcb->npcb_ifp->if_unit);
     snatm->snatm_vci = npcb->npcb_vci;
     snatm->snatm_vpi = npcb->npcb_vpi;
+    *nam = dup_sockaddr((struct sockaddr *)snatm, 0);
 
  out:
     splx(s);
@@ -406,13 +405,13 @@ natm_usr_abort(struct socket *so)
 }
 
 static int
-natm_usr_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+natm_usr_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
     return EOPNOTSUPP;
 }
 
 static int
-natm_usr_sockaddr(struct socket *so, struct mbuf *nam)
+natm_usr_sockaddr(struct socket *so, struct sockaddr **nam)
 {
     return EOPNOTSUPP;
 }

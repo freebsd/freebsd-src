@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.18 1997/03/18 19:50:10 peter Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.19 1997/03/23 03:37:06 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -70,7 +70,7 @@
 static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
 				  struct proc *p));
 static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
-				    struct mbuf *, struct vnode **, int *,
+				    struct sockaddr *, struct vnode **, int *,
 				    struct ucred **));
 static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
 				   struct nameidata *, struct proc *));
@@ -732,7 +732,7 @@ static int
 msdosfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

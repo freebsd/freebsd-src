@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.21 1997/07/06 02:40:35 dyson Exp $
+ * $Id: malloc.h,v 1.22 1997/08/05 00:01:43 dyson Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -136,7 +136,8 @@
 #define M_VFSCONF	89	/* vfsconf structure */
 #define M_AIO		90	/* AIO structure(s) */
 #define	M_ZONE		91	/* Zone header */
-#define	M_LAST		92	/* Must be last type + 1 */
+#define	M_HOSTCACHE	92	/* per-host information cache structure */
+#define	M_LAST		93	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -228,6 +229,7 @@
 	"VFS conf",	/* 89 M_VFSCONF */ \
 	"AIO",		/* 90 M_AIO */ \
 	"ZONE",		/* 91 M_ZONE */ \
+	"hostcache",	/* 92 M_HOSTCACHE */ \
 }
 
 struct kmemstats {

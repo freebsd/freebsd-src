@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.25 1997/05/04 15:24:21 joerg Exp $
+ * $Id: cd9660_vfsops.c,v 1.26 1997/08/02 14:31:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@ static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
 static int cd9660_sync __P((struct mount *, int, struct ucred *, 
 	    struct proc *));
 static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
-static int cd9660_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+static int cd9660_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
 static int cd9660_vptofh __P((struct vnode *, struct fid *));
 
@@ -590,7 +590,7 @@ int
 cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

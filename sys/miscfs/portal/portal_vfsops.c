@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.15 1997/02/22 09:40:24 peter Exp $
+ * $Id: portal_vfsops.c,v 1.16 1997/08/02 14:32:07 bde Exp $
  */
 
 /*
@@ -261,7 +261,7 @@ portal_statfs(mp, sbp, p)
 }
 
 #define portal_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct mbuf *, struct vnode **, int *, struct ucred **)))eopnotsupp)
+	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
 #define portal_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
 	    struct proc *)))eopnotsupp)
 #define portal_sync ((int (*) __P((struct mount *, int, struct ucred *, \

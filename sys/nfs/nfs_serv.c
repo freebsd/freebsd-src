@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.45 1997/07/16 09:06:28 dfr Exp $
+ * $Id: nfs_serv.c,v 1.46 1997/07/22 15:35:15 dfr Exp $
  */
 
 /*
@@ -117,7 +117,7 @@ nfsrv3_access(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vnode *vp;
@@ -184,7 +184,7 @@ nfsrv_getattr(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct nfs_fattr *fp;
@@ -230,7 +230,7 @@ nfsrv_setattr(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vattr va, preat;
@@ -361,7 +361,7 @@ nfsrv_lookup(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct nfs_fattr *fp;
@@ -482,7 +482,7 @@ nfsrv_readlink(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct iovec iv[(NFS_MAXPATHLEN+MLEN-1)/MLEN];
@@ -585,7 +585,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct iovec *iv;
@@ -750,7 +750,7 @@ nfsrv_write(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct iovec *ivp;
@@ -1355,7 +1355,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct nfs_fattr *fp;
@@ -1593,7 +1593,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vattr va, dirfor, diraft;
@@ -1742,7 +1742,7 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct nameidata nd;
@@ -1830,7 +1830,7 @@ nfsrv_rename(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register u_long *tl;
@@ -2037,7 +2037,7 @@ nfsrv_link(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct nameidata nd;
@@ -2140,7 +2140,7 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vattr va, dirfor, diraft;
@@ -2283,7 +2283,7 @@ nfsrv_mkdir(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vattr va, dirfor, diraft;
@@ -2399,7 +2399,7 @@ nfsrv_rmdir(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register u_long *tl;
@@ -2528,7 +2528,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register char *bp, *be;
@@ -2795,7 +2795,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register char *bp, *be;
@@ -3111,7 +3111,7 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	struct vattr bfor, aft;
@@ -3172,7 +3172,7 @@ nfsrv_statfs(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct statfs *sf;
@@ -3250,7 +3250,7 @@ nfsrv_fsinfo(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register u_long *tl;
@@ -3320,7 +3320,7 @@ nfsrv_pathconf(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register u_long *tl;

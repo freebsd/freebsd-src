@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.9 1997/05/10 09:58:54 jhay Exp $
+ * $Id: ipx_pcb.c,v 1.10 1997/06/26 19:35:53 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -59,13 +59,12 @@ ipx_pcballoc(so, head, p)
 	struct ipxpcb *head;
 	struct proc *p;
 {
-	struct mbuf *m;
 	register struct ipxpcb *ipxp;
 
-	m = m_getclr(M_DONTWAIT, MT_PCB);
-	if (m == NULL)
+	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT);
+	if (ipxp == NULL)
 		return (ENOBUFS);
-	ipxp = mtod(m, struct ipxpcb *);
+	bzero(ipxp, sizeof *ipxp);
 	ipxp->ipxp_socket = so;
 	insque(ipxp, head);
 	so->so_pcb = (caddr_t)ipxp;
@@ -75,7 +74,7 @@ ipx_pcballoc(so, head, p)
 int
 ipx_pcbbind(ipxp, nam, p)
 	register struct ipxpcb *ipxp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	register struct sockaddr_ipx *sipx;
@@ -85,9 +84,7 @@ ipx_pcbbind(ipxp, nam, p)
 		return (EINVAL);
 	if (nam == NULL)
 		goto noname;
-	sipx = mtod(nam, struct sockaddr_ipx *);
-	if (nam->m_len != sizeof(*sipx))
-		return (EINVAL);
+	sipx = (struct sockaddr_ipx *)nam;
 	if (!ipx_nullhost(sipx->sipx_addr)) {
 		int tport = sipx->sipx_port;
 
@@ -130,19 +127,17 @@ noname:
 int
 ipx_pcbconnect(ipxp, nam, p)
 	struct ipxpcb *ipxp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	struct ipx_ifaddr *ia;
-	register struct sockaddr_ipx *sipx = mtod(nam, struct sockaddr_ipx *);
+	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)nam;
 	register struct ipx_addr *dst;
 	register struct route *ro;
 	struct ifnet *ifp;
 
 	ia = NULL;
 
-	if (nam->m_len != sizeof(*sipx))
-		return (EINVAL);
 	if (sipx->sipx_family != AF_IPX)
 		return (EAFNOSUPPORT);
 	if (sipx->sipx_port == 0 || ipx_nullhost(sipx->sipx_addr))
@@ -248,7 +243,7 @@ ipx_pcbconnect(ipxp, nam, p)
 	if (ipx_pcblookup(&sipx->sipx_addr, ipxp->ipxp_lport, 0))
 		return (EADDRINUSE);
 	if (ipxp->ipxp_lport == 0)
-		ipx_pcbbind(ipxp, (struct mbuf *)NULL, p);
+		ipx_pcbbind(ipxp, (struct sockaddr *)NULL, p);
 
 	/* XXX just leave it zero if we can't find a route */
 
@@ -278,37 +273,37 @@ ipx_pcbdetach(ipxp)
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		rtfree(ipxp->ipxp_route.ro_rt);
 	remque(ipxp);
-	m_free(dtom(ipxp));
+	FREE(ipxp, M_PCB);
 }
 
 void
 ipx_setsockaddr(ipxp, nam)
 	register struct ipxpcb *ipxp;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
-	register struct sockaddr_ipx *sipx = mtod(nam, struct sockaddr_ipx *);
+	struct sockaddr_ipx *sipx, ssipx;
 	
-	nam->m_len = sizeof(*sipx);
-	sipx = mtod(nam, struct sockaddr_ipx *);
+	sipx = &ssipx;
 	bzero((caddr_t)sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_laddr;
+	*nam = dup_sockaddr((struct sockaddr *)sipx, 0);
 }
 
 void
 ipx_setpeeraddr(ipxp, nam)
 	register struct ipxpcb *ipxp;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
-	register struct sockaddr_ipx *sipx = mtod(nam, struct sockaddr_ipx *);
+	struct sockaddr_ipx *sipx, ssipx;
 	
-	nam->m_len = sizeof(*sipx);
-	sipx = mtod(nam, struct sockaddr_ipx *);
+	sipx = &ssipx;
 	bzero((caddr_t)sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_faddr;
+	*nam = dup_sockaddr((struct sockaddr *)sipx, 0);
 }
 
 /*

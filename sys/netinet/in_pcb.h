@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.20 1997/04/03 05:14:41 davidg Exp $
+ * $Id: in_pcb.h,v 1.21 1997/04/27 20:01:04 wollman Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -92,6 +92,7 @@ struct inpcbinfo {
 #define	INP_LOWPORT		0x20	/* user wants "low" port binding */
 #define	INP_ANONPORT		0x40	/* port chosen for user */
 #define	INP_RECVIF		0x80	/* receive incoming interface */
+#define	INP_MTUDISC		0x100	/* user can do MTU discovery */
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
 					INP_RECVIF)
 
@@ -102,11 +103,11 @@ struct inpcbinfo {
 #ifdef KERNEL
 void	 in_losing __P((struct inpcb *));
 int	 in_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
-int	 in_pcbbind __P((struct inpcb *, struct mbuf *, struct proc *));
-int	 in_pcbconnect __P((struct inpcb *, struct mbuf *, struct proc *));
+int	 in_pcbbind __P((struct inpcb *, struct sockaddr *, struct proc *));
+int	 in_pcbconnect __P((struct inpcb *, struct sockaddr *, struct proc *));
 void	 in_pcbdetach __P((struct inpcb *));
 void	 in_pcbdisconnect __P((struct inpcb *));
-int	 in_pcbladdr __P((struct inpcb *, struct mbuf *,
+int	 in_pcbladdr __P((struct inpcb *, struct sockaddr *,
 	    struct sockaddr_in **));
 struct inpcb *
 	 in_pcblookup __P((struct inpcbinfo *,
@@ -117,8 +118,8 @@ struct inpcb *
 void	 in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
 void	 in_pcbrehash __P((struct inpcb *));
-int	 in_setpeeraddr __P((struct socket *so, struct mbuf *nam));
-int	 in_setsockaddr __P((struct socket *so, struct mbuf *nam));
+int	 in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
+int	 in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
 #endif
 
 #endif

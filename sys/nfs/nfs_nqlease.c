@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.25 1997/06/03 17:22:46 dfr Exp $
+ * $Id: nfs_nqlease.c,v 1.26 1997/07/16 09:06:27 dfr Exp $
  */
 
 
@@ -83,17 +83,18 @@ static int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
 
 struct vop_lease_args;
 
-static int	nqsrv_cmpnam __P((struct nfssvc_sock *,struct mbuf *,
+static int	nqsrv_cmpnam __P((struct nfssvc_sock *, struct sockaddr *,
 			struct nqhost *));
 extern void	nqnfs_lease_updatetime __P((int deltat));
 static int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
 static void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
-				   struct mbuf *nam));
+				   struct sockaddr *nam));
 static void	nqsrv_instimeq __P((struct nqlease *lp, u_long duration));
 static void	nqsrv_locklease __P((struct nqlease *lp));
 static void	nqsrv_send_eviction __P((struct vnode *vp, struct nqlease *lp,
 					 struct nfssvc_sock *slp,
-					 struct mbuf *nam, struct ucred *cred));
+					 struct sockaddr *nam, 
+					 struct ucred *cred));
 static void	nqsrv_unlocklease __P((struct nqlease *lp));
 static void	nqsrv_waitfor_expiry __P((struct nqlease *lp));
 
@@ -170,7 +171,7 @@ nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
 	int flags;
 	struct nfssvc_sock *slp;
 	struct proc *procp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	int *cachablep;
 	u_quad_t *frev;
 	struct ucred *cred;
@@ -343,7 +344,7 @@ nqnfs_lease_check(vp, p, cred, flag)
 	u_quad_t frev;
 
 	(void) nqsrv_getlease(vp, &duration, ND_CHECK | flag, NQLOCALSLP,
-		p, (struct mbuf *)0, &cache, &frev, cred);
+		p, (struct sockaddr *)0, &cache, &frev, cred);
 }
 
 int
@@ -360,7 +361,8 @@ nqnfs_vop_lease_check(ap)
 	u_quad_t frev;
 
 	(void) nqsrv_getlease(ap->a_vp, &duration, ND_CHECK | ap->a_flag,
-	    NQLOCALSLP, ap->a_p, (struct mbuf *)0, &cache, &frev, ap->a_cred);
+			      NQLOCALSLP, ap->a_p, (struct sockaddr *)0,
+			      &cache, &frev, ap->a_cred);
 	return (0);
 }
 
@@ -373,19 +375,19 @@ static void
 nqsrv_addhost(lph, slp, nam)
 	register struct nqhost *lph;
 	struct nfssvc_sock *slp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 {
 	register struct sockaddr_in *saddr;
 
 	if (slp == NQLOCALSLP)
 		lph->lph_flag |= (LC_VALID | LC_LOCAL);
 	else if (slp == nfs_udpsock) {
-		saddr = mtod(nam, struct sockaddr_in *);
+		saddr = (struct sockaddr_in *)nam;
 		lph->lph_flag |= (LC_VALID | LC_UDP);
 		lph->lph_inetaddr = saddr->sin_addr.s_addr;
 		lph->lph_port = saddr->sin_port;
 	} else if (slp == nfs_cltpsock) {
-		lph->lph_nam = m_copym(nam, 0, M_COPYALL, M_WAIT);
+		lph->lph_nam = dup_sockaddr(nam, 1);
 		lph->lph_flag |= (LC_VALID | LC_CLTP);
 	} else {
 		lph->lph_flag |= (LC_VALID | LC_SREF);
@@ -439,11 +441,11 @@ nqsrv_instimeq(lp, duration)
 static int
 nqsrv_cmpnam(slp, nam, lph)
 	register struct nfssvc_sock *slp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	register struct nqhost *lph;
 {
 	register struct sockaddr_in *saddr;
-	struct mbuf *addr;
+	struct sockaddr *addr;
 	union nethostaddr lhaddr;
 	int ret;
 
@@ -464,7 +466,7 @@ nqsrv_cmpnam(slp, nam, lph)
 	else {
 		if ((lph->lph_slp->ns_flag & SLP_VALID) == 0)
 			return (0);
-		saddr = mtod(lph->lph_slp->ns_nam, struct sockaddr_in *);
+		saddr = (struct sockaddr_in *)lph->lph_slp->ns_nam;
 		if (saddr->sin_family == AF_INET)
 			lhaddr.had_inetaddr = saddr->sin_addr.s_addr;
 		else
@@ -482,15 +484,16 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	struct vnode *vp;
 	register struct nqlease *lp;
 	struct nfssvc_sock *slp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct ucred *cred;
 {
 	register struct nqhost *lph = &lp->lc_host;
 	register struct mbuf *m;
 	register int siz;
 	struct nqm *lphnext = lp->lc_morehosts;
-	struct mbuf *mreq, *mb, *mb2, *nam2, *mheadend;
+	struct mbuf *mreq, *mb, *mb2, *mheadend;
 	struct socket *so;
+	struct sockaddr *nam2;
 	struct sockaddr_in *saddr;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
@@ -504,10 +507,10 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			lph->lph_flag |= LC_VACATED;
 		else if ((lph->lph_flag & (LC_LOCAL | LC_VACATED)) == 0) {
 			if (lph->lph_flag & LC_UDP) {
-				MGET(nam2, M_WAIT, MT_SONAME);
-				saddr = mtod(nam2, struct sockaddr_in *);
-				nam2->m_len = saddr->sin_len =
-					sizeof (struct sockaddr_in);
+				MALLOC(nam2, struct sockaddr *,
+				       sizeof *nam2, M_SONAME, M_WAITOK);
+				saddr = (struct sockaddr_in *)nam2;
+				saddr->sin_len = sizeof *saddr;
 				saddr->sin_family = AF_INET;
 				saddr->sin_addr.s_addr = lph->lph_inetaddr;
 				saddr->sin_port = lph->lph_port;
@@ -516,7 +519,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 				nam2 = lph->lph_nam;
 				so = nfs_cltpsock->ns_so;
 			} else if (lph->lph_slp->ns_flag & SLP_VALID) {
-				nam2 = (struct mbuf *)0;
+				nam2 = (struct sockaddr *)0;
 				so = lph->lph_slp->ns_so;
 			} else
 				goto nextone;
@@ -568,7 +571,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 					nfs_sndunlock(solockp);
 			}
 			if (lph->lph_flag & LC_UDP)
-				MFREE(nam2, m);
+				FREE(nam2, M_SONAME);
 		}
 nextone:
 		if (++i == len) {
@@ -686,7 +689,7 @@ nqnfs_serverd()
 			ok = 1;
 			while (ok && (lph->lph_flag & LC_VALID)) {
 				if (lph->lph_flag & LC_CLTP)
-					MFREE(lph->lph_nam, n);
+					FREE(lph->lph_nam, M_SONAME);
 				if (lph->lph_flag & LC_SREF)
 					nfsrv_slpderef(lph->lph_slp);
 				if (++i == len) {
@@ -727,7 +730,7 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct nfs_fattr *fp;
@@ -785,7 +788,7 @@ nqnfsrv_vacated(nfsd, slp, procp, mrq)
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
-	struct mbuf *nam = nfsd->nd_nam;
+	struct sockaddr *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
 	register struct nqlease *lp;
 	register struct nqhost *lph;

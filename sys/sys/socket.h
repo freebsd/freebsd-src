@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.19 1997/04/30 15:32:52 wollman Exp $
+ * $Id: socket.h,v 1.20 1997/05/09 12:19:06 kjc Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -139,6 +139,7 @@ struct sockaddr {
 	u_char	sa_family;		/* address family */
 	char	sa_data[14];		/* actually longer; address value */
 };
+#define	SOCK_MAXADDRLEN	255		/* longest possible addresses */
 
 /*
  * Structure used by kernel to pass protocol
