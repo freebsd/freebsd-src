@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
 */
 static const char rcsid[] =
-  "$Id$";
+  "$Id: syslog.c,v 1.6 1995/10/21 07:05:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -132,7 +132,7 @@ vsyslog(pri, fmt, ap)
 	va_list ap;
 {
 	register int cnt;
-	register char ch, *p, *t;
+	register char ch, *p;
 	time_t now;
 	int fd, saved_errno;
 	char *stdp, tbuf[2048], fmt_cpy[1024];

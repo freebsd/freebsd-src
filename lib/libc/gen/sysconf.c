@@ -62,7 +62,6 @@ long
 sysconf(name)
 	int name;
 {
-	struct clockinfo clk;
 	struct rlimit rl;
 	size_t len;
 	int mib[2], value;
