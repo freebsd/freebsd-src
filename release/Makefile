@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.403 1998/10/07 22:36:48 jkh Exp $
+#	$Id: Makefile,v 1.404 1998/10/07 22:54:04 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -68,7 +68,7 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 # These are adjusted down to the minimum needed by doFS.sh.
-.if ${MACHINE_ARCH} == "alpha"
+.if ${MACHINE_ARCH} == "386"
 BOOTSIZE=		1440
 BOOTMFSSIZE=		1440
 FIXITSIZE=		1440
@@ -470,7 +470,7 @@ release.8: write_mfs_in_kernel dumpnlist
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
-	cp fs-image.std ${RD}/floppies/mfsroot.flp
+	gzip -c fs-image.std > ${RD}/floppies/mfsroot.img
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/bootkern.flp
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
