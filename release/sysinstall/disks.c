@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.33 1995/11/08 07:09:17 jkh Exp $
+ * $Id: disks.c,v 1.31.2.34 1995/11/16 08:10:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,11 +90,11 @@ print_chunks(Disk *d)
 	d->bios_sect = 32;
 	sz = 0;
 	for (i = 0; chunk_info[i]; i++)
-	     sz += chunk_info[i]->size;
+	    sz += chunk_info[i]->size;
 	if (sz)
 	    d->bios_cyl = sz / ONE_MEG;
 	else
-	msgConfirm("
+	    msgConfirm("Couldn't set geometry!  You'll have to do it by hand.");
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
