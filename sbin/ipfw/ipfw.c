@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.63 1998/12/14 18:43:03 luigi Exp $
+ * $Id: ipfw.c,v 1.64 1998/12/27 11:23:05 luigi Exp $
  *
  */
 
@@ -420,75 +420,85 @@ list(ac, av)
 	int	ac;
 	char 	**av;
 {
-	struct ip_fw *r;
-	struct ip_fw rules[1024];
-	struct dn_pipe *p;
-	struct dn_pipe pipes[1024];
-	int l,i,bytes;
-	unsigned long rulenum;
+	struct ip_fw *rules;
+	struct dn_pipe *pipes;
+	void *data = NULL;
 	int pcwidth = 0;
 	int bcwidth = 0;
+	int n, num = 0;
 
-	/* extract rules from kernel */
-        if (do_pipe) {
-            memset(rules,0,sizeof pipes);
-            bytes = sizeof pipes;
-            i = getsockopt(s, IPPROTO_IP, IP_DUMMYNET_GET, pipes, &bytes);
-            if (i < 0)
-                    err(2,"getsockopt(IP_DUMMYNET_GET)");
-            /* display requested pipes */
-            if (ac > 0)
-                rulenum = strtoul(*av++, NULL, 10);
-            else
-                rulenum = 0 ;
-            for (p = pipes, l = bytes; l >= sizeof pipes[0]; 
-                             p++, l-=sizeof pipes[0]) {
-                if (rulenum == 0 || rulenum == p->pipe_nr) {
-                   double b = p->bandwidth ;
-                    int l ;
-                    char buf[30] ;
-                    char qs[30] ;
-                    char plr[30] ;
- 
-                    if (b == 0)
-                        sprintf(buf, "unlimited");
-                    else if (b >= 1000000)
-                        sprintf(buf, "%7.3f Mbit/s", b/1000000 );
-                    else if (b >= 1000)
-                        sprintf(buf, "%7.3f Kbit/s", b/1000 );
-                    else
-                        sprintf(buf, "%7.3f bit/s ", b );
- 
-                    if ( (l = p->queue_size_bytes) ) {
-                        if (l >= 8192)
-                            sprintf(qs,"%d KB", l / 1024);
-                        else
-                            sprintf(qs,"%d B", l);
-                    } else
-			sprintf(qs,"%3d sl.", p->queue_size);
-                    if (p->plr)
-                        sprintf(plr,"plr %f", 1.0*p->plr/(double)(0x7fffffff));
-                    else
-                        plr[0]='\0';
-                        
-                    printf("%05d: %s %4d ms %s %s -- %d pkts (%d B) %d drops\n",
-                        p->pipe_nr, buf, p->delay, qs, plr,
-                        p->r_len, p->r_len_bytes, p->r_drops);
-                }
-            }
-        
-            return ;
-        }
+	/* get rules or pipes from kernel, resizing array as necessary */
+	{
+		const int unit = do_pipe ? sizeof(*pipes) : sizeof(*rules);
+		const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
+		int nalloc = 0;
+		int nbytes;
 
-	memset(rules,0,sizeof rules);
-	bytes = sizeof rules;
-	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &bytes);
-	if (i < 0)
-		err(2,"getsockopt(IP_FW_GET)");
-	if (do_acct)
-		/* find the maximum packet/byte counter widths */
-		for (r=rules, l = bytes; l >= sizeof rules[0]; 
-			 r++, l-=sizeof rules[0]) {
+		while (num >= nalloc) {
+			nalloc = nalloc * 2 + 200;
+			nbytes = nalloc * unit;
+			if ((data = realloc(data, nbytes)) == NULL)
+				err(EX_OSERR, "realloc");
+			if (getsockopt(s, IPPROTO_IP, ocmd, data, &nbytes) < 0)
+				err(EX_OSERR, "getsockopt(IP_%s_GET)",
+				    do_pipe ? "DUMMYNET" : "FW");
+			num = nbytes / unit;
+		}
+	}
+
+	/* display requested pipes */
+	if (do_pipe) {
+	    u_long rulenum;
+
+	    pipes = (struct dn_pipe *) data;
+	    if (ac > 0)
+		rulenum = strtoul(*av++, NULL, 10);
+	    else
+		rulenum = 0 ;
+	    for (n = 0; n < num; n++) {
+		struct dn_pipe *const p = &pipes[n];
+		double b = p->bandwidth ;
+		char buf[30] ;
+		char qs[30] ;
+		char plr[30] ;
+		int l ;
+
+		if (rulenum != 0 && rulenum != p->pipe_nr)
+			continue;
+		if (b == 0)
+		    sprintf(buf, "unlimited");
+		else if (b >= 1000000)
+		    sprintf(buf, "%7.3f Mbit/s", b/1000000 );
+		else if (b >= 1000)
+		    sprintf(buf, "%7.3f Kbit/s", b/1000 );
+		else
+		    sprintf(buf, "%7.3f bit/s ", b );
+
+		if ( (l = p->queue_size_bytes) != 0 ) {
+		    if (l >= 8192)
+			sprintf(qs,"%d KB", l / 1024);
+		    else
+			sprintf(qs,"%d B", l);
+		} else
+		    sprintf(qs,"%3d sl.", p->queue_size);
+		if (p->plr)
+		    sprintf(plr,"plr %f", 1.0*p->plr/(double)(0x7fffffff));
+		else
+		    plr[0]='\0';
+
+		printf("%05d: %s %4d ms %s %s -- %d pkts (%d B) %d drops\n",
+		    p->pipe_nr, buf, p->delay, qs, plr,
+		    p->r_len, p->r_len_bytes, p->r_drops);
+	    }
+	    free(data);
+	    return;
+	}
+
+	/* if showing stats, figure out column widths ahead of time */
+	rules = (struct ip_fw *) data;
+	if (do_acct) {
+		for (n = 0; n < num; n++) {
+			struct ip_fw *const r = &rules[n];
 			char temp[32];
 			int width;
 
@@ -502,45 +512,51 @@ list(ac, av)
 			if (width > bcwidth)
 				bcwidth = width;
 		}
-	if (!ac) {
-		/* display all rules */
-		for (r = rules, l = bytes; l >= sizeof rules[0]; 
-			 r++, l-=sizeof rules[0])
-			show_ipfw(r, pcwidth, bcwidth);
 	}
-	else {
+	if (ac == 0) {
+		/* display all rules */
+		for (n = 0; n < num; n++) {
+			struct ip_fw *const r = &rules[n];
+
+			show_ipfw(r, pcwidth, bcwidth);
+		}
+	} else {
 		/* display specific rules requested on command line */
 		int exitval = EX_OK;
 
 		while (ac--) {
+			u_long rnum;
 			char *endptr;
 			int seen;
 
 			/* convert command line rule # */
-			rulenum = strtoul(*av++, &endptr, 10);
+			rnum = strtoul(*av++, &endptr, 10);
 			if (*endptr) {
 				exitval = EX_USAGE;
-				warn("invalid rule number: %s", *(av - 1));
+				warnx("invalid rule number: %s", *(av - 1));
 				continue;
 			}
-			seen = 0;
-			for (r = rules, l = bytes; 
-				 l >= sizeof rules[0] && r->fw_number <= rulenum;
-				 r++, l-=sizeof rules[0])
-				if (rulenum == r->fw_number) {
+			for (seen = n = 0; n < num; n++) {
+				struct ip_fw *const r = &rules[n];
+
+				if (r->fw_number > rnum)
+					break;
+				if (r->fw_number == rnum) {
 					show_ipfw(r, pcwidth, bcwidth);
 					seen = 1;
 				}
+			}
 			if (!seen) {
 				/* give precedence to other error(s) */
 				if (exitval == EX_OK)
 					exitval = EX_UNAVAILABLE;
-				warnx("rule %lu does not exist", rulenum);
+				warnx("rule %lu does not exist", rnum);
 			}
 		}
 		if (exitval != EX_OK)
 			exit(exitval);
 	}
+	free(data);
 }
 
 static void
