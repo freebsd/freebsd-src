@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.185 1999/01/10 14:30:41 hm Exp $
+#	$Id: Makefile,v 1.186 1999/01/10 21:08:26 rnordier Exp $
 
 SUBDIR=	sendmail
 
@@ -8,7 +8,7 @@ BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	inetd.conf auth.conf login.conf login.access motd modems networks \
 	newsyslog.conf pam.conf phones pccard.conf.sample \
 	printcap profile protocols \
-	rc rc.atm rc.conf rc.devfs rc.firewall rc.network rc.pccard \
+	rc rc.atm rc.conf rc.devfs rc.firewall rc.isdn rc.network rc.pccard \
 	rc.serial rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	remote security services shells syslog.conf \
 	etc.${MACHINE_ARCH}/ttys etc.${MACHINE_ARCH}/disktab rpc make.conf \
