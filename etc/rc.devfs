@@ -9,6 +9,6 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-# Setup DEVFS, ie permisisons, links etc.
+# Setup DEVFS, ie permissions, links etc.
 #
 ln -fs /dev/ttyv0 /dev/vga
