@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: in6_src.c,v 1.132 2003/08/26 04:42:27 keiichi Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

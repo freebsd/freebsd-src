@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ah.h,v 1.20 2003/08/05 12:21:15 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
