@@ -1,9 +1,7 @@
 #
-# Bmake file for texinfo
-# $Id: Makefile,v 1.2 1994/09/15 12:09:35 jkh Exp $
+# $Id$
 #
 
-SUBDIR= info info-files makedoc makeinfo texindex doc
+SUBDIR= libtxi makeinfo info install-info doc
 
 .include <bsd.subdir.mk>
-
