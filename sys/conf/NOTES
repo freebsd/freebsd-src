@@ -2499,7 +2499,10 @@ options 	SIEMENS_ISURF2
 options 	ASUSCOM_IPAC
 #
 # Eicon Diehl DIVA 2.0 and 2.02
-options       EICON_DIVA
+options		EICON_DIVA
+#
+# Compaq Microcom 610 ISDN card (Compaq series PSB2222I)
+options		COMPAQ_M610
 #
 # PCI bus Cards:
 # --------------
