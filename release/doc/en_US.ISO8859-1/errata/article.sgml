@@ -135,6 +135,13 @@
       security advisory (<ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>)
       was not issued until after the release.</para>
+
+    <para>Several vulnerabilities exist in the version of
+      <application>BIND</application> included with &os;
+      &release.prev;.  More information, including bugfixes and
+      workaround suggestions, can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
 ]]>
   </sect1>
 

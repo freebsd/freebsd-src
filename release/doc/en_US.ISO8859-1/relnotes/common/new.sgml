@@ -179,6 +179,10 @@
       corrected.  More details can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.</para>
 
+    <para>Multiple vulnerabilities in <application>BIND</application>
+      have been fixed, as described in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
