@@ -9,7 +9,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kpasswd \
 		-I${ASN1OBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif

@@ -4,12 +4,14 @@ PROG=		k5init
 SRCS=		kinit.c kinit_options.c asn1_err.h krb5_err.h heim_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
+		-I${KRB5DIR}/lib/kafs \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/kuser \
 		-I${ASN1OBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 _krb4libs=	-L${KAFS5OBJDIR} -lkafs5 -lkrb -lkafs
 _krb4deps=	${LIBKAFS5} ${LIBKRB} ${LIBKAFS}
 .endif
