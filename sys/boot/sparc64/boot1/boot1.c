@@ -46,22 +46,37 @@ struct disk {
 };
 struct disk dsk;
 
-extern uint32_t _end;
+static const char digits[] = "0123456789abcdef";
 
-static char bname[1024];	/* name of the binary to load */
+static char bootpath[128];
+static char bootargs[128];
+
+static int kflag;
+
 static uint32_t fs_off;
 
-int main(void);
+typedef int putc_func_t(int c, void *arg);
+
+int main(int ac, char **av);
+
 static void exit(int);
 static void load(const char *);
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, u_int64_t, int);
-static int printf(const char *, ...);
-static int putchar(int);
 
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
+
+static int printf(const char *fmt, ...);
+static int vprintf(const char *fmt, va_list ap);
+static int putchar(int c, void *arg);
+
+static int __printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap);
+static int __putc(int c, void *arg);
+static int __puts(const char *s, putc_func_t *putc, void *arg);
+static char *__uitoa(char *buf, u_int val, int base);
+static char *__ultoa(char *buf, u_long val, int base);
 
 /*
  * Open Firmware interface functions
@@ -82,7 +97,6 @@ int ofw_seek(ofwh_t, u_int64_t);
 
 ofwh_t bootdevh;
 ofwh_t stdinh, stdouth;
-char bootpath[64];
 
 /*
  * This has to stay here, as the PROM seems to ignore the
@@ -93,19 +107,40 @@ void
 ofw_init(int d, int d1, int d2, int d3, ofwfp_t ofwaddr)
 {
 	ofwh_t chosenh;
+	char *av[16];
+	char *p;
+	int ac;
 
 	ofw = ofwaddr;
 
 	chosenh = ofw_finddevice("/chosen");
 	ofw_getprop(chosenh, "stdin", &stdinh, sizeof(stdinh));
 	ofw_getprop(chosenh, "stdout", &stdouth, sizeof(stdouth));
+	ofw_getprop(chosenh, "bootargs", bootargs, sizeof(bootargs));
 	ofw_getprop(chosenh, "bootpath", bootpath, sizeof(bootpath));
+
+	bootargs[sizeof(bootargs) - 1] = '\0';
+	bootpath[sizeof(bootpath) - 1] = '\0';
 
 	if ((bootdevh = ofw_open(bootpath)) == -1) {
 		printf("Could not open boot device.\n");
-	}	
+	}
 
-	exit(main());
+	ac = 0;
+	p = bootargs;
+	for (;;) {
+		while (*p == ' ' && *p != '\0')
+			p++;
+		if (*p == '\0' || ac >= 16)
+			break;
+		av[ac++] = p;
+		while (*p != ' ' && *p != '\0')
+			p++;
+		if (*p != '\0')
+			*p++ = '\0';
+	}
+
+	exit(main(ac, av));
 }
 
 ofwh_t
@@ -304,25 +339,34 @@ fsfind(const char *name, ino_t * ino)
 	return (0);
 }
 
-static void
-putc(int c)
-{
-	char d;
-
-	d = c;
-	ofw_write(stdouth, &d, 1);
-}
-
 int
-main(void)
+main(int ac, char **av)
 {
-	if (bname[0] == '\0')
-		bcopy(_PATH_LOADER, bname, sizeof(_PATH_LOADER));
+	const char *path;
+	int i;
+
+	path = _PATH_LOADER;
+	for (i = 0; i < ac; i++) {
+		switch (av[i][0]) {
+		case '-':
+			switch (av[i][1]) {
+			case 'k':
+				kflag = 1;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			path = av[i];
+			break;
+		}
+	}
 
 	printf(" \n>> FreeBSD/sparc64 boot block\n"
 	"   Boot path:   %s\n"
-	"   Boot loader: %s\n", bootpath, _PATH_LOADER);
-	load(bname);
+	"   Boot loader: %s\n", bootpath, path);
+	load(path);
 	return (1);
 }
 
@@ -499,73 +543,184 @@ dskread(void *buf, u_int64_t lba, int nblk)
 }
 
 static int
-printf(const char *fmt,...)
+printf(const char *fmt, ...)
 {
-	static const char digits[16] = "0123456789abcdef";
 	va_list ap;
-	char buf[10];
-	char *s;
-	unsigned long int r, u;
-	int c, longp;
+	int ret;
 
 	va_start(ap, fmt);
-	longp = 0;
-	while ((c = *fmt++)) {
-		if (c == '%' || longp) {
-			if (c == '%')
-				c = *fmt++;
-			switch (c) {
-			case 'c':
-				if (longp)
-					break;
-				putchar(va_arg(ap, int));
-				continue;
-			case 's':
-				if (longp)
-					break;
-				for (s = va_arg(ap, char *); *s; s++)
-					putchar(*s);
-				continue;
-			case 'p':
-				if (longp)
-					break;
-				if (c == 'p') {
-					putchar('0');
-					putchar('x');
-				}
-			case 'u':
-			case 'x':
-				r = c == 'u' ? 10U : 16U;
-				u = (c == 'p' || longp) ?
-				    va_arg(ap, unsigned long) :
-				    va_arg(ap, unsigned int);
-				s = buf;
-				do
-					*s++ = digits[u % r];
-				while (u /= r);
-				while (--s >= buf)
-					putchar(*s);
-				longp = 0;
-				continue;
-			case 'l':
-				if (longp)
-					break;
-				longp = 1;
-				continue;
-			}
-			longp = 0;
-		}
-		putchar(c);
-	}
+	ret = vprintf(fmt, ap);
 	va_end(ap);
-	return (0);
+	return (ret);
 }
 
 static int
-putchar(int c)
+vprintf(const char *fmt, va_list ap)
 {
-	if (c == '\n')
-		putc('\r');
-	putc(c);
-	return (c);
+	int ret;
+
+	ret = __printf(fmt, putchar, 0, ap);
+	return (ret);
+}
+
+static int
+putchar(int c, void *arg)
+{
+	char buf;
+
+	if (c == '\n') {
+		buf = '\r';
+		ofw_write(stdouth, &buf, 1);
+	}
+	buf = c;
+	ofw_write(stdouth, &buf, 1);
+	return (1);
+}
+
+static int
+__printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap)
+{
+	char buf[(sizeof(long) * 8) + 1];
+	char *nbuf;
+	u_long ul;
+	u_int ui;
+	int lflag;
+	int sflag;
+	char *s;
+	int pad;
+	int ret;
+	int c;
+
+	nbuf = &buf[sizeof buf - 1];
+	ret = 0;
+	while ((c = *fmt++) != 0) {
+		if (c != '%') {
+			ret += putc(c, arg);
+			continue;
+		}
+		lflag = 0;
+		sflag = 0;
+		pad = 0;
+reswitch:	c = *fmt++;
+		switch (c) {
+		case '#':
+			sflag = 1;
+			goto reswitch;
+		case '%':
+			ret += putc('%', arg);
+			break;
+		case 'c':
+			c = va_arg(ap, int);
+			ret += putc(c, arg);
+			break;
+		case 'd':
+			if (lflag == 0) {
+				ui = (u_int)va_arg(ap, int);
+				if (ui < (int)ui) {
+					ui = -ui;
+					ret += putc('-', arg);
+				}
+				s = __uitoa(nbuf, ui, 10);
+			} else {
+				ul = (u_long)va_arg(ap, long);
+				if (ul < (long)ul) {
+					ul = -ul;
+					ret += putc('-', arg);
+				}
+				s = __ultoa(nbuf, ul, 10);
+			}
+			ret += __puts(s, putc, arg);
+			break;
+		case 'l':
+			lflag = 1;
+			goto reswitch;
+		case 'o':
+			if (lflag == 0) {
+				ui = (u_int)va_arg(ap, u_int);
+				s = __uitoa(nbuf, ui, 8);
+			} else {
+				ul = (u_long)va_arg(ap, u_long);
+				s = __ultoa(nbuf, ul, 8);
+			}
+			ret += __puts(s, putc, arg);
+			break;
+		case 'p':
+			ul = (u_long)va_arg(ap, void *);
+			s = __ultoa(nbuf, ul, 16);
+			ret += __puts("0x", putc, arg);
+			ret += __puts(s, putc, arg);
+			break;
+		case 's':
+			s = va_arg(ap, char *);
+			ret += __puts(s, putc, arg);
+			break;
+		case 'u':
+			if (lflag == 0) {
+				ui = va_arg(ap, u_int);
+				s = __uitoa(nbuf, ui, 10);
+			} else {
+				ul = va_arg(ap, u_long);
+				s = __ultoa(nbuf, ul, 10);
+			}
+			ret += __puts(s, putc, arg);
+			break;
+		case 'x':
+			if (lflag == 0) {
+				ui = va_arg(ap, u_int);
+				s = __uitoa(nbuf, ui, 16);
+			} else {
+				ul = va_arg(ap, u_long);
+				s = __ultoa(nbuf, ul, 16);
+			}
+			if (sflag)
+				ret += __puts("0x", putc, arg);
+			ret += __puts(s, putc, arg);
+			break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			pad = pad * 10 + c - '0';
+			goto reswitch;
+		default:
+			break;
+		}
+	}
+	return (ret);
+}
+
+static int
+__puts(const char *s, putc_func_t *putc, void *arg)
+{
+	const char *p;
+	int ret;
+
+	ret = 0;
+	for (p = s; *p != '\0'; p++)
+		ret += putc(*p, arg);
+	return (ret);
+}
+
+static char *
+__uitoa(char *buf, u_int ui, int base)
+{
+	char *p;
+
+	p = buf;
+	*p = '\0';
+	do
+		*--p = digits[ui % base];
+	while ((ui /= base) != 0);
+	return (p);
+}
+
+static char *
+__ultoa(char *buf, u_long ul, int base)
+{
+	char *p;
+
+	p = buf;
+	*p = '\0';
+	do
+		*--p = digits[ul % base];
+	while ((ul /= base) != 0);
+	return (p);
 }
