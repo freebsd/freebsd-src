@@ -38,8 +38,8 @@ kdb/kdb_sym.c		optional kadb
 kdb/kdb_trap.c		optional kadb
 kern/imgact_aout.c	standard
 kern/imgact_gzip.c	optional gzip
-kern/inflate.c		optional gzip
 kern/imgact_shell.c	standard
+kern/inflate.c		optional gzip
 kern/init_main.c	standard
 kern/init_sysent.c	standard
 kern/kern_acct.c	standard
@@ -64,6 +64,8 @@ kern/kern_synch.c	standard
 kern/kern_sysctl.c	standard
 kern/kern_time.c	standard
 kern/kern_xxx.c		standard
+kern/subr_diskslice.c	optional diskslice
+kern/subr_dkbad.c	optional diskslice
 kern/subr_log.c		standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
@@ -140,8 +142,8 @@ net/if.c		standard
 net/if_ethersubr.c	optional ether
 net/if_loop.c		optional loop
 net/if_ppp.c		optional ppp
-net/if_spppsubr.c	optional sppp
 net/if_sl.c		optional sl
+net/if_spppsubr.c	optional sppp
 net/pppcompress.c	optional ppp
 net/radix.c		standard
 net/raw_cb.c		standard
