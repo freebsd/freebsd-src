@@ -1778,7 +1778,11 @@ fw_rcv(struct firewire_comm *fc, struct iovec *vec, int nvec, u_int sub, u_int s
 		bind = fw_bindlookup(fc, fp->mode.rreqq.dest_hi,
 			fp->mode.rreqq.dest_lo);
 		if(bind == NULL){
+#if __FreeBSD_version >= 500000
 			printf("Unknown service addr 0x%08x:0x%08x tcode=%x src=0x%x data=%x\n",
+#else
+			printf("Unknown service addr 0x%08x:0x%08x tcode=%x src=0x%x data=%lx\n",
+#endif
 				fp->mode.wreqq.dest_hi,
 				fp->mode.wreqq.dest_lo,
 				tcode,
