@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.129 1998/12/14 13:30:29 mckay Exp $
+ *	$Id: clock.c,v 1.129.2.1 1999/04/27 19:29:54 jhay Exp $
  */
 
 /*
@@ -591,6 +591,7 @@ readrtc(int port)
 static u_int
 calibrate_clocks(void)
 {
+	u_int64_t old_tsc;
 	u_int count, prev_count, tot_count;
 	int sec, start_sec, timeout;
 
@@ -629,7 +630,7 @@ calibrate_clocks(void)
 	tot_count = 0;
 
 	if (tsc_present) 
-		wrmsr(0x10, 0LL);	/* XXX 0x10 is the MSR for the TSC */
+		old_tsc = rdtsc();
 
 	/*
 	 * Wait for the mc146818A seconds counter to change.  Read the i8254
@@ -664,7 +665,7 @@ calibrate_clocks(void)
 	 * similar to those for the i8254 clock.
 	 */
 	if (tsc_present) 
-		tsc_freq = rdtsc();
+		tsc_freq = rdtsc() - old_tsc;
 
 	if (bootverbose) {
 		if (tsc_present)
@@ -768,9 +769,10 @@ startrtclock()
 		 * clock failed.  Do a less accurate calibration relative
 		 * to the i8254 clock.
 		 */
-		wrmsr(0x10, 0LL);	/* XXX */
+		u_int64_t old_tsc = rdtsc();
+
 		DELAY(1000000);
-		tsc_freq = rdtsc();
+		tsc_freq = rdtsc() - old_tsc;
 #ifdef CLK_USE_TSC_CALIBRATION
 		if (bootverbose)
 			printf("TSC clock: %u Hz (Method B)\n", tsc_freq);
