@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: extern.h,v 1.6 1997/12/13 20:38:15 pst Exp $	*/
 /*	$NetBSD: extern.h,v 1.17.2.1 1997/11/18 00:59:50 mellon Exp $	*/
 
 /*-
@@ -36,8 +36,6 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-struct fd_set;
-
 void    abort_remote __P((FILE *));
 void    abortpt __P((int));
 void    abortrecv __P((int));
@@ -67,7 +65,7 @@ void	domacro __P((int, char **));
 char   *domap __P((char *));
 void	doproxy __P((int, char **));
 char   *dotrans __P((char *));
-int     empty __P((struct fd_set *, int));
+int     empty __P((fd_set *, int));
 void	get __P((int, char **));
 struct cmd *getcmd __P((const char *));
 int	getit __P((int, char **, int, const char *));

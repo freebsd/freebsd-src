@@ -1,4 +1,4 @@
-/*	$Id: ftp.c,v 1.12 1997/12/16 08:22:37 ache Exp $	*/
+/*	$Id: ftp.c,v 1.13 1998/06/09 04:30:51 imp Exp $	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-__RCSID("$Id: ftp.c,v 1.12 1997/12/16 08:22:37 ache Exp $");
+__RCSID("$Id: ftp.c,v 1.13 1998/06/09 04:30:51 imp Exp $");
 __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -382,14 +382,14 @@ getreply(expecteof)
 
 int
 empty(mask, sec)
-	struct fd_set *mask;
+	fd_set *mask;
 	int sec;
 {
 	struct timeval t;
 
 	t.tv_sec = (long) sec;
 	t.tv_usec = 0;
-	return (select(32, mask, (struct fd_set *) 0, (struct fd_set *) 0, &t));
+	return (select(32, mask, (fd_set *) 0, (fd_set *) 0, &t));
 }
 
 jmp_buf	sendabort;
@@ -1372,7 +1372,7 @@ proxtrans(cmd, local, remote)
 	int prox_type, nfnd;
 	volatile int secndflag;
 	char *cmd2;
-	struct fd_set mask;
+	fd_set mask;
 
 #ifdef __GNUC__			/* XXX: to shut up gcc warnings */
 	(void)&oldintr;
@@ -1496,7 +1496,7 @@ reset(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct fd_set mask;
+	fd_set mask;
 	int nfnd = 1;
 
 	FD_ZERO(&mask);
@@ -1565,7 +1565,7 @@ abort_remote(din)
 {
 	char buf[BUFSIZ];
 	int nfnd;
-	struct fd_set mask;
+	fd_set mask;
 
 	if (cout == NULL) {
 		warnx("Lost control connection for abort.");
