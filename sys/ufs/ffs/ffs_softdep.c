@@ -685,6 +685,13 @@ process_worklist_item(matchmnt, flags)
 	struct vnode *vp;
 	int matchcnt = 0;
 
+	/*
+	 * If we are being called because of a process doing a
+	 * copy-on-write, then it is not safe to write as we may
+	 * recurse into the copy-on-write routine.
+	 */
+	if (curthread->td_proc->p_flag & P_COWINPROGRESS)
+		return (-1);
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * Normally we just process each item on the worklist in order.
@@ -5427,7 +5434,13 @@ softdep_request_cleanup(fs, vp)
 
 	needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
 	starttime = time_second + tickdelay;
-	if (UFS_UPDATE(vp, 1) != 0)
+	/*
+	 * If we are being called because of a process doing a
+	 * copy-on-write, then it is not safe to update the vnode
+	 * as we may recurse into the copy-on-write routine.
+	 */
+	if ((curthread->td_proc->p_flag & P_COWINPROGRESS) == 0 &&
+	    UFS_UPDATE(vp, 1) != 0)
 		return (0);
 	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
 		if (time_second > starttime)
