@@ -949,6 +949,7 @@ c_perm(perm)
 		err(1, "-perm: %s: illegal mode string", perm);
 
 	new->m_data = getmode(set, 0);
+	free(set);
 	return (new);
 }
 
