@@ -42,8 +42,9 @@
 .Nd mount an ISO-9660 filesystem
 .Sh SYNOPSIS
 .Nm mount_cd9660
-.Op Fl egr
+.Op Fl egrv
 .Op Fl o Ar options
+.Op Fl s startsector
 .Ar special | node
 .Sh DESCRIPTION
 The
@@ -75,11 +76,31 @@ See the
 man page for possible options and their meanings.
 .It Fl r
 Do not use any Rockridge extensions included in the filesystem.
+.It Fl s Ar startsector
+Start the filesystem at
+.Ar startsector .
+Normally, if the underlying device is a CD-ROM drive,
+.Nm
+will try to figure out the last track from the CD-ROM containing
+data, and start the filesystem there.  If the device is not a CD-ROM,
+or the table of contents cannot be examined, the filesystem will be
+started at sector 0.  This option can be used to override the behaviour.
+Note that
+.Ar startsector
+is measured in CD-ROM blocks, with 2048 bytes each.  This is the same
+as for example the
+.Cm info
+command of
+.Xr cdcontrol 8
+is printing.
+.It Fl v
+Be verbose about the starting sector decisions made.
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
+.Xr cdcontrol 8 ,
 .Xr mount 8
 .Sh BUGS
 POSIX device node mapping is currently not supported.
