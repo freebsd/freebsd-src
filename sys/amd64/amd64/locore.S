@@ -77,7 +77,7 @@
  *
  * NOTE: PTDpde, PTmap, and PTD are being defined as address symbols.
  * In C you access them directly, and not with a '*'. Storage is not being 
- * allocated. They will magically address teh correct locations in KVM
+ * allocated. They will magically address the correct locations in KVM
  * whach C will treat as normal variables of the type they are defined in in 
  * machine/pmap.h, i.e.  PTDpde = XX ; to set a PDE entry, NOT *PTDpde = XX;
  */
