@@ -227,7 +227,7 @@
   (let (save flags buffer lines)
     (setq save (current-buffer))
     (if definition
-        (setq flags "") (setq flags "-r"))
+        (setq flags "") (setq flags "r"))
     ;; load tag
     (setq buffer (generate-new-buffer (generate-new-buffer-name (concat (if (equal flags "") "(D)" "(R)") tagname))))
     (set-buffer buffer)
