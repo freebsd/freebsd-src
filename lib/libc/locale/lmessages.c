@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <stddef.h>
+
 #include "lmessages.h"
 #include "ldpart.h"
 
