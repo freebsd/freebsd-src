@@ -103,7 +103,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.7 1997/03/05 13:58:16 joerg Exp $
+#	$Id: MAKEDEV,v 1.127.2.8 1997/03/05 14:05:38 joerg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1095,11 +1095,15 @@ meteor?)
 	chmod 444 meteor$unit
 	;;
 
-tun?)
-	unit=`expr $i : 'tun\(.*\)'`
-	rm -f tun$unit
-	mknod tun$unit c 52 $unit
-	chown uucp.dialer tun$unit
+tun*)
+	ntun=`expr $i : 'tun\(.*\)$'`
+	unit=0
+	while [ $unit -le $ntun ]; do
+		rm -f tun$unit
+		mknod tun$unit c 52 $unit
+		chown uucp.dialer tun$unit
+		unit=`expr $unit + 1`
+	done
 	;;
 
 sysmouse)
