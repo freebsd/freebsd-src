@@ -245,6 +245,7 @@ again:
 			    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
 			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT) {
 				PROC_UNLOCK(p);
+				PGRPSESS_SUNLOCK();
 				return (EIO);
 			}
 			PROC_UNLOCK(p);
