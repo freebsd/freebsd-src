@@ -95,6 +95,7 @@ void
 _pthread_exit(void *status)
 {
 	pthread_t pthread;
+	int exitNow = 0;
 
 	/* Check if this thread is already in the process of exiting: */
 	if ((curthread->flags & PTHREAD_EXITING) != 0) {
@@ -121,37 +122,14 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
-	/*
-	 * Lock the garbage collector mutex to ensure that the garbage
-	 * collector is not using the dead thread list.
-	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/* Add this thread to the list of dead threads. */
-	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
-
-	/*
-	 * Signal the garbage collector thread that there is something
-	 * to clean up.
-	 */
-	if (pthread_cond_signal(&_gc_cond) != 0)
-		PANIC("Cannot signal gc cond");
-
-	/*
-	 * Avoid a race condition where a scheduling signal can occur
-	 * causing the garbage collector thread to run.  If this happens,
-	 * the current thread can be cleaned out from under us.
-	 */
-	GIANT_LOCK(curthread);
-
-	/* Unlock the garbage collector mutex. */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot unlock gc mutex");
+	/* Lock the dead list first to maintain correct lock order */
+	DEAD_LIST_LOCK;
+	_thread_critical_enter(curthread);
 
 	/* Check if there is a thread joining this one: */
 	if (curthread->joiner != NULL) {
 		pthread = curthread->joiner;
+		_SPINLOCK(&pthread->lock);
 		curthread->joiner = NULL;
 
 		/* Make the joining thread runnable: */
@@ -161,6 +139,7 @@ _pthread_exit(void *status)
 		pthread->join_status.ret = curthread->ret;
 		pthread->join_status.error = 0;
 		pthread->join_status.thread = NULL;
+		_SPINUNLOCK(&pthread->lock);
 
 		/* Make this thread collectable by the garbage collector. */
 		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
@@ -168,14 +147,31 @@ _pthread_exit(void *status)
 		curthread->attr.flags |= PTHREAD_DETACHED;
 	}
 
-	/* Remove this thread from the thread list: */
+	/*
+	 * Add this thread to the list of dead threads, and
+	 * also remove it from the active threads list.
+	 */
+	THREAD_LIST_LOCK;
+	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 	TAILQ_REMOVE(&_thread_list, curthread, tle);
-
 	PTHREAD_SET_STATE(curthread, PS_DEAD);
-	GIANT_UNLOCK(curthread);
+	_thread_critical_exit(curthread);
+	
+	/*
+	 * Signal the garbage collector thread that there is something
+	 * to clean up.
+	 */
+	if (pthread_cond_signal(&_gc_cond) != 0)
+		PANIC("Cannot signal gc cond");
 
 	/* If we're the last thread, call it quits */
 	if (TAILQ_EMPTY(&_thread_list))
+		exitNow = 1;
+
+	THREAD_LIST_UNLOCK;
+	DEAD_LIST_UNLOCK;
+
+	if (exitNow)
 		exit(0);
 
 	/*
