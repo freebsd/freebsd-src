@@ -166,7 +166,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 		else
 			fmtpwentry(pwbuf, pwd, PWF_PASSWD);
 
-		if (l == -1)
+		if (l < 0)
 			l = 0;
 		rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode);
 		if (rc == 0) {

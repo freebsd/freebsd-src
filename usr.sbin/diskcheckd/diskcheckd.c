@@ -443,7 +443,7 @@ updateproctitle(struct disk *disks) {
 			p += sizeof _PATH_DEV - 1;
 
 		percent = 100 * (double)dseek(dp, 0, SEEK_CUR) / dp->size;
-		if ((ret = snprintf(bp, size, "%s %.2f%%, ", p, percent)) == -1)
+		if ((ret = snprintf(bp, size, "%s %.2f%%, ", p, percent)) < 0)
 			ret = 0;
 		if ((size_t)ret >= size) {
 			inc = ((ret + 1023) >> 10) << 10;
@@ -457,7 +457,7 @@ updateproctitle(struct disk *disks) {
 			}
 			bp = buf + bufsize - size;
 			ret = snprintf(bp, size, "%s %.2f%%, ", p, percent);
-			if (ret == -1)
+			if (ret < 0)
 				ret = 0;
 		}
 		bp += ret;

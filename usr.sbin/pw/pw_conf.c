@@ -420,7 +420,7 @@ write_userconfig(char const * file)
 					for (j = k = 0; j < _UC_MAXSHELLS && system_shells[j] != NULL; j++) {
 						char	lbuf[64];
 						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", system_shells[j]);
-						if (l == -1)
+						if (l < 0)
 							l = 0;
 						if (l + k + 1 < len || extendline(&buf, &len, len + LNBUFSZ) != -1) {
 							strcpy(buf + k, lbuf);
@@ -440,7 +440,7 @@ write_userconfig(char const * file)
 					for (j = k = 0; j < config.numgroups && config.groups[j] != NULL; j++) {
 						char	lbuf[64];
 						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", config.groups[j]);
-						if (l == -1)
+						if (l < 0)
 							l = 0;
 						if (l + k + 1 < len || extendline(&buf, &len, len + 1024) != -1) {
 							strcpy(buf + k, lbuf);
