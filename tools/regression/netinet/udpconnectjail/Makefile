@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	udpconnectjail
-NO_MAN=	yes
+NOMAN=	yes
 WARNS?=	2
 
 .include <bsd.prog.mk>
