@@ -3,5 +3,4 @@
 DEV=		html
 DEVFILES=	DESC TR TI TB TBI CR CI CB CBI HR HI HB HBI NR NI NB NBI S
 
-.include "../Makefile.inc"
 .include "../Makefile.dev"

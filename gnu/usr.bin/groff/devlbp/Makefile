@@ -6,8 +6,6 @@ DEVFILES=	DESC HB HBI HI HR TB TBI TI TR
 
 CLEANFILES+=	DESC
 
-.include "../Makefile.inc"
-
 DESC:	DESC.in
 	-rm -f DESC
 	cat ${DIST_DIR}/DESC.in >DESC
