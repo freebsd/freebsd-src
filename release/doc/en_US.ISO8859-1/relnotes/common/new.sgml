@@ -475,6 +475,9 @@
     include a file into the <literal>Fix:</literal> section of a
     problem report.</para>
 
+    <para>&man.sh.1; now implements <command>test</command> as a
+    built-in command for improved efficiency.</para>
+
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
     part of the installation.</para>
 
