@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.4 1999/04/18 15:50:33 peter Exp $
+ *	$Id: bt_eisa.c,v 1.5 1999/04/20 09:53:05 dfr Exp $
  */
 
 #include "eisa.h"
@@ -152,7 +152,7 @@ bt_eisa_release_resources(device_t dev)
 	if (bt->port)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->port);
 	if (bt->irq)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, bt->irq);
 	bt_free_softc(dev);
 }
 
