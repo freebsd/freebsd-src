@@ -34,9 +34,9 @@ static double zero = 0.0;
 
 
 #ifdef __STDC__
-	double __ieee754_remainder(double x, double p)
+	double __generic___ieee754_remainder(double x, double p)
 #else
-	double __ieee754_remainder(x,p)
+	double __generic___ieee754_remainder(x,p)
 	double x,p;
 #endif
 {

@@ -23,9 +23,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef __STDC__
-	int finite(double x)
+	int __generic_finite(double x)
 #else
-	int finite(x)
+	int __generic_finite(x)
 	double x;
 #endif
 {

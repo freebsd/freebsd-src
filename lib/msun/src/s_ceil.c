@@ -33,9 +33,9 @@ static double huge = 1.0e300;
 #endif
 
 #ifdef __STDC__
-	double ceil(double x)
+	double __generic_ceil(double x)
 #else
-	double ceil(x)
+	double __generic_ceil(x)
 	double x;
 #endif
 {

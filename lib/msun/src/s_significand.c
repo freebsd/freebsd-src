@@ -24,9 +24,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double significand(double x)
+	double __generic_significand(double x)
 #else
-	double significand(x)
+	double __generic_significand(x)
 	double x;
 #endif
 {

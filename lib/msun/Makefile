@@ -41,9 +41,7 @@
 #					    default standard
 #
 
-# Enable if you have a i387 (or i486 or Pentium)
-.if defined(HAVE_FPU)
-.PATH:	${.CURDIR}/i387
+ARCH=	i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_logb.S \
@@ -51,7 +49,6 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 
 # Broken
 # ARCH_SRCS+=	s_log1p.S
-.endif
 
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
@@ -67,6 +64,7 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_log.c e_log10.c e_log10f.c e_logf.c e_pow.c e_powf.c e_rem_pio2.c \
 	e_rem_pio2f.c e_remainder.c e_remainderf.c e_scalb.c e_scalbf.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c \
+	get_hw_float.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_rem_pio2f.c k_sin.c k_sinf.c \
 	k_standard.c k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_cbrt.c s_cbrtf.c s_ceil.c \
@@ -90,12 +88,18 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
+CLEANFILES+=	${RENAMED_ARCH_SRCS}
+RENAMED_ARCH_SRCS=	${ARCH_SRCS:S/^/${ARCH}_/g}
+SRCS=	${COMMON_SRCS} ${RENAMED_ARCH_SRCS}
 
-SRCS=${COMMON_SRCS}
-
-# Substitute common sources with any arch specific sources
+# Generate rules to rename arch-specific sources to avoid conflicts.
+# The path to the arch-specific sources is given explicitly instead of
+# with `.PATH:	${.CURDIR}/${ARCH}' since otherwise bsd.lib.mk would
+# use .S.o rules instead of .c.o rules for the conflicting prefixes
+# (except after `make depend' it uses the correct rules!).
 .for i in ${ARCH_SRCS}
-    SRCS:=${SRCS:S/${i:S/.S/.c/}/$i/}
+${ARCH}_${i}: ${.CURDIR}/i387/${i}
+	cp ${.ALLSRC} ${.TARGET}
 .endfor
 
 MANSRC= ${.CURDIR}/man

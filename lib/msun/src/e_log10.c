@@ -67,9 +67,9 @@ static double zero   =  0.0;
 #endif
 
 #ifdef __STDC__
-	double __ieee754_log10(double x)
+	double __generic___ieee754_log10(double x)
 #else
-	double __ieee754_log10(x)
+	double __generic___ieee754_log10(x)
 	double x;
 #endif
 {
