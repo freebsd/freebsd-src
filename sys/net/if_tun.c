@@ -33,6 +33,7 @@
 #ifdef __FreeBSD__
 #include <sys/kernel.h>
 #endif
+#include <sys/conf.h>
 
 #include <machine/cpu.h>
 
@@ -67,25 +68,36 @@ int	tundebug = 0;
 struct tun_softc tunctl[NTUN];
 extern int ifqmaxlen;
 
-int	tunopen __P((dev_t, int, int, struct proc *));
-int	tunclose __P((dev_t, int));
+d_open_t tunopen;
+d_close_t tunclose;
 int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
-int	tunread __P((dev_t, struct uio *));
-int	tunwrite __P((dev_t, struct uio *));
-int	tunioctl __P((dev_t, int, caddr_t, int, struct proc *));
+d_rdwr_t tunread;
+d_rdwr_t tunwrite;
+d_ioctl_t tunioctl;
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
-int	tunselect __P((dev_t, int));
+d_select_t tunselect;
 void	tunattach __P((void));
+
+static struct cdevsw tuncdevsw =
+{ tunopen,      tunclose,       tunread,        tunwrite,
+  tunioctl,     (d_stop_t *)enodev, (d_reset_t *)nullop, (d_ttycv_t *)enodev,
+  tunselect,    (d_mmap_t *)enodev,         NULL };
+extern dev_t tuncdev;
 
 static int tuninit __P((int));
 
 void
-tunattach()
+tunattach(void)
 {
 	register int i;
 	struct ifnet *ifp;
 	struct sockaddr_in *sin;
+
+	/*
+	 * In case we are an LKM, set up device switch.
+	 */
+	cdevsw[major(tuncdev)] = tuncdevsw;
 
 	for (i = 0; i < NTUN; i++) {
 		tunctl[i].tun_flags = TUN_INITED;
@@ -147,9 +159,7 @@ tunopen(dev, flag, mode, p)
  * routing info
  */
 int
-tunclose(dev, flag)
-	dev_t	dev;
-	int	flag;
+tunclose(dev_t dev, int foo, int bar, struct proc *p)
 {
 	register int	unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
@@ -399,9 +409,7 @@ tunioctl(dev, cmd, data, flag, p)
  * least as much of a packet as can be read.
  */
 int
-tunread(dev, uio)
-	dev_t		dev;
-	struct uio	*uio;
+tunread(dev_t dev, struct uio *uio, int flag)
 {
 	int		unit = minor(dev);
 	struct tun_softc *tp = &tunctl[unit];
@@ -452,9 +460,7 @@ tunread(dev, uio)
  * the cdevsw write interface - an atomic write is a packet - or else!
  */
 int
-tunwrite(dev, uio)
-	dev_t		dev;
-	struct uio	*uio;
+tunwrite(dev_t dev, struct uio *uio, int flag)
 {
 	int		unit = minor (dev);
 	struct ifnet	*ifp = &tunctl[unit].tun_if;
@@ -542,9 +548,7 @@ tunwrite(dev, uio)
  * anyway, it either accepts the packet or drops it.
  */
 int
-tunselect(dev, rw)
-	dev_t		dev;
-	int		rw;
+tunselect(dev_t dev, int rw, struct proc *p)
 {
 	int		unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
@@ -561,7 +565,7 @@ tunselect(dev, rw)
 			    ifp->if_unit, ifp->if_snd.ifq_len);
 			return 1;
 		}
-		selrecord(curproc, &tp->tun_rsel);
+		selrecord(p, &tp->tun_rsel);
 		break;
 	case FWRITE:
 		splx(s);
