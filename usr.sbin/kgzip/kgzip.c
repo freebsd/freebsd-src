@@ -171,6 +171,6 @@ static void
 usage(void)
 {
     fprintf(stderr,
-      "usage: kgzip [-cv] [-f format] [-l file] [-o filename] file\n");
+      "usage: kgzip [-cv] [-f format] [-l loader] [-o output] file\n");
     exit(1);
 }
