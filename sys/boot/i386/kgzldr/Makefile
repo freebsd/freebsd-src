@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	rnordier
+
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 CFLAGS=	-fno-builtin -Os
