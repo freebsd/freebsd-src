@@ -104,6 +104,8 @@ SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
 .PATH: ${.CURDIR}/../libc/ia64/gen
 SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
 SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
+# XXX should be global
+CFLAGS+= -ffreestanding
 .endif
 
 .if ${MACHINE_ARCH} != "sparc64"
