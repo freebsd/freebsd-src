@@ -30,8 +30,10 @@
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
