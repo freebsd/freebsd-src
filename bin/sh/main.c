@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.2 1994/09/24 02:57:48 davidg Exp $
+ *	$Id: main.c,v 1.3 1995/05/30 00:07:18 rgrimes Exp $
  */
 
 #ifndef lint
@@ -152,14 +152,18 @@ main(argc, argv)  char **argv; {
 		read_profile("/etc/profile");
 state1:
 		state = 2;
-		read_profile(".profile");
+		if (privileged == 0)
+			read_profile(".profile");
+		else
+			read_profile("/etc/suid_profile");
 	}
 state2:
 	state = 3;
-	if ((shinit = lookupvar("ENV")) != NULL &&
-	     *shinit != '\0') {
-		state = 3;
-		read_profile(shinit);
+	if (privileged == 0) {
+		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
+			state = 3;
+			read_profile(shinit);
+		}
 	}
 state3:
 	state = 4;
