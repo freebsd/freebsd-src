@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.67 1995/10/12 02:01:56 julian Exp $
+ *      $Id: sd.c,v 1.68 1995/10/21 23:13:09 phk Exp $
  */
 
 #define SPLSD splbio
@@ -509,7 +509,6 @@ sdstart(u_int32 unit, u_int32 flags)
 		/*
 		 *  Fill out the scsi command
 		 */
-		bzero(&cmd, sizeof(cmd));
 		cmd.op_code = (bp->b_flags & B_READ)
 		    ? READ_BIG : WRITE_BIG;
 		cmd.addr_3 = (blkno & 0xff000000UL) >> 24;
@@ -518,6 +517,7 @@ sdstart(u_int32 unit, u_int32 flags)
 		cmd.addr_0 = blkno & 0xff;
 		cmd.length2 = (nblk & 0xff00) >> 8;
 		cmd.length1 = (nblk & 0xff);
+		cmd.byte2 = cmd.reserved = cmd.control = 0;
 		/*
 		 * Call the routine that chats with the adapter.
 		 * Note: we cannot sleep as we may be an interrupt
