@@ -360,7 +360,7 @@
 	manual pages provide information on the different commands and
 	APIs available to the &os; user.</para>
 
-      <para>In some cases, manual pages are written to given
+      <para>In some cases, manual pages are written to give
 	information on particular topics.  Notable examples of such
 	manual pages are &man.tuning.7; (a guide to performance tuning),
 	&man.security.7; (an introduction to &os; security), and
