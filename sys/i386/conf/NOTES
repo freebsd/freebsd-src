@@ -52,7 +52,7 @@ profile         2
 device		apic			# I/O apic
 
 # Optional:
-options		MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
+options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 #
@@ -539,12 +539,12 @@ hint.cx.0.at="isa"
 hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
 hint.cx.0.drq="7"
-#options	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
+#options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
 device		ed
 #options 	ED_NO_MIIBUS		# Disable ed miibus support
-options		ED_3C503
-options		ED_HPP
-options		ED_SIC
+options 	ED_3C503
+options 	ED_HPP
+options 	ED_SIC
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
@@ -596,8 +596,8 @@ device		pst
 # 3ware 9000 series PATA/SATA RAID controller driver and options.
 # The driver is implemented as a SIM, and so, needs the CAM infrastructure.
 #
-options		TWA_DEBUG		# 0-10; 10 prints the most messages.
-options		TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
+options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
+options 	TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
@@ -634,8 +634,8 @@ device		ips
 # it's tested on a big-endian machine
 #
 device		safe		# SafeNet 1141
-options		SAFE_DEBUG	# enable debugging support: hw.safe.debug
-options		SAFE_RNDTEST	# enable rndtest support
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
 
 #####################################################################
 
@@ -926,7 +926,7 @@ device		i4b
 #
 # userland driver to do ISDN tracing (for passive cards only)
 device		i4btrc
-options		NI4BTRC=4
+options 	NI4BTRC=4
 #
 # userland driver to control the whole thing
 device		i4bctl
@@ -936,7 +936,7 @@ device		i4bctl
 #
 # userland driver for access to raw B channel
 device		i4brbch
-options		NI4BRBCH=4
+options 	NI4BRBCH=4
 #
 # userland driver for telephony
 device		i4btel
@@ -957,7 +957,7 @@ options 	NI4BISPPP=4
 #
 # B-channel interface to the netgraph subsystem
 device		i4bing
-options		NI4BING=2
+options 	NI4BING=2
 #
 # CAPI driver needed for active ISDN cards (see iavc driver above)
 device		i4bcapi
