@@ -6,8 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.3.2.6 1999/12/17 12:58:16 darrenr Exp $
- * $FreeBSD$
+ * $Id: ip_fil.h,v 2.3.2.7 2000/01/27 08:49:41 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -83,8 +82,8 @@
 #define	SIOCINSFR	SIOCINAFR
 
 typedef	struct	fr_ip	{
-	u_int	fi_v:4;		/* IP version */
-	u_int	fi_fl:4;	/* packet flags */
+	u_char	fi_v:4;		/* IP version */
+	u_char	fi_fl:4;	/* packet flags */
 	u_char	fi_tos;		/* IP packet TOS */
 	u_char	fi_ttl;		/* IP packet TTL */
 	u_char	fi_p;		/* IP packet protocol */
@@ -272,6 +271,7 @@ typedef	struct	filterstats {
 	u_long	fr_pass;	/* packets allowed */
 	u_long	fr_block;	/* packets denied */
 	u_long	fr_nom;		/* packets which don't match any rule */
+	u_long	fr_short;	/* packets which are short */
 	u_long	fr_ppkl;	/* packets allowed and logged */
 	u_long	fr_bpkl;	/* packets denied and logged */
 	u_long	fr_npkl;	/* packets unmatched and logged */
@@ -427,7 +427,6 @@ typedef	struct	ipflog	{
 
 
 #ifndef	_KERNEL
-struct ifnet;
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	int	send_reset __P((ip_t *, struct ifnet *));
@@ -554,7 +553,7 @@ extern  void	fr_makefrip __P((int, ip_t *, fr_info_t *));
 extern	int	fr_ifpaddr __P((void *, struct in_addr *));
 extern	char	*memstr __P((char *, char *, int, int));
 extern	int	ipl_unreach;
-extern	int	ipl_inited;
+extern	int	fr_running;
 extern	u_long	ipl_frouteok[2];
 extern	int	fr_pass;
 extern	int	fr_flags;

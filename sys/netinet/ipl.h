@@ -6,12 +6,11 @@
  * to the original author and the contributors.
  *
  * @(#)ipl.h	1.21 6/5/96
- * $FreeBSD$
  */
 
 #ifndef	__IPL_H__
 #define	__IPL_H__
 
-#define	IPL_VERSION	"IP Filter: v3.3.6"
+#define	IPL_VERSION	"IP Filter: v3.3.8"
 
 #endif
