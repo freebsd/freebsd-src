@@ -22,6 +22,7 @@
 #define	LINUX_SYS_linux_brk	17
 #define	LINUX_SYS_linux_lseek	19
 #define	LINUX_SYS_getpid	20
+#define	LINUX_SYS_linux_mount	21
 #define	LINUX_SYS_linux_umount	22
 #define	LINUX_SYS_setuid	23
 #define	LINUX_SYS_getuid	24
@@ -36,6 +37,7 @@
 #define	LINUX_SYS_getgid	47
 #define	LINUX_SYS_osf1_sigprocmask	48
 #define	LINUX_SYS_acct	51
+#define	LINUX_SYS_linux_umount2	52
 #define	LINUX_SYS_linux_ioctl	54
 #define	LINUX_SYS_linux_symlink	57
 #define	LINUX_SYS_linux_readlink	58
@@ -129,7 +131,7 @@
 #define	LINUX_SYS_linux_delete_module	308
 #define	LINUX_SYS_linux_get_kernel_syms	309
 #define	LINUX_SYS_linux_ksyslog	310
-#define	LINUX_SYS_reboot	311
+#define	LINUX_SYS_linux_reboot	311
 #define	LINUX_SYS_linux_clone	312
 #define	LINUX_SYS_linux_uselib	313
 #define	LINUX_SYS_mlock	314
