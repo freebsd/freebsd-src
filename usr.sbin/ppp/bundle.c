@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.46 1999/02/25 11:59:36 brian Exp $
+ *	$Id: bundle.c,v 1.47 1999/03/01 00:43:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1139,9 +1139,9 @@ bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
       if ((mask & dl->physical->type) &&
           (dl->state == DATALINK_CLOSED ||
            (force && dl->state == DATALINK_OPENING &&
-            dl->dial_timer.state == TIMER_RUNNING))) {
-        if (force)
-          timer_Stop(&dl->dial_timer);
+            dl->dial.timer.state == TIMER_RUNNING))) {
+        if (force)	/* Ignore redial timeout ? */
+          timer_Stop(&dl->dial.timer);
         datalink_Up(dl, 1, 1);
         if (mask == PHYS_AUTO)
           /* Only one AUTO link at a time (see the AutoLoad timer) */
