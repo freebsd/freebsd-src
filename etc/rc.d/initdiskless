@@ -75,8 +75,8 @@
 # /conf/default/etc/{rc.conf,rc.local,fstab}.  Your fstab should be sure
 # to mount a /usr... typically an NFS readonly /usr.
 #
-# NOTE!  rc.diskless2 will create /var, /tmp, and /dev.  Those filesystems
-# should not be specified in /conf.  At least not yet.
+# NOTE!  /etc/rc.d/diskless will create /var, /tmp, and /dev.
+# Those filesystems should not be specified in /conf.  At least not yet.
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 [ ${dlv:=0} -eq 0 ] && exit 0
