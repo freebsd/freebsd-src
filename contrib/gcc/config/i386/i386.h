@@ -574,7 +574,8 @@ extern int ix86_arch;
 #endif
 
 #define CPP_CPU32_SPEC \
-  "-Acpu=i386 -Amachine=i386 -D__i386 -D__i386__ %(cpp_cpu32sizet)"
+  "-Acpu=i386 -Amachine=i386 %{!ansi:%{!std=c*:%{!std=i*:-Di386}}} -D__i386 \
+-D__i386__ %(cpp_cpu32sizet)"
 
 #define CPP_CPU64_SPEC \
   "-Acpu=x86_64 -Amachine=x86_64 -D__x86_64 -D__x86_64__ %(cpp_cpu64sizet)"
