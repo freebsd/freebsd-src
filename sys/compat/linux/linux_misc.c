@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.30 1997/09/21 21:43:45 gibbs Exp $
+ *  $Id: linux_misc.c,v 1.31 1997/10/29 08:17:12 kato Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/psl.h>
 
 #include <i386/linux/linux.h>
@@ -938,16 +938,15 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
 int
 linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
 {
-	int	error;
-	struct trapframe	*fp;
+	int error;
 
 	error = suser(p->p_ucred, &p->p_acflag);
-	if (error)
-		return (error);
-	fp = (struct trapframe *)p->p_md.md_regs;
-	fp->tf_eflags |= PSL_IOPL;
-
-    return 0;
+	if (error != 0)
+		return error;
+	if (securelevel > 0)
+		return EPERM;
+	p->p_md.md_regs->tf_eflags |= PSL_IOPL;
+	return 0;
 }
 
 int
