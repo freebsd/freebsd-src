@@ -2306,8 +2306,7 @@ dc_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev))
-			dc_stop(sc);
+		dc_stop(sc);
 		ether_ifdetach(ifp);
 		device_delete_child(dev, sc->dc_miibus);
 		bus_generic_detach(dev);
