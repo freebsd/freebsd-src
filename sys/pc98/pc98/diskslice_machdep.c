@@ -200,8 +200,7 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 }
 
 int
-dsinit(dname, dev, lp, sspp)
-	char	*dname;
+dsinit(dev, lp, sspp)
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices **sspp;
@@ -248,7 +247,8 @@ reread_mbr:
 #endif
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, dname, "error reading primary partition table",
+		diskerr(bp, devtoname(bp->b_dev), 
+		    "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;
@@ -319,11 +319,12 @@ reread_mbr:
 	 */
 	if (((cp[4] != 'I') || (cp[5] != 'P') || (cp[6] != 'L') ||
 		 (cp[7] != '1')) &&
-		((strncmp(dname, "sd", 2) == 0) || (strncmp(dname, "wd", 2) == 0))) {
+		((strncmp(devtoname(bp->b_dev), "sd", 2) == 0) ||
+	    (strncmp(devtoname(bp->b_dev), "wd", 2) == 0))) {
 		/* IBM-PC HDD */
 		bp->b_flags = B_INVAL | B_AGE;
 		brelse(bp);
-		return atcompat_dsinit(dname, dev, lp, sspp);
+		return atcompat_dsinit(devtoname(bp->b_dev), dev, lp, sspp);
 	}
 #endif
 	dp0 = (struct dos_partition *)(cp + 512);
