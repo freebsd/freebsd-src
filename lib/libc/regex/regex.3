@@ -36,7 +36,7 @@
 .\"	@(#)regex.3	8.4 (Berkeley) 3/20/94
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2004
+.Dd July 12, 2004
 .Dt REGEX 3
 .Os
 .Sh NAME
@@ -652,6 +652,8 @@ empty (sub)expression
 can't happen - you found a bug
 .It Dv REG_INVARG
 invalid argument, e.g.\& negative-length string
+.It Dv REG_ILLSEQ
+illegal byte sequence (bad multibyte character)
 .El
 .Sh HISTORY
 Originally written by
