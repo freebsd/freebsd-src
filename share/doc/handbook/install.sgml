@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.51 1997/02/22 12:58:39 peter Exp $ -->
+<!-- $Id: install.sgml,v 1.52 1997/03/07 12:35:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -38,7 +38,7 @@
 	  have installed, such as SCSI controllers, Ethernet
 	  adapters or sound cards.  This list should include
 	  relevant configuration parameters such as interrupts
-	  (IRQ) and IO port addresses. </item>
+	  (IRQ) and IO port addresses.<P></P></item>
 
       <item>Download the <url
 	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/&rel.current;-RELEASE/floppies/boot.flp"
@@ -46,7 +46,7 @@
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
 	  <bf>Note:</bf> This disk image can only be used with
-	  1.44 megabyte 3.5 inch floppy disks.</item>
+	  1.44 megabyte 3.5 inch floppy disks.<P></P></item>
 
       <item>Make the installation boot disk from the image file:
 	<itemize>
@@ -60,7 +60,7 @@ E:\> tools\fdimage floppies\boot.flp a:
 	    program will format the A: drive and then copy the
             boot.flp image onto it (assuming that you're at the top
             level of a FreeBSD distribution and the floppy images
-            live in the floppies subdirectory).
+            live in the floppies subdirectory).<P></P></item>
 
 	  <item>If you are using a UNIX system:
 <tscreen>
@@ -69,11 +69,9 @@ E:\> tools\fdimage floppies\boot.flp a:
 	    where <em>disk&lowbar;device</em> is the <tt>/dev</tt>
 	    entry for the floppy drive.  On FreeBSD systems, this
 	    is <tt>/dev/fd0</tt> for the A: drive and
-	    <tt>/dev/fd1</tt> for the B: drive.
-	  </item>
+	    <tt>/dev/fd1</tt> for the B: drive.<P></P></item>
 	</itemize>
-
-      </item>
+      <P></P></item>
 
       <item>With the installation disk in the A: drive, reboot your
 	computer.  You should get a boot prompt something like this:
@@ -88,8 +86,7 @@ Boot:
 	with its default configuration after a delay of about
 	five seconds.  As FreeBSD boots, it probes your computer
 	to determine what hardware is installed.  The results of
-	this probing is displayed on the screen.
-      </item>
+	this probing is displayed on the screen.<P></P></item>
 
       <item>When the booting process is finished, The main FreeBSD
 	installation menu will be displayed.</item>
