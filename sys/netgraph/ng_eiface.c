@@ -338,8 +338,6 @@ ng_eiface_constructor(node_p *nodep)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-	TAILQ_INIT(&ifp->if_addrhead);
-
 #if 0
 	/* Give this node name */
 	bzero(ifname, sizeof(ifname));
@@ -487,9 +485,6 @@ ng_eiface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifnet *const ifp = priv->ifp;
-	int s;
-	struct ether_header *eh;
-	u_short ether_type;
 
 	NG_FREE_META(meta);
 
@@ -510,31 +505,14 @@ ng_eiface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	/* Update interface stats */
 	ifp->if_ipackets++;
 
-	eh = mtod(m, struct ether_header *);
-	ether_type = ntohs(eh->ether_type);
-
-	s = splimp();
-	m->m_pkthdr.len -= sizeof(*eh);
-	m->m_len -= sizeof(*eh);
-	if (m->m_len)
-		m->m_data += sizeof(*eh);
-	else if (ether_type == ETHERTYPE_ARP) {
-		m->m_len = m->m_next->m_len;
-		m->m_data = m->m_next->m_data;
-	}
-	splx(s);
-
-	ether_input(ifp, eh, m);
+	ether_input(ifp, NULL, m);
 
 	/* Done */
 	return (0);
 }
 
 /*
- * Because the BSD networking code doesn't support the removal of
- * networking interfaces, iface nodes (once created) are persistent.
- * So this method breaks all connections and marks the interface
- * down, but does not remove the node.
+ * Shutdown processing.
  */
 static int
 ng_eiface_rmnode(node_p node)
@@ -542,9 +520,13 @@ ng_eiface_rmnode(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	node->flags |= NG_INVALID;
 	ng_cutlinks(node);
-	node->flags &= ~NG_INVALID;
-	ifp->if_flags &= ~(IFF_UP | IFF_RUNNING | IFF_OACTIVE);
+	ng_unname(node);
+	FREE(priv, M_NETGRAPH);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
