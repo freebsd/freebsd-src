@@ -291,7 +291,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 	}
 
 	THREAD_LOCK();
-	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
+	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
 			  name, af, errp);
 	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
@@ -438,7 +438,7 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 	}
 
 	THREAD_LOCK();
-	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
+	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
 			  src, len, af, errp);
 	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
