@@ -16,15 +16,11 @@ maxusers	3
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		MFS			#Memory Filesystem
 options		MD_ROOT			#Use MFS for root
 options		MSDOSFS			#MSDOS Filesystem
 options		CD9660			#ISO 9660 Filesystem
 options		EXT2FS
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options		USERCONFIG		#boot -c editor
-options		VISUAL_USERCONFIG	#visual boot -c editor
-options		INTRO_USERCONFIG		#imply -c and parse info area
 #options		DEVFS
 options		PCI_QUIET
 options		NO_SWAPPING
