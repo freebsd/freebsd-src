@@ -40,6 +40,10 @@
 #include <openssl/evp.h>
 #include "xmalloc.h"
 #include "key.h"
+#include "dsa.h"
+#include "uuencode.h"
+
+#define SSH_DSS "ssh-dss"
 
 Key *
 key_new(int type)
@@ -49,6 +53,8 @@ key_new(int type)
 	DSA *dsa;
 	k = xmalloc(sizeof(*k));
 	k->type = type;
+	k->dsa = NULL;
+	k->rsa = NULL;
 	switch (k->type) {
 	case KEY_RSA:
 		rsa = RSA_new();
@@ -65,8 +71,6 @@ key_new(int type)
 		k->dsa = dsa;
 		break;
 	case KEY_EMPTY:
-		k->dsa = NULL;
-		k->rsa = NULL;
 		break;
 	default:
 		fatal("key_new: bad key type %d", k->type);
@@ -113,7 +117,7 @@ key_equal(Key *a, Key *b)
 		    BN_cmp(a->dsa->pub_key, b->dsa->pub_key) == 0;
 		break;
 	default:
-		fatal("key_free: bad key type %d", a->type);
+		fatal("key_equal: bad key type %d", a->type);
 		break;
 	}
 	return 0;
@@ -129,46 +133,37 @@ char *
 key_fingerprint(Key *k)
 {
 	static char retval[80];
-	unsigned char *buf = NULL;
+	unsigned char *blob = NULL;
 	int len = 0;
-	int nlen, elen, plen, qlen, glen, publen;
+	int nlen, elen;
 
 	switch (k->type) {
 	case KEY_RSA:
 		nlen = BN_num_bytes(k->rsa->n);
 		elen = BN_num_bytes(k->rsa->e);
 		len = nlen + elen;
-		buf = xmalloc(len);
-		BN_bn2bin(k->rsa->n, buf);
-		BN_bn2bin(k->rsa->e, buf + nlen);
+		blob = xmalloc(len);
+		BN_bn2bin(k->rsa->n, blob);
+		BN_bn2bin(k->rsa->e, blob + nlen);
 		break;
 	case KEY_DSA:
-		plen = BN_num_bytes(k->dsa->p);
-		qlen = BN_num_bytes(k->dsa->q);
-		glen = BN_num_bytes(k->dsa->g);
-		publen = BN_num_bytes(k->dsa->pub_key);
-		len = qlen + qlen + glen + publen;
-		buf = xmalloc(len);
-		BN_bn2bin(k->dsa->p, buf);
-		BN_bn2bin(k->dsa->q, buf + plen);
-		BN_bn2bin(k->dsa->g, buf + plen + qlen);
-		BN_bn2bin(k->dsa->pub_key , buf + plen + qlen + glen);
+		dsa_make_key_blob(k, &blob, &len);
 		break;
 	default:
 		fatal("key_fingerprint: bad key type %d", k->type);
 		break;
 	}
-	if (buf != NULL) {
+	if (blob != NULL) {
 		unsigned char d[16];
 		EVP_MD_CTX md;
 		EVP_DigestInit(&md, EVP_md5());
-		EVP_DigestUpdate(&md, buf, len);
+		EVP_DigestUpdate(&md, blob, len);
 		EVP_DigestFinal(&md, d, NULL);
 		snprintf(retval, sizeof(retval), FPRINT,
 		    d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
 		    d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
-		memset(buf, 0, len);
-		xfree(buf);
+		memset(blob, 0, len);
+		xfree(blob);
 	}
 	return retval;
 }
@@ -228,13 +223,27 @@ write_bignum(FILE *f, BIGNUM *num)
 	free(buf);
 	return 1;
 }
-int
-key_read(Key *ret, unsigned int bits, char **cpp)
+unsigned int
+key_read(Key *ret, char **cpp)
 {
+	Key *k;
+	unsigned int bits = 0;
+	char *cp;
+	int len, n;
+	unsigned char *blob;
+
+	cp = *cpp;
+
 	switch(ret->type) {
 	case KEY_RSA:
+		/* Get number of bits. */
+		if (*cp < '0' || *cp > '9')
+			return 0;	/* Bad bit count... */
+		for (bits = 0; *cp >= '0' && *cp <= '9'; cp++)
+			bits = 10 * bits + *cp - '0';
 		if (bits == 0)
 			return 0;
+		*cpp = cp;
 		/* Get public exponent, public modulus. */
 		if (!read_bignum(cpp, ret->rsa->e))
 			return 0;
@@ -242,22 +251,36 @@ key_read(Key *ret, unsigned int bits, char **cpp)
 			return 0;
 		break;
 	case KEY_DSA:
-		if (bits != 0)
+		if (strncmp(cp, SSH_DSS " ", 7) != 0)
 			return 0;
-		if (!read_bignum(cpp, ret->dsa->p))
+		cp += 7;
+		len = 2*strlen(cp);
+		blob = xmalloc(len);
+		n = uudecode(cp, blob, len);
+		if (n < 0) {
+			error("uudecode %s failed", cp);
 			return 0;
-		if (!read_bignum(cpp, ret->dsa->q))
+		}
+		k = dsa_key_from_blob(blob, n);
+		if (k == NULL)
+			 return 0;
+		xfree(blob);
+		if (ret->dsa != NULL)
+			DSA_free(ret->dsa);
+		ret->dsa = k->dsa;
+		k->dsa = NULL;
+		key_free(k);
+		bits = BN_num_bits(ret->dsa->p);
+		cp = strchr(cp, '=');
+		if (cp == NULL)
 			return 0;
-		if (!read_bignum(cpp, ret->dsa->g))
-			return 0;
-		if (!read_bignum(cpp, ret->dsa->pub_key))
-			return 0;
+		*cpp = cp + 1;
 		break;
 	default:
-		fatal("bad key type: %d", ret->type);
+		fatal("key_read: bad key type: %d", ret->type);
 		break;
 	}
-	return 1;
+	return bits;
 }
 int
 key_write(Key *key, FILE *f)
@@ -276,17 +299,30 @@ key_write(Key *key, FILE *f)
 			error("key_write: failed for RSA key");
 		}
 	} else if (key->type == KEY_DSA && key->dsa != NULL) {
-		/* bits == 0 means DSA key */
-		bits = 0;
-		fprintf(f, "%u", bits);
-		if (write_bignum(f, key->dsa->p) &&
-		    write_bignum(f, key->dsa->q) &&
-		    write_bignum(f, key->dsa->g) &&
-		    write_bignum(f, key->dsa->pub_key)) {
+		int len, n;
+		unsigned char *blob, *uu;
+		dsa_make_key_blob(key, &blob, &len);
+		uu = xmalloc(2*len);
+		n = uuencode(blob, len, uu, 2*len);
+		if (n > 0) {
+			fprintf(f, "%s %s", SSH_DSS, uu);
 			success = 1;
-		} else {
-			error("key_write: failed for DSA key");
 		}
+		xfree(blob);
+		xfree(uu);
 	}
 	return success;
+}
+char *
+key_type(Key *k)
+{
+	switch (k->type) {
+	case KEY_RSA:
+		return "RSA";
+		break;
+	case KEY_DSA:
+		return "DSA";
+		break;
+	}
+	return "unknown";
 }

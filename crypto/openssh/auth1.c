@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -39,9 +41,13 @@ get_authname(int type)
 	case SSH_CMSG_AUTH_RHOSTS:
 		return "rhosts";
 #ifdef KRB4
-	case SSH_CMSG_AUTH_KERBEROS:
-		return "kerberos";
+	case SSH_CMSG_AUTH_KRB4:
+		return "kerberosV4";
 #endif
+#ifdef KRB5
+	case SSH_CMSG_AUTH_KRB5:
+		return "kerberosV5";
+#endif /* KRB5 */
 #ifdef SKEY
 	case SSH_CMSG_AUTH_TIS_RESPONSE:
 		return "s/key";
@@ -135,6 +141,31 @@ do_authloop(struct passwd * pw)
 	unsigned int ulen;
 	int type = 0;
 	void (*authlog) (const char *fmt,...) = verbose;
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+#endif /* LOGIN_CAP */
+#if defined(LOGIN_CAP) || defined(LOGIN_ACCESS)
+	const char *from_host, *from_ip;
+
+	from_host = get_canonical_hostname();
+	from_ip = get_remote_ipaddr();
+#endif /* LOGIN_CAP || LOGIN_ACCESS */
+#ifdef HAVE_LIBPAM
+	int pam_retval;
+#endif /* HAVE_LIBPAM */
+#if 0
+#ifdef KRB5
+	{
+	  	krb5_error_code ret;
+		
+		ret = krb5_init_context(&ssh_context);
+		if (ret)
+		 	verbose("Error while initializing Kerberos V5."); 
+		krb5_init_ets(ssh_context);
+		
+	}
+#endif /* KRB5 */
+#endif
 
 	/* Indicate that authentication is needed. */
 	packet_start(SSH_SMSG_FAILURE);
@@ -151,17 +182,17 @@ do_authloop(struct passwd * pw)
 		/* Process the packet. */
 		switch (type) {
 #ifdef AFS
-		case SSH_CMSG_HAVE_KERBEROS_TGT:
-			if (!options.kerberos_tgt_passing) {
+		case SSH_CMSG_HAVE_KRB4_TGT:
+			if (!options.krb4_tgt_passing) {
 				/* packet_get_all(); */
-				verbose("Kerberos tgt passing disabled.");
+				verbose("Kerberos v4 tgt passing disabled.");
 				break;
 			} else {
-				/* Accept Kerberos tgt. */
+				/* Accept Kerberos v4 tgt. */
 				char *tgt = packet_get_string(&dlen);
 				packet_integrity_check(plen, 4 + dlen, type);
-				if (!auth_kerberos_tgt(pw, tgt))
-					verbose("Kerberos tgt REFUSED for %s", pw->pw_name);
+				if (!auth_krb4_tgt(pw, tgt))
+					verbose("Kerberos v4 tgt REFUSED for %s", pw->pw_name);
 				xfree(tgt);
 			}
 			continue;
@@ -182,11 +213,10 @@ do_authloop(struct passwd * pw)
 			continue;
 #endif /* AFS */
 #ifdef KRB4
-		case SSH_CMSG_AUTH_KERBEROS:
-			if (!options.kerberos_authentication) {
+		case SSH_CMSG_AUTH_KRB4:
+			if (!options.krb4_authentication) {
 				/* packet_get_all(); */
-				verbose("Kerberos authentication disabled.");
-				break;
+				verbose("Kerberos v4 authentication disabled.");
 			} else {
 				/* Try Kerberos v4 authentication. */
 				KTEXT_ST auth;
@@ -207,6 +237,36 @@ do_authloop(struct passwd * pw)
 			}
 			break;
 #endif /* KRB4 */
+#ifdef KRB5
+		case SSH_CMSG_AUTH_KRB5:
+			if (!options.krb5_authentication) {
+			  	verbose("Kerberos v5 authentication disabled.");
+				break;
+			} else {
+			  	krb5_data k5data; 
+#if 0	
+				if (krb5_init_context(&ssh_context)) {
+				  verbose("Error while initializing Kerberos V5.");
+				  break;
+				}
+				krb5_init_ets(ssh_context);
+#endif
+				
+				k5data.data = packet_get_string(&k5data.length);
+				packet_integrity_check(plen, 4 + k5data.length, type);
+				if (auth_krb5(pw->pw_name, &k5data, &tkt_client)) {
+				  /* pw->name is passed just for logging purposes
+				   * */
+				  	/* authorize client against .k5login */
+				  	if (krb5_kuserok(ssh_context,
+					      tkt_client,
+					      pw->pw_name))
+					  	authenticated = 1;
+				}
+				xfree(k5data.data);
+			}
+			break;
+#endif /* KRB5 */
 
 		case SSH_CMSG_AUTH_RHOSTS:
 			if (!options.rhosts_authentication) {
@@ -303,7 +363,7 @@ do_authloop(struct passwd * pw)
 		case SSH_CMSG_AUTH_TIS:
 			debug("rcvd SSH_CMSG_AUTH_TIS");
 			if (options.skey_authentication == 1) {
-				char *skeyinfo = skey_keyinfo(pw->pw_name);
+				char *skeyinfo = opie_keyinfo(pw->pw_name);
 				if (skeyinfo == NULL) {
 					debug("generating fake skeyinfo for %.100s.", pw->pw_name);
 					skeyinfo = skey_fake_keyinfo(pw->pw_name);
@@ -325,8 +385,8 @@ do_authloop(struct passwd * pw)
 				char *response = packet_get_string(&dlen);
 				debug("skey response == '%s'", response);
 				packet_integrity_check(plen, 4 + dlen, type);
-				authenticated = (skey_haskey(pw->pw_name) == 0 &&
-						 skey_passcheck(pw->pw_name, response) != -1);
+				authenticated = (opie_haskey(pw->pw_name) == 0 &&
+						 opie_passverify(pw->pw_name, response) != -1);
 				xfree(response);
 			}
 			break;
@@ -336,6 +396,32 @@ do_authloop(struct passwd * pw)
 			log("TIS authentication unsupported.");
 			break;
 #endif
+#ifdef KRB5
+		case SSH_CMSG_HAVE_KRB5_TGT:
+			/* Passing krb5 ticket */
+			if (!options.krb5_tgt_passing 
+                            /*|| !options.krb5_authentication */) {
+
+			}
+			
+			if (tkt_client == NULL) {
+			  /* passing tgt without krb5 authentication */
+			}
+			
+			{
+			  krb5_data tgt;
+			  tgt.data = packet_get_string(&tgt.length);
+			  
+			  if (!auth_krb5_tgt(pw->pw_name, &tgt, tkt_client)) {
+			    verbose ("Kerberos V5 TGT refused for %.100s", pw->pw_name);
+			    xfree(tgt.data);
+			    goto fail;
+			  }
+			  xfree(tgt.data);
+			      
+			  break;
+			}
+#endif /* KRB5 */
 
 		default:
 			/*
@@ -359,6 +445,34 @@ do_authloop(struct passwd * pw)
 				log("ROOT LOGIN REFUSED FROM %.200s",
 				    get_canonical_hostname());
 			}
+
+#ifdef LOGIN_CAP
+			lc = login_getpwclass(pw);
+			if (lc == NULL)
+			  lc = login_getclassbyname(NULL, pw);
+			if (!auth_hostok(lc, from_host, from_ip)) {
+			  log("Denied connection for %.200s from %.200s [%.200s].",
+			      pw->pw_name, from_host, from_ip);
+			  packet_disconnect("Sorry, you are not allowed to connect.");
+			}
+			if (!auth_timeok(lc, time(NULL))) {
+			  log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
+			      pw->pw_name, from_host);
+			  packet_disconnect("Logins not available right now.");
+			}
+			login_close(lc);
+#endif  /* LOGIN_CAP */
+#ifdef LOGIN_ACCESS
+			if (!login_access(pw->pw_name, from_host)) {
+			  log("Denied connection for %.200s from %.200s [%.200s].",
+			      pw->pw_name, from_host, from_ip);
+			  packet_disconnect("Sorry, you are not allowed to connect.");
+			}
+#endif /* LOGIN_ACCESS */
+
+			if (pw->pw_uid == 0)
+			  log("ROOT LOGIN as '%.100s' from %.100s",
+			      pw->pw_name, get_canonical_hostname());
 		}
 
 		/* Raise logging level */
@@ -431,6 +545,9 @@ do_authentication()
 	pwcopy.pw_gid = pw->pw_gid;
 	pwcopy.pw_dir = xstrdup(pw->pw_dir);
 	pwcopy.pw_shell = xstrdup(pw->pw_shell);
+	pwcopy.pw_class = xstrdup(pw->pw_class);
+	pwcopy.pw_expire = pw->pw_expire;
+	pwcopy.pw_change = pw->pw_change;
 	pw = &pwcopy;
 
 	/*
@@ -444,8 +561,11 @@ do_authentication()
 
 	/* If the user has no password, accept authentication immediately. */
 	if (options.password_authentication &&
+#ifdef KRB5
+	    !options.krb5_authentication &&
+#endif /* KRB5 */
 #ifdef KRB4
-	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
+	    (!options.krb4_authentication || options.krb4_or_local_passwd) &&
 #endif /* KRB4 */
 	    auth_password(pw, "")) {
 		/* Authentication with empty password succeeded. */
