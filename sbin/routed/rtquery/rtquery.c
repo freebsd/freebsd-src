@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rtquery.c,v 1.10 1999/05/02 13:14:16 markm Exp $
+ *	$Id$
  */
 
 char copyright[] =
@@ -46,7 +46,6 @@ char copyright[] =
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
 #include <arpa/inet.h>
-#include <err.h>
 #include <netdb.h>
 #include <errno.h>
 #include <unistd.h>
@@ -63,7 +62,7 @@ static char sccsid[] __attribute__((unused))= "@(#)query.c	8.1 (Berkeley) 6/5/93
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD: rtquery.c,v 1.10 1999/02/23 10:47:41 christos Exp $");
 #endif
-#ident "$Revision: 1.10 $"
+#ident "$Revision$"
 
 #ifndef sgi
 #define _HAVE_SIN_LEN
@@ -275,7 +274,8 @@ main(int argc,
 
 	soc = socket(AF_INET, SOCK_DGRAM, 0);
 	if (soc < 0) {
-		err(2, "socket");
+		perror("socket");
+		exit(2);
 	}
 
 	/* be prepared to receive a lot of routes */
@@ -284,7 +284,7 @@ main(int argc,
 			       &bsize, sizeof(bsize)) == 0)
 			break;
 		if (bsize <= 4*1024) {
-			warn("setsockopt SO_RCVBUF");
+			perror("setsockopt SO_RCVBUF");
 			break;
 		}
 	}
@@ -338,7 +338,8 @@ trace_loop(char *argv[])
 	while (bind(soc, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
 		if (errno != EADDRINUSE
 		    || myaddr.sin_port == 0) {
-			err(2, "bind");
+			perror("bind");
+			exit(2);
 		}
 		myaddr.sin_port = htons(ntohs(myaddr.sin_port)-1);
 	}
@@ -427,7 +428,8 @@ query_loop(char *argv[], int argc)
 				      sizeof(imsg_buf.packet), 0,
 				      (struct sockaddr *)&from, &fromlen);
 			if (cc < 0) {
-				err(1, "recvfrom");
+				perror("recvfrom");
+				exit(1);
 			}
 			/* count the distinct responding hosts.
 			 * You cannot match responding hosts with
@@ -459,7 +461,8 @@ query_loop(char *argv[], int argc)
 		if (cc < 0) {
 			if (errno == EINTR)
 				continue;
-			err(1, "select");
+			perror("select");
+			exit(1);
 		}
 
 		/* After a pause in responses, probe another host.
@@ -477,7 +480,8 @@ query_loop(char *argv[], int argc)
 		/* or until we have waited a long time
 		 */
 		if (gettimeofday(&now, 0) < 0) {
-			err(1, "gettimeofday(now)");
+			perror("gettimeofday(now)");
+			exit(1);
 		}
 		if (sent.tv_sec + wtime <= now.tv_sec)
 			break;
@@ -497,7 +501,8 @@ out(const char *host)
 	struct hostent *hp;
 
 	if (gettimeofday(&sent, 0) < 0) {
-		err(-1, "gettimeofday(sent)");
+		perror("gettimeofday(sent)");
+		return -1;
 	}
 
 	memset(&router, 0, sizeof(router));
@@ -517,7 +522,8 @@ out(const char *host)
 
 	if (sendto(soc, &omsg_buf, omsg_len, 0,
 		   (struct sockaddr *)&router, sizeof(router)) < 0) {
-		err(-1, host);
+		perror(host);
+		return -1;
 	}
 
 	return 0;
