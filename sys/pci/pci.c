@@ -1256,14 +1256,15 @@ getirq (pcici_t tag)
 	irq = PCI_INTERRUPT_LINE_EXTRACT(
 		pci_conf_read (tag, PCI_INTERRUPT_REG));
 
-	if (irq <= 0) {
+	if (irq == 0 || irq == 0xff) {
 		printf ("\tint line register not set by bios\n");
-		return (0);
+		return (0xff);
 	}
 
-	if (irq >= pcibus->pb_maxirq || irq >= PCI_MAX_IRQ) {
-		printf ("\tirq %d invalid.\n", irq);
-		return (0);
+	if (irq >= PCI_MAX_IRQ) {
+		printf ("\tirq %d out of bounds (must be < %d).\n", 
+			irq, PCI_MAX_IRQ);
+		return (0xff);
 	}
 
 	return (irq);
@@ -1315,8 +1316,7 @@ int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr)
 	*/
 
 	irq = getirq (tag);
-	if ((irq == 0) || (irq >= PCI_MAX_IRQ)) {
-		printf ("\tillegal irq %d.\n", irq);
+	if (irq == 0xff) {
 		return (0);
 	};
 	mask= 1ul << irq;
@@ -1455,8 +1455,7 @@ int pci_unmap_int (pcici_t tag)
 	*/
 
 	irq = getirq (tag);
-	if (irq >= PCI_MAX_IRQ) {
-		printf ("\tillegal irq %d.\n", irq);
+	if (irq == 0xff) {
 		return (0);
 	};
 
