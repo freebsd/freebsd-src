@@ -116,6 +116,7 @@ exit1(p, rv)
 {
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
+	struct vnode *vtmp;
 	struct exitlist *ep;
 
 	if (p->p_pid == 1) {
@@ -256,8 +257,10 @@ exit1(p, rv)
 	 * release trace file
 	 */
 	p->p_traceflag = 0;	/* don't trace the vrele() */
-	if (p->p_tracep)
-		vrele(p->p_tracep);
+	if ((vtmp = p->p_tracep) != NULL) {
+		p->p_tracep = NULL;
+		vrele(vtmp);
+	}
 #endif
 	/*
 	 * Remove proc from allproc queue and pidhash chain.

@@ -310,9 +310,13 @@ interpret:
 		 */
 		setsugid(p);
 		if (p->p_tracep && suser(p)) {
-			p->p_traceflag = 0;
-			vrele(p->p_tracep);
-			p->p_tracep = NULL;
+			struct vnode *vtmp;
+
+			if ((vtmp = p->p_tracep) != NULL) {
+				p->p_tracep = NULL;
+				p->p_traceflag = 0;
+				vrele(vtmp);
+			}
 		}
 		/*
 		 * Set the new credentials.
