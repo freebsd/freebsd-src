@@ -57,7 +57,7 @@
   052   '.'    '>'    nop    nop    '.'    '>'    nop    nop     O
   053   '/'    '?'    nop    nop    '/'    '?'    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
-  055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
+  055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
   057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
@@ -94,7 +94,7 @@
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
-  092   nscr   nop    debug  nop    nop    nop    nop    nop     O
+  092   nscr   nscr   debug  debug  nop    nop    nop    nop     O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -106,10 +106,11 @@
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
-  104   slock  slock  slock  slock  slock  slock  slock  slock   O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
   105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  108   nop    nop    nop    nop    nop    nop    nop    nop     O
   115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
   121   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   123   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O

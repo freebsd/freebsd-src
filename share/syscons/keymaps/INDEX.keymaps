@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.22 1998/10/16 01:49:13 yokota Exp $
+# $Id: INDEX.keymaps,v 1.25 1999/01/18 12:38:59 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -66,6 +66,10 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:Dinamarquês Codepage 865
 danish.cp865.kbd:es:Danés Codepage 865
 
+finnish.iso.kbd:en:Finnish ISO-8859-1
+
+finnish.cp850.kbd:en:Finnish Codepage 850
+
 fr.iso.kbd:en:French ISO-8859-1
 fr.iso.kbd:de:Französisch ISO-8859-1
 fr.iso.kbd:fr:Français ISO-8859-1
@@ -89,6 +93,8 @@ german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
 german.cp850.kbd:pt:Alemão Codepage 850
 german.cp850.kbd:es:Alemán Codepage 850
+
+hr.iso.kbd:en:Croatian ISO-8859-2
 
 hu.iso2.101keys.kbd:en:Hungarian 101 ISO-8859-2
 hu.iso2.101keys.kbd:es:Húngaro 101 ISO-8859-2
