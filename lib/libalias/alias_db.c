@@ -104,15 +104,17 @@
         implements static network address translation.
 
     See HISTORY file for additional revisions.
+
+    $FreeBSD$
 */
 
 
 /* System include files */
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -142,7 +144,7 @@
 #define ALIAS_CLEANUP_INTERVAL_SECS  60
 #define ALIAS_CLEANUP_MAX_SPOKES     30
 
-/* Timouts (in seconds) for different link types) */
+/* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
 #define FRAGMENT_ID_EXPIRE_TIME      10
@@ -365,9 +367,9 @@ static struct in_addr pptpAliasAddr; /* Address of source of PPTP 	*/
 
 Lookup table starting points:
     StartPointIn()           -- link table initial search point for
-                                outgoing packets
-    StartPointOut()          -- port table initial search point for
                                 incoming packets
+    StartPointOut()          -- port table initial search point for
+                                outgoing packets
     
 Miscellaneous:
     SeqDiff()                -- difference between two TCP sequences
@@ -508,7 +510,7 @@ ReLink(struct alias_link *,
         u_short, u_short, int, int);
 
 static struct alias_link *
-FindLinkOut(struct in_addr, struct in_addr, u_short, u_short, int);
+FindLinkOut(struct in_addr, struct in_addr, u_short, u_short, int, int);
 
 static struct alias_link *
 FindLinkIn(struct in_addr, struct in_addr, u_short, u_short, int, int);
@@ -1032,7 +1034,8 @@ FindLinkOut(struct in_addr src_addr,
             struct in_addr dst_addr,
             u_short src_port,
             u_short dst_port,
-            int link_type)
+            int link_type,
+            int replace_partial_links)
 {
     u_int i;
     struct alias_link *link;
@@ -1054,6 +1057,26 @@ FindLinkOut(struct in_addr src_addr,
             break;
         }
         link = link->next_out;
+    }
+
+/* Search for partially specified links. */
+    if (link == NULL)
+    {
+        if (dst_port != 0)
+        {
+            link = FindLinkOut(src_addr, dst_addr, src_port, 0, link_type, 0);
+            if (link != NULL && replace_partial_links)
+            {
+                link = ReLink(link,
+                              src_addr, dst_addr, link->alias_addr,
+                              src_port, dst_port, link->alias_port,
+                              link_type);
+            }
+        }
+        else if (dst_addr.s_addr != 0)
+        {
+            link = FindLinkOut(src_addr, nullAddress, src_port, 0, link_type, 0);
+        }
     }
 
     return(link);
@@ -1232,7 +1255,7 @@ FindIcmpOut(struct in_addr src_addr,
 
     link = FindLinkOut(src_addr, dst_addr,
                        id, NO_DEST_PORT,
-                       LINK_ICMP);
+                       LINK_ICMP, 0);
     if (link == NULL)
     {
         struct in_addr alias_addr;
@@ -1366,7 +1389,7 @@ FindUdpTcpOut(struct in_addr  src_addr,
         break;
     }
 
-    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type);
+    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type, 1);
 
     if (link == NULL)
     {
@@ -1413,7 +1436,7 @@ FindAliasAddress(struct in_addr original_addr)
     struct alias_link *link;
     
     link = FindLinkOut(original_addr, nullAddress,
-                       0, 0, LINK_ADDR);
+                       0, 0, LINK_ADDR, 0);
     if (link == NULL)
     {
         return aliasAddress;
