@@ -1251,7 +1251,9 @@ brelse(struct buf * bp)
 			int had_bogus = 0;
 
 			m = bp->b_pages[i];
+			vm_page_lock_queues();
 			vm_page_flag_clear(m, PG_ZERO);
+			vm_page_unlock_queues();
 
 			/*
 			 * If we hit a bogus page, fixup *all* the bogus pages
@@ -2220,6 +2222,7 @@ vfs_setdirty(struct buf *bp)
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
 
+		vm_page_lock_queues();
 		/*
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
@@ -2247,6 +2250,7 @@ vfs_setdirty(struct buf *bp)
 		}
 		eoffset = ((i + 1) << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
 
+		vm_page_unlock_queues();
 		/*
 		 * Fit it to the buffer.
 		 */
@@ -3440,7 +3444,9 @@ vfs_bio_clrbuf(struct buf *bp)
 				}
 			}
 			bp->b_pages[i]->valid |= mask;
+			vm_page_lock_queues();
 			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
+			vm_page_unlock_queues();
 		}
 		bp->b_resid = 0;
 	} else {
