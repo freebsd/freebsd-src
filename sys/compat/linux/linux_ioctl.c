@@ -1372,7 +1372,7 @@ linux_ifname(struct ifnet *ifp, char *name, size_t size)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
-
+#if 0
 static struct ifnet *
 ifname_bsd_to_linux(const char *bsdname, char *lxname)
 {
@@ -1398,6 +1398,7 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
 	
 	return (ifp);
 }
+#endif
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
@@ -1768,7 +1769,8 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 
 #ifdef DEBUG
 	if (ldebug(ioctl))
-		printf(ARGS(ioctl, "%d, %04lx, *"), args->fd, args->cmd);
+		printf(ARGS(ioctl, "%d, %04lx, *"), args->fd,
+		    (unsigned long)args->cmd);
 #endif
 
 	fdp = td->td_proc->p_fd;
