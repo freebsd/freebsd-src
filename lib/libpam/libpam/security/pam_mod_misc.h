@@ -62,13 +62,13 @@ void	_pam_verbose_error(pam_handle_t *, int, const char *,
 		const char *, const char *, ...);
 __END_DECLS
 
-#define	PAM_LOG(args...)						\
-	openpam_log(PAM_LOG_DEBUG, ##args)
+#define	PAM_LOG(...) \
+	openpam_log(PAM_LOG_DEBUG, __VA_ARGS__)
 
-#define PAM_RETURN(arg)							\
+#define PAM_RETURN(arg) \
 	return (arg)
 
-#define PAM_VERBOSE_ERROR(args...)					\
-	_pam_verbose_error(pamh, flags, __FILE__, __FUNCTION__, ##args)
+#define PAM_VERBOSE_ERROR(...) \
+	_pam_verbose_error(pamh, flags, __FILE__, __FUNCTION__, __VA_ARGS__)
 
 #endif
