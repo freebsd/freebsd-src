@@ -141,9 +141,11 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     char args[10];
 
     args[0] = '\0';
+    if (ExcludeFrom)
+	sprintf(args, "-X %s ", ExcludeFrom);
     sprintf(tball, "%s/%s.%s", home, pkg, suffix);
     if (index(suffix, 'z'))	/* Compress/gzip? */
-	strcpy(args, "z");
+	strcat(args, "z");
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s', contents:\n", tball);
     strcat(args, "cf");
