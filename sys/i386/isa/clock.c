@@ -1141,7 +1141,7 @@ setstatclockrate(int newhz)
 }
 
 static int
-sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
+sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	u_int freq;
@@ -1166,7 +1166,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
 
 static int
-sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
+sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	u_int freq;

@@ -2421,7 +2421,7 @@ ttyregister(tp)
 }
 
 static int
-sysctl_kern_ttys SYSCTL_HANDLER_ARGS
+sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	struct tty *tp, t;

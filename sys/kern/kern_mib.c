@@ -142,7 +142,7 @@ SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
 char hostname[MAXHOSTNAMELEN];
 
 static int
-sysctl_hostname SYSCTL_HANDLER_ARGS
+sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -165,7 +165,7 @@ SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
 int securelevel = -1;
 
 static int
-sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
+sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
 		int error, level;
 

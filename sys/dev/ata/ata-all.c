@@ -1615,7 +1615,7 @@ ata_change_mode(struct ata_softc *scp, int32_t device, int32_t mode)
 }
 
 static int
-sysctl_hw_ata SYSCTL_HANDLER_ARGS
+sysctl_hw_ata(SYSCTL_HANDLER_ARGS)
 {
     struct ata_softc *scp;
     int ctlr, error, i;

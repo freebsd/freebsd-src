@@ -64,7 +64,7 @@ static struct sysctl_lock {
 	int	sl_locked;
 } memlock;
 
-static int sysctl_root SYSCTL_HANDLER_ARGS;
+static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
 struct sysctl_oid_list sysctl__children; /* root list */
 
@@ -204,7 +204,7 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 }
 
 static int
-sysctl_sysctl_debug SYSCTL_HANDLER_ARGS
+sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 {
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
 	return ENOENT;
@@ -214,7 +214,7 @@ SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
 	0, 0, sysctl_sysctl_debug, "-", "");
 
 static int
-sysctl_sysctl_name SYSCTL_HANDLER_ARGS
+sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *) arg1;
 	u_int namelen = arg2;
@@ -324,7 +324,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 }
 
 static int
-sysctl_sysctl_next SYSCTL_HANDLER_ARGS
+sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *) arg1;
 	u_int namelen = arg2;
@@ -400,7 +400,7 @@ name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 }
 
 static int
-sysctl_sysctl_name2oid SYSCTL_HANDLER_ARGS
+sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
 	int error, oid[CTL_MAXNAME], len;
@@ -436,7 +436,7 @@ SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW|CTLFLAG_ANYBODY, 0, 0,
 	sysctl_sysctl_name2oid, "I", "");
 
 static int
-sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
+sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
 	int error;
@@ -469,7 +469,7 @@ SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
  */
 
 int
-sysctl_handle_int SYSCTL_HANDLER_ARGS
+sysctl_handle_int(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 
@@ -493,7 +493,7 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
  */
 
 int
-sysctl_handle_long SYSCTL_HANDLER_ARGS
+sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 
@@ -516,7 +516,7 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
  */
 
 int
-sysctl_handle_string SYSCTL_HANDLER_ARGS
+sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
 	int error=0;
 
@@ -542,7 +542,7 @@ sysctl_handle_string SYSCTL_HANDLER_ARGS
  */
 
 int
-sysctl_handle_opaque SYSCTL_HANDLER_ARGS
+sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -737,7 +737,7 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
  */
 
 int
-sysctl_root SYSCTL_HANDLER_ARGS
+sysctl_root(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
 	int error, indx;

@@ -431,7 +431,7 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
 
 /* net.inet6.ip6 */
 static int
-sysctl_ip6_forwarding SYSCTL_HANDLER_ARGS
+sysctl_ip6_forwarding(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 	int old_ip6_forwarding;
@@ -475,7 +475,7 @@ sysctl_ip6_forwarding SYSCTL_HANDLER_ARGS
 }
 
 static int
-sysctl_icmp6_ratelimit SYSCTL_HANDLER_ARGS
+sysctl_icmp6_ratelimit(SYSCTL_HANDLER_ARGS)
 {
 	int rate_usec, error, s;
 

@@ -68,7 +68,7 @@
 #endif
 
 static int
-sysctl_msec_to_ticks SYSCTL_HANDLER_ARGS
+sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int error, s, tt;
 

@@ -202,7 +202,7 @@ cnuninit(void)
  * This may require us to open or close the device in question.
  */
 static int
-sysctl_kern_consmute SYSCTL_HANDLER_ARGS
+sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int ocn_mute;

@@ -940,7 +940,7 @@ sysctl_iflist(af, w)
 }
 
 static int
-sysctl_rtsock SYSCTL_HANDLER_ARGS
+sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;

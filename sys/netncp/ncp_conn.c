@@ -57,7 +57,7 @@ struct ncp_handle_head lhlist={NULL};
 static int ncp_next_handle = 1;
 static struct lock lhlock;
 
-static int ncp_sysctl_connstat SYSCTL_HANDLER_ARGS;
+static int ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS);
 static int ncp_conn_lock_any(struct ncp_conn *conn, struct proc *p, 
     struct ucred *cred);
 
@@ -512,7 +512,7 @@ ncp_conn_getinfo(struct ncp_conn *ncp, struct ncp_conn_stat *ncs) {
 }
 
 static int
-ncp_sysctl_connstat SYSCTL_HANDLER_ARGS {
+ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS) {
 	int error;
 	struct ncp_conn_stat ncs;
 	struct ncp_conn *ncp;

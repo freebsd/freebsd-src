@@ -63,7 +63,7 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, piix_timecounter, CTLFLAG_RD,
 	&piix_timecounter, sizeof(piix_timecounter), "S,timecounter", "");
 
 static int
-sysctl_machdep_piix_freq SYSCTL_HANDLER_ARGS
+sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	u_int freq;

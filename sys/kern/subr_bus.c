@@ -1203,7 +1203,7 @@ device_shutdown(device_t dev)
 SYSCTL_NODE(_hw, OID_AUTO, devices, CTLFLAG_RW, 0, "A list of all devices");
 
 static int
-sysctl_handle_children SYSCTL_HANDLER_ARGS
+sysctl_handle_children(SYSCTL_HANDLER_ARGS)
 {
     device_t dev = arg1;
     device_t child;
@@ -1229,7 +1229,7 @@ sysctl_handle_children SYSCTL_HANDLER_ARGS
 }
 
 static int
-sysctl_handle_state SYSCTL_HANDLER_ARGS
+sysctl_handle_state(SYSCTL_HANDLER_ARGS)
 {
     device_t dev = arg1;
 

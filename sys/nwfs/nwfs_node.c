@@ -66,7 +66,7 @@ static int nwhashlock = 0;
 MALLOC_DEFINE(M_NWNODE, "NWFS node", "NWFS vnode private part");
 MALLOC_DEFINE(M_NWFSHASH, "NWFS hash", "NWFS has table");
 
-static int nwfs_sysctl_vnprint SYSCTL_HANDLER_ARGS;
+static int nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS);
 
 extern struct linker_set sysctl_vfs_nwfs;
 
@@ -86,7 +86,7 @@ nwfs_hash_free(void) {
 }
 
 int
-nwfs_sysctl_vnprint SYSCTL_HANDLER_ARGS {
+nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 	struct vnode *vp;

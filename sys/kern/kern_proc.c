@@ -522,7 +522,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
 }
 
 static int
-sysctl_kern_proc SYSCTL_HANDLER_ARGS
+sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
@@ -618,7 +618,7 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
  * title to a string of its own choice.
  */
 static int
-sysctl_kern_proc_args SYSCTL_HANDLER_ARGS
+sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int*) arg1;
 	u_int namelen = arg2;

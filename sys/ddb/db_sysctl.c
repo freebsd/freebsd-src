@@ -51,7 +51,7 @@
 #define MODE_GDB	"gdb"
 
 static int
-sysctl_debug_enter_debugger SYSCTL_HANDLER_ARGS
+sysctl_debug_enter_debugger(SYSCTL_HANDLER_ARGS)
 {
 	char dmode[64];
 	int error;

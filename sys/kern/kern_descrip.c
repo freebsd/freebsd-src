@@ -1269,7 +1269,7 @@ dupfdopen(fdp, indx, dfd, mode, error)
  * Get file structures.
  */
 static int
-sysctl_kern_file SYSCTL_HANDLER_ARGS
+sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	struct file *fp;

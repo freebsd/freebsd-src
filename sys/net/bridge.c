@@ -224,7 +224,7 @@ bdg_promisc_on()
 }
 
 static int
-sysctl_bdg SYSCTL_HANDLER_ARGS
+sysctl_bdg(SYSCTL_HANDLER_ARGS)
 {
     int error, oldval = do_bridge ;
 
@@ -297,7 +297,7 @@ parse_bdg_cfg()
 }
 
 static int
-sysctl_bdg_cfg SYSCTL_HANDLER_ARGS
+sysctl_bdg_cfg(SYSCTL_HANDLER_ARGS)
 {
     int error = 0 ;
     char oldval[256] ;
@@ -323,7 +323,7 @@ sysctl_bdg_cfg SYSCTL_HANDLER_ARGS
 }
 
 static int
-sysctl_refresh SYSCTL_HANDLER_ARGS
+sysctl_refresh(SYSCTL_HANDLER_ARGS)
 {
     if (req->newptr)
 	    bdgtakeifaces();

@@ -208,7 +208,7 @@ int	ncpus;			/* number of cpus */
 vm_offset_t phys_avail[10];
 
 static int
-sysctl_hw_physmem SYSCTL_HANDLER_ARGS
+sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp, 0, alpha_ptob(physmem), req);
 	return (error);
@@ -218,7 +218,7 @@ SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "I", "");
 
 static int
-sysctl_hw_usermem SYSCTL_HANDLER_ARGS
+sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp, 0,
 		alpha_ptob(physmem - cnt.v_wire_count), req);
@@ -2036,7 +2036,7 @@ bad:
 }
 
 static int
-sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
+sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,

@@ -51,7 +51,7 @@ SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
 static char	linux_osname[LINUX_MAX_UTSNAME] = "Linux";
 
 static int
-linux_sysctl_osname SYSCTL_HANDLER_ARGS
+linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 {
 	char osname[LINUX_MAX_UTSNAME];
 	int error;
@@ -72,7 +72,7 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
 static char	linux_osrelease[LINUX_MAX_UTSNAME] = "2.2.12";
 
 static int
-linux_sysctl_osrelease SYSCTL_HANDLER_ARGS
+linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 {
 	char osrelease[LINUX_MAX_UTSNAME];
 	int error;
@@ -93,7 +93,7 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, osrelease,
 static int	linux_oss_version = 0x030600;
 
 static int
-linux_sysctl_oss_version SYSCTL_HANDLER_ARGS
+linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 {
 	int oss_version;
 	int error;

@@ -94,7 +94,7 @@ int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 	else if ((var) > (max)) { (var) = (max); }
 
 static int
-sysctl_net_ipport_check SYSCTL_HANDLER_ARGS
+sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp,
 		oidp->oid_arg1, oidp->oid_arg2, req);
