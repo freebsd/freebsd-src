@@ -33,6 +33,7 @@
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/signal.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
 
@@ -47,6 +48,7 @@
 #include <machine/cpufunc.h>
 #include <machine/fp.h>
 #include <machine/frame.h>
+#include <machine/fsr.h>
 #include <machine/globals.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -152,10 +154,6 @@ ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
 
 ASSYM(NIV, NIV);
 
-ASSYM(JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
-ASSYM(JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
-ASSYM(JB_SP, offsetof(struct _jmp_buf, _jb[_JB_SP]));
-
 ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
@@ -177,7 +175,6 @@ ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_Y, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_CWP, offsetof(struct pcb, pcb_cwp));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
@@ -198,13 +195,21 @@ ASSYM(SPOFF, SPOFF);
 
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
-ASSYM(KF_FP, offsetof(struct kdbframe, kf_fp));
-ASSYM(KF_SIZEOF, sizeof(struct kdbframe));
-
 ASSYM(MF_SFAR, offsetof(struct mmuframe, mf_sfar));
 ASSYM(MF_SFSR, offsetof(struct mmuframe, mf_sfsr));
 ASSYM(MF_TAR, offsetof(struct mmuframe, mf_tar));
 ASSYM(MF_SIZEOF, sizeof(struct mmuframe));
+
+ASSYM(UC_SIZEOF, sizeof(ucontext_t));
+ASSYM(UC_SIGMASK, offsetof(ucontext_t, uc_sigmask));
+ASSYM(UC_MC, offsetof(ucontext_t, uc_mcontext));
+
+ASSYM(MC_G1, offsetof(mcontext_t, mc_global[1]));
+ASSYM(MC_O0, offsetof(mcontext_t, mc_out[0]));
+ASSYM(MC_O6, offsetof(mcontext_t, mc_out[6]));
+ASSYM(MC_O7, offsetof(mcontext_t, mc_out[7]));
+ASSYM(MC_TPC, offsetof(mcontext_t, mc_tpc));
+ASSYM(MC_TNPC, offsetof(mcontext_t, mc_tnpc));
 
 ASSYM(TF_G0, offsetof(struct trapframe, tf_global[0]));
 ASSYM(TF_G1, offsetof(struct trapframe, tf_global[1]));
