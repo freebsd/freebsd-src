@@ -44,8 +44,6 @@ SUBDIR=	alias \
 	cut \
 	${_dig} \
 	dirname \
-	${_dnskeygen} \
-	${_dnsquery} \
 	du \
 	ee \
 	elf2aout \
@@ -130,6 +128,8 @@ SUBDIR=	alias \
 	nice \
 	nl \
 	nohup \
+	${_nslookup} \
+	${_nsupdate} \
 	objformat \
 	opieinfo \
 	opiekey \
@@ -235,9 +235,9 @@ _atm=		atm
 
 .if !defined(NO_BIND)
 _dig=		dig
-_dnskeygen=	dnskeygen
-_dnsquery=	dnsquery
 _host=		host
+_nslookup=	nslookup
+_nsupdate=	nsupdate
 .endif
 
 .if !defined(NO_BLUETOOTH)

@@ -1,44 +1,34 @@
 # $FreeBSD$
 
-USE_LIBBIND=	true
-.include "${.CURDIR}/Makefile.inc"
+BIND_DIR=	${.CURDIR}/../../contrib/bind9
+LIB_BIND_REL=	../../lib/bind
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
+SRCDIR=		${BIND_DIR}/bin/named
 
-.PATH: ${BIND_DIR}/bin/named ${BIND_DIR}/doc/man
+.include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=	named
-MAN=	named.conf.5 named.8 named-bootconf.8 nsupdate.8
-SRCS=	tmp_version.c pathnames.h \
-	db_dump.c db_load.c db_lookup.c db_save.c db_update.c \
-	db_glue.c db_ixfr.c db_sec.c db_tsig.c \
-	ns_parser.y ns_lexer.c ns_parseutil.c ns_ctl.c \
-	ns_forw.c ns_init.c ns_main.c ns_maint.c ns_req.c \
-	ns_resp.c ns_stats.c ns_ncache.c ns_xfr.c ns_glue.c \
-	ns_udp.c ns_config.c ns_update.c ns_ixfr.c ns_signal.c \
-	ns_sort.c ns_notify.c
+PROG=		named
 
-.if exists(${.OBJDIR}/../../lib/libisc)
-LIBISCDIR:=	${.OBJDIR}/../../lib/libisc
-.else
-LIBISCDIR!=	cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
-.endif
-LIBISC:=	${LIBISCDIR}/libisc.a
+.PATH: ${SRCDIR}/unix
+SRCS+=		os.c
 
-DPADD+=	${LIBISC}
-LDADD+=	${LIBISC}
+.PATH: ${SRCDIR}
+SRCS+=		aclconf.c builtin.c client.c config.c control.c \
+		controlconf.c interfacemgr.c \
+		listenlist.c log.c logconf.c main.c notify.c \
+		query.c server.c sortlist.c \
+		tkeyconf.c tsigconf.c update.c xfrout.c \
+		zoneconf.c \
+		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
+		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c
 
-HTMLS=	acl.html address_list.html comments.html config.html controls.html \
-	docdef.html example.html include.html index.html key.html \
-	logging.html master.html options.html server.html trusted-keys.html \
-	zone.html
-MISCS=	DynamicUpdate FAQ.1of2 FAQ.2of2 rfc2317-notes.txt style.txt
-FILES=	${HTMLS} ${MISCS}
-.PATH: ${BIND_DIR}/doc/html ${BIND_DIR}/doc/misc
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
-.for file in ${HTMLS}
-FILESDIR_${file}=	${DOCDIR}/bind/html
-.endfor
-.for file in ${MISCS}
-FILESDIR_${file}=	${DOCDIR}/bind/misc
-.endfor
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+
+MAN=		named.8 lwresd.8 named.conf.5
+
+LINKS=		${BINDIR}/named ${BINDIR}/lwresd
 
 .include <bsd.prog.mk>
