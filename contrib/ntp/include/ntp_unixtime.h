@@ -5,6 +5,16 @@
 
 #include "ntp_types.h"
 
+#ifdef SIM
+#include "ntpsim.h"
+#endif
+
+#ifdef SIM
+#   define GETTIMEOFDAY(a, b) (node_gettime(&ntp_node, a))
+#   define SETTIMEOFDAY(a, b) (node_settime(&ntp_node, a))
+#   define ADJTIMEOFDAY(a, b) (node_adjtime(&ntp_node, a, b))
+#else
+#   define ADJTIMEOFDAY(a, b) (adjtime(a, b))
 /* gettimeofday() takes two args in BSD and only one in SYSV */
 # if defined(HAVE_SYS_TIMERS_H) && defined(HAVE_GETCLOCK)
 #  include <sys/timers.h>
@@ -25,6 +35,7 @@ int getclock (int clock_type, struct timespec *tp);
 #endif
 #  endif /* SYSV_TIMEOFDAY */
 # endif /* not (HAVE_SYS_TIMERS_H && HAVE_GETCLOCK) */
+#endif /* SIM */
 
 /*
  * Time of day conversion constant.  Ntp's time scale starts in 1900,

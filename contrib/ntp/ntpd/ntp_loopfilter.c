@@ -1,6 +1,8 @@
 /*
  * ntp_loopfilter.c - implements the NTP loop filter algorithm
  *
+ * ATTENTION: Get approval from Dave Mills on all changes to this file!
+ *
  */
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -32,18 +34,17 @@
  * included to protect against timewarps, timespikes and general mayhem.
  * All units are in s and s/s, unless noted otherwise.
  */
-#define CLOCK_MAX	.128	/* default step offset (s) */
-#define CLOCK_PANIC	1000.	/* default panic offset (s) */
+#define CLOCK_MAX	.128	/* default step threshold (s) */
+#define CLOCK_MINSTEP	900.	/* default stepout threshold (s) */
+#define CLOCK_PANIC	1000.	/* default panic threshold (s) */
 #define	CLOCK_PHI	15e-6	/* max frequency error (s/s) */
-#define SHIFT_PLL	4	/* PLL loop gain (shift) */
+#define CLOCK_PLL	16.	/* PLL loop gain */
 #define CLOCK_FLL	8.	/* FLL loop gain */
 #define CLOCK_AVG	4.	/* parameter averaging constant */
-#define CLOCK_MINSEC	256.	/* min FLL update interval (s) */
-#define CLOCK_MINSTEP	900.	/* step-change timeout (s) */
-#define CLOCK_DAY	86400.	/* one day of seconds (s) */
+#define	CLOCK_ALLAN	1500.	/* compromise Allan intercept (s) */
+#define CLOCK_DAY	86400.	/* one day in seconds (s) */
 #define CLOCK_LIMIT	30	/* poll-adjust threshold */
 #define CLOCK_PGATE	4.	/* poll-adjust gate */
-#define CLOCK_ALLAN	10	/* min Allan intercept (log2 s) */
 #define PPS_MAXAGE	120	/* kernel pps signal timeout (s) */
 
 /*
@@ -108,22 +109,11 @@
 /*
  * Program variables that can be tinkered.
  */
-double	clock_max = CLOCK_MAX;	/* max offset before step (s) */
-double	clock_panic = CLOCK_PANIC; /* max offset before panic (s) */
+double	clock_max = CLOCK_MAX;	/* step threshold (s) */
+double	clock_minstep = CLOCK_MINSTEP; /* stepout threshold (s) */
+double	clock_panic = CLOCK_PANIC; /* panic threshold (s) */
 double	clock_phi = CLOCK_PHI;	/* dispersion rate (s/s) */
-double	clock_minstep = CLOCK_MINSTEP; /* step timeout (s) */
-u_char	allan_xpt = CLOCK_ALLAN; /* minimum Allan intercept (log2 s) */
-
-/*
- * Hybrid PLL/FLL parameters. These were chosen by experiment using a
- * MatLab program. The parameters were fudged to match a pure PLL at
- * poll intervals of 64 s and lower and a pure FLL at poll intervals of
- * 4096 s and higher. Between these extremes the parameters were chosen
- * as a geometric series of intervals while holding the overshoot to
- * less than 5 percent.
- */
-static double fll[] = {0., 1./64, 1./32, 1./16, 1./8, 1./4, 1.};
-static double pll[] = {1., 1.4,   2.,    2.8,   4.1,  7.,  12.};
+double	allan_xpt = CLOCK_ALLAN; /* Allan intercept (s) */
 
 /*
  * Program variables
@@ -132,7 +122,7 @@ static double clock_offset;	/* clock offset adjustment (s) */
 double	drift_comp;		/* clock frequency (s/s) */
 double	clock_stability;	/* clock stability (s/s) */
 u_long	pps_control;		/* last pps sample time */
-static void rstclock P((int, double, double)); /* transition function */
+static void rstclock P((int, u_long, double)); /* transition function */
 
 #ifdef KERNEL_PLL
 struct timex ntv;		/* kernel API parameters */
@@ -149,17 +139,15 @@ int	kern_enable;		/* kernel support enabled */
 int	pps_enable;		/* kernel PPS discipline enabled */
 int	ext_enable;		/* external clock enabled */
 int	pps_stratum;		/* pps stratum */
-int	allow_step = TRUE;	/* allow step correction */
 int	allow_panic = FALSE;	/* allow panic correction */
 int	mode_ntpdate = FALSE;	/* exit on first clock set */
 
 /*
  * Clock state machine variables
  */
-u_char	sys_minpoll = NTP_MINDPOLL; /* min sys poll interval (log2 s) */
 u_char	sys_poll = NTP_MINDPOLL; /* system poll interval (log2 s) */
 int	state;			/* clock discipline state */
-int	tc_counter;		/* poll-adjust counter */
+int	tc_counter;		/* hysteresis counter */
 u_long	last_time;		/* time of last clock update (s) */
 double	last_offset;		/* last clock offset (s) */
 double	sys_jitter;		/* system RMS jitter (s) */
@@ -200,6 +188,9 @@ init_loopfilter(void)
 /*
  * local_clock - the NTP logical clock loop filter. Returns 1 if the
  * clock was stepped, 0 if it was slewed and -1 if it is hopeless.
+ *
+ * LOCKCLOCK: The only thing this routine does is set the
+ * sys_rootdispersion variable equal to the peer dispersion.
  */
 int
 local_clock(
@@ -208,14 +199,13 @@ local_clock(
 	double epsil		/* jittter (square s*s) */
 	)
 {
-	double mu;		/* interval since last update (s) */
+	u_long mu;		/* interval since last update (s) */
 	double oerror;		/* previous error estimate */
 	double flladj;		/* FLL frequency adjustment (ppm) */
 	double plladj;		/* PLL frequency adjustment (ppm) */
 	double clock_frequency;	/* clock frequency adjustment (ppm) */
 	double dtemp, etemp;	/* double temps */
 	int retval;		/* return value */
-	int i;
 
 	/*
 	 * If the loop is opened, monitor and record the offsets
@@ -224,9 +214,14 @@ local_clock(
 #ifdef DEBUG
 	if (debug)
 		printf(
-		    "local_clock: assocID %d off %.6f jit %.6f sta %d\n",
+		    "local_clock: assocID %d offset %.9f jitter %.9f state %d\n",
 		    peer->associd, fp_offset, SQRT(epsil), state);
 #endif
+#ifdef LOCKCLOCK
+	sys_rootdispersion = peer->rootdispersion;
+		return (0);
+
+#else /* LOCKCLOCK */
 	if (!ntp_enable) {
 		record_loop_stats(fp_offset, drift_comp, SQRT(epsil),
 		    clock_stability, sys_poll);
@@ -262,19 +257,16 @@ local_clock(
 	 * so the termination comments print directly to the console.
 	 */
 	if (mode_ntpdate) {
-		if (allow_step && fabs(fp_offset) > clock_max &&
-		    clock_max > 0) {
+		if (fabs(fp_offset) > clock_max && clock_max > 0) {
 			step_systime(fp_offset);
-			NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
-			    msyslog(LOG_NOTICE, "time reset %.6f s",
+			msyslog(LOG_NOTICE, "time reset %+.6f s",
 	   		    fp_offset);
-			printf("ntpd: time reset %.6fs\n", fp_offset);
+			printf("ntpd: time set %+.6fs\n", fp_offset);
 		} else {
 			adj_systime(fp_offset);
-			NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
-			    msyslog(LOG_NOTICE, "time slew %.6f s",
+			msyslog(LOG_NOTICE, "time slew %+.6f s",
 			    fp_offset);
-			printf("ntpd: time slew %.6fs\n", fp_offset);
+			printf("ntpd: time slew %+.6fs\n", fp_offset);
 		}
 		record_loop_stats(fp_offset, drift_comp, SQRT(epsil),
 		    clock_stability, sys_poll);
@@ -289,9 +281,12 @@ local_clock(
 	 * get here again.
 	 */
 	if (state == S_NSET) {
-		step_systime(fp_offset);
-		NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
-		    msyslog(LOG_NOTICE, "time set %.6f s", fp_offset);
+		if (fabs(fp_offset) > clock_max && clock_max > 0) {
+			step_systime(fp_offset);
+			msyslog(LOG_NOTICE, "time reset %+.6f s",
+			    fp_offset);
+			reinit_timer();
+		}
 		rstclock(S_FREQ, peer->epoch, 0);
 		return (1);
 	}
@@ -396,20 +391,12 @@ local_clock(
 		 * reset or shaken, but never stirred.
 		 */
 		default:
-			if (allow_step) {
-				step_systime(fp_offset);
-				NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
-				    msyslog(LOG_NOTICE, "time reset %.6f s",
-		   		    fp_offset);
-				rstclock(S_TSET, peer->epoch, 0);
-				retval = 1;
-			} else {
-				NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
-				    msyslog(LOG_NOTICE, "time slew %.6f s",
-				    fp_offset);
-				rstclock(S_FREQ, peer->epoch,
-				    fp_offset);
-			}
+			step_systime(fp_offset);
+			msyslog(LOG_NOTICE, "time reset %+.6f s",
+			    fp_offset);
+			reinit_timer();
+			rstclock(S_TSET, peer->epoch, 0);
+			retval = 1;
 			break;
 		}
 	} else {
@@ -449,58 +436,52 @@ local_clock(
 
 		/*
 		 * We come here in the normal case for linear phase and
-		 * frequency adjustments. If the offset exceeds the
-		 * previous time error estimate by CLOCK_SGATE and the
-		 * interval since the last update is less than twice the
-		 * poll interval, consider the update a popcorn spike
-		 * and ignore it.
+		 * frequency adjustments. If the difference between the
+		 * last offset and the current one exceeds the jitter by
+		 * CLOCK_SGATE and the interval since the last update is
+		 * less than twice the system poll interval, consider
+		 * the update a popcorn spike and ignore it..
 		 */
 		default:
 			allow_panic = FALSE;
-			if (fabs(fp_offset - last_offset) >
-			    CLOCK_SGATE * oerror && mu <
-			    ULOGTOD(sys_poll + 1)) {
+			dtemp = fabs(fp_offset - last_offset);
+/*
+			if (dtemp > CLOCK_SGATE * oerror && mu <
+			    (u_long) ULOGTOD(sys_poll + 1)) {
 #ifdef DEBUG
 				if (debug)
 					printf(
 				    "local_clock: popcorn %.6f %.6f\n",
-					    fabs(fp_offset -
-					    last_offset), CLOCK_SGATE *
-					    oerror);
+					    dtemp, oerror);
 #endif
 				last_offset = fp_offset;
 				return (0);
 			}
+*/
 
 			/*
-			 * Compute the FLL and PLL frequency adjustments
-			 * conditioned on intricate weighting factors.
-			 * The gain factors depend on the poll interval
-			 * and Allan intercept. For the FLL, the
-			 * averaging interval is clamped to a minimum of
-			 * 1024 s and the gain increased in stages from
-			 * zero for poll intervals below half the Allan
-			 * intercept to unity above twice the Allan
-			 * intercept. For the PLL, the averaging
-			 * interval is clamped not to exceed the poll
-			 * interval. No gain factor is necessary, since
-			 * the frequency steering above the Allan
-			 * intercept is negligible. Particularly for the
-			 * PLL, these measures allow oversampling, but
-			 * not undersampling and insure stability even
-			 * when the rules of fair engagement are broken.
+			 * The FLL and PLL frequency gain constants
+			 * depend on the poll interval and Allan
+			 * intercept. The PLL constant is calculated
+			 * throughout the poll interval range, but the
+			 * update interval is clamped so as not to
+			 * exceed the poll interval. The FLL gain is
+			 * zero below one-half the Allan intercept and
+			 * unity at MAXPOLL. It decreases as 1 /
+			 * (MAXPOLL + 1 - poll interval) in a feeble
+			 * effort to match the loop stiffness to the
+			 * Allan wobble. Particularly for the PLL, these
+			 * measures allow oversampling, but not
+			 * undersampling and insure stability even when
+			 * the rules of fair engagement are broken.
 			 */
-			i = sys_poll - allan_xpt + 4;
-			if (i < 0)
-				i = 0;
-			else if (i > 6)
-				i = 6;
-			etemp = fll[i];
-			dtemp = max(mu, ULOGTOD(allan_xpt));
-			flladj = (fp_offset - clock_offset) * etemp /
-			    (dtemp * CLOCK_FLL);
-			dtemp = ULOGTOD(SHIFT_PLL + 2 + sys_poll);
-			etemp = min(mu, ULOGTOD(sys_poll));
+			if (ULOGTOD(sys_poll) > allan_xpt / 2) {
+				dtemp = NTP_MAXPOLL + 1 - sys_poll;
+				flladj = (fp_offset - clock_offset) /
+				    (max(mu, allan_xpt) * dtemp);
+			}
+			etemp = min(mu, (u_long)ULOGTOD(sys_poll));
+			dtemp = 4 * CLOCK_PLL * ULOGTOD(sys_poll);
 			plladj = fp_offset * etemp / (dtemp * dtemp);
 			last_time = peer->epoch;
 			last_offset = clock_offset = fp_offset;
@@ -508,7 +489,7 @@ local_clock(
 		}
 	}
 
-#if defined(KERNEL_PLL)
+#ifdef KERNEL_PLL
 	/*
 	 * This code segment works when clock adjustments are made using
 	 * precision time kernel support and the ntp_adjtime() system
@@ -607,10 +588,17 @@ local_clock(
 		 */
 		if (ntp_adjtime(&ntv) == TIME_ERROR) {
 			if (ntv.status != pll_status)
-				msyslog(LOG_ERR,
-				    "kernel time discipline status change %x",
+				NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+				    msyslog(LOG_NOTICE,
+				    "kernel time sync disabled %04x",
 				    ntv.status);
 			ntv.status &= ~(STA_PPSFREQ | STA_PPSTIME);
+		} else {
+			if (ntv.status != pll_status)
+				NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+				    msyslog(LOG_NOTICE,
+				    "kernel time sync enabled %04x",
+				    ntv.status);
 		}
 		pll_status = ntv.status;
 		if (pll_nano)
@@ -640,15 +628,23 @@ local_clock(
 	 * drift_comp is a sham and used only for updating the drift
 	 * file and for billboard eye candy.
 	 */
-	etemp = clock_frequency + flladj + plladj;
-	drift_comp += etemp;
-	if (drift_comp > NTP_MAXFREQ)
+	dtemp = clock_frequency + flladj + plladj;
+	etemp = drift_comp + dtemp;
+	if (etemp > NTP_MAXFREQ)
 		drift_comp = NTP_MAXFREQ;
-	else if (drift_comp <= -NTP_MAXFREQ)
+	else if (etemp <= -NTP_MAXFREQ)
 		drift_comp = -NTP_MAXFREQ;
-	dtemp = SQUARE(clock_stability);
-	etemp = SQUARE(etemp) - dtemp;
-	clock_stability = SQRT(dtemp + etemp / CLOCK_AVG);
+	else
+		drift_comp = etemp;
+	if (fabs(etemp) > NTP_MAXFREQ)
+		NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+		    msyslog(LOG_NOTICE,
+		    "frequency error %.0f PPM exceeds tolerance %.0f PPM",
+		    etemp * 1e6, NTP_MAXFREQ * 1e6);
+
+	etemp = SQUARE(clock_stability);
+	dtemp = SQUARE(dtemp);
+	clock_stability = SQRT(etemp + (dtemp - etemp) / CLOCK_AVG);
 
 	/*
 	 * In SYNC state, adjust the poll interval. The trick here is to
@@ -660,7 +656,7 @@ local_clock(
 	 * helps calm the dance. Works best using burst mode.
 	 */
 	if (state == S_SYNC) {
-		if (sys_jitter / ULOGTOD(sys_poll) > clock_stability &&
+		if (sys_jitter > ULOGTOD(sys_poll) * clock_stability &&
 		    fabs(clock_offset) < CLOCK_PGATE * sys_jitter) {
 			tc_counter += sys_poll;
 			if (tc_counter > CLOCK_LIMIT) {
@@ -685,33 +681,38 @@ local_clock(
 	/*
 	 * Update the system time variables.
 	 */
-	dtemp = peer->disp + sys_jitter;
-	if ((peer->flags & FLAG_REFCLOCK) == 0 && dtemp < MINDISPERSE)
+	dtemp = peer->disp + (current_time - peer->epoch) * clock_phi +
+	    sys_jitter + fabs(last_offset);
+	if (!(peer->flags & FLAG_REFCLOCK) && dtemp < MINDISPERSE)
 		dtemp = MINDISPERSE;
 	sys_rootdispersion = peer->rootdispersion + dtemp;
 	record_loop_stats(last_offset, drift_comp, sys_jitter,
 	    clock_stability, sys_poll);
+
 #ifdef DEBUG
 	if (debug)
 		printf(
-		    "local_clock: mu %.0f noi %.3f stb %.3f pol %d cnt %d\n",
-		    mu, sys_jitter * 1e6, clock_stability * 1e6, sys_poll,
+		    "local_clock: mu %lu rootjit %.6f stab %.3f poll %d count %d\n",
+		    mu, dtemp, clock_stability * 1e6, sys_poll,
 		    tc_counter);
 #endif /* DEBUG */
 	return (retval);
+#endif /* LOCKCLOCK */
 }
 
 
 /*
  * adj_host_clock - Called once every second to update the local clock.
+ *
+ * LOCKCLOCK: The only thing this routine does is increment the
+ * sys_rootdispersion variable.
  */
 void
 adj_host_clock(
 	void
 	)
 {
-	double adjustment;
-	int i;
+	double	adjustment;
 
 	/*
 	 * Update the dispersion since the last update. In contrast to
@@ -725,24 +726,23 @@ adj_host_clock(
 	 */
 	sys_rootdispersion += clock_phi;
 
+#ifndef LOCKCLOCK
 	/*
 	 * Declare PPS kernel unsync if the pps signal has not been
 	 * heard for a few minutes.
 	 */
 	if (pps_control && current_time - pps_control > PPS_MAXAGE) {
 		if (pps_control)
-			NLOG(NLOG_SYSEVENT) /* conditional if clause */
-			    msyslog(LOG_INFO, "pps sync disabled");
+			NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+			    msyslog(LOG_NOTICE, "pps sync disabled");
 		pps_control = 0;
 	}
-	if (!ntp_enable)
-		return;
 
 	/*
-	 * If the phase-lock loop is implemented in the kernel, we
-	 * have no business going further.
+	 * If NTP is disabled or ntpdate mode enabled or the kernel
+	 * discipline enabled, we have no business going further.
 	 */
-	if (pll_control && kern_enable)
+	if (!ntp_enable || mode_ntpdate || (pll_control && kern_enable))
 		return;
 
 	/*
@@ -759,19 +759,13 @@ adj_host_clock(
 	}
 
 	/*
-	 * This ugly bit of business is necessary in order to move the
-	 * pole frequency higher in FLL mode. This is necessary for loop
-	 * stability.
+	 * Implement the phase and frequency adjustments. Note the
+	 * black art formerly practiced here has been whitewashed.
 	 */
-	i = sys_poll - allan_xpt + 4;
-	if (i < 0)
-		i = 0;
-	else if (i > 6)
-		i = 6;
-	adjustment = clock_offset / (pll[i] * ULOGTOD(SHIFT_PLL +
-	    sys_poll));
+	adjustment = clock_offset / (CLOCK_PLL * ULOGTOD(sys_poll));
 	clock_offset -= adjustment;
 	adj_systime(adjustment + drift_comp);
+#endif /* LOCKCLOCK */
 }
 
 
@@ -781,7 +775,7 @@ adj_host_clock(
 static void
 rstclock(
 	int trans,		/* new state */
-	double epoch,		/* last time */
+	u_long epoch,		/* last time */
 	double offset		/* last offset */
 	)
 {
@@ -790,6 +784,11 @@ rstclock(
 	state = trans;
 	last_time = epoch;
 	last_offset = clock_offset = offset;
+#ifdef DEBUG
+	if (debug)
+		printf("local_clock: at %lu state %d\n", last_time,
+		    trans);
+#endif
 }
 
 
@@ -815,6 +814,8 @@ huffpuff()
 
 /*
  * loop_config - configure the loop filter
+ *
+ * LOCKCLOCK: The LOOP_DRIFTINIT and LOOP_DRIFTCOMP cases are no-ops.
  */
 void
 loop_config(
@@ -828,6 +829,7 @@ loop_config(
 
 	case LOOP_DRIFTINIT:
 
+#ifndef LOCKCLOCK
 #ifdef KERNEL_PLL
 		/*
 		 * Assume the kernel supports the ntp_adjtime() syscall.
@@ -836,7 +838,15 @@ loop_config(
 		 * behind. While at it, ask to set nanosecond mode. If
 		 * the kernel agrees, rejoice; othewise, it does only
 		 * microseconds.
+		 *
+		 * Call out the safety patrol. If ntpdate mode or if the
+		 * step threshold has been changed by the -x option or
+		 * tinker command, kernel discipline is unsafe, so don't
+		 * do any of this stuff.
 		 */
+		if (mode_ntpdate || clock_max != CLOCK_MAX)
+			break;
+
 		pll_control = 1;
 		memset(&ntv, 0, sizeof(ntv));
 #ifdef STA_NANO
@@ -879,27 +889,31 @@ loop_config(
 			if (pll_status & STA_CLK)
 				ext_enable = 1;
 #endif /* STA_NANO */
-			msyslog(LOG_NOTICE,
-		  	   "kernel time discipline status %04x",
+			NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
+			    msyslog(LOG_INFO,
+		  	    "kernel time sync status %04x",
 			    pll_status);
 		}
 #endif /* KERNEL_PLL */
+#endif /* LOCKCLOCK */
 		break;
 
 	case LOOP_DRIFTCOMP:
 
+#ifndef LOCKCLOCK
 		/*
-		 * Initialize the kernel frequency and clamp to
-		 * reasonable value. Also set the initial state to
-		 * S_FSET to indicated the frequency has been
-		 * initialized from the previously saved drift file.
+		 * If the frequency value is reasonable, set the initial
+		 * frequency to the given value and the state to S_FSET.
+		 * Otherwise, the drift file may be missing or broken,
+		 * so set the frequency to zero. This erases past
+		 * history should somebody break something.
 		 */
-		rstclock(S_FSET, current_time, 0);
-		drift_comp = freq;
-		if (drift_comp > NTP_MAXFREQ)
-			drift_comp = NTP_MAXFREQ;
-		if (drift_comp < -NTP_MAXFREQ)
-			drift_comp = -NTP_MAXFREQ;
+		if (freq <= NTP_MAXFREQ && freq >= -NTP_MAXFREQ) {
+			drift_comp = freq;
+			rstclock(S_FSET, current_time, 0);
+		} else {
+			drift_comp = 0;
+		}
 
 #ifdef KERNEL_PLL
 		/*
@@ -921,6 +935,7 @@ loop_config(
 			(void)ntp_adjtime(&ntv);
 		}
 #endif /* KERNEL_PLL */
+#endif /* LOCKCLOCK */
 		break;
 
 	/*
@@ -930,7 +945,7 @@ loop_config(
 		clock_max = freq;
 		break;
 
-	case LOOP_PANIC:		/* panic exit threshold */
+	case LOOP_PANIC:		/* panic threshold */
 		clock_panic = freq;
 		break;
 
@@ -942,16 +957,8 @@ loop_config(
 		clock_minstep = freq; 
 		break;
 
-	case LOOP_MINPOLL:		/* ephemeral association poll */
-		if (freq < NTP_MINPOLL)
-			freq = NTP_MINPOLL;
-		sys_minpoll = (u_char)freq;
-		break;
-
-	case LOOP_ALLAN:		/* minimum Allan intercept */
-		if (freq < CLOCK_ALLAN)
-			freq = CLOCK_ALLAN;
-		allan_xpt = (u_char)freq;
+	case LOOP_ALLAN:		/* Allan intercept */
+		allan_xpt = freq;
 		break;
 	
 	case LOOP_HUFFPUFF:		/* huff-n'-puff filter length */
@@ -963,6 +970,11 @@ loop_config(
 		for (i = 0; i < sys_hufflen; i++)
 			sys_huffpuff[i] = 1e9;
 		sys_mindly = 1e9;
+		break;
+
+	case LOOP_FREQ:			/* initial frequency */	
+		drift_comp = freq / 1e6;
+		rstclock(S_FSET, current_time, 0);
 		break;
 	}
 }

@@ -7,5 +7,7 @@ ETAGS_ARGS = Makefile.am
 DISTCLEANFILES = $(EXTRA_PROGRAMS)
 #EXTRA_DIST= TAGS
 
-check-local: dcfd
-	./dcfd -Y
+check-local: @DCFD@
+	case "$(noinst_PROGRAMS)" in	\
+	 *dcfd*) ./dcfd -Y ;;		\
+	esac

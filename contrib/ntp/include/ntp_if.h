@@ -22,27 +22,6 @@
 # include <sys/stropts.h>
 #endif
 
-/* Was: #if defined(SYS_SVR4) */
-#if defined(USE_STREAMS_DEVICE_FOR_IF_CONFIG)
-# include <netinet/ip.h>
-# undef SIOCGIFCONF
-# undef SIOCGIFFLAGS
-# undef SIOCGIFADDR
-# undef SIOCGIFBRDADDR
-# undef SIOCGIFNETMASK
-# define SIOCGIFCONF	IPIOC_GETIFCONF
-# define SIOCGIFFLAGS	IPIOC_GETIFFLAGS
-# define SIOCGIFADDR	IPIOC_GETIFADDR
-# define SIOCGIFBRDADDR IPIOC_GETIFBRDADDR
-# define SIOCGIFNETMASK IPIOC_GETIFNETMASK
-#if 0	/* We don't need this now that sys/sockio.h is handled above */
-# else /* USE_STREAMS_DEVICE_FOR_IF_CONFIG */
-#  include <sys/sockio.h>
-#endif
-# endif /* USE_STREAMS_DEVICE_FOR_IF_CONFIG */
-/* was #endif SYS_SVR4 */
-
-
 #ifdef HAVE_NET_IF_H
 # include <net/if.h>
 #endif /* HAVE_NET_IF_H */

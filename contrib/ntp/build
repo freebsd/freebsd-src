@@ -13,6 +13,9 @@ case "$1" in
      $KEY) ;;
      *)
 	echo "Wrong directory for build on host $IAM"
+	echo "This is <`pwd`>"
+	echo "SIG is <$SIG>"
+	echo "KEY is <$KEY>"
         exit 1
         ;;
     esac
@@ -51,7 +54,7 @@ case "$CONFIG_ARGS" in
     KEYSUF="-autokey"
     ;;
  *--without-crypto*)
-    [ -d rsaref2 ] && KEYSUF="-norsaref"
+    KEYSUF="-noopenssl"
     ;;
 esac
 

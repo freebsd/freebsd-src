@@ -4364,7 +4364,7 @@ Tue May 25 18:00:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	since it may be malloc'ed.
 
 	* ntpdc/ntpdc.c (sendrequest): Declare pass as const char *, don't
-	loose const in cast.
+	lose const in cast.
 	* ntpq/ntpq.c (sendrequest): Likewise.
 
 	* ntpd/ntp_control.c (ctl_getitem): Remove superfluous cast.

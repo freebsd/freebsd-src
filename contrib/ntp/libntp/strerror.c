@@ -27,6 +27,8 @@ static const char sccsid[] = "@(#)strerror.c	5.1 (Berkeley) 4/9/89";
 #include <stdio.h>
 #include <string.h>
 
+#include "l_stdlib.h"
+
 char *
 strerror(
 	int errnum

@@ -27,8 +27,8 @@ put_lsb_short(
 	long val
 	)
 {
-  *((*bufpp)++) =  val       & 0xFF;
-  *((*bufpp)++) = (val >> 8) & 0xFF;
+  *((*bufpp)++) = (unsigned char) (val        & 0xFF);
+  *((*bufpp)++) = (unsigned char) ((val >> 8) & 0xFF);
 }
 
 long
@@ -52,10 +52,10 @@ put_lsb_long(
 	long val
 	)
 {
-  *((*bufpp)++) =  val        & 0xFF;
-  *((*bufpp)++) = (val >> 8)  & 0xFF;
-  *((*bufpp)++) = (val >> 16) & 0xFF;
-  *((*bufpp)++) = (val >> 24) & 0xFF;
+  *((*bufpp)++) = (unsigned char)(val         & 0xFF);
+  *((*bufpp)++) = (unsigned char)((val >> 8)  & 0xFF);
+  *((*bufpp)++) = (unsigned char)((val >> 16) & 0xFF);
+  *((*bufpp)++) = (unsigned char)((val >> 24) & 0xFF);
 }
 
 long
@@ -77,8 +77,8 @@ put_msb_short(
 	long val
 	)
 {
-  *((*bufpp)++) = (val >> 8) & 0xFF;
-  *((*bufpp)++) =  val       & 0xFF;
+  *((*bufpp)++) = (unsigned char)((val >> 8) & 0xFF);
+  *((*bufpp)++) = (unsigned char)( val       & 0xFF);
 }
 
 long
@@ -102,10 +102,10 @@ put_msb_long(
 	long val
 	)
 {
-  *((*bufpp)++) = (val >> 24) & 0xFF;
-  *((*bufpp)++) = (val >> 16) & 0xFF;
-  *((*bufpp)++) = (val >> 8 ) & 0xFF;
-  *((*bufpp)++) =  val        & 0xFF;
+  *((*bufpp)++) = (unsigned char)((val >> 24) & 0xFF);
+  *((*bufpp)++) = (unsigned char)((val >> 16) & 0xFF);
+  *((*bufpp)++) = (unsigned char)((val >> 8 ) & 0xFF);
+  *((*bufpp)++) = (unsigned char)( val        & 0xFF);
 }
 
 /*

@@ -299,12 +299,13 @@ as2201_receive(
 	/*
 	 * Timecode format: "yy:ddd:hh:mm:ss.mmm"
 	 */
-	if (sscanf(pp->a_lastcode, "%2d:%3d:%2d:%2d:%2d.%3d", &pp->year,
-		   &pp->day, &pp->hour, &pp->minute, &pp->second, &pp->msec)
+	if (sscanf(pp->a_lastcode, "%2d:%3d:%2d:%2d:%2d.%3ld", &pp->year,
+		   &pp->day, &pp->hour, &pp->minute, &pp->second, &pp->nsec)
 	    != 6) {
 		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 	}
+	pp->nsec *= 1000000;
 
 	/*
 	 * Test for synchronization (this is a temporary crock).

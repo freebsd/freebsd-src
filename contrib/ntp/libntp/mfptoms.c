@@ -8,7 +8,7 @@ char *
 mfptoms(
 	u_long fpi,
 	u_long fpf,
-	int ndec
+	short ndec
 	)
 {
 	int isneg;

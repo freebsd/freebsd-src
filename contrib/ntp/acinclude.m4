@@ -1,5 +1,6 @@
 AC_DEFUN(hs_ULONG_CONST,
-[ AC_EGREP_CPP(Circus,
+[ AH_TEMPLATE(ULONG_CONST, [How do we create unsigned long constants?])
+AC_EGREP_CPP(Circus,
  [#define ACAT(a,b)a ## b
 ACAT(Cir,cus)
 ], AC_DEFINE([ULONG_CONST(a)], [a ## UL]),
@@ -21,7 +22,7 @@ dnl
 dnl    AC_DEFINE_DIR(DATADIR, datadir)
 dnl    AC_DEFINE_DIR(PROG_PATH, bindir, [Location of installed binaries])
 dnl
-dnl @version $Id$
+dnl @version $Id: acinclude.m4,v 1.3 2000/08/04 03:26:22 stenn Exp $
 dnl @author Alexandre Oliva <oliva@lsd.ic.unicamp.br>
 
 AC_DEFUN(AC_DEFINE_DIR, [

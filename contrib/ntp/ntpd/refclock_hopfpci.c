@@ -48,6 +48,7 @@
 
 #ifndef SYS_WINNT
 # include <sys/ipc.h>
+# include <sys/ioctl.h>
 # include <assert.h>
 # include <unistd.h>
 # include <stdio.h>
@@ -149,7 +150,7 @@ hopfpci_start(
 	pp->io.clock_recv = noentry;
 	pp->io.srcclock = (caddr_t)peer;
 	pp->io.datalen = 0;
-	pp->io.fd = -1;
+	pp->io.fd = INVALID_SOCKET;
 	pp->unitptr = (caddr_t)up;
 
 	get_systime(&pp->lastrec);
@@ -190,7 +191,7 @@ hopfpci_shutdown(
 	close(fd);
 #else
 	CloseHopfDevice();
-//	UnmapViewOfFile (up);
+/*	UnmapViewOfFile (up); */
 #endif
 }
 
@@ -212,7 +213,7 @@ hopfpci_poll(
 	up = (struct hopfpciTime *)pp->unitptr;
 
 #ifndef SYS_WINNT
-  	ioctl(fd,HOPF_CLOCK_GET_UTC,&m_time);
+	ioctl(fd,HOPF_CLOCK_GET_UTC,&m_time);
 #else
 	GetHopfSystemTime(&m_time);
 #endif
@@ -222,17 +223,16 @@ hopfpci_poll(
 	pp->hour   = m_time.wHour;
 	pp->minute = m_time.wMinute;
 	pp->second = m_time.wSecond;
-	pp->msec=m_time.wMilliseconds;
-	pp->usec=0;
+	pp->nsec   = m_time.wMilliseconds * 1000000;
 	if (m_time.wStatus & LEWAPWAR)
 		pp->leap = LEAP_ADDSECOND;
 	else
 		pp->leap = LEAP_NOWARNING;
 
-	sprintf(pp->a_lastcode,"ST: %02X T: %02d:%02d:%02d.%03d D: %02d.%02d.%04d",
-		m_time.wStatus, pp->hour, pp->minute, pp->second, pp->msec,
-		m_time.wDay,  m_time.wMonth, m_time.wYear);
-	pp->lencode = strlen(pp->a_lastcode);
+	sprintf(pp->a_lastcode,"ST: %02X T: %02d:%02d:%02d.%03ld D: %02d.%02d.%04d",
+		m_time.wStatus, pp->hour, pp->minute, pp->second,
+		pp->nsec / 1000000, m_time.wDay, m_time.wMonth, m_time.wYear);
+	pp->lencode = (u_short)strlen(pp->a_lastcode);
 
 	get_systime(&pp->lastrec);
 
@@ -262,10 +262,9 @@ hopfpci_poll(
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
-
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
-
 	return;
 }
 

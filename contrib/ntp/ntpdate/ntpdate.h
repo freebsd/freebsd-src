@@ -15,7 +15,7 @@ extern void	loadservers	P((char *cfgpath));
  */
 struct server {
 	struct server *next_server;	/* next server in build list */
-	struct sockaddr_in srcadr;	/* address of remote host */
+	struct sockaddr_storage srcadr;	/* address of remote host */
 	u_char version;			/* version to use */
 	u_char leap;			/* leap indicator */
 	u_char stratum;			/* stratum of remote server */
@@ -97,3 +97,8 @@ struct server {
 #define	DEFMAXPERIOD	60		/* maximum time to wait */
 #define	DEFMINSERVERS	3		/* minimum responding servers */
 #define	DEFMINVALID	1		/* mimimum servers with valid time */
+
+/*
+ * Define the max number of sockets we can open
+ */
+#define MAX_AF 2

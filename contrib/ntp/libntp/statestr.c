@@ -102,7 +102,7 @@ struct codestring sys_codes[] = {
 };
 
 /*
- * Peer Events
+ * Peer events
  */
 static
 struct codestring peer_codes[] = {
@@ -117,6 +117,31 @@ struct codestring peer_codes[] = {
 #endif
 	{ -1,				"event" }
 };
+
+#ifdef OPENSSL
+/*
+ * Crypto events
+ */
+static
+struct codestring crypto_codes[] = {
+	{ XEVNT_OK & ~CRPT_EVENT,	"success" },
+	{ XEVNT_LEN & ~CRPT_EVENT,	"bad_field_format_or_length" },
+	{ XEVNT_TSP & ~CRPT_EVENT,	"bad_timestamp" },
+	{ XEVNT_FSP & ~CRPT_EVENT,	"bad_filestamp" },
+	{ XEVNT_PUB & ~CRPT_EVENT,	"bad_procedure_or_data" },
+	{ XEVNT_MD & ~CRPT_EVENT,	"unsupported_digest_type" },
+	{ XEVNT_KEY & ~CRPT_EVENT,	"unsupported_identity_type" },
+	{ XEVNT_SGL & ~CRPT_EVENT,	"bad_signature_length" },
+	{ XEVNT_SIG & ~CRPT_EVENT,	"signature_not_verified" },
+	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate not verified" },
+	{ XEVNT_PER & ~CRPT_EVENT,	"certificate_expired" },
+	{ XEVNT_CKY & ~CRPT_EVENT,	"bad_or_missing_cookie" },
+	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapsecond_table" },
+	{ XEVNT_CRT & ~CRPT_EVENT,	"bad_or_missing_certificate" },	
+	{ XEVNT_ID & ~CRPT_EVENT,	"bad or missing identification" },
+	{ -1,				"crypto" }
+};
+#endif /* OPENSSL */
 
 /* Forwards */
 static const char *getcode P((int, struct codestring *));
@@ -235,7 +260,14 @@ eventstr(
 	int num
 	)
 {
-	return getcode(num & ~PEER_EVENT, (num & PEER_EVENT) ? peer_codes : sys_codes);
+	if (num & PEER_EVENT)
+		return (getcode(num & ~PEER_EVENT, peer_codes));
+#ifdef OPENSSL
+	else if (num & CRPT_EVENT)
+		return (getcode(num & ~CRPT_EVENT, crypto_codes));
+#endif /* OPENSSL */
+	else
+		return (getcode(num, sys_codes));
 }
 
 const char *

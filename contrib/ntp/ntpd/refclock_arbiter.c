@@ -419,8 +419,9 @@ arb_poll(
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 }
 
 #else

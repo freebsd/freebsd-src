@@ -11,6 +11,10 @@
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
 
+#ifdef SIM
+#include "ntpsim.h"
+#endif
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -40,6 +44,7 @@
 # include <process.h>
 # include <io.h>
 # include "../libntp/log.h"
+# include <clockstuff.h>
 # include <crtdbg.h>
 #endif /* SYS_WINNT */
 #if defined(HAVE_RTPRIO)
@@ -99,9 +104,11 @@
 # include <sys/ci/ciioctl.h>
 #endif
 
-#ifdef PUBKEY
-#include "ntp_crypto.h"
-#endif /* PUBKEY */
+#ifdef HAVE_CLOCKCTL
+# include <ctype.h>
+# include <grp.h>
+# include <pwd.h>
+#endif
 
 /*
  * Signals we catch for debugging.	If not debugging we ignore them.
@@ -123,11 +130,13 @@
 /* handles for various threads, process, and objects */
 HANDLE ResolverThreadHandle = NULL;
 /* variables used to inform the Service Control Manager of our current state */
+BOOL NoWinService = FALSE;
 SERVICE_STATUS ssStatus;
 SERVICE_STATUS_HANDLE	sshStatusHandle;
 HANDLE WaitHandles[3] = { NULL, NULL, NULL };
 char szMsgPath[255];
 static BOOL WINAPI OnConsoleEvent(DWORD dwCtrlType);
+BOOL init_randfile();
 #endif /* SYS_WINNT */
 
 /*
@@ -146,9 +155,25 @@ int priority_done = 2;		/* 0 - Set priority */
 volatile int debug;
 
 /*
+ * Set the processing not to be in the forground
+ */
+int forground_process = FALSE;
+
+/*
  * No-fork flag.  If set, we do not become a background daemon.
  */
 int nofork;
+
+#ifdef HAVE_CLOCKCTL
+char *user = NULL;		/* User to switch to */
+char *group = NULL;		/* group to switch to */
+char *chrootdir = NULL;		/* directory to chroot to */
+int sw_uid;
+int sw_gid;
+char *endp;  
+struct group *gr;
+struct passwd *pw; 
+#endif /* HAVE_CLOCKCTL */
 
 /*
  * Initializing flag.  All async routines watch this and only do their
@@ -176,8 +201,10 @@ static	RETSIGTYPE	finish		P((int));
 #endif	/* SIGDIE2 */
 
 #ifdef	DEBUG
+#ifndef SYS_WINNT
 static	RETSIGTYPE	moredebug	P((int));
 static	RETSIGTYPE	lessdebug	P((int));
+#endif
 #else /* not DEBUG */
 static	RETSIGTYPE	no_debug	P((int));
 #endif	/* not DEBUG */
@@ -185,7 +212,16 @@ static	RETSIGTYPE	no_debug	P((int));
 int 		ntpdmain		P((int, char **));
 static void	set_process_priority	P((void));
 
-
+#ifdef SIM
+int
+main(
+	int argc,
+	char *argv[]
+	)
+{
+	return ntpsim(argc, argv);
+}
+#else /* SIM */
 #ifdef NO_MAIN_ALLOWED
 CALL(ntpd,"ntpd",ntpdmain);
 #else
@@ -198,6 +234,7 @@ main(
 	return ntpdmain(argc, argv);
 }
 #endif
+#endif /* SIM */
 
 #ifdef _AIX
 /*
@@ -335,10 +372,6 @@ ntpdmain(
 {
 	l_fp now;
 	char *cp;
-#ifdef AUTOKEY
-	u_int n;
-	char hostname[MAXFILENAME];
-#endif /* AUTOKEY */
 	struct recvbuf *rbuflist;
 	struct recvbuf *rbuf;
 #ifdef _AIX			/* HMS: ifdef SIGDANGER? */
@@ -384,9 +417,17 @@ ntpdmain(
 #endif
 	getstartup(argc, argv); /* startup configuration, may set debug */
 
+	if (debug)
+	    printf("%s\n", Version);
+
 	/*
 	 * Initialize random generator and public key pair
 	 */
+#ifdef SYS_WINNT
+	/* Initialize random file before OpenSSL checks */
+	if(!init_randfile())
+		msyslog(LOG_ERR, "Unable to initialize .rnd file\n");
+#endif
 	get_systime(&now);
 	SRANDOM((int)(now.l_i * now.l_uf));
 
@@ -414,12 +455,12 @@ ntpdmain(
 			int max_fd;
 #endif /* not F_CLOSEM */
 
+#if defined(F_CLOSEM)
 			/*
 			 * From 'Writing Reliable AIX Daemons,' SG24-4946-00,
 			 * by Eric Agar (saves us from doing 32767 system
 			 * calls)
 			 */
-#if defined(F_CLOSEM)
 			if (fcntl(0, F_CLOSEM, 0) == -1)
 			    msyslog(LOG_ERR, "ntpd: failed to close open files(): %m");
 #else  /* not F_CLOSEM */
@@ -484,16 +525,22 @@ ntpdmain(
 #  else /* SYS_WINNT */
 
 		{
-			SERVICE_TABLE_ENTRY dispatchTable[] = {
+			if (NoWinService == FALSE) {
+				SERVICE_TABLE_ENTRY dispatchTable[] = {
 				{ TEXT("NetworkTimeProtocol"), (LPSERVICE_MAIN_FUNCTION)service_main },
 				{ NULL, NULL }
-			};
+				};
 
-			/* daemonize */
-			if (!StartServiceCtrlDispatcher(dispatchTable))
-			{
-				msyslog(LOG_ERR, "StartServiceCtrlDispatcher: %m");
-				ExitProcess(2);
+				/* daemonize */
+				if (!StartServiceCtrlDispatcher(dispatchTable))
+				{
+					msyslog(LOG_ERR, "StartServiceCtrlDispatcher: %m");
+					ExitProcess(2);
+				}
+			}
+			else {
+				service_main(argc, argv);
+				return 0;
 			}
 		}
 #  endif /* SYS_WINNT */
@@ -520,15 +567,13 @@ service_main(
 	char *cp;
 	struct recvbuf *rbuflist;
 	struct recvbuf *rbuf;
-#ifdef AUTOKEY
-	u_int n;
-	char hostname[MAXFILENAME];
-#endif /* AUTOKEY */
-	if(!debug)
+
+	if(!debug && NoWinService == FALSE)
 	{
 		/* register our service control handler */
-		if (!(sshStatusHandle = RegisterServiceCtrlHandler( TEXT("NetworkTimeProtocol"),
-									(LPHANDLER_FUNCTION)service_ctrl)))
+		sshStatusHandle = RegisterServiceCtrlHandler( TEXT("NetworkTimeProtocol"),
+							(LPHANDLER_FUNCTION)service_ctrl);
+		if(sshStatusHandle == 0)
 		{
 			msyslog(LOG_ERR, "RegisterServiceCtrlHandler failed: %m");
 			return;
@@ -567,7 +612,7 @@ service_main(
 	debug = 0; /* will be immediately re-initialized 8-( */
 	getstartup(argc, argv); /* startup configuration, catch logfile this time */
 
-#if !defined(SYS_WINNT) && !defined(VMS)
+#if !defined(VMS)
 
 # ifndef LOG_DAEMON
 	openlog(cp, LOG_PID);
@@ -624,6 +669,25 @@ service_main(
 #endif
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && defined(MCL_FUTURE)
+# ifdef HAVE_SETRLIMIT
+	/*
+	 * Set the stack limit to something smaller, so that we don't lock a lot
+	 * of unused stack memory.
+	 */
+	{
+	    struct rlimit rl;
+
+	    if (getrlimit(RLIMIT_STACK, &rl) != -1
+		&& (rl.rlim_cur = 20 * 4096) < rl.rlim_max)
+	    {
+		    if (setrlimit(RLIMIT_STACK, &rl) == -1)
+		    {
+			    msyslog(LOG_ERR,
+				"Cannot adjust stack limit for mlockall: %m");
+		    }
+	    }
+	}
+# endif /* HAVE_SETRLIMIT */
 	/*
 	 * lock the process into memory
 	 */
@@ -741,15 +805,9 @@ service_main(
 	debug = 0;
 #endif
 	getconfig(argc, argv);
-#ifdef AUTOKEY
-	gethostname(hostname, MAXFILENAME);
-	n = strlen(hostname) + 1;
-	sys_hostname = emalloc(n);
-	memcpy(sys_hostname, hostname, n);
-#ifdef PUBKEY
+#ifdef OPENSSL
 	crypto_setup();
-#endif /* PUBKEY */
-#endif /* AUTOKEY */
+#endif /* OPENSSL */
 	initializing = 0;
 
 #if defined(SYS_WINNT) && !defined(NODETACH)
@@ -757,23 +815,83 @@ service_main(
 	if(!debug)
 	{
 # endif
+		if (NoWinService == FALSE) {
 		/* report to the service control manager that the service is running */
-		ssStatus.dwCurrentState = SERVICE_RUNNING;
-		ssStatus.dwWin32ExitCode = NO_ERROR;
-		if (!SetServiceStatus(sshStatusHandle, &ssStatus))
-		{
-			msyslog(LOG_ERR, "SetServiceStatus: %m");
-			if (ResolverThreadHandle != NULL)
-				CloseHandle(ResolverThreadHandle);
-			ssStatus.dwCurrentState = SERVICE_STOPPED;
-			SetServiceStatus(sshStatusHandle, &ssStatus);
-			return;
+			ssStatus.dwCurrentState = SERVICE_RUNNING;
+			ssStatus.dwWin32ExitCode = NO_ERROR;
+			if (!SetServiceStatus(sshStatusHandle, &ssStatus))
+			{
+				msyslog(LOG_ERR, "SetServiceStatus: %m");
+				if (ResolverThreadHandle != NULL)
+					CloseHandle(ResolverThreadHandle);
+				ssStatus.dwCurrentState = SERVICE_STOPPED;
+				SetServiceStatus(sshStatusHandle, &ssStatus);
+				return;
+			}
 		}
 # if defined(DEBUG)
 	}
 # endif  
 #endif
 
+#ifdef HAVE_CLOCKCTL
+	/* 
+	 * Drop super-user privileges and chroot now if the OS supports
+	 * non root clock control (only NetBSD for now).
+	 */
+	if (user != NULL) {
+	        if (isdigit((unsigned char)*user)) {
+	                sw_uid = (uid_t)strtoul(user, &endp, 0);
+	                if (*endp != '\0') 
+	                        goto getuser;
+	        } else {
+getuser:	
+	                if ((pw = getpwnam(user)) != NULL) {
+	                        sw_uid = pw->pw_uid;
+	                } else {
+	                        errno = 0;
+	                        msyslog(LOG_ERR, "Cannot find user `%s'", user);
+									exit (-1);
+	                }
+	        }
+	}
+	if (group != NULL) {
+	        if (isdigit((unsigned char)*group)) {
+	                sw_gid = (gid_t)strtoul(group, &endp, 0);
+	                if (*endp != '\0') 
+	                        goto getgroup;
+	        } else {
+getgroup:	
+	                if ((gr = getgrnam(group)) != NULL) {
+	                        sw_gid = pw->pw_gid;
+	                } else {
+	                        errno = 0;
+	                        msyslog(LOG_ERR, "Cannot find group `%s'", group);
+									exit (-1);
+	                }
+	        }
+	}
+	if (chrootdir && chroot(chrootdir)) {
+		msyslog(LOG_ERR, "Cannot chroot to `%s': %m", chrootdir);
+		exit (-1);
+	}
+	if (group && setgid(sw_gid)) {
+		msyslog(LOG_ERR, "Cannot setgid() to group `%s': %m", group);
+		exit (-1);
+	}
+	if (group && setegid(sw_gid)) {
+		msyslog(LOG_ERR, "Cannot setegid() to group `%s': %m", group);
+		exit (-1);
+	}
+	if (user && setuid(sw_uid)) {
+		msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
+		exit (-1);
+	}
+	if (user && seteuid(sw_uid)) {
+		msyslog(LOG_ERR, "Cannot seteuid() to user `%s': %m", user);
+		exit (-1);
+	}
+#endif
 	/*
 	 * Report that we're up to any trappers
 	 */
@@ -797,10 +915,10 @@ service_main(
 #if defined(HAVE_IO_COMPLETION_PORT)
 		WaitHandles[0] = CreateEvent(NULL, FALSE, FALSE, NULL); /* exit reques */
 		WaitHandles[1] = get_timer_handle();
-	    WaitHandles[2] = get_io_event();
+		WaitHandles[2] = get_io_event();
 
 		for (;;) {
-			DWORD Index = WaitForMultipleObjectsEx(sizeof(WaitHandles)/sizeof(WaitHandles[0]), WaitHandles, FALSE, 1000, MWMO_ALERTABLE);
+			DWORD Index = WaitForMultipleObjectsEx(sizeof(WaitHandles)/sizeof(WaitHandles[0]), WaitHandles, FALSE, 1000, TRUE);
 			switch (Index) {
 				case WAIT_OBJECT_0 + 0 : /* exit request */
 					exit(0);
@@ -819,30 +937,16 @@ service_main(
 # endif
 				break;
 
-# if 1
-				/*
-				 * FIXME: According to the documentation for WaitForMultipleObjectsEx
-				 *        this is not possible. This may be a vestigial from when this was
-				 *        MsgWaitForMultipleObjects, maybe it should be removed?
-				 */
-				case WAIT_OBJECT_0 + 3 : /* windows message */
-				{
-					MSG msg;
-					while ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) )
-					{
-						if ( msg.message == WM_QUIT )
-						{
-							exit( 0 );
-						}
-						DispatchMessage( &msg );
-					}
-				}
-				break;
-# endif
-
 				case WAIT_IO_COMPLETION : /* loop */
 				case WAIT_TIMEOUT :
 				break;
+				case WAIT_FAILED:
+					msyslog(LOG_ERR, "ntpdc: WaitForMultipleObjectsEx Failed: Error: %m");
+					break;
+
+				/* For now do nothing if not expected */
+				default:
+					break;		
 				
 			} /* switch */
 			rbuflist = getrecvbufs();	/* get received buffers */
@@ -900,9 +1004,10 @@ service_main(
 			}
 			else if (nfound == -1 && errno != EINTR)
 				msyslog(LOG_ERR, "select() error: %m");
-			else if (debug > 2) {
+#  ifdef DEBUG
+			else if (debug > 2)
 				msyslog(LOG_DEBUG, "select(): nfound=%d, error: %m", nfound);
-			}
+#  endif /* DEBUG */
 # else /* HAVE_SIGNALED_IO */
                         
 			wait_for_signal();
@@ -950,8 +1055,12 @@ service_main(
 		 * Go around again
 		 */
 	}
+#ifndef SYS_WINNT
 	exit(1); /* unreachable */
+#endif
+#ifndef SYS_WINNT
 	return 1;		/* DEC OSF cc braindamage */
+#endif
 }
 
 
@@ -984,6 +1093,7 @@ finish(
 
 
 #ifdef DEBUG
+#ifndef SYS_WINNT
 /*
  * moredebug - increase debugging verbosity
  */
@@ -1019,8 +1129,9 @@ lessdebug(
 	}
 	errno = saved_errno;
 }
+#endif
 #else /* not DEBUG */
-/*
+#ifndef SYS_WINNT/*
  * no_debug - We don't do the debug here.
  */
 static RETSIGTYPE
@@ -1033,6 +1144,7 @@ no_debug(
 	msyslog(LOG_DEBUG, "ntpd not compiled for debugging (signal %d)", sig);
 	errno = saved_errno;
 }
+#endif  /* not SYS_WINNT */
 #endif	/* not DEBUG */
 
 #ifdef SYS_WINNT

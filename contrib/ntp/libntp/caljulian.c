@@ -110,6 +110,6 @@ caljulian(
 		break;
 	}
 	jt->month++;
-	jt->monthday = monthday;
+	jt->monthday = (u_char) monthday;
 	}
 }
