@@ -90,14 +90,14 @@ Enables output of debugging message.
 This option also instructs
 .Nm
 to run in foreground mode
-.Pq does not become daemon .
+(does not become daemon).
 .\"
 .It Fl D
 Enables extensive output of debugging message.
 This option also instructs
 .Nm
 to run in foreground mode
-.Pq does not become daemon .
+(does not become daemon).
 .\"
 .It Fl h
 Disables the split horizon processing.
@@ -107,7 +107,7 @@ By default,
 .Nm
 will not exchange site local routes for safety reasons.
 This is because semantics of site local address space is rather vague
-.Pq specification is still in being worked ,
+(specification is still in being worked),
 and there is no good way to define site local boundary.
 With
 .Fl l
@@ -232,11 +232,9 @@ for communicating with peers using link-local addresses.
 Internally
 .Nm
 embeds interface identifier into bit 32 to 63 of link-local addresses
-.Po
-.Li fe80::xx
+.Li ( fe80::xx
 and
-.Li ff02::xx
-.Pc
+.Li ff02::xx )
 so they will be visible on internal state dump file
 .Pq Pa /var/run/route6d_dump .
 .Pp

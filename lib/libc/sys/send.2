@@ -186,7 +186,8 @@ doesn't necessarily block until the data has been transferred, it
 is possible to transfer an open file descriptor across an
 .Dv AF_UNIX
 domain socket
-.Pq see Xr recv 2 ,
+(see
+.Xr recv 2 ) ,
 then
 .Fn close
 it before it has actually been sent, the result being that the receiver
