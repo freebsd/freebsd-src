@@ -1443,7 +1443,7 @@ config_volume(int update)
     }
 
     current_volume = volno;				    /* note last referred volume */
-    vol->devno = VINUMBDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* also note device number */
+    vol->volno = volno;					    /* also note in volume */
 
     /*
      * Before we can actually use the volume, we need
