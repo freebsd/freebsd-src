@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.18 1996/10/06 13:32:33 jkh Exp $
+.\" $Id: ppp.8,v 1.19 1996/10/31 19:55:05 joerg Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -9,7 +9,7 @@
 Point to Point Protocol (aka iijppp) 
 .Sh SYNOPSIS
 .Nm
-.Op Fl auto | Fl direct | Fl dedicated
+.Op Fl auto | ddial | dedicated | direct
 .Op Ar system
 .Sh DESCRIPTION
 This is a user process
@@ -52,6 +52,13 @@ will act as a daemon and wait for a packet to be sent over the
 .Em PPP
 link.  When this happens, the daemon automatically dials and establishes the
 connection.
+
+In almost the same manner ddial mode (dedicated dialing or demon dialing)
+also automatically dials and establishes the connection.  However, it
+differs in that it will dial the remote site any time it detects the
+link is down, even if there are no packets to be sent.  This mode is
+useful for full-time connections who worry less about line charges
+and more about being connected full time.
 
 .It Supports server-side PPP connections.
 Can act as server which accepts incoming
@@ -280,6 +287,8 @@ remote peer.
 
 To play with demand dialing, you must use the
 .Fl auto
+or
+.Fl ddial
 option.  You must also specify the destination label in
 .Pa /etc/ppp/ppp.conf
 to use.  It should contain the
@@ -293,6 +302,8 @@ command to define the remote peer's IP address. (refer to
 
 When
 .Fl auto
+or
+.Fl ddial
 is specified,
 .Nm
 runs as a daemon but you can still configure or examine its
