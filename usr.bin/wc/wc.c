@@ -31,20 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -61,7 +60,7 @@ static const char rcsid[] =
 u_quad_t tlinect, twordct, tcharct;
 int doline, doword, dochar;
 
-int cnt __P((char *));
+int cnt __P((const char *));
 void usage __P((void));
 
 int
@@ -125,7 +124,7 @@ main(argc, argv)
 
 int
 cnt(file)
-	char *file;
+	const char *file;
 {
 	struct stat sb;
 	u_quad_t linect, wordct, charct;
