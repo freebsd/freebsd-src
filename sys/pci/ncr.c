@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.102 1997/07/29 21:50:04 se Exp $
+**  $Id: ncr.c,v 1.103 1997/08/02 14:33:11 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -868,7 +868,7 @@ struct ccb {
 	**	This filler ensure that the global header is 
 	**	cache line size aligned.
 	*/
-	ncrcmd	filler[2];
+	ncrcmd	filler[4];
 
 	/*
 	**	during reselection the ncr jumps to this point.
@@ -1346,7 +1346,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.102 1997/07/29 21:50:04 se Exp $\n";
+	"\n$Id: ncr.c,v 1.103 1997/08/02 14:33:11 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3329,7 +3329,7 @@ static ncr_chip ncr_chip_table[] = {
  FE_WIDE|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
  {NCR_860_ID, 0xff,	"ncr 53c860 fast20 scsi",		4,  8, 5,
- FE_WIDE|FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_LDSTR|FE_PFEN|FE_RAM}
+ FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_LDSTR|FE_PFEN}
  ,
  {NCR_875_ID, 0x01,	"ncr 53c875 fast20 wide scsi",		7, 16, 5,
  FE_WIDE|FE_ULTRA|FE_CLK80|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
