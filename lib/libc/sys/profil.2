@@ -49,10 +49,12 @@ The
 function enables or disables
 program counter profiling of the current process.
 If profiling is enabled,
-then at every clock tick,
+then at every profiling clock tick,
 the kernel updates an appropriate count in the
 .Fa samples
 buffer.
+The frequency of the profiling clock is recorded
+in the header in the profiling output file.
 .Pp
 The buffer
 .Fa samples
@@ -62,7 +64,7 @@ bytes and is divided into
 a series of 16-bit bins.
 Each bin counts the number of times the program counter
 was in a particular address range in the process
-when a clock tick occurred while profiling was enabled.
+when a profiling clock tick occurred while profiling was enabled.
 For a given program counter address,
 the number of the corresponding bin is given
 by the relation:
