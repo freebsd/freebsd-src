@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.25 1997/05/10 06:02:29 brian Exp $
+ * $Id: kern_time.c,v 1.26 1997/05/10 12:00:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -42,8 +42,12 @@
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
+#include <sys/signal.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 struct timezone tz;
 
@@ -59,6 +63,8 @@ struct timezone tz;
 
 static int	settime __P((struct timeval *));
 static void	timevalfix __P((struct timeval *));
+static int	nanosleep1 __P((struct proc *p, struct timespec *rqt,
+		    struct timespec *rmt));
 
 static int
 settime(tv)
@@ -100,9 +106,12 @@ settime(tv)
 	timevalfix(&delta);
 	timevaladd(&boottime, &delta);
 	timevaladd(&runtime, &delta);
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (timerisset(&p->p_realtimer.it_value))
 			timevaladd(&p->p_realtimer.it_value, &delta);
+		if (p->p_sleepend)
+			timevaladd(p->p_sleepend, &delta);
+	}
 #ifdef NFS
 	lease_updatetime(delta.tv_sec);
 #endif
@@ -194,31 +203,19 @@ clock_getres(p, uap, retval)
 	return (error);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct nanosleep_args {
-	struct	timespec *rqtp;
-	struct	timespec *rmtp;
-};
-#endif
+static int nanowait;
 
-/* ARGSUSED */
-int
-nanosleep(p, uap, retval)
+static int
+nanosleep1(p, rqt, rmt)
 	struct proc *p;
-	struct nanosleep_args *uap;
-	register_t *retval;
+	struct timespec *rqt, *rmt;
 {
-	static int nanowait;
-	struct timespec rmt, rqt;
 	struct timeval atv, utv;
-	int error, error2, s, timo;
+	int error, s, timo;
 
-	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
-	if (error)
-		return (error);
-	if (rqt.tv_nsec < 0 || rqt.tv_nsec >= 1000000000)
+	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
-	TIMESPEC_TO_TIMEVAL(&atv, &rqt)
+	TIMESPEC_TO_TIMEVAL(&atv, rqt)
 	if (itimerfix(&atv))
 		return (EINVAL);
 
@@ -231,12 +228,15 @@ nanosleep(p, uap, retval)
 	timo = hzto(&atv);
 	splx(s);
 
-	error = tsleep(&nanowait, PWAIT | PCATCH, "nanosleep", timo);
+	p->p_sleepend = &atv;
+	error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp", timo);
+	p->p_sleepend = NULL;
+
 	if (error == ERESTART)
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
-	if (SCARG(uap, rmtp)) {
+	if (rmt != NULL) {
 		/*-
 		 * XXX this is unnecessary and possibly wrong if the timeout
 		 * expired.  Then the remaining time should be zero.  If the
@@ -244,6 +244,7 @@ nanosleep(p, uap, retval)
 		 * (1) if settimeofday() was called, then the calculation is
 		 *     probably wrong, since `time' has probably become
 		 *     inconsistent with the ending time `atv'.
+		 *     XXX (1) should be fixed now with p->p_sleepend;
 		 * (2) otherwise, our calculation of `timo' was wrong, perhaps
 		 *     due to `tick' being wrong when hzto() was called or
 		 *     changing afterwards (it can be wrong or change due to
@@ -259,18 +260,91 @@ nanosleep(p, uap, retval)
 		timevalsub(&atv, &utv);
 		if (atv.tv_sec < 0)
 			timerclear(&atv);
-		TIMEVAL_TO_TIMESPEC(&atv, &rmt);
+		TIMEVAL_TO_TIMESPEC(&atv, rmt);
+	}
+	return (error);
+}
 
-		/*
-		 * XXX should we test for addressibility before sleeping?
-		 */
+#ifndef _SYS_SYSPROTO_H_
+struct nanosleep_args {
+	struct	timespec *rqtp;
+	struct	timespec *rmtp;
+};
+#endif
+
+/* ARGSUSED */
+int
+nanosleep(p, uap, retval)
+	struct proc *p;
+	struct nanosleep_args *uap;
+	register_t *retval;
+{
+	struct timespec rmt, rqt;
+	int error, error2;
+
+	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
+	if (error)
+		return (error);
+	if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
+		return (EFAULT);
+
+	error = nanosleep1(p, &rqt, &rmt);
+
+	if (SCARG(uap, rmtp)) {
 		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
-		if (error2)
+		if (error2)	/* XXX shouldn't happen, did useracc() above */
 			return (error2);
 	}
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct signanosleep_args {
+	struct	timespec *rqtp;
+	struct	timespec *rmtp;
+	sigset_t *mask;
+};
+#endif
+
+/* ARGSUSED */
+int
+signanosleep(p, uap, retval)
+	struct proc *p;
+	struct signanosleep_args *uap;
+	register_t *retval;
+{
+	struct timespec rmt, rqt;
+	int error, error2;
+	struct sigacts *ps = p->p_sigacts;
+	sigset_t mask;
+
+	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
+	if (error)
+		return (error);
+	if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
+		return (EFAULT);
+	error = copyin(SCARG(uap, mask), &mask, sizeof(mask));
+	if (error)
+		return (error);
+
+	/* See kern_sig.c:sigsuspend() for explanation */
+	ps->ps_oldmask = p->p_sigmask;
+	ps->ps_flags |= SAS_OLDMASK;
+	p->p_sigmask = mask &~ sigcantmask;
+
+	error = nanosleep1(p, &rqt, &rmt);
+
+	p->p_sigmask = ps->ps_oldmask;	/* in case timeout rather than sig */
+	ps->ps_flags &= ~SAS_OLDMASK;
+
+	if (SCARG(uap, rmtp)) {
+		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
+		if (error2)	/* XXX shouldn't happen, did useracc() above */
+			return (error2);
+	}
+	return (error);
+
+}
 
 #ifndef _SYS_SYSPROTO_H_
 struct gettimeofday_args {
