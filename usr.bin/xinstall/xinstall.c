@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.5 1996/02/08 06:17:50 pst Exp $";
+	"$Id: xinstall.c,v 1.1.1.1.6.3 1996/02/22 19:43:36 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -486,8 +486,10 @@ strip(to_name)
 		execl(_PATH_STRIP, "strip", to_name, NULL);
 		err(EX_OSERR, "exec(" _PATH_STRIP ")");
 	default:
-		if (wait(&status) == -1 || status)
+		if (wait(&status) == -1 || status) {
 			(void)unlink(to_name);
+			exit(EX_SOFTWARE);
+		}
 	}
 }
 
