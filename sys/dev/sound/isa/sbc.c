@@ -220,8 +220,13 @@ static int
 sbc_probe(device_t dev)
 {
 	char *s = NULL;
-	u_int32_t logical_id = isa_get_logicalid(dev);
-	if (logical_id) {
+	u_int32_t lid, vid;
+
+	lid = isa_get_logicalid(dev);
+	vid = isa_get_vendorid(dev);
+	if (lid) {
+		if (lid == 0x01000000 && vid != 0x01009305) /* ALS0001 */
+			return ENXIO;
 		/* Check pnp ids */
 		return ISA_PNP_PROBE(device_get_parent(dev), dev, sbc_ids);
 	} else {
