@@ -37,10 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = 
-  "$FreeBSD$";
-#endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

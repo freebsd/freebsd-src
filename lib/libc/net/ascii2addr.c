@@ -29,6 +29,9 @@
  *	$ANA: ascii2addr.c,v 1.2 1996/06/13 18:46:02 wollman Exp $
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/socket.h>
 

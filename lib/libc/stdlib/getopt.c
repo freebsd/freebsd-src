@@ -32,11 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
-#endif
-static const char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

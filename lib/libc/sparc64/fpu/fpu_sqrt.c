@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_sqrt.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_sqrt.c,v 1.2 1994/11/20 20:52:46 deraadt Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_sqrt.c,v 1.2 1994/11/20 20:52:46 deraadt Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Perform an FPU square root (return sqrt(x)).

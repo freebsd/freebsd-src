@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_subr.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_subr.c,v 1.3 1996/03/14 19:42:01 christos Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_subr.c,v 1.3 1996/03/14 19:42:01 christos Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FPU subroutines.

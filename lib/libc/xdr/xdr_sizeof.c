@@ -1,6 +1,4 @@
 /*
- * $FreeBSD$
- *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -36,6 +34,9 @@
  * General purpose routine to see how much space something will use
  * when serialized using XDR.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <rpc/types.h>

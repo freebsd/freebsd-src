@@ -1,7 +1,3 @@
-#if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$FreeBSD$";
-#endif /* not lint */
-
 /*
  * Copyright (c) 1996 by Internet Software Consortium.
  *
@@ -23,6 +19,9 @@ static char rcsid[] = "$FreeBSD$";
  * Based on the Dynamic DNS reference implementation by Viraj Bais
  * <viraj_bais@ccm.fm.intel.com>
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>

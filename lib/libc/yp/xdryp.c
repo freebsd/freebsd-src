@@ -27,9 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>

@@ -51,11 +51,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef LIBC_RCS
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 #ifndef lint
 #ifndef NOID
 static char copyright[] =
@@ -63,6 +58,8 @@ static char copyright[] =
 static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 #endif /* !defined NOID */
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <time.h>

@@ -17,7 +17,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] = "$Id: inet_ntop.c,v 8.7 1996/08/05 08:41:18 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
