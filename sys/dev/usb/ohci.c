@@ -199,9 +199,17 @@ Static void		ohci_dump_td(ohci_soft_td_t *);
 Static void		ohci_dump_ed(ohci_soft_ed_t *);
 #endif
 
-#define OWRITE4(sc, r, x) bus_space_write_4((sc)->iot, (sc)->ioh, (r), (x))
-#define OREAD4(sc, r) bus_space_read_4((sc)->iot, (sc)->ioh, (r))
-#define OREAD2(sc, r) bus_space_read_2((sc)->iot, (sc)->ioh, (r))
+#define OBARR(sc) bus_space_barrier((sc)->iot, (sc)->ioh, 0, (sc)->sc_size, \
+			BUS_SPACE_BARRIER_READ|BUS_SPACE_BARRIER_WRITE)
+#define OWRITE1(sc, r, x) \
+ do { OBARR(sc); bus_space_write_1((sc)->iot, (sc)->ioh, (r), (x)); } while (0)
+#define OWRITE2(sc, r, x) \
+ do { OBARR(sc); bus_space_write_2((sc)->iot, (sc)->ioh, (r), (x)); } while (0)
+#define OWRITE4(sc, r, x) \
+ do { OBARR(sc); bus_space_write_4((sc)->iot, (sc)->ioh, (r), (x)); } while (0)
+#define OREAD1(sc, r) (OBARR(sc), bus_space_read_1((sc)->iot, (sc)->ioh, (r)))
+#define OREAD2(sc, r) (OBARR(sc), bus_space_read_2((sc)->iot, (sc)->ioh, (r)))
+#define OREAD4(sc, r) (OBARR(sc), bus_space_read_4((sc)->iot, (sc)->ioh, (r)))
 
 /* Reverse the bits in a value 0 .. 31 */
 Static u_int8_t revbits[OHCI_NO_INTRS] =

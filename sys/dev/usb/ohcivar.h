@@ -78,6 +78,7 @@ typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+	bus_size_t sc_size;
 
 #if defined(__FreeBSD__)
 	void *ih;

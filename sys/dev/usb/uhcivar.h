@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcivar.h,v 1.28 2000/04/06 23:44:21 augustss Exp $	*/
+/*	$NetBSD: uhcivar.h,v 1.29 2000/04/25 09:20:55 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -134,6 +134,7 @@ typedef struct uhci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+	bus_size_t sc_size;
 #if defined(__FreeBSD__)
 	void *ih;
 
