@@ -27,17 +27,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: xten.1,v 1.5 1997/02/22 16:14:46 peter Exp $
+.\"	$Id: xten.1,v 1.2.2.1 1997/03/06 08:00:52 mpp Exp $
 .\"
-.Th XTEN 8 "30 Oct 1993"
 .Dd Oct 30, 1993
 .Dt XTEN 1
-.Os BSD FreeBSD
+.Os
 .Sh NAME
-xten \- transmit X-10 commands
+.Nm xten
+.Nd transmit X-10 commands
 .Sh SYNOPSIS
 .Nm xten
-[ - ] house key[:cnt] [ [ house ] key[:cnt] .\|.\|. ]
+.Op Fl ""
+.Ar house Ar key Ns Op Ar :cnt
+.Oo
+.Op Ar house
+.Ar key Ns Op Ar :cnt 
+.Ar ...
+.Oc
 .Sh DESCRIPTION
 .Nm Xten
 is a command-line interface to the X-10 daemon.
@@ -48,20 +54,19 @@ that the packets are all transmitted correctly, though in general it is
 not possible to tell whether the commands were actually received and
 executed by the remote X-10 devices.
 .Pp
-When invoked with the single argument \-,
-.Nm xten
+When invoked with the single argument
+.Fl "" ,
+.Nm
 enters an interactive mode in which a line is repeatedly read from the
 standard input, sent to the X-10 daemon, and the one-line response from
 the daemon printed on the standard output.
 .Sh OPTIONS
 The
-.I
-house
+.Ar house
 argument is a one-letter house code in the range A-P.
 All the X-10 requests generated will refer to this house code.
 Each
-.I
-key
+.Ar key
 is either a numeric unit code in the range 1-16, or else
 is a string that specifies an X-10 function.  The possible
 function code strings are:
@@ -85,20 +90,16 @@ function code strings are:
 .El
 .Pp
 Each
-.I
-key
+.Ar key
 may be followed by an optional numeric
-.I
-cnt,
+.Ar cnt ,
 which specifies the number of packets that are to be sent with that
 key code without gaps.  If this argument is omitted, two packets
 are transmitted.  The ability to specify numbers of packets other than
 two is used by the X-10
-.I
-Dim
+.Em Dim
 and
-.I
-Bright
+.Em Bright
 commands.
 .Sh SEE ALSO
 .Xr tw 4 ,
@@ -109,4 +110,4 @@ commands.
 the TW523 special file
 .El
 .Sh AUTHOR
-Eugene W. Stark (stark@cs.sunysb.edu)
+.An Eugene W. Stark Aq stark@cs.sunysb.edu
