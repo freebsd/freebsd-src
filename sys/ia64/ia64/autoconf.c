@@ -62,7 +62,7 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 device_t isa_bus_device = 0;
 #endif
 
-extern int nfs_diskless_valid;
+extern int nfs_diskless_valid;		/* XXX use include file */
 
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
@@ -104,7 +104,7 @@ void
 cpu_rootconf()
 {
 	int	order = 0;
-#if defined(NFS) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 #if !defined(BOOTP_NFSROOT)
 	if (nfs_diskless_valid)
 #endif

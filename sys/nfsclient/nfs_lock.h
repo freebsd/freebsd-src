@@ -31,7 +31,7 @@
 /*
  * lockd uses the nfssvc system call to get the unique kernel services it needs.
  * It passes in a request structure with a version number at the start.
- * This prevents libc from needing to change if the information passed 
+ * This prevents libc from needing to change if the information passed
  * between lockd and the kernel needs to change.
  *
  * If a structure changes, you must bump the version number.
@@ -39,26 +39,7 @@
 
 #include <nfs/nfsproto.h>
 
-
-#define LOCKD_REQ_VERSION	1
-
-struct lockd_req {
-	int			vers;	/* keep in sync with kernel please */
-	int 		op;		/* F_GETLK | F_SETLK | F_UNLCK */
-	int		owner;		/* owner of lock, -1 to allocate one */
-	int		owner_rel_ok;	/* release owner if no locks left ? */
-	int		*owner_ret;	/* owner alloc/free result target */
-	void 		*fh;		/* NFS file handle */
-	size_t 		fh_len;		/* NFS file handle length */
-	u_quad_t 	offset;		/* offset of where to start lock */
-	u_quad_t 	len;		/* length of range to lock */
-	int 		type;		/* F_RDLCK | F_WRLCK | F_UNLCK */
-	struct ucred	cred;		/* user credentials to use for lock */
-	struct sockaddr saddr;		/* XXX how about non AF_INET ?? */
-	int		pid;		/* pid of lock requester */
-};
-
-/* 
+/*
  * The fifo where the kernel writes requests for locks on remote NFS files,
  * and where lockd reads these requests.
  *
@@ -107,6 +88,5 @@ struct lockd_ans {
 
 #ifdef _KERNEL
 int	nfs_dolock(struct vop_advlock_args *ap);
-int nfslockdans(struct proc *p, struct lockd_ans *ansp);
-int nfslockdreq(struct proc *p, struct lockd_req *reqp);
+int	nfslockdans(struct proc *p, struct lockd_ans *ansp);
 #endif

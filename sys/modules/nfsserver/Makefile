@@ -1,18 +1,12 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../nfs
-
-KMOD=	nfs
+.PATH: ${.CURDIR}/../../nfsserver ${.CURDIR}/../../nfs
+KMOD=	nfsserver
 SRCS=	vnode_if.h \
-	nfs_bio.c nfs_lock.c nfs_node.c nfs_nqlease.c nfs_serv.c nfs_socket.c \
-	nfs_srvcache.c nfs_subs.c nfs_syscalls.c nfs_vfsops.c \
-	nfs_vnops.c opt_inet.h opt_nfs.h opt_vmpage.h opt_bootp.h
-NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
-NOMAN=
+	nfs_serv.c nfs_srvsock.c nfs_srvcache.c nfs_srvsubs.c nfs_syscalls.c \
+	nfs_common.c \
+	opt_nfs.h
 
-.if ${NFS_INET} > 0
-opt_inet.h:
-	echo "#define INET 1" > ${.TARGET}
-.endif
+NOMAN=
 
 .include <bsd.kmod.mk>

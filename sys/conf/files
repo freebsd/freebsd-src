@@ -1160,19 +1160,23 @@ netns/ns_pcb.c		optional ns
 netns/ns_proto.c	optional ns
 netns/spp_debug.c	optional ns
 netns/spp_usrreq.c	optional ns
-nfs/bootp_subr.c	optional bootp
-nfs/krpc_subr.c		optional bootp
-nfs/nfs_bio.c		optional nfs
-nfs/nfs_node.c		optional nfs
-nfs/nfs_lock.c		optional nfs
-nfs/nfs_nqlease.c	optional nfs
-nfs/nfs_serv.c		optional nfs
-nfs/nfs_socket.c	optional nfs
-nfs/nfs_srvcache.c	optional nfs
-nfs/nfs_subs.c		optional nfs
-nfs/nfs_syscalls.c	optional nfs
-nfs/nfs_vfsops.c	optional nfs
-nfs/nfs_vnops.c		optional nfs
+nfs/nfs_common.c		optional nfsclient
+nfs/nfs_common.c		optional nfsserver
+nfsclient/bootp_subr.c		optional bootp nfsclient
+nfsclient/krpc_subr.c		optional bootp nfsclient
+nfsclient/nfs_bio.c		optional nfsclient
+nfsclient/nfs_node.c		optional nfsclient
+nfsclient/nfs_socket.c		optional nfsclient
+nfsclient/nfs_subs.c		optional nfsclient
+nfsclient/nfs_nfsiod.c		optional nfsclient
+nfsclient/nfs_vfsops.c		optional nfsclient
+nfsclient/nfs_vnops.c		optional nfsclient
+nfsclient/nfs_lock.c		optional nfsclient
+nfsserver/nfs_serv.c		optional nfsserver
+nfsserver/nfs_srvsock.c		optional nfsserver
+nfsserver/nfs_srvcache.c	optional nfsserver
+nfsserver/nfs_srvsubs.c		optional nfsserver
+nfsserver/nfs_syscalls.c	optional nfsserver
 pccard/pccard.c		count card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card

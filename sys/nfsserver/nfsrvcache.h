@@ -37,9 +37,8 @@
  * $FreeBSD$
  */
 
-
-#ifndef _NFS_NFSRVCACHE_H_
-#define _NFS_NFSRVCACHE_H_
+#ifndef _NFSSERVER_NFSRVCACHE_H_
+#define _NFSSERVER_NFSRVCACHE_H_
 
 #include <sys/queue.h>
 
@@ -77,14 +76,13 @@ struct nfsrvcache {
 #define	RC_DROPIT	0
 #define	RC_REPLY	1
 #define	RC_DOIT		2
-#define	RC_CHECKIT	3
 
 /* Flag bits */
 #define	RC_LOCKED	0x01
 #define	RC_WANTED	0x02
 #define	RC_REPSTATUS	0x04
 #define	RC_REPMBUF	0x08
-#define	RC_NQNFS	0x10
+/* free 0x10 */
 #define	RC_INETADDR	0x20
 #define	RC_NAM		0x40
 

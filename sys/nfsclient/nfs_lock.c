@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *      from BSDI nfs_lock.c,v 2.4 1998/12/14 23:49:56 jch Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,11 +54,11 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsmount.h>
-#include <nfs/nfsnode.h>
-#include <nfs/nfs_lock.h>
-#include <nfs/nlminfo.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsmount.h>
+#include <nfsclient/nfsnode.h>
+#include <nfsclient/nfs_lock.h>
+#include <nfsclient/nlminfo.h>
 
 #define NFSOWNER_1ST_LEVEL_START	1	       /* initial entries */
 #define NFSOWNER_2ND_LEVEL	      256		/* some power of 2 */
@@ -67,7 +69,7 @@
 /*
  * XXX
  * We have to let the process know if the call succeeded.  I'm using an extra
- * field in the p_nlminfo field in the proc structure, as it is already for 
+ * field in the p_nlminfo field in the proc structure, as it is already for
  * lockd stuff.
  */
 
@@ -76,14 +78,7 @@
  *      NFS advisory byte-level locks.
  */
 int
-nfs_dolock(ap)
-	struct vop_advlock_args /* {
-		struct vnode *a_vp;
-		caddr_t a_id;
-		int  a_op;
-		struct flock *a_fl;
-		int a_flags;
-	} */ *ap;
+nfs_dolock(struct vop_advlock_args *ap)
 {
 	LOCKD_MSG msg;
 	struct nameidata nd;
@@ -198,10 +193,10 @@ nfs_dolock(ap)
 		 * retry after 20 seconds if we haven't gotten a responce yet.
 		 * This number was picked out of thin air... but is longer
 		 * then even a reasonably loaded system should take (at least
-		 * on a local network).  XXX Probably should use a back-off 
+		 * on a local network).  XXX Probably should use a back-off
 		 * scheme.
 		 */
-		if ((error = tsleep((void *)p->p_nlminfo, 
+		if ((error = tsleep((void *)p->p_nlminfo,
 					PCATCH | PUSER, "lockd", 20*hz)) != 0) {
 			if (error == EWOULDBLOCK) {
 				/*
@@ -238,14 +233,12 @@ nfs_dolock(ap)
  *      NFS advisory byte-level locks answer from the lock daemon.
  */
 int
-nfslockdans(p, ansp)
-	struct proc *p;
-	struct lockd_ans *ansp;
+nfslockdans(struct proc *p, struct lockd_ans *ansp)
 {
 	int error;
 
 	/* Let root, or someone who once was root (lockd generally
-	 * switches to the daemon uid once it is done setting up) make 
+	 * switches to the daemon uid once it is done setting up) make
 	 * this call.
 	 *
 	 * XXX This authorization check is probably not right.
@@ -261,7 +254,7 @@ nfslockdans(p, ansp)
 	if ((p = pfind(ansp->la_msg_ident.pid)) == NULL)
 		return (ESRCH);
 
-	/* verify the pid hasn't been reused (if we can), and it isn't waiting 
+	/* verify the pid hasn't been reused (if we can), and it isn't waiting
 	 * for an answer from a more recent request.  We return an EPIPE if
 	 * the match fails, because we've already used ESRCH above, and this
 	 * is sort of like writing on a pipe after the reader has closed it.

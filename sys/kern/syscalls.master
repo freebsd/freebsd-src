@@ -543,3 +543,4 @@
 373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
 			    const char *attrname); }
 374	MSTD	BSD	{ int __setugid(int flag); }
+375	NOIMPL	BSD	{ int nfsclnt(int flag, caddr_t argp); }

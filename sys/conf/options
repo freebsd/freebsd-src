@@ -139,7 +139,8 @@ IFS		opt_ffs_broken_fixme.h
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
 # statically compiled into the kernel, code for mounting them as root
 # filesystems will be enabled - but look below.
-NFS
+NFSCLIENT	opt_nfs.h
+NFSSERVER	opt_nfs.h
 
 # If you are following the conditions in the copyright,
 # you can enable soft-updates which will speed up a lot of thigs
