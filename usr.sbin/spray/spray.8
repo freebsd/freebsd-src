@@ -33,8 +33,6 @@
 .Op Fl d Ar delay 
 .Op Fl l Ar length
 .Ar host 
-\&...
-.Ek
 .Sh DESCRIPTION
 .Nm Spray
 sends multiple RPC packets to 
@@ -65,9 +63,7 @@ rounds up to the nearest possible value.
 .Nm Spray 
 is intended for use in network testing, measurement, and management.
 This command
-.Bf -emphasis 
-can be very hard on a network and should be used with caution.
-.Ef
+.Em "can be very hard on a network and should be used with caution" .
 .Pp
 .Sh SEE ALSO
 .Xr netstat 1 ,
