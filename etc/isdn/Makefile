@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-I4BETCPROG=	answer		\
-		isdntel.sh	\
-		record		\
-		tell		\
+I4BETCPROG=	answer			\
+		isdntel.sh		\
+		record			\
+		tell			\
 		tell-record
 
 I4BETCFILE=	isdnd.rates.D		\
