@@ -120,11 +120,10 @@ showmbufs()
 			while (max--)
 				waddch(wnd, 'X');
 			waddstr(wnd, buf);
-		} else {
+		} else
 			while (max--)
 				waddch(wnd, 'X');
-			wclrtoeol(wnd);
-		}
+		wclrtoeol(wnd);
 		mb->m_mtypes[index] = 0;
 	}
 	wmove(wnd, 1+j, 0); wclrtobot(wnd);
