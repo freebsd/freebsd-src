@@ -28,7 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	8
+#define	ISP_PLATFORM_VERSION_MINOR	9
 
 
 #include <sys/param.h>
@@ -133,7 +133,6 @@ struct isposinfo {
 
 #define	INLINE			__inline
 
-#define	ISP2100_FABRIC		1
 #define	ISP2100_SCRLEN		0x400
 
 #define	MEMZERO			bzero
