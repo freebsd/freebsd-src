@@ -40,6 +40,11 @@ struct cmdargs;
 #define CARRIER_OK	2
 #define CARRIER_LOST	3
 
+/* A cd ``necessity'' value */
+#define CD_VARIABLE	1
+#define CD_REQUIRED	2
+#define CD_NOTREQUIRED	3
+
 struct device {
   int type;
   const char *name;
@@ -91,7 +96,7 @@ struct physical {
     char devlist[LINE_LEN];    /* NUL separated list of devices */
     int ndev;                  /* number of devices in list */
     struct {
-      unsigned required : 1;   /* Is cd *REQUIRED* on this device */
+      unsigned necessity : 2;  /* A CD_ value */
       int delay;               /* Wait this many seconds after login script */
     } cd;
   } cfg;

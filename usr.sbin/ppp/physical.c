@@ -175,7 +175,7 @@ physical_Create(struct datalink *dl, int type)
   p->cfg.parity = CS8;
   memcpy(p->cfg.devlist, MODEM_LIST, sizeof MODEM_LIST);
   p->cfg.ndev = NMODEMS;
-  p->cfg.cd.required = 0;
+  p->cfg.cd.necessity = CD_VARIABLE;
   p->cfg.cd.delay = DEF_CDDELAY;
 
   lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
@@ -457,12 +457,16 @@ physical_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, ", CTS/RTS %s\n", (p->cfg.rts_cts ? "on" : "off"));
 
-  prompt_Printf(arg->prompt, " CD check delay:  %d second%s",
-                p->cfg.cd.delay, p->cfg.cd.delay == 1 ? "" : "s");
-  if (p->cfg.cd.required)
-    prompt_Printf(arg->prompt, " (required!)\n\n");
-  else
-    prompt_Printf(arg->prompt, "\n\n");
+  prompt_Printf(arg->prompt, " CD check delay:  ");
+  if (p->cfg.cd.necessity == CD_NOTREQUIRED)
+    prompt_Printf(arg->prompt, "no cd");
+  else {
+    prompt_Printf(arg->prompt, "%d second%s", p->cfg.cd.delay,
+                  p->cfg.cd.delay == 1 ? "" : "s");
+    if (p->cfg.cd.necessity == CD_REQUIRED)
+      prompt_Printf(arg->prompt, " (required!)");
+  }
+  prompt_Printf(arg->prompt, "\n\n");
 
   throughput_disp(&p->link.throughput, arg->prompt);
 

@@ -3561,7 +3561,7 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
-.It set cd Ar seconds Ns Op \&!
+.It "set cd off|" Ns Ar seconds Ns Op \&!
 Normally,
 .Nm
 checks for the existence of carrier one second after the login script is
@@ -3581,6 +3581,11 @@ specifies the number of seconds that
 should wait after the dial script has finished before deciding if
 carrier is available or not.
 .Pp
+If
+.Dq off
+is specified,
+.Nm
+will not check for carrier on the device, otherwise
 .Nm
 will not proceed to the login script until either carrier is detected
 or until
@@ -3600,15 +3605,18 @@ seconds, the link will be disconnected.
 .Pp
 For ISDN devices,
 .Nm
-will always insist on carrier.  Carrier is raised by the i4brbchX device
-driver only after the call has connected.  It is therefore wise to set
-a reasonable value such as
+will always insist on carrier (the value
+.Dq off
+is invalid).  Carrier is raised by the i4brbchX device driver only after
+the call has connected.  It is therefore wise to set a reasonable value
+such as
 .Ar 6
 seconds.
 .Pp
 Carrier
 .Em require Ns No ment
-is ignored for all other device types.
+is ignored for all other device types - as if set to
+.Dq off .
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm
