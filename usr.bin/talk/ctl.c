@@ -70,6 +70,9 @@ open_sockt()
 {
 	int length;
 
+	(void)memset(&my_addr, 0, sizeof(my_addr));
+	my_addr.sin_family = AF_INET;
+	my_addr.sin_len = sizeof(my_addr);
 	my_addr.sin_addr = my_machine_addr;
 	my_addr.sin_port = 0;
 	sockt = socket(AF_INET, SOCK_STREAM, 0);
@@ -88,6 +91,9 @@ open_ctl()
 {
 	int length;
 
+	(void)memset(&ctl_addr, 0, sizeof(ctl_addr));
+	ctl_addr.sin_family = AF_INET;
+	ctl_addr.sin_len = sizeof(my_addr);
 	ctl_addr.sin_port = 0;
 	ctl_addr.sin_addr = my_machine_addr;
 	ctl_sockt = socket(AF_INET, SOCK_DGRAM, 0);
