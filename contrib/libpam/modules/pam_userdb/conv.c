@@ -3,6 +3,7 @@
  */
 
 /* $Id */
+ * $FreeBSD$
 /* Copyright at the end of the file */
 
 #define _BSD_SOURCE

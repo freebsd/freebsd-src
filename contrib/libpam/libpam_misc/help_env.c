@@ -1,7 +1,15 @@
 /*
- * $Id: help_env.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
+ * $Id: help_env.c,v 1.2 1997/01/04 20:19:20 morgan Exp morgan $
+ * $FreeBSD$
  *
  * This file was written by Andrew G. Morgan <morgan@parc.power.net>
+ *
+ * $Log: help_env.c,v $
+ * Revision 1.2  1997/01/04 20:19:20  morgan
+ * added a prototype (no warning) and fixed paste function
+ *
+ * Revision 1.1  1996/12/01 03:25:37  morgan
+ * Initial revision
  *
  */
 

@@ -1,3 +1,4 @@
+# $FreeBSD$
 pam_userdb:
 	Look up users in a .db database and verify their password against
 	what is contained in that database.

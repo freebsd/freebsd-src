@@ -1,5 +1,14 @@
 /*
- * $Id: pam_malloc.c,v 1.3 2000/12/04 19:02:34 baggins Exp $
+ * $Id: pam_malloc.c,v 1.2 1996/12/01 03:14:13 morgan Exp $
+ * $FreeBSD$
+ *
+ * $Log: pam_malloc.c,v $
+ * Revision 1.2  1996/12/01 03:14:13  morgan
+ * use _pam_macros.h
+ *
+ * Revision 1.1  1996/11/10 21:26:11  morgan
+ * Initial revision
+ *
  */
 
 /*
@@ -44,7 +53,7 @@
  * default debugging level
  */
 
-int pam_malloc_flags = PAM_MALLOC_ALL;
+int pam_malloc_flags = PAM_MALLOC_DEFAULT;
 int pam_malloc_delay_length = 4;
 
 #define on(x) ((pam_malloc_flags&(x))==(x))
@@ -72,27 +81,18 @@ static void set_last_(const char *x, const char *f
 static void _pam_output_xdebug_info(void)
 {
     FILE *logfile;
-    int must_close = 1, fd;
-
-#ifdef O_NOFOLLOW
-    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_NOFOLLOW|O_APPEND)) != -1) {
-#else
-    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_APPEND)) != -1) {
-#endif
-	if (!(logfile = fdopen(fd,"a"))) {
-	    logfile = stderr;
-	    must_close = 0;
-	    close(fd);
-	}
-    } else {
-	logfile = stderr;
-	must_close = 0;
+    int must_close = 1;
+    
+    if (!(logfile = fopen(_PAM_LOGFILE,"a"))) {
+        logfile = stderr;
+        must_close = 0;
     }
     fprintf(logfile, "[%s:%s(%d)->%s()] ",
            last_file, last_call, last_line, last_fn);
-    fflush(logfile);
-    if (must_close)
+    if (must_close) {
+        fflush(logfile);
         fclose(logfile);
+    }
 }
 
 static void hinder(void)

@@ -24,10 +24,17 @@
 #
 #	$FreeBSD$
 
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+
 LIB=		pam_unix
 SHLIB_NAME=	pam_unix.so
 SRCS=		pam_unix.c
-DPADD=		${LIBUTIL} ${LIBCRYPT}
-LDADD=		-lutil -lcrypt
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${.CURDIR}/../../libpam
+DPADD+=		${LIBUTIL} ${LIBCRYPT}
+LDADD+=		-lutil -lcrypt
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>

@@ -3,6 +3,7 @@
 # stdandard input
 #
 # $Id: create.pl,v 1.1.1.1 2000/06/20 22:12:09 agmorgan Exp $
+# $FreeBSD$
 
 use DB_File;
 

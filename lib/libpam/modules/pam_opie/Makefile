@@ -25,10 +25,17 @@
 #
 #	$FreeBSD$
 
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+
 LIB=		pam_opie
 SHLIB_NAME=	pam_opie.so
 SRCS=		pam_opie.c
-DPADD=		${LIBOPIE}
-LDADD=		-lopie
+CFLAGS+=	-Wall -g
+CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${.CURDIR}/../../libpam
+DPADD+=		${LIBOPIE}
+LDADD+=		-lopie
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>

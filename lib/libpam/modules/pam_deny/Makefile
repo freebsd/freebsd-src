@@ -24,10 +24,16 @@
 #
 #	$FreeBSD$
 
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+
+.PATH:		${PAMDIR}/modules/pam_deny
+
 LIB=		pam_deny
 SHLIB_NAME=	pam_deny.so
 SRCS=		pam_deny.c
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_deny

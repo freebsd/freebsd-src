@@ -1,8 +1,8 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
-.\" $Id: pam.8,v 1.2 2001/01/20 23:47:07 agmorgan Exp $
-.\" Copyright (c) Andrew G. Morgan 1996-7,2001 <morgan@kernel.org>
+.\" $Id: pam.8,v 1.2 1997/02/15 18:37:27 morgan Exp $
 .\" $FreeBSD$
-.TH PAM 8 "2001 Jan 20" "PAM 0.74" "PAM Manual"
+.\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@linux.kernel.org>
+.TH PAM 8 "1997 Feb 9" "PAM 0.56" "PAM Manual"
 .SH NAME
 
 PAM \- Pluggable Authentication Modules
@@ -15,7 +15,7 @@ PAM \- Pluggable Authentication Modules
 This manual is intended to offer a quick introduction to
 .BR PAM ". "
 For more information the reader is directed to the
-.BR "PAM system administrators' guide".
+.BR "Linux-PAM system administrators' guide".
 
 .sp
 .BR PAM
@@ -198,14 +198,7 @@ The meaning of each of these tokens was explained above.
 The third field,
 .BR control ", "
 indicates the behavior of the PAM-API should the module fail to
-succeed in its authentication task. There are two types of syntax for
-this control field: the simple one has a single simple keyword; the
-more complicated one involves a square-bracketed selection of
-.B value=action
-pairs.
-
-.sp
-For the simple (historical) syntax valid
+succeed in its authentication task. Valid
 .BR control
 values are:
 .BR requisite
@@ -232,97 +225,8 @@ only module in the stack associated with this
 .BR service "+" type "."
 
 .sp
-For the more complicated syntax valid
-.B control
-values have the following form:
-.sp
-.RB  [value1=action1 value2=action2 ...]
-.sp
-Where
-.B valueN
-corresponds to the return code from the function invoked in the module
-for which the line is defined. It is selected from one of these:
-.BR success ;
-.BR open_err ;
-.BR symbol_err ;
-.BR service_err ;
-.BR system_err ;
-.BR buf_err ;
-.BR perm_denied ;
-.BR auth_err ;
-.BR cred_insufficient ;
-.BR authinfo_unavail ;
-.BR user_unknown ;
-.BR maxtries ;
-.BR new_authtok_reqd ;
-.BR acct_expired ;
-.BR session_err ;
-.BR cred_unavail ;
-.BR cred_expired ;
-.BR cred_err ;
-.BR no_module_data ;
-.BR conv_err ;
-.BR authtok_err ;
-.BR authtok_recover_err ;
-.BR authtok_lock_busy ;
-.BR authtok_disable_aging ;
-.BR try_again ;
-.BR ignore ;
-.BR abort ;
-.BR authtok_expired ;
-.BR module_unknown ;
-.BR bad_item "; and"
-.BR default .
-The last of these,
-.BR default ,
-implies 'all
-.BR valueN 's
-not mentioned explicitly. Note, the full list of PAM errors is
-available in /usr/include/security/_pam_types.h . The
-.B actionN
-can be: an unsigned integer, 
-.BR J ,
-signifying an action of 'jump over the next J modules in the stack';
-or take one of the following forms:
-.br
-.B ignore
-- when used with a stack of modules, the module's return status will
-not contribute to the return code the application obtains;
-.br
-.B bad 
-- this action indicates that the return code should be thought of as
-indicative of the module failing. If this module is the first in the
-stack to fail, its status value will be used for that of the whole
-stack.
-.br
-.B die
-- equivalent to bad with the side effect of terminating the module
-stack and PAM immediately returning to the application.
-.br
-.B ok
-- this tells PAM that the administrator thinks this return code
-should contribute directly to the return code of the full stack of
-modules. In other words, if the former state of the stack would lead
-to a return of
-.BR PAM_SUCCESS ,
-the module's return code will override this value. Note, if the former
-state of the stack holds some value that is indicative of a modules
-failure, this 'ok' value will not be used to override that value.
-.br
-.B done
-- equivalent to ok with the side effect of terminating the module
-stack and PAM immediately returning to the application.
-.br
-.B reset
-- clear all memory of the state of the module stack and start again
-with the next stacked module.
-
-.sp
 .BR module-path
-- this is either the full filename of the PAM to be used by the
-application (it begins with a '/'), or a relative pathname from the
-default module location:
-.BR /usr/lib/ .
+- this is the full filename of the PAM to be used by the application
 
 .sp
 .BR module-arguments
@@ -335,7 +239,7 @@ documented for each individual module.
 .br
 .BR /etc/pam.d/ " - the"
 .BR PAM
-configuration directory. Generally, if this directory is present, the
+configuration directory. If this directory is present, the
 .B /etc/pam.conf
 file is ignored.
 .br
@@ -352,8 +256,8 @@ system of libraries, will be written to
 .SH "CONFORMING TO"
 DCE-RFC 86.0, October 1995.
 .br
-Contains additional features, but remains backwardly compatible with
-this RFC.
+Contains additional features, currently under consideration by the
+DCE-RFC committee.
 
 .SH BUGS
 .sp 2
@@ -362,9 +266,9 @@ None known.
 .SH "SEE ALSO"
 
 The three
-.BR PAM
+.BR Linux-PAM
 Guides, for
-.BR "system administrators" ", "
+.BR "System administrators" ", "
 .BR "module developers" ", "
 and
 .BR "application developers" ". "

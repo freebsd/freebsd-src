@@ -24,21 +24,16 @@
 #
 #	$FreeBSD$
 
-LIBPAM_VERSION_MAJOR=	0
-LIBPAM_VERSION_MINOR=	75
-
 PAMDIR=		${.CURDIR}/../../../contrib/libpam
 MODOBJDIR=	../modules
 
 .PATH:		${PAMDIR}/libpam ${PAMDIR}/libpam_misc ${PAMDIR}/doc/man
 
 LIB=		pam
-CFLAGS+=	-I${PAMDIR}/libpam/include -I${PAMDIR}/libpam_misc/include \
-		-I${PAMDIR}/libpamc/include -I. -I${.CURDIR}
-CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\" \
-		-DLIBPAM_VERSION_MAJOR=${LIBPAM_VERSION_MAJOR} \
-		-DLIBPAM_VERSION_MINOR=${LIBPAM_VERSION_MINOR}
+CFLAGS+=	-I${PAMDIR}/libpam/include -I.
+CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
 NOPROFILE=	yes
+CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
@@ -67,23 +62,21 @@ HDRS3=		pam_mod_misc.h
 # Static PAM modules:
 STATIC_MODULES+= ${MODOBJDIR}/pam_cleartext_pass_ok/libpam_cleartext_pass_ok.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_deny/libpam_deny.a
-STATIC_MODULES+= ${MODOBJDIR}/pam_ftp/libpam_ftp.a
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 STATIC_MODULES+= ${MODOBJDIR}/pam_kerberosIV/libpam_kerberosIV.a
 .endif
-.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-STATIC_MODULES+= ${MODOBJDIR}/pam_krb5/libpam_krb5.a
+.if defined(MAKE_KERBEROS5__) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+STATIC_MODULES+= ${MODOBJDIR}/pam_kerberos5/libpam_kerberos5.a
 .endif
-STATIC_MODULES+= ${MODOBJDIR}/pam_nologin/libpam_nologin.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_opie/libpam_opie.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
-STATIC_MODULES+= ${MODOBJDIR}/pam_rootok/libpam_rootok.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_skey/libpam_skey.a
-STATIC_MODULES+= ${MODOBJDIR}/pam_securetty/libpam_securetty.a
+.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
+STATIC_MODULES+= ${MODOBJDIR}/pam_ssh/libpam_ssh.a
+.endif
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
-STATIC_MODULES+= ${MODOBJDIR}/pam_wheel/libpam_wheel.a
 
 STATICOBJS+=	pam_static_modules.o
 CLEANFILES+=	pam_static.o
@@ -113,6 +106,10 @@ pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
+all:		security
+
+beforedepend:	security
+
 beforeinstall:
 	cd ${PAMDIR}/libpam/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -123,5 +120,8 @@ beforeinstall:
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS3} ${DESTDIR}/usr/include/security
+
+security:
+	ln -sf ${PAMDIR}/libpam_misc security
 
 .include <bsd.lib.mk>

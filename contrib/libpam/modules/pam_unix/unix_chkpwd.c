@@ -1,5 +1,6 @@
 /*
  * $Id: unix_chkpwd.c,v 1.3 2001/02/11 06:33:53 agmorgan Exp $
+ * $FreeBSD$
  *
  * This program is designed to run setuid(root) or with sufficient
  * privilege to read all of the unix password databases. It is designed

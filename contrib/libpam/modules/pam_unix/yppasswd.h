@@ -8,6 +8,7 @@
  *
  * This file was generated automatically by rpcgen from yppasswd.x, and
  * editied manually.
+ * $FreeBSD$
  */
 
 #ifndef _YPPASSWD_H_

@@ -22,6 +22,7 @@
  * this is a drop in replacement for crypt();
  *
  * Andy Phillips <atp@mssl.ucl.ac.uk>
+ * $FreeBSD$
  */
 
 #include <string.h>

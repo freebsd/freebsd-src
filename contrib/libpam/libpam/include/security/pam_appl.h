@@ -6,20 +6,32 @@
  * that wishes to use it.
  *
  * Note, the copyright information is at end of file.
+ * $FreeBSD$
  *
  * Created: 15-Jan-96 by TYT
  * Last modified: 1996/3/5 by AGM
  *
- * $Id: pam_appl.h,v 1.3 2000/11/19 23:54:02 agmorgan Exp $
+ * $Log: pam_appl.h,v $
+ * Revision 1.5  1996/11/10 19:56:11  morgan
+ * minor prototype change
+ *
+ * Revision 1.4  1996/03/16 22:38:17  morgan
+ * made all of the pam_start input arguments constant
+ *
+ * Revision 1.3  1996/03/16 20:22:59  morgan
+ * changed name comment at top of file.
+ *
+ * Revision 1.2  1996/03/09 20:39:06  morgan
+ * added RCS information
+ *
+ *
+ * $Id: pam_appl.h,v 1.5 1996/11/10 19:56:11 morgan Exp $
+ *
  */
 
 #ifndef _SECURITY_PAM_APPL_H
 #define _SECURITY_PAM_APPL_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
- 
 #include <security/_pam_types.h>      /* Linux-PAM common defined types */
 
 /* -------------- The Linux-PAM Framework layer API ------------- */
@@ -46,10 +58,6 @@ extern int pam_close_session(pam_handle_t *pamh, int flags);
 /* Password Management API's */
 
 extern int pam_chauthtok(pam_handle_t *pamh, int flags);
-
-#ifdef __cplusplus
-}
-#endif
 
 /* take care of any compatibility issues */
 #include <security/_pam_compat.h>

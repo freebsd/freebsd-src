@@ -1,8 +1,8 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
-.\" $Id: template-man,v 1.1.1.1 2000/06/20 22:10:58 agmorgan Exp $
-.\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
+.\" $Id: template-man,v 1.1 1997/01/04 18:25:13 morgan Exp $
 .\" $FreeBSD$
-.TH PAM_???? 2 "1997 Jan 4" "PAM 0.55" "Application Programmers' Manual"
+.\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
+.TH PAM_???? 2 "1997 Jan 4" "Linux-PAM 0.55" "Application Programmers' Manual"
 .SH NAME
 
 function names \- brief summary of function
@@ -45,7 +45,7 @@ and
 .BR pam_??? "(2). "
 
 Also, see the three
-.BR PAM
+.BR Linux-PAM
 Guides, for
 .BR "System administrators" ", "
 .BR "module developers" ", "

@@ -1,5 +1,6 @@
 #
 # $Id: Makefile,v 1.3 2000/11/19 23:54:04 agmorgan Exp $
+# $FreeBSD$
 #
 # This Makefile controls a build process of $(TITLE) module for
 # Linux-PAM. You should not modify this Makefile (unless you know

@@ -1,7 +1,8 @@
 /*
  * <security/_pam_types.h>
  *
- * $Id: _pam_types.h,v 1.4 2001/01/22 06:07:29 agmorgan Exp $
+ * $Id: _pam_types.h,v 1.10 1997/04/05 06:52:50 morgan Exp morgan $
+ * $FreeBSD$
  *
  * This file defines all of the types common to the Linux-PAM library
  * applications and modules.
@@ -9,15 +10,12 @@
  * Note, the copyright+license information is at end of file.
  *
  * Created: 1996/3/5 by AGM
+ *
+ * $Log$
  */
 
 #ifndef _SECURITY__PAM_TYPES_H
 #define _SECURITY__PAM_TYPES_H
-
-#ifndef __LIBPAM_VERSION
-# define __LIBPAM_VERSION __libpam_version
-#endif
-extern unsigned int __libpam_version;
 
 /*
  * include local definition for POSIX - NULL
@@ -91,10 +89,7 @@ typedef struct pam_handle pam_handle_t;
 				   calling again, verify that conversation
 				   is completed */
 
-/*
- * Add new #define's here - take care to also extend the libpam code:
- * pam_strerror() and "libpam/pam_tokens.h" .
- */
+/* Add new #define's here */
 
 #define _PAM_RETURN_VALUES 32   /* this is the number of return values */
 
@@ -147,6 +142,7 @@ typedef struct pam_handle pam_handle_t;
 #define PAM_USER_PROMPT    9    /* the prompt for getting a username */
 #define PAM_FAIL_DELAY     10   /* app supplied function to override failure
 				   delays */
+#define PAM_LOG_STATE      11   /* ident, facility etc. logging info */
 
 /* ---------- Common Linux-PAM application/module PI ----------- */
 
@@ -183,18 +179,50 @@ extern char **pam_getenvlist(pam_handle_t *pamh);
  * This item was added to accommodate event driven programs that need to
  * manage delays more carefully.  The function prototype for this data
  * item is
- *     void (*fail_delay)(int status, unsigned int delay, void *appdata_ptr);
+ *           void (*fail_delay)(int status, unsigned int delay);
  */
 
 #define HAVE_PAM_FAIL_DELAY
 extern int pam_fail_delay(pam_handle_t *pamh, unsigned int musec_delay);
 
-#include <syslog.h>
-#ifndef LOG_AUTHPRIV
-# ifdef LOG_PRIV
-#  define LOG_AUTHPRIV LOG_PRIV
-# endif /* LOG_PRIV */
-#endif /* !LOG_AUTHPRIV */
+/*
+ * the standard libc interface for syslog suffers from some problems.
+ * The first is that it is not thread safe.  It is also three functions
+ * where PAM only really needs a "log this" function.  It also does
+ * not provide modules and applications with information about whether
+ * the log is currently open or not etc...  All of these things mean
+ * that we need to centralize PAM's logging facility.  These two functions
+ * provide this centralization.  They are, however, just a gateway to
+ * libc's openlog/syslog/closelog functions.  Please note, your apps/modules
+ * will likely start to segfault if you do not use this function for
+ * system logging.
+ */
+
+struct pam_log_state {
+    char *ident;
+    int option;
+    int facility;
+};
+
+#ifndef LOG_ERR
+# include <syslog.h>      /* this is a sad HACK. But we need LOG_CRIT etc.. */
+#endif
+
+#define PAM_LOG_STATE_IDENT    "PAM"
+#define PAM_LOG_STATE_OPTION   LOG_PID
+#define PAM_LOG_STATE_FACILITY LOG_AUTHPRIV
+
+#ifndef va_start
+# include <stdarg.h>
+#endif
+
+#define HAVE_PAM_SYSTEM_LOG
+extern void pam_vsystem_log(const pam_handle_t *pamh,
+			    const struct pam_log_state *log_state,
+			    int priority, const char *format, va_list args);
+extern void pam_system_log(const pam_handle_t *pamh,
+			   const struct pam_log_state *log_state, 
+			   int priority, const char *format, ... );
 
 #ifdef MEMORY_DEBUG
 /*
@@ -219,8 +247,14 @@ extern int pam_fail_delay(pam_handle_t *pamh, unsigned int musec_delay);
 #define PAM_RADIO_TYPE          5        /* yes/no/maybe conditionals */
 
 /* This is for server client non-human interaction.. these are NOT
-   part of the X/Open PAM specification. */
+   part of the X/Open PAM specification (yet although Vipin has hinted
+   that they may well be 1997/7/8) but are currently included for
+   exploritory reasons.  Basically, they are for the module to obtain a
+   binary chunk of data from the client (via the server).  Such data
+   is intercepted by the server and unpacked in preparation for the
+   module */
 
+#define PAM_BINARY_MSG          6
 #define PAM_BINARY_PROMPT       7
 
 /* maximum size of messages/responses etc.. (these are mostly
@@ -247,11 +281,10 @@ struct pam_message {
 
    struct {
        u32 length;                         #  network byte order
-       unsigned char type;
-       unsigned char data[length-5];
+       unsigned char data[length];
    };
 
-   The 'libpamc' library is designed around this flavor of
+   The 'libpam_client' library is designed around this flavor of
    message and should be used to handle this flavor of msg_style.
    */
 

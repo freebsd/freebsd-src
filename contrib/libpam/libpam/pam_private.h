@@ -1,7 +1,8 @@
 /*
  * pam_private.h
  *
- * $Id: pam_private.h,v 1.4 2001/02/05 06:50:41 agmorgan Exp $
+ * $Id: pam_private.h,v 1.12 1997/04/05 06:57:37 morgan Exp morgan $
+ * $FreeBSD$
  *
  * This is the Linux-PAM Library Private Header. It contains things
  * internal to the Linux-PAM library. Things not needed by either an
@@ -10,16 +11,16 @@
  * Please see end of file for copyright.
  *
  * Creator: Marc Ewing.
- * Maintained: CVS
+ * Maintained: AGM
+ * 
+ * $Log: pam_private.h,v $
  */
 
 #ifndef _PAM_PRIVATE_H
 #define _PAM_PRIVATE_H
 
-#include <security/_pam_aconf.h>
-
 /* this is not used at the moment --- AGM */
-#define LIBPAM_VERSION (LIBPAM_VERSION_MAJOR*0x100 + LIBPAM_VERSION_MINOR)
+#define LIBPAM_VERSION 65
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -47,9 +48,6 @@ struct handler {
     int must_fail;
     int (*func)(pam_handle_t *pamh, int flags, int argc, char **argv);
     int actions[_PAM_RETURN_VALUES];
-    /* set by authenticate, open_session, chauthtok(1st)
-       consumed by setcred, close_session, chauthtok(2nd) */
-    int cached_retval; int *cached_retval_p;
     int argc;
     char **argv;
     struct handler *next;
@@ -129,7 +127,6 @@ struct _pam_former_state {
 
 struct pam_handle {
     char *authtok;
-    unsigned caller_is;
     struct pam_conv *pam_conversation;
     char *oldauthtok;
     char *prompt;                /* for use by pam_get_user() */
@@ -138,6 +135,7 @@ struct pam_handle {
     char *rhost;
     char *ruser;
     char *tty;
+    struct pam_log_state pam_default_log;      /* for ident etc., log state */
     struct pam_data *data;
     struct pam_environ *env;      /* structure to maintain environment list */
     struct _pam_fail_delay fail_delay;   /* helper function for easy delays */
@@ -194,6 +192,8 @@ int _pam_make_env(pam_handle_t *pamh);
 /* delete the environment structure */
 void _pam_drop_env(pam_handle_t *pamh);
 
+#ifdef LINUX_PAM
+
 /* these functions deal with failure delays as required by the
    authentication modules and application. Their *interface* is likely
    to remain the same although their function is hopefully going to
@@ -208,13 +208,16 @@ void _pam_start_timer(pam_handle_t *pamh);
 /* this waits for the clock to stop ticking if status != PAM_SUCCESS */
 void _pam_await_timer(pam_handle_t *pamh, int status);
 
+
+#endif /* LINUX_PAM */
+
 typedef void (*voidfunc(void))(void);
 #ifdef PAM_STATIC
 
 /* The next two in ../modules/_pam_static/pam_static.c */
 
 /* Return pointer to data structure used to define a static module */
-struct pam_module * _pam_open_static_handler(const char *path);
+struct pam_module * _pam_open_static_handler(char *path);
 
 /* Return pointer to function requested from static module */
 
@@ -248,9 +251,6 @@ void _pam_set_default_control(int *control_array, int default_action);
 
 void _pam_parse_control(int *control_array, char *tok);
 
-void _pam_system_log(int priority, const char *format,  ... );
-#define _PAM_SYSTEM_LOG_PREFIX "PAM "
-
 /*
  * XXX - Take care with this. It could confuse the logic of a trailing
  *       else
@@ -258,7 +258,7 @@ void _pam_system_log(int priority, const char *format,  ... );
 
 #define IF_NO_PAMH(X,pamh,ERR)                    \
 if ((pamh) == NULL) {                             \
-    _pam_system_log(LOG_ERR, X ": NULL pam handle passed"); \
+    pam_system_log(NULL, NULL, LOG_ERR, X ": NULL pam handle passed"); \
     return ERR;                                   \
 }
 
@@ -267,27 +267,24 @@ if ((pamh) == NULL) {                             \
 #define PAM_DEFAULT_PROMPT "Please enter username: "
 
 /*
+ * pam_system_log default ident/facility..
+ */
+
+#define PAM_LOG_STATE_DEFAULT {      \
+    PAM_LOG_STATE_IDENT,     \
+    PAM_LOG_STATE_OPTION,    \
+    PAM_LOG_STATE_FACILITY   \
+}
+
+/*
  * include some helpful macros
  */
 
 #include <security/_pam_macros.h>
 
-/* used to work out where control currently resides (in an application
-   or in a module) */
-
-#define _PAM_CALLED_FROM_MODULE         1
-#define _PAM_CALLED_FROM_APP            2
-
-#define __PAM_FROM_MODULE(pamh)  ((pamh)->caller_is == _PAM_CALLED_FROM_MODULE)
-#define __PAM_FROM_APP(pamh)     ((pamh)->caller_is == _PAM_CALLED_FROM_APP)
-#define __PAM_TO_MODULE(pamh) \
-        do { (pamh)->caller_is = _PAM_CALLED_FROM_MODULE; } while (0)
-#define __PAM_TO_APP(pamh)    \
-        do { (pamh)->caller_is = _PAM_CALLED_FROM_APP; } while (0)
-
 /*
  * Copyright (C) 1995 by Red Hat Software, Marc Ewing
- * Copyright (c) 1996-8,2001 by Andrew G. Morgan <morgan@kernel.org>
+ * Copyright (c) 1996-8, Andrew G. Morgan <morgan@linux.kernel.org>
  *
  * All rights reserved
  *

@@ -22,6 +22,7 @@
  *
  * Written by Marek Michalkiewicz <marekm@i17linuxb.ists.pwr.wroc.pl>,
  * public domain.
+ * $FreeBSD$
  */
 
 #include <fcntl.h>

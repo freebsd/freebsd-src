@@ -2,9 +2,10 @@
 
 <!--
 
- $Id: pam_source.sgml,v 1.5 2001/03/19 01:46:41 agmorgan Exp $
+ $Id: pam_source.sgml,v 1.5 1997/04/05 06:49:14 morgan Exp morgan $
+ $FreeBSD$
 
-    Copyright (c) Andrew G. Morgan 1996-2001.  All rights reserved.
+    Copyright (c) Andrew G. Morgan 1996,1997.  All rights reserved.
 
 Redistribution and use in source (sgml) and binary (derived) forms,
 with or without modification, are permitted provided that the
@@ -45,8 +46,8 @@ DAMAGE.
 <article>
 
 <title>The Linux-PAM System Administrators' Guide
-<author>Andrew G. Morgan, <tt>morgan@kernel.org</tt>
-<date>DRAFT v0.75 2001/03/18
+<author>Andrew G. Morgan, <tt>morgan@linux.kernel.org</tt>
+<date>DRAFT v0.59 1998/1/7
 <abstract>
 This manual documents what a system-administrator needs to know about
 the <bf>Linux-PAM</bf> library. It covers the correct syntax of the
@@ -140,10 +141,10 @@ command shell (<em>bash, tcsh, zsh, etc.</em>) running with the
 identity of the user.
 
 <p>
-Traditionally, the former step is achieved by the <em/login/
+Traditinally, the former step is achieved by the <em/login/
 application prompting the user for a password and then verifying that
-it agrees with that located on the system; hence verifying that
-as far as the system is concerned the user is who they claim to be.
+it agrees with that located on the system; hence verifying that the
+so far as the system is concerned the user is who they claim to be.
 This is the task that is delegated to <bf/Linux-PAM/.
 
 <p>
@@ -215,121 +216,11 @@ configured authentication method.  The <bf/Linux-PAM/ library (in the
 center) consults the contents of the PAM configuration file and loads
 the modules that are appropriate for application-X. These modules fall
 into one of four management groups (lower-center) and are stacked in
-the order they appear in the configuration file. These modules, when
+the order they appear in the configuaration file. These modules, when
 called by <bf/Linux-PAM/, perform the various authentication tasks for
 the application. Textual information, required from/or offered to the
 user, can be exchanged through the use of the application-supplied
 <em/conversation/ function.
-
-<sect1>Getting started
-
-<p>
-The following text was contributed by Seth Chaiklin:
-<tscreen>
-<verb>
-To this point, we have described how PAM should work in an
-ideal world, in which all applications are coded properly.
-However, at the present time (October 1998), this is far
-from the case.  Therefore, here are some practical considerations
-in trying to use PAM in your system.
-
-Why bother, is it really worth all the trouble?  
-
-If you running Linux as a single user system, or in an
-environment where all the users are trusted, then there 
-is no real advantage for using PAM.
-</verb>
-</tscreen>
-
-<p>
-<BF>Ed:</BF> there is actually an advantage since you can <em/dummy
-down/ the authentication to the point where you don't have
-any... Almost like Win95.
-<p>
-In a networked environment, it is clear that you need to think a
-little more about how users etc., are authenticated:]
-
-<p>
-<tscreen>
-<verb>
-If you are running Linux as a server, where several different
-services are being provided (e.g., WWW with areas restricted by
-password control, PPP), then there can be some real and interesting
-value for PAM.  In particular, through the use of modules, PAM can
-enable a program to search through several different password
-databases, even if that program is not explicitly coded for
-that particular database.  Here are some examples of the possibilities
-that this enables.
-
-   o  Apache has a module that provides PAM services.  Now
-   authentication
-      to use particular directories can be conducted by PAM, which
-      means that the range of modules that are available to PAM can
-      be used, including RADIUS, NIS, NCP (which means that Novell
-      password databases can be used).
-
-   o  pppd has a PAMified version (available from RedHat)  Now it is
-      possible to use a series of databases to authenticate ppp users.
-      In addition to the normal Linux-based password databases (such
-      as /etc/passwd and /etc/shadow), you can use PAM modules to 
-      authenticate against Novell password databases or NT-based 
-      password databases. 
-
-   o  The preceding two examples can be combined.  Imagaine that the
-      persons in your office/department are already registered with a
-      username and password in a Novell or NT LAN.  If you wanted to
-      use this database on your Linux server (for PPP access, for 
-      web access, or even for normal shell access), you can use PAM
-      to authenticate against this existing database, rather than
-      maintain a separate database on both Linux and the LAN server.
-
-
-Can I use PAM for any program that requires authentication?
-
-Yes and no.   Yes, if you have access to the source code, and can
-add the appropriate PAM functions.  No, if you do not have access 
-to the source code, and the binary does not have the PAM functions
-included.
-
-In other words, if a program is going to use PAM, then it has to
-have PAM functions explicitly coded into the program.  If they
-are not, then it is not possible to use PAM. 
-
-How can I tell whether a program has PAM coded into it or not?
-
-A quick-and-dirty (but not always reliable) method is to ldd
-<programname>
-If libpam and libpam_misc are not among the libraries that the program
-uses, then it is not going to work with PAM.  However, it is possible
-that the libraries are included, but there are still problems, because
-the PAM coding in the program does not work as it should.  So a
-more reliable method is to make the follow tests.
-
-In the /etc/pam.d directory, one needs to make a configuration file
-for the program that one wants to run.  The exact name of the
-configuration
-file is hard-coded into the program.  Usually, it is the same name as
-the
-program, but not always.  For sake of illustration, let's assume that
-the program is named "pamprog" and the name of the configuration file
-is /etc/pam.d/pamprog.
-
-In the /etc/pam.d/pamprog but the following two lines:
-
-auth    required  pam_permit.so
-auth    required  pam_warn.so
-
-
-Now try to use pamprog.  The first line in the configuration file 
-says that all users are permitted.  The second line will write a
-warning to your syslog file (or whether you syslog is writing
-
-messages).  If this test succeeds, then you know that you have
-a program that can understand pam, and you can start the more
-interesting work of deciding how to stack modules in your
-/etc/pam.d/pamprog  file.
-</verb>
-</tscreen>
 
 <sect>The Linux-PAM configuration file
 <label id="configuration">
@@ -473,13 +364,9 @@ is not deemed as fatal to satisfying the application that this
 
 <item> <tt/optional/; as its name suggests, this <tt/control-flag/
 marks the module as not being critical to the success or failure of
-the user's application for service.  In general, <bf/Linux-PAM/
-ignores such a module when determining if the module stack will
-succeed or fail.  However, in the absence of any definite successes or
-failures of previous or subsequent stacked modules this module will
-determine the nature of the response to the application.  One example
-of this latter case, is when the other modules return something like
-<tt/PAM_IGNORE/.
+the user's application for service. However, in the absence of any
+successes of previous or subsequent stacked modules this module will
+determine the nature of the response to the application.
 
 </itemize>
 
@@ -506,12 +393,12 @@ Here, <tt/valueI/ is one of the following <em/return values/:
 <tt/authtok_disable_aging/; <tt/try_again/; <tt/ignore/; <tt/abort/;
 <tt/authtok_expired/; <tt/module_unknown/; <tt/bad_item/; and
 <tt/default/.  The last of these (<tt/default/) can be used to set the
-action for those return values that are not explicitly defined.
+action for those return values that are not set explicitly.
 
 <p>
 The <tt/actionI/ can be a positive integer or one of the following
 tokens: <tt/ignore/; <tt/ok/; <tt/done/; <tt/bad/; <tt/die/; and
-<tt/reset/.  A positive integer, <tt/J/, when specified as the action,
+<tt/reset/.  A positive integer, <tt/J/, when specified as the action
 can be used to indicate that the next <em/J/ modules of the current
 type will be skipped.  In this way, the administrator can develop a
 moderately sophisticated stack of modules with a number of different
@@ -519,41 +406,9 @@ paths of execution.  Which path is taken can be determined by the
 reactions of individual modules.
 
 <p>
-<itemize>
-<item><tt/ignore/ - when used with a stack of modules, the module's
-  return status will not contribute to the return code the application
-  obtains.
-<item><tt/bad/ - this action indicates that the return code should be
-  thought of as indicative of the module failing. If this module is
-  the first in the stack to fail, its status value will be used for
-  that of the whole stack.
-<item><tt/die/ - equivalent to <tt/bad/ with the side effect of
-  terminating the module stack and PAM immediately returning to the
-  application.
-<item><tt/ok/ - this tells <bf/PAM/ that the administrator thinks this
-  return code should contribute directly to the return code of the full
-  stack of modules. In other words, if the former state of the stack
-  would lead to a return of <tt/PAM_SUCCESS/, the module's return code
-  will override this value.  Note, if the former state of the stack
-  holds some value that is indicative of a modules failure, this 'ok'
-  value will not be used to override that value.
-<item><tt/done/ - equivalent to <tt/ok/ with the side effect of
-  terminating the module stack and PAM immediately returning to the
-  application.
-<item><tt/reset/ - clear all memory of the state of the module stack and
-  start again with the next stacked module.
-</itemize>
-
-<p>
-Just to get a feel for the power of this new syntax, here is a taste
-of what you can do with it.  With <bf/Linux-PAM-0.63/, the notion of
-client plug-in agents was introduced.  This is something that makes it
-possible for PAM to support machine-machine authentication using the
-transport protocol inherent to the client/server application.  With
-the ``<tt/[ ... value=action ... ]/'' control syntax, it is possible
-for an application to be configured to support binary prompts with
-compliant clients, but to gracefully fall over into an alternative
-authentication mode for older, legacy, applications.  Flexible eh?
+<bf>Note, at time of writing, this newer syntax is so new that I don't
+want to write too much about it.  Please play with this.  Report all
+the bugs and make suggestions for new actions (etc.).</bf>
 
 <tag> <tt/module-path/</tag>
 
@@ -577,7 +432,7 @@ next section.
 </descrip>
 
 <p>
-Any line in (one of) the configuration file(s), that is not formatted
+Any line in (one of) the confiuration file(s), that is not formatted
 correctly, will generally tend (erring on the side of caution) to make
 the authentication process fail.  A corresponding error is written to
 the system log files with a call to <tt/syslog(3)/.
@@ -599,10 +454,10 @@ configuration but not both.  That is to say, if there is a
 <tt>/etc/pam.d/</tt> directory then libpam only uses the files
 contained in this directory.  However, in the absence of the
 <tt>/etc/pam.d/</tt> directory the <tt>/etc/pam.conf</tt> file is
-used.  The other mode (and the one currently supported by Red Hat 4.2
-and higher) is to use both <tt>/etc/pam.d/</tt> and
-<tt>/etc/pam.conf</tt> in sequence.  In this mode, entries in
-<tt>/etc/pam.d/</tt> override those of <tt>/etc/pam.conf</tt>.
+used.  The other mode (and the one currently supported by Red Hat 4.2)
+is to use both <tt>/etc/pam.d/</tt> and <tt>/etc/pam.conf</tt> in
+sequence.  In this mode, entries in <tt>/etc/pam.d/</tt> override
+those of <tt>/etc/pam.conf</tt>.
 
 The syntax of each file in <tt>/etc/pam.d/</tt> is similar to that of
 the <tt>/etc/pam.conf</tt> file and is made up of lines of the
@@ -705,20 +560,6 @@ stacked modules.  Obviously a convenient feature that necessarily
 requires some reliably strong encryption to make it secure.
 This argument is intended for the <tt/auth/ and <tt/password/ module
 types only.
-
-<tag><tt/expose_account/</tag>
-
-<p>
-In general the leakage of some information about user accounts is not
-a secure policy for modules to adopt. Sometimes information such as
-users names or home directories, or preferred shell, can be used to
-attack a user's account. In some circumstances, however, this sort of
-information is not deemed a threat: displaying a user's full name when
-asking them for a password in a secured environment could also be
-called being 'friendly'. The <tt/expose_account/ argument is a
-standard module argument to encourage a module to be less discrete
-about account information as it is deemed appropriate by the local
-administrator.
 
 </descrip>
 
@@ -841,6 +682,17 @@ module-argument, this instructs the UNIX authentication module that it
 is not to prompt for a password but rely one already having been
 obtained by the ftp module.
 
+<p>
+The standard UNIX modules, used above, are strongly tied to using the
+default `<tt/libc/' user database functions (see for example, <tt/man
+getpwent/).  It is the opinion of the author that these functions are
+not sufficently flexible to make full use of the power of
+<bf/Linux-PAM/.  For this reason, and as a small plug, I mention in
+passing that there is a pluggable replacement for the <tt/pam_unix_../
+modules; <tt/pam_pwdb/. See the section below for a more complete
+description.
+
+
 <sect>Security issues of Linux-PAM
 
 <p>
@@ -950,28 +802,6 @@ This service is the default configuration for all PAM aware
 applications and if it is weak, your system is likely to be vulnerable
 to attack.
 
-<p>
-Here is a sample "other" configuration file. The <em/pam_deny/ module will
-deny access and the <em/pam_warn/ module will send a syslog message to
-<tt/auth.notice/:
-
-<p>
-<tscreen>
-<verb>
-#
-# The PAM configuration file for the `other' service 
-# 
-auth      required   pam_deny.so 
-auth      required   pam_warn.so 
-account   required   pam_deny.so 
-account   required   pam_warn.so 
-password  required   pam_deny.so 
-password  required   pam_warn.so 
-session   required   pam_deny.so 
-session   required   pam_warn.so
-</verb>
-</tscreen>
-
 <sect>A reference guide for available modules
 
 <p>
@@ -1018,8 +848,8 @@ files; the modules.
 PLUGGABLE AUTHENTICATION MODULES'', Open Software Foundation Request
 For Comments 86.0, October 1995. See this url:
 <tt><htmlurl
-url="http://www.kernel.org/pub/linux/libs/pam/pre/doc/rfc86.0.txt.gz"
-name="http://www.kernel.org/pub/linux/libs/pam/pre/doc/rfc86.0.txt.gz"></tt>
+url="http://www.pilgrim.umass.edu/pub/osf_dce/RFC/rfc86.0.txt"
+name="http://www.pilgrim.umass.edu/pub/osf&lowbar;dce/RFC/rfc86.0.txt"></tt>
 
 </itemize>
 
@@ -1046,9 +876,37 @@ and in such a way that they need not be distributed with Linux-PAM.
 <sect>Author/acknowledgments
 
 <p>
-This document was written by Andrew G. Morgan (morgan@kernel.org)
+This document was written by Andrew G. Morgan (morgan@parc.power.net)
 with many contributions from
-<!-- insert-file CREDITS -->
+<!-- insert credits here -->
+<!--
+ an sgml list of people to credit for their contributions to Linux-PAM
+ $Id: pam_source.sgml,v 1.5 1997/04/05 06:49:14 morgan Exp morgan $
+  -->
+Craig S. Bell,
+Derrick J. Brashear,
+Ben Buxton,
+Oliver Crow,
+Marc Ewing,
+Cristian Gafton,
+Eric Hester,
+Eric Jacksch,
+Michael K. Johnson,
+David Kinchlea,
+Elliot Lee,
+Al Longyear,
+Marek Michalkiewicz,
+Aleph One,
+Sean Reifschneider,
+Eric Troan,
+Theodore Ts'o,
+Jeff Uphoff,
+Ronald Wahl,
+John Wilmes,
+Joseph S. D. Yao
+and
+Alex O.  Yuriev.
+
 
 <p>
 Thanks are also due to Sun Microsystems, especially to Vipin Samar and
@@ -1064,15 +922,18 @@ More PAM modules are being developed all the time. It is unlikely that
 this document will ever be truely up to date!
 
 <p>
+Currently there is no documentation for PAM-aware applications.
+
+<p>
 This manual is unfinished. Only a partial list of people is credited
 for all the good work they have done.
 
 <sect>Copyright information for this document
 
 <p>
-Copyright (c) Andrew G. Morgan 1996-9.  All rights reserved.
+Copyright (c) Andrew G. Morgan 1996.  All rights reserved.
 <newline>
-Email: <tt>&lt;morgan@linux.kernel.org&gt;</tt>
+Email: <tt>&lt;morgan@parc.power.net&gt;</tt>
 
 <p>
 Redistribution and use in source and binary forms, with or without
@@ -1120,6 +981,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id: pam_source.sgml,v 1.5 2001/03/19 01:46:41 agmorgan Exp $</tt>
+<tt>$Id: pam_source.sgml,v 1.5 1997/04/05 06:49:14 morgan Exp morgan $</tt>
 
 </article>

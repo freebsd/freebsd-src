@@ -24,10 +24,17 @@
 #
 #	$FreeBSD$
 
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+
 LIB=		pam_skey
 SHLIB_NAME=	pam_skey.so
 SRCS=		pam_skey.c
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${.CURDIR}/../../libpam
 DPADD+=		${LIBSKEY}
 LDADD+=		-lskey
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
