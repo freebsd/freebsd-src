@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd June 1, 2003
+.Dd July 15, 2003
 .Dt PAM_SM_CLOSE_SESSION 3
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .In sys/types.h
 .In security/pam_appl.h
 .In security/pam_modules.h
-.Ft int
+.Ft "int"
 .Fn pam_sm_close_session "pam_handle_t *pamh" "int flags" "int args" "const char **argv"
 .Sh DESCRIPTION
 The
@@ -88,9 +88,10 @@ System error.
 .Sh AUTHORS
 The
 .Nm
-function and this manual page were developed for the FreeBSD Project
-by ThinkSec AS and Network Associates Laboratories, the Security
-Research Division of Network Associates, Inc.  under DARPA/SPAWAR
-contract N66001-01-C-8035
+function and this manual page were developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.  under
+DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
