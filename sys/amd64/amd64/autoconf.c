@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.100 1998/07/04 22:30:15 julian Exp $
+ *	$Id: autoconf.c,v 1.101 1998/07/18 21:42:55 des Exp $
  */
 
 /*
@@ -400,7 +400,6 @@ setdumpdev(dev)
 	long newdumplo;
 
 	if (dev == NODEV) {
-B
 		dumpdev = dev;
 		return (0);
 	}
