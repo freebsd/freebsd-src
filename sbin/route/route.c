@@ -778,38 +778,39 @@ newroute(argc, argv)
 	}
 	if (*cmd == 'g')
 		exit(0);
-	oerrno = errno;
-	(void) printf("%s %s %s", cmd, ishost? "host" : "net", dest);
-	if (*gateway) {
-		(void) printf(": gateway %s", gateway);
-		if (attempts > 1 && ret == 0 && af == AF_INET)
-		    (void) printf(" (%s)",
-			inet_ntoa(((struct sockaddr_in *)&route.rt_gateway)->sin_addr));
-	}
-	if (ret == 0) {
-		(void) printf("\n");
-		exit(0);
-	} else {
-		switch (oerrno) {
-		case ESRCH:
-			err = "not in table";
-			break;
-		case EBUSY:
-			err = "entry in use";
-			break;
-		case ENOBUFS:
-			err = "routing table overflow";
-			break;
-		case EDQUOT: /* handle recursion avoidance in rt_setgate() */
-			err = "gateway uses the same route";
-			break;
-		default:
-			err = strerror(oerrno);
-			break;
+	if (!qflag) {
+		oerrno = errno;
+		(void) printf("%s %s %s", cmd, ishost? "host" : "net", dest);
+		if (*gateway) {
+			(void) printf(": gateway %s", gateway);
+			if (attempts > 1 && ret == 0 && af == AF_INET)
+			    (void) printf(" (%s)",
+				inet_ntoa(((struct sockaddr_in *)&route.rt_gateway)->sin_addr));
 		}
-		(void) printf(": %s\n", err);
-		exit(1);
+		if (ret == 0) {
+			(void) printf("\n");
+		} else {
+			switch (oerrno) {
+			case ESRCH:
+				err = "not in table";
+				break;
+			case EBUSY:
+				err = "entry in use";
+				break;
+			case ENOBUFS:
+				err = "routing table overflow";
+				break;
+			case EDQUOT: /* handle recursion avoidance in rt_setgate() */
+				err = "gateway uses the same route";
+				break;
+			default:
+				err = strerror(oerrno);
+				break;
+			}
+			(void) printf(": %s\n", err);
+		}
 	}
+	exit(ret != 0);
 }
 
 void
