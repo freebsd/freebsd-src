@@ -1586,7 +1586,6 @@ ccdlookup(path, p, vpp)
 {
 	struct nameidata nd;
 	struct vnode *vp;
-	struct vattr va;
 	int error;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, p);
