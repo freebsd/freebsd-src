@@ -391,6 +391,7 @@ configRC_conf(void)
 	fprintf(rcSite, "inetd_enable=\"YES\"\n");
 	fprintf(rcSite, "portmap_enable=\"YES\"\n");
 	fprintf(rcSite, "sendmail_enable=\"YES\"\n");
+	fprintf(rcSite, "sshd_enable=\"YES\"\n");
     }
 
     /* Now do variable substitutions */
