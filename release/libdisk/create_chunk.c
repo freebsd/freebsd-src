@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.5 1995/04/30 11:04:12 phk Exp $
+ * $Id: create_chunk.c,v 1.6 1995/05/01 04:05:24 phk Exp $
  *
  */
 
@@ -26,31 +26,48 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 {
 	struct chunk *c1, *c3;
 	int j;
-	char *p=0;
 
 	if (!strcmp(c->name, "X")) return;
-	for (c1 = c->part; c1 ; c1 = c1->next) {
+
+	/* reset all names to "X" */
+	for (c1 = c->part; c1 ; c1 = c1->next)
+		strcpy(c1->name,"X");
+
+	/* Allocate the first swap-partition we find */
+	for (c1 = c->part; c1 ; c1 = c1->next) { 
 		if (c1->type == unused) continue;
 		if (c1->type == reserved) continue;
-		if (strcmp(c1->name, "X")) continue;
-		for(j=0;j<8;j++) {
-			if (j == 2)
-				continue;
-			p = malloc(12);
-			if(!p) err(1,"malloc failed");
-			sprintf(p,"%s%c",c->name,j+'a');
+		if (c1->subtype != FS_SWAP) continue;
+		sprintf(c1->name,"%s%c",c->name,SWAP_PART+'a');
+		break;
+	}
+
+	/* Allocate the first root-partition we find */
+	for (c1 = c->part; c1 ; c1 = c1->next) { 
+		if (c1->type == unused) continue;
+		if (c1->type == reserved) continue;
+		if (!(c1->flags & CHUNK_IS_ROOT)) continue;
+		sprintf(c1->name,"%s%c",c->name,0+'a');
+		break;
+	}
+
+	/* Allocate the rest sequentially */
+	for (c1 = c->part; c1 ; c1 = c1->next) {
+		const char order[] = "defghab";
+		if (c1->type == unused) continue;
+		if (c1->type == reserved) continue;
+		if (strcmp("X",c1->name)) continue;
+
+		for(j=0;j<strlen(order);j++) {
+			sprintf(c1->name,"%s%c",c->name,order[j]);
 			for(c3 = c->part; c3 ; c3 = c3->next) 
-				if (c3 != c1 && !strcmp(c3->name, p))
+				if (c1 != c3 && !strcmp(c3->name, c1->name))
 					goto match;
-			free(c1->name);
-			c1->name = p;
-			p = 0;
 			break;
-			match:
-				continue;
+		match:
+			strcpy(c1->name,"X");
+			continue;
 		}
-		if(p)
-			free(p);
 	}
 }
 
@@ -102,8 +119,6 @@ Fixup_Names(struct disk *d)
 		if (c2->type == unused)
 			continue;
 		if (c2->type == reserved)
-			continue;
-		if (strcmp(c2->name,"X"))
 			continue;
 		p = malloc(12);
 		if(!p) err(1,"malloc failed");
