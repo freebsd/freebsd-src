@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.25 1995/05/07 18:24:43 jkh Exp $
+ *      $Id: userconfig.c,v 1.26 1995/05/07 19:45:49 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -293,7 +293,7 @@ set_device_irq(CmdParm *parms)
 	printf("Warning: Remapping IRQ 2 to IRQ 9 - see config(8)\n");
 	irq = 9;
     }
-    else if (irq > 15) {
+    else if (irq != -1 && irq > 15) {
 	printf("An IRQ > 15 would be invalid.\n");
 	return 0;
     }
