@@ -28,6 +28,9 @@
  *
  * Driver for IDT77252 based cards like ProSum's.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

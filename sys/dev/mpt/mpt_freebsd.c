@@ -1,5 +1,7 @@
-/* $FreeBSD$ */
 /*
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  * FreeBSD/CAM specific routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *

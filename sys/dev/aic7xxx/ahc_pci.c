@@ -29,9 +29,10 @@
  * SUCH DAMAGE.
  *
  * $Id: ahc_pci.c,v 1.53 2003/05/03 23:27:57 gibbs Exp $
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/aic7xxx/aic7xxx_osm.h>
 

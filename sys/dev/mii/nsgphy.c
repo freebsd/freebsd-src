@@ -37,6 +37,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Driver for the National Semiconductor DP83891 and DP83861
  * 10/100/1000 PHYs.

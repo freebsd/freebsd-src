@@ -31,10 +31,12 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
 /* if_em_hw.c
  * Shared functions for accessing and configuring the MAC
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/em/if_em_hw.h>
 

@@ -1,5 +1,4 @@
-/* $FreeBSD$ */
-/*
+/*-
  *       Copyright (c) 2000-01 Intel Corporation
  *       All Rights Reserved
  *
@@ -26,8 +25,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ident "$Id: iir_pci.c 1.1 2001/05/22 20:14:12 achim Exp $"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  *  iir_pci.c:  PCI Bus Attachment for Intel Integrated RAID Controller driver
@@ -37,8 +39,6 @@
  *
  *  TODO:
  */
-
-#ident "$Id: iir_pci.c,v 1.8 2003/07/01 15:51:58 scottl Exp $"
 
 /* #include "opt_iir.h" */
 

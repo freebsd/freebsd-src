@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * CATC USB-EL1210A USB to ethernet driver. Used in the CATC Netmate
  * adapters and others.

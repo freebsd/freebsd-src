@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * This is a PCI shim for the Aironet PC4500/4800 wireless network
  * driver. Aironet makes PCMCIA, ISA and PCI versions of these devices,
@@ -49,9 +52,6 @@
  * more, you need a datasheet for the 9050 from PLX, but you have
  * to go through their sales office to get it. Bleh.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 

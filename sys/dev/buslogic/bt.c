@@ -30,8 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+<<<<<<< bt.c
+=======
  * $FreeBSD$
+>>>>>>> 1.41
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
  /*
   * Special thanks to Leonard N. Zubkoff for writing such a complete and

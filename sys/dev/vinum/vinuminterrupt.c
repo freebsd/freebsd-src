@@ -1,5 +1,8 @@
 /* vinuminterrupt.c: bottom half of the driver */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*-
  * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -40,7 +43,6 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinuminterrupt.c,v 1.14 2001/05/23 23:03:37 grog Exp grog $
- * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

@@ -1,4 +1,4 @@
-/*matcd_isa.c----------------------------------------------------------------
+/*- matcd_isa.c---------------------------------------------------------------
 
 	Matsushita(Panasonic) / Creative CD-ROM Driver	(matcd)
 	Authored by Frank Durda IV
@@ -34,10 +34,8 @@ SUCH DAMAGE.
 
 -----------------------------------------------------------------------------*/
 
-/* $FreeBSD$
-*/
-
-/*---------------------------------------------------------------------------*/
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

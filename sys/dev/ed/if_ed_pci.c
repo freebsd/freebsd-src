@@ -1,5 +1,4 @@
-/*
- *
+/*-
  * Copyright (c) 1996 Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -16,9 +15,10 @@
  *    Stefan Esser.
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

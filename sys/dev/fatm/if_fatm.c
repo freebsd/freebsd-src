@@ -28,6 +28,9 @@
  *
  * Fore PCA200E driver for NATM
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
