@@ -82,8 +82,8 @@ faithattach(faith)
 		ifp->if_name = "faith";
 		ifp->if_unit = i;
 		ifp->if_mtu = FAITHMTU;
-		/* Change to BROADCAST experimentaly to announce its prefix. */
-		ifp->if_flags = /* IFF_LOOPBACK */ IFF_BROADCAST | IFF_MULTICAST;
+		/* LOOPBACK commented out to announce IPv6 routes to faith */
+		ifp->if_flags = /* IFF_LOOPBACK | */ IFF_MULTICAST;
 		ifp->if_ioctl = loioctl;
 		ifp->if_output = looutput;
 		ifp->if_type = IFT_FAITH;
