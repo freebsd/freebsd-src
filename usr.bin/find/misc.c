@@ -115,18 +115,3 @@ queryuser(argv)
 	}
         return (first == 'y');
 }
-
-/*
- * emalloc --
- *	malloc with error checking.
- */
-void *
-emalloc(len)
-	u_int len;
-{
-	void *p;
-
-	if ((p = malloc(len)) == NULL)
-		err(1, NULL);
-	return (p);
-}
