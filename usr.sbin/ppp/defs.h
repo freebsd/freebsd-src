@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.30 1998/05/21 21:45:05 brian Exp $
+ * $Id: defs.h,v 1.31 1998/05/28 23:17:40 brian Exp $
  *
  *	TODO:
  */
@@ -72,14 +72,14 @@
 #define EX_NOLOGIN	13
 
 /* physical::type values (OR'd in bundle::phys_type) */
-#define PHYS_NONE	0
-#define PHYS_MANUAL	1	/* Manual link */
-#define PHYS_DEMAND	2	/* Dial-on-demand link (-auto) */
-#define	PHYS_DIRECT	4	/* Incoming link (-direct) */
-#define	PHYS_DEDICATED	8	/* Dedicated link (-dedicated) */
-#define	PHYS_PERM	16	/* Dial immediately, stay connected (-ddial) */
-#define PHYS_1OFF	32	/* Dial immediately, delete when done. (-background) */
-#define PHYS_ALL	63
+#define PHYS_NONE		0
+#define PHYS_INTERACTIVE	1  /* Manual link */
+#define PHYS_AUTO		2  /* Dial-on-demand link */
+#define	PHYS_DIRECT		4  /* Incoming link, deleted when closed */
+#define	PHYS_DEDICATED		8  /* Dedicated link */
+#define	PHYS_DDIAL		16 /* Dial immediately, stay connected */
+#define PHYS_BACKGROUND		32 /* Dial immediately, deleted when closed */
+#define PHYS_ALL		63
 
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);

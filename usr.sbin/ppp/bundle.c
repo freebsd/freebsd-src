@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.9 1998/05/28 23:15:29 brian Exp $
+ *	$Id: bundle.c,v 1.10 1998/05/28 23:17:31 brian Exp $
  */
 
 #include <sys/param.h>
@@ -216,13 +216,13 @@ bundle_AutoLoadTimeout(void *v)
   if (bundle->autoload.comingup) {
     log_Printf(LogPHASE, "autoload: Another link is required\n");
     /* bundle_Open() stops the timer */
-    bundle_Open(bundle, NULL, PHYS_DEMAND);
+    bundle_Open(bundle, NULL, PHYS_AUTO);
   } else {
     struct datalink *dl, *last;
 
     timer_Stop(&bundle->autoload.timer);
     for (last = NULL, dl = bundle->links; dl; dl = dl->next)
-      if (dl->physical->type == PHYS_DEMAND && dl->state == DATALINK_OPEN)
+      if (dl->physical->type == PHYS_AUTO && dl->state == DATALINK_OPEN)
         last = dl;
 
     if (last)
@@ -242,7 +242,7 @@ bundle_StartAutoLoadTimer(struct bundle *bundle, int up)
     bundle->autoload.running = 0;
   } else if (up) {
     for (dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_CLOSED && dl->physical->type == PHYS_DEMAND) {
+      if (dl->state == DATALINK_CLOSED && dl->physical->type == PHYS_AUTO) {
         if (bundle->cfg.autoload.max.timeout) {
           bundle->autoload.timer.func = bundle_AutoLoadTimeout;
           bundle->autoload.timer.name = "autoload up";
@@ -262,7 +262,7 @@ bundle_StartAutoLoadTimer(struct bundle *bundle, int up)
 
     for (nlinks = 0, adl = NULL, dl = bundle->links; dl; dl = dl->next)
       if (dl->state == DATALINK_OPEN) {
-        if (dl->physical->type == PHYS_DEMAND)
+        if (dl->physical->type == PHYS_AUTO)
           adl = dl;
         if (++nlinks > 1 && adl) {
           if (bundle->cfg.autoload.min.timeout) {
@@ -504,7 +504,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     }
 
     if (r &&
-        (bundle->phase == PHASE_NETWORK || bundle->phys_type & PHYS_DEMAND)) {
+        (bundle->phase == PHASE_NETWORK || bundle->phys_type & PHYS_AUTO)) {
       /* enough surplus so that we can tell if we're getting swamped */
       want = bundle->cfg.autoload.max.packets + nlinks * 2;
       /* but at least 20 packets ! */
@@ -613,7 +613,7 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
        * *not* be UP and we can't receive data
        */
       if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
-        bundle_Open(bundle, NULL, PHYS_DEMAND);
+        bundle_Open(bundle, NULL, PHYS_AUTO);
       else
         /*
          * Drop the packet.  If we were to queue it, we'd just end up with
@@ -1025,7 +1025,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   /*
    * Our datalink has closed.
    * CleanDatalinks() (called from DoLoop()) will remove closed
-   * 1OFF and DIRECT links.
+   * BACKGROUND and DIRECT links.
    * If it's the last data link, enter phase DEAD.
    *
    * NOTE: dl may not be in our list (bundle_SendDatalink()) !
@@ -1040,7 +1040,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       other_links++;
 
   if (!other_links) {
-    if (dl->physical->type != PHYS_DEMAND)	/* Not in -auto mode */
+    if (dl->physical->type != PHYS_AUTO)	/* Not in -auto mode */
       bundle_DownInterface(bundle);
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING) {
@@ -1068,8 +1068,8 @@ bundle_Open(struct bundle *bundle, const char *name, int mask)
     if (name == NULL || !strcasecmp(dl->name, name)) {
       if (dl->state == DATALINK_CLOSED && (mask & dl->physical->type)) {
         datalink_Up(dl, 1, 1);
-        if (mask == PHYS_DEMAND)
-          /* Only one DEMAND link at a time (see the AutoLoad timer) */
+        if (mask == PHYS_AUTO)
+          /* Only one AUTO link at a time (see the AutoLoad timer) */
           break;
       }
       if (name != NULL)
@@ -1220,7 +1220,7 @@ void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
   timer_Stop(&bundle->idle.timer);
-  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM)) != bundle->phys_type &&
+  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_DDIAL)) != bundle->phys_type &&
       bundle->cfg.idle_timeout) {
     bundle->idle.timer.func = bundle_IdleTimeout;
     bundle->idle.timer.name = "idle";
@@ -1264,7 +1264,7 @@ static void
 bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
 {
   bundle->phys_type |= dl->physical->type;
-  if (dl->physical->type == PHYS_DEMAND &&
+  if (dl->physical->type == PHYS_AUTO &&
       bundle->autoload.timer.state == TIMER_STOPPED &&
       bundle->phase == PHASE_NETWORK)
     bundle->autoload.running = 1;
@@ -1279,7 +1279,7 @@ bundle_LinksRemoved(struct bundle *bundle)
   for (dl = bundle->links; dl; dl = dl->next)
     bundle_LinkAdded(bundle, dl);
 
-  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM)) == bundle->phys_type)
+  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_DDIAL)) == bundle->phys_type)
     timer_Stop(&bundle->idle.timer);
 }
 
@@ -1321,7 +1321,7 @@ bundle_CleanDatalinks(struct bundle *bundle)
 
   while (*dlp)
     if ((*dlp)->state == DATALINK_CLOSED &&
-        (*dlp)->physical->type & (PHYS_DIRECT|PHYS_1OFF)) {
+        (*dlp)->physical->type & (PHYS_DIRECT|PHYS_BACKGROUND)) {
       *dlp = datalink_Destroy(*dlp);
       found++;
     } else
@@ -1544,7 +1544,7 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
   if (omode == mode)
     return 1;
 
-  if (mode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+  if (mode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
     /* Changing to demand-dial mode */
     if (bundle->ncp.ipcp.peer_ip.s_addr == INADDR_ANY) {
       log_Printf(LogWARN, "You must `set ifaddr' before changing mode to %s\n",
@@ -1555,13 +1555,13 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
   if (!datalink_SetMode(dl, mode))
     return 0;
 
-  if (mode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+  if (mode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
     ipcp_InterfaceUp(&bundle->ncp.ipcp);
 
   /* Regenerate phys_type and adjust autoload & idle timers */
   bundle_LinksRemoved(bundle);
 
-  if (omode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+  if (omode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
     /* Changing from demand-dial mode */
     ipcp_CleanInterface(&bundle->ncp.ipcp);
 
