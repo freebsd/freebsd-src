@@ -258,20 +258,13 @@ int	 vsprintf(char * __restrict, const char * __restrict,
 #if __ISO_C_VISIBLE >= 1999
 int	 snprintf(char * __restrict, size_t, const char * __restrict,
 	    ...) __printflike(3, 4);
+int	 vfscanf(FILE * __restrict, const char * __restrict, __va_list)
+	    __scanflike(2, 0);
 int	 vscanf(const char * __restrict, __va_list) __scanflike(1, 0);
 int	 vsnprintf(char * __restrict, size_t, const char * __restrict,
 	    __va_list) __printflike(3, 0);
 int	 vsscanf(const char * __restrict, const char * __restrict, __va_list)
 	    __scanflike(2, 0);
-
-/*
- * This is a #define because the function is used internally and
- * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
- * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
- *
- * XXX missing a backing function (weak alias?) for this.
- */
-#define	 vfscanf	__vfscanf
 #endif
 
 /*
@@ -387,8 +380,6 @@ int	 truncate(const char *, __off_t);
  * Functions internal to the implementation.
  */
 int	__srget(FILE *);
-int	__vfscanf(FILE *, const char *, __va_list);
-int	__svfscanf(FILE *, const char *, __va_list);
 int	__swbuf(int, FILE *);
 
 /*
