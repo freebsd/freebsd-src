@@ -69,7 +69,7 @@ and the search restarts.
 Freeing a number of pages is done by changing their state in the 
 page directory to MALLOC_FREE, and then traversing the free-pages list to
 find the right place for this run of pages, possibly collapsing
-with the two neighbouring runs into one run and, if possible,
+with the two neighboring runs into one run and, if possible,
 releasing some memory back to the kernel by calling brk(2).
 .PP
 If the request is less than or equal to half of a page, its size will be
@@ -113,7 +113,7 @@ information is not available and it would essentially mean a reordering
 of the list on every memory reference to keep it up-to-date.
 Instead they are ordered according to the address of the pages.
 Interestingly enough, in practice this comes out to almost the same 
-thing performance wise.
+thing performance-wise.
 .PP
 It's not that surprising after all, it's the difference between
 following the crowd or actively directing where it can go, in both
@@ -127,7 +127,7 @@ It is an interesting twist to the implementation that the
 .B
 struct pginfo
 .R
-Is allocated with malloc.
+is allocated with malloc.
 That is, "as with malloc" to be painfully correct.
 The code knows the special case where the first (couple) of allocations on
 the page is actually the pginfo structure and deals with it accordingly.
@@ -163,7 +163,7 @@ the pointer if it is found to be invalid.
 .PP
 An environment variable
 .B MALLOC_OPTIONS
-allows the user some control over the behaviour of malloc.
+allows the user some control over the behavior of malloc.
 Some of the more interesting options are:
 .IP
 .B Abort
@@ -185,7 +185,7 @@ unused data.
 .IP
 .B Realloc
 Always do a free and malloc when realloc(3) is called.
-For programs doing garbage collection using realloc(3), this make the
+For programs doing garbage collection using realloc(3), this makes the
 heap collapse faster since malloc will reallocate from the 
 lowest available address.
 The default
@@ -212,7 +212,7 @@ knows a lot of the things that mmap has to find out first.
 .PP
 In general there is little room for further improvement of the
 time-overhead of the malloc, further improvements will have to
-be in the area of improving paging behaviour.
+be in the area of improving paging behavior.
 .PP
 It is still under consideration to add a feature such that
 if realloc is called with two zero arguments, the internal

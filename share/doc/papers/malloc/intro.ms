@@ -32,7 +32,7 @@ There isn't really a kernel-interface to the stack as such.
 The kernel will allocate some amount of memory for it,
 not even telling the process the exact size.
 If the process needs more space than that, it will simply try to access
-it, hoping that the kernel will detect that access have been 
+it, hoping that the kernel will detect that an access has been 
 attempted outside the allocated memory, and try to extend it.
 If the kernel fails to extend the stack, this could be because of lack
 of resources or permissions or because it may just be impossible
@@ -42,7 +42,7 @@ kernel.
 In the C language, there exists a little used interface to the stack,
 .B alloca(3) ,
 which will explicitly allocate space on the stack.
-This is not a interface to the kernel, but merely an adjustment
+This is not an interface to the kernel, but merely an adjustment
 done to the stack-pointer such that space will be available and
 unharmed by any subroutine calls yet to be made while the context
 of the current subroutine is intact.
@@ -58,14 +58,14 @@ system call
 .B brk(2) .
 The argument to brk(2) is a pointer to where the process wants the
 heap to end.
-There is also a interface called
+There is also an interface called
 .B sbrk(2)
 taking an increment to the current end of the heap, but this is merely a
 .B libc
 front for brk(2).
 .PP
 In addition to these two memory resources, modern virtual memory kernels
-provide the mmap(2)/mmunmap(2) interface which allows almost complete
+provide the mmap(2)/munmap(2) interface which allows almost complete
 control over any bit of virtual memory in the process address space.
 .PP
 Because of the generality of the mmap(2) interface and the way the 
