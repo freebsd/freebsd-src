@@ -2027,15 +2027,10 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	ifp = NULL;
 	error = 0;
 	
-	mtx_lock(&Giant);
-	if ((error = fget(td, args->fd, &fp)) != 0) {
-		mtx_unlock(&Giant);
+	if ((error = fget(td, args->fd, &fp)) != 0)
 		return (error);
-	}
 	type = fp->f_type;
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
-
 	if (type != DTYPE_SOCKET) {
 		/* not a socket - probably a tap / vmnet device */
 		switch (args->cmd) {
@@ -2243,14 +2238,10 @@ linux_ioctl_private(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error, type;
 
-	mtx_lock(&Giant);
-	if ((error = fget(td, args->fd, &fp)) != 0) {
-		mtx_unlock(&Giant);
+	if ((error = fget(td, args->fd, &fp)) != 0)
 		return (error);
-	}
 	type = fp->f_type;
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
 	if (type == DTYPE_SOCKET)
 		return (linux_ioctl_socket(td, args));
 	return (ENOIOCTL);
