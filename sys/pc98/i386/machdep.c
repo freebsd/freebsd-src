@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.105.2.3 1999/02/19 14:39:52 kato Exp $
+ *	$Id: machdep.c,v 1.105.2.4 1999/04/14 04:55:24 jdp Exp $
  */
 
 #include "apm.h"
@@ -847,6 +847,9 @@ setregs(p, entry, stack, ps_strings)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_cs = _ucodesel;
+
+	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
+	regs->tf_ebx = ps_strings;
 
 	/* reset %fs and %gs as well */
 	pcb->pcb_fs = _udatasel;
