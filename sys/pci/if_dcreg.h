@@ -739,6 +739,7 @@ struct dc_softc {
 #define DC_64BIT_HASH		0x00002000
 #define DC_TULIP_LEDS		0x00004000
 #define DC_TX_ONE		0x00008000
+#define DC_TX_ALIGN		0x00010000	/* align mbuf on tx */
 
 /*
  * register space access macros
