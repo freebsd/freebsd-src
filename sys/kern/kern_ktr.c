@@ -240,7 +240,7 @@ db_mach_vtrace(void)
 #endif
 		db_printf("%d: ", tstate.cur);
 		if (db_ktr_verbose)
-			db_printf("%4ld.%06ld ", kp->ktr_tv.tv_sec,
+			db_printf("%4ld.%06ld ", (long)kp->ktr_tv.tv_sec,
 			    kp->ktr_tv.tv_nsec / 1000);
 #ifdef KTR_EXTEND
 #ifdef SMP
