@@ -195,6 +195,11 @@ acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
 		return(ENXIO);
 	}
 
+        /*
+         * No security check required: information retrieval only.  If
+         * new functions are added here, a check might be required.
+         */
+
 	switch (cmd) {
 	case ACPIIO_ACAD_GET_STATUS:
 		acpi_acad_get_status(dev);

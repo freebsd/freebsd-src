@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -487,7 +488,7 @@ acpi_attach(device_t dev)
     /*
      * Create the control device
      */
-    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
 	"acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
@@ -1841,6 +1842,15 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 		goto out;
 	    }
 	}
+    }
+
+    /*
+     * Core ioctls are  not permitted for non-writable user.
+     * Currently, other ioctls just fetch information.
+     * Not changing system behavior.
+     */
+    if(!(flag & FWRITE)){
+	    return EPERM;
     }
 
     /*
