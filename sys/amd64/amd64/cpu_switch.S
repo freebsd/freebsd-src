@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.14 1994/10/01 02:56:03 davidg Exp $
+ *	$Id: swtch.s,v 1.15 1994/10/02 04:45:35 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -490,7 +490,7 @@ ENTRY(swtch_to_inactive)
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3			/* good bye address space */
  #write buffer?
-	movl	$tmpstk-4,%esp			/* temporary stack, compensated for call */
+	movl	$tmpstk,%esp			/* temporary stack, compensated for call */
 	MEXITCOUNT
 	jmp	%edx				/* return, execute remainder of cleanup */
 

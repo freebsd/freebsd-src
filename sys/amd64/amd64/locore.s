@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.37 1994/10/20 00:07:47 phk Exp $
+ *	$Id: locore.s,v 1.38 1994/10/22 17:51:46 phk Exp $
  */
 
 /*
@@ -103,6 +103,11 @@
  */
 	.data
 
+	.globl	tmpstk
+	.space	0x1000		/* space for tmpstk - temporary stack */
+tmpstk:
+	.long	0		/* for debugging tmpstk stack underflow */
+
 	.globl	_boothowto,_bootdev,_curpcb
 
 	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
@@ -140,10 +145,6 @@ _apm_current_gdt_pdesc:
 _bootstrap_gdt:
 	.space	SIZEOF_GDT * BOOTSTRAP_GDT_NUM
 #endif /* NAPM */
-	.globl	tmpstk
-	.space	0x1000
-tmpstk:
-
 
 /*
  * System Initialization
@@ -566,8 +567,17 @@ NON_GPROF_ENTRY(btext)
 #else /* !KGDB && !BDE_DEBUGGER */
 	/* write protect kernel text (doesn't do a thing for 386's - only 486's) */
 	movl	$_etext-KERNBASE,%ecx		/* get size of text */
+	addl	$NBPG-1,%ecx			/* round up to page */
 	shrl	$PGSHIFT,%ecx			/* for this many PTEs */
 	movl	$PG_V|PG_KR,%eax		/* specify read only */
+#if 0
+	movl	$_etext,%ecx			/* get size of text */
+	subl	$_btext,%ecx
+	addl	$NBPG-1,%ecx			/* round up to page */
+	shrl	$PGSHIFT,%ecx			/* for this many PTEs */
+	movl	$_btext-KERNBASE,%eax		/* get offset to physical memory */
+	orl	$PG_V|PG_KR,%eax		/* specify read only */
+#endif
 	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
 	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
 	fillkpt
