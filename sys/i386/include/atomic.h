@@ -80,7 +80,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
  * the binaries will run on both types of systems.
  */
 #if defined(SMP) || !defined(_KERNEL)
-#define MPLOCKED	"lock ; "
+#define MPLOCKED	lock ;
 #else
 #define MPLOCKED
 #endif
@@ -93,7 +93,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile(MPLOCKED OP			\
+	__asm __volatile(__XSTRING(MPLOCKED) OP		\
 			 : "+m" (*p)			\
 			 : CONS (V));			\
 }
@@ -137,7 +137,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	int res = exp;
 
 	__asm __volatile (
-	"	" MPLOCKED "		"
+	"	" __XSTRING(MPLOCKED) "	"
 	"	cmpxchgl %1,%2 ;	"
 	"       setz	%%al ;		"
 	"	movzbl	%%al,%0 ;	"
@@ -180,7 +180,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
 	u_##TYPE res;					\
 							\
-	__asm __volatile(MPLOCKED LOP			\
+	__asm __volatile(__XSTRING(MPLOCKED) LOP	\
 	: "=a" (res),			/* 0 (result) */\
 	  "+m" (*p)			/* 1 */		\
 	: : "memory");				 	\
