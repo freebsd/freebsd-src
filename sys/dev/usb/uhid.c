@@ -375,6 +375,18 @@ uhidopen(dev, flag, mode, p)
 {
 	struct uhid_softc *sc;
 	usbd_status err;
+#if defined(__FreeBSD__) && defined(__i386__)
+	static int hid_opened;
+
+	if (hid_opened == 0) {
+		int s;
+		s = splhigh();
+		tty_imask |= bio_imask;
+		update_intr_masks();
+		splx(s);
+		hid_opened = 1;
+	}
+#endif
 
 	USB_GET_SC_OPEN(uhid, UHIDUNIT(dev), sc);
 
