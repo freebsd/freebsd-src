@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.libnames.mk,v 1.16 1998/09/09 17:51:15 markm Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -13,12 +13,14 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
+LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCIPHER?=	${DESTDIR}${LIBDIR}/libcipher.a	# XXX in secure dist, not base
 LIBCOM_ERR=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
 LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a	# XXX in secure dist, not base
+LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
