@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.18 1996/04/28 20:54:03 jkh Exp $
+ * $Id: main.c,v 1.19 1996/05/16 11:47:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,7 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
-    if (argc > 1) {
+    if (argc > 1 && !RunningAsInit) {
 	int i;
 
 	for (i = 1; i < argc; i++) {
