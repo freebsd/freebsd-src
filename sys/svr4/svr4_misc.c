@@ -805,10 +805,9 @@ svr4_sys_break(p, uap)
 
 	if (new > old) {
 		vm_size_t diff;
-		if (swap_pager_full) {
-			return (ENOMEM);
-		}
 		diff = new - old;
+		if (vm->vm_map.size + diff > p->p_rlimit[RLIMIT_VMEM].rlim_cur)
+			return(ENOMEM);
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
