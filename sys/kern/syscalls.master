@@ -172,7 +172,7 @@
 100	MSTD	BSD	{ int getpriority(int which, int who); }
 101	MCOMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
 102	MCOMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
-103	COMPAT	BSD	{ int sigreturn(struct osigcontext *sigcntxp); }
+103	STD	BSD	{ int osigreturn(struct osigcontext *sigcntxp); }
 104	MSTD	BSD	{ int bind(int s, caddr_t name, int namelen); }
 105	MSTD	BSD	{ int setsockopt(int s, int level, int name, \
 			    caddr_t val, int valsize); }
