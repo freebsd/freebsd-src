@@ -393,7 +393,7 @@ prerun(int argc, char **argv)
 
 	repls = Rflag;
 
-	if (repls == 0) {
+	if (argc == 0 || repls == 0) {
 		*xp = NULL;
 		run(argv);
 		return;
