@@ -841,67 +841,30 @@ done_probe:
  * p166:   bestburstlen=64, alburst=0 
  */
 
-#if defined(__FreeBSD__) && defined(__i386__)
-#define NBURSTS	3	/* number of bursts to use for dmaprobe */
-#define BOUNDARY 1024	/* test misaligned dma crossing the bounday.
-			   should be n * 64.  at least 64*(NBURSTS+1).
-			   dell P6 with EDO DRAM has 1K bounday problem */
-#endif
-
 STATIC void en_dmaprobe(sc)
 
 struct en_softc *sc;
 
 {
-#ifdef NBURSTS
-  /* be careful. kernel stack is only 8K */
-  u_int8_t buffer[BOUNDARY * 2 + 64 * (NBURSTS + 1)]; 
-#else
   u_int32_t srcbuf[64], dstbuf[64];
-#endif
   u_int8_t *sp, *dp;
   int bestalgn, bestnotalgn, lcv, try;
 
   sc->alburst = 0;
 
-#ifdef NBURSTS
-  /* setup src and dst buf at the end of the boundary */
-  sp = (u_int8_t *)roundup((uintptr_t)(void *)buffer, 64);
-  while (((uintptr_t)(void *)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
-      sp += 64;
-  dp = sp + BOUNDARY;
-
-  /*
-   * we can't dma across page boundary so that, if buf is at a page
-   * boundary, move it to the next page.  but still either src or dst
-   * will be at the boundary, which should be ok.
-   */
-  if ((((uintptr_t)(void *)sp + 64) & PAGE_MASK) == 0)
-      sp += 64;
-  if ((((uintptr_t)(void *)dp + 64) & PAGE_MASK) == 0)
-      dp += 64;
-#else /* !NBURSTS */
   sp = (u_int8_t *) srcbuf;
   while ((((unsigned long) sp) % MIDDMA_MAXBURST) != 0)
     sp += 4;
   dp = (u_int8_t *) dstbuf;
   while ((((unsigned long) dp) % MIDDMA_MAXBURST) != 0)
     dp += 4;
-#endif /* !NBURSTS */
 
   bestalgn = bestnotalgn = en_dmaprobe_doit(sc, sp, dp, 0);
 
   for (lcv = 4 ; lcv < MIDDMA_MAXBURST ; lcv += 4) {
     try = en_dmaprobe_doit(sc, sp+lcv, dp+lcv, 0);
-#ifdef NBURSTS
-    if (try < bestnotalgn) {
-      bestnotalgn = try;
-      break;
-    }
-#else
     if (try < bestnotalgn)
       bestnotalgn = try;
-#endif
   }
 
   if (bestalgn != bestnotalgn) 		/* need bursts aligned */
@@ -960,11 +923,7 @@ int wmtry;
   EN_WRITE(sc, MID_DST_RP(0), 0);
   EN_WRITE(sc, MID_WP_ST_CNT(0), 0);
 
-#ifdef NBURSTS
-  for (lcv = 0 ; lcv < 64*NBURSTS; lcv++) 	/* set up sample data */
-#else
   for (lcv = 0 ; lcv < 68 ; lcv++) 		/* set up sample data */
-#endif
     sp[lcv] = lcv+1;
   EN_WRITE(sc, MID_MAST_CSR, MID_MCSR_ENDMA);	/* enable DMA (only) */
 
@@ -994,11 +953,7 @@ int wmtry;
     /* zero SRAM and dest buffer */
     for (cnt = 0 ; cnt < 1024; cnt += 4) 
       EN_WRITE(sc, MID_BUFOFF+cnt, 0);	/* zero memory */
-#ifdef NBURSTS
-    for (cnt = 0 ; cnt < 64*NBURSTS; cnt++) 
-#else
     for (cnt = 0 ; cnt < 68  ; cnt++) 
-#endif
       dp[cnt] = 0;
 
     if (wmtry) {
@@ -1009,29 +964,6 @@ int wmtry;
       bcode = en_sz2b(lcv);
       count = 1;
     }
-#ifdef NBURSTS
-    /* build lcv-byte-DMA x NBURSTS */
-    if (sc->is_adaptec)
-      EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ADP(lcv*NBURSTS, 0, MID_DMA_END, 0));
-    else
-      EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ENI(count*NBURSTS, 0, MID_DMA_END, bcode));
-    EN_WRITE(sc, sc->dtq_chip+4, vtophys(sp));
-    EN_WRAPADD(MID_DTQOFF, MID_DTQEND, sc->dtq_chip, 8);
-    EN_WRITE(sc, MID_DMA_WRTX, MID_DTQ_A2REG(sc->dtq_chip));
-    cnt = 1000;
-    while (EN_READ(sc, MID_DMA_RDTX) != MID_DTQ_A2REG(sc->dtq_chip)) {
-      DELAY(1);
-      cnt--;
-      if (cnt == 0) {
-	printf("%s: unexpected timeout in tx DMA test\n", sc->sc_dev.dv_xname);
-/*
-	printf("  alignment=0x%x, burst size=%d, dma addr reg=0x%x\n",
-	       (u_long)sp & 63, lcv, EN_READ(sc, MID_DMA_ADDR));
-*/	       
-	return(retval);		/* timeout, give up */
-      }
-    }
-#else /* !NBURSTS */
     if (sc->is_adaptec)
       EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ADP(lcv, 0, MID_DMA_END, 0));
     else
@@ -1048,7 +980,6 @@ int wmtry;
       }
     }
     EN_WRAPADD(MID_DTQOFF, MID_DTQEND, sc->dtq_chip, 8);
-#endif /* !NBURSTS */
     reg = EN_READ(sc, MID_INTACK); 
     if ((reg & MID_INT_DMA_TX) != MID_INT_DMA_TX) {
       printf("%s: unexpected status in tx DMA test: 0x%x\n", 
@@ -1059,25 +990,6 @@ int wmtry;
 
     /* "return to sender..."  address is known ... */
 
-#ifdef NBURSTS
-    /* build lcv-byte-DMA x NBURSTS */
-    if (sc->is_adaptec)
-      EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ADP(lcv*NBURSTS, 0, MID_DMA_END, 0));
-    else
-      EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ENI(count*NBURSTS, 0, MID_DMA_END, bcode));
-    EN_WRITE(sc, sc->drq_chip+4, vtophys(dp));
-    EN_WRAPADD(MID_DRQOFF, MID_DRQEND, sc->drq_chip, 8);
-    EN_WRITE(sc, MID_DMA_WRRX, MID_DRQ_A2REG(sc->drq_chip));
-    cnt = 1000;
-    while (EN_READ(sc, MID_DMA_RDRX) != MID_DRQ_A2REG(sc->drq_chip)) {
-      DELAY(1);
-      cnt--;
-      if (cnt == 0) {
-	printf("%s: unexpected timeout in rx DMA test\n", sc->sc_dev.dv_xname);
-	return(retval);		/* timeout, give up */
-      }
-    }
-#else /* !NBURSTS */
     if (sc->is_adaptec)
       EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ADP(lcv, 0, MID_DMA_END, 0));
     else
@@ -1094,7 +1006,6 @@ int wmtry;
       }
     }
     EN_WRAPADD(MID_DRQOFF, MID_DRQEND, sc->drq_chip, 8);
-#endif /* !NBURSTS */
     reg = EN_READ(sc, MID_INTACK); 
     if ((reg & MID_INT_DMA_RX) != MID_INT_DMA_RX) {
       printf("%s: unexpected status in rx DMA test: 0x%x\n", 
@@ -1107,15 +1018,8 @@ int wmtry;
       return(bcmp(sp, dp, wmtry));  /* wmtry always exits here, no looping */
     }
   
-#ifdef NBURSTS
-    if (bcmp(sp, dp, lcv * NBURSTS)) {
-/*      printf("DMA test failed! lcv=%d, sp=0x%x, dp=0x%x\n", lcv, sp, dp); */
-      return(retval);		/* failed, use last value */
-    }
-#else
     if (bcmp(sp, dp, lcv))
       return(retval);		/* failed, use last value */
-#endif
 
     retval = lcv;
 
