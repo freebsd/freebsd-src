@@ -155,13 +155,13 @@ struct vm_page {
 #if !defined(PQ_CACHESIZE)
 #if defined(PQ_HUGECACHE)
 #define PQ_CACHESIZE 1024
-#elsif defined(PQ_LARGECACHE)
+#elif defined(PQ_LARGECACHE)
 #define PQ_CACHESIZE 512
-#elsif defined(PQ_MEDIUMCACHE)
+#elif defined(PQ_MEDIUMCACHE)
 #define PQ_CACHESIZE 256
-#elsif defined(PQ_NORMALCACHE)
+#elif defined(PQ_NORMALCACHE)
 #define PQ_CACHESIZE 64
-#elsif defined(PQ_NOOPT)
+#elif defined(PQ_NOOPT)
 #define PQ_CACHESIZE 0
 #else
 #define PQ_CACHESIZE 128
@@ -173,22 +173,22 @@ struct vm_page {
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
 
-#elsif PQ_CACHESIZE >= 512
+#elif PQ_CACHESIZE >= 512
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
 
-#elsif PQ_CACHESIZE >= 256
+#elif PQ_CACHESIZE >= 256
 #define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
 
-#elsif PQ_CACHESIZE >= 128
+#elif PQ_CACHESIZE >= 128
 #define PQ_PRIME1 9	/* Produces a good PQ_L2_SIZE/3 + PQ_PRIME1 */
 #define PQ_PRIME2 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 32	/* A number of colors opt for 128k cache */
 
-#elsif PQ_CACHESIZE >= 64
+#elif PQ_CACHESIZE >= 64
 #define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
