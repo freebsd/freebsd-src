@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.13 1997/02/22 13:56:14 peter Exp $
+#	$Id: bsd.subdir.mk,v 1.14 1997/03/09 00:14:00 wosch Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -45,7 +45,7 @@ _SUBDIRUSE: .USE
 			edir=$${entry}; \
 			cd ${.CURDIR}/$${edir}; \
 		fi; \
-		${MAKE} ${.TARGET:realinstall=install} DIRPRFX=${DIRPRFX}$$edir/); \
+		${MAKE} ${MAKEFLAGS} ${.TARGET:realinstall=install} DIRPRFX=${DIRPRFX}$$edir/); \
 	done
 
 ${SUBDIR}::
