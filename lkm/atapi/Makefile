@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.9 1997/08/07 13:23:31 bde Exp $
+#	$Id: Makefile,v 1.10 1998/02/01 17:53:53 bde Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod
 SRCS            = atapi.c wdc.h opt_atapi.h #wcd.h 
 NOMAN           =
 CFLAGS         += -DATAPI_MODULE
-CLEANFILES     += $(KMOD) wdc.h wcd.h opt_atapi.h *.b
+CLEANFILES     += wdc.h wcd.h opt_atapi.h
 EXPORT_SYMS	= _atapi_mod _atapi_debug_ptr _atapi_intr_ptr \
 		  _atapi_request_callback_ptr _atapi_request_immediate_ptr \
 		  _atapi_request_wait_ptr _atapi_start_ptr

@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.9 1998/01/24 02:21:53 eivind Exp $
+#	$Id: Makefile,v 1.10 1998/02/01 17:53:56 bde Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod
 SRCS            = wcd.c wdc.h wcd.h opt_atapi.h opt_devfs.h
 NOMAN           =
 CFLAGS         += -DWCD_MODULE
-CLEANFILES     += $(KMOD) machine wdc.h wcd.h opt_atapi.h opt_devfs.h *.b
+CLEANFILES     += wdc.h wcd.h opt_atapi.h opt_devfs.h
 
 load:           ${PROG}
 		${MODLOAD} -u -e wcd $(PROG)
