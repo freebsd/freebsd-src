@@ -57,6 +57,10 @@ operates on the given filename
 .Fa path
 for the given user
 .Fa id .
+(NOTE: One should use the QCMD macro defined in
+.Ao Pa ufs/ufs/quota.h Ac
+to formulate the value for
+.Fa cmd . )
 The address of an optional command specific data structure,
 .Fa addr ,
 may be given; its interpretation
@@ -67,8 +71,8 @@ For ``ufs'',
 a command is composed of a primary command (see below)
 and a command type used to interpret the
 .Fa id .
-Types are supported for interpretation of user identifiers
-and group identifiers.
+Types are supported for interpretation of user identifiers (USRQUOTA)
+and group identifiers (GRPQUOTA).
 The ``ufs'' specific commands are:
 .Bl -tag -width Q_QUOTAON
 .It Dv Q_QUOTAON
@@ -104,7 +108,7 @@ Get disk quota limits and current usage for the user or group
 is a pointer to a
 .Fa struct dqblk
 structure (defined in 
-.Ao Pa ufs/quota.h Ac ) .
+.Ao Pa ufs/ufs/quota.h Ac ) .
 .It Dv Q_SETQUOTA
 Set disk quota limits for the user or group
 (as determined by the command type) with identifier
@@ -113,7 +117,7 @@ Set disk quota limits for the user or group
 is a pointer to a
 .Fa struct dqblk
 structure (defined in 
-.Ao Pa ufs/quota.h Ac ) .
+.Ao Pa ufs/ufs/quota.h Ac ) .
 The usage fields of the
 .Fa dqblk
 structure are ignored.
@@ -126,7 +130,7 @@ Set disk usage limits for the user or group
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
-.Ao Pa ufs/quota.h Ac ) .
+.Ao Pa ufs/ufs/quota.h Ac ) .
 Only the usage fields are used.
 This call is restricted to the super-user.
 .It Dv Q_SYNC
