@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.29 1996/03/21 09:30:12 jkh Exp $
+ * $Id: options.c,v 1.30 1996/03/23 07:21:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,7 +145,7 @@ static Option Options[] = {
 };
 
 #define OPT_START_ROW	4
-#define OPT_END_ROW	20
+#define OPT_END_ROW	19
 #define OPT_NAME_COL	0
 #define OPT_VALUE_COL	16
 #define GROUP_OFFSET	40
