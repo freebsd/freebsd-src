@@ -70,9 +70,10 @@
 #include <vm/pmap.h>
 
 #if __FreeBSD_version > 500000
+#define USING_MUTEX
 #define USING_DEVFS
-#define SND_DYNSYSCTL
 #endif
+#define SND_DYNSYSCTL
 
 #else
 struct isa_device { int dummy; };
@@ -179,6 +180,15 @@ int pcm_setstatus(device_t dev, char *str);
 u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void *pcm_getdevinfo(device_t dev);
+
+int snd_setup_intr(device_t dev, struct resource *res, int flags,
+		   driver_intr_t hand, void *param, void **cookiep);
+
+void *snd_mtxcreate(const char *desc);
+void snd_mtxfree(void *m);
+void snd_mtxassert(void *m);
+void snd_mtxlock(void *m);
+void snd_mtxunlock(void *m);
 
 #endif /* _KERNEL */
 
