@@ -103,6 +103,7 @@ void emergency(const char *, ...) __printflike(1, 2);
 void disaster(int);
 void badsys(int);
 int  runshutdown(void);
+static char *strk(char *);
 
 /*
  * We really need a recursive typedef...
@@ -132,7 +133,7 @@ int devfs;
 void transition(state_t);
 state_t requested_transition = runcom;
 
-void setctty(char *);
+void setctty(const char *);
 
 typedef struct init_session {
 	int	se_index;		/* index of entry in ttys file */
@@ -279,12 +280,17 @@ invalid:
 		char *s;
 		int i;
 
-		iov[0].iov_base = "fstype";
-		iov[0].iov_len = sizeof("fstype");
-		iov[1].iov_base = "devfs";
-		iov[1].iov_len = sizeof("devfs");
-		iov[2].iov_base = "fspath";
-		iov[2].iov_len = sizeof("fspath");
+		char _fstype[]	= "fstype";
+		char _devfs[]	= "devfs";
+		char _fspath[]	= "fspath";
+		char _path_dev[]= _PATH_DEV;
+
+		iov[0].iov_base = _fstype;
+		iov[0].iov_len = sizeof(_fstype);
+		iov[1].iov_base = _devfs;
+		iov[1].iov_len = sizeof(_devfs);
+		iov[2].iov_base = _fspath;
+		iov[2].iov_len = sizeof(_fspath);
 		/* 
 		 * Try to avoid the trailing slash in _PATH_DEV.
 		 * Be *very* defensive.
@@ -297,8 +303,8 @@ invalid:
 			iov[3].iov_base = s;
 			iov[3].iov_len = strlen(s) + 1;
 		} else {
-			iov[3].iov_base = _PATH_DEV;
-			iov[3].iov_len = sizeof(_PATH_DEV);
+			iov[3].iov_base = _path_dev;
+			iov[3].iov_len = sizeof(_path_dev);
 		}
 		nmount(iov, 4, 0);
 		if (s != NULL)
@@ -537,7 +543,7 @@ clear_session_logs(session_t *sp)
  * Only called by children of init after forking.
  */
 void
-setctty(char *name)
+setctty(const char *name)
 {
 	int fd;
 
@@ -561,7 +567,7 @@ single_user(void)
 	pid_t pid, wpid;
 	int status;
 	sigset_t mask;
-	char *shell = _PATH_BSHELL;
+	const char *shell = _PATH_BSHELL;
 	char *argv[2];
 #ifdef SECURE
 	struct ttyent *typ;
@@ -645,7 +651,10 @@ single_user(void)
 		 * Fire off a shell.
 		 * If the default one doesn't work, try the Bourne shell.
 		 */
-		argv[0] = "-sh";
+
+		char name[] = "-sh";
+
+		argv[0] = name;
 		argv[1] = 0;
 		execv(shell, argv);
 		emergency("can't exec %s for single user: %m", shell);
@@ -723,9 +732,13 @@ runcom(void)
 
 		setctty(_PATH_CONSOLE);
 
-		argv[0] = "sh";
-		argv[1] = _PATH_RUNCOM;
-		argv[2] = runcom_mode == AUTOBOOT ? "autoboot" : 0;
+		char _sh[]	 	= "sh";
+		char _path_runcom[]	= _PATH_RUNCOM;
+		char _autoboot[]	= "autoboot";
+
+		argv[0] = _sh;
+		argv[1] = _path_runcom;
+		argv[2] = runcom_mode == AUTOBOOT ? _autoboot : 0;
 		argv[3] = 0;
 
 		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
@@ -871,7 +884,6 @@ find_session(pid_t pid)
 char **
 construct_argv(char *command)
 {
-	char *strk (char *);
 	int argc = 0;
 	char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
@@ -1477,12 +1489,15 @@ runshutdown(void)
 		/*
 		 * Run the shutdown script.
 		 */
-		argv[0] = "sh";
-		argv[1] = _PATH_RUNDOWN;
-		if (Reboot)
-			argv[2] = "reboot";
-		else
-			argv[2] = "single";
+
+		char _sh[]	= "sh";
+		char _reboot[]	= "reboot";
+		char _single[]	= "single";
+		char _path_rundown[] = _PATH_RUNDOWN;
+
+		argv[0] = _sh;
+		argv[1] = _path_rundown;
+		argv[2] = Reboot ? _reboot : _single;
 		argv[3] = 0;
 
 		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
@@ -1568,8 +1583,8 @@ runshutdown(void)
 	return status;
 }
 
-char *
-strk (char *p)
+static char *
+strk(char *p)
 {
     static char *t;
     char *q;
