@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypclnt.c,v 1.1 1995/01/31 09:28:45 wpaul Exp $
+	$Id: ypclnt.c,v 1.2 1995/02/06 23:35:48 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -43,7 +43,8 @@ struct dom_binding {
  
 static struct sockaddr_in ServerAddress;
 static CLIENT *UdpClient=NULL, *TcpClient=NULL;
- 
+extern void Perror __P((const char *, ...));
+
 #ifdef YPBROADCAST
 static bool_t
 eachresult( caddr_t resultsp, struct sockaddr_in *raddr)
@@ -84,16 +85,16 @@ __do_ypbind(domainname d)
    case YPBIND_FAIL_VAL:
       switch(r.ypbind_resp_u.ypbind_error) {
       case YPBIND_ERR_ERR:
-         fprintf(stderr, "YPBINDPROC_DOMAIN: Internal error\n");
+         Perror("YPBINDPROC_DOMAIN: Internal error\n");
          break;
       case YPBIND_ERR_NOSERV:
-         fprintf(stderr, "YPBINDPROC_DOMAIN: No bound server for passed domain\n");
+         Perror("YPBINDPROC_DOMAIN: No bound server for passed domain\n");
          break;
       case YPBIND_ERR_RESC:
-         fprintf(stderr, "YPBINDPROC_DOMAIN: System resource allocation failure\n");
+         Perror("YPBINDPROC_DOMAIN: System resource allocation failure\n");
          break;
       default:
-         fprintf(stderr, "YPBINDPROC_DOMAIN: Unknown error\n");
+         Perror("YPBINDPROC_DOMAIN: Unknown error\n");
          break;
       }
       return NULL;

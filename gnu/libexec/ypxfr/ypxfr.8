@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypxfr.8,v 1.1 1995/02/06 22:15:21 wpaul Exp $
+.\"	$Id: ypxfr.8,v 1.2 1995/03/30 04:14:45 wpaul Exp $
 .\"
 .Dd February 5, 1995
 .Dt YPXFR 8
@@ -119,10 +119,11 @@ When
 .Nm ypxfr
 is invoked without a controlling terminal, e.g. from inside
 .Xr ypserv 8 ,
-it logs all its output to
-.Pa /var/yp/ypxfr.log .
+it logs all its output using the
+.Xr syslog 3
+facility.
 .Sh OPTIONS
-The following options are supported by
+The following options and flags are supported by
 .Nm ypxfr :
 .Bl -tag -width flag
 .It Fl f
