@@ -1,6 +1,6 @@
-<!-- $Id: synching.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $ -->
+<!-- $Id: synching.sgml,v 1.2 1996/11/20 14:49:59 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.3 -->
+<!-- Original revision: 1.4 -->
 
 <chapt><heading>インターネットを通じたソースツリーの同期<label id="synching"></heading>
 
@@ -9,7 +9,7 @@
 
 <!--
 
-Last updated: $Date: 1996/11/15 05:14:43 $
+Last updated: $Date: 1996/11/20 14:49:59 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
