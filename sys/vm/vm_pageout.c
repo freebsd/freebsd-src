@@ -114,7 +114,7 @@ static int vm_pageout_clean(vm_page_t);
 static void vm_pageout_page_free(vm_page_t);
 static void vm_pageout_pmap_collect(void);
 static void vm_pageout_scan(int pass);
-static int vm_pageout_free_page_calc(vm_size_t count);
+
 struct proc *pageproc;
 
 static struct kproc_desc page_kp = {
@@ -1350,30 +1350,6 @@ vm_pageout_page_stats()
 	splx(s0);
 }
 
-static int
-vm_pageout_free_page_calc(count)
-vm_size_t count;
-{
-	if (count < cnt.v_page_count)
-		 return 0;
-	/*
-	 * free_reserved needs to include enough for the largest swap pager
-	 * structures plus enough for any pv_entry structs when paging.
-	 */
-	if (cnt.v_page_count > 1024)
-		cnt.v_free_min = 4 + (cnt.v_page_count - 1024) / 200;
-	else
-		cnt.v_free_min = 4;
-	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
-		cnt.v_interrupt_free_min;
-	cnt.v_free_reserved = vm_pageout_page_count +
-		cnt.v_pageout_free_min + (count / 768) + PQ_L2_SIZE;
-	cnt.v_free_severe = cnt.v_free_min / 2;
-	cnt.v_free_min += cnt.v_free_reserved;
-	cnt.v_free_severe += cnt.v_free_reserved;
-	return 1;
-}
-
 /*
  *	vm_pageout is the high level pageout daemon.
  */
@@ -1391,7 +1367,23 @@ vm_pageout()
 	if (cnt.v_page_count < 2000)
 		vm_pageout_page_count = 8;
 
-	vm_pageout_free_page_calc(cnt.v_page_count);
+	/*
+	 * v_free_reserved needs to include enough for the largest
+	 * swap pager structures plus enough for any pv_entry structs
+	 * when paging. 
+	 */
+	if (cnt.v_page_count > 1024)
+		cnt.v_free_min = 4 + (cnt.v_page_count - 1024) / 200;
+	else
+		cnt.v_free_min = 4;
+	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
+	    cnt.v_interrupt_free_min;
+	cnt.v_free_reserved = vm_pageout_page_count +
+	    cnt.v_pageout_free_min + (cnt.v_page_count / 768) + PQ_L2_SIZE;
+	cnt.v_free_severe = cnt.v_free_min / 2;
+	cnt.v_free_min += cnt.v_free_reserved;
+	cnt.v_free_severe += cnt.v_free_reserved;
+
 	/*
 	 * v_free_target and v_cache_min control pageout hysteresis.  Note
 	 * that these are more a measure of the VM cache queue hysteresis
