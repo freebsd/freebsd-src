@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.12 1999/01/15 00:31:45 abial Exp $
+ *	$Id: interp.c,v 1.13 1999/01/22 23:50:13 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -170,9 +170,15 @@ include(char *filename)
 {
     struct includeline	*script, *se, *sp;
     char		input[256];			/* big enough? */
+#ifdef BOOT_FORTH
+    int			res;
+    char		*cp;
+    int			fd, line;
+#else
     int			argc,res;
     char		**argv, *cp;
     int			fd, flags, line;
+#endif
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
 	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
@@ -187,6 +193,9 @@ include(char *filename)
 	
     while (fgetstr(input, sizeof(input), fd) > 0) {
 	line++;
+#ifdef BOOT_FORTH
+	cp = input;
+#else
 	flags = 0;
 	/* Discard comments */
 	if (input[0] == '#')
@@ -202,11 +211,14 @@ include(char *filename)
 	    cp++;
 	    flags |= SL_IGNOREERR;
 	}
+#endif
 	/* Allocate script line structure and copy line, flags */
 	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
 	sp->text = (char *)sp + sizeof(struct includeline);
 	strcpy(sp->text, cp);
+#ifndef BOOT_FORTH
 	sp->flags = flags;
+#endif
 	sp->line = line;
 	sp->next = NULL;
 	    
@@ -222,10 +234,21 @@ include(char *filename)
     /*
      * Execute the script
      */
+#ifndef BOOT_FORTH
     argv = NULL;
+#endif
     res = CMD_OK;
     for (sp = script; sp != NULL; sp = sp->next) {
 	
+#ifdef BOOT_FORTH
+	res = bf_run(sp->text);
+	if (res != VM_OUTOFTEXT) {
+		sprintf(command_errbuf, "Error while including %s:\n%s", filename, sp->text);
+		res = CMD_ERROR;
+		break;
+	} else
+		res = CMD_OK;
+#else
 	/* print if not being quiet */
 	if (!(sp->flags & SL_QUIET)) {
 	    prompt();
@@ -249,9 +272,12 @@ include(char *filename)
 	    res=CMD_ERROR;
 	    break;
 	}
+#endif
     }
+#ifndef BOOT_FORTH
     if (argv != NULL)
 	free(argv);
+#endif
     while(script != NULL) {
 	se = script;
 	script = script->next;
