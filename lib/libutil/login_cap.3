@@ -52,12 +52,12 @@
 .Fn login_getpwclass "const struct passwd *pwd"
 .Ft login_cap_t *
 .Fn login_getuserclass "const struct passwd *pwd"
-.Ft char *
-.Fn login_getcapstr "login_cap_t *lc" "const char *cap" "char *def" "char *error"
+.Ft "const char *"
+.Fn login_getcapstr "login_cap_t *lc" "const char *cap" "const char *def" "const char *error"
 .Ft char **
 .Fn login_getcaplist "login_cap_t *lc" "const char *cap" "const char *chars"
-.Ft char *
-.Fn login_getpath "login_cap_t *lc" "const char *cap" "char *error"
+.Ft "const char *"
+.Fn login_getpath "login_cap_t *lc" "const char *cap" "const char *error"
 .Ft rlim_t
 .Fn login_getcaptime "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft rlim_t
@@ -66,8 +66,8 @@
 .Fn login_getcapsize "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft int
 .Fn login_getcapbool "login_cap_t *lc" "const char *cap" "int def"
-.Ft char *
-.Fn login_getstyle "login_cap_t *lc" "char *style" "const char *auth"
+.Ft "const char *"
+.Fn login_getstyle "login_cap_t *lc" "const char *style" "const char *auth"
 .Ft const char *
 .Fn login_setcryptfmt "login_cap_t *lc" "const char *def" "const char *error"
 .Sh DESCRIPTION

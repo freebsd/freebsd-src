@@ -102,13 +102,13 @@ login_cap_t *login_getclass(const char *);
 login_cap_t *login_getpwclass(const struct passwd *);
 login_cap_t *login_getuserclass(const struct passwd *);
 
-char *login_getcapstr(login_cap_t*, const char *, char *, char *);
+const char *login_getcapstr(login_cap_t*, const char *, const char *, const char *);
 char **login_getcaplist(login_cap_t *, const char *, const char *);
-char *login_getstyle(login_cap_t *, char *, const char *);
+const char *login_getstyle(login_cap_t *, const char *, const char *);
 rlim_t login_getcaptime(login_cap_t *, const char *, rlim_t, rlim_t);
 rlim_t login_getcapnum(login_cap_t *, const char *, rlim_t, rlim_t);
 rlim_t login_getcapsize(login_cap_t *, const char *, rlim_t, rlim_t);
-char *login_getpath(login_cap_t *, const char *, char *);
+const char *login_getpath(login_cap_t *, const char *, const char *);
 int login_getcapbool(login_cap_t *, const char *, int);
 const char *login_setcryptfmt(login_cap_t *, const char *, const char *);
 
