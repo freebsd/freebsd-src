@@ -143,8 +143,8 @@
 struct uma_slab {
 	uma_zone_t	us_zone;		/* Zone we live in */
 	union {
-		LIST_ENTRY(uma_slab)	us_link;	/* slabs in zone */
-		unsigned long	us_size;	/* Size of allocation */
+		LIST_ENTRY(uma_slab)	_us_link;	/* slabs in zone */
+		unsigned long	_us_size;	/* Size of allocation */
 	} us_type;
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
 	u_int8_t	*us_data;		/* First item */
@@ -154,8 +154,8 @@ struct uma_slab {
 	u_int8_t	us_freelist[1];	/* Free List (actually larger) */
 };
 
-#define us_link	us_type.us_link
-#define us_size	us_type.us_size
+#define us_link	us_type._us_link
+#define us_size	us_type._us_size
 
 typedef struct uma_slab * uma_slab_t;
 
