@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.16 1995/09/13 17:54:03 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.17 1995/10/29 21:30:25 olah Exp $
  */
 
 #include <sys/param.h>
@@ -407,6 +407,8 @@ tcp_connect(tp, nam)
 	struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
 	struct sockaddr_in *ifaddr;
 	int error;
+	struct rmxp_tao *taop;
+	struct rmxp_tao tao_noncached;
 
 	if (inp->inp_lport == 0) {
 		error = in_pcbbind(inp, NULL);
@@ -459,7 +461,24 @@ tcp_connect(tp, nam)
 	tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
 	tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
 	tcp_sendseqinit(tp);
+
+	/*
+	 * Generate a CC value for this connection and
+	 * check whether CC or CCnew should be used.
+	 */
+	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+		taop = &tao_noncached;
+		bzero(taop, sizeof(*taop));
+	}
+
 	tp->cc_send = CC_INC(tcp_ccgen);
+	if (taop->tao_ccsent != 0 &&
+	    CC_GEQ(tp->cc_send, taop->tao_ccsent)) {
+		taop->tao_ccsent = tp->cc_send;
+	} else {
+		taop->tao_ccsent = 0;
+		tp->t_flags |= TF_SENDCCNEW;
+	}
 
 	return 0;
 }

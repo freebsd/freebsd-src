@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.14 1995/09/22 20:05:58 wollman Exp $
+ *	$Id: tcp_output.c,v 1.15 1995/10/16 18:21:12 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -384,15 +384,8 @@ send:
 		case TH_SYN:
 			opt[optlen++] = TCPOPT_NOP;
 			opt[optlen++] = TCPOPT_NOP;
-
-			if (taop->tao_ccsent != 0 &&
-			    CC_GEQ(tp->cc_send, taop->tao_ccsent)) {
-				opt[optlen++] = TCPOPT_CC;
-				taop->tao_ccsent = tp->cc_send;
-			} else {
-				opt[optlen++] = TCPOPT_CCNEW;
-				taop->tao_ccsent = 0;
-			}
+			opt[optlen++] = tp->t_flags & TF_SENDCCNEW ?
+						TCPOPT_CCNEW : TCPOPT_CC;
 			opt[optlen++] = TCPOLEN_CC;
 			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
  			optlen += 4;
