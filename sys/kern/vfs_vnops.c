@@ -915,10 +915,9 @@ vn_closefile(fp, td)
 
 	GIANT_REQUIRED;
 
-	KASSERT(fp->f_type == DTYPE_VNODE, ("vn_closefile: !DTYPE_VNODE"));
 	vp = fp->f_vnode;
 
-	if (fp->f_flag & FHASLOCK) {
+	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
