@@ -1017,12 +1017,18 @@ ndis_query_resources(status, adapter, list, buflen)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
+	int			rsclen;
 
 	block = (ndis_miniport_block *)adapter;
 	sc = (struct ndis_softc *)block->nmb_ifp;
- 
-	*buflen = sizeof(ndis_resource_list) +
+
+	rsclen = sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1));
+	if (*buflen < rsclen) {
+		*buflen = rsclen;
+		*status = NDIS_STATUS_INVALID_LENGTH;
+		return;
+	}
 
 	bcopy((char *)block->nmb_rlist, (char *)list, *buflen);
 	*status = NDIS_STATUS_SUCCESS;
@@ -2415,4 +2421,3 @@ image_patch_table ndis_functbl[] = {
 
 	{ NULL, NULL },
 };
-

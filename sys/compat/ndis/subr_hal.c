@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <sys/systm.h>
 #include <machine/clock.h>
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/hal_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
 
 #define __stdcall __attribute__((__stdcall__))
 #define FUNC void(*)(void)
@@ -62,6 +65,9 @@ __stdcall static void hal_writeport_uchar(uint8_t *, uint8_t);
 __stdcall static uint32_t hal_readport_ulong(uint32_t *);
 __stdcall static uint16_t hal_readport_ushort(uint16_t *);
 __stdcall static uint8_t hal_readport_uchar(uint8_t *);
+__stdcall static uint8_t hal_lock(/*kspin_lock * */void);
+__stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
+__stdcall static uint8_t hal_irql(void);
 __stdcall static void dummy (void);
 
 __stdcall static void
@@ -120,13 +126,41 @@ hal_readport_uchar(port)
 	return(bus_space_read_1(I386_BUS_SPACE_IO, 0x0, (uint32_t)port));
 }
 
+__stdcall static uint8_t
+hal_lock(/*lock*/void)
+{
+	kspin_lock		*lock;
+
+	__asm__ __volatile__ ("" : "=c" (lock));
+
+	mtx_lock((struct mtx *)*lock);
+	return(0);
+}
+
+__stdcall static void
+hal_unlock(/*lock, newirql*/void)
+{
+	kspin_lock		*lock;
+	uint8_t			newiqrl;
+
+	__asm__ __volatile__ ("" : "=c" (lock), "=d" (newiqrl));
+
+	mtx_unlock((struct mtx *)*lock);
+	return;
+}
+
+__stdcall static uint8_t
+hal_irql(void)
+{
+	return(0);
+}
+
 __stdcall
 static void dummy()
 {
 	printf ("hal dummy called...\n");
 	return;
 }
-
 
 image_patch_table hal_functbl[] = {
 	{ "KeStallExecutionProcessor", (FUNC)hal_stall_exec_cpu },
@@ -136,6 +170,9 @@ image_patch_table hal_functbl[] = {
 	{ "READ_PORT_ULONG", (FUNC)hal_readport_ulong },
 	{ "READ_PORT_USHORT", (FUNC)hal_readport_ushort },
 	{ "READ_PORT_UCHAR", (FUNC)hal_readport_uchar },
+	{ "KfAcquireSpinLock", (FUNC)hal_lock },
+	{ "KfReleaseSpinLock", (FUNC)hal_unlock },
+	{ "KeGetCurrentIrql", (FUNC)hal_irql },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
