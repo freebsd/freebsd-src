@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.5 1996/09/12 11:09:16 asami Exp $
+#	$Id: GENERIC98,v 1.6 1996/10/09 21:45:41 asami Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
 
@@ -54,21 +54,18 @@ options		COM_MULTIPORT
 #
 #options	"IBM_486SLC"		# IBM486SLC/SLC2 support
 #options	"CYRIX_486DLC"		# Cyrix 486DLC/SLC/DLC2/SLC2 support
-#option		"CYRIX_5X86"		# Cyrix 5x86 support
+#options	"CYRIX_5X86"		# Cyrix 5x86 support
 #options	SUSP_HLT		# CPU enters suspend mode when HALT
 #options	"DISABLE_5X86_LSSER"	# Load-Store reordering enable
-
 #
 #	sbic55.c.new
 #
 #options	SCSI_SYNC		# synchronous transfer mode
 #options	FORCE_BUSMASTER
 #options	"HA55BS_ID=0"
-
 #
 #	IBM-PC HDD support
 #options	COMPAT_ATDISK
-
 #
 #	FreeBSD(98)-current is a *TEST VERSION*.  
 #	It is highly recomended to compile with following options, and to
@@ -97,7 +94,7 @@ disk		wd0	at wdc0 drive 0
 
 options		ATAPI	# Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd	#IDE CD-ROM
+device		wcd0	#IDE CD-ROM
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
 # for any number of installed devices.
@@ -105,20 +102,19 @@ controller	ncr0
 controller	ahc0
 
 controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 vector sbicintr
+# sbic55.c.new
 #controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0xff vector sbicintr
-controller	aic0	at isa? port 0x1840 bio irq 5 vector aicintr
+controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
 
 controller	scbus0
 
 device		sd0
 
+device		od0	#See LINT for possible `od' options.
+
 device		st0
 
 device		cd0	#Only need one of these, the code dynamically grows
-
-device		od0
-
-device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 
 controller	matcd0	at isa? port? bio
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.6 1996/10/09 19:47:43 bde Exp $
+ *	$Id: clock.c,v 1.7 1996/10/09 21:46:11 asami Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
 
 /*
  * modified for PC98
- *	$Id: clock.c,v 1.6 1996/10/09 19:47:43 bde Exp $
+ *	$Id: clock.c,v 1.7 1996/10/09 21:46:11 asami Exp $
  */
 
 /*
@@ -1127,6 +1127,32 @@ cpu_initclocks()
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
+	/* Don't bother enabling the statistics clock. */
+	if (statclock_disable)
+		return;
+	diag = rtcin(RTC_DIAG);
+	if (diag != 0)
+		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
+		      /* unit */ 0);
+	INTREN(IRQ8);
+	writertc(RTC_STATUSB, rtc_statusb);
+#endif
+}
+
+void
+setstatclockrate(int newhz)
+{
+#ifndef PC98
+	if (newhz == RTC_PROFRATE)
+		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
+	else
+		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+	writertc(RTC_STATUSA, rtc_statusa);
+#endif
+}
+
 static int
 sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 {
@@ -1193,29 +1219,3 @@ sysctl_machdep_i586_freq SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, i586_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_i586_freq, "I", "");
 #endif /* defined(I586_CPU) || defined(I686_CPU) */
-
-	/* Don't bother enabling the statistics clock. */
-	if (statclock_disable)
-		return;
-	diag = rtcin(RTC_DIAG);
-	if (diag != 0)
-		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
-		      /* unit */ 0);
-	INTREN(IRQ8);
-	writertc(RTC_STATUSB, rtc_statusb);
-#endif
-}
-
-void
-setstatclockrate(int newhz)
-{
-#ifndef PC98
-	if (newhz == RTC_PROFRATE)
-		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
-	else
-		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-	writertc(RTC_STATUSA, rtc_statusa);
-#endif
-}

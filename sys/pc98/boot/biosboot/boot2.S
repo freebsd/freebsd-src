@@ -172,6 +172,7 @@ ENTRY(boot2)
 	movl	%esp, EXT(dflt_name)
 #endif
 
+	movb	0x11584, %dl
 	movzbl	%dl, %edx	/* discard head (%dh) and random high bits */
 	pushl	%edx
 	call	EXT(boot)

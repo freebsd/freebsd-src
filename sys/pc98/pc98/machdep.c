@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.8 1996/09/12 11:09:26 asami Exp $
+ *	$Id: machdep.c,v 1.9 1996/10/09 21:45:56 asami Exp $
  */
 
 #include "npx.h"
@@ -1063,7 +1063,7 @@ init386(first)
 	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#ifdef CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #else
 	setidt(14, &IDTVEC(page),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -1140,6 +1140,7 @@ init386(first)
 
 			printf(
 	"BIOS basemem (%ldK) != RTC basemem (%dK), setting to BIOS value\n",
+			       bootinfo.bi_basemem, biosbasemem);
 			biosbasemem = bootinfo.bi_basemem;
 
 			/*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.7 1996/09/12 11:09:51 asami Exp $
+ *	$Id: pc98.c,v 1.8 1996/10/09 21:46:31 asami Exp $
  */
 
 /*
@@ -68,16 +68,13 @@
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/epsonio.h>
 #else
 #include <i386/isa/isa.h>
 #endif
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include "vector.h"
-
-#ifdef PC98
-unsigned char		hireso = 0;
-#endif
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
@@ -576,11 +573,9 @@ static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 
 /* high byte of address is stored in this port for i-th dma channel */
 #ifdef PC98
-short dmapageport[4] =
-	{ 0x27, 0x21, 0x23, 0x25 };
+static int dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 #else /* IBM-PC */
-static short dmapageport[8] =
-	{ 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
+static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 #endif
 
 /*
