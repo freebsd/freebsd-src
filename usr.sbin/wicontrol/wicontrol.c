@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wicontrol.c,v 1.14 1999/05/05 01:33:16 wpaul Exp $
+ *	$Id: wicontrol.c,v 1.15 1999/05/06 03:05:48 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $Id: wicontrol.c,v 1.14 1999/05/05 01:33:16 wpaul Exp $";
+	"@(#) $Id: wicontrol.c,v 1.15 1999/05/06 03:05:48 wpaul Exp $";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
@@ -136,7 +136,7 @@ void wi_printstr(wreq)
 		}
 	} else {
 		ptr = (char *)&wreq->wi_val[1];
-		for (i = 0; i < ntohs(wreq->wi_val[0]); i++) {
+		for (i = 0; i < wreq->wi_val[0]; i++) {
 			if (ptr[i] == '\0')
 				ptr[i] = ' ';
 		}
@@ -168,7 +168,7 @@ void wi_setstr(iface, code, str)
 
 	wreq.wi_type = code;
 	wreq.wi_len = 18;
-	wreq.wi_val[0] = htons(strlen(str));
+	wreq.wi_val[0] = strlen(str);
 	bcopy(str, (char *)&wreq.wi_val[1], strlen(str));
 
 	wi_setval(iface, &wreq);
