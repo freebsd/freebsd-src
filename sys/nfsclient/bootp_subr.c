@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.9 1998/02/09 06:10:32 eivind Exp $	*/
+/*	$Id: bootp_subr.c,v 1.10 1998/03/14 03:25:14 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -774,14 +774,25 @@ bootpc_init(void)
   /*
    * Find a network interface.
    */
+#ifdef BOOTP_WIRED_TO
+  printf("bootpc_init: wired to interface '%s'\n",
+         __XSTRING(BOOTP_WIRED_TO)); 
+#endif
+  bzero(&ireq, sizeof(ireq));
   for (ifp = TAILQ_FIRST(&ifnet); ifp != 0; ifp = TAILQ_NEXT(ifp,if_link))
+  {
+    sprintf(ireq.ifr_name, "%s%d", ifp->if_name, ifp->if_unit);
+#ifdef BOOTP_WIRED_TO
+    if (strcmp(ireq.ifr_name, __XSTRING(BOOTP_WIRED_TO)) == 0)
+        break;
+#else
     if ((ifp->if_flags &
       (IFF_LOOPBACK|IFF_POINTOPOINT)) == 0)
 	break;
+#endif
+  }     
   if (ifp == NULL)
     panic("bootpc_init: no suitable interface");
-  bzero(&ireq,sizeof(ireq));
-  sprintf(ireq.ifr_name, "%s%d", ifp->if_name,ifp->if_unit);
   strcpy(nd->myif.ifra_name,ireq.ifr_name);
   printf("bootpc_init: using network interface '%s'\n",
 	 ireq.ifr_name);
