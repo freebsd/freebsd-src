@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.10 1993/10/11 07:39:13 rgrimes Exp $
+ *	$Id: conf.c,v 1.11 1993/10/23 10:49:24 jkh Exp $
  */
 
 #include "param.h"
@@ -430,9 +430,9 @@ struct cdevsw	cdevsw[] =
 	{ sbopen,	sbclose,	sbread,		sbwrite,	/*20*/
 	  sbioctl,	enodev,		enodev,		NULL,	/* soundblaster*/
 	  sbselect,	enodev,		NULL },
-	{ sndopen,	sndclose,	sndread,	sndwrite,	/*21*/
-  	  sndioctl,	enodev,		enodev,		NULL,	/* sound driver */
-  	  sndselect,	enodev,		NULL },
+	{ enodev,	enodev,		enodev,		enodev,		/*21*/
+	  enodev,	enodev,		nullop,		NULL,	/* psm */
+	  enodev,	enodev,		enodev },
 	{ fdopen,	enxio,		enxio,		enxio,		/*22*/
 	  enxio,	enxio,		enxio,		NULL,	/* fd (!=Fd) */
 	  enxio,	enxio,		enxio },
@@ -457,9 +457,12 @@ struct cdevsw	cdevsw[] =
 	{ mcdopen,	mcdclose,	rawread,	enodev,		/*29*/
 	  mcdioctl,	enodev,		nullop,		NULL,	/* mitsumi cd */
 	  seltrue,	enodev,		mcdstrategy },
+	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
+  	  sndioctl,	enodev,		enodev,		NULL,	/* sound driver */
+  	  sndselect,	enodev,		NULL },
 /*
- * If you need a cdev major number, please contact the 386bsd patchkit 
- * coordinator by sending mail to "patches@cs.montana.edu".
+ * If you need a cdev major number, please contact the FreeBSD team
+ * by sending mail to `freebsd-hackers@freefall.cdrom.com'.
  * If you assign one yourself it may then conflict with someone else.
  */
 };
