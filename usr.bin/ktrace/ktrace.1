@@ -85,9 +85,9 @@ Clear the trace points associated with the specified file or processes.
 .It Fl d
 Descendants; perform the operation for all current children of the
 designated processes.
-.It Fl f Ar file
+.It Fl f Ar trfile
 Log trace records to
-.Ar file
+.Ar trfile
 instead of
 .Pa ktrace.out .
 .It Fl g Ar pgid
@@ -166,7 +166,7 @@ on process 67
 .Xr kdump 1
 .Sh BUGS
 Only works if
-.Ar file
+.Ar trfile
 is a regular file.
 .Sh HISTORY
 The
