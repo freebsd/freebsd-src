@@ -371,6 +371,16 @@
 .			as b1 (``\\*(tNISO C\\*(aa'')
 .		\}
 .       \}
+.       if "\\*(A\\n(aP"-isoC-99" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNISO/IEC \\*(aa9899:\ 1999\\*(sV
+.			as b1 (``\\*(tNISO C99\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNISO/IEC \\*(aa9899:\ 1999\\*(sV
+.			as b1 (``\\*(tNISO C99\\*(aa'')
+.		\}
+.       \}
 .       if "\\*(A\\n(aP"-iso9899" \{\
 .		ie \\n(sT==1 \{\
 .			ds b1 \&\\*(tNISO \\*(aa9899: 1990\\*(sV
