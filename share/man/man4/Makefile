@@ -216,6 +216,7 @@ MAN=	aac.4 \
 	safe.4 \
 	sbc.4 \
 	sbp.4 \
+	sbp_targ.4 \
 	sbsh.4 \
 	screen.4 \
 	scsi.4 \
