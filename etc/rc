@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.144 1998/05/26 20:12:45 sos Exp $
+#	$Id: rc,v 1.145 1998/06/02 11:02:16 phk Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -315,6 +315,14 @@ fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
 [ -f /etc/rc.local ] && sh /etc/rc.local
+
+# Raise kernel security level.  This should be done only after `fsck' has
+# repaired local file systems if you want the securelevel to be greater than 1.
+if [ "X${kern_securelevel_enable}" != X"NO" -a "${kern_securelevel}" -ge 0 ]; 
+then
+	echo 'Raising kernel security level'
+	sysctl -w kern.securelevel=${kern_securelevel}
+fi
 
 date
 exit 0
