@@ -31,7 +31,7 @@
 #include <machine/cpufunc.h>
 #include <machine/ipl.h>
 
-static inline u_char
+static __inline u_char
 epson_inb(u_int port)
 {
 	u_char	data;
@@ -42,7 +42,7 @@ epson_inb(u_int port)
 	return (data);
 }
 
-static inline void
+static __inline void
 epson_outb(u_int port, u_char data)
 {
 	outb(0x43f, 0x42);
@@ -50,7 +50,7 @@ epson_outb(u_int port, u_char data)
 	outb(0x43f, 0x40);
 }
 
-static inline void
+static __inline void
 epson_insw(u_int port, void *addr, size_t cnt)
 {
 	int	s;
@@ -63,7 +63,7 @@ epson_insw(u_int port, void *addr, size_t cnt)
 	splx(s);
 }
 
-static inline void
+static __inline void
 epson_outsw(u_int port, void *addr, size_t cnt)
 {
 	int	s;
