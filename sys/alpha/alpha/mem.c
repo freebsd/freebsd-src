@@ -101,6 +101,8 @@ static struct cdevsw mem_cdevsw = {
 #define	ICU_LEN (NSWI)
 #endif
 
+struct mem_range_softc mem_range_softc;
+
 static int
 mmclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
