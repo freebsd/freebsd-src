@@ -1643,9 +1643,9 @@ static int ti_attach(dev)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
 		ifmedia_add(&sc->ifmedia,
 		    IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_T, 0, NULL);
 		ifmedia_add(&sc->ifmedia,
-		    IFM_ETHER|IFM_1000_TX|IFM_FDX, 0, NULL);
+		    IFM_ETHER|IFM_1000_T|IFM_FDX, 0, NULL);
 	} else {
 		/* Fiber cards don't support 10/100 modes. */
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_1000_SX, 0, NULL);
@@ -2230,7 +2230,7 @@ static int ti_ifmedia_upd(ifp)
 		    TI_CMD_CODE_NEGOTIATE_BOTH, 0);
 		break;
 	case IFM_1000_SX:
-	case IFM_1000_TX:
+	case IFM_1000_T:
 		CSR_WRITE_4(sc, TI_GCR_GLINK, TI_GLNK_PREF|TI_GLNK_1000MB|
 		    TI_GLNK_RX_FLOWCTL_Y|TI_GLNK_ENB);
 		CSR_WRITE_4(sc, TI_GCR_LINK, 0);
@@ -2288,7 +2288,7 @@ static void ti_ifmedia_sts(ifp, ifmr)
 	if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP) {
 		media = CSR_READ_4(sc, TI_GCR_GLINK_STAT);
 		if (sc->ti_copper)
-			ifmr->ifm_active |= IFM_1000_TX;
+			ifmr->ifm_active |= IFM_1000_T;
 		else
 			ifmr->ifm_active |= IFM_1000_SX;
 		if (media & TI_GLNK_FULL_DUPLEX)

@@ -136,7 +136,7 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_1000_SX	14		/* 1000BaseSX Multi-mode Fiber */
 #define IFM_1000_LX	15		/* 1000BaseLX Single-mode Fiber */
 #define IFM_1000_CX	16		/* 1000BaseCX 150ohm STP */
-#define IFM_1000_TX	17		/* 1000BaseTX 4 pair cat 5 */
+#define IFM_1000_T	17		/* 1000BaseTX 4 pair cat 5 */
 #define IFM_homePNA	18		/* HomePNA media for ethernet frames */
 /* note 31 is the max! */
 
@@ -265,7 +265,7 @@ struct ifmedia_description {
 	{ IFM_1000_SX,	"1000baseSX" },					\
 	{ IFM_1000_LX,	"1000baseLX" },					\
 	{ IFM_1000_CX,	"1000baseCX" },					\
-	{ IFM_1000_TX,	"1000baseTX" },					\
+	{ IFM_1000_T,	"1000baseTX" },					\
 	{ IFM_homePNA,	"homePNA" },					\
 	{ 0, NULL },							\
 }

@@ -516,7 +516,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 				/*
 				 * this version did not support 1000M,
 				 * ifm->ifm_media =
-				 * IFM_ETHER|IFM_1000_TX|IFM_FDX;
+				 * IFM_ETHER|IFM_1000_T|IFM_FDX;
 				 */
 				ifm->ifm_media =
 				    IFM_ETHER | IFM_100_TX | IFM_FDX;
@@ -529,7 +529,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 				ability = 0;
 				/*
 				 * this version did not support 1000M,
-				 * ifm->ifm_media = IFM_ETHER|IFM_1000_TX;
+				 * ifm->ifm_media = IFM_ETHER|IFM_1000_T;
 				 */
 				ifm->ifm_media = IFM_ETHER | IFM_100_TX;
 				media &= ~PHY_BMCR_SPEEDSEL;
@@ -663,16 +663,16 @@ my_getmode_mii(struct my_softc * sc)
 			       sc->my_unit);
 
 		ifp->if_baudrate = 1000000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_TX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_TX | IFM_HDX,
+		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_HDX,
 		    0, NULL);
 		if (bootverbose)
 			printf("my%d: 1000Mbps full-duplex mode supported\n",
 			   sc->my_unit);
 		ifp->if_baudrate = 1000000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_TX | IFM_FDX,
+		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_FDX,
 		    0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER | IFM_1000_TX | IFM_FDX;
+		sc->ifmedia.ifm_media = IFM_ETHER | IFM_1000_T | IFM_FDX;
 	}
 #endif
 	if (bmsr & PHY_BMSR_CANAUTONEG) {
@@ -712,7 +712,7 @@ my_setmode_mii(struct my_softc * sc, int media)
 		  PHY_BMCR_DUPLEX | PHY_BMCR_LOOPBK);
 
 #if 0				/* this version did not support 1000M, */
-	if (IFM_SUBTYPE(media) == IFM_1000_TX) {
+	if (IFM_SUBTYPE(media) == IFM_1000_T) {
 		printf("1000Mbps/T4, half-duplex\n");
 		bmcr &= ~PHY_BMCR_SPEEDSEL;
 		bmcr &= ~PHY_BMCR_DUPLEX;
@@ -1721,11 +1721,11 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 		if (ability2 & PHY_1000SR_1000BTXFULL) {
 			advert = 0;
 			ability = 0;
-	  		ifmr->ifm_active = IFM_ETHER|IFM_1000_TX|IFM_FDX;
+	  		ifmr->ifm_active = IFM_ETHER|IFM_1000_T|IFM_FDX;
 	  	} else if (ability & PHY_1000SR_1000BTXHALF) {
 			advert = 0;
 			ability = 0;
-			ifmr->ifm_active = IFM_ETHER|IFM_1000_TX|IFM_HDX;
+			ifmr->ifm_active = IFM_ETHER|IFM_1000_T|IFM_HDX;
 		}
 	}
 #endif

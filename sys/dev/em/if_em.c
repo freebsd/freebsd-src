@@ -1010,7 +1010,7 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
          ifmr->ifm_active |= IFM_100_TX;
          break;
       case 1000:
-         ifmr->ifm_active |= IFM_1000_TX;
+         ifmr->ifm_active |= IFM_1000_T;
          break;
       }
       if (adapter->link_duplex == FULL_DUPLEX)
@@ -1050,7 +1050,7 @@ em_media_change(struct ifnet *ifp)
       }
       break;
    case IFM_1000_SX:
-   case IFM_1000_TX:
+   case IFM_1000_T:
       adapter->shared.autoneg = DO_AUTO_NEG;
       adapter->shared.autoneg_advertised = ADVERTISE_1000_FULL;
       break;
@@ -1297,9 +1297,9 @@ em_setup_interface(device_t dev, struct adapter * adapter)
       ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX, 0, NULL);
       ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX, 0,
                   NULL);
-      ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_TX | IFM_FDX, 0,
+      ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T | IFM_FDX, 0,
                   NULL);
-      ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_TX, 0, NULL);
+      ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T, 0, NULL);
    }
    ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
    ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
