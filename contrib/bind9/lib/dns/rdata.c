@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.147.2.11.2.15 2004/03/12 10:31:25 marka Exp $ */
+/* $Id: rdata.c,v 1.147.2.11.2.16 2004/10/06 05:37:40 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -1588,7 +1588,7 @@ warn_badname(dns_name_t *name, isc_lex_t *lexer,
 		file = isc_lex_getsourcename(lexer);
 		line = isc_lex_getsourceline(lexer);
 		dns_name_format(name, namebuf, sizeof(namebuf));
-		(*callbacks->warn)(callbacks, "%s:%u: %s: %s", 
+		(*callbacks->warn)(callbacks, "%s:%u: warning: %s: %s", 
 				   file, line, namebuf,
 				   dns_result_totext(DNS_R_BADNAME));
 	}

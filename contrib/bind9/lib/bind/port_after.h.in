@@ -86,6 +86,19 @@ struct sockaddr_in6 {
 #undef IN6ADDR_LOOPBACK_INIT
 #endif
 
+#ifdef _AIX
+#ifndef IN6ADDR_ANY_INIT
+#define IN6ADDR_ANY_INIT {{{ 0, 0, 0, 0 }}}
+#endif
+#ifndef IN6ADDR_LOOPBACK_INIT
+#if BYTE_ORDER == BIG_ENDIAN
+#define IN6ADDR_LOOPBACK_INIT {{{ 0, 0, 0, 1 }}}
+#else
+#define IN6ADDR_LOOPBACK_INIT {{{0, 0, 0, 0x01000000}}}
+#endif
+#endif
+#endif
+
 #ifndef IN6ADDR_ANY_INIT
 #ifdef s6_addr
 #define IN6ADDR_ANY_INIT \

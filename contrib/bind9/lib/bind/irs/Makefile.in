@@ -13,12 +13,12 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.7.206.1 2004/03/06 08:13:23 marka Exp $
+# $Id: Makefile.in,v 1.7.206.3 2004/12/07 00:38:35 marka Exp $
 
 srcdir=		@srcdir@
 VPATH =         @srcdir@
 
-WANT_IRS_THREADS_OBJS=	gethostent_r.@O@ getnetgrent_r.@O@ \
+WANT_IRS_THREADS_OBJS=	gethostent_r.@O@ getnetent_r.@O@ getnetgrent_r.@O@ \
 	getprotoent_r.@O@ getservent_r.@O@
 
 WANT_IRS_NISGR_OBJS= nis_gr.@O@ 
@@ -40,7 +40,7 @@ OBJS=	@WANT_IRS_GR_OBJS@ @WANT_IRS_NIS_OBJS@ @WANT_IRS_THREADS_OBJS@ \
 	dns_sv.@O@ gai_strerror.@O@ gen.@O@ gen_ho.@O@ \
 	gen_ng.@O@ gen_nw.@O@ gen_pr.@O@ gen_sv.@O@ \
 	getaddrinfo.@O@ gethostent.@O@ \
-	getnameinfo.@O@ getnetent.@O@ getnetent_r.@O@ \
+	getnameinfo.@O@ getnetent.@O@ \
 	getnetgrent.@O@ getprotoent.@O@ getservent.@O@ \
 	hesiod.@O@ irp.@O@ irp_ho.@O@ irp_ng.@O@ irp_nw.@O@ \
 	irp_pr.@O@ irp_sv.@O@ irpmarshall.@O@ irs_data.@O@ \

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.h,v 1.55.12.5 2004/03/08 09:04:38 marka Exp $ */
+/* $Id: rbt.h,v 1.55.12.6 2004/10/11 05:55:51 marka Exp $ */
 
 #ifndef DNS_RBT_H
 #define DNS_RBT_H 1
@@ -603,15 +603,18 @@ dns_rbt_destroy(dns_rbt_t **rbtp);
 isc_result_t
 dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum);
 /*
- * Stop working with a red-black tree of trees.  Once dns_rbt_destroy2()
- * has been called on a 'rbt' only dns_rbt_destroy() or dns_rbt_destroy2()
- * may be used on the tree.  If 'quantum' is zero then the entire tree will
- * be destroyed.
- *
+ * Stop working with a red-black tree of trees. 
+ * If 'quantum' is zero then the entire tree will be destroyed.
+ * If 'quantum' is non zero then up to 'quantum' nodes will be destroyed
+ * allowing the rbt to be incrementally destroyed by repeated calls to
+ * dns_rbt_destroy2().  Once dns_rbt_destroy2() has been called no other
+ * operations than dns_rbt_destroy()/dns_rbt_destroy2() should be
+ * performed on the tree of trees.
+ * 
  * Requires:
  * 	*rbt is a valid rbt manager.
  *
- * Ensures:
+ * Ensures on ISC_R_SUCCESS:
  *	All space allocated by the RBT library has been returned.
  *
  *	*rbt is invalidated as an rbt manager.
