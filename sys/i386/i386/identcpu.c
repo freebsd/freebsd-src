@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.55 1999/01/08 16:29:56 bde Exp $
+ *	$Id: identcpu.c,v 1.56 1999/01/09 13:07:18 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -293,7 +293,9 @@ printcpuinfo(void)
 			    && ((cpu_id & 0x0f0) < 0x60)
 			    && ((cpu_id & 0x00f) > 3))
 				enable_K5_wt_alloc();
-			else if ((cpu_id & 0x0f0) > 0x70)
+			else if (((cpu_id & 0x0f0) > 0x80)
+				 || (((cpu_id & 0x0f0) == 0x80)
+				     && (cpu_id & 0x00f) > 0x07))
 				enable_K6_2_wt_alloc();
 			else if ((cpu_id & 0x0f0) > 0x50)
 				enable_K6_wt_alloc();
@@ -859,23 +861,11 @@ print_AMD_info(void)
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
 	}
-	switch (cpu_id & 0xFF0) {
-	case 0x560:	/* K6 0.35u */
-	case 0x570:	/* K6 0.25u */
-		amd_whcr = rdmsr(0xc0000082);
-		if (!(amd_whcr & 0x00fe)) {
-			printf("Write Allocate Disable\n");
-		} else {
-			printf("Write Allocate Enable Limit: %dM bytes\n",
-			    (u_int32_t)(amd_whcr & 0x00fe) * 4);
-			printf("Write Allocate 15-16M bytes: %s\n",
-			    (amd_whcr & 0x0001) ? "Enable" : "Disable");
-			printf("Hardware Write Allocate Control: %s\n",
-			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
-		}
-		break;
-	case 0x580:	/* K6-2 */
-	case 0x590:	/* K6-3 */
+	if (((cpu_id & 0xf00) == 0x500)
+	    && (((cpu_id & 0x0f0) > 0x80)
+		|| (((cpu_id & 0x0f0) == 0x80)
+		    && (cpu_id & 0x00f) > 0x07))) {
+		/* K6-2(new core [Stepping 8-F]), K6-3 or later */
 		amd_whcr = rdmsr(0xc0000082);
 		if (!(amd_whcr & (0x3ff << 22))) {
 			printf("Write Allocate Disable\n");
@@ -885,6 +875,19 @@ print_AMD_info(void)
 			printf("Write Allocate 15-16M bytes: %s\n",
 			    (amd_whcr & (1 << 16)) ? "Enable" : "Disable");
 		}
-		break;
+	} else if (((cpu_id & 0xf00) == 0x500)
+		   && ((cpu_id & 0x0f0) > 0x50)) {
+		/* K6, K6-2(old core) */
+		amd_whcr = rdmsr(0xc0000082);
+		if (!(amd_whcr & (0x7f << 1))) {
+			printf("Write Allocate Disable\n");
+		} else {
+			printf("Write Allocate Enable Limit: %dM bytes\n",
+			    (u_int32_t)((amd_whcr & (0x7f << 1)) >> 1) * 4);
+			printf("Write Allocate 15-16M bytes: %s\n",
+			    (amd_whcr & 0x0001) ? "Enable" : "Disable");
+			printf("Hardware Write Allocate Control: %s\n",
+			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
+		}
 	}
 }
