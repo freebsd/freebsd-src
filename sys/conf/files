@@ -747,12 +747,14 @@ dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 dev/syscons/blank/blank_saver.c	optional blank_saver
 dev/syscons/daemon/daemon_saver.c optional daemon_saver
+dev/syscons/dragon/dragon_saver.c optional dragon_saver
 dev/syscons/fade/fade_saver.c	optional fade_saver
 dev/syscons/fire/fire_saver.c	optional fire_saver
 dev/syscons/green/green_saver.c	optional green_saver
 dev/syscons/logo/logo_saver.c	optional logo_saver
 dev/syscons/logo/logo.c		optional logo_saver
 dev/syscons/rain/rain_saver.c	optional rain_saver
+dev/syscons/snake/snake_saver.c	optional snake_saver
 dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c	optional tdfx pci
