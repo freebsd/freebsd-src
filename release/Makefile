@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.219 1996/06/07 11:46:18 jkh Exp $
+#	$Id: Makefile,v 1.220 1996/06/08 22:55:25 jkh Exp $
 #
 # How to roll a release:
 #
@@ -431,6 +431,7 @@ cdrom.1:
 			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
 		fi \
 	done
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
 
 # Various "subroutine" and other supporting targets.
 
