@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020520:
+	Due to a compiler upgrade, the set of warnings has changed,
+	resulting in new compile failures when -Werror is set
+	inappropriately.  While the set of warnings is adjusted and
+	fixed, it is recommended that you place "NO_WERROR=yes" on
+	the make line for buildworld/buildkernel, or in /etc/make.conf
+	if appropriate.
+
 20020511:
 	The k5su utility installed as part of Kerberos 5 is no longer
 	installed with the set-user-ID bit set by default.  Add
