@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.9 1999/04/21 07:26:25 peter Exp $
+ *  $Id: ata-all.c,v 1.10 1999/04/21 10:58:07 peter Exp $
  */
 
 #include "ata.h"
@@ -373,7 +373,7 @@ promise_intr(void *data)
 	ataintr(data);
 
     if (channel & 0x00004000)
-	ataintr(atadevices[scp->unit + 1]);
+	ataintr(atadevices[scp->lun + 1]);
 }
 #endif
 
