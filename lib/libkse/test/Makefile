@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# Automated test suite for libc_r (pthreads).
+# Automated test suite for libpthread (pthreads).
 #
 
 # File lists.
@@ -26,7 +26,7 @@ CFLAGS := -Wall -pipe -g3
 LDFLAGS_A := -static
 LDFLAGS_P := -pg
 LDFLAGS_S :=
-LIBS := -lc_r
+LIBS := -lpthread
 
 # Flags passed to verify.  "-v" or "-u" may be useful.
 VFLAGS :=

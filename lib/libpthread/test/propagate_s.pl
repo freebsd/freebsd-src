@@ -29,7 +29,7 @@
 #
 ###########################################################################
 #
-# Verify that no cancellation points are propagated inside of libc_r.
+# Verify that no cancellation points are propagated inside of libpthread.
 #
 # $FreeBSD$
 #

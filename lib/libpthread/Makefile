@@ -14,7 +14,7 @@ CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
 
-# Uncomment this if you want libc_r to contain debug information for
+# Uncomment this if you want libpthread to contain debug information for
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
 

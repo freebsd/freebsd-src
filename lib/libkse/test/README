@@ -3,10 +3,10 @@ $FreeBSD$
 This test suite is meant to test general functionality of pthreads, as well as
 provide a simple framework for regression tests.  In general, this test suite
 can be used with any pthreads library, but in reality there are a number of
-libc_r-specific aspects to this test suite which would require some effort to
-get around if testing another pthreads library.
+libpthread-specific aspects to this test suite which would require some
+effort to get around if testing another pthreads library.
 
-This test suite assumes that libc_r is installed.
+This test suite assumes that libpthread is installed.
 
 There are two forms of test that the 'verify' script understands.  The simpler
 form is the diff format, where the output of the test program is diff'ed with
