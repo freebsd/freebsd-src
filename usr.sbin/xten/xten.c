@@ -160,7 +160,7 @@ char *tab[];
 	int i;
 
 	for(i = 0; tab[i] != NULL; i++) {
-	  if(strcmp(s, tab[i]) == 0) return(i);
+	  if(strcasecmp(s, tab[i]) == 0) return(i);
 	}
 	return(-1);
 }
