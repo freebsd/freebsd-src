@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.7 1995/05/30 08:12:40 rgrimes Exp $
+ * $Id: nfs_socket.c,v 1.8 1995/06/27 11:06:39 dfr Exp $
  */
 
 /*
@@ -134,7 +134,6 @@ static int nfs_backoff[8] = { 2, 4, 8, 16, 32, 64, 128, 256, };
 int	nfs_sbwait();
 void	nfs_disconnect(), nfs_realign(), nfsrv_wakenfsd(), nfs_sndunlock();
 void	nfs_rcvunlock(), nqnfs_serverd(), nqnfs_clientlease();
-struct mbuf *nfsm_rpchead();
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.13 1995/08/11 11:31:10 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.14 1995/08/24 10:45:13 dfr Exp $
  */
 
 /*
@@ -83,7 +83,6 @@ void nqsrv_instimeq(), nqsrv_send_eviction(), nfs_sndunlock();
 void nqsrv_unlocklease(), nqsrv_waitfor_expiry(), nfsrv_slpderef();
 void nqsrv_addhost(), nqsrv_locklease(), nqnfs_serverd();
 void nqnfs_clientlease();
-struct mbuf *nfsm_rpchead();
 
 /*
  * Signifies which rpcs can have piggybacked lease requests
