@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
 
@@ -71,6 +72,8 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
+static struct	ifqueue rtsintrq;
+
 struct walkarg {
 	int	w_tmemsize;
 	int	w_op, w_arg;
@@ -78,6 +81,7 @@ struct walkarg {
 	struct sysctl_req *w_req;
 };
 
+static void	rts_input(struct mbuf *m);
 static struct mbuf *rt_msg1(int type, struct rt_addrinfo *rtinfo);
 static int	rt_msg2(int type, struct rt_addrinfo *rtinfo,
 			caddr_t cp, struct walkarg *w);
@@ -92,6 +96,35 @@ static void	rt_setmetrics(u_long which, const struct rt_metrics *in,
 static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
+
+static void
+rts_init(void)
+{
+
+	rtsintrq.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, NETISR_MPSAFE);
+}
+SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0)
+
+static void
+rts_input(struct mbuf *m)
+{
+	struct sockproto route_proto;
+	unsigned short *family;
+	struct m_tag *tag;
+
+	route_proto.sp_family = PF_ROUTE;
+	tag = m_tag_find(m, PACKET_TAG_RTSOCKFAM, NULL);
+	if (tag != NULL) {
+		family = (unsigned short *)(tag + 1);
+		route_proto.sp_protocol = *family;
+		m_tag_delete(m, tag);
+	} else
+		route_proto.sp_protocol = 0;
+
+	raw_input(m, &route_proto, &route_src, &route_dst);
+}
 
 /*
  * It really doesn't make any sense at all for this code to share much
@@ -919,11 +952,26 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	struct sockproto route_proto;
+	unsigned short *family;
+	struct m_tag *tag;
 
-	route_proto.sp_family = PF_ROUTE;
-	route_proto.sp_protocol = sa ?  sa->sa_family : 0;
-	raw_input(m, &route_proto, &route_src, &route_dst);
+	/*
+	 * Preserve the family from the sockaddr, if any, in an m_tag for
+	 * use when injecting the mbuf into the routing socket buffer from
+	 * the netisr.
+	 */
+	if (sa != NULL) {
+		tag = m_tag_get(PACKET_TAG_RTSOCKFAM, sizeof(unsigned short),
+		    M_NOWAIT);
+		if (tag == NULL) {
+			m_freem(m);
+			return;
+		}
+		family = (unsigned short *)(tag + 1);
+		*family = sa ? sa->sa_family : 0;
+		m_tag_prepend(m, tag);
+	}
+	netisr_queue(NETISR_ROUTE, m);
 }
 
 /*
