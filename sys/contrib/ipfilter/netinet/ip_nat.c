@@ -2879,7 +2879,7 @@ void nat_log(nat, type)
 struct nat *nat;
 u_int type;
 {
-# ifdef LARGE_NAT
+# ifndef LARGE_NAT
 	struct ipnat *np;
 	int rulen;
 # endif
