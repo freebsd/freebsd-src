@@ -158,7 +158,6 @@
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
-#define PPTP_EXPIRE_TIME             60
 #define PROTO_EXPIRE_TIME            60
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
@@ -422,7 +421,8 @@ StartPointIn(struct in_addr alias_addr,
     u_int n;
 
     n  = alias_addr.s_addr;
-    n += alias_port;
+    if (link_type != LINK_PPTP)
+	n += alias_port;
     n += link_type;
     return(n % LINK_TABLE_IN_SIZE);
 }
@@ -436,8 +436,10 @@ StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
 
     n  = src_addr.s_addr;
     n += dst_addr.s_addr;
-    n += src_port; 
-    n += dst_port;
+    if (link_type != LINK_PPTP) {
+	n += src_port; 
+	n += dst_port;
+    }
     n += link_type;
 
     return(n % LINK_TABLE_OUT_SIZE);
@@ -1004,7 +1006,7 @@ AddLink(struct in_addr  src_addr,
             link->expire_time = TCP_EXPIRE_INITIAL;
             break;
         case LINK_PPTP:
-            link->expire_time = PPTP_EXPIRE_TIME;
+            link->flags |= LINK_PERMANENT;	/* no timeout. */
             break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
@@ -1389,7 +1391,8 @@ FindLinkIn(struct in_addr dst_addr,
     AddFragmentPtrLink(), FindFragmentPtr()
     FindProtoIn(), FindProtoOut()
     FindUdpTcpIn(), FindUdpTcpOut()
-    FindPptpIn(), FindPptpOut()
+    AddPptp(), FindPptpOutByCallId(), FindPptpInByCallId(),
+    FindPptpOutByPeerCallId(), FindPptpInByPeerCallId()
     FindOriginalAddress(), FindAliasAddress()
 
 (prototypes in alias_local.h)
@@ -1630,56 +1633,6 @@ FindUdpTcpOut(struct in_addr  src_addr,
 
 
 struct alias_link *
-FindPptpIn(struct in_addr dst_addr,
-          struct in_addr alias_addr,
-          u_short call_id)
-{
-    struct alias_link *link;
-
-    link = FindLinkIn(dst_addr, alias_addr,
-                      NO_DEST_PORT, call_id,
-                      LINK_PPTP, 1);
-
-    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
-    {
-        struct in_addr target_addr;
-
-        target_addr = FindOriginalAddress(alias_addr);
-        link = AddLink(target_addr, dst_addr, alias_addr,
-                       call_id, NO_DEST_PORT, call_id,
-                       LINK_PPTP);
-    }
-
-    return(link);
-}
-
-
-struct alias_link * 
-FindPptpOut(struct in_addr  src_addr,
-            struct in_addr  dst_addr,
-            u_short         call_id)
-{
-    struct alias_link *link;
-
-    link = FindLinkOut(src_addr, dst_addr,
-                       call_id, NO_DEST_PORT,
-                       LINK_PPTP, 1);
-
-    if (link == NULL)
-    {
-        struct in_addr alias_addr;
-
-        alias_addr = FindAliasAddress(src_addr);
-        link = AddLink(src_addr, dst_addr, alias_addr,
-                       call_id, NO_DEST_PORT, GET_ALIAS_PORT,
-                       LINK_PPTP);
-    }
-
-    return(link);
-}
-
-
-struct alias_link *
 QueryUdpTcpIn(struct in_addr dst_addr,
               struct in_addr alias_addr,
               u_short        dst_port,
@@ -1738,6 +1691,97 @@ QueryUdpTcpOut(struct in_addr  src_addr,
 		       link_type, 0);
 
     return(link);
+}
+
+struct alias_link *
+AddPptp(struct in_addr  src_addr,
+	struct in_addr  dst_addr,
+	struct in_addr  alias_addr,
+	u_int16_t       src_call_id)
+{
+    struct alias_link *link;
+
+    link = AddLink(src_addr, dst_addr, alias_addr,
+		   src_call_id, 0, GET_ALIAS_PORT,
+		   LINK_PPTP);
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpOutByCallId(struct in_addr src_addr,
+		    struct in_addr dst_addr,
+		    u_int16_t      src_call_id)
+{
+    u_int i;
+    struct alias_link *link;
+
+    i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableOut[i], list_out)
+	if (link->link_type == LINK_PPTP &&
+	    link->src_addr.s_addr == src_addr.s_addr &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->src_port == src_call_id)
+		break;
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpOutByPeerCallId(struct in_addr src_addr,
+			struct in_addr dst_addr,
+			u_int16_t      dst_call_id)
+{
+    u_int i;
+    struct alias_link *link;
+
+    i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableOut[i], list_out)
+	if (link->link_type == LINK_PPTP &&
+	    link->src_addr.s_addr == src_addr.s_addr &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->dst_port == dst_call_id)
+		break;
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpInByCallId(struct in_addr dst_addr,
+		   struct in_addr alias_addr,
+		   u_int16_t      dst_call_id)
+{
+    u_int i;
+    struct alias_link *link;
+
+    i = StartPointIn(alias_addr, 0, LINK_PPTP);
+    LIST_FOREACH(link, &linkTableIn[i], list_in)
+	if (link->link_type == LINK_PPTP &&
+	    link->dst_addr.s_addr == dst_addr.s_addr &&
+	    link->alias_addr.s_addr == alias_addr.s_addr &&
+	    link->dst_port == dst_call_id)
+		break;
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpInByPeerCallId(struct in_addr dst_addr,
+		       struct in_addr alias_addr,
+		       u_int16_t      alias_call_id)
+{
+    struct alias_link *link;
+
+    link = FindLinkIn(dst_addr, alias_addr,
+		      0/* any */, alias_call_id,
+		      LINK_PPTP, 0);
+
+
+    return (link);
 }
 
 
@@ -1845,6 +1889,7 @@ FindAliasAddress(struct in_addr original_addr)
     SetAckModified(), GetAckModified()
     GetDeltaAckIn(), GetDeltaSeqOut(), AddSeq()
     SetLastLineCrlfTermed(), GetLastLineCrlfTermed()
+    SetDestCallId()
 */
 
 
@@ -2225,6 +2270,16 @@ GetLastLineCrlfTermed(struct alias_link *link)
 {
 
     return (link->flags & LINK_LAST_LINE_CRLF_TERMED);
+}
+
+void
+SetDestCallId(struct alias_link *link, u_int16_t cid)
+{
+
+    deleteAllLinks = 1;
+    link = ReLink(link, link->src_addr, link->dst_addr, link->alias_addr,
+		  link->src_port, cid, link->alias_port, link->link_type);
+    deleteAllLinks = 0;
 }
 
 

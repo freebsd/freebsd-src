@@ -185,7 +185,6 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
     ProtoAliasIn(), ProtoAliasOut()
     UdpAliasIn(), UdpAliasOut()
     TcpAliasIn(), TcpAliasOut()
-    GreAliasIn()
 
 These routines handle protocol specific details of packet aliasing.
 One may observe a certain amount of repetitive arithmetic in these
@@ -236,8 +235,6 @@ static int UdpAliasIn (struct ip *);
 
 static int TcpAliasOut(struct ip *, int);
 static int TcpAliasIn (struct ip *);
-
-static int GreAliasIn(struct ip *);
 
 
 static int
@@ -703,40 +700,6 @@ ProtoAliasOut(struct ip *pip)
         return(PKT_ALIAS_OK);
     }
     return(PKT_ALIAS_IGNORED);
-}
-
-
-static int
-GreAliasIn(struct ip *pip)
-{
-    u_short call_id;
-    struct alias_link *link;
-
-/* Return if proxy-only mode is enabled. */
-    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return (PKT_ALIAS_OK);
-
-    if (PptpGetCallID(pip, &call_id)) {
-	if ((link = FindPptpIn(pip->ip_src, pip->ip_dst, call_id)) != NULL) {
-	    struct in_addr alias_address;
-	    struct in_addr original_address;
-
-	    alias_address = GetAliasAddress(link);
-	    original_address = GetOriginalAddress(link);
-	    PptpSetCallID(pip, GetOriginalPort(link));
-
-	    /* Restore original IP address. */
-	    DifferentialChecksum(&pip->ip_sum,
-				 (u_short *)&original_address,
-				 (u_short *)&pip->ip_dst,
-				 2);
-	    pip->ip_dst = original_address;
-
-	    return (PKT_ALIAS_OK);
-	} else
-	    return (PKT_ALIAS_IGNORED);
-    } else
-	return ProtoAliasIn(pip);
 }
 
 
@@ -1318,8 +1281,12 @@ PacketAliasIn(char *ptr, int maxpacketsize)
                 iresult = TcpAliasIn(pip);
                 break;
             case IPPROTO_GRE:
-                iresult = GreAliasIn(pip);
-                break;
+		if (packetAliasMode & PKT_ALIAS_PROXY_ONLY ||
+		    AliasHandlePptpGreIn(pip) == 0)
+		    iresult = PKT_ALIAS_OK;
+		else
+		    iresult = ProtoAliasIn(pip);
+		break;
 	    default:
 		iresult = ProtoAliasIn(pip);
                 break;
@@ -1426,6 +1393,12 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
             case IPPROTO_TCP:
                 iresult = TcpAliasOut(pip, maxpacketsize);
                 break;
+	    case IPPROTO_GRE:
+		if (AliasHandlePptpGreOut(pip) == 0)
+		    iresult = PKT_ALIAS_OK;
+		else
+		    iresult = ProtoAliasOut(pip);
+		break;
 	    default:
 		iresult = ProtoAliasOut(pip);
                 break;
