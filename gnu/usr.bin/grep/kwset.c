@@ -27,6 +27,8 @@
    String Matching:  An Aid to Bibliographic Search," CACM June 1975,
    Vol. 18, No. 6, which describes the failure function used below. */
 
+/* $FreeBSD$ */
+
 
 #ifdef STDC_HEADERS
 #include <limits.h>
@@ -591,7 +593,7 @@ bmexec(kws, text, size)
       d = d1[U((tp += d)[-1])];
       if (d != 0)
 	continue;
-      if (tp[-2] == gc)
+      if (U(tp[-2]) == gc)
 	{
 	  for (i = 3; i <= len && U(tp[-i]) == U(sp[-i]); ++i)
 	    ;
