@@ -17,8 +17,8 @@ command="/usr/sbin/${name}"
 
 case `${CMD_OSTYPE}` in
 FreeBSD)
-	start_cmd="echo 'Starting amd.'; /usr/sbin/${name} &"
 	start_precmd="amd_precmd"
+	command_args="&"
 	;;
 NetBSD)
 	command_args='-p -a '$amd_dir' -F /etc/amd.conf >/var/run/amd.pid'
