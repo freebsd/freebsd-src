@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.84 1998/05/07 04:58:53 msmith Exp $
+ * $Id: nfs_vnops.c,v 1.85 1998/05/13 05:47:09 peter Exp $
  */
 
 
@@ -405,44 +405,38 @@ nfs_open(ap)
 			error = nqnfs_getlease(vp, ND_READ, ap->a_cred,
 			    ap->a_p);
 		    } while (error == NQNFS_EXPIRED);
-		    if (error) {
+		    if (error)
 			return (error);
-		    }
 		    if (np->n_lrev != np->n_brev ||
 			(np->n_flag & NQNFSNONCACHE)) {
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-				ap->a_p, 1)) == EINTR) {
+				ap->a_p, 1)) == EINTR)
 				return (error);
-			}
 			np->n_brev = np->n_lrev;
 		    }
 		}
 	} else {
 		if (np->n_flag & NMODIFIED) {
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-				ap->a_p, 1)) == EINTR) {
+				ap->a_p, 1)) == EINTR)
 				return (error);
-			}
 			np->n_attrstamp = 0;
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
-			if (error) {
+			if (error)
 				return (error);
-			}
 			np->n_mtime = vattr.va_mtime.tv_sec;
 		} else {
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
-			if (error) {
+			if (error)
 				return (error);
-			}
 			if (np->n_mtime != vattr.va_mtime.tv_sec) {
 				if (vp->v_type == VDIR)
 					np->n_direofoffset = 0;
 				if ((error = nfs_vinvalbuf(vp, V_SAVE,
-					ap->a_cred, ap->a_p, 1)) == EINTR) {
+					ap->a_cred, ap->a_p, 1)) == EINTR)
 					return (error);
-				}
 				np->n_mtime = vattr.va_mtime.tv_sec;
 			}
 		}
