@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 #include "extern.h"
 
 static void rlines __P((FILE *, long, struct stat *));
