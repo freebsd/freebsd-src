@@ -39,10 +39,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.69 1997/08/15 02:33:30 fsmp Exp $
+ * $Id: init_main.c,v 1.70 1997/08/26 18:10:37 peter Exp $
  */
 
-#include "opt_rlimit.h"
 #include "opt_devfs.h"
 
 #include <sys/param.h>
@@ -62,9 +61,6 @@
 #include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
-#ifdef SMP
-#include <machine/smp.h>
-#endif /* SMP */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id$
+ *      $Id: su.c,v 1.16 1997/02/22 09:44:40 peter Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -53,15 +53,9 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
-#include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <sys/buf.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <scsi/scsiconf.h>
 #define CDEV_MAJOR 18
 

@@ -36,19 +36,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.17 1997/04/04 17:46:13 dfr Exp $
+ * $Id: vfs_lookup.c,v 1.18 1997/04/04 17:47:43 dfr Exp $
  */
 
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syslimits.h>
-#include <sys/time.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>

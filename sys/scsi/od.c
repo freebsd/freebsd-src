@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.29 1997/03/23 06:33:45 bde Exp $
+ *	$Id: od.c,v 1.30 1997/03/24 11:25:01 bde Exp $
  */
 
 /*
@@ -60,33 +60,23 @@
 #include "opt_od.h"
 
 #define SPLOD splbio
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
-#include <sys/malloc.h>
 #include <sys/cdio.h>
-#include <sys/errno.h>
 #include <sys/dkstat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
-#include <vm/vm.h>
-#include <sys/dkstat.h>
-#include <machine/md_var.h>
 
 static u_int32_t odstrats, odqueues;
 

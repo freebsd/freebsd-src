@@ -46,26 +46,14 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.1 1997/06/16 00:27:26 dyson Exp $
+ * $Id: kern_threads.c,v 1.2 1997/07/06 02:40:42 dyson Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/filedesc.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/acct.h>
-#include <sys/ktrace.h>
 #include <sys/sysproto.h>
-#include <sys/unistd.h>
-
-#include <vm/vm.h>
-
-#include <machine/cpu.h>
 
 /*
  * Low level support for sleep/wakeup paradigm

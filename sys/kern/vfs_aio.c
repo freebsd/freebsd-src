@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.2 1997/07/06 02:40:43 dyson Exp $
+ * $Id: vfs_aio.c,v 1.3 1997/07/17 04:49:31 dyson Exp $
  */
 
 /*
@@ -31,31 +31,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/namei.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
-#include <sys/dirent.h>
 #include <sys/signalvar.h>
-#include <sys/queue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/sysctl.h>
 #include <sys/aio.h>
 #include <sys/shm.h>
 

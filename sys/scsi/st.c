@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.78 1997/03/24 11:25:03 bde Exp $
+ * $Id: st.c,v 1.79 1997/08/23 21:05:32 steve Exp $
  */
 
 /*
@@ -30,16 +30,12 @@
 #include "opt_bounce.h"
 #include "opt_scsi.h"
 
-#include <sys/types.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <sys/fcntl.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/mtio.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -47,7 +43,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_tape.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>

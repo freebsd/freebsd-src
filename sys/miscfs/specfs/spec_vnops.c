@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.39 1997/05/01 19:12:22 sos Exp $
+ * $Id: spec_vnops.c,v 1.40 1997/05/29 13:29:13 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -41,17 +41,14 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
-#include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.9 (Berkeley) 5/8/95
- * $Id: lfs_inode.c,v 1.16 1997/03/22 06:53:37 bde Exp $
+ * $Id: lfs_inode.c,v 1.17 1997/03/22 09:33:55 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -39,15 +39,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>

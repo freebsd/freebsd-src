@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.52 1997/03/24 11:25:07 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.53 1997/08/16 19:16:20 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -42,13 +42,10 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
-#include <sys/mbuf.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 
 #include <miscfs/specfs/specdev.h>
@@ -62,10 +59,8 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
 static int	ffs_sbupdate __P((struct ufsmount *, int));

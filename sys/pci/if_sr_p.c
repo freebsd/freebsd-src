@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_sr_p.c,v 1.4 1997/02/22 09:44:07 peter Exp $
  */
 
 #include "pci.h"
@@ -40,7 +40,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
 #ifndef BUGGY

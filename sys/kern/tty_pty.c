@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.43 1997/03/24 12:03:06 bde Exp $
+ * $Id: tty_pty.c,v 1.44 1997/07/30 10:05:18 jmg Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>

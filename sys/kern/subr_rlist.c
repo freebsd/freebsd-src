@@ -54,16 +54,13 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id$
+ *	$Id: subr_rlist.c,v 1.21 1997/02/22 09:39:18 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/rlist.h>
-#include <sys/proc.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 

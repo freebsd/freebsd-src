@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.21 1997/08/26 18:36:15 peter Exp $
+ * $Id: kern_shutdown.c,v 1.22 1997/08/31 23:08:38 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -46,12 +46,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
-#include <sys/msgbuf.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/tty.h>
-#include <sys/tprintf.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -67,7 +63,6 @@
 #include <machine/smp.h>		/* smp_active, cpuid */
 #endif
 
-#include <sys/utsname.h>
 #include <sys/signalvar.h>
 
 #ifndef PANIC_REBOOT_WAIT_TIME

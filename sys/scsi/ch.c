@@ -33,16 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.39 1997/03/24 04:26:46 bde Exp $
+ *      $Id: ch.c,v 1.40 1997/03/24 11:24:55 bde Exp $
  */
-
-#include "opt_scsi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/chio.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -51,12 +46,10 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_driver.h>
 
-#include "ch.h"
 
 #define CHRETRIES	2
 #define CHUNIT(x)	(minor((x)))

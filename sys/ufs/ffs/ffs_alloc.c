@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.33 1997/03/23 20:08:16 guido Exp $
+ * $Id: ffs_alloc.c,v 1.34 1997/08/04 07:30:43 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -46,11 +46,8 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
-#include <vm/vm.h>
-
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>

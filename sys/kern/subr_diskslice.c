@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.35 1997/02/22 09:39:15 peter Exp $
+ *	$Id: subr_diskslice.c,v 1.36 1997/03/24 11:24:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,6 @@
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #define TRACE(str)	do { if (ds_debug) printf str; } while (0)

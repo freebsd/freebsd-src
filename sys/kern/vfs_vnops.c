@@ -36,27 +36,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.35 1997/04/04 17:46:21 dfr Exp $
+ * $Id: vfs_vnops.c,v 1.36 1997/04/04 17:47:40 dfr Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/filio.h>
 #include <sys/ttycom.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_object.h>
-#include <vm/vnode_pager.h>
 
 static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, int com, caddr_t data, 
