@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.12 1995/07/13 08:48:10 davidg Exp $
+ * $Id: device_pager.c,v 1.13 1995/11/06 00:36:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	vm_offset_t foff;
 {
 	dev_t dev;
-	int (*mapfunc) ();
+	d_mmap_t *mapfunc;
 	vm_object_t object;
 	unsigned int npages, off;
 
@@ -179,7 +179,8 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_page_t page;
 	dev_t dev;
 	int i, s;
-	int (*mapfunc) (), prot;
+	d_mmap_t *mapfunc;
+	int prot;
 
 	dev = (dev_t) (u_long) object->handle;
 	offset = m[reqpage]->offset + object->paging_offset;

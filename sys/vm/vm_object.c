@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.55 1995/11/05 20:46:00 dyson Exp $
+ * $Id: vm_object.c,v 1.56 1995/11/20 12:19:41 phk Exp $
  */
 
 /*
@@ -83,8 +83,20 @@
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 
-static void _vm_object_allocate(objtype_t, vm_size_t, vm_object_t);
+#ifdef DDB
+extern void	vm_object_check __P((void));
+#endif
 
+static void	_vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
+#ifdef DDB
+static int	_vm_object_in_map __P((vm_map_t map, vm_object_t object,
+				       vm_map_entry_t entry));
+static int	vm_object_in_map __P((vm_object_t object));
+#endif
+static vm_page_t
+		vm_object_page_lookup __P((vm_object_t object,
+					   vm_offset_t offset));
+static void	vm_object_qcollapse __P((vm_object_t object));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -1211,7 +1223,7 @@ vm_object_coalesce(prev_object, next_object,
  * returns page after looking up in shadow chain
  */
 
-vm_page_t
+static vm_page_t
 vm_object_page_lookup(object, offset)
 	vm_object_t object;
 	vm_offset_t offset;
@@ -1229,7 +1241,7 @@ vm_object_page_lookup(object, offset)
 
 #ifdef DDB
 
-int
+static int
 _vm_object_in_map(map, object, entry)
 	vm_map_t map;
 	vm_object_t object;
@@ -1271,7 +1283,7 @@ _vm_object_in_map(map, object, entry)
 	return 0;
 }
 
-int
+static int
 vm_object_in_map( object)
 	vm_object_t object;
 {
