@@ -486,8 +486,6 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	struct pccard_drv *dp;
 	int err, irq = 0, s;
 
-/* BUCHI */
-
 	dp = find_driver(drvp->name);
 	if (dp == 0)
 		return(ENXIO);
@@ -507,12 +505,6 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	 *	If an interrupt mask has been given, then check it
 	 *	against the slot interrupt (if one has been allocated).
 	 */
-/* BUCHI */
-#if 0
-printf("drvp->irqmask=0x%x, dp->imask=0x%x, sp->irq=0x%x, sp->ctrl->irqs=0x%x\n", drvp->irqmask, dp->imask, sp->irq, sp->ctrl->irqs);
-printf("name=%s, unit=%d, mem=0x%x, memsz=%d, iobase=0x%x, irqmask=0x%x\n", drvp->name, drvp->unit, drvp->mem, drvp->memsize, drvp->iobase, drvp->irqmask);
-#endif
-
 	if (drvp->irqmask && dp->imask) {
 		if ((sp->ctrl->irqs & drvp->irqmask)==0)
 			return(EINVAL);
