@@ -212,7 +212,6 @@ demangle(struct radius *r, const void *mangled, size_t mlen,
 
   *buf = malloc(*len);
   memcpy(*buf, P + 1, *len);
-log_Printf(LogWARN, "demangled %d bytes\n", *len);
 }
 #endif
 
