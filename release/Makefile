@@ -788,6 +788,8 @@ release.10:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
+	@(cd ${RD}/driversfd; awk -f  ${.CURDIR}/scripts/driver-desc.awk \
+		*.dsc >> ${RD}/floppies/DRIVERS.TXT)
 	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
