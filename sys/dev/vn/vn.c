@@ -232,7 +232,7 @@ vnstrategy(struct buf *bp)
 	register struct vn_softc *vn = vn_softc[unit];
 	register daddr_t bn;
 	int error;
-	int sz;
+	long sz;
 	struct uio auio;
 	struct iovec aiov;
 
@@ -272,7 +272,7 @@ vnstrategy(struct buf *bp)
 		aiov.iov_len = bp->b_bcount;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
-		auio.uio_offset = bn*DEV_BSIZE;
+		auio.uio_offset = dbtob(bn);
 		auio.uio_segflg = UIO_SYSSPACE;
 		if( bp->b_flags & B_READ)
 			auio.uio_rw = UIO_READ;
@@ -291,15 +291,14 @@ vnstrategy(struct buf *bp)
 			bp->b_flags |= B_ERROR;
 		biodone(bp);
 	} else {
-		daddr_t bsize;
-		int flags, resid;
+		long bsize, resid;
+		off_t byten;
+		int flags;
 		caddr_t addr;
-
 		struct buf *nbp;
 
 		nbp = getvnbuf();
-
-		bn = dbtob(bn);
+		byten = dbtob(bn);
 		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
 		addr = bp->b_data;
 		flags = bp->b_flags | B_CALL;
@@ -309,14 +308,15 @@ vnstrategy(struct buf *bp)
 			int off, s, nra;
 
 			nra = 0;
-			error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra, NULL);
-			if (error == 0 && (long)nbn == -1)
+			error = VOP_BMAP(vn->sc_vp, (daddr_t)(byten / bsize),
+					 &vp, &nbn, &nra, NULL);
+			if (error == 0 && nbn == -1)
 				error = EIO;
 
 			IFOPT(vn, VN_DONTCLUSTER)
 				nra = 0;
 
-			off = bn % bsize;
+			off = byten % bsize;
 			if (off)
 				sz = bsize - off;
 			else
@@ -333,8 +333,11 @@ vnstrategy(struct buf *bp)
 			}
 
 			IFOPT(vn,VN_IO)
-				printf("vnstrategy: vp %p/%p bn 0x%lx/0x%lx sz 0x%x\n",
-				       vn->sc_vp, vp, bn, nbn, sz);
+				printf(
+			/* XXX no %qx in kernel.  Synthesize it. */
+			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%x\n",
+				       vn->sc_vp, vp, (long)(byten >> 32),
+				       (u_long)byten, nbn, sz);
 
 			nbp->b_flags = flags;
 			nbp->b_bcount = sz;
@@ -376,7 +379,7 @@ vnstrategy(struct buf *bp)
 				return;
 			}
 
-			bn += sz;
+			byten += sz;
 			addr += sz;
 			resid -= sz;
 		}
