@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.8 1998/05/21 21:45:00 brian Exp $
+ *	$Id: deflate.c,v 1.9 1998/06/15 19:06:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -113,7 +113,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     if ((res = deflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
-      log_Printf(LogERROR, "DeflateOutput: deflate returned %d (%s)\n",
+      log_Printf(LogWARN, "DeflateOutput: deflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
       mbuf_Free(mo_head);
       mbuf_FreeSeg(mi_head);
@@ -221,7 +221,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
        */
       state->seqno = seq;
     else {
-      log_Printf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
+      log_Printf(LogWARN, "DeflateInput: Seq error: Got %d, expected %d\n",
                 seq, state->seqno);
       mbuf_Free(mi_head);
       ccp_SendResetReq(&ccp->fsm);
@@ -257,7 +257,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
     if ((res = inflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
-      log_Printf(LogERROR, "DeflateInput: inflate returned %d (%s)\n",
+      log_Printf(LogWARN, "DeflateInput: inflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
       mbuf_Free(mo_head);
       mbuf_Free(mi);
@@ -301,7 +301,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
     mbuf_Free(mi);
 
   if (first) {
-    log_Printf(LogERROR, "DeflateInput: Length error\n");
+    log_Printf(LogWARN, "DeflateInput: Length error\n");
     mbuf_Free(mo_head);
     ccp_SendResetReq(&ccp->fsm);
     return NULL;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.89 1998/06/15 19:05:25 brian Exp $
+ * $Id: modem.c,v 1.90 1998/06/15 19:06:21 brian Exp $
  *
  *  TODO:
  */
@@ -597,11 +597,11 @@ modem_Open(struct physical *modem, struct bundle *bundle)
             }
 	  } else {
 	    *cp = ':';		/* Don't destroy name.full */
-	    log_Printf(LogERROR, "%s: Invalid host:port: \"%s\"\n",
+	    log_Printf(LogWARN, "%s: Invalid host:port: \"%s\"\n",
                       modem->link.name, modem->name.full);
 	  }
 	} else {
-	  log_Printf(LogERROR, "%s: Device (%s) must begin with a '/',"
+	  log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
                      " a '!' or be a host:port pair\n", modem->link.name,
                      modem->name.full);
 	}
@@ -651,7 +651,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 
     if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1) {
       if (modem->type != PHYS_DIRECT) {
-        log_Printf(LogERROR, "%s: Open: Cannot get modem status: %s\n",
+        log_Printf(LogWARN, "%s: Open: Cannot get modem status: %s\n",
 		  modem->link.name, strerror(errno));
         modem_LogicalClose(modem);
 	return (-1);
@@ -663,7 +663,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 
     oldflag = fcntl(modem->fd, F_GETFL, 0);
     if (oldflag < 0) {
-      log_Printf(LogERROR, "%s: Open: Cannot get modem flags: %s\n",
+      log_Printf(LogWARN, "%s: Open: Cannot get modem flags: %s\n",
 		modem->link.name, strerror(errno));
       modem_LogicalClose(modem);
       return (-1);
@@ -1070,7 +1070,7 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
   }
 
   if (*niov >= maxiov) {
-    log_Printf(LogERROR, "ToBinary: No room for physical !\n");
+    log_Printf(LogERROR, "modem2iov: No room for physical !\n");
     if (p)
       free(p);
     return -1;

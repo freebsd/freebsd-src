@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.17 1998/06/07 03:54:41 brian Exp $
+ *	$Id: loadalias.c,v 1.18 1998/06/12 15:37:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -92,7 +92,7 @@ alias_Load()
     if (ID0realuid() == 0)
       path = env;
     else
-      log_Printf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
+      log_Printf(LogWARN, "Ignoring environment _PATH_ALIAS_PREFIX"
                 " value (%s)\n", env);
   }
 
