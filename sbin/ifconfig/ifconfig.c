@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.30 1997/05/10 17:14:52 peter Exp $";
+	"$Id: ifconfig.c,v 1.31 1997/10/16 03:55:28 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -327,7 +327,7 @@ main(argc, argv)
 		case 'd':	/* restrict scan to "down" interfaces */
 			downonly++;
 			break;
-		case 'u':	/* restrict scan to "down" interfaces */
+		case 'u':	/* restrict scan to "up" interfaces */
 			uponly++;
 			break;
 		case 'm':	/* show media choices in status */
