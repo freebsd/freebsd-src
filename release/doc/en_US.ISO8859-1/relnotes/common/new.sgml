@@ -281,6 +281,11 @@
       validity or portability between POSIX systems, has been
       added.</para>
 
+    <para>&man.pw.8; can now add a user whose name ends with a
+      <literal>$</literal> character; this change is intended to help
+      administration of <application>Samba</application>
+      services.</para>
+
     <para>&man.rarpd.8; now accepts a <option>-t</option> flag to
       specify an alternative directory to
       <filename>/tftpboot</filename>.</para>
