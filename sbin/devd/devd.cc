@@ -596,6 +596,7 @@ event_loop(void)
 				if (Dflag)
 					fprintf(stderr, "Calling daemon\n");
 				daemon(0, 0);
+				cfg.drop_pidfile();
 				once++;
 			}
 		}
@@ -743,9 +744,10 @@ main(int argc, char **argv)
 	}
 
 	cfg.parse();
-	if (!dflag && nflag)
+	if (!dflag && nflag) {
 		daemon(0, 0);
-	cfg.drop_pidfile();
+		cfg.drop_pidfile();
+	}
 	signal(SIGHUP, gensighand);
 	signal(SIGINT, gensighand);
 	signal(SIGTERM, gensighand);
