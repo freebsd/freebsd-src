@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.62 1997/02/22 09:48:27 peter Exp $
+ * $Id: vm_mmap.c,v 1.63 1997/03/23 03:37:53 bde Exp $
  */
 
 /*
@@ -787,7 +787,7 @@ mlock(p, uap, retval)
 #ifdef pmap_wired_count
 	if (size + ptoa(pmap_wired_count(vm_map_pmap(&p->p_vmspace->vm_map))) >
 	    p->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
-		return (EAGAIN);
+		return (ENOMEM);
 #else
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
@@ -796,6 +796,36 @@ mlock(p, uap, retval)
 
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct mlockall_args {
+	int	how;
+};
+#endif
+
+int
+mlockall(p, uap, retval)
+	struct proc *p;
+	struct mlockall_args *uap;
+	int *retval;
+{
+	return 0;
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct mlockall_args {
+	int	how;
+};
+#endif
+
+int
+munlockall(p, uap, retval)
+	struct proc *p;
+	struct munlockall_args *uap;
+	int *retval;
+{
+	return 0;
 }
 
 #ifndef _SYS_SYSPROTO_H_
