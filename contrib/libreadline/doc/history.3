@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Tue Mar  6 12:50:54 EST 2001
+.\"	Last Change: Thu Jan 31 16:08:07 EST 2002
 .\"
-.TH HISTORY 3 "2001 Mar 6" "GNU History 4.2"
+.TH HISTORY 3 "2002 January 31" "GNU History 4.3"
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -40,8 +40,8 @@
 .SH NAME
 history \- GNU History Library
 .SH COPYRIGHT
-.if t The GNU History Library is Copyright \(co 1989-2001 by the Free Software Foundation, Inc.
-.if n The GNU History Library is Copyright (C) 1989-2001 by the Free Software Foundation, Inc.
+.if t The GNU History Library is Copyright \(co 1989-2002 by the Free Software Foundation, Inc.
+.if n The GNU History Library is Copyright (C) 1989-2002 by the Free Software Foundation, Inc.
 .SH DESCRIPTION
 Many programs read input from the user a line at a time.  The GNU
 History library is able to keep track of those lines, associate arbitrary
@@ -362,7 +362,8 @@ Clear the history list by deleting all the entries.
 Stifle the history list, remembering only the last \fImax\fP entries.
 
 .Fn1 int unstifle_history "void"
-Stop stifling the history.  This returns the previous amount the
+Stop stifling the history.  This returns the previously-set
+maximum number of history entries (as set by \fBstifle_history()\fP).
 history was stifled.  The value is positive if the history was
 stifled, negative if it wasn't.
 

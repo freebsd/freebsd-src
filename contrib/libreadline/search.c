@@ -40,6 +40,8 @@
 #endif
 
 #include "rldefs.h"
+#include "rlmbutil.h"
+
 #include "readline.h"
 #include "history.h"
 
@@ -54,7 +56,7 @@
 extern HIST_ENTRY *_rl_saved_line_for_history;
 
 /* Functions imported from the rest of the library. */
-extern int _rl_free_history_entry __P((HIST_ENTRY *));
+extern int _rl_free_history_entry PARAMS((HIST_ENTRY *));
 
 static char *noninc_search_string = (char *) NULL;
 static int noninc_history_pos;
@@ -66,6 +68,13 @@ static int rl_history_search_pos;
 static char *history_search_string;
 static int history_string_size;
 
+static void make_history_line_current PARAMS((HIST_ENTRY *));
+static int noninc_search_from_pos PARAMS((char *, int, int));
+static void noninc_dosearch PARAMS((char *, int));
+static void noninc_search PARAMS((int, int));
+static int rl_history_search_internal PARAMS((int, int));
+static void rl_history_search_reinit PARAMS((void));
+
 /* Make the data from the history entry ENTRY be the contents of the
    current line.  This doesn't do anything with rl_point; the caller
    must set it. */
@@ -73,15 +82,8 @@ static void
 make_history_line_current (entry)
      HIST_ENTRY *entry;
 {
-  int line_len;
-
-  line_len = strlen (entry->line);
-  if (line_len >= rl_line_buffer_len)
-    rl_extend_line_buffer (line_len);
-  strcpy (rl_line_buffer, entry->line);
-
+  rl_replace_line (entry->line, 0);
   rl_undo_list = (UNDO_LIST *)entry->data;
-  rl_end = line_len;
 
   if (_rl_saved_line_for_history)
     _rl_free_history_entry (_rl_saved_line_for_history);
@@ -162,6 +164,8 @@ noninc_dosearch (string, dir)
   make_history_line_current (entry);
 
   rl_point = 0;
+  rl_mark = rl_end;
+
   rl_clear_message ();
 }
 
@@ -175,11 +179,15 @@ noninc_search (dir, pchar)
      int dir;
      int pchar;
 {
-  int saved_point, c;
+  int saved_point, saved_mark, c;
   char *p;
+#if defined (HANDLE_MULTIBYTE)
+  char mb[MB_LEN_MAX];
+#endif
 
   rl_maybe_save_line ();
   saved_point = rl_point;
+  saved_mark = rl_mark;
 
   /* Use the line buffer to read the search string. */
   rl_line_buffer[0] = 0;
@@ -199,6 +207,11 @@ noninc_search (dir, pchar)
       c = rl_read_key ();
       RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	c = _rl_read_mbstring (c, mb, MB_LEN_MAX);
+#endif
+
       if (c == 0)
 	break;
 
@@ -211,9 +224,10 @@ noninc_search (dir, pchar)
 	      rl_maybe_unsave_line ();
 	      rl_clear_message ();
 	      rl_point = saved_point;
+	      rl_mark = saved_mark;
 	      SEARCH_RETURN;
 	    }
-	  rl_rubout (1, c);
+	  _rl_rubout_char (1, c);
 	  break;
 
 	case CTRL('W'):
@@ -235,17 +249,25 @@ noninc_search (dir, pchar)
 	  rl_maybe_unsave_line ();
 	  rl_clear_message ();
 	  rl_point = saved_point;
+	  rl_mark = saved_mark;
 	  rl_ding ();
 	  SEARCH_RETURN;
 
 	default:
-	  rl_insert (1, c);
+#if defined (HANDLE_MULTIBYTE)
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    rl_insert_text (mb);
+	  else
+#endif
+	    _rl_insert_char (1, c);
 	  break;
 	}
       (*rl_redisplay_function) ();
     }
 
  dosearch:
+  rl_mark = saved_mark;
+
   /* If rl_point == 0, we want to re-use the previous search string and
      start from the saved history position.  If there's no previous search
      string, punt. */
@@ -366,9 +388,11 @@ rl_history_search_internal (count, dir)
         {
           rl_point = rl_end = rl_history_search_len;
           rl_line_buffer[rl_end] = '\0';
+          rl_mark = 0;
         }
 #else
       rl_point = rl_history_search_len;	/* rl_maybe_unsave_line changes it */
+      rl_mark = rl_end;
 #endif
       return 1;
     }
@@ -377,6 +401,8 @@ rl_history_search_internal (count, dir)
   make_history_line_current (temp);
 
   rl_point = rl_history_search_len;
+  rl_mark = rl_end;
+
   return 0;
 }
 
@@ -391,7 +417,7 @@ rl_history_search_reinit ()
       if (rl_history_search_len >= history_string_size - 2)
 	{
 	  history_string_size = rl_history_search_len + 2;
-	  history_search_string = xrealloc (history_search_string, history_string_size);
+	  history_search_string = (char *)xrealloc (history_search_string, history_string_size);
 	}
       history_search_string[0] = '^';
       strncpy (history_search_string + 1, rl_line_buffer, rl_point);

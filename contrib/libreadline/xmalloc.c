@@ -51,26 +51,26 @@ memory_error_and_abort (fname)
 /* Return a pointer to free()able block of memory large enough
    to hold BYTES number of bytes.  If the memory cannot be allocated,
    print an error message and abort. */
-char *
+PTR_T
 xmalloc (bytes)
-     int bytes;
+     size_t bytes;
 {
-  char *temp;
+  PTR_T temp;
 
-  temp = (char *)malloc (bytes);
+  temp = malloc (bytes);
   if (temp == 0)
     memory_error_and_abort ("xmalloc");
   return (temp);
 }
 
-char *
+PTR_T
 xrealloc (pointer, bytes)
      PTR_T pointer;
-     int bytes;
+     size_t bytes;
 {
-  char *temp;
+  PTR_T temp;
 
-  temp = pointer ? (char *)realloc (pointer, bytes) : (char *)malloc (bytes);
+  temp = pointer ? realloc (pointer, bytes) : malloc (bytes);
 
   if (temp == 0)
     memory_error_and_abort ("xrealloc");

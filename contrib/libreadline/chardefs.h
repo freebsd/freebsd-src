@@ -27,10 +27,14 @@
 
 #if defined (HAVE_CONFIG_H)
 #  if defined (HAVE_STRING_H)
+#    if ! defined (STDC_HEADERS) && defined (HAVE_MEMORY_H)
+#      include <memory.h>
+#    endif
 #    include <string.h>
-#  else
-#    include <strings.h>
 #  endif /* HAVE_STRING_H */
+#  if defined (HAVE_STRINGS_H)
+#    include <strings.h>
+#  endif /* HAVE_STRINGS_H */
 #else
 #  include <string.h>
 #endif /* !HAVE_CONFIG_H */
@@ -40,7 +44,10 @@
 #endif
 
 #ifdef CTRL
-#undef CTRL
+#  undef CTRL
+#endif
+#ifdef UNCTRL
+#  undef UNCTRL
 #endif
 
 /* Some character stuff. */
@@ -60,32 +67,58 @@
 #define UNMETA(c) ((c) & (~meta_character_bit))
 #define UNCTRL(c) _rl_to_upper(((c)|control_character_bit))
 
-/* Old versions
-#define _rl_lowercase_p(c) (((c) > ('a' - 1) && (c) < ('z' + 1)))
-#define _rl_uppercase_p(c) (((c) > ('A' - 1) && (c) < ('Z' + 1)))
-#define _rl_digit_p(c)  ((c) >= '0' && (c) <= '9')
-*/
+#if defined STDC_HEADERS || (!defined (isascii) && !defined (HAVE_ISASCII))
+#  define IN_CTYPE_DOMAIN(c) 1
+#else
+#  define IN_CTYPE_DOMAIN(c) isascii(c)
+#endif
 
-#define _rl_lowercase_p(c) (islower(c))
-#define _rl_uppercase_p(c) (isupper(c))
-#define _rl_digit_p(x)  (isdigit (x))
+#if !defined (isxdigit) && !defined (HAVE_ISXDIGIT)
+#  define isxdigit(c)   (isdigit((c)) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
+#endif
 
-#define _rl_pure_alphabetic(c) (_rl_lowercase_p(c) || _rl_uppercase_p(c))
-#define ALPHABETIC(c)	(_rl_lowercase_p(c) || _rl_uppercase_p(c) || _rl_digit_p(c))
+#define NON_NEGATIVE(c)	((unsigned char)(c) == (c))
 
-/* Old versions
-#  define _rl_to_upper(c) (_rl_lowercase_p(c) ? ((c) - 32) : (c))
-#  define _rl_to_lower(c) (_rl_uppercase_p(c) ? ((c) + 32) : (c))
-*/
+/* Some systems define these; we want our definitions. */
+#undef ISPRINT
+
+#define ISALNUM(c)	(IN_CTYPE_DOMAIN (c) && isalnum (c))
+#define ISALPHA(c)	(IN_CTYPE_DOMAIN (c) && isalpha (c))
+#define ISDIGIT(c)	(IN_CTYPE_DOMAIN (c) && isdigit (c))
+#define ISLOWER(c)	(IN_CTYPE_DOMAIN (c) && islower (c))
+#define ISPRINT(c)	(IN_CTYPE_DOMAIN (c) && isprint (c))
+#define ISUPPER(c)	(IN_CTYPE_DOMAIN (c) && isupper (c))
+#define ISXDIGIT(c)	(IN_CTYPE_DOMAIN (c) && isxdigit (c))
+
+#define _rl_lowercase_p(c)	(NON_NEGATIVE(c) && ISLOWER(c))
+#define _rl_uppercase_p(c)	(NON_NEGATIVE(c) && ISUPPER(c))
+#define _rl_digit_p(c)		((c) >= '0' && (c) <= '9')
+
+#define _rl_pure_alphabetic(c)	(NON_NEGATIVE(c) && ISALPHA(c))
+#define ALPHABETIC(c)		(NON_NEGATIVE(c) && ISALNUM(c))
 
 #ifndef _rl_to_upper
-#  define _rl_to_upper(c) (islower(c) ? toupper(c) : (c))
-#  define _rl_to_lower(c) (isupper(c) ? tolower(c) : (c))
+#  define _rl_to_upper(c) (_rl_lowercase_p(c) ? toupper((unsigned char)c) : (c))
+#  define _rl_to_lower(c) (_rl_uppercase_p(c) ? tolower((unsigned char)c) : (c))
 #endif
 
 #ifndef _rl_digit_value
-#define _rl_digit_value(x) ((x) - '0')
+#  define _rl_digit_value(x) ((x) - '0')
 #endif
+
+#ifndef _rl_isident
+#  define _rl_isident(c) (ISALNUM(c) || (c) == '_')
+#endif
+
+#ifndef ISOCTAL
+#  define ISOCTAL(c)	((c) >= '0' && (c) <= '7')
+#endif
+#define OCTVALUE(c)	((c) - '0')
+
+#define HEXVALUE(c) \
+  (((c) >= 'a' && (c) <= 'f') \
+  	? (c)-'a'+10 \
+  	: (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
 
 #ifndef NEWLINE
 #define NEWLINE '\n'
@@ -122,19 +155,5 @@
 #undef ESC
 #endif
 #define ESC CTRL('[')
-
-#ifndef ISOCTAL
-#define ISOCTAL(c)      ((c) >= '0' && (c) <= '7')
-#endif
-#define OCTVALUE(c)     ((c) - '0')
-
-#ifndef isxdigit
-#  define isxdigit(c)   (isdigit((c)) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
-#endif
-
-#define HEXVALUE(c) \
-  (((c) >= 'a' && (c) <= 'f') \
-  	? (c)-'a'+10 \
-  	: (c) >= 'A' && (c) <= 'F' ? (c)-'A'+10 : (c)-'0')
 
 #endif  /* _CHARDEFS_H_ */

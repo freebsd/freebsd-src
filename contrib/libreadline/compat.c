@@ -30,18 +30,18 @@
 #include "rlstdc.h"
 #include "rltypedefs.h"
 
-extern void rl_free_undo_list __P((void));
-extern int rl_maybe_save_line __P((void));
-extern int rl_maybe_unsave_line __P((void));
-extern int rl_maybe_replace_line __P((void));
+extern void rl_free_undo_list PARAMS((void));
+extern int rl_maybe_save_line PARAMS((void));
+extern int rl_maybe_unsave_line PARAMS((void));
+extern int rl_maybe_replace_line PARAMS((void));
 
-extern int rl_crlf __P((void));
-extern int rl_ding __P((void));
-extern int rl_alphabetic __P((int));
+extern int rl_crlf PARAMS((void));
+extern int rl_ding PARAMS((void));
+extern int rl_alphabetic PARAMS((int));
 
-extern char **rl_completion_matches __P((const char *, rl_compentry_func_t *));
-extern char *rl_username_completion_function __P((const char *, int));
-extern char *rl_filename_completion_function __P((const char *, int));
+extern char **rl_completion_matches PARAMS((const char *, rl_compentry_func_t *));
+extern char *rl_username_completion_function PARAMS((const char *, int));
+extern char *rl_filename_completion_function PARAMS((const char *, int));
 
 /* Provide backwards-compatible entry points for old function names. */
 

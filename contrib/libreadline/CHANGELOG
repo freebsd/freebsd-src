@@ -463,3 +463,237 @@ configure.in
 				    4/5
 				    ---
 [readline-4.2 frozen]
+
+				    4/9
+				    ---
+[readline-4.2 released]
+
+				    5/2
+				    ---
+Makefile.in,{doc,examples,shlib}/Makefile.in
+	- added support for DESTDIR installation root prefix, to support
+	  building packages
+
+doc/Makefile.in
+	- add an info `dir' file entry for rluserman.info on `make install'
+	- change man1ext to `.1' and man3ext to `.3'
+	- install man pages with a $(man3ext) extension in the target directory
+	- add support for installing html documentation if `htmldir' has a
+	  value
+
+Makefile.in
+	- on `make install', install from the `shlib' directory, too
+	- on `make uninstall', uninstall in the `doc' and `shlib'
+	  subdirectories, too
+
+support/shlib-install
+	- add `freebsdelf*', `freebsdaout*', Hurd, `sysv4*', `sysv5*', `dgux*'
+	  targets for symlink creation
+
+				    5/7
+				    ---
+configure.in, config.h.in
+	- check for <limits.h>, define HAVE_LIMITS_H if found
+
+				    5/8
+				    ---
+aclocal.m4
+	- pick up change to BASH_CHECK_LIB_TERMCAP that adds check for
+	  libtinfo (termcap-specific portion of ncurses-5.2)
+
+				    5/9
+				    ---
+configure.in
+	- call AC_C_CONST to find out whether or not the compiler supports
+	  `const'
+
+config.h.in
+	- placeholder for `const' define, if any
+
+				   5/10
+				   ----
+configure.in
+	- fix AC_CHECK_PROG(ar, ...) test to specify right value for the
+	  case where ar is not found; should produce a better error message
+
+				   5/14
+				   ----
+configure.in,config.h.in
+	- check for vsnprintf, define HAVE_VSNPRINTF if found
+
+				   5/21
+				   ----
+configure.in, config.h.in
+	- add checks for size_t, ssize_t
+
+				   5/30
+				   ----
+configure.in
+	- update autoconf to version 2.50, use in AC_PREREQ
+	- changed AC_INIT to new flavor
+	- added AC_CONFIG_SRCDIR
+	- AC_CONFIG_HEADER -> AC_CONFIG_HEADERS
+	- call AC_C_PROTOTYPES
+	- AC_RETSIGTYPE -> AC_TYPE_SIGNAL
+
+				   8/22
+				   ----
+configure.in
+	- updated the version number to 4.2a
+
+Makefile.in,shlib/Makefile.in
+	- make sure tilde.o is built -DREADLINE_LIBRARY when being built as
+	  part of the standalone library, so it picks up the right include
+	  files
+
+				   8/23
+				   ----
+support/shlib-install
+	- support for Darwin/MacOS X shared library installation
+
+				   9/24
+				   ----
+examples/readlinebuf.h
+	- a new file, a C++ streambuf interface that uses readline for I/O.
+	  Donated by Dimitris Vyzovitis <vyzo@media.mit.edu>
+
+				   10/9
+				   ----
+configure.in
+        - replaced call to BASH_HAVE_TIOCGWINSZ with AC_HEADER_TIOCGWINSZ
+
+[readline-4.2a-beta1 frozen]
+
+				   10/15
+				   -----
+configure.in, config.h.in
+	- check for <memory.h>, define HAVE_MEMORY_H if found
+	- check for <strings.h>, define HAVE_STRINGS_H if found
+
+				   10/18
+				   -----
+configure.in, config.h.in
+	- check for isascii, define HAVE_ISASCII if found
+
+configure.in
+	- changed the macro names from bash as appropriate:
+		BASH_SIGNAL_CHECK -> BASH_SYS_SIGNAL_VINTAGE
+		BASH_REINSTALL_SIGHANDLERS -> BASH_SYS_REINSTALL_SIGHANDLERS
+		BASH_MISC_SPEED_T -> BASH_CHECK_SPEED_T
+
+				   10/22
+				   -----
+configure.in
+	- check for isxdigit with AC_CHECK_FUNCS
+
+config.h.in
+	- new define for HAVE_ISXDIGIT
+
+				   10/29
+				   -----
+configure.in, config.h.in
+	- check for strpbrk with AC_CHECK_FUNCS, define HAVE_STRPBRK if found
+
+				    11/1
+				    ----
+Makefile.in
+	- make sure DESTDIR is passed to install and uninstall makes in
+	  subdirectories
+	- when saving old copies of installed libraries, make sure we use
+	  DESTDIR for the old installation tree
+
+[readline-4.2a-rc1 frozen]
+
+				   11/2
+				   ----
+Makefile.in, shlib/Makefile.in
+	- don't put -I$(includedir) into CFLAGS
+
+				   11/15
+				   -----
+[readline-4.2a released]
+
+				   11/20
+				   -----
+examples/rlcat.c
+	- new file
+
+examples/Makefile.in
+	- changes for rlcat
+
+				   11/28
+				   -----
+configure.in
+	- default TERMCAP_LIB to -lcurses if $prefer_curses == yes (as when
+	  --with-curses is supplied)
+
+examples/Makefile.in
+	- substitute @LDFLAGS@ in LDFLAGS assignment
+
+				   11/29
+				   -----
+config.h.in
+	- add necessary defines for multibyte include files and functions
+	- add code to define HANDLE_MULTIBYTE if prerequisites are met
+
+configure.in
+	- call BASH_CHECK_MULTIBYTE
+
+				   12/14
+				   -----
+config.h.in
+	- add #undef PROTOTYPES, filled in by AC_C_PROTOTYPES
+
+				   12/17
+				   -----
+config.h.in
+	- moved HANDLE_MULTIBYTE code to rlmbutil.h
+
+rlmbutil.h, mbutil.c
+	- new files
+
+Makefile.in, shlib/Makefile.in
+	- added rules for mbutil.c
+
+				   12/20
+				   -----
+configure.in
+	- added --enable-shared, --enable-static options to configure to
+	  say which libraries are built by default (both default to yes)
+	- if SHLIB_STATUS == 'unsupported', turn off default shared library
+	  building
+	- substitute new STATIC_TARGET, SHARED_TARGET, STATIC_INSTALL_TARGET,
+	  and SHARED_INSTALL_TARGET
+
+Makefile.in
+	- `all' target now depends on (substituted) @STATIC_TARGET@ and
+	  @SHARED_TARGET@
+	- `install' target now depends on (substituted) @STATIC_INSTALL_TARGET@
+	  and @SHARED_INSTALL_TARGET@
+
+INSTALL, README
+	- updated with new info about --enable-shared and --enable-static
+
+				 1/10/2002
+				 ---------
+configure.in
+	- bumped the library version number to 4.3
+
+				   1/24
+				   ----
+Makefile.in,shlib/Makefile.in
+	- changes for new file, text.c, with character and text handling
+	  functions from readline.c
+
+				   2/20
+				   ----
+{configure.config.h}.in
+	- call AC_C_CHAR_UNSIGNED, define __CHAR_UNSIGNED__ if chars are
+	  unsigned by default
+
+				   5/20
+				   ----
+doc/Makefile.in
+	- new maybe-clean target that removes the generated documentation if
+	  the build directory differs from the source directory
+	- distclean target now depends on maybe-clean

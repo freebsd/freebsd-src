@@ -46,4 +46,12 @@
 #  define d_fileno d_ino
 #endif
 
+#if defined (_POSIX_SOURCE) && (!defined (STRUCT_DIRENT_HAS_D_INO) || defined (BROKEN_DIRENT_D_INO))
+/* Posix does not require that the d_ino field be present, and some
+   systems do not provide it. */
+#  define REAL_DIR_ENTRY(dp) 1
+#else
+#  define REAL_DIR_ENTRY(dp) (dp->d_ino != 0)
+#endif /* _POSIX_SOURCE */
+
 #endif /* !_POSIXDIR_H_ */

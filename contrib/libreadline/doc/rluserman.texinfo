@@ -17,7 +17,7 @@ This document describes the end user interface of the GNU Readline Library,
 a utility which aids in the consistency of user interface across discrete
 programs that need to provide a command line interface.
 
-Copyright (C) 1988-2001 Free Software Foundation, Inc.
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -72,7 +72,7 @@ except that this permission notice may be stated in a translation approved
 by the Free Software Foundation.
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1988-2001 Free Software Foundation, Inc.
+Copyright @copyright{} 1988-2002 Free Software Foundation, Inc.
 @end titlepage
 
 @ifinfo
