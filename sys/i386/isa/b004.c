@@ -665,7 +665,7 @@ bquprobe(struct isa_device *idp)
     }
 
     if (!found){
-	printf("b004probe(): no B004-board found.\n");
+	DEB(printf("b004probe(): no B004-board found.\n"));
 	return (0);
     }
 
