@@ -406,6 +406,12 @@ found:
 int
 cpu_mp_probe(void)
 {
+	/*
+	 * Record BSP in CPU map
+	 * This is done here so that MBUF init code works correctly.
+	 */
+	all_cpus = 1;
+
 	return (mp_capable);
 }
 
@@ -1928,9 +1934,6 @@ start_all_aps(u_int boot_addr)
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
 #endif
-
-	/* record BSP in CPU map */
-	all_cpus = 1;
 
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
