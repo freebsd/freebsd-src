@@ -1311,7 +1311,7 @@ thread_unlink(struct thread *td)
  * Purge a ksegrp resource. When a ksegrp is preparing to
  * exit, it calls this function. 
  */
-void
+static void
 kse_purge_group(struct thread *td)
 {
 	struct ksegrp *kg;
@@ -1336,14 +1336,13 @@ kse_purge_group(struct thread *td)
  * exit, it calls kse_purge to release any extra KSE resources in 
  * the process.
  */
-void
+static void
 kse_purge(struct proc *p, struct thread *td)
 {
 	struct ksegrp *kg;
 	struct kse *ke;
 
  	KASSERT(p->p_numthreads == 1, ("bad thread number"));
-	mtx_lock_spin(&sched_lock);
 	while ((kg = TAILQ_FIRST(&p->p_ksegrps)) != NULL) {
 		TAILQ_REMOVE(&p->p_ksegrps, kg, kg_ksegrp);
 		p->p_numksegrps--;
@@ -1373,7 +1372,6 @@ kse_purge(struct proc *p, struct thread *td)
 	}
 	TAILQ_INSERT_HEAD(&p->p_ksegrps, td->td_ksegrp, kg_ksegrp);
 	p->p_numksegrps++;
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -1969,12 +1967,12 @@ thread_suspend_check(int return_instead)
 		 * and stays there.
 		 */
 		thread_suspend_one(td);
-		PROC_UNLOCK(p);
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount) {
 				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
+		PROC_UNLOCK(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
