@@ -300,6 +300,19 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	return (dev);
 }
 
+int
+dev_named(dev_t pdev, const char *name)
+{
+	dev_t cdev;
+
+	if (strcmp(devtoname(pdev), name) == 0)
+		return (1);
+	LIST_FOREACH(cdev, &pdev->si_children, si_siblings)
+		if (strcmp(devtoname(cdev), name) == 0)
+			return (1);
+	return (0);
+}
+
 void
 dev_depends(dev_t pdev, dev_t cdev)
 {
