@@ -507,6 +507,7 @@ static __inline void
 cv_wakeup(struct cv *cvp)
 {
 	struct thread *td;
+	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	td = TAILQ_FIRST(&cvp->cv_waitq);
@@ -519,9 +520,10 @@ cv_wakeup(struct cv *cvp)
 		/* OPTIMIZED EXPANSION OF setrunnable(td); */
 		CTR3(KTR_PROC, "cv_signal: thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
-		if (td->td_ksegrp->kg_slptime > 1) /* XXXKSE */
-			updatepri(td);
-		td->td_ksegrp->kg_slptime = 0;
+		kg = td->td_ksegrp;
+		if (kg->kg_slptime > 1) /* XXXKSE */
+			updatepri(kg);
+		kg->kg_slptime = 0;
 		if (td->td_proc->p_sflag & PS_INMEM) {
 			setrunqueue(td);
 			maybe_resched(td);
