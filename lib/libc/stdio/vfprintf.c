@@ -928,12 +928,14 @@ fp_begin:
 				if (prec > 1 || flags & ALT)
 					++size;
 			} else {
-				if (expt > 0) {
+				/* space for digits before decimal point */
+				if (expt > 0)
 					size = expt;
-					if (prec || flags & ALT)
-						size += prec + 1;
-				} else	/* "0.X" */
-					size = prec + 2;
+				else	/* "0" */
+					size = 1;
+				/* space for decimal pt and following digits */
+				if (prec || flags & ALT)
+					size += prec + 1;
 				if (grouping && expt > 0) {
 					/* space for thousands' grouping */
 					nseps = nrepeats = 0;
@@ -1163,9 +1165,9 @@ number:			if ((dprec = prec) >= 0)
 		} else {	/* glue together f_p fragments */
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
-					buf[0] = '0';
-					buf[1] = *decimal_point;
-					PRINT(buf, 2);
+					PRINT(zeroes, 1);
+					if (prec || flags & ALT)
+						PRINT(decimal_point, 1);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
