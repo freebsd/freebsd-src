@@ -43,10 +43,10 @@
  * thread needs to retry a lock operation instead of blocking, it should
  * call turnstile_release() to unlock the associated turnstile chain lock.
  *
- * When a lock is released, either turnstile_signal() or turnstile_wakeup()
+ * When a lock is released, either turnstile_signal() or turnstile_broadcast()
  * is called to mark blocked threads for a pending wakeup.
  * turnstile_signal() marks the highest priority blocked thread while
- * turnstile_wakeup() marks all blocked threads.  The turnstile_signal()
+ * turnstile_broadcast() marks all blocked threads.  The turnstile_signal()
  * function returns true if the turnstile became empty as a result.  After
  * the higher level code finishes releasing the lock, turnstile_unpend()
  * must be called to wakeup the pending thread(s).
@@ -82,7 +82,7 @@ int	turnstile_signal(struct turnstile *);
 void	turnstile_unpend(struct turnstile *);
 void	turnstile_wait(struct turnstile *, struct lock_object *,
 	    struct thread *);
-void	turnstile_wakeup(struct turnstile *);
+void	turnstile_broadcast(struct turnstile *);
 struct thread *turnstile_head(struct turnstile *);
 int	turnstile_empty(struct turnstile *);
 
