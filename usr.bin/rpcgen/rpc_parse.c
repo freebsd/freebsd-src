@@ -1,4 +1,3 @@
-/*	$FreeBSD$ */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -6,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,11 +29,14 @@
 
 #ident	"@(#)rpc_parse.c	1.12	93/07/05 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_parse.c 1.8 89/02/22 (C) 1987 SMI";
 #endif
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_parse.c, Parser for the RPC protocol compiler
@@ -71,7 +73,7 @@ get_definition()
 	definition *defp;
 	token tok;
 
-	defp = ALLOC(definition);
+	defp = XALLOC(definition);
 	get_token(&tok);
 	switch (tok.kind) {
 	case TOK_STRUCT:
@@ -126,7 +128,7 @@ def_struct(defp)
 	tailp = &defp->def.st.decls;
 	do {
 		get_declaration(&dec, DEF_STRUCT);
-		decls = ALLOC(decl_list);
+		decls = XALLOC(decl_list);
 		decls->decl = dec;
 		*tailp = decls;
 		tailp = &decls->next;
@@ -160,13 +162,13 @@ def_program(defp)
 	scan(TOK_VERSION, &tok);
 	do {
 		scan(TOK_IDENT, &tok);
-		vlist = ALLOC(version_list);
+		vlist = XALLOC(version_list);
 		vlist->vers_name = tok.str;
 		scan(TOK_LBRACE, &tok);
 		ptailp = &vlist->procs;
 		do {
 			/* get result type */
-			plist = ALLOC(proc_list);
+			plist = XALLOC(proc_list);
 			get_type(&plist->res_prefix, &plist->res_type,
 				 DEF_PROGRAM);
 			if (streq(plist->res_type, "opaque")) {
@@ -186,7 +188,7 @@ def_program(defp)
 			get_prog_declaration(&dec, DEF_PROGRAM, num_args);
 			if (streq(dec.type, "void"))
 				isvoid = TRUE;
-			decls = ALLOC(decl_list);
+			decls = XALLOC(decl_list);
 			plist->args.decls = decls;
 			decls->decl = dec;
 			tailp = &decls->next;
@@ -195,7 +197,7 @@ def_program(defp)
 				num_args++;
 				get_prog_declaration(&dec, DEF_STRUCT,
 						     num_args);
-				decls = ALLOC(decl_list);
+				decls = XALLOC(decl_list);
 				decls->decl = dec;
 				*tailp = decls;
 				if (streq(dec.type, "void"))
@@ -259,7 +261,7 @@ def_enum(defp)
 	tailp = &defp->def.en.vals;
 	do {
 		scan(TOK_IDENT, &tok);
-		elist = ALLOC(enumval_list);
+		elist = XALLOC(enumval_list);
 		elist->name = tok.str;
 		elist->assignment = NULL;
 		scan3(TOK_COMMA, TOK_RBRACE, TOK_EQUAL, &tok);
@@ -311,7 +313,7 @@ def_union(defp)
 	scan(TOK_CASE, &tok);
 	while (tok.kind == TOK_CASE) {
 		scan2(TOK_IDENT, TOK_CHARCONST, &tok);
-		cases = ALLOC(case_list);
+		cases = XALLOC(case_list);
 		cases->case_name = tok.str;
 		scan(TOK_COLON, &tok);
 		/* now peek at next token */
@@ -323,7 +325,7 @@ def_union(defp)
 				/* continued case statement */
 				*tailp = cases;
 				tailp = &cases->next;
-				cases = ALLOC(case_list);
+				cases = XALLOC(case_list);
 				cases->case_name = tok.str;
 				scan(TOK_COLON, &tok);
 			} while (peekscan(TOK_CASE, &tok));
@@ -334,7 +336,7 @@ def_union(defp)
 
 				*tailp = cases;
 				tailp = &cases->next;
-				cases = ALLOC(case_list);
+				cases = XALLOC(case_list);
 			};
 
 		get_declaration(&dec, DEF_UNION);
@@ -350,7 +352,7 @@ def_union(defp)
 	if (tok.kind == TOK_DEFAULT) {
 		scan(TOK_COLON, &tok);
 		get_declaration(&dec, DEF_UNION);
-		defp->def.un.default_decl = ALLOC(declaration);
+		defp->def.un.default_decl = XALLOC(declaration);
 		*defp->def.un.default_decl = dec;
 		scan(TOK_SEMICOLON, &tok);
 		scan(TOK_RBRACE, &tok);
@@ -513,7 +515,7 @@ get_prog_declaration(dec, dkind, num)
 		sprintf(name, "%s%d", ARGNAME, num);
 	/* default name of argument */
 
-	dec->name = (char *) strdup(name);
+	dec->name = (char *) xstrdup(name);
 	if (streq(dec->type, "void")) {
 		return;
 	}
@@ -523,12 +525,13 @@ get_prog_declaration(dec, dkind, num)
 	}
 	if (peekscan(TOK_STAR, &tok)) {
 		if (streq(dec->type, "string")) {
-			error("pointer to string not allowed in program arguments\n");
+			error("pointer to string not allowed in program arguments");
 		}
 		dec->rel = REL_POINTER;
-		if (peekscan(TOK_IDENT, &tok))
+		if (peekscan(TOK_IDENT, &tok)) {
 			/* optional name of argument */
-			dec->name = strdup(tok.str);
+			dec->name = xstrdup(tok.str);
+		}
 	}
 	if (peekscan(TOK_LANGLE, &tok)) {
 		if (!streq(dec->type, "string")) {

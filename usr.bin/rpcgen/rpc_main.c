@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,13 +30,14 @@
 
 #ident	"@(#)rpc_main.c	1.21	94/04/25 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_main.c, Top level of the RPC protocol compiler.
@@ -65,7 +66,6 @@ static void h_output( char *, char *, int, char * );
 static void l_output( char *, char *, int, char * );
 static void t_output( char *, char *, int, char * );
 static void clnt_output( char *, char *, int, char * );
-
 void c_initialize( void );
 
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
@@ -244,10 +244,7 @@ extendfile(path, ext)
 		file = path;
 	else
 		file++;
-	res = alloc(strlen(file) + strlen(ext) + 1);
-	if (res == NULL) {
-		abort();
-	}
+	res = xmalloc(strlen(file) + strlen(ext) + 1);
 	p = strrchr(file, '.');
 	if (p == NULL) {
 		p = file + strlen(file);
@@ -347,11 +344,9 @@ open_input(infile, define)
 		(void) dup2(pd[1], 1);
 		(void) close(pd[0]);
 		execv(arglist[0], arglist);
-		warn("execv");
-		exit(1);
+		err(1, "execv");
 	case -1:
-		warn("fork");
-		exit(1);
+		err(1, "fork");
 	}
 	(void) close(pd[1]);
 	fin = fdopen(pd[0], "r");
@@ -478,7 +473,7 @@ char *generate_guard(pathname)
 
 	filename = strrchr(pathname, '/');  /* find last component */
 	filename = ((filename == 0) ? pathname : filename+1);
-	guard = strdup(filename);
+	guard = xstrdup(filename);
 	/* convert to upper case */
 	tmp = guard;
 	while (*tmp) {
@@ -874,8 +869,8 @@ struct commandline *cmd;
 	clntprogname = extendfile(cmd->infile, "_client");
 
 	if (allfiles){
-		mkfilename = alloc(strlen("makefile.") +
-			strlen(cmd->infile) + 1);
+		mkfilename = xmalloc(strlen("makefile.") +
+		                     strlen(cmd->infile) + 1);
 		temp = (char *)rindex(cmd->infile, '.');
 		strcat(mkfilename, "makefile.");
 		(void) strncat(mkfilename, cmd->infile,
@@ -1264,7 +1259,7 @@ parseargs(argc, argv, cmd)
 static void
 usage()
 {
-	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n", 
+	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n",
 		"usage: rpcgen infile",
 		"       rpcgen [-abCLNTM] [-Dname[=value]] [-i size]\
 [-I -P [-K seconds]] [-Y path] infile",

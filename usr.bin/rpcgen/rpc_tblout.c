@@ -5,37 +5,38 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
 
-#ident	"@(#)rpc_tblout.c	1.11	93/07/05 SMI" 
+#ident	"@(#)rpc_tblout.c	1.11	93/07/05 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_tblout.c 1.4 89/02/22 (C) 1988 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_tblout.c, Dispatch table outputter for the RPC protocol compiler
@@ -133,7 +134,7 @@ write_table(def)
 			/* argument info */
 			if( proc->arg_num > 1 )
 			  printit((char*) NULL, proc->args.argname );
-			else  
+			else
 			  /* do we have to do something special for newstyle */
 			  printit( proc->args.decls->decl.prefix,
 				  proc->args.decls->decl.type );
