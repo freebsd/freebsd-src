@@ -66,7 +66,7 @@ static struct p_times {
 } *pt;
 
 static long stime[CPUSTATES];
-static long    fscale;
+static int    fscale;
 static double  lccpu;
 
 WINDOW *
