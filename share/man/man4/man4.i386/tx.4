@@ -67,18 +67,18 @@ driver supports the following media options:
 Set full-duplex operation
 .El
 .Pp
-Driver supports oversized ethernet packets (up to 1600 bytes). 
+Driver supports oversized ethernet packets (up to 1600 bytes).
 Refer to the
 .Xr ifconfig 8
-man page on setting interface's MTU.
+man page on setting the interface's MTU.
 .Pp
 The old ``ifconfig tx0 linkN'' method of configuration is not supported.
-.Ss VLAN (IEEE 802.1Q) support
+.Ss "VLAN (IEEE 802.1Q) support"
 The
 .Nm
-driver supports the VLAN operation (using 
+driver supports the VLAN operation (using
 .Xr vlan 4
-inteface) without decreasing the MTU on the 
+inteface) without decreasing the MTU on the
 .Xr vlan 4
 interfaces.
 .Sh DIAGNOSTICS

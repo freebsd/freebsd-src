@@ -36,8 +36,8 @@
 .Nm VOP_RMDIR
 .Nd remove a file or directory
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_REMOVE "struct vnode *dvp" "struct vnode *vp" "struct componentname *cnp"
 .Ft int

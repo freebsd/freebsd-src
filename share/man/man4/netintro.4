@@ -39,11 +39,11 @@
 .Nm networking
 .Nd introduction to networking facilities
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/time.h>
-.Fd #include <sys/socket.h>
-.Fd #include <net/if.h>
-.Fd #include <net/route.h>
+.In sys/types.h
+.In sys/time.h
+.In sys/socket.h
+.In net/if.h
+.In net/route.h
 .Sh DESCRIPTION
 This section is a general introduction to the networking facilities
 available in the system.
@@ -256,7 +256,7 @@ Get interface metric.
 Attempt to create the specified interface.
 If the interface name is given without a unit number the system
 will attempt to create a new interface with an arbitrary unit number.
-On sucessful return the
+On successful return the
 .Va ifr_name
 field will contain the new interface name.
 .It Dv SIOCIFDESTROY

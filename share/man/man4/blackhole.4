@@ -22,11 +22,8 @@
 MIB for manipulating behaviour in respect of refused TCP or UDP connection
 attempts
 .Sh SYNOPSIS
-.Cd sysctl net.inet.tcp.blackhole
-.Cd sysctl net.inet.udp.blackhole
-.Pp
-.Cd sysctl -w net.inet.tcp.blackhole=[0 | 1 | 2]
-.Cd sysctl -w net.inet.udp.blackhole=[0 | 1]
+.Cd sysctl net.inet.tcp.blackhole[=[0 | 1 | 2]]
+.Cd sysctl net.inet.udp.blackhole[=[0 | 1]]
 .Sh DESCRIPTION
 The
 .Nm
@@ -37,8 +34,8 @@ are received on TCP or UDP ports where there is no socket listening.
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.  The connecting system will
-see this as a "Connection reset by peer".  By turning the TCP black
-hole MIB on to a numeric value of one, the incoming SYN segment
+see this as a "Connection reset by peer".  By setting the TCP blackhole
+MIB to a numeric value of one, the incoming SYN segment
 is merely dropped, and no RST is sent, making the system appear
 as a blackhole.  By setting the MIB value to two, any segment arriving
 on a closed port is dropped without returning a RST.  This provides
@@ -49,23 +46,23 @@ of an ICMP port unreachable message in response to a UDP datagram which
 arrives on a port where there is no socket listening.  It must be noted
 that this behaviour will prevent remote systems from running
 .Xr traceroute 8
-to your system.
+to a system.
 .Pp
 The blackhole behaviour is useful to slow down anyone who is port scanning
-your system, in order to try and detect vulnerable services on your system.
+a system, attempting to detect vulnerable services on a system.
 It could potentially also slow down someone who is attempting a denial
-of service against your system.
+of service attack.
 .Sh WARNING
 The TCP and UDP blackhole features should not be regarded as a replacement
 for
 .Xr ipfw 8
-as a tool for firewalling your system.  In order to create a highly
-secure system, you should use
+as a tool for firewalling a system.  In order to create a highly
+secure system,
 .Xr ipfw 8
-to protect your system, and not the blackhole feature.
+should be used for protection, not the blackhole feature.
 .Pp
-This mechanism is not a substitute for securing your system,
-but should be used together with other security mechanisms.
+This mechanism is not a substitute for securing a system.
+It should be used together with other security mechanisms.
 .Sh SEE ALSO
 .Xr ip 4 ,
 .Xr tcp 4 ,

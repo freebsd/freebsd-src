@@ -36,8 +36,8 @@
 .Nm device_add_child_ordered
 .Nd "add a new device as a child of an existing device"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft device_t
 .Fn device_add_child "device_t dev" "const char *name" "int unit"
 .Ft device_t

@@ -33,8 +33,8 @@
 .Nm bios32
 .Nd interact with PC BIOS
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <machine/pc/bios.h>
+.In sys/types.h
+.In machine/pc/bios.h
 .Ft u_int32_t
 .Fn bios_sigsearch "u_int32_t start" "u_char *sig" "int siglen" "int paralen" "int sigofs"
 .Ft int

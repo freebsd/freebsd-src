@@ -46,8 +46,8 @@
 .Nm FREE
 .Nd kernel memory management routines
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/malloc.h>
+.In sys/types.h
+.In sys/malloc.h
 .Ft void *
 .Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
 .Fn MALLOC "space" "cast" "unsigned long size" "struct malloc_type  *type" "int flags"

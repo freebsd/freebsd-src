@@ -44,13 +44,13 @@
 .Nm vsunlock
 .Nd lock/unlock user space addresses in memory
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <vm/vm.h>
-.Fd #include <vm/vm_extern.h>
+.In sys/types.h
+.In vm/vm.h
+.In vm/vm_extern.h
 .Ft void
 .Fn vslock "caddr_t addr" "u_int len"
 .Ft void
-.Fn vsunlock "caddr_t addr" "u_int len" "int dirtied"
+.Fn vsunlock "caddr_t addr" "u_int len"
 .Sh DESCRIPTION
 The
 .Fn vslock

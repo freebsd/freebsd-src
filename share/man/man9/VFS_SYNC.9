@@ -35,9 +35,9 @@
 .Nm VFS_SYNC
 .Nd flush unwritten data
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
 .Ft int
 .Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION

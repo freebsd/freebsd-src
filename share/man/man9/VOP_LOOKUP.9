@@ -35,9 +35,9 @@
 .Nm VOP_LOOKUP
 .Nd lookup a component of a pathname
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/namei.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/namei.h
 .Ft int
 .Fn VOP_LOOKUP "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp"
 .Sh DESCRIPTION

@@ -36,8 +36,8 @@
 .Nm VOP_ACCESS
 .Nd "check access permissions of a file or Unix domain socket"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_ACCESS "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION

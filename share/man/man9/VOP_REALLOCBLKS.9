@@ -35,8 +35,8 @@
 .Nm VOP_REALLOCBLKS
 .Nd rearrange blocks in a file to be contiguous
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_REALLOCBLKS "struct vnode *vp" "struct cluster_save *buflist"
 .Sh DESCRIPTION

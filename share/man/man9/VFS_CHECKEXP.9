@@ -31,8 +31,8 @@
 .Nm VFS_CHECKEXP
 .Nd check if vnode is exported to a client
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
+.In sys/param.h
+.In sys/mount.h
 .Ft int
 .Fn VFS_CHECKEXP "struct mount *mp" "struct mbuf  *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION

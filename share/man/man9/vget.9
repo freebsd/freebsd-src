@@ -35,8 +35,8 @@
 .Nm vget
 .Nd get a vnode from the free list
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn vget "struct vnode *vp" "int lockflag" "struct proc *p"
 .Sh DESCRIPTION

@@ -149,7 +149,8 @@ common utilities, programming tools, and applications
 .It Pa games/
 useful and semi-frivolous programs
 .It Pa heimdal/
-kerberos server databases; see kdc(8)
+kerberos server databases; see
+.Xr kdc 8
 .It Pa include/
 standard C include files
 .Pp
@@ -686,7 +687,9 @@ system since it was booted
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa ppp/
-writable by the network group for command connection sockets; see
+writable by the
+.Dq network
+group for command connection sockets; see
 .Xr ppp 8
 .It Pa utmp
 database of current users;
@@ -713,10 +716,6 @@ see
 .Xr sendmail 8
 .It Pa output/
 line printer spooling directories
-.It Pa secretmail/
-secretmail spool directory;
-see
-.Xr xget 1
 .It Pa uucp/
 uucp spool directory
 .It Pa uucppublic/
@@ -734,7 +733,9 @@ the NIS maps
 .El
 .El
 .Sh NOTES
-This manual page documents the default FreeBSD filesystem layout, but
+This manual page documents the default
+.Fx
+filesystem layout, but
 the actual hierarchy on a given system is defined at the system
 administrator's discretion.
 A well-maintained installation will include a customized version of

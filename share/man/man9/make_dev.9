@@ -32,8 +32,8 @@
 .Nm destroy_dev
 .Nd "Create or destroy dev_t for a new device"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/conf.h>
+.In sys/types.h
+.In sys/conf.h
 .Ft dev_t
 .Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "char *fmt" ...
 .Ft void

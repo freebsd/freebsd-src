@@ -32,9 +32,9 @@
 .Nm VOP_SETEXTATTR
 .Nd set named extended attribute for a vnode
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/extattr.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/extattr.h
 .Ft int
 .Fn VOP_SETEXTATTR "struct vnode *vp" "char *name" "struct uio *uio" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION

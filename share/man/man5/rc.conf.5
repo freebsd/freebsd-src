@@ -142,7 +142,9 @@ these are the flags to pass to the
 daemon.
 .It Va pccard_ether_delay
 .Pq Vt str
-Set the delay before starting dhclient in
+Set the delay before starting
+.Xr dhclient 8
+in
 .Xr pccard_ether 8
 script.
 This defaults to 5 seconds to work around a bug in the
@@ -292,8 +294,8 @@ ipfs_enable="YES"
 .Ed
 .Pp
 into
-.Pa /etc/rc.conf .
-Then you should edit
+.Pa /etc/rc.conf
+and editing
 .Pa /etc/ipf.rules
 and
 .Pa /etc/ipnat.rules
@@ -301,7 +303,7 @@ appropriately.
 .Pp
 Note that
 .Va ipfilter_enable
-and 
+and
 .Va ipnat_enable
 can be enabled independently.
 .Va ipmon_enable
@@ -457,12 +459,11 @@ too.
 See
 .Va ipfilter_enable
 for a detailed discussion.
-Note that if you are running with
+Note that if
 .Va kern_securelevel
-set to
-.Dq 3 ,
-then you cannot use
+is set to 3,
 .Va ipfs_enable
+cannot be used
 because the raised securelevel will prevent
 .Xr ipfs 8
 from saving the state tables at shutdown time.
@@ -798,7 +799,7 @@ If set to
 .Dq YES ,
 .Pa /etc/motd
 will be updated at boot time to reflect the kernel release
-bring run.  If set to
+being run.  If set to
 .Dq NO ,
 .Pa /etc/motd
 will not be updated

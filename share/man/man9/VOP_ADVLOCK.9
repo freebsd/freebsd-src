@@ -35,10 +35,10 @@
 .Nm VOP_ADVLOCK
 .Nd advisory record locking
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/fcntl.h>
-.Fd #include <sys/lockf.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/fcntl.h
+.In sys/lockf.h
 .Ft int
 .Fn VOP_ADVLOCK "struct vnode *vp" "caddr_t id" "int op" "struct flock *fl" "int flags"
 .Sh DESCRIPTION

@@ -35,8 +35,8 @@
 .Nm VOP_FSYNC
 .Nd flush filesystem buffers for a file
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_FSYNC "struct vnode *vp" "struct ucred *cred" "int waitfor" "struct proc *p"
 .Sh DESCRIPTION
