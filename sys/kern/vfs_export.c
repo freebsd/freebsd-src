@@ -3070,18 +3070,18 @@ privcheck:
 	 */
 	cap_granted = 0;
 	if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-	    !cap_check_xxx(cred, p, CAP_DAC_EXECUTE, PRISON_ROOT))
+	    !cap_check_xxx(cred, NULL, CAP_DAC_EXECUTE, PRISON_ROOT))
 	    cap_granted |= VEXEC;
 
 	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !cap_check_xxx(cred, p, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+	    !cap_check_xxx(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
 		cap_granted |= VREAD;
 
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !cap_check_xxx(cred, p, CAP_DAC_WRITE, PRISON_ROOT))
+	    !cap_check_xxx(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
 		cap_granted |= VWRITE;
 
-	if ((acc_mode & (cap_granted | dac_granted)) == mode) {
+	if ((acc_mode & (cap_granted | dac_granted)) == acc_mode) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;
