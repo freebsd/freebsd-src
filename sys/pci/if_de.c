@@ -1,4 +1,4 @@
-/*	$NetBSD: if_de.c,v 1.69 1998/06/08 06:55:55 thorpej Exp $	*/
+/*	$NetBSD: if_de.c,v 1.72 1998/07/05 06:49:14 jonathan Exp $	*/
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -37,6 +37,11 @@
  *   board which support 21040, 21041, or 21140 (mostly).
  */
 #define	TULIP_HDR_DATA
+
+#ifdef __NetBSD__
+#include "opt_inet.h"
+#include "opt_ns.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -4447,11 +4452,13 @@ tulip_txput(
 	    sc->tulip_intrmask |= TULIP_STS_TXINTR;
 	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
 	}
+#if 0 /* this isn't working right yet */
     } else if ((sc->tulip_flags & TULIP_PROMISC) == 0) {
 	if (sc->tulip_intrmask & TULIP_STS_TXINTR) {
 	    sc->tulip_intrmask &= ~TULIP_STS_TXINTR;
 	    TULIP_CSR_WRITE(sc, csr_intr, sc->tulip_intrmask);
 	}
+#endif
     }
     TULIP_PERFEND(txput);
     return m;
