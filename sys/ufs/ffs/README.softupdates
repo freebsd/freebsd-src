@@ -1,21 +1,7 @@
 $FreeBSD$
 
-For legal reasons the two active files for using Soft Updates are in
-/usr/src/sys/contrib/softupdates. To enable the feature in your kernel,
-link the files into this directory as follows:
-
-	cd /usr/src/sys/ufs/ffs
-	ln -s ../../contrib/softupdates/*.[ch] .
-
-and add option SOFTUPDATES to your kernel configuration.  You should also
-read the copyrights in the sources and the README file in
-/usr/src/sys/contrib/softupdates before enabling this feature to ensure
-that you are acting legally. The stub file provided here is only enough
-to allow the system to function without this option being turned on.
-
-WARNING: RE-DISTRIBUTING A KERNEL WITH SOFTUPDATES COMPILED IN WITHOUT
-DISTRIBUTING THE SOURCE TO THE _ENTIRE_ KERNEL IS NOT PERMITTED.  See the
-copyright on the soft update files, or ../../contrib/softupdates/README
+Add option SOFTUPDATES to your kernel configuration.  You should also
+read the copyrights in the sources and the README file.
 
 Once you're running a kernel with soft update support, you need to enable
 it for whichever filesystems you wish to run with the soft update policy.
