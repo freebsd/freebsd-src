@@ -401,7 +401,6 @@ MAIN:{
 	'COPTFLAGS'		=> "-O -pipe",
 	'NO_CPU_COPTFLAGS'	=> "YES",
 
-	'MAKE_KERBEROS4'	=> "YES",
 	'MAKE_KERBEROS5'	=> "YES",
 	'BOOT2_UFS'		=> "UFS1_ONLY",
     );
