@@ -743,11 +743,9 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
 	}
     }
 
-    /* Search all dlopened DAGs containing the referencing object. */
-    STAILQ_FOREACH(elm, &refobj->dldags, link) {
-	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
-	    break;
-	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt);
+    /* Search all objects loaded at program start up. */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_list(name, hash, &list_main, &obj, in_plt);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -755,9 +753,11 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
 	}
     }
 
-    /* Search all objects loaded at program start up. */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_main, &obj, in_plt);
+    /* Search all dlopened DAGs containing the referencing object. */
+    STAILQ_FOREACH(elm, &refobj->dldags, link) {
+	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+	    break;
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
