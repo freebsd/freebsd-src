@@ -128,6 +128,7 @@ static void sis_start		(struct ifnet *);
 static void sis_startl		(struct ifnet *);
 static int sis_ioctl		(struct ifnet *, u_long, caddr_t);
 static void sis_init		(void *);
+static void sis_initl		(void *);
 static void sis_stop		(struct sis_softc *);
 static void sis_watchdog		(struct ifnet *);
 static void sis_shutdown		(device_t);
@@ -1632,12 +1633,12 @@ sis_rxeof(sc)
 }
 
 static void
-sis_rxeoc(sc)
-	struct sis_softc	*sc;
+sis_rxeoc(struct sis_softc *sc)
 {
+
+	SIS_LOCK_ASSERT(sc);
 	sis_rxeof(sc);
-	sis_init(sc);
-	return;
+	sis_initl(sc);
 }
 
 /*
@@ -1652,6 +1653,7 @@ sis_txeof(sc)
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
+	SIS_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/*
@@ -1774,7 +1776,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
-			sis_init(sc);
+			sis_initl(sc);
 		}
 	}
 done:
@@ -1837,7 +1839,7 @@ sis_intr(arg)
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
-			sis_init(sc);
+			sis_initl(sc);
 		}
 	}
 
@@ -2002,14 +2004,24 @@ sis_startl(struct ifnet *ifp)
 }
 
 static void
-sis_init(xsc)
-	void			*xsc;
+sis_init(void *xsc)
+{
+	struct sis_softc	*sc = xsc;
+
+	SIS_LOCK(sc);
+	sis_initl(xsc);
+	SIS_UNLOCK(sc);
+}
+	
+
+static void
+sis_initl(void *xsc)
 {
 	struct sis_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
 
-	SIS_LOCK(sc);
+	SIS_LOCK_ASSERT(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2057,7 +2069,6 @@ sis_init(xsc)
 		printf("sis%d: initialization failed: no "
 			"memory for rx buffers\n", sc->sis_unit);
 		sis_stop(sc);
-		SIS_UNLOCK(sc);
 		return;
 	}
 
@@ -2218,10 +2229,6 @@ sis_init(xsc)
 
 	if (!sc->in_tick)
 		callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
-
-	SIS_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2334,7 +2341,7 @@ sis_watchdog(ifp)
 
 	sis_stop(sc);
 	sis_reset(sc);
-	sis_init(sc);
+	sis_initl(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_startl(ifp);
