@@ -898,6 +898,11 @@ retry_lock:
 		 */
 		MB_PUT_OBJECT(m, bucket, gen_list);
 		MB_MBTYPES_DEC(gen_list, type, 1);
+		if (bucket->mb_owner & MB_BUCKET_FREE) {
+			SLIST_INSERT_HEAD(&(gen_list->mb_cont.mc_bhead),
+			    bucket, mb_blist);
+			bucket->mb_owner = MB_GENLIST_OWNER;
+		}
 		if (gen_list->mb_cont.mc_starved > 0)
 			cv_signal(&(gen_list->mgl_mstarved));
 		if ((persist & MBP_PERSIST) == 0)
@@ -929,64 +934,14 @@ retry_lock:
 
 		MB_PUT_OBJECT(m, bucket, cnt_lst);
 		MB_MBTYPES_DEC(cnt_lst, type, 1);
-
-		if (cnt_lst->mb_cont.mc_starved > 0) {
-			/*
-			 * This is a tough case. It means that we've
-			 * been flagged at least once to indicate that
-			 * we're empty, and that the system is in a critical
-			 * situation, so we ought to migrate at least one
-			 * bucket over to the general container.
-			 * There may or may not be a thread blocking on
-			 * the starved condition variable, but chances
-			 * are that one will eventually come up soon so
-			 * it's better to migrate now than never.
-			 */
-			gen_list = MB_GET_GEN_LIST(mb_list);
-			MB_LOCK_CONT(gen_list);
-			KASSERT((bucket->mb_owner & MB_BUCKET_FREE) != 0,
-			    ("mb_free: corrupt bucket %p\n", bucket));
-			SLIST_INSERT_HEAD(&(gen_list->mb_cont.mc_bhead),
-			    bucket, mb_blist);
-			bucket->mb_owner = MB_GENLIST_OWNER;
-			(*(cnt_lst->mb_cont.mc_objcount))--;
-			(*(gen_list->mb_cont.mc_objcount))++;
-			(*(cnt_lst->mb_cont.mc_numbucks))--;
-			(*(gen_list->mb_cont.mc_numbucks))++;
-
-			/*
-			 * Determine whether or not to keep transferring
-			 * buckets to the general list or whether we've
-			 * transferred enough already.
-			 * We realize that although we may flag another
-			 * bucket to be migrated to the general container
-			 * that in the meantime, the thread that was
-			 * blocked on the cv is already woken up and
-			 * long gone. But in that case, the worst
-			 * consequence is that we will end up migrating
-			 * one bucket too many, which is really not a big
-			 * deal, especially if we're close to a critical
-			 * situation.
-			 */
-			if (gen_list->mb_cont.mc_starved > 0) {
-				cnt_lst->mb_cont.mc_starved--;
-				cv_signal(&(gen_list->mgl_mstarved));
-			} else
-				cnt_lst->mb_cont.mc_starved = 0;
-
-			MB_UNLOCK_CONT(gen_list);
-			if ((persist & MBP_PERSIST) == 0)
-				MB_UNLOCK_CONT(cnt_lst);
-			else
-				*pers_list = owner;
-			break;
-		}
-
-		if (*(cnt_lst->mb_cont.mc_objcount) > *(mb_list->ml_wmhigh)) {
+		if ((*(cnt_lst->mb_cont.mc_objcount) > *(mb_list->ml_wmhigh)) ||
+		    (cnt_lst->mb_cont.mc_starved > 0)) {
 			/*
 			 * We've hit the high limit of allowed numbers of mbufs
-			 * on this PCPU list. We must now migrate a bucket
-			 * over to the general container.
+			 * on this PCPU list or we've been flagged that we need
+			 * to transfer a bucket over to the general cache.
+			 * We must now migrate a bucket over to the general
+			 * container.
 			 */
 			gen_list = MB_GET_GEN_LIST(mb_list);
 			MB_LOCK_CONT(gen_list);
@@ -1019,7 +974,24 @@ retry_lock:
 			    mb_list->ml_objbucks - bucket->mb_numfree);
 			MB_MBTYPES_INC(gen_list, type,
 			    mb_list->ml_objbucks - bucket->mb_numfree);
- 
+
+			if (cnt_lst->mb_cont.mc_starved > 0) {
+				/*
+				 * Determine whether or not to keep
+				 * transferring buckets to the general list
+				 * or whether we've transferred enough already.
+				 * The thread that is blocked may end up waking
+				 * up in the meantime, but transferring an
+				 * extra bucket in a constrained situation
+				 * is not so bad, as we're likely to need
+				 * it soon anyway.
+				 */
+				if (gen_list->mb_cont.mc_starved > 0) {
+					cnt_lst->mb_cont.mc_starved--;
+					cv_signal(&(gen_list->mgl_mstarved));
+				} else
+					cnt_lst->mb_cont.mc_starved = 0;
+			}
 			MB_UNLOCK_CONT(gen_list);
 			if ((persist & MBP_PERSIST) == 0)
 				MB_UNLOCK_CONT(cnt_lst);
