@@ -29,19 +29,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
 static const char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
