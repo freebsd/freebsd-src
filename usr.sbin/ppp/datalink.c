@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.12 1998/06/24 19:33:31 brian Exp $
+ *	$Id: datalink.c,v 1.13 1998/06/25 22:33:17 brian Exp $
  */
 
 #include <sys/types.h>
@@ -38,7 +38,6 @@
 #include <string.h>
 #include <sys/uio.h>
 #include <termios.h>
-#include <unistd.h>
 
 #include "mbuf.h"
 #include "log.h"

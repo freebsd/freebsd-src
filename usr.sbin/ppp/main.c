@@ -17,13 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.137 1998/06/27 12:03:37 brian Exp $
+ * $Id: main.c,v 1.138 1998/06/27 14:17:28 brian Exp $
  *
  *	TODO:
  */
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -59,13 +58,10 @@
 #include "link.h"
 #include "mp.h"
 #include "bundle.h"
-#include "loadalias.h"
 #include "auth.h"
 #include "systems.h"
-#include "ip.h"
 #include "sig.h"
 #include "main.h"
-#include "tun.h"
 #include "server.h"
 #include "prompt.h"
 #include "chat.h"

@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.14 1998/06/15 19:05:59 brian Exp $
+ *	$Id: alias_cmd.c,v 1.15 1998/06/27 14:17:23 brian Exp $
  */
 
 #include <sys/types.h>
@@ -11,7 +11,6 @@
 #include <netdb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
 
