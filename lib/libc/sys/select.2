@@ -186,10 +186,8 @@ reasons,
 .Fn select
 will always examine the first 256 descriptors.
 .Sh BUGS
-.Fn select
-should probably return the time remaining from the original timeout,
-if any, by modifying the time value in place.
-This may be implemented in future versions of the system.
+The Single Unix Specification allows systems to modify the original
+timeout in place.
 Thus, it is unwise to assume that the timeout value will be unmodified
 by the
 .Fn select
