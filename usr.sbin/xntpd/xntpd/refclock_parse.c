@@ -242,7 +242,7 @@ struct parseunit
   /*
    * type specific parameters
    */
-  struct clockinfo   *parse_type;	        /* link to clock description */
+  struct my_clockinfo   *parse_type;	        /* link to clock description */
 
   /*
    * clock specific configuration
@@ -536,7 +536,7 @@ static	int	trimbletsip_init	P((struct parseunit *));
 
 #define TRIMBLETAIP_EOL		    '<'
 
-static struct clockinfo
+static struct my_clockinfo
 {
   U_LONG  cl_flags;		/* operation flags (io modes) */
   void  (*cl_poll)();		/* active poll routine */
@@ -749,7 +749,7 @@ static struct clockinfo
   }
 };
 
-static int ncltypes = sizeof(clockinfo) / sizeof(struct clockinfo);
+static int ncltypes = sizeof(clockinfo) / sizeof(struct my_clockinfo);
 
 #define CL_REALTYPE(x) (((x) >> 2) & 0x1F)
 #define CL_TYPE(x)  ((CL_REALTYPE(x) >= ncltypes) ? ~0 : CL_REALTYPE(x))
@@ -1718,7 +1718,7 @@ local_poll(parse)
 
 	  while (i-- > 0)
 	    {
-	      if (parse_ioread(&parse->parseio, *s++, ts))
+	      if (parse_ioread(&parse->parseio, *s++, &ts))
 		{
 		  /*
 		   * got something good to eat

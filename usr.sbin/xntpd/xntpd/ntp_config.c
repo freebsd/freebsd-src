@@ -1642,7 +1642,7 @@ abort_resolve()
 }
 
 
-#define	KEY_TYPE_ASCII	3
+#define	KEY_TYPE_MD5	4
 
 /*
  * do_resolve_internal - start up the resolver function (not program)
@@ -1684,7 +1684,7 @@ do_resolve_internal()
 		for (i = 0; i < 8; i++)
 			rankey[i] = (rand() % 255) + 1;
 		rankey[8] = 0;
-		authusekey(req_keyid, KEY_TYPE_ASCII, rankey);
+		authusekey(req_keyid, KEY_TYPE_MD5, rankey);
 	}
 
 	/* save keyid so we will accept config requests with it */
