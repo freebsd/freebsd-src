@@ -1,3 +1,30 @@
+Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Release 3.0.4: Release tar file made.  This time for sure.
+
+Wed Oct  7 21:59:33 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* texinfo.tex: Updated to version 2.227, from Texinfo 3.12.
+
+Sun Oct 19 12:26:08 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* ALL: change references to arnold@gnu.ai.mit.edu to arnold@gnu.org.
+
+Tue Sep 23 10:31:17 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* texinfo.tex: Updated to version 2.218, from Texinfo 3.11.
+
+Fri Jul  4 08:19:00 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in ($(infodir)/gawk.info): Don't make dependent upon
+	  gawk.info, in case installed one is newer. Instead, check that
+	  an installed gawk.info exists and is identical to current one.
+	  If so, just exit; otherwise do the install.
+
+Wed Jul  2 14:55:12 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in ($(infodir)/gawk.info): typo fix.
+
 Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
 
 	* Release 3.0.3: Release tar file made.

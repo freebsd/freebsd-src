@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -830,7 +830,9 @@ variable
 		{ $$ = variable($1, CAN_FREE, Node_var); }
 	| NAME '[' expression_list ']'
 		{
-		if ($3->rnode == NULL) {
+		if ($3 == NULL) {
+			fatal("invalid subscript expression");
+		} else if ($3->rnode == NULL) {
 			$$ = node(variable($1, CAN_FREE, Node_var_array), Node_subscript, $3->lnode);
 			freenode($3);
 		} else
@@ -1169,7 +1171,8 @@ again:
 				warning("source file `%s' is empty", source);
 			}
 		}
-		close(fd);
+		if (fileno(stdin) != fd)	/* safety */
+			close(fd);
 		samefile = FALSE;
 		nextfile++;
 		if (lexeme)
@@ -1451,14 +1454,17 @@ retry:
 	case ':':
 	case '?':
 		allow_newline();
-		/* fall through */
+		return lasttok = c;
+
 	case ')':
 	case ']':
 	case '(':	
-	case '[':
 	case ';':
 	case '{':
 	case ',':
+		want_assign = FALSE;
+		/* fall through */
+	case '[':
 		return lasttok = c;
 
 	case '*':
@@ -2108,6 +2114,9 @@ NODE *list, *new;
 {
 	register NODE *oldlist;
 	static NODE *savefront = NULL, *savetail = NULL;
+
+	if (list == NULL || new == NULL)
+		return list;
 
 	oldlist = list;
 	if (savefront == oldlist) {
