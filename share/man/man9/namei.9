@@ -1,0 +1,160 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Eivind Eklund
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\" If you integrate this manpage in another OS, I'd appreciate a note 
+.\"	- eivind@freebsd.org
+.\"
+.\" $Id$
+.\"
+.Dd September 26th, 1998
+.Os
+.Dt namei 9
+.Sh NAME
+.Nm namei ,
+.Nm NDINIT
+.Nd convert pathname to a pointer to a locked vnode.
+.Sh SYNOPSIS
+.Ft int
+.Fn namei "struct nameidata *ndp"
+.Ft void
+.Fn NDINIT "struct nameidata *ndp" "int operation" "int operflags" "int segflag" "const char *path" "struct proc *proc"
+
+.Sh DESCRIPTION
+
+.Fn namei
+is used to get from a pathname to a vnode for the object.
+This is a necessity to start doing VFS operations.  The vnode
+returned will have its reference count increased; when you're through
+with it, you have to release it using either
+.Xr vrele 9
+or
+.Xr vput 9 ,
+depending on whether you specified the LOCKLEAF flag or not.
+.Pp
+To initialize the nameidata struct, you usually use
+.Fn NDINIT .
+It takes the following arguments:
+.Pp
+.Bl -tag -width nameidatap
+.It Ar nameidatap
+pointer to the struct nameidata to initialize
+.It Ar operation
+The operation to have
+.Fn namei
+do.  The relevant operations are
+.Dv LOOKUP ,
+.Dv CREATE ,
+.Dv DELETE ,
+and
+.Dv RENAME .
+The latter three are just setup for those
+effects; just calling
+.Fn namei
+will not result in
+.Fn VOP_RENAME
+being called.
+.It Ar operflags
+Operation flags.  Several of these can be effective at the same time.
+.It Ar segflag
+Segment indicator.  This tells if the name of the object is in
+userspace (UIO_USERSPACE) or in the kernel address space (UIO_SYSSPACE).
+.It Ar path
+Pointer to pathname buffer (the file or directory name that will be
+looked up)
+.It Ar proc
+Which process context to use for the
+.Fn namei
+locks.
+.El
+.Sh NAMEI OPERATION FLAGS
+.Fn namei
+takes the following set of 'operation flags' that influence
+how it operates:
+.Bl -tag -width WANTPARENT
+.It Dv LOCKLEAF
+Lock inode on return.  This is a full lock of the vnode; you'll have to use
+.Xr VOP_UNLOCK 9
+to release the lock (or use
+.Xr vput 9
+to release the lock and do a
+.Xr vrele 9 ,
+all in one).
+.It Dv LOCKPARENT
+Make 
+.Fn namei
+also return the parent (directory) vnode (in ndp->dvp),
+in locked state.  Remember to release it (using
+.Xr vput 9
+or
+.Xr VOP_UNLOCK 9
+and
+.Xr vrele 9 .)
+.It Dv WANTPARENT
+Make
+.Fn namei
+also return the parent (directory) vnode, in unlocked
+state.  Remember to release it (using
+.Xr vrele 9 .)
+.It Dv NOCACHE
+Avoid
+.Fn namei
+creating this entry in the namecache if it is not
+already present.  Normally
+.Fn namei
+will add entries to the name cache
+if they're not already there.
+.It Dv FOLLOW
+With this flag,
+.Fn namei
+will follow the symbolic link if the last part
+of the path supplied is a symbolic link (i.e., it will return a vnode
+for whatever the link points at, instead for the link itself).
+.It Dv NOOBJ
+Do not call
+.Fn vfs_object_create
+for the returned vnode even if it is
+just a VREG and we're able to (ie, it is locked).
+.It Dv NOFOLLOW
+Do not follow symbolic links (pseudo).  This flag does not seem to be
+honoured by the actual code.
+.El
+.Sh BUGS
+.Fn namei
+calls
+.Fn lookup
+for each component in the pathname, instead of
+handing the actual names onwards to the stacking layers.  This hinders
+the implementation of stacking layers that do full namespace escapes.
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VFS 9 ,
+src/sys/kern/vfs_lookup.c
+.Sh AUTHORS
+This man page was written by
+.An Eivind Eklund .
