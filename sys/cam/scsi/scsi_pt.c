@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.2 1998/10/15 17:46:26 ken Exp $
+ *      $Id: scsi_pt.c,v 1.3 1998/10/22 22:16:56 ken Exp $
  */
 
 #include <sys/param.h>
@@ -160,13 +160,16 @@ ptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		splx(s);
 		return(ENXIO);
 	}
-	splx(s);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("ptopen: dev=0x%x (unit %d)\n", dev, unit));
 
-	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0)
+	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
+		splx(s);
 		return (error); /* error code from tsleep */
+	}
+
+	splx(s);
 
 	if ((softc->flags & PT_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
