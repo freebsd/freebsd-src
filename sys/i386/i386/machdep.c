@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.84 1994/11/01 06:04:12 ache Exp $
+ *	$Id: machdep.c,v 1.85 1994/11/03 14:57:54 jkh Exp $
  */
 
 #include "npx.h"
@@ -83,17 +83,21 @@
 
 extern vm_offset_t avail_start, avail_end;
 
+#include "ether.h"
+
 #include <machine/cpu.h>
+#include <machine/npx.h>
 #include <machine/reg.h>
 #include <machine/psl.h>
+#include <machine/clock.h>
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/cons.h>
 #include <machine/devconf.h>
 
 #include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
-#include <ether.h>
 
 static void identifycpu(void);
 static void initcpu(void);
@@ -135,7 +139,6 @@ extern int freebufspace;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 
-extern int adjkerntz, disable_rtc_set;	/* from	clock.c	*/
 
 /*
  * Machine-dependent startup code
@@ -415,8 +418,6 @@ identifycpu()
 	printf("-class CPU)");
 #ifdef I586_CPU
 	if(cpu_class == CPUCLASS_586) {
-		extern void calibrate_cyclecounter();
-		extern int pentium_mhz;
 		calibrate_cyclecounter();
 		printf(" %d MHz", pentium_mhz);
 	}
@@ -843,27 +844,6 @@ dumpsys()
 		break;
 	}
 }
-
-#ifdef HZ
-/*
- * If HZ is defined we use this code, otherwise the code in
- * /sys/i386/i386/microtime.s is used.  The othercode only works
- * for HZ=100.
- */
-microtime(tvp)
-	register struct timeval *tvp;
-{
-	int s = splhigh();
-
-	*tvp = time;
-	tvp->tv_usec += tick;
-	while (tvp->tv_usec > 1000000) {
-		tvp->tv_sec++;
-		tvp->tv_usec -= 1000000;
-	}
-	splx(s);
-}
-#endif /* HZ */
 
 static void
 initcpu()
