@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
-.PATH: ${GCCDIR}
-
 CCDIR=	${.CURDIR}/../../usr.bin/cc
 .include "${CCDIR}/Makefile.tgt"
+
+.PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 SRCS=		crtstuff.c tconfig.h
 OBJS=		crtbegin.o crtend.o
@@ -14,41 +14,45 @@ CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-omit-frame-pointer
 CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
-CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
+CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEPCMD=	CC="${CC}" MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
 
+.if ${TARGET_ARCH} == "ia64"
+BEGINSRC=	crtbegin.asm
+ENDSRC=		crtend.asm
+CFLAGS+=	-x assembler-with-cpp	# Ugly hack
+.undef SRCS				# hack for 'make depend'
+.endif
 .if ${TARGET_ARCH} == "powerpc"
-.PATH: ${GCCDIR}/config/${GCC_CPU}
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
 .if ${TARGET_ARCH} == "sparc64"
-.PATH: ${GCCDIR}/config/${GCC_CPU}
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
+BEGINSRC?=	crtstuff.c
+ENDSRC?=	crtstuff.c
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
 
 CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
 
-crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
-
-crtbegin.o:
+crtbegin.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
+		-c -o ${.TARGET} ${.ALLSRC}
 
-crtbegin.So:
+crtbegin.So:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
+		-c -o ${.TARGET} ${.ALLSRC}
 
-crtend.o:
+crtend.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
+		-c -o ${.TARGET} ${.ALLSRC}
 
-crtend.So:
+crtend.So:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
+		-c -o ${.TARGET} ${.ALLSRC}
 
 CLEANFILES+=	tconfig.h
 tconfig.h: ${CCDIR}/cc_tools/Makefile
