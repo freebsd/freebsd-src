@@ -43,7 +43,7 @@
 .Op Fl dhin
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Op Ar user
+.Op Ar user ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -83,9 +83,9 @@ Show network addresses as numbers (normally
 interprets addresses and attempts to display them symbolically).
 .El
 .Pp
-If a
+If one or more
 .Ar user
-name is specified, the output is restricted to that user.
+names are specified, the output is restricted to those users.
 .Sh FILES
 .Bl -tag -width /var/run/utmp -compact
 .It Pa /var/run/utmp
