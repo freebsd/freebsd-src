@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.12 1996/08/23 18:59:07 phk Exp $
+ * $Id: in_pcb.h,v 1.13 1996/10/07 19:06:08 davidg Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -70,6 +70,8 @@ struct inpcbinfo {
 	struct inpcbhead *hashbase;
 	unsigned long hashsize;
 	unsigned short lastport;
+	unsigned short lastlow;
+	unsigned short lasthi;
 };
 
 /* flags in inp_flags: */
