@@ -95,6 +95,7 @@ WINDOW *last_window_refreshed;
 #endif
 
 #define min(a, b)	(a < b ? a : b)
+#define highbitset(a)	((a) & 0x80)
 
 #ifndef CAP
 #define String_Out(table, stack, place) Info_Out(table, stack, place)
@@ -514,6 +515,106 @@ struct KEY_STACK {
 struct KEY_STACK *KEY_TOS = NULL;
 struct KEY_STACK *KEY_POINT;
 
+/*
+ |
+ |	Not all systems have good terminal information, so we will define 
+ |	keyboard information here for the most widely used terminal type, 
+ |	the VT100.
+ |
+ */
+
+struct KEYS vt100[] = 
+	{
+		{ 3, "\033[A", 0403 },	/* key up 	*/
+		{ 3, "\033[C", 0405 },	/* key right	*/
+		{ 3, "\033[D", 0404 },	/* key left	*/
+
+		{ 4, "\033[6~", 0522 },	/* key next page	*/
+		{ 4, "\033[5~", 0523 },	/* key prev page	*/
+		{ 3, "\033[[", 0550 },	/* key end	*/
+		{ 3, "\033[@", 0406 },	/* key home	*/
+		{ 4, "\033[2~", 0513 },	/* key insert char	*/
+
+		{ 3, "\033[y", 0410 },	/* key F0	*/
+		{ 3, "\033[P", 0411 },	/* key F1	*/
+		{ 3, "\033[Q", 0412 },	/* key F2	*/
+		{ 3, "\033[R", 0413 },	/* key F3	*/
+		{ 3, "\033[S", 0414 },	/* key F4	*/
+		{ 3, "\033[t", 0415 },	/* key F5	*/
+		{ 3, "\033[u", 0416 },	/* key F6	*/
+		{ 3, "\033[v", 0417 },	/* key F7	*/
+		{ 3, "\033[l", 0420 },	/* key F8	*/
+		{ 3, "\033[w", 0421 },	/* key F9	*/
+		{ 3, "\033[x", 0422 },	/* key F10	*/
+
+		{ 5, "\033[10~", 0410 },	/* key F0	*/
+		{ 5, "\033[11~", 0411 },	/* key F1	*/
+		{ 5, "\033[12~", 0412 },	/* key F2	*/
+		{ 5, "\033[13~", 0413 },	/* key F3	*/
+		{ 5, "\033[14~", 0414 },	/* key F4	*/
+		{ 5, "\033[15~", 0415 },	/* key F5	*/
+		{ 5, "\033[17~", 0416 },	/* key F6	*/
+		{ 5, "\033[18~", 0417 },	/* key F7	*/
+		{ 5, "\033[19~", 0420 },	/* key F8	*/
+		{ 5, "\033[20~", 0421 },	/* key F9	*/
+		{ 5, "\033[21~", 0422 },	/* key F10	*/
+		{ 5, "\033[23~", 0423 },	/* key F11	*/
+		{ 5, "\033[24~", 0424 },	/* key F12	*/
+		{ 3, "\033[q", 0534 },	/* ka1 upper-left of keypad	*/
+		{ 3, "\033[s", 0535 },	/* ka3 upper-right of keypad	*/
+		{ 3, "\033[r", 0536 },	/* kb2 center of keypad	*/
+ 		{ 3, "\033[p", 0537 },	/* kc1 lower-left of keypad	*/
+		{ 3, "\033[n", 0540 },	/* kc3 lower-right of keypad	*/
+
+		/*
+		 |	The following are the same keys as above, but with 
+		 |	a different character following the escape char.
+		 */
+
+		{ 3, "\033OA", 0403 },	/* key up 	*/
+		{ 3, "\033OC", 0405 },	/* key right	*/
+		{ 3, "\033OD", 0404 },	/* key left	*/
+		{ 3, "\033OB", 0402 },	/* key down	*/
+		{ 4, "\033O6~", 0522 },	/* key next page	*/
+		{ 4, "\033O5~", 0523 },	/* key prev page	*/
+		{ 3, "\033O[", 0550 },	/* key end	*/
+		{ 3, "\033O@", 0406 },	/* key home	*/
+		{ 4, "\033O2~", 0513 },	/* key insert char	*/
+
+		{ 3, "\033Oy", 0410 },	/* key F0	*/
+		{ 3, "\033OP", 0411 },	/* key F1	*/
+		{ 3, "\033OQ", 0412 },	/* key F2	*/
+		{ 3, "\033OR", 0413 },	/* key F3	*/
+		{ 3, "\033OS", 0414 },	/* key F4	*/
+		{ 3, "\033Ot", 0415 },	/* key F5	*/
+		{ 3, "\033Ou", 0416 },	/* key F6	*/
+		{ 3, "\033Ov", 0417 },	/* key F7	*/
+		{ 3, "\033Ol", 0420 },	/* key F8	*/
+		{ 3, "\033Ow", 0421 },	/* key F9	*/
+		{ 3, "\033Ox", 0422 },	/* key F10	*/
+
+		{ 5, "\033O10~", 0410 },	/* key F0	*/
+		{ 5, "\033O11~", 0411 },	/* key F1	*/
+		{ 5, "\033O12~", 0412 },	/* key F2	*/
+		{ 5, "\033O13~", 0413 },	/* key F3	*/
+		{ 5, "\033O14~", 0414 },	/* key F4	*/
+		{ 5, "\033O15~", 0415 },	/* key F5	*/
+		{ 5, "\033O17~", 0416 },	/* key F6	*/
+		{ 5, "\033O18~", 0417 },	/* key F7	*/
+		{ 5, "\033O19~", 0420 },	/* key F8	*/
+		{ 5, "\033O20~", 0421 },	/* key F9	*/
+		{ 5, "\033O21~", 0422 },	/* key F10	*/
+		{ 5, "\033O23~", 0423 },	/* key F11	*/
+		{ 5, "\033O24~", 0424 },	/* key F12	*/
+		{ 3, "\033Oq", 0534 },	/* ka1 upper-left of keypad	*/
+		{ 3, "\033Os", 0535 },	/* ka3 upper-right of keypad	*/
+		{ 3, "\033Or", 0536 },	/* kb2 center of keypad	*/
+ 		{ 3, "\033Op", 0537 },	/* kc1 lower-left of keypad	*/
+		{ 3, "\033On", 0540 },	/* kc3 lower-right of keypad	*/
+
+		{ 0, "", 0 }	/* end	*/
+	};
+
 struct Parameters {
 	int value;
 	struct Parameters *next;
@@ -536,6 +637,8 @@ int Key_vals[] = {
 };
 
 int attributes_set[9];
+
+static int nc_attributes = 0;	/* global attributes for new_curse to observe */
 
 #ifdef SYS5
 struct termio Terminal;
@@ -815,6 +918,14 @@ printf("starting initscr \n");fflush(stdout);
 	}
 	if (Fildes == -1)
 	{
+		TERM_PATH = "/usr/share/terminfo";
+		Data_Line_len = 23 + strlen(TERM_PATH) + strlen(TERMINAL_TYPE);
+		Term_File_name = malloc(Data_Line_len);
+		sprintf(Term_File_name, "%s/%c/%s", TERM_PATH, *TERMINAL_TYPE, TERMINAL_TYPE);
+		Fildes = open(Term_File_name, O_RDONLY);
+	}
+	if (Fildes == -1)
+	{
 		free(Term_File_name);
 		Term_File_name = NULL;
 	}
@@ -865,6 +976,7 @@ printf("starting initscr \n");fflush(stdout);
 		exit(0);
 	}
 	Key_Get();
+	keys_vt100();
 	LINES = Numbers[li__];
 	COLS = Numbers[co__];
 	if ((lines_string = getenv("LINES")) != NULL)
@@ -1109,6 +1221,32 @@ Key_Get()		/* create linked list with all key sequences obtained from terminal d
 		}
 		key_def++;
 		Counter++;
+	}
+}
+
+/*
+ |	insert information about keys for a vt100 terminal
+ */
+
+void
+keys_vt100()
+{
+	int counter;
+	int Klen;
+	struct KEY_STACK *Spoint;
+
+	Spoint = KEY_TOS;
+	while (Spoint->next != NULL)
+		Spoint = Spoint->next;
+	for (counter = 0; vt100[counter].length != 0; counter++)
+	{
+		Spoint->next = (struct KEY_STACK *) malloc(sizeof(struct KEY_STACK));
+		Spoint = Spoint->next;
+		Spoint->next = NULL;
+		Spoint->element = &vt100[counter];
+		Klen = strlen(Spoint->element->string);
+		if (Klen > Max_Key_len)
+			Max_Key_len = Klen;
 	}
 }
 
@@ -2482,6 +2620,7 @@ int flag;
 	Repaint_screen = TRUE;
 }
 
+
 void 
 echo()			/* turn on echoing				*/
 {
@@ -2649,7 +2788,6 @@ void
 endwin()		/* end windows					*/
 {
 	keypad(stdscr, FALSE);
-	free(stdscr);
 	initialized = FALSE;
 	delwin(curscr);
 	delwin(virtual_scr);
@@ -3028,6 +3166,11 @@ struct _line *pointer_new, *pointer_old;
 	return(changed);
 }
 
+/*
+ |	Check if characters were inserted in the middle of a line, and if 
+ |	so, insert them.
+ */
+
 int 
 check_insert(window, line, offset, pointer_new, pointer_old)
 WINDOW *window;
@@ -3123,7 +3266,12 @@ doupdate()
 	char *att1, *att2;
 	char *c1, *c2;
 
+	char NC_chinese = FALSE;	/* flag to indicate handling Chinese */
+
 	window = virtual_scr;
+
+	if ((nc_attributes & A_NC_BIG5) != 0)
+		NC_chinese = TRUE;
 
 	if (Repaint_screen)
 	{
@@ -3184,7 +3332,7 @@ doupdate()
 	curr = top_of_win;
 	similar = 0;
 	/*
-	 |  if the window has lines that are different
+	 |  if the window has lines that are different, check for scrolling
 	 */
 	if (diff)
 	{
@@ -3243,10 +3391,10 @@ doupdate()
 						if (String_table[cs__]) /* scrolling region */
 						{
 							list[1] = 0;
-							list[0] = LINES;
+							list[0] = LINES - 1;
 							String_Out(String_table[cs__], list, 2);
 							Curr_y = Curr_x = -1;
-						}
+							}
 
 						top_of_win = curscr->first_line;
 						curr = top_of_win;
@@ -3292,7 +3440,7 @@ doupdate()
 						if (String_table[cs__]) /* scrolling region */
 						{
 							list[1] = 0;
-							list[0] = LINES;
+							list[0] = LINES - 1;
 							String_Out(String_table[cs__], list, 2);
 							Curr_y = Curr_x = -1;
 						}
@@ -3320,12 +3468,28 @@ doupdate()
 		}
 	}
 
+
+	/*
+	 |	Scrolling done, now need to insert, delete, or modify text 
+	 |	within lines.
+	 */
+
 	for (from_top = 0, curr = curscr->first_line; from_top < window->SR; from_top++)
 		curr = curr->next_screen;
 	top_of_win = curr;
 	for (from_top = 0, curr = top_of_win, virt = window->first_line; from_top < window->Num_lines; from_top++, curr = curr->next_screen, virt = virt->next_screen)
 	{
-		if (((String_table[ic__]) || (String_table[im__])) && (String_table[dc__]) && (curr->row[0] != (char) NULL))
+
+		/*
+		 |	If either 'insert mode' or 'insert char' are 
+		 |	available, enter the following 'if' statement, 
+		 |	else, need to simply rewrite the contents of the line
+		 |	at the point where the contents of the line change.
+		 */
+
+		if (((String_table[ic__]) || (String_table[im__])) && 
+		    (String_table[dc__]) && (curr->row[0] != (char) NULL) &&
+		    (!NC_chinese))
 		{
 			j = 0;
 			first_time = TRUE;
@@ -3412,6 +3576,14 @@ doupdate()
 			{
 				while ((c1[j] == c2[j]) && (att1[j] == att2[j]) && (j < window->Num_cols) && (c2[j] != (char) NULL))
 					j++;
+
+				/*
+				 |	if previous character is an eight bit 
+				 |	char, start redraw from that character
+				 */
+
+				if ((NC_chinese) && (highbitset(c1[j - 1])))
+					j--;
 				begin_old = j;
 				begin_new = j;
 				if ((j < window->Num_cols) && (c2[j] != (char) NULL))
@@ -3570,5 +3742,27 @@ int offset;
 		attrib[offset] = newatt;
 	}
 	Curr_x++;
+}
+
+/*
+ |
+ |	The two routines that follow, nc_setattrib(), nc_clearattrib(), are 
+ |	hacks that notify new_curse to handle characters that have the high 
+ |	bit set as the first of two bytes of a multi-byte string.
+ |
+ */
+
+void 
+nc_setattrib(flag)
+int flag;
+{
+	nc_attributes |= flag;
+}
+
+void 
+nc_clearattrib(flag)
+int flag;
+{
+	nc_attributes &= ~flag;
 }
 
