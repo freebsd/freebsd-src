@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.3 1997/07/23 18:35:57 smp Exp smp $
+ *	$Id: param.h,v 1.4 1997/07/24 03:06:19 smp Exp smp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -152,6 +152,9 @@ struct simplelock {
  * setting of the lock to zero below is indivisible. Simple locks may
  * only be used for exclusive locks.
  */
+
+#ifdef the_original_code
+
 static __inline void
 simple_lock_init(struct simplelock *lkp)
 {
@@ -180,6 +183,20 @@ simple_unlock(__volatile struct simplelock *lkp)
 
 	lkp->lock_data = 0;
 }
+
+#else /* the_original_code */
+
+/*
+ * This set of defines turns on the real functions in i386/isa/apic_ipl.s.
+ * It has never actually been tested.
+ */
+#define	simple_lock_init(alp)	s_lock_init(alp)
+#define	simple_lock(alp)	s_lock(alp)
+#define	simple_lock_try(alp)	s_lock_try(alp)
+#define	simple_unlock(alp)	s_unlock(alp)
+
+#endif /* the_original_code */
+
 #endif /* NCPUS > 1 */
 #endif /* !_SIMPLELOCK_H_ */
 
