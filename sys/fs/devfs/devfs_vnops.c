@@ -509,6 +509,17 @@ devfs_pathconf(ap)
 	case _PC_PATH_MAX:
 		*ap->a_retval = PATH_MAX;
 		return (0);
+	case _POSIX_MAC_PRESENT:
+#ifdef MAC
+		/*
+		 * If MAC is enabled, devfs automatically supports
+		 * trivial non-persistant label storage.
+		 */
+		*ap->a_retval = 1;
+#else
+		*ap->a_retval = 0;
+#endif /* MAC */
+		return (0);
 	default:
 		return (vop_stdpathconf(ap));
 	}
