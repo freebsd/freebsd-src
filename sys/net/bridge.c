@@ -77,6 +77,7 @@
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/kernel.h>
@@ -89,9 +90,11 @@
 #include <netinet/if_ether.h> /* for struct arpcom */
 
 #include "opt_ipfw.h" 
+#include "opt_ipdn.h" 
 
 #if defined(IPFIREWALL) && defined(DUMMYNET)
 #include <net/route.h>
+#include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 #endif
 
@@ -236,7 +239,7 @@ bdg_timeout(void *dummy)
 	if (--slowtimer <= 0 ) {
 	    slowtimer = 5 ;
 
-	    for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+	    for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (ifp->if_type != IFT_ETHER)
 		    continue ;
 		if ( 0 == ( ifp->if_flags & IFF_UP) ) {
@@ -299,8 +302,9 @@ bdginit(dummy)
     bdg_ports = 0 ;
     eth_addr = bdg_addresses ;
 
-    printf("BRIDGE 980911, have %d interfaces\n", if_index);
-    for (i = 0 , ifp = ifnet ; i < if_index ; i++, ifp = ifp->if_next)
+    printf("BRIDGE 981214, have %d interfaces\n", if_index);
+    for (i = 0 , ifp = ifnet.tqh_first ; i < if_index ;
+		i++, ifp = ifp->if_link.tqe_next)
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
 	    ac = (struct arpcom *)ifp;
 	sprintf(bdg_stats.s[ifp->if_index].name,
@@ -322,7 +326,7 @@ bdginit(dummy)
 	bdg_ports ++ ;
     }
     bdg_timeout(0);
-    do_bridge=1;
+    do_bridge=0;
 }
 
 /*
@@ -464,7 +468,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	return 0;
     }
     if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
-	ifp = ifnet ;
+	ifp = ifnet.tqh_first ;
 	once = 0 ;
 	if (dst != BDG_UNKNOWN)
 	    canfree = 0 ;
@@ -515,7 +519,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	}
 	
 	dummy = 0 ;
-	off=(*ip_fw_chk_ptr)(NULL, 0, src, &dummy, &m, &rule) ;
+	off= (*ip_fw_chk_ptr)(NULL, 0, src, &dummy, &m, &rule, NULL /*next hop */ ) ;
 	if (m == NULL) { /* pkt discarded by firewall */
 	    printf("-- bdg: firewall discarded pkt\n");
 	    if (canfree)
@@ -556,12 +560,12 @@ forward:
     else
 	m = NULL ;
 
-    for ( ; ifp ; ifp = ifp->if_next ) {
+    for ( ; ifp ; ifp = ifp->if_link.tqe_next ) {
 	if (ifp != src && ifp->if_type == IFT_ETHER &&
 	    (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING) &&
 	    SAMEGROUP(ifp, src) && !MUTED(ifp) ) {
 	    if (m == NULL) { /* do i need to make a copy ? */
-		if (canfree && ifp->if_next == NULL) /* last one! */
+		if (canfree && ifp->if_link.tqe_next == NULL) /* last one! */
 		    m = *m0 ;
 		else /* on a P5-90, m_packetcopy takes 540 ticks */
 		    m = m_copypacket(*m0, M_DONTWAIT);

@@ -108,7 +108,7 @@ struct bdg_stats {
  *	BDG_DROP	must be dropped
  *	other		ifp of the dest. interface (incl.self)
  */
-static inline
+static __inline
 struct ifnet *
 bridge_dst_lookup(struct mbuf *m)
 {
