@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id$
+ * $Id: ipfw.c,v 1.40 1997/02/22 14:32:36 peter Exp $
  *
  */
 
@@ -739,6 +739,7 @@ add(ac,av)
 				char *q;
 
 				strncpy(rule.fw_via_name, *av, sizeof(rule.fw_via_name));
+				rule.fw_via_name[sizeof(rule.fw_via_name) - 1] = '\0';
 				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 					continue;
 				if (*q == '*')
@@ -942,6 +943,7 @@ main(ac, av)
 	FILE	*f;
 
 	strncpy(progname,*av, sizeof(progname));
+	progname[sizeof(progname) - 1] = '\0';
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
