@@ -36,7 +36,7 @@ PORTSMODULESENV=SYSDIR=${SYSDIR}
 ${target}: ports-${target}
 ports-${target}:
 .for __i in ${PORTS_MODULES}
-	cd /usr/ports/${__i}; ${PORTSMODULESENV} ${MAKE} ${target}
+	cd /usr/ports/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${target}
 .endfor
 .endfor
 .endif
