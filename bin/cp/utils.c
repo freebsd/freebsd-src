@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.13 1997/02/22 14:01:34 peter Exp $
+ *	$Id: utils.c,v 1.14 1997/10/03 18:11:14 wosch Exp $
  */
 
 #ifndef lint
@@ -60,7 +60,8 @@ copy_file(entp, dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat to_stat, *fs;
-	int ch, checkch, from_fd, rcount, rval, to_fd, wcount;
+	int ch, checkch, from_fd, rcount, rval, to_fd, wcount, wresid;
+	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
@@ -128,7 +129,13 @@ copy_file(entp, dne)
 			warn("%s", entp->fts_path);
 			rval = 1;
 		} else {
-			if (write(to_fd, p, fs->st_size) != fs->st_size) {
+			for (bufp = p, wresid = fs->st_size; ;
+			    bufp += wcount, wresid -= wcount)
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount >= wresid || wcount <= 0)
+					break;
+			}
+			if (wcount != wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 			}
@@ -142,8 +149,13 @@ copy_file(entp, dne)
 #endif
 	{
 		while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
-			wcount = write(to_fd, buf, rcount);
-			if (rcount != wcount || wcount == -1) {
+			for (bufp = buf, wresid = rcount; ;
+			    bufp += wcount, wresid -= wcount) {
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount >= wresid || wcount <= 0)
+					break;
+			}
+			if (wcount != wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 				break;
