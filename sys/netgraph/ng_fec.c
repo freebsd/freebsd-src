@@ -188,6 +188,10 @@ static int	ng_fec_delport(struct ng_fec_private *priv, char *iface);
 static void	ng_fec_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
+/* ng_ether_input_p - see sys/netgraph/ng_ether.c */
+extern void (*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp,
+			struct ether_header *eh);
+
 /* Netgraph methods */
 static ng_constructor_t	ng_fec_constructor;
 static ng_rcvmsg_t	ng_fec_rcvmsg;
@@ -760,7 +764,7 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0,
 		mh.mh_next = m;
 		mh.mh_data = (char *)eh;
 		mh.mh_len = ETHER_HDR_LEN;
-		bpf_mtap(bifp, (struct mbuf *)&mh);
+		BPF_MTAP(bifp, (struct mbuf *)&mh);
 	}
 
 	return;
@@ -977,8 +981,7 @@ ng_fec_start(struct ifnet *ifp)
 	if (m0 == NULL)
 		return;
 
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m0);
+	BPF_MTAP(ifp, m0);
 
 	/* Queue up packet on the proper port. */
 	error = ng_fec_choose_port(b, m0, &oifp);
@@ -1097,7 +1100,7 @@ ng_fec_constructor(node_p node)
 		ng_ether_input_p = ng_fec_input;
 
 	/* Attach the interface */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
 	callout_handle_init(&priv->fec_ch);
 
 	TAILQ_INIT(&b->ng_fec_ports);
@@ -1190,7 +1193,7 @@ ng_fec_shutdown(node_p node)
 
 	if (ng_ether_input_p != NULL)
 		ng_ether_input_p = NULL;
-	ether_ifdetach(&priv->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&priv->arpcom.ac_if);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);
