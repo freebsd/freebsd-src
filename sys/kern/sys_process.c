@@ -374,6 +374,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 #endif /* PT_SETDBREGS */
 	default:
+		break;
 	}
 		
 	write = 0;
