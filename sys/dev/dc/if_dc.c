@@ -2338,6 +2338,7 @@ dc_detach(dev)
 		free(sc->dc_mi, M_DEVBUF);
 		sc->dc_mi = m;
 	}
+	free(sc->dc_srom, M_DEVBUF);
 
 	DC_UNLOCK(sc);
 	mtx_destroy(&sc->dc_mtx);
