@@ -23,11 +23,9 @@
 
 <article>
   <articleinfo>
-
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <title>&os; &release.current; Errata</title>
+    <title>&os;
+    &release.current;
+    Errata</title>
 
     <corpauthor>
     The &os; Project
@@ -45,10 +43,6 @@
   </articleinfo>
 
   <abstract>
-
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
     <para>This document lists errata items for &os; 
       &release.current;,
       containing significant information discovered after the release.
@@ -58,24 +52,9 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-<![ %release.type.snapshot [
-    <para>This errata document for &os; &release.prev; will be
-      maintained until the release of &os; &release.next;.</para>
-]]>
-
-<![ %release.type.release [
-    <para>This is the final version of the errata document for &os;
-      &release.prev;.  Future errata documents along the
-      &release.branch; branch will address &os; &release.current; and
-      later releases.</para>
-]]>
-
-      <para>At this time, &release.current; has no errata, because
-        there have not been any releases on the &release.branch;
-        branch since the last branchpoint.  (The first such release
-        will be &release.next;.)  This file exists to provide a clean
-        template for newly-created branches.  (Clearly this notice
-        should not exist on any branched version of this file.)</para>
+    <para>This errata document for &os; 
+      &release.current;
+      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1 id="intro">
@@ -83,7 +62,7 @@
 
     <para>This errata document contains <quote>late-breaking news</quote>
       about &os;
-      &release.current;.  
+      &release.current;.
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
