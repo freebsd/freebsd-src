@@ -71,13 +71,14 @@ static const char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
 
 #define RETRIES	10		/* number of retries on reading old sectors */
 
-int	fflag, add, copy, verbose, nflag;
+int	fflag, add, copy, verbose, nflag, sflag;
 int	dups;
 int	badfile = -1;		/* copy of badsector table to use, -1 if any */
 #define MAXSECSIZE	1024
 struct	dkbad curbad, oldbad;
 #define	DKBAD_MAGIC	0x4321
 
+char	*buf;
 char	label[BBSIZE];
 daddr_t	size;
 struct	disklabel *dp;
@@ -103,6 +104,7 @@ main(argc, argv)
 	register struct bt_bad *bt;
 	daddr_t	sn, bn[DKBAD_MAXBAD];
 	int i, f, nbad, new, bad, errs;
+	daddr_t bstart, bend;
 
 	argc--, argv++;
 	while (argc > 0 && **argv == '-') {
@@ -127,6 +129,9 @@ main(argc, argv)
 				nflag++;
 				verbose++;
 				break;
+			    case 's':		/* scan partition */
+				sflag++;
+				break;
 			    default:
 				if (**argv >= '0' && **argv <= '4') {
 					badfile = **argv - '0';
@@ -146,10 +151,12 @@ usage:
 	      "to read or overwrite bad-sector table, e.g.: bad144 hp0\n");
 		fprintf(stderr,
 		  "or bad144 -a [ -f ] [ -c ] disk  bn ...\n");
+		fprintf(stderr, "or bad144 -s [ -v ] disk\n");
 		fprintf(stderr, "where options are:\n");
 		fprintf(stderr, "\t-a  add new bad sectors to the table\n");
 		fprintf(stderr, "\t-f  reformat listed sectors as bad\n");
 		fprintf(stderr, "\t-c  copy original sector to replacement\n");
+		fprintf(stderr, "\t-s  scan entire slice for bad sectors\n");
 		exit(1);
 	}
 	if (argv[0][0] != '/')
@@ -178,6 +185,97 @@ usage:
 		exit(7);
 	}
 	size = dp->d_secperunit;
+
+	/*
+	 * bstart is 0 since we should always be doing partition c of a slice
+	 * bend is the size of the slice, less the bad block map track
+	 * and the DKBAD_MAXBAD replacement blocks
+	 */
+	bstart = 0;
+	bend = size - (dp->d_nsectors + DKBAD_MAXBAD);
+
+	if (verbose) {
+		printf("cyl: %ld, tracks: %ld, secs: %ld, "
+			"sec/cyl: %ld, start: %ld, end: %ld\n",
+			dp->d_ncylinders, dp->d_ntracks, dp->d_nsectors,
+			dp->d_secpercyl, bstart, bend);
+	}
+
+	if (sflag) {		/* search for bad sectors */
+		int curr_sec, tries, n;
+		int spc = dp->d_secpercyl;
+		int ss = dp->d_secsize;
+		int trk = dp->d_nsectors;
+		int step;
+
+		setbuf(stdout, NULL);
+
+		if (buf == (char *)NULL) {
+			buf = malloc((unsigned)(trk*ss));
+			if (buf == (char *)NULL) {
+				fprintf(stderr, "Out of memory\n");
+				exit(20);
+		    	}
+		}
+
+		printf("Starting scan of %s at cylinder %ld\n",
+			name, bstart/spc);
+		step = trk;
+		for (curr_sec = bstart; curr_sec < bend; curr_sec += step) {
+			int gotone = 0;
+
+			if (verbose) {
+				if ((curr_sec % spc) == 0)
+					printf("\r%4d(%7d)", 
+					    curr_sec/spc, curr_sec);
+			}
+			for (tries = 0; tries < RETRIES; tries++) {
+				if (lseek(f, curr_sec * ss, L_SET) < 0) {
+					fprintf(stderr, 
+					    "\nbad144: can't seek sector, %d\n",
+					     curr_sec);
+					gotone = 1;
+				} else
+					break;
+			}
+			if (gotone) {
+				fprintf(stderr, 
+				    "\nbad144: bad sector (seek), %d\n", 
+				    curr_sec);
+				step = 1;
+				continue;
+			}
+			if (step == trk) {
+				if ((n = read(f, buf, (ss*trk))) == (ss*trk)) {
+					continue;
+				}
+			}
+			/* switch to single sector reads */
+			lseek(f, curr_sec * ss, L_SET);
+			step = 1;
+			for (tries = 0; tries < RETRIES; tries++) {
+				if ((n = read(f, buf, ss)) != ss) {
+					fprintf(stderr, 
+					    "\nbad144: can't read sector,
+					     %d\n", curr_sec);
+					gotone = 1;
+					lseek(f, curr_sec * ss, L_SET);
+				} else {
+					if ((curr_sec % trk) == 0) {
+						step = trk;
+					}
+					break;
+				}
+			}
+			if (gotone) {
+				fprintf(stderr, 
+				    "\nbad144: bad sector (read), %d\n",
+				     curr_sec);
+				continue;
+			}
+		}
+	}
+
 	argc--;
 	argv++;
 	if (argc == 0) {
@@ -450,8 +548,6 @@ shift(f, new, old)
 		new--;
 	}
 }
-
-char *buf;
 
 /*
  *  Copy disk sector s1 to s2.
