@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.2 1993/10/16 14:39:22 rgrimes Exp $
+ *	$Id: npx.h,v 1.3 1994/04/29 21:44:23 gclarkii Exp $
  */
 
 /*
@@ -75,11 +75,9 @@ struct	save87 {
 	struct	fpacc87	sv_ac[8];	/* accumulator contents, 0-7 */
 	u_long	sv_ex_sw;	/* status word for last exception (was pad) */
 	u_long	sv_ex_tw;	/* tag word for last exception (was pad) */
-#ifdef GPL_MATH_EMULATE
-        u_char  sv_pad[60];
-#else
-        u_char	sv_pad[8 * 2 - 2 * 4];	/* bogus historical padding */
-#endif /* GPL_MATH_EMULATE */
+        u_char  sv_pad[60];	/* needed for the GPL math emulator */
+				/* the whole length of this structure
+				   must match i387_union */
 };
 
 /* Cyrix EMC memory - mapped coprocessor context switch information */
