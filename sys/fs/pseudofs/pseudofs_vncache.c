@@ -44,7 +44,7 @@
 static MALLOC_DEFINE(M_PFSVNCACHE, "pfs_vncache", "pseudofs vnode cache");
 
 static struct mtx pfs_vncache_mutex;
-struct pfs_vdata *pfs_vncache;
+static struct pfs_vdata *pfs_vncache;
 static void pfs_exit(struct proc *p);
 
 SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
