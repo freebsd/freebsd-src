@@ -120,7 +120,6 @@
 114	*ugen		USB Generic device <n_hibma>
 115	dag		University of Waikato DAG network capture boards
 117	*acd		ATAPI CDROM
-118	afd		ATAPI floppy
 119	*ast		ATAPI tape
 120	aud		Audit Device <rwatson@FreeBSD.org>
 121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
