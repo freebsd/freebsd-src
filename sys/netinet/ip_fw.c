@@ -74,6 +74,8 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 static int fw_verbose_limit = 0;
 #endif
 
+static u_int64_t counter;	/* counter for ipfw_report(NULL...) */
+
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
 LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
@@ -300,7 +302,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
     if (ip) {
-	static u_int64_t counter;
 	struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
@@ -1158,6 +1159,7 @@ resetlog_entry(struct ip_fw *frwl)
 
 	if (frwl == 0) {
 		s = splnet();
+		counter = 0;
 		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
 			fcp->rule->fw_loghighest = fcp->rule->fw_pcnt +
 			    fcp->rule->fw_logamount;
