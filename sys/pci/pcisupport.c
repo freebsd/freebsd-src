@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.52 1997/08/10 09:33:21 phk Exp $
+**  $Id: pcisupport.c,v 1.53 1997/08/16 07:18:51 dyson Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -188,11 +188,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82437FX PCI cache memory controller");
 	case 0x122e8086:
 		return ("Intel 82371FB PCI to ISA bridge");
-#if 0
-	/* ide_pci takes care of this now */
-	case 0x12308086:
-		return ("Intel 82371FB IDE interface");
-#endif
 	case 0x12508086:
 		return ("Intel 82439");
 	case 0x04061039:
@@ -203,23 +198,15 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c601");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
-#if 0
-	/* ide_pci takes care of this now */
-	case 0x70108086:
-		return ("Intel 82371SB IDE interface");
-#endif
+	case 0x71008086:
+		return ("Intel 82439TX System Controller (MTXC)");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
-#if 0
-        /* ide_pci takes care of this now */
-	case 0x71118086:
-		return ("Intel 82371AB IDE interface");
-#endif
 	case 0x71128086:
 		return ("Intel 82371AB USB host controller");
 	case 0x71138086:
 		return ("Intel 82371AB power management");
-	 case 0x70308086:
+	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x12378086:
 		fixwsc_natoma(tag);
