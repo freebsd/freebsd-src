@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.16 1996/02/06 18:50:51 wollman Exp $
+ *	$Id: if_zp.c,v 1.17 1996/02/28 16:23:36 nate Exp $
  */
 /*-
  * TODO:
@@ -1011,12 +1011,7 @@ zpioctl(ifp, cmd, data)
 #ifdef INET
 		case AF_INET:
 			zpinit(ifp->if_unit);	/* before arpwhohas */
-#if 1
 			arp_ifinit((struct arpcom *) ifp, ifa);
-#else
-			((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
-#endif
 			break;
 #endif
 #ifdef IPX
