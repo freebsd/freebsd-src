@@ -2010,7 +2010,7 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 static void
 trace_loaded_objects(Obj_Entry *obj)
 {
-    char	*fmt1, *fmt2, *fmt, *main_local;
+    char	*fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int		c;
 
     if ((main_local = getenv("LD_TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
@@ -2022,14 +2022,18 @@ trace_loaded_objects(Obj_Entry *obj)
     if ((fmt2 = getenv("LD_TRACE_LOADED_OBJECTS_FMT2")) == NULL)
 	fmt2 = "\t%o (%x)\n";
 
+    list_containers = getenv("LD_TRACE_LOADED_OBJECTS_ALL");
+
     for (; obj; obj = obj->next) {
 	Needed_Entry		*needed;
 	char			*name, *path;
 	bool			is_lib;
 
+	if (list_containers && obj->needed != NULL)
+	    printf("%s:\n", obj->path);
 	for (needed = obj->needed; needed; needed = needed->next) {
 	    if (needed->obj != NULL) {
-		if (needed->obj->traced)
+		if (needed->obj->traced && !list_containers)
 		    continue;
 		needed->obj->traced = true;
 		path = needed->obj->path;
