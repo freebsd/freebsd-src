@@ -81,13 +81,13 @@ debug_isset(int x)
 ** debugging mode.
 */
 void
-debug (int flags, char *fmt, ...)
+debug(int flags, const char *fmt, ...)
 {
     va_list args;
 
     if (flags & (debug_flags & ~0xff)) {
 	if ((debug_flags & 0xff) == 0
-	    && (flags & (D_ITRAPS|D_TRAPS))
+	    && (flags & (D_ITRAPS | D_TRAPS))
 	    && !debug_isset(flags & 0xff))
 	    return;
 	va_start (args, fmt);
@@ -100,7 +100,7 @@ debug (int flags, char *fmt, ...)
 ** Emit a terminal error message and exit
 */
 void
-fatal (char *fmt, ...)
+fatal(const char *fmt, ...)
 {
     va_list args;
 
@@ -108,7 +108,7 @@ fatal (char *fmt, ...)
 
     if (xmode) {
 	char buf[1024];
-	char *m;
+	const char *m;
 
 	va_start (args, fmt);
 	vfprintf (debugf, fmt, args);

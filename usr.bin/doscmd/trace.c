@@ -196,12 +196,6 @@ printtrace(regcontext_t *REGS, char *buf)
 #if BIG_DEBUG
     u_char *addr = (u_char *)MAKEPTR(R_CS, R_IP);
 #endif
-    char *bigfmt = "%04x:%04x "
-#if BIG_DEBUG
-	   	   "%02x %02x %02x %02x %02x %02x "
-#endif
-	   	   "%-30s "
-           	   "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x ";
 
     if (first) {
 	fprintf(debugf, "%4s:%4s "
@@ -217,7 +211,12 @@ printtrace(regcontext_t *REGS, char *buf)
 	first = 0;
     }
 
-    fprintf(debugf, bigfmt,
+    fprintf(debugf, "%04x:%04x "
+#if BIG_DEBUG
+	    "%02x %02x %02x %02x %02x %02x "
+#endif
+	    "%-30s "
+	    "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x ",
 	    R_CS, R_IP,
 #if BIG_DEBUG
 	    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],

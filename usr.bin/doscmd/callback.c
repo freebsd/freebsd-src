@@ -16,7 +16,7 @@ struct callback {
     LIST_ENTRY(callback) chain;
     u_long vec;
     callback_t func;
-    char *name;
+    const char *name;
 };
 
 LIST_HEAD(cbhead , callback) cbhead[127];
@@ -27,7 +27,7 @@ LIST_HEAD(cbhead , callback) cbhead[127];
 ** Register (func) as a handler for (vec)
 */
 void
-register_callback(u_long vec, callback_t func, char *name)
+register_callback(u_long vec, callback_t func, const char *name)
 {
     struct cbhead *head;
     struct callback *elm;

@@ -96,7 +96,7 @@ static int	open_name(char *name, char *ext);
 static int	zflag = 0;
 
 /* DOS environment emulation */
-static int	ecnt = 0;
+static unsigned	ecnt = 0;
 static char 	*envs[256];
 
 /* Search path and command name */
@@ -377,10 +377,10 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 {
     FILE	*fp;
     u_short	param[7] = {0, 0, 0, 0, 0, 0, 0};
-    char	*p;
+    const char	*p;
     char	prog[1024];
     char	buffer[PATH_MAX];
-    int		i;
+    unsigned	i;
     int		fd;
     
     fp = find_doscmdrc();		/* dig up a doscmdrc */
@@ -776,7 +776,7 @@ open_prog(char *name)
 ** append a value to the DOS environment
 */
 void
-put_dosenv(char *value)
+put_dosenv(const char *value)
 {
     if (ecnt < sizeof(envs)/sizeof(envs[0])) {
 	if ((envs[ecnt++] = strdup(value)) == NULL) {
@@ -819,11 +819,11 @@ squirrel_fd(int fd)
 ** XXX belongs somewhere else perhaps
 */
 void
-done (regcontext_t *REGS, int val)
+done(regcontext_t *REGS, int val)
 {
     if (curpsp < 2) {
 	if (xmode) {
-	    char *m;
+	    const char *m;
 
 	    tty_move(24, 0);
 	    for (m = "END OF PROGRAM"; *m; ++m)
