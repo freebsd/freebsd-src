@@ -328,6 +328,26 @@ fxp_attach(device_t dev)
 	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, val, 2);
 
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		u_int32_t		iobase, membase, irq;
+
+		/* Save important PCI config data. */
+		iobase = pci_read_config(dev, FXP_PCI_IOBA, 4);
+		membase = pci_read_config(dev, FXP_PCI_MMBA, 4);
+		irq = pci_read_config(dev, PCIR_INTLINE, 4);
+
+		/* Reset the power state. */
+		device_printf(dev, "chip is in D%d power mode "
+		    "-- setting to D0\n", pci_get_powerstate(dev));
+
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+
+		/* Restore PCI config data. */
+		pci_write_config(dev, FXP_PCI_IOBA, iobase, 4);
+		pci_write_config(dev, FXP_PCI_MMBA, membase, 4);
+		pci_write_config(dev, PCIR_INTLINE, irq, 4);
+	}
+
 	/*
 	 * Map control/status registers.
 	 */
