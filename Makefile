@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.119 1997/04/02 16:44:06 ache Exp $
+#	$Id: Makefile,v 1.120 1997/04/02 17:10:16 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -458,6 +458,10 @@ lib-tools:
 # libraries - build and install the libraries
 #
 libraries:
+.if exists(lib/csu/i386)
+	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+.endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
@@ -468,10 +472,6 @@ libraries:
 .endif
 .if exists(lib/libtermcap)
 	cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib)
-	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
