@@ -1,4 +1,4 @@
-.\"	$KAME: traceroute6.8,v 1.8 2000/06/12 16:29:18 itojun Exp $
+.\"	$KAME: traceroute6.8,v 1.9 2002/08/30 03:56:20 onoe Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl dlnrv
+.Op Fl dIlnrv
 .Ek
 .Bk -words
 .Op Fl f Ar firsthop
@@ -76,15 +76,19 @@ Debug mode.
 Specify how many hops to skip in trace.
 .It Fl g Ar gateway
 Specify intermediate gateway
-.Nm (
-uses routing header).
-.It Fl m Ar hoplimit
-Specify maximum hoplimit.
+.Po
+.Nm
+uses routing header
+.Pc .
+.It Fl I
+Use ICMP6 ECHO instead of UDP datagrams.
 .It Fl l
 Print both host hostnames and numeric addresses.
 Normally
 .Nm
 prints only hostnames if
+.It Fl m Ar hoplimit
+Specify maximum hoplimit.
 .Fl n
 is not specified, and only numeric addresses if
 .Fl n
@@ -110,7 +114,7 @@ Specify the delay time between probes.
 .Sh RETURN VALUES
 The
 .Nm
-utility will exit with 0 on success, and non-zero on errors.
+command will exit with 0 on success, and non-zero on errors.
 .\"
 .Sh SEE ALSO
 .Xr ping 8 ,
@@ -120,4 +124,4 @@ utility will exit with 0 on success, and non-zero on errors.
 .Sh HISTORY
 The
 .Nm
-utility first appeared in WIDE hydrangea IPv6 protocol stack kit.
+command first appeared in WIDE hydrangea IPv6 protocol stack kit.
