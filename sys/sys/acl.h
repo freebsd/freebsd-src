@@ -32,8 +32,8 @@
  * Support for POSIX.1e access control lists.
  */
 
-#ifndef _SYS_ACL_H
-#define	_SYS_ACL_H
+#ifndef _SYS_ACL_H_
+#define	_SYS_ACL_H_
 
 /*
  * POSIX.1e ACL types and related constants.
@@ -226,4 +226,4 @@ __END_DECLS
 
 #endif /* !_KERNEL */
 
-#endif /* !_SYS_ACL_H */
+#endif /* !_SYS_ACL_H_ */
