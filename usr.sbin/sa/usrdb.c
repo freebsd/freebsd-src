@@ -33,6 +33,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/acct.h>
 #include <err.h>
@@ -236,7 +237,7 @@ usracct_print()
 	while (rv == 0) {
 		ui = (struct userinfo *) data.data;
 
-		printf("%-8s %9qu ",
+		printf("%-*s %9qu ", MAXLOGNAME - 1,
 		    user_from_uid(ui->ui_uid, 0), ui->ui_calls);
 
 		t = (double) (ui->ui_utime + ui->ui_stime) /
