@@ -38,9 +38,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rmp_var.h	8.1 (Berkeley) 6/4/93
+ *	from: @(#)rmp_var.h	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: rmp_var.h 3.1 92/07/06$
+ * from: Utah Hdr: rmp_var.h 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
@@ -100,12 +100,12 @@
 			 sizeof(struct rmp_boot_repl) + s - sizeof(restofpkt))
 #define	RMPREADSIZE(s)	(sizeof(struct hp_hdr) + sizeof(struct hp_llc) + \
 			 sizeof(struct rmp_read_repl) + s - sizeof(restofpkt) \
-			 - sizeof(u_char))
+			 - sizeof(u_int8_t))
 #define	RMPDONESIZE	(sizeof(struct hp_hdr) + sizeof(struct hp_llc) + \
 			 sizeof(struct rmp_boot_done))
 #define	RMPBOOTDATA	255
 #define	RMPREADDATA	(RMPDATALEN - \
-			 (2*sizeof(u_char)+sizeof(u_short)+sizeof(u_word)))
+			 (2*sizeof(u_int8_t)+sizeof(u_int16_t)+sizeof(u_word)))
 
 /*
  * This protocol defines some field sizes as "rest of ethernet packet".
@@ -117,9 +117,9 @@ typedef char	restofpkt;
 
 /*
  * Due to the RMP packet layout, we'll run into alignment problems
- * on machines that cant access words on half-word boundaries.  If
- * you know that your machine does not suffer from this problem,
- * add it to the hp300 #define below.
+ * on machines that can't access (or don't, by default, align) words
+ * on half-word boundaries.  If you know that your machine does not suffer
+ * from this problem, add it to the vax/tahoe/m68k #define below.
  *
  * The following macros are used to deal with this problem:
  *	WORDZE(w)	Return True if u_word `w' is zero, False otherwise.
@@ -128,24 +128,24 @@ typedef char	restofpkt;
  *	GETWORD(w,i)	Copy u_word `w' into int `i'.
  *	PUTWORD(i,w)	Copy int `i' into u_word `w'.
  *
- * N.B. We do not support little endian alignment-challenged machines.
+ * N.B. Endianness is handled by use of ntohl/htonl
  */
-#if defined(vax) || defined(tahoe) || defined(hp300)
+#if defined(__vax__) || defined(__tahoe__) || defined(__m68k__)
 
-typedef	u_int		u_word;
+typedef	u_int32_t	u_word;
 
 #define	WORDZE(w)	((w) == 0)
 #define	ZEROWORD(w)	(w) = 0
 #define	COPYWORD(w1,w2)	(w2) = (w1)
-#define	GETWORD(w, i)	(i) = (w)
-#define	PUTWORD(i, w)	(w) = (i)
+#define	GETWORD(w, i)	(i) = ntohl(w)
+#define	PUTWORD(i, w)	(w) = htonl(i)
 
 #else
 
-#define	_WORD_HIGHPART	0	/* XXX: assume Big Endian for now */
+#define	_WORD_HIGHPART	0
 #define	_WORD_LOWPART	1
 
-typedef	struct _uword { u_short val[2]; }	u_word;
+typedef	struct _uword { u_int16_t val[2]; }	u_word;
 
 #define	WORDZE(w) \
 	((w.val[_WORD_HIGHPART] == 0) && (w.val[_WORD_LOWPART] == 0))
@@ -156,10 +156,10 @@ typedef	struct _uword { u_short val[2]; }	u_word;
 	  (w2).val[_WORD_LOWPART] = (w1).val[_WORD_LOWPART]; \
 	}
 #define	GETWORD(w, i) \
-	(i) = (((u_int)(w).val[_WORD_HIGHPART]) << 16) | (w).val[_WORD_LOWPART]
+	(i) = (((u_int32_t)ntohs((w).val[_WORD_HIGHPART])) << 16) | ntohs((w).val[_WORD_LOWPART])
 #define	PUTWORD(i, w) \
-	{ (w).val[_WORD_HIGHPART] = (u_short) (((i) >> 16) & 0xffff); \
-	  (w).val[_WORD_LOWPART] = (u_short) (i & 0xffff); \
+	{ (w).val[_WORD_HIGHPART] = htons((u_int16_t) ((i >> 16) & 0xffff)); \
+	  (w).val[_WORD_LOWPART] = htons((u_int16_t) (i & 0xffff)); \
 	}
 
 #endif
@@ -169,53 +169,53 @@ typedef	struct _uword { u_short val[2]; }	u_word;
  */
 
 struct rmp_raw {		/* generic RMP packet */
-	u_char	rmp_type;		/* packet type */
-	u_char	rmp_rawdata[RMPDATALEN-1];
+	u_int8_t  rmp_type;		/* packet type */
+	u_int8_t  rmp_rawdata[RMPDATALEN-1];
 };
 
 struct rmp_boot_req {		/* boot request */
-	u_char	rmp_type;		/* packet type (RMP_BOOT_REQ) */
-	u_char	rmp_retcode;		/* return code (0) */
-	u_word	rmp_seqno;		/* sequence number (real time clock) */
-	u_short	rmp_session;		/* session id (normally 0) */
-	u_short	rmp_version;		/* protocol version (RMP_VERSION) */
-	char	rmp_machtype[RMP_MACHLEN];	/* machine type */
-	u_char	rmp_flnmsize;		/* length of rmp_flnm */
+	u_int8_t  rmp_type;		/* packet type (RMP_BOOT_REQ) */
+	u_int8_t  rmp_retcode;		/* return code (0) */
+	u_word	  rmp_seqno;		/* sequence number (real time clock) */
+	u_int16_t rmp_session;		/* session id (normally 0) */
+	u_int16_t rmp_version;		/* protocol version (RMP_VERSION) */
+	char	  rmp_machtype[RMP_MACHLEN];	/* machine type */
+	u_int8_t  rmp_flnmsize;		/* length of rmp_flnm */
 	restofpkt rmp_flnm;		/* name of file to be read */
 };
 
 struct rmp_boot_repl {		/* boot reply */
-	u_char	rmp_type;		/* packet type (RMP_BOOT_REPL) */
-	u_char	rmp_retcode;		/* return code (normally 0) */
-	u_word	rmp_seqno;		/* sequence number (from boot req) */
-	u_short	rmp_session;		/* session id (generated) */
-	u_short	rmp_version;		/* protocol version (RMP_VERSION) */
-	u_char	rmp_flnmsize;		/* length of rmp_flnm */
+	u_int8_t  rmp_type;		/* packet type (RMP_BOOT_REPL) */
+	u_int8_t  rmp_retcode;		/* return code (normally 0) */
+	u_word	  rmp_seqno;		/* sequence number (from boot req) */
+	u_int16_t rmp_session;		/* session id (generated) */
+	u_int16_t rmp_version;		/* protocol version (RMP_VERSION) */
+	u_int8_t  rmp_flnmsize;		/* length of rmp_flnm */
 	restofpkt rmp_flnm;		/* name of file (from boot req) */
 };
 
 struct rmp_read_req {		/* read request */
-	u_char	rmp_type;		/* packet type (RMP_READ_REQ) */
-	u_char	rmp_retcode;		/* return code (0) */
-	u_word	rmp_offset;		/* file relative byte offset */
-	u_short	rmp_session;		/* session id (from boot repl) */
-	u_short	rmp_size;		/* max no of bytes to send */
+	u_int8_t  rmp_type;		/* packet type (RMP_READ_REQ) */
+	u_int8_t  rmp_retcode;		/* return code (0) */
+	u_word	  rmp_offset;		/* file relative byte offset */
+	u_int16_t rmp_session;		/* session id (from boot repl) */
+	u_int16_t rmp_size;		/* max no of bytes to send */
 };
 
 struct rmp_read_repl {		/* read reply */
-	u_char	rmp_type;		/* packet type (RMP_READ_REPL) */
-	u_char	rmp_retcode;		/* return code (normally 0) */
-	u_word	rmp_offset;		/* byte offset (from read req) */
-	u_short	rmp_session;		/* session id (from read req) */
+	u_int8_t  rmp_type;		/* packet type (RMP_READ_REPL) */
+	u_int8_t  rmp_retcode;		/* return code (normally 0) */
+	u_word	  rmp_offset;		/* byte offset (from read req) */
+	u_int16_t rmp_session;		/* session id (from read req) */
 	restofpkt rmp_data;		/* data (max size from read req) */
-	u_char	rmp_unused;		/* padding to 16-bit boundary */
+	u_int8_t  rmp_unused;		/* padding to 16-bit boundary */
 };
 
 struct rmp_boot_done {		/* boot complete */
-	u_char	rmp_type;		/* packet type (RMP_BOOT_DONE) */
-	u_char	rmp_retcode;		/* return code (0) */
-	u_word	rmp_unused;		/* not used (0) */
-	u_short	rmp_session;		/* session id (from read repl) */
+	u_int8_t  rmp_type;		/* packet type (RMP_BOOT_DONE) */
+	u_int8_t  rmp_retcode;		/* return code (0) */
+	u_word	  rmp_unused;		/* not used (0) */
+	u_int16_t rmp_session;		/* session id (from read repl) */
 };
 
 struct rmp_packet {
@@ -236,7 +236,7 @@ struct rmp_packet {
  */
 
 #define	r_type	rmp_proto.rmp_raw.rmp_type
-#define	r_data	rmp_proto.rmp_raw.rmp_data
+#define	r_data	rmp_proto.rmp_raw.rmp_rawdata
 #define	r_brq	rmp_proto.rmp_brq
 #define	r_brpl	rmp_proto.rmp_brpl
 #define	r_rrq	rmp_proto.rmp_rrq

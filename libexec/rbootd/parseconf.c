@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)parseconf.c	8.1 (Berkeley) 6/4/93
+ *	from: @(#)parseconf.c	8.1 (Berkeley) 6/4/93
  *
  * From: Utah Hdr: parseconf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -46,10 +46,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)parseconf.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)parseconf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: parseconf.c,v 1.3.2.1 1997/12/16 07:17:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -86,10 +86,10 @@ ParseConfig()
 {
 	FILE *fp;
 	CLIENT *client;
-	u_char *addr;
+	u_int8_t *addr;
 	char line[C_LINELEN];
-	register char *cp, *bcp;
-	register int i, j;
+	char *cp, *bcp;
+	int i, j;
 	int omask, linecnt = 0;
 
 	if (BootAny)				/* ignore config file */
@@ -131,7 +131,7 @@ ParseConfig()
 		if (*line == '\0' || *line == '#')	/* ignore comment */
 			continue;
 
-		if ((cp = index(line,'#')) != NULL)	/* trash comments */
+		if ((cp = strchr(line,'#')) != NULL)	/* trash comments */
 			*cp = '\0';
 
 		cp = line;				/* init `cp' */
@@ -245,18 +245,17 @@ ParseConfig()
 **	Warnings:
 **		- The return value points to a static buffer; it must
 **		  be copied if it's to be saved.
-**		- For speed, we assume a u_char consists of 8 bits.
 */
-u_char *
+u_int8_t *
 ParseAddr(str)
 	char *str;
 {
-	static u_char addr[RMP_ADDRLEN];
-	register char *cp;
-	register unsigned i;
-	register int part, subpart;
+	static u_int8_t addr[RMP_ADDRLEN];
+	char *cp;
+	unsigned i;
+	int part, subpart;
 
-	bzero((char *)&addr[0], RMP_ADDRLEN);	/* zero static buffer */
+	memset((char *)&addr[0], 0, RMP_ADDRLEN);	/* zero static buffer */
 
 	part = subpart = 0;
 	for (cp = str; *cp; cp++) {
@@ -316,8 +315,8 @@ GetBootFiles()
 {
 	DIR *dfd;
 	struct stat statb;
-	register struct dirent *dp;
-	register int i;
+	struct dirent *dp;
+	int i;
 
 	/*
 	 *  Free the current list of boot files.
