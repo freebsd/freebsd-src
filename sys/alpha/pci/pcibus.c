@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.41 1997/12/20 09:04:25 se Exp $
+ * $Id: pcibus.c,v 1.1 1998/06/10 10:55:37 dfr Exp $
  *
  */
 
@@ -31,7 +31,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus_private.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 
 #include <pci/pcivar.h>
 #include <machine/chipset.h>
@@ -86,4 +87,30 @@ int
 pci_cfgopen(void)
 {
 	return 1;
+}
+
+/*
+ * These can disappear when I update the pci code to use the new
+ * device framework.
+ */
+struct intrec *
+intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
+	    intrmask_t *maskptr, int flags)
+{
+	device_t pcib = chipset.bridge;
+	if (pcib)
+		return BUS_CREATE_INTR(pcib, pcib,
+				       irq, (driver_intr_t*) handler, arg);
+	else
+		return 0;
+}
+
+int
+intr_connect(struct intrec *idesc)
+{
+	device_t pcib = chipset.bridge;
+	if (pcib)
+		return BUS_CONNECT_INTR(pcib, idesc);
+	else
+		return EINVAL;
 }
