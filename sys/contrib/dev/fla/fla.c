@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fla.c,v 1.2 1999/08/07 13:11:12 bde Exp $ 
+ * $Id: fla.c,v 1.3 1999/08/14 11:40:32 phk Exp $ 
  *
  */
 
@@ -19,6 +19,7 @@
 #include <sys/malloc.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/devicestat.h>
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -29,35 +30,12 @@
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#if __FreeBSD_version > 400000	/* XXX ? */
 #include <sys/bus.h>
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
-#define dev2ul(foo)	((unsigned long)dev2udev(foo))
-#endif
-
-#if __FreeBSD_version < 400000	/* XXX ? */
-#include <i386/isa/isa_device.h>
-
-#define dev2ul(foo)	((unsigned long)foo)
-
-static int
-physread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(cdevsw[major(dev)]->d_strategy, 
-	    NULL, dev, 1, minphys, uio));
-}
-
-static int
-physwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(cdevsw[major(dev)]->d_strategy,
-	    NULL, dev, 0, minphys, uio));
-}
-
-#define nopoll	seltrue
-#define noparms	NULL
+#ifdef SMP
+#include <machine/smp.h>
 #endif
 
 #include <contrib/dev/fla/msysosak.h>
@@ -97,8 +75,6 @@ static struct cdevsw fla_cdevsw = {
         /* maxio */     0,
         /* bmaj */      BDEV_MAJOR
 };
-
-
 
 void *
 doc2k_malloc(int bytes) 
@@ -143,6 +119,8 @@ static struct fla_s {
 	struct doc2k_stat ds;
 	struct diskslices *dk_slices;
 	struct buf_queue_head buf_queue;
+	struct devstat stats;
+	int busy;
 } softc[NFLA];
 
 static int
@@ -154,8 +132,8 @@ flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 	struct disklabel dk_dd;
 
 	if (fla_debug)
-		printf("flaopen(%lx %x %x %p)\n",
-			dev2ul(dev), flag, fmt, p);
+		printf("flaopen(%x %x %x %p)\n",
+			dev2udev(dev), flag, fmt, p);
 	unit = dkunit(dev);
 	if (unit >= NFLA)
 		return (ENXIO);
@@ -181,8 +159,8 @@ flaclose(dev_t dev, int flags, int fmt, struct proc *p)
 	struct fla_s *sc;
 
 	if (fla_debug)
-		printf("flaclose(%lx %x %x %p)\n",
-			dev2ul(dev), flags, fmt, p);
+		printf("flaclose(%x %x %x %p)\n",
+			dev2udev(dev), flags, fmt, p);
 	unit = dkunit(dev);
 	sc = &softc[unit];
 	dsclose(dev, fmt, sc->dk_slices);
@@ -196,8 +174,8 @@ flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	struct fla_s *sc;
 
 	if (fla_debug)
-		printf("flaioctl(%lx %lx %p %x %p)\n",
-			dev2ul(dev), cmd, addr, flags, p);
+		printf("flaioctl(%x %lx %p %x %p)\n",
+			dev2udev(dev), cmd, addr, flags, p);
 	unit = dkunit(dev);
 	sc = &softc[unit];
 	error = dsioctl("fla", dev, cmd, addr, flags, &sc->dk_slices);
@@ -210,14 +188,14 @@ static void
 flastrategy(struct buf *bp)
 {
 	int unit, error;
-	u_long ef;
+	int s;
 	struct fla_s *sc;
-	static int busy;
 	enum doc2k_work what;
+	devstat_trans_flags dop;
 
 	if (fla_debug > 1)
-		printf("flastrategy(%p) %lx %lx, %d, %ld, %p)\n",
-			    bp, dev2ul(bp->b_dev), bp->b_flags, bp->b_blkno, 
+		printf("flastrategy(%p) %x %lx, %d, %ld, %p)\n",
+			    bp, dev2udev(bp->b_dev), bp->b_flags, bp->b_blkno, 
 			    bp->b_bcount / DEV_BSIZE, bp->b_data);
 	unit = dkunit(bp->b_dev);
 	sc = &softc[unit];
@@ -227,39 +205,43 @@ flastrategy(struct buf *bp)
 		return;
 	}
 
-	ef = read_eflags();
-	disable_intr();
+	s = splbio();
 
 	bufqdisksort(&sc->buf_queue, bp);
 
-	if (busy) {
-		write_eflags(ef);
+	if (sc->busy) {
+		splx(s);
 		return;
 	}
 
-	busy++;
+	sc->busy++;
 	
 	while (1) {
 		bp = bufq_first(&sc->buf_queue);
 		if (bp)
 			bufq_remove(&sc->buf_queue, bp);
-
-		write_eflags(ef);
+		splx(s);
 		if (!bp)
 			break;
 
+		devstat_start_transaction(&sc->stats);
 		bp->b_resid = bp->b_bcount;
 		unit = dkunit(bp->b_dev);
 
 		if (bp->b_flags & B_FREEBUF)
-			what = DOC2K_ERASE;
+			what = DOC2K_ERASE, dop = DEVSTAT_NO_DATA;
 		else if (bp->b_flags & B_READ)
-			what = DOC2K_READ;
+			what = DOC2K_READ, dop = DEVSTAT_READ;
 		else 
-			what = DOC2K_WRITE;
-			
+			what = DOC2K_WRITE, dop = DEVSTAT_WRITE;
+#ifdef SMP
+		rel_mplock();			
+#endif
 		error = doc2k_rwe( unit, what, bp->b_pblkno,
 		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+#ifdef SMP
+		get_mplock();			
+#endif
 
 		if (fla_debug > 1 || error) {
 			printf("fla%d: %d = rwe(%p, %d, %d, %d, %ld, %p)\n",
@@ -273,11 +255,13 @@ flastrategy(struct buf *bp)
 			bp->b_resid = 0;
 		}
 		biodone(bp);
+		devstat_end_transaction(&sc->stats, bp->b_bcount,
+		    DEVSTAT_TAG_NONE, dop);
 
-		ef = read_eflags();
-		disable_intr();
+
+		s = splbio();
 	}
-	busy = 0;
+	sc->busy = 0;
 	return;
 }
 
@@ -288,7 +272,7 @@ flapsize(dev_t dev)
 	struct fla_s *sc;
 
 	if (fla_debug)
-		printf("flapsize(%lx)\n", dev2ul(dev));
+		printf("flapsize(%x)\n", dev2udev(dev));
 	unit = dkunit(dev);
 	sc = &softc[unit];
 	if (!sc->nsect)
@@ -357,9 +341,6 @@ flarealattach(int unit)
 	return (0);
 }
 
-
-#if __FreeBSD_version > 400000	/* XXX ? */
-
 static int
 flaprobe (device_t dev)
 {
@@ -389,6 +370,9 @@ flaattach (device_t dev)
 
 	unit = device_get_unit(dev);
 	i = flarealattach(unit);
+	devstat_add_entry(&softc[unit].stats, "fla", unit, DEV_BSIZE,
+		DEVSTAT_NO_ORDERED_TAGS, 
+		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 0x190);
 	return (i);
 }
 
@@ -408,44 +392,3 @@ static driver_t fladriver = {
 static devclass_t	fla_devclass;
 
 DEV_DRIVER_MODULE(fla, isa, fladriver, fla_devclass, fla_cdevsw, 0, 0);
-#endif
-
-
-#if __FreeBSD_version < 400000	/* XXX ? */
-
-static int
-flaprobe (struct isa_device *dvp)
-{
-	int unit;
-	struct fla_s *sc;
-	int i;
-
-	unit = dvp->id_unit;
-	sc = &softc[unit];
-	i = flarealprobe(unit);
-	if (i)
-		return (0);
-
-	dvp->id_maddr = (caddr_t)sc->ds.window;
-	dvp->id_msize = 8192;
-
-	cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &fla_cdevsw);
-	return (-1);
-}
-
-
-static int
-flaattach (struct isa_device *dvp)
-{
-	int unit, i;
-
-	unit = dvp->id_unit;
-	i = flarealattach(unit);
-	return (i);
-}
-
-struct isa_driver fladriver = {
-        flaprobe, flaattach, "fla",
-};
-
-#endif
