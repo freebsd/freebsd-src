@@ -187,6 +187,33 @@
       authentication across autonomous realms.  For more information,
       see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>. &merged;</para>
+
+    <para>A programming error in <application>CVS</application> which
+      allow the malicious client to overwrite arbitrary portions of
+      the server's memory has been fixed.  For more information,
+      see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>. &merged;</para>
+
+    <para>A potential cache consistency problem of
+      the implementation of the &man.msync.2; system call
+      involving the <literal>MS_INVALIDATE</literal>
+      operation has been fixed.  However, as a side effect of closing
+      this security problem, the <literal>MS_INVALIDATE</literal>
+      flag no longer guarantees that all pages in the range are invalidated.
+      Users who require the old semantics of <literal>MS_INVALIDATE</literal>
+      and are not concerned with the security issue being fixed can set the
+      <varname>vm.old_msync</varname> sysctl to 1 which will revert to
+      the old (insecure) behavior.  For more information,
+      see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:11.msync.asc">FreeBSD-SA-04:11</ulink>. &merged;</para>
+
+    <para>A programming error in the &man.jail.2; system call
+      which results in a failure to verify that an attempt
+      to manipulate routing tables originated from a non-jailed process
+      has been fixed.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:12.jail.asc">FreeBSD-SA-04:12</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -206,6 +233,11 @@
     <para>The &man.acpi.video.4; driver has been added to provide
       control display switching and backlight brightness using the
       ACPI Video Extensions.</para>
+
+    <para arch="i386">The &man.acpi.4; driver now supports
+      per-device sysctls (<varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>,
+      for instance) to allow users to set whether or not a given
+      device can wake the system.</para>
 
     <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
       synchronous serial adapters. This driver was known for a long time as
@@ -231,10 +263,10 @@
     <para>The &man.getvfsent.3; API has been removed.</para>
 
     <para arch="sparc64">The &man.hme.4; driver now natively supports
-      long frames, so it can be used for &man.vlan.4; with full ethernet
+      long frames, so it can be used for &man.vlan.4; with full Ethernet
       MTU size.</para>
 
-    <para>&man.jail.8; now supports use of raw sockets from within a jail.
+    <para>&man.jail.2; now supports use of raw sockets from within a jail.
       This feature is disabled by default, and controlled using the
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
 
@@ -244,8 +276,25 @@
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
 
+    <para>A new kernel option <literal>MAC_STATIC</literal> which
+      disables internal MAC Framework synchronization protecting against
+      dynamic load and unload of MAC policies, has been added.</para>
+
+    <para>mballoc has been replaced with mbuma, an Mbuf and Cluster
+      allocator built on top of a number of extensions to the UMA framework.
+      Due to this change, the <varname>NMBCLUSTERS</varname> kernel option
+      is no longer used.  The maximum number of the clusters is still
+      capped off according to <varname>maxusers</varname>,
+      but it can be made unlimited by setting the
+      <varname>kern.ipc.nmbclusters</varname> loader tunable to zero.</para>
+
+    <para>The midi driver, which supports serial port and several sound cards,
+      has been removed.</para>
+
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.  &merged;</para>
+
+    <para>&man.nmdm.4; has been rewritten to improve the reliability.</para>
 
     <para>The raid(4), RAIDframe disk driver from NetBSD has been removed.
       This is currently non-functional, and would require some amount of work
@@ -367,6 +416,10 @@
 	driver has been removed due to breakage.  Its functionality
 	has been subsumed into the &man.en.4; driver.</para>
 
+      <para>&man.fxp.4; now uses the device sysctl tree such as
+	<varname>dev.fxp0</varname>, and those sysctls can be set
+	on a per-device basis.</para>
+
       <para>The <devicename>ixgb</devicename> driver, which supports
         Intel PRO/10GBE 10 gigabit Ethernet cards, has been
         added. &merged;</para>
@@ -395,6 +448,10 @@
       <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
 	interface to the original &man.sppp.4 network module for synchronous
 	lines has been added.</para>
+
+      <para>A new Netgraph method to allow restoration of some
+	behavior lost in the change from 4.x style &man.ng.tee.4;
+	Netgraph nodes.</para>
 
       <para>The &man.ng.vlan.4; Netgraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
@@ -467,6 +524,14 @@
       <para>&man.ipfw.4; now supports lookup tables.  This feature is
         useful for handling large sparse address sets. &merged;</para>
 
+      <para>A new sysctl <varname>net.inet.ip.process_options</varname>
+	to control the processing of IP options.  When this sysctl
+	is set to <literal>0</literal> IP options are ignored and passed unmodified,
+	set to <literal>1</literal> all IP options are processed (default),
+	and set to <literal>2</literal> all packets with
+	IP options are rejected with ICMP filter prohibited message,
+	respectively.</para>
+
       <para>Some bugs in the IPsec implementation from the KAME
 	Project have been fixed.  These bugs were related to freeing
 	memory objects before all references to them were removed, and
@@ -478,6 +543,9 @@
 	notable effect of this change is to make
 	<application>IPFilter</application> work correctly when loaded
 	as a kernel module.</para>
+
+      <para>The link state change notification of ethernet media
+	support has been added to the routing socket.</para>
 
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -567,7 +635,7 @@
         added.</para>
 
       <para arch="sparc64">The &man.esp.4; device driver has been
-        ported from NetBSD to support the sbus SCSI card in Sun Ultra
+        ported from NetBSD to support the SBus SCSI card in Sun Ultra
         1e and 2 machines.</para>
 
       <para>Support for LSI-type software RAID has been added.</para>
@@ -588,10 +656,26 @@
       <para>A bug in GEOM that could result in I/O hangs in some rare
 	cases has been fixed.</para>
 
-      <para>A new geom_concat class has been added to concatenate
-        multiple disks to appear as a single larger disk.  The
-        &man.gconcat.8; utility is used for configuring concatenated
-        disks.</para>
+      <para>A new <literal>GEOM_CONCAT</literal>
+	class has been added to concatenate
+        multiple disks to appear as a single larger disk.</para>
+
+      <para>A new <literal>GEOM_NOP</literal> class for various
+	testing purposes has been added.</para>
+
+      <para>A new <literal>GEOM_STRIPE</literal>
+	class which implements RAID0 transformation has been added.</para>
+
+      <para>GEOM Gate, which consists of a new <literal>GEOM_GATE</literal>
+	class and several GEOM Gate userland utilities
+	(&man.ggatel.8;, &man.ggatec.8;,
+	and &man.ggated.8;) has been added.  It supports exporting
+	devices including not GEOM-aware ones through network.</para>
+
+      <para>A new kernel option <literal>GEOM_GPT</literal>
+	which supports the ability to have a large
+	number of partitions on a single disk, has been added into
+	<filename>GENERIC</filename> by default.</para>
 
       <para>A panic in the NFSv4 client has been fixed; this occurred
 	when attempting operations against an NFSv3/NFSv2-only
@@ -620,10 +704,13 @@
 
     <sect3>
       <title>Contributed Software</title>
- 
+
 	<para><application>IPFilter</application> has been updated to
 	  3.4.35.</para>
 
+      <para arch="ia64">An ia64 stack unwinder,
+	<application>Unwind Express (libuwx)</application>
+	by Hewlett-Packard has been imported for use in the kernel.</para>
     </sect3>
   </sect2>
 
@@ -646,6 +733,9 @@
       smooth load peaks appearing when a lot of jobs are scheduled
       for a particular moment. &merged;</para>
 
+    <para>&man.daemon.8; now supports a <option>-p</option>
+      option to create a PID file.</para>
+
     <para>&man.df.1; now supports a <option>-c</option> option to display
       a grand total of statistics for file systems.</para>
 
@@ -661,11 +751,27 @@
       defined in the environment, respectively.
       For more information, see &man.dump.8; and &man.restore.8;.</para>
 
+    <para>The &man.eeprom.8; utility to display and
+      modify system configurations stored in EEPROM or NVRAM
+      has been added.  The current implementation supports
+      systems equipped with Open Firmware.</para>
+
     <para arch="pc98">The &man.fdcontrol.8;, &man.fdformat.1;, and
       &man.fdread.1; utilities now work on &os;/pc98.</para>
 
     <para>The &man.find.1; utility now supports a <option>-acl</option>
       primary to locate files with &man.acl.3;.</para>
+
+    <para>The &man.find.1; utility now supports a new primary
+      <option>-depth <replaceable>n</replaceable></option>
+      which tests whether the depth of the current file relative
+      to the starting point of the traversal is <replaceable>n</replaceable>.</para>
+
+    <para>The &man.geom.8; utility for operating on GEOM classes
+      from the userland has been added.</para>
+
+    <para>The &man.id.1; now supports a <option>-M</option> option
+      to print the MAC label of the current process.</para>
 
     <para>&man.indent.1; now supports a <option>-ldi</option> option
       to control indentation of local variables.  A number of other
@@ -687,6 +793,10 @@
     <para>&man.ipfw.8; now supports a <option>-b</option> flag to
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
+
+    <para>&man.jail.8; now supports a <option>-U</option> option to
+      run command as a user which exists only in the &man.jail.2;
+      environment.</para>
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
@@ -736,6 +846,10 @@
 	  <filename>libpthread</filename>.</para>
       </note>
     </para>
+
+    <para>&man.ls.1; now treat filenames as multibyte character strings
+      according to the current <varname>LC_CTYPE</varname>
+      when determining which characters are printable.</para>
 
     <para>&man.make.1; now supports the new <literal>.warning</literal>
       directive.</para>
@@ -830,6 +944,19 @@
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
 
+    <para>&man.smbmsg.8;, a small utility to send/receive SMBus messages
+      has been added.</para>
+
+    <para arch="sparc64">&man.sunlabel.8; now supports two new flags:
+      <option>-c</option> to calculate all partition sizes
+      in cylinders as opposed to sectors, and
+      <option>-h</option> to print the label in human readable
+      size/offset format.</para>
+
+    <para>&man.tftpd.8; now supports two new options:
+      a <option>-w</option> option allows new files to be created,
+      and a <option>-U</option> option allows the umask to be set.</para>
+
     <para>Many userland utilities in the base system (mostly GNU
       contributed utilities) now use the system version of
       &man.getopt.long.3;, rather than the GNU version.</para>
@@ -855,6 +982,18 @@
 	from <filename>/dev/random</filename>.
 	Note that this prevents recovery of kernel dumps.</para>
 
+      <para>The <varname>ip6addrctl_enable</varname> and
+	<varname>ip6addrctl_verbose</varname> have been added.
+	When <varname>ip6addrctl_enable</varname> is set
+	to <literal>YES</literal>,
+	the address selection policy is installed into the kernel.
+	If there is <filename>/etc/ip6addrctl.conf</filename>
+	it will be used, otherwise a default policy will be installed.
+	The default policy is one described in RFC 3484 when
+	<varname>ipv6_enable</varname> is set to <literal>YES</literal>.
+	Otherwise, the priority policy for IPv4 address will be used
+	as a default policy.</para>
+
       <para>The <filename>mixer</filename> script has been added.
 	It saves the current settings of all audio mixers present
 	in the system on shutdown and restores the settings on boot.</para>
@@ -868,7 +1007,7 @@
     <title>Contributed Software</title>
 
     <para>The <application>ACPI-CA</application> code has been updated
-      from the 20030619 snapshot to the 20040402 snapshot.</para>
+      from the 20030619 snapshot to the 20040514 snapshot.</para>
 
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
@@ -996,7 +1135,7 @@
       system.</para>
 
     <para>The version number parsing code has been rewritten in the
-      system pkg tools, restoring compatibiliy with 4.x and
+      system pkg tools, restoring compatibility with 4.x and
       portupgrade.</para>
 
     <para>The package tools can now match packages with relational
