@@ -400,12 +400,12 @@ mkfs(pp, fsys, fi, fo)
 				     / MAXIPG(&sblock) + 1));
 		} else if (!mapcramped) {
 			printf("With %d bytes per inode, ", density);
-			printf("minimum cylinders per group is %d\n", mincpg);
+			printf("minimum cylinders per group is %ld\n", mincpg);
 		}
 	}
 	if (mapcramped) {
 		printf("With %d sectors per cylinder, ", sblock.fs_spc);
-		printf("minimum cylinders per group is %d\n", mincpg);
+		printf("minimum cylinders per group is %ld\n", mincpg);
 	}
 	if (inodecramped || mapcramped) {
 		if (sblock.fs_bsize != bsize)
@@ -423,7 +423,7 @@ mkfs(pp, fsys, fi, fo)
 	 */
 	sblock.fs_cpg = cpg;
 	if (sblock.fs_cpg % mincpc != 0) {
-		printf("%s groups must have a multiple of %d cylinders\n",
+		printf("%s groups must have a multiple of %ld cylinders\n",
 			cpgflg ? "Cylinder" : "Warning: cylinder", mincpc);
 		sblock.fs_cpg = roundup(sblock.fs_cpg, mincpc);
 		if (!cpgflg)
@@ -448,11 +448,11 @@ mkfs(pp, fsys, fi, fo)
 	}
 	sblock.fs_fpg = (sblock.fs_cpg * sblock.fs_spc) / NSPF(&sblock);
 	if ((sblock.fs_cpg * sblock.fs_spc) % NSPB(&sblock) != 0) {
-		printf("panic (fs_cpg * fs_spc) % NSPF != 0");
+		printf("panic (fs_cpg * fs_spc) %% NSPF != 0");
 		exit(24);
 	}
 	if (sblock.fs_cpg < mincpg) {
-		printf("cylinder groups must have at least %d cylinders\n",
+		printf("cylinder groups must have at least %ld cylinders\n",
 			mincpg);
 		exit(25);
 	} else if (sblock.fs_cpg != cpg) {
@@ -564,9 +564,9 @@ next:
 	sblock.fs_dblkno = sblock.fs_iblkno + sblock.fs_ipg / INOPF(&sblock);
 	i = MIN(~sblock.fs_cgmask, sblock.fs_ncg - 1);
 	if (cgdmin(&sblock, i) - cgbase(&sblock, i) >= sblock.fs_fpg) {
-		printf("inode blocks/cyl group (%d) >= data blocks (%d)\n",
+		printf("inode blocks/cyl group (%ld) >= data blocks (%ld)\n",
 		    cgdmin(&sblock, i) - cgbase(&sblock, i) / sblock.fs_frag,
-		    sblock.fs_fpg / sblock.fs_frag);
+		    (long)(sblock.fs_fpg / sblock.fs_frag));
 		printf("number of cylinders per cylinder group (%d) %s.\n",
 		    sblock.fs_cpg, "must be increased");
 		exit(29);
@@ -580,10 +580,12 @@ next:
 			    (cgdmin(&sblock, 0) + 3 * sblock.fs_frag));
 			exit(30);
 		}
-		printf("Warning: inode blocks/cyl group (%d) >= data blocks (%d) in last\n",
+		printf(
+"Warning: inode blocks/cyl group (%ld) >= data blocks (%ld) in last\n",
 		    (cgdmin(&sblock, j) - cgbase(&sblock, j)) / sblock.fs_frag,
 		    i / sblock.fs_frag);
-		printf("    cylinder group. This implies %d sector(s) cannot be allocated.\n",
+		printf(
+"    cylinder group. This implies %ld sector(s) cannot be allocated.\n",
 		    i * NSPF(&sblock));
 		sblock.fs_ncg--;
 		sblock.fs_ncyl -= sblock.fs_ncyl % sblock.fs_cpg;
@@ -659,9 +661,9 @@ next:
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		j = sprintf(tmpbuf, " %d,",
-			fsbtodb(&sblock, cgsblock(&sblock, cylno)));
-		if (i+j >= width) {
+		j = sprintf(tmpbuf, " %ld,",
+		    fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		if (i + j >= width) {
 			printf("\n");
 			i = 0;
 		}
@@ -1254,13 +1256,13 @@ rdfs(bno, size, bf)
 		return;
 	}
 	if (lseek(fsi, (off_t)bno * sectorsize, 0) < 0) {
-		printf("seek error: %ld\n", bno);
+		printf("seek error: %ld\n", (long)bno);
 		perror("rdfs");
 		exit(33);
 	}
 	n = read(fsi, bf, size);
 	if (n != size) {
-		printf("read error: %ld\n", bno);
+		printf("read error: %ld\n", (long)bno);
 		perror("rdfs");
 		exit(34);
 	}
@@ -1283,13 +1285,13 @@ wtfs(bno, size, bf)
 	if (Nflag)
 		return;
 	if (lseek(fso, (off_t)bno * sectorsize, SEEK_SET) < 0) {
-		printf("seek error: %ld\n", bno);
+		printf("seek error: %ld\n", (long)bno);
 		perror("wtfs");
 		exit(35);
 	}
 	n = write(fso, bf, size);
 	if (n != size) {
-		printf("write error: %ld\n", bno);
+		printf("write error: %ld\n", (long)bno);
 		perror("wtfs");
 		exit(36);
 	}
