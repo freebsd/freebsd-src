@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.7 1995/03/25 04:53:39 jkh Exp $
+# $Id: netinst.sh,v 1.8 1995/04/08 09:43:54 phk Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -76,6 +76,7 @@ network_setup_ether()
 	"is0" "Isolan 4141-0 or Isolink 4110" \
 	"ix0" "Intel EtherExpress" \
 	"le0" "DEC Etherworks ethernet adapter" \
+	"lnc0" "Ether 32V board (VL ethernet card)" \
 	"ze0" "PCMCIA IBM or National card" \
 	"zp0" "3Com 3c589 PCMCIA card" \
 	  2> ${TMP}/menu.tmp.$$
