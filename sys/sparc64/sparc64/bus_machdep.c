@@ -155,7 +155,47 @@ int bus_stream_asi[] = {
 };
 
 /*
- * Since there is now way for a device to obtain a dma tag from its parent
+ * Convenience function for manipulating driver locks from busdma (during
+ * busdma_swi, for example).  Drivers that don't provide their own locks
+ * should specify &Giant to dmat->lockfuncarg.  Drivers that use their own
+ * non-mutex locking scheme don't have to use this at all.
+ */
+void
+busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
+{
+	struct mtx *dmtx;
+
+	dmtx = (struct mtx *)arg;
+	switch (op) {
+	case BUS_DMA_LOCK:
+		mtx_lock(dmtx);
+		break;
+	case BUS_DMA_UNLOCK:
+		mtx_unlock(dmtx);
+		break;
+	default:
+		panic("Unknown operation 0x%x for busdma_lock_mutex!", op);
+	}
+}
+
+/*
+ * dflt_lock should never get called.  It gets put into the dma tag when
+ * lockfunc == NULL, which is only valid if the maps that are associated
+ * with the tag are meant to never be defered.
+ * XXX Should have a way to identify which driver is responsible here.
+ */
+static void
+dflt_lock(void *arg, bus_dma_lock_op_t op)
+{
+#ifdef INVARIANTS
+	panic("driver error: busdma dflt_lock called");
+#else
+	printf("DRIVER_ERROR: busdma dflt_lock called\n");
+#endif
+}
+
+/*
+ * Since there is no way for a device to obtain a dma tag from its parent
  * we use this kluge to handle different the different supported bus systems.
  * The sparc64_root_dma_tag is used as parent for tags that have none, so that
  * the correct methods will be used.
@@ -169,7 +209,8 @@ int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_size_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
     bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
-    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat)
+    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t impptag;
 	bus_dma_tag_t newtag;
@@ -204,6 +245,14 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->dt_ref_count = 1; /* Count ourselves */
 	newtag->dt_map_count = 0;
 
+	if (lockfunc != NULL) {
+		newtag->dt_lockfunc = lockfunc;
+		newtag->dt_lockfuncarg = lockfuncarg;
+	} else {
+		newtag->dt_lockfunc = dflt_lock;
+		newtag->dt_lockfuncarg = NULL;
+	}
+       
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
 		newtag->dt_lowaddr = ulmin(parent->dt_lowaddr,
@@ -630,6 +679,8 @@ struct bus_dma_tag nexus_dmatag = {
 	0,
 	0,
 	0,
+	NULL,
+	NULL,
 	&nexus_dma_methods,
 };
 

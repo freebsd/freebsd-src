@@ -205,7 +205,8 @@ ida_init(struct ida_softc *ida)
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    IDA_QCB_MAX * sizeof(struct ida_hardware_qcb),
 	    /*nsegments*/1, /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-	    /*flags*/0, &ida->hwqcb_dmat);
+	    /*flags*/0, /*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
+	    &ida->hwqcb_dmat);
 	if (error)
                 return (ENOMEM);
 
@@ -215,7 +216,8 @@ ida_init(struct ida_softc *ida)
 	    /*lowaddr*/BUS_SPACE_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/MAXBSIZE, /*nsegments*/IDA_NSEG,
-	    /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT, /*flags*/0, &ida->buffer_dmat);
+	    /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT, /*flags*/0,
+	    /*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant, &ida->buffer_dmat);
 	if (error)
                 return (ENOMEM);
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#13 $
+ * $Id: ahd_pci.c,v 1.8 2003/05/03 23:27:57 gibbs Exp $
  *
  * $FreeBSD$
  */
@@ -123,6 +123,8 @@ ahd_pci_attach(device_t dev)
 				   /*nsegments*/AHD_NSEG,
 				   /*maxsegsz*/AHD_MAXTRANSFER_SIZE,
 				   /*flags*/0,
+				   /*lockfunc*/busdma_lock_mutex,
+				   /*lockarg*/&Giant,
 				   &ahd->parent_dmat);
 
 	if (error != 0) {

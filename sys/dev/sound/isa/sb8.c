@@ -723,8 +723,9 @@ sb_attach(device_t dev)
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
 			/*maxsize*/sb->bufsize, /*nsegments*/1,
-			/*maxsegz*/0x3ffff,
-			/*flags*/0, &sb->parent_dmat) != 0) {
+			/*maxsegz*/0x3ffff, /*flags*/0,
+			/*lockfunc*/busdma_lock_mutex, /*lockarg*/&Giant,
+			&sb->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}

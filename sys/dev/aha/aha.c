@@ -62,6 +62,8 @@
 #include <sys/systm.h> 
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
  
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -492,6 +494,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ AHA_NSEG,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&aha->buffer_dmat) != 0) {
 		goto error_exit;
 	}
@@ -511,6 +515,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&aha->mailbox_dmat) != 0) {
 		goto error_exit;
         }
@@ -551,6 +557,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&aha->ccb_dmat) != 0) {
 		goto error_exit;
         }
@@ -585,6 +593,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&aha->sg_dmat) != 0) {
 		goto error_exit;
         }

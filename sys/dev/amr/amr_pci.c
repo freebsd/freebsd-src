@@ -249,6 +249,7 @@ amr_pci_attach(device_t dev)
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
+			   NULL, NULL,			/* lockfunc, lockarg */
 			   &sc->amr_parent_dmat)) {
 	device_printf(dev, "can't allocate parent DMA tag\n");
 	goto out;
@@ -265,6 +266,7 @@ amr_pci_attach(device_t dev)
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex, &Giant,	/* lockfunc, lockarg */
 			   &sc->amr_buffer_dmat)) {
         device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
 	goto out;
@@ -505,6 +507,8 @@ amr_sglist_map(struct amr_softc *sc)
 			       segsize, 1,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &Giant,			/* lockarg */
 			       &sc->amr_sg_dmat);
     if (error != 0) {
 	device_printf(sc->amr_dev, "can't allocate scatter/gather DMA tag\n");
@@ -575,6 +579,8 @@ amr_setup_mbox(struct amr_softc *sc)
 			       sizeof(struct amr_mailbox) + 16, 1, /* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &Giant,			/* lockarg */
 			       &sc->amr_mailbox_dmat);
     if (error != 0) {
 	device_printf(sc->amr_dev, "can't allocate mailbox tag\n");

@@ -46,6 +46,8 @@
 #include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/bus.h> 
 
@@ -322,7 +324,8 @@ iir_pci_attach(device_t dev)
                            /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
                            /*nsegments*/GDT_MAXSG,
                            /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-                           /*flags*/0, &gdt->sc_parent_dmat) != 0) {
+			   /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+			   /*lockarg*/&Giant, &gdt->sc_parent_dmat) != 0) {
         error = ENXIO;
         goto err;
     }

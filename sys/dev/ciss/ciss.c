@@ -600,6 +600,7 @@ ciss_init_pci(struct ciss_softc *sc)
 			   MAXBSIZE, CISS_COMMAND_SG_LENGTH,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
+			   NULL, NULL,			/* lockfunc, lockarg */
 			   &sc->ciss_parent_dmat)) {
 	ciss_printf(sc, "can't allocate parent DMA tag\n");
 	return(ENOMEM);
@@ -617,6 +618,7 @@ ciss_init_pci(struct ciss_softc *sc)
 			   MAXBSIZE, CISS_COMMAND_SG_LENGTH,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex, &Giant,	/* lockfunc, lockarg */
 			   &sc->ciss_buffer_dmat)) {
 	ciss_printf(sc, "can't allocate buffer DMA tag\n");
 	return(ENOMEM);
@@ -745,6 +747,7 @@ ciss_init_requests(struct ciss_softc *sc)
 			   sc->ciss_max_requests, 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex, &Giant,	/* lockfunc, lockarg */
 			   &sc->ciss_command_dmat)) {
 	ciss_printf(sc, "can't allocate command DMA tag\n");
 	return(ENOMEM);

@@ -502,7 +502,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	if (bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
 	    BUS_SPACE_MAXSIZE_32BIT, BUS_SPACE_UNRESTRICTED, 0,
-	    &mpt->parent_dmat) != 0) {
+	    busdma_lock_mutex, &Giant, &mpt->parent_dmat) != 0) {
 		device_printf(dev, "cannot create parent dma tag\n");
 		return (1);
 	}
@@ -511,7 +511,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	if (bus_dma_tag_create(mpt->parent_dmat, PAGE_SIZE,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->reply_dmat) != 0) {
+	    busdma_lock_mutex, &Giant, &mpt->reply_dmat) != 0) {
 		device_printf(dev, "cannot create a dma tag for replies\n");
 		return (1);
 	}
@@ -542,7 +542,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	if (bus_dma_tag_create(mpt->parent_dmat, PAGE_SIZE,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MAXBSIZE, MPT_SGL_MAX, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->buffer_dmat) != 0) {
+	    busdma_lock_mutex, &Giant, &mpt->buffer_dmat) != 0) {
 		device_printf(dev,
 		    "cannot create a dma tag for data buffers\n");
 		return (1);
@@ -552,7 +552,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	if (bus_dma_tag_create(mpt->parent_dmat, PAGE_SIZE,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->request_dmat) != 0) {
+	    busdma_lock_mutex, &Giant, &mpt->request_dmat) != 0) {
 		device_printf(dev, "cannot create a dma tag for requests\n");
 		return (1);
 	}

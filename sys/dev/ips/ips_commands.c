@@ -224,6 +224,8 @@ static int ips_send_adapter_info_cmd(ips_command_t *command)
 				/* numsegs   */	1,
 				/* maxsegsize*/	IPS_ADAPTER_INFO_LEN,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&command->data_dmatag) != 0) {
                 printf("ips: can't alloc dma tag for adapter status\n");
 		error = ENOMEM;
@@ -329,6 +331,8 @@ static int ips_send_drive_info_cmd(ips_command_t *command)
 				/* numsegs   */	1,
 				/* maxsegsize*/	IPS_DRIVE_INFO_LEN,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&command->data_dmatag) != 0) {
                 printf("ips: can't alloc dma tag for drive status\n");
 		error = ENOMEM;
@@ -497,6 +501,8 @@ static int ips_read_nvram(ips_command_t *command){
 				/* numsegs   */	1,
 				/* maxsegsize*/	IPS_NVRAM_PAGE_SIZE,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&command->data_dmatag) != 0) {
                 printf("ips: can't alloc dma tag for nvram\n");
 		error = ENOMEM;

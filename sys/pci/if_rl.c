@@ -996,6 +996,7 @@ rl_attach(dev)
 			MAXBSIZE, RL_NSEG_NEW,	/* maxsize, nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			BUS_DMA_ALLOCNOW,	/* flags */
+			NULL, NULL,		/* lockfunc, lockarg */
 			&sc->rl_parent_tag);
 	if (error)
 		goto fail;
@@ -1013,6 +1014,8 @@ rl_attach(dev)
 			RL_RXBUFLEN + 1518, 1,	/* maxsize,nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
+			busdma_lock_mutex,	/* lockfunc */
+			&Giant,			/* lockarg */
 			&sc->rl_tag);
 	if (error)
 		goto fail;

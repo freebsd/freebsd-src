@@ -267,7 +267,7 @@ ida_pci_attach(device_t dev)
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/MAXBSIZE, /*nsegments*/IDA_NSEG,
 	    /*maxsegsize*/BUS_SPACE_MAXSIZE_32BIT, /*flags*/BUS_DMA_ALLOCNOW,
-	    &ida->parent_dmat);
+	    /*lockfunc*/NULL, /*lockarg*/NULL, &ida->parent_dmat);
 	if (error != 0) {
 		device_printf(dev, "can't allocate DMA tag\n");
 		ida_free(ida);

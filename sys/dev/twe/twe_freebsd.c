@@ -233,6 +233,8 @@ twe_attach(device_t dev)
 			   MAXBSIZE, TWE_MAX_SGL_LENGTH,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,			/* flags */
+			   NULL,				/* lockfunc */
+			   NULL,				/* lockarg */
 			   &sc->twe_parent_dmat)) {
 	twe_printf(sc, "can't allocate parent DMA tag\n");
 	twe_free(sc);
@@ -265,6 +267,8 @@ twe_attach(device_t dev)
 			   MAXBSIZE, TWE_MAX_SGL_LENGTH,/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
+			   busdma_lock_mutex,			/* lockfunc */
+			   &Giant,				/* lockarg */
 			   &sc->twe_buffer_dmat)) {
 	twe_printf(sc, "can't allocate data buffer DMA tag\n");
 	twe_free(sc);

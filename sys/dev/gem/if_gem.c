@@ -133,13 +133,13 @@ gem_attach(sc)
 
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, GEM_NSEGS,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->sc_pdmatag);
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
 	if (error)
 		return (error);
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MAXBSIZE,
-	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
+	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, NULL, NULL,
 	    &sc->sc_rdmatag);
 	if (error)
 		goto fail_ptag;
@@ -147,7 +147,7 @@ gem_attach(sc)
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    GEM_TD_BUFSIZE, GEM_NTXDESC, BUS_SPACE_MAXSIZE_32BIT,
-	    BUS_DMA_ALLOCNOW, &sc->sc_tdmatag);
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_tdmatag);
 	if (error)
 		goto fail_rtag;
 
@@ -155,7 +155,7 @@ gem_attach(sc)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct gem_control_data), 1,
 	    sizeof(struct gem_control_data), BUS_DMA_ALLOCNOW,
-	    &sc->sc_cdmatag);
+	    busdma_lock_mutex, &Giant, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ttag;
 

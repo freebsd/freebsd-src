@@ -972,7 +972,8 @@ agg_attach(device_t dev)
 	    /*lowaddr*/MAESTRO_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/ess->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-	    /*flags*/0, &ess->parent_dmat) != 0) {
+	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+	    /*lockarg*/&Giant, &ess->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}

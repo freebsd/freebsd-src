@@ -337,6 +337,8 @@ int ips_adapter_init(ips_softc_t *sc)
 				/* maxsegsize*/	IPS_COMMAND_LEN + 
 						    IPS_MAX_SG_LEN,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&sc->command_dmatag) != 0) {
                 device_printf(sc->dev, "can't alloc command dma tag\n");
 		goto error;
@@ -352,6 +354,8 @@ int ips_adapter_init(ips_softc_t *sc)
 				/* numsegs   */	IPS_MAX_SG_ELEMENTS,
 				/* maxsegsize*/	IPS_MAX_IOBUF_SIZE,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&sc->sg_dmatag) != 0) {
 		device_printf(sc->dev, "can't alloc SG dma tag\n");
 		goto error;
@@ -546,6 +550,8 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 				/* numsegs   */	1,
 				/* maxsegsize*/	sizeof(ips_copper_queue_t),
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&dmatag) != 0) {
                 device_printf(sc->dev, "can't alloc dma tag for statue queue\n");
 		error = ENOMEM;

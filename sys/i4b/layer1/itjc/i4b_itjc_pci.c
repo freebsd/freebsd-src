@@ -1608,6 +1608,7 @@ itjc_attach(device_t dev)
 		1,					/* nsegments*/
 		ITJC_DMA_POOL_BYTES,			/* maxsegsz*/
 		BUS_DMA_ALLOCNOW | BUS_DMA_COHERENT,	/* flags*/
+		NULL, NULL,				/* lockfuunc, lockarg */
 		&ctx->tag);
 
 	if (error)

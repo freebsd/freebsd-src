@@ -935,9 +935,8 @@ alloc_dma_memory(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 
 	if (bus_dma_tag_create(sc->parent_dmat, mem->align, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL,
-	    mem->size, 1,
-	    BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, &mem->dmat)) {
+	    NULL, NULL, mem->size, 1, BUS_SPACE_MAXSIZE_32BIT,
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &mem->dmat)) {
 		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA tag\n",
 		    nm);
 		return (ENOMEM);
@@ -980,7 +979,7 @@ alloc_dma_memoryX(struct fatm_softc *sc, const char *nm, struct fatm_mem *mem)
 	if (bus_dma_tag_create(NULL, mem->align, 0,
 	    BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, mem->size, 1, mem->size,
-	    BUS_DMA_ALLOCNOW, &mem->dmat)) {
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &mem->dmat)) {
 		if_printf(&sc->ifatm.ifnet, "could not allocate %s DMA tag\n",
 		    nm);
 		return (ENOMEM);
@@ -2877,9 +2876,9 @@ fatm_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL,
-	    BUS_SPACE_MAXSIZE_32BIT, MAXDMASEGS,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->parent_dmat)) {
+	    NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, MAXDMASEGS,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex, &Giant,
+	    &sc->parent_dmat)) {
 		if_printf(ifp, "could not allocate parent DMA tag\n");
 		error = ENOMEM;
 		goto fail;
@@ -2891,8 +2890,8 @@ fatm_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(sc->parent_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL,
-	    MCLBYTES, 1, MCLBYTES, 0, &sc->rbuf_tag)) {
+	    NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, 
+	    busdma_lock_mutex, &Giant, &sc->rbuf_tag)) {
 		if_printf(ifp, "could not allocate rbuf DMA tag\n");
 		error = ENOMEM;
 		goto fail;
@@ -2905,7 +2904,7 @@ fatm_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    FATM_MAXPDU, TPD_EXTENSIONS + TXD_FIXED, MCLBYTES, 0,
-	    &sc->tx_tag)) {
+	    busdma_lock_mutex, &Giant, &sc->tx_tag)) {
 		if_printf(ifp, "could not allocate tx DMA tag\n");
 		error = ENOMEM;
 		goto fail;
