@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.75 1998/10/16 03:55:01 peter Exp $
+ * $Id: vnode.h,v 1.76 1998/10/29 09:51:28 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -69,7 +69,7 @@ enum vtagtype	{
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
-LIST_HEAD(buflists, buf);
+TAILQ_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
 struct namecache;
