@@ -1010,6 +1010,8 @@ static device_method_t ess_methods[] = {
 	DEVMETHOD(device_probe,		ess_probe),
 	DEVMETHOD(device_attach,	ess_attach),
 	DEVMETHOD(device_detach,	ess_detach),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
 
 	{ 0, 0 }
 };
