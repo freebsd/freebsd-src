@@ -70,23 +70,24 @@ coda/coda_venus.c	optional vcoda
 coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
 compat/linprocfs/linprocfs.c	 optional linprocfs
-contrib/dev/acpica/dbcmds.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbdisply.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbexec.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbfileio.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbhistry.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dbcmds.c	 optional acpi acpi_debug
+contrib/dev/acpica/dbdisply.c	 optional acpi acpi_debug
+contrib/dev/acpica/dbexec.c	 optional acpi acpi_debug
+contrib/dev/acpica/dbfileio.c	 optional acpi acpi_debug
+contrib/dev/acpica/dbhistry.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbinput.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbstats.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dbstats.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbutils.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dbxface.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmbuffer.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmnames.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dbxface.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmbuffer.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmnames.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmopcode.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmresrc.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmresrcl.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmresrcs.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmutils.c	 optional acpi acpi_debug nowerror
-contrib/dev/acpica/dmwalk.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dmobject.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmresrc.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmresrcl.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmresrcs.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmutils.c	 optional acpi acpi_debug
+contrib/dev/acpica/dmwalk.c	 optional acpi acpi_debug
 contrib/dev/acpica/dsfield.c	 optional acpi
 contrib/dev/acpica/dsinit.c	 optional acpi
 contrib/dev/acpica/dsmethod.c	 optional acpi
