@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.4 1998/09/14 18:27:04 msmith Exp $
+ *	$Id: module.c,v 1.5 1998/09/26 10:51:38 dfr Exp $
  */
 
 /*
@@ -32,6 +32,8 @@
 
 #include <stand.h>
 #include <string.h>
+#include <sys/param.h>
+#include <sys/linker.h>
 
 #include "bootstrap.h"
 
@@ -44,7 +46,7 @@ static void			mod_append(struct loaded_module *mp);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
-static char		*default_searchpath ="/;/boot";
+static char		*default_searchpath ="/;/boot;/modules";
 
 struct loaded_module *loaded_modules = NULL;
 
@@ -334,8 +336,8 @@ mod_loadmodule(char *name, int argc, char *argv[])
 static char *
 mod_searchdep(struct loaded_module *mp)
 {
-    struct kld_module_identifier	*ident, *dident;
-    struct kld_module_dependancy	*deps, *dp;
+    char				*deps;
+    size_t				deplen;
     struct module_metadata		*md;
     struct loaded_module		*dmp;
     int					dindex;
@@ -345,36 +347,25 @@ mod_searchdep(struct loaded_module *mp)
 	/*
 	 * Get KLD module data
 	 */
-	ident = NULL;
 	deps = NULL;
-	if ((md = mod_findmetadata(mp, MODINFOMD_KLDIDENT)) != NULL)
-	    ident = (struct kld_module_identifier *)md->md_data;
-	if ((md = mod_findmetadata(mp, MODINFOMD_KLDDEP)) != NULL)
-	    deps = (struct kld_module_dependancy *)md->md_data;
+	deplen = 0;
+	if ((md = mod_findmetadata(mp, MODINFOMD_DEPLIST)) != NULL) {
+	    deps = (char *)md->md_data;
+	    deplen = md->md_size;
+	}
 	
-	/*
-	 * Both must exist for this module to depend on anything
-	 */
-	if ((ident != NULL) && (deps != NULL)) {
+	if (deps != NULL && deplen > 0) {
 	    
 	    /* Iterate over dependancies */
-	    for (dindex = 0; dindex < ident->ki_ndeps; dindex++) {
-		dp = KLD_GETDEP(ident, deps, dindex);
-		
+	    dindex = 0;
+	    while (dindex < deplen) {
 		/* 
 		 * Look for a module matching the dependancy; if we don't have it,
 		 * we need it.
 		 */
-		if ((dmp = mod_findmodule(dp->kd_name, NULL)) == NULL)
-		    return(dp->kd_name);
-		
-		/* Version check */
-		if ((md = mod_findmetadata(dmp, MODINFOMD_KLDIDENT)) != NULL) {
-		    dident = (struct kld_module_identifier *)md->md_data;
-		    if (dp->kd_version != dident->ki_version)
-			printf("module '%s' requires '%s' version %d, but version %d is loaded\n", 
-			       mp->m_name, dp->kd_name, dp->kd_version, dident->ki_version);
-		}
+		if ((dmp = mod_findmodule(&deps[dindex], NULL)) == NULL)
+		    return(&deps[dindex]);
+		dindex += strlen(&deps[dindex]) + 1;
 	    }
 	}
     }
