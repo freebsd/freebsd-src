@@ -1114,6 +1114,8 @@ struct ndis_miniport_block {
 	int			nmb_pciidx;
 	device_t		nmb_dev;
 	ndis_resource_list	*nmb_rlist;
+	ndis_status		nmb_getstat;
+	ndis_status		nmb_setstat;
 };
 
 typedef ndis_status (*ndis_init_handler)(ndis_status *, uint32_t *,

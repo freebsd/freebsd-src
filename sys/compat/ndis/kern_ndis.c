@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_ioctl.h>
+
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
@@ -118,7 +121,11 @@ ndis_setdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
 {
-	printf ("Setup done... %x\n", status);
+	ndis_miniport_block	*block;
+	block = adapter;
+
+	block->nmb_setstat = status;
+	wakeup(&block->nmb_wkupdpctimer);
 	return;
 }
 
@@ -127,7 +134,11 @@ ndis_getdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
 {
-	printf ("Query done... %x\n", status);
+	ndis_miniport_block	*block;
+	block = adapter;
+
+	block->nmb_getstat = status;
+	wakeup(&block->nmb_wkupdpctimer);
 	return;
 }
 
@@ -603,6 +614,8 @@ ndis_set_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	__stdcall ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
+	struct timeval		tv;
+	int			error;
 
 	sc = arg;
 	setfunc = sc->ndis_chars.nmc_setinfo_func;
@@ -610,6 +623,14 @@ ndis_set_info(arg, oid, buf, buflen)
 
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
+
+	if (rval == NDIS_STATUS_PENDING) {
+		tv.tv_sec = 60;
+		tv.tv_usec = 0;
+		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
+		    PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+		rval = sc->ndis_block.nmb_setstat;
+	}
 
 	if (byteswritten)
 		*buflen = byteswritten;
@@ -625,9 +646,6 @@ ndis_set_info(arg, oid, buf, buflen)
 	if (rval == NDIS_STATUS_NOT_SUPPORTED ||
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
 		return(ENOTSUP);
-
-	if (rval == NDIS_STATUS_PENDING)
-		return(EAGAIN);
 
 	return(0);
 }
@@ -922,6 +940,8 @@ ndis_get_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	__stdcall ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
+	struct timeval		tv;
+	int			error;
 
 	sc = arg;
 	queryfunc = sc->ndis_chars.nmc_queryinfo_func;
@@ -929,6 +949,16 @@ ndis_get_info(arg, oid, buf, buflen)
 
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
+
+	/* Wait for requests that block. */
+
+	if (rval == NDIS_STATUS_PENDING) {
+		tv.tv_sec = 60;
+		tv.tv_usec = 0;
+		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
+		    PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+		rval = sc->ndis_block.nmb_getstat;
+	}
 
 	if (byteswritten)
 		*buflen = byteswritten;
@@ -945,9 +975,6 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (rval == NDIS_STATUS_NOT_SUPPORTED ||
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
 		return(ENOTSUP);
-
-	if (rval == NDIS_STATUS_PENDING)
-		return(EAGAIN);
 
 	return(0);
 }
