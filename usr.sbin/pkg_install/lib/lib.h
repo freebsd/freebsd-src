@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.11 1994/11/17 10:51:46 jkh Exp $ */
+/* $Id: lib.h,v 1.12 1994/12/06 00:51:49 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -56,8 +56,10 @@
 /* Usually "rm", but often "echo" during debugging! */
 #define RMDIR_CMD	"rmdir"
 
-/* Where we put logging information */
-#define LOG_DIR		"/var/db/pkg"
+/* Where we put logging information by default, else ${PKG_DBDIR} if set */
+#define DEF_LOG_DIR		"/var/db/pkg"
+/* just in case we change the environment variable name */
+#define PKG_DBDIR		"PKG_DBDIR"
 
 /* The names of our "special" files */
 #define CONTENTS_FNAME	"+CONTENTS"
