@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.57 1998/05/31 17:48:04 peter Exp $
+ * $Id: nfs_subs.c,v 1.58 1998/05/31 18:09:18 peter Exp $
  */
 
 /*
@@ -866,8 +866,10 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 	int uiosiz, clflg, rem;
 	char *cp;
 
+#ifdef DIAGNOSTIC
 	if (uiop->uio_iovcnt != 1)
 		panic("nfsm_uiotombuf: iovcnt != 1");
+#endif
 
 	if (siz > MLEN)		/* or should it >= MCLBYTES ?? */
 		clflg = 1;
@@ -1034,7 +1036,7 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 	const char *cp;
 	long siz;
 {
-	register struct mbuf *m1 = 0, *m2;
+	register struct mbuf *m1 = NULL, *m2;
 	long left, xfer, len, tlen;
 	u_long *tl;
 	int putsize;
