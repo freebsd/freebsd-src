@@ -362,8 +362,7 @@ void	ifafree __P((struct ifaddr *));
 
 struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
 					    struct ifnet *));
-int	if_simloop __P((struct ifnet *ifp, struct mbuf *m,
-		struct sockaddr *dst, int hlen));
+int	if_simloop __P((struct ifnet *ifp, struct mbuf *m, int af, int hlen));
 
 #endif /* _KERNEL */
 

@@ -21,6 +21,8 @@
  *	netatalk@itd.umich.edu
  */
 
+/* $FreeBSD$ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -220,7 +222,7 @@ ddp_route( struct mbuf *m, struct route *ro)
     if ((satosat(&aa->aa_addr)->sat_addr.s_net  == satosat(&ro->ro_dst)->sat_addr.s_net) &&
 	(satosat(&aa->aa_addr)->sat_addr.s_node == satosat(&ro->ro_dst)->sat_addr.s_node))
     {
-	return (if_simloop(ifp, m, (struct sockaddr *)&gate, 0));
+	return (if_simloop(ifp, m, gate.sat_family, 0));
     }
 
     return((*ifp->if_output)( ifp,

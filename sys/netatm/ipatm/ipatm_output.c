@@ -139,7 +139,7 @@ ipatm_ifoutput(ifp, m, dst)
 				/*
 				 * It's for us - hand packet to loopback driver
 				 */
-				(void) if_simloop(ifp, m, dst, 0);
+				(void) if_simloop(ifp, m, dst->sa_family, 0);
 				goto done;
 			}
 		}

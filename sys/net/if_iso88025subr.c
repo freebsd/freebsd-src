@@ -295,11 +295,13 @@ iso88025_output(ifp, m, dst, rt0)
                 if ((m->m_flags & M_BCAST) || (loop_copy > 0)) { 
                         struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
                         /*printf("iso88025_output: if_simloop broadcast.\n");*/
-                        (void) if_simloop(ifp, n, dst, ISO88025_HDR_LEN);
+                        (void) if_simloop(ifp,
+			    n, dst->sa_family, ISO88025_HDR_LEN);
                 } else if (bcmp(th->iso88025_dhost,
                     th->iso88025_shost, ETHER_ADDR_LEN) == 0) {
                         /*printf("iso88025_output: if_simloop to ourselves.\n");*/
-                        (void) if_simloop(ifp, m, dst, ISO88025_HDR_LEN);
+                        (void) if_simloop(ifp,
+			    m, dst->sa_family, ISO88025_HDR_LEN);
                         return(0);      /* XXX */
                 }       
         }      
