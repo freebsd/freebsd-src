@@ -35,7 +35,7 @@
 
 /* default.map3270:  This file is the system default for the key sequence
  * if neither the user's TERM nor "unknown" are found in either of
- * MAP3270 or /etc/map3270.
+ * MAP3270 or /usr/share/misc/map3270.
  *
  *
  */
