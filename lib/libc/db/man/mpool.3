@@ -65,32 +65,16 @@ The
 .Nm mpool
 library interface is intended to provide page oriented buffer management
 of files.
-The buffers may be shared between processes.
 .Pp
 The
 .Fn mpool_open
 function initializes a memory pool.
 The
 .Fa key
-argument is the byte string used to negotiate between multiple
-processes wishing to share buffers.
-If the file buffers are mapped in shared memory, all processes using
-the same key will share the buffers.
-If
-.Fa key
-is
-.Dv NULL ,
-the buffers are mapped into private memory.
+argument is currently ignored.
 The
 .Fa fd
 argument is a file descriptor for the underlying file, which must be seekable.
-If
-.Fa key
-is
-.No non\- Ns Dv NULL
-and matches a file already being mapped, the
-.Fa fd
-argument is ignored.
 .Pp
 The
 .Fa pagesize
