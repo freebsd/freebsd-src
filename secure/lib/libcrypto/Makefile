@@ -27,6 +27,8 @@
 LIB=		crypto
 SHLIB_MAJOR=	2
 
+NOLINT=		true
+
 MAINTAINER=	kris
 
 # base sources
