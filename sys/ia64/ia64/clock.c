@@ -180,8 +180,6 @@ cpu_initclocks()
 	 * XXX we should call SAL_FREQ_BASE_INTERVAL_TIMER here.
 	 */
 	cycles_per_sec = 70000000;
-	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
-	ia64_set_itv(240);	/* highest priority class */
 
 	freq = cycles_per_sec;
 	last_time = ia64_get_itc();
@@ -190,6 +188,9 @@ cpu_initclocks()
 
 	ia64_timecounter.tc_frequency = freq;
 	tc_init(&ia64_timecounter);
+
+	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
+	ia64_set_itv(240);	/* highest priority class */
 
 	stathz = 128;
 }
