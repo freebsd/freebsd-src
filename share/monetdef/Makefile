@@ -22,6 +22,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		fr_BE.ISO8859-1 \
 		fr_CA.ISO8859-1 \
 		fr_FR.ISO8859-1 \
+		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
@@ -32,6 +33,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
+		pt_BR.ISO8859-1 \
 		pt_PT.ISO8859-1 \
 		ro_RO.ISO8859-2 \
 		ru_RU.CP866 \
@@ -80,5 +82,7 @@ afterinstall:
 	ln -sf ../${CH_SRC}.ISO8859-1/LC_MONETARY \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MONETARY
 .endfor
+	ln -sf ../ja_JP.eucJP/LC_MONETARY \
+		${LOCALEDIR}/ja_JP.SJIS/LC_MONETARY
 
 .include <bsd.prog.mk>
