@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.4.2.2 1997/06/23 06:29:54 charnier Exp $
+ *	$Id: shutdown.c,v 1.4.2.3 1997/08/23 14:11:28 joerg Exp $
  */
 
 #ifndef lint
@@ -112,7 +112,7 @@ main(argc, argv)
 #endif
 	nosync = NULL;
 	readstdin = 0;
-	while ((ch = getopt(argc, argv, "-hknr")) != EOF)
+	while ((ch = getopt(argc, argv, "-hknr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
