@@ -28,29 +28,6 @@
  * $FreeBSD$
  */
 
-/* structure describing an ATA disk request */
-struct ad_request {
-    struct ad_softc		*softc;		/* ptr to parent device */
-    u_int32_t			blockaddr;	/* block number */
-    u_int32_t			bytecount;	/* bytes to transfer */
-    u_int32_t			donecount;	/* bytes transferred */
-    u_int32_t			currentsize;	/* size of current transfer */
-    struct callout_handle	timeout_handle; /* handle for untimeout */ 
-    int				retries;	/* retry count */
-    int				flags;
-#define		ADR_F_READ		0x0001
-#define		ADR_F_ERROR		0x0002
-#define		ADR_F_DMA_USED		0x0004
-#define		ADR_F_QUEUED		0x0008
-#define		ADR_F_FORCE_PIO		0x0010
-
-    caddr_t			data;		/* pointer to data buf */
-    struct bio			*bp;		/* associated bio ptr */
-    u_int8_t			tag;		/* tag ID of this request */
-    int				serv;		/* request had service */
-    TAILQ_ENTRY(ad_request)	chain;		/* list management */
-};
-
 /* structure describing an ATA disk */
 struct ad_softc {  
     struct ata_device		*device;	/* ptr to device softc */
@@ -60,7 +37,7 @@ struct ad_softc {
     u_int8_t			sectors;
     u_int32_t			transfersize;	/* size of each transfer */
     int				num_tags;	/* number of tags supported */
-    int				max_iosize;	/* max size of transfer */
+    int				max_iosize;	/* max transfer HW supports */
     int				flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
 #define		AD_F_CHS_USED		0x0002
@@ -68,17 +45,7 @@ struct ad_softc {
 #define		AD_F_TAG_ENABLED	0x0008
 #define		AD_F_RAID_SUBDISK	0x0010
 
-    struct ad_request		*tags[32];	/* tag array of requests */
-    int				outstanding;	/* tags not serviced yet */
+    struct mtx			queue_mtx;	/* queue lock */
     struct bio_queue_head	queue;		/* head of request queue */
     struct disk			disk;		/* disklabel/slice stuff */
 };
-
-void ad_attach(struct ata_device *);
-void ad_detach(struct ata_device *);
-void ad_reinit(struct ata_device *);
-void ad_start(struct ata_device *);
-int ad_transfer(struct ad_request *);
-int ad_interrupt(struct ad_request *);
-int ad_service(struct ad_softc *, int);
-void ad_print(struct ad_softc *);
