@@ -376,6 +376,86 @@ fileattr_set (filename, attrname, attrval)
     attrs_modified = 1;
 }
 
+char *
+fileattr_getall (filename)
+    const char *filename;
+{
+    Node *node;
+    char *p;
+
+    if (attrlist == NULL)
+	fileattr_read ();
+    if (attrlist == NULL)
+	/* Either nothing has any attributes, or fileattr_read already printed
+	   an error message.  */
+	return NULL;
+
+    if (filename == NULL)
+	p = fileattr_default_attrs;
+    else
+    {
+	node = findnode (attrlist, filename);
+	if (node == NULL)
+	    /* A file not mentioned has no attributes.  */
+	    return NULL;
+	p = node->data;
+    }
+    return xstrdup (p);
+}
+
+void
+fileattr_setall (filename, attrs)
+    const char *filename;
+    const char *attrs;
+{
+    Node *node;
+
+    if (filename == NULL)
+    {
+	if (fileattr_default_attrs != NULL)
+	    free (fileattr_default_attrs);
+	fileattr_default_attrs = xstrdup (attrs);
+	attrs_modified = 1;
+	return;
+    }
+    if (attrlist == NULL)
+	fileattr_read ();
+    if (attrlist == NULL)
+    {
+	/* Not sure this is a graceful way to handle things
+	   in the case where fileattr_read was unable to read the file.  */
+        /* No attributes existed previously.  */
+	attrlist = getlist ();
+    }
+
+    node = findnode (attrlist, filename);
+    if (node == NULL)
+    {
+	/* The file had no attributes.  Add them if we have any to add.  */
+	if (attrs != NULL)
+	{
+	    node = getnode ();
+	    node->type = FILEATTR;
+	    node->delproc = fileattr_delproc;
+	    node->key = xstrdup (filename);
+	    node->data = xstrdup (attrs);
+	    addnode (attrlist, node);
+	}
+    }
+    else
+    {
+	if (attrs == NULL)
+	    delnode (node);
+	else
+	{
+	    free (node->data);
+	    node->data = xstrdup (attrs);
+	}
+    }
+
+    attrs_modified = 1;
+}
+
 void
 fileattr_newfile (filename)
     const char *filename;
@@ -550,6 +630,10 @@ fileattr_write ()
 void
 fileattr_free ()
 {
+    /* Note that attrs_modified will ordinarily be zero, but there are
+       a few cases in which fileattr_write will fail to zero it (if
+       noexec is set, or error conditions).  This probably is the way
+       it should be.  */
     dellist (&attrlist);
     if (fileattr_stored_repos != NULL)
 	free (fileattr_stored_repos);

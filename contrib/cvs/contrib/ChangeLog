@@ -1,3 +1,39 @@
+Thu Aug  7 22:42:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pvcs_to_rcs: Remove RCS keywords.  Remove $Log and move the data
+	to this ChangeLog (below).  Add paragraph that David Martin
+	emailed along with the script.
+
+	    Revision 1.6  1997/03/07 16:21:28  divad
+	    Need to explicitly state archive name in PVCS get command for
+ 	    those cases where the case of the workfile and the case of the
+ 	    archive file are different (OS/2)
+
+	    Revision 1.5  1997/03/07 00:31:04  divad
+	    Added capitalized extensions and framemaker files as binaries;
+ 	    also overriding any path specification for workfiles at PVCS
+ 	    checkout (most annoying).
+
+	    Revision 1.4  1997/03/06 21:04:55  divad
+	    Added \n to the end of each comment line to prevent multi-line
+ 	    comments for a single revision from "merging"
+
+	    Revision 1.3  1997/03/06 19:50:25  divad
+	    Corrected bug in binary extensions; correcting processing
+ 	    comment strings with double quotes
+
+	    Revision 1.2  1997/03/06 17:29:10  divad
+	    Provided list of extensions (rather than using Unix file
+ 	    command) to determine which files are binary; also printing
+ 	    version label as they are applied
+
+	    Revision 1.1  1997/02/26 00:04:29  divad
+	    Perl script to convert pvcs archives to rcs archives
+
+	* README: mention pvcs_to_rcs.
+	* pvcs_to_rcs: New file.  This is the file as I got it from David
+	Martin.  Will be checking in the tweaks shortly.
+
 17 May 1997  Jim Kingdon
 
 	* listen2.c: Failed attempt at making this do what it was
