@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.7 1994/09/22 22:10:36 wollman Exp $
+ * $Id: vfs_init.c,v 1.8 1994/10/08 22:33:42 phk Exp $
  */
 
 
@@ -321,6 +321,18 @@ fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return 0;
 		
 	default:
+		if(namelen < 1) return EINVAL;
+
+		i = name[0];
+
+		if(i <= MOUNT_MAXTYPE
+		   && vfssw[i]
+		   && vfssw[i]->vfs_sysctl) {
+			return vfssw[i]->vfs_sysctl(name + 1, namelen - 1,
+						    oldp, oldlenp,
+						    newp, newlen, p);
+		}
+
 		return (EOPNOTSUPP);
 	}
 	/* NOTREACHED */
