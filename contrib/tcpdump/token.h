@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/token.h,v 1.3 2000/10/03 02:55:03 itojun Exp $ (LBL) */
 /*
  * Copyright (c) 1998, Larry Lile
  * All rights reserved.
@@ -24,36 +25,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#define TOKEN_HDR_LEN       14
-#define TOKEN_RING_MAC_LEN  6
-#define ROUTING_SEGMENT_MAX 16
-#define IS_SOURCE_ROUTED    (tp->ether_shost[0] & 0x80)
-#define BROADCAST           ((ntohs(tp->rcf) & 0xE000) >> 13)
-#define RIF_LENGTH          ((ntohs(tp->rcf) & 0x1f00) >> 8)
-#define DIRECTION           ((ntohs(tp->rcf) & 0x0080) >> 7)
-#define LARGEST_FRAME       ((ntohs(tp->rcf) & 0x0070) >> 4)
-#define RING_NUMBER(x)      ((ntohs(tp->rseg[x]) & 0xfff0) >> 4)
-#define BRIDGE_NUMBER(x)    ((ntohs(tp->rseg[x]) & 0x000f))
-#define SEGMENT_COUNT       ((RIF_LENGTH - 2) / 2)
+#define TOKEN_HDRLEN		14
+#define TOKEN_RING_MAC_LEN	6
+#define ROUTING_SEGMENT_MAX	16
+#define IS_SOURCE_ROUTED(trp)	((trp)->token_shost[0] & 0x80)
+#define FRAME_TYPE(trp)		(((trp)->token_fc & 0xC0) >> 6)
+#define TOKEN_FC_LLC		1
 
-char *broadcast_indicator[] = { "Non-Broadcast", "Non-Broadcast", 
-                                "Non-Broadcast", "Non-Broadcast",
-                                "All-routes",    "All-routes",
-                                "Single-route",  "Single-route"};
-
-char *direction[] = { "Forward", "Backward"};
-
-char *largest_frame[] = { "516", "1500", "2052", "4472", "8144",
-                          "11407", "17800", ""};
-
+#define BROADCAST(trp)		((ntohs((trp)->token_rcf) & 0xE000) >> 13)
+#define RIF_LENGTH(trp)		((ntohs((trp)->token_rcf) & 0x1f00) >> 8)
+#define DIRECTION(trp)		((ntohs((trp)->token_rcf) & 0x0080) >> 7)
+#define LARGEST_FRAME(trp)	((ntohs((trp)->token_rcf) & 0x0070) >> 4)
+#define RING_NUMBER(trp, x)	((ntohs((trp)->token_rseg[x]) & 0xfff0) >> 4)
+#define BRIDGE_NUMBER(trp, x)	((ntohs((trp)->token_rseg[x]) & 0x000f))
+#define SEGMENT_COUNT(trp)	((RIF_LENGTH(trp) - 2) / 2)
 
 struct token_header {
-        u_char   ac;
-        u_char   fc;
-        u_char   ether_dhost[TOKEN_RING_MAC_LEN];
-        u_char   ether_shost[TOKEN_RING_MAC_LEN];
-        u_short  rcf;
-        u_short  rseg[ROUTING_SEGMENT_MAX];
+	u_int8_t  token_ac;
+	u_int8_t  token_fc;
+	u_int8_t  token_dhost[TOKEN_RING_MAC_LEN];
+	u_int8_t  token_shost[TOKEN_RING_MAC_LEN];
+	u_int16_t token_rcf;
+	u_int16_t token_rseg[ROUTING_SEGMENT_MAX];
 };
