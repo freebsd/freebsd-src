@@ -5,5 +5,6 @@ SRCS=	syslogd.c ttymsg.c
 .PATH:	${.CURDIR}/../../usr.bin/wall
 MAN5=	syslog.conf.5
 MAN8=	syslogd.8
+COPTS+=	-Wall
 
 .include <bsd.prog.mk>
