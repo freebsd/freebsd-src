@@ -110,6 +110,10 @@ int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
 int	guest;
+#ifdef STATS
+int	stats;
+int	statfd = -1;
+#endif
 int	type;
 int	form;
 int	stru;			/* avoid C keyword */
@@ -127,6 +131,9 @@ int	defumask = CMASK;		/* default umask value */
 char	tmpline[7];
 char	hostname[MAXHOSTNAMELEN];
 char	remotehost[MAXHOSTNAMELEN];
+#ifdef STATS
+char	*ident = NULL;
+#endif
 
 /*
  * Timeout intervals for retrying connections
@@ -245,7 +252,12 @@ main(argc, argv, envp)
 	LastArgv = envp[-1] + strlen(envp[-1]);
 #endif /* SETPROCTITLE */
 
+
+#ifdef STATS
+	while ((ch = getopt(argc, argv, "dlSt:T:u:v")) != EOF) {
+#else
 	while ((ch = getopt(argc, argv, "dlt:T:u:v")) != EOF) {
+#endif
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -260,7 +272,11 @@ main(argc, argv, envp)
 			if (maxtimeout < timeout)
 				maxtimeout = timeout;
 			break;
-
+#ifdef STATS
+		case 'S':
+			stats =  1;
+			break;
+#endif
 		case 'T':
 			maxtimeout = atoi(optarg);
 			if (timeout > maxtimeout)
@@ -581,6 +597,12 @@ pass(passwd)
 	logwtmp(ttyline, pw->pw_name, remotehost);
 	logged_in = 1;
 
+#ifdef STATS
+	if (guest && stats == 1 && statfd < 0)
+		if ((statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND)) < 0)
+			stats = 0;
+#endif
+
 	if (guest) {
 		/*
 		 * We MUST do a chdir() after the chroot. Otherwise
@@ -619,6 +641,13 @@ pass(passwd)
 		(void) fclose(fd);
 	}
 	if (guest) {
+#ifdef STATS
+		char * copy();
+
+		if (ident != NULL)
+			free(ident);
+		ident = (char *) copy(passwd);
+#endif
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
@@ -655,6 +684,9 @@ retrieve(cmd, name)
 	FILE *fin, *dout;
 	struct stat st;
 	int (*closefunc) __P((FILE *));
+#ifdef STATS
+	long start;
+#endif
 
 	if (cmd == 0) {
 		fin = fopen(name, "r"), closefunc = fclose;
@@ -704,7 +736,14 @@ retrieve(cmd, name)
 	dout = dataconn(name, st.st_size, "w");
 	if (dout == NULL)
 		goto done;
+#ifdef STATS
+	time(&start);
+#endif
 	send_data(fin, dout, st.st_blksize);
+#ifdef STATS
+	if (cmd == 0 && guest && stats)
+		logxfer( name, st.st_size, start);
+#endif
 	(void) fclose(dout);
 	data = -1;
 	pdata = -1;
@@ -1676,3 +1715,36 @@ setproctitle(fmt, va_alist)
 		*p++ = ' ';
 }
 #endif /* SETPROCTITLE */
+
+#ifdef STATS
+logxfer(name, size, start)
+	char *name;
+	long size;
+	long start;
+{
+	char buf[1024];
+	char path[MAXPATHLEN + 1];
+	long now;
+
+	if (statfd >= 0 && getwd(path) != NULL) {
+		time(&now);
+		sprintf(buf, "%.20s!%s!%s!%s/%s!%ld!%ld\n",
+			ctime(&now)+4, ident, remotehost,
+			path, name, size, now - start + (now == start));
+		write(statfd, buf, strlen(buf));
+	}
+}
+
+char *
+copy(s)
+	char *s;
+{
+	char *p;
+
+	p = malloc((unsigned) strlen(s) + 1);
+	if (p == NULL)
+		fatal("Ran out of memory.");
+	(void) strcpy(p, s);
+	return (p);
+}
+#endif
