@@ -1,13 +1,13 @@
 Use PageUp, PageDown or Arrow keys to navigate this screen.
 
    -----------------------------------------
-       FreeBSD 2.0  ---  ALPHA Release                 ,        ,
+       FreeBSD 2.0  ---  BETA Release                  ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the ALPHA release of FreeBSD 2.0 - the     /- _  `-/  '
+Welcome to the BETA release of FreeBSD 2.0 - the      /- _  `-/  '
 first public snapshot of our new 4.4BSD Lite based   (/\/ \ \   /\
 operating system environment.  This install proce-   / /   | `    \
-dure is also at the ALPHA stage, and contains only   O O   ) /    |
+dure is also at the BETA stage, and contains only    O O   ) /    |
 the minimum functionality required by an             `-^--'`<     '
 *EXPERIENCED* person to install the system.         (_.)  _  )   /
 It is our hope, of course, that the feedback         `.___/`    /
@@ -19,7 +19,7 @@ valuable to us, so please don't hesitate               |        |
 in contacting us!  Full details on where and            \       /	/\
 how to provide feedback are given below.           ______( (_  / \______/
                                                  ,'  ,-----'   |
-This install procedure is ALPHA code, and        `--{__________)
+This install procedure is BETA code, and         `--{__________)
 may very possibly *DESTROY* the contents of your
 ENTIRE DISK!  Please do not proceed with this installation
 unless you've adequately backed up your data first!
