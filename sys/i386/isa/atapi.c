@@ -365,7 +365,11 @@ static struct atapi_params *atapi_probe (int port, int unit)
 	print(("unit = %d,select %d\n",unit,unit%2)); 
 #endif
 	/* Wait for controller not busy. */
+#ifdef PC98
+	outb (port + AR_DRIVE, unit / 2 ? ARD_DRIVE1 : ARD_DRIVE0);
+#else
 	outb (port + AR_DRIVE, unit ? ARD_DRIVE1 : ARD_DRIVE0);
+#endif
 	if (atapi_wait (port, 0) < 0) {
 		print (("atapiX.%d at 0x%x: controller busy, status=%b\n",
 			unit, port, inb (port + AR_STATUS), ARS_BITS));
