@@ -35,7 +35,6 @@
 #include "doscmd.h"
 #include "trap.h"
 
-extern FILE	*debugf;
 int		tmode = 0;
 
 static u_short	*saddr;

@@ -396,7 +396,3 @@ extern void 	load_command(regcontext_t *REGS, int run, int fd, char *cmdname,
 			     u_short *param, char **argv, char **envs);
 extern void	exec_return(regcontext_t *REGS, int code);
 extern int	get_env(void);
-
-/* from setver.c */
-extern void	setver(char *cmd, short version);
-extern short	getver(char *cmd);
