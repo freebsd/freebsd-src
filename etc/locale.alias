@@ -1,2 +1,4 @@
 ascii		lt_LN.ASCII
 us-ascii	lt_LN.ASCII
+ru_RU.KOI8-R    ru_SU.KOI8-R
+ru_RU.CP866     ru_SU.CP866
