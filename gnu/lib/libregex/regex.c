@@ -4465,7 +4465,8 @@ compile_range (range_start_char, p_ptr, pend, translate, syntax, b)
   unsigned int start_colseq;
   unsigned int end_colseq;
 # else
-  unsigned end_char;
+  char range_start[2];
+  char range_end[2];
 # endif
 
   if (p == pend)
@@ -4495,21 +4496,25 @@ compile_range (range_start_char, p_ptr, pend, translate, syntax, b)
 	}
     }
 # else
-  /* Here we see why `this_char' has to be larger than an `unsigned
-     char' -- we would otherwise go into an infinite loop, since all
-     characters <= 0xff.  */
-  range_start_char = TRANSLATE (range_start_char);
-  /* TRANSLATE(p[0]) is casted to char (not unsigned char) in TRANSLATE,
-     and some compilers cast it to int implicitly, so following for_loop
-     may fall to (almost) infinite loop.
-     e.g. If translate[p[0]] = 0xff, end_char may equals to 0xffffffff.
-     To avoid this, we cast p[0] to unsigned int and truncate it.  */
-  end_char = ((unsigned)TRANSLATE(p[0]) & ((1 << BYTEWIDTH) - 1));
+  /* Fetch the endpoints without translating them; the
+     appropriate translation is done in the bit-setting loop below.  */
+  range_start[0] = range_start_char;
+  range_start[1] = '\0';
+  range_end[0]   = p[0];
+  range_end[1]   = '\0';
 
-  for (this_char = range_start_char; this_char <= end_char; ++this_char)
+  /* Here we see why `this_char' has to be larger than an `unsigned
+     char' -- we would otherwise go into an infinite
+     loop, since all characters <= 0xff.  */
+  for (this_char = 0; this_char <= (unsigned char) -1; this_char++)
     {
-      SET_LIST_BIT (TRANSLATE (this_char));
-      ret = REG_NOERROR;
+      char ch[2];
+      ch[0] = this_char;  ch[1] = '\0';
+      if (strcoll (range_start, ch) <= 0 && strcoll (ch, range_end) <= 0)
+        {
+          SET_LIST_BIT (TRANSLATE (this_char));
+          ret = REG_NOERROR;
+        }
     }
 # endif
 
