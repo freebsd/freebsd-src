@@ -32,8 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)date.1	8.2 (Berkeley) 11/17/93
-.\"	$Id: date.1,v 1.7 1996/03/12 05:30:39 nate Exp $
+.\"     @(#)date.1	8.3 (Berkeley) 4/28/95
+.\"	$Id: date.1,v 1.8 1996/08/29 18:05:45 wosch Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -50,7 +50,7 @@
 .Op Cm + Ns Ar format
 .Op [yy[mm[dd[hh]]]]mm[\&.ss]
 .Sh DESCRIPTION
-.Nm Date
+.Nm
 displays the current date and time when invoked without arguments.
 Providing arguments will format the date and time in a user-defined
 way or set the date.
@@ -105,9 +105,11 @@ The format string may contain any of the conversion specifications described
 in the 
 .Xr strftime 3
 manual page, as well as any arbitrary text.
+A <newline> character is always output after the characters specified by
+the format string.
 The format string for the default display is:
 .Bd -literal -offset indent
-``%+''.
+``+%+''
 .Ed
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
@@ -137,7 +139,7 @@ and years are handled automatically.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
-date ``+DATE: %m/%d/%y%nTIME: %H:%M:%S%n''
+date ``+DATE: %m/%d/%y%nTIME: %H:%M:%S''
 .Ed
 .Pp
 will display:
@@ -162,9 +164,10 @@ date 1432
 sets the time to
 .Li "2:32 PM" ,
 without modifying the date.
-.Sh ENVIRONMENTAL VARIABLES
-The following environment variables affect the execution of
-.Nm date :
+.Sh ENVIRONMENT VARIABLES
+The execution of
+.Nm
+is affected by the following evironment variables:
 .Bl -tag -width Ds
 .It Ev TZ
 The timezone to use when displaying dates.
