@@ -18,8 +18,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsi_all.h,v 1.4 1993/08/21 20:01:51 rgrimes Exp $
  */
+
+#ifndef _SCSI_SCSI_ALL_H_
+#define _SCSI_SCSI_ALL_H_ 1
 
 /*
  * SCSI command format
@@ -321,3 +324,4 @@ struct scsi_mode_header_big
 #define	SCSI_CHECK		0x02
 #define	SCSI_BUSY		0x08	
 #define SCSI_INTERM		0x10
+#endif /* _SCSI_SCSI_ALL_H_ */
