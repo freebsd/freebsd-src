@@ -245,7 +245,7 @@
     </sect3>
 
     <sect3 id="boot">
-      <title>Bootloader Changes</title>
+      <title>Boot Loader Changes</title>
 
       <para arch="alpha">The alpha boot loader
         (<filename>boot1</filename>) can now be called
@@ -258,7 +258,7 @@
         file, to simplify programs that need to write or otherwise
         manipulate the boot loader.</para>
 
-      <para arch="pc98">The PC98 bootloader now has support for
+      <para arch="pc98">The PC98 boot loader now has support for
         booting from SCSI MO media. &merged;</para>
 
       <para>The <filename>/modules</filename> directory (once the
@@ -277,7 +277,7 @@
         loader can only load kernels from root file systems that are
         1.5TB or smaller in size.</para>
 
-      <!-- Above this line, order bootloader changes by keyword-->
+      <!-- Above this line, order boot loader changes by keyword-->
 
     </sect3>
 
@@ -390,14 +390,14 @@
 	corrected.</para>
 
       <para>Support has been added for volume labels on UFS and UFS2
-        filesystems.  These labels are strings that can be used to
+        file systems.  These labels are strings that can be used to
         identify a volume, regardless of what device it appears on.
         Labels can be set with the <option>-L</option> options to
         &man.newfs.8; or &man.tunefs.8;.  With the
         <literal>GEOM_VOL</literal> module, volumes can be accessed
         using their labels under <filename>/dev/vol</filename>.</para>
 
-      <para>The root filesystem can now be located on a &man.vinum.4;
+      <para>The root file system can now be located on a &man.vinum.4;
 	volume.  More information can be found in the &man.vinum.4;
 	manual page.</para>
 
@@ -407,7 +407,7 @@
     </sect3>
 
     <sect3 id="fs">
-      <title>Filesystems</title>
+      <title>File Systems</title>
 
       <para>A new <literal>DIRECTIO</literal> kernel option enables
 	support for read operations that bypass the buffer cache and
@@ -417,7 +417,7 @@
 	the read operation are multiples of the physical media sector
 	size. &merged;</para>
 
-      <para>NETNCP and Netware Filesystem Support (nwfs) are once
+      <para>NETNCP and Netware File System Support (nwfs) are once
 	again working.</para>
 
       <para>Bugs that could cause the unmounting of a smbfs share to
@@ -485,7 +485,7 @@
 
     <para>&man.dump.8; now supports caching of disk blocks with the
       <option>-C</option> option.  This can improve dump performance
-      at the cost of possibly missing filesystem updates that occur
+      at the cost of possibly missing file system updates that occur
       between passes.</para>
 
     <para>&man.dumpfs.8; now supports a <option>-m</option> flag to
@@ -552,7 +552,7 @@
     <para>&man.kenv.1; has been moved from
       <filename>/usr/bin</filename> to <filename>/bin</filename> to
       make it available at times during system startup when only the
-      root filesystem is mounted.</para>
+      root file system is mounted.</para>
 
     <para>&man.killall.1; now supports a <option>-j</option> option to
       kill all processes inside a jail.</para>
