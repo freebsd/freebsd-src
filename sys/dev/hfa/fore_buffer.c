@@ -509,7 +509,14 @@ fore_buf_supply_1l(fup)
 			/*
 			 * Get a cluster buffer
 			 */
-			KB_ALLOCEXT(m, BUF1_LG_SIZE, KB_F_NOWAIT, KB_T_DATA);
+			MGETHDR(m, KB_F_NOWAIT, KB_T_DATA);
+			if (m != NULL) {
+				MCLGET(m, KB_F_NOWAIT);
+				if ((m->m_flags & M_EXT) == 0) {
+					m_freem(m);
+					m = NULL;
+				}
+			}
 			if (m == 0) {
 				break;
 			}
