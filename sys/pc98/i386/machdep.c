@@ -274,6 +274,7 @@ cpu_startup(dummy)
 	vm_size_t size = 0;
 	int firstaddr;
 	vm_offset_t minaddr;
+	int physmem_est;
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
@@ -343,6 +344,16 @@ again:
 	valloc(callwheel, struct callout_tailq, callwheelsize);
 
 	/*
+	 * Discount the physical memory larger than the size of kernel_map
+	 * to avoid eating up all of KVA space.
+	 */
+	if (kernel_map->first_free == NULL) {
+		printf("Warning: no free entries in kernel_map.\n");
+		physmem_est = physmem;
+	} else
+		physmem_est = min(physmem, kernel_map->max_offset - kernel_map->min_offset);
+
+	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
@@ -354,10 +365,10 @@ again:
 		int factor = 4 * BKVASIZE / PAGE_SIZE;
 
 		nbuf = 50;
-		if (physmem > 1024)
-			nbuf += min((physmem - 1024) / factor, 16384 / factor);
-		if (physmem > 16384)
-			nbuf += (physmem - 16384) * 2 / (factor * 5);
+		if (physmem_est > 1024)
+			nbuf += min((physmem_est - 1024) / factor, 16384 / factor);
+		if (physmem_est > 16384)
+			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
 	}
 
 	/*
