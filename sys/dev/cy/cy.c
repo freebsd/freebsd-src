@@ -91,27 +91,6 @@ __FBSDID("$FreeBSD$");
 #error "The cy device requires the old isa compatibility shims"
 #endif
 
-#ifdef SMP
-
-#include <machine/smptests.h>                   /** xxx_LOCK */
-
-#ifdef USE_COMLOCK
-#define COM_LOCK()	mtx_lock_spin(&com_mtx)
-#define COM_UNLOCK()	mtx_unlock_spin(&com_mtx)
-#else
-#define COM_LOCK()
-#define COM_UNLOCK()
-#endif /* USE_COMLOCK */
-
-#else /* SMP */
-
-#define COM_LOCK()
-#define COM_UNLOCK()
-
-#endif /* SMP */
-
-extern struct mtx	com_mtx;
-
 /*
  * Dictionary so that I can name everything *sio* or *com* to compare with
  * sio.c.  There is also lots of ugly formatting and unnecessary ifdefs to
@@ -154,7 +133,9 @@ extern struct mtx	com_mtx;
 #define	comstop		cystop
 #define	siowrite	cywrite
 #define	sio_ih		cy_ih
+#define	sio_inited	cy_inited
 #define	sio_irec	cy_irec
+#define	sio_lock	cy_lock
 #define	sio_timeout	cy_timeout
 #define	sio_timeout_handle cy_timeout_handle
 #define	sio_timeouts_until_log	cy_timeouts_until_log
@@ -230,6 +211,14 @@ static	char const * const	error_desc[] = {
 
 #define	CE_NTYPES			3
 #define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
+
+#ifdef SMP
+#define	COM_LOCK()	mtx_lock_spin(&sio_lock)
+#define	COM_UNLOCK()	mtx_unlock_spin(&sio_lock)
+#else
+#define	COM_LOCK()
+#define	COM_UNLOCK()
+#endif
 
 /* types.  XXX - should be elsewhere */
 typedef u_char	bool_t;		/* boolean */
@@ -378,6 +367,8 @@ void	cystatus(int unit);
 #endif
 
 static char driver_name[] = "cy";
+static struct	mtx sio_lock;
+static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
@@ -441,6 +432,12 @@ sioprobe(dev)
 	struct isa_device	*dev;
 {
 	cy_addr	iobase;
+
+	while (sio_inited != 2)
+		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
+			mtx_init(&sio_lock, driver_name, NULL, MTX_SPIN);
+			atomic_store_rel_int(&sio_inited, 2);
+		}
 
 	iobase = (cy_addr)dev->id_maddr;
 
@@ -2854,7 +2851,7 @@ cd_getreg(com, reg)
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
-	if (!mtx_owned(&com_mtx)) {
+	if (!mtx_owned(&sio_lock)) {
 		COM_LOCK();
 		need_unlock = 1;
 	}
@@ -2893,7 +2890,7 @@ cd_setreg(com, reg, val)
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
-	if (!mtx_owned(&com_mtx)) {
+	if (!mtx_owned(&sio_lock)) {
 		COM_LOCK();
 		need_unlock = 1;
 	}

@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS, USE_COMLOCK */
+#include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
 #include <machine/privatespace.h>
 
@@ -145,11 +145,6 @@ __FBSDID("$FreeBSD$");
 
 /* lock region used by kernel profiling */
 int	mcount_lock;
-
-#ifdef USE_COMLOCK
-/* locks com (tty) data/hardware accesses: a FASTINTR() */
-struct mtx		com_mtx;
-#endif
 
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
@@ -345,9 +340,6 @@ cpu_mp_start(void)
 	setidt(IPI_STOP, IDTVEC(cpustop),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-#ifdef USE_COMLOCK
-	mtx_init(&com_mtx, "com", NULL, MTX_SPIN);
-#endif
 	mtx_init(&smp_tlb_mtx, "tlb", NULL, MTX_SPIN);
 
 	/* Set boot_cpu_id if needed. */
