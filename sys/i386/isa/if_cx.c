@@ -62,6 +62,7 @@ static int cxattach __P((struct isa_device *id));
 static void cxput __P((cx_chan_t *c, char b));
 static void cxsend __P((cx_chan_t *c));
 static void cxrinth __P((cx_chan_t *c));
+static ointhand2_t cxintr;
 static int cxtinth __P((cx_chan_t *c));
 
 #ifdef DEBUG
@@ -229,6 +230,8 @@ cxattach (struct isa_device *id)
 	cx_board_t *b = cxboard + unit;
 	int i;
 	struct sppp *sp;
+
+	id->id_ointr = cxintr;
 
 	/* Initialize the board structure. */
 	cx_init (b, unit, iobase, ffs(irq)-1, drq);
@@ -707,7 +710,7 @@ cxtinth (cx_chan_t *c)
 	return (teoir);
 }
 
-void
+static void
 cxintr (int bnum)
 {
 	cx_board_t *b = cxboard + bnum;

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.53 1998/06/07 17:10:39 dfr Exp $
+ * $Id: if_ze.c,v 1.54 1998/06/21 17:08:08 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -168,6 +168,7 @@ static void ze_init __P((int unit));
 static __inline void ze_xmit __P((struct ifnet *ifp));
 static void ze_start __P((struct ifnet *ifp));
 static __inline void ze_rint __P((int unit));
+static ointhand2_t zeintr;
 static int ze_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
 static __inline char *ze_ring_copy __P((struct ze_softc *sc, char *src,
@@ -585,6 +586,8 @@ ze_attach(isa_dev)
 	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int pl;
+
+	isa_dev->id_ointr = zeintr;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */
 	if (isa_dev->id_reconfig) {
@@ -1145,7 +1148,7 @@ ze_rint(unit)
 /*
  * Ethernet interface interrupt processor
  */
-void
+static void
 zeintr(unit)
 	int unit;
 {

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.53 1998/10/08 17:04:58 kato Exp $
+ *	$Id: if_ed.c,v 1.54 1998/10/08 17:16:41 kato Exp $
  */
 
 /*
@@ -179,6 +179,7 @@ static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
 static void ed_init		__P((void *));
+static ointhand2_t edintr;
 static int ed_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -2481,6 +2482,7 @@ ed_attach_isa(isa_dev)
 	struct ed_softc *sc = &ed_softc[unit];
 	int flags = isa_dev->id_flags;
 
+	isa_dev->id_ointr = edintr;
 	return ed_attach(sc, unit, flags);
 }
 
@@ -3317,7 +3319,7 @@ edintr_sc(sc)
 	}
 }
 
-void 
+static void 
 edintr(unit)
 	int unit;
 {

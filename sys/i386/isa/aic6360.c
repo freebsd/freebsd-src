@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.40 1998/04/15 17:45:12 bde Exp $
+ * $Id: aic6360.c,v 1.41 1998/06/21 14:53:09 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -663,6 +663,7 @@ static int 	aic_find	__P((struct aic_data *));
 static void	aic_done	__P((struct acb *));
 static void	aic_dataout	__P((struct aic_data *aic));
 static void	aic_datain	__P((struct aic_data *aic));
+static ointhand2_t	aicintr;
 static int32_t	aic_scsi_cmd	__P((struct scsi_xfer *));
 static int	aic_poll	__P((struct aic_data *aic, struct acb *));
 void	aic_add_timeout __P((struct acb *, int));
@@ -967,6 +968,7 @@ aicattach(dev)
 	struct scsibus_data *scbus;
 
 	AIC_TRACE(("aicattach\n"));
+	dev->id_ointr = aicintr;
 	aic->state = 0;
 	aic_scsi_reset(aic);
 	aic_init(aic);	/* Init chip and driver */
@@ -2135,7 +2137,7 @@ aic_datain(aic)
  * 2) doesn't support synchronous transfers properly (yet)
  */
 
-void
+static void
 aicintr(int unit)
 {
 	struct aic_data *aic = aicdata[unit];

@@ -130,6 +130,8 @@ struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
 short ipri_to_irq(u_short ipri);
 
+static ointhand2_t sndintr;
+
 u_long
 get_time(void)
 {
@@ -396,8 +398,27 @@ sndattach(struct isa_device * dev)
     static int      midi_initialized = 0;
     static int      seq_initialized = 0;
     struct address_info hw_config;
+    char   *dname;
     void   *tmp;
-    
+
+    /* XXX this is probably incomplete. */
+    dname = dev->id_driver->name;
+    if (strcmp(dname, "css") == 0 || strcmp(dname, "gusxvi") == 0 ||
+	strcmp(dname, "mss") == 0)
+	dev->id_ointr = adintr;
+    if (strcmp(dname, "gus") == 0)
+	dev->id_ointr = gusintr;
+    if (strcmp(dname, "pas") == 0)
+	dev->id_ointr = pasintr;
+    if (strcmp(dname, "sb") == 0)
+	dev->id_ointr = sbintr;
+    if (strcmp(dname, "sscape_mss") == 0)
+	dev->id_ointr = sndintr;
+    if (strcmp(dname, "sscape") == 0 || strcmp(dname, "trix") == 0)
+	dev->id_ointr = sscapeintr;
+    if (strcmp(dname, "uart0") == 0)
+	dev->id_ointr = m6850intr;
+
     unit = driver_to_voxunit(dev->id_driver);
     hw_config.io_base = dev->id_iobase;
     hw_config.irq = ipri_to_irq(dev->id_irq);
@@ -576,7 +597,7 @@ snd_set_irq_handler(int int_lvl, void (*hndlr) (int), sound_os_info * osp)
     return 1;
 }
 
-void
+static void
 sndintr(int unit)
 {
     if ( (unit >= MAX_UNIT) || (irq_proc[unit] == NULL) )

@@ -99,6 +99,7 @@ int sb_dsp_detect (struct address_info *hw_config);
 void sb_dsp_init (struct address_info *hw_config);
 void sb_dsp_disable_midi(void);
 int sb_dsp_command (u_char val);
+ointhand2_t sbintr;
 int sb_reset_dsp (void);
 
 /*	From sb16_dsp.c	*/
@@ -140,6 +141,7 @@ int probe_adlib(struct address_info *hw_config);
 /*	From pas_card.c	*/
 void attach_pas_card(struct address_info *hw_config);
 int probe_pas(struct address_info *hw_config);
+ointhand2_t pasintr;
 int pas_set_intr(int mask);
 int pas_remove_intr(int mask);
 u_char pas_read(int ioaddr);
@@ -160,7 +162,7 @@ void pas_midi_interrupt(void);
 void attach_gus_card(struct address_info * hw_config);
 int probe_gus(struct address_info *hw_config);
 int gus_set_midi_irq(int num);
-/*void gusintr(int irq); */
+ointhand2_t gusintr;
 void attach_gus_db16(struct address_info * hw_config);
 int probe_gus_db16(struct address_info *hw_config);
 
@@ -186,6 +188,7 @@ void mpuintr(int irq);
 
 /*	From uart6850.c */
 void attach_uart6850(struct address_info * hw_config);
+ointhand2_t m6850intr;
 int probe_uart6850(struct address_info *hw_config);
 
 /*	From opl3.c */
@@ -209,6 +212,7 @@ void sound_timer_syncinterval(u_int new_usecs);
 
 /*	From ad1848.c */
 void ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture, int share_dma, sound_os_info *osp);
+ointhand2_t adintr;
 
 int ad1848_detect (int io_base, int *flags, sound_os_info *osp);
 #define AD_F_CS4231	0x0001	/* Returned if a CS4232 (or compatible) detected */
@@ -233,6 +237,7 @@ int probe_sscape (struct address_info *hw_config);
 void attach_sscape (struct address_info *hw_config);
 int probe_ss_mss(struct address_info *hw_config);
 void attach_ss_mss(struct address_info * hw_config);
+ointhand2_t sscapeintr;
 
 int pss_read (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
 int pss_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);

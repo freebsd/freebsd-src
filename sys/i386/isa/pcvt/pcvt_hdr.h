@@ -1223,6 +1223,7 @@ int	pccncheckc ( Dev_t dev );
 int	pccnputc ( Dev_t dev, U_char c );
 #endif
 
+ointhand2_t	pcrint;
 void	pcstart ( struct tty *tp );
 void	pcstop ( struct tty *tp, int flag );
 

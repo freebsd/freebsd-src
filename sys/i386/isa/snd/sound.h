@@ -434,6 +434,8 @@ int pcmattach(struct isa_device * dev);
 int midiattach(struct isa_device * dev);
 int synthattach(struct isa_device * dev);
 
+ointhand2_t pcmintr;
+
 /*
  *      DMA buffer calls
  */

@@ -384,6 +384,8 @@ pcattach(struct isa_device *dev)
 
 #else /* PCVT_NETBSD > 9 */
 
+	dev->id_ointr = pcrint;
+
 	return 1;
 
 #endif /* PCVT_NETBSD > 9 */

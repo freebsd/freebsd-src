@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.45 1998/08/24 02:28:15 bde Exp $
+ * $Id: if_lnc.c,v 1.46 1998/09/17 13:09:16 jkh Exp $
  */
 
 /*
@@ -177,6 +177,7 @@ static int pcnet_probe __P((struct lnc_softc *sc));
 static int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
 static int lnc_attach __P((struct isa_device *isa_dev));
 static void lnc_init __P((struct lnc_softc *sc));
+static ointhand2_t lncintr;
 static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
@@ -1273,8 +1274,10 @@ lnc_attach(struct isa_device * isa_dev)
 {
 	int unit = isa_dev->id_unit;
 	struct lnc_softc *sc = &lnc_softc[unit];
+	int result;
 
-	int result = lnc_attach_sc (sc, unit);
+	isa_dev->id_ointr = lncintr;
+	result = lnc_attach_sc (sc, unit);
 	if (result == 0)
 		return (0);
 
@@ -1592,7 +1595,7 @@ lncintr_sc(struct lnc_softc *sc)
 	}
 }
 
-void
+static void
 lncintr(int unit)
 {
 	struct lnc_softc *sc = &lnc_softc[unit];

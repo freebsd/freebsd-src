@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.14 1998/08/20 05:49:59 msmith Exp $ */
+/* $Id: if_wl.c,v 1.15 1998/08/24 02:28:15 bde Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,7 +81,7 @@
  *
  * sample config:
  *
- * device wl0 at isa? port 0x300 net irq ? vector wlintr
+ * device wl0 at isa? port 0x300 net irq ?
  *
  * Ifdefs:
  * 1. WLDEBUG. (off) - if turned on enables IFF_DEBUG set via ifconfig debug
@@ -302,6 +302,7 @@ static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
 static int	wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static timeout_t wlwatchdog;
+static ointhand2_t wlintr;
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
 static int	wlconfig(int unit); 
@@ -443,6 +444,7 @@ wlattach(struct isa_device *id)
 #ifdef WLDEBUG
     printf("wlattach: base %x, unit %d\n", base, unit);
 #endif
+    id->id_ointr = wlintr;
     sc->base = base;
     sc->unit = unit;
     sc->flags = 0;
@@ -1472,7 +1474,7 @@ wlwatchdog(void *vsc)
  * output	: either a packet is received, or a packet is transfered
  *
  */
-void
+static void
 wlintr(unit)
 int unit;
 {

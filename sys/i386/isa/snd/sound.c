@@ -241,6 +241,8 @@ pcmattach(struct isa_device * dev)
     dev_t isadev;
     void *cookie;
 
+    dev->id_ointr = pcmintr;
+
     if ( (dev->id_unit >= NPCM_MAX) ||		/* too many devs	*/
 	 (snddev_last_probed == NULL) ||	/* last probe failed	*/
 	 (snddev_last_probed->attach==NULL) )	/* no attach routine	*/

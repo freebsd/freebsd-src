@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.70 1998/08/20 05:21:50 bde Exp $
+ *	$Id: cy.c,v 1.71 1998/08/23 08:26:40 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -335,6 +335,7 @@ struct com_s {
 
 /* PCI driver entry point. */
 int	cyattach_common		__P((cy_addr cy_iobase, int cy_align));
+ointhand2_t	siointr;
 
 static	int	cy_units	__P((cy_addr cy_iobase, int cy_align));
 static	int	sioattach	__P((struct isa_device *dev));
@@ -506,6 +507,7 @@ sioattach(isdp)
 		printf("cy%d: attached as cy%d\n", isdp->id_unit, adapter);
 		isdp->id_unit = adapter;	/* XXX */
 	}
+	isdp->id_ointr = siointr;
 	isdp->id_ri_flags |= RI_FAST;
 	return (1);
 }

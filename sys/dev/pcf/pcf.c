@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.1.1.17 1998/08/29 17:04:23 son Exp $
+ *	$Id: pcf.c,v 1.1 1998/09/03 21:01:22 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -108,6 +108,7 @@ static int pcf_start(device_t, u_char);
 static int pcf_stop(device_t);
 static int pcf_write(device_t, char *, int, int *);
 static int pcf_read(device_t, char *, int, int *);
+static ointhand2_t pcfintr;
 static int pcf_rst_card(device_t, u_char);
 
 static device_method_t pcf_methods[] = {
@@ -179,6 +180,7 @@ error:
 static int
 pcfattach_isa(struct isa_device *isdp)
 {
+	isdp->id_ointr = pcfintr;
 	return (1);				/* ok */
 }
 
@@ -358,7 +360,7 @@ error:
 	return (error);
 }
 
-void
+static void
 pcfintr(unit)
 {
 	struct pcf_softc *pcf =

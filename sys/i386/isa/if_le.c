@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.46 1998/07/15 09:38:09 bde Exp $
+ * $Id: if_le.c,v 1.47 1998/08/12 18:32:42 bde Exp $
  */
 
 /*
@@ -236,6 +236,7 @@ struct le_softc {
 
 static int le_probe(struct isa_device *dvp);
 static int le_attach(struct isa_device *dvp);
+static ointhand2_t le_intr;
 static int le_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void le_input(le_softc_t *sc, caddr_t seg1, size_t total_len,
 		     size_t len2, caddr_t seg2);
@@ -354,6 +355,7 @@ le_attach(
     le_softc_t *sc = &le_softc[dvp->id_unit];
     struct ifnet *ifp = &sc->le_if;
 
+    dvp->id_ointr = le_intr;
     ifp->if_softc = sc;
     ifp->if_mtu = ETHERMTU;
     printf("%s%d: %s ethernet address %6D\n",
@@ -378,7 +380,7 @@ le_attach(
     return 1;
 }
 
-void
+static void
 le_intr(
     int unit)
 {

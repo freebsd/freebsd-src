@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.16 1998/01/24 02:54:38 eivind Exp $
+ * $Id: mse.c,v 1.17 1998/06/08 08:55:44 kato Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -88,6 +88,7 @@ static struct cdevsw mse_cdevsw =
 	  mseioctl,	nostop,		nullreset,	nodevtotty,/* mse */
 	  msepoll,	nommap,		NULL,	"mse",	NULL,	-1 };
 
+static ointhand2_t mseintr;
 
 /*
  * Software control structure for mouse. The sc_enablemouse(),
@@ -321,6 +322,7 @@ mseattach(idp)
 	}
 #endif
 
+	idp->id_ointr = mseintr;
 	sc->sc_port = idp->id_iobase;
 	sc->mode.accelfactor = (idp->id_flags & MSE_CONFIG_ACCEL) >> 4;
 #ifdef	DEVFS
@@ -610,7 +612,7 @@ msepoll(dev, events, p)
 /*
  * mseintr: update mouse status. sc_deltax and sc_deltay are accumulative.
  */
-void
+static void
 mseintr(unit)
 	int unit;
 {

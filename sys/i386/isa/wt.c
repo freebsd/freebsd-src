@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.44 1998/06/07 17:11:07 dfr Exp $
+ * $Id: wt.c,v 1.45 1998/07/04 22:30:19 julian Exp $
  *
  */
 
@@ -178,6 +178,7 @@ static void wtclock (wtinfo_t *t);
 static int wtreset (wtinfo_t *t);
 static int wtsense (wtinfo_t *t, int verb, int ignor);
 static int wtstatus (wtinfo_t *t);
+static ointhand2_t wtintr;
 static void wtrewind (wtinfo_t *t);
 static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
@@ -256,6 +257,7 @@ wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
 
+	id->id_ointr = wtintr;
 	if (t->type == ARCHIVE) {
 		printf ("wt%d: type <Archive>\n", t->unit);
 		outb (t->RDMAPORT, 0);          /* reset dma */
@@ -603,7 +605,7 @@ xit:    biodone (bp);
 /*
  * Interrupt routine.
  */
-void
+static void
 wtintr (int u)
 {
 	wtinfo_t *t = wttab + u;

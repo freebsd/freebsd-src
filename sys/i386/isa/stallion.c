@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.21 1998/08/23 08:26:41 bde Exp $
+ * $Id: stallion.c,v 1.22 1998/08/23 09:57:09 bde Exp $
  */
 
 /*****************************************************************************/
@@ -467,6 +467,7 @@ static int	stl_brdinit(stlbrd_t *brdp);
 static int	stl_initeio(stlbrd_t *brdp);
 static int	stl_initech(stlbrd_t *brdp);
 static int	stl_initports(stlbrd_t *brdp, stlpanel_t *panelp);
+static ointhand2_t	stlintr;
 static __inline void	stl_txisr(stlpanel_t *panelp, int ioaddr);
 static __inline void	stl_rxisr(stlpanel_t *panelp, int ioaddr);
 static __inline void	stl_mdmisr(stlpanel_t *panelp, int ioaddr);
@@ -633,6 +634,8 @@ static int stlattach(struct isa_device *idp)
 	printf("stlattach(idp=%p): unit=%d iobase=%x\n", (void *) idp,
 		idp->id_unit, idp->id_iobase);
 #endif
+
+	idp->id_ointr = stlintr;
 
 	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT);
 	if (brdp == (stlbrd_t *) NULL) {
@@ -1758,7 +1761,7 @@ static __inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
  *	io register.
  */
 
-void stlintr(int unit)
+static void stlintr(int unit)
 {
 	stlbrd_t	*brdp;
 	stlpanel_t	*panelp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.66 1998/08/28 12:44:49 kato Exp $
+ *	$Id: sio.c,v 1.67 1998/09/14 11:37:29 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -74,9 +74,9 @@
  *
  * 1) config
  *  options COM_MULTIPORT  #if using MC16550II
- *  device sio0 at nec? port 0x30  tty irq 4 vector siointr #internal
- *  device sio1 at nec? port 0xd2  tty irq 5 flags 0x101 vector siointr #mc1
- *  device sio2 at nec? port 0x8d2 tty flags 0x101 vector siointr       #mc2
+ *  device sio0 at nec? port 0x30  tty irq 4             #internal
+ *  device sio1 at nec? port 0xd2  tty irq 5 flags 0x101 #mc1
+ *  device sio2 at nec? port 0x8d2 tty flags 0x101       #mc2
  *                         # ~~~~~iobase        ~~multi port flag
  *                         #                   ~  master device is sio1
  * 2) device
@@ -103,8 +103,8 @@
  *   # options COM_MULTIPORT         # support for MICROCORE MC16550II
  *      ... comment-out this line, which will conflict with B98_01.
  *   options "B98_01"                # support for AIWA B98-01
- *   device  sio1 at nec? port 0x00d1 tty irq ? vector siointr
- *   device  sio2 at nec? port 0x00d5 tty irq ? vector siointr
+ *   device  sio1 at nec? port 0x00d1 tty irq ?
+ *   device  sio2 at nec? port 0x00d5 tty irq ?
  *      ... you can leave these lines `irq ?', irq will be autodetected.
  */
 #ifdef PC98
@@ -404,6 +404,7 @@ static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
+static	ointhand2_t	siointr;
 static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
@@ -1186,6 +1187,7 @@ sioattach(isdp)
 	int		s;
 	int		unit;
 
+	isdp->id_ointr = siointr;
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
@@ -1897,7 +1899,7 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-void
+static void
 siointr(unit)
 	int	unit;
 {

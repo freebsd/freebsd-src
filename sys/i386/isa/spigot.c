@@ -107,6 +107,8 @@ static struct cdevsw spigot_cdevsw =
 	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
 	  seltrue,	spigot_mmap,	NULL,	"spigot",	NULL,	-1  };
 
+static ointhand2_t	spigintr;
+
 static int
 spigot_probe(struct isa_device *devp)
 {
@@ -133,6 +135,7 @@ spigot_attach(struct isa_device *devp)
 	int	unit;
 	struct	spigot_softc	*ss= &spigot_softc[unit = devp->id_unit];
 
+	devp->id_ointr = spigintr;
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
 #ifdef DEVFS
@@ -246,7 +249,7 @@ struct	spigot_info	*info;
  * Interrupt procedure.
  * Just call a user level interrupt routine.
  */
-void
+static void
 spigintr(int unit)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[unit];

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.30 1998/07/15 09:38:10 bde Exp $
+ * $Id: seagate.c,v 1.31 1998/08/11 17:22:42 bde Exp $
  */
 
 /*
@@ -337,6 +337,7 @@ static void sea_start (adapter_t *z);
 static void sea_information_transfer (adapter_t *z, scb_t *scb);
 static int sea_poll (adapter_t *z, scb_t *scb);
 static int sea_init (adapter_t *z);
+static ointhand2_t seaintr;
 static int sea_reselect (adapter_t *z);
 static int sea_select (volatile adapter_t *z, scb_t *scb);
 static int sea_abort (adapter_t *z, scb_t *scb);
@@ -532,6 +533,8 @@ int sea_attach (struct isa_device *dev)
 	printf ("\nsea%d: type %s%s\n", unit, z->name,
 		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
 
+	dev->id_ointr = seaintr;
+
 	/* fill in the prototype scsi_link */
 	z->sc_link.adapter_unit = unit;
 	z->sc_link.adapter_targ = z->scsi_addr;
@@ -570,7 +573,7 @@ void seaminphys (struct buf *bp)
 /*
  * Catch an interrupt from the adaptor.
  */
-void seaintr (int unit)
+static void seaintr (int unit)
 {
 	adapter_t *z = &seadata[unit];
 

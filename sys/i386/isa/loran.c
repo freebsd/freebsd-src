@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.7 1998/08/17 18:47:36 bde Exp $
+ * $Id: loran.c,v 1.8 1998/08/17 19:09:36 bde Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -213,6 +213,7 @@ static	d_open_t	loranopen;
 static	d_close_t	loranclose;
 static	d_read_t	loranread;
 static	d_write_t	loranwrite;
+static	ointhand2_t	loranintr;
 extern	struct timecounter loran_timecounter[];
 
 /**********************************************************************/
@@ -256,6 +257,8 @@ int
 loranattach(struct isa_device *isdp)
 {
 	int i;
+
+	isdp->id_ointr = loranintr;
 
 	/* We need to be a "fast-intr" */
 	isdp->id_ri_flags |= RI_FAST;
@@ -403,7 +406,7 @@ loranwrite(dev_t dev, struct uio * uio, int ioflag)
 	return(err);
 }
 
-void
+static void
 loranintr(int unit)
 {
 	u_long ef;

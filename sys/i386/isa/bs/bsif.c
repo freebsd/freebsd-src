@@ -70,6 +70,7 @@ struct scsi_adapter pc98texa55bs = {
 #ifdef __FreeBSD__
 static int bsprobe __P((struct isa_device *));
 static int bsattach __P((struct isa_device *));
+static inthand2_t bsintr;
 static int bsprint __P((void *, const char *));
 static void bs_scsi_minphys __P((struct buf *));
 static int bs_dmarangecheck __P((caddr_t, unsigned));
@@ -220,6 +221,7 @@ bsattach(dev)
 	struct bs_softc *bsc = bscdata[unit];
 	struct scsibus_data *scbus;
 
+	dev->id_ointr = bsintr;
 	bsc->sc_link.adapter_unit = unit;
 	bsc->sc_link.adapter_targ = bsc->sc_hostid;
 	bsc->sc_link.flags = SDEV_BOUNCE;
@@ -256,7 +258,7 @@ bsintr(arg)
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
-void
+static void
 bsintr(unit)
 	int unit;
 {
