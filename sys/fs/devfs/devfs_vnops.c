@@ -918,6 +918,7 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
+	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 #ifdef MAC
