@@ -27,7 +27,7 @@ USE_EGCS_HAIFA=	1
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 
-CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
+CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 .if defined(LONG_TYPE_SIZE)
 CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
