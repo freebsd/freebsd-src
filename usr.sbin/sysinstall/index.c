@@ -395,7 +395,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     n = curr = max = 0;
     nitems = NULL;
     if (kp && kp->name && plist) {
-	nitems = item_add_pair(nitems, "..", "Return to previous menu.", &curr, &max);
+	nitems = item_add_pair(nitems, "..", "RETURN TO PREVIOUS MENU.", &curr, &max);
 	++n;
     }
     while (kp && kp->name) {
