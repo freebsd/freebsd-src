@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.8 1997/02/22 14:32:34 peter Exp $
+.\"	$Id: init.8,v 1.9 1997/04/01 20:41:04 mpp Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -241,6 +241,15 @@ signal, i.e.
 This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
+When shuting down the machine,
+.Nm init
+will try to run the
+.Pa /etc/rc.shutdown
+script. This script can be used to cleanly terminate specific programs such
+as
+.Nm innd
+(the InterNetNews server).
+.Pp
 The role of
 .Nm init
 is so critical that if it dies, the system will reboot itself
@@ -280,6 +289,8 @@ Record of all logins and logouts.
 The terminal initialization information file.
 .It Pa /etc/rc
 System startup commands.
+.It Pa /etc/rc.shutdown
+System shutdown commands.
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,
