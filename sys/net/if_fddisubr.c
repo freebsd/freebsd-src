@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
