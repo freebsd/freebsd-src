@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004 The FreeBSD Foundation
- * Copyright (c) 2004 Robert Watson
+ * Copyright (c) 2004-2005 Robert Watson
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -294,11 +294,9 @@ solisten(so, backlog, td)
 	if (error)
 		return (error);
 	ACCEPT_LOCK();
-	if (TAILQ_EMPTY(&so->so_comp)) {
-		SOCK_LOCK(so);
-		so->so_options |= SO_ACCEPTCONN;
-		SOCK_UNLOCK(so);
-	}
+	SOCK_LOCK(so);
+	so->so_options |= SO_ACCEPTCONN;
+	SOCK_UNLOCK(so);
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
 	so->so_qlimit = backlog;
