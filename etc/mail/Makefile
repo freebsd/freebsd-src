@@ -76,10 +76,10 @@ KILL?=			/bin/kill
 # exists in the current directory.
 #
 SENDMAIL_MAP_SRC+=	mailertable domaintable bitdomain uucpdomain \
-			genericstable virtusertable access userdb
+			genericstable virtusertable access
 SENDMAIL_MAP_OBJ=
 
-.for _f in ${SENDMAIL_MAP_SRC}
+.for _f in ${SENDMAIL_MAP_SRC} userdb
 .if exists(${_f})
 SENDMAIL_MAP_OBJ+=	${_f}.db
 .endif
@@ -97,6 +97,10 @@ ${_f}:		${_f}.sample
 ${_f}.db:	${_f}
 	${MAKEMAP} hash ${.TARGET} < ${.OODATE}
 .endfor
+
+userdb.db:	userdb
+	${MAKEMAP} btree ${.TARGET} < ${.OODATE}
+
 
 #
 # The .cf file needs to be recreated if the templates were modified.
