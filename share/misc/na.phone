@@ -1,5 +1,6 @@
 # Area Code : City : State/Province : State/Province Abbrev.
-#	@(#)na.phone	8.1 (Berkeley) 6/8/93
+#	From: @(#)na.phone	8.1 (Berkeley) 6/8/93
+#	$Id$
 201:Ashbury Park:New Jersey:NJ
 201:Newark:New Jersey:NJ
 202::District of Columbia:DC
@@ -209,10 +210,8 @@
 616:Battle Creek:Michigan:MI
 616:Grand Rapids:Michigan:MI
 616:Kalamazoo:Michigan:MI
-617:Arlington:Massachusetts:MA
 617:Boston:Massachusetts:MA
 617:Cambridge:Massachusetts:MA
-617:Winchester:Massachusetts:MA
 618:Alton:Illinois:IL
 618:Cairo:Illinois:IL
 618:Madison:Illinois:IL
@@ -274,6 +273,11 @@
 770:Marietta:Georgia:GA
 770:Norcross:Georgia:GA
 773:Chicago:Illinois:IL
+781:Arlington:Massachusetts:MA
+781:Braintree:Massachusetts:MA
+781:Canton:Massachusetts:MA
+781:Waltham:Massachusetts:MA
+781:Woburn:Massachusetts:MA
 787::Puerto Rico:PR
 801::Utah:UT
 802::Vermont:VT
@@ -382,3 +386,6 @@
 970:Steamboat Sprints:Colorado:CO
 972:Irving:Texas:TX
 972:Dallas suburbs:Texas:TX
+978:Haverhill:Massachusetts:MA
+978:Lawrence:Massachusetts:MA
+978:Lowell:Massachusetts:MA
