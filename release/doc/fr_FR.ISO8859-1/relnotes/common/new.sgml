@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.196
+     Original revision: 1.286
 -->
 
 <articleinfo>
@@ -12,7 +12,7 @@
 
   <pubdate>$FreeBSD$</pubdate>
 
-  <corpauthor>Projet FreeBSD</corpauthor>
+  <corpauthor>Le Projet FreeBSD</corpauthor>
 
   <copyright>
     <year>2000</year>
@@ -58,14 +58,14 @@
 
 
 
-  <para>This distribution of &os; &release.current; is a &release.type;
-  distribution.  It can be found at <ulink
-  url="&release.url;"></ulink> or any of its mirrors.  More
-  information on obtaining this (or other) &release.type; distributions of
-  &os; can be found in the <ulink
-  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
-  FreeBSD</quote></ulink> appendix in the <ulink
-  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+  <para>Cette distribution de &os; &release.current; est uune distribution
+  de type &release.type;. Elle est disponible a <ulink
+  url="&release.url;"></ulink> 
+  ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir cette
+  (ou une autre) distribution &release.type;  de &os; voyez le chapitre <ulink
+  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtenire
+  FreeBSD</quote></ulink> du <ulink url="http://www.FreeBSD.org/handbook/">guide de référence
+  de FreeBSD</ulink>.</para>
 
 ]]>
 </sect1>
@@ -111,21 +111,299 @@
         code source a été remis au propre.</para>
 
   <sect2 id="kernel">
-    <title>Changements concernant le noyau</title>
+    <title>**Changements concernant le noyau</title>
 
-    <para></para>
-    <para>Le gestionnaire de périphérique <varname>dumpdev</varname> peut
-    maintenant etre mis en place via le chargeur. Vous pouvez donc maintenant 
-    obtenir des informations sur les crashs au moment des derniers
-    stages d'initialisation du noyau(avant que le système ne passe en mode 
-    mono-utlisateur).</para>
+    <para arch="i386">Le gestionnaire de périphérique &man.amdpm.4; 
+    a été ajouté pour permettre d'accéder aux fonctions du système de
+    surveillance des puces AMD 756 chipset. &merged;</para>
 
-<!-- Above this line, kernel changes ordered by manpage/variable name -->
+    <para>Le gestionnaire de périphérique &man.agp.4; pour les
+    périphériques AGS a été ajouté. &merged;</para>
+
+    <para>Une nouvelle commande <command>show pcpu</command> ajoutée a &man.ddb.4;, 
+    permet d'obtenir la liste des données par processeur.</para>
+
+    <para>Deux nouvelles commandes a &man.ddb.4; , <command>hwatch</command> et
+    <command>dhwatch</command>, ont été introduites.  Parallèlement a 
+    <command>watch</command> et <command>dwatch</command>, elles permettent
+    d'installer des points de vérification matériels (en opposition aux
+    point de vérification logiciels) si l'architecture matérielle le supporte.
+    &merged;</para>
+
+    <para>&man.devfs.5;, permet de créer automatiquement les entrées nécessaires dans 
+    le répertoire <filename>/dev</filename> et le support des périphériques a attachement
+    variable, a été longuement revu. &man.devfs.5; est maintenant activé par défaut et 
+    peut etre désactivé par l'option du noyau <literal>NODEVFS</literal> .</para>
+
+    <para>Le gestionnaire de périphérique dgm a été retiré en faveur du gestionnaire
+     digi.</para>
+
+    <para>Un nouveau gestionnaire de périphérique digi a été ajouté pour supporter 
+    les cartes Digiboard PCI Xr et ISA Xem. Un nouveau programme, &man.digictl.8;,
+    permet de ré-initialiser les cartes qui ont des modules de ports externes attachés
+    comme les PC/Xem.</para>
+
+    <para>Un nouvel appel système &man.eaccess.2; a été ajouté, similaire à
+    &man.access.2; excepté qu'il utilise les identités effective au lieu des 
+    identités réelles.</para>
+
+    <para arch="i386">Le gestionnaire de périphérique &man.ichsmb.4; pour les cartes
+     controleur Intel 82801AA
+    (ICH) SMBus et compatibles a été ajouté. &merged;</para>
+
+    <para>Chaque environnement &man.jail.2; peut maintenant tourner dans son niveau
+    de sécurité personnel.</para>
+
+    <para>Les variables sysctl pour&man.jail.2; ont été déplacées de 
+    la hiérarchie <varname>jail.*</varname> a
+    <varname>security.*</varname>.  Les autres variable sysctl ayant un
+    rapport avec la sécurité ont été déplacées de la hiérarchie
+    <varname>kern.security.*</varname> a
+    <varname>security.*</varname>.</para>
+
+    <para>La variable <varname>kern.maxvnodes</varname> limite maintenant
+    propremement le nombre de vnodes utilisés. Précédemment uniquement les vnodes
+    n'utilisant pas les pages de cache pouvaient etre libérés; cela pouvait conduire
+    a un nombre croissant de vnodes sans limitation mémoire sur des machines
+    accédant a beaucoup de petits fichiers. Un thread noyau, <literal>vnlru</literal>,
+    permet d'aider a libérer et réutiliser les vnodes &merged;</para>
+
+    <para>Le tambon des messages noyau est maintenant accessible (de façon
+    indépendante de l'architecture) via la variable sysctl 
+    <varname>kern.msgbuf</varname> ; &man.dmesg.8; n'a plus besoin d'etre
+    SGID <groupname>kmem</groupname>. &merged;</para>
+
+    <para>L'appel système &man.kqueue.2; a été ajouté au noyau &os;. C'est une nouvelle
+    interface qui remplace &man.poll.2;/&man.select.2;, qui offre de mailleurs performances 
+    ainsi que la possiblité de rapporter différents type d'événements. Il
+    supporte la supervision des changements dans les sockets, les pipe, les fifos,
+    les fichiers, les signaux et les processus. &merged;</para>
+
+    <para arch="i386">une nouvelle option du noyau
+     <varname>KVA_SPACE</varname> permet de reconfigurer la taille de l'espace
+     adressable virtuel du noyau. &merged;</para>
+
+    <para>Le gestionnaire de périphérique &man.labpc.4; a été retirer du a
+    <quote>bitrot</quote>.</para>
+
+    <para>Le chargeur et le linker du noyau vérifient via la présence
+    du fichier <filename>linker.hints</filename> dans chaque répertoire des modules
+    chargeables par le noyau du nom du module et de la version du fichier KLD. 
+    L'utilitaire &man.kldxref.8; permet de générer ces fichiers.</para>
+
+
+    <para>L'émulation Linux supporte maintenant les fonctionnalités noyau nécessaires
+    au port <filename role="package">emulators/linux_base-7</filename> (émulation RedHat 7.X)
+    . &merged;</para>
+
+    <para>L'émulation linux nécessite maintenant l'option<literal>options
+    SYSVSEM</literal> dans le fichier de configuration du noyau. &merged;</para>
+
+    <para>**&man.lomac.4;, a Low-Watermark Mandatory Access Control
+    security facility, has been added as a kernel module.  It provides
+    a drop-in security mechanism in addition to the traditional
+    UID-based security facilities, requiring no additional
+    configuration from the administrator.  Work on this feature was
+    sponsored by DARPA and NAI Labs.</para>
+
+    <para>La variable de configuration du noyau <varname>maxusers</varname> 
+    est maintenant paramétrable au moment du démarrage. Les autres paramètres
+    dépendant de <varname>maxusers</varname> sont maintenant modifiables au démarrage.
+    Le paramètre <varname>hz</varname> est lui aussi modifiable. &merged;</para>
+
+    <para>Une valeur de <literal>0</literal> 
+    pour la variable noyau <varname>maxusers</varname> indique de calculer
+    ,au moment du démarrage, une valeur apropriée (entre 32 et 384, en fonction
+    de la quantité de mémoire). C'est la valeur par défaut du  noyau
+    <filename>GENERIC</filename>. &merged;</para>
+
+    <para arch="alpha">L'option noyau <varname>MAXMEM</varname> ,
+    couplée a la variable <varname>hw.physmem</varname> permet de
+    réduire, de façon articielle, la quantité de mémoire présente sur
+    une machine pour les tests (ou d'autres choses).&merged;</para>
+
+    <para>Les parametres noyau
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, et <varname>SGROWSIZ</varname> 
+    sont maintenant des variable modifiables (<varname>kern.maxtsiz</varname>,
+    <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
+
+    <para arch="i386">Les options de configuration du noyau
+     <literal>NCPU</literal>, <literal>NAPIC</literal>,
+    <literal>NBUS</literal>, et <literal>NINTR</literal>,
+    permettant de configurer les noyaux SMP, ont été retirés.
+    L'option <literal>NCPU</literal> est maintenant fixée a 16 et 
+    les autres options sus-mentionnées sont dynamiques. &merged;</para>
+
+    <para>Un gestionnaire de périphérique null-modem, &man.nmdm.4; a été ajouté.
+    &merged;</para>
+
+    <para>L'option <literal>O_DIRECT</literal> a été ajoutée a
+    &man.open.2; et &man.fcntl.2;. L'ajout de cette option au moment
+    de l'ouverture de fichiers tente de minimiser les effects du cache
+    en lecture et en écriture &merged;</para>
+
+    <para>Le gestionnaire de périphérique &man.orm.4; a été ajouté permettant
+    d'utiliser la ROM optionnel dans l'espacec mémoire ISA des I/O, cela permet
+    de prévenir d'autres gestionnaire de périphérique de réclamer cette espace mémoire
+    et donc d'entrer en conflit avec.&merged;</para>
+
+    <para arch="i386">Le support PECOFF (format d'éxécution Win32)a été
+    ajouté.</para>
+
+    <para arch="i386">Le gestionnaire de périphérique pcm supporte maintenant
+    la gestion d'énergie de the NEC PC-98NOTE.. &merged;</para>
+
+    <para>Les objets de mémoire partagés POSIX.1b sont maintenant supportés.
+    L'implémentation utilise des fichiers, mais active automatiquement l'options
+    MAP_NOSYNC lorsqu'ils sont &man.mmap.2;-ed. &merged;</para>
+
+    <para>Les différentes options <literal>PQ_*CACHE</literal> ont été 
+    remplacées par une seul option <literal>PQ_CACHESIZE</literal> permettant
+    de fixer la taille du cache en kilobytes. Les anciennes options
+    sont toujours supportées pour la compatibilité.&merged;</para>
+
+    <para arch="i386">Le gestionnaire de périphérique &man.puc.4; (PCI <quote>Universal</quote>
+    Communications) a été ajouté, permettant de connecter les ports séries PCI 
+    au gestionnaire &man.sio.4;.</para>
+
+    <para>Le gestionnaire de périphérique &man.random.4; a été réécrit pour
+    utiliser l'algorithme <application>Yarrow</application>. Il permet 
+    d'obtenir une meilleur entropy, depuis différentes sources, incluant
+    la console, les interfaces réseaux Ethernet et PPP, et les périphériques
+    de stockage. L'entropy de  &man.random.4; est maintenant périodiquement 
+    sauvegardé dans des fichiers dans le répertoire <filename>/var/db/entropy</filename>, 
+    ainsi que au moment de l'arret du système. La sémantique de <filename>/dev/random</filename>
+    a changé; il ne bloque plus  en attendant des bits d'entropy, mais génére un flux de
+    pseudo données aléatoires exactement comme <filename>/dev/urandom</filename>.</para>
+
+    <para>Une nouvelle option du noyau, <literal>options REGRESSION</literal>,
+    active les interfaces et les fonctionnalités utiles lors des phases de
+    regression et de correction.</para>
+
+    <para arch="i386">Un gestionnaire de périodiquement &man.spic.4;, 
+    permettant d'accéder au périphérique d'appel de certains
+    portable Sony, a été ajouté..</para>
+
+    <para>Le gestionnaire de périphérique &man.syscons.4; supporte maintenant le copier-coller
+    via le clavier, par défaut via les touches
+    <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
+
+    <para>Le support des périphériques USB a été ajouté au noyau 
+    <filename>GENERIC</filename> et au programme d'installation pour
+    permettre de supporte les périphériques USB par défaut. Notez que SRM
+    ne supporte pas tous les périphériques USB actuellement, et donc vous
+    devez utilisez un clavier AT si vous n'utilisez pas une console série.
+     &merged;</para>
+
+    <para arch="i386">Un gestionnaire de périphériques umodem pour
+    les modems USB a été ajouté. Il supporte les modems 3Com 5605 et Metricom Ricochet GS
+    wireless USB modems. &merged;</para>
+
+    <para arch="i386">Un gestionnaire de périphériques &man.uscanner.4; permettant
+    le support basique de scanner USB utilisant SANE a été ajouté. Référez vous a
+    <ulink
+    url="http://www.mostang.com/sane/">la page SANE</ulink> pour la liste
+    des scanners supportés Les scanners HP ScanJet 4100C, 5200C et 6300C 
+    sont supportés. &merged;</para>
+
+    <para>L'option du noyau <literal>USER_LDT</literal> est maintenant activée par défaut.</para>
+
+    <para>Un gestionnaire de périphériques VESA S3 linear framebuffer a été ajouté.</para>
+
+    <!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <para>**Write combining for crashdumps has been implemented.  This
+    feature is useful when write caching is disabled on both SCSI and
+    IDE disks, where large memory dumps could take up to an hour to
+    complete. &merged;</para>
+
+    <para>Les très grands swap  (&gt;67 GB) ne panique plus le système.</para>
+
+    <para arch="alpha">Le support pour les threads en émulation Linux a été ajouté.</para>
+
+    <para>La cible <maketarget>buildkernel</maketarget> prend en compte
+    la variable <varname>KERNCONF</varname> et non plus <varname>KERNEL</varname>
+    pour savoir quel fichier du noyau créer. Il n'est plus nécessaire, dans
+    certains cas, de faire précéder un <maketarget>buildkernel</maketarget> 
+    par un <maketarget>buildworld</maketarget>. (Un <maketarget>buildworld</maketarget>
+    est nécessaire pour la mise a jour lors des version majeures, ou de la mise a jour
+    de <application>binutil</application> et lors de changements dans &man.config.8;.) &merged;
+    </para>
+
+
+    <para>Le code de terminaison des processus lorsqu'il n'y a plus
+    de swap commence maintenant a terminer plus tot les processus, pour 
+    empecher les deadlocks; il prend en compte la quantité d'espace
+    de swap utilisé par les processus lors du calcul de la taille des 
+    processus.&merged;</para>
+
+    <para>Les définitions du linker sont maintenant inclues par défaut; 
+    &man.gensetdefs.8; n'est donc plus nécessaire et a donc été retiré.</para>
+
+    <para>Un vertain nombre de changements SMP a été effectué au niveau
+    de l'allocation des mbuf du noyau.</para>
+
+    <para>Le clonage de périphérique réseau a été implémenté, et le
+    périphérique &man.gif.4; a été modifié pour en tirer parti. Donc
+    maintenant au lieu de spécifié le nombre d'interfaces &man.gif.4; 
+    disponibles dans le fichier de configuration du noyau, L'option
+     <option>create</option> de &man.ifconfig.8; doit etre utilisée lorsqu'une
+     autre instance de périphérique est désirée. &merged;</para>
+
+    <para>Il est maintenant possible de rajouter des variables d'environnement
+    directement dans le noyau au moment de la compilation en utilisant la 
+    directive<literal>ENV</literal> de &man.config.8; .</para>
+
+   <para>**Idle zeroing of pages can be enabled with the
+    <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
+
+    <para arch="i386">Les adresses de chargement du noyau sont maintenant exportées
+    dans une table de symboles et différentes constantes anciennement codées en dur
+    ont été retirées, ce qui permet a certains programmes, comme &man.ps.1;, de 
+    fonctionner avec des noyaux compilés a différentes adresses. &merged;</para>
+
+    <para>Le vidage de mémoire des gros processus (ou d'un nombre important
+    de processus) ne bloque plus la machine pour un long moment. &merged;</para>
+
+    <para>Le noyau prend en compte maintenant le concept que il y a
+    des unités plus petites que un processus a gérer (mais il ne peut
+    avoir plus d'un thread par processus autorisé a un moment précis).</para>
+
+    <para>Le noyau supporte maintenant plusieurs périphériques bas-niveau pour la
+    console. Le nouvel utilitaire &man.conscontrol.8; permet de gérer ces différentes
+    consoles..</para>
+
+    <para arch="alpha">Le gestionnaire de périphériques des console supporte
+    maintenant les cartes graphiques de type TGA.</para>
+
+    <para>Le noyau se trouvant sur les CDs d'installation est maintenant
+    séparé de l'image <filename>mfsroot</filename>. Cela permet d'utiliser
+    un noyau complet lors de l'installation sur des machines permettant
+    de démarrer sur les CDs (plutot que d'avoir le noyau restreint utilisé
+    sur les disquettes). &merged;</para>
+
+    <para>**The system load average computation now adds some jitter to
+    the timing of samples, in order to avoid synchronization with
+    processes that run periodically. &merged;</para>
+
+    <para>Si vous créez un noyau de déboggage (en utilisant par ex 
+    <literal>makeoptions DEBUG=-g</literal>),les modules chargeables
+    a la demande seront aussi compiler avec le support de déboggage. Le
+    seul problème engendré sera que les modules construits avec un noyau
+    de déboggage prendront plus de place disque de précedemment. &merged;</para>
+
+    <para>Le périphérique de dump noyau peut maintenant etre activé
+    via le module chargeur <varname>dumpdev</varname>. Cela permet dorénavant
+    d'obtenir des informations sur les crashs du a des panic aux derniers moments
+    d'initialisation du noyau (avant que le système ne passe en mode mono-utilisateur).
+     &merged;</para>
+
 
     <sect3>
-      <title>Support des cartes mères et des processeurs</title>
+      <title>**Support des cartes mères et des processeurs</title>
 
-      <para></para>
     </sect3>
 
     <sect3>
@@ -140,33 +418,9 @@
     <sect3>
       <title>Support des interfaces réseau</title>
 
-      <para>Le gestionnaire &man.an.4; supporte maintenant Cisco LEAP, 
-      tout comme la clef <quote>Home</quote>WEP. Les utilitaires Linux
-      pour Aironet sont maintenant supportés via l'émulation Linux.</para>
-
-
-      <para arch="i386">Le support générique pour les réseaux a jetons
-      ARCNET a été ajouté.</para>
-
-      <para arch="i386">Le gestionnaire de périphérique cm supporte 
-      maintenant les cartes réseau ARCNET SMC COM90cx6.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
-<para> Certains gestionnaire de périphérique réseau implémentent maintenant un mode
-de semi-interrogation, permettant au système d'etre plus résistant face
-aux attaques et surcharges. Pour activer l'interrogation, les options suivantes
-sont nécessaires dans le fichier de configuration du noyau :
-
-	<programlisting>
-	options DEVICE_POLLING
-	options HZ=1000 # pas obligatoire mais véritablement recommandé</programlisting>
-
-	La variable  sysctl <varname>kern.polling.enable</varname> activera ensuite
-	le mode d'interrogation; la variable sysctl <varname>kern.polling.user_frac</varname>
-	indiquant le pourcentage de temps CPU à reserver dans le mode utilisateur. Les 
-	gestionnaires supportant cette fonctionnalité sont  &man.dc.4;, &man.fxp.4;, et
-	&man.sis.4;.  Plus de détails peuvent etre trouvé a la page de manuel de &man.polling.4;.</para>
     </sect3>
 
     <sect3>
@@ -213,12 +467,6 @@ sont nécessaires dans le fichier de configuration du noyau :
   <sect2 id="userland">
     <title>Changements dans les programmes utilisateurs</title>
 
-    <para>&man.ngctl.8; supporte maintenant une commande d' <option>écriture</option> 
-    permettant d'envoyer un paquet de données directement a un hook.</para>
-    
-
-    <para>L option <option>-W</option> de &man.ps.1; (permettant d'extraire des informations
-    depuis un gestionnaire de swap spécifique) étant inutile depuis quelque temps a été retiré.</para>
 
     <sect3>
       <title>Logiciels externes</title>
