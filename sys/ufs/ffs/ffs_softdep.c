@@ -4592,6 +4592,8 @@ clear_inodedeps(p)
 		if ((inodedep = LIST_FIRST(inodedephd)) != NULL)
 			break;
 	}
+	if (inodedep == NULL)
+		return;
 	/*
 	 * Ugly code to find mount point given pointer to superblock.
 	 */
