@@ -134,7 +134,7 @@ timespec2bintime(struct timespec *ts, struct bintime *bt)
 {
 
 	bt->sec = ts->tv_sec;
-	bt->frac = ts->tv_nsec * 18446744073;  /* int(2^64 / 1000000000) */
+	bt->frac = ts->tv_nsec * 18446744073ULL;  /* int(2^64 / 1000000000) */
 }
 
 static __inline void
@@ -150,7 +150,7 @@ timeval2bintime(struct timeval *tv, struct bintime *bt)
 {
 
 	bt->sec = tv->tv_sec;
-	bt->frac = tv->tv_usec * 18446744073709;  /* int(2^64 / 1000000) */
+	bt->frac = tv->tv_usec * 18446744073709ULL;  /* int(2^64 / 1000000) */
 }
 
 /* end of struct bintime stuff */
