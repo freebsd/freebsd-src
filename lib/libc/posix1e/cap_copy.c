@@ -20,10 +20,7 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-
 /*
  * TrustedBSD implementation of cap_copy_ext()/cap_copy_int()
  *
@@ -34,6 +31,9 @@
  * XXX: we cannot detect cap being invalid. If it is, the program will probably
  * segfault.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/capability.h>

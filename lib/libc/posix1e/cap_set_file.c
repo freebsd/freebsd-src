@@ -22,18 +22,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *       $FreeBSD$
  */
 /*
  * TrustedBSD Project - support for POSIX.1e process capabilities
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/capability.h>
 #include "un-namespace.h"
-
 
 int
 cap_set_file(const char *path_p, cap_t cap_p)

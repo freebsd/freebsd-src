@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_add.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_add.c,v 1.3 1996/03/14 19:41:52 christos Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_add.c,v 1.3 1996/03/14 19:41:52 christos Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Perform an FPU add (return x + y).

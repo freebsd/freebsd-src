@@ -40,9 +40,8 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

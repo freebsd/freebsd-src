@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: getnameinfo.c,v 1.45 2000/09/25 22:43:56 itojun Exp $	*/
 
 /*
@@ -41,6 +40,9 @@
  * - (KAME extension) NI_WITHSCOPEID when called with global address,
  *   and sin6_scope_id filled
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>

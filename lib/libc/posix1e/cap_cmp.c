@@ -20,13 +20,13 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-
 /*
  * Capabiltiy comparison functions cap_subset, cap_equal.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* define this to pull in the cap macros the kernel uses */
 #include <sys/types.h>

@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_div.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_div.c,v 1.2 1994/11/20 20:52:38 deraadt Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_div.c,v 1.2 1994/11/20 20:52:38 deraadt Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Perform an FPU divide (return x / y).

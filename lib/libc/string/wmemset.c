@@ -27,9 +27,11 @@
  */
 
 #include <sys/cdefs.h>
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: wmemset.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
+#endif
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>

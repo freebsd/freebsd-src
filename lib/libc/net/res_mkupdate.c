@@ -20,9 +20,8 @@
  * <viraj_bais@ccm.fm.intel.com>
  */
 
-#if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

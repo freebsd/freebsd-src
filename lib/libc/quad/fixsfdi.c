@@ -38,6 +38,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)fixsfdi.c	5.1 (Berkeley) 7/7/92";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "quad.h"
 
