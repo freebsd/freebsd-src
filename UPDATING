@@ -29,7 +29,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	Netgraph using utilities (e.g. ngctl, nghook, ppp, mpd,
 	pppoed, bluetooth, ATM) should be recompiled when a new kernel
 	is installed.
-	
+
 20040817:
 	IPFW has been converted to use PFIL_HOOKS.  This change is
 	transparent to userland and preserves the ipfw ABI.  The ipfw
@@ -74,11 +74,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	compiler. If you are getting run-time error such as
 	/libexec/ld-elf.so.1: Undefined symbol "_ZNSs20_S_empty_rep_storageE"
 	This entry does apply to you.
-	
+
 	A new unit-at-a-time optimization mode, which is default in this
 	compiler release, is more aggressive in removing unused static
 	symbols. This is the likely cause of 'make buildworld' breakages
-	with non-default CFLAGS where optimization level is set to -O2 or higher.
+	with non-default CFLAGS where optimization level is set to -O2
+	or higher.
 
 	With the upgrade of the system compiler, the kernel has been upgraded
 	to match the new system compiler.  This makes it impossible to build
@@ -1570,6 +1571,12 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	to upgrade to 4.0 from 3.x.
 
 COMMON ITEMS:
+
+	# NOTE: 5.x below applies to 6.0-currrent as well, for the
+	# momemnt.  4.any -> 5.any upgrade support will remain in
+	# place for 6.0 current, but after 5.3 RELEASE, the 4.any ->
+	# 6.0-current upgrade path will require moving through 5.3
+	# RELEASE or newer.
 
 	General Notes
 	-------------
