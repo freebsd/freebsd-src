@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.5 1996/02/06 20:36:10 wollman Exp $";
+	"$Id: route.c,v 1.6 1996/02/13 17:30:34 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -890,7 +890,7 @@ getaddr(which, s, hpp)
 	if (hpp == NULL)
 		hpp = &hp;
 	*hpp = NULL;
-	if (((val = inet_addr(s)) != -1) &&
+	if (((val = inet_addr(s)) != INADDR_NONE) &&
 	    (which != RTA_DST || forcenet == 0)) {
 		su->sin.sin_addr.s_addr = val;
 		if (inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
@@ -900,7 +900,7 @@ getaddr(which, s, hpp)
 			goto netdone;
 		}
 	}
-	if ((val = inet_network(s)) != -1 ||
+	if ((val = inet_network(s)) != INADDR_NONE ||
 	    ((np = getnetbyname(s)) != NULL && (val = np->n_net) != 0)) {
 netdone:
 		if (which == RTA_DST)
