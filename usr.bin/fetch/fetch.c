@@ -275,8 +275,8 @@ query_auth(struct url *URL)
 	fprintf(stderr, "Login: ");
 	if (fgets(URL->user, sizeof URL->user, stdin) == NULL)
 		return (-1);
-	for (i = 0; URL->user[i]; ++i)
-		if (isspace(URL->user[i]))
+	for (i = strlen(URL->user); i >= 0; --i)
+		if (URL->user[i] == '\r' || URL->user[i] == '\n')
 			URL->user[i] = '\0';
 
 	fprintf(stderr, "Password: ");
@@ -293,10 +293,10 @@ query_auth(struct url *URL)
 	}
 	if (nopwd)
 		return (-1);
-
-	for (i = 0; URL->pwd[i]; ++i)
-		if (isspace(URL->pwd[i]))
+	for (i = strlen(URL->pwd); i >= 0; --i)
+		if (URL->pwd[i] == '\r' || URL->pwd[i] == '\n')
 			URL->pwd[i] = '\0';
+
 	return (0);
 }
 
