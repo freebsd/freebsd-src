@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.11 1995/04/05 13:16:30 jkh Exp $
+; $Id: TODO,v 1.12 1995/04/23 21:34:23 paul Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -49,21 +49,12 @@ Thanks!
 
 ** --- cut here ---
 
-TASKID:	940820002
-TASK:	Add Linux/Crynwr compatible plip mode to lpt.c
-DETAIL: { Look at the crynwr packet-driver plip.asm (ftp::ftp.ftp.com)
-and the linux driver for reference. }
-EMAIL:	<phk>
-CATS:	kernel networking
-GRADE:	ADVANCED
-STATUS: OPEN (*)
-
 TASKID:	940820003
 TASK:	Add laptop-feature to wd.c
 DETAIL:	{ If disk just spun up, do sync when we have it running.  Need
 to detect that disk was turned off, e.g. had a long delay in becomming
 ready again. }
-EMAIL:	<phk>
+EMAIL:	<phk, nate>
 CATS:	kernel laptop
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
@@ -76,20 +67,10 @@ also requires some modification of existing drivers to support being used
 by PCMCIA cards.  This task is both really hard and comparatively easy;
 hard because it's a big job, easy because others have already gone much of
 the way and you have their work for reference. }
-EMAIL:	<phk>
+EMAIL:	<phk, nate>
 CATS:	kernel laptop
 GRADE:	ADVANCED
 STATUS:	IN PROGRESS
-
-TASKID:	940820006
-TASK:	Add bootp/DHCP to the generic ethernet code.
-DETAIL:	{ Implement an ioctl(), which will send a bootp on a particular
-interface and return the data in a usable format. OR make a program which uses
-existing ioctls to do it.  See RFC153[34] for information on DHCP. }
-EMAIL:	<phk>
-CATS:	kernel networking
-GRADE:	ADVANCED
-STATUS:	OPEN (*)
 
 TASKID:	940820007
 TASK:	Add bootp/DHCP capability to slip driver.
@@ -149,18 +130,3 @@ EMAIL:	<rgrimes, phk>
 CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
-
-TASKID: 95031701
-TASK:	Implement a file system debugger (fsdb)
-DETAIL:	{ Traditionally, there has been a fsdb(8) program in Unix.
-This program is not part of 4.4BSD, but the current system lacks
-some utility to low-level step through the file system and repair
-(or damage:) something in case fsck tells about problems, but the
-administrator is unlucky with the suggested actions of fsck.
-The original fsdb had a terrible syntax, something more rationale
-should be built instead. }
-EMAIL:	<joerg>
-CATS:	user
-GRADE:	ADVANCED
-STATUS:	OPEN
-
