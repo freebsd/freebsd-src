@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.2 1995/12/14 09:53:56 phk Exp $
+ *	$Id: bt9xx.c,v 1.3 1995/12/14 14:19:19 peter Exp $
  */
 
 #include <pci.h>
@@ -36,7 +36,7 @@
 
 /* XXX Need more device IDs */
 #define PCI_BASEADR0	PCI_MAP_REG_START
-#define PCI_DEVICE_ID_BUSLOGIC_946	0x104B1040ul
+#define PCI_DEVICE_ID_BUSLOGIC_946	0x1040104Bul
 
 static char* bt_pci_probe __P((pcici_t tag, pcidi_t type));
 static void bt_pci_attach __P((pcici_t config_id, int unit));
