@@ -36,7 +36,6 @@
  * UltraSPARC IIi and IIe `sabre' PCI controllers.
  */
 
-#define	__RMAN_RESOURCE_VISIBLE
 #include "opt_ofw_pci.h"
 #include "opt_psycho.h"
 

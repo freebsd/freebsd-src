@@ -129,7 +129,6 @@
  * - Add bounce buffers to support machines with more than 16GB of RAM.
  */
 
-#define	__RMAN_RESOURCE_VISIBLE
 #include "opt_iommu.h"
 
 #include <sys/param.h>
