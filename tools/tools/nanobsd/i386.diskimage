@@ -25,14 +25,14 @@ ALTROOTSLICE=$6
 CFGSLICE=$7
 WD=$8
 IMG=$9
-CFGMASTER=$10
+CFGMASTER=${10}
 
 TMPFILE0=`mktemp -t nanobsd`
 TMPFILE1=`mktemp -t nanobsd`
 TMPMNT=`mktemp -d -t nanobsd`
 
 make_fstab () {
-  echo "/dev/$1 / ufs ro 1 1" > ${WD}/etc/fstab
+  echo "/dev/$1 / ufs ro 1 1" > $2/etc/fstab
 }
 
 get_label () {
@@ -75,7 +75,7 @@ bsdlabel -w -B ${MD}s1
 newfs ${PRIROOTLABEL} -O1 -U ${MD}s1a
 mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
-make_fstab ${PRIROOTSLICE}
+make_fstab ${PRIROOTSLICE} ${TMPMNT}
 df ${TMPMNT}
 umount ${TMPMNT}
 
@@ -86,7 +86,7 @@ if [ -n "${ALTROOTLABEL}" ]; then
   tunefs ${ALTROOTLABEL} /dev/${MD}s2a
 fi
 mount /dev/${MD}s2a ${TMPMNT}
-make_fstab ${ALTROOTSLICE}
+make_fstab ${ALTROOTSLICE} ${TMPMNT}
 umount ${TMPMNT}
 
 # Prepare configuration slice
