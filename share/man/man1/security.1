@@ -1,0 +1,356 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)security.1	8.2 (Berkeley) 12/30/93
+.\"	$Id: security.1,v 1.10 1997/06/13 21:11:27 max Exp $
+.\"
+.Dd December 30, 1993
+.Dt SECURITY 1
+.Os
+.Sh NAME
+.Nm security
+.Nd introduction to security under FreeBSD
+.Sh DESCRIPTION
+Security is a function that begins and ends with the system administrator.
+While all
+.Bx
+systems are inherently multi-user capable, the job of building and
+maintaining security mechanisms to keep those users 'honest' is probably
+one of the single largest undertakings of the sysad.  Machines are
+only as secure as you make them, and security concerns are ever competing
+with the human necessity for convenience.   UNIX systems,
+in general, are capable of running a huge number of simultanious processes
+and many of these processes operate as servers - meaning that external entities
+can connect and talk to them.  As yesterday's mini-computers and mainframes 
+become today's desktops, and as computers become networked and internetworked,
+security becomes an ever bigger issue.
+.Pp
+Security concerns can be split up into several categories:
+.Bl -enum -offset indent
+.It
+Denial of service attacks
+.It
+User account compromises
+.It
+Root Hacks through accessible servers
+.It
+Root Hacks via user accounts
+.El
+.Pp
+A denial of service attack is an action that deprives the machine of needed
+resources.  Typically, D.O.S. attacks are brute-force mechanisms that attempt
+to crash or otherwise make a machine unusable by overwhelming its servers or
+network stack.  Some D.O.S. attacks try to take advantages of bugs in the
+networking stack to crash a machine with a single packet.  The latter can
+only be fixed by applying a bug fix to the kernel.  Attacks on servers can
+often be fixed by properly specifying options to servers to limit the load
+they incur on the system under adverse conditions.  Brute-force network 
+attacks are harder to deal with.  A spoofed-packet attack, for example, is 
+nearly impossible to stop short of cutting your system off from the internet.
+.Pp
+A user account compromise is even more common then a D.O.S. attack.  Many
+sysops still run standard telnetd, rlogind, rshd, and ftpd servers on their
+machines.  These servers, by default, do not operate over encrypted
+connections.  The result is that if you have any moderate-sized user base,
+one or more of your users logging into your system from a remote location
+(which is the most common and convenient way to login to a system) will
+have his or her password sniffed.  The attentive system admin will analyze
+his remote access logs occassionally looking for suspicious source addresses
+even for successful logins.
+.Pp
+One must always assume that once an attacker has access to a user account,
+the attacker can break root.  However, the reality is that in a well secured
+and maintained system, access to a user account does not necessarily give the
+attacker access to root.  The distinction is important because without access
+to root the attacker cannot generally hide his tracks and may, at best, be
+able to remove that user's files and crash the machine, but not touch anyone
+else's files.
+.Pp
+System administrators must keep in mind that there are several ways to break
+root on a machine.  The attacker may know the root password, the attacker
+may find a bug in a root-run server and be able to break root over a network
+connection to that server, or the attacker may know of a bug in an suid-root
+program that allows the attacker to break root once he has broken into a 
+user's account.
+.Pp
+Security remedies are always implemented in a multi-layered 'onion peel' 
+approach and can be categorized as follows:
+.Bl -enum -offset indent
+.It
+Securing root and staff accounts
+.It
+Securing root - root-run servers and suid/sgid binaries
+.It
+Securing user accounts
+.It
+Securing the password file 
+.It
+Securing the kernel core, raw devices, and filesystems
+.It
+Checking file integrity: binaries, config files, and so forth
+.It
+Paranoia
+.El
+.Sh SECURING THE ROOT ACCOUNT AND SECURING STAFF ACCOUNTS
+.Pp
+Don't bother securing staff accounts if you haven't secured the root
+account.  Most systems have a password assigned to the root account.  The
+first thing you do is assume that the password is 'always' compromised.
+To secure the root account you make sure that it is not possible to login
+to the root account using the root password from a random user account or 
+over the network.  If you haven't already, configure telnetd, rlogind, and
+all other servers that handle login operations to refuse root logins, period,
+whether the right password is given or not.  Allow direct root logins only
+via the system console.  The '/etc/ttys' file comes in handy here and is
+secure by default on most systems, but a good sysad always checks to make sure.
+.Pp
+Of course, as a sysad you have to be able to get to root, so we open up
+a few holes.  But we make sure these holes require additional password
+verification to operate.  One way to make root accessible is to add appropriate
+staff accounts to the wheel group (in /etc/group).  The staff members placed
+in the wheel group are allowed to 'su' to root.  You should never give staff
+members native wheel access via their entry in the password file... put staff
+in a 'staff' group or something and only add those that really need root to
+the wheel group.  Unfortunately the wheel mechanism still allows a hacker to
+break root if the hacker has gotten hold of your password file - he need only
+break the root password and the password of one of the staff accounts that
+happens to be in the wheel group.  So while the wheel mechanism is useable,
+it isn't much safer then not having a wheel group at all.
+.Pp
+An indirect way to secure the root account is to secure your staff accounts
+by using an alternative login access method and *'ing out the crypted password
+for the staff accounts.  This way a hacker may be able to steal the password
+file but will not be able to break into any staff accounts (or, indirectly,
+root, even if root has a crypted password associated with it).  Staff members
+get into their staff accounts through a secure login mechanism such as 
+kerberos(1) or ssh(1) (see /usr/ports/security/ssh) using a private/public
+keypair.  When you use something like kerberos you generally must secure
+the machines which run the kerberos servers and your desktop workstation.
+When you use a public/private keypair with ssh, you must generally secure
+the machine you are logging in FROM (typically your workstation), but you can
+also add an additional layer of protection to the keypair by password 
+protecting the keypair when you create it with ssh-keygen(1).  Being able
+to *-out the passwords for staff accounts also guarentees that staff members
+can only login through secure access methods that you have setup.  You can
+thus force all staff members to use secure, encrypted connections for
+all their sessions which closes an important hole used by many hackers:  That
+of sniffing the network from an unrelated, less secure machine.
+.Pp
+The more indirect security mechanisms also assume that you are logging in
+from a more restrictive server to a less restrictive server.  For example, 
+if your main box is running all sorts of servers, your workstation shouldn't
+ be running any.  In order for your workstation to be reasonably secure 
+you should run as few servers as possible, up to and including no servers 
+at all, and you should run a password-protected screen blanker. 
+ Of course, given physical access to
+a workstation an attacker can break any sort of security you put on it.
+This is definitely a problem that you should consider but you should also
+consider the fact that the vast majority of breakins occur remotely, over
+a network, from peopl who do not have physical access to your workstation or
+servers.
+.Pp
+Using something like kerberos also gives you the ability to disable or
+change the password for a staff account in one place and have it immediately
+effect all the machine the staff member may have an account on.  If a staff
+member's account gets compromised, the ability to instantly change his 
+password on all machines should not be underrated.  With discrete passwords,
+changing a password on N machines can be a mess.  You can also impose 
+re-passwording restrictions with kerberos:  not only can a kerberos ticket
+be made to timeout after a while, but the kerberos system can require that
+the user choose a new password after a certain period of time (say, once a 
+month). 
+.Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
+.Pp
+The prudent sysop only runs the servers he needs to, no more, no less.  Be
+aware that third party servers are often the most bug-prone.  For example,
+running an old version of imapd or popper is like giving a universal root
+ticket out to the entire world.  Never run a server that you have not checked
+out carefully.  Many servers do not need to be run as root.  For example,
+the ntalk, comsat, and finger daemons can be run in special user 'sandboxes'.
+A sandbox isn't perfect unless you go to a hellofalot of trouble, but the
+onion approach to security still stands:  If someone is able to break in
+through a server running in a sandbox, they still have to break out of the
+sandbox.  The more layers the attacker must break through, the lower the
+likelihood of his success.  Root holes have historically been found in
+virtually every server ever run as root, including basic system servers.
+If you are running a machine through which people only login via sshd and
+never login via telnetd or rshd or rlogind, then turn off those services!
+.Pp
+FreeBSD now defaults to running ntalkd, comsat, and finger in a sandbox.
+Another program which may be a candidate for running in a sandbox is
+named(8).  The default rc.conf includes the arguments necessary to run
+named in a sandbox in a commented-out form.  Depending on whether you
+are installing a new system or upgrading an existing system, the special
+user accounts used by these sandboxes may not be installed.  The prudent
+sysop would research and implement sandboxes for servers whenever possible.
+.Pp
+There are a number of other servers that typically do not run in sandboxes:
+sendmail, popper, imapd, ftpd, and others.  There are alternatives to
+some of these, but installing them may require more work then you are willing
+to put (the convenience factor strikes again).  You may have to run these
+servers as root and rely on other mechanisms to detect breakins that might
+occur through them.
+.Pp
+The other big potential root hole in a system are the suid-root and sgid
+binaries installed on the system.  Most of these binaries, such as rlogin,
+reside in /bin, /sbin, /usr/bin, or /usr/sbin.  While nothing is 100% safe,
+the system-default suid and sgid binaries can be considered reasonably safe.
+Still, root holes are occassionaly found in these binaries.  A root hole
+was found in Xlib in 1998 that made xterm (which is typically suid) vulnerable.
+It is better to be safe then sorry and the prudent sysad will restrict suid
+binaries that only staff should run to a special group that only staff can
+access, and get rid of (chmod 000) any suid binaries that nobody uses.  A 
+server with no display generally does not need an xterm binary.  Sgid binaries
+can be almost as dangerous.  If a hacker can break an sgid-kmem binary the
+hacker might be able to read /dev/kmem and thus read the crypted password
+file, potentially compromising any passworded account.  A hacker that breaks
+the tty group can write to almost user's tty.  If a user is running a terminal
+program or emulator with a talk-back feature, the hacker can potentially 
+generate a data stream that causes the user's terminal to echo a command, which
+is then run as that user.
+.Sh SECURING USER ACCOUNTS
+User accounts are usually the most difficult to secure.  While you can impose
+draconian access restrictions on your staff and *-out their passwords, you
+may not be able to do so with any general user accounts you might have.  If
+you do have sufficient control then you may win out and be able to secure the
+user accounts properly.  If not, you simply have to be more vigilant in your
+monitoring of those accounts.  Use of ssh and kerberos for user accounts is
+more problematic, but still a very good solution compared to a crypted
+password. 
+.Sh SECURING THE PASSWORD FILE
+The only sure fire way is to *-out as many passwords as you can and 
+use ssh or kerberos for access to those accounts.  Even though the 
+crypted password file (/etc/spwd.db) can only be read by root, it may
+be possible for a hacker to obtain read access to that file even if the 
+attacker cannot obtain root-write access.
+.Pp
+Your security scripts should always check for and report changes to 
+the password file (see 'Checking file integrity' below).
+.Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
+If an attacker breaks root he can do just about anything, but there
+are certain conveniences.  For example, most modern kernels have a
+packet sniffing device driver built in.  Under FreeBSD it is called
+the 'bpf' device.  A hacker will commonly attempt to run a packet sniffer
+on a compromised machine.  You do not need to give the hacker the 
+capability and most systems should not have the bpf device compiled in.
+Unfortunately, there is another kernel feature called the Loadable Kernel
+Module interface.  An enterprising hacker can use an LKM to install 
+his own bpf device or other sniffing device on a running kernel.  If you
+do not need to use the module loader, turn it off in the kernel config
+with the NO_LKM option.
+.Pp
+But even if you turn off the bpf device, and turn off the module loader,
+you still have /dev/mem and /dev/kmem to worry about.  For that matter,
+the hacker can still write raw devices.  To avoid this you have to run
+the kernel at a higher secure level... at least securelevel 1.  The securelevel
+can be set with a sysctl on the kern.securelevel variable.  Once you have
+set the securelevel to 1, write access to raw devices will be denied and
+special chflags flags, such as 'schg', will be enforced.  You must also ensure
+that the 'schg' flag is set on critical startup binaries, directories, and
+script files - everything that gets run up to the point where the securelevel
+is set.  This might be overdoing it, and upgrading the system is much more
+difficult when you operate at a higher secure level.  You may compromise and
+run the system at a higher secure level but not set the schg flag for every
+system file and directory under the sun.
+.Sh CHECKING FILE INTEGRITY: BINARIES, CONFIG FILES, ETC
+.Pp
+When it comes right down to it, you can only protect your core system
+configuration and control files so much before the convenience factor
+rears its ugly head.  The last layer of your security onion is perhaps
+the most important - detection.
+.Pp
+The only correct way to check a system's file integrity is via another,
+more secure system.  It is fairly easy to setup a 'secure' system: you
+simply do not run any services on it.  With a secure system in place you
+can then give it access to other system's root spaces via ssh.  This may
+seem like a security breech, but you have to put your trust somewhere and
+as long as you don't do something stupid like run random servers it really
+is possible to build a secure machine.  When I say 'secure' here, I assuming
+physical access security as well, of course.  Given a secure machine with
+root access on all your other machines, you can then write security scripts
+ON the secure machine to check the other machines on the system.  The most
+common way of checking is to have the security script scp(1) over a find
+and md5 binary and then ssh a shell command to the remote machine to md5
+all the files in the system (or, at least, the /, /var, and /usr partitions!).
+The security machine copies the results to a file and diff's them against
+results from a previous run (or compares the results against its own 
+binaries), then emails each staff member a daily report of differences.
+.Pp
+Another way to do this sort of check is to NFS export the major filesystems
+from every other machine to the security machine.  This is somewhat more
+network intensive but also virtually impossible for a hacker to detect
+or spoof.
+.Pp
+A good security script will also check for changes to user and staff members
+access configuration files:  .rhosts, .shosts, .ssh/authorized_keys, and
+so forth... files that might fall outside the pervue of the MD5 check.
+.Pp
+A good security script will check for suid and sgid binaries on all 
+filesystems and report their absolute existance as well as a diff against
+the previous report or some baseline (say, make a baseline once a week).
+While you can turn off the ability to run suid and sgid binaries on certain
+filesystems through the 'nosuid' option in fstab/mount, you cannot turn this
+off on root and anyone who breaks root can just install their binary their.
+If you have a huge amount of user disk space, though, it may be useful to
+disallow suid binaries and devices ('nodev' option) on the user partitions
+so you do not have to scan them for such.  I would scan them anyway, though,
+at least once a week, since the object of this onion layer is detection of
+a breakin.
+.Pp
+Process accounting (see accton(1)) is a relatively low-overhead feature of
+the operating system which I recommend using as a post-breakin evaluation
+mechanism.  It is especially useful in tracking down how a hacker has 
+actually broken root on a system, assuming the file is still intact after
+the breakin occurs.
+.Pp
+Finally, security scripts should process the log files and the logs themselves
+should be generated in as secured a manner as possible - remote syslog can be
+very useful.  A hacker tries to cover his tracks, and log files are critical
+to the sysop trying to track down the time and method of the initial breakin.
+.Sh PARANOIA
+A little paranoia never hurts.  As a rule, a sysop can add any number
+of security features as long as they do not effect convenience, and 
+can add security features that do effect convenience with some added
+thought.
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr sshd 1 ,
+.Xr kerberos 1 ,
+.Xr accton 1 ,
+.Xr xdm 1 ,
+.Xr syslogd 1 ,
+.Xr chflags 1 ,
+.Xr find 1 ,
+.Xr md5 1
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in FreeBSD-3.0.1, December 1998.
