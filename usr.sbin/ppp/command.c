@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.156 1998/07/28 21:54:52 brian Exp $
+ * $Id: command.c,v 1.157 1998/07/29 18:21:13 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -122,7 +122,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/07/28 21:54:52 $";
+const char VersionDate[] = "$Date: 1998/07/29 18:21:13 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -306,8 +306,7 @@ DialCommand(struct cmdargs const *arg)
   if (arg->argc > arg->argn && (res = LoadCommand(arg)) != 0)
     return res;
 
-  bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL,
-              arg->cmd->args ? 1 : 0);
+  bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL, 1);
 
   return 0;
 }
@@ -458,10 +457,6 @@ static struct cmdtab const Commands[] = {
   "Deny option request", "deny option .."},
   {"dial", "call", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Dial and login", "dial|call [remote]", NULL},
-  {NULL, "dial!", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Dial and login", "dial! [remote]", (void *)1},
-  {NULL, "call!", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Dial and login", "call! [remote]", (void *)1},
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -473,8 +468,6 @@ static struct cmdtab const Commands[] = {
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Load settings", "load [remote]"},
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Open an FSM", "open [lcp|ccp|ipcp]", NULL},
-  {NULL, "open!", OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
   "Password for manipulation", "passwd LocalPassword"},
@@ -841,8 +834,7 @@ static int
 OpenCommand(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn)
-    bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL,
-                arg->cmd->args ? 1 : 0);
+    bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL, 1);
   else if (arg->argc == arg->argn + 1) {
     if (!strcasecmp(arg->argv[arg->argn], "lcp")) {
       struct datalink *cx = arg->cx ?
@@ -851,8 +843,7 @@ OpenCommand(struct cmdargs const *arg)
         if (cx->physical->link.lcp.fsm.state == ST_OPENED)
           fsm_Reopen(&cx->physical->link.lcp.fsm);
         else
-          bundle_Open(arg->bundle, cx->name, PHYS_ALL,
-                      arg->cmd->args ? 1 : 0);
+          bundle_Open(arg->bundle, cx->name, PHYS_ALL, 1);
       } else
         log_Printf(LogWARN, "open lcp: You must specify a link\n");
     } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
@@ -879,7 +870,7 @@ OpenCommand(struct cmdargs const *arg)
       if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
         fsm_Reopen(&arg->bundle->ncp.ipcp.fsm);
       else
-        bundle_Open(arg->bundle, NULL, PHYS_ALL, arg->cmd->args ? 1 : 0);
+        bundle_Open(arg->bundle, NULL, PHYS_ALL, 1);
     } else
       return -1;
   } else
