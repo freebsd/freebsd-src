@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.6 1995/09/14 04:33:35 gibbs Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5.4.1 1995/09/17 06:39:59 davidg Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.5.4.1  1995/09/17 06:39:59  davidg
+ * Brought in changes from rev 1.6: Give 'Index:' priority over other paths.
+ *
  * Revision 1.6  1995/09/14  04:33:35  gibbs
  * Give "Index" specified filenames preference over other filenames specified
  * in the diff.  This makes it so that diffs containing files in different
@@ -359,7 +362,9 @@ intuit_diff_type()
 	    oldname = fetchname(oldtmp, strippath, ok_to_create_file);
 	if (newtmp != Nullch)
 	    newname = fetchname(newtmp, strippath, ok_to_create_file);
-	if (oldname && newname) {
+	if (indname)
+	    filearg[0] = savestr(indname);
+	else if (oldname && newname) {
 	    if (strlen(oldname) < strlen(newname))
 		filearg[0] = savestr(oldname);
 	    else
