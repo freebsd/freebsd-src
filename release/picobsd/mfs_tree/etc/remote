@@ -1,5 +1,5 @@
 #	@(#)remote	5.2 (Berkeley) 6/30/90
-#
+# $FreeBSD$
 # remote -- remote host description file
 # see tip(1), remote(5)
 #
