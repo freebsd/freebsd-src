@@ -5,17 +5,31 @@
 # $FreeBSD$
 #
 
-# PROVIDE: network2
+# PROVIDE: routing
 # REQUIRE: netif ppp-user
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
-name="network2"
-start_cmd="network2_start"
-stop_cmd=":"
+name="routing"
+start_cmd="routing_start"
+stop_cmd="routing_stop"
+extra_commands="options static"
+static_cmd="static_start"
+options_cmd="options_start"
 
-network2_start()
+routing_start()
+{
+	static_start
+	options_start
+}
+
+routing_stop()
+{
+	route -n flush
+}
+
+static_start()
 {
 	case ${defaultrouter} in
 	[Nn][Oo] | '')
@@ -31,10 +45,13 @@ network2_start()
 	if [ -n "${static_routes}" ]; then
 		for i in ${static_routes}; do
 			eval route_args=\$route_${i}
-			route add ${route_args}
+			echo route add ${route_args}
 		done
 	fi
+}
 
+options_start()
+{
 	echo -n 'Additional routing options:'
 	case ${tcp_extensions} in
 	[Yy][Ee][Ss] | '')
