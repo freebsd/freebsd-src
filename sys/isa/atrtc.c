@@ -189,7 +189,7 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD,
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
-	0x1ffff,		/* counter_mask */
+	~0u,			/* counter_mask */
 	0,			/* frequency */
 	"i8254"			/* name */
 };
