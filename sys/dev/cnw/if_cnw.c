@@ -1578,7 +1578,7 @@ static int cnw_pccard_detach(dev)
 
 	cnw_stop(sc);
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	cnw_free(dev);
 	sc->cnw_gone = 1;
 
