@@ -129,7 +129,12 @@ cttyread(dev, uio, flag)
 	if (ttyvp == NULL)
 		return (EIO);
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_READ(ttyvp, uio, flag, NOCRED);
+#ifdef MAC
+	/* XXX: Shouldn't the cred below be td->td_ucred not NOCRED? */
+	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_READ);
+	if (error == 0)
+#endif
+		error = VOP_READ(ttyvp, uio, flag, NOCRED);
 	VOP_UNLOCK(ttyvp, 0, td);
 	return (error);
 }
