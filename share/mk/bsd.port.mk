@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.144 1995/04/20 18:03:02 asami Exp $
+# $Id: bsd.port.mk,v 1.145 1995/04/22 00:01:26 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1050,7 +1050,7 @@ describe:
 .if !target(fake-pkg)
 .if !defined(NO_PACKAGE)
 fake-pkg:
-	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then echo "** Missing patch files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then echo "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then rm -f ${PKG_DBDIR}; mkdir -p ${PKG_DBDIR}; fi
 	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
 		${ECHO_MSG} "===> Registering installation for ${PKGNAME}"; \
