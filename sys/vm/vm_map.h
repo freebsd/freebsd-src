@@ -109,6 +109,7 @@ struct vm_map_entry {
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
+	vm_pindex_t lastr;		/* last read */
 };
 
 #define MAP_ENTRY_UNUSED_01		0x1
