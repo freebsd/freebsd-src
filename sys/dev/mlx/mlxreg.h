@@ -26,6 +26,11 @@
  *	$FreeBSD$
  */
 
+#define MLX_CFG_BASE0   0x10		/* first region */
+#define MLX_CFG_BASE1   0x14		/* second region (type 3 only) */
+
+#define MLX_BLKSIZE	512		/* fixed feature */
+
 /*
  * Selected command codes.
  */
@@ -245,3 +250,124 @@ struct mlx_rebuild_stat	/* MLX_CMD_REBUILDSTAT */
     u_int32_t	rb_remaining;
 } __attribute__ ((packed));
 
+/*
+ * Inlines to build various command structures
+ */
+static __inline void
+mlx_make_type1(struct mlx_command *mc,
+	       u_int8_t code, 
+	       u_int16_t f1,
+	       u_int32_t f2,
+	       u_int8_t f3,
+	       u_int32_t f4,
+	       u_int8_t f5) 
+{
+    mc->mc_mailbox[0x0] = code;
+    mc->mc_mailbox[0x2] = f1 & 0xff;
+    mc->mc_mailbox[0x3] = (((f2 >> 24) & 0x3) << 6) | ((f1 >> 8) & 0x3f);
+    mc->mc_mailbox[0x4] = f2 & 0xff;
+    mc->mc_mailbox[0x5] = (f2 >> 8) & 0xff;
+    mc->mc_mailbox[0x6] = (f2 >> 16) & 0xff;
+    mc->mc_mailbox[0x7] = f3;
+    mc->mc_mailbox[0x8] = f4 & 0xff;
+    mc->mc_mailbox[0x9] = (f4 >> 8) & 0xff;
+    mc->mc_mailbox[0xa] = (f4 >> 16) & 0xff;
+    mc->mc_mailbox[0xb] = (f4 >> 24) & 0xff;
+    mc->mc_mailbox[0xc] = f5;
+}
+
+static __inline void
+mlx_make_type2(struct mlx_command *mc,
+	       u_int8_t code, 
+	       u_int8_t f1,
+	       u_int8_t f2,
+	       u_int8_t f3,
+	       u_int8_t f4,
+	       u_int8_t f5,
+	       u_int8_t f6,
+	       u_int32_t f7,
+	       u_int8_t f8)
+{
+    mc->mc_mailbox[0x0] = code;
+    mc->mc_mailbox[0x2] = f1;
+    mc->mc_mailbox[0x3] = f2;
+    mc->mc_mailbox[0x4] = f3;
+    mc->mc_mailbox[0x5] = f4;
+    mc->mc_mailbox[0x6] = f5;
+    mc->mc_mailbox[0x7] = f6;
+    mc->mc_mailbox[0x8] = f7 & 0xff;
+    mc->mc_mailbox[0x9] = (f7 >> 8) & 0xff;
+    mc->mc_mailbox[0xa] = (f7 >> 16) & 0xff;
+    mc->mc_mailbox[0xb] = (f7 >> 24) & 0xff;
+    mc->mc_mailbox[0xc] = f8;
+}
+
+static __inline void
+mlx_make_type3(struct mlx_command *mc,
+	       u_int8_t code, 
+	       u_int8_t f1,
+	       u_int8_t f2,
+	       u_int16_t f3,
+	       u_int8_t f4,
+	       u_int8_t f5,
+	       u_int32_t f6,
+	       u_int8_t f7)
+{
+    mc->mc_mailbox[0x0] = code;
+    mc->mc_mailbox[0x2] = f1;
+    mc->mc_mailbox[0x3] = f2;
+    mc->mc_mailbox[0x4] = f3 & 0xff;
+    mc->mc_mailbox[0x5] = (f3 >> 8) & 0xff;
+    mc->mc_mailbox[0x6] = f4;
+    mc->mc_mailbox[0x7] = f5;
+    mc->mc_mailbox[0x8] = f6 & 0xff;
+    mc->mc_mailbox[0x9] = (f6 >> 8) & 0xff;
+    mc->mc_mailbox[0xa] = (f6 >> 16) & 0xff;
+    mc->mc_mailbox[0xb] = (f6 >> 24) & 0xff;
+    mc->mc_mailbox[0xc] = f7;
+}
+
+static __inline void
+mlx_make_type4(struct mlx_command *mc,
+	       u_int8_t code, 
+	       u_int16_t f1,
+	       u_int32_t f2,
+	       u_int32_t f3,
+	       u_int8_t f4)
+{
+    mc->mc_mailbox[0x0] = code;
+    mc->mc_mailbox[0x2] = f1 & 0xff;
+    mc->mc_mailbox[0x3] = (f1 >> 8) & 0xff;
+    mc->mc_mailbox[0x4] = f2 & 0xff;
+    mc->mc_mailbox[0x5] = (f2 >> 8) & 0xff;
+    mc->mc_mailbox[0x6] = (f2 >> 16) & 0xff;
+    mc->mc_mailbox[0x7] = (f2 >> 24) & 0xff;
+    mc->mc_mailbox[0x8] = f3 & 0xff;
+    mc->mc_mailbox[0x9] = (f3 >> 8) & 0xff;
+    mc->mc_mailbox[0xa] = (f3 >> 16) & 0xff;
+    mc->mc_mailbox[0xb] = (f3 >> 24) & 0xff;
+    mc->mc_mailbox[0xc] = f4;
+}
+
+static __inline void
+mlx_make_type5(struct mlx_command *mc,
+	       u_int8_t code, 
+	       u_int8_t f1,
+	       u_int8_t f2,
+	       u_int32_t f3,
+	       u_int32_t f4,
+	       u_int8_t f5)
+{
+    mc->mc_mailbox[0x0] = code;
+    mc->mc_mailbox[0x2] = f1;
+    mc->mc_mailbox[0x3] = f2;
+    mc->mc_mailbox[0x4] = f3 & 0xff;
+    mc->mc_mailbox[0x5] = (f3 >> 8) & 0xff;
+    mc->mc_mailbox[0x6] = (f3 >> 16) & 0xff;
+    mc->mc_mailbox[0x7] = (f3 >> 24) & 0xff;
+    mc->mc_mailbox[0x8] = f4 & 0xff;
+    mc->mc_mailbox[0x9] = (f4 >> 8) & 0xff;
+    mc->mc_mailbox[0xa] = (f4 >> 16) & 0xff;
+    mc->mc_mailbox[0xb] = (f4 >> 24) & 0xff;
+    mc->mc_mailbox[0xc] = f5;
+}
