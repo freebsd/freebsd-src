@@ -578,6 +578,8 @@ do { \
 struct	in6_multi *in6_addmulti __P((struct in6_addr *, struct ifnet *,
 	int *));
 void	in6_delmulti __P((struct in6_multi *));
+struct in6_multi_mship *in6_joingroup(struct ifnet *, struct in6_addr *, int *);
+int	in6_leavegroup(struct in6_multi_mship *);
 int	in6_mask2len __P((struct in6_addr *, u_char *));
 int	in6_control __P((struct socket *, u_long, caddr_t, struct ifnet *,
 	struct thread *));
@@ -604,6 +606,8 @@ int	in6_prefix_ioctl __P((struct socket *, u_long, caddr_t,
 int	in6_prefix_add_ifid __P((int, struct in6_ifaddr *));
 void	in6_prefix_remove_ifid __P((int, struct in6_ifaddr *));
 void	in6_purgeprefix __P((struct ifnet *));
+void	in6_ifremloop(struct ifaddr *);
+void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
 struct inpcb;

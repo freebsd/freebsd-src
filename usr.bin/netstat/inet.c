@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif /* INET6 */
@@ -523,6 +524,50 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(udps_opackets, "\t%lu datagram%s output\n");
 #undef p
 #undef p1a
+}
+
+/* 
+ * Dump CARP statistics structure.
+ */
+void
+carp_stats(u_long off, const char *name, int af1 __unused)
+{
+	struct carpstats carpstat, zerostat;
+	size_t len = sizeof(struct carpstats);
+
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.carp.stats", &carpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		warn("sysctl: net.inet.carp.stats");
+		return;
+	}
+
+	printf("%s:\n", name);
+
+#define p(f, m) if (carpstat.f || sflag <= 1) \
+	printf(m, (unsigned long long)carpstat.f, plural((int)carpstat.f))
+#define p2(f, m) if (carpstat.f || sflag <= 1) \
+	printf(m, (unsigned long long)carpstat.f)
+
+	p(carps_ipackets, "\t%llu packet%s received (IPv4)\n");
+	p(carps_ipackets6, "\t%llu packet%s received (IPv6)\n");
+	p(carps_badttl, "\t\t%llu packet%s discarded for wrong TTL\n");
+	p(carps_hdrops, "\t\t%llu packet%s shorter than header\n");
+	p(carps_badsum, "\t\t%llu discarded for bad checksum%s\n");
+	p(carps_badver,	"\t\t%llu discarded packet%s with a bad version\n");
+	p2(carps_badlen, "\t\t%llu discarded because packet too short\n");
+	p2(carps_badauth, "\t\t%llu discarded for bad authentication\n");
+	p2(carps_badvhid, "\t\t%llu discarded for bad vhid\n");
+	p2(carps_badaddrs, "\t\t%llu discarded because of a bad address list\n");
+	p(carps_opackets, "\t%llu packet%s sent (IPv4)\n");
+	p(carps_opackets6, "\t%llu packet%s sent (IPv6)\n");
+	p2(carps_onomem, "\t\t%llu send failed due to mbuf memory error\n");
+#if notyet
+	p(carps_ostates, "\t\t%s state update%s sent\n");
+#endif
+#undef p
+#undef p2
 }
 
 /*

@@ -68,6 +68,7 @@ struct	rtentry;
 struct	rt_addrinfo;
 struct	socket;
 struct	ether_header;
+struct	carp_if;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -146,7 +147,7 @@ struct ifnet {
 		 */
 	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
-	void	*if_carp;		/* carp (tbd) interface pointer */
+	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_timer;		/* time 'til if_watchdog called */

@@ -35,6 +35,7 @@
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -66,6 +67,9 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
+#endif
 
 #include <sys/socketvar.h>
 
@@ -509,10 +513,17 @@ passin:
 	 * XXX - Checking is incompatible with IP aliases added
 	 * to the loopback interface instead of the interface where
 	 * the packets are received.
+	 *
+	 * XXX - This is the case for carp vhost IPs as well so we
+	 * insert a workaround. If the packet got here, we already
+	 * checked with carp_iamatch() and carp_forus().
 	 */
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
 	    m->m_pkthdr.rcvif != NULL &&
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
+#ifdef DEV_CARP
+	    !m->m_pkthdr.rcvif->if_carp &&
+#endif
 	    (dchg == 0);
 
 	/*

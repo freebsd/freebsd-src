@@ -247,4 +247,5 @@
 #define	IFT_FAITH	0xf2
 #define	IFT_PFLOG	0xf6
 #define	IFT_PFSYNC	0xf7
+#define	IFT_CARP	0xf8	/* Common Address Redundancy Protocol */
 #endif /* !_NET_IF_TYPES_H_ */

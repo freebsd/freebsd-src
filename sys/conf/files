@@ -279,6 +279,7 @@ crypto/rijndael/rijndael-api-fst.c optional geom_bde
 crypto/rijndael/rijndael-api-fst.c optional random
 crypto/rijndael/rijndael-api.c	optional ipsec
 crypto/rijndael/rijndael-api.c	optional wlan_ccmp
+crypto/sha1.c			optional carp
 crypto/sha1.c			optional netgraph_mppc_encryption
 crypto/sha1.c			optional crypto
 crypto/sha1.c			optional ipsec
@@ -1483,6 +1484,7 @@ netinet/if_atm.c		optional atm
 netinet/if_ether.c		optional ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
+netinet/ip_carp.c		optional carp
 netinet/in_gif.c		optional gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
