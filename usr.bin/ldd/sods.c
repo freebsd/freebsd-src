@@ -192,9 +192,9 @@ dump_file(const char *fname)
 
     ex = (const struct exec *) file_base;
 
-    printf("%s: a_midmag = 0x%lx\n", fname, ex->a_midmag);
+    printf("%s: a_midmag = 0x%lx\n", fname, (long)ex->a_midmag);
     printf("  magic = 0x%lx = 0%lo, netmagic = 0x%lx = 0%lo\n",
-	N_GETMAGIC(*ex), N_GETMAGIC(*ex),
+	(long)N_GETMAGIC(*ex), (long)N_GETMAGIC(*ex),
 	(long)N_GETMAGIC_NET(*ex), (long)N_GETMAGIC_NET(*ex));
 
     if (N_BADMAG(*ex)) {
@@ -204,13 +204,13 @@ dump_file(const char *fname)
 	return;
     }
 
-    printf("  a_text   = 0x%lx\n", ex->a_text);
-    printf("  a_data   = 0x%lx\n", ex->a_data);
-    printf("  a_bss    = 0x%lx\n", ex->a_bss);
-    printf("  a_syms   = 0x%lx\n", ex->a_syms);
-    printf("  a_entry  = 0x%lx\n", ex->a_entry);
-    printf("  a_trsize = 0x%lx\n", ex->a_trsize);
-    printf("  a_drsize = 0x%lx\n", ex->a_drsize);
+    printf("  a_text   = 0x%lx\n", (long)ex->a_text);
+    printf("  a_data   = 0x%lx\n", (long)ex->a_data);
+    printf("  a_bss    = 0x%lx\n", (long)ex->a_bss);
+    printf("  a_syms   = 0x%lx\n", (long)ex->a_syms);
+    printf("  a_entry  = 0x%lx\n", (long)ex->a_entry);
+    printf("  a_trsize = 0x%lx\n", (long)ex->a_trsize);
+    printf("  a_drsize = 0x%lx\n", (long)ex->a_drsize);
 
     text_base = file_base + N_TXTOFF(*ex);
     data_base = file_base + N_DATOFF(*ex);
@@ -228,11 +228,11 @@ dump_file(const char *fname)
 	assert(sym_used != NULL);
     }
 
-    printf("  Entry = 0x%lx\n", ex->a_entry);
+    printf("  Entry = 0x%lx\n", (long)ex->a_entry);
     printf("  Text offset = %x, address = %lx\n", N_TXTOFF(*ex),
-	N_TXTADDR(*ex));
-    printf("  Data offset = %lx, address = %lx\n", N_DATOFF(*ex),
-	N_DATADDR(*ex));
+	(long)N_TXTADDR(*ex));
+    printf("  Data offset = %lx, address = %lx\n", (long)N_DATOFF(*ex),
+	(long)N_DATADDR(*ex));
 
     /*
      * In an executable program file, everything is relocated relative to
