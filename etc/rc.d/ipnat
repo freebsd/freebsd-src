@@ -5,80 +5,61 @@
 #
 
 # PROVIDE: ipnat
-# REQUIRE: ipfilter mountcritremote
-# BEFORE:  DAEMON
+# REQUIRE: ipfilter
+# BEFORE:  DAEMON netif
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="ipnat"
 rcvar=`set_rcvar`
+load_rc_config $name
 
 case ${OSTYPE} in
-FreeBSD)
-	IPNATDIR="/sbin"
-	start_precmd="ipnat_precmd"
-	reload_cmd="ipnat_start"
-	;;
 NetBSD)
-	IPNATDIR="/usr/sbin"
-	config="/etc/ipnat.conf"
-	reload_cmd="/usr/sbin/ipnat -F -C -f ${config}"
-	start_precmd=
+	ipnat_flags=
+	ipnat_rules="/etc/ipnat.conf"
+	ipnat_program="/usr/sbin/ipnat"
 	;;
 esac
 
+start_precmd="ipnat_precmd"
 start_cmd="ipnat_start"
-stop_cmd="${ipnat_program:-${IPNATDIR}/${name}} -F -C"
+stop_cmd="${ipnat_program} -F -C"
+reload_cmd="${ipnat_program} -F -C -f ${ipnat_rules}"
 extra_commands="reload"
 
 ipnat_precmd()
 {
+	case ${OSTYPE} in
+	NetBSD)
+		if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then	
+			echo "Enabling ipfilter for NAT."
+			/sbin/ipf -E -Fa
+		fi
+		return 0
+		;;
+	esac
+
 	# Make sure ipfilter is loaded before continuing
 	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1; then
-		err 1 'ipnat requires ipfilter be loaded'
+		if kldload ipl; then
+			echo 'IP-filter module loaded.'
+		else
+			err 1 'IP-filter module failed to load.'
+		fi
 	fi
 	return 0
 }
 
 ipnat_start()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		echo -n 'Installing NAT rules ... '
-		if [ -r "${ipnat_rules}" ]; then
-			${ipnat_program:-/sbin/ipnat} -CF -f \
-			    "${ipnat_rules}" ${ipnat_flags}
-		else
-			echo -n ' NO IPNAT RULES'
-		fi
-		echo '.'
-
-		# restore filter/NAT state tables after loading the rules
-		if checkyesno ipfs_enable; then
-			if [ -r "/var/db/ipf/ipstate.ipf" ]; then
-				echo -n ' ipfs'
-				${ipfs_program:-/sbin/ipfs} -R ${ipfs_flags}
-				# remove files to avoid reloading old state
-				# after an ungraceful shutdown
-				rm -f /var/db/ipf/ipstate.ipf
-				rm -f /var/db/ipf/ipnat.ipf
-			fi
-		fi
-		;;
-	NetBSD)
-		if [ ! -f ${config} ]; then
-			return 0
-		fi
-		if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then
-			echo "Enabling ipfilter for NAT."
-			/sbin/ipf -E -Fa
-		fi
-		echo -n "Installing NAT rules ... "
-		/usr/sbin/ipnat -F -f ${config}
-		;;
-	esac
+	if [ ! -f ${ipnat_rules} ]; then
+		echo -n ' NO IPNAT RULES'
+		return 0
+	fi
+	echo -n "Installing NAT rules ... "
+	/usr/sbin/ipnat -CF -f ${ipnat_rules} ${ipnat_flags}
 }
 
-load_rc_config $name
 run_rc_command "$1"
