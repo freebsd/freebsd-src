@@ -32,13 +32,14 @@
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/acpi.h>
 
 #include <err.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <dev/acpi/acpireg.h>
 
 #include "acpidump.h"
 
