@@ -487,6 +487,9 @@ cdcleanup(struct cam_periph *periph)
 	}
 	devstat_remove_entry(&softc->device_stats);
 	cam_extend_release(cdperiphs, periph->unit_number);
+	if (softc->disk.d_dev) {
+		disk_destroy(softc->disk.d_dev);
+	}
 	free(softc, M_DEVBUF);
 	splx(s);
 }
