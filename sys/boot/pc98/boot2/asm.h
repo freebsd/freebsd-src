@@ -69,8 +69,8 @@
 
 #define LB(x,n) n
 #ifdef	__STDC__
-#define EXT(x) _ ## x
-#define LEXT(x) _ ## x ## :
+#define EXT(x) x
+#define LEXT(x) x ## :
 
 #define LBb(x,n) n ## b
 #define LBf(x,n) n ## f

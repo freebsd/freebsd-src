@@ -8,12 +8,13 @@ SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/boot
 BINMODE=	444
-CFLAGS=		-Os -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+CFLAGS=		-elf -Os -fno-builtin -fforce-addr -fdata-sections \
+		-malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-mpreferred-stack-boundary=2 -mrtd \
 		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
-CFLAGS+=	-I${.CURDIR}/../../.. -aout
+CFLAGS+=	-I${.CURDIR}/../../..
 
 
 # By default, if a serial port is going to be used as console, use COM1
@@ -49,7 +50,7 @@ CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 # BOOT_HD_BIAS=1 makes da(0,a) correspond to 1:da(0,a) instead of 0:da(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
-LDFLAGS+=	-N -T 0 -nostdlib
+LDFLAGS+=	-N -Ttext 0 -nostdlib -e start
 NOSHARED=	YES
 NOMAN=
 STRIP=
@@ -65,13 +66,8 @@ BOOTSEG=	0x1000
 # Offset in BOOTSEG for the top of the stack, keep this 16 byte aligned
 BOOTSTACK=	0xFFF0
 
-boot.strip:	boot
-	cp -p boot boot.strip
-	strip -aout boot.strip
-	size -aout boot.strip
-
-boot.nohdr:	boot.strip
-	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
+boot.nohdr:	boot
+	objcopy -S -O binary boot boot.nohdr
 	ls -l boot.nohdr
 
 boot1:		boot.nohdr
@@ -91,7 +87,6 @@ all:		boot1 boot2
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		boot1 boot2 ${DESTDIR}${BINDIR}
-
 
 .include <bsd.kern.mk>
 .include <bsd.prog.mk>
