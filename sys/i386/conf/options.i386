@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.8 1997/04/28 19:33:19 se Exp $
+#	$Id: options.i386,v 1.26.2.9 1997/06/20 10:27:27 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -26,6 +26,8 @@ I586_PMC_GUPROF		opt_i586_guprof.h
 FAT_CURSOR		opt_pcvt.h
 PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
+WLCACHE			opt_wavelan.h
+WLDEBUG			opt_wavelan.h
 XSERVER			opt_pcvt.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
