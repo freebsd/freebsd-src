@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.32 1997/09/21 22:03:01 gibbs Exp $
+ *	$Id: od.c,v 1.33 1997/12/02 21:06:59 phk Exp $
  */
 
 /*
@@ -701,7 +701,7 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	default:
 		error = dsioctl("od", dev, cmd, addr, flag, &od->dk_slices,
 				odstrategy1, (ds_setgeom_t *)NULL);
-		if (error == -1) {
+		if (error == ENOIOCTL) {
 			if (PARTITION(dev) != RAW_PART) {
 				error = ENOTTY;
 			} else {
