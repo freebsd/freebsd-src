@@ -101,7 +101,7 @@ bs_dma_xfer(ti, direction)
 			/* setup segaddr */
 			sp->segaddr = (u_int8_t *) phys;
 			/* setup seglen */
-			endva = (vm_offset_t)round_page(sp->data + sp->datalen);
+			endva = (vm_offset_t)round_page((unsigned long)(sp->data + sp->datalen));
 			for (va = (vm_offset_t) sp->data; ; phys = nphys)
 			{
 				if ((va += BSHW_NBPG) >= endva)
