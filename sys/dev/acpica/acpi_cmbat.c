@@ -53,7 +53,7 @@ MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat", "ACPI control method battery data");
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define	_COMPONENT	ACPI_BATTERY
-MODULE_NAME("BATTERY")
+ACPI_MODULE_NAME("BATTERY")
 
 #define	ACPI_BATTERY_BST_CHANGE 0x80
 #define	ACPI_BATTERY_BIF_CHANGE 0x81
@@ -104,8 +104,6 @@ struct acpi_cmbat_softc {
 
 	struct acpi_bif	bif;
 	struct acpi_bst	bst;
-	ACPI_BUFFER	bif_buffer;
-	ACPI_BUFFER	bst_buffer;
 	struct timespec	bif_lastupdated;
 	struct timespec	bst_lastupdated;
 	int		bif_updating;
@@ -115,8 +113,6 @@ struct acpi_cmbat_softc {
 	int		cap;
 	int		min;
 	int		full_charge_time;
-
-	struct callout_handle cmbat_timeout;
 };
 
 static struct timespec	 acpi_cmbat_info_lastupdated;
@@ -124,7 +120,6 @@ static struct timespec	 acpi_cmbat_info_lastupdated;
 /* XXX: devclass_get_maxunit() don't give us the current allocated units... */
 static int		 acpi_cmbat_units = 0;
 
-static void		 acpi_cmbat_timeout(void *);
 static int		 acpi_cmbat_info_expired(struct timespec *);
 static void		 acpi_cmbat_info_updated(struct timespec *);
 static void		 acpi_cmbat_get_bst(void *);
@@ -135,22 +130,6 @@ static int		 acpi_cmbat_attach(device_t);
 static int		 acpi_cmbat_resume(device_t);
 static int		 acpi_cmbat_ioctl(u_long, caddr_t, void *);
 static int		 acpi_cmbat_get_total_battinfo(struct acpi_battinfo *);
-
-/*
- * Poll the battery info.
- */
-static void
-acpi_cmbat_timeout(void *context)
-{
-	device_t	dev;
-	struct acpi_cmbat_softc *sc;
-
-	dev = (device_t)context;
-	sc = device_get_softc(dev);
-
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
-	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
-}
 
 static __inline int
 acpi_cmbat_info_expired(struct timespec *lastupdated)
@@ -188,10 +167,12 @@ acpi_cmbat_get_bst(void *context)
 	ACPI_STATUS	as;
 	ACPI_OBJECT	*res, *tmp;
 	ACPI_HANDLE	h;
+	ACPI_BUFFER	bst_buffer;
 
 	dev = context;
 	sc = device_get_softc(dev);
 	h = acpi_get_handle(dev);
+	bst_buffer.Pointer = NULL;
 
 	if (!acpi_cmbat_info_expired(&sc->bst_lastupdated)) {
 		return;
@@ -202,16 +183,15 @@ acpi_cmbat_get_bst(void *context)
 	}
 	sc->bst_updating = 1;
 
-	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
-
-	if ((as = acpi_EvaluateIntoBuffer(h, "_BST", NULL, &sc->bst_buffer)) != AE_OK) {
+	bst_buffer.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(as = AcpiEvaluateObject(h, "_BST", NULL, &bst_buffer))) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "error fetching current battery status -- %s\n",
 		    AcpiFormatException(as));
 		goto end;
 	}
 
-	res = (ACPI_OBJECT *)sc->bst_buffer.Pointer;
+	res = (ACPI_OBJECT *)bst_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 4)) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
@@ -225,8 +205,9 @@ acpi_cmbat_get_bst(void *context)
 	PKG_GETINT(res, tmp, 3, sc->bst.volt, end);
 	acpi_cmbat_info_updated(&sc->bst_lastupdated);
 end:
+	if (bst_buffer.Pointer != NULL)
+		AcpiOsFree(bst_buffer.Pointer);
 	sc->bst_updating = 0;
-	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
 static void
@@ -237,10 +218,12 @@ acpi_cmbat_get_bif(void *context)
 	ACPI_STATUS	as;
 	ACPI_OBJECT	*res, *tmp;
 	ACPI_HANDLE	h;
+	ACPI_BUFFER	bif_buffer;
 
 	dev = context;
 	sc = device_get_softc(dev);
 	h = acpi_get_handle(dev);
+	bif_buffer.Pointer = NULL;
 
 	if (!acpi_cmbat_info_expired(&sc->bif_lastupdated)) {
 		return;
@@ -251,16 +234,15 @@ acpi_cmbat_get_bif(void *context)
 	}
 	sc->bif_updating = 1;
 
-	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
-
-	if ((as = acpi_EvaluateIntoBuffer(h, "_BIF", NULL, &sc->bif_buffer)) != AE_OK) {
+	bif_buffer.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(as = AcpiEvaluateObject(h, "_BIF", NULL, &bif_buffer))) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "error fetching current battery info -- %s\n",
 		    AcpiFormatException(as));
 		goto end;
 	}
 
-	res = (ACPI_OBJECT *)sc->bif_buffer.Pointer;
+	res = (ACPI_OBJECT *)bif_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
@@ -283,8 +265,9 @@ acpi_cmbat_get_bif(void *context)
 	PKG_GETSTR(res, tmp, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN, end);
 	acpi_cmbat_info_updated(&sc->bif_lastupdated);
 end:
+	if (bif_buffer.Pointer != NULL)
+		AcpiOsFree(bif_buffer.Pointer);
 	sc->bif_updating = 0;
-	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
 static void
@@ -343,8 +326,6 @@ acpi_cmbat_attach(device_t dev)
 	AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
 				 acpi_cmbat_notify_handler, dev);
 
-	bzero(&sc->bif_buffer, sizeof(sc->bif_buffer));
-	bzero(&sc->bst_buffer, sizeof(sc->bst_buffer));
 	sc->bif_updating = sc->bst_updating = 0;
 	sc->dev = dev;
 
