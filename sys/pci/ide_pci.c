@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.35 1999/07/03 18:34:04 peter Exp $
+ *	$Id: ide_pci.c,v 1.36 1999/07/20 22:43:53 julian Exp $
  */
 
 #include "wd.h"
@@ -1479,6 +1479,11 @@ ide_pci_attach(pcici_t tag, int unit)
 	/* set up vendor-specific stuff */
 	type = pci_conf_read(tag, PCI_ID_REG);
 
+	if (type == CMD640B_PCI_ID) {
+		wdc_pci(Q_CMD640B);
+		return;
+	}
+
 	if (type != PROMISE_ULTRA33) {
 	/* is it busmaster capable?  bail if not */
 		class = pci_conf_read(tag, PCI_CLASS_REG);
@@ -1520,14 +1525,6 @@ ide_pci_attach(pcici_t tag, int unit)
 		break;
 	case 0x55131039: /* SiS 5591 */
 		vp = &vs_sis_5591;
-		break;
-	case CMD640B_PCI_ID: /* CMD 640B IDE */
-		wdc_pci(Q_CMD640B);
-/* I'm curious to know if we can disable this and remove the return */
-#if 1
-		return;
-#endif
-		vp = &vs_generic;
 		break;
 	default:
 		/* everybody else */
