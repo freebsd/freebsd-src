@@ -57,6 +57,7 @@ int _thread_ctx_offset			= OFF(tmbx.tm_context);
 int _thread_PS_RUNNING_value		= PS_RUNNING;
 int _thread_PS_DEAD_value		= PS_DEAD;
 
+static void free_thread(struct pthread *curthread, struct pthread *thread);
 static int  create_stack(struct pthread_attr *pattr);
 static void thread_start(struct pthread *curthread,
 		void *(*start_routine) (void *), void *arg);
@@ -295,8 +296,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * Schedule the new thread starting a new KSEG/KSE
 			 * pair if necessary.
 			 */
-			_thr_schedule_add(curthread, new_thread);
+			ret = _thr_schedule_add(curthread, new_thread);
 			_kse_critical_leave(crit);
+			if (ret != 0)
+				free_thread(curthread, new_thread);
 
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
@@ -305,6 +308,17 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Return the status: */
 	return (ret);
+}
+
+static void
+free_thread(struct pthread *curthread, struct pthread *thread)
+{
+	if ((thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) {
+		/* Free the KSE and KSEG. */
+		_kseg_free(thread->kseg);
+		_kse_free(curthread, thread->kse);
+	}
+	_thr_free(curthread, thread);
 }
 
 static int
