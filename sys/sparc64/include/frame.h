@@ -43,6 +43,11 @@ struct trapframe {
 	uintptr_t tf_arg;
 };
 #define	tf_sp	tf_out[6]
+ 
+#define	TF_DONE(tf) do { \
+	tf->tf_tpc = tf->tf_tnpc; \
+	tf->tf_tnpc += 4; \
+} while (0)
 
 struct mmuframe {
 	u_long	mf_sfar;
