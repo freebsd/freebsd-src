@@ -7,6 +7,8 @@
 MAN5=	termcap.5
 
 CLEANFILES+=	termcap termcap.db
+LINKS=		${DESTDIR}${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
+LN_FLAGS=	-s
 
 all: termcap termcap.db
 
