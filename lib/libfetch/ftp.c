@@ -689,7 +689,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		if (verbose)
 			_fetch_info("initiating transfer");
 		e = _ftp_cmd(conn, "%s %s", oper, _ftp_filename(file));
-		if (e != FTP_OPEN_DATA_CONNECTION)
+		if (e != FTP_CONNECTION_ALREADY_OPEN && e != FTP_OPEN_DATA_CONNECTION)
 			goto ouch;
 
 		/* accept the incoming connection and go to town */
