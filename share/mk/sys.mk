@@ -247,8 +247,9 @@ HTAGSFLAGS=
 
 .endif
 
-.if exists(/etc/make.conf)
-.include </etc/make.conf>
+__MAKE_CONF?=/etc/make.conf
+.if exists(${__MAKE_CONF})
+.include "${__MAKE_CONF}"
 .endif
 
 .include <bsd.cpu.mk>
