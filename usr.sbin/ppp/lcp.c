@@ -968,13 +968,16 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	if (lcp->want_magic) {
 	  /* Validate magic number */
 	  if (magic == lcp->want_magic) {
+	    sigset_t emptyset;
+
 	    log_Printf(LogLCP, "Magic is same (%08lx) - %d times\n",
                       (u_long)magic, ++lcp->LcpFailedMagic);
 	    lcp->want_magic = GenerateMagic();
 	    memcpy(dec->nakend, cp, 6);
 	    dec->nakend += 6;
             ualarm(TICKUNIT * (4 + 4 * lcp->LcpFailedMagic), 0);
-            sigpause(0);
+	    sigemptyset(&emptyset);
+	    sigsuspend(&emptyset);
 	  } else {
 	    lcp->his_magic = magic;
 	    memcpy(dec->ackend, cp, length);

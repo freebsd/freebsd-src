@@ -63,11 +63,13 @@ tState2Nam(u_int state)
 void
 timer_Stop(struct pppTimer *tp)
 {
-  int omask;
+  sigset_t mask, omask;
 
-  omask = sigblock(sigmask(SIGALRM));
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &mask, &omask);
   StopTimerNoBlock(tp);
-  sigsetmask(omask);
+  sigprocmask(SIG_SETMASK, &omask, NULL);
 }
 
 void
@@ -76,16 +78,18 @@ timer_Start(struct pppTimer *tp)
   struct itimerval itimer;
   struct pppTimer *t, *pt;
   u_long ticks = 0;
-  int omask;
+  sigset_t mask, omask;
 
-  omask = sigblock(sigmask(SIGALRM));
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &mask, &omask);
 
   if (tp->state != TIMER_STOPPED)
     StopTimerNoBlock(tp);
 
   if (tp->load == 0) {
     log_Printf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
-    sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &omask, NULL);
     return;
   }
 
@@ -121,7 +125,7 @@ timer_Start(struct pppTimer *tp)
   if (t)
     t->rest -= tp->rest;
 
-  sigsetmask(omask);
+  sigprocmask(SIG_SETMASK, &omask, NULL);
 }
 
 static void
