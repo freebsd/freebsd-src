@@ -140,6 +140,11 @@ pass2(void)
 			    (int)((inpp - inpsort) * 100 / inplast));
 			got_siginfo = 0;
 		}
+		if (got_sigalarm) {
+			setproctitle("%s p2 %d%%", cdevname,
+			    (int)((inpp - inpsort) * 100 / inplast));
+			got_sigalarm = 0;
+		}
 		inp = *inpp;
 		if (inp->i_isize == 0)
 			continue;

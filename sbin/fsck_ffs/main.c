@@ -78,6 +78,7 @@ main(int argc, char *argv[])
 {
 	int ch;
 	struct rlimit rlimit;
+	struct itimerval itimerval;
 	int ret = 0;
 
 	sync();
@@ -150,6 +151,14 @@ main(int argc, char *argv[])
 	if (preen)
 		(void)signal(SIGQUIT, catchquit);
 	signal(SIGINFO, infohandler);
+	if (bkgrdflag) {
+		signal(SIGALRM, alarmhandler);
+		itimerval.it_interval.tv_sec = 5;
+		itimerval.it_interval.tv_usec = 0;
+		itimerval.it_value.tv_sec = 5;
+		itimerval.it_value.tv_usec = 0;
+		setitimer(ITIMER_REAL, &itimerval, NULL);
+	}
 	/*
 	 * Push up our allowed memory limit so we can cope
 	 * with huge file systems.
