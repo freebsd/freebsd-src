@@ -2,7 +2,7 @@ DISTRIBUTION INFORMATION
 ------------------------
 
 An ``X-'' prefixed before a distribution set means that the XFree86
-3.1.2-S base distribution, libraries, manual pages, SVGA server and a
+3.2 base distribution, libraries, manual pages, SVGA server and a
 set of default fonts will be selected in addition to the set itself.
 If you select such a set, you will also be presented with a set of
 menus for customizing the selections to your desired X Window System
@@ -23,7 +23,7 @@ Kern-Developer: As above, but with only kernel sources instead of
                 the complete source tree.
 
 User:           The base distribution, man pages, dictionary files and
-                the FreeBSD 1.x and 2.0 compatibility sets.
+                the FreeBSD 1.x, 2.0 and 2.1.x compatibility sets.
 
 Minimal:        Only the base distribution.
 
