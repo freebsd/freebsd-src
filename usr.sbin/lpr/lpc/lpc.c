@@ -334,6 +334,7 @@ ingroup(grname)
 	char *grname;
 {
 	static struct group *gptr=NULL;
+	static int ngroups = 0;
 	static gid_t groups[NGROUPS];
 	register gid_t gid;
 	register int i;
@@ -343,11 +344,12 @@ ingroup(grname)
 			warnx("warning: unknown group '%s'", grname);
 			return(0);
 		}
-		if (getgroups(NGROUPS, groups) < 0)
+		ngroups = getgroups(NGROUPS, groups);
+		if (ngroups < 0)
 			err(1, "getgroups");
 	}
 	gid = gptr->gr_gid;
-	for (i = 0; i < NGROUPS; i++)
+	for (i = 0; i < ngroups; i++)
 		if (gid == groups[i])
 			return(1);
 	return(0);
