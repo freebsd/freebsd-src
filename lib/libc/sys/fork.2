@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .Dd June 4, 1993
 .Dt FORK 2
@@ -38,6 +39,7 @@
 .Nm fork
 .Nd create a new process
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <unistd.h>
 .Ft pid_t
 .Fn fork void
@@ -67,7 +69,7 @@ This descriptor copying is also used by the shell to
 establish standard input and output for newly created processes
 as well as to set up pipes.
 .It
-The child processes resource utilizations
+The child process' resource utilizations
 are set to 0; see
 .Xr setrlimit 2 .
 .El
@@ -115,6 +117,7 @@ There is insufficient swap space for the new process.
 .Sh SEE ALSO
 .Xr execve 2 ,
 .Xr rfork 2 ,
+.Xr setrlimit 2 ,
 .Xr vfork 2 ,
 .Xr wait 2
 .Sh HISTORY
