@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.10 1996/12/11 09:34:53 jkh Exp $
+ * $Id: attr.c,v 1.11 1996/12/11 18:23:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,23 +137,23 @@ attr_parse(Attribs *attr, FILE *fp)
 	    break;
 
 	case COMMIT:
-	    attr[num_attribs].name = strdup(hold_n);
-	    attr[num_attribs].value = strdup(hold_v);
+	    SAFE_STRCPY(attr[num_attribs].name, hold_n);
+	    SAFE_STRCPY(attr[num_attribs].value, hold_v);
 	    state = LOOK;
 	    v = n = 0;
 	    if (++num_attribs >= MAX_ATTRIBS)
 		msgFatal("Attribute limit overflow; encountered a bad attributes file!");
 	    break;
-	    
+
 	default:
 	    msgFatal("Unknown state at line %d??", lno);
 	}
     }
-    attr[num_attribs].name = NULL; /* end marker */
-    attr[num_attribs].value = NULL; /* end marker */
+    attr[num_attribs].name[0] = NULL; /* end marker */
+    attr[num_attribs].value[0] = NULL; /* end marker */
     if (isDebug())
 	msgDebug("Finished parsing %d attributes.\n", num_attribs);
-	
+
     return DITEM_SUCCESS;
 }
 
@@ -165,7 +165,7 @@ attr_match(Attribs *attr, char *name)
     if (isDebug())
 	msgDebug("Trying to match attribute `%s'\n", name);
 
-    for (n = 0; attr[n].name && strcasecmp(attr[n].name, name) != 0; n++) {
+    for (n = 0; attr[n].name[0] && strcasecmp(attr[n].name, name) != 0; n++) {
 	if (isDebug())
 	    msgDebug("Skipping attribute %u\n", n);
     }
@@ -173,24 +173,11 @@ attr_match(Attribs *attr, char *name)
     if (isDebug())
 	msgDebug("Stopped on attribute %u\n", n);
 
-    if (attr[n].name) {
+    if (attr[n].name[0]) {
 	if (isDebug())
 	    msgDebug("Returning `%s'\n", attr[n].value);
 	return(attr[n].value);
     }
 
     return NULL;
-}
-
-void
-attr_free(Attribs *attr)
-{
-    int i;
-
-    for (i = 0; attr[i].name; i++) {
-	free(attr[i].name);
-	free(attr[i].value);
-	attr[i].name = attr[i].value = NULL;
-    }
-    free(attr);
 }
