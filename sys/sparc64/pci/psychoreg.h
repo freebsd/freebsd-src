@@ -46,7 +46,7 @@
  */
 
 /*
- * psycho register offset.s
+ * psycho register offsets.
  *
  * NB: FFB0 and FFB1 intr map regs also appear at 0x6000 and 0x8000
  * respectively.
@@ -265,53 +265,5 @@
 /* Non-Standard registers in the configration space */
 #define	PCSR_SECBUS	0x40		/* Secondary bus number register */
 #define	PCSR_SUBBUS	0x41		/* Subordinate bus number register */
-
-/*
- * these are the PROM structures we grovel
- */
-
-/*
- * For the physical adddresses split into 3 32 bit values, we deocde
- * them like the following (IEEE1275 PCI Bus binding 2.0, 2.2.1.1
- * Numerical Representation):
- *
- * 	phys.hi cell:	npt000ss bbbbbbbb dddddfff rrrrrrrr
- * 	phys.mid cell:	hhhhhhhh hhhhhhhh hhhhhhhh hhhhhhhh
- * 	phys.lo cell:	llllllll llllllll llllllll llllllll
- *
- * where these bits affect the address' properties:
- *	n	not-relocatable
- *	p	prefetchable
- *	t	aliased (non-relocatable IO), below 1MB (memory) or
- *		below 64KB (reloc. IO)
- *	ss	address space code:
- *		00 - configuration space
- *		01 - I/O space
- *		10 - 32 bit memory space
- *		11 - 64 bit memory space
- *	bb..bb	8 bit bus number
- *	ddddd	5 bit device number
- *	fff	3 bit function number
- *	rr..rr	8 bit register number
- *	hh..hh	32 bit unsigned value
- *	ll..ll	32 bit unsigned value
- * the values of hh..hh and ll..ll are combined to form a larger number.
- *
- * For config space, we don't have to do much special.  For I/O space,
- * hh..hh must be zero, and if n == 0 ll..ll is the offset from the
- * start of I/O space, otherwise ll..ll is the I/O space.  For memory
- * space, hh..hh must be zero for the 32 bit space, and is the high 32
- * bits in 64 bit space, with ll..ll being the low 32 bits in both cases,
- * with offset handling being driver via `n == 0' as for I/O space.
- */
-
-/* commonly used */
-#define TAG2BUS(tag)	((tag) >> 16) & 0xff;
-#define TAG2DEV(tag)	((tag) >> 11) & 0x1f;
-#define TAG2FN(tag)	((tag) >> 8) & 0x7;
-
-#define	INTPCI_MAXOBINO	0x16		/* maximum OBIO INO value for PCI */
-#define	INTPCIOBINOX(x)	((x) & 0x1f)	/* OBIO ino index (for PCI machines) */
-#define	INTPCIINOX(x)	(((x) & 0x1c) >> 2)	/* PCI ino index */
 
 #endif /* _SPARC64_PCI_PSYCHOREG_H_ */
