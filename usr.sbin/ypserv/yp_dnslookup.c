@@ -346,8 +346,8 @@ yp_run_dnsq(void)
 	char buf[sizeof(HEADER) + MAXPACKET];
 	char retrybuf[MAXHOSTNAMELEN];
 	struct sockaddr_in sin;
+	socklen_t len;
 	int rval;
-	int len;
 	HEADER *hptr;
 	struct hostent *hent;
 
@@ -411,10 +411,12 @@ ypstat
 yp_async_lookup_name(struct svc_req *rqstp, char *name)
 {
 	register struct circleq_dnsentry *q;
-	int type, len;
+	socklen_t len;
+	int type;
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
-	type = -1; len = sizeof(type);
+	type = -1;
+	len = sizeof(type);
 	if (getsockopt(rqstp->rq_xprt->xp_fd, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
@@ -465,11 +467,13 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr)
 {
 	register struct circleq_dnsentry *q;
 	char buf[MAXHOSTNAMELEN];
+	socklen_t len;
 	int a, b, c, d;
-	int type, len;
+	int type;
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
-	type = -1; len = sizeof(type);
+	type = -1;
+	len = sizeof(type);
 	if (getsockopt(rqstp->rq_xprt->xp_fd, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
