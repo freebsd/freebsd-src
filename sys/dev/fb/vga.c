@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga.c,v 1.1 1999/06/22 14:13:24 yokota Exp $
+ * $Id: vga.c,v 1.2 1999/06/26 10:52:54 peter Exp $
  */
 
 #include "vga.h"
@@ -412,9 +412,9 @@ static video_info_t bios_vmode[] = {
     { M_VGA_CG320,  V_INFO_COLOR | V_INFO_GRAPHICS, 320, 200, 8,  8, 8, 1,
       GRAPHICS_BUF_BASE, GRAPHICS_BUF_SIZE, GRAPHICS_BUF_SIZE, 0, 0,
       V_INFO_MM_PACKED, 1 },
-    { M_VGA_MODEX,  V_INFO_COLOR | V_INFO_GRAPHICS, 320, 240, 8,  8, 8, 1,
+    { M_VGA_MODEX,  V_INFO_COLOR | V_INFO_GRAPHICS, 320, 240, 8,  8, 8, 4,
       GRAPHICS_BUF_BASE, GRAPHICS_BUF_SIZE, GRAPHICS_BUF_SIZE, 0, 0,
-      V_INFO_MM_PACKED, 1 },
+      V_INFO_MM_VGAX, 1 },
 #endif /* VGA_NO_MODE_CHANGE */
 
     { EOT },
@@ -850,7 +850,9 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
     /* XXX */
     adp->va_buffer = info->vi_buffer;
     adp->va_buffer_size = info->vi_buffer_size;
-    if (info->vi_flags & V_INFO_GRAPHICS) {
+    if (info->vi_mem_model == V_INFO_MM_VGAX) {
+	adp->va_line_width = info->vi_width/2;
+    } else if (info->vi_flags & V_INFO_GRAPHICS) {
 	switch (info->vi_depth/info->vi_planes) {
 	case 1:
 	    adp->va_line_width = info->vi_width/8;
