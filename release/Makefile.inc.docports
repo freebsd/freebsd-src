@@ -35,6 +35,7 @@ MINIMALDOCPORTS= \
 	ports/textproc/docbook-410 \
 	ports/textproc/docproj \
 	ports/textproc/dsssl-docbook-modular \
+	ports/textproc/expat2 \
 	ports/textproc/html \
 	ports/textproc/iso8879 \
 	ports/textproc/libxml2 \
