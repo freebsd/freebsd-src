@@ -133,6 +133,18 @@ typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
 typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
 
 /*
+ * Getextattr callback
+ */
+#define PFS_GETEXTATTR_ARGS \
+	struct thread *td, struct proc *p, struct pfs_node *pn, \
+	int attrnamespace, const char *name, struct uio *uio,	\
+	struct ucred *cred
+#define PFS_GETEXTATTR_PROTO(name) \
+	int name(PFS_GETEXTATTR_ARGS);
+struct ucred;
+typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
+
+/*
  * Last-close callback
  */
 #define PFS_CLOSE_ARGS \
@@ -172,6 +184,7 @@ struct pfs_node {
 	pfs_close_t		 pn_close;
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
+	pfs_getextattr_t	 pn_getextattr;
 	void			*pn_data;
 	int			 pn_flags;
 	
