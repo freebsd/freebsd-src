@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.201 1996/09/03 18:50:36 nate Exp $
+ *	$Id: machdep.c,v 1.202 1996/09/06 23:07:03 phk Exp $
  */
 
 #include "npx.h"
@@ -1143,17 +1143,6 @@ init386(first)
 			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
 			       bootinfo.bi_extmem, biosextmem);
 	}
-
-	/*
-	 * Some 386 machines might give us a bogus number for extended
-	 *	mem. If this happens, stop now.
-	 */
-#ifndef LARGEMEM
-	if (biosextmem > 65536) {
-		panic("extended memory beyond limit of 64MB");
-		/* NOTREACHED */
-	}
-#endif
 
 	pagesinbase = biosbasemem * 1024 / PAGE_SIZE;
 	pagesinext = biosextmem * 1024 / PAGE_SIZE;
