@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	rexecd
-MAN8=	rexecd.8
+MAN=	rexecd.8
 CFLAGS+= -DSKEY
 
 DPADD=  ${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}

@@ -9,6 +9,6 @@ CFLAGS+= -DXTENUNAME=\"xten\" -DXTENGNAME=\"xten\"
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-MAN8=	xtend.8
+MAN=	xtend.8
 
 .include <bsd.prog.mk>

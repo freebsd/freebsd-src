@@ -8,7 +8,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 
 PROG=	mail.local
 SRCS=	mail.local.c
-MAN8=	mail.local.8
+MAN=	mail.local.8
 CFLAGS+=-I${SENDMAIL_DIR}/include
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)

@@ -8,7 +8,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 
 PROG=	smrsh
 SRCS=	smrsh.c
-MAN8=	smrsh.8
+MAN=	smrsh.8
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)

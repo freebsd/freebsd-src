@@ -1,7 +1,7 @@
 # $FreeBSD$
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c shlib.c md.c support.c
-MAN1aout=	rtld.1aout
+MAN=	rtld.1aout
 # As there is relocation going on behind GCC's back, don't cache function addresses.
 PICFLAG=-fpic -fno-function-cse
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} ${PICFLAG} -DRTLD -Wall
