@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.117 1999/05/12 21:39:07 luoqi Exp $
+ *	$Id: machdep.c,v 1.118 1999/06/03 13:49:52 kato Exp $
  */
 
 #include "apm.h"
@@ -1602,7 +1602,7 @@ physmap_done:
 	 * round up the start address and round down the end address.
 	 */
 	for (i = 0; i <= physmap_idx; i += 2) {
-		int end;
+		vm_offset_t end;
 
 		end = ptoa(Maxmem);
 		if (physmap[i + 1] < end)
@@ -1902,8 +1902,7 @@ init386(first)
 
 	/* Map the message buffer. */
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
-			   avail_end + off, VM_PROT_ALL, TRUE);
+		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
