@@ -8,36 +8,108 @@
 
 # WinNT/WinCE PE files (Warner Losh, imp@village.org)
 #
-# XXX Missing powerpc from the WinNT world and Hitatchi SH-3 from the CE world.
-128	string	PE\000\000	Microsoft Portable Executable
->132	leshort	0x0000		\b, Unknown CPU
->132	leshort 0x14c		\b, Intel 386
->132	leshort 0x14d		\b, Intel 486
->132	leshort 0x14e		\b, Intel 586
->132	leshort 0x162		\b, MIPS ISA I
->132	leshort 0x163		\b, MIPS ISA II
->132	leshort 0x166		\b, MIPS ISA III
->132	leshort 0x184		\b, Digital Alpha
-0	string	PE\000\000	Microsoft Portable Executable (no dos header)
->4	leshort	0x0000		\b, Unknown CPU
->4	leshort 0x14c		\b, Intel 386
->4	leshort 0x14d		\b, Intel 486
->4	leshort 0x14e		\b, Intel 586
->4	leshort 0x162		\b, MIPS ISA I
->4	leshort 0x163		\b, MIPS ISA II
->4	leshort 0x166		\b, MIPS ISA III
->4	leshort 0x184		\b, Digital Alpha
+128	string	PE\000\000	MS Windows PE
+>132	leshort	0x0000		Unknown CPU
+>132	leshort 0x14c		Intel 386
+>132	leshort 0x14d		Intel 486
+>132	leshort 0x14e		Intel 586
+>132	leshort 0x162		MIPS ISA I
+>132	leshort 0x163		MIPS ISA II
+>132	leshort 0x166		MIPS ISA III
+>132	leshort 0x184		Digital Alpha
+>132	leshort 0x1a2		Hitachi SH3
+>132	leshort 0x1a6		Hitachi SH4
+>132	leshort 0x1c0		ARM
+>132	leshort 0x1f0		Power PC
+>132	leshort 0x268		Motorola 68000 series
+>132	leshort	0x290		PA-RISC
+>148	leshort		>27
+>>220	leshort		0	unknown subsystem
+>>220	leshort		1	native
+>>220	leshort		2	GUI
+>>220	leshort		3	console
+>>220	leshort		7	POSIX
+>150	leshort&0x2000	=0	executable
+#>>136	ledate		x	stamp %s,
+>>150	leshort&0x0001	>0	not relocatable
+#>>150	leshort&0x0004	=0	with line numbers,
+#>>150	leshort&0x0008	=0	with local symbols,
+#>>150	leshort&0x0200	=0	with debug symbols,
+>>150	leshort&0x1000	>0	system file
+#>>148	leshort		>0
+#>>>154	byte		x	linker %d
+#>>>155	byte		x	\b.%d,
+#>>148	leshort		>27
+#>>>192	leshort		x	requires OS %d
+#>>>194	leshort		x	\b.%d,
+#>>>196	leshort		x	user version %d
+#>>>198	leshort		x	\b.%d,
+#>>>200	leshort		x	subsystem version %d
+#>>>202	leshort		x	\b.%d,
+>150	leshort&0x2000	>0	DLL
+#>>136	ledate		x	stamp %s,
+>>150	leshort&0x0001	>0	not relocatable
+#>>150	leshort&0x0004	=0	with line numbers,
+#>>150	leshort&0x0008	=0	with local symbols,
+#>>150	leshort&0x0200	=0	with debug symbols,
+>>150	leshort&0x1000	>0	system file
+#>>148	leshort		>0
+#>>>154	byte		x	linker %d
+#>>>155	byte		x	\b.%d,
+#>>148	leshort		>27
+#>>>192	leshort		x	requires OS %d
+#>>>194	leshort		x	\b.%d,
+#>>>196	leshort		x	user version %d
+#>>>198	leshort		x	\b.%d,
+#>>>200	leshort		x	subsystem version %d
+#>>>202	leshort		x	\b.%d,
+0	string	PE\000\000	MS Windows PE (no DOS header)
+>4	leshort	0x0000		Unknown CPU
+>4	leshort 0x14c		Intel 386
+>4	leshort 0x14d		Intel 486
+>4	leshort 0x14e		Intel 586
+>4	leshort 0x162		MIPS ISA I
+>4	leshort 0x163		MIPS ISA II
+>4	leshort 0x166		MIPS ISA III
+>4	leshort 0x184		Digital Alpha
+>4	leshort 0x1a2		Hitachi SH3
+>4	leshort 0x1a6		Hitachi SH4
+>4	leshort 0x1c0		ARM
+>4	leshort 0x1f0		Power PC
+>4	leshort 0x268		Motorola 68000 series
+>4	leshort	0x290		PA-RISC
 # It would appear that the debugger information is in basically the same 
 # format as what binutils calls PEI files.
 0	string	DI\000\000	Microsoft PE Debugger Information
->4	leshort	0x0000		\b, Unknown CPU
->4	leshort 0x14c		\b, Intel 386
->4	leshort 0x14d		\b, Intel 486
->4	leshort 0x14e		\b, Intel 586
->4	leshort 0x162		\b, MIPS ISA I
->4	leshort 0x163		\b, MIPS ISA II
->4	leshort 0x166		\b, MIPS ISA III
->4	leshort 0x184		\b, Digital Alpha
+>4	leshort	0x0000		Unknown CPU
+>4	leshort 0x14c		Intel 386
+>4	leshort 0x14d		Intel 486
+>4	leshort 0x14e		Intel 586
+>4	leshort 0x162		MIPS ISA I
+>4	leshort 0x163		MIPS ISA II
+>4	leshort 0x166		MIPS ISA III
+>4	leshort 0x184		Digital Alpha
+>4	leshort 0x1a2		Hitachi SH3
+>4	leshort 0x1a6		Hitachi SH4
+>4	leshort 0x1c0		ARM
+>4	leshort 0x1f0		Power PC
+>4	leshort 0x268		Motorola 68000 series
+>4	leshort	0x290		PA-RISC
+
+0	leshort	0x0000		MS Windows COFF Unknown CPU
+0	leshort 0x14c		MS Windows COFF Intel 386
+0	leshort 0x14d		MS Windows COFF Intel 486
+0	leshort 0x14e		MS Windows COFF Intel 586
+0	leshort 0x162		MS Windows COFF MIPS ISA I
+0	leshort 0x163		MS Windows COFF MIPS ISA II
+0	leshort 0x166		MS Windows COFF MIPS ISA III
+0	leshort 0x184		MS Windows COFF Digital Alpha
+0	leshort 0x1a2		MS Windows COFF Hitachi SH3
+0	leshort 0x1a6		MS Windows COFF Hitachi SH4
+0	leshort 0x1c0		MS Windows COFF ARM
+0	leshort 0x1f0		MS Windows COFF Power PC
+0	leshort 0x268		MS Windows COFF Motorola 68000 series
+0	leshort	0x290		MS Windows COFF PA-RISC
 
 # .EXE formats (Greg Roelofs, newt@uchicago.edu)
 #
