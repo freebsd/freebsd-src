@@ -94,7 +94,7 @@ static struct protosw ipxsw[] = {
 };
 
 static struct	domain ipxdomain =
-    { AF_IPX, "network systems", 0, 0, 0, 
+    { AF_IPX, "network systems", 0, 0, 0,
       ipxsw, &ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])], 0,
       rn_inithead, 16, sizeof(struct sockaddr_ipx)};
 
