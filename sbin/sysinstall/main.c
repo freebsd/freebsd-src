@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.17.2.1 1994/11/21 03:12:06 phk Exp $
+ * $Id: main.c,v 1.18 1994/12/27 23:26:51 jkh Exp $
  *
  */
 
@@ -61,6 +61,9 @@ main(int argc, char **argv)
 		ioctl(0,TIOCSCTTY,(char *)NULL);
 		setlogin("root");
 		debug_fd = open("/dev/ttyv1",O_WRONLY);
+		setbuf(stdin,0);
+		setbuf(stdout,0);
+		setbuf(stderr,0);
 	} else {
 		debug_fd = open("sysinstall.debug",
 			O_WRONLY|O_CREAT|O_TRUNC,0644);
