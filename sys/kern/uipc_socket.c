@@ -902,8 +902,7 @@ soreceive_rcvoob(so, uio, flags)
 
 			error = uiomoveco(mtod(m, void *),
 					  min(uio->uio_resid, m->m_len),
-					  uio, pg->object,
-					  disposable);
+					  uio, disposable);
 		} else
 #endif /* ZERO_COPY_SOCKETS */
 		error = uiomove(mtod(m, void *),
@@ -1246,7 +1245,7 @@ dontblock:
 					uio->uio_offset =IDX_TO_OFF(pg->pindex);
 
 				error = uiomoveco(mtod(m, char *) + moff,
-						  (int)len, uio,pg->object,
+						  (int)len, uio,
 						  disposable);
 			} else
 #endif /* ZERO_COPY_SOCKETS */
