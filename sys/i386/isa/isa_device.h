@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.3 1993/11/07 17:44:32 wollman Exp $
+ *	$Id: isa_device.h,v 1.4 1993/12/19 00:50:42 wollman Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -72,7 +72,7 @@ struct isa_driver {
 };
 
 extern struct isa_device isa_devtab_bio[], isa_devtab_tty[], isa_devtab_net[],
-		isa_devtab_null[];
+		isa_devtab_null[], isa_biotab_wdc[], isa_biotab_fdc[];
 
 extern struct isa_device *find_isadev(/* table, driver, unit*/);
 
