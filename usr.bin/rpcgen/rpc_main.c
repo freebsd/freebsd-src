@@ -336,7 +336,7 @@ static void find_cpp()
 		} else {	/* try the other one */
 			CPP = SUNOS_CPP;
 			if (stat(CPP, &buf) < 0) { /* can't find any cpp */
-				warnx("cannot find any C preprocessor (cpp)");
+				warnx("cannot find C preprocessor: %s", CPP);
 				crash();
 			}
 		}
