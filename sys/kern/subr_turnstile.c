@@ -212,7 +212,7 @@ struct mutex_prof {
 #define MPROF_TOT 1
 #define MPROF_CNT 2
 #define MPROF_AVG 3
-	u_int64_t cycles[4];
+	u_int64_t counter[4];
 };
 
 /*
@@ -258,6 +258,15 @@ mprof_init(void *arg __unused)
 }
 SYSINIT(mprofinit, SI_SUB_LOCK, SI_ORDER_ANY, mprof_init, NULL);
 
+static u_int64_t
+nanoseconds(void)
+{
+	struct timespec tv;
+
+	nanotime(&tv);
+	return (tv.tv_sec * (u_int64_t)1000000000 + tv.tv_nsec);
+}
+
 static int
 dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 {
@@ -274,10 +283,10 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i)
 		sbuf_printf(sb, "%12llu %12llu %12llu %12llu %s:%d (%s)\n",
-		    mprof_buf[i].cycles[MPROF_MAX],
-		    mprof_buf[i].cycles[MPROF_TOT],
-		    mprof_buf[i].cycles[MPROF_CNT],
-		    mprof_buf[i].cycles[MPROF_AVG],
+		    mprof_buf[i].counter[MPROF_MAX] / 1000,
+		    mprof_buf[i].counter[MPROF_TOT] / 1000,
+		    mprof_buf[i].counter[MPROF_CNT],
+		    mprof_buf[i].counter[MPROF_AVG] / 1000,
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
 	mtx_unlock_spin(&mprof_mtx);
 	sbuf_finish(sb);
@@ -304,10 +313,10 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 #ifdef MUTEX_PROFILING
 	/* don't reset the timer when/if recursing */
-	if (m->cycles == 0) {
+	if (m->acqtime == 0) {
 		m->file = file;
 		m->line = line;
-		m->cycles = mutex_prof_enable ? get_cyclecount() : 0;
+		m->acqtime = mutex_prof_enable ? nanoseconds() : 0;
 		++mutex_prof_acquisitions;
 	}
 #endif
@@ -320,17 +329,17 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	mtx_assert(m, MA_OWNED);
 #ifdef MUTEX_PROFILING
-	if (m->cycles != 0) {
+	if (m->acqtime != 0) {
 		static const char *unknown = "(unknown)";
 		struct mutex_prof *mpp;
-		u_int64_t cycles, mcycles;
+		u_int64_t acqtime, now;
 		const char *p, *q;
 		volatile u_int hash, n;
 
-		cycles = get_cyclecount();
-		mcycles = m->cycles;
-		m->cycles = 0;
-		if (cycles <= mcycles)
+		now = nanoseconds();
+		acqtime = m->acqtime;
+		m->acqtime = 0;
+		if (now <= acqtime)
 			goto out;
 		for (p = file; strncmp(p, "../", 3) == 0; p += 3)
 			/* nothing */ ;
@@ -363,12 +372,12 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		 * Record if the mutex has been held longer now than ever
 		 * before
 		 */
-		if ((cycles - mcycles) > mpp->cycles[MPROF_MAX])
-			mpp->cycles[MPROF_MAX] = cycles - mcycles;
-		mpp->cycles[MPROF_TOT] += cycles - mcycles;
-		mpp->cycles[MPROF_CNT] += 1;
-		mpp->cycles[MPROF_AVG] =
-		    mpp->cycles[MPROF_TOT] / mpp->cycles[MPROF_CNT];
+		if ((now - acqtime) > mpp->counter[MPROF_MAX])
+			mpp->counter[MPROF_MAX] = now - acqtime;
+		mpp->counter[MPROF_TOT] += now - acqtime;
+		mpp->counter[MPROF_CNT] += 1;
+		mpp->counter[MPROF_AVG] =
+		    mpp->counter[MPROF_TOT] / mpp->counter[MPROF_CNT];
 unlock:
 		mtx_unlock_spin(&mprof_mtx);
 	}
