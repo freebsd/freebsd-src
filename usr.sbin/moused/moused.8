@@ -84,7 +84,7 @@ data to the device so that the user program will see it.
 .Pp
 If the mouse daemon receives the signal
 .Dv SIGHUP ,
-it will reopen the mouse port and reinitializes itself.
+it will reopen the mouse port and reinitialize itself.
 Useful if
 the mouse is attached/detached while the system is suspended.
 .Pp
@@ -237,16 +237,16 @@ You may explicitly specify a type listed below, or use
 .Ar auto
 to let the
 .Nm
-utility to automatically select an appropriate protocol for the given
+utility automatically select an appropriate protocol for the given
 mouse.
-If you entirely omit this options in the command line,
+If you entirely omit this option in the command line,
 .Fl t Ar auto
 is assumed.
 Under normal circumstances,
 you need to use this option only if the
 .Nm
 utility is not able to detect the protocol automatically
-(see the
+(see
 .Sx "Configuring Mouse Daemon" ) .
 .Pp
 Note that if a protocol type is specified with this option, the
@@ -390,11 +390,11 @@ Note that horizontal movement or second roller/wheel movement may not
 always be detected,
 because there appears to be no accepted standard as to how it is encoded.
 .Pp
-Note also that some mice think left is the negative horizontal direction,
+Note also that some mice think left is the negative horizontal direction;
 others may think otherwise.
 Moreover, there are some mice whose two wheels are both mounted vertically,
 and the direction of the second vertical wheel does not match the
-first one's.
+first one.
 .El
 .El
 .Ss Configuring Mouse Daemon
@@ -541,7 +541,7 @@ Run two mouse daemons and tell the application program
 .Tn "X\ Window System" )
 to use
 .Xr sysmouse ,
-then the application program will always see mouse data from either mice.
+then the application program will always see mouse data from either mouse.
 When the serial mouse is not attached, the corresponding mouse daemon
 will not detect any movement or button state change and the application
 program will only see mouse data coming from the daemon for the
