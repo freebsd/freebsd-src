@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.8 1995/01/09 16:05:19 davidg Exp $
+ * $Id: ffs_vnops.c,v 1.9 1995/04/09 06:03:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -252,14 +252,6 @@ ffs_fsync(ap)
 	struct buf *nbp;
 	int pass;
 	int s;
-
-	/*
-	 * If the vnode has an object, then flush all of the dirty pages
-	 * into the buffer cache.
-	 */
-
-	if (vp->v_vmdata)
-		_vm_object_page_clean((vm_object_t)vp->v_vmdata, 0, 0, 0);
 
 	pass = 0;
 	/*

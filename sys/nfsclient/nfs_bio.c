@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.11 1995/03/04 03:24:34 davidg Exp $
+ * $Id: nfs_bio.c,v 1.12 1995/04/16 05:05:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -78,6 +78,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	struct proc *p;
 	struct nfsmount *nmp;
 	daddr_t lbn, rabn;
+	int bufsize;
 	int nra, error = 0, n = 0, on = 0, not_readin;
 
 #ifdef lint
@@ -209,7 +210,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, p);
 			    if (!rabp)
 				return (EINTR);
-			    if ((rabp->b_flags & B_DELWRI) == 0) {
+			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
@@ -231,7 +232,12 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 * as required.
 		 */
 again:
-		bp = nfs_getcacheblk(vp, lbn, biosize, p);
+		bufsize = biosize;
+		if ((lbn + 1) * biosize > np->n_size) {
+			bufsize = np->n_size - lbn * biosize;
+			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+		}
+		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
 		if (!bp)
 			return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
@@ -244,7 +250,11 @@ again:
 			    return (error);
 			}
 		}
-		n = min((unsigned)(biosize - on), uio->uio_resid);
+		if (bufsize > on) {
+			n = min((unsigned)(bufsize - on), uio->uio_resid);
+		} else {
+			n = 0;
+		}
 		diff = np->n_size - uio->uio_offset;
 		if (diff < n)
 			n = diff;
@@ -313,7 +323,7 @@ again:
 		    !incore(vp, rabn)) {
 			rabp = nfs_getcacheblk(vp, rabn, NFS_DIRBLKSIZ, p);
 			if (rabp) {
-			    if ((rabp->b_flags & B_CACHE) == 0) {
+			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
@@ -378,6 +388,7 @@ nfs_write(ap)
 	struct vattr vattr;
 	struct nfsmount *nmp;
 	daddr_t lbn;
+	int bufsize;
 	int n, on, error = 0;
 
 #ifdef DIAGNOSTIC
@@ -458,7 +469,16 @@ nfs_write(ap)
 		on = uio->uio_offset & (biosize-1);
 		n = min((unsigned)(biosize - on), uio->uio_resid);
 again:
-		bp = nfs_getcacheblk(vp, lbn, biosize, p);
+		if (uio->uio_offset + n > np->n_size) {
+			np->n_size = uio->uio_offset + n;
+			vnode_pager_setsize(vp, (u_long)np->n_size);
+		}
+		bufsize = biosize;
+		if ((lbn + 1) * biosize > np->n_size) {
+			bufsize = np->n_size - lbn * biosize;
+			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+		}
+		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
 		if (!bp)
 			return (EINTR);
 		if (bp->b_wcred == NOCRED) {
@@ -466,9 +486,9 @@ again:
 			bp->b_wcred = cred;
 		}
 		np->n_flag |= NMODIFIED;
-		if (uio->uio_offset + n > np->n_size) {
-			np->n_size = uio->uio_offset + n;
-			vnode_pager_setsize(vp, (u_long)np->n_size);
+
+		if ((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend > np->n_size) {
+			bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
 		}
 
 		/*
@@ -801,18 +821,23 @@ nfs_doio(bp, cr, p)
 		bp->b_error = error;
 	    }
 	} else {
-	    io.iov_len = uiop->uio_resid = bp->b_dirtyend
-		- bp->b_dirtyoff;
-	    uiop->uio_offset = (bp->b_blkno * DEV_BSIZE)
-		+ bp->b_dirtyoff;
-	    io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
-	    uiop->uio_rw = UIO_WRITE;
-	    nfsstats.write_bios++;
-	    if (bp->b_flags & B_APPENDWRITE)
-		error = nfs_writerpc(vp, uiop, cr, IO_APPEND);
-	    else
-		error = nfs_writerpc(vp, uiop, cr, 0);
-	    bp->b_flags &= ~(B_WRITEINPROG | B_APPENDWRITE);
+
+	    if (((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend) > np->n_size)
+		bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
+
+	    if (bp->b_dirtyend > bp->b_dirtyoff) {
+		io.iov_len = uiop->uio_resid = bp->b_dirtyend
+			- bp->b_dirtyoff;
+		uiop->uio_offset = (bp->b_blkno * DEV_BSIZE)
+			+ bp->b_dirtyoff;
+		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
+		uiop->uio_rw = UIO_WRITE;
+		nfsstats.write_bios++;
+		if (bp->b_flags & B_APPENDWRITE)
+			error = nfs_writerpc(vp, uiop, cr, IO_APPEND);
+		else
+			error = nfs_writerpc(vp, uiop, cr, 0);
+		bp->b_flags &= ~(B_WRITEINPROG | B_APPENDWRITE);
 
 	    /*
 	     * For an interrupted write, the buffer is still valid and the
@@ -821,26 +846,31 @@ nfs_doio(bp, cr, p)
 	     * the B_ASYNC case, B_EINTR is not relevant, so the rpc attempt
 	     * is essentially a noop.
 	     */
-	    if (error == EINTR) {
-		bp->b_flags &= ~B_INVAL;
-		bp->b_flags |= B_DELWRI;
+		if (error == EINTR) {
+			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
+			bp->b_flags |= B_DELWRI;
 
 		/*
 		 * Since for the B_ASYNC case, nfs_bwrite() has reassigned the
 		 * buffer to the clean list, we have to reassign it back to the
 		 * dirty one. Ugh.
 		 */
-		if (bp->b_flags & B_ASYNC)
-		    reassignbuf(bp, vp);
-		else
-		    bp->b_flags |= B_EINTR;
-	    } else {
-		if (error) {
-		    bp->b_flags |= B_ERROR;
-		    bp->b_error = np->n_error = error;
-		    np->n_flag |= NWRITEERR;
+			if (bp->b_flags & B_ASYNC)
+				reassignbuf(bp, vp);
+			else
+				bp->b_flags |= B_EINTR;
+	    	} else {
+			if (error) {
+				bp->b_flags |= B_ERROR;
+				bp->b_error = np->n_error = error;
+				np->n_flag |= NWRITEERR;
+			}
+			bp->b_dirtyoff = bp->b_dirtyend = 0;
 		}
-		bp->b_dirtyoff = bp->b_dirtyend = 0;
+	    } else {
+		bp->b_resid = 0;
+		biodone(bp);
+		return (0);
 	    }
 	}
 	bp->b_resid = uiop->uio_resid;
