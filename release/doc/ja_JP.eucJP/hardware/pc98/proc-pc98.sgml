@@ -1,0 +1,10 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.1
+-->
+<sect1>
+  <title>対応しているシステム</title>
+
+  <para>NEC PC-98x1 マシン</para>
+  <para>EPSON PC-x86 マシン (NEC PC-98x1 互換)</para>
+</sect1>
