@@ -66,15 +66,16 @@ MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
  * Return the root of a filesystem.
  */
 int
-ufs_root(mp, vpp, td)
+ufs_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {
 	struct vnode *nvp;
 	int error;
 
-	error = VFS_VGET(mp, (ino_t)ROOTINO, LK_EXCLUSIVE, &nvp);
+	error = VFS_VGET(mp, (ino_t)ROOTINO, flags, &nvp);
 	if (error)
 		return (error);
 	*vpp = nvp;
