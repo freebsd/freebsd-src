@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.6 1994/11/18 10:05:44 jkh Exp $
+# $Id: instdist.sh,v 1.7 1994/11/18 11:01:25 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -27,7 +27,8 @@ TAR_FLAGS="--unlink -xvf"
 MNT=/mnt
 
 # Set the initial state for media installation.
-media_set_defaults() {
+media_set_defaults()
+{
 	media_type=""
 	media_device=""
 	media_distribution=""
@@ -40,7 +41,7 @@ media_set_defaults() {
 	ifconfig_flags=""
 	remote_hostip=""
 	tmp_dir="/usr/tmp"
-	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA"
+	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
 	nfs_path=""
 	nfs_options=""
 	serial_interface="/dev/tty00"
@@ -232,7 +233,7 @@ media_select_distribution()
 of installation.  Depending on how much hard disk space you have \n\
 available, you may chose to load one or all of them.  Optional \n\
 and mandatory distributions are so noted.  Please also note that \n\
-the secrdist is NOT FOR EXPORT from the U.S.!  Please don't \n\
+the secrdist is NOT FOR EXPORT from the U.S., so please don't \n\
 endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n" \
 "Please select one of the following ${DISTNAME} distributions:" -1 -1 10 \
   "?diskfree"  "Uh, first, how much disk space do I have free?" \
@@ -244,13 +245,13 @@ endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n" \
   "srcdist" "Full sources for everything but DES (optional - $SRCSIZE)" \
   "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
   "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
-  "packages" "The ${DISTNAME} optional software distribution (user choice)" \
+  "packages" "Optional binary software distributions (user choice)" \
      2> ${TMP}/menu.tmp.$$
 	retval=$?
 	media_distribution=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval $retval; then return 1; fi
-	if [ $media_distribution = "?diskfree" ]; then
+	if [ "$media_distribution" = "?diskfree" ]; then
 		if df -k > ${TMP}/df.out; then
 			dialog $clear \
 			--title "How much free space do I have?" \
@@ -279,7 +280,8 @@ to the mount point).\n\n"; then
 
 # Get values into $media_type and $media_device.  Call network initialization
 # if necessary.
-media_chose() {
+media_chose()
+{
 	while [ "$media_device" = "" ]; do
 
 	dialog $clear --title "Installation From" \

@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.41 1994/11/18 10:05:29 jkh Exp $
+# $Id: bininst,v 1.42 1994/11/18 11:01:22 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -40,15 +40,17 @@ TMP=/tmp
 trap interrupt 1 2 15
 
 # set initial defaults
-set_defaults() {
+set_defaults()
+{
 	media_set_defaults
-	installing=1
+	installing="yes"
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
 }
 
 # Print welcome banner.
-welcome() {
+welcome()
+{
 	dialog --title "Welcome to FreeBSD!" $clear \
 	--msgbox \
 "We're now ready to install one or more packed distribution sets onto
@@ -86,14 +88,14 @@ paul@freebsd.org." -1 -1
 welcome
 set_defaults
 
-while [ $installing -eq 1 ]; do
+while [ "$installing" = "yes" ]; do
 	if media_select_distribution; then
 		if media_chose; then
-			install_set
+			media_install_set
 		fi
 	else
 		do_last_config
-		installing=0
+		installing="no"
 	fi
 done
 echo; echo "Spawning shell.  Exit shell to continue with new bindist."
