@@ -305,6 +305,79 @@ reinstall:
 .endif
 
 #
+# buildkernel and installkernel
+#
+# Which kernels to build and/or install is specified by setting
+# KERNEL. If not defined a GENERIC kernel is built/installed.
+# Only the existing (depending MACHINE) config files are used
+# for building kernels and only the first of these is designated
+# as the one being installed.
+#
+# Note that we have to use MACHINE instead of MACHINE_ARCH when
+# we're in kernel-land. Since only MACHINE_ARCH is (expected) to
+# be set to cross-build, we have to make sure MACHINE is set
+# properly.
+
+KERNEL?=	GENERIC GENERIC98
+
+# The only exotic MACHINE_ARCH/MACHINE combination valid at this
+# time is i386/pc98. In all other cases set MACHINE equal to
+# MACHINE_ARCH.
+.if ${MACHINE_ARCH} != "i386" || ${MACHINE} != "pc98"
+MACHINE=	${MACHINE_ARCH}
+.endif
+
+KRNLSRCDIR=	${.CURDIR}/sys
+KRNLCONFDIR=	${KRNLSRCDIR}/${MACHINE}/conf
+KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
+
+.if !defined(NOCLEAN)
+CONFIGARGS=	-r
+.endif
+
+BUILDKERNELS=
+INSTALLKERNEL=
+.for _kernel in ${KERNEL}
+.if exists(${KRNLCONFDIR}/${_kernel})
+BUILDKERNELS+=	${_kernel}
+.if empty(INSTALLKERNEL)
+INSTALLKERNEL= ${_kernel}
+.endif
+.endif
+.endfor
+
+#
+# buildkernel
+#
+# Builds all kernels defined by BUILDKERNELS.
+#
+buildkernel:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding kernel(s)"
+	@echo "--------------------------------------------------------------"
+.for _kernel in ${BUILDKERNELS}
+	@echo "===> ${_kernel}"
+	cd ${KRNLCONFDIR}; \
+		PATH=${TMPPATH} \
+		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
+	cd ${KRNLOBJDIR}/${_kernel}; \
+		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx \
+		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile; \
+		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} depend; \
+		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} all
+.endfor
+
+#
+# installkernel
+#
+# Install the kernel defined by INSTALLKERNEL
+#
+installkernel:
+	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
+		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} install
+
+#
 # update
 #
 # Update the source tree, by running sup and/or running cvs to update to the
@@ -391,7 +464,8 @@ _strfile=	games/fortune/strfile
 .endif
 
 bootstrap-tools:
-.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef gnu/usr.bin/bison
+.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
+    gnu/usr.bin/bison
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
