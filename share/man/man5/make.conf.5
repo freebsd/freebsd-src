@@ -539,7 +539,18 @@ command when building
 .Xr sendmail 8 .
 .It Va SENDMAIL_DPADD
 .Pq Vt str
-This variable is undocumented.
+Extra dependencies to add when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_SET_USER_ID
+.Pq Vt bool
+If set, install
+.Xr sendmail 8
+as a set-user-ID root binary instead of a set-group-ID binary
+and do not install
+.Pa /etc/mail/submit.{cf,mc} .
+Use of this flag is not recommended and the alternative advice in
+.Pa /etc/mail/README
+should be followed instead of at all possible.
 .El
 .Pp
 The following list provides a name and short description for variables
