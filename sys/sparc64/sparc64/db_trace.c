@@ -46,9 +46,6 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
 
-#define	INKERNEL(va) \
-	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
-
 static db_varfcn_t db_show_in0;
 static db_varfcn_t db_show_in1;
 static db_varfcn_t db_show_in2;
@@ -66,9 +63,16 @@ static db_varfcn_t db_show_local5;
 static db_varfcn_t db_show_local6;
 static db_varfcn_t db_show_local7;
 
-static void db_print_trap(struct trapframe *);
+static int db_print_trap(struct trapframe *);
 
 extern char tl1_trap[];
+extern char tl0_trap_flushed[];
+extern char tl0_trap_withstack[];
+extern char _start[];
+extern char _end[];
+
+#define	INKERNEL(va) \
+	((va) >= (u_long)_start && (va) <= (u_long)_end)
 
 struct	db_variable db_regs[] = {
 	{ "g0",	&ddb_regs.tf_global[0], FCN_NULL },
@@ -116,8 +120,10 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	db_addr_t npc;
 	db_addr_t pc;
 	int trap;
+	int user;
 
 	trap = 0;
+	user = 0;
 	npc = 0;
 	if (count == -1)
 		count = 1024;
@@ -126,24 +132,32 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		fp = (struct frame *)(kfp->kf_cfp + SPOFF);
 	} else
 		fp = (struct frame *)(addr + SPOFF);
-	while (count-- && INKERNEL((vm_offset_t)fp)) {
+	while (count-- && !user) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->f_pc,
 		    sizeof(db_addr_t), FALSE);
 		if (trap) {
 			pc = npc;
 			trap = 0;
 		}
+		if (!INKERNEL((vm_offset_t)pc))
+			break;
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
-		db_symbol_values(sym, &name, &value);
+		if (sym == C_DB_SYM_NULL) {
+			value = 0;
+			name = NULL;
+		} else
+			db_symbol_values(sym, &name, &value);
 		if (name == NULL)
 			name = "(null)";
-		if (value == (u_long)tl1_trap) {
+		if (value == (u_long)tl1_trap ||
+		    value == (u_long)tl0_trap_flushed ||
+		    value == (u_long)tl0_trap_withstack) {
 			nfp = db_get_value((db_addr_t)&fp->f_fp,
 			    sizeof(u_long), FALSE) + SPOFF;
 			tf = (struct trapframe *)(nfp + sizeof(*fp));
 			npc = db_get_value((db_addr_t)&tf->tf_tpc,
 			    sizeof(u_long), FALSE);
-			db_print_trap(tf);
+			user = db_print_trap(tf);
 			trap = 1;
 		} else {
 			db_printf("%s() at ", name);
@@ -155,7 +169,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	}
 }
 
-static void
+static int
 db_print_trap(struct trapframe *tf)
 {
 	struct mmuframe *mf;
@@ -165,6 +179,8 @@ db_print_trap(struct trapframe *tf)
 	type = db_get_value((db_addr_t)&tf->tf_type, sizeof(u_long), FALSE);
 	db_printf("-- %s trap (%s) -- ", type & T_KERNEL ? "kernel" : "user",
 	    trap_msg[type & ~T_KERNEL]);
+	if ((type & T_KERNEL) == 0)
+		db_printf("tpc = %p, tnpc = %p ", tf->tf_tpc, tf->tf_tnpc);
 	switch (type & ~T_KERNEL) {
 	case T_ALIGN:
 		mf = (struct mmuframe *)db_get_value((db_addr_t)&tf->tf_arg,
@@ -177,6 +193,7 @@ db_print_trap(struct trapframe *tf)
 		break;
 	}
 	db_printf("\n");
+	return ((type & T_KERNEL) == 0);
 }
 
 DB_COMMAND(down, db_frame_down)
