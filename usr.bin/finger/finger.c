@@ -333,11 +333,11 @@ userlist(argc, argv)
 	 * gathering the traditional finger information.
 	 */
 	if (mflag)
-		for (p = argv; *p; ++p) {
-			if (**p != '/' || !show_text("", *p, "")) {
+		for (p = argv, ip = used; *p; ++p, ++ip) {
+			if (**p != '/' || *ip == 1 || !show_text("", *p, "")) {
 				if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
 					enter_person(pw);
-			   	else
+				else if (!*ip)
 					warnx("%s: no such user", *p);
 			}
 		}
