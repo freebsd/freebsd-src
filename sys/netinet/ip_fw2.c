@@ -3294,7 +3294,6 @@ ipfw_init(void)
 	layer3_chain.rules = NULL;
 	IPFW_LOCK_INIT(&layer3_chain);
 	IPFW_DYN_LOCK_INIT();
-	init_tables();
 	callout_init(&ipfw_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 
 	bzero(&default_rule, sizeof default_rule);
@@ -3404,4 +3403,8 @@ static moduledata_t ipfwmod = {
 };
 DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(ipfw, 1);
+
+/* Must be run after route_init(). */
+SYSINIT(ipfw, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, init_tables, 0)
+
 #endif /* IPFW2 */
