@@ -362,13 +362,13 @@ netconfig:
 	char *ifaces;
 
 	if (hostname[0]) {
-	    variable_set2(VAR_HOSTNAME, hostname, use_dhcp ? 0 : 1);
+	    variable_set2(VAR_HOSTNAME, hostname, 1);
 	    sethostname(hostname, strlen(hostname));
 	}
 	if (domainname[0])
 	    variable_set2(VAR_DOMAINNAME, domainname, 0);
 	if (gateway[0])
-	    variable_set2(VAR_GATEWAY, gateway, use_dhcp ? 0 : 1);
+	    variable_set2(VAR_GATEWAY, gateway, 1);
 	if (nameserver[0])
 	    variable_set2(VAR_NAMESERVER, nameserver, 0);
 	if (ipaddr[0])
