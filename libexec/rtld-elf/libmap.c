@@ -17,6 +17,11 @@
 #define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
 #endif
 
+#ifdef COMPAT_32BIT
+#undef _PATH_LIBMAP_CONF
+#define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
+#endif
+
 TAILQ_HEAD(lm_list, lm);
 struct lm {
 	char *f;
@@ -211,6 +216,27 @@ lm_find (const char *p, const char *f)
 		return (NULL);
 }
 
+#ifdef COMPAT_32BIT
+char *
+lm_findn (const char *p, const char *f, const int n)
+{
+	char pathbuf[64], *s, *t;
+
+	if (n < sizeof(pathbuf) - 1) {
+		memcpy(pathbuf, f, n);
+		pathbuf[n] = '\0';
+		s = pathbuf;
+	} else {
+		s = xmalloc(n + 1);
+		strcpy(s, f);
+	}
+	t = lm_find(p, s);
+	if (s != pathbuf)
+		free(s);
+	return (t);
+}
+#endif
+
 static char *
 lml_find (struct lm_list *lmh, const char *f)
 {
@@ -219,8 +245,7 @@ lml_find (struct lm_list *lmh, const char *f)
 	dbg("%s(%p, \"%s\")", __func__, lmh, f);
 
 	TAILQ_FOREACH(lm, lmh, lm_link)
-		if ((strncmp(f, lm->f, strlen(lm->f)) == 0) &&
-		    (strlen(f) == strlen(lm->f)))
+		if (strcmp(f, lm->f) == 0)
 			return (lm->t);
 	return NULL;
 }
@@ -233,8 +258,7 @@ lmp_find (const char *n)
 	dbg("%s(\"%s\")", __func__, n);
 
 	TAILQ_FOREACH(lmp, &lmp_head, lmp_link)
-		if ((strncmp(n, lmp->p, strlen(lmp->p)) == 0) &&
-		    (strlen(n) == strlen(lmp->p)))
+		if (strcmp(n, lmp->p) == 0)
 			return (&lmp->lml);
 	return (NULL);
 }

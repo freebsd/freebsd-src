@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		ld-elf.so.1
+PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c rtld_lock.c map_object.c malloc.c \
 		xmalloc.c debug.c reloc.c libmap.c
 MAN=		rtld.1
