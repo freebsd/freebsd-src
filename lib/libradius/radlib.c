@@ -362,8 +362,6 @@ rad_config(struct rad_handle *h, const char *path)
 
 		if (rad_add_server(h, host, port, secret, timeout, maxtries) ==
 		    -1) {
-			char msg[ERRSIZE];
-
 			strcpy(msg, h->errmsg);
 			generr(h, "%s:%d: %s", path, linenum, msg);
 			retval = -1;
@@ -374,6 +372,78 @@ rad_config(struct rad_handle *h, const char *path)
 	memset(buf, 0, sizeof buf);
 	fclose(fp);
 	return retval;
+}
+
+/*
+ * rad_init_send_request() must have previously been called.
+ * Returns:
+ *   0     The application should select on *fd with a timeout of tv before
+ *         calling rad_continue_send_request again.
+ *   < 0   Failure
+ *   > 0   Success
+ */
+int
+rad_continue_send_request(struct rad_handle *h, int selected, int *fd,
+                          struct timeval *tv)
+{
+	int n;
+
+	if (selected) {
+		struct sockaddr_in from;
+		int fromlen;
+
+		fromlen = sizeof from;
+		h->resp_len = recvfrom(h->fd, h->response,
+		    MSGSIZE, MSG_WAITALL, (struct sockaddr *)&from, &fromlen);
+		if (h->resp_len == -1) {
+			generr(h, "recvfrom: %s", strerror(errno));
+			return -1;
+		}
+		if (is_valid_response(h, h->srv, &from)) {
+			h->resp_len = h->response[POS_LENGTH] << 8 |
+			    h->response[POS_LENGTH+1];
+			h->resp_pos = POS_ATTRS;
+			return h->response[POS_CODE];
+		}
+	}
+
+	if (h->try == h->total_tries) {
+		generr(h, "No valid RADIUS responses received");
+		return -1;
+	}
+
+	/*
+         * Scan round-robin to the next server that has some
+         * tries left.  There is guaranteed to be one, or we
+         * would have exited this loop by now.
+	 */
+	while (h->servers[h->srv].num_tries >= h->servers[h->srv].max_tries)
+		if (++h->srv >= h->num_servers)
+			h->srv = 0;
+
+	/* Insert the scrambled password into the request */
+	if (h->pass_pos != 0)
+		insert_scrambled_password(h, h->srv);
+
+	/* Send the request */
+	n = sendto(h->fd, h->request, h->req_len, 0,
+	    (const struct sockaddr *)&h->servers[h->srv].addr,
+	    sizeof h->servers[h->srv].addr);
+	if (n != h->req_len) {
+		if (n == -1)
+			generr(h, "sendto: %s", strerror(errno));
+		else
+			generr(h, "sendto: short write");
+		return -1;
+	}
+
+	h->try++;
+	h->servers[h->srv].num_tries++;
+	tv->tv_sec = h->servers[h->srv].timeout;
+	tv->tv_usec = 0;
+	*fd = h->fd;
+
+	return 0;
 }
 
 int
@@ -453,6 +523,69 @@ rad_get_attr(struct rad_handle *h, const void **value, size_t *len)
 }
 
 /*
+ * Returns -1 on error, 0 to indicate no event and >0 for success
+ */
+int
+rad_init_send_request(struct rad_handle *h, int *fd, struct timeval *tv)
+{
+	int srv;
+
+	/* Make sure we have a socket to use */
+	if (h->fd == -1) {
+		struct sockaddr_in sin;
+
+		if ((h->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+			generr(h, "Cannot create socket: %s", strerror(errno));
+			return -1;
+		}
+		memset(&sin, 0, sizeof sin);
+		sin.sin_len = sizeof sin;
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = INADDR_ANY;
+		sin.sin_port = htons(0);
+		if (bind(h->fd, (const struct sockaddr *)&sin,
+		    sizeof sin) == -1) {
+			generr(h, "bind: %s", strerror(errno));
+			close(h->fd);
+			h->fd = -1;
+			return -1;
+		}
+	}
+
+	/* Make sure the user gave us a password */
+	if (h->pass_pos == 0 && !h->chap_pass) {
+		generr(h, "No User or Chap Password attributes given");
+		return -1;
+	}
+	if (h->pass_pos != 0 && h->chap_pass) {
+		generr(h, "Both User and Chap Password attributes given");
+		return -1;
+	}
+
+	/* Fill in the length field in the message */
+	h->request[POS_LENGTH] = h->req_len >> 8;
+	h->request[POS_LENGTH+1] = h->req_len;
+
+	/*
+	 * Count the total number of tries we will make, and zero the
+	 * counter for each server.
+	 */
+	h->total_tries = 0;
+	for (srv = 0;  srv < h->num_servers;  srv++) {
+		h->total_tries += h->servers[srv].max_tries;
+		h->servers[srv].num_tries = 0;
+	}
+	if (h->total_tries == 0) {
+		generr(h, "No RADIUS servers specified");
+		return -1;
+	}
+
+	h->try = h->srv = 0;
+
+	return rad_continue_send_request(h, 0, fd, tv);
+}
+
+/*
  * Create and initialize a rad_handle structure, and return it to the
  * caller.  Can fail only if the necessary memory cannot be allocated.
  * In that case, it returns NULL.
@@ -520,151 +653,49 @@ rad_put_string(struct rad_handle *h, int type, const char *str)
 int
 rad_send_request(struct rad_handle *h)
 {
-	int total_tries;
-	int try;
-	int srv;
+	struct timeval timelimit;
+	struct timeval tv;
+	int fd;
 	int n;
-	int got_valid_response;
 
-	/* Make sure we have a socket to use */
-	if (h->fd == -1) {
-		struct sockaddr_in sin;
+	n = rad_init_send_request(h, &fd, &tv);
 
-		if ((h->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-			generr(h, "Cannot create socket: %s", strerror(errno));
+	if (n != 0)
+		return n;
+
+	gettimeofday(&timelimit, NULL);
+	timeradd(&tv, &timelimit, &timelimit);
+
+	for ( ; ; ) {
+		fd_set readfds;
+
+		FD_ZERO(&readfds);
+		FD_SET(fd, &readfds);
+
+		n = select(fd + 1, &readfds, NULL, NULL, &tv);
+
+		if (n == -1) {
+			generr(h, "select: %s", strerror(errno));
 			return -1;
 		}
-		memset(&sin, 0, sizeof sin);
-		sin.sin_len = sizeof sin;
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = INADDR_ANY;
-		sin.sin_port = htons(0);
-		if (bind(h->fd, (const struct sockaddr *)&sin,
-		    sizeof sin) == -1) {
-			generr(h, "bind: %s", strerror(errno));
-			close(h->fd);
-			h->fd = -1;
-			return -1;
-		}
-	}
 
-	/* Make sure the user gave us a password */
-	if (h->pass_pos == 0 && !h->chap_pass) {
-		generr(h, "No User or Chap Password attributes given");
-		return -1;
-	}
-
-	if (h->pass_pos != 0 && h->chap_pass) {
-		generr(h, "Both User and Chap Password attributes given");
-		return -1;
-	}
-
-	/* Fill in the length field in the message */
-	h->request[POS_LENGTH] = h->req_len >> 8;
-	h->request[POS_LENGTH+1] = h->req_len;
-
-	/*
-	 * Count the total number of tries we will make, and zero the
-	 * counter for each server.
-	 */
-	total_tries = 0;
-	for (srv = 0;  srv < h->num_servers;  srv++) {
-		total_tries += h->servers[srv].max_tries;
-		h->servers[srv].num_tries = 0;
-	}
-	if (total_tries == 0) {
-		generr(h, "No RADIUS servers specified");
-		return -1;
-	}
-
-	srv = 0;
-	got_valid_response = 0;
-	for (try = 0;  try < total_tries;  try++) {
-		struct timeval timelimit;
-		struct timeval tv;
-
-		/*
-                 * Scan round-robin to the next server that has some
-                 * tries left.  There is guaranteed to be one, or we
-                 * would have exited this loop by now.
-		 */
-		while (h->servers[srv].num_tries >=
-		    h->servers[srv].max_tries)
-			if (++srv >= h->num_servers)
-				srv = 0;
-
-		/* Insert the scrambled password into the request */
-		if (h->pass_pos != 0)
-			insert_scrambled_password(h, srv);
-
-		/* Send the request */
-		n = sendto(h->fd, h->request, h->req_len, 0,
-		    (const struct sockaddr *)&h->servers[srv].addr,
-		    sizeof h->servers[srv].addr);
-		if (n != h->req_len) {
-			if (n == -1)
-				generr(h, "sendto: %s", strerror(errno));
-			else
-				generr(h, "sendto: short write");
-			return -1;
-		}
-		h->servers[srv].num_tries++;
-
-		/* Wait for a valid response */
-		gettimeofday(&timelimit, NULL);
-		timelimit.tv_sec += h->servers[srv].timeout;
-
-		tv.tv_sec = h->servers[srv].timeout;
-		tv.tv_usec = 0;
-		for ( ; ; ) {
-			fd_set readfds;
-
-			FD_ZERO(&readfds);
-			FD_SET(h->fd, &readfds);
-			n = select(h->fd + 1, &readfds, NULL, NULL, &tv);
-			if (n == -1) {
-				generr(h, "select: %s", strerror(errno));
-				return -1;
-			}
-			if (n == 0)	/* Timed out */
-				break;
-			if (FD_ISSET(h->fd, &readfds)) {
-				struct sockaddr_in from;
-				int fromlen;
-
-				fromlen = sizeof from;
-				h->resp_len = recvfrom(h->fd, h->response,
-				    MSGSIZE, MSG_WAITALL,
-				    (struct sockaddr *)&from, &fromlen);
-				if (h->resp_len == -1) {
-					generr(h, "recvfrom: %s",
-					    strerror(errno));
-					return -1;
-				}
-				if (is_valid_response(h, srv, &from)) {
-					got_valid_response = 1;
-					break;
-				}
-			}
+		if (!FD_ISSET(fd, &readfds)) {
 			/* Compute a new timeout */
 			gettimeofday(&tv, NULL);
 			timersub(&timelimit, &tv, &tv);
-			if (tv.tv_sec < 0)	/* Still poll once more */
-				timerclear(&tv);
+			if (tv.tv_sec > 0 || (tv.tv_sec == 0 && tv.tv_usec > 0))
+				/* Continue the select */
+				continue;
 		}
-		if (got_valid_response)
-			break;
-		/* Advance to the next server */
-		if (++srv >= h->num_servers)
-			srv = 0;
+
+		n = rad_continue_send_request(h, n, &fd, &tv);
+
+		if (n != 0)
+			return n;
+
+		gettimeofday(&timelimit, NULL);
+		timeradd(&tv, &timelimit, &timelimit);
 	}
-	if (!got_valid_response) {
-		generr(h, "No valid RADIUS responses received");
-		return -1;
-	}
-	h->resp_len = h->response[POS_LENGTH] << 8 | h->response[POS_LENGTH+1];
-	h->resp_pos = POS_ATTRS;
-	return h->response[POS_CODE];
 }
 
 const char *
