@@ -5,6 +5,33 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20010919:
+	There's a bug in the world build process.  The cross-tools
+	are build with the NEW headers, but the OLD libc.a.  This
+	leads to all kinds of problems with the new libc.  A temporary
+	workaround is to do addn
+		CFLAGS="-O -pipe -D_OLD_STDIO"
+	before building world when upgrading from 4.x to current.  This
+	can be removed afterwards.
+
+	A proper fix to the buildworld target is needed.
+
+20010918:
+	Peter has committed his new kthread nfs client/server code.
+	NFS may be unstable after this date.
+
+20010912:
+	KSE has hit the tree.  Lots of things are now different in
+	the kernel.  While a few problems were introduced in the
+	initial commit, most of the major ones have been found and
+	corrected.
+
+20010901:
+	In OLDCARD, CardBus bridges appear to be stable.  The work
+	arounds described in the 20010604 entry are now no longer
+	necessary and will be ignored.  Most insert/remove problems
+	have been rectified around this date.
+
 20010823:
  	named now runs as user bind and group bind rather than as 
  	root.  If named_enable is set to YES in /etc/rc.conf, ensure 
