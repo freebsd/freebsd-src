@@ -2099,8 +2099,8 @@ unmonitor_lock_host(char *hostname)
 	smon_id.my_id.my_proc = NLM_SM_NOTIFY;
 			  
 	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON,
-	    (xdrproc_t)xdr_mon, &smon_id,
-	    (xdrproc_t)xdr_sm_stat_res, &smstat);
+	    (xdrproc_t)xdr_mon_id, &smon_id,
+	    (xdrproc_t)xdr_sm_stat, &smstat);
 			  
 	if (rpcret != 0) {
 		debuglog("Rpc call to unmonitor statd failed with "
