@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
+ **      $Id: userconfig.c,v 1.28.4.4 1996/07/02 20:18:35 bde Exp $
  **/
 
 /**
@@ -120,8 +120,33 @@ static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devt
 
 struct isa_device	*isa_devlist = NULL;	/* list read by dset to extract changes */
 
-#define putchar(x)	cnputc(x)
+#ifdef USERCONFIG_BOOT
+char userconfig_from_boot[512] = "";
+
+static int
+getchar(void)
+{
+    static char *next = userconfig_from_boot;
+
+    if (next == userconfig_from_boot) {
+	if (strncmp(next, "USERCONFIG\n", 11)) {
+	    next++;
+	    strcpy(next, "quit\n");
+	} else {
+	    next += 11;
+	}
+    } 
+    if (*next) {
+	return (*next++);
+    } else {
+	return cngetc();
+    }
+}
+#else /* !USERCONFIG_BOOT */
 #define getchar()	cngetc()
+#endif /* USERCONFIG_BOOT */
+
+#define putchar(x)	cnputc(x)
 
 
 #ifndef FALSE
@@ -2146,7 +2171,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
+ *      $Id: userconfig.c,v 1.28.4.4 1996/07/02 20:18:35 bde Exp $
  */
 
 
@@ -2200,6 +2225,9 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+static int introfunc(CmdParm *);
+#endif
 
 static int lineno;
 
@@ -2228,6 +2256,9 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+    { "intro", 	introfunc, 		NULL },		/* intro screen	*/
+#endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
@@ -2251,7 +2282,7 @@ userconfig(void)
     struct isa_device *dt;
     Cmd *cmd;
 
-    printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
+    printf("\nFreeBSD Kernel Configuration Utility - Version 1.1\n"
 	   " Type \"help\" for help or \"visual\" to go to the visual\n"
 	   " configuration interface (requires MGA/VGA display or\n"
 	   " serial terminal capable of displaying ANSI graphics).\n");
@@ -2451,6 +2482,112 @@ set_device_disable(CmdParm *parms)
     save_dev(parms[0].parm.dparm);
     return 0;
 }
+
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+
+static void
+center(int y, char *str)
+{
+    putxy((80 - strlen(str)) / 2, y, str);
+}
+
+static int
+introfunc(CmdParm *parms)
+{
+    int curr_item, first_time;
+    static char *choices[] = {
+	" Skip kernel configuration and continue with installation ",
+	" Start kernel configuration in Visual mode                ",
+	" Start kernel configuration in CLI mode (experts only)    ",
+    };
+
+    clear();
+    center(2, "!bKernel Configuration Menu!n");
+
+    curr_item = 0;
+    first_time = 1;
+    while (1) {
+	char tmp[80];
+	int c, i, extended = 0;
+
+	for (i = 0; i < 3; i++) {
+	    tmp[0] = '\0';
+	    if (curr_item == i)
+		strcpy(tmp, "!i");
+	    strcat(tmp, choices[i]);
+	    if (curr_item == i)
+		strcat(tmp, "!n");
+	    putxy(10, 5 + i, tmp);
+	}
+
+	if (first_time) {
+	    putxy(2, 10, "Here you have the chance to go into kernel configuration mode, making");
+	    putxy(2, 11, "any changes which may be necessary to properly adjust the kernel to");
+	    putxy(2, 12, "match your hardware configuration.");
+	    putxy(2, 14, "If you are installing FreeBSD for the first time, select Visual Mode");
+	    putxy(2, 15, "(press Down-Arrow then ENTER).");
+	    putxy(2, 17, "If you need to do more specialized kernel configuration and are an");
+	    putxy(2, 18, "experienced FreeBSD user, select CLI mode.");
+	    putxy(2, 20, "If you are !icertain!n that you do not need to configure your kernel");
+	    putxy(2, 21, "then simply press ENTER or Q now.");
+	    first_time = 0;
+	}
+
+	move(0, 0);	/* move the cursor out of the way */
+	c = getchar();
+	if ((extended == 2) || (c == 588) || (c == 596)) {	/* console gives "alternative" codes */
+	    extended = 0;		/* no longer */
+	    switch (c) {
+	    case 588:
+	    case 'A':				/* up */
+		if (curr_item > 0)
+		    --curr_item;
+		break;
+
+	    case 596:
+	    case 'B':				/* down */
+		if (curr_item < 2)
+		    ++curr_item;
+		break;
+	    }
+	}
+	else {
+	    switch(c) {
+	    case '\033':
+		extended = 1;
+		break;
+		    
+	    case '[':				/* cheat : always preceeds cursor move */
+	    case 'O':				/* ANSI application key mode */
+		if (extended == 1)
+		    extended = 2;
+		else
+		    extended = 0;
+		break;
+		
+	    case 'Q':
+	    case 'q':
+		clear();
+		return 1;	/* user requests exit */
+
+	    case '\r':				
+	    case '\n':
+		clear();
+		if (!curr_item)
+		    return 1;
+		else if (curr_item == 1)
+		    return visuserconfig();
+		else {
+		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
+		    move (0, 3);
+		    return 0;
+		}
+		break;
+	    }
+	}
+    }
+}
+#endif
 
 static int
 quitfunc(CmdParm *parms)
