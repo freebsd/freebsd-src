@@ -1,11 +1,18 @@
-#	$Id: Makefile,v 1.27 1994/11/08 13:54:21 jkh Exp $
+#	$Id: Makefile,v 1.28 1994/11/08 18:36:45 jkh Exp $
 #
 
-FDLABEL=	fd1200
-DDCOUNT=	80
-
 FLOPPY=		fd0
+
+.if 1
+FDLABEL=	fd1200
 DDBS=		15k
+DDCOUNT=	80
+.else
+FDLABEL=	fd1440
+DDBS=		18k
+DDCOUNT=	80
+.endif
+
 MNT=		/mnt
 
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
@@ -24,6 +31,8 @@ CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz
 CLEANFILES+=	boot_flp boot.flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
+
+ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
 hierarchy:
 	mtree -deU -f ${MTREE_DIR}/BSD.root.dist  -p ${DESTDIR}/
