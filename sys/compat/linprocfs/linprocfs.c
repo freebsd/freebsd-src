@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/blist.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
+#include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -547,6 +548,37 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/pid/statm
+ */
+static int
+linprocfs_doprocstatm(PFS_FILL_ARGS)
+{
+	struct kinfo_proc kp;
+	segsz_t lsize;
+	
+	PROC_LOCK(p);
+	fill_kinfo_proc(p, &kp);
+	PROC_UNLOCK(p);
+
+	/*
+	 * See comments in linprocfs_doprocstatus() regarding the
+	 * computation of lsize.
+	 */
+	/* size resident share trs drs lrs dt */
+	sbuf_printf(sb, "%ju ", B2P((uintmax_t)kp.ki_size));
+	sbuf_printf(sb, "%ju ", (uintmax_t)kp.ki_rssize);
+	sbuf_printf(sb, "%ju ", (uintmax_t)0); /* XXX */
+	sbuf_printf(sb, "%ju ",	(uintmax_t)kp.ki_tsize);
+	sbuf_printf(sb, "%ju ", (uintmax_t)(kp.ki_dsize + kp.ki_ssize));
+	lsize = B2P(kp.ki_size) - kp.ki_dsize -
+	    kp.ki_ssize - kp.ki_tsize - 1;
+	sbuf_printf(sb, "%ju ", (uintmax_t)lsize);
+	sbuf_printf(sb, "%ju\n", (uintmax_t)0); /* XXX */
+
+	return (0);
+}
+
+/*
  * Filler function for proc/pid/status
  */
 static int
@@ -679,6 +711,41 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "CapPrm:\t%016x\n",	0);
 	sbuf_printf(sb, "CapEff:\t%016x\n",	0);
 
+	return (0);
+}
+
+
+/*
+ * Filler function for proc/pid/cwd
+ */
+static int
+linprocfs_doproccwd(PFS_FILL_ARGS)
+{
+	char *fullpath = "unknown";
+	char *freepath = NULL;
+
+	vn_fullpath(td, p->p_fd->fd_cdir, &fullpath, &freepath);
+	sbuf_printf(sb, "%s", fullpath);
+	if (freepath)
+		free(freepath, M_TEMP);
+	return (0);
+}
+
+/*
+ * Filler function for proc/pid/root
+ */
+static int
+linprocfs_doprocroot(PFS_FILL_ARGS)
+{
+	struct vnode *rvp;
+	char *fullpath = "unknown";
+	char *freepath = NULL;
+
+	rvp = jailed(p->p_ucred) ? p->p_fd->fd_jdir : p->p_fd->fd_rdir;
+	vn_fullpath(td, rvp, &fullpath, &freepath);
+	sbuf_printf(sb, "%s", fullpath);
+	if (freepath)
+		free(freepath, M_TEMP);
 	return (0);
 }
 
@@ -835,46 +902,58 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	root = pi->pi_root;
 
-#define PFS_CREATE_FILE(name) \
-	pfs_create_file(root, #name, &linprocfs_do##name, NULL, NULL, PFS_RD)
-	PFS_CREATE_FILE(cmdline);
-	PFS_CREATE_FILE(cpuinfo);
+	/* /proc/* */
+	pfs_create_file(root, "cmdline", &linprocfs_docmdline,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
+	    NULL, NULL, PFS_RD);
 #if 0
-	PFS_CREATE_FILE(devices);
+	pfs_create_file(root, "devices", &linprocfs_dodevices,
+	    NULL, NULL, PFS_RD);
 #endif
-	PFS_CREATE_FILE(loadavg);
-	PFS_CREATE_FILE(meminfo);
+	pfs_create_file(root, "loadavg", &linprocfs_doloadavg,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(root, "meminfo", &linprocfs_domeminfo,
+	    NULL, NULL, PFS_RD);
 #if 0
-	PFS_CREATE_FILE(modules);
+	pfs_create_file(root, "modules", &linprocfs_domodules,
+	    NULL, NULL, PFS_RD);
 #endif
-	PFS_CREATE_FILE(mtab);
-	PFS_CREATE_FILE(stat);
-	PFS_CREATE_FILE(uptime);
-	PFS_CREATE_FILE(version);
-#undef PFS_CREATE_FILE
+	pfs_create_file(root, "mtab", &linprocfs_domtab,
+	    NULL, NULL, PFS_RD);
 	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, 0);
+	pfs_create_file(root, "stat", &linprocfs_dostat,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(root, "uptime", &linprocfs_douptime,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(root, "version", &linprocfs_doversion,
+	    NULL, NULL, PFS_RD);
 
+	/* /proc/net/* */
 	dir = pfs_create_dir(root, "net", NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,
 	    NULL, NULL, PFS_RD);
 
+	/* /proc/<pid>/* */
 	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
 	    NULL, NULL, PFS_RD);
-
+	pfs_create_link(dir, "cwd", &linprocfs_doproccwd,
+	    NULL, NULL, 0);
 	pfs_create_file(dir, "environ", &linprocfs_doprocenviron,
 	    NULL, NULL, PFS_RD);
-
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
 	    NULL, &procfs_notsystem, 0);
-
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
 	    NULL, NULL, PFS_RD);
-
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
 	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
+	pfs_create_link(dir, "root", &linprocfs_doprocroot,
+	    NULL, NULL, 0);
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "statm", &linprocfs_doprocstatm,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
 	    NULL, NULL, PFS_RD);
