@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.6 1994/05/25 06:27:23 jkh Exp $ */
+/* $Id: lib.h,v 1.7 1994/05/25 18:00:04 asami Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -75,7 +75,7 @@
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT,
-    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC
+    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC, PLIST_SRC
 };
 typedef enum _plist_t plist_t;
 

@@ -164,6 +164,13 @@ Note:
 .BI @cd
 is also an alias for this command.
 .TP
+.BI "@srcdir\ " directory
+Sets the internal directory pointer for _creation only_ to
+.I directory.
+That is to say that it overrides
+.I @cwd
+for package creation but not extraction.
+.TP
 .BI "@exec\ " command
 Execute
 .I command
