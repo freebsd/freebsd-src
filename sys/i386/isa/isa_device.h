@@ -37,6 +37,8 @@
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
 
+#ifndef BURN_BRIDGES
+
 #ifdef _KERNEL
 #include <sys/bus.h>
 #include <isa/isavar.h>
@@ -108,5 +110,9 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)		\
 #endif
 
 #endif	/* COMPAT_OLDISA */
+
+#else	/* BURN_BRIDGES */
+#error "cvs rm sys/i386/isa/isa_device.h"
+#endif	/* BURN_BRIDGES */
 
 #endif /* !_I386_ISA_ISA_DEVICE_H_ */

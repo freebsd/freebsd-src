@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#ifndef BURN_BRIDGES
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -295,3 +297,7 @@ compat_isa_handler(module_t mod, int type, void *data)
 	}
 	return 0;
 }
+
+#else
+#error "cvs rm sys/i386/isa/isa_compat.c"
+#endif
