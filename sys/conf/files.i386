@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.74 1995/01/25 21:04:15 jmz Exp $
+#	$Id: files.i386,v 1.75 1995/01/27 07:49:00 phk Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -95,7 +95,6 @@ i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/pcd.c			optional	pcd	device-driver
 i386/isa/psm.c			optional	psm	device-driver
 i386/isa/sb.c			optional	sb	device-driver
-i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/ad1848.c		optional	snd	device-driver
@@ -149,6 +148,7 @@ i386/pci/pci.c			optional	pci	device-driver
 i386/pci/pcibios.c		optional	pci
 i386/pci/pci_config.c		optional	pci
 i386/pci/pcisupport.c		optional	pci
+gnu/i386/scd.c			optional	scd	device-driver
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
