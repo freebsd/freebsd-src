@@ -306,4 +306,12 @@ int umajor(dev_t dev);
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
 
+/*
+ * Unit number allocation API. (kern/subr_unit.c)
+ */
+struct unrhdr;
+struct unrhdr *new_unrhdr(u_int low, u_int high);
+u_int alloc_unr(struct unrhdr *uh);
+void free_unr(struct unrhdr *uh, u_int item);
+
 #endif /* !_SYS_SYSTM_H_ */
