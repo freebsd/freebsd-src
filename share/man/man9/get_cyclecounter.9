@@ -28,18 +28,17 @@
 .Dt GET_CYCLECOUNTER 9
 .Os
 .Sh NAME
-.Nm get_cyclecounter
+.Nm get_cyclecount
 .Nd get the CPU's fast counter register contents
 .Sh SYNOPSIS
 .In sys/param.h
-.In sys/queue.h
 .In machine/cpufunc.h
 .In machine/cpu.h
 .Ft u_int64_t
-.Fn get_cyclecounter "void"
+.Fn get_cyclecount "void"
 .Sh DESCRIPTION
 The
-.Fn get_cyclecounter
+.Fn get_cyclecount
 functon uses a register
 available in most modern CPUs
 to return a value
@@ -64,7 +63,7 @@ Some CPUs
 80386 and 80486)
 do not have such a register,
 so
-.Fn get_cyclecounter
+.Fn get_cyclecount
 on these platforms
 returns the number of nanoseconds
 represented by the
@@ -92,7 +91,7 @@ register.
 .Xr nanotime 9
 .Sh HISTORY
 The
-.Fn get_cyclecounter
+.Fn get_cyclecount
 function first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
