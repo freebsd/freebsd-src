@@ -146,7 +146,7 @@ afd_sense(struct afd_softc *fdp)
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
 	if (!(error = atapi_queue_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
-				      ATPR_F_READ, 30, NULL, NULL, NULL)))
+				      ATPR_F_READ, 30, NULL, NULL)))
 	    break;
     }
     if (error)
@@ -339,7 +339,7 @@ afd_start(struct atapi_softc *atp)
 	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
 			(bp->b_flags & B_READ) ? ATPR_F_READ : 0, 30,
-			afd_partial_done, fdp, bp);
+			afd_partial_done, bp);
 
 	count -= fdp->transfersize;
 	lba += fdp->transfersize;
@@ -354,7 +354,7 @@ afd_start(struct atapi_softc *atp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
-		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 30, afd_done, fdp,bp);
+		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 30, afd_done, bp);
 }
 
 static int32_t 
@@ -416,7 +416,7 @@ afd_start_stop(struct afd_softc *fdp, int32_t start)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
+    error = atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     return atapi_wait_ready(fdp->atp, 30);
@@ -428,5 +428,5 @@ afd_prevent_allow(struct afd_softc *fdp, int32_t lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0,30, NULL, NULL, NULL);
+    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0,30, NULL, NULL);
 }

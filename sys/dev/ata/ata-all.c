@@ -921,15 +921,15 @@ ata_detach(device_t dev)
 
 #if NATADISK > 0
     if (scp->devices & ATA_ATA_MASTER)
-	ad_detach((struct ad_softc *)scp->dev_softc[0]);
+	ad_detach(scp->dev_softc[0]);
     if (scp->devices & ATA_ATA_SLAVE)
-	ad_detach((struct ad_softc *)scp->dev_softc[1]);
+	ad_detach(scp->dev_softc[1]);
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     if (scp->devices & ATA_ATAPI_MASTER)
-	atapi_detach((struct atapi_softc *)scp->dev_softc[0]);
+	atapi_detach(scp->dev_softc[0]);
     if (scp->devices & ATA_ATAPI_SLAVE)
-	atapi_detach((struct atapi_softc *)scp->dev_softc[1]);
+	atapi_detach(scp->dev_softc[1]);
 #endif
     if (scp->dev_param[ATA_DEV(ATA_MASTER)]) {
 	free(scp->dev_param[ATA_DEV(ATA_MASTER)], M_ATA);
