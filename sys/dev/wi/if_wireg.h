@@ -474,7 +474,8 @@ struct wi_ltv_ver {
 struct wi_ltv_domains {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
-	u_int16_t		wi_domains[6];
+	u_int16_t		wi_num_dom;
+	u_int8_t		wi_domains[10];
 };
 
 /*
