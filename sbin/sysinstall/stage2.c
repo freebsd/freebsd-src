@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.21 1995/01/14 10:31:21 jkh Exp $
+ * $Id: stage2.c,v 1.22 1995/01/30 03:19:54 phk Exp $
  *
  */
 
@@ -72,14 +72,18 @@ stage2()
     }
 
     for (j = 1; Fsize[j]; j++) {
-	if (strcmp(Ftype[Fsize[j]], "ufs"))
+	if (!strcmp(Ftype[Fsize[j]], "swap"))
 	    continue;
 	strcpy(dbuf, "/mnt");
 	p = Fname[Fsize[j]];
 	q = Fmount[Fsize[j]];
 	if (strcmp(q, "/"))
 	    strcat(dbuf, q);
-	MountUfs(p, dbuf, 1, 0);
+	if (!strcmp(Ftype[Fsize[j]], "ufs")) {
+	    MountUfs(p, dbuf, 1, 0);
+	    continue;
+        }
+	Mkdir(dbuf);
     }
 
     Mkdir("/mnt/etc", TRUE);
