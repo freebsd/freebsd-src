@@ -28,9 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.4 2002/03/12 15:33:52 ue Exp $
-	$Id: dev.sgml,v 1.14 2002/03/10 17:09:14 ue Exp $
-	basiert auf: 1.76
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.7 2002/04/12 17:55:55 ue Exp $
+	basiert auf: 1.80
 -->
 
 <sect1>
@@ -2058,7 +2057,7 @@
       (&man.bge.4; Treiber) 
       <itemizedlist>
         <listitem>
-          <para>3Com 3c996-T</para>
+          <para>3Com 3c996-SX, 3c996-T</para>
         </listitem>
 
         <listitem>
@@ -2255,6 +2254,10 @@
         </listitem>
 
         <listitem>
+	  <para>Netgear MA401</para>
+        </listitem>
+
+        <listitem>
           <para>PLANEX GeoWave/GW-NS110</para>
         </listitem>
 
@@ -2416,7 +2419,7 @@
 
     <para arch="i386">Dr. Neuhaus Niccy Go@ und kompatible</para>
 
-    <para arch="i386">Dynalink IS64PH</para>
+    <para arch="i386">Dynalink IS64PPH und IS64PPH+</para>
 
     <para arch="i386">Eicon Diehl DIVA 2.0 und 2.02</para>
 
@@ -2902,6 +2905,19 @@
         <listitem>
           <para>Entrega PCI plug-in card (4 Anschl&uuml;sse)</para>
         </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,alpha">Serielle Schnittstellen 
+      <itemizedlist>
+	<listitem>
+	  <para>Prolific PL-2303 serial adapter (uplcom
+	    Treiber)</para>
+	</listitem>
+
+	<listitem>
+	  <para>SUNTAC Slipper U VS-10U (uvscom Treiber)</para>
+	</listitem>
       </itemizedlist>
     </para>
 

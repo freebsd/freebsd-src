@@ -1,7 +1,7 @@
 <articleinfo>
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.9 2002/03/19 05:27:04 ue Exp $
-  basiert auf: 1.303
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.18 2002/04/12 17:58:38 ue Exp $
+  basiert auf: 1.317
 -->
   <title>&os;/&arch; &release.current; Release Notes</title>
 
@@ -232,6 +232,13 @@
       ge&auml;ndert werden (<varname>kern.maxtsiz</varname>,
       <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
 
+    <para>Es gibt jetzt Routinen zum Profiling von &man.mutex.9;, die
+      mit der Option <literal>MUTEX_PROFILING</literal> in der
+      Konfigurationsdatei des Kernels aktiviert werden k&ouml;nnen.
+      Damit stehen dann die neuen Sysctl-Variablen
+      <varname>debug.mutex.prof.*</varname> zur
+      Verf&uuml;gung.</para>
+
     <para arch="i386">Die Kernel-Optionen <literal>NCPU</literal>,
       <literal>NAPIC</literal>, <literal>NBUS</literal> und
       <literal>NINTR</literal>, die zur Konfiguration von SMP-Kerneln
@@ -329,11 +336,26 @@
       die Modelle HP ScanJet 4100C, 5200C und 6300C erhalten.
       &merged;</para>
 
+    <para>Der neue Treiber ucom unterst&uuml;tzt USB Modems, serielle
+      Schnittstellen und andere Programme, die sich wie ein TTY
+      verhalten sollen.  Die beiden neuen Treiber uplcom und uvscom
+      bauen darauf auf und unterst&uuml;tzen den Prolific PL-2303 bzw.
+      den Slipper U VS-10U.</para>
+
+    <para>Bei der Konfiguration des Kernels kann die Option
+      <literal>UCONSOLE</literal> nicht mehr verwendet werden;
+      dadurch wurden einige Sicherheitsl&uuml;cken
+      geschlossen.</para>
+
     <para>Die Kernel-Option <literal>USER_LDT</literal> ist ab jetzt
       standardm&auml;&szlig;ig aktiviert.</para>
 
     <para>Ein neuer Treiber unterst&uuml;tzt den VESA S3 linear
       framebuffer.</para>
+
+    <para arch="i386">Der neue Treiber &man.viapm.4; unterst&uuml;tzt
+      die VIA SMBus Kontroller f&uuml;r Power Management.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>Beim Schreiben von Crash Dumps wird jetzt <literal>Write
@@ -372,9 +394,6 @@
       &man.gensetdefs.8; wird nicht mehr ben&ouml;tigt und wurde
       entfernt.</para>
 
-    <para>Die Kernel-Routinen, die mbufs allozieren, wurden an vielen
-      Stellen ge&auml;ndert, um SMP besser zu behandeln.</para>
-
     <para>Netzwerk-Schnittstellen k&ouml;nnen jetzt geklont werden,
       und &man.gif.4; wurde modifiziert, um diese F&auml;higkeit zu
       nutzen.  Daher ist es jetzt m&ouml;glich, die
@@ -389,7 +408,7 @@
       des Kernels gesetzt werden.</para>
 
     <para>Wenn die neue Sysctl-Variable
-      <varname>vm.zeroidle_enable</varname> gesetzt ist, wird das
+      <varname>vm.idlezero_enable</varname> gesetzt ist, wird das
       System freie CPU-Zeit zur Initialisierung von Speicherseiten
       verwenden.</para>
 
@@ -404,9 +423,9 @@
       System f&uuml;r l&auml;ngere Zeit blockiert wird.
       &merged;</para>
 
-    <para>Der Kernel wurde erweitert, um kleinere Einheiten als einen
-      Proze&szlig; bei der Zeitplanung zu unterst&uuml;tzen (zur Zeit ist
-      aber nur ein Thread pro Proze&szlig; erlaubt).</para>
+    <para>Im Rahmen des "Kernel-Scheduled Entity"-Projektes wurde der
+      Scheduler ge&auml;ndert, um Programme mit mehreren Threads
+      effizienter zu machen.</para>
 
     <para>Der Kernel unterst&uuml;tzt jetzt mehrere low-level
       Konsolen, die &uuml;ber das neue Programm &man.conscontrol.8;
@@ -439,6 +458,13 @@
       Phasen der Initialisierung des Kernels (vor dem single user
       mode) einen Crash Dump zu erhalten.  &merged;</para>
 
+    <para>Die Routinen, mit denen der Kernel anfordert, nutzen jetzt
+      die <quote>slab</quote> Technik, &auml;hnlich wie bei Solaris.
+      Damit steht eine SMP-sichere Technik zur Anforderung zur
+      Verf&uuml;gung, deren Leistung linear mit der Anzahl der CPU
+      w&auml;chst.  Weiterhin reduziert sie die Fragmentierung des
+      Speichers.</para>
+
     <sect3>
       <title>Unterst&uuml;tzung f&uuml;r Prozessoren und
         Mainboards</title>
@@ -459,17 +485,14 @@
         (<filename>GENERIC</filename>) unterst&uuml;tzt den 80386
         Prozessor nicht mehr, da der daf&uuml;r notwendige Code extrem
         negative Auswirkungen auf die Performance aller anderen IA32
-        Prozessoren hat.</para>
-
-      <para arch="i386">Die Kernel-Option <literal>I386_CPU</literal>
-        f&uuml;r die Unterst&uuml;tzung des 80386 Prozessors und die
-        Unterst&uuml;tzung f&uuml;r alle anderen IA32 Prozessoren
-        schlie&szlig;en sich jetzt gegenseitig aus; daraus sollte eine
-        leichte Steigerung der Performance in System mit 80386
-        resultieren, da nicht der Prozessortyp nicht mehr st&auml;ndig
-        gepr&uuml;ft werden mu&szlig;.</para>
-
-      <para arch="i386">Es ist weiterhin m&ouml;glich, einen
+        Prozessoren hat.  Die Kernel-Option
+        <literal>I386_CPU</literal> f&uuml;r die Unterst&uuml;tzung
+        des 80386 Prozessors und die Unterst&uuml;tzung f&uuml;r alle
+        anderen IA32 Prozessoren schlie&szlig;en sich jetzt
+        gegenseitig aus; daraus sollte eine leichte Steigerung der
+        Performance in System mit 80386 resultieren, da der
+        Prozessortyp nicht mehr st&auml;ndig gepr&uuml;ft werden
+        mu&szlig;.  Es ist weiterhin m&ouml;glich, einen
         angepa&szlig;ten Kernel zu bauen, der auch auf System mit
         80386 Prozessor l&auml;uft.  Dazu m&uuml;ssen in der
         Konfigurationsdatei alle CPU-Optionen bis auf
@@ -533,15 +556,20 @@
         aktivieren, wenn das vom BIOS vergessen wurde.</para>
 
       <para arch="sparc64">UltraSPARC Systeme werden jetzt von &os;
-        unters&uuml;tzt.  Zur Zeit l&auml;uft &os; auf den folgenden
-        Systemen: Ultra 1, Ultra 2, Ultra 5/10, Ultra60 und Blade 100.
-        SMP wird ebenfalls unterst&uuml;tzt und wurde auf einer Ultra
-        2 und Ultra 60 (jeweils mit zwei Prozessoren)
-        getestet.</para>
+	unters&uuml;tzt.  Zur Zeit l&auml;uft &os; auf den folgenden
+	Systemen: Ultra 1/2/5/10/30/60, Enterprise 220R/420R, Netra T1
+	AC200/DC200, Netra T 105 und Blade 100.  SMP wird ebenfalls
+	unterst&uuml;tzt und wurde auf Ultra 2, Ultra 60, Enterprise
+	220R und Enterprise 440R getestet.</para>
     </sect3>
 
     <sect3>
       <title>&Auml;nderungen im Bootloader</title>
+
+      <para arch="i386"><filename>boot2</filename> unterst&uuml;tzt
+	jetzt die Option <option>-n</option>, mit der man den
+	Bootvorgang nicht mehr mit einem Tastendruck abbrechen kann.
+	&merged;</para>
 
       <para arch="i386">Der neue Bootstrap <filename>cdboot</filename>
         bietet verbesserte Kompatibilit&auml;t mit einigen
@@ -908,7 +936,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         korrekte Sequenznummer enthalten; dieses Verhalten wird
         &uuml;ber die Sysctl-Variable
         <varname>net.inet.tcp.icmp_may_rst</varname>
-        eingestellt.</para>
+        eingestellt.  &merged;</para>
 
       <para>Auf VLAN Ger&auml;ten funktioniert jetzt IP Multicast,
         auch andere Fehler in den VLAN-Routinen wurden
@@ -1057,6 +1085,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Der TCP-Stack ignoriert jetzt Pakete, die an eine
         IP-Broadcast Adresse gesendet wurden.  &merged;</para>
+
+<!--- XXX ephemeral? -->
+      <para>Die <quote>ephemeral port range</quote> f&uuml;r TCP und
+	UDP liegt jetzt bei 49152&ndash;65535 (der alte Standardwert
+	war 1024&ndash;5000).  Dadurch erh&ouml;ht sich die Anzahl der
+	gleichzeitig m&ouml;glichen ausgehen
+	Verbindungen/Datenstr&ouml;me.</para>
     </sect3>
 
     <sect3>
@@ -1111,9 +1146,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Varianten der SiS Chips&auml;tze, eine Liste finden Sie in den
         Hardware Notes. &merged;</para>
 
-      <para>Der Treiber &man.ata.4; kann jetzt bei RAID1
-        Konfigurationen defekte Platten wiederaufbauen, zur Steuerung
-        dient &man.atacontrol.8;</para>
+      <para>Der Treiber &man.ata.4; kann jetzt ATA RAIDs erzeugen,
+	l&ouml;schen, abfragen und regenerieren, zur Steuerung dient
+	&man.atacontrol.8;.  &merged;</para>
 
       <para>BurnProof(TM) wird jetzt auf entsprechend ausgestatteten
         ATAPI CD-Brennern unterst&uuml;tzt.  &merged;</para>
@@ -1126,6 +1161,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Routinen, die bei Systemen VIA 82C686B Southbridge chip
         Datenverst&uuml;mmelungen vermieden sollen. &merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>Der CAM error recovery code wurde aktualisiert.</para>
 
       <para>Der Treiber &man.cd.4; unterst&uuml;tzt jetzt
@@ -1150,6 +1186,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         jetzt bei h&auml;ufig verwendeten Formaten automatisch gesetzt;
         au&szlig;erdem ist der Treiber viel flexibler geworden, was
         die Auswahl der Schreibdichte angeht.</para>
+
+      <para>Mit &man.geom.4; stehen neue M&ouml;glichkeiten zur
+	Bearbeitung von Festplattenzugriffen zur Verf&uuml;gung;  das
+	neue und erweiterbare System stellt diverse Methoden zur
+	Verf&uuml;gung, um Anforderungen f&uuml;r Festplattenzugriffe
+	auf dem Weg vom Kernel zu den eigentlichen Treibern zu
+	manipulieren.</para>
 
       <para>Der Festplattentreiber ida unterst&uuml;tzt jetzt
         Crashdumps.  &merged;</para>
@@ -1196,6 +1239,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para arch="i386">Der neue Treiber &man.twe.4; unterst&uuml;tzt
         das 3ware ATA RAID.  &merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>Im Volume Manager &man.vinum.4; wurden diverse Fehler
         behoben und diverse Erweiterung eingef&uuml;hrt.</para>
 
@@ -1226,6 +1270,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Informationen finden Sie in
         <filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>Bei den Softupdates f&uuml;r FFS wurden Fehler beseitigt
         und Verbesserungen eingef&uuml;hrt.</para>
 
@@ -1244,7 +1289,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         nachladbare Routinen zur Zeichensatzkonvertierung.  Einige
         h&auml;ufig ben&ouml;tigte Varianten sind im Port <filename
         role="package">sysutils/cd9660_unicode</filename> zu
-        finden.</para>
+        finden.  &merged;</para>
 
       <para>&man.kernfs.5; war &uuml;beraltert und wurde
         entfernt.</para>
@@ -1459,7 +1504,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <title>IPFilter</title>
 
         <para><application>IPFilter</application> wurde auf Version
-          3.4.20 aktualisiert. &merged;</para>
+          3.4.25 aktualisiert.</para>
 
         <para><application>IPFilter</application> unterst&uuml;tzt
           jetzt IPv6. &merged;</para>
@@ -1477,7 +1522,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
           zu steuern.  &merged;</para>
 
         <para>Der neue Treiber &man.ifpi.4; unterst&uuml;tzt die AVM
-          Fritz!Card PCI, Version 2.</para>
+          Fritz!Card PCI, Version 2.  &merged;</para>
 
         <para>Der neue Treiber &man.ihfc.4; unterst&uuml;tzt die
           Nutzung von Cologne Chip Designs HFC Ger&auml;ten in
@@ -1650,10 +1695,6 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       dieser Fehler wurde beseitigt (siehe 
       FreeBSD-SA-01:12). &merged;</para>
 
-    <para>Durch einen Fehler in &man.sort.1; h&auml;tte ein Angreifer
-      einen Abbruch erzwingen k&ouml;nnen, dieser Fehler wurde
-      beseitigt (siehe FreeBSD-SA-01:13). &merged;</para>
-
     <para><application>OpenSSH</application> ist jetzt in der Lage,
       die Aussp&auml;hung des Server Keys (nicht des Host Keys) zu
       verhindern (und nicht nur durch die Begrenzung der Anzahl der
@@ -1716,10 +1757,6 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       durch es m&ouml;glich gewesen w&auml;re, da&szlig; ein Programm
       auf Dateien au&szlig;erhalb des vorgesehenen Verzeichnisbaums
       zugreift (siehe FreeBSD-SA-01:40).  &merged;</para>
-
-    <para>Der von &os; verwendete TCP-Stack ist jetzt resistenter
-      gegen SYN floods, da nach der Entfernung einer Verbindung aus
-      der listen queue kein RST Segment mehr geschickt wird.</para>
 
     <para><application>OpenSSH</application> schaltet jetzt auf die
       UID des Benutzer um, bevor es die Datei f&uuml;r das
@@ -1875,8 +1912,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <literal>[atm]</literal>.</para>
 
     <para>Das neue Programm &man.atacontrol.8; kann zur Konfiguration
-      diversen Einstellungen des Treiber &man.ata.4;  genutzt
-      werden.</para>
+      diversen Einstellungen des Treibers &man.ata.4; genutzt werden.
+      &merged;</para>
 
     <para arch="sparc64">Auf der &arch; Plattform ist &man.awk.1;
       refers to <application>BWK awk</application> die vom System
@@ -2000,6 +2037,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Bei &man.disklabel.8; kann die Partitionsgr&ouml;&szlig;e
       jetzt auch in Kilobyte, Megabyte und Gigabytes angegeben werden,
       nicht nur in Sektoren &merged;</para>
+
+    <para>&man.diskpart.8; wurde entfernt, weil es
+      &uuml;berfl&uuml;ssig geworden war.</para>
 
     <para>Wird &man.dmesg.8; mit dem neuen Parameter
       <option>-a</option> aufgerufen, gibt es jetzt den gesamten
@@ -2208,7 +2248,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.indent.1; kennt jetzt weitere Varianten bei der
       Formatierung.  &merged;</para>
 
-    <para>&man.ifconfig.8; wurde um die Option <option>lladdr</option>
+    <para>&man.ifconfig.8; wurde um die Option <option>link</option>
       erweitert, mit der man die Link Level Adresse setzen kann
       &merged;</para>
 
@@ -2301,6 +2341,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       den Suchpfad f&uuml;r Kernel-Module zu &auml;ndern.
       &merged;</para>
 
+    <para>Mit dem neuen Programm ktrdump kann der KTR Trace Buffer von
+      Benutzern ausgelesen werden.</para>
+
     <para>&man.last.1; unterst&uuml;tzt jetzt die Option
       <option>-d</option>, mit der angezeigt wird, wer zu einem
       bestimmten Zeitpunkt eingeloggt war.  &merged;</para>
@@ -2355,6 +2398,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Dateien allerdings weder vergr&ouml;&szlig;ern noch verkleinern,
       da das Dateisystem inkonsistent sein k&ouml;nnte).</para>
 
+    <para><filename>libstand</filename> unterst&uuml;tzt jetzt
+      gro&szlig;e Kernel und Module, die &uuml;ber mehrere Medien
+      verteilt sind.</para>
+
     <para><filename>libfetch</filename> benutzt jetzt
       standardm&auml;&szlig;ig einen anderen Portbereich f&uuml;r
       passives FTP.  Dadurch &auml;ndert sich das Verhalten von
@@ -2374,6 +2421,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Die Funktionen in <filename>libposix1e</filename> wurden in
       <filename>libc</filename> aufgenommen.</para>
+
+    <para><filename>libusb</filename> wurde in
+      <filename>libusbhid</filename> umbenannt und &uuml;bernimmt
+      damit die von NetBSD genutzen Namen.  &merged;</para>
 
     <para>Wird die neue Option <option>-i</option> verwendet, fragt
       &man.ln.1; den Benutzer, bevor es eine existierende Datei
@@ -2535,6 +2586,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       diese &Auml;nderung kommt es zu einer allgemeinen
       Leistungssteigerung, daf&uuml;r wird f&uuml;r kleine Dateien
       mehr Plattenplatz verschwendet.  &merged;</para>
+
+    <para>Eine Reihe &uuml;beralteter und auf modernen Platten
+      nutzloser Tuning-Optionen wurde aus &man.newfs.8; entfernt.
+      Betroffen sind die Optionen <option>-O</option>,
+      <option>-d</option>, <option>-k</option>, <option>-l</option>,
+      <option>-n</option>, <option>-p</option>, <option>-r</option>,
+      <option>-t</option>, und <option>-x</option>.</para>
 
     <para>&man.newsyslog.8; kann die Logfiles jetzt auch mit
       &man.bzip2.1; packen lassen. &merged;</para>
@@ -2939,6 +2997,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       &man.usbdevs.8; jetzt die f&uuml;r die Ger&auml;te verwendeten
       Treiber an.</para>
 
+    <para>Mit dem neuen Programm &man.usbhidctl.1; k&ouml;nnen USB
+      Human Interface Devices konfiguriert werden. &merged;</para>
+
     <para>Bei &man.uudecode.1; kann mit der neuen Option
       <option>-o</option> die Ausgabedatei definiert werden.</para>
 
@@ -3015,7 +3076,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <literal>LC_NUMERIC</literal> und
       <literal>LC_MESSAGES</literal>.  Diverse Programme wurden
       aktualisiert, um diese Unterst&uuml;tzung nutzen zu k&ouml;nnen.
-      </para>
+      &merged;</para>
 
     <para>Die Namen der Locales wurden ge&auml;ndert, um die
       Kompatibilit&auml;t mit X11R6 und einigen Unix-Varianten zu
@@ -3064,9 +3125,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>BIND</application> wurde auf Version
         8.3.1-REL aktualisiert. &merged;</para>
 
-      <para><application>Binutils</application> wurden auf den
-        Zwischenstand vom 21. Februar 2002 im FSF-Zweig 2.12
-        aktualisiert.</para>
+      <para><application>Binutils</application> wurden auf Version
+	2.12.0 aktualisiert.</para>
 
       <para><application>bzip2</application> 1.0.2 wurde importiert,
         dadurch stehen im Standardsystem das Programm &man.bzip2.1;
@@ -3079,8 +3139,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>file</application> wurde auf Version 3.37
         aktualisiert.</para>
 
-      <para><application>gcc</application> wurde auf Version 2.95.3
-        aktualisiert. &merged;</para>
+      <para><application>gcc</application> wurde auf einem am 20.
+	M&auml;rz 2002 erstellten Zwischenstand aus dem 2.95
+	Entwicklungszweig aktualisiert, darin sind die &Auml;nderunen
+	enthalten, die nach der Ver&ouml;ffentlichung von
+	<application>gcc</application> 2.95.3 gemacht wurden.</para>
 
       <para>&man.gcc.1; benutzt jetzt eine einheitliche
         <filename>libgcc</filename> Bibliothek statt einzelner Version
@@ -3125,7 +3188,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &man.rc.conf.5; unterst&uuml;tzt. &merged;</para>
 
       <para>Der <application>ISC DHCP</application> Client wurde auf
-        Version 3.0.1RC6 aktualisiert.</para>
+        Version 3.0.1RC8 aktualisiert.</para>
 
       <para><application>Kerberos IV</application> wurde auf Version
         1.0.5 aktualisiert. &merged;</para>
@@ -3172,10 +3235,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <application>Linux-PAM</application> verwendet.</para>
 
       <para>Die Programmsammlung <application>OPIE</application>
-        (einmal verwendbare Pa&szlig;w&ouml;rter) wurde auf Version
-        2.32 aktualisiert.  &merged; Sie hat
-        <application>S/Key</application> vollst&auml;ndig
-        ersetzt.</para>
+	(einmal verwendbare Pa&szlig;w&ouml;rter) wurde auf Version
+	2.4 aktualisiert.  Sie hat <application>S/Key</application>
+	vollst&auml;ndig ersetzt.</para>
 
       <para><application>Perl</application> wurde auf Version
         5.6.1 aktualisiert.</para>
@@ -3186,6 +3248,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para arch="i386">Die Version 1.4.3 der
         <application>smbfs</application> Benutzerprogramme wurde
         importiert.  &merged;</para>
+
+      <para>Die <application>NetBSD</application>-Version von
+	&man.sort.1; (mit Stand vom 22. M&auml;rz 2002) wird jetzt als
+	Sortierprogramm genutzt und ersetzt damit <application>GNU
+	sort</application>.</para>
 
       <para><application>tcpdump</application> 
         wurde auf Version
@@ -3204,6 +3271,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         f&uuml;r &man.inetd.8;-Alternativen wie z.B.
         <application>xinetd</application> n&uuml;tzlich sein.</para>
 
+      <para><application>texinfo</application> wurde auf Version 4.1
+	aktualisiert.  &merged;</para>
+
       <para><application>top</application> wurde auf Version
         3.5b12 aktualisiert.</para>
 
@@ -3213,7 +3283,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &merged;</para>
 
       <para>Die Datenbank der Zeitzonen wurde auf Version
-        <filename>tzdata2001d</filename> aktualisiert.
+        <filename>tzdata2002c</filename> aktualisiert.
         &merged;</para>
 
       <sect4>
@@ -3304,32 +3374,62 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <sect4>
         <title>OpenSSH</title>
 
-        <para><application>OpenSSH</application> wurde auf Version 2.9
-          aktualisiert und unterst&uuml;tzt jetzt das Protokoll SSH2
-          (das auch das neue Standardprotokoll ist) und DSA
-          Schl&uuml;ssel.  &man.ssh-add.1; und &man.ssh-agent.1;
-          k&ouml;nnen jetzt auch DSA Schl&uuml;ssel bearbeiten und
-          unterst&uuml;tzen die Weiterleitung von Information zur
-	  Authentisierung.  In den USA lebende Benutzer
-          von <application>OpenSSH</application> sind nicht mehr auf
-          das restriktiv lizenzierte RSAREF Toolkit angewiesen, wenn
-          sie RSA Schl&uuml;ssel verwenden wollen.  Neben anderen
-          &Auml;nderungen wurden auch ein Client und Server f&uuml;r
-          sftp hinzugef&uuml;gt.  &man.scp.1; kann jetzt auch Files
-          bearbeiten, die gr&ouml;&szlig;er als 2 GByte sind.  Die Anzahl
-          der offenen, nicht authentifizierten Verbindungen kann jetzt
-          von &man.sshd.8;  begrenzt werden.  Der
-          Verschl&uuml;sselungsalgorithmus Rijndael wird jetzt
-          unterst&uuml;tzt.  Die Erzeugung neuer Schl&uuml;ssel
-          f&uuml;r aktive Verbindungen wird jetzt unterst&uuml;tzt; in
-          &man.ssh.1; ist jetzt ein experimenteller
-          <application>SOCKS4</application> proxy
-          verf&uuml;gbar.</para>
+	<para><application>OpenSSH</application> wurde auf Version 2.9
+	  aktualisiert und unterst&uuml;tzt jetzt das Protokoll SSH2
+	  (das auch das neue Standardprotokoll ist) und DSA
+	  Schl&uuml;ssel.  &man.ssh-add.1; und &man.ssh-agent.1;
+	  k&ouml;nnen jetzt auch DSA Schl&uuml;ssel bearbeiten und
+	  unterst&uuml;tzen die Weiterleitung von Information zur
+	  Authentisierung.  In den USA lebende Benutzer von
+	  <application>OpenSSH</application> sind nicht mehr auf das
+	  restriktiv lizenzierte RSAREF Toolkit angewiesen, wenn sie
+	  RSA Schl&uuml;ssel verwenden wollen.  Neben anderen
+	  &Auml;nderungen wurden auch ein Client und Server f&uuml;r
+	  &man.sftp.1; hinzugef&uuml;gt.  &man.scp.1; kann jetzt auch
+	  Files bearbeiten, die gr&ouml;&szlig;er als 2 GByte sind.
+	  Die Anzahl der offenen, nicht authentifizierten Verbindungen
+	  kann jetzt von &man.sshd.8;  begrenzt werden.  Der
+	  Verschl&uuml;sselungsalgorithmus Rijndael wird jetzt
+	  unterst&uuml;tzt.  Die Erzeugung neuer Schl&uuml;ssel
+	  f&uuml;r aktive Verbindungen wird jetzt unterst&uuml;tzt; in
+	  &man.ssh.1; ist jetzt ein experimenteller
+	  <application>SOCKS4</application> proxy verf&uuml;gbar.
+	  &merged;</para>
 
-        <para><application>OpenSSH</application> unterst&uuml;tzt
-          jetzt die Authentifizierung mit OPIE Pa&szlig;w&ouml;rter
-          f&uuml;r SSH1.  SSH2 wird noch nicht unterst&uuml;tzt.
-          &merged;</para>
+	<para><application>OpenSSH</application> wurde auf Version 3.1
+	  aktualisiert.  Die wichtigsten &Auml;nderungen:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>Die <filename>*2</filename> Dateien werden nicht
+	      mehr ben&ouml;tigt (zum Beispiel kann
+	      <filename>~/.ssh/known_hosts</filename> jetzt den Inhalt
+	      von <filename>~/.ssh/known_hosts2</filename>
+	      enthalten).</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-keygen.1; kann Schl&uuml;ssel jetzt im
+	      SECSH Public Key File Format importieren und
+	      exportieren, um Schl&uuml;ssel mit diversen
+	      kommerziellen SSH-Version auszutauschen.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-add.1; wertet jetzt alle drei
+	      Standardschl&uuml;ssel aus.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-keygen.1; verwendet keinen Stardardtyp
+	      mehr, der Typ der Schl&uuml;ssels mu&szlig; mit der
+	      Option <option>-t</option> angegeben werden.</para>
+	  </listitem>
+	</itemizedlist>
+
+	<para><application>OpenSSH</application> unterst&uuml;tzt
+	  jetzt die Authentifizierung mit OPIE
+	  Pa&szlig;w&ouml;rtern.</para>
 
         <para><application>OpenSSH</application> unterst&uuml;tzt
           jetzt <application>PAM</application>.</para>
@@ -3391,7 +3491,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <title>sendmail</title>
 
         <para><application>sendmail</application> wurde von Version
-          8.9.3 auf Version 8.12.2 aktualisiert.  Einige der wichtigen
+          8.9.3 auf Version 8.12.3 aktualisiert.  Einige der wichtigen
           &Auml;nderungen sind:  &man.sendmail.8; wird nicht mehr SUID
           root Programm installiert (jetzt SGID smmsp); neue
           Stanard-Pfade (siehe
