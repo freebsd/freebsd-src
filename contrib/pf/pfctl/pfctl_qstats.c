@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl_qstats.c,v 1.24 2003/07/31 09:46:08 kjc Exp $ */
 
 /*
@@ -35,6 +36,12 @@
 #include <altq/altq_cbq.h>
 #include <altq/altq_priq.h>
 #include <altq/altq_hfsc.h>
+
+#if defined(__FreeBSD__)
+#include <inttypes.h>
+#else
+#define	PRIu64	"llu"
+#endif
 
 #include "pfctl.h"
 #include "pfctl_parser.h"
@@ -85,6 +92,10 @@ pfctl_show_altq(int dev, int opts, int verbose2)
 {
 	struct pf_altq_node	*root = NULL, *node;
 
+#if defined(__FreeBSD__)
+	if (!altqsupport)
+		return (-1);
+#endif
 	if (pfctl_update_qstats(dev, &root))
 		return (-1);
 
@@ -275,8 +286,8 @@ pfctl_print_altq_nodestat(int dev, const struct pf_altq_node *a)
 void
 print_cbqstats(struct queue_stats cur)
 {
-	printf("  [ pkts: %10llu  bytes: %10llu  "
-	    "dropped pkts: %6llu bytes: %6llu ]\n",
+	printf("  [ pkts: %10"PRIu64"  bytes: %10"PRIu64"  "
+	    "dropped pkts: %6"PRIu64" bytes: %6"PRIu64" ]\n",
 	    cur.data.cbq_stats.xmit_cnt.packets,
 	    cur.data.cbq_stats.xmit_cnt.bytes,
 	    cur.data.cbq_stats.drop_cnt.packets,
@@ -296,8 +307,8 @@ print_cbqstats(struct queue_stats cur)
 void
 print_priqstats(struct queue_stats cur)
 {
-	printf("  [ pkts: %10llu  bytes: %10llu  "
-	    "dropped pkts: %6llu bytes: %6llu ]\n",
+	printf("  [ pkts: %10"PRIu64"  bytes: %10"PRIu64"  "
+	    "dropped pkts: %6"PRIu64" bytes: %6"PRIu64" ]\n",
 	    cur.data.priq_stats.xmitcnt.packets,
 	    cur.data.priq_stats.xmitcnt.bytes,
 	    cur.data.priq_stats.dropcnt.packets,
@@ -316,8 +327,8 @@ print_priqstats(struct queue_stats cur)
 void
 print_hfscstats(struct queue_stats cur)
 {
-	printf("  [ pkts: %10llu  bytes: %10llu  "
-	    "dropped pkts: %6llu bytes: %6llu ]\n",
+	printf("  [ pkts: %10"PRIu64"  bytes: %10"PRIu64"  "
+	    "dropped pkts: %6"PRIu64" bytes: %6"PRIu64" ]\n",
 	    cur.data.hfsc_stats.xmit_cnt.packets,
 	    cur.data.hfsc_stats.xmit_cnt.bytes,
 	    cur.data.hfsc_stats.drop_cnt.packets,

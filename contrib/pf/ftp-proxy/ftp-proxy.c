@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: ftp-proxy.c,v 1.33 2003/08/22 21:50:34 david Exp $ */
 
 /*
@@ -67,6 +68,7 @@
  * - per-user rules perhaps.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>

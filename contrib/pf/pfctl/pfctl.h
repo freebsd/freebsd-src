@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl.h,v 1.25 2003/08/29 21:47:36 cedric Exp $ */
 
 /*
@@ -81,6 +82,10 @@ int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
 	    const char *, const char *, int);
 int	 pfctl_show_altq(int, int, int);
 void	 warn_namespace_collision(const char *);
+
+#if defined(__FreeBSD__)
+extern int altqsupport;
+#endif
 
 #ifndef DEFAULT_PRIORITY
 #define DEFAULT_PRIORITY	1

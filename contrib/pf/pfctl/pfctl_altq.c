@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl_altq.c,v 1.77 2003/08/22 21:50:34 david Exp $	*/
 
 /*
@@ -21,7 +22,9 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#if !defined(__FreeBSD__)
 #include <sys/limits.h>
+#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -74,7 +77,11 @@ static int		 gsc_add_seg(struct gen_sc *, double, double, double,
 			     double);
 static double		 sc_x2y(struct service_curve *, double);
 
+#if defined(__FreeBSD__)
+u_int32_t	 getifspeed(int, char *);
+#else
 u_int32_t	 getifspeed(char *);
+#endif
 u_long		 getifmtu(char *);
 int		 eval_queue_opts(struct pf_altq *, struct node_queue_opt *,
 		     u_int32_t);
@@ -239,7 +246,11 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 	if (bw->bw_absolute > 0)
 		pa->ifbandwidth = bw->bw_absolute;
 	else
+#if defined(__FreeBSD__)
+		if ((rate = getifspeed(pf->dev, pa->ifname)) == 0) {
+#else
 		if ((rate = getifspeed(pa->ifname)) == 0) {
+#endif
 			fprintf(stderr, "cannot determine interface bandwidth "
 			    "for %s, specify an absolute bandwidth\n",
 			    pa->ifname);
@@ -869,7 +880,14 @@ print_hfsc_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 /*
  * admission control using generalized service curve
  */
+#if defined(__FreeBSD__)
+#if defined(INFINITY)
+#undef INFINITY
+#endif
 #define	INFINITY	HUGE_VAL  /* positive infinity defined in <math.h> */
+#else
+#define	INFINITY	HUGE_VAL  /* positive infinity defined in <math.h> */
+#endif
 
 /* add a new service curve to a generalized service curve */
 static void
@@ -1070,6 +1088,26 @@ rate2str(double rate)
 	return (buf);
 }
 
+#if defined(__FreeBSD__)
+/*
+ * XXX
+ * FreeBSD do not have SIOCGIFDATA.
+ * To emulate this, DIOCGIFSPEED ioctl added to pf.
+ */
+u_int32_t
+getifspeed(int pfdev, char *ifname)
+{
+	struct pf_ifspeed io;
+
+	bzero(&io, sizeof io);
+	if (strlcpy(io.ifname, ifname, IFNAMSIZ) >=
+	    sizeof(io.ifname)) 
+		errx(1, "getifspeed: strlcpy");
+	if (ioctl(pfdev, DIOCGIFSPEED, &io) == -1)
+		err(1, "DIOCGIFSPEED");
+	return ((u_int32_t)io.baudrate);
+}
+#else
 u_int32_t
 getifspeed(char *ifname)
 {
@@ -1091,6 +1129,7 @@ getifspeed(char *ifname)
 		err(1, "close");
 	return ((u_int32_t)ifrdat.ifi_baudrate);
 }
+#endif
 
 u_long
 getifmtu(char *ifname)
