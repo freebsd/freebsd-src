@@ -11,7 +11,7 @@ NOPIC=	works but method lookup slowdown is significant
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 	nil_method.c objects.c sarray.c selector.c sendmsg.c \
-	thr.c thr-single.c \
+	thr.c thr-posix.c \
 	NXConstStr.m Object.m Protocol.m linking.m
 
 INCS=	encoding.h hash.h objc-api.h objc-list.h objc.h runtime.h \
