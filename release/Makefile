@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.212 1996/04/29 20:29:29 jkh Exp $
+#	$Id: Makefile,v 1.213 1996/05/01 09:35:34 jkh Exp $
 #
 # How to roll a release:
 #
@@ -351,7 +351,7 @@ release.8: write_mfs_in_kernel
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
-		cd0a mcd0a scd0a matcd0a rst0 rft0 rwt0 | \
+		cd0a mcd0a scd0a matcd0a wcd0c rst0 rft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
