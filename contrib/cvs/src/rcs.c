@@ -4308,6 +4308,7 @@ RCS_setlocalid (arg)
 
     keywords[KEYWORD_LOCALID].string = xstrdup(key);
     keywords[KEYWORD_LOCALID].len = strlen(key);
+    keywords[KEYWORD_LOCALID].expandit = 1;
 
     /* options? */
     while (key = strtok(NULL, ",")) {
