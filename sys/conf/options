@@ -1,4 +1,4 @@
-#	$Id: options,v 1.82 1998/06/30 08:01:28 jmg Exp $
+#	$Id: options,v 1.83 1998/06/30 08:13:26 jmg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -258,6 +258,9 @@ NFS_WDELAYHASHSIZ	opt_nfs.h
 NFS_MUIDHASHSIZ		opt_nfs.h
 NFS_NOSERVER		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
+
+# give bktr an opt_bktr.h file
+OVERRIDE_TUNER		opt_bktr.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
