@@ -52,8 +52,9 @@ static const char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
 #define	INITIAL_TICKET	"krbtgt"
 #define	VERIFY_SERVICE	"rcmd"
 
-extern int notickets;
-extern char *krbtkfile_env;
+extern int _pam_notickets;
+extern char *_pam_krbtkfile_env;
+extern int _pam_noticketsdontcomplain;
 
 /*
  * Attempt to log the user in using Kerberos authentication
@@ -62,7 +63,7 @@ extern char *krbtkfile_env;
  *	  1 if Kerberos failed (try local password in login)
  */
 int
-klogin(pw, instance, localhost, password)
+_pam_klogin(pw, instance, localhost, password)
 	struct passwd *pw;
 	char *instance, *localhost, *password;
 {
@@ -70,7 +71,6 @@ klogin(pw, instance, localhost, password)
 	char realm[REALM_SZ], savehost[MAXHOSTNAMELEN];
 	char tkt_location[MAXPATHLEN];
 	char *krb_get_phost();
-	extern int noticketsdontcomplain;
 
 #ifdef	KLOGIN_PARANOID
 	AUTH_DAT authdata;
@@ -78,7 +78,7 @@ klogin(pw, instance, localhost, password)
 	struct hostent *hp;
 	unsigned long faddr;
 
-	noticketsdontcomplain = 0; /* enable warning message */
+	_pam_noticketsdontcomplain = 0; /* enable warning message */
 #endif
 
 	/*
@@ -93,7 +93,7 @@ klogin(pw, instance, localhost, password)
 	    krb_get_lrealm(realm, 0) != KSUCCESS)
 		return (1);
 
-	noticketsdontcomplain = 0; /* enable warning message */
+	_pam_noticketsdontcomplain = 0; /* enable warning message */
 
 	/*
 	 * get TGT for local realm
@@ -105,7 +105,7 @@ klogin(pw, instance, localhost, password)
 		(void)sprintf(tkt_location, "%s%d", TKT_ROOT, pw->pw_uid);
 	else {
 		(void)sprintf(tkt_location, "%s_root_%d", TKT_ROOT, pw->pw_uid);
-		krbtkfile_env = tkt_location;
+		_pam_krbtkfile_env = tkt_location;
 	}
 	(void)krb_set_tkt_string(tkt_location);
 
@@ -155,7 +155,7 @@ klogin(pw, instance, localhost, password)
 		syslog(LOG_NOTICE,
     		    "warning: TGT not verified (%s); %s.%s not registered, or srvtab is wrong?",
 		    krb_err_txt[kerror], VERIFY_SERVICE, savehost);
-		notickets = 0;
+		_pam_notickets = 0;
 		return (0);
 	}
 
@@ -179,7 +179,7 @@ klogin(pw, instance, localhost, password)
 	    &authdata, "");
 
 	if (kerror == KSUCCESS) {
-		notickets = 0;
+		_pam_notickets = 0;
 		return (0);
 	}
 
@@ -197,7 +197,7 @@ klogin(pw, instance, localhost, password)
 	dest_tkt();
 	return (1);
 #else
-	notickets = 0;
+	_pam_notickets = 0;
 	return (0);
 #endif
 }
