@@ -171,7 +171,7 @@ main(argc, argv)
 		exit(1);
 	}
 	if (bind(sock, (struct sockaddr *)&addr, len) != 0) {
-		syslog(LOG_ERR, "cannot bind udp: %m");
+		syslog(LOG_ERR, "cannot bind tcp: %m");
 		exit(1);
 	}
 	if ((xprt = svctcp_create(sock, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE))
