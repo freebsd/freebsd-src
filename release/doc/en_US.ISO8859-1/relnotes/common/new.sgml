@@ -202,6 +202,13 @@
       boards support VLAN tagging/insertion, and the 82543 additionally
       supports TCP/IP checksum offload.</para>
 
+      <para>&man.vlan.4; devices are now loadable, unloadable, and
+      clonable.</para>
+
+      <para>The &man.wx.4; driver is now deprecated; it is now
+      officially unmaintained.  Users with Intel Pro/1000 Gigabit
+      Ethernet interfaces should use the &man.gx.4; driver.</para>
+
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C.</para>
@@ -237,6 +244,11 @@
       initiated by the adapter, addition/removal of disk devices,
       crashdump functionality, and &man.ioctl.2; command necessary for
       the management CLI.</para>
+
+      <para>The ciss driver, for devices utilizing the Common
+      Interface for SCSI-3 Support, has been added.  This driver
+      supports the Compaq SmartRAID 5* family of RAID controllers
+      (5300, 532, 5i).</para>
 
       <para>The &man.isp.4; driver now supports the Qlogic 2300 and
       2312 Optical Fibre Channel PCI cards.</para>
