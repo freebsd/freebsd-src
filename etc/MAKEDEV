@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.79 1995/03/12 15:25:32 bde Exp $
+#	$Id: MAKEDEV,v 1.80 1995/03/13 00:10:40 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -712,14 +712,14 @@ vat)
 	chmod 660 vatio
 	;;
 
-gsc)
+gsc*)
 	rm -f gsc0
 	mknod gsc0 c 47 0
 	chmod 666 gsc0
 	chown root.wheel gsc0
 	;;
 
-apm)
+apm*)
 	rm -f apm0
 	mknod apm0 c 39 0
 	chown root.wheel apm0
