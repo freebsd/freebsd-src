@@ -1,3 +1,5 @@
+#	$Id:$
+#
 # Login access control table.
 # 
 # When someone logs in, the table is scanned for the first entry that
