@@ -38,8 +38,10 @@ static char sccsid[] = "@(#)daemon.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <signal.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
@@ -47,7 +49,17 @@ int
 daemon(nochdir, noclose)
 	int nochdir, noclose;
 {
+	struct sigaction osa, sa;
 	int fd;
+	pid_t newgrp;
+	int oerrno;
+	int osa_ok;
+
+	/* A SIGHUP may be thrown when the parent exits below. */
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = SIG_IGN;
+	sa.sa_flags = 0;
+	osa_ok = _sigaction(SIGHUP, &sa, &osa);
 
 	switch (fork()) {
 	case -1:
@@ -58,8 +70,15 @@ daemon(nochdir, noclose)
 		_exit(0);
 	}
 
-	if (setsid() == -1)
+	newgrp = setsid();
+	oerrno = errno;
+	if (osa_ok != -1)
+		_sigaction(SIGHUP, &osa, NULL);
+
+	if (newgrp == -1) {
+		errno = oerrno;
 		return (-1);
+	}
 
 	if (!nochdir)
 		(void)chdir("/");
