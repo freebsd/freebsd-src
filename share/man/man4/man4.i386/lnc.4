@@ -68,20 +68,24 @@ Diamond HomeFree
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "lnc%d: Framing error"
-A framing error occurred.  This means a CRC error also occurred.
+A framing error occurred.
+This means a CRC error also occurred.
 This caused the driver to drop the packet that contained the framing error.
 .It "lnc%d: Receive CRC error
 The received Ethernet frame failed the CRC checksum.
 This caused the driver to drop the packet that failed the checksum.
 .It "lnc%d: Packet dropped, no mbufs"
-The driver ran out of mbuf's.  This may suggest a resource problem.
+The driver ran out of mbuf's.
+This may suggest a resource problem.
 .It "lnc%d: Couldn't allocate memory for NIC"
-This is a fatal error.  The driver will not attach to the card under this
+This is a fatal error.
+The driver will not attach to the card under this
 circumstance.
 .It "lnc%d: Memory allocated above 16Mb limit"
 ISA and ESIA cards require bounce buffers for DMA transfers above 16mb.
 The Am7990 and Am79C960 only have 24 address lines and so can only access
-the lower 16Mb of physical memory.  The
+the lower 16Mb of physical memory.
+The
 .Nm
 driver assumes the memory it allocates is within the lower 16Mb range.
 This is not a very valid assumption but there's nothing that can be done
@@ -89,7 +93,8 @@ about it yet.
 For shared memory NICs this isn't relevant.
 .It "lnc%d: Device timeout -- Resetting"
 The device has stopped responding to the network, or there is a problem with
-the network connection (cable).   Make sure the network connection in use
+the network connection (cable).
+Make sure the network connection in use
 is the same one the card is configured for.
 .It "lnc%d: Transmit late collision  -- Net error?"
 .It "lnc%d: Loss of carrier during transmit -- Net error?"

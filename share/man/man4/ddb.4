@@ -312,7 +312,8 @@ Setting a break
 point at the low-level code paths may also cause strange behavior.
 .It Cm delete Ar addr
 .It Cm delete Li \&# Ns Ar number
-Delete the break point.  The target break point can be specified by a
+Delete the break point.
+The target break point can be specified by a
 break point number with
 .Li # ,
 or by using the same
@@ -520,7 +521,10 @@ Addresses are printed as 'symbol'+offset unless offset is greater than maxoff.
 .It Li maxwidth
 The width of the displayed line.
 .It Li lines
-The number of lines.  It is used by "more" feature.
+The number of lines.
+It is used by
+.Dq more
+feature.
 .It Li tabstops
 Tab stop width.
 .It Li work Ns Ar xx
@@ -583,7 +587,8 @@ and modifiers as described above.
 a binary operator which rounds up the left hand side to the next
 multiple of right hand side.
 .It Li \&* Ns Em expr
-indirection.  It may be followed by a
+indirection.
+It may be followed by a
 .Sq Li :
 and modifiers as described above.
 .El
