@@ -162,7 +162,8 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 {
 	struct uio auio;
 	struct iovec aiov;
-	long cnt, error = 0;
+	ssize_t cnt;
+	long error = 0;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -350,7 +351,8 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 {
 	struct uio auio;
 	struct iovec aiov;
-	long cnt, error = 0;
+	ssize_t cnt;
+	long error = 0;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
