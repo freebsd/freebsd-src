@@ -77,7 +77,7 @@ bufqdisksort(bufq, bp)
 	 * ordered transaction, then it's easy.
 	 */
 	if ((bq = bufq_first(bufq)) == NULL
-	 || (bp->b_flags & B_ORDERED) != 0) {
+	 || (bp->b_ioflags & BIO_ORDERED) != 0) {
 		bufq_insert_tail(bufq, bp);
 		return;
 	} else if (bufq->insert_point != NULL) {

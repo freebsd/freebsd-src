@@ -242,7 +242,7 @@ flastrategy(struct buf *bp)
 		}
 		if (error) {
 			bp->b_error = EIO;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 		} else {
 			bp->b_resid = 0;
 		}

@@ -364,7 +364,7 @@ ntfs_strategy(ap)
 			if (error) {
 				printf("ntfs_strategy: ntfs_readattr failed\n");
 				bp->b_error = error;
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 			}
 
 			bzero(bp->b_data + toread, bp->b_bcount - toread);
@@ -376,7 +376,7 @@ ntfs_strategy(ap)
 		if (ntfs_cntob(bp->b_blkno) + bp->b_bcount >= fp->f_size) {
 			printf("ntfs_strategy: CAN'T EXTEND FILE\n");
 			bp->b_error = error = EFBIG;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 		} else {
 			towrite = min(bp->b_bcount,
 				fp->f_size-ntfs_cntob(bp->b_blkno));
@@ -390,7 +390,7 @@ ntfs_strategy(ap)
 			if (error) {
 				printf("ntfs_strategy: ntfs_writeattr fail\n");
 				bp->b_error = error;
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 			}
 		}
 	}

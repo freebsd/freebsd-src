@@ -2939,7 +2939,8 @@ again:
 				vp->v_numoutput++;
 				bp->b_flags |= B_ASYNC;
 				bundirty(bp);
-				bp->b_flags &= ~(B_DONE|B_ERROR);
+				bp->b_flags &= ~B_DONE;
+				bp->b_ioflags &= ~BIO_ERROR;
 				bp->b_dirtyoff = bp->b_dirtyend = 0;
 				splx(s);
 				biodone(bp);
@@ -3116,7 +3117,8 @@ nfs_writebp(bp, force, procp)
 
 	s = splbio();
 	bundirty(bp);
-	bp->b_flags &= ~(B_DONE|B_ERROR);
+	bp->b_flags &= ~B_DONE;
+	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_iocmd = BIO_WRITE;
 
 	bp->b_vp->v_numoutput++;

@@ -4667,7 +4667,7 @@ softdep_deallocate_dependencies(bp)
 	struct buf *bp;
 {
 
-	if ((bp->b_flags & B_ERROR) == 0)
+	if ((bp->b_ioflags & BIO_ERROR) == 0)
 		panic("softdep_deallocate_dependencies: dangling deps");
 	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
 	panic("softdep_deallocate_dependencies: unrecovered I/O error");

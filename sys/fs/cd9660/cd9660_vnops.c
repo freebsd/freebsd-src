@@ -758,7 +758,7 @@ cd9660_strategy(ap)
 		if ((error =
 		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL))) {
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			biodone(bp);
 			return (error);
 		}

@@ -1791,7 +1791,7 @@ fdstrategy(struct buf *bp)
 	fdc = fd->fdc;
 	if (fd->type == NO_TYPE) {
 		bp->b_error = ENXIO;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto bad;
 	};
 
@@ -1802,12 +1802,12 @@ fdstrategy(struct buf *bp)
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
 			       fdu, (u_long)bp->b_blkno, bp->b_bcount);
 			bp->b_error = EINVAL;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			goto bad;
 		}
 		if ((bp->b_bcount % fdblk) != 0) {
 			bp->b_error = EINVAL;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			goto bad;
 		}
 	}
@@ -1821,7 +1821,7 @@ fdstrategy(struct buf *bp)
 		 * multiplication below from overflowing.
 		 */
 		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto bad;
 	}
 	blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk;
@@ -1835,7 +1835,7 @@ fdstrategy(struct buf *bp)
 				goto bad;	/* not actually bad but EOF */
 		} else {
 			bp->b_error = EINVAL;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			goto bad;
 		}
 	}
@@ -2611,7 +2611,7 @@ retrier(struct fdc_data *fdc)
 			else
 				printf(" (No status)\n");
 		}
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
 		fdc->bp = NULL;
@@ -2689,7 +2689,7 @@ fdformat(dev, finfo, p)
 		device_unbusy(fd->dev);
 		biodone(bp);
 	}
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 		rv = bp->b_error;
 	/*
 	 * allow the process to be swapped

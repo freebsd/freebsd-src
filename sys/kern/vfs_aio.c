@@ -1043,7 +1043,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	 * but is returned using the aio_error mechanism.  In this case,
 	 * aio_suspend will return immediately.
 	 */
-	if (bp->b_error || (bp->b_flags & B_ERROR)) {
+	if (bp->b_error || (bp->b_ioflags & BIO_ERROR)) {
 		struct aiocb *job = aiocbe->uuaiocb;
 
 		aiocbe->uaiocb._aiocb_private.status = 0;
@@ -1110,7 +1110,7 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 	error = 0;
 	
 	/* Check for an error. */
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;
 
 	relpbuf(bp, NULL);
@@ -2143,7 +2143,7 @@ aio_physwakeup(struct buf *bp)
 		aiocbe->uaiocb._aiocb_private.error = 0;
 		aiocbe->jobflags |= AIOCBLIST_DONE;
 
-		if (bp->b_flags & B_ERROR)
+		if (bp->b_ioflags & BIO_ERROR)
 			aiocbe->uaiocb._aiocb_private.error = bp->b_error;
 
 		lj = aiocbe->lio;

@@ -721,7 +721,7 @@ sastrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 done:
 
 	/*
@@ -1256,7 +1256,7 @@ saoninvalidate(struct cam_periph *periph)
 		bufq_remove(&softc->buf_queue, q_bp);
 		q_bp->b_resid = q_bp->b_bcount;
 		q_bp->b_error = ENXIO;
-		q_bp->b_flags |= B_ERROR;
+		q_bp->b_ioflags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 	softc->queue_count = 0;
@@ -1489,7 +1489,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			softc->queue_count--;
 			bufq_remove(&softc->buf_queue, bp);
 			bp->b_resid = bp->b_bcount;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			if ((softc->flags & SA_FLAG_EOM_PENDING) != 0) {
 				if (bp->b_iocmd == BIO_WRITE)
 					bp->b_error = ENOSPC;
@@ -1643,7 +1643,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				bufq_remove(&softc->buf_queue, q_bp);
 				q_bp->b_resid = q_bp->b_bcount;
 				q_bp->b_error = EIO;
-				q_bp->b_flags |= B_ERROR;
+				q_bp->b_ioflags |= BIO_ERROR;
 				biodone(q_bp);
 			}
 			splx(s);
@@ -1651,7 +1651,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (error != 0) {
 			bp->b_resid = bp->b_bcount;
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			/*
 			 * In the error case, position is updated in saerror.
 			 */
@@ -1659,7 +1659,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->b_resid = csio->resid;
 			bp->b_error = 0;
 			if (csio->resid != 0) {
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 			}
 			if (bp->b_iocmd == BIO_WRITE) {
 				softc->flags |= SA_FLAG_TAPE_WRITTEN;

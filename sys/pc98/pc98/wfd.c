@@ -533,7 +533,7 @@ static void wfd_done (struct wfd *t, struct buf *bp, int resid,
 	if (result.code) {
 		wfd_error (t, result);
 		bp->b_error = EIO;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 	} else
 		(int)bp->b_driver2 += resid;
 	/*

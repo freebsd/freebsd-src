@@ -311,7 +311,7 @@ nwfs_doio(bp, cr, p)
 		break;
 	    };
 	    if (error) {
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;
 	    }
 	} else { /* write */
@@ -330,7 +330,7 @@ nwfs_doio(bp, cr, p)
 		/*
 		 * For an interrupted write, the buffer is still valid
 		 * and the write hasn't been pushed to the server yet,
-		 * so we can't set B_ERROR and report the interruption
+		 * so we can't set BIO_ERROR and report the interruption
 		 * by setting B_EINTR. For the B_ASYNC case, B_EINTR
 		 * is not relevant, so the rpc attempt is essentially
 		 * a noop.  For the case of a V3 write rpc not being
@@ -357,7 +357,7 @@ nwfs_doio(bp, cr, p)
 			splx(s);
 	    	} else {
 			if (error) {
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error /*= np->n_error */= error;
 /*				np->n_flag |= NWRITEERR;*/
 			}

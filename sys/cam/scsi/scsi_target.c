@@ -1185,7 +1185,7 @@ targstrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
@@ -1702,7 +1702,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			 || error != 0) {
 				if (bp->b_resid != 0)
 					/* Short transfer */
-					bp->b_flags |= B_ERROR;
+					bp->b_ioflags |= BIO_ERROR;
 				
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Completing a buffer\n"));
@@ -1747,7 +1747,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			targrunqueue(periph, softc);
 		} else {
 			if (desc->bp != NULL) {
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error = ENXIO;
 				biodone(bp);
 			}
@@ -1817,13 +1817,13 @@ targfireexception(struct cam_periph *periph, struct targ_softc *softc)
 
 	while ((bp = bufq_first(&softc->snd_buf_queue)) != NULL) {
 		bufq_remove(&softc->snd_buf_queue, bp);
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		biodone(bp);
 	}
 
 	while ((bp = bufq_first(&softc->rcv_buf_queue)) != NULL) {
 		bufq_remove(&softc->snd_buf_queue, bp);
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		biodone(bp);
 	}
 
@@ -2159,7 +2159,7 @@ abort_pending_transactions(struct cam_periph *periph, u_int initiator_id,
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("Aborting ATIO\n"));
 			if (desc->bp != NULL) {
-				desc->bp->b_flags |= B_ERROR;
+				desc->bp->b_ioflags |= BIO_ERROR;
 				if (softc->state != TARG_STATE_TEARDOWN)
 					desc->bp->b_error = errno;
 				else

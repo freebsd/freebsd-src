@@ -118,13 +118,13 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			if (uio->uio_segflg == UIO_USERSPACE)
 				vunmapbuf(bp);
 			iolen = bp->b_bcount - bp->b_resid;
-			if (iolen == 0 && !(bp->b_flags & B_ERROR))
+			if (iolen == 0 && !(bp->b_ioflags & BIO_ERROR))
 				goto doerror;	/* EOF */
 			uio->uio_iov[i].iov_len -= iolen;
 			uio->uio_iov[i].iov_base += iolen;
 			uio->uio_resid -= iolen;
 			uio->uio_offset += iolen;
-			if( bp->b_flags & B_ERROR) {
+			if( bp->b_ioflags & BIO_ERROR) {
 				error = bp->b_error;
 				goto doerror;
 			}

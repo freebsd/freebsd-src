@@ -469,7 +469,8 @@ nfs_bioread(vp, uio, ioflag, cred)
 				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred, p)) {
-				    rabp->b_flags |= B_INVAL|B_ERROR;
+				    rabp->b_flags |= B_INVAL;
+				    rabp->b_ioflags |= BIO_ERROR;
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				    break;
@@ -558,7 +559,7 @@ again:
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			brelse(bp);
 			return (error);
 		    }
@@ -653,7 +654,8 @@ again:
 				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred, p)) {
-				    rabp->b_flags |= B_INVAL|B_ERROR;
+				    rabp->b_flags |= B_INVAL;
+				    rabp->b_ioflags |= BIO_ERROR;
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				}
@@ -934,7 +936,8 @@ again:
 
 		if (on == 0 && n == bcount) {
 			bp->b_flags |= B_CACHE;
-			bp->b_flags &= ~(B_ERROR | B_INVAL);
+			bp->b_flags &= ~B_INVAL;
+			bp->b_ioflags &= ~BIO_ERROR;
 		}
 
 		if ((bp->b_flags & B_CACHE) == 0) {
@@ -1034,7 +1037,7 @@ again:
 		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 
 		if (error) {
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			brelse(bp);
 			break;
 		}
@@ -1204,7 +1207,7 @@ nfs_vinvalbuf(vp, flags, cred, p, intrflg)
  * This is mainly to avoid queueing async I/O requests when the nfsiods
  * are all hung on a dead server.
  *
- * Note: nfs_asyncio() does not clear (B_ERROR|B_INVAL) but when the bp
+ * Note: nfs_asyncio() does not clear (BIO_ERROR|B_INVAL) but when the bp
  * is eventually dequeued by the async daemon, nfs_doio() *will*.
  */
 int
@@ -1366,11 +1369,12 @@ nfs_doio(bp, cr, p)
 	uiop->uio_procp = p;
 
 	/*
-	 * clear B_ERROR and B_INVAL state prior to initiating the I/O.  We
+	 * clear BIO_ERROR and B_INVAL state prior to initiating the I/O.  We
 	 * do this here so we do not have to do it in all the code that
 	 * calls us.
 	 */
-	bp->b_flags &= ~(B_ERROR | B_INVAL);
+	bp->b_flags &= ~B_INVAL;
+	bp->b_ioflags &= ~BIO_ERROR;
 
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_doio: bp %p already marked done", bp));
 
@@ -1398,7 +1402,7 @@ nfs_doio(bp, cr, p)
 		error = nfs_writerpc(vp, uiop, cr, &iomode, &com);
 	    }
 	    if (error) {
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;
 	    }
 	} else if (bp->b_iocmd == BIO_READ) {
@@ -1466,7 +1470,7 @@ nfs_doio(bp, cr, p)
 		break;
 	    };
 	    if (error) {
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;
 	    }
 	} else {
@@ -1545,7 +1549,7 @@ nfs_doio(bp, cr, p)
 		/*
 		 * For an interrupted write, the buffer is still valid
 		 * and the write hasn't been pushed to the server yet,
-		 * so we can't set B_ERROR and report the interruption
+		 * so we can't set BIO_ERROR and report the interruption
 		 * by setting B_EINTR. For the B_ASYNC case, B_EINTR
 		 * is not relevant, so the rpc attempt is essentially
 		 * a noop.  For the case of a V3 write rpc not being
@@ -1575,7 +1579,7 @@ nfs_doio(bp, cr, p)
 			splx(s);
 	    	} else {
 		    if (error) {
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = np->n_error = error;
 			np->n_flag |= NWRITEERR;
 		    }

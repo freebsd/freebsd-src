@@ -567,7 +567,7 @@ wdstrategy(register struct buf *bp)
 	    || bp->b_bcount % DEV_BSIZE != 0) {
 
 		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto done;
 	}
 
@@ -1001,7 +1001,7 @@ oops:
 			} else {
 				wderror(bp, du, "hard error");
 				bp->b_error = EIO;
-				bp->b_flags |= B_ERROR;	/* flag the error */
+				bp->b_ioflags |= BIO_ERROR;	/* flag the error */
 			}
 		} else if (du->dk_status & WDCS_ECCCOR)
 			wderror(bp, du, "soft ecc");
@@ -1010,7 +1010,7 @@ oops:
 	/*
 	 * If this was a successful read operation, fetch the data.
 	 */
-	if ((bp->b_iocmd == BIO_READ && !(bp->b_flags & B_ERROR))
+	if ((bp->b_iocmd == BIO_READ && !(bp->b_ioflags & BIO_ERROR))
             && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		u_int	chk, dummy, multisize;
@@ -1052,7 +1052,7 @@ oops:
 	}
 
 	/* final cleanup on DMA */
-	if (((bp->b_flags & B_ERROR) == 0)
+	if (((bp->b_ioflags & BIO_ERROR) == 0)
             && ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		int iosize;
@@ -1065,7 +1065,7 @@ oops:
 
 outt:
 	if (wdtab[unit].b_active) {
-		if ((bp->b_flags & B_ERROR) == 0) {
+		if ((bp->b_ioflags & BIO_ERROR) == 0) {
 			du->dk_skip += du->dk_currentiosize;/* add to successful sectors */
 			if (wdtab[unit].b_errcnt)
 				wderror(bp, du, "soft error");
@@ -1315,7 +1315,7 @@ maybe_retry:
 			if (++wdtab[ctrlr].b_errcnt < RETRIES)
 				goto tryagainrecal;
 			bp->b_error = ENXIO;	/* XXX needs translation */
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			return (2);
 		}
 		wdtab[ctrlr].b_errcnt = 0;

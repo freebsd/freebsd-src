@@ -1838,7 +1838,7 @@ msdosfs_strategy(ap)
 		error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0, 0);
 		if (error) {
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			biodone(bp);
 			return (error);
 		}
