@@ -46,6 +46,8 @@
 
 static struct snoop snoopsw[NSNP];
 
+static struct tty	*devtotty __P((dev_t dev));
+
 static struct tty *
 devtotty (dev)
 	dev_t		dev;

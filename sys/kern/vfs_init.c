@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.14 1995/11/20 12:42:09 phk Exp $
+ * $Id: vfs_init.c,v 1.15 1995/12/02 17:10:53 bde Exp $
  */
 
 
@@ -55,6 +55,8 @@
 #include <sys/proc.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
+
+extern void	vfs_op_init __P((void));
 
 static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
@@ -229,7 +231,6 @@ vfs_op_init()
  */
 extern struct vnodeops dead_vnodeops;
 extern struct vnodeops spec_vnodeops;
-extern void vclean();
 struct vattr va_null;
 
 /*

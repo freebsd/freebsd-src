@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.13 1995/09/09 18:10:04 davidg Exp $
+ * $Id: kern_synch.c,v 1.14 1995/12/02 17:10:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,8 @@ SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
 u_char	curpriority;		/* usrpri of curproc */
 int	lbolt;			/* once a second sleep address */
 
-void	endtsleep __P((void *));
+extern void	endtsleep __P((void *));
+extern void	updatepri __P((struct proc *p));
 
 /*
  * Force switch among equal priority processes every 100ms.
