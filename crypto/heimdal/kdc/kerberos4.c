@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos4.c,v 1.26 2000/02/02 01:26:41 assar Exp $");
+RCSID("$Id: kerberos4.c,v 1.27 2000/02/13 19:27:36 assar Exp $");
 
 #ifdef KRB4
 
@@ -307,6 +307,10 @@ do_version4(unsigned char *buf,
 	}
 	
 	if(tgt->kvno != kvno){
+	    kdc_log(0, "tgs-req with old kvno %d (current %d) for "
+		    "krbtgt.%s@%s", kvno, tgt->kvno, realm, v4_realm);
+	    make_err_reply(reply, KDC_AUTH_EXP,
+			   "old krbtgt kvno used");
 	    goto out2;
 	}
 

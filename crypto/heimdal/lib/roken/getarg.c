@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getarg.c,v 1.32 1999/12/02 16:58:46 joda Exp $");
+RCSID("$Id: getarg.c,v 1.34 2000/02/13 21:06:43 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -125,7 +125,9 @@ mandoc_template(struct getargs *args,
 	    }
 	    if(args[i].long_name) {
 		print_arg(buf, sizeof(buf), 1, 1, args + i);
-		printf("Fl -%s%s", args[i].long_name, buf);
+		printf("Fl -%s%s%s",
+		       args[i].type == arg_negative_flag ? "no-" : "",
+		       args[i].long_name, buf);
 	    }
 	    printf("\n");
 	} else {
@@ -155,7 +157,9 @@ mandoc_template(struct getargs *args,
 	    printf("\n");
 	}
 	if(args[i].long_name){
-	    printf(".Fl -%s", args[i].long_name);
+	    printf(".Fl -%s%s",
+		   args[i].type == arg_negative_flag ? "no-" : "",
+		   args[i].long_name);
 	    print_arg(buf, sizeof(buf), 1, 1, args + i);
 	    printf("%s\n", buf);
 	}

@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: krb5_err.et,v 1.7 1999/02/11 21:03:40 joda Exp $"
+id "$Id: krb5_err.et,v 1.8 2000/02/07 12:54:17 joda Exp $"
 
 error_table krb5
 
@@ -51,7 +51,7 @@ error_code ERR_BADVERSION,	"Protocol version mismatch"
 error_code ERR_MSG_TYPE,	"Invalid message type"
 error_code ERR_MODIFIED,	"Message stream modified"
 error_code ERR_BADORDER,	"Message out of order"
-error_code ERR_ILL_CR_TKT,	"Illegal cross-realm ticket"
+error_code ERR_ILL_CR_TKT,	"Invalid cross-realm ticket"
 error_code ERR_BADKEYVER,	"Key version is not available"
 error_code ERR_NOKEY,		"Service key not available"
 error_code ERR_MUT_FAIL,	"Mutual authentication failed"
@@ -71,14 +71,14 @@ error_code FIELD_TOOLONG,	"Field is too long for this implementation"
 # 62-127 are reserved
 index 128
 prefix
-error_code KRB5_ERR_RCSID,	"$Id: krb5_err.et,v 1.7 1999/02/11 21:03:40 joda Exp $"
+error_code KRB5_ERR_RCSID,	"$Id: krb5_err.et,v 1.8 2000/02/07 12:54:17 joda Exp $"
 
 error_code KRB5_LIBOS_BADLOCKFLAG,	"Invalid flag for file lock mode"
 error_code KRB5_LIBOS_CANTREADPWD,	"Cannot read password"
 error_code KRB5_LIBOS_BADPWDMATCH,	"Password mismatch"
 error_code KRB5_LIBOS_PWDINTR,		"Password read interrupted"
 
-error_code KRB5_PARSE_ILLCHAR,		"Illegal character in component name"
+error_code KRB5_PARSE_ILLCHAR,		"Invalid character in component name"
 error_code KRB5_PARSE_MALFORMED,	"Malformed representation of principal"
 
 error_code KRB5_CONFIG_CANTOPEN,	"Can't open/find configuration file"
