@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.5 1997/04/14 00:48:30 gibbs Exp $
+#	$Id: GENERIC,v 1.77.2.6 1997/04/15 17:37:23 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -150,6 +150,7 @@ pseudo-device	log
 pseudo-device	sl	1
 # ijppp uses tun instead of ppp device
 #pseudo-device	ppp	1
+pseudo-device	vn	1
 pseudo-device	tun	1
 pseudo-device	pty	16
 pseudo-device	gzip		# Exec gzipped a.out's
