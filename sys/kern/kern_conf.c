@@ -30,13 +30,90 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.6 1995/12/08 11:16:55 julian Exp $
+ * $Id: kern_conf.c,v 1.7 1995/12/13 15:12:48 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/vnode.h>
+
+#define NUMCDEV 96
+#define NUMBDEV 32
+
+struct bdevsw 	*bdevsw[NUMBDEV];
+int	nblkdev = NUMBDEV;
+struct cdevsw 	*cdevsw[NUMCDEV];
+int	nchrdev = NUMCDEV;
+
+
+
+/*
+ * Routine to determine if a device is a disk.
+ *
+ * KLUDGE XXX add flags to cdevsw entries for disks XXX
+ * A minimal stub routine can always return 0.
+ */
+int
+isdisk(dev, type)
+	dev_t dev;
+	int type;
+{
+
+	switch (major(dev)) {
+	case 15:		/* VBLK: vn, VCHR: cd */
+		return (1);
+	case 0:			/* wd */
+	case 2:			/* fd */
+	case 4:			/* sd */
+	case 6:			/* cd */
+	case 7:			/* mcd */
+	case 16:		/* scd */
+	case 17:		/* matcd */
+	case 18:		/* ata */
+	case 19:		/* wcd */
+	case 20:		/* od */
+		if (type == VBLK)
+			return (1);
+		return (0);
+	case 3:			/* wd */
+	case 9:			/* fd */
+	case 13:		/* sd */
+	case 29:		/* mcd */
+	case 43:		/* vn */
+	case 45:		/* scd */
+	case 46:		/* matcd */
+	case 69:		/* wcd */
+	case 70:		/* od */
+		if (type == VCHR)
+			return (1);
+		/* fall through */
+	default:
+		return (0);
+	}
+	/* NOTREACHED */
+}
+
+
+/*
+ * Routine to convert from character to block device number.
+ *
+ * A minimal stub routine can always return NODEV.
+ */
+dev_t
+chrtoblk(dev_t dev)
+{
+	int blkmaj;
+	struct bdevsw *bd;
+	struct cdevsw *cd;
+
+	if(cd = cdevsw[major(dev)]) {
+          if ( (bd = cd->d_bdev) )
+	    return(makedev(bd->d_maj,minor(dev)));
+	}
+	return(NODEV);
+}
 
 /*
  * (re)place an entry in the bdevsw or cdevsw table
