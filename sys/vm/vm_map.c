@@ -2763,7 +2763,6 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 
-	GIANT_REQUIRED;
 RetryLookup:;
 	/*
 	 * Lookup the faulting address.
@@ -2857,10 +2856,12 @@ RetryLookup:;
 			 */
 			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
+			mtx_lock(&Giant);
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
 			    atop(entry->end - entry->start));
+			mtx_unlock(&Giant);
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			vm_map_lock_downgrade(map);
 		} else {
@@ -2913,7 +2914,6 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 	/*
 	 * Unlock the main-level map
 	 */
-	GIANT_REQUIRED;
 	vm_map_unlock_read(map);
 }
 
