@@ -4,6 +4,6 @@
 
 PROG=	fdisk 
 SRCS=	fdisk.c
-MAN8=	fdisk.0
+MAN8=	fdisk.8
 
 .include <bsd.prog.mk>
