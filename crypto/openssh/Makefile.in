@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.222 2002/07/14 17:02:21 tim Exp $
+# $Id: Makefile.in,v 1.228 2003/03/21 00:34:34 mouring Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -27,6 +27,7 @@ SSH_KEYSIGN=$(libexecdir)/ssh-keysign
 RAND_HELPER=$(libexecdir)/ssh-rand-helper
 PRIVSEP_PATH=@PRIVSEP_PATH@
 SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
+STRIP_OPT=@STRIP_OPT@
 
 PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_PROGRAM=\"$(SSH_PROGRAM)\" \
@@ -48,6 +49,7 @@ AR=@AR@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 PERL=@PERL@
+SED=@SED@
 ENT=@ENT@
 XAUTH_PATH=@XAUTH_PATH@
 LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
@@ -56,15 +58,30 @@ EXEEXT=@EXEEXT@
 INSTALL_SSH_PRNG_CMDS=@INSTALL_SSH_PRNG_CMDS@
 INSTALL_SSH_RAND_HELPER=@INSTALL_SSH_RAND_HELPER@
 
-@NO_SFTP@SFTP_PROGS=sftp-server$(EXEEXT) sftp$(EXEEXT)
+TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-agent$(EXEEXT) scp$(EXEEXT) ssh-rand-helper${EXEEXT} sftp-server$(EXEEXT) sftp$(EXEEXT)
 
-TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-agent$(EXEEXT) scp$(EXEEXT) ssh-rand-helper${EXEEXT} $(SFTP_PROGS)
+LIBSSH_OBJS=authfd.o authfile.o bufaux.o buffer.o canohost.o channels.o \
+	cipher.o compat.o compress.o crc32.o deattack.o fatal.o \
+	hostfile.o log.o match.o mpaux.o nchan.o packet.o readpass.o \
+	rsa.o tildexpand.o ttymodes.o xmalloc.o atomicio.o \
+	key.o dispatch.o kex.o mac.o uuencode.o misc.o \
+	rijndael.o ssh-dss.o ssh-rsa.o dh.o kexdh.o kexgex.o \
+	kexdhc.o kexgexc.o scard.o msg.o progressmeter.o \
+	entropy.o
 
-LIBSSH_OBJS=atomicio.o authfd.o authfile.o bufaux.o buffer.o canohost.o channels.o cipher.o compat.o compress.o crc32.o deattack.o dh.o dispatch.o fatal.o mac.o msg.o hostfile.o key.o kex.o kexdh.o kexgex.o log.o match.o misc.o mpaux.o nchan.o packet.o radix.o rijndael.o entropy.o readpass.o rsa.o scard.o scard-opensc.o ssh-dss.o ssh-rsa.o tildexpand.o ttymodes.o uidswap.o uuencode.o xmalloc.o monitor_wrap.o monitor_fdpass.o
+SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
+	sshconnect.o sshconnect1.o sshconnect2.o
 
-SSHOBJS= ssh.o sshconnect.o sshconnect1.o sshconnect2.o sshtty.o readconf.o clientloop.o
-
-SSHDOBJS= sshd.o auth.o auth1.o auth2.o auth2-hostbased.o auth2-kbdint.o auth2-none.o auth2-passwd.o auth2-pubkey.o auth-chall.o auth2-chall.o auth-rhosts.o auth-options.o auth-krb4.o auth-krb5.o auth-pam.o auth2-pam.o auth-passwd.o auth-rsa.o auth-rh-rsa.o auth-sia.o sshpty.o sshlogin.o loginrec.o servconf.o serverloop.o md5crypt.o session.o groupaccess.o auth-skey.o auth-bsdauth.o monitor_mm.o monitor.o
+SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
+	sshpty.o sshlogin.o servconf.o serverloop.o uidswap.o \
+	auth.o auth1.o auth2.o auth-options.o session.o \
+	auth-chall.o auth2-chall.o groupaccess.o \
+	auth-skey.o auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
+	auth2-none.o auth2-passwd.o auth2-pubkey.o \
+	monitor_mm.o monitor.o monitor_wrap.o monitor_fdpass.o \
+	kexdhs.o kexgexs.o \
+	auth-krb5.o auth-krb4.o \
+	loginrec.o auth-pam.o auth2-pam.o auth-sia.o md5crypt.o
 
 MANPAGES	= scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 sshd_config.5 ssh_config.5
@@ -74,23 +91,23 @@ CONFIGFILES=sshd_config.out ssh_config.out moduli.out
 CONFIGFILES_IN=sshd_config ssh_config moduli
 
 PATHSUBS	= \
-	-D/etc/ssh/ssh_prng_cmds=$(sysconfdir)/ssh_prng_cmds \
-	-D/etc/ssh/ssh_config=$(sysconfdir)/ssh_config \
-	-D/etc/ssh/ssh_known_hosts=$(sysconfdir)/ssh_known_hosts \
-	-D/etc/ssh/sshd_config=$(sysconfdir)/sshd_config \
-	-D/usr/libexec=$(libexecdir) \
-	-D/etc/shosts.equiv=$(sysconfdir)/shosts.equiv \
-	-D/etc/ssh/ssh_host_key=$(sysconfdir)/ssh_host_key \
-	-D/etc/ssh/ssh_host_dsa_key=$(sysconfdir)/ssh_host_dsa_key \
-	-D/etc/ssh/ssh_host_rsa_key=$(sysconfdir)/ssh_host_rsa_key \
-	-D/var/run/sshd.pid=$(piddir)/sshd.pid \
-	-D/etc/ssh/moduli=$(sysconfdir)/moduli \
-	-D/etc/ssh/sshrc=$(sysconfdir)/sshrc \
-	-D/usr/X11R6/bin/xauth=$(XAUTH_PATH) \
-	-D/var/empty=$(PRIVSEP_PATH) \
-	-D/usr/bin:/bin:/usr/sbin:/sbin=@user_path@
+	-e 's|/etc/ssh/ssh_prng_cmds|$(sysconfdir)/ssh_prng_cmds|g' \
+	-e 's|/etc/ssh/ssh_config|$(sysconfdir)/ssh_config|g' \
+	-e 's|/etc/ssh/ssh_known_hosts|$(sysconfdir)/ssh_known_hosts|g' \
+	-e 's|/etc/ssh/sshd_config|$(sysconfdir)/sshd_config|g' \
+	-e 's|/usr/libexec|$(libexecdir)|g' \
+	-e 's|/etc/shosts.equiv|$(sysconfdir)/shosts.equiv|g' \
+	-e 's|/etc/ssh/ssh_host_key|$(sysconfdir)/ssh_host_key|g' \
+	-e 's|/etc/ssh/ssh_host_dsa_key|$(sysconfdir)/ssh_host_dsa_key|g' \
+	-e 's|/etc/ssh/ssh_host_rsa_key|$(sysconfdir)/ssh_host_rsa_key|g' \
+	-e 's|/var/run/sshd.pid|$(piddir)/sshd.pid|g' \
+	-e 's|/etc/ssh/moduli|$(sysconfdir)/moduli|g' \
+	-e 's|/etc/sshrc|$(sysconfdir)/sshrc|g' \
+	-e 's|/usr/X11R6/bin/xauth|$(XAUTH_PATH)|g' \
+	-e 's|/var/empty|$(PRIVSEP_PATH)|g' \
+	-e 's|/usr/bin:/bin:/usr/sbin:/sbin|@user_path@|g'
 
-FIXPATHSCMD	= $(PERL) $(srcdir)/fixpaths $(PATHSUBS)
+FIXPATHSCMD	= $(SED) $(PATHSUBS)
 
 all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 
@@ -116,8 +133,8 @@ ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
 sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
 	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBWRAP) $(LIBPAM) $(LIBS)
 
-scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o
-	$(LD) -o $@ scp.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o progressmeter.o
+	$(LD) -o $@ scp.o progressmeter.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-add.o
 	$(LD) -o $@ ssh-add.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
@@ -137,8 +154,8 @@ ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
 sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o
 	$(LD) -o $@ sftp-server.o sftp-common.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
 
-sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-int.o sftp-common.o sftp-glob.o
-	$(LD) -o $@ sftp.o sftp-client.o sftp-common.o sftp-int.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-int.o sftp-common.o sftp-glob.o progressmeter.o
+	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-int.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-rand-helper${EXEEXT}: $(LIBCOMPAT) libssh.a ssh-rand-helper.o
 	$(LD) -o $@ ssh-rand-helper.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -217,19 +234,19 @@ install-files: scard-install
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(mandir)/$(mansubdir)8
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(libexecdir)
 	(umask 022 ; $(srcdir)/mkinstalldirs $(DESTDIR)$(PRIVSEP_PATH))
-	$(INSTALL) -m 0755 -s ssh $(DESTDIR)$(bindir)/ssh
-	$(INSTALL) -m 0755 -s scp $(DESTDIR)$(bindir)/scp
-	$(INSTALL) -m 0755 -s ssh-add $(DESTDIR)$(bindir)/ssh-add
-	$(INSTALL) -m 0755 -s ssh-agent $(DESTDIR)$(bindir)/ssh-agent
-	$(INSTALL) -m 0755 -s ssh-keygen $(DESTDIR)$(bindir)/ssh-keygen
-	$(INSTALL) -m 0755 -s ssh-keyscan $(DESTDIR)$(bindir)/ssh-keyscan
-	$(INSTALL) -m 0755 -s sshd $(DESTDIR)$(sbindir)/sshd
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh $(DESTDIR)$(bindir)/ssh
+	$(INSTALL) -m 0755 $(STRIP_OPT) scp $(DESTDIR)$(bindir)/scp
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-add $(DESTDIR)$(bindir)/ssh-add
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-agent $(DESTDIR)$(bindir)/ssh-agent
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keygen $(DESTDIR)$(bindir)/ssh-keygen
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keyscan $(DESTDIR)$(bindir)/ssh-keyscan
+	$(INSTALL) -m 0755 $(STRIP_OPT) sshd $(DESTDIR)$(sbindir)/sshd
 	if test ! -z "$(INSTALL_SSH_RAND_HELPER)" ; then \
-		$(INSTALL) -m 0755 -s ssh-rand-helper $(DESTDIR)$(libexecdir)/ssh-rand-helper ; \
+		$(INSTALL) -m 0755 $(STRIP_OPT) ssh-rand-helper $(DESTDIR)$(libexecdir)/ssh-rand-helper ; \
 	fi
-	$(INSTALL) -m 4711 -s ssh-keysign $(DESTDIR)$(SSH_KEYSIGN)
-	@NO_SFTP@$(INSTALL) -m 0755 -s sftp $(DESTDIR)$(bindir)/sftp
-	@NO_SFTP@$(INSTALL) -m 0755 -s sftp-server $(DESTDIR)$(SFTP_SERVER)
+	$(INSTALL) -m 4711 $(STRIP_OPT) ssh-keysign $(DESTDIR)$(SSH_KEYSIGN)
+	$(INSTALL) -m 0755 $(STRIP_OPT) sftp $(DESTDIR)$(bindir)/sftp
+	$(INSTALL) -m 0755 $(STRIP_OPT) sftp-server $(DESTDIR)$(SFTP_SERVER)
 	$(INSTALL) -m 644 ssh.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
 	$(INSTALL) -m 644 scp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/scp.1
 	$(INSTALL) -m 644 ssh-add.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-add.1
@@ -242,8 +259,8 @@ install-files: scard-install
 	if [ ! -z "$(INSTALL_SSH_RAND_HELPER)" ]; then \
 		$(INSTALL) -m 644 ssh-rand-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-rand-helper.8 ; \
 	fi
-	@NO_SFTP@$(INSTALL) -m 644 sftp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
-	@NO_SFTP@$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
+	$(INSTALL) -m 644 sftp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
+	$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(bindir)/slogin
 	ln -s ./ssh$(EXEEXT) $(DESTDIR)$(bindir)/slogin

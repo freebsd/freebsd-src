@@ -70,7 +70,7 @@ record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
   struct logininfo *li;
 
   li = login_alloc_entry(pid, user, host, ttyname);
-  login_set_addr(li, addr, sizeof(struct sockaddr));
+  login_set_addr(li, addr, addrlen);
   login_login(li);
   login_free_entry(li);
 }
@@ -78,12 +78,12 @@ record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
 #ifdef LOGIN_NEEDS_UTMPX
 void
 record_utmp_only(pid_t pid, const char *ttyname, const char *user,
-		 const char *host, struct sockaddr * addr)
+		 const char *host, struct sockaddr * addr, socklen_t addrlen)
 {
   struct logininfo *li;
 
   li = login_alloc_entry(pid, user, host, ttyname);
-  login_set_addr(li, addr, sizeof(struct sockaddr));
+  login_set_addr(li, addr, addrlen);
   login_utmp_only(li);
   login_free_entry(li);
 }

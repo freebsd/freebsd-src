@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: bsd-misc.h,v 1.6 2002/06/13 21:34:58 mouring Exp $ */
+/* $Id: bsd-misc.h,v 1.7 2003/03/18 18:21:41 tim Exp $ */
 
 #ifndef _BSD_MISC_H
 #define _BSD_MISC_H
@@ -80,5 +80,14 @@ int truncate (const char *path, off_t length);
 int setgroups(size_t size, const gid_t *list);
 #endif
 
+#if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
+#ifndef HAVE_STRUCT_TIMESPEC
+struct timespec {
+	time_t	tv_sec;
+	long	tv_nsec;
+};
+#endif
+int nanosleep(const struct timespec *req, struct timespec *rem);
+#endif
 
 #endif /* _BSD_MISC_H */

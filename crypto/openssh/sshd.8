@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.193 2002/09/24 20:59:44 todd Exp $
+.\" $OpenBSD: sshd.8,v 1.194 2003/01/31 21:54:40 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD 8
 .Os
@@ -43,6 +43,7 @@
 .Nd OpenSSH SSH daemon
 .Sh SYNOPSIS
 .Nm sshd
+.Bk -words
 .Op Fl deiqtD46
 .Op Fl b Ar bits
 .Op Fl f Ar config_file
@@ -52,6 +53,7 @@
 .Op Fl o Ar option
 .Op Fl p Ar port
 .Op Fl u Ar len
+.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH Daemon) is the daemon program for
@@ -75,7 +77,7 @@ This implementation of
 .Nm
 supports both SSH protocol version 1 and 2 simultaneously.
 .Nm
-works as follows.
+works as follows:
 .Pp
 .Ss SSH protocol version 1
 .Pp
@@ -86,7 +88,7 @@ the daemon starts, it generates a server RSA key (normally 768 bits).
 This key is normally regenerated every hour if it has been used, and
 is never stored on disk.
 .Pp
-Whenever a client connects the daemon responds with its public
+Whenever a client connects, the daemon responds with its public
 host and server keys.
 The client compares the
 RSA host key against its own database to verify that it has not changed.
@@ -119,7 +121,7 @@ System security is not improved unless
 .Nm rshd ,
 .Nm rlogind ,
 and
-.Xr rexecd
+.Nm rexecd
 are disabled (thus completely disabling
 .Xr rlogin
 and
@@ -189,7 +191,9 @@ The server sends verbose debug output to the system
 log, and does not put itself in the background.
 The server also will not fork and will only process one connection.
 This option is only intended for debugging for the server.
-Multiple -d options increase the debugging level.
+Multiple
+.Fl d
+options increase the debugging level.
 Maximum is 3.
 .It Fl e
 When this option is specified,
@@ -225,7 +229,8 @@ the different protocol versions and host key algorithms.
 .It Fl i
 Specifies that
 .Nm
-is being run from inetd.
+is being run from
+.Xr inetd 8 .
 .Nm
 is normally not run
 from inetd because it needs to generate the server key before it can
@@ -282,7 +287,7 @@ should be put into the
 .Pa utmp
 file.
 .Fl u0
-is also be used to prevent
+may also be used to prevent
 .Nm
 from making DNS requests unless the authentication
 mechanism or configuration requires it.
@@ -446,7 +451,7 @@ authentication.
 The command supplied by the user (if any) is ignored.
 The command is run on a pty if the client requests a pty;
 otherwise it is run without a tty.
-If a 8-bit clean channel is required,
+If an 8-bit clean channel is required,
 one must not request a pty or should specify
 .Cm no-pty .
 A quote may be included in the command by quoting it with a backslash.
@@ -506,7 +511,7 @@ command="dump /home",no-pty,no-port-forwarding 1024 33 23.\|.\|.\|2323 backup.hu
 permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23.\|.\|.\|2323
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
-.Pa /etc/ssh/ssh_known_hosts ,
+.Pa /etc/ssh/ssh_known_hosts
 and
 .Pa $HOME/.ssh/known_hosts
 files contain host public keys for all known hosts.
@@ -627,7 +632,7 @@ These files should be writable only by root/the owner.
 .Pa /etc/ssh/ssh_known_hosts
 should be world-readable, and
 .Pa $HOME/.ssh/known_hosts
-can but need not be world-readable.
+can, but need not be, world-readable.
 .It Pa /etc/nologin
 If this file exists,
 .Nm
@@ -644,7 +649,7 @@ Further details are described in
 This file contains host-username pairs, separated by a space, one per
 line.
 The given user on the corresponding host is permitted to log in
-without password.
+without a password.
 The same file is used by rlogind and rshd.
 The file must
 be writable only by the user; it is recommended that it not be
@@ -713,7 +718,9 @@ controlled via the
 .Cm PermitUserEnvironment
 option.
 .It Pa $HOME/.ssh/rc
-If this file exists, it is run with /bin/sh after reading the
+If this file exists, it is run with
+.Pa /bin/sh
+after reading the
 environment files but before starting the user's shell or command.
 It must not produce any output on stdout; stderr must be used
 instead.

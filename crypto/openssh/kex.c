@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kex.c,v 1.51 2002/06/24 14:55:38 markus Exp $");
+RCSID("$OpenBSD: kex.c,v 1.55 2003/04/01 10:31:26 markus Exp $");
 
 #include <openssl/crypto.h>
 
@@ -43,11 +43,6 @@ RCSID("$OpenBSD: kex.c,v 1.51 2002/06/24 14:55:38 markus Exp $");
 #include "monitor.h"
 
 #define KEX_COOKIE_LEN	16
-
-/* Use privilege separation for sshd */
-int use_privsep;
-struct monitor *pmonitor;
-
 
 /* prototype */
 static void kex_kexinit_finish(Kex *);
@@ -74,7 +69,7 @@ kex_prop2buf(Buffer *b, char *proposal[PROPOSAL_MAX])
 
 /* parse buffer and return algorithm proposal */
 static char **
-kex_buf2prop(Buffer *raw)
+kex_buf2prop(Buffer *raw, int *first_kex_follows)
 {
 	Buffer b;
 	int i;
@@ -94,6 +89,8 @@ kex_buf2prop(Buffer *raw)
 	}
 	/* first kex follows / reserved */
 	i = buffer_get_char(&b);
+	if (first_kex_follows != NULL)
+		*first_kex_follows = i;
 	debug2("kex_parse_kexinit: first_kex_follows %d ", i);
 	i = buffer_get_int(&b);
 	debug2("kex_parse_kexinit: reserved %d ", i);
@@ -135,7 +132,7 @@ kex_finish(Kex *kex)
 	/* packet_write_wait(); */
 	debug("SSH2_MSG_NEWKEYS sent");
 
-	debug("waiting for SSH2_MSG_NEWKEYS");
+	debug("expecting SSH2_MSG_NEWKEYS");
 	packet_read_expect(SSH2_MSG_NEWKEYS);
 	packet_check_eom();
 	debug("SSH2_MSG_NEWKEYS received");
@@ -235,14 +232,10 @@ kex_kexinit_finish(Kex *kex)
 
 	kex_choose_conf(kex);
 
-	switch (kex->kex_type) {
-	case DH_GRP1_SHA1:
-		kexdh(kex);
-		break;
-	case DH_GEX_SHA1:
-		kexgex(kex);
-		break;
-	default:
+	if (kex->kex_type >= 0 && kex->kex_type < KEX_MAX &&
+	    kex->kex[kex->kex_type] != NULL) {
+		(kex->kex[kex->kex_type])(kex);
+	} else {
 		fatal("Unsupported key exchange %d", kex->kex_type);
 	}
 }
@@ -299,9 +292,9 @@ choose_kex(Kex *k, char *client, char *server)
 	if (k->name == NULL)
 		fatal("no kex alg");
 	if (strcmp(k->name, KEX_DH1) == 0) {
-		k->kex_type = DH_GRP1_SHA1;
+		k->kex_type = KEX_DH_GRP1_SHA1;
 	} else if (strcmp(k->name, KEX_DHGEX) == 0) {
-		k->kex_type = DH_GEX_SHA1;
+		k->kex_type = KEX_DH_GEX_SHA1;
 	} else
 		fatal("bad kex alg %s", k->name);
 }
@@ -317,6 +310,30 @@ choose_hostkeyalg(Kex *k, char *client, char *server)
 	xfree(hostkeyalg);
 }
 
+static int 
+proposals_match(char *my[PROPOSAL_MAX], char *peer[PROPOSAL_MAX])
+{
+	static int check[] = {
+		PROPOSAL_KEX_ALGS, PROPOSAL_SERVER_HOST_KEY_ALGS, -1
+	};
+	int *idx;
+	char *p;
+
+	for (idx = &check[0]; *idx != -1; idx++) {
+		if ((p = strchr(my[*idx], ',')) != NULL)
+			*p = '\0';
+		if ((p = strchr(peer[*idx], ',')) != NULL)
+			*p = '\0';
+		if (strcmp(my[*idx], peer[*idx]) != 0) {
+			debug2("proposal mismatch: my %s peer %s",
+			    my[*idx], peer[*idx]);
+			return (0);
+		}
+	}
+	debug2("proposals match");
+	return (1);
+}
+
 static void
 kex_choose_conf(Kex *kex)
 {
@@ -327,9 +344,10 @@ kex_choose_conf(Kex *kex)
 	int mode;
 	int ctos;				/* direction: if true client-to-server */
 	int need;
+	int first_kex_follows, type;
 
-	my   = kex_buf2prop(&kex->my);
-	peer = kex_buf2prop(&kex->peer);
+	my   = kex_buf2prop(&kex->my, NULL);
+	peer = kex_buf2prop(&kex->peer, &first_kex_follows);
 
 	if (kex->server) {
 		cprop=peer;
@@ -372,6 +390,13 @@ kex_choose_conf(Kex *kex)
 	}
 	/* XXX need runden? */
 	kex->we_need = need;
+
+	/* ignore the next message if the proposals do not match */
+	if (first_kex_follows && !proposals_match(my, peer) && 
+	   !(datafellows & SSH_BUG_FIRSTKEX)) {
+		type = packet_read();
+		debug2("skipping next packet (type %u)", type);
+	}
 
 	kex_prop_free(my);
 	kex_prop_free(peer);
@@ -433,7 +458,7 @@ kex_derive_keys(Kex *kex, u_char *hash, BIGNUM *shared_secret)
 	for (i = 0; i < NKEYS; i++)
 		keys[i] = derive_key(kex, 'A'+i, kex->we_need, hash, shared_secret);
 
-	debug("kex_derive_keys");
+	debug2("kex_derive_keys");
 	for (mode = 0; mode < MODE_MAX; mode++) {
 		current_keys[mode] = kex->newkeys[mode];
 		kex->newkeys[mode] = NULL;

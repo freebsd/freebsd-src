@@ -35,11 +35,13 @@
 #ifndef HAVE_SETENV
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: setenv.c,v 1.4 2001/07/09 06:57:45 deraadt Exp $";
+static char *rcsid = "$OpenBSD: setenv.c,v 1.5 2002/12/10 22:44:13 mickey Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdlib.h>
 #include <string.h>
+
+char *__findenv(const char *name, int *offset);
 
 /*
  * __findenv --
@@ -92,7 +94,6 @@ setenv(name, value, rewrite)
 	static int alloced;			/* if allocated space before */
 	register char *C;
 	int l_value, offset;
-	char *__findenv();
 
 	if (*value == '=')			/* no `=' in value */
 		++value;
