@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.25 1998/08/23 08:26:42 bde Exp $
+ * $Id: tty_tty.c,v 1.26 1999/05/30 16:53:00 phk Exp $
  */
 
 /*
@@ -203,11 +203,9 @@ static void
 ctty_drvinit(unused)
 	void *unused;
 {
-	dev_t dev;
 
 	if( ! ctty_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ctty_cdevsw,NULL);
+		cdevsw_add(&ctty_cdevsw);
 		ctty_devsw_installed = 1;
 #ifdef DEVFS
 		ctty_devfs_token = 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.59 1999/05/18 14:53:52 luoqi Exp $
+ * $Id: tty_pty.c,v 1.60 1999/05/30 16:52:57 phk Exp $
  */
 
 /*
@@ -843,13 +843,10 @@ ptc_drvinit(unused)
 #ifdef DEVFS
 	int i,j,k;
 #endif
-	dev_t dev;
 
 	if( ! ptc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR_S, 0);
-		cdevsw_add(&dev, &pts_cdevsw, NULL);
-		dev = makedev(CDEV_MAJOR_C, 0);
-		cdevsw_add(&dev, &ptc_cdevsw, NULL);
+		cdevsw_add(&pts_cdevsw);
+		cdevsw_add(&ptc_cdevsw);
 		ptc_devsw_installed = 1;
 #ifdef DEVFS
 		for ( i = 0 ; i<NPTY ; i++ ) {

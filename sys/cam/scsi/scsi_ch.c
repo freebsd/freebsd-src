@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.12 1999/05/22 22:00:19 gibbs Exp $
+ *      $Id: scsi_ch.c,v 1.13 1999/05/30 16:51:01 phk Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -277,11 +277,8 @@ chinit(void)
 		printf("ch: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else {
-		dev_t dev;
-
 		/* If we were successfull, register our devsw */
-		dev = makedev(CH_CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &ch_cdevsw, NULL);
+		cdevsw_add(&ch_cdevsw);
 	}
 }
 

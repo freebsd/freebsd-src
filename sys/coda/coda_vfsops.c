@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.12 1999/05/08 06:39:04 phk Exp $
+ *  $Id: coda_vfsops.c,v 1.13 1999/05/09 13:11:37 phk Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.13  1999/05/09 13:11:37  phk
+ * remove cast from dev_t to dev_t.
+ *
  * Revision 1.12  1999/05/08 06:39:04  phk
  * I got tired of seeing all the cdevsw[major(foo)] all over the place.
  *
@@ -341,10 +344,6 @@ coda_mount(vfsp, path, data, ndp, p)
     }
     dev = dvp->v_specinfo->si_rdev;
     vrele(dvp);
-    if (major(dev) >= nchrdev || major(dev) < 0) {
-	MARK_INT_FAIL(CODA_MOUNT_STATS);
-	return(ENXIO);
-    }
 
     /*
      * See if the device table matches our expectations.

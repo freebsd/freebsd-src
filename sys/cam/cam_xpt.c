@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.61 1999/05/25 20:17:29 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.62 1999/05/30 16:50:57 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -825,10 +825,7 @@ dev_allocq_is_runnable(struct cam_devq *devq)
 static void
 xpt_periph_init()
 {
-	dev_t dev;
-
-	dev = makedev(XPT_CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &xpt_cdevsw, NULL);
+	cdevsw_add(&xpt_cdevsw);
 }
 
 static void

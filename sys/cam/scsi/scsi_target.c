@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.12 1999/05/22 22:00:24 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.13 1999/05/30 16:51:07 phk Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -196,7 +196,6 @@ static struct extend_array *targperiphs;
 static void
 targinit(void)
 {
-	dev_t dev;
 
 	/*
 	 * Create our extend array for storing the devices we attach to.
@@ -208,8 +207,7 @@ targinit(void)
 	}
 
 	/* If we were successfull, register our devsw */
-	dev = makedev(TARG_CDEV_MAJOR, 0);
-	cdevsw_add(&dev,&targ_cdevsw, NULL);
+	cdevsw_add(&targ_cdevsw);
 }
 
 static void

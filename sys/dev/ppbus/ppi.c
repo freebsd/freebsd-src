@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.13 1999/04/28 10:51:39 dt Exp $
+ *	$Id: ppi.c,v 1.14 1999/05/30 16:51:35 phk Exp $
  *
  */
 #include "ppi.h"
@@ -146,6 +146,10 @@ static struct ppb_device *
 ppiprobe(struct ppb_data *ppb)
 {
 	struct ppi_data *ppi;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&ppi_cdevsw);
 
 	ppi = (struct ppi_data *) malloc(sizeof(struct ppi_data),
 							M_TEMP, M_NOWAIT);
@@ -546,20 +550,5 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
     
 	return (error);
 }
-
-static int ppi_devsw_installed;
-
-static void ppi_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if (!ppi_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &ppi_cdevsw, NULL);
-		ppi_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(ppidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ppi_drvinit,NULL)
 
 #endif /* NPPI */

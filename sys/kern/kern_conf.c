@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.39 1999/05/12 13:06:34 phk Exp $
+ * $Id: kern_conf.c,v 1.40 1999/05/18 13:14:43 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -39,14 +39,11 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 
-#define NUMCDEV 256
-#define cdevsw_ALLOCSTART	(NUMCDEV/2)
+#define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
-struct cdevsw 	*cdevsw[NUMCDEV];
-int	nchrdev = NUMCDEV;
+struct cdevsw 	*cdevsw[NUMCDEVSW];
 
-int	bmaj2cmaj[NUMCDEV];
-int	nblkdev = NUMCDEV;
+int	bmaj2cmaj[NUMCDEVSW];
 
 /*
  * Routine to convert from character to block device number.
@@ -65,65 +62,63 @@ chrtoblk(dev_t dev)
 	return(NODEV);
 }
 
+struct cdevsw *
+devsw(dev_t dev)
+{       
+        return(cdevsw[major(dev)]);
+}
+
+struct cdevsw *
+bdevsw(dev_t dev)
+{
+        struct cdevsw *c;
+        int i = major(dev);
+
+        if (bmaj2cmaj[i] == 254)
+                return 0;
+
+        c = cdevsw[bmaj2cmaj[major(dev)]];
+        if (!c) {
+                printf("bogus bdev dev_t %p, no cdev\n", (void *)dev);
+                Debugger("Bummer");
+                return 0;
+        }
+        /* CMAJ zero is the console, which has no strategy so this works */
+        if (c->d_strategy)
+                return (c);
+        return (0);
+}
+
+/*
+ *  Add a cdevsw entry
+ */
+
 int
-cdevsw_add(dev_t *descrip,
-		struct cdevsw *newentry,
-		struct cdevsw **oldentry)
+cdevsw_add(struct cdevsw *newentry)
 {
 	int i;
 	static int setup;
 
 	if (!setup) {
-		for (i = 0; i < NUMCDEV; i++)
+		for (i = 0; i < NUMCDEVSW; i++)
 			if (!bmaj2cmaj[i])
 				bmaj2cmaj[i] = 254;
 		setup++;
 	}
 
-	if ( *descrip == NODEV) {	/* auto (0 is valid) */
-		/*
-		 * Search the table looking for a slot...
-		 */
-		for (i = cdevsw_ALLOCSTART; i < nchrdev; i++)
-			if (cdevsw[i] == NULL)
-				break;		/* found one! */
-		/* out of allocable slots? */
-		if (i >= nchrdev) {
-			return ENFILE;
-		}
-	} else {				/* assign */
-		i = major(*descrip);
-		if (i < 0 || i >= nchrdev) {
-			return EINVAL;
-		}
+	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
+		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
+		    newentry->d_name, newentry->d_maj);
+		return EINVAL;
 	}
 
-	/* maybe save old */
-        if (oldentry) {
-		*oldentry = cdevsw[i];
-	}
-	if (newentry) {
-		newentry->d_bmaj = -1;
-		newentry->d_maj = i;
-	}
-	/* replace with new */
-	cdevsw[i] = newentry;
+	cdevsw[newentry->d_maj] = newentry;
 
-	/* done!  let them know where we put it */
-	*descrip = makedev(i,0);
+	if (newentry->d_bmaj >= 0 || newentry->d_bmaj < NUMCDEVSW) 
+		bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
+
 	return 0;
 } 
-
-void
-cdevsw_add_generic(int bmaj, int cmaj, struct cdevsw *devsw)
-{
-	dev_t dev;
-
-	dev = makedev(cmaj, 0);
-	cdevsw_add(&dev, devsw, NULL);
-	cdevsw[cmaj]->d_bmaj = bmaj;
-	bmaj2cmaj[bmaj] = cmaj;
-}
 
 int
 devsw_module_handler(module_t mod, int what, void* arg)
@@ -137,7 +132,7 @@ devsw_module_handler(module_t mod, int what, void* arg)
 		data->cdev = makedev(data->cmaj, 0);
 	switch (what) {
 	case MOD_LOAD:
-		error = cdevsw_add(&data->cdev, data->cdevsw, NULL);
+		error = cdevsw_add(data->cdevsw);
 		if (!error && data->cdevsw->d_strategy != nostrategy) {
 			if (data->bmaj == NOMAJ) {
 				data->bdev = data->cdev;
@@ -160,7 +155,6 @@ devsw_module_handler(module_t mod, int what, void* arg)
 		}
 		if (data->cdevsw->d_strategy != nostrategy)
 			bmaj2cmaj[major(data->bdev)] = 0;
-		error = cdevsw_add(&data->cdev, NULL, NULL);
 		return error;
 	}
 

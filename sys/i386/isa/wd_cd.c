@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.18 1999/05/11 10:39:27 sos Exp $
+ *	$Id: atapi-cd.c,v 1.19 1999/05/30 16:52:08 phk Exp $
  */
 
 #include "wdc.h"
@@ -1496,15 +1496,10 @@ atapi_dump(int ctrlr, int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-static int acd_devsw_installed;
-
 static void 
 acd_drvinit(void *unused)
 {
-    if (!acd_devsw_installed) {
-        cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &acd_cdevsw);
-        acd_devsw_installed = 1;
-    }
+    cdevsw_add(&acd_cdevsw);
 }
 
 SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, acd_drvinit, NULL)

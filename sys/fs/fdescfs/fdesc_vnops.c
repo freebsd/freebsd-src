@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.40 1998/12/14 05:00:57 dillon Exp $
+ * $Id: fdesc_vnops.c,v 1.41 1999/01/27 22:42:06 dillon Exp $
  */
 
 /*
@@ -105,7 +105,7 @@ fdesc_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	devctty = makedev(nchrdev, 0);
+	devctty = NODEV;
 	fdhashtbl = hashinit(NFDCACHE, M_CACHE, &fdhash);
 	return (0);
 }

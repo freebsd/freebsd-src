@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.303 1999/05/12 04:45:56 bde Exp $
+ *	$Id: syscons.c,v 1.304 1999/05/30 16:51:42 phk Exp $
  */
 
 #include "sc.h"
@@ -574,7 +574,6 @@ sc_attach_unit(int unit, int flags)
 #if defined(VESA) && defined(VM86)
     video_info_t info;
 #endif
-    dev_t cdev = makedev(CDEV_MAJOR, 0);
 #ifdef DEVFS
     int vc;
 #endif
@@ -661,7 +660,7 @@ sc_attach_unit(int unit, int flags)
 
     at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
 
-    cdevsw_add(&cdev, &sc_cdevsw, NULL);
+    cdevsw_add(&sc_cdevsw);
 
 #ifdef DEVFS
     for (vc = 0; vc < MAXCONS; vc++)

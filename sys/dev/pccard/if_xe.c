@@ -352,7 +352,11 @@ xe_memwrite(struct pccard_devinfo *devi, off_t offset, u_char byte)
   uios.uio_rw = UIO_WRITE;
   uios.uio_procp = 0;
 
+#if 0 /* THIS IS BOGUS */
   return cdevsw[CARD_MAJOR]->d_write(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
+#else
+  return (-1);
+#endif
 }
 
 
@@ -373,7 +377,11 @@ xe_memread(struct pccard_devinfo *devi, off_t offset, u_char *buf, int size)
   uios.uio_rw = UIO_READ;
   uios.uio_procp = 0;
 
+#if 0 /* THIS IS BOGUS */
   return cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
+#else
+  return (-1);
+#endif
 }
 
 

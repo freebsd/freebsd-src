@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.18 1999/05/08 14:36:48 phk Exp $
+ * $Id: loran.c,v 1.19 1999/05/30 16:52:19 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -196,6 +196,8 @@ struct datapoint {
 
 /**********************************************************************/
 
+extern struct cdevsw loran_cdevsw;
+
 static dphead_t minors[NLORAN], working, holding;
 
 static struct datapoint dummy[NDUMMY];
@@ -233,6 +235,10 @@ extern	struct timecounter loran_timecounter;
 int
 loranprobe(struct isa_device *dvp)
 {
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&loran_cdevsw);
 	/* We need to be a "fast-intr" */
 	dvp->id_ri_flags |= RI_FAST;
 
@@ -656,21 +662,5 @@ static struct cdevsw loran_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
-
-
-static int loran_devsw_installed;
-
-static void 	loran_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if(!loran_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&loran_cdevsw, NULL);
-		loran_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(lorandev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,loran_drvinit,NULL)
 
 #endif /* KERNEL */

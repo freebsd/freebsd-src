@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.10 1999/05/09 13:00:35 phk Exp $
+ *	$Id: iic.c,v 1.11 1999/05/30 16:51:28 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -121,6 +121,10 @@ static int
 iic_probe(device_t dev)
 {
 	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
+	static int once;
+
+	if (!once++)
+                cdevsw_add(&iic_cdevsw);
 
 	sc->sc_addr = iicbus_get_addr(dev);
 
@@ -279,21 +283,5 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-static int iic_devsw_installed = 0;
-
-static void
-iic_drvinit(void *unused)
-{
-        dev_t dev;
-
-        if( ! iic_devsw_installed ) {
-                dev = makedev(CDEV_MAJOR,0);
-                cdevsw_add(&dev,&iic_cdevsw,NULL);
-                iic_devsw_installed = 1;
-        }
-}
-
 DEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, CDEV_MAJOR,
 			NOMAJ, iic_cdevsw, 0, 0);
-
-SYSINIT(iicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,iic_drvinit,NULL)

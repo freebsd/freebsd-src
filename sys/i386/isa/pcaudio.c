@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.48 1999/05/06 18:58:05 peter Exp $
+ *	$Id: pcaudio.c,v 1.49 1999/05/30 16:52:21 phk Exp $
  */
 
 #include "pca.h"
@@ -204,6 +204,7 @@ pca_volume(int volume)
 static void
 pca_init(void)
 {
+	cdevsw_add(&pca_cdevsw);
 	pca_status.open = 0;
 	pca_status.queries = 0;
 	pca_status.timer_on = 0;
@@ -564,20 +565,5 @@ pcapoll(dev_t dev, int events, struct proc *p)
 	splx(s);
 	return (revents);
 }
-
-static int pca_devsw_installed;
-
-static void 	pca_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! pca_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&pca_cdevsw, NULL);
-		pca_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(pcadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pca_drvinit,NULL)
 
 #endif

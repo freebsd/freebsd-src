@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.34 1999/05/06 18:12:46 peter Exp $
+ * $Id: subr_log.c,v 1.35 1999/05/30 16:52:56 phk Exp $
  */
 
 /*
@@ -274,11 +274,9 @@ static void
 log_drvinit(unused)
 	void *unused;
 {
-	dev_t dev;
 
 	if( ! log_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&log_cdevsw,NULL);
+		cdevsw_add(&log_cdevsw);
 		log_devsw_installed = 1;
 #ifdef DEVFS
 		log_devfs_token = devfs_add_devswf(&log_cdevsw, 0, DV_CHR,

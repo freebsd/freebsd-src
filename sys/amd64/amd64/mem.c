@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.61 1999/05/11 19:54:06 phk Exp $
+ *	$Id: mem.c,v 1.62 1999/05/30 16:52:04 phk Exp $
  */
 
 /*
@@ -668,7 +668,6 @@ static int mem_devsw_installed;
 static void
 mem_drvinit(void *unused)
 {
-	dev_t dev;
 
 	/* Initialise memory range handling */
 	if (mem_range_softc.mr_op != NULL)
@@ -676,9 +675,7 @@ mem_drvinit(void *unused)
 
 	/* device registration */
 	if( ! mem_devsw_installed ) {
-
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&mem_cdevsw, NULL);
+		cdevsw_add(&mem_cdevsw);
 		mem_devsw_installed = 1;
 #ifdef DEVFS
 		memdevfs_init();

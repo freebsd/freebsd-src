@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *    $Id$
+ *    $Id: ida.c,v 1.1 1999/05/25 19:45:17 julian Exp $
  *
  */
 
@@ -1733,7 +1733,7 @@ static void
 id_drvinit(void *unused)
 {
   if( ! id_devsw_installed ) {
-    cdevsw_add_generic(ID_BDMAJ,ID_CDMAJ, &id_cdevsw);
+    cdevsw_add(&id_cdevsw);
     id_devsw_installed = 1;
   }
 }

@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.13 1999/05/08 07:02:25 phk Exp $
+ *	$Id: dgm.c,v 1.14 1999/05/30 16:51:58 phk Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -397,6 +397,10 @@ dgmprobe(dev)
 	struct dgm_softc *sc= &dgm_softc[dev->id_unit];
 	int i, v;
 	int unit=dev->id_unit;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&dgm_cdevsw);
 
 	sc->unit=dev->id_unit;
 	sc->port=dev->id_iobase;
@@ -2104,22 +2108,5 @@ disc_optim(tp, t)
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
-
-
-static int dgm_devsw_installed;
-
-static void 
-dgm_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! dgm_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&dgm_cdevsw, NULL);
-		dgm_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(dgmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgm_drvinit,NULL)
 
 #endif /* NDGM > 0 */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.7 1999/05/15 18:14:03 dfr Exp $
+ *	$Id: cons.c,v 1.8 1999/05/30 16:50:40 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -444,23 +444,16 @@ cnputc(c)
 	}
 }
 
-static int cn_devsw_installed = 0;
-
 static void
 cn_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! cn_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&cn_cdevsw,NULL);
-		cn_devsw_installed = 1;
+	cdevsw_add(&dev);
 #ifdef DEVFS
-		cn_devfs_token = devfs_add_devswf(&cn_cdevsw, 0, DV_CHR,
-						  UID_ROOT, GID_WHEEL, 0600,
-						  "console");
+	cn_devfs_token = devfs_add_devswf(&cn_cdevsw, 0, DV_CHR,
+		  UID_ROOT, GID_WHEEL, 0600, "console");
 #endif
-	}
 }
 
 SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.25 1999/05/22 22:00:20 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.26 1999/05/30 16:51:02 phk Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -821,7 +821,7 @@ dainit(void)
 		int err;
 
 		/* If we were successfull, register our devsw */
-		cdevsw_add_generic(DA_BDEV_MAJOR, DA_CDEV_MAJOR, &da_cdevsw);
+		cdevsw_add(&da_cdevsw);
 
 		/*
 		 * Schedule a periodic event to occasioanly send an

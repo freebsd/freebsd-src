@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id: lpt.c,v 1.3 1999/04/28 10:51:35 dt Exp $
+ *	$Id: lpt.c,v 1.4 1999/05/30 16:51:34 phk Exp $
  */
 
 /*
@@ -363,6 +363,10 @@ static struct ppb_device *
 lptprobe(struct ppb_data *ppb)
 {
 	struct lpt_data *sc;
+	static int once;
+	
+	if (!once++)
+		cdevsw_add(&lpt_cdevsw);
 
 	sc = (struct lpt_data *) malloc(sizeof(struct lpt_data),
 							M_TEMP, M_NOWAIT);
@@ -954,19 +958,3 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	return(error);
 }
-
-static int lpt_devsw_installed;
-
-static void
-lpt_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! lpt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&lpt_cdevsw, NULL);
-		lpt_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
