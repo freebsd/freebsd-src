@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $
+ *	$Id: if_ti.c,v 1.10 1999/07/23 02:10:11 wpaul Exp $
  */
 
 /*
@@ -131,7 +131,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $";
+	"$Id: if_ti.c,v 1.10 1999/07/23 02:10:11 wpaul Exp $";
 #endif
 
 /*
@@ -1574,6 +1574,9 @@ static int ti_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	sc->ti_btag = rman_get_bustag(sc->ti_res);
+	sc->ti_bhandle = rman_get_bushandle(sc->ti_res);
 
 	/* Allocate interrupt */
 	rid = 0;
