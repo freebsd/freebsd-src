@@ -17,7 +17,7 @@ MAN=	DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	crypto.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	make_dev.9 mbuf.9 microseq.9 mi_switch.9 module.9 namei.9 \
-	panic.9 physio.9 posix4.9 psignal.9 \
+	pci.9 panic.9 physio.9 posix4.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
@@ -75,6 +75,11 @@ MLINKS+=make_dev.9 destroy_dev.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=malloc.9 realloc.9 malloc.9 reallocf.9
 MLINKS+=mi_switch.9 cpu_switch.9
+MLINKS+=pci.9 pci_read_config.9 pci.9 pci_write_config.9
+MLINKS+=pci.9 pci_enable_busmaster.9 pci.9 pci_disable_busmaster.9
+MLINKS+=pci.9 pci_enable_io.9 pci.9 pci_disable_io.9
+MLINKS+=pci.9 pci_get_powerstate.9 pci.9 pci_set_powerstate.9
+MLINKS+=pci.9 pci_find_bsf.9 pci.9 pci_find_device.9
 MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
