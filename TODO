@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.5 1994/10/23 04:06:10 phk Exp $
+; $Id: TODO,v 1.6 1995/01/29 06:35:03 phk Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -155,5 +155,16 @@ DETAIL:	{ Make the ProAudioSpectrum a controller like wdc1 and attach
 sound and cdrom drivers to it. }
 EMAIL:	<phk>
 CATS:	kernel
+GRADE:	INTERMEDIATE
+STATUS:	OPEN
+
+TASKID:	950222001
+TASK:	Make find smarter about -fstype local
+DETAIL:	{ Currently when doing a find blah -fstype local the find traverses
+through all nfs mounted file systems looking for locally mounted filesystems,
+this could be short circuited by using getmntinfo/statfs.  Note that you
+can not do this when following symlinks. }
+EMAIL:	<rgrimes, phk>
+CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
