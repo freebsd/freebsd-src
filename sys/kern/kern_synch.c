@@ -250,8 +250,6 @@ schedcpu(arg)
 		 * Increment time in/out of memory and sleep time
 		 * (if sleeping).  We ignore overflow; with 16-bit int's
 		 * (remember them?) overflow takes 45 days.
-		if (p->p_stat == SWAIT)
-			continue;
 		 */
 		mtx_lock_spin(&sched_lock);
 		p->p_swtime++;
