@@ -59,10 +59,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.74 1998/02/09 06:11:24 eivind Exp $
+ * $Id: vm_glue.c,v 1.75 1998/03/04 10:27:00 dufault Exp $
  */
 
 #include "opt_rlimit.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
