@@ -25,56 +25,58 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 1999
-.Dt KLDUNLOAD 2
+.Dd September 28, 2000
+.Dt MODNEXT 2
 .Os FreeBSD
 .Sh NAME
-.Nm kldunload
-.Nd unload kld files
+.Nm modnext
+.Nd return the modid of the next kernel module
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
-.Fd #include <sys/linker.h>
+.Fd #include <sys/module.h>
 .Ft int
-.Fn kldunload "int fileid"
+.Fn modnext "int modid"
+.Ft int
+.Fn modfnext "int modid"
 .Sh DESCRIPTION
 The function
-.Fn kldunload
-unloads a kld file from the kernel that was previously linked via
-.Xr kldload 2 .
+.Fn modnext
+returns the modid of the next kernel module (that is, the one after
+.Va modid )
+or 0 if
+.Va modid
+is the last module in the list.
+.Pp
+If the
+.Va modid
+value is 0, then
+.Fn modnext
+will return the modid of the first module.
+.Fn modfnext
+must always be given a valid modid.
 .Sh RETURN VALUES
-The function
-.Fn kldunload
-returns the fileid of the kld file which was previously loaded into memory via
-.Fn kldload .
-If an error occurs,
-.Fn kldunload
-will return -1 and set
+.Fn modnext
+returns the modid of the next module (see DESCRIPTION) or 0.  If an error
+occurs,
 .Va errno
-to indicate the error.
+is set to indicate the error.
 .Sh ERRORS
-The file referred to by
-.Fa fileid
-is unloaded unless:
-.Bl -tag -width Er
-.It Bq Er EPERM
-You don't have access to unlink the file from the kernel.
-.It Bq Er ENOENT
-The file was not found.
-.It Bq Er EBUSY
-You attempted to unload a file linked by the kernel.
+The only error set by
+.Fn modnext
+is ENOENT, which is set when
+.Va modid
+refers to a kernel module that does not exist (isn't loaded).
 .Sh SEE ALSO
 .Xr kldfind 2 ,
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
-.Xr kldnext 2 ,
 .Xr kldstat 2 ,
+.Xr kldunload 2 ,
 .Xr modfind 2 ,
-.Xr modnext 2 ,
 .Xr modstat 2 ,
-.Xr kld 4 ,
-.Xr kldunload 8
+.Xr kld 4
 .Sh HISTORY
 The
 .Nm kld
