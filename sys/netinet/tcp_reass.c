@@ -731,13 +731,10 @@ findpcb:
 				tp->snd_up = tp->snd_una;
 				tp->snd_max = tp->snd_nxt = tp->iss + 1;
 				tp->last_ack_sent = tp->rcv_nxt;
-/*
- * XXX possible bug - it doesn't appear that tp->snd_wnd is unscaled
- * until the _second_ ACK is received:
- *    rcv SYN (set wscale opts)	 --> send SYN/ACK, set snd_wnd = window.
- *    rcv ACK, calculate tiwin --> process SYN_RECEIVED, determine wscale,
- *        move to ESTAB, set snd_wnd to tiwin.
- */        
+				/*
+				 * RFC1323: The window in SYN & SYN/ACK
+				 * segments is never scaled.
+				 */
 				tp->snd_wnd = tiwin;	/* unscaled */
 				goto after_listen;
 			}
