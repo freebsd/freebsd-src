@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.48 1999/01/19 00:21:40 peter Exp $
+ * $Id: if_fe.c,v 1.49 1999/03/03 10:40:26 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -3181,7 +3181,7 @@ fe_droppacket ( struct fe_softc * sc, int len )
 	if ( len > 12 ) {
 		/* Read 4 more bytes, and skip the rest of the packet.  */
 #ifdef FE_8BIT_SUPPORT
-		if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			( void )inb( sc->ioaddr[ FE_BMPR8 ] );
 			( void )inb( sc->ioaddr[ FE_BMPR8 ] );
@@ -3198,7 +3198,7 @@ fe_droppacket ( struct fe_softc * sc, int len )
 	} else {
 		/* We should not come here unless receiving RUNTs.  */
 #ifdef FE_8BIT_SUPPORT
-		if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			for ( i = 0; i < len; i++ ) {
 				( void )inb( sc->ioaddr[ FE_BMPR8 ] );
@@ -3241,7 +3241,7 @@ fe_emptybuffer ( struct fe_softc * sc )
 	 * Just discard everything in the buffer.
 	 */
 #ifdef FE_8BIT_SUPPORT
-	if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		for ( i = 0; i < 65536; i++ ) {
 			if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) break;
@@ -3462,7 +3462,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 * value is returned in lower 8 bits.
 		 */
 #ifdef FE_8BIT_SUPPORT
-		if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			status = inb( sc->ioaddr[ FE_BMPR8 ] );
 			( void ) inb( sc->ioaddr[ FE_BMPR8 ] );
@@ -3479,7 +3479,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 * CRC has been stripped off by the 86960.
 		 */
 #ifdef FE_8BIT_SUPPORT
-		if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			len  =   inb( sc->ioaddr[ FE_BMPR8 ] );
 			len |= ( inb( sc->ioaddr[ FE_BMPR8 ] ) << 8 );
@@ -3752,7 +3752,7 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 
 	/* Get a packet.  */
 #ifdef FE_8BIT_SUPPORT
-	if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		insb( sc->ioaddr[ FE_BMPR8 ], eh,   len );
 	}
@@ -3891,7 +3891,7 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * padding process.  It may gain performance slightly.  FIXME.
 	 */
 #ifdef FE_8BIT_SUPPORT
-	if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		len = max( length, ETHER_MIN_LEN - ETHER_CRC_LEN );
 		outb( addr_bmpr8,   len & 0x00ff );
@@ -3908,7 +3908,7 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * Truncate the length up to an even number, since we use outw().
 	 */
 #ifdef FE_8BIT_SUPPORT
-	if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_WORD)
+	if ((sc->proto_dlcr6 & FE_D6_SBW) != FE_D6_SBW_BYTE)
 #endif
 	{
 		length = ( length + 1 ) & ~1;
@@ -3923,7 +3923,7 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * over odd-length mbufs.
 	 */
 #ifdef FE_8BIT_SUPPORT
-	if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+	if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 	{
 		/* 8-bit cards are easy.  */
 		for ( mp = m; mp != 0; mp = mp->m_next ) {
@@ -3976,7 +3976,7 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	/* Pad to the Ethernet minimum length, if the packet is too short.  */
 	if ( length < ETHER_MIN_LEN - ETHER_CRC_LEN ) {
 #ifdef FE_8BIT_SUPPORT
-		if ((sc->proto_dlcr6 & FE_D6_BBW) == FE_D6_BBW_BYTE)
+		if ((sc->proto_dlcr6 & FE_D6_SBW) == FE_D6_SBW_BYTE)
 		{
 			outsb( addr_bmpr8, padding,   ETHER_MIN_LEN - ETHER_CRC_LEN - length );
 		}
