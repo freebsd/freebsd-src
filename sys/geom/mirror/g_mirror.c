@@ -2557,7 +2557,7 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		}
 		sbuf_printf(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Priority>%u</Priority>\n", indent,
-		    disk->d_sync.ds_syncid);
+		    disk->d_priority);
 		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    g_mirror_disk_state2str(disk->d_state));
 	} else {
