@@ -70,7 +70,7 @@ device		isa
 device		pci
 
 # IA64 uses ACPI
-device 		acpica
+device 		acpi
 
 # Floppy drives
 device		fdc
