@@ -1,5 +1,6 @@
-FreeBSD 1.0
-INSTALLATION NOTES <2.00, 10 September 1993>
+                             INSTALLATION NOTES
+                                  FreeBSD
+                                Release 1.0
 
 These notes have been prepared from those written originally for NetBSD
 0.9. The conversion was done by someone who has had experience with
@@ -137,40 +138,55 @@ allow you to run X and/or compile, but it's extremely slow.)
 Supported devices include:
 
 	Standard floppy controllers
+
 	Standard hard disk controllers:
 		MFM
 		ESDI
 		IDE
 		RLL
+
 	SCSI hard disk controllers:
-		Adaptec AHA-1542{A,B,C}, -1742		[kcopy-ah-floppy]
-		Bustek 742 (EISA) Ultrastor 14f and 34f [kcopy-bt-floppy]
+		Adaptec 154x series *			[kcopy-ah-floppy]
+		Adaptec 174x series
+		Buslogic 545S
+		Bustek 742 (EISA)			[kcopy-bt-floppy]
+		DTC 3290 in 1542 emulation mode *
+		Ultrastor 14f and 34f
+
+		* Your system can NOT have more than 16MB of memory with
+		  these controllers.
+
 	Display Adaptors:
 		MDA
 		CGA
 		VGA (and SVGA)
 		HGC
+
 	Serial communications ports
 		8250
 		16450
 		16550A
 		[4-port multi-serial cards - require kernel built
 		with MULTI_PORT option]
+		[We do not support the Intel 82501 serial chip used
+		in some PC's at this time]
+
 	Ethernet controllers
 		SMC/WD 8003, 8013, and equivalents
 			(including the SMC "Elite" series)
 		Novell NE1000, NE2000
 		3COM 3c503
 		ISOLAN ISOLink
+
 	Tape drives:
 		QIC-02 format tape drives
 		most SCSI tape/DAT drives
 		[an early QIC-40 or QIC-80 tape driver exists,
 		but is not yet incorporated into FreeBSD]
+
 	CD-ROM drives:
-		most SCSI CD-ROM drives
-		[an early MITSUMI non-SCSI CD-ROM driver exists,
-		but is not yet incorporated into FreeBSD]
+		Mitsumi CDROM drive with Mitsumi Controller
+		Most SCSI CD-ROM drives on a supported SCSI controller
 
 To be detected by the distributed kernels, the devices must
 be configured as follows: (Note: IRQ 9 is the same as IRQ 2
@@ -178,10 +194,10 @@ on ISA/EISA based machines)
 
 Device		Name	Port	IRQ	DRQ	 Misc
 ------		----	----	---	---	 ----
-Floppy Cntlr.	fdc0	0x3f0	6	2
+Floppy Cntlr.	fd0	0x3f0	6	2
 
 Std. Hard Disk Cntlr.
-		wdc0	0x1f0	14
+		wd0	0x1f0	14
 
 AHA-154x SCSI Cntlr.	0x330	11	5	 [kcopy-ah-floppy]
 
@@ -1036,4 +1052,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.8 1993/10/01 04:43:56 rgrimes Exp $
+This is $Id: install_notes,v 1.9 1993/10/01 19:22:43 rgrimes Exp $
