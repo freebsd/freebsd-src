@@ -244,6 +244,15 @@ For example, setting this variable to
 will instruct
 .Xr make 1
 to execute up to four processes at a time.
+.It Va KERNELS
+Specifies a list of additional kernel configurations to compile and
+install into the
+.Dq base
+distribution.
+Each kernel is installed into
+.Pa /boot/<config>
+so that it can be booted from the loader via
+.Dq Li "boot <config>" .
 .It Va LOCAL_PATCHES
 A patch file against
 .Pa /usr/src
