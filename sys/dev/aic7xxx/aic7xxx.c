@@ -1867,7 +1867,7 @@ ahc_build_transfer_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 
 		period = tinfo->goal.period;
 		ppr_options = tinfo->goal.ppr_options;
-		if (dosync)
+		if (use_ppr == 0)
 			ppr_options = 0;
 		rate = ahc_devlimited_syncrate(ahc, &period, &ppr_options);
 		offset = tinfo->goal.offset;
