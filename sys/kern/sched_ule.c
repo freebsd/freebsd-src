@@ -87,13 +87,10 @@ int tickincr = 1;
  * for the group.
  */
 struct kse {
-	TAILQ_ENTRY(kse) ke_kglist;	/* (*) Queue of threads in ke_ksegrp. */
-	TAILQ_ENTRY(kse) ke_kgrlist;	/* (*) Queue of threads in this state.*/
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	int		ke_flags;	/* (j) KEF_* flags. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_THREAD = 0x0,	/* slaved to thread state */
@@ -147,12 +144,10 @@ struct kg_sched {
 	int	skg_runtime;		/* Number of ticks we were running */
 	int	skg_avail_opennings;	/* (j) Num unfilled slots in group.*/
 	int	skg_concurrency;	/* (j) Num threads requested in group.*/
-	int	skg_runq_threads;	/* (j) Num KSEs on runq. */
 };
 #define kg_last_assigned	kg_sched->skg_last_assigned
 #define kg_avail_opennings	kg_sched->skg_avail_opennings
 #define kg_concurrency		kg_sched->skg_concurrency
-#define kg_runq_threads		kg_sched->skg_runq_threads
 #define kg_runtime		kg_sched->skg_runtime
 #define kg_slptime		kg_sched->skg_slptime
 
@@ -1175,7 +1170,6 @@ schedinit(void)
 	ksegrp0.kg_sched = &kg_sched0;
 	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
-	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
 	kse0.ke_state = KES_THREAD;
 	kg_sched0.skg_concurrency = 1;
 	kg_sched0.skg_avail_opennings = 0; /* we are already running */
@@ -1815,7 +1809,6 @@ sched_add_internal(struct thread *td, int preemptive)
 	if (preemptive && maybe_preempt(td))
 		return;
 	SLOT_USE(td->td_ksegrp);
-	ke->ke_ksegrp->kg_runq_threads++;
 	ke->ke_state = KES_ONRUNQ;
 
 	kseq_runq_add(kseq, ke);
@@ -1846,7 +1839,6 @@ sched_rem(struct thread *td)
 
 	SLOT_RELEASE(td->td_ksegrp);
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_threads--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);
 	kseq_load_rem(kseq, ke);
@@ -1899,7 +1891,6 @@ sched_bind(struct thread *td, int cpu)
 		return;
 	/* sched_rem without the runq_remove */
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_threads--;
 	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
