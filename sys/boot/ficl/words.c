@@ -732,7 +732,7 @@ static void ficlSprintf(FICL_VM *pVM) /*  */
 	int base = 10;
 	int unsignedInteger = FALSE;
 
-	int append = FICL_TRUE;
+	FICL_INT append = FICL_TRUE;
 
 	while (format < formatStop)
 	{
@@ -816,7 +816,7 @@ static void ficlSprintf(FICL_VM *pVM) /*  */
 			}
 		}
 
-		if (append == FICL_TRUE)
+		if (append != FICL_FALSE)
 		{
 			if (!desiredLength)
 				desiredLength = actualLength;
@@ -1262,7 +1262,7 @@ static void ifParen(FICL_VM *pVM)
     }
     else 
     {                           /* take branch (to else/endif/begin) */
-        vmBranchRelative(pVM, *(int *)(pVM->ip));
+        vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
     }
 
     return;
@@ -1311,7 +1311,7 @@ static void elseCoIm(FICL_VM *pVM)
 
 static void branchParen(FICL_VM *pVM)
 {
-    vmBranchRelative(pVM, *(int *)(pVM->ip));
+    vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
     return;
 }
 
@@ -1473,7 +1473,7 @@ static int ficlParseWord(FICL_VM *pVM, STRINGINFO si)
             }
 
             vmExecute(pVM, tempFW);
-            return FICL_TRUE;
+            return (int)FICL_TRUE;
         }
     }
 
@@ -1489,7 +1489,7 @@ static int ficlParseWord(FICL_VM *pVM, STRINGINFO si)
             {
                 dictAppendCell(dp, LVALUEtoCELL(tempFW));
             }
-            return FICL_TRUE;
+            return (int)FICL_TRUE;
         }
     }
 
@@ -1922,7 +1922,7 @@ static void loopParen(FICL_VM *pVM)
     else 
     {                       /* update index, branch to loop head */
         stackSetTop(pVM->rStack, LVALUEtoCELL(index));
-        vmBranchRelative(pVM, *(int *)(pVM->ip));
+        vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
     }
 
     return;
@@ -1957,7 +1957,7 @@ static void plusLoopParen(FICL_VM *pVM)
     else 
     {                       /* update index, branch to loop head */
         stackSetTop(pVM->rStack, LVALUEtoCELL(index));
-        vmBranchRelative(pVM, *(int *)(pVM->ip));
+        vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
     }
 
     return;
