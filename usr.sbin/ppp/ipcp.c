@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.9 1998/02/07 20:49:41 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.10 1998/02/08 11:04:51 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -202,6 +202,7 @@ IpcpDefAddress()
     if (hp && hp->h_addrtype == AF_INET)
       memcpy(&IpcpInfo.DefMyAddress.ipaddr.s_addr, hp->h_addr, hp->h_length);
   }
+  IpcpInfo.if_mine.s_addr = IpcpInfo.if_peer.s_addr = INADDR_ANY;
 }
 
 int
@@ -257,7 +258,6 @@ IpcpInit(struct bundle *bundle, struct link *l)
     LogPrintf(LogIPCP, "Using trigger address %s\n",
               inet_ntoa(IpcpInfo.TriggerAddress));
   }
-  IpcpInfo.if_mine.s_addr = IpcpInfo.if_peer.s_addr = INADDR_ANY;
 
   if (Enabled(ConfVjcomp))
     IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) +
@@ -287,6 +287,8 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
       ipcp->if_peer.s_addr == hisaddr.s_addr)
     return 0;
 
+  IpcpCleanInterface(&ipcp->fsm);
+
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
@@ -296,16 +298,6 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
   memset(&ifra, '\0', sizeof ifra);
   strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
   ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
-
-  /* If different address has been set, then delete it first */
-  if (ipcp->if_mine.s_addr != INADDR_ANY ||
-      ipcp->if_peer.s_addr != INADDR_ANY)
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
-		strerror(errno));
-      close(s);
-      return (-1);
-    }
 
   /* Set interface address */
   sock_in = (struct sockaddr_in *)&ifra.ifra_addr;
@@ -454,6 +446,45 @@ IpcpLayerFinish(struct fsm *fp)
   LogPrintf(LogIPCP, "IpcpLayerFinish.\n");
 }
 
+void
+IpcpCleanInterface(struct fsm *fp)
+{
+  struct ipcp *ipcp = fsm2ipcp(fp);
+  struct ifaliasreq ifra;
+  struct sockaddr_in *me, *peer;
+  int s;
+
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  if (s < 0) {
+    LogPrintf(LogERROR, "IpcpCleanInterface: socket: %s\n", strerror(errno));
+    return;
+  }
+
+  if (Enabled(ConfProxy))
+    cifproxyarp(fp->bundle, ipcp, s);
+
+  if (ipcp->if_mine.s_addr != INADDR_ANY ||
+      ipcp->if_peer.s_addr != INADDR_ANY) {
+    memset(&ifra, '\0', sizeof ifra);
+    strncpy(ifra.ifra_name, fp->bundle->ifname, sizeof ifra.ifra_name - 1);
+    ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
+    me = (struct sockaddr_in *)&ifra.ifra_addr;
+    peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+    me->sin_family = peer->sin_family = AF_INET;
+    me->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
+    me->sin_addr = ipcp->if_mine;
+    peer->sin_addr = ipcp->if_peer;
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+      LogPrintf(LogERROR, "IpcpCleanInterface: ioctl(SIOCDIFADDR): %s\n",
+                strerror(errno));
+      close(s);
+    }
+    ipcp->if_mine.s_addr = ipcp->if_peer.s_addr = INADDR_ANY;
+  }
+
+  close(s);
+}
+
 static void
 IpcpLayerDown(struct fsm *fp)
 {
@@ -478,37 +509,8 @@ IpcpLayerDown(struct fsm *fp)
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE);
 
-  if (!(mode & MODE_AUTO)) {
-    struct ifaliasreq ifra;
-    int s;
-
-    s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) {
-      LogPrintf(LogERROR, "IpcpLayerDown: socket: %s\n", strerror(errno));
-      return;
-    }
-
-    if (Enabled(ConfProxy))
-      cifproxyarp(fp->bundle, ipcp, s);
-
-    if (ipcp->if_mine.s_addr != INADDR_ANY ||
-        ipcp->if_peer.s_addr != INADDR_ANY) {
-      memset(&ifra, '\0', sizeof ifra);
-      strncpy(ifra.ifra_name, fp->bundle->ifname, sizeof ifra.ifra_name - 1);
-      ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
-      /* XXX don't delete things belonging to other NCPs */
-      if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-        LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCDIFADDR): %s\n",
-		  strerror(errno));
-        close(s);
-        return;
-      }
-      ipcp->if_mine.s_addr = ipcp->if_peer.s_addr = INADDR_ANY;
-    }
-
-    close(s);
-    return;
-  }
+  if (!(mode & MODE_AUTO))
+    IpcpCleanInterface(fp);
 }
 
 static void

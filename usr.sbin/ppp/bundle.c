@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.4 1998/02/06 02:24:01 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.5 1998/02/07 20:49:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -354,7 +354,56 @@ bundle_Create(const char *prefix)
     return NULL;
   }
 
+  IpcpDefAddress();
+  LcpInit(&bundle, bundle.physical);
+  IpcpInit(&bundle, physical2link(bundle.physical));
+  CcpInit(&bundle, physical2link(bundle.physical));
+
   return &bundle;
+}
+
+static void
+bundle_DownInterface(struct bundle *bundle)
+{
+  struct ifreq ifrq;
+  int s;
+
+  DeleteIfRoutes(bundle, 1);
+
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  if (s < 0) {
+    LogPrintf(LogERROR, "bundle_DownInterface: socket: %s\n", strerror(errno));
+    return;
+  }
+
+  memset(&ifrq, '\0', sizeof ifrq);
+  strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
+  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
+  if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
+    LogPrintf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
+       strerror(errno));
+    close(s);
+    return;
+  }
+  ifrq.ifr_flags &= ~IFF_UP;
+  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+    LogPrintf(LogERROR, "bundle_DownInterface: ioctl(SIOCSIFFLAGS): %s\n",
+       strerror(errno));
+    close(s);
+    return;
+  }
+  close(s);
+}
+
+void
+bundle_Destroy(struct bundle *bundle)
+{
+  if (mode & MODE_AUTO) {
+    IpcpCleanInterface(&IpcpInfo.fsm);
+    bundle_DownInterface(bundle);
+  }
+  link_Destroy(&bundle->physical->link);
+  bundle->ifname = NULL;
 }
 
 struct rtmsg {
@@ -378,7 +427,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
     cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
   s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
+    LogPrintf(LogERROR, "bundle_SetRoute: socket(): %s\n", strerror(errno));
     return;
   }
   memset(&rtmes, '\0', sizeof rtmes);
@@ -439,11 +488,11 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   rtmes.m_rtm.rtm_msglen = nb;
   wb = ID0write(s, &rtmes, nb);
   if (wb < 0) {
-    LogPrintf(LogTCPIP, "OsSetRoute failure:\n");
-    LogPrintf(LogTCPIP, "OsSetRoute:  Cmd = %s\n", cmd);
-    LogPrintf(LogTCPIP, "OsSetRoute:  Dst = %s\n", inet_ntoa(dst));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
+    LogPrintf(LogTCPIP, "bundle_SetRoute failure:\n");
+    LogPrintf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmd);
+    LogPrintf(LogTCPIP, "bundle_SetRoute:  Dst = %s\n", inet_ntoa(dst));
+    LogPrintf(LogTCPIP, "bundle_SetRoute:  Gateway = %s\n", inet_ntoa(gateway));
+    LogPrintf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
 failed:
     if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
                            (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST)))
@@ -515,9 +564,6 @@ bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
     FsmDown(&CcpInfo.fsm);
     FsmOpen(&CcpInfo.fsm);
   } else if (fp == &LcpInfo.fsm) {
-    struct ifreq ifrq;
-    int s;
-
     FsmDown(&CcpInfo.fsm);
 
     FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
@@ -526,31 +572,8 @@ bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
     if (link_IsActive(fp->link)) 
       link_Close(fp->link, bundle, 0);	/* clean shutdown */
 
-    DeleteIfRoutes(fp->bundle, 1);
-
-    s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) {
-      LogPrintf(LogERROR, "bundle_LayerFinish: socket: %s\n", strerror(errno));
-      return;
-    }
-
-    memset(&ifrq, '\0', sizeof ifrq);
-    strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
-    ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-    if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-      LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCGIFFLAGS): %s\n",
-	        strerror(errno));
-      close(s);
-      return;
-    }
-    ifrq.ifr_flags &= ~IFF_UP;
-    if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-      LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCSIFFLAGS): %s\n",
-	        strerror(errno));
-      close(s);
-      return;
-    }
-    close(s);
+    if (!(mode & MODE_AUTO))
+      bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, NULL, PHASE_DEAD);
   } else if (fp == &IpcpInfo.fsm) {
     FsmClose(&LcpInfo.fsm);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.13 1998/02/08 11:05:01 brian Exp $
+ * $Id: main.c,v 1.121.2.14 1998/02/08 11:07:31 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -211,6 +211,7 @@ AbortProgram(int excode)
   TtyOldMode();
   link_Destroy(physical2link(SignalBundle->physical));
   LogClose();
+  bundle_Destroy(SignalBundle);
   exit(excode);
 }
 
@@ -422,7 +423,6 @@ main(int argc, char **argv)
   if (!GetShortHost())
     return 1;
   IsInteractive(1);
-  IpcpDefAddress();
 
   SignalBundle = bundle;
 
