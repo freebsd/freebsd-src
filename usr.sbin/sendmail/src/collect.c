@@ -73,6 +73,7 @@ collect(smtpmode, requeueflag, e)
 {
 	register FILE *tf;
 	bool ignrdot = smtpmode ? FALSE : IgnrDot;
+	time_t dbto = smtpmode ? TimeOuts.to_datablock : 0;
 	char buf[MAXLINE], buf2[MAXLINE];
 	register char *workbuf, *freebuf;
 	bool inputerr = FALSE;
@@ -103,13 +104,13 @@ collect(smtpmode, requeueflag, e)
 		message("354 Enter mail, end with \".\" on a line by itself");
 
 	/* set global timer to monitor progress */
-	sfgetset(TimeOuts.to_datablock);
+	sfgetset(dbto);
 
 	/*
 	**  Try to read a UNIX-style From line
 	*/
 
-	if (sfgets(buf, MAXLINE, InChannel, TimeOuts.to_datablock,
+	if (sfgets(buf, MAXLINE, InChannel, dbto,
 			"initial message read") == NULL)
 		goto readerr;
 	fixcrlf(buf, FALSE);
@@ -119,7 +120,7 @@ collect(smtpmode, requeueflag, e)
 		if (!flusheol(buf, InChannel))
 			goto readerr;
 		eatfrom(buf, e);
-		if (sfgets(buf, MAXLINE, InChannel, TimeOuts.to_datablock,
+		if (sfgets(buf, MAXLINE, InChannel, dbto,
 				"message header read") == NULL)
 			goto readerr;
 		fixcrlf(buf, FALSE);
@@ -166,8 +167,7 @@ collect(smtpmode, requeueflag, e)
 		{
 			int clen;
 
-			if (sfgets(freebuf, MAXLINE, InChannel,
-					TimeOuts.to_datablock,
+			if (sfgets(freebuf, MAXLINE, InChannel, dbto,
 					"message header read") == NULL)
 			{
 				freebuf[0] = '\0';
@@ -247,7 +247,7 @@ collect(smtpmode, requeueflag, e)
 	if (*workbuf == '\0')
 	{
 		/* throw away a blank line */
-		if (sfgets(buf, MAXLINE, InChannel, TimeOuts.to_datablock,
+		if (sfgets(buf, MAXLINE, InChannel, dbto,
 				"message separator read") == NULL)
 			goto readerr;
 	}
@@ -283,7 +283,7 @@ collect(smtpmode, requeueflag, e)
 		fputs("\n", tf);
 		if (ferror(tf))
 			tferror(tf, e);
-		if (sfgets(buf, MAXLINE, InChannel, TimeOuts.to_datablock,
+		if (sfgets(buf, MAXLINE, InChannel, dbto,
 				"message body read") == NULL)
 			goto readerr;
 	}
