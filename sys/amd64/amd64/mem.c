@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.26 1995/12/14 23:50:54 bde Exp $
+ *	$Id: mem.c,v 1.27 1995/12/21 19:22:49 julian Exp $
  */
 
 /*
@@ -374,6 +374,8 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	int flags;
 	struct proc *p;
 {
+	static u_int16_t interrupt_allowed = 0;
+	u_int16_t interrupt_mask;
 	int error;
 
 	if (minor(dev) != 3 && minor(dev) != 4)
@@ -384,18 +386,41 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 
 	/* Only root can do this */
 	error = suser(p->p_ucred, &p->p_acflag);
-	if (error != 0) {
+	if (error) {
 		return (error);
 	}
+	interrupt_mask = 1 << *(u_int16_t *)cmdarg;
 
-	switch (cmd){
+	switch (cmd) {
 
 		case MEM_SETIRQ:
-			interrupt_allowed |= 1 << *(u_int16_t *)cmdarg;
+			if (!(interrupt_allowed & interrupt_mask)) {
+				disable_intr();
+				interrupt_allowed |= interrupt_mask;
+				sec_intr_handler[*(u_int16_t *)cmdarg] =
+					intr_handler[*(u_int16_t *)cmdarg];
+				intr_handler[*(u_int16_t *)cmdarg] =
+					add_interrupt_randomness;
+				sec_intr_unit[*(u_int16_t *)cmdarg] =
+					intr_unit[*(u_int16_t *)cmdarg];
+				intr_unit[*(u_int16_t *)cmdarg] =
+					*(u_int16_t *)cmdarg;
+				enable_intr();
+			}
+			else return (EPERM);
 			break;
 
 		case MEM_CLEARIRQ:
-			interrupt_allowed &= ~(1 << *(u_int16_t *)cmdarg);
+			if (interrupt_allowed & interrupt_mask) {
+				disable_intr();
+				interrupt_allowed &= ~(interrupt_mask);
+				intr_handler[*(u_int16_t *)cmdarg] =
+					sec_intr_handler[*(u_int16_t *)cmdarg];
+				intr_unit[*(u_int16_t *)cmdarg] =
+					sec_intr_unit[*(u_int16_t *)cmdarg];
+				enable_intr();
+			}
+			else return (EPERM);
 			break;
 
 		case MEM_RETURNIRQ:
