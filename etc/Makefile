@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.3 1997/04/26 22:39:32 jkh Exp $
+#	$Id: Makefile,v 1.143.2.4 1997/05/18 09:02:44 davidn Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -136,9 +136,6 @@ distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
-.if defined(MAKE_LOCAL)
-	mtree -deU -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
-.endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
 	set - `cat ${.CURDIR}/locale.alias`; \
@@ -158,17 +155,5 @@ distrib-dirs:
 	done; \
 	rm -rf POSIX; \
 	ln -s C POSIX
-.if defined(MAKE_LOCAL)
-	cd ${DESTDIR}/usr/local/share/nls; \
-	set - `cat ${.CURDIR}/locale.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "$$1"; \
-		ln -s "$$2" "$$1"; \
-		shift; shift; \
-	done; \
-	rm -rf POSIX; \
-	ln -s C POSIX
-.endif
 
 .include <bsd.prog.mk>
