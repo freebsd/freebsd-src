@@ -31,27 +31,30 @@
 .Os
 .Sh NAME
 .Nm BUF_LOCKFREE
-.Nd "Destroys the buffers lock"
+.Nd "destroys the buffers lock"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/buf.h>
+.In sys/param.h
+.In sys/buf.h
 .Ft void
 .Fn BUF_LOCKFREE "struct buf *bp"
 .Sh DESCRIPTION
 The
-.Nm
-macro destroys the buffer lock.  The lock must not be held when
+.Fn BUF_LOCKFREE
+macro destroys the buffer lock.
+The lock must not be held when
 this macro is called or a panic will result.
 .Pp
 Its argument is:
-.Bl -tag
-.It Ar bp
+.Bl -tag -xwidth ".Fa bp"
+.It Fa bp
 The buffer whose lock is to be destroyed.
+.El
 .Sh SEE ALSO
-.Xr buf 9
+.Xr buf 9 ,
+.Xr BUF_LOCK 9 ,
+.Xr BUF_TIMELOCK 9 ,
+.Xr BUF_UNLOCK 9 ,
 .Xr lockdestroy 9
-.Xr BUF_LOCK 9
-.Xr BUF_TIMELOCK 9
-.Xr BUF_UNLOCK 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
