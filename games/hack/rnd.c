@@ -1,6 +1,8 @@
 /* rnd.c - version 1.0.2 */
 
-#define RND(x)	((random()>>3) % x)
+#include <stdlib.h>
+
+#define RND(x)  (random() % x)
 
 rn1(x,y)
 register x,y;
