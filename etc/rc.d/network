@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: network,v 1.29 2001/01/11 17:56:16 itojun Exp $
-#
+# $FreeBSD$
 
 # PROVIDE: network
 # REQUIRE: ipfilter ipsec mountcritlocal root tty sysctl
@@ -106,7 +106,7 @@ network_start()
 		# Completely disallow packets to IPv4 compatible prefix.
 		# This may conflict with RFC1933 under following circumstances:
 		# (1) An IPv6-only KAME node tries to originate packets to IPv4
-		#     comatible destination.  The KAME node has no IPv4
+		#     compatible destination.  The KAME node has no IPv4
 		#     compatible support.  Under RFC1933, it should transmit
 		#     native IPv6 packets toward IPv4 compatible destination,
 		#     hoping it would reach a router that forwards the packet
@@ -147,7 +147,7 @@ network_start()
 			sysctl net.inet6.ip6.accept_rtadv=1 >/dev/null
 			;;
 
-		host)	
+		host)
 			echo 'IPv6 mode: host'
 			;;
 
@@ -164,7 +164,7 @@ network_start()
 	# we do "ifconfig xxN $ifconfig_xxN".
 	# If there is no such variable, we take the contents of the file
 	# /etc/ifconfig.xxN, and run "ifconfig xxN" repeatedly, using each
-	# line of the file as the arguments for a seperate "ifconfig"
+	# line of the file as the arguments for a separate "ifconfig"
 	# invocation.
 	#
 	# In order to configure an interface reasonably, you at the very least
@@ -247,7 +247,7 @@ network_start()
 	#
 	# Note that $ifaliases_xxN works only with certain configurations and
 	# considered not recommended.  Use /etc/ifconfig.xxN if possible.
-	# 
+	#
 	#
 	if [ -n "$configured_interfaces" ]; then
 		echo "Adding interface aliases:"
