@@ -55,8 +55,6 @@
 #include <sys/malloc.h>
 #include <miscfs/nullfs/null.h>
 
-extern int	nullfs_init __P((struct vfsconf *));
-
 static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
