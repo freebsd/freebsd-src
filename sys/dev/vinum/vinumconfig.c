@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: config.c,v 1.20 1998/10/26 02:05:34 grog Exp grog $
+ * $Id: config.c,v 1.19 1998/10/05 02:48:15 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -968,6 +968,7 @@ config_subdisk(void)
     int sectors;					    /* sector offset value */
     int detached = 0;					    /* set to 1 if this is a detached subdisk */
     int sdindex = -1;					    /* index in plexes subdisk table */
+    int namedsdno;
 
     sdno = get_empty_sd();				    /* allocate an SD to initialize */
     sd = &SD[sdno];					    /* and get a pointer */
@@ -994,7 +995,9 @@ config_subdisk(void)
 	    break;
 
 	case kw_name:
-	    ++parameter;
+	    namedsdno = find_subdisk(token[++parameter], 0); /* find an existing sd with this name */
+	    if (namedsdno >= 0)
+		throw_rude_remark(EINVAL, "Duplicate subdisk %s", token[parameter]);
 	    bcopy(token[parameter],
 		sd->name,
 		min(sizeof(sd->name), strlen(token[parameter])));
@@ -1080,6 +1083,7 @@ config_plex(void)
     struct plex *plex;					    /* and pointer to it */
     int pindex = MAXPLEX;				    /* index in volume's plex list */
     int detached = 0;					    /* don't give it to a volume */
+    int namedplexno;
 
     current_plex = -1;					    /* forget the previous plex */
     plexno = get_empty_plex();				    /* allocate a plex */
@@ -1092,13 +1096,9 @@ config_plex(void)
 	    break;
 
 	case kw_name:
-	    {
-		int namedplexno;
-
-		namedplexno = find_plex(token[++parameter], 0);	/* find an existing plex with this name */
-		if (namedplexno >= 0)
-		    throw_rude_remark(EINVAL, "Duplicate plex %s", token[parameter]);
-	    }
+	    namedplexno = find_plex(token[++parameter], 0); /* find an existing plex with this name */
+	    if (namedplexno >= 0)
+		throw_rude_remark(EINVAL, "Duplicate plex %s", token[parameter]);
 	    bcopy(token[parameter],			    /* put in the name */
 		plex->name,
 		min(MAXPLEXNAME, strlen(token[parameter])));
