@@ -132,7 +132,7 @@ world: upgrade_checks
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@printf ">>> ${OBJFORMAT} make world completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
+	@printf ">>> ${OBJFORMAT} make world completed on `LC_ALL=C date`\n                        (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
 #
