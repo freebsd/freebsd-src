@@ -195,7 +195,7 @@ bdg_promisc_off(int clear_used)
 	    ret = ifpromisc(ifp, 0);
 	    splx(s);
 	    ifp2sc[ifp->if_index].flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
-	    DDB(printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
+	    DEB(printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
 		    ifp->if_name, ifp->if_unit,
 		    ifp->if_flags, ifp2sc[ifp->if_index].flags);)
 	}
@@ -264,12 +264,11 @@ sysctl_bdg(SYSCTL_HANDLER_ARGS)
 
 static char bridge_cfg[256] = { "" } ;
 
-
 /*
  * parse the config string, set IFF_USED, name and cluster_id
  * for all interfaces found.
  * The config string is a list of "if[:cluster]" with
- * a number of possible separators ([-,; ])
+ * a number of possible separators (see "sep").
  */
 static void
 parse_bdg_cfg()
@@ -308,7 +307,7 @@ parse_bdg_cfg()
 		sprintf(bdg_stats.s[ifp->if_index].name,
 			"%s%d:%d", ifp->if_name, ifp->if_unit, cluster);
 
-		DDB(printf("--++  found %s\n",
+		DEB(printf("--++  found %s\n",
 		    bdg_stats.s[ifp->if_index].name);)
 		break ;
 	    }
@@ -485,6 +484,7 @@ bdginit(void)
     bridge_in_ptr = bridge_in;
     bdg_forward_ptr = bdg_forward;
     bdgtakeifaces_ptr = bdgtakeifaces;
+
     flush_table();
 
     bzero(&bdg_stats, sizeof(bdg_stats) );
@@ -627,7 +627,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	BDG_STAT(ifp, dst);
 	break ;
     default :
-	if (dst == ifp || dropit )
+	if (dst == ifp || dropit)
 	    BDG_STAT(ifp, BDG_DROP);
 	else
 	    BDG_STAT(ifp, BDG_FORWARD);
@@ -722,11 +722,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     }
     if ( (u_int)(ifp) <= (u_int)BDG_FORWARD )
 	panic("bdg_forward: bad dst");
-
-    DEB(printf("bdg_forward %6D -> %6D ty 0x%04x dst %p once %d\n",
-        eh->ether_shost, ":",
-        eh->ether_dhost, ":",
-        ntohs(eh->ether_type), dst, once); )
 
     /*
      * Do filtering in a very similar way to what is done in ip_output.
@@ -833,7 +828,7 @@ forward:
      * corruptions in the future.
      */
     if ( shared ) {
-        int i = min(m0->m_pkthdr.len, max_protohdr) ;
+	int i = min(m0->m_pkthdr.len, max_protohdr) ;
 
 	m0 = m_pullup(m0, i) ;
 	if (m0 == NULL) {

@@ -370,8 +370,6 @@ ether_output_frame(ifp, m)
 {
 	int s, error = 0;
 
-	struct ether_header *eh = mtod(m, struct ether_header *);
-
 	if (BDG_ACTIVE(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
@@ -386,8 +384,8 @@ ether_output_frame(ifp, m)
 
 	s = splimp();
 	/*
-	 * Queue message on interface, and start output if interface
-	 * not yet active.
+	 * Queue message on interface, update output statistics if
+	 * successful, and start output if interface not yet active.
 	 */
 	if (IF_QFULL(&ifp->if_snd)) {
 		IF_DROP(&ifp->if_snd);
@@ -409,6 +407,15 @@ ether_output_frame(ifp, m)
  * Process a received Ethernet packet;
  * the packet is in the mbuf chain m without
  * the ether header, which is provided separately.
+ *
+ * NOTA BENE: for many drivers "eh" is a pointer into the first mbuf or
+ * cluster, right before m_data. So be very careful when working on m,
+ * as you could destroy *eh !!
+ * A (probably) more convenient and efficient interface to ether_input
+ * is to have the whole packet (with the ethernet header) into the mbuf:
+ * modules which do not need the ethernet header can easily drop it, while
+ * others (most noticeably bridge and ng_ether) do not need to do additional
+ * work to put the ethernet header back into the mbuf.
  *
  * First we perform any link layer operations, then continue
  * to the upper layers with ether_demux().
@@ -439,13 +446,6 @@ ether_input(ifp, eh, m)
 			return;
 	}
 
-#if 0
-	printf("--eth_in: %s%d %6D -> %6D ty 0x%04x\n",
-		ifp->if_name, ifp->if_unit,
-		eh->ether_shost, ":",
-		eh->ether_dhost, ":",
-		ntohs(eh->ether_type));
-#endif
 	/* Check for bridging mode */
 	if (BDG_ACTIVE(ifp) ) {
 		struct ifnet *bif;
