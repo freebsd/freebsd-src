@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(_ctx_start)
 	popl	%eax		/* get start function */
 	call	*%eax		/* call start function */
-	movl	%ebp, %esp	/*
+	movl	%esi, %esp	/*
 				 * setup stack for completion routine;
 				 * ucp is now at top of stack
 				 */
