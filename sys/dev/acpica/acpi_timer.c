@@ -174,8 +174,12 @@ acpi_timer_probe(device_t dev)
      * the timer multiple times to get a consistent value before returning.
      */
     j = 0;
+    if (bootverbose)
+	printf("ACPI timer:");
     for (i = 0; i < 10; i++)
 	j += acpi_timer_test();
+    if (bootverbose)
+	printf(" -> %d\n", j);
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
@@ -323,11 +327,8 @@ acpi_timer_test()
 	n = 0;
     else
 	n = 1;
-    if (bootverbose) {
-	printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
-		n ? "GOOD" : "BAD ",
-		min, max, max - min);
-    }
+    if (bootverbose)
+	printf(" %d/%d", n, max-min);
 
     return (n);
 }
