@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.17 1995/12/07 12:46:48 davidg Exp $
+ * $Id: kern_resource.c,v 1.18 1996/01/16 18:10:19 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,8 +55,8 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-int	donice __P((struct proc *, struct proc *, int));
-int	dosetrlimit __P((struct proc *, u_int, struct rlimit *));
+int	donice __P((struct proc *curp, struct proc *chgp, int n));
+int	dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 /*
  * Resource controls and accounting.
@@ -96,7 +96,8 @@ getpriority(curp, uap, retval)
 			pg = curp->p_pgrp;
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
-		for (p = pg->pg_mem; p != NULL; p = p->p_pgrpnxt) {
+		for (p = pg->pg_members.lh_first; p != 0;
+		     p = p->p_pglist.le_next) {
 			if (p->p_nice < low)
 				low = p->p_nice;
 		}
@@ -106,11 +107,10 @@ getpriority(curp, uap, retval)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
 			if (p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
-		}
 		break;
 
 	default:
@@ -159,7 +159,8 @@ setpriority(curp, uap, retval)
 			pg = curp->p_pgrp;
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
-		for (p = pg->pg_mem; p != NULL; p = p->p_pgrpnxt) {
+		for (p = pg->pg_members.lh_first; p != 0;
+		    p = p->p_pglist.le_next) {
 			error = donice(curp, p, uap->prio);
 			found++;
 		}
@@ -169,7 +170,7 @@ setpriority(curp, uap, retval)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		for (p = (struct proc *)allproc; p != NULL; p = p->p_next)
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
 			if (p->p_ucred->cr_uid == uap->who) {
 				error = donice(curp, p, uap->prio);
 				found++;
