@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.33 1995/10/21 17:51:47 torstenb Exp $ -->
+<!-- $Id: contrib.sgml,v 1.34 1995/10/22 00:41:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -56,6 +56,7 @@
 	<item>John Dyson &lt;dyson@FreeBSD.org&gt;
 	<item>Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
 	<item>Justin Gibbs &lt;gibbs@FreeBSD.org&gt;
+	<item>Peter Wemm &lt;peter@FreeBSD.org&gt;
 	<item>Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
 	<item>Rich Murphey &lt;rich@FreeBSD.org&gt;
 	<item>Satoshi Asami &lt;asami@FreeBSD.org&gt;
