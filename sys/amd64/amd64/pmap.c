@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.89 1996/05/03 21:00:57 phk Exp $
+ *	$Id: pmap.c,v 1.90 1996/05/18 03:36:14 dyson Exp $
  */
 
 /*
@@ -85,6 +85,7 @@
 #include <sys/msgbuf.h>
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
+#include <sys/mman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1703,12 +1704,13 @@ pmap_enter_quick(pmap, va, pa)
  * faults on process startup and immediately after an mmap.
  */
 void
-pmap_object_init_pt(pmap, addr, object, pindex, size)
+pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 	pmap_t pmap;
 	vm_offset_t addr;
 	vm_object_t object;
 	vm_pindex_t pindex;
 	vm_size_t size;
+	int limit;
 {
 	vm_offset_t tmpidx;
 	int psize;
@@ -1718,7 +1720,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size)
 	psize = (size >> PAGE_SHIFT);
 
 	if (!pmap || (object->type != OBJT_VNODE) ||
-		((psize > MAX_INIT_PT) &&
+		(limit && (psize > MAX_INIT_PT) &&
 			(object->resident_page_count > MAX_INIT_PT))) {
 		return;
 	}
@@ -2347,6 +2349,52 @@ pmap_mapdev(pa, size)
 	pmap_update();
 
 	return ((void *) va);
+}
+
+int
+pmap_mincore(pmap, addr)
+	pmap_t pmap;
+	vm_offset_t addr;
+{
+	
+	unsigned *ptep, pte;
+	int val = 0;
+	
+	ptep = pmap_pte(pmap, addr);
+	if (ptep == 0) {
+		return 0;
+	}
+
+	if ((pte = *ptep)) {
+		vm_offset_t pa;
+		val = MINCORE_INCORE;
+		pa = pte & PG_FRAME;
+
+		/*
+		 * Modified by us
+		 */
+		if (pte & PG_M)
+			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
+		/*
+		 * Modified by someone
+		 */
+		else if (PHYS_TO_VM_PAGE(pa)->dirty ||
+			pmap_is_modified(pa))
+			val |= MINCORE_MODIFIED_OTHER;
+		/*
+		 * Referenced by us
+		 */
+		if (pte & PG_U)
+			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
+
+		/*
+		 * Referenced by someone
+		 */
+		else if ((PHYS_TO_VM_PAGE(pa)->flags & PG_REFERENCED) ||
+			pmap_is_referenced(pa))
+			val |= MINCORE_REFERENCED_OTHER;
+	} 
+	return val;
 }
 
 #if defined(PMAP_DEBUG)
