@@ -22,16 +22,16 @@ read_block(int fd, daddr_t block, u_long sector_size)
 	int i;
 
 	foo = malloc(sector_size);
-	if (!foo)
-		return NULL;
+	if (foo == NULL)
+		return (NULL);
 	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET)) {
 		free (foo);
-		return NULL;
+		return (NULL);
 	}
 	i = read(fd, foo, sector_size);
 	if ((int)sector_size != i) {
 		free (foo);
-		return NULL;
+		return (NULL);
 	}
 	return foo;
 }
@@ -42,9 +42,9 @@ write_block(int fd, daddr_t block, const void *foo, u_long sector_size)
 	int i;
 
 	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET))
-		return -1;
+		return (-1);
 	i = write(fd, foo, sector_size);
 	if ((int)sector_size != i)
-		return -1;
+		return (-1);
 	return 0;
 }
