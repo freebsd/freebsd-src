@@ -50,7 +50,7 @@ dialog_noyes(unsigned char *title, unsigned char *prompt, int height, int width)
 static int
 dialog_yesno_proc(unsigned char *title, unsigned char *prompt, int height, int width, int yesdefault)
 {
-  int i, j, x, y, key = 0, button = 0;
+  int i, j, x, y, key, button;
   WINDOW *dialog;
   char *tmphlp;
 
@@ -114,11 +114,15 @@ dialog_yesno_proc(unsigned char *title, unsigned char *prompt, int height, int w
 
   x = width/2-10;
   y = height-2;
-  print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, FALSE);
-  print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, TRUE);
-  wrefresh(dialog);
 
+  /* preset button 0 or 1 for YES or NO as the default */
+  key = 0;
+  button = !yesdefault;
   while (key != ESC) {
+    print_button(dialog, "  No  ", y, x+13, button);
+    print_button(dialog, " Yes " , y, x, !button);
+    wrefresh(dialog);
+
     key = wgetch(dialog);
     switch (key) {
       case 'Y':
@@ -137,27 +141,15 @@ dialog_yesno_proc(unsigned char *title, unsigned char *prompt, int height, int w
       case KEY_DOWN:
       case KEY_LEFT:
       case KEY_RIGHT:
-        if (!button) {
-          button = 1;    /* Indicates "No" button is selected */
-          print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, FALSE);
-          print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, TRUE);
-        }
-        else {
-          button = 0;    /* Indicates "Yes" button is selected */
-          print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, FALSE);
-          print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, TRUE);
-        }
-        wrefresh(dialog);
+        button = !button;
+        /* redrawn at the loop's entry */
         break;
       case ' ':
       case '\r':
       case '\n':
         delwin(dialog);
 	restore_helpline(tmphlp);
-	if (yesdefault)
-	    return button;
-	else
-	    return !button;
+        return button;
       case ESC:
         break;
     case KEY_F(1):
