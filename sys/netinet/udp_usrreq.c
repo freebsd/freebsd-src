@@ -507,16 +507,28 @@ udp_ctlinput(cmd, sa, vip)
 {
 	register struct ip *ip = vip;
 	register struct udphdr *uh;
+	void (*notify) __P((struct inpcb *, int)) = udp_notify;
 
-	if (!PRC_IS_REDIRECT(cmd) &&
-	    ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0))
+	if (PRC_IS_REDIRECT(cmd)) {
+	    /*
+	     * Redirects go to all references to the destination,
+	     * and use in_rtchange to invalidate the route cache.
+	     */
+	    ip = 0;
+	    notify = in_rtchange;
+	} else if (cmd == PRC_HOSTDEAD)
+	    /*
+	     * Dead host indications: notify all references to the destination.
+	     */
+	    ip = 0;
+	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		in_pcbnotify(&udb, sa, uh->uh_dport, ip->ip_src, uh->uh_sport,
-			cmd, udp_notify);
+			cmd, notify);
 	} else
-		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify);
+		in_pcbnotifyall(&udb, sa, cmd, notify);
 }
 
 static int

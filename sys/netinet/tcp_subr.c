@@ -964,8 +964,19 @@ tcp_ctlinput(cmd, sa, vip)
 		notify = tcp_quench;
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
-	else if (!PRC_IS_REDIRECT(cmd) &&
-		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
+	else if (PRC_IS_REDIRECT(cmd)) {
+		/*
+		 * Redirects go to all references to the destination,
+		 * and use in_rtchange to invalidate the route cache.
+		 */
+		ip = 0;
+		notify = in_rtchange;
+	} else if (cmd == PRC_HOSTDEAD)
+		/*
+		 * Dead host indications: notify all references to the destination.
+		 */
+		ip = 0;
+	else if ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
 		th = (struct tcphdr *)((caddr_t)ip 
@@ -973,7 +984,7 @@ tcp_ctlinput(cmd, sa, vip)
 		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
 			cmd, notify);
 	} else
-		in_pcbnotify(&tcb, sa, 0, zeroin_addr, 0, cmd, notify);
+		in_pcbnotifyall(&tcb, sa, cmd, notify);
 }
 
 #ifdef INET6
