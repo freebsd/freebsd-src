@@ -266,13 +266,13 @@ struct thread {
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 
-/* Cleared during fork1() or thread_sched_upcall(). */
+/* Cleared during fork1() or thread_schedule_upcall(). */
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
 	int		td_inhibitors;	/* (j) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
 	struct kse	*td_last_kse;	/* (j) Previous value of td_kse. */
-	struct kse	*td_kse;	/* (j) Current KSE if running. */
+	struct kse	*td_kse;	/* (j) Current KSE if any. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
@@ -335,49 +335,79 @@ struct thread {
 	int		td_kstack_pages; /* (a) Size of the kstack. */
 	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
-	int		td_altkstack_pages; /* (a) Size of the alternate kstack */
+	int		td_altkstack_pages; /* (a) Size of the alt kstack */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
 
-/* Flags kept in td_flags: */
-#define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
-#define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
-#define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
-#define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
-#define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
-#define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
-#define	TDF_TSNOBLOCK	0x000100 /* Don't block on a turnstile due to race. */
-#define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
-#define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
-#define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
-#define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
-#define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
-#define	TDF_XSIG	0x040000 /* Thread is exchanging signal under traced */ 
-#define	TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
-#define	TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
-#define	TDF_DBSUSPEND	0x200000 /* Thread is suspended by debugger */
+/*
+ * Flags kept in td_flags:
+ * To change these you MUST have the scheduler lock.
+ */
+#define	TDF_UNUSED0	0x00000001 /* --available -- */
+#define	TDF_INPANIC	0x00000002 /* Caused a panic, let it drive crashdump. */
+#define	TDF_CAN_UNBIND	0x00000004 /* Only temporarily bound. */
+#define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
+#define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
+#define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
+#define	TDF_SELECT	0x00000040 /* Selecting; wakeup/waiting danger. */
+#define	TDF_UNUSED7	0x00000080 /* --available -- */
+#define	TDF_TSNOBLOCK	0x00000100 /* Don't block on a turnstile due to race. */
+#define	TDF_UNUSED9	0x00000200 /* --available -- */
+#define	TDF_UNUSED10	0x00000400 /* --available -- */
+#define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
+#define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
+#define	TDF_INTERRUPT	0x00002000 /* Thread is marked as interrupted. */
+#define	TDF_UNUSED14	0x00004000 /* --available -- */
+#define	TDF_UNUSED15	0x00008000 /* --available -- */
+#define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
+#define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
+#define	TDF_XSIG	0x00040000 /* Thread is exchanging signal under trace */
+#define	TDF_UMTXWAKEUP	0x00080000 /* Libthr thread must not sleep on a umtx. */
+#define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
+#define	TDF_DBSUSPEND	0x00200000 /* Thread is suspended by debugger */
+#define	TDF_UNUSED22	0x00400000 /* --available -- */
+#define	TDF_UNUSED23	0x00800000 /* --available -- */
+#define	TDF_SCHED1	0x01000000 /* Reserved for scheduler private use */
+#define	TDF_SCHED2	0x02000000 /* Reserved for scheduler private use */
+#define	TDF_SCHED3	0x04000000 /* Reserved for scheduler private use */
+#define	TDF_SCHED4	0x08000000 /* Reserved for scheduler private use */
 
-/* "Private" flags kept in td_pflags: */
-#define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
-#define	TDP_INKTR	0x0002 /* Thread is currently in KTR code. */
-#define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
-#define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
-#define	TDP_COWINPROGRESS 0x0010 /* Snapshot copy-on-write in progress. */
-#define	TDP_ALTSTACK	0x0020 /* Have alternate signal stack. */
-#define	TDP_DEADLKTREAT	0x0040 /* Lock aquisition - deadlock treatment. */
-#define	TDP_SA		0x0080 /* A scheduler activation based thread. */
-#define	TDP_OWEPREEMPT	0x0100 /* Thread has a pending preemption. */
-#define	TDP_OWEUPC	0x0200 /* Owe thread an addupc() call at next AST. */
-#define	TDP_USTATCLOCK	0x0400 /* Finish user statclock hit at next AST. */
+/*
+ * "Private" flags kept in td_pflags:
+ * These are only accessed by curthread and thus need no locking.
+ */
+#define	TDP_OLDMASK	0x00000001 /* Need to restore mask after suspend. */
+#define	TDP_INKTR	0x00000002 /* Thread is currently in KTR code. */
+#define	TDP_INKTRACE	0x00000004 /* Thread is currently in KTRACE code. */
+#define	TDP_UPCALLING	0x00000008 /* This thread is doing an upcall. */
+#define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
+#define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
+#define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
+#define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
+#define	TDP_OWEPREEMPT	0x00000100 /* Thread has a pending preemption. */
+#define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
+#define	TDP_USTATCLOCK	0x00000400 /* Finish user statclock hit at next AST. */
+#define	TDP_UNUSED11	0x00000800 /* -- available-- */
+#define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
+#define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
+#define	TDP_SCHED3	0x00004000 /* Reserved for scheduler private use */
+#define	TDP_SCHED4	0x00008000 /* Reserved for scheduler private use */
 
+/*
+ * Reasons that the current thread can not be run yet.
+ * More than one may apply.
+ */
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
 #define	TDI_SWAPPED	0x0004	/* Stack not in mem.. bad juju if run. */
 #define	TDI_LOCK	0x0008	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
 
+/*
+ * flags (in kflags) related to M:N threading.
+ */
 #define	TDK_KSEREL	0x0001	/* Blocked in msleep on kg->kg_completed. */
 #define	TDK_KSERELSIG	0x0002	/* Blocked in msleep on p->p_siglist. */
 #define	TDK_WAKEUP	0x0004	/* Thread has been woken by kse_wakeup. */
@@ -452,8 +482,7 @@ struct kse {
 		KES_UNQUEUED,		/* in transit */
 		KES_THREAD		/* slaved to thread state */
 	} ke_state;			/* (j) KSE status. */
-#define	ke_endzero ke_dummy
-	u_char		ke_dummy;
+#define	ke_endzero ke_sched
 	struct ke_sched	*ke_sched;	/* (*) Scheduler-specific data. */
 };
 
@@ -518,6 +547,7 @@ struct ksegrp {
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* (j) Num threads in total. */
 	int		kg_kses;	/* (j) Num KSEs in group. */
+	int		kg_concurrency;	/* (j) Num KSEs requested in group. */
 	struct kg_sched	*kg_sched;	/* (*) Scheduler-specific data. */
 };
 
@@ -637,6 +667,7 @@ struct proc {
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_STOPPROF	0x00040	/* Has thread in requesting to stop prof */
+#define	P_HADTHREADS	0x00080	/* Has had threads (no cleanup shortcuts) */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
 #define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait. */
