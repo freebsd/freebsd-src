@@ -415,7 +415,7 @@ main (argc, argv)
   programname = p;
 
   if (argc == 1)
-    fatal ("No input files specified.\n");
+    fatal ("No input files specified");
 
 #ifndef __MSDOS__
   /* We do a little magic to find out where the main gcc executable
