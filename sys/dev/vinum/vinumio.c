@@ -189,35 +189,44 @@ init_drive(struct drive *drive, int verbose)
     return set_drive_parms(drive);			    /* set various odds and ends */
 }
 
-/* Close a drive if it's open.  No errors */
+/* Close a drive if it's open. */
 void 
 close_drive(struct drive *drive)
 {
     if (drive->vp) {
 	LOCKDRIVE(drive);				    /* keep the daemon out */
-
-	/*
-	 * If we can't access the drive, we can't flush 
-	 * the queues, which spec_close() will try to
-	 * do.  Get rid of them here first
-	 */
-	if (drive->state < drive_up) {			    /* we can't access the drive, */
-	    vn_lock(drive->vp, LK_EXCLUSIVE | LK_RETRY, drive->p);
-	    vinvalbuf(drive->vp, 0, NOCRED, drive->p, 0, 0);
-	    VOP_UNLOCK(drive->vp, 0, drive->p);
-	}
-	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
-#ifdef VINUMDEBUG
-	if ((debug & DEBUG_WARNINGS)			    /* want to hear about them */
-	&&(drive->vp->v_usecount))			    /* XXX shouldn't happen */
-	    log(LOG_WARNING,
-		"close_drive %s: use count still %d\n",
-		drive->devicename,
-		drive->vp->v_usecount);
-#endif
-	drive->vp = NULL;
+	close_locked_drive(drive);			    /* and close it */
 	unlockdrive(drive);
     }
+}
+
+/*
+ * Real drive close code, called with drive already locked.  We have
+ * also checked that the drive is open.  No errors.
+ */
+void 
+close_locked_drive(struct drive *drive)
+{
+    /*
+     * If we can't access the drive, we can't flush 
+     * the queues, which spec_close() will try to
+     * do.  Get rid of them here first.
+     */
+    if (drive->state < drive_up) {			    /* we can't access the drive, */
+	vn_lock(drive->vp, LK_EXCLUSIVE | LK_RETRY, drive->p);
+	vinvalbuf(drive->vp, 0, NOCRED, drive->p, 0, 0);
+	VOP_UNLOCK(drive->vp, 0, drive->p);
+    }
+    vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
+#ifdef VINUMDEBUG
+    if ((debug & DEBUG_WARNINGS)			    /* want to hear about them */
+    &&(drive->vp->v_usecount))				    /* XXX shouldn't happen */
+	log(LOG_WARNING,
+	    "close_drive %s: use count still %d\n",
+	    drive->devicename,
+	    drive->vp->v_usecount);
+#endif
+    drive->vp = NULL;
 }
 
 /*
