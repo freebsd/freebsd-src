@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+#include <errno.h>
 #include "finger.h"
 
 static void	 find_idle_and_ttywrite __P((WHERE *));
@@ -276,14 +277,17 @@ prphone(num)
 		*p++ = *num++;
 		break;
 	case 5:				/* x0-1234 */
+	case 4:				/* x1234 */
 		*p++ = 'x';
 		*p++ = *num++;
 		break;
 	default:
 		return(num);
 	}
-	*p++ = '-';
-	*p++ = *num++;
+	if (len != 4) {
+	    *p++ = '-';
+	    *p++ = *num++;
+	}
 	*p++ = *num++;
 	*p++ = *num++;
 	*p++ = *num++;
@@ -317,6 +321,7 @@ userinfo(pn, pw)
 {
 	register char *p, *t;
 	char *bp, name[1024];
+	struct stat sb;
 
 	pn->realname = pn->office = pn->officephone = pn->homephone = NULL;
 
@@ -349,6 +354,18 @@ userinfo(pn, pw)
 	    strdup(p) : NULL;
 	pn->homephone = ((p = strsep(&bp, ",")) && *p) ?
 	    strdup(p) : NULL;
+	(void)sprintf(tbuf,"%s/%s", _PATH_MAILDIR, pw->pw_name);
+	pn->mailrecv = -1;		/* -1 == not_valid */
+	if (stat(tbuf, &sb) < 0) {
+		if (errno != ENOENT) {
+			(void)fprintf(stderr,
+			    "finger: %s: %s\n", tbuf, strerror(errno));
+			return;
+		}
+	} else if (sb.st_size != 0) {
+		pn->mailrecv = sb.st_mtime;
+		pn->mailread = sb.st_atime;
+	}
 }
 
 #if __STDC__
