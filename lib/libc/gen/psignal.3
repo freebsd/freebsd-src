@@ -43,8 +43,8 @@
 .Fd #include <sys/signal.h>
 .Ft void
 .Fn psignal "unsigned sig" "const char *s"
-.Vt extern char *sys_siglist[];
-.Vt extern char *sys_signame[];
+.Vt extern const char * const sys_siglist[];
+.Vt extern const char * const sys_signame[];
 .Sh DESCRIPTION
 The
 .Fn psignal
