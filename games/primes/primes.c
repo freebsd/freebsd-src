@@ -261,7 +261,7 @@ primes(start, stop)
 		for (p = &prime[0], factor = prime[0];
 		    factor < stop && p <= pr_limit; factor = *(++p)) {
 			if (factor >= start) {
-				printf(hflag ? "0x%x\n" : "%lu\n", factor);
+				printf(hflag ? "0x%lx\n" : "%lu\n", factor);
 			}
 		}
 		/* return early if we are done */
@@ -324,7 +324,7 @@ primes(start, stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
-				printf(hflag ? "0x%x\n" : "%lu\n", start);
+				printf(hflag ? "0x%lx\n" : "%lu\n", start);
 			}
 		}
 	}
