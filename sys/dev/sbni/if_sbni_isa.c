@@ -33,7 +33,6 @@
 #include <sys/socket.h>
 
 #include <sys/bus.h>
-#include <sys/bus_private.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <machine/bus.h>
