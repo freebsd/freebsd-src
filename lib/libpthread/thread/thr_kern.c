@@ -39,7 +39,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <setjmp.h>
+#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -122,16 +124,12 @@ __asm__("fnsave %0": :"m"(*fdata));
 			pthread_testcancel();
 		}
 
-#ifndef _NO_UNDISPATCH
 		/*
 		 * Check for undispatched signals due to calls to
 		 * pthread_kill().
 		 */
-		if (_thread_run->undispatched_signals != 0) {
-			_thread_run->undispatched_signals = 0;
+		if (SIGNOTEMPTY(_thread_run->sigpend))
 			_dispatch_signals();
-		}
-#endif
 
 		if (_sched_switch_hook != NULL) {
 			/* Run the installed switch hook: */

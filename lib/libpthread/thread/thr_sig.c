@@ -628,27 +628,10 @@ _thread_sig_send(pthread_t pthread, int sig)
 		    !sigismember(&pthread->sigmask, sig)) {
 			/* Perform any state changes due to signal arrival: */
 			thread_sig_check_state(pthread, sig);
-
-#ifndef _NO_UNDISPATCH
-			if (_thread_run != pthread) {
-				/*
-				 * Make a note to call the signal handler once
-				 * the signaled thread is running.  This is
-				 * necessary in order to make sure that the
-				 * signal is delivered on the correct stack.
-				 */
-				pthread->undispatched_signals++;
-			} else {
-#endif
-				/* Call the installed signal handler. */
-				_thread_sig_deliver(pthread, sig);
-#ifndef _NO_UNDISPATCH
-			}
-#endif
-		} else {
-			/* Increment the pending signal count. */
-			sigaddset(&pthread->sigpend,sig);
 		}
+
+		/* Increment the pending signal count. */
+		sigaddset(&pthread->sigpend,sig);
 	}
 }
 

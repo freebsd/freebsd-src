@@ -572,11 +572,6 @@ struct pthread {
 	sigset_t	sigmask;
 	sigset_t	sigpend;
 
-#ifndef _NO_UNDISPATCH
-	/* Non-zero if there are undispatched signals for this thread. */
-	int	undispatched_signals;
-#endif
-	
 	/* Thread state: */
 	enum pthread_state	state;
 	enum pthread_state	oldstate;
