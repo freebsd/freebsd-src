@@ -122,6 +122,8 @@ mount(p, uap)
 	struct nameidata nd;
 	char fstypename[MFSNAMELEN];
 
+	if (p->p_prison != NULL)
+		return (EPERM);
 	if (usermount == 0 && (error = suser(p)))
 		return (error);
 	/*
@@ -433,6 +435,10 @@ unmount(p, uap)
 	int error;
 	struct nameidata nd;
 
+	if (p->p_prison != NULL)
+		return (EPERM);
+	if (usermount == 0 && (error = suser(p)))
+		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
