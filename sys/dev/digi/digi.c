@@ -1944,3 +1944,5 @@ digi_shutdown(device_t dev)
 {
 	return (0);
 }
+
+MODULE_VERSION(digi, 1);

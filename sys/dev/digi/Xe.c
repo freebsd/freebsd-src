@@ -42,4 +42,5 @@ struct digi_mod digi_mod_Xe = {
 	{ NULL, 0 }
 };
 
+MODULE_VERSION(digi_Xe, 1);
 DEV_MODULE(digi_Xe, 0, 0);
