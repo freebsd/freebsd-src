@@ -337,6 +337,8 @@ tar_read_header(struct archive *a, struct tar *tar,
 	ssize_t bytes;
 	int err;
 	const void *h;
+	const char *p;
+	size_t l;
 	const struct archive_entry_header_ustar *header;
 
 	/* Read 512-byte header record */
@@ -426,6 +428,14 @@ tar_read_header(struct archive *a, struct tar *tar,
 			a->archive_format = ARCHIVE_FORMAT_TAR;
 			a->archive_format_name = "tar (non-POSIX)";
 			err = header_old_tar(a, tar, entry, st, h);
+		}
+
+		/* "Regular" entry with trailing '/' is really directory. */
+		p = archive_entry_pathname(entry);
+		l = strlen(p);
+		if (S_ISREG(st->st_mode) && p[l-1] == '/') {
+			st->st_mode &= ~S_IFMT;
+			st->st_mode |= S_IFDIR;
 		}
 	}
 	archive_entry_copy_stat(entry, st);
@@ -771,18 +781,6 @@ header_old_tar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 	/* Grab rest of common fields */
 	header_common(a, tar, entry, st, h);
-
-	/*
-	 * TODO: Decide whether the following special handling
-	 * is needed for POSIX headers.  Factor accordingly.
-	 */
-
-	/* "Regular" entry with trailing '/' is really directory. */
-	if (S_ISREG(st->st_mode) &&
-	    '/' == tar->entry_name.s[strlen(tar->entry_name.s) - 1]) {
-		st->st_mode &= ~S_IFMT;
-		st->st_mode |= S_IFDIR;
-	}
 
 	tar->entry_bytes_remaining = st->st_size;
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
