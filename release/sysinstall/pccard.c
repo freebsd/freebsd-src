@@ -136,7 +136,7 @@ pccardInitialize(void)
     int	pcic_mem = 0xd0000;
     int beep_newstat;
     char card_device[16];
-    char *card_irq = "";
+    char card_irq[256] = "";
     char temp[256];
     char *spcic_mem;
     char pccardd_cmd[256];
@@ -192,7 +192,7 @@ pccardInitialize(void)
         for (i = 0; i < IRQ_COUNT; i++) {
             if ((CardIrq & IrqTable[i].my_bit) != 0) {
                 sprintf(temp, "%s %s", card_irq, IrqTable[i].my_flag);
-                variable_set2("card_irq", temp, 1);
+                strcpy(card_irq, temp);
             }
         } 
     }
