@@ -933,7 +933,7 @@ int param;
       VarDialScript[sizeof(VarDialScript)-1] = '\0';
       break;
     case VAR_LOGIN:
-      strncpy(VarLoginScript, *argv, sizeof(VarDialScript)-1);
+      strncpy(VarLoginScript, *argv, sizeof(VarLoginScript)-1);
       VarLoginScript[sizeof(VarLoginScript)-1] = '\0';
       break;
     case VAR_DEVICE:
