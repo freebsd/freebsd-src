@@ -270,6 +270,10 @@ MakeDev(struct chunk *c1, const char *path)
 	bmaj = 28, cmaj = 102, p += 3;
     else if (!strncmp(p, "ida", 3))
 	bmaj = 29, cmaj = 109, p += 3;
+    else if (!strncmp(p, "mlxd", 4))
+	bmaj = 27, cmaj = 131, p += 4;
+    else if (!strncmp(p, "amrd", 4))
+	bmaj = 35, cmaj = 133, p += 4;
     else if (!strncmp(p, "da", 2))	/* CAM support */
 	bmaj = 4, cmaj = 13, p += 2;
     else {
