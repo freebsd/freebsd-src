@@ -34,10 +34,10 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <paths.h>
@@ -61,7 +61,8 @@
  * Parse a string of text containing an ethernet address and hostname
  * and separate it into its component parts.
  */
-int ether_line(l, e, hostname)
+int
+ether_line(l, e, hostname)
 	const char *l;
 	struct ether_addr *e;
 	char *hostname;
@@ -83,7 +84,8 @@ int ether_line(l, e, hostname)
  * Convert an ASCII representation of an ethernet address to
  * binary form.
  */
-struct ether_addr *ether_aton(a)
+struct
+ether_addr *ether_aton(a)
 	const char *a;
 {
         int i;
@@ -109,7 +111,8 @@ struct ether_addr *ether_aton(a)
  * Convert a binary representation of an ethernet address to
  * an ASCII string.
  */
-char *ether_ntoa(n)
+char
+*ether_ntoa(n)
 	const struct ether_addr *n;
 {
         int i;
@@ -126,8 +129,8 @@ char *ether_ntoa(n)
  * Map an ethernet address to a hostname. Use either /etc/ethers or
  * NIS/YP.
  */
-
-int ether_ntohost(hostname, e)
+int
+ether_ntohost(hostname, e)
 	char *hostname;
 	const struct ether_addr *e;
 {
@@ -179,7 +182,8 @@ int ether_ntohost(hostname, e)
  * Map a hostname to an ethernet address using /etc/ethers or
  * NIS/YP.
  */
-int ether_hostton(hostname, e)
+int
+ether_hostton(hostname, e)
 	const char *hostname;
 	struct ether_addr *e;
 {
