@@ -73,7 +73,8 @@
 #endif
 
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
-#define	ISP_SMPLOCK				1
+/* turn this off for now */
+/* #define	ISP_SMPLOCK			1	*/
 
 #ifdef	ISP_SMPLOCK
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
@@ -165,12 +166,19 @@ struct isposinfo {
  * Locking macros...
  */
 
+#ifdef	ISP_SMPLOCK
 #define	ISP_LOCK(x)		mtx_lock(&(x)->isp_lock)
 #define	ISP_UNLOCK(x)		mtx_unlock(&(x)->isp_lock)
 #define	ISPLOCK_2_CAMLOCK(isp)	\
 	mtx_unlock(&(isp)->isp_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_ISPLOCK(isp)	\
 	mtx_unlock(&Giant); mtx_lock(&(isp)->isp_lock)
+#else
+#define	ISP_LOCK(x)		do { } while (0)
+#define	ISP_UNLOCK(x)		do { } while (0)
+#define	ISPLOCK_2_CAMLOCK(isp)	do { } while (0)
+#define	CAMLOCK_2_ISPLOCK(isp)	do { } while (0)
+#endif
 
 /*
  * Required Macros/Defines
@@ -411,8 +419,13 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 	if (isp->isp_osinfo.intsok) {
 		int lim = ((isp->isp_mbxwrk0)? 120 : 20) * hz;
 		isp->isp_osinfo.mboxwaiting = 1;
+#ifdef	ISP_SMPLOCK
 		(void) msleep(&isp->isp_mbxworkp,
 		    &isp->isp_lock, PRIBIO, "isp_mboxwaiting", lim);
+#else
+		(void) tsleep(&isp->isp_mbxworkp,
+		    PRIBIO, "isp_mboxwaiting", lim);
+#endif
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Interrupting Mailbox Command (0x%x) Timeout",
