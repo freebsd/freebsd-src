@@ -3,6 +3,6 @@
 #
 
 PROG=	netreceive
-NO_MAN=
+NOMAN=
 
 .include <bsd.prog.mk>
