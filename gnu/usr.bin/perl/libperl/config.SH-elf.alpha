@@ -5,12 +5,12 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
-# $Id: config.SH-elf.alpha,v 1.6 1998/09/26 16:17:05 markm Exp $
+# $Id: config.SH-elf.alpha,v 1.7 1998/09/29 18:58:16 markm Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1998/09/26 16:17:05 $
+# Configuration time: $Date: 1998/09/29 18:58:16 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
@@ -55,7 +55,7 @@ ccdlflags=' '
 ccflags=''
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1998/09/26 16:17:05 $'
+cf_time='$Date: 1998/09/29 18:58:16 $'
 chgrp=''
 chmod=''
 chown=''
@@ -389,11 +389,11 @@ i_vfork='undef'
 incpath=''
 inews=''
 installarchlib='/usr/libdata/perl/5.00502/mach'
-installbin='/usr/bin'
-installman1dir='/usr/share/man/man1'
+installbin='/usr/local/bin'
+installman1dir='/usr/local/man/man1'
 installman3dir='/usr/local/lib/perl5/5.00502/man/man3'
 installprivlib='/usr/libdata/perl/5.00502'
-installscript='/usr/bin'
+installscript='/usr/local/bin'
 installsitearch='/usr/local/lib/perl5/site_perl/5.005/alpha-freebsd'
 installsitelib='/usr/local/lib/perl5/site_perl/5.005'
 intsize='4'
@@ -431,8 +431,8 @@ make_set_make='#'
 mallocobj=''
 mallocsrc=''
 malloctype='void *'
-man1dir='/usr/share/man/man1'
-man1direxp='/usr/share/man/man1'
+man1dir='/usr/local/man/man1'
+man1direxp='/usr/local/man/man1'
 man1ext='1'
 man3dir='/usr/share/perl/man/man3'
 man3direxp='/usr/share/perl/man/man3'
@@ -536,7 +536,7 @@ stdio_ptr='((fp)->_ptr)'
 strings='/usr/include/string.h'
 submit=''
 subversion='2'
-sysman='/usr/share/man/man1'
+sysman='/usr/local/man/man1'
 tail=''
 tar=''
 tbl=''
@@ -571,14 +571,14 @@ zcat=''
 zip='zip'
 # Configure command line arguments.
 config_arg0='Configure'
-config_args='-Dprefix=/usr -Darchlib=/usr/libdata/perl/5.00502/mach -Dprivlib=/usr/libdata/perl/5.00502 -Dsitearch=/usr/local/lib/perl5/site_perl/5.005/alpha-freebsd -Dsitelib=/usr/local/lib/perl5/site_perl/5.005 -Dman1dir=/usr/share/man/man1 -Dman3dir=/usr/share/perl/man/man3 -des -Ulocincpth= -Uloclibpth= -Dpager=more'
+config_args='-Dprefix=/usr -Darchlib=/usr/libdata/perl/5.00502/mach -Dprivlib=/usr/libdata/perl/5.00502 -Dsitearch=/usr/local/lib/perl5/site_perl/5.005/alpha-freebsd -Dsitelib=/usr/local/lib/perl5/site_perl/5.005 -Dman1dir=/usr/local/man/man1 -Dman3dir=/usr/share/perl/man/man3 -des -Ulocincpth= -Uloclibpth= -Dpager=more'
 config_argc=11
 config_arg1='-Dprefix=/usr'
 config_arg2='-Darchlib=/usr/libdata/perl/5.00502/mach'
 config_arg3='-Dprivlib=/usr/libdata/perl/5.00502'
 config_arg4='-Dsitearch=/usr/local/lib/perl5/site_perl/5.005/alpha-freebsd'
 config_arg5='-Dsitelib=/usr/local/lib/perl5/site_perl/5.005'
-config_arg6='-Dman1dir=/usr/share/man/man1'
+config_arg6='-Dman1dir=/usr/local/man/man1'
 config_arg7='-Dman3dir=/usr/share/perl/man/man3'
 config_arg8='-des'
 config_arg9='-Ulocincpth='
