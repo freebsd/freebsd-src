@@ -93,7 +93,6 @@ struct PnPBIOS_table
  * Exported lookup results 
  */
 extern struct bios32_SDentry	PCIbios;
-extern struct PnPBIOS_table	*PnPBIOStable;
 
 struct segment_info {
 	u_int	base;
