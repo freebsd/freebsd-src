@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.89 1997/03/04 17:06:23 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.90 1997/04/30 20:27:34 bde Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -35,7 +35,7 @@
         uucp
         ..
     ..
-    local
+    local uname=root gname=wheel
     ..
     mdec
     ..
