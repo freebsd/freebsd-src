@@ -2855,6 +2855,9 @@ ogetdirentries(p, uap)
 	int error, eofflag, readcnt;
 	long loff;
 
+	/* XXX arbitrary sanity limit on `count'. */
+	if (SCARG(uap, count) > 64 * 1024)
+		return (EINVAL);
 	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0)
