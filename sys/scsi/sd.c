@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.116 1997/12/06 14:27:56 bde Exp $
+ *      $Id: sd.c,v 1.118 1997/12/28 09:10:37 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -71,7 +71,7 @@ static errval	sd_get_parms __P((int unit, int flags));
 #if 0
 static errval	sd_reassign_blocks __P((int unit, int block));
 #endif
-static u_int32_t	sd_size __P((int unit, int flags));
+static int sd_size(int unit, u_int32_t *sizep, u_int16_t *secsizep,  int flags);
 static	void	sdstrategy1 __P((struct buf *));
 
 static int		sd_sense_handler __P((struct scsi_xfer *));
@@ -197,29 +197,30 @@ sdattach(struct scsi_link *sc_link)
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
-	 * request must specify this.
+	 * request must specify this. This may fail with removable media.
 	 */
-	sd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
-	/*
-	 * if we don't have actual parameters, assume 512 bytes/sec
-	 * (could happen on removable media - MOD)
-	 * -- this avoids the division below from falling over
-	 */
-	if(dp->secsiz == 0) dp->secsiz = SECSIZE;
-	printf("%ldMB (%ld %d byte sectors)",
-	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
-	    dp->disksize,
-	    dp->secsiz);
+	if (sd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK) == 0) {
+		/*
+		 * if we don't have actual parameters, assume 512 bytes/sec
+		 * (could happen on removable media - MOD)
+		 * -- this avoids the division below from falling over
+	 	 */
+		printf("%ldMB (%ld %d byte sectors)",
+		    dp->disksize / ((1024L * 1024L) / dp->secsiz),
+		    dp->disksize,
+		    dp->secsiz);
 
 #ifndef SCSI_REPORT_GEOMETRY
-	if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
+		if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
 #endif
-	{
-		sc_print_addr(sc_link);
-		printf("with %d cyls, %d heads, and an average %d sectors/track",
-	   	dp->cyls, dp->heads, dp->sectors);
+		{
+			sc_print_addr(sc_link);
+			printf("with %d cyls, %d heads, and an average %d sectors/track",
+	   		dp->cyls, dp->heads, dp->sectors);
+		}
+	} else {
+		printf("Media parameters not available");
 	}
-
 	sd->flags |= SDINIT;
 	sd_registerdev(unit);
 
@@ -318,18 +319,6 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 */
 	if(errcode = sd_get_parms(unit, 0))	/* sets SDEV_MEDIA_LOADED */
 		goto bad;
-	switch (sd->params.secsiz) {
-	case 512:
-	case 1024:
-	case 2048:
-		break;
-	default:
-		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
-		    unit, sd->params.secsiz);
-		Debugger("sd");
-		errcode = ENXIO;
-		goto bad;
-	}
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
 
@@ -686,15 +675,16 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 }
 
 /*
- * Find out from the device what it's capacity is
+ * Find out from the device what it's capacity is. It turns
+ * out this is also the best way to find out the sector size.
  */
-static u_int32_t
-sd_size(unit, flags)
-	int	unit, flags;
+static int
+sd_size(int unit, u_int32_t *sizep, u_int16_t *secsizep,  int flags)
 {
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
 	u_int32_t size;
+	u_int32_t secsize;
 	struct scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 
 	/*
@@ -718,14 +708,19 @@ sd_size(unit, flags)
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
 		printf("sd%d: could not get size\n", unit);
-		return (0);
-	} else {
-		size = rdcap.addr_0 + 1;
-		size += rdcap.addr_1 << 8;
-		size += rdcap.addr_2 << 16;
-		size += rdcap.addr_3 << 24;
+		return (ENXIO);
 	}
-	return (size);
+	size = rdcap.addr_0 + 1;
+	size += rdcap.addr_1 << 8;
+	size += rdcap.addr_2 << 16;
+	size += rdcap.addr_3 << 24;
+	secsize = rdcap.length_0;
+	secsize += rdcap.length_1 << 8;
+	secsize += rdcap.length_2 << 16;
+	secsize += rdcap.length_3 << 24;
+	*secsizep = secsize;
+	*sizep = size;
+	return (0);
 }
 
 #if 0
@@ -769,10 +764,11 @@ sd_reassign_blocks(unit, block)
  * Get the scsi driver to send a full inquiry to the
  * device and use the results to fill out the disk
  * parameter structure.
+ * Even if we get an error, complete with some dummy information.
+ * XXX this is backwards. The read_cap (sd_size()) should be done first.
  */
 static errval
-sd_get_parms(unit, flags)
-	int	unit, flags;
+sd_get_parms(int unit, int flags)
 {
 	struct scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 	struct scsi_data *sd = sc_link->sd;
@@ -784,6 +780,7 @@ sd_get_parms(unit, flags)
 		union disk_pages pages;
 	} scsi_sense;
 	u_int32_t sectors;
+	int error = 0;
 
 	/*
 	 * First check if we have it all loaded
@@ -823,11 +820,14 @@ sd_get_parms(unit, flags)
 		 * this depends on which controller (e.g. 1542C is
 		 * different. but we have to put SOMETHING here..)
 		 */
-		sectors = sd_size(unit, flags);
+		if (error = sd_size(unit, &sectors, &disk_parms->secsiz, flags)) {
+			/* we couldn't get anyhthing. removable? */
+			sectors = 32 * 64;
+			disk_parms->secsiz= DEV_BSIZE;;
+		}
 		disk_parms->heads = 64;
 		disk_parms->sectors = 32;
 		disk_parms->cyls = sectors / (64 * 32);
-		disk_parms->secsiz = SECSIZE;
 		disk_parms->disksize = sectors;
 	} else {
 
@@ -846,16 +846,21 @@ sd_get_parms(unit, flags)
 		 * can lead to wasted space! THINK ABOUT THIS !
 		 */
 		disk_parms->heads = scsi_sense.pages.rigid_geometry.nheads;
-		disk_parms->cyls = scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2);
+		disk_parms->cyls = scsi_3btou(
+				&scsi_sense.pages.rigid_geometry.ncyl_2);
+		/* set in a default value */
 		disk_parms->secsiz = scsi_3btou(scsi_sense.blk_desc.blklen);
 
-		sectors = sd_size(unit, flags);
+		if (error = sd_size(unit, &sectors,
+				&disk_parms->secsiz, flags)) {
+			/* we couldn't get anyhthing. removable? */
+			sectors = 64 * 32; /* just so non 0 */
+		}
 		disk_parms->disksize = sectors;
 		/* Check if none of these values are zero */
 		if(disk_parms->heads && disk_parms->cyls) {
 			sectors /= (disk_parms->heads * disk_parms->cyls);
-		}
-		else {
+		} else {
 			/* set it to something reasonable */
 			disk_parms->heads = 64;
 			disk_parms->cyls = sectors / (64 * 32);
@@ -866,8 +871,19 @@ sd_get_parms(unit, flags)
 			disk_parms->secsiz = SECSIZE;
 		disk_parms->sectors = sectors;	/* dubious on SCSI *//*XXX */
 	}
-	sc_link->flags |= SDEV_MEDIA_LOADED;
-	return 0;
+	switch (sd->params.secsiz) {
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
+		    unit, sd->params.secsiz);
+		error = ENXIO;
+	}
+	if (error == 0)
+		sc_link->flags |= SDEV_MEDIA_LOADED;
+	return (error);
 }
 
 static int
