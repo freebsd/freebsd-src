@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.112 1997/11/07 08:53:11 phk Exp $
+ * $Id: vfs_subr.c,v 1.113 1997/11/12 05:42:15 julian Exp $
  */
 
 /*
@@ -70,12 +70,15 @@
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
+static void	insmntque __P((struct vnode *vp, struct mount *mp));
 #ifdef DDB
-extern void	printlockedvnodes __P((void));
+static void	printlockedvnodes __P((void));
 #endif
+static void	vbusy __P((struct vnode *));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
+static void	vfree __P((struct vnode *));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
-unsigned long	numvnodes;
+static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 static void	vputrele __P((struct vnode *vp, int put));
 
@@ -440,7 +443,7 @@ getnewvnode(tag, mp, vops, vpp)
 /*
  * Move a vnode from one mount queue to another.
  */
-void
+static void
 insmntque(vp, mp)
 	register struct vnode *vp;
 	register struct mount *mp;
@@ -1517,7 +1520,7 @@ vprint(label, vp)
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
  */
-void
+static void
 printlockedvnodes()
 {
 	struct proc *p = curproc;	/* XXX */
@@ -1622,8 +1625,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 
 #endif /* !NO_COMPAT_PRELITE2 */
 
-int kinfo_vdebug = 1;
-int kinfo_vgetfailed;
+static volatile int kinfo_vdebug = 1;
 
 #if 0
 #define KINFO_VNODESLOP	10
@@ -2083,7 +2085,7 @@ retn:
 	return error;
 }
 
-void
+static void
 vfree(vp)
 	struct vnode *vp;
 {
@@ -2099,7 +2101,7 @@ vfree(vp)
 	vp->v_flag |= VFREE;
 }
 
-void
+static void
 vbusy(vp)
 	struct vnode *vp;
 {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.19 1997/10/16 10:49:22 phk Exp $
+ * $Id: ffs_extern.h,v 1.20 1997/10/16 20:32:34 phk Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -92,11 +92,6 @@ int	ffs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 int	ffs_vfree __P((struct vnode *, ino_t, int));
 int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
-
-#ifdef DIAGNOSTIC
-int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
-void	ffs_checkoverlap __P((struct buf *, struct inode *));
-#endif
 
 extern vop_t **ffs_vnodeop_p;
 extern vop_t **ffs_specop_p;

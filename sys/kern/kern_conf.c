@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.21 1997/09/21 22:20:12 julian Exp $
+ * $Id: kern_conf.c,v 1.22 1997/09/27 13:39:03 kato Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,8 @@ int	nblkdev = NUMBDEV;
 struct cdevsw 	*cdevsw[NUMCDEV];
 int	nchrdev = NUMCDEV;
 
-
+static void	cdevsw_make __P((struct bdevsw *from));
+static int	isdisk __P((dev_t dev, int type));
 
 /*
  * Routine to determine if a device is a disk.
@@ -56,7 +57,7 @@ int	nchrdev = NUMCDEV;
  * KLUDGE XXX add flags to cdevsw entries for disks XXX
  * A minimal stub routine can always return 0.
  */
-int
+static int
 isdisk(dev, type)
 	dev_t dev;
 	int type;
@@ -168,7 +169,7 @@ ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
  * than specifying it by hand.
  */
 
-void
+static void
 cdevsw_make(struct bdevsw *from)
 {
 	struct cdevsw *to = from->d_cdev;
