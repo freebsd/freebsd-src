@@ -32,7 +32,7 @@
 .\"     @(#)signal.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd June 7, 2004
 .Dt SIGNAL 3
 .Os
 .Sh NAME
@@ -204,6 +204,22 @@ to the
 function;
 ignored signals remain ignored.
 .Pp
+If a process explicitly specifies
+.Dv SIG_IGN
+as the action for the signal
+.Dv SIGCHLD ,
+the system will not create zombie processes when children
+of the calling process exit.
+As a consequence, the system will discard the exit status
+from the child processes.
+If the calling process subsequently issues a call to
+.Xr wait 2
+or equivalent, it will block until all of the calling process's
+children terminate, and then return a value of \-1 with
+.Va errno
+set to
+.Er ECHILD .
+.Pp
 See
 .Xr sigaction 2
 for a list of functions
@@ -239,6 +255,7 @@ or
 .Xr sigaltstack 2 ,
 .Xr sigprocmask 2 ,
 .Xr sigsuspend 2 ,
+.Xr wait 2 ,
 .Xr fpsetmask 3 ,
 .Xr setjmp 3 ,
 .Xr siginterrupt 3 ,
@@ -248,3 +265,7 @@ This
 .Fn signal
 facility appeared in
 .Bx 4.0 .
+The option to avoid the creation of child zombies through ignoring
+.Dv SIGCHLD
+appeared in
+.Fx 5.0 .

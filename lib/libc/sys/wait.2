@@ -274,6 +274,14 @@ will fail and return immediately if:
 .It Bq Er ECHILD
 The calling process has no existing unwaited-for
 child processes.
+.It Bq Er ECHILD
+No status from the terminated child process is available
+because the calling process has asked the system to discard
+such status by ignoring the signal
+.Dv SIGCHLD
+or setting the flag
+.Dv SA_NOCLDWAIT
+for that signal.
 .It Bq Er EFAULT
 The
 .Fa status
