@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <sys/cdefs.h>
 #include "un-namespace.h"
+#include "libc_private.h"
+#include "local.h"
 
 __warn_references(gets, "warning: this program uses gets(), which is unsafe.");
 
@@ -58,20 +60,22 @@ gets(buf)
 	static char w[] =
 	    "warning: this program uses gets(), which is unsafe.\n";
 
-	/* Orientation set by getchar(). */
-
+	FLOCKFILE(stdin);
+	ORIENT(stdin, -1);
 	if (!warned) {
 		(void) _write(STDERR_FILENO, w, sizeof(w) - 1);
 		warned = 1;
 	}
-	for (s = buf; (c = getchar()) != '\n';)
+	for (s = buf; (c = __sgetc(stdin)) != '\n';)
 		if (c == EOF)
-			if (s == buf)
+			if (s == buf) {
+				FUNLOCKFILE(stdin);
 				return (NULL);
-			else
+			} else
 				break;
 		else
 			*s++ = c;
 	*s = 0;
+	FUNLOCKFILE(stdin);
 	return (buf);
 }
