@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.33 1998/04/15 19:55:14 phk Exp $";
+	"$Id: ping.c,v 1.34 1998/05/16 00:19:27 jb Exp $";
 #endif /* not lint */
 
 /*
@@ -161,6 +161,7 @@ double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 volatile sig_atomic_t finish_up;  /* nonzero if we've been told to finish up */
 int reset_kerninfo;
 volatile sig_atomic_t siginfo_p;
+volatile time_t lasttime;
 
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
@@ -212,6 +213,7 @@ main(argc, argv)
 	uid = getuid();
 
 	preload = 0;
+	lasttime = 0;
 
 	datap = &outpack[8 + PHDR_LEN];
 	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1) {
@@ -521,19 +523,29 @@ catcher(int sig)
 {
 	int waittime;
 	struct sigaction si_sa;
+	time_t timenow;
+
+	if (nreceived) {
+		waittime = 2 * tmax / 1000;
+		if (!waittime)
+			waittime = 1;
+	} else
+		waittime = MAXWAIT;
+
+	/*
+	 * Die if SIGALRM is caught earlier than it should have been. This
+	 * is usually the result of someone sending thousands of SIGALRMs
+	 * in an attempt to simulate a ping -f (flood).
+	 */
+	if(time((time_t *)&timenow) < lasttime + waittime)
+		exit(0);
+	lasttime = timenow;
 
 	pinger();
-
+	
 	if (!npackets || ntransmitted < npackets)
 		(void)alarm((u_int)interval);
 	else {
-		if (nreceived) {
-			waittime = 2 * tmax / 1000;
-			if (!waittime)
-				waittime = 1;
-		} else
-			waittime = MAXWAIT;
-
 		si_sa.sa_handler = stopit;
 		sigemptyset(&si_sa.sa_mask);
 		si_sa.sa_flags = 0;
