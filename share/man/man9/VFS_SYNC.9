@@ -45,9 +45,9 @@ This writes out all unwritten data in a file system.
 .Pp
 Its arguments are:
 .Bl -tag -width waitfor
-.It Ar mp
+.It Fa mp
 The file system.
-.It Ar waitfor
+.It Fa waitfor
 Whether the function should wait for I/O to complete.
 Possible values are:
 .Bl -tag -width MNT_NOWAIT
@@ -58,9 +58,9 @@ start all I/O, but do not wait for it
 .It Dv MNT_LAZY
 push data not written by file system syncer
 .El
-.It Ar cred
+.It Fa cred
 The caller's credentials.
-.It Ar td
+.It Fa td
 The calling thread.
 .El
 .Pp
