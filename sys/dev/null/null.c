@@ -43,17 +43,14 @@ __FBSDID("$FreeBSD$");
 /* For use with destroy_dev(9). */
 static struct cdev *null_dev;
 static struct cdev *zero_dev;
-static struct cdev *full_dev;
 
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
-static d_write_t full_write;
 
 #define CDEV_MAJOR	2
 #define NULL_MINOR	0
 #define ZERO_MINOR	1
-#define FULL_MINOR	2
 
 static struct cdevsw null_cdevsw = {
 	.d_version =	D_VERSION,
@@ -71,14 +68,6 @@ static struct cdevsw zero_cdevsw = {
 	.d_name =	"zero",
 	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_MMAP_ANON,
-};
-
-static struct cdevsw full_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_read =	(d_read_t *)nullop,
-	.d_write =	full_write,
-	.d_name =	"full",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void *zbuf;
@@ -121,13 +110,6 @@ zero_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 
 /* ARGSUSED */
 static int
-full_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
-{
-	return (ENOSPC);
-}
-
-/* ARGSUSED */
-static int
 null_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch(type) {
@@ -139,14 +121,11 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 			GID_WHEEL, 0666, "null");
 		zero_dev = make_dev(&zero_cdevsw, ZERO_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "zero");
-		full_dev = make_dev(&full_cdevsw, FULL_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "full");
 		break;
 
 	case MOD_UNLOAD:
 		destroy_dev(null_dev);
 		destroy_dev(zero_dev);
-		destroy_dev(full_dev);
 		free(zbuf, M_TEMP);
 		break;
 
