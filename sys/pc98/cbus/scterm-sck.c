@@ -135,60 +135,54 @@ static int		mask2attr(term_stat *tcp);
 __inline static u_char
 iskanji1(u_char mode, u_char c)
 {
-    if ((mode == KTYPE_7JIS) && (c >= 0x21) && (c <= 0x7e)) {
-	/* JIS */
-	default_kanji = UJIS;
-	return KTYPE_7JIS;
-    }
+	if (c > 0x80) {
+		if ((c >= 0xa1) && (c <= 0xdf)) {
+			if (default_kanji == UJIS) {
+				/* UJIS */
+				return KTYPE_UJIS;
+			}
+			if (default_kanji == SJIS) {
+				/* SJIS HANKAKU */
+				return KTYPE_KANA;
+			}
+		}
 
-    if ((mode == KTYPE_JKANA) && (c >= 0x21) && (c <= 0x5f)) {
-	/* JIS HANKAKU */
-	default_kanji = UJIS;
-	return KTYPE_JKANA;
-    }
+		if (c <= 0x9f) {
+			if (c == 0x8e) {
+				/* SJIS or UJIS HANKAKU */
+				return KTYPE_SUKANA;
+			}
 
-#if 1
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	/* UJIS */
-	return KTYPE_UJIS;
-    }
-#endif
+			/* SJIS */
+			default_kanji = SJIS;
+			return KTYPE_SJIS;
+		}
 
-    if ((c >= 0x81) && (c <= 0x9f) && (c != 0x8e)) {
-	/* SJIS */
-	default_kanji = SJIS;
-	return KTYPE_SJIS;
-    }
+		if ((c >= 0xe0) && (c <= 0xef)) {
+			/* SJIS or UJIS */
+			return KTYPE_SUJIS;
+		}
 
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == SJIS)) {
-	/* SJIS HANKAKU */
-	return KTYPE_KANA;
-    }
+		if ((c >= 0xf0) && (c <= 0xfe)) {
+			/* UJIS */
+			default_kanji = UJIS;
+			return KTYPE_UJIS;
+		}
+	} else {
+		if ((mode == KTYPE_7JIS) && (c >= 0x21) && (c <= 0x7e)) {
+			/* JIS */
+			default_kanji = UJIS;
+			return KTYPE_7JIS;
+		}
 
-#if 0
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	/* UJIS */
-	return KTYPE_UJIS;
-    }
-#endif
+		if ((mode == KTYPE_JKANA) && (c >= 0x21) && (c <= 0x5f)) {
+			/* JIS HANKAKU */
+			default_kanji = UJIS;
+			return KTYPE_JKANA;
+		}
+	}
 
-    if ((c >= 0xf0) && (c <= 0xfe)) {
-	/* UJIS */
-	default_kanji = UJIS;
-	return KTYPE_UJIS;
-    }
-
-    if ((c >= 0xe0) && (c <= 0xef)) {
-	/* SJIS or UJIS */
-	return KTYPE_SUJIS;
-    }
-
-    if (c == 0x8e) {
-	/* SJIS or UJIS HANKAKU */
-	return KTYPE_SUKANA;
-    }
-
-    return KTYPE_ASCII;
+	return KTYPE_ASCII;
 }
 
 __inline static u_char
@@ -933,10 +927,9 @@ outloop:
 		u_char *map;
 		int attr;
 		int i;
+		int cnt;
 #ifdef KANJI
 		u_char c;
-#else
-		int cnt;
 #endif
 
 		p = sc_vtb_pointer(&scp->vtb, scp->cursor_pos);
@@ -951,8 +944,23 @@ outloop:
 			/* not Ascii & not HANKAKU */
 			tcp->kanji_1st_char = c;
 			goto kanji_end;
-		    } else {
-			tcp->kanji_1st_char = 0;
+		    } else if (tcp->kanji_type == KTYPE_ASCII) {
+			cnt = imin(len, scp->xsize - scp->xpos);
+			i = cnt;
+			do {
+			    p = sc_vtb_putchar(&scp->vtb, p, map[c], attr);
+			    c = *++ptr;
+			    --i;
+			} while (i > 0 && PRINTABLE(c) &&
+				 iskanji1(tcp->kanji_type, c) == KTYPE_ASCII);
+
+			len -= cnt - i;
+			mark_for_update(scp, scp->cursor_pos);
+			scp->cursor_pos += cnt - i;
+			mark_for_update(scp, scp->cursor_pos - 1);
+			scp->xpos += cnt - i;
+			KTYPE_MASK_CTRL(tcp->kanji_type);
+			goto ascii_end;
 		    }
 		} else {
 		    if ((tcp->kanji_type =
@@ -990,6 +998,7 @@ outloop:
 kanji_end:
 		++ptr;
 		--len;
+ascii_end:
 #else /* !KANJI */
 		cnt = imin(len, scp->xsize - scp->xpos);
 		i = cnt;
