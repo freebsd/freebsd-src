@@ -55,6 +55,7 @@
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_vjc.h>
 
 #include <netinet/in.h>
@@ -96,8 +97,131 @@ static ng_disconnect_t	ng_vjc_disconnect;
 /* Helper stuff */
 static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP);
 
+/* Parse type for struct ngm_vjc_config */
+static const struct ng_parse_struct_info ng_vjc_config_type_info
+	= NG_VJC_CONFIG_TYPE_INFO;
+static const struct ng_parse_type ng_vjc_config_type = {
+	&ng_parse_struct_type,
+	&ng_vjc_config_type_info
+};
+
+/* Parse type for the 'last_cs' and 'cs_next' fields in struct slcompress,
+   which are pointers converted to integer indices, so parse them that way. */
+#if _MACHINE_ARCH == i386
+#define NG_VJC_TSTATE_PTR_TYPE	&ng_parse_uint32_type
+#elif _MACHINE_ARCH == alpha
+#define NG_VJC_TSTATE_PTR_TYPE	&ng_parse_uint64_type
+#else
+#error Unspported _MACHINE_ARCH
+#endif
+
+/* Parse type for the 'cs_hdr' field in a struct cstate. Ideally we would
+   like to use a 'struct ip' type instead of a simple array of bytes. */
+static const struct ng_parse_fixedarray_info ng_vjc_cs_hdr_type_info = {
+	&ng_parse_hint8_type,
+	MAX_HDR
+};
+static const struct ng_parse_type ng_vjc_cs_hdr_type = {
+	&ng_parse_fixedarray_type,
+	&ng_vjc_cs_hdr_type_info
+};
+
+/* Parse type for a struct cstate */
+static const struct ng_parse_struct_info ng_vjc_cstate_type_info = {
+    {
+	{ "cs_next",		NG_VJC_TSTATE_PTR_TYPE		},
+	{ "cs_hlen",		&ng_parse_uint16_type		},
+	{ "cs_id",		&ng_parse_uint8_type		},
+	{ "cs_filler",		&ng_parse_uint8_type		},
+	{ "cs_hdr",		&ng_vjc_cs_hdr_type		},
+	{ NULL },
+    }
+};
+static const struct ng_parse_type ng_vjc_cstate_type = {
+	&ng_parse_struct_type,
+	&ng_vjc_cstate_type_info
+};
+
+/* Parse type for an array of MAX_STATES struct cstate's, ie, tstate & rstate */
+static const struct ng_parse_fixedarray_info ng_vjc_cstatearray_type_info = {
+	&ng_vjc_cstate_type,
+	MAX_STATES
+};
+static const struct ng_parse_type ng_vjc_cstatearray_type = {
+	&ng_parse_fixedarray_type,
+	&ng_vjc_cstatearray_type_info
+};
+
+/* Parse type for struct slcompress. Keep this in sync with the
+   definition of struct slcompress defined in <net/slcompress.h> */
+static const struct ng_parse_struct_info ng_vjc_slcompress_type_info = {
+    {
+	{ "last_cs",		NG_VJC_TSTATE_PTR_TYPE		},
+	{ "last_recv",		&ng_parse_uint8_type		},
+	{ "last_xmit",		&ng_parse_uint8_type		},
+	{ "flags",		&ng_parse_hint16_type		},
+#ifndef SL_NO_STATS
+	{ "sls_packets",	&ng_parse_uint32_type		},
+	{ "sls_compressed",	&ng_parse_uint32_type		},
+	{ "sls_searches",	&ng_parse_uint32_type		},
+	{ "sls_misses",		&ng_parse_uint32_type		},
+	{ "sls_uncompressedin",	&ng_parse_uint32_type		},
+	{ "sls_compressedin",	&ng_parse_uint32_type		},
+	{ "sls_errorin",	&ng_parse_uint32_type		},
+	{ "sls_tossed",		&ng_parse_uint32_type		},
+#endif
+	{ "tstate",		&ng_vjc_cstatearray_type	},
+	{ "rstate",		&ng_vjc_cstatearray_type	},
+	{ NULL },
+    }
+};
+static const struct ng_parse_type ng_vjc_slcompress_type = {
+	&ng_parse_struct_type,
+	&ng_vjc_slcompress_type_info
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_vjc_cmds[] = {
+	{
+	  NGM_VJC_COOKIE,
+	  NGM_VJC_SET_CONFIG,
+	  "setconfig",
+	  &ng_vjc_config_type,
+	  NULL
+	},
+	{
+	  NGM_VJC_COOKIE,
+	  NGM_VJC_GET_CONFIG,
+	  "getconfig",
+	  NULL,
+	  &ng_vjc_config_type,
+	},
+	{
+	  NGM_VJC_COOKIE,
+	  NGM_VJC_GET_STATE,
+	  "getstate",
+	  NULL,
+	  &ng_vjc_slcompress_type,
+	},
+	{
+	  NGM_VJC_COOKIE,
+	  NGM_VJC_CLR_STATS,
+	  "clrstats",
+	  NULL,
+	  NULL,
+	},
+	{
+	  NGM_VJC_COOKIE,
+	  NGM_VJC_RECV_ERROR,
+	  "recverror",
+	  NULL,
+	  NULL,
+	},
+	{ 0 }
+};
+
 /* Node type descriptor */
-static struct ng_type typestruct = {
+static struct ng_type ng_vjc_typestruct = {
 	NG_VERSION,
 	NG_VJC_NODE_TYPE,
 	NULL,
@@ -110,9 +234,9 @@ static struct ng_type typestruct = {
 	ng_vjc_rcvdata,
 	ng_vjc_rcvdata,
 	ng_vjc_disconnect,
-	NULL
+	ng_vjc_cmds
 };
-NETGRAPH_INIT(vjc, &typestruct);
+NETGRAPH_INIT(vjc, &ng_vjc_typestruct);
 
 /************************************************************************
 			NETGRAPH NODE METHODS
@@ -134,7 +258,7 @@ ng_vjc_constructor(node_p *nodep)
 	bzero(priv, sizeof(*priv));
 
 	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
+	if ((error = ng_make_node_common(&ng_vjc_typestruct, nodep))) {
 		FREE(priv, M_NETGRAPH);
 		return (error);
 	}
@@ -212,12 +336,46 @@ ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
 			priv->conf = *c;
 			break;
 		    }
-		case NGM_VJC_GET_STATE:
-			NG_MKRESPONSE(resp, msg, sizeof(priv->slc), M_NOWAIT);
+		case NGM_VJC_GET_CONFIG:
+		    {
+			struct ngm_vjc_config *conf;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*conf), M_NOWAIT);
 			if (resp == NULL)
 				ERROUT(ENOMEM);
-			*((struct slcompress *) resp->data) = priv->slc;
+			conf = (struct ngm_vjc_config *)resp->data;
+			*conf = priv->conf;
 			break;
+		    }
+		case NGM_VJC_GET_STATE:
+		    {
+			const struct slcompress *const sl0 = &priv->slc;
+			struct slcompress *sl;
+			u_int16_t index;
+			int i;
+
+			/* Get response structure */
+			NG_MKRESPONSE(resp, msg, sizeof(*sl), M_NOWAIT);
+			if (resp == NULL)
+				ERROUT(ENOMEM);
+			sl = (struct slcompress *)resp->data;
+			*sl = *sl0;
+
+			/* Replace pointers with integer indicies */
+			if (sl->last_cs != NULL) {
+				index = sl0->last_cs - sl0->tstate;
+				bzero(&sl->last_cs, sizeof(sl->last_cs));
+				*((u_int16_t *)&sl->last_cs) = index;
+			}
+			for (i = 0; i < MAX_STATES; i++) {
+				struct cstate *const cs = &sl->tstate[i];
+
+				index = sl0->tstate[i].cs_next - sl0->tstate;
+				bzero(&cs->cs_next, sizeof(cs->cs_next));
+				*((u_int16_t *)&cs->cs_next) = index;
+			}
+			break;
+		    }
 		case NGM_VJC_CLR_STATS:
 			priv->slc.sls_packets = 0;
 			priv->slc.sls_compressed = 0;
