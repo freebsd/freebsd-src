@@ -902,6 +902,10 @@ kqueue_close(struct file *fp, struct thread *td)
 		}
 	}
 	FILEDESC_UNLOCK(fdp);
+	if (kq->kq_state & KQ_SEL) {
+		kq->kq_state &= ~KQ_SEL;
+		selwakeuppri(&kq->kq_sel, PSOCK);
+	}
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
