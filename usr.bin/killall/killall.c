@@ -357,7 +357,7 @@ main(int ac, char **av)
 		killed++;
 		if (!dflag && !sflag) {
 			if (kill(thispid, sig) < 0 /* && errno != ESRCH */ ) {
-				warn("kill -%s %d", upper(sys_signame[sig],
+				warn("kill -%s %d", upper(sys_signame[sig]),
 				    thispid);
 				errors = 1;
 			}
