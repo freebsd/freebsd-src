@@ -614,10 +614,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
-	ether_demux(ifp, m);
 	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
+	ether_demux(ifp, m);
 }
 
 /*
