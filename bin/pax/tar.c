@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tar.c,v 1.4.2.1 1997/08/25 08:37:05 jkh Exp $
+ *	$Id: tar.c,v 1.4.2.2 1997/09/14 13:07:35 jkh Exp $
  */
 
 #ifndef lint
@@ -44,7 +44,6 @@ static char const sccsid[] = "@(#)tar.c	8.2 (Berkeley) 4/18/94";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>

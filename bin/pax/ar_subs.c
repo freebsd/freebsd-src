@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_subs.c,v 1.4.2.1 1997/08/25 08:36:51 jkh Exp $
+ *	$Id: ar_subs.c,v 1.4.2.2 1997/09/14 13:07:11 jkh Exp $
  */
 
 #ifndef lint
@@ -44,7 +44,6 @@ static char const sccsid[] = "@(#)ar_subs.c	8.2 (Berkeley) 4/18/94";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -743,7 +742,7 @@ copy()
 	 * set up the destination dir path and make sure it is a directory. We
 	 * make sure we have a trailing / on the destination
 	 */
-	dlen = l_strncpy(dirbuf, dirptr, PAXPATHLEN);
+	dlen = l_strncpy(dirbuf, dirptr, sizeof(dirbuf) - 1);
 	dest_pt = dirbuf + dlen;
 	if (*(dest_pt-1) != '/') {
 		*dest_pt++ = '/';
