@@ -1043,15 +1043,20 @@ thread_sigframe_add(struct pthread *thread, int sig, int has_args)
  	/* Get the top of the threads stack: */
 	stackp = GET_STACK_JB(thread->ctx.jb);
 
+#if !defined(__ia64__)
 	/*
 	 * Leave a little space on the stack and round down to the
 	 * nearest aligned word:
 	 */
 	stackp -= sizeof(double);
 	stackp &= ~0x3UL;
+#endif
 
 	/* Allocate room on top of the stack for a new signal frame: */
 	stackp -= sizeof(struct pthread_signal_frame);
+#if defined(__ia64__)
+	stackp &= ~0xFUL;
+#endif
 
 	psf = (struct pthread_signal_frame *) stackp;
 
@@ -1080,9 +1085,15 @@ thread_sigframe_add(struct pthread *thread, int sig, int has_args)
 	/*
 	 * Set up the context:
 	 */
+#if !defined(__ia64__)
 	stackp -= sizeof(double);
+#endif
 	_setjmp(thread->ctx.jb);
+#if !defined(__ia64__)
 	SET_STACK_JB(thread->ctx.jb, stackp);
+#else
+	UPD_STACK_JB(thread->ctx.jb, stackp - 16);
+#endif
 	SET_RETURN_ADDR_JB(thread->ctx.jb, _thread_sig_wrapper);
 }
 
