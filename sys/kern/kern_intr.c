@@ -554,22 +554,14 @@ restart:
 			 *
 			 * If this interrupt source is currently storming,
 			 * then throttle it to only fire the handler once
-			 * per clock tick.  Each second we go out of storming
-			 * mode to see if the storm has subsided.
+			 * per clock tick.
 			 *
 			 * If this interrupt source is not currently
 			 * storming, but the number of back to back
 			 * interrupts exceeds the storm threshold, then
 			 * enter storming mode.
 			 */
-			if (storming) {
-				tsleep(&count, td->td_priority, "istorm", 1);
-				if (count > hz) {
-					storming = 0;
-					count = 0;
-				} else
-					count++;
-			} else if (intr_storm_threshold != 0 &&
+			if (!storming && intr_storm_threshold != 0 &&
 			    count >= intr_storm_threshold) {
 				if (!warned) {
 					printf(
@@ -578,8 +570,10 @@ restart:
 					warned = 1;
 				}
 				storming = 1;
-				count = 0;
-			} else
+			}
+			if (storming)
+				tsleep(&count, td->td_priority, "istorm", 1);
+			else
 				count++;
 
 			if (ithd->it_enable != NULL)
