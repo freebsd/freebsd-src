@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.204 1996/01/14 19:10:15 phk Exp $
+#	$Id: Makefile,v 1.205 1996/01/24 21:42:37 joerg Exp $
 #
 # How to roll a release:
 #
@@ -257,6 +257,13 @@ release.5:
 		rm -f $$c ; \
 		ln -s `basename $$i` $$c ; \
 	done
+
+	# Handle some other grief caused by the ammunition braindeadness.
+	for i in sbin/init bin/ed ; do
+		( cd ${.CURDIR}/../$$i; \
+		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
+	done
+
 	# Remove some files we can faster regen after installing.
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	# Remove all the directories we don't need.
