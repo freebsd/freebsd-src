@@ -87,7 +87,7 @@ strtol(nptr, endptr, base)
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
 	acc = any = 0;
-	if (base < 2)
+	if (base < 2 || base > 35)
 		goto noconv;
 
 	/*
