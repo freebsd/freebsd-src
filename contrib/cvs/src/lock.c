@@ -319,6 +319,11 @@ Writer_Lock (list)
     if (noexec)
 	return (0);
 
+    if (readonlyfs) {
+	error (0, 0, "write lock failed - read-only repository");
+	return (1);
+    }
+
     /* We only know how to do one list at a time */
     if (locklist != (List *) NULL)
     {
