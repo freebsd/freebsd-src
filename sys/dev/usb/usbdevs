@@ -115,6 +115,7 @@ vendor LUCENT		0x047e	Lucent
 vendor STMICRO		0x0483	STMicroelectronics
 vendor YAMAHA		0x0499	YAMAHA
 vendor COMPAQ		0x049f	Compaq Computers
+vendor HITACHI		0x04a4	Hitachi, Ltd.
 vendor ACERP		0x04a5	Acer Peripherals
 vendor VISIONEER	0x04a7	Visioneer
 vendor CANON		0x04a9	Canon
@@ -266,6 +267,7 @@ vendor ADMTEK		0x07a6	ADMtek
 vendor COREGA		0x07aa	Corega
 vendor FREECOM		0x07ab	Freecom
 vendor MICROTECH	0x07af	Microtech
+vendor GENERALINSTMNTS	0x07b2	General Instruments (Motorola)
 vendor OLYMPUS		0x07b4	Olympus
 vendor ABOCOM		0x07b8	AboCom Systems
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken
@@ -455,6 +457,7 @@ product APPLE SPEAKERS		0x1101	Speakers
 
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
+product ASAHIOPTICAL OPTIO330	0x0006  Digital camera
 
 /* ASIX Electronics products */
 product ASIX AX88172		0x1720  USB 2.0 10/100 ethernet controller
@@ -492,9 +495,11 @@ product BROTHER HL1050		0x0002	HL-1050 laser printer
 product BTC BTC7932		0x6782	Keyboard with mouse port
 
 /* Canon, Inc. products */
-product CANON N656U		0x2206	CANOSCAN N656U
+product CANON N656U		0x2206	CanoScan N656U
+product CANON N1240U		0x220e	CanoScan N1240U
 product CANON S10		0x3041	PowerShot S10
 product CANON S100		0x3045	PowerShot S100
+product CANON S200		0x3065	PowerShot S200
 
 /* CATC products */
 product CATC NETMATE		0x000a	Netmate ethernet adapter
@@ -605,8 +610,8 @@ product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
 product EPSON 1600		0x0107	Expression 1600 scanner
 product EPSON 1640		0x010a	Perfection 1640SU scanner
 product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner
-product EPSON 1250		0x010f	Perfection 1250U / 1250Photo scanner
 product EPSON 640U		0x010c	Perfection 640U scanner
+product EPSON 1250		0x010f	Perfection 1250U / 1250Photo scanner
 product EPSON 1650		0x0110	Perfection 1650 scanner
 product EPSON GT9700F		0x0112	GT-9700F scanner
 product EPSON GT9300UF		0x011b	GT-9300UF scanner
@@ -644,6 +649,9 @@ product FUJIPHOTO MASS0100	0x0100	Mass Storage
 /* Fujitsu protducts */
 product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
 
+/* General Instruments (Motorola) products */
+product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
+
 /* Genesys Logic products */
 product	GENESYS GL650		0x0604	GL650 Hub
 product	GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
@@ -659,6 +667,9 @@ product HANDSPRING VISOR	0x0100	Handspring Visor
 
 /* Hauppauge Computer Works */
 product HAUPPAUGE WINTV_USB_FM	0x4d12	WinTV USB FM
+
+/* Hitachi, Ltd. products */
+product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
 
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C
@@ -811,6 +822,7 @@ product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
 product LOGITECH WMJOY		0xc281	WingMan Force joystick 
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
+product LOGITECH MX700		0xc506	Cordless optical mouse
 product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
 /* Lucent products */
@@ -844,8 +856,9 @@ product MICROSOFT INTELLIMOUSE	0x0009	IntelliMouse
 product MICROSOFT NATURALKBD	0x000b	Natural Keyboard Elite
 product MICROSOFT DDS80		0x0014	Digital Sound System 80
 product MICROSOFT SIDEWINDER	0x001a	Sidewinder Precision Racing Wheel
+product MICROSOFT INETPRO	0x001c	Internet Keyboard Pro
 product MICROSOFT INTELLIEYE	0x0025	IntelliEye mouse
-product MICROSOFT INETPRO	0x002b	Internet Keyboard Pro
+product MICROSOFT INETPRO2	0x002b	Internet Keyboard Pro
 
 /* Microtech products */
 product MICROTECH SCSIDB25	0x0004	USB-SCSI-DB25
@@ -1035,6 +1048,7 @@ product SHUTTLE CF		0x000a	eUSB CompactFlash Adapter
 product SHUTTLE EUSCSI_B	0x000b	eUSCSI Bridge
 product SHUTTLE EUSCSI_C	0x000c	eUSCSI Bridge
 product SHUTTLE CDRW		0x0101	CD-RW Device
+product SHUTTLE EUSBORCA	0x0325	eUSB ORCA Quad Reader
 
 /* Siemens products */
 product SIEMENS SPEEDSTREAM	0x1001	SpeedStream USB
@@ -1152,6 +1166,7 @@ product VISIONEER 8600		0x0331	OneTouch 8600
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
 product WACOM GRAPHIRE		0x0010	Graphire
 product WACOM INTUOSA5		0x0021	Intuos A5
+product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
  
 /* Xirlink products */
 product XIRLINK PCCAM		0x8080	IBM PC Camera
