@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2001
+.Dd February 23, 2005
 .Dt EXTATTR 2
 .Os
 .Sh NAME
@@ -229,6 +229,8 @@ and
 .Fn extattr_delete_file
 calls may also fail due to the following errors:
 .Bl -tag -width Er
+.It Bq Er ENOATTR
+The requested attribute was not defined for this file.
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
