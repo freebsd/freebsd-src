@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.8 1996/11/29 07:04:03 dyson Exp $
+ *	$Id: endian.h,v 1.9 1996/11/29 16:22:22 dyson Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -64,7 +64,7 @@ __extension__ ({ register u_long __X = (x); \
 	: "0" (__X)); \
    __X; })
 
-#if defined(KERNEL) && !defined(I386_CPU)
+#if defined(KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 
 #define __byte_swap_long(x) \
 __extension__ ({ register u_long __X = (x); \
