@@ -1921,9 +1921,6 @@ pmap_init(void)
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_prealloc(pvzone, MINPV);
-	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
@@ -2173,6 +2170,11 @@ pmap_init2()
 	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_prealloc(l2zone, 4096);
+	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	uma_prealloc(l2table_zone, 1024);
+
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 	uma_zone_set_obj(l2zone, &l2zone_obj, pv_entry_max);
 
