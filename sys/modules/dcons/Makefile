@@ -5,7 +5,8 @@
 
 KMOD	= dcons
 SRCS	= dcons.c dcons.h \
-		opt_dcons.h opt_ddb.h opt_comconsole.h
+		opt_dcons.h opt_ddb.h opt_comconsole.h \
+		opt_simos.h
 
 opt_ddb.h:
 	echo "#define DDB 1" > $@
