@@ -131,7 +131,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static const char rcsid[] = "$Id: named-xfer.c,v 8.104 2000/12/23 08:14:44 vixie Exp $";
+static const char rcsid[] = "$Id: named-xfer.c,v 8.105.2.1 2001/04/26 02:56:09 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -169,6 +169,10 @@ static const char rcsid[] = "$Id: named-xfer.c,v 8.104 2000/12/23 08:14:44 vixie
 
 #include "port_after.h"
 
+
+#ifndef PATH_SEP
+#define PATH_SEP '/'
+#endif
 
 #define MAIN_PROGRAM
 #include "../named/named.h"
@@ -331,7 +335,7 @@ main(int argc, char *argv[]) {
 	set42sig();
 #endif
 	memset(&axfr_src, 0, sizeof axfr_src);
-	ProgName = strrchr(argv[0], '/');
+	ProgName = strrchr(argv[0], PATH_SEP);
 	if (ProgName != NULL)
 		ProgName++;
 	else
@@ -892,13 +896,13 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 		(void)fprintf(ddt,"getzone() %s ", zp->z_origin);
 		switch (zp->z_type) {
 		case Z_STUB:
-			fprintf(ddt,"stub\n");
+			fprintf(ddt, "stub\n");
 			break;
 		case Z_SECONDARY:
-			fprintf(ddt,"secondary\n");
+			fprintf(ddt, "slave\n");
 			break;
 		default:
-			fprintf(ddt,"unknown type\n");
+			fprintf(ddt, "unknown type\n");
 		}
 	}
 #endif
