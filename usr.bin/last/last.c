@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <utmp.h>
 #include <sys/queue.h>
