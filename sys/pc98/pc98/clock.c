@@ -55,15 +55,15 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
-#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/cons.h>
 #include <sys/power.h>
@@ -74,7 +74,6 @@
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-
 #if defined(SMP)
 #include <machine/smp.h>
 #endif
@@ -378,10 +377,7 @@ getit(void)
 {
 	int high, low;
 
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_lock_spin(&clock_lock);
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -389,11 +385,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_unlock_spin(&clock_lock);
-
+	mtx_unlock_spin(&clock_lock);
 	return ((high << 8) | low);
 }
 
@@ -434,8 +426,18 @@ DELAY(int n)
 	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
 	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
 	 * multiplications and divisions to scale the count take a while).
+	 *
+	 * However, if ddb is active then use a fake counter since reading
+	 * the i8254 counter involves acquiring a lock.  ddb must not do
+	 * locking for many reasons, but it calls here for at least atkbd
+	 * input.
 	 */
-	prev_tick = getit();
+#ifdef KDB
+	if (kdb_active)
+		prev_tick = 1;
+	else
+#endif
+		prev_tick = getit();
 	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
@@ -462,10 +464,12 @@ DELAY(int n)
 			     / 1000000;
 
 	while (ticks_left > 0) {
-#ifdef DDB
-		if (db_active) {
+#ifdef KDB
+		if (kdb_active) {
 			outb(0x5f, 0);
-			tick = prev_tick + 1;
+			tick = prev_tick - 1;
+			if (tick <= 0)
+				tick = timer0_max_count;
 		} else
 #endif
 			tick = getit();
