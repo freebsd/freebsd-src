@@ -52,7 +52,6 @@ struct mdthread {
 
 struct mdproc {
 	struct proc_ldt *md_ldt;	/* (j) per-process ldt */
-	uint32_t md_iopl;		/* process' iopl level */
 };
 
 #ifdef	_KERNEL
