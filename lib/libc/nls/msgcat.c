@@ -303,7 +303,7 @@ catclose( catd)
 /* Note that only malloc failures are allowed to return an error */
 static char* _errowner = "Message Catalog System";;
 #define CORRUPT() { 						\
-	fprintf(stderr, "%s: currupt file.", _errowner);	\
+	fprintf(stderr, "%s: corrupt file.", _errowner);	\
 		free(cat);					\
 		NLRETERR(EINVAL);				\
 	}
