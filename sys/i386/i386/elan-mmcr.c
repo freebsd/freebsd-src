@@ -55,9 +55,9 @@ init_AMD_Elan_sc520(void)
 	u_int new;
 	int i;
 
-	printf("Doing h0h0magic for AMD Elan sc520\n");
+	if (bootverbose)
+		printf("Doing h0h0magic for AMD Elan sc520\n");
 	elan_mmcr = pmap_mapdev(0xfffef000, 0x1000);
-	printf("MMCR at %p\n", elan_mmcr);
 
 	/*-
 	 * The i8254 is driven with a nonstandard frequency which is
@@ -71,7 +71,8 @@ init_AMD_Elan_sc520(void)
 	    NULL, 0, 
 	    &new, sizeof new, 
 	    NULL);
-	printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
+	if (bootverbose)
+		printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
 
 	/* Start GP timer #2 and use it as timecounter, hz permitting */
 	elan_mmcr[0xc82 / 2] = 0xc001;
@@ -137,7 +138,7 @@ elan_drvinit(void)
 
 	if (elan_mmcr == NULL)
 		return;
-	printf("Elan-mmcr driver\n");
+	printf("Elan-mmcr driver: MMCR at %p\n", elan_mmcr);
 	make_dev(&elan_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "elan-mmcr");
 	return;
 }
