@@ -5,8 +5,8 @@
 #	-DNO_DYNAMICROOT do not link /bin and /sbin dynamically
 #	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)
 #	-DNO_RESCUE do not build rescue binaries
-#	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
-#	-DNOCLEAN do not clean at all
+#	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
+#	-DNO_CLEAN do not clean at all
 #	-DNO_CRYPT will prevent building of crypt versions
 #	-DNO_MAN do not build the manual pages
 #	-DNO_PROFILE do not build profiled libraries
@@ -76,7 +76,7 @@ SUBDIR+= ${_DIR}
 SUBDIR=		${SUBDIR_OVERRIDE}
 .endif
 
-.if defined(NOCLEANDIR)
+.if defined(NO_CLEANDIR)
 CLEANDIR=	clean cleandepend
 .else
 CLEANDIR=	cleandir
@@ -273,7 +273,7 @@ _worldtmp:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
 	@echo "--------------------------------------------------------------"
-.if !defined(NOCLEAN)
+.if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
@@ -327,7 +327,7 @@ _bootstrap-tools:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${BMAKE} bootstrap-tools
 _cleanobj:
-.if !defined(NOCLEAN)
+.if !defined(NO_CLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
@@ -664,7 +664,7 @@ buildkernel:
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
 			${KERNCONFDIR}/${_kernel}
 .endif
-.if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
+.if !defined(NO_CLEAN) && !defined(NO_KERNELCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
