@@ -58,12 +58,12 @@ struct iovec;
 
 __BEGIN_DECLS
 int	extattrctl(const char *path, int cmd, const char *filename,
-	    int namespace, const char *attrname);
-int	extattr_delete_file(const char *path, int namespace,
+	    int attrnamespace, const char *attrname);
+int	extattr_delete_file(const char *path, int attrnamespace,
 	    const char *attrname);
-int	extattr_get_file(const char *path, int namespace,
+int	extattr_get_file(const char *path, int attrnamespace,
 	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
-int	extattr_set_file(const char *path, int namespace,
+int	extattr_set_file(const char *path, int attrnamespace,
 	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
 __END_DECLS
 
