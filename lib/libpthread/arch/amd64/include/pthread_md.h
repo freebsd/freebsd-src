@@ -37,9 +37,6 @@
 #include <machine/sysarch.h>
 #include <ucontext.h>
 
-/* <machine/sysarch.h> should define this, but doesn't. */
-extern int sysarch(int, void *);
-
 #define	KSE_STACKSIZE		16384
 
 #define	THR_GETCONTEXT(ucp)	\
@@ -151,9 +148,7 @@ void		_kcb_dtor(struct kcb *);
 static __inline void
 _kcb_set(struct kcb *kcb)
 {
-	void *addr = kcb;
-
-	sysarch(AMD64_SET_FSBASE, &addr);
+	amd64_set_fsbase(kcb);
 }
 
 /* Get the current kcb. */
