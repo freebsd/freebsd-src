@@ -43,8 +43,8 @@
 #include <sys/shm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/mutex.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
