@@ -898,6 +898,7 @@ static struct sbaud_table
   { B2400, 2400 },
   { B4800, 4800 },
   { B9600, 9600 },
+  { B28800, 28800 },
 #ifdef B19200
   { B19200, 19200 },
 #else /* ! defined (B19200) */
