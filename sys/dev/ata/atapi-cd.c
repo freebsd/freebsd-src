@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
 #include <sys/dvdio.h>
@@ -49,36 +48,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/mutex.h>
 #include <machine/bus.h>
+#include <geom/geom.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-cd.h>
-
-/* device structures */
-static d_open_t		acd_open;
-static d_close_t	acd_close;
-static d_ioctl_t	acd_ioctl;
-static d_strategy_t	acd_strategy;
-static struct cdevsw acd_cdevsw = {
-	.d_open =	acd_open,
-	.d_close =	acd_close,
-	.d_read =	physread,
-	.d_write =	physwrite,
-	.d_ioctl =	acd_ioctl,
-	.d_strategy =	acd_strategy,
-	.d_name =	"acd",
-	.d_maj =	117,
-	.d_flags =	D_DISK | D_TRACKCLOSE | D_NOGIANT,
-};
 
 /* prototypes */
 static void acd_detach(struct ata_device *);
 static void acd_start(struct ata_device *);
-
 static struct acd_softc *acd_init_lun(struct ata_device *);
-static void acd_make_dev(struct acd_softc *);
+static void acd_geom_create(void *, int);
 static void acd_set_ioparm(struct acd_softc *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static u_int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
+static int acd_geom_access(struct g_provider *, int, int, int);
+static int acd_geom_ioctl(struct g_provider *, u_long, void *, struct thread *);
+static void acd_geom_start(struct bio *);
 static void acd_done(struct ata_request *);
 static void acd_read_toc(struct acd_softc *);
 static int acd_play(struct acd_softc *, int, int);
@@ -111,6 +96,10 @@ static int acd_request_sense(struct ata_device *, struct atapi_sense *);
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
 static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
+static struct g_class acd_class = {
+	.name = "ACD",
+};
+DECLARE_GEOM_CLASS(acd_class, acd);
 
 void
 acd_attach(struct ata_device *atadev)
@@ -165,11 +154,7 @@ acd_attach(struct ata_device *atadev)
 		tmpcdp->driver = cdparr;
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
-		acd_make_dev(tmpcdp);
-		tmpcdp->stats = devstat_new_entry("acd", tmpcdp->lun, DEV_BSIZE,
-				  DEVSTAT_NO_ORDERED_TAGS,
-				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-				  DEVSTAT_PRIORITY_CD);
+		g_post_event(acd_geom_create, tmpcdp, M_WAITOK, NULL);
 	    }
 	    if (!(name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT))) {
 		ata_prtdev(atadev, "out of memory\n");
@@ -183,13 +168,8 @@ acd_attach(struct ata_device *atadev)
 	    free(name, M_ACD);
 	}
     }
-    else {
-	acd_make_dev(cdp);
-	cdp->stats = devstat_new_entry("acd", cdp->lun, DEV_BSIZE,
-			  DEVSTAT_NO_ORDERED_TAGS,
-			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			  DEVSTAT_PRIORITY_CD);
-    }
+    else 
+	g_post_event(acd_geom_create, cdp, M_WAITOK, NULL);
 
     /* use DMA if allowed and if drive/controller supports it */
     if (atapi_dma && atadev->channel->dma &&
@@ -211,9 +191,9 @@ static void
 acd_detach(struct ata_device *atadev)
 {   
     struct acd_softc *cdp = atadev->softc;
-    struct acd_devlist *entry;
     int subdev;
-    
+
+    g_wither_geom(cdp->gp, ENXIO);
     if (cdp->changer_info) {
 	for (subdev = 0; subdev < cdp->changer_info->slots; subdev++) {
 	    if (cdp->driver[subdev] == cdp)
@@ -221,13 +201,6 @@ acd_detach(struct ata_device *atadev)
 	    mtx_lock(&cdp->driver[subdev]->queue_mtx);
 	    bioq_flush(&cdp->driver[subdev]->queue, NULL, ENXIO);
 	    mtx_unlock(&cdp->driver[subdev]->queue_mtx);
-	    destroy_dev(cdp->driver[subdev]->dev);
-	    while ((entry = TAILQ_FIRST(&cdp->driver[subdev]->dev_list))) {
-		destroy_dev(entry->dev);
-		TAILQ_REMOVE(&cdp->driver[subdev]->dev_list, entry, chain);
-		free(entry, M_ACD);
-	    }
-	    devstat_remove_entry(cdp->driver[subdev]->stats);
 	    ata_free_lun(&acd_lun_map, cdp->driver[subdev]->lun);
 	    free(cdp->driver[subdev], M_ACD);
 	}
@@ -237,16 +210,6 @@ acd_detach(struct ata_device *atadev)
     mtx_lock(&cdp->queue_mtx);
     bioq_flush(&cdp->queue, NULL, ENXIO);
     mtx_unlock(&cdp->queue_mtx);
-    while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
-	destroy_dev(entry->dev);
-	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
-	free(entry, M_ACD);
-    }
-    destroy_dev(cdp->dev);
-#ifndef BURN_BRIDGES
-    EVENTHANDLER_DEREGISTER(dev_clone, cdp->clone_evh);
-#endif
-    devstat_remove_entry(cdp->stats);
     ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);
     ata_free_lun(&acd_lun_map, cdp->lun);
@@ -265,7 +228,6 @@ acd_init_lun(struct ata_device *atadev)
 
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO)))
 	return NULL;
-    TAILQ_INIT(&cdp->dev_list);
     bioq_init(&cdp->queue);
     mtx_init(&cdp->queue_mtx, "ATAPI CD bioqueue lock", MTX_DEF, 0);
     cdp->device = atadev;
@@ -276,56 +238,37 @@ acd_init_lun(struct ata_device *atadev)
     return cdp;
 }
 
-#ifndef BURN_BRIDGES
 static void
-acd_clone(void *arg, char *name, int namelen, dev_t *dev)
+acd_geom_create(void *arg, int flag)
 {
-    struct acd_softc *cdp = arg;
-    char *p;
-    int unit;
+    struct acd_softc *cdp;
+    struct g_geom *gp;
+    struct g_provider *pp;
 
-    if (*dev != NODEV)
-	return;
-    if (!dev_stdclone(name, &p, "acd", &unit))
-	return;
-#ifdef GONE_IN_5
-    if (*p != '\0' && strcmp(p, "a") != 0 && strcmp(p, "c") != 0)
-	return;
-#else
-    if (*p != '\0')
-	return;
-#endif
-    if (unit == cdp->lun)
-	*dev = makedev(acd_cdevsw.d_maj, cdp->lun);
-}
-#endif
-
-static void
-acd_make_dev(struct acd_softc *cdp)
-{
-    dev_t dev;
-
-    dev = make_dev(&acd_cdevsw, cdp->lun,
-		   UID_ROOT, GID_OPERATOR, 0644, "acd%d", cdp->lun);
-    dev->si_drv1 = cdp;
-    cdp->dev = dev;
+    cdp = arg;
+    g_topology_assert();
+    gp = g_new_geomf(&acd_class, "acd%d", cdp->lun);
+    gp->access = acd_geom_access;
+    gp->ioctl = acd_geom_ioctl;
+    gp->start = acd_geom_start;
+    gp->softc = cdp;
+    cdp->gp = gp;
+    pp = g_new_providerf(gp, "acd%d", cdp->lun);
+    pp->index = 0;
+    cdp->pp[0] = pp;
+    g_error_provider(pp, 0);
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
-#ifndef BURN_BRIDGES
-    cdp->clone_evh = EVENTHANDLER_REGISTER(dev_clone, acd_clone, cdp, 1000);
-#endif
     acd_set_ioparm(cdp);
 }
 
 static void
 acd_set_ioparm(struct acd_softc *cdp)
 {
+
     if (cdp->device->channel->dma)
-	cdp->dev->si_iosize_max = (min(cdp->device->channel->dma->max_iosize,
-				       65534)/cdp->block_size)*cdp->block_size;
+	cdp->iomax = min(cdp->device->channel->dma->max_iosize, 65534);
     else
-	cdp->dev->si_iosize_max = (min(DFLTPHYS,
-				       65534)/cdp->block_size)*cdp->block_size;
-    cdp->dev->si_bsize_phys = cdp->block_size;
+	cdp->iomax = min(DFLTPHYS, 65534);
 }
 
 static void 
@@ -515,6 +458,7 @@ acd_describe(struct acd_softc *cdp)
 	       (cdp->device->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(cdp->device->mode) );
     }
+
 }
 
 static __inline void 
@@ -535,12 +479,13 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
 }
 
 static int
-acd_open(dev_t dev, int flags, int fmt, struct thread *td)
+acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 {
-    struct acd_softc *cdp = dev->si_drv1;
-    int timeout = 60;
+    struct acd_softc *cdp;
+    int timeout = 60, track;
     
-    if (!cdp || cdp->device->flags & ATA_D_DETACHING)
+    cdp = pp->geom->softc;
+    if (cdp->device->flags & ATA_D_DETACHING)
 	return ENXIO;
 
     /* wait if drive is not finished loading the medium */
@@ -555,7 +500,7 @@ acd_open(dev_t dev, int flags, int fmt, struct thread *td)
 	else
 	    break;
     }
-    if (count_dev(dev) == 1) {
+    if (pp->acr == 0) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
 	    tsleep(&cdp->changer_info, PRIBIO, "acdopn", 0);
@@ -564,18 +509,8 @@ acd_open(dev_t dev, int flags, int fmt, struct thread *td)
 	cdp->flags |= F_LOCKED;
 	acd_read_toc(cdp);
     }
-    return 0;
-}
 
-static int 
-acd_close(dev_t dev, int flags, int fmt, struct thread *td)
-{
-    struct acd_softc *cdp = dev->si_drv1;
-    
-    if (!cdp)
-	return ENXIO;
-
-    if (count_dev(dev) == 1) {
+    if (dr + pp->acr == 0) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
 	    tsleep(&cdp->changer_info, PRIBIO, "acdclo", 0);
@@ -583,13 +518,30 @@ acd_close(dev_t dev, int flags, int fmt, struct thread *td)
 	acd_prevent_allow(cdp, 0);
 	cdp->flags &= ~F_LOCKED;
     }
+    pp->mediasize = (off_t)cdp->disk_size * (off_t)cdp->block_size;
+    pp->sectorsize = cdp->block_size;
+
+    track = pp->index;
+
+    if (track) {
+	pp->sectorsize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
+        pp->mediasize = 
+		ntohl(cdp->toc.tab[track].addr.lba) -
+		ntohl(cdp->toc.tab[track - 1].addr.lba);
+    }
+    else {
+	pp->sectorsize = cdp->block_size;
+        pp->mediasize = cdp->disk_size;
+    }
+    pp->mediasize *= pp->sectorsize;
+
     return 0;
 }
 
 static int 
-acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, struct thread *td)
 {
-    struct acd_softc *cdp = dev->si_drv1;
+    struct acd_softc *cdp = pp->geom->softc;
     int error = 0;
 
     if (!cdp)
@@ -647,7 +599,7 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDIOCEJECT:
-	if (count_dev(dev) > 1) {
+	if (pp->acr != 1) {
 	    error = EBUSY;
 	    break;
 	}
@@ -655,7 +607,7 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDIOCCLOSE:
-	if (count_dev(dev) > 1)
+	if (pp->acr != 1)
 	    break;
 	error = acd_tray(cdp, 1);
 	break;
@@ -1038,14 +990,6 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    error = EINVAL;
 	break;
 
-    case DIOCGMEDIASIZE:
-	*(off_t *)addr = (off_t)cdp->disk_size * (off_t)cdp->block_size;
-	break;
-
-    case DIOCGSECTORSIZE:
-	*(u_int *)addr = cdp->block_size;
-	break;
-
     default:
 	error = ENOTTY;
     }
@@ -1053,27 +997,48 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 }
 
 static void 
-acd_strategy(struct bio *bp)
+acd_geom_start(struct bio *bp)
 {
-    struct acd_softc *cdp = bp->bio_dev->si_drv1;
+    struct acd_softc *cdp = bp->bio_to->geom->softc;
 
     if (cdp->device->flags & ATA_D_DETACHING) {
-	biofinish(bp, NULL, ENXIO);
+	g_io_deliver(bp, ENXIO);
 	return;
     }
 
-    /* if it's a null transfer, return immediatly. */
-    if (bp->bio_bcount == 0) {
-	bp->bio_resid = 0;
-	biodone(bp);
+    if (bp->bio_cmd != BIO_READ && bp->bio_cmd != BIO_WRITE) {
+	g_io_deliver(bp, EOPNOTSUPP);
 	return;
     }
-    
-    bp->bio_resid = bp->bio_bcount;
 
-    mtx_lock(&cdp->queue_mtx);
-    bioq_disksort(&cdp->queue, bp);
-    mtx_unlock(&cdp->queue_mtx);
+    /* GEOM classes must do their own request limiting */
+    if (bp->bio_length <= cdp->iomax) {
+
+	mtx_lock(&cdp->queue_mtx);
+	bp->bio_pblkno = bp->bio_offset / bp->bio_to->sectorsize;
+	bioq_disksort(&cdp->queue, bp);
+	mtx_unlock(&cdp->queue_mtx);
+    }
+    else {
+	u_int pos, size = cdp->iomax - cdp->iomax % bp->bio_to->sectorsize;
+	struct bio *bp2;
+
+	for (pos = 0; pos < bp->bio_length; pos += bp->bio_length) {
+	    if (!(bp2 = g_clone_bio(bp))) {
+		bp->bio_error = ENOMEM;
+		break;
+	    }
+	    bp2->bio_done = g_std_done;
+	    bp2->bio_to = bp->bio_to;
+	    bp2->bio_offset += pos;
+	    bp2->bio_data += pos;
+	    bp2->bio_length = MIN(size, bp->bio_length - pos);
+	    mtx_lock(&cdp->queue_mtx);
+	    bp2->bio_pblkno = bp2->bio_offset / bp2->bio_to->sectorsize;
+	    bioq_disksort(&cdp->queue, bp2);
+	    mtx_unlock(&cdp->queue_mtx);
+	}
+    }
     ata_start(cdp->device->channel);
 }
 
@@ -1113,22 +1078,21 @@ acd_start(struct ata_device *atadev)
     }
     mtx_lock(&cdp->queue_mtx);
     bp = bioq_first(&cdp->queue);
-    if (!bp) {
-	mtx_unlock(&cdp->queue_mtx);
-	return;
-    }
-    bioq_remove(&cdp->queue, bp);
+    if (bp)
+        bioq_remove(&cdp->queue, bp);
     mtx_unlock(&cdp->queue_mtx);
+    if (!bp)
+	return;
 
     /* reject all queued entries if media changed */
     if (cdp->device->flags & ATA_D_MEDIA_CHANGED) {
-	biofinish(bp, NULL, EIO);
+	g_io_deliver(bp, EIO);
 	return;
     }
 
     bzero(ccb, sizeof(ccb));
 
-    track = (bp->bio_dev->si_udev & 0x00ff0000) >> 16;
+    track = bp->bio_to->index;
 
     if (track) {
 	blocksize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
@@ -1142,19 +1106,14 @@ acd_start(struct ata_device *atadev)
 	lba = bp->bio_offset / blocksize;
     }
 
-    if (bp->bio_bcount % blocksize != 0) {
-	biofinish(bp, NULL, EINVAL);
-	return;
-    }
-    count = bp->bio_bcount / blocksize;
+    count = bp->bio_length / blocksize;
 
     if (bp->bio_cmd == BIO_READ) {
 	/* if transfer goes beyond range adjust it to be within limits */
 	if (lba + count > lastlba) {
 	    /* if we are entirely beyond EOM return EOF */
 	    if (lastlba <= lba) {
-		bp->bio_resid = bp->bio_bcount;
-		biodone(bp);
+		g_io_deliver(bp, 0);
 		return;
 	    }
 	    count = lastlba - lba;
@@ -1186,9 +1145,8 @@ acd_start(struct ata_device *atadev)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    bp->bio_caller1 = cdp;
     if (!(request = ata_alloc_request())) {
-	biofinish(bp, NULL, EIO);
+	g_io_deliver(bp, EIO);
 	return;
     }
     request->device = atadev;
@@ -1215,10 +1173,9 @@ acd_start(struct ata_device *atadev)
     default:
 	ata_prtdev(atadev, "unknown BIO operation\n");
 	ata_free_request(request);
-	biofinish(bp, NULL, EIO);
+	g_io_deliver(bp, EIO);
 	return;
     }
-    devstat_start_transaction_bio(cdp->stats, bp);
     ata_queue_request(request);
 }
 
@@ -1226,23 +1183,20 @@ static void
 acd_done(struct ata_request *request)
 {
     struct bio *bp = request->driver;
-    struct acd_softc *cdp = bp->bio_caller1;
     
     /* finish up transfer */
-    if ((bp->bio_error = request->result))
-	bp->bio_flags |= BIO_ERROR;
-    bp->bio_resid = bp->bio_bcount - request->donecount;
-    biofinish(bp, cdp->stats, 0);
+    bp->bio_completed = request->donecount;
+    g_io_deliver(bp, request->result);
     ata_free_request(request);
 }
 
 static void 
 acd_read_toc(struct acd_softc *cdp)
 {
-    struct acd_devlist *entry;
     int track, ntracks, len;
     u_int32_t sizes[2];
     int8_t ccb[16];
+    struct g_provider *pp;
 
     bzero(&cdp->toc, sizeof(cdp->toc));
     bzero(ccb, sizeof(ccb));
@@ -1290,20 +1244,20 @@ acd_read_toc(struct acd_softc *cdp)
     }
     cdp->disk_size = ntohl(sizes[0]) + 1;
 
-    while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
-	destroy_dev(entry->dev);
-	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
-	free(entry, M_ACD);
-    }
     for (track = 1; track <= ntracks; track ++) {
-	char name[16];
-
-	sprintf(name, "acd%dt%02d", cdp->lun, track);
-	entry = malloc(sizeof(struct acd_devlist), M_ACD, M_NOWAIT | M_ZERO);
-	entry->dev = make_dev(&acd_cdevsw, (cdp->lun << 3) | (track << 16),
-			      0, 0, 0644, name, NULL);
-	entry->dev->si_drv1 = cdp->dev->si_drv1;
-	TAILQ_INSERT_TAIL(&cdp->dev_list, entry, chain);
+	if (cdp->pp[track] != NULL)
+	    continue;
+	pp = g_new_providerf(cdp->gp, "acd%dt%02d", cdp->lun, track);
+	pp->index = track;
+	cdp->pp[track] = pp;
+	g_error_provider(pp, 0);
+    }
+    for (; track < MAXTRK; track ++) {
+	if (cdp->pp[track] == NULL)
+	    continue;
+	cdp->pp[track]->flags |= G_PF_WITHER;
+	g_orphan_provider(cdp->pp[track], ENXIO);
+	cdp->pp[track] = NULL;
     }
 
 #ifdef ACD_DEBUG
@@ -1548,10 +1502,9 @@ acd_read_track_info(struct acd_softc *cdp,
 		    int32_t lba, struct acd_track_info *info)
 {
     int8_t ccb[16] = { ATAPI_READ_TRACK_INFO, 1,
-		     lba>>24, lba>>16, lba>>8, lba,
-		     0,
-		     sizeof(*info)>>8, sizeof(*info),
-		     0, 0, 0, 0, 0, 0, 0 };
+		       lba>>24, lba>>16, lba>>8, lba, 0,
+		       sizeof(*info)>>8, sizeof(*info),
+		       0, 0, 0, 0, 0, 0, 0 };
     int error;
 
     if ((error = ata_atapicmd(cdp->device, ccb, (caddr_t)info, sizeof(*info),
