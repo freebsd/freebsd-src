@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.9 1998/01/01 13:26:55 msmith Exp $
+ *      $Id: bios.c,v 1.10 1998/02/09 06:08:12 eivind Exp $
  */
 
 /*
@@ -78,7 +78,7 @@ bios32_init(void *junk)
     if ((sigaddr = bios_sigsearch(0, "_32_", 4, 16, 0)) != 0) {
 
 	/* get a virtual pointer to the structure */
-	sdh = (struct bios32_SDheader *)BIOS_PADDRTOVADDR(sigaddr);
+	sdh = (struct bios32_SDheader *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)sdh, ck = 0, i = 0; i < (sdh->len * 16); i++) {
 	    ck += cv[i];
 	}
@@ -106,7 +106,7 @@ bios32_init(void *junk)
     if ((sigaddr = bios_sigsearch(0, "_SM_", 4, 16, 0)) != 0) {
 
 	/* get a virtual pointer to the structure */
-	sbt = (struct SMBIOS_table *)BIOS_PADDRTOVADDR(sigaddr);
+	sbt = (struct SMBIOS_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)sbt, ck = 0, i = 0; i < sbt->len; i++) {
 	    ck += cv[i];
 	}
@@ -131,7 +131,7 @@ bios32_init(void *junk)
     if ((sigaddr = bios_sigsearch(0, "_DMI_", 5, 16, 0)) != 0) {
 
 	/* get a virtual pointer to the structure */
-	dmit = (struct DMI_table *)BIOS_PADDRTOVADDR(sigaddr);
+	dmit = (struct DMI_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)dmit, ck = 0, i = 0; i < 15; i++) {
 	    ck += cv[i];
 	}
