@@ -67,16 +67,18 @@
 #include <machine/smp.h>
 #endif
 
-static int sigprop	__P((int sig));
-static int sig_ffs	__P((sigset_t *set));
-static int killpg1	__P((struct proc *cp, int sig, int pgid, int all));
+#define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
+
+static int coredump	__P((struct proc *));
 static int do_sigaction	__P((struct proc *p, int sig, struct sigaction *act,
 			     struct sigaction *oact, int old));
-static int do_sigprocmask	__P((struct proc *p, int how, sigset_t *set,
-				     sigset_t *oset, int old));
+static int do_sigprocmask __P((struct proc *p, int how, sigset_t *set,
+			       sigset_t *oset, int old));
+static char *expand_name __P((const char *, uid_t, pid_t));
+static int killpg1	__P((struct proc *cp, int sig, int pgid, int all));
+static int sig_ffs	__P((sigset_t *set));
+static int sigprop	__P((int sig));
 static void stop	__P((struct proc *));
-static char *expand_name	__P((const char *, uid_t, pid_t));
-static int coredump	__P((struct proc *));
 
 static int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
@@ -155,22 +157,23 @@ static int sigproptbl[NSIG] = {
         SA_KILL,                /* SIGUSR2 */
 };
 
-extern __inline int sigprop(int sig)
+static __inline int
+sigprop(int sig)
 {
+
 	if (sig > 0 && sig < NSIG)
 		return (sigproptbl[_SIG_IDX(sig)]);
-	else
-		return (0);
+	return (0);
 }
 
-extern __inline int sig_ffs(sigset_t *set)
+static __inline int
+sig_ffs(sigset_t *set)
 {
 	int i;
 
-	for (i = 0; i < _SIG_WORDS; i++) {
+	for (i = 0; i < _SIG_WORDS; i++)
 		if (set->__bits[i])
 			return (ffs(set->__bits[i]) + (i * 32));
-	}
 	return (0);
 }
 
@@ -225,8 +228,7 @@ do_sigaction(p, sig, act, oact, old)
 		if (act->sa_flags & SA_SIGINFO) {
 			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGADDSET(ps->ps_siginfo, sig);
-		}
-		else {
+		} else {
 			ps->ps_sigact[_SIG_IDX(sig)] =
 			    (__sighandler_t *)act->sa_sigaction;
 			SIGDELSET(ps->ps_siginfo, sig);
@@ -322,18 +324,16 @@ sigaction(p, uap)
 	register struct sigaction *actp, *oactp;
 	int error;
 
-	actp = (uap->act) ? &act : NULL;
-	oactp = (uap->oact) ? &oact : NULL;
+	actp = (uap->act != NULL) ? &act : NULL;
+	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
-		error = copyin((c_caddr_t)uap->act, (caddr_t)actp,
-			       sizeof(act));
+		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
 			return (error);
 	}
 	error = do_sigaction(p, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
-		error = copyout((caddr_t)oactp, (caddr_t)uap->oact,
-				sizeof(oact));
+		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
 	return (error);
 }
@@ -356,10 +356,12 @@ osigaction(p, uap)
 	register struct sigaction *nsap, *osap;
 	int error;
 
-	nsap = (uap->nsa) ? &nsa : NULL;
-	osap = (uap->osa) ? &osa : NULL;
+	if (uap->signum <= 0 || uap->signum >= ONSIG)
+		return (EINVAL);
+	nsap = (uap->nsa != NULL) ? &nsa : NULL;
+	osap = (uap->osa != NULL) ? &osa : NULL;
 	if (nsap) {
-		error = copyin((caddr_t)uap->nsa, (caddr_t)&sa, sizeof(sa));
+		error = copyin(uap->nsa, &sa, sizeof(sa));
 		if (error)
 			return (error);
 		nsap->sa_handler = sa.sa_handler;
@@ -371,7 +373,7 @@ osigaction(p, uap)
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
 		SIG2OSIG(osap->sa_mask, sa.sa_mask);
-		error = copyout((caddr_t)&sa, (caddr_t)uap->osa, sizeof(sa));
+		error = copyout(&sa, uap->osa, sizeof(sa));
 	}
 	return (error);
 }
@@ -490,18 +492,16 @@ sigprocmask(p, uap)
 	sigset_t *setp, *osetp;
 	int error;
 
-	setp = (uap->set) ? &set : NULL;
-	osetp = (uap->oset) ? &oset : NULL;
+	setp = (uap->set != NULL) ? &set : NULL;
+	osetp = (uap->oset != NULL) ? &oset : NULL;
 	if (setp) {
-		error = copyin((c_caddr_t)uap->set, (caddr_t)setp,
-			       sizeof(set));
+		error = copyin(uap->set, setp, sizeof(set));
 		if (error)
 			return (error);
 	}
 	error = do_sigprocmask(p, uap->how, setp, osetp, 0);
 	if (osetp && !error) {
-		error = copyout((caddr_t)osetp, (caddr_t)uap->oset,
-				sizeof(oset));
+		error = copyout(osetp, uap->oset, sizeof(oset));
 	}
 	return (error);
 }
@@ -538,8 +538,7 @@ sigpending(p, uap)
 	struct sigpending_args *uap;
 {
 
-	return (copyout((caddr_t)&p->p_siglist, (caddr_t)uap->set,
-			sizeof(sigset_t)));
+	return (copyout(&p->p_siglist, uap->set, sizeof(sigset_t)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -580,10 +579,12 @@ osigvec(p, uap)
 	register struct sigaction *nsap, *osap;
 	int error;
 
-	nsap = (uap->nsv) ? &nsa : NULL;
-	osap = (uap->osv) ? &osa : NULL;
+	if (uap->signum <= 0 || uap->signum >= ONSIG)
+		return (EINVAL);
+	nsap = (uap->nsv != NULL) ? &nsa : NULL;
+	osap = (uap->osv != NULL) ? &osa : NULL;
 	if (nsap) {
-		error = copyin((caddr_t)uap->nsv, (caddr_t)&vec, sizeof(vec));
+		error = copyin(uap->nsv, &vec, sizeof(vec));
 		if (error)
 			return (error);
 		nsap->sa_handler = vec.sv_handler;
@@ -604,7 +605,7 @@ osigvec(p, uap)
 #ifdef COMPAT_SUNOS
 		vec.sv_flags &= ~SA_NOCLDSTOP;
 #endif
-		error = copyout((caddr_t)&vec, (caddr_t)uap->osv, sizeof(vec));
+		error = copyout(&vec, uap->osv, sizeof(vec));
 	}
 	return (error);
 }
@@ -672,7 +673,7 @@ sigsuspend(p, uap)
 	register struct sigacts *ps = p->p_sigacts;
 	int error;
 
-	error = copyin((c_caddr_t)uap->sigmask, (caddr_t)&mask, sizeof(mask));
+	error = copyin(uap->sigmask, &mask, sizeof(mask));
 	if (error)
 		return (error);
 
@@ -737,11 +738,10 @@ osigstack(p, uap)
 
 	ss.ss_sp = p->p_sigstk.ss_sp;
 	ss.ss_onstack = p->p_sigstk.ss_flags & SS_ONSTACK;
-	if (uap->oss && (error = copyout((caddr_t)&ss, (caddr_t)uap->oss,
-	    sizeof (struct sigstack))))
+	if (uap->oss && (error = copyout(&ss, uap->oss,
+	    sizeof(struct sigstack))))
 		return (error);
-	if (uap->nss && (error = copyin((caddr_t)uap->nss, (caddr_t)&ss,
-	    sizeof (ss))) == 0) {
+	if (uap->nss && (error = copyin(uap->nss, &ss, sizeof(ss))) == 0) {
 		p->p_sigstk.ss_sp = ss.ss_sp;
 		p->p_sigstk.ss_size = 0;
 		p->p_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
@@ -768,12 +768,12 @@ sigaltstack(p, uap)
 
 	if ((p->p_flag & P_ALTSTACK) == 0)
 		p->p_sigstk.ss_flags |= SS_DISABLE;
-	if (uap->oss && (error = copyout((caddr_t)&p->p_sigstk,
-	    (caddr_t)uap->oss, sizeof (stack_t))))
+	if (uap->oss && (error = copyout(&p->p_sigstk, uap->oss,
+	    sizeof(stack_t))))
 		return (error);
 	if (uap->ss == 0)
 		return (0);
-	if ((error = copyin((caddr_t)uap->ss, (caddr_t)&ss, sizeof (ss))))
+	if ((error = copyin(uap->ss, &ss, sizeof(ss))))
 		return (error);
 	if (ss.ss_flags & SS_DISABLE) {
 		if (p->p_sigstk.ss_flags & SS_ONSTACK)
@@ -965,8 +965,7 @@ trapsignal(p, sig, code)
 				SIGADDSET(p->p_sigignore, sig);
 			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 		}
-	}
-	else {
+	} else {
 		p->p_code = code;	/* XXX for core dump/debugger */
 		p->p_sig = sig;		/* XXX to verify code */
 		psignal(p, sig);
