@@ -361,7 +361,7 @@ int	soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	    struct thread *td);
 int	soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	    struct thread *td);
-int	sokqfilter(struct file *fp, struct knote *kn);
+int	soo_kqfilter(struct file *fp, struct knote *kn);
 
 /*
  * From uipc_socket and friends
