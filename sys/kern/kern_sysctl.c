@@ -992,10 +992,8 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	int error = 0;
 	size_t i = 0;
 
-	if (req->lock == 1 && req->oldptr) {
-		vslock(req->oldptr, req->oldlen);
-		req->lock = 2;
-	}
+	if (req->lock == 1 && req->oldptr)
+		WITNESS_SLEEP(1, NULL);
 	if (req->oldptr) {
 		i = l;
 		if (req->oldlen <= req->oldidx)
