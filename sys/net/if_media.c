@@ -270,6 +270,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 	{
 		struct ifmedia_entry *ep;
 		int *kptr, count;
+		int usermax;	/* user requested max */
 
 		kptr = NULL;		/* XXX gcc */
 
@@ -280,7 +281,25 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 		(*ifm->ifm_status)(ifp, ifmr);
 
 		count = 0;
-		ep = LIST_FIRST(&ifm->ifm_list);
+		usermax = 0;
+
+		/*
+		 * If there are more interfaces on the list, count
+		 * them.  This allows the caller to set ifmr->ifm_count
+		 * to 0 on the first call to know how much space to
+		 * allocate.
+		 */
+		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list)
+			usermax++;
+
+		/*
+		 * Don't allow the user to ask for too many
+		 * or a negative number.
+		 */
+		if (ifmr->ifm_count > usermax)
+			ifmr->ifm_count = usermax;
+		else if (ifmr->ifm_count < 0)
+			return (EINVAL);
 
 		if (ifmr->ifm_count != 0) {
 			kptr = (int *)malloc(ifmr->ifm_count * sizeof(int),
@@ -289,22 +308,16 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 			/*
 			 * Get the media words from the interface's list.
 			 */
+			ep = LIST_FIRST(&ifm->ifm_list);
 			for (; ep != NULL && count < ifmr->ifm_count;
 			    ep = LIST_NEXT(ep, ifm_list), count++)
 				kptr[count] = ep->ifm_media;
 
 			if (ep != NULL)
 				error = E2BIG;	/* oops! */
+		} else {
+			count = usermax;
 		}
-
-		/*
-		 * If there are more interfaces on the list, count
-		 * them.  This allows the caller to set ifmr->ifm_count
-		 * to 0 on the first call to know how much space to
-		 * callocate.
-		 */
-		for (; ep != NULL; ep = LIST_NEXT(ep, ifm_list))
-			count++;
 
 		/*
 		 * We do the copyout on E2BIG, because that's
