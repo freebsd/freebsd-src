@@ -30,27 +30,21 @@ if [ ${FSSIZE} -eq 0 -a ${FSLABEL} = "auto" ]; then
 fi
 
 dofs_vn () {
-    if [ "x$VNDEVICE" = "x" ] ; then
-	VNDEVICE=vn0
-    fi
-    u=`expr $VNDEVICE : 'vn\([0-9]*\)' || true`
-    VNDEVICE=vnn$u
+	if [ "x$VNDEVICE" = "x" ] ; then
+		VNDEVICE=vn0
+	fi
+	u=`expr $VNDEVICE : 'vn\([0-9]*\)' || true`
+	VNDEVICE=vnn$u
 
-    rm -f /dev/*vnn*
-    mknod /dev/rvnn${u} c 43 `expr 65538 + $u '*' 8`
-    mknod /dev/rvnn${u}c c 43 `expr 2 + $u '*' 8`
-    mknod /dev/vnn${u} b 15 `expr 65538 + $u '*' 8`
-    mknod /dev/vnn${u}c b 15 `expr 2 + $u '*' 8`
-
-    while true 
-    do
-	rm -f ${FSIMG}
+	rm -f /dev/*vnn*
+	mknod /dev/rvnn${u} c 43 `expr 65538 + $u '*' 8`
+	mknod /dev/rvnn${u}c c 43 `expr 2 + $u '*' 8`
+	mknod /dev/vnn${u} b 15 `expr 65538 + $u '*' 8`
+	mknod /dev/vnn${u}c b 15 `expr 2 + $u '*' 8`
 
 	umount /dev/${VNDEVICE} 2>/dev/null || true
 	umount ${MNT} 2>/dev/null || true
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
-
-	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
 
@@ -60,35 +54,14 @@ dofs_vn () {
 	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
-
-	if [ -d ${FSPROTO} ]; then
-		(set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT})
-	else
-		cp -p ${FSPROTO} ${MNT}
-	fi
-
-	df -ki ${MNT}
-
-	set `df -ki ${MNT} | tail -1`
-
-	echo "*** Filesystem is ${FSSIZE} K, $4 left"
-	echo "***     ${FSINODE} bytes/inode, $7 left"
-	break;
-    done
 }
 
 dofs_md () {
-    while true 
-    do
-	rm -f ${FSIMG}
-
 	if [ "x${MDDEVICE}" != "x" ] ; then
 		umount /dev/${MDDEVICE} 2>/dev/null || true
 		umount ${MNT} 2>/dev/null || true
 		mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 	fi
-
-	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
 	if [ ! -c /dev/${MDDEVICE} ] ; then
@@ -102,22 +75,10 @@ dofs_md () {
 	newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
-
-	if [ -d ${FSPROTO} ]; then
-		(set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT})
-	else
-		cp -p ${FSPROTO} ${MNT}
-	fi
-
-	df -ki ${MNT}
-
-	set `df -ki ${MNT} | tail -1`
-
-	echo "*** Filesystem is ${FSSIZE} K, $4 left"
-	echo "***     ${FSINODE} bytes/inode, $7 left"
-	break;
-    done
 }
+
+rm -f ${FSIMG}
+dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 #
 # We don't have any bootblocks on ia64. Note that -B implies -r,
@@ -125,7 +86,7 @@ dofs_md () {
 # bsdlabel fails otherwise.
 #
 case `uname -r` in
-[1-4].*)
+4.*)
 	if [ -f "${RD}/trees/base/boot/boot1" ]; then
 		BOOT="-B -b ${RD}/trees/base/boot/boot1"
 		if [ -f "${RD}/trees/base/boot/boot2" ]; then
@@ -145,3 +106,16 @@ case `uname -r` in
 	dofs_md
 	;;
 esac
+
+if [ -d ${FSPROTO} ]; then
+	(set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT})
+else
+	cp -p ${FSPROTO} ${MNT}
+fi
+
+df -ki ${MNT}
+
+set `df -ki ${MNT} | tail -1`
+
+echo "*** File system is ${FSSIZE} K, $4 left"
+echo "***     ${FSINODE} bytes/inode, $7 left"
