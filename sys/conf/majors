@@ -74,7 +74,6 @@
 139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
 141	pcdmx		PCDMX theatre lighting controller
 142	skip		SKIP port (security/skip) control device
-154	*asr		Adaptec SCSI RAID <msmith@freebsd.org>
 155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
 159	*ata		ATA control device
 161	swdoc		Sitara networks watchdog device
