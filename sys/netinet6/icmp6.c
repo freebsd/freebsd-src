@@ -2053,6 +2053,16 @@ icmp6_redirect_input(m, off)
 	bcopy(&reddst6, &sin6.sin6_addr, sizeof(reddst6));
 	rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
 	if (rt) {
+		if (rt->rt_gateway == NULL ||
+		    rt->rt_gateway->sa_family != AF_INET6) {
+			log(LOG_ERR,
+			    "ICMP6 redirect rejected; no route "
+			    "with inet6 gateway found for redirect dst: %s\n",
+			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6));
+			RTFREE(rt);
+			goto freeit;
+		}
+
 		gw6 = &(((struct sockaddr_in6 *)rt->rt_gateway)->sin6_addr);
 		if (bcmp(&src6, gw6, sizeof(struct in6_addr)) != 0) {
 			log(LOG_ERR,
