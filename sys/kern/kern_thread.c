@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
+#include <sys/umtx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -240,6 +241,7 @@ thread_init(void *mem, int size, int flags)
 	cpu_thread_setup(td);
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
+	td->td_umtxq = umtxq_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
 	sched_newthread(td);
 	return (0);
@@ -259,6 +261,7 @@ thread_fini(void *mem, int size)
 	td = (struct thread *)mem;
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
+	umtxq_free(td->td_umtxq);
 	vm_thread_dispose(td);
 
 	STAILQ_FOREACH(bmp, &tid_bitmap, bmp_next) {
