@@ -1,0 +1,329 @@
+<!-- $Id: m_kerberos.sgml,v 1.1 1995/04/10 02:36:02 jfieber Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>Kerberos</heading>
+
+<p><em>Contributed by &a.md;.</em>
+
+      <p>The following instructions can be used as a quick
+	guide on how to set up kerberos as distributed in 4.4
+	BSD.  However, you should refer to the original Athena
+	documentation for a complete description.
+
+    <sect1>
+      <heading>Creating the initial database</heading>
+
+      <p>First make sure that you don't have any old kerberos
+	databases around.  You should change to the directory
+	<tt>/etc/kerberosIV</tt> and check that only the
+	following files are present:
+
+<tscreen><verb>
+mideon# cd /etc/kerberosIV
+mideon# ls
+README          krb.conf        krb.realms      register_keys
+	  </verb></tscreen>
+
+	If any additional files (such as <tt>principal.dir</tt>) exist,
+	then use the <tt>kdb_destroy</tt> command to destroy the
+	old kerberos database.
+
+      <p>You should now edit the <tt>krb.conf</tt> and
+	<tt>krb.realms</tt> files to define your kerberos realm.
+	In this case the realm will be <it>BSC.NO</it> and the
+	server is <it>mideon.bsc.no</it>.  We would edit the
+	<tt>krb.conf</tt> file to be as follows:
+
+<tscreen><verb>
+mideon# cat krb.conf
+BSC.NO
+BSC.NO mideon.bsc.no admin server
+CS.BERKELEY.EDU okeeffe.berkeley.edu
+ATHENA.MIT.EDU kerberos.mit.edu
+ATHENA.MIT.EDU kerberos-1.mit.edu
+ATHENA.MIT.EDU kerberos-2.mit.edu
+ATHENA.MIT.EDU kerberos-3.mit.edu
+LCS.MIT.EDU kerberos.lcs.mit.edu
+TELECOM.MIT.EDU bitsy.mit.edu
+ARC.NASA.GOV trident.arc.nasa.gov
+	  </verb></tscreen>
+
+      <p>Now we have to add <it>mideon.bsc.no</it> to the
+	<it>BSC.NO</it> realm and also add an entry to put all
+	hosts in the <it>.bsc.no</it> domain in the
+	<it>BSC.NO</it> realm.  The <tt>krb.realms</tt> file
+	would be updated as follows:
+
+<tscreen><verb>
+ mideon# cat krb.realms
+ mideon.bsc.no   BSC.NO
+ .bsc.no         BSC.NO
+ .berkeley.edu   CS.BERKELEY.EDU
+ .MIT.EDU        ATHENA.MIT.EDU
+ .mit.edu        ATHENA.MIT.EDU
+</verb></tscreen>
+
+	<p>Now we're ready to create the database, issue the
+	<tt>kdb_init</tt> command to do this:
+
+<tscreen><verb>
+mideon# kdb_init
+Realm name [default  CS.BERKELEY.EDU ]: BSC.NO
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+
+Enter Kerberos master key: 
+	  </verb></tscreen>
+
+      <p>Now we have to save the key so that servers on the local
+	machine can pick it up.  Use the <tt>kstash</tt> command to
+	do this.
+
+<tscreen><verb>
+mideon# kstash
+
+Enter Kerberos master key: 
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+	  </verb></tscreen>
+
+    <sect1>
+      <heading>Populating the database</heading>
+
+      <p>We now have to add some entries into the database.
+	First lets create an entry for the user <it>md</it>.  Use
+	the <tt>kdb_edit</tt> command to do this:
+
+<tscreen><verb>
+mideon# kdb_edit
+Opening database...
+
+Enter Kerberos master key: 
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Previous or default values are in [brackets] ,
+enter return to leave the same, or new value.
+
+Principal name: md
+Instance: 
+md. not found, Create [y] ? 
+Principal: md, Instance: , kdc_key_ver: 1
+New Password: 
+New Password: 
+
+Principal's new key version = 1
+Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ? 
+Max ticket lifetime (*5 minutes) [ 255 ] ? 100
+Attributes [ 0 ] ? 
+Edit O.K.
+	  </verb></tscreen>
+
+      <p>Now lets add an entry for the password changing daemon,
+	<tt>kpasswd</tt>.  The principal name must be <it>kpasswd</it> and
+	the instance must be the name of the local machine,
+	<it>mideon</it> in this case.  Similarily, we must also
+	add an entry for the principal  <it>rcmd</it> with an
+	instance equal to the hostname of the local machine.
+
+<tscreen><verb>
+Principal name: kpasswd
+Instance: mideon
+kpasswd.mideon not found, Create [y] ? 
+Principal: kpasswd, Instance: mideon, kdc_key_ver: 1
+New Password:                   <---- enter RANDOM here
+New Password:                   <---- and here
+Random password [y] ? 
+
+Principal's new key version = 1
+Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ? 
+Max ticket lifetime (*5 minutes) [ 255 ] ? 
+Attributes [ 0 ] ? 
+Edit O.K.
+Principal name: rcmd
+Instance: mideon
+rcmd.mideon not found, Create [y] ? 
+Principal: rcmd, Instance: mideon, kdc_key_ver: 1
+New Password:                   <---- enter RANDOM here
+New Password:                   <---- and here
+Random password [y] ? 
+
+Principal's new key version = 1
+Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ? 
+Max ticket lifetime (*5 minutes) [ 255 ] ? 
+Attributes [ 0 ] ? 
+Edit O.K.
+Principal name:                 <---- null entry here will cause an exit
+	  </verb></tscreen>
+
+      <sect1>
+	<heading>Creating the server file</heading>
+
+	<p>We now have to extract all the instances which define
+	  the services on this machine.  For this we use the
+	  <tt>ext_srvtab</tt> command.
+
+<tscreen><verb>
+mideon# ext_srvtab mideon
+
+Enter Kerberos master key: 
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Generating 'mideon-new-srvtab'....
+	    </verb></tscreen>
+
+	<p>Now, this command only generates a temporary file
+	  which must be renamed to <tt>srvtab</tt> so that all the
+	  server can pick it up.  Use the <tt>mv</tt> command to move it
+	  into place:
+
+<tscreen><verb>
+mideon# mv mideon-new-srvtab srvtab
+	    </verb></tscreen>
+
+    <sect1>
+      <heading>Testing it all out</heading>
+
+      <p>First we have to start the kerberos daemon:
+
+<tscreen><verb>
+mideon# kerberos &
+[1] 774
+mideon# Kerberos server starting
+        Sleep forever on error
+        Log file is /var/log/kerberos.log
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+
+Current Kerberos master key version is 1
+Local realm: BSC.NO
+	  </verb></tscreen>
+
+	Now we can try using the <tt>kinit</tt> command to get
+	tokens for the id <it>md</it> that we created above:
+
+<tscreen><verb>
+mideon# kinit md
+Kerberos Initialization for "md"
+Kerberos Password: 
+	  </verb></tscreen>
+
+	Try listing the tokens using <tt>klist</tt> to see if we
+	really have them:
+
+<tscreen><verb>
+mideon# klist
+Ticket file:    /tmp/tkt0
+Principal:      md@BSC.NO
+
+  Issued           Expires          Principal
+Mar 23 21:06:52  Mar 24 05:06:52  krbtgt.BSC.NO@BSC.NO
+	  </verb></tscreen>
+
+	And now try changing the password using <tt>passwd</tt>
+	to check if the kpasswd daemon can get authorisation to
+	the kerberos database:
+
+<tscreen><verb>
+mideon# passwd md
+Changing Kerberos password for md.@BSC.NO.
+Old Kerberos password:
+New Kerberos password:
+Retype new Kerberos password:
+Update complete.
+	  </verb></tscreen>
+
+    <sect1>
+      <heading>Adding <tt>su</tt> priviledges</heading>
+
+      <p>We should now add an id which is authorised to <tt>su</tt> to
+	<it>root</it>.  This is controlled by having an instance of
+	<it>root</it> associated with a principal.  Using
+	<tt>kdb_edit</tt> we can create the entry
+	<it>md.root</it> in the kerberos database:
+
+<tscreen><verb>
+mideon# kdb_edit
+Opening database...
+
+Enter Kerberos master key: 
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Previous or default values are in [brackets] ,
+enter return to leave the same, or new value.
+
+Principal name: md
+Instance: root
+md.admin not found, Create [y] ? 
+Principal: md, Instance: admin, kdc_key_ver: 1
+New Password: 
+New Password: 
+
+Principal's new key version = 1
+Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ? 
+Max ticket lifetime (*5 minutes) [ 255 ] ? 12
+Attributes [ 0 ] ? 
+Edit O.K.
+Principal name: 
+	  </verb></tscreen>
+
+	Now try getting tokens for it to make sure it works:
+
+<tscreen><verb>
+mideon# kinit md.root
+Kerberos Initialization for "md.root"
+Kerberos Password: 
+	  </verb></tscreen>
+
+	And list them to check expiry times:
+
+<tscreen><verb>
+mideon# klist
+Ticket file:    /tmp/tkt0
+Principal:      md.root@BSC.NO
+
+  Issued           Expires          Principal
+Mar 23 21:08:47  Mar 23 22:08:47  krbtgt.BSC.NO@BSC.NO
+mideon# 
+	  </verb></tscreen>
+
+	Now we need to add the user to root's <tt>.klogin</tt> file:
+
+<tscreen><verb>
+mideon# cat /root/.klogin
+md.root@BSC.NO
+	  </verb></tscreen>
+
+	Now try doing the <tt>su</tt>:
+
+<tscreen><verb>
+[md@mideon.bsc.no 10407] su
+Kerberos Password: 
+Warning: tgt not verified.
+	  </verb></tscreen>
+
+	and take a look at what tokens we have:
+
+<tscreen><verb>
+mideon# klist
+Ticket file:    /tmp/tkt_root_1250
+Principal:      md.root@BSC.NO
+
+  Issued           Expires          Principal
+Mar 23 22:09:59  Mar 23 22:19:59  krbtgt.BSC.NO@BSC.NO
+mideon# 
+	  </verb></tscreen>
+
+	Notice that with this setup each user has their own entry
+	for <tt>su</tt>'ing to root (the <it>user</it>.root entry
+	in kerberos).  This can allow you to give root access to
+	multiple users without the need to share a common root
+	password.
