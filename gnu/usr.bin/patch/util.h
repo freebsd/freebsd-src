@@ -74,15 +74,15 @@
 
 EXT char serrbuf[BUFSIZ];		/* buffer for stderr */
 
-char *fetchname();
-int move_file();
-void copy_file();
-void say();
-void fatal();
-void pfatal();
-int ask();
-char *savestr();
-void set_signals();
-void ignore_signals();
-void makedirs();
-char *basename();
+char	*fetchname(char *_at, int _strip_leading, int _assume_exists);
+int	 move_file(char *_from, char *_to);
+void	 copy_file(char *_from, char *_to);
+void	 say(/*const char *pat, long _arg1, long _arg2, long _arg3*/);
+void	 fatal();
+void	 pfatal();
+int	 ask(/*const char *pat, long _arg1, long _arg2, long _arg3*/);
+char	*savestr(char *_s);
+void	 set_signals(int _reset);
+void	 ignore_signals(void);
+void	 makedirs(/*char *_filename, bool _striplast*/);
+char	*basename();
