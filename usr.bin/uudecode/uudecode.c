@@ -63,7 +63,8 @@ static const char rcsid[] =
 #include <unistd.h>
 
 const char *filename;
-int cflag, iflag, pflag, sflag;
+char *outfile;
+int cflag, iflag, oflag, pflag, sflag;
 
 static void usage __P((void));
 int	decode __P((void));
@@ -76,18 +77,32 @@ main(argc, argv)
 {
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cips")) != -1) {
+	while ((ch = getopt(argc, argv, "cio:ps")) != -1) {
 		switch(ch) {
 		case 'c':
+			if (oflag)
+				usage();
 			cflag = 1; /* multiple uudecode'd files */
 			break;
 		case 'i':
 			iflag = 1; /* ask before override files */
 			break;
+		case 'o':
+			if (cflag || pflag || sflag)
+				usage();
+			oflag = 1; /* output to the specified file */
+			sflag = 1; /* do not strip pathnames for output */
+			outfile = optarg; /* set the output filename */
+			break;
 		case 'p':
+			if (oflag)
+				usage();
+			warnx("-p is deprecated, use `-o /dev/stdout' instead.");
 			pflag = 1; /* print output to stdout */
 			break;
 		case 's':
+			if (oflag)
+				usage();
 			sflag = 1; /* do not strip pathnames for output */
 			break;
 		default:
@@ -158,7 +173,14 @@ decode2(flag)
 	} while (strncmp(buf, "begin ", 6) || 
 		 fnmatch("begin [0-7]* *", buf, 0));
 
-	(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
+	if (oflag) {
+		(void)sscanf(buf, "begin %o ", &mode);
+		if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf)) {
+			warnx("%s: filename too long", outfile);
+			return (1);
+		}
+	} else
+		(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
 
 	if (!sflag && !pflag) {
 		strncpy(buffn, buf, sizeof(buffn)); 
@@ -287,5 +309,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage: uudecode [-cips] [file ...]\n");
+	(void)fprintf(stderr, "usage: uudecode [-i] -o output_file [file]\n");
 	exit(1);
 }
