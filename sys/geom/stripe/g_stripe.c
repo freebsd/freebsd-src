@@ -1128,37 +1128,38 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	struct g_stripe_softc *sc;
 
 	sc = gp->softc;
-	if (sc == NULL || pp == NULL)
+	if (sc == NULL)
 		return;
-	sbuf_printf(sb, "%s<id>%u</id>\n", indent, (u_int)sc->sc_id);
-	sbuf_printf(sb, "%s<stripesize>%u</stripesize>\n", indent,
-	    (u_int)sc->sc_stripesize);
-	switch (sc->sc_type) {
-	case G_STRIPE_TYPE_AUTOMATIC:
-		sbuf_printf(sb, "%s<type>%s</type>\n", indent, "automatic");
-		break;
-	case G_STRIPE_TYPE_MANUAL:
-		sbuf_printf(sb, "%s<type>%s</type>\n", indent, "manual");
-		break;
-	default:
-		sbuf_printf(sb, "%s<type>%s</type>\n", indent, "unknown");
-		break;
+	if (pp != NULL) {
+		/* Nothing here. */
+	} else if (cp != NULL) {
+		/* Nothing here. */
+	} else {
+		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
+		sbuf_printf(sb, "%s<Stripesize>%u</Stripesize>\n", indent,
+		    (u_int)sc->sc_stripesize);
+		sbuf_printf(sb, "%s<Type>", indent);
+		switch (sc->sc_type) {
+		case G_STRIPE_TYPE_AUTOMATIC:
+			sbuf_printf(sb, "AUTOMATIC");
+			break;
+		case G_STRIPE_TYPE_MANUAL:
+			sbuf_printf(sb, "MANUAL");
+			break;
+		default:
+			sbuf_printf(sb, "UNKNOWN");
+			break;
+		}
+		sbuf_printf(sb, "</Type>\n");
+		sbuf_printf(sb, "%s<Status>Total=%u, Online=%u</Status>\n",
+		    indent, sc->sc_ndisks, g_stripe_nvalid(sc));
+		sbuf_printf(sb, "%s<State>", indent);
+		if (sc->sc_provider != NULL && sc->sc_provider->error == 0)
+			sbuf_printf(sb, "UP");
+		else
+			sbuf_printf(sb, "DOWN");
+		sbuf_printf(sb, "</State>\n");
 	}
-	sbuf_printf(sb, "%s<providers>", indent);
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
-		if (cp->provider == NULL)
-			continue;
-		sbuf_printf(sb, "%s", cp->provider->name);
-		if (LIST_NEXT(cp, consumer) != NULL)
-			sbuf_printf(sb, " ");
-	}
-	sbuf_printf(sb, "</providers>\n");
-	sbuf_printf(sb, "%s<status>total=%u, online=%u</status>\n", indent,
-	    sc->sc_ndisks, g_stripe_nvalid(sc));
-	if (pp->error == 0)
-		sbuf_printf(sb, "%s<state>UP</state>\n", indent);
-	else
-		sbuf_printf(sb, "%s<state>DOWN</state>\n", indent);
 }
 
 DECLARE_GEOM_CLASS(g_stripe_class, g_stripe);
