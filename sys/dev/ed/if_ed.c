@@ -1006,18 +1006,16 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
 	ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
 
-	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
-	/* could be either an NE1000 or a Linksys ethernet controller */
-		linksys = ed_get_Linksys(sc);
-		if (linksys) {
-			outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-			sc->isa16bit = 1;
-			sc->type = ED_TYPE_NE2000;
-			sc->type_str = "Linksys";
-		} else {
-			sc->type = ED_TYPE_NE1000;
-			sc->type_str = "NE1000";
-		}
+	/* Check for Linksys first. */
+	linksys = ed_get_Linksys(sc);
+	if (linksys) {
+		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+		sc->isa16bit = 1;
+		sc->type = ED_TYPE_NE2000;
+		sc->type_str = "Linksys";
+	} else if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+		sc->type = ED_TYPE_NE1000;
+		sc->type_str = "NE1000";
 	} else {
 
 		/* neither an NE1000 nor a Linksys - try NE2000 */
