@@ -349,18 +349,15 @@ static const struct ng_cmdlist ng_ppp_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_ppp_typestruct = {
-	NG_ABI_VERSION,
-	NG_PPP_NODE_TYPE,
-	NULL,
-	ng_ppp_constructor,
-	ng_ppp_rcvmsg,
-	ng_ppp_shutdown,
-	ng_ppp_newhook,
-	NULL,
-	NULL,
-	ng_ppp_rcvdata,
-	ng_ppp_disconnect,
-	ng_ppp_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_PPP_NODE_TYPE,
+	.constructor =	ng_ppp_constructor,
+	.rcvmsg =	ng_ppp_rcvmsg,
+	.shutdown =	ng_ppp_shutdown,
+	.newhook =	ng_ppp_newhook,
+	.rcvdata =	ng_ppp_rcvdata,
+	.disconnect =	ng_ppp_disconnect,
+	.cmdlist =	ng_ppp_cmds,
 };
 NETGRAPH_INIT(ppp, &ng_ppp_typestruct);
 

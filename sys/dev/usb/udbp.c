@@ -196,18 +196,16 @@ Static const struct ng_cmdlist ng_udbp_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 Static struct ng_type ng_udbp_typestruct = {
-	NG_ABI_VERSION,
-	NG_UDBP_NODE_TYPE,
-	NULL,
-	ng_udbp_constructor,
-	ng_udbp_rcvmsg,
-	ng_udbp_rmnode,
-	ng_udbp_newhook,
-	NULL,
-	ng_udbp_connect,
-	ng_udbp_rcvdata,
-	ng_udbp_disconnect,
-	ng_udbp_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_UDBP_NODE_TYPE,
+	.constructor =	ng_udbp_constructor,
+	.rcvmsg =	ng_udbp_rcvmsg,
+	.shutdown =	ng_udbp_rmnode,
+	.newhook =	ng_udbp_newhook,
+	.connect =	ng_udbp_connect,
+	.rcvdata =	ng_udbp_rcvdata,
+	.disconnect =	ng_udbp_disconnect,
+	.cmdlist =	ng_udbp_cmdlist,
 };
 
 Static int udbp_setup_in_transfer	(udbp_p sc);

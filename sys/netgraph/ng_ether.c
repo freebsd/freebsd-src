@@ -169,18 +169,17 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 };
 
 static struct ng_type ng_ether_typestruct = {
-	NG_ABI_VERSION,
-	NG_ETHER_NODE_TYPE,
-	ng_ether_mod_event,
-	ng_ether_constructor,
-	ng_ether_rcvmsg,
-	ng_ether_shutdown,
-	ng_ether_newhook,
-	NULL,
-	ng_ether_connect,
-	ng_ether_rcvdata,
-	ng_ether_disconnect,
-	ng_ether_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ETHER_NODE_TYPE,
+	.mod_event =	ng_ether_mod_event,
+	.constructor =	ng_ether_constructor,
+	.rcvmsg =	ng_ether_rcvmsg,
+	.shutdown =	ng_ether_shutdown,
+	.newhook =	ng_ether_newhook,
+	.connect =	ng_ether_connect,
+	.rcvdata =	ng_ether_rcvdata,
+	.disconnect =	ng_ether_disconnect,
+	.cmdlist =	ng_ether_cmdlist,
 };
 MODULE_VERSION(ng_ether, 1);
 NETGRAPH_INIT(ether, &ng_ether_typestruct);

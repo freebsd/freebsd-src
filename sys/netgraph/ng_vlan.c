@@ -114,18 +114,15 @@ static const struct ng_cmdlist ng_vlan_cmdlist[] = {
 };
 
 static struct ng_type ng_vlan_typestruct = {
-	NG_ABI_VERSION,
-	NG_VLAN_NODE_TYPE,
-	NULL,
-	ng_vlan_constructor,
-	ng_vlan_rcvmsg,
-	ng_vlan_shutdown,
-	ng_vlan_newhook,
-	NULL,
-	NULL,
-	ng_vlan_rcvdata,
-	ng_vlan_disconnect,
-	ng_vlan_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_VLAN_NODE_TYPE,
+	.constructor =	ng_vlan_constructor,
+	.rcvmsg =	ng_vlan_rcvmsg,
+	.shutdown =	ng_vlan_shutdown,
+	.newhook =	ng_vlan_newhook,
+	.rcvdata =	ng_vlan_rcvdata,
+	.disconnect =	ng_vlan_disconnect,
+	.cmdlist =	ng_vlan_cmdlist,
 };
 NETGRAPH_INIT(vlan, &ng_vlan_typestruct);
 

@@ -198,18 +198,15 @@ static const struct ng_cmdlist ng_iface_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_IFACE_NODE_TYPE,
-	NULL,
-	ng_iface_constructor,
-	ng_iface_rcvmsg,
-	ng_iface_shutdown,
-	ng_iface_newhook,
-	NULL,
-	NULL,
-	ng_iface_rcvdata,
-	ng_iface_disconnect,
-	ng_iface_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_IFACE_NODE_TYPE,
+	.constructor =	ng_iface_constructor,
+	.rcvmsg =	ng_iface_rcvmsg,
+	.shutdown =	ng_iface_shutdown,
+	.newhook =	ng_iface_newhook,
+	.rcvdata =	ng_iface_rcvdata,
+	.disconnect =	ng_iface_disconnect,
+	.cmdlist =	ng_iface_cmds,
 };
 NETGRAPH_INIT(iface, &typestruct);
 

@@ -156,18 +156,16 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_PPPOE_NODE_TYPE,
-	NULL,
-	ng_pppoe_constructor,
-	ng_pppoe_rcvmsg,
-	ng_pppoe_shutdown,
-	ng_pppoe_newhook,
-	NULL,
-	ng_pppoe_connect,
-	ng_pppoe_rcvdata,
-	ng_pppoe_disconnect,
-	ng_pppoe_cmds
+	.version =	NG_ABI_VERSION,
+	.name =		NG_PPPOE_NODE_TYPE,
+	.constructor =	ng_pppoe_constructor,
+	.rcvmsg =	ng_pppoe_rcvmsg,
+	.shutdown =	ng_pppoe_shutdown,
+	.newhook =	ng_pppoe_newhook,
+	.connect =	ng_pppoe_connect,
+	.rcvdata =	ng_pppoe_rcvdata,
+	.disconnect =	ng_pppoe_disconnect,
+	.cmdlist =	ng_pppoe_cmds,
 };
 NETGRAPH_INIT(pppoe, &typestruct);
 /* Depend on ng_ether so we can use the Ethernet parse type */

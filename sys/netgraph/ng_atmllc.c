@@ -64,18 +64,14 @@ static ng_rcvdata_t		ng_atmllc_rcvdata;
 static ng_disconnect_t		ng_atmllc_disconnect;
 
 static struct ng_type ng_atmllc_typestruct = {
-	NG_ABI_VERSION,	
-	NG_ATMLLC_NODE_TYPE,
-	NULL,
-	ng_atmllc_constructor,
-	ng_atmllc_rcvmsg,
-	ng_atmllc_shutdown,
-	ng_atmllc_newhook,
-	NULL,
-	NULL,
-	ng_atmllc_rcvdata,
-	ng_atmllc_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,	
+	.name =		NG_ATMLLC_NODE_TYPE,
+	.constructor =	ng_atmllc_constructor,
+	.rcvmsg =	ng_atmllc_rcvmsg,
+	.shutdown =	ng_atmllc_shutdown,
+	.newhook =	ng_atmllc_newhook,
+	.rcvdata =	ng_atmllc_rcvdata,
+	.disconnect =	ng_atmllc_disconnect,
 };
 NETGRAPH_INIT(atmllc, &ng_atmllc_typestruct);
 

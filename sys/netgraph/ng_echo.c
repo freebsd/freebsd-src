@@ -63,18 +63,12 @@ static ng_disconnect_t	nge_disconnect;
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_ECHO_NODE_TYPE,
-	NULL,
-	nge_cons,
-	nge_rcvmsg,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	nge_rcvdata,
-	nge_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ECHO_NODE_TYPE,
+	.constructor =	nge_cons,
+	.rcvmsg =	nge_rcvmsg,
+	.rcvdata =	nge_rcvdata,
+	.disconnect =	nge_disconnect,
 };
 NETGRAPH_INIT(echo, &typestruct);
 

@@ -148,18 +148,16 @@ static ng_rcvdata_t	ng_sscfu_rcvlower;
 static int ng_sscfu_mod_event(module_t, int, void *);
 
 static struct ng_type ng_sscfu_typestruct = {
-	NG_ABI_VERSION,
-	NG_SSCFU_NODE_TYPE,
-	ng_sscfu_mod_event,	/* Module event handler (optional) */
-	ng_sscfu_constructor,	/* Node constructor */
-	ng_sscfu_rcvmsg,	/* control messages come here */
-	ng_sscfu_shutdown,	/* reset, and free resources */
-	ng_sscfu_newhook,	/* first notification of new hook */
-	NULL,			/* findhook */
-	NULL,			/* connect */
-	ng_sscfu_rcvupper,	/* rcvdata */
-	ng_sscfu_disconnect,	/* notify on disconnect */
-	ng_sscfu_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_SSCFU_NODE_TYPE,
+	.mod_event =	ng_sscfu_mod_event,
+	.constructor =	ng_sscfu_constructor,
+	.rcvmsg =	ng_sscfu_rcvmsg,
+	.shutdown =	ng_sscfu_shutdown,
+	.newhook =	ng_sscfu_newhook,
+	.rcvdata =	ng_sscfu_rcvupper,
+	.disconnect =	ng_sscfu_disconnect,
+	.cmdlist =	ng_sscfu_cmdlist,
 };
 NETGRAPH_INIT(sscfu, &ng_sscfu_typestruct);
 

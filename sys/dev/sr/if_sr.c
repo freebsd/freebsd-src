@@ -273,18 +273,15 @@ static ng_rcvdata_t	ngsr_rcvdata;
 static ng_disconnect_t	ngsr_disconnect;
 
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_SR_NODE_TYPE,
-	NULL,
-	ngsr_constructor,
-	ngsr_rcvmsg,
-	ngsr_shutdown,
-	ngsr_newhook,
-	NULL,
-	ngsr_connect,
-	ngsr_rcvdata,
-	ngsr_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_SR_NODE_TYPE,
+	.constructor =	ngsr_constructor,
+	.rcvmsg =	ngsr_rcvmsg,
+	.shutdown =	ngsr_shutdown,
+	.newhook =	ngsr_newhook,
+	.connect =	ngsr_connect,
+	.rcvdata =	ngsr_rcvdata,
+	.disconnect =	ngsr_disconnect,
 };
 
 static int	ngsr_done_init = 0;

@@ -274,18 +274,15 @@ static const struct ng_cmdlist ng_l2tp_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_l2tp_typestruct = {
-	NG_ABI_VERSION,
-	NG_L2TP_NODE_TYPE,
-	NULL,
-	ng_l2tp_constructor,
-	ng_l2tp_rcvmsg,
-	ng_l2tp_shutdown,
-	ng_l2tp_newhook,
-	NULL,
-	NULL,
-	ng_l2tp_rcvdata,
-	ng_l2tp_disconnect,
-	ng_l2tp_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_L2TP_NODE_TYPE,
+	.constructor =	ng_l2tp_constructor,
+	.rcvmsg =	ng_l2tp_rcvmsg,
+	.shutdown =	ng_l2tp_shutdown,
+	.newhook =	ng_l2tp_newhook,
+	.rcvdata =	ng_l2tp_rcvdata,
+	.disconnect =	ng_l2tp_disconnect,
+	.cmdlist =	ng_l2tp_cmdlist,
 };
 NETGRAPH_INIT(l2tp, &ng_l2tp_typestruct);
 

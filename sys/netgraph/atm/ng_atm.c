@@ -324,18 +324,17 @@ static ng_rcvdata_t	ng_atm_rcvdata;
 static ng_rcvdata_t	ng_atm_rcvdrop;
 
 static struct ng_type ng_atm_typestruct = {
-	NG_ABI_VERSION,
-	NG_ATM_NODE_TYPE,
-	ng_atm_mod_event,	/* Module event handler (optional) */
-	ng_atm_constructor,	/* Node constructor */
-	ng_atm_rcvmsg,		/* control messages come here */
-	ng_atm_shutdown,	/* reset, and free resources */
-	ng_atm_newhook,		/* first notification of new hook */
-	NULL,			/* findhook */
-	ng_atm_connect,		/* connect */
-	ng_atm_rcvdata,		/* rcvdata */
-	ng_atm_disconnect,	/* notify on disconnect */
-	ng_atm_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ATM_NODE_TYPE,
+	.mod_event =	ng_atm_mod_event,
+	.constructor =	ng_atm_constructor,
+	.rcvmsg =	ng_atm_rcvmsg,
+	.shutdown =	ng_atm_shutdown,
+	.newhook =	ng_atm_newhook,
+	.connect =	ng_atm_connect,
+	.rcvdata =	ng_atm_rcvdata,
+	.disconnect =	ng_atm_disconnect,
+	.cmdlist =	ng_atm_cmdlist,
 };
 NETGRAPH_INIT(atm, &ng_atm_typestruct);
 

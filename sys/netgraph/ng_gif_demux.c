@@ -144,18 +144,15 @@ static const struct ng_cmdlist ng_gif_demux_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_gif_demux_typestruct = {
-	NG_ABI_VERSION,
-	NG_GIF_DEMUX_NODE_TYPE,
-	NULL,
-	ng_gif_demux_constructor,
-	ng_gif_demux_rcvmsg,
-	ng_gif_demux_shutdown,
-	ng_gif_demux_newhook,
-	NULL,
-	NULL,
-	ng_gif_demux_rcvdata,
-	ng_gif_demux_disconnect,
-	ng_gif_demux_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_GIF_DEMUX_NODE_TYPE,
+	.constructor =	ng_gif_demux_constructor,
+	.rcvmsg =	ng_gif_demux_rcvmsg,
+	.shutdown =	ng_gif_demux_shutdown,
+	.newhook =	ng_gif_demux_newhook,
+	.rcvdata =	ng_gif_demux_rcvdata,
+	.disconnect =	ng_gif_demux_disconnect,
+	.cmdlist =	ng_gif_demux_cmdlist,
 };
 NETGRAPH_INIT(gif_demux, &ng_gif_demux_typestruct);
 

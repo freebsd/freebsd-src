@@ -137,18 +137,13 @@ static int ngfrm_allocate_CTX(sc_p sc, int dlci);
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_FRAMERELAY_NODE_TYPE,
-	NULL,
-	ngfrm_constructor,
-	NULL,
-	ngfrm_shutdown,
-	ngfrm_newhook,
-	NULL,
-	NULL,
-	ngfrm_rcvdata,
-	ngfrm_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_FRAMERELAY_NODE_TYPE,
+	.constructor =	ngfrm_constructor,
+	.shutdown =	ngfrm_shutdown,
+	.newhook =	ngfrm_newhook,
+	.rcvdata =	ngfrm_rcvdata,
+	.disconnect =	ngfrm_disconnect,
 };
 NETGRAPH_INIT(framerelay, &typestruct);
 
