@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.20 1996/01/19 03:59:26 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.21 1996/06/25 03:00:44 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -163,7 +163,8 @@ READ(ap)
 	}
 	if (bp != NULL)
 		bqrelse(bp);
-	ip->i_flag |= IN_ACCESS;
+	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
 

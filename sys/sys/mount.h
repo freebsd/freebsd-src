@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.30 1995/12/22 16:02:39 phk Exp $
+ *	$Id: mount.h,v 1.31 1996/01/30 23:00:54 mpp Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -63,8 +63,7 @@ struct fid {
 #define MNAMELEN 90	/* length of buffer for returned name */
 
 struct statfs {
-	short	f_type;			/* type of filesystem (see below) */
-	short	f_flags;		/* copy of mount flags */
+	long	f_spare2;		/* placeholder */
 	long	f_bsize;		/* fundamental file system block size */
 	long	f_iosize;		/* optimal transfer block size */
 	long	f_blocks;		/* total data blocks in file system */
@@ -73,7 +72,10 @@ struct statfs {
 	long	f_files;		/* total file nodes in file system */
 	long	f_ffree;		/* free file nodes in fs */
 	fsid_t	f_fsid;			/* file system id */
-	long	f_spare[9];		/* spare for later */
+	uid_t	f_owner;		/* user that mounted the filesystem */
+	int	f_type;			/* type of filesystem (see below) */
+	int	f_flags;		/* copy of mount flags */
+	long	f_spare[6];		/* spare for later */
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
 	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
 };
@@ -156,6 +158,7 @@ struct mount {
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
+#define	MNT_NOATIME	0x10000000	/* Disable update of file access times */
 
 /*
  * exported mount flags.
@@ -177,7 +180,10 @@ struct mount {
 /*
  * Mask of flags that are visible to statfs()
  */
-#define	MNT_VISFLAGMASK	0x0000ffff
+#define	MNT_VISFLAGMASK	(MNT_RDONLY|MNT_SYNCHRONOUS|MNT_NOEXEC|MNT_NOSUID| \
+			 MNT_NODEV|MNT_UNION|MNT_ASYNC|MNT_EXRDONLY|MNT_EXPORTED| \
+			 MNT_DEFEXPORTED|MNT_EXPORTANON|MNT_EXKERB|MNT_LOCAL| \
+			 MNT_QUOTA|MNT_ROOTFS|MNT_USER|MNT_NOATIME)
 
 /*
  * filesystem control flags.
