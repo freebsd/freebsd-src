@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.12 1999/06/23 15:01:21 dt Exp $
+ * $Id: uthread_init.c,v 1.17 1999/08/05 12:08:09 deischen Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -121,8 +121,9 @@ _thread_init(void)
 
 	/* Get the standard I/O flags before messing with them : */
 	for (i = 0; i < 3; i++)
-		if ((_pthread_stdio_flags[i] =
-		    _thread_sys_fcntl(i,F_GETFL, NULL)) == -1)
+		if (((_pthread_stdio_flags[i] =
+		    _thread_sys_fcntl(i,F_GETFL, NULL)) == -1) &&
+		    (errno != EBADF))
 			PANIC("Cannot get stdio flags");
 
 	/*
@@ -268,6 +269,9 @@ _thread_init(void)
 		}
 		/* Allocate memory for the file descriptor table: */
 		if ((_thread_fd_table = (struct fd_table_entry **) malloc(sizeof(struct fd_table_entry *) * _thread_dtablesize)) == NULL) {
+			/* Avoid accesses to file descriptor table on exit: */
+			_thread_dtablesize = 0;
+
 			/*
 			 * Cannot allocate memory for the file descriptor
 			 * table, so abort this process. 
@@ -292,11 +296,11 @@ _thread_init(void)
 			}
 
 			/* Initialize stdio file descriptor table entries: */
-			if ((_thread_fd_table_init(0) != 0) ||
-			    (_thread_fd_table_init(1) != 0) ||
-			    (_thread_fd_table_init(2) != 0)) {
-				PANIC("Cannot initialize stdio file descriptor "
-				    "table entries");
+			for (i = 0; i < 3; i++) {
+				if ((_thread_fd_table_init(i) != 0) &&
+				    (errno != EBADF))
+					PANIC("Cannot initialize stdio file "
+					    "descriptor table entry");
 			}
 		}
 	}
