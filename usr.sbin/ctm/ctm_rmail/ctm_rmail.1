@@ -21,7 +21,7 @@ deltas via mail
 .Ar ctm-delta
 .Ar mail-alias
 .Nm ctm_rmail
-.Op Fl Df
+.Op Fl Dfv
 .Op Fl l Ar log
 .Op Fl p Ar piecedir
 .Op Fl d Ar deltadir
@@ -47,9 +47,9 @@ optionally call
 .Xr ctm
 to apply it to the source tree.
 At the moment,
-only two source trees are distributed, and both by the same site.  These are
+several source trees are distributed, and by several sites.  These include
 the FreeBSD-current source and CVS trees, distributed by
-.Li ref.tfs.com .
+.Li freefall.FreeBSD.org .
 .Pp
 Command line arguments for
 .Nm ctm_smail :
@@ -148,6 +148,13 @@ Don't worry about zillions of background
 processes loading your machine, since locking is used to prevent more than one
 .Xr ctm
 invocation at a time.
+.It Fl v
+Pass the
+.Fl v
+flag to the
+.Xr ctm
+command when applying the complete deltas, causing a more informative
+output. Note that you need to make your own arrangements to capture it.
 .El
 .Pp
 The file arguments (or
