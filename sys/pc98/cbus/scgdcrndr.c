@@ -34,14 +34,10 @@
 #if NSC > 0 && NGDC > 0
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <machine/console.h>
 #include <machine/md_var.h>
-
-#include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>

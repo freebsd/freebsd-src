@@ -39,7 +39,6 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
 
 extern	int Maxmem;
