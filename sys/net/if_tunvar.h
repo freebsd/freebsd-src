@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id$
  */
 
 #ifndef _NET_IF_TUNVAR_H_
@@ -38,6 +38,7 @@ struct tun_softc {
 #define	TUN_DSTADDR	0x0010
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
+#define	TUN_NBIO	0x0100
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
