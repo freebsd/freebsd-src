@@ -210,6 +210,9 @@ A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
+.It Bq Er ENAMETOOLONG
+When invoking an interpreted script, the interpreter name
+exceeds MAXSHELLCMDLEN characters.
 .It Bq Er ENOENT
 The new process file does not exist.
 .It Bq Er ELOOP
