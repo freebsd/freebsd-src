@@ -1337,7 +1337,7 @@ ffs_findextattr(u_char *ptr, uint length, int nspace, const char *name, u_char *
 			*eac = p;
 		return (ealen);
 	}
-	return(0);
+	return(-1);
 }
 
 static int
@@ -1414,15 +1414,16 @@ vop_getextattr {
 		return (error);
 	easize = dp->di_extsize;
 	if (strlen(ap->a_name) > 0) {
-		error = ENOATTR;
 		ealen = ffs_findextattr(eae, easize,
 		    ap->a_attrnamespace, ap->a_name, NULL, &p);
-		if (ealen != 0) {
+		if (ealen >= 0) {
 			error = 0;
 			if (ap->a_size != NULL)
 				*ap->a_size = ealen;
 			else if (ap->a_uio != NULL)
 				error = uiomove(p, ealen, ap->a_uio);
+		} else {
+			error = ENOATTR;
 		}
 	} else {
 		error = 0;
@@ -1469,7 +1470,7 @@ vop_setextattr {
 	struct inode *ip;
 	struct fs *fs;
 	uint32_t ealength, ul;
-	int ealen, eacont, eapad1, eapad2, error, i, easize;
+	int ealen, olen, eacont, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
 	struct uio luio;
 	struct iovec liovec;
@@ -1489,7 +1490,7 @@ vop_setextattr {
 	dp = ip->i_din2;
 
 	/* Calculate the length of the EA entry */
-	if (ap->a_uio == NULL || ap->a_uio->uio_resid == 0) {
+	if (ap->a_uio == NULL) {
 		/* delete */
 		ealength = eapad1 = ealen = eapad2 = eacont = 0;
 	} else {
@@ -1510,22 +1511,23 @@ vop_setextattr {
 		return (error);
 
 	easize = dp->di_extsize;
-	ul = ffs_findextattr(eae, easize,
+	olen = ffs_findextattr(eae, easize,
 	    ap->a_attrnamespace, ap->a_name, &p, NULL);
-	if (ul == 0 && ealength == 0) {
+	if (olen == -1 && ealength == 0) {
 		/* delete but nonexistent */
 		free(eae, M_TEMP);
 		return(ENOATTR);
-	} else if (ul == 0) {
+	} else if (olen == -1) {
 		/* new, append at end */
 		p = eae + easize;
 		easize += ealength;
-	} else if (ul != ealength) {
+	} else {
 		bcopy(p, &ul, sizeof ul);
 		i = p - eae + ul;
-		bcopy(p + ul, p + ealength, easize - i);
-		easize -= ul;
-		easize += ealength;
+		if (ul != ealength) {
+			bcopy(p + ul, p + ealength, easize - i);
+			easize += (ealength - ul);
+		}
 	}
 	if (easize > NXADDR * fs->fs_bsize) {
 		free(eae, M_TEMP);
