@@ -689,10 +689,11 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
-	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	INP_INFO_RUNLOCK(&udbinfo);
 	splx(s);
+	if (error == 0)
+		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
 }
 
