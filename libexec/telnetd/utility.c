@@ -35,6 +35,9 @@
 static char sccsid[] = "@(#)utility.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #define PRINTOPTIONS
 #include "telnetd.h"
 
@@ -399,12 +402,16 @@ putchr(cc)
 	*putlocation++ = cc;
 }
 
+#ifdef __FreeBSD__
+static char fmtstr[] = { "%+" };
+#else
 /*
  * This is split on two lines so that SCCS will not see the M
  * between two % signs and expand it...
  */
 static char fmtstr[] = { "%l:%M\
 %P on %A, %d %B %Y" };
+#endif
 
 	void
 putf(cp, where)
@@ -447,6 +454,9 @@ putf(cp, where)
 			break;
 
 		case 'd':
+#ifdef __FreeBSD__
+			setlocale(LC_TIME, "");
+#endif
 			(void)time(&t);
 			(void)strftime(db, sizeof(db), fmtstr, localtime(&t));
 			putstr(db);
