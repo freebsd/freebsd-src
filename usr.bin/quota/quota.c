@@ -449,7 +449,7 @@ getprivs(long id, int quotatype)
 
 	qup = quphead = (struct quotause *)0;
 
-	nfst = getmntinfo(&fst, MNT_WAIT);
+	nfst = getmntinfo(&fst, MNT_NOWAIT);
 	if (nfst == 0)
 		errx(2, "no filesystems mounted!");
 	setfsent();
@@ -593,6 +593,13 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
  
 	*cp = '\0';
 	if (*(cp+1) != '/') {
+		*cp = ':';
+		return (0);
+	}
+
+	/* Avoid attempting the RPC for special amd(8) filesystems. */
+	if (strncmp(fst->f_mntfromname, "pid", 3) == 0 &&
+	    strchr(fst->f_mntfromname, '@') != NULL) {
 		*cp = ':';
 		return (0);
 	}
