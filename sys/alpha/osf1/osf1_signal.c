@@ -210,8 +210,8 @@ bsd_to_osf1_sigaltstack(bss, oss)
 }
 
 int
-osf1_sigaction(p, uap)
-	struct proc *p;
+osf1_sigaction(td, uap)
+	struct thread *td;
 	struct osf1_sigaction_args *uap;
 {
 	int error;
@@ -226,7 +226,7 @@ osf1_sigaction(p, uap)
 	if (osf1_sigdbg && uap->sigtramp)
 		uprintf("osf1_sigaction: trampoline handler at %p\n",
 		    uap->sigtramp);
-		p->p_md.osf_sigtramp = uap->sigtramp;
+		td->td_md.osf_sigtramp = uap->sigtramp;
 	if (oosa != NULL)
 		obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 	else
@@ -245,7 +245,7 @@ osf1_sigaction(p, uap)
 	SCARG(&sa, act) = nbsa;
 	SCARG(&sa, oact) = obsa;
 
-	if ((error = sigaction(p, &sa)) != 0)
+	if ((error = sigaction(td, &sa)) != 0)
 		return error;
 
 	if (oosa != NULL) {
@@ -260,8 +260,8 @@ osf1_sigaction(p, uap)
 }
 
 int
-osf1_sigaltstack(p, uap)
-	register struct proc *p;
+osf1_sigaltstack(td, uap)
+	register struct thread *td;
 	struct osf1_sigaltstack_args *uap;
 {
 	int error;
@@ -292,7 +292,7 @@ osf1_sigaltstack(p, uap)
 	SCARG(&sa, ss) = nbss;
 	SCARG(&sa, oss) = obss;
 
-	if ((error = sigaltstack(p, &sa)) != 0)
+	if ((error = sigaltstack(td, &sa)) != 0)
 		return error;
 
 	if (obss != NULL) {
@@ -307,20 +307,22 @@ osf1_sigaltstack(p, uap)
 }
 
 int
-osf1_signal(p, uap)
-	register struct proc *p;
+osf1_signal(td, uap)
+	register struct thread *td;
 	struct osf1_signal_args *uap;
 {
+	struct proc *p;
 	int error, signum;
 	caddr_t sg;
 
+	p = td->td_proc;
 	sg = stackgap_init();
 
 	signum = OSF1_SIGNO(SCARG(uap, signum));
 	if (signum <= 0 || signum > OSF1_NSIG) {
 		if (OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGNAL_MASK ||
 		    OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGDEFER_MASK)
-			p->p_retval[0] = -1;
+			td->td_retval[0] = -1;
 		return EINVAL;
 	}
 
@@ -344,7 +346,7 @@ osf1_signal(p, uap)
 			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&mask, bmask, sizeof(mask))) != 0)
 				return (error);
-			return sigprocmask(p, &sa);
+			return sigprocmask(td, &sa);
 		}
 		/* FALLTHROUGH */
 
@@ -368,15 +370,15 @@ osf1_signal(p, uap)
 #endif
 			if ((error = copyout(&sa, nbsa, sizeof(sa))) != 0)
 				return error;
-			if ((error = sigaction(p, &sa_args)) != 0) {
+			if ((error = sigaction(td, &sa_args)) != 0) {
 				DPRINTF("signal: sigaction failed: %d\n",
 					 error);
-				p->p_retval[0] = -1;
+				td->td_retval[0] = -1;
 				return error;
 			}
 			if ((error = copyin(obsa, &sa, sizeof(sa))) != 0)
 				return error;
-			p->p_retval[0] = (long)sa.sa_handler;
+			td->td_retval[0] = (long)sa.sa_handler;
 			return 0;
 		}
 
@@ -394,7 +396,7 @@ osf1_signal(p, uap)
 			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&set, bset, sizeof(set))) != 0)
 				return (error);
-			return sigprocmask(p, &sa);
+			return sigprocmask(td, &sa);
 		}
 
 	case OSF1_SIGRELSE_MASK:
@@ -411,7 +413,7 @@ osf1_signal(p, uap)
 			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&set, bset, sizeof(set))) != 0)
 				return (error);
-			return sigprocmask(p, &sa);
+			return sigprocmask(td, &sa);
 
 		}
 
@@ -430,7 +432,7 @@ osf1_signal(p, uap)
 			sa.sa_flags = 0;
 			if ((error = copyout(&sa, bsa, sizeof(sa))) != 0)
 				return error;
-			if ((error = sigaction(p, &sa_args)) != 0) {
+			if ((error = sigaction(td, &sa_args)) != 0) {
 				DPRINTF(("sigignore: sigaction failed\n"));
 				return error;
 			}
@@ -451,7 +453,7 @@ osf1_signal(p, uap)
 			SCARG(&sa, sigmask) = bmask;
 			if ((error = copyout(&set, bmask, sizeof(set))) != 0)
 				return (error);
-			return sigsuspend(p, &sa);
+			return sigsuspend(td, &sa);
 		}
 
 	default:
@@ -460,21 +462,23 @@ osf1_signal(p, uap)
 }
 
 int
-osf1_sigprocmask(p, uap)
-	register struct proc *p;
+osf1_sigprocmask(td, uap)
+	register struct thread *td;
 	struct osf1_sigprocmask_args /* {
 		syscallarg(int) how;
 		syscallarg(osf1_sigset_t *) set;
 	} */ *uap;
 {
+	struct proc *p;
 	int error;
 	osf1_sigset_t oss;
 	sigset_t bss;
 
+	p = td->td_proc;
 	error = 0;
 		/* Fix the return value first if needed */
 	bsd_to_osf1_sigset(&p->p_sigmask, &oss);
-	p->p_retval[0] = oss;
+	td->td_retval[0] = oss;
 
 	osf1_to_bsd_sigset(&uap->mask, &bss);
 
@@ -506,15 +510,17 @@ osf1_sigprocmask(p, uap)
 }
 
 int
-osf1_sigpending(p, uap)
-	register struct proc *p;
+osf1_sigpending(td, uap)
+	register struct thread *td;
 	struct osf1_sigpending_args /* {
 		syscallarg(osf1_sigset_t *) mask;
 	} */ *uap;
 {
+	struct proc *p;
 	osf1_sigset_t oss;
 	sigset_t bss;
 
+	p = td->td_proc;
 	PROC_LOCK(p);
 	bss = p->p_siglist;
 	SIGSETAND(bss, p->p_sigmask);
@@ -525,8 +531,8 @@ osf1_sigpending(p, uap)
 }
 
 int
-osf1_sigsuspend(p, uap)
-	register struct proc *p;
+osf1_sigsuspend(td, uap)
+	register struct thread *td;
 	struct osf1_sigsuspend_args /* {
 		syscallarg(osf1_sigset_t *) ss;
 	} */ *uap;
@@ -544,15 +550,14 @@ osf1_sigsuspend(p, uap)
 	oss = SCARG(uap, ss);
 	osf1_to_bsd_sigset(&oss, &bss);
 	SCARG(&sa, sigmask) = bmask;
-	if ((error = copyout(&bss, bmask, sizeof(bss))) != 0){
+	if ((error = copyout(&bss, bmask, sizeof(bss))) != 0)
 		return (error);
-	}
-	return sigsuspend(p, &sa);
+	return sigsuspend(td, &sa);
 }
 
 int
-osf1_kill(p, uap)
-	register struct proc *p;
+osf1_kill(td, uap)
+	register struct thread *td;
 	struct osf1_kill_args /* {
 		syscallarg(int) pid;
 		syscallarg(int) signum;
@@ -562,7 +567,7 @@ osf1_kill(p, uap)
 
 	SCARG(&ka, pid) = SCARG(uap, pid);
 	SCARG(&ka, signum) = SCARG(uap, signum);
-	return kill(p, &ka);
+	return kill(td, &ka);
 }
 
 
@@ -579,16 +584,18 @@ void
 osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	int fsize, oonstack, rndfsize;
+	struct thread *td;
 	struct proc *p;
 	osiginfo_t *sip, ksi;
 	struct trapframe *frame;
 	struct sigacts *psp;
 
-	p = curproc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(td, MA_OWNED);
 	psp = p->p_sigacts;
 
-	frame = p->p_frame;
+	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
@@ -632,16 +639,16 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
 
 	/* copy the registers. */
-	fill_regs(p, (struct reg *)ksi.si_sc.sc_regs);
+	fill_regs(td, (struct reg *)ksi.si_sc.sc_regs);
 	ksi.si_sc.sc_regs[R_ZERO] = 0xACEDBADE;		/* magic number */
 	ksi.si_sc.sc_regs[R_SP] = alpha_pal_rdusp();
 
 	/* save the floating-point state, if necessary, then copy it. */
-	alpha_fpstate_save(p, 1);		/* XXX maybe write=0 */
-	ksi.si_sc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
-	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
+	alpha_fpstate_save(td, 1);		/* XXX maybe write=0 */
+	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	bcopy(&td->td_pcb->pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
-	ksi.si_sc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	ksi.si_sc.sc_fp_control = td->td_pcb->pcb_fp_control;
 	bzero(ksi.si_sc.sc_reserved, sizeof ksi.si_sc.sc_reserved); /* XXX */
 	ksi.si_sc.sc_xxx1[0] = 0;				/* XXX */
 	ksi.si_sc.sc_xxx1[1] = 0;				/* XXX */
@@ -666,7 +673,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	if (osf1_sigdbg)
 		uprintf("attempting to call osf1 sigtramp\n");
-	frame->tf_regs[FRAME_PC] = (u_int64_t)p->p_md.osf_sigtramp;
+	frame->tf_regs[FRAME_PC] = (u_int64_t)td->td_md.osf_sigtramp;
 	frame->tf_regs[FRAME_A0] = sig;
 	frame->tf_regs[FRAME_A1] = code;
 	frame->tf_regs[FRAME_A2] = (u_int64_t)sip;
@@ -685,13 +692,15 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * improper privileges.
  */
 int
-osf1_sigreturn(struct proc *p,
+osf1_sigreturn(struct thread *td,
 	struct osf1_sigreturn_args /* {
 		struct osigcontext *sigcntxp;
 	} */ *uap)
 {
 	struct osigcontext ksc, *scp;
+	struct proc *p;
 
+	p = td->td_proc;
 	scp = uap->sigcntxp;
 	if (useracc((caddr_t)scp, sizeof (*scp), VM_PROT_READ) == 0 ) {
 		uprintf("uac fails\n");
@@ -723,28 +732,28 @@ osf1_sigreturn(struct proc *p,
 	SIG_CANTMASK(p->p_sigmask);
 	PROC_UNLOCK(p);
 
-	set_regs(p, (struct reg *)ksc.sc_regs);
-	p->p_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
-	p->p_frame->tf_regs[FRAME_PS] =
+	set_regs(td, (struct reg *)ksc.sc_regs);
+	td->td_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
+	td->td_frame->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
-	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	td->td_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
 	/* XXX ksc.sc_ownedfp ? */
-	alpha_fpstate_drop(p);
-	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
+	alpha_fpstate_drop(td);
+	bcopy((struct fpreg *)ksc.sc_fpregs, &td->td_pcb->pcb_fp,
 	    sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
+	td->td_pcb->pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
 }
 
 extern int
-osigstack(struct proc *p, struct osf1_osigstack_args *uap);
+osigstack(struct thread *td, struct osf1_osigstack_args *uap);
 
 int
-osf1_osigstack(p, uap)
-	register struct proc *p;
+osf1_osigstack(td, uap)
+	register struct thread *td;
 	struct osf1_osigstack_args /* {
 					struct sigstack *nss;
 					struct sigstack *oss;
@@ -753,5 +762,5 @@ osf1_osigstack(p, uap)
 
 /*	uprintf("osf1_osigstack: oss = %p, nss = %p",uap->oss, uap->nss);
 	uprintf(" stack ptr = %p\n",p->p_sigacts->ps_sigstk.ss_sp);*/
-	return(osigstack(p, uap));
+	return(osigstack(td, uap));
 }

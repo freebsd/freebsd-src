@@ -104,8 +104,8 @@ static const char osf1_emul_path[] = "/compat/osf1";
  * be in exists.
  */
 int
-osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
-	struct proc	*p;
+osf1_emul_find(td, sgp, prefix, path, pbuf, cflag)
+	struct thread	*td;
 	caddr_t		*sgp;          /* Pointer to stackgap memory */
 	const char	*prefix;
 	char		*path;
@@ -115,6 +115,7 @@ osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
         int			error;
         size_t			len, sz;
         char			*buf, *cp, *ptr;
+	struct ucred		*ucred;
         struct nameidata	nd;
         struct nameidata	ndroot;
         struct vattr		vat;
@@ -159,7 +160,7 @@ osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			;
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -168,7 +169,7 @@ osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
 
 		*cp = '/';
 	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -184,7 +185,7 @@ osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * to the emulation root directory. This is expensive :-(
 		 */
 		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, osf1_emul_path,
-		    p);
+		    td);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
@@ -193,12 +194,13 @@ osf1_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			return error;
 		}
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
+		ucred = td->td_proc->p_ucred;
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, ucred, td)) != 0) {
 			goto bad;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
-		    != 0) {
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, ucred,
+		    td)) != 0) {
 			goto bad;
 		}
 
@@ -233,8 +235,8 @@ bad:
 
 
 int
-osf1_open(p, uap)
-	struct proc *p;
+osf1_open(td, uap)
+	struct thread *td;
 	struct osf1_open_args *uap;
 {
 	struct open_args /* {
@@ -245,20 +247,20 @@ osf1_open(p, uap)
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, uap->path);
+	CHECKALTEXIST(td, &sg, uap->path);
 
 	SCARG(&a, path) = SCARG(uap, path);
 	SCARG(&a, flags) = SCARG(uap, flags);		/* XXX translate */
 	SCARG(&a, mode) = SCARG(uap, mode);
 
-	return open(p, &a);
+	return open(td, &a);
 }
 
 extern int totalphysmem;
 
 int
-osf1_getsysinfo(p, uap)
-	struct proc *p;
+osf1_getsysinfo(td, uap)
+	struct thread *td;
 	struct osf1_getsysinfo_args *uap;
 {
 	int error, retval;
@@ -290,8 +292,8 @@ osf1_getsysinfo(p, uap)
 		retval = 1;
 		break;
 	case OSF_GET_IEEE_FP_CONTROL:
-		error = copyout(&p->p_addr->u_pcb.pcb_fp_control,uap->buffer,
-		    sizeof(p->p_addr->u_pcb.pcb_fp_control));
+		error = copyout(&td->td_pcb->pcb_fp_control,uap->buffer,
+		    sizeof(td->td_pcb->pcb_fp_control));
 		retval = 1;
 		break;
 	case OSF_GET_CPU_INFO:
@@ -351,14 +353,14 @@ osf1_getsysinfo(p, uap)
 		printf("osf1_getsysinfo called with unknown op=%ld\n", uap->op);
 		return EINVAL;
 	}
-	p->p_retval[0] = retval;
+	td->td_retval[0] = retval;
 	return(error);
 }
 
 
 int
-osf1_setsysinfo(p, uap)
-	struct proc *p;
+osf1_setsysinfo(td, uap)
+	struct thread *td;
 	struct osf1_setsysinfo_args *uap;
 {
 	int error;
@@ -372,7 +374,7 @@ osf1_setsysinfo(p, uap)
 
 		if ((error = copyin(uap->buffer, &temp, sizeof(temp))))
 			break;
-		fp_control = &p->p_addr->u_pcb.pcb_fp_control;
+		fp_control = &td->td_pcb->pcb_fp_control;
 		*fp_control = temp & IEEE_TRAP_ENABLE_MASK;
 		break;
 	}
@@ -385,8 +387,8 @@ osf1_setsysinfo(p, uap)
 
 
 int
-osf1_getrlimit(p, uap)
-	struct proc *p;
+osf1_getrlimit(td, uap)
+	struct thread *td;
 	struct osf1_getrlimit_args *uap;
 {
 	struct __getrlimit_args /* {
@@ -405,13 +407,13 @@ osf1_getrlimit(p, uap)
 		return (0);
 	SCARG(&a, rlp) = (struct rlimit *)SCARG(uap, rlp);
 
-	return getrlimit(p, &a);
+	return getrlimit(td, &a);
 }
 
 
 int
-osf1_setrlimit(p, uap)
-	struct proc *p;
+osf1_setrlimit(td, uap)
+	struct thread *td;
 	struct osf1_setrlimit_args  *uap;
 {
 	struct __setrlimit_args /* {
@@ -430,7 +432,7 @@ osf1_setrlimit(p, uap)
 		return (0);
 	SCARG(&a, rlp) = (struct rlimit *)SCARG(uap, rlp);
 
-	return setrlimit(p, &a);
+	return setrlimit(td, &a);
 }
 
 
@@ -439,11 +441,11 @@ osf1_setrlimit(p, uap)
  */
 
 int
-osf1_set_program_attributes(p, uap)
-	struct proc *p;
+osf1_set_program_attributes(td, uap)
+	struct thread *td;
 	struct osf1_set_program_attributes_args *uap;
 {
-	struct vmspace *vm = p->p_vmspace;
+	struct vmspace *vm = td->td_proc->p_vmspace;
 
 	vm->vm_taddr = (caddr_t)uap->text_start;
 	vm->vm_tsize = btoc(round_page(uap->text_len));
@@ -455,8 +457,8 @@ osf1_set_program_attributes(p, uap)
 
 
 int
-osf1_mmap(p, uap)
-	struct proc *p;
+osf1_mmap(td, uap)
+	struct thread *td;
 	struct osf1_mmap_args *uap;
 {
 	struct mmap_args /* {
@@ -501,7 +503,7 @@ osf1_mmap(p, uap)
 	 */
 		addr = round_page((vm_offset_t)0x10000UL);
 	len = (vm_offset_t)SCARG(&a, len);
-	map = &p->p_vmspace->vm_map;
+	map = &td->td_proc->p_vmspace->vm_map;
 	if (!vm_map_findspace(map, addr, len, &newaddr)) {
 		SCARG(&a,addr) = (caddr_t) newaddr;
 		SCARG(&a, flags) |= (MAP_FIXED);
@@ -542,7 +544,7 @@ osf1_mmap(p, uap)
 	SCARG(&a, prot) |= PROT_READ;
 
 
-	retval = mmap(p, &a);
+	retval = mmap(td, &a);
 #ifdef DEBUG
 	uprintf(
 	    "\nosf1_mmap: addr=%p (%p), len = 0x%lx, prot=0x%x, fd=%d, pad=0, pos=0x%lx",
@@ -554,8 +556,8 @@ osf1_mmap(p, uap)
 }
 
 int
-osf1_msync(p, uap)
-	struct proc *p;
+osf1_msync(td, uap)
+	struct thread *td;
 	struct osf1_msync_args *uap;
 {
 	struct msync_args a;
@@ -569,7 +571,7 @@ osf1_msync(p, uap)
 		SCARG(&a, flags) |= MS_SYNC;
 	if(SCARG(uap, flags) & OSF1_MS_INVALIDATE)
 		SCARG(&a, flags) |= MS_INVALIDATE;
-	return(msync(p, &a));
+	return(msync(td, &a));
 }
 
 struct osf1_stat {
@@ -598,8 +600,8 @@ struct osf1_stat {
  */
 /* ARGSUSED */
 int
-osf1_stat(p, uap)
-	struct proc *p;
+osf1_stat(td, uap)
+	struct thread *td;
 	struct osf1_stat_args *uap;
 {
 	int error;
@@ -610,13 +612,13 @@ osf1_stat(p, uap)
 
 	sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, uap->path);
+	CHECKALTEXIST(td, &sg, uap->path);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), p);
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, p);
+	error = vn_stat(nd.ni_vp, &sb, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -631,8 +633,8 @@ osf1_stat(p, uap)
  */
 /* ARGSUSED */
 int
-osf1_lstat(p, uap)
-	struct proc *p;
+osf1_lstat(td, uap)
+	struct thread *td;
 	register struct osf1_lstat_args *uap;
 {
 	struct stat sb;
@@ -641,13 +643,13 @@ osf1_lstat(p, uap)
 	struct nameidata nd;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, uap->path);
+	CHECKALTEXIST(td, &sg, uap->path);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), p);
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, p);
+	error = vn_stat(nd.ni_vp, &sb, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -661,21 +663,22 @@ osf1_lstat(p, uap)
  *  Return status information about a file descriptor.
  */
 int
-osf1_fstat(p, uap)
-	struct proc *p;
+osf1_fstat(td, uap)
+	struct thread *td;
 	register struct osf1_fstat_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp;
 	register struct file *fp;
 	struct stat ub;
 	struct osf1_stat oub;
 	int error;
 
+	fdp = td->td_proc->p_fd;
 	if ((unsigned)SCARG(uap, fd) >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
 		return (EBADF);
 
-	error = fo_stat(fp, &ub, p);
+	error = fo_stat(fp, &ub, td);
 	cvtstat2osf1(&ub, &oub);
 	if (error == 0)
 		error = copyout((caddr_t)&oub, (caddr_t)SCARG(uap, sb),
@@ -725,8 +728,8 @@ cvtstat2osf1(st, ost)
 
 
 int
-osf1_mknod(p, uap)
-	struct proc *p;
+osf1_mknod(td, uap)
+	struct thread *td;
 	struct osf1_mknod_args *uap;
 {
 #if notanymore
@@ -734,13 +737,13 @@ osf1_mknod(p, uap)
 	caddr_t sg;
 
 	sg = stackgap_init();
-        CHECKALTEXIST(p, &sg, uap->path);
+        CHECKALTEXIST(td, &sg, uap->path);
 
 	SCARG(&a, path) = SCARG(uap, path);
 	SCARG(&a, mode) = SCARG(uap, mode);
 	SCARG(&a, dev) = osf2bsd_dev(SCARG(uap, dev));
 
-	return mknod(p, &a);
+	return mknod(td, &a);
 #endif
 	printf("osf1_mknod no longer implemented\n");
 	return ENOSYS;
@@ -748,16 +751,16 @@ osf1_mknod(p, uap)
 
 
 int
-osf1_access(p, uap)
-	struct proc *p;
+osf1_access(td, uap)
+	struct thread *td;
 	struct osf1_access_args *uap;
 {
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, uap->path);
+	CHECKALTEXIST(td, &sg, uap->path);
 
-	return access(p, (struct access_args *)uap);
+	return access(td, (struct access_args *)uap);
 }
 
 
@@ -770,8 +773,8 @@ struct osf1_flock   {
 	};
 
 int
-osf1_fcntl(p, uap)
-	struct proc *p;
+osf1_fcntl(td, uap)
+	struct thread *td;
 	struct osf1_fcntl_args *uap;
 {
 	int error;
@@ -810,7 +813,7 @@ osf1_fcntl(p, uap)
 		if ((long)SCARG(uap, arg) & OSF1_FSYNC)
 			tmp |= FFSYNC;
 		SCARG(&a, arg) = tmp;
-		error = fcntl(p, &a);
+		error = fcntl(td, &a);
 		break;
 
 	case F_SETLK:
@@ -834,7 +837,7 @@ osf1_fcntl(p, uap)
 			return error;
 		oarg = uap->arg;
 		uap->arg = nflock;
-		error = fcntl(p, (struct fcntl_args *) uap);
+		error = fcntl(td, (struct fcntl_args *) uap);
 /*		if (error) {
 			printf("fcntl called with cmd=%d, args=0x%lx\n returns %d\n",uap->cmd,(long)uap->arg,error);
 			printf("bsd_flock.l_type = 0x%x\n", bsd_flock.l_type);
@@ -852,29 +855,29 @@ osf1_fcntl(p, uap)
 		}
 		break;
 	default:
-		error = fcntl(p, (struct fcntl_args *) uap);
+		error = fcntl(td, (struct fcntl_args *) uap);
 
 		if ((uap->cmd == OSF1_F_GETFL) && !error ) {
-			tmp = p->p_retval[0] & O_ACCMODE;
-			if (p->p_retval[0] & FNONBLOCK)
+			tmp = td->td_retval[0] & O_ACCMODE;
+			if (td->td_retval[0] & FNONBLOCK)
 				tmp |= OSF1_FNONBLOCK;
-			if (p->p_retval[0] & FAPPEND)
+			if (td->td_retval[0] & FAPPEND)
 				tmp |= OSF1_FAPPEND;
-			if (p->p_retval[0] & FDEFER)
+			if (td->td_retval[0] & FDEFER)
 				tmp |= OSF1_FDEFER;
-			if (p->p_retval[0] & FASYNC)
+			if (td->td_retval[0] & FASYNC)
 				tmp |= OSF1_FASYNC;
-			if (p->p_retval[0] & O_CREAT)
+			if (td->td_retval[0] & O_CREAT)
 				tmp |= OSF1_FCREAT;
-			if (p->p_retval[0] & O_TRUNC)
+			if (td->td_retval[0] & O_TRUNC)
 				tmp |= OSF1_FTRUNC;
-			if (p->p_retval[0] & O_EXCL)
+			if (td->td_retval[0] & O_EXCL)
 				tmp |= OSF1_FEXCL;
-			if (p->p_retval[0] & FNDELAY)
+			if (td->td_retval[0] & FNDELAY)
 				tmp |= OSF1_FNDELAY;
-			if (p->p_retval[0] & FFSYNC)
+			if (td->td_retval[0] & FFSYNC)
 				tmp |= OSF1_FSYNC;
-			p->p_retval[0] = tmp;
+			td->td_retval[0] = tmp;
 		}
 	}
 
@@ -884,8 +887,8 @@ osf1_fcntl(p, uap)
 
 #if 0
 int
-osf1_fcntl(p, uap)
-	struct proc *p;
+osf1_fcntl(td, uap)
+	struct thread *td;
 	struct osf1_fcntl_args *uap;
 {
 	struct fcntl_args a;
@@ -934,7 +937,7 @@ osf1_fcntl(p, uap)
 		return (EINVAL);
 	}
 
-	error = fcntl(p, &a);
+	error = fcntl(td, &a);
 
 	if (error)
 		return error;
@@ -950,8 +953,8 @@ osf1_fcntl(p, uap)
 #endif
 
 int
-osf1_socket(p, uap)
-	struct proc *p;
+osf1_socket(td, uap)
+	struct thread *td;
 	struct osf1_socket_args *uap;
 {
 	struct socket_args a;
@@ -963,13 +966,13 @@ osf1_socket(p, uap)
 	SCARG(&a, type) = SCARG(uap, type);
 	SCARG(&a, protocol) = SCARG(uap, protocol);
 
-	return socket(p, &a);
+	return socket(td, &a);
 }
 
 
 int
-osf1_sendto(p, uap)
-	struct proc *p;
+osf1_sendto(td, uap)
+	struct thread *td;
 	register struct osf1_sendto_args *uap;
 {
 	struct sendto_args a;
@@ -984,13 +987,13 @@ osf1_sendto(p, uap)
 	SCARG(&a, to) = (caddr_t)SCARG(uap, to);
 	SCARG(&a, tolen) = SCARG(uap, tolen);
 
-	return sendto(p, &a);
+	return sendto(td, &a);
 }
 
 
 int
-osf1_reboot(p, uap)
-	struct proc *p;
+osf1_reboot(td, uap)
+	struct thread *td;
 	struct osf1_reboot_args *uap;
 {
 	struct reboot_args a;
@@ -1014,13 +1017,13 @@ osf1_reboot(p, uap)
 	if (SCARG(uap, opt) & OSF1_RB_DFLTROOT)
 		SCARG(&a, opt) |= RB_DFLTROOT;
 
-	return reboot(p, &a);
+	return reboot(td, &a);
 }
 
 
 int
-osf1_lseek(p, uap)
-	struct proc *p;
+osf1_lseek(td, uap)
+	struct thread *td;
 	struct osf1_lseek_args *uap;
 {
 	struct lseek_args a;
@@ -1030,7 +1033,7 @@ osf1_lseek(p, uap)
 	SCARG(&a, offset) = SCARG(uap, offset);
 	SCARG(&a, whence) = SCARG(uap, whence);
 
-	return lseek(p, &a);
+	return lseek(td, &a);
 }
 
 
@@ -1049,14 +1052,16 @@ osf1_lseek(p, uap)
  *	    this function call.
  */
 int
-osf1_setuid(p, uap)
-	struct proc *p;
+osf1_setuid(td, uap)
+	struct thread *td;
 	struct osf1_setuid_args *uap;
 {
+	struct proc *p;
 	int error;
 	uid_t uid;
 	struct ucred *newcred, *oldcred;
 
+	p = td->td_proc;
 	uid = SCARG(uap, uid);
 	oldcred = p->p_ucred;
 
@@ -1093,14 +1098,16 @@ osf1_setuid(p, uap)
  *  setuid(), you'll get a correct description of setgid().
  */
 int
-osf1_setgid(p, uap)
-	struct proc *p;
+osf1_setgid(td, uap)
+	struct thread *td;
 	struct osf1_setgid_args *uap;
 {
+	struct proc *p;
 	int error;
 	gid_t gid;
 	struct ucred *newcred, *oldcred;
 
+	p = td->td_proc;
 	gid = SCARG(uap, gid);
 	oldcred = p->p_ucred;
 
@@ -1139,8 +1146,8 @@ struct osf1_iovec {
 };
 #define	STACKGAPLEN	400
 int
-osf1_readv(p, uap)
-	struct proc *p;
+osf1_readv(td, uap)
+	struct thread *td;
 	struct osf1_readv_args *uap;
 {
 	int error, osize, nsize, i;
@@ -1178,7 +1185,7 @@ osf1_readv(p, uap)
 
 	if ((error = copyout(nio, (caddr_t)SCARG(&a, iovp), nsize)))
 		goto punt;
-	error = readv(p, &a);
+	error = readv(td, &a);
 
 punt:
 	free(oio, M_TEMP);
@@ -1188,8 +1195,8 @@ punt:
 
 
 int
-osf1_writev(p, uap)
-	struct proc *p;
+osf1_writev(td, uap)
+	struct thread *td;
 	struct osf1_writev_args *uap;
 {
 	int error, i, nsize, osize;
@@ -1227,7 +1234,7 @@ osf1_writev(p, uap)
 
 	if ((error = copyout(nio, (caddr_t)SCARG(&a, iovp), nsize)))
 		goto punt;
-	error = writev(p, &a);
+	error = writev(td, &a);
 
 punt:
 	free(oio, M_TEMP);
@@ -1240,27 +1247,27 @@ punt:
  *  More of the stupid off_t padding!
  */
 int
-osf1_truncate(p, uap)
-	struct proc *p;
+osf1_truncate(td, uap)
+	struct thread *td;
 	struct osf1_truncate_args *uap;
 {
 	caddr_t sg;
 	struct truncate_args a;
 
 	sg = stackgap_init();
-        CHECKALTEXIST(p, &sg, uap->path);
+        CHECKALTEXIST(td, &sg, uap->path);
 
 	SCARG(&a, path) = SCARG(uap, path);
 	SCARG(&a, pad) = 0;
 	SCARG(&a, length) = SCARG(uap, length);
 
-	return truncate(p, &a);
+	return truncate(td, &a);
 }
 
 
 int
-osf1_ftruncate(p, uap)
-	struct proc *p;
+osf1_ftruncate(td, uap)
+	struct thread *td;
 	struct osf1_ftruncate_args *uap;
 {
 	struct ftruncate_args a;
@@ -1269,7 +1276,7 @@ osf1_ftruncate(p, uap)
 	SCARG(&a, pad) = 0;
 	SCARG(&a, length) = SCARG(uap, length);
 
-	return ftruncate(p, &a);
+	return ftruncate(td, &a);
 }
 
 
@@ -1310,39 +1317,41 @@ osf2bsd_pathconf(name)
 
 
 int
-osf1_pathconf(p, uap)
-	struct proc *p;
+osf1_pathconf(td, uap)
+	struct thread *td;
 	struct osf1_pathconf_args *uap;
 {
 
 	if (osf2bsd_pathconf(&uap->name))
 		return (EINVAL);
 	else
-		return (pathconf(p, (void *)uap));
+		return (pathconf(td, (void *)uap));
 }
 
 
 int
-osf1_fpathconf(p, uap)
-	struct proc *p;
+osf1_fpathconf(td, uap)
+	struct thread *td;
 	struct osf1_fpathconf_args *uap;
 {
 
 	if (osf2bsd_pathconf(&uap->name))
 		return (EINVAL);
 	else
-		return (fpathconf(p, (void *)uap));
+		return (fpathconf(td, (void *)uap));
 }
 
 
 int
-osf1_getrusage(p, uap)
-	struct proc *p;
+osf1_getrusage(td, uap)
+	struct thread *td;
 	struct osf1_getrusage_args *uap;
 {
+	struct proc *p;
 	struct rusage *rup;
 	struct osf1_rusage oru;
 
+	p = td->td_proc;
 	switch (uap->who) {
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
@@ -1369,8 +1378,8 @@ osf1_getrusage(p, uap)
 
 
 int
-osf1_wait4(p, uap)
-	struct proc *p;
+osf1_wait4(td, uap)
+	struct thread *td;
 	struct osf1_wait4_args *uap;
 {
 	int error;
@@ -1384,7 +1393,7 @@ osf1_wait4(p, uap)
 		rusage = stackgap_alloc(&sg, sizeof(struct rusage));
 		SCARG(uap, rusage) = (struct osf1_rusage *)rusage;
 	}
-	if ((error = wait4(p, (struct wait_args *)uap)))
+	if ((error = wait4(td, (struct wait_args *)uap)))
 		return error;
 	if (orusage && (error = copyin(rusage, &ru, sizeof(ru)) == 0)){
 		TV_CP(ru.ru_utime, oru.ru_utime);
@@ -1398,8 +1407,8 @@ osf1_wait4(p, uap)
 
 
 int
-osf1_madvise(p, uap)
-	struct proc *p;
+osf1_madvise(td, uap)
+	struct thread *td;
 	struct osf1_madvise_args *uap;
 {
 
@@ -1409,27 +1418,27 @@ osf1_madvise(p, uap)
 
 
 int
-osf1_execve(p, uap)
-	struct proc *p;
+osf1_execve(td, uap)
+	struct thread *td;
 	struct osf1_execve_args *uap;
 {
 	caddr_t sg;
 	struct execve_args ap;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&ap, fname) = SCARG(uap, path);
 	SCARG(&ap, argv) = SCARG(uap, argp);
 	SCARG(&ap, envv) = SCARG(uap, envp);
 
-	return execve(p, &ap);
+	return execve(td, &ap);
 }
 
 
 int
-osf1_usleep_thread(p, uap)
-	struct proc *p;
+osf1_usleep_thread(td, uap)
+	struct thread *td;
 	struct osf1_usleep_thread_args *uap;
 {
 	int error, s, timo;
@@ -1454,7 +1463,7 @@ osf1_usleep_thread(p, uap)
 	microtime(&tv);
 	splx(s);
 
-	tsleep(p, PUSER|PCATCH, "OSF/1", timo);
+	tsleep(td, PUSER|PCATCH, "OSF/1", timo);
 
 	if (SCARG(uap, slept) != NULL) {
 		s = splclock();
@@ -1470,8 +1479,8 @@ osf1_usleep_thread(p, uap)
 }
 
 
-int osf1_gettimeofday(p, uap)
-	struct proc *p;
+int osf1_gettimeofday(td, uap)
+	struct thread *td;
 	register struct osf1_gettimeofday_args *uap;
 {
 	int error;
@@ -1494,8 +1503,8 @@ int osf1_gettimeofday(p, uap)
 }
 
 
-int osf1_select(p, uap)
-	struct proc *p;
+int osf1_select(td, uap)
+	struct thread *td;
 	register struct osf1_select_args *uap;
 {
 	if (uap->tv) {
@@ -1513,13 +1522,13 @@ int osf1_select(p, uap)
 		if ((error=copyout((caddr_t)&tv, (caddr_t)uap->tv,sizeof(tv))))
 			return(error);
 	}
-	return(select(p, (struct select_args *)uap));
+	return(select(td, (struct select_args *)uap));
 }
 
 
 int
-osf1_setitimer(p, uap)
-	struct proc *p;
+osf1_setitimer(td, uap)
+	struct thread *td;
 	struct osf1_setitimer_args *uap;
 {
 
@@ -1544,7 +1553,7 @@ osf1_setitimer(p, uap)
 		return error;
 	}
 	uap->oitv = stackgap_alloc(&sg, sizeof(struct itimerval));
-	if ((error = setitimer(p, (struct setitimer_args *)uap))) {
+	if ((error = setitimer(td, (struct setitimer_args *)uap))) {
 		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
 		return error;
 	}
@@ -1563,8 +1572,8 @@ osf1_setitimer(p, uap)
 
 
 int
-osf1_getitimer(p, uap)
-	struct proc *p;
+osf1_getitimer(td, uap)
+	struct thread *td;
 	struct osf1_getitimer_args *uap;
 {
 	int error;
@@ -1577,7 +1586,7 @@ osf1_getitimer(p, uap)
 	sg = stackgap_init();
 
 	uap->itv = stackgap_alloc(&sg, sizeof(struct itimerval));
-	if ((error = getitimer(p, (struct getitimer_args *)uap))) {
+	if ((error = getitimer(td, (struct getitimer_args *)uap))) {
 		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
 		return error;
 	}
@@ -1595,8 +1604,8 @@ osf1_getitimer(p, uap)
 
 
 int
-osf1_proplist_syscall(p, uap)
-	struct proc *p;
+osf1_proplist_syscall(td, uap)
+	struct thread *td;
 	struct osf1_proplist_syscall_args *uap;
 {
 
@@ -1605,8 +1614,8 @@ osf1_proplist_syscall(p, uap)
 
 
 int
-osf1_ntpgettime(p, uap)
-	struct proc *p;
+osf1_ntpgettime(td, uap)
+	struct thread *td;
 	struct  osf1_ntpgettime_args *uap;
 {
 
@@ -1615,8 +1624,8 @@ osf1_ntpgettime(p, uap)
 
 
 int
-osf1_ntpadjtime(p, uap)
-	struct proc *p;
+osf1_ntpadjtime(td, uap)
+	struct thread *td;
 	struct  osf1_ntpadjtime_args *uap;
 {
 
@@ -1625,33 +1634,34 @@ osf1_ntpadjtime(p, uap)
 
 
 int
-osf1_setpgrp(p, uap)
-	struct proc *p;
+osf1_setpgrp(td, uap)
+	struct thread *td;
 	struct  osf1_setpgrp_args *uap;
 {
 
-	return(setpgid(p, (struct setpgid_args *)uap));
+	return(setpgid(td, (struct setpgid_args *)uap));
 }
 
 
 int
-osf1_uswitch(p, uap)
-	struct proc *p;
+osf1_uswitch(td, uap)
+	struct thread *td;
 	struct osf1_uswitch_args *uap;
 {
+	struct proc *p;
 	int rv;
 	vm_map_entry_t entry;
 	vm_offset_t zero;
 
 	GIANT_REQUIRED;
-
+	p = td->td_proc;
 	zero = 0;
 
 	if (uap->cmd == OSF1_USC_GET) {
-		if (vm_map_lookup_entry(&(p->p_vmspace->vm_map),0, &entry))
-			p->p_retval[0] =  OSF1_USW_NULLP;
+		if (vm_map_lookup_entry(&(p->p_vmspace->vm_map), 0, &entry))
+			td->td_retval[0] =  OSF1_USW_NULLP;
 		else
-			p->p_retval[0] =  0;
+			td->td_retval[0] =  0;
 		return(KERN_SUCCESS);
 	} else if (uap->cmd == OSF1_USC_SET)
 		if (uap->mask & OSF1_USW_NULLP) {
@@ -1672,8 +1682,8 @@ osf1_uswitch(p, uap)
 
 
 int
-osf1_classcntl(p, uap)
-	struct proc *p;
+osf1_classcntl(td, uap)
+	struct thread *td;
 	struct  osf1_classcntl_args *uap;
 {
 
@@ -1706,8 +1716,8 @@ struct osf1_tbl_sysinfo {
 #define TBL_SYSINFO    12
 
 int
-osf1_table(p, uap)
-	struct proc *p;
+osf1_table(td, uap)
+	struct thread *td;
 	struct  osf1_table_args /*{
 				long id;
 				long index;
@@ -1756,8 +1766,8 @@ osf1_table(p, uap)
 
 
 int
-osf1_sysinfo(p, uap)
-	struct proc *p;
+osf1_sysinfo(td, uap)
+	struct thread *td;
 	struct  osf1_sysinfo_args /*{
 				int cmd;
 				char *buf;
@@ -1778,9 +1788,9 @@ osf1_sysinfo(p, uap)
 		len = uap->count;
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
-		retval = userland_sysctl(p, name, 2, uap->buf, &len,
+		retval = userland_sysctl(td, name, 2, uap->buf, &len,
 					1, 0, 0, &bytes);
-		p->p_retval[0] =  bytes;
+		td->td_retval[0] =  bytes;
 		return(retval);
 		break;
 	case 3: /* release of osf1 */
@@ -1807,6 +1817,6 @@ osf1_sysinfo(p, uap)
 	}
 	bytes = min(uap->count, strlen(string)+1);
 	copyout(string, uap->buf, bytes);
-	p->p_retval[0] =  bytes;
+	td->td_retval[0] =  bytes;
 	return(0);
 }
