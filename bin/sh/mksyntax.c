@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mksyntax.c,v 1.2 1994/09/24 02:57:57 davidg Exp $
  */
 
 #ifndef lint
@@ -155,6 +155,7 @@ main() {
 			digit_contig = 0;
 	}
 
+	fputs("#include <ctype.h>\n", hfile);
 	fputs("#include <sys/cdefs.h>\n", hfile);
 
 	/* Generate the #define statements in the header file */
@@ -327,9 +328,9 @@ print(name)
 
 char *macro[] = {
 	"#define is_digit(c)\t((is_type+SYNBASE)[c] & ISDIGIT)",
-	"#define is_alpha(c)\t((is_type+SYNBASE)[c] & (ISUPPER|ISLOWER))",
-	"#define is_name(c)\t((is_type+SYNBASE)[c] & (ISUPPER|ISLOWER|ISUNDER))",
-	"#define is_in_name(c)\t((is_type+SYNBASE)[c] & (ISUPPER|ISLOWER|ISUNDER|ISDIGIT))",
+	"#define is_alpha(c)\t((c) != PEOF && isalpha((unsigned char) (c)))",
+	"#define is_name(c)\t((c) != PEOF && ((c) == '_' || isalpha((unsigned char) (c))))",
+	"#define is_in_name(c)\t((c) != PEOF && ((c) == '_' || isdigit((unsigned char) (c)) || isalpha((unsigned char) (c))))",
 	"#define is_special(c)\t((is_type+SYNBASE)[c] & (ISSPECL|ISDIGIT))",
 	NULL
 };

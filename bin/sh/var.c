@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.2 1994/09/24 02:58:22 davidg Exp $
+ *	$Id: var.c,v 1.3 1995/05/30 00:07:24 rgrimes Exp $
  */
 
 #ifndef lint
@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)var.c	8.1 (Berkeley) 5/31/93";
 /*
  * Shell variables.
  */
+
+#include <locale.h>
 
 #include "shell.h"
 #include "output.h"
@@ -108,6 +110,7 @@ struct var *vartab[VTABSIZE];
 STATIC int unsetvar __P((char *));
 STATIC struct var **hashvar __P((char *));
 STATIC int varequal __P((char *, char *));
+STATIC int localevar __P((char *));
 
 /*
  * Initialize the varable symbol tables and import the environment
@@ -178,8 +181,9 @@ setvar(name, val, flags)
 
 	isbad = 0;
 	p = name;
-	if (! is_name(*p++))
+	if (! is_name(*p))
 		isbad = 1;
+	p++;
 	for (;;) {
 		if (! is_in_name(*p)) {
 			if (*p == '\0' || *p == '=')
@@ -208,7 +212,27 @@ setvar(name, val, flags)
 	setvareq(nameeq, flags);
 }
 
+STATIC int
+localevar(s)
+	char *s;
+	{
+	static char *lnames[7] = {
+		"ALL", "COLLATE", "CTYPE", "MONETARY",
+		"NUMERIC", "TIME", NULL
+	};
+	char **ss;
 
+	if (*s != 'L')
+		return 0;
+	if (varequal(s + 1, "ANG"))
+		return 1;
+	if (strncmp(s + 1, "C_", 2) != 0)
+		return 0;
+	for (ss = lnames; *ss ; ss++)
+		if (varequal(s + 3, *ss))
+			return 1;
+	return 0;
+}
 
 /*
  * Same as setvar except that the variable and value are passed in
@@ -242,6 +266,10 @@ setvareq(s, flags)
 				chkmail(1);
 			if (vp == &vhistsize)
 				sethistsize();
+			if ((vp->flags & VEXPORT) && localevar(s)) {
+				putenv(s);
+				(void) setlocale(LC_ALL, "");
+			}
 			INTON;
 			return;
 		}
@@ -251,7 +279,13 @@ setvareq(s, flags)
 	vp->flags = flags;
 	vp->text = s;
 	vp->next = *vpp;
+	INTOFF;
 	*vpp = vp;
+	if ((vp->flags & VEXPORT) && localevar(s)) {
+		putenv(s);
+		(void) setlocale(LC_ALL, "");
+	}
+	INTON;
 }
 
 
@@ -441,6 +475,10 @@ exportcmd(argc, argv)  char **argv; {
 				for (vp = *vpp ; vp ; vp = vp->next) {
 					if (varequal(vp->text, name)) {
 						vp->flags |= flag;
+						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
+							putenv(vp->text);
+							(void) setlocale(LC_ALL, "");
+						}
 						goto found;
 					}
 				}
@@ -616,6 +654,10 @@ unsetvar(s)
 			INTOFF;
 			if (*(strchr(vp->text, '=') + 1) != '\0')
 				setvar(s, nullstr, 0);
+			if ((vp->flags & VEXPORT) && localevar(vp->text)) {
+				unsetenv(s);
+				setlocale(LC_ALL, "");
+			}
 			vp->flags &=~ VEXPORT;
 			vp->flags |= VUNSET;
 			if ((vp->flags & VSTRFIXED) == 0) {
@@ -644,9 +686,9 @@ hashvar(p)
 	{
 	unsigned int hashval;
 
-	hashval = *p << 4;
+	hashval = ((unsigned char)*p) << 4;
 	while (*p && *p != '=')
-		hashval += *p++;
+		hashval += (unsigned char)*p++;
 	return &vartab[hashval % VTABSIZE];
 }
 

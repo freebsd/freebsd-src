@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.3 1995/03/01 13:04:15 guido Exp $
+ *	$Id: expand.c,v 1.4 1995/05/30 00:07:13 rgrimes Exp $
  */
 
 #ifndef lint
@@ -102,6 +102,7 @@ STATIC struct strlist *expsort(struct strlist *);
 STATIC struct strlist *msort(struct strlist *, int);
 STATIC int pmatch(char *, char *);
 STATIC char *exptilde(char *, int);
+STATIC int collcmp (int, int);
 #else
 STATIC void argstr();
 STATIC void expbackq();
@@ -118,6 +119,7 @@ STATIC struct strlist *expsort();
 STATIC struct strlist *msort();
 STATIC int pmatch();
 STATIC char *exptilde();
+STATIC int collcmp ();
 #endif
 
 /*
@@ -1018,6 +1020,40 @@ patmatch(pattern, string)
 		return pmatch(pattern, string);
 }
 
+STATIC int
+collcmp (c1, c2)
+int c1, c2;
+{
+	static char s1[2], s2[2];
+
+	c1 &= 0xFF;
+	c2 &= 0xFF;
+	if (c1 == c2)
+		return (0);
+	if (   (isascii(c1) && isascii(c2))
+	    || (!isalpha(c1) && !isalpha(c2))
+	   )
+		return (c1 - c2);
+	if (isalpha(c1) && !isalpha(c2)) {
+		if (isupper(c1))
+			return ('A' - c2);
+		else
+			return ('a' - c2);
+	} else if (isalpha(c2) && !isalpha(c1)) {
+		if (isupper(c2))
+			return (c1 - 'A');
+		else
+			return (c1 - 'a');
+	}
+	if (isupper(c1) && islower(c2))
+		return (-1);
+	else if (islower(c1) && isupper(c2))
+		return (1);
+	s1[0] = c1;
+	s2[0] = c2;
+	return strcoll(s1, s2);
+}
+
 
 STATIC int
 pmatch(pattern, string)
@@ -1086,7 +1122,9 @@ pmatch(pattern, string)
 					p++;
 					if (*p == CTLESC)
 						p++;
-					if (chr >= c && chr <= *p)
+					if (   collcmp(chr, c) >= 0
+					    && collcmp(chr, *p) <= 0
+					   )
 						found = 1;
 					p++;
 				} else {
