@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: sysctl.8,v 1.12 1997/02/22 16:13:58 peter Exp $
 .\"
 .Dd September 23, 1994
 .Dt SYSCTL 8
@@ -153,6 +153,7 @@ privilege can change the value.
 .It hw.usermem	integer	no
 .It hw.pagesize	integer	no
 .It hw.floatingpoint	integer	no
+.It hw.machine_arch	string	no
 .It machdep.console_device	dev_t	no
 .It machdep.adjkerntz	integer	yes
 .It machdep.disable_rtc_set	integer	yes
