@@ -20,7 +20,7 @@
    The author may be reached (Email) at the address mike@gnu.ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation.
 
-   Ørn E. Hansen added NLS support in 1997.  */
+   Ã˜rn E. Hansen added NLS support in 1997.  */
 
 #include <config.h>
 
@@ -56,6 +56,7 @@
 #include "long-options.h"
 #include "physmem.h"
 #include "posixver.h"
+#include "quote.h"
 #include "stdio-safer.h"
 #include "xmemcoll.h"
 #include "xstrtol.h"
@@ -98,7 +99,6 @@ double strtod ();
 #endif
 
 #define UCHAR_LIM (UCHAR_MAX + 1)
-#define UCHAR(c) ((unsigned char) (c))
 
 #ifndef DEFAULT_TMPDIR
 # define DEFAULT_TMPDIR "/tmp"
@@ -137,7 +137,7 @@ static bool hard_LC_TIME;
 #else
 
 # define decimal_point C_DECIMAL_POINT
-# define IS_THOUSANDS_SEP(x) 0
+# define IS_THOUSANDS_SEP(x) false
 
 #endif
 
@@ -204,8 +204,8 @@ struct keyfield
   size_t echar;			/* Additional characters in field. */
   bool const *ignore;		/* Boolean array of characters to ignore. */
   char const *translate;	/* Translation applied to characters. */
-  bool skipsblanks;		/* Skip leading blanks at start. */
-  bool skipeblanks;		/* Skip trailing blanks at finish. */
+  bool skipsblanks;		/* Skip leading blanks when finding start.  */
+  bool skipeblanks;		/* Skip leading blanks when finding end.  */
   bool numeric;			/* Flag for numeric comparison.  Handle
 				   strings of digits with optional decimal
 				   point, but no exponential notation. */
@@ -490,13 +490,14 @@ cleanup (void)
     unlink (node->name);
 }
 
-/* Report MESSAGE for FILE, then clean up and exit.  */
+/* Report MESSAGE for FILE, then clean up and exit.
+   If FILE is null, it represents standard output.  */
 
 static void die (char const *, char const *) ATTRIBUTE_NORETURN;
 static void
 die (char const *message, char const *file)
 {
-  error (0, errno, "%s: %s", message, file);
+  error (0, errno, "%s: %s", message, file ? file : _("standard output"));
   exit (SORT_FAILURE);
 }
 
@@ -538,20 +539,22 @@ create_temp_file (FILE **pfp)
   return file;
 }
 
+/* Return a stream for FILE, opened with mode HOW.  A null FILE means
+   standard output; HOW should be "w".  When opening for input, "-"
+   means standard input.  To avoid confusion, do not return file
+   descriptors 0, 1, or 2.  */
+
 static FILE *
 xfopen (const char *file, const char *how)
 {
   FILE *fp;
 
-  if (STREQ (file, "-"))
+  if (!file)
+    fp = stdout;
+  else if (STREQ (file, "-") && *how == 'r')
     {
-      if (*how == 'r')
-	{
-	  have_read_stdin = true;
-	  fp = stdin;
-	}
-      else
-	fp = stdout;
+      have_read_stdin = true;
+      fp = stdin;
     }
   else
     {
@@ -660,7 +663,7 @@ inittables_uni (void)
 	  monthtab[i].val = i + 1;
 
 	  for (j = 0; j < s_len; j++)
-	    name[j] = fold_toupper[UCHAR (s[j])];
+	    name[j] = fold_toupper[to_uchar (s[j])];
 	  name[j] = '\0';
 	}
       qsort ((void *) monthtab, MONTHS_PER_YEAR,
@@ -861,7 +864,7 @@ sort_buffer_size (FILE *const *fps, int nfps,
       size_t worst_case;
 
       if ((i < nfps ? fstat (fileno (fps[i]), &st)
-	   : strcmp (files[i], "-") == 0 ? fstat (STDIN_FILENO, &st)
+	   : STREQ (files[i], "-") ? fstat (STDIN_FILENO, &st)
 	   : stat (files[i], &st))
 	  != 0)
 	die (_("stat failed"), files[i]);
@@ -958,14 +961,14 @@ begfield_uni (const struct line *line, const struct keyfield *key)
   else
     while (ptr < lim && sword--)
       {
-	while (ptr < lim && blanks[UCHAR (*ptr)])
+	while (ptr < lim && blanks[to_uchar (*ptr)])
 	  ++ptr;
-	while (ptr < lim && !blanks[UCHAR (*ptr)])
+	while (ptr < lim && !blanks[to_uchar (*ptr)])
 	  ++ptr;
       }
 
   if (key->skipsblanks)
-    while (ptr < lim && blanks[UCHAR (*ptr)])
+    while (ptr < lim && blanks[to_uchar (*ptr)])
       ++ptr;
 
   /* Advance PTR by SCHAR (if possible), but no further than LIM.  */
@@ -1065,9 +1068,9 @@ limfield_uni (const struct line *line, const struct keyfield *key)
   else
     while (ptr < lim && eword--)
       {
-	while (ptr < lim && blanks[UCHAR (*ptr)])
+	while (ptr < lim && blanks[to_uchar (*ptr)])
 	  ++ptr;
-	while (ptr < lim && !blanks[UCHAR (*ptr)])
+	while (ptr < lim && !blanks[to_uchar (*ptr)])
 	  ++ptr;
       }
 
@@ -1114,18 +1117,19 @@ limfield_uni (const struct line *line, const struct keyfield *key)
     {
       char *newlim;
       newlim = ptr;
-      while (newlim < lim && blanks[UCHAR (*newlim)])
+      while (newlim < lim && blanks[to_uchar (*newlim)])
 	++newlim;
-      while (newlim < lim && !blanks[UCHAR (*newlim)])
+      while (newlim < lim && !blanks[to_uchar (*newlim)])
 	++newlim;
       lim = newlim;
     }
 #endif
 
-  /* If we're skipping leading blanks, don't start counting characters
-     until after skipping past any leading blanks.  */
-  if (key->skipsblanks)
-    while (ptr < lim && blanks[UCHAR (*ptr)])
+  /* If we're ignoring leading blanks when computing the End
+     of the field, don't start counting bytes until after skipping
+     past any leading blanks. */
+  if (key->skipeblanks)
+    while (ptr < lim && blanks[to_uchar (*ptr)])
       ++ptr;
 
   /* Advance PTR by ECHAR (if possible), but no further than LIM.  */
@@ -1218,7 +1222,7 @@ limfield_mb (const struct line *line, const struct keyfield *key)
 
   /* If we're skipping leading blanks, don't start counting characters
    *      until after skipping past any leading blanks.  */
-  if (key->skipsblanks)
+  if (key->skipeblanks)
     while (ptr < lim && ismbblank (ptr, lim - ptr, &mblength))
       ptr += mblength;
 
@@ -1238,38 +1242,6 @@ limfield_mb (const struct line *line, const struct keyfield *key)
   return ptr;
 }
 #endif
-
-/* Return the number of trailing blanks in FIELD, with LEN bytes.  */
-
-static size_t
-trailing_blanks (char const *field, size_t len)
-{
-#if HAVE_MBRTOWC
-  if (MB_CUR_MAX > 1)
-    {
-      size_t blanks = 0;
-
-      while (len) {
-        size_t mblength;
-        if (ismbblank (field, len, &mblength))
-          blanks++;
-        else
-          blanks = 0;
-
-        field += mblength, len -= mblength;
-      }
-
-      return blanks;
-    }
-  else
-#endif
-    {
-      size_t i;
-      for (i = len; 0 < i && blanks[UCHAR (field[i - 1])]; i--)
-        continue;
-      return len - i;
-    }
-}
 
 /* Fill BUF reading from FP, moving buf->left bytes from the end
    of buf->buf to the beginning first.  If EOF is reached and the
@@ -1365,16 +1337,11 @@ fillbuf (struct buffer *buf, register FILE *fp, char const *file)
 			  else
 #endif
 			    {
-			      while (blanks[UCHAR (*line_start)])
+			      while (blanks[to_uchar (*line_start)])
 				line_start++;
 			    }
 			}
 		      line->keybeg = line_start;
-		    }
-		  if (key->skipeblanks)
-		    {
-		      size_t keylen = line->keylim - line->keybeg;
-		      line->keylim -= trailing_blanks (line->keybeg, keylen);
 		    }
 		}
 
@@ -1473,8 +1440,11 @@ fraccompare (register const char *a, register const char *b)
 static int
 numcompare (register const char *a, register const char *b)
 {
-  register int tmpa, tmpb, tmp;
-  register size_t log_a, log_b;
+  char tmpa;
+  char tmpb;
+  int tmp;
+  size_t log_a;
+  size_t log_b;
 
 #if HAVE_MBRTOWC
   if (MB_CUR_MAX > 1)
@@ -1497,9 +1467,9 @@ numcompare (register const char *a, register const char *b)
       tmpa = *a;
       tmpb = *b;
 
-      while (blanks[UCHAR (tmpa)])
+      while (blanks[to_uchar (tmpa)])
 	tmpa = *++a;
-      while (blanks[UCHAR (tmpb)])
+      while (blanks[to_uchar (tmpb)])
 	tmpb = *++b;
     }
 
@@ -1712,7 +1682,7 @@ getmonth_uni (const char *s, size_t len)
   register size_t i;
   register int lo = 0, hi = MONTHS_PER_YEAR, result;
 
-  while (len > 0 && blanks[UCHAR (*s)])
+  while (len > 0 && blanks[to_uchar (*s)])
     {
       ++s;
       --len;
@@ -1723,8 +1693,7 @@ getmonth_uni (const char *s, size_t len)
 
   month = alloca (len + 1);
   for (i = 0; i < len; ++i)
-    month[i] = fold_toupper[UCHAR (s[i])];
-  len -= trailing_blanks (month, len);
+    month[i] = fold_toupper[to_uchar (s[i])];
   month[len] = '\0';
 
   do
@@ -1780,14 +1749,8 @@ getmonth_mb (const char *s, size_t len)
   assert (wclength != (size_t)-1 && *pp == NULL);
 
   for (i = 0; i < wclength; i++)
-    {
       month_wcs[i] = towupper(month_wcs[i]);
-      if (iswblank (month_wcs[i]))
-	{
-	  month_wcs[i] = L'\0';
-	  break;
-	}
-    }
+  month_wcs[i] = L'\0';
 
   wpp = (const wchar_t **)&month_wcs;
 
@@ -1838,12 +1801,6 @@ keycompare_uni (const struct line *a, const struct line *b)
       size_t lena = lima <= texta ? 0 : lima - texta;
       size_t lenb = limb <= textb ? 0 : limb - textb;
 
-      if (key->skipeblanks)
-	{
-	  lena -= trailing_blanks (texta, lena);
-	  lenb -= trailing_blanks (textb, lenb);
-	}
-
       /* Actually compare the fields. */
       if (key->numeric | key->general_numeric)
 	{
@@ -1872,17 +1829,17 @@ keycompare_uni (const struct line *a, const struct line *b)
 		  if (i < lena)
 		    {
 		      copy_a[new_len_a] = (translate
-					   ? translate[UCHAR (texta[i])]
+					   ? translate[to_uchar (texta[i])]
 					   : texta[i]);
-		      if (!ignore || !ignore[UCHAR (texta[i])])
+		      if (!ignore || !ignore[to_uchar (texta[i])])
 			++new_len_a;
 		    }
 		  if (i < lenb)
 		    {
 		      copy_b[new_len_b] = (translate
-					   ? translate[UCHAR (textb[i])]
+					   ? translate[to_uchar (textb[i])]
 					   : textb [i]);
-		      if (!ignore || !ignore[UCHAR (textb[i])])
+		      if (!ignore || !ignore[to_uchar (textb[i])])
 			++new_len_b;
 		    }
 		}
@@ -1903,13 +1860,13 @@ keycompare_uni (const struct line *a, const struct line *b)
     {									\
 	  for (;;)							\
 	    {								\
-	      while (texta < lima && ignore[UCHAR (*texta)])		\
+	      while (texta < lima && ignore[to_uchar (*texta)])		\
 		++texta;						\
-	      while (textb < limb && ignore[UCHAR (*textb)])		\
+	      while (textb < limb && ignore[to_uchar (*textb)])		\
 		++textb;						\
 	      if (! (texta < lima && textb < limb))			\
 		break;							\
-	      diff = UCHAR (A) - UCHAR (B);				\
+	      diff = to_uchar (A) - to_uchar (B);			\
 	      if (diff)							\
 		goto not_equal;						\
 	      ++texta;							\
@@ -1921,8 +1878,8 @@ keycompare_uni (const struct line *a, const struct line *b)
   while (0)
 
 	  if (translate)
-	    CMP_WITH_IGNORE (translate[UCHAR (*texta)],
-			     translate[UCHAR (*textb)]);
+	    CMP_WITH_IGNORE (translate[to_uchar (*texta)],
+			     translate[to_uchar (*textb)]);
 	  else
 	    CMP_WITH_IGNORE (*texta, *textb);
 	}
@@ -1936,8 +1893,8 @@ keycompare_uni (const struct line *a, const struct line *b)
 	    {
 	      while (texta < lima && textb < limb)
 		{
-		  diff = (UCHAR (translate[UCHAR (*texta++)])
-			  - UCHAR (translate[UCHAR (*textb++)]));
+		  diff = (to_uchar (translate[to_uchar (*texta++)])
+			  - to_uchar (translate[to_uchar (*textb++)]));
 		  if (diff)
 		    goto not_equal;
 		}
@@ -1971,9 +1928,9 @@ keycompare_uni (const struct line *a, const struct line *b)
 	  texta = a->text, textb = b->text;
 	  if (key->skipsblanks)
 	    {
-	      while (texta < lima && blanks[UCHAR (*texta)])
+	      while (texta < lima && blanks[to_uchar (*texta)])
 		++texta;
-	      while (textb < limb && blanks[UCHAR (*textb)])
+	      while (textb < limb && blanks[to_uchar (*textb)])
 		++textb;
 	    }
 	}
@@ -2017,16 +1974,6 @@ keycompare_mb (const struct line *a, const struct line *b)
       /* Find the lengths. */
       size_t lena = lima <= texta ? 0 : lima - texta;
       size_t lenb = limb <= textb ? 0 : limb - textb;
-
-      if (key->skipeblanks)
-	{
-	  char *a_end = texta + lena;
-	  char *b_end = textb + lenb;
-	  a_end -= trailing_blanks (texta, lena);
-	  b_end -= trailing_blanks (textb, lenb);
-	  lena = a_end - texta;
-	  lenb = b_end - textb;
-	}
 
       /* Actually compare the fields. */
       if (key->numeric | key->general_numeric)
@@ -2291,8 +2238,9 @@ check (char const *file_name)
 
 /* Merge lines from FILES onto OFP.  NFILES cannot be greater than
    NMERGE.  Close input and output files before returning.
-   OUTPUT_FILE gives the name of the output file; if OFP is NULL, the
-   output file has not been opened yet.  */
+   OUTPUT_FILE gives the name of the output file.  If it is NULL,
+   the output file is standard output.  If OFP is NULL, the output
+   file has not been opened yet (or written to, if standard output).  */
 
 static void
 mergefps (char **files, register int nfiles,
@@ -2561,9 +2509,17 @@ sortlines_temp (struct line *lines, size_t nlines, struct line *temp)
 }
 
 /* Return the index of the first of NFILES FILES that is the same file
-   as OUTFILE.  If none can be the same, return NFILES.  Consider an
-   input pipe to be the same as OUTFILE, since the pipe might be the
-   output of a command like "cat OUTFILE".  */
+   as OUTFILE.  If none can be the same, return NFILES.
+
+   This test ensures that an otherwise-erroneous use like
+   "sort -m -o FILE ... FILE ..." copies FILE before writing to it.
+   It's not clear that POSIX requires this nicety.
+   Detect common error cases, but don't try to catch obscure cases like
+   "cat ... FILE ... | sort -m -o FILE"
+   where traditional "sort" doesn't copy the input and where
+   people should know that they're getting into trouble anyway.
+   Catching these obscure cases would slow down performance in
+   common cases.  */
 
 static int
 first_same_file (char * const *files, int nfiles, char const *outfile)
@@ -2576,15 +2532,15 @@ first_same_file (char * const *files, int nfiles, char const *outfile)
     {
       bool standard_input = STREQ (files[i], "-");
 
-      if (STREQ (outfile, files[i]) && ! standard_input)
+      if (outfile && STREQ (outfile, files[i]) && ! standard_input)
 	return i;
 
       if (! got_outstat)
 	{
 	  got_outstat = true;
-	  if ((STREQ (outfile, "-")
-	       ? fstat (STDOUT_FILENO, &outstat)
-	       : stat (outfile, &outstat))
+	  if ((outfile
+	       ? stat (outfile, &outstat)
+	       : fstat (STDOUT_FILENO, &outstat))
 	      != 0)
 	    return nfiles;
 	}
@@ -2593,7 +2549,7 @@ first_same_file (char * const *files, int nfiles, char const *outfile)
 	    ? fstat (STDIN_FILENO, &instat)
 	    : stat (files[i], &instat))
 	   == 0)
-	  && (S_ISFIFO (instat.st_mode) || SAME_INODE (instat, outstat)))
+	  && SAME_INODE (instat, outstat))
 	return i;
     }
 
@@ -2602,7 +2558,7 @@ first_same_file (char * const *files, int nfiles, char const *outfile)
 
 /* Merge NFILES FILES onto OUTPUT_FILE.  However, merge at most
    MAX_MERGE input files directly onto OUTPUT_FILE.  MAX_MERGE cannot
-   exceed NMERGE.  */
+   exceed NMERGE.  A null OUTPUT_FILE stands for standard output.  */
 
 static void
 merge (char **files, int nfiles, int max_merge, char const *output_file)
@@ -2794,19 +2750,7 @@ sighandler (int sig)
 
   cleanup ();
 
-#ifdef SA_NOCLDSTOP
-  {
-    struct sigaction sigact;
-
-    sigact.sa_handler = SIG_DFL;
-    sigemptyset (&sigact.sa_mask);
-    sigact.sa_flags = 0;
-    sigaction (sig, &sigact, NULL);
-  }
-#else
   signal (sig, SIG_DFL);
-#endif
-
   raise (sig);
 }
 
@@ -2885,12 +2829,7 @@ main (int argc, char **argv)
 			       ? COMMON_SHORT_OPTIONS "y::"
 			       : COMMON_SHORT_OPTIONS "y:");
   char *minus = "-", **files;
-  char const *outfile = minus;
-  static int const sigs[] = { SIGHUP, SIGINT, SIGPIPE, SIGTERM };
-  unsigned int nsigs = sizeof sigs / sizeof *sigs;
-#ifdef SA_NOCLDSTOP
-  struct sigaction oldact, newact;
-#endif
+  char const *outfile = NULL;
 
   initialize_main (&argc, &argv);
   program_name = argv[0];
@@ -2954,32 +2893,34 @@ main (int argc, char **argv)
   have_read_stdin = false;
   inittables ();
 
-#ifdef SA_NOCLDSTOP
   {
-    unsigned int i;
+    int i;
+    static int const sig[] = { SIGHUP, SIGINT, SIGPIPE, SIGTERM };
+    enum { nsigs = sizeof sig / sizeof sig[0] };
+
+#ifdef SA_NOCLDSTOP
+    struct sigaction act;
+
     sigemptyset (&caught_signals);
     for (i = 0; i < nsigs; i++)
-      sigaddset (&caught_signals, sigs[i]);
-    newact.sa_handler = sighandler;
-    newact.sa_mask = caught_signals;
-    newact.sa_flags = 0;
-  }
-#endif
-
-  {
-    unsigned int i;
-    for (i = 0; i < nsigs; i++)
       {
-	int sig = sigs[i];
-#ifdef SA_NOCLDSTOP
-	sigaction (sig, NULL, &oldact);
-	if (oldact.sa_handler != SIG_IGN)
-	  sigaction (sig, &newact, NULL);
-#else
-	if (signal (sig, SIG_IGN) != SIG_IGN)
-	  signal (sig, sighandler);
-#endif
+	sigaction (sig[i], NULL, &act);
+	if (act.sa_handler != SIG_IGN)
+	  sigaddset (&caught_signals, sig[i]);
       }
+
+    act.sa_handler = sighandler;
+    act.sa_mask = caught_signals;
+    act.sa_flags = 0;
+
+    for (i = 0; i < nsigs; i++)
+      if (sigismember (&caught_signals, sig[i]))
+	sigaction (sig[i], &act, NULL);
+#else
+    for (i = 0; i < nsigs; i++)
+      if (signal (sig[i], SIG_IGN) != SIG_IGN)
+	signal (sig[i], sighandler);
+#endif
   }
 
   gkey.sword = gkey.eword = SIZE_MAX;
@@ -3132,7 +3073,7 @@ main (int argc, char **argv)
 	  break;
 
 	case 'o':
-	  if (outfile != minus && strcmp (outfile, optarg) != 0)
+	  if (outfile && !STREQ (outfile, optarg))
 	    error (SORT_FAILURE, 0, _("multiple output files specified"));
 	  outfile = optarg;
 	  break;
@@ -3184,7 +3125,7 @@ main (int argc, char **argv)
 
 	    if (optarg[1])
 	      {
-		if (strcmp (optarg, "\\0") == 0)
+		if (STREQ (optarg, "\\0"))
 		  newtab[0] = '\0';
 		else
 		  {
@@ -3270,8 +3211,11 @@ main (int argc, char **argv)
   if (checkonly)
     {
       if (nfiles > 1)
-	error (SORT_FAILURE, 0, _("extra operand `%s' not allowed with -c"),
-	       files[1]);
+	{
+	  error (0, 0, _("extra operand %s not allowed with -c"),
+		 quote (files[1]));
+	  usage (SORT_FAILURE);
+	}
 
       /* POSIX requires that sort return 1 IFF invoked with -c and the
 	 input is not properly sorted.  */

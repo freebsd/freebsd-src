@@ -48,7 +48,7 @@ version_etc_va (FILE *stream,
 		const char *command_name, const char *package,
 		const char *version, va_list authors)
 {
-  unsigned int n_authors;
+  size_t n_authors;
 
   /* Count the number of authors.  */
   {
