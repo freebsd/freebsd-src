@@ -28,7 +28,7 @@ do
 		;;
 	-b)	# funny Berkeley __P macro
 		peel="$peel
-			"'/^\([^#\/][^\/]*[a-zA-Z0-9_)]\)(\(.*\))/s;;\1(\2);'
+			"'/^\([^#\/][^\/]*[a-zA-Z0-9_)]\)(\(.*\))/s;;\1 __P((\2));'
 		shift
 		;;
 	-s)	# compiler doesn't like `static foo();'
