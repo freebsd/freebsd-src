@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.9.2.4 1997/04/26 23:39:29 davidn Exp $
+.\"	$Id: ftpd.8,v 1.9.2.5 1997/04/27 08:19:50 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -272,9 +272,9 @@ The user must have a standard shell returned by
 .It
 If the user name appears in the file
 .Pa /etc/ftpchroot ,
-or the user is a member of a group with a group entry in this file
-(that is, one prefixed with
-.Ql \&@ ),
+or the user is a member of a group with a group entry in this file,
+i.e. one prefixed with
+.Ql \&@ ,
 the session's root will be changed to the user's login directory by
 .Xr chroot 2
 as for an
