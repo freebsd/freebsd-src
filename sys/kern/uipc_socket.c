@@ -365,11 +365,8 @@ soaccept(so, nam)
 	so->so_state &= ~SS_NOFDREF;
  	if ((so->so_state & SS_ISDISCONNECTED) == 0)
 		error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);
-	else {
-		if (nam)
-			*nam = 0;
-		error = 0;
-	}
+	else
+		error = ECONNABORTED;
 	splx(s);
 	return (error);
 }
