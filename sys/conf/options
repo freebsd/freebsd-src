@@ -1,4 +1,4 @@
-#	$Id: options,v 1.102 1998/10/02 05:15:45 ken Exp $
+#	$Id: options,v 1.103 1998/10/07 03:30:55 gibbs Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -47,8 +47,6 @@ COMPILING_LINT	opt_lint.h
 DDB
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
-DB_KLD_SYMBOLS	opt_ddb.h
-DB_ELF_SYMBOLS	opt_ddb.h
 DEVFS
 FAILSAFE
 HW_WDOG
