@@ -327,13 +327,28 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 			exit(mount_ufs(argc, (char * const *) argv));
 
 		/* Go find an executable. */
-		edir = edirs;
-		do {
+		for (edir = edirs; *edir; edir++) {
 			(void)snprintf(execname,
 			    sizeof(execname), "%s/mount_%s", *edir, vfstype);
 			execv(execname, (char * const *)argv);
-			warn("exec %s for %s", execname, name);
-		} while (*++edir != NULL);
+		}
+		if (errno == ENOENT) {
+			int len = 0;
+			char *cp;
+			for (edir = edirs; *edir; edir++)
+				len += strlen(*edir) + 2;	/* ", " */
+			if ((cp = malloc(len)) == NULL) {
+				warn(NULL);
+				exit(1);
+			}
+			cp[0] = '\0';
+			for (edir = edirs; *edir; edir++) {
+				strcat(cp, *edir);
+				if (edir[1] != NULL)
+					strcat(cp, ", ");
+			}
+			warn("exec mount_%s not found in %s", vfstype, cp);
+		}
 		exit(1);
 		/* NOTREACHED */
 	default:				/* Parent. */
