@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 1998
+.Dd October 16, 2004
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -51,13 +51,19 @@ out a stream socket specified by descriptor
 The
 .Fa offset
 argument specifies where to begin in the file.
+Should
+.Fa offset
+fall beyond the end of file, the system will return
+success and report 0 bytes sent as described below.
 The
 .Fa nbytes
 argument specifies how many bytes of the file should be sent, with 0 having the special
 meaning of send until the end of file has been reached.
 .Pp
 An optional header and/or trailer can be sent before and after the file data by specifying
-a pointer to a struct sf_hdtr, which has the following structure:
+a pointer to a
+.Vt "struct sf_hdtr" ,
+which has the following structure:
 .Pp
 .Bd -literal -offset indent -compact
 struct sf_hdtr {
@@ -72,7 +78,9 @@ The
 .Fa headers
 and
 .Fa trailers
-pointers, if non-NULL, point to arrays of struct iovec structures.
+pointers, if
+.Pf non- Dv NULL ,
+point to arrays of struct iovec structures.
 See the
 .Fn writev
 system call for information on the iovec structure.
@@ -82,7 +90,9 @@ arrays is specified by
 and
 .Fa trl_cnt .
 .Pp
-If non-NULL, the system will write the total number of bytes sent on the socket to the
+If
+.Pf non- Dv NULL ,
+the system will write the total number of bytes sent on the socket to the
 variable pointed to by
 .Fa sbytes .
 .Pp
@@ -209,7 +219,7 @@ is not a SOCK_STREAM type socket.
 The
 .Fa offset
 argument
-is negative or out of range.
+is negative.
 .It Bq Er ENOTCONN
 The
 .Fa s
