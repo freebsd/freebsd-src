@@ -38,22 +38,11 @@
 
 #include <machine/clock.h>
 
-#if 0
-#include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/intr_machdep.h>
-#endif
-
 #include <pccard/i82365.h>
-
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 #include <pccard/pcic.h>
-
-#ifdef APIC_IO
-#include <machine/smp.h>
-#endif 
 
 /*
  *	Prototypes for interrupt handler.
@@ -775,7 +764,6 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		break;
 	}
 	case SYS_RES_IRQ:
-		pcic_mapirq(devi->slt, rman_get_start(r));
 		break;
 	case SYS_RES_MEMORY: 
 	{
@@ -814,7 +802,6 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 		break;
 	}
 	case SYS_RES_IRQ:
-		pcic_mapirq(devi->slt, 0);
 		break;
 	case SYS_RES_MEMORY:
 	{
@@ -837,14 +824,26 @@ static int
 pcic_setup_intr(device_t dev, device_t child, struct resource *irq, 
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	return (bus_generic_setup_intr(dev, child, irq, flags, intr, arg, 
-	    cookiep));
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	int err;
+
+	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg, 
+	    cookiep);
+	if (err == 0)
+		pcic_mapirq(devi->slt, rman_get_start(irq));
+	else
+		device_printf(dev, "Error %d irq %ld\n", err,
+		    rman_get_start(irq));
+	return (err);
 }
  
 static int
 pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
+	struct pccard_devinfo *devi = device_get_ivars(child);
+
+	pcic_mapirq(devi->slt, 0);
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
