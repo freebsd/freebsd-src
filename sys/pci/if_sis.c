@@ -1254,6 +1254,11 @@ static int sis_attach(dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
+
 	callout_handle_init(&sc->sis_stat_ch);
 
 fail:
@@ -1567,6 +1572,10 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct  sis_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 1);
 		return;
@@ -1618,7 +1627,8 @@ static void sis_intr(arg)
 #ifdef DEVICE_POLLING
 	if (ifp->if_ipending & IFF_POLLING)
 		return;
-	if (ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 0);
 		sis_poll(ifp, 0, 1);
 		return;
@@ -2084,6 +2094,9 @@ static int sis_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->sis_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = EINVAL;

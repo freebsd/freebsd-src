@@ -974,6 +974,10 @@ static int rl_attach(dev)
 	ifp->if_watchdog = rl_watchdog;
 	ifp->if_init = rl_init;
 	ifp->if_baudrate = 10000000;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	/*
@@ -1281,6 +1285,10 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
 		return;
@@ -1328,7 +1336,8 @@ static void rl_intr(arg)
 #ifdef DEVICE_POLLING
         if  (ifp->if_ipending & IFF_POLLING)
                 return;
-        if (ether_poll_register(rl_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(rl_poll, ifp)) { /* ok, disable interrupts */
                 CSR_WRITE_2(sc, RL_IMR, 0x0000);
                 rl_poll(ifp, 0, 1);
                 return;
@@ -1651,6 +1660,9 @@ static int rl_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->rl_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = EINVAL;

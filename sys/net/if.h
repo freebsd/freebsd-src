@@ -155,6 +155,7 @@ struct if_data {
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
 #define IFCAP_TXCSUM		0x0002  /* can offload checksum on TX */
 #define IFCAP_NETCONS		0x0004  /* can be a network console */
+#define	IFCAP_POLLING		0x0040	/* driver supports polling */
 
 #define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
 

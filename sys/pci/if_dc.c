@@ -2158,6 +2158,10 @@ static int dc_attach(dev)
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 
 #ifdef SRM_MEDIA
         sc->dc_srm_media = 0;
@@ -2853,6 +2857,10 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct	dc_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		/* Re-enable interrupts. */
 		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
@@ -2917,7 +2925,8 @@ static void dc_intr(arg)
 #ifdef DEVICE_POLLING
 	if (ifp->if_ipending & IFF_POLLING)
 		return;
-	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 		return;
 	}
@@ -3431,6 +3440,9 @@ static int dc_ioctl(ifp, command, data)
 		if (sc->dc_srm_media)
 			sc->dc_srm_media = 0;
 #endif
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = EINVAL;

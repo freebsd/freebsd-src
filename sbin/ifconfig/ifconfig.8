@@ -32,7 +32,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2001
+.Dd April 11, 2004
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -307,6 +307,14 @@ list of available options.
 .It Fl mediaopt Ar opts
 If the driver supports the media selection system, disable the
 specified media options on the interface.
+.It Cm polling
+If the driver has user-configurable
+.Xr polling 4
+support, select the polling mode on the interface.
+.It Fl polling
+If the driver has user-configurable
+.Xr polling 4
+support, select the interrupt mode on the interface.
 .It Cm tunnel Ar src_addr dest_addr
 (IP tunnel devices only.)
 Configure the physical source and destination address for IP tunnel
@@ -702,7 +710,7 @@ If the
 .Fl m
 flag is passed before an interface name,
 .Nm
-will display all
+will display the capability list and all
 of the supported media for the specified interface.
 If
 .Fl L

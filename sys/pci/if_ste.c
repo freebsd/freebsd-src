@@ -638,6 +638,10 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct ste_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 		return;
@@ -688,7 +692,8 @@ static void ste_intr(xsc)
 #ifdef DEVICE_POLLING
 	if (ifp->if_ipending & IFF_POLLING)
 		return;
-	if (ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, STE_IMR, 0);
 		ste_poll(ifp, 0, 1);
 		return;
@@ -1173,6 +1178,11 @@ static int ste_attach(dev)
          * Tell the upper layer(s) we support long frames.
          */
         ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
  
 fail:
 	splx(s);
@@ -1550,6 +1560,9 @@ static int ste_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->ste_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = EINVAL;

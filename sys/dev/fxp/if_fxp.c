@@ -669,6 +669,12 @@ fxp_attach(device_t dev)
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
 
+#ifdef DEVICE_POLLING
+	/* Inform the world we support polling. */
+	ifp->if_capabilities |= IFCAP_POLLING;
+	ifp->if_capenable |= IFCAP_POLLING;
+#endif
+
 	/*
 	 * Attach the interface.
 	 */
@@ -1187,6 +1193,10 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct fxp_softc *sc = ifp->if_softc;
 	u_int8_t statack;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
 		return;
@@ -1223,7 +1233,8 @@ fxp_intr(void *xsc)
 
 	if (ifp->if_ipending & IFF_POLLING)
 		return;
-	if (ether_poll_register(fxp_poll, ifp)) {
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(fxp_poll, ifp)) {
 		/* disable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 		fxp_poll(ifp, 0, 1);
@@ -2053,6 +2064,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		} else {
                         error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
 		}
+		break;
+
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 
 	default:

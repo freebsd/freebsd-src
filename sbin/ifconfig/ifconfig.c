@@ -285,6 +285,8 @@ struct	cmd {
 	{ "-txcsum",	-IFCAP_TXCSUM,	setifcap },
 	{ "netcons",	IFCAP_NETCONS,	setifcap },
 	{ "-netcons",	-IFCAP_NETCONS,	setifcap },
+	{ "polling",	IFCAP_POLLING,	setifcap },
+	{ "-polling",	-IFCAP_POLLING,	setifcap },
 	{ "normal",	-IFF_LINK0,	setifflags },
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
@@ -1140,7 +1142,7 @@ setifmtu(val, dummy, s, afp)
 "\20MULTICAST\21POLLING\24STATICARP"
 
 #define	IFCAPBITS \
-"\020\1RXCSUM\2TXCSUM\3NETCONS"
+"\020\1RXCSUM\2TXCSUM\3NETCONS\7POLLING"
 
 /*
  * Print the status of the interface.  If an address family was
