@@ -3736,8 +3736,6 @@ vunmapbuf(struct buf *bp)
 	int pidx;
 	int npages;
 
-	GIANT_REQUIRED;
-
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
 		     npages);
