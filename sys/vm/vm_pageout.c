@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.20 1994/04/20 07:07:15 davidg Exp $
+ * $Id: vm_pageout.c,v 1.3 1994/06/06 11:56:27 davidg Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ extern int swap_pager_ready();
 #define MAXSCAN 512	/* maximum number of pages to scan in active queue */
 			/* set the "clock" hands to be (MAXSCAN * 4096) Bytes */
 #define ACT_DECLINE	1
-#define ACT_ADVANCE	6
+#define ACT_ADVANCE	3
 #define ACT_MAX		300
 
 #define LOWATER ((2048*1024)/NBPG)
@@ -722,88 +722,6 @@ rescan1:
 	}
 	vm_page_pagesfreed += pages_freed;
 	return force_wakeup;
-}
-
-void
-vm_pagescan()
-{
-	int maxscan, pages_scanned, pages_referenced, nextscan, scantick = hz/20;
-	int m_ref, next_ref;
-	vm_page_t m, next;
-
-	(void) spl0();
-
-	nextscan = scantick;
-
-scanloop:
-
-	pages_scanned = 0;
-	pages_referenced = 0;
-	maxscan = min(cnt.v_active_count, MAXSCAN);
-
-	/*
-	 * Gather statistics on page usage.
-	 */
-	m = vm_page_queue_active.tqh_first;
-	while (m && (maxscan-- > 0)) {
-
-		++pages_scanned;
-
-		next = m->pageq.tqe_next;
-
-		/*
- 		 * Dont mess with pages that are busy.
-		 */
-		if ((m->flags & PG_BUSY) || (m->hold_count != 0)) {
-			m = next;
-			continue;
-		}
-
-		/*
-		 * Advance pages that have been referenced, decline pages that
-		 * have not.
-		 */
-		if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-			pages_referenced++;
-			if (m->act_count < ACT_MAX)
-				m->act_count += ACT_ADVANCE;
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
-			TAILQ_REMOVE(&m->object->memq, m, listq);
-			TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
-		} else {
-			m->act_count -= min(m->act_count, ACT_DECLINE);
-			/*
-			 * if the page act_count is zero, and we are low on mem -- then we deactivate
-			 */
-			if (!m->act_count &&
-			    (cnt.v_free_count+cnt.v_inactive_count < cnt.v_free_target+cnt.v_inactive_target )) {
-				vm_page_deactivate(m);
-			/*
-			 * else if on the next go-around we will deactivate the page
-			 * we need to place the page on the end of the queue to age
-			 * the other pages in memory.
-			 */
-			} else {
-				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
-				TAILQ_REMOVE(&m->object->memq, m, listq);
-				TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
-			}
-		}
-		m = next;
-	}
-
-	if (pages_referenced) {
-		nextscan = (pages_scanned / pages_referenced) * scantick;
-		nextscan = max(nextscan, scantick);
-		nextscan = min(nextscan, hz);
-	} else
-		nextscan = hz;
-	tsleep((caddr_t) &vm_pagescanner, PVM, "scanw", nextscan);
-
-	goto scanloop;
 }
 
 /*
