@@ -64,14 +64,14 @@ If no file name is given, the typescript is saved in the file
 .Pa typescript  .
 .Pp
 If the argument
-.Ar command ...
+.Ar command
 is given,
 .Nm
 will run the specified command with an optional argument vector
 instead of an interactive shell.
 .Pp
-Options:
-.Bl -tag -width xxxxxxx
+The following options are available:
+.Bl -tag -width indent
 .It Fl a
 Append the output to
 .Ar file
@@ -99,7 +99,7 @@ and
 .Em exit ,
 .Em logout
 or
-.Em control-d
+.Em control-D
 (if
 .Em ignoreeof
 is not set) for the
