@@ -165,7 +165,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                         else {
                                 bcopy((caddr_t) ina->x_host.c_host,
                                       (caddr_t) ac->ac_enaddr,
-                                      sizeof(ac->ac_enaddr));
+                                      ISO88025_ADDR_LEN);
                         }
 
                         /*
@@ -245,7 +245,7 @@ iso88025_output(ifp, m, dst, rt0)
 	gen_th.ac = TR_AC;
 	gen_th.fc = TR_LLC_FRAME;
 	(void)memcpy((caddr_t)gen_th.iso88025_shost, (caddr_t)ac->ac_enaddr,
-		sizeof(ac->ac_enaddr));
+		     ISO88025_ADDR_LEN);
 	if (rif_len) {
 		gen_th.iso88025_shost[0] |= TR_RII;
 		if (rif_len > 2) {
@@ -282,7 +282,7 @@ iso88025_output(ifp, m, dst, rt0)
 
 		snap_type = 0;
 		bcopy((caddr_t)&(satoipx_addr(dst).x_host), (caddr_t)edst,
-			sizeof (edst));
+		      ISO88025_ADDR_LEN);
 
 		M_PREPEND(m, 3, M_TRYWAIT);
 		if (m == 0)
@@ -313,9 +313,9 @@ iso88025_output(ifp, m, dst, rt0)
 		gen_th.ac = sd->ac;
 		gen_th.fc = sd->fc;
 		(void)memcpy((caddr_t)edst, (caddr_t)sd->ether_dhost,
-			sizeof(sd->ether_dhost));
+			     ISO88025_ADDR_LEN);
 		(void)memcpy((caddr_t)gen_th.iso88025_shost,
-			(caddr_t)sd->ether_shost, sizeof(sd->ether_shost));
+			(caddr_t)sd->ether_shost, ISO88025_ADDR_LEN);
 		rif_len = 0;
 		break;
 	}
@@ -343,7 +343,7 @@ iso88025_output(ifp, m, dst, rt0)
 	}
 
 	(void)memcpy((caddr_t)&gen_th.iso88025_dhost, (caddr_t)edst,
-		     sizeof(edst));
+		     ISO88025_ADDR_LEN);
 
 	/*
 	 * Add local net header.  If no space in first mbuf,
