@@ -68,7 +68,6 @@ static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
 static linux_ioctl_function_t linux_ioctl_special;
-static linux_ioctl_function_t linux_ioctl_nvidia;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -84,9 +83,6 @@ static struct linux_ioctl_handler termio_handler =
 { linux_ioctl_termio, LINUX_IOCTL_TERMIO_MIN, LINUX_IOCTL_TERMIO_MAX };
 static struct linux_ioctl_handler private_handler =
 { linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
-static struct linux_ioctl_handler nvidia_handler =
-{ linux_ioctl_nvidia, LINUX_IOCTL_NVIDIA_MIN, LINUX_IOCTL_NVIDIA_MAX };
-
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
@@ -95,7 +91,6 @@ DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
-DATA_SET(linux_ioctl_handler_set, nvidia_handler);
 
 struct handler_element 
 {
@@ -129,23 +124,6 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 	}
 	fdrop(fp, td);
 	return (ENOIOCTL);
-}
-
-/*
- * NVIDIA driver
- */
-
-static int
-linux_ioctl_nvidia(struct thread *td, struct linux_ioctl_args *args)
-{
-	/*
-	 * The range has already been checked, and the native NVIDIA ioctl()
-	 * implementation will throw out any commands it does not recognize.
-	 * There is no good reason why we should manually translate each and
-	 * every one of the possible NVIDIA ioctl() commands.
-	 */
-
-	return (ioctl(td, (struct ioctl_args *) args));
 }
 
 /*
