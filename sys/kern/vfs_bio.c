@@ -2918,8 +2918,8 @@ bufdone(struct buf *bp)
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
 				printf(
-"biodone: foff(%lu)/m->pindex(%d) mismatch\n",
-				    (unsigned long)foff, m->pindex);
+"biodone: foff(%jd)/m->pindex(%ju) mismatch\n",
+				    (intmax_t)foff, (uintmax_t)m->pindex);
 			}
 #endif
 
