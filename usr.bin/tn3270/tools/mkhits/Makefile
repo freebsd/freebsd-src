@@ -4,6 +4,7 @@ PROG=	mkhits
 SRCS=	mkhits.c dohits.c asc_ebc.c ebc_disp.c
 CFLAGS+=-I${.CURDIR}/..
 NOMAN=	noman
+NOSHARED=1
 .PATH:	${.CURDIR}/../../api
 
 .include <bsd.prog.mk>
