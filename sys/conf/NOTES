@@ -374,6 +374,15 @@ options 	INVARIANT_SUPPORT
 options 	DIAGNOSTIC
 
 #
+# REGRESSION causes optional kernel interfaces necessary only for regression
+# testing to be enabled.  These interfaces may consitute security risks
+# when enabled, as they permit processes to easily modify aspects of the
+# run-time environment to reproduce unlikely or unusual (possibly normally
+# impossible) scenarios.
+#
+options		REGRESSION
+
+#
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
 # to be compiled.  See perfmon(4) for more information.
 #
