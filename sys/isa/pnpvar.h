@@ -52,6 +52,8 @@ u_char  pnp_read(int d); /* currently unused, but who knows... */
 	 | (PNP_HEXTONUM(s[6]) << 24)		\
 	 | (PNP_HEXTONUM(s[5]) << 28))
 
+void pnp_parse_resources(device_t dev, u_char *resources, int len);
+
 #endif /* KERNEL */
 
 #endif /* !_ISA_PNPVAR_H_ */
