@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.19 1995/02/17 19:38:13 bde Exp $
+ *	$Id: npx.c,v 1.20 1995/02/23 17:32:38 bde Exp $
  */
 
 #include "npx.h"
@@ -338,20 +338,20 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
-	printf("npx%d: ", dvp->id_unit);
 	if (npx_ex16)
-		printf("INT 16 interface\n");
+		printf("npx%d: INT 16 interface\n", dvp->id_unit);
 	else if (npx_irq13)
 		;		/* higher level has printed "irq 13" */
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
 	else if (npx_exists) {
-		printf("error reporting broken; using 387 emulator\n");
+		printf("npx%d: error reporting broken; using 387 emulator\n",
+			dvp->id_unit);
 		npx_exists = 0;
 	} else
-		printf("387 emulator\n");
+		printf("npx%d: 387 emulator\n",dvp->id_unit);
 #else
 	else
-		printf("no 387 emulator in kernel!\n");
+		printf("npx%d: no 387 emulator in kernel!\n", dvp->id_unit);
 #endif
 	npxinit(__INITIAL_NPXCW__);
 	if (npx_exists)
