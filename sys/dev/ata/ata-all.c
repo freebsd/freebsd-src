@@ -1542,6 +1542,12 @@ ata_get_lun(u_int32_t *map)
     return lun;
 }
 
+int
+ata_test_lun(u_int32_t *map, int lun)
+{
+    return (*map & ~(1 << lun));
+}
+
 void
 ata_free_lun(u_int32_t *map, int lun)
 {
