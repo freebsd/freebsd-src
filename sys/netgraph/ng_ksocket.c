@@ -850,7 +850,6 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	const node_p node = arg;
 	const priv_p priv = node->private;
 	meta_p meta = NULL;
-	struct sockaddr *nam;
 	struct mbuf *m;
 	struct uio auio;
 	int s, flags, error;
@@ -871,7 +870,8 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	flags = MSG_DONTWAIT;
 	do {
 		if ((error = (*so->so_proto->pr_usrreqs->pru_soreceive)
-		      (so, &nam, &auio, &m, (struct mbuf **)0, &flags)) == 0
+		      (so, (struct sockaddr **)0, &auio, &m,
+		      (struct mbuf **)0, &flags)) == 0
 		    && m != NULL) {
 			struct mbuf *n;
 
