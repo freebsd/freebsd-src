@@ -8,6 +8,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050225:
+	The cpufreq framework has been merged.  As part of this, the sysctls
+	for acpi(4) throttling have been removed.  See cpufreq(4) for the
+	new sysctl interface.  The power_profile script has also been updated,
+	so you can use performance/economy_cpu_freq in rc.conf(5) to set AC
+	on/offline cpu frequencies.  No new cpufreq drivers have been brought
+	in with this import but drivers from -current can now be built and run
+	on -stable.
+
 20050215: [applicable to sparc64 only]
 	uart(4) is the default serial console now. When using the
 	GENERIC kernel, make sure to start getty(8) processes on
