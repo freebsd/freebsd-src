@@ -122,6 +122,17 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+# XXX - Deprecated variable name support
+#	for rpcbind and ntpd
+#
+[ -n "$portmap_enable" ] && rpcbind_enable="$portmap_enable"
+[ -n "$portmap_program" ] && rpcbind_program="$portmap_program"
+[ -n "$portmap_flags" ] && rpcbind_flags="$portmap_flags"
+[ -n "$single_mountd_enable" ] && mountd_enable="$single_mountd_enable"
+[ -n "$xntpd_enable" ] && ntpd_enable="$xntpd_enable"
+[ -n "$xntpd_program" ] && ntpd_program="$xntpd_program"
+[ -n "$xntpd_flags" ] && ntpd_flags="$xntpd_flags"
+
 feed_dev_random() {
 	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
 #		echo "Using ${1} as an entropy file"
@@ -153,11 +164,12 @@ chkdepend() {
 	esac
 }
 
-chkdepend amd amd_enable        portmap portmap_enable
+chkdepend amd amd_enable        rpcbind rpcbind_enable
 chkdepend amd amd_enable        NFS nfs_client_enable
-chkdepend NFS nfs_server_enable portmap portmap_enable
-chkdepend NIS nis_server_enable portmap portmap_enable
-chkdepend NIS nis_client_enable portmap portmap_enable
+chkdepend NFS nfs_server_enable rpcbind rpcbind_enable
+chkdepend NFS nfs_server_enable rpcbind rpcbind_enable
+chkdepend NIS nis_server_enable rpcbind rpcbind_enable
+chkdepend NIS nis_client_enable rpcbind rpcbind_enable
 
 # Enable dumpdev early so that a crash during the boot process can be caught.
 #
