@@ -116,6 +116,8 @@ struct pccard_function {
 	int		last_config_index;
 	u_long		ccr_base;
 	u_long		ccr_mask;
+	struct resource *ccr_res;
+	int		ccr_rid;
 	STAILQ_HEAD(, pccard_config_entry) cfe_head;
 	STAILQ_ENTRY(pccard_function) pf_list;
 	/* run-time state */
@@ -167,25 +169,14 @@ struct pccard_ivar {
 };
 
 struct pccard_softc {
-
-	/* this stuff is for the socket */
-	pccard_chipset_tag_t pct;
-	pccard_chipset_handle_t pch;
-
 	device_t		dev;
+	/* this stuff is for the socket */
 
 	/* this stuff is for the card */
 	struct pccard_card card;
 	void		*ih;
 	int		sc_enabled_count;	/* num functions enabled */
 
-	/*
-	 * These are passed down from the PCCARD chip, and exist only
-	 * so that cards with Very Special address allocation needs
-	 * know what range they should be dealing with.
-	 */
-	bus_addr_t iobase;		/* start i/o space allocation here */
-	bus_size_t iosize;		/* size of the i/o space range */
 };
 
 void
@@ -278,7 +269,3 @@ void	pccard_io_unmap(struct pccard_function *, int);
 
 #define	pccard_mem_unmap(pf, window)					\
 	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
-
-void	*pccard_intr_establish(struct pccard_function *, int,
-	    int (*) (void *), void *);
-void 	pccard_intr_disestablish(struct pccard_function *, void *);
