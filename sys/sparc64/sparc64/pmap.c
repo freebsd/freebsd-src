@@ -396,7 +396,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = ~0;
-	TAILQ_INIT(&pm->pm_pvlist);
 
 	/* XXX flush all non-locked tlb entries */
 }
@@ -1100,7 +1099,6 @@ pmap_pinit0(pmap_t pm)
 	pm->pm_active = 0;
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
-	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
 
@@ -1148,7 +1146,6 @@ pmap_pinit(pmap_t pm)
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
 	pm->pm_active = 0;
-	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
 
@@ -1173,8 +1170,6 @@ pmap_release(pmap_t pm)
 	    pm->pm_context[PCPU_GET(cpuid)], pm->pm_tsb);
 	obj = pm->pm_tsb_obj;
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
-	KASSERT(TAILQ_EMPTY(&pm->pm_pvlist),
-	    ("pmap_release: leaking pv entries"));
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
@@ -1617,41 +1612,6 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 void
 pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct tte *tp;
-	pv_entry_t npv;
-	pv_entry_t pv;
-	vm_page_t m;
-
-	npv = NULL;
-	for (pv = TAILQ_FIRST(&pm->pm_pvlist); pv != NULL; pv = npv) {
-		npv = TAILQ_NEXT(pv, pv_plist);
-		if (pv->pv_va >= eva || pv->pv_va < sva)
-			continue;
-		if ((tp = tsb_tte_lookup(pv->pv_pmap, pv->pv_va)) == NULL)
-			continue;
-
-		/*
-		 * We cannot remove wired pages at this time.
-		 */
-		if ((tp->tte_data & TD_WIRED) != 0)
-			continue;
-
-		atomic_clear_long(&tp->tte_data, TD_V);
-		tp->tte_vpn = 0;
-		tp->tte_data = 0;
-
-		m = pv->pv_m;
-
-		pv->pv_pmap->pm_stats.resident_count--;
-		m->md.pv_list_count--;
-		pmap_cache_remove(m, pv->pv_va);
-		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		if (TAILQ_EMPTY(&m->md.pv_list))
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
-		pv_free(pv);
-	}
-	tlb_context_demap(pm);
 }
 
 /*

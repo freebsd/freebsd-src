@@ -109,7 +109,6 @@ pv_insert(pmap_t pm, vm_page_t m, vm_offset_t va)
 	pv->pv_va = va;
 	pv->pv_m = m;
 	pv->pv_pmap = pm;
-	TAILQ_INSERT_TAIL(&pm->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
 	pm->pm_stats.resident_count++;
@@ -120,15 +119,9 @@ pv_lookup(pmap_t pm, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
 
-	if (m != NULL && m->md.pv_list_count < pm->pm_stats.resident_count) {
-		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
-			if (pm == pv->pv_pmap && va == pv->pv_va)
-				break;
-	} else {
-		TAILQ_FOREACH(pv, &pm->pm_pvlist, pv_plist)
-			if (va == pv->pv_va)
-				break;
-	}
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
+		if (pm == pv->pv_pmap && va == pv->pv_va)
+			break;
 	return (pv);
 }
 
@@ -144,7 +137,6 @@ pv_remove(pmap_t pm, vm_page_t m, vm_offset_t va)
 		m->md.pv_list_count--;
 		pm->pm_stats.resident_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		TAILQ_REMOVE(&pm->pm_pvlist, pv, pv_plist);
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 		pv_free(pv);
@@ -274,7 +266,6 @@ pv_remove_all(vm_page_t m)
 		tp->tte_data = 0;
 		pv->pv_pmap->pm_stats.resident_count--;
 		m->md.pv_list_count--;
-		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		pmap_cache_remove(pv->pv_m, pv->pv_va);
 		pv_free(pv);
