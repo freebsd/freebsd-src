@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.14 1995/08/24 10:45:13 dfr Exp $
+ * $Id: nfs_nqlease.c,v 1.15 1995/08/24 11:04:02 davidg Exp $
  */
 
 /*
@@ -769,7 +769,6 @@ nqnfsrv_vacated(nfsd, slp, procp, mrq)
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct mbuf *nam = nfsd->nd_nam;
 	caddr_t dpos = nfsd->nd_dpos;
-	struct ucred *cred = &nfsd->nd_cr;
 	register struct nqlease *lp;
 	register struct nqhost *lph;
 	struct nqlease *tlp = (struct nqlease *)0;
@@ -890,7 +889,7 @@ nqnfs_vacated(vp, cred)
 	register struct mbuf *m;
 	register int i;
 	register u_long *tl;
-	register long t1, t2;
+	register long t2;
 	caddr_t bpos;
 	u_long xid;
 	int error = 0;

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.15 1995/07/10 15:39:10 wollman Exp $
+ * $Id: in_rmx.c,v 1.16 1995/09/18 15:51:32 wollman Exp $
  */
 
 /*
@@ -204,7 +204,6 @@ static int
 in_rtqkill(struct radix_node *rn, void *rock)
 {
 	struct rtqk_arg *ap = rock;
-	struct radix_node_head *rnh = ap->rnh;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.6 1994/10/02 17:35:09 phk Exp $
+ *	$Id: kern_acct.c,v 1.7 1995/07/23 23:02:20 mpp Exp $
  */
 
 #include <sys/param.h>
@@ -161,7 +161,7 @@ acct_process(p)
 	struct acct acct;
 	struct rusage *r;
 	struct timeval ut, st, tmp;
-	int s, t;
+	int t;
 	struct vnode *vp;
 
 	/* If accounting isn't enabled, don't bother */

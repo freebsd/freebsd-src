@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.9 1995/06/11 19:31:39 rgrimes Exp $
+ * $Id: if_ethersubr.c,v 1.10 1995/10/26 20:30:09 julian Exp $
  */
 
 #include <sys/param.h>
@@ -327,7 +327,6 @@ ether_input(ifp, eh, m)
 {
 	register struct ifqueue *inq;
 	register struct llc *l;
-	struct arpcom *ac = (struct arpcom *)ifp;
 	u_short ether_type;
 	int s;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.15 1995/07/17 15:15:15 wollman Exp $
+ *	$Id: in.c,v 1.16 1995/09/21 17:50:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -691,7 +691,6 @@ void
 in_delmulti(inm)
 	register struct in_multi *inm;
 {
-	register struct in_multi **p;
 	struct ifreq ifr;
 	int s = splnet();
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.11 1995/08/28 09:18:52 julian Exp $
+ * $Id: uipc_mbuf.c,v 1.12 1995/09/09 18:10:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,6 @@ m_clalloc(ncl, nowait)
 	register int ncl;
 	int nowait;
 {
-	static int logged;
 	register caddr_t p;
 	register int i;
 	int npg;
