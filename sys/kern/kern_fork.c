@@ -225,9 +225,7 @@ fork1(td, flags, pages, procp)
 		 */
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
-			FILEDESC_LOCK(td->td_proc->p_fd);
 			fdtmp = fdinit(td->td_proc->p_fd);
-			FILEDESC_UNLOCK(td->td_proc->p_fd);
 			fdfree(td);
 			p1->p_fd = fdtmp;
 		}
@@ -235,18 +233,8 @@ fork1(td, flags, pages, procp)
 		/*
 		 * Unshare file descriptors (from parent).
 		 */
-		if (flags & RFFDG) {
-			FILEDESC_LOCK(p1->p_fd);
-			if (p1->p_fd->fd_refcnt > 1) {
-				struct filedesc *newfd;
-
-				newfd = fdcopy(td->td_proc->p_fd);
-				FILEDESC_UNLOCK(p1->p_fd);
-				fdfree(td);
-				p1->p_fd = newfd;
-			} else
-				FILEDESC_UNLOCK(p1->p_fd);
-		}
+		if (flags & RFFDG) 
+			fdunshare(p1, td);
 		*procp = NULL;
 		return (0);
 	}
@@ -423,14 +411,10 @@ again:
 	 * Copy filedesc.
 	 */
 	if (flags & RFCFDG) {
-		FILEDESC_LOCK(td->td_proc->p_fd);
-		fd = fdinit(td->td_proc->p_fd);
-		FILEDESC_UNLOCK(td->td_proc->p_fd);
+		fd = fdinit(p1->p_fd);
 		fdtol = NULL;
 	} else if (flags & RFFDG) {
-		FILEDESC_LOCK(p1->p_fd);
-		fd = fdcopy(td->td_proc->p_fd);
-		FILEDESC_UNLOCK(p1->p_fd);
+		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
 	} else {
 		fd = fdshare(p1->p_fd);
@@ -445,9 +429,9 @@ again:
 			 * shared process leaders.
 			 */
 			fdtol = p1->p_fdtol;
-			FILEDESC_LOCK(p1->p_fd);
+			FILEDESC_LOCK_FAST(p1->p_fd);
 			fdtol->fdl_refcount++;
-			FILEDESC_UNLOCK(p1->p_fd);
+			FILEDESC_UNLOCK_FAST(p1->p_fd);
 		} else {
 			/* 
 			 * Shared file descriptor table, and
