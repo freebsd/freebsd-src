@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.32 1996/09/03 14:23:21 bde Exp $
+ * $Id: spec_vnops.c,v 1.33 1996/10/06 21:19:33 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -712,7 +712,7 @@ spec_advlock(ap)
 	} */ *ap;
 {
 
-	return (EOPNOTSUPP);
+	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
 
 /*
