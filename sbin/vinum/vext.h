@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.19 2001/05/23 23:00:12 grog Exp grog $
+ * $Id: vext.h,v 1.22 2003/04/28 06:19:06 grog Exp $
  * $FreeBSD$
  */
 
@@ -43,6 +43,7 @@
 #define PLEXINITSIZE 65536				    /* init in this size chunks */
 #define MAXPLEXINITSIZE 65536				    /* max chunk size to use for init */
 #define MAXDATETEXT 128					    /* date text in history (far too much) */
+#define VINUMDEBUG					    /* for including kernel headers */
 
 enum {
     KILOBYTE = 1024,
@@ -54,8 +55,31 @@ enum {
 
 #define DEFAULT_HISTORYFILE "/var/log/vinum_history"	    /* default name for history stuff */
 
+#include <ctype.h>
+#include <errno.h>
 #include <sys/param.h>
-#include <sys/errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <grp.h>
+#include <netdb.h>
+#include <paths.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/resource.h>
+#include <readline/history.h>
+#include <readline/readline.h>
+#include <sys/sysctl.h>
+
 #include <sys/time.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -67,7 +91,6 @@ enum {
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/queue.h>
-#include <setjmp.h>
 #include <stdarg.h>
 #include <vm/vm.h>
 #include <dev/vinum/vinumvar.h>
@@ -178,7 +201,7 @@ extern int SSize;					    /* sector size for revive */
 extern int dowait;					    /* wait for children to exit */
 extern char *objectname;				    /* name for some functions */
 
-extern FILE *history;					    /* history file */
+extern FILE *History;					    /* history file */
 
 /* Structures to read kernel data into */
 extern struct __vinum_conf vinum_conf;			    /* configuration information */
