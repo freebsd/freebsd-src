@@ -841,6 +841,15 @@
       useful on old &os; versions which didn't have &man.fetch.1;
       support for this, and for some FTP proxies which always
       report incorrect or bogus sizes.</para>
+
+    <para>Two new files have been added to the ports tree to track
+      note-worthy changes:  <filename>ports/CHANGES</filename> lists
+      major changes to the Ports Collection and its infrastructure.
+      <filename>ports/UPDATING</filename> describes some potential
+      pitfalls that can be encountered when updating certain ports,
+      analogous to <filename>src/UPDATING</filename> for the base
+      system.</para>
+
   </sect2>
 
   <sect2 id="releng">
@@ -860,6 +869,31 @@
       <filename>driver.flp</filename> images are also obsolete and no
       longer built.</para>
 
+    <para>The supported release of <application>GNOME</application>
+      has been updated from 2.4 to 2.6.
+
+      <note>
+	<para>If you are using the older <application>GNOME</application>
+	  desktop itself (<filename role="package">x11/gnome2</filename>), simply upgrading it from the &os; Ports Collection
+	  with
+	  &man.portupgrade.1;
+	  (<filename role="package">sysutils/portupgrade</filename>)
+	  will cause serious problems.
+	  If you are a <application>GNOME</application> desktop user,
+	  please read the instructions carefully at
+	  <ulink url="http://www.FreeBSD.org/gnome/docs/faq26.html"></ulink>,
+	  and use the <filename>gnome_upgrade.sh</filename> script to
+	  properly upgrade to <application>GNOME</application> 2.6.</para>
+
+	<para>Note that if you are just a casual user of some of the
+	  <application>GNOME</application> libraries,
+	  &man.portupgrade.1; should be sufficient
+	  to update your ports.</para>
+      </note>
+    </para>
+
+    <para>The supported release of <application>KDE</application>
+      has been updated from 3.1.4 to 3.2.1.</para>
   </sect2>
 
   <sect2 id="doc">
