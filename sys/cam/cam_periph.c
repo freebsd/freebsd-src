@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.17 1999/05/25 20:17:28 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.18 1999/06/26 02:47:06 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -551,10 +551,10 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		if ((lengths[i] +
 		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > DFLTPHYS){
-			printf("cam_periph_mapmem: attempt to map %u bytes, "
+			printf("cam_periph_mapmem: attempt to map %lu bytes, "
 			       "which is greater than DFLTPHYS(%d)\n",
-			       lengths[i] +
-			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK),
+			       (long)(lengths[i] +
+			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)),
 			       DFLTPHYS);
 			return(E2BIG);
 		}
