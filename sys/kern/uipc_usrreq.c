@@ -859,8 +859,12 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
-		if (unp->unp_gencnt <= gencnt && !prison_unpcb(req->p, unp))
+		if (unp->unp_gencnt <= gencnt && !prison_unpcb(req->p, unp)) {
+			if (!showallsockets && socheckproc(unp->unp_socket,
+			    curthread->td_proc))
+				continue;
 			unp_list[i++] = unp;
+		}
 	}
 	n = i;			/* in case we lost some during malloc */
 

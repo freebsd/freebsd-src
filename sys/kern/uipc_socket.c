@@ -92,6 +92,10 @@ static int somaxconn = SOMAXCONN;
 SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW,
     &somaxconn, 0, "Maximum pending socket connection queue size");
 
+int showallsockets = 1;
+SYSCTL_INT(_kern_ipc, OID_AUTO, showallsockets, CTLFLAG_RW, &showallsockets,
+          0, "show users all other users pcb data");
+
 /*
  * Socket operation routines.
  * These routines are called by the routines in
@@ -1643,4 +1647,30 @@ filt_solisten(struct knote *kn, long hint)
 
 	kn->kn_data = so->so_qlen - so->so_incqlen;
 	return (! TAILQ_EMPTY(&so->so_comp));
+}
+
+int
+socheckuid(struct socket *so, uid_t uid)
+{
+
+	if (so == NULL)
+		return (EPERM);
+	if (so->so_cred->cr_uid == uid)
+		return (0);
+	return (EPERM);
+}
+
+int
+socheckproc(struct socket *so, struct proc *p)
+{
+
+	if (p == NULL)
+		return (ESRCH);
+	if (socheckuid(so, p->p_ucred->cr_ruid) == 0)
+		return (0);
+	if (socheckuid(so, p->p_ucred->cr_uid) == 0)
+		return (0);
+	if (!suser_xxx(0, p, PRISON_ROOT))
+		return (0);
+	return (EPERM);
 }

@@ -293,6 +293,7 @@ MALLOC_DECLARE(M_SONAME);
 MALLOC_DECLARE(M_ACCF);
 #endif
 
+extern int	showallsockets;
 extern int	maxsockets;
 extern u_long	sb_max;
 extern struct	vm_zone *socket_zone;
@@ -408,6 +409,9 @@ struct accept_filter *	accept_filt_get __P((char *name));
 int accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
 SYSCTL_DECL(_net_inet_accf);
 #endif /* ACCEPT_FILTER_MOD */
+
+int	socheckuid __P((struct socket *so, uid_t uid));
+int	socheckproc __P((struct socket *so, struct proc *p));
 
 #endif /* _KERNEL */
 
