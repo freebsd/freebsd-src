@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-# XXX present but broken: atapi ip_mroute_mod joy pcic
+# XXX present but broken: ip_mroute_mod pcic
 
 SUBDIR=	aha ccd cd9660 coda dc fdesc fxp if_disc if_ppp if_sl if_tun \
-	ipfilter ipfw kernfs md mfs mii msdos netgraph nfs ntfs nullfs \
+	ipfilter ipfw joy kernfs md mfs mii msdos netgraph nfs ntfs nullfs \
 	portal procfs rl sf sis sk ste ti tl \
 	ugen uhid ukbd ulpt umapfs umass umodem ums union usb vn vr wb xl
 

@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../i386/isa
+.PATH:	${.CURDIR}/../../isa
 KMOD	= joy
-SRCS	= joy.c opt_devfs.h
+SRCS	= bus_if.h device_if.h isa_if.h joy.c
 MAN8	= joy.8
-
-CFLAGS		+= -DJOY_MODULE
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
