@@ -53,6 +53,7 @@
 #include <sys/uio.h>
 #include <termios.h>
 #include <sys/time.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "layer.h"
@@ -91,6 +92,7 @@
 #include "bundle.h"
 #include "id.h"
 #include "iface.h"
+#include "route.h"
 #include "ether.h"
 
 
@@ -102,6 +104,7 @@ struct etherdevice {
   int connected;			/* Are we connected yet ? */
   int timeout;				/* Seconds attempting to connect */
   char hook[sizeof TUN_NAME + 11];	/* Our socket node hook */
+  u_int32_t slot;			/* ifindex << 24 | unit */
 };
 
 #define device2ether(d) \
@@ -177,6 +180,15 @@ ether_OpenInfo(struct physical *p)
   return "disconnected";
 }
 
+static int
+ether_Slot(struct physical *p)
+{
+  struct etherdevice *dev = device2ether(p->handler);
+
+  return dev->slot;
+}
+
+
 static void
 ether_device2iov(struct device *d, struct iovec *iov, int *niov,
                  int maxiov, int *auxfd, int *nauxfd)
@@ -204,10 +216,11 @@ ether_MessageIn(struct etherdevice *dev)
   char msgbuf[sizeof(struct ng_mesg) + sizeof(struct ngpppoe_sts)];
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
-  char unknown[14];
+  char *end, unknown[14], sessionid[5];
   const char *msg;
   struct timeval t;
   fd_set *r;
+  u_long slot;
   int ret;
 
   if (dev->cs < 0)
@@ -254,6 +267,17 @@ ether_MessageIn(struct etherdevice *dev)
       msg = "ACNAME";
       if (setenv("ACNAME", sts->hook, 1) != 0)
         log_Printf(LogWARN, "setenv: cannot set ACNAME=%s: %m", sts->hook);
+      break;
+    case NGM_PPPOE_SESSIONID:
+      msg = "SESSIONID";
+      snprintf(sessionid, sizeof sessionid, "%04x", *(u_int16_t *)sts);
+      if (setenv("SESSIONID", sessionid, 1) != 0)
+        syslog(LOG_WARNING, "setenv: cannot set SESSIONID=%s: %m",
+               sessionid);
+      /* Use this in preference to our interface index */
+      slot = strtoul(sessionid, &end, 16);
+      if (end != sessionid && *end == '\0')
+          dev->slot = slot;
       break;
     default:
       snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
@@ -304,7 +328,8 @@ static const struct device baseetherdevice = {
   ether_Write,
   ether_device2iov,
   NULL,
-  ether_OpenInfo
+  ether_OpenInfo,
+  ether_Slot
 };
 
 struct device *
@@ -409,7 +434,7 @@ ether_Create(struct physical *p)
   struct ng_mesg *resp;
   const struct hooklist *hlist;
   const struct nodeinfo *ninfo;
-  char *path;
+  char *path, *sessionid;
   int ifacelen, f;
 
   dev = NULL;
@@ -625,7 +650,8 @@ ether_Create(struct physical *p)
 
     dev->timeout = dev->dev.cd.delay;
     dev->connected = CARRIER_PENDING;
-
+    /* This will be overridden by our session id - if provided by netgraph */
+    dev->slot = GetIfIndex(path);
   } else {
     /* See if we're a netgraph socket */
     struct stat st;
@@ -661,6 +687,19 @@ ether_Create(struct physical *p)
         dev->timeout = 0;
         dev->connected = CARRIER_OK;
         *dev->hook = '\0';
+
+        /*
+         * If we're being envoked from pppoed(8), we may have a SESSIONID
+         * set in the environment.  If so, use it as the slot
+         */
+        if ((sessionid = getenv("SESSIONID")) != NULL) {
+          char *end;
+          u_long slot;
+
+          slot = strtoul(sessionid, &end, 16);
+          dev->slot = end != sessionid && *end == '\0' ? slot : 0;
+        } else
+          dev->slot = 0;
       }
     }
   }

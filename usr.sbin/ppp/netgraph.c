@@ -313,6 +313,7 @@ static const struct device basengdevice = {
   ng_Write,
   ng_device2iov,
   NULL,
+  NULL,
   NULL
 };
 

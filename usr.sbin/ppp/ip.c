@@ -40,13 +40,11 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
 #include <sys/un.h>
 
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>

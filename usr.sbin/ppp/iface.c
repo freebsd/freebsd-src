@@ -35,7 +35,6 @@
 #include <net/if_var.h>
 #endif
 #include <net/route.h>
-#include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -68,7 +67,6 @@
 #include "slcompress.h"
 #include "descriptor.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "lcp.h"

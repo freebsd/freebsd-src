@@ -73,6 +73,7 @@ struct device {
   void (*device2iov)(struct device *, struct iovec *, int *, int, int *, int *);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
+  int (*slot)(struct physical *);
 };
 
 struct physical {
@@ -169,3 +170,4 @@ extern int physical_MaxDeviceSize(void);
 extern int physical_AwaitCarrier(struct physical *);
 extern void physical_SetDescriptor(struct physical *);
 extern void physical_SetAsyncParams(struct physical *, u_int32_t, u_int32_t);
+extern int physical_Slot(struct physical *);

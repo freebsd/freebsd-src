@@ -58,7 +58,6 @@
 #include "lcp.h"
 #include "ccp.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"

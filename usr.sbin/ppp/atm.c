@@ -136,6 +136,7 @@ static const struct device baseatmdevice = {
   atm_Sendto,
   atm_device2iov,
   NULL,
+  NULL,
   NULL
 };
 

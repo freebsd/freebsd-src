@@ -39,7 +39,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
-#include <netdb.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -65,7 +64,6 @@
 #include "link.h"
 #include "slcompress.h"
 #include "ncpaddr.h"
-#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -200,6 +198,8 @@ p_flags(struct prompt *prompt, u_int32_t f, int max)
   prompt_Printf(prompt, "%-*.*s", max, max, name);
 }
 
+static int route_nifs = -1;
+
 const char *
 Index2Nam(int idx)
 {
@@ -210,9 +210,9 @@ Index2Nam(int idx)
    *      the PCCARD insert/remove events can signal ppp.
    */
   static char **ifs;		/* Figure these out once */
-  static int nifs, debug_done;	/* Figure out how many once, and debug once */
+  static int debug_done;	/* Debug once */
 
-  if (idx > nifs || (idx > 0 && ifs[idx-1] == NULL)) {
+  if (idx > route_nifs || (idx > 0 && ifs[idx-1] == NULL)) {
     int mib[6], have, had;
     size_t needed;
     char *buf, *ptr, *end;
@@ -222,7 +222,7 @@ Index2Nam(int idx)
     if (ifs) {
       free(ifs);
       ifs = NULL;
-      nifs = 0;
+      route_nifs = 0;
     }
     debug_done = 0;
 
@@ -264,7 +264,7 @@ Index2Nam(int idx)
             newifs = (char **)malloc(sizeof(char *) * have);
           if (!newifs) {
             log_Printf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
-            nifs = 0;
+            route_nifs = 0;
             if (ifs) {
               free(ifs);
               ifs = NULL;
@@ -279,8 +279,8 @@ Index2Nam(int idx)
           ifs[ifm->ifm_index-1] = (char *)malloc(dl->sdl_nlen+1);
           memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
           ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
-          if (nifs < ifm->ifm_index)
-            nifs = ifm->ifm_index;
+          if (route_nifs < ifm->ifm_index)
+            route_nifs = ifm->ifm_index;
         }
       } else if (log_IsKept(LogDEBUG))
         log_Printf(LogDEBUG, "Skipping out-of-range interface %d!\n",
@@ -293,13 +293,13 @@ Index2Nam(int idx)
     int f;
 
     log_Printf(LogDEBUG, "Found the following interfaces:\n");
-    for (f = 0; f < nifs; f++)
+    for (f = 0; f < route_nifs; f++)
       if (ifs[f] != NULL)
         log_Printf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
     debug_done = 1;
   }
 
-  if (idx < 1 || idx > nifs || ifs[idx-1] == NULL)
+  if (idx < 1 || idx > route_nifs || ifs[idx-1] == NULL)
     return NumStr(idx, NULL, 0);
 
   return ifs[idx-1];
@@ -529,11 +529,10 @@ int
 GetIfIndex(char *name)
 {
   int idx;
-  const char *got;
 
   idx = 1;
-  while (strcmp(got = Index2Nam(idx), "???"))
-    if (!strcmp(got, name))
+  while (route_nifs == -1 || idx < route_nifs)
+    if (strcmp(Index2Nam(idx), name) == 0)
       return idx;
     else
       idx++;
