@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.4 1995/05/20 18:38:39 gpalmer Exp $
+ * $Id: media_strategy.c,v 1.5 1995/05/21 15:40:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -238,6 +238,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 
 	    write(1, memory, sb.st_size);
 	    munmap(memory, sb.st_size);
+	    close(fd);
 	    ++chunk;
 	}
     }
