@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bitstring.h>
 #include <vm/uma.h>
-#include <machine/atomic.h>
 #include <geom/geom.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
@@ -58,6 +57,10 @@ static u_int g_mirror_timeout = 4;
 TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
+static u_int g_mirror_idletime = 5;
+TUNABLE_INT("kern.geom.mirror.idletime", &g_mirror_idletime);
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RW,
+    &g_mirror_idletime, 0, "Mark components as clean when idling");
 static u_int g_mirror_reqs_per_sync = 5;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, reqs_per_sync, CTLFLAG_RW,
     &g_mirror_reqs_per_sync, 0,
@@ -1496,14 +1499,35 @@ g_mirror_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-			if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-			    "m:w1", hz * 5) == EWOULDBLOCK) {
+#define	G_MIRROR_IS_IDLE(sc)	((sc)->sc_idle ||			\
+				 ((sc)->sc_provider != NULL &&		\
+				  (sc)->sc_provider->acw == 0))
+			if (G_MIRROR_IS_IDLE(sc)) {
 				/*
-				 * No I/O requests in 5 seconds, so mark
-				 * components as clean.
+				 * If we're already in idle state, sleep without
+				 * a timeout.
 				 */
-				if (!sc->sc_idle)
+				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "m:w1", 0);
+				G_MIRROR_DEBUG(5, "%s: I'm here 3.", __func__);
+			} else {
+				u_int idletime;
+
+				idletime = g_mirror_idletime;
+				if (idletime == 0)
+					idletime = 1;
+				idletime *= hz;
+				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "m:w2", idletime) == EWOULDBLOCK) {
+					G_MIRROR_DEBUG(5, "%s: I'm here 4.",
+					    __func__);
+					/*
+					 * No I/O requests in 5 seconds, so mark
+					 * components as clean.
+					 */
 					g_mirror_idle(sc);
+				}
+				G_MIRROR_DEBUG(5, "%s: I'm here 5.", __func__);
 			}
 			continue;
 		}
@@ -1518,26 +1542,26 @@ g_mirror_worker(void *arg)
 
 			g_mirror_sync_request(bp);
 sleep:
-			sps = atomic_load_acq_int(&g_mirror_syncs_per_sec);
+			sps = g_mirror_syncs_per_sec;
 			if (sps == 0) {
-				G_MIRROR_DEBUG(5, "%s: I'm here 5.", __func__);
+				G_MIRROR_DEBUG(5, "%s: I'm here 6.", __func__);
 				continue;
 			}
 			mtx_lock(&sc->sc_queue_mtx);
 			if (bioq_first(&sc->sc_queue) != NULL) {
 				mtx_unlock(&sc->sc_queue_mtx);
-				G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
+				G_MIRROR_DEBUG(5, "%s: I'm here 7.", __func__);
 				continue;
 			}
 			timeout = hz / sps;
 			if (timeout == 0)
 				timeout = 1;
-			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w2",
+			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:w3",
 			    timeout);
 		} else {
 			g_mirror_register_request(bp);
 		}
-		G_MIRROR_DEBUG(5, "%s: I'm here 6.", __func__);
+		G_MIRROR_DEBUG(5, "%s: I'm here 8.", __func__);
 	}
 }
 
@@ -2501,8 +2525,8 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	/*
 	 * Run timeout.
 	 */
-	timeout = atomic_load_acq_int(&g_mirror_timeout);
-	callout_reset(&sc->sc_callout, timeout * hz, g_mirror_go, sc);
+	timeout = g_mirror_timeout * hz;
+	callout_reset(&sc->sc_callout, timeout, g_mirror_go, sc);
 	return (sc->sc_geom);
 }
 
