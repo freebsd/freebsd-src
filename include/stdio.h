@@ -309,8 +309,7 @@ __END_DECLS
 __BEGIN_DECLS
 int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
 char	*ctermid_r __P((char *));
-__const char *fmtcheck __P((const char *, const char *))
-	__attribute__((__format_arg__(2)));
+__const char *fmtcheck __P((const char *, const char *));
 char	*fgetln __P((FILE *, size_t *));
 int	 fpurge __P((FILE *));
 int	 fseeko __P((FILE *, _BSD_OFF_T_, int));
