@@ -1117,12 +1117,12 @@ setregs(p, entry, stack, ps_strings)
 	npxinit(__INITIAL_NPXCW__);
 #endif
 
-      /*
-       * XXX - Linux emulator
-       * Make sure sure edx is 0x0 on entry. Linux binaries depend
-       * on it.
-       */
-      p->p_retval[1] = 0;
+	/*
+	 * XXX - Linux emulator
+	 * Make sure sure edx is 0x0 on entry. Linux binaries depend
+	 * on it.
+	 */
+	p->p_retval[1] = 0;
 }
 
 void
