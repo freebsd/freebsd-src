@@ -45,9 +45,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
-#endif
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;
@@ -62,16 +60,25 @@ struct group {
 };
 
 __BEGIN_DECLS
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+void		 endgrent(void);
+struct group	*getgrent(void);
+#endif
 struct group	*getgrgid(gid_t);
 struct group	*getgrnam(const char *);
-#ifndef _POSIX_SOURCE
-struct group	*getgrent(void);
-int		 setgrent(void);
-void		 endgrent(void);
-void		 setgrfile(const char *);
-int		 setgroupent(int);
+#if __BSD_VISIBLE
 const char	*group_from_gid(gid_t, int);
 #endif
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+int		 setgrent(void);
+#endif
+#if __BSD_VISIBLE
+void		 setgrfile(const char *);
+int		 setgroupent(int);
+#endif
+/*
+ * XXX missing getgrgid_r(), getgrnam_r().
+ */
 __END_DECLS
 
 #endif /* !_GRP_H_ */
