@@ -78,8 +78,6 @@ case ${rc_ng} in
         	autoboot=yes
 		_boot="faststart"
         	rc_fast=yes        # run_rc_command(): do fast booting
-		export autoboot
-		export rc_fast
 	else
 		autoboot=no
 		_boot="start"
