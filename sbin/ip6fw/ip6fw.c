@@ -1200,7 +1200,6 @@ ip6fw_main(ac,av)
 	char 	**av;
 {
 	int 		ch;
-	extern int 	optind;
 
 	/* init optind to 1 */
 	optind = 1;
