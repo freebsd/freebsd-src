@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.8 1999/08/04 18:58:56 dima Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.9 1999/08/04 19:22:45 dima Exp $
  */
 
 /*
@@ -694,6 +694,8 @@ open(p, uap, retval)
 	flags = FFLAGS(uap->flags);
 	if ((flags & FREAD + FWRITE) == 0)
 		return (EINVAL);
+	if (flags & O_NOFOLLOW)
+		flags &= ~O_NOFOLLOW;
 	error = falloc(p, &nfp, &indx);
 	if (error)
 		return (error);

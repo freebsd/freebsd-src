@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.13 1996/09/19 19:48:33 phk Exp $
+ * $Id: kern_ktrace.c,v 1.14 1996/09/22 18:17:51 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -264,8 +264,8 @@ ktrace(curp, uap, retval)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->fname, curp);
-		error = vn_open(&nd, FREAD|FWRITE, 0);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, curp);
+		error = vn_open(&nd, FREAD|FWRITE|O_NOFOLLOW, 0);
 		if (error) {
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (error);

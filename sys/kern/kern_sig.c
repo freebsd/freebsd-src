@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.26 1996/10/19 01:06:20 davidg Exp $
+ * $Id: kern_sig.c,v 1.26.2.1 1996/12/21 18:57:24 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1241,9 +1241,9 @@ coredump(p)
 	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
 		return (EFAULT);
 	sprintf(name, "%s.core", p->p_comm);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
 	if ((error = vn_open(&nd,
-	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR)))
+	    O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR)))
 		return (error);
 	vp = nd.ni_vp;
 
