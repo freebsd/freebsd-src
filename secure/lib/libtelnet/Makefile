@@ -16,15 +16,12 @@ INCS=		${TELNETDIR}/arpa/telnet.h
 INCDIR=		/usr/include/arpa
 
 #
-# Before complaining about this, please *double-check* that you have
-# updated the ldconfig path in /etc/rc to include /usr/lib/compat that
-# was added in src/etc/rc rev 1.98.
-# This is so that `ld' will not continue to generate binaries linked
-# shared against libtelnet, so that in a future release we can move this
-# off to a compat dist (like compat22).
+# Remove obsolete shared libraries, if any.  We don't bother moving them
+# to /usr/lib/compat, since they were only used by telnet, telnetd and
+# tn3270.
 #
-afterinstall:
-	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+beforeinstall:
+	rm -f ${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0
 
 .include <bsd.lib.mk>
 
