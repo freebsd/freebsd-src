@@ -102,11 +102,13 @@ struct kt {
 	{ "slave",	SLAVE },
 	{ "swap",	SWAP },
 	{ "tape",	DEVICE },
+	{ "target",	TARGET },
 #if MACHINE_I386
 	{ "tty",	TTY },
 #endif MACHINE_I386
 	{ "timezone",	TIMEZONE },
 	{ "trace",	TRACE },
+	{ "unit",	UNIT },
 	{ "vector",	VECTOR },
 	{ 0, 0 },
 };

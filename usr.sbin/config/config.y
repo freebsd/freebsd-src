@@ -49,9 +49,11 @@
 %token	SIZE
 %token	SLAVE
 %token	SWAP
+%token	TARGET
 %token	TIMEZONE
 %token	TTY
 %token	TRACE
+%token	UNIT
 %token	VECTOR
 
 %token	<str>	ID
@@ -561,6 +563,8 @@ Dev_name:
 			seen_vba = 1;
 		else if (eq($2, "isa"))
 			seen_isa = 1;
+		else if (eq($2, "scbus"))
+			seen_scbus = 1;
 		cur.d_unit = $3;
 		};
 
@@ -596,6 +600,10 @@ Info_list:
 Info:
 	CSR NUMBER
 	      = { cur.d_addr = $2; } |
+	TARGET NUMBER
+	      = { cur.d_target = $2; } |
+	UNIT NUMBER
+	      = { cur.d_lun = $2; } |
 	DRIVE NUMBER
 	      = { cur.d_drive = $2; } |
 	SLAVE NUMBER
@@ -904,7 +912,7 @@ init_dev(dp)
 	dp->d_vec = 0;
 	dp->d_addr = dp->d_flags = dp->d_dk = 0;
 	dp->d_pri = -1;
-	dp->d_slave = dp->d_drive = dp->d_unit = UNKNOWN;
+	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = UNKNOWN;
 	dp->d_port = (char *)0;
 	dp->d_portn = 0;
 	dp->d_irq = -1;
