@@ -662,11 +662,9 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-	LIST_FOREACH(hook, &node->hooks, hooks) {
-		if (strcmp(hook->name, name) == 0) {
-			TRAP_ERROR;
-			return (EEXIST);
-		}
+	if (ng_findhook(node, name) != NULL) {
+		TRAP_ERROR;
+		return (EEXIST);
 	}
 
 	/* Allocate the hook and link it up */
@@ -738,6 +736,26 @@ ng_connect(hook_p hook1, hook_p hook2)
 	hook1->flags &= ~HK_INVALID;
 	hook2->flags &= ~HK_INVALID;
 	return (0);
+}
+
+/*
+ * Find a hook
+ *
+ * Node types may supply their own optimized routines for finding
+ * hooks.  If none is supplied, we just do a linear search.
+ */
+hook_p
+ng_findhook(node_p node, const char *name)
+{
+	hook_p hook;
+
+	if (node->type->findhook != NULL)
+		return (*node->type->findhook)(node, name);
+	LIST_FOREACH(hook, &node->hooks, hooks) {
+		if (hook->name != NULL && strcmp(hook->name, name) == 0)
+			return (hook);
+	}
+	return (NULL);
 }
 
 /*
@@ -1060,10 +1078,7 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
 			continue;
 
 		/* We have a segment, so look for a hook by that name */
-		LIST_FOREACH(hook, &node->hooks, hooks) {
-			if (hook->name && strcmp(hook->name, segment) == 0)
-				break;
-		}
+		hook = ng_findhook(node, segment);
 
 		/* Can't get there from here... */
 		if (hook == NULL
@@ -1236,11 +1251,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			return (EINVAL);
 		}
 		rmh->ourhook[sizeof(rmh->ourhook) - 1] = '\0';
-		LIST_FOREACH(hook, &here->hooks, hooks) {
-			if (hook->name && strcmp(hook->name, rmh->ourhook) == 0)
-				break;
-		}
-		if (hook)
+		if ((hook = ng_findhook(here, rmh->ourhook)) != NULL)
 			ng_destroy_hook(hook);
 		break;
 	    }
