@@ -359,8 +359,13 @@ lint:
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
-.elif !target(maninstall)
+.else
+.if !target(all-man)
+all-man:
+.endif
+.if !target(maninstall)
 maninstall:
+.endif
 .endif
 
 .include <bsd.dep.mk>
