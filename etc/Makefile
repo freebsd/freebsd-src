@@ -151,6 +151,11 @@ distribution: distrib-dirs
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; make install)
+	# the above make install clobers the /etc/localtime link
+	/bin/rm -f ${DESTDIR}/etc/localtime
+	ln -s ${TZDIR}/${LOCALTIME} ${DESTDIR}/etc/localtime
+	/bin/rm -f ${DESTDIR}/etc/termcap
+	ln -s /usr/share/misc/termcap ${DESTDIR}/etc/termcap
 	(cd ../sys/compile; rm -rf GENERICISA)
 	(cd ../sys/i386/conf; config GENERICISA)
 	(cd ../sys/compile/GENERICISA; make depend; make all; \
