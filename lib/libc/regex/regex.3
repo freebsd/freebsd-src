@@ -36,7 +36,7 @@
 .\"	@(#)regex.3	8.4 (Berkeley) 3/20/94
 .\" $FreeBSD$
 .\"
-.Dd March 20, 1994
+.Dd October 2, 2002
 .Dt REGEX 3
 .Os
 .Sh NAME
@@ -48,19 +48,20 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In regex.h
 .Ft int
-.Fn regcomp "regex_t *preg" "const char *pattern" "int cflags"
+.Fo regcomp
+.Fa "regex_t * restrict preg" "const char * restrict pattern" "int cflags"
+.Fc
 .Ft int
 .Fo regexec
-.Fa "const regex_t *preg" "const char *string"
-.Fa "size_t nmatch" "regmatch_t pmatch[]" "int eflags"
+.Fa "const regex_t * restrict preg" "const char * restrict string"
+.Fa "size_t nmatch" "regmatch_t pmatch[restrict]" "int eflags"
 .Fc
 .Ft size_t
 .Fo regerror
-.Fa "int errcode" "const regex_t *preg"
-.Fa "char *errbuf" "size_t errbuf_size"
+.Fa "int errcode" "const regex_t * restrict preg"
+.Fa "char * restrict errbuf" "size_t errbuf_size"
 .Fc
 .Ft void
 .Fn regfree "regex_t *preg"
