@@ -14,8 +14,8 @@ MAINTAINER=	jkh
 # THREE LINES AND UNCOMMENT THE FOURTH LINE.
 
 # THE THREE LINES:
-FILES+=	fortunes2-o limerick murphy-o
-BLDS+=	fortunes2-o.dat limerick.dat murphy-o.dat
+FILES+=	fortunes2-o limerick murphy-o gerrold.limerick
+BLDS+=	fortunes2-o.dat limerick.dat murphy-o.dat gerrold.limerick.dat
 TYPE=	real
 
 # THE FOURTH LINE:
@@ -26,7 +26,7 @@ CLEANFILES+=${BLDS}
 
 FILESDIR=	${SHAREDIR}/games/fortune
 
-.for f in fortunes fortunes2 fortunes2-o freebsd-tips limerick murphy murphy-o startrek zippy
+.for f in fortunes fortunes2 fortunes2-o freebsd-tips gerrold.limerick limerick murphy murphy-o startrek zippy
 $f.dat: $f
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
 	    strfile -Cs ${.ALLSRC} ${.TARGET}
@@ -37,6 +37,6 @@ fortunes-o.dat: fortunes-o
 	    strfile -Csx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
+	LC_ALL=C tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>

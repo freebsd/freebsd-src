@@ -182,21 +182,6 @@ across the Sahara Desert, the smell would be absolutely awful.
 There is so much sand in Northern Africa that if it were spread out it
 would completely cover the Sahara Desert.
 %
-		Another Glitch in the Call
-		------- ------ -- --- ----
-	(Sung to the tune of a recent Pink Floyd song.)
-
-We don't need no indirection
-We don't need no flow control
-No data typing or declarations
-Did you leave the lists alone?
-
-	Hey!  Hacker!  Leave those lists alone!
-
-Chorus:
-	All in all, it's just a pure-LISP function call.
-	All in all, it's just a pure-LISP function call.
-%
 		Answers to Last Fortune's Questions:
 
 (1) None.  (Moses didn't have an ark).
@@ -1354,7 +1339,7 @@ a lowly bit twiddler.  Now with what I learned at MIT Tech I feel
 really important and can obfuscate and confuse with the best."
 
 Mr. MARC had this to say:  "Ten short days ago all I could look forward
-to was a dead-end job as a engineer.  Now I have a promising future and
+to was a dead-end job as an engineer.  Now I have a promising future and
 make really big Zorkmids."
 
 MIT Tech can't promise these fantastic results to everyone, but when
@@ -2507,7 +2492,7 @@ Blacks, 'cause if they couldn't, they'd have to wake up to the fact
 that life's one big, scary, glorious, complex and ultimately
 unfathomable crapshoot -- and the only reason THEY can't seem to keep
 up is they're a bunch of misfits and losers."
-		-- A analysis of Neo-Nazis, from "The Badger" comic
+		-- An analysis of Neo-Nazis, from "The Badger" comic
 %
 Air is water with holes in it
 %
@@ -2914,6 +2899,10 @@ undoubtedly true.
 %
 Any philosophy that can be put in a nutshell belongs there.
 		-- Sydney J. Harris
+%
+Any problem in computer science can be solved with another layer
+of indirection.
+		-- David Wheeler
 %
 Any small object that is accidentally dropped will hide under a larger
 object.
@@ -4070,6 +4059,9 @@ COBOL programs are an exercise in Artificial Inelegance.
 %
 Cocaine -- the thinking man's Dristan.
 %
+Code rot -- mostly caused by people redefining "fresh".
+		-- Wes Peters
+%
 Cogito cogito ergo cogito sum --
 "I think that I think, therefore I think that I am."
 		-- Ambrose Bierce, "The Devil's Dictionary"
@@ -5117,7 +5109,7 @@ left hand corner of Prize Claim Form) and affix it to the 3x5 card
 below your address label. (d) Then print on your 3x5 card, above your
 computer-printed name and address the words "CARTER & VAN PEEL
 SWEEPSTAKES" (Use all capital letters.)  (e) Finally place 3x5 card
-(without bending) into a plain envelope [NOTE: do NOT use the the
+(without bending) into a plain envelope [NOTE: do NOT use the
 Official Prize Claim and CVP Perfume Reply Envelope or you may be
 disqualified], and mail to: CVP, Box 1320, Westbury, NY 11595.  Print
 this address correctly.  Comply with above instructions carefully and
@@ -5603,6 +5595,14 @@ FreeBSD: Have you had your fairings today?
 %
 FreeBSD: It's 3am at night.  Do you know where your fairings are?
 %
+FreeBSD: putting the horse before the cart since 1992.
+		-- Warner Losh
+%
+FreeBSD Trivia:
+	Did you know that successive security officers take
+control by beheading their predecessor?
+		-- Robert Watson
+%
 Fresco's Discovery:
 	If you knew what you were doing you'd probably be bored.
 %
@@ -5689,6 +5689,17 @@ operating under noises being extremely suppressed" etc.
 And as a matter of course, the final goal is just simply to help
 achieve "super shuttle diplomacy" between cool data, perhaps earned by
 HOST COMPUTER, and warm heart of human being.
+%
+From the Pointless Comparison Collection:
+
+	To give you an idea of how sensitive these antennas are,
+	if we were to "listen" to one spacecraft in the outer solar
+	system by Jupiter or Saturn for 1 billion years and add up
+	all the signal we collected, it would be enough power to
+	set off the flash bulb on your camera once.
+
+		-- Peter Doms, manager of the Deep Space Network
+		               systems program at JPL.
 %
 From the Pro 350 Pocket Service Guide, p. 49, Step 5 of the
 instructions on removing an I/O board from the card cage, comes a new
@@ -6046,6 +6057,11 @@ tickets.
 %
 Greener's Law:
 	Never argue with a man who buys ink by the barrel.
+%
+Greenspun's Tenth Rule of Programming:
+	Any sufficiently complicated C or Fortran program contains
+	an ad hoc informally-specified bug-ridden slow implementation
+	of half of Common Lisp.
 %
 Grelb's Reminder:
 	Eighty percent of all people consider themselves to be above
@@ -6670,6 +6686,10 @@ Hurewitz's Memory Principle:
 	The chance of forgetting something is directly proportional
 to ..... to ........ uh ..............
 %
+Hydrogen: A colorless, odorless, lighter than air gas which, given
+time, turns into people.
+                -- Harlow Shapley
+%
 I also believe that academic freedom should protect the right of a
 professor or student to advocate Marxism, socialism, communism, or any
 other minority viewpoint -- no matter how distasteful to the majority.
@@ -6912,7 +6932,7 @@ reason it is called Supreme Enlightenment."
 I gave up Smoking, Drinking and Sex.  It was the most *__________horrifying* 20
 minutes of my life!
 %
-'I generally avoid temptation unless I can't resist it."
+"I generally avoid temptation unless I can't resist it."
 		-- Mae West
 %
 I get up each morning, gather my wits.
@@ -7157,10 +7177,6 @@ I tried to turn the handle, But ...
 %
 "I shot an arrow into the air, and it stuck."
 		-- Graffito in Los Angeles
-%
-"I stayed up all night playing poker with tarot cards.  I got a full
-house and four people died."
-		-- Steven Wright
 %
 "I stopped believing in Santa Claus when I was six.  Mother took me to
 see him in a department store and he asked for my autograph."
@@ -7534,6 +7550,9 @@ If God wanted us to be brave, why did he give us legs?
 "If I am elected, the concrete barriers around the WHITE HOUSE will be
 replaced by tasteful foam replicas of ANN MARGARET!"
 %
+If I 'cp /bin/csh /dev/audio' shouldn't I hear the ocean?
+		-- Danno Coppock
+%
 If I could drop dead right now, I'd be the happiest man alive!
 		-- Samuel Goldwyn
 %
@@ -7864,7 +7883,7 @@ shopping center in the world?
 %
 If you throw a New Year's Party, the worst thing that you can do would
 be to throw the kind of party where your guests wake up today, and call
-you to say they had a nice time.  Now you'll be be expected to throw
+you to say they had a nice time.  Now you'll be expected to throw
 another party next year.
 
 What you should do is throw the kind of party where your guest wake up
@@ -8346,6 +8365,13 @@ Insanity is hereditary.  You get it from your kids.
 %
 Insanity is the final defense ... It's hard to get a refund when the
 salesman is sniffing your crotch and baying at the moon.
+%
+Instead of thinking of spam as a disease that might be eliminated,
+it is more useful to think of it like crime, war and cockroaches.
+It is not realistic to expect to eliminate any of these, no matter
+how much anyone might wish otherwise. Therefore the best we can
+hope to accomplish is to bring spam under reasonable control...
+		-- Dave Crocker
 %
 Interpreter, n.:
 	One who enables two persons of different languages to
@@ -8958,7 +8984,7 @@ Your Head on your Shoulders.
 Now ... try to get something DONE!
 %
 Ken Thompson has an automobile which he helped design.  Unlike most
-automobiles, it has neither speedometer, nor gas gage, nor any of the
+automobiles, it has neither speedometer, nor gas gauge, nor any of the
 numerous idiot lights which plague the modern driver.  Rather, if the
 driver makes any mistake, a giant "?" lights up in the center of the
 dashboard.  "The experienced driver", he says, "will usually know
@@ -9470,7 +9496,7 @@ Magnet, n.: Something acted upon by magnetism
 
 Magnetism, n.: Something acting upon a magnet.
 
-The two definition immediately foregoing are condensed from the works
+The two definitions immediately foregoing are condensed from the works
 of one thousand eminent scientists, who have illuminated the subject
 with a great white light, to the inexpressible advancement of human
 knowledge.
@@ -9548,10 +9574,6 @@ Man is the only animal that blushes -- or needs to.
 %
 Man is the only animal that can remain on friendly terms with the
 victims he intends to eat until he eats them.
-		-- Samuel Butler
-%
-Man is the only animal that can remain on friendly terms with the
-victims he intends to eat until he eats them.
 		-- Samuel Butler (1835-1902)
 %
 Man, n.:
@@ -9584,7 +9606,7 @@ mine.  Better, probably, because you haven't had four beers.
 Manual, n.:
 	A unit of documentation.  There are always three or more on a
 given item.  One is on the shelf; someone has the others.  The
-information you need in in the others.
+information you need is in the others.
 		-- Ray Simard
 %
 Many years ago in a period commonly know as Next Friday Afternoon,
@@ -10363,6 +10385,15 @@ chipped at it a bit, and everything was just fine ...
 is from the wrong kind of tree."
 		-- Professor W.
 %
+"Not to mention the fact that most of the good code for PC minix seems
+to have been written by Bruce Evans."
+		-- Linus Torvalds, comp.os.minix, Jan. 1992
+%
+Note: The system panics with a "NULL pointer dereference" message
+
+Failed due to : SunOS 5.8 is installed.
+		-- Output of a SunCheckup run on a Solaris 8 machine
+%
 Notes for a ballet, "The Spell": ... Suddenly Sigmund hears the flutter
 of wings, and a group of wild swans flies across the moon ... Sigmund
 is astounded to see that their leader is part swan and part woman --
@@ -10548,6 +10579,13 @@ And miles around they'll say that I
 		-- A. E. Housman
 %
 Oh, wow!  Look at the moon!
+%
+Ok, note to all reading this: if I ask for information and you don't
+have the information available, don't bother sending me an e-mail
+just to tell me that you don't have the information available. Wait
+until you do have the information available, and then e-mail me. You'll
+save precious time and electrons.
+		-- Bill Paul
 %
 "OK, now let's look at four dimensions on the blackboard."
 		-- Dr. Joy
@@ -11751,7 +11789,7 @@ of chemical pollutant in their drinking water.  That is why I pledge to
 do all that I can to protect the environment of this great nation of
 ours, and put prayer back in the schools, where it belongs.  What we
 need is jobs, not empty promises.  I realize I'm risking my political
-career be being so outspoken on a sensitive issue such as the MX, but
+career by being so outspoken on a sensitive issue such as the MX, but
 that's just the kind of straight-talking honest person I am, and I
 can't help it.
 		-- Dave Barry, "On Presidential Politics"
@@ -11869,6 +11907,26 @@ RULES OF EATING -- THE BRONX DIETER'S CREED
 	(11) Avoid blue food.
 		-- Richard Smit, "The Bronx Diet"
 %
+RYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRY
+RY                                                              RY
+RY  WELCOME TO THE BABBAGE ANALYTICAL TIMESHARING SERVICE       RY
+RY  * * * * * * * * * * * * * * * * * * * * * * * * * * *       RY
+RY                                                              RY
+RY  PLEASE NOTE THAT THE INTEGRATOR IS CURRENTLY UNAVAILABLE    RY
+RY  DUE TO THE WEEKLY GREASING SCHEDULE. WOULD ALL USERS KINDLY RY
+RY  RETURN ANY UNUSED PLUGBOARDS, AS THE PROGRAMMING TEAM ARE   RY
+RY  RUNNING LOW. DIVISION UNIT 3 WILL BE OUT OF ACTION UNTIL    RY
+RY  THURSDAY DUE TO EMERGENCY COG REPLACEMENT - PLEASE ENSURE   RY
+RY  THAT YOUR PROGRAM DOES NOT ATTEMPT TO DIVIDE BY ZERO AS     RY
+RY  THIS CAN CAUSE SEVERE DAMAGE (INCLUDING SHAFT BREAKAGES).   RY
+RY                                                              RY
+RYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRYRY
+.
+.
+SYSTEM READY.
+?
+		-- Chris Suslowicz
+%
 SAGITTARIUS (Nov 22 - Dec 21)
 	You are optimistic and enthusiastic.  You have a reckless
 	tendency to rely on luck since you lack talent.  The majority
@@ -11944,6 +12002,10 @@ Science is facts; just as houses are made of stones, so is science made
 of facts; but a pile of stones is not a house and a collection of facts
 is not necessarily science.
 		-- Henri Poincair'e
+%
+Science is like sex: sometimes something useful comes
+out, but that is not the reason we are doing it
+		-- Richard Feynman
 %
 Science is what happens when preconception meets verification.
 %
@@ -12130,6 +12192,15 @@ Silverman's Law:
 %
 Simon's Law:
 	Everything put together falls apart sooner or later.
+%
+Simulated fortune:
+
+	The head and in frontal attack on an english writer that the
+	character of this point is therefore another method for the
+	letters that the time of who ever told the problem for an
+	unexpected.
+
+		-- by Claude E. Shannon.
 %
 Since I hurt my pendulum
 My life is all erratic.
@@ -12868,7 +12939,7 @@ at the steam fitters' picnic.
 %
 The chief cause of problems is solutions.
 %
-The chief danger in life is that you may take too may precautions.
+The chief danger in life is that you may take too many precautions.
 		-- Alfred Adler
 %
 The church is near but the road is icy; the bar is far away but I will
@@ -13110,6 +13181,9 @@ vinyl."
 The full impact of parenthood doesn't hit you until you multiply the
 number of your kids by 32 teeth.
 %
+The future is going to be boring.
+		-- J. G. Ballard
+%
 The generation of random numbers is too important to be left to
 chance.
 %
@@ -13279,6 +13353,9 @@ Nor recognize an overture.
 They shrink from powders and from paints ...
 So far, I've had no complaints.
 		-- Dorothy Parker
+%
+The last good thing written in C was Franz Schubert's Symphony No. 9.
+		-- Werner Trobin
 %
 "The last time somebody said, `I find I can write much better with a
 word processor.', I replied, `They used to say the same thing about
@@ -15090,7 +15167,7 @@ We gave you an atomic bomb, what do you want, mermaids?
 "We had it tough ... I had to get up at 9 o'clock at night, half an
 hour before I went to bed, eat a lump of dry poison, work 29 hours down
 mill, and when we came home our Dad would kill us, and dance about on
-our grave singing Haleleuia ..."
+our grave singing Halleluja ..."
 		-- Monty Python
 %
 We have met the enemy, and he is us.
@@ -15209,7 +15286,7 @@ the entire show without answering a single question ...
 Well, I would -- if they realized that we -- again if -- if we led them
 back to that stalemate only because our retaliatory power, our seconds,
 or strike at them after our first strike, would be so destructive they
-they couldn't afford it, that would hold them off.
+couldn't afford it, that would hold them off.
 		-- President Ronald Reagan, on the MX missile
 %
 "Well, if you can't believe what you read in a comic book, what *___can*
@@ -15330,6 +15407,23 @@ worse, what if only that fat guy in the third row exists?
 %
 What is a magician but a practicing theorist?
 		-- Obi-Wan Kenobi
+%
+What is actually happening, I am afraid, is that we all tell each
+other and ourselves that software engineering techniques should be
+improved considerably, because there is a crisis.  But there are a few
+boundary conditions which apparently have to be satisfied:
+
+    1. We may not change our thinking habits.
+    2. We may not change our programming tools.
+    3. We may not change our hardware.
+    4. We may not change our tasks.
+    5. We may not change the organizational set-up
+       in which the work has to be done.
+
+Now under these five immutable boundary conditions, we have to try to
+improve matters. This is utterly ridiculous.
+
+Edsger W. Dijkstra, on receiving the ACM Turing Award in 1972
 %
 What is mind?  No matter.
 What is matter?  Never mind.
@@ -15568,7 +15662,7 @@ the men of the tribe bang their heads on sacred trees until they get a
 nose bleed, which usually cures them of ____that.
 		-- Mike Harding, "The Armchair Anarchist's Almanac"
 %
-When the speaker and he to whom he is speaks do not understand, that is
+When the speaker and he to whom he is speaking do not understand, that is
 metaphysics.
 		-- Voltaire
 %
