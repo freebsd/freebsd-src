@@ -214,7 +214,7 @@ universe:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for arch in i386 sparc64 alpha ia64 
+.for arch in i386 sparc64 alpha ia64
 	@printf ">> ${arch} started on `LC_ALL=C date`\n"
 	-cd ${.CURDIR} && make ${JFLAG} buildworld TARGET_ARCH=${arch} \
 		__MAKE_CONF=/dev/null \
@@ -224,7 +224,7 @@ universe:
 	-cd ${.CURDIR}/sys/${arch}/conf && make LINT \
 		> _.${arch}.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && make buildkernels TARGET_ARCH=${arch} JFLAG="${JFLAG}"
+	cd ${.CURDIR} && make buildkernels ARCH=${arch} TARGET_ARCH=${arch} JFLAG="${JFLAG}"
 	@printf ">> ${arch} ended on `LC_ALL=C date`\n"
 .endfor
 	@printf ">> pc98 started on `LC_ALL=C date`\n"
@@ -236,22 +236,22 @@ universe:
 	-cd ${.CURDIR}/sys/pc98/conf && make LINT \
 		> _.pc98.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && make buildkernels TARGET=pc98 TARGET_ARCH=i386 \
+	cd ${.CURDIR} && make buildkernels ARCH=pc98 TARGET_ARCH=i386 \
 		JFLAG="${JFLAG}"
 	@printf ">> pc98 ended on `LC_ALL=C date`\n"
 	@echo "--------------------------------------------------------------"
 	@printf ">>> make universe completed on `LC_ALL=C date`\n                      (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
-KERNCONFS !=	echo ${.CURDIR}/sys/${TARGET_ARCH}/conf/[A-Z]*
+KERNCONFS !=	echo ${.CURDIR}/sys/${ARCH}/conf/[A-Z]*
 KERNCONF2 = ${KERNCONFS:T:N*[a-z]*:NCVS:NNOTES}
 
 buildkernels:
 .for kernel in ${KERNCONF2}
-.if exists(${.CURDIR}/sys/${TARGET_ARCH}/conf/${kernel})
+.if exists(${.CURDIR}/sys/${ARCH}/conf/${kernel})
 	-cd ${.CURDIR} && make ${JFLAG} buildkernel \
-		TARGET_ARCH=${TARGET_ARCH} KERNCONF=${kernel} \
+		ARCH=${ARCH} TARGET_ARCH=${TARGET_ARCH} KERNCONF=${kernel} \
 		__MAKE_CONF=/dev/null \
-		 > _.${TARGET_ARCH}.${kernel} 2>&1
+		 > _.${ARCH}.${kernel} 2>&1
 .endif
 .endfor
