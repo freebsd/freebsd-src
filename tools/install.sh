@@ -33,6 +33,7 @@ while [ $# -gt 0 ]; do
     case $1 in
     -[bCcMpSs]) shift;;
     -[Bfgmo]) shift; shift;;
+    -[Bfgmo]*) shift;;
     *) break;
     esac
 done
