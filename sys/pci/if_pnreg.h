@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.26 1999/04/14 18:52:02 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.10 1999/04/14 19:40:08 wpaul Exp $
  */
 
 /*
@@ -390,7 +390,7 @@ struct pn_desc {
 
 #define PN_MAXFRAGS		16
 #define PN_RX_LIST_CNT		64
-#define PN_TX_LIST_CNT		64
+#define PN_TX_LIST_CNT		128
 #define PN_MIN_FRAMELEN		60
 #define PN_FRAMELEN		1536
 #define PN_RXLEN		1518
