@@ -306,6 +306,14 @@
     &man.access.2; except that the former uses effective credentials
     rather than real credentials.</para>
 
+    <para arch="i386">The &man.amdpm.4; driver has been added to
+    provide access to the system monitoring functions of the AMD 756
+    chipset. &merged;</para>
+
+    <para>The kernel is now aware of the concept that there are
+    smaller units of scheduling than a process (but only one thread
+    per process is allowed at this time).</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -373,14 +381,6 @@
       Extensions (<acronym>SSE</acronym>) has been introduced.  The
       <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
       support is compiled into the kernel. &merged;</para>
-
-      <para arch="i386">The &man.amdpm.4; driver has been added to
-      provide access to the system monitoring functions of the AMD 756
-      chipset. &merged;</para>
-
-      <para>The kernel is now aware of the concept that there are
-      smaller units of scheduling than a process (but only one thread
-      per process is allowed at this time).</para>
     </sect3>
 
     <sect3>
