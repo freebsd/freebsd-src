@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 5.2.2.1 1992/02/09 15:08:23 jsp beta $
+ * $Id: get_args.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -131,7 +131,7 @@ get_args(int argc, char *argv[])
   if (argc <= 1)
     use_conf_file = 1;
 
-  while ((opt_ch = getopt(argc, argv, "nprvSa:c:d:k:l:o:t:w:x:y:C:D:F:T:O:H")) != EOF)
+  while ((opt_ch = getopt(argc, argv, "nprvSa:c:d:k:l:o:t:w:x:y:C:D:F:T:O:H")) != -1)
     switch (opt_ch) {
 
     case 'a':
