@@ -1,7 +1,7 @@
 # ex:ts=8
 $FreeBSD$
 
-ISC DHCP client 3.0.1rc11
+ISC DHCP client 3.0.1rc12
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
@@ -15,7 +15,7 @@ For the import of ISC-dhclient the following files were removed:
 	contrib/
 	dhcp.spec		solaris.init		ms2isc/
 
-	include/cf/
+	includes/cf/
 	aix.h			alphaosf.h		bsdos.h
 	cygwin32.h		hpux.h			irix.h
 	linux.h			netbsd.h		nextstep.h
@@ -28,7 +28,7 @@ For the import of ISC-dhclient the following files were removed:
 Imported by:
 
 	cvs import -m 'Import ISC DHCP 3.0.1 RC11 client.' \
-		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc11
+		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc12
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main
@@ -43,15 +43,16 @@ Local Changes:
 	  r1.6 - prefer strlcpy to strcpy.
 	client/dhclient.8 
 	  r1.14 - interface polling
-	  r1.8 - correct a man reference and a typo.
 	  r1.6 - document -D option.
           - remove dhcpd from SEE ALSO section.
 	client/dhclient.c
+	  r1.32 - interface polling
+	  r1.31 - interface polling
+	  r1.30 - interface polling
 	  r1.29 - interface polling
 	  r1.28 - interface polling
 	  r1.27 - interface polling
 	  r1.26 - interface polling
-	  r1.25 - correct release lease option
 	  r1.19 - connect std{in,out,err}.
 	  r1.13 - prefer strlcpy to strcpy.
 	  r1.6  - quiet by default.
@@ -70,6 +71,7 @@ Local Changes:
 	  r1.2 - interface polling
     (see CVS logs for complete details)
 
+mbr@FreeBSD.org
 murray@FreeBSD.org
 obrien@NUXI.com
 15-Jan-2003
