@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.69 1994/06/21 12:42:56 jkh Exp $
+#	$Id: Makefile,v 1.70 1994/06/22 08:33:28 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -20,7 +20,7 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new f***ing cron root.wheel
 BIN3=	daily weekly monthly
 
-CLEANFILES+= *.o *.lo *.c *.cache
+CLEANFILES+= *.o *.lo *.c *.cache *.mk kcopy filesystem
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	localhost.rev named.boot root.cache
