@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.64 1997/02/22 14:12:23 peter Exp $
+ * $Id: tcpip.c,v 1.65 1997/03/09 22:25:49 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -149,7 +149,7 @@ verifySettings(void)
 int
 tcpOpenDialog(Device *devp)
 {
-    WINDOW              *ds_win, *save;
+    WINDOW              *ds_win, *save = NULL;
     ComposeObj          *obj = NULL;
     int                 n = 0, cancel = FALSE;
     int			max, ret;
@@ -160,25 +160,6 @@ tcpOpenDialog(Device *devp)
 	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
 	    return DITEM_SUCCESS;
     }
-    save = savescr();
-    dialog_clear_norefresh();
-
-    /* We need a curses window */
-    if (!(ds_win = openLayoutDialog(TCP_HELPFILE, " Network Configuration ",
-				    TCP_DIALOG_X, TCP_DIALOG_Y, TCP_DIALOG_WIDTH, TCP_DIALOG_HEIGHT))) {
-	beep();
-	msgConfirm("Cannot open TCP/IP dialog window!!");
-	restorescr(save);
-	return DITEM_FAILURE;
-    }
-
-    /* Draw interface configuration box */
-    draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 8, TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 17,
-	     dialog_attr, border_attr);
-    wattrset(ds_win, dialog_attr);
-    sprintf(title, " Configuration for Interface %s ", devp->name);
-    mvwaddstr(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 14, title);
-
     /* Initialise vars from previous device values */
     if (devp->private) {
 	DevInfo *di = (DevInfo *)devp->private;
@@ -232,6 +213,30 @@ tcpOpenDialog(Device *devp)
     else
 	bzero(nameserver, sizeof(nameserver));
 
+    /* If non-interactive, jump straight over the dialog crap and into config section */
+    if (variable_get(VAR_NONINTERACTIVE))
+	goto netconfig;
+
+    /* Now do all the screen I/O */
+    save = savescr();
+    dialog_clear_norefresh();
+
+    /* We need a curses window */
+    if (!(ds_win = openLayoutDialog(TCP_HELPFILE, " Network Configuration ",
+				    TCP_DIALOG_X, TCP_DIALOG_Y, TCP_DIALOG_WIDTH, TCP_DIALOG_HEIGHT))) {
+	beep();
+	msgConfirm("Cannot open TCP/IP dialog window!!");
+	restorescr(save);
+	return DITEM_FAILURE;
+    }
+
+    /* Draw interface configuration box */
+    draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 8, TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 17,
+	     dialog_attr, border_attr);
+    wattrset(ds_win, dialog_attr);
+    sprintf(title, " Configuration for Interface %s ", devp->name);
+    mvwaddstr(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 14, title);
+
     /* Some more initialisation before we go into the main input loop */
     obj = initLayoutDialog(ds_win, layout, TCP_DIALOG_X, TCP_DIALOG_Y, &max);
 
@@ -268,6 +273,7 @@ reenter:
        data now if the user hasn't selected cancel.  Save the stuff
        out to the environment via the variable_set() mechanism */
 
+netconfig:
     if (!cancel) {
 	DevInfo *di;
 	char temp[512], ifn[255];
@@ -338,14 +344,21 @@ tcpDeviceSelect(void)
 
     devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);
-    if (!cnt) {
+    rval = NULL;
+
+    if (!cnt)
 	msgConfirm("No network devices available!");
-	rval = NULL;
-    }
     else if (cnt == 1) {
-	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
-	    return NULL;
-	rval = devs[0];
+	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
+	    rval = devs[0];
+    }
+    else if (variable_get(VAR_NONINTERACTIVE) && variable_get(VAR_NETWORK_DEVICE)) {
+	devs = deviceFind(variable_get(VAR_NETWORK_DEVICE), DEVICE_TYPE_NETWORK);
+	cnt = deviceCount(devs);
+	if (cnt) {
+	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
+		rval = devs[0];
+	}
     }
     else {
 	int status;
@@ -355,9 +368,7 @@ tcpDeviceSelect(void)
 	    msgFatal("Unable to create network device menu!  Argh!");
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
-	if (!status)
-	    rval = NULL;
-	else
+	if (status)
 	    rval = NetDev;
     }
     return rval;
