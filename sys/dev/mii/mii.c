@@ -65,11 +65,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int miibus_readreg	__P((device_t, int, int));
-static int miibus_writereg	__P((device_t, int, int, int));
-static void miibus_statchg	__P((device_t));
-static void miibus_linkchg	__P((device_t));
-static void miibus_mediainit	__P((device_t));
+static int miibus_readreg	(device_t, int, int);
+static int miibus_writereg	(device_t, int, int, int);
+static void miibus_statchg	(device_t);
+static void miibus_linkchg	(device_t);
+static void miibus_mediainit	(device_t);
 
 static device_method_t miibus_methods[] = {
 	/* device interface */

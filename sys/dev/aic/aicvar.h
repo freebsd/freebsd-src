@@ -153,7 +153,7 @@ struct aic_softc {
 	bus_space_write_multi_4((aic)->tag, (aic)->bsh, (port), \
 		(u_int32_t *)(addr), (count))
 
-extern int aic_probe __P((struct aic_softc *));
-extern int aic_attach __P((struct aic_softc *));
-extern int aic_detach __P((struct aic_softc *));
-extern void aic_intr __P((void *));
+extern int aic_probe(struct aic_softc *);
+extern int aic_attach(struct aic_softc *);
+extern int aic_detach(struct aic_softc *);
+extern void aic_intr(void *);

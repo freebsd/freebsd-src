@@ -50,9 +50,9 @@
 #include <dev/ex/if_exvar.h>
 
 /* Bus Front End Functions */
-static void	ex_isa_identify	__P((driver_t *, device_t));
-static int	ex_isa_probe	__P((device_t));
-static int	ex_isa_attach	__P((device_t));
+static void	ex_isa_identify	(driver_t *, device_t);
+static int	ex_isa_probe	(device_t);
+static int	ex_isa_attach	(device_t);
 
 #if 0
 static	void	ex_pnp_wakeup	(void *);

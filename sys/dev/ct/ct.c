@@ -149,25 +149,25 @@ extern struct cfdriver ct_cd;
 /*****************************************************************
  * Interface functions
  *****************************************************************/
-static int ct_xfer __P((struct ct_softc *, u_int8_t *, int, int, u_int *));
-static void ct_io_xfer __P((struct ct_softc *));
-static int ct_reselected __P((struct ct_softc *, u_int8_t));
-static void ct_phase_error __P((struct ct_softc *, u_int8_t));
-static int ct_start_selection __P((struct ct_softc *, struct slccb *));
-static int ct_msg __P((struct ct_softc *, struct targ_info *, u_int));
-static int ct_world_start __P((struct ct_softc *, int));
-static __inline void cthw_phase_bypass __P((struct ct_softc *, u_int8_t));
-static int cthw_chip_reset __P((struct ct_bus_access_handle *, int *, int, int));
-static void cthw_bus_reset __P((struct ct_softc *));
-static int ct_ccb_nexus_establish __P((struct ct_softc *));
-static int ct_lun_nexus_establish __P((struct ct_softc *));
-static int ct_target_nexus_establish __P((struct ct_softc *, int, int));
-static void cthw_attention __P((struct ct_softc *));
-static int ct_targ_init __P((struct ct_softc *, struct targ_info *, int));
-static int ct_unbusy __P((struct ct_softc *));
-static void ct_attention __P((struct ct_softc *));
-static struct ct_synch_data *ct_make_synch_table __P((struct ct_softc *));
-static int ct_catch_intr __P((struct ct_softc *));
+static int ct_xfer(struct ct_softc *, u_int8_t *, int, int, u_int *);
+static void ct_io_xfer(struct ct_softc *);
+static int ct_reselected(struct ct_softc *, u_int8_t);
+static void ct_phase_error(struct ct_softc *, u_int8_t);
+static int ct_start_selection(struct ct_softc *, struct slccb *);
+static int ct_msg(struct ct_softc *, struct targ_info *, u_int);
+static int ct_world_start(struct ct_softc *, int);
+static __inline void cthw_phase_bypass(struct ct_softc *, u_int8_t);
+static int cthw_chip_reset(struct ct_bus_access_handle *, int *, int, int);
+static void cthw_bus_reset(struct ct_softc *);
+static int ct_ccb_nexus_establish(struct ct_softc *);
+static int ct_lun_nexus_establish(struct ct_softc *);
+static int ct_target_nexus_establish(struct ct_softc *, int, int);
+static void cthw_attention(struct ct_softc *);
+static int ct_targ_init(struct ct_softc *, struct targ_info *, int);
+static int ct_unbusy(struct ct_softc *);
+static void ct_attention(struct ct_softc *);
+static struct ct_synch_data *ct_make_synch_table(struct ct_softc *);
+static int ct_catch_intr(struct ct_softc *);
 
 struct scsi_low_funcs ct_funcs = {
 	SC_LOW_INIT_T ct_world_start,

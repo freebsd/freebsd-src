@@ -61,8 +61,8 @@
 #include <compat/svr4/svr4_stropts.h>
 #include <compat/svr4/svr4_socket.h>
 
-static int svr4_soo_close __P((struct file *, struct thread *));
-static int svr4_ptm_alloc __P((struct thread *));
+static int svr4_soo_close(struct file *, struct thread *);
+static int svr4_ptm_alloc(struct thread *);
 static  d_open_t	streamsopen;
 
 struct svr4_sockcache_entry {

@@ -91,21 +91,21 @@ u_char plus_ee2irqmap[] =
 	{ 3, 4, 5, 7, 9, 10, 11, 12 };
 
 /* Network Interface Functions */
-static void	ex_init		__P((void *));
-static void	ex_start	__P((struct ifnet *));
-static int	ex_ioctl	__P((struct ifnet *, u_long, caddr_t));
-static void	ex_watchdog	__P((struct ifnet *));
+static void	ex_init		(void *);
+static void	ex_start	(struct ifnet *);
+static int	ex_ioctl	(struct ifnet *, u_long, caddr_t);
+static void	ex_watchdog	(struct ifnet *);
 
 /* ifmedia Functions	*/
-static int	ex_ifmedia_upd	__P((struct ifnet *));
-static void	ex_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static int	ex_ifmedia_upd	(struct ifnet *);
+static void	ex_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static int	ex_get_media	__P((u_int32_t iobase));
+static int	ex_get_media	(u_int32_t iobase);
 
-static void	ex_reset	__P((struct ex_softc *));
+static void	ex_reset	(struct ex_softc *);
 
-static void	ex_tx_intr	__P((struct ex_softc *));
-static void	ex_rx_intr	__P((struct ex_softc *));
+static void	ex_tx_intr	(struct ex_softc *);
+static void	ex_rx_intr	(struct ex_softc *);
 
 int
 look_for_card (u_int32_t iobase)

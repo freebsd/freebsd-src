@@ -81,7 +81,7 @@
 static	int	stgprobe(device_t devi);
 static	int	stgattach(device_t devi);
 
-static	void	stg_isa_unload	__P((device_t));
+static	void	stg_isa_unload	(device_t);
 
 static void
 stg_isa_intr(void * arg)

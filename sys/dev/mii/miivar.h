@@ -56,9 +56,9 @@ struct mii_softc;
 /*
  * Callbacks from MII layer into network interface device driver.
  */
-typedef	int (*mii_readreg_t) __P((struct device *, int, int));
-typedef	void (*mii_writereg_t) __P((struct device *, int, int, int));
-typedef	void (*mii_statchg_t) __P((struct device *));
+typedef	int (*mii_readreg_t)(struct device *, int, int);
+typedef	void (*mii_writereg_t)(struct device *, int, int, int);
+typedef	void (*mii_statchg_t)(struct device *);
 
 /*
  * A network interface driver has one of these structures in its softc.
@@ -96,7 +96,7 @@ typedef struct mii_data mii_data_t;
  * This call is used by the MII layer to call into the PHY driver
  * to perform a `service request'.
  */
-typedef	int (*mii_downcall_t) __P((struct mii_softc *, struct mii_data *, int));
+typedef	int (*mii_downcall_t)(struct mii_softc *, struct mii_data *, int);
 
 /*
  * Requests that can be made to the downcall.
@@ -157,27 +157,26 @@ typedef struct mii_attach_args mii_attach_args_t;
 extern devclass_t	miibus_devclass;
 extern driver_t		miibus_driver;
 
-int	miibus_probe __P((device_t));
-int	miibus_attach __P((device_t));
-int	miibus_detach __P((device_t));
+int	miibus_probe(device_t);
+int	miibus_attach(device_t);
+int	miibus_detach(device_t);
 
-int	mii_anar __P((int));
-int	mii_mediachg __P((struct mii_data *));
-void	mii_tick __P((struct mii_data *));
-void	mii_pollstat __P((struct mii_data *));
-int	mii_phy_probe __P((device_t, device_t *,
-	    ifm_change_cb_t, ifm_stat_cb_t));
-void	mii_add_media __P((struct mii_data *, int, int));
+int	mii_anar(int);
+int	mii_mediachg(struct mii_data *);
+void	mii_tick(struct mii_data *);
+void	mii_pollstat(struct mii_data *);
+int	mii_phy_probe(device_t, device_t *, ifm_change_cb_t, ifm_stat_cb_t);
+void	mii_add_media(struct mii_data *, int, int);
 
-int	mii_media_from_bmcr __P((int));
+int	mii_media_from_bmcr(int);
 
-int	mii_phy_auto __P((struct mii_softc *, int));
-void	mii_phy_auto_stop __P((struct mii_softc *));
-void	mii_phy_reset __P((struct mii_softc *));
-void	mii_phy_update __P((struct mii_softc *, int));
-int	mii_phy_tick __P((struct mii_softc *));
+int	mii_phy_auto(struct mii_softc *, int);
+void	mii_phy_auto_stop(struct mii_softc *);
+void	mii_phy_reset(struct mii_softc *);
+void	mii_phy_update(struct mii_softc *, int);
+int	mii_phy_tick(struct mii_softc *);
 
-void	ukphy_status __P((struct mii_softc *));
+void	ukphy_status(struct mii_softc *);
 #endif /* _KERNEL */
 
 #endif /* _DEV_MII_MIIVAR_H_ */

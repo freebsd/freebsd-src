@@ -49,9 +49,9 @@
 #include <dev/pccard/pccardvar.h>
 
 /* Bus Front End Functions */
-static int	ex_pccard_probe		__P((device_t));
-static int	ex_pccard_attach	__P((device_t));
-static int	ex_pccard_detach	__P((device_t));
+static int	ex_pccard_probe		(device_t);
+static int	ex_pccard_attach	(device_t);
+static int	ex_pccard_detach	(device_t);
 
 static device_method_t ex_pccard_methods[] = {
 	/* Device interface */

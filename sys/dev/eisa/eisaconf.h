@@ -78,14 +78,14 @@ EISA_ACCESSOR(slot, SLOT, int)
 EISA_ACCESSOR(id, ID, eisa_id_t)
 EISA_ACCESSOR(irq, IRQ, eisa_id_t)
 
-int eisa_add_intr __P((device_t, int, int));
+int eisa_add_intr(device_t, int, int);
 
 #define		RESVADDR_NONE		0x00
 #define		RESVADDR_BITMASK	0x01	/* size is a mask of reserved 
 						 * bits at addr
 						 */
 #define		RESVADDR_RELOCATABLE	0x02
-int eisa_add_iospace __P((device_t, u_long, u_long, int));
-int eisa_add_mspace __P((device_t, u_long, u_long, int));
+int eisa_add_iospace(device_t, u_long, u_long, int);
+int eisa_add_mspace(device_t, u_long, u_long, int);
 
 #endif /* _I386_EISA_EISACONF_H_ */

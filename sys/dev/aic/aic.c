@@ -45,26 +45,26 @@
 #include <dev/aic/aic6360reg.h>
 #include <dev/aic/aicvar.h>
 
-static void aic_action __P((struct cam_sim *sim, union ccb *ccb));
-static void aic_execute_scb __P((void *arg, bus_dma_segment_t *dm_segs,
-				int nseg, int error));
-static void aic_start __P((struct aic_softc *aic));
-static void aic_select __P((struct aic_softc *aic));
-static void aic_selected __P((struct aic_softc *aic));
-static void aic_reselected __P((struct aic_softc *aic));
-static void aic_reconnect __P((struct aic_softc *aic, int tag));
-static void aic_cmd __P((struct aic_softc *aic));
-static void aic_msgin __P((struct aic_softc *aic));
-static void aic_handle_msgin __P((struct aic_softc *aic));
-static void aic_msgout __P((struct aic_softc *aic));
-static void aic_datain __P((struct aic_softc *aic));
-static void aic_dataout __P((struct aic_softc *aic));
-static void aic_done __P((struct aic_softc *aic, struct aic_scb *scb));
-static void aic_poll __P((struct cam_sim *sim));
-static void aic_timeout __P((void *arg));
-static void aic_scsi_reset __P((struct aic_softc *aic));
-static void aic_chip_reset __P((struct aic_softc *aic));
-static void aic_reset __P((struct aic_softc *aic, int initiate_reset));
+static void aic_action(struct cam_sim *sim, union ccb *ccb);
+static void aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs,
+				int nseg, int error);
+static void aic_start(struct aic_softc *aic);
+static void aic_select(struct aic_softc *aic);
+static void aic_selected(struct aic_softc *aic);
+static void aic_reselected(struct aic_softc *aic);
+static void aic_reconnect(struct aic_softc *aic, int tag);
+static void aic_cmd(struct aic_softc *aic);
+static void aic_msgin(struct aic_softc *aic);
+static void aic_handle_msgin(struct aic_softc *aic);
+static void aic_msgout(struct aic_softc *aic);
+static void aic_datain(struct aic_softc *aic);
+static void aic_dataout(struct aic_softc *aic);
+static void aic_done(struct aic_softc *aic, struct aic_scb *scb);
+static void aic_poll(struct cam_sim *sim);
+static void aic_timeout(void *arg);
+static void aic_scsi_reset(struct aic_softc *aic);
+static void aic_chip_reset(struct aic_softc *aic);
+static void aic_reset(struct aic_softc *aic, int initiate_reset);
 
 devclass_t aic_devclass;
 

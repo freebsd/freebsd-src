@@ -76,7 +76,7 @@ Static struct ifqueue usbq_rx;
 Static struct ifqueue usbq_tx;
 Static int mtx_inited = 0;
 
-Static void usbintr		__P((void));
+Static void usbintr		(void);
 
 Static void usbintr()
 {

@@ -81,9 +81,9 @@ static struct isa_pnp_id an_ids[] = {
 	{ 0, NULL }
 };
 
-static int an_probe_isa		__P((device_t));
-static int an_attach_isa	__P((device_t));
-static int an_detach_isa	__P((device_t));
+static int an_probe_isa		(device_t);
+static int an_attach_isa	(device_t);
+static int an_detach_isa	(device_t);
 
 static int
 an_probe_isa(dev)

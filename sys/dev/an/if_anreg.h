@@ -368,14 +368,14 @@ struct an_softc	{
 #define AN_LOCK(_sc)		mtx_lock(&(_sc)->an_mtx)
 #define AN_UNLOCK(_sc)		mtx_unlock(&(_sc)->an_mtx)
 
-void	an_release_resources	__P((device_t));
-int	an_alloc_port		__P((device_t, int, int));
-int	an_alloc_memory		__P((device_t, int, int));
-int	an_alloc_irq		__P((device_t, int, int));
-int	an_probe	        __P((device_t));
-void	an_shutdown	        __P((device_t));
-int	an_attach		__P((struct an_softc *, int, int));
-void    an_stop		        __P((struct an_softc *));
+void	an_release_resources	(device_t);
+int	an_alloc_port		(device_t, int, int);
+int	an_alloc_memory		(device_t, int, int);
+int	an_alloc_irq		(device_t, int, int);
+int	an_probe	(device_t);
+void	an_shutdown	(device_t);
+int	an_attach		(struct an_softc *, int, int);
+void    an_stop		(struct an_softc *);
 
 driver_intr_t	an_intr;
 

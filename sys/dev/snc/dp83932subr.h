@@ -40,39 +40,39 @@
  * and National Semiconductor NS46C46 as (64 * 16 bits) Microwire Serial EEPROM.
  */
 
-int sncsetup __P((struct snc_softc *, u_int8_t *));
+int sncsetup(struct snc_softc *, u_int8_t *);
 
-u_int8_t snc_nec16_validate_irq __P((int));
-int snc_nec16_register_irq __P((struct snc_softc *, int));
-int snc_nec16_validate_mem __P((int));
-int snc_nec16_register_mem __P((struct snc_softc *, int));
+u_int8_t snc_nec16_validate_irq(int);
+int snc_nec16_register_irq(struct snc_softc *, int);
+int snc_nec16_validate_mem(int);
+int snc_nec16_register_mem(struct snc_softc *, int);
 
-u_int16_t snc_nec16_nic_get __P((struct snc_softc *, u_int8_t));
-void snc_nec16_nic_put __P((struct snc_softc *, u_int8_t, u_int16_t));
+u_int16_t snc_nec16_nic_get(struct snc_softc *, u_int8_t);
+void snc_nec16_nic_put(struct snc_softc *, u_int8_t, u_int16_t);
 
 
 void snc_nec16_writetodesc
-	__P((struct snc_softc *, u_int32_t, u_int32_t, u_int16_t));
+	(struct snc_softc *, u_int32_t, u_int32_t, u_int16_t);
 u_int16_t snc_nec16_readfromdesc
-	__P((struct snc_softc *, u_int32_t, u_int32_t));
+	(struct snc_softc *, u_int32_t, u_int32_t);
 
-void snc_nec16_copyfrombuf __P((struct snc_softc *, void *, u_int32_t, size_t));
-void snc_nec16_copytobuf __P((struct snc_softc *, void *, u_int32_t, size_t));
-void snc_nec16_zerobuf __P((struct snc_softc *, u_int32_t, size_t));
+void snc_nec16_copyfrombuf(struct snc_softc *, void *, u_int32_t, size_t);
+void snc_nec16_copytobuf(struct snc_softc *, void *, u_int32_t, size_t);
+void snc_nec16_zerobuf(struct snc_softc *, u_int32_t, size_t);
 
 int snc_nec16_detectsubr
-	__P((bus_space_tag_t, bus_space_handle_t, bus_space_tag_t,
-		bus_space_handle_t, int, int, u_int8_t));
+	(bus_space_tag_t, bus_space_handle_t, bus_space_tag_t,
+		bus_space_handle_t, int, int, u_int8_t);
 int snc_nec16_check_memory
-	__P((bus_space_tag_t, bus_space_handle_t, bus_space_tag_t,
-		bus_space_handle_t));
+	(bus_space_tag_t, bus_space_handle_t, bus_space_tag_t,
+		bus_space_handle_t);
 
 int snc_nec16_get_enaddr
-	__P((bus_space_tag_t, bus_space_handle_t, u_int8_t *));
-u_int8_t *snc_nec16_detect_type __P((u_int8_t *));
+	(bus_space_tag_t, bus_space_handle_t, u_int8_t *);
+u_int8_t *snc_nec16_detect_type(u_int8_t *);
 void snc_nec16_read_eeprom
-	__P((bus_space_tag_t, bus_space_handle_t, u_int8_t *));
+	(bus_space_tag_t, bus_space_handle_t, u_int8_t *);
 
 #ifdef	SNCDEBUG
-void snc_nec16_dump_reg __P((bus_space_tag_t, bus_space_handle_t));
+void snc_nec16_dump_reg(bus_space_tag_t, bus_space_handle_t);
 #endif	/* SNDEBUG */

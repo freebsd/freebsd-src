@@ -58,7 +58,7 @@
 #define VX_RESOURCE_CONFIG		0x0008
 
 
-static const char *vx_match __P((eisa_id_t type));
+static const char *vx_match(eisa_id_t type);
 
 static const char*
 vx_match(eisa_id_t type)

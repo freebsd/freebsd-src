@@ -115,29 +115,29 @@ static char const * const ic_ident[] = {
 	"PCnet-Home",
 };
 
-static void lnc_setladrf __P((struct lnc_softc *sc));
-static void lnc_reset __P((struct lnc_softc *sc));
-static void lnc_free_mbufs __P((struct lnc_softc *sc));
-static __inline int alloc_mbuf_cluster __P((struct lnc_softc *sc,
-					    struct host_ring_entry *desc));
-static __inline struct mbuf *chain_mbufs __P((struct lnc_softc *sc,
+static void lnc_setladrf(struct lnc_softc *sc);
+static void lnc_reset(struct lnc_softc *sc);
+static void lnc_free_mbufs(struct lnc_softc *sc);
+static __inline int alloc_mbuf_cluster(struct lnc_softc *sc,
+					    struct host_ring_entry *desc);
+static __inline struct mbuf *chain_mbufs(struct lnc_softc *sc,
 					      int start_of_packet,
-					      int pkt_len));
-static __inline struct mbuf *mbuf_packet __P((struct lnc_softc *sc,
+					      int pkt_len);
+static __inline struct mbuf *mbuf_packet(struct lnc_softc *sc,
 					      int start_of_packet,
-					      int pkt_len));
-static __inline void lnc_rint __P((struct lnc_softc *sc));
-static __inline void lnc_tint __P((struct lnc_softc *sc));
+					      int pkt_len);
+static __inline void lnc_rint(struct lnc_softc *sc);
+static __inline void lnc_tint(struct lnc_softc *sc);
 
-static void lnc_init __P((void *));
-static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
-static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
-static void lnc_start __P((struct ifnet *ifp));
-static int lnc_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
-static void lnc_watchdog __P((struct ifnet *ifp));
+static void lnc_init(void *);
+static __inline int mbuf_to_buffer(struct mbuf *m, char *buffer);
+static __inline struct mbuf *chain_to_cluster(struct mbuf *m);
+static void lnc_start(struct ifnet *ifp);
+static int lnc_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static void lnc_watchdog(struct ifnet *ifp);
 #ifdef DEBUG
-void lnc_dump_state __P((struct lnc_softc *sc));
-void mbuf_dump_chain __P((struct mbuf *m));
+void lnc_dump_state(struct lnc_softc *sc);
+void mbuf_dump_chain(struct mbuf *m);
 #endif
 
 u_short

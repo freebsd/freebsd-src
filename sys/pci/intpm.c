@@ -642,7 +642,7 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 DRIVER_MODULE(intsmb, intpm , intpm_driver, intsmb_devclass, 0, 0);
 
 
-static void intpm_intr __P((void *arg));
+static void intpm_intr(void *arg);
 static int
 intpm_attach(device_t dev)
 {

@@ -77,7 +77,7 @@
 static	int	stgprobe(DEVPORT_PDEVICE devi);
 static	int	stgattach(DEVPORT_PDEVICE devi);
 
-static	void	stg_card_unload	__P((DEVPORT_PDEVICE));
+static	void	stg_card_unload	(DEVPORT_PDEVICE);
 
 /*
  * Additional code for FreeBSD new-bus PCCard frontend

@@ -619,11 +619,11 @@ static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
  * The top-level routines begin here
  */
 
-static	int	rpparam __P((struct tty *, struct termios *));
-static	void	rpstart __P((struct tty *));
-static	void	rpstop __P((struct tty *, int));
-static	void	rphardclose	__P((struct rp_port *));
-static	void	rp_disc_optim	__P((struct tty *tp, struct termios *t));
+static	int	rpparam(struct tty *, struct termios *);
+static	void	rpstart(struct tty *);
+static	void	rpstop(struct tty *, int);
+static	void	rphardclose	(struct rp_port *);
+static	void	rp_disc_optim	(struct tty *tp, struct termios *t);
 
 static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)

@@ -210,9 +210,9 @@ bshw_read_settings(chp, bs)
 #define	SF_ABORT	0x08
 #define	SF_RDY		0x10
 
-static __inline void bshw_lc_smit_start __P((struct ct_softc *, int, u_int));
-static __inline void bshw_lc_smit_stop __P((struct ct_softc *));
-static int bshw_lc_smit_fstat __P((struct ct_softc *, int, int));
+static __inline void bshw_lc_smit_start(struct ct_softc *, int, u_int);
+static __inline void bshw_lc_smit_stop(struct ct_softc *);
+static int bshw_lc_smit_fstat(struct ct_softc *, int, int);
 
 static __inline void
 bshw_lc_smit_stop(ct)
@@ -422,9 +422,9 @@ bshw_smit_xfer_start(ct)
  * DMA TRANSFER (BS)
  *********************************************************/
 static __inline void bshw_dma_write_1 \
-	__P((struct ct_bus_access_handle *, bus_addr_t, u_int8_t));
-static void bshw_dmastart __P((struct ct_softc *));
-static void bshw_dmadone __P((struct ct_softc *));
+	(struct ct_bus_access_handle *, bus_addr_t, u_int8_t);
+static void bshw_dmastart(struct ct_softc *);
+static void bshw_dmadone(struct ct_softc *);
 
 int
 bshw_dma_xfer_start(ct)
@@ -631,12 +631,12 @@ bshw_dmadone(ct)
 /**********************************************
  * VENDOR UNIQUE DMA FUNCS
  **********************************************/
-static int bshw_dma_init_sc98 __P((struct ct_softc *));
-static void bshw_dma_start_sc98 __P((struct ct_softc *));
-static void bshw_dma_stop_sc98 __P((struct ct_softc *));
-static int bshw_dma_init_texa __P((struct ct_softc *));
-static void bshw_dma_start_elecom __P((struct ct_softc *));
-static void bshw_dma_stop_elecom __P((struct ct_softc *));
+static int bshw_dma_init_sc98(struct ct_softc *);
+static void bshw_dma_start_sc98(struct ct_softc *);
+static void bshw_dma_stop_sc98(struct ct_softc *);
+static int bshw_dma_init_texa(struct ct_softc *);
+static void bshw_dma_start_elecom(struct ct_softc *);
+static void bshw_dma_stop_elecom(struct ct_softc *);
 
 static int
 bshw_dma_init_texa(ct)

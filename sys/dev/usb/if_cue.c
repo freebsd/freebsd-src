@@ -93,41 +93,40 @@ Static struct cue_type cue_devs[] = {
 
 Static struct usb_qdat cue_qdat;
 
-Static int cue_match		__P((device_t));
-Static int cue_attach		__P((device_t));
-Static int cue_detach		__P((device_t));
+Static int cue_match		(device_t);
+Static int cue_attach		(device_t);
+Static int cue_detach		(device_t);
 
-Static int cue_tx_list_init	__P((struct cue_softc *));
-Static int cue_rx_list_init	__P((struct cue_softc *));
-Static int cue_newbuf		__P((struct cue_softc *, struct cue_chain *,
-				    struct mbuf *));
-Static int cue_encap		__P((struct cue_softc *, struct mbuf *, int));
-Static void cue_rxeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void cue_txeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void cue_tick		__P((void *));
-Static void cue_rxstart		__P((struct ifnet *));
-Static void cue_start		__P((struct ifnet *));
-Static int cue_ioctl		__P((struct ifnet *, u_long, caddr_t));
-Static void cue_init		__P((void *));
-Static void cue_stop		__P((struct cue_softc *));
-Static void cue_watchdog		__P((struct ifnet *));
-Static void cue_shutdown		__P((device_t));
+Static int cue_tx_list_init	(struct cue_softc *);
+Static int cue_rx_list_init	(struct cue_softc *);
+Static int cue_newbuf		(struct cue_softc *, struct cue_chain *,
+				    struct mbuf *);
+Static int cue_encap		(struct cue_softc *, struct mbuf *, int);
+Static void cue_rxeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void cue_txeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void cue_tick		(void *);
+Static void cue_rxstart		(struct ifnet *);
+Static void cue_start		(struct ifnet *);
+Static int cue_ioctl		(struct ifnet *, u_long, caddr_t);
+Static void cue_init		(void *);
+Static void cue_stop		(struct cue_softc *);
+Static void cue_watchdog		(struct ifnet *);
+Static void cue_shutdown		(device_t);
 
-Static void cue_setmulti	__P((struct cue_softc *));
-Static u_int32_t cue_crc	__P((caddr_t));
-Static void cue_reset		__P((struct cue_softc *));
+Static void cue_setmulti	(struct cue_softc *);
+Static u_int32_t cue_crc	(caddr_t);
+Static void cue_reset		(struct cue_softc *);
 
-Static int csr_read_1		__P((struct cue_softc *, int));
-Static int csr_write_1		__P((struct cue_softc *, int, int));
-Static int csr_read_2		__P((struct cue_softc *, int));
+Static int csr_read_1		(struct cue_softc *, int);
+Static int csr_write_1		(struct cue_softc *, int, int);
+Static int csr_read_2		(struct cue_softc *, int);
 #ifdef notdef
-Static int csr_write_2		__P((struct cue_softc *, int, int));
+Static int csr_write_2		(struct cue_softc *, int, int);
 #endif
-Static int cue_mem		__P((struct cue_softc *, int,
-				    int, void *, int));
-Static int cue_getmac		__P((struct cue_softc *, void *));
+Static int cue_mem		(struct cue_softc *, int, int, void *, int);
+Static int cue_getmac		(struct cue_softc *, void *);
 
 Static device_method_t cue_methods[] = {
 	/* Device interface */

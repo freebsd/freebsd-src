@@ -47,13 +47,13 @@
 #include <dev/pdq/pdqvar.h>
 #include <dev/pdq/pdqreg.h>
 
-static void		pdq_eisa_subprobe	__P((pdq_bus_t, u_int32_t, u_int32_t *, u_int32_t *, u_int32_t *));
-static void		pdq_eisa_devinit	__P((pdq_softc_t *));
-static const char *	pdq_eisa_match		__P((eisa_id_t));
-static int 		pdq_eisa_probe		__P((device_t));
-static int		pdq_eisa_attach		__P((device_t));
-void			pdq_eisa_intr		__P((void *));
-static int		pdq_eisa_shutdown	__P((device_t));
+static void		pdq_eisa_subprobe	(pdq_bus_t, u_int32_t, u_int32_t *, u_int32_t *, u_int32_t *);
+static void		pdq_eisa_devinit	(pdq_softc_t *);
+static const char *	pdq_eisa_match		(eisa_id_t);
+static int 		pdq_eisa_probe		(device_t);
+static int		pdq_eisa_attach		(device_t);
+void			pdq_eisa_intr		(void *);
+static int		pdq_eisa_shutdown	(device_t);
 
 #define	DEFEA_IRQS			0x0000FBA9U
 

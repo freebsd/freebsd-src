@@ -71,9 +71,9 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	fore_buf_drain __P((Fore_unit *));
-static void	fore_buf_supply_1s __P((Fore_unit *));
-static void	fore_buf_supply_1l __P((Fore_unit *));
+static void	fore_buf_drain(Fore_unit *);
+static void	fore_buf_supply_1s(Fore_unit *);
+static void	fore_buf_supply_1l(Fore_unit *);
 
 
 /*

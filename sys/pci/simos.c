@@ -75,10 +75,10 @@ struct simos_softc* simosp[10];
 
 static u_long simos_unit;
 
-static const char *simos_probe __P((pcici_t tag, pcidi_t type));
-static void simos_attach __P((pcici_t config_d, int unit));
-static void simos_action __P((struct cam_sim *sim, union ccb *ccb));
-static void simos_poll __P((struct cam_sim *sim));
+static const char *simos_probe(pcici_t tag, pcidi_t type);
+static void simos_attach(pcici_t config_d, int unit);
+static void simos_action(struct cam_sim *sim, union ccb *ccb);
+static void simos_poll(struct cam_sim *sim);
 
 struct pci_device simos_driver = {
 	"simos",

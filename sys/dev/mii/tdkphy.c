@@ -69,9 +69,9 @@ static const char rcsid[] =
   "$Id: tdkphy.c,v 1.3 2000/10/14 06:20:56 jon Exp $";
 #endif
 
-static int tdkphy_probe			__P((device_t));
-static int tdkphy_attach		__P((device_t));
-static int tdkphy_detach		__P((device_t));
+static int tdkphy_probe			(device_t);
+static int tdkphy_attach		(device_t);
+static int tdkphy_detach		(device_t);
 
 static device_method_t tdkphy_methods[] = {
 	/* device interface */
@@ -92,8 +92,8 @@ static driver_t tdkphy_driver = {
 
 DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, tdkphy_devclass, 0, 0);
 
-static int tdkphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void tdkphy_status __P((struct mii_softc *));
+static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
+static void tdkphy_status(struct mii_softc *);
 
 static int
 tdkphy_probe(device_t dev)

@@ -56,7 +56,7 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-static void	eni_suni_intr __P((Eni_unit *));
+static void	eni_suni_intr(Eni_unit *);
 
 /*
  * SUNI Interrupt processing
