@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.8 1995/05/30 08:02:45 rgrimes Exp $
+ *	$Id: mcdreg.h,v 1.9 1996/01/30 10:31:12 ache Exp $
  */
 
 #ifndef MCD_H
@@ -218,4 +218,9 @@ struct mcd_rawsector {
 	u_char ecc_bits[280];
 };
 
+#ifdef __GNUC__
+#if __GNUC__ >= 2
+#pragma pack(4)
+#endif
+#endif
 #endif /* MCD_H */
