@@ -7,6 +7,8 @@ if [ -z "$TESTDIR" ]; then
 fi
 cd $TESTDIR
 
+STATUS=0
+
 # Note that currently the uuencode(1) program provides no facility to
 # include the file mode explicitly based on an argument passed to it,
 # so the regress.in file must be mode 644, or the test will say that,
@@ -25,7 +27,9 @@ for test in traditional base64; do
   if [ $? -eq 0 ]; then
     echo "Test $test detected no regression, output matches."
   else
+    STATUS=$?
     echo "Test $test failed: regression detected.  See above."
-    exit 1
   fi
 done
+
+exit $STATUS
