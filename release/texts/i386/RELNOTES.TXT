@@ -80,6 +80,20 @@ when they are mmap(2)ed.
 Added support for PCI ethernet adapters based on the National Semiconductor
 DP83815 chipset, including the NetGear FA312-TX.
 
+Due to a licensing change, softupdates have been integrated into the
+main portion of the kernel source tree.  As a consequence, softupdates
+are now available with the GENERIC kernel. [MERGED]
+
+A driver for AGP hardware has been added. [MERGED]
+
+ipfilter has been updated to 3.4.8. [MERGED]
+
+Various fixes and improvements to the IPv6 code have been merged in
+from the KAME project, including significantly-improved IPSEC
+functionality. [MERGED]
+
+twe 3ware ATA RAID driver added. [MERGED]
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -130,6 +144,12 @@ be run as more(1). [MERGED]
 
 ls(1) can produce colorized listings with the -G flag (and appropriate
 terminal support). [MERGED]
+
+libalias(3) and natd(8) now support RFC 2391 (Load Sharing using IP
+Network Address Translation), as well as new translation options.
+[MERGED]
+
+FreeBSD can now be installed over an IPv6-only network. [MERGED]
 
 2. Supported Configurations
 ---------------------------
