@@ -14,6 +14,8 @@
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 
+static void gps_send();
+
 #if defined(HAVE_BSD_TTYS)
 #include <sgtty.h>
 #endif /* HAVE_BSD_TTYS */
@@ -841,7 +843,7 @@ trak_poll(unit, peer)
 	/*
 	 * usually trak_receive can get a timestamp every second
 	 */
-#ifndef TRAKPPS && TRAKCLK
+#if !defined(TRAKPPS) && !defined(TRAKCLK)
 	gettstamp(&gps->lastrec);
 #endif
 	gps->polls++;
