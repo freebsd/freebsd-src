@@ -30,15 +30,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
 #include <sys/conf.h>
-#include <sys/mount.h>
+#include <sys/exec.h>
+#include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <sys/errno.h>
 
-extern const struct execsw coff_execsw;
-
-MOD_EXEC("ibcs2_mod", -1, (struct execsw*)&coff_execsw)
+MOD_MISC("ibcs2_mod")
 
 ibcs2_load(struct lkm_table *lkmtp, int cmd)
 {
