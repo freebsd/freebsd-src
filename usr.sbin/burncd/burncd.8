@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2002
+.Dd September 15, 2004
 .Os
 .Dt BURNCD 8
 .Sh NAME
@@ -51,7 +51,7 @@ Available options and operands:
 .It Fl d
 burn the CD-R/RW in DAO (disk at once) mode.
 .It Fl e
-eject the media when done.
+eject the medium when done.
 .It Fl f Ar device
 set the device to use for the burning process.
 .It Fl F
@@ -92,6 +92,11 @@ switch when adding additional data to ISO file systems with extra sessions.
 Blank a CD-RW medium.
 This uses the fast blanking method, so data are not physically overwritten,
 only those areas that make the media appear blank for further usage are erased.
+.It Cm eject
+Eject the medium when done.
+This is equivalent to the
+.Fl e
+option.
 .It Cm erase
 Erase a CD-RW medium.
 This erases the entire media.
