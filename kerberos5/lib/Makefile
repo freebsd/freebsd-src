@@ -5,4 +5,5 @@ SUBDIR=	libroken libvers libasn1 libhdb libkrb5 libkadm5clnt libkadm5srv libsl l
 	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 SUBDIR+=libkafs5
 .endif
+SUBDIR+=libtelnet
 .include <bsd.subdir.mk>
