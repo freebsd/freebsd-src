@@ -76,6 +76,7 @@
 /* Card config register #1: IRQ enable  */
 #define FE_FMV3_IRQENB	0x80	/* IRQ enable.			*/
 
+
 /*
  * Register(?) specific to AT1700/RE2000.
  */
@@ -95,6 +96,7 @@
 #define FE_ATI_MODEL_AT1700FT	0x02
 #define FE_ATI_MODEL_AT1700AT	0x03
 
+
 /*
  * Registers on MBH10302.
  */
@@ -110,9 +112,55 @@
 #define FE_MBH0_INTR_ENABLE	0x10	/* Enable interrupts.	*/
 #define FE_MBH0_INTR_DISABLE	0x00	/* Disable interrupts.	*/
 
+
 /*
  * Registers on RE1000.  (*NOT* on RE1000 Plus.)
  */
 
 /* IRQ configuration.  */
 #define	FE_RE1000_IRQCONF	0x10
+
+
+/*
+ * Fujitsu MB86965 JLI mode support routines.
+ */
+
+/* Datasheet for 86965 explicitly states that it only supports serial
+ * EEPROM with 16 words (32 bytes) capacity.  (I.e., 93C06.)  However,
+ * ones with 64 words (128 bytes) are available in the marked, namely
+ * 93C46, and are also fully compatible with 86965.  It is known that
+ * some boards (e.g., ICL) actually have 93C46 on them and use extra
+ * storage to keep various config info.  */
+#define JLI_EEPROM_SIZE	128
+
+
+/*
+ * SSi 78Q8377A support routines.
+ */
+#define SSI_EEPROM_SIZE	512
+#define SSI_DIN	0x01
+#define SSI_DAT	0x01
+#define SSI_CSL	0x02
+#define SSI_CLK	0x04
+#define SSI_EEP	0x10
+
+#define	FE_SSI_EEP_IRQ		9	/* Irq ???		*/
+#define	FE_SSI_EEP_ADDR		16	/* Station(MAC) address	*/
+#define	FE_SSI_EEP_DUPLEX	25	/* Duplex mode ???	*/
+
+
+/*
+ * TDK/LANX boards support routines.
+ */
+
+/* AX012/AX013 equips an X24C01 chip, which has 128 bytes of memory cells.  */
+#define LNX_EEPROM_SIZE	128
+
+/* Bit assignments and command definitions for the serial EEPROM
+   interface register in LANX ASIC.  */
+#define LNX_SDA_HI	0x08	/* Drive SDA line high (logical 1.)	*/
+#define LNX_SDA_LO	0x00	/* Drive SDA line low (logical 0.)	*/
+#define LNX_SDA_FL	0x08	/* Float (don't drive) SDA line.	*/
+#define LNX_SDA_IN	0x01	/* Mask for reading SDA line.		*/
+#define LNX_CLK_HI	0x04	/* Drive clock line high (active.)	*/
+#define LNX_CLK_LO	0x00	/* Drive clock line low (inactive.)	*/
