@@ -222,7 +222,7 @@ struct in6_addr *addr;
 		}
 	}
 
-	if (bcmp(&in6addr_loopback, addr, sizeof(addr) - 1) == 0) {
+	if (bcmp(&in6addr_loopback, addr, sizeof(*addr) - 1) == 0) {
 		if (addr->s6_addr8[15] == 1) /* loopback */
 			return IPV6_ADDR_SCOPE_NODELOCAL;
 		if (addr->s6_addr8[15] == 0) /* unspecified */
