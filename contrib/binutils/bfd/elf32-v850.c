@@ -1,5 +1,6 @@
 /* V850-specific support for 32-bit ELF
-   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -1325,7 +1326,6 @@ v850_elf_reloc (abfd, reloc, symbol, data, isection, obfd, err)
       relocation -= reloc->address;
     }
 #endif
-
   reloc->addend = relocation;
   return bfd_reloc_ok;
 }

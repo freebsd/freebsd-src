@@ -1,5 +1,6 @@
 /* Alpha specific support for 64-bit ELF
-   Copyright 1996, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -240,12 +241,23 @@ alpha_elf_dynamic_symbol_p (h, info)
 
   if (h->dynindx == -1)
     return false;
-  if (ELF_ST_VISIBILITY (h->other) != STV_DEFAULT)
-    return false;
 
   if (h->root.type == bfd_link_hash_undefweak
       || h->root.type == bfd_link_hash_defweak)
     return true;
+
+  switch (ELF_ST_VISIBILITY (h->other))
+    {
+    case STV_DEFAULT:
+      break;
+    case STV_HIDDEN:
+    case STV_INTERNAL:
+      return false;
+    case STV_PROTECTED:
+      if (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR)
+        return false;
+      break;
+    }
 
   if ((info->shared && !info->symbolic)
       || ((h->elf_link_hash_flags
@@ -554,7 +566,7 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 false,			/* partial_inplace */
 	 0xffff,		/* src_mask */
 	 0xffff,		/* dst_mask */
-	 false),		/* pcrel_offset */
+	 true),			/* pcrel_offset */
 
   /* 32 bit PC relative offset.  */
   HOWTO (R_ALPHA_SREL32,	/* type */
@@ -569,7 +581,7 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 false,			/* partial_inplace */
 	 0xffffffff,		/* src_mask */
 	 0xffffffff,		/* dst_mask */
-	 false),		/* pcrel_offset */
+	 true),			/* pcrel_offset */
 
   /* A 64 bit PC relative offset.  */
   HOWTO (R_ALPHA_SREL64,	/* type */
@@ -584,7 +596,7 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 false,			/* partial_inplace */
 	 MINUS_ONE,		/* src_mask */
 	 MINUS_ONE,		/* dst_mask */
-	 false),		/* pcrel_offset */
+	 true),			/* pcrel_offset */
 
   /* Push a value on the reloc evaluation stack.  */
   /* Not implemented -- it's dumb.  */
@@ -855,13 +867,13 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 
 static bfd_reloc_status_type
 elf64_alpha_reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *reloc;
-     asymbol *sym;
-     PTR data;
+     asymbol *sym ATTRIBUTE_UNUSED;
+     PTR data ATTRIBUTE_UNUSED;
      asection *sec;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   if (output_bfd)
     reloc->address += sec->output_offset;
@@ -872,13 +884,13 @@ elf64_alpha_reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
 
 static bfd_reloc_status_type
 elf64_alpha_reloc_bad (abfd, reloc, sym, data, sec, output_bfd, error_message)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *reloc;
-     asymbol *sym;
-     PTR data;
+     asymbol *sym ATTRIBUTE_UNUSED;
+     PTR data ATTRIBUTE_UNUSED;
      asection *sec;
      bfd *output_bfd;
-     char **error_message;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   if (output_bfd)
     reloc->address += sec->output_offset;
@@ -935,7 +947,7 @@ elf64_alpha_reloc_gpdisp (abfd, reloc_entry, sym, data, input_section,
 			  output_bfd, err_msg)
      bfd *abfd;
      arelent *reloc_entry;
-     asymbol *sym;
+     asymbol *sym ATTRIBUTE_UNUSED;
      PTR data;
      asection *input_section;
      bfd *output_bfd;
@@ -1016,7 +1028,7 @@ static const struct elf_reloc_map elf64_alpha_reloc_map[] =
 
 static reloc_howto_type *
 elf64_alpha_bfd_reloc_type_lookup (abfd, code)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_reloc_code_real_type code;
 {
   const struct elf_reloc_map *i, *e;
@@ -1034,7 +1046,7 @@ elf64_alpha_bfd_reloc_type_lookup (abfd, code)
 
 static void
 elf64_alpha_info_to_howto (abfd, cache_ptr, dst)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      arelent *cache_ptr;
      Elf64_Internal_Rela *dst;
 {
@@ -1836,8 +1848,8 @@ elf64_alpha_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
      bfd *abfd;
      struct bfd_link_info *info;
      const Elf_Internal_Sym *sym;
-     const char **namep;
-     flagword *flagsp;
+     const char **namep ATTRIBUTE_UNUSED;
+     flagword *flagsp ATTRIBUTE_UNUSED;
      asection **secp;
      bfd_vma *valp;
 {
@@ -1872,7 +1884,7 @@ elf64_alpha_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 static boolean
 elf64_alpha_create_got_section(abfd, info)
      bfd *abfd;
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
 {
   asection *s;
 
@@ -2075,7 +2087,7 @@ elf64_alpha_read_ecoff_info (abfd, section, debug)
 
 static boolean
 elf64_alpha_is_local_label_name (abfd, name)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      const char *name;
 {
   return name[0] == '$';
@@ -2727,7 +2739,7 @@ elf64_alpha_adjust_dynamic_symbol (info, h)
 static boolean
 elf64_alpha_merge_ind_symbols (hi, dummy)
      struct alpha_elf_link_hash_entry *hi;
-     PTR dummy;
+     PTR dummy ATTRIBUTE_UNUSED;
 {
   struct alpha_elf_link_hash_entry *hs;
 
@@ -2819,7 +2831,7 @@ elf64_alpha_can_merge_gots (a, b)
       Elf_Internal_Shdr *symtab_hdr = &elf_tdata (bsub)->symtab_hdr;
       int i, n;
 
-      n = symtab_hdr->sh_size / symtab_hdr->sh_entsize - symtab_hdr->sh_info;
+      n = NUM_SHDR_ENTRIES (symtab_hdr) - symtab_hdr->sh_info;
       for (i = 0; i < n; ++i)
 	{
 	  struct alpha_elf_got_entry *ae, *be;
@@ -2891,7 +2903,7 @@ elf64_alpha_merge_gots (a, b)
       hashes = alpha_elf_sym_hashes (bsub);
       symtab_hdr = &elf_tdata (bsub)->symtab_hdr;
 
-      n = symtab_hdr->sh_size / symtab_hdr->sh_entsize - symtab_hdr->sh_info;
+      n = NUM_SHDR_ENTRIES (symtab_hdr) - symtab_hdr->sh_info;
       for (i = 0; i < n; ++i)
         {
 	  struct alpha_elf_got_entry *ae, *be, **pbe, **start;
@@ -4715,8 +4727,8 @@ const struct elf_size_info alpha_elf_size_info =
 #define TARGET_LITTLE_SYM	bfd_elf64_alpha_vec
 #define TARGET_LITTLE_NAME	"elf64-alpha"
 #define ELF_ARCH		bfd_arch_alpha
-#define ELF_MACHINE_CODE 	EM_ALPHA
-#define ELF_MAXPAGESIZE 	0x10000
+#define ELF_MACHINE_CODE	EM_ALPHA
+#define ELF_MAXPAGESIZE	0x10000
 
 #define bfd_elf64_bfd_link_hash_table_create \
   elf64_alpha_bfd_link_hash_table_create

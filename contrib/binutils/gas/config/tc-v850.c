@@ -1,5 +1,6 @@
 /* tc-v850.c -- Assembler code for the NEC V850
-   Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -604,8 +605,8 @@ const pseudo_typeS md_pseudo_table[] = {
   {"call_table_text", v850_call_table_text, 0},
   {"v850e",           set_machine,          bfd_mach_v850e},
   {"v850ea",          set_machine,          bfd_mach_v850ea},
-  {"file",    dwarf2_directive_file },
-  {"loc",     dwarf2_directive_loc },
+  {"file",    dwarf2_directive_file, 0},
+  {"loc",     dwarf2_directive_loc, 0},
   { NULL,     NULL,         0}
 };
 
@@ -1321,7 +1322,6 @@ md_convert_frag (abfd, sec, fragP)
     {
       fix_new (fragP, fragP->fr_fix, 2, fragP->fr_symbol,
 	       fragP->fr_offset, 1, BFD_RELOC_UNUSED + (int)fragP->fr_opcode);
-      fragP->fr_var = 0;
       fragP->fr_fix += 2;
     }
   /* Out of range conditional branch.  Emit a branch around a jump.  */
@@ -1345,7 +1345,6 @@ md_convert_frag (abfd, sec, fragP)
       fix_new (fragP, fragP->fr_fix + 2, 4, fragP->fr_symbol,
 	       fragP->fr_offset, 1, BFD_RELOC_UNUSED +
 	       (int) fragP->fr_opcode + 1);
-      fragP->fr_var = 0;
       fragP->fr_fix += 6;
     }
   /* Out of range unconditional branch.  Emit a jump.  */
@@ -1355,7 +1354,6 @@ md_convert_frag (abfd, sec, fragP)
       fix_new (fragP, fragP->fr_fix, 4, fragP->fr_symbol,
 	       fragP->fr_offset, 1, BFD_RELOC_UNUSED +
 	       (int) fragP->fr_opcode + 1);
-      fragP->fr_var = 0;
       fragP->fr_fix += 4;
     }
   else
@@ -1702,7 +1700,6 @@ md_assemble (str)
   int relaxable = 0;
   unsigned long insn;
   unsigned long insn_size;
-  unsigned long total_insn_size = 0;
   char *f;
   int i;
   int match;
@@ -2153,6 +2150,11 @@ md_assemble (str)
 
   input_line_pointer = str;
 
+  /* Tie dwarf2 debug info to the address at the start of the insn.
+     We can't do this after the insn has been output as the current
+     frag may have been closed off.  eg. by frag_var.  */
+  dwarf2_emit_insn (0);
+
   /* Write out the instruction.  */
 
   if (relaxable && fc > 0)
@@ -2178,7 +2180,6 @@ md_assemble (str)
 	  md_number_to_chars (f, insn, insn_size);
 	  md_number_to_chars (f + 2, 0, 4);
 	}
-      total_insn_size = insn_size;
     }
   else
     {
@@ -2193,15 +2194,11 @@ md_assemble (str)
 	insn_size = 2;
 
       f = frag_more (insn_size);
-      total_insn_size = insn_size;
-
       md_number_to_chars (f, insn, insn_size);
 
       if (extra_data_after_insn)
 	{
 	  f = frag_more (extra_data_len);
-	  total_insn_size += extra_data_len;
-
 	  md_number_to_chars (f, extra_data, extra_data_len);
 
 	  extra_data_after_insn = false;
@@ -2274,8 +2271,6 @@ md_assemble (str)
     }
 
   input_line_pointer = saved_input_line_pointer;
-
-  dwarf2_emit_insn (total_insn_size);
 }
 
 /* If while processing a fixup, a reloc really needs to be created
@@ -2315,20 +2310,17 @@ tc_gen_reloc (seg, fixp)
   return reloc;
 }
 
-/* Assume everything will fit in two bytes, then expand as necessary.  */
+/* Return current size of variable part of frag.  */
 
 int
 md_estimate_size_before_relax (fragp, seg)
      fragS *fragp;
      asection *seg ATTRIBUTE_UNUSED;
 {
-  if (fragp->fr_subtype == 0)
-    fragp->fr_var = 4;
-  else if (fragp->fr_subtype == 2)
-    fragp->fr_var = 2;
-  else
+  if (fragp->fr_subtype >= sizeof (md_relax_table) / sizeof (md_relax_table[0]))
     abort ();
-  return 2;
+
+  return md_relax_table[fragp->fr_subtype].rlx_length;
 }
 
 long

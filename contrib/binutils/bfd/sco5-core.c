@@ -1,5 +1,5 @@
 /* BFD back end for SCO5 core files (U-area and raw sections)
-   Copyright 1998 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
    Written by Jouke Numan <jnuman@hiscom.nl>
 
 This file is part of BFD, the Binary File Descriptor library.

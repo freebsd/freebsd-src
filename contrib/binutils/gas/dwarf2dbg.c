@@ -1,5 +1,5 @@
 /* dwarf2dbg.c - DWARF2 debug support
-   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -324,7 +324,7 @@ dwarf2_directive_file (dummy)
      int dummy ATTRIBUTE_UNUSED;
 {
   offsetT num;
-  const char *filename;
+  char *filename;
   int filename_len;
 
   /* Continue to accept a bare string and pass it off.  */
@@ -347,7 +347,7 @@ dwarf2_directive_file (dummy)
 
   if (num < files_in_use && files[num].filename != 0)
     {
-      as_bad (_("File number %d already allocated"), num);
+      as_bad (_("File number %ld already allocated"), (long) num);
       return;
     }
 
@@ -873,7 +873,11 @@ process_entries (seg, e)
 	  changed = 1;
 	}
 
-      if (line != e->loc.line || changed)
+      /* Don't try to optimize away redundant entries; gdb wants two
+	 entries for a function where the code starts on the same line as
+	 the {, and there's no way to identify that case here.  Trust gcc
+	 to optimize appropriately.  */
+      if (1 /* line != e->loc.line || changed */)
 	{
 	  int line_delta = e->loc.line - line;
 	  if (frag == NULL)
@@ -1296,7 +1300,7 @@ void
 dwarf2_directive_file (dummy)
      int dummy ATTRIBUTE_UNUSED;
 {
-  as_fatal (_("dwarf2 is not supported for this object file format"));
+  s_app_file (0);
 }
 
 void

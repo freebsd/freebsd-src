@@ -877,6 +877,7 @@ objcopy [ -F @var{bfdname} | --target=@var{bfdname} ]
         [ -S | --strip-all ]  [ -g | --strip-debug ]
         [ -K @var{symbolname} | --keep-symbol=@var{symbolname} ]
         [ -N @var{symbolname} | --strip-symbol=@var{symbolname} ]
+        [ -G @var{symbolname} | --keep-global-symbol=@var{symbolname}]
         [ -L @var{symbolname} | --localize-symbol=@var{symbolname} ]
         [ -W @var{symbolname} | --weaken-symbol=@var{symbolname} ]
         [ -x | --discard-all ]  [ -X | --discard-locals ]
@@ -897,6 +898,11 @@ objcopy [ -F @var{bfdname} | --target=@var{bfdname} ]
         [ --change-leading-char ] [ --remove-leading-char ]
         [ --srec-len=@var{ival} ] [ --srec-forceS3 ]
         [ --redefine-sym @var{old}=@var{new} ] [ --weaken ]
+        [ --keep-symbols=@var{filename} ]
+        [ --strip-symbols=@var{filename} ]
+        [ --keep-global-symbols=@var{filename} ]
+        [ --localize-symbols=@var{filename} ]
+        [ --weaken-symbols=@var{filename} ]
         [ -v | --verbose ] [ -V | --version ]  [ --help ]
         @var{infile} [@var{outfile}]
 @end smallexample
@@ -992,6 +998,12 @@ be given more than once.
 @itemx --strip-symbol=@var{symbolname}
 Do not copy symbol @var{symbolname} from the source file.  This option
 may be given more than once.
+
+@item -G @var{symbolname}
+@itemx --keep-global-symbol=@var{symbolname}
+Keep only symbol @var{symbolname} global.  Make all other symbols local
+to the file, so that they are not visible externally.  This option may
+be given more than once.
 
 @item -L @var{symbolname}
 @itemx --localize-symbol=@var{symbolname}
@@ -1175,6 +1187,36 @@ Change all global symbols in the file to be weak.  This can be useful
 when building an object which will be linked against other objects using
 the @code{-R} option to the linker.  This option is only effective when
 using an object file format which supports weak symbols.
+
+@item --keep-symbols=@var{filename}
+Apply @samp{--keep-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --strip-symbols=@var{filename}
+Apply @samp{--strip-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --keep-global-symbols=@var{filename}
+Apply @samp{--keep-global-symbol} option to each symbol listed in the
+file @var{filename}.  @var{filename} is simply a flat file, with one
+symbol name per line.  Line comments may be introduced by the hash
+character.  This option may be given more than once.
+
+@item --localize-symbols=@var{filename}
+Apply @samp{--localize-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --weaken-symbols=@var{filename}
+Apply @samp{--weaken-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
 
 @item -V
 @itemx --version

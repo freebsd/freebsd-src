@@ -3,7 +3,7 @@
 @c
 @c This file documents the assembly preprocessor "GASP"
 @c
-@c Copyright (c) 1994, 2000 Free Software Foundation, Inc.
+@c Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
 @c
 @c    Permission is granted to copy, distribute and/or modify this document
 @c    under the terms of the GNU Free Documentation License, Version 1.1

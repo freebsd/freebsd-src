@@ -1,5 +1,5 @@
 /* ECOFF object file format.
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.
@@ -95,7 +95,7 @@ const pseudo_typeS obj_pseudo_table[] =
   { "verstamp",	s_ignore,		0 },
 
   /* Sentinel.  */
-  { NULL }
+  { NULL,	s_ignore,		0 }
 };
 
 /* Swap out the symbols and debugging information for BFD.  */
@@ -141,7 +141,7 @@ ecoff_frob_file ()
     /* bss segment */
     ".sbss", ".bss",
   };
-#define n_names (sizeof (names) / sizeof (names[0]))
+#define n_names ((int) (sizeof (names) / sizeof (names[0])))
 
   addr = 0;
   {
@@ -272,7 +272,7 @@ obj_ecoff_set_ext (sym, ext)
 
 static int
 ecoff_sec_sym_ok_for_reloc (sec)
-     asection *sec;
+     asection *sec ATTRIBUTE_UNUSED;
 {
   return 1;
 }
@@ -280,7 +280,7 @@ ecoff_sec_sym_ok_for_reloc (sec)
 static void
 obj_ecoff_frob_symbol (sym, puntp)
      symbolS *sym;
-     int *puntp;
+     int *puntp ATTRIBUTE_UNUSED;
 {
   ecoff_frob_symbol (sym);
 }

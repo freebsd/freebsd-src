@@ -1,5 +1,5 @@
 /* macro.c - macro support for gas and gasp
-   Copyright (C) 1994, 95, 96, 97, 98, 99, 2000
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,

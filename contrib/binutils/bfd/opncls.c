@@ -1,5 +1,6 @@
 /* opncls.c -- open and close a BFD.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
+   2001
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.

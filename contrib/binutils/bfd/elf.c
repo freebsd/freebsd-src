@@ -1,5 +1,6 @@
 /* ELF executable support for BFD.
-   Copyright 1993, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -56,6 +57,10 @@ static INLINE int sym_is_global PARAMS ((bfd *, asymbol *));
 static boolean elf_map_symbols PARAMS ((bfd *));
 static bfd_size_type get_program_header_size PARAMS ((bfd *));
 static boolean elfcore_read_notes PARAMS ((bfd *, bfd_vma, bfd_vma));
+static boolean elf_find_function PARAMS ((bfd *, asection *,
+                                         asymbol **,
+                                         bfd_vma, const char **,
+                                         const char **));
 
 /* Swap version information in and out.  The version information is
    currently size independent.  If that ever changes, this code will
@@ -805,8 +810,8 @@ bfd_elf_print_symbol (abfd, filep, symbol, how)
       break;
     case bfd_print_symbol_all:
       {
-	CONST char *section_name;
-	CONST char *name = NULL;
+	const char *section_name;
+	const char *name = NULL;
 	struct elf_backend_data *bed;
 	unsigned char st_other;
 
@@ -1002,8 +1007,9 @@ _bfd_elf_link_hash_hide_symbol (info, h)
      struct elf_link_hash_entry *h;
 {
   h->elf_link_hash_flags &= ~ELF_LINK_HASH_NEEDS_PLT;
-  h->dynindx = -1;
   h->plt.offset = (bfd_vma) -1;
+  if ((h->elf_link_hash_flags & ELF_LINK_FORCED_LOCAL) != 0)
+    h->dynindx = -1;
 }
 
 /* Initialize an ELF linker hash table.  */
@@ -1423,7 +1429,7 @@ bfd_section_from_shdr (abfd, shindex)
 	  }
 	*hdr2 = *hdr;
 	elf_elfsections (abfd)[shindex] = hdr2;
-	target_sect->reloc_count += hdr->sh_size / hdr->sh_entsize;
+	target_sect->reloc_count += NUM_SHDR_ENTRIES (hdr);
 	target_sect->flags |= SEC_RELOC;
 	target_sect->relocation = NULL;
 	target_sect->rel_filepos = hdr->sh_offset;
@@ -3390,7 +3396,7 @@ prep_headers (abfd)
     case bfd_arch_cris:
       i_ehdrp->e_machine = EM_CRIS;
       break;
-      /* also note that EM_M32, AT&T WE32100 is unknown to bfd */
+      /* Also note that EM_M32, AT&T WE32100 is unknown to bfd.  */
     default:
       i_ehdrp->e_machine = EM_NONE;
     }
@@ -4727,8 +4733,8 @@ _bfd_elf_slurp_version_tables (abfd)
 	{
 	  _bfd_elf_swap_verdef_in (abfd, everdef, &iverdefmem);
 
-	  if ((iverdefmem.vd_ndx & VERSYM_VERSION) > maxidx)
-	    maxidx = iverdefmem.vd_ndx & VERSYM_VERSION;
+	  if ((iverdefmem.vd_ndx & ((unsigned) VERSYM_VERSION)) > maxidx)
+	    maxidx = iverdefmem.vd_ndx & ((unsigned) VERSYM_VERSION);
 
 	  everdef = ((Elf_External_Verdef *)
 		     ((bfd_byte *) everdef + iverdefmem.vd_next));
@@ -4971,52 +4977,23 @@ _bfd_elf_set_arch_mach (abfd, arch, machine)
   return bfd_default_set_arch_mach (abfd, arch, machine);
 }
 
-/* Find the nearest line to a particular section and offset, for error
-   reporting.  */
+/* Find the function to a particular section and offset,
+   for error reporting.  */
 
-boolean
-_bfd_elf_find_nearest_line (abfd,
-			    section,
-			    symbols,
-			    offset,
-			    filename_ptr,
-			    functionname_ptr,
-			    line_ptr)
-     bfd *abfd;
+static boolean
+elf_find_function (abfd, section, symbols, offset,
+		   filename_ptr, functionname_ptr)
+     bfd *abfd ATTRIBUTE_UNUSED;
      asection *section;
      asymbol **symbols;
      bfd_vma offset;
-     CONST char **filename_ptr;
-     CONST char **functionname_ptr;
-     unsigned int *line_ptr;
+     const char **filename_ptr;
+     const char **functionname_ptr;
 {
-  boolean found;
   const char *filename;
   asymbol *func;
   bfd_vma low_func;
   asymbol **p;
-
-  if (_bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
-				     filename_ptr, functionname_ptr,
-				     line_ptr))
-    return true;
-
-  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
-				     filename_ptr, functionname_ptr,
-				     line_ptr, 0,
-				     &elf_tdata (abfd)->dwarf2_find_line_info))
-    return true;
-
-  if (! _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset,
-					     &found, filename_ptr,
-					     functionname_ptr, line_ptr,
-					     &elf_tdata (abfd)->line_info))
-    return false;
-  if (found)
-    return true;
-
-  if (symbols == NULL)
-    return false;
 
   filename = NULL;
   func = NULL;
@@ -5054,8 +5031,70 @@ _bfd_elf_find_nearest_line (abfd,
   if (func == NULL)
     return false;
 
-  *filename_ptr = filename;
-  *functionname_ptr = bfd_asymbol_name (func);
+  if (filename_ptr)
+    *filename_ptr = filename;
+  if (functionname_ptr)
+    *functionname_ptr = bfd_asymbol_name (func);
+
+  return true;
+}
+
+/* Find the nearest line to a particular section and offset,
+   for error reporting.  */
+
+boolean
+_bfd_elf_find_nearest_line (abfd, section, symbols, offset,
+			    filename_ptr, functionname_ptr, line_ptr)
+     bfd *abfd;
+     asection *section;
+     asymbol **symbols;
+     bfd_vma offset;
+     const char **filename_ptr;
+     const char **functionname_ptr;
+     unsigned int *line_ptr;
+{
+  boolean found;
+
+  if (_bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
+				     filename_ptr, functionname_ptr,
+				     line_ptr))
+    {
+      if (!*functionname_ptr)
+	elf_find_function (abfd, section, symbols, offset,
+			   *filename_ptr ? NULL : filename_ptr,
+			   functionname_ptr);
+
+      return true;
+    }
+
+  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+				     filename_ptr, functionname_ptr,
+				     line_ptr, 0,
+				     &elf_tdata (abfd)->dwarf2_find_line_info))
+    {
+      if (!*functionname_ptr)
+	elf_find_function (abfd, section, symbols, offset,
+			   *filename_ptr ? NULL : filename_ptr,
+			   functionname_ptr);
+
+      return true;
+    }
+
+  if (! _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset,
+					     &found, filename_ptr,
+					     functionname_ptr, line_ptr,
+					     &elf_tdata (abfd)->line_info))
+    return false;
+  if (found)
+    return true;
+
+  if (symbols == NULL)
+    return false;
+
+  if (! elf_find_function (abfd, section, symbols, offset,
+			   filename_ptr, functionname_ptr))
+    return false;
+
   *line_ptr = 0;
   return true;
 }

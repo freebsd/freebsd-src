@@ -4,7 +4,8 @@ rm -f e${EMULATION_NAME}.c
 (echo;echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
 cat >>e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
-   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -251,7 +252,7 @@ static definfo init[] =
 #endif
   D(MinorSubsystemVersion,"__minor_subsystem_version__", 0),
   D(Subsystem,"__subsystem__", ${SUBSYSTEM}),
-  D(SizeOfStackReserve,"__size_of_stack_reserve__", 0x2000000),
+  D(SizeOfStackReserve,"__size_of_stack_reserve__", 0x200000),
   D(SizeOfStackCommit,"__size_of_stack_commit__", 0x1000),
   D(SizeOfHeapReserve,"__size_of_heap_reserve__", 0x100000),
   D(SizeOfHeapCommit,"__size_of_heap_commit__", 0x1000),

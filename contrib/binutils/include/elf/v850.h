@@ -1,5 +1,5 @@
 /* V850 ELF support for BFD.
-   Copyright (C) 1997, 98, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 2000 Free Software Foundation, Inc.
    Created by Michael Meissner, Cygnus Support <meissner@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.

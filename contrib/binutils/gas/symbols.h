@@ -1,5 +1,5 @@
 /* symbols.h -
-   Copyright (C) 1987, 90, 92, 93, 94, 95, 97, 99, 2000
+   Copyright 1987, 1990, 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
