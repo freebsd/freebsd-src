@@ -416,7 +416,7 @@ DMenu MenuMouse = {
     "Please configure your mouse",
     "You can cut and paste text in the text console by running the mouse\n"
     "daemon.  Specify a port and a protocol type of your mouse and enable\n"
-    "the mouse daemon.  If you don't want this feature, select 4 to disable\n"
+    "the mouse daemon.  If you don't want this feature, select 6 to disable\n"
     "the daemon.\n"
     "Once you've enabled the mouse daemon, you can specify \"/dev/sysmouse\"\n"
     "as your mouse device and \"SysMouse\" or \"MouseSystems\" as mouse\n"
