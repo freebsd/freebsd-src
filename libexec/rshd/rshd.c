@@ -56,7 +56,9 @@ static char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #include <sys/time.h>
 #include <sys/socket.h>
 
+#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -236,9 +238,8 @@ doit(fromp)
 	}
 #ifdef IP_OPTIONS
       {
-	u_char optbuf[BUFSIZ/3], *cp;
-	char lbuf[BUFSIZ], *lp;
-	int optsize = sizeof(optbuf), ipproto;
+	u_char optbuf[BUFSIZ/3];
+	int optsize = sizeof(optbuf), ipproto, i;
 	struct protoent *ip;
 
 	if ((ip = getprotobyname("ip")) != NULL)
@@ -247,16 +248,18 @@ doit(fromp)
 		ipproto = IPPROTO_IP;
 	if (!getsockopt(0, ipproto, IP_OPTIONS, (char *)optbuf, &optsize) &&
 	    optsize != 0) {
-		lp = lbuf;
-		for (cp = optbuf; optsize > 0; cp++, optsize--, lp += 3)
-			sprintf(lp, " %2.2x", *cp);
-		syslog(LOG_NOTICE,
-		    "Connection received from %s using IP options (ignored):%s",
-		    inet_ntoa(fromp->sin_addr), lbuf);
-		if (setsockopt(0, ipproto, IP_OPTIONS,
-		    (char *)NULL, optsize) != 0) {
-			syslog(LOG_ERR, "setsockopt IP_OPTIONS NULL: %m");
-			exit(1);
+		for (i = 0; i < optsize; ) {
+			u_char c = optbuf[i];
+			if (c == IPOPT_LSRR || c == IPOPT_SSRR) {
+				syslog(LOG_NOTICE,
+					"Connection refused from %s with IP option %s",
+					inet_ntoa(fromp->sin_addr),
+					c == IPOPT_LSRR ? "LSRR" : "SSRR");
+				exit(1);
+			}
+			if (c == IPOPT_EOL)
+				break;
+			i += (c == IPOPT_NOP) ? 1 : optbuf[i+1];
 		}
 	}
       }
