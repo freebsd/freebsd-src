@@ -113,7 +113,7 @@ vm_mem_init(dummy)
 	 * memory is accounted for, and we use only virtual addresses.
 	 */
 	vm_set_page_size();
-	virtual_avail = vm_page_startup(avail_start, avail_end, virtual_avail);
+	virtual_avail = vm_page_startup(virtual_avail);
 	
 	/*
 	 * Initialize other VM packages

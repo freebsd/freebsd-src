@@ -162,7 +162,7 @@ vm_set_page_size(void)
  *	Each page cell is initialized and placed on the free list.
  */
 vm_offset_t
-vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
+vm_page_startup(vm_offset_t vaddr)
 {
 	vm_offset_t mapped;
 	vm_size_t npages;
