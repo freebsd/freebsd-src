@@ -88,9 +88,9 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_getvobject_desc,		(vop_t *) vop_stdgetvobject },
 	{ &vop_inactive_desc,		(vop_t *) vop_stdinactive },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vop_nolookup },
 	{ &vop_open_desc,		(vop_t *) vop_null },
 	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
@@ -99,7 +99,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_readlink_desc,		(vop_t *) vop_einval },
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 
