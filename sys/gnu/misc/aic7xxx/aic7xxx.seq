@@ -1,6 +1,6 @@
 # @(#)aic7xxx.seq 1.32 94/11/29 jda
 #
-# Adaptec 274x/284x/294x device driver for Linux.
+# Adaptec 274x/284x/294x device driver for Linux and FreeBSD.
 # Copyright (c) 1994 The University of Calgary Department of Computer Science.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
 
-VERSION AIC7XXX_SEQ_VERSION 1.32
+# FreeBSD, Twin, Wide, 2 command per target support, and other optimizations
+# provided by Justin T. Gibbs (gibbs@FreeBSD.org)
+#
+#	$Id$
+
+VERSION AIC7XXX_SEQ_VERSION 1.5
 
 SCBMASK		= 0x1f
 
@@ -70,14 +76,30 @@ SCSICONF_B	= 0x5b
 #  The two reserved bytes at SCBARRAY+1[23] are expected to be set to
 #  zero, and the reserved bit in SCBARRAY+0 is used as an internal flag
 #  to indicate whether or not to reload scatter-gather parameters after
-#  a disconnect.
+#  a disconnect.  We also use bits 6 & 7 to indicate whether or not to
+#  initiate SDTR or WDTR repectively when starting this command.
 #
 SCBARRAY+0	= 0xa0
+
+DISCONNECTED	= 0x04
+NEEDDMA		= 0x08
+SG_LOAD		= 0x10
+NEEDSDTR	= 0x40
+NEEDWDTR	= 0x80
+
 SCBARRAY+1	= 0xa1
 SCBARRAY+2	= 0xa2
 SCBARRAY+3	= 0xa3
+SCBARRAY+4	= 0xa4
+SCBARRAY+5	= 0xa5
+SCBARRAY+6	= 0xa6
 SCBARRAY+7	= 0xa7
+SCBARRAY+8	= 0xa8
+SCBARRAY+9	= 0xa9
+SCBARRAY+10	= 0xaa
 SCBARRAY+11	= 0xab
+SCBARRAY+12	= 0xac
+SCBARRAY+13	= 0xad
 SCBARRAY+14	= 0xae
 SCBARRAY+15	= 0xaf
 SCBARRAY+16	= 0xb0
@@ -90,14 +112,16 @@ SCBARRAY+22	= 0xb6
 SCBARRAY+23	= 0xb7
 SCBARRAY+24	= 0xb8
 SCBARRAY+25	= 0xb9
+SCBARRAY+26	= 0xba
 
-SIGNAL_0	= 0x01				# unknown scsi bus phase
-SIGNAL_1	= 0x11				# message reject
-SIGNAL_2	= 0x21				# no IDENTIFY after reconnect
-SIGNAL_3	= 0x31				# no cmd match for reconnect
-SIGNAL_4	= 0x41				# SDTR -> SCSIRATE conversion
-STATUS_ERROR    = 0x51
-SIGNAL_WDTR	= 0x61
+BAD_PHASE	= 0x01				# unknown scsi bus phase
+SEND_REJECT	= 0x11				# sending a message reject
+NO_IDENT	= 0x21				# no IDENTIFY after reconnect
+NO_MATCH	= 0x31				# no cmd match for reconnect
+MSG_SDTR	= 0x41				# SDTR message recieved
+MSG_WDTR	= 0x51				# WDTR message recieved
+MSG_REJECT	= 0x61				# Reject message recieved
+BAD_STATUS	= 0x71				# Bad status from target
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
 #  device information, 32-33 and 5a-5f as well. As it turns out, the
@@ -107,10 +131,10 @@ SIGNAL_WDTR	= 0x61
 #  SCSIRATE).  The kernel driver will enable synchronous negotiation
 #  for all targets that have a value other than 0 in the lower four
 #  bits of the target scratch space.  This should work irregardless of
-#  whether the bios has been installed. NEEDSDTR has one bit per target 
-#  indicating if an SDTR message is needed for that device - this will 
-#  be set initially (based on a search through the target scratch space), 
-#  as well as after a bus reset condition.
+#  whether the bios has been installed. NEEDWDTR and NEEDSDTR are the top
+#  two bits of the SCB control byte.  The kernel driver will set these
+#  when a WDTR or SDTR message should be sent to the target the SCB's 
+#  command references.
 #
 #  The high bit of DROPATN is set if ATN should be dropped before the ACK
 #  when outb is called.  REJBYTE contains the first byte of a MESSAGE IN
@@ -133,9 +157,6 @@ REJBYTE		= 0x31
 DISC_DSB_A	= 0x32
 DISC_DSB_B	= 0x33
 
-NEEDWDTR_A	= 0x34
-NEEDWDTR_B	= 0x35
-
 MSG_LEN		= 0x36
 MSG_START+0	= 0x37
 MSG_START+1	= 0x38
@@ -146,13 +167,16 @@ MSG_START+5	= 0x3c
 -MSG_START+0	= 0xc9				# 2's complement of MSG_START+0
 
 ARG_1		= 0x4c				# sdtr conversion args & return
+BUS_16_BIT	= 0x01
 RETURN_1	= 0x4c
 
 SIGSTATE	= 0x4d				# value written to SCSISIGO
-NEEDSDTR_A	= 0x4e				# send SDTR message, 1 bit/trgt
-NEEDSDTR_B	= 0x4f
 
-SG_SIZEOF	= 0x8 				# sizeof(struct scatterlist)
+# Linux users should use 0xc (12) for SG_SIZEOF
+SG_SIZEOF	= 0x8 				# sizeof(struct ahc_dma)
+#SG_SIZEOF	= 0xc 				# sizeof(struct scatterlist)
+SCB_SIZEOF	= 0x13				# sizeof SCB to DMA (19 bytes)
+
 SG_NOLOAD	= 0x50				# load SG pointer/length?
 SG_COUNT	= 0x51				# working value of SG count
 SG_NEXT		= 0x52				# working value of SG pointer
@@ -165,7 +189,6 @@ SCBCOUNT	= 0x56				# the actual number of SCBs
 FLAGS		= 0x57				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
-CHECK_DTR	= 0x08
 SENSE		= 0x10
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
@@ -189,13 +212,60 @@ start2:
 	test	SCSISIGI,0x4	jnz reselect	# BSYI
 	test	QINCNT,SCBMASK	jz start
 
-#  We have at least one queued SCB now.  Set the SCB pointer
-#  from the FIFO so we see the right bank of SCB registers,
-#  then set SCSI options and set the initiator and target
-#  SCSI IDs.
+# We have at least one queued SCB now.  Set the SCB pointer
+# from the FIFO so we see the right bank of SCB registers,
+# then set SCSI options and set the initiator and target
+# SCSI IDs.
 #
 	mov	SCBPTR,QINFIFO
 
+# If the control byte of this SCB has the NEEDDMA flag set, we have
+# yet to DMA it from host memory
+
+test	SCBARRAY+0,NEEDDMA	jz test_busy
+	clr	HCNT+2
+	clr	HCNT+1
+	mvi	HCNT+0,SCB_SIZEOF
+
+	mvi	A,4
+	mvi	DINDEX,HADDR
+	mvi	SCBARRAY+26	call bcopy
+
+	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
+
+#  Wait for DMA from host memory to data FIFO to complete, then disable
+#  DMA and wait for it to acknowledge that it's off.
+#
+scb_load1:
+	test	DFSTATUS,0x8	jz scb_load1	# HDONE
+
+	clr	DFCNTRL				# disable DMA
+scb_load2:
+	test	DFCNTRL,0x8	jnz scb_load2	# HDMAENACK
+
+# Copy the SCB from the FIFO to  the SCBARRAY
+
+	mov	SCBARRAY+0, DFDAT
+	mov	SCBARRAY+1, DFDAT
+	mov	SCBARRAY+2, DFDAT
+	mov	SCBARRAY+3, DFDAT
+	mov	SCBARRAY+4, DFDAT
+	mov	SCBARRAY+5, DFDAT
+	mov	SCBARRAY+6, DFDAT
+	mov	SCBARRAY+7, DFDAT
+	mov	SCBARRAY+8, DFDAT
+	mov	SCBARRAY+9, DFDAT
+	mov	SCBARRAY+10, DFDAT
+	mov	SCBARRAY+11, DFDAT
+	mov	SCBARRAY+12, DFDAT
+	mov	SCBARRAY+13, DFDAT
+	mov	SCBARRAY+14, DFDAT
+	mov	SCBARRAY+15, DFDAT
+	mov	SCBARRAY+16, DFDAT
+	mov	SCBARRAY+17, DFDAT
+	mov	SCBARRAY+18, DFDAT
+	and	SCBARRAY+0, 0xf7
+   
 # See if there is not already an active SCB for this target.  This code
 # locks out on a per target basis instead of target/lun.  Although this
 # is not ideal for devices that have multiple luns active at the same
@@ -205,6 +275,7 @@ start2:
 # assumes that the kernel driver will clear the active flags on board 
 # initialization, board reset, and a target's SELTO.
 
+test_busy:
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
 	test	SCBARRAY+1,0x88	jz test_a	# Id < 8 && A channel
@@ -228,6 +299,7 @@ test_a:
 	or	ACTIVE_A,A	# Mark the current target as busy
 
 start_scb:
+	or	SCBARRAY+0,NEEDDMA
 	and	SINDEX,0x08,SCBARRAY+1
 	and	A,WIDE_BUS,FLAGS	# Wide bus?	
 	or	SINDEX,A
@@ -252,8 +324,8 @@ start_scb:
 	or	SINDEX,0x80	call mk_mesg	# IDENTIFY message
 
 	mov	A,SINDEX
+	test	SCBARRAY+0,0xc0	jz  !message	# WDTR or SDTR??
 	cmp	MSG_START+0,A	jne !message	# did driver beat us?
-	test	FLAGS,CHECK_DTR jz !message	# Don't even bother with DTR?
 	mvi	MSG_START+1	call mk_dtr	# build DTR message if needed
 
 !message:
@@ -337,7 +409,7 @@ ITloop:
 	cmp	A,0xa0		je p_mesgout
 	cmp	A,0xe0		je p_mesgin
 
-	mvi	INTSTAT,SIGNAL_0		# unknown - signal driver
+	mvi	INTSTAT,BAD_PHASE		# unknown - signal driver
 
 p_dataout:
 	mvi	0		call scsisig	# !CDO|!IOO|!MSGO
@@ -544,8 +616,8 @@ p_mesgin:
 #  extra work in the kernel driver to ensure that the entry was removed 
 #  before the command complete code tried processing it.
 
-	test	SCBARRAY+14,0xff	jz status_ok  # 0 Status?
-	mvi	INTSTAT,STATUS_ERROR		# let driver know
+	test	SCBARRAY+14,0xff	jz status_ok	# 0 Status?
+	mvi	INTSTAT,BAD_STATUS			# let driver know
 	test	FLAGS,SENSE	jz status_ok
 	jmp	p_mesgin_done
 
@@ -585,12 +657,13 @@ p_mesgin1:
 p_mesginWDTR:
 	cmp	ARG_1,2		jne p_mesginN	# extended mesg length = 2
 	mvi	A		call inb_next	# Width of bus
-	mvi	INTSTAT,SIGNAL_WDTR		# let driver know
+	mvi	INTSTAT,MSG_WDTR		# let driver know
 	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to send WDTR?
 
 # We didn't initiate the wide negotiation, so we must respond to the request
 	and	RETURN_1,0x7f			# Clear the SEND_WDTR Flag
 	or	FLAGS,ACTIVE_MSG
+	mvi	DINDEX,MSG_START+0
 	mvi	MSG_START+0	call mk_wdtr	# build WDTR message	
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
@@ -600,11 +673,12 @@ p_mesginSDTR:
 	cmp	ARG_1,3		jne p_mesginN	# extended mesg length = 3
 	mvi	ARG_1		call inb_next	# xfer period
 	mvi	A		call inb_next	# REQ/ACK offset
-	mvi	INTSTAT,SIGNAL_4		# call driver to convert
+	mvi	INTSTAT,MSG_SDTR		# call driver to convert
 
 	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to mk_sdtr?
 
 	or	FLAGS,ACTIVE_MSG
+	mvi	DINDEX, MSG_START+0
 	mvi     MSG_START+0     call mk_sdtr
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
@@ -662,70 +736,15 @@ p_mesgin5:
 						#   required on reselect
 	jmp	p_mesgin_done
 
-#  Message reject?  If we have an outstanding WDTR or SDTR negotiation, assume
-#  that it's a response from the target selecting 8bit or asynchronous transfer,
-#  otherwise just ignore it since we have no clue what it pertains to.
-#
-#  XXX - I don't have a device that responds this way.  Does this code
-#	 actually work?
+#  Message reject?  Let the kernel driver handle this.  If we have an 
+#  outstanding WDTR or SDTR negotiation, assume that it's a response from 
+#  the target selecting 8bit or asynchronous transfer, otherwise just ignore 
+#  it since we have no clue what it pertains to.
 #
 p_mesgin6:
 	cmp	A,7		jne p_mesgin7	# message reject code?
 
-	and	FUNCTION1,0x70,SCSIID		# outstanding SDTR message?
-	mov	A,FUNCTION1
-	
-	test	SBLKCTL,0x08	jnz p_mesgin6_b	
-	test	SCSIID,0x80	jnz p_mesgin6_b	
-	test	NEEDWDTR_A,A	jnz clear_wdtr_a
-	test	NEEDSDTR_A,A	jnz clear_sdtr_a
-	jmp	p_mesgin_done  # no - ignore rejection
-
-clear_sdtr_a:
-	call	ndx_dtr				# note use of asynch xfer
-	mov	DINDEX,SINDEX
-	and	DINDIR,0x80,SINDIR
-
-	not	A
-	and	NEEDSDTR_A,A
-	jmp	clear_sdtr_done
-
-clear_wdtr_a:
-	call	ndx_dtr				# note use of 8bit xfer
-	mov	DINDEX,SINDEX
-	and	DINDIR,0x7f,SINDIR
-
-	not	A
-	and	NEEDWDTR_A,A
-	jmp	clear_wdtr_done
-
-p_mesgin6_b:
-	test	NEEDWDTR_B,A	jnz clear_wdtr_b
-	test	NEEDSDTR_B,A	jnz clear_sdtr_b
-	jmp	p_mesgin_done	# no - ignore rejection	
-
-clear_wdtr_b:
-	call	ndx_dtr				# note use of 8bit xfer
-	mov	DINDEX,SINDEX
-	and	DINDIR,0x7f,SINDIR
-
-	not	A
-	and	NEEDWDTR_B,A
-
-clear_wdtr_done:
-	and	SCSIRATE,0x7f			# select 8bit xfer
-	jmp	p_mesgin_done
-
-clear_sdtr_b:
-	call	ndx_dtr				# note use of asynch xfer
-	mov	DINDEX,SINDEX
-	and	DINDIR,0x80,SINDIR
-
-	not	A
-	and	NEEDSDTR_B,A
-	
-clear_sdtr_done:
-	and	SCSIRATE,0xf0			# select asynch xfer
+	mvi	INTSTAT, MSG_REJECT
 	jmp	p_mesgin_done
 
 #  [ ADD MORE MESSAGE HANDLING HERE ]
@@ -742,7 +761,7 @@ p_mesgin7:
 p_mesginN:
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
-	mvi	INTSTAT,SIGNAL_1		# let driver know
+	mvi	INTSTAT,SEND_REJECT		# let driver know
 
 	mvi	0x7		call mk_mesg	# MESSAGE REJECT message
 
@@ -964,7 +983,7 @@ assert:
 	test	FLAGS,RESELECTED	jz assert1	# reselected?
 	test	FLAGS,IDENTIFY_SEEN	jnz assert1	# seen IDENTIFY?
 
-	mvi	INTSTAT,SIGNAL_2		# no - cause a kernel panic
+	mvi	INTSTAT,NO_IDENT		# no - cause a kernel panic
 
 assert1:
 	ret
@@ -1019,7 +1038,7 @@ findSCB2:
 	mov	A,SCBCOUNT
 	cmp	SINDEX,A	jne findSCB1
 
-	mvi	INTSTAT,SIGNAL_3		# not found - signal kernel
+	mvi	INTSTAT,NO_MATCH		# not found - signal kernel
 	mvi	0x6		call mk_mesg	# ABORT message
 
 	or	SINDEX,0x10,SIGSTATE		# assert ATNO
@@ -1053,7 +1072,7 @@ sg_ram2scb:
 
 	and	SCBARRAY+0,0xef,SCBARRAY+0
 	test	SG_NOLOAD,0x80	jz sg_ram2scb1	# reload s/g?
-	or	SCBARRAY+0,0x10
+	or	SCBARRAY+0,SG_LOAD
 
 sg_ram2scb1:
 	ret
@@ -1112,10 +1131,16 @@ sg_load2:
 	mov	SCBARRAY+21,DFDAT
 	mov	SCBARRAY+22,DFDAT
 
+# For Linux, we must throw away four bytes since there is a 32bit gap
+# in the middle of a struct scatterlist
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+
 	mov	SCBARRAY+23,DFDAT
 	mov	SCBARRAY+24,DFDAT
-	mov	SCBARRAY+25,DFDAT
-	mov	NONE,DFDAT			#Only support 24 bit length.
+	mov	SCBARRAY+25,DFDAT		#Only support 24 bit length.
 
 sg_load3:
 	ret
@@ -1173,19 +1198,11 @@ ndx_dtr_2:
 mk_dtr:
 	mov	DINDEX,SINDEX			# save SINDEX
 
-	call	ndx_dtr
-	test	SCBARRAY+1,0x88	jz  mk_dtr_a
-	test	NEEDWDTR_B,A	jnz mk_wdtr_16	# do we need negotiation?
-	test	NEEDSDTR_B,A	jnz mk_sdtr
-	ret
-mk_dtr_a:
-	test	NEEDWDTR_A,A	jnz mk_wdtr_16	# do we need negotiation?
-	test	NEEDSDTR_A,A	jnz mk_sdtr
-	ret
+	test	SCBARRAY+0,NEEDWDTR jnz  mk_wdtr_16bit
+	jmp	mk_sdtr
 
-mk_wdtr_16:
-	mvi	ARG_1,1			# 16bit wide bus
-
+mk_wdtr_16bit:
+	mvi	ARG_1,BUS_16_BIT
 mk_wdtr:
 	mvi	DINDIR,1			# extended message
 	mvi	DINDIR,2			# extended message length = 2
