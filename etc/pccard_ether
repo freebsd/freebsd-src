@@ -15,6 +15,9 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+interface=$1
+shift
+
 case ${pccard_ifconfig} in
 [Nn][Oo] | '')
         ;;
@@ -24,20 +27,18 @@ case ${pccard_ifconfig} in
 			kill `cat /var/run/dhclient.pid`
 			rm /var/run/dhclient.pid
 		fi
-		/sbin/dhclient
+		/sbin/dhclient $interface
 	elif [ -r /usr/local/sbin/dhcpc ]; then
 		if [ -s /var/run/dhcpc.pid ]; then
 			kill `cat /var/run/dhcpc.pid`
 			rm /var/run/dhcpc.pid
 		fi
-		/usr/local/sbin/dhcpc $*
+		/usr/local/sbin/dhcpc $interface $*
 	else
 		echo "DHCP client software not available (isc-dhcp2)"
 	fi
 	;;
 *)
-	interface=$1
-	shift
 	ifconfig ${interface} ${pccard_ifconfig} $*
 	;;
 esac
