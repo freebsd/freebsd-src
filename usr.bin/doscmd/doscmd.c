@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.6 1998/07/02 05:23:54 imp Exp $
+ * $Id: doscmd.c,v 1.7 1998/07/16 23:54:25 imp Exp $
  */
 
 #include <sys/types.h>
@@ -96,7 +96,6 @@ static char 	*envs[256];
 static char	*dos_path = 0;
 char		cmdname[256];	/* referenced from dos.c */
 
-static struct i386_vm86_args vm86;
 static struct vm86_init_args kargs;
 
 /* lobotomise */
@@ -267,9 +266,7 @@ main(int argc, char **argv)
     R_EAX = (booting || raw_kbd) ? (int)&vconnect_area : -1;
     R_EFLAGS |= PSL_VM | PSL_VIF;			/* request VM86 mode */
 
-    vm86.sub_op = VM86_INIT;
-    vm86.sub_args = (char *)&kargs;
-    i = sysarch(I386_VM86, &vm86);
+    i386_vm86(VM86_INIT, &kargs);
 
     sigreturn(&sc);
     debug(D_ALWAYS,"sigreturn failed : %s\n", strerror(errno));
@@ -831,22 +828,17 @@ call_on_quit(void (*func)(void *), void *arg)
     coq = c;
 }
 
-struct i386_ioperm_args {
-        u_short start;
-        u_short length;
-        char disable;
-};
-
-struct sysarch_args {
-        int op;
-        char *parms;
+struct io_range {
+	u_int start;
+	u_int length;
+	int enable;
 };
 
 static void
 iomap_init(void)
 {
         int i;
-        struct i386_ioperm_args args[] = {
+        struct io_range io[] = {
 #if 0
                 { 0x200, 0x200, 1 },            /* 0x200 - 0x400 */
                 { 0x1c80, 2, 1 },               /* 0x1c80 - 0x1c81 */
@@ -855,12 +847,12 @@ iomap_init(void)
                 { 0x3c4,  2, 1 },               /* 0x3c4 - 0x3c5 */
                 { 0x3c5,  2, 1 },               /* 0x3ce - 0x3cf */
 #else
-                { 0x0, 0xffff, 1 },             /* entire i/o space */
+		{ 0x0, 0x10000, 1 },		/* entire i/o space */
 #endif
                 { 0, 0, 0 }
         };
 
-        for (i = 0; args[i].length; i++)
-                if (sysarch(I386_SET_IOPERM, &(args[i])) < 0)
-                        err(1, "sysarch");
+        for (i = 0; io[i].length; i++)
+                if (i386_set_ioperm(io[i].start, io[i].length, io[i].enable) < 0)
+                        err(1, "i386_set_ioperm");
 }
