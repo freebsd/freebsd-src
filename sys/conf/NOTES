@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.550 1999/02/07 20:33:05 joerg Exp $
+#	$Id: LINT,v 1.551 1999/02/09 01:03:17 mjacob Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1113,19 +1113,11 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
 #
-# Other standard PC hardware: `lpt', `mse', `sio', etc.
+# Other standard PC hardware: `mse', `sio', etc.
 #
-# lpt: printer port
-#	lpt specials:
-#		The port may be specified as ?.  This will cause the
-#		driver to scan the BIOS port list.
-#		The irq clause may be omitted.  This will force the port
-#		into polling mode.
 # mse: Logitech and ATI InPort bus mouse ports
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port? tty irq 7
-device		lpt1	at isa? port "IO_LPT3" tty irq 5
 device		mse0	at isa? port 0x23c tty irq 5
 
 device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
@@ -1837,7 +1829,7 @@ pseudo-device	"i4bisppp"	4
 # vpo	Iomega Zip Drive
 #	Requires SCSI disk support ('scbus' and 'da'), best
 #	performance is achieved with ports in EPP 1.9 mode.
-# nlpt	Parallel Printer, use _instead_ of lpt0
+# nlpt	Parallel Printer
 # plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
 # pps	Pulse per second Timing Interface
