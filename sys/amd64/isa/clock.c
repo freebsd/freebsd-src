@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.89 1997/07/13 01:18:47 fsmp Exp $
+ *	$Id: clock.c,v 1.90 1997/07/18 03:59:28 fsmp Exp $
  */
 
 /*
@@ -831,17 +831,19 @@ resettodr()
 }
 
 #ifdef APIC_IO
-
 /* XXX FIXME: from icu.s: */
-extern u_int	vec[];
-extern void	vec8254	__P((void));
-extern void	vecRTC	__P((void));
 extern u_int	ivectors[];
-extern u_int	Xintr8254;
-extern u_int	XintrRTC;
-extern u_int	mask8254;
-extern u_int	maskRTC;
+extern u_int	vec[];
 
+extern void	vec8254	__P((void));
+extern u_int	Xintr8254;
+extern u_int	mask8254;
+#ifdef DO_RTC_VEC
+/** XXX FIXME: remove vevRTS stuff after several weeks of no problems */
+extern void	vecRTC	__P((void));
+extern u_int	XintrRTC;
+extern u_int	maskRTC;
+#endif /* DO_RTC_VEC */
 #endif /* APIC_IO */
 
 /*
@@ -940,11 +942,12 @@ cpu_initclocks()
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+
 #ifdef APIC_IO
-	/* RTC is traditionally on ISA IRQ8 */
+
+#ifdef DO_RTC_VEC
 	if ((x = isa_apic_pin(8)) < 0)
 		panic("APIC missing RTC connection");
-
 	vec[x] = (u_int)vecRTC;
 	XintrRTC = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
 	maskRTC = (1 << x);
@@ -953,11 +956,23 @@ cpu_initclocks()
 		      /* unit */ 0);
 	INTREN(maskRTC);
 #else
+	if (isa_apic_pin(8) != 8)
+		panic("APIC RTC != 8");
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
 	INTREN(IRQ8);
+#endif /* DO_RTC_VEC */
+
+#else /* APIC_IO */
+
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
+		      /* unit */ 0);
+	INTREN(IRQ8);
+
 #endif /* APIC_IO */
+
 	writertc(RTC_STATUSB, rtc_statusb);
 
 #ifdef APIC_IO
