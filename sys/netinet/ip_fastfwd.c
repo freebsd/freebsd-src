@@ -292,16 +292,8 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Only IP packets without options
 	 */
-	if (ip->ip_hl != (sizeof(struct ip) >> 2)) {
-		if (ip_doopts == 1)
-			return 0;
-		else if (ip_doopts == 2) {
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
-				0, NULL);
-			return 1;
-		}
-		/* else ignore IP options and continue */
-	}
+	if (ip->ip_hl != (sizeof(struct ip) >> 2))
+		return 0;
 
 	/*
 	 * Only unicast IP, not from loopback, no L2 or IP broadcast,
