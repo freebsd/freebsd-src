@@ -27,12 +27,13 @@ Usage example:
 .sp 0
     > keyinfo
 .sp 0
-    0098 ws91340
+    98 ws91340
 .Sh ARGUMENTS
 .Bl -tag -width indent
 .It Ar username
 The S/key user to display the information for.  The default is 
 to display S/Key information on the user who invokes the command.
+Only the superuser can ask for another user's key information.
 .El
 .Sh DIAGNOSTICS
 .Nm Keyinfo
@@ -51,3 +52,4 @@ Rewritten in Perl by
 .el Joerg Wunsch
 so it can be made setuid, and the S/Key keys file can be read-protected
 from the users.
+Rewritten in C by Warner Losh.
