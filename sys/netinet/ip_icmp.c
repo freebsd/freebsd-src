@@ -171,7 +171,7 @@ icmp_error(n, type, code, dest, destifp)
 	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		goto freeit;
-	icmplen = oiplen + min(8, oip->ip_len);
+	icmplen = min(oiplen + 8, oip->ip_len);
 	m->m_len = icmplen + ICMP_MINLEN;
 	MH_ALIGN(m, m->m_len);
 	icp = mtod(m, struct icmp *);
