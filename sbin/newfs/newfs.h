@@ -39,6 +39,7 @@
  */
 extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* format as an 4.3BSD file system */
+extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
 extern int	fssize;		/* file system size */
 extern int	ntracks;	/* # tracks/cylinder */
