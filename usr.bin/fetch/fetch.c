@@ -754,7 +754,7 @@ main(int argc, char *argv[])
     r = 0;
 
     /* authentication */
-    if (vtty)
+    if (v_tty)
 	fetchAuthMethod = query_auth;
     
     while (argc) {
