@@ -345,14 +345,14 @@ mi_switch(int flags, struct thread *newtd)
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %ld, %s)",
-	    (void *)td, (long)p->p_pid, p->p_comm);
+	CTR4(KTR_PROC, "mi_switch: old thread %p (kse %p, pid %ld, %s)",
+	    (void *)td, td->td_kse, (long)p->p_pid, p->p_comm);
 	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
 	sched_switch(td, newtd);
 
-	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %ld, %s)",
-	    (void *)td, (long)p->p_pid, p->p_comm);
+	CTR4(KTR_PROC, "mi_switch: new thread %p (kse %p, pid %ld, %s)",
+	    (void *)td, td->td_kse, (long)p->p_pid, p->p_comm);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.

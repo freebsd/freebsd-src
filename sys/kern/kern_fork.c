@@ -794,8 +794,8 @@ fork_exit(callout, arg, frame)
 	sched_lock.mtx_lock = (uintptr_t)td;
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	cpu_critical_fork_exit();
-	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
-	    p->p_comm);
+	CTR4(KTR_PROC, "fork_exit: new thread %p (kse %p, pid %d, %s)",
+		td, td->td_kse, p->p_pid, p->p_comm);
 
 	/*
 	 * Processes normally resume in mi_switch() after being
