@@ -1,13 +1,10 @@
-Copyright (c) Ian F. Darwin 1986, 1987, 1989, 1990, 1991, 1992.
-Written by Ian F. Darwin and others.
-$Id: LEGAL.NOTICE,v 1.8 1993/03/17 11:35:30 ian Exp $
+Copyright (c) Ian F. Darwin 1986, 1987, 1989, 1990, 1991, 1992, 1994, 1995.
+Software written by Ian F. Darwin and others; maintained by Christos Zoulas.
+$Id: LEGAL.NOTICE,v 1.9 1995/10/27 23:14:20 christos Exp $
 
-This software is not subject to and may not be made subject to any
-license of the American Telephone and Telegraph Company (AT&T Inc.),
-UNIX System Laboratories (USL Inc.), Novell Inc., Sun Microsystems
-Inc., Digital Equipment Inc., Lotus Development Inc., the Regents of
-the University of California, The X Consortium or MIT, or The Free
-Software Foundation.
+This software (or derivative software) may not be made subject to any 
+license which denies anyone permission to alter it and redistribute it 
+freely.  Derivative software must also still fall under this license.
 
 This software is not subject to any export provision of the United States
 Department of Commerce, and may be exported to any country or planet.
@@ -26,12 +23,9 @@ to the following restrictions:
 3. Altered versions must be plainly marked as such, and must not be
    misrepresented as being the original software.  Since few users
    ever read sources, credits must appear in the documentation.
+   Derivative works must also be marked as such, and credits must appear
+   in the documentation.
 
 4. This notice may not be removed or altered.
 
-UNIX is a trademark of UNIX System Laboratories (which is probably a
-subsidiary of Novell, Inc., by the time you read this). The name "UNIX"
-may not be used by commercial undertakings without permission in
-writing from USL. Just ask BSDI (Berkeley Software Design Inc.), a
-commercial venture not officially connected with the University of
-California at Berkeley.
+

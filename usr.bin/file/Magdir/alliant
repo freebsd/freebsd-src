@@ -1,5 +1,7 @@
+
+#------------------------------------------------------------------------------
+# alliant:  file(1) magic for Alliant FX series a.out files
 #
-# Alliant FX series a.out files:
 # If the FX series is the one that had a processor with a 68K-derived
 # instruction set, the "short" should probably become "beshort" and the
 # "long" should probably become "belong".

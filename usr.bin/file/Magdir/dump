@@ -1,5 +1,6 @@
-#
-# magic.dump, dump file format. For new and old dump filesystems
+
+#------------------------------------------------------------------------------
+# dump:  file(1) magic for dump file format--for new and old dump filesystems
 #
 # We specify both byte orders in order to recognize byte-swapped dumps.
 #

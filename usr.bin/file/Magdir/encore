@@ -1,5 +1,6 @@
-#
-# magic.encore: Recognize encore machines
+
+#------------------------------------------------------------------------------
+# encore:  file(1) magic for Encore machines
 #
 # XXX - needs to have the byte order specified (NS32K was little-endian,
 # dunno whether they run the 88K in little-endian mode or not).

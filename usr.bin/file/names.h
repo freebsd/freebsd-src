@@ -10,7 +10,7 @@
  *
  * See LEGAL.NOTICE
  *
- * $Id: names.h,v 1.11 1993/09/16 21:14:20 christos Exp $
+ * $Id: names.h,v 1.12 1995/04/28 17:29:13 christos Exp $
  */
 
 /* these types are used to index the table 'types': keep em in sync! */
@@ -25,13 +25,13 @@
 #define	L_NEWS	8		/* Usenet Netnews */
 
 static char *types[] = {
-	"c program text",
-	"fortran program text",
+	"C program text",
+	"FORTRAN program text",
 	"make commands text" ,
-	"pl/1 program text",
+	"PL/1 program text",
 	"assembler program text",
 	"English text",
-	"pascal program text",
+	"Pascal program text",
 	"mail text",
 	"news text",
 	"can't happen error on names.h/types",
@@ -43,7 +43,7 @@ static struct names {
 } names[] = {
 	/* These must be sorted by eye for optimal hit rate */
 	/* Add to this list only after substantial meditation */
-	{"/*",		L_C},	/* must preced "The", "the", etc. */
+	{"/*",		L_C},	/* must precede "The", "the", etc. */
 	{"#include",	L_C},
 	{"char",	L_C},
 	{"The",		L_ENG},
@@ -75,6 +75,7 @@ static struct names {
 	{".byte",	L_MACH},
 	{".even",	L_MACH},
 	{".globl",	L_MACH},
+	{".text",	L_MACH},
 	{"clr",		L_MACH},
 	{"(input,",	L_PAS},
 	{"dcl",		L_PLI},

@@ -1,5 +1,6 @@
-#
-#/etc/magic entries for Plus Five's UNIX MUMPS
+
+#------------------------------------------------------------------------------
+# plus5:  file(1) magic for Plus Five's UNIX MUMPS
 #
 # XXX - byte order?  Paging Hokey....
 #
