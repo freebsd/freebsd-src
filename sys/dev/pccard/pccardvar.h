@@ -121,6 +121,7 @@ struct pccard_function {
 	struct pccard_softc *sc;
 	struct pccard_config_entry *cfe;
 	struct pccard_mem_handle pf_pcmh;
+	device_t	dev;
 #define	pf_ccrt		pf_pcmh.memt
 #define	pf_ccrh		pf_pcmh.memh
 #define	pf_ccr_realsize	pf_pcmh.realsize
