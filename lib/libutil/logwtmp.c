@@ -41,14 +41,15 @@ static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
