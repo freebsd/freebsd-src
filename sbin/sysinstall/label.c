@@ -431,6 +431,12 @@ DiskLabel()
     sec = lbl->d_nsectors;
     tsec = lbl->d_secperunit;
     while(!done) {
+	char *yip = NULL;
+
+	if (yip) {
+		yelp(yip);
+		yip = NULL;
+	}
 	clear(); standend();
 	j = 0;
 	mvprintw(j++, 0, "%s -- Diskspace editor -- DISKLABEL",  TITLE);
@@ -485,7 +491,7 @@ DiskLabel()
 	case 'd': case 'D':
 	    j = AskWhichPartition("Delete which partition? ");
 	    if (j < 0) {
-		yelp("Invalid partition");
+		yip = "Invalid partition";
 		break;
 	    }
 	    CleanMount(diskno, j);
@@ -497,17 +503,17 @@ DiskLabel()
 	case 's': case 'S':
 	    j = AskWhichPartition("Change size of which partition? ");
 	    if (j < 0) {
-		yelp("Invalid partition");
+		yip = "Invalid partition";
 		break;
 	    }
 	    if (lbl->d_partitions[j].p_fstype != FS_BSDFFS &&
 	       lbl->d_partitions[j].p_fstype != FS_UNUSED &&
 	       lbl->d_partitions[j].p_fstype != FS_SWAP) {
-		yelp("Invalid partition type");
+		yip = "Invalid partition type";
 		break;
 	    }
 	    if (lbl->d_partitions[OURPART].p_size == 0) {
-		yelp("No FreeBSD partition defined?");
+		yip = "No FreeBSD partition defined?";
 		break;
 	    }
 	    l1=lbl->d_partitions[OURPART].p_offset;
@@ -532,14 +538,14 @@ DiskLabel()
 		    l2 = l1;
 	    }
 	    if (!(l2 - l1)) {
-		yelp("Oh god, I'm so confused!");
+		yip = "Oh god, I'm so confused!";
 		break;
 	    }
 	    sprintf(buf, "%lu", (l2-l1+1024L)/2048L);
 	    i = AskEm(stdscr, "Size of partition in MB> ", buf, 10);
 	    l3= strtol(buf, 0, 0) * 2048L;
 	    if (!l3) {
-		yelp("Invalid size given");
+		yip = "Invalid size given";
 		break;
 	    }
 	    if (l3 > l2 - l1)
@@ -562,16 +568,16 @@ DiskLabel()
 	case 'm': case 'M':
 	    j = AskWhichPartition("Mountpoint of which partition ? ");
 	    if (j < 0) {
-		yelp("Invalid partition");
+		yip = "Invalid partition";
 		break;
 	    }
 	    k = lbl->d_partitions[j].p_fstype;
 	    if (k != FS_BSDFFS && k != FS_MSDOS && k != FS_SWAP) {
-		yelp("Invalid partition type");
+		yip = "Invalid partition type";
 		break;
 	    }
 	    if (!lbl->d_partitions[j].p_size) {
-		yelp("Zero partition size");
+		yip = "Zero partition size";
 		break;
 	    }
 	    if (k == FS_SWAP)
@@ -583,14 +589,13 @@ DiskLabel()
 	    if (k != FS_SWAP) {
 		i = AskEm(stdscr, "Mount on directory> ", buf, 28);
 		if (i != '\n' && i != '\r') {
-		    yelp("Invalid directory name");
+		    yip ="Invalid directory name";
 		    break;
 		}
 	    }
 	    CleanMount(diskno, j);
 	    p = SetMount(diskno,j,buf);
-	    if(p) 
-		yelp(p);
+	    yip = p;
 	    break;
 
 	case 'w': case 'W':
