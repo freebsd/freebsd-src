@@ -406,7 +406,7 @@ release.4:
 #
 release.5:
 	# Handle some grief caused by the munition braindeadness.
-	for i in sbin/init bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump ; do \
+	for i in sbin/init bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/sendmail usr.sbin/tcpdump/tcpdump ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done

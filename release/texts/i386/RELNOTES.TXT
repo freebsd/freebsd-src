@@ -113,6 +113,7 @@ tcpdump(1) has received some updates and bugfixes.
 User-land ppp(8) has received a number of updates and bugfixes.
 
 sendmail(8) and the related utilities has been updated to version 8.11.1.
+STARTTLS support has been enabled.
 
 mail.local(8) is no longer installed as a set-user-id binary.  If you are
 using a /etc/mail/sendmail.cf from the default sendmail.cf included with
