@@ -148,16 +148,16 @@ most have been enabled using
 .Pp
 Start extended attributes on the root file system.
 .Pp
-.Dl extattrctl initattr 17 /.attribute/md5
+.Dl extattrctl initattr 17 /.attribute/system/md5
 .Pp
-Create an attribute backing file in /.attribute/md5, and set the maximum
+Create an attribute backing file in /.attribute/system/md5, and set the maximum
 size of each attribute to 17 bytes, with a sparse file used for storing
 the attributes.
 .Pp
-.Dl extattrctl enable / system md5 /.attribute/md5
+.Dl extattrctl enable / system md5 /.attribute/system/md5
 .Pp
 Enable an attribute named md5 on the root file system, backed from the file
-/.attribute/md5.
+/.attribute/system/md5.
 .Pp
 .Dl extattrctl disable / md5
 .Pp
