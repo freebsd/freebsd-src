@@ -70,12 +70,13 @@
 #define	MPPE_OPT_BITMASK	0xe0
 #define	MPPE_OPT_MASK		(MPPE_OPT_STATELESS | MPPE_OPT_BITMASK)
 
-#define	MPPE_FLUSHED		0x8000
-#define	MPPE_ENCRYPTED		0x1000
-#define	MPPE_HEADER_BITMASK	0xf000
-#define	MPPE_HEADER_FLAG	0x00ff
-#define	MPPE_HEADER_FLAGMASK	0x00ff
-#define	MPPE_HEADER_FLAGSHIFT	8
+#define	MPPE_FLUSHED			0x8000
+#define	MPPE_ENCRYPTED			0x1000
+#define	MPPE_HEADER_BITMASK		0xf000
+#define	MPPE_HEADER_FLAG		0x00ff
+#define	MPPE_HEADER_FLAGMASK		0x00ff
+#define	MPPE_HEADER_FLAGSHIFT		8
+#define	MPPE_HEADER_STATEFUL_KEYCHANGES	16
 
 struct mppe_state {
   unsigned	stateless : 1;
@@ -276,6 +277,8 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
        */
       n = (prefix >> MPPE_HEADER_FLAGSHIFT) -
           (mip->cohnum >> MPPE_HEADER_FLAGSHIFT);
+      if (n < 0)
+        n += MPPE_HEADER_STATEFUL_KEYCHANGES;
       while (n--) {
         log_Printf(LogDEBUG, "MPPEInput: Key changed during catchup [%u]\n",
                    prefix);
@@ -388,7 +391,7 @@ MPPEDispOpts(struct lcp_opt *o)
   }
 
   snprintf(buf + len, sizeof buf - len, " bits, state%s",
-           (val & MPPE_OPT_STATELESS) ? "less" : "full");
+           (val & MPPE_OPT_STATELESS) ? "less" : "ful");
   len += strlen(buf + len);
 
   if (val & MPPE_OPT_COMPRESSED) {
