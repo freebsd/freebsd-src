@@ -1,13 +1,8 @@
-/* main.c
- *
- *  $RCSfile: main.c,v $
- *  $Revision: 14020.15 $
- *  $Date: 93/07/09 11:50:12 $
- */
+/* main.c */
 
 #define _main_c_
 
-#define FTP_VERSION "1.8.6 (Octboer 30, 1994)"
+#define FTP_VERSION "1.8.7 (December 11, 1994)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -116,7 +111,7 @@ static char			tcbuf[2048];
 #endif
 
 /* main.c externs */
-extern int			debug, verbose, mprompt;
+extern int			debug, verbose, mprompt, passivemode;
 extern int			options, cpend, data, connected, logged_in;
 extern int			curtype, macnum, remote_is_unix;
 extern FILE			*cout;
@@ -175,6 +170,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 	mprompt = dMPROMPT;
 	debug = dDEBUG;
 	verbose = dVERBOSE;
+	passivemode = dPASSIVE;
 	(void) Strncpy(vstr, short_verbose_msgs[verbose+1]);
 
 	(void) Strncpy(curtypename, dTYPESTR);
@@ -234,7 +230,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 
 	ignore_rc = 0;
 	(void) strcpy(oline, "open ");
-	while ((opt = Getopt(argc, argv, "D:V:INRHaicmup:rd:g:")) >= 0) {
+	while ((opt = Getopt(argc, argv, "D:V:INPRHaicmup:rd:g:")) >= 0) {
 		switch(opt) {
 			case 'a':
 			case 'c':
@@ -270,6 +266,10 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 				++ignore_rc;
 				break;
 
+			case 'P':
+				passivemode = !passivemode;
+				break;
+
 			case 'H':
 				(void) show_version(0, NULL);
 				exit (0);
@@ -282,6 +282,7 @@ Program Options:\n\
     -H     : Show version and compilation information.\n\
     -I     : Toggle interactive (mprompt) mode.\n\
     -N     : Toggle reading of the .netrc/.ncftprc.\n\
+    -P     : Toggle passive mode ftp (for use behind firewalls).\n\
     -V x   : Set verbosity to level x (-1,0,1,2).\n\
 Open Options:\n\
     -a     : Open anonymously (this is the default).\n\
@@ -390,7 +391,8 @@ For testing purposes only.  Do not re-distribute or subject to novice users."
 		(void) Signal(SIGPIPE, lostpeer);
 	}
 	for (;;) {
-		(void) cmdscanner(top);
+		if (cmdscanner(top))
+			exit(1);
 		top = 1;
 	}
 }	/* main */
@@ -569,9 +571,10 @@ void lostpeer SIG_PARAMS
 /*
  * Command parser.
  */
-void cmdscanner(int top)
+int cmdscanner(int top)
 {
 	register struct cmd *c;
+	int cmd_status, rcode = 0;
 
 	if (!top)
 		(void) putchar('\n');
@@ -601,13 +604,17 @@ void cmdscanner(int top)
 			(void) printf ("Not connected.\n");
 			continue;
 		}
-		if ((*c->c_handler)(margc, margv) == USAGE)
+		cmd_status = (*c->c_handler)(margc, margv);
+	    if (cmd_status == USAGE)
 			cmd_usage(c);
+	    else if (cmd_status == CMDERR)
+			rcode = 1;
 		if (c->c_handler != help)
 			break;
 	}
 	(void) Signal(SIGINT, intr);
 	(void) Signal(SIGPIPE, lostpeer);
+	return rcode;
 }	/* cmdscanner */
 
 

@@ -258,11 +258,12 @@ static void SortRecentList(void)
 
 
 
-void WriteRecentSitesFile(void)
+int WriteRecentSitesFile(void)
 {
 	FILE			*rfp;
 	recentsite		*r;
 	int				i;
+	int retcode = 0;
 
 	if ((recent_file[0] != 0) && (nRecents > 0) && (keep_recent)) {
 		dbprintf("Attempting to write %s...\n", recent_file);
@@ -279,8 +280,10 @@ void WriteRecentSitesFile(void)
 			(void) chmod(recent_file, 0600);
 		} else {
 			perror(recent_file);
+			++retcode;
 		}
 	}
+	return retcode;
 }	/* WriteRecentSitesFile */
 
 
