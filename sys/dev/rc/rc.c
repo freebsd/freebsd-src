@@ -45,6 +45,7 @@
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/tty.h>
 #include <machine/bus.h>
 #include <machine/resource.h>

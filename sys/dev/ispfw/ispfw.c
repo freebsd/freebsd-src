@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <dev/ispfw/asm_1040.h>
 #include <dev/ispfw/asm_1080.h>
