@@ -2394,6 +2394,7 @@ static struct {
         u_int period_factor;
         u_int period;	/* in 10ths of ns */
 } scsi_syncrates[] = {
+        { 0x09, 125 },	/* FAST-80 */
         { 0x0a, 250 },
         { 0x0b, 303 },
         { 0x0c, 500 }
