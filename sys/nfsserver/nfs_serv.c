@@ -3701,17 +3701,20 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 * should not be set if B_INVAL is set there could be
 			 * a race here since we haven't locked the buffer).
 			 */
-			if ((bp = gbincore(vp, lblkno)) != NULL &&
-			    (bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI) {
+			if ((bp = gbincore(vp, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
 				    LK_INTERLOCK, VI_MTX(vp)) == ENOLCK) {
 					VI_LOCK(vp);
 					continue; /* retry */
 				}
-				bremfree(bp);
-				bp->b_flags &= ~B_ASYNC;
-				BUF_WRITE(bp);
-				++nfs_commit_miss;
+			    	if ((bp->b_flags & (B_DELWRI|B_INVAL)) ==
+				    B_DELWRI) {
+					bremfree(bp);
+					bp->b_flags &= ~B_ASYNC;
+					BUF_WRITE(bp);
+					++nfs_commit_miss;
+				} else
+					BUF_UNLOCK(bp);
 				VI_LOCK(vp);
 			}
 			++nfs_commit_blks;
