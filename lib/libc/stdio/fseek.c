@@ -297,6 +297,7 @@ dumb:
 	    (*seekfn)(fp->_cookie, (fpos_t)offset, whence) == POS_ERR)
 		return (-1);
 	if (ltest && fp->_offset > LONG_MAX) {
+		fp->_flags |= __SERR;
 		errno = EOVERFLOW;
 		return (-1);
 	}
