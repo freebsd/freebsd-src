@@ -61,9 +61,17 @@ static MALLOC_DEFINE(M_IBFOO, "IBFOO", "IBFOO");
 
 #include <dev/ieee488/ibfoo_int.h>
 
+/* XXX: This is really a bitmap */
+enum h_kind {
+	H_DEV = 1,
+	H_BOARD = 2,
+	H_EITHER = 3
+};
+
 struct handle {
 	LIST_ENTRY(handle)	list;
 	int			handle;
+	enum h_kind		kind;
 	int			pad;
 	int			sad;
 	struct timeval		timeout;
@@ -224,6 +232,7 @@ gpib_ib_timeout(void *arg)
 	ib = u->ibfoo;
 	mtx_lock(&u->mutex);
 	if (ib->mode == DMA_IDATA && isa_dmatc(u->dmachan)) {
+		KASSERT(u->dmachan >= 0, ("Bogus dmachan = %d", u->dmachan));
 		upd7210_wr(u, IMR1, 0);
 		upd7210_wr(u, IMR2, 0);
 		ib->mode = IDLE;
@@ -387,6 +396,7 @@ dma_idata(struct upd7210 *u, u_char *data, int len)
 	int j;
 	struct ibfoo *ib;
 
+	KASSERT(u->dmachan >= 0, ("Bogus dmachan %d", u->dmachan));
 	ib = u->ibfoo;
 	ib->mode = DMA_IDATA;
 	mtx_lock(&Giant);
@@ -404,21 +414,56 @@ dma_idata(struct upd7210 *u, u_char *data, int len)
 	return (len - j);
 }
 
-#define ibask NULL
+static int
+ib_send_msg(struct ibfoo *ib, int msg)
+{
+	u_char buf[10];
+	int i, j;
+
+	i = 0;
+	buf[i++] = UNT;
+	buf[i++] = UNL;
+	buf[i++] = LAD | ib->h->pad;
+	if (ib->h->sad)
+		buf[i++] = LAD | TAD | ib->h->sad;
+	buf[i++] = TAD | 0;
+	buf[i++] = msg;
+	j = pio_cmd(ib->u, buf, i);
+	if (i != j)
+		ib_set_error(ib->ap, EABO); /* XXX ? */
+	return (0);
+}
+
+static int
+ibask(struct ibfoo *ib)
+{	/* XXX */
+
+	ibdebug = ib->ap->option;
+	return (0);
+}
+
 #define ibbna NULL
 #define ibcac NULL
-#define ibclr NULL
+
+static int
+ibclr(struct ibfoo *ib)
+{
+
+	return (ib_send_msg(ib, SDC));
+}
+
 #define ibcmd NULL
 #define ibcmda NULL
 #define ibconfig NULL
 
 static int
 ibdev(struct ibfoo *ib)
-{
+{	/* TBD */
 	struct handle *h;
 
 	h = malloc(sizeof *h, M_IBFOO, M_ZERO | M_WAITOK);
 	h->handle = alloc_unr(ib->unrhdr);
+	h->kind = H_DEV;
 	h->pad = ib->ap->pad;
 	h->sad = ib->ap->sad;
 	h->timeout = timeouts[ib->ap->tmo];
@@ -437,6 +482,8 @@ static int
 ibdma(struct ibfoo *ib)
 {
 
+	if (ib->u->dmachan < 0 && ib->ap->v)
+		return (ib_set_error(ib->ap, EARG));
 	ib->h->dma = ib->ap->v;
 	return (0);
 }
@@ -445,6 +492,7 @@ static int
 ibeos(struct ibfoo *ib)
 {
 
+	ib->ap->__iberr = ib->h->eos;
 	ib->h->eos = ib->ap->eos;
 	if (ib->rdh == ib->h)
 		config_eos(ib->u, ib->h);
@@ -466,20 +514,51 @@ ibeot(struct ibfoo *ib)
 #define iblines NULL
 #define ibllo NULL
 #define ibln NULL
-#define ibloc NULL
-#define ibonl NULL
-#define ibpad NULL
+
+static int
+ibloc(struct ibfoo *ib)
+{	/* XXX */
+
+	if (ib->h->kind == H_BOARD)
+		return (EOPNOTSUPP); /* XXX */
+	return (ib_send_msg(ib, GTL));
+}
+
+static int
+ibonl(struct ibfoo *ib)
+{	/* XXX */
+
+	if (ib->ap->v)
+		return (EOPNOTSUPP);	/* XXX */
+	mtx_lock(&ib->u->mutex);
+	LIST_REMOVE(ib->h, list);
+	mtx_unlock(&ib->u->mutex);
+	free(ib->h, M_IBFOO);
+	ib->h = NULL;
+	return (0);
+}
+
+static int
+ibpad(struct ibfoo *ib)
+{
+
+	ib->h->pad = ib->ap->pad;
+	return (0);
+}
+
 #define ibpct NULL
 #define ibpoke NULL
 #define ibppc NULL
 
 static int
 ibrd(struct ibfoo *ib)
-{
+{	/* TBD */
 	u_char buf[10], *bp;
 	int i, j, error, bl, bc;
 	u_char *dp;
 
+	if (ib->h->kind == H_BOARD)
+		return (EOPNOTSUPP); /* XXX */
 	bl = ib->ap->cnt;
 	if (bl > PAGE_SIZE)
 		bl = PAGE_SIZE;
@@ -508,8 +587,6 @@ ibrd(struct ibfoo *ib)
 			i = dma_idata(ib->u, bp, j);
 		else
 			i = pio_idata(ib->u, bp, j);
-		if (i <= 0)
-			break;
 		error = copyout(bp, dp , i);
 		if (error)
 			break;
@@ -530,9 +607,27 @@ ibrd(struct ibfoo *ib)
 #define ibrsc NULL
 #define ibrsp NULL
 #define ibrsv NULL
-#define ibsad NULL
+
+static int
+ibsad(struct ibfoo *ib)
+{
+
+	ib->h->sad = ib->ap->sad;
+	return (0);
+}
+
 #define ibsgnl NULL
-#define ibsic NULL
+
+static int
+ibsic(struct ibfoo *ib)
+{	/* TBD */
+
+	upd7210_wr(ib->u, AUXMR, AUXMR_SIFC);
+	DELAY(100);
+	upd7210_wr(ib->u, AUXMR, AUXMR_CIFC);
+	return (0);
+}
+
 #define ibsre NULL
 #define ibsrq NULL
 #define ibstop NULL
@@ -546,15 +641,24 @@ ibtmo(struct ibfoo *ib)
 }
 
 #define ibtrap NULL
-#define ibtrg NULL
+
+static int
+ibtrg(struct ibfoo *ib)
+{
+
+	return (ib_send_msg(ib, GET));
+}
+
 #define ibwait NULL
 
 static int
 ibwrt(struct ibfoo *ib)
-{
+{	/* XXX */
 	u_char buf[10], *bp;
 	int i;
 
+	if (ib->h->kind == H_BOARD)
+		return (EOPNOTSUPP);
 	bp = malloc(ib->ap->cnt, M_IBFOO, M_WAITOK);
 	/* XXX: bigger than PAGE_SIZE handling */
 	i = copyin(ib->ap->buffer, bp, ib->ap->cnt);
@@ -590,57 +694,58 @@ ibwrt(struct ibfoo *ib)
 
 static struct ibhandler {
 	const char 	*name;
+	enum h_kind	kind;
 	ibhandler_t	*func;
 	u_int		args;
 } ibhandlers[] = {
-	[__ID_IBASK] =		{ "ibask",	ibask,		__F_HANDLE | __F_OPTION | __F_RETVAL },
-	[__ID_IBBNA] =		{ "ibbna",	ibbna,		__F_HANDLE | __F_BDNAME },
-	[__ID_IBCAC] =		{ "ibcac",	ibcac,		__F_HANDLE | __F_V },
-	[__ID_IBCLR] =		{ "ibclr",	ibclr,		__F_HANDLE },
-	[__ID_IBCMDA] =		{ "ibcmda",	ibcmda,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBCMD] =		{ "ibcmd",	ibcmd,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBCONFIG] =	{ "ibconfig",	ibconfig,	__F_HANDLE | __F_OPTION | __F_VALUE },
-	[__ID_IBDEV] =		{ "ibdev",	ibdev,		__F_BOARDID | __F_PAD | __F_SAD | __F_TMO | __F_EOT | __F_EOS },
-	[__ID_IBDIAG] =		{ "ibdiag",	ibdiag,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBDMA] =		{ "ibdma",	ibdma,		__F_HANDLE | __F_V },
-	[__ID_IBEOS] =		{ "ibeos",	ibeos,		__F_HANDLE | __F_EOS },
-	[__ID_IBEOT] =		{ "ibeot",	ibeot,		__F_HANDLE | __F_EOT },
-	[__ID_IBEVENT] =	{ "ibevent",	ibevent,	__F_HANDLE | __F_EVENT },
-	[__ID_IBFIND] =		{ "ibfind",	ibfind,		__F_BDNAME },
-	[__ID_IBGTS] =		{ "ibgts",	ibgts,		__F_HANDLE | __F_V },
-	[__ID_IBIST] =		{ "ibist",	ibist,		__F_HANDLE | __F_V },
-	[__ID_IBLINES] =	{ "iblines",	iblines,	__F_HANDLE | __F_LINES },
-	[__ID_IBLLO] =		{ "ibllo",	ibllo,		__F_HANDLE },
-	[__ID_IBLN] =		{ "ibln",	ibln,		__F_HANDLE | __F_PADVAL | __F_SADVAL | __F_LISTENFLAG },
-	[__ID_IBLOC] =		{ "ibloc",	ibloc,		__F_HANDLE },
-	[__ID_IBONL] =		{ "ibonl",	ibonl,		__F_HANDLE | __F_V },
-	[__ID_IBPAD] =		{ "ibpad",	ibpad,		__F_HANDLE | __F_V },
-	[__ID_IBPCT] =		{ "ibpct",	ibpct,		__F_HANDLE },
-	[__ID_IBPOKE] =		{ "ibpoke",	ibpoke,		__F_HANDLE | __F_OPTION | __F_VALUE },
-	[__ID_IBPPC] =		{ "ibppc",	ibppc,		__F_HANDLE | __F_V },
-	[__ID_IBRDA] =		{ "ibrda",	ibrda,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBRDF] =		{ "ibrdf",	ibrdf,		__F_HANDLE | __F_FLNAME },
-	[__ID_IBRDKEY] =	{ "ibrdkey",	ibrdkey,	__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBRD] =		{ "ibrd",	ibrd,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBRPP] =		{ "ibrpp",	ibrpp,		__F_HANDLE | __F_PPR },
-	[__ID_IBRSC] =		{ "ibrsc",	ibrsc,		__F_HANDLE | __F_V },
-	[__ID_IBRSP] =		{ "ibrsp",	ibrsp,		__F_HANDLE | __F_SPR },
-	[__ID_IBRSV] =		{ "ibrsv",	ibrsv,		__F_HANDLE | __F_V },
-	[__ID_IBSAD] =		{ "ibsad",	ibsad,		__F_HANDLE | __F_V },
-	[__ID_IBSGNL] =		{ "ibsgnl",	ibsgnl,		__F_HANDLE | __F_V },
-	[__ID_IBSIC] =		{ "ibsic",	ibsic,		__F_HANDLE },
-	[__ID_IBSRE] =		{ "ibsre",	ibsre,		__F_HANDLE | __F_V },
-	[__ID_IBSRQ] =		{ "ibsrq",	ibsrq,		__F_FUNC },
-	[__ID_IBSTOP] =		{ "ibstop",	ibstop,		__F_HANDLE },
-	[__ID_IBTMO] =		{ "ibtmo",	ibtmo,		__F_HANDLE | __F_TMO },
-	[__ID_IBTRAP] =		{ "ibtrap",	ibtrap,		__F_MASK | __F_MODE },
-	[__ID_IBTRG] =		{ "ibtrg",	ibtrg,		__F_HANDLE },
-	[__ID_IBWAIT] =		{ "ibwait",	ibwait,		__F_HANDLE | __F_MASK },
-	[__ID_IBWRTA] =		{ "ibwrta",	ibwrta,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBWRTF] =		{ "ibwrtf",	ibwrtf,		__F_HANDLE | __F_FLNAME },
-	[__ID_IBWRTKEY] =	{ "ibwrtkey",	ibwrtkey,	__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBWRT] =		{ "ibwrt",	ibwrt,		__F_HANDLE | __F_BUFFER | __F_CNT },
-	[__ID_IBXTRC] =		{ "ibxtrc",	ibxtrc,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBASK] =		{ "ibask",	H_EITHER,	ibask,		__F_HANDLE | __F_OPTION | __F_RETVAL },
+	[__ID_IBBNA] =		{ "ibbna",	H_DEV,		ibbna,		__F_HANDLE | __F_BDNAME },
+	[__ID_IBCAC] =		{ "ibcac",	H_BOARD,	ibcac,		__F_HANDLE | __F_V },
+	[__ID_IBCLR] =		{ "ibclr",	H_DEV,		ibclr,		__F_HANDLE },
+	[__ID_IBCMD] =		{ "ibcmd",	H_BOARD,	ibcmd,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBCMDA] =		{ "ibcmda",	H_BOARD,	ibcmda,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBCONFIG] =	{ "ibconfig",	H_EITHER,	ibconfig,	__F_HANDLE | __F_OPTION | __F_VALUE },
+	[__ID_IBDEV] =		{ "ibdev",	0,		ibdev,		__F_BOARDID | __F_PAD | __F_SAD | __F_TMO | __F_EOT | __F_EOS },
+	[__ID_IBDIAG] =		{ "ibdiag",	H_EITHER,	ibdiag,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBDMA] =		{ "ibdma",	H_EITHER,	ibdma,		__F_HANDLE | __F_V },
+	[__ID_IBEOS] =		{ "ibeos",	H_EITHER,	ibeos,		__F_HANDLE | __F_EOS },
+	[__ID_IBEOT] =		{ "ibeot",	H_EITHER,	ibeot,		__F_HANDLE | __F_EOT },
+	[__ID_IBEVENT] =	{ "ibevent",	H_BOARD,	ibevent,	__F_HANDLE | __F_EVENT },
+	[__ID_IBFIND] =		{ "ibfind",	0,		ibfind,		__F_BDNAME },
+	[__ID_IBGTS] =		{ "ibgts",	H_BOARD,	ibgts,		__F_HANDLE | __F_V },
+	[__ID_IBIST] =		{ "ibist",	H_BOARD,	ibist,		__F_HANDLE | __F_V },
+	[__ID_IBLINES] =	{ "iblines",	H_BOARD,	iblines,	__F_HANDLE | __F_LINES },
+	[__ID_IBLLO] =		{ "ibllo",	H_EITHER,	ibllo,		__F_HANDLE },
+	[__ID_IBLN] =		{ "ibln",	H_BOARD,	ibln,		__F_HANDLE | __F_PADVAL | __F_SADVAL | __F_LISTENFLAG },
+	[__ID_IBLOC] =		{ "ibloc",	H_EITHER,	ibloc,		__F_HANDLE },
+	[__ID_IBONL] =		{ "ibonl",	H_EITHER,	ibonl,		__F_HANDLE | __F_V },
+	[__ID_IBPAD] =		{ "ibpad",	H_EITHER,	ibpad,		__F_HANDLE | __F_PAD },
+	[__ID_IBPCT] =		{ "ibpct",	H_DEV,		ibpct,		__F_HANDLE },
+	[__ID_IBPOKE] =		{ "ibpoke",	H_EITHER,	ibpoke,		__F_HANDLE | __F_OPTION | __F_VALUE },
+	[__ID_IBPPC] =		{ "ibppc",	H_EITHER,	ibppc,		__F_HANDLE | __F_V },
+	[__ID_IBRD] =		{ "ibrd",	H_EITHER,	ibrd,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBRDA] =		{ "ibrda",	H_EITHER,	ibrda,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBRDF] =		{ "ibrdf",	H_EITHER,	ibrdf,		__F_HANDLE | __F_FLNAME },
+	[__ID_IBRDKEY] =	{ "ibrdkey",	H_EITHER,	ibrdkey,	__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBRPP] =		{ "ibrpp",	H_EITHER,	ibrpp,		__F_HANDLE | __F_PPR },
+	[__ID_IBRSC] =		{ "ibrsc",	H_BOARD,	ibrsc,		__F_HANDLE | __F_V },
+	[__ID_IBRSP] =		{ "ibrsp",	H_DEV,		ibrsp,		__F_HANDLE | __F_SPR },
+	[__ID_IBRSV] =		{ "ibrsv",	H_EITHER,	ibrsv,		__F_HANDLE | __F_V },
+	[__ID_IBSAD] =		{ "ibsad",	H_EITHER,	ibsad,		__F_HANDLE | __F_SAD },
+	[__ID_IBSGNL] =		{ "ibsgnl",	H_EITHER,	ibsgnl,		__F_HANDLE | __F_V },
+	[__ID_IBSIC] =		{ "ibsic",	H_BOARD,	ibsic,		__F_HANDLE },
+	[__ID_IBSRE] =		{ "ibsre",	H_BOARD,	ibsre,		__F_HANDLE | __F_V },
+	[__ID_IBSRQ] =		{ "ibsrq",	H_EITHER,	ibsrq,		__F_FUNC },
+	[__ID_IBSTOP] =		{ "ibstop",	H_EITHER,	ibstop,		__F_HANDLE },
+	[__ID_IBTMO] =		{ "ibtmo",	H_EITHER,	ibtmo,		__F_HANDLE | __F_TMO },
+	[__ID_IBTRAP] =		{ "ibtrap",	H_EITHER,	ibtrap,		__F_MASK | __F_MODE },
+	[__ID_IBTRG] =		{ "ibtrg",	H_DEV,		ibtrg,		__F_HANDLE },
+	[__ID_IBWAIT] =		{ "ibwait",	H_EITHER,	ibwait,		__F_HANDLE | __F_MASK },
+	[__ID_IBWRT] =		{ "ibwrt",	H_EITHER,	ibwrt,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBWRTA] =		{ "ibwrta",	H_EITHER,	ibwrta,		__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBWRTF] =		{ "ibwrtf",	H_EITHER,	ibwrtf,		__F_HANDLE | __F_FLNAME },
+	[__ID_IBWRTKEY] =	{ "ibwrtkey",	H_EITHER,	ibwrtkey,	__F_HANDLE | __F_BUFFER | __F_CNT },
+	[__ID_IBXTRC] =		{ "ibxtrc",	H_EITHER,	ibxtrc,		__F_HANDLE | __F_BUFFER | __F_CNT },
 };
 
 static const u_int max_ibhandler = sizeof ibhandlers / sizeof ibhandlers[0];
@@ -655,13 +760,14 @@ ib_dump_args(struct ibhandler *ih, struct ibarg *ap)
 		printf("ibinvalid(");
 	printf("[0x%x]", ap->__field);
 	if (ap->__field & __F_HANDLE)	printf(" handle=%d", ap->handle);
-	if (ap->__field & __F_EOS)	printf(" eos=%d", ap->eos);
+	if (ap->__field & __F_EOS)	printf(" eos=0x%x", ap->eos);
 	if (ap->__field & __F_EOT)	printf(" eot=%d", ap->eot);
 	if (ap->__field & __F_TMO)	printf(" tmo=%d", ap->tmo);
-	if (ap->__field & __F_PAD)	printf(" pad=%d", ap->pad);
-	if (ap->__field & __F_SAD)	printf(" sad=%d", ap->sad);
+	if (ap->__field & __F_PAD)	printf(" pad=0x%x", ap->pad);
+	if (ap->__field & __F_SAD)	printf(" sad=0x%x", ap->sad);
 	if (ap->__field & __F_BUFFER)	printf(" buffer=%p", ap->buffer);
 	if (ap->__field & __F_CNT)	printf(" cnt=%ld", ap->cnt);
+	if (ap->__field & __F_V)	printf(" v=%d/0x%x", ap->v, ap->v);
 	/* XXX more ... */
 	printf(")\n");
 }
@@ -671,7 +777,7 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct upd7210 *u;
 	struct ibfoo *ib;
-	int error;
+	int error = 0;
 
 	u = dev->si_drv1;
 
@@ -683,14 +789,17 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	u->busy = 1;
 	mtx_unlock(&u->mutex);
 
-	mtx_lock(&Giant);
-	error = isa_dma_acquire(u->dmachan);
-	if (!error) {
-		error = isa_dma_init(u->dmachan, PAGE_SIZE, M_WAITOK);
-		if (error)
-			isa_dma_release(u->dmachan);
+	if (u->dmachan >= 0) {
+		mtx_lock(&Giant);
+		error = isa_dma_acquire(u->dmachan);
+		if (!error) {
+			error = isa_dma_init(u->dmachan, PAGE_SIZE, M_WAITOK);
+			if (error)
+				isa_dma_release(u->dmachan);
+		}
+		mtx_unlock(&Giant);
 	}
-	mtx_unlock(&Giant);
+
 	if (error) {
 		mtx_lock(&u->mutex);
 		u->busy = 0;
@@ -745,11 +854,14 @@ gpib_ib_close(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	dev->si_drv2 = NULL;
 	free(ib, M_IBFOO);
 
-	mtx_lock(&Giant);
-	isa_dma_release(u->dmachan);
-	mtx_unlock(&Giant);
+	if (u->dmachan >= 0) {
+		mtx_lock(&Giant);
+		isa_dma_release(u->dmachan);
+		mtx_unlock(&Giant);
+	}
 	mtx_lock(&u->mutex);
 	u->busy = 0;
+	ibdebug = 0;
 	upd7210_wr(u, IMR1, 0x00);
 	upd7210_wr(u, IMR2, 0x00);
 	upd7210_wr(u, AUXMR, AUXMR_CRST);
@@ -823,6 +935,12 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	if ((ap->__field & __F_HANDLE) && gethandle(u, ap, &h)) {
 		mtx_unlock(&u->mutex);
 		return (0);
+	}
+
+	/* Check that the handle is the right kind */
+	if (h != NULL && !(h->kind & ih->kind)) {
+		mtx_unlock(&u->mutex);
+		return (ib_set_error(ap, EARG));
 	}
 
 	/* Set up handle and deadline */
