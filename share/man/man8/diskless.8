@@ -147,27 +147,31 @@ and
 .Aq ROOT
 have the obvious meanings.
 .It
-On the root partition, create the directory
-.Pa /conf/default/etc ,
+A properly initialized root partition.
+The script
+.Pa /usr/share/examples/diskless/clone_root
+can help in creating it, using the server's root partition
+as a reference.
+.Pp
+On the partition to be exported as root, you need to create the directory
+.Pa /conf/base/etc ,
 and populate it with a copy of the contents of
 .Pa /etc .
 The files and subdirectories within
-.Pa /conf/default/etc
+.Pa /conf/base/etc
 are used to bootstrap the diskless environment's
 .Pa /etc
 memory filesystem.
-Be sure and copy the entirety of
-.Pa /etc ,
-and not just overrides.
-.It
-Additionally, one may supply per-network or per-host overrides for
+.Pp
+Additionally, one may supply global, per-network or per-host overrides for
 files in
 .Pa /etc
 by creating and populating the directories
 .Pa /conf/${i}/etc ,
 where
 .Va i
-can be either the subnet broadcast address for the client, or the IP
+can be either the string "default",
+the subnet broadcast address for the client, or the IP
 address of the client.
 .Pp
 Files are copied from the above directories into
@@ -195,7 +199,9 @@ and also a customized version of
 which should contain
 the startup options for the diskless client.
 .Pp
-Most likely
+In
+.Pa rc.conf ,
+most likely
 you will not need to set
 .Va hostname
 and
@@ -213,9 +219,8 @@ as the switch variable to do machine-specific configuration
 in case a number of diskless clients share the same configuration
 files.
 .It
-build a kernel whose config file (e.g.\&
-.Pa /sys/i386/conf/DISKLESS )
-has at least the following options:
+The kernel for the diskless clients, which will be loaded using
+NFS or TFTP, should be built with at least the following options:
 .Bd -literal -offset indent
 options MFS
 options BOOTP
