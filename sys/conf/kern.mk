@@ -53,6 +53,15 @@ CFLAGS+=	-mcmodel=medlow -msoft-float
 .endif
 
 #
+# For AMD64, use a medium model for now.  We'll switch to "kernel"
+# once pmap is ready.  Be excessively careful to not generate FPU code.
+#
+.if ${MACHINE_ARCH} == "amd64"
+CFLAGS+=	-mcmodel=medium -mno-red-zone \
+		-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow -msoft-float
+.endif
+
+#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
