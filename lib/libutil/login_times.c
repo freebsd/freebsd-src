@@ -24,13 +24,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <ctype.h>
+#include <login_cap.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
-
-#include <sys/types.h>
-#include <login_cap.h>
 
 static struct
 {

@@ -34,23 +34,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <limits.h>
-#include <stdio.h>
-#include <ctype.h>
+#include <login_cap.h>
+#include <paths.h>
 #include <pwd.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <login_cap.h>
-#include <stdarg.h>
-#include <paths.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <err.h>
-#include <libutil.h>
 
 
 /*
