@@ -277,17 +277,22 @@ int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
  * Perform a synchronization operation on the given map.
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
-#define bus_dmamap_sync(dmat, dmamap, op) 		\
-	if ((dmamap) != NULL)				\
-		_bus_dmamap_sync(dmat, dmamap, op)
+#define bus_dmamap_sync(dmat, dmamap, op) 			\
+	do {							\
+		if ((dmamap) != NULL)				\
+			_bus_dmamap_sync(dmat, dmamap, op);	\
+	} while (0)
 
 /*
  * Release the mapping held by map.
  */
 void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
-#define bus_dmamap_unload(dmat, dmamap) 		\
-	if ((dmamap) != NULL)				\
-		_bus_dmamap_unload(dmat, dmamap)
+#define bus_dmamap_unload(dmat, dmamap) 			\
+	do {							\
+		if ((dmamap) != NULL)				\
+			_bus_dmamap_unload(dmat, dmamap);	\
+	} while (0)
+
 #endif /* __sparc64__ */
 
 #endif /* _BUS_DMA_H_ */
