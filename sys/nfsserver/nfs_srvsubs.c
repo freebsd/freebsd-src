@@ -1317,7 +1317,7 @@ nfsm_srvstrsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 
 	NFSD_LOCK_DONTCARE();
 
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	*s = fxdr_unsigned(int32_t, *tl);
@@ -1333,7 +1333,7 @@ nfsm_srvnamesiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 
 	NFSD_LOCK_DONTCARE();
 
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	*s = fxdr_unsigned(int32_t, *tl);
@@ -1385,7 +1385,7 @@ nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd, struct mbuf **md,
 	NFSD_LOCK_DONTCARE();
 
 	if (nfsd->nd_flag & ND_NFSV3) {
-		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		fhlen = fxdr_unsigned(int, *tl);
@@ -1395,7 +1395,7 @@ nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd, struct mbuf **md,
 		fhlen = NFSX_V2FH;
 	}
 	if (fhlen != 0) {
-		tl = nfsm_dissect_xx(fhlen, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(fhlen, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		bcopy((caddr_t)tl, (caddr_t)(f), fhlen);
@@ -1412,48 +1412,48 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 
 	NFSD_LOCK_DONTCARE();
 
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	if (*tl == nfsrv_nfs_true) {
-		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		(a)->va_mode = nfstov_mode(*tl);
 	}
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	if (*tl == nfsrv_nfs_true) {
-		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		(a)->va_uid = fxdr_unsigned(uid_t, *tl);
 	}
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	if (*tl == nfsrv_nfs_true) {
-		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		(a)->va_gid = fxdr_unsigned(gid_t, *tl);
 	}
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	if (*tl == nfsrv_nfs_true) {
-		tl = nfsm_dissect_xx(2 * NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(2 * NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		(a)->va_size = fxdr_hyper(tl);
 	}
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	switch (fxdr_unsigned(int, *tl)) {
 	case NFSV3SATTRTIME_TOCLIENT:
-		tl = nfsm_dissect_xx(2 * NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(2 * NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		fxdr_nfsv3time(tl, &(a)->va_atime);
@@ -1462,12 +1462,12 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 		getnanotime(&(a)->va_atime);
 		break;
 	}
-	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
 	switch (fxdr_unsigned(int, *tl)) {
 	case NFSV3SATTRTIME_TOCLIENT:
-		tl = nfsm_dissect_xx(2 * NFSX_UNSIGNED, md, dpos);
+		tl = nfsm_dissect_xx_nonblock(2 * NFSX_UNSIGNED, md, dpos);
 		if (tl == NULL)
 			return EBADRPC;
 		fxdr_nfsv3time(tl, &(a)->va_mtime);

@@ -297,14 +297,14 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 	md = nd->nd_md;
 	dpos = nd->nd_dpos;
 	if (has_header) {
-		tl = nfsm_dissect(u_int32_t *, 10 * NFSX_UNSIGNED);
+		tl = nfsm_dissect_nonblock(u_int32_t *, 10 * NFSX_UNSIGNED);
 		nd->nd_retxid = fxdr_unsigned(u_int32_t, *tl++);
 		if (*tl++ != nfsrv_rpc_call) {
 			m_freem(mrep);
 			return (EBADRPC);
 		}
 	} else
-		tl = nfsm_dissect(u_int32_t *, 8 * NFSX_UNSIGNED);
+		tl = nfsm_dissect_nonblock(u_int32_t *, 8 * NFSX_UNSIGNED);
 	nd->nd_repstat = 0;
 	nd->nd_flag = 0;
 	if (*tl++ != nfsrv_rpc_vers) {
@@ -360,7 +360,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			return (EBADRPC);
 		}
 		nfsm_adv(nfsm_rndup(len));
-		tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
+		tl = nfsm_dissect_nonblock(u_int32_t *, 3 * NFSX_UNSIGNED);
 		/*
 		 * XXX: This credential should be managed using crget(9)
 		 * and related calls.  Right now, this tramples on any
@@ -377,7 +377,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			m_freem(mrep);
 			return (EBADRPC);
 		}
-		tl = nfsm_dissect(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
+		tl = nfsm_dissect_nonblock(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
 		for (i = 1; i <= len; i++)
 		    if (i < NGROUPS)
 			nd->nd_cr.cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
