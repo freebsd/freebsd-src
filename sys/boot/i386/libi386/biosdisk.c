@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: biosdisk.c,v 1.2 1998/09/17 23:52:08 msmith Exp $
  */
 
 /*
@@ -45,10 +45,10 @@
 #include <bootstrap.h>
 #include <btxv86.h>
 #include "libi386.h"
-#include "crt/biosdisk_ll.h"
 
-#define BUFSIZE		(1 * BIOSDISK_SECSIZE)
-#define	MAXBDDEV	MAXDEV
+#define BIOSDISK_SECSIZE	512
+#define BUFSIZE			(1 * BIOSDISK_SECSIZE)
+#define	MAXBDDEV		MAXDEV
 
 #ifdef DISK_DEBUG
 # define D(x)	x
