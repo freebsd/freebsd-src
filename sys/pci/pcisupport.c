@@ -1,6 +1,6 @@
-/**************************************************************************
+42/**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.80 1998/12/14 09:46:31 n_hibma Exp $
+**  $Id: pcisupport.c,v 1.81 1998/12/19 02:51:22 msmith Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -42,6 +42,7 @@
 */
 
 #include "opt_pci.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -183,6 +184,17 @@ fixbushigh_450nx(pcici_t tag)
 	} else /* if (devmap & 0x4) */ {	/* A0 */
 		subordinatebus = pci_cfgread(tag, 0xd1, 1);
 	}
+	if (subordinatebus == 255) {
+		printf("fixbushigh_450nx: bogus highest PCI bus %d",
+		       subordinatebus);
+#ifdef NBUS
+		subordinatebus = NBUS - 2;
+#else
+		subordinatebus = 10;
+#endif
+		printf(", reduced to %d\n", subordinatebus);
+	}
+		
 	if (bootverbose)
 		printf("fixbushigh_450nx: subordinatebus is %d\n",
 			subordinatebus);
