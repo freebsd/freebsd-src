@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.10 1996/04/22 19:48:15 nate Exp $
+ *	$Id: apm.c,v 1.12.4.11 1996/04/23 16:08:53 nate Exp $
  */
 
 #include "apm.h"
@@ -673,6 +673,13 @@ apmattach(struct isa_device *dvp)
 {
 #define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc;
+#ifdef APM_DSVALUE_BUG
+	caddr_t apm_bios_work;
+
+	apm_bioswork = (caddr_t)malloc(apm_ds_limit, M_DEVBUG, M_NOWAIT);
+	bcopy((caddr_t)((apm_ds_base << 4) + APM_KERNBASE), apm_bios_work,
+		apm_ds_limit);
+#endif /* APM_DSVALUE_BUG */
 
 	sc->initialized = 0;
 
@@ -686,6 +693,10 @@ apmattach(struct isa_device *dvp)
 	sc->cs_limit = apm_cs_limit;
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
+
+#ifdef APM_DSVALUE_BUG
+	sc->ds_base = (u_int)apm_bios_work;
+#endif /* APM_DSVALUE_BUG */
 
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
@@ -705,9 +716,11 @@ apmattach(struct isa_device *dvp)
 	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
+#if 0
 	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;
+#endif
 
 	/* setup GDT */
 	setup_apm_gdt(sc->cs32_base, sc->cs16_base, sc->ds_base,
@@ -717,6 +730,15 @@ apmattach(struct isa_device *dvp)
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
 	apm_addr.offset  = sc->cs_entry;
 
+#ifdef FORCE_APM10
+	apm_version = 0x100;
+	sc->majorversion = 1;
+	sc->minorversion = 0;
+	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
+	printf("apm: running in APM 1.0 compatible mode\n");
+	kcd_apm.kdc_description =
+		"Advanced Power Management BIOS (1.0 compatability mode)",
+#else
 	/* Try to kick bios into 1.1 or greater mode */
 	apm_driver_version();
 	sc->minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
@@ -734,6 +756,8 @@ apmattach(struct isa_device *dvp)
 
 	printf("apm: found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
+#endif /* FORCE_APM10 */
+
 #ifdef APM_DEBUG
 	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 #endif
