@@ -1,55 +1,26 @@
 /*	$FreeBSD$	*/
-/*	$KAME: cast128.h,v 1.7 2001/11/27 09:47:32 sakane Exp $	*/
+/*	$NetBSD: cast128.h,v 1.6 2003/08/26 20:03:57 thorpej Exp $ */
+/*      $OpenBSD: cast.h,v 1.2 2002/03/14 01:26:51 millert Exp $       */
 
 /*
- * heavily modified by Tomomi Suzuki <suzuki@grelot.elec.ryukoku.ac.jp>
- */
-/*
- * The CAST-128 Encryption Algorithm (RFC 2144)
- *
- * original implementation <Hideo "Sir MaNMOS" Morisita>
- * 1997/08/21
- */
-/*
- * Copyright (C) 1997 Hideo "Sir MANMOS" Morishita
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY Hideo "Sir MaNMOS" Morishita ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL Hideo "Sir MaNMOS" Morishita BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ *	CAST-128 in C
+ *	Written by Steve Reid <sreid@sea-to-sky.net>
+ *	100% Public Domain - no warranty
+ *	Released 1997.10.11
  */
 
-#ifndef RFC2144_CAST_128_H
-#define RFC2144_CAST_128_H
+#ifndef _CAST128_H_
+#define _CAST128_H_
 
-#include <sys/param.h>
+typedef struct {
+	u_int32_t	xkey[32];	/* Key, after expansion */
+	int		rounds;		/* Number of rounds to use, 12 or 16 */
+} cast128_key;
 
+void cast128_setkey(cast128_key *key, const u_int8_t *rawkey, int keybytes);
+void cast128_encrypt(const cast128_key *key, const u_int8_t *inblock,
+		     u_int8_t *outblock);
+void cast128_decrypt(const cast128_key *key, const u_int8_t *inblock,
+		     u_int8_t *outblock);
 
-#define	CAST128_ENCRYPT	1
-#define	CAST128_DECRYPT	0
-
-
-extern void set_cast128_subkey(u_int32_t *, u_int8_t *, int);
-extern void cast128_encrypt_round16(u_int8_t *, const u_int8_t *, u_int32_t *);
-extern void cast128_decrypt_round16(u_int8_t *, const u_int8_t *, u_int32_t *);
-extern void cast128_encrypt_round12(u_int8_t *, const u_int8_t *, u_int32_t *);
-extern void cast128_decrypt_round12(u_int8_t *, const u_int8_t *, u_int32_t *);
-#endif
-
+#endif /* _CAST128_H_ */

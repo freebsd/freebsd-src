@@ -516,8 +516,8 @@ esp_cast128_schedule(algo, sav)
 	struct secasvar *sav;
 {
 
-	set_cast128_subkey((u_int32_t *)sav->sched, _KEYBUF(sav->key_enc),
-		_KEYLEN(sav->key_enc));
+	cast128_setkey((cast128_key *)sav->sched, _KEYBUF(sav->key_enc),
+	    _KEYLEN(sav->key_enc));
 	return 0;
 }
 
@@ -529,10 +529,7 @@ esp_cast128_blockdecrypt(algo, sav, s, d)
 	u_int8_t *d;
 {
 
-	if (_KEYLEN(sav->key_enc) <= 80 / 8)
-		cast128_decrypt_round12(d, s, (u_int32_t *)sav->sched);
-	else
-		cast128_decrypt_round16(d, s, (u_int32_t *)sav->sched);
+	cast128_decrypt((cast128_key *)sav->sched, s, d);
 	return 0;
 }
 
@@ -544,10 +541,7 @@ esp_cast128_blockencrypt(algo, sav, s, d)
 	u_int8_t *d;
 {
 
-	if (_KEYLEN(sav->key_enc) <= 80 / 8)
-		cast128_encrypt_round12(d, s, (u_int32_t *)sav->sched);
-	else
-		cast128_encrypt_round16(d, s, (u_int32_t *)sav->sched);
+	cast128_encrypt((cast128_key *)sav->sched, s, d);
 	return 0;
 }
 
