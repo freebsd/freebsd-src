@@ -53,12 +53,12 @@
 .\"
 .\"	@(#)named.8	6.6 (Berkeley) 2/14/89
 .\"
-.TH @INDOT_U@NAMED @SYS_OPS_EXT_U@ "April 17, 1993"
+.TH NAMED 8 "April 17, 1993"
 .UC 4
 .SH NAME
-@INDOT@named \- Internet domain name server
+named \- Internet domain name server
 .SH SYNOPSIS
-.B @INDOT@named
+.B named
 [
 .B \-d
 .I debuglevel
@@ -91,7 +91,7 @@ messages printed.
 .TP
 .B \-p
 Use a different port number.  The default is the standard port number
-as returned by getservbyname(@LIB_NETWORK_EXT@) for service ``domain''.
+as returned by getservbyname(3) for service ``domain''.
 .TP
 .B \-b
 Use an alternate boot file.  This is optional and allows you to
@@ -334,7 +334,7 @@ nameserver did not have complete information.
 .sp
 The following signals have the specified effect when sent to the
 server process using the
-.IR kill (@CMD_EXT@)
+.IR kill (1)
 command.
 .IP SIGHUP
 Causes server to read named.boot and reload database.  If the server
@@ -360,7 +360,7 @@ Turns on debugging; each SIGUSR1 increments debug level.
 Turns off debugging completely.
 (SIGFPE on older systems without SIGUSR2)
 .IP SIGWINCH
-Toggles logging of all incoming queries via syslog(@SYS_OPS_EXT@)
+Toggles logging of all incoming queries via syslog(3)
 (requires server to have been built with the QRYLOG option).
 .SH FILES
 .nf
@@ -372,7 +372,7 @@ Toggles logging of all incoming queries via syslog(@SYS_OPS_EXT@)
 /var/tmp/named.stats	nameserver statistics data
 .fi
 .SH "SEE ALSO"
-kill(@CMD_EXT@), gethostbyname(@LIB_NETWORK_EXT@), signal(@SYSCALL_EXT@), 
-resolver(@LIB_NETWORK_EXT@), resolver(@FORMAT_EXT@), hostname(@DESC_EXT@),
+kill(1), gethostbyname(3), signal(3), 
+resolver(3), resolver(5), hostname(7),
 RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
 \fIName Server Operations Guide for \s-1BIND\s+1\fR
