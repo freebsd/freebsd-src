@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.13 1996/01/15 22:40:17 phk Exp $
+ *	$Id: db_disasm.c,v 1.14 1996/03/28 20:35:03 wollman Exp $
  */
 
 /*
@@ -1389,15 +1389,6 @@ db_disasm(loc, altfmt)
 		    get_value_inc(imm2, loc, 2, FALSE);	/* segment */
 		    db_printf("$%#n,%#n", imm2, imm);
 		    break;
-	    }
-	}
-
-	if (altfmt == 0) {
-	    if (inst == 0xe9 || inst == 0xeb) {
-		/*
-		 * GAS pads to longword boundary after unconditional jumps.
-		 */
-		loc = (loc + (4-1)) & ~(4-1);
 	    }
 	}
 	db_printf("\n");
