@@ -801,27 +801,11 @@ slab_zalloc(uma_zone_t zone, int wait)
 	else
 		wait &= ~M_ZERO;
 
-	if (booted || (zone->uz_flags & UMA_ZFLAG_PRIVALLOC)) {
-		mem = zone->uz_allocf(zone, zone->uz_ppera * UMA_SLAB_SIZE,
-		    &flags, wait);
-		if (mem == NULL) {
-			ZONE_LOCK(zone);
-			return (NULL);
-		}
-	} else {
-		uma_slab_t tmps;
-
-		if (zone->uz_ppera > 1)
-			panic("UMA: Attemping to allocate multiple pages before vm has started.\n");
-		if (zone->uz_flags & UMA_ZONE_MALLOC)
-			panic("Mallocing before uma_startup2 has been called.\n");
-		if (uma_boot_free == 0)
-			panic("UMA: Ran out of pre init pages, increase UMA_BOOT_PAGES\n");
-		tmps = LIST_FIRST(&uma_boot_pages);
-		LIST_REMOVE(tmps, us_link);
-		uma_boot_free--;
-		mem = tmps->us_data;
-		flags = tmps->us_flags;
+	mem = zone->uz_allocf(zone, zone->uz_ppera * UMA_SLAB_SIZE,
+	    &flags, wait);
+	if (mem == NULL) {
+		ZONE_LOCK(zone);
+		return (NULL);
 	}
 
 	/* Point the slab into the allocated memory */
@@ -891,6 +875,23 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
+	/*
+	 * Check our small startup cache to see if it has pages remaining.
+	 */
+	if (uma_boot_free != 0 && zone->uz_ppera == 1) {
+		uma_slab_t tmps;
+
+		tmps = LIST_FIRST(&uma_boot_pages);
+		LIST_REMOVE(tmps, us_link);
+		uma_boot_free--;
+		*pflag = tmps->us_flags;
+		return (tmps->us_data);
+	} else if (booted == 0) {
+		if (zone->uz_ppera > 1)
+			panic("UMA: Can't allocate multiple pages before vm "
+			    "has started.\n");
+		panic("UMA: Increase UMA_BOOT_PAGES");
+	}
 	*pflag = UMA_SLAB_KMEM;
 	p = (void *) kmem_malloc(kmem_map, bytes, wait);
   
