@@ -658,7 +658,8 @@ vm_pageout_scan(int pass)
 	struct thread *td;
 	vm_offset_t size, bigsize;
 	vm_object_t object;
-	int actcount;
+	int actcount, cache_cur, cache_first_failure;
+	static int cache_last_free;
 	int vnodes_skipped = 0;
 	int maxlaunder;
 
@@ -1103,17 +1104,35 @@ unlock_and_continue:
 	 * are considered basically 'free', moving pages from cache to free
 	 * does not effect other calculations.
 	 */
-	while (cnt.v_free_count < cnt.v_free_reserved) {
-		static int cache_rover = 0;
-
-		if ((m = vm_page_select_cache(cache_rover)) == NULL)
-			break;
-		cache_rover = (m->pc + PQ_PRIME2) & PQ_L2_MASK;
-		object = m->object;
-		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		vm_page_free(m);
-		VM_OBJECT_UNLOCK(object);
-		cnt.v_dfree++;
+	cache_cur = cache_last_free;
+	cache_first_failure = -1;
+	while (cnt.v_free_count < cnt.v_free_reserved && (cache_cur =
+	    (cache_cur + PQ_PRIME2) & PQ_L2_MASK) != cache_first_failure) {
+		TAILQ_FOREACH(m, &vm_page_queues[PQ_CACHE + cache_cur].pl,
+		    pageq) {
+			KASSERT(m->dirty == 0,
+			    ("Found dirty cache page %p", m));
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("Found mapped cache page %p", m));
+			KASSERT((m->flags & PG_UNMANAGED) == 0,
+			    ("Found unmanaged cache page %p", m));
+			KASSERT(m->wire_count == 0,
+			    ("Found wired cache page %p", m));
+			if (m->hold_count == 0 && VM_OBJECT_TRYLOCK(object =
+			    m->object)) {
+				KASSERT((m->flags & PG_BUSY) == 0 &&
+				    m->busy == 0, ("Found busy cache page %p",
+				    m));
+				vm_page_free(m);
+				VM_OBJECT_UNLOCK(object);
+				cnt.v_dfree++;
+				cache_last_free = cache_cur;
+				cache_first_failure = -1;
+				break;
+			}
+		}
+		if (m == NULL && cache_first_failure == -1)
+			cache_first_failure = cache_cur;
 	}
 	vm_page_unlock_queues();
 #if !defined(NO_SWAPPING)
