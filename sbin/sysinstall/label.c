@@ -546,7 +546,7 @@ DiskLabel()
 		    l2 = l1;
 	    }
 	    if (!(l2 - l1)) {
-		yip = "Oh god, I'm so confused!";
+		yip = "Sizes unchanged - couldn't find room";
 		break;
 	    }
 	    sprintf(buf, "%lu", (l2-l1+1024L)/2048L);
