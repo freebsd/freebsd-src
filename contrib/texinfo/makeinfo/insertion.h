@@ -1,7 +1,7 @@
 /* insertion.h -- declarations for insertion.c.
-   $Id: insertion.h,v 1.6 1999/07/06 23:12:58 karl Exp $
+   $Id: insertion.h,v 1.8 2001/06/30 00:29:41 karl Exp $
 
-   Copyright (C) 1998, 99 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,15 +22,15 @@
 
 /* Must match list in insertion.c.  */
 enum insertion_type
-{
+{ 
   cartouche, defcv, deffn, defivar, defmac, defmethod, defop, defopt,
   defspec, deftp, deftypefn, deftypefun, deftypeivar, deftypemethod,
   deftypeop, deftypevar, deftypevr, defun, defvar, defvr, detailmenu,
-  direntry, display, enumerate, example, flushleft, flushright, format,
-  ftable, group, ifclear, ifhtml, ifinfo, ifnothtml, ifnotinfo,
-  ifnottex, ifset, iftex, itemize, lisp, menu, multitable, quotation,
-  rawhtml, rawtex, smalldisplay, smallexample, smallformat, smalllisp,
-  table, tex, vtable, bad_type
+  direntry, display, documentdescription, enumerate, example, flushleft,
+  flushright, format, ftable, group, ifclear, ifhtml, ifinfo, ifnothtml,
+  ifnotinfo, ifnottex, ifset, iftex, itemize, lisp, menu, multitable,
+  quotation, rawhtml, rawtex, smalldisplay, smallexample, smallformat,
+  smalllisp, verbatim, table, tex, vtable, bad_type
 };
 
 typedef struct istack_elt

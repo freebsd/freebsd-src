@@ -1,7 +1,7 @@
 /* defun.c -- @defun and friends.
-   $Id: defun.c,v 1.11 1999/07/11 16:50:19 karl Exp $
+   $Id: defun.c,v 1.18 2002/01/22 18:01:24 karl Exp $
 
-   Copyright (C) 1998, 99 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "system.h"
 #include "defun.h"
+#include "docbook.h"
 #include "insertion.h"
 #include "makeinfo.h"
 
@@ -395,9 +396,9 @@ defun_internal (type, x_p)
     type_name = next_nonwhite_defun_arg (&scan_args);
 
   /* The type name for typed languages.  */
-  if (base_type == deftypemethod
-      || base_type == deftypeivar
-      || base_type == deftypeop
+  if ((base_type == deftypemethod)
+      || (base_type == deftypeivar)
+      || (base_type == deftypeop)
      )
     type_name2 = next_nonwhite_defun_arg (&scan_args);
 
@@ -422,6 +423,13 @@ defun_internal (type, x_p)
       defined_name = tem;
     }
 
+  /* It's easy to write @defun foo(arg1 arg2), but a following ( is
+     misparsed by texinfo.tex and this is next to impossible to fix.
+     Warn about it.  */
+  if (*scan_args && **scan_args && **scan_args == '(')
+    warning ("`%c' follows defined name `%s' instead of whitespace",
+             **scan_args, defined_name);
+    
   if (!x_p)
     begin_insertion (type);
 
@@ -430,11 +438,15 @@ defun_internal (type, x_p)
   current_indent -= default_indentation_increment;
   start_paragraph ();
 
-  if (html && !x_p)
+  if (!x_p) {
     /* Start the definition on new paragraph.  */
-    add_word ("<p>\n");
+    if (html)
+      add_word ("<p>\n");
+    if (docbook)
+      docbook_begin_paragraph ();
+  }
 
-  if (!html)
+  if (!html && !docbook)
     switch (base_type)
       {
       case deffn:
@@ -473,13 +485,16 @@ defun_internal (type, x_p)
       /* If this is not a @def...x version, it could only
          be a normal version @def.... So start the table here.  */
       if (!x_p)
-        add_word ("<table width=\"100%\">\n");
+	{
+	  add_html_elt ("<table width=");
+	  add_word ("\"100%\">\n");
+	}
 
       /* If this is an @def...x there has to be an other @def... before
          it, so this is only a new row within an existing table.  With
          two complete standalone tables the gap between them is too big.  */
       add_word ("<tr>\n");
-      add_word ("<td align=\"left\">");
+      add_html_elt ("<td align=\"left\">");
 
       switch (base_type)
         {
@@ -487,23 +502,60 @@ defun_internal (type, x_p)
         case defvr:
         case deftp:
           /* <i> is for the following function arguments.  */
-          add_word_args ("<b>%s</b><i>", defined_name);
+          add_word ("<b>");
+          execute_string ("%s", defined_name);
+          add_word ("</b><i>");
           break;
         case deftypefn:
         case deftypevr:
-          add_word_args ("%s <b>%s</b><i>", type_name, defined_name);
+          execute_string ("%s ", type_name);
+          add_word ("<b>");
+          execute_string ("%s", defined_name);
+          add_word ("</b><i>");
           break;
         case defcv:
         case defop:
-          add_word_args ("<b>%s</b><i>", defined_name);
+          add_word ("<b>");
+          execute_string ("%s", defined_name);
+          add_word ("</b><i>");
           break;
         case deftypemethod:
         case deftypeop:
         case deftypeivar:
-          add_word_args ("%s <b>%s</b><i>", type_name2, defined_name);
+          execute_string ("%s ", type_name2);
+          add_word ("<b>");
+          execute_string ("%s", defined_name);
+          add_word ("</b><i>");
           break;
         }
     } /* if (html)... */
+
+  if (docbook)
+    {
+      switch (base_type)
+        {
+        case deffn:
+        case defvr:
+        case deftp:
+        case defcv:
+        case defop:
+          add_word_args ("<%s>%s</%s>", DB_FUNCTION, defined_name,
+                                        DB_FUNCTION);
+          break;
+        case deftypefn:
+        case deftypevr:
+          add_word_args ("%s <%s>%s</%s>", type_name, DB_FUNCTION,
+                                           defined_name, DB_FUNCTION);
+          break;
+        case deftypemethod:
+        case deftypeop:
+        case deftypeivar:
+          add_word_args ("%s <%s>%s</%s>", type_name2, DB_FUNCTION,
+                                           defined_name, DB_FUNCTION);
+          break;
+        }
+
+    } /* if (docbook)... */
 
   current_indent += default_indentation_increment;
 
@@ -548,32 +600,37 @@ defun_internal (type, x_p)
         case deftypevr:
           add_word ("</i>"); /* close italic area for arguments */
           /* put the rest into the second column */
-          add_word_args ("</td>\n<td align=\"right\">%s", category);
+	  add_word ("</td>\n");
+          add_html_elt ("<td align=\"right\">");
+          execute_string ("%s", category);
           break;
-     
-       case defcv:
-         add_word ("</td>\n<td align=\"right\">");
-         add_word_args ("%s %s %s", category, _("of"), type_name);
-         break;
-     
-       case defop:
-       case deftypemethod:
-       case deftypeop:
-         add_word ("</i>");
-         add_word ("</td>\n<td align=\"right\">");
-         add_word_args ("%s %s %s", category, _("on"), type_name);
-         break;
-     
-       case deftypeivar:
-         add_word ("</i>");
-         add_word ("</td>\n<td align=\"right\">");
-         add_word_args ("%s %s %s", category, _("of"), type_name);
-         break;
-       } /* switch (base_type)... */
-      
+
+        case defcv:
+	  add_word ("</td>\n");
+	  add_html_elt ("<td align=\"right\">");
+	  execute_string ("%s %s %s", category, _("of"), type_name);
+	  break;
+
+        case defop:
+        case deftypemethod:
+        case deftypeop:
+	  add_word ("</i>");
+	  add_word ("</td>\n");
+	  add_html_elt ("<td align=\"right\">");
+	  execute_string ("%s %s %s", category, _("on"), type_name);
+	  break;
+
+        case deftypeivar:
+	  add_word ("</i>");
+	  add_word ("</td>\n");
+	  add_html_elt ("<td align=\"right\">");
+	  execute_string ("%s %s %s", category, _("of"), type_name);
+	  break;
+	} /* switch (base_type)... */
+
       add_word ("</td>\n"); /* close second column */
       add_word ("</tr>\n"); /* close row */
-      
+
       /* This is needed because I have to know if the next line is
          normal text or another @def..x.  If text follows, create a new
          table to get the indentation for the following text.
@@ -588,10 +645,10 @@ defun_internal (type, x_p)
       if (!looking_at ("@def"))
         {
           add_word ("</table>\n");
-          add_word ("<table width=\"95%\" align=\"center\">\n");
-          add_word ("<tr><td>\n");
+          add_html_elt ("<table width=\"95%\" align=\"center\">");
+          add_word ("\n<tr><td>\n");
         }
-      
+
     } /* if (html)... */
 
   /* Make an entry in the appropriate index. */

@@ -1,7 +1,7 @@
 /* toc.c -- table of contents handling.
-   $Id: toc.c,v 1.14 1999/08/09 20:28:18 karl Exp $
+   $Id: toc.c,v 1.21 2002/02/23 19:12:15 karl Exp $
 
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "files.h"
 #include "macro.h"
 #include "node.h"
+#include "html.h"
 #include "lang.h"
 #include "makeinfo.h"
 #include "sectioning.h"
@@ -32,7 +33,6 @@
 
 
 
-
 /* array of toc entries */
 static TOC_ENTRY_ELT **toc_entry_alist = NULL;
 
@@ -60,6 +60,7 @@ toc_add_entry (tocname, level, node_name, anchor)
      char *anchor;
 {
   char *tocname_and_node, *expanded_node, *s, *d;
+  char *filename = NULL;
 
   if (!node_name)
     node_name = "";
@@ -74,52 +75,59 @@ toc_add_entry (tocname, level, node_name, anchor)
   if (html)
     {
       /* We need to insert the expanded node name into the TOC, so
-	 that when we eventually output the TOC, its <A REF= link will
-	 point to the <A NAME= tag created by cm_node in the navigation
-	 bar.  We cannot expand the containing_node member, for the
-	 reasons explained in the WARNING below.  We also cannot wait
-	 with the node name expansion until the TOC is actually output,
-	 since by that time the macro definitions may have been changed.
-	 So instead we store in the tocname member the expanded node
-	 name and the TOC name concatenated together (with the necessary
-	 HTML markup), since that's how they are output.  */
+         that when we eventually output the TOC, its <A REF= link will
+         point to the <A NAME= tag created by cm_node in the navigation
+         bar.  We cannot expand the containing_node member, for the
+         reasons explained in the WARNING below.  We also cannot wait
+         with the node name expansion until the TOC is actually output,
+         since by that time the macro definitions may have been changed.
+         So instead we store in the tocname member the expanded node
+         name and the TOC name concatenated together (with the necessary
+         HTML markup), since that's how they are output.  */
       if (!anchor)
-	s = expanded_node = expand_node_name (node_name);
+        s = expanded_node = expand_node_name (node_name);
       else
-	expanded_node = anchor;
-      /* Sigh...  Need to HTML-escape the expanded node name like
-	 add_anchor_name does, except that we are not writing this to
-	 the output, so can't use add_anchor_name...  */
-      /* The factor 5 in the next allocation is because the maximum
-	 expansion of HTML-escaping is for the & character, which is
-	 output as "&amp;".  2 is for "> that separates node from tocname.  */
-      d = tocname_and_node = (char *)xmalloc (2 + 5 * strlen (expanded_node)
-					      + strlen (tocname) + 1);
-      if (!anchor)
+        expanded_node = anchor;
+      if (splitting)
 	{
-	  for (; *s; s++)
-	    {
-	      if (*s == '&')
-		{
-		  strcpy (d, "&amp;");
-		  d += 5;
-		}
-	      else if (! URL_SAFE_CHAR (*s))
-	        {
-		  sprintf (d, "%%%x", (unsigned char) *s);
-	          /* do this manually since sprintf returns char * on
-	             SunOS 4 and other old systems.  */
-		  while (*d)
-		    d++;
-	        }
-	      else
-		*d++ = *s;
-	    }
-	  strcpy (d, "\">");
+	  if (!anchor)
+	    filename = nodename_to_filename (expanded_node);
+	  else
+	    filename = filename_part (current_output_filename);
 	}
+      /* Sigh...  Need to HTML-escape the expanded node name like
+         add_anchor_name does, except that we are not writing this to
+         the output, so can't use add_anchor_name...  */
+      /* The factor 5 in the next allocation is because the maximum
+         expansion of HTML-escaping is for the & character, which is
+         output as "&amp;".  2 is for "> that separates node from tocname.  */
+      d = tocname_and_node = (char *)xmalloc (2 + 5 * strlen (expanded_node)
+                                              + strlen (tocname) + 1);
+      if (!anchor)
+        {
+          for (; *s; s++)
+            {
+              if (*s == '&')
+                {
+                  strcpy (d, "&amp;");
+                  d += 5;
+                }
+              else if (! URL_SAFE_CHAR (*s))
+                {
+                  sprintf (d, "%%%x", (unsigned char) *s);
+                  /* do this manually since sprintf returns char * on
+                     SunOS 4 and other old systems.  */
+                  while (*d)
+                    d++;
+                }
+              else
+                *d++ = *s;
+            }
+          strcpy (d, "\">");
+        }
       else
-	/* Section outside any node, they provided explicit anchor.  */
-	strcpy (d, anchor);
+        /* Section outside any node, they provided explicit anchor.  */
+        strcpy (d, anchor);
       strcat (d, tocname);
       free (tocname);       /* it was malloc'ed by substring() */
       free (expanded_node);
@@ -137,6 +145,7 @@ toc_add_entry (tocname, level, node_name, anchor)
   toc_entry_alist[toc_counter]->containing_node = xstrdup (node_name);
   toc_entry_alist[toc_counter]->level = level;
   toc_entry_alist[toc_counter]->number = toc_counter;
+  toc_entry_alist[toc_counter]->html_file = filename;
 
   /* have to be done at least */
   return toc_counter++;
@@ -192,8 +201,8 @@ toc_free ()
 }
 
 
-/* print table of contents in HTML, may be we can produce a standalone
-   HTML file? */
+/* Print table of contents in HTML.  */
+
 static void
 contents_update_html (fp)
      FILE *fp;
@@ -209,10 +218,10 @@ contents_update_html (fp)
 
   flush_output ();      /* in case we are writing stdout */
 
-  fprintf (fp, "\n<h1>%s</h1>\n<ul>\n", _("Table of Contents"));
+  fprintf (fp, "\n<h2>%s</h2>\n<ul>\n", _("Table of Contents"));
 
   last_level = toc_entry_alist[0]->level;
-  
+
   for (i = 0; i < toc_counter; i++)
     {
       if (toc_entry_alist[i]->level > last_level)
@@ -231,7 +240,35 @@ contents_update_html (fp)
             fputs ("</ul>\n", fp);
         }
 
-      fprintf (fp, "<li><a href=\"#%s</a>\n", toc_entry_alist[i]->name);
+      /* No double entries in TOC.  */
+      if (!(i && strcmp (toc_entry_alist[i]->name,
+			 toc_entry_alist[i-1]->name) == 0))
+        {
+          /* each toc entry is a list item.  */
+          fputs ("<li>", fp);
+
+          /* For chapters (only), insert an anchor that the short contents
+             will link to.  */
+          if (toc_entry_alist[i]->level == 0)
+	    {
+	      char *p = toc_entry_alist[i]->name;
+
+	      /* toc_entry_alist[i]->name has the form `foo">bar',
+		 that is, it includes both the node name and anchor
+		 text.  We need to find where `foo', the node name,
+		 ends, and use that in toc_FOO.  */
+	      while (*p && *p != '"')
+		p++;
+	      fprintf (fp, "<a name=\"toc_%.*s\"></a>\n    ",
+		       p - toc_entry_alist[i]->name, toc_entry_alist[i]->name);
+	    }
+
+          /* Insert link -- to an external file if splitting, or
+             within the current document if not splitting.  */
+	  fprintf (fp, "<a href=\"%s#%s</a>\n",
+		   splitting ? toc_entry_alist[i]->html_file : "",
+		   toc_entry_alist[i]->name);
+        }
 
       last_level = toc_entry_alist[i]->level;
     }
@@ -282,29 +319,39 @@ shortcontents_update_html (fp)
      FILE *fp;
 {
   int i;
+  char *toc_file;
 
   /* does exist any toc? */
   if (!toc_counter)
     return;
-  
+
   flush_output ();      /* in case we are writing stdout */
 
-  fprintf (fp, "\n<h1>%s</h1>\n<ul>\n", _("Short Contents"));
+  fprintf (fp, "\n<h2>%s</h2>\n<ul>\n", _("Short Contents"));
+
+  if (contents_filename)
+    toc_file = filename_part (contents_filename);
 
   for (i = 0; i < toc_counter; i++)
     {
-      if ((toc_entry_alist[i])->level == 0)
-        {
-          fputs ("<li>", fp);
-          fprintf (fp, "<a href=\"#%s\n", toc_entry_alist[i]->name);
-        }
-    }
+      char *name = toc_entry_alist[i]->name;
 
+      if (toc_entry_alist[i]->level == 0)
+	{
+	  if (contents_filename)
+	    fprintf (fp, "<li><a href=\"%s#toc_%s</a>\n",
+		     splitting ? toc_file : "", name);
+	  else
+	    fprintf (fp, "<a href=\"%s#%s</a>\n",
+		     splitting ? toc_entry_alist[i]->html_file : "", name);
+	}
+    }
   fputs ("</ul>\n\n", fp);
+  if (contents_filename)
+    free (toc_file);
 }
 
-/* short contents in ASCII (--no-headers).
-   May be we should create a new command line switch --ascii ?  */
+/* short contents in ASCII (--no-headers).  */
 static void
 shortcontents_update_info (fp)
      FILE *fp;
@@ -321,7 +368,7 @@ shortcontents_update_info (fp)
 
   for (i = 0; i < toc_counter; i++)
     {
-      if ((toc_entry_alist[i])->level == 0)
+      if (toc_entry_alist[i]->level == 0)
         fprintf (fp, "%s\n", toc_entry_alist[i]->name);
     }
   fputs ("\n\n", fp);
@@ -337,13 +384,18 @@ rewrite_top (fname, placebo)
 {
   int idx;
 
+  /* Can't rewrite standard output or the null device.  No point in
+     complaining.  */
+  if (STREQ (fname, "-")
+      || FILENAME_CMP (fname, NULL_DEVICE) == 0
+      || FILENAME_CMP (fname, ALSO_NULL_DEVICE) == 0)
+    return -1;
+
   toc_buf = find_and_load (fname);
 
   if (!toc_buf)
     {
-      /* Can't rewrite standard output.  No point in complaining.  */
-      if (!STREQ (fname, "-"))
-        fs_error (fname);
+      fs_error (fname);
       return -1;
     }
 
@@ -442,6 +494,8 @@ cm_contents (arg)
         }
       else
         {
+          if (!executing_string && html)
+            html_output_head ();
           contents_filename = xstrdup (current_output_filename);
           insert_string (contents_placebo); /* just mark it, for now */
         }
@@ -469,6 +523,8 @@ cm_shortcontents (arg)
         }
       else
         {
+          if (!executing_string && html)
+            html_output_head ();
           shortcontents_filename = xstrdup (current_output_filename);
           insert_string (shortcontents_placebo); /* just mark it, for now */
         }

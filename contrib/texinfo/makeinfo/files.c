@@ -1,7 +1,7 @@
-/* files.c -- file-related functions for Texinfo.
-   $Id: files.c,v 1.5 1999/03/23 21:42:44 karl Exp $
+/* files.c -- file-related functions for makeinfo.
+   $Id: files.c,v 1.10 2002/01/16 15:52:45 karl Exp $
 
-   Copyright (C) 1998, 99 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,9 +139,7 @@ find_and_load (filename)
   long file_size;
   int file = -1, count = 0;
   char *fullpath, *result;
-#if O_BINARY || defined (VMS)
-  int n;
-#endif
+  int n, bytes_to_read;
 
   result = fullpath = NULL;
 
@@ -163,28 +161,18 @@ find_and_load (filename)
   /* VMS stat lies about the st_size value.  The actual number of
      readable bytes is always less than this value.  The arcane
      mysteries of VMS/RMS are too much to probe, so this hack
-    suffices to make things work. */
-#if O_BINARY || defined (VMS)
-#ifdef VMS
-  while ((n = read (file, result + count, file_size)) > 0)
-#else  /* !VMS */
-#ifndef WIN32
-  while ((n = read (file, result + count, file_size)) > 0)
-#else /* WIN32 */
-  /* Does WIN32 really need reading 1 character at a time??  */
-  while ((n = read (file, result + count, 1)) > 0)
-#endif /* WIN32 */
-#endif /* !VMS */
-    count += n;
+    suffices to make things work.  It's also needed on Cygwin.  And so
+    we might as well use it everywhere.  */
+  bytes_to_read = file_size;
+  while ((n = read (file, result + count, bytes_to_read)) > 0)
+    {
+      count += n;
+      bytes_to_read -= n;
+    }
   if (0 < count && count < file_size)
     result = xrealloc (result, count + 2); /* why waste the slack? */
   else if (n == -1)
-#else /* !VMS && !O_BINARY */
-    count = file_size;
-    if (read (file, result, file_size) != file_size)
-#endif /* !VMS && !WIN32 */
-
-  error_exit:
+error_exit:
     {
       if (result)
         free (result);
@@ -526,4 +514,63 @@ output_name_from_input_name (name)
      char *name;
 {
   return expand_filename (NULL, name);
+}
+
+
+/* Modify the file name FNAME so that it fits the limitations of the
+   underlying filesystem.  In particular, truncate the file name as it
+   would be truncated by the filesystem.  We assume the result can
+   never be longer than the original, otherwise we couldn't be sure we
+   have enough space in the original string to modify it in place.  */
+char *
+normalize_filename (fname)
+     char *fname;
+{
+  int maxlen;
+  char orig[PATH_MAX + 1];
+  int i;
+  char *lastdot, *p;
+
+#ifdef _PC_NAME_MAX
+  maxlen = pathconf (fname, _PC_NAME_MAX);
+  if (maxlen < 1)
+#endif
+    maxlen = PATH_MAX;
+
+  i = skip_directory_part (fname);
+  if (fname[i] == '\0')
+    return fname;	/* only a directory name -- don't modify */
+  strcpy (orig, fname + i);
+
+  switch (maxlen)
+    {
+      case 12:	/* MS-DOS 8+3 filesystem */
+	if (orig[0] == '.')	/* leading dots are not allowed */
+	  orig[0] = '_';
+	lastdot = strrchr (orig, '.');
+	if (!lastdot)
+	  lastdot = orig + strlen (orig);
+	strncpy (fname + i, orig, lastdot - orig);
+	for (p = fname + i;
+	     p < fname + i + (lastdot - orig) && p < fname + i + 8;
+	     p++)
+	  if (*p == '.')
+	    *p = '_';
+	*p = '\0';
+	if (*lastdot == '.')
+	  strncat (fname + i, lastdot, 4);
+	break;
+      case 14:	/* old Unix systems with 14-char limitation */
+	strcpy (fname + i, orig);
+	if (strlen (fname + i) > 14)
+	  fname[i + 14] = '\0';
+	break;
+      default:
+	strcpy (fname + i, orig);
+	if (strlen (fname) > maxlen - 1)
+	  fname[maxlen - 1] = '\0';
+	break;
+    }
+
+  return fname;
 }

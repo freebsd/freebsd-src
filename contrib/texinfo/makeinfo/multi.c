@@ -1,7 +1,7 @@
 /* multi.c -- multitable stuff for makeinfo.
-   $Id: multi.c,v 1.18 1999/08/17 21:06:56 karl Exp $
+   $Id: multi.c,v 1.23 2002/01/19 01:09:08 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+   
+   Written by phr@gnu.org (Paul Rubin).  */
 
 #include "system.h"
 #include "insertion.h"
 #include "makeinfo.h"
+#include "xml.h"
 
 #define MAXCOLS 100             /* remove this limit later @@ */
 
@@ -108,6 +111,8 @@ draw_horizontal_separator ()
       add_word ("<hr>");
       return;
     }
+  if (xml)
+    return;
 
   for (s = 0; s < envs[0].current_indent; s++)
     out_char (' ');
@@ -156,6 +161,9 @@ do_multitable ()
   /* scan the current item function to get the field widths
      and number of columns, and set up the output environment list
      accordingly. */
+  /*  if (docbook)*/ /* 05-08 */
+  if (xml)
+    xml_no_para = 1;
   ncolumns = setup_multitable_parameters ();
   first_row = 1;
 
@@ -163,6 +171,16 @@ do_multitable ()
      current paragraph, so this is ok.  */
   if (html)
     add_word ("<p><table>");
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    {
+      int *widths = xmalloc (ncolumns * sizeof (int));
+      int i;
+      for (i=0; i<ncolumns; i++)
+	widths[i] = envs[i+1].fill_column;
+      xml_begin_multitable (ncolumns, widths);
+      free (widths);
+    }
 
   if (hsep)
     draw_horizontal_separator ();
@@ -199,7 +217,7 @@ find_template_width (params)
 
   do
     {
-      if (**params == '{' && (*params)[-1] != '@')
+      if (**params == '{' && (*params == start || (*params)[-1] != '@'))
         brace_level++;
       else if (**params == '}' && (*params)[-1] != '@')
         brace_level--;
@@ -385,10 +403,17 @@ multitable_item ()
   if (html)
     {
       if (!first_row)
-	add_word ("<br></tr>");	/* <br> for non-tables browsers. */
-      add_word ("<tr align=\"left\"><td>");
+	add_word ("<br></td></tr>");	/* <br> for non-tables browsers. */
+      add_word ("<tr align=\"left\"><td valign=\"top\">");
       first_row = 0;
-      return;
+      return 0;
+    }
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    {
+      xml_end_multitable_row (first_row);
+      first_row = 0;
+      return 0;
     }
   first_row = 0;
 
@@ -504,7 +529,10 @@ cm_tab ()
     error (_("ignoring @tab outside of multitable"));
   
   if (html)
-    add_word ("<td>");
+    add_word ("</td><td valign=\"top\">");
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    xml_end_multitable_column ();
   else
     nselect_next_environment ();
 
@@ -516,7 +544,7 @@ cm_tab ()
 void
 end_multitable ()
 {
-  if (!html) 
+  if (!html && !docbook) 
     output_multitable_row ();
 
   /* Multitables cannot be nested.  Otherwise, we'd have to save the
@@ -528,7 +556,10 @@ end_multitable ()
   close_insertion_paragraph ();
 
   if (html)
-    add_word ("<br></tr></table>\n");
+    add_word ("<br></td></tr></table>\n");
+  /*  else if (docbook)*/ /* 05-08 */
+  else if (xml)
+    xml_end_multitable ();
 
 #if 0
   printf (_("** Multicolumn output from last row:\n"));
