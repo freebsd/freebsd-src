@@ -353,13 +353,10 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	if (unit != -1) {
 		if (unit >= 0 && unit < dc->maxunit &&
 		    dc->devices[unit] != NULL) {
-			/* find the next available slot */
-			while (++unit < dc->maxunit &&
-			    dc->devices[unit] != NULL)
-				continue;
 			if (bootverbose)
-				printf("%s-: %s%d already exists, using %s%d instead\n",
-				    dc->name, dc->name, *unitp, dc->name, unit);
+				printf("%s-: %s%d already exists, skipping it\n",
+				    dc->name, dc->name, *unitp);
+			return (EEXIST);
 		}
 	} else {
 		/* Unwired device, find the next available slot for it */
@@ -460,7 +457,7 @@ make_device(device_t parent, const char *name, int unit)
 
 	dev = malloc(sizeof(struct device), M_BUS, M_NOWAIT|M_ZERO);
 	if (!dev)
-		return (0);
+		return (NULL);
 
 	dev->parent = parent;
 	TAILQ_INIT(&dev->children);
@@ -478,7 +475,10 @@ make_device(device_t parent, const char *name, int unit)
 		dev->flags |= DF_WILDCARD;
 	if (name) {
 		dev->flags |= DF_FIXEDCLASS;
-		devclass_add_device(dc, dev);
+		if (devclass_add_device(dc, dev)) {
+			kobj_delete((kobj_t) dev, M_BUS);
+			return (NULL);
+		}
 	}
 	dev->ivars = NULL;
 	dev->softc = NULL;
