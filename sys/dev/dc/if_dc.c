@@ -1931,13 +1931,13 @@ dc_attach(dev)
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("dc%d: failed to enable I/O ports!\n", unit);
 		error = ENXIO;
-		goto fail_nolock;
+		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("dc%d: failed to enable memory mapping!\n", unit);
 		error = ENXIO;
-		goto fail_nolock;
+		goto fail;
 	}
 #endif
 
@@ -1948,35 +1948,11 @@ dc_attach(dev)
 	if (sc->dc_res == NULL) {
 		printf("dc%d: couldn't map ports/memory\n", unit);
 		error = ENXIO;
-		goto fail_nolock;
+		goto fail;
 	}
 
 	sc->dc_btag = rman_get_bustag(sc->dc_res);
 	sc->dc_bhandle = rman_get_bushandle(sc->dc_res);
-
-	/* Allocate interrupt */
-	rid = 0;
-	sc->dc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->dc_irq == NULL) {
-		printf("dc%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
-		error = ENXIO;
-		goto fail_nolock;
-	}
-
-	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | 
-	    (IS_MPSAFE ? INTR_MPSAFE : 0),
-	    dc_intr, sc, &sc->dc_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
-		printf("dc%d: couldn't set up irq\n", unit);
-		goto fail_nolock;
-	}
-	DC_LOCK(sc);
 
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
@@ -2168,6 +2144,8 @@ dc_attach(dev)
 		mac = pci_get_ether(dev);
 		if (!mac) {
 			device_printf(dev, "No station address in CIS!\n");
+			bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
+			error = ENXIO;
 			goto fail;
 		}
 		bcopy(mac, eaddr, ETHER_ADDR_LEN);
@@ -2190,8 +2168,6 @@ dc_attach(dev)
 
 	if (sc->dc_ldata == NULL) {
 		printf("dc%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		error = ENXIO;
 		goto fail;
@@ -2251,8 +2227,6 @@ dc_attach(dev)
 
 	if (error) {
 		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
-		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		error = ENXIO;
 		goto fail;
@@ -2270,11 +2244,6 @@ dc_attach(dev)
 			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
 		DELAY(10);
 	}
-
-	/*
-	 * Call MI attach routine.
-	 */
-	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -2310,14 +2279,37 @@ dc_attach(dev)
 	}
 #endif
 
-	DC_UNLOCK(sc);
-	return(0);
+	/*
+	 * Call MI attach routine.
+	 */
+	ether_ifattach(ifp, eaddr);
+
+	/* Allocate interrupt */
+	rid = 0;
+	sc->dc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->dc_irq == NULL) {
+		printf("dc%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | 
+	    (IS_MPSAFE ? INTR_MPSAFE : 0),
+	    dc_intr, sc, &sc->dc_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
+		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
+		printf("dc%d: couldn't set up irq\n", unit);
+	}
 
 fail:
-	DC_UNLOCK(sc);
-fail_nolock:
-	mtx_destroy(&sc->dc_mtx);
-	return(error);
+	if (error != 0)
+		mtx_destroy(&sc->dc_mtx);
+	return (error);
 }
 
 static int
