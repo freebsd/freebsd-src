@@ -389,24 +389,27 @@ options		NETATALK		#Appletalk communications protocols
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
 # will automatically load the corresponding KLD module if the node type
-# is not already compiled into the kernel.
-options		NETGRAPH		#netgraph(4) system
-options		NETGRAPH_ASYNC
-options		NETGRAPH_BPF
-options		NETGRAPH_CISCO
-options		NETGRAPH_ECHO
-options		NETGRAPH_FRAME_RELAY
-options		NETGRAPH_HOLE
-options		NETGRAPH_IFACE
-options		NETGRAPH_LMI
-options		NETGRAPH_PPP
-options		NETGRAPH_PPPOE
-options		"NETGRAPH_RFC1490"
-options		NETGRAPH_SOCKET
-options		NETGRAPH_TEE
-options		NETGRAPH_TTY
-options		NETGRAPH_UI
-options		NETGRAPH_VJC
+# is not already compiled into the kernel. Each type below has a
+# corresponding man page, e.g., ng_async(8).
+options 	NETGRAPH		#netgraph(4) system
+options 	NETGRAPH_ASYNC
+options 	NETGRAPH_BPF
+options 	NETGRAPH_CISCO
+options 	NETGRAPH_ECHO
+options 	NETGRAPH_FRAME_RELAY
+options 	NETGRAPH_HOLE
+options 	NETGRAPH_IFACE
+options 	NETGRAPH_KSOCKET
+options 	NETGRAPH_LMI
+options 	NETGRAPH_PPP
+options 	NETGRAPH_PPPOE
+options 	NETGRAPH_PPTPGRE
+options 	"NETGRAPH_RFC1490"
+options 	NETGRAPH_SOCKET
+options 	NETGRAPH_TEE
+options 	NETGRAPH_TTY
+options 	NETGRAPH_UI
+options 	NETGRAPH_VJC
 
 #
 # Network interfaces:
