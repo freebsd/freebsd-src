@@ -71,7 +71,7 @@ char *otherconf_script;
 #define MAX_RTR_SOLICITATIONS		3 /* times */
 
 /*
- * implementation dependent constants in secondes
+ * implementation dependent constants in seconds
  * XXX: should be configurable
  */
 #define PROBE_INTERVAL 60
@@ -109,7 +109,7 @@ static void TIMEVAL_ADD __P((struct timeval *, struct timeval *,
 static void TIMEVAL_SUB __P((struct timeval *, struct timeval *,
 	struct timeval *));
 
-static void rtsold_set_dump_file __P((void));
+static void rtsold_set_dump_file __P((int));
 static void usage __P((char *));
 static char **autoifprobe __P((void));
 
@@ -227,10 +227,7 @@ main(argc, argv)
 		warnx("kernel is configured as a router, not a host");
 
 	/* initialization to dump internal status to a file */
-	if (signal(SIGUSR1, (void *)rtsold_set_dump_file) < 0) {
-		errx(1, "failed to set signal for dump status");
-		/*NOTREACHED*/
-	}
+	signal(SIGUSR1, rtsold_set_dump_file);
 
 	/*
 	 * Open a socket for sending RS and receiving RA.
@@ -712,7 +709,8 @@ TIMEVAL_SUB(struct timeval *a, struct timeval *b, struct timeval *result)
 }
 
 static void
-rtsold_set_dump_file()
+rtsold_set_dump_file(sig)
+	int sig;
 {
 	do_dump = 1;
 }
