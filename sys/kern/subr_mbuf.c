@@ -1059,7 +1059,7 @@ mb_reclaim(void)
 } while (0)
 
 #define	cl2ref(cl)							\
-    (((uintptr_t)(cl) - (uintptr_t)cl_refcntmap) >> MCLSHIFT)
+    (((uintptr_t)(cl) - (uintptr_t)mb_list_clust.ml_mapbase) >> MCLSHIFT)
 
 #define	_mext_dealloc_ref(m)						\
 	if ((m)->m_ext.ext_type != EXT_EXTREF)				\
