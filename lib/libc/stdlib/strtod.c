@@ -123,7 +123,7 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  *	FLT_RADIX, FLT_ROUNDS, and DBL_MAX.
  */
 
-#if defined(i386) || defined(mips) && defined(MIPSEL)
+#if defined(i386) || (defined(mips) && defined(MIPSEL)) || defined(__ia64__)
 #define IEEE_8087
 #else
 #define IEEE_MC68k
@@ -218,8 +218,14 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 #endif
 
 #ifdef IEEE_8087
+#ifdef __i386__
 #define word0(x) ((unsigned long *)&x)[1]
 #define word1(x) ((unsigned long *)&x)[0]
+#endif
+#ifdef __ia64__
+#define word0(x) ((unsigned int *)&x)[1]
+#define word1(x) ((unsigned int *)&x)[0]
+#endif
 #else
 #define word0(x) ((unsigned long *)&x)[0]
 #define word1(x) ((unsigned long *)&x)[1]
