@@ -847,6 +847,7 @@ ether_sprintf(const u_char *ap)
 void
 ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 {
+	int i;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
@@ -881,8 +882,12 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	if (BDG_LOADED)
 		bdgtakeifaces_ptr();
 
-	/* Announce Ethernet MAC address. */
-	if_printf(ifp, "Ethernet address: %6D\n", llc, ":");
+	/* Announce Ethernet MAC address if non-zero. */
+	for (i = 0; i < ifp->if_addrlen; i++)
+		if (llc[i] != 0)
+			break; 
+	if (i != ifp->if_addrlen)
+		if_printf(ifp, "Ethernet address: %6D\n", llc, ":");
 }
 
 /*
