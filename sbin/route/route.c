@@ -760,12 +760,12 @@ inet_makenetandmask(net, sin, bits)
 	register char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	if (net == 0)
-		mask = addr = 0;
-	else if (bits) {
+	if (bits) {
 		addr = net;
 		mask = 0xffffffff << (32 - bits);
-	} else if (net < 128) {
+	} else if (net == 0)
+		mask = addr = 0;
+	else if (net < 128) {
 		addr = net << IN_CLASSA_NSHIFT;
 		mask = IN_CLASSA_NET;
 	} else if (net < 65536) {
@@ -810,7 +810,7 @@ getaddr(which, s, hpp)
 	struct hostent *hp;
 	struct netent *np;
 	u_long val;
-	char *q,qs;
+	char *q;
 	int afamily;  /* local copy of af so we can change it */
 
 	if (af == 0) {
@@ -976,31 +976,30 @@ getaddr(which, s, hpp)
 
 	q = strchr(s,'/');
 	if (q && which == RTA_DST) {
-		qs = *q;
 		*q = '\0';
-		if (((val = inet_addr(s)) != INADDR_NONE)) {
+		if ((val = inet_addr(s)) != INADDR_NONE) {
 			inet_makenetandmask(
-				htonl(val), &su->sin, strtoul(q+1, 0, 0));
+				ntohl(val), &su->sin, strtoul(q+1, 0, 0));
 			return (0);
 		}
-		*q =qs;
+		*q = '/';
 	}
-	if (((val = inet_addr(s)) != INADDR_NONE) &&
-	    (which != RTA_DST || forcenet == 0)) {
+	if ((which != RTA_DST || forcenet == 0) &&
+	    (val = inet_addr(s)) != INADDR_NONE) {
 		su->sin.sin_addr.s_addr = val;
-		if (inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
+		if (which != RTA_DST ||
+		    inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
 			return (1);
 		else {
 			val = ntohl(val);
 			goto netdone;
 		}
 	}
-	if ((val = inet_network(s)) != INADDR_NONE ||
-	    (forcehost == 0 && (np = getnetbyname(s)) != NULL &&
-		    (val = np->n_net) != 0)) {
+	if (which == RTA_DST && forcehost == 0 &&
+	    ((val = inet_network(s)) != INADDR_NONE ||
+	    ((np = getnetbyname(s)) != NULL && (val = np->n_net) != 0))) {
 netdone:
-		if (which == RTA_DST)
-			inet_makenetandmask(val, &su->sin, 0);
+		inet_makenetandmask(val, &su->sin, 0);
 		return (0);
 	}
 	hp = gethostbyname(s);
