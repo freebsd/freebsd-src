@@ -642,7 +642,6 @@ setgid(td, uap)
 	int error;
 
 	gid = uap->gid;
-
 	mtx_lock(&Giant);
 	error = 0;
 	oldcred = p->p_ucred;
@@ -773,8 +772,8 @@ setgroups(td, uap)
 	u_int ngrp;
 	int error;
 
-	mtx_lock(&Giant);
 	ngrp = uap->gidsetsize;
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
@@ -1007,7 +1006,6 @@ setresgid(td, uap)
 	egid = uap->egid;
 	rgid = uap->rgid;
 	sgid = uap->sgid;
-
 	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
