@@ -645,7 +645,7 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
 	if (verbose)
 	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
 	        sc->unit, i);
-	/* fall though */
+	/* FALLTHROUGH */
     case 0:	/* no error */
     	break;
     case -1: 	/* time out */
@@ -1031,7 +1031,7 @@ psmprobe(device_t dev)
         if (verbose)
 	    printf("psm%d: strange result for test aux port (%d).\n",
 	        unit, i);
-	/* fall though */
+	/* FALLTHROUGH */
     case 0:        /* no error */
         break;
     case -1:        /* time out */
@@ -2174,7 +2174,7 @@ psmintr(void *arg)
 		    break;
 		case 0:
 		    /* device type packet - shouldn't happen */
-		    /* FALL THROUGH */
+		    /* FALLTHROUGH */
 		default:
 		    x = y = 0;
 		    ms.button = ms.obutton;

@@ -3128,7 +3128,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 						new = old;
 						break;
 					}
-					/* fall through */
+					/* FALLTHROUGH */
 				default:
 					panic("ncr_script_copy_and_bind: weird relocation %x @ %d\n", old, (int)(src - start));
 					break;
@@ -4611,14 +4611,14 @@ ncr_wakeup (ncb_p np, u_long code)
 
 		case HS_DISCONNECT:
 			if(DEBUG_FLAGS & DEBUG_TINY) printf ("D");
-			/* fall through */
+			/* FALLTHROUGH */
 
 		case HS_BUSY:
 		case HS_NEGOTIATE:
 			if (!code) break;
 			cp->host_status = code;
 
-			/* fall through */
+			/* FALLTHROUGH */
 
 		default:
 			ncr_complete (np, cp);
@@ -5163,7 +5163,7 @@ ncr_timeout (void *arg)
 
 			case HS_BUSY:
 			case HS_NEGOTIATE:
-				/* fall through */
+				/* FALLTHROUGH */
 			case HS_DISCONNECT:
 				cp->host_status=HS_TIMEOUT;
 			};
@@ -6027,7 +6027,7 @@ void ncr_int_sir (ncb_p np)
 		*/
 		OUTB (HS_PRT, HS_BUSY);
 
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case SIR_NEGO_PROTO:
 		/*-------------------------------------------------------
@@ -6353,7 +6353,7 @@ void ncr_int_sir (ncb_p np)
 		ncr_freeze_devq(np, cp->ccb->ccb_h.path);
 		ncr_complete(np, cp);
 
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 
 	case SIR_STALL_RESTART:
 		/*-----------------------------------------------

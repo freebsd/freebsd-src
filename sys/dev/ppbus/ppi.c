@@ -342,7 +342,7 @@ ppiread(dev_t dev, struct uio *uio, int ioflag)
 	switch (ppb_1284_get_state(ppbus)) {
 	case PPB_PERIPHERAL_IDLE:
 		ppb_peripheral_terminate(ppbus, 0);
-		/* fall throught */
+		/* FALLTHROUGH */
 
 	case PPB_FORWARD_IDLE:
 		/* if can't negociate NIBBLE mode then try BYTE mode,

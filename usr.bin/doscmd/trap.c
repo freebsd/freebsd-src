@@ -505,7 +505,7 @@ sigbus(struct sigframe *sf)
                 tty_pause();
                 goto out;
 /*            } */
-            /* FALLTHRU */
+            /* FALLTHROUGH */
 
 	default:
 	    dump_regs(REGS);

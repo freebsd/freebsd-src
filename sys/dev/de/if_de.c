@@ -1336,7 +1336,7 @@ tulip_mii_autonegotiate(
 	    sc->tulip_probe_timeout = 3000;
 	    sc->tulip_intrmask |= TULIP_STS_ABNRMLINTR|TULIP_STS_NORMALINTR;
 	    sc->tulip_probe_state = TULIP_PROBE_PHYRESET;
-	    /* FALL THROUGH */
+	    /* FALLTHROUGH */
 	}
         case TULIP_PROBE_PHYRESET: {
 	    u_int32_t status;
@@ -1378,7 +1378,7 @@ tulip_mii_autonegotiate(
 #endif
 	    sc->tulip_probe_state = TULIP_PROBE_PHYAUTONEG;
 	    sc->tulip_probe_timeout = 3000;
-	    /* FALL THROUGH */
+	    /* FALLTHROUGH */
 	}
         case TULIP_PROBE_PHYAUTONEG: {
 	    u_int32_t status = tulip_mii_readreg(sc, phyaddr, PHYREG_STATUS);

@@ -1149,7 +1149,7 @@ pdq_stop(
 	    pdq_do_port_control(csrs, PDQ_PCTL_SUB_CMD);
 	    state = PDQ_PSTS_ADAPTER_STATE(PDQ_CSR_READ(csrs, csr_port_status));
 	    PDQ_ASSERT(state == PDQS_DMA_AVAILABLE);
-	    /* FALL THROUGH */
+	    /* FALLTHROUGH */
 	}
 	case PDQS_DMA_AVAILABLE: {
 	    PDQ_CSR_WRITE(csrs, csr_port_data_a, 0);
@@ -1157,7 +1157,7 @@ pdq_stop(
 	    pdq_do_port_control(csrs, PDQ_PCTL_DMA_UNINIT);
 	    state = PDQ_PSTS_ADAPTER_STATE(PDQ_CSR_READ(csrs, csr_port_status));
 	    PDQ_ASSERT(state == PDQS_DMA_UNAVAILABLE);
-	    /* FALL THROUGH */
+	    /* FALLTHROUGH */
 	}
 	case PDQS_DMA_UNAVAILABLE: {
 	    break;

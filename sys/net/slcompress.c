@@ -333,7 +333,7 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		    ntohs(cs->cs_ip.ip_len) == hlen)
 			break;
 
-		/* (fall through) */
+		/* FALLTHROUGH */
 
 	case SPECIAL_I:
 	case SPECIAL_D:

@@ -2956,7 +2956,7 @@ atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 	case CPCS_UABORT_SIG:
 	case CPCS_PABORT_SIG:
 		/*
-		 * We don't support these (yet), so just fall thru...
+		 * We don't support these (yet), so just FALLTHROUGH
 		 */
 
 	default:

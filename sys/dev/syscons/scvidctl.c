@@ -608,7 +608,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
     case SW_TEXT_80x25:	case SW_TEXT_80x30:
     case SW_TEXT_80x43: case SW_TEXT_80x50:
     case SW_TEXT_80x60:
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 
     /* VGA TEXT MODES */
     case SW_VGA_C40x25:
@@ -690,7 +690,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	    (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 #endif
 
-	    /* FALL THROUGH */
+	    /* FALLTHROUGH */
 
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
 	    /*
