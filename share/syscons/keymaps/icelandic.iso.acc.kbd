@@ -6,15 +6,15 @@
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
   002   '1'    '!'    nop    nop    nop    nop    nop    nop     O
   003   '2'    '"'    nul    nul    nop    nop    nul    nul     O
-  004   '3'    '#'    nop    nop    163    nop    nop    nop     O
-  005   '4'    '$'    nop    nop    164    nop    nop    nop     O
+  004   '3'    '#'    nop    nop    nop    nop    nop    nop     O
+  005   '4'    '$'    nop    nop    nop    nop    nop    nop     O
   006   '5'    '%'    nop    nop    nop    nop    nop    nop     O
   007   '6'    '&'    nop    nop    nop    nop    nop    nop     O
   008   '7'    '/'    nop    nop    '{'    nop    nop    nop     O
   009   '8'    '('    nop    nop    '['    nop    nop    nop     O
   010   '9'    ')'    nop    nop    ']'    nop    nop    nop     O
   011   '0'    '='    nop    nop    '}'    nop    nop    nop     O
-  012   246    214    nop    nop    '\'    nop    fs     nop     O
+  012   246    214    nop    nop    '\'    nop    fs     nop     C
   013   '-'    '_'    nop    nop    nop    nop    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
@@ -28,8 +28,8 @@
   023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
-  026   240    208    nop    nop    '}'    ']'    nop    nop     C
-  027   '''    '?'    nop    nop    '~'    nop    nop    nop     C
+  026   240    208    nop    nop    nop    nop    nop    nop     C
+  027   '''    '?'    nop    nop    '~'    nop    nop    nop     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
@@ -42,10 +42,10 @@
   037   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   230    198    nop    nop    '|'    '\'    nop    nop     C
-  040   dacu   dacu   nop    nop    dtil   '['    nop    nop     C
-  041   drin   duml   nop    nop    dcir   '*'    nop    nop     O
+  040   dacu   dacu   nop    nop    dtil   nop    nop    nop     C
+  041   drin   duml   nop    nop    nop    nop    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   '+'    '*'    nop    nop    '`'    '*'    nop    nop     C
+  043   '+'    '*'    nop    nop    '`'    '*'    nop    nop     O
   044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
@@ -53,9 +53,9 @@
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
   050   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
-  051   ','    ';'    nop    nop    nop    '<'    nop    nop     O
-  052   '.'    ':'    nop    nop    nop    '>'    nop    nop     O
-  053   254    222    us     nop    '/'    '?'    nop    nop     O
+  051   ','    ';'    nop    nop    nop    nop    nop    nop     O
+  052   '.'    ':'    nop    nop    nop    nop    nop    nop     O
+  053   254    222    us     nop    nop    nop    nop    nop     C
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nl     nl     '*'    '*'    nl     nl      O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
