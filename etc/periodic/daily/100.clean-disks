@@ -15,7 +15,7 @@ fi
 
 case "$daily_clean_disks_enable" in
     [Yy][Ee][Ss])
-	if [ -n "$daily_clean_disks_days" -a -n "$daily_clean_disk_files" ]
+	if [ -n "$daily_clean_disks_days" -a -n "$daily_clean_disks_files" ]
 	then
 	    echo ""
 	    echo "Removing old temporary files:"
