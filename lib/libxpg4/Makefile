@@ -1,5 +1,6 @@
 LIB=    xpg4
-SRCS=   setlocale.c setrunelocale.c euc.c utf2.c
+SRCS=   setlocale.c setrunelocale.c euc.c utf2.c runetype.c \
+	tolower.c toupper.c
 CFLAGS+= -Wall -DXPG4 -I${.CURDIR}/../libc/locale
 .PATH: ${.CURDIR}/../libc/locale
 
