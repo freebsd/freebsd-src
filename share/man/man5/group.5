@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)group.5	8.3 (Berkeley) 4/19/94
+.\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
+.\"	$Id$
 .\"
-.Dd April 19, 1994
+.Dd September 29, 1994
 .Dt GROUP 5
 .Os
 .Sh NAME
@@ -100,16 +101,40 @@ entry and does not need to be added to that group in the
 .\"	char    **gr_mem;        /* group members */
 .\" };
 .\" .Ed
+.Sh YP/NIS INTERACTION
+The
+.Pa /etc/group
+file can be configured to enable the YP/NIS group database.
+An entry whose
+.Ar name
+field consists of a plus sign (`+') followed by a group name, will be
+replaced internally to the C library with the YP/NIS group entry for the
+named group.  An entry whose
+.Ar name
+field consists of a single plus sign with no group name following,
+will be replaced with the entire YP/NIS
+.Dq Li group.byname
+map.
+.Pp
+If the YP/NIS group database is enabled for any reason, all reverse
+lookups (i.e.,
+.Fn getgrgid )
+will use the entire database, even if only a few groups are enabled.
+Thus, the group name returned by
+.Fn getgrgid
+is not guaranteed to have a valid forward mapping.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
 .El
 .Sh SEE ALSO
-.Xr setgroups 2 ,
-.Xr initgroups 3 ,
 .Xr crypt 3 ,
+.Xr getgrent 3 ,
+.Xr initgroups 3 ,
 .Xr passwd 1 ,
-.Xr passwd 5
+.Xr passwd 5 ,
+.Xr setgroups 2 ,
+.Xr yp 4
 .Sh BUGS
 The
 .Xr passwd 1
@@ -121,3 +146,8 @@ A
 .Nm
 file format appeared in
 .At v6 .
+The YP/NIS functionality is modeled after
+.Tn SunOS
+and first appeared in
+.Tn FreeBSD
+1.1.

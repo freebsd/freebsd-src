@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)passwd.5	8.1 (Berkeley) 6/5/93
+.\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
-.Dd June 5, 1993
+.Dd September 29, 1994
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -152,16 +153,77 @@ If there is nothing in the
 field, the Bourne shell
 .Pq Pa /bin/sh
 is assumed.
+.Sh YP/NIS INTERACTION
+The
+.Pa /etc/passwd
+file can be configured to enable the YP/NIS group database.
+An entry whose
+.Ar name
+field consists of a plus sign (`+') followed by a login name, will be
+replaced internally to the C library with the YP/NIS password entry for the
+named group.  An entry whose
+.Ar name
+field consists of a single plus sign with no login name following,
+will be replaced with the entire YP/NIS
+.Dq Li passwd.byname
+map.
+.Pp
+If any fields other than the login name are left empty, they
+will be used to override the YP/NIS database's values.  So, for
+example, an
+.Pa /etc/master.passwd
+entry of:
+.Bd -literal -offset indent
++:::::::::/etc/noaccess
+
+.Ed
+would use the entire contents of the YP/NIS password database, but
+each entry would have its designated shell replaced by
+.Pa /etc/noaccess
+(presumably, a program to tell those users that they are not allowed to
+access the machine).
+This is the only way to specify values for the fields which are not
+present in the Sixth Edition format used by YP/NIS.
+.Pp
+If the YP/NIS password database is enabled for any reason, all reverse
+lookups (i.e.,
+.Fn getpwuid )
+will use the entire database, even if only a few logins are enabled.
+Thus, the login name returned by
+.Fn getpwuid
+is not guaranteed to have a valid forward mapping.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/passwd
+ASCII password file, with passwords removed
+.It Pa /etc/pwd.db
+.Xr db 3 -format
+password database, with passwords removed
+.It Pa /etc/master.passwd
+ASCII password file, with passwords intact
+.It Pa /etc/spwd.db
+.Xr db 3 -format
+password database, with passwords intact
+.El
 .Sh SEE ALSO
+.Xr adduser 8 ,
 .Xr chpass 1 ,
+.Xr getpwent 3 ,
 .Xr login 1 ,
 .Xr passwd 1 ,
-.Xr getpwent 3 ,
-.Xr adduser 8 ,
 .Xr pwd_mkdb 8 ,
-.Xr vipw 8
+.Xr vipw 8 ,
+.Xr yp 4
 .Sh BUGS
 User information should (and eventually will) be stored elsewhere.
+.Pp
+The YP/NIS password database makes encrypted passwords visible to
+ordinary users, thus making password cracking easier.
+.Pp
+The YP/NIS password database is in old-style (Sixth Edition) format,
+and so cannot specify site-wide values for user login class, password
+expiration date, and other fields present in the current format and
+not in the old.
 .Sh COMPATIBILITY
 The password file format has changed since 4.3BSD.
 The following awk script can be used to convert your old-style password
@@ -184,3 +246,10 @@ A
 .Nm
 file format appeared in
 .At v6 .
+The YP/NIS functionality is modeled after
+.Tn SunOS
+and first appeared in
+.Tn FreeBSD
+1.1.  The override capability is new in
+.Tn FreeBSD
+2.0.
