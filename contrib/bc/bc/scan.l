@@ -144,7 +144,6 @@ static int   rl_len = 0;
 
 /* Definitions for readline access. */
 extern FILE *rl_instream;
-_PROTOTYPE(char *readline, (char *));
 
 /* rl_input puts upto MAX characters into BUF with the number put in
    BUF placed in *RESULT.  If the yy input file is the same as
