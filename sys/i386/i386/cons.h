@@ -36,18 +36,53 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.6 1994/10/20 00:07:46 phk Exp $
+ *	$Id: cons.h,v 1.7 1995/04/08 21:31:53 joerg Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
 #define _MACHINE_CONS_H_ 1
 
+struct consdev;
+typedef	void	cn_probe_t __P((struct consdev *));
+typedef	void	cn_init_t __P((struct consdev *));
+typedef	int	cn_getc_t __P((dev_t));
+typedef	int	cn_checkc_t __P((dev_t));
+typedef	void	cn_putc_t __P((dev_t, int));
+
+/*
+ * XXX public functions in drivers should be declared in headers produced
+ * by `config', not here.
+ */
+#include "sc.h"
+#include "vt.h"
+#if NSC > 0 || NVT > 0
+cn_probe_t	pccnprobe;
+cn_init_t	pccninit;
+cn_getc_t	pccngetc;
+cn_checkc_t	pccncheckc;
+cn_putc_t	pccnputc;
+#endif
+
+#include "sio.h"
+#if NSIO > 0
+cn_probe_t	siocnprobe;
+cn_init_t	siocninit;
+cn_getc_t	siocngetc;
+cn_checkc_t	siocncheckc;
+cn_putc_t	siocnputc;
+#endif
+
 struct consdev {
-	int	(*cn_probe)();	/* probe hardware and fill in consdev info */
-	int	(*cn_init)();	/* turn on as console */
-	int	(*cn_getc)();	/* kernel getchar interface */
-	int	(*cn_checkc)();	/* kernel "return char if available" interface */
-	int	(*cn_putc)();	/* kernel putchar interface */
+	cn_probe_t	*cn_probe;
+				/* probe hardware and fill in consdev info */
+	cn_init_t	*cn_init;
+				/* turn on as console */
+	cn_getc_t	*cn_getc;
+				/* kernel getchar interface */
+	cn_checkc_t	*cn_checkc;
+				/* kernel "return char if available" interface */
+	cn_putc_t	*cn_putc;
+				/* kernel putchar interface */
 	struct	tty *cn_tp;	/* tty structure for console device */
 	dev_t	cn_dev;		/* major/minor of device */
 	short	cn_pri;		/* pecking order; the higher the better */
@@ -82,7 +117,7 @@ extern int cnselect(dev_t, int, struct proc *);
 extern void cninit(void);
 extern int cngetc(void);
 extern int cncheckc(void);
-extern void cnputc(int /*char*/);
+extern void cnputc(int);
 extern int pg(const char *, ...);
 
 #endif /* KERNEL */
