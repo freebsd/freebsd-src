@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.23 1998/10/06 19:24:26 phk Exp $
+.\"     $Id: rc.conf.5,v 1.24 1998/10/08 18:47:30 des Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -285,6 +285,16 @@ is set to
 these are the flags to pass to the
 .Xr nfsiod 8
 daemon.
+.It Ar nfs_access_cache
+if
+.Ar nfs_client_enable
+is set to 
+.Ar YES ,
+this can be set to
+.Ar 0
+to disable NFS ACCESS RPC caching, or to the number of seconds for which NFS ACCESS
+results should be cached.  A value of 2-10 seconds will substantially reduce network
+traffic for many NFS operations.
 .It Ar nfs_server_enable
 (bool) If set to
 .Ar YES ,
