@@ -27,6 +27,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -38,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
@@ -474,6 +476,11 @@ linker_file_unload(linker_file_t file)
 	/* Refuse to unload modules if securelevel raised. */
 	if (securelevel > 0)
 		return (EPERM);
+#ifdef MAC
+	error = mac_check_kld_unload(curthread->td_ucred);
+	if (error)
+		return (error);
+#endif
 
 	KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
 	if (file->refs == 1) {
@@ -824,6 +831,12 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	linker_file_t lf;
 	int error = 0;
 
+#ifdef MAC
+	error = mac_check_kld_stat(td->td_ucred);
+	if (error)
+		return (error);
+#endif
+
 	mtx_lock(&Giant);
 	td->td_retval[0] = -1;
 
@@ -853,6 +866,12 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 {
 	linker_file_t lf;
 	int error = 0;
+
+#ifdef MAC
+	error = mac_check_kld_stat(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 
 	mtx_lock(&Giant);
 
@@ -888,6 +907,12 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 	int error = 0;
 	int namelen, version;
 	struct kld_file_stat *stat;
+
+#ifdef MAC
+	error = mac_check_kld_stat(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 
 	mtx_lock(&Giant);
 
@@ -938,6 +963,12 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 	module_t mp;
 	int error = 0;
 
+#ifdef MAC
+	error = mac_check_kld_stat(td->td_ucred);
+	if (error)
+		return (error);
+#endif
+
 	mtx_lock(&Giant);
 	lf = linker_find_file_by_id(SCARG(uap, fileid));
 	if (lf) {
@@ -966,6 +997,12 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 	linker_file_t lf;
 	struct kld_sym_lookup lookup;
 	int error = 0;
+
+#ifdef MAC
+	error = mac_check_kld_stat(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 
 	mtx_lock(&Giant);
 
@@ -1800,6 +1837,11 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	linker_file_t lf;
 	int error;
 
+#ifdef MAC
+	error = mac_check_kld_stat(req->td->td_ucred);
+	if (error)
+		return (error);
+#endif
 	sysctl_wire_old_buffer(req, 0);
 	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link) {
