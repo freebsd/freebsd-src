@@ -2205,10 +2205,10 @@ retry:
  * Make temporary mapping for a physical address. This is called
  * during dump.
  */
-vm_offset_t
-pmap_enter_temporary(vm_offset_t pa, vm_prot_t prot)
+void *
+pmap_kenter_temporary(vm_offset_t pa)
 {
-	return ALPHA_PHYS_TO_K0SEG(pa);
+	return (void *) ALPHA_PHYS_TO_K0SEG(pa);
 }
 
 #define MAX_INIT_PT (96)

@@ -272,12 +272,12 @@ addump(dev_t dev)
     ata_reinit(adp->controller);
 
     while (count > 0) {
-	vm_offset_t va;
+	void *va;
 	DELAY(1000);
 	if (is_physical_memory(addr))
-	    va = pmap_enter_temporary(trunc_page(addr), VM_PROT_READ);
+	    va = pmap_kenter_temporary(trunc_page(addr));
 	else
-	    va = pmap_enter_temporary(trunc_page(0), VM_PROT_READ);
+	    va = pmap_kenter_temporary(trunc_page(0));
 
 	bzero(&request, sizeof(struct ad_request));
 	request.device = adp;
