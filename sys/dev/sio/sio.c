@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.116 1995/11/04 13:23:43 bde Exp $
+ *	$Id: sio.c,v 1.117 1995/11/04 17:07:50 bde Exp $
  */
 
 #include "sio.h"
@@ -297,7 +297,6 @@ static	int	sio_timeouts_until_log;
 static struct tty	*sio_tty[NSIO];
 #else
 static struct tty	sio_tty[NSIO];
-static	int	nsio_tty = NSIO;
 #endif
 
 #ifdef KGDB
@@ -309,25 +308,25 @@ extern	int	kgdb_debug_init;
 #endif
 
 static	struct speedtab comspeedtab[] = {
-	0,	0,
-	50,	COMBRD(50),
-	75,	COMBRD(75),
-	110,	COMBRD(110),
-	134,	COMBRD(134),
-	150,	COMBRD(150),
-	200,	COMBRD(200),
-	300,	COMBRD(300),
-	600,	COMBRD(600),
-	1200,	COMBRD(1200),
-	1800,	COMBRD(1800),
-	2400,	COMBRD(2400),
-	4800,	COMBRD(4800),
-	9600,	COMBRD(9600),
-	19200,	COMBRD(19200),
-	38400,	COMBRD(38400),
-	57600,	COMBRD(57600),
-	115200,	COMBRD(115200),
-	-1,	-1
+	{ 0,		0 },
+	{ 50,		COMBRD(50) },
+	{ 75,		COMBRD(75) },
+	{ 110,		COMBRD(110) },
+	{ 134,		COMBRD(134) },
+	{ 150,		COMBRD(150) },
+	{ 200,		COMBRD(200) },
+	{ 300,		COMBRD(300) },
+	{ 600,		COMBRD(600) },
+	{ 1200,		COMBRD(1200) },
+	{ 1800,		COMBRD(1800) },
+	{ 2400,		COMBRD(2400) },
+	{ 4800,		COMBRD(4800) },
+	{ 9600,		COMBRD(9600) },
+	{ 19200,	COMBRD(19200) },
+	{ 38400,	COMBRD(38400) },
+	{ 57600,	COMBRD(57600) },
+	{ 115200,	COMBRD(115200) },
+	{ -1,		-1 }
 };
 
 /* XXX - configure this list */

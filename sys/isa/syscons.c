@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.127 1995/10/28 16:58:04 markm Exp $
+ *  $Id: syscons.c,v 1.128 1995/11/04 16:00:52 markm Exp $
  */
 
 #include "sc.h"
@@ -1105,7 +1105,7 @@ void
 scstart(struct tty *tp)
 {
     struct clist *rbp;
-    int i, s, len;
+    int s, len;
     u_char buf[PCBURST];
     scr_stat *scp = get_scr_stat(tp->t_dev);
 
@@ -1975,7 +1975,7 @@ scinit(void)
 {
     u_short volatile *cp;
     u_short was;
-    unsigned hw_cursor, startaddr;
+    unsigned hw_cursor;
     int i;
 
     if (init_done)
@@ -2671,7 +2671,7 @@ set_mode(scr_stat *scp)
 {
     char *modetable;
     char special_modetable[64];
-    int mode, font_size;
+    int font_size;
 
     if (scp != cur_console)
 	return;
@@ -3038,10 +3038,10 @@ draw_mouse_image(scr_stat *scp)
     }
     scp->mouse_oldpos = crt_pos;
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
-    *(crt_pos) = *(scp->mouse_pos)&0xff00|0xd0;
-    *(crt_pos+1) = *(scp->mouse_pos+1)&0xff00|0xd1;
-    *(crt_pos+scp->xsize) = *(scp->mouse_pos+scp->xsize)&0xff00|0xd2;
-    *(crt_pos+scp->xsize+1) = *(scp->mouse_pos+scp->xsize+1)&0xff00|0xd3;
+    *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
+    *(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
+    *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
+    *(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
