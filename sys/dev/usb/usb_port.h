@@ -1,6 +1,7 @@
-/*	$NetBSD: usb_port.h,v 1.23 2000/03/24 22:03:32 augustss Exp $	*/
-/*	$FreeBSD$	*/
-
+/*	$OpenBSD: usb_port.h,v 1.18 2000/09/06 22:42:10 rahnds Exp $ */
+/*	$NetBSD: usb_port.h,v 1.54 2002/03/28 21:49:19 ichiro Exp $	*/
+/*	$FreeBSD$       */
+ 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -55,17 +56,42 @@
 #define USB_USE_SOFTINTR
 
 #ifdef USB_DEBUG
+#define UKBD_DEBUG 1
+#define UHIDEV_DEBUG 1
 #define UHID_DEBUG 1
 #define OHCI_DEBUG 1
 #define UGEN_DEBUG 1
 #define UHCI_DEBUG 1
 #define UHUB_DEBUG 1
 #define ULPT_DEBUG 1
+#define UCOM_DEBUG 1
+#define UPLCOM_DEBUG 1
+#define UMCT_DEBUG 1
+#define UMODEM_DEBUG 1
 #define UAUDIO_DEBUG 1
+#define AUE_DEBUG 1
+#define CUE_DEBUG 1
+#define KUE_DEBUG 1
+#define URL_DEBUG 1
+#define UMASS_DEBUG 1
+#define UVISOR_DEBUG 1
+#define UPL_DEBUG 1
+#define UZCOM_DEBUG 1
+#define URIO_DEBUG 1
+#define UFTDI_DEBUG 1
+#define USCANNER_DEBUG 1
+#define USSCANNER_DEBUG 1
+#define EHCI_DEBUG 1
+#define UIRDA_DEBUG 1
+#define USTIR_DEBUG 1
+#define UISDATA_DEBUG 1
+#define UDSBR_DEBUG 1
 #define Static
 #else
 #define Static static
 #endif
+
+#define SCSI_MODE_SENSE		MODE_SENSE
 
 typedef struct proc *usb_proc_ptr;
 
@@ -75,7 +101,6 @@ typedef struct device *device_ptr_t;
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
-#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBGETSOFTC(d) ((void *)(d))
 
 #define DECLARE_USB_DMA_T \
@@ -86,14 +111,17 @@ typedef struct device *device_ptr_t;
 	} usb_dma_t
 
 typedef struct callout usb_callout_t;
-#define usb_callout_init(h) callout_handle_init(&(h))
-#define usb_callout(h, t, f, d) ((h) = timeout((f), (d), (t)))
-#define usb_uncallout(h, f, d) untimeout((f), (d))
+#define usb_callout_init(h)	callout_init(&(h))
+#define	usb_callout(h, t, f, d)	callout_reset(&(h), (t), (f), (d))
+#define	usb_uncallout(h, f, d)	callout_stop(&(h))
 
 #define usb_kthread_create1	kthread_create1
 #define usb_kthread_create	kthread_create
 
 typedef int usb_malloc_type;
+
+#define Ether_ifattach ether_ifattach
+#define IF_INPUT(ifp, m) (*(ifp)->if_input)((ifp), (m))
 
 #define logprintf printf
 
@@ -118,8 +146,6 @@ int __CONCAT(dname,_match)(struct device *parent, struct cfdata *match, void *au
 
 #define USB_MATCH_START(dname, uaa) \
 	struct usb_attach_arg *uaa = aux
-
-#define USB_MATCH_SETUP		/* nop */
 
 #define USB_ATTACH(dname) \
 void __CONCAT(dname,_attach)(struct device *parent, struct device *self, void *aux)
@@ -160,21 +186,67 @@ int __CONCAT(dname,_detach)(struct device *self, int flags)
  * OpenBSD
  */
 #ifdef USB_DEBUG
+#define UKBD_DEBUG 1
 #define UHID_DEBUG 1
 #define OHCI_DEBUG 1
 #define UGEN_DEBUG 1
 #define UHCI_DEBUG 1
 #define UHUB_DEBUG 1
 #define ULPT_DEBUG 1
+#define UCOM_DEBUG 1
+#define UMODEM_DEBUG 1
+#define UAUDIO_DEBUG 1
+#define AUE_DEBUG 1
+#define CUE_DEBUG 1
+#define KUE_DEBUG 1
+#define UMASS_DEBUG 1
+#define UVISOR_DEBUG 1
+#define UPL_DEBUG 1
+#define UZCOM_DEBUG 1
+#define URIO_DEBUG 1
+#define UFTDI_DEBUG 1
+#define USCANNER_DEBUG 1
+#define USSCANNER_DEBUG 1
 #endif
 
-#define Static static
+#define Static
 
 typedef struct proc *usb_proc_ptr;
+
+#define UCOMBUSCF_PORTNO		-1
+#define UCOMBUSCF_PORTNO_DEFAULT	-1
+
+#define SCSI_MODE_SENSE		MODE_SENSE
+#define XS_STS_DONE		ITSDONE
+#define XS_CTL_POLL		SCSI_POLL
+#define XS_CTL_DATA_IN		SCSI_DATA_IN
+#define XS_CTL_DATA_OUT		SCSI_DATA_OUT
+#define scsipi_adapter		scsi_adapter
+#define scsipi_cmd		scsi_cmd
+#define scsipi_device		scsi_device
+#define scsipi_done		scsi_done
+#define scsipi_link		scsi_link
+#define scsipi_minphys		scsi_minphys
+#define scsipi_sense		scsi_sense
+#define scsipi_xfer		scsi_xfer
+#define xs_control		flags
+#define xs_status		status
 
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define bswap32(x)		swap32(x)
+#define bswap16(x)		swap16(x)
+
+/*
+ * The UHCI/OHCI controllers are little endian, so on big endian machines
+ * the data strored in memory needs to be swapped.
+ */
+
+#if defined(letoh32)
+#define le32toh(x) letoh32(x)
+#define le16toh(x) letoh16(x)
+#endif
+
 #define usb_kthread_create1	kthread_create
 #define usb_kthread_create	kthread_create_deferred
 
@@ -183,12 +255,36 @@ typedef struct proc *usb_proc_ptr;
 
 typedef int usb_malloc_type;
 
+#define Ether_ifattach(ifp, eaddr) ether_ifattach(ifp)
+#define if_deactivate(x)
+#define IF_INPUT(ifp, m) do {						\
+	struct ether_header *eh;					\
+									\
+	eh = mtod(m, struct ether_header *);				\
+	m_adj(m, sizeof(struct ether_header));				\
+	ether_input((ifp), (eh), (m));					\
+} while (0)
+
 #define	usbpoll			usbselect
 #define	uhidpoll		uhidselect
 #define	ugenpoll		ugenselect
+#define	uriopoll		urioselect
+#define uscannerpoll		uscannerselect
 
+#define powerhook_establish(fn, sc) (fn)
+#define powerhook_disestablish(hdl)
 #define PWR_RESUME 0
-#define PWR_SUSPEND 1
+
+#define logprintf printf
+
+#define swap_bytes_change_sign16_le swap_bytes_change_sign16
+#define change_sign16_swap_bytes_le change_sign16_swap_bytes
+#define change_sign16_le change_sign16
+
+#define realloc usb_realloc
+void *usb_realloc(void *, u_int, int, int);
+
+extern int cold;
 
 typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
@@ -196,7 +292,6 @@ typedef struct device *device_ptr_t;
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
-#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBGETSOFTC(d) ((void *)(d))
 
 #define DECLARE_USB_DMA_T \
@@ -238,8 +333,6 @@ __CONCAT(dname,_match)(parent, match, aux) \
 
 #define USB_MATCH_START(dname, uaa) \
 	struct usb_attach_arg *uaa = aux
-
-#define USB_MATCH_SETUP		/* nop */
 
 #define USB_ATTACH(dname) \
 void \
