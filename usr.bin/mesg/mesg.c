@@ -37,24 +37,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mesg.c	8.2 (Berkeley) 1/21/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -69,7 +74,7 @@ main(argc, argv)
 		switch (ch) {
 		case '?':
 		default:
-			goto usage;
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -99,6 +104,13 @@ main(argc, argv)
 		exit(1);
 	}
 
-usage:	(void)fprintf(stderr, "usage: mesg [y | n]\n");
+	usage();
+	return(0);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: mesg [y | n]\n");
 	exit(2);
 }
