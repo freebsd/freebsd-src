@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.20 1995/06/05 18:34:16 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.21 1995/06/05 21:45:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,20 +110,20 @@ mediaInitFTP(Device *dev)
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
-	return FALSE;
+	goto punt;
     }
     if (isDebug())
 	msgDebug("Initialized FTP library.\n");
 
     cp = getenv("ftp");
     if (!cp)
-	return FALSE;
+	goto punt;
     if (isDebug())
 	msgDebug("Attempting to open connection for: %s\n", cp);
     hostname = getenv(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
-	return FALSE;
+	goto punt;
     }
     strncpy(url, cp, BUFSIZ);
     if (isDebug())
@@ -145,7 +145,7 @@ mediaInitFTP(Device *dev)
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\nname server, gateway and network interface are configured?", hostname);
-	return FALSE;
+	goto punt;
     }
     if (!getenv(FTP_USER)) {
 	snprintf(password, BUFSIZ, "installer@%s", hostname);
@@ -190,6 +190,12 @@ retry:
 	msgDebug("leaving mediaInitFTP!\n");
     ftpInitted = TRUE;
     return TRUE;
+
+punt:
+    FtpClose(ftp);
+    ftp = NULL;
+    (*netdev->shutdown)(netdev);
+    return FALSE;
 }
 
 int
