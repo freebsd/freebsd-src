@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20001205:
+	Important new FreeBSD-version stuff: PAM support has been worked
+	in, partially from the "Unix" OpenSSH version.  This requires
+	adding the following in pam.conf:
+  
+	sshd    auth    sufficient      pam_skey.so
+	sshd    auth    required        pam_unix.so         try_first_pass
+	sshd    session required        pam_permit.so
+
 20001031:
 	cvs updated to 1.11.
 
