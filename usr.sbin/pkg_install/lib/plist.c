@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.15 1995/11/12 04:55:40 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.16 1996/06/20 18:33:55 jkh Exp $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static const char *rcsid = "$Id: plist.c,v 1.15 1995/11/12 04:55:40 jkh Exp $";
  */
 
 #include "lib.h"
+#include <md5.h>
 
 /* Add an item to a packing list */
 void
@@ -238,11 +239,11 @@ read_plist(Package *pkg, FILE *fp)
     int cmd;
 
     while (fgets(pline, FILENAME_MAX, fp)) {
-	int len = strlen(pline) - 1;
+	int len = strlen(pline);
 
-	while (isspace(pline[len]))
-	    pline[len--] = '\0';
-	if (len <= 0)
+	while (len && isspace(pline[len - 1]))
+	    pline[--len] = '\0';
+	if (!len)
 	    continue;
 	cp = pline;
 	if (pline[0] == CMD_CHAR) {
@@ -348,51 +349,84 @@ write_plist(Package *pkg, FILE *fp)
 int
 delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 {
-    PackingList p = pkg->head;
+    PackingList p;
     char *Where = ".", *last_file = "";
     Boolean fail = SUCCESS;
+    char tmp[FILENAME_MAX];
 
-    if (!p)
-	return FAIL;
-    while (p) {
-	if (p->type == PLIST_CWD) {
+    for (p = pkg->head; p; p = p->next) {
+	switch (p->type)  {
+	case PLIST_IGNORE:
+	    p = p->next;
+	    break;
+
+	case PLIST_CWD:
 	    Where = p->name;
 	    if (Verbose)
 		printf("Change working directory to %s\n", Where);
-	}
-	else if (p->type == PLIST_UNEXEC) {
-	    char cmd[FILENAME_MAX];
+	    break;
 
-	    format_cmd(cmd, p->name, Where, last_file);
+	case PLIST_UNEXEC:
+	    format_cmd(tmp, p->name, Where, last_file);
 	    if (Verbose)
-		printf("Execute `%s'\n", cmd);
-	    if (!Fake && system(cmd)) {
-		whinge("unexec command for `%s' failed.", cmd);
+		printf("Execute `%s'\n", tmp);
+	    if (!Fake && system(tmp)) {
+		whinge("unexec command for `%s' failed.", tmp);
 		fail = FAIL;
 	    }
-	}
-	else if (p->type == PLIST_IGNORE)
-	    p = p->next;
-	else if (p->type == PLIST_FILE || p->type == PLIST_DIR_RM) {
-	    char full_name[FILENAME_MAX];
+	    break;
 
-	    sprintf(full_name, "%s/%s", Where, p->name);
-	    if (isdir(full_name) && p->type == PLIST_FILE) {
+	case PLIST_FILE:
+	    sprintf(tmp, "%s/%s", Where, p->name);
+	    if (isdir(tmp)) {
 		whinge("Attempting to delete directory `%s' as a file\n"
-		     "This packing list is incorrect - ignoring delete request.\n", full_name);
+		       "This packing list is incorrect - ignoring delete request.\n", tmp);
 	    }
 	    else {
-		if (Verbose)
-		    printf("Delete %s %s\n", !isdir(full_name) ? "file" : " directory", full_name);
+		if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
+		    char *cp, buf[33];
 
-		if (!Fake && delete_hierarchy(full_name, ign_err, p->type == PLIST_DIR_RM ? FALSE : nukedirs)) {
-		    whinge("Unable to completely remove file '%s'", full_name);
+		    if ((cp = MD5File(tmp, buf)) != NULL) {
+			/* Mismatch? */
+			if (strcmp(cp, p->next->name + 4)) {
+			    if (Verbose)
+				printf("%s fails original MD5 checksum - %s\n",
+				       tmp, Force ? "deleted anyway." : "not deleted.");
+			    if (!Force) {
+				fail = FAIL;
+				continue;
+			    }
+			}
+		    }
+		}
+		if (Verbose)
+		    printf("Delete file %s\n", tmp);
+
+		if (!Fake && delete_hierarchy(tmp, ign_err, nukedirs)) {
+		    whinge("Unable to completely remove file '%s'", tmp);
 		    fail = FAIL;
 		}
 	    }
 	    last_file = p->name;
+	    break;
+
+	case PLIST_DIR_RM:
+	    sprintf(tmp, "%s/%s", Where, p->name);
+	    if (!isdir(tmp)) {
+		whinge("Attempting to delete file `%s' as a directory\n"
+		       "This packing list is incorrect - ignoring delete request.\n", tmp);
+	    }
+	    else {
+		if (Verbose)
+		    printf("Delete directory %s\n", tmp);
+		if (!Fake && delete_hierarchy(tmp, ign_err, FALSE)) {
+		    whinge("Unable to completely remove directory '%s'", tmp);
+		    fail = FAIL;
+		}
+	    }
+	    last_file = p->name;
+	    break;
 	}
-	p = p->next;
     }
     return fail;
 }

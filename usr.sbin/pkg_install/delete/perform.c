@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.8 1995/11/12 04:55:30 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.9 1996/06/20 18:33:44 jkh Exp $";
 #endif
 
 /*
@@ -127,15 +127,15 @@ pkg_do(char *pkg)
 		 "incorrectly specified?)\n");
 	if (vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
 	    whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
-	    return 1;
+	    if (!Force)
+		return 1;
 	}
     }
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
 	if (Verbose)
-	    printf("Attempting to remove dependency on package `%s'\n",
-		   p->name);
+	    printf("Attempting to remove dependency on package `%s'\n", p->name);
 	if (!Fake)
 	    undepend(p, pkg);
     }
