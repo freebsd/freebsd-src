@@ -1580,13 +1580,13 @@ uhci_device_request(reqh)
 
 	setup->td->link.std = next;
 	setup->td->td_link = next->physaddr;
-	setup->td->td_status = UHCI_TD_SET_ERRCNT(2) | ls | UHCI_TD_ACTIVE;
+	setup->td->td_status = UHCI_TD_SET_ERRCNT(3) | ls | UHCI_TD_ACTIVE;
 	setup->td->td_token = UHCI_TD_SETUP(sizeof *req, endpt, addr);
 	setup->td->td_buffer = DMAADDR(&upipe->u.ctl.reqdma);
 
 	stat->td->link.std = 0;
 	stat->td->td_link = UHCI_PTR_T;
-	stat->td->td_status = UHCI_TD_SET_ERRCNT(2) | ls | 
+	stat->td->td_status = UHCI_TD_SET_ERRCNT(3) | ls | 
 		UHCI_TD_ACTIVE | UHCI_TD_IOC;
 	stat->td->td_token = 
 		isread ? UHCI_TD_OUT(0, endpt, addr, 1) :
