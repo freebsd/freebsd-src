@@ -1,0 +1,993 @@
+#! /bin/sh
+#	@(#)stests	8.1 (Berkeley) 6/6/93
+#	$NetBSD: stests,v 1.14 2001/05/14 21:31:38 jdolecek Exp $
+
+# This code is derived from software contributed to Berkeley by
+# Peter McIlroy.
+
+#Latest version.  My sort passes all tests because I wrote it.
+#We differ only on 25E and 25H.
+#(I found at least one bug in constructing test 25, and was driven
+#to rewrite field parsing to clarify it.)
+#
+#In 25E, -k2.3,2.1b, the fields are not necessarily out of order.
+#Even if they were, it would be legal (11752-3), although certainly
+#justification for warning.
+#
+#On 25H, your answer is as defensible as mine.  (Our suggestion
+#*1 backs mine.)
+
+
+# Tests for the Unix sort utility
+# Test Posix features except for locale.
+# Test some nonstandard features if present.
+
+# Other tests should be made for files too big to fit in memory.
+
+dict=/usr/share/dict/words
+
+# Initialize switches for nonstandard features.
+# Use parenthesized settings for supported features.
+
+o=:	# officially obsolescent features: +1 -2, misplaced -o (o=)
+g=:	# -g numeric sort including e-format numbers (g=)
+M=:	# -M sort by month names (M=)
+s=:	# -s stable, do not compare raw bytes on equal keys (s=)
+y=	# -y user-specified memory size (y=-y10000)
+S=	# -S non-stable sort
+
+# Detect what features are supported, assuming bad options cause
+# errors.  Set switches accordingly.
+
+cat <<!
+Note: some sort(1) implementations (for example GNU sort) may not pass these
+tests - this suite was made to fit sort(1) using (non-stable) radixsort(3),
+sort(1) using other algorithm may give different results, though still
+conform to standard.
+
+!
+
+echo Obsolescent and nonstandard features recognized, if any:
+if sort +0 </dev/null 2>/dev/null; then
+	o=
+	echo '	+1 -2'
+else
+	o="not_tested +POS/-POS"
+fi
+if sort /dev/null -o xx 2>/dev/null; then
+	echo '	displaced -o';
+fi
+if sort -g </dev/null 2>/dev/null; then
+	g=
+	echo '	-g g-format numbers';
+else
+	g="not_tested -g"
+fi
+if sort -M </dev/null 2>/dev/null; then
+	M=
+	echo '	-M months';
+else
+	M="not_tested -M"
+fi
+if sort -s </dev/null 2>/dev/null; then
+	s=
+	echo '	-s stable sort';
+else
+	s="not_tested -s"
+fi
+if sort -S </dev/null 2>/dev/null; then
+	S=-S
+	echo '	-S non-stable sort';
+fi
+if sort -y10000 </dev/null 2>/dev/null; then
+	y=-y10000
+	echo '	-y space';
+fi
+if sort -z10000 </dev/null 2>/dev/null; then
+	echo '	-z size (not exercised)';
+fi
+if sort -T. </dev/null 2>/dev/null; then
+	echo '	-T tempdir (not exercised)';
+fi
+
+TEST=		# major sequence number of test
+
+trap "rm -f in in1 out xx -k fields; exit" 0 1 2 13 15
+
+# some tests would fail if non-C locale is used
+unset LANG LC_ALL
+
+# xsort testno options
+# Sort file "in" with specified options.
+# Compare with file "out" if that is supplied,
+# otherwise make plausibility checks on output
+
+#	"sum" must be dumb; insensitive to the
+#	order of lines within a file.
+#	System V sum is suitable; sum -5 is the v10 equivalent.
+
+xsort () {
+	X="$1"
+	shift
+
+	if sort $S "$@" in >xx &&  sort -c $S "$@" xx 
+	then 
+		if test -f out
+		then
+			cmp xx out >/dev/null && return 0
+			echo "$TEST$X comparison failed - sort $@"
+		else
+			test "`cksum -o2 <in`" = "`cksum -o2 <xx`" && return 0
+			echo "$TEST$X checksum failed - sort $@"
+		fi
+	else
+		echo "$TEST$X failed - sort $@"
+	fi
+	return 1
+}
+
+# linecount testno file count
+# declares the given "testno" to be in error if number of
+# lines in "file" differs from "count"
+linecount() {
+	awk 'END{ if(NR!='$3') print "'$TEST$1' failed" }' $2
+}
+
+# print info about skipped test
+not_tested() {
+	echo "$TEST$X skipped - flag '$1' not supported"
+}
+
+rm -f out
+
+#---------------------------------------------------------------
+TEST=01; echo $TEST	# -c status, checksum
+			# obsolescent features go together
+cat <<! >in
+b
+a
+!
+rm -f out -o
+
+sort $S -c in 2>/dev/null && echo ${TEST}A failed
+
+xsort B || '"cksum"' is probably unsuitable - see comments
+
+$o sort $S +0 in -o in || echo ${TEST}C failed
+
+#---------------------------------------------------------------
+TEST=02; echo $TEST	# output from -c
+cat <<! >in
+x
+y
+!
+
+sort -c $S -r in >out 2>xx && echo ${TEST}A failed
+test -s out && echo ${TEST}B failed
+test -s xx && echo option -c is noisy "(probably legal)"
+test -s xx || echo option -c is quiet "(legal, not classical)"
+
+#---------------------------------------------------------------
+TEST=03; echo $TEST	# -n
+cat <<! >in
+-99.0
+-99.1
+-.0002
+-10
+2
+0010.000000000000000000000000000000000001
+10
+3x
+x
+!
+cat <<! >out
+-99.1
+-99.0
+-10
+-.0002
+x
+2
+3x
+10
+0010.000000000000000000000000000000000001
+!
+
+xsort "" -n
+
+#---------------------------------------------------------------
+TEST=04; echo $TEST	# -b without fields, piping, -c status return
+cat <<! >in
+  b
+ a
+!
+cp in out
+
+xsort A -b
+
+cat in | sort $S | cat >xx
+cmp xx out >/dev/null || echo ${TEST}B failed
+
+sort $S in | sort -c $S -r 2>/dev/null && echo ${TEST}C failed
+
+#---------------------------------------------------------------
+TEST=05; echo $TEST	# fields, reverse fields, -c status return
+cat <<! >in
+b b p
+a b q
+x a
+!
+cat <<! >out
+x a
+a b q
+b b p
+!
+
+$o xsort A +1 -2
+
+$o xsort B +1 -2 +2r
+
+xsort C -k 2,2
+
+xsort D -k 2,2 -k 3r
+
+xsort E -k 2,2.0
+
+xsort F -k 2,2 -k 1,1 -k 3
+
+sort -c $S -k 2 in 2>/dev/null && echo ${TEST}G failed
+
+#---------------------------------------------------------------
+TEST=06; echo $TEST	# -t
+cat <<! >in
+a:
+a!
+!
+cp in out
+
+$o xsort A -t : -r +0
+
+$o xsort B -t : +0 -1
+
+xsort C -t : -r -k 1
+
+xsort D -t : -k 1,1
+
+#---------------------------------------------------------------
+TEST=07; echo $TEST	# -t, character positions in fields
+	# -t: as 1 arg is not strictly conforming, but classical
+cat <<! >in
+: ab
+:bac
+!
+cat <<! >out
+:bac
+: ab
+!
+
+$o xsort A -b -t: +1.1
+	
+$o xsort B -t: +1.1r
+
+xsort C -b -t: -k 2.2
+
+xsort D -t: -k 2.2r
+
+#---------------------------------------------------------------
+TEST=08; echo $TEST	# space and tab as -t characters
+cat <<! >in
+ b c
+ b	c
+	b c
+!
+cp in out
+
+xsort A -t ' ' -k2,2
+
+xsort B -t ' ' -k2.1,2.0
+
+cat <<! >out
+ b c
+	b c
+ b	c
+!
+
+xsort C -t '	' -k2,2
+
+xsort D -t '	' -k2.1,2.0
+
+cat <<! >out
+ b	c
+	b c
+ b c
+!
+
+xsort E -k2
+
+cat <<! >out
+	b c
+ b	c
+ b c
+!
+
+xsort F -k2b
+
+#---------------------------------------------------------------
+TEST=09; echo $TEST	# alphabetic as -t character
+cat <<! >in
+zXa
+yXa
+zXb
+!
+cp in out
+
+xsort "" -tX -k2 -k1r,1
+
+#---------------------------------------------------------------
+TEST=10; echo $TEST	# -m
+cat <<! >in
+a
+ab
+ab
+bc
+ca
+!
+cat <<! >in1
+Z
+a
+aa
+ac
+c
+!
+cat <<! >out
+Z
+a
+a
+aa
+ab
+ab
+ac
+bc
+c
+ca
+!
+
+sort $S -m in in1 >xx
+cmp xx out >/dev/null || echo $TEST failed
+
+#---------------------------------------------------------------
+TEST=11; echo $TEST	# multiple files, -o overwites input, -m, -mu
+cat <<! >in
+a
+b
+c
+d
+!
+
+sort $S -o xx     in in in in in in in in in in in in in in in in in
+linecount A xx 68
+sort $S -o in -mu in in in in in in in in in in in in in in in in in
+linecount B in 4
+sort $S -o in -m  in in in in in in in in in in in in in in in in in
+
+cmp in xx >/dev/null || echo ${TEST}C failed
+
+#---------------------------------------------------------------
+TEST=12; echo $TEST	# does -mu pick the first among equals?
+cat <<! >in
+3B
+3b
+3B2
+~3B2
+4.1
+41
+5
+5.
+!
+cat <<! >out
+3B
+3B2
+4.1
+5
+!
+
+xsort A -mudf || echo "(other behavior is legal, not classical)"
+
+xsort B -mudf -k1 || echo "(other behavior is legal, not classical)"
+
+#---------------------------------------------------------------
+TEST=13; echo $TEST	# long records (>8000 bytes, keys >16000), -r
+awk '
+BEGIN {	x="x"
+	for(i=1; i<=12; i++) x = x x
+	for(i=15; i<=25; i++) print x i
+}' >in
+awk '
+BEGIN {	x="x"
+	for(i=1; i<=12; i++) x = x x
+	for(i=25; i>=15; i--) print x i
+}' >out
+
+xsort A -r
+
+xsort B -k 1,1r -k 1
+
+#---------------------------------------------------------------
+TEST=14; echo $TEST "(3 long parts)"
+awk 'BEGIN { for(i=0; i<100000; i++) print rand() }' | grep -v e >in
+rm -f out
+
+xsort A; echo $TEST "(part A done)"
+
+xsort B -n; echo $TEST "(part B done)"
+
+# next test is unclean: xx is a hidden side-effect of xsort
+
+awk '
+	$0 < x { print "test '${TEST}C' failed"; exit }
+	$0 "" != x { print >"out"; x = $0 }
+' xx
+
+xsort C -n -u
+
+#---------------------------------------------------------------
+TEST=15; echo $TEST "(long)"	# force intermediate files if possible
+awk 'BEGIN { for(i=0; i<20000; i++) print rand() }' >in
+rm -f out
+
+xsort A -r $y
+
+sort $S -r in | awk '$0 "x" != x { print ; x = $0 "x" }' >out
+
+xsort B -u -r $y
+
+#---------------------------------------------------------------
+TEST=16; echo $TEST	# -nr, -nm, file name -
+awk 'BEGIN { for(i=-100; i<=100; i+=2) printf "%.10d\n", i }' >in
+
+awk 'BEGIN { for(i=-99; i<=100; i+=2) print i }' | sort $S -nr in - >xx
+awk '$0+0 != 101-NR { print "'${TEST}A' failed"; exit }' xx
+
+awk 'BEGIN { for(i=-99; i<=100; i+=2) print i }' | sort $S -mn in - >xx
+awk '$0+0 != -101+NR { print "'${TEST}B' failed"; exit }' xx
+
+#---------------------------------------------------------------
+TEST=17; echo $TEST	# -d, fields without end, modifier override
+cat <<! >in
+a-B
+a+b
+a b
+A+b
+a	b
+!
+cat <<! >out
+a	b
+a b
+A+b
+a-B
+a+b
+!
+
+$o xsort A -df +0 +0d 
+
+xsort B -df -k 1 -k 1d
+
+#---------------------------------------------------------------
+TEST=18; echo $TEST	# -u on key only
+cat <<! >in
+12	y
+13	z
+12	x
+!
+cat <<! >out
+12	x
+12	y
+13	z
+!
+
+$o xsort A +0 -1
+
+xsort B -k 1,1
+
+sort $S -u -k 1,1 in >xx
+linecount C xx 2
+
+#---------------------------------------------------------------
+TEST=19; echo $TEST	# -i, -d, -f
+cat <<! >xx.c
+run(i,j){ for( ; i<=j; i++) printf("%.3o %c\n",i,i); }
+main(){	run(0, 011);		/* 012=='\n' */
+	run(013, 0377); }
+!
+cc xx.c
+./a.out >in
+cat <<! >xx.c
+run(i,j){ for( ; i<=j; i++) printf("%.3o %c\n",i,i); }
+main(){ run(0, 011);
+	run(013, ' '-1);
+	run(0177, 0377);
+	run(' ', 0176); }
+!
+cc xx.c
+./a.out >out
+
+xsort A -i -k 2
+
+cat <<! >xx.c
+run(i,j){ for( ; i<=j; i++) printf("%.3o %c\n",i,i); }
+main(){	run(0, 010);		/* 011=='\t', 012=='\n' */
+	run(013, ' '-1);
+	run(' '+1, '0'-1);
+	run('9'+1, 'A'-1);
+	run('Z'+1, 'a'-1);
+	run('z'+1, 0377);
+	run('\t', '\t');
+	run(' ', ' ');
+	run('0', '9');
+	run('A', 'Z');
+	run('a', 'z'); }
+!
+cc xx.c
+./a.out >out
+
+xsort B -d -k 2
+
+cat <<! >xx.c
+run(i,j){ for( ; i<=j; i++) printf("%.3o %c\n",i,i); }
+main(){	int i;
+	run(0, 011);
+	run(013, 'A'-1);
+	for(i='A'; i<='Z'; i++) 
+		printf("%.3o %c\n%.3o %c\n",i,i,i+040,i+040);
+	run('Z'+1, 'a'-1);
+	run('z'+1, 0377); }
+!
+cc xx.c
+./a.out >out
+rm xx.c
+
+xsort C -f -k 2
+
+#---------------------------------------------------------------
+TEST=20; echo $TEST	# -d, -f, -b applies only to fields
+cat <<! >in
+ b
+'C
+a
+!
+cp in out
+
+xsort A -d
+
+xsort B -f
+
+cat <<! >out
+ b
+a
+'C
+!
+
+xsort C -dfb
+
+#---------------------------------------------------------------
+TEST=21; echo $TEST	# behavior of null bytes
+cat <<'!' >xx.c
+main() { printf("%cb\n%ca\n",0,0); }
+!
+cc xx.c
+./a.out >in
+sort $S in >xx
+cmp in xx >/dev/null && echo ${TEST}A failed
+test "`wc -c <in`" = "`wc -c <xx`" || echo ${TEST}B failed
+rm xx.c a.out
+
+#---------------------------------------------------------------
+TEST=22; echo $TEST	# field limits
+cat <<! >in
+a	2
+a	1
+b	2
+b	1
+!
+cat <<! >out
+b	1
+b	2
+a	1
+a	2
+!
+
+xsort "" -r -k1,1 -k2n
+
+#---------------------------------------------------------------
+TEST=23; echo $TEST	# empty file
+
+sort $S -o xx </dev/null
+cmp xx /dev/null 2>/dev/null || echo ${TEST}A failed
+
+sort $S -c </dev/null || echo ${TEST}B failed
+
+sort $S -cu </dev/null || echo ${TEST}C failed
+
+#---------------------------------------------------------------
+TEST=24; echo $TEST	# many fields
+cat <<! >in
+0:2:3:4:5:6:7:8:9
+1:1:3:4:5:6:7:8:9
+1:2:2:4:5:6:7:8:9
+1:2:3:3:5:6:7:8:9
+1:2:3:4:4:6:7:8:9
+1:2:3:4:5:5:7:8:9
+1:2:3:4:5:6:6:8:9
+1:2:3:4:5:6:7:7:9
+1:2:3:4:5:6:7:8:8
+!
+cat <<! >out
+1:2:3:4:5:6:7:8:8
+1:2:3:4:5:6:7:7:9
+1:2:3:4:5:6:6:8:9
+1:2:3:4:5:5:7:8:9
+1:2:3:4:4:6:7:8:9
+1:2:3:3:5:6:7:8:9
+1:2:2:4:5:6:7:8:9
+1:1:3:4:5:6:7:8:9
+0:2:3:4:5:6:7:8:9
+!
+
+xsort "" -t: -k9 -k8 -k7 -k6 -k5 -k4 -k3 -k2 -k1
+
+#---------------------------------------------------------------
+TEST=25; echo $TEST	# variously specified alpha fields
+			# numbers give the correct orderings
+cat <<! >in
+01:04:19:01:16:01:21:01 a
+02:03:13:15:13:19:15:02  a
+03:02:07:09:07:13:09:03   a
+04:01:01:03:01:07:03:04    a
+05:08:20:16:17:02:20:05 aa
+06:07:14:18:14:20:14:06  aa
+07:06:08:10:08:14:08:07   aa
+08:05:02:04:02:08:02:08    aa
+09:16:22:02:22:04:24:13 b
+10:15:16:20:19:22:18:14  b
+11:14:10:12:10:16:12:15   b
+12:13:04:06:04:10:06:16    b
+13:24:24:22:24:06:22:21 bb
+14:23:18:24:21:24:16:22  bb
+15:22:12:14:12:18:10:23   bb
+16:21:06:08:06:12:04:24    bb
+17:12:21:21:18:03:19:09 ab
+18:11:15:19:15:21:13:10  ab
+19:10:09:11:09:15:07:11   ab
+20:09:03:05:03:09:01:12    ab
+21:20:23:17:23:05:23:17 ba
+22:19:17:23:20:23:17:18  ba
+23:18:11:13:11:17:11:19   ba
+24:17:05:07:05:11:05:20    ba
+!
+sort $S -k2b -k2 in >xx && 
+	sort -c -t: -k2n xx 2>/dev/null || echo ${TEST}A failed
+sort $S -k2,2.1b -k2 in >xx && 
+	sort -c -t: -k3n xx 2>/dev/null || echo ${TEST}B failed
+sort $S -k2.3 -k2 in >xx && 
+	sort -c -t: -k4n xx 2>/dev/null || echo ${TEST}C failed
+sort $S -k2b,2.3 -k2 in >xx && 
+	sort -c -t: -k5n xx 2>/dev/null || echo ${TEST}D failed
+sort $S -k2.3,2.1b -k2 in >xx && 
+	sort -c -t: -k6n xx 2>/dev/null || echo ${TEST}E failed
+sort $S -k2,2.1b -k2r in >xx && 
+	sort -c -t: -k7n xx 2>/dev/null || echo ${TEST}F failed
+sort $S -b -k2,2 -k2 in >xx && 
+	sort -c -t: -k8n xx 2>/dev/null || echo ${TEST}G failed
+sort $S -b -k2,2b -k2 in >xx &&			# perhaps same as G
+	sort -c -t: -k3n xx 2>/dev/null || echo ${TEST}H failed\
+ "(standard is not clear on this)"
+
+#---------------------------------------------------------------
+TEST=26; echo $TEST	# empty fields, out of bounds fields	
+cat <<! >in
+0 5
+1 4
+2 3
+3 2
+4 1
+5 0
+!
+cp in out
+
+xsort "" -k2.2,2.1 -k2.3,2.4
+
+#---------------------------------------------------------------
+TEST=27; echo $TEST	# displaced -o
+rm -f out
+
+$o sort -S /dev/null -o out || $o echo ${TEST}B failed
+$o test -f out || $o echo ${TEST}C failed
+
+#---------------------------------------------------------------
+TEST=28; echo $TEST	# apparently nonmonotone field specs
+cat <<! >in
+aaaa c
+x a
+0 b
+!
+cp in out
+
+$o xsort A +1 -0.3 +1.4 -1.5
+
+xsort B -k2,1.3 -k2.5,2.5
+
+#---------------------------------------------------------------
+TEST=29; echo $TEST	# determination of end of option list
+cat >-k <<!
+x
+!
+rm -f out -c
+
+sort $S -- -k </dev/null >xx || echo ${TEST}A argument failed
+cmp xx -k || echo ${TEST}A comparison failed
+
+sort $S - -c </dev/null 2>/dev/null && echo ${TEST}B failed
+
+#---------------------------------------------------------------
+TEST=30; echo $TEST	# missing newline
+awk 'BEGIN{ printf "%s", "x"}' | sort >xx
+wc -c <xx | awk '$1!=2{ print "'${TEST}' failed" }'
+
+#---------------------------------------------------------------
+TEST=31; echo $TEST	# -M, multiple fields
+cat <<! >in
+jan 10 1900
+Feb 26 1900
+feb 25 1900
+January xx 1900
+August 11 1900
+jan 15 1990
+feb 22 1990
+mar 15 1990
+apr 1 1990
+may 45 1990
+jun 14 1990
+jul 4 1990
+aug 1~ 1990
+aug 11 1990
+sep 1 1990
+oct 12 1990
+nov 24 1990
+dec 25 1990
+never 3 1990
+ Dec 25 1990
+!
+cat <<! >out
+January xx 1900
+jan 10 1900
+feb 25 1900
+Feb 26 1900
+August 11 1900
+never 3 1990
+jan 15 1990
+feb 22 1990
+mar 15 1990
+apr 1 1990
+may 45 1990
+jun 14 1990
+jul 4 1990
+aug 1~ 1990
+aug 11 1990
+sep 1 1990
+oct 12 1990
+nov 24 1990
+ Dec 25 1990
+dec 25 1990
+!
+
+$M xsort "" -k3n -k1M -k2n
+
+#---------------------------------------------------------------
+TEST=32; echo $TEST	# -M case insensitivity, -r
+cat <<! >in
+x
+june
+january
+december
+!
+cat <<! >out
+december
+june
+january
+x
+!
+
+$M xsort "" -Mr
+
+#---------------------------------------------------------------
+TEST=33; echo $TEST	# -g
+cat <<! >in
+2
+1
+10
+.2
+1e
+1E1
+1e.
+!
+cat <<! >out
+.2
+1
+1e
+1e.
+2
+10
+1E1
+!
+
+$g xsort "" -g
+
+#---------------------------------------------------------------
+TEST=34; echo $TEST	# -g wide operands
+cat <<! >in
+.99999999999999999999
+099999999999999999999e-21
+099999999999999999999e-19
+.1e1
+!
+cat <<! >out
+099999999999999999999e-21
+.99999999999999999999
+.1e1
+099999999999999999999e-19
+!
+
+$g xsort A -g
+
+cat <<! >out
+.1e1
+.99999999999999999999
+099999999999999999999e-19
+099999999999999999999e-21
+!
+
+xsort B -n
+
+#---------------------------------------------------------------
+TEST=35; echo $TEST	#-g, -u with different fp reps
+cat <<! >in
++0
+-0
+0.10
++.1
+-.1
+-100e-3
+x
+!
+cat <<! >out
+-.1
+-100e-3
++0
+-0
+x
++.1
+0.10
+!
+
+if [ -z "$g" ]; then
+	xsort A -g
+	sort $S -gu in >xx && $g sort -c $S -gu xx || echo ${TEST}B failed
+	linecount C xx 3
+else
+	# -g not supported
+	not_tested '-g'
+fi
+
+#---------------------------------------------------------------
+TEST=36; echo $TEST	# -s
+cat <<! >in
+a 2
+b 1
+c 2
+a 1
+b 2
+c 1
+!
+cat <<! >out
+a 2
+a 1
+b 1
+b 2
+c 2
+c 1
+!
+
+$s xsort "" -s -k1,1
+
+#---------------------------------------------------------------
+TEST=37; echo $TEST	# -s, multiple files
+cat <<! >in
+c 2
+a 2
+!
+cat <<! >in1
+c 1
+b 1
+a 1
+!
+cat <<! >out
+c 2
+b 1
+a 2
+!
+
+$s sort -smru -k1,1 in in in1 in1 >xx
+$s cmp xx out >/dev/null || echo $TEST failed - sort -smru -k1,1
+
+#---------------------------------------------------------------
+TEST=38; echo $TEST	# -s
+$s awk '
+	BEGIN {
+		for(i=1; i<50; i++)
+			for(j=1; j<=i; j++) {
+				print i, 2 >"in"
+				print i, 1 >"in1"
+			}
+	}'
+
+$s sort -m -s -k1,1n in in1 >out
+
+$s awk '
+	func stop()	{ print "'$TEST' comparison failed - sort -m -s -k1,1n"; exit }
+	$1!=last1 	{ if(count!=last1 || $2!=2) stop();
+			  count = 0}
+	$1==last1 && $2!=last2 { if(count!=last1 || $2!=1) stop();
+				 count = 0 }
+			{ count++; last1 = $1; last2 = $2 }
+	' out
+#---------------------------------------------------------------
+TEST=39; echo $TEST	# sort already sorted dictionary
+sort -f $dict | cmp -s - $dict || echo $TEST failed - sort -f $dict
+
+#---------------------------------------------------------------
+TEST=40; echo "$TEST (long)"	# long lines test
+
+line1="abcdefghijklmnopqrstabcdefghijklmnopqrstabcdefghijklmnopqrstabcdefghij"
+line2="bcdefghijklmnopqrstabcdefghijklmnopqrstabcdefghijklmnopqrstabcdefghijk"
+
+rm -f in out 
+
+# generate two out-of-order long lines (roughly 70 KB each), and try sort
+# them
+awk '
+BEGIN {
+	line1 = "'"${line1}"'"
+	line2 = "'"${line2}"'"
+	for(i=0; i<10; i++) {
+		line1 = line1 line1
+		line2 = line2 line2
+	}
+	print line2 > "in"
+	print line1 > "in"
+
+	print line1 > "out"
+	print line2 > "out"
+}'
+
+xsort "A"
+
+# generate already sorted file using $dict, only append space and
+# long string to each line to make lines longer than usual
+# use only first 200 lines (sort file approx. 14MB)
+cat $dict | awk '
+BEGIN {
+	line = "'"$line1"'"
+	for(i=0; i<10; i++)
+		line = line line
+	idx = 0
+}
+/^/ { print $1 " " line; if (idx++ > 200) exit 0 }' > in
+ln -sf in out
+xsort "B" -f
+
+#---------------------------------------------------------------
+TEST=41; echo $TEST	# sort -f empty item; previously bombed
+cat /dev/null | sort -f
+
+#---------------------------------------------------------------
+TEST=42; echo $TEST	# sort -H $dict; previously bombed
+sort -H -f $dict | cmp -s - $dict || echo $TEST failed - sort -H -f $dict
