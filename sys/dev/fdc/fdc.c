@@ -686,6 +686,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	ispcmcia = (fdc->flags & FDC_ISPCMCIA) != 0;
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
+	fdc->rid_ctl = 1;
 
 	/*
 	 * On standard ISA, we don't just use an 8 port range
@@ -699,6 +700,40 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	 * one with offset 7 as control register.
 	 */
 	nports = ispcmcia ? 8 : (ispnp ? 1 : 6);
+
+	/*
+	 * Some ACPI BIOSen have _CRS objects for the floppy device that
+	 * split the I/O port resource into several resources.  We detect
+	 * this case by checking if there are more than 2 IOPORT resources.
+	 * If so, we use the resource with the smallest start address as
+	 * the port RID and the largest start address as the control RID.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 2) != 0) {
+		u_long min_start, max_start, tmp;
+		int i;
+
+		/* Find the min/max start addresses and their RIDs. */
+		max_start = 0ul;
+		min_start = ~0ul;
+		for (i = 0; bus_get_resource_count(dev, SYS_RES_IOPORT, i) > 0;
+		    i++) {
+			tmp = bus_get_resource_start(dev, SYS_RES_IOPORT, i);
+			KASSERT(tmp != 0, ("bogus resource"));
+			if (tmp < min_start) {
+				min_start = tmp;
+				fdc->rid_ioport = i;
+			}
+			if (tmp > max_start) {
+				max_start = tmp;
+				fdc->rid_ctl = i;
+			}
+		}
+		if (min_start + 7 != max_start) {
+			device_printf(dev, "I/O to control range incorrect\n");
+			return (ENXIO);
+		}
+	}
+
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
 					     nports, RF_ACTIVE);
@@ -746,7 +781,6 @@ fdc_alloc_resources(struct fdc_data *fdc)
 		/*
 		 * Now (finally!) allocate the control port.
 		 */
-		fdc->rid_ctl = 1;
 		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
 						  &fdc->rid_ctl,
 						  0ul, ~0ul, 1, RF_ACTIVE);
