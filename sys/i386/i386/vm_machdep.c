@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.18 1994/04/05 03:23:09 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.19 1994/04/14 07:49:40 davidg Exp $
  */
 
 #include "npx.h"
@@ -55,6 +55,11 @@
 #include "vm/vm_kern.h"
 
 #define b_cylin b_resid
+
+#define MAXCLSTATS 256
+int clstats[MAXCLSTATS];
+int rqstats[MAXCLSTATS];
+
 
 #ifndef NOBOUNCE
 
@@ -121,10 +126,20 @@ vm_bounce_kva_free(addr, size, now)
 	int s = splbio();
 	kvaf[kvasfreecnt].addr = addr;
 	kvaf[kvasfreecnt++].size = size;
-	if( now)
+	if( now) {
+		/*
+		 * this will do wakeups
+		 */
 		vm_bounce_kva(0,0);
-	else
-		wakeup((caddr_t) io_map);
+	} else {
+		if (bmwait) {
+		/*
+		 * if anyone is waiting on the bounce-map, then wakeup
+		 */
+			wakeup((caddr_t) io_map);
+			bmwait = 0;
+		}
+	}
 	splx(s);
 }
 
@@ -222,6 +237,49 @@ more:
 	splx(s);
 
 	return kva;
+}
+
+/*
+ * same as vm_bounce_kva -- but really allocate
+ */
+vm_offset_t
+vm_bounce_kva_alloc(count) 
+int count;
+{
+	int i;
+	vm_offset_t kva;
+	vm_offset_t pa;
+	if( bouncepages == 0) {
+		kva = (vm_offset_t) malloc(count*NBPG, M_TEMP, M_WAITOK);
+		return kva;
+	}
+	kva = vm_bounce_kva(count, 1);
+	for(i=0;i<count;i++) {
+		pa = vm_bounce_page_find(1);
+		pmap_kenter(kva + i * NBPG, pa);
+	}
+	return kva;
+}
+
+/*
+ * same as vm_bounce_kva_free -- but really free
+ */
+void
+vm_bounce_kva_alloc_free(kva, count)
+	vm_offset_t kva;
+	int count;
+{
+	int i;
+	vm_offset_t pa;
+	if( bouncepages == 0) {
+		free((caddr_t) kva, M_TEMP);
+		return;
+	}
+	for(i = 0; i < count; i++) {
+		pa = pmap_kextract(kva + i * NBPG);
+		vm_bounce_page_free(pa, 1);
+	}
+	vm_bounce_kva_free(kva, count);
 }
 
 /*
@@ -393,14 +451,6 @@ vm_bounce_free(bp)
  */
 	bouncekva = i386_trunc_page((vm_offset_t) bp->b_un.b_addr);
 	vm_bounce_kva_free( bouncekva, countvmpg*NBPG, 0);
-	if (bmwait) {
-		/*
-		 * if anyone is waiting on the bounce-map, then wakeup
-		 */
-		wakeup((caddr_t) io_map);
-		bmwait = 0;
-	}
-
 	bp->b_un.b_addr = bp->b_savekva;
 	bp->b_savekva = 0;
 	bp->b_flags &= ~B_BOUNCE;
@@ -476,6 +526,8 @@ cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 	vm_offset_t orig1begin, orig2begin;
 	vm_offset_t kvanew, kvaorig;
 
+	if( bp->b_bcount < MAXCLSTATS*PAGE_SIZE)
+		++rqstats[bp->b_bcount/PAGE_SIZE];
 	/*
 	 * If nothing on the activity queue, then
 	 * we become the only thing.
@@ -494,22 +546,22 @@ cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 	 * and add ourselves to it.
 	 */
 
-	if (bp->b_cylin < ap->b_cylin) {
+	if (bp->b_pblkno < ap->b_pblkno) {
 		while (ap->av_forw) {
 			/*
 			 * Check for an ``inversion'' in the
-			 * normally ascending cylinder numbers,
+			 * normally ascending block numbers,
 			 * indicating the start of the second request list.
 			 */
-			if (ap->av_forw->b_cylin < ap->b_cylin) {
+			if (ap->av_forw->b_pblkno < ap->b_pblkno) {
 				/*
 				 * Search the second request list
 				 * for the first request at a larger
-				 * cylinder number.  We go before that;
+				 * block number.  We go before that;
 				 * if there is no such request, we go at end.
 				 */
 				do {
-					if (bp->b_cylin < ap->av_forw->b_cylin)
+					if (bp->b_pblkno < ap->av_forw->b_pblkno)
 						goto insert;
 					ap = ap->av_forw;
 				} while (ap->av_forw);
@@ -532,21 +584,33 @@ cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 		 * We want to go after the current request
 		 * if there is an inversion after it (i.e. it is
 		 * the end of the first request list), or if
-		 * the next request is a larger cylinder than our request.
+		 * the next request is a larger block than our request.
 		 */
-		if (ap->av_forw->b_cylin < ap->b_cylin ||
-		    bp->b_cylin < ap->av_forw->b_cylin )
+		if (ap->av_forw->b_pblkno < ap->b_pblkno ||
+		    bp->b_pblkno < ap->av_forw->b_pblkno )
 			goto insert;
 		ap = ap->av_forw;
 	}
 
 insert:
+
+#if 0
+	/*
+	 * read clustering with new read-ahead disk drives hurts mostly, so
+	 * we don't bother...
+	 */
+	if( bp->b_flags & B_READ)
+		goto nocluster;
+#endif
 	/*
 	 * we currently only cluster I/O transfers that are at page-aligned
 	 * kvas and transfers that are multiples of page lengths.
 	 */
-	if(((bp->b_bcount & PAGE_MASK) == 0) &&
+	if ((bp->b_flags & B_BAD) == 0 &&
+		((bp->b_bcount & PAGE_MASK) == 0) &&
 		(((vm_offset_t) bp->b_un.b_addr & PAGE_MASK) == 0)) {
+		if( maxio > MAXCLSTATS*PAGE_SIZE)
+			maxio = MAXCLSTATS*PAGE_SIZE;
 		/*
 		 * merge with previous?
 		 * conditions:
@@ -558,9 +622,10 @@ insert:
 		 *	   is a multiple of a page in length.
 		 *	5) And the total I/O size would be below the maximum.
 		 */
-		if( (ap->b_blkno + (ap->b_bcount / DEV_BSIZE) == bp->b_blkno) &&
+		if( (ap->b_pblkno + (ap->b_bcount / DEV_BSIZE) == bp->b_pblkno) &&
 			(dp->b_actf != ap) &&
 			((ap->b_flags & ~B_CLUSTER) == bp->b_flags) &&
+			((ap->b_flags & B_BAD) == 0) &&
 			((ap->b_bcount & PAGE_MASK) == 0) &&
 			(((vm_offset_t) ap->b_un.b_addr & PAGE_MASK) == 0) &&
 			(ap->b_bcount + bp->b_bcount < maxio)) {
@@ -597,6 +662,7 @@ insert:
 				 * build the new bp to be handed off to the device
 				 */
 
+				--clstats[ap->b_bcount/PAGE_SIZE];
 				*newbp = *ap;
 				newbp->b_flags |= B_CLUSTER;
 				newbp->b_un.b_addr = (caddr_t) kvanew;
@@ -604,6 +670,7 @@ insert:
 				newbp->b_bufsize = newbp->b_bcount;
 				newbp->b_clusterf = ap;
 				newbp->b_clusterl = bp;
+				++clstats[newbp->b_bcount/PAGE_SIZE];
 
 				/*
 				 * enter the new bp onto the device queue
@@ -635,6 +702,7 @@ insert:
 				 * free the old kva
 				 */
 				vm_bounce_kva_free( orig1begin, ap->b_bufsize, 0);
+				--clstats[ap->b_bcount/PAGE_SIZE];
 
 				ap->b_un.b_addr = (caddr_t) kvanew;
 
@@ -645,6 +713,7 @@ insert:
 
 				ap->b_bcount += bp->b_bcount;
 				ap->b_bufsize = ap->b_bcount;
+				++clstats[ap->b_bcount/PAGE_SIZE];
 			}
 			return;
 		/*
@@ -657,8 +726,9 @@ insert:
 		 *	5) And the total I/O size would be below the maximum.
 		 */
 		} else if( ap->av_forw &&
-			(bp->b_blkno + (bp->b_bcount / DEV_BSIZE) == ap->av_forw->b_blkno) &&
+			(bp->b_pblkno + (bp->b_bcount / DEV_BSIZE) == ap->av_forw->b_pblkno) &&
 			(bp->b_flags == (ap->av_forw->b_flags & ~B_CLUSTER)) &&
+			((ap->av_forw->b_flags & B_BAD) == 0) &&
 			((ap->av_forw->b_bcount & PAGE_MASK) == 0) &&
 			(((vm_offset_t) ap->av_forw->b_un.b_addr & PAGE_MASK) == 0) &&
 			(ap->av_forw->b_bcount + bp->b_bcount < maxio)) {
@@ -678,7 +748,6 @@ insert:
 				goto nocluster;
 			}
 			
-
 			/*
 			 * if next isn't a cluster we need to create one
 			 */
@@ -694,18 +763,18 @@ insert:
 				}
 
 				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
-
-				pmap_update();
-
 				ap = ap->av_forw;
+				--clstats[ap->b_bcount/PAGE_SIZE];
 				*newbp = *ap;
 				newbp->b_flags |= B_CLUSTER;
 				newbp->b_un.b_addr = (caddr_t) kvanew;
 				newbp->b_blkno = bp->b_blkno;
+				newbp->b_pblkno = bp->b_pblkno;
 				newbp->b_bcount += bp->b_bcount;
 				newbp->b_bufsize = newbp->b_bcount;
 				newbp->b_clusterf = bp;
 				newbp->b_clusterl = ap;
+				++clstats[newbp->b_bcount/PAGE_SIZE];
 
 				if( ap->av_forw)
 					ap->av_forw->av_back = newbp;
@@ -734,10 +803,13 @@ insert:
 				ap->b_clusterf->av_back = bp;
 				ap->b_clusterf = bp;
 				bp->av_back = NULL;
+				--clstats[ap->b_bcount/PAGE_SIZE];
 			
 				ap->b_blkno = bp->b_blkno;
+				ap->b_pblkno = bp->b_pblkno;
 				ap->b_bcount += bp->b_bcount;
 				ap->b_bufsize = ap->b_bcount;
+				++clstats[ap->b_bcount/PAGE_SIZE];
 
 			}
 			return;
@@ -747,6 +819,7 @@ insert:
 	 * don't merge
 	 */
 nocluster:
+	++clstats[bp->b_bcount/PAGE_SIZE];
 	bp->av_forw = ap->av_forw;
 	if( bp->av_forw)
 		bp->av_forw->av_back = bp;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.22 1994/03/30 02:17:45 davidg Exp $
+ *	$Id: pmap.c,v 1.23 1994/04/14 07:49:38 davidg Exp $
  */
 
 /*
@@ -153,6 +153,7 @@ static inline pv_entry_t	get_pv_entry();
 void				pmap_alloc_pv_entry();
 void				pmap_clear_modify();
 void				i386_protection_init();
+extern vm_offset_t pager_sva, pager_eva;
 
 #if BSDVM_COMPAT
 #include "msgbuf.h"
@@ -851,8 +852,10 @@ pmap_remove(pmap, sva, eva)
 		if (pmap_is_managed(pa)) {
 			if ((((int) oldpte & PG_M) && (sva < USRSTACK || sva > UPT_MAX_ADDRESS))
 				|| (sva >= USRSTACK && sva < USRSTACK+(UPAGES*NBPG))) {
-				m = PHYS_TO_VM_PAGE(pa);
-				m->flags &= ~PG_CLEAN;
+				if (sva < pager_sva || sva >= pager_eva) {
+					m = PHYS_TO_VM_PAGE(pa);
+					m->flags &= ~PG_CLEAN;
+				}
 			}
 
 			pv = pa_to_pvh(pa);
@@ -946,8 +949,10 @@ pmap_remove(pmap, sva, eva)
 
 		if ((((int) oldpte & PG_M) && (va < USRSTACK || va > UPT_MAX_ADDRESS))
 			|| (va >= USRSTACK && va < USRSTACK+(UPAGES*NBPG))) {
-			m = PHYS_TO_VM_PAGE(pa);
-			m->flags &= ~PG_CLEAN;
+			if (va < pager_sva || va >= pager_eva) {
+				m = PHYS_TO_VM_PAGE(pa);
+				m->flags &= ~PG_CLEAN;
+			}
 		}
 
 		pv = pa_to_pvh(pa);
@@ -1018,7 +1023,9 @@ pmap_remove_all(pa)
 		if ( (m->flags & PG_CLEAN) &&
 			((((int) *pte) & PG_M) && (pv->pv_va < USRSTACK || pv->pv_va > UPT_MAX_ADDRESS))
 			|| (pv->pv_va >= USRSTACK && pv->pv_va < USRSTACK+(UPAGES*NBPG))) {
-			m->flags &= ~PG_CLEAN;
+			if (pv->pv_va < pager_sva || pv->pv_va >= pager_eva) {
+				m->flags &= ~PG_CLEAN;
+			}
 		}
 
 		*pte = 0;
@@ -1724,8 +1731,16 @@ pmap_testbit(pa, bit)
 			 * then mark UPAGES as always modified, and
 			 * ptes as never modified.
 			 */
+			if (bit & PG_U ) {
+				if ((pv->pv_va >= pager_sva) && (pv->pv_va < pager_eva)) {
+					continue;
+				}
+			} 
 			if (bit & PG_M ) {
 				if (pv->pv_va >= USRSTACK) {
+					if (pv->pv_va >= pager_sva && pv->pv_va < pager_eva) {
+						continue;
+					}
 					if (pv->pv_va < USRSTACK+(UPAGES*NBPG)) {
 						splx(s);
 						return TRUE;
@@ -1780,8 +1795,6 @@ pmap_changebit(pa, bit, setem)
 			 * don't write protect pager mappings
 			 */
 			if (!setem && (bit == PG_RW)) {
-				extern vm_offset_t pager_sva, pager_eva;
-
 				if (va >= pager_sva && va < pager_eva)
 					continue;
 			}

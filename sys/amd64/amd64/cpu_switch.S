@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.4 1994/01/31 10:26:59 davidg Exp $
+ *	$Id: swtch.s,v 1.5 1994/04/02 07:00:30 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -156,8 +156,10 @@ _idle:
 
 	ALIGN_TEXT
 idle_loop:
+	cli
 	cmpl	$0,_whichqs
-	jne	sw1
+	jne	sw1a
+	sti
 	hlt					/* wait for interrupt */
 	jmp	idle_loop
 
@@ -214,6 +216,7 @@ ENTRY(swtch)
 	/* save is done, now choose a new process or idle */
 sw1:
 	cli
+sw1a:
 	movl	_whichqs,%edi
 2:
 	/* XXX - bsf is sloow */
