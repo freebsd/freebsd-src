@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.8 1995/03/29 19:50:58 ache Exp $
+ * $Id: tty_compat.c,v 1.9 1995/04/02 03:51:53 ache Exp $
  */
 
 /* 
@@ -50,9 +50,9 @@
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 
-static int ttcompatgetflags	__P((struct tty *tp));
-static void ttcompatsetflags	__P((struct tty *tp, struct termios *t));
-static void ttcompatsetlflags	__P((struct tty *tp, struct termios *t));
+int ttcompatgetflags     __P((struct tty *tp));
+void ttcompatsetflags    __P((struct tty *tp, struct termios *t));
+void ttcompatsetlflags   __P((struct tty *tp, struct termios *t));
 
 int ttydebug = 0;
 
@@ -91,6 +91,7 @@ ttcompat(tp, com, data, flag)
 	caddr_t data;
 	int flag;
 {
+	struct termios term;
 
 	switch (com) {
 	case TIOCGETP: {
@@ -115,7 +116,6 @@ ttcompat(tp, com, data, flag)
 	case TIOCSETP:
 	case TIOCSETN: {
 		register struct sgttyb *sg = (struct sgttyb *)data;
-		struct termios term;
 		int speed;
 
 		term = tp->t_termios;
@@ -149,8 +149,10 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCSETC: {
 		struct tchars *tc = (struct tchars *)data;
-		register cc_t *cc = tp->t_cc;
+		register cc_t *cc;
 
+		term = tp->t_termios;
+		cc = term.c_cc;
 		cc[VINTR] = tc->t_intrc;
 		cc[VQUIT] = tc->t_quitc;
 		cc[VSTART] = tc->t_startc;
@@ -159,19 +161,21 @@ ttcompat(tp, com, data, flag)
 		cc[VEOL] = tc->t_brkc;
 		if (tc->t_brkc == -1)
 			cc[VEOL2] = _POSIX_VDISABLE;
-		break;
+		return (ttioctl(tp, TIOCSETA, &term, flag));
 	}
 	case TIOCSLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
-		register cc_t *cc = tp->t_cc;
+		register cc_t *cc;
 
+		term = tp->t_termios;
+		cc = term.c_cc;
 		cc[VSUSP] = ltc->t_suspc;
 		cc[VDSUSP] = ltc->t_dsuspc;
 		cc[VREPRINT] = ltc->t_rprntc;
 		cc[VDISCARD] = ltc->t_flushc;
 		cc[VWERASE] = ltc->t_werasc;
 		cc[VLNEXT] = ltc->t_lnextc;
-		break;
+		return (ttioctl(tp, TIOCSETA, &term, flag));
 	}
 	case TIOCGLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
@@ -187,9 +191,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCLBIS:
 	case TIOCLBIC:
-	case TIOCLSET: {
-		struct termios term;
-
+	case TIOCLSET:
 		term = tp->t_termios;
 		if (com == TIOCLSET)
 			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
@@ -203,7 +205,7 @@ ttcompat(tp, com, data, flag)
 		}
 		ttcompatsetlflags(tp, &term);
 		return (ttioctl(tp, TIOCSETA, &term, flag));
-	}
+
 	case TIOCLGET:
 		tp->t_flags =
 		 (ttcompatgetflags(tp) & 0xffff0000UL) 
@@ -234,7 +236,7 @@ ttcompat(tp, com, data, flag)
 	return (0);
 }
 
-static int
+int
 ttcompatgetflags(tp)
 	register struct tty *tp;
 {
@@ -295,7 +297,7 @@ ttcompatgetflags(tp)
 	return (flags);
 }
 
-static void
+void
 ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
@@ -373,7 +375,7 @@ ttcompatsetflags(tp, t)
 	t->c_cflag = cflag;
 }
 
-static void
+void
 ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
