@@ -76,7 +76,7 @@ inner header, with
 Note that IPv6 link-local addresses
 (those that start with
 .Li fe80:: )
-will be automatically be configured whenever possible.
+will be automatically configured whenever possible.
 You may need to remove IPv6 link-local addresses manually using
 .Xr ifconfig 8 ,
 if you want to disable the use of IPv6 as the inner header
@@ -148,9 +148,20 @@ performs both martian and ingress filtering against the outer source address
 on egress.
 Note that martian/ingress filters are in no way complete.
 You may want to secure your node by using packet filters.
-Ingress filtering can be turned off by
+Ingress filtering can break tunnel operation in an asymmetrically
+routed network.
+It can be turned off by
 .Dv IFF_LINK2
 bit.
+.Ss Route caching
+Processing each packet requires two route lookups: first on the
+packet itself, and second on the tunnel destination.
+This second route can be cached, increasing tunnel performance.
+However, in a dynamically routed network, the tunnel will stick
+to the cached route, ignoring routing table updates.
+Route caching can be enabled with the
+.Dv IFF_LINK0
+flag.
 .\"
 .Ss Miscellaneous
 By default,
