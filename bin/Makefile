@@ -12,6 +12,7 @@ SUBDIR= cat \
 	echo \
 	ed \
 	expr \
+	getfacl \
 	hostname \
 	kill \
 	ln \
@@ -24,6 +25,7 @@ SUBDIR= cat \
 	rcp \
 	rm \
 	rmdir \
+	setfacl \
 	sh \
 	sleep \
 	stty \
