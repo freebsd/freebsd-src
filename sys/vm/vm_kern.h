@@ -75,6 +75,4 @@ extern vm_map_t clean_map;
 extern vm_map_t exec_map;
 extern u_int vm_kmem_size;
 
-extern vm_offset_t kernel_vm_end;
-
 #endif				/* _VM_VM_KERN_H_ */
