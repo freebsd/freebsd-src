@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.1 1996/11/16 21:03:20 phk Exp $
+# $Id: ppp.conf.sample,v 1.5.2.2 1997/03/02 14:56:49 joerg Exp $
 #
 #################################################################
 
@@ -98,7 +98,7 @@ ondemand:
 #  We also set openmode active - this makes us initiate ppp negotiation.
 #  The default is to wait for the server to start talking.
 #
-pmdemend:
+pmdemand:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
