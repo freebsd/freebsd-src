@@ -147,8 +147,9 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 	/* Output a record for the thread: */
 	snprintf(s, sizeof(s),
 	    "--------------------\n"
-	    "Thread %p (%s) prio %3d, blocked %s, state %s [%s:%d]\n",
+	    "Thread %p (%s), scope %s, prio %3d, blocked %s, state %s [%s:%d]\n",
 	    pthread, (pthread->name == NULL) ? "" : pthread->name,
+	    pthread->attr.flags & PTHREAD_SCOPE_SYSTEM ? "system" : "process",
 	    pthread->active_priority, (pthread->blocked != 0) ? "yes" : "no",
 	    thread_info[i].name, pthread->fname, pthread->lineno);
 	__sys_write(fd, s, strlen(s));
@@ -166,29 +167,24 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			strcpy(s, "This is the initial thread\n");
 			__sys_write(fd, s, strlen(s));
 		}
-		/* Check if this is the signal daemon thread: */
-		if (pthread == _thr_sig_daemon) {
-			/* Output a record for the signal thread: */
-			strcpy(s, "This is the signal daemon thread\n");
+		snprintf(s, sizeof(s), "sigmask (hi) ");
+		__sys_write(fd, s, strlen(s));
+		for (i = _SIG_WORDS - 1; i >= 0; i--) {
+			snprintf(s, sizeof(s), "%08x ",
+			    pthread->oldsigmask.__bits[i]);
 			__sys_write(fd, s, strlen(s));
 		}
+		snprintf(s, sizeof(s), "(lo)\n");
+		__sys_write(fd, s, strlen(s));
+
 		/* Process according to thread state: */
 		switch (pthread->state) {
 		case PS_SIGWAIT:
-			snprintf(s, sizeof(s), "sigmask (hi)");
+			snprintf(s, sizeof(s), "waitset (hi) ");
 			__sys_write(fd, s, strlen(s));
 			for (i = _SIG_WORDS - 1; i >= 0; i--) {
-				snprintf(s, sizeof(s), "%08x\n",
-				    pthread->oldsigmask.__bits[i]);
-				__sys_write(fd, s, strlen(s));
-			}
-			snprintf(s, sizeof(s), "(lo)\n");
-			__sys_write(fd, s, strlen(s));
-			snprintf(s, sizeof(s), "waitset (hi)");
-			__sys_write(fd, s, strlen(s));
-			for (i = _SIG_WORDS - 1; i >= 0; i--) {
-				snprintf(s, sizeof(s), "%08x\n",
-				    pthread->sigmask.__bits[i]);
+				snprintf(s, sizeof(s), "%08x ",
+				    ~pthread->sigmask.__bits[i]);
 				__sys_write(fd, s, strlen(s));
 			}
 			snprintf(s, sizeof(s), "(lo)\n");
