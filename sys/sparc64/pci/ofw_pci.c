@@ -216,6 +216,8 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 			panic("ofw_pci_init: OF_getprop failed");
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
+		PCIB_WRITE_CONFIG(dev, busno, slot, func, PCIR_CACHELNSZ,
+		    clnsz / 4, 1);
 		if (strcmp(type, OFW_PCI_PCIBUS) == 0) {
 			/*
 			 * This is a pci-pci bridge, initalize the bus number and
@@ -269,8 +271,6 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 				PCIB_WRITE_CONFIG(dev, busno, slot, func,
 				    PCIR_LATTIMER, imin(lat, 255), 1);
 			}
-			PCIB_WRITE_CONFIG(dev, busno, slot, func,
-			    PCIR_CACHELNSZ, clnsz / 4, 1);
 
 			/* Initialize the intline registers. */
 			if ((intr = ofw_pci_route_intr(node, ign)) != 255) {
