@@ -62,25 +62,17 @@ fdc_pccard_probe(device_t dev)
 	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
-
-	fdc->flags |= FDC_ISPCMCIA | FDC_NODMA;
+	fdc->flags = FDC_ISPCMCIA | FDC_NODMA;
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_alloc_resources(fdc);
 	if (error)
 		goto out;
 
-	/* First - lets reset the floppy controller */
-	fdout_wr(fdc, 0);
-	DELAY(100);
-	fdout_wr(fdc, FDO_FRST);
-
-	/* see if it can handle a command */
-	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
-		   NE7_SPEC_2(2, 0), 0)) {
-		error = ENXIO;
+	/* Check that the controller is working. */
+	error = fdc_initial_reset(fdc);
+	if (error)
 		goto out;
-	}
 
 	device_set_desc(dev, "Y-E Data PCMCIA floppy");
 	fdc->fdct = FDC_NE765;
@@ -102,6 +94,7 @@ static device_method_t fdc_pccard_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	fdc_print_child),
 	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
+	DEVMETHOD(bus_write_ivar,       fdc_write_ivar),
 	/* Our children never use any other bus interface methods. */
 
 	{ 0, 0 }
