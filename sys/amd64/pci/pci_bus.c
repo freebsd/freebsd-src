@@ -424,19 +424,9 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 static int
 nexus_pcib_probe(device_t dev)
 {
-	devclass_t pci_devclass;
 
 	if (pci_cfgregopen() == 0)
 		return ENXIO;
-	/*
-	 * Check to see if we haven't already had a PCI bus added
-	 * via some other means.  If we have, bail since otherwise
-	 * we're going to end up duplicating it.
-	 */
-	if ((pci_devclass = devclass_find("pci")) && 
-		devclass_get_device(pci_devclass, device_get_unit(dev)))
-		return ENXIO;
-
 	return 0;
 }
 
