@@ -115,6 +115,7 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
 	error = g_access_rel(cp, dr, dw, de);
+	pp->mediasize = gsp->slices[pp->index].length;
 	return (error);
 }
 
