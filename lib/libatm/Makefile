@@ -23,12 +23,15 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
+#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:22:33 phk Exp $
 #
 #
 
 LIB=	atm
 SRCS=	atm_addr.c cache_key.c ioctl_subr.c ip_addr.c ip_checksum.c timer.c
+
+LDADD+=	-lmd
+DPADD+=	${LIBMD}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libatm.h \
