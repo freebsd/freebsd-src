@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.19 1998/05/10 21:13:29 hoek Exp $";
+	"$Id: newsyslog.c,v 1.20 1998/06/09 18:24:04 ache Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -94,7 +94,7 @@ int     force = 0;		/* Force the trim no matter what*/
 char    *conf = CONF;           /* Configuration file to use */
 time_t  timenow;
 #define MIN_PID         5
-#define MAX_PID		30000   /* was 65534, see /usr/include/sys/proc.h */
+#define MAX_PID		99999   /* was lower, see /usr/include/sys/proc.h */
 char    hostname[MAXHOSTNAMELEN+1]; /* hostname */
 char    *daytime;               /* timenow in human readable form */
 
