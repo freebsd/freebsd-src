@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.41 1995/03/29 19:24:46 ache Exp $
+ * $Id: tty.c,v 1.42 1995/04/15 21:04:58 bde Exp $
  */
 
 #include "snp.h"
@@ -1196,7 +1196,7 @@ ttylclose(tp, flag)
 	int flag;
 {
 
-	if ((flag & IO_NDELAY) || ttywflush(tp))
+	if (flag & FNONBLOCK || ttywflush(tp))
 		ttyflush(tp, FREAD | FWRITE);
 	return (0);
 }
