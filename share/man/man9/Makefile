@@ -1,10 +1,11 @@
 #	$FreeBSD$
 
-MAN9=	at_shutdown.9 at_fork.9 at_exit.9 cd.9 copy.9 devfs_add_devswf.9 \
+MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 cd.9 copy.9 devfs_add_devswf.9 \
 	devfs_link.9 fetch.9 ifnet.9 intro.9 panic.9 psignal.9 rtalloc.9 \
 	rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 store.9 style.9 \
 	timeout.9 uio.9
 
+MLINKS+= MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+= copy.9 copyin.9 copy.9 copyout.9 copy.9 copystr.9 copy.9 copyinstr.9
 MLINKS+= fetch.9 fubyte.9 fetch.9 fusword.9 fetch.9 fuswintr.9 fetch.9 fuword.9
 MLINKS+= at_shutdown.9 rm_at_shutdown.9
