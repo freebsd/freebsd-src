@@ -304,10 +304,13 @@ add 03000 allow tcp from any to any http,https
 add 03000 allow tcp from any to any 4000-65535,ssh,smtp,domain,ntalk
 add 03000 allow tcp from any to any auth,pop3,ftp,ftp-data
 
-# It is important to allow certain ICMP types through:
+# It is important to allow certain ICMP types through, here is a list
+# of general ICMP types.  Note that it is important to let ICMP type 3
+# through.
 #
 #	0	Echo Reply
-#	3	Destination Unreachable
+#	3	Destination Unreachable (used by TCP MTU discovery, aka
+#					packet-too-big)
 #	4	Source Quench (typically not allowed)
 #	5	Redirect (typically not allowed - can be dangerous!)
 #	8	Echo
@@ -320,7 +323,7 @@ add 03000 allow tcp from any to any auth,pop3,ftp,ftp-data
 # type 5, but if you allow it make sure that your Internet router
 # disallows it.
 
-add 04000 allow icmp from any to any icmptypes 0,5,8,11,12,13,14
+add 04000 allow icmp from any to any icmptypes 0,3,8,11,12,13,14
 
 # log any remaining fragments that get through.  Might be useful,
 # otherwise don't bother.  Have a final deny rule as a safety to
