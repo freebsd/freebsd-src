@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.12 1996/05/25 23:09:48 wosch Exp $
+#	$Id: bsd.man.mk,v 1.13 1996/06/22 06:01:56 phk Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -37,6 +37,8 @@
 # NOMANCOMPRESS	If you do not want unformatted manual pages to be 
 #		compressed when they are installed. [not set]
 #
+# MANFILTER	command to pipe the raw man page though before compressing
+#		or installing.  Can be used to do sed substitution.
 #
 # +++ targets +++
 #
@@ -73,6 +75,21 @@ all-man: ${MANDEPEND}
 COPY=		-c
 ZEXT=
 
+.if defined(MANFILTER)
+.for sect in ${SECTIONS}
+.if defined(MAN${sect}) && !empty(MAN${sect})
+CLEANFILES+=	${MAN${sect}}
+.for page in ${MAN${sect}}
+.for target in ${page}
+all-man: ${target}
+${target}: ${page}
+	${MANFILT} < ${.ALLSRC} > ${.TARGET}
+.endfor
+.endfor
+.endif
+.endfor
+.endif
+
 .else
 
 ZEXT=		${ZEXTENSION}
@@ -84,7 +101,11 @@ CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
 .for target in ${page:T:S/$/${ZEXTENSION}/}
 all-man: ${target}
 ${target}: ${page}
+.if defined(MANFILT)
+	${MANFILT} < ${.ALLSRC} | ${MCOMPRESS} > ${.TARGET}
+.else
 	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
+.endif
 .endfor
 .endfor
 .endif
