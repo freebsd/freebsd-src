@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.16 1995/10/16 20:53:55 wollman Exp $
+ * $Id: route.h,v 1.17 1995/10/26 20:30:24 julian Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -260,9 +260,6 @@ extern struct rtstat rtstat;
 extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 void	 route_init __P((void));
-int	 route_output __P((struct mbuf *, struct socket *));
-int	 route_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	 rt_ifmsg __P((struct ifnet *));
 void	 rt_maskedcopy __P((struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *));
@@ -270,7 +267,6 @@ void	 rt_missmsg __P((int, struct rt_addrinfo *, int, int));
 void	 rt_newaddrmsg __P((int, struct ifaddr *, int, struct rtentry *));
 int	 rt_setgate __P((struct rtentry *,
 	    struct sockaddr *, struct sockaddr *));
-void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *));
 void	 rtable_init __P((void **));
 void	 rtalloc __P((struct route *));
 void	 rtalloc_ign __P((struct route *, unsigned long));
