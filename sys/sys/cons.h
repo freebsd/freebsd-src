@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.17 1997/07/01 00:54:37 bde Exp $
+ *	$Id: cons.h,v 1.18 1999/01/07 14:14:11 yokota Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -79,7 +79,7 @@ extern	int cons_unavail;
 	static struct consdev name##_consdev = {		\
 		probe, init, getc, checkc, putc			\
 	};							\
-	DATA_SET(cons_set, name##_consdev);
+	DATA_SET(cons_set, name##_consdev)
 
 /* Other kernel entry points. */
 int	cncheckc __P((void));
