@@ -220,8 +220,6 @@ static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 	{ &fifo_nfsv2nodeop_p, nfsv2_fifoop_entries };
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
 
-static int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt,
-				struct ucred *cred, struct proc *procp));
 static int	nfs_mknodrpc __P((struct vnode *dvp, struct vnode **vpp,
 				  struct componentname *cnp,
 				  struct vattr *vap));
@@ -2587,9 +2585,9 @@ nfs_lookitup(dvp, name, len, cred, procp, npp)
 /*
  * Nfs Version 3 commit rpc
  */
-static int
+int
 nfs_commit(vp, offset, cnt, cred, procp)
-	register struct vnode *vp;
+	struct vnode *vp;
 	u_quad_t offset;
 	int cnt;
 	struct ucred *cred;
@@ -3076,8 +3074,10 @@ nfs_writebp(bp, force, procp)
 {
 	int s;
 	int oldflags = bp->b_flags;
+#if 0
 	int retv = 1;
 	off_t off;
+#endif
 
 	if (BUF_REFCNT(bp) == 0)
 		panic("bwrite: buffer is not locked???");
@@ -3101,12 +3101,16 @@ nfs_writebp(bp, force, procp)
 	curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 
+	vfs_busy_pages(bp, 1);
+#if 0
+	/*
+	 * XXX removed, moved to nfs_doio XXX
+	 */
 	/*
 	 * If B_NEEDCOMMIT is set, a commit rpc may do the trick. If not
 	 * an actual write will have to be scheduled via. VOP_STRATEGY().
 	 * If B_WRITEINPROG is already set, then push it with a write anyhow.
 	 */
-	vfs_busy_pages(bp, 1);
 	if ((oldflags & (B_NEEDCOMMIT | B_WRITEINPROG)) == B_NEEDCOMMIT) {
 		off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		bp->b_flags |= B_WRITEINPROG;
@@ -3121,12 +3125,11 @@ nfs_writebp(bp, force, procp)
 			nfs_clearcommit(bp->b_vp->v_mount);
 		}
 	}
-	if (retv) {
-		if (force)
-			bp->b_flags |= B_WRITEINPROG;
-		BUF_KERNPROC(bp);
-		VOP_STRATEGY(bp->b_vp, bp);
-	}
+#endif
+	if (force)
+		bp->b_flags |= B_WRITEINPROG;
+	BUF_KERNPROC(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);

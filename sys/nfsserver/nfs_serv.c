@@ -96,6 +96,7 @@
 #include <sys/stat.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -115,6 +116,8 @@
 #define nfsdbprintf(info)
 #endif
 
+#define MAX_COMMIT_COUNT	(1024 * 1024)
+
 nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
 		      NFFIFO, NFNON };
 #ifndef NFS_NOSERVER 
@@ -133,6 +136,10 @@ SYSCTL_DECL(_vfs_nfs);
 
 static int nfs_async;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
+static int nfs_commit_blks;
+static int nfs_commit_miss;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss, 0, "");
 
 static int nfsrv_access __P((struct vnode *,int,struct ucred *,int,
 		struct proc *, int));
@@ -3624,11 +3631,73 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 		goto nfsmout;
 	}
 	for_ret = VOP_GETATTR(vp, &bfor, cred, procp);
-	if (vp->v_object &&
-	   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
+
+	if (cnt > MAX_COMMIT_COUNT) {
+		/*
+		 * Give up and do the whole thing
+		 */
+		if (vp->v_object &&
+		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
+		}
+		error = VOP_FSYNC(vp, cred, MNT_WAIT, procp);
+	} else {
+		/*
+		 * Locate and synchronously write any buffers that fall
+		 * into the requested range.  Note:  we are assuming that
+		 * f_iosize is a power of 2.
+		 */
+		int iosize = vp->v_mount->mnt_stat.f_iosize;
+		int iomask = iosize - 1;
+		int s;
+		daddr_t lblkno;
+
+		/*
+		 * Align to iosize boundry, super-align to page boundry.
+		 */
+		if (off & iomask) {
+			cnt += off & iomask;
+			off &= ~(u_quad_t)iomask;
+		}
+		if (off & PAGE_MASK) {
+			cnt += off & PAGE_MASK;
+			off &= ~(u_quad_t)PAGE_MASK;
+		}
+		lblkno = off / iosize;
+
+		if (vp->v_object &&
+		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
+			vm_object_page_clean(vp->v_object, off / PAGE_SIZE, (cnt + PAGE_MASK) / PAGE_SIZE, OBJPC_SYNC);
+		}
+
+		s = splbio();
+		while (cnt > 0) {
+			struct buf *bp;
+
+			/*
+			 * If we have a buffer and it is marked B_DELWRI we
+			 * have to lock and write it.  Otherwise the prior
+			 * write is assumed to have already been committed.
+			 */
+			if ((bp = gbincore(vp, lblkno)) != NULL && (bp->b_flags & B_DELWRI)) {
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+					BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL);
+					continue; /* retry */
+				}
+				bremfree(bp);
+				bp->b_flags &= ~B_ASYNC;
+				VOP_BWRITE(bp->b_vp, bp);
+				++nfs_commit_miss;
+			}
+			++nfs_commit_blks;
+			if (cnt < iosize)
+				break;
+			cnt -= iosize;
+			++lblkno;
+		}
+		splx(s);
 	}
-	error = VOP_FSYNC(vp, cred, MNT_WAIT, procp);
+
 	aft_ret = VOP_GETATTR(vp, &aft, cred, procp);
 	vput(vp);
 	vp = NULL;
