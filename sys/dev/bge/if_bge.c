@@ -181,7 +181,7 @@ static void bge_handle_events	(struct bge_softc *);
 static int bge_alloc_jumbo_mem	(struct bge_softc *);
 static void bge_free_jumbo_mem	(struct bge_softc *);
 static void *bge_jalloc		(struct bge_softc *);
-static void bge_jfree		(caddr_t, void *);
+static void bge_jfree		(void *, void *);
 static int bge_newbuf_std	(struct bge_softc *, int, struct mbuf *);
 static int bge_newbuf_jumbo	(struct bge_softc *, int, struct mbuf *);
 static int bge_init_rx_ring_std	(struct bge_softc *);
@@ -663,7 +663,7 @@ bge_jalloc(sc)
  */
 static void
 bge_jfree(buf, args)
-	caddr_t buf;
+	void *buf;
 	void *args;
 {
 	struct bge_jpool_entry *entry;

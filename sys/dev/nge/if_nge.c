@@ -153,7 +153,7 @@ static int nge_detach		(device_t);
 static int nge_alloc_jumbo_mem	(struct nge_softc *);
 static void nge_free_jumbo_mem	(struct nge_softc *);
 static void *nge_jalloc		(struct nge_softc *);
-static void nge_jfree		(caddr_t, void *);
+static void nge_jfree		(void *, void *);
 
 static int nge_newbuf		(struct nge_softc *,
 					struct nge_desc *, struct mbuf *);
@@ -1203,7 +1203,7 @@ static void *nge_jalloc(sc)
  * Release a jumbo buffer.
  */
 static void nge_jfree(buf, args)
-	caddr_t			buf;
+	void			*buf;
 	void			*args;
 {
 	struct nge_softc	*sc;
