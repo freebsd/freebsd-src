@@ -108,6 +108,7 @@ static int ufsspec_close __P((struct vop_close_args *));
 static int ufsspec_read __P((struct vop_read_args *));
 static int ufsspec_write __P((struct vop_write_args *));
 static int filt_ufsread __P((struct knote *kn, long hint));
+static int filt_ufswrite __P((struct knote *kn, long hint));
 static int filt_ufsvnode __P((struct knote *kn, long hint));
 static void filt_ufsdetach __P((struct knote *kn));
 static int ufs_kqfilter __P((struct vop_kqfilter_args *ap));
@@ -2396,6 +2397,8 @@ ufs_missingop(ap)
 
 static struct filterops ufsread_filtops = 
 	{ 1, NULL, filt_ufsdetach, filt_ufsread };
+static struct filterops ufswrite_filtops = 
+	{ 1, NULL, filt_ufsdetach, filt_ufswrite };
 static struct filterops ufsvnode_filtops = 
 	{ 1, NULL, filt_ufsdetach, filt_ufsvnode };
 
@@ -2412,6 +2415,9 @@ ufs_kqfilter(ap)
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		kn->kn_fop = &ufsread_filtops;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &ufswrite_filtops;
 		break;
 	case EVFILT_VNODE:
 		kn->kn_fop = &ufsvnode_filtops;
@@ -2458,6 +2464,22 @@ filt_ufsread(struct knote *kn, long hint)
 
         kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
         return (kn->kn_data != 0);
+}
+
+/*ARGSUSED*/
+static int
+filt_ufswrite(struct knote *kn, long hint)
+{
+
+	/*
+	 * filesystem is gone, so set the EOF flag and schedule 
+	 * the knote for deletion.
+	 */
+	if (hint == NOTE_REVOKE)
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+
+        kn->kn_data = 0;
+        return (1);
 }
 
 static int
