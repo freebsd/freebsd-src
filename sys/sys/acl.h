@@ -140,12 +140,17 @@ __BEGIN_DECLS
 int	__acl_aclcheck_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
 int	__acl_aclcheck_file(const char *_path, acl_type_t _type,
 	    struct acl *_aclp);
+int	__acl_aclcheck_link(const char *_path, acl_type_t _type,
+	    struct acl *_aclp);
 int	__acl_delete_fd(int _filedes, acl_type_t _type);
 int	__acl_delete_file(const char *_path_p, acl_type_t _type);
+int	__acl_delete_link(const char *_path_p, acl_type_t _type);
 int	__acl_get_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
 int	__acl_get_file(const char *_path, acl_type_t _type, struct acl *_aclp);
+int	__acl_get_link(const char *_path, acl_type_t _type, struct acl *_aclp);
 int	__acl_set_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
 int	__acl_set_file(const char *_path, acl_type_t _type, struct acl *_aclp);
+int	__acl_set_link(const char *_path, acl_type_t _type, struct acl *_aclp);
 __END_DECLS
 
 /*
@@ -162,10 +167,12 @@ int	acl_copy_entry(acl_entry_t _dest_d, acl_entry_t _src_d);
 ssize_t	acl_copy_ext(void *_buf_p, acl_t _acl, ssize_t _size);
 acl_t	acl_copy_int(const void *_buf_p);
 int	acl_create_entry(acl_t *_acl_p, acl_entry_t *_entry_p);
-int	acl_delete_fd_np(int _filedes, acl_type_t _type);
 int	acl_delete_entry(acl_t _acl, acl_entry_t _entry_d);
+int	acl_delete_fd_np(int _filedes, acl_type_t _type);
 int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
+int	acl_delete_link_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_def_file(const char *_path_p);
+int	acl_delete_def_link_np(const char *_path_p);
 int	acl_delete_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 acl_t	acl_dup(acl_t _acl);
 int	acl_free(void *_obj_p);
@@ -174,6 +181,7 @@ int	acl_get_entry(acl_t _acl, int _entry_id, acl_entry_t *_entry_p);
 acl_t	acl_get_fd(int _fd);
 acl_t	acl_get_fd_np(int fd, acl_type_t _type);
 acl_t	acl_get_file(const char *_path_p, acl_type_t _type);
+acl_t	acl_get_link_np(const char *_path_p, acl_type_t _type);
 void	*acl_get_qualifier(acl_entry_t _entry_d);
 int	acl_get_perm_np(acl_permset_t _permset_d, acl_perm_t _perm);
 int	acl_get_permset(acl_entry_t _entry_d, acl_permset_t *_permset_p);
@@ -182,6 +190,7 @@ acl_t	acl_init(int _count);
 int	acl_set_fd(int _fd, acl_t _acl);
 int	acl_set_fd_np(int _fd, acl_t _acl, acl_type_t _type);
 int	acl_set_file(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_set_link_np(const char *_path_p, acl_type_t _type, acl_t _acl);
 int	acl_set_permset(acl_entry_t _entry_d, acl_permset_t _permset_d);
 int	acl_set_qualifier(acl_entry_t _entry_d, const void *_tag_qualifier_p);
 int	acl_set_tag_type(acl_entry_t _entry_d, acl_tag_t _tag_type);
@@ -190,6 +199,7 @@ char	*acl_to_text(acl_t _acl, ssize_t *_len_p);
 int	acl_valid(acl_t _acl);
 int	acl_valid_fd_np(int _fd, acl_type_t _type, acl_t _acl);
 int	acl_valid_file_np(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_valid_link_np(const char *_path_p, acl_type_t _type, acl_t _acl);
 __END_DECLS
 
 #endif /* !_KERNEL */
