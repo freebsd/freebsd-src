@@ -8,7 +8,8 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
-CSTD		?=
+#	Can't use "c99" below due to lack of alloca.S for non-i386 platforms.
+CSTD		?=	gnu99
 .if ${CSTD} != ""
 . if ${CSTD} == "k&r"
 CFLAGS		+=	-traditional
