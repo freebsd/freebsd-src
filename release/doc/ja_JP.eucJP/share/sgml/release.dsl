@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Original revision: 1.4 -->
+<!-- Original revision: 1.6 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
