@@ -39,6 +39,7 @@ vm_pageq_init(void)
 	}
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
+	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
 
 	for (i = 0; i < PQ_COUNT; i++) {
 		TAILQ_INIT(&vm_page_queues[i].pl);

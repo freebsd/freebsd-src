@@ -413,6 +413,8 @@ vm_page_unhold(vm_page_t mem)
 	GIANT_REQUIRED;
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
+	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
+		vm_page_free_toq(mem);
 }
 
 /*
@@ -1108,8 +1110,7 @@ vm_page_free_toq(vm_page_t m)
 	s = splvm();
 	cnt.v_tfree++;
 
-	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
-		(m->hold_count != 0)) {
+	if (m->busy || ((m->queue - m->pc) == PQ_FREE)) {
 		printf(
 		"vm_page_free: pindex(%lu), busy(%d), PG_BUSY(%d), hold(%d)\n",
 		    (u_long)m->pindex, m->busy, (m->flags & PG_BUSY) ? 1 : 0,
@@ -1178,7 +1179,11 @@ vm_page_free_toq(vm_page_t m)
 #endif
 	}
 
-	m->queue = PQ_FREE + m->pc;
+	if (m->hold_count != 0) {
+		m->flags &= ~PG_ZERO;
+		m->queue = PQ_HOLD;
+	} else
+		m->queue = PQ_FREE + m->pc;
 	pq = &vm_page_queues[m->queue];
 	pq->lcnt++;
 	++(*pq->cnt);
