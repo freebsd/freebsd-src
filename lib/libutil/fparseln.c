@@ -30,9 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$FreeBSD$");
-#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <assert.h>

@@ -17,10 +17,10 @@
  * 4. Absolutely no warranty of function or purpose is made by the authors.
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>

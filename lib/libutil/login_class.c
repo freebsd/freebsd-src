@@ -20,9 +20,10 @@
  *    conditions are met.
  *
  * High-level routines relating to use of the user capabilities database
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

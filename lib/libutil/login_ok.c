@@ -19,9 +19,10 @@
  *    conditions are met.
  *
  * Support allow/deny lists in login class capabilities
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
