@@ -82,6 +82,8 @@ bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 The ahc(4) driver has been updated.  Among various improvements are
 improved compatibility with chips in "RAID Port" mode and systems with
 AAA and ARO cards installed, as well as performance improvements.
+Some bugs were also fixed, including a rare hang on Ultra2/U160
+controllers.
 
 The cd(4) driver now has support for write operations.  This allows
 writing to DVD-RAM, PD and similar drives that probe as CD devices.
@@ -157,6 +159,10 @@ previously the default was ad-hoc mode.
 The mly(4) driver has received some changes in queueing, concurrency
 improvements, and stability fixes.
 
+A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
+has been implemented to improve NFS performance by increasing the
+efficiency of the nfsnode hash tables.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -206,6 +212,10 @@ packets, has been corrected (see security advisory FreeBSD-SA-01:28).
 
 A bug in rwhod(8), which caused it to crash if send certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:29).
+
+To prevent some forms of DOS attacks, glob(3) allows specification of
+a limit on the number of pathname matches it will return.  ftpd(8) now
+uses this feature.
 
 
 1.3. USERLAND CHANGES
@@ -343,7 +353,9 @@ used as a filename for stdin.
 tar(1) now supports the TAR_RSH variable, principally to enable the
 use of ssh(1) as a transport.
 
-make(1) has received a number of bugfixes.
+Bugs in make(1), among which include broken null suffix behavior, bad
+assumptions about current directory permissions, and potential buffer
+overflows, have been fixed.
 
 Boot-time syscons configuration was moved to a machine-independent
 rc.syscons.
