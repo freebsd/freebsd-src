@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.6 1998/02/25 06:30:15 bde Exp $
+ * $Id: kern_threads.c,v 1.7 1998/03/30 09:50:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap) {
 	if (p->p_wakeup == 0) {
 		sleepstart = ticks;
 		p->p_flag |= P_SINTR;
-		error = tsleep(p, PUSER, "thrslp", timo);
+		error = tsleep(p, PRIBIO, "thrslp", timo);
 		p->p_flag &= ~P_SINTR;
 		if (error == EWOULDBLOCK) {
 			p->p_wakeup = 0;
