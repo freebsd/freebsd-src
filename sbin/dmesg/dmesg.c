@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
+#if 0
+static const char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -48,13 +52,13 @@ static char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
+#include <locale.h>
 #include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
-#include <locale.h>
 
 struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -119,12 +123,16 @@ main(argc, argv)
 		cur.msg_bufx = 0;
 
 	/*
-	 * The message buffer is circular; start at the read pointer, and
-	 * go to the write pointer - 1.
+	 * The message buffer is circular.  If the buffer has wrapped, the
+	 * write pointer points to the oldest data.  Otherwise, the write
+	 * pointer points to \0's following the data.  Read the entire
+	 * buffer starting at the write pointer and ignore nulls so that
+	 * we effectively start at the oldest data.
 	 */
 	p = cur.msg_bufc + cur.msg_bufx;
-	ep = cur.msg_bufc + cur.msg_bufx - 1;
-	for (newl = skip = 0; p != ep; ++p) {
+	ep = (cur.msg_bufx == 0 ? cur.msg_bufc + MSG_BSIZE : p);
+	newl = skip = 0;
+	do {
 		if (p == cur.msg_bufc + MSG_BSIZE)
 			p = cur.msg_bufc;
 		ch = *p;
@@ -146,7 +154,7 @@ main(argc, argv)
 			(void)putchar(buf[0]);
 		else
 			(void)printf("%s", buf);
-	}
+	} while (++p != ep);
 	if (!newl)
 		(void)putchar('\n');
 	exit(0);
