@@ -653,9 +653,9 @@ DoLoop(struct bundle *bundle)
     }
 
     if (descriptor_IsSet(&bundle->desc, wfds))
-      if (!descriptor_Write(&bundle->desc, bundle, wfds) && nothing_done) {
+      if (descriptor_Write(&bundle->desc, bundle, wfds) <= 0 && nothing_done) {
         /*
-         * This is disasterous.  The OS has told us that something is
+         * This is disastrous.  The OS has told us that something is
          * writable, and all our write()s have failed.  Rather than
          * going back immediately to do our UpdateSet()s and select(),
          * we sleep for a bit to avoid gobbling up all cpu time.

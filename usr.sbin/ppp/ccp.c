@@ -70,7 +70,7 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
-#ifdef HAVE_DES
+#ifndef NODES
 #include "mppe.h"
 #endif
 #include "ipv6cp.h"
@@ -148,7 +148,7 @@ static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm
-#ifdef HAVE_DES
+#ifndef NODES
   , &MPPEAlgorithm
 #endif
 };
@@ -197,7 +197,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           deflate windows: ");
   prompt_Printf(arg->prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
   prompt_Printf(arg->prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           MPPE: ");
   if (ccp->cfg.mppe.keybits)
     prompt_Printf(arg->prompt, "%d bits, ", ccp->cfg.mppe.keybits);
@@ -224,7 +224,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           MPPE:       %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
 #endif
@@ -257,7 +257,7 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
-#ifdef HAVE_DES
+#ifndef NODES
   ccp->cfg.mppe.keybits = 0;
   ccp->cfg.mppe.state = MPPE_ANYSTATE;
   ccp->cfg.mppe.required = 0;

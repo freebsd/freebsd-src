@@ -47,14 +47,14 @@
 #define CCP_NEG_DEFLATE		0
 #define CCP_NEG_PRED1		1
 #define CCP_NEG_DEFLATE24	2
-#ifdef HAVE_DES
+#ifndef NODES
 #define CCP_NEG_MPPE		3
 #define CCP_NEG_TOTAL		4
 #else
 #define CCP_NEG_TOTAL		3
 #endif
 
-#ifdef HAVE_DES
+#ifndef NODES
 enum mppe_negstate {
   MPPE_ANYSTATE,
   MPPE_STATELESS,
@@ -71,7 +71,7 @@ struct ccp_config {
       int winsize;
     } in, out;
   } deflate;
-#ifdef HAVE_DES
+#ifndef NODES
   struct {
     int keybits;
     enum mppe_negstate state;

@@ -49,10 +49,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <sys/fcntl.h>
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-#include <sys/linker.h>
-#include <sys/module.h>
-#endif
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <termios.h>
@@ -302,6 +298,7 @@ static const struct device baseetherdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   ether_Free,
   ether_Read,
   ether_Write,
@@ -432,29 +429,8 @@ ether_Create(struct physical *p)
 
     p->fd--;				/* We own the device - change fd */
 
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-    if (modfind("netgraph") == -1 && ID0kldload("netgraph") == -1) {
-      log_Printf(LogWARN, "kldload: netgraph: %s\n", strerror(errno));
-      return NULL;
-    }
-
-    if (modfind("ng_ether") == -1 && ID0kldload("ng_ether") == -1)
-      /*
-       * Don't treat this as an error as older kernels have this stuff
-       * built in as part of the netgraph node itself.
-       */
-      log_Printf(LogWARN, "kldload: ng_ether: %s\n", strerror(errno));
-
-    if (modfind("ng_pppoe") == -1 && ID0kldload("ng_pppoe") == -1) {
-      log_Printf(LogWARN, "kldload: ng_pppoe: %s\n", strerror(errno));
-      return NULL;
-    }
-
-    if (modfind("ng_socket") == -1 && ID0kldload("ng_socket") == -1) {
-      log_Printf(LogWARN, "kldload: ng_socket: %s\n", strerror(errno));
-      return NULL;
-    }
-#endif
+    loadmodules(LOAD_VERBOSLY, "netgraph", "ng_ether", "ng_pppoe", "ng_socket",
+                NULL);
 
     if ((dev = malloc(sizeof *dev)) == NULL)
       return NULL;
@@ -498,6 +474,7 @@ ether_Create(struct physical *p)
       log_Printf(LogWARN, "Cannot create netgraph socket node: %s\n",
                  strerror(errno));
       free(dev);
+      p->fd = -2;
       return NULL;
     }
 
@@ -565,7 +542,7 @@ ether_Create(struct physical *p)
     if (f == ninfo->hooks) {
       /*
        * Create a new ``PPPoE'' node connected to the ``ether'' node using
-       * the magic ``orphan'' and ``ethernet'' hooks
+       * the ``orphan'' and ``ethernet'' hooks
        */
       snprintf(mkp.type, sizeof mkp.type, "%s", NG_PPPOE_NODE_TYPE);
       snprintf(mkp.ourhook, sizeof mkp.ourhook, "%s", NG_ETHER_HOOK_ORPHAN);
