@@ -167,9 +167,7 @@ int	secpercyl;		/* sectors per cylinder */
 int	trackspares = -1;	/* spare sectors per track */
 int	cylspares = -1;		/* spare sectors per cylinder */
 int	sectorsize;		/* bytes/sector */
-#ifdef tahoe
 int	realsectorsize;		/* bytes/sector in hardware */
-#endif
 int	rpm;			/* revolutions/minute of drive */
 int	interleave;		/* hardware sector interleave */
 int	trackskew = -1;		/* sector 0 skew, per track */
@@ -530,11 +528,26 @@ main(argc, argv)
 		fssize /= secperblk;
 		pp->p_size /= secperblk;
 	}
+#else
+	realsectorsize = sectorsize;
+	if (sectorsize != DEV_BSIZE) {		/* XXX */
+		int secperblk = sectorsize / DEV_BSIZE;
+
+		sectorsize = DEV_BSIZE;
+		nsectors *= secperblk;
+		nphyssectors *= secperblk;
+		secpercyl *= secperblk;
+		fssize *= secperblk;
+		pp->p_size *= secperblk;
+	}
 #endif
 	mkfs(pp, special, fsi, fso);
 #ifdef tahoe
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size *= DEV_BSIZE / realsectorsize;
+#else
+	if (realsectorsize != DEV_BSIZE)
+		pp->p_size /= realsectorsize /DEV_BSIZE;
 #endif
 	if (!Nflag)
 		close(fso);
