@@ -28,13 +28,8 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_ski.h"
 #include "opt_msgbuf.h"
 #include "opt_acpi.h"
-
-#if !defined(SKI) && !defined(DEV_ACPI)
-#error "You need the SKI option and/or the acpi device"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -92,10 +87,6 @@
 #include <machine/unwind.h>
 #include <i386/include/specialreg.h>
 
-#ifdef SKI
-extern void ia64_ski_init(void);
-#endif
-
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
@@ -104,6 +95,7 @@ int cold = 1;
 u_int64_t pa_bootinfo;
 struct bootinfo bootinfo;
 
+struct pcpu early_pcpu;
 extern char kstack[]; 
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
@@ -205,21 +197,12 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-	if (!ia64_running_in_simulator()) {
-#ifdef DEV_ACPI
-		/*
-		 * Traverse the MADT to discover IOSAPIC and Local SAPIC
-		 * information.
-		 */
-		ia64_probe_sapics();
-		ia64_mca_init();
-#else
-		/*
-		 * It is an error to boot a SKI-only kernel on hardware.
-		 */
-		panic("Mandatory 'device acpi' is missing");
-#endif
-	}
+	/*
+	 * Traverse the MADT to discover IOSAPIC and Local SAPIC
+	 * information.
+	 */
+	ia64_probe_sapics();
+	ia64_mca_init();
 }
 
 void
@@ -411,30 +394,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
 	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-	if (md == NULL || mdcount == 0) {
-#ifdef SKI
-		static EFI_MEMORY_DESCRIPTOR ski_md[2];
-		/*
-		 * XXX hack for ski. In reality, the loader will probably ask
-		 * EFI and pass the results to us. Possibly, we will call EFI
-		 * directly.
-		 */
-		ski_md[0].Type = EfiConventionalMemory;
-		ski_md[0].PhysicalStart = 2L*1024*1024;
-		ski_md[0].VirtualStart = 0;
-		ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
-		ski_md[0].Attribute = EFI_MEMORY_WB;
-
-		ski_md[1].Type = EfiMemoryMappedIOPortSpace;
-		ski_md[1].PhysicalStart = 0xffffc000000;
-		ski_md[1].VirtualStart = 0;
-		ski_md[1].NumberOfPages = (64L*1024*1024)>>12;
-		ski_md[1].Attribute = EFI_MEMORY_UC;
-
-		md = ski_md;
-		mdcount = 2;
-#endif
-	}
 
 	for (i = 0, mdp = md; i < mdcount; i++,
 	    mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
@@ -444,9 +403,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 			ia64_pal_base = mdp->PhysicalStart;
 	}
 
-	/* Map the memory mapped I/O Port space */
-	KASSERT(ia64_port_base != 0,
-	    ("%s: no I/O port memory region", __func__));
 	map_port_space();
 
 	metadata_missing = 0;
@@ -503,9 +459,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	map_pal_code();
 	ia64_efi_init();
-#ifdef SKI
-	ia64_ski_init();
-#endif
 	calculate_frequencies();
 
 	/*
@@ -732,12 +685,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	}
 #endif
 	ia64_set_tpr(0);
-}
-
-int
-ia64_running_in_simulator()
-{
-	return bootinfo.bi_systab == 0;
 }
 
 void

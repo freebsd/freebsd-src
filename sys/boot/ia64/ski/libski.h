@@ -90,6 +90,7 @@ extern int		bi_load(struct bootinfo *, struct preloaded_file *);
 #define SSC_GET_RTC			65
 #define SSC_EXIT			66
 #define SSC_LOAD_SYMBOLS		69
+#define	SSC_SAL_SET_VECTORS		120
 
 u_int64_t ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3,
 	      int which);

@@ -31,6 +31,7 @@
 
 struct sal_system_table {
 	char		sal_signature[4];
+#define	SAL_SIGNATURE	"SST_"
 	u_int32_t	sal_length;
 	u_int8_t	sal_rev[2];
 	u_int16_t	sal_entry_count;

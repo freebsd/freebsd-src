@@ -130,6 +130,8 @@ struct ia64_pte {
 	u_int64_t	pte_ig	:11;	/* bits 53..63 */
 };
 
+static struct bootinfo bootinfo;
+
 void
 enter_kernel(const char* filename, u_int64_t start, struct bootinfo *bi)
 {
@@ -167,7 +169,7 @@ elf_exec(struct preloaded_file *fp)
 	 * Ugly hack, similar to linux. Dump the bootinfo into a
 	 * special page reserved in the link map.
 	 */
-	bi = (struct bootinfo *) 0x508000;
+	bi = &bootinfo;
 	bzero(bi, sizeof(struct bootinfo));
 	bi_load(bi, fp);
 

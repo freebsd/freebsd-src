@@ -34,8 +34,6 @@
 #include <machine/elf.h>
 #include <machine/bootinfo.h>
 
-#include <efi.h>
-
 #include "bootstrap.h"
 
 /*
@@ -60,6 +58,7 @@ static struct
 };
 
 extern char *ski_fmtdev(void *vdev);
+extern int ski_init_stubs(struct bootinfo *);
 
 int
 bi_getboothowto(char *kargs)
@@ -250,7 +249,6 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
     char			*kernelname;
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
-    EFI_MEMORY_DESCRIPTOR	*memp;
 
     /*
      * Version 1 bootinfo.
@@ -320,25 +318,5 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
     /* all done copying stuff in, save end of loaded object space */
     bi->bi_kernend = addr;
 
-    /* Describe the SKI memory map. */
-    bi->bi_memmap = (u_int64_t)(bi + 1);
-    bi->bi_memmap_size = 2 * sizeof(EFI_MEMORY_DESCRIPTOR);
-    bi->bi_memdesc_size = sizeof(EFI_MEMORY_DESCRIPTOR);
-    bi->bi_memdesc_version = 1;
-
-    memp = (EFI_MEMORY_DESCRIPTOR *) bi->bi_memmap;
-
-    memp[0].Type = EfiConventionalMemory;
-    memp[0].PhysicalStart = 2L*1024*1024;
-    memp[0].VirtualStart = 0;
-    memp[0].NumberOfPages = (64L*1024*1024)>>12;
-    memp[0].Attribute = EFI_MEMORY_WB;
-
-    memp[1].Type = EfiMemoryMappedIOPortSpace;
-    memp[1].PhysicalStart = 0xffffc000000;
-    memp[1].VirtualStart = 0;
-    memp[1].NumberOfPages = (64L*1024*1024)>>12;
-    memp[1].Attribute = EFI_MEMORY_UC;
-
-    return(0);
+    return (ski_init_stubs(bi));
 }

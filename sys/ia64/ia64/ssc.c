@@ -99,9 +99,6 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 static void
 ssccnprobe(struct consdev *cp)
 {
-	if (!ia64_running_in_simulator())
-		return;
-
 	cp->cn_dev = makedev(CDEV_MAJOR, 0);
 	cp->cn_pri = CN_INTERNAL;
 }
@@ -114,8 +111,6 @@ ssccninit(struct consdev *cp)
 static void
 ssccnattach(void *arg)
 {
-	if (!ia64_running_in_simulator())
-		return;
 	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
 }
 SYSINIT(ssccnattach, SI_SUB_DRIVERS, SI_ORDER_ANY, ssccnattach, 0);
