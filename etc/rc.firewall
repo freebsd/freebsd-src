@@ -76,6 +76,15 @@ fi
 #	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
 #
 
+setup_loopback () {
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	${fwcmd} add 100 pass all from any to any via lo0
+	${fwcmd} add 200 deny all from any to 127.0.0.0/8
+	${fwcmd} add 300 deny ip from 127.0.0.0/8 to any
+}
+
 if [ -n "${1}" ]; then
 	firewall_type="${1}"
 fi
@@ -125,18 +134,12 @@ esac
 #
 # ${fwcmd} add 65000 pass all from any to any
 
-############
-# Only in rare cases do you want to change these rules
-#
-${fwcmd} add 100 pass all from any to any via lo0
-${fwcmd} add 200 deny all from any to 127.0.0.0/8
-${fwcmd} add 300 deny ip from 127.0.0.0/8 to any
-
 
 # Prototype setups.
 #
 case ${firewall_type} in
 [Oo][Pp][Ee][Nn])
+	setup_loopback
 	${fwcmd} add 65000 pass all from any to any
 	;;
 
@@ -150,6 +153,8 @@ case ${firewall_type} in
 	net="192.0.2.0"
 	mask="255.255.255.0"
 	ip="192.0.2.1"
+
+	setup_loopback
 
 	# Allow any traffic to or from my own net.
 	${fwcmd} add pass all from ${ip} to ${net}:${mask}
@@ -199,6 +204,8 @@ case ${firewall_type} in
 	inet="192.0.2.16"
 	imask="255.255.255.240"
 	iip="192.0.2.17"
+
+	setup_loopback
 
 	# Stop spoofing
 	${fwcmd} add deny all from ${inet}:${imask} to any in via ${oif}
@@ -281,6 +288,9 @@ case ${firewall_type} in
 	# config file.
 	;;
 
+[Cc][Ll][Oo][Ss][Ee][Dd])
+	setup_loopback
+	;;
 [Uu][Nn][Kk][Nn][Oo][Ww][Nn])
 	;;
 *)
