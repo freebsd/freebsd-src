@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: devd
-# REQUIRE: rcconf
-# BEFORE: disks
+# REQUIRE: NETWORKING
+# BEFORE: mountcritremote
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
