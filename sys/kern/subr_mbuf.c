@@ -143,25 +143,21 @@ struct mb_pcpu_list {
  * allocatable by the sfbuf allocator (found in uipc_syscalls.c)
  */
 #ifndef NMBCLUSTERS
-#define	NMBCLUSTERS	(1024 + MAXUSERS * 64)
+#define	NMBCLUSTERS	(1024 + maxusers * 64)
 #endif
 #ifndef	NMBUFS
-#define	NMBUFS		(NMBCLUSTERS * 2)
+#define	NMBUFS		(nmbclusters * 2)
 #endif
 #ifndef	NSFBUFS
-#define	NSFBUFS		(512 + MAXUSERS * 16)
+#define	NSFBUFS		(512 + maxusers * 16)
 #endif
 #ifndef	NMBCNTS
-#define	NMBCNTS		(NMBCLUSTERS + NSFBUFS)
+#define	NMBCNTS		(nmbclusters + nsfbufs)
 #endif
-int	nmbufs =	NMBUFS;
-int	nmbclusters =	NMBCLUSTERS;
-int	nmbcnt = 	NMBCNTS;
-int	nsfbufs = 	NSFBUFS;
-TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
-TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
-TUNABLE_INT("kern.ipc.nmbcnt", &nmbcnt);
-TUNABLE_INT("kern.ipc.nsfbufs", &nsfbufs);
+int	nmbufs;
+int	nmbclusters;
+int	nmbcnt;
+int	nsfbufs;
 
 /*
  * Perform sanity checks of tunables declared above.
@@ -169,9 +165,19 @@ TUNABLE_INT("kern.ipc.nsfbufs", &nsfbufs);
 static void
 tunable_mbinit(void *dummy)
 {
+
 	/*
 	 * This has to be done before VM init.
 	 */
+	nmbclusters = NMBCLUSTERS;
+	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
+	nmbufs = NMBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nmbufs", &nmbufs);
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
+	nmbcnt = NMBCNTS;
+	TUNABLE_INT_FETCH("kern.ipc.nmbcnt", &nmbcnt);
+	/* Sanity checks */
 	if (nmbufs < nmbclusters * 2)
 		nmbufs = nmbclusters * 2;
 	if (nmbcnt < nmbclusters + nsfbufs)
