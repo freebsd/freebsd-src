@@ -54,10 +54,10 @@
 #define IPI_CHECKSTATE		XCPUCHECKSTATE_OFFSET
 #define IPI_STOP		XCPUSTOP_OFFSET
 
-void smp_ipi_selected(u_int32_t cpus, u_int ipi);
-void smp_ipi_all(u_int ipi);
-void smp_ipi_all_but_self(u_int ipi);
-void smp_ipi_self(u_int ipi);
+void ipi_selected(u_int32_t cpus, u_int ipi);
+void ipi_all(u_int ipi);
+void ipi_all_but_self(u_int ipi);
+void ipi_self(u_int ipi);
 #endif /* SMP */
 #endif /* !LOCORE */
 

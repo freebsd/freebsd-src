@@ -42,10 +42,10 @@
 #define IPI_CHECKSTATE		0x0008
 #define IPI_STOP		0x0010
 
-void smp_ipi_selected(u_int32_t cpus, u_int64_t ipi);
-void smp_ipi_all(u_int64_t ipi);
-void smp_ipi_all_but_self(u_int64_t ipi);
-void smp_ipi_self(u_int64_t ipi);
+void ipi_selected(u_int32_t cpus, u_int64_t ipi);
+void ipi_all(u_int64_t ipi);
+void ipi_all_but_self(u_int64_t ipi);
+void ipi_self(u_int64_t ipi);
 void smp_handle_ipi(struct trapframe *frame);
 #endif
 
