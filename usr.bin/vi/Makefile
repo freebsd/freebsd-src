@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.2 1996/11/01 08:16:18 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -12,7 +12,7 @@ TCLINTERP=	yes	#fine, in base tree, little cost
 #PERLINTERP=	no	#not ready, needs perl5.002+
 
 #if using ncurses:
-CFLAGS+=	-DSYSV_CURSES
+#CFLAGS+=	-DSYSV_CURSES
 
 VI=	nvi
 EX=	nex
