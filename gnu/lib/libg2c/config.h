@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 
+/* *****[ libU77 ]***** */
+
 /* config.h.  Generated automatically by configure.  */
 /* config.hin.  Generated automatically from configure.in by autoheader.  */
 
@@ -126,3 +128,46 @@
 /* Get 64-bit file size support */
 #define _FILE_OFFSET_BITS 64
 
+/* *****[ libI77 ]***** */
+
+/* config.h.  Generated automatically by configure.  */
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+/* #undef off_t */
+
+/* Define if you have the fseeko function.  */
+#define HAVE_FSEEKO 1
+
+/* Define if you have the ftello function.  */
+#define HAVE_FTELLO 1
+
+/* Define if you have the ftruncate function.  */
+#define HAVE_FTRUNCATE 1
+
+/* Define if you have the mkstemp function.  */
+#define HAVE_MKSTEMP 1
+
+/* Define if you have the tempnam function.  */
+#define HAVE_TEMPNAM 1
+
+/* Define if you have the tmpnam function.  */
+#define HAVE_TMPNAM 1
+
+/* Define for HP-UX ftello and fseeko extension. */
+#define _LARGEFILE_SOURCE 1
+
+/* Define if we do not have Unix Stdio. */
+/* #undef NON_UNIX_STDIO */
+
+/* Define if we use strlen. */
+/* #undef USE_STRLEN */
+
+/* Define if we have non ANSI RW modes. */
+#define NON_ANSI_RW_MODES 1
+
+/* Always defined. */
+#define NO_EOF_CHAR_CHECK 1
+
+/* Define to skip f2c undefs. */
+#define Skip_f2c_Undefs 1
