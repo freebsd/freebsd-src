@@ -69,7 +69,7 @@ struct ip_fw {
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {
 	u_short fu_divert_port;		/* Divert/tee port (options IPDIVERT) */
-	u_short fu_pipe_nr;		/* pipe number (option DUMMYNET) */
+	u_short fu_pipe_nr;		/* queue number (option DUMMYNET) */
 	u_short fu_skipto_rule;		/* SKIPTO command rule number */
 	u_short fu_reject_code;		/* REJECT response code */
 	struct sockaddr_in fu_fwd_ip;
@@ -81,7 +81,7 @@ struct ip_fw {
 	 * match all ports)
 	 */
     u_char fw_nports;
-    void *pipe_ptr;                    /* Pipe ptr in case of dummynet pipe */
+    void *pipe_ptr;                    /* flow_set ptr for dummynet pipe */
     void *next_rule_ptr ;              /* next rule in case of match */
     uid_t fw_uid;			/* uid to match */
     gid_t fw_gid;			/* gid to match */
@@ -167,6 +167,7 @@ struct ipfw_dyn_rule {
 #define IP_FW_F_SKIPTO	0x00000006	/* This is a skipto rule		*/
 #define IP_FW_F_FWD	0x00000007	/* This is a "change forwarding address" rule */
 #define IP_FW_F_PIPE	0x00000008	/* This is a dummynet rule */
+#define IP_FW_F_QUEUE	0x00000009	/* This is a dummynet queue */
 
 #define IP_FW_F_IN	0x00000100	/* Check inbound packets		*/
 #define IP_FW_F_OUT	0x00000200	/* Check outbound packets		*/
