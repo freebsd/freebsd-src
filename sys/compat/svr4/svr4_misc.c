@@ -1273,8 +1273,7 @@ loop:
 			/*
 			 * Decrement the count of procs running with this uid.
 			 */
-#error "FIXME"
-			(void)chgproccnt(q->p_cred->p_ruid, -1, 0);
+			(void)chgproccnt(q->p_cred->p_uidinfo, -1, 0);
 
 			/*
 			 * Free up credentials.
