@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.86 1998/12/27 07:59:25 foxfair Exp $
+**  $Id: pcisupport.c,v 1.86.2.1 1999/02/21 11:41:03 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -290,6 +290,12 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82443BX host to AGP bridge");
 	case 0x71928086:
 		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
+  	case 0x71a08086:
+  		return ("Intel 82443GX host to PCI bridge");
+  	case 0x71a18086:
+  		return ("Intel 82443GX host to AGP bridge");
+  	case 0x71a28086:
+  		return ("Intel 82443GX host to PCI bridge (AGP disabled)");
 	case 0x12378086:
 		fixwsc_natoma(tag);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
