@@ -215,7 +215,7 @@ cpu_fork(td1, p2, td2, flags)
 	if (p2tf->tf_cr_ipsr & IA64_PSR_IS) {
 		p2tf->tf_r[FRAME_R8] = 0; /* child returns zero (eax) */
 		p2tf->tf_r[FRAME_R10] = 1; /* is child (edx) */
-		td2->td_pcb->pcb_eflag &= ~PSL_C; /* no error */
+		td2->td_pcb->pcb_ar_eflag &= ~PSL_C; /* no error */
 	} else {
 		p2tf->tf_r[FRAME_R8] = 0; /* child's pid (linux) 	*/
 		p2tf->tf_r[FRAME_R9] = 1; /* is child (FreeBSD) 	*/
@@ -282,10 +282,10 @@ cpu_fork(td1, p2, td2, flags)
 	 * straight into exception_restore. Also initialise its
 	 * pmap to the containing proc's vmspace.
 	 */
-	td2->td_pcb->pcb_bspstore = (u_int64_t)p2bs + td1->td_frame->tf_ndirty;
-	td2->td_pcb->pcb_rnat = rnat;
-	td2->td_pcb->pcb_pfs = 0;
-	td2->td_pcb->pcb_pmap = (u_int64_t)
+	td2->td_pcb->pcb_ar_bsp = (u_int64_t)p2bs + td1->td_frame->tf_ndirty;
+	td2->td_pcb->pcb_ar_rnat = rnat;
+	td2->td_pcb->pcb_ar_pfs = 0;
+	td2->td_pcb->pcb_current_pmap = (u_int64_t)
 		vmspace_pmap(td2->td_proc->p_vmspace);
 
 	/*
@@ -298,10 +298,10 @@ cpu_fork(td1, p2, td2, flags)
 	 * available as scratch space.
 	 */
 	td2->td_pcb->pcb_sp = (u_int64_t)p2tf - 16;	
-	td2->td_pcb->pcb_r4 = (u_int64_t)fork_return;
-	td2->td_pcb->pcb_r5 = FDESC_FUNC(exception_restore);
-	td2->td_pcb->pcb_r6 = (u_int64_t)td2;
-	td2->td_pcb->pcb_b0 = FDESC_FUNC(fork_trampoline);
+	td2->td_pcb->pcb_r[PCB_R4] = (u_int64_t)fork_return;
+	td2->td_pcb->pcb_r[PCB_R5] = FDESC_FUNC(exception_restore);
+	td2->td_pcb->pcb_r[PCB_R6] = (u_int64_t)td2;
+	td2->td_pcb->pcb_rp = FDESC_FUNC(fork_trampoline);
 }
 
 /*
@@ -316,8 +316,8 @@ cpu_set_fork_handler(td, func, arg)
 	void (*func)(void *);
 	void *arg;
 {
-	td->td_pcb->pcb_r4 = (u_int64_t) func;
-	td->td_pcb->pcb_r6 = (u_int64_t) arg;
+	td->td_pcb->pcb_r[PCB_R4] = (u_int64_t) func;
+	td->td_pcb->pcb_r[PCB_R6] = (u_int64_t) arg;
 }
 
 /*
