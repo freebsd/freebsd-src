@@ -252,8 +252,7 @@ parse_long_options(char * const *nargv, const char *options,
 		 * If this is a known short option, don't allow
 		 * a partial match of a single character.
 		 */
-		if (short_too &&
-		    (!(flags & FLAG_LONGONLY) || current_argv_len == 1))
+		if (short_too && current_argv_len == 1)
 			continue;
 
 		if (match == -1)        /* first partial match */
