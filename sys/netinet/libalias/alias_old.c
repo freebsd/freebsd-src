@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <alias.h>
+#include "alias.h"
 
 /*
  * These functions are for backwards compatibility and because apps may
