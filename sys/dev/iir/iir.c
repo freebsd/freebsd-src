@@ -874,13 +874,7 @@ gdt_raw_cmd(struct gdt_softc *gdt, union ccb *ccb, int *lock)
                 }
                 splx(s);
             } else {
-                struct bus_dma_segment seg; 
-            
-                /* Pointer to physical buffer */
-                seg.ds_addr =
-                    (bus_addr_t)ccb->csio.data_ptr;
-                seg.ds_len = ccb->csio.dxfer_len;
-                gdtexecuteccb(gccb, &seg, 1, 0);
+		panic("iir: CAM_DATA_PHYS not supported");
             }
         } else {
             struct bus_dma_segment *segs;
@@ -989,13 +983,7 @@ gdt_cache_cmd(struct gdt_softc *gdt, union ccb *ccb, int *lock)
             }
             splx(s);
         } else {
-            struct bus_dma_segment seg; 
-            
-            /* Pointer to physical buffer */
-            seg.ds_addr =
-                (bus_addr_t)ccb->csio.data_ptr;
-            seg.ds_len = ccb->csio.dxfer_len;
-            gdtexecuteccb(gccb, &seg, 1, 0);
+	    panic("iir: CAM_DATA_PHYS not supported");
         }
     } else {
         struct bus_dma_segment *segs;
